@@ -1,3 +1,5 @@
 fun fact = if dup 0 == then pop 1 else dup 1 - fact * fi;
 
+
+4 fact p        // 24
 5 fact p        // 120

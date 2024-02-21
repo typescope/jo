@@ -1,0 +1,30 @@
+if 2 3 * 5 > then
+  200 p
+else
+  -200 p
+fi
+
+
+if 2 3 * 5 < then
+  200 p
+else
+  -200 p
+fi
+
+if 4 3 * 11 >= then
+  400 p
+else
+  -400 p
+fi
+
+if 4 3 * 11 <= then
+  400 p
+else
+  -400 p
+fi
+
+if 4 3 * 12 <= then
+  500 p
+else
+  -500 p
+fi

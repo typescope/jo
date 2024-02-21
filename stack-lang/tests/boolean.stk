@@ -1,0 +1,29 @@
+if true not then
+  1 p
+else
+  2 p
+fi
+
+if false not then
+  1 p
+else
+  2 p
+fi
+
+if false not then
+  10 p
+else
+  20 p
+fi
+
+if false true and then
+  99 p
+else
+ -99 p
+fi
+
+if false true or then
+  999 p
+else
+  -999 p
+fi
