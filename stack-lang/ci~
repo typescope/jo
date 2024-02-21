@@ -1,4 +1,0 @@
-#!/bin/env bash
-
-scala-cli compile stack-lang/interpreter.scala
-scala-cli compile stack-lang/compiler.scala
