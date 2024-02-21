@@ -18,13 +18,16 @@ jobs:
       - name: stack lang interpreter
         run: |
           for file in stack-lang/tests/*.stk; do
+            echo "Interpreting $file"
             scala-cli stack-lang/interpreter.scala -- $file
           done
 
       - name: stack lang compiler
         run: |
           for file in stack-lang/tests/*.stk; do
+            echo "Compiling $file"
             scala-cli stack-lang/compiler.scala -- $file
-            exe=$(basename $file)
+            exe=${file%.*}
+            echo "Running $exe"
             $exe
           done
