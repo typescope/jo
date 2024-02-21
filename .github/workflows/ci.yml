@@ -16,9 +16,15 @@ jobs:
       - uses: VirtusLab/scala-cli-setup@main
 
       - name: stack lang interpreter
-        run: scala-cli stack-lang/interpreter.scala -- stack-lang/test.stk
+        run: |
+          for file in stack-lang/tests/*.stk; do
+            scala-cli stack-lang/interpreter.scala -- $file
+          done
 
       - name: stack lang compiler
         run: |
-          scala-cli stack-lang/compiler.scala -- stack-lang/test.stk
-          stack-lang/test
+          for file in stack-lang/tests/*.stk; do
+            scala-cli stack-lang/compiler.scala -- $file
+            exe=$(basename $file)
+            $exe
+          done
