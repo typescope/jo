@@ -16,14 +16,21 @@ scala-cli compile $COMPILER
 RES1=$DIR/tests/int.txt
 RES2=$DIR/tests/exe.txt
 
+retcode=0
 for file in $DIR/tests/*.stk; do
     echo "testing $file"
     exe=${file%.*}.run
     scala-cli $DIR/interpreter.scala -- $file > $RES1
     scala-cli $DIR/compiler.scala -- $file $exe
     $exe > $RES2
-    diff $RES1 $RES2 || (echo "[error] testing $file failed!" && exit 1)
+    diff $RES1 $RES2
+    if [[ $? != 0 ]]; then
+        echo "[error] testing $file failed!"
+        retcode=1
+    fi
 done
 
 rm $RES1
 rm $RES2
+echo $retcode
+exit $retcode
