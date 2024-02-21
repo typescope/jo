@@ -1,0 +1,24 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: coursier/cache-action@v6
+      - uses: VirtusLab/scala-cli-setup@main
+
+      - name: stack lang interpreter
+        run: scala-cli stack-lang/interpreter.scala -- stack-lang/test.stk
+
+      - name: stack lang compiler
+        run: |
+          scala-cli stack-lang/compiler.scala -- stack-lang/test.stk
+          stack-lang/test
