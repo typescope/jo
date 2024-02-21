@@ -1,0 +1,130 @@
+val a = 3 5 +;
+val b = 3 6*;
+
+val c = 3 double;
+
+fun double = dup +; // some comment
+
+fun fact = if dup 0 == then pop 1 else dup 1 - fact * fi;
+
+b p             // 18
+
+2 c * p         // 12
+
+3 double 5 + p  // 11
+
+5 fact p        // 120
+
+4 fact p        // 24
+
+-5 p            // -5
+
+3 5 - p         // -2
+
+3 5 - 3 + p     // 1
+
+5 3 - 3 + p     // 5
+
+if true not then
+  1 p
+else
+  2 p
+fi
+
+if false not then
+  1 p
+else
+  2 p
+fi
+
+if false not then
+  10 p
+else
+  20 p
+fi
+
+if false true and then
+  99 p
+else
+ -99 p
+fi
+
+if false true or then
+  999 p
+else
+  -999 p
+fi
+
+1 0 ^ p
+
+0 0 ^ p
+
+2 1 ^ p
+
+1345 p
+
+-1456 p
+
+-2147483648 p
+
+2147483647 p
+
+if 2 3 * 5 > then
+  200 p
+else
+  -200 p
+fi
+
+
+if 2 3 * 5 < then
+  200 p
+else
+  -200 p
+fi
+
+if 4 3 * 11 >= then
+  400 p
+else
+  -400 p
+fi
+
+if 4 3 * 11 <= then
+  400 p
+else
+  -400 p
+fi
+
+if 4 3 * 12 <= then
+  500 p
+else
+  -500 p
+fi
+
+1 0 << p
+1 4 << p
+
+3 0 >> p
+3 3 >> p
+
+4 5 / p
+
+10 3 / p
+
+-20 6 / p
+
+16 -5 / p
+
+26 5 % p
+
+30 10 % p
+
+-20 3 % p
+
+10 -3 % p
+
+8 -3 / p
+-8 3 / p
+
+
+8 -3 % p
+-8 3 % p
