@@ -1,0 +1,29 @@
+#!/bin/env bash
+
+DIR=$(dirname "$0")
+
+INTERPRETER=$DIR/interpreter.scala
+COMPILER=$DIR/compiler.scala
+
+# compile
+echo "Compiling $INTERPRETER"
+scala-cli compile $INTERPRETER
+
+echo "Compiling $COMPILER"
+scala-cli compile $COMPILER
+
+# run tests
+RES1=$DIR/tests/int.txt
+RES2=$DIR/tests/exe.txt
+
+for file in $DIR/tests/*.stk; do
+    echo "testing $file"
+    exe=${file%.*}.run
+    scala-cli $DIR/interpreter.scala -- $file > $RES1
+    scala-cli $DIR/compiler.scala -- $file $exe
+    $exe > $RES2
+    diff $RES1 $RES2 || (echo "[error] testing $file failed!" && exit 1)
+done
+
+rm $RES1
+rm $RES2
