@@ -185,16 +185,16 @@ object Parsing:
     def parse(): Ast.Prog = prog()
 
     def prog(): Ast.Prog =
-      val defs = definitions(Nil)
+      val defs = definitions(new mutable.ArrayBuffer)
       val words = phrase()
       eat(Token.EOF)
       Ast.Prog(defs, words)
 
-    def definitions(acc: List[Ast.Def]): List[Ast.Def] =
+    def definitions(acc: mutable.ArrayBuffer[Ast.Def]): List[Ast.Def] =
       peek() match
-      case Token.VAL => definitions(valDef() :: acc)
-      case Token.FUN => definitions(funDef() :: acc)
-      case _         => acc.reverse
+      case Token.VAL => definitions(acc += valDef())
+      case Token.FUN => definitions(acc += funDef())
+      case _         => acc.toList
 
     def valDef(): Ast.Def =
       eat(Token.VAL)
@@ -214,14 +214,14 @@ object Parsing:
 
     def phrase(): List[Ast.Word] =
       word() match
-        case Some(w) => phraseRest(w :: Nil)
+        case Some(w) => phraseRest(mutable.ArrayBuffer(w))
         case None    =>
           err("Expect a word, found token " + peek())
 
-    def phraseRest(words: List[Ast.Word]): List[Ast.Word] =
+    def phraseRest(words: mutable.ArrayBuffer[Ast.Word]): List[Ast.Word] =
       word() match
-        case Some(w) => phraseRest(w :: words)
-        case None    => words.reverse
+        case Some(w) => phraseRest(words += w)
+        case None    => words.toList
 
     def word(): Option[Ast.Word] =
       peek() match
