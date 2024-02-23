@@ -19,13 +19,7 @@ object Namer:
       val sym = Sast.createSymbol(defn.name)
       sc.define(sym)
 
-    val defs =
-      for defn <- prog.defs yield
-        val Some(sym) = sc.resolve(defn.name): @unchecked
-        defn match
-          case valDef: Ast.Def.ValDef => transform(valDef, sym)(using sc)
-          case funDef: Ast.Def.FunDef => transform(funDef, sym)(using sc)
-
+    val defs = for defn <- prog.defs yield transform(defn)(using sc)
     val main = transform(prog.main)(using sc)
 
     Sast.Prog(defs, main)
@@ -54,11 +48,14 @@ object Namer:
   private def transform(words: List[Ast.Word])(using sc: Scope): List[Sast.Word] =
     words.flatMap(word => transform(word))
 
-  private def transform(valDef: Ast.Def.ValDef, sym: Sast.Symbol)(using sc: Scope): Sast.Def.ValDef =
-    Sast.Def.ValDef(sym, transform(valDef.words))
+  private def transform(defn: Ast.Def)(using sc: Scope): Sast.Def =
+    val Some(sym) = sc.resolve(defn.name): @unchecked
+    defn match
+      case valDef: Ast.Def.ValDef =>
+        Sast.Def.ValDef(sym, transform(valDef.words))
 
-  private def transform(funDef: Ast.Def.FunDef, sym: Sast.Symbol)(using sc: Scope): Sast.Def.FunDef =
-    Sast.Def.FunDef(sym, transform(funDef.words))
+      case funDef: Ast.Def.FunDef =>
+        Sast.Def.FunDef(sym, transform(funDef.words))
 
   private enum Scope:
     case RootScope()
