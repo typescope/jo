@@ -40,6 +40,13 @@ object Parsing:
       index += 1
       c
 
+    def eatWhile(pred: Char => Boolean)(action: Char => Unit): Unit =
+      while index < LEN && pred(curChar()) do
+        action(eat())
+
+    def eatLine(): Unit =
+      eatWhile(c => c != '\n')(c => ())
+
     def next(): Token =
       if index >= LEN then return Token.EOF
 
@@ -72,7 +79,7 @@ object Parsing:
 
       val c = curChar()
       if c == '/' then
-        while index < LEN && curChar() != '\n' do eat()
+        eatLine()
         next()
       else
         operatorOrKeyword('/')
@@ -80,8 +87,7 @@ object Parsing:
     def nameOrKeyword(first: Char): Token =
       sb.clear()
       sb += first
-      while index < LEN && isNameRest(curChar()) do
-        sb += eat()
+      eatWhile(isNameRest)(c => sb += c)
 
       sb.toString() match
         case "if"      => Token.IF
@@ -97,8 +103,7 @@ object Parsing:
     def operatorOrKeyword(first: Char): Token =
       sb.clear()
       sb += first
-      while index < LEN && isOperator(curChar()) do
-        sb += eat()
+      eatWhile(isOperator)(c => sb += c)
 
       sb.toString() match
         case "="   => Token.EQL
@@ -113,8 +118,7 @@ object Parsing:
       var sum: Int = 0
       if !isNegative then sum = first - '0'
       var overflow = false
-      while index < LEN && isDigit(curChar()) do
-        val c = eat()
+      eatWhile(isDigit): c =>
         sb += c
         val v = c - '0'
         sum = sum * 10 + (if isNegative then -v else v)
