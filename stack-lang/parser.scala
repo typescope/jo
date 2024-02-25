@@ -45,7 +45,14 @@ object Parsing:
         action(eat())
 
     def eatLine(): Unit =
-      eatWhile(c => c != '\n')(c => ())
+      while index < LEN && curChar() != '\n' do
+        eat()
+
+    def peek(pred: Char => Boolean): Boolean =
+      index < LEN - 1 && pred(code(index + 1))
+
+    def peekIsNot(c: Char): Boolean =
+      index >= LEN - 1 && code(index + 1) != c
 
     def next(): Token =
       if index >= LEN then return Token.EOF
@@ -57,32 +64,24 @@ object Parsing:
         case '}'    => Token.RBRACE
         case ';'    => Token.SEMICOL
 
+        case '-'    =>
+          if peek(isDigit) then intLit('-')
+          else operatorOrKeyword('-')
+
+        case '/'    =>
+          if peekIsNot('/') then
+            operatorOrKeyword('/')
+          else
+            eatLine()
+            next()
+
         case _      =>
           if      isDigit(c)      then intLit(c)
-          else if c == '-'        then operatorOrInt()
-          else if c == '/'        then operatorOrComment()
           else if isNameStart(c)  then nameOrKeyword(c)
           else if isOperator(c)   then operatorOrKeyword(c)
           else if isSpace(c)      then next()
           else
             err("Unexpected character: " + c)
-
-    def operatorOrInt(): Token =
-      if index >= LEN then return Token.Ident("-")
-
-      val c = curChar()
-      if isDigit(c) then intLit('-')
-      else operatorOrKeyword('-')
-
-    def operatorOrComment(): Token =
-      if index >= LEN then return Token.Ident("/")
-
-      val c = curChar()
-      if c == '/' then
-        eatLine()
-        next()
-      else
-        operatorOrKeyword('/')
 
     def nameOrKeyword(first: Char): Token =
       sb.clear()
@@ -103,7 +102,11 @@ object Parsing:
     def operatorOrKeyword(first: Char): Token =
       sb.clear()
       sb += first
-      eatWhile(isOperator)(c => sb += c)
+
+      def isNotComment(c: Char) = c != '/' || peekIsNot('/')
+
+      eatWhile(c => isOperator(c) && isNotComment(c)): c =>
+        sb += c
 
       sb.toString() match
         case "="   => Token.EQL
