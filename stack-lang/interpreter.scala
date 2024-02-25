@@ -190,7 +190,7 @@ object Primitive:
   )
 
 object Interpreter:
-  def exec(prog: Sast.Prog)(vs: ValueStack): Unit =
+  def exec(prog: Sast.Prog): Unit =
     val rootScope = new Scope.RootScope()
 
     for (k, v) <- Primitive.operators do
@@ -200,6 +200,7 @@ object Interpreter:
     for case Sast.Def.FunDef(sym, words) <- prog.defs do
       sc.bind(sym, Action.Fun(words, sc))
 
+    val vs = new ValueStack
     for case Sast.Def.ValDef(sym, words) <- prog.defs do
       exec(words)(using vs, sc)
       sc.bind(sym, vs.pop())
@@ -246,7 +247,6 @@ def fileContent(name: String): String =
  ***********************************************************************/
 @main
 def run(file: String) =
-  val vs = new ValueStack
   val ast = Parsing.parse(fileContent(file))
   val sast = Namer.transform(ast)
-  Interpreter.exec(sast)(vs)
+  Interpreter.exec(sast)
