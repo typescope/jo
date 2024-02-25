@@ -73,9 +73,6 @@ object Parsing:
     def curChar(pred: Char => Boolean): Boolean =
       hasMore() && pred(curChar())
 
-    def peek(pred: Char => Boolean): Boolean =
-      index < LEN - 1 && pred(code(index + 1))
-
     def isComment(): Boolean =
       index < LEN - 1 && curChar() == '/' && code(index + 1) == '/'
 
