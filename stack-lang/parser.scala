@@ -51,7 +51,7 @@ object Parsing:
         case ';'    => Token.SEMICOL
 
         case _      =>
-          if      isDigit(c)      then intLit(c, isNegative = false)
+          if      isDigit(c)      then intLit(c)
           else if c == '-'        then operatorOrInt()
           else if c == '/'        then operatorOrComment()
           else if isNameStart(c)  then nameOrKeyword(c)
@@ -64,7 +64,7 @@ object Parsing:
       if index >= LEN then return Token.Ident("-")
 
       val c = curChar()
-      if isDigit(c) then intLit(eat(), isNegative = true)
+      if isDigit(c) then intLit('-')
       else operatorOrKeyword('-')
 
     def operatorOrComment(): Token =
@@ -104,14 +104,14 @@ object Parsing:
         case "="   => Token.EQL
         case name  => Token.Ident(name)
 
-    def intLit(first: Char, isNegative: Boolean): Token.IntLit =
+    def intLit(first: Char): Token.IntLit =
       // better error message
       sb.clear()
-      if isNegative then sb += '-'
       sb += first
+      val isNegative = first == '-'
 
-      var sum: Int = first - '0'
-      if isNegative then sum = -sum
+      var sum: Int = 0
+      if !isNegative then sum = first - '0'
       var overflow = false
       while index < LEN && isDigit(curChar()) do
         val c = eat()
