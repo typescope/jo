@@ -23,121 +23,12 @@ object Parsing:
 
   def parse(code: String): Ast.Prog = new StackLangParser(code).parse()
 
-  trait Scanner { def next(): Token }
-  trait Parser { def parse(): Ast.Prog }
+  trait Scanner { def next(): Token     }
+  trait Parser  { def parse(): Ast.Prog }
 
   private def err(msg: String) = throw new Exception(msg)
 
-  class StackLangScanner(code: String) extends Scanner:
-    private val LEN = code.length
-    private var index: Int = 0
-    private  val sb = new StringBuilder
-
-    def curChar() = code(index)
-
-    def eat(): Char =
-      val c = curChar()
-      index += 1
-      c
-
-    def eatWhile(pred: Char => Boolean)(action: Char => Unit): Unit =
-      while index < LEN && pred(curChar()) do
-        action(eat())
-
-    def eatLine(): Unit =
-      while index < LEN && curChar() != '\n' do
-        eat()
-
-    def peek(pred: Char => Boolean): Boolean =
-      index < LEN - 1 && pred(code(index + 1))
-
-    def peekIsNot(c: Char): Boolean =
-      index >= LEN - 1 && code(index + 1) != c
-
-    def next(): Token =
-      if index >= LEN then return Token.EOF
-
-      val c = eat()
-
-      c match
-        case '{'    => Token.LBRACE
-        case '}'    => Token.RBRACE
-        case ';'    => Token.SEMICOL
-
-        case '-'    =>
-          if peek(isDigit) then intLit('-')
-          else operatorOrKeyword('-')
-
-        case '/'    =>
-          if peekIsNot('/') then
-            operatorOrKeyword('/')
-          else
-            eatLine()
-            next()
-
-        case _      =>
-          if      isDigit(c)      then intLit(c)
-          else if isNameStart(c)  then nameOrKeyword(c)
-          else if isOperator(c)   then operatorOrKeyword(c)
-          else if isSpace(c)      then next()
-          else
-            err("Unexpected character: " + c)
-
-    def nameOrKeyword(first: Char): Token =
-      sb.clear()
-      sb += first
-      eatWhile(isNameRest)(c => sb += c)
-
-      sb.toString() match
-        case "if"      => Token.IF
-        case "then"    => Token.THEN
-        case "else"    => Token.ELSE
-        case "fi"      => Token.FI
-        case "val"     => Token.VAL
-        case "fun"     => Token.FUN
-        case "true"    => Token.BoolLit(true)
-        case "false"   => Token.BoolLit(false)
-        case name      => Token.Ident(name)
-
-    def operatorOrKeyword(first: Char): Token =
-      sb.clear()
-      sb += first
-
-      def isNotComment(c: Char) = c != '/' || peekIsNot('/')
-
-      eatWhile(c => isOperator(c) && isNotComment(c)): c =>
-        sb += c
-
-      sb.toString() match
-        case "="   => Token.EQL
-        case name  => Token.Ident(name)
-
-    def intLit(first: Char): Token.IntLit =
-      // better error message
-      sb.clear()
-      sb += first
-      val isNegative = first == '-'
-
-      var sum: Int = 0
-      if !isNegative then sum = first - '0'
-      var overflow = false
-      eatWhile(isDigit): c =>
-        sb += c
-        val v = c - '0'
-        sum = sum * 10 + (if isNegative then -v else v)
-        if !isNegative & sum < 0 then overflow = true
-        else if isNegative & sum > 0 then overflow = true
-
-      if overflow then
-        err("Integer literal overflow: " + sb)
-
-      // While an operator may follow immediately a number, a name may not.
-      val c = curChar()
-      if isNameStart(c) then
-        err("Unexpected char following int literal: " + c)
-
-      new Token.IntLit(sum)
-
+  object Scanner:
     def isNameStart(c: Char): Boolean =
       isLetter(c) || c == '_'
 
@@ -156,6 +47,124 @@ object Parsing:
 
     def isLetter(c: Char): Boolean =
       c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
+
+  class CharStream(code: String):
+    private val LEN = code.length
+    private var index: Int = 0
+
+    def curChar() = code(index)
+
+    def eat(): Char =
+      val c = curChar()
+      index += 1
+      c
+
+    def eatWhile(pred: Char => Boolean)(action: Char => Unit): Unit =
+      while hasMore() && pred(curChar()) do
+        action(eat())
+
+    def eatLine(): Unit =
+      while hasMore() && curChar() != '\n' do
+        eat()
+
+    def curChar(pred: Char => Boolean): Boolean =
+      hasMore() && pred(curChar())
+
+    def peek(pred: Char => Boolean): Boolean =
+      index < LEN - 1 && pred(code(index + 1))
+
+    def peekIsNot(c: Char): Boolean =
+      !hasMore() || code(index + 1) != c
+
+    def hasMore(): Boolean = index < LEN
+
+  class StackLangScanner(chars: CharStream) extends Scanner:
+    import Scanner.{ isDigit, isLetter, isNameStart, isNameRest, isSpace, isOperator }
+
+    def this(code: String) = this(new CharStream(code))
+
+    private  val sb = new StringBuilder
+
+    def next(): Token =
+      if !chars.hasMore() then return Token.EOF
+
+      chars.eat() match
+        case '{'    => Token.LBRACE
+        case '}'    => Token.RBRACE
+        case ';'    => Token.SEMICOL
+
+        case '-'    =>
+          if chars.curChar(isDigit) then intLit('-')
+          else operatorOrKeyword('-')
+
+        case '/'    =>
+          if chars.curChar() == '/' then
+            chars.eatLine()
+            next()
+          else
+            operatorOrKeyword('/')
+
+        case c      =>
+          if      isDigit(c)      then intLit(c)
+          else if isNameStart(c)  then nameOrKeyword(c)
+          else if isOperator(c)   then operatorOrKeyword(c)
+          else if isSpace(c)      then next()
+          else
+            err("Unexpected character: " + c)
+
+    def nameOrKeyword(first: Char): Token =
+      sb.clear()
+      sb += first
+      chars.eatWhile(isNameRest)(c => sb += c)
+
+      sb.toString() match
+        case "if"      => Token.IF
+        case "then"    => Token.THEN
+        case "else"    => Token.ELSE
+        case "fi"      => Token.FI
+        case "val"     => Token.VAL
+        case "fun"     => Token.FUN
+        case "true"    => Token.BoolLit(true)
+        case "false"   => Token.BoolLit(false)
+        case name      => Token.Ident(name)
+
+    def operatorOrKeyword(first: Char): Token =
+      sb.clear()
+      sb += first
+
+      def isNotComment() = chars.curChar() != '/' || chars.peekIsNot('/')
+
+      chars.eatWhile(c => isOperator(c) && isNotComment()): c =>
+        sb += c
+
+      sb.toString() match
+        case "="   => Token.EQL
+        case name  => Token.Ident(name)
+
+    def intLit(first: Char): Token.IntLit =
+      // better error message
+      sb.clear()
+      sb += first
+      val isNegative = first == '-'
+
+      var sum: Int = 0
+      if !isNegative then sum = first - '0'
+      var overflow = false
+      chars.eatWhile(isDigit): c =>
+        sb += c
+        val v = c - '0'
+        sum = sum * 10 + (if isNegative then -v else v)
+        if !isNegative & sum < 0 then overflow = true
+        else if isNegative & sum > 0 then overflow = true
+
+      if overflow then
+        err("Integer literal overflow: " + sb)
+
+      // While an operator may follow immediately a number, a name may not.
+      if chars.curChar(isNameStart) then
+        err("Unexpected char following int literal: " + chars.eat())
+
+      new Token.IntLit(sum)
 
    /**
      * A scanner that supports peeking one token ahead.
