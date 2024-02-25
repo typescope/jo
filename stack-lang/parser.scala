@@ -151,13 +151,7 @@ object Parsing:
 
     def intLit(): Token.IntLit =
       chars.eatWhile(isDigit)
-
       val intStr = chars.tokenEnd()
-
-      // While an operator may follow immediately a number, a name may not.
-      if chars.curChar(isNameStart) then
-        err("Unexpected char following int literal: " + chars.curChar())
-
       val value = str2Int(intStr)
       new Token.IntLit(value)
 
