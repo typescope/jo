@@ -82,13 +82,11 @@ object Assembly:
     case JZero(reg: Reg, label: Label)
 
   enum Type:
-    case Int8, Int32, Int64
+    case Int8, Int32
 
   enum Data:
-    case String(v: Array[Byte])
     case Int8(v: Byte)
     case Int32(v: Int)
-    case Int64(v: Long)
     case Uninit(tp: Type)
 
   case class Prog(data: List[Data | Attr], instrs: List[Instr | Label], entry: Label):
@@ -97,10 +95,8 @@ object Assembly:
 
       for item <- data do
         item match
-          case Data.String(v)   => sb.append("  " + new String(v) + "\n")
           case Data.Int8(v)     => sb.append("  " + v  + "\n")
           case Data.Int32(v)    => sb.append("  " + v + "\n")
-          case Data.Int64(v)    => sb.append("  " + v + "\n")
           case Data.Uninit(tp)  => sb.append("  " + tp + "\n")
           case Align(n)         => sb.append(".align " + n + "\n")
           case l: Label         => sb.append(l.name + ":" + "\n")

@@ -27,19 +27,14 @@ object X86:
 
   def lower(data: Data)(using pb: PatchableBuffer): Unit =
     data match
-      case Data.String(v)   => ???
-
       case Data.Int8(v)     => pb.addByte(v)
 
       case Data.Int32(v)    => pb.addInt(v)
-
-      case Data.Int64(v)    => ???
 
       case Data.Uninit(tp)  =>
         tp match
           case Type.Int8  =>  pb.addByte(0)
           case Type.Int32 =>  pb.addInt(0)
-          case Type.Int64 =>  pb.addZeros(8)
 
   def lower(instr: Instr)(using pb: PatchableBuffer): Unit =
     instr match
