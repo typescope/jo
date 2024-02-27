@@ -43,7 +43,7 @@ object X86:
 
   def lower(instr: Instr)(using pb: PatchableBuffer): Unit =
     instr match
-      case binOp: Instr.BinaryOperation =>
+      case binOp: Instr.Binary =>
         lower(binOp)
 
       case Instr.Store(v, addr) =>
@@ -64,9 +64,9 @@ object X86:
       case Instr.Not(v, destReg) =>
         not(Reg(destReg), v)
 
-  def lower(binOp: Instr.BinaryOperation)(using pb: PatchableBuffer) =
+  def lower(binOp: Instr.Binary)(using pb: PatchableBuffer) =
     binOp match
-      case Instr.BinaryOperation(op, r1: Reg, r2: Reg, destReg) =>
+      case Instr.Binary(op, r1: Reg, r2: Reg, destReg) =>
         if destReg == r1.index then
           binaryOperation(op, r1, r2)
         else if destReg == r2.index then
@@ -98,7 +98,7 @@ object X86:
           move(r1, rDest)
           binaryOperation(op, rDest, r2)
 
-      case Instr.BinaryOperation(op, r: Reg, v, destReg) =>
+      case Instr.Binary(op, r: Reg, v, destReg) =>
         if destReg == r.index then
           binaryOperation(op, r, v)
         else
@@ -106,7 +106,7 @@ object X86:
           move(r, rDest)
           binaryOperation(op, rDest, v)
 
-      case Instr.BinaryOperation(op, v, r: Reg, destReg) =>
+      case Instr.Binary(op, v, r: Reg, destReg) =>
         if destReg == r.index then
           binaryOperation(op, r, v)
         else
@@ -114,7 +114,7 @@ object X86:
           move(r, rDest)
           binaryOperation(op, rDest, v)
 
-      case Instr.BinaryOperation(op, v1: Int32, v2: Int32, destReg) =>
+      case Instr.Binary(op, v1: Int32, v2: Int32, destReg) =>
         val rDest = Reg(destReg)
         move(v1, rDest)
         binaryOperation(op, rDest, v2)

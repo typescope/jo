@@ -52,28 +52,28 @@ object Assembly:
     case Add, Sub, Mul, Div, Mod, And, Or, Xor, Sll, Srl, Gt, Lt, Ge, Le, Eq
 
   object Instr:
-    def Add(v1: Operand, v2: Operand, destReg: Int) = BinaryOperation(BiOp.Add, v1, v2, destReg)
-    def Sub(v1: Operand, v2: Operand, destReg: Int) = BinaryOperation(BiOp.Sub, v1, v2, destReg)
-    def Mul(v1: Operand, v2: Operand, destReg: Int) = BinaryOperation(BiOp.Mul, v1, v2, destReg)
-    def Div(v1: Operand, v2: Operand, destReg: Int) = BinaryOperation(BiOp.Div, v1, v2, destReg)
-    def Mod(v1: Operand, v2: Operand, destReg: Int) = BinaryOperation(BiOp.Mod, v1, v2, destReg)
+    def Add(v1: Operand, v2: Operand, destReg: Int) = Binary(BiOp.Add, v1, v2, destReg)
+    def Sub(v1: Operand, v2: Operand, destReg: Int) = Binary(BiOp.Sub, v1, v2, destReg)
+    def Mul(v1: Operand, v2: Operand, destReg: Int) = Binary(BiOp.Mul, v1, v2, destReg)
+    def Div(v1: Operand, v2: Operand, destReg: Int) = Binary(BiOp.Div, v1, v2, destReg)
+    def Mod(v1: Operand, v2: Operand, destReg: Int) = Binary(BiOp.Mod, v1, v2, destReg)
 
-    def And(v1: Operand, v2: Operand, destReg: Int) = BinaryOperation(BiOp.And, v1, v2, destReg)
-    def Or (v1: Operand, v2: Operand, destReg: Int) = BinaryOperation(BiOp.Or,  v1, v2, destReg)
-    def Xor(v1: Operand, v2: Operand, destReg: Int) = BinaryOperation(BiOp.Xor, v1, v2, destReg)
-    def Sll(v1: Operand, v2: Operand, destReg: Int) = BinaryOperation(BiOp.Sll, v1, v2, destReg)
-    def Srl(v1: Operand, v2: Operand, destReg: Int) = BinaryOperation(BiOp.Srl, v1, v2, destReg)
+    def And(v1: Operand, v2: Operand, destReg: Int) = Binary(BiOp.And, v1, v2, destReg)
+    def Or (v1: Operand, v2: Operand, destReg: Int) = Binary(BiOp.Or,  v1, v2, destReg)
+    def Xor(v1: Operand, v2: Operand, destReg: Int) = Binary(BiOp.Xor, v1, v2, destReg)
+    def Sll(v1: Operand, v2: Operand, destReg: Int) = Binary(BiOp.Sll, v1, v2, destReg)
+    def Srl(v1: Operand, v2: Operand, destReg: Int) = Binary(BiOp.Srl, v1, v2, destReg)
 
-    def Gt(v1: Operand, v2: Operand, destReg: Int) = BinaryOperation(BiOp.Gt, v1, v2, destReg)
-    def Lt(v1: Operand, v2: Operand, destReg: Int) = BinaryOperation(BiOp.Lt, v1, v2, destReg)
-    def Ge(v1: Operand, v2: Operand, destReg: Int) = BinaryOperation(BiOp.Ge, v1, v2, destReg)
-    def Le(v1: Operand, v2: Operand, destReg: Int) = BinaryOperation(BiOp.Le, v1, v2, destReg)
-    def Eq(v1: Operand, v2: Operand, destReg: Int) = BinaryOperation(BiOp.Eq, v1, v2, destReg)
+    def Gt(v1: Operand, v2: Operand, destReg: Int) = Binary(BiOp.Gt, v1, v2, destReg)
+    def Lt(v1: Operand, v2: Operand, destReg: Int) = Binary(BiOp.Lt, v1, v2, destReg)
+    def Ge(v1: Operand, v2: Operand, destReg: Int) = Binary(BiOp.Ge, v1, v2, destReg)
+    def Le(v1: Operand, v2: Operand, destReg: Int) = Binary(BiOp.Le, v1, v2, destReg)
+    def Eq(v1: Operand, v2: Operand, destReg: Int) = Binary(BiOp.Eq, v1, v2, destReg)
 
   enum Instr:
     case Not(v: Operand, destReg: Int)
     case Const(v: Constant, destReg: Int)
-    case BinaryOperation(op: BiOp, v1: Operand, v2: Operand, destReg: Int)
+    case Binary(op: BiOp, v1: Operand, v2: Operand, destReg: Int)
 
     case Store(v: Value, addr: Addr)
     case Load(addr: Addr, destReg: Int)
