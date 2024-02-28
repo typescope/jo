@@ -25,6 +25,16 @@ object X86:
   final val ESI = 6
   final val EDI = 7
 
+  /**
+    * Special x86 instructions for performance optimization
+    */
+  sealed abstract class Ext
+  case class LoadRelative(addr: Rel, destReg: Int) extends Ext
+  case class StoreRelative(value: Value, addr: Rel) extends Ext
+
+  /** Relative address with offset */
+  case class Rel(baseReg: Int, offset: Byte)
+
   def lower(data: Data)(using pb: PatchableBuffer): Unit =
     data match
       case Data.Int8(v)     => pb.addByte(v)
@@ -58,6 +68,11 @@ object X86:
 
       case Instr.Not(v, destReg) =>
         not(Reg(destReg), v)
+
+      case special: Instr.Special[Ext @unchecked] =>
+        special.instr match
+          case LoadRelative(rel, dest)  => load(rel, dest)
+          case StoreRelative(rel, dest) => store(rel, dest)
 
   def lower(binOp: Instr.Binary)(using pb: PatchableBuffer) =
     binOp match
@@ -412,7 +427,7 @@ object X86:
           bb.addByte((0xB8 | reg.index).toByte)
           bb.addInt(loc)
 
-  def load(addr: Addr, destReg: Int)(using pb: PatchableBuffer) =
+  def load(addr: Addr | Rel, destReg: Int)(using pb: PatchableBuffer) =
     addr match
       case Reg(r) =>
         // See Table 2-2. 32-Bit Addressing Forms with the ModR/M Byte in [1]
@@ -450,7 +465,7 @@ object X86:
           bb.addByte(((destReg << 3) | 5).toByte)
           bb.addInt(loc)
 
-  def store(v: Value, addr: Addr)(using pb: PatchableBuffer) =
+  def store(v: Value, addr: Addr | Rel)(using pb: PatchableBuffer) =
     addr match
       case Reg(rd) =>
         v match
@@ -605,7 +620,7 @@ object X86:
               bb.addInt(loc)
 
 
-  def jump(addr: CodeAddr)(using pb: PatchableBuffer) =
+  def jump(addr: Addr)(using pb: PatchableBuffer) =
     addr match
       case Reg(r) =>
         // TODO: The instructin is invalid under 64-bit mode.

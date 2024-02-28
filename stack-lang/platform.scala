@@ -52,7 +52,7 @@ trait Platform:
   /**
     * Call the procedure or funtion at the given address.
     */
-  def call(addr: CodeAddr)(using Context): Unit
+  def call(addr: Addr)(using Context): Unit
 
   /**
     * Pop the value on the top of the value stack to the given register.

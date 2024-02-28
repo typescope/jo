@@ -55,7 +55,7 @@ class Context private(
   /**
     * Call the procedure or funtion at the given address.
     */
-  def call(addr: CodeAddr): Unit = platform.call(addr)(using this)
+  def call(addr: Addr): Unit = platform.call(addr)(using this)
 
   /**
     * Pop the value on the top of the value stack to the given register.

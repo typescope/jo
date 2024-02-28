@@ -31,9 +31,6 @@ object Assembly:
   /** A register */
   case class Reg(index: Int)
 
-  /** An address relative to the value in the register */
-  case class Rel(reg: Int, offset: Byte)
-
   /** A normal class uses referential equality for better performance. */
   class Label(val name: String):
     override def toString() = "Label(" + name + ")"
@@ -42,8 +39,7 @@ object Assembly:
   case class Align(n: Int)
 
   type Operand  = Int32 | Reg
-  type Addr     = Label | Reg | Rel
-  type CodeAddr = Label | Reg
+  type Addr     = Label | Reg
   type Constant = Int32 | Label
   type Value    = Int32 | Label | Reg
   type Attr     = Label | Align
@@ -78,8 +74,10 @@ object Assembly:
     case Store(v: Value, addr: Addr)
     case Load(addr: Addr, destReg: Int)
 
-    case Jump(addr: CodeAddr)
+    case Jump(addr: Addr)
     case JZero(reg: Reg, label: Label)
+
+    case Special[T](instr: T)
 
   enum Type:
     case Int8, Int32

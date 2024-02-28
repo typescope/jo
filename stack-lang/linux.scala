@@ -259,7 +259,7 @@ object Linux:
       *
       * Call stack goes from high address to low address.
       */
-    def call(addr: CodeAddr)(using ctx: Context) =
+    def call(addr: Addr)(using ctx: Context) =
       val returnLoc = Label(ctx.freshName("returnLoc"))
       ctx.add(Instr.Sub(Reg(CALL_SP_REG), Int32(4), CALL_SP_REG))
       ctx.add(Instr.Store(returnLoc, Reg(CALL_SP_REG)))
@@ -289,13 +289,13 @@ object Linux:
       */
     def peek()(using ctx: Context): Unit =
       ctx.useReg: r =>
-        val addr1 = Rel(VAL_SP_REG, -4)
-        ctx.add(Instr.Load(addr1, r))
+        val addr1 = X86.Rel(VAL_SP_REG, -4)
+        ctx.add(Instr.Special(X86.LoadRelative(addr1, r)))
         ctx.add(Instr.Mul(Reg(r), Int32(4), r))
         ctx.add(Instr.Add(Reg(r), Int32(8), r))
         ctx.add(Instr.Sub(Reg(VAL_SP_REG), Reg(r), r))
         ctx.add(Instr.Load(Reg(r), r))
-        ctx.add(Instr.Store(Reg(r), addr1))
+        ctx.add(Instr.Special(X86.StoreRelative(Reg(r), addr1)))
 
     /**
       * Push value on the value stack.
@@ -314,12 +314,12 @@ object Linux:
     def swap()(using ctx: Context) =
       // TODO: empty stack
       ctx.useTwoReg: (r1, r2) =>
-        val addr1 = Rel(VAL_SP_REG, -4)
-        val addr2 = Rel(VAL_SP_REG, -8)
-        ctx.add(Instr.Load(addr1, r1))
-        ctx.add(Instr.Load(addr2, r2))
-        ctx.add(Instr.Store(Reg(r1), addr2))
-        ctx.add(Instr.Store(Reg(r2), addr1))
+        val addr1 = X86.Rel(VAL_SP_REG, -4)
+        val addr2 = X86.Rel(VAL_SP_REG, -8)
+        ctx.add(Instr.Special(X86.LoadRelative(addr1, r1)))
+        ctx.add(Instr.Special(X86.LoadRelative(addr2, r2)))
+        ctx.add(Instr.Special(X86.StoreRelative(Reg(r1), addr2)))
+        ctx.add(Instr.Special(X86.StoreRelative(Reg(r2), addr1)))
 
     /**
       * Duplicate the value on the top of stack.
@@ -329,8 +329,8 @@ object Linux:
     def duplicate()(using ctx: Context) =
       // TODO: empty stack
       ctx.useReg: r =>
-        val addr = Rel(VAL_SP_REG, -4)
-        ctx.add(Instr.Load(addr, r))
+        val addr = X86.Rel(VAL_SP_REG, -4)
+        ctx.add(Instr.Special(X86.LoadRelative(addr, r)))
         push(Reg(r))
 
     /** Choose between two values depending on the third.
@@ -344,20 +344,21 @@ object Linux:
       val labelFalse = Label(ctx.freshName("_false"))
       val labelEnd = Label(ctx.freshName("_falseEnd"))
       ctx.useReg: r =>
-        val elseAddr = Rel(VAL_SP_REG, -4)
-        val thenAddr = Rel(VAL_SP_REG, -8)
-        val condAddr = Rel(VAL_SP_REG, -12)
-        ctx.add(Instr.Load(condAddr, r))
+        val elseAddr = X86.Rel(VAL_SP_REG, -4)
+        val thenAddr = X86.Rel(VAL_SP_REG, -8)
+        val condAddr = X86.Rel(VAL_SP_REG, -12)
+
+        ctx.add(Instr.Special(X86.LoadRelative(condAddr, r)))
         ctx.add(Instr.JZero(Reg(r), labelFalse))
 
-        ctx.add(Instr.Load(thenAddr, r))
+        ctx.add(Instr.Special(X86.LoadRelative(thenAddr, r)))
         ctx.add(Instr.Jump(labelEnd))
 
         ctx.addCodeLabel(labelFalse)
-        ctx.add(Instr.Load(elseAddr, r))
+        ctx.add(Instr.Special(X86.LoadRelative(elseAddr, r)))
 
         ctx.addCodeLabel(labelEnd)
-        ctx.add(Instr.Store(Reg(r), condAddr))
+        ctx.add(Instr.Special(X86.StoreRelative(Reg(r), condAddr)))
         ctx.add(Instr.Sub(Reg(VAL_SP_REG), Int32(8), VAL_SP_REG))
     end choose
 
