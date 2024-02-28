@@ -309,9 +309,9 @@ object Linux:
 
     /** Swap items on top of stack.
       *
-      * It's implemented here to generate optimized code.
+      * It overrides the default implementations to generate optimized code.
       */
-    def swap()(using ctx: Context) =
+    def swap(ctx: Context) =
       // TODO: empty stack
       ctx.useTwoReg: (r1, r2) =>
         val addr1 = X86.Rel(VAL_SP_REG, -4)
@@ -324,23 +324,23 @@ object Linux:
     /**
       * Duplicate the value on the top of stack.
       *
-      * It's implemented here to generate optimized code.
+      * It overrides the default implementations to generate optimized code.
       */
-    def duplicate()(using ctx: Context) =
+    def duplicate(ctx: Context) =
       // TODO: empty stack
       ctx.useReg: r =>
         val addr = X86.Rel(VAL_SP_REG, -4)
         ctx.add(Instr.Special(X86.LoadRelative(addr, r)))
-        push(Reg(r))
+        ctx.push(Reg(r))
 
     /** Choose between two values depending on the third.
       *
       *     [v1 v2 true  ...]   => [v2 ...]
       *     [v1 v2 false ...]   => [v1 ...]
       *
-      * It's implemented here to generate optimized code.
+      * It overrides the default implementations to generate optimized code.
       */
-    def choose()(using ctx: Context) =
+    def choose(ctx: Context) =
       val labelFalse = Label(ctx.freshName("_false"))
       val labelEnd = Label(ctx.freshName("_falseEnd"))
       ctx.useReg: r =>
@@ -361,6 +361,22 @@ object Linux:
         ctx.add(Instr.Special(X86.StoreRelative(Reg(r), condAddr)))
         ctx.add(Instr.Sub(Reg(VAL_SP_REG), Int32(8), VAL_SP_REG))
     end choose
+
+    /**
+      * Create root scope for compilation.
+      *
+      * Override the default implementation of primitives to generate optimized code.
+      */
+    override def createRootScope() =
+      val rootScope = new Scope.RootScope()
+      val primitives = Primitive.operators
+          .updated(Sast.predefs.dup, this.duplicate)
+          .updated(Sast.predefs.swap, this.swap)
+          .updated(Sast.predefs.choose, this.choose)
+
+      for (k, v) <- primitives do
+        rootScope.bind(k, Denotation.Prim(v))
+      rootScope
 
   end X86Platform
 
