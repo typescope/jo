@@ -111,7 +111,7 @@ object Context:
     val codeBuffer = new CodeBuffer(entry)
 
     val rootContext = Context(
-        Scope.createRootScope(),
+        platform.createRootScope(),
         platform,
         regAlloc,
         codeBuffer)

@@ -54,15 +54,6 @@ enum Scope:
       case Some(d) =>
         throw new Exception(sym.name + " is already bound to " + d)
 
-object Scope:
-  def createRootScope() =
-    val rootScope = new Scope.RootScope()
-    for (k, v) <- Primitive.operators do
-      rootScope.bind(k, Denotation.Prim(v))
-
-    rootScope
-
-
 object Primitive:
   def int2(fn: (Int, Int, Int) => Instr)(ctx: Context) =
     // TODO: check type of value

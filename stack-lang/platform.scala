@@ -16,7 +16,7 @@ import IO.ByteBuffer
   * - It also provides platform services such as exit, print, etc.
   * - It encapsulates the details about the generated executable.
   */
-trait Platform:
+abstract class Platform:
   /**
     * Generate a fresh name for the compiled program.
     *
@@ -99,6 +99,18 @@ trait Platform:
     * It's implemented here to generate optimized code.
     */
   def choose()(using Context): Unit
+
+  /**
+    * Create root scope for compilation.
+    *
+    * A particular platform might override this method to provide more efficient implementation of
+    * the primitives.
+    */
+  def createRootScope() =
+    val rootScope = new Scope.RootScope()
+    for (k, v) <- Primitive.operators do
+      rootScope.bind(k, Denotation.Prim(v))
+    rootScope
 
   /**
     * Generate executable for the given assembly progrram.
