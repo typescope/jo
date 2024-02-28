@@ -9,7 +9,7 @@ import IO.ByteBuffer
   * The value and call stack implementation is dependent on the
   * underlying operating system (if present) and processor.
   *
-  * The platform installs an initialier which will initialize
+  * The platform installs an initializer which will initialize
   * the runtime environment, and then start executing the user
   * entry point.
   *

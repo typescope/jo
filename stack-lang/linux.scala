@@ -370,9 +370,9 @@ object Linux:
     override def createRootScope() =
       val rootScope = new Scope.RootScope()
       val primitives = Primitive.operators
-          .updated(Sast.predefs.dup, this.duplicate)
-          .updated(Sast.predefs.swap, this.swap)
-          .updated(Sast.predefs.choose, this.choose)
+          .updated(Sast.predef.dup, this.duplicate)
+          .updated(Sast.predef.swap, this.swap)
+          .updated(Sast.predef.choose, this.choose)
 
       for (k, v) <- primitives do
         rootScope.bind(k, Denotation.Prim(v))

@@ -29,7 +29,7 @@ object Sast:
 
   def createSymbol(name: String): Symbol = new Symbol(name)
 
-  object predefs:
+  object predef:
     private val symbols: mutable.ArrayBuffer[Symbol] = new mutable.ArrayBuffer
 
     private def createPredefSymbol(name: String): Symbol =
@@ -64,4 +64,4 @@ object Sast:
     val p      =  createPredefSymbol("p")
 
     val allSymbols: List[Symbol] = symbols.toList
-  end predefs
+  end predef

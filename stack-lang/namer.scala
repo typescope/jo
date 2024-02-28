@@ -10,7 +10,7 @@ object Namer:
     val rootScope = new Scope.RootScope()
 
     // Predefined symbols
-    for sym <- Sast.predefs.allSymbols do
+    for sym <- Sast.predef.allSymbols do
       rootScope.define(sym)
 
     // Prepare scope according to scoping rules
@@ -36,8 +36,8 @@ object Namer:
         transform(cond)
         :+ Sast.Word.Proc(transform(thenp))
         :+ Sast.Word.Proc(transform(elsep))
-        :+ Sast.Word.Ident(Sast.predefs.choose)
-        :+ Sast.Word.Ident(Sast.predefs.run)
+        :+ Sast.Word.Ident(Sast.predef.choose)
+        :+ Sast.Word.Ident(Sast.predef.run)
 
 
       case Ast.Word.Ident(name) =>
