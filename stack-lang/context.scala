@@ -80,28 +80,6 @@ class Context private(
     * It could be address of a procedure, represented by a label.
     */
   def push(v: Operand | Label): Unit = platform.push(v)(using this)
-
-  /** Swap items on top of stack.
-    *
-    * It's implemented here to generate optimized code.
-    */
-  def swap(): Unit = platform.swap()(using this)
-
-  /**
-    * Duplicate the value on the top of stack.
-    *
-    * It's implemented here to generate optimized code.
-    */
-  def duplicate(): Unit = platform.duplicate()(using this)
-
-  /** Choose between two values depending on the third.
-    *
-    *     [v1 v2 true  ...]   => [v2 ...]
-    *     [v1 v2 false ...]   => [v1 ...]
-    *
-    * It's implemented here to generate optimized code.
-    */
-  def choose(): Unit = platform.choose()(using this)
 end Context
 
 object Context:

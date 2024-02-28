@@ -131,15 +131,45 @@ object Primitive:
       ctx.add(Instr.Eq(Reg(r1), Reg(r2), r2))
       ctx.push(Reg(r2))
 
-  def dup(ctx: Context) = ctx.duplicate()
+  def dup(ctx: Context) =
+      ctx.useReg: r =>
+        ctx.pop(r)
+        ctx.push(Reg(r))
+        ctx.push(Reg(r))
 
-  def swap(ctx: Context) = ctx.swap()
+  def swap(ctx: Context) =
+    ctx.useTwoReg: (r1, r2) =>
+      ctx.pop(r1)
+      ctx.pop(r2)
+      ctx.push(Reg(r1))
+      ctx.push(Reg(r2))
 
   def pop(ctx: Context) = ctx.pop()
 
   def peek(ctx: Context) = ctx.peek()
 
-  def choose(ctx: Context) = ctx.choose()
+  def choose(ctx: Context) =
+    val labelFalse = Label(ctx.freshName("_false"))
+    val labelEnd = Label(ctx.freshName("_falseEnd"))
+    ctx.useReg: r =>
+      ctx.push(Int32(2))
+      ctx.peek()
+      ctx.pop(r)
+
+      ctx.add(Instr.JZero(Reg(r), labelFalse))
+
+      ctx.pop()
+      ctx.pop(r)
+      ctx.pop()
+      ctx.add(Instr.Jump(labelEnd))
+
+      ctx.addCodeLabel(labelFalse)
+      ctx.pop(r)
+      ctx.pop()
+      ctx.pop()
+
+      ctx.addCodeLabel(labelEnd)
+      ctx.push(Reg(r))
 
   def print(ctx: Context) = ctx.print()
 

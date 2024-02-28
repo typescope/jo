@@ -78,28 +78,6 @@ abstract class Platform:
     */
   def push(v: Value)(using Context): Unit
 
-  /** Swap items on top of stack.
-    *
-    * It's implemented here to generate optimized code.
-    */
-  def swap()(using Context): Unit
-
-  /**
-    * Duplicate the value on the top of stack.
-    *
-    * It's implemented here to generate optimized code.
-    */
-  def duplicate()(using Context): Unit
-
-  /** Choose between two values depending on the third.
-    *
-    *     [v1 v2 true  ...]   => [v2 ...]
-    *     [v1 v2 false ...]   => [v1 ...]
-    *
-    * It's implemented here to generate optimized code.
-    */
-  def choose()(using Context): Unit
-
   /**
     * Create root scope for compilation.
     *
