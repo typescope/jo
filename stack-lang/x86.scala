@@ -16,6 +16,20 @@ import Assembly.*
 import IO.{ ByteBuffer, Patch, PatchableBuffer, withPatch }
 
 object X86:
+  /**
+    * 0 - EAX
+    * 1 - ECX
+    * 2 - EDX
+    * 3 - EBX
+    * 4 - ESP
+    * 5 - EBP
+    * 6 - ESI
+    * 7 - EDI
+    *
+    * See Table 2-2. 32-Bit Addressing Forms with the ModR/M Byte in
+    *
+    *    Intel® 64 and IA-32 Architectures Software Developer’s Manual
+    */
   final val EAX = 0
   final val ECX = 1
   final val EDX = 2
@@ -28,9 +42,11 @@ object X86:
   /**
     * Special x86 instructions for performance optimization
     */
-  sealed abstract class Ext
-  case class LoadRelative(addr: Rel, destReg: Int) extends Ext
-  case class StoreRelative(value: Value, addr: Rel) extends Ext
+  sealed abstract class Extension
+  case class LoadRel(addr: Rel, destReg: Int) extends Extension
+  case class StoreRel(value: Value, addr: Rel) extends Extension
+  case object Syscall extends Extension
+
 
   /** Relative address with offset */
   case class Rel(baseReg: Int, offset: Byte)
@@ -69,10 +85,16 @@ object X86:
       case Instr.Not(v, destReg) =>
         not(Reg(destReg), v)
 
-      case special: Instr.Special[Ext @unchecked] =>
-        special.instr match
-          case LoadRelative(rel, dest)  => load(rel, dest)
-          case StoreRelative(rel, dest) => store(rel, dest)
+      case special: Instr.Special[Extension @unchecked] =>
+        lower(special.instr)
+
+  def lower(instr: Extension)(using pb: PatchableBuffer) =
+    instr match
+      case LoadRel(rel, dest)  => load(rel, dest)
+      case StoreRel(rel, dest) => store(rel, dest)
+
+      case Syscall =>
+        pb.addBytes(0xcd.toByte, 0x80.toByte)
 
   def lower(binOp: Instr.Binary)(using pb: PatchableBuffer) =
     binOp match

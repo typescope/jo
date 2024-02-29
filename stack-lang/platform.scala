@@ -14,7 +14,7 @@ import IO.ByteBuffer
   * entry point.
   *
   * - It also provides platform services such as exit, print, etc.
-  * - It encapsulates the details about the generated executable.
+  * - It encapsulates the details about generating the executable file.
   */
 abstract class Platform:
   /**
@@ -93,5 +93,5 @@ abstract class Platform:
   /**
     * Generate executable for the given assembly progrram.
     */
-  def lower(prog: Prog)(using bb: ByteBuffer): Unit
+  def generate(prog: Prog)(using bb: ByteBuffer): Unit
 end Platform

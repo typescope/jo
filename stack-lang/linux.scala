@@ -102,35 +102,20 @@ object Linux:
     * Linux x86 32 bit platform
     */
   class X86Platform extends Platform:
-    /**
-      * 0 - EAX
-      * 1 - ECX
-      * 2 - EDX
-      * 3 - EBX
-      * 4 - ESP
-      * 5 - EBP
-      * 6 - ESI
-      * 7 - EDI
-      *
-      * See Table 2-2. 32-Bit Addressing Forms with the ModR/M Byte in
-      *
-      *    Intel® 64 and IA-32 Architectures Software Developer’s Manual
-      */
-    val freeRegisters: List[Int] = List(0, 1, 2, 3, 6, 7)
+    /** The register ESP and EBP are reserved for value stack and call stack respectively. */
+    val freeRegisters: List[Int] = List(X86.EAX, X86.ECX, X86.EDX, X86.EBX, X86.ESI, X86.EDI)
 
     /** Call stack register (high -> low address)  */
-    val CALL_SP_REG: Int = 4
+    val CALL_SP_REG: Int = X86.ESP
 
     /** Value stack register (low -> high address) */
-    val VAL_SP_REG: Int = 5
+    val VAL_SP_REG: Int = X86.EBP
 
     val uniqueName = new UniqueName
     export uniqueName.freshName
 
     val heapStartLabel = Label(uniqueName.freshName("_heapStart"))
-
     val printService = Label(uniqueName.freshName("_print"))
-    val exitService = Label(uniqueName.freshName("_exit"))
 
     /**
       * Generate code to initialize the language runtime.
@@ -150,15 +135,7 @@ object Linux:
       * Services are implemented by emitting platform-specific machine code.
       */
     def defineServices()(using pb: PatchableBuffer): Unit =
-      defineExitService()
       definePrintService()
-
-    def defineExitService()(using pb: PatchableBuffer): Unit =
-      pb.defineLabel(exitService)
-      X86.const(Int32(0), Reg(X86.EBX))     // exit code
-      X86.const(Int32(1), Reg(X86.EAX))     // syscall number
-      // X86.syscall()
-      pb.addBytes(0xcd.toByte, 0x80.toByte)
 
     /**
       * Implement the printing service.
@@ -227,12 +204,17 @@ object Linux:
     /**
       * Generate code to be run after main program finishes.
       */
-    def finish()(using ctx: Context): Unit = call(exitService)
+    def finish()(using ctx: Context): Unit = exit(0)
+
+    def exit(code: Int)(using ctx: Context): Unit =
+      ctx.add(Instr.Const(Int32(code), X86.EBX))  // exit code
+      ctx.add(Instr.Const(Int32(1), X86.EAX))     // syscall number
+      ctx.add(Instr.Special(X86.Syscall))         // syscall
 
     /**
       * Generate executable for the given assembly progrram.
       */
-    def lower(prog: Prog)(using bb: ByteBuffer): Unit =
+    def generate(prog: Prog)(using bb: ByteBuffer): Unit =
       val elf = new ELF32(0x08048000, PAGE_SIZE, ELF32.EM_386)
       Linux.lower(prog, heapStartLabel, elf, pb => defineServices()(using pb))
 
@@ -290,12 +272,12 @@ object Linux:
     def peek()(using ctx: Context): Unit =
       ctx.useReg: r =>
         val addr1 = X86.Rel(VAL_SP_REG, -4)
-        ctx.add(Instr.Special(X86.LoadRelative(addr1, r)))
+        ctx.add(Instr.Special(X86.LoadRel(addr1, r)))
         ctx.add(Instr.Mul(Reg(r), Int32(4), r))
         ctx.add(Instr.Add(Reg(r), Int32(8), r))
         ctx.add(Instr.Sub(Reg(VAL_SP_REG), Reg(r), r))
         ctx.add(Instr.Load(Reg(r), r))
-        ctx.add(Instr.Special(X86.StoreRelative(Reg(r), addr1)))
+        ctx.add(Instr.Special(X86.StoreRel(Reg(r), addr1)))
 
     /**
       * Push value on the value stack.
@@ -316,10 +298,10 @@ object Linux:
       ctx.useTwoReg: (r1, r2) =>
         val addr1 = X86.Rel(VAL_SP_REG, -4)
         val addr2 = X86.Rel(VAL_SP_REG, -8)
-        ctx.add(Instr.Special(X86.LoadRelative(addr1, r1)))
-        ctx.add(Instr.Special(X86.LoadRelative(addr2, r2)))
-        ctx.add(Instr.Special(X86.StoreRelative(Reg(r1), addr2)))
-        ctx.add(Instr.Special(X86.StoreRelative(Reg(r2), addr1)))
+        ctx.add(Instr.Special(X86.LoadRel(addr1, r1)))
+        ctx.add(Instr.Special(X86.LoadRel(addr2, r2)))
+        ctx.add(Instr.Special(X86.StoreRel(Reg(r1), addr2)))
+        ctx.add(Instr.Special(X86.StoreRel(Reg(r2), addr1)))
 
     /**
       * Duplicate the value on the top of stack.
@@ -330,7 +312,7 @@ object Linux:
       // TODO: empty stack
       ctx.useReg: r =>
         val addr = X86.Rel(VAL_SP_REG, -4)
-        ctx.add(Instr.Special(X86.LoadRelative(addr, r)))
+        ctx.add(Instr.Special(X86.LoadRel(addr, r)))
         ctx.push(Reg(r))
 
     /** Choose between two values depending on the third.
@@ -348,17 +330,17 @@ object Linux:
         val thenAddr = X86.Rel(VAL_SP_REG, -8)
         val condAddr = X86.Rel(VAL_SP_REG, -12)
 
-        ctx.add(Instr.Special(X86.LoadRelative(condAddr, r)))
+        ctx.add(Instr.Special(X86.LoadRel(condAddr, r)))
         ctx.add(Instr.JZero(Reg(r), labelFalse))
 
-        ctx.add(Instr.Special(X86.LoadRelative(thenAddr, r)))
+        ctx.add(Instr.Special(X86.LoadRel(thenAddr, r)))
         ctx.add(Instr.Jump(labelEnd))
 
         ctx.addCodeLabel(labelFalse)
-        ctx.add(Instr.Special(X86.LoadRelative(elseAddr, r)))
+        ctx.add(Instr.Special(X86.LoadRel(elseAddr, r)))
 
         ctx.addCodeLabel(labelEnd)
-        ctx.add(Instr.Special(X86.StoreRelative(Reg(r), condAddr)))
+        ctx.add(Instr.Special(X86.StoreRel(Reg(r), condAddr)))
         ctx.add(Instr.Sub(Reg(VAL_SP_REG), Int32(8), VAL_SP_REG))
     end choose
 

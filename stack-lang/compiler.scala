@@ -305,6 +305,13 @@ object Compiler:
  ***********************************************************************/
 @main
 def run(sourceFile: String, others: String*) =
+  val outFile =
+    if others.size == 1 then
+      others(0)
+    else
+      val tokens = sourceFile.split("\\.(?=[^\\.]+$)")
+      tokens(0)
+
   val platform: Linux.X86Platform = new Linux.X86Platform
   val ctx: Context = Context.createContext(platform)
   val ast = Parsing.parse(IO.fileContent(sourceFile))
@@ -313,12 +320,5 @@ def run(sourceFile: String, others: String*) =
   Compiler.compile(sast)(using ctx)
   val asm = ctx.getResult()
 
-  val outFile =
-    if others.size == 1 then
-      others(0)
-    else
-      val tokens = sourceFile.split("\\.(?=[^\\.]+$)")
-      tokens(0)
-
   IO.withExeFile(outFile): bb =>
-    platform.lower(asm)(using bb)
+    platform.generate(asm)(using bb)
