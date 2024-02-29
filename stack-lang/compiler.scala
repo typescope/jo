@@ -215,7 +215,7 @@ object Compiler:
 
     // initialize runtime
     ctx.addCodeLabel(ctx.entry)
-    ctx.initCode(startLabel)
+    ctx.initialize(startLabel)
 
     // Create labels for all definitions to support recursive definitions
     for defn <- prog.defs do
@@ -256,7 +256,7 @@ object Compiler:
     compile(prog.main)
 
     // Finish gracefully
-    ctx.exitCode()
+    ctx.finish()
 
     ctx.getResult()
 

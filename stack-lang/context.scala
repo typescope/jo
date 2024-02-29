@@ -32,13 +32,13 @@ class Context private(
   /**
     * Generate code to initialize the language runtime.
     */
-  def initCode(startLabel: Label): Unit =
+  def initialize(startLabel: Label): Unit =
     platform.initialize(startLabel)(using this)
 
   /**
     * Generate code to run after main program finishes.
     */
-  def exitCode(): Unit =
+  def finish(): Unit =
     platform.finish()(using this)
 
   /**
