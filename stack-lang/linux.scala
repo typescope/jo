@@ -17,6 +17,13 @@ object Linux:
   val PAGE_SIZE = 0x1000
 
   /**
+    * Create a new x86 platform.
+    *
+    * `X86Platform` is marked private so that code generation is ignorant of the platform.
+    */
+  def createX86Platform(): Platform = new X86Platform
+
+  /**
     * Generate ELF on Linux platform.
     *
     * TODO: Abstract processor architecture.
@@ -100,8 +107,10 @@ object Linux:
 
   /**
     * Linux x86 32 bit platform
+    *
+    * Marked private so that code generation is ignorant of the particular platform.
     */
-  class X86Platform extends Platform:
+  private class X86Platform extends Platform:
     /** The register ESP and EBP are reserved for value stack and call stack respectively. */
     val freeRegisters: List[Int] = List(X86.EAX, X86.ECX, X86.EDX, X86.EBX, X86.ESI, X86.EDI)
 

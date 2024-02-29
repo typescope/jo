@@ -210,7 +210,7 @@ object Primitive:
  ***********************************************************************/
 
 object Compiler:
-  def compile(prog: Sast.Prog)(using ctx: Context): Unit =
+  def compile(prog: Sast.Prog)(using ctx: Context): Prog =
     val startLabel = Label(ctx.freshName("_start"))
 
     // initialize runtime
@@ -255,7 +255,10 @@ object Compiler:
     ctx.addCodeLabel(mainLabel)
     compile(prog.main)
 
+    // Finish gracefully
     ctx.exitCode()
+
+    ctx.getResult()
 
   def compile(words: List[Sast.Word])(using Context): Unit =
     for word <- words do compile(word)
@@ -267,8 +270,6 @@ object Compiler:
       case Sast.Word.BoolLit(v) => ctx.push(Int32(if v then 1 else 0))
 
       case Sast.Word.Proc(words) =>
-        // case class Patch(index: Int, code: => Int)
-
         val labelStart = Label(ctx.freshName("proc_start"))
         val labelEnd = Label(ctx.freshName("proc_end"))
 
@@ -312,13 +313,13 @@ def run(sourceFile: String, others: String*) =
       val tokens = sourceFile.split("\\.(?=[^\\.]+$)")
       tokens(0)
 
-  val platform: Linux.X86Platform = new Linux.X86Platform
+
+  val platform: Platform = Linux.createX86Platform()
   val ctx: Context = Context.createContext(platform)
+
   val ast = Parsing.parse(IO.fileContent(sourceFile))
   val sast = Namer.transform(ast)
-
-  Compiler.compile(sast)(using ctx)
-  val asm = ctx.getResult()
+  val asm: Prog = Compiler.compile(sast)(using ctx)
 
   IO.withExeFile(outFile): bb =>
     platform.generate(asm)(using bb)
