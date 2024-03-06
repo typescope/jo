@@ -10,7 +10,6 @@
 import scala.collection.mutable
 
 import Assembly.*
-import Context.UniqueName
 import IO.{ ByteBuffer, Patch, PatchableBuffer }
 import Sast.predef
 
@@ -127,13 +126,45 @@ object Linux:
     val heapStartLabel = Label(uniqueName.freshName("_heapStart"))
     val printService = Label(uniqueName.freshName("_print"))
 
+    val symbolLabels: mutable.Map[Sast.Symbol, Label] = mutable.Map.empty
+
+    val entry = Label(freshName("_entry"))
+    val regAlloc = new RegisterAllocator(freeRegisters)
+    val cb = new CodeBuffer(entry)
+
+    export regAlloc.{ useReg, useTwoReg }
+
     /**
-      * Generate code to initialize the language runtime.
+      * Generate entry code
+      *
+      * The entry code initializes the language runtime, call the main function and exit.
+      *
+      * Calling the passed function will compile the user entry code.
       */
-    def initialize(startLabel: Label)(using ctx: Context): Unit =
+    def entry(init: => Unit): Unit =
       // TODO: Allocate value stack space and remember stack limit.
-      ctx.add(Instr.Const(heapStartLabel, VAL_SP_REG))
-      ctx.add(Instr.Jump(startLabel))
+      cb.addCodeLabel(this.entry)
+      cb.add(Instr.Const(heapStartLabel, VAL_SP_REG))
+      init
+      exit(0)
+
+    /** Declare the symbol to the platform as a preparation for compilation */
+    def declare(sym: Sast.Symbol): Unit =
+      val label = Label(freshName(sym.name))
+      symbolLabels(sym) = label
+      if sym.isVal then
+        cb.addDataLabel(label)
+        cb.add(Data.Uninit(Type.Int32))
+
+    /** Compile a function
+      *
+      * Calling the passed function will compile the body of the function.
+      */
+    def function(sym: Sast.Symbol, body: () => Unit): Unit =
+      val label = symbolLabels(sym)
+      cb.addCodeLabel(label)
+      body()
+      ret()
 
     /**
       * We resort to services for functionalities that cannot be implement
@@ -211,20 +242,16 @@ object Linux:
       X86.add(Reg(CALL_SP_REG), Int32(4))
       X86.jump(Reg(X86.EAX))
 
-    /**
-      * Generate code to be run after main program finishes.
-      */
-    def finish()(using ctx: Context): Unit = exit(0)
-
-    def exit(code: Int)(using ctx: Context): Unit =
-      ctx.add(Instr.Const(Int32(code), X86.EBX))  // exit code
-      ctx.add(Instr.Const(Int32(1), X86.EAX))     // syscall number
-      ctx.add(Instr.Special(X86.Syscall))         // syscall
+    def exit(code: Int): Unit =
+      cb.add(Instr.Const(Int32(code), X86.EBX))  // exit code
+      cb.add(Instr.Const(Int32(1), X86.EAX))     // syscall number
+      cb.add(Instr.Special(X86.Syscall))         // syscall
 
     /**
       * Generate executable for the given assembly progrram.
       */
-    def generate(prog: Prog)(using bb: ByteBuffer): Unit =
+    def generate()(using bb: ByteBuffer): Unit =
+      val prog: Prog = cb.getResult()
       val elf = new ELF32(0x08048000, PAGE_SIZE, ELF32.EM_386)
       Linux.lower(prog, heapStartLabel, elf, pb => defineServices()(using pb))
 
@@ -233,51 +260,96 @@ object Linux:
       *
       * Call stack goes from high address to low address.
       */
-    def ret()(using ctx: Context) =
-      ctx.useReg: r =>
-        ctx.add(Instr.Load(Reg(CALL_SP_REG), r))
-        ctx.add(Instr.Add(Reg(CALL_SP_REG), Int32(4), CALL_SP_REG))
-        ctx.add(Instr.Jump(Reg(r)))
+    def ret() =
+      useReg: r =>
+        cb.add(Instr.Load(Reg(CALL_SP_REG), r))
+        cb.add(Instr.Add(Reg(CALL_SP_REG), Int32(4), CALL_SP_REG))
+        cb.add(Instr.Jump(Reg(r)))
 
     /**
       * Call the procedure or funtion at the given address.
       *
       * Call stack goes from high address to low address.
       */
-    def call(addr: Addr)(using ctx: Context) =
-      val returnLoc = Label(ctx.freshName("returnLoc"))
-      ctx.add(Instr.Sub(Reg(CALL_SP_REG), Int32(4), CALL_SP_REG))
-      ctx.add(Instr.Store(returnLoc, Reg(CALL_SP_REG)))
-      ctx.add(Instr.Jump(addr))
-      ctx.addCodeLabel(returnLoc)
+    def call(fun: Sast.Symbol) =
+      val label = symbolLabels(fun)
+      call(label)
+
+    def call(addr: Addr) =
+      val returnLoc = Label(freshName("returnLoc"))
+      cb.add(Instr.Sub(Reg(CALL_SP_REG), Int32(4), CALL_SP_REG))
+      cb.add(Instr.Store(returnLoc, Reg(CALL_SP_REG)))
+      cb.add(Instr.Jump(addr))
+      cb.addCodeLabel(returnLoc)
 
     /** Pop the value on the top of the value stack to the given register.
       *
       * Value stack goes from low address to high address.
       */
-    def pop(destReg: Int)(using ctx: Context) =
+    def pop(destReg: Int) =
       // TODO: empty stack
-      ctx.add(Instr.Sub(Reg(VAL_SP_REG), Int32(4), VAL_SP_REG))
-      ctx.add(Instr.Load(Reg(VAL_SP_REG), destReg))
+      cb.add(Instr.Sub(Reg(VAL_SP_REG), Int32(4), VAL_SP_REG))
+      cb.add(Instr.Load(Reg(VAL_SP_REG), destReg))
 
     /**
       * Pop the value on the top of the value stack without using it.
       */
-    def pop()(using ctx: Context) =
+    def pop() =
       // TODO: empty stack
-      ctx.add(Instr.Sub(Reg(VAL_SP_REG), Int32(4), VAL_SP_REG))
+      cb.add(Instr.Sub(Reg(VAL_SP_REG), Int32(4), VAL_SP_REG))
 
     /**
       * Push value on the value stack.
       *
       * It could be address of a procedure, represented by a label.
       */
-    def push(v: Value)(using ctx: Context) =
+    def push(v: Value) =
       // TODO: grow stack if necessary
-      ctx.add(Instr.Store(v, Reg(VAL_SP_REG)))
-      ctx.add(Instr.Add(Reg(VAL_SP_REG), Int32(4), VAL_SP_REG))
+      cb.add(Instr.Store(v, Reg(VAL_SP_REG)))
+      cb.add(Instr.Add(Reg(VAL_SP_REG), Int32(4), VAL_SP_REG))
 
-    def primitive(sym: Sast.Symbol)(using Context): Unit =
+
+    /** Push a procedure literal to value stack
+      *
+      * Calling the passed function will compile the initializer.
+      */
+    def initVal(sym: Sast.Symbol, initializer: () => Unit): Unit =
+      val label = symbolLabels(sym)
+      initializer()
+      useReg: r =>
+        pop(r)
+        cb.add(Instr.Store(Reg(r), label))
+
+    /** Push an integer literal to value stack */
+    def push(v: Int): Unit = push(Int32(v))
+
+    /** Push a Boolean literal to value stack */
+    def push(v: Boolean): Unit = push(Int32(if v then 1 else 0))
+
+    /** Push a procedure literal to value stack
+      *
+      * Calling the passed function will compile the body of the procedure.
+      */
+    def push(proc: () => Unit): Unit =
+      val labelStart = Label(freshName("proc_start"))
+      val labelEnd = Label(freshName("proc_end"))
+
+      cb.add(Instr.Jump(labelEnd))
+      cb.addCodeLabel(labelStart)
+      proc()
+      ret()
+      cb.addCodeLabel(labelEnd)
+
+      push(labelStart)
+
+    /** Push the value associated with the given symbol to value stack */
+    def push(sym: Sast.Symbol): Unit =
+      val label = symbolLabels(sym)
+      useReg: r =>
+        cb.add(Instr.Load(label, r))
+        push(Reg(r))
+
+    def primitive(sym: Sast.Symbol): Unit =
       sym match
         case predef.add    =>   add()
         case predef.sub    =>   sub()
@@ -304,105 +376,106 @@ object Linux:
         case predef.pop    =>   pop()
         case predef.choose =>   choose()
         case predef.p      =>   print()
+        case _             =>   throw new Exception("Unknown primitive: " + sym.name)
     end primitive
 
     /** Load a value in value stack relative to the stack pointer.
       *
       * The offset is in bytes.
       */
-    def loadValue(destReg: Int, offset: Byte)(using ctx: Context): Unit =
+    def loadValue(destReg: Int, offset: Byte): Unit =
       val addr = X86.Rel(VAL_SP_REG, offset)
-      ctx.add(Instr.Special(X86.LoadRel(addr, destReg)))
+      cb.add(Instr.Special(X86.LoadRel(addr, destReg)))
 
     /** Store a value to value stack relative to the stack pointer.
       *
       * The offset is in bytes.
       */
-    def storeValue(fromReg: Int, offset: Byte)(using ctx: Context): Unit =
+    def storeValue(fromReg: Int, offset: Byte): Unit =
       val addr = X86.Rel(VAL_SP_REG, offset)
-      ctx.add(Instr.Special(X86.StoreRel(Reg(fromReg), addr)))
+      cb.add(Instr.Special(X86.StoreRel(Reg(fromReg), addr)))
 
-    def int2(fn: (Int, Int, Int) => Instr)(using ctx: Context) =
+    def int2(fn: (Int, Int, Int) => Instr) =
       // TODO: check type of value
-      ctx.useTwoReg: (r1, r2) =>
+      useTwoReg: (r1, r2) =>
         // Reduce arithmetic on stack pointer to 1
         loadValue(r1, -8)
         loadValue(r2, -4)
-        ctx.add(fn(r1, r2, r1))
+        cb.add(fn(r1, r2, r1))
         storeValue(r1, -8)
         pop()
 
-    def add()(using ctx: Context) =
+    def add() =
       int2((r1, r2, d) => Instr.Add(Reg(r1), Reg(r2), d))
 
-    def sub()(using ctx: Context) =
+    def sub() =
       int2((r1, r2, d) => Instr.Sub(Reg(r1), Reg(r2), d))
 
-    def mul()(using ctx: Context) =
+    def mul() =
       int2((r1, r2, d) => Instr.Mul(Reg(r1), Reg(r2), d))
 
-    def div()(using ctx: Context) =
+    def div() =
       int2((r1, r2, d) => Instr.Div(Reg(r1), Reg(r2), d))
 
-    def mod()(using ctx: Context) =
+    def mod() =
       int2((r1, r2, d) => Instr.Mod(Reg(r1), Reg(r2), d))
 
-    def lt()(using ctx: Context) =
+    def lt() =
       int2((r1, r2, d) => Instr.Lt(Reg(r1), Reg(r2), d))
 
-    def gt()(using ctx: Context) =
+    def gt() =
       int2((r1, r2, d) => Instr.Gt(Reg(r1), Reg(r2), d))
 
-    def le()(using ctx: Context) =
+    def le() =
       int2((r1, r2, d) => Instr.Le(Reg(r1), Reg(r2), d))
 
-    def ge()(using ctx: Context) =
+    def ge() =
       int2((r1, r2, d) => Instr.Ge(Reg(r1), Reg(r2), d))
 
-    def sll()(using ctx: Context) =
+    def sll() =
       int2((r1, r2, d) => Instr.Sll(Reg(r1), Reg(r2), d))
 
-    def srl()(using ctx: Context) =
+    def srl() =
       int2((r1, r2, d) => Instr.Srl(Reg(r1), Reg(r2), d))
 
-    def land()(using ctx: Context) =
+    def land() =
       int2((r1, r2, d) => Instr.And(Reg(r1), Reg(r2), d))
 
-    def lor()(using ctx: Context) =
+    def lor() =
       int2((r1, r2, d) => Instr.Or(Reg(r1), Reg(r2), d))
 
-    def lxor()(using ctx: Context) =
+    def lxor() =
       int2((r1, r2, d) => Instr.Xor(Reg(r1), Reg(r2), d))
 
-    def band()(using ctx: Context) =
+    def band() =
       int2((r1, r2, d) => Instr.And(Reg(r1), Reg(r2), d))
 
-    def bor()(using ctx: Context) =
+    def bor() =
       int2((r1, r2, d) => Instr.Or(Reg(r1), Reg(r2), d))
 
-    def bnot()(using ctx: Context) =
-      ctx.useReg: r =>
+    def bnot() =
+      useReg: r =>
         loadValue(r, -4)
-        ctx.add(Instr.Not(Reg(r), r))
-        ctx.add(Instr.And(Reg(r), Int32(1), r))
+        cb.add(Instr.Not(Reg(r), r))
+        cb.add(Instr.And(Reg(r), Int32(1), r))
         storeValue(r, -4)
 
-    def run()(using ctx: Context) =
+    def run() =
       // TODO: check type of value
-      ctx.useReg: r =>
-        ctx.pop(r)
-        ctx.call(Reg(r))
+      useReg: r =>
+        pop(r)
+        call(Reg(r))
 
-    def eql()(using ctx: Context) =
-      ctx.useTwoReg: (r1, r2) =>
+    def eql() =
+      useTwoReg: (r1, r2) =>
         loadValue(r1, -4)
         loadValue(r2, -8)
-        ctx.add(Instr.Eq(Reg(r1), Reg(r2), r2))
+        cb.add(Instr.Eq(Reg(r1), Reg(r2), r2))
         storeValue(r2, -8)
         pop()
 
     /** Print the value on top of the stack. */
-    def print()(using ctx: Context): Unit = call(printService)
+    def print(): Unit = call(printService)
 
 
     /**
@@ -410,62 +483,52 @@ object Linux:
       *
       * [index ..., v, ... ]   =>  [v, ..., v, ...]
       */
-    def peek()(using ctx: Context): Unit =
-      ctx.useReg: r =>
+    def peek(): Unit =
+      useReg: r =>
         val addr1 = X86.Rel(VAL_SP_REG, -4)
         loadValue(r, -4)
-        ctx.add(Instr.Mul(Reg(r), Int32(4), r))
-        ctx.add(Instr.Add(Reg(r), Int32(8), r))
-        ctx.add(Instr.Sub(Reg(VAL_SP_REG), Reg(r), r))
-        ctx.add(Instr.Load(Reg(r), r))
+        cb.add(Instr.Mul(Reg(r), Int32(4), r))
+        cb.add(Instr.Add(Reg(r), Int32(8), r))
+        cb.add(Instr.Sub(Reg(VAL_SP_REG), Reg(r), r))
+        cb.add(Instr.Load(Reg(r), r))
         storeValue(r, -4)
 
     /** Swap items on top of stack. */
-    def swap()(using ctx: Context) =
+    def swap() =
       // TODO: empty stack
-      ctx.useTwoReg: (r1, r2) =>
+      useTwoReg: (r1, r2) =>
         loadValue(r1, -4)
         loadValue(r2, -8)
         storeValue(r1, -8)
         storeValue(r2, -4)
 
     /** Duplicate the value on the top of stack. */
-    def dup()(using ctx: Context) =
+    def dup() =
       // TODO: empty stack
-      ctx.useReg: r =>
+      useReg: r =>
         loadValue(r, -4)
-        ctx.push(Reg(r))
+        push(Reg(r))
 
     /** Choose between two values depending on the third.
       *
       *     [v1 v2 true  ...]   => [v2 ...]
       *     [v1 v2 false ...]   => [v1 ...]
       */
-    def choose()(using ctx: Context) =
-      val labelFalse = Label(ctx.freshName("_false"))
-      val labelEnd = Label(ctx.freshName("_falseEnd"))
-      ctx.useReg: r =>
+    def choose() =
+      val labelFalse = Label(freshName("_false"))
+      val labelEnd = Label(freshName("_falseEnd"))
+      useReg: r =>
         loadValue(r, -12)
-        ctx.add(Instr.JZero(Reg(r), labelFalse))
+        cb.add(Instr.JZero(Reg(r), labelFalse))
 
         loadValue(r, -8)
-        ctx.add(Instr.Jump(labelEnd))
+        cb.add(Instr.Jump(labelEnd))
 
-        ctx.addCodeLabel(labelFalse)
+        cb.addCodeLabel(labelFalse)
         loadValue(r, -4)
 
-        ctx.addCodeLabel(labelEnd)
+        cb.addCodeLabel(labelEnd)
         storeValue(r, -12)
-        ctx.add(Instr.Sub(Reg(VAL_SP_REG), Int32(8), VAL_SP_REG))
+        cb.add(Instr.Sub(Reg(VAL_SP_REG), Int32(8), VAL_SP_REG))
     end choose
   end X86Platform
-
-  /**
-    * Linux x86 64 bit platform
-    *
-    * TODO
-    */
-  abstract class X64Platform extends Platform:
-    val startAddress: Int = 0x400000
-
-    val align = 0x1000

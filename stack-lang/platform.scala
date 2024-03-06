@@ -18,57 +18,57 @@ import IO.ByteBuffer
   */
 abstract class Platform:
   /**
-    * Generate a fresh name for the compiled program.
+    * Generate entry code
     *
-    * Platform generates the very first labels, that's the reason for it to hold the functionality.
-    */
-  def freshName(prefix: String): String
-
-  /**
-    * All registers for temporary usage.
-    */
-  def freeRegisters: List[Int]
-
-  /**
-    * Generate code to initialize the language runtime.
-    */
-  def initialize(mainLabel: Label)(using Context): Unit
-
-  /**
-    * Generate code to be run after main program finishes.
-    */
-  def finish()(using Context): Unit
-
-  /**
-    * Return from a procedure or function.
-    */
-  def ret()(using Context): Unit
-
-  /**
-    * Call the procedure or funtion at the given address.
-    */
-  def call(addr: Addr)(using Context): Unit
-
-  /**
-    * Pop the value on the top of the value stack to the given register.
-    */
-  def pop(destReg: Int)(using Context): Unit
-
-  /**
-    * Push value on the value stack.
+    * The entry code initializes the language runtime, call the main function and exit.
     *
-    * It could be address of a procedure, represented by a label.
+    * Calling the passed function will compile the user entry code.
     */
-  def push(v: Value)(using Context): Unit
+  def entry(init: => Unit): Unit
+
+  /** Declare the symbol to the platform as a preparation for compilation */
+  def declare(sym: Sast.Symbol): Unit
+
+  /**
+    * Call the funtion.
+    */
+  def call(fun: Sast.Symbol): Unit
+
+  /** Initialize a value definition
+    *
+    * Calling the passed function will compile the initializer.
+    */
+  def initVal(sym: Sast.Symbol, initializer: () => Unit): Unit
+
+  /** Compile a function
+    *
+    * Calling the passed function will compile the body of the function.
+    */
+  def function(sym: Sast.Symbol, body: () => Unit): Unit
+
+  /** Push an integer literal to value stack */
+  def push(v: Int): Unit
+
+  /** Push a Boolean literal to value stack */
+  def push(v: Boolean): Unit
+
+  /** Push the value associated with the given symbol to value stack */
+  def push(sym: Sast.Symbol): Unit
+
+  /** Push a procedure literal to value stack
+    *
+    * Calling the passed function will compile the body of the procedure.
+    */
+  def push(proc: () => Unit): Unit
 
   /**
     * Compile a primitive
     *
     */
-  def primitive(sym: Sast.Symbol)(using Context): Unit
+  def primitive(sym: Sast.Symbol): Unit
 
   /**
     * Generate executable for the given assembly progrram.
     */
-  def generate(prog: Prog)(using bb: ByteBuffer): Unit
+  def generate()(using bb: ByteBuffer): Unit
 end Platform

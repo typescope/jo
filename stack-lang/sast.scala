@@ -9,8 +9,16 @@
 import scala.collection.mutable
 
 object Sast:
-  class Symbol private[Sast](val name: String):
-    override def toString() = name
+  enum Symbol:
+    val name: String
+
+    def isPrimitive: Boolean = this.isInstanceOf[PrimSymbol]
+    def isFun: Boolean = this.isInstanceOf[FunSymbol]
+    def isVal: Boolean = this.isInstanceOf[ValSymbol]
+
+    private[Sast] case PrimSymbol(name: String)
+    private[Sast] case FunSymbol(name: String)
+    private[Sast] case ValSymbol(name: String)
 
   enum Word:
     case IntLit(value: Int)
@@ -27,13 +35,14 @@ object Sast:
 
   case class Prog(defs: List[Def], main: List[Word])
 
-  def createSymbol(name: String): Symbol = new Symbol(name)
+  def createFunSymbol(name: String): Symbol = new Symbol.FunSymbol(name)
+  def createValSymbol(name: String): Symbol = new Symbol.ValSymbol(name)
 
   object predef:
     private val symbols: mutable.ArrayBuffer[Symbol] = new mutable.ArrayBuffer
 
     private def createPredefSymbol(name: String): Symbol =
-      val sym = new Symbol(name)
+      val sym = new Symbol.PrimSymbol(name)
       symbols += sym
       sym
 

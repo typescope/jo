@@ -16,7 +16,13 @@ object Namer:
     // Prepare scope according to scoping rules
     val sc = new Scope.NestedScope(rootScope)
     for defn <- prog.defs do
-      val sym = Sast.createSymbol(defn.name)
+      val sym =
+        defn match
+          case _: Ast.Def.ValDef =>
+            Sast.createValSymbol(defn.name)
+          case _: Ast.Def.FunDef =>
+            Sast.createFunSymbol(defn.name)
+
       sc.define(sym)
 
     val defs = for defn <- prog.defs yield transform(defn)(using sc)
