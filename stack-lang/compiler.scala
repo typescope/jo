@@ -29,7 +29,7 @@ import Assembly.*
 enum Denotation:
   case Data(addr: Label)
   case Fun(addr: Label)
-  case Prim(fun: Context => Unit)
+  case Prim
 
 enum Scope:
   case RootScope()
@@ -54,154 +54,12 @@ enum Scope:
       case Some(d) =>
         throw new Exception(sym.name + " is already bound to " + d)
 
-object Primitive:
-  def int2(fn: (Int, Int, Int) => Instr)(ctx: Context) =
-    // TODO: check type of value
-    ctx.useTwoReg: (r1, r2) =>
-      ctx.pop(r2)
-      ctx.pop(r1)
-      ctx.add(fn(r1, r2, r1))
-      ctx.push(Reg(r1))
-
-  def add(ctx: Context) =
-    int2((r1, r2, d) => Instr.Add(Reg(r1), Reg(r2), d))(ctx)
-
-  def sub(ctx: Context) =
-    int2((r1, r2, d) => Instr.Sub(Reg(r1), Reg(r2), d))(ctx)
-
-  def mul(ctx: Context) =
-    int2((r1, r2, d) => Instr.Mul(Reg(r1), Reg(r2), d))(ctx)
-
-  def div(ctx: Context) =
-    int2((r1, r2, d) => Instr.Div(Reg(r1), Reg(r2), d))(ctx)
-
-  def mod(ctx: Context) =
-    int2((r1, r2, d) => Instr.Mod(Reg(r1), Reg(r2), d))(ctx)
-
-  def lt(ctx: Context) =
-    int2((r1, r2, d) => Instr.Lt(Reg(r1), Reg(r2), d))(ctx)
-
-  def gt(ctx: Context) =
-    int2((r1, r2, d) => Instr.Gt(Reg(r1), Reg(r2), d))(ctx)
-
-  def le(ctx: Context) =
-    int2((r1, r2, d) => Instr.Le(Reg(r1), Reg(r2), d))(ctx)
-
-  def ge(ctx: Context) =
-    int2((r1, r2, d) => Instr.Ge(Reg(r1), Reg(r2), d))(ctx)
-
-  def sll (ctx: Context) =
-    int2((r1, r2, d) => Instr.Sll(Reg(r1), Reg(r2), d))(ctx)
-
-  def srl (ctx: Context) =
-    int2((r1, r2, d) => Instr.Srl(Reg(r1), Reg(r2), d))(ctx)
-
-  def land(ctx: Context) =
-    int2((r1, r2, d) => Instr.And(Reg(r1), Reg(r2), d))(ctx)
-
-  def lor (ctx: Context) =
-    int2((r1, r2, d) => Instr.Or(Reg(r1), Reg(r2), d))(ctx)
-
-  def lxor(ctx: Context) =
-    int2((r1, r2, d) => Instr.Xor(Reg(r1), Reg(r2), d))(ctx)
-
-  def band(ctx: Context) =
-    int2((r1, r2, d) => Instr.And(Reg(r1), Reg(r2), d))(ctx)
-
-  def bor (ctx: Context) =
-    int2((r1, r2, d) => Instr.Or(Reg(r1), Reg(r2), d))(ctx)
-
-  def bnot(ctx: Context) =
-    ctx.useReg: r =>
-      ctx.pop(r)
-      ctx.add(Instr.Not(Reg(r), r))
-      ctx.add(Instr.And(Reg(r), Int32(1), r))
-      ctx.push(Reg(r))
-
-  def run(ctx: Context) =
-    // TODO: check type of value
-    ctx.useReg: r =>
-      ctx.pop(r)
-      ctx.call(Reg(r))
-
-  def eql(ctx: Context) =
-    ctx.useTwoReg: (r1, r2) =>
-      ctx.pop(r1)
-      ctx.pop(r2)
-      ctx.add(Instr.Eq(Reg(r1), Reg(r2), r2))
-      ctx.push(Reg(r2))
-
-  def dup(ctx: Context) =
-      ctx.useReg: r =>
-        ctx.pop(r)
-        ctx.push(Reg(r))
-        ctx.push(Reg(r))
-
-  def swap(ctx: Context) =
-    ctx.useTwoReg: (r1, r2) =>
-      ctx.pop(r1)
-      ctx.pop(r2)
-      ctx.push(Reg(r1))
-      ctx.push(Reg(r2))
-
-  def pop(ctx: Context) = ctx.pop()
-
-  def peek(ctx: Context) = ctx.peek()
-
-  def choose(ctx: Context) =
-    val labelFalse = Label(ctx.freshName("_false"))
-    val labelEnd = Label(ctx.freshName("_falseEnd"))
-    ctx.useReg: r =>
-      ctx.push(Int32(2))
-      ctx.peek()
-      ctx.pop(r)
-
-      ctx.add(Instr.JZero(Reg(r), labelFalse))
-
-      ctx.pop()
-      ctx.pop(r)
-      ctx.pop()
-      ctx.add(Instr.Jump(labelEnd))
-
-      ctx.addCodeLabel(labelFalse)
-      ctx.pop(r)
-      ctx.pop()
-      ctx.pop()
-
-      ctx.addCodeLabel(labelEnd)
-      ctx.push(Reg(r))
-
-  def print(ctx: Context) = ctx.print()
-
-  import Sast.predef
-
-  val operators: Map[Sast.Symbol, Context => Unit] = Map(
-      predef.add    ->    add,
-      predef.sub    ->    sub,
-      predef.mul    ->    mul,
-      predef.div    ->    div,
-      predef.mod    ->    mod,
-      predef.gt     ->    gt,
-      predef.lt     ->    lt,
-      predef.ge     ->    ge,
-      predef.le     ->    le,
-      predef.srl    ->    srl,
-      predef.sll    ->    sll,
-      predef.land   ->    land,
-      predef.lor    ->    lor,
-      predef.lxor   ->    lxor,
-      predef.band   ->    band,
-      predef.bor    ->    bor,
-      predef.bnot   ->    bnot,
-      predef.run    ->    run,
-      predef.eql    ->    eql,
-      predef.dup    ->    dup,
-      predef.swap   ->    swap,
-      predef.peek   ->    peek,
-      predef.pop    ->    pop,
-      predef.choose ->    choose,
-      predef.p      ->    print,
-    )
+object Scope:
+  def createRootScope() =
+    val rootScope = new Scope.RootScope()
+    for sym <- Sast.predef.allSymbols do
+      rootScope.bind(sym, Denotation.Prim)
+    rootScope
 
 /***********************************************************************
  *
@@ -287,7 +145,7 @@ object Compiler:
             d match
               case Denotation.Fun(addr)  => ctx.call(addr)
 
-              case Denotation.Prim(fun)  => fun(ctx)
+              case Denotation.Prim  => ctx.primitive(sym)
 
               case Denotation.Data(addr) =>
                 ctx.useReg: r =>

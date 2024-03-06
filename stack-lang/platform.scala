@@ -40,11 +40,6 @@ abstract class Platform:
   def finish()(using Context): Unit
 
   /**
-    * Print the value on top of the value stack.
-    */
-  def print()(using Context): Unit
-
-  /**
     * Return from a procedure or function.
     */
   def ret()(using Context): Unit
@@ -60,18 +55,6 @@ abstract class Platform:
   def pop(destReg: Int)(using Context): Unit
 
   /**
-    * Pop the value on the top of the value stack without using it.
-    */
-  def pop()(using Context): Unit
-
-  /**
-    * Push the value at the specified index on the top of stack.
-    *
-    * [index ..., v, ... ]   =>  [v, ..., v, ...]
-    */
-  def peek()(using Context): Unit
-
-  /**
     * Push value on the value stack.
     *
     * It could be address of a procedure, represented by a label.
@@ -79,16 +62,10 @@ abstract class Platform:
   def push(v: Value)(using Context): Unit
 
   /**
-    * Create root scope for compilation.
+    * Compile a primitive
     *
-    * A particular platform might override this method to provide more efficient implementation of
-    * the primitives.
     */
-  def createRootScope() =
-    val rootScope = new Scope.RootScope()
-    for (k, v) <- Primitive.operators do
-      rootScope.bind(k, Denotation.Prim(v))
-    rootScope
+  def primitive(sym: Sast.Symbol)(using Context): Unit
 
   /**
     * Generate executable for the given assembly progrram.

@@ -12,6 +12,7 @@ import scala.collection.mutable
 import Assembly.*
 import Context.UniqueName
 import IO.{ ByteBuffer, Patch, PatchableBuffer }
+import Sast.predef
 
 object Linux:
   val PAGE_SIZE = 0x1000
@@ -228,13 +229,6 @@ object Linux:
       Linux.lower(prog, heapStartLabel, elf, pb => defineServices()(using pb))
 
 
-    /**
-      * Print the value on top of the stack.
-      *
-      * Assumes that all registers are free.
-      */
-    def print()(using ctx: Context): Unit = call(printService)
-
     /** Return from a procedure or function.
       *
       * Call stack goes from high address to low address.
@@ -274,21 +268,6 @@ object Linux:
       ctx.add(Instr.Sub(Reg(VAL_SP_REG), Int32(4), VAL_SP_REG))
 
     /**
-      * Push the value at the specified index on the top of stack.
-      *
-      * [index ..., v, ... ]   =>  [v, ..., v, ...]
-      */
-    def peek()(using ctx: Context): Unit =
-      ctx.useReg: r =>
-        val addr1 = X86.Rel(VAL_SP_REG, -4)
-        ctx.add(Instr.Special(X86.LoadRel(addr1, r)))
-        ctx.add(Instr.Mul(Reg(r), Int32(4), r))
-        ctx.add(Instr.Add(Reg(r), Int32(8), r))
-        ctx.add(Instr.Sub(Reg(VAL_SP_REG), Reg(r), r))
-        ctx.add(Instr.Load(Reg(r), r))
-        ctx.add(Instr.Special(X86.StoreRel(Reg(r), addr1)))
-
-    /**
       * Push value on the value stack.
       *
       * It could be address of a procedure, represented by a label.
@@ -298,79 +277,188 @@ object Linux:
       ctx.add(Instr.Store(v, Reg(VAL_SP_REG)))
       ctx.add(Instr.Add(Reg(VAL_SP_REG), Int32(4), VAL_SP_REG))
 
-    /** Swap items on top of stack.
+    def primitive(sym: Sast.Symbol)(using Context): Unit =
+      sym match
+        case predef.add    =>   add()
+        case predef.sub    =>   sub()
+        case predef.mul    =>   mul()
+        case predef.div    =>   div()
+        case predef.mod    =>   mod()
+        case predef.gt     =>   gt()
+        case predef.lt     =>   lt()
+        case predef.ge     =>   ge()
+        case predef.le     =>   le()
+        case predef.srl    =>   srl()
+        case predef.sll    =>   sll()
+        case predef.land   =>   land()
+        case predef.lor    =>   lor()
+        case predef.lxor   =>   lxor()
+        case predef.band   =>   band()
+        case predef.bor    =>   bor()
+        case predef.bnot   =>   bnot()
+        case predef.run    =>   run()
+        case predef.eql    =>   eql()
+        case predef.dup    =>   dup()
+        case predef.swap   =>   swap()
+        case predef.peek   =>   peek()
+        case predef.pop    =>   pop()
+        case predef.choose =>   choose()
+        case predef.p      =>   print()
+    end primitive
+
+    /** Load a value in value stack relative to the stack pointer.
       *
-      * It overrides the default implementations to generate optimized code.
+      * The offset is in bytes.
       */
-    def swap(ctx: Context) =
-      // TODO: empty stack
+    def loadValue(destReg: Int, offset: Byte)(using ctx: Context): Unit =
+      val addr = X86.Rel(VAL_SP_REG, offset)
+      ctx.add(Instr.Special(X86.LoadRel(addr, destReg)))
+
+    /** Store a value to value stack relative to the stack pointer.
+      *
+      * The offset is in bytes.
+      */
+    def storeValue(fromReg: Int, offset: Byte)(using ctx: Context): Unit =
+      val addr = X86.Rel(VAL_SP_REG, offset)
+      ctx.add(Instr.Special(X86.StoreRel(Reg(fromReg), addr)))
+
+    def int2(fn: (Int, Int, Int) => Instr)(using ctx: Context) =
+      // TODO: check type of value
       ctx.useTwoReg: (r1, r2) =>
-        val addr1 = X86.Rel(VAL_SP_REG, -4)
-        val addr2 = X86.Rel(VAL_SP_REG, -8)
-        ctx.add(Instr.Special(X86.LoadRel(addr1, r1)))
-        ctx.add(Instr.Special(X86.LoadRel(addr2, r2)))
-        ctx.add(Instr.Special(X86.StoreRel(Reg(r1), addr2)))
-        ctx.add(Instr.Special(X86.StoreRel(Reg(r2), addr1)))
+        // Reduce arithmetic on stack pointer to 1
+        loadValue(r1, -8)
+        loadValue(r2, -4)
+        ctx.add(fn(r1, r2, r1))
+        storeValue(r1, -8)
+        pop()
+
+    def add()(using ctx: Context) =
+      int2((r1, r2, d) => Instr.Add(Reg(r1), Reg(r2), d))
+
+    def sub()(using ctx: Context) =
+      int2((r1, r2, d) => Instr.Sub(Reg(r1), Reg(r2), d))
+
+    def mul()(using ctx: Context) =
+      int2((r1, r2, d) => Instr.Mul(Reg(r1), Reg(r2), d))
+
+    def div()(using ctx: Context) =
+      int2((r1, r2, d) => Instr.Div(Reg(r1), Reg(r2), d))
+
+    def mod()(using ctx: Context) =
+      int2((r1, r2, d) => Instr.Mod(Reg(r1), Reg(r2), d))
+
+    def lt()(using ctx: Context) =
+      int2((r1, r2, d) => Instr.Lt(Reg(r1), Reg(r2), d))
+
+    def gt()(using ctx: Context) =
+      int2((r1, r2, d) => Instr.Gt(Reg(r1), Reg(r2), d))
+
+    def le()(using ctx: Context) =
+      int2((r1, r2, d) => Instr.Le(Reg(r1), Reg(r2), d))
+
+    def ge()(using ctx: Context) =
+      int2((r1, r2, d) => Instr.Ge(Reg(r1), Reg(r2), d))
+
+    def sll()(using ctx: Context) =
+      int2((r1, r2, d) => Instr.Sll(Reg(r1), Reg(r2), d))
+
+    def srl()(using ctx: Context) =
+      int2((r1, r2, d) => Instr.Srl(Reg(r1), Reg(r2), d))
+
+    def land()(using ctx: Context) =
+      int2((r1, r2, d) => Instr.And(Reg(r1), Reg(r2), d))
+
+    def lor()(using ctx: Context) =
+      int2((r1, r2, d) => Instr.Or(Reg(r1), Reg(r2), d))
+
+    def lxor()(using ctx: Context) =
+      int2((r1, r2, d) => Instr.Xor(Reg(r1), Reg(r2), d))
+
+    def band()(using ctx: Context) =
+      int2((r1, r2, d) => Instr.And(Reg(r1), Reg(r2), d))
+
+    def bor()(using ctx: Context) =
+      int2((r1, r2, d) => Instr.Or(Reg(r1), Reg(r2), d))
+
+    def bnot()(using ctx: Context) =
+      ctx.useReg: r =>
+        loadValue(r, -4)
+        ctx.add(Instr.Not(Reg(r), r))
+        ctx.add(Instr.And(Reg(r), Int32(1), r))
+        storeValue(r, -4)
+
+    def run()(using ctx: Context) =
+      // TODO: check type of value
+      ctx.useReg: r =>
+        ctx.pop(r)
+        ctx.call(Reg(r))
+
+    def eql()(using ctx: Context) =
+      ctx.useTwoReg: (r1, r2) =>
+        loadValue(r1, -4)
+        loadValue(r2, -8)
+        ctx.add(Instr.Eq(Reg(r1), Reg(r2), r2))
+        storeValue(r2, -8)
+        pop()
+
+    /** Print the value on top of the stack. */
+    def print()(using ctx: Context): Unit = call(printService)
+
 
     /**
-      * Duplicate the value on the top of stack.
+      * Push the value at the specified index on the top of stack.
       *
-      * It overrides the default implementations to generate optimized code.
+      * [index ..., v, ... ]   =>  [v, ..., v, ...]
       */
-    def duplicate(ctx: Context) =
+    def peek()(using ctx: Context): Unit =
+      ctx.useReg: r =>
+        val addr1 = X86.Rel(VAL_SP_REG, -4)
+        loadValue(r, -4)
+        ctx.add(Instr.Mul(Reg(r), Int32(4), r))
+        ctx.add(Instr.Add(Reg(r), Int32(8), r))
+        ctx.add(Instr.Sub(Reg(VAL_SP_REG), Reg(r), r))
+        ctx.add(Instr.Load(Reg(r), r))
+        storeValue(r, -4)
+
+    /** Swap items on top of stack. */
+    def swap()(using ctx: Context) =
+      // TODO: empty stack
+      ctx.useTwoReg: (r1, r2) =>
+        loadValue(r1, -4)
+        loadValue(r2, -8)
+        storeValue(r1, -8)
+        storeValue(r2, -4)
+
+    /** Duplicate the value on the top of stack. */
+    def dup()(using ctx: Context) =
       // TODO: empty stack
       ctx.useReg: r =>
-        val addr = X86.Rel(VAL_SP_REG, -4)
-        ctx.add(Instr.Special(X86.LoadRel(addr, r)))
+        loadValue(r, -4)
         ctx.push(Reg(r))
 
     /** Choose between two values depending on the third.
       *
       *     [v1 v2 true  ...]   => [v2 ...]
       *     [v1 v2 false ...]   => [v1 ...]
-      *
-      * It overrides the default implementations to generate optimized code.
       */
-    def choose(ctx: Context) =
+    def choose()(using ctx: Context) =
       val labelFalse = Label(ctx.freshName("_false"))
       val labelEnd = Label(ctx.freshName("_falseEnd"))
       ctx.useReg: r =>
-        val elseAddr = X86.Rel(VAL_SP_REG, -4)
-        val thenAddr = X86.Rel(VAL_SP_REG, -8)
-        val condAddr = X86.Rel(VAL_SP_REG, -12)
-
-        ctx.add(Instr.Special(X86.LoadRel(condAddr, r)))
+        loadValue(r, -12)
         ctx.add(Instr.JZero(Reg(r), labelFalse))
 
-        ctx.add(Instr.Special(X86.LoadRel(thenAddr, r)))
+        loadValue(r, -8)
         ctx.add(Instr.Jump(labelEnd))
 
         ctx.addCodeLabel(labelFalse)
-        ctx.add(Instr.Special(X86.LoadRel(elseAddr, r)))
+        loadValue(r, -4)
 
         ctx.addCodeLabel(labelEnd)
-        ctx.add(Instr.Special(X86.StoreRel(Reg(r), condAddr)))
+        storeValue(r, -12)
         ctx.add(Instr.Sub(Reg(VAL_SP_REG), Int32(8), VAL_SP_REG))
     end choose
-
-    /**
-      * Create root scope for compilation.
-      *
-      * Override the default implementation of primitives to generate optimized code.
-      */
-    override def createRootScope() =
-      val rootScope = new Scope.RootScope()
-      val primitives = Primitive.operators
-          .updated(Sast.predef.dup, this.duplicate)
-          .updated(Sast.predef.swap, this.swap)
-          .updated(Sast.predef.choose, this.choose)
-
-      for (k, v) <- primitives do
-        rootScope.bind(k, Denotation.Prim(v))
-      rootScope
-
   end X86Platform
-
 
   /**
     * Linux x86 64 bit platform

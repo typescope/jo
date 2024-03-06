@@ -42,12 +42,6 @@ class Context private(
     platform.finish()(using this)
 
   /**
-    * Print the value on top of the value stack.
-    */
-  def print(): Unit =
-    platform.print()(using this)
-
-  /**
     * Return from a procedure or function.
     */
   def ret(): Unit = platform.ret()(using this)
@@ -63,23 +57,15 @@ class Context private(
   def pop(destReg: Int): Unit = platform.pop(destReg)(using this)
 
   /**
-    * Pop the value on the top of the value stack without using it.
-    */
-  def pop(): Unit = platform.pop()(using this)
-
-  /**
-    * Push the value at the specified index on the top of stack.
-    *
-    * [index ..., v, ... ]   =>  [v, ..., v, ...]
-    */
-  def peek(): Unit = platform.peek()(using this)
-
-  /**
     * Push value on the value stack.
     *
     * It could be address of a procedure, represented by a label.
     */
   def push(v: Operand | Label): Unit = platform.push(v)(using this)
+
+  /** Compile a primitive */
+  def primitive(sym: Sast.Symbol)(using Context): Unit =
+    platform.primitive(sym)(using this)
 end Context
 
 object Context:
@@ -87,9 +73,9 @@ object Context:
     val regAlloc = new RegisterAllocator(platform.freeRegisters)
     val entry = Label(platform.freshName("_entry"))
     val codeBuffer = new CodeBuffer(entry)
-
+    val rootScope = Scope.createRootScope()
     val rootContext = Context(
-        platform.createRootScope(),
+        rootScope,
         platform,
         regAlloc,
         codeBuffer)
