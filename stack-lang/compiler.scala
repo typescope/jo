@@ -75,6 +75,4 @@ def run(sourceFile: String, others: String*) =
   val ast = Parsing.parse(IO.fileContent(sourceFile))
   val sast = Namer.transform(ast)
   Compiler.compile(sast)(using platform)
-
-  IO.withExeFile(outFile): bb =>
-    platform.generate()(using bb)
+  platform.generate(outFile)

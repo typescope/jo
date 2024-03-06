@@ -70,5 +70,5 @@ abstract class Platform:
   /**
     * Generate executable for the given assembly progrram.
     */
-  def generate()(using bb: ByteBuffer): Unit
+  def generate(outFile: String): Unit
 end Platform

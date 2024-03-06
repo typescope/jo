@@ -250,11 +250,11 @@ object Linux:
     /**
       * Generate executable for the given assembly progrram.
       */
-    def generate()(using bb: ByteBuffer): Unit =
-      val prog: Prog = cb.getResult()
-      val elf = new ELF32(0x08048000, PAGE_SIZE, ELF32.EM_386)
-      Linux.lower(prog, heapStartLabel, elf, pb => defineServices()(using pb))
-
+    def generate(outFile: String): Unit =
+      IO.withExeFile(outFile): bb =>
+        val prog: Prog = cb.getResult()
+        val elf = new ELF32(0x08048000, PAGE_SIZE, ELF32.EM_386)
+        Linux.lower(prog, heapStartLabel, elf, pb => defineServices()(using pb))(using bb)
 
     /** Return from a procedure or function.
       *
