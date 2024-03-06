@@ -1,3 +1,6 @@
+import scala.collection.mutable
+
+
 /***********************************************************************
  *
  * Assembly Language Definition
@@ -88,3 +91,57 @@ object Assembly:
       end for
 
       sb.toString()
+  end Prog
+
+  /**
+    * Hold generated assembly data and code.
+    */
+  class CodeBuffer(val entry: Label):
+    private val dataSection: mutable.ArrayBuffer[Data  | Label] = new mutable.ArrayBuffer
+    private val codeSection: mutable.ArrayBuffer[Instr | Label] = new mutable.ArrayBuffer
+
+    def add(data  : Data       ): Unit = dataSection.addOne(data)
+    def add(instrs: List[Instr]): Unit = codeSection.addAll(instrs)
+    def add(instr : Instr      ): Unit = codeSection.addOne(instr)
+
+    def addDataLabel(label: Label): Unit = dataSection.addOne(label)
+    def addCodeLabel(label: Label): Unit = codeSection.addOne(label)
+
+    def getResult(): Prog = Prog(dataSection.toList, codeSection.toList, entry)
+
+  /**
+    * A simple register allocator.
+    *
+    * @param freeRegs All registers for temporary usage in a processor.
+    *
+    * The registers reserved for call stack pointer and value stack pointer are excluded.
+    */
+  class RegisterAllocator(freeRegs: List[Int]):
+    var freeIndex = 0
+
+    /**
+      * Allocate a temp register for usage.
+      *
+      * The allocated register will be released after the function return.
+      *
+      * TODO: spilling if no temp registers are available?
+      */
+    def useReg(fn: Int => Unit): Unit =
+      if freeIndex >= freeRegs.size then
+        throw new Exception("No register available")
+      else
+        val freeReg = freeIndex
+        freeIndex += 1
+        fn(freeRegs(freeReg))
+        freeIndex -= 1
+
+
+    /**
+      * Allocate two temporary registers for usage.
+      *
+      * @see useReg
+      */
+    def useTwoReg(fn: (Int, Int) => Unit): Unit =
+      useReg: r1 =>
+        useReg: r2 =>
+          fn(r1, r2)
