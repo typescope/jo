@@ -35,7 +35,8 @@ class JSPlatform extends Platform:
     * Call the funtion.
     */
   def call(fun: Sast.Symbol): Unit =
-    sb.append(symbol2UniqueName(fun)).append("()").append(";");
+    val name = symbol2UniqueName(fun)
+    sb.append(s"$name();\n");
 
   /** Initialize a value definition
     *
@@ -43,10 +44,8 @@ class JSPlatform extends Platform:
     */
   def initVal(sym: Sast.Symbol, initializer: () => Unit): Unit =
     initializer()
-    sb.append(symbol2UniqueName(sym))
-    sb.append(" = ")
-    sb.append(s"$pop()")
-    sb.append(";")
+    val name = symbol2UniqueName(sym)
+    sb.append("$name = $pop();\n")
 
   /** Compile a function
     *
@@ -61,17 +60,17 @@ class JSPlatform extends Platform:
 
   /** Push an integer literal to value stack */
   def push(v: Int): Unit =
-    sb.append(s"$vs.$push($v);\n")
+    sb.append(s"$push($v);\n")
 
 
   /** Push a Boolean literal to value stack */
   def push(v: Boolean): Unit =
-    sb.append(s"$vs.$push($v);\n")
+    sb.append(s"$push($v);\n")
 
   /** Push the value associated with the given symbol to value stack */
   def push(sym: Sast.Symbol): Unit =
     val name = symbol2UniqueName(sym)
-    sb.append(s"$vs.$push($name);\n")
+    sb.append(s"$push($name);\n")
 
   /** Push a procedure literal to value stack
     *
@@ -89,9 +88,9 @@ class JSPlatform extends Platform:
   def choose(): Unit =
     val local = freshName("choose_tmp")
     sb.append(s"let $local = $vs[$vs.length - 3];\n")
-    sb.append(s"if ($local) { $local = $vs[$vs.length - 1]; } else { $local = $vs[$vs.length - 2] };\n")
-    sb.append(s"$pop(); $pop(); $pop(); \n")
-    sb.append(s"$push($local);\n")
+    sb.append(s"if ($local) { $local = $vs[$vs.length - 2]; } else { $local = $vs[$vs.length - 1] };\n")
+    sb.append(s"$vs[$vs.length - 3] = $local;\n")
+    sb.append(s"$pop(); $pop(); \n")
 
   def peek(): Unit =
     val local = freshName("peek_temp")
@@ -104,28 +103,35 @@ class JSPlatform extends Platform:
     sb.append(s"$vs[$vs.length - 1] = $vs[$vs.length - 2];\n")
     sb.append(s"$vs[$vs.length - 2] = $local;\n")
 
+  def binary(op: String): Unit =
+    val operand1 = freshName("operand1")
+    val operand2 = freshName("operand2")
+    sb.append(s"const $operand1 = $pop();\n")
+    sb.append(s"const $operand2 = $pop();\n")
+    sb.append(s"$push($operand2 $op $operand1);\n")
+
   /**
     * Compile a primitive
     *
     */
   def primitive(sym: Sast.Symbol): Unit =
     sym match
-      case predef.add    =>   sb.append(s"$push($pop() + $pop());\n")
-      case predef.sub    =>   sb.append(s"$push($pop() - $pop());\n")
-      case predef.mul    =>   sb.append(s"$push($pop() * $pop());\n")
-      case predef.div    =>   sb.append(s"$push($pop() / $pop());\n")
-      case predef.mod    =>   sb.append(s"$push($pop() % $pop());\n")
-      case predef.gt     =>   sb.append(s"$push($pop() > $pop());\n")
-      case predef.lt     =>   sb.append(s"$push($pop() < $pop());\n")
-      case predef.ge     =>   sb.append(s"$push($pop() >= $pop());\n")
-      case predef.le     =>   sb.append(s"$push($pop() <= $pop());\n")
-      case predef.srl    =>   sb.append(s"$push($pop() >> $pop());\n")
-      case predef.sll    =>   sb.append(s"$push($pop() << $pop());\n")
-      case predef.land   =>   sb.append(s"$push($pop() & $pop());\n")
-      case predef.lor    =>   sb.append(s"$push($pop() | $pop());\n")
-      case predef.lxor   =>   sb.append(s"$push($pop() ^ $pop());\n")
-      case predef.band   =>   sb.append(s"$push($pop() && $pop());\n")
-      case predef.bor    =>   sb.append(s"$push($pop() || $pop());\n")
+      case predef.add    =>   binary("+")
+      case predef.sub    =>   binary("-")
+      case predef.mul    =>   binary("*")
+      case predef.div    =>   binary("/")
+      case predef.mod    =>   binary("%")
+      case predef.gt     =>   binary(">")
+      case predef.lt     =>   binary("<")
+      case predef.ge     =>   binary(">=")
+      case predef.le     =>   binary("<=")
+      case predef.srl    =>   binary(">>")
+      case predef.sll    =>   binary("<<")
+      case predef.land   =>   binary("&")
+      case predef.lor    =>   binary("|")
+      case predef.lxor   =>   binary("^")
+      case predef.band   =>   binary("&&")
+      case predef.bor    =>   binary("||")
       case predef.bnot   =>   sb.append(s"$push(!$pop());\n")
       case predef.run    =>   sb.append(s"$pop()();\n")
       case predef.eql    =>   sb.append(s"$push($pop() === $pop());\n")
