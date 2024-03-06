@@ -21,7 +21,7 @@ for file in $DIR/tests/*.stk; do
     echo "testing $file"
     exe=${file%.*}.run
     scala-cli $DIR/interpreter.scala -- $file > $RES1
-    scala-cli $DIR/compiler.scala -- $file $exe
+    scala-cli $DIR/compiler.scala -- $file -o $exe
     $exe > $RES2
     diff $RES1 $RES2
     if [[ $? != 0 ]]; then
