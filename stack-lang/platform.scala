@@ -20,18 +20,18 @@ abstract class Platform:
   /**
     * Generate entry code
     *
-    * The entry code initializes the language runtime, call the main function and exit.
-    *
     * Calling the passed function will compile the user entry code.
+    *
+    * The method enables platform to add code around the program entry.  For example, new code can
+    * be inserted before the entry to initialize the language runtime and after the entry to exit
+    * gracely.
     */
   def entry(init: => Unit): Unit
 
   /** Declare the symbol to the platform as a preparation for compilation */
   def declare(sym: Sast.Symbol): Unit
 
-  /**
-    * Call the funtion.
-    */
+  /** Call the funtion */
   def call(fun: Sast.Symbol): Unit
 
   /** Initialize a value definition
@@ -61,14 +61,12 @@ abstract class Platform:
     */
   def push(proc: () => Unit): Unit
 
-  /**
-    * Compile a primitive
-    *
-    */
+  /** Compile a primitive */
   def primitive(sym: Sast.Symbol): Unit
 
-  /**
-    * Generate executable for the given assembly progrram.
-    */
-  def generate(outFile: String): Unit
+  /** Prepare to start the compilation */
+  def start(): Unit
+
+  /** Finish compilation */
+  def finish(): Unit
 end Platform

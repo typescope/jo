@@ -6,8 +6,8 @@ import Sast.predef
 /**
   * JavaScript platform
   */
-class JSPlatform extends Platform:
-  private val sb: StringBuilder = new StringBuilder
+class JSPlatform(outFile: String) extends Platform:
+  private val pw =  new PrintWriter(outFile)
 
   private  val uniqueName = new UniqueName
   export uniqueName.freshName
@@ -20,10 +20,10 @@ class JSPlatform extends Platform:
 
   private var indentCount = 0
   private def addLine(code: String): Unit =
-    sb.append("  " * indentCount).append(code).append("\n")
+    pw.append("  " * indentCount).append(code).append("\n")
 
   private def newLine(): Unit =
-    sb.append("\n")
+    pw.append("\n")
 
   private def indent(work: => Unit): Unit =
     indentCount += 1
@@ -154,16 +154,20 @@ class JSPlatform extends Platform:
       case _             =>   throw new Exception("Unknown primitive: " + sym.name)
   end primitive
 
-  /**
-    * Generate executable for the given assembly progrram.
-    */
-  def generate(outFile: String): Unit =
-    new PrintWriter(outFile):
-      write("(function() {\n")
-      write(s"var $vs = [];\n\n")
-      write(s"function pop() { return $vs.pop(); }\n\n")
-      write(s"function push(v) { $vs.push(v); }\n\n")
-      write(sb.toString)
-      write("})()\n")
-      close
+
+  /** Prepare to start the compilation */
+  def start(): Unit =
+    addLine("(function() {")
+
+    indentCount += 1
+    addLine(s"var $vs = [];")
+    addLine(s"function pop() { return $vs.pop(); }\n")
+    addLine(s"function push(v) { $vs.push(v); }\n")
+
+  /** Finish compilation */
+  def finish(): Unit =
+    indentCount -= 1
+    addLine("})()")
+    pw.close()
+
 end JSPlatform

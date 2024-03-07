@@ -21,7 +21,7 @@ object Linux:
     *
     * `X86Platform` is marked private so that code generation is ignorant of the platform.
     */
-  def createX86Platform(): Platform = new X86Platform
+  def createX86Platform(outFile: String): Platform = new X86Platform(outFile)
 
   /**
     * Generate ELF on Linux platform.
@@ -110,7 +110,7 @@ object Linux:
     *
     * Marked private so that code generation is ignorant of the particular platform.
     */
-  private class X86Platform extends Platform:
+  private class X86Platform(outFile: String) extends Platform:
     /** The register ESP and EBP are reserved for value stack and call stack respectively. */
     val freeRegisters: List[Int] = List(X86.EAX, X86.ECX, X86.EDX, X86.EBX, X86.ESI, X86.EDI)
 
@@ -246,15 +246,6 @@ object Linux:
       cb.add(Instr.Const(Int32(code), X86.EBX))  // exit code
       cb.add(Instr.Const(Int32(1), X86.EAX))     // syscall number
       cb.add(Instr.Special(X86.Syscall))         // syscall
-
-    /**
-      * Generate executable for the given assembly program.
-      */
-    def generate(outFile: String): Unit =
-      IO.withExeFile(outFile): bb =>
-        val prog: Prog = cb.getResult()
-        val elf = new ELF32(0x08048000, PAGE_SIZE, ELF32.EM_386)
-        Linux.lower(prog, heapStartLabel, elf, pb => defineServices()(using pb))(using bb)
 
     /** Return from a procedure or function.
       *
@@ -531,4 +522,14 @@ object Linux:
         storeValue(r, -12)
         cb.add(Instr.Sub(Reg(VAL_SP_REG), Int32(8), VAL_SP_REG))
     end choose
+
+    /** Prepare to start the compilation */
+    def start(): Unit = ()
+
+    /** Finish compilation session. */
+    def finish(): Unit =
+      IO.withExeFile(outFile): bb =>
+        val prog: Prog = cb.getResult()
+        val elf = new ELF32(0x08048000, PAGE_SIZE, ELF32.EM_386)
+        Linux.lower(prog, heapStartLabel, elf, pb => defineServices()(using pb))(using bb)
   end X86Platform

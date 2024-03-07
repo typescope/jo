@@ -20,6 +20,8 @@ import scala.collection.mutable
  ************************************************************************/
 object Compiler:
   def compile(prog: Sast.Prog)(using pf: Platform): Unit =
+    pf.start()
+
     // Create labels for all definitions to support recursive definitions
     for defn <- prog.defs do pf.declare(defn.symbol)
 
@@ -34,6 +36,8 @@ object Compiler:
         pf.initVal(sym, () => compile(words))
 
       compile(prog.main)
+
+    pf.finish()
 
   def compile(words: List[Sast.Word])(using Platform): Unit =
     for word <- words do compile(word)
@@ -79,13 +83,12 @@ def run(args: String*) =
   val platform: Platform =
     options.get("-p") match
       case Some(pf) =>
-        if pf == "linux-x86" then Linux.createX86Platform()
-        else if pf == "javascript" then new JSPlatform()
+        if pf == "linux-x86" then Linux.createX86Platform(outFile)
+        else if pf == "javascript" then new JSPlatform(outFile)
         else throw new Exception("Unknow platform: " + pf)
       case None =>
-        Linux.createX86Platform()
+        Linux.createX86Platform(outFile)
 
   val ast = Parsing.parse(IO.fileContent(sourceFile))
   val sast = Namer.transform(ast)
   Compiler.compile(sast)(using platform)
-  platform.generate(outFile)
