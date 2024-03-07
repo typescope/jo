@@ -15,15 +15,26 @@ scala-cli compile $COMPILER
 # run tests
 RES1=$DIR/tests/int.txt
 RES2=$DIR/tests/exe.txt
+RES3=$DIR/tests/js.txt
 
 retcode=0
 for file in $DIR/tests/*.stk; do
     echo "testing $file"
     exe=${file%.*}.run
+    js=${file%.*}.js
     scala-cli $DIR/interpreter.scala -- $file > $RES1
     scala-cli $DIR/compiler.scala -- $file -o $exe
+    scala-cli $DIR/compiler.scala -- $file -o $js -p javascript
     $exe > $RES2
+    node $js > $RES3
+
     diff $RES1 $RES2
+    if [[ $? != 0 ]]; then
+        echo "[error] testing $file failed!"
+        retcode=1
+    fi
+
+    diff $RES1 $RES3
     if [[ $? != 0 ]]; then
         echo "[error] testing $file failed!"
         retcode=1
@@ -32,5 +43,6 @@ done
 
 rm $RES1
 rm $RES2
+rm $RES3
 echo $retcode
 exit $retcode

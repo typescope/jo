@@ -6,4 +6,5 @@ hs_err_pid*
 .scala-build/
 .bsp/
 *.run
+*.js
 *~

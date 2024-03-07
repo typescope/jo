@@ -12,6 +12,12 @@ class JSPlatform(outFile: String) extends Platform:
   private  val uniqueName = new UniqueName
   export uniqueName.freshName
 
+  // Make keywords unavailable
+  List("for", "while", "function", "var", "let", "break", "continue", "if", "const", "class",
+    "constructor"
+  ).foreach: w =>
+    freshName(w)
+
   private val vs: String = freshName("_valueStack")
   private val pop: String = freshName("pop")
   private val push: String = freshName("push")
@@ -37,11 +43,16 @@ class JSPlatform(outFile: String) extends Platform:
 
   /** Declare the symbol to the platform as a preparation for compilation */
   def declare(sym: Sast.Symbol): Unit =
-    val uniqueName = freshName(sym.name)
+    val isOperator = !sym.name(0).isLetter
+    val uniqueName =
+      if isOperator then freshName("operator")
+      else freshName(sym.name)
+
     symbol2UniqueName(sym) = uniqueName
 
     if sym.isVal then
-      addLine(s"var $uniqueName;")
+      addLine(s"var $uniqueName; // ${sym.name}")
+
 
   /**
     * Call the funtion.
@@ -57,7 +68,7 @@ class JSPlatform(outFile: String) extends Platform:
   def initVal(sym: Sast.Symbol, initializer: () => Unit): Unit =
     initializer()
     val name = symbol2UniqueName(sym)
-    addLine("$name = $pop();")
+    addLine(s"$name = $pop();")
 
   /** Compile a function
     *
@@ -65,7 +76,7 @@ class JSPlatform(outFile: String) extends Platform:
     */
   def function(sym: Sast.Symbol, body: () => Unit): Unit =
     val name = symbol2UniqueName(sym)
-    addLine(s"function $name() {")
+    addLine(s"function $name() { // ${sym.name}")
     indent:
       body()
     addLine("}\n")
@@ -120,6 +131,13 @@ class JSPlatform(outFile: String) extends Platform:
     addLine(s"const $operand2 = $pop();")
     addLine(s"$push($operand2 $op $operand1);")
 
+  def div(): Unit =
+    val operand1 = freshName("operand1")
+    val operand2 = freshName("operand2")
+    addLine(s"const $operand1 = $pop();")
+    addLine(s"const $operand2 = $pop();")
+    addLine(s"$push(($operand2 / $operand1)>>0);")
+
   /**
     * Compile a primitive
     *
@@ -129,7 +147,7 @@ class JSPlatform(outFile: String) extends Platform:
       case predef.add    =>   binary("+")
       case predef.sub    =>   binary("-")
       case predef.mul    =>   binary("*")
-      case predef.div    =>   binary("/")
+      case predef.div    =>   div()
       case predef.mod    =>   binary("%")
       case predef.gt     =>   binary(">")
       case predef.lt     =>   binary("<")
@@ -161,8 +179,8 @@ class JSPlatform(outFile: String) extends Platform:
 
     indentCount += 1
     addLine(s"var $vs = [];")
-    addLine(s"function pop() { return $vs.pop(); }\n")
-    addLine(s"function push(v) { $vs.push(v); }\n")
+    addLine(s"function $pop() { return $vs.pop(); }\n")
+    addLine(s"function $push(v) { $vs.push(v); }\n")
 
   /** Finish compilation */
   def finish(): Unit =
