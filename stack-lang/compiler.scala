@@ -57,38 +57,6 @@ object Compiler:
  *
  ***********************************************************************/
 
-/**
-  * Parse options and according to the option specs.
-  *
-  * @returns matched options and remaining non-optional arguments
-  */
-def parseOptions(args: Seq[String], options: Map[String, Boolean]): (Map[String, String], List[String]) =
-  val rest = new mutable.ArrayBuffer[String]
-  val res = mutable.Map.empty[String, String]
-  val iter = args.iterator
-  while iter.hasNext do
-    val arg = iter.next()
-    if arg(0) != '-' then
-      rest += arg
-    else
-      options.get(arg) match
-        case Some(flag) =>
-          if flag then
-            if iter.hasNext then
-              val value = iter.next()
-              if value(0) == '-' then
-                throw new Exception("The flag " + arg + " requires an argument")
-              else
-                res(arg) = value
-            else
-              throw new Exception("The flag " + arg + " requires an argument")
-          else
-            res(arg) = ""
-
-        case None => throw new Exception("Unknown flag " + arg)
-  end while
-  (res.toMap, rest.toList)
-
 @main
 def run(args: String*) =
   val optionSpec = Map(
@@ -96,7 +64,7 @@ def run(args: String*) =
     "-p" -> true
   )
 
-  val (options, rest) = parseOptions(args, optionSpec)
+  val (options, rest) = IO.parseOptions(args, optionSpec)
 
   assert(rest.size == 1, "Expect a single source file as input, found = " + rest)
   val sourceFile = rest.head
