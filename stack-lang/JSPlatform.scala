@@ -97,7 +97,8 @@ class JSPlatform extends Platform:
   def choose(): Unit =
     val local = freshName("choose_tmp")
     addLine(s"let $local = $vs[$vs.length - 3];")
-    addLine(s"if ($local) { $local = $vs[$vs.length - 2]; } else { $local = $vs[$vs.length - 1] };")
+    addLine(s"if ($local) { $local = $vs[$vs.length - 2]; }")
+    addLine(s"else { $local = $vs[$vs.length - 1] };")
     addLine(s"$vs[$vs.length - 3] = $local;")
     addLine(s"$pop(); $pop();")
 
