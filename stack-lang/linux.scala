@@ -248,7 +248,7 @@ object Linux:
       cb.add(Instr.Special(X86.Syscall))         // syscall
 
     /**
-      * Generate executable for the given assembly progrram.
+      * Generate executable for the given assembly program.
       */
     def generate(outFile: String): Unit =
       IO.withExeFile(outFile): bb =>

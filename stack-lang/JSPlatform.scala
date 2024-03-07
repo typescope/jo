@@ -18,10 +18,22 @@ class JSPlatform extends Platform:
 
   private val symbol2UniqueName: mutable.Map[Sast.Symbol, String] = mutable.Map.empty
 
+  private var indentCount = 0
+  private def addLine(code: String): Unit =
+    sb.append("  " * indentCount).append(code).append("\n")
+
+  private def newLine(): Unit =
+    sb.append("\n")
+
+  private def indent(work: => Unit): Unit =
+    indentCount += 1
+    work
+    indentCount -= 1
+
   def entry(init: => Unit): Unit =
-    sb.append("\n\n")
+    newLine()
     init
-    sb.append("\n\n")
+    newLine()
 
   /** Declare the symbol to the platform as a preparation for compilation */
   def declare(sym: Sast.Symbol): Unit =
@@ -29,14 +41,14 @@ class JSPlatform extends Platform:
     symbol2UniqueName(sym) = uniqueName
 
     if sym.isVal then
-      sb.append(s"var $uniqueName;\n\n")
+      addLine(s"var $uniqueName;")
 
   /**
     * Call the funtion.
     */
   def call(fun: Sast.Symbol): Unit =
     val name = symbol2UniqueName(fun)
-    sb.append(s"$name();\n");
+    addLine(s"$name();");
 
   /** Initialize a value definition
     *
@@ -45,70 +57,67 @@ class JSPlatform extends Platform:
   def initVal(sym: Sast.Symbol, initializer: () => Unit): Unit =
     initializer()
     val name = symbol2UniqueName(sym)
-    sb.append("$name = $pop();\n")
+    addLine("$name = $pop();")
 
   /** Compile a function
     *
     * Calling the passed function will compile the body of the function.
     */
   def function(sym: Sast.Symbol, body: () => Unit): Unit =
-    sb.append("function ")
-    sb.append(sym.name)
-    sb.append("() {\n")
-    body()
-    sb.append("\n}\n\n")
+    val name = symbol2UniqueName(sym)
+    addLine(s"function $name() {")
+    indent:
+      body()
+    addLine("}\n")
 
   /** Push an integer literal to value stack */
   def push(v: Int): Unit =
-    sb.append(s"$push($v);\n")
+    addLine(s"$push($v);")
 
 
   /** Push a Boolean literal to value stack */
   def push(v: Boolean): Unit =
-    sb.append(s"$push($v);\n")
+    addLine(s"$push($v);")
 
   /** Push the value associated with the given symbol to value stack */
   def push(sym: Sast.Symbol): Unit =
     val name = symbol2UniqueName(sym)
-    sb.append(s"$push($name);\n")
+    addLine(s"$push($name);")
 
   /** Push a procedure literal to value stack
     *
     * Calling the passed function will compile the body of the procedure.
     */
   def push(proc: () => Unit): Unit =
-    sb.append(vs)
-    sb.append(".")
-    sb.append(s"$push")
-    sb.append("(")
-    sb.append("() => {")
-    proc()
-    sb.append("});\n")
+    addLine(s"$push(() => {")
+    indent:
+      proc()
+    addLine("});")
 
   def choose(): Unit =
     val local = freshName("choose_tmp")
-    sb.append(s"let $local = $vs[$vs.length - 3];\n")
-    sb.append(s"if ($local) { $local = $vs[$vs.length - 2]; } else { $local = $vs[$vs.length - 1] };\n")
-    sb.append(s"$vs[$vs.length - 3] = $local;\n")
-    sb.append(s"$pop(); $pop(); \n")
+    addLine(s"let $local = $vs[$vs.length - 3];")
+    addLine(s"if ($local) { $local = $vs[$vs.length - 2]; } else { $local = $vs[$vs.length - 1] };")
+    addLine(s"$vs[$vs.length - 3] = $local;")
+    addLine(s"$pop(); $pop();")
 
   def peek(): Unit =
     val local = freshName("peek_temp")
-    sb.append(s"const $local = $pop();\n")
-    sb.append(s"$push($vs[$vs.length - 1 - $local]);\n")
+    addLine(s"const $local = $pop();")
+    addLine(s"$push($vs[$vs.length - 1 - $local]);")
 
   def swap(): Unit =
     val local = freshName("tmp")
-    sb.append(s"const $local = $vs[$vs.length - 1];\n")
-    sb.append(s"$vs[$vs.length - 1] = $vs[$vs.length - 2];\n")
-    sb.append(s"$vs[$vs.length - 2] = $local;\n")
+    addLine(s"const $local = $vs[$vs.length - 1];")
+    addLine(s"$vs[$vs.length - 1] = $vs[$vs.length - 2];")
+    addLine(s"$vs[$vs.length - 2] = $local;")
 
   def binary(op: String): Unit =
     val operand1 = freshName("operand1")
     val operand2 = freshName("operand2")
-    sb.append(s"const $operand1 = $pop();\n")
-    sb.append(s"const $operand2 = $pop();\n")
-    sb.append(s"$push($operand2 $op $operand1);\n")
+    addLine(s"const $operand1 = $pop();")
+    addLine(s"const $operand2 = $pop();")
+    addLine(s"$push($operand2 $op $operand1);")
 
   /**
     * Compile a primitive
@@ -132,15 +141,15 @@ class JSPlatform extends Platform:
       case predef.lxor   =>   binary("^")
       case predef.band   =>   binary("&&")
       case predef.bor    =>   binary("||")
-      case predef.bnot   =>   sb.append(s"$push(!$pop());\n")
-      case predef.run    =>   sb.append(s"$pop()();\n")
-      case predef.eql    =>   sb.append(s"$push($pop() === $pop());\n")
-      case predef.dup    =>   sb.append(s"$push($vs[$vs.length - 1]);\n")
+      case predef.bnot   =>   addLine(s"$push(!$pop());")
+      case predef.run    =>   addLine(s"$pop()();")
+      case predef.eql    =>   addLine(s"$push($pop() === $pop());")
+      case predef.dup    =>   addLine(s"$push($vs[$vs.length - 1]);")
       case predef.swap   =>   swap()
       case predef.peek   =>   peek()
-      case predef.pop    =>   sb.append(s"$pop();\n")
+      case predef.pop    =>   addLine(s"$pop();")
       case predef.choose =>   choose()
-      case predef.p      =>   sb.append(s"console.log($pop());\n")
+      case predef.p      =>   addLine(s"console.log($pop());")
       case _             =>   throw new Exception("Unknown primitive: " + sym.name)
   end primitive
 
