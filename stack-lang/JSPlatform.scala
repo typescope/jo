@@ -15,8 +15,8 @@ class JSPlatform(outFile: String) extends Platform:
   // Make keywords unavailable
   List(
     "for", "while", "function", "var", "let", "break", "continue", "if",
-    "const", "class", "constructor")
-  .foreach: w =>
+    "const", "class", "constructor"
+  ).foreach: w =>
     freshName(w)
 
   private val vs: String = freshName("_valueStack")

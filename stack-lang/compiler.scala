@@ -11,8 +11,6 @@
 //> using file UniqueName.scala
 //> using file JSPlatform.scala
 
-import scala.collection.mutable
-
 /************************************************************************
  *                                                                      *
  * The compiler implementation of the stack-oriented language.          *
