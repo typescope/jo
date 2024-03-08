@@ -78,7 +78,8 @@ class JSPlatform(outFile: String) extends Platform:
     val name = symbol2UniqueName(sym)
     addLine(s"function $name() { // ${sym.name}")
     indent:
-      body()
+      uniqueName.newScope:
+        body()
     addLine("}\n")
 
   /** Push an integer literal to value stack */
@@ -102,7 +103,8 @@ class JSPlatform(outFile: String) extends Platform:
   def push(proc: () => Unit): Unit =
     addLine(s"$push(() => {")
     indent:
-      proc()
+      uniqueName.newScope:
+        proc()
     addLine("});")
 
   def choose(): Unit =
