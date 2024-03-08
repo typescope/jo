@@ -9,11 +9,12 @@ import Assembly.Label
   */
 object IO:
   /**
-    * Parse options and according to the option specs.
+    * Parse options according to the option specs.
     *
-    * @returns matched options and remaining non-optional arguments
+    * @returns matched options and remaining positional arguments
     */
-  def parseOptions(args: Seq[String], options: Map[String, Boolean]): (Map[String, String], List[String]) =
+  def parseOptions(args: Seq[String], options: Map[String, Boolean]):
+  (Map[String, String], List[String]) =
     val rest = new mutable.ArrayBuffer[String]
     val res = mutable.Map.empty[String, String]
     val iter = args.iterator
@@ -146,7 +147,9 @@ object IO:
   end PatchableBuffer
 
   /** Helper method to deal with patches (labels that are resolved late) */
-  def withPatch(label: Label, size: Int)(fn: (ByteBuffer, Int) => Unit)(using pb: PatchableBuffer): Unit =
+  def withPatch(label: Label, size: Int)
+               (fn: (ByteBuffer, Int) => Unit)
+               (using pb: PatchableBuffer): Unit =
     pb.resolve(label) match
       case Some(loc) =>
         fn(pb, loc)
