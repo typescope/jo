@@ -17,10 +17,10 @@ class UniqueName:
         prefix
 
   /**
-    * Allocate names in a nested scope
+    * Create a nested scope for allocating names
     *
-    * Names allocated in a nested scope are invisible thus the name resouces can
-    * be reclaimed at the end of the scope.
+    * Names allocated in a nested scope are invisible to outer scopes, thus the
+    * name resouces can be reclaimed at the end of the scope.
     */
   def newScope[T](fn: => T): T =
     val current = usedNames

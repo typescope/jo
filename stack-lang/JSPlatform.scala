@@ -1,7 +1,7 @@
 import java.io.PrintWriter
 import scala.collection.mutable
 
-import Sast.predef
+import Sast.{ predef, Symbol }
 
 /**
   * JavaScript platform
@@ -13,16 +13,17 @@ class JSPlatform(outFile: String) extends Platform:
   export uniqueName.freshName
 
   // Make keywords unavailable
-  List("for", "while", "function", "var", "let", "break", "continue", "if", "const", "class",
-    "constructor"
-  ).foreach: w =>
+  List(
+    "for", "while", "function", "var", "let", "break", "continue", "if",
+    "const", "class", "constructor")
+  .foreach: w =>
     freshName(w)
 
   private val vs: String = freshName("_valueStack")
   private val pop: String = freshName("pop")
   private val push: String = freshName("push")
 
-  private val symbol2UniqueName: mutable.Map[Sast.Symbol, String] = mutable.Map.empty
+  private val symbol2UniqueName: mutable.Map[Symbol, String] = mutable.Map.empty
 
   private var indentCount = 0
   private def addLine(code: String): Unit =
