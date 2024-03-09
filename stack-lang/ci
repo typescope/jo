@@ -2,8 +2,8 @@
 
 DIR=$(dirname "$0")
 
-INTERPRETER=$DIR/interpreter.scala
-COMPILER=$DIR/compiler.scala
+INTERPRETER=$DIR/Interpreter.scala
+COMPILER=$DIR/Compiler.scala
 
 # compile
 echo "Compiling $INTERPRETER"
@@ -22,9 +22,9 @@ for file in $DIR/tests/*.stk; do
     echo "testing $file"
     exe=${file%.*}.run
     js=${file%.*}.js
-    scala-cli $DIR/interpreter.scala -- $file > $RES1
-    scala-cli $DIR/compiler.scala -- $file -o $exe
-    scala-cli $DIR/compiler.scala -- $file -o $js -p javascript
+    scala-cli $INTERPRETER -- $file > $RES1
+    scala-cli $COMPILER -- $file -o $exe -p linux-x86
+    scala-cli $COMPILER -- $file -o $js -p javascript
     $exe > $RES2
     node $js > $RES3
 

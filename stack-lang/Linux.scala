@@ -11,7 +11,7 @@ import scala.collection.mutable
 
 import Assembly.*
 import IO.{ ByteBuffer, Patch, PatchableBuffer }
-import Sast.predef
+import Sast.{ predef, Symbol }
 
 object Linux:
   val PAGE_SIZE = 0x1000
@@ -126,7 +126,7 @@ object Linux:
     val heapStartLabel = Label(uniqueName.freshName("_heapStart"))
     val printService = Label(uniqueName.freshName("_print"))
 
-    val symbolLabels: mutable.Map[Sast.Symbol, Label] = mutable.Map.empty
+    val symbolLabels: mutable.Map[Symbol, Label] = mutable.Map.empty
 
     val entry = Label(freshName("_entry"))
     val regAlloc = new RegisterAllocator(freeRegisters)
@@ -149,7 +149,7 @@ object Linux:
       exit(0)
 
     /** Declare the symbol to the platform as a preparation for compilation */
-    def declare(sym: Sast.Symbol): Unit =
+    def declare(sym: Symbol): Unit =
       val label = Label(freshName(sym.name))
       symbolLabels(sym) = label
       if sym.isVal then
@@ -160,7 +160,7 @@ object Linux:
       *
       * Calling the passed function will compile the body of the function.
       */
-    def function(sym: Sast.Symbol, body: () => Unit): Unit =
+    def function(sym: Symbol, body: () => Unit): Unit =
       val label = symbolLabels(sym)
       cb.addCodeLabel(label)
       body()
@@ -262,7 +262,7 @@ object Linux:
       *
       * Call stack goes from high address to low address.
       */
-    def call(fun: Sast.Symbol) =
+    def call(fun: Symbol) =
       val label = symbolLabels(fun)
       call(label)
 
@@ -304,7 +304,7 @@ object Linux:
       *
       * Calling the passed function will compile the initializer.
       */
-    def initVal(sym: Sast.Symbol, initializer: () => Unit): Unit =
+    def initVal(sym: Symbol, initializer: () => Unit): Unit =
       val label = symbolLabels(sym)
       initializer()
       useReg: r =>
@@ -334,13 +334,13 @@ object Linux:
       push(labelStart)
 
     /** Push the value associated with the given symbol to value stack */
-    def push(sym: Sast.Symbol): Unit =
+    def push(sym: Symbol): Unit =
       val label = symbolLabels(sym)
       useReg: r =>
         cb.add(Instr.Load(label, r))
         push(Reg(r))
 
-    def primitive(sym: Sast.Symbol): Unit =
+    def primitive(sym: Symbol): Unit =
       sym match
         case predef.add    =>   add()
         case predef.sub    =>   sub()

@@ -43,7 +43,7 @@ class JSPlatform(outFile: String) extends Platform:
     newLine()
 
   /** Declare the symbol to the platform as a preparation for compilation */
-  def declare(sym: Sast.Symbol): Unit =
+  def declare(sym: Symbol): Unit =
     val isOperator = !sym.name(0).isLetter
     val uniqueName =
       if isOperator then freshName("operator")
@@ -58,7 +58,7 @@ class JSPlatform(outFile: String) extends Platform:
   /**
     * Call the funtion.
     */
-  def call(fun: Sast.Symbol): Unit =
+  def call(fun: Symbol): Unit =
     val name = symbol2UniqueName(fun)
     addLine(s"$name();");
 
@@ -66,7 +66,7 @@ class JSPlatform(outFile: String) extends Platform:
     *
     * Calling the passed function will compile the initializer.
     */
-  def initVal(sym: Sast.Symbol, initializer: () => Unit): Unit =
+  def initVal(sym: Symbol, initializer: () => Unit): Unit =
     initializer()
     val name = symbol2UniqueName(sym)
     addLine(s"$name = $pop();")
@@ -75,7 +75,7 @@ class JSPlatform(outFile: String) extends Platform:
     *
     * Calling the passed function will compile the body of the function.
     */
-  def function(sym: Sast.Symbol, body: () => Unit): Unit =
+  def function(sym: Symbol, body: () => Unit): Unit =
     val name = symbol2UniqueName(sym)
     addLine(s"function $name() { // ${sym.name}")
     indent:
@@ -93,7 +93,7 @@ class JSPlatform(outFile: String) extends Platform:
     addLine(s"$push($v);")
 
   /** Push the value associated with the given symbol to value stack */
-  def push(sym: Sast.Symbol): Unit =
+  def push(sym: Symbol): Unit =
     val name = symbol2UniqueName(sym)
     addLine(s"$push($name);")
 
@@ -145,7 +145,7 @@ class JSPlatform(outFile: String) extends Platform:
     * Compile a primitive
     *
     */
-  def primitive(sym: Sast.Symbol): Unit =
+  def primitive(sym: Symbol): Unit =
     sym match
       case predef.add    =>   binary("+")
       case predef.sub    =>   binary("-")

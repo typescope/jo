@@ -8,10 +8,10 @@
  *                                                                      *
  ************************************************************************/
 
-//> using file ast.scala
-//> using file sast.scala
-//> using file namer.scala
-//> using file parser.scala
+//> using file Ast.scala
+//> using file Sast.scala
+//> using file Namer.scala
+//> using file Parser.scala
 
 import scala.collection.mutable
 
