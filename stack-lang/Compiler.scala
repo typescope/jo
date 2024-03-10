@@ -11,44 +11,46 @@
 //> using file UniqueName.scala
 //> using file JSPlatform.scala
 
+import Sast.*
+
 /************************************************************************
  *                                                                      *
  * The compiler implementation of the stack-oriented language.          *
  *                                                                      *
  ************************************************************************/
 object Compiler:
-  def compile(prog: Sast.Prog)(using pf: Platform): Unit =
+  def compile(prog: Prog)(using pf: Platform): Unit =
     pf.start()
 
     // Create labels for all definitions to support recursive definitions
     for defn <- prog.defs do pf.declare(defn.symbol)
 
     // Compile functions
-    for case Sast.Def.FunDef(sym, words) <- prog.defs do
+    for case Def.FunDef(sym, words) <- prog.defs do
       pf.function(sym, () => compile(words))
 
     // User code execution starts from here
     pf.entry:
       // Create initializer for value definitions
-      for case Sast.Def.ValDef(sym, words) <- prog.defs do
+      for case Def.ValDef(sym, words) <- prog.defs do
         pf.initVal(sym, () => compile(words))
 
       compile(prog.main)
 
     pf.finish()
 
-  def compile(words: List[Sast.Word])(using Platform): Unit =
+  def compile(words: List[Word])(using Platform): Unit =
     for word <- words do compile(word)
 
-  def compile(word: Sast.Word)(using pf: Platform): Unit =
+  def compile(word: Word)(using pf: Platform): Unit =
     word match
-      case Sast.Word.IntLit(v)  => pf.push(v)
+      case Word.IntLit(v)  => pf.push(v)
 
-      case Sast.Word.BoolLit(v) => pf.push(v)
+      case Word.BoolLit(v) => pf.push(v)
 
-      case Sast.Word.Proc(words) => pf.push(() => compile(words))
+      case Word.Proc(words) => pf.push(() => compile(words))
 
-      case Sast.Word.Ident(sym) =>
+      case Word.Ident(sym) =>
         if sym.isVal then pf.push(sym)
         else if sym.isFun then pf.call(sym)
         else pf.primitive(sym)
