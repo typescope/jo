@@ -76,6 +76,8 @@ object Linux:
           case label: Label => codePB.defineLabel(label)
           case instr: Instr => X86.lower(instr)(using codePB)
 
+      // The patches depend on labels of other sections or segments they need to
+      // be applied during ELF32 generation.
       val bytes = codePB.finish()
       val flags = ELF32.SHF_EXEC | ELF32.SHF_ALLOC
       val secIndex = elf.addSection(".text", ELF32.SHT_PROGBITS, codeSegBaseAddr, bytes, flags, patches.toList)
