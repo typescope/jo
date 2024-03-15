@@ -14,7 +14,8 @@ import IO.{ ByteBuffer, Patch, PatchableBuffer }
 import Sast.{ predef, Symbol }
 
 object Linux:
-  val PAGE_SIZE = 0x1000
+  val PAGE_SIZE  = 0x1000
+  val PROG_START = 0x08048000
 
   /**
     * Create a new x86 platform.
@@ -532,6 +533,6 @@ object Linux:
     def finish(): Unit =
       IO.withExeFile(outFile): bb =>
         val prog: Prog = cb.getResult()
-        val elf = new ELF32(0x08048000, PAGE_SIZE, ELF32.EM_386)
+        val elf = new ELF32(PROG_START, PAGE_SIZE, ELF32.EM_386)
         Linux.lower(prog, heapStartLabel, elf, pb => defineServices()(using pb))(using bb)
   end X86Platform
