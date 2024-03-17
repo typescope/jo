@@ -114,8 +114,9 @@ class ELF32(outFile: String, firstSegBaseAddr: Int, align: Int, machine: Short):
 
     val fileSize = content.fileSize - fileSizeBefore
     val memorySize = content.memorySize - memorySizeBefore
-    val seg = Segment(segIndex, tp, offset, virtualAddr, fileSize, memorySize, flags)
-    segments.addOne(seg)
+    if fileSize > 0 || memorySize > 0 then
+      val seg = Segment(segIndex, tp, offset, virtualAddr, fileSize, memorySize, flags)
+      segments.addOne(seg)
 
   /**
     * Add a new section.
