@@ -2,7 +2,6 @@ import scala.collection.mutable
 
 import Assembly.Label
 
-
 /**
   * Encapsulates common input/output utilities
   *
@@ -67,25 +66,6 @@ object IO:
     new String(bytes)
 
   /**
-    * Represents a patch to be applied after first pass of code generation.
-    *
-    * The patches are needed to resolve the address of mutually recursive functions.
-    *
-    * For simplicity, patches should not be nested.
-    */
-  case class Patch(offset: Int, size: Int, values: () => List[Byte]):
-    def apply(update: (Int, Byte) => Unit): Unit =
-      val bytes = this.values()
-      if bytes.size != this.size then
-        throw new Exception("Patch size mismatch, found = " +
-            bytes.size + ", expect = " + this.size)
-      end if
-      var i = 0
-      while i < this.size do
-        update(this.offset + i, bytes(i))
-        i += 1
-
-  /**
    * Little endian byte buffer
    */
   abstract class ByteBuffer:
@@ -113,6 +93,27 @@ object IO:
     def addZeros(n: Int): Unit =
       for _ <-0 until n do addByte(0)
 
+
+  /**
+    * Represents a patch to be applied after first pass of code generation.
+    *
+    * The patches are needed to resolve the address of mutually recursive functions.
+    *
+    * For simplicity, patches should not be nested.
+    */
+  case class Patch(offset: Int, size: Int, values: () => List[Byte]):
+    def apply(update: (Int, Byte) => Unit): Unit =
+      val bytes = this.values()
+      if bytes.size != this.size then
+        throw new Exception("Patch size mismatch, found = " +
+            bytes.size + ", expect = " + this.size)
+      end if
+      var i = 0
+      while i < this.size do
+        update(this.offset + i, bytes(i))
+        i += 1
+
+
   /**
     * A byte buffer which supports labels, patches and alignment.
     */
@@ -122,11 +123,8 @@ object IO:
       labelMap: mutable.Map[Label, Int],
       patches : mutable.ArrayBuffer[Patch]
   ) extends ByteBuffer:
-    def this(
-      baseAddr: Int,
-      buffer: mutable.ArrayBuffer[Byte],
-      labelMap: mutable.Map[Label, Int]
-    ) = this(baseAddr, buffer, labelMap, new mutable.ArrayBuffer)
+    def this(baseAddr: Int, labelMap: mutable.Map[Label, Int]) =
+      this(baseAddr, new mutable.ArrayBuffer, labelMap, new mutable.ArrayBuffer)
 
     /** New labels defined for the current PatchableBuffer */
     private  val newLabels : mutable.ArrayBuffer[Label] = new mutable.ArrayBuffer
@@ -154,10 +152,15 @@ object IO:
 
     def currentAddr(): Int = baseAddr + currentOffset()
 
-    def currentOffset(): Int = buffer.size
+    def currentOffset(): Int = size
 
-    /** Return bytes without applying batches */
-    def finish(): Array[Byte] = buffer.toArray
+    def size: Int = buffer.size
+
+    /** Applying patches and return result */
+    def finish(): Array[Byte] =
+      for patch <- patches do
+        patch.apply { (i, b) => buffer(i) = b }
+      buffer.toArray
   end PatchableBuffer
 
   /** Helper method to deal with patches (labels that are resolved late) */

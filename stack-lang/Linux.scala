@@ -18,87 +18,11 @@ object Linux:
   val PROG_START = 0x08048000
 
   /**
-    * The assembler that translates assembly to machine code.
-    */
-  trait Assembler:
-    def lowerData(data: List[Data | Attr])(using PatchableBuffer): Unit
-    def lowerCode(code: List[Instr | Label])(using PatchableBuffer): Unit
-
-  /**
     * Create a new x86 platform.
     *
     * `X86Platform` is marked private so that code generation is ignorant of the platform.
     */
   def createX86Platform(outFile: String): Platform = new X86Platform(outFile)
-
-  /**
-    * Generate ELF on Linux platform.
-    *
-    * TODO: Abstract processor architecture.
-    */
-  def lower(outFile: String, prog: Prog, heapStartLabel: Label, assembler: Assembler): Unit =
-    val elf = new ELF32(PROG_START, PAGE_SIZE, ELF32.EM_386)
-
-    val labelMap: mutable.Map[Label, Int]    = mutable.Map.empty
-    val buffer  : mutable.ArrayBuffer[Byte]  = new mutable.ArrayBuffer
-
-    /////////////// data section ////////////
-
-    val dataSegBaseAddr = elf.nextSegVirtAddr()
-    elf.newSegment(dataSegBaseAddr, ELF32.PT_LOAD, ELF32.PF_R | ELF32.PF_W):
-      val pb = new PatchableBuffer(dataSegBaseAddr, buffer, labelMap)
-      assembler.lowerData(prog.data)(using pb)
-
-      assert(pb.getPatches().isEmpty, "patch size non empty for data section")
-
-      val bytes = pb.finish()
-      val flags = ELF32.SHF_WRITE | ELF32.SHF_ALLOC
-      val secIndex = elf.addSection(".bss", ELF32.SHT_PROGBITS, dataSegBaseAddr, bytes, flags, patches = Nil)
-
-      for label <- pb.getDefinedLabels() do
-        elf.addDataSymbol(label.name, labelMap(label), secIndex)
-
-    /////////////// code section ////////////
-
-    buffer.clear
-
-    val codeSegBaseAddr = elf.nextSegVirtAddr()
-    elf.newSegment(codeSegBaseAddr, ELF32.PT_LOAD, ELF32.PF_X | ELF32.PF_R | ELF32.PF_W):
-      val pb = new PatchableBuffer(codeSegBaseAddr, buffer, labelMap)
-
-      assembler.lowerCode(prog.instrs)(using pb)
-
-      // The patches depend on labels of other sections or segments they need to
-      // be applied during ELF32 generation.
-      val bytes = pb.finish()
-      val flags = ELF32.SHF_EXEC | ELF32.SHF_ALLOC
-      val secIndex = elf.addSection(".text", ELF32.SHT_PROGBITS, codeSegBaseAddr, bytes, flags, pb.getPatches())
-
-      for label <- pb.getDefinedLabels() do
-        elf.addFunSymbol(label.name, labelMap(label), secIndex)
-
-    /////////////// heap section ////////////
-
-    val heapSegBaseAddr = elf.nextSegVirtAddr()
-    elf.newSegment(heapSegBaseAddr, ELF32.PT_LOAD, ELF32.PF_R | ELF32.PF_W):
-      val flags = ELF32.SHF_ALLOC
-      val bytes = new Array[Byte](PAGE_SIZE)
-      val secIndex = elf.addSection(".heap", ELF32.SHT_PROGBITS, heapSegBaseAddr, bytes, flags, patches = Nil)
-
-      elf.addDataSymbol(heapStartLabel.name, heapSegBaseAddr, secIndex)
-      labelMap(heapStartLabel) = heapSegBaseAddr
-
-    ////////////////// write file /////////////////
-
-    labelMap.get(prog.entry) match
-      case Some(entry) =>
-        IO.withExeFile(outFile): bb =>
-          elf.write(entry)(using bb)
-
-      case None =>
-        throw new Exception("Entry point not found: " + prog.entry)
-  end lower
-
 
   /**
     * Linux x86 32 bit platform
@@ -524,7 +448,9 @@ object Linux:
     /** Finish compilation session. */
     def finish(): Unit =
       val prog: Prog = cb.getResult()
-      Linux.lower(outFile, prog, heapStartLabel, this)
+      val layout = Assembler.continuousLayout(PROG_START, PAGE_SIZE)
+      val elf = new ELF32(outFile, layout, ELF32.EM_386)
+      Assembler.lower(elf, prog, heapStartLabel, this)
 
     def lowerData(data: List[Data | Attr])(using pb: PatchableBuffer): Unit =
       for item <- data do
