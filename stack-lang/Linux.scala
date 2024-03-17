@@ -29,10 +29,9 @@ object Linux:
     *
     * TODO: Abstract processor architecture.
     */
-  def lower(
-    prog: Prog, heapStartLabel: Label, elf: ELF32, installServices: PatchableBuffer => Unit)(
-    using bb: ByteBuffer
-  ): Unit =
+  def lower(outFile: String, prog: Prog, heapStartLabel: Label, installServices: PatchableBuffer => Unit): Unit =
+    val elf = new ELF32(PROG_START, PAGE_SIZE, ELF32.EM_386)
+
     val labelMap: mutable.Map[Label, Int]    = mutable.Map.empty
     val patches : mutable.ArrayBuffer[Patch] = new mutable.ArrayBuffer
     val buffer  : mutable.ArrayBuffer[Byte]  = new mutable.ArrayBuffer
@@ -101,7 +100,8 @@ object Linux:
 
     labelMap.get(prog.entry) match
       case Some(entry) =>
-        elf.write(entry)(using bb)
+        IO.withExeFile(outFile): bb =>
+          elf.write(entry)(using bb)
 
       case None =>
         throw new Exception("Entry point not found: " + prog.entry)
@@ -531,8 +531,6 @@ object Linux:
 
     /** Finish compilation session. */
     def finish(): Unit =
-      IO.withExeFile(outFile): bb =>
-        val prog: Prog = cb.getResult()
-        val elf = new ELF32(PROG_START, PAGE_SIZE, ELF32.EM_386)
-        Linux.lower(prog, heapStartLabel, elf, pb => defineServices()(using pb))(using bb)
+      val prog: Prog = cb.getResult()
+      Linux.lower(outFile, prog, heapStartLabel, pb => defineServices()(using pb))
   end X86Platform
