@@ -5,7 +5,7 @@ import IO.PatchableBuffer
 import scala.collection.mutable
 
 /**
-  * The assembler that translates assembly to machine code.
+  * Represents an assembler that translates assembly code to machine code.
   */
 trait Assembler:
   def lowerData(data: List[Data | Attr])(using PatchableBuffer): Unit
@@ -83,9 +83,11 @@ object Assembler:
 
     ////////////////// write file /////////////////
 
+    val segments = elf.layoutSegments()
+
     labelMap.get(prog.entry) match
       case Some(entry) =>
-        elf.write(entry)
+        elf.write(entry, segments)
 
       case None =>
         throw new Exception("Entry point not found: " + prog.entry)

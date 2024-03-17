@@ -122,14 +122,14 @@ class ELF32(outFile: String, layout: Layout, machine: Short):
     val sym = Symbol(addName(name), addr, 0, (STB_GLOBAL << 4) | STT_OBJECT, secIndex)
     symbols.addOne(sym)
 
-  def write(entry: Int): Unit =
+  def layoutSegments(): List[Segment] =
+    layout.run(builders.toMap)
+
+  def write(entry: Int, segments: List[Segment]): Unit =
     IO.withExeFile(outFile): bb =>
-      write(entry)(using bb)
+      write(entry, segments)(using bb)
 
-  private def write(entry: Int)(using buf: ByteBuffer) =
-    // First layout segments
-    val segments = layout.run(builders.toMap)
-
+  private def write(entry: Int, segments: List[Segment])(using buf: ByteBuffer) =
     val segNum = segments.size
     val symTabNameIndex = addName(".symtab")
 
