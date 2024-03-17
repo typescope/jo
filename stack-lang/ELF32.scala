@@ -11,20 +11,46 @@
 
 import scala.collection.mutable
 
-import IO.{ ByteBuffer, Patch }
+import IO.ByteBuffer
 
 import ELF32.*
 
-class ELF32(firstSegBaseAddr: Int, align: Int, machine: Short):
+class ELF32(outFile: String, firstSegBaseAddr: Int, align: Int, machine: Short):
   private val segments: mutable.ArrayBuffer[Segment] = new mutable.ArrayBuffer
   private val strtable: mutable.ArrayBuffer[Byte   ] = new mutable.ArrayBuffer
   private val sections: mutable.ArrayBuffer[Section] = new mutable.ArrayBuffer
   private val symbols:  mutable.ArrayBuffer[Symbol ] = new mutable.ArrayBuffer
-  private val patches:  mutable.ArrayBuffer[Patch ]  = new mutable.ArrayBuffer
 
-  /** The section content with possible segment paddings as in final ELF file. */
-  private val content: mutable.ArrayBuffer[Byte   ] = new mutable.ArrayBuffer
-  private val contentView: ByteBuffer = (b: Byte) => content.addOne(b)
+  /** The main content of ELF32 with possible segment paddings
+    *
+    * The file header, program header table and section header table are excluded.
+    */
+  private class Content extends ByteBuffer:
+    private var curFileSize = 0
+    private var curMemorySize = 0
+    private val items: mutable.ArrayBuffer[Byte | DataChunk] = new mutable.ArrayBuffer
+
+    def write(buf: ByteBuffer): Unit =
+      for item <- items do
+        item match
+         case byte: Byte => buf.addByte(byte)
+         case chunk: DataChunk => buf.addBytes(chunk.fileBytes().toIndexedSeq)
+
+    def addByte(b: Byte) =
+      items.addOne(b)
+      curFileSize += 1
+      curMemorySize += 1
+
+    def add(chunk: DataChunk) =
+      items.addOne(chunk)
+      curFileSize += chunk.fileSize
+      curMemorySize += chunk.memorySize
+
+    def fileSize: Int = curFileSize
+    def memorySize: Int = curMemorySize
+  end Content
+
+  private val content = new Content
 
   private val CONTENT_START_OFFSET = E_HEADER_SIZE
 
@@ -44,18 +70,27 @@ class ELF32(firstSegBaseAddr: Int, align: Int, machine: Short):
     * A custom virtual address can be supplied without calling this function.
     */
   def nextSegVirtAddr(): Int =
-    nextSegOffset() + firstSegBaseAddr
+    nextSegMemoryOffset() + firstSegBaseAddr
 
-  private def nextSegOffset(): Int =
+  private def nextSegFileOffset(): Int =
     var offset = 0
-    val totalSize = curSegEnd()
+    val totalSize = contentFileEnd()
     while offset < totalSize do offset += align
     offset
 
-  private def curSegEnd(): Int = contentEnd()
+  private def nextSegMemoryOffset(): Int =
+    var offset = 0
+    val totalSize = contentMemoryEnd()
+    while offset < totalSize do offset += align
+    offset
 
-  private def contentEnd(): Int =
-    if segments.isEmpty then 0 else CONTENT_START_OFFSET + content.size
+  private def contentMemoryEnd(): Int =
+    if segments.isEmpty then 0
+    else CONTENT_START_OFFSET + content.memorySize
+
+  private def contentFileEnd(): Int =
+    if segments.isEmpty then 0
+    else CONTENT_START_OFFSET + content.fileSize
 
   private def addName(str: String): Int =
     val offset = strtable.size
@@ -63,29 +98,23 @@ class ELF32(firstSegBaseAddr: Int, align: Int, machine: Short):
     strtable.addOne(0)
     offset
 
-  /**
-    * Create a new segment.
-    *
-    * The callback function will be called with the base virtual address
-    * of the segment.
-    */
+  /** Create a new segment in the ELF file */
   def newSegment(virtualAddr: Int, tp: Int, flags: Int)(fn: => Unit): Unit =
     val segIndex = segments.size
-    val offset = nextSegOffset()
-    val paddingBefore = offset - curSegEnd()
-    val startSectionIndex = sections.size
+    val offset = nextSegFileOffset()
+    val padding = offset - contentFileEnd()
 
     // must add padding before invoking the callback.
-    contentView.addZeros(paddingBefore)
+    content.add(segmentEndPadding(padding))
+
+    val fileSizeBefore = content.fileSize
+    val memorySizeBefore = content.memorySize
 
     fn // execute callback
 
-    val endSectionIndex = sections.size - 1
-    var length = 0
-    for secIndex <- (startSectionIndex to endSectionIndex) do
-      length += sections(secIndex).size
-
-    val seg = Segment(segIndex, tp, offset, virtualAddr, length, flags, paddingBefore)
+    val fileSize = content.fileSize - fileSizeBefore
+    val memorySize = content.memorySize - memorySizeBefore
+    val seg = Segment(segIndex, tp, offset, virtualAddr, fileSize, memorySize, flags)
     segments.addOne(seg)
 
   /**
@@ -93,18 +122,14 @@ class ELF32(firstSegBaseAddr: Int, align: Int, machine: Short):
     *
     * @returns the index of the section in the section header table.
     */
-  def addSection(name: String, tp: Int, virtualAddr: Int,  bytes: Array[Byte], flags: Int, patches: List[Patch]): Short =
-    val offset = contentEnd()
+  def addSection(name: String, tp: Int, virtualAddr: Int, chunk: DataChunk, flags: Int): Short =
+    val offset = contentFileEnd()
     val index = sections.size
 
-    val sec = Section(addName(name), tp, flags, virtualAddr, offset, bytes.length, 0, 0, 4, 0)
+    val sec = Section(addName(name), tp, flags, virtualAddr, offset, chunk.fileSize, link = 0, info = 0, align = 4, entrySize = 0)
     sections.addOne(sec)
 
-    // relocate patches
-    val patchDelta = content.size
-    contentView.addBytes(bytes.toIndexedSeq)
-    for patch <- patches do
-      this.patches.addOne(patch.copy(offset = patch.offset + patchDelta))
+    content.add(chunk)
 
     index.toShort
 
@@ -116,25 +141,25 @@ class ELF32(firstSegBaseAddr: Int, align: Int, machine: Short):
     val sym = Symbol(addName(name), addr, 0, (STB_GLOBAL << 4) | STT_OBJECT, secIndex)
     symbols.addOne(sym)
 
-  def write(entry: Int)(using buf: ByteBuffer) =
+  def write(entry: Int): Unit =
+    IO.withExeFile(outFile): bb =>
+      write(entry)(using bb)
+
+  private def write(entry: Int)(using buf: ByteBuffer) =
     val segNum = segments.size
     val symTabNameIndex = addName(".symtab")
 
-    // First apply patches to content
-    for patch <- patches do
-      patch.apply { (i, b) => content(i) = b }
-
     // Add string table
     val nameIndex = addName(".strtab")
-    val strTabOff = contentEnd()
-    val strSec = Section(nameIndex, SHT_STRTAB, 0, 0, strTabOff, strtable.size, 0, 0, 1, 0)
+    val strTabOff = contentFileEnd()
+    val strSec = Section(nameIndex, SHT_STRTAB, 0, 0, strTabOff, strtable.size, link = 0, info = 0, align = 1, entrySize = 0)
     val strSecIndex = sections.size
     sections.addOne(strSec)
 
     // Add symbol table
     val symTabOff = strTabOff + strtable.size
     val symTabSize = symbols.size << 4
-    val symSec = Section(symTabNameIndex, SHT_SYMTAB, 0, 0, symTabOff, symTabSize, strSecIndex, 0, 1, 16)
+    val symSec = Section(symTabNameIndex, SHT_SYMTAB, 0, 0, symTabOff, symTabSize, strSecIndex, info = 0, align = 1, entrySize = 16)
     sections.addOne(symSec)
 
     // Section header table
@@ -179,9 +204,8 @@ class ELF32(firstSegBaseAddr: Int, align: Int, machine: Short):
     buf.addShort(secNum)       // e_shnum
     buf.addShort(strSecIndex)  // e_shstrndx
 
-    ////////////////////////////  segments  /////////////////////////////////////
-
-    buf.addBytes(content.toSeq)
+    ////////////////////////////  segment content  /////////////////////////////
+    content.write(buf)
 
     //////////////////////////// string table ///////////////////////////////////
 
@@ -218,8 +242,8 @@ class ELF32(firstSegBaseAddr: Int, align: Int, machine: Short):
       buf.addInt(seg.offset)                              // p_offset
       buf.addInt(seg.virtualAddr)                         // p_vaddr
       buf.addInt(seg.virtualAddr)                         // p_paddr
-      buf.addInt(seg.size)                                // p_filesz
-      buf.addInt(seg.size)                                // p_memsz
+      buf.addInt(seg.fileSize)                            // p_filesz
+      buf.addInt(seg.memorySize)                          // p_memsz
       buf.addInt(seg.flags)                               // p_flags
       buf.addInt(align)                                   // p_align
 
@@ -264,7 +288,7 @@ object ELF32:
 
   private case class Segment(
       index: Int, tp: Int, offset: Int, virtualAddr: Int,
-      size: Int, flags: Int, paddingBefore: Int)
+      fileSize: Int, memorySize: Int, flags: Int)
 
   private case class Section(
       nameIndex: Int, tp: Int, flags: Int, addr: Int, offset: Int,
@@ -272,3 +296,15 @@ object ELF32:
 
   private case class Symbol(
       nameIndex: Int, virtualAddr: Int, size: Int, info: Byte, link: Short)
+
+  /** Represent a data chunk which will be ready when generating the file. */
+  trait DataChunk:
+    def fileSize: Int
+    def memorySize: Int
+    def fileBytes(): Array[Byte]
+
+  /** ELF32 requires alignment of virtual address & file offset at page boundaries */
+  private def segmentEndPadding(size: Int): DataChunk = new DataChunk:
+    def fileSize = size
+    def memorySize = size
+    def fileBytes() = new Array[Byte](size)
