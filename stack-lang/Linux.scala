@@ -18,6 +18,13 @@ object Linux:
   val PROG_START = 0x08048000
 
   /**
+    * The assembler that translates assembly to machine code.
+    */
+  trait Assembler:
+    def lowerData(data: List[Data | Attr])(using PatchableBuffer): Unit
+    def lowerCode(code: List[Instr | Label])(using PatchableBuffer): Unit
+
+  /**
     * Create a new x86 platform.
     *
     * `X86Platform` is marked private so that code generation is ignorant of the platform.
@@ -29,7 +36,7 @@ object Linux:
     *
     * TODO: Abstract processor architecture.
     */
-  def lower(outFile: String, prog: Prog, heapStartLabel: Label, installServices: PatchableBuffer => Unit): Unit =
+  def lower(outFile: String, prog: Prog, heapStartLabel: Label, assembler: Assembler): Unit =
     val elf = new ELF32(PROG_START, PAGE_SIZE, ELF32.EM_386)
 
     val labelMap: mutable.Map[Label, Int]    = mutable.Map.empty
@@ -41,12 +48,7 @@ object Linux:
     val dataSegBaseAddr = elf.nextSegVirtAddr()
     elf.newSegment(dataSegBaseAddr, ELF32.PT_LOAD, ELF32.PF_R | ELF32.PF_W):
       val dataPB = new PatchableBuffer(dataSegBaseAddr, buffer, labelMap, patches)
-
-      for item <- prog.data do
-        item match
-          case data: Data   => X86.lower(data)(using dataPB)
-          case label: Label => dataPB.defineLabel(label)
-          case Align(n)     => dataPB.align(n)
+      assembler.lowerData(prog.data)(using dataPB)
 
       assert(patches.isEmpty, "patch size non empty for data section")
 
@@ -69,12 +71,7 @@ object Linux:
           super.defineLabel(label)
           newLabels += label
 
-      installServices(codePB)
-
-      for instr <- prog.instrs do
-        instr match
-          case label: Label => codePB.defineLabel(label)
-          case instr: Instr => X86.lower(instr)(using codePB)
+      assembler.lowerCode(prog.instrs)(using codePB)
 
       // The patches depend on labels of other sections or segments they need to
       // be applied during ELF32 generation.
@@ -113,7 +110,7 @@ object Linux:
     *
     * Marked private so that code generation is ignorant of the particular platform.
     */
-  private class X86Platform(outFile: String) extends Platform:
+  private class X86Platform(outFile: String) extends Platform with Assembler:
     /** The register ESP and EBP are reserved for value stack and call stack respectively. */
     val freeRegisters: List[Int] = List(X86.EAX, X86.ECX, X86.EDX, X86.EBX, X86.ESI, X86.EDI)
 
@@ -532,5 +529,20 @@ object Linux:
     /** Finish compilation session. */
     def finish(): Unit =
       val prog: Prog = cb.getResult()
-      Linux.lower(outFile, prog, heapStartLabel, pb => defineServices()(using pb))
+      Linux.lower(outFile, prog, heapStartLabel, this)
+
+    def lowerData(data: List[Data | Attr])(using pb: PatchableBuffer): Unit =
+      for item <- data do
+        item match
+          case data: Data   => X86.lower(data)
+          case label: Label => pb.defineLabel(label)
+          case Align(n)     => pb.align(n)
+
+    def lowerCode(instrs: List[Instr | Label])(using pb: PatchableBuffer): Unit =
+      defineServices()
+
+      for instr <- instrs do
+        instr match
+          case label: Label => pb.defineLabel(label)
+          case instr: Instr => X86.lower(instr)
   end X86Platform
