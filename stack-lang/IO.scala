@@ -156,8 +156,11 @@ object IO:
 
     def size: Int = buffer.size
 
-    /** Return bytes without applying batches */
-    def finish(): Array[Byte] = buffer.toArray
+    /** Applying patches and return result */
+    def finish(): Array[Byte] =
+      for patch <- patches do
+        patch.apply { (i, b) => buffer(i) = b }
+      buffer.toArray
   end PatchableBuffer
 
   /** Helper method to deal with patches (labels that are resolved late) */
