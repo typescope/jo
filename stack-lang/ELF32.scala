@@ -15,11 +15,12 @@ import IO.ByteBuffer
 
 import ELF32.*
 
-class ELF32(outFile: String, firstSegBaseAddr: Int, align: Int, machine: Short):
-  private val segments: mutable.ArrayBuffer[Segment] = new mutable.ArrayBuffer
+class ELF32(outFile: String, layout: Layout, machine: Short):
   private val strtable: mutable.ArrayBuffer[Byte   ] = new mutable.ArrayBuffer
   private val sections: mutable.ArrayBuffer[Section] = new mutable.ArrayBuffer
   private val symbols:  mutable.ArrayBuffer[Symbol ] = new mutable.ArrayBuffer
+
+  private val builders: mutable.Map[String, LayoutInfo => Segment] = mutable.Map.empty
 
   /** The main content of ELF32 with possible segment paddings
     *
@@ -64,33 +65,8 @@ class ELF32(outFile: String, firstSegBaseAddr: Int, align: Int, machine: Short):
   // First dummy symbol in symbol table
   symbols.addOne(Symbol(0, 0, 0, 0, 0))
 
-  /**
-    * Generate a default virtual address for the next segment.
-    *
-    * A custom virtual address can be supplied without calling this function.
-    */
-  def nextSegVirtAddr(): Int =
-    nextSegMemoryOffset() + firstSegBaseAddr
-
-  private def nextSegFileOffset(): Int =
-    var offset = 0
-    val totalSize = contentFileEnd()
-    while offset < totalSize do offset += align
-    offset
-
-  private def nextSegMemoryOffset(): Int =
-    var offset = 0
-    val totalSize = contentMemoryEnd()
-    while offset < totalSize do offset += align
-    offset
-
-  private def contentMemoryEnd(): Int =
-    if segments.isEmpty then 0
-    else CONTENT_START_OFFSET + content.memorySize
-
-  private def contentFileEnd(): Int =
-    if segments.isEmpty then 0
-    else CONTENT_START_OFFSET + content.fileSize
+  private def currentOffset(): Int =
+    CONTENT_START_OFFSET + content.fileSize
 
   private def addName(str: String): Int =
     val offset = strtable.size
@@ -99,24 +75,28 @@ class ELF32(outFile: String, firstSegBaseAddr: Int, align: Int, machine: Short):
     offset
 
   /** Create a new segment in the ELF file */
-  def newSegment(virtualAddr: Int, tp: Int, flags: Int)(fn: => Unit): Unit =
-    val segIndex = segments.size
-    val offset = nextSegFileOffset()
-    val padding = offset - contentFileEnd()
+  def newSegment(id: String, tp: Int, flags: Int)(fn: Int => Unit): Unit =
+    assert(!builders.contains(id), "The segment " + id + " already exists")
 
-    // must add padding before invoking the callback.
-    content.add(segmentEndPadding(padding))
+    builders(id) = info => {
+      val padding = info.fileOffset - currentOffset()
+      if padding > 0 then
+        content.add(segmentEndPadding(padding))
 
-    val fileSizeBefore = content.fileSize
-    val memorySizeBefore = content.memorySize
+      val fileSizeBefore = content.fileSize
+      val memorySizeBefore = content.memorySize
 
-    fn // execute callback
+      // First segment includes the file header
+      val contentVirtAddr =
+        if info.index == 0 then info.virtualAddr + E_HEADER_SIZE
+        else info.virtualAddr
 
-    val fileSize = content.fileSize - fileSizeBefore
-    val memorySize = content.memorySize - memorySizeBefore
-    if fileSize > 0 || memorySize > 0 then
-      val seg = Segment(segIndex, tp, offset, virtualAddr, fileSize, memorySize, flags)
-      segments.addOne(seg)
+      fn(contentVirtAddr) // execute callback
+
+      val fileSize = content.fileSize - fileSizeBefore
+      val memorySize = content.memorySize - memorySizeBefore
+      Segment(info.index, tp, info.fileOffset, info.virtualAddr, fileSize, memorySize, info.align, flags)
+    }
 
   /**
     * Add a new section.
@@ -124,7 +104,7 @@ class ELF32(outFile: String, firstSegBaseAddr: Int, align: Int, machine: Short):
     * @returns the index of the section in the section header table.
     */
   def addSection(name: String, tp: Int, virtualAddr: Int, chunk: DataChunk, flags: Int): Short =
-    val offset = contentFileEnd()
+    val offset = currentOffset()
     val index = sections.size
 
     val sec = Section(addName(name), tp, flags, virtualAddr, offset, chunk.fileSize, link = 0, info = 0, align = 4, entrySize = 0)
@@ -147,12 +127,15 @@ class ELF32(outFile: String, firstSegBaseAddr: Int, align: Int, machine: Short):
       write(entry)(using bb)
 
   private def write(entry: Int)(using buf: ByteBuffer) =
+    // First layout segments
+    val segments = layout.run(builders.toMap)
+
     val segNum = segments.size
     val symTabNameIndex = addName(".symtab")
 
     // Add string table
     val nameIndex = addName(".strtab")
-    val strTabOff = contentFileEnd()
+    val strTabOff = currentOffset()
     val strSec = Section(nameIndex, SHT_STRTAB, 0, 0, strTabOff, strtable.size, link = 0, info = 0, align = 1, entrySize = 0)
     val strSecIndex = sections.size
     sections.addOne(strSec)
@@ -206,6 +189,7 @@ class ELF32(outFile: String, firstSegBaseAddr: Int, align: Int, machine: Short):
     buf.addShort(strSecIndex)  // e_shstrndx
 
     ////////////////////////////  segment content  /////////////////////////////
+
     content.write(buf)
 
     //////////////////////////// string table ///////////////////////////////////
@@ -246,7 +230,7 @@ class ELF32(outFile: String, firstSegBaseAddr: Int, align: Int, machine: Short):
       buf.addInt(seg.fileSize)                            // p_filesz
       buf.addInt(seg.memorySize)                          // p_memsz
       buf.addInt(seg.flags)                               // p_flags
-      buf.addInt(align)                                   // p_align
+      buf.addInt(seg.align)                                   // p_align
 
 object ELF32:
   final val ELFCLASS32  = 1
@@ -287,9 +271,9 @@ object ELF32:
   final val STT_OBJECT = 1
   final val STT_FUNC   = 2
 
-  private case class Segment(
+  case class Segment(
       index: Int, tp: Int, offset: Int, virtualAddr: Int,
-      fileSize: Int, memorySize: Int, flags: Int)
+      fileSize: Int, memorySize: Int, align: Int, flags: Int)
 
   private case class Section(
       nameIndex: Int, tp: Int, flags: Int, addr: Int, offset: Int,
@@ -304,8 +288,72 @@ object ELF32:
     def memorySize: Int
     def fileBytes(): Array[Byte]
 
-  /** ELF32 requires alignment of virtual address & file offset at page boundaries */
+  /** ELF32 requires alignment of virtual address & file offset at page boundaries
+    *
+    * p_align should be a positive, integral power of 2, and p_addr should equal
+    * p_offset, modulo p_align.
+    */
   private def segmentEndPadding(size: Int): DataChunk = new DataChunk:
     def fileSize = size
     def memorySize = size
     def fileBytes() = new Array[Byte](size)
+
+  case class LayoutInfo(
+    virtualAddr: Int, fileOffset: Int, index: Int, align: Int)
+
+  trait Layout:
+    def run(segments: Map[String, LayoutInfo => Segment]): List[Segment]
+
+
+  class ContinuousLayout(segOrder: List[String], baseVirtAddr: Int, align: Int)
+  extends Layout:
+
+    /**
+      * Generate virtual address for the next segment
+      *
+      * The first segment contains the file header.
+      */
+    private def nextSegVirtAddr(segments: mutable.Seq[Segment]): Int =
+      if segments.isEmpty then baseVirtAddr
+      else
+        val seg = segments.last
+        var segAlloc = 0
+        val totalSize = seg.memorySize
+        while segAlloc < totalSize do segAlloc += align
+        seg.virtualAddr + segAlloc
+
+    /**
+      * Compute file offset for the next segment
+      *
+      * The first segment contains the file header.
+      */
+    private def nextSegFileOffset(segments: mutable.Seq[Segment]): Int =
+      if segments.isEmpty then 0
+      else
+        val seg = segments.last
+        var segAlloc = 0
+        val totalSize = seg.fileSize
+        while segAlloc < totalSize do segAlloc += align
+        seg.offset + segAlloc
+
+    def run(segBuilders: Map[String, LayoutInfo => Segment]): List[Segment] =
+      if segOrder.size != segBuilders.size then
+        throw new Exception("Segment size mismatch, given = " + segOrder + ", found = " + segBuilders.keys)
+
+      val segments: mutable.ArrayBuffer[Segment] = new mutable.ArrayBuffer
+
+      for seg <- segOrder do
+        segBuilders.get(seg) match
+          case Some(fn) =>
+            val virtAddr = nextSegVirtAddr(segments)
+            val fileOffset = nextSegFileOffset(segments)
+            val info = LayoutInfo(virtAddr, fileOffset, segments.size, align)
+            val seg = fn(info)
+            if seg.memorySize > 0 || seg.fileSize > 0 then
+              segments += seg
+
+          case None =>
+            throw new Exception("Unknown segment " + seg + ", found = " + segBuilders.keys)
+      end for
+
+      segments.toList

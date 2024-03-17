@@ -448,7 +448,8 @@ object Linux:
     /** Finish compilation session. */
     def finish(): Unit =
       val prog: Prog = cb.getResult()
-      val elf = new ELF32(outFile, PROG_START, PAGE_SIZE, ELF32.EM_386)
+      val layout = Assembler.continuousLayout(PROG_START, PAGE_SIZE)
+      val elf = new ELF32(outFile, layout, ELF32.EM_386)
       Assembler.lower(elf, prog, heapStartLabel, this)
 
     def lowerData(data: List[Data | Attr])(using pb: PatchableBuffer): Unit =
