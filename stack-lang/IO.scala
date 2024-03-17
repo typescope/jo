@@ -122,18 +122,32 @@ object IO:
       labelMap: mutable.Map[Label, Int],
       patches : mutable.ArrayBuffer[Patch]
   ) extends ByteBuffer:
+    def this(
+      baseAddr: Int,
+      buffer: mutable.ArrayBuffer[Byte],
+      labelMap: mutable.Map[Label, Int]
+    ) = this(baseAddr, buffer, labelMap, new mutable.ArrayBuffer)
+
+    /** New labels defined for the current PatchableBuffer */
+    private  val newLabels : mutable.ArrayBuffer[Label] = new mutable.ArrayBuffer
+
     def addByte(data : Byte): Unit = buffer.addOne(data)
 
     def addPatch(patch: Patch): Unit =
       patches.addOne(patch)
       addZeros(patch.size)
 
+    def getPatches(): List[Patch] = patches.toList
+
     def align(n: Int): Unit =
       while currentAddr() % n != 0 do
         addByte(0)
 
     def defineLabel(label: Label) =
+      newLabels += label
       labelMap(label) = currentAddr()
+
+    def getDefinedLabels(): List[Label] = newLabels.toList
 
     def resolve(label: Label): Option[Int] =
       labelMap.get(label)

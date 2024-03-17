@@ -40,23 +40,22 @@ object Linux:
     val elf = new ELF32(PROG_START, PAGE_SIZE, ELF32.EM_386)
 
     val labelMap: mutable.Map[Label, Int]    = mutable.Map.empty
-    val patches : mutable.ArrayBuffer[Patch] = new mutable.ArrayBuffer
     val buffer  : mutable.ArrayBuffer[Byte]  = new mutable.ArrayBuffer
 
     /////////////// data section ////////////
 
     val dataSegBaseAddr = elf.nextSegVirtAddr()
     elf.newSegment(dataSegBaseAddr, ELF32.PT_LOAD, ELF32.PF_R | ELF32.PF_W):
-      val dataPB = new PatchableBuffer(dataSegBaseAddr, buffer, labelMap, patches)
-      assembler.lowerData(prog.data)(using dataPB)
+      val pb = new PatchableBuffer(dataSegBaseAddr, buffer, labelMap)
+      assembler.lowerData(prog.data)(using pb)
 
-      assert(patches.isEmpty, "patch size non empty for data section")
+      assert(pb.getPatches().isEmpty, "patch size non empty for data section")
 
-      val bytes = dataPB.finish()
+      val bytes = pb.finish()
       val flags = ELF32.SHF_WRITE | ELF32.SHF_ALLOC
       val secIndex = elf.addSection(".bss", ELF32.SHT_PROGBITS, dataSegBaseAddr, bytes, flags, patches = Nil)
 
-      for case label: Label <- prog.data do
+      for label <- pb.getDefinedLabels() do
         elf.addDataSymbol(label.name, labelMap(label), secIndex)
 
     /////////////// code section ////////////
@@ -65,21 +64,17 @@ object Linux:
 
     val codeSegBaseAddr = elf.nextSegVirtAddr()
     elf.newSegment(codeSegBaseAddr, ELF32.PT_LOAD, ELF32.PF_X | ELF32.PF_R | ELF32.PF_W):
-      val newLabels : mutable.ArrayBuffer[Label] = new mutable.ArrayBuffer
-      val codePB = new PatchableBuffer(codeSegBaseAddr, buffer, labelMap, patches):
-        override def defineLabel(label: Label): Unit =
-          super.defineLabel(label)
-          newLabels += label
+      val pb = new PatchableBuffer(codeSegBaseAddr, buffer, labelMap)
 
-      assembler.lowerCode(prog.instrs)(using codePB)
+      assembler.lowerCode(prog.instrs)(using pb)
 
       // The patches depend on labels of other sections or segments they need to
       // be applied during ELF32 generation.
-      val bytes = codePB.finish()
+      val bytes = pb.finish()
       val flags = ELF32.SHF_EXEC | ELF32.SHF_ALLOC
-      val secIndex = elf.addSection(".text", ELF32.SHT_PROGBITS, codeSegBaseAddr, bytes, flags, patches.toList)
+      val secIndex = elf.addSection(".text", ELF32.SHT_PROGBITS, codeSegBaseAddr, bytes, flags, pb.getPatches())
 
-      for label <- newLabels do
+      for label <- pb.getDefinedLabels() do
         elf.addFunSymbol(label.name, labelMap(label), secIndex)
 
     /////////////// heap section ////////////
