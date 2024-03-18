@@ -34,7 +34,7 @@ object Assembler:
 
     /////////////// data section ////////////
 
-    elf.newSegment(SEG_DATA, ELF32.PT_LOAD, ELF32.PF_R | ELF32.PF_W): baseAddr =>
+    elf.newSegment(SEG_DATA, ELF32.PT_LOAD, ELF32.PF_RW): baseAddr =>
       val pb = new PatchableBuffer(baseAddr, labelMap)
       assembler.lowerData(prog.data)(using pb)
 
@@ -49,7 +49,7 @@ object Assembler:
 
     /////////////// code section ////////////
 
-    elf.newSegment(SEG_CODE, ELF32.PT_LOAD, ELF32.PF_X | ELF32.PF_R | ELF32.PF_W): baseAddr =>
+    elf.newSegment(SEG_CODE, ELF32.PT_LOAD, ELF32.PF_RX): baseAddr =>
       val pb = new PatchableBuffer(baseAddr, labelMap)
       assembler.lowerCode(prog.instrs)(using pb)
 
@@ -64,7 +64,7 @@ object Assembler:
 
     /////////////// heap section ////////////
 
-    elf.newSegment(SEG_HEAP, ELF32.PT_LOAD, ELF32.PF_R | ELF32.PF_W): baseAddr =>
+    elf.newSegment(SEG_HEAP, ELF32.PT_LOAD, ELF32.PF_RW): baseAddr =>
       val flags = ELF32.SHF_ALLOC
       val chunk = new ELF32.DataChunk:
         def fileSize = 0

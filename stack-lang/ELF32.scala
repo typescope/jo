@@ -254,6 +254,9 @@ object ELF32:
   final val PF_W = 0x2
   final val PF_R = 0x4
 
+  final val PF_RW = ELF32.PF_R | ELF32.PF_W
+  final val PF_RX = ELF32.PF_R | ELF32.PF_X
+
   final val E_HEADER_SIZE = 0x34
   final val PH_ENTRY_SIZE = 0x20
   final val SH_ENTRY_SIZE = 0x28
