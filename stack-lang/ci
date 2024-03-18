@@ -17,28 +17,43 @@ RES1=$DIR/tests/int.txt
 RES2=$DIR/tests/exe.txt
 RES3=$DIR/tests/js.txt
 
+
 retcode=0
+
+check() {
+    diff $1 $2
+    if [[ $? != 0 ]]; then
+        echo "[error] testing $file failed!"
+        retcode=1
+    fi
+}
+
 for file in $DIR/tests/*.stk; do
     echo "testing $file"
     exe=${file%.*}.run
     js=${file%.*}.js
     scala-cli $INTERPRETER -- $file > $RES1
-    scala-cli $COMPILER -- $file -o $exe -p linux-x86
-    scala-cli $COMPILER -- $file -o $js -p javascript
+
+    # layout 1
+    scala-cli $COMPILER -- $file -o $exe -p linux-x86 -layout c1
     $exe > $RES2
+    check $RES1 $RES2
+
+    # layout 2
+    scala-cli $COMPILER -- $file -o $exe -p linux-x86 -layout c2
+    $exe > $RES2
+    check $RES1 $RES2
+
+    # layout 3
+    scala-cli $COMPILER -- $file -o $exe -p linux-x86 -layout c3
+    $exe > $RES2
+    check $RES1 $RES2
+
+    # JavaScript
+    scala-cli $COMPILER -- $file -o $js -p javascript
     node $js > $RES3
+    check $RES1 $RES3
 
-    diff $RES1 $RES2
-    if [[ $? != 0 ]]; then
-        echo "[error] testing $file failed!"
-        retcode=1
-    fi
-
-    diff $RES1 $RES3
-    if [[ $? != 0 ]]; then
-        echo "[error] testing $file failed!"
-        retcode=1
-    fi
 done
 
 rm $RES1

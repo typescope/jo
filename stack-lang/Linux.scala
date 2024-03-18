@@ -22,14 +22,15 @@ object Linux:
     *
     * `X86Platform` is marked private so that code generation is ignorant of the platform.
     */
-  def createX86Platform(outFile: String): Platform = new X86Platform(outFile)
+  def createX86Platform(outFile: String, layout: String): Platform =
+    new X86Platform(outFile, layout)
 
   /**
     * Linux x86 32 bit platform
     *
     * Marked private so that code generation is ignorant of the particular platform.
     */
-  private class X86Platform(outFile: String) extends Platform with Assembler:
+  private class X86Platform(outFile: String, layout: String) extends Platform with Assembler:
     /** The register ESP and EBP are reserved for value stack and call stack respectively. */
     val freeRegisters: List[Int] = List(X86.EAX, X86.ECX, X86.EDX, X86.EBX, X86.ESI, X86.EDI)
 
@@ -448,7 +449,7 @@ object Linux:
     /** Finish compilation session. */
     def finish(): Unit =
       val prog: Prog = cb.getResult()
-      val layout = Assembler.continuousLayout(PROG_START, PAGE_SIZE)
+      val layout = Assembler.continuousLayout(this.layout, PROG_START, PAGE_SIZE)
       val elf = new ELF32(outFile, layout, ELF32.EM_386)
       Assembler.lower(elf, prog, heapStartLabel, this)
 

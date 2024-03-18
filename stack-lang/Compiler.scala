@@ -66,7 +66,8 @@ object Compiler:
 def run(args: String*) =
   val optionSpec = Map(
     "-o" -> true,
-    "-p" -> true
+    "-p" -> true,
+    "-layout" -> true, // only valid for linux-x86 platform
   )
 
   val (options, rest) = IO.parseOptions(args, optionSpec)
@@ -81,14 +82,20 @@ def run(args: String*) =
         val tokens = sourceFile.split("\\.(?=[^\\.]+$)")
         tokens(0)
 
+  val layout = options.getOrElse("-layout", "c1")
+
   val platform: Platform =
     options.get("-p") match
       case Some(pf) =>
-        if pf == "linux-x86" then Linux.createX86Platform(outFile)
-        else if pf == "javascript" then new JSPlatform(outFile)
-        else throw new Exception("Unknow platform: " + pf)
+        if pf == "linux-x86" then
+          Linux.createX86Platform(outFile, layout)
+        else if pf == "javascript" then
+          new JSPlatform(outFile)
+        else
+          throw new Exception("Unknow platform: " + pf)
+
       case None =>
-        Linux.createX86Platform(outFile)
+        Linux.createX86Platform(outFile, layout)
 
   val ast = Parsing.parse(IO.fileContent(sourceFile))
   val sast = Namer.transform(ast)

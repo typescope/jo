@@ -93,8 +93,11 @@ class ELF32(outFile: String, layout: Layout, machine: Short):
 
       fn(contentVirtAddr) // execute callback
 
-      val fileSize = content.fileSize - fileSizeBefore
-      val memorySize = content.memorySize - memorySizeBefore
+      var fileSize = content.fileSize - fileSizeBefore
+      var memorySize = content.memorySize - memorySizeBefore
+      if info.index == 0 then
+        fileSize += E_HEADER_SIZE
+        memorySize += E_HEADER_SIZE
       Segment(info.index, tp, info.fileOffset, info.virtualAddr, fileSize, memorySize, info.align, flags)
     }
 

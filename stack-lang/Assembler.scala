@@ -18,8 +18,12 @@ object Assembler:
   private val SEG_CODE = "code"
   private val SEG_HEAP = "heap"
 
-  def continuousLayout(baseVirtAddr: Int, align: Int): ELF32.Layout =
-    val order = List(SEG_DATA, SEG_CODE, SEG_HEAP)
+  def continuousLayout(orderName: String, baseVirtAddr: Int, align: Int): ELF32.Layout =
+    val order =
+      if orderName == "c1" then List(SEG_DATA, SEG_CODE, SEG_HEAP)
+      else if orderName == "c2" then List(SEG_CODE, SEG_HEAP, SEG_DATA)
+      else List(SEG_HEAP, SEG_CODE, SEG_DATA)
+
     new ELF32.ContinuousLayout(order, baseVirtAddr, align)
 
   /**
