@@ -40,11 +40,7 @@ object Assembler:
 
       assert(pb.getPatches().isEmpty, "patch size non empty for data section")
 
-      val chunk = new ELF32.DataChunk:
-        val fileSize = pb.size
-        val memorySize = pb.size
-        def fileBytes() = pb.finish()
-
+      val chunk = ELF32.dataChunk(pb)
       val flags = ELF32.SHF_WRITE | ELF32.SHF_ALLOC
       val secIndex = elf.addSection(".bss", ELF32.SHT_PROGBITS, baseAddr, chunk, flags)
 
@@ -55,16 +51,11 @@ object Assembler:
 
     elf.newSegment(SEG_CODE, ELF32.PT_LOAD, ELF32.PF_X | ELF32.PF_R | ELF32.PF_W): baseAddr =>
       val pb = new PatchableBuffer(baseAddr, labelMap)
-
       assembler.lowerCode(prog.instrs)(using pb)
 
-      val chunk = new ELF32.DataChunk:
-        val fileSize = pb.size
-        val memorySize = pb.size
-        def fileBytes() = pb.finish()
-
-      // The patches depend on labels of other sections or segments they need to
+      // The patches depend on labels of other segments, so they need to
       // be applied during ELF32 generation.
+      val chunk = ELF32.dataChunk(pb)
       val flags = ELF32.SHF_EXEC | ELF32.SHF_ALLOC
       val secIndex = elf.addSection(".text", ELF32.SHT_PROGBITS, baseAddr, chunk, flags)
 

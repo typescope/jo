@@ -11,7 +11,7 @@
 
 import scala.collection.mutable
 
-import IO.ByteBuffer
+import IO.{ ByteBuffer, PatchableBuffer }
 
 import ELF32.*
 
@@ -305,6 +305,11 @@ object ELF32:
     def fileSize = size
     def memorySize = size
     def fileBytes() = new Array[Byte](size)
+
+  def dataChunk(pb: PatchableBuffer): DataChunk = new DataChunk:
+    val fileSize = pb.size
+    val memorySize = pb.size
+    def fileBytes() = pb.finish()
 
   case class LayoutInfo(
     baseAddr: Int, fileOffset: Int, index: Int, align: Int)
