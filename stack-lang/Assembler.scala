@@ -18,13 +18,13 @@ object Assembler:
   private val SEG_CODE = "code"
   private val SEG_HEAP = "heap"
 
-  def continuousLayout(orderName: String, baseVirtAddr: Int, align: Int): ELF32.Layout =
+  def continuousLayout(orderName: String, baseAddr: Int, align: Int): ELF32.Layout =
     val order =
       if orderName == "c1" then List(SEG_DATA, SEG_CODE, SEG_HEAP)
       else if orderName == "c2" then List(SEG_CODE, SEG_HEAP, SEG_DATA)
       else List(SEG_HEAP, SEG_CODE, SEG_DATA)
 
-    new ELF32.ContinuousLayout(order, baseVirtAddr, align)
+    new ELF32.ContinuousLayout(order, baseAddr, align)
 
   /**
     * Generate ELF with the given program and assembler
@@ -34,8 +34,8 @@ object Assembler:
 
     /////////////// data section ////////////
 
-    elf.newSegment(SEG_DATA, ELF32.PT_LOAD, ELF32.PF_R | ELF32.PF_W): virtAddr =>
-      val pb = new PatchableBuffer(virtAddr, labelMap)
+    elf.newSegment(SEG_DATA, ELF32.PT_LOAD, ELF32.PF_R | ELF32.PF_W): baseAddr =>
+      val pb = new PatchableBuffer(baseAddr, labelMap)
       assembler.lowerData(prog.data)(using pb)
 
       assert(pb.getPatches().isEmpty, "patch size non empty for data section")
@@ -46,15 +46,15 @@ object Assembler:
         def fileBytes() = pb.finish()
 
       val flags = ELF32.SHF_WRITE | ELF32.SHF_ALLOC
-      val secIndex = elf.addSection(".bss", ELF32.SHT_PROGBITS, virtAddr, chunk, flags)
+      val secIndex = elf.addSection(".bss", ELF32.SHT_PROGBITS, baseAddr, chunk, flags)
 
       for label <- pb.getDefinedLabels() do
         elf.addDataSymbol(label.name, labelMap(label), secIndex)
 
     /////////////// code section ////////////
 
-    elf.newSegment(SEG_CODE, ELF32.PT_LOAD, ELF32.PF_X | ELF32.PF_R | ELF32.PF_W): virtAddr =>
-      val pb = new PatchableBuffer(virtAddr, labelMap)
+    elf.newSegment(SEG_CODE, ELF32.PT_LOAD, ELF32.PF_X | ELF32.PF_R | ELF32.PF_W): baseAddr =>
+      val pb = new PatchableBuffer(baseAddr, labelMap)
 
       assembler.lowerCode(prog.instrs)(using pb)
 
@@ -66,24 +66,24 @@ object Assembler:
       // The patches depend on labels of other sections or segments they need to
       // be applied during ELF32 generation.
       val flags = ELF32.SHF_EXEC | ELF32.SHF_ALLOC
-      val secIndex = elf.addSection(".text", ELF32.SHT_PROGBITS, virtAddr, chunk, flags)
+      val secIndex = elf.addSection(".text", ELF32.SHT_PROGBITS, baseAddr, chunk, flags)
 
       for label <- pb.getDefinedLabels() do
         elf.addFunSymbol(label.name, labelMap(label), secIndex)
 
     /////////////// heap section ////////////
 
-    elf.newSegment(SEG_HEAP, ELF32.PT_LOAD, ELF32.PF_R | ELF32.PF_W): virtAddr =>
+    elf.newSegment(SEG_HEAP, ELF32.PT_LOAD, ELF32.PF_R | ELF32.PF_W): baseAddr =>
       val flags = ELF32.SHF_ALLOC
       val chunk = new ELF32.DataChunk:
         def fileSize = 0
         def memorySize = VAL_STACK_SIZE
         def fileBytes() = new Array[Byte](0)
 
-      val secIndex = elf.addSection(".heap", ELF32.SHT_PROGBITS, virtAddr, chunk, flags)
+      val secIndex = elf.addSection(".heap", ELF32.SHT_PROGBITS, baseAddr, chunk, flags)
 
-      elf.addDataSymbol(heapStartLabel.name, virtAddr, secIndex)
-      labelMap(heapStartLabel) = virtAddr
+      elf.addDataSymbol(heapStartLabel.name, baseAddr, secIndex)
+      labelMap(heapStartLabel) = baseAddr
 
     ////////////////// write file /////////////////
 

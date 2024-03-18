@@ -87,18 +87,18 @@ class ELF32(outFile: String, layout: Layout, machine: Short):
       val memorySizeBefore = content.memorySize
 
       // First segment includes the file header
-      val contentVirtAddr =
-        if info.index == 0 then info.virtualAddr + E_HEADER_SIZE
-        else info.virtualAddr
+      val contentBaseAddr =
+        if info.index == 0 then info.baseAddr + E_HEADER_SIZE
+        else info.baseAddr
 
-      fn(contentVirtAddr) // execute callback
+      fn(contentBaseAddr) // execute callback
 
       var fileSize = content.fileSize - fileSizeBefore
       var memorySize = content.memorySize - memorySizeBefore
       if info.index == 0 then
         fileSize += E_HEADER_SIZE
         memorySize += E_HEADER_SIZE
-      Segment(info.index, tp, info.fileOffset, info.virtualAddr, fileSize, memorySize, info.align, flags)
+      Segment(info.index, tp, info.fileOffset, info.baseAddr, fileSize, memorySize, info.align, flags)
     }
 
   /**
@@ -106,11 +106,11 @@ class ELF32(outFile: String, layout: Layout, machine: Short):
     *
     * @returns the index of the section in the section header table.
     */
-  def addSection(name: String, tp: Int, virtualAddr: Int, chunk: DataChunk, flags: Int): Short =
+  def addSection(name: String, tp: Int, baseAddr: Int, chunk: DataChunk, flags: Int): Short =
     val offset = currentOffset()
     val index = sections.size
 
-    val sec = Section(addName(name), tp, flags, virtualAddr, offset, chunk.fileSize, link = 0, info = 0, align = 4, entrySize = 0)
+    val sec = Section(addName(name), tp, flags, baseAddr, offset, chunk.fileSize, link = 0, info = 0, align = 4, entrySize = 0)
     sections.addOne(sec)
 
     content.add(chunk)
@@ -203,7 +203,7 @@ class ELF32(outFile: String, layout: Layout, machine: Short):
 
     for sym <- symbols do
       buf.addInt(sym.nameIndex)
-      buf.addInt(sym.virtualAddr)
+      buf.addInt(sym.addr)
       buf.addInt(sym.size)
       buf.addByte(sym.info)
       buf.addByte(0)
@@ -215,7 +215,7 @@ class ELF32(outFile: String, layout: Layout, machine: Short):
       buf.addInt(sec.nameIndex)
       buf.addInt(sec.tp)
       buf.addInt(sec.flags)
-      buf.addInt(sec.addr)
+      buf.addInt(sec.baseAddr)
       buf.addInt(sec.offset)
       buf.addInt(sec.size)
       buf.addInt(sec.link)
@@ -228,12 +228,12 @@ class ELF32(outFile: String, layout: Layout, machine: Short):
     for seg <- segments do
       buf.addInt(seg.tp)                                  // p_type
       buf.addInt(seg.offset)                              // p_offset
-      buf.addInt(seg.virtualAddr)                         // p_vaddr
-      buf.addInt(seg.virtualAddr)                         // p_paddr
+      buf.addInt(seg.baseAddr)                            // p_vaddr
+      buf.addInt(seg.baseAddr)                            // p_paddr
       buf.addInt(seg.fileSize)                            // p_filesz
       buf.addInt(seg.memorySize)                          // p_memsz
       buf.addInt(seg.flags)                               // p_flags
-      buf.addInt(seg.align)                                   // p_align
+      buf.addInt(seg.align)                               // p_align
 
 object ELF32:
   final val ELFCLASS32  = 1
@@ -275,15 +275,15 @@ object ELF32:
   final val STT_FUNC   = 2
 
   case class Segment(
-      index: Int, tp: Int, offset: Int, virtualAddr: Int,
+      index: Int, tp: Int, offset: Int, baseAddr: Int,
       fileSize: Int, memorySize: Int, align: Int, flags: Int)
 
   private case class Section(
-      nameIndex: Int, tp: Int, flags: Int, addr: Int, offset: Int,
+      nameIndex: Int, tp: Int, flags: Int, baseAddr: Int, offset: Int,
       size: Int, link: Int, info: Int, align: Int, entrySize: Int)
 
   private case class Symbol(
-      nameIndex: Int, virtualAddr: Int, size: Int, info: Byte, link: Short)
+      nameIndex: Int, addr: Int, size: Int, info: Byte, link: Short)
 
   /** Represent a data chunk which will be ready when generating the file. */
   trait DataChunk:
@@ -291,10 +291,15 @@ object ELF32:
     def memorySize: Int
     def fileBytes(): Array[Byte]
 
-  /** ELF32 requires alignment of virtual address & file offset at page boundaries
+  /** ELF32 requires alignment of memory address & file offset at page boundaries
     *
-    * p_align should be a positive, integral power of 2, and p_addr should equal
-    * p_offset, modulo p_align.
+    * Executable and Linking Format (ELF) Specification, Version 1.2:
+    *
+    *     Loadable process segments must have congruent values for p_vaddr and
+    *     p_offset, modulo the page size.
+    *
+    *     p_align should be a positive, integral power of 2, and p_addr should
+    *     equal p_offset, modulo p_align.
     */
   private def segmentEndPadding(size: Int): DataChunk = new DataChunk:
     def fileSize = size
@@ -302,28 +307,28 @@ object ELF32:
     def fileBytes() = new Array[Byte](size)
 
   case class LayoutInfo(
-    virtualAddr: Int, fileOffset: Int, index: Int, align: Int)
+    baseAddr: Int, fileOffset: Int, index: Int, align: Int)
 
   trait Layout:
     def run(segments: Map[String, LayoutInfo => Segment]): List[Segment]
 
 
-  class ContinuousLayout(segOrder: List[String], baseVirtAddr: Int, align: Int)
+  class ContinuousLayout(segOrder: List[String], baseAddr: Int, align: Int)
   extends Layout:
 
     /**
-      * Generate virtual address for the next segment
+      * Generate memory address for the next segment
       *
       * The first segment contains the file header.
       */
-    private def nextSegVirtAddr(segments: mutable.Seq[Segment]): Int =
-      if segments.isEmpty then baseVirtAddr
+    private def nextSegAddr(segments: mutable.Seq[Segment]): Int =
+      if segments.isEmpty then baseAddr
       else
         val seg = segments.last
         var segAlloc = 0
         val totalSize = seg.memorySize
         while segAlloc < totalSize do segAlloc += align
-        seg.virtualAddr + segAlloc
+        seg.baseAddr + segAlloc
 
     /**
       * Compute file offset for the next segment
@@ -348,9 +353,9 @@ object ELF32:
       for seg <- segOrder do
         segBuilders.get(seg) match
           case Some(fn) =>
-            val virtAddr = nextSegVirtAddr(segments)
+            val baseAddr = nextSegAddr(segments)
             val fileOffset = nextSegFileOffset(segments)
-            val info = LayoutInfo(virtAddr, fileOffset, segments.size, align)
+            val info = LayoutInfo(baseAddr, fileOffset, segments.size, align)
             val seg = fn(info)
             if seg.memorySize > 0 || seg.fileSize > 0 then
               segments += seg
