@@ -98,7 +98,10 @@ class ELF32(outFile: String, layout: Layout, machine: Short):
       if info.index == 0 then
         fileSize += E_HEADER_SIZE
         memorySize += E_HEADER_SIZE
-      Segment(info.index, tp, info.fileOffset, info.baseAddr, fileSize, memorySize, info.align, flags)
+      Segment(
+          info.index, tp, info.fileOffset, info.baseAddr, fileSize, memorySize,
+          info.align, flags
+      )
     }
 
   /**
@@ -106,11 +109,14 @@ class ELF32(outFile: String, layout: Layout, machine: Short):
     *
     * @returns the index of the section in the section header table.
     */
-  def addSection(name: String, tp: Int, baseAddr: Int, chunk: DataChunk, flags: Int): Short =
+  def addSection(name: String, baseAddr: Int, chunk: DataChunk, flags: Int): Short =
     val offset = currentOffset()
     val index = sections.size
 
-    val sec = Section(addName(name), tp, flags, baseAddr, offset, chunk.fileSize, link = 0, info = 0, align = 4, entrySize = 0)
+    val sec = Section(
+        addName(name), SHT_PROGBITS, flags, baseAddr, offset,
+        chunk.fileSize, link = 0, info = 0, align = 4, entrySize = 0
+    )
     sections.addOne(sec)
 
     content.add(chunk)

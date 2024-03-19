@@ -32,7 +32,7 @@ object Assembler:
   def lower(elf: ELF32, prog: Prog, heapStartLabel: Label, assembler: Assembler): Unit =
     val labelMap: mutable.Map[Label, Int] = mutable.Map.empty
 
-    /////////////// data section ////////////
+    /////////////// data segment ////////////
 
     elf.newSegment(SEG_DATA, ELF32.PT_LOAD, ELF32.PF_RW): baseAddr =>
       val pb = new PatchableBuffer(baseAddr, labelMap)
@@ -42,12 +42,12 @@ object Assembler:
 
       val chunk = ELF32.dataChunk(pb)
       val flags = ELF32.SHF_WRITE | ELF32.SHF_ALLOC
-      val secIndex = elf.addSection(".bss", ELF32.SHT_PROGBITS, baseAddr, chunk, flags)
+      val secIndex = elf.addSection(".bss", baseAddr, chunk, flags)
 
       for label <- pb.getDefinedLabels() do
         elf.addDataSymbol(label.name, labelMap(label), secIndex)
 
-    /////////////// code section ////////////
+    /////////////// code segment ////////////
 
     elf.newSegment(SEG_CODE, ELF32.PT_LOAD, ELF32.PF_RX): baseAddr =>
       val pb = new PatchableBuffer(baseAddr, labelMap)
@@ -57,12 +57,12 @@ object Assembler:
       // be applied during ELF32 generation.
       val chunk = ELF32.dataChunk(pb)
       val flags = ELF32.SHF_EXEC | ELF32.SHF_ALLOC
-      val secIndex = elf.addSection(".text", ELF32.SHT_PROGBITS, baseAddr, chunk, flags)
+      val secIndex = elf.addSection(".text", baseAddr, chunk, flags)
 
       for label <- pb.getDefinedLabels() do
         elf.addFunSymbol(label.name, labelMap(label), secIndex)
 
-    /////////////// heap section ////////////
+    /////////////// heap segment ////////////
 
     elf.newSegment(SEG_HEAP, ELF32.PT_LOAD, ELF32.PF_RW): baseAddr =>
       val flags = ELF32.SHF_ALLOC
@@ -71,7 +71,7 @@ object Assembler:
         def memorySize = VAL_STACK_SIZE
         def fileBytes() = new Array[Byte](0)
 
-      val secIndex = elf.addSection(".heap", ELF32.SHT_PROGBITS, baseAddr, chunk, flags)
+      val secIndex = elf.addSection(".heap", baseAddr, chunk, flags)
 
       elf.addDataSymbol(heapStartLabel.name, baseAddr, secIndex)
       labelMap(heapStartLabel) = baseAddr
