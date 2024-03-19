@@ -8,7 +8,7 @@ import scala.collection.mutable
   * Represents an assembler that translates assembly code to machine code.
   */
 trait Assembler:
-  def lowerData(data: List[Data | Attr])(using PatchableBuffer): Unit
+  def lowerData(data: List[Data])(using PatchableBuffer): Unit
   def lowerCode(code: List[Instr | Label])(using PatchableBuffer): Unit
 
 object Assembler:

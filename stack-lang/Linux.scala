@@ -63,7 +63,7 @@ object Linux:
       */
     def entry(init: => Unit): Unit =
       // TODO: Allocate value stack space and remember stack limit.
-      cb.addCodeLabel(this.entry)
+      cb.mark(this.entry)
       cb.add(Instr.Const(heapStartLabel, VAL_SP_REG))
       init
       exit(0)
@@ -73,8 +73,7 @@ object Linux:
       val label = Label(freshName(sym.name))
       symbolLabels(sym) = label
       if sym.isVal then
-        cb.addDataLabel(label)
-        cb.add(Data.Uninit(Type.Int32))
+        cb.add(Data.Uninit(label, Type.Int32))
 
     /** Compile a function
       *
@@ -82,7 +81,7 @@ object Linux:
       */
     def function(sym: Symbol, body: () => Unit): Unit =
       val label = symbolLabels(sym)
-      cb.addCodeLabel(label)
+      cb.mark(label)
       body()
       ret()
 
@@ -191,7 +190,7 @@ object Linux:
       cb.add(Instr.Sub(Reg(CALL_SP_REG), Int32(4), CALL_SP_REG))
       cb.add(Instr.Store(returnLoc, Reg(CALL_SP_REG)))
       cb.add(Instr.Jump(addr))
-      cb.addCodeLabel(returnLoc)
+      cb.mark(returnLoc)
 
     /** Pop the value on the top of the value stack to the given register.
       *
@@ -246,10 +245,10 @@ object Linux:
       val labelEnd = Label(freshName("proc_end"))
 
       cb.add(Instr.Jump(labelEnd))
-      cb.addCodeLabel(labelStart)
+      cb.mark(labelStart)
       proc()
       ret()
-      cb.addCodeLabel(labelEnd)
+      cb.mark(labelEnd)
 
       push(labelStart)
 
@@ -435,10 +434,10 @@ object Linux:
         loadValue(r, -8)
         cb.add(Instr.Jump(labelEnd))
 
-        cb.addCodeLabel(labelFalse)
+        cb.mark(labelFalse)
         loadValue(r, -4)
 
-        cb.addCodeLabel(labelEnd)
+        cb.mark(labelEnd)
         storeValue(r, -12)
         cb.add(Instr.Sub(Reg(VAL_SP_REG), Int32(8), VAL_SP_REG))
     end choose
@@ -453,12 +452,8 @@ object Linux:
       val elf = new ELF32(outFile, layout, ELF32.EM_386)
       Assembler.lower(elf, prog, heapStartLabel, this)
 
-    def lowerData(data: List[Data | Attr])(using pb: PatchableBuffer): Unit =
-      for item <- data do
-        item match
-          case data: Data   => X86.lower(data)
-          case label: Label => pb.defineLabel(label)
-          case Align(n)     => pb.align(n)
+    def lowerData(data: List[Data])(using pb: PatchableBuffer): Unit =
+      for item <- data do X86.lower(item)
 
     def lowerCode(instrs: List[Instr | Label])(using pb: PatchableBuffer): Unit =
       defineServices()

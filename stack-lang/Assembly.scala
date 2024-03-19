@@ -17,14 +17,10 @@ object Assembly:
   class Label(val name: String):
     override def toString() = "Label(" + name + ")"
 
-  /** An alignment requirement */
-  case class Align(n: Int)
-
   type Operand  = Int32 | Reg
   type Addr     = Label | Reg
   type Constant = Int32 | Label
   type Value    = Int32 | Label | Reg
-  type Attr     = Label | Align
 
   enum BiOp:
     case Add, Sub, Mul, Div, Mod, And, Or, Xor, Sll, Srl, Gt, Lt, Ge, Le, Eq
@@ -65,21 +61,20 @@ object Assembly:
     case Int8, Int32
 
   enum Data:
-    case Int8(v: Byte)
-    case Int32(v: Int)
-    case Uninit(tp: Type)
+    val label: Label
+    case Int8(label: Label, v: Byte)
+    case Int32(label: Label, v: Int)
+    case Uninit(label: Label, tp: Type)
 
-  case class Prog(data: List[Data | Attr], instrs: List[Instr | Label], entry: Label):
+  case class Prog(data: List[Data], instrs: List[Instr | Label], entry: Label):
     def show() =
       val sb = new StringBuilder
 
       for item <- data do
         item match
-          case Data.Int8(v)     => sb.append("  " + v  + "\n")
-          case Data.Int32(v)    => sb.append("  " + v + "\n")
-          case Data.Uninit(tp)  => sb.append("  " + tp + "\n")
-          case Align(n)         => sb.append(".align " + n + "\n")
-          case l: Label         => sb.append(l.name + ":" + "\n")
+          case Data.Int8(l, v)     => sb.append(l.name + " = " + v  + "\n")
+          case Data.Int32(l, v)    => sb.append(l.name + " = " + v + "\n")
+          case Data.Uninit(l, tp)  => sb.append(l.name + " : " + tp + "\n")
 
       for instr <- instrs do
         instr match
@@ -97,15 +92,14 @@ object Assembly:
     * Hold generated assembly data and code.
     */
   class CodeBuffer(val entry: Label):
-    private val dataSection: mutable.ArrayBuffer[Data  | Label] = new mutable.ArrayBuffer
+    private val dataSection: mutable.ArrayBuffer[Data] = new mutable.ArrayBuffer
     private val codeSection: mutable.ArrayBuffer[Instr | Label] = new mutable.ArrayBuffer
 
     def add(data  : Data       ): Unit = dataSection.addOne(data)
     def add(instrs: List[Instr]): Unit = codeSection.addAll(instrs)
     def add(instr : Instr      ): Unit = codeSection.addOne(instr)
 
-    def addDataLabel(label: Label): Unit = dataSection.addOne(label)
-    def addCodeLabel(label: Label): Unit = codeSection.addOne(label)
+    def mark(label: Label): Unit = codeSection.addOne(label)
 
     def getResult(): Prog = Prog(dataSection.toList, codeSection.toList, entry)
 

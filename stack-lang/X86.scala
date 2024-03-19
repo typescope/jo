@@ -52,15 +52,21 @@ object X86:
   case class Rel(baseReg: Int, offset: Byte)
 
   def lower(data: Data)(using pb: PatchableBuffer): Unit =
+    pb.defineLabel(data.label)
     data match
-      case Data.Int8(v)     => pb.addByte(v)
+      case Data.Int8(l, v)     =>
+        pb.addByte(v)
 
-      case Data.Int32(v)    => pb.addInt(v)
+      case Data.Int32(l, v)    =>
+        pb.align(4)
+        pb.addInt(v)
 
-      case Data.Uninit(tp)  =>
+      case Data.Uninit(l, tp)  =>
         tp match
           case Type.Int8  =>  pb.addByte(0)
-          case Type.Int32 =>  pb.addInt(0)
+          case Type.Int32 =>
+            pb.align(4)
+            pb.addInt(0)
 
   def lower(instr: Instr)(using pb: PatchableBuffer): Unit =
     instr match
