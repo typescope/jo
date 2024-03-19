@@ -145,14 +145,20 @@ class ELF32(outFile: String, layout: Layout, machine: Short):
     // Add string table
     val nameIndex = addName(".strtab")
     val strTabOff = currentOffset()
-    val strSec = Section(nameIndex, SHT_STRTAB, 0, 0, strTabOff, strtable.size, link = 0, info = 0, align = 1, entrySize = 0)
+    val strSec = Section(
+        nameIndex, SHT_STRTAB, 0, 0, strTabOff, strtable.size, link = 0,
+        info = 0, align = 1, entrySize = 0
+    )
     val strSecIndex = sections.size
     sections.addOne(strSec)
 
     // Add symbol table
     val symTabOff = strTabOff + strtable.size
     val symTabSize = symbols.size << 4
-    val symSec = Section(symTabNameIndex, SHT_SYMTAB, 0, 0, symTabOff, symTabSize, strSecIndex, info = 0, align = 1, entrySize = 16)
+    val symSec = Section(
+        symTabNameIndex, SHT_SYMTAB, 0, 0, symTabOff, symTabSize, strSecIndex,
+        info = 0, align = 1, entrySize = 16
+    )
     sections.addOne(symSec)
 
     // Section header table
@@ -360,7 +366,9 @@ object ELF32:
 
     def run(segBuilders: Map[String, LayoutInfo => Segment]): List[Segment] =
       if segOrder.size != segBuilders.size then
-        throw new Exception("Segment size mismatch, given = " + segOrder + ", found = " + segBuilders.keys)
+        throw new Exception(
+            "Segment size mismatch, given = " + segOrder + ", found = " +
+            segBuilders.keys)
 
       val segments: mutable.ArrayBuffer[Segment] = new mutable.ArrayBuffer
 
@@ -375,7 +383,8 @@ object ELF32:
               segments += seg
 
           case None =>
-            throw new Exception("Unknown segment " + seg + ", found = " + segBuilders.keys)
+            throw new Exception(
+                "Unknown segment " + seg + ", found = " + segBuilders.keys)
       end for
 
       segments.toList
