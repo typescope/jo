@@ -15,6 +15,12 @@ import scala.collection.mutable
 import Assembly.*
 import IO.{ ByteBuffer, Patch, PatchableBuffer, withPatch }
 
+/**
+  * Translate assembly code to x86 machine code.
+  *
+  * It assumes that the ESP register is used as the stack pointer so that it may
+  * use push/pop to spill registers for temporary usage.
+  */
 object X86:
   /**
     * 0 - EAX
@@ -146,11 +152,35 @@ object X86:
 
       case Instr.Binary(op, v, r: Reg, destReg) =>
         if destReg == r.index then
-          binaryOperation(op, r, v)
+          op match
+            case BiOp.Add | BiOp.Mul | BiOp.And | BiOp.Or | BiOp.Xor | BiOp.Eq =>
+              // commutative operations
+              binaryOperation(op, r, v)
+
+            case BiOp.Sub | BiOp.Div | BiOp.Mod | BiOp.Srl | BiOp.Sll  =>
+              // Spill a register for temporary usage
+              val rTemp = if destReg == EAX then EBX else EAX
+              push(rTemp)
+              binaryOperation(op, Reg(rTemp), r)
+              move(Reg(rTemp), r)
+              pop(rTemp)
+
+            case BiOp.Gt  =>
+              binaryOperation(BiOp.Le, r, v)
+
+            case BiOp.Lt  =>
+              binaryOperation(BiOp.Ge, r, v)
+
+            case BiOp.Ge  =>
+              binaryOperation(BiOp.Lt, r, v)
+
+            case BiOp.Le  =>
+              binaryOperation(BiOp.Gt, r, v)
+
         else
           val rDest = Reg(destReg)
-          move(r, rDest)
-          binaryOperation(op, rDest, v)
+          move(v, rDest)
+          binaryOperation(op, rDest, r)
 
       case Instr.Binary(op, v1: Int32, v2: Int32, destReg) =>
         val rDest = Reg(destReg)
