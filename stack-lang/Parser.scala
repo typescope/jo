@@ -16,7 +16,7 @@ import scala.collection.mutable
 object Parsing:
 
   enum Token:
-    case LBRACE, RBRACE, IF, THEN, ELSE, FI, SEMICOL, VAL, FUN, EQL, EOF
+    case LPAREN, RPAREN, IF, THEN, ELSE, END, SEMICOL, VAL, FUN, EQL, EOF
     case IntLit(value: Int)
     case BoolLit(value: Boolean)
     case Ident(name: String)
@@ -105,8 +105,8 @@ object Parsing:
       chars.tokenStart()
 
       chars.eat() match
-        case '{'    => Token.LBRACE
-        case '}'    => Token.RBRACE
+        case '('    => Token.LPAREN
+        case ')'    => Token.RPAREN
         case ';'    => Token.SEMICOL
 
         case '-'    =>
@@ -135,7 +135,7 @@ object Parsing:
         case "if"      => Token.IF
         case "then"    => Token.THEN
         case "else"    => Token.ELSE
-        case "fi"      => Token.FI
+        case "end"     => Token.END
         case "val"     => Token.VAL
         case "fun"     => Token.FUN
         case "true"    => Token.BoolLit(true)
@@ -239,10 +239,23 @@ object Parsing:
     def funDef(): Ast.Def =
       eat(Token.FUN)
       val id = ident()
+      eat(Token.LPAREN)
+      val paramList = params()
+      eat(Token.RPAREN)
       eat(Token.EQL)
-      val words = phrase()
+      val words = phrase(Nil)
       eat(Token.SEMICOL)
-      Ast.Def.FunDef(id.name, words)
+      Ast.Def.FunDef(id, paramList, words)
+
+    def params(): List[Ident] =
+      if peek() == Token.RPAREN then acc.toList
+      else paramsRest(mutable.ArrayBuffer(ident()))
+
+    def paramsRest(acc: mutable.ArrayBuffer[Ident]): List[Ident] =
+      if peek() == Token.RPAREN then acc.toList
+      else
+        eat(Token.COMMA)
+        paramsRest(acc += ident())
 
     def phrase(): List[Ast.Word] =
       word() match
@@ -258,7 +271,7 @@ object Parsing:
     def word(): Option[Ast.Word] =
       peek() match
         case _: Token.Ident  => Some(ident())
-        case Token.LBRACE    => Some(proc())
+        case Token.LBRACE    => Some(fence())
         case Token.IF        => Some(ifStat())
 
         case litToken: Token.IntLit  =>
@@ -277,18 +290,23 @@ object Parsing:
         case id: Token.Ident => new Ast.Word.Ident(id.name)
         case token => err("Expect identifier, found token " + token)
 
-    def proc(): Ast.Word =
-      eat(Token.LBRACE)
+    def fence(): Ast.Word =
+      eat(Token.LPAREN)
       val words = phrase()
-      eat(Token.RBRACE)
-      Ast.Word.Proc(words)
+      eat(Token.RPAREN)
+      Ast.Word.Fence(words)
 
     def ifStat(): Ast.Word =
       eat(Token.IF)
       val cond = phrase()
       eat(Token.THEN)
       val thenp = phrase()
-      eat(Token.ELSE)
-      val elsep = phrase()
-      eat(Token.FI)
+      // else is optional
+      val elsep =
+        if peek() == Token.ELSE then
+          eat(Token.ELSE)
+          phrase()
+        else
+          Nil
+      eat(Token.END)
       Ast.Word.IfStat(cond, thenp, elsep)
