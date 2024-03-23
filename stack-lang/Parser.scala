@@ -109,6 +109,7 @@ object Parsing:
         case '('    => Token.LPAREN
         case ')'    => Token.RPAREN
         case ';'    => Token.SEMICOL
+        case ','    => Token.COMMA
 
         case '-'    =>
           if chars.curChar(isDigit) then intLit()
