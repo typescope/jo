@@ -13,11 +13,11 @@ object Sast:
     val name: String
 
   object Symbol:
-    class PrimSymbol(val name: String, info: FunType)
-    class FunSymbol(val name: String, info: FunType)
-    class ValSymbol(val name: String)
+    class PrimSymbol(val name: String, info: FunInfo) extends Symbol
+    class FunSymbol(val name: String, info: FunInfo) extends Symbol
+    class ValSymbol(val name: String) extends Symbol
 
-  case FunType(paramsCount: Byte, resCount: Byte)
+  case class FunInfo(paramsCount: Byte, resCount: Byte)
 
   enum Word:
     case IntLit(value: Int)
@@ -39,7 +39,7 @@ object Sast:
     private val symbols: mutable.ArrayBuffer[Symbol] = new mutable.ArrayBuffer
 
     private def createPredefSymbol(name: String, paramCount: Byte, resCount: Byte): Symbol =
-      val sym = new Symbol.PrimSymbol(name, FunType(paramCount, resCount))
+      val sym = new Symbol.PrimSymbol(name, FunInfo(paramCount, resCount))
       symbols += sym
       sym
 

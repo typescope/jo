@@ -6,6 +6,8 @@ import Sast.*
   * The namer handles name resolution and desugaring.
   *
   * It converts ASTs to Semantic ASTs.
+  *
+  * TODO: check stack safety.
   */
 object Namer:
   /**
@@ -33,7 +35,7 @@ object Namer:
           case _: Ast.Def.ValDef =>
             Symbol.ValSymbol(defn.name)
           case funDef: Ast.Def.FunDef =>
-            val tp = FunType(funDef.params.size, 1)
+            val tp = FunInfo(funDef.params.size.toByte, 1)
             Symbol.FunSymbol(defn.name, tp)
 
       sc.define(sym)
@@ -50,7 +52,7 @@ object Namer:
       case Ast.Word.Fence(ws)  => Word.Fence(transform(ws)) :: Nil
 
       case Ast.Word.IfStat(cond, thenp, elsep) =>
-         Word.IfStat(transform(cond), transform(thenp), transform(elsep))
+         Word.IfStat(transform(cond), transform(thenp), transform(elsep)) :: Nil
 
       case Ast.Word.Ident(name) =>
         sc.resolve(name) match

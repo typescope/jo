@@ -15,6 +15,8 @@
 
 import scala.collection.mutable
 
+import Sast.*
+
 /***********************************************************************
  *
  * Value Definitions
@@ -45,16 +47,16 @@ enum Value extends Denotation:
   case BoolVal(value: Boolean)
 
 enum Action extends Denotation:
-  case Fun(params: List[Sast.Symbol], words: List[Sast.Word], scope: Scope)
+  case Fun(params: List[Symbol], words: List[Word], scope: Scope)
   case Prim(fun: ValueStack => Unit)
 
 enum Scope:
   case RootScope()
   case NestedScope(outer: Scope)
 
-  private val map: mutable.Map[Sast.Symbol, Denotation] = mutable.Map.empty
+  private val map: mutable.Map[Symbol, Denotation] = mutable.Map.empty
 
-  def resolve(sym: Sast.Symbol): Option[Denotation] =
+  def resolve(sym: Symbol): Option[Denotation] =
     map.get(sym) match
       case None =>
         this match
@@ -63,7 +65,7 @@ enum Scope:
 
       case res  => res
 
-  def bind(sym: Sast.Symbol, denot: Denotation): Unit =
+  def bind(sym: Symbol, denot: Denotation): Unit =
     map.get(sym) match
       case None =>
         map(sym) = denot
@@ -121,11 +123,8 @@ object Primitive:
     vs.pop() match
       case IntVal(v)  => println(v)
       case BoolVal(v) => println(v)
-      case v          => println(v)
 
-  import Sast.predef
-
-  val operators: Map[Sast.Symbol, ValueStack => Unit] = Map(
+  val operators: Map[Symbol, ValueStack => Unit] = Map(
       predef.add    ->    add,
       predef.sub    ->    sub,
       predef.mul    ->    mul,
@@ -148,34 +147,43 @@ object Primitive:
   )
 
 object Interpreter:
-  def exec(prog: Sast.Prog): Unit =
+  def exec(prog: Prog): Unit =
     val rootScope = new Scope.RootScope()
 
     for (k, v) <- Primitive.operators do
       rootScope.bind(k, Action.Prim(v))
 
     val sc = new Scope.NestedScope(rootScope)
-    for case Sast.Def.FunDef(sym, params, words) <- prog.defs do
+    for case Def.FunDef(sym, params, words) <- prog.defs do
       sc.bind(sym, Action.Fun(params, words, sc))
 
     val vs = new ValueStack
-    for case Sast.Def.ValDef(sym, words) <- prog.defs do
+    for case Def.ValDef(sym, words) <- prog.defs do
       exec(words)(using vs, sc)
       sc.bind(sym, vs.pop())
 
     exec(prog.main)(using vs, sc)
 
-  def exec(words: List[Sast.Word])(using ValueStack, Scope): Unit =
+  def exec(words: List[Word])(using ValueStack, Scope): Unit =
     for word <- words do exec(word)
 
-  def exec(word: Sast.Word)(using vs: ValueStack, sc: Scope): Unit =
+  def exec(word: Word)(using vs: ValueStack, sc: Scope): Unit =
     word match
-      case Sast.Word.IntLit(v)  => vs.push(Value.IntVal(v))
-      case Sast.Word.BoolLit(v) => vs.push(Value.BoolVal(v))
+      case Word.IntLit(v)  => vs.push(Value.IntVal(v))
+      case Word.BoolLit(v) => vs.push(Value.BoolVal(v))
 
-      case Sast.Word.Fence(ws)  => exec(ws)
+      case Word.Fence(ws)  => exec(ws)
 
-      case Sast.Word.Ident(sym) =>
+      case Word.IfStat(cond, thenp, elsep) =>
+        exec(cond)
+        vs.pop() match
+          case Value.BoolVal(b) =>
+            if b then exec(thenp) else exec(elsep)
+
+          case v =>
+            err("Boolean value expected for if condition, found " + v)
+
+      case Word.Ident(sym) =>
         sc.resolve(sym) match
           case Some(d) =>
             d match
