@@ -1,6 +1,7 @@
 //> using file Ast.scala
 //> using file Sast.scala
 //> using file Namer.scala
+//> using file Checker.scala
 //> using file Parser.scala
 //> using file Assembly.scala
 //> using file Platform.scala
@@ -27,8 +28,8 @@ object Compiler:
     for defn <- prog.defs do pf.declare(defn.symbol)
 
     // Compile functions
-    for case Def.FunDef(sym, words) <- prog.defs do
-      pf.function(sym, () => compile(words))
+    for case Def.FunDef(sym, params, words) <- prog.defs do
+      pf.function(sym, params, () => compile(words))
 
     // User code execution starts from here
     pf.entry:
@@ -49,12 +50,24 @@ object Compiler:
 
       case Word.BoolLit(v) => pf.push(v)
 
-      case Word.Proc(words) => pf.push(() => compile(words))
+      case Word.IfStat(cond, thenp, elsep) =>
+        if elsep.isEmpty then
+          pf.conditional(
+            () => compile(cond),
+            () => compile(thenp)
+          )
+        else
+          pf.conditional(
+            () => compile(cond),
+            () => compile(thenp),
+            () => compile(elsep)
+          )
 
       case Word.Ident(sym) =>
-        if sym.isVal then pf.push(sym)
-        else if sym.isFun then pf.call(sym)
-        else pf.primitive(sym)
+        sym match
+          case sym: Symbol.FunSymbol  => pf.call(sym)
+          case sym: Symbol.PrimSymbol => pf.primitive(sym)
+          case _                      => pf.push(sym)
 
 /***********************************************************************
  *

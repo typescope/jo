@@ -2,6 +2,7 @@ import java.io.PrintWriter
 import scala.collection.mutable
 
 import Sast.{ predef, Symbol }
+import Symbol.{ PrimSymbol, FunSymbol }
 
 /**
   * JavaScript platform
@@ -42,15 +43,18 @@ class JSPlatform(outFile: String) extends Platform:
     init
     newLine()
 
-  /** Declare the symbol to the platform as a preparation for compilation */
-  def declare(sym: Symbol): Unit =
+  def mapSymbolToJSName(sym: Symbol): String =
     val isOperator = !sym.name(0).isLetter
     val uniqueName =
       if isOperator then freshName("operator")
       else freshName(sym.name)
 
     symbol2UniqueName(sym) = uniqueName
+    uniqueName
 
+  def declare(sym: Symbol): Unit =
+    assert(!sym.isPrim, "Unexpected primitive symbol " + sym)
+    val uniqueName = mapSymbolToJSName(sym)
     if sym.isVal then
       addLine(s"var $uniqueName; // ${sym.name}")
 
@@ -58,9 +62,27 @@ class JSPlatform(outFile: String) extends Platform:
   /**
     * Call the funtion.
     */
-  def call(fun: Symbol): Unit =
+  def call(fun: FunSymbol): Unit =
     val name = symbol2UniqueName(fun)
-    addLine(s"$name();");
+    val paramCount = fun.info.paramCount
+    var i: Int = paramCount - 1
+    val args = new Array[String](paramCount)
+    while i >= 0  do
+      val argName = freshName(s"arg$i")
+      args(i) = argName
+      addLine(s"const $argName = $pop();")
+      i = i - 1
+
+    // the first stack item maps to the last parameter
+    val paramStr = new StringBuilder
+    i = 0
+    while i < paramCount do
+      paramStr.append(args(i))
+      if i != paramCount - 1 then
+        paramStr.append(", ")
+      i = i + 1
+
+    addLine(s"$name($paramStr);");
 
   /** Initialize a value definition
     *
@@ -75,13 +97,33 @@ class JSPlatform(outFile: String) extends Platform:
     *
     * Calling the passed function will compile the body of the function.
     */
-  def function(sym: Symbol, body: () => Unit): Unit =
+  def function(sym: FunSymbol, params: List[Symbol], body: () => Unit): Unit =
     val name = symbol2UniqueName(sym)
-    addLine(s"function $name() { // ${sym.name}")
+    uniqueName.newScope:
+      val paramStr = params.map(mapSymbolToJSName).mkString(", ")
+      addLine(s"function $name($paramStr) { // ${sym.name}")
+      indent:
+          body()
+      addLine("}\n")
+
+  /** Compile a conditional statement, i.e if/then/else */
+  def conditional(cond: () => Unit, thenp: () => Unit, elsep: () => Unit): Unit =
+    cond()
+    addLine(s"if ($pop()) {")
     indent:
-      uniqueName.newScope:
-        body()
-    addLine("}\n")
+      thenp()
+    addLine("} else {")
+    indent:
+      elsep()
+    addLine("}")
+
+  /** Compile a conditional statement, i.e if/then */
+  def conditional(cond: () => Unit, thenp: () => Unit): Unit =
+    cond()
+    addLine(s"if ($pop()) {")
+    indent:
+      thenp()
+    addLine("}")
 
   /** Push an integer literal to value stack */
   def push(v: Int): Unit =
@@ -96,36 +138,6 @@ class JSPlatform(outFile: String) extends Platform:
   def push(sym: Symbol): Unit =
     val name = symbol2UniqueName(sym)
     addLine(s"$push($name);")
-
-  /** Push a procedure literal to value stack
-    *
-    * Calling the passed function will compile the body of the procedure.
-    */
-  def push(proc: () => Unit): Unit =
-    addLine(s"$push(() => {")
-    indent:
-      uniqueName.newScope:
-        proc()
-    addLine("});")
-
-  def choose(): Unit =
-    val local = freshName("choose_tmp")
-    addLine(s"let $local = $vs[$vs.length - 3];")
-    addLine(s"if ($local) { $local = $vs[$vs.length - 2]; }")
-    addLine(s"else { $local = $vs[$vs.length - 1] };")
-    addLine(s"$vs[$vs.length - 3] = $local;")
-    addLine(s"$pop(); $pop();")
-
-  def peek(): Unit =
-    val local = freshName("peek_temp")
-    addLine(s"const $local = $pop();")
-    addLine(s"$push($vs[$vs.length - 1 - $local]);")
-
-  def swap(): Unit =
-    val local = freshName("tmp")
-    addLine(s"const $local = $vs[$vs.length - 1];")
-    addLine(s"$vs[$vs.length - 1] = $vs[$vs.length - 2];")
-    addLine(s"$vs[$vs.length - 2] = $local;")
 
   def binary(op: String): Unit =
     val operand1 = freshName("operand1")
@@ -145,7 +157,7 @@ class JSPlatform(outFile: String) extends Platform:
     * Compile a primitive
     *
     */
-  def primitive(sym: Symbol): Unit =
+  def primitive(sym: PrimSymbol): Unit =
     sym match
       case predef.add    =>   binary("+")
       case predef.sub    =>   binary("-")
@@ -164,13 +176,7 @@ class JSPlatform(outFile: String) extends Platform:
       case predef.band   =>   binary("&&")
       case predef.bor    =>   binary("||")
       case predef.bnot   =>   addLine(s"$push(!$pop());")
-      case predef.run    =>   addLine(s"$pop()();")
       case predef.eql    =>   addLine(s"$push($pop() === $pop());")
-      case predef.dup    =>   addLine(s"$push($vs[$vs.length - 1]);")
-      case predef.swap   =>   swap()
-      case predef.peek   =>   peek()
-      case predef.pop    =>   addLine(s"$pop();")
-      case predef.choose =>   choose()
       case predef.p      =>   addLine(s"console.log($pop());")
       case _             =>   throw new Exception("Unknown primitive: " + sym.name)
   end primitive

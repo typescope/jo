@@ -13,6 +13,9 @@ import Sast.Symbol.*
 object Sast:
   abstract class Symbol:
     val name: String
+    def isPrim: Boolean = this.isInstanceOf[PrimSymbol]
+    def isFun: Boolean = this.isInstanceOf[FunSymbol]
+    def isVal: Boolean = this.isInstanceOf[ValSymbol]
 
     override def toString() = name
 

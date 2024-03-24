@@ -2,6 +2,7 @@ import Assembly.*
 
 import IO.ByteBuffer
 import Sast.Symbol
+import Symbol.{ FunSymbol, PrimSymbol }
 
 /**
   * The platform abstraction encapsulates implementation details about the value
@@ -23,11 +24,14 @@ abstract class Platform:
     */
   def entry(init: => Unit): Unit
 
-  /** Declare the symbol to the platform as a preparation for compilation */
+  /**
+    * Declare the top-level symbol to the platform as a preparation for
+    * compilation
+    */
   def declare(sym: Symbol): Unit
 
   /** Call the funtion */
-  def call(fun: Symbol): Unit
+  def call(fun: FunSymbol): Unit
 
   /** Initialize a value definition
     *
@@ -39,7 +43,13 @@ abstract class Platform:
     *
     * Calling the passed function will compile the body of the function.
     */
-  def function(sym: Symbol, body: () => Unit): Unit
+  def function(sym: FunSymbol, params: List[Symbol], body: () => Unit): Unit
+
+  /** Compile a conditional statement, i.e if/then/else */
+  def conditional(cond: () => Unit, thenp: () => Unit, elsep: () => Unit): Unit
+
+  /** Compile a conditional statement, i.e if/then */
+  def conditional(cond: () => Unit, thenp: () => Unit): Unit
 
   /** Push an integer literal to value stack */
   def push(v: Int): Unit
@@ -50,14 +60,8 @@ abstract class Platform:
   /** Push the value associated with the given symbol to value stack */
   def push(sym: Symbol): Unit
 
-  /** Push a procedure literal to value stack
-    *
-    * Calling the passed function will compile the body of the procedure.
-    */
-  def push(proc: () => Unit): Unit
-
   /** Compile a primitive */
-  def primitive(sym: Symbol): Unit
+  def primitive(sym: PrimSymbol): Unit
 
   /** Prepare to start the compilation */
   def start(): Unit
