@@ -173,8 +173,6 @@ object Interpreter:
       case Word.IntLit(v)  => vs.push(Value.IntVal(v))
       case Word.BoolLit(v) => vs.push(Value.BoolVal(v))
 
-      case Word.Fence(ws)  => exec(ws)
-
       case Word.IfStat(cond, thenp, elsep) =>
         exec(cond)
         vs.pop() match
@@ -222,5 +220,4 @@ def fileContent(name: String): String =
 def run(file: String) =
   val ast = Parsing.parse(fileContent(file))
   val sast = Namer.transform(ast)
-  Checker.check(sast)
   Interpreter.exec(sast)

@@ -22,18 +22,9 @@ object Checker:
     def isEmpty: Boolean = size0 == 0
     def size: Int = size0
 
-  def check(prog: Prog): Unit =
-    for defn <- prog.defs do check(defn)
-    check(prog.main)(using new ValueStack)
-
   def check(word: Word)(using vs: ValueStack): Unit =
     word match
       case _: Word.IntLit | _: Word.BoolLit => vs.push(1)
-
-      case Word.Fence(ws)  =>
-        val vs1 = new ValueStack
-        check(ws)(using vs1)
-        vs.push(vs1.size)
 
       case Word.IfStat(cond, thenp, elsep) =>
         val vsCond = new ValueStack

@@ -31,13 +31,20 @@ object Namer:
     val defs = for defn <- prog.defs yield transform(defn)(using sc)
     val main = transform(prog.main)(using sc)
 
+    // check code
+    for defn <- defs do Checker.check(defn)
+    Checker.check(main)(using new Checker.ValueStack)
+
     Prog(defs, main)
 
   private def transform(word: Ast.Word)(using sc: Scope): List[Word] =
     word match
       case Ast.Word.IntLit(v)  => Word.IntLit(v) :: Nil
       case Ast.Word.BoolLit(v) => Word.BoolLit(v) :: Nil
-      case Ast.Word.Fence(ws)  => Word.Fence(transform(ws)) :: Nil
+      case Ast.Word.Fence(ws)  =>
+        val words = transform(ws)
+        Checker.check(words)(using new Checker.ValueStack)
+        words
 
       case Ast.Word.IfStat(cond, thenp, elsep) =>
          Word.IfStat(transform(cond), transform(thenp), transform(elsep)) :: Nil

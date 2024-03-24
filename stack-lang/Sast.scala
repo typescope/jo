@@ -27,7 +27,6 @@ object Sast:
     case IntLit(value: Int)
     case BoolLit(value: Boolean)
     case Ident(symbol: Symbol)
-    case Fence(words: List[Word])
     case IfStat(cond: List[Word], thenp: List[Word], elsep: List[Word])
 
   enum Def:
