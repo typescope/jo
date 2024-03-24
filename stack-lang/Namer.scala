@@ -67,9 +67,9 @@ object Namer:
         val funScope = new Scope.NestedScope(sc)
         val paramSyms =
           for param <- funDef.params yield
-            val sym = Symbol.ValSymbol(param.name)
-            funScope.define(sym)
-            sym
+            val paramSym = Symbol.ParamSymbol(param.name, sym.asFun)
+            funScope.define(paramSym)
+            paramSym
 
         val words = transform(funDef.words)(using funScope)
         Def.FunDef(sym.asInstanceOf[Symbol.FunSymbol], paramSyms, words)

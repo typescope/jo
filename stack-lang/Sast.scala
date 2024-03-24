@@ -11,12 +11,17 @@ import scala.collection.mutable
 import Sast.Symbol.*
 
 object Sast:
-  abstract class Symbol:
+  sealed abstract class Symbol:
     val name: String
     val info: StackInfo
     def isPrim: Boolean = this.isInstanceOf[PrimSymbol]
     def isFun: Boolean = this.isInstanceOf[FunSymbol]
     def isVal: Boolean = this.isInstanceOf[ValSymbol]
+    def isParam: Boolean = this.isInstanceOf[ParamSymbol]
+
+    def asParam: ParamSymbol = this.asInstanceOf[ParamSymbol]
+    def asFun: FunSymbol = this.asInstanceOf[FunSymbol]
+    def asPrim: PrimSymbol = this.asInstanceOf[PrimSymbol]
 
     override def toString() = name
 
@@ -25,6 +30,9 @@ object Sast:
     class FunSymbol(val name: String, val info: StackInfo) extends Symbol
     class ValSymbol(val name: String) extends Symbol:
       val info = StackInfo(0, 1)
+
+    class ParamSymbol(name: String, val owner: FunSymbol)
+    extends ValSymbol(name)
 
   case class StackInfo(paramCount: Byte, resCount: Byte)
 
