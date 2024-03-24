@@ -33,14 +33,6 @@ class ValueStack:
 
   def push(v: Value): Unit = stack.append(v)
 
-  def peek(n: Int): Value =
-    if n >= stack.size then
-      err("peek index out of stack bound, found = " + n)
-    if n < 0 then
-      err("peek index should be positive, found = " + n)
-    else
-      stack(stack.size - 1 - n)
-
 sealed abstract class Denotation
 
 enum Value extends Denotation:
