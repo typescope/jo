@@ -1,0 +1,10 @@
+fun fib(n) = 1 1 1 n fibComp;
+
+fun fibComp(a, b, i, n) =
+  if i n == then a
+  else
+    a p
+    b (b a +) (1 i +) n fibComp
+  end;
+
+20 fib

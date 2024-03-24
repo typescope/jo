@@ -193,7 +193,7 @@ object Interpreter:
 
               case Action.Fun(params, ws,sc2) =>
                 val funScope = new Scope.NestedScope(sc2)
-                for param <- params do
+                for param <- params.reverse do
                   funScope.bind(param, vs.pop())
                 exec(ws)(using vs, funScope)
 
