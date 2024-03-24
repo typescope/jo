@@ -12,6 +12,7 @@
 //> using file ELF32.scala
 //> using file UniqueName.scala
 //> using file JSPlatform.scala
+//> using file JSPlatformOpt.scala
 
 import Sast.*
 
@@ -50,18 +51,8 @@ object Compiler:
 
       case Word.BoolLit(v) => pf.push(v)
 
-      case Word.IfStat(cond, thenp, elsep) =>
-        if elsep.isEmpty then
-          pf.conditional(
-            () => compile(cond),
-            () => compile(thenp)
-          )
-        else
-          pf.conditional(
-            () => compile(cond),
-            () => compile(thenp),
-            () => compile(elsep)
-          )
+      case ifWord: Word.IfStat =>
+          pf.conditional(ifWord, words => compile(words))
 
       case Word.Ident(sym) =>
         sym match
@@ -102,8 +93,10 @@ def run(args: String*) =
       case Some(pf) =>
         if pf == "linux-x86" then
           Linux.createX86Platform(outFile, layout)
-        else if pf == "javascript" then
+        else if pf == "js" then
           new JSPlatform(outFile)
+        else if pf == "js-opt" then
+          new JSPlatformOpt(outFile)
         else
           throw new Exception("Unknow platform: " + pf)
 

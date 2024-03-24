@@ -13,6 +13,7 @@ import Sast.Symbol.*
 object Sast:
   abstract class Symbol:
     val name: String
+    val info: StackInfo
     def isPrim: Boolean = this.isInstanceOf[PrimSymbol]
     def isFun: Boolean = this.isInstanceOf[FunSymbol]
     def isVal: Boolean = this.isInstanceOf[ValSymbol]
@@ -20,17 +21,30 @@ object Sast:
     override def toString() = name
 
   object Symbol:
-    class PrimSymbol(val name: String, val info: FunInfo) extends Symbol
-    class FunSymbol(val name: String, val info: FunInfo) extends Symbol
-    class ValSymbol(val name: String) extends Symbol
+    class PrimSymbol(val name: String, val info: StackInfo) extends Symbol
+    class FunSymbol(val name: String, val info: StackInfo) extends Symbol
+    class ValSymbol(val name: String) extends Symbol:
+      val info = StackInfo(0, 1)
 
-  case class FunInfo(paramCount: Byte, resCount: Byte)
+  case class StackInfo(paramCount: Byte, resCount: Byte)
 
   enum Word:
     case IntLit(value: Int)
     case BoolLit(value: Boolean)
     case Ident(symbol: Symbol)
     case IfStat(cond: List[Word], thenp: List[Word], elsep: List[Word])
+
+    lazy val info: StackInfo =
+      this match
+        case _: IntLit | _: BoolLit => StackInfo(0, 1)
+        case ident: Ident => ident.symbol.info
+        case IfStat(_, thenp, _) =>
+          // It's already checked that cond is StackInfo(0, 1) and the two
+          // branches have the same stack info
+          val resCount = thenp.foldLeft(0): (acc, word) =>
+            val added = word.info.resCount - word.info.paramCount
+            acc + added
+          StackInfo(0, resCount.toByte)
 
   enum Def:
     val symbol: Symbol
@@ -45,7 +59,7 @@ object Sast:
     private val symbols: mutable.ArrayBuffer[Symbol] = new mutable.ArrayBuffer
 
     private def createPredefSymbol(name: String, paramCount: Byte, resCount: Byte): Symbol =
-      val sym = new Symbol.PrimSymbol(name, FunInfo(paramCount, resCount))
+      val sym = new Symbol.PrimSymbol(name, StackInfo(paramCount, resCount))
       symbols += sym
       sym
 

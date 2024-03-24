@@ -23,8 +23,8 @@ object Namer:
           case _: Ast.Def.ValDef =>
             Symbol.ValSymbol(defn.name)
           case funDef: Ast.Def.FunDef =>
-            val tp = FunInfo(funDef.params.size.toByte, 1)
-            Symbol.FunSymbol(defn.name, tp)
+            val info = StackInfo(funDef.params.size.toByte, 1)
+            Symbol.FunSymbol(defn.name, info)
 
       sc.define(sym)
 

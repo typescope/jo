@@ -11,7 +11,8 @@ import scala.collection.mutable
 
 import Assembly.*
 import IO.{ ByteBuffer, Patch, PatchableBuffer }
-import Sast.{ predef, Symbol }
+import Sast.*
+import Symbol.{ FunSymbol, PrimSymbol }
 
 object Linux:
   val PAGE_SIZE  = 0x1000
@@ -70,6 +71,7 @@ object Linux:
 
     /** Declare the symbol to the platform as a preparation for compilation */
     def declare(sym: Symbol): Unit =
+      assert(!sym.isPrim, "Unexpected primitive symbol " + sym)
       val label = Label(freshName(sym.name))
       symbolLabels(sym) = label
       if sym.isVal then
@@ -79,11 +81,14 @@ object Linux:
       *
       * Calling the passed function will compile the body of the function.
       */
-    def function(sym: Symbol, body: () => Unit): Unit =
+    def function(sym: FunSymbol, params: List[Symbol], body: () => Unit): Unit =
       val label = symbolLabels(sym)
       cb.mark(label)
       body()
       ret()
+
+    /** Compile a conditional statement, i.e if/then/else */
+    def conditional(stat: Word.IfStat, compile: List[Word] => Unit): Unit = ???
 
     /**
       * We resort to services for functionalities that cannot be implement
@@ -181,7 +186,7 @@ object Linux:
       *
       * Call stack goes from high address to low address.
       */
-    def call(fun: Symbol) =
+    def call(fun: FunSymbol) =
       val label = symbolLabels(fun)
       call(label)
 
@@ -259,7 +264,7 @@ object Linux:
         cb.add(Instr.Load(label, r))
         push(Reg(r))
 
-    def primitive(sym: Symbol): Unit =
+    def primitive(sym: PrimSymbol): Unit =
       sym match
         case predef.add    =>   add()
         case predef.sub    =>   sub()
@@ -278,13 +283,7 @@ object Linux:
         case predef.band   =>   band()
         case predef.bor    =>   bor()
         case predef.bnot   =>   bnot()
-        case predef.run    =>   run()
         case predef.eql    =>   eql()
-        case predef.dup    =>   dup()
-        case predef.swap   =>   swap()
-        case predef.peek   =>   peek()
-        case predef.pop    =>   pop()
-        case predef.choose =>   choose()
         case predef.p      =>   print()
         case _             =>   throw new Exception("Unknown primitive: " + sym.name)
     end primitive
@@ -370,12 +369,6 @@ object Linux:
         cb.add(Instr.And(Reg(r), Int32(1), r))
         storeValue(r, -4)
 
-    def run() =
-      // TODO: check type of value
-      useReg: r =>
-        pop(r)
-        call(Reg(r))
-
     def eql() =
       useTwoReg: (r1, r2) =>
         loadValue(r1, -4)
@@ -388,66 +381,12 @@ object Linux:
     def print(): Unit = call(printService)
 
 
-    /**
-      * Push the value at the specified index on the top of stack.
-      *
-      * [index ..., v, ... ]   =>  [v, ..., v, ...]
-      */
-    def peek(): Unit =
-      useReg: r =>
-        val addr1 = X86.Rel(VAL_SP_REG, -4)
-        loadValue(r, -4)
-        cb.add(Instr.Mul(Reg(r), Int32(4), r))
-        cb.add(Instr.Add(Reg(r), Int32(8), r))
-        cb.add(Instr.Sub(Reg(VAL_SP_REG), Reg(r), r))
-        cb.add(Instr.Load(Reg(r), r))
-        storeValue(r, -4)
-
-    /** Swap items on top of stack. */
-    def swap() =
-      // TODO: empty stack
-      useTwoReg: (r1, r2) =>
-        loadValue(r1, -4)
-        loadValue(r2, -8)
-        storeValue(r1, -8)
-        storeValue(r2, -4)
-
-    /** Duplicate the value on the top of stack. */
-    def dup() =
-      // TODO: empty stack
-      useReg: r =>
-        loadValue(r, -4)
-        push(Reg(r))
-
-    /** Choose between two values depending on the third.
-      *
-      *     [v1 v2 true  ...]   => [v2 ...]
-      *     [v1 v2 false ...]   => [v1 ...]
-      */
-    def choose() =
-      val labelFalse = Label(freshName("_false"))
-      val labelEnd = Label(freshName("_falseEnd"))
-      useReg: r =>
-        loadValue(r, -12)
-        cb.add(Instr.JZero(Reg(r), labelFalse))
-
-        loadValue(r, -8)
-        cb.add(Instr.Jump(labelEnd))
-
-        cb.mark(labelFalse)
-        loadValue(r, -4)
-
-        cb.mark(labelEnd)
-        storeValue(r, -12)
-        cb.add(Instr.Sub(Reg(VAL_SP_REG), Int32(8), VAL_SP_REG))
-    end choose
-
     /** Prepare to start the compilation */
     def start(): Unit = ()
 
     /** Finish compilation session. */
     def finish(): Unit =
-      val prog: Prog = cb.getResult()
+      val prog: Assembly.Prog = cb.getResult()
       val layout = Assembler.continuousLayout(this.layout, PROG_START, PAGE_SIZE)
       val elf = new ELF32(outFile, layout, ELF32.EM_386)
       Assembler.lower(elf, prog, heapStartLabel, this)

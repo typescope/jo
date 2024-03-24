@@ -1,7 +1,7 @@
 import Assembly.*
 
 import IO.ByteBuffer
-import Sast.Symbol
+import Sast.*
 import Symbol.{ FunSymbol, PrimSymbol }
 
 /**
@@ -46,10 +46,7 @@ abstract class Platform:
   def function(sym: FunSymbol, params: List[Symbol], body: () => Unit): Unit
 
   /** Compile a conditional statement, i.e if/then/else */
-  def conditional(cond: () => Unit, thenp: () => Unit, elsep: () => Unit): Unit
-
-  /** Compile a conditional statement, i.e if/then */
-  def conditional(cond: () => Unit, thenp: () => Unit): Unit
+  def conditional(ifStat: Word.IfStat, compile: List[Word] => Unit): Unit
 
   /** Push an integer literal to value stack */
   def push(v: Int): Unit
