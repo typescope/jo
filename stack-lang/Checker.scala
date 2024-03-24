@@ -64,7 +64,7 @@ object Checker:
             val paramCount = info.paramCount
             if vs.size < paramCount then
               throw new Exception(
-                  s"$paramCount elements expected, found = " + vs.size)
+                  s"$paramCount elements expected for $sym, found = " + vs.size)
 
             vs.pop(paramCount)
             vs.push(info.resCount)
@@ -74,7 +74,7 @@ object Checker:
             val paramCount = info.paramCount
             if vs.size < paramCount then
               throw new Exception(
-                  s"$paramCount elements expected, found = " + vs.size)
+                  s"$paramCount elements expected for $sym, found = " + vs.size)
 
             vs.pop(paramCount)
             vs.push(info.resCount)
