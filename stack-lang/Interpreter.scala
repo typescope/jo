@@ -11,6 +11,7 @@
 //> using file Ast.scala
 //> using file Sast.scala
 //> using file Namer.scala
+//> using file Checker.scala
 //> using file Parser.scala
 
 import scala.collection.mutable
@@ -221,4 +222,5 @@ def fileContent(name: String): String =
 def run(file: String) =
   val ast = Parsing.parse(fileContent(file))
   val sast = Namer.transform(ast)
+  Checker.check(sast)
   Interpreter.exec(sast)

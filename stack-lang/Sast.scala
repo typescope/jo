@@ -8,16 +8,20 @@
 
 import scala.collection.mutable
 
+import Sast.Symbol.*
+
 object Sast:
   abstract class Symbol:
     val name: String
 
+    override def toString() = name
+
   object Symbol:
-    class PrimSymbol(val name: String, info: FunInfo) extends Symbol
-    class FunSymbol(val name: String, info: FunInfo) extends Symbol
+    class PrimSymbol(val name: String, val info: FunInfo) extends Symbol
+    class FunSymbol(val name: String, val info: FunInfo) extends Symbol
     class ValSymbol(val name: String) extends Symbol
 
-  case class FunInfo(paramsCount: Byte, resCount: Byte)
+  case class FunInfo(paramCount: Byte, resCount: Byte)
 
   enum Word:
     case IntLit(value: Int)
@@ -30,7 +34,7 @@ object Sast:
     val symbol: Symbol
     def name: String = symbol.name
 
-    case FunDef(symbol: Symbol, params: List[Symbol], words: List[Word])
+    case FunDef(symbol: FunSymbol, params: List[Symbol], words: List[Word])
     case ValDef(symbol: Symbol, words: List[Word])
 
   case class Prog(defs: List[Def], main: List[Word])

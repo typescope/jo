@@ -6,20 +6,8 @@ import Sast.*
   * The namer handles name resolution and desugaring.
   *
   * It converts ASTs to Semantic ASTs.
-  *
-  * TODO: check stack safety.
   */
 object Namer:
-  /**
-    * Represent number values on the value stack.
-    *
-    * Used to check stack safety.
-    */
-  class ValueStack:
-    private var size: Int = 0
-    def push() = size += 1
-    def pop()  = size -= 1
-
   def transform(prog: Ast.Prog): Sast.Prog =
     val rootScope = new Scope.RootScope()
 
@@ -76,7 +64,8 @@ object Namer:
             funScope.define(sym)
             sym
 
-        Def.FunDef(sym, paramSyms, transform(funDef.words)(using funScope))
+        val words = transform(funDef.words)(using funScope)
+        Def.FunDef(sym.asInstanceOf[Symbol.FunSymbol], paramSyms, words)
 
   private enum Scope:
     case RootScope()
