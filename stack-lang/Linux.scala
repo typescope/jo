@@ -95,7 +95,7 @@ object Linux:
     /** Compile a conditional statement, i.e if/then/else */
     def conditional(ifWord: Word.IfStat, compile: List[Word] => Unit): Unit =
       val labelFalse = Label(freshName("_false"))
-      val labelEnd = Label(freshName("_falseEnd"))
+      val labelEnd = Label(freshName("_ifEnd"))
 
       compile(ifWord.cond)
 
@@ -238,20 +238,28 @@ object Linux:
     def call(addr: Addr, argCount: Int, resCount: Int) =
       // TODO: return value & pop args
       val returnLoc = Label(freshName("returnLoc"))
+
+      // 1. save FP
       cb.add(Instr.Sub(Reg(SP_REG), Int32(4), SP_REG))
       cb.add(Instr.Store(Reg(FP_REG), Reg(SP_REG)))
+
+      // 2. save return
       cb.add(Instr.Sub(Reg(SP_REG), Int32(4), SP_REG))
       cb.add(Instr.Store(returnLoc, Reg(SP_REG)))
+
+      // 3. set FP
       cb.add(Instr.Add(Reg(SP_REG), Int32(0), FP_REG))
+
+      // 4. jump to target
       cb.add(Instr.Jump(addr))
 
       cb.mark(returnLoc)
       useReg: r =>
-        // 1. restore SP
+        // 5. restore SP
         val spOffset = 2 + argCount - resCount
         cb.add(Instr.Add(Reg(FP_REG), Int32(spOffset * 4), SP_REG))
 
-        // 2. copy result
+        // 6. copy result
         var i = 0
         while i < resCount do
           val srcAddr = X86.Rel(FP_REG, (-(i + 1) * 4).toByte)
@@ -260,7 +268,7 @@ object Linux:
           cb.add(Instr.Special(X86.StoreRel(Reg(r), destAddr)))
           i += 1
 
-        // 3. restore FP
+        // 7. restore FP
         val fpAddr = X86.Rel(FP_REG, 4)
         cb.add(Instr.Special(X86.LoadRel(fpAddr, FP_REG)))
 
@@ -304,22 +312,6 @@ object Linux:
 
     /** Push a Boolean literal to value stack */
     def push(v: Boolean): Unit = push(Int32(if v then 1 else 0))
-
-    /** Push a procedure literal to value stack
-      *
-      * Calling the passed function will compile the body of the procedure.
-      */
-    def push(proc: () => Unit): Unit =
-      val labelStart = Label(freshName("proc_start"))
-      val labelEnd = Label(freshName("proc_end"))
-
-      cb.add(Instr.Jump(labelEnd))
-      cb.mark(labelStart)
-      proc()
-      ret()
-      cb.mark(labelEnd)
-
-      push(labelStart)
 
     /** Push the value associated with the given symbol to value stack */
     def push(sym: Symbol): Unit =
