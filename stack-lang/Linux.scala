@@ -445,9 +445,9 @@ object Linux:
     def eql() =
       useTwoReg: (r1, r2) =>
         loadValue(r1, 0)
-        loadValue(r2, 2)
+        loadValue(r2, 1)
         cb.add(Instr.Eq(Reg(r1), Reg(r2), r2))
-        storeValue(r2, 2)
+        storeValue(r2, 1)
         pop()
 
     /** Print the value on top of the stack. */
