@@ -236,7 +236,6 @@ object Linux:
       *  └─────────────┘ ◄─────── SP
       */
     def call(addr: Addr, argCount: Int, resCount: Int) =
-      // TODO: return value & pop args
       val returnLoc = Label(freshName("returnLoc"))
 
       // 1. save FP
