@@ -141,8 +141,7 @@ object Linux:
       pb.addByte(0xbb.toByte); pb.addInt(0x0a)       // mov    $0xa,%ebx
 
       // load argument
-      X86.load(Reg(SP_REG), X86.EAX)
-      X86.add(Reg(SP_REG), Int32(4))
+      X86.load(X86.Rel(FP_REG, 8), X86.EAX)
 
       // add new line
       pb.addByte(0x49)                               // dec      %ecx
