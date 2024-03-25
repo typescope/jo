@@ -11,7 +11,8 @@ import scala.collection.mutable
 
 import Assembly.*
 import IO.{ ByteBuffer, Patch, PatchableBuffer }
-import Sast.{ predef, Symbol }
+import Sast.*
+import Symbol.{ FunSymbol, PrimSymbol }
 
 object Linux:
   val PAGE_SIZE  = 0x1000
@@ -35,10 +36,10 @@ object Linux:
     val freeRegisters: List[Int] = List(X86.EAX, X86.ECX, X86.EDX, X86.EBX, X86.ESI, X86.EDI)
 
     /** Call stack register (high -> low address)  */
-    val CALL_SP_REG: Int = X86.ESP
+    val SP_REG: Int = X86.ESP
 
-    /** Value stack register (low -> high address) */
-    val VAL_SP_REG: Int = X86.EBP
+    /** Frame pointer register */
+    val FP_REG: Int = X86.EBP
 
     val uniqueName = new UniqueName
     export uniqueName.freshName
@@ -46,7 +47,9 @@ object Linux:
     val heapStartLabel = Label(uniqueName.freshName("_heapStart"))
     val printService = Label(uniqueName.freshName("_print"))
 
-    val symbolLabels: mutable.Map[Symbol, Label] = mutable.Map.empty
+    // Index of function parameter, begins from 0
+    type ParamIndex = Int
+    val symbolMap: mutable.Map[Symbol, Label | ParamIndex] = mutable.Map.empty
 
     val entry = Label(freshName("_entry"))
     val regAlloc = new RegisterAllocator(freeRegisters)
@@ -62,16 +65,17 @@ object Linux:
       * Calling the passed function will compile the user entry code.
       */
     def entry(init: => Unit): Unit =
-      // TODO: Allocate value stack space and remember stack limit.
+      // Stack pointer is initialized by the kernel, initialize frame pointer
       cb.mark(this.entry)
-      cb.add(Instr.Const(heapStartLabel, VAL_SP_REG))
+      cb.add(Instr.Add(Reg(SP_REG), Int32(0), FP_REG))
       init
       exit(0)
 
     /** Declare the symbol to the platform as a preparation for compilation */
     def declare(sym: Symbol): Unit =
+      assert(!sym.isPrim, "Unexpected primitive symbol " + sym)
       val label = Label(freshName(sym.name))
-      symbolLabels(sym) = label
+      symbolMap(sym) = label
       if sym.isVal then
         cb.add(Data.Uninit(label, Type.Int32))
 
@@ -79,11 +83,36 @@ object Linux:
       *
       * Calling the passed function will compile the body of the function.
       */
-    def function(sym: Symbol, body: () => Unit): Unit =
-      val label = symbolLabels(sym)
+    def function(sym: FunSymbol, params: List[Symbol], body: () => Unit): Unit =
+      val label = symbolMap(sym).asInstanceOf[Label]
+      for (param, index) <- params.zipWithIndex do
+        symbolMap(param) = index
       cb.mark(label)
       body()
+      for param <- params do symbolMap.remove(param)
       ret()
+
+    /** Compile a conditional statement, i.e if/then/else */
+    def conditional(ifWord: Word.IfStat, compile: List[Word] => Unit): Unit =
+      val labelFalse = Label(freshName("_false"))
+      val labelEnd = Label(freshName("_ifEnd"))
+
+      compile(ifWord.cond)
+
+      useReg: r =>
+        pop(r)
+        cb.add(Instr.JZero(Reg(r), labelFalse))
+
+        compile(ifWord.thenp)
+
+        if ifWord.elsep.nonEmpty then
+          cb.add(Instr.Jump(labelEnd))
+          cb.mark(labelFalse)
+          compile(ifWord.elsep)
+        else
+          cb.mark(labelFalse)
+
+        cb.mark(labelEnd)
 
     /**
       * We resort to services for functionalities that cannot be implement
@@ -112,8 +141,7 @@ object Linux:
       pb.addByte(0xbb.toByte); pb.addInt(0x0a)       // mov    $0xa,%ebx
 
       // load argument
-      X86.sub(Reg(VAL_SP_REG), Int32(4))
-      X86.load(Reg(VAL_SP_REG), X86.EAX)
+      X86.load(X86.Rel(FP_REG, 8), X86.EAX)
 
       // add new line
       pb.addByte(0x49)                               // dec      %ecx
@@ -157,8 +185,7 @@ object Linux:
       pb.addBytes(0x83.toByte, 0xc4.toByte, 0x10)    // add    $0x10,%esp
 
       // return to caller
-      X86.load(Reg(CALL_SP_REG), X86.EAX)
-      X86.add(Reg(CALL_SP_REG), Int32(4))
+      X86.load(Reg(FP_REG), X86.EAX)
       X86.jump(Reg(X86.EAX))
 
     def exit(code: Int): Unit =
@@ -172,8 +199,7 @@ object Linux:
       */
     def ret() =
       useReg: r =>
-        cb.add(Instr.Load(Reg(CALL_SP_REG), r))
-        cb.add(Instr.Add(Reg(CALL_SP_REG), Int32(4), CALL_SP_REG))
+        cb.add(Instr.Load(Reg(FP_REG), r))
         cb.add(Instr.Jump(Reg(r)))
 
     /**
@@ -181,32 +207,83 @@ object Linux:
       *
       * Call stack goes from high address to low address.
       */
-    def call(fun: Symbol) =
-      val label = symbolLabels(fun)
-      call(label)
+    def call(fun: FunSymbol) =
+      val label = symbolMap(fun).asInstanceOf[Label]
+      val info = fun.info
+      call(label, info.paramCount, info.resCount)
 
-    def call(addr: Addr) =
+    /**
+      * Call stack
+      *
+      *  ┌─────────────┐
+      *  │    ...      │
+      *  ├─────────────┤
+      *  │    arg 0    │
+      *  ├─────────────┤
+      *  │    ...      │
+      *  ├─────────────┤
+      *  │    arg N    │
+      *  ├─────────────┤
+      *  │  saved FP   │
+      *  ├─────────────┤
+      *  │     RET     │
+      *  ├─────────────┤ ◄──────  FP
+      *  │   value 0   │
+      *  ├─────────────┤
+      *  │    ...      │
+      *  ├─────────────┤
+      *  │   value M   │
+      *  └─────────────┘ ◄─────── SP
+      */
+    def call(addr: Addr, argCount: Int, resCount: Int) =
       val returnLoc = Label(freshName("returnLoc"))
-      cb.add(Instr.Sub(Reg(CALL_SP_REG), Int32(4), CALL_SP_REG))
-      cb.add(Instr.Store(returnLoc, Reg(CALL_SP_REG)))
+
+      // 1. save FP
+      cb.add(Instr.Sub(Reg(SP_REG), Int32(4), SP_REG))
+      cb.add(Instr.Store(Reg(FP_REG), Reg(SP_REG)))
+
+      // 2. save return
+      cb.add(Instr.Sub(Reg(SP_REG), Int32(4), SP_REG))
+      cb.add(Instr.Store(returnLoc, Reg(SP_REG)))
+
+      // 3. set FP
+      cb.add(Instr.Add(Reg(SP_REG), Int32(0), FP_REG))
+
+      // 4. jump to target
       cb.add(Instr.Jump(addr))
+
       cb.mark(returnLoc)
+      useReg: r =>
+        // 5. restore SP
+        val spOffset = 2 + argCount - resCount
+        cb.add(Instr.Add(Reg(FP_REG), Int32(spOffset * 4), SP_REG))
+
+        // 6. copy result
+        var i = 0
+        while i < resCount do
+          val srcAddr = X86.Rel(FP_REG, (-(i + 1) * 4).toByte)
+          val destAddr = X86.Rel(SP_REG, ((resCount - 1 - i) * 4).toByte)
+          cb.add(Instr.Special(X86.LoadRel(srcAddr, r)))
+          cb.add(Instr.Special(X86.StoreRel(Reg(r), destAddr)))
+          i += 1
+
+        // 7. restore FP
+        val fpAddr = X86.Rel(FP_REG, 4)
+        cb.add(Instr.Special(X86.LoadRel(fpAddr, FP_REG)))
 
     /** Pop the value on the top of the value stack to the given register.
       *
       * Value stack goes from low address to high address.
       */
     def pop(destReg: Int) =
-      // TODO: empty stack
-      cb.add(Instr.Sub(Reg(VAL_SP_REG), Int32(4), VAL_SP_REG))
-      cb.add(Instr.Load(Reg(VAL_SP_REG), destReg))
+      cb.add(Instr.Load(Reg(SP_REG), destReg))
+      cb.add(Instr.Add(Reg(SP_REG), Int32(4), SP_REG))
 
     /**
       * Pop the value on the top of the value stack without using it.
       */
     def pop() =
-      // TODO: empty stack
-      cb.add(Instr.Sub(Reg(VAL_SP_REG), Int32(4), VAL_SP_REG))
+      cb.add(Instr.Add(Reg(SP_REG), Int32(4), SP_REG))
 
     /**
       * Push value on the value stack.
@@ -214,9 +291,8 @@ object Linux:
       * It could be address of a procedure, represented by a label.
       */
     def push(v: Value) =
-      // TODO: grow stack if necessary
-      cb.add(Instr.Store(v, Reg(VAL_SP_REG)))
-      cb.add(Instr.Add(Reg(VAL_SP_REG), Int32(4), VAL_SP_REG))
+      cb.add(Instr.Sub(Reg(SP_REG), Int32(4), SP_REG))
+      cb.add(Instr.Store(v, Reg(SP_REG)))
 
 
     /** Push a procedure literal to value stack
@@ -224,7 +300,7 @@ object Linux:
       * Calling the passed function will compile the initializer.
       */
     def initVal(sym: Symbol, initializer: () => Unit): Unit =
-      val label = symbolLabels(sym)
+      val label = symbolMap(sym).asInstanceOf[Label]
       initializer()
       useReg: r =>
         pop(r)
@@ -236,30 +312,23 @@ object Linux:
     /** Push a Boolean literal to value stack */
     def push(v: Boolean): Unit = push(Int32(if v then 1 else 0))
 
-    /** Push a procedure literal to value stack
-      *
-      * Calling the passed function will compile the body of the procedure.
-      */
-    def push(proc: () => Unit): Unit =
-      val labelStart = Label(freshName("proc_start"))
-      val labelEnd = Label(freshName("proc_end"))
-
-      cb.add(Instr.Jump(labelEnd))
-      cb.mark(labelStart)
-      proc()
-      ret()
-      cb.mark(labelEnd)
-
-      push(labelStart)
-
     /** Push the value associated with the given symbol to value stack */
     def push(sym: Symbol): Unit =
-      val label = symbolLabels(sym)
-      useReg: r =>
-        cb.add(Instr.Load(label, r))
-        push(Reg(r))
+      symbolMap(sym) match
+        case label: Label =>
+          useReg: r =>
+            cb.add(Instr.Load(label, r))
+            push(Reg(r))
 
-    def primitive(sym: Symbol): Unit =
+        case paramIndex: Int =>
+          val funSym = sym.asParam.owner
+          val paramCount = funSym.info.paramCount
+          val addr = X86.Rel(FP_REG, ((paramCount + 1 - paramIndex) * 4).toByte)
+          useReg: r =>
+            cb.add(Instr.Special(X86.LoadRel(addr, r)))
+            push(Reg(r))
+
+    def primitive(sym: PrimSymbol): Unit =
       sym match
         case predef.add    =>   add()
         case predef.sub    =>   sub()
@@ -278,41 +347,35 @@ object Linux:
         case predef.band   =>   band()
         case predef.bor    =>   bor()
         case predef.bnot   =>   bnot()
-        case predef.run    =>   run()
         case predef.eql    =>   eql()
-        case predef.dup    =>   dup()
-        case predef.swap   =>   swap()
-        case predef.peek   =>   peek()
-        case predef.pop    =>   pop()
-        case predef.choose =>   choose()
         case predef.p      =>   print()
         case _             =>   throw new Exception("Unknown primitive: " + sym.name)
     end primitive
 
     /** Load a value in value stack relative to the stack pointer.
       *
-      * The offset is in bytes.
+      * The index begins from 0.
       */
-    def loadValue(destReg: Int, offset: Byte): Unit =
-      val addr = X86.Rel(VAL_SP_REG, offset)
+    def loadValue(destReg: Int, index: Byte): Unit =
+      val addr = X86.Rel(SP_REG, (index * 4).toByte)
       cb.add(Instr.Special(X86.LoadRel(addr, destReg)))
 
     /** Store a value to value stack relative to the stack pointer.
       *
-      * The offset is in bytes.
+      * The index begins from 0.
       */
-    def storeValue(fromReg: Int, offset: Byte): Unit =
-      val addr = X86.Rel(VAL_SP_REG, offset)
+    def storeValue(fromReg: Int, index: Byte): Unit =
+      val addr = X86.Rel(SP_REG, (index * 4).toByte)
       cb.add(Instr.Special(X86.StoreRel(Reg(fromReg), addr)))
 
     def int2(fn: (Int, Int, Int) => Instr) =
       // TODO: check type of value
       useTwoReg: (r1, r2) =>
         // Reduce arithmetic on stack pointer to 1
-        loadValue(r1, -8)
-        loadValue(r2, -4)
+        loadValue(r1, 1)
+        loadValue(r2, 0)
         cb.add(fn(r1, r2, r1))
-        storeValue(r1, -8)
+        storeValue(r1, 1)
         pop()
 
     def add() =
@@ -365,89 +428,29 @@ object Linux:
 
     def bnot() =
       useReg: r =>
-        loadValue(r, -4)
+        loadValue(r, 0)
         cb.add(Instr.Not(Reg(r), r))
         cb.add(Instr.And(Reg(r), Int32(1), r))
-        storeValue(r, -4)
-
-    def run() =
-      // TODO: check type of value
-      useReg: r =>
-        pop(r)
-        call(Reg(r))
+        storeValue(r, 0)
 
     def eql() =
       useTwoReg: (r1, r2) =>
-        loadValue(r1, -4)
-        loadValue(r2, -8)
+        loadValue(r1, 0)
+        loadValue(r2, 1)
         cb.add(Instr.Eq(Reg(r1), Reg(r2), r2))
-        storeValue(r2, -8)
+        storeValue(r2, 1)
         pop()
 
     /** Print the value on top of the stack. */
-    def print(): Unit = call(printService)
+    def print(): Unit = call(printService, 1, 0)
 
-
-    /**
-      * Push the value at the specified index on the top of stack.
-      *
-      * [index ..., v, ... ]   =>  [v, ..., v, ...]
-      */
-    def peek(): Unit =
-      useReg: r =>
-        val addr1 = X86.Rel(VAL_SP_REG, -4)
-        loadValue(r, -4)
-        cb.add(Instr.Mul(Reg(r), Int32(4), r))
-        cb.add(Instr.Add(Reg(r), Int32(8), r))
-        cb.add(Instr.Sub(Reg(VAL_SP_REG), Reg(r), r))
-        cb.add(Instr.Load(Reg(r), r))
-        storeValue(r, -4)
-
-    /** Swap items on top of stack. */
-    def swap() =
-      // TODO: empty stack
-      useTwoReg: (r1, r2) =>
-        loadValue(r1, -4)
-        loadValue(r2, -8)
-        storeValue(r1, -8)
-        storeValue(r2, -4)
-
-    /** Duplicate the value on the top of stack. */
-    def dup() =
-      // TODO: empty stack
-      useReg: r =>
-        loadValue(r, -4)
-        push(Reg(r))
-
-    /** Choose between two values depending on the third.
-      *
-      *     [v1 v2 true  ...]   => [v2 ...]
-      *     [v1 v2 false ...]   => [v1 ...]
-      */
-    def choose() =
-      val labelFalse = Label(freshName("_false"))
-      val labelEnd = Label(freshName("_falseEnd"))
-      useReg: r =>
-        loadValue(r, -12)
-        cb.add(Instr.JZero(Reg(r), labelFalse))
-
-        loadValue(r, -8)
-        cb.add(Instr.Jump(labelEnd))
-
-        cb.mark(labelFalse)
-        loadValue(r, -4)
-
-        cb.mark(labelEnd)
-        storeValue(r, -12)
-        cb.add(Instr.Sub(Reg(VAL_SP_REG), Int32(8), VAL_SP_REG))
-    end choose
 
     /** Prepare to start the compilation */
     def start(): Unit = ()
 
     /** Finish compilation session. */
     def finish(): Unit =
-      val prog: Prog = cb.getResult()
+      val prog: Assembly.Prog = cb.getResult()
       val layout = Assembler.continuousLayout(this.layout, PROG_START, PAGE_SIZE)
       val elf = new ELF32(outFile, layout, ELF32.EM_386)
       Assembler.lower(elf, prog, heapStartLabel, this)

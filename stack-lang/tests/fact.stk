@@ -1,4 +1,4 @@
-fun fact = if dup 0 == then pop 1 else dup 1 - fact * fi;
+fun fact(n) = if n 0 == then 1 else n 1 - fact n * end;
 
 
 4 fact p        // 24

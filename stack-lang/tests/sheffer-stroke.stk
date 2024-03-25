@@ -1,0 +1,22 @@
+fun NAND(p, q) = p q and not;
+fun NOT (p)    = p p NAND;
+fun AND (p, q) = p q NAND NOT;
+fun OR  (p, q) = p NOT q NOT NAND;
+
+if true NOT then
+  10 p
+else
+  20 p
+end
+
+if true false AND then
+  1 p
+else
+  2 p
+end
+
+if true false OR then
+  5 p
+else
+  10 p
+end

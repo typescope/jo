@@ -5,9 +5,9 @@ import Sast.*
 import Symbol.{ PrimSymbol, FunSymbol }
 
 /**
-  * JavaScript platform
+  * JavaScript platform with code optimization
   */
-class JSPlatform(outFile: String) extends Platform:
+class JSPlatformOpt(outFile: String) extends Platform:
   private val pw =  new PrintWriter(outFile)
 
   private  val uniqueName = new UniqueName
@@ -20,9 +20,45 @@ class JSPlatform(outFile: String) extends Platform:
   ).foreach: w =>
     freshName(w)
 
-  private val vs: String = freshName("_valueStack")
-  private val pop: String = freshName("pop")
-  private val push: String = freshName("push")
+  class ValueStack:
+    val stack: mutable.ArrayBuffer[String] = new mutable.ArrayBuffer
+
+    def pop(): String =
+      if stack.nonEmpty then stack.remove(stack.size - 1)
+      else throw new Exception("Stack is empty")
+
+    def pop(n: Int): Unit =
+      stack.dropRightInPlace(n)
+
+    def push(v: String): Unit = stack.append(v)
+
+    def peek(i: Int): String = stack(i)
+
+    def clear() = stack.clear()
+
+    def size: Int = stack.size
+
+    override def toString() = stack.toString()
+
+    def asSingleJSValue(): String =
+      val count = this.size
+      assert(count > 0, "Empty stack")
+      if count == 1 then
+        pop()
+      else
+        var i = 0
+        val arrayItemsStr = new StringBuilder
+        while i < count do
+          val item = vs.peek(i)
+          arrayItemsStr.append(item)
+          if i != count - 1 then
+            arrayItemsStr.append(", ")
+          i = i + 1
+
+        stack.clear()
+        s"[$arrayItemsStr]"
+
+  private val vs: ValueStack = new ValueStack
 
   private val symbol2UniqueName: mutable.Map[Symbol, String] = mutable.Map.empty
 
@@ -58,93 +94,137 @@ class JSPlatform(outFile: String) extends Platform:
     if sym.isVal then
       addLine(s"var $uniqueName; // ${sym.name}")
 
-
   /**
     * Call the funtion.
     */
   def call(fun: FunSymbol): Unit =
     val name = symbol2UniqueName(fun)
     val paramCount = fun.info.paramCount
-    var i: Int = paramCount - 1
-    val args = new Array[String](paramCount)
-    while i >= 0  do
-      val argName = freshName(s"arg$i")
-      args(i) = argName
-      addLine(s"const $argName = $pop();")
-      i = i - 1
-
-    // the first stack item maps to the last parameter
+    val resCount = fun.info.resCount
+    var i: Int = 0
     val paramStr = new StringBuilder
-    i = 0
-    while i < paramCount do
-      paramStr.append(args(i))
+    while i < paramCount  do
+      val arg = vs.peek(vs.size - paramCount + i)
+      paramStr.append(arg)
       if i != paramCount - 1 then
         paramStr.append(", ")
       i = i + 1
 
-    addLine(s"$name($paramStr);");
+    vs.pop(paramCount)
+
+    if resCount == 0 then
+      addLine(s"$name($paramStr);");
+    else if resCount == 1 then
+      vs.push(s"$name($paramStr)");
+    else
+      // result binding
+      val resName = freshName("res")
+      addLine(s"const $resName = $name($paramStr);");
+      i = 0
+      while i < resCount  do
+        vs.push(s"$resName[$i]")
+        i = i + 1
 
   /** Initialize a value definition
     *
     * Calling the passed function will compile the initializer.
     */
   def initVal(sym: Symbol, initializer: () => Unit): Unit =
+    vs.clear()
     initializer()
     val name = symbol2UniqueName(sym)
-    addLine(s"$name = $pop();")
+    val rhs = vs.pop()
+    addLine(s"$name = $rhs;")
 
   /** Compile a function
     *
     * Calling the passed function will compile the body of the function.
     */
   def function(sym: FunSymbol, params: List[Symbol], body: () => Unit): Unit =
+    vs.clear()
     val name = symbol2UniqueName(sym)
+    val resCount = sym.info.resCount
     uniqueName.newScope:
       val paramStr = params.map(mapSymbolToJSName).mkString(", ")
       addLine(s"function $name($paramStr) { // ${sym.name}")
       indent:
-          body()
+        body()
+        assert(vs.size == resCount, s"Stack size mismatch, expect $resCount, found = " + vs)
+        val retStr = vs.asSingleJSValue()
+        addLine(s"return $retStr;")
+
       addLine("}\n")
 
   /** Compile a conditional statement, i.e if/then/else */
   def conditional(ifWord: Word.IfStat, compile: List[Word] => Unit): Unit =
+    val resCount = ifWord.info.resCount
     compile(ifWord.cond)
-    addLine(s"if ($pop()) {")
-    indent:
-      compile(ifWord.thenp)
-    if ifWord.elsep.nonEmpty then
+    val condStr = vs.pop()
+    if resCount == 0 then
+      addLine(s"if ($condStr) {")
+      indent:
+        compile(ifWord.thenp)
+        assert(vs.size == 0, "Expect empty stack, found = " + vs)
+      if ifWord.elsep.nonEmpty then
+        addLine("} else {")
+        indent:
+          compile(ifWord.elsep)
+      addLine("}")
+    else
+      assert(ifWord.elsep.nonEmpty)
+      val resName = freshName("resIf")
+      addLine(s"let $resName;")
+      addLine(s"if ($condStr) {")
+      indent:
+        compile(ifWord.thenp)
+        assert(vs.size == resCount, s"Stack size mismatch, expect = $resCount, found = " + vs)
+        val retStr = vs.asSingleJSValue()
+        addLine(s"$resName = $retStr;")
       addLine("} else {")
       indent:
         compile(ifWord.elsep)
-    addLine("}")
+        val retStr = vs.asSingleJSValue()
+        addLine(s"$resName = $retStr;")
+      addLine("}")
+
+      if resCount == 1 then
+        vs.push(resName);
+      else
+        var i = 0
+        while i < resCount  do
+          vs.push(s"$resName[$i]")
+          i = i + 1
 
   /** Push an integer literal to value stack */
   def push(v: Int): Unit =
-    addLine(s"$push($v);")
-
+    vs.push(v.toString)
 
   /** Push a Boolean literal to value stack */
   def push(v: Boolean): Unit =
-    addLine(s"$push($v);")
+    vs.push(v.toString)
 
   /** Push the value associated with the given symbol to value stack */
   def push(sym: Symbol): Unit =
     val name = symbol2UniqueName(sym)
-    addLine(s"$push($name);")
+    vs.push(name)
 
   def binary(op: String): Unit =
-    val operand1 = freshName("operand1")
-    val operand2 = freshName("operand2")
-    addLine(s"const $operand1 = $pop();")
-    addLine(s"const $operand2 = $pop();")
-    addLine(s"$push($operand2 $op $operand1);")
+    val operand2 = vs.pop()
+    val operand1 = vs.pop()
+    vs.push(s"($operand1 $op $operand2)")
 
   def div(): Unit =
-    val operand1 = freshName("operand1")
-    val operand2 = freshName("operand2")
-    addLine(s"const $operand1 = $pop();")
-    addLine(s"const $operand2 = $pop();")
-    addLine(s"$push(($operand2 / $operand1)>>0);")
+    val operand2 = vs.pop()
+    val operand1 = vs.pop()
+    vs.push(s"(($operand1 / $operand2)>>0)")
+
+  def bnot(): Unit =
+    val operand = vs.pop()
+    vs.push(s"(!$operand)")
+
+  def print(): Unit =
+    val operand = vs.pop()
+    addLine(s"console.log($operand);")
 
   /**
     * Compile a primitive
@@ -168,9 +248,9 @@ class JSPlatform(outFile: String) extends Platform:
       case predef.lxor   =>   binary("^")
       case predef.band   =>   binary("&&")
       case predef.bor    =>   binary("||")
-      case predef.bnot   =>   addLine(s"$push(!$pop());")
-      case predef.eql    =>   addLine(s"$push($pop() === $pop());")
-      case predef.p      =>   addLine(s"console.log($pop());")
+      case predef.bnot   =>   bnot()
+      case predef.eql    =>   binary("===")
+      case predef.p      =>   print()
       case _             =>   throw new Exception("Unknown primitive: " + sym.name)
   end primitive
 
@@ -178,16 +258,14 @@ class JSPlatform(outFile: String) extends Platform:
   /** Prepare to start the compilation */
   def start(): Unit =
     addLine("(function() {")
-
     indentCount += 1
-    addLine(s"var $vs = [];")
-    addLine(s"function $pop() { return $vs.pop(); }\n")
-    addLine(s"function $push(v) { $vs.push(v); }\n")
 
   /** Finish compilation */
   def finish(): Unit =
+    if vs.size > 0 then
+      addLine(vs.asSingleJSValue())
     indentCount -= 1
     addLine("})()")
     pw.close()
 
-end JSPlatform
+end JSPlatformOpt

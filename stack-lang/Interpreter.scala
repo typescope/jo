@@ -11,9 +11,12 @@
 //> using file Ast.scala
 //> using file Sast.scala
 //> using file Namer.scala
+//> using file Checker.scala
 //> using file Parser.scala
 
 import scala.collection.mutable
+
+import Sast.*
 
 /***********************************************************************
  *
@@ -30,32 +33,23 @@ class ValueStack:
 
   def push(v: Value): Unit = stack.append(v)
 
-  def peek(n: Int): Value =
-    if n >= stack.size then
-      err("peek index out of stack bound, found = " + n)
-    if n < 0 then
-      err("peek index should be positive, found = " + n)
-    else
-      stack(stack.size - 1 - n)
-
 sealed abstract class Denotation
 
 enum Value extends Denotation:
   case IntVal(value: Int)
   case BoolVal(value: Boolean)
-  case ProcVal(words: List[Sast.Word], scope: Scope)
 
 enum Action extends Denotation:
-  case Fun(words: List[Sast.Word], scope: Scope)
+  case Fun(params: List[Symbol], words: List[Word], scope: Scope)
   case Prim(fun: ValueStack => Unit)
 
 enum Scope:
   case RootScope()
   case NestedScope(outer: Scope)
 
-  private val map: mutable.Map[Sast.Symbol, Denotation] = mutable.Map.empty
+  private val map: mutable.Map[Symbol, Denotation] = mutable.Map.empty
 
-  def resolve(sym: Sast.Symbol): Option[Denotation] =
+  def resolve(sym: Symbol): Option[Denotation] =
     map.get(sym) match
       case None =>
         this match
@@ -64,7 +58,7 @@ enum Scope:
 
       case res  => res
 
-  def bind(sym: Sast.Symbol, denot: Denotation): Unit =
+  def bind(sym: Symbol, denot: Denotation): Unit =
     map.get(sym) match
       case None =>
         map(sym) = denot
@@ -116,52 +110,14 @@ object Primitive:
   def bor (vs: ValueStack) = bool2(_ || _)(vs)
   def bnot(vs: ValueStack) = bool1(! _   )(vs)
 
-  def run(vs: ValueStack) =
-    vs.pop() match
-      case ProcVal(ws, sc) => Interpreter.exec(ws)(using vs, sc)
-      case v => err("Expect a procedure, found " + v)
-
   def eql(vs: ValueStack) = vs.push(BoolVal(vs.pop() == vs.pop()))
-
-  def dup(vs: ValueStack) =
-    val a = vs.pop()
-    vs.push(a)
-    vs.push(a)
-
-  def peek(vs: ValueStack) =
-    vs.pop() match
-      case IntVal(n) =>
-        vs.push(vs.peek(n))
-
-      case v =>
-        err("Expect a number, found " + v)
-
-  def swap(vs: ValueStack) =
-    val a = vs.pop()
-    val b = vs.pop()
-    vs.push(a)
-    vs.push(b)
-
-  def pop(vs: ValueStack) =
-    vs.pop()
-
-  def choose(vs: ValueStack) =
-    val a = vs.pop()
-    val b = vs.pop()
-    val c = vs.pop()
-    c match
-      case BoolVal(cond) => if cond then vs.push(b) else vs.push(a)
-      case v => err("Expect a boolean, found " + v)
 
   def print(vs: ValueStack) =
     vs.pop() match
       case IntVal(v)  => println(v)
       case BoolVal(v) => println(v)
-      case v          => println(v)
 
-  import Sast.predef
-
-  val operators: Map[Sast.Symbol, ValueStack => Unit] = Map(
+  val operators: Map[Symbol, ValueStack => Unit] = Map(
       predef.add    ->    add,
       predef.sub    ->    sub,
       predef.mul    ->    mul,
@@ -179,50 +135,57 @@ object Primitive:
       predef.band   ->    band,
       predef.bor    ->    bor,
       predef.bnot   ->    bnot,
-      predef.run    ->    run,
       predef.eql    ->    eql,
-      predef.dup    ->    dup,
-      predef.swap   ->    swap,
-      predef.peek   ->    peek,
-      predef.pop    ->    pop,
-      predef.choose ->    choose,
       predef.p      ->    print,
   )
 
 object Interpreter:
-  def exec(prog: Sast.Prog): Unit =
+  def exec(prog: Prog): Unit =
     val rootScope = new Scope.RootScope()
 
     for (k, v) <- Primitive.operators do
       rootScope.bind(k, Action.Prim(v))
 
     val sc = new Scope.NestedScope(rootScope)
-    for case Sast.Def.FunDef(sym, words) <- prog.defs do
-      sc.bind(sym, Action.Fun(words, sc))
+    for case Def.FunDef(sym, params, words) <- prog.defs do
+      sc.bind(sym, Action.Fun(params, words, sc))
 
     val vs = new ValueStack
-    for case Sast.Def.ValDef(sym, words) <- prog.defs do
+    for case Def.ValDef(sym, words) <- prog.defs do
       exec(words)(using vs, sc)
       sc.bind(sym, vs.pop())
 
     exec(prog.main)(using vs, sc)
 
-  def exec(words: List[Sast.Word])(using ValueStack, Scope): Unit =
+  def exec(words: List[Word])(using ValueStack, Scope): Unit =
     for word <- words do exec(word)
 
-  def exec(word: Sast.Word)(using vs: ValueStack, sc: Scope): Unit =
+  def exec(word: Word)(using vs: ValueStack, sc: Scope): Unit =
     word match
-      case Sast.Word.IntLit(v)  => vs.push(Value.IntVal(v))
-      case Sast.Word.BoolLit(v) => vs.push(Value.BoolVal(v))
-      case Sast.Word.Proc(ws)   => vs.push(Value.ProcVal(ws, sc))
+      case Word.IntLit(v)  => vs.push(Value.IntVal(v))
+      case Word.BoolLit(v) => vs.push(Value.BoolVal(v))
 
-      case Sast.Word.Ident(sym) =>
+      case Word.IfStat(cond, thenp, elsep) =>
+        exec(cond)
+        vs.pop() match
+          case Value.BoolVal(b) =>
+            if b then exec(thenp) else exec(elsep)
+
+          case v =>
+            err("Boolean value expected for if condition, found " + v)
+
+      case Word.Ident(sym) =>
         sc.resolve(sym) match
           case Some(d) =>
             d match
-              case Action.Fun(ws,sc2) => exec(ws)(using vs, sc2)
-              case Action.Prim(fun)   => fun(vs)
               case value: Value       => vs.push(value)
+              case Action.Prim(fun)   => fun(vs)
+
+              case Action.Fun(params, ws,sc2) =>
+                val funScope = new Scope.NestedScope(sc2)
+                for param <- params.reverse do
+                  funScope.bind(param, vs.pop())
+                exec(ws)(using vs, funScope)
 
           case None =>
             err("Undefined identifier " + sym)

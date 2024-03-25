@@ -1,6 +1,7 @@
 //> using file Ast.scala
 //> using file Sast.scala
 //> using file Namer.scala
+//> using file Checker.scala
 //> using file Parser.scala
 //> using file Assembly.scala
 //> using file Platform.scala
@@ -11,6 +12,7 @@
 //> using file ELF32.scala
 //> using file UniqueName.scala
 //> using file JSPlatform.scala
+//> using file JSPlatformOpt.scala
 
 import Sast.*
 
@@ -27,8 +29,8 @@ object Compiler:
     for defn <- prog.defs do pf.declare(defn.symbol)
 
     // Compile functions
-    for case Def.FunDef(sym, words) <- prog.defs do
-      pf.function(sym, () => compile(words))
+    for case Def.FunDef(sym, params, words) <- prog.defs do
+      pf.function(sym, params, () => compile(words))
 
     // User code execution starts from here
     pf.entry:
@@ -49,12 +51,14 @@ object Compiler:
 
       case Word.BoolLit(v) => pf.push(v)
 
-      case Word.Proc(words) => pf.push(() => compile(words))
+      case ifWord: Word.IfStat =>
+          pf.conditional(ifWord, words => compile(words))
 
       case Word.Ident(sym) =>
-        if sym.isVal then pf.push(sym)
-        else if sym.isFun then pf.call(sym)
-        else pf.primitive(sym)
+        sym match
+          case sym: Symbol.FunSymbol  => pf.call(sym)
+          case sym: Symbol.PrimSymbol => pf.primitive(sym)
+          case _                      => pf.push(sym)
 
 /***********************************************************************
  *
@@ -89,8 +93,10 @@ def run(args: String*) =
       case Some(pf) =>
         if pf == "linux-x86" then
           Linux.createX86Platform(outFile, layout)
-        else if pf == "javascript" then
+        else if pf == "js" then
           new JSPlatform(outFile)
+        else if pf == "js-opt" then
+          new JSPlatformOpt(outFile)
         else
           throw new Exception("Unknow platform: " + pf)
 

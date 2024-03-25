@@ -6,6 +6,7 @@
 
 import scala.collection.mutable
 
+import Ast.*
 
 /***********************************************************************
  *
@@ -16,15 +17,15 @@ import scala.collection.mutable
 object Parsing:
 
   enum Token:
-    case LBRACE, RBRACE, IF, THEN, ELSE, FI, SEMICOL, VAL, FUN, EQL, EOF
+    case LPAREN, RPAREN, IF, THEN, ELSE, END, SEMICOL, VAL, FUN, EQL, EOF, COMMA
     case IntLit(value: Int)
     case BoolLit(value: Boolean)
     case Ident(name: String)
 
-  def parse(code: String): Ast.Prog = new StackLangParser(code).parse()
+  def parse(code: String): Prog = new StackLangParser(code).parse()
 
   trait Scanner { def next(): Token     }
-  trait Parser  { def parse(): Ast.Prog }
+  trait Parser  { def parse(): Prog }
 
   private def err(msg: String) = throw new Exception(msg)
 
@@ -105,9 +106,10 @@ object Parsing:
       chars.tokenStart()
 
       chars.eat() match
-        case '{'    => Token.LBRACE
-        case '}'    => Token.RBRACE
+        case '('    => Token.LPAREN
+        case ')'    => Token.RPAREN
         case ';'    => Token.SEMICOL
+        case ','    => Token.COMMA
 
         case '-'    =>
           if chars.curChar(isDigit) then intLit()
@@ -135,7 +137,7 @@ object Parsing:
         case "if"      => Token.IF
         case "then"    => Token.THEN
         case "else"    => Token.ELSE
-        case "fi"      => Token.FI
+        case "end"     => Token.END
         case "val"     => Token.VAL
         case "fun"     => Token.FUN
         case "true"    => Token.BoolLit(true)
@@ -214,81 +216,99 @@ object Parsing:
       if actual != expect then
         err("Unexpected token, found = " + actual + ", expect = " + expect)
 
-    def parse(): Ast.Prog = prog()
+    def parse(): Prog = prog()
 
-    def prog(): Ast.Prog =
+    def prog(): Prog =
       val defs = definitions(new mutable.ArrayBuffer)
       val words = phrase()
       eat(Token.EOF)
-      Ast.Prog(defs, words)
+      Prog(defs, words)
 
-    def definitions(acc: mutable.ArrayBuffer[Ast.Def]): List[Ast.Def] =
+    def definitions(acc: mutable.ArrayBuffer[Def]): List[Def] =
       peek() match
       case Token.VAL => definitions(acc += valDef())
       case Token.FUN => definitions(acc += funDef())
       case _         => acc.toList
 
-    def valDef(): Ast.Def =
+    def valDef(): Def =
       eat(Token.VAL)
       val id = ident()
       eat(Token.EQL)
       val words = phrase()
       eat(Token.SEMICOL)
-      Ast.Def.ValDef(id.name, words)
+      Def.ValDef(id, words)
 
-    def funDef(): Ast.Def =
+    def funDef(): Def =
       eat(Token.FUN)
       val id = ident()
+      eat(Token.LPAREN)
+      val paramList = params()
+      eat(Token.RPAREN)
       eat(Token.EQL)
       val words = phrase()
       eat(Token.SEMICOL)
-      Ast.Def.FunDef(id.name, words)
+      Def.FunDef(id, paramList, words)
 
-    def phrase(): List[Ast.Word] =
+    def params(): List[Word.Ident] =
+      if peek() == Token.RPAREN then Nil
+      else paramsRest(mutable.ArrayBuffer(ident()))
+
+    def paramsRest(acc: mutable.ArrayBuffer[Word.Ident]): List[Word.Ident] =
+      if peek() == Token.RPAREN then acc.toList
+      else
+        eat(Token.COMMA)
+        paramsRest(acc += ident())
+
+    def phrase(): List[Word] =
       word() match
         case Some(w) => phraseRest(mutable.ArrayBuffer(w))
         case None    =>
           err("Expect a word, found token " + peek())
 
-    def phraseRest(words: mutable.ArrayBuffer[Ast.Word]): List[Ast.Word] =
+    def phraseRest(words: mutable.ArrayBuffer[Word]): List[Word] =
       word() match
         case Some(w) => phraseRest(words += w)
         case None    => words.toList
 
-    def word(): Option[Ast.Word] =
+    def word(): Option[Word] =
       peek() match
         case _: Token.Ident  => Some(ident())
-        case Token.LBRACE    => Some(proc())
+        case Token.LPAREN    => Some(fence())
         case Token.IF        => Some(ifStat())
 
         case litToken: Token.IntLit  =>
           next()
-          Some(Ast.Word.IntLit(litToken.value))
+          Some(Word.IntLit(litToken.value))
 
         case litToken: Token.BoolLit =>
           next()
-          Some(Ast.Word.BoolLit(litToken.value))
+          Some(Word.BoolLit(litToken.value))
 
         case token =>
           None
 
-    def ident(): Ast.Word.Ident =
+    def ident(): Word.Ident =
       next() match
-        case id: Token.Ident => new Ast.Word.Ident(id.name)
+        case id: Token.Ident => new Word.Ident(id.name)
         case token => err("Expect identifier, found token " + token)
 
-    def proc(): Ast.Word =
-      eat(Token.LBRACE)
+    def fence(): Word =
+      eat(Token.LPAREN)
       val words = phrase()
-      eat(Token.RBRACE)
-      Ast.Word.Proc(words)
+      eat(Token.RPAREN)
+      Word.Fence(words)
 
-    def ifStat(): Ast.Word =
+    def ifStat(): Word =
       eat(Token.IF)
       val cond = phrase()
       eat(Token.THEN)
       val thenp = phrase()
-      eat(Token.ELSE)
-      val elsep = phrase()
-      eat(Token.FI)
-      Ast.Word.IfStat(cond, thenp, elsep)
+      // else is optional
+      val elsep =
+        if peek() == Token.ELSE then
+          eat(Token.ELSE)
+          phrase()
+        else
+          Nil
+      eat(Token.END)
+      Word.IfStat(cond, thenp, elsep)
