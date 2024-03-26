@@ -8,8 +8,24 @@ import scala.collection.mutable
   * Represents an assembler that translates assembly code to machine code.
   */
 trait Assembler:
+  /** Compile the data to byte stream. */
   def lowerData(data: List[Data])(using PatchableBuffer): Unit
+
+  /** Compile the code to byte stream. */
   def lowerCode(code: List[Instr | Label])(using PatchableBuffer): Unit
+
+  /**
+    * Give assmbler the opportunity to add native services.
+    *
+    * We resort to services for functionalities that cannot be implement
+    * directly with the generic assembly.
+    *
+    * Such functionalities usually depends on particular platform, such
+    * as operating system and/or processor.
+    *
+    * Services are implemented by emitting platform-specific machine code.
+    */
+  def defineServices()(using pb: PatchableBuffer): Unit
 
 object Assembler:
   private val VAL_STACK_SIZE = 4096
@@ -51,6 +67,7 @@ object Assembler:
 
     elf.newSegment(SEG_CODE, ELF32.PT_LOAD, ELF32.PF_RX): baseAddr =>
       val pb = new PatchableBuffer(baseAddr, labelMap)
+      assembler.defineServices()(using pb)
       assembler.lowerCode(prog.instrs)(using pb)
 
       // The patches depend on labels of other segments, so they need to

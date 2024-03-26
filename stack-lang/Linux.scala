@@ -26,12 +26,13 @@ object Linux:
   def createX86Platform(outFile: String, layout: String): Platform =
     new X86Platform(outFile, layout)
 
+
   /**
     * Linux x86 32 bit platform
     *
     * Marked private so that code generation is ignorant of the particular platform.
     */
-  private class X86Platform(outFile: String, layout: String) extends Platform with Assembler:
+  private class X86Platform(outFile: String, layout: String) extends Platform:
     /** The register ESP and EBP are reserved for value stack and call stack respectively. */
     val freeRegisters: List[Int] = List(X86.EAX, X86.ECX, X86.EDX, X86.EBX, X86.ESI, X86.EDI)
 
@@ -119,14 +120,14 @@ object Linux:
       * Services are implemented by emitting platform-specific machine code.
       */
     def defineServices()(using pb: PatchableBuffer): Unit =
-      definePrintService()
+      definePrintService(printService)
 
     /**
       * Implement the printing service.
       *
       * It assumes that all registers are free.
       */
-    def definePrintService()(using pb: PatchableBuffer): Unit =
+    def definePrintService(printService: Label)(using pb: PatchableBuffer): Unit =
       pb.defineLabel(printService)
 
       // use call stack to prepare string for syscall
@@ -182,6 +183,7 @@ object Linux:
       // return to caller
       X86.load(Reg(FP_REG), X86.EAX)
       X86.jump(Reg(X86.EAX))
+
 
     def exit(code: Int): Unit =
       cb.add(Instr.Const(Int32(code), X86.EBX))  // exit code
@@ -440,7 +442,6 @@ object Linux:
     /** Print the value on top of the stack. */
     def print(): Unit = call(printService, 1, 0)
 
-
     /** Prepare to start the compilation */
     def start(): Unit = ()
 
@@ -449,16 +450,7 @@ object Linux:
       val prog: Assembly.Prog = cb.getResult()
       val layout = Assembler.continuousLayout(this.layout, PROG_START, PAGE_SIZE)
       val elf = new ELF32(outFile, layout, ELF32.EM_386)
-      Assembler.lower(elf, prog, heapStartLabel, this)
+      val assembler = new X86.Lowerer(pb ?=> defineServices())
+      Assembler.lower(elf, prog, heapStartLabel, assembler)
 
-    def lowerData(data: List[Data])(using pb: PatchableBuffer): Unit =
-      for item <- data do X86.lower(item)
-
-    def lowerCode(instrs: List[Instr | Label])(using pb: PatchableBuffer): Unit =
-      defineServices()
-
-      for instr <- instrs do
-        instr match
-          case label: Label => pb.defineLabel(label)
-          case instr: Instr => X86.lower(instr)
   end X86Platform

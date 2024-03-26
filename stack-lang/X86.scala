@@ -57,6 +57,21 @@ object X86:
   /** Relative address with offset */
   case class Rel(baseReg: Int, offset: Byte)
 
+  class Lowerer(serviceInstall: PatchableBuffer ?=> Unit) extends Assembler:
+    def lowerData(data: List[Data])(using pb: PatchableBuffer): Unit =
+      for item <- data do X86.lower(item)
+
+    def lowerCode(instrs: List[Instr | Label])(using pb: PatchableBuffer): Unit =
+      defineServices()
+
+      for instr <- instrs do
+        instr match
+          case label: Label => pb.defineLabel(label)
+          case instr: Instr => X86.lower(instr)
+
+    def defineServices()(using pb: PatchableBuffer): Unit = serviceInstall
+  end Lowerer
+
   def lower(data: Data)(using pb: PatchableBuffer): Unit =
     pb.defineLabel(data.label)
     data match
