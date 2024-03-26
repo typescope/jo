@@ -20,19 +20,31 @@ class JSPlatformOpt(outFile: String) extends Platform:
   ).foreach: w =>
     freshName(w)
 
+  enum Item:
+    case Const(value: String)
+    case Ref(name: String)
+    case Expr(code: String)
+
+    def toJS: String =
+      this match
+        case Const(v)   =>  v
+        case Ref(n)     =>  n
+        case Expr(e)    =>  e
+
   class ValueStack:
-    val stack: mutable.ArrayBuffer[String] = new mutable.ArrayBuffer
+    val stack: mutable.ArrayBuffer[Item] = new mutable.ArrayBuffer
 
     def pop(): String =
-      if stack.nonEmpty then stack.remove(stack.size - 1)
+      if stack.nonEmpty then stack.remove(stack.size - 1).toJS
       else throw new Exception("Stack is empty")
 
-    def pop(n: Int): Unit =
-      stack.dropRightInPlace(n)
+    def pop(n: Int): Unit = stack.dropRightInPlace(n)
 
-    def push(v: String): Unit = stack.append(v)
+    def push(v: Item): Unit = stack.append(v)
 
-    def peek(i: Int): String = stack(i)
+    def peek(i: Int): Item = stack(i)
+
+    def set(i: Int, v: Item): Unit = stack(i) = v
 
     def clear() = stack.clear()
 
@@ -40,22 +52,30 @@ class JSPlatformOpt(outFile: String) extends Platform:
 
     override def toString() = stack.toString()
 
-    def asSingleJSValue(): String =
-      val count = this.size
-      assert(count > 0, "Empty stack")
+    def combineToJS(): String = combineToJS(this.size)
+
+    /**
+      * Combine the number of items to a JS code.
+      *
+      * Multiple elements are wrapped in an array.
+      */
+    def combineToJS(count: Int): String =
+      assert(count > 0, "Nothing to do for count == 0")
+      assert(count <= size, s"Expect $count items, but size is ${size}")
       if count == 1 then
         pop()
       else
-        var i = 0
+        var i = this.size - 1
+        var stopIndex = this.size - count
         val arrayItemsStr = new StringBuilder
-        while i < count do
+        while i >= stopIndex do
           val item = vs.peek(i)
-          arrayItemsStr.append(item)
+          arrayItemsStr.append(item.toJS)
           if i != count - 1 then
             arrayItemsStr.append(", ")
+          pop()
           i = i + 1
 
-        stack.clear()
         s"[$arrayItemsStr]"
 
   private val vs: ValueStack = new ValueStack
@@ -95,6 +115,39 @@ class JSPlatformOpt(outFile: String) extends Platform:
       addLine(s"var $uniqueName; // ${sym.name}")
 
   /**
+    * Bind all values in stack.
+    *
+    * This happens when the chain of computation is interrupted by an effectful
+    * operation such as printing or operations that return multiple values.
+    *
+    * Given that computations in the stack may produce effects as well, we need
+    * to maintain the order of effects.
+    *
+    * When it happens, we do the following:
+    *
+    * 1. Bind all expressions in the stack to variables in the generated code.
+    *
+    * 2. Replace the corresponding expressions with the variables.
+    *
+    * 3. Generate code for the effectful operation.
+    *
+    * As an optimization, a binding can be avoided if the stack item is not
+    * effectful.
+    */
+  def bindExpressions(): Unit =
+    val count = vs.size
+    var i = 0
+    while i < count do
+      val item = vs.peek(i)
+      item match
+        case Item.Expr(e) =>
+          val name = freshName("x")
+          addLine(s"const $name = $e;")
+          vs.set(i, Item.Ref(name))
+        case _ =>
+      i = i + 1
+
+  /**
     * Call the funtion.
     */
   def call(fun: FunSymbol): Unit =
@@ -105,7 +158,7 @@ class JSPlatformOpt(outFile: String) extends Platform:
     val paramStr = new StringBuilder
     while i < paramCount  do
       val arg = vs.peek(vs.size - paramCount + i)
-      paramStr.append(arg)
+      paramStr.append(arg.toJS)
       if i != paramCount - 1 then
         paramStr.append(", ")
       i = i + 1
@@ -113,16 +166,18 @@ class JSPlatformOpt(outFile: String) extends Platform:
     vs.pop(paramCount)
 
     if resCount == 0 then
-      addLine(s"$name($paramStr);");
+      bindExpressions()
+      addLine(s"$name($paramStr);")
     else if resCount == 1 then
-      vs.push(s"$name($paramStr)");
+      vs.push(Item.Expr(s"$name($paramStr)"))
     else
+      bindExpressions()
       // result binding
       val resName = freshName("res")
       addLine(s"const $resName = $name($paramStr);");
       i = 0
       while i < resCount  do
-        vs.push(s"$resName[$i]")
+        vs.push(Item.Ref(s"$resName[$i]"))
         i = i + 1
 
   /** Initialize a value definition
@@ -150,80 +205,88 @@ class JSPlatformOpt(outFile: String) extends Platform:
       indent:
         body()
         assert(vs.size == resCount, s"Stack size mismatch, expect $resCount, found = " + vs)
-        val retStr = vs.asSingleJSValue()
+        val retStr = vs.combineToJS()
         addLine(s"return $retStr;")
 
       addLine("}\n")
 
   /** Compile a conditional statement, i.e if/then/else */
   def conditional(ifWord: Word.IfStat, compile: List[Word] => Unit): Unit =
+    bindExpressions()
+
     val resCount = ifWord.info.resCount
     compile(ifWord.cond)
+
     val condStr = vs.pop()
     if resCount == 0 then
       addLine(s"if ($condStr) {")
       indent:
         compile(ifWord.thenp)
         assert(vs.size == 0, "Expect empty stack, found = " + vs)
+
       if ifWord.elsep.nonEmpty then
         addLine("} else {")
         indent:
           compile(ifWord.elsep)
       addLine("}")
+
     else
       assert(ifWord.elsep.nonEmpty)
+
       val resName = freshName("resIf")
       addLine(s"let $resName;")
+
       addLine(s"if ($condStr) {")
       indent:
         compile(ifWord.thenp)
         assert(vs.size == resCount, s"Stack size mismatch, expect = $resCount, found = " + vs)
-        val retStr = vs.asSingleJSValue()
+        val retStr = vs.combineToJS(resCount)
         addLine(s"$resName = $retStr;")
       addLine("} else {")
       indent:
         compile(ifWord.elsep)
-        val retStr = vs.asSingleJSValue()
+        val retStr = vs.combineToJS(resCount)
         addLine(s"$resName = $retStr;")
       addLine("}")
 
       if resCount == 1 then
-        vs.push(resName);
+        vs.push(Item.Ref(resName));
       else
         var i = 0
         while i < resCount  do
-          vs.push(s"$resName[$i]")
+          vs.push(Item.Ref(s"$resName[$i]"))
           i = i + 1
 
   /** Push an integer literal to value stack */
   def push(v: Int): Unit =
-    vs.push(v.toString)
+    vs.push(Item.Const(v.toString))
 
   /** Push a Boolean literal to value stack */
   def push(v: Boolean): Unit =
-    vs.push(v.toString)
+    vs.push(Item.Const(v.toString))
 
   /** Push the value associated with the given symbol to value stack */
   def push(sym: Symbol): Unit =
     val name = symbol2UniqueName(sym)
-    vs.push(name)
+    vs.push(Item.Ref(name))
 
   def binary(op: String): Unit =
     val operand2 = vs.pop()
     val operand1 = vs.pop()
-    vs.push(s"($operand1 $op $operand2)")
+    vs.push(Item.Expr(s"($operand1 $op $operand2)"))
 
   def div(): Unit =
     val operand2 = vs.pop()
     val operand1 = vs.pop()
-    vs.push(s"(($operand1 / $operand2)>>0)")
+    vs.push(Item.Expr(s"(($operand1 / $operand2)>>0)"))
 
   def bnot(): Unit =
     val operand = vs.pop()
-    vs.push(s"(!$operand)")
+    vs.push(Item.Expr(s"(!$operand)"))
 
   def print(): Unit =
     val operand = vs.pop()
+    bindExpressions()
     addLine(s"console.log($operand);")
 
   /**
@@ -263,7 +326,7 @@ class JSPlatformOpt(outFile: String) extends Platform:
   /** Finish compilation */
   def finish(): Unit =
     if vs.size > 0 then
-      addLine(vs.asSingleJSValue())
+      addLine(vs.combineToJS())
     indentCount -= 1
     addLine("})()")
     pw.close()
