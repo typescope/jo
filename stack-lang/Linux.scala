@@ -34,13 +34,13 @@ object Linux:
     */
   private class X86Platform(outFile: String, layout: String) extends Platform:
     /** The register ESP and EBP are reserved for value stack and call stack respectively. */
-    val freeRegisters: List[Int] = List(X86.EAX, X86.ECX, X86.EDX, X86.EBX, X86.ESI, X86.EDI)
+    val freeRegisters: List[Byte] = List(X86.EAX, X86.ECX, X86.EDX, X86.EBX, X86.ESI, X86.EDI)
 
     /** Call stack register (high -> low address)  */
-    val SP_REG: Int = X86.ESP
+    val SP_REG: Byte = X86.ESP
 
     /** Frame pointer register */
-    val FP_REG: Int = X86.EBP
+    val FP_REG: Byte = X86.EBP
 
     val uniqueName = new UniqueName
     export uniqueName.freshName
@@ -66,7 +66,7 @@ object Linux:
     def entry(init: => Unit): Unit =
       // Stack pointer is initialized by the kernel, initialize frame pointer
       cb.mark(this.entry)
-      cb.add(Instr.Add(Reg(SP_REG), Int32(0), FP_REG))
+      cb.add(Instr.Move(SP_REG, FP_REG))
       init
       exit(0)
 
@@ -244,7 +244,7 @@ object Linux:
       cb.add(Instr.Store(returnLoc, Reg(SP_REG)))
 
       // 3. set FP
-      cb.add(Instr.Add(Reg(SP_REG), Int32(0), FP_REG))
+      cb.add(Instr.Move(SP_REG, FP_REG))
 
       // 4. jump to target
       cb.add(Instr.Jump(addr))
@@ -272,7 +272,7 @@ object Linux:
       *
       * Value stack goes from low address to high address.
       */
-    def pop(destReg: Int) =
+    def pop(destReg: Byte) =
       cb.add(Instr.Load(Reg(SP_REG), destReg))
       cb.add(Instr.Add(Reg(SP_REG), Int32(4), SP_REG))
 
@@ -354,7 +354,7 @@ object Linux:
       *
       * The index begins from 0.
       */
-    def loadValue(destReg: Int, index: Byte): Unit =
+    def loadValue(destReg: Byte, index: Byte): Unit =
       val addr = X86.Rel(SP_REG, (index * 4).toByte)
       cb.add(Instr.Special(X86.LoadRel(addr, destReg)))
 
@@ -362,11 +362,11 @@ object Linux:
       *
       * The index begins from 0.
       */
-    def storeValue(fromReg: Int, index: Byte): Unit =
+    def storeValue(fromReg: Byte, index: Byte): Unit =
       val addr = X86.Rel(SP_REG, (index * 4).toByte)
       cb.add(Instr.Special(X86.StoreRel(Reg(fromReg), addr)))
 
-    def int2(fn: (Int, Int, Int) => Instr) =
+    def int2(fn: (Byte, Byte, Byte) => Instr) =
       // TODO: check type of value
       useTwoReg: (r1, r2) =>
         // Reduce arithmetic on stack pointer to 1

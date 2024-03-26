@@ -36,26 +36,26 @@ object X86:
     *
     *    Intel® 64 and IA-32 Architectures Software Developer’s Manual
     */
-  final val EAX = 0
-  final val ECX = 1
-  final val EDX = 2
-  final val EBX = 3
-  final val ESP = 4
-  final val EBP = 5
-  final val ESI = 6
-  final val EDI = 7
+  final val EAX: Byte = 0
+  final val ECX: Byte = 1
+  final val EDX: Byte = 2
+  final val EBX: Byte = 3
+  final val ESP: Byte = 4
+  final val EBP: Byte = 5
+  final val ESI: Byte = 6
+  final val EDI: Byte = 7
 
   /**
     * Special x86 instructions for performance optimization
     */
   sealed abstract class Extension
-  case class LoadRel(addr: Rel, destReg: Int) extends Extension
+  case class LoadRel(addr: Rel, destReg: Byte) extends Extension
   case class StoreRel(value: Value, addr: Rel) extends Extension
   case object Syscall extends Extension
 
 
   /** Relative address with offset */
-  case class Rel(baseReg: Int, offset: Byte)
+  case class Rel(baseReg: Byte, offset: Byte)
 
   class Lowerer(serviceInstall: PatchableBuffer ?=> Unit) extends Assembler:
     def lowerData(data: List[Data])(using pb: PatchableBuffer): Unit =
@@ -99,6 +99,9 @@ object X86:
 
       case Instr.Load(addr, destReg) =>
         load(addr, destReg)
+
+      case Instr.Move(srcReg, destReg) =>
+        move(Reg(srcReg), Reg(destReg))
 
       case Instr.Jump(addr) =>
         jump(addr)

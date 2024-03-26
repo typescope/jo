@@ -11,7 +11,7 @@ object Assembly:
   case class Int32(value: Int)
 
   /** A register */
-  case class Reg(index: Int)
+  case class Reg(index: Byte)
 
   /** A normal class uses referential equality for better performance. */
   class Label(val name: String):
@@ -26,31 +26,32 @@ object Assembly:
     case Add, Sub, Mul, Div, Mod, And, Or, Xor, Sll, Srl, Gt, Lt, Ge, Le, Eq
 
   object Instr:
-    def Add(v1: Operand, v2: Operand, destReg: Int) = Binary(BiOp.Add, v1, v2, destReg)
-    def Sub(v1: Operand, v2: Operand, destReg: Int) = Binary(BiOp.Sub, v1, v2, destReg)
-    def Mul(v1: Operand, v2: Operand, destReg: Int) = Binary(BiOp.Mul, v1, v2, destReg)
-    def Div(v1: Operand, v2: Operand, destReg: Int) = Binary(BiOp.Div, v1, v2, destReg)
-    def Mod(v1: Operand, v2: Operand, destReg: Int) = Binary(BiOp.Mod, v1, v2, destReg)
+    def Add(v1: Operand, v2: Operand, destReg: Byte) = Binary(BiOp.Add, v1, v2, destReg)
+    def Sub(v1: Operand, v2: Operand, destReg: Byte) = Binary(BiOp.Sub, v1, v2, destReg)
+    def Mul(v1: Operand, v2: Operand, destReg: Byte) = Binary(BiOp.Mul, v1, v2, destReg)
+    def Div(v1: Operand, v2: Operand, destReg: Byte) = Binary(BiOp.Div, v1, v2, destReg)
+    def Mod(v1: Operand, v2: Operand, destReg: Byte) = Binary(BiOp.Mod, v1, v2, destReg)
 
-    def And(v1: Operand, v2: Operand, destReg: Int) = Binary(BiOp.And, v1, v2, destReg)
-    def Or (v1: Operand, v2: Operand, destReg: Int) = Binary(BiOp.Or,  v1, v2, destReg)
-    def Xor(v1: Operand, v2: Operand, destReg: Int) = Binary(BiOp.Xor, v1, v2, destReg)
-    def Sll(v1: Operand, v2: Operand, destReg: Int) = Binary(BiOp.Sll, v1, v2, destReg)
-    def Srl(v1: Operand, v2: Operand, destReg: Int) = Binary(BiOp.Srl, v1, v2, destReg)
+    def And(v1: Operand, v2: Operand, destReg: Byte) = Binary(BiOp.And, v1, v2, destReg)
+    def Or (v1: Operand, v2: Operand, destReg: Byte) = Binary(BiOp.Or,  v1, v2, destReg)
+    def Xor(v1: Operand, v2: Operand, destReg: Byte) = Binary(BiOp.Xor, v1, v2, destReg)
+    def Sll(v1: Operand, v2: Operand, destReg: Byte) = Binary(BiOp.Sll, v1, v2, destReg)
+    def Srl(v1: Operand, v2: Operand, destReg: Byte) = Binary(BiOp.Srl, v1, v2, destReg)
 
-    def Gt(v1: Operand, v2: Operand, destReg: Int) = Binary(BiOp.Gt, v1, v2, destReg)
-    def Lt(v1: Operand, v2: Operand, destReg: Int) = Binary(BiOp.Lt, v1, v2, destReg)
-    def Ge(v1: Operand, v2: Operand, destReg: Int) = Binary(BiOp.Ge, v1, v2, destReg)
-    def Le(v1: Operand, v2: Operand, destReg: Int) = Binary(BiOp.Le, v1, v2, destReg)
-    def Eq(v1: Operand, v2: Operand, destReg: Int) = Binary(BiOp.Eq, v1, v2, destReg)
+    def Gt(v1: Operand, v2: Operand, destReg: Byte) = Binary(BiOp.Gt, v1, v2, destReg)
+    def Lt(v1: Operand, v2: Operand, destReg: Byte) = Binary(BiOp.Lt, v1, v2, destReg)
+    def Ge(v1: Operand, v2: Operand, destReg: Byte) = Binary(BiOp.Ge, v1, v2, destReg)
+    def Le(v1: Operand, v2: Operand, destReg: Byte) = Binary(BiOp.Le, v1, v2, destReg)
+    def Eq(v1: Operand, v2: Operand, destReg: Byte) = Binary(BiOp.Eq, v1, v2, destReg)
 
   enum Instr:
-    case Not(v: Operand, destReg: Int)
-    case Const(v: Constant, destReg: Int)
-    case Binary(op: BiOp, v1: Operand, v2: Operand, destReg: Int)
+    case Not(v: Operand, destReg: Byte)
+    case Const(v: Constant, destReg: Byte)
+    case Binary(op: BiOp, v1: Operand, v2: Operand, destReg: Byte)
 
+    case Move(srcReg: Byte, destReg: Byte)
     case Store(v: Value, addr: Addr)
-    case Load(addr: Addr, destReg: Int)
+    case Load(addr: Addr, destReg: Byte)
 
     case Jump(addr: Addr)
     case JZero(reg: Reg, label: Label)
@@ -110,7 +111,7 @@ object Assembly:
     *
     * The registers reserved for call stack pointer and value stack pointer are excluded.
     */
-  class RegisterAllocator(freeRegs: List[Int]):
+  class RegisterAllocator(freeRegs: List[Byte]):
     var freeIndex = 0
 
     /**
@@ -120,7 +121,7 @@ object Assembly:
       *
       * TODO: spilling if no temp registers are available?
       */
-    def useReg(fn: Int => Unit): Unit =
+    def useReg(fn: Byte => Unit): Unit =
       if freeIndex >= freeRegs.size then
         throw new Exception("No register available")
       else
@@ -135,7 +136,7 @@ object Assembly:
       *
       * @see useReg
       */
-    def useTwoReg(fn: (Int, Int) => Unit): Unit =
+    def useTwoReg(fn: (Byte, Byte) => Unit): Unit =
       useReg: r1 =>
         useReg: r2 =>
           fn(r1, r2)
