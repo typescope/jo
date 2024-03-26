@@ -66,8 +66,9 @@ object Namer:
       case funDef: Ast.Def.FunDef =>
         val funScope = new Scope.NestedScope(sc)
         val paramSyms =
-          for param <- funDef.params yield
-            val paramSym = Symbol.ParamSymbol(param.name, sym.asFun)
+          for (param, index) <- funDef.params.zipWithIndex
+          yield
+            val paramSym = Symbol.ParamSymbol(param.name, index.toByte, sym.asFun)
             funScope.define(paramSym)
             paramSym
 

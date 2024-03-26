@@ -31,7 +31,7 @@ object Sast:
     class ValSymbol(val name: String) extends Symbol:
       val info = StackInfo(0, 1)
 
-    class ParamSymbol(name: String, val owner: FunSymbol)
+    class ParamSymbol(name: String,  val index: Byte, val owner: FunSymbol)
     extends ValSymbol(name)
 
   case class StackInfo(paramCount: Byte, resCount: Byte)

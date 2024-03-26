@@ -47,9 +47,7 @@ object Linux:
     val heapStartLabel = Label(uniqueName.freshName("_heapStart"))
     val printService = Label(uniqueName.freshName("_print"))
 
-    // Index of function parameter, begins from 0
-    type ParamIndex = Int
-    val symbolMap: mutable.Map[Symbol, Label | ParamIndex] = mutable.Map.empty
+    val symbolMap: mutable.Map[Symbol, Label] = mutable.Map.empty
 
     val entry = Label(freshName("_entry"))
     val regAlloc = new RegisterAllocator(freeRegisters)
@@ -85,11 +83,8 @@ object Linux:
       */
     def function(sym: FunSymbol, params: List[Symbol], body: () => Unit): Unit =
       val label = symbolMap(sym).asInstanceOf[Label]
-      for (param, index) <- params.zipWithIndex do
-        symbolMap(param) = index
       cb.mark(label)
       body()
-      for param <- params do symbolMap.remove(param)
       ret()
 
     /** Compile a conditional statement, i.e if/then/else */
@@ -208,7 +203,7 @@ object Linux:
       * Call stack goes from high address to low address.
       */
     def call(fun: FunSymbol) =
-      val label = symbolMap(fun).asInstanceOf[Label]
+      val label = symbolMap(fun)
       val info = fun.info
       call(label, info.paramCount, info.resCount)
 
@@ -300,7 +295,7 @@ object Linux:
       * Calling the passed function will compile the initializer.
       */
     def initVal(sym: Symbol, initializer: () => Unit): Unit =
-      val label = symbolMap(sym).asInstanceOf[Label]
+      val label = symbolMap(sym)
       initializer()
       useReg: r =>
         pop(r)
@@ -314,19 +309,20 @@ object Linux:
 
     /** Push the value associated with the given symbol to value stack */
     def push(sym: Symbol): Unit =
-      symbolMap(sym) match
-        case label: Label =>
-          useReg: r =>
-            cb.add(Instr.Load(label, r))
-            push(Reg(r))
+      if sym.isParam then
+        val paramSym = sym.asParam
+        val paramCount = paramSym.owner.info.paramCount
+        val paramIndex = paramSym.index
+        val addr = X86.Rel(FP_REG, ((paramCount + 1 - paramIndex) * 4).toByte)
+        useReg: r =>
+          cb.add(Instr.Special(X86.LoadRel(addr, r)))
+          push(Reg(r))
 
-        case paramIndex: Int =>
-          val funSym = sym.asParam.owner
-          val paramCount = funSym.info.paramCount
-          val addr = X86.Rel(FP_REG, ((paramCount + 1 - paramIndex) * 4).toByte)
-          useReg: r =>
-            cb.add(Instr.Special(X86.LoadRel(addr, r)))
-            push(Reg(r))
+      else
+        val label = symbolMap(sym)
+        useReg: r =>
+          cb.add(Instr.Load(label, r))
+          push(Reg(r))
 
     def primitive(sym: PrimSymbol): Unit =
       sym match
