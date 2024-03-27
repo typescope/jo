@@ -39,9 +39,9 @@ Syntactical Grammar
 
 
 ~~~
-    word    = integer | boolean | ident | ifstat | fence.
+    word    = integer | boolean | ident | ifte | fence | valdef.
     fence   = LPAREN phrase RPAREN.
-    ifstat  = IF phrase THEN phrase [ELSE phrase] END.
+    ifte    = IF phrase THEN phrase [ELSE phrase] END.
     phrase  = word [phrase].
 
     valdef  = VAL ident EQL phrase SEMICOL.
