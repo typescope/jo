@@ -21,10 +21,10 @@ object Namer:
       val sym =
         defn match
           case _: Ast.Def.ValDef =>
-            Symbol.ValSymbol(defn.name)
+            Symbol.createValueSymbol(defn.name)
           case funDef: Ast.Def.FunDef =>
             val info = StackInfo(funDef.params.size.toByte, 1)
-            Symbol.FunSymbol(defn.name, info)
+            Symbol.createFunSymbol(defn.name, info)
 
       sc.define(sym)
 
@@ -66,14 +66,14 @@ object Namer:
       case funDef: Ast.Def.FunDef =>
         val funScope = new Scope.NestedScope(sc)
         val paramSyms =
-          for (param, index) <- funDef.params.zipWithIndex
+          for param <- funDef.params
           yield
-            val paramSym = Symbol.ParamSymbol(param.name, index.toByte, sym.asFun)
+            val paramSym = Symbol.createParamSymbol(param.name)
             funScope.define(paramSym)
             paramSym
 
         val words = transform(funDef.words)(using funScope)
-        Def.FunDef(sym.asInstanceOf[Symbol.FunSymbol], paramSyms, words)
+        Def.FunDef(sym, paramSyms, words)
 
   private enum Scope:
     case RootScope()

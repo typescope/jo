@@ -2,7 +2,6 @@ import Assembly.*
 
 import IO.ByteBuffer
 import Sast.*
-import Symbol.{ FunSymbol, PrimSymbol }
 
 /**
   * The platform abstraction encapsulates implementation details about the value
@@ -31,7 +30,7 @@ abstract class Platform:
   def declare(sym: Symbol): Unit
 
   /** Call the funtion */
-  def call(fun: FunSymbol): Unit
+  def call(fun: Symbol): Unit
 
   /** Initialize a value definition
     *
@@ -43,7 +42,7 @@ abstract class Platform:
     *
     * Calling the passed function will compile the body of the function.
     */
-  def function(sym: FunSymbol, params: List[Symbol], body: () => Unit): Unit
+  def function(sym: Symbol, params: List[Symbol], body: () => Unit): Unit
 
   /** Compile a conditional statement, i.e if/then/else */
   def conditional(ifword: Word.If, compile: List[Word] => Unit): Unit
@@ -58,7 +57,7 @@ abstract class Platform:
   def push(sym: Symbol): Unit
 
   /** Compile a primitive */
-  def primitive(sym: PrimSymbol): Unit
+  def primitive(sym: Symbol): Unit
 
   /** Prepare to start the compilation */
   def start(): Unit

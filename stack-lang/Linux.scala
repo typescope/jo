@@ -12,7 +12,6 @@ import scala.collection.mutable
 import Assembly.*
 import IO.{ ByteBuffer, Patch, PatchableBuffer }
 import Sast.*
-import Symbol.{ FunSymbol, PrimSymbol }
 
 object Linux:
   val PAGE_SIZE  = 0x1000
@@ -48,7 +47,11 @@ object Linux:
     val heapStartLabel = Label(uniqueName.freshName("_heapStart"))
     val printService = Label(uniqueName.freshName("_print"))
 
+    // maps global symbols to labels
     val symbolMap: mutable.Map[Symbol, Label] = mutable.Map.empty
+
+    // maps parameters to offset to FP_REG
+    val paramMap: mutable.Map[Symbol, Byte] = mutable.Map.empty
 
     val entry = Label(freshName("_entry"))
     val regAlloc = new RegisterAllocator(freeRegisters)
@@ -72,20 +75,29 @@ object Linux:
 
     /** Declare the symbol to the platform as a preparation for compilation */
     def declare(sym: Symbol): Unit =
-      assert(!sym.isPrim, "Unexpected primitive symbol " + sym)
+      assert(!sym.isPrimitive, "Unexpected primitive symbol " + sym)
       val label = Label(freshName(sym.name))
       symbolMap(sym) = label
-      if sym.isVal then
+      if sym.isValue then
         cb.add(Data.Uninit(label, Type.Int32))
 
     /** Compile a function
       *
       * Calling the passed function will compile the body of the function.
       */
-    def function(sym: FunSymbol, params: List[Symbol], body: () => Unit): Unit =
-      val label = symbolMap(sym).asInstanceOf[Label]
+    def function(fun: Symbol, params: List[Symbol], body: () => Unit): Unit =
+      val label = symbolMap(fun).asInstanceOf[Label]
+      val paramCount = fun.info.paramCount
       cb.mark(label)
+
+      // bind param offset to FP_REG
+      for (param, index) <- params.zipWithIndex do
+        paramMap(param) = ((paramCount + 1 - index) * 4).toByte
+
       body()
+
+      paramMap.clear
+
       ret()
 
     /** Compile a conditional statement, i.e if/then/else */
@@ -204,7 +216,7 @@ object Linux:
       *
       * Call stack goes from high address to low address.
       */
-    def call(fun: FunSymbol) =
+    def call(fun: Symbol) =
       val label = symbolMap(fun)
       val info = fun.info
       call(label, info.paramCount, info.resCount)
@@ -311,11 +323,9 @@ object Linux:
 
     /** Push the value associated with the given symbol to value stack */
     def push(sym: Symbol): Unit =
-      if sym.isParam then
-        val paramSym = sym.asParam
-        val paramCount = paramSym.owner.info.paramCount
-        val paramIndex = paramSym.index
-        val addr = X86.Rel(FP_REG, ((paramCount + 1 - paramIndex) * 4).toByte)
+      if sym.isParameter then
+        val paramOffset = paramMap(sym)
+        val addr = X86.Rel(FP_REG, paramOffset)
         useReg: r =>
           cb.add(Instr.Special(X86.LoadRel(addr, r)))
           push(Reg(r))
@@ -326,7 +336,7 @@ object Linux:
           cb.add(Instr.Load(label, r))
           push(Reg(r))
 
-    def primitive(sym: PrimSymbol): Unit =
+    def primitive(sym: Symbol): Unit =
       sym match
         case predef.add    =>   add()
         case predef.sub    =>   sub()

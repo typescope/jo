@@ -2,7 +2,6 @@ import java.io.PrintWriter
 import scala.collection.mutable
 
 import Sast.*
-import Symbol.{ PrimSymbol, FunSymbol }
 
 /**
   * JavaScript platform
@@ -53,16 +52,16 @@ class JSPlatform(outFile: String) extends Platform:
     uniqueName
 
   def declare(sym: Symbol): Unit =
-    assert(!sym.isPrim, "Unexpected primitive symbol " + sym)
+    assert(!sym.isPrimitive, "Unexpected primitive symbol " + sym)
     val uniqueName = mapSymbolToJSName(sym)
-    if sym.isVal then
+    if sym.isValue then
       addLine(s"var $uniqueName; // ${sym.name}")
 
 
   /**
     * Call the funtion.
     */
-  def call(fun: FunSymbol): Unit =
+  def call(fun: Symbol): Unit =
     val name = symbol2UniqueName(fun)
     val paramCount = fun.info.paramCount
     var i: Int = paramCount - 1
@@ -97,7 +96,7 @@ class JSPlatform(outFile: String) extends Platform:
     *
     * Calling the passed function will compile the body of the function.
     */
-  def function(sym: FunSymbol, params: List[Symbol], body: () => Unit): Unit =
+  def function(sym: Symbol, params: List[Symbol], body: () => Unit): Unit =
     val name = symbol2UniqueName(sym)
     uniqueName.newScope:
       val paramStr = params.map(mapSymbolToJSName).mkString(", ")
@@ -150,7 +149,7 @@ class JSPlatform(outFile: String) extends Platform:
     * Compile a primitive
     *
     */
-  def primitive(sym: PrimSymbol): Unit =
+  def primitive(sym: Symbol): Unit =
     sym match
       case predef.add    =>   binary("+")
       case predef.sub    =>   binary("-")

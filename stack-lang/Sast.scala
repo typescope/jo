@@ -8,31 +8,54 @@
 
 import scala.collection.mutable
 
-import Sast.Symbol.*
+import Sast.Flag.*
 
 object Sast:
-  sealed abstract class Symbol:
-    val name: String
-    val info: StackInfo
-    def isPrim: Boolean = this.isInstanceOf[PrimSymbol]
-    def isFun: Boolean = this.isInstanceOf[FunSymbol]
-    def isVal: Boolean = this.isInstanceOf[ValSymbol]
-    def isParam: Boolean = this.isInstanceOf[ParamSymbol]
 
-    def asParam: ParamSymbol = this.asInstanceOf[ParamSymbol]
-    def asFun: FunSymbol = this.asInstanceOf[FunSymbol]
-    def asPrim: PrimSymbol = this.asInstanceOf[PrimSymbol]
+  final class Symbol(
+    val name: String,
+    val info: StackInfo,
+    val flags: Flags):
+
+    def isPrimitive: Boolean = flags.is(Flag.Prim)
+    def isFunction : Boolean = flags.is(Flag.Fun)
+    def isValue    : Boolean = flags.is(Flag.Val)
+    def isParameter: Boolean = flags.is(Flag.Param)
 
     override def toString() = name
 
   object Symbol:
-    class PrimSymbol(val name: String, val info: StackInfo) extends Symbol
-    class FunSymbol(val name: String, val info: StackInfo) extends Symbol
-    class ValSymbol(val name: String) extends Symbol:
-      val info = StackInfo(0, 1)
+    private val valueInfo = new StackInfo(0, 1)
+    def createValueSymbol(name: String) =
+      new Symbol(name, valueInfo, Flag.Val)
 
-    class ParamSymbol(name: String,  val index: Byte, val owner: FunSymbol)
-    extends ValSymbol(name)
+    def createFunSymbol(name: String, info: StackInfo) =
+      new Symbol(name, info, Flag.Fun)
+
+    def createParamSymbol(name: String) =
+      new Symbol(name, valueInfo, Flag.Param | Flag.Val)
+
+  object Flag:
+    opaque type Flag <: Flags = Long
+    opaque type Flags = Long
+
+    val Prim  : Flag = 1
+    val Fun   : Flag = 1 << 1
+    val Val   : Flag = 1 << 2
+    val Param : Flag = 1 << 3
+
+    val empty : Flags = 0
+
+    extension (fs: Flags)
+      def is(flag: Flag) = (fs & flag) > 0
+
+      def isOneOf(flag: Flag, flags: Flag*) =
+        (fs & flag) > 0 || flags.exists(flag => (flag & fs) > 0)
+
+      def isAllOf(flag: Flag, flags: Flag*) =
+        (fs & flag) > 0 && flags.forall(flag => (flag & fs) > 0)
+
+      def |(fs2: Flags): Flags = fs | fs2
 
   case class StackInfo(paramCount: Byte, resCount: Byte)
 
@@ -57,7 +80,7 @@ object Sast:
     val symbol: Symbol
     def name: String = symbol.name
 
-    case FunDef(symbol: FunSymbol, params: List[Symbol], words: List[Word])
+    case FunDef(symbol: Symbol, params: List[Symbol], words: List[Word])
     case ValDef(symbol: Symbol, words: List[Word])
 
   case class Prog(defs: List[Def], main: List[Word])
@@ -66,7 +89,7 @@ object Sast:
     private val symbols: mutable.ArrayBuffer[Symbol] = new mutable.ArrayBuffer
 
     private def createPredefSymbol(name: String, paramCount: Byte, resCount: Byte): Symbol =
-      val sym = new Symbol.PrimSymbol(name, StackInfo(paramCount, resCount))
+      val sym = new Symbol(name, StackInfo(paramCount, resCount), Flag.Prim)
       symbols += sym
       sym
 

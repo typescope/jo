@@ -47,28 +47,21 @@ object Checker:
         vs.push(vs1.size)
 
       case Word.Ident(sym) =>
-        sym match
-          case _: Symbol.ValSymbol => vs.push(1)
+        if sym.isValue then
+          vs.push(1)
 
-          case sym: Symbol.PrimSymbol =>
-            val info = sym.info
-            val paramCount = info.paramCount
-            if vs.size < paramCount then
-              throw new Exception(
-                  s"$paramCount elements expected for $sym, found = " + vs.size)
+        else
+          assert(sym.isPrimitive | sym.isFunction)
 
-            vs.pop(paramCount)
-            vs.push(info.resCount)
+          val info = sym.info
+          val paramCount = info.paramCount
 
-          case sym: Symbol.FunSymbol =>
-            val info = sym.info
-            val paramCount = info.paramCount
-            if vs.size < paramCount then
-              throw new Exception(
-                  s"$paramCount elements expected for $sym, found = " + vs.size)
+          if vs.size < paramCount then
+            throw new Exception(
+                s"$paramCount elements expected for $sym, found = " + vs.size)
 
-            vs.pop(paramCount)
-            vs.push(info.resCount)
+          vs.pop(paramCount)
+          vs.push(info.resCount)
 
   def check(words: List[Word])(using vs: ValueStack): Unit =
     for word <- words do check(word)

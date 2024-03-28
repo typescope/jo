@@ -55,10 +55,9 @@ object Compiler:
           pf.conditional(ifword, words => compile(words))
 
       case Word.Ident(sym) =>
-        sym match
-          case sym: Symbol.FunSymbol  => pf.call(sym)
-          case sym: Symbol.PrimSymbol => pf.primitive(sym)
-          case _                      => pf.push(sym)
+        if sym.isPrimitive then pf.primitive(sym)
+        else if sym.isFunction then pf.call(sym)
+        else pf.push(sym)
 
 /***********************************************************************
  *
