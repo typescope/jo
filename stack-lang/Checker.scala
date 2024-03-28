@@ -26,7 +26,7 @@ object Checker:
     word match
       case _: Word.IntLit | _: Word.BoolLit => vs.push(1)
 
-      case Word.IfStat(cond, thenp, elsep) =>
+      case Word.If(cond, thenp, elsep) =>
         val vsCond = new ValueStack
         check(cond)(using vsCond)
 

@@ -46,8 +46,8 @@ object Namer:
         Checker.check(words)(using new Checker.ValueStack)
         words
 
-      case Ast.Word.IfStat(cond, thenp, elsep) =>
-         Word.IfStat(transform(cond), transform(thenp), transform(elsep)) :: Nil
+      case Ast.Word.If(cond, thenp, elsep) =>
+         Word.If(transform(cond), transform(thenp), transform(elsep)) :: Nil
 
       case Ast.Word.Ident(name) =>
         sc.resolve(name) match

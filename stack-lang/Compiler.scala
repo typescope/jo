@@ -51,8 +51,8 @@ object Compiler:
 
       case Word.BoolLit(v) => pf.push(v)
 
-      case ifWord: Word.IfStat =>
-          pf.conditional(ifWord, words => compile(words))
+      case ifword: Word.If =>
+          pf.conditional(ifword, words => compile(words))
 
       case Word.Ident(sym) =>
         sym match

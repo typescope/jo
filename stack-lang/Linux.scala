@@ -89,22 +89,22 @@ object Linux:
       ret()
 
     /** Compile a conditional statement, i.e if/then/else */
-    def conditional(ifWord: Word.IfStat, compile: List[Word] => Unit): Unit =
+    def conditional(ifword: Word.If, compile: List[Word] => Unit): Unit =
       val labelFalse = Label(freshName("_false"))
       val labelEnd = Label(freshName("_ifEnd"))
 
-      compile(ifWord.cond)
+      compile(ifword.cond)
 
       useReg: r =>
         pop(r)
         cb.add(Instr.JZero(Reg(r), labelFalse))
 
-        compile(ifWord.thenp)
+        compile(ifword.thenp)
 
-        if ifWord.elsep.nonEmpty then
+        if ifword.elsep.nonEmpty then
           cb.add(Instr.Jump(labelEnd))
           cb.mark(labelFalse)
-          compile(ifWord.elsep)
+          compile(ifword.elsep)
         else
           cb.mark(labelFalse)
 

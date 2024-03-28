@@ -46,7 +46,7 @@ abstract class Platform:
   def function(sym: FunSymbol, params: List[Symbol], body: () => Unit): Unit
 
   /** Compile a conditional statement, i.e if/then/else */
-  def conditional(ifStat: Word.IfStat, compile: List[Word] => Unit): Unit
+  def conditional(ifword: Word.If, compile: List[Word] => Unit): Unit
 
   /** Push an integer literal to value stack */
   def push(v: Int): Unit

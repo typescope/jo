@@ -40,13 +40,12 @@ object Sast:
     case IntLit(value: Int)
     case BoolLit(value: Boolean)
     case Ident(symbol: Symbol)
-    case IfStat(cond: List[Word], thenp: List[Word], elsep: List[Word])
-
+    case If(cond: List[Word], thenp: List[Word], elsep: List[Word])
     lazy val info: StackInfo =
       this match
         case _: IntLit | _: BoolLit => StackInfo(0, 1)
         case ident: Ident => ident.symbol.info
-        case IfStat(_, thenp, _) =>
+        case If(_, thenp, _) =>
           // It's already checked that cond is StackInfo(0, 1) and the two
           // branches have the same stack info
           val resCount = thenp.foldLeft(0): (acc, word) =>

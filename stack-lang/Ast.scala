@@ -10,7 +10,7 @@ object Ast:
     case BoolLit(value: Boolean)
     case Ident(name: String)
     case Fence(words: List[Word])
-    case IfStat(cond: List[Word], thenp: List[Word], elsep: List[Word])
+    case If(cond: List[Word], thenp: List[Word], elsep: List[Word])
 
   enum Def:
     val ident: Word.Ident

@@ -274,7 +274,7 @@ object Parsing:
       peek() match
         case _: Token.Ident  => Some(ident())
         case Token.LPAREN    => Some(fence())
-        case Token.IF        => Some(ifStat())
+        case Token.IF        => Some(ifword())
 
         case litToken: Token.IntLit  =>
           next()
@@ -298,7 +298,7 @@ object Parsing:
       eat(Token.RPAREN)
       Word.Fence(words)
 
-    def ifStat(): Word =
+    def ifword(): Word =
       eat(Token.IF)
       val cond = phrase()
       eat(Token.THEN)
@@ -311,4 +311,4 @@ object Parsing:
         else
           Nil
       eat(Token.END)
-      Word.IfStat(cond, thenp, elsep)
+      Word.If(cond, thenp, elsep)

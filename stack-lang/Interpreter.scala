@@ -165,7 +165,7 @@ object Interpreter:
       case Word.IntLit(v)  => vs.push(Value.IntVal(v))
       case Word.BoolLit(v) => vs.push(Value.BoolVal(v))
 
-      case Word.IfStat(cond, thenp, elsep) =>
+      case Word.If(cond, thenp, elsep) =>
         exec(cond)
         vs.pop() match
           case Value.BoolVal(b) =>

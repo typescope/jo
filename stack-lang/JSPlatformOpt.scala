@@ -211,40 +211,40 @@ class JSPlatformOpt(outFile: String) extends Platform:
       addLine("}\n")
 
   /** Compile a conditional statement, i.e if/then/else */
-  def conditional(ifWord: Word.IfStat, compile: List[Word] => Unit): Unit =
+  def conditional(ifword: Word.If, compile: List[Word] => Unit): Unit =
     bindExpressions()
 
-    val resCount = ifWord.info.resCount
-    compile(ifWord.cond)
+    val resCount = ifword.info.resCount
+    compile(ifword.cond)
 
     val condStr = vs.pop()
     if resCount == 0 then
       addLine(s"if ($condStr) {")
       indent:
-        compile(ifWord.thenp)
+        compile(ifword.thenp)
         assert(vs.size == 0, "Expect empty stack, found = " + vs)
 
-      if ifWord.elsep.nonEmpty then
+      if ifword.elsep.nonEmpty then
         addLine("} else {")
         indent:
-          compile(ifWord.elsep)
+          compile(ifword.elsep)
       addLine("}")
 
     else
-      assert(ifWord.elsep.nonEmpty)
+      assert(ifword.elsep.nonEmpty)
 
       val resName = freshName("resIf")
       addLine(s"let $resName;")
 
       addLine(s"if ($condStr) {")
       indent:
-        compile(ifWord.thenp)
+        compile(ifword.thenp)
         assert(vs.size == resCount, s"Stack size mismatch, expect = $resCount, found = " + vs)
         val retStr = vs.combineToJS(resCount)
         addLine(s"$resName = $retStr;")
       addLine("} else {")
       indent:
-        compile(ifWord.elsep)
+        compile(ifword.elsep)
         val retStr = vs.combineToJS(resCount)
         addLine(s"$resName = $retStr;")
       addLine("}")

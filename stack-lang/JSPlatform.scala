@@ -107,15 +107,15 @@ class JSPlatform(outFile: String) extends Platform:
       addLine("}\n")
 
   /** Compile a conditional statement, i.e if/then/else */
-  def conditional(ifWord: Word.IfStat, compile: List[Word] => Unit): Unit =
-    compile(ifWord.cond)
+  def conditional(ifword: Word.If, compile: List[Word] => Unit): Unit =
+    compile(ifword.cond)
     addLine(s"if ($pop()) {")
     indent:
-      compile(ifWord.thenp)
-    if ifWord.elsep.nonEmpty then
+      compile(ifword.thenp)
+    if ifword.elsep.nonEmpty then
       addLine("} else {")
       indent:
-        compile(ifWord.elsep)
+        compile(ifword.elsep)
     addLine("}")
 
   /** Push an integer literal to value stack */
