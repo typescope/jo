@@ -181,7 +181,7 @@ object Interpreter:
               case value: Value       => vs.push(value)
               case Action.Prim(fun)   => fun(vs)
 
-              case Action.Fun(params, ws,sc2) =>
+              case Action.Fun(params, ws, sc2) =>
                 val funScope = new Scope.NestedScope(sc2)
                 for param <- params.reverse do
                   funScope.bind(param, vs.pop())
