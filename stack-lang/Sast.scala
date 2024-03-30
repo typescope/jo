@@ -12,11 +12,7 @@ import Sast.Flag.*
 
 object Sast:
 
-  final class Symbol(
-    val name: String,
-    val info: StackInfo,
-    val flags: Flags):
-
+  final class Symbol(val name: String, val info: StackInfo, val flags: Flags):
     def isPrimitive: Boolean = flags.is(Flag.Prim)
     def isFunction : Boolean = flags.is(Flag.Fun)
     def isValue    : Boolean = flags.is(Flag.Val)
@@ -88,30 +84,30 @@ object Sast:
   object predef:
     private val symbols: mutable.ArrayBuffer[Symbol] = new mutable.ArrayBuffer
 
-    private def createPredefSymbol(name: String, paramCount: Byte, resCount: Byte): Symbol =
+    private def createPrimSymbol(name: String, paramCount: Byte, resCount: Byte): Symbol =
       val sym = new Symbol(name, StackInfo(paramCount, resCount), Flag.Prim)
       symbols += sym
       sym
 
-    val add    =  createPredefSymbol("+",   2, 1)
-    val sub    =  createPredefSymbol("-",   2, 1)
-    val mul    =  createPredefSymbol("*",   2, 1)
-    val div    =  createPredefSymbol("/",   2, 1)
-    val mod    =  createPredefSymbol("%",   2, 1)
-    val gt     =  createPredefSymbol(">",   2, 1)
-    val lt     =  createPredefSymbol("<",   2, 1)
-    val ge     =  createPredefSymbol(">=",  2, 1)
-    val le     =  createPredefSymbol("<=",  2, 1)
-    val srl    =  createPredefSymbol(">>",  2, 1)
-    val sll    =  createPredefSymbol("<<",  2, 1)
-    val land   =  createPredefSymbol("&",   2, 1)
-    val lor    =  createPredefSymbol("|",   2, 1)
-    val lxor   =  createPredefSymbol("^",   2, 1)
-    val band   =  createPredefSymbol("and", 2, 1)
-    val bor    =  createPredefSymbol("or",  2, 1)
-    val bnot   =  createPredefSymbol("not", 1, 1)
-    val eql    =  createPredefSymbol("==",  2, 1)
-    val p      =  createPredefSymbol("p",   1, 0)
+    val add    =  createPrimSymbol("+",   2, 1)
+    val sub    =  createPrimSymbol("-",   2, 1)
+    val mul    =  createPrimSymbol("*",   2, 1)
+    val div    =  createPrimSymbol("/",   2, 1)
+    val mod    =  createPrimSymbol("%",   2, 1)
+    val gt     =  createPrimSymbol(">",   2, 1)
+    val lt     =  createPrimSymbol("<",   2, 1)
+    val ge     =  createPrimSymbol(">=",  2, 1)
+    val le     =  createPrimSymbol("<=",  2, 1)
+    val srl    =  createPrimSymbol(">>",  2, 1)
+    val sll    =  createPrimSymbol("<<",  2, 1)
+    val land   =  createPrimSymbol("&",   2, 1)
+    val lor    =  createPrimSymbol("|",   2, 1)
+    val lxor   =  createPrimSymbol("^",   2, 1)
+    val band   =  createPrimSymbol("and", 2, 1)
+    val bor    =  createPrimSymbol("or",  2, 1)
+    val bnot   =  createPrimSymbol("not", 1, 1)
+    val eql    =  createPrimSymbol("==",  2, 1)
+    val p      =  createPrimSymbol("p",   1, 0)
 
     val allSymbols: List[Symbol] = symbols.toList
   end predef
