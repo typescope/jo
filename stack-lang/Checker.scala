@@ -17,10 +17,13 @@ object Checker:
     */
   class ValueStack:
     private var size0: Int = 0
-    def push(n: Int) = size0 += n
-    def pop(n: Int)  = size0 -= n
-    def isEmpty: Boolean = size0 == 0
+
     def size: Int = size0
+    def push(n: Int) = size0 += n
+    def pop(n: Int)  =
+      assert(size0 >= n)
+      size0 -= n
+
 
   def check(word: Word)(using vs: ValueStack): Unit =
     word match
@@ -47,43 +50,36 @@ object Checker:
         vs.push(vs1.size)
 
       case Word.Ident(sym) =>
-        if sym.isValue then
-          vs.push(1)
+        val info = sym.info
+        val need = info.paramCount
+        val found = vs.size
 
-        else
-          assert(sym.isPrimitive | sym.isFunction)
-
-          val info = sym.info
-          val paramCount = info.paramCount
-
-          if vs.size < paramCount then
-            throw new Exception(
-                s"$paramCount elements expected for $sym, found = " + vs.size)
-
-          vs.pop(paramCount)
-          vs.push(info.resCount)
+        if found < need then
+          throw new Exception(
+              s"$need elements expected for $sym, found = $found")
+        vs.pop(need)
+        vs.push(info.resCount)
 
   def check(words: List[Word])(using vs: ValueStack): Unit =
     for word <- words do check(word)
 
   def check(defn: Def): Unit =
-    val words =
-      defn match
-        case valDef: Def.ValDef =>
-          val vs = new ValueStack
-          check(valDef.words)(using vs)
+    defn match
+      case valDef: Def.ValDef =>
+        val vs = new ValueStack
+        check(valDef.words)(using vs)
 
-          if vs.size != 1 then
-            throw new Exception(
-                "1 result expected for " + defn.symbol + ", found = " + vs.size)
+        if vs.size != 1 then
+          throw new Exception(
+              "1 result expected for " + defn.symbol + ", found = " + vs.size)
 
-        case funDef: Def.FunDef =>
-          val vs = new ValueStack
-          check(funDef.words)(using vs)
+      case funDef: Def.FunDef =>
+        val vs = new ValueStack
+        check(funDef.words)(using vs)
 
-          val sym = funDef.symbol
-          val resCount = sym.info.resCount
-          val size = vs.size
-          if size != resCount then
-            throw new Exception(
-                s"$resCount result(s) expected for $sym, found = $size")
+        val sym = funDef.symbol
+        val resCount = sym.info.resCount
+        val size = vs.size
+        if size != resCount then
+          throw new Exception(
+              s"$resCount result(s) expected for $sym, found = $size")
