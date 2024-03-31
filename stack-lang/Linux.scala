@@ -41,11 +41,8 @@ object Linux:
     /** Frame pointer register */
     val FP_REG: Byte = X86.EBP
 
-    val uniqueName = new UniqueName
-    export uniqueName.freshName
-
-    val heapStartLabel = Label(uniqueName.freshName("_heapStart"))
-    val printService = Label(uniqueName.freshName("_print"))
+    val heapStartLabel = Label("_heapStart")
+    val printService = Label("_print")
 
     // maps global symbols to labels
     val symbolMap: mutable.Map[Symbol, Label] = mutable.Map.empty
@@ -53,7 +50,7 @@ object Linux:
     // maps parameters to offset to FP_REG
     val paramMap: mutable.Map[Symbol, Byte] = mutable.Map.empty
 
-    val entry = Label(freshName("_entry"))
+    val entry = Label("_entry")
     val regAlloc = new RegisterAllocator(freeRegisters)
     val cb = new CodeBuffer(entry)
 
@@ -76,7 +73,7 @@ object Linux:
     /** Declare the symbol to the platform as a preparation for compilation */
     def declare(sym: Symbol): Unit =
       assert(!sym.isPrimitive, "Unexpected primitive symbol " + sym)
-      val label = Label(freshName(sym.name))
+      val label = Label(sym.name)
       symbolMap(sym) = label
       if sym.isValue then
         cb.add(Data.Uninit(label, Type.Int32))
@@ -102,8 +99,8 @@ object Linux:
 
     /** Compile a conditional statement, i.e if/then/else */
     def conditional(ifword: Word.If, compile: Compiler): Unit =
-      val labelFalse = Label(freshName("_false"))
-      val labelEnd = Label(freshName("_ifEnd"))
+      val labelFalse = Label("_false")
+      val labelEnd = Label("_ifEnd")
 
       compile(ifword.cond)
 
@@ -245,7 +242,7 @@ object Linux:
       *  └─────────────┘ ◄─────── SP
       */
     def call(addr: Addr, argCount: Int, resCount: Int) =
-      val returnLoc = Label(freshName("returnLoc"))
+      val returnLoc = Label("returnLoc")
 
       // 1. save FP
       storeValue(Reg(FP_REG), -1)
@@ -261,6 +258,7 @@ object Linux:
       cb.add(Instr.Jump(addr))
 
       cb.mark(returnLoc)
+
       useReg: r =>
         // 5. restore SP
         val spOffset = 2 + argCount - resCount
