@@ -29,14 +29,14 @@ object Compiler:
     for defn <- prog.defs do pf.declare(defn.symbol)
 
     // Compile functions
-    for case Def.FunDef(sym, params, words) <- prog.defs do
-      pf.function(sym, params, () => compile(words))
+    for case fdef: Def.FunDef <- prog.defs do
+      pf.function(fdef, compile)
 
     // User code execution starts from here
     pf.entry:
       // Create initializer for value definitions
-      for case Def.ValDef(sym, words) <- prog.defs do
-        pf.initVal(sym, () => compile(words))
+      for case vdef: Def.ValDef <- prog.defs do
+        pf.initVal(vdef, compile)
 
       compile(prog.main)
 
@@ -52,7 +52,7 @@ object Compiler:
       case Word.BoolLit(v) => pf.push(v)
 
       case ifword: Word.If =>
-          pf.conditional(ifword, words => compile(words))
+          pf.conditional(ifword, compile)
 
       case Word.Ident(sym) =>
         if sym.isPrimitive then pf.primitive(sym)

@@ -85,23 +85,23 @@ object Linux:
       *
       * Calling the passed function will compile the body of the function.
       */
-    def function(fun: Symbol, params: List[Symbol], body: () => Unit): Unit =
-      val label = symbolMap(fun).asInstanceOf[Label]
-      val paramCount = fun.info.paramCount
+    def function(fdef: Def.FunDef, compile: Compiler): Unit =
+      val label = symbolMap(fdef.symbol).asInstanceOf[Label]
+      val paramCount = fdef.params.size
       cb.mark(label)
 
       // bind param offset to FP_REG
-      for (param, index) <- params.zipWithIndex do
+      for (param, index) <- fdef.params.zipWithIndex do
         paramMap(param) = ((paramCount + 1 - index) * 4).toByte
 
-      body()
+      compile(fdef.words)
 
       paramMap.clear
 
       ret()
 
     /** Compile a conditional statement, i.e if/then/else */
-    def conditional(ifword: Word.If, compile: List[Word] => Unit): Unit =
+    def conditional(ifword: Word.If, compile: Compiler): Unit =
       val labelFalse = Label(freshName("_false"))
       val labelEnd = Label(freshName("_ifEnd"))
 
@@ -308,9 +308,9 @@ object Linux:
       *
       * Calling the passed function will compile the initializer.
       */
-    def initVal(sym: Symbol, initializer: () => Unit): Unit =
-      val label = symbolMap(sym)
-      initializer()
+    def initVal(vdef: Def.ValDef, compile: Compiler): Unit =
+      val label = symbolMap(vdef.symbol)
+      compile(vdef.words)
       useReg: r =>
         pop(r)
         cb.add(Instr.Store(Reg(r), label))

@@ -183,10 +183,10 @@ class JSPlatformOpt(outFile: String) extends Platform:
     *
     * Calling the passed function will compile the initializer.
     */
-  def initVal(sym: Symbol, initializer: () => Unit): Unit =
+  def initVal(vdef: Def.ValDef, compile: Compiler): Unit =
     vs.clear()
-    initializer()
-    val name = symbol2UniqueName(sym)
+    compile(vdef.words)
+    val name = symbol2UniqueName(vdef.symbol)
     val rhs = vs.pop()
     addLine(s"$name = $rhs;")
 
@@ -194,15 +194,16 @@ class JSPlatformOpt(outFile: String) extends Platform:
     *
     * Calling the passed function will compile the body of the function.
     */
-  def function(sym: Symbol, params: List[Symbol], body: () => Unit): Unit =
+  def function(fdef: Def.FunDef, compile: Compiler): Unit =
     vs.clear()
+    val sym = fdef.symbol
     val name = symbol2UniqueName(sym)
     val resCount = sym.info.resCount
     uniqueName.newScope:
-      val paramStr = params.map(mapSymbolToJSName).mkString(", ")
+      val paramStr = fdef.params.map(mapSymbolToJSName).mkString(", ")
       addLine(s"function $name($paramStr) { // ${sym.name}")
       indent:
-        body()
+        compile(fdef.words)
         assert(vs.size == resCount, s"Stack size mismatch, expect $resCount, found = " + vs)
         val retStr = vs.combineToJS()
         addLine(s"return $retStr;")

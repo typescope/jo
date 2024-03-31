@@ -12,6 +12,8 @@ import Sast.*
   *
   */
 abstract class Platform:
+  type Compiler = List[Word] => Unit
+
   /**
     * Generate entry code
     *
@@ -36,16 +38,16 @@ abstract class Platform:
     *
     * Calling the passed function will compile the initializer.
     */
-  def initVal(sym: Symbol, initializer: () => Unit): Unit
+  def initVal(vdef: Def.ValDef, compile: Compiler): Unit
 
   /** Compile a function
     *
     * Calling the passed function will compile the body of the function.
     */
-  def function(sym: Symbol, params: List[Symbol], body: () => Unit): Unit
+  def function(fun: Def.FunDef, compile: Compiler): Unit
 
   /** Compile a conditional statement, i.e if/then/else */
-  def conditional(ifword: Word.If, compile: List[Word] => Unit): Unit
+  def conditional(ifword: Word.If, compile: Compiler): Unit
 
   /** Push an integer literal to value stack */
   def push(v: Int): Unit

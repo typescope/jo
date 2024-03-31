@@ -87,26 +87,27 @@ class JSPlatform(outFile: String) extends Platform:
     *
     * Calling the passed function will compile the initializer.
     */
-  def initVal(sym: Symbol, initializer: () => Unit): Unit =
-    initializer()
-    val name = symbol2UniqueName(sym)
+  def initVal(vdef: Def.ValDef, compile: Compiler): Unit =
+    compile(vdef.words)
+    val name = symbol2UniqueName(vdef.symbol)
     addLine(s"$name = $pop();")
 
   /** Compile a function
     *
     * Calling the passed function will compile the body of the function.
     */
-  def function(sym: Symbol, params: List[Symbol], body: () => Unit): Unit =
+  def function(fdef: Def.FunDef, compile: Compiler): Unit =
+    val sym = fdef.symbol
     val name = symbol2UniqueName(sym)
     uniqueName.newScope:
-      val paramStr = params.map(mapSymbolToJSName).mkString(", ")
+      val paramStr = fdef.params.map(mapSymbolToJSName).mkString(", ")
       addLine(s"function $name($paramStr) { // ${sym.name}")
       indent:
-          body()
+        compile(fdef.words)
       addLine("}\n")
 
   /** Compile a conditional statement, i.e if/then/else */
-  def conditional(ifword: Word.If, compile: List[Word] => Unit): Unit =
+  def conditional(ifword: Word.If, compile: Compiler): Unit =
     compile(ifword.cond)
     addLine(s"if ($pop()) {")
     indent:
