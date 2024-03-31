@@ -270,10 +270,8 @@ object Linux:
         // 6. copy result
         var i = 0
         while i < resCount do
-          val srcAddr = X86.Rel(FP_REG, (-(i + 1) * 4).toByte)
-          val destAddr = X86.Rel(SP_REG, ((resCount - 1 - i) * 4).toByte)
-          cb.add(Instr.Special(X86.LoadRel(srcAddr, r)))
-          cb.add(Instr.Special(X86.StoreRel(Reg(r), destAddr)))
+          loadValue(r, (-spOffset - i - 1).toByte)
+          storeValue(r, (resCount - 1 - i).toByte)
           i += 1
 
         // 7. restore FP
