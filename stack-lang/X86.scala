@@ -560,7 +560,7 @@ object X86:
                 bb.addByte(0)
                 bb.addInt(loc)
             else
-              withPatch(l, 7): (bb, loc) =>
+              withPatch(l, 6): (bb, loc) =>
                 bb.addByte(0xC7.toByte)
                 bb.addByte(rd.toByte)
                 bb.addInt(loc)
@@ -601,14 +601,15 @@ object X86:
         v match
           case l: Label =>
             // C7 /0 id    MOV r/m32, imm32
-            withPatch(l, 7): (bb, loc) =>
-              if rd == 4 then // ESP
+            if rd == 4 then // ESP
+              withPatch(l, 8): (bb, loc) =>
                 bb.addByte(0xC7.toByte)
                 bb.addByte(0x44)
                 bb.addByte(0x24)
                 bb.addByte(offset)
                 bb.addInt(loc)
-              else
+            else
+              withPatch(l, 7): (bb, loc) =>
                 bb.addByte(0xC7.toByte)
                 bb.addByte((0x40 | rd).toByte)
                 bb.addByte(offset)

@@ -248,14 +248,13 @@ object Linux:
       val returnLoc = Label(freshName("returnLoc"))
 
       // 1. save FP
-      cb.add(Instr.Sub(Reg(SP_REG), Int32(4), SP_REG))
-      cb.add(Instr.Store(Reg(FP_REG), Reg(SP_REG)))
+      storeValue(Reg(FP_REG), -1)
 
       // 2. save return
-      cb.add(Instr.Sub(Reg(SP_REG), Int32(4), SP_REG))
-      cb.add(Instr.Store(returnLoc, Reg(SP_REG)))
+      storeValue(returnLoc, -2)
 
-      // 3. set FP
+      // 3. update FP and SP
+      cb.add(Instr.Sub(Reg(SP_REG), Int32(8), SP_REG))
       cb.add(Instr.Move(SP_REG, FP_REG))
 
       // 4. jump to target
@@ -271,7 +270,7 @@ object Linux:
         var i = 0
         while i < resCount do
           loadValue(r, (-spOffset - i - 1).toByte)
-          storeValue(r, (resCount - 1 - i).toByte)
+          storeValue(Reg(r), (resCount - 1 - i).toByte)
           i += 1
 
         // 7. restore FP
@@ -370,9 +369,9 @@ object Linux:
       *
       * The index begins from 0.
       */
-    def storeValue(fromReg: Byte, index: Byte): Unit =
+    def storeValue(value: Value, index: Byte): Unit =
       val addr = X86.Rel(SP_REG, (index * 4).toByte)
-      cb.add(Instr.Special(X86.StoreRel(Reg(fromReg), addr)))
+      cb.add(Instr.Special(X86.StoreRel(value, addr)))
 
     def int2(fn: (Byte, Byte, Byte) => Instr) =
       // TODO: check type of value
@@ -381,7 +380,7 @@ object Linux:
         loadValue(r1, 1)
         loadValue(r2, 0)
         cb.add(fn(r1, r2, r1))
-        storeValue(r1, 1)
+        storeValue(Reg(r1), 1)
         pop()
 
     def add() =
@@ -437,14 +436,14 @@ object Linux:
         loadValue(r, 0)
         cb.add(Instr.Not(Reg(r), r))
         cb.add(Instr.And(Reg(r), Int32(1), r))
-        storeValue(r, 0)
+        storeValue(Reg(r), 0)
 
     def eql() =
       useTwoReg: (r1, r2) =>
         loadValue(r1, 0)
         loadValue(r2, 1)
         cb.add(Instr.Eq(Reg(r1), Reg(r2), r2))
-        storeValue(r2, 1)
+        storeValue(Reg(r2), 1)
         pop()
 
     /** Print the value on top of the stack. */
