@@ -95,19 +95,19 @@ object X86:
         load(addr, destReg)
 
       case Instr.Move(srcReg, destReg) =>
-        move(Reg(srcReg), Reg(destReg))
+        move(Reg(srcReg), destReg)
 
       case Instr.Jump(addr) =>
         jump(addr)
 
       case Instr.JZero(r, label) =>
-        jzero(r, label)
+        jzero(r.index, label)
 
       case Instr.Const(v, destReg) =>
-        const(v, Reg(destReg))
+        const(v, destReg)
 
       case Instr.Not(v, destReg) =>
-        not(Reg(destReg), v)
+        not(destReg, v)
 
       case special: Instr.Special[Extension @unchecked] =>
         lower(special.instr)
@@ -121,80 +121,76 @@ object X86:
     binOp match
       case Instr.Binary(op, r1: Reg, r2: Reg, destReg) =>
         if destReg == r1.index then
-          binaryOperation(op, r1, r2)
+          binaryOperation(op, r1.index, r2)
         else if destReg == r2.index then
           op match
             case BiOp.Add | BiOp.Mul | BiOp.And | BiOp.Or | BiOp.Xor | BiOp.Eq =>
               // commutative operations
-              binaryOperation(op, r2, r1)
+              binaryOperation(op, r2.index, r1)
 
             case BiOp.Sub | BiOp.Div | BiOp.Mod | BiOp.Srl | BiOp.Sll  =>
               push(r1.index)
-              binaryOperation(op, r1, r2)
-              move(r1, r2)
+              binaryOperation(op, r1.index, r2)
+              move(r1, r2.index)
               pop(r1.index)
 
             case BiOp.Gt  =>
-              binaryOperation(BiOp.Le, r2, r1)
+              binaryOperation(BiOp.Le, r2.index, r1)
 
             case BiOp.Lt  =>
-              binaryOperation(BiOp.Ge, r2, r1)
+              binaryOperation(BiOp.Ge, r2.index, r1)
 
             case BiOp.Ge  =>
-              binaryOperation(BiOp.Lt, r2, r1)
+              binaryOperation(BiOp.Lt, r2.index, r1)
 
             case BiOp.Le  =>
-              binaryOperation(BiOp.Gt, r2, r1)
+              binaryOperation(BiOp.Gt, r2.index, r1)
 
         else
-          val rDest = Reg(destReg)
-          move(r1, rDest)
-          binaryOperation(op, rDest, r2)
+          move(r1, destReg)
+          binaryOperation(op, destReg, r2)
 
       case Instr.Binary(op, r: Reg, v, destReg) =>
         if destReg == r.index then
-          binaryOperation(op, r, v)
+          binaryOperation(op, r.index, v)
         else
-          val rDest = Reg(destReg)
-          move(r, rDest)
-          binaryOperation(op, rDest, v)
+          move(r, destReg)
+          binaryOperation(op, destReg, v)
 
       case Instr.Binary(op, v, r: Reg, destReg) =>
         if destReg == r.index then
           op match
             case BiOp.Add | BiOp.Mul | BiOp.And | BiOp.Or | BiOp.Xor | BiOp.Eq =>
               // commutative operations
-              binaryOperation(op, r, v)
+              binaryOperation(op, r.index, v)
 
             case BiOp.Sub | BiOp.Div | BiOp.Mod | BiOp.Srl | BiOp.Sll  =>
               // Spill a register for temporary usage
               val rTemp = if destReg == EAX then EBX else EAX
               push(rTemp)
-              binaryOperation(op, Reg(rTemp), r)
-              move(Reg(rTemp), r)
+              binaryOperation(op, rTemp, r)
+              move(Reg(rTemp), r.index)
               pop(rTemp)
 
             case BiOp.Gt  =>
-              binaryOperation(BiOp.Le, r, v)
+              binaryOperation(BiOp.Le, r.index, v)
 
             case BiOp.Lt  =>
-              binaryOperation(BiOp.Ge, r, v)
+              binaryOperation(BiOp.Ge, r.index, v)
 
             case BiOp.Ge  =>
-              binaryOperation(BiOp.Lt, r, v)
+              binaryOperation(BiOp.Lt, r.index, v)
 
             case BiOp.Le  =>
-              binaryOperation(BiOp.Gt, r, v)
+              binaryOperation(BiOp.Gt, r.index, v)
 
         else
-          val rDest = Reg(destReg)
-          move(v, rDest)
-          binaryOperation(op, rDest, r)
+          move(v, destReg)
+          binaryOperation(op, destReg, r)
 
       case Instr.Binary(op, v1: Int32, v2: Int32, destReg) =>
-        val rDest = Reg(destReg)
-        move(v1, rDest)
-        binaryOperation(op, rDest, v2)
+        move(v1, destReg)
+        binaryOperation(op, destReg, v2)
 
   /** System call */
   def syscall()(using pb: PatchableBuffer) =
@@ -202,35 +198,35 @@ object X86:
     pb.addByte(0x0F)
     pb.addByte(0x34)
 
-  def push(reg: Int)(using pb: PatchableBuffer) =
+  def push(reg: Byte)(using pb: PatchableBuffer) =
     // 50+rd    PUSH r32
     pb.addByte((0x50 | reg).toByte)
 
-  def pop(reg: Int)(using pb: PatchableBuffer) =
+  def pop(reg: Byte)(using pb: PatchableBuffer) =
     // 58+ rd    POP r32
     pb.addByte((0x58 | reg).toByte)
 
   /** Add the value to the register */
-  def add(reg: Reg, v: Operand)(using pb: PatchableBuffer) =
+  def add(reg: Byte, v: Operand)(using pb: PatchableBuffer) =
     v match
       case Reg(rv) =>
         // 03 /r      ADD r32, r/m32
         pb.addByte(0x03)
-        pb.addByte((0xC0 | (reg.index << 3) | rv).toByte)
+        pb.addByte((0xC0 | (reg << 3) | rv).toByte)
 
       case Int32(v) =>
         // 81 /0 id   ADD r/m32, imm32
         pb.addByte(0x81.toByte)
-        pb.addByte((0xC0 | reg.index).toByte)
+        pb.addByte((0xC0 | reg).toByte)
         pb.addInt(v)
 
   /** Subtract the value from the register */
-  def sub(reg: Reg, v: Operand)(using pb: PatchableBuffer) =
+  def sub(reg: Byte, v: Operand)(using pb: PatchableBuffer) =
     v match
       case Reg(rv) =>
         // 2B /r   SUB r32, r/m32
         pb.addByte(0x2B)
-        pb.addByte((0xC0 | (reg.index << 3) | rv).toByte)
+        pb.addByte((0xC0 | (reg << 3) | rv).toByte)
 
       case Int32(v) =>
         // 81 /5 id    SUB r/m32, imm32
@@ -238,44 +234,44 @@ object X86:
         // See A.4.2 Opcode Extension Tables in [1]
         //
         pb.addByte(0x81.toByte)
-        pb.addByte((0xC0 | (5 << 3) | reg.index).toByte)
+        pb.addByte((0xC0 | (5 << 3) | reg).toByte)
         pb.addInt(v)
 
   /** Multiply the register with the value */
-  def mul(reg: Reg, v: Operand)(using pb: PatchableBuffer) =
+  def mul(reg: Byte, v: Operand)(using pb: PatchableBuffer) =
     v match
       case Reg(rv) =>
         // 0F AF /r     IMUL r32, r/m32
         pb.addByte(0x0F)
         pb.addByte(0xAF.toByte)
-        pb.addByte((0xC0 | (reg.index << 3) | rv).toByte)
+        pb.addByte((0xC0 | (reg << 3) | rv).toByte)
 
       case Int32(v) =>
         // 69 /r id     IMUL r32, r/m32, imm32
         pb.addByte(0x69)
-        pb.addByte((0xC0 | (reg.index << 3) | reg.index).toByte)
+        pb.addByte((0xC0 | (reg << 3) | reg).toByte)
         pb.addInt(v)
 
   /** Divide the register with the value */
-  def div(reg: Reg, v: Operand)(using pb: PatchableBuffer) =
+  def div(reg: Byte, v: Operand)(using pb: PatchableBuffer) =
     // TODO: reminder sign does not always agree with divident
     v match
       case Reg(rv) =>
         // F7 /7	IDIV r/m32
         // division uses dedicated registers EDX:EAX
 
-        if reg.index == EAX && rv != EDX then // fast track
+        if reg == EAX && rv != EDX then // fast track
           push(EDX)
-          move(Int32(0), Reg(EDX))
+          move(Int32(0), EDX)
           pb.addByte(0xF7.toByte)
           pb.addByte((0xC0 | (7 << 3) | rv).toByte)
           pop(EDX)
 
-        else if reg.index == rv then // it's implied that reg and rv are not EAX
+        else if reg == rv then // it's implied that reg and rv are not EAX
           push(EAX)
-          move(reg, Reg(EAX))        // divisor and divident are EAX
+          move(Reg(reg), EAX)  // divisor and divident are EAX
           push(EDX)
-          move(Int32(0), Reg(EDX))
+          move(Int32(0), EDX)
           pb.addByte(0xF7.toByte)
           pb.addByte((0xC0 | (7 << 3) | EAX).toByte)
           move(Reg(EAX), reg)
@@ -284,12 +280,12 @@ object X86:
 
         else                        // reg and rv are not EAX, not equal
           push(EAX)
-          move(reg, Reg(EAX))
+          move(Reg(reg), EAX)
           move(Reg(rv), reg)        // divisor in reg
           push(EDX)
-          move(Int32(0), Reg(EDX))
+          move(Int32(0), EDX)
           pb.addByte(0xF7.toByte)
-          pb.addByte((0xC0 | (7 << 3) | reg.index).toByte)
+          pb.addByte((0xC0 | (7 << 3) | reg).toByte)
           move(Reg(EAX), reg)
           pop(EDX)
           pop(EAX)
@@ -297,14 +293,14 @@ object X86:
       case _: Int32 =>
         // F7 /7	IDIV r/m32
         // division uses dedicated registers EDX:EAX
-        if reg.index != EAX then
+        if reg != EAX then
           push(EAX)
-          move(reg, Reg(EAX))
+          move(Reg(reg), EAX)
 
         push(EDX)
-        move(Int32(0), Reg(EDX))
+        move(Int32(0), EDX)
         push(ECX) // to store divisor
-        move(v, Reg(ECX))
+        move(v, ECX)
 
         pb.addByte(0xF7.toByte)
         pb.addByte((0xC0 | (7 << 3) | ECX).toByte)
@@ -312,32 +308,32 @@ object X86:
         pop(ECX)
         pop(EDX)
 
-        if reg.index != EAX then
+        if reg != EAX then
           move(Reg(EAX), reg)
           pop(EAX)
 
 
   /** Modulo the register with the value */
-  def mod(reg: Reg, v: Operand)(using pb: PatchableBuffer) =
+  def mod(reg: Byte, v: Operand)(using pb: PatchableBuffer) =
     // TODO: reminder sign does not always agree with divident
     v match
       case Reg(rv) =>
         // F7 /7	IDIV r/m32
         // division uses dedicated registers EDX:EAX
 
-        if reg.index == EAX && rv != EDX then // fast track
+        if reg == EAX && rv != EDX then // fast track
           push(EDX)
-          move(Int32(0), Reg(EDX))
+          move(Int32(0), EDX)
           pb.addByte(0xF7.toByte)
           pb.addByte((0xC0 | (7 << 3) | rv).toByte)
           move(Reg(EDX), reg)
           pop(EDX)
 
-        else if reg.index == rv then // it's implied that reg and rv are not EAX
+        else if reg == rv then       // it's implied that reg and rv are not EAX
           push(EAX)
-          move(reg, Reg(EAX))        // divisor and divident are EAX
+          move(Reg(reg), EAX)        // divisor and divident are EAX
           if rv != EDX then push(EDX)
-          move(Int32(0), Reg(EDX))
+          move(Int32(0), EDX)
           pb.addByte(0xF7.toByte)
           pb.addByte((0xC0 | (7 << 3) | EAX).toByte)
           move(Reg(EDX), reg)
@@ -346,12 +342,12 @@ object X86:
 
         else                        // reg and rv are not EAX, not equal
           push(EAX)
-          move(reg, Reg(EAX))
+          move(Reg(reg), EAX)
           move(Reg(rv), reg)        // divisor in reg
           if rv != EDX then push(EDX)
-          move(Int32(0), Reg(EDX))
+          move(Int32(0), EDX)
           pb.addByte(0xF7.toByte)
-          pb.addByte((0xC0 | (7 << 3) | reg.index).toByte)
+          pb.addByte((0xC0 | (7 << 3) | reg).toByte)
           move(Reg(EDX), reg)
           if rv != EDX then pop(EDX)
           pop(EAX)
@@ -359,14 +355,14 @@ object X86:
       case _: Int32 =>
         // F7 /7	IDIV r/m32
         // division uses dedicated registers EDX:EAX
-        if reg.index != EAX then
+        if reg != EAX then
           push(EAX)
-          move(reg, Reg(EAX))
+          move(Reg(reg), EAX)
 
         push(EDX)
-        move(Int32(0), Reg(EDX))
+        move(Int32(0), EDX)
         push(ECX) // to store divisor
-        move(v, Reg(ECX))
+        move(v, ECX)
 
         pb.addByte(0xF7.toByte)
         pb.addByte((0xC0 | (7 << 3) | ECX).toByte)
@@ -375,115 +371,115 @@ object X86:
         pop(ECX)
         pop(EDX)
 
-        if reg.index != EAX then
+        if reg != EAX then
           pop(EAX)
 
   /** Logical AND the value to the register */
-  def and(reg: Reg, v: Operand)(using pb: PatchableBuffer) =
+  def and(reg: Byte, v: Operand)(using pb: PatchableBuffer) =
     v match
       case Reg(rv) =>
         // 23 /r   AND r32, r/m32
         pb.addByte(0x23)
-        pb.addByte((0xC0 | (reg.index << 3) | rv).toByte)
+        pb.addByte((0xC0 | (reg << 3) | rv).toByte)
 
       case Int32(v) =>
         // 81 /4 id     AND r/m32, imm32
         pb.addByte(0x81.toByte)
-        pb.addByte((0xC0 | (4 << 3) | reg.index).toByte)
+        pb.addByte((0xC0 | (4 << 3) | reg).toByte)
         pb.addInt(v)
 
   /** Logical OR the value to the register */
-  def or(reg: Reg, v: Operand)(using pb: PatchableBuffer) =
+  def or(reg: Byte, v: Operand)(using pb: PatchableBuffer) =
     v match
       case Reg(rv) =>
         // 0B /r	OR r32, r/m32
         pb.addByte(0x0B)
-        pb.addByte((0xC0 | (reg.index << 3) | rv).toByte)
+        pb.addByte((0xC0 | (reg << 3) | rv).toByte)
 
       case Int32(v) =>
         // 81 /1 id	OR r/m32, imm32
         pb.addByte(0x81.toByte)
-        pb.addByte((0xC0 | (1 << 3) | reg.index).toByte)
+        pb.addByte((0xC0 | (1 << 3) | reg).toByte)
         pb.addInt(v)
 
   /** Shift left logically */
-  def sll(reg: Reg, v: Operand)(using pb: PatchableBuffer) =
+  def sll(reg: Byte, v: Operand)(using pb: PatchableBuffer) =
     v match
-      case r2: Reg =>
+      case Reg(r2) =>
         // D3 /4	SAL r/m32, CL
-        if r2.index != ECX then
+        if r2 != ECX then
           push(ECX)
-          move(r2, Reg(ECX))
+          move(Reg(r2), ECX)
           pb.addByte(0xD3.toByte)
-          pb.addByte((0xC0 | (4 << 3) | reg.index).toByte)
+          pb.addByte((0xC0 | (4 << 3) | reg).toByte)
           pop(ECX)
         else
           pb.addByte(0xD3.toByte)
-          pb.addByte((0xC0 | (4 << 3) | reg.index).toByte)
+          pb.addByte((0xC0 | (4 << 3) | reg).toByte)
 
       case Int32(v) =>
         // C1 /4 ib	SAL r/m32, imm8
         assert(v >= 0 && v < 256, "Shift too big, expect < 256, found = " + v)
         pb.addByte(0xC1.toByte)
-        pb.addByte((0xC0 | (4 << 3) | reg.index).toByte)
+        pb.addByte((0xC0 | (4 << 3) | reg).toByte)
         pb.addByte(v.toByte)
 
   /** Shift right logically */
-  def srl(reg: Reg, v: Operand)(using pb: PatchableBuffer) =
+  def srl(reg: Byte, v: Operand)(using pb: PatchableBuffer) =
     v match
-      case r2: Reg =>
+      case Reg(r2) =>
         // D3 /5	SHR r/m32, CL
-        if r2.index != ECX then
+        if reg != ECX then
           push(ECX)
-          move(r2, Reg(ECX))
+          move(Reg(r2), ECX)
           pb.addByte(0xD3.toByte)
-          pb.addByte((0xC0 | (5 << 3) | reg.index).toByte)
+          pb.addByte((0xC0 | (5 << 3) | reg).toByte)
           pop(ECX)
         else
           pb.addByte(0xD3.toByte)
-          pb.addByte((0xC0 | (5 << 3) | reg.index).toByte)
+          pb.addByte((0xC0 | (5 << 3) | reg).toByte)
 
       case Int32(v) =>
         // C1 /5 ib	SHR r/m32, imm8
         assert(v >= 0 && v < 256, "Shift too big, expect < 256, found = " + v)
         pb.addByte(0xC1.toByte)
-        pb.addByte((0xC0 | (1 << 5) | reg.index).toByte)
+        pb.addByte((0xC0 | (1 << 5) | reg).toByte)
         pb.addByte(v.toByte)
 
-  def not(reg: Reg, v: Operand)(using pb: PatchableBuffer) =
+  def not(reg: Byte, v: Operand)(using pb: PatchableBuffer) =
     // F7 /2    NOT r/m32
     pb.addByte(0xF7.toByte)
-    pb.addByte((0xC0 | (2 << 3) | reg.index).toByte)
+    pb.addByte((0xC0 | (2 << 3) | reg).toByte)
 
   /** Logical XOR the value to the register */
-  def xor(reg: Reg, v: Operand)(using pb: PatchableBuffer) =
+  def xor(reg: Byte, v: Operand)(using pb: PatchableBuffer) =
     v match
       case Reg(rv) =>
         // 33 /r	XOR r32, r/m32
         pb.addByte(0x33)
-        pb.addByte((0xC0 | (reg.index << 3) | rv).toByte)
+        pb.addByte((0xC0 | (reg << 3) | rv).toByte)
 
       case Int32(v) =>
         // 81 /6 id	XOR r/m32, imm32
         pb.addByte(0x81.toByte)
-        pb.addByte((0xC0 | (6 << 3) | reg.index).toByte)
+        pb.addByte((0xC0 | (6 << 3) | reg).toByte)
         pb.addInt(v)
 
   /** Move the value to the register */
-  def move(v: Operand, reg: Reg)(using pb: PatchableBuffer) =
+  def move(v: Operand, reg: Byte)(using pb: PatchableBuffer) =
     v match
       case Reg(rv) =>
         // 8B /r       MOV r32, r/m32
         pb.addByte(0x8B.toByte)
-        pb.addByte((0xC0 | (reg.index << 3) | rv).toByte)
+        pb.addByte((0xC0 | (reg << 3) | rv).toByte)
 
       case Int32(v) =>
         // B8+ rd id   MOV r32, imm32
-        pb.addByte((0xB8 | reg.index).toByte)
+        pb.addByte((0xB8 | reg).toByte)
         pb.addInt(v)
 
   /** Move the value to the register */
-  def const(c: Constant, reg: Reg)(using pb: PatchableBuffer) =
+  def const(c: Constant, reg: Byte)(using pb: PatchableBuffer) =
     c match
       case v: Int32 =>
         move(v, reg)
@@ -491,10 +487,10 @@ object X86:
       case l: Label =>
         withPatch(l, 5): (bb, loc) =>
           // B8+ rd id   MOV r32, imm32
-          bb.addByte((0xB8 | reg.index).toByte)
+          bb.addByte((0xB8 | reg).toByte)
           bb.addInt(loc)
 
-  def load(addr: Addr, destReg: Int)(using pb: PatchableBuffer): Unit =
+  def load(addr: Addr, destReg: Byte)(using pb: PatchableBuffer): Unit =
     addr match
       case Reg(r) =>
         // See Table 2-2. 32-Bit Addressing Forms with the ModR/M Byte in [1]
@@ -704,7 +700,7 @@ object X86:
 
       case Rel(r, offset) =>
         if offset != 0 then
-          add(Reg(r), Int32(offset))
+          add(r, Int32(offset))
         jump(Reg(r))
 
       case l: Label =>
@@ -715,52 +711,52 @@ object X86:
           bb.addByte(0xE9.toByte)
           bb.addInt(relativeAddr)
 
-  def eql(reg: Reg, v: Operand)(using pb: PatchableBuffer) =
+  def eql(reg: Byte, v: Operand)(using pb: PatchableBuffer) =
     cmp(reg, v, 0x94.toByte)
 
-  def gt(reg: Reg, v: Operand)(using pb: PatchableBuffer) =
+  def gt(reg: Byte, v: Operand)(using pb: PatchableBuffer) =
     cmp(reg, v, 0x9F.toByte)
 
-  def ge(reg: Reg, v: Operand)(using pb: PatchableBuffer) =
+  def ge(reg: Byte, v: Operand)(using pb: PatchableBuffer) =
     cmp(reg, v, 0x9D.toByte)
 
-  def lt(reg: Reg, v: Operand)(using pb: PatchableBuffer) =
+  def lt(reg: Byte, v: Operand)(using pb: PatchableBuffer) =
     cmp(reg, v, 0x9C.toByte)
 
-  def le(reg: Reg, v: Operand)(using pb: PatchableBuffer) =
+  def le(reg: Byte, v: Operand)(using pb: PatchableBuffer) =
     cmp(reg, v, 0x9E.toByte)
 
-  def cmp(reg: Reg, v: Operand, setcc: Byte)(using pb: PatchableBuffer) =
+  def cmp(reg: Byte, v: Operand, setcc: Byte)(using pb: PatchableBuffer) =
     v match
       case Reg(rv) =>
         // 3B /r    CMP r32, r/m32
         pb.addByte(0x3B)
-        pb.addByte((0xC0 | (reg.index << 3) | rv).toByte)
+        pb.addByte((0xC0 | (reg << 3) | rv).toByte)
 
       case Int32(v) =>
         // 81 /7 id   CMP r/m32, imm32
         pb.addByte(0x81.toByte)
-        pb.addByte((0xC0 | (7 << 3) | reg.index).toByte)
+        pb.addByte((0xC0 | (7 << 3) | reg).toByte)
         pb.addInt(v)
     end match
 
     // 0F 94    SETE r/m8
     pb.addByte(0x0F)
     pb.addByte(setcc)
-    pb.addByte((0xC0 | reg.index).toByte)
+    pb.addByte((0xC0 | reg).toByte)
 
     // Clear the high bytes of the register is important as SETE only set the low byte.
     // 81 /4 id    AND r/m32, imm32
     pb.addByte(0x81.toByte)
-    pb.addByte((0xC0 | (4 << 3) | reg.index).toByte)
+    pb.addByte((0xC0 | (4 << 3) | reg).toByte)
     pb.addInt(0x000F)
 
-  def jzero(reg: Reg, label: Label)(using pb: PatchableBuffer) =
+  def jzero(reg: Byte, label: Label)(using pb: PatchableBuffer) =
     // TODO: Handle the pattern [Eq(o1, o2, r), JZero(r, l)] to generate one fewer instruction.
 
     // 81 /7 id   CMP r/m32, imm32
     pb.addByte(0x81.toByte)
-    pb.addByte((0xC0 | (7 << 3) | reg.index).toByte)
+    pb.addByte((0xC0 | (7 << 3) | reg).toByte)
     pb.addInt(0)
 
     val offset = pb.currentAddr()
@@ -772,7 +768,7 @@ object X86:
       bb.addInt(relativeAddr)
 
   /** Perform binary operation on the register with the given operand */
-  def binaryOperation(op: BiOp, reg: Reg, v: Operand)(using pb: PatchableBuffer) =
+  def binaryOperation(op: BiOp, reg: Byte, v: Operand)(using pb: PatchableBuffer) =
     op match
       case BiOp.Add => add(reg, v)
       case BiOp.Sub => sub(reg, v)
