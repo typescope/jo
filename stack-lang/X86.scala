@@ -49,13 +49,7 @@ object X86:
     * Special x86 instructions for performance optimization
     */
   sealed abstract class Extension
-  case class LoadRel(addr: Rel, destReg: Byte) extends Extension
-  case class StoreRel(value: Value, addr: Rel) extends Extension
   case object Syscall extends Extension
-
-
-  /** Relative address with offset */
-  case class Rel(baseReg: Byte, offset: Byte)
 
   class Lowerer(serviceInstall: PatchableBuffer ?=> Unit) extends Assembler:
     def lowerData(data: List[Data])(using pb: PatchableBuffer): Unit =
@@ -120,9 +114,6 @@ object X86:
 
   def lower(instr: Extension)(using pb: PatchableBuffer) =
     instr match
-      case LoadRel(rel, dest)  => load(rel, dest)
-      case StoreRel(rel, dest) => store(rel, dest)
-
       case Syscall =>
         pb.addBytes(0xcd.toByte, 0x80.toByte)
 
@@ -503,7 +494,7 @@ object X86:
           bb.addByte((0xB8 | reg.index).toByte)
           bb.addInt(loc)
 
-  def load(addr: Addr | Rel, destReg: Int)(using pb: PatchableBuffer) =
+  def load(addr: Addr, destReg: Int)(using pb: PatchableBuffer): Unit =
     addr match
       case Reg(r) =>
         // See Table 2-2. 32-Bit Addressing Forms with the ModR/M Byte in [1]
@@ -520,6 +511,9 @@ object X86:
         else
           pb.addByte(0x8B.toByte)
           pb.addByte(((destReg << 3) | r).toByte)
+
+      case Rel(r, 0) =>
+        load(Reg(r), destReg)
 
       case Rel(r, offset) =>
         // See Table 2-2. 32-Bit Addressing Forms with the ModR/M Byte in [1]
@@ -541,7 +535,7 @@ object X86:
           bb.addByte(((destReg << 3) | 5).toByte)
           bb.addInt(loc)
 
-  def store(v: Value, addr: Addr | Rel)(using pb: PatchableBuffer) =
+  def store(v: Value, addr: Addr)(using pb: PatchableBuffer): Unit =
     addr match
       case Reg(rd) =>
         v match
@@ -595,6 +589,9 @@ object X86:
             else
               pb.addByte(0x89.toByte)
               pb.addByte(((rv << 3) | rd).toByte)
+
+      case Rel(rd, 0) =>
+        store(v, Reg(rd))
 
       case Rel(rd, offset) =>
 
@@ -697,13 +694,18 @@ object X86:
               bb.addInt(loc)
 
 
-  def jump(addr: Addr)(using pb: PatchableBuffer) =
+  def jump(addr: Addr)(using pb: PatchableBuffer): Unit =
     addr match
       case Reg(r) =>
         // TODO: The instructin is invalid under 64-bit mode.
         // FF /4 JMP r/m32
         pb.addByte(0xFF.toByte)
         pb.addByte((0xC0 | (4 << 3) | r).toByte)
+
+      case Rel(r, offset) =>
+        if offset != 0 then
+          add(Reg(r), Int32(offset))
+        jump(Reg(r))
 
       case l: Label =>
         val currentAddr = pb.currentAddr()

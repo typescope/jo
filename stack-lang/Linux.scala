@@ -146,7 +146,7 @@ object Linux:
       pb.addByte(0xbb.toByte); pb.addInt(0x0a)       // mov    $0xa,%ebx
 
       // load argument
-      X86.load(X86.Rel(FP_REG, 8), X86.EAX)
+      X86.load(Rel(FP_REG, 8), X86.EAX)
 
       // add new line
       pb.addByte(0x49)                               // dec      %ecx
@@ -272,8 +272,8 @@ object Linux:
           i += 1
 
         // 7. restore FP
-        val fpAddr = X86.Rel(FP_REG, 4)
-        cb.add(Instr.Special(X86.LoadRel(fpAddr, FP_REG)))
+        val fpAddr = Rel(FP_REG, 4)
+        cb.add(Instr.Load(fpAddr, FP_REG))
 
     /** Pop the value on the top of the value stack to the given register.
       *
@@ -320,9 +320,9 @@ object Linux:
     def push(sym: Symbol): Unit =
       if sym.isParameter then
         val paramOffset = paramMap(sym)
-        val addr = X86.Rel(FP_REG, paramOffset)
+        val addr = Rel(FP_REG, paramOffset)
         useReg: r =>
-          cb.add(Instr.Special(X86.LoadRel(addr, r)))
+          cb.add(Instr.Load(addr, r))
           push(Reg(r))
 
       else
@@ -360,16 +360,16 @@ object Linux:
       * The index begins from 0.
       */
     def loadValue(destReg: Byte, index: Byte): Unit =
-      val addr = X86.Rel(SP_REG, (index * 4).toByte)
-      cb.add(Instr.Special(X86.LoadRel(addr, destReg)))
+      val addr = Rel(SP_REG, (index * 4).toByte)
+      cb.add(Instr.Load(addr, destReg))
 
     /** Store a value to value stack relative to the stack pointer.
       *
       * The index begins from 0.
       */
     def storeValue(value: Value, index: Byte): Unit =
-      val addr = X86.Rel(SP_REG, (index * 4).toByte)
-      cb.add(Instr.Special(X86.StoreRel(value, addr)))
+      val addr = Rel(SP_REG, (index * 4).toByte)
+      cb.add(Instr.Store(value, addr))
 
     def int2(fn: (Byte, Byte, Byte) => Instr) =
       // TODO: check type of value
