@@ -44,11 +44,8 @@ object Linux:
     val heapStartLabel = Label("_heapStart")
     val printService = Label("_print")
 
-    // maps global symbols to labels
-    val symbolMap: mutable.Map[Symbol, Label] = mutable.Map.empty
-
-    // maps parameters to offset to FP_REG
-    val paramMap: mutable.Map[Symbol, Byte] = mutable.Map.empty
+    // maps symbols to addresses
+    val symbolAddrMap: mutable.Map[Symbol, Addr] = mutable.Map.empty
 
     val entry = Label("_entry")
     val regAlloc = new RegisterAllocator(freeRegisters)
@@ -74,7 +71,7 @@ object Linux:
     def declare(sym: Symbol): Unit =
       assert(!sym.isPrimitive, "Unexpected primitive symbol " + sym)
       val label = Label(sym.name)
-      symbolMap(sym) = label
+      symbolAddrMap(sym) = label
       if sym.isValue then
         cb.add(Data.Uninit(label, Type.Int32))
 
@@ -83,17 +80,21 @@ object Linux:
       * Calling the passed function will compile the body of the function.
       */
     def function(fdef: Def.FunDef, compile: Compiler): Unit =
-      val label = symbolMap(fdef.symbol).asInstanceOf[Label]
+      val sym = fdef.symbol
+      val label = symbolAddrMap(sym).asInstanceOf[Label]
       val paramCount = fdef.params.size
       cb.mark(label)
 
-      // bind param offset to FP_REG
+      assert(paramCount < 31, s"At most 30 parameters, $sym has " + paramCount)
+
+      // bind param address relative to FP_REG
       for (param, index) <- fdef.params.zipWithIndex do
-        paramMap(param) = ((paramCount + 1 - index) * 4).toByte
+        symbolAddrMap(param) = Rel(FP_REG, ((paramCount + 1 - index) * 4).toByte)
 
       compile(fdef.words)
 
-      paramMap.clear
+      for param <- fdef.params do
+        symbolAddrMap -= param
 
       ret()
 
@@ -214,7 +215,7 @@ object Linux:
       * Call stack goes from high address to low address.
       */
     def call(fun: Symbol) =
-      val label = symbolMap(fun)
+      val label = symbolAddrMap(fun).asInstanceOf[Label]
       val info = fun.info
       call(label, info.paramCount, info.resCount)
 
@@ -304,7 +305,7 @@ object Linux:
       * Calling the passed function will compile the initializer.
       */
     def initVal(vdef: Def.ValDef, compile: Compiler): Unit =
-      val label = symbolMap(vdef.symbol)
+      val label = symbolAddrMap(vdef.symbol).asInstanceOf[Label]
       compile(vdef.words)
       useReg: r =>
         pop(r)
@@ -318,18 +319,10 @@ object Linux:
 
     /** Push the value associated with the given symbol to value stack */
     def push(sym: Symbol): Unit =
-      if sym.isParameter then
-        val paramOffset = paramMap(sym)
-        val addr = Rel(FP_REG, paramOffset)
-        useReg: r =>
-          cb.add(Instr.Load(addr, r))
-          push(Reg(r))
-
-      else
-        val label = symbolMap(sym)
-        useReg: r =>
-          cb.add(Instr.Load(label, r))
-          push(Reg(r))
+      val addr = symbolAddrMap(sym)
+      useReg: r =>
+        cb.add(Instr.Load(addr, r))
+        push(Reg(r))
 
     def primitive(sym: Symbol): Unit =
       sym match
