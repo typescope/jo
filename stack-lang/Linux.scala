@@ -89,7 +89,8 @@ object Linux:
 
       // bind param address relative to FP_REG
       for (param, index) <- fdef.params.zipWithIndex do
-        symbolAddrMap(param) = Rel(FP_REG, ((paramCount + 1 - index) * 4).toByte)
+        val offset = ((paramCount + 1 - index) * 4).toByte
+        symbolAddrMap(param) = Rel(FP_REG, offset)
 
       compile(fdef.words)
 
