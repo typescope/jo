@@ -3,6 +3,7 @@
 //> using file Namer.scala
 //> using file Checker.scala
 //> using file Parser.scala
+//> using file Reporter.scala
 //> using file Assembly.scala
 //> using file Platform.scala
 //> using file IO.scala
@@ -65,6 +66,8 @@ object Compiler:
  *
  ***********************************************************************/
 
+import Reporter.*
+
 @main
 def run(args: String*) =
   val optionSpec = Map(
@@ -87,7 +90,7 @@ def run(args: String*) =
 
   val layout = options.getOrElse("-layout", "c1")
 
-  val platform: Platform =
+  given Platform =
     options.get("-p") match
       case Some(pf) =>
         if pf == "linux-x86" then
@@ -102,6 +105,10 @@ def run(args: String*) =
       case None =>
         Linux.createX86Platform(outFile, layout)
 
-  val ast = Parsing.parse(IO.fileContent(sourceFile))
-  val sast = Namer.transform(ast)
-  Compiler.compile(sast)(using platform)
+  Reporter.monitor: reporter =>
+    given Reporter = reporter.withSource(sourceFile)
+
+    IO.fileContent(sourceFile)    |>
+    Parsing.parse                 |>
+    Namer.transform               |>
+    Compiler.compile

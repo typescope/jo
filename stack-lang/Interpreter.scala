@@ -14,6 +14,7 @@
 //> using file Checker.scala
 //> using file Parser.scala
 //> using file IO.scala
+//> using file Reporter.scala
 
 import scala.collection.mutable
 
@@ -198,8 +199,13 @@ object Interpreter:
  * Main entry point
  *
  ***********************************************************************/
+
+import Reporter.*
+
 @main
-def run(file: String) =
-  val ast = Parsing.parse(IO.fileContent(file))
-  val sast = Namer.transform(ast)
-  Interpreter.exec(sast)
+def run(file: String) = Reporter.monitor: reporter =>
+  given Reporter = reporter.withSource(file)
+  IO.fileContent(file)    |>
+  Parsing.parse           |>
+  Namer.transform         |>
+  Interpreter.exec
