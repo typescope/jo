@@ -23,11 +23,16 @@ object Parsing:
     case BoolLit(value: Boolean)
     case Ident(name: String)
 
+    def withSpan(span: Span): (Token, Span) = (this, span)
+
   def parse(code: String)(using Reporter): Prog =
     new StackLangParser(code).parse()
 
-  trait Scanner { def next(): Token     }
-  trait Parser  { def parse(): Prog }
+  trait Scanner:
+    def next(): (Token, Span)
+
+  trait Parser:
+    def parse(): Prog
 
   object Scanner:
     def isNameStart(c: Char): Boolean =
@@ -103,7 +108,9 @@ object Parsing:
 
     def this(code: String)(using Reporter) = this(new CharStream(code))
 
-    def next(): Token =
+    def next(): (Token, Span) = nextToken().withSpan(stream.tokenSpan())
+
+    def nextToken(): Token =
       if !stream.hasMore() then return Token.EOF
 
       // mark the start of a new token
@@ -122,7 +129,7 @@ object Parsing:
         case '/'    =>
           if stream.curChar() == '/' then
             stream.eatLine()
-            next()
+            nextToken()
           else
             operator()
 
@@ -130,7 +137,7 @@ object Parsing:
           if      isDigit(c)      then intLit()
           else if isNameStart(c)  then name()
           else if isOperator(c)   then operator()
-          else if isSpace(c)      then next()
+          else if isSpace(c)      then nextToken()
           else
             abort("Unexpected character: " + c, stream.tokenSpan())
 
@@ -192,7 +199,7 @@ object Parsing:
      * A scanner that supports peeking one token ahead.
      */
   class LookAheadScanner(scanner: Scanner) extends Scanner:
-    var peekedToken: Option[Token] = None
+    var peekedToken: Option[(Token, Span)] = None
     def next() =
       peekedToken match
         case None =>
@@ -216,9 +223,9 @@ object Parsing:
     def next() = scanner.next()
     def peek() = scanner.peek()
     def eat(expect: Token): Unit =
-      val actual = next()
+      val (actual, span) = next()
       if actual != expect then
-        abortInternal("Unexpected token, found = " + actual + ", expect = " + expect)
+        abort("Unexpected token, found = " + actual + ", expect = " + expect, span)
 
     def parse(): Prog = prog()
 
@@ -229,10 +236,11 @@ object Parsing:
       Prog(defs, words)
 
     def definitions(acc: mutable.ArrayBuffer[Def]): List[Def] =
-      peek() match
-      case Token.VAL => definitions(acc += valDef())
-      case Token.FUN => definitions(acc += funDef())
-      case _         => acc.toList
+      val (token, span) = peek()
+      token match
+        case Token.VAL => definitions(acc += valDef())
+        case Token.FUN => definitions(acc += funDef())
+        case _         => acc.toList
 
     def valDef(): Def =
       eat(Token.VAL)
@@ -267,7 +275,8 @@ object Parsing:
       word() match
         case Some(w) => phraseRest(mutable.ArrayBuffer(w))
         case None    =>
-          abortInternal("Expect a word, found token " + peek())
+          val (token, span) = peek()
+          abort("Expect a word, found token " + token, span)
 
     def phraseRest(words: mutable.ArrayBuffer[Word]): List[Word] =
       word() match
@@ -275,7 +284,8 @@ object Parsing:
         case None    => words.toList
 
     def word(): Option[Word] =
-      peek() match
+      val (token, span) = peek()
+      token match
         case _: Token.Ident  => Some(ident())
         case Token.LPAREN    => Some(fence())
         case Token.IF        => Some(ifword())
@@ -292,9 +302,10 @@ object Parsing:
           None
 
     def ident(): Word.Ident =
-      next() match
+      val (token, span) = next()
+      token match
         case id: Token.Ident => new Word.Ident(id.name)
-        case token => abortInternal("Expect identifier, found token " + token)
+        case token => abort("Expect identifier, found token " + token, span)
 
     def fence(): Word =
       eat(Token.LPAREN)
