@@ -34,7 +34,7 @@ object Reporter:
   extension [T](v: T)
     inline def |> [U](inline fn: T => U)(using rp: Reporter): U =
       if rp.hasErrors then
-        throw FatalError.StopAfterPhase(rp.errorsCount + " error(s) found")
+        throw FatalError.StopAfterPhase(s"${rp.errorsCount} error(s) found")
       else
         fn(v)
   end extension
