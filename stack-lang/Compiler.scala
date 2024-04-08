@@ -110,5 +110,5 @@ def run(args: String*) =
 
     IO.fileContent(sourceFile)    |>
     Parsing.parse                 |>
-    Namer.transform               |>
+    new Namer().transform         |>
     Compiler.compile

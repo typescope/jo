@@ -22,6 +22,8 @@ class Reporter(source: Source, state: State):
 
   def hasErrors: Boolean = state.errors.nonEmpty
 
+  def errorsCount = state.errors.size
+
   def report(): Unit =
     for error <- state.errors do
       println(error.message)
@@ -32,7 +34,7 @@ object Reporter:
   extension [T](v: T)
     inline def |> [U](inline fn: T => U)(using rp: Reporter): U =
       if rp.hasErrors then
-        throw FatalError.StopAfterPhase("Errors found")
+        throw FatalError.StopAfterPhase(rp.errorsCount + " error(s) found")
       else
         fn(v)
   end extension
@@ -49,12 +51,12 @@ object Reporter:
 
     def hasPosition: Boolean = span `ne` NoSpan
 
-    def withPosition(span: Span): this.type =
+    def withPos(span: Span): this.type =
       assert(!hasPosition, "Position already set")
       this.span = span
       this
 
-    def position: Span = span
+    def pos: Span = span
 
   /** The start and end of a token relative to the beginning of some file  */
   case class Span(start: Int, length: Int):
@@ -86,12 +88,13 @@ object Reporter:
       var to = lineOffsets.size - 1
 
       while from != to do
-        val mid = (to + 1) / 2
+        val mid = (to + from) / 2
         if lineOffsets(mid) == offset then
           from = mid
           to = mid
         else if lineOffsets(mid) < offset then
           from = mid
+          if lineOffsets(to) > offset then to -= 1
         else
           to = mid
 
@@ -128,6 +131,9 @@ object Reporter:
         println("[error] " + error.content)
       case error: FatalError.InternalError =>
         println("[error] " + error.message)
+      case error: FatalError.StopAfterPhase =>
+        println("[error] " + error.message)
+        for error <- state.errors do println(error)
 
   def withSource(file: String)(using state: State) =
     state.sources.get(file) match

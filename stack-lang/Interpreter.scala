@@ -207,5 +207,5 @@ def run(file: String) = Reporter.monitor:
   given Reporter = Reporter.withSource(file)
   IO.fileContent(file)    |>
   Parsing.parse           |>
-  Namer.transform         |>
+  new Namer().transform   |>
   Interpreter.exec
