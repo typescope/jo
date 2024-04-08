@@ -49,7 +49,7 @@ object Parsing:
     def isLetter(c: Char): Boolean =
       c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
 
-  class CharStream(code: String):
+  class CharStream(code: String)(using reporter: Reporter):
     private val LEN = code.length
     private var index: Int = 0
 
@@ -61,6 +61,7 @@ object Parsing:
     def eat(): Char =
       val c = curChar()
       index += 1
+      if c == '\n' then reporter.addLineOffset(index)
       c
 
     def eatWhile(pred: Char => Boolean): Unit =

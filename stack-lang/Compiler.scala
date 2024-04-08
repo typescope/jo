@@ -105,8 +105,8 @@ def run(args: String*) =
       case None =>
         Linux.createX86Platform(outFile, layout)
 
-  Reporter.monitor: reporter =>
-    given Reporter = reporter.withSource(sourceFile)
+  Reporter.monitor:
+    given Reporter = Reporter.withSource(sourceFile)
 
     IO.fileContent(sourceFile)    |>
     Parsing.parse                 |>

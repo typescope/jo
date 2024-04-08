@@ -203,8 +203,8 @@ object Interpreter:
 import Reporter.*
 
 @main
-def run(file: String) = Reporter.monitor: reporter =>
-  given Reporter = reporter.withSource(file)
+def run(file: String) = Reporter.monitor:
+  given Reporter = Reporter.withSource(file)
   IO.fileContent(file)    |>
   Parsing.parse           |>
   Namer.transform         |>

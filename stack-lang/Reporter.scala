@@ -3,29 +3,32 @@ import scala.collection.mutable
 import Reporter.*
 
 /**
- * Deals with error reporting
+  * Deals with error reporting
   */
-class Reporter(source: String, buf: mutable.ArrayBuffer[Error]):
-  def this(source: String) = this(source, new mutable.ArrayBuffer)
+class Reporter(source: Source, state: State):
+  export source.addLineOffset
 
-  def withSource(source: String): Reporter = new Reporter(source, this.buf)
+  def withSource(file: String): Reporter =
+    Reporter.withSource(file)(using state)
 
   def abort(message: String, span: Span): Nothing =
     val sourcePos = new SourcePosition(source, span.start, span.length)
-    throw new FatalError.CodeError(message, sourcePos)
+    val error = new Error(message, sourcePos)
+    throw new FatalError.CodeError(error)
 
   def error(message: String, span: Span): Unit =
     val sourcePos = new SourcePosition(source, span.start, span.length)
-    buf += new Error(message, sourcePos)
+    state.errors += new Error(message, sourcePos)
 
-  def hasErrors: Boolean = buf.nonEmpty
+  def hasErrors: Boolean = state.errors.nonEmpty
 
   def report(): Unit =
-    for error <- buf do
+    for error <- state.errors do
       println(error.message)
       println
 
 object Reporter:
+  // TODO: change fn to phase: Phase[T, U] <: T => U to get phase name
   extension [T](v: T)
     inline def |> [U](inline fn: T => U)(using rp: Reporter): U =
       if rp.hasErrors then
@@ -34,29 +37,81 @@ object Reporter:
         fn(v)
   end extension
 
+  /** Shared state of reporters */
+  class State(
+    private[Reporter] val errors: mutable.ArrayBuffer[Error],
+    private[Reporter] val sources: mutable.Map[String, Source]):
+
+    def this() = this(mutable.ArrayBuffer.empty, mutable.Map.empty)
+
   /** The start and end of a token relative to the beginning of some file  */
   case class Span(start: Int, length: Int)
 
+  case class LineColumn(line: Int, column: Int)
+
+  /** A source file */
+  class Source(val file: String, lineOffsets: mutable.ArrayBuffer[Int]):
+    def this(file: String) = this(file, mutable.ArrayBuffer(0))
+
+    def addLineOffset(offset: Int): Unit =
+      lineOffsets += offset
+
+    def offsetToLineColumn(offset: Int): LineColumn =
+      var from = 0
+      var to = lineOffsets.size - 1
+
+      while from != to do
+        val mid = (to + 1) / 2
+        if lineOffsets(mid) == offset then
+          from = mid
+          to = mid
+        else if lineOffsets(mid) < offset then
+          from = mid
+        else
+          to = mid
+
+      LineColumn(from, lineOffsets(from) - offset)
+
   /** A position in a source file */
-  case class SourcePosition(source: String, start: Int, length: Int)
+  case class SourcePosition(source: Source, start: Int, length: Int):
+    lazy val startPos = source.offsetToLineColumn(start)
+    lazy val endPos = source.offsetToLineColumn(start + length)
+    def startLine: Int = startPos.line
+    def endLine: Int = endPos.line
+    def startLineColumn: Int = startPos.column
+    def endLineColumn: Int = endPos.column
+
+    override def toString() =
+      source.file + ":" + startLine + ":" + startLineColumn
 
   /** An non-fatal error that does not abort the compilation */
-  case class Error(message: String, pos: SourcePosition)
+  case class Error(message: String, pos: SourcePosition):
+    override def toString() = message + " at " + pos
 
   /** A fatal error that aborts the compilation */
   enum FatalError extends Exception:
-    val message: String
-    case CodeError(message: String, pos: SourcePosition)
+    case CodeError(content: Error)
     case InternalError(message: String)
     case StopAfterPhase(message: String)
 
-  def monitor(fn: Reporter => Unit): Unit =
-    val reporter = new Reporter("<no source>")
+  def monitor(fn: State ?=> Unit): Unit =
+    val state = new State()
     try
-      fn(reporter)
+      fn(using state)
     catch
-      case error: FatalError =>
-        println("Error: " + error.message)
+      case error: FatalError.CodeError =>
+        println("[error] " + error.content)
+      case error: FatalError.InternalError =>
+        println("[error] " + error.message)
+
+  def withSource(file: String)(using state: State) =
+    state.sources.get(file) match
+      case Some(source) => new Reporter(source, state)
+      case None =>
+        val source = new Source(file)
+        state.sources(file) = source
+        new Reporter(source, state)
+
 
   def abort(message: String, span: Span)(using rp: Reporter): Nothing =
     rp.abort(message, span)
