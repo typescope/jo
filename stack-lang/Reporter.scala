@@ -44,8 +44,33 @@ object Reporter:
 
     def this() = this(mutable.ArrayBuffer.empty, mutable.Map.empty)
 
+  trait Positioned:
+    private var span: Span = NoSpan
+
+    def hasPosition: Boolean = span `ne` NoSpan
+
+    def withPosition(span: Span): this.type =
+      assert(!hasPosition, "Position already set")
+      this.span = span
+      this
+
+    def position: Span = span
+
   /** The start and end of a token relative to the beginning of some file  */
-  case class Span(start: Int, length: Int)
+  case class Span(start: Int, length: Int):
+    def |(that: Span): Span =
+      if this `eq` NoSpan then that
+      else if that `eq` NoSpan then this
+      else
+        val start3 =
+          if this.start > that.start then that.start
+          else this.start
+        val end1 = this.start + this.length
+        val end2 = that.start + that.length
+        val end3 = if end1 > end2 then end1 else end2
+        Span(start3, end3 - start3)
+
+  object NoSpan extends Span(-1, -1)
 
   case class LineColumn(line: Int, column: Int)
 

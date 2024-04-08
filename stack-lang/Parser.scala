@@ -222,10 +222,11 @@ object Parsing:
 
     def next() = scanner.next()
     def peek() = scanner.peek()
-    def eat(expect: Token): Unit =
+    def eat(expect: Token): Span =
       val (actual, span) = next()
       if actual != expect then
         abort("Unexpected token, found = " + actual + ", expect = " + expect, span)
+      span
 
     def parse(): Prog = prog()
 
@@ -243,23 +244,23 @@ object Parsing:
         case _         => acc.toList
 
     def valDef(): Def =
-      eat(Token.VAL)
+      val span1 = eat(Token.VAL)
       val id = ident()
       eat(Token.EQL)
       val words = phrase()
-      eat(Token.SEMICOL)
-      Def.ValDef(id, words)
+      val span2 = eat(Token.SEMICOL)
+      Def.ValDef(id, words).withPosition(span1 | span2)
 
     def funDef(): Def =
-      eat(Token.FUN)
+      val span1 = eat(Token.FUN)
       val id = ident()
       eat(Token.LPAREN)
       val paramList = params()
       eat(Token.RPAREN)
       eat(Token.EQL)
       val words = phrase()
-      eat(Token.SEMICOL)
-      Def.FunDef(id, paramList, words)
+      val span2 = eat(Token.SEMICOL)
+      Def.FunDef(id, paramList, words).withPosition(span1 | span2)
 
     def params(): List[Word.Ident] =
       if peek() == Token.RPAREN then Nil
@@ -292,11 +293,11 @@ object Parsing:
 
         case litToken: Token.IntLit  =>
           next()
-          Some(Word.IntLit(litToken.value))
+          Some(Word.IntLit(litToken.value).withPosition(span))
 
         case litToken: Token.BoolLit =>
           next()
-          Some(Word.BoolLit(litToken.value))
+          Some(Word.BoolLit(litToken.value).withPosition(span))
 
         case token =>
           None
@@ -304,17 +305,17 @@ object Parsing:
     def ident(): Word.Ident =
       val (token, span) = next()
       token match
-        case id: Token.Ident => new Word.Ident(id.name)
+        case id: Token.Ident => new Word.Ident(id.name).withPosition(span)
         case token => abort("Expect identifier, found token " + token, span)
 
     def fence(): Word =
-      eat(Token.LPAREN)
+      val span1 = eat(Token.LPAREN)
       val words = phrase()
-      eat(Token.RPAREN)
-      Word.Fence(words)
+      val span2 = eat(Token.RPAREN)
+      Word.Fence(words).withPosition(span1 | span2)
 
     def ifword(): Word =
-      eat(Token.IF)
+      val span1 = eat(Token.IF)
       val cond = phrase()
       eat(Token.THEN)
       val thenp = phrase()
@@ -325,5 +326,5 @@ object Parsing:
           phrase()
         else
           Nil
-      eat(Token.END)
-      Word.If(cond, thenp, elsep)
+      val span2 = eat(Token.END)
+      Word.If(cond, thenp, elsep).withPosition(span1 | span2)
