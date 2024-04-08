@@ -263,11 +263,13 @@ object Parsing:
       Def.FunDef(id, paramList, words).withPos(span1 | span2)
 
     def params(): List[Word.Ident] =
-      if peek() == Token.RPAREN then Nil
+      val (token, _) = peek()
+      if token == Token.RPAREN then Nil
       else paramsRest(mutable.ArrayBuffer(ident()))
 
     def paramsRest(acc: mutable.ArrayBuffer[Word.Ident]): List[Word.Ident] =
-      if peek() == Token.RPAREN then acc.toList
+      val (token, _) = peek()
+      if token == Token.RPAREN then acc.toList
       else
         eat(Token.COMMA)
         paramsRest(acc += ident())
@@ -320,8 +322,9 @@ object Parsing:
       eat(Token.THEN)
       val thenp = phrase()
       // else is optional
+      val (token, _) = peek()
       val elsep =
-        if peek() == Token.ELSE then
+        if token == Token.ELSE then
           eat(Token.ELSE)
           phrase()
         else

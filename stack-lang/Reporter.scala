@@ -49,10 +49,10 @@ object Reporter:
   trait Positioned:
     private var span: Span = NoSpan
 
-    def hasPosition: Boolean = span `ne` NoSpan
+    def hasPos: Boolean = span `ne` NoSpan
 
     def withPos(span: Span): this.type =
-      assert(!hasPosition, "Position already set")
+      assert(!hasPos, "Position already set")
       this.span = span
       this
 
@@ -89,12 +89,16 @@ object Reporter:
 
       while from != to do
         val mid = (to + from) / 2
-        if lineOffsets(mid) == offset then
+        // println(s"loop: from = $from, to = $to, mid = $mid")
+        if mid == from then
+          // only possible when `to + 1 == from`
+          if lineOffsets(to) >= offset then from = to
+          else to = from
+        else if lineOffsets(mid) == offset then
           from = mid
           to = mid
         else if lineOffsets(mid) < offset then
           from = mid
-          if lineOffsets(to) > offset then to -= 1
         else
           to = mid
 
