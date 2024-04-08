@@ -70,7 +70,7 @@ object Reporter:
         else
           to = mid
 
-      LineColumn(from, lineOffsets(from) - offset)
+      LineColumn(from, offset - lineOffsets(from))
 
   /** A position in a source file */
   case class SourcePosition(source: Source, start: Int, length: Int):
@@ -82,7 +82,7 @@ object Reporter:
     def endLineColumn: Int = endPos.column
 
     override def toString() =
-      source.file + ":" + startLine + ":" + startLineColumn
+      source.file + ":" + (startLine + 1) + ":" + (startLineColumn + 1)
 
   /** An non-fatal error that does not abort the compilation */
   case class Error(message: String, pos: SourcePosition):
