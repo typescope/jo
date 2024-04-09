@@ -8,10 +8,10 @@ COMPILER=$DIR/Compiler.scala
 # compile
 echo "Compiling $INTERPRETER"
 scala-cli compile $INTERPRETER
-scala-cli --power package --native $INTERPRETER -o stki
+scala-cli --power package -f --native $INTERPRETER -o stki
 
 echo "Compiling $COMPILER"
-scala-cli --power package --native $COMPILER -o stkc
+scala-cli --power package -f --native $COMPILER -o stkc
 
 # run tests
 RES1=$DIR/tests/int.txt

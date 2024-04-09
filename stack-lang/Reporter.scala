@@ -18,7 +18,7 @@ class Reporter(source: Source, state: State):
 
   def error(message: String, span: Span): Unit =
     val sourcePos = new SourcePosition(source, span.start, span.length)
-    state.errors += new Error(message, sourcePos)
+    state.addError(new Error(message, sourcePos))
 
   def hasErrors: Boolean = state.errors.nonEmpty
 
@@ -41,10 +41,14 @@ object Reporter:
 
   /** Shared state of reporters */
   class State(
-    private[Reporter] val errors: mutable.ArrayBuffer[Error],
+    errorBuffer: mutable.ArrayBuffer[Error],
     private[Reporter] val sources: mutable.Map[String, Source]):
 
     def this() = this(mutable.ArrayBuffer.empty, mutable.Map.empty)
+
+    def errors: List[Error] = errorBuffer.toList
+
+    def addError(error: Error)  = errorBuffer += error
 
   trait Positioned:
     private var span: Span = NoSpan
