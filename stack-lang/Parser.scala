@@ -67,6 +67,7 @@ object Parsing:
       val c = curChar()
       index += 1
       if c == '\n' then reporter.addLineOffset(index)
+      else if !hasMore() then reporter.addLineOffset(index)
       c
 
     def eatWhile(pred: Char => Boolean): Unit =

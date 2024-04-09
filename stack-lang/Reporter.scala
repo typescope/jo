@@ -76,7 +76,11 @@ object Reporter:
 
   case class LineColumn(line: Int, column: Int)
 
-  /** A source file */
+  /** A source file
+    *
+    * The lineOffsets contains one more entry for EOF if it does not end with
+    * a new line.
+    */
   class Source(val file: String, lineOffsets: mutable.ArrayBuffer[Int]):
     def this(file: String) = this(file, mutable.ArrayBuffer(0))
 
@@ -85,15 +89,15 @@ object Reporter:
 
     def offsetToLineColumn(offset: Int): LineColumn =
       var from = 0
-      var to = lineOffsets.size - 1
+      var to = lineOffsets.size - 2 // ignore the last entry
 
       while from != to do
         val mid = (to + from) / 2
         // println(s"loop: from = $from, to = $to, mid = $mid")
         if mid == from then
           // only possible when `to + 1 == from`
-          if lineOffsets(to) >= offset then from = to
-          else to = from
+          if lineOffsets(to) > offset then to = from
+          else from = to
         else if lineOffsets(mid) == offset then
           from = mid
           to = mid
@@ -102,23 +106,47 @@ object Reporter:
         else
           to = mid
 
+      assert(offset >= lineOffsets(from))
+
       LineColumn(from, offset - lineOffsets(from))
+
+    def lineLength(line: Int) =
+      assert(line < lineOffsets.size - 1)  // ignore the last entry
+      lineOffsets(line + 1) - lineOffsets(line)
+
+    def readLine(line: Int): String =
+      val jfile = new java.io.RandomAccessFile(file, "r")
+      val bytes = new Array[Byte](lineLength(line))
+      jfile.seek(lineOffsets(line))
+      jfile.read(bytes)
+      jfile.close()
+      new String(bytes)
 
   /** A position in a source file */
   case class SourcePosition(source: Source, start: Int, length: Int):
     lazy val startPos = source.offsetToLineColumn(start)
     lazy val endPos = source.offsetToLineColumn(start + length)
+
     def startLine: Int = startPos.line
     def endLine: Int = endPos.line
     def startLineColumn: Int = startPos.column
     def endLineColumn: Int = endPos.column
+    def isOneLine: Boolean = startLine == endLine
 
     override def toString() =
       source.file + ":" + (startLine + 1) + ":" + (startLineColumn + 1)
 
   /** An non-fatal error that does not abort the compilation */
   case class Error(message: String, pos: SourcePosition):
-    override def toString() = message + " at " + pos
+    override def toString() =
+      val isOneLine = pos.isOneLine
+      val lineContent = pos.source.readLine(pos.startLine).trim
+      val padding = " " * pos.startLineColumn
+      val pointer = if isOneLine then "^" * pos.length else "^"
+      s"""|---------- Error at $pos ---------------
+          || $lineContent
+          || $padding$pointer
+          || $padding$message""".stripMargin
 
   /** A fatal error that aborts the compilation */
   enum FatalError extends Exception:
@@ -136,8 +164,10 @@ object Reporter:
       case error: FatalError.InternalError =>
         println("[error] " + error.message)
       case error: FatalError.StopAfterPhase =>
-        println("[error] " + error.message)
-        for error <- state.errors do println(error)
+        for error <- state.errors do
+          println(error)
+          println
+        println(error.message)
 
   def withSource(file: String)(using state: State) =
     state.sources.get(file) match
