@@ -8,9 +8,10 @@ COMPILER=$DIR/Compiler.scala
 # compile
 echo "Compiling $INTERPRETER"
 scala-cli compile $INTERPRETER
+scala-cli --power package --native $INTERPRETER -o stki
 
 echo "Compiling $COMPILER"
-scala-cli compile $COMPILER
+scala-cli --power package --native $COMPILER -o stkc
 
 # run tests
 RES1=$DIR/tests/int.txt
@@ -32,30 +33,30 @@ for file in $DIR/tests/*.stk; do
     echo "testing $file"
     exe=${file%.*}.run
     js=${file%.*}.js
-    scala-cli $INTERPRETER -- $file > $RES1
+    ./stki $file > $RES1
 
     # # layout 1
-    scala-cli $COMPILER -- $file -o $exe -p linux-x86 -layout c1
+    ./stkc $file -o $exe -p linux-x86 -layout c1
     $exe > $RES2
     check $RES1 $RES2
 
     # layout 2
-    scala-cli $COMPILER -- $file -o $exe -p linux-x86 -layout c2
+    ./stkc $file -o $exe -p linux-x86 -layout c2
     $exe > $RES2
     check $RES1 $RES2
 
     # layout 3
-    scala-cli $COMPILER -- $file -o $exe -p linux-x86 -layout c3
+    ./stkc $file -o $exe -p linux-x86 -layout c3
     $exe > $RES2
     check $RES1 $RES2
 
     # JavaScript
-    scala-cli $COMPILER -- $file -o $js -p js
+    ./stkc $file -o $js -p js
     node $js > $RES3
     check $RES1 $RES3
 
     # JavaScript optimized
-    scala-cli $COMPILER -- $file -o $js -p js-opt
+    ./stkc $file -o $js -p js-opt
     node $js > $RES3
     check $RES1 $RES3
 done
