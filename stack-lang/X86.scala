@@ -13,7 +13,7 @@
 import scala.collection.mutable
 
 import Assembly.*
-import IO.{ ByteBuffer, Patch, PatchableBuffer, withPatch }
+import Assembler.{ Patch, PatchableBuffer, withPatch }
 
 /**
   * Translate assembly code to x86 machine code.

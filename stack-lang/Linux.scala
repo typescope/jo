@@ -10,7 +10,7 @@
 import scala.collection.mutable
 
 import Assembly.*
-import IO.{ ByteBuffer, Patch, PatchableBuffer }
+import Assembler.{ Patch, PatchableBuffer }
 import Sast.*
 
 object Linux:

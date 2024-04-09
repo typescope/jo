@@ -13,10 +13,13 @@
 //> using file Namer.scala
 //> using file Checker.scala
 //> using file Parser.scala
+//> using file IO.scala
 
 import scala.collection.mutable
 
 import Sast.*
+
+def err(msg: String) = throw new Exception(msg)
 
 /***********************************************************************
  *
@@ -192,24 +195,11 @@ object Interpreter:
 
 /***********************************************************************
  *
- * Utilities
- *
- ***********************************************************************/
-
-def err(msg: String) = throw new Exception(msg)
-
-def fileContent(name: String): String =
-  val path = java.nio.file.Path.of(name)
-  val bytes = java.nio.file.Files.readAllBytes(path)
-  new String(bytes)
-
-/***********************************************************************
- *
  * Main entry point
  *
  ***********************************************************************/
 @main
 def run(file: String) =
-  val ast = Parsing.parse(fileContent(file))
+  val ast = Parsing.parse(IO.fileContent(file))
   val sast = Namer.transform(ast)
   Interpreter.exec(sast)

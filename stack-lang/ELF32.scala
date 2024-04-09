@@ -11,7 +11,8 @@
 
 import scala.collection.mutable
 
-import IO.{ ByteBuffer, PatchableBuffer }
+import Assembler.PatchableBuffer
+import IO.ByteBuffer
 
 import ELF32.*
 
