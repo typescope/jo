@@ -106,3 +106,5 @@ def run() =
     println("Failed tests:")
     for file <- failed  do
       println("- " + file)
+
+    System.exit(1)

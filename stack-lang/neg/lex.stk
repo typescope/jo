@@ -1,0 +1,4 @@
+val a = 0 1 +
+val b = 5 4 9 23 - + *;   // error
+val c = b a .             // error
+3 p                       // error // error

@@ -15,5 +15,7 @@ jobs:
       - uses: coursier/cache-action@v6
       - uses: VirtusLab/scala-cli-setup@main
       - uses: actions/setup-node@v4
-      - name: run tests
+      - name: run pos tests
         run: stack-lang/ci
+      - name: run neg tests
+        run: scala-cli stack-lang/Test.scala

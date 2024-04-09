@@ -140,7 +140,8 @@ object Parsing:
           else if isOperator(c)   then operator()
           else if isSpace(c)      then nextToken()
           else
-            abort("Unexpected character: " + c, stream.tokenSpan())
+            error("Unexpected character: " + c, stream.tokenSpan())
+            nextToken()
 
     def name(): Token =
       stream.eatWhile(isNameRest)
@@ -191,7 +192,7 @@ object Parsing:
       end while
 
       if overflow then
-        abort("Integer literal overflow: " + str, stream.tokenSpan())
+        error("Integer literal overflow: " + str, stream.tokenSpan())
 
       sum
     end str2Int
@@ -224,12 +225,18 @@ object Parsing:
     def next() = scanner.next()
     def peek() = scanner.peek()
     def eat(expect: Token): Span =
-      val (actual, span) = next()
+      val (actual, span) = peek()
       if actual != expect then
-        abort("Unexpected token, found = " + actual + ", expect = " + expect, span)
+        error("Unexpected token, found = " + actual + ", expect = " + expect, span)
+      else
+        next()
       span
 
-    def parse(): Prog = prog()
+    def parse(): Prog =
+      val p = prog()
+      // With parsing errors, ensure finish scanning
+      while peek()._1 != Token.EOF do next()
+      p
 
     def prog(): Prog =
       val defs = definitions(new mutable.ArrayBuffer)
@@ -280,7 +287,8 @@ object Parsing:
         case Some(w) => phraseRest(mutable.ArrayBuffer(w))
         case None    =>
           val (token, span) = peek()
-          abort("Expect a word, found token " + token, span)
+          error("Expect a word, found token " + token, span)
+          Nil
 
     def phraseRest(words: mutable.ArrayBuffer[Word]): List[Word] =
       word() match
@@ -308,8 +316,12 @@ object Parsing:
     def ident(): Word.Ident =
       val (token, span) = next()
       token match
-        case id: Token.Ident => new Word.Ident(id.name).withPos(span)
-        case token => abort("Expect identifier, found token " + token, span)
+        case id: Token.Ident =>
+          new Word.Ident(id.name).withPos(span)
+
+        case token =>
+          error("Expect identifier, found token " + token, span)
+          ident()
 
     def fence(): Word =
       val span1 = eat(Token.LPAREN)

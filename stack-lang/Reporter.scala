@@ -48,7 +48,7 @@ object Reporter:
 
     def errors: List[Error] = errorBuffer.toList
 
-    def addError(error: Error)  = errorBuffer += error
+    def addError(error: Error) = errorBuffer += error
 
   trait Positioned:
     private var span: Span = NoSpan
@@ -93,7 +93,8 @@ object Reporter:
 
     def offsetToLineColumn(offset: Int): LineColumn =
       var from = 0
-      var to = lineOffsets.size - 2 // ignore the last entry
+      val last = lineOffsets.size - 2 // ignore the last entry
+      var to = last
 
       while from != to do
         val mid = (to + from) / 2
@@ -110,7 +111,8 @@ object Reporter:
         else
           to = mid
 
-      assert(offset >= lineOffsets(from))
+      // println(s"from = $from, to = $to, offset = $offset, $lineOffsets")
+      assert(offset >= lineOffsets(from) && (from == last || offset < lineOffsets(from + 1)))
 
       LineColumn(from, offset - lineOffsets(from))
 
