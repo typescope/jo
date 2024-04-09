@@ -3,7 +3,7 @@
 DIR=$(dirname "$0")
 
 INTERPRETER=$DIR/Interpreter.scala
-COMPILER=$DIR/Compiler.scala
+COMPILER=$DIR/Driver.scala
 
 # compile
 echo "Compiling $INTERPRETER"
