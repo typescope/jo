@@ -160,7 +160,8 @@ object Reporter:
       val isOneLine = pos.isOneLine
       val lineContent = pos.source.readLine(pos.startLine).trim
       val padding = " " * pos.startLineColumn
-      val pointer = if isOneLine then "^" * pos.length else "^"
+      val num = if pos.length == 0 then 1 else pos.length
+      val pointer = if isOneLine then "^" * num  else "^"
       s"""|---------- Error at $pos ---------------
           || $lineContent
           || $padding$pointer

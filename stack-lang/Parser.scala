@@ -130,6 +130,7 @@ object Parsing:
         case '/'    =>
           if stream.curChar() == '/' then
             stream.eatLine()
+            stream.tokenStart()
             nextToken()
           else
             operator()
