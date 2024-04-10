@@ -64,5 +64,15 @@ done
 rm $RES1
 rm $RES2
 rm $RES3
+
+# neg tests
+echo
+echo "Running negative tests"
+echo
+scala-cli stack-lang/Test.scala
+if [[ $? != 0 ]]; then
+  retcode=1
+fi
+
 echo $retcode
 exit $retcode
