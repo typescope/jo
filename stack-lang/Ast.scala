@@ -21,4 +21,5 @@ object Ast:
     case FunDef(ident: Word.Ident, params: List[Word.Ident], words: List[Word])
     case ValDef(ident: Word.Ident, words: List[Word])
 
-  case class Prog(defs: List[Def], main: List[Word])
+  case class Prog(defs: List[Def], main: List[Word]):
+    Positioned.checkComponentPos(this)

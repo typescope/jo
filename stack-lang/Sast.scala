@@ -80,7 +80,8 @@ object Sast:
     case FunDef(symbol: Symbol, params: List[Symbol], words: List[Word])
     case ValDef(symbol: Symbol, words: List[Word])
 
-  case class Prog(defs: List[Def], main: List[Word])
+  case class Prog(defs: List[Def], main: List[Word]):
+    Positioned.checkComponentPos(this)
 
   object predef:
     private val symbols: mutable.ArrayBuffer[Symbol] = new mutable.ArrayBuffer

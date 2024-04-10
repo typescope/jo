@@ -56,14 +56,7 @@ object Reporter:
 
     private var span: Span = NoSpan
 
-    // Check components have positions on construction
-    for elem <- this.productIterator do checkPos(elem)
-
-    private def checkPos(elem: Any): Unit =
-      elem match
-        case positioned: Positioned => assert(positioned.hasPos, "missing position")
-        case elems: Seq[?]          => elems.foreach(checkPos)
-        case  _                     =>
+    Positioned.checkComponentPos(this)
 
     def hasPos: Boolean = span `ne` NoSpan
 
@@ -73,6 +66,17 @@ object Reporter:
       this
 
     def pos: Span = span
+
+  object Positioned:
+    def checkComponentPos(obj: Product): Unit =
+      def checkPos(elem: Any): Unit =
+        elem match
+          case elem: Positioned => assert(elem.hasPos, "missing position: " + elem)
+          case elems: Seq[?]    => elems.foreach(checkPos)
+          case  _               =>
+        end match
+
+      for elem <- obj.productIterator do checkPos(elem)
 
   /** The start and end of a token relative to the beginning of some file  */
   case class Span(start: Int, length: Int):
