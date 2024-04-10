@@ -73,14 +73,6 @@ object Sast:
             acc + added
           StackInfo(0, resCount.toByte)
 
-    this match
-      case If(cond, thenp, elsep) =>
-        assert(cond.forall(_.hasPos))
-        assert(thenp.forall(_.hasPos))
-        assert(elsep.forall(_.hasPos))
-
-      case _ =>
-
   enum Def extends Positioned:
     val symbol: Symbol
     def name: String = symbol.name
@@ -88,16 +80,7 @@ object Sast:
     case FunDef(symbol: Symbol, params: List[Symbol], words: List[Word])
     case ValDef(symbol: Symbol, words: List[Word])
 
-    this match
-      case FunDef(_, _, words) =>
-        assert(words.forall(_.hasPos))
-
-      case ValDef(_, words) =>
-        assert(words.forall(_.hasPos))
-
-  case class Prog(defs: List[Def], main: List[Word]):
-    assert(defs.forall(_.hasPos))
-    assert(main.forall(_.hasPos))
+  case class Prog(defs: List[Def], main: List[Word])
 
   object predef:
     private val symbols: mutable.ArrayBuffer[Symbol] = new mutable.ArrayBuffer

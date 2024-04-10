@@ -51,7 +51,18 @@ object Reporter:
     def addError(error: Error) = errorBuffer += error
 
   trait Positioned:
+    this: Product =>
+
     private var span: Span = NoSpan
+
+    // Check components have positions on construction
+    for elem <- this.productIterator do checkPos(elem)
+
+    private def checkPos(elem: Any): Unit =
+      elem match
+        case positioned: Positioned => assert(positioned.hasPos, "missing position")
+        case elems: Seq[?]          => elems.foreach(checkPos)
+        case  _                     =>
 
     def hasPos: Boolean = span `ne` NoSpan
 
