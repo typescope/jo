@@ -16,12 +16,12 @@
 //> using file JSPlatform.scala
 //> using file JSPlatformOpt.scala
 
-import java.io.{File => JFile}
+import java.io.{ File => JFile }
 
 import scala.collection.mutable
 import scala.io.Source
 
-import Reporter.*
+import Reporter.{ Error, FatalError, State }
 
 object Test:
   /** Creates a list of tests */

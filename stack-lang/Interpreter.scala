@@ -199,9 +199,6 @@ object Interpreter:
  * Main entry point
  *
  ***********************************************************************/
-
-import Reporter.*
-
 @main
 def run(file: String) = Reporter.monitor:
   given Reporter = Reporter.withSource(file)

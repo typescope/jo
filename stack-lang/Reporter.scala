@@ -1,6 +1,6 @@
 import scala.collection.mutable
 
-import Reporter.*
+import Reporter.{ Error, FatalError, SourcePosition, Span, State, Source }
 
 /**
   * Deals with error reporting
@@ -29,15 +29,16 @@ class Reporter(source: Source, state: State):
       println(error.message)
       println
 
-object Reporter:
   // TODO: change fn to phase: Phase[T, U] <: T => U to get phase name
   extension [T](v: T)
-    inline def |> [U](inline fn: T => U)(using rp: Reporter): U =
-      if rp.hasErrors then
-        throw FatalError.StopAfterPhase(s"${rp.errorsCount} error(s) found")
+    inline def |> [U](inline fn: T => U): U =
+      if this.hasErrors then
+        throw FatalError.StopAfterPhase(s"$errorsCount error(s) found")
       else
         fn(v)
   end extension
+
+object Reporter:
 
   /** Shared state of reporters */
   class State(
