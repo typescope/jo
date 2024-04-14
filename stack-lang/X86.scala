@@ -118,27 +118,27 @@ object X86:
           binaryOperation(op, r1.index, r2)
         else if destReg == r2.index then
           op match
-            case BiOp.Add | BiOp.Mul | BiOp.And | BiOp.Or | BiOp.Nor | BiOp.Xor | BiOp.Eq =>
+            case Arith.Add | Arith.Mul | Bit.And | Bit.Or | Bit.Nor | Bit.Xor | Ord.Eq =>
               // commutative operations
               binaryOperation(op, r2.index, r1)
 
-            case BiOp.Sub | BiOp.Div | BiOp.Mod | BiOp.Srl | BiOp.Sll  =>
+            case Arith.Sub | Arith.Div | Arith.Mod | Bit.Srl | Bit.Sll  =>
               push(r1.index)
               binaryOperation(op, r1.index, r2)
               move(r1, r2.index)
               pop(r1.index)
 
-            case BiOp.Gt  =>
-              binaryOperation(BiOp.Le, r2.index, r1)
+            case Ord.Gt  =>
+              binaryOperation(Ord.Le, r2.index, r1)
 
-            case BiOp.Lt  =>
-              binaryOperation(BiOp.Ge, r2.index, r1)
+            case Ord.Lt  =>
+              binaryOperation(Ord.Ge, r2.index, r1)
 
-            case BiOp.Ge  =>
-              binaryOperation(BiOp.Lt, r2.index, r1)
+            case Ord.Ge  =>
+              binaryOperation(Ord.Lt, r2.index, r1)
 
-            case BiOp.Le  =>
-              binaryOperation(BiOp.Gt, r2.index, r1)
+            case Ord.Le  =>
+              binaryOperation(Ord.Gt, r2.index, r1)
 
         else
           move(r1, destReg)
@@ -154,11 +154,11 @@ object X86:
       case Instr.Binary(op, v, r: Reg, destReg) =>
         if destReg == r.index then
           op match
-            case BiOp.Add | BiOp.Mul | BiOp.And | BiOp.Or | BiOp.Nor | BiOp.Xor | BiOp.Eq =>
+            case Arith.Add | Arith.Mul | Bit.And | Bit.Or | Bit.Nor | Bit.Xor | Ord.Eq =>
               // commutative operations
               binaryOperation(op, r.index, v)
 
-            case BiOp.Sub | BiOp.Div | BiOp.Mod | BiOp.Srl | BiOp.Sll  =>
+            case Arith.Sub | Arith.Div | Arith.Mod | Bit.Srl | Bit.Sll  =>
               // Spill a register for temporary usage
               val rTemp = if destReg == EAX then EBX else EAX
               push(rTemp)
@@ -166,17 +166,17 @@ object X86:
               move(Reg(rTemp), r.index)
               pop(rTemp)
 
-            case BiOp.Gt  =>
-              binaryOperation(BiOp.Le, r.index, v)
+            case Ord.Gt  =>
+              binaryOperation(Ord.Le, r.index, v)
 
-            case BiOp.Lt  =>
-              binaryOperation(BiOp.Ge, r.index, v)
+            case Ord.Lt  =>
+              binaryOperation(Ord.Ge, r.index, v)
 
-            case BiOp.Ge  =>
-              binaryOperation(BiOp.Lt, r.index, v)
+            case Ord.Ge  =>
+              binaryOperation(Ord.Lt, r.index, v)
 
-            case BiOp.Le  =>
-              binaryOperation(BiOp.Gt, r.index, v)
+            case Ord.Le  =>
+              binaryOperation(Ord.Gt, r.index, v)
 
         else
           move(v, destReg)
@@ -780,22 +780,21 @@ object X86:
   /** Perform binary operation on the register with the given operand */
   def binaryOperation(op: BiOp, reg: Byte, v: Operand)(using pb: PatchableBuffer) =
     op match
-      case BiOp.Add => add(reg, v)
-      case BiOp.Sub => sub(reg, v)
-      case BiOp.Mul => mul(reg, v)
-      case BiOp.Div => div(reg, v)
-      case BiOp.Mod => mod(reg, v)
+      case Arith.Add => add(reg, v)
+      case Arith.Sub => sub(reg, v)
+      case Arith.Mul => mul(reg, v)
+      case Arith.Div => div(reg, v)
+      case Arith.Mod => mod(reg, v)
 
-      case BiOp.And => and(reg, v)
-      case BiOp.Or  => or(reg, v)
-      case BiOp.Nor => nor(reg, v)
-      case BiOp.Xor => xor(reg, v)
+      case Bit.And => and(reg, v)
+      case Bit.Or  => or(reg, v)
+      case Bit.Nor => nor(reg, v)
+      case Bit.Xor => xor(reg, v)
+      case Bit.Srl => srl(reg, v)
+      case Bit.Sll => sll(reg, v)
 
-      case BiOp.Srl => srl(reg, v)
-      case BiOp.Sll => sll(reg, v)
-
-      case BiOp.Eq  => eql(reg, v)
-      case BiOp.Gt  => gt(reg, v)
-      case BiOp.Lt  => lt(reg, v)
-      case BiOp.Ge  => ge(reg, v)
-      case BiOp.Le  => le(reg, v)
+      case Ord.Eq  => eql(reg, v)
+      case Ord.Gt  => gt(reg, v)
+      case Ord.Lt  => lt(reg, v)
+      case Ord.Ge  => ge(reg, v)
+      case Ord.Le  => le(reg, v)
