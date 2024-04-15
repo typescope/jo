@@ -1,4 +1,7 @@
-import scala.colleciton.mutable
+import scala.collection.mutable
+
+import Assembly.*
+import Instr.*
 
 /** Liveness analysis for assembly code of a function
   *
@@ -13,60 +16,78 @@ object Liveness:
   case class InstrInfo(defs: List[Int], uses: List[Int])
 
   class CodeInfo(
-    instrs: Instrs,
     predecessorMap: Map[Int, Set[Int]],
-    instrInfoMap: Map[Int, InstrInfo],
-    returns: List[Int]):
+    instrInfoMap: Map[Int, InstrInfo]):
 
-    def precessors(index: Int): Set[Int] =
+    def predecessors(index: Int): Set[Int] =
       predecessorMap.get(index) match
         case Some(preds) => preds
         case None        =>
-          if index > 0 then index - 1 else Set.empty
-
-    def exits: List[Int] = returns
-
-    def instruction(index: Int): Instr =
-      instrs(index).asInstanceOf
+          if index > 0 then Set(index - 1) else Set.empty
 
     def instrInfo(index: Int): InstrInfo = instrInfoMap(index)
 
 
-  def analyze(instrs: Instrs): Result = ???
+  type WorkList = mutable.ArrayDeque[WorkItem]
+  case class WorkItem(index: Int, succLiveSet: LiveSet)
 
+  def analyze(instrs: Instrs): Result =
+    val workList = mutable.ArrayDeque.empty[WorkItem]
+    val codeInfo = collectCodeInfo(instrs, workList)
+    val result = mutable.Map.empty[Int, LiveSet]
 
-  def collectCodeInfo(instrs: Instrs): CodeInfo =
+    while workList.nonEmpty do
+      val WorkItem(index, succLiveSet) = workList.removeLast()
+      val oldLiveSet = result.getOrElseUpdate(index, Set.empty)
+      val InstrInfo(defs, uses) = codeInfo.instrInfo(index)
+
+      val newLiveSet = oldLiveSet.union(succLiveSet) ++ uses
+      // outLiveSet cannot change if newLiveSet is the same
+      if newLiveSet != oldLiveSet then
+        result(index) = newLiveSet
+        val outLiveSet = newLiveSet -- defs
+        for pred <- codeInfo.predecessors(index) do
+          workList += WorkItem(pred, outLiveSet)
+    end while
+    result
+
+  /** Collect code info and initialize work list for each instruction. */
+  def collectCodeInfo(instrs: Instrs, workList: WorkList): CodeInfo =
     val labelInfo = mutable.Map.empty[Label, Int]
     val predecessorMap = mutable.Map.empty[Int, Set[Int]]
-    val instrInfoMap = mutable.Map.empty[Int, Set[Int]]
-    val jumpTargets = mutable.Map[Int, Label]
-    val returns = mutble.ArrayBuffer.empty[Int]
+    val instrInfoMap = mutable.Map.empty[Int, InstrInfo]
+    val jumpTargets = mutable.Map.empty[Int, Label]
 
     var index = 0
     val size = instrs.size
     while index < size do
       val instr = instrs(index)
       instr match
-        case l: Label       =>
+        case l: Label =>
           labelInfo(l) = index + 1
           val nextPreds = predecessorMap.getOrElseUpdate(index + 1, Set.empty)
           if index > 0 then
             predecessorMap(index + 1) = nextPreds + (index - 1)
 
         case instr: Instr =>
-          instrInfoMap += analyzeInstrInfo(instr)
+          instrInfoMap(index) = analyzeInstrInfo(instr)
+
+          workList += WorkItem(index, Set.empty)
 
           instr match
-            case Jump(_: Reg | _: Rel) =>
-              // Assume no indirect call, except function return
-              returns += index
+            case Move(Reg(srcReg), destReg) =>
+              val moveTargets = moves.getOrElseUpdate(srcReg, Set.empty)
+              moves(srcReg) = moveTargets + destReg
 
-            case Jump(l: Label) =>
+            case Jump(_: Reg | _: Rel) =>
+              // indirect function call or function return
+
+            case Jump(label: Label) =>
               // Could be a non-local function target, handled by checking labels
-              jumpTargets(index) = l
+              jumpTargets(index) = label
 
             case JZero(_, label: Label) =>
-              jumpTargets(index) = l
+              jumpTargets(index) = label
 
             case _ =>
           end match
@@ -84,42 +105,15 @@ object Liveness:
           // function call, ignore
     end for
 
-    CodeInfo(instrs, predecessorMap.toMap, instrInfoMap.toMap, returns.toList)
+    CodeInfo(predecessorMap.toMap, instrInfoMap.toMap)
 
-  def work(info: CodeInfo): Result =
-    val result = mutable.Map.empty
-    for returnIndex <- info.returns do
-      propagate(i, Set.empty, result)(using info)
-
-  def propagate(current: Int, successor: LiveSet, result: Result)(using info: CodeInfo) =
-    val oldLiveSet = result.getOrElseUpdate(index, Set.empty)
-    val InstrInfo(defs, uses) = info.instrInfo(current)
-
-    // It's not obvious whether the out set has changed.
-    // If the in set does not change, out set cannot change.
-    //
-    // Still needs to ensure that each node is propagated at least once.
-    val newLiveSet = oldLiveSet.union(uses)
-    if newLiveSet != oldLiveSet then
-      val outLiveSet = newLiveSet -- defs
-      for pred <- info.predecessors(index) do
-        propagate(pred, outLiveSet, result)
 
   def analyzeInstrInfo(instr: Instr): InstrInfo =
     val useRegs = mutable.ArrayBuffer.empty[Int]
     val defRegs = mutable.ArrayBuffer.empty[Int]
 
     instr match
-      case Not(v: Operand, destReg: Byte) =>
-        defRegs += destReg
-        v match
-          case Reg(r) => useRegs += r
-          case _: Int32 =>
-
-      case Const(_: Constant, destReg: Byte) =>
-        defRegs += destReg
-
-      case Binary(op: BiOp, v1: Operand, v2: Operand, destReg: Byte) =>
+      case Binary(op: BiOp, v1: Operand, v2: Operand, destReg) =>
         defRegs += destReg
 
         v1 match
@@ -130,9 +124,12 @@ object Liveness:
           case Reg(r) => useRegs += r
           case _: Int32 =>
 
-      case Move(srcReg: Byte, destReg: Byte) =>
-        defRegs += destReg
-        useRegs += srcReg
+      case Move(v, destReg) =>
+        v match
+          case Reg(srcReg) =>
+            defRegs += destReg
+            useRegs += srcReg
+          case _ =>
 
       case Store(v: Value, addr: Addr) =>
         v match
@@ -160,6 +157,9 @@ object Liveness:
 
       case JZero(reg: Reg, label: Label) =>
         useRegs += reg.index
+
+      case _: Special[?] =>
+        // TODO
     end match
 
     InstrInfo(defRegs.toList, useRegs.toList)
