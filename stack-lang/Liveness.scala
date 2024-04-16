@@ -9,15 +9,16 @@ import Instr.*
   * computation.
   */
 object Liveness:
+  // TODO: use bitset for fast union and subtraction
   type LiveSet   = Set[Int]
-  type Result    = mutable.Map[Int, LiveSet]
   type Instrs    = Seq[Instr | Label]
 
   case class InstrInfo(defs: List[Int], uses: List[Int])
 
   class CodeInfo(
     predecessorMap: Map[Int, Set[Int]],
-    instrInfoMap: Map[Int, InstrInfo]):
+    instrInfoMap: Map[Int, InstrInfo],
+    val moves: Map[Int, Set[Int]]):
 
     def predecessors(index: Int): Set[Int] =
       predecessorMap.get(index) match
@@ -30,6 +31,8 @@ object Liveness:
 
   type WorkList = mutable.ArrayDeque[WorkItem]
   case class WorkItem(index: Int, succLiveSet: LiveSet)
+
+  case class Result(liveSets: Map[Int, LiveSet], moves: Map[Int, Set[Int]])
 
   def analyze(instrs: Instrs): Result =
     val workList = mutable.ArrayDeque.empty[WorkItem]
@@ -49,7 +52,7 @@ object Liveness:
         for pred <- codeInfo.predecessors(index) do
           workList += WorkItem(pred, outLiveSet)
     end while
-    result
+    Result(result.toMap, codeInfo.moves)
 
   /** Collect code info and initialize work list for each instruction. */
   def collectCodeInfo(instrs: Instrs, workList: WorkList): CodeInfo =
@@ -57,6 +60,7 @@ object Liveness:
     val predecessorMap = mutable.Map.empty[Int, Set[Int]]
     val instrInfoMap = mutable.Map.empty[Int, InstrInfo]
     val jumpTargets = mutable.Map.empty[Int, Label]
+    val moves = mutable.Map.empty[Int, Set[Int]]
 
     var index = 0
     val size = instrs.size
@@ -105,7 +109,7 @@ object Liveness:
           // function call, ignore
     end for
 
-    CodeInfo(predecessorMap.toMap, instrInfoMap.toMap)
+    CodeInfo(predecessorMap.toMap, instrInfoMap.toMap, moves.toMap)
 
 
   def analyzeInstrInfo(instr: Instr): InstrInfo =
