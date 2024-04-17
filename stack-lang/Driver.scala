@@ -16,6 +16,7 @@
 //> using file JSPlatform.scala
 //> using file JSPlatformOpt.scala
 //> using file Liveness.scala
+//> using file GraphColoring.scala
 
 import Reporter.*
 

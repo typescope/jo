@@ -1,8 +1,10 @@
+import scala.collection.mutable
+
 /**
   * Register allocation based on graph coloring.
   *
   * TODO: how to coalesce spillings in a simple way? Increase the number of
-  * registers?
+  * registers with a cost model?
   */
 object GraphColoring:
   enum Node:
@@ -18,10 +20,24 @@ object GraphColoring:
 
   /** Interference graph */
   class Graph(
-    nodes: mutable.Set[Node],
+    val nodes: mutable.Set[Node],
     conflicts: mutable.Set[Edge],
     moves: mutable.Set[Edge]):
+
     val actions: mutable.ArrayBuffer[Action] = mutable.ArrayBuffer.empty
+
+    def isMoveRelated(node: Node): Boolean =
+      moves.exists(e => e.node1 == node || e.node2 == node)
+
+    def degree(node: Node): Int =
+      conflicts.filter(e => e.node1 == node || e.node2 == node).size
+
+    def simplify(node: Node): Unit =
+      assert(moves.forall(e => e.node1 != node && e.node2 != node))
+
+      actions += Action.Remove(node)
+      nodes -= node
+      conflicts.filterInPlace(e => e.node1 != node && e.node2 != node)
 
   case class Result(assignment: Map[Int, Int], spillings: List[Int])
 
@@ -36,7 +52,8 @@ object GraphColoring:
       val node1 = nodeMap.getOrElseUpdate(reg1, Node.Single(reg1))
       for reg2 <- remains do
         val node2 = nodeMap.getOrElseUpdate(reg2, Node.Single(reg2))
-        // May add both (a, b) and (b, a), handld in removal & check
+        // Avoid adding both (a, b) and (b, a)
+        conflicts -= Edge(node2, node1)
         conflicts += Edge(node1, node2)
       end for
 
@@ -44,13 +61,21 @@ object GraphColoring:
       val node1 = nodeMap.getOrElseUpdate(reg1, Node.Single(reg1))
       for reg2 <- toSet do
         val node2 = nodeMap.getOrElseUpdate(reg2, Node.Single(reg2))
-        // May add both (a, b) and (b, a), handld in removal & check
+        // Avoid adding both (a, b) and (b, a)
+        moves -= Edge(node2, node1)
         moves += Edge(node1, node2)
       end for
 
     Graph(mutable.Set.from(nodeMap.values), conflicts, moves)
 
-  def simplify(graph: Graph): Unit = ???
+  def simplify(graph: Graph, k: Int): Unit =
+    var simplified = false
+    for node <- graph.nodes do
+      if graph.isMoveRelated(node) && graph.degree(node) < k then
+        simplified = true
+        graph.simplify(node)
+
+    if simplified then simplify(graph, k)
 
   def coalesce(graph: Graph): Unit = ???
 
