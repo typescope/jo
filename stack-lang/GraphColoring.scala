@@ -9,22 +9,22 @@ import scala.collection.mutable
 object GraphColoring:
   enum Node:
     case Single(reg: Int)
-    case Multiple(regs: List[Int])
+    case Merged(node1: Node, node2: Node)
 
   enum Action:
     case Remove(node: Node)
-    case Coalesce(node1: Node, node2: Node, to: Node)
+    case Coalesce(node: Node.Merged)
     case Spill(node: Node)
 
   case class Edge(node1: Node, node2: Node)
 
   /** Interference graph */
   class Graph(
-    val nodes: mutable.Set[Node],
-    conflicts: mutable.Set[Edge],
-    moves: mutable.Set[Edge]):
+    var nodes: Set[Node],
+    var conflicts: Set[Edge],
+    var moves: Set[Edge]):
 
-    val actions: mutable.ArrayBuffer[Action] = mutable.ArrayBuffer.empty
+    val actions = mutable.ArrayBuffer.empty[Action]
 
     def isMoveRelated(node: Node): Boolean =
       moves.exists(e => e.node1 == node || e.node2 == node)
@@ -32,12 +32,40 @@ object GraphColoring:
     def degree(node: Node): Int =
       conflicts.filter(e => e.node1 == node || e.node2 == node).size
 
+    def conflict(node1: Node, node2: Node) =
+      conflicts.contains(Edge(node1, node2)) ||
+      conflicts.contains(Edge(node2, node1))
+
     def simplify(node: Node): Unit =
       assert(moves.forall(e => e.node1 != node && e.node2 != node))
 
       actions += Action.Remove(node)
       nodes -= node
-      conflicts.filterInPlace(e => e.node1 != node && e.node2 != node)
+      conflicts = conflicts.filter(e => e.node1 != node && e.node2 != node)
+
+    def coalesce(node1: Node, node2: Node): Unit =
+      val merged = new Node.Merged(node1, node2)
+      actions += Action.Coalesce(merged)
+
+      nodes -= node1
+      nodes -= node2
+      nodes += merged
+      moves -= Edge(node1, node2)
+      moves -= Edge(node2, node1)
+
+      def replace(edge: Edge): Edge =
+        if edge.node1 == node1 || edge.node1 == node2 then
+          Edge(merged, edge.node2)
+        else if edge.node2 == node1 || edge.node2 == node2 then
+          Edge(edge.node1, merged)
+        else
+          edge
+
+      conflicts = conflicts.map(replace)
+      moves = moves.map(replace)
+
+      // TODO: dedup in moves and conflicts
+
 
   case class Result(assignment: Map[Int, Int], spillings: List[Int])
 
@@ -66,18 +94,30 @@ object GraphColoring:
         moves += Edge(node1, node2)
       end for
 
-    Graph(mutable.Set.from(nodeMap.values), conflicts, moves)
+    Graph(nodeMap.values.toSet, conflicts.toSet, moves.toSet)
 
-  def simplify(graph: Graph, k: Int): Unit =
+  def simplify(graph: Graph, k: Int): Boolean =
     var simplified = false
     for node <- graph.nodes do
       if graph.isMoveRelated(node) && graph.degree(node) < k then
         simplified = true
         graph.simplify(node)
 
-    if simplified then simplify(graph, k)
+    simplified
 
-  def coalesce(graph: Graph): Unit = ???
+  def coalesce(graph: Graph, k: Int): Boolean =
+    var coalesced = false
+    for Edge(node1, node2) <- graph.moves do
+      if
+        !graph.conflict(node1, node2) &&
+        graph.degree(node1) + graph.degree(node2) < k
+      then
+        // TODO: node1 and node2 conflict implies bad generated code
+        coalesced = true
+        graph.coalesce(node1, node2)
+    end for
+
+    coalesced
 
   def freeze(graph: Graph): Unit = ???
 
