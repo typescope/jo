@@ -68,19 +68,25 @@ object GraphColoring:
 
       // update moves
 
+      // The move targets might in conflict with `merged`.
       val targets1 = moves(node1) - node2
       val targets2 = moves(node2) - node1
+      val targets  = targets1.union(targets2)
+      val nonConflictMoves = targets.filter(node => !conflict(merged, node))
       moves -= node1
       moves -= node2
-      moves = moves.updated(merged, targets1.union(targets2))
+      moves = moves.updated(merged, nonConflictMoves)
 
-      for target <- targets1 do
+      for target <- targets do
         assert(target != node1 && target != node2)
-        moves = moves.updated(target, moves(target).map(replace))
+        val targetsReverse =
+          if conflict(merged, target)
+          then
+            moves(target).filter(node => node != node1 && node != node2)
+          else
+            moves(target).map(replace)
 
-      for target <- targets2 do
-        assert(target != node1 && target != node2)
-        moves = moves.updated(target, moves(target).map(replace))
+        moves = moves.updated(target, targetsReverse)
 
   case class Result(assignment: Map[Int, Int], spillings: List[Int])
 
@@ -93,16 +99,25 @@ object GraphColoring:
       val reg1 = liveSet.head
       val remains = liveSet - reg1
       val node1 = nodeMap.getOrElseUpdate(reg1, Node.Single(reg1))
+      // Ensure that a node with no conflicts gets an entry
+      val conflictsNode1 = conflicts.getOrElseUpdate(node1, Set.empty)
       for reg2 <- remains do
         val node2 = nodeMap.getOrElseUpdate(reg2, Node.Single(reg2))
-        conflicts(node1) = conflicts.getOrElseUpdate(node1, Set.empty) + node2
-        conflicts(node2) = conflicts.getOrElseUpdate(node2, Set.empty) + node1
+        val conflictsNode2 = conflicts.getOrElseUpdate(node2, Set.empty)
+        conflicts(node1) = conflictsNode1 + node2
+        conflicts(node2) = conflictsNode2 + node1
       end for
 
-    for (reg1, toSet) <- result.liveSets do
-      val node1 = nodeMap.getOrElseUpdate(reg1, Node.Single(reg1))
-      for reg2 <- toSet do
-        val node2 = nodeMap.getOrElseUpdate(reg2, Node.Single(reg2))
+    // assumes that source and dest must appear in conflicts
+    for (reg1, toSet) <- result.moves do
+      val node1 = nodeMap(reg1)
+      // It is meaningless to add a move edge if two nodes are in conflict.
+      // It is never possible to coalesce the two nodes
+      for
+        reg2 <- toSet
+        node2 = nodeMap(reg2)
+        if !conflicts(node1).contains(node2)
+      do
         moves(node1) = moves.getOrElseUpdate(node1, Set.empty) + node2
         moves(node2) = moves.getOrElseUpdate(node2, Set.empty) + node1
       end for
@@ -123,10 +138,22 @@ object GraphColoring:
     for (node1, targets) <- graph.moves do
       for node2 <- targets do
         if
-          !graph.conflict(node1, node2) &&
           graph.degree(node1) + graph.degree(node2) < k
         then
-          // TODO: node1 and node2 conflict implies bad generated code
+          // Conflict moves are removed and should never be encountered.
+          //
+          // node1 and node2 conflict implies bad generated code?
+          // For RISC instructions, yes. For x86, no.
+          //
+          // In x86, we can copy SP and perform destructive operation on the
+          // copied virtual register.
+          //
+          // For RISC, it is possible to indicate target register thus the move
+          // is unnecessary.
+          //
+          // The conflict might also result from coalescing.
+          assert(!graph.conflict(node1, node2))
+
           coalesced = true
           graph.coalesce(node1, node2)
     end for
