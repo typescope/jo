@@ -73,9 +73,11 @@ object GraphColoring:
       val targets2 = moves(node2) - node1
       val targets  = targets1.union(targets2)
       val nonConflictMoves = targets.filter(node => !conflict(merged, node))
+
       moves -= node1
       moves -= node2
-      moves = moves.updated(merged, nonConflictMoves)
+      if nonConflictMoves.isEmpty then
+        moves = moves.updated(merged, nonConflictMoves)
 
       for target <- targets do
         assert(target != node1 && target != node2)
@@ -86,7 +88,10 @@ object GraphColoring:
           else
             moves(target).map(replace)
 
-        moves = moves.updated(target, targetsReverse)
+        if targetsReverse.isEmpty then
+          moves = moves - target
+        else
+          moves = moves.updated(target, targetsReverse)
 
   case class Result(assignment: Map[Int, Int], spillings: List[Int])
 
@@ -160,7 +165,7 @@ object GraphColoring:
 
     coalesced
 
-  def freeze(graph: Graph): Unit = ???
+  def freeze(graph: Graph): Boolean = ???
 
   def spill(graph: Graph): Unit = ???
 
