@@ -59,23 +59,27 @@ object GraphColoring:
       conflicts = conflicts.updated(merged, conflictees1.union(conflictees2))
 
       for conflictee <- conflictees1 do
+        assert(conflictee != node2)
         conflicts = conflicts.updated(conflictee, conflicts(conflictee).map(replace))
 
       for conflictee <- conflictees2 do
+        assert(conflictee != node1)
         conflicts = conflicts.updated(conflictee, conflicts(conflictee).map(replace))
 
       // update moves
 
-      val targets1 = moves(node1)
-      val targets2 = moves(node2)
+      val targets1 = moves(node1) - node2
+      val targets2 = moves(node2) - node1
       moves -= node1
       moves -= node2
       moves = moves.updated(merged, targets1.union(targets2))
 
-      for target <- targets1 if target != node2 do
+      for target <- targets1 do
+        assert(target != node1 && target != node2)
         moves = moves.updated(target, moves(target).map(replace))
 
-      for target <- targets2 if target != node1 do
+      for target <- targets2 do
+        assert(target != node1 && target != node2)
         moves = moves.updated(target, moves(target).map(replace))
 
   case class Result(assignment: Map[Int, Int], spillings: List[Int])
