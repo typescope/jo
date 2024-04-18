@@ -92,6 +92,24 @@ object GraphColoring:
           moves = moves - target
         else
           moves = moves.updated(target, targetsReverse)
+      end for
+    end coalesce
+
+    def freeze(node1: Node, node2: Node): Unit =
+      val targets1 = moves(node1).filter(_ != node2)
+      val targets2 = moves(node2).filter(_ != node1)
+
+      if targets1.isEmpty then
+        moves = moves - node1
+      else
+        moves = moves.updated(node1, targets1)
+
+      if targets2.isEmpty then
+        moves = moves - node2
+      else
+        moves = moves.updated(node2, targets1)
+
+  end Graph
 
   case class Result(assignment: Map[Int, Int], spillings: List[Int])
 
@@ -165,7 +183,14 @@ object GraphColoring:
 
     coalesced
 
-  def freeze(graph: Graph): Boolean = ???
+  def freeze(graph: Graph): Boolean =
+    if graph.moves.isEmpty then
+      false
+    else
+      val (node, targets) = graph.moves.head
+      assert(targets.nonEmpty)
+      graph.freeze(node, targets.head)
+      true
 
   def spill(graph: Graph): Unit = ???
 
