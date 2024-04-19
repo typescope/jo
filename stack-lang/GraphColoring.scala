@@ -109,6 +109,20 @@ object GraphColoring:
       else
         moves = moves.updated(node2, targets1)
 
+    def spill(node: Node): Unit =
+      actions += Action.Spill(node)
+
+      val conflictees = conflicts(node)
+      conflicts -= node
+      for conflictee <- conflictees do
+        conflicts = conflicts.updated(conflictee, conflicts(conflictee) - node)
+
+      // high-degree moves are not tried by freeze
+      val targets = moves(node)
+      moves -= node
+      for target <- targets do
+        moves = moves.updated(target, moves(target) - node)
+
   end Graph
 
   case class Result(assignment: Map[Int, Int], spillings: List[Int])
@@ -183,15 +197,25 @@ object GraphColoring:
 
     coalesced
 
-  def freeze(graph: Graph): Boolean =
-    if graph.moves.isEmpty then
-      false
-    else
-      val (node, targets) = graph.moves.head
+  def freeze(graph: Graph, k: Int): Boolean =
+    graph.moves.exists: (node, targets) =>
       assert(targets.nonEmpty)
-      graph.freeze(node, targets.head)
-      true
+      targets.exists: target =>
+        if graph.degree(node) < k || graph.degree(target) < k then
+          graph.freeze(node, targets.head)
+          true
+        else
+          false
 
-  def spill(graph: Graph): Unit = ???
+  def spill(graph: Graph, k: Int): Boolean =
+    // pick a random
+    graph.conflicts.exists: (node, conflictees) =>
+      if conflictees.nonEmpty then
+        assert(conflictees.size >= k)
+        graph.spill(node)
+        true
+      else
+        false
+  end spill
 
   def select(graph: Graph): Unit = ???
