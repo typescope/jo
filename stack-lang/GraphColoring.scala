@@ -163,17 +163,16 @@ object GraphColoring:
 
   def simplify(graph: Graph, k: Int): Boolean =
     var simplified = false
-    for node <- graph.conflicts.keys do
-      if graph.isMoveRelated(node) && graph.degree(node) < k then
+    for (node, conflictees) <- graph.conflicts do
+      if graph.isMoveRelated(node) && conflictees.size < k then
         simplified = true
         graph.simplify(node)
 
     simplified
 
   def coalesce(graph: Graph, k: Int): Boolean =
-    var coalesced = false
-    for (node1, targets) <- graph.moves do
-      for node2 <- targets do
+    graph.moves.exists: (node1, targets) =>
+      targets.exists: node2 =>
         if
           graph.degree(node1) + graph.degree(node2) < k
         then
@@ -190,12 +189,10 @@ object GraphColoring:
           //
           // The conflict might also result from coalescing.
           assert(!graph.conflict(node1, node2))
-
-          coalesced = true
           graph.coalesce(node1, node2)
-    end for
-
-    coalesced
+          true
+        else
+          false
 
   def freeze(graph: Graph, k: Int): Boolean =
     graph.moves.exists: (node, targets) =>
