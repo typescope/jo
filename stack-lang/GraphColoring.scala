@@ -12,7 +12,7 @@ object GraphColoring:
     case Merged(node1: Node, node2: Node)
 
   enum Action:
-    case Remove(node: Node)
+    case Simplify(node: Node, conflicts: Set[Node])
     case Coalesce(node: Node.Merged)
     case Spill(node: Node)
 
@@ -36,10 +36,11 @@ object GraphColoring:
     def simplify(node: Node): Unit =
       assert(!moves.contains(node))
 
-      actions += Action.Remove(node)
-
       val conflictees = conflicts(node)
       conflicts -= node
+
+      actions += Action.Simplify(node, conflictees)
+
       for conflictee <- conflictees do
         conflicts = conflicts.updated(conflictee, conflicts(conflictee) - node)
 
@@ -125,8 +126,6 @@ object GraphColoring:
 
   end Graph
 
-  case class Result(assignment: Map[Int, Int], spillings: List[Int])
-
   def build(result: Liveness.Result): Graph =
     val nodeMap = mutable.Map.empty[Int, Node]
     val conflicts = mutable.Map.empty[Node, Set[Node]]
@@ -205,7 +204,9 @@ object GraphColoring:
           false
 
   def spill(graph: Graph, k: Int): Boolean =
-    // pick a random
+    // Pick a random node to spill.
+    //
+    // More optimal spilling should be based on a cost model.
     graph.conflicts.exists: (node, conflictees) =>
       if conflictees.nonEmpty then
         assert(conflictees.size >= k)
@@ -215,4 +216,52 @@ object GraphColoring:
         false
   end spill
 
-  def select(graph: Graph): Unit = ???
+  case class Result(regAlloc: Map[Int, Int], stackAlloc: Map[Int, Int])
+
+  def select(graph: Graph, regs: Set[Int], k: Int): Result =
+    assert(graph.conflicts.isEmpty)
+    assert(regs.size == k)
+
+    var stackSlot = 0
+    val stackAssignment = mutable.Map.empty[Int, Int]
+    def assignStackSlot(node: Node, stackSlot: Int): Unit =
+      node match
+        case Node.Single(reg) =>
+          stackAssignment(reg) = stackSlot
+
+        case Node.Merged(node1, node2) =>
+          assignStackSlot(node1, stackSlot)
+          assignStackSlot(node2, stackSlot)
+
+    val regAssignment = mutable.Map.empty[Int, Int]
+    def assignRegister(node: Node, reg: Int): Unit =
+      node match
+        case Node.Single(reg) =>
+          regAssignment(reg) = reg
+
+        case Node.Merged(node1, node2) =>
+          assignRegister(node1, reg)
+          assignRegister(node2, reg)
+
+
+    val nodeAssignment = mutable.Map.empty[Node, Int]
+    while graph.actions.nonEmpty do
+      val action = graph.actions.remove(graph.actions.size - 1)
+      action match
+        case Action.Simplify(node: Node, conflicts: Set[Node]) =>
+          assert(conflicts.size < k)
+          val used = conflicts.map(nodeAssignment)
+          val reg = (regs -- used).head
+          nodeAssignment(node) = reg
+          assignRegister(node, reg)
+
+        case Action.Coalesce(node @ Node.Merged(node1, node2)) =>
+          nodeAssignment(node1) = nodeAssignment(node)
+          nodeAssignment(node2) = nodeAssignment(node)
+
+        case Action.Spill(node: Node) =>
+          assignStackSlot(node, stackSlot)
+          stackSlot += 1
+    end while
+
+    Result(regAssignment.toMap, stackAssignment.toMap)
