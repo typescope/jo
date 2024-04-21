@@ -14,7 +14,7 @@ object GraphColoring:
   enum Action:
     case Simplify(node: Node, conflicts: Set[Node])
     case Coalesce(node: Node.Merged)
-    case Spill(node: Node)
+    case Spill(node: Node, conflicts: Set[Node])
 
   case class Edge(node1: Node, node2: Node)
 
@@ -111,10 +111,11 @@ object GraphColoring:
         moves = moves.updated(node2, targets1)
 
     def spill(node: Node): Unit =
-      actions += Action.Spill(node)
-
       val conflictees = conflicts(node)
       conflicts -= node
+
+      actions += Action.Spill(node, conflictees)
+
       for conflictee <- conflictees do
         conflicts = conflicts.updated(conflictee, conflicts(conflictee) - node)
 
@@ -259,9 +260,17 @@ object GraphColoring:
           nodeAssignment(node1) = nodeAssignment(node)
           nodeAssignment(node2) = nodeAssignment(node)
 
-        case Action.Spill(node: Node) =>
-          assignStackSlot(node, stackSlot)
-          stackSlot += 1
+        case Action.Spill(node: Node, conflicts: Set[Node]) =>
+          val used = conflicts.map(nodeAssignment)
+          val unused = regs -- used
+          // potential spill might not be an actual spill
+          if unused.isEmpty then
+            assignStackSlot(node, stackSlot)
+            stackSlot += 1
+          else
+            val reg = unused.head
+            nodeAssignment(node) = reg
+            assignRegister(node, reg)
     end while
 
     Result(regAssignment.toMap, stackAssignment.toMap)
