@@ -192,16 +192,16 @@ object X86:
     pb.addByte(0x0F)
     pb.addByte(0x34)
 
-  def push(reg: Byte)(using pb: PatchableBuffer) =
+  def push(reg: Int)(using pb: PatchableBuffer) =
     // 50+rd    PUSH r32
     pb.addByte((0x50 | reg).toByte)
 
-  def pop(reg: Byte)(using pb: PatchableBuffer) =
+  def pop(reg: Int)(using pb: PatchableBuffer) =
     // 58+ rd    POP r32
     pb.addByte((0x58 | reg).toByte)
 
   /** Add the value to the register */
-  def add(reg: Byte, v: Operand)(using pb: PatchableBuffer) =
+  def add(reg: Int, v: Operand)(using pb: PatchableBuffer) =
     v match
       case Reg(rv) =>
         // 03 /r      ADD r32, r/m32
@@ -215,7 +215,7 @@ object X86:
         pb.addInt(v)
 
   /** Subtract the value from the register */
-  def sub(reg: Byte, v: Operand)(using pb: PatchableBuffer) =
+  def sub(reg: Int, v: Operand)(using pb: PatchableBuffer) =
     v match
       case Reg(rv) =>
         // 2B /r   SUB r32, r/m32
@@ -232,7 +232,7 @@ object X86:
         pb.addInt(v)
 
   /** Multiply the register with the value */
-  def mul(reg: Byte, v: Operand)(using pb: PatchableBuffer) =
+  def mul(reg: Int, v: Operand)(using pb: PatchableBuffer) =
     v match
       case Reg(rv) =>
         // 0F AF /r     IMUL r32, r/m32
@@ -247,7 +247,7 @@ object X86:
         pb.addInt(v)
 
   /** Divide the register with the value */
-  def div(reg: Byte, v: Operand)(using pb: PatchableBuffer) =
+  def div(reg: Int, v: Operand)(using pb: PatchableBuffer) =
     // TODO: reminder sign does not always agree with divident
     v match
       case Reg(rv) =>
@@ -308,7 +308,7 @@ object X86:
 
 
   /** Modulo the register with the value */
-  def mod(reg: Byte, v: Operand)(using pb: PatchableBuffer) =
+  def mod(reg: Int, v: Operand)(using pb: PatchableBuffer) =
     // TODO: reminder sign does not always agree with divident
     v match
       case Reg(rv) =>
@@ -369,7 +369,7 @@ object X86:
           pop(EAX)
 
   /** Logical AND the value to the register */
-  def and(reg: Byte, v: Operand)(using pb: PatchableBuffer) =
+  def and(reg: Int, v: Operand)(using pb: PatchableBuffer) =
     v match
       case Reg(rv) =>
         // 23 /r   AND r32, r/m32
@@ -383,7 +383,7 @@ object X86:
         pb.addInt(v)
 
   /** Logical OR the value to the register */
-  def or(reg: Byte, v: Operand)(using pb: PatchableBuffer) =
+  def or(reg: Int, v: Operand)(using pb: PatchableBuffer) =
     v match
       case Reg(rv) =>
         // 0B /r	OR r32, r/m32
@@ -397,7 +397,7 @@ object X86:
         pb.addInt(v)
 
   /** Logical NOR the value to the register */
-  def nor(reg: Byte, v: Operand)(using pb: PatchableBuffer) =
+  def nor(reg: Int, v: Operand)(using pb: PatchableBuffer) =
     v match
       case Reg(rv) if rv == reg =>
         not(reg)
@@ -407,7 +407,7 @@ object X86:
        not(reg)
 
   /** Shift left logically */
-  def sll(reg: Byte, v: Operand)(using pb: PatchableBuffer) =
+  def sll(reg: Int, v: Operand)(using pb: PatchableBuffer) =
     v match
       case Reg(r2) =>
         // D3 /4	SAL r/m32, CL
@@ -429,7 +429,7 @@ object X86:
         pb.addByte(v.toByte)
 
   /** Shift right logically */
-  def srl(reg: Byte, v: Operand)(using pb: PatchableBuffer) =
+  def srl(reg: Int, v: Operand)(using pb: PatchableBuffer) =
     v match
       case Reg(r2) =>
         // D3 /5	SHR r/m32, CL
@@ -450,13 +450,13 @@ object X86:
         pb.addByte((0xC0 | (1 << 5) | reg).toByte)
         pb.addByte(v.toByte)
 
-  def not(reg: Byte)(using pb: PatchableBuffer) =
+  def not(reg: Int)(using pb: PatchableBuffer) =
     // F7 /2    NOT r/m32
     pb.addByte(0xF7.toByte)
     pb.addByte((0xC0 | (2 << 3) | reg).toByte)
 
   /** Logical XOR the value to the register */
-  def xor(reg: Byte, v: Operand)(using pb: PatchableBuffer) =
+  def xor(reg: Int, v: Operand)(using pb: PatchableBuffer) =
     v match
       case Reg(rv) =>
         // 33 /r	XOR r32, r/m32
@@ -470,7 +470,7 @@ object X86:
         pb.addInt(v)
 
   /** Move the value to the register */
-  def move(v: Value, reg: Byte)(using pb: PatchableBuffer) =
+  def move(v: Value, reg: Int)(using pb: PatchableBuffer) =
     v match
       case Reg(rv) =>
         // 8B /r       MOV r32, r/m32
@@ -489,7 +489,7 @@ object X86:
           pb.addInt(loc)
 
   /** Move the value to the register */
-  def const(c: Constant, reg: Byte)(using pb: PatchableBuffer) =
+  def const(c: Constant, reg: Int)(using pb: PatchableBuffer) =
     c match
       case v: Int32 =>
         move(v, reg)
@@ -500,7 +500,7 @@ object X86:
           bb.addByte((0xB8 | reg).toByte)
           bb.addInt(loc)
 
-  def load(addr: Addr, destReg: Byte)(using pb: PatchableBuffer): Unit =
+  def load(addr: Addr, destReg: Int)(using pb: PatchableBuffer): Unit =
     addr match
       case Reg(r) =>
         // See Table 2-2. 32-Bit Addressing Forms with the ModR/M Byte in [1]
@@ -721,22 +721,22 @@ object X86:
           bb.addByte(0xE9.toByte)
           bb.addInt(relativeAddr)
 
-  def eql(reg: Byte, v: Operand)(using pb: PatchableBuffer) =
+  def eql(reg: Int, v: Operand)(using pb: PatchableBuffer) =
     cmp(reg, v, 0x94.toByte)
 
-  def gt(reg: Byte, v: Operand)(using pb: PatchableBuffer) =
+  def gt(reg: Int, v: Operand)(using pb: PatchableBuffer) =
     cmp(reg, v, 0x9F.toByte)
 
-  def ge(reg: Byte, v: Operand)(using pb: PatchableBuffer) =
+  def ge(reg: Int, v: Operand)(using pb: PatchableBuffer) =
     cmp(reg, v, 0x9D.toByte)
 
-  def lt(reg: Byte, v: Operand)(using pb: PatchableBuffer) =
+  def lt(reg: Int, v: Operand)(using pb: PatchableBuffer) =
     cmp(reg, v, 0x9C.toByte)
 
-  def le(reg: Byte, v: Operand)(using pb: PatchableBuffer) =
+  def le(reg: Int, v: Operand)(using pb: PatchableBuffer) =
     cmp(reg, v, 0x9E.toByte)
 
-  def cmp(reg: Byte, v: Operand, setcc: Byte)(using pb: PatchableBuffer) =
+  def cmp(reg: Int, v: Operand, setcc: Byte)(using pb: PatchableBuffer) =
     v match
       case Reg(rv) =>
         // 3B /r    CMP r32, r/m32
@@ -761,7 +761,7 @@ object X86:
     pb.addByte((0xC0 | (4 << 3) | reg).toByte)
     pb.addInt(0x000F)
 
-  def jzero(reg: Byte, label: Label)(using pb: PatchableBuffer) =
+  def jzero(reg: Int, label: Label)(using pb: PatchableBuffer) =
     // TODO: Handle the pattern [Eq(o1, o2, r), JZero(r, l)] to generate one fewer instruction.
 
     // 81 /7 id   CMP r/m32, imm32
@@ -778,7 +778,7 @@ object X86:
       bb.addInt(relativeAddr)
 
   /** Perform binary operation on the register with the given operand */
-  def binaryOperation(op: BiOp, reg: Byte, v: Operand)(using pb: PatchableBuffer) =
+  def binaryOperation(op: BiOp, reg: Int, v: Operand)(using pb: PatchableBuffer) =
     op match
       case Arith.Add => add(reg, v)
       case Arith.Sub => sub(reg, v)

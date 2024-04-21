@@ -11,7 +11,7 @@ object Assembly:
   case class Int32(value: Int)
 
   /** A register */
-  case class Reg(index: Byte)
+  case class Reg(index: Int)
 
   /** A normal class uses referential equality for better performance. */
   class Label(val name: String):
