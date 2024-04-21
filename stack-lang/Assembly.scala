@@ -37,24 +37,24 @@ object Assembly:
   type BiOp = Arith | Bit | Ord
 
   object Instr:
-    def Add(v1: Operand, v2: Operand, destReg: Byte) = Binary(Arith.Add, v1, v2, destReg)
-    def Sub(v1: Operand, v2: Operand, destReg: Byte) = Binary(Arith.Sub, v1, v2, destReg)
-    def Mul(v1: Operand, v2: Operand, destReg: Byte) = Binary(Arith.Mul, v1, v2, destReg)
-    def Div(v1: Operand, v2: Operand, destReg: Byte) = Binary(Arith.Div, v1, v2, destReg)
-    def Mod(v1: Operand, v2: Operand, destReg: Byte) = Binary(Arith.Mod, v1, v2, destReg)
+    def Add(v1: Operand, v2: Operand, destReg: Int) = Binary(Arith.Add, v1, v2, destReg)
+    def Sub(v1: Operand, v2: Operand, destReg: Int) = Binary(Arith.Sub, v1, v2, destReg)
+    def Mul(v1: Operand, v2: Operand, destReg: Int) = Binary(Arith.Mul, v1, v2, destReg)
+    def Div(v1: Operand, v2: Operand, destReg: Int) = Binary(Arith.Div, v1, v2, destReg)
+    def Mod(v1: Operand, v2: Operand, destReg: Int) = Binary(Arith.Mod, v1, v2, destReg)
 
-    def And(v1: Operand, v2: Operand, destReg: Byte) = Binary(Bit.And, v1, v2, destReg)
-    def Or (v1: Operand, v2: Operand, destReg: Byte) = Binary(Bit.Or,  v1, v2, destReg)
-    def Nor(v1: Operand, v2: Operand, destReg: Byte) = Binary(Bit.Nor, v1, v2, destReg)
-    def Xor(v1: Operand, v2: Operand, destReg: Byte) = Binary(Bit.Xor, v1, v2, destReg)
-    def Sll(v1: Operand, v2: Operand, destReg: Byte) = Binary(Bit.Sll, v1, v2, destReg)
-    def Srl(v1: Operand, v2: Operand, destReg: Byte) = Binary(Bit.Srl, v1, v2, destReg)
+    def And(v1: Operand, v2: Operand, destReg: Int) = Binary(Bit.And, v1, v2, destReg)
+    def Or (v1: Operand, v2: Operand, destReg: Int) = Binary(Bit.Or,  v1, v2, destReg)
+    def Nor(v1: Operand, v2: Operand, destReg: Int) = Binary(Bit.Nor, v1, v2, destReg)
+    def Xor(v1: Operand, v2: Operand, destReg: Int) = Binary(Bit.Xor, v1, v2, destReg)
+    def Sll(v1: Operand, v2: Operand, destReg: Int) = Binary(Bit.Sll, v1, v2, destReg)
+    def Srl(v1: Operand, v2: Operand, destReg: Int) = Binary(Bit.Srl, v1, v2, destReg)
 
-    def Gt(v1: Operand, v2: Operand, destReg: Byte) = Binary(Ord.Gt, v1, v2, destReg)
-    def Lt(v1: Operand, v2: Operand, destReg: Byte) = Binary(Ord.Lt, v1, v2, destReg)
-    def Ge(v1: Operand, v2: Operand, destReg: Byte) = Binary(Ord.Ge, v1, v2, destReg)
-    def Le(v1: Operand, v2: Operand, destReg: Byte) = Binary(Ord.Le, v1, v2, destReg)
-    def Eq(v1: Operand, v2: Operand, destReg: Byte) = Binary(Ord.Eq, v1, v2, destReg)
+    def Gt(v1: Operand, v2: Operand, destReg: Int) = Binary(Ord.Gt, v1, v2, destReg)
+    def Lt(v1: Operand, v2: Operand, destReg: Int) = Binary(Ord.Lt, v1, v2, destReg)
+    def Ge(v1: Operand, v2: Operand, destReg: Int) = Binary(Ord.Ge, v1, v2, destReg)
+    def Le(v1: Operand, v2: Operand, destReg: Int) = Binary(Ord.Le, v1, v2, destReg)
+    def Eq(v1: Operand, v2: Operand, destReg: Int) = Binary(Ord.Eq, v1, v2, destReg)
 
   enum Instr:
     case Binary(op: BiOp, v1: Operand, v2: Operand, destReg: Int)

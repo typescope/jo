@@ -300,8 +300,7 @@ object Linux:
       cb.add(Instr.Sub(Reg(SP_REG), Int32(4), SP_REG))
       cb.add(Instr.Store(v, Reg(SP_REG)))
 
-
-    /** Push a procedure literal to value stack
+    /** Initialize a value definition
       *
       * Calling the passed function will compile the initializer.
       */
@@ -353,7 +352,7 @@ object Linux:
       *
       * The index begins from 0.
       */
-    def loadValue(destReg: Byte, index: Byte): Unit =
+    def loadValue(destReg: Int, index: Byte): Unit =
       val addr = Rel(SP_REG, (index * 4).toByte)
       cb.add(Instr.Load(addr, destReg))
 
