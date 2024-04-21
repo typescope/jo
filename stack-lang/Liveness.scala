@@ -146,7 +146,7 @@ object Liveness:
           case Rel(r, _) => useRegs += r
           case _: Label =>
 
-      case Load(addr: Addr, destReg: Byte) =>
+      case Load(addr: Addr, destReg) =>
         defRegs += destReg
         addr match
           case Reg(r)    => useRegs += r

@@ -57,11 +57,11 @@ object Assembly:
     def Eq(v1: Operand, v2: Operand, destReg: Byte) = Binary(Ord.Eq, v1, v2, destReg)
 
   enum Instr:
-    case Binary(op: BiOp, v1: Operand, v2: Operand, destReg: Byte)
+    case Binary(op: BiOp, v1: Operand, v2: Operand, destReg: Int)
 
     case Move(v: Value, destReg: Byte)
     case Store(v: Value, addr: Addr)
-    case Load(addr: Addr, destReg: Byte)
+    case Load(addr: Addr, destReg: Int)
 
     case Jump(addr: Addr)
     case JZero(reg: Reg, label: Label)
