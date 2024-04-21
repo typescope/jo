@@ -265,3 +265,32 @@ object GraphColoring:
     end while
 
     Result(regAssignment.toMap, stackAssignment.toMap)
+  end select
+
+  def alloc(liveness: Liveness.Result, regs: Set[Int], k: Int): Result =
+    val graph = build(liveness)
+
+    val SIMPLIFY = 1
+    val COALESCE = 2
+    val FREEZE   = 3
+    val SPILL    = 4
+    val SELECT   = 5
+
+    var state = SIMPLIFY
+
+    while state != SELECT do
+      state match
+        case SIMPLIFY =>
+          state = if simplify(graph, k) then SIMPLIFY else COALESCE
+
+        case COALESCE =>
+          state = if coalesce(graph, k) then SIMPLIFY else FREEZE
+
+        case FREEZE =>
+          state = if freeze(graph, k) then SIMPLIFY else SPILL
+
+        case SPILL =>
+          state = if spill(graph, k) then SIMPLIFY else SELECT
+    end while
+
+    select(graph, regs, k)
