@@ -104,12 +104,14 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
     assert(paramCount < 31, s"At most 30 parameters, $sym has " + paramCount)
 
     // bind param address to registers and load data from stack
-    for (param, index) <- fdef.params.zipWithIndex do
-      val offset = ((paramCount + 1 - index) * 4).toByte
-      val addr = Rel(FP_REG, offset)
+    var index = 0
+    for param <- fdef.params do
+      val offset = paramCount + 1 - index
+      val addr = Rel(FP_REG, (offset << 2).toByte)
       val reg = allocVirtualReg()
       symbolRegMap(param) = reg
       cb.add(Instr.Load(addr, reg))
+      index += 1
 
     compile(fdef.words)
 
