@@ -237,6 +237,14 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
     * Call stack goes from high address to low address.
     */
   def ret() =
+    var i = 0
+    val size = vs.size
+    while i < size do
+      val res = vs.peek(i)
+      val addr = Rel(FP_REG, (i << 2).toByte)
+      cb.add(Instr.Store(res, addr))
+      i += 1
+
     val reg = allocVirtualReg()
     cb.add(Instr.Load(Reg(FP_REG), reg))
     cb.add(Instr.Jump(Reg(reg)))
@@ -277,41 +285,59 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
   def call(addr: Addr, argCount: Int, resCount: Int) =
     val returnLoc = Label("returnLoc")
 
-    // 1. save FP
-    storeValue(Reg(FP_REG), -1)
+    // offset between caller SP and callee FP
+    val spOffset = 2 + argCount + freeRegisters.size
+    var index = -1
 
-    // TODO: save live registers
+    // 1. save live registers
+    for reg <- freeRegisters do
+      storeValue(Reg(reg), index.toByte)
+      index -= 1
 
-    // 2. save return
-    storeValue(returnLoc, -2)
+    // 2. save args
+    var i = 0
+    while i < argCount do
+      val arg = vs.pop()
+      storeValue(arg, index.toByte)
+      index -= 1
+      i += 1
 
-    // 3. update FP and SP
-    cb.add(Instr.Sub(Reg(SP_REG), Int32(8), SP_REG))
+    // 3. save FP
+    storeValue(Reg(FP_REG), index.toByte)
+    index -= 1
+
+    // 4. save return
+    storeValue(returnLoc, index.toByte)
+    index -= 1
+
+    // 5. update FP and SP
+    cb.add(Instr.Sub(Reg(SP_REG), Int32(spOffset << 2), SP_REG))
     cb.add(Instr.Move(Reg(SP_REG), FP_REG))
 
-    // 4. jump to target
+    // 6. jump to target
     cb.add(Instr.Jump(addr))
 
+    // post call
     cb.mark(returnLoc)
 
-    // 5. restore SP
-    val spOffset = 2 + argCount  // offset between caller SP and callee FP
-    cb.add(Instr.Add(Reg(FP_REG), Int32(spOffset * 4), SP_REG))
+    // 7. restore SP and FP
+    index = -spOffset + 1
+    cb.add(Instr.Add(Reg(FP_REG), Int32(spOffset << 2), SP_REG))
+    loadValue(FP_REG, index.toByte)
 
-    // TODO: restore registers
+    // 8. restore registers
+    index += argCount
+    for reg <- freeRegisters.reverse do
+      storeValue(Reg(reg), index.toByte)
+      index += 1
 
-    // 6. copy result
-    var i = 0
+    // 9. copy result
+    i = 0
     while i < resCount do
       val reg = allocVirtualReg()
       loadValue(reg, (-spOffset - i - 1).toByte)
       vs.push(Reg(reg))
       i += 1
-
-    // 7. restore FP
-    val fpAddr = Rel(FP_REG, 4)
-    cb.add(Instr.Load(fpAddr, FP_REG))
-
 
   /** Initialize a value definition
     *
