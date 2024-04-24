@@ -426,7 +426,7 @@ object Linux:
     def bnot() =
       useReg: r =>
         loadValue(r, 0)
-        cb.add(Instr.Not(Reg(r), r))
+        cb.add(Instr.Nor(Reg(r), Reg(r), r))
         cb.add(Instr.And(Reg(r), Int32(1), r))
         storeValue(Reg(r), 0)
 

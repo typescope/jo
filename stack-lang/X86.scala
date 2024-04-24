@@ -103,9 +103,6 @@ object X86:
       case Instr.JZero(r, label) =>
         jzero(r.index, label)
 
-      case Instr.Not(v, destReg) =>
-        not(destReg, v)
-
       case special: Instr.Special[Extension @unchecked] =>
         lower(special.instr)
 
@@ -121,7 +118,7 @@ object X86:
           binaryOperation(op, r1.index, r2)
         else if destReg == r2.index then
           op match
-            case BiOp.Add | BiOp.Mul | BiOp.And | BiOp.Or | BiOp.Xor | BiOp.Eq =>
+            case BiOp.Add | BiOp.Mul | BiOp.And | BiOp.Or | BiOp.Nor | BiOp.Xor | BiOp.Eq =>
               // commutative operations
               binaryOperation(op, r2.index, r1)
 
@@ -157,7 +154,7 @@ object X86:
       case Instr.Binary(op, v, r: Reg, destReg) =>
         if destReg == r.index then
           op match
-            case BiOp.Add | BiOp.Mul | BiOp.And | BiOp.Or | BiOp.Xor | BiOp.Eq =>
+            case BiOp.Add | BiOp.Mul | BiOp.And | BiOp.Or | BiOp.Nor | BiOp.Xor | BiOp.Eq =>
               // commutative operations
               binaryOperation(op, r.index, v)
 
@@ -399,6 +396,16 @@ object X86:
         pb.addByte((0xC0 | (1 << 3) | reg).toByte)
         pb.addInt(v)
 
+  /** Logical NOR the value to the register */
+  def nor(reg: Byte, v: Operand)(using pb: PatchableBuffer) =
+    v match
+      case Reg(rv) if rv == reg =>
+        not(reg)
+
+      case _ =>
+       or(reg, v)
+       not(reg)
+
   /** Shift left logically */
   def sll(reg: Byte, v: Operand)(using pb: PatchableBuffer) =
     v match
@@ -443,7 +450,7 @@ object X86:
         pb.addByte((0xC0 | (1 << 5) | reg).toByte)
         pb.addByte(v.toByte)
 
-  def not(reg: Byte, v: Operand)(using pb: PatchableBuffer) =
+  def not(reg: Byte)(using pb: PatchableBuffer) =
     // F7 /2    NOT r/m32
     pb.addByte(0xF7.toByte)
     pb.addByte((0xC0 | (2 << 3) | reg).toByte)
@@ -781,6 +788,7 @@ object X86:
 
       case BiOp.And => and(reg, v)
       case BiOp.Or  => or(reg, v)
+      case BiOp.Nor => nor(reg, v)
       case BiOp.Xor => xor(reg, v)
 
       case BiOp.Srl => srl(reg, v)

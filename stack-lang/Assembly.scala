@@ -26,7 +26,7 @@ object Assembly:
   type Value    = Int32 | Label | Reg
 
   enum BiOp:
-    case Add, Sub, Mul, Div, Mod, And, Or, Xor, Sll, Srl, Gt, Lt, Ge, Le, Eq
+    case Add, Sub, Mul, Div, Mod, And, Or, Nor, Xor, Sll, Srl, Gt, Lt, Ge, Le, Eq
 
   object Instr:
     def Add(v1: Operand, v2: Operand, destReg: Byte) = Binary(BiOp.Add, v1, v2, destReg)
@@ -36,6 +36,7 @@ object Assembly:
     def Mod(v1: Operand, v2: Operand, destReg: Byte) = Binary(BiOp.Mod, v1, v2, destReg)
 
     def And(v1: Operand, v2: Operand, destReg: Byte) = Binary(BiOp.And, v1, v2, destReg)
+    def Nor(v1: Operand, v2: Operand, destReg: Byte) = Binary(BiOp.Nor, v1, v2, destReg)
     def Or (v1: Operand, v2: Operand, destReg: Byte) = Binary(BiOp.Or,  v1, v2, destReg)
     def Xor(v1: Operand, v2: Operand, destReg: Byte) = Binary(BiOp.Xor, v1, v2, destReg)
     def Sll(v1: Operand, v2: Operand, destReg: Byte) = Binary(BiOp.Sll, v1, v2, destReg)
@@ -48,7 +49,6 @@ object Assembly:
     def Eq(v1: Operand, v2: Operand, destReg: Byte) = Binary(BiOp.Eq, v1, v2, destReg)
 
   enum Instr:
-    case Not(v: Operand, destReg: Byte)
     case Binary(op: BiOp, v1: Operand, v2: Operand, destReg: Byte)
 
     case Move(v: Value, destReg: Byte)
