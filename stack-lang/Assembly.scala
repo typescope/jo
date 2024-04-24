@@ -49,10 +49,9 @@ object Assembly:
 
   enum Instr:
     case Not(v: Operand, destReg: Byte)
-    case Const(v: Constant, destReg: Byte)
     case Binary(op: BiOp, v1: Operand, v2: Operand, destReg: Byte)
 
-    case Move(srcReg: Byte, destReg: Byte)
+    case Move(v: Value, destReg: Byte)
     case Store(v: Value, addr: Addr)
     case Load(addr: Addr, destReg: Byte)
 

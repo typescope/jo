@@ -63,7 +63,7 @@ object Linux:
     def entry(init: => Unit): Unit =
       // Stack pointer is initialized by the kernel, initialize frame pointer
       cb.mark(this.entry)
-      cb.add(Instr.Move(SP_REG, FP_REG))
+      cb.add(Instr.Move(Reg(SP_REG), FP_REG))
       init
       exit(0)
 
@@ -197,8 +197,8 @@ object Linux:
 
 
     def exit(code: Int): Unit =
-      cb.add(Instr.Const(Int32(code), X86.EBX))  // exit code
-      cb.add(Instr.Const(Int32(1), X86.EAX))     // syscall number
+      cb.add(Instr.Move(Int32(code), X86.EBX))  // exit code
+      cb.add(Instr.Move(Int32(1), X86.EAX))     // syscall number
       cb.add(Instr.Special(X86.Syscall))         // syscall
 
     /** Return from a procedure or function.
@@ -254,7 +254,7 @@ object Linux:
 
       // 3. update FP and SP
       cb.add(Instr.Sub(Reg(SP_REG), Int32(8), SP_REG))
-      cb.add(Instr.Move(SP_REG, FP_REG))
+      cb.add(Instr.Move(Reg(SP_REG), FP_REG))
 
       // 4. jump to target
       cb.add(Instr.Jump(addr))

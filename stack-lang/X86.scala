@@ -94,17 +94,14 @@ object X86:
       case Instr.Load(addr, destReg) =>
         load(addr, destReg)
 
-      case Instr.Move(srcReg, destReg) =>
-        move(Reg(srcReg), destReg)
+      case Instr.Move(v, destReg) =>
+        move(v, destReg)
 
       case Instr.Jump(addr) =>
         jump(addr)
 
       case Instr.JZero(r, label) =>
         jzero(r.index, label)
-
-      case Instr.Const(v, destReg) =>
-        const(v, destReg)
 
       case Instr.Not(v, destReg) =>
         not(destReg, v)
@@ -466,7 +463,7 @@ object X86:
         pb.addInt(v)
 
   /** Move the value to the register */
-  def move(v: Operand, reg: Byte)(using pb: PatchableBuffer) =
+  def move(v: Value, reg: Byte)(using pb: PatchableBuffer) =
     v match
       case Reg(rv) =>
         // 8B /r       MOV r32, r/m32
@@ -477,6 +474,12 @@ object X86:
         // B8+ rd id   MOV r32, imm32
         pb.addByte((0xB8 | reg).toByte)
         pb.addInt(v)
+
+      case l: Label =>
+        // B8+ rd id   MOV r32, imm32
+        withPatch(l, 5): (bb, loc) =>
+          pb.addByte((0xB8 | reg).toByte)
+          pb.addInt(loc)
 
   /** Move the value to the register */
   def const(c: Constant, reg: Byte)(using pb: PatchableBuffer) =
