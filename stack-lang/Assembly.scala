@@ -87,13 +87,17 @@ object Assembly:
           case Data.Int32(l, v)    => sb.append(l.name + " = " + v + "\n")
           case Data.Uninit(l, tp)  => sb.append(l.name + " : " + tp + "\n")
 
+      var i = 0
+
       for instr <- instrs do
         instr match
           case l: Label =>
-            sb.append(l.name + ":" + "\n")
+            sb.append(s"$i\t[${l.name}]:\n")
 
           case _ =>
-            sb.append("  " + instr + "\n")
+            sb.append(s"$i\t$instr\n")
+        end match
+        i += 1
       end for
 
       sb.toString()

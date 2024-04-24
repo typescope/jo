@@ -210,7 +210,7 @@ object GraphColoring:
     // More optimal spilling should be based on a cost model.
     graph.conflicts.exists: (node, conflictees) =>
       if conflictees.nonEmpty then
-        assert(conflictees.size >= k)
+        assert(conflictees.size >= k, "node = " + node + ", conflict = " + conflictees)
         graph.spill(node)
         true
       else
@@ -219,9 +219,10 @@ object GraphColoring:
 
   case class Result(regAlloc: Map[Int, Int], stackAlloc: Map[Int, Int])
 
-  def select(graph: Graph, regs: Set[Int], k: Int): Result =
+  def select(graph: Graph, regs: Set[Int]): Result =
     assert(graph.conflicts.isEmpty)
-    assert(regs.size == k)
+
+    val k = regs.size
 
     var stackSlot = 0
     val stackAssignment = mutable.Map.empty[Int, Int]
@@ -276,7 +277,8 @@ object GraphColoring:
     Result(regAssignment.toMap, stackAssignment.toMap)
   end select
 
-  def alloc(liveness: Liveness.Result, regs: Set[Int], k: Int): Result =
+  def alloc(liveness: Liveness.Result, regs: Set[Int]): Result =
+    val k = regs.size
     val graph = build(liveness)
 
     val SIMPLIFY = 1
@@ -302,4 +304,4 @@ object GraphColoring:
           state = if spill(graph, k) then SIMPLIFY else SELECT
     end while
 
-    select(graph, regs, k)
+    select(graph, regs)

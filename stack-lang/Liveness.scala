@@ -28,16 +28,23 @@ object Liveness:
 
     def instrInfo(index: Int): InstrInfo = instrInfoMap(index)
 
+    override def toString() =
+      predecessorMap.keys.toSeq.sorted.map(k => k + " -> " + predecessorMap(k)).mkString("\n")
+
 
   type WorkList = mutable.ArrayDeque[WorkItem]
   case class WorkItem(index: Int, succLiveSet: LiveSet)
 
-  case class Result(liveSets: Map[Int, LiveSet], moves: Map[Int, Set[Int]])
+  case class Result(liveSets: Map[Int, LiveSet], moves: Map[Int, Set[Int]]):
+    override def toString() =
+      liveSets.keys.toSeq.sorted.map(k => k + " -> " + liveSets(k)).mkString("\n")
 
   def analyze(instrs: Instrs): Result =
     val workList = mutable.ArrayDeque.empty[WorkItem]
     val codeInfo = collectCodeInfo(instrs, workList)
     val result = mutable.Map.empty[Int, LiveSet]
+
+    println(codeInfo)
 
     while workList.nonEmpty do
       val WorkItem(index, succLiveSet) = workList.removeLast()
@@ -70,7 +77,7 @@ object Liveness:
         case l: Label =>
           labelInfo(l) = index + 1
           val nextPreds = predecessorMap.getOrElseUpdate(index + 1, Set.empty)
-          if index > 0 then
+          if index > 0 && !instrs(index - 1).isInstanceOf[Jump] then
             predecessorMap(index + 1) = nextPreds + (index - 1)
 
         case instr: Instr =>
@@ -106,7 +113,7 @@ object Liveness:
           predecessorMap(idx) = preds + fromIndex
 
         case None =>
-          // function call, ignore
+          // function call
     end for
 
     CodeInfo(predecessorMap.toMap, instrInfoMap.toMap, moves.toMap)

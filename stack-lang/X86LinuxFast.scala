@@ -4,11 +4,12 @@ import Assembly.*
 import Assembler.{ Patch, PatchableBuffer }
 import Sast.*
 
+final class NonLocalJump(addr: Addr) extends Instr.Jump(addr)
 
 /** Fast x86 implementation with register allocation  */
 class X86LinuxFast(outFile: String, layout: String) extends Platform:
   /** The register ESP and EBP are reserved for value stack and call stack respectively. */
-  val freeRegisters: List[Byte] = List(X86.EAX, X86.ECX, X86.EDX, X86.EBX, X86.ESI, X86.EDI)
+  val freeRegisters: List[Int] = List(X86.EAX, X86.ECX, X86.EDX, X86.EBX, X86.ESI, X86.EDI)
 
   /** Call stack register (high -> low address)  */
   val SP_REG: Byte = X86.ESP
@@ -91,15 +92,15 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
     val label = symbolAddrMap(sym).asInstanceOf[Label]
     val paramCount = fdef.params.size
 
+    // mark beginning of function
+    cb.mark(label)
+
     // Compile function to a temporary buffer for register allocation
     val savedCodeBuffer = cb
     cb = new CodeBuffer(entry)
     initVirtualRegisterIndex()
     symbolRegMap.clear()
     vs.clear()
-
-    // start compilation
-    cb.mark(label)
 
     assert(paramCount < 31, s"At most 30 parameters, $sym has " + paramCount)
 
@@ -118,6 +119,12 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
     ret()
 
     // TODO: register allocation
+    val code = cb.getResult()
+    println(code.show())
+    val liveness = Liveness.analyze(code.instrs)
+    println(liveness)
+    val res = GraphColoring.alloc(liveness, freeRegisters.toSet)
+    println(res)
 
     // clean up
     symbolRegMap.clear()
