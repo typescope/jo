@@ -11,6 +11,11 @@ object GraphColoring:
     case Single(reg: Int)
     case Merged(node1: Node, node2: Node)
 
+    def show: String =
+      this match
+        case Single(reg) => reg.toString
+        case Merged(node1, node2) => node1.show + "," + node2.show
+
   enum Action:
     case Simplify(node: Node, conflicts: Set[Node])
     case Coalesce(node: Node.Merged)
@@ -125,6 +130,36 @@ object GraphColoring:
       for target <- targets do
         moves = moves.updated(target, moves(target) - node)
 
+    /** Represent the graph using the DOT language
+      *
+      *    graph {
+      *      a -- b -- c;
+      *      b -- d;
+      *    }
+      *
+      * https://en.wikipedia.org/wiki/DOT_(graph_description_language)
+      */
+    def toDot: String =
+      val sb = new StringBuilder
+      val edges = mutable.Set.empty[(Node, Node)]
+      sb ++= "graph {"
+
+      for (node, cfls) <- conflicts do
+        sb ++= node.show
+        sb ++= " -- {"
+        for node2 <- cfls do
+          if
+            !edges.contains(node -> node2)
+            && !edges.contains(node2 -> node)
+          then
+            sb ++= node2.show
+            edges += node -> node2
+
+        sb ++= "}"
+
+      sb ++= "}"
+      sb.toString
+
   end Graph
 
   def build(result: Liveness.Result): Graph =
@@ -162,13 +197,12 @@ object GraphColoring:
     Graph(conflicts.toMap, moves.toMap)
 
   def simplify(graph: Graph, k: Int): Boolean =
-    var simplified = false
-    for (node, conflictees) <- graph.conflicts do
-      if graph.isMoveRelated(node) && conflictees.size < k then
-        simplified = true
+    graph.conflicts.exists: (node, conflictees) =>
+      if !graph.isMoveRelated(node) && conflictees.size < k then
         graph.simplify(node)
-
-    simplified
+        true
+      else
+        false
 
   def coalesce(graph: Graph, k: Int): Boolean =
     graph.moves.exists: (node1, targets) =>
@@ -219,7 +253,7 @@ object GraphColoring:
 
   case class Result(regAlloc: Map[Int, Int], stackAlloc: Map[Int, Int])
 
-  def select(graph: Graph, regs: Set[Int]): Result =
+  def select(graph: Graph, regs: List[Int]): Result =
     assert(graph.conflicts.isEmpty)
 
     val k = regs.size
@@ -252,8 +286,8 @@ object GraphColoring:
       action match
         case Action.Simplify(node: Node, conflicts: Set[Node]) =>
           assert(conflicts.size < k)
-          val used = conflicts.map(nodeAssignment)
-          val reg = (regs -- used).head
+          val used = conflicts.map(nodeAssignment).toSeq
+          val reg = regs.diff(used).head
           nodeAssignment(node) = reg
           assignRegister(node, reg)
 
@@ -262,8 +296,8 @@ object GraphColoring:
           nodeAssignment(node2) = nodeAssignment(node)
 
         case Action.Spill(node: Node, conflicts: Set[Node]) =>
-          val used = conflicts.map(nodeAssignment)
-          val unused = regs -- used
+          val used = conflicts.map(nodeAssignment).toSeq
+          val unused = regs.diff(used)
           // potential spill might not be an actual spill
           if unused.isEmpty then
             assignStackSlot(node, stackSlot)
@@ -277,31 +311,38 @@ object GraphColoring:
     Result(regAssignment.toMap, stackAssignment.toMap)
   end select
 
-  def alloc(liveness: Liveness.Result, regs: Set[Int]): Result =
+  enum State:
+    case Simplify, Coalesce, Freeze, Spill, Select
+
+  def alloc(liveness: Liveness.Result, regs: List[Int]): Result =
+    import State.*
+
     val k = regs.size
     val graph = build(liveness)
 
-    val SIMPLIFY = 1
-    val COALESCE = 2
-    val FREEZE   = 3
-    val SPILL    = 4
-    val SELECT   = 5
+    var state = State.Simplify
 
-    var state = SIMPLIFY
+    import java.nio.file.{ Files, Paths }
 
-    while state != SELECT do
+    var i = 0
+
+    while state != Select do
+      Files.write(Paths.get(s"graph-$i-$state.dot"), graph.toDot.getBytes);
+      i += 1
       state match
-        case SIMPLIFY =>
-          state = if simplify(graph, k) then SIMPLIFY else COALESCE
+        case Simplify =>
+          state = if simplify(graph, k) then Simplify else Coalesce
 
-        case COALESCE =>
-          state = if coalesce(graph, k) then SIMPLIFY else FREEZE
+        case Coalesce =>
+          state = if coalesce(graph, k) then Simplify else Freeze
 
-        case FREEZE =>
-          state = if freeze(graph, k) then SIMPLIFY else SPILL
+        case Freeze =>
+          state = if freeze(graph, k) then Simplify else Spill
 
-        case SPILL =>
-          state = if spill(graph, k) then SIMPLIFY else SELECT
+        case Spill =>
+          state = if spill(graph, k) then Simplify else Select
+
+        case Select =>
     end while
 
     select(graph, regs)
