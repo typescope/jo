@@ -278,7 +278,7 @@ object GraphColoring:
   case class Result(regAlloc: Map[Int, Int], stackAlloc: Map[Int, Int])
 
   def select(graph: Graph, regs: List[Int]): Result =
-    assert(graph.conflicts.isEmpty)
+    assert(graph.conflicts.keys.forall(node => graph.isPreColored(node)))
 
     val k = regs.size
 
@@ -294,23 +294,28 @@ object GraphColoring:
           assignStackSlot(node2, stackSlot)
 
     val regAssignment = mutable.Map.empty[Int, Int]
-    def assignRegister(node: Node, reg: Int): Unit =
+    def assignRegister(node: Node, regAssigned: Int): Unit =
       node match
         case Node.Single(reg) =>
-          regAssignment(reg) = reg
+          regAssignment(reg) = regAssigned
 
         case Node.Merged(node1, node2) =>
-          assignRegister(node1, reg)
-          assignRegister(node2, reg)
+          assignRegister(node1, regAssigned)
+          assignRegister(node2, regAssigned)
 
 
     val nodeAssignment = mutable.Map.empty[Node, Int]
+    def getAssignment(node: Node): Int =
+      node match
+        case Node.Single(reg) if graph.isPreColored(node) => reg
+        case _ => nodeAssignment(node)
+
     while graph.actions.nonEmpty do
       val action = graph.actions.remove(graph.actions.size - 1)
       action match
         case Action.Simplify(node: Node, conflicts: Set[Node]) =>
           assert(conflicts.size < k)
-          val used = conflicts.map(nodeAssignment).toSeq
+          val used = conflicts.map(getAssignment).toSeq
           val reg = regs.diff(used).head
           nodeAssignment(node) = reg
           assignRegister(node, reg)
@@ -320,7 +325,7 @@ object GraphColoring:
           nodeAssignment(node2) = nodeAssignment(node)
 
         case Action.Spill(node: Node, conflicts: Set[Node]) =>
-          val used = conflicts.map(nodeAssignment).toSeq
+          val used = conflicts.map(getAssignment).toSeq
           val unused = regs.diff(used)
           // potential spill might not be an actual spill
           if unused.isEmpty then
