@@ -130,7 +130,7 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
     println(code.show())
     val liveness = Liveness.analyze(code.instrs)
     println(liveness)
-    val res = GraphColoring.alloc(liveness, freeRegisters)
+    val res = GraphColoring.alloc(liveness, freeRegisters, VIRTUAL_REG_START_INDEX)
     println(res)
 
     // clean up

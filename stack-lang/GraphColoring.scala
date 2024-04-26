@@ -25,10 +25,16 @@ object GraphColoring:
 
   /** Interference graph */
   class Graph(
+    preColor: Int,
     var conflicts: Map[Node, Set[Node]],
     var moves: Map[Node, Set[Node]]):
 
     val actions = mutable.ArrayBuffer.empty[Action]
+
+    def isPreColored(node: Node): Boolean =
+      node match
+        case Node.Single(reg) => reg < preColor
+        case Node.Merged(_, _) => false
 
     def isMoveRelated(node: Node): Boolean =
       moves.contains(node)
@@ -171,7 +177,7 @@ object GraphColoring:
 
   end Graph
 
-  def build(result: Liveness.Result): Graph =
+  def build(result: Liveness.Result, preColor: Int): Graph =
     val nodeMap = mutable.Map.empty[Int, Node]
     val conflicts = mutable.Map.empty[Node, Set[Node]]
     val moves = mutable.Map.empty[Node, Set[Node]]
@@ -207,11 +213,15 @@ object GraphColoring:
         moves(node2) = moves.getOrElse(node2, Set.empty) + node1
       end for
 
-    Graph(conflicts.toMap, moves.toMap)
+    Graph(preColor, conflicts.toMap, moves.toMap)
 
   def simplify(graph: Graph, k: Int): Boolean =
     graph.conflicts.exists: (node, conflictees) =>
-      if !graph.isMoveRelated(node) && conflictees.size < k then
+      if
+        !graph.isPreColored(node)
+        && !graph.isMoveRelated(node)
+        && conflictees.size < k
+      then
         graph.simplify(node)
         true
       else
@@ -221,7 +231,8 @@ object GraphColoring:
     graph.moves.exists: (node1, targets) =>
       targets.exists: node2 =>
         if
-          graph.degree(node1) + graph.degree(node2) < k
+          !graph.isPreColored(node1) && !graph.isPreColored(node2)
+          && graph.degree(node1) + graph.degree(node2) < k
         then
           // Conflict moves are removed and should never be encountered.
           //
@@ -256,7 +267,7 @@ object GraphColoring:
     //
     // More optimal spilling should be based on a cost model.
     graph.conflicts.exists: (node, conflictees) =>
-      if conflictees.nonEmpty then
+      if !graph.isPreColored(node) && conflictees.nonEmpty then
         assert(conflictees.size >= k, "node = " + node + ", conflict = " + conflictees)
         graph.spill(node)
         true
@@ -327,11 +338,11 @@ object GraphColoring:
   enum State:
     case Simplify, Coalesce, Freeze, Spill, Select
 
-  def alloc(liveness: Liveness.Result, regs: List[Int]): Result =
+  def alloc(liveness: Liveness.Result, regs: List[Int], preColor: Int): Result =
     import State.*
 
     val k = regs.size
-    val graph = build(liveness)
+    val graph = build(liveness, preColor)
 
     var state = State.Simplify
 
