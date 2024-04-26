@@ -130,6 +130,15 @@ object GraphColoring:
       for target <- targets do
         moves = moves.updated(target, moves(target) - node)
 
+    def check(): Unit =
+      for (node1, cfls) <- conflicts do
+        for node2 <- cfls do
+          assert(conflicts(node2).contains(node1))
+
+      for (node, targets) <- moves do
+        for target <- targets do
+          assert(moves(target).contains(node))
+
     /** Represent the graph using the DOT language
       *
       *    graph {
@@ -329,6 +338,9 @@ object GraphColoring:
     while state != Select do
       Files.write(Paths.get(s"graph-$i-$state.dot"), graph.toDot.getBytes);
       i += 1
+
+      graph.check()
+
       state match
         case Simplify =>
           state = if simplify(graph, k) then Simplify else Coalesce
