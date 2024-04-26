@@ -11,11 +11,12 @@ import Instr.*
 object Liveness:
   // TODO: use bitset for fast union and subtraction
   type LiveSet   = Set[Int]
-  type Instrs    = Seq[Instr | Label]
+  type Instrs    = Seq[Instr]
 
   case class InstrInfo(defs: List[Int], uses: List[Int])
 
   class CodeInfo(
+    instrs: Seq[Instr],
     predecessorMap: Map[Int, Set[Int]],
     instrInfoMap: Map[Int, InstrInfo],
     val moves: Map[Int, Set[Int]]):
@@ -39,9 +40,9 @@ object Liveness:
     override def toString() =
       liveSets.keys.toSeq.sorted.map(k => k + " -> " + liveSets(k)).mkString("\n")
 
-  def analyze(instrs: Instrs): Result =
+  def analyze(rawInstrs: Seq[Instr | Label]): Result =
     val workList = mutable.ArrayDeque.empty[WorkItem]
-    val codeInfo = collectCodeInfo(instrs, workList)
+    val codeInfo = collectCodeInfo(rawInstrs, workList)
     val result = mutable.Map.empty[Int, LiveSet]
 
     println(codeInfo)
@@ -62,61 +63,74 @@ object Liveness:
     Result(result.toMap, codeInfo.moves)
 
   /** Collect code info and initialize work list for each instruction. */
-  def collectCodeInfo(instrs: Instrs, workList: WorkList): CodeInfo =
+  def collectCodeInfo(rawInstrs: Seq[Instr | Label], workList: WorkList): CodeInfo =
     val labelInfo = mutable.Map.empty[Label, Int]
+
+    val instrs = new mutable.ArrayBuffer[Instr]
+    for rawInstr <- rawInstrs do
+      rawInstr match
+        case label: Label =>
+          labelInfo(label) = instrs.size
+
+        case instr: Instr =>
+          instrs += instr
+    end for
+
     val predecessorMap = mutable.Map.empty[Int, Set[Int]]
     val instrInfoMap = mutable.Map.empty[Int, InstrInfo]
-    val jumpTargets = mutable.Map.empty[Int, Label]
+    val jumpTargets = mutable.Map.empty[Int, Int]
     val moves = mutable.Map.empty[Int, Set[Int]]
 
     var index = 0
     val size = instrs.size
     while index < size do
       val instr = instrs(index)
+      instrInfoMap(index) = analyzeInstrInfo(instr)
+      workList += WorkItem(index, Set.empty)
+
       instr match
-        case l: Label =>
-          labelInfo(l) = index + 1
-          val nextPreds = predecessorMap.getOrElseUpdate(index + 1, Set.empty)
-          if index > 0 && !instrs(index - 1).isInstanceOf[Jump] then
-            predecessorMap(index + 1) = nextPreds + (index - 1)
+        case Move(Reg(srcReg), destReg) =>
+          val moveTargets = moves.getOrElseUpdate(srcReg, Set.empty)
+          moves(srcReg) = moveTargets + destReg
 
-        case instr: Instr =>
-          instrInfoMap(index) = analyzeInstrInfo(instr)
+        case Jump(_: Reg | _: Rel) =>
+          // indirect function call or function return
 
-          workList += WorkItem(index, Set.empty)
+        case Jump(label: Label) if !label.isInstanceOf[FunLabel] =>
+          jumpTargets(index) = labelInfo(label)
 
-          instr match
-            case Move(Reg(srcReg), destReg) =>
-              val moveTargets = moves.getOrElseUpdate(srcReg, Set.empty)
-              moves(srcReg) = moveTargets + destReg
+        case JZero(_, label: Label) =>
+          jumpTargets(index) = labelInfo(label)
 
-            case Jump(_: Reg | _: Rel) =>
-              // indirect function call or function return
-
-            case Jump(label: Label) =>
-              // Could be a non-local function target, handled by checking labels
-              jumpTargets(index) = label
-
-            case JZero(_, label: Label) =>
-              jumpTargets(index) = label
-
-            case _ =>
-          end match
+        case _ =>
       end match
       index += 1
     end while
 
-    for (fromIndex, toLabel) <- jumpTargets do
-      labelInfo.get(toLabel) match
-        case Some(idx) =>
-          val preds = predecessorMap.getOrElseUpdate(idx, Set.empty)
-          predecessorMap(idx) = preds + fromIndex
+    /** Find the sequential predecessor for the given instruction  */
+    def sequentialPredecessor(i: Int): Set[Int] =
+      if i == 0 then
+        Set.empty
+      else
+        instrs(i - 1) match
+          case Jump(_: Reg | _: Rel) =>
+            // indirect function call or function return
+            Set(i - 1)
 
-        case None =>
-          // function call
+          case Jump(label: Label) =>
+            // function call will follow the next
+            if label.isInstanceOf[FunLabel] then Set(i - 1)
+            else Set.empty
+
+          case _ => Set(i - 1)
+      end if
+
+    for (fromIndex, toIndex) <- jumpTargets do
+      val preds = predecessorMap.getOrElseUpdate(toIndex, sequentialPredecessor(toIndex))
+      predecessorMap(toIndex) = preds + fromIndex
     end for
 
-    CodeInfo(predecessorMap.toMap, instrInfoMap.toMap, moves.toMap)
+    CodeInfo(instrs.toList, predecessorMap.toMap, instrInfoMap.toMap, moves.toMap)
 
 
   def analyzeInstrInfo(instr: Instr): InstrInfo =

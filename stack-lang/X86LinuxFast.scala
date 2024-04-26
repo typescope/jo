@@ -4,6 +4,9 @@ import Assembly.*
 import Assembler.{ Patch, PatchableBuffer }
 import Sast.*
 
+/** A label corresponds to a function definition */
+class FunLabel(name: String) extends Label(name)
+
 /** Fast x86 implementation with register allocation  */
 class X86LinuxFast(outFile: String, layout: String) extends Platform:
   /** The register ESP and EBP are reserved for value stack and call stack respectively. */
@@ -22,15 +25,15 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
   val symbolAddrMap: mutable.Map[Symbol, Addr] = mutable.Map.empty
 
   // maps local symbols to virtual registers
-  val VIRTAL_REG_START_INDEX = 100
-  var virtualRegisterIndex = VIRTAL_REG_START_INDEX
+  val VIRTUAL_REG_START_INDEX = 100
+  var virtualRegisterIndex = VIRTUAL_REG_START_INDEX
   val symbolRegMap: mutable.Map[Symbol, Int] = mutable.Map.empty
 
   val entry = Label("_entry")
   var cb = new CodeBuffer(entry)
 
   def initVirtualRegisterIndex() =
-    virtualRegisterIndex = VIRTAL_REG_START_INDEX
+    virtualRegisterIndex = VIRTUAL_REG_START_INDEX
 
   /** Allocate a virtual register */
   def allocVirtualReg(): Int =
@@ -76,7 +79,7 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
   /** Declare the symbol to the platform as a preparation for compilation */
   def declare(sym: Symbol): Unit =
     assert(!sym.isPrimitive, "Unexpected primitive symbol " + sym)
-    val label = Label(sym.name)
+    val label = if sym.isFunction then FunLabel(sym.name) else Label(sym.name)
     symbolAddrMap(sym) = label
     if sym.isValue then
       cb.add(Data.Uninit(label, Type.Int32))

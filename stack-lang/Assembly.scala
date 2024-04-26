@@ -92,12 +92,12 @@ object Assembly:
       for instr <- instrs do
         instr match
           case l: Label =>
-            sb.append(s"$i\t[${l.name}]:\n")
+            sb.append(s"${l.name}:\n")
 
           case _ =>
             sb.append(s"$i\t$instr\n")
+            i += 1
         end match
-        i += 1
       end for
 
       sb.toString()
