@@ -38,7 +38,7 @@ object Liveness:
 
   case class Result(liveSets: Map[Int, LiveSet], moves: Map[Int, Set[Int]]):
     override def toString() =
-      liveSets.keys.toSeq.sorted.map(k => k + " -> " + liveSets(k)).mkString("\n")
+      liveSets.keys.toSeq.sorted.map(k => k + ": " + liveSets(k)).mkString("\n")
 
   def analyze(rawInstrs: Seq[Instr | Label]): Result =
     val workList = mutable.ArrayDeque.empty[WorkItem]
@@ -49,16 +49,18 @@ object Liveness:
 
     while workList.nonEmpty do
       val WorkItem(index, succLiveSet) = workList.removeLast()
-      val oldLiveSet = result.getOrElseUpdate(index, Set.empty)
       val InstrInfo(defs, uses) = codeInfo.instrInfo(index)
+      // println(s"$index info: defs = $defs, uses = $uses")
 
+      val oldLiveSet = result.getOrElse(index, Set.empty)
       val newLiveSet = oldLiveSet.union(succLiveSet) ++ uses
-      // outLiveSet cannot change if newLiveSet is the same
+      // predLiveSet cannot change if newLiveSet is the same
       if newLiveSet != oldLiveSet then
         result(index) = newLiveSet
-        val outLiveSet = newLiveSet -- defs
+        val predLiveSet = newLiveSet -- defs
         for pred <- codeInfo.predecessors(index) do
-          workList += WorkItem(pred, outLiveSet)
+          // println(s"$index -> $pred: $predLiveSet")
+          workList += WorkItem(pred, predLiveSet)
     end while
     Result(result.toMap, codeInfo.moves)
 
@@ -90,7 +92,7 @@ object Liveness:
 
       instr match
         case Move(Reg(srcReg), destReg) =>
-          val moveTargets = moves.getOrElseUpdate(srcReg, Set.empty)
+          val moveTargets = moves.getOrElse(srcReg, Set.empty)
           moves(srcReg) = moveTargets + destReg
 
         case Jump(_: Reg | _: Rel) =>
@@ -126,7 +128,7 @@ object Liveness:
       end if
 
     for (fromIndex, toIndex) <- jumpTargets do
-      val preds = predecessorMap.getOrElseUpdate(toIndex, sequentialPredecessor(toIndex))
+      val preds = predecessorMap.getOrElse(toIndex, sequentialPredecessor(toIndex))
       predecessorMap(toIndex) = preds + fromIndex
     end for
 
@@ -150,9 +152,9 @@ object Liveness:
           case _: Int32 =>
 
       case Move(v, destReg) =>
+        defRegs += destReg
         v match
           case Reg(srcReg) =>
-            defRegs += destReg
             useRegs += srcReg
           case _ =>
 
