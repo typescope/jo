@@ -12,6 +12,9 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
   /** The register ESP and EBP are reserved for value stack and call stack respectively. */
   val freeRegisters: List[Int] = List(X86.EAX, X86.ECX, X86.EDX, X86.EBX, X86.ESI, X86.EDI)
 
+  /** Registers for function call in the order corresponding to arguments */
+  val argRegisters: List[Int] = List(X86.EAX, X86.EBX, X86.ECX, X86.EDX)
+
   /** Call stack register (high -> low address)  */
   val SP_REG: Byte = X86.ESP
 
@@ -108,11 +111,14 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
     // bind param address to registers and load data from stack
     var index = 0
     for param <- fdef.params do
-      val offset = paramCount + 1 - index
-      val addr = Rel(FP_REG, (offset << 2).toByte)
-      val reg = allocVirtualReg()
-      symbolRegMap(param) = reg
-      cb.add(Instr.Load(addr, reg))
+      if index < argRegisters.size then
+        symbolRegMap(param) = argRegisters(index)
+      else
+        val offset = paramCount - index + 1
+        val addr = Rel(FP_REG, (offset << 2).toByte)
+        val reg = allocVirtualReg()
+        symbolRegMap(param) = reg
+        cb.add(Instr.Load(addr, reg))
       index += 1
 
     compile(fdef.words)
@@ -261,18 +267,23 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
     cb.add(Instr.Move(Int32(1), X86.EAX))     // syscall number
     cb.add(Instr.Special(X86.Syscall))         // syscall
 
-  /** Return from a procedure or function.
-    *
-    * Call stack goes from high address to low address.
-    */
+  /** Return from a function. */
   def ret() =
     var i = 0
     val size = vs.size
     while i < size do
       val res = vs.peek(i)
-      val addr = Rel(FP_REG, (i << 2).toByte)
-      cb.add(Instr.Store(res, addr))
+      val index = i - argRegisters.size
+
+      if index < 0 then
+        cb.add(Instr.Move(res, argRegisters(i)))
+      else
+        val addr = Rel(FP_REG, (index << 2).toByte)
+        cb.add(Instr.Store(res, addr))
+
       i += 1
+
+    vs.clear()
 
     val reg = allocVirtualReg()
     cb.add(Instr.Load(Reg(FP_REG), reg))
@@ -294,7 +305,7 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
     *  ┌─────────────┐
     *  │    ...      │
     *  ├─────────────┤
-    *  │    arg 0    │
+    *  │    arg 4    │
     *  ├─────────────┤
     *  │    ...      │
     *  ├─────────────┤
@@ -310,26 +321,31 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
     *  ├─────────────┤
     *  │   value M   │
     *  └─────────────┘ ◄─────── SP
+    *
+    * The first 4 arguments are passed by registers EAX, EBX, ECX, EDX
     */
   def call(addr: Addr, argCount: Int, resCount: Int) =
     val returnLoc = Label("returnLoc")
 
     // offset between caller SP and callee FP
-    val spOffset = 2 + argCount + freeRegisters.size
+    val stackArgCount =
+      if argCount <= argRegisters.size then 0
+      else argCount - argRegisters.size
+    val spOffset = 2 + stackArgCount + freeRegisters.size
     var index = -1
 
-    // 1. save live registers
-    for reg <- freeRegisters do
-      storeValue(Reg(reg), index.toByte)
-      index -= 1
-
-    // 2. save args
+    // 2. save args -- the first 4 arguments are passed via registers
     var i = 0
     while i < argCount do
-      val arg = vs.pop()
-      storeValue(arg, index.toByte)
-      index -= 1
+      val arg = vs.peek(i)
+      if i < argRegisters.size then
+        cb.add(Instr.Move(arg, argRegisters(i)))
+      else
+        storeValue(arg, index.toByte)
+        index -= 1
       i += 1
+
+    for _ <- 0 until argCount do vs.pop() // consume all args
 
     // 3. save FP
     storeValue(Reg(FP_REG), index.toByte)
@@ -354,18 +370,16 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
     cb.add(Instr.Add(Reg(FP_REG), Int32(spOffset << 2), SP_REG))
     loadValue(FP_REG, index.toByte)
 
-    // 8. restore registers
-    index += argCount
-    for reg <- freeRegisters.reverse do
-      storeValue(Reg(reg), index.toByte)
-      index += 1
-
-    // 9. copy result
+    // 9. copy result -- the first 4 results are passed via registers
     i = 0
     while i < resCount do
-      val reg = allocVirtualReg()
-      loadValue(reg, (-spOffset - i - 1).toByte)
-      vs.push(Reg(reg))
+      val index = i - argRegisters.size
+      if index < 0 then
+        vs.push(Reg(argRegisters(i)))
+      else
+        val reg = allocVirtualReg()
+        loadValue(reg, (-spOffset - index - 1).toByte)
+        vs.push(Reg(reg))
       i += 1
 
   /** Initialize a value definition
