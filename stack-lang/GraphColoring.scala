@@ -134,28 +134,28 @@ object GraphColoring:
       *
       *    graph {
       *      a -- b -- c;
-      *      b -- d;
+      *      b -- d [style="dotted"];
       *    }
       *
       * https://en.wikipedia.org/wiki/DOT_(graph_description_language)
       */
     def toDot: String =
       val sb = new StringBuilder
-      val edges = mutable.Set.empty[(Node, Node)]
       sb ++= "graph {"
 
       for (node, cfls) <- conflicts do
         sb ++= node.show
         sb ++= " -- {"
-        for node2 <- cfls do
-          if
-            !edges.contains(node -> node2)
-            && !edges.contains(node2 -> node)
-          then
-            sb ++= node2.show
-            edges += node -> node2
+        for node2 <- cfls do sb ++= " " + node2.show
+        sb ++= "};\n"
 
-        sb ++= "}"
+
+      for (node, targets) <- moves do
+        sb ++= node.show
+        sb ++= " -- {"
+        for node2 <- targets do sb ++= " " + node2.show
+        sb ++= """}[style="dotted"];"""
+        sb += '\n'
 
       sb ++= "}"
       sb.toString
@@ -167,15 +167,15 @@ object GraphColoring:
     val conflicts = mutable.Map.empty[Node, Set[Node]]
     val moves = mutable.Map.empty[Node, Set[Node]]
 
-    for (_, liveSet) <- result.liveSets if liveSet.nonEmpty do
+    for (_, liveSet) <- result.liveSets if liveSet.size > 1 do
       val reg1 = liveSet.head
       val remains = liveSet - reg1
       val node1 = nodeMap.getOrElseUpdate(reg1, Node.Single(reg1))
       // Ensure that a node with no conflicts gets an entry
-      val conflictsNode1 = conflicts.getOrElseUpdate(node1, Set.empty)
+      val conflictsNode1 = conflicts.getOrElse(node1, Set.empty)
       for reg2 <- remains do
         val node2 = nodeMap.getOrElseUpdate(reg2, Node.Single(reg2))
-        val conflictsNode2 = conflicts.getOrElseUpdate(node2, Set.empty)
+        val conflictsNode2 = conflicts.getOrElse(node2, Set.empty)
         conflicts(node1) = conflictsNode1 + node2
         conflicts(node2) = conflictsNode2 + node1
       end for
@@ -190,8 +190,8 @@ object GraphColoring:
         node2 = nodeMap(reg2)
         if !conflicts(node1).contains(node2)
       do
-        moves(node1) = moves.getOrElseUpdate(node1, Set.empty) + node2
-        moves(node2) = moves.getOrElseUpdate(node2, Set.empty) + node1
+        moves(node1) = moves.getOrElse(node1, Set.empty) + node2
+        moves(node2) = moves.getOrElse(node2, Set.empty) + node1
       end for
 
     Graph(conflicts.toMap, moves.toMap)
