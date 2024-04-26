@@ -139,6 +139,8 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
     val labelFalse = Label("_false")
     val labelEnd = Label("_ifEnd")
 
+    val resCount = ifword.info.resCount
+
     compile(ifword.cond)
 
     vs.pop() match
@@ -153,15 +155,32 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
 
         compile(ifword.thenp)
 
-        if ifword.elsep.nonEmpty then
+        if resCount == 0 then
+          if ifword.elsep.nonEmpty then
+            cb.add(Instr.Jump(labelEnd))
+            cb.mark(labelFalse)
+            compile(ifword.elsep)
+          else
+            cb.mark(labelFalse)
+
+          cb.mark(labelEnd)
+
+        else
+          assert(ifword.elsep.nonEmpty)
+          val resRegs = (0 until resCount).map(_ => allocVirtualReg())
+
+          // finish true branch
+          for reg <- resRegs do cb.add(Instr.Move(vs.pop(), reg))
           cb.add(Instr.Jump(labelEnd))
+
+          // false branch
           cb.mark(labelFalse)
           compile(ifword.elsep)
-        else
-          cb.mark(labelFalse)
+          for reg <- resRegs do cb.add(Instr.Move(vs.pop(), reg))
 
-        cb.mark(labelEnd)
-
+          cb.mark(labelEnd)
+          for reg <- resRegs do vs.push(Reg(reg))
+        end if
   /**
     * We resort to services for functionalities that cannot be implement
     * directly with the generic assembly.

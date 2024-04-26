@@ -59,7 +59,7 @@ object Assembly:
   enum Instr:
     case Binary(op: BiOp, v1: Operand, v2: Operand, destReg: Int)
 
-    case Move(v: Value, destReg: Byte)
+    case Move(v: Value, destReg: Int)
     case Store(v: Value, addr: Addr)
     case Load(addr: Addr, destReg: Int)
 
