@@ -177,14 +177,18 @@ object GraphColoring:
     val moves = mutable.Map.empty[Node, Set[Node]]
 
     for (_, liveSet) <- result.liveSets if liveSet.size > 1 do
-      val reg1 = liveSet.head
-      val remains = liveSet - reg1
-      val node1 = nodeMap.getOrElseUpdate(reg1, Node.Single(reg1))
-      // Ensure that a node with no conflicts gets an entry
-      val conflictsNode1 = conflicts.getOrElse(node1, Set.empty)
-      for reg2 <- remains do
+      for
+        reg1 <- liveSet
+        reg2 <- liveSet
+        if reg1 != reg2
+      do
+        // Ensure that a node with no conflicts gets an entry
+        val node1 = nodeMap.getOrElseUpdate(reg1, Node.Single(reg1))
         val node2 = nodeMap.getOrElseUpdate(reg2, Node.Single(reg2))
+
+        val conflictsNode1 = conflicts.getOrElse(node1, Set.empty)
         val conflictsNode2 = conflicts.getOrElse(node2, Set.empty)
+
         conflicts(node1) = conflictsNode1 + node2
         conflicts(node2) = conflictsNode2 + node1
       end for
