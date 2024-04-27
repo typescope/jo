@@ -5,14 +5,15 @@ import Assembler.{ Patch, PatchableBuffer }
 import Sast.*
 
 /** A label corresponds to a function definition */
-class FunLabel(name: String) extends Label(name)
+class FunLabel(name: String, val paramRegs: List[Int], val returnRegs: List[Int])
+extends Label(name)
 
 /** Fast x86 implementation with register allocation  */
 class X86LinuxFast(outFile: String, layout: String) extends Platform:
   /** The register ESP and EBP are reserved for value stack and call stack respectively. */
   val freeRegisters: List[Int] = List(X86.EAX, X86.ECX, X86.EDX, X86.EBX, X86.ESI, X86.EDI)
 
-  /** Registers for function call in the order corresponding to arguments */
+  /** Registers for function call and return in the order corresponding to arguments */
   val argRegisters: List[Int] = List(X86.EAX, X86.EBX, X86.ECX, X86.EDX)
 
   /** Call stack register (high -> low address)  */
@@ -82,7 +83,14 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
   /** Declare the symbol to the platform as a preparation for compilation */
   def declare(sym: Symbol): Unit =
     assert(!sym.isPrimitive, "Unexpected primitive symbol " + sym)
-    val label = if sym.isFunction then FunLabel(sym.name) else Label(sym.name)
+    val label =
+      if sym.isFunction then
+        val paramRegs = argRegisters.take(sym.info.paramCount)
+        val resRegs = argRegisters.take(sym.info.resCount)
+        FunLabel(sym.name, paramRegs, resRegs)
+      else
+        Label(sym.name)
+
     symbolAddrMap(sym) = label
     if sym.isValue then
       cb.add(Data.Uninit(label, Type.Int32))
@@ -131,15 +139,17 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
     val liveness = Liveness.analyze(code.instrs)
     println(liveness)
     val assignment = GraphColoring.alloc(liveness, freeRegisters, VIRTUAL_REG_START_INDEX)
-    println(res)
+    println(assignment)
 
     if assignment.stackAlloc.isEmpty then
       // TODO annotate register effects of call (args & returns are via registers)
       // TODO save used registers at beginning and restore before return
+      ()
     else
       // TODO update SP at the beginning of function (remove SP update before the call)
       // TODO replace Move with Store
       // TODO insert Load before usage (need to use virtual register if non-available)
+      ()
 
     // clean up
     symbolRegMap.clear()

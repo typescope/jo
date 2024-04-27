@@ -52,16 +52,17 @@ object Liveness:
       val InstrInfo(defs, uses) = codeInfo.instrInfo(index)
       // println(s"$index info: defs = $defs, uses = $uses")
 
-      val oldLiveSet = result.getOrElse(index, Set.empty)
-      val newLiveSet = oldLiveSet.union(succLiveSet) ++ uses
-      // predLiveSet cannot change if newLiveSet is the same
-      if newLiveSet != oldLiveSet then
-        result(index) = newLiveSet
-        val predLiveSet = newLiveSet -- defs
+      val oldPosLiveSet = result.getOrElse(index, Set.empty)
+      val newPosLiveSet = oldPosLiveSet.union(succLiveSet)
+      // predLiveSet cannot change if newPosLiveSet is the same
+      if !result.contains(index) || newPosLiveSet != oldPosLiveSet then
+        result(index) = newPosLiveSet
+        val predLiveSet = (newPosLiveSet -- defs) ++ uses
         for pred <- codeInfo.predecessors(index) do
           // println(s"$index -> $pred: $predLiveSet")
           workList += WorkItem(pred, predLiveSet)
     end while
+
     Result(result.toMap, codeInfo.moves)
 
   /** Collect code info and initialize work list for each instruction. */
@@ -180,7 +181,12 @@ object Liveness:
         addr match
           case Reg(r)    => useRegs += r
           case Rel(r, _) => useRegs += r
-          case _: Label =>
+
+          case fun: FunLabel =>
+            useRegs ++= fun.paramRegs
+            defRegs ++= fun.returnRegs
+
+          case l: Label => // local jump
 
       case JZero(reg: Reg, label: Label) =>
         useRegs += reg.index
