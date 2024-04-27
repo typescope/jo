@@ -96,9 +96,6 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
     val label = symbolAddrMap(sym).asInstanceOf[Label]
     val paramCount = fdef.params.size
 
-    // mark beginning of function
-    cb.mark(label)
-
     // Compile function to a temporary buffer for register allocation
     val savedCodeBuffer = cb
     cb = new CodeBuffer(entry)
@@ -107,6 +104,9 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
     vs.clear()
 
     assert(paramCount < 31, s"At most 30 parameters, $sym has " + paramCount)
+
+    // mark beginning of function
+    cb.mark(label)
 
     // bind param address to registers and load data from stack
     var index = 0
@@ -130,8 +130,16 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
     println(code.show())
     val liveness = Liveness.analyze(code.instrs)
     println(liveness)
-    val res = GraphColoring.alloc(liveness, freeRegisters, VIRTUAL_REG_START_INDEX)
+    val assignment = GraphColoring.alloc(liveness, freeRegisters, VIRTUAL_REG_START_INDEX)
     println(res)
+
+    if assignment.stackAlloc.isEmpty then
+      // TODO annotate register effects of call (args & returns are via registers)
+      // TODO save used registers at beginning and restore before return
+    else
+      // TODO update SP at the beginning of function (remove SP update before the call)
+      // TODO replace Move with Store
+      // TODO insert Load before usage (need to use virtual register if non-available)
 
     // clean up
     symbolRegMap.clear()
