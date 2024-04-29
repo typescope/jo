@@ -33,8 +33,22 @@ object GraphColoring:
 
     def isPreColored(node: Node): Boolean =
       node match
-        case Node.Single(reg) => reg < preColor
-        case Node.Merged(_, _) => false
+        case Node.Single(reg) =>
+          reg < preColor
+
+        case Node.Merged(node1, node2) =>
+          isPreColored(node1) || isPreColored(node2)
+
+    /** It's guaranteed that at most one color exists */
+    def preColor(node: Node): Option[Int] =
+      node match
+        case Node.Single(reg) =>
+          if reg < preColor then Some(reg) else None
+
+        case Node.Merged(node1, node2) =>
+          preColor(node1) match
+            case None => preColor(node2)
+            case res  => res
 
     def isMoveRelated(node: Node): Boolean =
       moves.contains(node)
@@ -56,6 +70,8 @@ object GraphColoring:
         conflicts = conflicts.updated(conflictee, conflicts(conflictee) - node)
 
     def coalesce(node1: Node, node2: Node): Unit =
+      assert(!isPreColored(node1) || !isPreColored(node2))
+
       val merged = new Node.Merged(node1, node2)
       actions += Action.Coalesce(merged)
 
@@ -137,12 +153,25 @@ object GraphColoring:
 
     def check(): Unit =
       for (node1, cfls) <- conflicts do
+        checkPreColor(node1)
         for node2 <- cfls do
           assert(conflicts(node2).contains(node1))
 
       for (node, targets) <- moves do
+        checkPreColor(node)
         for target <- targets do
           assert(moves(target).contains(node))
+
+    def checkPreColor(node: Node): Boolean =
+      node match
+        case Node.Single(_) =>
+          isPreColored(node)
+
+        case Node.Merged(node1, node2) =>
+          val res1 = checkPreColor(node1)
+          val res2 = checkPreColor(node2)
+          assert(!res1 || !res2, "Cannot merge two precolored nodes")
+          res1 || res2
 
     /** Represent the graph using the DOT language
       *
@@ -229,12 +258,11 @@ object GraphColoring:
         false
 
   def coalesce(graph: Graph, k: Int): Boolean =
-    // TODO non-move nodes can be coalesced
-    // TODO coalesce with pre-colored nodes
+    // No need to consider nodes not in moves as they can be simplied
     graph.moves.exists: (node1, targets) =>
       targets.exists: node2 =>
         if
-          !graph.isPreColored(node1) && !graph.isPreColored(node2)
+          (!graph.isPreColored(node1) || !graph.isPreColored(node2))
           && (graph.conflicts(node1).union(graph.conflicts(node2))).size < k
         then
           // Conflict moves are removed and should never be encountered.
@@ -309,9 +337,9 @@ object GraphColoring:
 
     val nodeAssignment = mutable.Map.empty[Node, Int]
     def getAssignment(node: Node): Int =
-      node match
-        case Node.Single(reg) if graph.isPreColored(node) => reg
-        case _ => nodeAssignment(node)
+      nodeAssignment.get(node) match
+        case Some(reg) => reg
+        case None => graph.preColor(node).get
 
     while graph.actions.nonEmpty do
       val action = graph.actions.remove(graph.actions.size - 1)
@@ -324,8 +352,13 @@ object GraphColoring:
           assignRegister(node, reg)
 
         case Action.Coalesce(node @ Node.Merged(node1, node2)) =>
-          nodeAssignment(node1) = nodeAssignment(node)
-          nodeAssignment(node2) = nodeAssignment(node)
+          graph.preColor(node) match
+            case Some(reg) =>
+              assignRegister(node, reg)
+
+            case None =>
+              nodeAssignment(node1) = nodeAssignment(node)
+              nodeAssignment(node2) = nodeAssignment(node)
 
         case Action.Spill(node: Node, conflicts: Set[Node]) =>
           val used = conflicts.map(getAssignment).toSeq
@@ -359,7 +392,7 @@ object GraphColoring:
     var i = 0
 
     while state != Select do
-      Files.write(Paths.get(s"graph-$i-$state.dot"), graph.toDot.getBytes);
+      Files.write(Paths.get(s"graph-$i-before-$state.dot"), graph.toDot.getBytes)
       i += 1
 
       graph.check()
