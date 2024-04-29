@@ -41,7 +41,7 @@ object GraphColoring:
 
     def degree(node: Node): Int = conflicts(node).size
 
-    def conflict(node1: Node, node2: Node) =
+    def conflict(node1: Node, node2: Node): Boolean =
       conflicts(node1).contains(node2)
 
     def simplify(node: Node): Unit =
@@ -88,14 +88,13 @@ object GraphColoring:
 
       moves -= node1
       moves -= node2
-      if nonConflictMoves.isEmpty then
+      if nonConflictMoves.nonEmpty then
         moves = moves.updated(merged, nonConflictMoves)
 
       for target <- targets do
         assert(target != node1 && target != node2)
         val targetsReverse =
-          if conflict(merged, target)
-          then
+          if conflict(merged, target) then
             moves(target).filter(node => node != node1 && node != node2)
           else
             moves(target).map(replace)
@@ -236,7 +235,7 @@ object GraphColoring:
       targets.exists: node2 =>
         if
           !graph.isPreColored(node1) && !graph.isPreColored(node2)
-          && (graph.conflicts(node1) + graph.conflicts(node2)).size < k
+          && (graph.conflicts(node1).union(graph.conflicts(node2))).size < k
         then
           // Conflict moves are removed and should never be encountered.
           //
