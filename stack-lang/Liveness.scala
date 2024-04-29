@@ -48,22 +48,25 @@ object Liveness:
     println(codeInfo)
 
     while workList.nonEmpty do
-      val WorkItem(index, succLiveSet) = workList.removeLast()
-      val InstrInfo(defs, uses) = codeInfo.instrInfo(index)
+      val WorkItem(loc, succLiveSet) = workList.removeLast()
+      val InstrInfo(defs, uses) = codeInfo.instrInfo(loc)
       // println(s"$index info: defs = $defs, uses = $uses")
 
-      val oldPosLiveSet = result.getOrElse(index, Set.empty)
+      val oldPosLiveSet = result.getOrElse(loc, Set.empty)
       val newPosLiveSet = oldPosLiveSet.union(succLiveSet)
       // predLiveSet cannot change if newPosLiveSet is the same
-      if !result.contains(index) || newPosLiveSet != oldPosLiveSet then
-        result(index) = newPosLiveSet
+      if !result.contains(loc) || newPosLiveSet != oldPosLiveSet then
+        result(loc) = newPosLiveSet
         val predLiveSet = (newPosLiveSet -- defs) ++ uses
-        for pred <- codeInfo.predecessors(index) do
+        for pred <- codeInfo.predecessors(loc) do
           // println(s"$index -> $pred: $predLiveSet")
           workList += WorkItem(pred, predLiveSet)
     end while
 
-    Result(result.toMap, codeInfo.moves)
+    val liveSets = result.mapValuesInPlace: (loc, posLiveSet) =>
+      val InstrInfo(defs, uses) = codeInfo.instrInfo(loc)
+      posLiveSet ++ uses
+    Result(liveSets.toMap, codeInfo.moves)
 
   /** Collect code info and initialize work list for each instruction. */
   def collectCodeInfo(rawInstrs: Seq[Instr | Label], workList: WorkList): CodeInfo =
