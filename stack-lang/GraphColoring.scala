@@ -158,17 +158,19 @@ object GraphColoring:
       val sb = new StringBuilder
       sb ++= "graph {"
 
+      def quote(node: Node) = '\"' + node.show + '\"'
+
       for (node, cfls) <- conflicts do
-        sb ++= node.show
+        sb ++= quote(node)
         sb ++= " -- {"
-        for node2 <- cfls do sb ++= " " + node2.show
+        for node2 <- cfls do sb ++= " " + quote(node2)
         sb ++= "};\n"
 
 
       for (node, targets) <- moves do
-        sb ++= node.show
+        sb ++= quote(node)
         sb ++= " -- {"
-        for node2 <- targets do sb ++= " " + node2.show
+        for node2 <- targets do sb ++= " " + quote(node2)
         sb ++= """}[style="dotted"];"""
         sb += '\n'
 
