@@ -334,21 +334,28 @@ object GraphColoring:
           assignRegister(node1, regAssigned)
           assignRegister(node2, regAssigned)
 
+    def getAssignment(node: Node): List[Int] =
+      node match
+        case Node.Single(reg) =>
+           if graph.isPreColored(node) then
+             List(reg)
+           else
+             regAssignment.get(reg) match
+               case Some(regAssign) =>
+                 List(regAssign)
+               case None =>
+                 assert(stackAssignment.contains(reg))
+                 Nil
 
-    val nodeAssignment = mutable.Map.empty[Node, Int]
-    def getAssignment(node: Node): Int =
-      nodeAssignment.get(node) match
-        case Some(reg) => reg
-        case None => graph.preColor(node).get
+        case Node.Merged(node1, node2) => getAssignment(node1)
 
     while graph.actions.nonEmpty do
       val action = graph.actions.remove(graph.actions.size - 1)
       action match
         case Action.Simplify(node: Node, conflicts: Set[Node]) =>
           assert(conflicts.size < k)
-          val used = conflicts.map(getAssignment).toSeq
+          val used = conflicts.flatMap(getAssignment).toSeq
           val reg = regs.diff(used).head
-          nodeAssignment(node) = reg
           assignRegister(node, reg)
 
         case Action.Coalesce(node @ Node.Merged(node1, node2)) =>
@@ -357,11 +364,9 @@ object GraphColoring:
               assignRegister(node, reg)
 
             case None =>
-              nodeAssignment(node1) = nodeAssignment(node)
-              nodeAssignment(node2) = nodeAssignment(node)
 
         case Action.Spill(node: Node, conflicts: Set[Node]) =>
-          val used = conflicts.map(getAssignment).toSeq
+          val used = conflicts.flatMap(getAssignment).toSeq
           val unused = regs.diff(used)
           // potential spill might not be an actual spill
           if unused.isEmpty then
@@ -369,7 +374,6 @@ object GraphColoring:
             stackSlot += 1
           else
             val reg = unused.head
-            nodeAssignment(node) = reg
             assignRegister(node, reg)
     end while
 
