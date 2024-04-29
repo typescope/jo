@@ -230,6 +230,8 @@ object GraphColoring:
         false
 
   def coalesce(graph: Graph, k: Int): Boolean =
+    // TODO non-move nodes can be coalesced
+    // TODO coalesce with pre-colored nodes
     graph.moves.exists: (node1, targets) =>
       targets.exists: node2 =>
         if
