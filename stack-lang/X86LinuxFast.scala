@@ -132,7 +132,7 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
     // callee-saved registers
     val StackInfo(paramNum, resNum) = sym.info
     val numCallerSavedRegs = if paramNum > resNum then paramNum else resNum
-    val calleeSavedRegs = argRegisters.drop(numCallerSavedRegs)
+    val calleeSavedRegs = freeRegisters.diff(argRegisters.take(numCallerSavedRegs))
 
     val restoreCalleeSavedReg = mutable.ArrayBuffer.empty[Instr]
     for calleeSavedReg <- calleeSavedRegs do

@@ -146,10 +146,13 @@ object GraphColoring:
         conflicts = conflicts.updated(conflictee, conflicts(conflictee) - node)
 
       // high-degree moves are not tried by freeze
-      val targets = moves(node)
-      moves -= node
-      for target <- targets do
-        moves = moves.updated(target, moves(target) - node)
+      moves.get(node) match
+        case Some(targets) =>
+          moves -= node
+          for target <- targets do
+            moves = moves.updated(target, moves(target) - node)
+
+        case None =>
 
     def check(): Unit =
       for (node1, cfls) <- conflicts do
