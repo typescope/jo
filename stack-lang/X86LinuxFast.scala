@@ -129,12 +129,30 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
         cb.add(Instr.Load(addr, reg))
       index += 1
 
+    // callee-saved registers
+    val StackInfo(paramNum, resNum) = sym.info
+    val numCallerSavedRegs = if paramNum > resNum then paramNum else resNum
+    val calleeSavedRegs = argRegisters.drop(numCallerSavedRegs)
+
+    val restoreCalleeSavedReg = mutable.ArrayBuffer.empty[Instr]
+    for calleeSavedReg <- calleeSavedRegs do
+      val virtualReg = allocVirtualReg()
+      cb.add(Instr.Move(Reg(calleeSavedReg), virtualReg))
+      restoreCalleeSavedReg += Instr.Move(Reg(virtualReg), calleeSavedReg)
+
     compile(fdef.words)
 
-    ret()
+    ret(restoreCalleeSavedReg.toSeq)
 
-    // TODO: register allocation
+    // clean up
+    symbolRegMap.clear()
+    vs.clear()
+
+    // restore original code buffer
     val code = cb.getResult()
+    cb = savedCodeBuffer
+
+    // Register allocation
     println(code.show())
     val liveness = Liveness.analyze(code.instrs)
     println(liveness)
@@ -142,21 +160,57 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
     println(assignment)
 
     if assignment.stackAlloc.isEmpty then
-      // TODO annotate register effects of call (args & returns are via registers)
-      // TODO save used registers at beginning and restore before return
-      ()
+      for item <- code.instrs do
+        item match
+          case l: Label =>
+            cb.mark(l)
+
+          case instr: Instr =>
+            for instr2 <- subst(instr, assignment.regAlloc) do
+              cb.add(instr2)
+
     else
       // TODO update SP at the beginning of function (remove SP update before the call)
       // TODO replace Move with Store
       // TODO insert Load before usage (need to use virtual register if non-available)
       ()
 
-    // clean up
-    symbolRegMap.clear()
-    vs.clear()
+  def subst(instr: Instr, regAlloc: Map[Int, Int]): List[Instr] =
+    def substReg(reg: Int): Int =
+      if reg >= VIRTUAL_REG_START_INDEX then regAlloc(reg) else reg
 
-    // restore original code buffer
-    cb = savedCodeBuffer
+    def substPart[T](value: T | Reg): T | Reg =
+      value match
+        case Reg(r) => Reg(substReg(r))
+        case _ =>  value
+
+    instr match
+      case Instr.Binary(op: BiOp, v1: Operand, v2: Operand, destReg) =>
+        Instr.Binary(op, substPart(v1), substPart(v2), substReg(destReg)) :: Nil
+
+      case Instr.Move(v, destReg) =>
+        val src = substPart(v)
+        val dest = substReg(destReg)
+        src match
+          case Reg(`destReg`) => Nil
+          case _              => Instr.Move(src, dest) :: Nil
+
+      case Instr.Store(v: Value, addr: Addr) =>
+        Instr.Store(substPart(v), substPart(addr)) :: Nil
+
+      case Instr.Load(addr: Addr, destReg) =>
+        Instr.Load(substPart(addr), substReg(destReg)) :: Nil
+
+      case Instr.Jump(addr: Addr) =>
+        Instr.Jump(substPart(addr)) :: Nil
+
+      case Instr.JZero(reg: Reg, label: Label) =>
+        Instr.JZero(substPart(reg), label) :: Nil
+
+      case _: Instr.Special[?] =>
+        // TODO
+        ???
+    end match
 
   /** Compile a conditional statement, i.e if/then/else */
   def conditional(ifword: Word.If, compile: Compiler): Unit =
@@ -286,7 +340,7 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
     cb.add(Instr.Special(X86.Syscall))         // syscall
 
   /** Return from a function. */
-  def ret() =
+  def ret(restoreCalleeSavedRegs: Seq[Instr]) =
     var i = 0
     val size = vs.size
     while i < size do
@@ -302,6 +356,8 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
       i += 1
 
     vs.clear()
+
+    for instr <- restoreCalleeSavedRegs do cb.add(instr)
 
     val reg = allocVirtualReg()
     cb.add(Instr.Load(Reg(FP_REG), reg))
