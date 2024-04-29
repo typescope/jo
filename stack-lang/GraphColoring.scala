@@ -107,8 +107,8 @@ object GraphColoring:
     end coalesce
 
     def freeze(node1: Node, node2: Node): Unit =
-      val targets1 = moves(node1).filter(_ != node2)
-      val targets2 = moves(node2).filter(_ != node1)
+      val targets1 = moves(node1) - node2
+      val targets2 = moves(node2) - node1
 
       if targets1.isEmpty then
         moves = moves - node1
@@ -118,7 +118,7 @@ object GraphColoring:
       if targets2.isEmpty then
         moves = moves - node2
       else
-        moves = moves.updated(node2, targets1)
+        moves = moves.updated(node2, targets2)
 
     def spill(node: Node): Unit =
       val conflictees = conflicts(node)
