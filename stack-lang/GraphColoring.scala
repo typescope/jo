@@ -234,7 +234,7 @@ object GraphColoring:
       targets.exists: node2 =>
         if
           !graph.isPreColored(node1) && !graph.isPreColored(node2)
-          && graph.degree(node1) + graph.degree(node2) < k
+          && (graph.conflicts(node1) + graph.conflicts(node2)).size < k
         then
           // Conflict moves are removed and should never be encountered.
           //
