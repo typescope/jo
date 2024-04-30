@@ -406,7 +406,7 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
     val stackArgCount =
       if argCount <= argRegisters.size then 0
       else argCount - argRegisters.size
-    val spOffset = 2 + stackArgCount + freeRegisters.size
+    val spOffset = 2 + stackArgCount
     var index = -1
 
     // 2. save args -- the first 4 arguments are passed via registers
@@ -430,9 +430,8 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
     storeValue(returnLoc, index.toByte)
     index -= 1
 
-    // 5. update FP and SP
+    // 5. update FP
     cb.add(Instr.Sub(Reg(SP_REG), Int32(spOffset << 2), SP_REG))
-    cb.add(Instr.Move(Reg(SP_REG), FP_REG))
 
     // 6. jump to target
     cb.add(Instr.Jump(addr))

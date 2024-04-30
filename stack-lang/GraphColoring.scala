@@ -231,7 +231,7 @@ object GraphColoring:
       conflicts(node1) = conflictsNode1 + node2
       conflicts(node2) = conflictsNode2 + node1
 
-    def notReserved(reg: Int) = reserved.contains(reg)
+    def notReserved(reg: Int) = !reserved.contains(reg)
 
     for (loc, outLiveSet) <- result.liveSets if outLiveSet.nonEmpty do
       for
