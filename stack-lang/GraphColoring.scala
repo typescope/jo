@@ -1,5 +1,7 @@
 import scala.collection.mutable
 
+import Assembly.*
+
 /**
   * Register allocation based on graph coloring.
   *
@@ -108,7 +110,7 @@ object GraphColoring:
         moves = moves.updated(merged, nonConflictMoves)
 
       for target <- targets do
-        assert(target != node1 && target != node2)
+        assert(target != node1 && target != node2, s"target = $target, node1 = $node1, node2 = $node2")
         val targetsReverse =
           if conflict(merged, target) then
             moves(target).filter(node => node != node1 && node != node2)
@@ -158,11 +160,14 @@ object GraphColoring:
       for (node1, cfls) <- conflicts do
         checkPreColor(node1)
         for node2 <- cfls do
+          assert(node1 != node2)
           assert(conflicts(node2).contains(node1))
 
       for (node, targets) <- moves do
+        assert(conflicts.contains(node), node)
         checkPreColor(node)
         for target <- targets do
+          assert(node != target)
           assert(moves(target).contains(node))
 
     def checkPreColor(node: Node): Boolean =
@@ -210,38 +215,58 @@ object GraphColoring:
 
   end Graph
 
-  def build(result: Liveness.Result, preColor: Int): Graph =
+  def build(result: Liveness.Result, reserved: List[Int], preColor: Int): Graph =
     val nodeMap = mutable.Map.empty[Int, Node]
     val conflicts = mutable.Map.empty[Node, Set[Node]]
     val moves = mutable.Map.empty[Node, Set[Node]]
 
-    for (_, liveSet) <- result.liveSets if liveSet.size > 1 do
+    def addConflict(reg1: Int, reg2: Int) =
+      // Ensure that a node with no conflicts gets an entry
+      val node1 = nodeMap.getOrElseUpdate(reg1, Node.Single(reg1))
+      val node2 = nodeMap.getOrElseUpdate(reg2, Node.Single(reg2))
+
+      val conflictsNode1 = conflicts.getOrElse(node1, Set.empty)
+      val conflictsNode2 = conflicts.getOrElse(node2, Set.empty)
+
+      conflicts(node1) = conflictsNode1 + node2
+      conflicts(node2) = conflictsNode2 + node1
+
+    def notReserved(reg: Int) = reserved.contains(reg)
+
+    for (loc, outLiveSet) <- result.liveSets if outLiveSet.nonEmpty do
       for
-        reg1 <- liveSet
-        reg2 <- liveSet
-        if reg1 != reg2
+        reg2 <- outLiveSet if !reserved.contains(reg2)
       do
-        // Ensure that a node with no conflicts gets an entry
-        val node1 = nodeMap.getOrElseUpdate(reg1, Node.Single(reg1))
-        val node2 = nodeMap.getOrElseUpdate(reg2, Node.Single(reg2))
+        result.instrs(loc) match
+          case Instr.Binary(_, _, _, reg1) if notReserved(reg1) && reg1 != reg2 =>
+            addConflict(reg1, reg2)
 
-        val conflictsNode1 = conflicts.getOrElse(node1, Set.empty)
-        val conflictsNode2 = conflicts.getOrElse(node2, Set.empty)
+          case Instr.Load(_, reg1) if notReserved(reg1) && reg1 != reg2 =>
+            addConflict(reg1, reg2)
 
-        conflicts(node1) = conflictsNode1 + node2
-        conflicts(node2) = conflictsNode2 + node1
+          case Instr.Move(v, reg1) if notReserved(reg1) && reg1 != reg2 =>
+             v match
+               case Reg(reg3) if reg3 != reg2 => addConflict(reg1, reg2)
+               case _ => addConflict(reg1, reg2)
+
+          case _ =>
+
       end for
 
-    // assumes that source and dest must appear in conflicts
-    for (reg1, toSet) <- result.moves do
-      val node1 = nodeMap(reg1)
+    for
+      (reg1, toSet) <- result.moves if !reserved.contains(reg1)
+    do
+      val node1 = nodeMap.getOrElse(reg1, Node.Single(reg1))
       // It is meaningless to add a move edge if two nodes are in conflict.
       // It is never possible to coalesce the two nodes
       for
         reg2 <- toSet
-        node2 = nodeMap(reg2)
-        if !conflicts(node1).contains(node2)
+        node2 = nodeMap.getOrElse(reg2, Node.Single(reg2))
+        if !reserved.contains(reg2)
+           && !conflicts.getOrElse(node1, Set.empty).contains(node2)
       do
+        conflicts.getOrElseUpdate(node1, Set.empty)
+        conflicts.getOrElseUpdate(node2, Set.empty)
         moves(node1) = moves.getOrElse(node1, Set.empty) + node2
         moves(node2) = moves.getOrElse(node2, Set.empty) + node1
       end for
@@ -288,7 +313,7 @@ object GraphColoring:
 
   def freeze(graph: Graph, k: Int): Boolean =
     graph.moves.exists: (node, targets) =>
-      assert(targets.nonEmpty)
+      assert(targets.nonEmpty, node.show + " -> " + targets + ", " + graph)
       targets.exists: target =>
         if graph.degree(node) < k || graph.degree(target) < k then
           graph.freeze(node, targets.head)
@@ -331,7 +356,8 @@ object GraphColoring:
     def assignRegister(node: Node, regAssigned: Int): Unit =
       node match
         case Node.Single(reg) =>
-          regAssignment(reg) = regAssigned
+          if !graph.isPreColored(node) then
+            regAssignment(reg) = regAssigned
 
         case Node.Merged(node1, node2) =>
           assignRegister(node1, regAssigned)
@@ -386,11 +412,11 @@ object GraphColoring:
   enum State:
     case Simplify, Coalesce, Freeze, Spill, Select
 
-  def alloc(liveness: Liveness.Result, regs: List[Int], preColor: Int): Result =
+  def alloc(liveness: Liveness.Result, regs: List[Int], reserved: List[Int], preColor: Int): Result =
     import State.*
 
     val k = regs.size
-    val graph = build(liveness, preColor)
+    val graph = build(liveness, reserved, preColor)
 
     var state = State.Simplify
 

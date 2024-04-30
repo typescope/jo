@@ -11,12 +11,11 @@ import Instr.*
 object Liveness:
   // TODO: use bitset for fast union and subtraction
   type LiveSet   = Set[Int]
-  type Instrs    = Seq[Instr]
 
   case class InstrInfo(defs: List[Int], uses: List[Int])
 
   class CodeInfo(
-    instrs: Seq[Instr],
+    val instrs: Seq[Instr],
     predecessorMap: Map[Int, Set[Int]],
     instrInfoMap: Map[Int, InstrInfo],
     val moves: Map[Int, Set[Int]]):
@@ -36,7 +35,7 @@ object Liveness:
   type WorkList = mutable.ArrayDeque[WorkItem]
   case class WorkItem(index: Int, succLiveSet: LiveSet)
 
-  case class Result(liveSets: Map[Int, LiveSet], moves: Map[Int, Set[Int]]):
+  case class Result(liveSets: Map[Int, LiveSet], moves: Map[Int, Set[Int]], instrs: Seq[Instr]):
     override def toString() =
       liveSets.keys.toSeq.sorted.map(k => k + ": " + liveSets(k)).mkString("\n")
 
@@ -63,10 +62,7 @@ object Liveness:
           workList += WorkItem(pred, predLiveSet)
     end while
 
-    val liveSets = result.mapValuesInPlace: (loc, posLiveSet) =>
-      val InstrInfo(defs, uses) = codeInfo.instrInfo(loc)
-      posLiveSet ++ uses
-    Result(liveSets.toMap, codeInfo.moves)
+    Result(result.toMap, codeInfo.moves, codeInfo.instrs)
 
   /** Collect code info and initialize work list for each instruction. */
   def collectCodeInfo(rawInstrs: Seq[Instr | Label], workList: WorkList): CodeInfo =

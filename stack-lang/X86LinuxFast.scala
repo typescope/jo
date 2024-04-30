@@ -12,6 +12,7 @@ extends Label(name)
 class X86LinuxFast(outFile: String, layout: String) extends Platform:
   /** The register ESP and EBP are reserved for value stack and call stack respectively. */
   val freeRegisters: List[Int] = List(X86.EAX, X86.ECX, X86.EDX, X86.EBX, X86.ESI, X86.EDI)
+  val reservedRegisters: List[Int] = List(X86.ESP, X86.EBP)
 
   /** Registers for function call and return in the order corresponding to arguments */
   val argRegisters: List[Int] = List(X86.EAX, X86.EBX, X86.ECX, X86.EDX)
@@ -156,7 +157,7 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
     println(code.show())
     val liveness = Liveness.analyze(code.instrs)
     println(liveness)
-    val assignment = GraphColoring.alloc(liveness, freeRegisters, VIRTUAL_REG_START_INDEX)
+    val assignment = GraphColoring.alloc(liveness, freeRegisters, reservedRegisters, VIRTUAL_REG_START_INDEX)
     println(assignment)
 
     if assignment.stackAlloc.isEmpty then
