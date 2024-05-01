@@ -381,7 +381,7 @@ object GraphColoring:
 
     // assign merges with pre-colored
     for node <- graph.conflicts.keys do
-      val Some(reg) = graph.preColor(node)
+      val Some(reg) = graph.preColor(node): @unchecked
       assignRegister(node, reg)
 
     while graph.actions.nonEmpty do

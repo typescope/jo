@@ -24,7 +24,7 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
   val FP_REG: Byte = X86.EBP
 
   val heapStartLabel = Label("_heapStart")
-  val printService = Label("_print")
+  val printService = FunLabel("_print", List(X86.EAX), Nil)
 
   // maps global symbols to addresses
   val symbolAddrMap: mutable.Map[Symbol, Addr] = mutable.Map.empty
@@ -76,10 +76,11 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
     */
   def entry(init: => Unit): Unit =
     // Stack pointer is initialized by the kernel, initialize frame pointer
-    cb.mark(this.entry)
-    cb.add(Instr.Move(Reg(SP_REG), FP_REG))
-    init
-    exit(0)
+    allocRegisters(this.entry):
+      cb.add(Instr.Move(Reg(SP_REG), FP_REG))
+      init
+      exit(0)
+
 
   /** Declare the symbol to the platform as a preparation for compilation */
   def declare(sym: Symbol): Unit =
@@ -105,46 +106,51 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
     val label = symbolAddrMap(sym).asInstanceOf[Label]
     val paramCount = fdef.params.size
 
-    // Compile function to a temporary buffer for register allocation
+    allocRegisters(label):
+      // Compile function to a temporary buffer for register allocation
+      symbolRegMap.clear()
+      vs.clear()
+
+      assert(paramCount < 31, s"At most 30 parameters, $sym has " + paramCount)
+
+      // bind param address to registers and load data from stack
+      var index = 0
+      for param <- fdef.params do
+        if index < argRegisters.size then
+          symbolRegMap(param) = argRegisters(index)
+        else
+          val offset = paramCount - index + 1
+          val addr = Rel(FP_REG, (offset << 2).toByte)
+          val reg = allocVirtualReg()
+          symbolRegMap(param) = reg
+          cb.add(Instr.Load(addr, reg))
+        index += 1
+
+      // callee-saved registers
+      val StackInfo(paramNum, resNum) = sym.info
+      val numCallerSavedRegs = if paramNum > resNum then paramNum else resNum
+      val calleeSavedRegs = freeRegisters.diff(argRegisters.take(numCallerSavedRegs))
+
+      val restoreCalleeSavedReg = mutable.ArrayBuffer.empty[Instr]
+      for calleeSavedReg <- calleeSavedRegs do
+        val virtualReg = allocVirtualReg()
+        cb.add(Instr.Move(Reg(calleeSavedReg), virtualReg))
+        restoreCalleeSavedReg += Instr.Move(Reg(virtualReg), calleeSavedReg)
+
+      compile(fdef.words)
+
+      ret(restoreCalleeSavedReg.toSeq)
+
+      // clean up
+      symbolRegMap.clear()
+      vs.clear()
+
+  def allocRegisters(label: Label)(compile: => Unit): Unit =
     val savedCodeBuffer = cb
     cb = new CodeBuffer(entry)
     initVirtualRegisterIndex()
-    symbolRegMap.clear()
-    vs.clear()
 
-    assert(paramCount < 31, s"At most 30 parameters, $sym has " + paramCount)
-
-    // bind param address to registers and load data from stack
-    var index = 0
-    for param <- fdef.params do
-      if index < argRegisters.size then
-        symbolRegMap(param) = argRegisters(index)
-      else
-        val offset = paramCount - index + 1
-        val addr = Rel(FP_REG, (offset << 2).toByte)
-        val reg = allocVirtualReg()
-        symbolRegMap(param) = reg
-        cb.add(Instr.Load(addr, reg))
-      index += 1
-
-    // callee-saved registers
-    val StackInfo(paramNum, resNum) = sym.info
-    val numCallerSavedRegs = if paramNum > resNum then paramNum else resNum
-    val calleeSavedRegs = freeRegisters.diff(argRegisters.take(numCallerSavedRegs))
-
-    val restoreCalleeSavedReg = mutable.ArrayBuffer.empty[Instr]
-    for calleeSavedReg <- calleeSavedRegs do
-      val virtualReg = allocVirtualReg()
-      cb.add(Instr.Move(Reg(calleeSavedReg), virtualReg))
-      restoreCalleeSavedReg += Instr.Move(Reg(virtualReg), calleeSavedReg)
-
-    compile(fdef.words)
-
-    ret(restoreCalleeSavedReg.toSeq)
-
-    // clean up
-    symbolRegMap.clear()
-    vs.clear()
+    compile
 
     // restore original code buffer
     val code = cb.getResult()
