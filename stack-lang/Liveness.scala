@@ -12,12 +12,9 @@ object Liveness:
   // TODO: use bitset for fast union and subtraction
   type LiveSet   = Set[Int]
 
-  case class InstrInfo(defs: List[Int], uses: List[Int])
-
   class CodeInfo(
     val instrs: Seq[Instr],
     predecessorMap: Map[Int, Set[Int]],
-    instrInfoMap: Map[Int, InstrInfo],
     val moves: Map[Int, Set[Int]]):
 
     def predecessors(index: Int): Set[Int] =
@@ -25,8 +22,6 @@ object Liveness:
         case Some(preds) => preds
         case None        =>
           if index > 0 then Set(index - 1) else Set.empty
-
-    def instrInfo(index: Int): InstrInfo = instrInfoMap(index)
 
     override def toString() =
       predecessorMap.keys.toSeq.sorted.map(k => k + " -> " + predecessorMap(k)).mkString("\n")
@@ -48,7 +43,7 @@ object Liveness:
 
     while workList.nonEmpty do
       val WorkItem(loc, succLiveSet) = workList.removeLast()
-      val InstrInfo(defs, uses) = codeInfo.instrInfo(loc)
+      val RegInfo(defs, uses) = codeInfo.instrs(loc).regInfo
       // println(s"$index info: defs = $defs, uses = $uses")
 
       val oldPosLiveSet = result.getOrElse(loc, Set.empty)
@@ -79,7 +74,6 @@ object Liveness:
     end for
 
     val predecessorMap = mutable.Map.empty[Int, Set[Int]]
-    val instrInfoMap = mutable.Map.empty[Int, InstrInfo]
     val jumpTargets = mutable.Map.empty[Int, Int]
     val moves = mutable.Map.empty[Int, Set[Int]]
 
@@ -87,7 +81,6 @@ object Liveness:
     val size = instrs.size
     while index < size do
       val instr = instrs(index)
-      instrInfoMap(index) = analyzeInstrInfo(instr)
       workList += WorkItem(index, Set.empty)
 
       instr match
@@ -109,7 +102,7 @@ object Liveness:
       index += 1
     end while
 
-    /** Find the sequential predecessor for the given instruction  */
+    // Find the sequential predecessor for the given instruction
     def sequentialPredecessor(i: Int): Set[Int] =
       if i == 0 then
         Set.empty
@@ -132,67 +125,4 @@ object Liveness:
       predecessorMap(toIndex) = preds + fromIndex
     end for
 
-    CodeInfo(instrs.toList, predecessorMap.toMap, instrInfoMap.toMap, moves.toMap)
-
-
-  def analyzeInstrInfo(instr: Instr): InstrInfo =
-    val useRegs = mutable.ArrayBuffer.empty[Int]
-    val defRegs = mutable.ArrayBuffer.empty[Int]
-
-    instr match
-      case Binary(op: BiOp, v1: Operand, v2: Operand, destReg) =>
-        defRegs += destReg
-
-        v1 match
-          case Reg(r) => useRegs += r
-          case _: Int32 =>
-
-        v2 match
-          case Reg(r) => useRegs += r
-          case _: Int32 =>
-
-      case Move(v, destReg) =>
-        defRegs += destReg
-        v match
-          case Reg(srcReg) =>
-            useRegs += srcReg
-          case _ =>
-
-      case Store(v: Value, addr: Addr) =>
-        v match
-          case Reg(r) => useRegs += r
-          case _: Label =>
-          case _: Int32 =>
-
-        addr match
-          case Reg(r)    => useRegs += r
-          case Rel(r, _) => useRegs += r
-          case _: Label =>
-
-      case Load(addr: Addr, destReg) =>
-        defRegs += destReg
-        addr match
-          case Reg(r)    => useRegs += r
-          case Rel(r, _) => useRegs += r
-          case _: Label =>
-
-      case Jump(addr: Addr) =>
-        addr match
-          case Reg(r)    => useRegs += r
-          case Rel(r, _) => useRegs += r
-
-          case fun: FunLabel =>
-            useRegs ++= fun.paramRegs
-            defRegs ++= fun.returnRegs
-
-          case l: Label => // local jump
-
-      case JZero(reg: Reg, label: Label) =>
-        useRegs += reg.index
-
-      case _: Special[?] =>
-        // TODO
-    end match
-
-    InstrInfo(defRegs.toList, useRegs.toList)
-  end analyzeInstrInfo
+    CodeInfo(instrs.toList, predecessorMap.toMap, moves.toMap)

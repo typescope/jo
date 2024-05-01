@@ -68,6 +68,8 @@ object Assembly:
 
     case Special[T](instr: T)
 
+    lazy val regInfo = analyzeRegInfo(this)
+
   enum Type:
     case Int8, Int32
 
@@ -76,6 +78,9 @@ object Assembly:
     case Int8(label: Label, v: Byte)
     case Int32(label: Label, v: Int)
     case Uninit(label: Label, tp: Type)
+
+  /** Register usage information of an instruction */
+  case class RegInfo(defs: List[Int], uses: List[Int])
 
   case class Prog(data: List[Data], instrs: List[Instr | Label], entry: Label):
     def show() =
@@ -102,6 +107,105 @@ object Assembly:
 
       sb.toString()
   end Prog
+
+  /** Analyze the assigned and used registers of an instruction */
+  def analyzeRegInfo(instr: Instr): RegInfo =
+    val useRegs = mutable.ArrayBuffer.empty[Int]
+    val defRegs = mutable.ArrayBuffer.empty[Int]
+
+    instr match
+      case Instr.Binary(op: BiOp, v1: Operand, v2: Operand, destReg) =>
+        defRegs += destReg
+
+        v1 match
+          case Reg(r) => useRegs += r
+          case _: Int32 =>
+
+        v2 match
+          case Reg(r) => useRegs += r
+          case _: Int32 =>
+
+      case Instr.Move(v, destReg) =>
+        defRegs += destReg
+        v match
+          case Reg(srcReg) =>
+            useRegs += srcReg
+          case _ =>
+
+      case Instr.Store(v: Value, addr: Addr) =>
+        v match
+          case Reg(r) => useRegs += r
+          case _: Label =>
+          case _: Int32 =>
+
+        addr match
+          case Reg(r)    => useRegs += r
+          case Rel(r, _) => useRegs += r
+          case _: Label =>
+
+      case Instr.Load(addr: Addr, destReg) =>
+        defRegs += destReg
+        addr match
+          case Reg(r)    => useRegs += r
+          case Rel(r, _) => useRegs += r
+          case _: Label =>
+
+      case Instr.Jump(addr: Addr) =>
+        addr match
+          case Reg(r)    => useRegs += r
+          case Rel(r, _) => useRegs += r
+
+          case fun: FunLabel =>
+            useRegs ++= fun.paramRegs
+            defRegs ++= fun.returnRegs
+
+          case l: Label => // local jump
+
+      case Instr.JZero(reg: Reg, label: Label) =>
+        useRegs += reg.index
+
+      case _: Instr.Special[?] =>
+        // TODO
+    end match
+
+    RegInfo(defRegs.toList, useRegs.toList)
+  end analyzeRegInfo
+
+  def subst(instr: Instr, regAlloc: Map[Int, Int]): List[Instr] =
+    def substReg(reg: Int): Int = regAlloc.getOrElse(reg, reg)
+
+    def substPart[T](value: T | Reg): T | Reg =
+      value match
+        case Reg(r) => Reg(substReg(r))
+        case _ =>  value
+
+    instr match
+      case Instr.Binary(op: BiOp, v1: Operand, v2: Operand, destReg) =>
+        Instr.Binary(op, substPart(v1), substPart(v2), substReg(destReg)) :: Nil
+
+      case Instr.Move(v, destReg) =>
+        val src = substPart(v)
+        val dest = substReg(destReg)
+        src match
+          case Reg(`destReg`) => Nil
+          case _              => Instr.Move(src, dest) :: Nil
+
+      case Instr.Store(v: Value, addr: Addr) =>
+        Instr.Store(substPart(v), substPart(addr)) :: Nil
+
+      case Instr.Load(addr: Addr, destReg) =>
+        Instr.Load(substPart(addr), substReg(destReg)) :: Nil
+
+      case Instr.Jump(addr: Addr) =>
+        Instr.Jump(substPart(addr)) :: Nil
+
+      case Instr.JZero(reg: Reg, label: Label) =>
+        Instr.JZero(substPart(reg), label) :: Nil
+
+      case _: Instr.Special[?] =>
+        // TODO
+        ???
+    end match
 
   /**
     * Hold generated assembly data and code.

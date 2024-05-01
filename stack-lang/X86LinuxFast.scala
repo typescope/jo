@@ -114,9 +114,6 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
 
     assert(paramCount < 31, s"At most 30 parameters, $sym has " + paramCount)
 
-    // mark beginning of function
-    cb.mark(label)
-
     // bind param address to registers and load data from stack
     var index = 0
     for param <- fdef.params do
@@ -155,63 +152,51 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
 
     // Register allocation
     println(code.show())
-    val liveness = Liveness.analyze(code.instrs)
-    println(liveness)
-    val assignment = GraphColoring.alloc(liveness, freeRegisters, reservedRegisters, VIRTUAL_REG_START_INDEX)
-    println(assignment)
+    var continue = true
+    var spillCount = 0
+    var instrs = code.instrs
+    while continue do
 
-    if assignment.stackAlloc.isEmpty then
-      for item <- code.instrs do
-        item match
-          case l: Label =>
-            cb.mark(l)
+      val liveness = Liveness.analyze(instrs)
+      println(liveness)
 
-          case instr: Instr =>
-            for instr2 <- subst(instr, assignment.regAlloc) do
-              cb.add(instr2)
+      val assignment = GraphColoring.alloc(liveness, freeRegisters, reservedRegisters, VIRTUAL_REG_START_INDEX)
+      println(assignment)
 
-    else
-      // TODO update SP at the beginning of function (remove SP update before the call)
-      // TODO replace Move with Store
-      // TODO insert Load before usage (need to use virtual register if non-available)
-      ()
+      if assignment.stackAlloc.isEmpty then
+        commitAlloc(label, instrs, assignment.regAlloc, spillCount)
+      else
+        // rewrite program with spill and perform allocation again
+        continue = false
+        ()
 
-  def subst(instr: Instr, regAlloc: Map[Int, Int]): List[Instr] =
-    def substReg(reg: Int): Int =
-      if reg >= VIRTUAL_REG_START_INDEX then regAlloc(reg) else reg
+  /** Spill registers
+    *
+    * - append Store after assign to a spilled register
+    * - insert Load before read of a spilled register
+    *
+    * In both cases, we need to replace the read/assign respectively with a
+    * fresh virtual registers.
+    */
+  def spill(instr: Instr, stackAlloc: Map[Int, Int]): List[Instr] =
+    val RegInfo(defs, uses) = instr.regInfo
+    val instrs = mutable.ArrayBuffer.empty[Instr]
+    ???
 
-    def substPart[T](value: T | Reg): T | Reg =
-      value match
-        case Reg(r) => Reg(substReg(r))
-        case _ =>  value
+  def commitAlloc(funLabel: Label, instrs: List[Instr | Label], regAlloc: Map[Int, Int], spillCount: Int) =
+    // mark beginning of function
+    cb.mark(funLabel)
+    // Update SP at the beginning of function
+    cb.add(Instr.Sub(Reg(FP_REG), Int32(spillCount << 2), SP_REG))
 
-    instr match
-      case Instr.Binary(op: BiOp, v1: Operand, v2: Operand, destReg) =>
-        Instr.Binary(op, substPart(v1), substPart(v2), substReg(destReg)) :: Nil
+    for item <- instrs do
+      item match
+        case l: Label =>
+          cb.mark(l)
 
-      case Instr.Move(v, destReg) =>
-        val src = substPart(v)
-        val dest = substReg(destReg)
-        src match
-          case Reg(`destReg`) => Nil
-          case _              => Instr.Move(src, dest) :: Nil
-
-      case Instr.Store(v: Value, addr: Addr) =>
-        Instr.Store(substPart(v), substPart(addr)) :: Nil
-
-      case Instr.Load(addr: Addr, destReg) =>
-        Instr.Load(substPart(addr), substReg(destReg)) :: Nil
-
-      case Instr.Jump(addr: Addr) =>
-        Instr.Jump(substPart(addr)) :: Nil
-
-      case Instr.JZero(reg: Reg, label: Label) =>
-        Instr.JZero(substPart(reg), label) :: Nil
-
-      case _: Instr.Special[?] =>
-        // TODO
-        ???
-    end match
+        case instr: Instr =>
+          for instr2 <- subst(instr, regAlloc) do
+            cb.add(instr2)
 
   /** Compile a conditional statement, i.e if/then/else */
   def conditional(ifword: Word.If, compile: Compiler): Unit =
