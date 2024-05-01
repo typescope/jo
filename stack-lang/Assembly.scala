@@ -204,7 +204,66 @@ object Assembly:
 
       case _: Instr.Special[?] =>
         // TODO
-        ???
+        instr :: Nil
+    end match
+
+  def substDest(instr: Instr, regAlloc: Map[Int, Int]): Instr =
+    def substReg(reg: Int): Int = regAlloc.getOrElse(reg, reg)
+
+    instr match
+      case Instr.Binary(op: BiOp, v1: Operand, v2: Operand, destReg) =>
+        Instr.Binary(op, v1, v2, substReg(destReg))
+
+      case Instr.Move(v, destReg) =>
+        Instr.Move(v, substReg(destReg))
+
+      case Instr.Store(v: Value, addr: Addr) =>
+        instr
+
+      case Instr.Load(addr: Addr, destReg) =>
+        Instr.Load(addr, substReg(destReg))
+
+      case Instr.Jump(addr: Addr) =>
+        instr
+
+      case Instr.JZero(reg: Reg, label: Label) =>
+        instr
+
+      case _: Instr.Special[?] =>
+        // TODO
+        instr
+    end match
+
+  def substSource(instr: Instr, regAlloc: Map[Int, Int]): Instr =
+    def substReg(reg: Int): Int = regAlloc.getOrElse(reg, reg)
+
+    def substPart[T](value: T | Reg): T | Reg =
+      value match
+        case Reg(r) => Reg(substReg(r))
+        case _ =>  value
+
+    instr match
+      case Instr.Binary(op: BiOp, v1: Operand, v2: Operand, destReg) =>
+        Instr.Binary(op, substPart(v1), substPart(v2), destReg)
+
+      case Instr.Move(v, destReg) =>
+        Instr.Move(substPart(v), destReg)
+
+      case Instr.Store(v: Value, addr: Addr) =>
+        Instr.Store(substPart(v), substPart(addr))
+
+      case Instr.Load(addr: Addr, destReg) =>
+        Instr.Load(substPart(addr), destReg)
+
+      case Instr.Jump(addr: Addr) =>
+        Instr.Jump(substPart(addr))
+
+      case Instr.JZero(reg: Reg, label: Label) =>
+        Instr.JZero(substPart(reg), label)
+
+      case _: Instr.Special[?] =>
+        // TODO
+        instr
     end match
 
   /**

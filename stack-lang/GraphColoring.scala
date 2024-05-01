@@ -366,17 +366,23 @@ object GraphColoring:
     def getAssignment(node: Node): List[Int] =
       node match
         case Node.Single(reg) =>
-           if graph.isPreColored(node) then
-             List(reg)
-           else
-             regAssignment.get(reg) match
-               case Some(regAssign) =>
-                 List(regAssign)
-               case None =>
-                 assert(stackAssignment.contains(reg))
-                 Nil
+          if graph.isPreColored(node) then
+            List(reg)
+          else
+            regAssignment.get(reg) match
+              case Some(regAssign) =>
+                List(regAssign)
+              case None =>
+                assert(stackAssignment.contains(reg), reg)
+                Nil
 
-        case Node.Merged(node1, node2) => getAssignment(node1)
+        case Node.Merged(node1, node2) =>
+          getAssignment(node1)
+
+    // assign merges with pre-colored
+    for node <- graph.conflicts.keys do
+      val Some(reg) = graph.preColor(node)
+      assignRegister(node, reg)
 
     while graph.actions.nonEmpty do
       val action = graph.actions.remove(graph.actions.size - 1)
@@ -412,8 +418,12 @@ object GraphColoring:
   enum State:
     case Simplify, Coalesce, Freeze, Spill, Select
 
+  var round = 1
+
   def alloc(liveness: Liveness.Result, regs: List[Int], reserved: List[Int], preColor: Int): Result =
     import State.*
+
+    round += 1
 
     val k = regs.size
     val graph = build(liveness, reserved, preColor)
@@ -425,7 +435,7 @@ object GraphColoring:
     var i = 0
 
     while state != Select do
-      Files.write(Paths.get(s"graph-$i-before-$state.dot"), graph.toDot.getBytes)
+      Files.write(Paths.get(s"graph-$round-$i-before-$state.dot"), graph.toDot.getBytes)
       i += 1
 
       graph.check()

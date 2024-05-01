@@ -151,24 +151,35 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
     cb = savedCodeBuffer
 
     // Register allocation
-    println(code.show())
     var continue = true
     var spillCount = 0
     var instrs = code.instrs
     while continue do
+      println(Assembly.Prog(Nil, instrs, label).show())
 
       val liveness = Liveness.analyze(instrs)
       println(liveness)
 
-      val assignment = GraphColoring.alloc(liveness, freeRegisters, reservedRegisters, VIRTUAL_REG_START_INDEX)
-      println(assignment)
+      val GraphColoring.Result(regAlloc, stackAlloc) =
+          GraphColoring.alloc(
+            liveness,
+            freeRegisters,
+            reservedRegisters,
+            VIRTUAL_REG_START_INDEX
+          )
 
-      if assignment.stackAlloc.isEmpty then
-        commitAlloc(label, instrs, assignment.regAlloc, spillCount)
+      println(regAlloc)
+      println(stackAlloc)
+
+      if stackAlloc.isEmpty then
+        commitAlloc(label, instrs, regAlloc, spillCount)
+        continue = false
       else
         // rewrite program with spill and perform allocation again
-        continue = false
-        ()
+        continue = true
+        instrs = rewrite(instrs, stackAlloc, spillCount)
+        spillCount += stackAlloc.size
+    end while
 
   /** Spill registers
     *
@@ -178,10 +189,38 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
     * In both cases, we need to replace the read/assign respectively with a
     * fresh virtual registers.
     */
-  def spill(instr: Instr, stackAlloc: Map[Int, Int]): List[Instr] =
+  def spill(instr: Instr, stackAlloc: Map[Int, Int], spillCount: Int): List[Instr] =
     val RegInfo(defs, uses) = instr.regInfo
-    val instrs = mutable.ArrayBuffer.empty[Instr]
-    ???
+    val before = mutable.ArrayBuffer.empty[Instr]
+    val after = mutable.ArrayBuffer.empty[Instr]
+
+    var currentInstr = instr
+    for use <- uses do
+      stackAlloc.get(use) match
+        case Some(i) =>
+          val addr = Rel(FP_REG, (-(i + 1 + spillCount) << 2).toByte)
+          val virtualReg = allocVirtualReg()
+          before += Instr.Load(addr, virtualReg)
+          currentInstr = substSource(currentInstr, Map(use -> virtualReg))
+        case None =>
+
+    for destReg <- defs do
+      stackAlloc.get(destReg) match
+        case Some(i) =>
+          val addr = Rel(FP_REG, (-(i + 1 + spillCount) << 2).toByte)
+          val virtualReg = allocVirtualReg()
+          after += Instr.Store(Reg(virtualReg), addr)
+          currentInstr = substDest(currentInstr, Map(destReg -> virtualReg))
+        case None =>
+
+    before += currentInstr
+    before ++= after
+    before.toList
+
+  def rewrite(instrs: List[Instr | Label], stackAlloc: Map[Int, Int], spillCount: Int): List[Instr | Label] =
+    instrs.flatMap:
+      case l: Label => l :: Nil
+      case instr: Instr => spill(instr, stackAlloc, spillCount)
 
   def commitAlloc(funLabel: Label, instrs: List[Instr | Label], regAlloc: Map[Int, Int], spillCount: Int) =
     // mark beginning of function
@@ -416,7 +455,7 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
     index -= 1
 
     // 5. update FP
-    cb.add(Instr.Sub(Reg(SP_REG), Int32(spOffset << 2), SP_REG))
+    cb.add(Instr.Sub(Reg(SP_REG), Int32(spOffset << 2), FP_REG))
 
     // 6. jump to target
     cb.add(Instr.Jump(addr))
