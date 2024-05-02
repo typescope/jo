@@ -420,7 +420,7 @@ object GraphColoring:
 
   var round = 1
 
-  def alloc(liveness: Liveness.Result, regs: List[Int], reserved: List[Int], preColor: Int): Result =
+  def alloc(name: String, liveness: Liveness.Result, regs: List[Int], reserved: List[Int], preColor: Int): Result =
     import State.*
 
     round += 1
@@ -435,7 +435,7 @@ object GraphColoring:
     var i = 0
 
     while state != Select do
-      Files.write(Paths.get(s"graph-$round-$i-before-$state.dot"), graph.toDot.getBytes)
+      Files.write(Paths.get(s"$name-$round-$i-before-$state.dot"), graph.toDot.getBytes)
       i += 1
 
       graph.check()

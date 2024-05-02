@@ -168,6 +168,7 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
 
       val GraphColoring.Result(regAlloc, stackAlloc) =
           GraphColoring.alloc(
+            label.name,
             liveness,
             freeRegisters,
             reservedRegisters,
