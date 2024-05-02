@@ -329,8 +329,7 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
     pb.addBytes(0x83.toByte, 0xec.toByte, 0x10)    // sub    $0x10,%esp
     pb.addByte(0xbb.toByte); pb.addInt(0x0a)       // mov    $0xa,%ebx
 
-    // load argument
-    X86.load(Rel(FP_REG, 8), X86.EAX)
+    // argument is in EAX
 
     // add new line
     pb.addByte(0x49)                               // dec      %ecx
@@ -403,9 +402,9 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
 
     for instr <- restoreCalleeSavedRegs do cb.add(instr)
 
-    val reg = allocVirtualReg()
-    cb.add(Instr.Load(Reg(FP_REG), reg))
-    cb.add(Instr.Jump(Reg(reg)))
+    // Use SP_REG for simplicity
+    cb.add(Instr.Load(Reg(FP_REG), SP_REG))
+    cb.add(Instr.Jump(Reg(SP_REG)))
 
   /**
     * Call the procedure or funtion at the given address.
