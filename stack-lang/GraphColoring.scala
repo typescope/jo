@@ -220,31 +220,42 @@ object GraphColoring:
     val conflicts = mutable.Map.empty[Node, Set[Node]]
     val moves = mutable.Map.empty[Node, Set[Node]]
 
+    def notReserved(reg: Int) = !reserved.contains(reg)
+
     def addConflict(reg1: Int, reg2: Int) =
       // Ensure that a node with no conflicts gets an entry
       val node1 = nodeMap.getOrElseUpdate(reg1, Node.Single(reg1))
       val node2 = nodeMap.getOrElseUpdate(reg2, Node.Single(reg2))
 
-      val conflictsNode1 = conflicts.getOrElse(node1, Set.empty)
-      val conflictsNode2 = conflicts.getOrElse(node2, Set.empty)
+      if reg1 == reg2 then
+        // ensure that a node is represented in the graph
+        if notReserved(reg1) then
+          conflicts.getOrElseUpdate(node1, Set.empty)
+      else
+        if notReserved(reg1) then
+          val conflictsNode1 = conflicts.getOrElse(node1, Set.empty)
+          conflicts(node1) =
+            if notReserved(reg2) then conflictsNode1 + node2
+            else conflictsNode1
 
-      conflicts(node1) = conflictsNode1 + node2
-      conflicts(node2) = conflictsNode2 + node1
+        if notReserved(reg2) then
+          val conflictsNode2 = conflicts.getOrElse(node2, Set.empty)
+          conflicts(node2) =
+            if notReserved(reg1) then conflictsNode2 + node1
+            else conflictsNode2
 
-    def notReserved(reg: Int) = !reserved.contains(reg)
-
-    for (loc, outLiveSet) <- result.liveSets if outLiveSet.nonEmpty do
+    for (loc, outLiveSet) <- result.liveSets do
       for
-        reg2 <- outLiveSet if !reserved.contains(reg2)
+        reg2 <- outLiveSet
       do
         result.instrs(loc) match
-          case Instr.Binary(_, _, _, reg1) if notReserved(reg1) && reg1 != reg2 =>
+          case Instr.Binary(_, _, _, reg1) =>
             addConflict(reg1, reg2)
 
-          case Instr.Load(_, reg1) if notReserved(reg1) && reg1 != reg2 =>
+          case Instr.Load(_, reg1) =>
             addConflict(reg1, reg2)
 
-          case Instr.Move(v, reg1) if notReserved(reg1) && reg1 != reg2 =>
+          case Instr.Move(v, reg1) =>
              v match
                case Reg(reg3) if reg3 != reg2 => addConflict(reg1, reg2)
                case _ => addConflict(reg1, reg2)
@@ -262,7 +273,7 @@ object GraphColoring:
       for
         reg2 <- toSet
         node2 = nodeMap.getOrElse(reg2, Node.Single(reg2))
-        if !reserved.contains(reg2)
+        if reg1 != reg2 && !reserved.contains(reg2)
            && !conflicts.getOrElse(node1, Set.empty).contains(node2)
       do
         conflicts.getOrElseUpdate(node1, Set.empty)

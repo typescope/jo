@@ -34,8 +34,8 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
   var virtualRegisterIndex = VIRTUAL_REG_START_INDEX
   val symbolRegMap: mutable.Map[Symbol, Int] = mutable.Map.empty
 
-  val entry = Label("_entry")
-  var cb = new CodeBuffer(entry)
+  val entryLabel = Label("_entry")
+  var cb = new CodeBuffer(entryLabel)
 
   def initVirtualRegisterIndex() =
     virtualRegisterIndex = VIRTUAL_REG_START_INDEX
@@ -76,8 +76,9 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
     */
   def entry(init: => Unit): Unit =
     // Stack pointer is initialized by the kernel, initialize frame pointer
-    allocRegisters(this.entry):
-      cb.add(Instr.Move(Reg(SP_REG), FP_REG))
+    cb.mark(entryLabel)
+    cb.add(Instr.Move(Reg(SP_REG), FP_REG))
+    allocRegisters(this.entryLabel):
       init
       exit(0)
 
@@ -117,7 +118,13 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
       var index = 0
       for param <- fdef.params do
         if index < argRegisters.size then
-          symbolRegMap(param) = argRegisters(index)
+          // We need to assign a stable virtual register because the call
+          // convention cannot guarantee that the protocol register will only
+          // be used by the corresponding parameter in the function body.
+          val reg = allocVirtualReg()
+          val argReg = argRegisters(index)
+          cb.add(Instr.Move(Reg(argReg), reg))
+          symbolRegMap(param) = reg
         else
           val offset = paramCount - index + 1
           val addr = Rel(FP_REG, (offset << 2).toByte)
@@ -147,7 +154,7 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
 
   def allocRegisters(label: Label)(compile: => Unit): Unit =
     val savedCodeBuffer = cb
-    cb = new CodeBuffer(entry)
+    cb = new CodeBuffer(entryLabel)
     initVirtualRegisterIndex()
 
     compile
@@ -231,7 +238,9 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
 
   def commitAlloc(funLabel: Label, instrs: List[Instr | Label], regAlloc: Map[Int, Int], spillCount: Int) =
     // mark beginning of function
-    cb.mark(funLabel)
+    if funLabel != this.entryLabel then
+      cb.mark(funLabel)
+
     // Update SP at the beginning of function
     cb.add(Instr.Sub(Reg(FP_REG), Int32(spillCount << 2), SP_REG))
 
@@ -242,6 +251,9 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
 
         case instr: Instr =>
           for instr2 <- subst(instr, regAlloc) do
+            val RegInfo(defs, uses) = instr2.regInfo
+            for dest <- defs do assert(dest < VIRTUAL_REG_START_INDEX, dest)
+            for use <- uses do assert(use < VIRTUAL_REG_START_INDEX, use)
             cb.add(instr2)
 
   /** Compile a conditional statement, i.e if/then/else */

@@ -187,8 +187,8 @@ object Assembly:
         val src = substPart(v)
         val dest = substReg(destReg)
         src match
-          case Reg(`destReg`) => Nil
-          case _              => Instr.Move(src, dest) :: Nil
+          case Reg(`dest`) => Nil
+          case _           => Instr.Move(src, dest) :: Nil
 
       case Instr.Store(v: Value, addr: Addr) =>
         Instr.Store(substPart(v), substPart(addr)) :: Nil
