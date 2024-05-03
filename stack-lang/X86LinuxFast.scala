@@ -323,6 +323,14 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
   def definePrintService(printService: Label)(using pb: PatchableBuffer): Unit =
     pb.defineLabel(printService)
 
+    // move ebp, esp
+    X86.move(Reg(FP_REG), SP_REG)
+
+    // callee-saved registers
+    pb.addByte((0x50 | X86.EBX).toByte)
+    pb.addByte((0x50 | X86.ECX).toByte)
+    pb.addByte((0x50 | X86.EDX).toByte)
+
     // use call stack to prepare string for syscall
     // reserve 16 bytes on stack
     pb.addBytes(0x89.toByte, 0xe1.toByte)          // mov    %esp,%ecx
@@ -371,6 +379,11 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
 
     // restore stack pointer
     pb.addBytes(0x83.toByte, 0xc4.toByte, 0x10)    // add    $0x10,%esp
+
+    // restore callee-saved registers -- in reverse order
+    pb.addByte((0x58 | X86.EDX).toByte)
+    pb.addByte((0x58 | X86.ECX).toByte)
+    pb.addByte((0x58 | X86.EBX).toByte)
 
     // return to caller
     X86.load(Reg(FP_REG), X86.EAX)
