@@ -164,6 +164,7 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
     var spillCount = 0
     var instrs = code.instrs
     while continue do
+      // println(s"<${label.name}>:")
       // println(Assembly.Prog(Nil, instrs, label).show())
 
       val liveness = Liveness.analyze(instrs)
@@ -500,7 +501,10 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
     while i < resCount do
       val index = i - argRegisters.size
       if index < 0 then
-        vs.push(Reg(argRegisters(i)))
+        val reg = argRegisters(i)
+        val virtualReg = allocVirtualReg()
+        cb.add(Instr.Move(Reg(reg), virtualReg))
+        vs.push(Reg(virtualReg))
       else
         val reg = allocVirtualReg()
         loadValue(reg, (-spOffset - index - 1).toByte)
