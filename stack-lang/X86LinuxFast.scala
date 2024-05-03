@@ -52,7 +52,8 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
 
     def push(v: Operand): Unit = stack.append(v)
 
-    def peek(i: Int): Operand = stack(i)
+    // peek relative to top --- top is 0
+    def peek(i: Int): Operand = stack(size - 1 - i)
 
     def clear() = stack.clear()
 
@@ -397,7 +398,7 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
     var i = 0
     val size = vs.size
     while i < size do
-      val res = vs.peek(i)
+      val res = vs.peek(size - 1 - i)
       val index = i - argRegisters.size
 
       if index < 0 then
@@ -464,7 +465,8 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
     // 2. save args -- the first 4 arguments are passed via registers
     var i = 0
     while i < argCount do
-      val arg = vs.peek(i)
+      // ordering of args
+      val arg = vs.peek(argCount - 1 - i)
       if i < argRegisters.size then
         cb.add(Instr.Move(arg, argRegisters(i)))
       else
