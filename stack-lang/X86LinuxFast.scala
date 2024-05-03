@@ -4,10 +4,6 @@ import Assembly.*
 import Assembler.{ Patch, PatchableBuffer }
 import Sast.*
 
-/** A label corresponds to a function definition */
-class FunLabel(name: String, val paramRegs: List[Int], val returnRegs: List[Int])
-extends Label(name)
-
 /** Fast x86 implementation with register allocation  */
 class X86LinuxFast(outFile: String, layout: String) extends Platform:
   /** The register ESP and EBP are reserved for value stack and call stack respectively. */

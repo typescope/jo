@@ -5,6 +5,7 @@ import scala.collection.mutable
  *
  * Assembly Language Definition
  *
+ * TODO remove abstraction
  ***********************************************************************/
 object Assembly:
   /** A constant 32-bit integer */
@@ -64,6 +65,8 @@ object Assembly:
     case Load(addr: Addr, destReg: Int)
 
     case Jump(addr: Addr)
+
+    // TODO: Change to JCond --- conditional jump
     case JZero(reg: Reg, label: Label)
 
     case Special[T](instr: T)
@@ -107,6 +110,11 @@ object Assembly:
 
       sb.toString()
   end Prog
+
+  // TODO: Refactor representation for register allocation
+  /** A label corresponds to a function definition */
+  class FunLabel(name: String, val paramRegs: List[Int], val returnRegs: List[Int])
+  extends Label(name)
 
   /** Analyze the assigned and used registers of an instruction */
   def analyzeRegInfo(instr: Instr): RegInfo =
