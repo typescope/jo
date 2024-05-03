@@ -41,7 +41,7 @@ class JSPlatformOpt(outFile: String) extends Platform:
 
     def push(v: Item): Unit = stack.append(v)
 
-    def peek(i: Int): Item = stack(i)
+    def get(i: Int): Item = stack(i)
 
     def set(i: Int, v: Item): Unit = stack(i) = v
 
@@ -64,11 +64,10 @@ class JSPlatformOpt(outFile: String) extends Platform:
       if count == 1 then
         pop()
       else
-        var i = this.size - 1
-        var stopIndex = this.size - count
+        var i = this.size - count
         val arrayItemsStr = new StringBuilder
-        while i >= stopIndex do
-          val item = vs.peek(i)
+        while i < this.size do
+          val item = vs.get(i)
           arrayItemsStr.append(item.toJS)
           if i != count - 1 then
             arrayItemsStr.append(", ")
@@ -137,7 +136,7 @@ class JSPlatformOpt(outFile: String) extends Platform:
     val count = vs.size
     var i = 0
     while i < count do
-      val item = vs.peek(i)
+      val item = vs.get(i)
       item match
         case Item.Expr(e) =>
           val name = freshName("x")
@@ -156,7 +155,7 @@ class JSPlatformOpt(outFile: String) extends Platform:
     var i: Int = 0
     val paramStr = new StringBuilder
     while i < paramCount  do
-      val arg = vs.peek(vs.size - paramCount + i)
+      val arg = vs.get(vs.size - paramCount + i)
       paramStr.append(arg.toJS)
       if i != paramCount - 1 then
         paramStr.append(", ")
