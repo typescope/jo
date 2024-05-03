@@ -39,7 +39,7 @@ object Liveness:
     val codeInfo = collectCodeInfo(rawInstrs, workList)
     val result = mutable.Map.empty[Int, LiveSet]
 
-    println(codeInfo)
+    // println(codeInfo)
 
     while workList.nonEmpty do
       val WorkItem(loc, succLiveSet) = workList.removeLast()

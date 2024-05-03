@@ -164,10 +164,10 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
     var spillCount = 0
     var instrs = code.instrs
     while continue do
-      println(Assembly.Prog(Nil, instrs, label).show())
+      // println(Assembly.Prog(Nil, instrs, label).show())
 
       val liveness = Liveness.analyze(instrs)
-      println(liveness)
+      // println(liveness)
 
       val GraphColoring.Result(regAlloc, stackAlloc) =
           GraphColoring.alloc(
@@ -178,8 +178,8 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
             VIRTUAL_REG_START_INDEX
           )
 
-      println(regAlloc)
-      println(stackAlloc)
+      // println(regAlloc)
+      // println(stackAlloc)
 
       if stackAlloc.isEmpty then
         commitAlloc(label, instrs, regAlloc, spillCount)
@@ -633,7 +633,8 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
 
   def bnot() =
     val reg = allocVirtualReg()
-    cb.add(Instr.Nor(vs.pop(), vs.pop(), reg))
+    val v = vs.pop()
+    cb.add(Instr.Nor(v, v, reg))
     cb.add(Instr.And(Reg(reg), Int32(1), reg))
     vs.push(Reg(reg))
 
