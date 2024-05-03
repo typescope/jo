@@ -50,6 +50,11 @@ for file in $DIR/tests/*.stk; do
     $exe > $RES2
     check $RES1 $RES2
 
+    # fast linux
+    ./stkc $file -o $exe -p linux-x86-fast
+    $exe > $RES2
+    check $RES1 $RES2
+
     # JavaScript
     ./stkc $file -o $js -p js
     node $js > $RES3
