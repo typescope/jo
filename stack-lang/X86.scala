@@ -447,7 +447,7 @@ object X86:
         // C1 /5 ib	SHR r/m32, imm8
         assert(v >= 0 && v < 256, "Shift too big, expect < 256, found = " + v)
         pb.addByte(0xC1.toByte)
-        pb.addByte((0xC0 | (1 << 5) | reg).toByte)
+        pb.addByte((0xC0 | (5 << 3) | reg).toByte)
         pb.addByte(v.toByte)
 
   def not(reg: Int)(using pb: PatchableBuffer) =
