@@ -152,7 +152,11 @@ object GraphColoring:
         case Some(targets) =>
           moves -= node
           for target <- targets do
-            moves = moves.updated(target, moves(target) - node)
+            val targets2 = moves(target) - node
+            if targets2.isEmpty then
+              moves = moves - target
+            else
+              moves = moves.updated(target, targets2)
 
         case None =>
 
@@ -166,6 +170,7 @@ object GraphColoring:
       for (node, targets) <- moves do
         assert(conflicts.contains(node), node)
         checkPreColor(node)
+        assert(targets.nonEmpty)
         for target <- targets do
           assert(node != target)
           assert(moves(target).contains(node))
