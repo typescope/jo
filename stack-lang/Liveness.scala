@@ -14,7 +14,7 @@ object Liveness:
   type LiveSet   = Set[Int]
 
   class CodeInfo(
-    val instrs: Seq[Instr],
+    val instrs: Seq[PreInstr],
     predecessorMap: Map[Int, Set[Int]],
     val moves: Map[Int, Set[Int]]):
 
@@ -25,15 +25,15 @@ object Liveness:
           if index > 0 then Set(index - 1) else Set.empty
 
     override def toString() =
-      predecessorMap.keys.toSeq.sorted.map(k => k + " -> " + predecessorMap(k)).mkString("\n")
+      predecessorMap.keys.toSeq.sorted.map(k => s"$k -> " + predecessorMap(k)).mkString("\n")
 
 
   type WorkList = mutable.ArrayDeque[WorkItem]
   case class WorkItem(index: Int, succLiveSet: LiveSet)
 
-  case class Result(liveSets: Map[Int, LiveSet], moves: Map[Int, Set[Int]], instrs: Seq[Instr]):
+  case class Result(liveSets: Map[Int, LiveSet], moves: Map[Int, Set[Int]], instrs: Seq[PreInstr]):
     override def toString() =
-      liveSets.keys.toSeq.sorted.map(k => k + ": " + liveSets(k)).mkString("\n")
+      liveSets.keys.toSeq.sorted.map(k => s"$k: " + liveSets(k)).mkString("\n")
 
   def analyze(items: Seq[PreAssembly.Item]): Result =
     val workList = mutable.ArrayDeque.empty[WorkItem]
@@ -64,13 +64,13 @@ object Liveness:
   def collectCodeInfo(items: Seq[PreAssembly.Item], workList: WorkList): CodeInfo =
     val labelInfo = mutable.Map.empty[Label, Int]
 
-    val instrs = new mutable.ArrayBuffer[Instr]
+    val instrs = new mutable.ArrayBuffer[PreInstr]
     for item <- items do
       item match
         case label: Label =>
           labelInfo(label) = instrs.size
 
-        case instr: Instr =>
+        case instr: PreInstr =>
           instrs += instr
 
         case holder: PlaceHolder =>
@@ -83,24 +83,29 @@ object Liveness:
     var index = 0
     val size = instrs.size
     while index < size do
-      val instr = instrs(index)
+      val preInstr = instrs(index)
       workList += WorkItem(index, Set.empty)
 
-      instr match
-        case Move(Reg(srcReg), destReg) =>
-          val moveTargets = moves.getOrElse(srcReg, Set.empty)
-          moves(srcReg) = moveTargets + destReg
+      preInstr match
+        case PreInstr.Call(_, _, _) | PreInstr.Return =>
+          // non-local jumps
 
-        case Jump(_: Reg | _: Rel) =>
-          // indirect function call or function return
+        case PreInstr.Instr(instr) =>
+          instr match
+            case Move(Reg(srcReg), destReg) =>
+              val moveTargets = moves.getOrElse(srcReg, Set.empty)
+              moves(srcReg) = moveTargets + destReg
 
-        case Jump(label: Label) if !label.isInstanceOf[FunLabel] =>
-          jumpTargets(index) = labelInfo(label)
+            case Jump(_: Reg | _: Rel) =>
+              throw new Exception("Unexpected instruction " + instr)
 
-        case JZero(_, label: Label) =>
-          jumpTargets(index) = labelInfo(label)
+            case Jump(label: Label) =>
+              jumpTargets(index) = labelInfo(label)
 
-        case _ =>
+            case JZero(_, label: Label) =>
+              jumpTargets(index) = labelInfo(label)
+
+            case _ =>
       end match
       index += 1
     end while
@@ -111,14 +116,13 @@ object Liveness:
         Set.empty
       else
         instrs(i - 1) match
-          case Jump(_: Reg | _: Rel) =>
-            // indirect function call or function return
+          case _: PreInstr.Call =>
+            // function call will follow the next
             Set(i - 1)
 
-          case Jump(label: Label) =>
-            // function call will follow the next
-            if label.isInstanceOf[FunLabel] then Set(i - 1)
-            else Set.empty
+          case PreInstr.Return | PreInstr.Instr(Jump(_: Label)) =>
+            // unconditional jump
+            Set.empty
 
           case _ => Set(i - 1)
       end if

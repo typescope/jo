@@ -1,6 +1,7 @@
 import scala.collection.mutable
 
 import Assembly.*
+import PreAssembly.*
 
 /**
   * Register allocation based on graph coloring.
@@ -199,7 +200,7 @@ object GraphColoring:
       val sb = new StringBuilder
       sb ++= "graph {"
 
-      def quote(node: Node) = '\"' + node.show + '\"'
+      def quote(node: Node) = s""""${node.show}""""
 
       for (node, cfls) <- conflicts do
         sb ++= quote(node)
@@ -253,19 +254,17 @@ object GraphColoring:
       for
         reg2 <- outLiveSet
       do
-        result.instrs(loc) match
-          case Instr.Binary(_, _, _, reg1) =>
-            addConflict(reg1, reg2)
+        val preInstr = result.instrs(loc)
+        val RegInfo(defs, uses) = preInstr.regInfo
 
-          case Instr.Load(_, reg1) =>
-            addConflict(reg1, reg2)
-
-          case Instr.Move(v, reg1) =>
+        preInstr match
+          case PreInstr.Instr(Instr.Move(v, reg1)) =>
              v match
                case Reg(reg3) if reg3 != reg2 => addConflict(reg1, reg2)
                case _ => addConflict(reg1, reg2)
 
           case _ =>
+             for reg1 <- defs do addConflict(reg1, reg2)
 
       end for
 

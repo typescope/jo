@@ -3,7 +3,6 @@ import scala.collection.mutable
 import Assembly.*
 
 
-
 /** Code representation of a function before register allocation.
   *
   * The code is supposed to be ignostic to register allocation algorithms.
@@ -25,12 +24,25 @@ object PreAssembly:
   enum PlaceHolder:
     case InitStackPointer, SaveRegisters, RestoreRegisters
 
-  type Item = Instr | Label | PlaceHolder
+  /** Register usage information of an instruction */
+  case class RegInfo(defs: List[Int], uses: List[Int])
 
-  // TODO: Refactor representation for register allocation
-  /** A label corresponds to a function definition */
-  class FunLabel(name: String, val paramRegs: List[Int], val returnRegs: List[Int])
-  extends Label(name)
+  /** A pre-instruction contains information required for liveness analysis
+    *
+    * In particular, liveness analysis needs to (1) distinguish local jumps from
+    * non-local jumps; (2) get information about register read/write.
+    */
+  enum PreInstr:
+    case Instr(instr: Assembly.Instr)
+    case Call(label: Label, argRegs: List[Int], retRegs: List[Int])
+    case Return
+
+    lazy val regInfo = this match
+      case Instr(instr)                  => analyzeRegInfo(instr)
+      case Call(label, argRegs, retRegs) => RegInfo(argRegs, retRegs)
+      case Return                        => RegInfo(Nil, Nil)
+
+  type Item = PreInstr | Label | PlaceHolder
 
   /**
     * Hold generated assembly data and code.
@@ -38,12 +50,70 @@ object PreAssembly:
   class ItemBuffer:
     private val code: mutable.ArrayBuffer[Item] = new mutable.ArrayBuffer
 
-    def add(instrs: List[Instr]): Unit = code.addAll(instrs)
-    def add(instr : Instr): Unit = code.addOne(instr)
-    def place(holder: PlaceHolder): Unit = code.addOne(holder)
-    def mark(label: Label): Unit = code.addOne(label)
+    def gen(instr : Instr): Unit = code.addOne(PreInstr.Instr(instr))
+    def gen(instr : PreInstr): Unit = code.addOne(instr)
+    def gen(holder: PlaceHolder): Unit = code.addOne(holder)
+    def gen(label: Label): Unit = code.addOne(label)
     def getResult(): List[Item] = code.toList
     def clear(): Unit = code.clear()
+
+  /** Analyze the assigned and used registers of an instruction */
+  def analyzeRegInfo(instr: Instr): RegInfo =
+    val useRegs = mutable.ArrayBuffer.empty[Int]
+    val defRegs = mutable.ArrayBuffer.empty[Int]
+
+    instr match
+      case Instr.Binary(op: BiOp, v1: Operand, v2: Operand, destReg) =>
+        defRegs += destReg
+
+        v1 match
+          case Reg(r) => useRegs += r
+          case _: Int32 =>
+
+        v2 match
+          case Reg(r) => useRegs += r
+          case _: Int32 =>
+
+      case Instr.Move(v, destReg) =>
+        defRegs += destReg
+        v match
+          case Reg(srcReg) =>
+            useRegs += srcReg
+          case _ =>
+
+      case Instr.Store(v: Value, addr: Addr) =>
+        v match
+          case Reg(r) => useRegs += r
+          case _: Label =>
+          case _: Int32 =>
+
+        addr match
+          case Reg(r)    => useRegs += r
+          case Rel(r, _) => useRegs += r
+          case _: Label =>
+
+      case Instr.Load(addr: Addr, destReg) =>
+        defRegs += destReg
+        addr match
+          case Reg(r)    => useRegs += r
+          case Rel(r, _) => useRegs += r
+          case _: Label =>
+
+      case Instr.Jump(addr: Addr) =>
+        addr match
+          case Reg(r)    => useRegs += r
+          case Rel(r, _) => useRegs += r
+          case l: Label  =>
+
+      case Instr.JZero(reg: Reg, label: Label) =>
+        useRegs += reg.index
+
+      case _: Instr.Special[?] =>
+        // TODO
+    end match
+
+    RegInfo(defRegs.toList, useRegs.toList)
+  end analyzeRegInfo
 
   def subst(instr: Instr, regAlloc: Map[Int, Int]): List[Instr] =
     def substReg(reg: Int): Int = regAlloc.getOrElse(reg, reg)
@@ -149,13 +219,11 @@ object PreAssembly:
     * fresh virtual registers.
     */
   def spill(
-    instr: Instr,
-    stackAlloc: Map[Int, Int],
-    allocVirtualReg: () => Int,
-    addr: Int => Addr
+    instr: Instr, regInfo: RegInfo, stackAlloc: Map[Int, Int],
+    allocVirtualReg: () => Int, addr: Int => Addr
   ): List[Instr] =
 
-    val RegInfo(defs, uses) = instr.regInfo
+    val RegInfo(defs, uses) = regInfo
     val before = mutable.ArrayBuffer.empty[Instr]
     val after = mutable.ArrayBuffer.empty[Instr]
 
