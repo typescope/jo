@@ -1,5 +1,5 @@
 fun gcd(m, n) =
-  if n 0 == then
+  if m n == then
     m
   else
     if m n < then
