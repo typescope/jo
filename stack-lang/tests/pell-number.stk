@@ -1,0 +1,13 @@
+// https://en.wikipedia.org/wiki/Pell_number
+
+fun pell(n) = 0 1 0 n pellComp;
+
+fun pellComp(a, b, i, n) =
+  if i n == then
+    a
+  else
+    a p
+    b (a b 2 * +) (i 1 +) n pellComp
+  end;
+
+20 pell p
