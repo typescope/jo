@@ -15,6 +15,7 @@
 //> using file UniqueName.scala
 //> using file JSPlatform.scala
 //> using file JSPlatformOpt.scala
+//> using file PreAssembly.scala
 
 import java.io.{ File => JFile }
 
