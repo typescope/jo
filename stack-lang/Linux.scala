@@ -326,22 +326,22 @@ object Linux:
 
     def primitive(sym: Symbol): Unit =
       sym match
-        case predef.add    =>   add()
-        case predef.sub    =>   sub()
-        case predef.mul    =>   mul()
-        case predef.div    =>   div()
-        case predef.mod    =>   mod()
-        case predef.gt     =>   gt()
-        case predef.lt     =>   lt()
-        case predef.ge     =>   ge()
-        case predef.le     =>   le()
-        case predef.srl    =>   srl()
-        case predef.sll    =>   sll()
-        case predef.land   =>   land()
-        case predef.lor    =>   lor()
-        case predef.lxor   =>   lxor()
-        case predef.band   =>   band()
-        case predef.bor    =>   bor()
+        case predef.add    =>   int2(Instr.Add)
+        case predef.sub    =>   int2(Instr.Sub)
+        case predef.mul    =>   int2(Instr.Mul)
+        case predef.div    =>   int2(Instr.Div)
+        case predef.mod    =>   int2(Instr.Mod)
+        case predef.gt     =>   int2(Instr.Gt)
+        case predef.lt     =>   int2(Instr.Lt)
+        case predef.ge     =>   int2(Instr.Ge)
+        case predef.le     =>   int2(Instr.Le)
+        case predef.srl    =>   int2(Instr.Srl)
+        case predef.sll    =>   int2(Instr.Sll)
+        case predef.land   =>   int2(Instr.And)
+        case predef.lor    =>   int2(Instr.Or)
+        case predef.lxor   =>   int2(Instr.Xor)
+        case predef.band   =>   int2(Instr.And)
+        case predef.bor    =>   int2(Instr.Or)
         case predef.bnot   =>   bnot()
         case predef.eql    =>   eql()
         case predef.p      =>   print()
@@ -364,63 +364,15 @@ object Linux:
       val addr = Rel(SP_REG, (index * 4).toByte)
       cb.add(Instr.Store(value, addr))
 
-    def int2(fn: (Byte, Byte, Byte) => Instr) =
+    def int2(fn: (Operand, Operand, Byte) => Instr) =
       // TODO: check type of value
       useTwoReg: (r1, r2) =>
         // Reduce arithmetic on stack pointer to 1
         loadValue(r1, 1)
         loadValue(r2, 0)
-        cb.add(fn(r1, r2, r1))
+        cb.add(fn(Reg(r1), Reg(r2), r1))
         storeValue(Reg(r1), 1)
         pop()
-
-    def add() =
-      int2((r1, r2, d) => Instr.Add(Reg(r1), Reg(r2), d))
-
-    def sub() =
-      int2((r1, r2, d) => Instr.Sub(Reg(r1), Reg(r2), d))
-
-    def mul() =
-      int2((r1, r2, d) => Instr.Mul(Reg(r1), Reg(r2), d))
-
-    def div() =
-      int2((r1, r2, d) => Instr.Div(Reg(r1), Reg(r2), d))
-
-    def mod() =
-      int2((r1, r2, d) => Instr.Mod(Reg(r1), Reg(r2), d))
-
-    def lt() =
-      int2((r1, r2, d) => Instr.Lt(Reg(r1), Reg(r2), d))
-
-    def gt() =
-      int2((r1, r2, d) => Instr.Gt(Reg(r1), Reg(r2), d))
-
-    def le() =
-      int2((r1, r2, d) => Instr.Le(Reg(r1), Reg(r2), d))
-
-    def ge() =
-      int2((r1, r2, d) => Instr.Ge(Reg(r1), Reg(r2), d))
-
-    def sll() =
-      int2((r1, r2, d) => Instr.Sll(Reg(r1), Reg(r2), d))
-
-    def srl() =
-      int2((r1, r2, d) => Instr.Srl(Reg(r1), Reg(r2), d))
-
-    def land() =
-      int2((r1, r2, d) => Instr.And(Reg(r1), Reg(r2), d))
-
-    def lor() =
-      int2((r1, r2, d) => Instr.Or(Reg(r1), Reg(r2), d))
-
-    def lxor() =
-      int2((r1, r2, d) => Instr.Xor(Reg(r1), Reg(r2), d))
-
-    def band() =
-      int2((r1, r2, d) => Instr.And(Reg(r1), Reg(r2), d))
-
-    def bor() =
-      int2((r1, r2, d) => Instr.Or(Reg(r1), Reg(r2), d))
 
     def bnot() =
       useReg: r =>
