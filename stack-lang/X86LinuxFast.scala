@@ -116,6 +116,9 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
       // Compile function to a temporary buffer for register allocation
       place(PlaceHolder.InitStackPointer)
 
+      // callee-saved registers
+      place(PlaceHolder.SaveRegisters)
+
       // bind param address to registers and load data from stack
       var index = 0
       for param <- fdef.params do
@@ -134,9 +137,6 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
           symbolRegMap(param) = reg
           add(Instr.Load(addr, reg))
         index += 1
-
-      // callee-saved registers
-      place(PlaceHolder.SaveRegisters)
 
       compile(fdef.words)
 
@@ -231,13 +231,13 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
 
         case PlaceHolder.SaveRegisters =>
           for (savedReg, i) <- actualSavedRegs.zipWithIndex do
-            val addr = Rel(FP_REG, (-((spillCount + i) << 2)).toByte)
-            add(Instr.Store(Reg(savedReg), addr))
+            val addr = Rel(FP_REG, (-((spillCount + i + 1) << 2)).toByte)
+            cb.add(Instr.Store(Reg(savedReg), addr))
 
         case PlaceHolder.RestoreRegisters =>
           for (savedReg, i) <- actualSavedRegs.zipWithIndex do
-            val addr = Rel(FP_REG, (-((spillCount + i) << 2)).toByte)
-            add(Instr.Load(addr, savedReg))
+            val addr = Rel(FP_REG, (-((spillCount + i + 1) << 2)).toByte)
+            cb.add(Instr.Load(addr, savedReg))
 
         case instr: Instr =>
           for instr2 <- subst(instr, regAlloc) do
