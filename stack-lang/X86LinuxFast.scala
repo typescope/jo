@@ -1,6 +1,7 @@
 import scala.collection.mutable
 
 import Assembly.*
+import PreAssembly.*
 import Assembler.{ Patch, PatchableBuffer }
 import Sast.*
 
@@ -34,7 +35,7 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
   var cb = new CodeBuffer(entryLabel)
 
   /** The code of a function before register allocation */
-  val preAsm: PreAssembly.CodeBuffer = new PreAssembly.CodeBuffer
+  val preAsm: PreAssembly.ItemBuffer = new PreAssembly.ItemBuffer
 
   import preAsm.{ add, mark, place }
 
@@ -80,7 +81,7 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
     // Stack pointer is initialized by the kernel, initialize frame pointer
     cb.mark(entryLabel)
     cb.add(Instr.Move(Reg(SP_REG), FP_REG))
-    allocRegisters(this.entryLabel):
+    allocRegisters(this.entryLabel, StackInfo(0, 0)):
       init
       exit(0)
 
@@ -109,11 +110,11 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
     val label = symbolAddrMap(sym).asInstanceOf[Label]
     val paramCount = fdef.params.size
 
-    allocRegisters(label):
+    assert(paramCount < 31, s"At most 30 parameters, $sym has " + paramCount)
+
+    allocRegisters(label, sym.info):
       // Compile function to a temporary buffer for register allocation
       place(PlaceHolder.InitStackPointer)
-
-      assert(paramCount < 31, s"At most 30 parameters, $sym has " + paramCount)
 
       // bind param address to registers and load data from stack
       var index = 0
@@ -141,7 +142,7 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
 
       ret()
 
-  def allocRegisters(label: Label)(compile: => Unit): Unit =
+  def allocRegisters(label: Label, stackInfo: StackInfo)(compile: => Unit): Unit =
     initVirtualRegisterIndex()
     preAsm.clear()
     symbolRegMap.clear()
@@ -179,7 +180,7 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
       def addr(i: Int): Addr = Rel(FP_REG, (-(i + 1 + spillCount) << 2).toByte)
 
       if stackAlloc.isEmpty then
-        commitAlloc(label, instrs, regAlloc, spillCount)
+        commitAlloc(label, stackInfo, instrs, regAlloc, spillCount)
         continue = false
       else
         // rewrite program with spill and perform allocation again
@@ -189,40 +190,54 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
     end while
 
 
-  def rewrite(instrs: List[PreAssembly.Item], stackAlloc: Map[Int, Int], addr: Int => Addr): List[PreAssembly.Item] =
+  def rewrite(
+    instrs: List[PreAssembly.Item],
+    stackAlloc: Map[Int, Int],
+    addr: Int => Addr
+  ): List[PreAssembly.Item] =
+
     instrs.flatMap:
       case l: Label       => l :: Nil
       case p: PlaceHolder => p :: Nil
-      case i: Instr       => spill(i, stackAlloc, addr)
+      case i: Instr       => spill(i, stackAlloc, allocVirtualReg, addr)
 
-  def commitAlloc(funLabel: Label, instrs: List[PreAssembly.Item], regAlloc: Map[Int, Int], spillCount: Int) =
+  /** Commit register allocation result and emit assembly from pre-assembly */
+  def commitAlloc(
+    funLabel: Label,
+    stackInfo: StackInfo,
+    instrs: List[PreAssembly.Item],
+    regAlloc: Map[Int, Int],
+    spillCount: Int) =
+
     // mark beginning of function
     if funLabel != this.entryLabel then
       cb.mark(funLabel)
 
-    val StackInfo(paramNum, resNum) = sym.info
+    val StackInfo(paramNum, resNum) = stackInfo
     val numCallerSavedRegs = if paramNum > resNum then paramNum else resNum
     val calleeSavedRegs = freeRegisters.diff(argRegisters.take(numCallerSavedRegs))
+    val usedRegs = regAlloc.values.toList
+    val actualSavedRegs = calleeSavedRegs.filter(usedRegs.contains)
 
     for item <- instrs do
       item match
         case l: Label =>
           cb.mark(l)
 
-        case InitStackPointer =>
+        case PlaceHolder.InitStackPointer =>
           // Update SP at the beginning of function
-          cb.add(Instr.Sub(Reg(FP_REG), Int32(spillCount << 2), SP_REG))
+          val frameSize = spillCount + actualSavedRegs.size
+          cb.add(Instr.Sub(Reg(FP_REG), Int32(frameSize << 2), SP_REG))
 
-        case SaveRegisters =>
-          for calleeSavedReg <- calleeSavedRegs do
-            val virtualReg = allocVirtualReg()
-            add(Instr.Move(Reg(calleeSavedReg), virtualReg))
+        case PlaceHolder.SaveRegisters =>
+          for (savedReg, i) <- actualSavedRegs.zipWithIndex do
+            val addr = Rel(FP_REG, (-((spillCount + i) << 2)).toByte)
+            add(Instr.Store(Reg(savedReg), addr))
 
-
-        case RestoreRegisters =>
-          for calleeSavedReg <- calleeSavedRegs do
-            val virtualReg = allocVirtualReg()
-            add(Instr.Move(Reg(virtualReg), calleeSavedReg))
+        case PlaceHolder.RestoreRegisters =>
+          for (savedReg, i) <- actualSavedRegs.zipWithIndex do
+            val addr = Rel(FP_REG, (-((spillCount + i) << 2)).toByte)
+            add(Instr.Load(addr, savedReg))
 
         case instr: Instr =>
           for instr2 <- subst(instr, regAlloc) do
@@ -519,22 +534,22 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
 
   def primitive(sym: Symbol): Unit =
     sym match
-      case predef.add    =>   add()
-      case predef.sub    =>   sub()
-      case predef.mul    =>   mul()
-      case predef.div    =>   div()
-      case predef.mod    =>   mod()
-      case predef.gt     =>   gt()
-      case predef.lt     =>   lt()
-      case predef.ge     =>   ge()
-      case predef.le     =>   le()
-      case predef.srl    =>   srl()
-      case predef.sll    =>   sll()
-      case predef.land   =>   land()
-      case predef.lor    =>   lor()
-      case predef.lxor   =>   lxor()
-      case predef.band   =>   band()
-      case predef.bor    =>   bor()
+      case predef.add    =>   int2(Instr.Add)
+      case predef.sub    =>   int2(Instr.Sub)
+      case predef.mul    =>   int2(Instr.Mul)
+      case predef.div    =>   int2(Instr.Div)
+      case predef.mod    =>   int2(Instr.Mod)
+      case predef.gt     =>   int2(Instr.Gt)
+      case predef.lt     =>   int2(Instr.Lt)
+      case predef.ge     =>   int2(Instr.Ge)
+      case predef.le     =>   int2(Instr.Le)
+      case predef.srl    =>   int2(Instr.Srl)
+      case predef.sll    =>   int2(Instr.Sll)
+      case predef.land   =>   int2(Instr.And)
+      case predef.lor    =>   int2(Instr.Or)
+      case predef.lxor   =>   int2(Instr.Xor)
+      case predef.band   =>   int2(Instr.And)
+      case predef.bor    =>   int2(Instr.Or)
       case predef.bnot   =>   bnot()
       case predef.eql    =>   eql()
       case predef.p      =>   print()
@@ -564,55 +579,6 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
     val reg = allocVirtualReg()
     add(fn(arg1, arg2, reg))
     vs.push(Reg(reg))
-
-
-  def add() =
-    int2((arg1, arg2, d) => Instr.Add(arg1, arg2, d))
-
-  def sub() =
-    int2((arg1, arg2, d) => Instr.Sub(arg1, arg2, d))
-
-  def mul() =
-    int2((arg1, arg2, d) => Instr.Mul(arg1, arg2, d))
-
-  def div() =
-    int2((arg1, arg2, d) => Instr.Div(arg1, arg2, d))
-
-  def mod() =
-    int2((arg1, arg2, d) => Instr.Mod(arg1, arg2, d))
-
-  def lt() =
-    int2((arg1, arg2, d) => Instr.Lt(arg1, arg2, d))
-
-  def gt() =
-    int2((arg1, arg2, d) => Instr.Gt(arg1, arg2, d))
-
-  def le() =
-    int2((arg1, arg2, d) => Instr.Le(arg1, arg2, d))
-
-  def ge() =
-    int2((arg1, arg2, d) => Instr.Ge(arg1, arg2, d))
-
-  def sll() =
-    int2((arg1, arg2, d) => Instr.Sll(arg1, arg2, d))
-
-  def srl() =
-    int2((arg1, arg2, d) => Instr.Srl(arg1, arg2, d))
-
-  def land() =
-    int2((arg1, arg2, d) => Instr.And(arg1, arg2, d))
-
-  def lor() =
-    int2((arg1, arg2, d) => Instr.Or(arg1, arg2, d))
-
-  def lxor() =
-    int2((arg1, arg2, d) => Instr.Xor(arg1, arg2, d))
-
-  def band() =
-    int2((arg1, arg2, d) => Instr.And(arg1, arg2, d))
-
-  def bor() =
-    int2((arg1, arg2, d) => Instr.Or(arg1, arg2, d))
 
   def bnot() =
     val reg = allocVirtualReg()

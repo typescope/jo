@@ -451,7 +451,7 @@ object GraphColoring:
     var i = 0
 
     while state != Select do
-      Files.write(Paths.get(s"$name-$round-$i-before-$state.dot"), graph.toDot.getBytes)
+      // Files.write(Paths.get(s"$name-$round-$i-before-$state.dot"), graph.toDot.getBytes)
       i += 1
 
       graph.check()

@@ -1,6 +1,7 @@
 import scala.collection.mutable
 
 import Assembly.*
+import PreAssembly.*
 import Instr.*
 
 /** Liveness analysis for assembly code of a function

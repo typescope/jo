@@ -158,7 +158,7 @@ object Assembly:
           case Reg(r)    => useRegs += r
           case Rel(r, _) => useRegs += r
 
-          case fun: FunLabel =>
+          case fun: PreAssembly.FunLabel =>
             useRegs ++= fun.paramRegs
             defRegs ++= fun.returnRegs
 
