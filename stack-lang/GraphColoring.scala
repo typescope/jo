@@ -349,12 +349,14 @@ object GraphColoring:
         false
   end spill
 
-  case class Result(regAlloc: Map[Int, Int], stackAlloc: Map[Int, Int])
+  case class Result(regAlloc: Map[Int, Int], stackAlloc: Map[Int, Int], usedRegs: Set[Int])
 
   def select(graph: Graph, regs: List[Int]): Result =
     assert(graph.conflicts.keys.forall(node => graph.isPreColored(node)))
 
     val k = regs.size
+
+    val usedRegs = mutable.ArrayBuffer.empty[Int]
 
     var stackSlot = 0
     val stackAssignment = mutable.Map.empty[Int, Int]
@@ -369,6 +371,7 @@ object GraphColoring:
 
     val regAssignment = mutable.Map.empty[Int, Int]
     def assignRegister(node: Node, regAssigned: Int): Unit =
+      usedRegs += regAssigned
       node match
         case Node.Single(reg) =>
           if !graph.isPreColored(node) then
@@ -397,6 +400,7 @@ object GraphColoring:
     // assign merges with pre-colored
     for node <- graph.conflicts.keys do
       val Some(reg) = graph.preColor(node): @unchecked
+      usedRegs += reg
       assignRegister(node, reg)
 
     while graph.actions.nonEmpty do
@@ -427,7 +431,7 @@ object GraphColoring:
             assignRegister(node, reg)
     end while
 
-    Result(regAssignment.toMap, stackAssignment.toMap)
+    Result(regAssignment.toMap, stackAssignment.toMap, usedRegs.toSet)
   end select
 
   enum State:

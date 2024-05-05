@@ -81,7 +81,7 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
     // Stack pointer is initialized by the kernel, initialize frame pointer
     cb.mark(entryLabel)
     cb.add(Instr.Move(Reg(SP_REG), FP_REG))
-    allocRegisters(this.entryLabel, StackInfo(0, 0)):
+    allocRegisters(this.entryLabel, calleeSavedRegs = Nil):
       init
       exit(0)
 
@@ -106,7 +106,11 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
 
     assert(paramCount < 31, s"At most 30 parameters, $sym has " + paramCount)
 
-    allocRegisters(label, sym.info):
+    val StackInfo(paramNum, resNum) = sym.info
+    val numCallerSavedRegs = if paramNum > resNum then paramNum else resNum
+    val calleeSavedRegs = freeRegisters.diff(argRegisters.take(numCallerSavedRegs))
+
+    allocRegisters(label, calleeSavedRegs):
       // Compile function to a temporary buffer for register allocation
       gen(PlaceHolder.InitStackPointer)
 
@@ -136,7 +140,7 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
 
       ret()
 
-  def allocRegisters(label: Label, stackInfo: StackInfo)(compile: => Unit): Unit =
+  def allocRegisters(label: Label, calleeSavedRegs: List[Int])(compile: => Unit): Unit =
     initVirtualRegisterIndex()
     preAsm.clear()
     symbolRegMap.clear()
@@ -159,7 +163,7 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
       val liveness = Liveness.analyze(instrs)
       // println(liveness)
 
-      val GraphColoring.Result(regAlloc, stackAlloc) =
+      val GraphColoring.Result(regAlloc, stackAlloc, usedRegs) =
           GraphColoring.alloc(
             label.name,
             liveness,
@@ -174,7 +178,7 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
       def addr(i: Int): Addr = Rel(FP_REG, (-(i + 1 + spillCount) << 2).toByte)
 
       if stackAlloc.isEmpty then
-        commitAlloc(label, stackInfo, instrs, regAlloc, spillCount)
+        commitAlloc(label, calleeSavedRegs, instrs, regAlloc, usedRegs, spillCount)
         continue = false
       else
         // rewrite program with spill and perform allocation again
@@ -205,19 +209,16 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
 
   /** Commit register allocation result and emit assembly from pre-assembly */
   def commitAlloc(
-    funLabel: Label, stackInfo: StackInfo, instrs: List[PreAssembly.Item],
-    regAlloc: Map[Int, Int], spillCount: Int
+    funLabel: Label, calleeSavedRegs: List[Int], instrs: List[PreAssembly.Item],
+    regAlloc: Map[Int, Int], usedRegs: Set[Int], spillCount: Int
   ): Unit =
 
     // mark beginning of function
     if funLabel != this.entryLabel then
       cb.mark(funLabel)
 
-    val StackInfo(paramNum, resNum) = stackInfo
-    val numCallerSavedRegs = if paramNum > resNum then paramNum else resNum
-    val calleeSavedRegs = freeRegisters.diff(argRegisters.take(numCallerSavedRegs))
-    val usedRegs = regAlloc.values.toList
     val actualSavedRegs = calleeSavedRegs.filter(usedRegs.contains)
+    // println(s"$funLabel, calleeSavedRegs = $calleeSavedRegs, usedRegs = $usedRegs, actual = $actualSavedRegs")
 
     for item <- instrs do
       item match
