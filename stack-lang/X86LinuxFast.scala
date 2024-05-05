@@ -33,6 +33,11 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
   val entryLabel = Label("_entry")
   var cb = new CodeBuffer(entryLabel)
 
+  /** The code of a function before register allocation */
+  val preAsm: PreAssembly.CodeBuffer = new PreAssembly.CodeBuffer
+
+  import preAsm.{ add, mark, place }
+
   def initVirtualRegisterIndex() =
     virtualRegisterIndex = VIRTUAL_REG_START_INDEX
 
@@ -106,8 +111,7 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
 
     allocRegisters(label):
       // Compile function to a temporary buffer for register allocation
-      symbolRegMap.clear()
-      vs.clear()
+      place(PlaceHolder.InitStackPointer)
 
       assert(paramCount < 31, s"At most 30 parameters, $sym has " + paramCount)
 
@@ -120,50 +124,39 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
           // be used by the corresponding parameter in the function body.
           val reg = allocVirtualReg()
           val argReg = argRegisters(index)
-          cb.add(Instr.Move(Reg(argReg), reg))
+          add(Instr.Move(Reg(argReg), reg))
           symbolRegMap(param) = reg
         else
           val offset = paramCount - index + 1
           val addr = Rel(FP_REG, (offset << 2).toByte)
           val reg = allocVirtualReg()
           symbolRegMap(param) = reg
-          cb.add(Instr.Load(addr, reg))
+          add(Instr.Load(addr, reg))
         index += 1
 
       // callee-saved registers
-      val StackInfo(paramNum, resNum) = sym.info
-      val numCallerSavedRegs = if paramNum > resNum then paramNum else resNum
-      val calleeSavedRegs = freeRegisters.diff(argRegisters.take(numCallerSavedRegs))
-
-      val restoreCalleeSavedReg = mutable.ArrayBuffer.empty[Instr]
-      for calleeSavedReg <- calleeSavedRegs do
-        val virtualReg = allocVirtualReg()
-        cb.add(Instr.Move(Reg(calleeSavedReg), virtualReg))
-        restoreCalleeSavedReg += Instr.Move(Reg(virtualReg), calleeSavedReg)
+      place(PlaceHolder.SaveRegisters)
 
       compile(fdef.words)
 
-      ret(restoreCalleeSavedReg.toSeq)
-
-      // clean up
-      symbolRegMap.clear()
-      vs.clear()
+      ret()
 
   def allocRegisters(label: Label)(compile: => Unit): Unit =
-    val savedCodeBuffer = cb
-    cb = new CodeBuffer(entryLabel)
     initVirtualRegisterIndex()
+    preAsm.clear()
+    symbolRegMap.clear()
+    vs.clear()
 
     compile
 
-    // restore original code buffer
-    val code = cb.getResult()
-    cb = savedCodeBuffer
+    // clean up
+    symbolRegMap.clear()
+    assert(vs.size == 0, vs.size)
 
     // Register allocation
     var continue = true
     var spillCount = 0
-    var instrs = code.instrs
+    var instrs = preAsm.getResult()
     while continue do
       // println(s"<${label.name}>:")
       // println(Assembly.Prog(Nil, instrs, label).show())
@@ -183,69 +176,53 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
       // println(regAlloc)
       // println(stackAlloc)
 
+      def addr(i: Int): Addr = Rel(FP_REG, (-(i + 1 + spillCount) << 2).toByte)
+
       if stackAlloc.isEmpty then
         commitAlloc(label, instrs, regAlloc, spillCount)
         continue = false
       else
         // rewrite program with spill and perform allocation again
         continue = true
-        instrs = rewrite(instrs, stackAlloc, spillCount)
+        instrs = rewrite(instrs, stackAlloc, addr)
         spillCount += stackAlloc.size
     end while
 
-  /** Spill registers
-    *
-    * - append Store after assign to a spilled register
-    * - insert Load before read of a spilled register
-    *
-    * In both cases, we need to replace the read/assign respectively with a
-    * fresh virtual registers.
-    */
-  def spill(instr: Instr, stackAlloc: Map[Int, Int], spillCount: Int): List[Instr] =
-    val RegInfo(defs, uses) = instr.regInfo
-    val before = mutable.ArrayBuffer.empty[Instr]
-    val after = mutable.ArrayBuffer.empty[Instr]
 
-    var currentInstr = instr
-    for use <- uses do
-      stackAlloc.get(use) match
-        case Some(i) =>
-          val addr = Rel(FP_REG, (-(i + 1 + spillCount) << 2).toByte)
-          val virtualReg = allocVirtualReg()
-          before += Instr.Load(addr, virtualReg)
-          currentInstr = substSource(currentInstr, Map(use -> virtualReg))
-        case None =>
-
-    for destReg <- defs do
-      stackAlloc.get(destReg) match
-        case Some(i) =>
-          val addr = Rel(FP_REG, (-(i + 1 + spillCount) << 2).toByte)
-          val virtualReg = allocVirtualReg()
-          after += Instr.Store(Reg(virtualReg), addr)
-          currentInstr = substDest(currentInstr, Map(destReg -> virtualReg))
-        case None =>
-
-    before += currentInstr
-    before ++= after
-    before.toList
-
-  def rewrite(instrs: List[Instr | Label], stackAlloc: Map[Int, Int], spillCount: Int): List[Instr | Label] =
+  def rewrite(instrs: List[PreAssembly.Item], stackAlloc: Map[Int, Int], addr: Int => Addr): List[PreAssembly.Item] =
     instrs.flatMap:
-      case l: Label => l :: Nil
-      case instr: Instr => spill(instr, stackAlloc, spillCount)
+      case l: Label       => l :: Nil
+      case p: PlaceHolder => p :: Nil
+      case i: Instr       => spill(i, stackAlloc, addr)
 
-  def commitAlloc(funLabel: Label, instrs: List[Instr | Label], regAlloc: Map[Int, Int], spillCount: Int) =
+  def commitAlloc(funLabel: Label, instrs: List[PreAssembly.Item], regAlloc: Map[Int, Int], spillCount: Int) =
     // mark beginning of function
     if funLabel != this.entryLabel then
       cb.mark(funLabel)
 
-    // Update SP at the beginning of function
-    cb.add(Instr.Sub(Reg(FP_REG), Int32(spillCount << 2), SP_REG))
+    val StackInfo(paramNum, resNum) = sym.info
+    val numCallerSavedRegs = if paramNum > resNum then paramNum else resNum
+    val calleeSavedRegs = freeRegisters.diff(argRegisters.take(numCallerSavedRegs))
 
     for item <- instrs do
       item match
         case l: Label =>
           cb.mark(l)
+
+        case InitStackPointer =>
+          // Update SP at the beginning of function
+          cb.add(Instr.Sub(Reg(FP_REG), Int32(spillCount << 2), SP_REG))
+
+        case SaveRegisters =>
+          for calleeSavedReg <- calleeSavedRegs do
+            val virtualReg = allocVirtualReg()
+            add(Instr.Move(Reg(calleeSavedReg), virtualReg))
+
+
+        case RestoreRegisters =>
+          for calleeSavedReg <- calleeSavedRegs do
+            val virtualReg = allocVirtualReg()
+            add(Instr.Move(Reg(virtualReg), calleeSavedReg))
 
         case instr: Instr =>
           for instr2 <- subst(instr, regAlloc) do
@@ -271,34 +248,34 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
           compile(ifword.thenp)
 
       case Reg(r) =>
-        cb.add(Instr.JZero(Reg(r), labelFalse))
+        add(Instr.JZero(Reg(r), labelFalse))
 
         compile(ifword.thenp)
 
         if resCount == 0 then
           if ifword.elsep.nonEmpty then
-            cb.add(Instr.Jump(labelEnd))
-            cb.mark(labelFalse)
+            add(Instr.Jump(labelEnd))
+            mark(labelFalse)
             compile(ifword.elsep)
           else
-            cb.mark(labelFalse)
+            mark(labelFalse)
 
-          cb.mark(labelEnd)
+          mark(labelEnd)
 
         else
           assert(ifword.elsep.nonEmpty)
           val resRegs = (0 until resCount).map(_ => allocVirtualReg())
 
           // finish true branch
-          for reg <- resRegs do cb.add(Instr.Move(vs.pop(), reg))
-          cb.add(Instr.Jump(labelEnd))
+          for reg <- resRegs do add(Instr.Move(vs.pop(), reg))
+          add(Instr.Jump(labelEnd))
 
           // false branch
-          cb.mark(labelFalse)
+          mark(labelFalse)
           compile(ifword.elsep)
-          for reg <- resRegs do cb.add(Instr.Move(vs.pop(), reg))
+          for reg <- resRegs do add(Instr.Move(vs.pop(), reg))
 
-          cb.mark(labelEnd)
+          mark(labelEnd)
           for reg <- resRegs do vs.push(Reg(reg))
         end if
   /**
@@ -389,12 +366,12 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
 
 
   def exit(code: Int): Unit =
-    cb.add(Instr.Move(Int32(code), X86.EBX))  // exit code
-    cb.add(Instr.Move(Int32(1), X86.EAX))     // syscall number
-    cb.add(Instr.Special(X86.Syscall))         // syscall
+    add(Instr.Move(Int32(code), X86.EBX))  // exit code
+    add(Instr.Move(Int32(1), X86.EAX))     // syscall number
+    add(Instr.Special(X86.Syscall))         // syscall
 
   /** Return from a function. */
-  def ret(restoreCalleeSavedRegs: Seq[Instr]) =
+  def ret() =
     var i = 0
     val size = vs.size
     while i < size do
@@ -402,20 +379,20 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
       val index = i - argRegisters.size
 
       if index < 0 then
-        cb.add(Instr.Move(res, argRegisters(i)))
+        add(Instr.Move(res, argRegisters(i)))
       else
         val addr = Rel(FP_REG, (index << 2).toByte)
-        cb.add(Instr.Store(res, addr))
+        add(Instr.Store(res, addr))
 
       i += 1
 
     vs.clear()
 
-    for instr <- restoreCalleeSavedRegs do cb.add(instr)
+    place(PlaceHolder.RestoreRegisters)
 
     // Use SP_REG for simplicity
-    cb.add(Instr.Load(Reg(FP_REG), SP_REG))
-    cb.add(Instr.Jump(Reg(SP_REG)))
+    add(Instr.Load(Reg(FP_REG), SP_REG))
+    add(Instr.Jump(Reg(SP_REG)))
 
   /**
     * Call the procedure or funtion at the given address.
@@ -468,7 +445,7 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
       // ordering of args
       val arg = vs.peek(argCount - 1 - i)
       if i < argRegisters.size then
-        cb.add(Instr.Move(arg, argRegisters(i)))
+        add(Instr.Move(arg, argRegisters(i)))
       else
         storeValue(arg, index.toByte)
         index -= 1
@@ -485,17 +462,17 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
     index -= 1
 
     // 5. update FP
-    cb.add(Instr.Sub(Reg(SP_REG), Int32(spOffset << 2), FP_REG))
+    add(Instr.Sub(Reg(SP_REG), Int32(spOffset << 2), FP_REG))
 
     // 6. jump to target
-    cb.add(Instr.Jump(addr))
+    add(Instr.Jump(addr))
 
     // post call
-    cb.mark(returnLoc)
+    mark(returnLoc)
 
     // 7. restore SP and FP
     index = -spOffset + 1
-    cb.add(Instr.Add(Reg(FP_REG), Int32(spOffset << 2), SP_REG))
+    add(Instr.Add(Reg(FP_REG), Int32(spOffset << 2), SP_REG))
     loadValue(FP_REG, index.toByte)
 
     // 9. copy result -- the first 4 results are passed via registers
@@ -505,7 +482,7 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
       if index < 0 then
         val reg = argRegisters(i)
         val virtualReg = allocVirtualReg()
-        cb.add(Instr.Move(Reg(reg), virtualReg))
+        add(Instr.Move(Reg(reg), virtualReg))
         vs.push(Reg(virtualReg))
       else
         val reg = allocVirtualReg()
@@ -520,7 +497,7 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
   def initVal(vdef: Def.ValDef, compile: Compiler): Unit =
     val label = symbolAddrMap(vdef.symbol).asInstanceOf[Label]
     compile(vdef.words)
-    cb.add(Instr.Store(vs.pop(), label))
+    add(Instr.Store(vs.pop(), label))
 
   /** Push an integer literal to value stack */
   def push(v: Int): Unit = vs.push(Int32(v))
@@ -537,7 +514,7 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
     else
       val reg = allocVirtualReg()
       val addr = symbolAddrMap(sym)
-      cb.add(Instr.Load(addr, reg))
+      add(Instr.Load(addr, reg))
       vs.push(Reg(reg))
 
   def primitive(sym: Symbol): Unit =
@@ -570,7 +547,7 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
     */
   def loadValue(destReg: Int, index: Byte): Unit =
     val addr = Rel(SP_REG, (index * 4).toByte)
-    cb.add(Instr.Load(addr, destReg))
+    add(Instr.Load(addr, destReg))
 
   /** Store a value to value stack relative to the stack pointer.
     *
@@ -578,14 +555,14 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
     */
   def storeValue(value: Value, index: Byte): Unit =
     val addr = Rel(SP_REG, (index * 4).toByte)
-    cb.add(Instr.Store(value, addr))
+    add(Instr.Store(value, addr))
 
   def int2(fn: (Operand, Operand, Int) => Instr) =
     // TODO: check type of value
     val arg2 = vs.pop()
     val arg1 = vs.pop()
     val reg = allocVirtualReg()
-    cb.add(fn(arg1, arg2, reg))
+    add(fn(arg1, arg2, reg))
     vs.push(Reg(reg))
 
 
@@ -640,13 +617,13 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
   def bnot() =
     val reg = allocVirtualReg()
     val v = vs.pop()
-    cb.add(Instr.Nor(v, v, reg))
-    cb.add(Instr.And(Reg(reg), Int32(1), reg))
+    add(Instr.Nor(v, v, reg))
+    add(Instr.And(Reg(reg), Int32(1), reg))
     vs.push(Reg(reg))
 
   def eql() =
     val reg = allocVirtualReg()
-    cb.add(Instr.Eq(vs.pop(), vs.pop(), reg))
+    add(Instr.Eq(vs.pop(), vs.pop(), reg))
     vs.push(Reg(reg))
 
   /** Print the value on top of the stack. */

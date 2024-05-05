@@ -34,9 +34,9 @@ object Liveness:
     override def toString() =
       liveSets.keys.toSeq.sorted.map(k => k + ": " + liveSets(k)).mkString("\n")
 
-  def analyze(rawInstrs: Seq[Instr | Label]): Result =
+  def analyze(items: Seq[PreAssembly.Item]): Result =
     val workList = mutable.ArrayDeque.empty[WorkItem]
-    val codeInfo = collectCodeInfo(rawInstrs, workList)
+    val codeInfo = collectCodeInfo(items, workList)
     val result = mutable.Map.empty[Int, LiveSet]
 
     // println(codeInfo)
@@ -60,17 +60,19 @@ object Liveness:
     Result(result.toMap, codeInfo.moves, codeInfo.instrs)
 
   /** Collect code info and initialize work list for each instruction. */
-  def collectCodeInfo(rawInstrs: Seq[Instr | Label], workList: WorkList): CodeInfo =
+  def collectCodeInfo(items: Seq[PreAssembly.Item], workList: WorkList): CodeInfo =
     val labelInfo = mutable.Map.empty[Label, Int]
 
     val instrs = new mutable.ArrayBuffer[Instr]
-    for rawInstr <- rawInstrs do
-      rawInstr match
+    for item <- items do
+      item match
         case label: Label =>
           labelInfo(label) = instrs.size
 
         case instr: Instr =>
           instrs += instr
+
+        case holder: PlaceHolder =>
     end for
 
     val predecessorMap = mutable.Map.empty[Int, Set[Int]]

@@ -111,11 +111,6 @@ object Assembly:
       sb.toString()
   end Prog
 
-  // TODO: Refactor representation for register allocation
-  /** A label corresponds to a function definition */
-  class FunLabel(name: String, val paramRegs: List[Int], val returnRegs: List[Int])
-  extends Label(name)
-
   /** Analyze the assigned and used registers of an instruction */
   def analyzeRegInfo(instr: Instr): RegInfo =
     val useRegs = mutable.ArrayBuffer.empty[Int]
@@ -178,101 +173,6 @@ object Assembly:
 
     RegInfo(defRegs.toList, useRegs.toList)
   end analyzeRegInfo
-
-  def subst(instr: Instr, regAlloc: Map[Int, Int]): List[Instr] =
-    def substReg(reg: Int): Int = regAlloc.getOrElse(reg, reg)
-
-    def substPart[T](value: T | Reg): T | Reg =
-      value match
-        case Reg(r) => Reg(substReg(r))
-        case _ =>  value
-
-    instr match
-      case Instr.Binary(op: BiOp, v1: Operand, v2: Operand, destReg) =>
-        Instr.Binary(op, substPart(v1), substPart(v2), substReg(destReg)) :: Nil
-
-      case Instr.Move(v, destReg) =>
-        val src = substPart(v)
-        val dest = substReg(destReg)
-        src match
-          case Reg(`dest`) => Nil
-          case _           => Instr.Move(src, dest) :: Nil
-
-      case Instr.Store(v: Value, addr: Addr) =>
-        Instr.Store(substPart(v), substPart(addr)) :: Nil
-
-      case Instr.Load(addr: Addr, destReg) =>
-        Instr.Load(substPart(addr), substReg(destReg)) :: Nil
-
-      case Instr.Jump(addr: Addr) =>
-        Instr.Jump(substPart(addr)) :: Nil
-
-      case Instr.JZero(reg: Reg, label: Label) =>
-        Instr.JZero(substPart(reg), label) :: Nil
-
-      case _: Instr.Special[?] =>
-        // TODO
-        instr :: Nil
-    end match
-
-  def substDest(instr: Instr, regAlloc: Map[Int, Int]): Instr =
-    def substReg(reg: Int): Int = regAlloc.getOrElse(reg, reg)
-
-    instr match
-      case Instr.Binary(op: BiOp, v1: Operand, v2: Operand, destReg) =>
-        Instr.Binary(op, v1, v2, substReg(destReg))
-
-      case Instr.Move(v, destReg) =>
-        Instr.Move(v, substReg(destReg))
-
-      case Instr.Store(v: Value, addr: Addr) =>
-        instr
-
-      case Instr.Load(addr: Addr, destReg) =>
-        Instr.Load(addr, substReg(destReg))
-
-      case Instr.Jump(addr: Addr) =>
-        instr
-
-      case Instr.JZero(reg: Reg, label: Label) =>
-        instr
-
-      case _: Instr.Special[?] =>
-        // TODO
-        instr
-    end match
-
-  def substSource(instr: Instr, regAlloc: Map[Int, Int]): Instr =
-    def substReg(reg: Int): Int = regAlloc.getOrElse(reg, reg)
-
-    def substPart[T](value: T | Reg): T | Reg =
-      value match
-        case Reg(r) => Reg(substReg(r))
-        case _ =>  value
-
-    instr match
-      case Instr.Binary(op: BiOp, v1: Operand, v2: Operand, destReg) =>
-        Instr.Binary(op, substPart(v1), substPart(v2), destReg)
-
-      case Instr.Move(v, destReg) =>
-        Instr.Move(substPart(v), destReg)
-
-      case Instr.Store(v: Value, addr: Addr) =>
-        Instr.Store(substPart(v), substPart(addr))
-
-      case Instr.Load(addr: Addr, destReg) =>
-        Instr.Load(substPart(addr), destReg)
-
-      case Instr.Jump(addr: Addr) =>
-        Instr.Jump(substPart(addr))
-
-      case Instr.JZero(reg: Reg, label: Label) =>
-        Instr.JZero(substPart(reg), label)
-
-      case _: Instr.Special[?] =>
-        // TODO
-        instr
-    end match
 
   /**
     * Hold generated assembly data and code.
