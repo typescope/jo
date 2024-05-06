@@ -37,7 +37,11 @@ class JSPlatformOpt(outFile: String) extends Platform:
       if stack.nonEmpty then stack.remove(stack.size - 1).toJS
       else throw new Exception("Stack is empty")
 
-    def pop(n: Int): Unit = stack.dropRightInPlace(n)
+    def pop(n: Int): Seq[String] =
+      assert(this.size >= n, s"size = $size, n = $n")
+      val slice = stack.slice(this.size - n, this.size)
+      stack.dropRightInPlace(n)
+      slice.map(_.toJS).toSeq
 
     def push(v: Item): Unit = stack.append(v)
 
@@ -153,26 +157,19 @@ class JSPlatformOpt(outFile: String) extends Platform:
     val paramCount = fun.info.paramCount
     val resCount = fun.info.resCount
     var i: Int = 0
-    val paramStr = new StringBuilder
-    while i < paramCount  do
-      val arg = vs.get(vs.size - paramCount + i)
-      paramStr.append(arg.toJS)
-      if i != paramCount - 1 then
-        paramStr.append(", ")
-      i = i + 1
-
-    vs.pop(paramCount)
+    val args = vs.pop(paramCount)
+    val argsStr = args.mkString(", ")
 
     if resCount == 0 then
       bindExpressions()
-      addLine(s"$name($paramStr);")
+      addLine(s"$name($argsStr);")
     else if resCount == 1 then
-      vs.push(Item.Expr(s"$name($paramStr)"))
+      vs.push(Item.Expr(s"$name($argsStr)"))
     else
       bindExpressions()
       // result binding
       val resName = freshName("res")
-      addLine(s"const $resName = $name($paramStr);");
+      addLine(s"const $resName = $name($argsStr);");
       i = 0
       while i < resCount  do
         vs.push(Item.Ref(s"$resName[$i]"))
