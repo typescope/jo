@@ -129,16 +129,16 @@ object X86:
               pop(r1.index)
 
             case Ord.Gt  =>
-              binaryOperation(Ord.Le, r2.index, r1)
-
-            case Ord.Lt  =>
-              binaryOperation(Ord.Ge, r2.index, r1)
-
-            case Ord.Ge  =>
               binaryOperation(Ord.Lt, r2.index, r1)
 
-            case Ord.Le  =>
+            case Ord.Lt  =>
               binaryOperation(Ord.Gt, r2.index, r1)
+
+            case Ord.Ge  =>
+              binaryOperation(Ord.Le, r2.index, r1)
+
+            case Ord.Le  =>
+              binaryOperation(Ord.Ge, r2.index, r1)
 
         else
           move(r1, destReg)

@@ -611,6 +611,7 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
   /** Finish compilation session. */
   def finish(): Unit =
     val prog: Assembly.Prog = cb.getResult()
+    // println(prog.show())
     val layout = Assembler.continuousLayout(this.layout, Linux.PROG_START, Linux.PAGE_SIZE)
     val elf = new ELF32(outFile, layout, ELF32.EM_386)
     val assembler = new X86.Lowerer(pb ?=> defineServices())
