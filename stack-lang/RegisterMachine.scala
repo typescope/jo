@@ -5,8 +5,8 @@ import PreAssembly.*
 import Assembler.{ Patch, PatchableBuffer }
 import Sast.*
 
-/** Fast x86 implementation with register allocation  */
-class X86LinuxFast(outFile: String, layout: String) extends Platform:
+/** Fast implementation with register allocation  */
+class RegisterMachine(outFile: String, layout: String) extends Platform:
   /** The register ESP and EBP are reserved for value stack and call stack respectively. */
   val freeRegisters: List[Int] = List(X86.EAX, X86.ECX, X86.EDX, X86.EBX, X86.ESI, X86.EDI)
   val reservedRegisters: List[Int] = List(X86.ESP, X86.EBP)
@@ -614,4 +614,4 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
     val assembler = new X86.Lowerer(pb ?=> defineServices())
     Assembler.lower(elf, prog, heapStartLabel, assembler)
 
-end X86LinuxFast
+end RegisterMachine

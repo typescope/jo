@@ -14,8 +14,7 @@
 //> using file ELF32.scala
 //> using file UniqueName.scala
 //> using file JSPlatform.scala
-//> using file JSPlatformOpt.scala
-//> using file PreAssembly.scala
+//> using file JSOptimized.scala
 
 import java.io.{ File => JFile }
 

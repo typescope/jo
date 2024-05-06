@@ -6,7 +6,7 @@ import Sast.*
 /**
   * JavaScript platform with code optimization
   */
-class JSPlatformOpt(outFile: String) extends Platform:
+class JSOptimized(outFile: String) extends Platform:
   private val pw =  new PrintWriter(outFile)
 
   private  val uniqueName = new UniqueName
@@ -327,4 +327,4 @@ class JSPlatformOpt(outFile: String) extends Platform:
     addLine("})()")
     pw.close()
 
-end JSPlatformOpt
+end JSOptimized
