@@ -51,11 +51,12 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
     val stack: mutable.ArrayBuffer[Operand] = new mutable.ArrayBuffer
 
     def pop(): Operand =
-      if stack.nonEmpty then stack.remove(stack.size - 1)
+      if stack.nonEmpty then stack.remove(this.size - 1)
       else throw new Exception("Stack is empty")
 
     def pop(n: Int): Seq[Operand] =
-      val slice = stack.slice(this.size - n - 1, this.size)
+      assert(this.size >= n, s"size = $size, n = $n")
+      val slice = stack.slice(this.size - n, this.size)
       stack.dropRightInPlace(n)
       slice.toSeq
 
