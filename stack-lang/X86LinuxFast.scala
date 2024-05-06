@@ -54,12 +54,12 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
       if stack.nonEmpty then stack.remove(stack.size - 1)
       else throw new Exception("Stack is empty")
 
-    def pop(n: Int): Unit = stack.dropRightInPlace(n)
+    def pop(n: Int): Seq[Operand] =
+      val slice = stack.slice(this.size - n - 1, this.size)
+      stack.dropRightInPlace(n)
+      slice.toSeq
 
     def push(v: Operand): Unit = stack.append(v)
-
-    // peek relative to top --- top is 0
-    def peek(i: Int): Operand = stack(size - 1 - i)
 
     def clear() = stack.clear()
 
@@ -108,7 +108,8 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
 
     val StackInfo(paramNum, resNum) = sym.info
     val numCallerSavedRegs = if paramNum > resNum then paramNum else resNum
-    val calleeSavedRegs = freeRegisters.diff(argRegisters.take(numCallerSavedRegs))
+    val callerSavedRegs = argRegisters.take(numCallerSavedRegs)
+    val calleeSavedRegs = freeRegisters.diff(callerSavedRegs)
 
     allocRegisters(label, calleeSavedRegs):
       // Compile function to a temporary buffer for register allocation
@@ -399,20 +400,17 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
   /** Return from a function. */
   def ret() =
     var i = 0
-    val size = vs.size
-    while i < size do
-      val res = vs.peek(size - 1 - i)
+    val values = vs.pop(vs.size)
+    for value <- values do
       val index = i - argRegisters.size
 
       if index < 0 then
-        gen(Instr.Move(res, argRegisters(i)))
+        gen(Instr.Move(value, argRegisters(i)))
       else
-        val addr = Rel(FP_REG, (index << 2).toByte)
-        gen(Instr.Store(res, addr))
+        val addr = Rel(FP_REG, (-(index << 2)).toByte)
+        gen(Instr.Store(value, addr))
 
       i += 1
-
-    vs.clear()
 
     gen(PlaceHolder.RestoreRegisters)
     gen(PreInstr.Return)
@@ -464,17 +462,15 @@ class X86LinuxFast(outFile: String, layout: String) extends Platform:
 
     // 2. save args -- the first 4 arguments are passed via registers
     var i = 0
-    while i < argCount do
+    val args = vs.pop(argCount)
+    for arg <- args do
       // ordering of args
-      val arg = vs.peek(argCount - 1 - i)
       if i < argRegisters.size then
         gen(Instr.Move(arg, argRegisters(i)))
       else
         storeValue(arg, index.toByte)
         index -= 1
       i += 1
-
-    for _ <- 0 until argCount do vs.pop() // consume all args
 
     // 3. save FP
     storeValue(Reg(FP_REG), index.toByte)
