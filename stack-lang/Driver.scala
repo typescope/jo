@@ -55,11 +55,11 @@ def run(args: String*) =
         if pf == "linux-x86" then
           Linux.createX86Platform(outFile, layout)
         else if pf == "linux-x86-fast" then
-          new X86LinuxFast(outFile, layout)
+          new RegisterMachine(outFile, layout)
         else if pf == "js" then
           new JSPlatform(outFile)
         else if pf == "js-opt" then
-          new JSPlatformOpt(outFile)
+          new JSOptimized(outFile)
         else
           throw new Exception("Unknow platform: " + pf)
 
