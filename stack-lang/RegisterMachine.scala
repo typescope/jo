@@ -7,32 +7,42 @@ import Sast.*
 
 /** Fast implementation with register allocation  */
 class RegisterMachine(outFile: String, layout: String) extends Platform:
-  /** The register ESP and EBP are reserved for value stack and call stack respectively. */
+  /** Registers available for allocation */
   val freeRegisters: List[Int] = List(X86.EAX, X86.ECX, X86.EDX, X86.EBX, X86.ESI, X86.EDI)
+
+  /** The register ESP and EBP are reserved for stack */
   val reservedRegisters: List[Int] = List(X86.ESP, X86.EBP)
 
   /** Registers for function call and return in the order corresponding to arguments */
   val argRegisters: List[Int] = List(X86.EAX, X86.EBX, X86.ECX, X86.EDX)
 
-  /** Call stack register (high -> low address)  */
+  /** Stack pointer register (high -> low address)  */
   val SP_REG: Byte = X86.ESP
 
   /** Frame pointer register */
   val FP_REG: Byte = X86.EBP
 
+  /** Heap start address */
   val heapStartLabel = Label("_heapStart")
+
+  /** Address of the built-in print routine */
   val printService = Label("_print")
 
-  // maps global symbols to addresses
+  /** Maps global symbols to addresses */
   val symbolAddrMap: mutable.Map[Symbol, Addr] = mutable.Map.empty
 
-  // maps local symbols to virtual registers
+  /** To generate unique IDs of virtual registers */
   val VIRTUAL_REG_START_INDEX = 100
   var virtualRegisterIndex = VIRTUAL_REG_START_INDEX
+
+  /** Maps local symbols to virtual registers */
   val symbolRegMap: mutable.Map[Symbol, Int] = mutable.Map.empty
 
+  /** Entry point of the program */
   val entryLabel = Label("_entry")
-  var cb = new CodeBuffer(entryLabel)
+
+  /** Buffer to hold the generated assembly code */
+  val cb = new CodeBuffer(entryLabel)
 
   /** The code of a function before register allocation */
   val preAsm: PreAssembly.ItemBuffer = new PreAssembly.ItemBuffer
@@ -140,7 +150,7 @@ class RegisterMachine(outFile: String, layout: String) extends Platform:
 
       compile(fdef.words)
 
-      ret()
+      ret(resNum)
 
   def allocRegisters(label: Label, calleeSavedRegs: List[Int])(compile: => Unit): Unit =
     initVirtualRegisterIndex()
@@ -399,9 +409,9 @@ class RegisterMachine(outFile: String, layout: String) extends Platform:
     gen(Instr.Special(X86.Syscall))        // syscall
 
   /** Return from a function. */
-  def ret() =
+  def ret(resNum: Int) =
     var i = 0
-    val values = vs.pop(vs.size)
+    val values = vs.pop(resNum)
     for value <- values do
       val index = i - argRegisters.size
 

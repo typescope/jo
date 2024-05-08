@@ -175,9 +175,11 @@ object Assembler:
   end PatchableBuffer
 
   /** Helper method to deal with patches (labels that are resolved late) */
-  def withPatch(label: Label, size: Int)
-               (fn: (ByteBuffer, Int) => Unit)
-               (using pb: PatchableBuffer): Unit =
+  def withPatch
+    (label: Label, size: Int)
+    (fn: (ByteBuffer, Int) => Unit)
+    (using pb: PatchableBuffer): Unit =
+
     pb.resolve(label) match
       case Some(loc) =>
         fn(pb, loc)
