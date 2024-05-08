@@ -5,7 +5,10 @@ import PreAssembly.*
 import Assembler.{ Patch, PatchableBuffer }
 import Sast.*
 
-/** Fast implementation with register allocation  */
+/** Fast implementation with register allocation
+  *
+  * The class is CPU- and OS-agnostic.
+  */
 class RegisterMachine(
   nativeFunctions: Map[Symbol, Label],
   generator: Assembly.Prog => Unit

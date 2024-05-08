@@ -37,6 +37,8 @@ object Assembler:
 
   /**
     * Generate ELF with the given program and assembler
+    *
+    * The code is OS- and CPU-agnostic.
     */
   def lower(elf: ELF32, prog: Prog, heapStartLabel: Label, assembler: Assembler, linker: Linker): Unit =
     val labelMap: mutable.Map[Label, Int] = mutable.Map.empty

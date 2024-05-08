@@ -4,24 +4,19 @@ import Assembly.*
 import Assembler.{ Patch, PatchableBuffer }
 import Sast.*
 
-import StackMachine.RegisterAllocator
+import StackMachine.{ RegisterAllocator, RegisterConfig }
 
 /**
   * Implementation based on a stack machine.
+  *
+  * The class is CPU- and OS-agnostic.
   */
 class StackMachine(
+  registerConfig: RegisterConfig,
   nativeFunctions: Map[Symbol, Label],
   generator: Assembly.Prog => Unit
 ) extends Platform:
-
-  /** The register ESP and EBP are reserved for value stack and call stack respectively. */
-  val freeRegisters: List[Byte] = List(X86.EAX, X86.ECX, X86.EDX, X86.EBX, X86.ESI, X86.EDI)
-
-  /** Call stack register (high -> low address)  */
-  val SP_REG: Byte = X86.ESP
-
-  /** Frame pointer register */
-  val FP_REG: Byte = X86.EBP
+  import registerConfig.{ FP_REG, SP_REG }
 
   /** Maps symbols to addresses */
   val symbolAddrMap: mutable.Map[Symbol, Addr] = mutable.Map.from(nativeFunctions)
@@ -33,7 +28,7 @@ class StackMachine(
   val cb = new CodeBuffer(entry)
 
   /** A simple register allocator */
-  val regAlloc = new RegisterAllocator(freeRegisters)
+  val regAlloc = new RegisterAllocator(registerConfig.freeRegisters)
 
   export regAlloc.{ useReg, useTwoReg }
 
@@ -310,6 +305,17 @@ class StackMachine(
 end StackMachine
 
 object StackMachine:
+  trait RegisterConfig:
+    /** Registers available for free usage  */
+    val freeRegisters: List[Byte]
+
+    /** Reserved call stack register */
+    val SP_REG: Byte
+
+    /** Reserved frame pointer register */
+    val FP_REG: Byte
+
+
   /**
     * A simple register allocator.
     *

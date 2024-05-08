@@ -49,11 +49,18 @@ object Linux:
     val linker  = new Linker:
       def link()(using pb: PatchableBuffer) = linkPrintStackMachineX86()
 
+    val regConfig = new StackMachine.RegisterConfig:
+      val freeRegisters: List[Byte] = List(X86.EAX, X86.ECX, X86.EDX, X86.EBX, X86.ESI, X86.EDI)
+
+      val SP_REG: Byte = X86.ESP
+
+      val FP_REG: Byte = X86.EBP
+
     // TODO: pass external native link requirements
     val generator = (prog: Prog) =>
       Assembler.lower(elf, prog, heapStartLabel, X86, linker)
 
-    new StackMachine(nativeFunctions, generator)
+    new StackMachine(regConfig, nativeFunctions, generator)
 
   /**
     * Implement the printing in machine code.

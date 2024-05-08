@@ -20,6 +20,8 @@ import Assembler.{ Patch, PatchableBuffer, withPatch }
   *
   * It assumes that the ESP register is used as the stack pointer so that it may
   * use push/pop to spill registers for temporary usage.
+  *
+  * The code is OS-agnostic.
   */
 object X86 extends Assembler:
   /**
