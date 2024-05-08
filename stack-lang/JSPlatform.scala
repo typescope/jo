@@ -23,7 +23,9 @@ class JSPlatform(outFile: String) extends Platform:
   private val pop: String = freshName("pop")
   private val push: String = freshName("push")
 
-  private val symbol2UniqueName: mutable.Map[Symbol, String] = mutable.Map.empty
+  private val symbol2UniqueName: mutable.Map[Symbol, String] = mutable.Map(
+    predef.p -> "console.log"
+  )
 
   private var indentCount = 0
   private def addLine(code: String): Unit =
@@ -170,7 +172,7 @@ class JSPlatform(outFile: String) extends Platform:
       case predef.bor    =>   binary("||")
       case predef.bnot   =>   addLine(s"$push(!$pop());")
       case predef.eql    =>   addLine(s"$push($pop() === $pop());")
-      case predef.p      =>   addLine(s"console.log($pop());")
+      case predef.p      =>   call(predef.p)
       case _             =>   throw new Exception("Unknown primitive: " + sym.name)
   end primitive
 

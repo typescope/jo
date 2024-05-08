@@ -82,7 +82,9 @@ class JSOptimized(outFile: String) extends Platform:
 
   private val vs: ValueStack = new ValueStack
 
-  private val symbol2UniqueName: mutable.Map[Symbol, String] = mutable.Map.empty
+  private val symbol2UniqueName: mutable.Map[Symbol, String] = mutable.Map(
+    predef.p -> "console.log"
+  )
 
   private var indentCount = 0
   private def addLine(code: String): Unit =
@@ -280,11 +282,6 @@ class JSOptimized(outFile: String) extends Platform:
     val operand = vs.pop()
     vs.push(Item.Expr(s"(!$operand)"))
 
-  def print(): Unit =
-    val operand = vs.pop()
-    bindExpressions()
-    addLine(s"console.log($operand);")
-
   /**
     * Compile a primitive
     *
@@ -309,7 +306,7 @@ class JSOptimized(outFile: String) extends Platform:
       case predef.bor    =>   binary("||")
       case predef.bnot   =>   bnot()
       case predef.eql    =>   binary("===")
-      case predef.p      =>   print()
+      case predef.p      =>   call(predef.p)
       case _             =>   throw new Exception("Unknown primitive: " + sym.name)
   end primitive
 
