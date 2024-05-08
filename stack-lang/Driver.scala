@@ -12,6 +12,7 @@
 //> using file Linux.scala
 //> using file X86.scala
 //> using file PreAssembly.scala
+//> using file StackMachine.scala
 //> using file RegisterMachine.scala
 //> using file ELF32.scala
 //> using file UniqueName.scala
@@ -53,18 +54,22 @@ def run(args: String*) =
     options.get("-p") match
       case Some(pf) =>
         if pf == "linux-x86" then
-          Linux.createX86Platform(outFile, layout)
+          Linux.createX86StackMachine(outFile, layout)
+
         else if pf == "linux-x86-fast" then
-          new RegisterMachine(outFile, layout)
+          Linux.createX86RegisterMachine(outFile, layout)
+
         else if pf == "js" then
           new JSPlatform(outFile)
+
         else if pf == "js-opt" then
           new JSOptimized(outFile)
+
         else
           throw new Exception("Unknow platform: " + pf)
 
       case None =>
-        Linux.createX86Platform(outFile, layout)
+        Linux.createX86StackMachine(outFile, layout)
 
   Reporter.monitor:
     given Reporter = Reporter.withSource(sourceFile)

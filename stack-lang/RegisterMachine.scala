@@ -5,8 +5,11 @@ import PreAssembly.*
 import Assembler.{ Patch, PatchableBuffer }
 import Sast.*
 
+import Linux.printLabel
+import Linux.heapStartLabel
+
 /** Fast implementation with register allocation  */
-class RegisterMachine(outFile: String, layout: String) extends Platform:
+class RegisterMachine(generator: Assembly.Prog => Unit) extends Platform:
   /** Registers available for allocation */
   val freeRegisters: List[Int] = List(X86.EAX, X86.ECX, X86.EDX, X86.EBX, X86.ESI, X86.EDI)
 
@@ -24,9 +27,6 @@ class RegisterMachine(outFile: String, layout: String) extends Platform:
 
   /** Heap start address */
   val heapStartLabel = Label("_heapStart")
-
-  /** Address of the built-in print routine */
-  val printService = Label("_print")
 
   /** Maps global symbols to addresses */
   val symbolAddrMap: mutable.Map[Symbol, Addr] = mutable.Map.empty
@@ -316,92 +316,6 @@ class RegisterMachine(outFile: String, layout: String) extends Platform:
           gen(labelEnd)
           for reg <- resRegs do vs.push(Reg(reg))
         end if
-  /**
-    * We resort to services for functionalities that cannot be implement
-    * directly with the generic assembly.
-    *
-    * Such functionalities usually depends on particular platform, such
-    * as operating system and/or processor.
-    *
-    * Services are implemented by emitting platform-specific machine code.
-    */
-  def defineServices()(using pb: PatchableBuffer): Unit =
-    definePrintService(printService)
-
-  /**
-    * Implement the printing service.
-    *
-    * It assumes that all registers are free.
-    */
-  def definePrintService(printService: Label)(using pb: PatchableBuffer): Unit =
-    pb.defineLabel(printService)
-
-    // move ebp, esp
-    X86.move(Reg(FP_REG), SP_REG)
-
-    // callee-saved registers
-    pb.addByte((0x50 | X86.EBX).toByte)
-    pb.addByte((0x50 | X86.ECX).toByte)
-    pb.addByte((0x50 | X86.EDX).toByte)
-
-    // use call stack to prepare string for syscall
-    // reserve 16 bytes on stack
-    pb.addBytes(0x89.toByte, 0xe1.toByte)          // mov    %esp,%ecx
-    pb.addBytes(0x83.toByte, 0xec.toByte, 0x10)    // sub    $0x10,%esp
-    pb.addByte(0xbb.toByte); pb.addInt(0x0a)       // mov    $0xa,%ebx
-
-    // argument is in EAX
-
-    // add new line
-    pb.addByte(0x49)                               // dec      %ecx
-    pb.addBytes(0x88.toByte, 0x19)                 // mov %bl, (%ecx)
-
-    // negative numbers: store flag at %sp
-    pb.addBytes(0xc6.toByte, 0x04, 0x24, 0)        // movb   $0x0,(%esp)     ; clear flag
-    pb.addBytes(0x83.toByte, 0xf8.toByte, 0)       // cmp    $0x0,%eax
-    pb.addBytes(0x7d, 0x0a)                        // jge    <loop>
-    pb.addByte(0xba.toByte); pb.addInt(0x2d)       // mov    $0x2d,%edx
-    pb.addBytes(0x88.toByte, 0x14, 0x24)           // mov    %dl,(%esp)
-    pb.addBytes(0xf7.toByte, 0xd8.toByte)          // neg    %eax
-
-    // loop
-    pb.addBytes(0x31, 0xd2.toByte)                 // xor    %edx,%edx
-    pb.addBytes(0xf7.toByte, 0xf3.toByte)          // div    %ebx
-    pb.addByte (0x49)                              // dec    %ecx
-    pb.addBytes(0x83.toByte, 0xc2.toByte, 0x30)    // add    $0x30,%edx
-    pb.addBytes(0x88.toByte, 0x11)                 // mov    %dl,(%ecx)
-    pb.addBytes(0x85.toByte, 0xc0.toByte)          // test   %eax,%eax
-    pb.addBytes(0x75, 0xf2.toByte)                 // jne    <loop>
-
-    // handle sign
-    pb.addBytes(0x8b.toByte, 0x14, 0x24)           // mov    (%esp),%edx
-    pb.addBytes(0x83.toByte, 0xfa.toByte, 0x2d)    // cmp    $0x2d,%edx
-    pb.addBytes(0x8a.toByte, 0x14, 0x24)           // mov    (%esp),%dl
-    pb.addBytes(0x80.toByte, 0xfa.toByte, 0x2d)    // cmp    $0x2d,%dl
-
-    pb.addBytes(0x75, 0x03)                        // jne    <system call>
-    pb.addByte (0x49)                              // dec    %ecx
-    pb.addBytes(0x88.toByte, 0x11)                 // mov    %dl,(%ecx)
-
-    // write stdout system call
-    pb.addByte(0xb8.toByte); pb.addInt(0x04)       // mov    $0x4,%eax
-    pb.addByte(0xbb.toByte); pb.addInt(0x01)       // mov    $0x1,%ebx
-    pb.addBytes(0x8d.toByte, 0x54, 0x24, 0x10)     // lea    0x10(%esp),%edx
-    pb.addBytes(0x29, 0xca.toByte)                 // sub    %ecx,%edx
-    pb.addBytes(0xcd.toByte, 0x80.toByte)          // int    $0x80
-
-    // restore stack pointer
-    pb.addBytes(0x83.toByte, 0xc4.toByte, 0x10)    // add    $0x10,%esp
-
-    // restore callee-saved registers -- in reverse order
-    pb.addByte((0x58 | X86.EDX).toByte)
-    pb.addByte((0x58 | X86.ECX).toByte)
-    pb.addByte((0x58 | X86.EBX).toByte)
-
-    // return to caller
-    X86.load(Reg(FP_REG), X86.EAX)
-    X86.jump(Reg(X86.EAX))
-
 
   def exit(code: Int): Unit =
     gen(Instr.Move(Int32(code), X86.EBX))  // exit code
@@ -610,7 +524,7 @@ class RegisterMachine(outFile: String, layout: String) extends Platform:
     vs.push(Reg(reg))
 
   /** Print the value on top of the stack. */
-  def print(): Unit = call(printService, 1, 0)
+  def print(): Unit = call(printLabel, 1, 0)
 
   /** Prepare to start the compilation */
   def start(): Unit = ()
@@ -618,10 +532,6 @@ class RegisterMachine(outFile: String, layout: String) extends Platform:
   /** Finish compilation session. */
   def finish(): Unit =
     val prog: Assembly.Prog = cb.getResult()
-    // println(prog.show())
-    val layout = Assembler.continuousLayout(this.layout, Linux.PROG_START, Linux.PAGE_SIZE)
-    val elf = new ELF32(outFile, layout, ELF32.EM_386)
-    val assembler = new X86.Lowerer(pb ?=> defineServices())
-    Assembler.lower(elf, prog, heapStartLabel, assembler)
+    generator(prog)
 
 end RegisterMachine

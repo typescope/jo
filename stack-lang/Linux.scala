@@ -10,397 +10,182 @@
 import scala.collection.mutable
 
 import Assembly.*
-import Assembler.{ Patch, PatchableBuffer }
-import Sast.*
+import Assembler.PatchableBuffer
 
 object Linux:
   val PAGE_SIZE  = 0x1000
   val PROG_START = 0x08048000
 
-  /**
-    * Create a new x86 platform.
-    *
-    * `X86Platform` is marked private so that code generation is ignorant of the platform.
-    */
-  def createX86Platform(outFile: String, layout: String): Platform =
-    new X86Platform(outFile, layout)
-
+  // TODO: the labels should be platform indepndent
+  val printLabel = Label("_print")
+  val heapStartLabel = Label("_heapStart")
 
   /**
-    * Linux x86 32 bit platform
-    *
-    * Marked private so that code generation is ignorant of the particular platform.
+    * Create a new x86 register machine
     */
-  private class X86Platform(outFile: String, layout: String) extends Platform:
-    /** The register ESP and EBP are reserved for value stack and call stack respectively. */
-    val freeRegisters: List[Byte] = List(X86.EAX, X86.ECX, X86.EDX, X86.EBX, X86.ESI, X86.EDI)
+  def createX86RegisterMachine(outFile: String, layoutName: String): Platform =
+    val layout = Assembler.continuousLayout(layoutName, PROG_START, PAGE_SIZE)
+    val elf = new ELF32(outFile, layout, ELF32.EM_386)
 
-    /** Call stack register (high -> low address)  */
-    val SP_REG: Byte = X86.ESP
+    val linker  = new Linker:
+      def link()(using pb: PatchableBuffer) = linkPrintRegisterMachineX86()
 
-    /** Frame pointer register */
-    val FP_REG: Byte = X86.EBP
+    // TODO: pass external native link requirements
+    val generator = (prog: Prog) =>
+      Assembler.lower(elf, prog, heapStartLabel, X86, linker)
 
-    val heapStartLabel = Label("_heapStart")
-    val printService = Label("_print")
+    new RegisterMachine(generator)
 
-    // maps symbols to addresses
-    val symbolAddrMap: mutable.Map[Symbol, Addr] = mutable.Map.empty
+  /**
+    * Create a new x86 stack machine
+    */
+  def createX86StackMachine(outFile: String, layoutName: String): Platform =
+    val layout = Assembler.continuousLayout(layoutName, PROG_START, PAGE_SIZE)
+    val elf = new ELF32(outFile, layout, ELF32.EM_386)
 
-    val entry = Label("_entry")
-    val regAlloc = new RegisterAllocator(freeRegisters)
-    val cb = new CodeBuffer(entry)
+    val linker  = new Linker:
+      def link()(using pb: PatchableBuffer) = linkPrintStackMachineX86()
 
-    export regAlloc.{ useReg, useTwoReg }
+    // TODO: pass external native link requirements
+    val generator = (prog: Prog) =>
+      Assembler.lower(elf, prog, heapStartLabel, X86, linker)
 
-    /**
-      * Generate entry code
-      *
-      * The entry code initializes the language runtime, call the main function and exit.
-      *
-      * Calling the passed function will compile the user entry code.
-      */
-    def entry(init: => Unit): Unit =
-      // Stack pointer is initialized by the kernel, initialize frame pointer
-      cb.mark(this.entry)
-      cb.add(Instr.Move(Reg(SP_REG), FP_REG))
-      init
-      exit(0)
+    new StackMachine(generator)
 
-    /** Declare the symbol to the platform as a preparation for compilation */
-    def declare(sym: Symbol): Unit =
-      assert(!sym.isPrimitive, "Unexpected primitive symbol " + sym)
-      val label = Label(sym.name)
-      symbolAddrMap(sym) = label
-      if sym.isValue then
-        cb.add(Data.Uninit(label, Type.Int32))
+  /**
+    * Implement the printing in machine code.
+    *
+    * The arguments are passed via stack.
+    *
+    * It assumes that all registers are free.
+    */
+  def linkPrintStackMachineX86()(using pb: PatchableBuffer): Unit =
+    pb.defineLabel(printLabel)
 
-    /** Compile a function
-      *
-      * Calling the passed function will compile the body of the function.
-      */
-    def function(fdef: Def.FunDef, compile: Compiler): Unit =
-      val sym = fdef.symbol
-      val label = symbolAddrMap(sym).asInstanceOf[Label]
-      val paramCount = fdef.params.size
-      cb.mark(label)
+    // use call stack to prepare string for syscall
+    // reserve 16 bytes on stack
+    pb.addBytes(0x89.toByte, 0xe1.toByte)          // mov    %esp,%ecx
+    pb.addBytes(0x83.toByte, 0xec.toByte, 0x10)    // sub    $0x10,%esp
+    pb.addByte(0xbb.toByte); pb.addInt(0x0a)       // mov    $0xa,%ebx
 
-      assert(paramCount < 31, s"At most 30 parameters, $sym has " + paramCount)
+    // load argument
+    X86.load(Rel(X86.EBP, 8), X86.EAX)
 
-      // bind param address relative to FP_REG
-      for (param, index) <- fdef.params.zipWithIndex do
-        val offset = ((paramCount + 1 - index) * 4).toByte
-        symbolAddrMap(param) = Rel(FP_REG, offset)
+    // add new line
+    pb.addByte(0x49)                               // dec      %ecx
+    pb.addBytes(0x88.toByte, 0x19)                 // mov %bl, (%ecx)
 
-      compile(fdef.words)
+    // negative numbers: store flag at %sp
+    pb.addBytes(0xc6.toByte, 0x04, 0x24, 0)        // movb   $0x0,(%esp)     ; clear flag
+    pb.addBytes(0x83.toByte, 0xf8.toByte, 0)       // cmp    $0x0,%eax
+    pb.addBytes(0x7d, 0x0a)                        // jge    <loop>
+    pb.addByte(0xba.toByte); pb.addInt(0x2d)       // mov    $0x2d,%edx
+    pb.addBytes(0x88.toByte, 0x14, 0x24)           // mov    %dl,(%esp)
+    pb.addBytes(0xf7.toByte, 0xd8.toByte)          // neg    %eax
 
-      for param <- fdef.params do
-        symbolAddrMap -= param
+    // loop
+    pb.addBytes(0x31, 0xd2.toByte)                 // xor    %edx,%edx
+    pb.addBytes(0xf7.toByte, 0xf3.toByte)          // div    %ebx
+    pb.addByte (0x49)                              // dec    %ecx
+    pb.addBytes(0x83.toByte, 0xc2.toByte, 0x30)    // add    $0x30,%edx
+    pb.addBytes(0x88.toByte, 0x11)                 // mov    %dl,(%ecx)
+    pb.addBytes(0x85.toByte, 0xc0.toByte)          // test   %eax,%eax
+    pb.addBytes(0x75, 0xf2.toByte)                 // jne    <loop>
 
-      ret()
+    // handle sign
+    pb.addBytes(0x8b.toByte, 0x14, 0x24)           // mov    (%esp),%edx
+    pb.addBytes(0x83.toByte, 0xfa.toByte, 0x2d)    // cmp    $0x2d,%edx
+    pb.addBytes(0x8a.toByte, 0x14, 0x24)           // mov    (%esp),%dl
+    pb.addBytes(0x80.toByte, 0xfa.toByte, 0x2d)    // cmp    $0x2d,%dl
 
-    /** Compile a conditional statement, i.e if/then/else */
-    def conditional(ifword: Word.If, compile: Compiler): Unit =
-      val labelFalse = Label("_false")
-      val labelEnd = Label("_ifEnd")
+    pb.addBytes(0x75, 0x03)                        // jne    <system call>
+    pb.addByte (0x49)                              // dec    %ecx
+    pb.addBytes(0x88.toByte, 0x11)                 // mov    %dl,(%ecx)
 
-      compile(ifword.cond)
+    // write stdout system call
+    pb.addByte(0xb8.toByte); pb.addInt(0x04)       // mov    $0x4,%eax
+    pb.addByte(0xbb.toByte); pb.addInt(0x01)       // mov    $0x1,%ebx
+    pb.addBytes(0x8d.toByte, 0x54, 0x24, 0x10)     // lea    0x10(%esp),%edx
+    pb.addBytes(0x29, 0xca.toByte)                 // sub    %ecx,%edx
+    pb.addBytes(0xcd.toByte, 0x80.toByte)          // int    $0x80
 
-      useReg: r =>
-        pop(r)
-        cb.add(Instr.JZero(Reg(r), labelFalse))
+    // restore stack pointer
+    pb.addBytes(0x83.toByte, 0xc4.toByte, 0x10)    // add    $0x10,%esp
 
-        compile(ifword.thenp)
+    // return to caller
+    X86.load(Reg(X86.EBP), X86.EAX)
+    X86.jump(Reg(X86.EAX))
 
-        if ifword.elsep.nonEmpty then
-          cb.add(Instr.Jump(labelEnd))
-          cb.mark(labelFalse)
-          compile(ifword.elsep)
-        else
-          cb.mark(labelFalse)
+  /**
+    * Implement print in machine code.
+    *
+    * It assumes the call convention of register machines.
+    */
+  def linkPrintRegisterMachineX86()(using pb: PatchableBuffer): Unit =
+    pb.defineLabel(printLabel)
 
-        cb.mark(labelEnd)
+    // move ebp, esp
+    X86.move(Reg(X86.EBP), X86.ESP)
 
-    /**
-      * We resort to services for functionalities that cannot be implement
-      * directly with the generic assembly.
-      *
-      * Such functionalities usually depends on particular platform, such
-      * as operating system and/or processor.
-      *
-      * Services are implemented by emitting platform-specific machine code.
-      */
-    def defineServices()(using pb: PatchableBuffer): Unit =
-      definePrintService(printService)
+    // callee-saved registers
+    pb.addByte((0x50 | X86.EBX).toByte)
+    pb.addByte((0x50 | X86.ECX).toByte)
+    pb.addByte((0x50 | X86.EDX).toByte)
 
-    /**
-      * Implement the printing service.
-      *
-      * It assumes that all registers are free.
-      */
-    def definePrintService(printService: Label)(using pb: PatchableBuffer): Unit =
-      pb.defineLabel(printService)
+    // use call stack to prepare string for syscall
+    // reserve 16 bytes on stack
+    pb.addBytes(0x89.toByte, 0xe1.toByte)          // mov    %esp,%ecx
+    pb.addBytes(0x83.toByte, 0xec.toByte, 0x10)    // sub    $0x10,%esp
+    pb.addByte(0xbb.toByte); pb.addInt(0x0a)       // mov    $0xa,%ebx
 
-      // use call stack to prepare string for syscall
-      // reserve 16 bytes on stack
-      pb.addBytes(0x89.toByte, 0xe1.toByte)          // mov    %esp,%ecx
-      pb.addBytes(0x83.toByte, 0xec.toByte, 0x10)    // sub    $0x10,%esp
-      pb.addByte(0xbb.toByte); pb.addInt(0x0a)       // mov    $0xa,%ebx
+    // argument is in EAX
 
-      // load argument
-      X86.load(Rel(FP_REG, 8), X86.EAX)
+    // add new line
+    pb.addByte(0x49)                               // dec      %ecx
+    pb.addBytes(0x88.toByte, 0x19)                 // mov %bl, (%ecx)
 
-      // add new line
-      pb.addByte(0x49)                               // dec      %ecx
-      pb.addBytes(0x88.toByte, 0x19)                 // mov %bl, (%ecx)
+    // negative numbers: store flag at %sp
+    pb.addBytes(0xc6.toByte, 0x04, 0x24, 0)        // movb   $0x0,(%esp)     ; clear flag
+    pb.addBytes(0x83.toByte, 0xf8.toByte, 0)       // cmp    $0x0,%eax
+    pb.addBytes(0x7d, 0x0a)                        // jge    <loop>
+    pb.addByte(0xba.toByte); pb.addInt(0x2d)       // mov    $0x2d,%edx
+    pb.addBytes(0x88.toByte, 0x14, 0x24)           // mov    %dl,(%esp)
+    pb.addBytes(0xf7.toByte, 0xd8.toByte)          // neg    %eax
 
-      // negative numbers: store flag at %sp
-      pb.addBytes(0xc6.toByte, 0x04, 0x24, 0)        // movb   $0x0,(%esp)     ; clear flag
-      pb.addBytes(0x83.toByte, 0xf8.toByte, 0)       // cmp    $0x0,%eax
-      pb.addBytes(0x7d, 0x0a)                        // jge    <loop>
-      pb.addByte(0xba.toByte); pb.addInt(0x2d)       // mov    $0x2d,%edx
-      pb.addBytes(0x88.toByte, 0x14, 0x24)           // mov    %dl,(%esp)
-      pb.addBytes(0xf7.toByte, 0xd8.toByte)          // neg    %eax
+    // loop
+    pb.addBytes(0x31, 0xd2.toByte)                 // xor    %edx,%edx
+    pb.addBytes(0xf7.toByte, 0xf3.toByte)          // div    %ebx
+    pb.addByte (0x49)                              // dec    %ecx
+    pb.addBytes(0x83.toByte, 0xc2.toByte, 0x30)    // add    $0x30,%edx
+    pb.addBytes(0x88.toByte, 0x11)                 // mov    %dl,(%ecx)
+    pb.addBytes(0x85.toByte, 0xc0.toByte)          // test   %eax,%eax
+    pb.addBytes(0x75, 0xf2.toByte)                 // jne    <loop>
 
-      // loop
-      pb.addBytes(0x31, 0xd2.toByte)                 // xor    %edx,%edx
-      pb.addBytes(0xf7.toByte, 0xf3.toByte)          // div    %ebx
-      pb.addByte (0x49)                              // dec    %ecx
-      pb.addBytes(0x83.toByte, 0xc2.toByte, 0x30)    // add    $0x30,%edx
-      pb.addBytes(0x88.toByte, 0x11)                 // mov    %dl,(%ecx)
-      pb.addBytes(0x85.toByte, 0xc0.toByte)          // test   %eax,%eax
-      pb.addBytes(0x75, 0xf2.toByte)                 // jne    <loop>
+    // handle sign
+    pb.addBytes(0x8b.toByte, 0x14, 0x24)           // mov    (%esp),%edx
+    pb.addBytes(0x83.toByte, 0xfa.toByte, 0x2d)    // cmp    $0x2d,%edx
+    pb.addBytes(0x8a.toByte, 0x14, 0x24)           // mov    (%esp),%dl
+    pb.addBytes(0x80.toByte, 0xfa.toByte, 0x2d)    // cmp    $0x2d,%dl
 
-      // handle sign
-      pb.addBytes(0x8b.toByte, 0x14, 0x24)           // mov    (%esp),%edx
-      pb.addBytes(0x83.toByte, 0xfa.toByte, 0x2d)    // cmp    $0x2d,%edx
-      pb.addBytes(0x8a.toByte, 0x14, 0x24)           // mov    (%esp),%dl
-      pb.addBytes(0x80.toByte, 0xfa.toByte, 0x2d)    // cmp    $0x2d,%dl
+    pb.addBytes(0x75, 0x03)                        // jne    <system call>
+    pb.addByte (0x49)                              // dec    %ecx
+    pb.addBytes(0x88.toByte, 0x11)                 // mov    %dl,(%ecx)
 
-      pb.addBytes(0x75, 0x03)                        // jne    <system call>
-      pb.addByte (0x49)                              // dec    %ecx
-      pb.addBytes(0x88.toByte, 0x11)                 // mov    %dl,(%ecx)
+    // write stdout system call
+    pb.addByte(0xb8.toByte); pb.addInt(0x04)       // mov    $0x4,%eax
+    pb.addByte(0xbb.toByte); pb.addInt(0x01)       // mov    $0x1,%ebx
+    pb.addBytes(0x8d.toByte, 0x54, 0x24, 0x10)     // lea    0x10(%esp),%edx
+    pb.addBytes(0x29, 0xca.toByte)                 // sub    %ecx,%edx
+    pb.addBytes(0xcd.toByte, 0x80.toByte)          // int    $0x80
 
-      // write stdout system call
-      pb.addByte(0xb8.toByte); pb.addInt(0x04)       // mov    $0x4,%eax
-      pb.addByte(0xbb.toByte); pb.addInt(0x01)       // mov    $0x1,%ebx
-      pb.addBytes(0x8d.toByte, 0x54, 0x24, 0x10)     // lea    0x10(%esp),%edx
-      pb.addBytes(0x29, 0xca.toByte)                 // sub    %ecx,%edx
-      pb.addBytes(0xcd.toByte, 0x80.toByte)          // int    $0x80
+    // restore stack pointer
+    pb.addBytes(0x83.toByte, 0xc4.toByte, 0x10)    // add    $0x10,%esp
 
-      // restore stack pointer
-      pb.addBytes(0x83.toByte, 0xc4.toByte, 0x10)    // add    $0x10,%esp
+    // restore callee-saved registers -- in reverse order
+    pb.addByte((0x58 | X86.EDX).toByte)
+    pb.addByte((0x58 | X86.ECX).toByte)
+    pb.addByte((0x58 | X86.EBX).toByte)
 
-      // return to caller
-      X86.load(Reg(FP_REG), X86.EAX)
-      X86.jump(Reg(X86.EAX))
-
-
-    def exit(code: Int): Unit =
-      cb.add(Instr.Move(Int32(code), X86.EBX))  // exit code
-      cb.add(Instr.Move(Int32(1), X86.EAX))     // syscall number
-      cb.add(Instr.Special(X86.Syscall))         // syscall
-
-    /** Return from a procedure or function.
-      *
-      * Call stack goes from high address to low address.
-      */
-    def ret() =
-      useReg: r =>
-        cb.add(Instr.Load(Reg(FP_REG), r))
-        cb.add(Instr.Jump(Reg(r)))
-
-    /**
-      * Call the procedure or funtion at the given address.
-      *
-      * Call stack goes from high address to low address.
-      */
-    def call(fun: Symbol) =
-      val label = symbolAddrMap(fun).asInstanceOf[Label]
-      val info = fun.info
-      call(label, info.paramCount, info.resCount)
-
-    /**
-      * Call stack
-      *
-      *  ┌─────────────┐
-      *  │    ...      │
-      *  ├─────────────┤
-      *  │    arg 0    │
-      *  ├─────────────┤
-      *  │    ...      │
-      *  ├─────────────┤
-      *  │    arg N    │
-      *  ├─────────────┤
-      *  │  saved FP   │
-      *  ├─────────────┤
-      *  │     RET     │
-      *  ├─────────────┤ ◄──────  FP
-      *  │   value 0   │
-      *  ├─────────────┤
-      *  │    ...      │
-      *  ├─────────────┤
-      *  │   value M   │
-      *  └─────────────┘ ◄─────── SP
-      */
-    def call(addr: Addr, argCount: Int, resCount: Int) =
-      val returnLoc = Label("returnLoc")
-
-      // 1. save FP
-      storeValue(Reg(FP_REG), -1)
-
-      // 2. save return
-      storeValue(returnLoc, -2)
-
-      // 3. update FP and SP
-      cb.add(Instr.Sub(Reg(SP_REG), Int32(8), SP_REG))
-      cb.add(Instr.Move(Reg(SP_REG), FP_REG))
-
-      // 4. jump to target
-      cb.add(Instr.Jump(addr))
-
-      cb.mark(returnLoc)
-
-      useReg: r =>
-        // 5. restore SP
-        val spOffset = 2 + argCount - resCount
-        cb.add(Instr.Add(Reg(FP_REG), Int32(spOffset * 4), SP_REG))
-
-        // 6. copy result
-        var i = 0
-        while i < resCount do
-          loadValue(r, (-spOffset - i - 1).toByte)
-          storeValue(Reg(r), (resCount - 1 - i).toByte)
-          i += 1
-
-        // 7. restore FP
-        val fpAddr = Rel(FP_REG, 4)
-        cb.add(Instr.Load(fpAddr, FP_REG))
-
-    /** Pop the value on the top of the value stack to the given register.
-      *
-      * Value stack goes from low address to high address.
-      */
-    def pop(destReg: Byte) =
-      cb.add(Instr.Load(Reg(SP_REG), destReg))
-      cb.add(Instr.Add(Reg(SP_REG), Int32(4), SP_REG))
-
-    /**
-      * Pop the value on the top of the value stack without using it.
-      */
-    def pop() =
-      cb.add(Instr.Add(Reg(SP_REG), Int32(4), SP_REG))
-
-    /**
-      * Push value on the value stack.
-      *
-      * It could be address of a procedure, represented by a label.
-      */
-    def push(v: Value) =
-      cb.add(Instr.Sub(Reg(SP_REG), Int32(4), SP_REG))
-      cb.add(Instr.Store(v, Reg(SP_REG)))
-
-    /** Initialize a value definition
-      *
-      * Calling the passed function will compile the initializer.
-      */
-    def initVal(vdef: Def.ValDef, compile: Compiler): Unit =
-      val label = symbolAddrMap(vdef.symbol).asInstanceOf[Label]
-      compile(vdef.words)
-      useReg: r =>
-        pop(r)
-        cb.add(Instr.Store(Reg(r), label))
-
-    /** Push an integer literal to value stack */
-    def push(v: Int): Unit = push(Int32(v))
-
-    /** Push a Boolean literal to value stack */
-    def push(v: Boolean): Unit = push(Int32(if v then 1 else 0))
-
-    /** Push the value associated with the given symbol to value stack */
-    def push(sym: Symbol): Unit =
-      val addr = symbolAddrMap(sym)
-      useReg: r =>
-        cb.add(Instr.Load(addr, r))
-        push(Reg(r))
-
-    def primitive(sym: Symbol): Unit =
-      sym match
-        case predef.add    =>   int2(Instr.Add)
-        case predef.sub    =>   int2(Instr.Sub)
-        case predef.mul    =>   int2(Instr.Mul)
-        case predef.div    =>   int2(Instr.Div)
-        case predef.mod    =>   int2(Instr.Mod)
-        case predef.gt     =>   int2(Instr.Gt)
-        case predef.lt     =>   int2(Instr.Lt)
-        case predef.ge     =>   int2(Instr.Ge)
-        case predef.le     =>   int2(Instr.Le)
-        case predef.srl    =>   int2(Instr.Srl)
-        case predef.sll    =>   int2(Instr.Sll)
-        case predef.land   =>   int2(Instr.And)
-        case predef.lor    =>   int2(Instr.Or)
-        case predef.lxor   =>   int2(Instr.Xor)
-        case predef.band   =>   int2(Instr.And)
-        case predef.bor    =>   int2(Instr.Or)
-        case predef.bnot   =>   bnot()
-        case predef.eql    =>   eql()
-        case predef.p      =>   print()
-        case _             =>   throw new Exception("Unknown primitive: " + sym.name)
-    end primitive
-
-    /** Load a value in value stack relative to the stack pointer.
-      *
-      * The index begins from 0.
-      */
-    def loadValue(destReg: Int, index: Byte): Unit =
-      val addr = Rel(SP_REG, (index * 4).toByte)
-      cb.add(Instr.Load(addr, destReg))
-
-    /** Store a value to value stack relative to the stack pointer.
-      *
-      * The index begins from 0.
-      */
-    def storeValue(value: Value, index: Byte): Unit =
-      val addr = Rel(SP_REG, (index * 4).toByte)
-      cb.add(Instr.Store(value, addr))
-
-    def int2(fn: (Operand, Operand, Byte) => Instr) =
-      // TODO: check type of value
-      useTwoReg: (r1, r2) =>
-        // Reduce arithmetic on stack pointer to 1
-        loadValue(r1, 1)
-        loadValue(r2, 0)
-        cb.add(fn(Reg(r1), Reg(r2), r1))
-        storeValue(Reg(r1), 1)
-        pop()
-
-    def bnot() =
-      useReg: r =>
-        loadValue(r, 0)
-        cb.add(Instr.Nor(Reg(r), Reg(r), r))
-        cb.add(Instr.And(Reg(r), Int32(1), r))
-        storeValue(Reg(r), 0)
-
-    def eql() =
-      useTwoReg: (r1, r2) =>
-        loadValue(r1, 0)
-        loadValue(r2, 1)
-        cb.add(Instr.Eq(Reg(r1), Reg(r2), r2))
-        storeValue(Reg(r2), 1)
-        pop()
-
-    /** Print the value on top of the stack. */
-    def print(): Unit = call(printService, 1, 0)
-
-    /** Prepare to start the compilation */
-    def start(): Unit = ()
-
-    /** Finish compilation session. */
-    def finish(): Unit =
-      val prog: Assembly.Prog = cb.getResult()
-      val layout = Assembler.continuousLayout(this.layout, PROG_START, PAGE_SIZE)
-      val elf = new ELF32(outFile, layout, ELF32.EM_386)
-      val assembler = new X86.Lowerer(pb ?=> defineServices())
-      Assembler.lower(elf, prog, heapStartLabel, assembler)
-
-  end X86Platform
+    // return to caller
+    X86.load(Reg(X86.EBP), X86.EAX)
+    X86.jump(Reg(X86.EAX))
