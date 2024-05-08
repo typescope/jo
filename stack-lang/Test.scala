@@ -12,6 +12,9 @@
 //> using file Linux.scala
 //> using file StackMachine.scala
 //> using file RegisterMachine.scala
+//> using file PreAssembly.scala
+//> using file Liveness.scala
+//> using file GraphColoring.scala
 //> using file X86.scala
 //> using file ELF32.scala
 //> using file UniqueName.scala
@@ -36,7 +39,7 @@ object Test:
     }
 
   def compileAndCheck(test: String): Boolean =
-    given Platform = Linux.createX86Platform(test, "c1")
+    given Platform = Linux.createX86StackMachine(test, "c1")
     val state = new State()
     given reporter: Reporter = Reporter.withSource(test)(using state)
 
