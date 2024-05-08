@@ -4,15 +4,16 @@ import Assembly.*
 import Assembler.{ Patch, PatchableBuffer }
 import Sast.*
 
-import Linux.printLabel
-import Linux.heapStartLabel
-
 import StackMachine.RegisterAllocator
 
 /**
   * Implementation based on a stack machine.
   */
-class StackMachine(generator: Assembly.Prog => Unit) extends Platform:
+class StackMachine(
+  nativeFunctions: Map[Symbol, Label],
+  generator: Assembly.Prog => Unit
+) extends Platform:
+
   /** The register ESP and EBP are reserved for value stack and call stack respectively. */
   val freeRegisters: List[Byte] = List(X86.EAX, X86.ECX, X86.EDX, X86.EBX, X86.ESI, X86.EDI)
 
@@ -23,7 +24,7 @@ class StackMachine(generator: Assembly.Prog => Unit) extends Platform:
   val FP_REG: Byte = X86.EBP
 
   /** Maps symbols to addresses */
-  val symbolAddrMap: mutable.Map[Symbol, Addr] = mutable.Map.empty
+  val symbolAddrMap: mutable.Map[Symbol, Addr] = mutable.Map.from(nativeFunctions)
 
   /** Program entry pointer */
   val entry = Label("_entry")
@@ -253,7 +254,7 @@ class StackMachine(generator: Assembly.Prog => Unit) extends Platform:
       case predef.bor    =>   int2(Instr.Or)
       case predef.bnot   =>   bnot()
       case predef.eql    =>   eql()
-      case predef.p      =>   print()
+      case predef.p      =>   call(predef.p)
       case _             =>   throw new Exception("Unknown primitive: " + sym.name)
   end primitive
 
@@ -297,9 +298,6 @@ class StackMachine(generator: Assembly.Prog => Unit) extends Platform:
       cb.add(Instr.Eq(Reg(r1), Reg(r2), r2))
       storeValue(Reg(r2), 1)
       pop()
-
-  /** Print the value on top of the stack. */
-  def print(): Unit = call(printLabel, 1, 0)
 
   /** Prepare to start the compilation */
   def start(): Unit = ()

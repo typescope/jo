@@ -16,9 +16,12 @@ object Linux:
   val PAGE_SIZE  = 0x1000
   val PROG_START = 0x08048000
 
-  // TODO: the labels should be platform indepndent
   val printLabel = Label("_print")
   val heapStartLabel = Label("_heapStart")
+
+  val nativeFunctions = Map(
+    Sast.predef.p -> printLabel
+  )
 
   /**
     * Create a new x86 register machine
@@ -34,7 +37,7 @@ object Linux:
     val generator = (prog: Prog) =>
       Assembler.lower(elf, prog, heapStartLabel, X86, linker)
 
-    new RegisterMachine(generator)
+    new RegisterMachine(nativeFunctions, generator)
 
   /**
     * Create a new x86 stack machine
@@ -50,7 +53,7 @@ object Linux:
     val generator = (prog: Prog) =>
       Assembler.lower(elf, prog, heapStartLabel, X86, linker)
 
-    new StackMachine(generator)
+    new StackMachine(nativeFunctions, generator)
 
   /**
     * Implement the printing in machine code.

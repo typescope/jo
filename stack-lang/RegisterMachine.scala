@@ -5,11 +5,12 @@ import PreAssembly.*
 import Assembler.{ Patch, PatchableBuffer }
 import Sast.*
 
-import Linux.printLabel
-import Linux.heapStartLabel
-
 /** Fast implementation with register allocation  */
-class RegisterMachine(generator: Assembly.Prog => Unit) extends Platform:
+class RegisterMachine(
+  nativeFunctions: Map[Symbol, Label],
+  generator: Assembly.Prog => Unit
+) extends Platform:
+
   /** Registers available for allocation */
   val freeRegisters: List[Int] = List(X86.EAX, X86.ECX, X86.EDX, X86.EBX, X86.ESI, X86.EDI)
 
@@ -26,7 +27,7 @@ class RegisterMachine(generator: Assembly.Prog => Unit) extends Platform:
   val FP_REG: Byte = X86.EBP
 
   /** Maps global symbols to addresses */
-  val symbolAddrMap: mutable.Map[Symbol, Addr] = mutable.Map.empty
+  val symbolAddrMap: mutable.Map[Symbol, Addr] = mutable.Map.from(nativeFunctions)
 
   /** To generate unique IDs of virtual registers */
   val VIRTUAL_REG_START_INDEX = 100
@@ -480,7 +481,7 @@ class RegisterMachine(generator: Assembly.Prog => Unit) extends Platform:
       case predef.bor    =>   int2(Instr.Or)
       case predef.bnot   =>   bnot()
       case predef.eql    =>   eql()
-      case predef.p      =>   print()
+      case predef.p      =>   call(predef.p)
       case _             =>   throw new Exception("Unknown primitive: " + sym.name)
   end primitive
 
@@ -519,9 +520,6 @@ class RegisterMachine(generator: Assembly.Prog => Unit) extends Platform:
     val reg = allocVirtualReg()
     gen(Instr.Eq(vs.pop(), vs.pop(), reg))
     vs.push(Reg(reg))
-
-  /** Print the value on top of the stack. */
-  def print(): Unit = call(printLabel, 1, 0)
 
   /** Prepare to start the compilation */
   def start(): Unit = ()
