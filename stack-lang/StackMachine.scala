@@ -7,6 +7,8 @@ import Sast.*
 import Linux.printLabel
 import Linux.heapStartLabel
 
+import StackMachine.RegisterAllocator
+
 /**
   * Implementation based on a stack machine.
   */
@@ -20,12 +22,17 @@ class StackMachine(generator: Assembly.Prog => Unit) extends Platform:
   /** Frame pointer register */
   val FP_REG: Byte = X86.EBP
 
-  // maps symbols to addresses
+  /** Maps symbols to addresses */
   val symbolAddrMap: mutable.Map[Symbol, Addr] = mutable.Map.empty
 
+  /** Program entry pointer */
   val entry = Label("_entry")
-  val regAlloc = new RegisterAllocator(freeRegisters)
+
+  /** Assembly code buffer */
   val cb = new CodeBuffer(entry)
+
+  /** A simple register allocator */
+  val regAlloc = new RegisterAllocator(freeRegisters)
 
   export regAlloc.{ useReg, useTwoReg }
 
@@ -303,3 +310,41 @@ class StackMachine(generator: Assembly.Prog => Unit) extends Platform:
     generator(prog)
 
 end StackMachine
+
+object StackMachine:
+  /**
+    * A simple register allocator.
+    *
+    * @param freeRegs All registers for temporary usage in a processor.
+    *
+    * The registers reserved for call stack pointer and value stack pointer are excluded.
+    */
+  class RegisterAllocator(freeRegs: List[Byte]):
+    var freeIndex = 0
+
+    /**
+      * Allocate a temp register for usage.
+      *
+      * The allocated register will be released after the function return.
+      *
+      * TODO: spilling if no temp registers are available?
+      */
+    def useReg(fn: Byte => Unit): Unit =
+      if freeIndex >= freeRegs.size then
+        throw new Exception("No register available")
+      else
+        val freeReg = freeIndex
+        freeIndex += 1
+        fn(freeRegs(freeReg))
+        freeIndex -= 1
+
+
+    /**
+      * Allocate two temporary registers for usage.
+      *
+      * @see useReg
+      */
+    def useTwoReg(fn: (Byte, Byte) => Unit): Unit =
+      useReg: r1 =>
+        useReg: r2 =>
+          fn(r1, r2)

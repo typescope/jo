@@ -25,9 +25,6 @@ class RegisterMachine(generator: Assembly.Prog => Unit) extends Platform:
   /** Frame pointer register */
   val FP_REG: Byte = X86.EBP
 
-  /** Heap start address */
-  val heapStartLabel = Label("_heapStart")
-
   /** Maps global symbols to addresses */
   val symbolAddrMap: mutable.Map[Symbol, Addr] = mutable.Map.empty
 
