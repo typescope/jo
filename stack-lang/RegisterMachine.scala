@@ -5,29 +5,21 @@ import PreAssembly.*
 import Assembler.{ Patch, PatchableBuffer }
 import Sast.*
 
+import RegisterMachine.RegisterConfig
+
 /** Fast implementation with register allocation
   *
   * The class is CPU- and OS-agnostic.
   */
 class RegisterMachine(
+  registerConfig: RegisterConfig,
   nativeFunctions: Map[Symbol, Label],
   generator: Assembly.Prog => Unit
 ) extends Platform:
-
-  /** Registers available for allocation */
-  val freeRegisters: List[Int] = List(X86.EAX, X86.ECX, X86.EDX, X86.EBX, X86.ESI, X86.EDI)
+  import registerConfig.{ FP_REG, SP_REG, paramRegisters, freeRegisters }
 
   /** The register ESP and EBP are reserved for stack */
-  val reservedRegisters: List[Int] = List(X86.ESP, X86.EBP)
-
-  /** Registers for function call and return in the order corresponding to arguments */
-  val argRegisters: List[Int] = List(X86.EAX, X86.EBX, X86.ECX, X86.EDX)
-
-  /** Stack pointer register (high -> low address)  */
-  val SP_REG: Byte = X86.ESP
-
-  /** Frame pointer register */
-  val FP_REG: Byte = X86.EBP
+  val reservedRegisters: List[Int] = List(FP_REG, SP_REG)
 
   /** Maps global symbols to addresses */
   val symbolAddrMap: mutable.Map[Symbol, Addr] = mutable.Map.from(nativeFunctions)
@@ -120,7 +112,7 @@ class RegisterMachine(
 
     val StackInfo(paramNum, resNum) = sym.info
     val numCallerSavedRegs = if paramNum > resNum then paramNum else resNum
-    val callerSavedRegs = argRegisters.take(numCallerSavedRegs)
+    val callerSavedRegs = paramRegisters.take(numCallerSavedRegs)
     val calleeSavedRegs = freeRegisters.diff(callerSavedRegs)
 
     allocRegisters(label, calleeSavedRegs):
@@ -133,12 +125,12 @@ class RegisterMachine(
       // bind param address to registers and load data from stack
       var index = 0
       for param <- fdef.params do
-        if index < argRegisters.size then
+        if index < paramRegisters.size then
           // We need to assign a stable virtual register because the call
           // convention cannot guarantee that the protocol register will only
           // be used by the corresponding parameter in the function body.
           val reg = allocVirtualReg()
-          val argReg = argRegisters(index)
+          val argReg = paramRegisters(index)
           gen(Instr.Move(Reg(argReg), reg))
           symbolRegMap(param) = reg
         else
@@ -318,6 +310,7 @@ class RegisterMachine(
           for reg <- resRegs do vs.push(Reg(reg))
         end if
 
+  // TODO: platform-agnostic
   def exit(code: Int): Unit =
     gen(Instr.Move(Int32(code), X86.EBX))  // exit code
     gen(Instr.Move(Int32(1), X86.EAX))     // syscall number
@@ -328,10 +321,10 @@ class RegisterMachine(
     var i = 0
     val values = vs.pop(resNum)
     for value <- values do
-      val index = i - argRegisters.size
+      val index = i - paramRegisters.size
 
       if index < 0 then
-        gen(Instr.Move(value, argRegisters(i)))
+        gen(Instr.Move(value, paramRegisters(i)))
       else
         val addr = Rel(FP_REG, (-(index << 2)).toByte)
         gen(Instr.Store(value, addr))
@@ -381,8 +374,8 @@ class RegisterMachine(
 
     // offset between caller SP and callee FP
     val stackArgCount =
-      if argCount <= argRegisters.size then 0
-      else argCount - argRegisters.size
+      if argCount <= paramRegisters.size then 0
+      else argCount - paramRegisters.size
     val spOffset = 2 + stackArgCount
     var index = -1
 
@@ -391,8 +384,8 @@ class RegisterMachine(
     val args = vs.pop(argCount)
     for arg <- args do
       // ordering of args
-      if i < argRegisters.size then
-        gen(Instr.Move(arg, argRegisters(i)))
+      if i < paramRegisters.size then
+        gen(Instr.Move(arg, paramRegisters(i)))
       else
         storeValue(arg, index.toByte)
         index -= 1
@@ -410,8 +403,8 @@ class RegisterMachine(
     gen(Instr.Sub(Reg(SP_REG), Int32(spOffset << 2), FP_REG))
 
     // 6. jump to target
-    val argRegs = argRegisters.take(argCount)
-    val resRegs = argRegisters.take(resCount)
+    val argRegs = paramRegisters.take(argCount)
+    val resRegs = paramRegisters.take(resCount)
     gen(PreInstr.Call(target, argRegs, resRegs))
 
     // post call
@@ -425,9 +418,9 @@ class RegisterMachine(
     // 9. copy result -- the first 4 results are passed via registers
     i = 0
     while i < resCount do
-      val index = i - argRegisters.size
+      val index = i - paramRegisters.size
       if index < 0 then
-        val reg = argRegisters(i)
+        val reg = paramRegisters(i)
         val virtualReg = allocVirtualReg()
         gen(Instr.Move(Reg(reg), virtualReg))
         vs.push(Reg(virtualReg))
@@ -533,3 +526,18 @@ class RegisterMachine(
     generator(prog)
 
 end RegisterMachine
+
+object RegisterMachine:
+  trait RegisterConfig:
+    /** Registers available for free usage  */
+    val freeRegisters: List[Int]
+
+    // TODO: does call convention belong here?
+    /** Registers for function call and return in the order of parameters */
+    val paramRegisters: List[Int]
+
+    /** Reserved call stack register */
+    val SP_REG: Byte
+
+    /** Reserved frame pointer register */
+    val FP_REG: Byte

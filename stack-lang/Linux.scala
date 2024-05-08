@@ -37,7 +37,16 @@ object Linux:
     val generator = (prog: Prog) =>
       Assembler.lower(elf, prog, heapStartLabel, X86, linker)
 
-    new RegisterMachine(nativeFunctions, generator)
+    val regConfig = new RegisterMachine.RegisterConfig:
+      val freeRegisters = List(X86.EAX, X86.ECX, X86.EDX, X86.EBX, X86.ESI, X86.EDI)
+
+      val paramRegisters = List(X86.EAX, X86.EBX, X86.ECX, X86.EDX)
+
+      val SP_REG = X86.ESP
+
+      val FP_REG = X86.EBP
+
+    new RegisterMachine(regConfig, nativeFunctions, generator)
 
   /**
     * Create a new x86 stack machine
@@ -50,11 +59,11 @@ object Linux:
       def link()(using pb: PatchableBuffer) = linkPrintStackMachineX86()
 
     val regConfig = new StackMachine.RegisterConfig:
-      val freeRegisters: List[Byte] = List(X86.EAX, X86.ECX, X86.EDX, X86.EBX, X86.ESI, X86.EDI)
+      val freeRegisters = List(X86.EAX, X86.ECX, X86.EDX, X86.EBX, X86.ESI, X86.EDI)
 
-      val SP_REG: Byte = X86.ESP
+      val SP_REG = X86.ESP
 
-      val FP_REG: Byte = X86.EBP
+      val FP_REG = X86.EBP
 
     // TODO: pass external native link requirements
     val generator = (prog: Prog) =>

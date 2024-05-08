@@ -101,6 +101,7 @@ class StackMachine(
       cb.mark(labelEnd)
 
 
+  // TODO: platform-agnostic
   def exit(code: Int): Unit =
     cb.add(Instr.Move(Int32(code), X86.EBX))  // exit code
     cb.add(Instr.Move(Int32(1), X86.EAX))     // syscall number
