@@ -5,7 +5,7 @@ import PreAssembly.*
 import Assembler.{ Patch, PatchableBuffer }
 import Sast.*
 
-import RegisterMachine.RegisterConfig
+import RegisterMachine.{ RegisterConfig, ValueStack }
 
 /** Fast implementation with register allocation
   *
@@ -17,9 +17,6 @@ class RegisterMachine(
   generator: Assembly.Prog => Unit
 ) extends Platform:
   import registerConfig.{ FP_REG, SP_REG, paramRegisters, freeRegisters }
-
-  /** The register ESP and EBP are reserved for stack */
-  val reservedRegisters: List[Int] = List(FP_REG, SP_REG)
 
   /** Maps global symbols to addresses */
   val symbolAddrMap: mutable.Map[Symbol, Addr] = mutable.Map.from(nativeFunctions)
@@ -49,28 +46,6 @@ class RegisterMachine(
   def allocVirtualReg(): Int =
     virtualRegisterIndex += 1
     virtualRegisterIndex
-
-  class ValueStack:
-    val stack: mutable.ArrayBuffer[Operand] = new mutable.ArrayBuffer
-
-    def pop(): Operand =
-      if stack.nonEmpty then stack.remove(this.size - 1)
-      else throw new Exception("Stack is empty")
-
-    def pop(n: Int): Seq[Operand] =
-      assert(this.size >= n, s"size = $size, n = $n")
-      val slice = stack.slice(this.size - n, this.size)
-      stack.dropRightInPlace(n)
-      slice.toSeq
-
-    def push(v: Operand): Unit = stack.append(v)
-
-    def clear() = stack.clear()
-
-    def size: Int = stack.size
-
-    override def toString() = stack.toString()
-  end ValueStack
 
   private val vs: ValueStack = new ValueStack
 
@@ -167,6 +142,8 @@ class RegisterMachine(
 
       val liveness = Liveness.analyze(instrs)
       // println(liveness)
+
+      val reservedRegisters: List[Int] = List(FP_REG, SP_REG)
 
       val GraphColoring.Result(regAlloc, stackAlloc, usedRegs) =
           GraphColoring.alloc(
@@ -541,3 +518,26 @@ object RegisterMachine:
 
     /** Reserved frame pointer register */
     val FP_REG: Byte
+
+  /** The abstract value stack for compilation */
+  class ValueStack:
+    val stack: mutable.ArrayBuffer[Operand] = new mutable.ArrayBuffer
+
+    def pop(): Operand =
+      if stack.nonEmpty then stack.remove(this.size - 1)
+      else throw new Exception("Stack is empty")
+
+    def pop(n: Int): Seq[Operand] =
+      assert(this.size >= n, s"size = $size, n = $n")
+      val slice = stack.slice(this.size - n, this.size)
+      stack.dropRightInPlace(n)
+      slice.toSeq
+
+    def push(v: Operand): Unit = stack.append(v)
+
+    def clear() = stack.clear()
+
+    def size: Int = stack.size
+
+    override def toString() = stack.toString()
+  end ValueStack
