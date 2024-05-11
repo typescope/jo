@@ -87,7 +87,7 @@ class StackMachine(
 
     useReg: r =>
       pop(r)
-      val target = if ifword.elsep.isEmpty then labelFalse else labelEnd
+      val target = if ifword.elsep.isEmpty then labelEnd else labelFalse
       cb.add(Instr.JZero(Reg(r), target))
 
       compile(ifword.thenp)
