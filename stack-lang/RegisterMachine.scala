@@ -256,7 +256,8 @@ class RegisterMachine(
           compile(ifword.thenp)
 
       case Reg(r) =>
-        gen(Instr.JZero(Reg(r), labelFalse))
+        val target = if ifword.elsep.isEmpty then labelEnd else labelFalse
+        gen(Instr.JZero(Reg(r), target))
 
         compile(ifword.thenp)
 
@@ -265,8 +266,6 @@ class RegisterMachine(
             gen(Instr.Jump(labelEnd))
             gen(labelFalse)
             compile(ifword.elsep)
-          else
-            gen(labelFalse)
 
           gen(labelEnd)
 

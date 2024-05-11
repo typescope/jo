@@ -87,7 +87,8 @@ class StackMachine(
 
     useReg: r =>
       pop(r)
-      cb.add(Instr.JZero(Reg(r), labelFalse))
+      val target = if ifword.elsep.isEmpty then labelFalse else labelEnd
+      cb.add(Instr.JZero(Reg(r), target))
 
       compile(ifword.thenp)
 
@@ -95,8 +96,6 @@ class StackMachine(
         cb.add(Instr.Jump(labelEnd))
         cb.mark(labelFalse)
         compile(ifword.elsep)
-      else
-        cb.mark(labelFalse)
 
       cb.mark(labelEnd)
 
@@ -199,8 +198,6 @@ class StackMachine(
 
   /**
     * Push value on the value stack.
-    *
-    * It could be address of a procedure, represented by a label.
     */
   def push(v: Value) =
     cb.add(Instr.Sub(Reg(SP_REG), Int32(4), SP_REG))

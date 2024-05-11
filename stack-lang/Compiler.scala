@@ -36,7 +36,7 @@ object Compiler:
       case Word.BoolLit(v) => pf.push(v)
 
       case ifword: Word.If =>
-          pf.conditional(ifword, compile)
+        pf.conditional(ifword, compile)
 
       case Word.Ident(sym) =>
         if sym.isPrimitive then pf.primitive(sym)
