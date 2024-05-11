@@ -77,6 +77,8 @@ object Linux:
     * The arguments are passed via stack.
     *
     * It assumes that all registers are free.
+    *
+    * TODO reduce duplication with native call convention support
     */
   def linkPrintStackMachineX86()(using pb: PatchableBuffer): Unit =
     pb.defineLabel(printLabel)
