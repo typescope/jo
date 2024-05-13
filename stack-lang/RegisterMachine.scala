@@ -314,13 +314,7 @@ class RegisterMachine(
     * Call the procedure or funtion at the given address.
     *
     * Call stack goes from high address to low address.
-    */
-  def call(fun: Symbol) =
-    val label = symbolAddrMap(fun).asInstanceOf[Label]
-    val info = fun.info
-    call(label, info.paramCount, info.resCount)
-
-  /**
+    *
     * Call stack
     *
     *  ┌─────────────┐
@@ -345,7 +339,9 @@ class RegisterMachine(
     *
     * The first 4 arguments are passed by registers EAX, EBX, ECX, EDX
     */
-  def call(target: Label, argCount: Int, resCount: Int) =
+  def call(fun: Symbol) =
+    val target = symbolAddrMap(fun).asInstanceOf[Label]
+    val StackInfo(argCount, resCount) = fun.info
     val returnLoc = Label("returnLoc")
 
     // offset between caller SP and callee FP

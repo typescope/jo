@@ -119,13 +119,7 @@ class StackMachine(
     * Call the procedure or funtion at the given address.
     *
     * Call stack goes from high address to low address.
-    */
-  def call(fun: Symbol) =
-    val label = symbolAddrMap(fun).asInstanceOf[Label]
-    val info = fun.info
-    call(label, info.paramCount, info.resCount)
-
-  /**
+    *
     * Call stack
     *
     *  ┌─────────────┐
@@ -148,7 +142,9 @@ class StackMachine(
     *  │   value M   │
     *  └─────────────┘ ◄─────── SP
     */
-  def call(addr: Addr, argCount: Int, resCount: Int) =
+  def call(fun: Symbol) =
+    val addr = symbolAddrMap(fun).asInstanceOf[Label]
+    val StackInfo(argCount, resCount) = fun.info
     val returnLoc = Label("returnLoc")
 
     // 1. save FP
