@@ -12,6 +12,7 @@
 //> using file Linux.scala
 //> using file StackMachine.scala
 //> using file RegisterMachine.scala
+//> using file CallConvention.scala
 //> using file PreAssembly.scala
 //> using file Liveness.scala
 //> using file GraphColoring.scala

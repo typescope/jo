@@ -11,6 +11,7 @@
 //> using file Assembler.scala
 //> using file Linux.scala
 //> using file X86.scala
+//> using file CallConvention.scala
 //> using file PreAssembly.scala
 //> using file StackMachine.scala
 //> using file RegisterMachine.scala

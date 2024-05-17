@@ -5,6 +5,8 @@ import PreAssembly.*
 import Assembler.{ Patch, PatchableBuffer }
 import Sast.*
 
+import CallConvention.*
+
 import RegisterMachine.{ RegisterConfig, ValueStack }
 
 /** Fast implementation with register allocation
@@ -14,8 +16,8 @@ import RegisterMachine.{ RegisterConfig, ValueStack }
 class RegisterMachine(
   registerConfig: RegisterConfig,
   nativeFunctions: Map[Symbol, Label],
-  generator: Assembly.Prog => Unit
-) extends Platform:
+  generator: Assembly.Prog => Unit)
+extends Platform:
   import registerConfig.{ FP_REG, SP_REG, paramRegisters, freeRegisters }
 
   /** Maps global symbols to addresses */
@@ -33,6 +35,8 @@ class RegisterMachine(
 
   /** Buffer to hold the generated assembly code */
   val cb = new CodeBuffer(entryLabel)
+
+  val callConvention = RegisterCallConvention(paramRegisters, FP_REG, SP_REG)
 
   /** The code of a function before register allocation */
   val preAsm: PreAssembly.ItemBuffer = new PreAssembly.ItemBuffer
@@ -342,65 +346,58 @@ class RegisterMachine(
   def call(fun: Symbol) =
     val target = symbolAddrMap(fun).asInstanceOf[Label]
     val StackInfo(argCount, resCount) = fun.info
-    val returnLoc = Label("returnLoc")
 
-    // offset between caller SP and callee FP
-    val stackArgCount =
-      if argCount <= paramRegisters.size then 0
-      else argCount - paramRegisters.size
-    val spOffset = 2 + stackArgCount
-    var index = -1
+    val proto @ CallerProtocol(argLocs, resLocs, stackArgNum) =
+      callConvention.call(fun.info)
 
-    // 2. save args -- the first 4 arguments are passed via registers
-    var i = 0
+    // save args
     val args = vs.pop(argCount)
-    for arg <- args do
-      // ordering of args
-      if i < paramRegisters.size then
-        gen(Instr.Move(arg, paramRegisters(i)))
-      else
-        storeValue(arg, index.toByte)
-        index -= 1
-      i += 1
+    for (arg, loc) <- args.zip(argLocs) do
+      loc match
+        case Location.Reg(dest) =>
+          gen(Instr.Move(arg, dest))
 
-    // 3. save FP
-    storeValue(Reg(FP_REG), index.toByte)
-    index -= 1
+        case Location.Stack(baseReg, offset) =>
+          val addr = Rel(baseReg, offset.toByte)
+          gen(Instr.Store(arg, addr))
 
-    // 4. save return
-    storeValue(returnLoc, index.toByte)
-    index -= 1
+    // FP/SP and return address
+    // required for all protocols
+    val indexFP = -stackArgNum - 1
+    storeValue(Reg(FP_REG), indexFP.toByte)
 
-    // 5. update FP
-    gen(Instr.Sub(Reg(SP_REG), Int32(spOffset << 2), FP_REG))
+    val indexRet = -stackArgNum - 2
+    val returnLoc = Label("returnLoc")
+    storeValue(returnLoc, indexRet.toByte)
 
-    // 6. jump to target
-    val argRegs = paramRegisters.take(argCount)
-    val resRegs = paramRegisters.take(resCount)
-    gen(PreInstr.Call(target, argRegs, resRegs))
+    // update FP
+    val stackDelta = (stackArgNum + 2) << 2
+    gen(Instr.Sub(Reg(SP_REG), Int32(stackDelta), FP_REG))
+
+    // jump to target
+    gen(PreInstr.Call(target, proto.argRegs, proto.resRegs))
 
     // post call
     gen(returnLoc)
 
-    // 7. restore SP and FP
-    index = -spOffset + 1
-    gen(Instr.Add(Reg(FP_REG), Int32(spOffset << 2), SP_REG))
-    loadValue(FP_REG, index.toByte)
+    // restore SP and FP
+    gen(Instr.Add(Reg(FP_REG), Int32(stackDelta), SP_REG))
 
-    // 9. copy result -- the first 4 results are passed via registers
-    i = 0
-    while i < resCount do
-      val index = i - paramRegisters.size
-      if index < 0 then
-        val reg = paramRegisters(i)
-        val virtualReg = allocVirtualReg()
-        gen(Instr.Move(Reg(reg), virtualReg))
-        vs.push(Reg(virtualReg))
-      else
-        val reg = allocVirtualReg()
-        loadValue(reg, (-spOffset - index - 1).toByte)
-        vs.push(Reg(reg))
-      i += 1
+    // copy result
+    for loc <- resLocs do
+      val virtualReg = allocVirtualReg()
+      loc match
+        case Location.Reg(res) =>
+          gen(Instr.Move(Reg(res), virtualReg))
+
+        case Location.Stack(baseReg, offset) =>
+          val addr = Rel(baseReg, offset.toByte)
+          gen(Instr.Load(addr, virtualReg))
+      end match
+      vs.push(Reg(virtualReg))
+
+    // restore FP
+    loadValue(FP_REG, indexFP.toByte)
 
   /** Initialize a value definition
     *
