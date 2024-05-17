@@ -94,6 +94,8 @@ extends Platform:
     val callerSavedRegs = paramRegisters.take(numCallerSavedRegs)
     val calleeSavedRegs = freeRegisters.diff(callerSavedRegs)
 
+    val CalleeProtocol(paramLocs, resLocs) = callConvention.callee(sym.info)
+
     allocRegisters(label, calleeSavedRegs):
       // Compile function to a temporary buffer for register allocation
       gen(PlaceHolder.InitStackPointer)
@@ -101,28 +103,24 @@ extends Platform:
       // callee-saved registers
       gen(PlaceHolder.SaveRegisters)
 
-      // bind param address to registers and load data from stack
-      var index = 0
-      for param <- fdef.params do
-        if index < paramRegisters.size then
-          // We need to assign a stable virtual register because the call
-          // convention cannot guarantee that the protocol register will only
-          // be used by the corresponding parameter in the function body.
-          val reg = allocVirtualReg()
-          val argReg = paramRegisters(index)
-          gen(Instr.Move(Reg(argReg), reg))
-          symbolRegMap(param) = reg
-        else
-          val offset = paramCount - index + 1
-          val addr = Rel(FP_REG, (offset << 2).toByte)
-          val reg = allocVirtualReg()
-          symbolRegMap(param) = reg
-          gen(Instr.Load(addr, reg))
-        index += 1
+      // bind param to virtual registers and load data
+      for (param, loc) <- fdef.params.zip(paramLocs) do
+        val paramReg = allocVirtualReg()
+        symbolRegMap(param) = paramReg
+
+        loc match
+          case Location.Reg(arg) =>
+            gen(Instr.Move(Reg(arg), paramReg))
+
+          case Location.Stack(baseReg, offset) =>
+            val addr = Rel(baseReg, offset.toByte)
+            gen(Instr.Load(addr, paramReg))
+        end match
+      end for
 
       compile(fdef.words)
 
-      ret(resNum)
+      ret(resLocs)
 
   def allocRegisters(label: Label, calleeSavedRegs: List[Int])(compile: => Unit): Unit =
     initVirtualRegisterIndex()
@@ -297,58 +295,28 @@ extends Platform:
     gen(Instr.Special(X86.Syscall))        // syscall
 
   /** Return from a function. */
-  def ret(resNum: Int) =
-    var i = 0
-    val values = vs.pop(resNum)
-    for value <- values do
-      val index = i - paramRegisters.size
+  def ret(resLocs: List[Location]) =
+    val values = vs.pop(resLocs.size)
+    for (value, loc) <- values.zip(resLocs) do
+      loc match
+        case Location.Reg(dest) =>
+          gen(Instr.Move(value, dest))
 
-      if index < 0 then
-        gen(Instr.Move(value, paramRegisters(i)))
-      else
-        val addr = Rel(FP_REG, (-(index << 2)).toByte)
-        gen(Instr.Store(value, addr))
-
-      i += 1
+        case Location.Stack(reg, offset) =>
+          val addr = Rel(reg, offset.toByte)
+           gen(Instr.Store(value, addr))
+      end match
 
     gen(PlaceHolder.RestoreRegisters)
     gen(PreInstr.Return)
 
-  /**
-    * Call the procedure or funtion at the given address.
-    *
-    * Call stack goes from high address to low address.
-    *
-    * Call stack
-    *
-    *  ┌─────────────┐
-    *  │    ...      │
-    *  ├─────────────┤
-    *  │    arg 4    │
-    *  ├─────────────┤
-    *  │    ...      │
-    *  ├─────────────┤
-    *  │    arg N    │
-    *  ├─────────────┤
-    *  │  saved FP   │
-    *  ├─────────────┤
-    *  │     RET     │
-    *  ├─────────────┤ ◄──────  FP
-    *  │   value 0   │
-    *  ├─────────────┤
-    *  │    ...      │
-    *  ├─────────────┤
-    *  │   value M   │
-    *  └─────────────┘ ◄─────── SP
-    *
-    * The first 4 arguments are passed by registers EAX, EBX, ECX, EDX
-    */
+  /** Call the funtion */
   def call(fun: Symbol) =
     val target = symbolAddrMap(fun).asInstanceOf[Label]
     val StackInfo(argCount, resCount) = fun.info
 
     val proto @ CallerProtocol(argLocs, resLocs, stackArgNum) =
-      callConvention.call(fun.info)
+      callConvention.caller(fun.info)
 
     // save args
     val args = vs.pop(argCount)
