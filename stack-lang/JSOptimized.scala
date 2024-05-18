@@ -209,8 +209,9 @@ class JSOptimized(outFile: String) extends Backend:
       indent:
         compile(fdef.body)
         assert(vs.size == resCount, s"Stack size mismatch, expect $resCount, found = " + vs)
-        val retStr = vs.combineToJS()
-        addLine(s"return $retStr;")
+        if resCount > 0 then
+          val retStr = vs.combineToJS()
+          addLine(s"return $retStr;")
 
       addLine("}\n")
 
