@@ -5,8 +5,7 @@
 //> using file Parser.scala
 //> using file Reporter.scala
 //> using file Assembly.scala
-//> using file Platform.scala
-//> using file Compiler.scala
+//> using file Backend.scala
 //> using file IO.scala
 //> using file Assembler.scala
 //> using file Linux.scala
@@ -17,7 +16,7 @@
 //> using file RegisterMachine.scala
 //> using file ELF32.scala
 //> using file UniqueName.scala
-//> using file JSPlatform.scala
+//> using file JSBackend.scala
 //> using file JSOptimized.scala
 //> using file Liveness.scala
 //> using file GraphColoring.scala
@@ -51,7 +50,7 @@ def run(args: String*) =
 
   val layout = options.getOrElse("-layout", "c1")
 
-  given Platform =
+  val backend =
     options.get("-p") match
       case Some(pf) =>
         if pf == "linux-x86" then
@@ -61,7 +60,7 @@ def run(args: String*) =
           Linux.createX86RegisterMachine(outFile, layout)
 
         else if pf == "js" then
-          new JSPlatform(outFile)
+          new JSBackend(outFile)
 
         else if pf == "js-opt" then
           new JSOptimized(outFile)
@@ -78,4 +77,4 @@ def run(args: String*) =
     IO.fileContent(sourceFile)    |>
     Parsing.parse                 |>
     new Namer().transform         |>
-    Compiler.compile
+    backend.compile

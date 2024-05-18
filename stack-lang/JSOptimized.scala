@@ -6,7 +6,9 @@ import Sast.*
 /**
   * JavaScript platform with code optimization
   */
-class JSOptimized(outFile: String) extends Platform:
+class JSOptimized(outFile: String) extends Backend:
+  type Context = Unit
+
   private val pw =  new PrintWriter(outFile)
 
   private  val uniqueName = new UniqueName
@@ -98,11 +100,6 @@ class JSOptimized(outFile: String) extends Platform:
     work
     indentCount -= 1
 
-  def entry(init: => Unit): Unit =
-    newLine()
-    init
-    newLine()
-
   def mapSymbolToJSName(sym: Symbol): String =
     val isOperator = !sym.name(0).isLetter
     val uniqueName =
@@ -111,12 +108,6 @@ class JSOptimized(outFile: String) extends Platform:
 
     symbol2UniqueName(sym) = uniqueName
     uniqueName
-
-  def declare(sym: Symbol): Unit =
-    assert(!sym.isPrimitive, "Unexpected primitive symbol " + sym)
-    val uniqueName = mapSymbolToJSName(sym)
-    if sym.isValue then
-      addLine(s"var $uniqueName; // ${sym.name}")
 
   /**
     * Bind all values in stack.
@@ -151,10 +142,25 @@ class JSOptimized(outFile: String) extends Platform:
         case _ =>
       i = i + 1
 
+  def compile(prog: Prog): Unit =
+    doCompile:
+      for fun <- prog.funs do
+        mapSymbolToJSName(fun.symbol)
+
+      for sym <- prog.vals do
+        val uniqueName = mapSymbolToJSName(sym)
+        addLine(s"var $uniqueName; // ${sym.name}")
+
+      // Compile functions
+      for fun <- prog.funs do
+        compile(fun)
+
+      call(prog.main)
+
   /**
     * Call the funtion.
     */
-  def call(fun: Symbol): Unit =
+  def call(fun: Symbol)(using Context): Unit =
     val name = symbol2UniqueName(fun)
     val paramCount = fun.info.paramCount
     val resCount = fun.info.resCount
@@ -181,10 +187,10 @@ class JSOptimized(outFile: String) extends Platform:
     *
     * Calling the passed function will compile the initializer.
     */
-  def initVal(vdef: Def.ValDef, compile: Compiler): Unit =
+  def compile(init: Word.Init)(using Context): Unit =
     vs.clear()
-    compile(vdef.words)
-    val name = symbol2UniqueName(vdef.symbol)
+    compile(init.rhs)
+    val name = symbol2UniqueName(init.symbol)
     val rhs = vs.pop()
     addLine(s"$name = $rhs;")
 
@@ -192,7 +198,7 @@ class JSOptimized(outFile: String) extends Platform:
     *
     * Calling the passed function will compile the body of the function.
     */
-  def function(fdef: Def.FunDef, compile: Compiler): Unit =
+  def compile(fdef: Fun)(using Context): Unit =
     vs.clear()
     val sym = fdef.symbol
     val name = symbol2UniqueName(sym)
@@ -201,7 +207,7 @@ class JSOptimized(outFile: String) extends Platform:
       val paramStr = fdef.params.map(mapSymbolToJSName).mkString(", ")
       addLine(s"function $name($paramStr) { // ${sym.name}")
       indent:
-        compile(fdef.words)
+        compile(fdef.body)
         assert(vs.size == resCount, s"Stack size mismatch, expect $resCount, found = " + vs)
         val retStr = vs.combineToJS()
         addLine(s"return $retStr;")
@@ -209,7 +215,7 @@ class JSOptimized(outFile: String) extends Platform:
       addLine("}\n")
 
   /** Compile a conditional statement, i.e if/then/else */
-  def conditional(ifword: Word.If, compile: List[Word] => Unit): Unit =
+  def compile(ifword: Word.If)(using Context): Unit =
     bindExpressions()
 
     val resCount = ifword.info.resCount
@@ -256,15 +262,15 @@ class JSOptimized(outFile: String) extends Platform:
           i = i + 1
 
   /** Push an integer literal to value stack */
-  def push(v: Int): Unit =
+  def push(v: Int)(using Context): Unit =
     vs.push(Item.Const(v.toString))
 
   /** Push a Boolean literal to value stack */
-  def push(v: Boolean): Unit =
+  def push(v: Boolean)(using Context): Unit =
     vs.push(Item.Const(v.toString))
 
   /** Push the value associated with the given symbol to value stack */
-  def push(sym: Symbol): Unit =
+  def push(sym: Symbol)(using Context): Unit =
     val name = symbol2UniqueName(sym)
     vs.push(Item.Ref(name))
 
@@ -286,7 +292,7 @@ class JSOptimized(outFile: String) extends Platform:
     * Compile a primitive
     *
     */
-  def primitive(sym: Symbol): Unit =
+  def primitive(sym: Symbol)(using Context): Unit =
     sym match
       case predef.add    =>   binary("+")
       case predef.sub    =>   binary("-")
@@ -312,12 +318,12 @@ class JSOptimized(outFile: String) extends Platform:
 
 
   /** Prepare to start the compilation */
-  def start(): Unit =
+  def doCompile(work: Context ?=> Unit): Unit =
     addLine("(function() {")
     indentCount += 1
 
-  /** Finish compilation */
-  def finish(): Unit =
+    work(using ())
+
     if vs.size > 0 then
       addLine(vs.combineToJS())
     indentCount -= 1

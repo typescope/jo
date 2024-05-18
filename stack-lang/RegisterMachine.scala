@@ -18,8 +18,10 @@ class RegisterMachine(
   callConvention: CallConvention,
   nativeFunctions: Map[Symbol, Label],
   generator: Assembly.Prog => Unit)
-extends Platform:
+extends Backend:
   import registerConfig.{ FP_REG, SP_REG, FREE_REGS }
+
+  type Context = Unit
 
   /** Maps global symbols to addresses */
   val symbolAddrMap: mutable.Map[Symbol, Addr] = mutable.Map.from(nativeFunctions)
@@ -52,36 +54,35 @@ extends Platform:
 
   private val vs: ValueStack = new ValueStack
 
-  /**
-    * Generate entry code
-    *
-    * The entry code initializes the language runtime, call the main function and exit.
-    *
-    * Calling the passed function will compile the user entry code.
-    */
-  def entry(init: => Unit): Unit =
-    // Stack pointer is initialized by the kernel, initialize frame pointer
-    cb.mark(entryLabel)
-    cb.add(Instr.Move(Reg(SP_REG), FP_REG))
-    allocRegisters(this.entryLabel, calleeSavedRegs = Nil):
-      init
-      exit(0)
+  def compile(prog: Sast.Prog): Unit =
+    given Context = ()
 
+    for fun <- prog.funs do
+      symbolAddrMap(fun.symbol) = Label(fun.name)
 
-  /** Declare the symbol to the platform as a preparation for compilation */
-  def declare(sym: Symbol): Unit =
-    assert(!sym.isPrimitive, "Unexpected primitive symbol " + sym)
-    val label = Label(sym.name)
-    symbolAddrMap(sym) = label
-
-    if sym.isValue then
+    for sym <- prog.vals do
+      val label = Label(sym.name)
+      symbolAddrMap(sym) = label
       cb.add(Data.Uninit(label, Type.Int32))
+
+    // Compile functions
+    for fun <- prog.funs do
+      compile(fun)
+
+    // Stack pointer is initialized by the kernel, initialize frame pointer
+    cb.mark(this.entryLabel)
+    cb.add(Instr.Move(Reg(SP_REG), FP_REG))
+    call(prog.main)
+    exit(0)
+
+    // generate code
+    generator(cb.getResult())
 
   /** Compile a function
     *
     * Calling the passed function will compile the body of the function.
     */
-  def function(fdef: Def.FunDef, compile: Compiler): Unit =
+  def compile(fdef: Fun)(using Context): Unit =
     val sym = fdef.symbol
     val label = symbolAddrMap(sym).asInstanceOf[Label]
     val paramCount = fdef.params.size
@@ -113,7 +114,7 @@ extends Platform:
         end match
       end for
 
-      compile(fdef.words)
+      compile(fdef.body)
 
       ret(resLocs)
 
@@ -174,7 +175,7 @@ extends Platform:
 
 
   /** Compile a conditional statement, i.e if/then/else */
-  def conditional(ifword: Word.If, compile: Compiler): Unit =
+  def compile(ifword: Word.If)(using Context): Unit =
     val labelFalse = Label("_false")
     val labelEnd = Label("_ifEnd")
 
@@ -243,7 +244,7 @@ extends Platform:
     gen(PreInstr.Return)
 
   /** Call the funtion */
-  def call(fun: Symbol) =
+  def call(fun: Symbol)(using Context) =
     val target = symbolAddrMap(fun).asInstanceOf[Label]
     val StackInfo(argCount, resCount) = fun.info
 
@@ -307,19 +308,20 @@ extends Platform:
     *
     * Calling the passed function will compile the initializer.
     */
-  def initVal(vdef: Def.ValDef, compile: Compiler): Unit =
-    val label = symbolAddrMap(vdef.symbol).asInstanceOf[Label]
-    compile(vdef.words)
+  def compile(init: Word.Init)(using Context): Unit =
+    val label = symbolAddrMap(init.symbol).asInstanceOf[Label]
+    compile(init.rhs)
     gen(Instr.Store(vs.pop(), label))
 
   /** Push an integer literal to value stack */
-  def push(v: Int): Unit = vs.push(Int32(v))
+  def push(v: Int)(using Context): Unit = vs.push(Int32(v))
 
   /** Push a Boolean literal to value stack */
-  def push(v: Boolean): Unit = vs.push(Int32(if v then 1 else 0))
+  def push(v: Boolean)(using Context): Unit =
+    vs.push(Int32(if v then 1 else 0))
 
   /** Push the value associated with the given symbol to value stack */
-  def push(sym: Symbol): Unit =
+  def push(sym: Symbol)(using Context): Unit =
     // TODO: handle function local value definitions
     if sym.isParameter then
       val reg = symbolRegMap(sym)
@@ -330,7 +332,7 @@ extends Platform:
       gen(Instr.Load(addr, reg))
       vs.push(Reg(reg))
 
-  def primitive(sym: Symbol): Unit =
+  def primitive(sym: Symbol)(using Context): Unit =
     sym match
       case predef.add    =>   int2(Instr.Add)
       case predef.sub    =>   int2(Instr.Sub)
@@ -389,15 +391,6 @@ extends Platform:
     val reg = allocVirtualReg()
     gen(Instr.Eq(vs.pop(), vs.pop(), reg))
     vs.push(Reg(reg))
-
-  /** Prepare to start the compilation */
-  def start(): Unit = ()
-
-  /** Finish compilation session. */
-  def finish(): Unit =
-    val prog: Assembly.Prog = cb.getResult()
-    generator(prog)
-
 end RegisterMachine
 
 object RegisterMachine:

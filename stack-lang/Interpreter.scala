@@ -163,6 +163,7 @@ object Interpreter:
   def exec(word: Word)(using vs: ValueStack, sc: Scope): Unit =
     word match
       case Word.IntLit(v)  => vs.push(Value.IntVal(v))
+
       case Word.BoolLit(v) => vs.push(Value.BoolVal(v))
 
       case Word.Init(sym, words) =>

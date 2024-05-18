@@ -14,9 +14,12 @@ import StackMachine.RegisterAllocator
 class StackMachine(
   registerConfig: RegisterConfig,
   nativeFunctions: Map[Symbol, Label],
-  generator: Assembly.Prog => Unit
-) extends Platform:
+  generator: Assembly.Prog => Unit)
+extends Backend:
   import registerConfig.{ FP_REG, SP_REG, FREE_REGS }
+
+
+  type Context = Unit
 
   /** Maps symbols to addresses */
   val symbolAddrMap: mutable.Map[Symbol, Addr] = mutable.Map.from(nativeFunctions)
@@ -32,33 +35,35 @@ class StackMachine(
 
   export regAlloc.{ useReg, useTwoReg }
 
-  /**
-    * Generate entry code
-    *
-    * The entry code initializes the language runtime, call the main function and exit.
-    *
-    * Calling the passed function will compile the user entry code.
-    */
-  def entry(init: => Unit): Unit =
+  def compile(prog: Sast.Prog): Unit =
+    given Context = ()
+
+    for fun <- prog.funs do
+     symbolAddrMap(fun.symbol) = Label(fun.name)
+
+    for sym <- prog.vals do
+      val label = Label(sym.name)
+      symbolAddrMap(sym) = label
+      cb.add(Data.Uninit(label, Type.Int32))
+
+    // Compile functions
+    for fun <- prog.funs do
+      compile(fun)
+
     // Stack pointer is initialized by the kernel, initialize frame pointer
     cb.mark(this.entry)
     cb.add(Instr.Move(Reg(SP_REG), FP_REG))
-    init
+    call(prog.main)
     exit(0)
 
-  /** Declare the symbol to the platform as a preparation for compilation */
-  def declare(sym: Symbol): Unit =
-    assert(!sym.isPrimitive, "Unexpected primitive symbol " + sym)
-    val label = Label(sym.name)
-    symbolAddrMap(sym) = label
-    if sym.isValue then
-      cb.add(Data.Uninit(label, Type.Int32))
+    // generate code
+    generator(cb.getResult())
 
   /** Compile a function
     *
     * Calling the passed function will compile the body of the function.
     */
-  def function(fdef: Def.FunDef, compile: Compiler): Unit =
+  def compile(fdef: Fun)(using Context): Unit =
     val sym = fdef.symbol
     val label = symbolAddrMap(sym).asInstanceOf[Label]
     val paramCount = fdef.params.size
@@ -71,7 +76,7 @@ class StackMachine(
       val offset = ((paramCount + 1 - index) * 4).toByte
       symbolAddrMap(param) = Rel(FP_REG, offset)
 
-    compile(fdef.words)
+    compile(fdef.body)
 
     for param <- fdef.params do
       symbolAddrMap -= param
@@ -79,7 +84,7 @@ class StackMachine(
     ret()
 
   /** Compile a conditional statement, i.e if/then/else */
-  def conditional(ifword: Word.If, compile: Compiler): Unit =
+  def compile(ifword: Word.If)(using Context): Unit =
     val labelFalse = Label("_false")
     val labelEnd = Label("_ifEnd")
 
@@ -142,7 +147,7 @@ class StackMachine(
     *  │   value M   │
     *  └─────────────┘ ◄─────── SP
     */
-  def call(fun: Symbol) =
+  def call(fun: Symbol)(using Context) =
     val addr = symbolAddrMap(fun).asInstanceOf[Label]
     val StackInfo(argCount, resCount) = fun.info
     val returnLoc = Label("returnLoc")
@@ -182,20 +187,20 @@ class StackMachine(
     *
     * Value stack goes from low address to high address.
     */
-  def pop(destReg: Int) =
+  def pop(destReg: Int)(using Context) =
     cb.add(Instr.Load(Reg(SP_REG), destReg))
     cb.add(Instr.Add(Reg(SP_REG), Int32(4), SP_REG))
 
   /**
     * Pop the value on the top of the value stack without using it.
     */
-  def pop() =
+  def pop()(using Context) =
     cb.add(Instr.Add(Reg(SP_REG), Int32(4), SP_REG))
 
   /**
     * Push value on the value stack.
     */
-  def push(v: Value) =
+  def push(v: Value)(using Context) =
     cb.add(Instr.Sub(Reg(SP_REG), Int32(4), SP_REG))
     cb.add(Instr.Store(v, Reg(SP_REG)))
 
@@ -203,27 +208,28 @@ class StackMachine(
     *
     * Calling the passed function will compile the initializer.
     */
-  def initVal(vdef: Def.ValDef, compile: Compiler): Unit =
-    val label = symbolAddrMap(vdef.symbol).asInstanceOf[Label]
-    compile(vdef.words)
+  def compile(init: Word.Init)(using Context): Unit =
+    val label = symbolAddrMap(init.symbol).asInstanceOf[Label]
+    compile(init.rhs)
     useReg: r =>
       pop(r)
       cb.add(Instr.Store(Reg(r), label))
 
   /** Push an integer literal to value stack */
-  def push(v: Int): Unit = push(Int32(v))
+  def push(v: Int)(using Context): Unit = push(Int32(v))
 
   /** Push a Boolean literal to value stack */
-  def push(v: Boolean): Unit = push(Int32(if v then 1 else 0))
+  def push(v: Boolean)(using Context): Unit =
+    push(Int32(if v then 1 else 0))
 
   /** Push the value associated with the given symbol to value stack */
-  def push(sym: Symbol): Unit =
+  def push(sym: Symbol)(using Context): Unit =
     val addr = symbolAddrMap(sym)
     useReg: r =>
       cb.add(Instr.Load(addr, r))
       push(Reg(r))
 
-  def primitive(sym: Symbol): Unit =
+  def primitive(sym: Symbol)(using Context): Unit =
     sym match
       case predef.add    =>   int2(Instr.Add)
       case predef.sub    =>   int2(Instr.Sub)
@@ -263,7 +269,7 @@ class StackMachine(
     val addr = Rel(SP_REG, (index * 4).toByte)
     cb.add(Instr.Store(value, addr))
 
-  def int2(fn: (Operand, Operand, Int) => Instr) =
+  def int2(fn: (Operand, Operand, Int) => Instr)(using Context) =
     // TODO: check type of value
     useTwoReg: (r1, r2) =>
       // Reduce arithmetic on stack pointer to 1
@@ -280,21 +286,13 @@ class StackMachine(
       cb.add(Instr.And(Reg(r), Int32(1), r))
       storeValue(Reg(r), 0)
 
-  def eql() =
+  def eql()(using Context) =
     useTwoReg: (r1, r2) =>
       loadValue(r1, 0)
       loadValue(r2, 1)
       cb.add(Instr.Eq(Reg(r1), Reg(r2), r2))
       storeValue(Reg(r2), 1)
       pop()
-
-  /** Prepare to start the compilation */
-  def start(): Unit = ()
-
-  /** Finish compilation session. */
-  def finish(): Unit =
-    val prog: Assembly.Prog = cb.getResult()
-    generator(prog)
 
 end StackMachine
 

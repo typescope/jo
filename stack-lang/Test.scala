@@ -5,8 +5,7 @@
 //> using file Parser.scala
 //> using file Reporter.scala
 //> using file Assembly.scala
-//> using file Platform.scala
-//> using file Compiler.scala
+//> using file Backend.scala
 //> using file IO.scala
 //> using file Assembler.scala
 //> using file Linux.scala
@@ -19,7 +18,7 @@
 //> using file X86.scala
 //> using file ELF32.scala
 //> using file UniqueName.scala
-//> using file JSPlatform.scala
+//> using file JSBackend.scala
 //> using file JSOptimized.scala
 
 import java.io.{ File => JFile }
@@ -40,7 +39,7 @@ object Test:
     }
 
   def compileAndCheck(test: String): Boolean =
-    given Platform = Linux.createX86StackMachine(test, "c1")
+    val backend = Linux.createX86StackMachine(test, "c1")
     val state = new State()
     given reporter: Reporter = Reporter.withSource(test)(using state)
 
@@ -48,7 +47,7 @@ object Test:
       IO.fileContent(test)          |>
       Parsing.parse                 |>
       new Namer().transform         |>
-      Compiler.compile
+      backend.compile
 
       verifyErrors(test, Nil)
     catch
