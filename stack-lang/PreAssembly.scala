@@ -282,8 +282,7 @@ object PreAssembly:
     import regConfig.{ SP_REG, FP_REG }
 
     // mark beginning of function
-    if funLabel != cb.entry then
-      cb.mark(funLabel)
+    cb.mark(funLabel)
 
     val actualSavedRegs = calleeSavedRegs.filter(usedRegs.contains)
     // println(s"$funLabel, calleeSavedRegs = $calleeSavedRegs, usedRegs = $usedRegs, actual = $actualSavedRegs")

@@ -38,7 +38,6 @@ extends Backend:
   /** Buffer to hold the generated assembly code */
   val cb = new CodeBuffer(entryLabel)
 
-
   /** The code of a function before register allocation */
   val preAsm: PreAssembly.ItemBuffer = new PreAssembly.ItemBuffer
 
@@ -71,8 +70,12 @@ extends Backend:
 
     // Stack pointer is initialized by the kernel, initialize frame pointer
     cb.mark(this.entryLabel)
+    cb.add(Instr.Sub(Reg(SP_REG), Int32(4), SP_REG))
+    val endLabel = Label("_end")
+    cb.add(Instr.Store(endLabel, Reg(SP_REG)))
     cb.add(Instr.Move(Reg(SP_REG), FP_REG))
-    call(prog.main)
+    cb.add(Instr.Jump(symbolAddrMap(prog.main)))
+    cb.mark(endLabel)
     exit(0)
 
     // generate code
@@ -223,9 +226,10 @@ extends Backend:
 
   // TODO: platform-agnostic
   def exit(code: Int): Unit =
-    gen(Instr.Move(Int32(code), X86.EBX))  // exit code
-    gen(Instr.Move(Int32(1), X86.EAX))     // syscall number
-    gen(Instr.Special(X86.Syscall))        // syscall
+    // TODO: abstract over target buffer using context
+    cb.add(Instr.Move(Int32(code), X86.EBX))  // exit code
+    cb.add(Instr.Move(Int32(1), X86.EAX))     // syscall number
+    cb.add(Instr.Special(X86.Syscall))        // syscall
 
   /** Return from a function. */
   def ret(resLocs: List[Location]) =
