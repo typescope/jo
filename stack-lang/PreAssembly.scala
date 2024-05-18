@@ -8,6 +8,8 @@ import Assembly.*
   * The code is supposed to be ignostic to register allocation algorithms.
   */
 object PreAssembly:
+  val VIRTUAL_REG_START_INDEX = 256
+
   /** Placeholders in the generated code before register allocation.
     *
     * At the time of compilation, we don't know how many registers are actually
@@ -219,9 +221,11 @@ object PreAssembly:
     * fresh virtual registers.
     */
   def spill(
-    instr: Instr, regInfo: RegInfo, stackAlloc: Map[Int, Int],
-    allocVirtualReg: () => Int, addr: Int => Addr
-  ): List[Instr] =
+    instr: Instr,
+    regInfo: RegInfo,
+    stackAlloc: Map[Int, Int],
+    allocVirtualReg: () => Int,
+    addr: Int => Addr): List[Instr] =
 
     val RegInfo(defs, uses) = regInfo
     val before = mutable.ArrayBuffer.empty[Instr]
@@ -247,3 +251,76 @@ object PreAssembly:
     before += currentInstr
     before ++= after
     before.toList
+
+  def rewrite(
+    instrs: List[PreAssembly.Item],
+    stackAlloc: Map[Int, Int],
+    allocVirtualReg: () => Int,
+    addr: Int => Addr): List[PreAssembly.Item] =
+
+    instrs.flatMap:
+      case label: Label        => label :: Nil
+
+      case holder: PlaceHolder => holder :: Nil
+
+      case preInstr: PreInstr  =>
+       preInstr match
+         case PreInstr.Call(_, _, _) | PreInstr.Return =>
+           // spill should never concern call/return
+           preInstr :: Nil
+
+         case PreInstr.Instr(instr) =>
+           val instrs = spill(instr, preInstr.regInfo,  stackAlloc, allocVirtualReg, addr)
+           for instr2 <- instrs
+           yield PreInstr.Instr(instr2)
+
+  /** Commit register allocation result and emit assembly from pre-assembly */
+  def commitAlloc(
+    funLabel: Label, calleeSavedRegs: List[Int], instrs: List[PreAssembly.Item],
+    regAlloc: Map[Int, Int], usedRegs: Set[Int], spillCount: Int,
+    cb: CodeBuffer, regConfig: RegisterConfig): Unit =
+    import regConfig.{ SP_REG, FP_REG }
+
+    // mark beginning of function
+    if funLabel != cb.entry then
+      cb.mark(funLabel)
+
+    val actualSavedRegs = calleeSavedRegs.filter(usedRegs.contains)
+    // println(s"$funLabel, calleeSavedRegs = $calleeSavedRegs, usedRegs = $usedRegs, actual = $actualSavedRegs")
+
+    for item <- instrs do
+      item match
+        case l: Label =>
+          cb.mark(l)
+
+        case PlaceHolder.InitStackPointer =>
+          // Update SP at the beginning of function
+          val frameSize = spillCount + actualSavedRegs.size
+          cb.add(Instr.Sub(Reg(FP_REG), Int32(frameSize << 2), SP_REG))
+
+        case PlaceHolder.SaveRegisters =>
+          for (savedReg, i) <- actualSavedRegs.zipWithIndex do
+            val addr = Rel(FP_REG, (-((spillCount + i + 1) << 2)).toByte)
+            cb.add(Instr.Store(Reg(savedReg), addr))
+
+        case PlaceHolder.RestoreRegisters =>
+          for (savedReg, i) <- actualSavedRegs.zipWithIndex do
+            val addr = Rel(FP_REG, (-((spillCount + i + 1) << 2)).toByte)
+            cb.add(Instr.Load(addr, savedReg))
+
+        case preInstr: PreInstr =>
+          preInstr match
+            case PreInstr.Instr(instr) =>
+              for instr2 <- subst(instr, regAlloc) do
+                val RegInfo(defs, uses) = PreAssembly.analyzeRegInfo(instr2)
+                for dest <- defs do assert(dest < VIRTUAL_REG_START_INDEX, dest)
+                for use <- uses do assert(use < VIRTUAL_REG_START_INDEX, use)
+                cb.add(instr2)
+
+            case PreInstr.Call(addr, _, _) =>
+              cb.add(Instr.Jump(addr))
+
+            case PreInstr.Return =>
+              // Use SP_REG for simplicity
+              cb.add(Instr.Load(Reg(FP_REG), SP_REG))
+              cb.add(Instr.Jump(Reg(SP_REG)))

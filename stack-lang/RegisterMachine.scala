@@ -25,7 +25,6 @@ extends Platform:
   val symbolAddrMap: mutable.Map[Symbol, Addr] = mutable.Map.from(nativeFunctions)
 
   /** To generate unique IDs of virtual registers */
-  val VIRTUAL_REG_START_INDEX = 100
   var virtualRegisterIndex = VIRTUAL_REG_START_INDEX
 
   /** Maps local symbols to virtual registers */
@@ -161,84 +160,18 @@ extends Platform:
       def addr(i: Int): Addr = Rel(FP_REG, (-(i + 1 + spillCount) << 2).toByte)
 
       if stackAlloc.isEmpty then
-        commitAlloc(label, calleeSavedRegs, instrs, regAlloc, usedRegs, spillCount)
+        commitAlloc(
+          label, calleeSavedRegs, instrs, regAlloc,
+          usedRegs, spillCount, cb, registerConfig
+        )
         continue = false
       else
         // rewrite program with spill and perform allocation again
         continue = true
-        instrs = rewrite(instrs, stackAlloc, addr)
+        instrs = rewrite(instrs, stackAlloc, allocVirtualReg, addr)
         spillCount += stackAlloc.size
     end while
 
-
-  def rewrite(
-    instrs: List[PreAssembly.Item],
-    stackAlloc: Map[Int, Int],
-    addr: Int => Addr): List[PreAssembly.Item] =
-
-    instrs.flatMap:
-      case label: Label        => label :: Nil
-
-      case holder: PlaceHolder => holder :: Nil
-
-      case preInstr: PreInstr  =>
-       preInstr match
-         case PreInstr.Call(_, _, _) | PreInstr.Return =>
-           // spill should never concern call/return
-           preInstr :: Nil
-
-         case PreInstr.Instr(instr) =>
-           for instr2 <- spill(instr, preInstr.regInfo,  stackAlloc, allocVirtualReg, addr)
-           yield PreInstr.Instr(instr2)
-
-  /** Commit register allocation result and emit assembly from pre-assembly */
-  def commitAlloc(
-    funLabel: Label, calleeSavedRegs: List[Int], instrs: List[PreAssembly.Item],
-    regAlloc: Map[Int, Int], usedRegs: Set[Int], spillCount: Int): Unit =
-
-    // mark beginning of function
-    if funLabel != this.entryLabel then
-      cb.mark(funLabel)
-
-    val actualSavedRegs = calleeSavedRegs.filter(usedRegs.contains)
-    // println(s"$funLabel, calleeSavedRegs = $calleeSavedRegs, usedRegs = $usedRegs, actual = $actualSavedRegs")
-
-    for item <- instrs do
-      item match
-        case l: Label =>
-          cb.mark(l)
-
-        case PlaceHolder.InitStackPointer =>
-          // Update SP at the beginning of function
-          val frameSize = spillCount + actualSavedRegs.size
-          cb.add(Instr.Sub(Reg(FP_REG), Int32(frameSize << 2), SP_REG))
-
-        case PlaceHolder.SaveRegisters =>
-          for (savedReg, i) <- actualSavedRegs.zipWithIndex do
-            val addr = Rel(FP_REG, (-((spillCount + i + 1) << 2)).toByte)
-            cb.add(Instr.Store(Reg(savedReg), addr))
-
-        case PlaceHolder.RestoreRegisters =>
-          for (savedReg, i) <- actualSavedRegs.zipWithIndex do
-            val addr = Rel(FP_REG, (-((spillCount + i + 1) << 2)).toByte)
-            cb.add(Instr.Load(addr, savedReg))
-
-        case preInstr: PreInstr =>
-          preInstr match
-            case PreInstr.Instr(instr) =>
-              for instr2 <- subst(instr, regAlloc) do
-                val RegInfo(defs, uses) = PreAssembly.analyzeRegInfo(instr2)
-                for dest <- defs do assert(dest < VIRTUAL_REG_START_INDEX, dest)
-                for use <- uses do assert(use < VIRTUAL_REG_START_INDEX, use)
-                cb.add(instr2)
-
-            case PreInstr.Call(addr, _, _) =>
-              cb.add(Instr.Jump(addr))
-
-            case PreInstr.Return =>
-              // Use SP_REG for simplicity
-              cb.add(Instr.Load(Reg(FP_REG), SP_REG))
-              cb.add(Instr.Jump(Reg(SP_REG)))
 
   /** Compile a conditional statement, i.e if/then/else */
   def conditional(ifword: Word.If, compile: Compiler): Unit =
