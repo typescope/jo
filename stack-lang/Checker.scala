@@ -16,6 +16,16 @@ class Checker(using Reporter):
     word match
       case _: Word.IntLit | _: Word.BoolLit => vs.push(1)
 
+      case Word.Init(sym, words) =>
+        val vs = new ValueStack
+        check(words)(using vs)
+
+        if vs.size != 1 then
+          Reporter.error(
+            "1 result expected for " + sym + ", found = " + vs.size,
+            word.pos
+          )
+
       case Word.If(cond, thenp, elsep) =>
         val vsCond = new ValueStack
         check(cond)(using vsCond)
@@ -57,30 +67,18 @@ class Checker(using Reporter):
   def check(words: List[Word])(using vs: ValueStack): Unit =
     for word <- words do check(word)
 
-  def check(defn: Def): Unit =
-    defn match
-      case valDef: Def.ValDef =>
-        val vs = new ValueStack
-        check(valDef.words)(using vs)
+  def check(fun: Fun): Unit =
+    val vs = new ValueStack
+    check(fun.body)(using vs)
 
-        if vs.size != 1 then
-          Reporter.error(
-            "1 result expected for " + defn.symbol + ", found = " + vs.size,
-            defn.pos
-          )
-
-      case funDef: Def.FunDef =>
-        val vs = new ValueStack
-        check(funDef.words)(using vs)
-
-        val sym = funDef.symbol
-        val resCount = sym.info.resCount
-        val size = vs.size
-        if size != resCount then
-          Reporter.error(
-            s"$resCount result(s) expected for $sym, found = $size",
-            defn.pos
-          )
+    val sym = fun.symbol
+    val resCount = sym.info.resCount
+    val size = vs.size
+    if size != resCount then
+      Reporter.error(
+        s"$resCount result(s) expected for $sym, found = $size",
+        fun.pos
+      )
 
 object Checker:
   /**

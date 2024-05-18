@@ -151,15 +151,11 @@ object Interpreter:
       rootScope.bind(k, Action.Prim(v))
 
     val sc = new Scope.NestedScope(rootScope)
-    for case Def.FunDef(sym, params, words) <- prog.defs do
+    for Fun(sym, params, words) <- prog.funs do
       sc.bind(sym, Action.Fun(params, words, sc))
 
     val vs = new ValueStack
-    for case Def.ValDef(sym, words) <- prog.defs do
-      exec(words)(using vs, sc)
-      sc.bind(sym, vs.pop())
-
-    exec(prog.main)(using vs, sc)
+    exec(Word.Ident(prog.main))(using vs, sc)
 
   def exec(words: List[Word])(using ValueStack, Scope): Unit =
     for word <- words do exec(word)
@@ -168,6 +164,10 @@ object Interpreter:
     word match
       case Word.IntLit(v)  => vs.push(Value.IntVal(v))
       case Word.BoolLit(v) => vs.push(Value.BoolVal(v))
+
+      case Word.Init(sym, words) =>
+        exec(words)
+        sc.bind(sym, vs.pop())
 
       case Word.If(cond, thenp, elsep) =>
         exec(cond)

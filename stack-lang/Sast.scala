@@ -59,12 +59,14 @@ object Sast:
     case IntLit(value: Int)
     case BoolLit(value: Boolean)
     case Ident(symbol: Symbol)
+    case Init(symbol: Symbol, rhs: List[Word])
     case If(cond: List[Word], thenp: List[Word], elsep: List[Word])
 
     lazy val info: StackInfo =
       this match
         case _: IntLit | _: BoolLit => StackInfo(0, 1)
         case ident: Ident => ident.symbol.info
+        case _: Init => StackInfo(0, 0)
         case If(_, thenp, _) =>
           // It's already checked that cond is StackInfo(0, 1) and the two
           // branches have the same stack info
@@ -73,14 +75,11 @@ object Sast:
             acc + added
           StackInfo(0, resCount.toByte)
 
-  enum Def extends Positioned:
-    val symbol: Symbol
+  case class Fun(symbol: Symbol, params: List[Symbol], body: List[Word])
+  extends Positioned:
     def name: String = symbol.name
 
-    case FunDef(symbol: Symbol, params: List[Symbol], words: List[Word])
-    case ValDef(symbol: Symbol, words: List[Word])
-
-  case class Prog(defs: List[Def], main: List[Word]):
+  case class Prog(funs: List[Fun], vals: List[Symbol], main: Symbol):
     Positioned.checkComponentPos(this)
 
   object predef:
