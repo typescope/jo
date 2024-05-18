@@ -1,6 +1,7 @@
-import Sast.StackInfo
-
 import scala.collection.mutable
+
+import Sast.StackInfo
+import Assembly.RegisterConfig
 
 import CallConvention.*
 
@@ -24,7 +25,11 @@ object CallConvention:
     case Reg(index: Int)
 
   case class CallerProtocol(
-    argLocs: List[Location], resLocs: List[Location], stackArgNum: Int):
+    argLocs: List[Location],
+    resLocs: List[Location],
+    savedRegs: List[Int]):
+
+    val stackArgNum: Int = argLocs.filter(_.isInstanceOf[Location.Stack]).size
 
     val argRegs: List[Int] =
       argLocs.flatMap:
@@ -36,7 +41,10 @@ object CallConvention:
         case Location.Reg(index) => index :: Nil
         case _ => Nil
 
-  case class CalleeProtocol(paramLocs: List[Location], resLocs: List[Location])
+  case class CalleeProtocol(
+    paramLocs: List[Location],
+    resLocs: List[Location],
+    savedRegs: List[Int])
 
   /**
     * A calling convention that passes first 4 arguments via registers and all
@@ -68,36 +76,38 @@ object CallConvention:
     *  └─────────────┘ ◄─────── SP
     *
     */
-  class RegisterCallConvention(paramRegs: List[Int], FP_REG: Int, SP_REG: Int)
+  class RegisterCallConvention(
+    registerConfig: RegisterConfig, PARAM_REGS: List[Int])
   extends CallConvention:
+    import registerConfig.{ FP_REG, SP_REG, FREE_REGS }
+
     /** Parameter locations in a function call */
-    def paramLocations(paramCount: Int): List[Location] =
+    private def paramLocations(paramCount: Int): List[Location] =
       val regArgNum = paramCount - stackArgNum(paramCount)
       // 2 for FP and return address
       val firstStackItem = (stackArgNum(paramCount) + 2 - 1) << 2
-      computeLocations(paramCount, regArgNum, paramRegs, FP_REG, firstStackItem)
+      computeLocations(paramCount, regArgNum, FP_REG, firstStackItem)
 
-    def argLocations(argCount: Int): List[Location] =
+    private def argLocations(argCount: Int): List[Location] =
       val regArgNum = argCount - stackArgNum(argCount)
-      computeLocations(argCount, regArgNum, paramRegs, SP_REG, -4)
+      computeLocations(argCount, regArgNum, SP_REG, -4)
 
-    def stackArgNum(argCount: Int): Int =
-      if argCount <= paramRegs.size then 0
-      else argCount - paramRegs.size
+    private def stackArgNum(argCount: Int): Int =
+      if argCount <= PARAM_REGS.size then 0
+      else argCount - PARAM_REGS.size
 
-    def stackResNum(resCount: Int): Int =
-      if resCount <= paramRegs.size then 0
-      else resCount - paramRegs.size
+    private def stackResNum(resCount: Int): Int =
+      if resCount <= PARAM_REGS.size then 0
+      else resCount - PARAM_REGS.size
 
     /** Argument locations in a function call */
-    def resLocations(resCount: Int): List[Location] =
+    private def resLocations(resCount: Int): List[Location] =
       val regResNum = resCount - stackResNum(resCount)
-      computeLocations(resCount, regResNum, paramRegs, FP_REG, -4)
+      computeLocations(resCount, regResNum, FP_REG, -4)
 
-    def computeLocations(
+    private def computeLocations(
       valueCount: Int,
       regValueNum: Int,
-      contractRegs: List[Int],
       baseReg: Int,
       startOffset: Int): List[Location] =
 
@@ -107,7 +117,7 @@ object CallConvention:
       while i < valueCount do
         // ordering of args
         if i < regValueNum then
-          buffer += Location.Reg(contractRegs(i))
+          buffer += Location.Reg(PARAM_REGS(i))
         else
           val delta = (i - regValueNum) << 2
           val offset = startOffset - delta
@@ -117,16 +127,26 @@ object CallConvention:
       end while
       buffer.toList
 
+    private def callerSaved(argCount: Int, resCount: Int): List[Int] =
+      val delta = if resCount > argCount then resCount - argCount else 0
+      PARAM_REGS.drop(argCount).take(delta)
+
+    private def calleeSaved(argCount: Int, resCount: Int): List[Int] =
+      val callerHandled = if resCount > argCount then resCount else argCount
+      FREE_REGS.diff(PARAM_REGS.take(callerHandled))
+
     def caller(funInfo: StackInfo): CallerProtocol =
       val StackInfo(argCount, resCount) = funInfo
 
       val argLocs = argLocations(argCount)
       val resLocs = resLocations(resCount)
-      CallerProtocol(argLocs, resLocs, stackArgNum(argCount))
+      val savedRegs = callerSaved(argCount, resCount)
+      CallerProtocol(argLocs, resLocs, savedRegs)
 
     def callee(funInfo: StackInfo): CalleeProtocol =
       val StackInfo(argCount, resCount) = funInfo
 
       val paramLocs = paramLocations(argCount)
       val resLocs = resLocations(resCount)
-      CalleeProtocol(paramLocs, resLocs)
+      val savedRegs = calleeSaved(argCount, resCount)
+      CalleeProtocol(paramLocs, resLocs, savedRegs)

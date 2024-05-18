@@ -106,6 +106,17 @@ object Assembly:
       sb.toString()
   end Prog
 
+  /** Register configuration */
+  trait RegisterConfig:
+    /** Registers available for free usage  */
+    val FREE_REGS: List[Int]
+
+    /** Reserved call stack register */
+    val SP_REG: Int
+
+    /** Reserved frame pointer register */
+    val FP_REG: Int
+
   /**
     * Hold generated assembly data and code.
     */

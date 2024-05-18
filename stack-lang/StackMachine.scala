@@ -4,7 +4,7 @@ import Assembly.*
 import Assembler.{ Patch, PatchableBuffer }
 import Sast.*
 
-import StackMachine.{ RegisterAllocator, RegisterConfig }
+import StackMachine.RegisterAllocator
 
 /**
   * Implementation based on a stack machine.
@@ -16,7 +16,7 @@ class StackMachine(
   nativeFunctions: Map[Symbol, Label],
   generator: Assembly.Prog => Unit
 ) extends Platform:
-  import registerConfig.{ FP_REG, SP_REG }
+  import registerConfig.{ FP_REG, SP_REG, FREE_REGS }
 
   /** Maps symbols to addresses */
   val symbolAddrMap: mutable.Map[Symbol, Addr] = mutable.Map.from(nativeFunctions)
@@ -28,7 +28,7 @@ class StackMachine(
   val cb = new CodeBuffer(entry)
 
   /** A simple register allocator */
-  val regAlloc = new RegisterAllocator(registerConfig.freeRegisters)
+  val regAlloc = new RegisterAllocator(FREE_REGS)
 
   export regAlloc.{ useReg, useTwoReg }
 
@@ -182,7 +182,7 @@ class StackMachine(
     *
     * Value stack goes from low address to high address.
     */
-  def pop(destReg: Byte) =
+  def pop(destReg: Int) =
     cb.add(Instr.Load(Reg(SP_REG), destReg))
     cb.add(Instr.Add(Reg(SP_REG), Int32(4), SP_REG))
 
@@ -263,7 +263,7 @@ class StackMachine(
     val addr = Rel(SP_REG, (index * 4).toByte)
     cb.add(Instr.Store(value, addr))
 
-  def int2(fn: (Operand, Operand, Byte) => Instr) =
+  def int2(fn: (Operand, Operand, Int) => Instr) =
     // TODO: check type of value
     useTwoReg: (r1, r2) =>
       // Reduce arithmetic on stack pointer to 1
@@ -299,17 +299,6 @@ class StackMachine(
 end StackMachine
 
 object StackMachine:
-  trait RegisterConfig:
-    /** Registers available for free usage  */
-    val freeRegisters: List[Byte]
-
-    /** Reserved call stack register */
-    val SP_REG: Byte
-
-    /** Reserved frame pointer register */
-    val FP_REG: Byte
-
-
   /**
     * A simple register allocator.
     *
@@ -317,7 +306,7 @@ object StackMachine:
     *
     * The registers reserved for call stack pointer and value stack pointer are excluded.
     */
-  class RegisterAllocator(freeRegs: List[Byte]):
+  class RegisterAllocator(freeRegs: List[Int]):
     var freeIndex = 0
 
     /**
@@ -327,7 +316,7 @@ object StackMachine:
       *
       * TODO: spilling if no temp registers are available?
       */
-    def useReg(fn: Byte => Unit): Unit =
+    def useReg(fn: Int => Unit): Unit =
       if freeIndex >= freeRegs.size then
         throw new Exception("No register available")
       else
@@ -342,7 +331,7 @@ object StackMachine:
       *
       * @see useReg
       */
-    def useTwoReg(fn: (Byte, Byte) => Unit): Unit =
+    def useTwoReg(fn: (Int, Int) => Unit): Unit =
       useReg: r1 =>
         useReg: r2 =>
           fn(r1, r2)

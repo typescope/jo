@@ -7,7 +7,7 @@ import Sast.*
 
 import CallConvention.*
 
-import RegisterMachine.{ RegisterConfig, ValueStack }
+import RegisterMachine.ValueStack
 
 /** Fast implementation with register allocation
   *
@@ -15,10 +15,11 @@ import RegisterMachine.{ RegisterConfig, ValueStack }
   */
 class RegisterMachine(
   registerConfig: RegisterConfig,
+  callConvention: CallConvention,
   nativeFunctions: Map[Symbol, Label],
   generator: Assembly.Prog => Unit)
 extends Platform:
-  import registerConfig.{ FP_REG, SP_REG, paramRegisters, freeRegisters }
+  import registerConfig.{ FP_REG, SP_REG, FREE_REGS }
 
   /** Maps global symbols to addresses */
   val symbolAddrMap: mutable.Map[Symbol, Addr] = mutable.Map.from(nativeFunctions)
@@ -36,7 +37,6 @@ extends Platform:
   /** Buffer to hold the generated assembly code */
   val cb = new CodeBuffer(entryLabel)
 
-  val callConvention = RegisterCallConvention(paramRegisters, FP_REG, SP_REG)
 
   /** The code of a function before register allocation */
   val preAsm: PreAssembly.ItemBuffer = new PreAssembly.ItemBuffer
@@ -89,14 +89,10 @@ extends Platform:
 
     assert(paramCount < 31, s"At most 30 parameters, $sym has " + paramCount)
 
-    val StackInfo(paramNum, resNum) = sym.info
-    val numCallerSavedRegs = if paramNum > resNum then paramNum else resNum
-    val callerSavedRegs = paramRegisters.take(numCallerSavedRegs)
-    val calleeSavedRegs = freeRegisters.diff(callerSavedRegs)
+    val CalleeProtocol(paramLocs, resLocs, savedRegs) =
+      callConvention.callee(sym.info)
 
-    val CalleeProtocol(paramLocs, resLocs) = callConvention.callee(sym.info)
-
-    allocRegisters(label, calleeSavedRegs):
+    allocRegisters(label, savedRegs):
       // Compile function to a temporary buffer for register allocation
       gen(PlaceHolder.InitStackPointer)
 
@@ -122,7 +118,10 @@ extends Platform:
 
       ret(resLocs)
 
-  def allocRegisters(label: Label, calleeSavedRegs: List[Int])(compile: => Unit): Unit =
+  def allocRegisters
+    (label: Label, calleeSavedRegs: List[Int])
+    (compile: => Unit): Unit =
+
     initVirtualRegisterIndex()
     preAsm.clear()
     symbolRegMap.clear()
@@ -151,7 +150,7 @@ extends Platform:
           GraphColoring.alloc(
             label.name,
             liveness,
-            freeRegisters,
+            registerConfig.FREE_REGS,
             reservedRegisters,
             VIRTUAL_REG_START_INDEX
           )
@@ -173,8 +172,9 @@ extends Platform:
 
 
   def rewrite(
-    instrs: List[PreAssembly.Item], stackAlloc: Map[Int, Int], addr: Int => Addr
-  ): List[PreAssembly.Item] =
+    instrs: List[PreAssembly.Item],
+    stackAlloc: Map[Int, Int],
+    addr: Int => Addr): List[PreAssembly.Item] =
 
     instrs.flatMap:
       case label: Label        => label :: Nil
@@ -194,8 +194,7 @@ extends Platform:
   /** Commit register allocation result and emit assembly from pre-assembly */
   def commitAlloc(
     funLabel: Label, calleeSavedRegs: List[Int], instrs: List[PreAssembly.Item],
-    regAlloc: Map[Int, Int], usedRegs: Set[Int], spillCount: Int
-  ): Unit =
+    regAlloc: Map[Int, Int], usedRegs: Set[Int], spillCount: Int): Unit =
 
     // mark beginning of function
     if funLabel != this.entryLabel then
@@ -315,8 +314,10 @@ extends Platform:
     val target = symbolAddrMap(fun).asInstanceOf[Label]
     val StackInfo(argCount, resCount) = fun.info
 
-    val proto @ CallerProtocol(argLocs, resLocs, stackArgNum) =
+    val proto @ CallerProtocol(argLocs, resLocs, savedRegs) =
       callConvention.caller(fun.info)
+
+    // TODO: save registers
 
     // save args
     val args = vs.pop(argCount)
@@ -331,15 +332,15 @@ extends Platform:
 
     // FP/SP and return address
     // required for all protocols
-    val indexFP = -stackArgNum - 1
+    val indexFP = -proto.stackArgNum - 1
     storeValue(Reg(FP_REG), indexFP.toByte)
 
-    val indexRet = -stackArgNum - 2
+    val indexRet = -proto.stackArgNum - 2
     val returnLoc = Label("returnLoc")
     storeValue(returnLoc, indexRet.toByte)
 
     // update FP
-    val stackDelta = (stackArgNum + 2) << 2
+    val stackDelta = (proto.stackArgNum + 2) << 2
     gen(Instr.Sub(Reg(SP_REG), Int32(stackDelta), FP_REG))
 
     // jump to target
@@ -354,6 +355,7 @@ extends Platform:
     // copy result
     for loc <- resLocs do
       val virtualReg = allocVirtualReg()
+      vs.push(Reg(virtualReg))
       loc match
         case Location.Reg(res) =>
           gen(Instr.Move(Reg(res), virtualReg))
@@ -362,7 +364,8 @@ extends Platform:
           val addr = Rel(baseReg, offset.toByte)
           gen(Instr.Load(addr, virtualReg))
       end match
-      vs.push(Reg(virtualReg))
+
+    // TODO restore registers
 
     // restore FP
     loadValue(FP_REG, indexFP.toByte)
@@ -465,20 +468,6 @@ extends Platform:
 end RegisterMachine
 
 object RegisterMachine:
-  trait RegisterConfig:
-    /** Registers available for free usage  */
-    val freeRegisters: List[Int]
-
-    // TODO: does call convention belong here?
-    /** Registers for function call and return in the order of parameters */
-    val paramRegisters: List[Int]
-
-    /** Reserved call stack register */
-    val SP_REG: Byte
-
-    /** Reserved frame pointer register */
-    val FP_REG: Byte
-
   /** The abstract value stack for compilation */
   class ValueStack:
     val stack: mutable.ArrayBuffer[Operand] = new mutable.ArrayBuffer
