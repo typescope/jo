@@ -68,18 +68,21 @@ extends Backend:
     for fun <- prog.funs do
       compile(fun)
 
+    entry(prog.main)
+
+    // generate code
+    generator(cb.getResult())
+
+  def entry(main: Symbol)(using Context) =
     // Stack pointer is initialized by the kernel, initialize frame pointer
     cb.mark(this.entryLabel)
     cb.add(Instr.Sub(Reg(SP_REG), Int32(4), SP_REG))
     val endLabel = Label("_end")
     cb.add(Instr.Store(endLabel, Reg(SP_REG)))
     cb.add(Instr.Move(Reg(SP_REG), FP_REG))
-    cb.add(Instr.Jump(symbolAddrMap(prog.main)))
+    cb.add(Instr.Jump(symbolAddrMap(main)))
     cb.mark(endLabel)
     exit(0)
-
-    // generate code
-    generator(cb.getResult())
 
   /** Compile a function
     *
