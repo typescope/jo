@@ -59,6 +59,20 @@ object PreAssembly:
     def getResult(): List[Item] = code.toList
     def clear(): Unit = code.clear()
 
+  /**
+    * A virtual register generator.
+    *
+    * A new instance must be used for each function.
+    */
+  class VirtualRegGenerator:
+    /** To generate unique IDs of virtual registers */
+    var index = VIRTUAL_REG_START_INDEX
+
+    /** Allocate a virtual register */
+    def fresh(): Int =
+      index += 1
+      index
+
   /** Analyze the assigned and used registers of an instruction */
   def analyzeRegInfo(instr: Instr): RegInfo =
     val useRegs = mutable.ArrayBuffer.empty[Int]
@@ -224,7 +238,7 @@ object PreAssembly:
     instr: Instr,
     regInfo: RegInfo,
     stackAlloc: Map[Int, Int],
-    allocVirtualReg: () => Int,
+    generator: VirtualRegGenerator,
     addr: Int => Addr): List[Instr] =
 
     val RegInfo(defs, uses) = regInfo
@@ -235,7 +249,7 @@ object PreAssembly:
     for use <- uses do
       stackAlloc.get(use) match
         case Some(i) =>
-          val virtualReg = allocVirtualReg()
+          val virtualReg = generator.fresh()
           before += Instr.Load(addr(i), virtualReg)
           currentInstr = substSource(currentInstr, Map(use -> virtualReg))
         case None =>
@@ -243,7 +257,7 @@ object PreAssembly:
     for destReg <- defs do
       stackAlloc.get(destReg) match
         case Some(i) =>
-          val virtualReg = allocVirtualReg()
+          val virtualReg = generator.fresh()
           after += Instr.Store(Reg(virtualReg), addr(i))
           currentInstr = substDest(currentInstr, Map(destReg -> virtualReg))
         case None =>
@@ -255,7 +269,7 @@ object PreAssembly:
   def rewrite(
     instrs: List[PreAssembly.Item],
     stackAlloc: Map[Int, Int],
-    allocVirtualReg: () => Int,
+    generator: VirtualRegGenerator,
     addr: Int => Addr): List[PreAssembly.Item] =
 
     instrs.flatMap:
@@ -264,15 +278,16 @@ object PreAssembly:
       case holder: PlaceHolder => holder :: Nil
 
       case preInstr: PreInstr  =>
-       preInstr match
-         case PreInstr.Call(_, _, _) | PreInstr.Return =>
-           // spill should never concern call/return
-           preInstr :: Nil
+        preInstr match
+          case PreInstr.Call(_, _, _) | PreInstr.Return =>
+            // spill should never concern call/return
+            preInstr :: Nil
 
-         case PreInstr.Instr(instr) =>
-           val instrs = spill(instr, preInstr.regInfo,  stackAlloc, allocVirtualReg, addr)
-           for instr2 <- instrs
-           yield PreInstr.Instr(instr2)
+          case PreInstr.Instr(instr) =>
+            val instrs =
+              spill(instr, preInstr.regInfo,  stackAlloc, generator, addr)
+            for instr2 <- instrs
+            yield PreInstr.Instr(instr2)
 
   /** Commit register allocation result and emit assembly from pre-assembly */
   def commitAlloc(

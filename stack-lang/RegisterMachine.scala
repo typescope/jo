@@ -7,7 +7,7 @@ import Sast.*
 
 import CallConvention.*
 
-import RegisterMachine.ValueStack
+import RegisterMachine.*
 
 /** Fast implementation with register allocation
   *
@@ -21,40 +21,30 @@ class RegisterMachine(
 extends Backend:
   import registerConfig.{ FP_REG, SP_REG, FREE_REGS }
 
-  type Context = Unit
+  type Context = FunctionContext
 
   /** Maps global symbols to addresses */
   val symbolAddrMap: mutable.Map[Symbol, Addr] = mutable.Map.from(nativeFunctions)
 
-  /** To generate unique IDs of virtual registers */
-  var virtualRegisterIndex = VIRTUAL_REG_START_INDEX
+  def freshVirtualReg()(using ctx: Context): Int =
+    ctx.generator.fresh()
 
-  /** Maps local symbols to virtual registers */
-  val symbolRegMap: mutable.Map[Symbol, Int] = mutable.Map.empty
+  def gen(instr : Instr)(using ctx: Context): Unit =
+    ctx.buffer.gen(instr)
 
-  /** Entry point of the program */
-  val entryLabel = Label("_entry")
+  def gen(instr : PreInstr)(using ctx: Context): Unit =
+    ctx.buffer.gen(instr)
 
-  /** Buffer to hold the generated assembly code */
-  val cb = new CodeBuffer(entryLabel)
+  def gen(holder: PlaceHolder)(using ctx: Context): Unit =
+    ctx.buffer.gen(holder)
 
-  /** The code of a function before register allocation */
-  val preAsm: PreAssembly.ItemBuffer = new PreAssembly.ItemBuffer
-
-  import preAsm.gen
-
-  def initVirtualRegisterIndex() =
-    virtualRegisterIndex = VIRTUAL_REG_START_INDEX
-
-  /** Allocate a virtual register */
-  def allocVirtualReg(): Int =
-    virtualRegisterIndex += 1
-    virtualRegisterIndex
-
-  private val vs: ValueStack = new ValueStack
+  def gen(label: Label)(using ctx: Context): Unit =
+    ctx.buffer.gen(label)
 
   def compile(prog: Sast.Prog): Unit =
-    given Context = ()
+    // Buffer to hold the generated assembly code
+    val entryLabel = Label("_entry")
+    val cb = new CodeBuffer(entryLabel)
 
     for fun <- prog.funs do
       symbolAddrMap(fun.symbol) = Label(fun.name)
@@ -66,83 +56,82 @@ extends Backend:
 
     // Compile functions
     for fun <- prog.funs do
-      compile(fun)
+      val sym = fun.symbol
+      val ctx = freshFunctionContext(sym)
+      val proto = compile(fun)(using ctx)
 
-    entry(prog.main)
+      // perform register allocation
+      assert(ctx.vs.size == 0, ctx.vs.size)
+      val label = symbolAddrMap(sym).asInstanceOf[Label]
+      allocRegisters(
+        label, ctx.buffer.getResult(), proto.savedRegs, cb, ctx.generator)
+
+    entry(entryLabel, prog.main, cb)
 
     // generate code
     generator(cb.getResult())
 
-  def entry(main: Symbol)(using Context) =
+  def entry(label: Label, main: Symbol, cb: CodeBuffer) =
     // Stack pointer is initialized by the kernel, initialize frame pointer
-    cb.mark(this.entryLabel)
+    cb.mark(label)
     cb.add(Instr.Sub(Reg(SP_REG), Int32(4), SP_REG))
     val endLabel = Label("_end")
     cb.add(Instr.Store(endLabel, Reg(SP_REG)))
     cb.add(Instr.Move(Reg(SP_REG), FP_REG))
+
     cb.add(Instr.Jump(symbolAddrMap(main)))
+
     cb.mark(endLabel)
-    exit(0)
+    exit(0)(cb)
 
   /** Compile a function
     *
     * Calling the passed function will compile the body of the function.
     */
-  def compile(fdef: Fun)(using Context): Unit =
+  def compile(fdef: Fun)(using ctx: Context): CalleeProtocol =
     val sym = fdef.symbol
-    val label = symbolAddrMap(sym).asInstanceOf[Label]
     val paramCount = fdef.params.size
 
     assert(paramCount < 31, s"At most 30 parameters, $sym has " + paramCount)
 
-    val CalleeProtocol(paramLocs, resLocs, savedRegs) =
+    val proto @ CalleeProtocol(paramLocs, resLocs, savedRegs) =
       callConvention.callee(sym.info)
 
-    allocRegisters(label, savedRegs):
-      // Compile function to a temporary buffer for register allocation
-      gen(PlaceHolder.InitStackPointer)
+    // Compile function to a temporary buffer for register allocation
+    gen(PlaceHolder.InitStackPointer)
 
-      // callee-saved registers
-      gen(PlaceHolder.SaveRegisters)
+    // callee-saved registers
+    gen(PlaceHolder.SaveRegisters)
 
-      // bind param to virtual registers and load data
-      for (param, loc) <- fdef.params.zip(paramLocs) do
-        val paramReg = allocVirtualReg()
-        symbolRegMap(param) = paramReg
+    // bind param to virtual registers and load data
+    for (param, loc) <- fdef.params.zip(paramLocs) do
+      val paramReg = freshVirtualReg()
+      ctx.setRegForLocal(param, paramReg)
 
-        loc match
-          case Location.Reg(arg) =>
-            gen(Instr.Move(Reg(arg), paramReg))
+      loc match
+        case Location.Reg(arg) =>
+          gen(Instr.Move(Reg(arg), paramReg))
 
-          case Location.Stack(baseReg, offset) =>
-            val addr = Rel(baseReg, offset.toByte)
-            gen(Instr.Load(addr, paramReg))
-        end match
-      end for
+        case Location.Stack(baseReg, offset) =>
+          val addr = Rel(baseReg, offset.toByte)
+          gen(Instr.Load(addr, paramReg))
+      end match
+    end for
 
-      compile(fdef.body)
+    compile(fdef.body)
 
-      ret(resLocs)
+    ret(resLocs)
 
-  def allocRegisters
-    (label: Label, calleeSavedRegs: List[Int])
-    (compile: => Unit): Unit =
+    proto
 
-    initVirtualRegisterIndex()
-    preAsm.clear()
-    symbolRegMap.clear()
-    vs.clear()
-
-    compile
-
-    // clean up
-    symbolRegMap.clear()
-    assert(vs.size == 0, vs.size)
+  def allocRegisters(
+    label: Label, preAsm: List[Item], calleeSavedRegs: List[Int],
+    cb: CodeBuffer, generator: VirtualRegGenerator): Unit =
 
     // Register allocation
     var continue = true
     var spillCount = 0
-    var instrs = preAsm.getResult()
+    var instrs = preAsm
     while continue do
       // println(s"<${label.name}>:")
       // println(Assembly.Prog(Nil, instrs, label).show())
@@ -175,19 +164,21 @@ extends Backend:
       else
         // rewrite program with spill and perform allocation again
         continue = true
-        instrs = rewrite(instrs, stackAlloc, allocVirtualReg, addr)
+        instrs = rewrite(instrs, stackAlloc, generator, addr)
         spillCount += stackAlloc.size
     end while
 
 
   /** Compile a conditional statement, i.e if/then/else */
-  def compile(ifword: Word.If)(using Context): Unit =
+  def compile(ifword: Word.If)(using ctx: Context): Unit =
     val labelFalse = Label("_false")
     val labelEnd = Label("_ifEnd")
 
     val resCount = ifword.info.resCount
 
     compile(ifword.cond)
+
+    val vs = ctx.vs
 
     vs.pop() match
       case Int32(i) =>
@@ -212,7 +203,7 @@ extends Backend:
 
         else
           assert(ifword.elsep.nonEmpty)
-          val resRegs = (0 until resCount).map(_ => allocVirtualReg())
+          val resRegs = (0 until resCount).map(_ => freshVirtualReg())
 
           // finish true branch
           for reg <- resRegs do gen(Instr.Move(vs.pop(), reg))
@@ -228,15 +219,15 @@ extends Backend:
         end if
 
   // TODO: platform-agnostic
-  def exit(code: Int): Unit =
+  def exit(code: Int)(cb: CodeBuffer): Unit =
     // TODO: abstract over target buffer using context
     cb.add(Instr.Move(Int32(code), X86.EBX))  // exit code
     cb.add(Instr.Move(Int32(1), X86.EAX))     // syscall number
     cb.add(Instr.Special(X86.Syscall))        // syscall
 
   /** Return from a function. */
-  def ret(resLocs: List[Location]) =
-    val values = vs.pop(resLocs.size)
+  def ret(resLocs: List[Location])(using ctx: Context) =
+    val values = ctx.vs.pop(resLocs.size)
     for (value, loc) <- values.zip(resLocs) do
       loc match
         case Location.Reg(dest) =>
@@ -251,7 +242,7 @@ extends Backend:
     gen(PreInstr.Return)
 
   /** Call the funtion */
-  def call(fun: Symbol)(using Context) =
+  def call(fun: Symbol)(using ctx: Context) =
     val target = symbolAddrMap(fun).asInstanceOf[Label]
     val StackInfo(argCount, resCount) = fun.info
 
@@ -261,7 +252,7 @@ extends Backend:
     // TODO: save registers
 
     // save args
-    val args = vs.pop(argCount)
+    val args = ctx.vs.pop(argCount)
     for (arg, loc) <- args.zip(argLocs) do
       loc match
         case Location.Reg(dest) =>
@@ -295,8 +286,8 @@ extends Backend:
 
     // copy result
     for loc <- resLocs do
-      val virtualReg = allocVirtualReg()
-      vs.push(Reg(virtualReg))
+      val virtualReg = freshVirtualReg()
+      ctx.vs.push(Reg(virtualReg))
       loc match
         case Location.Reg(res) =>
           gen(Instr.Move(Reg(res), virtualReg))
@@ -315,29 +306,30 @@ extends Backend:
     *
     * Calling the passed function will compile the initializer.
     */
-  def compile(init: Word.Init)(using Context): Unit =
+  def compile(init: Word.Init)(using ctx: Context): Unit =
     val label = symbolAddrMap(init.symbol).asInstanceOf[Label]
     compile(init.rhs)
-    gen(Instr.Store(vs.pop(), label))
+    gen(Instr.Store(ctx.vs.pop(), label))
 
   /** Push an integer literal to value stack */
-  def push(v: Int)(using Context): Unit = vs.push(Int32(v))
+  def push(v: Int)(using ctx: Context): Unit =
+    ctx.vs.push(Int32(v))
 
   /** Push a Boolean literal to value stack */
-  def push(v: Boolean)(using Context): Unit =
-    vs.push(Int32(if v then 1 else 0))
+  def push(v: Boolean)(using ctx: Context): Unit =
+    ctx.vs.push(Int32(if v then 1 else 0))
 
   /** Push the value associated with the given symbol to value stack */
-  def push(sym: Symbol)(using Context): Unit =
+  def push(sym: Symbol)(using ctx: Context): Unit =
     // TODO: handle function local value definitions
     if sym.isParameter then
-      val reg = symbolRegMap(sym)
-      vs.push(Reg(reg))
+      val reg = ctx.getRegForLocal(sym)
+      ctx.vs.push(Reg(reg))
     else
-      val reg = allocVirtualReg()
+      val reg = freshVirtualReg()
       val addr = symbolAddrMap(sym)
       gen(Instr.Load(addr, reg))
-      vs.push(Reg(reg))
+      ctx.vs.push(Reg(reg))
 
   def primitive(sym: Symbol)(using Context): Unit =
     sym match
@@ -367,7 +359,7 @@ extends Backend:
     *
     * The index begins from 0.
     */
-  def loadValue(destReg: Int, index: Byte): Unit =
+  def loadValue(destReg: Int, index: Byte)(using Context): Unit =
     val addr = Rel(SP_REG, (index * 4).toByte)
     gen(Instr.Load(addr, destReg))
 
@@ -375,29 +367,29 @@ extends Backend:
     *
     * The index begins from 0.
     */
-  def storeValue(value: Value, index: Byte): Unit =
+  def storeValue(value: Value, index: Byte)(using Context): Unit =
     val addr = Rel(SP_REG, (index * 4).toByte)
     gen(Instr.Store(value, addr))
 
-  def int2(fn: (Operand, Operand, Int) => Instr) =
+  def int2(fn: (Operand, Operand, Int) => Instr)(using ctx: Context) =
     // TODO: check type of value
-    val arg2 = vs.pop()
-    val arg1 = vs.pop()
-    val reg = allocVirtualReg()
+    val arg2 = ctx.vs.pop()
+    val arg1 = ctx.vs.pop()
+    val reg = freshVirtualReg()
     gen(fn(arg1, arg2, reg))
-    vs.push(Reg(reg))
+    ctx.vs.push(Reg(reg))
 
-  def bnot() =
-    val reg = allocVirtualReg()
-    val v = vs.pop()
+  def bnot()(using ctx: Context) =
+    val reg = freshVirtualReg()
+    val v = ctx.vs.pop()
     gen(Instr.Nor(v, v, reg))
     gen(Instr.And(Reg(reg), Int32(1), reg))
-    vs.push(Reg(reg))
+    ctx.vs.push(Reg(reg))
 
-  def eql() =
-    val reg = allocVirtualReg()
-    gen(Instr.Eq(vs.pop(), vs.pop(), reg))
-    vs.push(Reg(reg))
+  def eql()(using ctx: Context) =
+    val reg = freshVirtualReg()
+    gen(Instr.Eq(ctx.vs.pop(), ctx.vs.pop(), reg))
+    ctx.vs.push(Reg(reg))
 end RegisterMachine
 
 object RegisterMachine:
@@ -423,3 +415,23 @@ object RegisterMachine:
 
     override def toString() = stack.toString()
   end ValueStack
+
+  class FunctionContext(
+    val fun: Symbol,                          // function symbol
+    val vs: ValueStack,                       // value stack
+    val generator: VirtualRegGenerator,       // virtual register allocator
+    val buffer: PreAssembly.ItemBuffer,       // preassembly buffer
+    localsToReg: mutable.Map[Symbol, Int]):   // local -> virtual register
+
+    def getRegForLocal(local: Symbol) = localsToReg(local)
+
+    def setRegForLocal(local: Symbol, reg: Int) =
+      assert(!localsToReg.contains(local))
+      localsToReg(local) = reg
+
+  def freshFunctionContext(fun: Symbol): FunctionContext =
+    val localsMap = mutable.Map.empty[Symbol, Int]
+    val vs = new ValueStack
+    val generator = new VirtualRegGenerator
+    val buffer = new PreAssembly.ItemBuffer
+    FunctionContext(fun, vs, generator, buffer, localsMap)
