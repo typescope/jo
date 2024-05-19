@@ -63,8 +63,9 @@ extends Backend:
       // perform register allocation
       assert(ctx.vs.size == 0, ctx.vs.size)
       val label = symbolAddrMap(sym).asInstanceOf[Label]
-      allocRegisters(
-        label, ctx.buffer.getResult(), proto.savedRegs, cb, ctx.generator)
+      doGraphColoring(
+        label, ctx.buffer.getResult(), registerConfig, proto.savedRegs,
+        cb, ctx.generator)
 
     entry(entryLabel, prog.main, cb)
 
@@ -123,51 +124,6 @@ extends Backend:
     ret(resLocs)
 
     proto
-
-  def allocRegisters(
-    label: Label, preAsm: List[Item], calleeSavedRegs: List[Int],
-    cb: CodeBuffer, generator: VirtualRegGenerator): Unit =
-
-    // Register allocation
-    var continue = true
-    var spillCount = 0
-    var instrs = preAsm
-    while continue do
-      // println(s"<${label.name}>:")
-      // println(Assembly.Prog(Nil, instrs, label).show())
-
-      val liveness = Liveness.analyze(instrs)
-      // println(liveness)
-
-      val reservedRegisters: List[Int] = List(FP_REG, SP_REG)
-
-      val GraphColoring.Result(regAlloc, stackAlloc, usedRegs) =
-          GraphColoring.alloc(
-            label.name,
-            liveness,
-            registerConfig.FREE_REGS,
-            reservedRegisters,
-            VIRTUAL_REG_START_INDEX
-          )
-
-      // println(regAlloc)
-      // println(stackAlloc)
-
-      def addr(i: Int): Addr = Rel(FP_REG, (-(i + 1 + spillCount) << 2).toByte)
-
-      if stackAlloc.isEmpty then
-        commitAlloc(
-          label, calleeSavedRegs, instrs, regAlloc,
-          usedRegs, spillCount, cb, registerConfig
-        )
-        continue = false
-      else
-        // rewrite program with spill and perform allocation again
-        continue = true
-        instrs = rewrite(instrs, stackAlloc, generator, addr)
-        spillCount += stackAlloc.size
-    end while
-
 
   /** Compile a conditional statement, i.e if/then/else */
   def compile(ifword: Word.If)(using ctx: Context): Unit =

@@ -338,3 +338,49 @@ object PreAssembly:
               // Use SP_REG for simplicity
               cb.add(Instr.Load(Reg(FP_REG), SP_REG))
               cb.add(Instr.Jump(Reg(SP_REG)))
+
+  def doGraphColoring(
+    label: Label, preAsm: List[Item],
+    regConfig: RegisterConfig, calleeSavedRegs: List[Int],
+    cb: CodeBuffer, generator: VirtualRegGenerator): Unit =
+
+    // Register allocation
+    var continue = true
+    var spillCount = 0
+    var instrs = preAsm
+    while continue do
+      // println(s"<${label.name}>:")
+      // println(Assembly.Prog(Nil, instrs, label).show())
+
+      val liveness = Liveness.analyze(instrs)
+      // println(liveness)
+
+      val reservedRegisters: List[Int] =
+        List(regConfig.FP_REG, regConfig.SP_REG)
+
+      val GraphColoring.Result(regAlloc, stackAlloc, usedRegs) =
+          GraphColoring.alloc(
+            label.name,
+            liveness,
+            regConfig.FREE_REGS,
+            reservedRegisters,
+            VIRTUAL_REG_START_INDEX
+          )
+
+      // println(regAlloc)
+      // println(stackAlloc)
+
+      def addr(i: Int): Addr =
+        Rel(regConfig.FP_REG, (-(i + 1 + spillCount) << 2).toByte)
+
+      if stackAlloc.isEmpty then
+        commitAlloc(
+          label, calleeSavedRegs, instrs, regAlloc,
+          usedRegs, spillCount, cb, regConfig)
+        continue = false
+      else
+        // rewrite program with spill and perform allocation again
+        continue = true
+        instrs = rewrite(instrs, stackAlloc, generator, addr)
+        spillCount += stackAlloc.size
+    end while
