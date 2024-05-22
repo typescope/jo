@@ -95,14 +95,15 @@ extends Backend:
 
     assert(paramCount < 31, s"At most 30 parameters, $sym has " + paramCount)
 
-    val proto @ CalleeProtocol(paramLocs, resLocs, savedRegs) =
+    // TODO: bind retLoc
+    val proto @ CalleeProtocol(paramLocs, retLoc, resLocs, savedRegs) =
       callConvention.callee(sym.info)
 
     // Compile function to a temporary buffer for register allocation
     gen(PlaceHolder.InitStackPointer)
 
     // callee-saved registers
-    gen(PlaceHolder.SaveRegisters)
+    gen(PlaceHolder.CalleeSaveRegisters)
 
     // bind param to virtual registers and load data
     for (param, loc) <- fdef.params.zip(paramLocs) do
@@ -113,7 +114,7 @@ extends Backend:
         case Location.Reg(arg) =>
           gen(Instr.Move(Reg(arg), paramReg))
 
-        case Location.Stack(baseReg, offset) =>
+        case Location.Mem(baseReg, offset) =>
           val addr = Rel(baseReg, offset.toByte)
           gen(Instr.Load(addr, paramReg))
       end match
@@ -189,12 +190,12 @@ extends Backend:
         case Location.Reg(dest) =>
           gen(Instr.Move(value, dest))
 
-        case Location.Stack(reg, offset) =>
+        case Location.Mem(reg, offset) =>
           val addr = Rel(reg, offset.toByte)
            gen(Instr.Store(value, addr))
       end match
 
-    gen(PlaceHolder.RestoreRegisters)
+    gen(PlaceHolder.CalleeRestoreRegisters)
     gen(PreInstr.Return)
 
   /** Call the funtion */
@@ -202,33 +203,37 @@ extends Backend:
     val target = symbolAddrMap(fun).asInstanceOf[Label]
     val StackInfo(argCount, resCount) = fun.info
 
-    val proto @ CallerProtocol(argLocs, resLocs, savedRegs) =
+    val proto @ CallerProtocol(inRegs, onStack, resLocs) =
       callConvention.caller(fun.info)
 
-    // TODO: save registers
-
-    // save args
     val args = ctx.vs.pop(argCount)
-    for (arg, loc) <- args.zip(argLocs) do
-      loc match
-        case Location.Reg(dest) =>
-          gen(Instr.Move(arg, dest))
-
-        case Location.Stack(baseReg, offset) =>
-          val addr = Rel(baseReg, offset.toByte)
-          gen(Instr.Store(arg, addr))
-
-    // FP/SP and return address
-    // required for all protocols
-    val indexFP = -proto.stackArgNum - 1
-    storeValue(Reg(FP_REG), indexFP.toByte)
-
-    val indexRet = -proto.stackArgNum - 2
     val returnLoc = Label("returnLoc")
-    storeValue(returnLoc, indexRet.toByte)
+
+    for (fixed, dest) <- inRegs do
+      fixed match
+        case Fixed.Argument(i) =>
+          gen(Instr.Move(args(i), dest))
+
+        case Fixed.ReturnAddress =>
+          gen(Instr.Move(returnLoc, dest))
+
+    var index = 0
+    val regPositions = mutable.Map.empty[Int, Int]
+    for item <- onStack do
+      index -= 1
+      item match
+        case reg: Flex =>
+          regPositions(reg.reg) = index
+          storeValue(Reg(reg.reg), index.toByte)
+
+        case Fixed.Argument(i) =>
+          storeValue(args(i), index.toByte)
+
+        case Fixed.ReturnAddress =>
+          storeValue(returnLoc, index.toByte)
 
     // update FP
-    val stackDelta = (proto.stackArgNum + 2) << 2
+    val stackDelta = onStack.size << 2
     gen(Instr.Sub(Reg(SP_REG), Int32(stackDelta), FP_REG))
 
     // jump to target
@@ -237,7 +242,7 @@ extends Backend:
     // post call
     gen(returnLoc)
 
-    // restore SP and FP
+    // restore SP
     gen(Instr.Add(Reg(FP_REG), Int32(stackDelta), SP_REG))
 
     // copy result
@@ -248,15 +253,14 @@ extends Backend:
         case Location.Reg(res) =>
           gen(Instr.Move(Reg(res), virtualReg))
 
-        case Location.Stack(baseReg, offset) =>
+        case Location.Mem(baseReg, offset) =>
           val addr = Rel(baseReg, offset.toByte)
           gen(Instr.Load(addr, virtualReg))
       end match
 
-    // TODO restore registers
-
-    // restore FP
-    loadValue(FP_REG, indexFP.toByte)
+    // restore registers
+    for (reg, index) <- regPositions do
+      loadValue(reg, index.toByte)
 
   /** Initialize a value definition
     *

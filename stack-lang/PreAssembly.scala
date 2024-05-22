@@ -24,11 +24,12 @@ object PreAssembly:
     * better to be handled with placeholders.
     */
   enum PlaceHolder:
-    case InitStackPointer, SaveRegisters, RestoreRegisters
+    case InitStackPointer
+    case CalleeSaveRegisters
+    case CalleeRestoreRegisters
 
   /** Register usage information of an instruction */
   case class RegInfo(defs: List[Int], uses: List[Int])
-
   /** A pre-instruction contains information required for liveness analysis
     *
     * In particular, liveness analysis needs to (1) distinguish local jumps from
@@ -312,12 +313,12 @@ object PreAssembly:
           val frameSize = spillCount + actualSavedRegs.size
           cb.add(Instr.Sub(Reg(FP_REG), Int32(frameSize << 2), SP_REG))
 
-        case PlaceHolder.SaveRegisters =>
+        case PlaceHolder.CalleeSaveRegisters =>
           for (savedReg, i) <- actualSavedRegs.zipWithIndex do
             val addr = Rel(FP_REG, (-((spillCount + i + 1) << 2)).toByte)
             cb.add(Instr.Store(Reg(savedReg), addr))
 
-        case PlaceHolder.RestoreRegisters =>
+        case PlaceHolder.CalleeRestoreRegisters =>
           for (savedReg, i) <- actualSavedRegs.zipWithIndex do
             val addr = Rel(FP_REG, (-((spillCount + i + 1) << 2)).toByte)
             cb.add(Instr.Load(addr, savedReg))
