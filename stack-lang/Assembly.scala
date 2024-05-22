@@ -25,28 +25,36 @@ object Assembly:
   type Constant = Int32 | Label
   type Value    = Int32 | Label | Reg
 
-  enum BiOp:
-    case Add, Sub, Mul, Div, Mod, And, Or, Nor, Xor, Sll, Srl, Gt, Lt, Ge, Le, Eq
+  enum Arith:
+    case Add, Sub, Mul, Div, Mod
+
+  enum Bit:
+    case And, Or, Nor, Xor, Sll, Srl
+
+  enum Ord:
+    case Gt, Lt, Ge, Le, Eq
+
+  type BiOp = Arith | Bit | Ord
 
   object Instr:
-    def Add(v1: Operand, v2: Operand, destReg: Byte) = Binary(BiOp.Add, v1, v2, destReg)
-    def Sub(v1: Operand, v2: Operand, destReg: Byte) = Binary(BiOp.Sub, v1, v2, destReg)
-    def Mul(v1: Operand, v2: Operand, destReg: Byte) = Binary(BiOp.Mul, v1, v2, destReg)
-    def Div(v1: Operand, v2: Operand, destReg: Byte) = Binary(BiOp.Div, v1, v2, destReg)
-    def Mod(v1: Operand, v2: Operand, destReg: Byte) = Binary(BiOp.Mod, v1, v2, destReg)
+    def Add(v1: Operand, v2: Operand, destReg: Byte) = Binary(Arith.Add, v1, v2, destReg)
+    def Sub(v1: Operand, v2: Operand, destReg: Byte) = Binary(Arith.Sub, v1, v2, destReg)
+    def Mul(v1: Operand, v2: Operand, destReg: Byte) = Binary(Arith.Mul, v1, v2, destReg)
+    def Div(v1: Operand, v2: Operand, destReg: Byte) = Binary(Arith.Div, v1, v2, destReg)
+    def Mod(v1: Operand, v2: Operand, destReg: Byte) = Binary(Arith.Mod, v1, v2, destReg)
 
-    def And(v1: Operand, v2: Operand, destReg: Byte) = Binary(BiOp.And, v1, v2, destReg)
-    def Nor(v1: Operand, v2: Operand, destReg: Byte) = Binary(BiOp.Nor, v1, v2, destReg)
-    def Or (v1: Operand, v2: Operand, destReg: Byte) = Binary(BiOp.Or,  v1, v2, destReg)
-    def Xor(v1: Operand, v2: Operand, destReg: Byte) = Binary(BiOp.Xor, v1, v2, destReg)
-    def Sll(v1: Operand, v2: Operand, destReg: Byte) = Binary(BiOp.Sll, v1, v2, destReg)
-    def Srl(v1: Operand, v2: Operand, destReg: Byte) = Binary(BiOp.Srl, v1, v2, destReg)
+    def And(v1: Operand, v2: Operand, destReg: Byte) = Binary(Bit.And, v1, v2, destReg)
+    def Or (v1: Operand, v2: Operand, destReg: Byte) = Binary(Bit.Or,  v1, v2, destReg)
+    def Nor(v1: Operand, v2: Operand, destReg: Byte) = Binary(Bit.Nor, v1, v2, destReg)
+    def Xor(v1: Operand, v2: Operand, destReg: Byte) = Binary(Bit.Xor, v1, v2, destReg)
+    def Sll(v1: Operand, v2: Operand, destReg: Byte) = Binary(Bit.Sll, v1, v2, destReg)
+    def Srl(v1: Operand, v2: Operand, destReg: Byte) = Binary(Bit.Srl, v1, v2, destReg)
 
-    def Gt(v1: Operand, v2: Operand, destReg: Byte) = Binary(BiOp.Gt, v1, v2, destReg)
-    def Lt(v1: Operand, v2: Operand, destReg: Byte) = Binary(BiOp.Lt, v1, v2, destReg)
-    def Ge(v1: Operand, v2: Operand, destReg: Byte) = Binary(BiOp.Ge, v1, v2, destReg)
-    def Le(v1: Operand, v2: Operand, destReg: Byte) = Binary(BiOp.Le, v1, v2, destReg)
-    def Eq(v1: Operand, v2: Operand, destReg: Byte) = Binary(BiOp.Eq, v1, v2, destReg)
+    def Gt(v1: Operand, v2: Operand, destReg: Byte) = Binary(Ord.Gt, v1, v2, destReg)
+    def Lt(v1: Operand, v2: Operand, destReg: Byte) = Binary(Ord.Lt, v1, v2, destReg)
+    def Ge(v1: Operand, v2: Operand, destReg: Byte) = Binary(Ord.Ge, v1, v2, destReg)
+    def Le(v1: Operand, v2: Operand, destReg: Byte) = Binary(Ord.Le, v1, v2, destReg)
+    def Eq(v1: Operand, v2: Operand, destReg: Byte) = Binary(Ord.Eq, v1, v2, destReg)
 
   enum Instr:
     case Binary(op: BiOp, v1: Operand, v2: Operand, destReg: Byte)

@@ -7,6 +7,7 @@
 import scala.collection.mutable
 
 import Ast.*
+import Reporter.*
 
 /***********************************************************************
  *
@@ -22,12 +23,16 @@ object Parsing:
     case BoolLit(value: Boolean)
     case Ident(name: String)
 
-  def parse(code: String): Prog = new StackLangParser(code).parse()
+    def withSpan(span: Span): (Token, Span) = (this, span)
 
-  trait Scanner { def next(): Token     }
-  trait Parser  { def parse(): Prog }
+  def parse(code: String)(using Reporter): Prog =
+    new StackLangParser(code).parse()
 
-  private def err(msg: String) = throw new Exception(msg)
+  trait Scanner:
+    def next(): (Token, Span)
+
+  trait Parser:
+    def parse(): Prog
 
   object Scanner:
     def isNameStart(c: Char): Boolean =
@@ -49,7 +54,7 @@ object Parsing:
     def isLetter(c: Char): Boolean =
       c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
 
-  class CharStream(code: String):
+  class CharStream(code: String)(using reporter: Reporter):
     private val LEN = code.length
     private var index: Int = 0
 
@@ -61,6 +66,8 @@ object Parsing:
     def eat(): Char =
       val c = curChar()
       index += 1
+      if c == '\n' then reporter.addLineOffset(index)
+      else if !hasMore() then reporter.addLineOffset(index)
       c
 
     def eatWhile(pred: Char => Boolean): Unit =
@@ -83,7 +90,8 @@ object Parsing:
       curTokenStart = index
 
     def tokenEnd(): String =
-      if curTokenStart == -1 then err("Token is not marked by calling tokenStart()")
+      if curTokenStart == -1 then
+        abortInternal("Token is not marked by calling tokenStart()")
 
       sb.clear()
       var i = curTokenStart
@@ -91,34 +99,39 @@ object Parsing:
         sb += code(i)
         i += 1
 
-      curTokenStart = index
       sb.toString()
 
-  class StackLangScanner(chars: CharStream) extends Scanner:
+    def tokenSpan(): Span = Span(curTokenStart, index - curTokenStart)
+
+
+  class StackLangScanner(stream: CharStream)(using Reporter) extends Scanner:
     import Scanner.{ isDigit, isLetter, isNameStart, isNameRest, isSpace, isOperator }
 
-    def this(code: String) = this(new CharStream(code))
+    def this(code: String)(using Reporter) = this(new CharStream(code))
 
-    def next(): Token =
-      if !chars.hasMore() then return Token.EOF
+    def next(): (Token, Span) = nextToken().withSpan(stream.tokenSpan())
+
+    def nextToken(): Token =
+      if !stream.hasMore() then return Token.EOF
 
       // mark the start of a new token
-      chars.tokenStart()
+      stream.tokenStart()
 
-      chars.eat() match
+      stream.eat() match
         case '('    => Token.LPAREN
         case ')'    => Token.RPAREN
         case ';'    => Token.SEMICOL
         case ','    => Token.COMMA
 
         case '-'    =>
-          if chars.curChar(isDigit) then intLit()
+          if stream.curChar(isDigit) then intLit()
           else operator()
 
         case '/'    =>
-          if chars.curChar() == '/' then
-            chars.eatLine()
-            next()
+          if stream.curChar() == '/' then
+            stream.eatLine()
+            stream.tokenStart()
+            nextToken()
           else
             operator()
 
@@ -126,14 +139,15 @@ object Parsing:
           if      isDigit(c)      then intLit()
           else if isNameStart(c)  then name()
           else if isOperator(c)   then operator()
-          else if isSpace(c)      then next()
+          else if isSpace(c)      then nextToken()
           else
-            err("Unexpected character: " + c)
+            error("Unexpected character: " + c, stream.tokenSpan())
+            nextToken()
 
     def name(): Token =
-      chars.eatWhile(isNameRest)
+      stream.eatWhile(isNameRest)
 
-      chars.tokenEnd() match
+      stream.tokenEnd() match
         case "if"      => Token.IF
         case "then"    => Token.THEN
         case "else"    => Token.ELSE
@@ -145,15 +159,15 @@ object Parsing:
         case name      => Token.Ident(name)
 
     def operator(): Token =
-      chars.eatWhile(c => isOperator(c) && !chars.isComment())
+      stream.eatWhile(c => isOperator(c) && !stream.isComment())
 
-      chars.tokenEnd() match
+      stream.tokenEnd() match
         case "="   => Token.EQL
         case name  => Token.Ident(name)
 
     def intLit(): Token.IntLit =
-      chars.eatWhile(isDigit)
-      val intStr = chars.tokenEnd()
+      stream.eatWhile(isDigit)
+      val intStr = stream.tokenEnd()
       val value = str2Int(intStr)
       new Token.IntLit(value)
 
@@ -179,7 +193,7 @@ object Parsing:
       end while
 
       if overflow then
-        err("Integer literal overflow: " + str)
+        error("Integer literal overflow: " + str, stream.tokenSpan())
 
       sum
     end str2Int
@@ -188,7 +202,7 @@ object Parsing:
      * A scanner that supports peeking one token ahead.
      */
   class LookAheadScanner(scanner: Scanner) extends Scanner:
-    var peekedToken: Option[Token] = None
+    var peekedToken: Option[(Token, Span)] = None
     def next() =
       peekedToken match
         case None =>
@@ -206,17 +220,24 @@ object Parsing:
         case Some(token) =>
           token
 
-  class StackLangParser(code: String) extends Parser:
+  class StackLangParser(code: String)(using Reporter) extends Parser:
     val scanner = new LookAheadScanner(new StackLangScanner(code))
 
     def next() = scanner.next()
     def peek() = scanner.peek()
-    def eat(expect: Token): Unit =
-      val actual = next()
+    def eat(expect: Token): Span =
+      val (actual, span) = peek()
       if actual != expect then
-        err("Unexpected token, found = " + actual + ", expect = " + expect)
+        error("Unexpected token, found = " + actual + ", expect = " + expect, span)
+      else
+        next()
+      span
 
-    def parse(): Prog = prog()
+    def parse(): Prog =
+      val p = prog()
+      // With parsing errors, ensure finish scanning
+      while peek()._1 != Token.EOF do next()
+      p
 
     def prog(): Prog =
       val defs = definitions(new mutable.ArrayBuffer)
@@ -225,36 +246,39 @@ object Parsing:
       Prog(defs, words)
 
     def definitions(acc: mutable.ArrayBuffer[Def]): List[Def] =
-      peek() match
-      case Token.VAL => definitions(acc += valDef())
-      case Token.FUN => definitions(acc += funDef())
-      case _         => acc.toList
+      val (token, span) = peek()
+      token match
+        case Token.VAL => definitions(acc += valDef())
+        case Token.FUN => definitions(acc += funDef())
+        case _         => acc.toList
 
     def valDef(): Def =
-      eat(Token.VAL)
+      val span1 = eat(Token.VAL)
       val id = ident()
       eat(Token.EQL)
       val words = phrase()
-      eat(Token.SEMICOL)
-      Def.ValDef(id, words)
+      val span2 = eat(Token.SEMICOL)
+      Def.ValDef(id, words).withPos(span1 | span2)
 
     def funDef(): Def =
-      eat(Token.FUN)
+      val span1 = eat(Token.FUN)
       val id = ident()
       eat(Token.LPAREN)
       val paramList = params()
       eat(Token.RPAREN)
       eat(Token.EQL)
       val words = phrase()
-      eat(Token.SEMICOL)
-      Def.FunDef(id, paramList, words)
+      val span2 = eat(Token.SEMICOL)
+      Def.FunDef(id, paramList, words).withPos(span1 | span2)
 
     def params(): List[Word.Ident] =
-      if peek() == Token.RPAREN then Nil
+      val (token, _) = peek()
+      if token == Token.RPAREN then Nil
       else paramsRest(mutable.ArrayBuffer(ident()))
 
     def paramsRest(acc: mutable.ArrayBuffer[Word.Ident]): List[Word.Ident] =
-      if peek() == Token.RPAREN then acc.toList
+      val (token, _) = peek()
+      if token == Token.RPAREN then acc.toList
       else
         eat(Token.COMMA)
         paramsRest(acc += ident())
@@ -263,7 +287,9 @@ object Parsing:
       word() match
         case Some(w) => phraseRest(mutable.ArrayBuffer(w))
         case None    =>
-          err("Expect a word, found token " + peek())
+          val (token, span) = peek()
+          error("Expect a word, found token " + token, span)
+          Nil
 
     def phraseRest(words: mutable.ArrayBuffer[Word]): List[Word] =
       word() match
@@ -271,44 +297,51 @@ object Parsing:
         case None    => words.toList
 
     def word(): Option[Word] =
-      peek() match
+      val (token, span) = peek()
+      token match
         case _: Token.Ident  => Some(ident())
         case Token.LPAREN    => Some(fence())
         case Token.IF        => Some(ifword())
 
         case litToken: Token.IntLit  =>
           next()
-          Some(Word.IntLit(litToken.value))
+          Some(Word.IntLit(litToken.value).withPos(span))
 
         case litToken: Token.BoolLit =>
           next()
-          Some(Word.BoolLit(litToken.value))
+          Some(Word.BoolLit(litToken.value).withPos(span))
 
         case token =>
           None
 
     def ident(): Word.Ident =
-      next() match
-        case id: Token.Ident => new Word.Ident(id.name)
-        case token => err("Expect identifier, found token " + token)
+      val (token, span) = next()
+      token match
+        case id: Token.Ident =>
+          new Word.Ident(id.name).withPos(span)
+
+        case token =>
+          error("Expect identifier, found token " + token, span)
+          ident()
 
     def fence(): Word =
-      eat(Token.LPAREN)
+      val span1 = eat(Token.LPAREN)
       val words = phrase()
-      eat(Token.RPAREN)
-      Word.Fence(words)
+      val span2 = eat(Token.RPAREN)
+      Word.Fence(words).withPos(span1 | span2)
 
     def ifword(): Word =
-      eat(Token.IF)
+      val span1 = eat(Token.IF)
       val cond = phrase()
       eat(Token.THEN)
       val thenp = phrase()
       // else is optional
+      val (token, _) = peek()
       val elsep =
-        if peek() == Token.ELSE then
+        if token == Token.ELSE then
           eat(Token.ELSE)
           phrase()
         else
           Nil
-      eat(Token.END)
-      Word.If(cond, thenp, elsep)
+      val span2 = eat(Token.END)
+      Word.If(cond, thenp, elsep).withPos(span1 | span2)

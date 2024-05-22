@@ -1,3 +1,8 @@
+import scala.collection.mutable
+
+import Sast.Flag.*
+import Reporter.Positioned
+
 /***********************************************************************
  *
  * Semantic Abstract Syntax Trees
@@ -5,11 +10,6 @@
  * All names are resolved to symbols according to scoping rules.
  *
  ***********************************************************************/
-
-import scala.collection.mutable
-
-import Sast.Flag.*
-
 object Sast:
 
   final class Symbol(val name: String, val info: StackInfo, val flags: Flags):
@@ -55,11 +55,12 @@ object Sast:
 
   case class StackInfo(paramCount: Byte, resCount: Byte)
 
-  enum Word:
+  enum Word extends Positioned:
     case IntLit(value: Int)
     case BoolLit(value: Boolean)
     case Ident(symbol: Symbol)
     case If(cond: List[Word], thenp: List[Word], elsep: List[Word])
+
     lazy val info: StackInfo =
       this match
         case _: IntLit | _: BoolLit => StackInfo(0, 1)
@@ -72,14 +73,15 @@ object Sast:
             acc + added
           StackInfo(0, resCount.toByte)
 
-  enum Def:
+  enum Def extends Positioned:
     val symbol: Symbol
     def name: String = symbol.name
 
     case FunDef(symbol: Symbol, params: List[Symbol], words: List[Word])
     case ValDef(symbol: Symbol, words: List[Word])
 
-  case class Prog(defs: List[Def], main: List[Word])
+  case class Prog(defs: List[Def], main: List[Word]):
+    Positioned.checkComponentPos(this)
 
   object predef:
     private val symbols: mutable.ArrayBuffer[Symbol] = new mutable.ArrayBuffer

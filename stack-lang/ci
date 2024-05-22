@@ -3,15 +3,15 @@
 DIR=$(dirname "$0")
 
 INTERPRETER=$DIR/Interpreter.scala
-COMPILER=$DIR/Compiler.scala
+COMPILER=$DIR/Driver.scala
 
 # compile
 echo "Compiling $INTERPRETER"
 scala-cli compile $INTERPRETER
-scala-cli --power package --native $INTERPRETER -o stki
+scala-cli --power package -f --native $INTERPRETER -o stki
 
 echo "Compiling $COMPILER"
-scala-cli --power package --native $COMPILER -o stkc
+scala-cli --power package -f --native $COMPILER -o stkc
 
 # run tests
 RES1=$DIR/tests/int.txt
@@ -64,5 +64,15 @@ done
 rm $RES1
 rm $RES2
 rm $RES3
+
+# neg tests
+echo
+echo "Running negative tests"
+echo
+scala-cli stack-lang/Test.scala
+if [[ $? != 0 ]]; then
+  retcode=1
+fi
+
 echo $retcode
 exit $retcode
