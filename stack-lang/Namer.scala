@@ -31,14 +31,33 @@ class Namer(using Reporter):
 
       sc.define(sym, defn.pos)
 
-    val defs = for defn <- prog.defs yield transform(defn)(using sc)
-    val main = transform(prog.main)(using sc)
+    val inits = new mutable.ArrayBuffer[Word.Init]
+    val funs = new mutable.ArrayBuffer[Fun]
+
+    for defn <- prog.defs yield
+      val Some(sym) = sc.resolve(defn.name): @unchecked
+
+      defn match
+        case valDef: Ast.Def.ValDef =>
+          val rhs = transform(valDef.words)(using sc)
+          inits += new Word.Init(sym, rhs).withPos(defn.pos)
+
+        case funDef: Ast.Def.FunDef =>
+          funs += transform(sym, funDef)(using sc)
+    end for
+
+    val mainWords = transform(prog.main)(using sc)
+    val mainSym = Symbol.createFunSymbol("main", StackInfo(0, 0))
+    val mainBody = (inits ++ mainWords).toList
+    val mainPos = mainWords.map(_.pos).reduce(_ | _)
+    val mainFun = Fun(mainSym, params = Nil, body = mainBody).withPos(mainPos)
+
+    funs += mainFun
 
     // check code
-    for defn <- defs do checker.check(defn)
-    checker.check(main)(using new Checker.ValueStack)
+    for fun <- funs do checker.check(fun)
 
-    Prog(defs, main)
+    Prog(funs.toList, inits.map(_.symbol).toList, mainSym)
 
   private def transform(word: Ast.Word)(using sc: Scope): List[Word] =
     word match
@@ -60,23 +79,17 @@ class Namer(using Reporter):
   private def transform(words: List[Ast.Word])(using sc: Scope): List[Word] =
     words.flatMap(word => transform(word))
 
-  private def transform(defn: Ast.Def)(using sc: Scope): Def =
-    val Some(sym) = sc.resolve(defn.name): @unchecked
-    defn match
-      case valDef: Ast.Def.ValDef =>
-        Def.ValDef(sym, transform(valDef.words)).withPos(defn.pos)
+  private def transform(sym: Symbol, funDef: Ast.Def.FunDef)(using sc: Scope): Fun =
+    val funScope = new Scope.NestedScope(sc)
+    val paramSyms =
+      for param <- funDef.params
+      yield
+        val paramSym = Symbol.createParamSymbol(param.name)
+        funScope.define(paramSym, param.pos)
+        paramSym
 
-      case funDef: Ast.Def.FunDef =>
-        val funScope = new Scope.NestedScope(sc)
-        val paramSyms =
-          for param <- funDef.params
-          yield
-            val paramSym = Symbol.createParamSymbol(param.name)
-            funScope.define(paramSym, param.pos)
-            paramSym
-
-        val words = transform(funDef.words)(using funScope)
-        Def.FunDef(sym, paramSyms, words).withPos(defn.pos)
+    val words = transform(funDef.words)(using funScope)
+    Fun(sym, paramSyms, words).withPos(funDef.pos)
 
   private enum Scope:
     case RootScope()

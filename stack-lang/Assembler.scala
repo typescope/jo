@@ -14,18 +14,11 @@ trait Assembler:
   /** Compile the code to byte stream. */
   def lowerCode(code: List[Instr | Label])(using PatchableBuffer): Unit
 
-  /**
-    * Give assmbler the opportunity to add native services.
-    *
-    * We resort to services for functionalities that cannot be implement
-    * directly with the generic assembly.
-    *
-    * Such functionalities usually depends on particular platform, such
-    * as operating system and/or processor.
-    *
-    * Services are implemented by emitting platform-specific machine code.
-    */
-  def defineServices()(using pb: PatchableBuffer): Unit
+/**
+  * The linker performs linking of all external machine code dependencies.
+  */
+trait Linker:
+  def link()(using pb: PatchableBuffer): Unit
 
 object Assembler:
   private val VAL_STACK_SIZE = 4096
@@ -44,8 +37,10 @@ object Assembler:
 
   /**
     * Generate ELF with the given program and assembler
+    *
+    * The code is OS- and CPU-agnostic.
     */
-  def lower(elf: ELF32, prog: Prog, heapStartLabel: Label, assembler: Assembler): Unit =
+  def lower(elf: ELF32, prog: Prog, heapStartLabel: Label, assembler: Assembler, linker: Linker): Unit =
     val labelMap: mutable.Map[Label, Int] = mutable.Map.empty
 
     /////////////// data segment ////////////
@@ -67,7 +62,7 @@ object Assembler:
 
     elf.newSegment(SEG_CODE, ELF32.PT_LOAD, ELF32.PF_RX): baseAddr =>
       val pb = new PatchableBuffer(baseAddr, labelMap)
-      assembler.defineServices()(using pb)
+      linker.link()(using pb)
       assembler.lowerCode(prog.instrs)(using pb)
 
       // The patches depend on labels of other segments, so they need to
@@ -175,9 +170,11 @@ object Assembler:
   end PatchableBuffer
 
   /** Helper method to deal with patches (labels that are resolved late) */
-  def withPatch(label: Label, size: Int)
-               (fn: (ByteBuffer, Int) => Unit)
-               (using pb: PatchableBuffer): Unit =
+  def withPatch
+    (label: Label, size: Int)
+    (fn: (ByteBuffer, Int) => Unit)
+    (using pb: PatchableBuffer): Unit =
+
     pb.resolve(label) match
       case Some(loc) =>
         fn(pb, loc)

@@ -6,7 +6,9 @@ import Sast.*
 /**
   * JavaScript platform with code optimization
   */
-class JSPlatformOpt(outFile: String) extends Platform:
+class JSOptimized(outFile: String) extends Backend:
+  type Context = Unit
+
   private val pw =  new PrintWriter(outFile)
 
   private  val uniqueName = new UniqueName
@@ -37,11 +39,15 @@ class JSPlatformOpt(outFile: String) extends Platform:
       if stack.nonEmpty then stack.remove(stack.size - 1).toJS
       else throw new Exception("Stack is empty")
 
-    def pop(n: Int): Unit = stack.dropRightInPlace(n)
+    def pop(n: Int): Seq[String] =
+      assert(this.size >= n, s"size = $size, n = $n")
+      val slice = stack.slice(this.size - n, this.size)
+      stack.dropRightInPlace(n)
+      slice.map(_.toJS).toSeq
 
     def push(v: Item): Unit = stack.append(v)
 
-    def peek(i: Int): Item = stack(i)
+    def get(i: Int): Item = stack(i)
 
     def set(i: Int, v: Item): Unit = stack(i) = v
 
@@ -64,11 +70,10 @@ class JSPlatformOpt(outFile: String) extends Platform:
       if count == 1 then
         pop()
       else
-        var i = this.size - 1
-        var stopIndex = this.size - count
+        var i = this.size - count
         val arrayItemsStr = new StringBuilder
-        while i >= stopIndex do
-          val item = vs.peek(i)
+        while i < this.size do
+          val item = vs.get(i)
           arrayItemsStr.append(item.toJS)
           if i != count - 1 then
             arrayItemsStr.append(", ")
@@ -79,7 +84,9 @@ class JSPlatformOpt(outFile: String) extends Platform:
 
   private val vs: ValueStack = new ValueStack
 
-  private val symbol2UniqueName: mutable.Map[Symbol, String] = mutable.Map.empty
+  private val symbol2UniqueName: mutable.Map[Symbol, String] = mutable.Map(
+    predef.p -> "console.log"
+  )
 
   private var indentCount = 0
   private def addLine(code: String): Unit =
@@ -93,11 +100,6 @@ class JSPlatformOpt(outFile: String) extends Platform:
     work
     indentCount -= 1
 
-  def entry(init: => Unit): Unit =
-    newLine()
-    init
-    newLine()
-
   def mapSymbolToJSName(sym: Symbol): String =
     val isOperator = !sym.name(0).isLetter
     val uniqueName =
@@ -106,12 +108,6 @@ class JSPlatformOpt(outFile: String) extends Platform:
 
     symbol2UniqueName(sym) = uniqueName
     uniqueName
-
-  def declare(sym: Symbol): Unit =
-    assert(!sym.isPrimitive, "Unexpected primitive symbol " + sym)
-    val uniqueName = mapSymbolToJSName(sym)
-    if sym.isValue then
-      addLine(s"var $uniqueName; // ${sym.name}")
 
   /**
     * Bind all values in stack.
@@ -137,7 +133,7 @@ class JSPlatformOpt(outFile: String) extends Platform:
     val count = vs.size
     var i = 0
     while i < count do
-      val item = vs.peek(i)
+      val item = vs.get(i)
       item match
         case Item.Expr(e) =>
           val name = freshName("x")
@@ -146,34 +142,42 @@ class JSPlatformOpt(outFile: String) extends Platform:
         case _ =>
       i = i + 1
 
+  def compile(prog: Prog): Unit =
+    doCompile:
+      for fun <- prog.funs do
+        mapSymbolToJSName(fun.symbol)
+
+      for sym <- prog.vals do
+        val uniqueName = mapSymbolToJSName(sym)
+        addLine(s"var $uniqueName; // ${sym.name}")
+
+      // Compile functions
+      for fun <- prog.funs do
+        compile(fun)
+
+      call(prog.main)
+
   /**
     * Call the funtion.
     */
-  def call(fun: Symbol): Unit =
+  def call(fun: Symbol)(using Context): Unit =
     val name = symbol2UniqueName(fun)
     val paramCount = fun.info.paramCount
     val resCount = fun.info.resCount
     var i: Int = 0
-    val paramStr = new StringBuilder
-    while i < paramCount  do
-      val arg = vs.peek(vs.size - paramCount + i)
-      paramStr.append(arg.toJS)
-      if i != paramCount - 1 then
-        paramStr.append(", ")
-      i = i + 1
-
-    vs.pop(paramCount)
+    val args = vs.pop(paramCount)
+    val argsStr = args.mkString(", ")
 
     if resCount == 0 then
       bindExpressions()
-      addLine(s"$name($paramStr);")
+      addLine(s"$name($argsStr);")
     else if resCount == 1 then
-      vs.push(Item.Expr(s"$name($paramStr)"))
+      vs.push(Item.Expr(s"$name($argsStr)"))
     else
       bindExpressions()
       // result binding
       val resName = freshName("res")
-      addLine(s"const $resName = $name($paramStr);");
+      addLine(s"const $resName = $name($argsStr);");
       i = 0
       while i < resCount  do
         vs.push(Item.Ref(s"$resName[$i]"))
@@ -183,10 +187,10 @@ class JSPlatformOpt(outFile: String) extends Platform:
     *
     * Calling the passed function will compile the initializer.
     */
-  def initVal(vdef: Def.ValDef, compile: Compiler): Unit =
+  def compile(init: Word.Init)(using Context): Unit =
     vs.clear()
-    compile(vdef.words)
-    val name = symbol2UniqueName(vdef.symbol)
+    compile(init.rhs)
+    val name = symbol2UniqueName(init.symbol)
     val rhs = vs.pop()
     addLine(s"$name = $rhs;")
 
@@ -194,7 +198,7 @@ class JSPlatformOpt(outFile: String) extends Platform:
     *
     * Calling the passed function will compile the body of the function.
     */
-  def function(fdef: Def.FunDef, compile: Compiler): Unit =
+  def compile(fdef: Fun)(using Context): Unit =
     vs.clear()
     val sym = fdef.symbol
     val name = symbol2UniqueName(sym)
@@ -203,15 +207,16 @@ class JSPlatformOpt(outFile: String) extends Platform:
       val paramStr = fdef.params.map(mapSymbolToJSName).mkString(", ")
       addLine(s"function $name($paramStr) { // ${sym.name}")
       indent:
-        compile(fdef.words)
+        compile(fdef.body)
         assert(vs.size == resCount, s"Stack size mismatch, expect $resCount, found = " + vs)
-        val retStr = vs.combineToJS()
-        addLine(s"return $retStr;")
+        if resCount > 0 then
+          val retStr = vs.combineToJS()
+          addLine(s"return $retStr;")
 
       addLine("}\n")
 
   /** Compile a conditional statement, i.e if/then/else */
-  def conditional(ifword: Word.If, compile: List[Word] => Unit): Unit =
+  def compile(ifword: Word.If)(using Context): Unit =
     bindExpressions()
 
     val resCount = ifword.info.resCount
@@ -258,15 +263,15 @@ class JSPlatformOpt(outFile: String) extends Platform:
           i = i + 1
 
   /** Push an integer literal to value stack */
-  def push(v: Int): Unit =
+  def push(v: Int)(using Context): Unit =
     vs.push(Item.Const(v.toString))
 
   /** Push a Boolean literal to value stack */
-  def push(v: Boolean): Unit =
+  def push(v: Boolean)(using Context): Unit =
     vs.push(Item.Const(v.toString))
 
   /** Push the value associated with the given symbol to value stack */
-  def push(sym: Symbol): Unit =
+  def push(sym: Symbol)(using Context): Unit =
     val name = symbol2UniqueName(sym)
     vs.push(Item.Ref(name))
 
@@ -284,16 +289,11 @@ class JSPlatformOpt(outFile: String) extends Platform:
     val operand = vs.pop()
     vs.push(Item.Expr(s"(!$operand)"))
 
-  def print(): Unit =
-    val operand = vs.pop()
-    bindExpressions()
-    addLine(s"console.log($operand);")
-
   /**
     * Compile a primitive
     *
     */
-  def primitive(sym: Symbol): Unit =
+  def primitive(sym: Symbol)(using Context): Unit =
     sym match
       case predef.add    =>   binary("+")
       case predef.sub    =>   binary("-")
@@ -313,22 +313,22 @@ class JSPlatformOpt(outFile: String) extends Platform:
       case predef.bor    =>   binary("||")
       case predef.bnot   =>   bnot()
       case predef.eql    =>   binary("===")
-      case predef.p      =>   print()
+      case predef.p      =>   call(predef.p)
       case _             =>   throw new Exception("Unknown primitive: " + sym.name)
   end primitive
 
 
   /** Prepare to start the compilation */
-  def start(): Unit =
+  def doCompile(work: Context ?=> Unit): Unit =
     addLine("(function() {")
     indentCount += 1
 
-  /** Finish compilation */
-  def finish(): Unit =
+    work(using ())
+
     if vs.size > 0 then
       addLine(vs.combineToJS())
     indentCount -= 1
     addLine("})()")
     pw.close()
 
-end JSPlatformOpt
+end JSOptimized

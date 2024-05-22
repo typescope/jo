@@ -6,7 +6,9 @@ import Sast.*
 /**
   * JavaScript platform
   */
-class JSPlatform(outFile: String) extends Platform:
+class JSBackend(outFile: String) extends Backend:
+  type Context = Unit
+
   private val pw =  new PrintWriter(outFile)
 
   private  val uniqueName = new UniqueName
@@ -23,7 +25,9 @@ class JSPlatform(outFile: String) extends Platform:
   private val pop: String = freshName("pop")
   private val push: String = freshName("push")
 
-  private val symbol2UniqueName: mutable.Map[Symbol, String] = mutable.Map.empty
+  private val symbol2UniqueName: mutable.Map[Symbol, String] = mutable.Map(
+    predef.p -> "console.log"
+  )
 
   private var indentCount = 0
   private def addLine(code: String): Unit =
@@ -37,11 +41,6 @@ class JSPlatform(outFile: String) extends Platform:
     work
     indentCount -= 1
 
-  def entry(init: => Unit): Unit =
-    newLine()
-    init
-    newLine()
-
   def mapSymbolToJSName(sym: Symbol): String =
     val isOperator = !sym.name(0).isLetter
     val uniqueName =
@@ -51,17 +50,26 @@ class JSPlatform(outFile: String) extends Platform:
     symbol2UniqueName(sym) = uniqueName
     uniqueName
 
-  def declare(sym: Symbol): Unit =
-    assert(!sym.isPrimitive, "Unexpected primitive symbol " + sym)
-    val uniqueName = mapSymbolToJSName(sym)
-    if sym.isValue then
-      addLine(s"var $uniqueName; // ${sym.name}")
+  def compile(prog: Prog): Unit =
+    doCompile:
+      for fun <- prog.funs do
+        mapSymbolToJSName(fun.symbol)
+
+      for sym <- prog.vals do
+        val uniqueName = mapSymbolToJSName(sym)
+        addLine(s"var $uniqueName; // ${sym.name}")
+
+      // Compile functions
+      for fun <- prog.funs do
+        compile(fun)
+
+      call(prog.main)
 
 
   /**
     * Call the funtion.
     */
-  def call(fun: Symbol): Unit =
+  def call(fun: Symbol)(using Context): Unit =
     val name = symbol2UniqueName(fun)
     val paramCount = fun.info.paramCount
     var i: Int = paramCount - 1
@@ -87,27 +95,27 @@ class JSPlatform(outFile: String) extends Platform:
     *
     * Calling the passed function will compile the initializer.
     */
-  def initVal(vdef: Def.ValDef, compile: Compiler): Unit =
-    compile(vdef.words)
-    val name = symbol2UniqueName(vdef.symbol)
+  def compile(init: Word.Init)(using Context): Unit =
+    compile(init.rhs)
+    val name = symbol2UniqueName(init.symbol)
     addLine(s"$name = $pop();")
 
   /** Compile a function
     *
     * Calling the passed function will compile the body of the function.
     */
-  def function(fdef: Def.FunDef, compile: Compiler): Unit =
+  def compile(fdef: Fun)(using Context): Unit =
     val sym = fdef.symbol
     val name = symbol2UniqueName(sym)
     uniqueName.newScope:
       val paramStr = fdef.params.map(mapSymbolToJSName).mkString(", ")
       addLine(s"function $name($paramStr) { // ${sym.name}")
       indent:
-        compile(fdef.words)
+        compile(fdef.body)
       addLine("}\n")
 
   /** Compile a conditional statement, i.e if/then/else */
-  def conditional(ifword: Word.If, compile: Compiler): Unit =
+  def compile(ifword: Word.If)(using Context): Unit =
     compile(ifword.cond)
     addLine(s"if ($pop()) {")
     indent:
@@ -119,16 +127,16 @@ class JSPlatform(outFile: String) extends Platform:
     addLine("}")
 
   /** Push an integer literal to value stack */
-  def push(v: Int): Unit =
+  def push(v: Int)(using Context): Unit =
     addLine(s"$push($v);")
 
 
   /** Push a Boolean literal to value stack */
-  def push(v: Boolean): Unit =
+  def push(v: Boolean)(using Context): Unit =
     addLine(s"$push($v);")
 
   /** Push the value associated with the given symbol to value stack */
-  def push(sym: Symbol): Unit =
+  def push(sym: Symbol)(using Context): Unit =
     val name = symbol2UniqueName(sym)
     addLine(s"$push($name);")
 
@@ -150,7 +158,7 @@ class JSPlatform(outFile: String) extends Platform:
     * Compile a primitive
     *
     */
-  def primitive(sym: Symbol): Unit =
+  def primitive(sym: Symbol)(using Context): Unit =
     sym match
       case predef.add    =>   binary("+")
       case predef.sub    =>   binary("-")
@@ -170,13 +178,13 @@ class JSPlatform(outFile: String) extends Platform:
       case predef.bor    =>   binary("||")
       case predef.bnot   =>   addLine(s"$push(!$pop());")
       case predef.eql    =>   addLine(s"$push($pop() === $pop());")
-      case predef.p      =>   addLine(s"console.log($pop());")
+      case predef.p      =>   call(predef.p)
       case _             =>   throw new Exception("Unknown primitive: " + sym.name)
   end primitive
 
 
   /** Prepare to start the compilation */
-  def start(): Unit =
+  def doCompile(work: Context ?=> Unit): Unit =
     addLine("(function() {")
 
     indentCount += 1
@@ -184,10 +192,10 @@ class JSPlatform(outFile: String) extends Platform:
     addLine(s"function $pop() { return $vs.pop(); }\n")
     addLine(s"function $push(v) { $vs.push(v); }\n")
 
-  /** Finish compilation */
-  def finish(): Unit =
+    work(using ())
+
     indentCount -= 1
     addLine("})()")
     pw.close()
 
-end JSPlatform
+end JSBackend

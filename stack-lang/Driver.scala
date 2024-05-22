@@ -5,16 +5,21 @@
 //> using file Parser.scala
 //> using file Reporter.scala
 //> using file Assembly.scala
-//> using file Platform.scala
-//> using file Compiler.scala
+//> using file Backend.scala
 //> using file IO.scala
 //> using file Assembler.scala
 //> using file Linux.scala
 //> using file X86.scala
+//> using file CallConvention.scala
+//> using file PreAssembly.scala
+//> using file StackMachine.scala
+//> using file RegisterMachine.scala
 //> using file ELF32.scala
 //> using file UniqueName.scala
-//> using file JSPlatform.scala
-//> using file JSPlatformOpt.scala
+//> using file JSBackend.scala
+//> using file JSOptimized.scala
+//> using file Liveness.scala
+//> using file GraphColoring.scala
 
 import Reporter.*
 
@@ -45,20 +50,26 @@ def run(args: String*) =
 
   val layout = options.getOrElse("-layout", "c1")
 
-  given Platform =
+  val backend =
     options.get("-p") match
       case Some(pf) =>
         if pf == "linux-x86" then
-          Linux.createX86Platform(outFile, layout)
+          Linux.createX86StackMachine(outFile, layout)
+
+        else if pf == "linux-x86-fast" then
+          Linux.createX86RegisterMachine(outFile, layout)
+
         else if pf == "js" then
-          new JSPlatform(outFile)
+          new JSBackend(outFile)
+
         else if pf == "js-opt" then
-          new JSPlatformOpt(outFile)
+          new JSOptimized(outFile)
+
         else
           throw new Exception("Unknow platform: " + pf)
 
       case None =>
-        Linux.createX86Platform(outFile, layout)
+        Linux.createX86StackMachine(outFile, layout)
 
   Reporter.monitor:
     given Reporter = Reporter.withSource(sourceFile)
@@ -66,4 +77,4 @@ def run(args: String*) =
     IO.fileContent(sourceFile)    |>
     Parsing.parse                 |>
     new Namer().transform         |>
-    Compiler.compile
+    backend.compile

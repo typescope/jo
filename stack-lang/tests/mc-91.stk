@@ -1,0 +1,11 @@
+// https://en.wikipedia.org/wiki/McCarthy_91_function
+
+fun mc(n) =
+  if n 100 > then n 10 -
+  else n 11 + mc mc end;
+
+-3 mc p
+10 mc p
+15 mc p
+90 mc p
+100 mc p
