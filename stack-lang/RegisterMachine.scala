@@ -23,6 +23,9 @@ extends Backend:
 
   type Context = FunctionContext
 
+  /** A dummy parameter representing the return address */
+  val returnAddrSym = Symbol.createParamSymbol("return")
+
   /** Maps global symbols to addresses */
   val symbolAddrMap: mutable.Map[Symbol, Addr] = mutable.Map.from(nativeFunctions)
 
@@ -85,6 +88,21 @@ extends Backend:
     cb.mark(endLabel)
     exit(0)(cb)
 
+  def load(loc: Location, dest: Int)(using Context): Unit =
+    loc match
+      case Location.Reg(arg) =>
+        gen(Instr.Move(Reg(arg), dest))
+
+      case Location.Mem(baseReg, offset) =>
+        val addr = Rel(baseReg, offset.toByte)
+        gen(Instr.Load(addr, dest))
+    end match
+
+  def bindParam(param: Symbol, loc: Location)(using ctx: Context): Unit =
+    val paramReg = freshVirtualReg()
+    ctx.setRegForLocal(param, paramReg)
+    load(loc, paramReg)
+
   /** Compile a function
     *
     * Calling the passed function will compile the body of the function.
@@ -107,24 +125,16 @@ extends Backend:
 
     // bind param to virtual registers and load data
     for (param, loc) <- fdef.params.zip(paramLocs) do
-      val paramReg = freshVirtualReg()
-      ctx.setRegForLocal(param, paramReg)
+      bindParam(param, loc)
 
-      loc match
-        case Location.Reg(arg) =>
-          gen(Instr.Move(Reg(arg), paramReg))
-
-        case Location.Mem(baseReg, offset) =>
-          val addr = Rel(baseReg, offset.toByte)
-          gen(Instr.Load(addr, paramReg))
-      end match
-    end for
+    bindParam(returnAddrSym, retLoc)
 
     compile(fdef.body)
 
     ret(resLocs)
 
     proto
+
 
   /** Compile a conditional statement, i.e if/then/else */
   def compile(ifword: Word.If)(using ctx: Context): Unit =
@@ -195,8 +205,7 @@ extends Backend:
            gen(Instr.Store(value, addr))
       end match
 
-    gen(PlaceHolder.CalleeRestoreRegisters)
-    gen(PreInstr.Return)
+    gen(PreInstr.Return(ctx.getRegForLocal(this.returnAddrSym)))
 
   /** Call the funtion */
   def call(fun: Symbol)(using ctx: Context) =
@@ -249,14 +258,7 @@ extends Backend:
     for loc <- resLocs do
       val virtualReg = freshVirtualReg()
       ctx.vs.push(Reg(virtualReg))
-      loc match
-        case Location.Reg(res) =>
-          gen(Instr.Move(Reg(res), virtualReg))
-
-        case Location.Mem(baseReg, offset) =>
-          val addr = Rel(baseReg, offset.toByte)
-          gen(Instr.Load(addr, virtualReg))
-      end match
+      load(loc, virtualReg)
 
     // restore registers
     for (reg, index) <- regPositions do
@@ -383,7 +385,7 @@ object RegisterMachine:
     val buffer: PreAssembly.ItemBuffer,       // preassembly buffer
     localsToReg: mutable.Map[Symbol, Int]):   // local -> virtual register
 
-    def getRegForLocal(local: Symbol) = localsToReg(local)
+    def getRegForLocal(local: Symbol): Int = localsToReg(local)
 
     def setRegForLocal(local: Symbol, reg: Int) =
       assert(!localsToReg.contains(local))

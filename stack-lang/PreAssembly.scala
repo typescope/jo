@@ -26,7 +26,6 @@ object PreAssembly:
   enum PlaceHolder:
     case InitStackPointer
     case CalleeSaveRegisters
-    case CalleeRestoreRegisters
 
   /** Register usage information of an instruction */
   case class RegInfo(defs: List[Int], uses: List[Int])
@@ -38,12 +37,12 @@ object PreAssembly:
   enum PreInstr:
     case Instr(instr: Assembly.Instr)
     case Call(label: Label, argRegs: List[Int], retRegs: List[Int])
-    case Return
+    case Return(addrReg: Int)
 
     lazy val regInfo = this match
       case Instr(instr)                  => analyzeRegInfo(instr)
       case Call(label, argRegs, retRegs) => RegInfo(argRegs, retRegs)
-      case Return                        => RegInfo(Nil, Nil)
+      case Return(addrReg)               => RegInfo(Nil, addrReg :: Nil)
 
   type Item = PreInstr | Label | PlaceHolder
 
@@ -280,9 +279,20 @@ object PreAssembly:
 
       case preInstr: PreInstr  =>
         preInstr match
-          case PreInstr.Call(_, _, _) | PreInstr.Return =>
-            // spill should never concern call/return
+          case PreInstr.Call(_, _, _) =>
+            // spill should never concern call
             preInstr :: Nil
+
+          case PreInstr.Return(addrReg) =>
+            stackAlloc.get(addrReg) match
+              case Some(i) =>
+                val virtualReg = generator.fresh()
+                val loadInstr = PreInstr.Instr(Instr.Load(addr(i), virtualReg))
+                val returnInstr2 = PreInstr.Return(virtualReg)
+                loadInstr :: returnInstr2 :: Nil
+
+              case None =>
+                preInstr :: Nil
 
           case PreInstr.Instr(instr) =>
             val instrs =
@@ -318,11 +328,6 @@ object PreAssembly:
             val addr = Rel(FP_REG, (-((spillCount + i + 1) << 2)).toByte)
             cb.add(Instr.Store(Reg(savedReg), addr))
 
-        case PlaceHolder.CalleeRestoreRegisters =>
-          for (savedReg, i) <- actualSavedRegs.zipWithIndex do
-            val addr = Rel(FP_REG, (-((spillCount + i + 1) << 2)).toByte)
-            cb.add(Instr.Load(addr, savedReg))
-
         case preInstr: PreInstr =>
           preInstr match
             case PreInstr.Instr(instr) =>
@@ -335,10 +340,18 @@ object PreAssembly:
             case PreInstr.Call(addr, _, _) =>
               cb.add(Instr.Jump(addr))
 
-            case PreInstr.Return =>
-              // Use SP_REG for simplicity
-              cb.add(Instr.Load(Reg(FP_REG), SP_REG))
-              cb.add(Instr.Jump(Reg(SP_REG)))
+            case PreInstr.Return(reg) =>
+              var regRet = regAlloc.getOrElse(reg, reg)
+
+              if actualSavedRegs.contains(regRet) then
+                cb.add(Instr.Move(Reg(regRet), SP_REG))
+                regRet = SP_REG
+
+              for (savedReg, i) <- actualSavedRegs.zipWithIndex do
+                val addr = Rel(FP_REG, (-((spillCount + i + 1) << 2)).toByte)
+                cb.add(Instr.Load(addr, savedReg))
+
+              cb.add(Instr.Jump(Reg(regRet)))
 
   def doGraphColoring(
     label: Label, preAsm: List[Item],

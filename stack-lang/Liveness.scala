@@ -87,7 +87,7 @@ object Liveness:
       workList += WorkItem(index, Set.empty)
 
       preInstr match
-        case PreInstr.Call(_, _, _) | PreInstr.Return =>
+        case PreInstr.Call(_, _, _) | _: PreInstr.Return =>
           // non-local jumps
 
         case PreInstr.Instr(instr) =>
