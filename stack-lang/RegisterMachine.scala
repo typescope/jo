@@ -195,9 +195,11 @@ extends Backend:
   /** Return from a function. */
   def ret(resLocs: List[Location])(using ctx: Context) =
     val values = ctx.vs.pop(resLocs.size)
+    val resRegs = mutable.ArrayBuffer.empty[Int]
     for (value, loc) <- values.zip(resLocs) do
       loc match
         case Location.Reg(dest) =>
+          resRegs += dest
           gen(Instr.Move(value, dest))
 
         case Location.Mem(reg, offset) =>
@@ -205,7 +207,8 @@ extends Backend:
            gen(Instr.Store(value, addr))
       end match
 
-    gen(PreInstr.Return(ctx.getRegForLocal(this.returnAddrSym)))
+    val retAddrReg = ctx.getRegForLocal(this.returnAddrSym)
+    gen(PreInstr.Return(retAddrReg, resRegs.toList))
 
   /** Call the funtion */
   def call(fun: Symbol)(using ctx: Context) =

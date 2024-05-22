@@ -37,12 +37,12 @@ object PreAssembly:
   enum PreInstr:
     case Instr(instr: Assembly.Instr)
     case Call(label: Label, argRegs: List[Int], retRegs: List[Int])
-    case Return(addrReg: Int)
+    case Return(addrReg: Int, resRegs: List[Int])
 
     lazy val regInfo = this match
       case Instr(instr)                  => analyzeRegInfo(instr)
       case Call(label, argRegs, retRegs) => RegInfo(argRegs, retRegs)
-      case Return(addrReg)               => RegInfo(Nil, addrReg :: Nil)
+      case Return(addrReg, resRegs)      => RegInfo(Nil, addrReg :: resRegs)
 
   type Item = PreInstr | Label | PlaceHolder
 
@@ -283,12 +283,12 @@ object PreAssembly:
             // spill should never concern call
             preInstr :: Nil
 
-          case PreInstr.Return(addrReg) =>
+          case PreInstr.Return(addrReg, resRegs) =>
             stackAlloc.get(addrReg) match
               case Some(i) =>
                 val virtualReg = generator.fresh()
                 val loadInstr = PreInstr.Instr(Instr.Load(addr(i), virtualReg))
-                val returnInstr2 = PreInstr.Return(virtualReg)
+                val returnInstr2 = PreInstr.Return(virtualReg, resRegs)
                 loadInstr :: returnInstr2 :: Nil
 
               case None =>
@@ -340,7 +340,7 @@ object PreAssembly:
             case PreInstr.Call(addr, _, _) =>
               cb.add(Instr.Jump(addr))
 
-            case PreInstr.Return(reg) =>
+            case PreInstr.Return(reg, _) =>
               var regRet = regAlloc.getOrElse(reg, reg)
 
               if actualSavedRegs.contains(regRet) then
