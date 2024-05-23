@@ -746,16 +746,27 @@ object X86 extends Assembler:
         pb.addInt(v)
     end match
 
+    // r/m8 has different encoding
+    //
+    // https://www.cs.uaf.edu/2002/fall/cs301/Encoding%20instructions.htm
+    //
+    // use EAX to do SETE for simplicity
+    if reg != EAX then push(EAX)
+
     // 0F 94    SETE r/m8
     pb.addByte(0x0F)
     pb.addByte(setcc)
-    pb.addByte((0xC0 | reg).toByte)
+    pb.addByte((0xC0 | EAX).toByte)
 
     // Clear the high bytes of the register is important as SETE only set the low byte.
     // 81 /4 id    AND r/m32, imm32
     pb.addByte(0x81.toByte)
-    pb.addByte((0xC0 | (4 << 3) | reg).toByte)
+    pb.addByte((0xC0 | (4 << 3) | EAX).toByte)
     pb.addInt(0x000F)
+
+    if reg != EAX then
+      move(Reg(EAX), reg)
+      pop(EAX)
 
   def jzero(reg: Int, label: Label)(using pb: PatchableBuffer) =
     // TODO: Handle the pattern [Eq(o1, o2, r), JZero(r, l)] to generate one fewer instruction.
