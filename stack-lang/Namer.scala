@@ -82,6 +82,7 @@ class Namer(using Reporter):
       case valDef: Ast.ValDef =>
         val sym = Symbol.createLocalValueSymbol(valDef.name)
         val rhs = transform(valDef.words)
+        sc.define(sym, valDef.pos)
         Word.Init(sym, rhs).withPos(valDef.pos) :: Nil
 
   private def transform(words: List[Ast.Word])(using sc: Scope): List[Word] =
@@ -133,6 +134,7 @@ class Namer(using Reporter):
       map.get(sym.name) match
         case None =>
           map(sym.name) = sym
+          notifyDefined(sym)
 
         case Some(sym) =>
           Reporter.abort(sym.name + " is already bound", span)

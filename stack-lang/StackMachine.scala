@@ -98,7 +98,10 @@ extends Backend:
     for param <- fdef.params do
       symbolAddrMap -= param
 
-    ret()
+    for local <- fdef.locals do
+      symbolAddrMap -= local
+
+    ret(sym.info.resCount)
 
   /** Compile a conditional statement, i.e if/then/else */
   def compile(ifword: Word.If)(using Context): Unit =
@@ -126,13 +129,22 @@ extends Backend:
   def exit(code: Int): Unit =
     cb.add(Instr.Move(Int32(code), X86.EBX))  // exit code
     cb.add(Instr.Move(Int32(1), X86.EAX))     // syscall number
-    cb.add(Instr.Special(X86.Syscall))         // syscall
+    cb.add(Instr.Special(X86.Syscall))        // syscall
 
   /** Return from a procedure or function.
     *
     * Call stack goes from high address to low address.
     */
-  def ret() =
+  def ret(resCount: Int) =
+    var i = resCount - 1
+    while i >= 0 do
+      val src = Rel(SP_REG, (i << 2).toByte)
+      val dest = Rel(FP_REG, ((i - resCount) << 2).toByte)
+      useReg: r =>
+        cb.add(Instr.Load(src, r))
+        cb.add(Instr.Store(Reg(r), dest))
+      i -= 1
+
     useReg: r =>
       cb.add(Instr.Load(Reg(FP_REG), r))
       cb.add(Instr.Jump(Reg(r)))
@@ -225,11 +237,11 @@ extends Backend:
     * Calling the passed function will compile the initializer.
     */
   def compile(init: Word.Init)(using Context): Unit =
-    val label = symbolAddrMap(init.symbol).asInstanceOf[Label]
+    val addr = symbolAddrMap(init.symbol)
     compile(init.rhs)
     useReg: r =>
       pop(r)
-      cb.add(Instr.Store(Reg(r), label))
+      cb.add(Instr.Store(Reg(r), addr))
 
   /** Push an integer literal to value stack */
   def push(v: Int)(using Context): Unit = push(Int32(v))
