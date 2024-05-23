@@ -208,7 +208,7 @@ class JSOptimized(outFile: String) extends Backend:
       val localStr = fdef.locals.map(mapSymbolToJSName).mkString(", ")
       addLine(s"function $name($paramStr) { // ${sym.name}")
       indent:
-        addLine(s"var $localStr;")
+        if fdef.locals.nonEmpty then addLine(s"var $localStr;")
         compile(fdef.body)
         assert(vs.size == resCount, s"Stack size mismatch, expect $resCount, found = " + vs)
         if resCount > 0 then
