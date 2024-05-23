@@ -109,8 +109,10 @@ class JSBackend(outFile: String) extends Backend:
     val name = symbol2UniqueName(sym)
     uniqueName.newScope:
       val paramStr = fdef.params.map(mapSymbolToJSName).mkString(", ")
+      val localStr = fdef.locals.map(mapSymbolToJSName).mkString(", ")
       addLine(s"function $name($paramStr) { // ${sym.name}")
       indent:
+        addLine(s"var $localStr;")
         compile(fdef.body)
       addLine("}\n")
 

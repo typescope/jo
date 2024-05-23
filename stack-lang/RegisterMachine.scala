@@ -129,6 +129,10 @@ extends Backend:
 
     bindParam(returnAddrSym, retLoc)
 
+    for local <- fdef.locals do
+      val localReg = freshVirtualReg()
+      ctx.setRegForLocal(local, localReg)
+
     compile(fdef.body)
 
     ret(resLocs)
@@ -286,8 +290,7 @@ extends Backend:
 
   /** Push the value associated with the given symbol to value stack */
   def push(sym: Symbol)(using ctx: Context): Unit =
-    // TODO: handle function local value definitions
-    if sym.isParameter then
+    if sym.isLocal then
       val reg = ctx.getRegForLocal(sym)
       ctx.vs.push(Reg(reg))
     else

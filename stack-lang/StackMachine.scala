@@ -39,7 +39,7 @@ extends Backend:
     given Context = ()
 
     for fun <- prog.funs do
-     symbolAddrMap(fun.symbol) = Label(fun.name)
+      symbolAddrMap(fun.symbol) = Label(fun.name)
 
     for sym <- prog.vals do
       val label = Label(sym.name)
@@ -50,14 +50,23 @@ extends Backend:
     for fun <- prog.funs do
       compile(fun)
 
-    // Stack pointer is initialized by the kernel, initialize frame pointer
-    cb.mark(this.entry)
-    cb.add(Instr.Move(Reg(SP_REG), FP_REG))
-    call(prog.main)
-    exit(0)
+    emitEntry(prog.main)
 
     // generate code
     generator(cb.getResult())
+
+  def emitEntry(main: Symbol) =
+    // Stack pointer is initialized by the kernel, initialize frame pointer
+    cb.mark(this.entry)
+    cb.add(Instr.Sub(Reg(SP_REG), Int32(4), SP_REG))
+    val endLabel = Label("_end")
+    cb.add(Instr.Store(endLabel, Reg(SP_REG)))
+    cb.add(Instr.Move(Reg(SP_REG), FP_REG))
+
+    cb.add(Instr.Jump(symbolAddrMap(main)))
+
+    cb.mark(endLabel)
+    exit(0)
 
   /** Compile a function
     *
@@ -75,6 +84,14 @@ extends Backend:
     for (param, index) <- fdef.params.zipWithIndex do
       val offset = ((paramCount + 1 - index) * 4).toByte
       symbolAddrMap(param) = Rel(FP_REG, offset)
+
+    // the ordering does not matter
+    for (local, index) <- fdef.locals.zipWithIndex do
+      val offset = (-(index + 1) << 2).toByte
+      symbolAddrMap(local) = Rel(FP_REG, offset)
+
+    val sizeLocals = fdef.locals.size << 2
+    cb.add(Instr.Sub(Reg(FP_REG), Int32(sizeLocals), SP_REG))
 
     compile(fdef.body)
 
@@ -158,9 +175,8 @@ extends Backend:
     // 2. save return
     storeValue(returnLoc, -2)
 
-    // 3. update FP and SP
-    cb.add(Instr.Sub(Reg(SP_REG), Int32(8), SP_REG))
-    cb.add(Instr.Move(Reg(SP_REG), FP_REG))
+    // 3. update FP
+    cb.add(Instr.Sub(Reg(SP_REG), Int32(8), FP_REG))
 
     // 4. jump to target
     cb.add(Instr.Jump(addr))

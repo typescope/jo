@@ -76,6 +76,9 @@ object Linux:
   def linkPrintStackMachineX86()(using pb: PatchableBuffer): Unit =
     pb.defineLabel(printLabel)
 
+    // init SP pointer
+    X86.lower(Instr.Move(Reg(X86.EBP), X86.ESP))
+
     // use call stack to prepare string for syscall
     // reserve 16 bytes on stack
     pb.addBytes(0x89.toByte, 0xe1.toByte)          // mov    %esp,%ecx
