@@ -17,6 +17,7 @@ object Sast:
     def isFunction : Boolean = flags.is(Flag.Fun)
     def isValue    : Boolean = flags.is(Flag.Val)
     def isParameter: Boolean = flags.is(Flag.Param)
+    def isLocal    : Boolean = flags.is(Flag.Local)
 
     override def toString() = name
 
@@ -25,11 +26,14 @@ object Sast:
     def createValueSymbol(name: String) =
       new Symbol(name, valueInfo, Flag.Val)
 
+    def createLocalValueSymbol(name: String) =
+      new Symbol(name, valueInfo, Flag.Val | Flag.Local)
+
     def createFunSymbol(name: String, info: StackInfo) =
       new Symbol(name, info, Flag.Fun)
 
     def createParamSymbol(name: String) =
-      new Symbol(name, valueInfo, Flag.Param | Flag.Val)
+      new Symbol(name, valueInfo, Flag.Param | Flag.Val | Flag.Local)
 
   object Flag:
     opaque type Flag <: Flags = Long
@@ -39,6 +43,7 @@ object Sast:
     val Fun   : Flag = 1 << 1
     val Val   : Flag = 1 << 2
     val Param : Flag = 1 << 3
+    val Local : Flag = 1 << 4
 
     val empty : Flags = 0
 

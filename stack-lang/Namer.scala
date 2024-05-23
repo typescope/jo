@@ -33,13 +33,15 @@ class Namer(using Reporter):
 
     val inits = new mutable.ArrayBuffer[Word.Init]
     val funs = new mutable.ArrayBuffer[Fun]
+    val locals = new mutable.ArrayBuffer[Symbol]
 
     for defn <- prog.defs yield
       val Some(sym) = sc.resolve(defn.name): @unchecked
 
       defn match
         case valDef: Ast.ValDef =>
-          val rhs = transform(valDef.words)(using sc)
+          val valScope = sc.fresh(sym => if !sym.isParameter then locals.addOne(sym))
+          val rhs = transform(valDef.words)(using valScope)
           inits += new Word.Init(sym, rhs).withPos(defn.pos)
 
         case funDef: Ast.FunDef =>
@@ -50,7 +52,8 @@ class Namer(using Reporter):
     val mainSym = Symbol.createFunSymbol("main", StackInfo(0, 0))
     val mainBody = (inits ++ mainWords).toList
     val mainPos = mainWords.map(_.pos).reduce(_ | _)
-    val mainFun = Fun(mainSym, params = Nil, locals = Nil, body = mainBody).withPos(mainPos)
+    val params = Nil
+    val mainFun = Fun(mainSym, params, locals.toList, mainBody).withPos(mainPos)
 
     funs += mainFun
 
@@ -77,7 +80,7 @@ class Namer(using Reporter):
           case None      => Reporter.abort("Undefined identifier " + name, word.pos)
 
       case valDef: Ast.ValDef =>
-        val sym = Symbol.createValueSymbol(valDef.name)
+        val sym = Symbol.createLocalValueSymbol(valDef.name)
         val rhs = transform(valDef.words)
         Word.Init(sym, rhs).withPos(valDef.pos) :: Nil
 
