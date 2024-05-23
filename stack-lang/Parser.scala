@@ -252,15 +252,15 @@ object Parsing:
         case Token.FUN => definitions(acc += funDef())
         case _         => acc.toList
 
-    def valDef(): Def =
+    def valDef(): ValDef =
       val span1 = eat(Token.VAL)
       val id = ident()
       eat(Token.EQL)
       val words = phrase()
       val span2 = eat(Token.SEMICOL)
-      Def.ValDef(id, words).withPos(span1 | span2)
+      new ValDef(id, words).withPos(span1 | span2)
 
-    def funDef(): Def =
+    def funDef(): FunDef =
       val span1 = eat(Token.FUN)
       val id = ident()
       eat(Token.LPAREN)
@@ -269,7 +269,7 @@ object Parsing:
       eat(Token.EQL)
       val words = phrase()
       val span2 = eat(Token.SEMICOL)
-      Def.FunDef(id, paramList, words).withPos(span1 | span2)
+      FunDef(id, paramList, words).withPos(span1 | span2)
 
     def params(): List[Word.Ident] =
       val (token, _) = peek()
@@ -300,6 +300,7 @@ object Parsing:
       val (token, span) = peek()
       token match
         case _: Token.Ident  => Some(ident())
+        case Token.VAL       => Some(valDef())
         case Token.LPAREN    => Some(fence())
         case Token.IF        => Some(ifword())
 

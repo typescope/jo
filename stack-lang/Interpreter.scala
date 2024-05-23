@@ -151,7 +151,7 @@ object Interpreter:
       rootScope.bind(k, Action.Prim(v))
 
     val sc = new Scope.NestedScope(rootScope)
-    for Fun(sym, params, words) <- prog.funs do
+    for Fun(sym, params, locals, words) <- prog.funs do
       sc.bind(sym, Action.Fun(params, words, sc))
 
     val vs = new ValueStack

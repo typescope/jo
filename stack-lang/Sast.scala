@@ -75,7 +75,11 @@ object Sast:
             acc + added
           StackInfo(0, resCount.toByte)
 
-  case class Fun(symbol: Symbol, params: List[Symbol], body: List[Word])
+  case class Fun(
+    symbol: Symbol,
+    params: List[Symbol],
+    locals: List[Symbol],
+    body  : List[Word])
   extends Positioned:
     def name: String = symbol.name
 
