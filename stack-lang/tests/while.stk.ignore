@@ -1,5 +1,0 @@
-// op cond v while
-fun while = if dup 2 peek ! not then pop pop pop else 2 peek ! while fi;
-
-
-{dup p 1 +} {10 <} 0 while

@@ -129,6 +129,10 @@ extends Backend:
 
     bindParam(returnAddrSym, retLoc)
 
+    for local <- fdef.locals do
+      val localReg = freshVirtualReg()
+      ctx.setRegForLocal(local, localReg)
+
     compile(fdef.body)
 
     ret(resLocs)
@@ -184,6 +188,27 @@ extends Backend:
           gen(labelEnd)
           for reg <- resRegs do vs.push(Reg(reg))
         end if
+
+  def compile(whileDo: Word.While)(using ctx: Context): Unit =
+    val labelBegin = Label("_whileBegin")
+    val labelEnd = Label("_whileEnd")
+
+    gen(labelBegin)
+    compile(whileDo.cond)
+
+    ctx.vs.pop() match
+      case Int32(i) =>
+        if i != 0 then
+          compile(whileDo.body)
+        else
+          gen(Instr.Jump(labelEnd))
+
+      case Reg(r) =>
+        gen(Instr.JZero(Reg(r), labelEnd))
+        compile(whileDo.body)
+
+    gen(Instr.Jump(labelBegin))
+    gen(labelEnd)
 
   // TODO: platform-agnostic
   def exit(code: Int)(cb: CodeBuffer): Unit =
@@ -271,10 +296,15 @@ extends Backend:
     *
     * Calling the passed function will compile the initializer.
     */
-  def compile(init: Word.Init)(using ctx: Context): Unit =
-    val label = symbolAddrMap(init.symbol).asInstanceOf[Label]
-    compile(init.rhs)
-    gen(Instr.Store(ctx.vs.pop(), label))
+  def compile(assign: Word.Assign)(using ctx: Context): Unit =
+    val sym = assign.symbol
+
+    compile(assign.rhs)
+    val rhsValue = ctx.vs.pop()
+    val instr =
+      if sym.isLocal then Instr.Move(rhsValue, ctx.getRegForLocal(sym))
+      else Instr.Store(rhsValue, symbolAddrMap(sym))
+    gen(instr)
 
   /** Push an integer literal to value stack */
   def push(v: Int)(using ctx: Context): Unit =
@@ -286,8 +316,7 @@ extends Backend:
 
   /** Push the value associated with the given symbol to value stack */
   def push(sym: Symbol)(using ctx: Context): Unit =
-    // TODO: handle function local value definitions
-    if sym.isParameter then
+    if sym.isLocal then
       val reg = ctx.getRegForLocal(sym)
       ctx.vs.push(Reg(reg))
     else

@@ -17,6 +17,8 @@ object Sast:
     def isFunction : Boolean = flags.is(Flag.Fun)
     def isValue    : Boolean = flags.is(Flag.Val)
     def isParameter: Boolean = flags.is(Flag.Param)
+    def isLocal    : Boolean = flags.is(Flag.Local)
+    def isMutable  : Boolean = flags.is(Flag.Mutable)
 
     override def toString() = name
 
@@ -25,20 +27,28 @@ object Sast:
     def createValueSymbol(name: String) =
       new Symbol(name, valueInfo, Flag.Val)
 
+    def createValueSymbol(name: String, flags: Flags) =
+      new Symbol(name, valueInfo, Flag.Val | flags)
+
     def createFunSymbol(name: String, info: StackInfo) =
       new Symbol(name, info, Flag.Fun)
 
     def createParamSymbol(name: String) =
-      new Symbol(name, valueInfo, Flag.Param | Flag.Val)
+      new Symbol(name, valueInfo, Flag.Param | Flag.Val | Flag.Local)
+
+  type Flag  = Flag.Flag
+  type Flags = Flag.Flags
 
   object Flag:
     opaque type Flag <: Flags = Long
     opaque type Flags = Long
 
-    val Prim  : Flag = 1
-    val Fun   : Flag = 1 << 1
-    val Val   : Flag = 1 << 2
-    val Param : Flag = 1 << 3
+    val Prim    : Flag = 1
+    val Fun     : Flag = 1 << 1
+    val Val     : Flag = 1 << 2
+    val Param   : Flag = 1 << 3
+    val Local   : Flag = 1 << 4
+    val Mutable : Flag = 1 << 5
 
     val empty : Flags = 0
 
@@ -59,14 +69,15 @@ object Sast:
     case IntLit(value: Int)
     case BoolLit(value: Boolean)
     case Ident(symbol: Symbol)
-    case Init(symbol: Symbol, rhs: List[Word])
+    case Assign(symbol: Symbol, rhs: List[Word])
     case If(cond: List[Word], thenp: List[Word], elsep: List[Word])
+    case While(cond: List[Word], body: List[Word])
 
     lazy val info: StackInfo =
       this match
         case _: IntLit | _: BoolLit => StackInfo(0, 1)
         case ident: Ident => ident.symbol.info
-        case _: Init => StackInfo(0, 0)
+        case _: Assign | _: While => StackInfo(0, 0)
         case If(_, thenp, _) =>
           // It's already checked that cond is StackInfo(0, 1) and the two
           // branches have the same stack info
@@ -75,7 +86,11 @@ object Sast:
             acc + added
           StackInfo(0, resCount.toByte)
 
-  case class Fun(symbol: Symbol, params: List[Symbol], body: List[Word])
+  case class Fun(
+    symbol: Symbol,
+    params: List[Symbol],
+    locals: List[Symbol],
+    body  : List[Word])
   extends Positioned:
     def name: String = symbol.name
 

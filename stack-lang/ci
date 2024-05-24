@@ -33,7 +33,7 @@ for file in $DIR/tests/*.stk; do
     echo "testing $file"
     exe=${file%.*}.run
     js=${file%.*}.js
-    ./stki $file > $RES1
+    ./stki $file > $RES1 2>&1
 
     # # layout 1
     ./stkc $file -o $exe -p linux-x86 -layout c1
@@ -42,27 +42,27 @@ for file in $DIR/tests/*.stk; do
 
     # layout 2
     ./stkc $file -o $exe -p linux-x86 -layout c2
-    $exe > $RES2
+    $exe > $RES2 2>&1
     check $RES1 $RES2
 
     # layout 3
     ./stkc $file -o $exe -p linux-x86 -layout c3
-    $exe > $RES2
+    $exe > $RES2 2>&1
     check $RES1 $RES2
 
     # fast linux
     ./stkc $file -o $exe -p linux-x86-fast
-    $exe > $RES2
+    $exe > $RES2 2>&1
     check $RES1 $RES2
 
     # JavaScript
     ./stkc $file -o $js -p js
-    node $js > $RES3
+    node $js > $RES3 2>&1
     check $RES1 $RES3
 
     # JavaScript optimized
     ./stkc $file -o $js -p js-opt
-    node $js > $RES3
+    node $js > $RES3 2>&1
     check $RES1 $RES3
 done
 

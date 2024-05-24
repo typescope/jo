@@ -1,5 +1,7 @@
 import Sast.*
 
+import Reporter.Span
+
 /**
   * Check stack safety
   *
@@ -16,53 +18,58 @@ class Checker(using Reporter):
     word match
       case _: Word.IntLit | _: Word.BoolLit => vs.push(1)
 
-      case Word.Init(sym, words) =>
-        val vs = new ValueStack
-        check(words)(using vs)
+      case Word.Assign(sym, words) =>
+        vs.expect(0, "No result expected before assignment", word.pos)
 
-        if vs.size != 1 then
-          Reporter.error(
-            "1 result expected for " + sym + ", found = " + vs.size,
-            word.pos
-          )
+        check(words)
+
+        vs.expect(1, "1 result expected for " + sym, word.pos)
+        vs.clear()
 
       case Word.If(cond, thenp, elsep) =>
         val vsCond = new ValueStack
         check(cond)(using vsCond)
 
-        if vsCond.size != 1 then
-          Reporter.error(
-            "1 result expected for if condition, found = " + vsCond.size,
-            word.pos
-          )
+        vsCond.expect(
+          1, "1 result expected for if condition",
+          cond.head.pos | cond.last.pos)
 
         val vs1 = new ValueStack
         val vs2 = new ValueStack
         check(thenp)(using vs1)
         check(elsep)(using vs2)
 
-        if vs1.size != vs2.size then
-          Reporter.error(
-            "Branches of if should end up with the same stack state, found = "
-            + vs1.size + " and " + vs2.size,
-            word.pos
-        )
+        vs1.checkSame(
+          vs2,
+          s"Expect both branches of if/else have the same stack state",
+          word.pos)
 
-        vs.push(vs1.size)
+        if vs2.isError then
+          vs.setError()
+        else
+          vs2.commit(vs)
+
+      case Word.While(cond, body) =>
+        vs.expect(0, "No result expected before while loop", word.pos)
+        vs.clear()
+
+        check(cond)
+
+        vs.pop(
+          1, "1 result expected for if condition",
+          cond.head.pos | cond.last.pos)
+
+        check(body)
+
+        vs.expect(0, "No result expected in while loop", body.last.pos)
+        vs.clear()
 
       case Word.Ident(sym) =>
         val info = sym.info
         val need = info.paramCount
-        val found = vs.size
 
-        if found < need then
-          Reporter.error(
-            s"$need elements expected for $sym, found = $found",
-            word.pos
-          )
-        else
-          vs.pop(need)
-          vs.push(info.resCount)
+        vs.pop(need, s"$need elements expected for $sym", word.pos)
+        vs.push(info.resCount)
 
   def check(words: List[Word])(using vs: ValueStack): Unit =
     for word <- words do check(word)
@@ -73,12 +80,7 @@ class Checker(using Reporter):
 
     val sym = fun.symbol
     val resCount = sym.info.resCount
-    val size = vs.size
-    if size != resCount then
-      Reporter.error(
-        s"$resCount result(s) expected for $sym, found = $size",
-        fun.pos
-      )
+    vs.expect(resCount, s"$resCount result(s) expected for $sym", fun.pos)
 
 object Checker:
   /**
@@ -87,10 +89,41 @@ object Checker:
     * Used to check stack safety.
     */
   class ValueStack:
-    private var size0: Int = 0
+    /** Don't expose size in order to handle errors */
+    private var size: Int = 0
 
-    def size: Int = size0
-    def push(n: Int) = size0 += n
-    def pop(n: Int)  =
-      assert(size0 >= n)
-      size0 -= n
+    def setError() =
+      size = -1
+
+    def isError = size < 0
+
+    def checkSame(that: ValueStack, msg: String, pos: Span)(using Reporter) =
+      if isError then
+        that.setError()
+      else if that.isError then
+        this.setError()
+      else if this.size != that.size then
+        this.setError()
+        that.setError()
+        Reporter.error(s"$msg, found = $size and ${that.size}", pos)
+
+    def expect(sizeExpect: Int, msg: String, pos: Span)(using Reporter): Unit =
+      if !isError && this.size != sizeExpect then
+        Reporter.error(s"$msg, found = $size", pos)
+        setError()
+
+    def commit(vs: ValueStack): Unit =
+      assert(!isError)
+      vs.push(size)
+
+    def push(n: Int) =
+      if n < 0 then setError()
+      else size += n
+
+    def clear() = size = 0
+    def pop(n: Int, msg: String, pos: Span)(using Reporter) =
+      if !isError && size < n then
+        Reporter.error(s"$msg, found = $size", pos)
+        setError()
+      else
+        size -= n

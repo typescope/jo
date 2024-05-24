@@ -17,6 +17,7 @@ Lexical Grammar
 
     SEMICOL  = ";".
     VAL      = "val".
+    VAR      = "var".
     FUN      = "fun".
     EQL      = "=".
     COMMA    = ",".
@@ -25,6 +26,8 @@ Lexical Grammar
     IF       = "if".
     THEN     = "then".
     ELSE     = "else".
+    WHILE    = "while".
+    DO       = "do".
     END      = "end".
     name     = (letter | USCORE) {letter | digit | USCORE}.
     operator = opchar { opchar }.
@@ -39,12 +42,14 @@ Syntactical Grammar
 
 
 ~~~
-    word    = integer | boolean | ident | ifstat | fence.
+    word    = integer | boolean | ident | if | fence | assign | valdef | while.
     fence   = LPAREN phrase RPAREN.
-    ifstat  = IF phrase THEN phrase [ELSE phrase] END.
+    assign  = ident EQL phrase SEMICOL.
+    if      = IF phrase THEN phrase [ELSE phrase] END.
+    while   = WHILE phrase DO phrase END.
     phrase  = word [phrase].
 
-    valdef  = VAL ident EQL phrase SEMICOL.
+    valdef  = (VAL | VAR) ident EQL phrase SEMICOL.
     fundef  = FUN ident LPAREN [params] RPAREN EQL phrase SEMICOL.
     program = {valdef | fundef} phrase.
 

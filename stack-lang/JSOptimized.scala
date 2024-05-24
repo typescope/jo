@@ -187,10 +187,10 @@ class JSOptimized(outFile: String) extends Backend:
     *
     * Calling the passed function will compile the initializer.
     */
-  def compile(init: Word.Init)(using Context): Unit =
+  def compile(assign: Word.Assign)(using Context): Unit =
     vs.clear()
-    compile(init.rhs)
-    val name = symbol2UniqueName(init.symbol)
+    compile(assign.rhs)
+    val name = symbol2UniqueName(assign.symbol)
     val rhs = vs.pop()
     addLine(s"$name = $rhs;")
 
@@ -205,8 +205,10 @@ class JSOptimized(outFile: String) extends Backend:
     val resCount = sym.info.resCount
     uniqueName.newScope:
       val paramStr = fdef.params.map(mapSymbolToJSName).mkString(", ")
+      val localStr = fdef.locals.map(mapSymbolToJSName).mkString(", ")
       addLine(s"function $name($paramStr) { // ${sym.name}")
       indent:
+        if fdef.locals.nonEmpty then addLine(s"var $localStr;")
         compile(fdef.body)
         assert(vs.size == resCount, s"Stack size mismatch, expect $resCount, found = " + vs)
         if resCount > 0 then
@@ -215,7 +217,6 @@ class JSOptimized(outFile: String) extends Backend:
 
       addLine("}\n")
 
-  /** Compile a conditional statement, i.e if/then/else */
   def compile(ifword: Word.If)(using Context): Unit =
     bindExpressions()
 
@@ -261,6 +262,19 @@ class JSOptimized(outFile: String) extends Backend:
         while i < resCount  do
           vs.push(Item.Ref(s"$resName[$i]"))
           i = i + 1
+
+  def compile(whileDo: Word.While)(using Context): Unit =
+    bindExpressions()
+
+    addLine(s"while (true) {")
+    indent:
+      compile(whileDo.cond)
+      val condStr = vs.pop()
+      addLine(s"if ($condStr) {")
+      indent:
+        compile(whileDo.body)
+      addLine("} else break;")
+    addLine("}")
 
   /** Push an integer literal to value stack */
   def push(v: Int)(using Context): Unit =

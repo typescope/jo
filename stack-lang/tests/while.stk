@@ -1,0 +1,11 @@
+fun fact(n) =
+  var a = 1;
+  var s = 1;
+  while a n < do
+    s = a s *;
+    a = 1 a +;
+  end
+  s;
+
+3 fact p
+5 fact p

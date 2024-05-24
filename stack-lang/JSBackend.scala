@@ -95,9 +95,9 @@ class JSBackend(outFile: String) extends Backend:
     *
     * Calling the passed function will compile the initializer.
     */
-  def compile(init: Word.Init)(using Context): Unit =
-    compile(init.rhs)
-    val name = symbol2UniqueName(init.symbol)
+  def compile(assign: Word.Assign)(using Context): Unit =
+    compile(assign.rhs)
+    val name = symbol2UniqueName(assign.symbol)
     addLine(s"$name = $pop();")
 
   /** Compile a function
@@ -109,12 +109,13 @@ class JSBackend(outFile: String) extends Backend:
     val name = symbol2UniqueName(sym)
     uniqueName.newScope:
       val paramStr = fdef.params.map(mapSymbolToJSName).mkString(", ")
+      val localStr = fdef.locals.map(mapSymbolToJSName).mkString(", ")
       addLine(s"function $name($paramStr) { // ${sym.name}")
       indent:
+        if fdef.locals.nonEmpty then addLine(s"var $localStr;")
         compile(fdef.body)
       addLine("}\n")
 
-  /** Compile a conditional statement, i.e if/then/else */
   def compile(ifword: Word.If)(using Context): Unit =
     compile(ifword.cond)
     addLine(s"if ($pop()) {")
@@ -124,6 +125,14 @@ class JSBackend(outFile: String) extends Backend:
       addLine("} else {")
       indent:
         compile(ifword.elsep)
+    addLine("}")
+
+  def compile(whileDo: Word.While)(using Context): Unit =
+    compile(whileDo.cond)
+    addLine(s"while ($pop()) {")
+    indent:
+      compile(whileDo.body)
+      compile(whileDo.cond)
     addLine("}")
 
   /** Push an integer literal to value stack */

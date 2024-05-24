@@ -39,7 +39,7 @@ extends Backend:
     given Context = ()
 
     for fun <- prog.funs do
-     symbolAddrMap(fun.symbol) = Label(fun.name)
+      symbolAddrMap(fun.symbol) = Label(fun.name)
 
     for sym <- prog.vals do
       val label = Label(sym.name)
@@ -50,14 +50,23 @@ extends Backend:
     for fun <- prog.funs do
       compile(fun)
 
-    // Stack pointer is initialized by the kernel, initialize frame pointer
-    cb.mark(this.entry)
-    cb.add(Instr.Move(Reg(SP_REG), FP_REG))
-    call(prog.main)
-    exit(0)
+    emitEntry(prog.main)
 
     // generate code
     generator(cb.getResult())
+
+  def emitEntry(main: Symbol) =
+    // Stack pointer is initialized by the kernel, initialize frame pointer
+    cb.mark(this.entry)
+    cb.add(Instr.Sub(Reg(SP_REG), Int32(4), SP_REG))
+    val endLabel = Label("_end")
+    cb.add(Instr.Store(endLabel, Reg(SP_REG)))
+    cb.add(Instr.Move(Reg(SP_REG), FP_REG))
+
+    cb.add(Instr.Jump(symbolAddrMap(main)))
+
+    cb.mark(endLabel)
+    exit(0)
 
   /** Compile a function
     *
@@ -76,14 +85,24 @@ extends Backend:
       val offset = ((paramCount + 1 - index) * 4).toByte
       symbolAddrMap(param) = Rel(FP_REG, offset)
 
+    // the ordering does not matter
+    for (local, index) <- fdef.locals.zipWithIndex do
+      val offset = (-(index + 1) << 2).toByte
+      symbolAddrMap(local) = Rel(FP_REG, offset)
+
+    val sizeLocals = fdef.locals.size << 2
+    cb.add(Instr.Sub(Reg(FP_REG), Int32(sizeLocals), SP_REG))
+
     compile(fdef.body)
 
     for param <- fdef.params do
       symbolAddrMap -= param
 
-    ret()
+    for local <- fdef.locals do
+      symbolAddrMap -= local
 
-  /** Compile a conditional statement, i.e if/then/else */
+    ret(sym.info.resCount)
+
   def compile(ifword: Word.If)(using Context): Unit =
     val labelFalse = Label("_false")
     val labelEnd = Label("_ifEnd")
@@ -104,18 +123,41 @@ extends Backend:
 
       cb.mark(labelEnd)
 
+  def compile(whileDo: Word.While)(using Context): Unit =
+    val labelBegin = Label("_whileBegin")
+    val labelEnd = Label("_whileEnd")
+
+    cb.mark(labelBegin)
+    compile(whileDo.cond)
+    useReg: r =>
+      pop(r)
+      cb.add(Instr.JZero(Reg(r), labelEnd))
+
+      compile(whileDo.body)
+
+      cb.add(Instr.Jump(labelBegin))
+      cb.mark(labelEnd)
 
   // TODO: platform-agnostic
   def exit(code: Int): Unit =
     cb.add(Instr.Move(Int32(code), X86.EBX))  // exit code
     cb.add(Instr.Move(Int32(1), X86.EAX))     // syscall number
-    cb.add(Instr.Special(X86.Syscall))         // syscall
+    cb.add(Instr.Special(X86.Syscall))        // syscall
 
   /** Return from a procedure or function.
     *
     * Call stack goes from high address to low address.
     */
-  def ret() =
+  def ret(resCount: Int) =
+    var i = resCount - 1
+    while i >= 0 do
+      val src = Rel(SP_REG, (i << 2).toByte)
+      val dest = Rel(FP_REG, ((i - resCount) << 2).toByte)
+      useReg: r =>
+        cb.add(Instr.Load(src, r))
+        cb.add(Instr.Store(Reg(r), dest))
+      i -= 1
+
     useReg: r =>
       cb.add(Instr.Load(Reg(FP_REG), r))
       cb.add(Instr.Jump(Reg(r)))
@@ -158,9 +200,8 @@ extends Backend:
     // 2. save return
     storeValue(returnLoc, -2)
 
-    // 3. update FP and SP
-    cb.add(Instr.Sub(Reg(SP_REG), Int32(8), SP_REG))
-    cb.add(Instr.Move(Reg(SP_REG), FP_REG))
+    // 3. update FP
+    cb.add(Instr.Sub(Reg(SP_REG), Int32(8), FP_REG))
 
     // 4. jump to target
     cb.add(Instr.Jump(addr))
@@ -172,16 +213,18 @@ extends Backend:
       val spOffset = 2 + argCount - resCount
       cb.add(Instr.Add(Reg(FP_REG), Int32(spOffset * 4), SP_REG))
 
-      // 6. copy result
-      var i = 0
-      while i < resCount do
-        loadValue(r, (-spOffset - i - 1).toByte)
-        storeValue(Reg(r), (resCount - 1 - i).toByte)
-        i += 1
-
-      // 7. restore FP
+      // 6. restore FP before copy result --- avoid overwriting
       val fpAddr = Rel(FP_REG, 4)
       cb.add(Instr.Load(fpAddr, FP_REG))
+
+      // 7. copy result -- after restoring FP to avoid overwriting
+      var i = 0
+      while i < resCount do
+        val src = Rel(SP_REG, ((-spOffset - i - 1) << 2).toByte)
+        val dest = Rel(SP_REG, ((resCount - i - 1) << 2).toByte)
+        cb.add(Instr.Load(src, r))
+        cb.add(Instr.Store(Reg(r), dest))
+        i += 1
 
   /** Pop the value on the top of the value stack to the given register.
     *
@@ -208,13 +251,12 @@ extends Backend:
     *
     * Calling the passed function will compile the initializer.
     */
-  def compile(init: Word.Init)(using Context): Unit =
-    val label = symbolAddrMap(init.symbol).asInstanceOf[Label]
-    compile(init.rhs)
+  def compile(assign: Word.Assign)(using Context): Unit =
+    val addr = symbolAddrMap(assign.symbol)
+    compile(assign.rhs)
     useReg: r =>
       pop(r)
-      cb.add(Instr.Store(Reg(r), label))
-
+      cb.add(Instr.Store(Reg(r), addr))
   /** Push an integer literal to value stack */
   def push(v: Int)(using Context): Unit = push(Int32(v))
 

@@ -43,8 +43,10 @@ enum Value extends Denotation:
   case IntVal(value: Int)
   case BoolVal(value: Boolean)
 
+object Uninit extends Denotation
+
 enum Action extends Denotation:
-  case Fun(params: List[Symbol], words: List[Word], scope: Scope)
+  case Fun(fun: Sast.Fun, scope: Scope)
   case Prim(fun: ValueStack => Unit)
 
 enum Scope:
@@ -61,6 +63,14 @@ enum Scope:
           case _ => None
 
       case res  => res
+
+  def update(sym: Symbol, denot: Denotation): Unit =
+    if map.contains(sym) then
+      map(sym) = denot
+    else
+      this match
+        case NestedScope(outer) => outer.update(sym, denot)
+        case _ => err("Unknown name to update: " + sym.name)
 
   def bind(sym: Symbol, denot: Denotation): Unit =
     map.get(sym) match
@@ -151,8 +161,11 @@ object Interpreter:
       rootScope.bind(k, Action.Prim(v))
 
     val sc = new Scope.NestedScope(rootScope)
-    for Fun(sym, params, words) <- prog.funs do
-      sc.bind(sym, Action.Fun(params, words, sc))
+    for fun <- prog.funs do
+      sc.bind(fun.symbol, Action.Fun(fun, sc))
+
+    for sym <- prog.vals do
+      sc.bind(sym, Uninit)
 
     val vs = new ValueStack
     exec(Word.Ident(prog.main))(using vs, sc)
@@ -166,9 +179,9 @@ object Interpreter:
 
       case Word.BoolLit(v) => vs.push(Value.BoolVal(v))
 
-      case Word.Init(sym, words) =>
+      case Word.Assign(sym, words) =>
         exec(words)
-        sc.bind(sym, vs.pop())
+        sc.update(sym, vs.pop())
 
       case Word.If(cond, thenp, elsep) =>
         exec(cond)
@@ -179,18 +192,35 @@ object Interpreter:
           case v =>
             err("Boolean value expected for if condition, found " + v)
 
+      case Word.While(cond, body) =>
+        exec(cond)
+        vs.pop() match
+          case Value.BoolVal(b) =>
+            if b then
+              exec(body)
+              exec(word)
+
+          case v =>
+            err("Boolean value expected for if condition, found " + v)
+
       case Word.Ident(sym) =>
         sc.resolve(sym) match
           case Some(d) =>
             d match
-              case value: Value       => vs.push(value)
-              case Action.Prim(fun)   => fun(vs)
+              case value: Value => vs.push(value)
 
-              case Action.Fun(params, ws, sc2) =>
+              case Action.Prim(fun) => fun(vs)
+
+              case Uninit =>
+                err("Accessing uninitialized variable " + sym)
+
+              case Action.Fun(Fun(_, params, locals, body), sc2) =>
                 val funScope = new Scope.NestedScope(sc2)
                 for param <- params.reverse do
                   funScope.bind(param, vs.pop())
-                exec(ws)(using vs, funScope)
+                for param <- locals do
+                  funScope.bind(param, Uninit)
+                exec(body)(using vs, funScope)
 
           case None =>
             err("Undefined identifier " + sym)
