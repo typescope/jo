@@ -192,6 +192,17 @@ object Interpreter:
           case v =>
             err("Boolean value expected for if condition, found " + v)
 
+      case Word.While(cond, body) =>
+        exec(cond)
+        vs.pop() match
+          case Value.BoolVal(b) =>
+            if b then
+              exec(body)
+              exec(word)
+
+          case v =>
+            err("Boolean value expected for if condition, found " + v)
+
       case Word.Ident(sym) =>
         sc.resolve(sym) match
           case Some(d) =>

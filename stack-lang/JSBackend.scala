@@ -116,7 +116,6 @@ class JSBackend(outFile: String) extends Backend:
         compile(fdef.body)
       addLine("}\n")
 
-  /** Compile a conditional statement, i.e if/then/else */
   def compile(ifword: Word.If)(using Context): Unit =
     compile(ifword.cond)
     addLine(s"if ($pop()) {")
@@ -126,6 +125,14 @@ class JSBackend(outFile: String) extends Backend:
       addLine("} else {")
       indent:
         compile(ifword.elsep)
+    addLine("}")
+
+  def compile(whileDo: Word.While)(using Context): Unit =
+    compile(whileDo.cond)
+    addLine(s"while ($pop()) {")
+    indent:
+      compile(whileDo.body)
+      compile(whileDo.cond)
     addLine("}")
 
   /** Push an integer literal to value stack */

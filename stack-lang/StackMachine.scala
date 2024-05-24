@@ -103,7 +103,6 @@ extends Backend:
 
     ret(sym.info.resCount)
 
-  /** Compile a conditional statement, i.e if/then/else */
   def compile(ifword: Word.If)(using Context): Unit =
     val labelFalse = Label("_false")
     val labelEnd = Label("_ifEnd")
@@ -124,6 +123,20 @@ extends Backend:
 
       cb.mark(labelEnd)
 
+  def compile(whileDo: Word.While)(using Context): Unit =
+    val labelBegin = Label("_whileBegin")
+    val labelEnd = Label("_whileEnd")
+
+    cb.mark(labelBegin)
+    compile(whileDo.cond)
+    useReg: r =>
+      pop(r)
+      cb.add(Instr.JZero(Reg(r), labelEnd))
+
+      compile(whileDo.body)
+
+      cb.add(Instr.Jump(labelBegin))
+      cb.mark(labelEnd)
 
   // TODO: platform-agnostic
   def exit(code: Int): Unit =

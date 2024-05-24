@@ -17,14 +17,19 @@ class Checker(using Reporter):
       case _: Word.IntLit | _: Word.BoolLit => vs.push(1)
 
       case Word.Assign(sym, words) =>
-        val vs = new ValueStack
-        check(words)(using vs)
+        if vs.size != 0 then
+          Reporter.error(
+            "No result expected before assignment, found = " + vs.size,
+            word.pos)
+
+        check(words)
 
         if vs.size != 1 then
           Reporter.error(
             "1 result expected for " + sym + ", found = " + vs.size,
-            word.pos
-          )
+            word.pos)
+
+        vs.clear()
 
       case Word.If(cond, thenp, elsep) =>
         val vsCond = new ValueStack
@@ -49,6 +54,31 @@ class Checker(using Reporter):
         )
 
         vs.push(vs1.size)
+
+      case Word.While(cond, body) =>
+        if vs.size != 0 then
+          Reporter.error(
+            "No result expected before while loop, found = " + vs.size,
+            word.pos)
+          vs.clear()
+
+        check(cond)
+
+        if vs.size != 1 then
+          Reporter.error(
+            "1 result expected for if condition, found = " + vs.size,
+            word.pos)
+
+        vs.clear()
+
+        check(body)
+
+        if vs.size != 0 then
+          Reporter.error(
+            "No result expected in while loop, found = " + vs.size,
+            body.last.pos)
+
+          vs.clear()
 
       case Word.Ident(sym) =>
         val info = sym.info
@@ -91,6 +121,7 @@ object Checker:
 
     def size: Int = size0
     def push(n: Int) = size0 += n
+    def clear() = size0 = 0
     def pop(n: Int)  =
       assert(size0 >= n)
       size0 -= n

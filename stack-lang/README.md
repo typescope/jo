@@ -26,6 +26,8 @@ Lexical Grammar
     IF       = "if".
     THEN     = "then".
     ELSE     = "else".
+    WHILE    = "while".
+    DO       = "do".
     END      = "end".
     name     = (letter | USCORE) {letter | digit | USCORE}.
     operator = opchar { opchar }.
@@ -40,10 +42,11 @@ Syntactical Grammar
 
 
 ~~~
-    word    = integer | boolean | ident | ifte | fence | assign | valdef.
+    word    = integer | boolean | ident | if | fence | assign | valdef | while.
     fence   = LPAREN phrase RPAREN.
     assign  = ident EQL phrase SEMICOL.
-    ifte    = IF phrase THEN phrase [ELSE phrase] END.
+    if      = IF phrase THEN phrase [ELSE phrase] END.
+    while   = WHILE phrase DO phrase END.
     phrase  = word [phrase].
 
     valdef  = (VAL | VAR) ident EQL phrase SEMICOL.

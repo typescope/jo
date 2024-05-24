@@ -71,12 +71,13 @@ object Sast:
     case Ident(symbol: Symbol)
     case Assign(symbol: Symbol, rhs: List[Word])
     case If(cond: List[Word], thenp: List[Word], elsep: List[Word])
+    case While(cond: List[Word], body: List[Word])
 
     lazy val info: StackInfo =
       this match
         case _: IntLit | _: BoolLit => StackInfo(0, 1)
         case ident: Ident => ident.symbol.info
-        case _: Assign => StackInfo(0, 0)
+        case _: Assign | _: While => StackInfo(0, 0)
         case If(_, thenp, _) =>
           // It's already checked that cond is StackInfo(0, 1) and the two
           // branches have the same stack info

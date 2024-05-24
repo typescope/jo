@@ -75,6 +75,9 @@ class Namer(using Reporter):
       case Ast.If(cond, thenp, elsep) =>
          Word.If(transform(cond), transform(thenp), transform(elsep)).withPos(word.pos) :: Nil
 
+      case Ast.While(cond, body) =>
+         Word.While(transform(cond), transform(body)).withPos(word.pos) :: Nil
+
       case Ast.Ident(name) =>
         val sym = sc.resolve(name, word.pos)
         Word.Ident(sym).withPos(word.pos) :: Nil

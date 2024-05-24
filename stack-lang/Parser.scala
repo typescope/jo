@@ -18,7 +18,8 @@ import Reporter.*
 object Parsing:
 
   enum Token:
-    case LPAREN, RPAREN, IF, THEN, ELSE, END, SEMICOL, VAL, VAR, FUN, EQL, EOF, COMMA
+    case LPAREN, RPAREN, IF, THEN, ELSE, END, SEMICOL, VAL, VAR,
+         FUN, EQL, EOF, COMMA, WHILE, DO
     case IntLit(value: Int)
     case BoolLit(value: Boolean)
     case Ident(name: String)
@@ -151,6 +152,8 @@ object Parsing:
         case "if"      => Token.IF
         case "then"    => Token.THEN
         case "else"    => Token.ELSE
+        case "while"   => Token.WHILE
+        case "do"      => Token.DO
         case "end"     => Token.END
         case "val"     => Token.VAL
         case "var"     => Token.VAR
@@ -307,7 +310,8 @@ object Parsing:
       val (token, span) = peek()
       token match
         case Token.LPAREN    => Some(fence())
-        case Token.IF        => Some(ifword())
+        case Token.IF        => Some(ifElse())
+        case Token.WHILE     => Some(whileDo())
 
         case _: Token.Ident  =>
           val id = ident()
@@ -345,7 +349,7 @@ object Parsing:
       val span2 = eat(Token.RPAREN)
       Fence(words).withPos(span1 | span2)
 
-    def ifword(): Word =
+    def ifElse(): Word =
       val span1 = eat(Token.IF)
       val cond = phrase()
       eat(Token.THEN)
@@ -360,6 +364,14 @@ object Parsing:
           Nil
       val span2 = eat(Token.END)
       If(cond, thenp, elsep).withPos(span1 | span2)
+
+    def whileDo(): Word =
+      val span1 = eat(Token.WHILE)
+      val cond = phrase()
+      eat(Token.DO)
+      val body = phrase()
+      val span2 = eat(Token.END)
+      While(cond, body).withPos(span1 | span2)
 
     def assign(id: Ident): Assign =
       eat(Token.EQL)

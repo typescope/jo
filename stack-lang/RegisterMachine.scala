@@ -189,6 +189,27 @@ extends Backend:
           for reg <- resRegs do vs.push(Reg(reg))
         end if
 
+  def compile(whileDo: Word.While)(using ctx: Context): Unit =
+    val labelBegin = Label("_whileBegin")
+    val labelEnd = Label("_whileEnd")
+
+    gen(labelBegin)
+    compile(whileDo.cond)
+
+    ctx.vs.pop() match
+      case Int32(i) =>
+        if i != 0 then
+          compile(whileDo.body)
+        else
+          gen(Instr.Jump(labelEnd))
+
+      case Reg(r) =>
+        gen(Instr.JZero(Reg(r), labelEnd))
+        compile(whileDo.body)
+
+    gen(Instr.Jump(labelBegin))
+    gen(labelEnd)
+
   // TODO: platform-agnostic
   def exit(code: Int)(cb: CodeBuffer): Unit =
     // TODO: abstract over target buffer using context

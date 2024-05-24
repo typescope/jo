@@ -22,6 +22,8 @@ object Ast:
   case class If(cond: List[Word], thenp: List[Word], elsep: List[Word])
   extends Word
 
+  case class While(cond: List[Word], body: List[Word]) extends Word
+
   sealed trait Def extends Positioned with Product:
     val ident: Ident
     val name: String = ident.name

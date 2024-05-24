@@ -217,7 +217,6 @@ class JSOptimized(outFile: String) extends Backend:
 
       addLine("}\n")
 
-  /** Compile a conditional statement, i.e if/then/else */
   def compile(ifword: Word.If)(using Context): Unit =
     bindExpressions()
 
@@ -263,6 +262,19 @@ class JSOptimized(outFile: String) extends Backend:
         while i < resCount  do
           vs.push(Item.Ref(s"$resName[$i]"))
           i = i + 1
+
+  def compile(whileDo: Word.While)(using Context): Unit =
+    bindExpressions()
+
+    addLine(s"while (true) {")
+    indent:
+      compile(whileDo.cond)
+      val condStr = vs.pop()
+      addLine(s"if ($condStr) {")
+      indent:
+        compile(whileDo.body)
+      addLine("} else break;")
+    addLine("}")
 
   /** Push an integer literal to value stack */
   def push(v: Int)(using Context): Unit =
