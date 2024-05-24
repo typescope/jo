@@ -200,16 +200,18 @@ extends Backend:
       val spOffset = 2 + argCount - resCount
       cb.add(Instr.Add(Reg(FP_REG), Int32(spOffset * 4), SP_REG))
 
-      // 6. copy result
-      var i = 0
-      while i < resCount do
-        loadValue(r, (-spOffset - i - 1).toByte)
-        storeValue(Reg(r), (resCount - 1 - i).toByte)
-        i += 1
-
-      // 7. restore FP
+      // 6. restore FP before copy result --- avoid overwriting
       val fpAddr = Rel(FP_REG, 4)
       cb.add(Instr.Load(fpAddr, FP_REG))
+
+      // 7. copy result -- after restoring FP to avoid overwriting
+      var i = 0
+      while i < resCount do
+        val src = Rel(SP_REG, ((-spOffset - i - 1) << 2).toByte)
+        val dest = Rel(SP_REG, ((resCount - i - 1) << 2).toByte)
+        cb.add(Instr.Load(src, r))
+        cb.add(Instr.Store(Reg(r), dest))
+        i += 1
 
   /** Pop the value on the top of the value stack to the given register.
     *
