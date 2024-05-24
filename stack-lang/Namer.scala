@@ -11,6 +11,8 @@ import Reporter.Span
 class Namer(using Reporter):
   val checker = new Checker
 
+  val errorSymbol = Symbol.createFunSymbol("error", StackInfo(-1, -1))
+
   def transform(prog: Ast.Prog): Sast.Prog =
     val rootScope = new Scope.RootScope()
 
@@ -49,7 +51,7 @@ class Namer(using Reporter):
           funs += transform(sym, funDef)(using sc)
     end for
 
-    val mainWords = transform(prog.main)(using sc)
+    val mainWords = transform(prog.main)(using sc.fresh())
     val mainSym = Symbol.createFunSymbol("main", StackInfo(0, 0))
     val mainBody = (inits ++ mainWords).toList
     val mainPos = mainWords.map(_.pos).reduce(_ | _)
@@ -73,10 +75,15 @@ class Namer(using Reporter):
         words
 
       case Ast.If(cond, thenp, elsep) =>
-         Word.If(transform(cond), transform(thenp), transform(elsep)).withPos(word.pos) :: Nil
+         val cond2 = transform(cond)(using sc.fresh())
+         val then2 = transform(thenp)(using sc.fresh())
+         val else2 = transform(elsep)(using sc.fresh())
+         Word.If(cond2, then2, else2).withPos(word.pos) :: Nil
 
       case Ast.While(cond, body) =>
-         Word.While(transform(cond), transform(body)).withPos(word.pos) :: Nil
+         val cond2 = transform(cond)(using sc.fresh())
+         val body2 = transform(body)(using sc.fresh())
+         Word.While(cond2, body2).withPos(word.pos) :: Nil
 
       case Ast.Ident(name) =>
         val sym = sc.resolve(name, word.pos)
@@ -96,7 +103,7 @@ class Namer(using Reporter):
           flags = flags | Flag.Mutable
 
         val sym = Symbol.createValueSymbol(vdef.name, flags)
-        val rhs = transform(vdef.words)
+        val rhs = transform(vdef.words)(using sc.fresh())
         sc.define(sym, vdef.pos)
         Word.Assign(sym, rhs).withPos(vdef.pos) :: Nil
 
@@ -148,7 +155,9 @@ class Namer(using Reporter):
     def resolve(name: String, span: Span): Symbol =
       resolve(name) match
         case Some(sym) => sym
-        case None      => Reporter.abort("Undefined identifier " + name, span)
+        case None =>
+          Reporter.error("Undefined identifier " + name, span)
+          errorSymbol
 
     def define(sym: Symbol, span: Span): Unit =
       map.get(sym.name) match

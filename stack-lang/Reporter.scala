@@ -162,7 +162,7 @@ object Reporter:
   case class Error(message: String, pos: SourcePosition):
     override def toString() =
       val isOneLine = pos.isOneLine
-      val lineContent = pos.source.readLine(pos.startLine).trim
+      val lineContent = pos.source.readLine(pos.startLine).replaceAll("[\n\r]$", "")
       val padding = " " * pos.startLineColumn
       val num = if pos.length == 0 then 1 else pos.length
       val pointer = if isOneLine then "^" * num  else "^"
