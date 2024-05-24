@@ -17,6 +17,7 @@ Lexical Grammar
 
     SEMICOL  = ";".
     VAL      = "val".
+    VAR      = "var".
     FUN      = "fun".
     EQL      = "=".
     COMMA    = ",".
@@ -39,12 +40,13 @@ Syntactical Grammar
 
 
 ~~~
-    word    = integer | boolean | ident | ifte | fence | valdef.
+    word    = integer | boolean | ident | ifte | fence | assign | valdef.
     fence   = LPAREN phrase RPAREN.
+    assign  = ident EQL phrase SEMICOL.
     ifte    = IF phrase THEN phrase [ELSE phrase] END.
     phrase  = word [phrase].
 
-    valdef  = VAL ident EQL phrase SEMICOL.
+    valdef  = (VAL | VAR) ident EQL phrase SEMICOL.
     fundef  = FUN ident LPAREN [params] RPAREN EQL phrase SEMICOL.
     program = {valdef | fundef} phrase.
 

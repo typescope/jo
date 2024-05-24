@@ -32,8 +32,8 @@ abstract class Backend:
   /** Compile a conditional statement, i.e if/then/else */
   def compile(ifword: Word.If)(using Context): Unit
 
-  /** Compile an initialization statement, i.e a = b + c */
-  def compile(ifword: Word.Init)(using Context): Unit
+  /** Compile an assignment statement, i.e a = b + c */
+  def compile(ifword: Word.Assign)(using Context): Unit
 
   /** Compile a word */
   def compile(word: Word)(using Context): Unit =
@@ -42,8 +42,8 @@ abstract class Backend:
 
       case Word.BoolLit(v) => push(v)
 
-      case init: Word.Init =>
-        compile(init)
+      case assign: Word.Assign =>
+        compile(assign)
 
       case ifword: Word.If =>
         compile(ifword)

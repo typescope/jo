@@ -16,7 +16,7 @@ class Checker(using Reporter):
     word match
       case _: Word.IntLit | _: Word.BoolLit => vs.push(1)
 
-      case Word.Init(sym, words) =>
+      case Word.Assign(sym, words) =>
         val vs = new ValueStack
         check(words)(using vs)
 

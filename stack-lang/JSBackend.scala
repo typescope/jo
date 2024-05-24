@@ -95,9 +95,9 @@ class JSBackend(outFile: String) extends Backend:
     *
     * Calling the passed function will compile the initializer.
     */
-  def compile(init: Word.Init)(using Context): Unit =
-    compile(init.rhs)
-    val name = symbol2UniqueName(init.symbol)
+  def compile(assign: Word.Assign)(using Context): Unit =
+    compile(assign.rhs)
+    val name = symbol2UniqueName(assign.symbol)
     addLine(s"$name = $pop();")
 
   /** Compile a function

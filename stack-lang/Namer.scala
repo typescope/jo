@@ -21,18 +21,19 @@ class Namer(using Reporter):
     // Prepare scope according to scoping rules
     val sc = rootScope.fresh()
     for defn <- prog.defs do
-      val sym =
-        defn match
-          case _: Ast.ValDef =>
-            Symbol.createValueSymbol(defn.name)
-          case funDef: Ast.FunDef =>
-            val info = StackInfo(funDef.params.size.toByte, 1)
-            Symbol.createFunSymbol(defn.name, info)
+      defn match
+        case vdef: Ast.ValDef =>
+          val flags = if vdef.mutable then Flag.Mutable else Flag.empty
+          val sym = Symbol.createValueSymbol(defn.name, flags)
+          sc.define(sym, defn.pos)
 
-      sc.define(sym, defn.pos)
+        case funDef: Ast.FunDef =>
+          val info = StackInfo(funDef.params.size.toByte, 1)
+          val sym = Symbol.createFunSymbol(defn.name, info)
+          sc.define(sym, defn.pos)
 
-    val inits = new mutable.ArrayBuffer[Word.Init]
     val funs = new mutable.ArrayBuffer[Fun]
+    val inits = new mutable.ArrayBuffer[Word.Assign]
     val locals = new mutable.ArrayBuffer[Symbol]
 
     for defn <- prog.defs yield
@@ -42,7 +43,7 @@ class Namer(using Reporter):
         case valDef: Ast.ValDef =>
           val valScope = sc.fresh(sym => if !sym.isParameter then locals.addOne(sym))
           val rhs = transform(valDef.words)(using valScope)
-          inits += new Word.Init(sym, rhs).withPos(defn.pos)
+          inits += new Word.Assign(sym, rhs).withPos(defn.pos)
 
         case funDef: Ast.FunDef =>
           funs += transform(sym, funDef)(using sc)
@@ -64,26 +65,37 @@ class Namer(using Reporter):
 
   private def transform(word: Ast.Word)(using sc: Scope): List[Word] =
     word match
-      case Ast.Word.IntLit(v)  => Word.IntLit(v).withPos(word.pos) :: Nil
-      case Ast.Word.BoolLit(v) => Word.BoolLit(v).withPos(word.pos) :: Nil
-      case Ast.Word.Fence(ws)  =>
+      case Ast.IntLit(v)  => Word.IntLit(v).withPos(word.pos) :: Nil
+      case Ast.BoolLit(v) => Word.BoolLit(v).withPos(word.pos) :: Nil
+      case Ast.Fence(ws)  =>
         val words = transform(ws)
         checker.check(words)(using new Checker.ValueStack)
         words
 
-      case Ast.Word.If(cond, thenp, elsep) =>
+      case Ast.If(cond, thenp, elsep) =>
          Word.If(transform(cond), transform(thenp), transform(elsep)).withPos(word.pos) :: Nil
 
-      case Ast.Word.Ident(name) =>
-        sc.resolve(name) match
-          case Some(sym) => Word.Ident(sym).withPos(word.pos) :: Nil
-          case None      => Reporter.abort("Undefined identifier " + name, word.pos)
+      case Ast.Ident(name) =>
+        val sym = sc.resolve(name, word.pos)
+        Word.Ident(sym).withPos(word.pos) :: Nil
 
-      case valDef: Ast.ValDef =>
-        val sym = Symbol.createLocalValueSymbol(valDef.name)
-        val rhs = transform(valDef.words)
-        sc.define(sym, valDef.pos)
-        Word.Init(sym, rhs).withPos(valDef.pos) :: Nil
+      case Ast.Assign(id, words) =>
+        val sym = sc.resolve(id.name, id.pos)
+        if !sym.isMutable then
+          Reporter.error("The variable " + id.name + " is not mutable", id.pos)
+
+        val rhs = transform(words)
+        Word.Assign(sym, rhs).withPos(word.pos) :: Nil
+
+      case vdef: Ast.ValDef =>
+        var flags: Flags = Flag.Local
+        if vdef.mutable then
+          flags = flags | Flag.Mutable
+
+        val sym = Symbol.createValueSymbol(vdef.name, flags)
+        val rhs = transform(vdef.words)
+        sc.define(sym, vdef.pos)
+        Word.Assign(sym, rhs).withPos(vdef.pos) :: Nil
 
   private def transform(words: List[Ast.Word])(using sc: Scope): List[Word] =
     words.flatMap(word => transform(word))
@@ -129,6 +141,11 @@ class Namer(using Reporter):
             case _ => None
 
         case res  => res
+
+    def resolve(name: String, span: Span): Symbol =
+      resolve(name) match
+        case Some(sym) => sym
+        case None      => Reporter.abort("Undefined identifier " + name, span)
 
     def define(sym: Symbol, span: Span): Unit =
       map.get(sym.name) match

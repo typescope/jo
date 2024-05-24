@@ -187,10 +187,10 @@ class JSOptimized(outFile: String) extends Backend:
     *
     * Calling the passed function will compile the initializer.
     */
-  def compile(init: Word.Init)(using Context): Unit =
+  def compile(assign: Word.Assign)(using Context): Unit =
     vs.clear()
-    compile(init.rhs)
-    val name = symbol2UniqueName(init.symbol)
+    compile(assign.rhs)
+    val name = symbol2UniqueName(assign.symbol)
     val rhs = vs.pop()
     addLine(s"$name = $rhs;")
 

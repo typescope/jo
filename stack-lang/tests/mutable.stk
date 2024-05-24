@@ -1,0 +1,7 @@
+var a = 10;
+
+fun foo() =
+  a = a 2 *;
+  a;
+
+foo p

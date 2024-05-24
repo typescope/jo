@@ -166,7 +166,7 @@ object Interpreter:
 
       case Word.BoolLit(v) => vs.push(Value.BoolVal(v))
 
-      case Word.Init(sym, words) =>
+      case Word.Assign(sym, words) =>
         exec(words)
         sc.bind(sym, vs.pop())
 

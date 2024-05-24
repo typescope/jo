@@ -238,13 +238,12 @@ extends Backend:
     *
     * Calling the passed function will compile the initializer.
     */
-  def compile(init: Word.Init)(using Context): Unit =
-    val addr = symbolAddrMap(init.symbol)
-    compile(init.rhs)
+  def compile(assign: Word.Assign)(using Context): Unit =
+    val addr = symbolAddrMap(assign.symbol)
+    compile(assign.rhs)
     useReg: r =>
       pop(r)
       cb.add(Instr.Store(Reg(r), addr))
-
   /** Push an integer literal to value stack */
   def push(v: Int)(using Context): Unit = push(Int32(v))
 

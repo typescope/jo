@@ -275,10 +275,10 @@ extends Backend:
     *
     * Calling the passed function will compile the initializer.
     */
-  def compile(init: Word.Init)(using ctx: Context): Unit =
-    val sym = init.symbol
+  def compile(assign: Word.Assign)(using ctx: Context): Unit =
+    val sym = assign.symbol
 
-    compile(init.rhs)
+    compile(assign.rhs)
     val rhsValue = ctx.vs.pop()
     val instr =
       if sym.isLocal then Instr.Move(rhsValue, ctx.getRegForLocal(sym))

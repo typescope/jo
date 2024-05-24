@@ -18,7 +18,7 @@ import Reporter.*
 object Parsing:
 
   enum Token:
-    case LPAREN, RPAREN, IF, THEN, ELSE, END, SEMICOL, VAL, FUN, EQL, EOF, COMMA
+    case LPAREN, RPAREN, IF, THEN, ELSE, END, SEMICOL, VAL, VAR, FUN, EQL, EOF, COMMA
     case IntLit(value: Int)
     case BoolLit(value: Boolean)
     case Ident(name: String)
@@ -153,6 +153,7 @@ object Parsing:
         case "else"    => Token.ELSE
         case "end"     => Token.END
         case "val"     => Token.VAL
+        case "var"     => Token.VAR
         case "fun"     => Token.FUN
         case "true"    => Token.BoolLit(true)
         case "false"   => Token.BoolLit(false)
@@ -248,17 +249,23 @@ object Parsing:
     def definitions(acc: mutable.ArrayBuffer[Def]): List[Def] =
       val (token, span) = peek()
       token match
-        case Token.VAL => definitions(acc += valDef())
-        case Token.FUN => definitions(acc += funDef())
-        case _         => acc.toList
+        case Token.VAL | Token.VAR =>
+          definitions(acc += valDef(token))
 
-    def valDef(): ValDef =
-      val span1 = eat(Token.VAL)
+        case Token.FUN =>
+           definitions(acc += funDef())
+
+        case _ =>
+          acc.toList
+
+    def valDef(modifier: Token): ValDef =
+      val mutable = modifier == Token.VAR
+      val span1 = eat(modifier)
       val id = ident()
       eat(Token.EQL)
       val words = phrase()
       val span2 = eat(Token.SEMICOL)
-      new ValDef(id, words).withPos(span1 | span2)
+      ValDef(id, words, mutable).withPos(span1 | span2)
 
     def funDef(): FunDef =
       val span1 = eat(Token.FUN)
@@ -271,12 +278,12 @@ object Parsing:
       val span2 = eat(Token.SEMICOL)
       FunDef(id, paramList, words).withPos(span1 | span2)
 
-    def params(): List[Word.Ident] =
+    def params(): List[Ident] =
       val (token, _) = peek()
       if token == Token.RPAREN then Nil
       else paramsRest(mutable.ArrayBuffer(ident()))
 
-    def paramsRest(acc: mutable.ArrayBuffer[Word.Ident]): List[Word.Ident] =
+    def paramsRest(acc: mutable.ArrayBuffer[Ident]): List[Ident] =
       val (token, _) = peek()
       if token == Token.RPAREN then acc.toList
       else
@@ -299,27 +306,34 @@ object Parsing:
     def word(): Option[Word] =
       val (token, span) = peek()
       token match
-        case _: Token.Ident  => Some(ident())
-        case Token.VAL       => Some(valDef())
         case Token.LPAREN    => Some(fence())
         case Token.IF        => Some(ifword())
 
+        case _: Token.Ident  =>
+          val id = ident()
+          peek() match
+            case (Token.EQL, _) => Some(assign(id))
+            case _ => Some(id)
+
+        case Token.VAL | Token.VAR   =>
+          Some(valDef(token))
+
         case litToken: Token.IntLit  =>
           next()
-          Some(Word.IntLit(litToken.value).withPos(span))
+          Some(IntLit(litToken.value).withPos(span))
 
         case litToken: Token.BoolLit =>
           next()
-          Some(Word.BoolLit(litToken.value).withPos(span))
+          Some(BoolLit(litToken.value).withPos(span))
 
         case token =>
           None
 
-    def ident(): Word.Ident =
+    def ident(): Ident =
       val (token, span) = next()
       token match
         case id: Token.Ident =>
-          new Word.Ident(id.name).withPos(span)
+          new Ident(id.name).withPos(span)
 
         case token =>
           error("Expect identifier, found token " + token, span)
@@ -329,7 +343,7 @@ object Parsing:
       val span1 = eat(Token.LPAREN)
       val words = phrase()
       val span2 = eat(Token.RPAREN)
-      Word.Fence(words).withPos(span1 | span2)
+      Fence(words).withPos(span1 | span2)
 
     def ifword(): Word =
       val span1 = eat(Token.IF)
@@ -345,4 +359,10 @@ object Parsing:
         else
           Nil
       val span2 = eat(Token.END)
-      Word.If(cond, thenp, elsep).withPos(span1 | span2)
+      If(cond, thenp, elsep).withPos(span1 | span2)
+
+    def assign(id: Ident): Assign =
+      eat(Token.EQL)
+      val words = phrase()
+      val span2 = eat(Token.SEMICOL)
+      Assign(id, words).withPos(id.pos | span2)
