@@ -1,3 +1,7 @@
+import Types.*
+
+import scala.collection.mutable
+
 /** Symbols refer to definitions (names) in the program.
   *
   * Symbols are stable in the compilation process, while the types of a symbol
@@ -64,6 +68,7 @@ object Symbols:
       sym
 
     val oneBoolType = Type.Bool :: Nil
+    val oneIntType = Type.Int :: Nil
     val twoIntTypes = Type.Int :: Type.Int :: Nil
     val twoBoolTypes = Type.Bool :: Type.Bool :: Nil
 

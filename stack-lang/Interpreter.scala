@@ -10,6 +10,8 @@
 
 //> using file Ast.scala
 //> using file Sast.scala
+//> using file Symbols.scala
+//> using file Types.scala
 //> using file Namer.scala
 //> using file Checker.scala
 //> using file Parser.scala

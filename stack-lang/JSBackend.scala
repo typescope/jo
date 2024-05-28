@@ -2,6 +2,7 @@ import java.io.PrintWriter
 import scala.collection.mutable
 
 import Sast.*
+import Symbols.*
 
 /**
   * JavaScript platform

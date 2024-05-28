@@ -1,6 +1,8 @@
 import scala.collection.mutable
 
 import Sast.*
+import Types.*
+import Symbols.*
 import Reporter.Span
 
 /**
@@ -17,7 +19,7 @@ class Namer(using Reporter):
     val rootScope = new Scope.RootScope()
 
     // Predefined symbols
-    for sym <- Sast.predef.allSymbols do
+    for sym <- predef.allSymbols do
       rootScope.define(sym, Reporter.NoSpan)
 
     // Prepare scope according to scoping rules
@@ -25,7 +27,7 @@ class Namer(using Reporter):
     for defn <- prog.defs do
       defn match
         case vdef: Ast.ValDef =>
-          val tpe = transform(vdef.typ)
+          val tpe = transform(vdef.typ)(using sc)
           val flags = if vdef.mutable then Flag.Mutable else Flag.empty
           val sym = Symbol.createValueSymbol(defn.name, tpe, flags)
           sc.define(sym, defn.pos)
@@ -33,11 +35,14 @@ class Namer(using Reporter):
         case funDef: Ast.FunDef =>
           val paramNames = funDef.params.map(_.name)
           val paramTypes =
-            for param <- funDef.params
-            yield transform(param.typ)
-          val resType = transform(funDef.resType)
+            for param <- funDef.params yield
+              val paramType = transform(param.typ)(using sc)
+              checker.expectValueType(paramType, param.typ.pos)
+              paramType.asInstanceOf[ValueType]
+
+          val resType = transform(funDef.resType)(using sc)
           val funType = Type.Proc(paramNames, paramTypes, resType)
-          val sym = Symbol.createFunSymbol(defn.name, info)
+          val sym = Symbol.createFunSymbol(defn.name, funType)
           sc.define(sym, defn.pos)
 
     val funs = new mutable.ArrayBuffer[Fun]
@@ -50,24 +55,21 @@ class Namer(using Reporter):
       defn match
         case valDef: Ast.ValDef =>
           val valScope = sc.fresh(sym => if !sym.isParameter then locals.addOne(sym))
-          val rhs = transform(valDef.words)(using valScope)
+          val rhs = transform(valDef.rhs)(using valScope)
           inits += new Word.Assign(sym, rhs).withPos(defn.pos)
 
         case funDef: Ast.FunDef =>
           funs += transform(sym, funDef)(using sc)
     end for
 
-    val mainWords = transform(prog.main)(using sc.fresh())
+    val mainPhrase = transform(prog.main)(using sc.fresh())
     val mainSym = Symbol.createFunSymbol("main", Type.Proc(Nil, Nil, Type.Void))
-    val mainBody = (inits ++ mainWords).toList
-    val mainPos = mainWords.map(_.pos).reduce(_ | _)
+    val mainBody = (inits ++ mainPhrase.words).toList
+    val mainPos = mainPhrase.pos
     val params = Nil
     val mainFun = Fun(mainSym, params, locals.toList, mainBody).withPos(mainPos)
 
     funs += mainFun
-
-    // check code
-    for fun <- funs do checker.check(fun)
 
     Prog(funs.toList, inits.map(_.symbol).toList, mainSym)
 
@@ -84,16 +86,16 @@ class Namer(using Reporter):
         phrase.words
 
       case Ast.If(cond, thenp, elsep) =>
-         val cond2 = transform(cond)(using sc.fresh())
-         val then2 = transform(thenp)(using sc.fresh())
-         val else2 = transform(elsep)(using sc.fresh())
+         val cond2 = transform(cond)
+         val then2 = transform(thenp)
+         val else2 = transform(elsep)
          checker.expect(cond2, Type.Bool)
          checker.expect(else2, then2.tpe)
          Word.If(cond2, then2, else2).withPos(word.pos) :: Nil
 
       case Ast.While(cond, body) =>
-         val cond2 = transform(cond)(using sc.fresh())
-         val body2 = transform(body)(using sc.fresh())
+         val cond2 = transform(cond)
+         val body2 = transform(body)
          checker.expect(cond2, Type.Bool)
          Word.While(cond2, body2).withPos(word.pos) :: Nil
 
@@ -116,7 +118,7 @@ class Namer(using Reporter):
           flags = flags | Flag.Mutable
 
         val tpe = transform(vdef.typ)
-        val rhs = transform(vdef.words)(using sc.fresh())
+        val rhs = transform(vdef.rhs)
 
         checker.expectValueType(tpe, vdef.typ.pos)
         val sym = Symbol.createValueSymbol(vdef.name, tpe, flags)
@@ -126,21 +128,28 @@ class Namer(using Reporter):
         sc.define(sym, vdef.pos)
         Word.Assign(sym, rhs).withPos(vdef.pos) :: Nil
 
-  private def transform(words: Ast.Phrase)(using sc: Scope): Phrase =
-    val wordsTyped = for word <- words do transform(word)
+  private def transform(phrase: Ast.Phrase)(using sc: Scope): Phrase =
+    val sc2 = sc.fresh()
+    val wordsTyped = phrase.words.flatMap: word =>
+        transform(word)(using sc2)
+
     val vs = new Checker.ValueStack
     checker.check(wordsTyped)(using vs)
+
     val tp =
       if !vs.isError && vs.size > 1 then
         Reporter.error(
-          "At most one value expected, found = " + vs.size, words.pos)
+          "At most one value expected, found = " + vs.size, phrase.pos)
         Type.Error
       else
         vs.pop() match
           case Some(tp) =>
-            if !tp.isInstanceOf[ValueType] then
+            if !tp.isValueType then
               Reporter.error(
-                "Value expected, found type = " + tp, words.pos)
+                "Value expected, found type = " + tp, phrase.pos)
+              Type.Error
+            else
+              tp
 
           case None => Type.Void
 
@@ -157,8 +166,8 @@ class Namer(using Reporter):
         funScope.define(paramSym, param.pos)
         paramSym
 
-    val words = transform(funDef.words)(using funScope)
-    Fun(sym, paramSyms, locals.toList, words).withPos(funDef.pos)
+    val body2 = transform(funDef.body)(using funScope)
+    Fun(sym, paramSyms, locals.toList, body2).withPos(funDef.pos)
 
   private def transform(tpt: Ast.TypeTree)(using sc: Scope): Type =
     tpt match

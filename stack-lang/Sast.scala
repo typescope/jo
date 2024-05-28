@@ -21,7 +21,7 @@ object Sast:
     case Ident(symbol: Symbol)
     case Assign(symbol: Symbol, rhs: Phrase)
     case If(cond: Phrase, thenp: Phrase, elsep: Phrase)
-    case While(cond: List[Word], body: List[Word])
+    case While(cond: Phrase, body: Phrase)
 
     val tpe: Type =
       this match

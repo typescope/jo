@@ -4,9 +4,8 @@ import Assembly.*
 import PreAssembly.*
 import Assembler.{ Patch, PatchableBuffer }
 import Sast.*
-
+import Symbols.*
 import CallConvention.*
-
 import RegisterMachine.*
 
 /** Fast implementation with register allocation

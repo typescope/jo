@@ -1,4 +1,5 @@
 import Sast.*
+import Symbols.*
 
 /************************************************************************
  *                                                                      *
@@ -26,8 +27,8 @@ abstract class Backend:
   def call(fun: Symbol)(using Context): Unit
 
   /** Compile words */
-  def compile(words: List[Word])(using Context): Unit =
-    for word <- words do compile(word)
+  def compile(phrase: Phrase)(using Context): Unit =
+    for word <- phrase.words do compile(word)
 
   /** Compile if/then/else */
   def compile(ifElse: Word.If)(using Context): Unit

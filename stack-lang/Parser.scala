@@ -279,10 +279,12 @@ object Parsing:
       eat(Token.LPAREN)
       val paramList = params()
       eat(Token.RPAREN)
+      eat(Token.COLON)
+      val resType = typ()
       eat(Token.EQL)
       val words = phrase()
       val span2 = eat(Token.SEMICOL)
-      FunDef(id, paramList, words).withPos(span1 | span2)
+      FunDef(id, paramList, resType, words).withPos(span1 | span2)
 
     def params(): List[Param] =
       val (token, _) = peek()
@@ -300,7 +302,7 @@ object Parsing:
       if token == Token.RPAREN then acc.toList
       else
         eat(Token.COMMA)
-        paramsRest(acc += Param())
+        paramsRest(acc += param())
 
     def phrase(): Phrase =
       word() match
@@ -308,7 +310,7 @@ object Parsing:
         case None    =>
           val (token, span) = peek()
           error("Expect a word, found token " + token, span)
-          Nil
+          Phrase(Nil)
 
     def phraseRest(words: mutable.ArrayBuffer[Word]): Phrase =
       word() match
@@ -376,7 +378,7 @@ object Parsing:
           eat(Token.ELSE)
           phrase()
         else
-          Nil
+          Phrase(Nil)
       val span2 = eat(Token.END)
       If(cond, thenp, elsep).withPos(span1 | span2)
 

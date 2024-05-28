@@ -40,20 +40,19 @@ class Checker(using Reporter):
 
           case Type.Void =>
 
-          case Type.Error =>
-
-          case Proc(names, paramTypes, resType) =>
+          case Type.Proc(names, paramTypes, resType) =>
+            // TODO
 
   def check(words: List[Word])(using vs: ValueStack): Unit =
     for word <- words do check(word)
 
   def expect(tree: Tree, tp: Type): Unit =
     if !matches(tree.tpe, tp) then
-      Reporter.error(s"Expect type $tp, found = ${tree.info}", word.pos)
+      Reporter.error(s"Expect type $tp, found = ${tree.tpe}", tree.pos)
 
   def expectValueType(tp: Type, pos: Span): Unit =
     if !tp.isValueType then
-      Reporter.error(s"Expect value type, found = $tp", word.pos)
+      Reporter.error(s"Expect value type, found = $tp", pos)
 
 object Checker:
   /**
@@ -96,7 +95,7 @@ object Checker:
 
     def push(tps: List[ValueType]) =
       valueTypes ++= tps
-      if tps.exists(_.isInstanceOf[Type.Error] then setError()
+      if tps.exists(_.isError) then setError()
 
     def pop(): Option[ValueType] =
       if valueTypes.isEmpty then
@@ -114,3 +113,5 @@ object Checker:
         Reporter.error(s"$msg, found = $size", pos)
         setError()
       else
+        // TODO
+        ()
