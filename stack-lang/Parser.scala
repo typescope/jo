@@ -18,7 +18,7 @@ import Reporter.*
 object Parsing:
 
   enum Token:
-    case LPAREN, RPAREN, IF, THEN, ELSE, END, SEMICOL, VAL, VAR,
+    case LPAREN, RPAREN, IF, THEN, ELSE, END, COLON, SEMICOL, VAL, VAR,
          FUN, EQL, EOF, COMMA, WHILE, DO
     case IntLit(value: Int)
     case BoolLit(value: Boolean)
@@ -121,6 +121,7 @@ object Parsing:
       stream.eat() match
         case '('    => Token.LPAREN
         case ')'    => Token.RPAREN
+        case ':'    => Token.COLON
         case ';'    => Token.SEMICOL
         case ','    => Token.COMMA
 
@@ -265,10 +266,12 @@ object Parsing:
       val mutable = modifier == Token.VAR
       val span1 = eat(modifier)
       val id = ident()
+      eat(Token.COLON)
+      val tpt = typ()
       eat(Token.EQL)
       val words = phrase()
       val span2 = eat(Token.SEMICOL)
-      ValDef(id, words, mutable).withPos(span1 | span2)
+      ValDef(id, tpt, words, mutable).withPos(span1 | span2)
 
     def funDef(): FunDef =
       val span1 = eat(Token.FUN)
@@ -281,19 +284,25 @@ object Parsing:
       val span2 = eat(Token.SEMICOL)
       FunDef(id, paramList, words).withPos(span1 | span2)
 
-    def params(): List[Ident] =
+    def params(): List[Param] =
       val (token, _) = peek()
       if token == Token.RPAREN then Nil
-      else paramsRest(mutable.ArrayBuffer(ident()))
+      else paramsRest(mutable.ArrayBuffer(param()))
 
-    def paramsRest(acc: mutable.ArrayBuffer[Ident]): List[Ident] =
+    def param(): Param =
+      val id = ident()
+      eat(Token.COLON)
+      val tpt = typ()
+      Param(id, tpt).withPos(id.pos | tpt.pos)
+
+    def paramsRest(acc: mutable.ArrayBuffer[Param]): List[Param] =
       val (token, _) = peek()
       if token == Token.RPAREN then acc.toList
       else
         eat(Token.COMMA)
-        paramsRest(acc += ident())
+        paramsRest(acc += Param())
 
-    def phrase(): List[Word] =
+    def phrase(): Phrase =
       word() match
         case Some(w) => phraseRest(mutable.ArrayBuffer(w))
         case None    =>
@@ -301,10 +310,14 @@ object Parsing:
           error("Expect a word, found token " + token, span)
           Nil
 
-    def phraseRest(words: mutable.ArrayBuffer[Word]): List[Word] =
+    def phraseRest(words: mutable.ArrayBuffer[Word]): Phrase =
       word() match
-        case Some(w) => phraseRest(words += w)
-        case None    => words.toList
+        case Some(w) =>
+          phraseRest(words += w)
+
+        case None =>
+          val pos = words.head.pos | words.last.pos
+          Phrase(words.toList).withPos(pos)
 
     def word(): Option[Word] =
       val (token, span) = peek()
@@ -332,6 +345,8 @@ object Parsing:
 
         case token =>
           None
+
+    def typ(): TypeTree = ident()
 
     def ident(): Ident =
       val (token, span) = next()

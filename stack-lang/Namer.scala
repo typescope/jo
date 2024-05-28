@@ -11,7 +11,7 @@ import Reporter.Span
 class Namer(using Reporter):
   val checker = new Checker
 
-  val errorSymbol = Symbol.createFunSymbol("error", StackInfo(-1, -1))
+  val errorSymbol = Symbol.createFunSymbol("error", ???)
 
   def transform(prog: Ast.Prog): Sast.Prog =
     val rootScope = new Scope.RootScope()
@@ -25,12 +25,18 @@ class Namer(using Reporter):
     for defn <- prog.defs do
       defn match
         case vdef: Ast.ValDef =>
+          val tpe = transform(vdef.typ)
           val flags = if vdef.mutable then Flag.Mutable else Flag.empty
-          val sym = Symbol.createValueSymbol(defn.name, flags)
+          val sym = Symbol.createValueSymbol(defn.name, tpe, flags)
           sc.define(sym, defn.pos)
 
         case funDef: Ast.FunDef =>
-          val info = StackInfo(funDef.params.size.toByte, 1)
+          val paramNames = funDef.params.map(_.name)
+          val paramTypes =
+            for param <- funDef.params
+            yield transform(param.typ)
+          val resType = transform(funDef.resType)
+          val funType = Type.Proc(paramNames, paramTypes, resType)
           val sym = Symbol.createFunSymbol(defn.name, info)
           sc.define(sym, defn.pos)
 
@@ -52,7 +58,7 @@ class Namer(using Reporter):
     end for
 
     val mainWords = transform(prog.main)(using sc.fresh())
-    val mainSym = Symbol.createFunSymbol("main", StackInfo(0, 0))
+    val mainSym = Symbol.createFunSymbol("main", Type.Proc(Nil, Nil, Type.Unit))
     val mainBody = (inits ++ mainWords).toList
     val mainPos = mainWords.map(_.pos).reduce(_ | _)
     val params = Nil
@@ -102,13 +108,13 @@ class Namer(using Reporter):
         if vdef.mutable then
           flags = flags | Flag.Mutable
 
-        val sym = Symbol.createValueSymbol(vdef.name, flags)
+        val tpe = transform(vdef.typ)
+        val sym = Symbol.createValueSymbol(vdef.name, tpe, flags)
         val rhs = transform(vdef.words)(using sc.fresh())
         sc.define(sym, vdef.pos)
         Word.Assign(sym, rhs).withPos(vdef.pos) :: Nil
 
-  private def transform(words: List[Ast.Word])(using sc: Scope): List[Word] =
-    words.flatMap(word => transform(word))
+  private def transform(words: Ast.Phrase)(using sc: Scope): Phrase = ???
 
   private def transform(sym: Symbol, funDef: Ast.FunDef)(using sc: Scope): Fun =
     val locals = new mutable.ArrayBuffer[Symbol]
@@ -116,12 +122,15 @@ class Namer(using Reporter):
     val paramSyms =
       for param <- funDef.params
       yield
-        val paramSym = Symbol.createParamSymbol(param.name)
+        val tpe = transform(param.typ)
+        val paramSym = Symbol.createParamSymbol(param.name, tpe)
         funScope.define(paramSym, param.pos)
         paramSym
 
     val words = transform(funDef.words)(using funScope)
     Fun(sym, paramSyms, locals.toList, words).withPos(funDef.pos)
+
+  private def transform(tpt: Ast.TypeTree)(using sc: Scope): Type = ???
 
   private enum Scope:
     case RootScope()
