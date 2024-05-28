@@ -11,7 +11,7 @@ import Reporter.Span
 class Namer(using Reporter):
   val checker = new Checker
 
-  val errorSymbol = Symbol.createFunSymbol("error", ???)
+  val errorSymbol = Symbol.createFunSymbol("error", Type.Error)
 
   def transform(prog: Ast.Prog): Sast.Prog =
     val rootScope = new Scope.RootScope()
@@ -58,7 +58,7 @@ class Namer(using Reporter):
     end for
 
     val mainWords = transform(prog.main)(using sc.fresh())
-    val mainSym = Symbol.createFunSymbol("main", Type.Proc(Nil, Nil, Type.Unit))
+    val mainSym = Symbol.createFunSymbol("main", Type.Proc(Nil, Nil, Type.Void))
     val mainBody = (inits ++ mainWords).toList
     val mainPos = mainWords.map(_.pos).reduce(_ | _)
     val params = Nil
@@ -73,22 +73,28 @@ class Namer(using Reporter):
 
   private def transform(word: Ast.Word)(using sc: Scope): List[Word] =
     word match
-      case Ast.IntLit(v)  => Word.IntLit(v).withPos(word.pos) :: Nil
-      case Ast.BoolLit(v) => Word.BoolLit(v).withPos(word.pos) :: Nil
+      case Ast.IntLit(v)  =>
+        Word.IntLit(v).withPos(word.pos) :: Nil
+
+      case Ast.BoolLit(v) =>
+        Word.BoolLit(v).withPos(word.pos) :: Nil
+
       case Ast.Fence(ws)  =>
-        val words = transform(ws)
-        checker.check(words)(using new Checker.ValueStack)
-        words
+        val phrase = transform(ws)
+        phrase.words
 
       case Ast.If(cond, thenp, elsep) =>
          val cond2 = transform(cond)(using sc.fresh())
          val then2 = transform(thenp)(using sc.fresh())
          val else2 = transform(elsep)(using sc.fresh())
+         checker.expect(cond2, Type.Bool)
+         checker.expect(else2, then2.tpe)
          Word.If(cond2, then2, else2).withPos(word.pos) :: Nil
 
       case Ast.While(cond, body) =>
          val cond2 = transform(cond)(using sc.fresh())
          val body2 = transform(body)(using sc.fresh())
+         checker.expect(cond2, Type.Bool)
          Word.While(cond2, body2).withPos(word.pos) :: Nil
 
       case Ast.Ident(name) =>
@@ -101,6 +107,7 @@ class Namer(using Reporter):
           Reporter.error("The variable " + id.name + " is not mutable", id.pos)
 
         val rhs = transform(words)
+        checker.expect(rhs, sym.info)
         Word.Assign(sym, rhs).withPos(word.pos) :: Nil
 
       case vdef: Ast.ValDef =>
@@ -109,12 +116,35 @@ class Namer(using Reporter):
           flags = flags | Flag.Mutable
 
         val tpe = transform(vdef.typ)
-        val sym = Symbol.createValueSymbol(vdef.name, tpe, flags)
         val rhs = transform(vdef.words)(using sc.fresh())
+
+        checker.expectValueType(tpe, vdef.typ.pos)
+        val sym = Symbol.createValueSymbol(vdef.name, tpe, flags)
+
+        checker.expect(rhs, tpe)
+
         sc.define(sym, vdef.pos)
         Word.Assign(sym, rhs).withPos(vdef.pos) :: Nil
 
-  private def transform(words: Ast.Phrase)(using sc: Scope): Phrase = ???
+  private def transform(words: Ast.Phrase)(using sc: Scope): Phrase =
+    val wordsTyped = for word <- words do transform(word)
+    val vs = new Checker.ValueStack
+    checker.check(wordsTyped)(using vs)
+    val tp =
+      if !vs.isError && vs.size > 1 then
+        Reporter.error(
+          "At most one value expected, found = " + vs.size, words.pos)
+        Type.Error
+      else
+        vs.pop() match
+          case Some(tp) =>
+            if !tp.isInstanceOf[ValueType] then
+              Reporter.error(
+                "Value expected, found type = " + tp, words.pos)
+
+          case None => Type.Void
+
+    Phrase(wordsTyped, tp)
 
   private def transform(sym: Symbol, funDef: Ast.FunDef)(using sc: Scope): Fun =
     val locals = new mutable.ArrayBuffer[Symbol]
@@ -130,7 +160,19 @@ class Namer(using Reporter):
     val words = transform(funDef.words)(using funScope)
     Fun(sym, paramSyms, locals.toList, words).withPos(funDef.pos)
 
-  private def transform(tpt: Ast.TypeTree)(using sc: Scope): Type = ???
+  private def transform(tpt: Ast.TypeTree)(using sc: Scope): Type =
+    tpt match
+      case Ast.Ident(name) =>
+        // TODO: perform type name resolution
+        if name == "Int" then
+          Type.Int
+        else if name == "Bool" then
+          Type.Bool
+        else if name == "Void" then
+          Type.Void
+        else
+          Reporter.error("Unknown type " + tpt, tpt.pos)
+          Type.Error
 
   private enum Scope:
     case RootScope()

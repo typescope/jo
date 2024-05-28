@@ -12,8 +12,10 @@ import Reporter.Positioned
  *
  ***********************************************************************/
 object Sast:
-  enum Word extends Positioned:
-    case Unit()
+  sealed abstract class Tree extends Positioned with Product:
+    def tpe: Type
+
+  enum Word extends Tree:
     case IntLit(value: Int)
     case BoolLit(value: Boolean)
     case Ident(symbol: Symbol)
@@ -23,25 +25,25 @@ object Sast:
 
     val tpe: Type =
       this match
-        case _: Unit     => Type.Unit
         case _: IntLit   => Type.Int
         case _: BoolLit  => Type.Bool
 
-        case _: Assign | _: While => Type.Unit
+        case _: Assign | _: While => Type.Void
 
         case ident: Ident => ident.symbol.info
 
         case ifte: If => ifte.elsep.tpe
 
-  case class Phrase(words: List[Word], tpe: Type) extends Positioned
+  case class Phrase(words: List[Word], tpe: Type) extends Tree
 
   case class Fun(
     symbol: Symbol,
     params: List[Symbol],
     locals: List[Symbol],
     body  : List[Word])
-  extends Positioned:
+  extends Tree:
     def name: String = symbol.name
+    def tpe = symbol.info
 
   case class Prog(funs: List[Fun], vals: List[Symbol], main: Symbol):
     Positioned.checkComponentPos(this)

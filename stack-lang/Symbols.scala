@@ -63,19 +63,19 @@ object Symbols:
       symbols += sym
       sym
 
-    val oneIntType = Type.Int :: Nil
     val oneBoolType = Type.Bool :: Nil
     val twoIntTypes = Type.Int :: Type.Int :: Nil
     val twoBoolTypes = Type.Bool :: Type.Bool :: Nil
-    val typeArith = Type.Proc("m" :: "n" :: Nil, twoIntTypes, oneIntType)
-    val typeComp = Type.Proc("m" :: "n" :: Nil, twoIntTypes, oneBoolType)
-    val typeBits = Type.Proc("m" :: "n" :: Nil, twoIntTypes, oneIntType)
 
-    val typeAnd = Type.Proc("a" :: "b" :: Nil, twoBoolTypes, oneBoolType)
-    val typeOr  = Type.Proc("a" :: "b" :: Nil, twoBoolTypes, oneBoolType)
-    val typeNot  = Type.Proc("a" :: Nil, oneBoolType, oneBoolType)
+    val typeArith = Type.Proc("m" :: "n" :: Nil, twoIntTypes, Type.Int)
+    val typeComp = Type.Proc("m" :: "n" :: Nil, twoIntTypes, Type.Bool)
+    val typeBits = Type.Proc("m" :: "n" :: Nil, twoIntTypes, Type.Int)
 
-    val typePrint  = Type.Proc("n" :: Nil, oneIntType, Nil)
+    val typeAnd = Type.Proc("a" :: "b" :: Nil, twoBoolTypes, Type.Bool)
+    val typeOr  = Type.Proc("a" :: "b" :: Nil, twoBoolTypes, Type.Bool)
+    val typeNot  = Type.Proc("a" :: Nil, oneBoolType, Type.Bool)
+
+    val typePrint  = Type.Proc("n" :: Nil, oneIntType, Type.Void)
 
     val add    =  createPrimSymbol("+",   typeArith)
     val sub    =  createPrimSymbol("-",   typeArith)

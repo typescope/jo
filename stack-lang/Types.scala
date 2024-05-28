@@ -5,6 +5,28 @@
   * are structurally the same.
   */
 object Types:
-  enum Type:
-    case Unit, Int, Bool
-    case Proc(names: List[String], paramTypes: List[Type], resType: Type)
+  sealed trait Type:
+    def isValueType =
+      this match
+        case _: ValueType | Type.Error => true
+        case _ => false
+
+  /** The type represents a category of values */
+  sealed ValueType extends Type
+
+  object Type:
+   case object Int extends ValueType
+   case object Bool extends ValueType
+
+   case object Void extends Type
+
+   case object Error extends ValueType
+
+   case Proc(
+     names: List[String], paramTypes: List[ValueType], resType: Type)
+   extends Type
+
+
+  def matches(tp1: Type. tp2: Type): Boolean =>
+    if tp1 == Error || tp2 == Error then true
+    else tp1 == tp2
