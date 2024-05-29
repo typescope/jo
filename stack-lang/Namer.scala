@@ -90,7 +90,12 @@ class Namer(using Reporter):
          val then2 = transform(thenp)
          val else2 = transform(elsep)
          checker.expect(cond2, Type.Bool)
-         checker.expect(then2, else2.tpe) // else can be empty thus void
+         if !matches(then2.tpe, else2.tpe) then
+           Reporter.error(
+             "Expect if branches to have the same type," +
+               s"found = ${then2.tpe} and ${else2.tpe}",
+             word.pos)
+
          Word.If(cond2, then2, else2).withPos(word.pos) :: Nil
 
       case Ast.While(cond, body) =>

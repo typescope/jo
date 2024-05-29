@@ -10,6 +10,13 @@ if a then    // error
   3 p
 end
 
+if 3 even then   // error
+  5
+else
+  4 even
+end
+
+
 while a 3 * do    // error
   a p
 end
