@@ -74,7 +74,7 @@ object Checker:
     def size: Int = valueTypes.size
 
     def expectEmpty(msg: String, pos: Span)(using Reporter): Unit =
-      if this.size != 0 then
+      if !isError && this.size != 0 then
         Reporter.error(s"$msg, found = $size", pos)
         setError()
 

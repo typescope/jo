@@ -1,6 +1,6 @@
 // https://mathworld.wolfram.com/TAKFunction.html
 
-fun tak(x, y, z) =
+fun tak(x: Int, y: Int, z: Int): Int =
     if x y <= then
       y
     else

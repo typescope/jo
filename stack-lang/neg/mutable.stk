@@ -1,9 +1,9 @@
-val a = 10;
-var b = 20;
+val a: Int = 10;
+var b: Int = 20;
 
-fun foo() =
-  val x = 5;
-  var y = 3;
+fun foo(): Int =
+  val x: Int = 5;
+  var y: Int = 3;
   x = y 1 <<;         // error
   y = y 2 *;
   y;

@@ -1,4 +1,4 @@
-val a = 0 1 +
-val b = 5 4 9 23 - + *;
-val c = b a .             // error
-3 p                       // error // error // error
+val a: Int = 0 1 +
+val b: Int = 5 4 9 23 - + *;
+val c: Int = b a .             // error
+3 p                            // error // error // error

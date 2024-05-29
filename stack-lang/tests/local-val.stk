@@ -1,32 +1,31 @@
-fun fact(n) =
+fun fact(n: Int): Int =
   if n 0 == then 1
   else
-    val r = n 1 - fact;
+    val r: Int = n 1 - fact;
     r n *
   end;
 
-fun mul(m, n) =
+fun mul(m: Int, n: Int): Int =
   if (m 0 ==) (n 0 ==) or then 0
   else
     if 1 m & 0 == then
-      val a = m 1 >> n mul;
+      val a: Int = m 1 >> n mul;
       a a +
     else
-      val b = m 1 >> n mul;
+      val b: Int = m 1 >> n mul;
       b b + n +
     end
   end;
 
-fun test1() =
-  val a = 0 fact;
-  val b = 4 fact;
-  val c = 5 fact;
+fun test1(): Void =
+  val a: Int = 0 fact;
+  val b: Int = 4 fact;
+  val c: Int = 5 fact;
   a p
   b p
-  c p
-  2 fact;
+  c p;
 
-test1 p
+test1
 2 3 mul p
 0 3 mul p
 3 0 mul p

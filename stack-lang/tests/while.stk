@@ -1,6 +1,6 @@
-fun fact(n) =
-  var a = 1;
-  var s = 1;
+fun fact(n: Int): Int =
+  var a: Int = 1;
+  var s: Int = 1;
   while a n < do
     s = a s *;
     a = 1 a +;

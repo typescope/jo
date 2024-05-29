@@ -1,17 +1,17 @@
-fun foo(n) =
-  var a = 3;
+fun foo(n: Int): Int =
+  var a: Int = 3;
 
   if n 5 > then
-    val b = n 2 *;
+    val b: Int = n 2 *;
   else
-    val c = n 10 +;
+    val c: Int = n 10 +;
     b p                // error
   end
 
   c p                  // error
 
   while a 0 > do
-    var d = a 2 +;
+    var d: Int = a 2 +;
     d p
     b p                // error
   end
@@ -20,7 +20,7 @@ fun foo(n) =
 
   4;
 
-fun bar() = a;        // error
+fun bar(): Int = a;    // error
 
-a p                   // error
+a p                    // error
 10 foo p

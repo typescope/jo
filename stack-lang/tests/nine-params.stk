@@ -1,4 +1,4 @@
-fun foo(a, b, c, d, e, f, g, h, i) =
+fun foo(a: Int, b: Int, c: Int, d: Int, e: Int, f: Int, g: Int, h: Int, i: Int): Void =
   a p
   b p
   c p
@@ -7,7 +7,6 @@ fun foo(a, b, c, d, e, f, g, h, i) =
   f p
   g p
   h p
-  i p
-  0;
+  i p;
 
-1 2 3 4 5 6 7 8 9 foo p
+1 2 3 4 5 6 7 8 9 foo
