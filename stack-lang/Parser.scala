@@ -310,7 +310,7 @@ object Parsing:
         case None    =>
           val (token, span) = peek()
           error("Expect a word, found token " + token, span)
-          Phrase(Nil)
+          Phrase(Nil).withPos(span)
 
     def phraseRest(words: mutable.ArrayBuffer[Word]): Phrase =
       word() match
