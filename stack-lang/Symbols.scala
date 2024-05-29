@@ -67,20 +67,20 @@ object Symbols:
       symbols += sym
       sym
 
-    val oneBoolType = Type.Bool :: Nil
-    val oneIntType = Type.Int :: Nil
-    val twoIntTypes = Type.Int :: Type.Int :: Nil
-    val twoBoolTypes = Type.Bool :: Type.Bool :: Nil
+    private val oneBoolType = Type.Bool :: Nil
+    private val oneIntType = Type.Int :: Nil
+    private val twoIntTypes = Type.Int :: Type.Int :: Nil
+    private val twoBoolTypes = Type.Bool :: Type.Bool :: Nil
 
-    val typeArith = Type.Proc("m" :: "n" :: Nil, twoIntTypes, Type.Int)
-    val typeComp = Type.Proc("m" :: "n" :: Nil, twoIntTypes, Type.Bool)
-    val typeBits = Type.Proc("m" :: "n" :: Nil, twoIntTypes, Type.Int)
+    private val typeArith = Type.Proc("m" :: "n" :: Nil, twoIntTypes, Type.Int)
+    private val typeComp = Type.Proc("m" :: "n" :: Nil, twoIntTypes, Type.Bool)
+    private val typeBits = Type.Proc("m" :: "n" :: Nil, twoIntTypes, Type.Int)
 
-    val typeAnd = Type.Proc("a" :: "b" :: Nil, twoBoolTypes, Type.Bool)
-    val typeOr  = Type.Proc("a" :: "b" :: Nil, twoBoolTypes, Type.Bool)
-    val typeNot  = Type.Proc("a" :: Nil, oneBoolType, Type.Bool)
+    private val typeAnd = Type.Proc("a" :: "b" :: Nil, twoBoolTypes, Type.Bool)
+    private val typeOr  = Type.Proc("a" :: "b" :: Nil, twoBoolTypes, Type.Bool)
+    private val typeNot  = Type.Proc("a" :: Nil, oneBoolType, Type.Bool)
 
-    val typePrint  = Type.Proc("n" :: Nil, oneIntType, Type.Void)
+    private val typePrint  = Type.Proc("n" :: Nil, oneIntType, Type.Void)
 
     val add    =  createPrimSymbol("+",   typeArith)
     val sub    =  createPrimSymbol("-",   typeArith)
@@ -101,6 +101,10 @@ object Symbols:
     val bor    =  createPrimSymbol("or",  typeOr)
     val bnot   =  createPrimSymbol("not", typeNot)
     val p      =  createPrimSymbol("p",   typePrint)
+
+    val Int    =  new Symbol("Int",  Type.Int,  Flag.Prim)
+    val Bool   =  new Symbol("Bool", Type.Bool, Flag.Prim)
+    val Void   =  new Symbol("Void", Type.Void, Flag.Prim)
 
     val allSymbols: List[Symbol] = symbols.toList
   end predef

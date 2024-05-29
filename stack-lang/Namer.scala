@@ -18,7 +18,12 @@ class Namer(using Reporter):
   def transform(prog: Ast.Prog): Sast.Prog =
     val rootScope = new Scope.RootScope()
 
-    // Predefined symbols
+    // Predefined type names
+    rootScope.define(predef.Int, Reporter.NoSpan, isType = true)
+    rootScope.define(predef.Bool, Reporter.NoSpan, isType = true)
+    rootScope.define(predef.Void, Reporter.NoSpan, isType = true)
+
+    // Predefined term names
     for sym <- predef.allSymbols do
       rootScope.define(sym, Reporter.NoSpan)
 
@@ -50,7 +55,7 @@ class Namer(using Reporter):
     val locals = new mutable.ArrayBuffer[Symbol]
 
     for defn <- prog.defs yield
-      val Some(sym) = sc.resolve(defn.name): @unchecked
+      val Some(sym) = sc.resolve(defn.name, isType = false): @unchecked
 
       defn match
         case valDef: Ast.ValDef =>
@@ -177,28 +182,30 @@ class Namer(using Reporter):
   private def transform(tpt: Ast.TypeTree)(using sc: Scope): Type =
     tpt match
       case Ast.Ident(name) =>
-        // TODO: perform type name resolution
-        if name == "Int" then
-          Type.Int
-        else if name == "Bool" then
-          Type.Bool
-        else if name == "Void" then
-          Type.Void
-        else
-          Reporter.error("Unknown type " + tpt, tpt.pos)
-          Type.Error
+        sc.resolve(name, isType = true) match
+          case Some(sym) =>
+            if sym.isPrimitive then sym.info
+            else ??? // impossible
+
+          case None =>
+            Reporter.error("Unknown type " + tpt, tpt.pos)
+            Type.Error
 
   private enum Scope:
     case RootScope()
     case NestedScope(outer: Scope, definedHandler: Symbol => Unit)
 
-    private val map: mutable.Map[String, Symbol] = mutable.Map.empty
+    private val termNames: mutable.Map[String, Symbol] = mutable.Map.empty
+    private val typeNames: mutable.Map[String, Symbol] = mutable.Map.empty
 
     def fresh(): Scope =
       new Scope.NestedScope(this, _ => ())
 
     def fresh(definedHandler: Symbol => Unit): Scope =
       new Scope.NestedScope(this, definedHandler)
+
+    private def getTable(isType: Boolean) =
+      if isType then typeNames else termNames
 
     def notifyDefined(sym: Symbol): Unit =
       this match
@@ -208,26 +215,28 @@ class Namer(using Reporter):
           ns.definedHandler(sym)
           ns.outer.notifyDefined(sym)
 
-    def resolve(name: String): Option[Symbol] =
-      map.get(name) match
+    def resolve(name: String, isType: Boolean): Option[Symbol] =
+      val table = getTable(isType)
+      table.get(name) match
         case None =>
           this match
-            case NestedScope(outer, _) => outer.resolve(name)
+            case NestedScope(outer, _) => outer.resolve(name, isType)
             case _ => None
 
         case res  => res
 
-    def resolve(name: String, span: Span): Symbol =
-      resolve(name) match
+    def resolve(name: String, span: Span, isType: Boolean = false): Symbol =
+      resolve(name, isType) match
         case Some(sym) => sym
         case None =>
           Reporter.error("Undefined identifier " + name, span)
           errorSymbol
 
-    def define(sym: Symbol, span: Span): Unit =
-      map.get(sym.name) match
+    def define(sym: Symbol, span: Span, isType: Boolean = false): Unit =
+      val table = getTable(isType)
+      table.get(sym.name) match
         case None =>
-          map(sym.name) = sym
+          table(sym.name) = sym
           notifyDefined(sym)
 
         case Some(sym) =>
