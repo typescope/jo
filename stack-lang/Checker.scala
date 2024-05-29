@@ -101,7 +101,7 @@ object Checker:
           setError()
         end if
 
-        valueTypes.dropRight(paramTypes.size)
+        valueTypes.dropRightInPlace(paramTypes.size)
 
         if resType.isValueType then
           push(resType.asInstanceOf[ValueType] :: Nil)

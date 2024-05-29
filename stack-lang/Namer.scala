@@ -64,8 +64,8 @@ class Namer(using Reporter):
 
     val mainPhrase = transform(prog.main)(using sc)
     val mainSym = Symbol.createFunSymbol("main", Type.Proc(Nil, Nil, Type.Void))
-    val mainBody = Phrase((inits ++ mainPhrase.words).toList, mainPhrase.tpe)
     val mainPos = mainPhrase.pos
+    val mainBody = Phrase((inits ++ mainPhrase.words).toList, mainPhrase.tpe).withPos(mainPos)
     val params = Nil
     val mainFun = Fun(mainSym, params, locals.toList, mainBody).withPos(mainPos)
 
@@ -153,7 +153,7 @@ class Namer(using Reporter):
 
           case None => Type.Void
 
-    Phrase(wordsTyped, tp)
+    Phrase(wordsTyped, tp).withPos(phrase.pos)
 
   private def transform(sym: Symbol, funDef: Ast.FunDef)(using sc: Scope): Fun =
     val locals = new mutable.ArrayBuffer[Symbol]
