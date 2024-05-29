@@ -183,7 +183,7 @@ class JSOptimized(outFile: String) extends Backend:
         if fdef.locals.nonEmpty then addLine(s"var $localStr;")
         compile(fdef.body)
         assert(vs.size == resCount, s"expect $resCount, found = " + vs)
-        if !funType.isVoid then
+        if resCount != 0 then
           val retStr = vs.pop()
           addLine(s"return $retStr;")
 
