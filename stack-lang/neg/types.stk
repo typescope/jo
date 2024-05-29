@@ -1,0 +1,15 @@
+var a: Int = 4;
+
+fun even(x: Int): Bool = x 2 / 0 ==;
+
+a = true;    // error
+a = 3 even;  // error
+false even   // error
+
+if a then    // error
+  3 p
+end
+
+while a 3 * do    // error
+  a p
+end
