@@ -3,6 +3,7 @@ import scala.collection.mutable
 
 import Sast.*
 import Symbols.*
+import Types.*
 
 /**
   * JavaScript platform
@@ -72,7 +73,9 @@ class JSBackend(outFile: String) extends Backend:
     */
   def call(fun: Symbol)(using Context): Unit =
     val name = symbol2UniqueName(fun)
-    val paramCount = fun.info.paramCount
+    val funType = fun.info.asInstanceOf[Type.Proc]
+    val paramCount = funType.paramCount
+
     var i: Int = paramCount - 1
     val args = new Array[String](paramCount)
     while i >= 0  do
@@ -122,7 +125,7 @@ class JSBackend(outFile: String) extends Backend:
     addLine(s"if ($pop()) {")
     indent:
       compile(ifword.thenp)
-    if ifword.elsep.nonEmpty then
+    if !ifword.elsep.isEmpty then
       addLine("} else {")
       indent:
         compile(ifword.elsep)

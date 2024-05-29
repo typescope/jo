@@ -3,6 +3,7 @@ import scala.collection.mutable
 
 import Sast.*
 import Symbols.*
+import Types.*
 
 /**
   * JavaScript platform with code optimization
@@ -57,31 +58,6 @@ class JSOptimized(outFile: String) extends Backend:
     def size: Int = stack.size
 
     override def toString() = stack.toString()
-
-    def combineToJS(): String = combineToJS(this.size)
-
-    /**
-      * Combine the number of items to a JS code.
-      *
-      * Multiple elements are wrapped in an array.
-      */
-    def combineToJS(count: Int): String =
-      assert(count > 0, "Nothing to do for count == 0")
-      assert(count <= size, s"Expect $count items, but size is ${size}")
-      if count == 1 then
-        pop()
-      else
-        var i = this.size - count
-        val arrayItemsStr = new StringBuilder
-        while i < this.size do
-          val item = vs.get(i)
-          arrayItemsStr.append(item.toJS)
-          if i != count - 1 then
-            arrayItemsStr.append(", ")
-          pop()
-          i = i + 1
-
-        s"[$arrayItemsStr]"
 
   private val vs: ValueStack = new ValueStack
 
@@ -163,8 +139,10 @@ class JSOptimized(outFile: String) extends Backend:
     */
   def call(fun: Symbol)(using Context): Unit =
     val name = symbol2UniqueName(fun)
-    val paramCount = fun.info.paramCount
-    val resCount = fun.info.resCount
+    val funType = fun.info.asInstanceOf[Type.Proc]
+    val paramCount = funType.paramCount
+    val resCount = funType.resCount
+
     var i: Int = 0
     val args = vs.pop(paramCount)
     val argsStr = args.mkString(", ")
@@ -174,15 +152,6 @@ class JSOptimized(outFile: String) extends Backend:
       addLine(s"$name($argsStr);")
     else if resCount == 1 then
       vs.push(Item.Expr(s"$name($argsStr)"))
-    else
-      bindExpressions()
-      // result binding
-      val resName = freshName("res")
-      addLine(s"const $resName = $name($argsStr);");
-      i = 0
-      while i < resCount  do
-        vs.push(Item.Ref(s"$resName[$i]"))
-        i = i + 1
 
   /** Initialize a value definition
     *
@@ -203,7 +172,9 @@ class JSOptimized(outFile: String) extends Backend:
     vs.clear()
     val sym = fdef.symbol
     val name = symbol2UniqueName(sym)
-    val resCount = sym.info.resCount
+    val funType = sym.info.asInstanceOf[Type.Proc]
+    val resCount = funType.resCount
+
     uniqueName.newScope:
       val paramStr = fdef.params.map(mapSymbolToJSName).mkString(", ")
       val localStr = fdef.locals.map(mapSymbolToJSName).mkString(", ")
@@ -211,9 +182,9 @@ class JSOptimized(outFile: String) extends Backend:
       indent:
         if fdef.locals.nonEmpty then addLine(s"var $localStr;")
         compile(fdef.body)
-        assert(vs.size == resCount, s"Stack size mismatch, expect $resCount, found = " + vs)
-        if resCount > 0 then
-          val retStr = vs.combineToJS()
+        assert(vs.size == resCount, s"expect $resCount, found = " + vs)
+        if !funType.isVoid then
+          val retStr = vs.pop()
           addLine(s"return $retStr;")
 
       addLine("}\n")
@@ -221,24 +192,23 @@ class JSOptimized(outFile: String) extends Backend:
   def compile(ifword: Word.If)(using Context): Unit =
     bindExpressions()
 
-    val resCount = ifword.info.resCount
     compile(ifword.cond)
 
     val condStr = vs.pop()
-    if resCount == 0 then
+    if ifword.tpe.isVoid then
       addLine(s"if ($condStr) {")
       indent:
         compile(ifword.thenp)
         assert(vs.size == 0, "Expect empty stack, found = " + vs)
 
-      if ifword.elsep.nonEmpty then
+      if !ifword.elsep.isEmpty then
         addLine("} else {")
         indent:
           compile(ifword.elsep)
       addLine("}")
 
     else
-      assert(ifword.elsep.nonEmpty)
+      assert(!ifword.elsep.isEmpty)
 
       val resName = freshName("resIf")
       addLine(s"let $resName;")
@@ -246,23 +216,16 @@ class JSOptimized(outFile: String) extends Backend:
       addLine(s"if ($condStr) {")
       indent:
         compile(ifword.thenp)
-        assert(vs.size == resCount, s"Stack size mismatch, expect = $resCount, found = " + vs)
-        val retStr = vs.combineToJS(resCount)
+        val retStr = vs.pop()
         addLine(s"$resName = $retStr;")
       addLine("} else {")
       indent:
         compile(ifword.elsep)
-        val retStr = vs.combineToJS(resCount)
+        val retStr = vs.pop()
         addLine(s"$resName = $retStr;")
       addLine("}")
 
-      if resCount == 1 then
-        vs.push(Item.Ref(resName));
-      else
-        var i = 0
-        while i < resCount  do
-          vs.push(Item.Ref(s"$resName[$i]"))
-          i = i + 1
+      vs.push(Item.Ref(resName));
 
   def compile(whileDo: Word.While)(using Context): Unit =
     bindExpressions()
@@ -341,7 +304,7 @@ class JSOptimized(outFile: String) extends Backend:
     work(using ())
 
     if vs.size > 0 then
-      addLine(vs.combineToJS())
+      addLine(vs.pop())
     indentCount -= 1
     addLine("})()")
     pw.close()

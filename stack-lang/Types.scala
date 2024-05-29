@@ -8,6 +8,8 @@ object Types:
   sealed trait Type:
     def isError: Boolean = this == Type.Error
 
+    def isVoid: Boolean = this == Type.Void
+
     def isValueType: Boolean =
       this match
         case _: ValueType | Type.Error => true

@@ -32,15 +32,17 @@ object Sast:
 
         case ident: Ident => ident.symbol.info
 
-        case ifte: If => ifte.elsep.tpe
+        case ifte: If => ifte.elsep.tpe // else can be empty thus void
 
-  case class Phrase(words: List[Word], tpe: Type) extends Tree
+  case class Phrase(words: List[Word], tpe: Type) extends Tree:
+    def isEmpty: Boolean = words.isEmpty
+    def resultCount: Byte = if tpe.isVoid then 0 else 1
 
   case class Fun(
     symbol: Symbol,
     params: List[Symbol],
     locals: List[Symbol],
-    body  : List[Word])
+    body  : Phrase)
   extends Tree:
     def name: String = symbol.name
     def tpe = symbol.info

@@ -62,9 +62,9 @@ class Namer(using Reporter):
           funs += transform(sym, funDef)(using sc)
     end for
 
-    val mainPhrase = transform(prog.main)(using sc.fresh())
+    val mainPhrase = transform(prog.main)(using sc)
     val mainSym = Symbol.createFunSymbol("main", Type.Proc(Nil, Nil, Type.Void))
-    val mainBody = (inits ++ mainPhrase.words).toList
+    val mainBody = Phrase((inits ++ mainPhrase.words).toList, mainPhrase.tpe)
     val mainPos = mainPhrase.pos
     val params = Nil
     val mainFun = Fun(mainSym, params, locals.toList, mainBody).withPos(mainPos)
@@ -90,7 +90,7 @@ class Namer(using Reporter):
          val then2 = transform(thenp)
          val else2 = transform(elsep)
          checker.expect(cond2, Type.Bool)
-         checker.expect(else2, then2.tpe)
+         checker.expect(then2, else2.tpe) // else can be empty thus void
          Word.If(cond2, then2, else2).withPos(word.pos) :: Nil
 
       case Ast.While(cond, body) =>
