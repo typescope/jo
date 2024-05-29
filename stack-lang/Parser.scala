@@ -370,13 +370,13 @@ object Parsing:
       eat(Token.THEN)
       val thenp = phrase()
       // else is optional
-      val (token, _) = peek()
+      val (token, span3) = peek()
       val elsep =
         if token == Token.ELSE then
           eat(Token.ELSE)
           phrase()
         else
-          Phrase(Nil)
+          Phrase(Nil).withPos(span3)
       val span2 = eat(Token.END)
       If(cond, thenp, elsep).withPos(span1 | span2)
 
