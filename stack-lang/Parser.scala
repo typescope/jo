@@ -231,11 +231,9 @@ object Parsing:
     def next() = scanner.next()
     def peek() = scanner.peek()
     def eat(expect: Token): Span =
-      val (actual, span) = peek()
+      val (actual, span) = next()
       if actual != expect then
         error("Unexpected token, found = " + actual + ", expect = " + expect, span)
-      else
-        next()
       span
 
     def parse(): Prog =
@@ -299,9 +297,9 @@ object Parsing:
 
     def paramsRest(acc: mutable.ArrayBuffer[Param]): List[Param] =
       val (token, _) = peek()
-      if token == Token.RPAREN then acc.toList
+      if token == Token.RPAREN || token == Token.EOF then acc.toList
       else
-        eat(Token.COMMA)
+        val span = eat(Token.COMMA)
         paramsRest(acc += param())
 
     def phrase(): Phrase =
@@ -358,7 +356,7 @@ object Parsing:
 
         case token =>
           error("Expect identifier, found token " + token, span)
-          ident()
+          Ident("error").withPos(span)
 
     def fence(): Word =
       val span1 = eat(Token.LPAREN)
