@@ -1,4 +1,5 @@
 import Sast.*
+import Symbols.*
 import Types.*
 import Reporter.Span
 
@@ -38,10 +39,10 @@ class Checker(using Reporter):
         info match
           case tp: ValueType => vs.push(tp :: Nil)
 
+          case tp: Type.Proc => vs.call(sym, tp, word.pos)
+
           case Type.Void =>
 
-          case Type.Proc(names, paramTypes, resType) =>
-            // TODO
 
   def check(words: List[Word])(using vs: ValueStack): Unit =
     for word <- words do check(word)
@@ -65,7 +66,7 @@ object Checker:
     private val valueTypes = mutable.ArrayBuffer.empty[ValueType]
     private var hasError = false
 
-    def setError() =
+    private def setError() =
       hasError = true
 
     def isError = hasError
@@ -77,21 +78,33 @@ object Checker:
         Reporter.error(s"$msg, found = $size", pos)
         setError()
 
-    def expect(expect: Type, pos: Span)(using Reporter): Unit =
+    def call(fun: Symbol, tp: Type.Proc, pos: Span)(using Reporter): Unit =
       if isError then return
 
-      expect match
-        case Type.Void =>
-          // Void type is only expected as function return, and is trivially
-          // satisfied
+      val Type.Proc(names, paramTypes, resType) = tp
 
-        case tp  =>
-          if this.size != 1 then
-            Reporter.error(s"One value expected, found = $size", pos)
-            setError()
-          else if !matches(valueTypes.head, expect) then
-            Reporter.error(s"Expect type $expect, found = ${valueTypes.head}", pos)
-            setError()
+      if this.size < paramTypes.size then
+        Reporter.error(
+          s"Function $fun expects ${paramTypes.size} arguments, found = $size",
+          pos)
+        setError()
+      else
+        val argTypes = valueTypes.takeRight(paramTypes.size)
+        val agree =
+          paramTypes.zip(argTypes).forall: (tp1, tp2) =>
+            matches(tp1, tp2)
+
+        if !agree then
+          Reporter.error(
+            s"Function $fun expects arguments $paramTypes, found = ${argTypes}",
+            pos)
+          setError()
+        end if
+
+        valueTypes.dropRight(paramTypes.size)
+
+        if resType.isValueType then
+          push(resType.asInstanceOf[ValueType] :: Nil)
 
     def push(tps: List[ValueType]) =
       valueTypes ++= tps
@@ -105,13 +118,3 @@ object Checker:
       else
         val tp = valueTypes.remove(this.size - 1)
         Some(tp)
-
-    def clear() = valueTypes.clear()
-
-    def pop(tps: List[ValueType], msg: String, pos: Span)(using Reporter) =
-      if !isError && this.size < tps.size then
-        Reporter.error(s"$msg, found = $size", pos)
-        setError()
-      else
-        // TODO
-        ()
