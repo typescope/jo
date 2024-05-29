@@ -27,8 +27,8 @@ class Checker(using Reporter):
 
       case Word.If(cond, thenp, elsep) =>
         word.tpe match
-          case Type.Void =>
           case tp: ValueType => vs.push(tp :: Nil)
+          case _ =>
 
       case Word.While(cond, body) =>
         vs.expectEmpty("No result expected before while loop", word.pos)

@@ -1,9 +1,10 @@
 import scala.collection.mutable
 
-import Assembly.*
+import Assembly.{ Type => _, * }
 import Assembler.{ Patch, PatchableBuffer }
 import Sast.*
 import Symbols.*
+import Types.*
 
 import StackMachine.RegisterAllocator
 
@@ -45,7 +46,7 @@ extends Backend:
     for sym <- prog.vals do
       val label = Label(sym.name)
       symbolAddrMap(sym) = label
-      cb.add(Data.Uninit(label, Type.Int32))
+      cb.add(Data.Uninit(label, Assembly.Type.Int32))
 
     // Compile functions
     for fun <- prog.funs do
@@ -75,8 +76,12 @@ extends Backend:
     */
   def compile(fdef: Fun)(using Context): Unit =
     val sym = fdef.symbol
+    val funType = sym.info.asInstanceOf[Type.Proc]
     val label = symbolAddrMap(sym).asInstanceOf[Label]
-    val paramCount = fdef.params.size
+
+    val paramCount = funType.paramCount
+    val resCount = funType.resCount
+
     cb.mark(label)
 
     assert(paramCount < 31, s"At most 30 parameters, $sym has " + paramCount)
@@ -95,6 +100,7 @@ extends Backend:
     cb.add(Instr.Sub(Reg(FP_REG), Int32(sizeLocals), SP_REG))
 
     compile(fdef.body)
+    ret(resCount)
 
     for param <- fdef.params do
       symbolAddrMap -= param
@@ -102,7 +108,6 @@ extends Backend:
     for local <- fdef.locals do
       symbolAddrMap -= local
 
-    ret(sym.info.resCount)
 
   def compile(ifword: Word.If)(using Context): Unit =
     val labelFalse = Label("_false")
@@ -117,7 +122,7 @@ extends Backend:
 
       compile(ifword.thenp)
 
-      if ifword.elsep.nonEmpty then
+      if !ifword.elsep.isEmpty then
         cb.add(Instr.Jump(labelEnd))
         cb.mark(labelFalse)
         compile(ifword.elsep)
@@ -192,7 +197,9 @@ extends Backend:
     */
   def call(fun: Symbol)(using Context) =
     val addr = symbolAddrMap(fun).asInstanceOf[Label]
-    val StackInfo(argCount, resCount) = fun.info
+    val funType = fun.info.asInstanceOf[Type.Proc]
+    val argCount = funType.paramCount
+    val resCount = funType.resCount
     val returnLoc = Label("returnLoc")
 
     // 1. save FP
