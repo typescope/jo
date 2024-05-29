@@ -1,10 +1,8 @@
-import scala.collection.mutable
-
-import Sast.StackInfo
+import Types.*
+import CallConvention.*
 import Assembly.RegisterConfig
 
-import CallConvention.*
-
+import scala.collection.mutable
 /**
   * Calling convention is a protocol between caller and callee:
   *
@@ -16,8 +14,8 @@ import CallConvention.*
   * algorithms.
   */
 trait CallConvention:
-  def caller(funInfo: StackInfo): CallerProtocol
-  def callee(funInfo: StackInfo): CalleeProtocol
+  def caller(funInfo: Type.Proc): CallerProtocol
+  def callee(funInfo: Type.Proc): CalleeProtocol
 
 object CallConvention:
   enum Location:
@@ -140,8 +138,9 @@ object CallConvention:
       val callerHandled = if resCount > argCount then resCount else argCount
       FREE_REGS.diff(PARAM_REGS.take(callerHandled))
 
-    def caller(funInfo: StackInfo): CallerProtocol =
-      val StackInfo(argCount, resCount) = funInfo
+    def caller(funInfo: Type.Proc): CallerProtocol =
+      val argCount = funInfo.paramCount
+      val resCount = funInfo.resCount
 
       val onStack = mutable.ArrayBuffer.empty[Fixed | Flex]
       val inRegs = mutable.Map.empty[Fixed, Int]
@@ -163,8 +162,9 @@ object CallConvention:
 
       CallerProtocol(inRegs.toMap, onStack.toList, resLocs)
 
-    def callee(funInfo: StackInfo): CalleeProtocol =
-      val StackInfo(argCount, resCount) = funInfo
+    def callee(funInfo: Type.Proc): CalleeProtocol =
+      val argCount = funInfo.paramCount
+      val resCount = funInfo.resCount
 
       val paramLocs = paramLocations(argCount)
       val retLoc = Location.Mem(FP_REG, 0)

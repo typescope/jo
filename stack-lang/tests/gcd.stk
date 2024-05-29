@@ -1,4 +1,4 @@
-fun gcd(m, n) =
+fun gcd(m: Int, n: Int): Int =
   if m n == then
     m
   else

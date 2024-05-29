@@ -1,12 +1,12 @@
 import scala.collection.mutable
 
-import Assembly.*
+import Assembly.{ Type => _, * }
 import PreAssembly.*
 import Assembler.{ Patch, PatchableBuffer }
 import Sast.*
-
+import Symbols.*
+import Types.*
 import CallConvention.*
-
 import RegisterMachine.*
 
 /** Fast implementation with register allocation
@@ -23,8 +23,11 @@ extends Backend:
 
   type Context = FunctionContext
 
-  /** A dummy parameter representing the return address */
-  val returnAddrSym = Symbol.createParamSymbol("return")
+  /** A dummy parameter representing the return address ---
+    *
+    * Its type does not matter.
+    */
+  val returnAddrSym = Symbol.createParamSymbol("return", Type.Int)
 
   /** Maps global symbols to addresses */
   val symbolAddrMap: mutable.Map[Symbol, Addr] = mutable.Map.from(nativeFunctions)
@@ -55,7 +58,7 @@ extends Backend:
     for sym <- prog.vals do
       val label = Label(sym.name)
       symbolAddrMap(sym) = label
-      cb.add(Data.Uninit(label, Type.Int32))
+      cb.add(Data.Uninit(label, Assembly.Type.Int32))
 
     // Compile functions
     for fun <- prog.funs do
@@ -115,7 +118,7 @@ extends Backend:
 
     // TODO: bind retLoc
     val proto @ CalleeProtocol(paramLocs, retLoc, resLocs, savedRegs) =
-      callConvention.callee(sym.info)
+      callConvention.callee(sym.info.asInstanceOf[Type.Proc])
 
     // Compile function to a temporary buffer for register allocation
     gen(PlaceHolder.InitStackPointer)
@@ -145,8 +148,6 @@ extends Backend:
     val labelFalse = Label("_false")
     val labelEnd = Label("_ifEnd")
 
-    val resCount = ifword.info.resCount
-
     compile(ifword.cond)
 
     val vs = ctx.vs
@@ -164,8 +165,8 @@ extends Backend:
 
         compile(ifword.thenp)
 
-        if resCount == 0 then
-          if ifword.elsep.nonEmpty then
+        if ifword.tpe.isVoid then
+          if !ifword.elsep.isEmpty then
             gen(Instr.Jump(labelEnd))
             gen(labelFalse)
             compile(ifword.elsep)
@@ -173,20 +174,20 @@ extends Backend:
           gen(labelEnd)
 
         else
-          assert(ifword.elsep.nonEmpty)
-          val resRegs = (0 until resCount).map(_ => freshVirtualReg())
+          assert(!ifword.elsep.isEmpty)
+          val resReg = freshVirtualReg()
 
           // finish true branch
-          for reg <- resRegs do gen(Instr.Move(vs.pop(), reg))
+          gen(Instr.Move(vs.pop(), resReg))
           gen(Instr.Jump(labelEnd))
 
           // false branch
           gen(labelFalse)
           compile(ifword.elsep)
-          for reg <- resRegs do gen(Instr.Move(vs.pop(), reg))
+          gen(Instr.Move(vs.pop(), resReg))
 
           gen(labelEnd)
-          for reg <- resRegs do vs.push(Reg(reg))
+          vs.push(Reg(resReg))
         end if
 
   def compile(whileDo: Word.While)(using ctx: Context): Unit =
@@ -238,10 +239,12 @@ extends Backend:
   /** Call the funtion */
   def call(fun: Symbol)(using ctx: Context) =
     val target = symbolAddrMap(fun).asInstanceOf[Label]
-    val StackInfo(argCount, resCount) = fun.info
+    val funType = fun.info.asInstanceOf[Type.Proc]
+    val argCount = funType.paramCount
+    val resCount = funType.resCount
 
     val proto @ CallerProtocol(inRegs, onStack, resLocs) =
-      callConvention.caller(fun.info)
+      callConvention.caller(funType)
 
     val args = ctx.vs.pop(argCount)
     val returnLoc = Label("returnLoc")

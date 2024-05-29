@@ -1,8 +1,8 @@
 // https://en.wikipedia.org/wiki/Pell_number
 
-fun pell(n) = 0 1 0 n pellComp;
+fun pell(n: Int): Int = 0 1 0 n pellComp;
 
-fun pellComp(a, b, i, n) =
+fun pellComp(a: Int, b: Int, i: Int, n: Int): Int =
   if i n == then
     a
   else

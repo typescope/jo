@@ -18,7 +18,7 @@ import Reporter.*
 object Parsing:
 
   enum Token:
-    case LPAREN, RPAREN, IF, THEN, ELSE, END, SEMICOL, VAL, VAR,
+    case LPAREN, RPAREN, IF, THEN, ELSE, END, COLON, SEMICOL, VAL, VAR,
          FUN, EQL, EOF, COMMA, WHILE, DO
     case IntLit(value: Int)
     case BoolLit(value: Boolean)
@@ -121,6 +121,7 @@ object Parsing:
       stream.eat() match
         case '('    => Token.LPAREN
         case ')'    => Token.RPAREN
+        case ':'    => Token.COLON
         case ';'    => Token.SEMICOL
         case ','    => Token.COMMA
 
@@ -230,11 +231,9 @@ object Parsing:
     def next() = scanner.next()
     def peek() = scanner.peek()
     def eat(expect: Token): Span =
-      val (actual, span) = peek()
+      val (actual, span) = next()
       if actual != expect then
         error("Unexpected token, found = " + actual + ", expect = " + expect, span)
-      else
-        next()
       span
 
     def parse(): Prog =
@@ -265,10 +264,12 @@ object Parsing:
       val mutable = modifier == Token.VAR
       val span1 = eat(modifier)
       val id = ident()
+      eat(Token.COLON)
+      val tpt = typ()
       eat(Token.EQL)
       val words = phrase()
       val span2 = eat(Token.SEMICOL)
-      ValDef(id, words, mutable).withPos(span1 | span2)
+      ValDef(id, tpt, words, mutable).withPos(span1 | span2)
 
     def funDef(): FunDef =
       val span1 = eat(Token.FUN)
@@ -276,35 +277,47 @@ object Parsing:
       eat(Token.LPAREN)
       val paramList = params()
       eat(Token.RPAREN)
+      eat(Token.COLON)
+      val resType = typ()
       eat(Token.EQL)
       val words = phrase()
       val span2 = eat(Token.SEMICOL)
-      FunDef(id, paramList, words).withPos(span1 | span2)
+      FunDef(id, paramList, resType, words).withPos(span1 | span2)
 
-    def params(): List[Ident] =
+    def params(): List[Param] =
       val (token, _) = peek()
       if token == Token.RPAREN then Nil
-      else paramsRest(mutable.ArrayBuffer(ident()))
+      else paramsRest(mutable.ArrayBuffer(param()))
 
-    def paramsRest(acc: mutable.ArrayBuffer[Ident]): List[Ident] =
+    def param(): Param =
+      val id = ident()
+      eat(Token.COLON)
+      val tpt = typ()
+      Param(id, tpt).withPos(id.pos | tpt.pos)
+
+    def paramsRest(acc: mutable.ArrayBuffer[Param]): List[Param] =
       val (token, _) = peek()
-      if token == Token.RPAREN then acc.toList
+      if token == Token.RPAREN || token == Token.EOF then acc.toList
       else
-        eat(Token.COMMA)
-        paramsRest(acc += ident())
+        val span = eat(Token.COMMA)
+        paramsRest(acc += param())
 
-    def phrase(): List[Word] =
+    def phrase(): Phrase =
       word() match
         case Some(w) => phraseRest(mutable.ArrayBuffer(w))
         case None    =>
           val (token, span) = peek()
           error("Expect a word, found token " + token, span)
-          Nil
+          Phrase(Nil).withPos(span)
 
-    def phraseRest(words: mutable.ArrayBuffer[Word]): List[Word] =
+    def phraseRest(words: mutable.ArrayBuffer[Word]): Phrase =
       word() match
-        case Some(w) => phraseRest(words += w)
-        case None    => words.toList
+        case Some(w) =>
+          phraseRest(words += w)
+
+        case None =>
+          val pos = words.head.pos | words.last.pos
+          Phrase(words.toList).withPos(pos)
 
     def word(): Option[Word] =
       val (token, span) = peek()
@@ -333,6 +346,8 @@ object Parsing:
         case token =>
           None
 
+    def typ(): TypeTree = ident()
+
     def ident(): Ident =
       val (token, span) = next()
       token match
@@ -341,7 +356,7 @@ object Parsing:
 
         case token =>
           error("Expect identifier, found token " + token, span)
-          ident()
+          Ident("error").withPos(span)
 
     def fence(): Word =
       val span1 = eat(Token.LPAREN)
@@ -355,13 +370,13 @@ object Parsing:
       eat(Token.THEN)
       val thenp = phrase()
       // else is optional
-      val (token, _) = peek()
+      val (token, span3) = peek()
       val elsep =
         if token == Token.ELSE then
           eat(Token.ELSE)
           phrase()
         else
-          Nil
+          Phrase(Nil).withPos(span3)
       val span2 = eat(Token.END)
       If(cond, thenp, elsep).withPos(span1 | span2)
 

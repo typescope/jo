@@ -1,6 +1,6 @@
-fun fib(n) = 1 1 1 n fibComp;
+fun fib(n: Int): Int = 1 1 1 n fibComp;
 
-fun fibComp(a, b, i, n) =
+fun fibComp(a: Int, b: Int, i: Int, n: Int): Int =
   if i n == then a
   else
     a p

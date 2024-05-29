@@ -10,6 +10,8 @@
 
 //> using file Ast.scala
 //> using file Sast.scala
+//> using file Symbols.scala
+//> using file Types.scala
 //> using file Namer.scala
 //> using file Checker.scala
 //> using file Parser.scala
@@ -19,6 +21,7 @@
 import scala.collection.mutable
 
 import Sast.*
+import Symbols.*
 
 def err(msg: String) = throw new Exception(msg)
 
@@ -170,8 +173,8 @@ object Interpreter:
     val vs = new ValueStack
     exec(Word.Ident(prog.main))(using vs, sc)
 
-  def exec(words: List[Word])(using ValueStack, Scope): Unit =
-    for word <- words do exec(word)
+  def exec(phrase: Phrase)(using ValueStack, Scope): Unit =
+    for word <- phrase.words do exec(word)
 
   def exec(word: Word)(using vs: ValueStack, sc: Scope): Unit =
     word match

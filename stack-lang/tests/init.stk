@@ -1,5 +1,5 @@
-val c = 3 double;
+val c: Int = 3 double;
 
-fun double(n) = n n +;
+fun double(n: Int): Int = n n +;
 
 2 c * p         // 12

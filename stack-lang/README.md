@@ -15,6 +15,7 @@ Lexical Grammar
     NLINE  = "\n".
     USCORE = "_".
 
+    COLON    = ":".
     SEMICOL  = ";".
     VAL      = "val".
     VAR      = "var".
@@ -49,9 +50,10 @@ Syntactical Grammar
     while   = WHILE phrase DO phrase END.
     phrase  = word [phrase].
 
-    valdef  = (VAL | VAR) ident EQL phrase SEMICOL.
+    valdef  = (VAL | VAR) ident COLON ident EQL phrase SEMICOL.
     fundef  = FUN ident LPAREN [params] RPAREN EQL phrase SEMICOL.
     program = {valdef | fundef} phrase.
 
-    params  = ident {COMMA ident}
+    params  = param {COMMA param}
+    param   = ident COLON ident
 ~~~
