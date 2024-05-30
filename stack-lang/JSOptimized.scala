@@ -251,7 +251,12 @@ class JSOptimized(outFile: String) extends Backend:
   /** Push the value associated with the given symbol to value stack */
   def push(sym: Symbol)(using Context): Unit =
     val name = symbol2UniqueName(sym)
-    vs.push(Item.Ref(name))
+    if sym.isMutable then
+      val nameCurValue = freshName(sym.name)
+      addLine(s"const $nameCurValue = $name;")
+      vs.push(Item.Ref(nameCurValue))
+    else
+      vs.push(Item.Ref(name))
 
   def binary(op: String): Unit =
     val operand2 = vs.pop()
