@@ -23,6 +23,7 @@ Lexical Grammar
     TYPE     = "type".
     EQL      = "=".
     COMMA    = ",".
+    DOT      = ".".
     LPAREN   = "(".
     RPAREN   = ")".
     LBRACKET = "[".
@@ -46,11 +47,14 @@ Syntactical Grammar
 
 
 ~~~
-    word    = integer | boolean | ident | if | fence | assign | valdef | while | typedef | record.
+    word    = integer | boolean | ident | if | fence | assign | valdef | while | typedef | record | select.
     fence   = LPAREN phrase RPAREN.
     assign  = ident EQL phrase SEMICOL.
     if      = IF phrase THEN phrase [ELSE phrase] END.
     while   = WHILE phrase DO phrase END.
+    record  = LBRACKET tagargs RBRACKET.
+    select  = (ident | select) DOT ident.
+
     phrase  = word [phrase].
 
     valdef  = (VAL | VAR) type COLON ident EQL phrase SEMICOL.
@@ -59,7 +63,6 @@ Syntactical Grammar
     typedef    = TYPE ident EQL type.
     type       = ident | recordtyp.
 
-    record     = LBRACKET tagargs RBRACKET.
     tagargs    = tagarg { COMMA tagarg }.
     tagarg     = ident EQL phrase.
     recordtyp  = LBRACKET tagfields  RBRACKET.
