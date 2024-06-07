@@ -18,8 +18,8 @@ import Reporter.*
 object Parsing:
 
   enum Token:
-    case LPAREN, RPAREN, IF, THEN, ELSE, END, COLON, SEMICOL, VAL, VAR,
-         FUN, EQL, EOF, COMMA, WHILE, DO, TYPE
+    case LPAREN, RPAREN, LBRACKET, RBRACKET, IF, THEN, ELSE, END, COLON,
+         SEMICOL, DOT, VAL, VAR, FUN, EQL, EOF, COMMA, WHILE, DO, TYPE
     case IntLit(value: Int)
     case BoolLit(value: Boolean)
     case Ident(name: String)
@@ -121,6 +121,9 @@ object Parsing:
       stream.eat() match
         case '('    => Token.LPAREN
         case ')'    => Token.RPAREN
+        case ']'    => Token.LBRACKET
+        case '['    => Token.RBRACKET
+        case '.'    => Token.DOT
         case ':'    => Token.COLON
         case ';'    => Token.SEMICOL
         case ','    => Token.COMMA
@@ -335,6 +338,7 @@ object Parsing:
       val (token, span) = peek()
       token match
         case Token.LPAREN    => Some(fence())
+        case Token.LBRACKET  => Some(record())
         case Token.IF        => Some(ifElse())
         case Token.WHILE     => Some(whileDo())
 
@@ -342,6 +346,7 @@ object Parsing:
           val id = ident()
           peek() match
             case (Token.EQL, _) => Some(assign(id))
+            case (Token.DOT, _) => Some(select(id))
             case _ => Some(id)
 
         case Token.VAL | Token.VAR   =>
@@ -362,6 +367,25 @@ object Parsing:
           None
 
     def typ(): TypeTree = ident()
+
+    def recordtyp(): RecordType =
+      val span1 = eat(Token.LBRACKET)
+      val fields = fields(mutable.ArrayBuffer.empty)
+      val span2 = eat(Token.RBRACKET)
+      RecordType(fields).withPos(span1 | span2)
+
+    def fields(acc: mutable.ArrayBuffer[Field]): List[Field] =
+      peek() match
+        case (Token.RBRACKET, _) => acc.toList
+        case _ =>
+          eat(Token.COMMA)
+          fields(acc += field())
+
+    def field(): Field =
+      val id = ident()
+      eat(Token.EQL)
+      val tp = typ()
+      Field(id, tp).withPos(id.pos | tp.pos)
 
     def ident(): Ident =
       val (token, span) = next()
@@ -408,3 +432,30 @@ object Parsing:
       val words = phrase()
       val span2 = eat(Token.SEMICOL)
       Assign(id, words).withPos(id.pos | span2)
+
+    def select(qual: Ident | Select): Select =
+      eat(Token.DOT)
+      val id = ident()
+      val sel = Select(qual, id.name).withPos(qual.pos | id.pos)
+      peek() match
+        case (Token.DOT, _) => select(sel)
+        case _ => sel
+
+    def record(): RecordLit =
+      val span1 = eat(Token.LBRACKET)
+      val args = namedArgs(mutable.ArrayBuffer.empty)
+      val span2 = eat(Token.RBRACKET)
+      RecordLit(args).withPos(span1 | span2)
+
+    def namedArgs(acc: mutable.ArrayBuffer[NamedArg]): List[NamedArg] =
+      peek() match
+        case (Token.RBRACKET, _) => acc.toList
+        case _ =>
+          eat(Token.COMMA)
+          namedArgs(acc += namedArg())
+
+    def namedArg(): NamedArg =
+      val id = ident()
+      eat(Token.EQL)
+      val arg = phrase()
+      NamedArg(id, arg).withPos(id.pos | arg.pos)

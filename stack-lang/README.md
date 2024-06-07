@@ -60,14 +60,14 @@ Syntactical Grammar
     valdef  = (VAL | VAR) ident COLON type EQL phrase SEMICOL.
     fundef  = FUN ident LPAREN [params] RPAREN EQL phrase SEMICOL.
 
-    typedef    = TYPE ident EQL type.
-    type       = ident | recordtyp.
+    typedef = TYPE ident EQL type.
+    type    = ident | recordtyp.
 
     tagargs    = tagarg { COMMA tagarg }.
     tagarg     = ident EQL phrase.
-    recordtyp  = LBRACKET [tagfields]  RBRACKET.
-    tagfields  = tagfield { COMMA tagfield }.
-    tagfield   = ident COLON type.
+    recordtyp  = LBRACKET [fields]  RBRACKET.
+    fields     = field { COMMA field }.
+    field      = ident COLON type.
 
     program = {valdef | fundef | typedef} phrase.
 

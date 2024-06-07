@@ -23,11 +23,22 @@ object Ast:
 
   case class While(cond: Phrase, body: Phrase) extends Word
 
+  case class Select(qual: Ident | Select, name: String) extends Word
+
+  case class RecordLit(args: List[NamedArg]) extends Word
+
+  case class NamedArg(ident: Ident, arg: Phrase) extends Positioned:
+    def name = ident.name
+
   case class Phrase(words: List[Word]) extends Positioned
 
   //---------------------------- types ---- ------------------------------------
 
   sealed trait TypeTree extends Positioned with Product
+
+  case class RecordType(fields: List[Field]) extends TypeTree
+  case class Field(ident: Ident, typ: TypeTree) extends Positioned:
+    def name = ident.name
 
   //-------------------------- definitions -------------------------------------
 
