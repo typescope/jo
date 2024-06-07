@@ -19,7 +19,7 @@ object Parsing:
 
   enum Token:
     case LPAREN, RPAREN, IF, THEN, ELSE, END, COLON, SEMICOL, VAL, VAR,
-         FUN, EQL, EOF, COMMA, WHILE, DO
+         FUN, EQL, EOF, COMMA, WHILE, DO, TYPE
     case IntLit(value: Int)
     case BoolLit(value: Boolean)
     case Ident(name: String)
@@ -159,6 +159,7 @@ object Parsing:
         case "val"     => Token.VAL
         case "var"     => Token.VAR
         case "fun"     => Token.FUN
+        case "type"    => Token.TYPE
         case "true"    => Token.BoolLit(true)
         case "false"   => Token.BoolLit(false)
         case name      => Token.Ident(name)
@@ -257,6 +258,9 @@ object Parsing:
         case Token.FUN =>
            definitions(acc += funDef())
 
+        case Token.TYPE =>
+           definitions(acc += typeDef())
+
         case _ =>
           acc.toList
 
@@ -283,6 +287,14 @@ object Parsing:
       val words = phrase()
       val span2 = eat(Token.SEMICOL)
       FunDef(id, paramList, resType, words).withPos(span1 | span2)
+
+    def typeDef(): TypeDef =
+      val span1 = eat(Token.TYPE)
+      val id = ident()
+      eat(Token.EQL)
+      val rhs = typ()
+      val span2 = eat(Token.SEMICOL)
+      TypeDef(id, rhs).withPos(span1 | span2)
 
     def params(): List[Param] =
       val (token, _) = peek()
@@ -334,6 +346,9 @@ object Parsing:
 
         case Token.VAL | Token.VAR   =>
           Some(valDef(token))
+
+        case Token.TYPE   =>
+          Some(typeDef())
 
         case litToken: Token.IntLit  =>
           next()

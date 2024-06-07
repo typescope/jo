@@ -69,7 +69,7 @@ Syntactical Grammar
     tagfields  = tagfield { COMMA tagfield }.
     tagfield   = ident COLON type.
 
-    program = {valdef | fundef} phrase.
+    program = {valdef | fundef | typedef} phrase.
 
     params  = param {COMMA param}
     param   = ident COLON type

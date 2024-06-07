@@ -46,5 +46,7 @@ object Ast:
     ident: Ident, params: List[Param], resType: TypeTree, body: Phrase)
   extends Def
 
+  case class TypeDef(ident: Ident, rhs: TypeTree) extends Word, Def
+
   case class Prog(defs: List[Def], main: Phrase):
     Positioned.checkComponentPos(this)
