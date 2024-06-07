@@ -19,7 +19,7 @@ class Checker(using Reporter):
 
   def check(word: Word)(using vs: ValueStack): Unit =
     word match
-      case _: Word.IntLit | _: Word.BoolLit =>
+      case _: Word.IntLit | _: Word.BoolLit | _: Word.RecordLit | _: Word.Select =>
         vs.push(word.tpe)
 
       case Word.Assign(sym, words) =>
@@ -55,7 +55,7 @@ class Checker(using Reporter):
     expectValueType(tree.tpe, tree.pos)
 
   def expectRecordType(tp: Type, field: String, pos: Span): Unit =
-    if !tp.isRecordType then
+    if !tp.isRecord then
       Reporter.error(s"Expect record type, found = $tp", pos)
     else if !tp.hasField(field) then
       Reporter.error(s"Expect record type have field $field, found = $tp", pos)

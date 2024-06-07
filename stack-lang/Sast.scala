@@ -19,9 +19,9 @@ object Sast:
   enum Word extends Tree:
     case IntLit(value: Int)
     case BoolLit(value: Boolean)
-    case RecordLit(args: ListMap[String, Phrase]))
+    case RecordLit(args: ListMap[String, Phrase])
     case Ident(symbol: Symbol)
-    case Select(qual: Ident | Select, name: String)
+    case Select(qual: Word, name: String)
     case Assign(symbol: Symbol, rhs: Phrase)
     case If(cond: Phrase, thenp: Phrase, elsep: Phrase)
     case While(cond: Phrase, body: Phrase)

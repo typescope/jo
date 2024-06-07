@@ -368,14 +368,14 @@ object Parsing:
 
     def typ(): TypeTree =
       peek() match
-        case (Token.LBRACKET, _) => recordtype()
+        case (Token.LBRACKET, _) => recordtyp()
         case _ => ident()
 
     def recordtyp(): RecordType =
       val span1 = eat(Token.LBRACKET)
-      val fields = fields(mutable.ArrayBuffer.empty)
+      val fieldDecls = fields(mutable.ArrayBuffer.empty)
       val span2 = eat(Token.RBRACKET)
-      RecordType(fields).withPos(span1 | span2)
+      RecordType(fieldDecls).withPos(span1 | span2)
 
     def fields(acc: mutable.ArrayBuffer[Field]): List[Field] =
       peek() match

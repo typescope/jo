@@ -45,6 +45,7 @@ sealed abstract class Denotation
 enum Value extends Denotation:
   case IntVal(value: Int)
   case BoolVal(value: Boolean)
+  case RecordVal(fields: Map[String, Value])
 
 object Uninit extends Denotation
 
@@ -130,9 +131,8 @@ object Primitive:
   def eql(vs: ValueStack) = vs.push(BoolVal(vs.pop() == vs.pop()))
 
   def print(vs: ValueStack) =
-    vs.pop() match
-      case IntVal(v)  => println(v)
-      case BoolVal(v) => println(v)
+    val IntVal(v) = vs.pop(): @unchecked
+    println(v)
 
   val operators: Map[Symbol, ValueStack => Unit] = Map(
       predef.add    ->    add,
@@ -182,29 +182,33 @@ object Interpreter:
 
       case Word.BoolLit(v) => vs.push(Value.BoolVal(v))
 
+      case Word.RecordLit(args) =>
+        val fieldValues = mutable.Map.empty[String, Value]
+        for (name, arg) <- args do
+          exec(arg)
+          fieldValues(name) = vs.pop()
+        vs.push(Value.RecordVal(fieldValues.toMap))
+
+      case Word.Select(qual, name) =>
+        exec(qual)
+        val Value.RecordVal(fieldVals) = vs.pop(): @unchecked
+        vs.push(fieldVals(name))
+
       case Word.Assign(sym, words) =>
         exec(words)
         sc.update(sym, vs.pop())
 
       case Word.If(cond, thenp, elsep) =>
         exec(cond)
-        vs.pop() match
-          case Value.BoolVal(b) =>
-            if b then exec(thenp) else exec(elsep)
-
-          case v =>
-            err("Boolean value expected for if condition, found " + v)
+        val Value.BoolVal(b) = vs.pop(): @unchecked
+        if b then exec(thenp) else exec(elsep)
 
       case Word.While(cond, body) =>
         exec(cond)
-        vs.pop() match
-          case Value.BoolVal(b) =>
-            if b then
-              exec(body)
-              exec(word)
-
-          case v =>
-            err("Boolean value expected for if condition, found " + v)
+        val Value.BoolVal(b) = vs.pop(): @unchecked
+        if b then
+          exec(body)
+          exec(word)
 
       case Word.Ident(sym) =>
         sc.resolve(sym) match

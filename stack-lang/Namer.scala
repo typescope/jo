@@ -134,21 +134,22 @@ class Namer(using Reporter):
         Word.Assign(sym, rhs).withPos(word.pos) :: Nil
 
       case Ast.RecordLit(namedArgs) =>
-        val namedArgs = new mutable.ListMap[String, Phrase]
+        val namedArgs2 = new mutable.ListMap[String, Phrase]
         for Ast.NamedArg(id, rhs) <- namedArgs do
-          if namedArgs.contains(id.name) then
-            Reporter.error("Arg " + id.name + " already defined", id)
+          if namedArgs2.contains(id.name) then
+            Reporter.error("Arg " + id.name + " already defined", id.pos)
           else
             val rhs2 = transform(rhs)
             checker.expectValueType(rhs2)
-            namedArgs += id.name -> rhs2
+            namedArgs2 += id.name -> rhs2
         end for
-        Word.RecordLit(immutable.ListMap(namedArgs.toList))
+        Word.RecordLit(immutable.ListMap.from(namedArgs2)) :: Nil
 
       case Ast.Select(qual, name) =>
-        val qual2 = transform(qual)
+        // TODO: Do not flatten fence?
+        val qual2 :: Nil = transform(qual): @unchecked
         checker.expectRecordType(qual2.tpe, name, qual.pos)
-        Word.Select(qual2, name)
+        Word.Select(qual2, name) :: Nil
 
       case vdef: Ast.ValDef =>
         var flags: Flags = Flag.Local
@@ -231,11 +232,11 @@ class Namer(using Reporter):
         val fieldTypes = new mutable.ListMap[String, Type]
         for field <- fields do
           if fieldTypes.contains(field.name) then
-            Reporter.error("Field " + field.name + " already defined", field)
+            Reporter.error("Field " + field.name + " already defined", field.pos)
           else
             fieldTypes += field.name -> transform(field.typ)
         end for
-        Type.Record(immutable.ListMap(fieldTypes.toList))
+        Type.Record(immutable.ListMap.from(fieldTypes))
 
   private enum Scope:
     case RootScope()
