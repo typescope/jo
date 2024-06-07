@@ -52,7 +52,7 @@ Syntactical Grammar
     assign  = ident EQL phrase SEMICOL.
     if      = IF phrase THEN phrase [ELSE phrase] END.
     while   = WHILE phrase DO phrase END.
-    record  = LBRACKET tagargs RBRACKET.
+    record  = LBRACKET [tagargs] RBRACKET.
     select  = (ident | select) DOT ident.
 
     phrase  = word [phrase].
@@ -65,12 +65,12 @@ Syntactical Grammar
 
     tagargs    = tagarg { COMMA tagarg }.
     tagarg     = ident EQL phrase.
-    recordtyp  = LBRACKET tagfields  RBRACKET.
+    recordtyp  = LBRACKET [tagfields]  RBRACKET.
     tagfields  = tagfield { COMMA tagfield }.
     tagfield   = ident COLON type.
 
     program = {valdef | fundef | typedef} phrase.
 
-    params  = param {COMMA param}
-    param   = ident COLON type
+    params  = param {COMMA param}.
+    param   = ident COLON type.
 ~~~
