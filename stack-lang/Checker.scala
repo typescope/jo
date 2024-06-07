@@ -20,15 +20,13 @@ class Checker(using Reporter):
   def check(word: Word)(using vs: ValueStack): Unit =
     word match
       case _: Word.IntLit | _: Word.BoolLit =>
-        vs.push(word.tpe.asInstanceOf[ValueType] :: Nil)
+        vs.push(word.tpe)
 
       case Word.Assign(sym, words) =>
         vs.expectEmpty("No result expected before assignment", word.pos)
 
       case Word.If(cond, thenp, elsep) =>
-        word.tpe match
-          case tp: ValueType => vs.push(tp :: Nil)
-          case _ =>
+        if word.tpe.isValueType then vs.push(word.tpe)
 
       case Word.While(cond, body) =>
         vs.expectEmpty("No result expected before while loop", word.pos)
@@ -37,11 +35,9 @@ class Checker(using Reporter):
         val info = sym.info
 
         info match
-          case tp: ValueType => vs.push(tp :: Nil)
-
           case tp: Type.Proc => vs.call(sym, tp, word.pos)
 
-          case Type.Void =>
+          case _ => if info.isValueType then vs.push(info)
 
 
   def check(words: List[Word])(using vs: ValueStack): Unit =
@@ -63,7 +59,7 @@ object Checker:
     */
   class ValueStack:
     /** Don't expose size in order to handle errors */
-    private val valueTypes = mutable.ArrayBuffer.empty[ValueType]
+    private val valueTypes = mutable.ArrayBuffer.empty[Type]
     private var hasError = false
 
     private def setError() =
@@ -104,13 +100,16 @@ object Checker:
         valueTypes.dropRightInPlace(paramTypes.size)
 
         if resType.isValueType then
-          push(resType.asInstanceOf[ValueType] :: Nil)
+          push(resType)
 
-    def push(tps: List[ValueType]) =
-      valueTypes ++= tps
-      if tps.exists(_.isError) then setError()
+    def push(tp: Type): Unit =
+      assert(tp.isValueType, tp)
+      valueTypes += tp
+      if tp.isError then setError()
 
-    def pop(): Option[ValueType] =
+    def push(tps: List[Type]): Unit = for tp <- tps do push(tp)
+
+    def pop(): Option[Type] =
       if valueTypes.isEmpty then
         None
       else if isError then

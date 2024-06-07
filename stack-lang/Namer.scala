@@ -33,6 +33,7 @@ class Namer(using Reporter):
       defn match
         case vdef: Ast.ValDef =>
           val tpe = transform(vdef.typ)(using sc)
+          checker.expectValueType(tpe, vdef.typ.pos)
           val flags = if vdef.mutable then Flag.Mutable else Flag.empty
           val sym = Symbol.createValueSymbol(defn.name, tpe, flags)
           sc.define(sym, defn.pos)
@@ -43,28 +44,37 @@ class Namer(using Reporter):
             for param <- funDef.params yield
               val paramType = transform(param.typ)(using sc)
               checker.expectValueType(paramType, param.typ.pos)
-              paramType.asInstanceOf[ValueType]
+              paramType
 
           val resType = transform(funDef.resType)(using sc)
           val funType = Type.Proc(paramNames, paramTypes, resType)
           val sym = Symbol.createFunSymbol(defn.name, funType)
           sc.define(sym, defn.pos)
 
+        case tdef: Ast.TypeDef =>
+          // TODO: fix scope of type definitions or make type checking lazy
+          val info = transform(tdef.rhs)(using sc)
+          val sym = Symbol.createTypeSymbol(defn.name, info)
+          sc.define(sym, defn.pos, isType = true)
+
     val funs = new mutable.ArrayBuffer[Fun]
     val inits = new mutable.ArrayBuffer[Word.Assign]
     val locals = new mutable.ArrayBuffer[Symbol]
 
     for defn <- prog.defs yield
-      val Some(sym) = sc.resolve(defn.name, isType = false): @unchecked
-
       defn match
         case valDef: Ast.ValDef =>
+          val Some(sym) = sc.resolve(defn.name, isType = false): @unchecked
           val valScope = sc.fresh(sym => if !sym.isParameter then locals.addOne(sym))
           val rhs = transform(valDef.rhs)(using valScope)
+          checker.expect(rhs, sym.info)
           inits += new Word.Assign(sym, rhs).withPos(defn.pos)
 
         case funDef: Ast.FunDef =>
+          val Some(sym) = sc.resolve(defn.name, isType = false): @unchecked
           funs += transform(sym, funDef)(using sc)
+
+        case tdef: Ast.TypeDef =>
     end for
 
     val mainPhrase = transform(prog.main)(using sc)
@@ -138,6 +148,13 @@ class Namer(using Reporter):
         sc.define(sym, vdef.pos)
         Word.Assign(sym, rhs).withPos(vdef.pos) :: Nil
 
+      case tdef: Ast.TypeDef =>
+        // TODO: fix scope of type definitions or make type checking lazy
+        val info = transform(tdef.rhs)
+        val sym = Symbol.createTypeSymbol(tdef.name, info)
+        sc.define(sym, tdef.pos, isType = true)
+        Nil
+
   private def transform(phrase: Ast.Phrase)(using sc: Scope): Phrase =
     val sc2 = sc.fresh()
     val wordsTyped = phrase.words.flatMap: word =>
@@ -177,6 +194,7 @@ class Namer(using Reporter):
         paramSym
 
     val body2 = transform(funDef.body)(using funScope)
+    checker.expect(body2, sym.info.resultType)
     Fun(sym, paramSyms, locals.toList, body2).withPos(funDef.pos)
 
   private def transform(tpt: Ast.TypeTree)(using sc: Scope): Type =
@@ -185,7 +203,7 @@ class Namer(using Reporter):
         sc.resolve(name, isType = true) match
           case Some(sym) =>
             if sym.isPrimitive then sym.info
-            else ??? // impossible
+            else Type.TypeRef(sym)
 
           case None =>
             Reporter.error("Unknown type " + tpt, tpt.pos)
@@ -240,4 +258,4 @@ class Namer(using Reporter):
           notifyDefined(sym)
 
         case Some(sym) =>
-          Reporter.abort(sym.name + " is already bound", span)
+          Reporter.error(sym.name + " is already bound", span)

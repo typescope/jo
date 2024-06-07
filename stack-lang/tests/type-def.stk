@@ -1,0 +1,8 @@
+type Int32 = Int;
+
+val a: Int32 = 4;
+val b: Int = a a *;
+
+fun double(n: Int32): Int32 = n n +;
+
+b double p
