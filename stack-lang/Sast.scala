@@ -1,4 +1,5 @@
 import scala.collection.mutable
+import scala.collection.immutable.ListMap
 
 import Symbols.*
 import Types.*
@@ -18,7 +19,9 @@ object Sast:
   enum Word extends Tree:
     case IntLit(value: Int)
     case BoolLit(value: Boolean)
+    case RecordLit(args: ListMap[String, Phrase]))
     case Ident(symbol: Symbol)
+    case Select(qual: Ident | Select, name: String)
     case Assign(symbol: Symbol, rhs: Phrase)
     case If(cond: Phrase, thenp: Phrase, elsep: Phrase)
     case While(cond: Phrase, body: Phrase)
@@ -31,6 +34,12 @@ object Sast:
         case _: Assign | _: While => Type.Void
 
         case ident: Ident => ident.symbol.info
+
+        case RecordLit(args) =>
+          Type.Record(args.map { case (k, v) => k -> v.tpe })
+
+        case Select(qual, name) =>
+          qual.tpe.fieldType(name)
 
         case ifte: If => ifte.elsep.tpe // else can be empty thus void
 

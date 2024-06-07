@@ -133,6 +133,23 @@ class Namer(using Reporter):
         checker.expect(rhs, sym.info)
         Word.Assign(sym, rhs).withPos(word.pos) :: Nil
 
+      case Ast.RecordLit(namedArgs) =>
+        val namedArgs = new mutable.ListMap[String, Phrase]
+        for Ast.NamedArg(id, rhs) <- namedArgs do
+          if namedArgs.contains(id.name) then
+            Reporter.error("Arg " + id.name + " already defined", id)
+          else
+            val rhs2 = transform(rhs)
+            checker.expectValueType(rhs2)
+            namedArgs += id.name -> rhs2
+        end for
+        Word.RecordLit(immutable.ListMap(namedArgs.toList))
+
+      case Ast.Select(qual, name) =>
+        val qual2 = transform(qual)
+        checker.expectRecordType(qual2.tpe, name, qual.pos)
+        Word.Select(qual2, name)
+
       case vdef: Ast.ValDef =>
         var flags: Flags = Flag.Local
         if vdef.mutable then

@@ -51,6 +51,15 @@ class Checker(using Reporter):
     if !tp.isValueType then
       Reporter.error(s"Expect value type, found = $tp", pos)
 
+  def expectValueType(tree: Tree): Unit =
+    expectValueType(tree.tpe, tree.pos)
+
+  def expectRecordType(tp: Type, field: String, pos: Span): Unit =
+    if !tp.isRecordType then
+      Reporter.error(s"Expect record type, found = $tp", pos)
+    else if !tp.hasField(field) then
+      Reporter.error(s"Expect record type have field $field, found = $tp", pos)
+
 object Checker:
   /**
     * Represent the types of values on the value stack.
