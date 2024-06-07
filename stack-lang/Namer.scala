@@ -1,4 +1,5 @@
 import scala.collection.mutable
+import scala.collection.immutable
 
 import Sast.*
 import Types.*
@@ -208,6 +209,16 @@ class Namer(using Reporter):
           case None =>
             Reporter.error("Unknown type " + tpt, tpt.pos)
             Type.Error
+
+      case Ast.RecordType(fields) =>
+        val fieldTypes = new mutable.ListMap[String, Type]
+        for field <- fields do
+          if fieldTypes.contains(field.name) then
+            Reporter.error("Field " + field.name + " already defined", field)
+          else
+            fieldTypes += field.name -> transform(field.typ)
+        end for
+        Type.Record(immutable.ListMap(fieldTypes.toList))
 
   private enum Scope:
     case RootScope()

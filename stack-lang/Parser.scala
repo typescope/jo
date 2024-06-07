@@ -366,7 +366,10 @@ object Parsing:
         case token =>
           None
 
-    def typ(): TypeTree = ident()
+    def typ(): TypeTree =
+      peek() match
+        case (Token.LBRACKET, _) => recordtype()
+        case _ => ident()
 
     def recordtyp(): RecordType =
       val span1 = eat(Token.LBRACKET)

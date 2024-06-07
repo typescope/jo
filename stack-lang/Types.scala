@@ -1,5 +1,7 @@
 import Symbols.Symbol
 
+import scala.collection.immutable.ListMap
+
 /** The type system of Stk.
   *
   * Stk has a structural type system, which means that the names of types
@@ -14,15 +16,33 @@ object Types:
 
     def isTypeRef: Boolean = this.isInstanceOf[Type.TypeRef]
 
+    def isRecord: Boolean = this.isInstanceOf[Type.Record]
+
     def isValueType: Boolean =
       this match
-        case Type.Int | Type.Bool | _: Type.TypeRef | Type.Error => true
+        case Type.Int | Type.Bool | Type.Error => true
+        case _: Type.TypeRef | _: Type.Record => true
         case _ => false
 
     def resultType: Type =
       this match
         case Type.Proc(_, _, resType) => resType
         case _ => throw new Exception("Not a proc type: " + this)
+
+    def hasField(name: String): Boolean =
+      this match
+        case Type.Record(fields) => fields.contains(name)
+        case _ => throw new Exception("Not a record type: " + this)
+
+    def fieldType(name: String): Type =
+      this match
+        case Type.Record(fields) =>
+          fields.get(name) match
+            case Some(tp) => tp
+            case None =>
+              throw new Exception("No such field " + name + " in " + this)
+
+        case _ => throw new Exception("Not a record type: " + this)
 
   object Type:
     case object Int extends Type
@@ -33,6 +53,8 @@ object Types:
     case object Error extends Type
 
     case class TypeRef(symbol: Symbol) extends Type
+
+    case class Record(fields: ListMap[String, Type]) extends Type
 
     case class Proc(
       names: List[String], paramTypes: List[Type], resType: Type)
