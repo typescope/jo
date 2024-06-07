@@ -57,7 +57,7 @@ Syntactical Grammar
 
     phrase  = word [phrase].
 
-    valdef  = (VAL | VAR) type COLON ident EQL phrase SEMICOL.
+    valdef  = (VAL | VAR) ident COLON type EQL phrase SEMICOL.
     fundef  = FUN ident LPAREN [params] RPAREN EQL phrase SEMICOL.
 
     typedef    = TYPE ident EQL type.
