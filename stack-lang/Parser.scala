@@ -121,8 +121,8 @@ object Parsing:
       stream.eat() match
         case '('    => Token.LPAREN
         case ')'    => Token.RPAREN
-        case ']'    => Token.LBRACKET
-        case '['    => Token.RBRACKET
+        case '['    => Token.LBRACKET
+        case ']'    => Token.RBRACKET
         case '.'    => Token.DOT
         case ':'    => Token.COLON
         case ';'    => Token.SEMICOL
@@ -381,12 +381,12 @@ object Parsing:
       peek() match
         case (Token.RBRACKET, _) => acc.toList
         case _ =>
-          eat(Token.COMMA)
+          if acc.nonEmpty then eat(Token.COMMA)
           fields(acc += field())
 
     def field(): Field =
       val id = ident()
-      eat(Token.EQL)
+      eat(Token.COLON)
       val tp = typ()
       Field(id, tp).withPos(id.pos | tp.pos)
 
@@ -454,7 +454,7 @@ object Parsing:
       peek() match
         case (Token.RBRACKET, _) => acc.toList
         case _ =>
-          eat(Token.COMMA)
+          if acc.nonEmpty then eat(Token.COMMA)
           namedArgs(acc += namedArg())
 
     def namedArg(): NamedArg =

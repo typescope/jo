@@ -143,13 +143,13 @@ class Namer(using Reporter):
             checker.expectValueType(rhs2)
             namedArgs2 += id.name -> rhs2
         end for
-        Word.RecordLit(immutable.ListMap.from(namedArgs2)) :: Nil
+        Word.RecordLit(immutable.ListMap.from(namedArgs2)).withPos(word.pos) :: Nil
 
       case Ast.Select(qual, name) =>
         // TODO: Do not flatten fence?
         val qual2 :: Nil = transform(qual): @unchecked
         checker.expectRecordType(qual2.tpe, name, qual.pos)
-        Word.Select(qual2, name) :: Nil
+        Word.Select(qual2, name).withPos(word.pos) :: Nil
 
       case vdef: Ast.ValDef =>
         var flags: Flags = Flag.Local

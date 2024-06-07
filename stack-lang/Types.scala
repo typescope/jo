@@ -16,7 +16,11 @@ object Types:
 
     def isTypeRef: Boolean = this.isInstanceOf[Type.TypeRef]
 
-    def isRecord: Boolean = this.isInstanceOf[Type.Record]
+    def isRecordType: Boolean =
+      this match
+        case _: Type.Record => true
+        case Type.TypeRef(sym) => sym.info.isRecordType
+        case _ => false
 
     def isValueType: Boolean =
       this match
@@ -32,6 +36,7 @@ object Types:
     def hasField(name: String): Boolean =
       this match
         case Type.Record(fields) => fields.contains(name)
+        case Type.TypeRef(sym) => sym.info.hasField(name)
         case _ => throw new Exception("Not a record type: " + this)
 
     def fieldType(name: String): Type =
@@ -41,6 +46,8 @@ object Types:
             case Some(tp) => tp
             case None =>
               throw new Exception("No such field " + name + " in " + this)
+
+        case Type.TypeRef(sym) => sym.info.fieldType(name)
 
         case _ => throw new Exception("Not a record type: " + this)
 
