@@ -30,6 +30,12 @@ abstract class Backend:
   def compile(phrase: Phrase)(using Context): Unit =
     for word <- phrase.words do compile(word)
 
+  /** Compile [x = 3, y = 5] */
+  def compile(record: Word.RecordLit)(using Context): Unit
+
+  /** Compile p.x */
+  def compile(select: Word.Select)(using Context): Unit
+
   /** Compile if/then/else */
   def compile(ifElse: Word.If)(using Context): Unit
 
@@ -45,6 +51,10 @@ abstract class Backend:
       case Word.IntLit(v)  => push(v)
 
       case Word.BoolLit(v) => push(v)
+
+      case record: Word.RecordLit => compile(record)
+
+      case select: Word.Select => compile(select)
 
       case assign: Word.Assign =>
         compile(assign)

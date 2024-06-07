@@ -79,7 +79,7 @@ class JSBackend(outFile: String) extends Backend:
     var i: Int = paramCount - 1
     val args = new Array[String](paramCount)
     while i >= 0  do
-      val argName = freshName(s"arg$i")
+      val argName = freshName(s"_arg_$i")
       args(i) = argName
       addLine(s"const $argName = $pop();")
       i = i - 1
@@ -138,6 +138,25 @@ class JSBackend(outFile: String) extends Backend:
       compile(whileDo.body)
       compile(whileDo.cond)
     addLine("}")
+
+  /** Compile [x = 3, y = 5] */
+  def compile(record: Word.RecordLit)(using Context): Unit =
+    // TODO: field name is symbolic, +, -?
+    val fieldValues = mutable.Map.empty[String, String]
+    for (name, rhs) <- record.args do
+      compile(rhs)
+      val arg = freshName("arg")
+      addLine(s"const $arg = $pop();")
+      fieldValues(name) = arg
+    end for
+    val obj = fieldValues.map(_ + ":" + _).mkString("{", ", ", "}")
+    addLine(s"$push($obj)")
+
+  /** Compile p.x */
+  def compile(select: Word.Select)(using Context): Unit =
+    val field = select.name
+    compile(select.qual)
+    addLine(s"$push($pop().$field);")
 
   /** Push an integer literal to value stack */
   def push(v: Int)(using Context): Unit =

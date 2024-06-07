@@ -265,6 +265,13 @@ extends Backend:
     useReg: r =>
       pop(r)
       cb.add(Instr.Store(Reg(r), addr))
+
+  /** Compile [x = 3, y = 5] */
+  def compile(record: Word.RecordLit)(using Context): Unit = ???
+
+  /** Compile p.x */
+  def compile(select: Word.Select)(using Context): Unit = ???
+
   /** Push an integer literal to value stack */
   def push(v: Int)(using Context): Unit = push(Int32(v))
 

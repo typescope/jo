@@ -309,6 +309,12 @@ extends Backend:
       else Instr.Store(rhsValue, symbolAddrMap(sym))
     gen(instr)
 
+  /** Compile [x = 3, y = 5] */
+  def compile(record: Word.RecordLit)(using Context): Unit = ???
+
+  /** Compile p.x */
+  def compile(select: Word.Select)(using Context): Unit = ???
+
   /** Push an integer literal to value stack */
   def push(v: Int)(using ctx: Context): Unit =
     ctx.vs.push(Int32(v))

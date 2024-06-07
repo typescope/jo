@@ -240,6 +240,12 @@ class JSOptimized(outFile: String) extends Backend:
       addLine("} else break;")
     addLine("}")
 
+  /** Compile [x = 3, y = 5] */
+  def compile(record: Word.RecordLit)(using Context): Unit = ???
+
+  /** Compile p.x */
+  def compile(select: Word.Select)(using Context): Unit = ???
+
   /** Push an integer literal to value stack */
   def push(v: Int)(using Context): Unit =
     vs.push(Item.Const(v.toString))
