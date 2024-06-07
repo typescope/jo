@@ -309,11 +309,41 @@ extends Backend:
       else Instr.Store(rhsValue, symbolAddrMap(sym))
     gen(instr)
 
+  /** Allocate a block of memory and push the start address into value stack.
+    */
+  def alloc(size: Int): Unit = ???
+
   /** Compile [x = 3, y = 5] */
-  def compile(record: Word.RecordLit)(using Context): Unit = ???
+  def compile(record: Word.RecordLit)(using ctx: Context): Unit =
+    // TODO: implement allocation
+    val recordType = record.tpe.asInstanceOf[Type.Record]
+    val size = Memory.size(recordType)
+    for (name, rhs) <- record.args do
+
+    alloc(size)
+    val recordReg = ctx.vs.pop().asInstanceOf[Reg]
+
+    for (name, rhs) <- record.args do
+      compile(rhs)
+      val fieldValue = ctx.vs.pop()
+      val offset = Memory.fieldOffset(recordType, name)
+      val fieldAddr = Rel(recordReg.index, offset.toByte)
+      gen(Instr.Store(fieldValue, fieldAddr))
 
   /** Compile p.x */
-  def compile(select: Word.Select)(using Context): Unit = ???
+  def compile(select: Word.Select)(using ctx: Context): Unit =
+    val field = select.name
+    val qualType = select.qual.tpe.asInstanceOf[Type.Record]
+    val offset = Memory.fieldOffset(qualType, field)
+
+    compile(select.qual)
+
+    val recordReg = ctx.vs.pop().asInstanceOf[Reg]
+    val fieldAddr = Rel(recordReg.index, offset.toByte)
+
+    val fieldReg = freshVirtualReg()
+    gen(Instr.Load(fieldAddr, fieldReg))
+    ctx.vs.push(Reg(fieldReg))
 
   /** Push an integer literal to value stack */
   def push(v: Int)(using ctx: Context): Unit =
