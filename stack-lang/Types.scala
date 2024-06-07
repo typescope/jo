@@ -37,7 +37,7 @@ object Types:
       this match
         case Type.Record(fields) => fields.contains(name)
         case Type.TypeRef(sym) => sym.info.hasField(name)
-        case _ => throw new Exception("Not a record type: " + this)
+        case _ => false
 
     def fieldType(name: String): Type =
       this match
@@ -59,9 +59,12 @@ object Types:
 
     case object Error extends Type
 
-    case class TypeRef(symbol: Symbol) extends Type
+    case class TypeRef(symbol: Symbol) extends Type:
+      override def toString() = symbol.name
 
-    case class Record(fields: ListMap[String, Type]) extends Type
+    case class Record(fields: ListMap[String, Type]) extends Type:
+      override def toString =
+        "[" + fields.map(_ + ": " + _).mkString(", ") + "]"
 
     case class Proc(
       names: List[String], paramTypes: List[Type], resType: Type)

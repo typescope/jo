@@ -58,7 +58,7 @@ class Checker(using Reporter):
     if !tp.isRecordType then
       Reporter.error(s"Expect record type, found = $tp", pos)
     else if !tp.hasField(field) then
-      Reporter.error(s"Expect record type have field $field, found = $tp", pos)
+      Reporter.error(s"Expect field $field in record type $tp, found none", pos)
 
 object Checker:
   /**

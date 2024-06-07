@@ -26,6 +26,7 @@ object Sast:
     case If(cond: Phrase, thenp: Phrase, elsep: Phrase)
     case While(cond: Phrase, body: Phrase)
 
+    // TODO: supply as parameter to reduce contract about error types
     val tpe: Type =
       this match
         case _: IntLit   => Type.Int
@@ -39,7 +40,9 @@ object Sast:
           Type.Record(args.map { case (k, v) => k -> v.tpe })
 
         case Select(qual, name) =>
-          qual.tpe.fieldType(name)
+          val qualType = qual.tpe
+          if qualType.hasField(name) then qualType.fieldType(name)
+          else Type.Error
 
         case ifte: If => ifte.elsep.tpe // else can be empty thus void
 
