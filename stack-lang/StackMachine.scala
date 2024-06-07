@@ -266,11 +266,38 @@ extends Backend:
       pop(r)
       cb.add(Instr.Store(Reg(r), addr))
 
+  /** Allocate a block of memory and push the start address into value stack.
+    */
+  def alloc(size: Int): Unit = ???
+
   /** Compile [x = 3, y = 5] */
-  def compile(record: Word.RecordLit)(using Context): Unit = ???
+  def compile(record: Word.RecordLit)(using Context): Unit =
+    // TODO: implement allocation
+    val recordType = record.tpe.asInstanceOf[Type.Record]
+    val size = Memory.size(recordType)
+    for (name, rhs) <- record.args do
+      compile(rhs)
+
+    alloc(size)
+    useTwoReg: (r1, r2) =>
+      pop(r1)
+      for (name, _) <- record.args do
+        pop(r2)
+        val offset = Memory.fieldOffset(recordType, name)
+        val fieldAddr = Rel(r1, offset.toByte)
+        cb.add(Instr.Store(Reg(r2), fieldAddr))
 
   /** Compile p.x */
-  def compile(select: Word.Select)(using Context): Unit = ???
+  def compile(select: Word.Select)(using Context): Unit =
+    val field = select.name
+    val qualType = select.qual.tpe.asInstanceOf[Type.Record]
+    val offset = Memory.fieldOffset(qualType, field)
+    compile(select.qual)
+    useReg: r =>
+      pop(r)
+      val fieldAddr = Rel(r, offset.toByte)
+      cb.add(Instr.Load(fieldAddr, r))
+      push(r)
 
   /** Push an integer literal to value stack */
   def push(v: Int)(using Context): Unit = push(Int32(v))

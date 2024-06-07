@@ -16,6 +16,7 @@
 //> using file PreAssembly.scala
 //> using file StackMachine.scala
 //> using file RegisterMachine.scala
+//> using file Memory.scala
 //> using file ELF32.scala
 //> using file UniqueName.scala
 //> using file JSBackend.scala
