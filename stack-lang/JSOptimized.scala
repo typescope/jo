@@ -158,7 +158,6 @@ class JSOptimized(outFile: String) extends Backend:
     * Calling the passed function will compile the initializer.
     */
   def compile(assign: Word.Assign)(using Context): Unit =
-    vs.clear()
     compile(assign.rhs)
     val name = symbol2UniqueName(assign.symbol)
     val rhs = vs.pop()
@@ -241,10 +240,23 @@ class JSOptimized(outFile: String) extends Backend:
     addLine("}")
 
   /** Compile [x = 3, y = 5] */
-  def compile(record: Word.RecordLit)(using Context): Unit = ???
+  def compile(record: Word.RecordLit)(using Context): Unit =
+    // TODO: field name is symbolic, +, -?
+    val fieldValues = mutable.Map.empty[String, String]
+    for (name, rhs) <- record.args do
+      compile(rhs)
+      fieldValues(name) = vs.pop()
+    end for
+    val obj = fieldValues.map(_ + ":" + _).mkString("{", ", ", "}")
+    vs.push(Item.Expr(obj))
 
   /** Compile p.x */
-  def compile(select: Word.Select)(using Context): Unit = ???
+  def compile(select: Word.Select)(using Context): Unit =
+    val field = select.name
+    compile(select.qual)
+    val qual = vs.pop()
+    // TODO: binding required for mutable fields
+    vs.push(Item.Ref(s"$qual.$field"))
 
   /** Push an integer literal to value stack */
   def push(v: Int)(using Context): Unit =
