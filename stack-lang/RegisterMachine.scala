@@ -309,7 +309,7 @@ extends Backend:
       else Instr.Store(rhsValue, symbolAddrMap(sym))
     gen(instr)
 
-  /** Allocate a block of memory and push the start address into value stack.
+  /** Allocate a block of memory and push the start address onto value stack.
     */
   def alloc(size: Int): Unit = ???
 

@@ -51,6 +51,11 @@ object Types:
 
         case _ => throw new Exception("Not a record type: " + this)
 
+    def dealias: Type =
+      this match
+        case Type.TypeRef(sym) => sym.info.dealias
+        case _ => this
+
   object Type:
     case object Int extends Type
     case object Bool extends Type
@@ -72,15 +77,10 @@ object Types:
       val paramCount = paramTypes.size
       val resCount = if resType.isValueType then 1 else 0
 
-  def dealias(tp: Type): Type =
-    tp match
-      case Type.TypeRef(sym) => sym.info
-      case _ => tp
-
   // TODO: handle non-termination
   def matches(tp1: Type, tp2: Type): Boolean =
     tp1.isError
     || tp2.isError
     || tp1 == tp2
-    || tp1.isTypeRef && matches(dealias(tp1), tp2)
-    || tp2.isTypeRef && matches(tp1, dealias(tp2))
+    || tp1.isTypeRef && matches(tp1.dealias, tp2)
+    || tp2.isTypeRef && matches(tp1, tp2.dealias)
