@@ -62,12 +62,13 @@ class Namer(using Reporter):
     val inits = new mutable.ArrayBuffer[Word.Assign]
     val locals = new mutable.ArrayBuffer[Symbol]
 
+    val mainFunScope = sc.fresh(sym => if !sym.isParameter then locals.addOne(sym))
+
     for defn <- prog.defs yield
       defn match
         case valDef: Ast.ValDef =>
           val Some(sym) = sc.resolve(defn.name, isType = false): @unchecked
-          val valScope = sc.fresh(sym => if !sym.isParameter then locals.addOne(sym))
-          val rhs = transform(valDef.rhs)(using valScope)
+          val rhs = transform(valDef.rhs)(using mainFunScope)
           checker.expect(rhs, sym.info)
           inits += new Word.Assign(sym, rhs).withPos(defn.pos)
 
@@ -78,7 +79,7 @@ class Namer(using Reporter):
         case tdef: Ast.TypeDef =>
     end for
 
-    val mainPhrase = transform(prog.main)(using sc)
+    val mainPhrase = transform(prog.main)(using mainFunScope)
     val mainSym = Symbol.createFunSymbol("main", Type.Proc(Nil, Nil, Type.Void))
     val mainPos = mainPhrase.pos
     val mainBody = Phrase((inits ++ mainPhrase.words).toList, mainPhrase.tpe).withPos(mainPos)
