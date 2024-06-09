@@ -341,7 +341,6 @@ extends Backend:
 
   /** Compile [x = 3, y = 5] */
   def compile(record: Word.RecordLit)(using Context): Unit =
-    // TODO: implement allocation
     val recordType = record.tpe.asInstanceOf[Type.Record]
     val size = Memory.size(recordType)
     for (name, rhs) <- record.args do
