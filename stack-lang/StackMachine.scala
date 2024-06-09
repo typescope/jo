@@ -301,6 +301,8 @@ extends Backend:
 
     // start alloc function
     cb.mark(allocLabel)
+    cb.add(Instr.Move(Reg(FP_REG), SP_REG))
+    cb.add(Instr.Load(Rel(FP_REG, 8), X86.EAX))
     cb.add(Instr.Load(curBreakLabel, X86.EBX))
     cb.add(Instr.Load(initBreakLabel, X86.ECX))
     cb.add(Instr.Add(Reg(X86.EAX), Reg(X86.ECX), X86.ECX))
@@ -325,6 +327,7 @@ extends Backend:
     cb.mark(doAllocLabel)
     cb.add(Instr.Store(Reg(X86.ECX), initBreakLabel))
     cb.add(Instr.Sub(Reg(X86.ECX), Reg(X86.EAX), X86.EAX))
+    cb.add(Instr.Store(Reg(X86.EAX), Rel(FP_REG, -4)))
 
     cb.add(Instr.Load(Reg(FP_REG), X86.EBX))
     cb.add(Instr.Jump(Reg(X86.EBX)))
@@ -333,22 +336,8 @@ extends Backend:
   /** Allocate a block of memory and push the start address onto value stack.
     */
   def alloc(size: Int)(using Context): Unit =
-    val addr = symbolAddrMap(allocatorSym)
-
-    // TODO: use the same call convention to avoid duplicate code
-    val returnLoc = Label("returnLoc")
-    storeValue(Reg(FP_REG), -1)
-    storeValue(returnLoc, -2)
-    cb.add(Instr.Sub(Reg(SP_REG), Int32(8), FP_REG))
-
-    cb.add(Instr.Move(Int32(size), X86.EAX))
-    cb.add(Instr.Jump(addr))
-
-    cb.mark(returnLoc)
-
-    cb.add(Instr.Add(Reg(FP_REG), Int32(8), SP_REG))
-    cb.add(Instr.Load(Rel(FP_REG, 4), FP_REG))
-    push(Reg(X86.EAX))
+    push(size)
+    call(allocatorSym)
 
   /** Compile [x = 3, y = 5] */
   def compile(record: Word.RecordLit)(using Context): Unit =
