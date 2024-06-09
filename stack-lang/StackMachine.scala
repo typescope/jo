@@ -337,7 +337,7 @@ extends Backend:
 
     // TODO: use the same call convention to avoid duplicate code
     val returnLoc = Label("returnLoc")
-    storeValue(Reg(SP_REG), -1)
+    storeValue(Reg(FP_REG), -1)
     storeValue(returnLoc, -2)
     cb.add(Instr.Sub(Reg(SP_REG), Int32(8), FP_REG))
 
@@ -346,7 +346,7 @@ extends Backend:
 
     cb.mark(returnLoc)
 
-    cb.add(Instr.Add(Reg(FP_REG), Int32(4), SP_REG))
+    cb.add(Instr.Add(Reg(FP_REG), Int32(8), SP_REG))
     cb.add(Instr.Load(Rel(FP_REG, 4), FP_REG))
     push(Reg(X86.EAX))
 
@@ -367,7 +367,7 @@ extends Backend:
         val fieldAddr = Rel(r1, offset.toByte)
         cb.add(Instr.Store(Reg(r2), fieldAddr))
       end for
-      push(r1)
+      push(Reg(r1))
 
   /** Compile p.x */
   def compile(select: Word.Select)(using Context): Unit =
@@ -379,7 +379,7 @@ extends Backend:
       pop(r)
       val fieldAddr = Rel(r, offset.toByte)
       cb.add(Instr.Load(fieldAddr, r))
-      push(r)
+      push(Reg(r))
 
   /** Push an integer literal to value stack */
   def push(v: Int)(using Context): Unit = push(Int32(v))
