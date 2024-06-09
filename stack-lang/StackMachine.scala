@@ -343,13 +343,12 @@ extends Backend:
   def compile(record: Word.RecordLit)(using Context): Unit =
     val recordType = record.tpe.asInstanceOf[Type.Record]
     val size = Memory.size(recordType)
-    for (name, rhs) <- record.args do
-      compile(rhs)
 
     alloc(size)
     useTwoReg: (r1, r2) =>
       pop(r1)
-      for (name, _) <- record.args do
+      for (name, rhs) <- record.args do
+        compile(rhs)
         pop(r2)
         val offset = Memory.fieldOffset(recordType, name)
         val fieldAddr = Rel(r1, offset.toByte)
