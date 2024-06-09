@@ -351,7 +351,6 @@ extends Backend:
     cb.add(Instr.Store(Reg(X86.ECX), Rel(SP_REG, 4)))
     cb.add(Instr.Store(Reg(X86.EDX), Rel(SP_REG, 8)))
 
-    cb.add(Instr.Load(Rel(FP_REG, 8), X86.EAX))
     cb.add(Instr.Load(curBreakLabel, X86.EBX))
     cb.add(Instr.Load(initBreakLabel, X86.ECX))
     cb.add(Instr.Add(Reg(X86.EAX), Reg(X86.ECX), X86.ECX))
