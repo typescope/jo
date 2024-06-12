@@ -45,6 +45,7 @@ sealed abstract class Denotation
 enum Value extends Denotation:
   case IntVal(value: Int)
   case BoolVal(value: Boolean)
+  case RecordVal(fields: Map[String, Value])
 
 object Uninit extends Denotation
 
@@ -130,9 +131,8 @@ object Primitive:
   def eql(vs: ValueStack) = vs.push(BoolVal(vs.pop() == vs.pop()))
 
   def print(vs: ValueStack) =
-    vs.pop() match
-      case IntVal(v)  => println(v)
-      case BoolVal(v) => println(v)
+    val IntVal(v) = vs.pop(): @unchecked
+    println(v)
 
   val operators: Map[Symbol, ValueStack => Unit] = Map(
       predef.add    ->    add,
@@ -171,62 +171,69 @@ object Interpreter:
       sc.bind(sym, Uninit)
 
     val vs = new ValueStack
-    exec(Word.Ident(prog.main))(using vs, sc)
+    exec(prog.main)(using vs, sc)
 
   def exec(phrase: Phrase)(using ValueStack, Scope): Unit =
     for word <- phrase.words do exec(word)
 
+  def exec(sym: Symbol)(using vs: ValueStack, sc: Scope): Unit =
+    val Some(denot) = sc.resolve(sym): @unchecked
+    denot match
+      case value: Value =>
+        vs.push(value)
+
+      case Uninit =>
+        err("Accessing uninitialized variable " + sym)
+
+      case Action.Prim(fun) => fun(vs)
+
+      case Action.Fun(Fun(_, params, locals, body), sc2) =>
+        val funScope = new Scope.NestedScope(sc2)
+        for param <- params.reverse do
+          funScope.bind(param, vs.pop())
+        for param <- locals do
+          funScope.bind(param, Uninit)
+        exec(body)(using vs, funScope)
+
   def exec(word: Word)(using vs: ValueStack, sc: Scope): Unit =
     word match
-      case Word.IntLit(v)  => vs.push(Value.IntVal(v))
+      case IntLit(v)  => vs.push(Value.IntVal(v))
 
-      case Word.BoolLit(v) => vs.push(Value.BoolVal(v))
+      case BoolLit(v) => vs.push(Value.BoolVal(v))
 
-      case Word.Assign(sym, words) =>
+      case RecordLit(args) =>
+        val fieldValues = mutable.Map.empty[String, Value]
+        for (name, arg) <- args do
+          exec(arg)
+          fieldValues(name) = vs.pop()
+        vs.push(Value.RecordVal(fieldValues.toMap))
+
+      case Select(qual, name) =>
+        exec(qual)
+        val Value.RecordVal(fieldVals) = vs.pop(): @unchecked
+        vs.push(fieldVals(name))
+
+      case Assign(sym, words) =>
         exec(words)
         sc.update(sym, vs.pop())
 
-      case Word.If(cond, thenp, elsep) =>
+      case If(cond, thenp, elsep) =>
         exec(cond)
-        vs.pop() match
-          case Value.BoolVal(b) =>
-            if b then exec(thenp) else exec(elsep)
+        val Value.BoolVal(b) = vs.pop(): @unchecked
+        if b then exec(thenp) else exec(elsep)
 
-          case v =>
-            err("Boolean value expected for if condition, found " + v)
-
-      case Word.While(cond, body) =>
+      case While(cond, body) =>
         exec(cond)
-        vs.pop() match
-          case Value.BoolVal(b) =>
-            if b then
-              exec(body)
-              exec(word)
+        val Value.BoolVal(b) = vs.pop(): @unchecked
+        if b then
+          exec(body)
+          exec(word)
 
-          case v =>
-            err("Boolean value expected for if condition, found " + v)
+      case phrase: Phrase =>
+        exec(phrase)
 
-      case Word.Ident(sym) =>
-        sc.resolve(sym) match
-          case Some(d) =>
-            d match
-              case value: Value => vs.push(value)
-
-              case Action.Prim(fun) => fun(vs)
-
-              case Uninit =>
-                err("Accessing uninitialized variable " + sym)
-
-              case Action.Fun(Fun(_, params, locals, body), sc2) =>
-                val funScope = new Scope.NestedScope(sc2)
-                for param <- params.reverse do
-                  funScope.bind(param, vs.pop())
-                for param <- locals do
-                  funScope.bind(param, Uninit)
-                exec(body)(using vs, funScope)
-
-          case None =>
-            err("Undefined identifier " + sym)
+      case Ident(sym) =>
+        exec(sym)
 
 /***********************************************************************
  *

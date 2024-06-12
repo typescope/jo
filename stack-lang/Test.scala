@@ -13,6 +13,7 @@
 //> using file Linux.scala
 //> using file StackMachine.scala
 //> using file RegisterMachine.scala
+//> using file Memory.scala
 //> using file CallConvention.scala
 //> using file PreAssembly.scala
 //> using file Liveness.scala

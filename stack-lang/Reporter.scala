@@ -54,18 +54,11 @@ object Reporter:
   trait Positioned:
     this: Product =>
 
-    private var span: Span = NoSpan
-
     Positioned.checkComponentPos(this)
 
-    def hasPos: Boolean = span `ne` NoSpan
+    def hasPos: Boolean = pos `ne` NoSpan
 
-    def withPos(span: Span): this.type =
-      assert(!hasPos, "Position already set")
-      this.span = span
-      this
-
-    def pos: Span = span
+    def pos: Span
 
   object Positioned:
     def checkComponentPos(obj: Product): Unit =

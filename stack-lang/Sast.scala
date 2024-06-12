@@ -1,8 +1,9 @@
 import scala.collection.mutable
+import scala.collection.immutable.ListMap
 
 import Symbols.*
 import Types.*
-import Reporter.Positioned
+import Reporter.{ Positioned, Span }
 
 /***********************************************************************
  *
@@ -15,37 +16,60 @@ object Sast:
   sealed abstract class Tree extends Positioned with Product:
     def tpe: Type
 
-  enum Word extends Tree:
-    case IntLit(value: Int)
-    case BoolLit(value: Boolean)
-    case Ident(symbol: Symbol)
-    case Assign(symbol: Symbol, rhs: Phrase)
-    case If(cond: Phrase, thenp: Phrase, elsep: Phrase)
-    case While(cond: Phrase, body: Phrase)
+  sealed abstract class Word extends Tree
 
-    val tpe: Type =
-      this match
-        case _: IntLit   => Type.Int
-        case _: BoolLit  => Type.Bool
+  case class IntLit
+    (value: Int)
+    (val tpe: Type, val pos: Span)
+  extends Word
 
-        case _: Assign | _: While => Type.Void
+  case class BoolLit
+    (value: Boolean)
+    (val tpe: Type, val pos: Span)
+  extends Word
 
-        case ident: Ident => ident.symbol.info
+  case class RecordLit
+    (args: ListMap[String, Phrase])
+    (val tpe: Type, val pos: Span)
+  extends Word
 
-        case ifte: If => ifte.elsep.tpe // else can be empty thus void
+  case class Ident
+    (symbol: Symbol)
+    (val tpe: Type, val pos: Span)
+  extends Word
 
-  case class Phrase(words: List[Word], tpe: Type) extends Tree:
+  case class Select
+    (qual: Word, name: String)
+    (val tpe: Type, val pos: Span)
+  extends Word
+
+  case class Assign
+    (symbol: Symbol, rhs: Phrase)
+    (val tpe: Type, val pos: Span)
+  extends Word
+
+  case class If
+    (cond: Phrase, thenp: Phrase, elsep: Phrase)
+    (val tpe: Type, val pos: Span)
+  extends Word
+
+  case class While
+    (cond: Phrase, body: Phrase)
+    (val tpe: Type, val pos: Span)
+  extends Word
+
+  case class Phrase
+    (words: List[Word])
+    (val tpe: Type, val pos: Span)
+  extends Word:
     def isEmpty: Boolean = words.isEmpty
-    def resultCount: Byte = if tpe.isVoid then 0 else 1
 
-  case class Fun(
-    symbol: Symbol,
-    params: List[Symbol],
-    locals: List[Symbol],
-    body  : Phrase)
+  case class Fun
+    (symbol: Symbol, params: List[Symbol], locals: List[Symbol], body: Phrase)
+    (val pos: Span)
   extends Tree:
     def name: String = symbol.name
     def tpe = symbol.info
 
-  case class Prog(funs: List[Fun], vals: List[Symbol], main: Symbol):
-    Positioned.checkComponentPos(this)
+  case class Prog
+    (funs: List[Fun], vals: List[Symbol], main: Symbol)

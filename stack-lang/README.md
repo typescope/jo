@@ -20,10 +20,14 @@ Lexical Grammar
     VAL      = "val".
     VAR      = "var".
     FUN      = "fun".
+    TYPE     = "type".
     EQL      = "=".
     COMMA    = ",".
+    DOT      = ".".
     LPAREN   = "(".
     RPAREN   = ")".
+    LBRACKET = "[".
+    RBRACKET = "]".
     IF       = "if".
     THEN     = "then".
     ELSE     = "else".
@@ -43,17 +47,30 @@ Syntactical Grammar
 
 
 ~~~
-    word    = integer | boolean | ident | if | fence | assign | valdef | while.
+    word    = integer | boolean | ident | if | fence | assign | valdef | while | record | select.
     fence   = LPAREN phrase RPAREN.
     assign  = ident EQL phrase SEMICOL.
     if      = IF phrase THEN phrase [ELSE phrase] END.
     while   = WHILE phrase DO phrase END.
-    phrase  = word [phrase].
+    record  = LBRACKET [tagargs] RBRACKET.
+    select  = (ident | select) DOT ident.
 
-    valdef  = (VAL | VAR) ident COLON ident EQL phrase SEMICOL.
+    phrase  = { typedef } word [phrase].
+
+    valdef  = (VAL | VAR) ident COLON type EQL phrase SEMICOL.
     fundef  = FUN ident LPAREN [params] RPAREN EQL phrase SEMICOL.
-    program = {valdef | fundef} phrase.
 
-    params  = param {COMMA param}
-    param   = ident COLON ident
+    typedef = TYPE ident EQL type SEMICOL.
+    type    = ident | recordtyp.
+
+    tagargs    = tagarg { COMMA tagarg }.
+    tagarg     = ident EQL phrase.
+    recordtyp  = LBRACKET [fields]  RBRACKET.
+    fields     = field { COMMA field }.
+    field      = ident COLON type.
+
+    program = {valdef | fundef | typedef} phrase.
+
+    params  = param {COMMA param}.
+    param   = ident COLON type.
 ~~~

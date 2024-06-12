@@ -9,7 +9,7 @@ import scala.collection.mutable
   */
 object Symbols:
 
-  final class Symbol(val name: String, val info: Type, val flags: Flags):
+  final class Symbol(val name: String, val info: Type, flags: Flags):
     def isPrimitive: Boolean = flags.is(Flag.Prim)
     def isFunction : Boolean = flags.is(Flag.Fun)
     def isValue    : Boolean = flags.is(Flag.Val)
@@ -29,6 +29,9 @@ object Symbols:
     def createFunSymbol(name: String, info: Type) =
       new Symbol(name, info, Flag.Fun)
 
+    def createTypeSymbol(name: String, info: Type) =
+      new Symbol(name, info, Flag.Type)
+
     def createParamSymbol(name: String, tp: Type) =
       new Symbol(name, tp, Flag.Param | Flag.Val | Flag.Local)
 
@@ -45,6 +48,7 @@ object Symbols:
     val Param   : Flag = 1 << 3
     val Local   : Flag = 1 << 4
     val Mutable : Flag = 1 << 5
+    val Type    : Flag = 1 << 6
 
     val empty : Flags = 0
 

@@ -134,33 +134,43 @@ object PreAssembly:
   def subst(instr: Instr, regAlloc: Map[Int, Int]): List[Instr] =
     def substReg(reg: Int): Int = regAlloc.getOrElse(reg, reg)
 
-    def substPart[T](value: T | Reg): T | Reg =
+    def substValue(value: Value): Value =
+      subst(value).asInstanceOf[Value]
+
+    def substOperand(operand: Operand): Operand =
+      subst(operand).asInstanceOf[Operand]
+
+    def substAddr(addr: Addr): Addr =
+      subst(addr).asInstanceOf[Addr]
+
+    def subst(value: Addr | Value): Addr | Value =
       value match
         case Reg(r) => Reg(substReg(r))
+        case Rel(r, offset) => Rel(substReg(r), offset)
         case _ =>  value
 
     instr match
       case Instr.Binary(op: BiOp, v1: Operand, v2: Operand, destReg) =>
-        Instr.Binary(op, substPart(v1), substPart(v2), substReg(destReg)) :: Nil
+        Instr.Binary(op, substOperand(v1), substOperand(v2), substReg(destReg)) :: Nil
 
       case Instr.Move(v, destReg) =>
-        val src = substPart(v)
+        val src = substValue(v)
         val dest = substReg(destReg)
         src match
           case Reg(`dest`) => Nil
           case _           => Instr.Move(src, dest) :: Nil
 
       case Instr.Store(v: Value, addr: Addr) =>
-        Instr.Store(substPart(v), substPart(addr)) :: Nil
+        Instr.Store(substValue(v), substAddr(addr)) :: Nil
 
       case Instr.Load(addr: Addr, destReg) =>
-        Instr.Load(substPart(addr), substReg(destReg)) :: Nil
+        Instr.Load(substAddr(addr), substReg(destReg)) :: Nil
 
       case Instr.Jump(addr: Addr) =>
-        Instr.Jump(substPart(addr)) :: Nil
+        Instr.Jump(substAddr(addr)) :: Nil
 
-      case Instr.JZero(reg: Reg, label: Label) =>
-        Instr.JZero(substPart(reg), label) :: Nil
+      case Instr.JZero(Reg(index), label: Label) =>
+        Instr.JZero(Reg(substReg(index)), label) :: Nil
 
       case _: Instr.Special[?] =>
         // TODO
@@ -197,29 +207,39 @@ object PreAssembly:
   def substSource(instr: Instr, regAlloc: Map[Int, Int]): Instr =
     def substReg(reg: Int): Int = regAlloc.getOrElse(reg, reg)
 
-    def substPart[T](value: T | Reg): T | Reg =
+    def substValue(value: Value): Value =
+      subst(value).asInstanceOf[Value]
+
+    def substOperand(operand: Operand): Operand =
+      subst(operand).asInstanceOf[Operand]
+
+    def substAddr(addr: Addr): Addr =
+      subst(addr).asInstanceOf[Addr]
+
+    def subst(value: Addr | Value): Addr | Value =
       value match
         case Reg(r) => Reg(substReg(r))
+        case Rel(r, offset) => Rel(substReg(r), offset)
         case _ =>  value
 
     instr match
       case Instr.Binary(op: BiOp, v1: Operand, v2: Operand, destReg) =>
-        Instr.Binary(op, substPart(v1), substPart(v2), destReg)
+        Instr.Binary(op, substOperand(v1), substOperand(v2), destReg)
 
       case Instr.Move(v, destReg) =>
-        Instr.Move(substPart(v), destReg)
+        Instr.Move(substValue(v), destReg)
 
       case Instr.Store(v: Value, addr: Addr) =>
-        Instr.Store(substPart(v), substPart(addr))
+        Instr.Store(substValue(v), substAddr(addr))
 
       case Instr.Load(addr: Addr, destReg) =>
-        Instr.Load(substPart(addr), destReg)
+        Instr.Load(substAddr(addr), destReg)
 
       case Instr.Jump(addr: Addr) =>
-        Instr.Jump(substPart(addr))
+        Instr.Jump(substAddr(addr))
 
-      case Instr.JZero(reg: Reg, label: Label) =>
-        Instr.JZero(substPart(reg), label)
+      case Instr.JZero(Reg(index), label: Label) =>
+        Instr.JZero(Reg(substReg(index)), label)
 
       case _: Instr.Special[?] =>
         // TODO
@@ -325,7 +345,7 @@ object PreAssembly:
 
         case PlaceHolder.CalleeSaveRegisters =>
           for (savedReg, i) <- actualSavedRegs.zipWithIndex do
-            val addr = Rel(FP_REG, (-((spillCount + i + 1) << 2)).toByte)
+            val addr = Rel(FP_REG, -((spillCount + i + 1) << 2))
             cb.add(Instr.Store(Reg(savedReg), addr))
 
         case preInstr: PreInstr =>
@@ -348,7 +368,7 @@ object PreAssembly:
                 regRet = SP_REG
 
               for (savedReg, i) <- actualSavedRegs.zipWithIndex do
-                val addr = Rel(FP_REG, (-((spillCount + i + 1) << 2)).toByte)
+                val addr = Rel(FP_REG, -((spillCount + i + 1) << 2))
                 cb.add(Instr.Load(addr, savedReg))
 
               cb.add(Instr.Jump(Reg(regRet)))
@@ -385,7 +405,7 @@ object PreAssembly:
       // println(stackAlloc)
 
       def addr(i: Int): Addr =
-        Rel(regConfig.FP_REG, (-(i + 1 + spillCount) << 2).toByte)
+        Rel(regConfig.FP_REG, -(i + 1 + spillCount) << 2)
 
       if stackAlloc.isEmpty then
         commitAlloc(

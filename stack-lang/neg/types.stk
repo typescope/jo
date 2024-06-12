@@ -2,11 +2,18 @@ var a: Int = 4;
 
 fun even(x: Int): Bool = x 2 / 0 ==;
 
+val b: Int = false; // error
+
+fun double(n: Int): Bool = n n +; // error
+
+fun param(a: Int, a: Int): Int = a; // error
+
 a = true;    // error
 a = 3 even;  // error
 false even   // error
 
 if a then    // error
+  val z: Bool = 4; // error
   3 p
 end
 

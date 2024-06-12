@@ -19,30 +19,28 @@ class Checker(using Reporter):
 
   def check(word: Word)(using vs: ValueStack): Unit =
     word match
-      case _: Word.IntLit | _: Word.BoolLit =>
-        vs.push(word.tpe.asInstanceOf[ValueType] :: Nil)
+      case _: IntLit | _: BoolLit | _: RecordLit | _: Select =>
+        vs.push(word.tpe)
 
-      case Word.Assign(sym, words) =>
+      case Assign(sym, words) =>
         vs.expectEmpty("No result expected before assignment", word.pos)
 
-      case Word.If(cond, thenp, elsep) =>
-        word.tpe match
-          case tp: ValueType => vs.push(tp :: Nil)
-          case _ =>
+      case If(cond, thenp, elsep) =>
+        if word.tpe.isValueType then vs.push(word.tpe)
 
-      case Word.While(cond, body) =>
+      case While(cond, body) =>
         vs.expectEmpty("No result expected before while loop", word.pos)
 
-      case Word.Ident(sym) =>
+      case Ident(sym) =>
         val info = sym.info
 
         info match
-          case tp: ValueType => vs.push(tp :: Nil)
-
           case tp: Type.Proc => vs.call(sym, tp, word.pos)
 
-          case Type.Void =>
+          case _ => if info.isValueType then vs.push(info)
 
+      case Phrase(words) =>
+        check(words)
 
   def check(words: List[Word])(using vs: ValueStack): Unit =
     for word <- words do check(word)
@@ -55,6 +53,19 @@ class Checker(using Reporter):
     if !tp.isValueType then
       Reporter.error(s"Expect value type, found = $tp", pos)
 
+  def expectValueType(tree: Tree): Unit =
+    expectValueType(tree.tpe, tree.pos)
+
+  def fieldType(qualType: Type, field: String, pos: Span): Type =
+    if !qualType.isRecordType then
+      Reporter.error(s"Expect record type, found = $qualType", pos)
+      Type.Error
+    else if !qualType.hasField(field) then
+      Reporter.error(s"Expect field $field in record type $qualType, found none", pos)
+      Type.Error
+    else
+      qualType.fieldType(field)
+
 object Checker:
   /**
     * Represent the types of values on the value stack.
@@ -63,7 +74,7 @@ object Checker:
     */
   class ValueStack:
     /** Don't expose size in order to handle errors */
-    private val valueTypes = mutable.ArrayBuffer.empty[ValueType]
+    private val valueTypes = mutable.ArrayBuffer.empty[Type]
     private var hasError = false
 
     private def setError() =
@@ -104,13 +115,16 @@ object Checker:
         valueTypes.dropRightInPlace(paramTypes.size)
 
         if resType.isValueType then
-          push(resType.asInstanceOf[ValueType] :: Nil)
+          push(resType)
 
-    def push(tps: List[ValueType]) =
-      valueTypes ++= tps
-      if tps.exists(_.isError) then setError()
+    def push(tp: Type): Unit =
+      assert(tp.isValueType, tp)
+      valueTypes += tp
+      if tp.isError then setError()
 
-    def pop(): Option[ValueType] =
+    def push(tps: List[Type]): Unit = for tp <- tps do push(tp)
+
+    def pop(): Option[Type] =
       if valueTypes.isEmpty then
         None
       else if isError then

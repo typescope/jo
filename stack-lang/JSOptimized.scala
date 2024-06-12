@@ -5,6 +5,8 @@ import Sast.*
 import Symbols.*
 import Types.*
 
+import JSBackend.encodeSymbolic
+
 /**
   * JavaScript platform with code optimization
   */
@@ -157,8 +159,7 @@ class JSOptimized(outFile: String) extends Backend:
     *
     * Calling the passed function will compile the initializer.
     */
-  def compile(assign: Word.Assign)(using Context): Unit =
-    vs.clear()
+  def compile(assign: Assign)(using Context): Unit =
     compile(assign.rhs)
     val name = symbol2UniqueName(assign.symbol)
     val rhs = vs.pop()
@@ -189,7 +190,7 @@ class JSOptimized(outFile: String) extends Backend:
 
       addLine("}\n")
 
-  def compile(ifword: Word.If)(using Context): Unit =
+  def compile(ifword: If)(using Context): Unit =
     bindExpressions()
 
     compile(ifword.cond)
@@ -227,7 +228,7 @@ class JSOptimized(outFile: String) extends Backend:
 
       vs.push(Item.Ref(resName));
 
-  def compile(whileDo: Word.While)(using Context): Unit =
+  def compile(whileDo: While)(using Context): Unit =
     bindExpressions()
 
     addLine(s"while (true) {")
@@ -239,6 +240,25 @@ class JSOptimized(outFile: String) extends Backend:
         compile(whileDo.body)
       addLine("} else break;")
     addLine("}")
+
+  /** Compile [x = 3, y = 5] */
+  def compile(record: RecordLit)(using Context): Unit =
+    val fieldValues = mutable.Map.empty[String, String]
+    for (name, rhs) <- record.args do
+      compile(rhs)
+      val encodedName = encodeSymbolic(name)
+      fieldValues(encodedName) = vs.pop()
+    end for
+    val obj = fieldValues.map(_ + ":" + _).mkString("{", ", ", "}")
+    vs.push(Item.Expr(obj))
+
+  /** Compile p.x */
+  def compile(select: Select)(using Context): Unit =
+    val encodedField = encodeSymbolic(select.name)
+    compile(select.qual)
+    val qual = vs.pop()
+    // TODO: binding required for mutable fields
+    vs.push(Item.Ref(s"$qual.$encodedField"))
 
   /** Push an integer literal to value stack */
   def push(v: Int)(using Context): Unit =

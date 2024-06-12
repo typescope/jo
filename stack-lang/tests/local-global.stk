@@ -1,0 +1,7 @@
+var i: Int = 0;
+while i 4096 < do
+  val sum: Int = i i i * +;
+  i = i 1 +;
+end
+
+i p

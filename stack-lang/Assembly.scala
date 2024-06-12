@@ -19,7 +19,7 @@ object Assembly:
     override def toString() = "Label(" + name + ")"
 
   /** A dynamic address represented by an offset relative to a register value */
-  case class Rel(reg: Int, offset: Byte)
+  case class Rel(reg: Int, offset: Int)
 
   type Operand  = Int32 | Reg
   type Addr     = Label | Reg | Rel

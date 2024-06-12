@@ -1,4 +1,5 @@
 import scala.collection.mutable
+import scala.collection.immutable
 
 import Sast.*
 import Types.*
@@ -33,6 +34,7 @@ class Namer(using Reporter):
       defn match
         case vdef: Ast.ValDef =>
           val tpe = transform(vdef.typ)(using sc)
+          checker.expectValueType(tpe, vdef.typ.pos)
           val flags = if vdef.mutable then Flag.Mutable else Flag.empty
           val sym = Symbol.createValueSymbol(defn.name, tpe, flags)
           sc.define(sym, defn.pos)
@@ -43,52 +45,62 @@ class Namer(using Reporter):
             for param <- funDef.params yield
               val paramType = transform(param.typ)(using sc)
               checker.expectValueType(paramType, param.typ.pos)
-              paramType.asInstanceOf[ValueType]
+              paramType
 
           val resType = transform(funDef.resType)(using sc)
           val funType = Type.Proc(paramNames, paramTypes, resType)
           val sym = Symbol.createFunSymbol(defn.name, funType)
           sc.define(sym, defn.pos)
 
+        case tdef: Ast.TypeDef =>
+          // TODO: fix scope of type definitions or make type checking lazy
+          val info = transform(tdef.rhs)(using sc)
+          val sym = Symbol.createTypeSymbol(defn.name, info)
+          sc.define(sym, defn.pos, isType = true)
+
     val funs = new mutable.ArrayBuffer[Fun]
-    val inits = new mutable.ArrayBuffer[Word.Assign]
+    val inits = new mutable.ArrayBuffer[Assign]
     val locals = new mutable.ArrayBuffer[Symbol]
 
-    for defn <- prog.defs yield
-      val Some(sym) = sc.resolve(defn.name, isType = false): @unchecked
+    val mainFunScope = sc.fresh(sym => if !sym.isParameter then locals.addOne(sym))
 
+    for defn <- prog.defs yield
       defn match
         case valDef: Ast.ValDef =>
-          val valScope = sc.fresh(sym => if !sym.isParameter then locals.addOne(sym))
-          val rhs = transform(valDef.rhs)(using valScope)
-          inits += new Word.Assign(sym, rhs).withPos(defn.pos)
+          val Some(sym) = sc.resolve(defn.name, isType = false): @unchecked
+          val rhs = transform(valDef.rhs)(using mainFunScope)
+          checker.expect(rhs, sym.info)
+          inits += new Assign(sym, rhs)(Type.Void, defn.pos)
 
         case funDef: Ast.FunDef =>
+          val Some(sym) = sc.resolve(defn.name, isType = false): @unchecked
           funs += transform(sym, funDef)(using sc)
+
+        case tdef: Ast.TypeDef =>
     end for
 
-    val mainPhrase = transform(prog.main)(using sc)
+    val mainPhrase = transform(prog.main)(using mainFunScope)
     val mainSym = Symbol.createFunSymbol("main", Type.Proc(Nil, Nil, Type.Void))
     val mainPos = mainPhrase.pos
-    val mainBody = Phrase((inits ++ mainPhrase.words).toList, mainPhrase.tpe).withPos(mainPos)
+    val mainBody = Phrase((inits ++ mainPhrase.words).toList)(mainPhrase.tpe, mainPos)
     val params = Nil
-    val mainFun = Fun(mainSym, params, locals.toList, mainBody).withPos(mainPos)
+    val mainFun = Fun(mainSym, params, locals.toList, mainBody)(mainPos)
 
     funs += mainFun
 
     Prog(funs.toList, inits.map(_.symbol).toList, mainSym)
 
-  private def transform(word: Ast.Word)(using sc: Scope): List[Word] =
+  private def transform(word: Ast.Word)(using sc: Scope): Word =
     word match
       case Ast.IntLit(v)  =>
-        Word.IntLit(v).withPos(word.pos) :: Nil
+        IntLit(v)(Type.Int, word.pos)
 
       case Ast.BoolLit(v) =>
-        Word.BoolLit(v).withPos(word.pos) :: Nil
+        BoolLit(v)(Type.Bool, word.pos)
 
       case Ast.Fence(ws)  =>
         val phrase = transform(ws)
-        phrase.words
+        phrase
 
       case Ast.If(cond, thenp, elsep) =>
          val cond2 = transform(cond)
@@ -101,17 +113,17 @@ class Namer(using Reporter):
                s"found = ${then2.tpe} and ${else2.tpe}",
              word.pos)
 
-         Word.If(cond2, then2, else2).withPos(word.pos) :: Nil
+         If(cond2, then2, else2)(then2.tpe, word.pos)
 
       case Ast.While(cond, body) =>
          val cond2 = transform(cond)
          val body2 = transform(body)
          checker.expect(cond2, Type.Bool)
-         Word.While(cond2, body2).withPos(word.pos) :: Nil
+         While(cond2, body2)(Type.Void, word.pos)
 
       case Ast.Ident(name) =>
         val sym = sc.resolve(name, word.pos)
-        Word.Ident(sym).withPos(word.pos) :: Nil
+        Ident(sym)(sym.info, word.pos)
 
       case Ast.Assign(id, words) =>
         val sym = sc.resolve(id.name, id.pos)
@@ -120,7 +132,26 @@ class Namer(using Reporter):
 
         val rhs = transform(words)
         checker.expect(rhs, sym.info)
-        Word.Assign(sym, rhs).withPos(word.pos) :: Nil
+        Assign(sym, rhs)(Type.Void, word.pos)
+
+      case Ast.RecordLit(namedArgs) =>
+        val namedArgs2 = new mutable.ListMap[String, Phrase]
+        for Ast.NamedArg(id, rhs) <- namedArgs do
+          if namedArgs2.contains(id.name) then
+            Reporter.error("Arg " + id.name + " already defined", id.pos)
+          else
+            val rhs2 = transform(rhs)
+            checker.expectValueType(rhs2)
+            namedArgs2 += id.name -> rhs2
+        end for
+        val fields = immutable.ListMap.from(namedArgs2)
+        val tpe = Type.Record(fields.map { case (k, v) => k -> v.tpe })
+        RecordLit(fields)(tpe, word.pos)
+
+      case Ast.Select(qual, name) =>
+        val qual2 = transform(qual)
+        val tp = checker.fieldType(qual2.tpe, name, qual.pos)
+        Select(qual2, name)(tp, word.pos)
 
       case vdef: Ast.ValDef =>
         var flags: Flags = Flag.Local
@@ -136,12 +167,21 @@ class Namer(using Reporter):
         checker.expect(rhs, tpe)
 
         sc.define(sym, vdef.pos)
-        Word.Assign(sym, rhs).withPos(vdef.pos) :: Nil
+        Assign(sym, rhs)(Type.Void, vdef.pos)
 
   private def transform(phrase: Ast.Phrase)(using sc: Scope): Phrase =
     val sc2 = sc.fresh()
+
+    for tdef <- phrase.tdefs do
+      // TODO: fix scope of type definitions or make type checking lazy
+      val info = transform(tdef.rhs)(using sc2)
+      val sym = Symbol.createTypeSymbol(tdef.name, info)
+      sc.define(sym, tdef.pos, isType = true)
+
     val wordsTyped = phrase.words.flatMap: word =>
-        transform(word)(using sc2)
+        transform(word)(using sc2) match
+          case Phrase(Nil) => Nil
+          case word => word :: Nil
 
     val vs = new Checker.ValueStack
     checker.check(wordsTyped)(using vs)
@@ -163,7 +203,7 @@ class Namer(using Reporter):
 
           case None => Type.Void
 
-    Phrase(wordsTyped, tp).withPos(phrase.pos)
+    Phrase(wordsTyped)(tp, phrase.pos)
 
   private def transform(sym: Symbol, funDef: Ast.FunDef)(using sc: Scope): Fun =
     val locals = new mutable.ArrayBuffer[Symbol]
@@ -177,7 +217,8 @@ class Namer(using Reporter):
         paramSym
 
     val body2 = transform(funDef.body)(using funScope)
-    Fun(sym, paramSyms, locals.toList, body2).withPos(funDef.pos)
+    checker.expect(body2, sym.info.resultType)
+    Fun(sym, paramSyms, locals.toList, body2)(funDef.pos)
 
   private def transform(tpt: Ast.TypeTree)(using sc: Scope): Type =
     tpt match
@@ -185,11 +226,21 @@ class Namer(using Reporter):
         sc.resolve(name, isType = true) match
           case Some(sym) =>
             if sym.isPrimitive then sym.info
-            else ??? // impossible
+            else Type.TypeRef(sym)
 
           case None =>
             Reporter.error("Unknown type " + tpt, tpt.pos)
             Type.Error
+
+      case Ast.RecordType(fields) =>
+        val fieldTypes = new mutable.ListMap[String, Type]
+        for field <- fields do
+          if fieldTypes.contains(field.name) then
+            Reporter.error("Field " + field.name + " already defined", field.pos)
+          else
+            fieldTypes += field.name -> transform(field.typ)
+        end for
+        Type.Record(immutable.ListMap.from(fieldTypes))
 
   private enum Scope:
     case RootScope()
@@ -240,4 +291,4 @@ class Namer(using Reporter):
           notifyDefined(sym)
 
         case Some(sym) =>
-          Reporter.abort(sym.name + " is already bound", span)
+          Reporter.error(sym.name + " is already bound", span)

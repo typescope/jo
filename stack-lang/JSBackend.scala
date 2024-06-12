@@ -5,6 +5,37 @@ import Sast.*
 import Symbols.*
 import Types.*
 
+import JSBackend.encodeSymbolic
+
+object JSBackend:
+  def encodeSymbolic(operator: String): String =
+    val sb = new StringBuilder
+    for c <- operator do sb.append(encodeOperatorChar(c))
+    sb.toString
+
+  def encodeOperatorChar(c: Char): String =
+    if isDigit(c) || isLetter(c) then c.toString
+    else c match
+      case '+' => "plus"
+      case '-' => "minus"
+      case '*' => "mul"
+      case '/' => "div"
+      case '%' => "mod"
+      case '|' => "or"
+      case '&' => "and"
+      case '^' => "xor"
+      case '>' => "gt"
+      case '<' => "lt"
+      case '=' => "eq"
+      case '!' => "not"
+      case _   => throw new Exception("Not supported, c = " + c)
+
+  def isDigit(c: Char): Boolean =
+    c >= '0' && c <= '9'
+
+  def isLetter(c: Char): Boolean =
+    c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
+
 /**
   * JavaScript platform
   */
@@ -79,7 +110,7 @@ class JSBackend(outFile: String) extends Backend:
     var i: Int = paramCount - 1
     val args = new Array[String](paramCount)
     while i >= 0  do
-      val argName = freshName(s"arg$i")
+      val argName = freshName(s"_arg_$i")
       args(i) = argName
       addLine(s"const $argName = $pop();")
       i = i - 1
@@ -99,7 +130,7 @@ class JSBackend(outFile: String) extends Backend:
     *
     * Calling the passed function will compile the initializer.
     */
-  def compile(assign: Word.Assign)(using Context): Unit =
+  def compile(assign: Assign)(using Context): Unit =
     compile(assign.rhs)
     val name = symbol2UniqueName(assign.symbol)
     addLine(s"$name = $pop();")
@@ -120,7 +151,7 @@ class JSBackend(outFile: String) extends Backend:
         compile(fdef.body)
       addLine("}\n")
 
-  def compile(ifword: Word.If)(using Context): Unit =
+  def compile(ifword: If)(using Context): Unit =
     compile(ifword.cond)
     addLine(s"if ($pop()) {")
     indent:
@@ -131,13 +162,32 @@ class JSBackend(outFile: String) extends Backend:
         compile(ifword.elsep)
     addLine("}")
 
-  def compile(whileDo: Word.While)(using Context): Unit =
+  def compile(whileDo: While)(using Context): Unit =
     compile(whileDo.cond)
     addLine(s"while ($pop()) {")
     indent:
       compile(whileDo.body)
       compile(whileDo.cond)
     addLine("}")
+
+  /** Compile [x = 3, y = 5] */
+  def compile(record: RecordLit)(using Context): Unit =
+    val fieldValues = mutable.Map.empty[String, String]
+    for (name, rhs) <- record.args do
+      compile(rhs)
+      val arg = freshName("arg")
+      addLine(s"const $arg = $pop();")
+      val encodedName = encodeSymbolic(name)
+      fieldValues(encodedName) = arg
+    end for
+    val obj = fieldValues.map(_ + ":" + _).mkString("{", ", ", "}")
+    addLine(s"$push($obj)")
+
+  /** Compile p.x */
+  def compile(select: Select)(using Context): Unit =
+    val encodedField = encodeSymbolic(select.name)
+    compile(select.qual)
+    addLine(s"$push($pop().$encodedField);")
 
   /** Push an integer literal to value stack */
   def push(v: Int)(using Context): Unit =

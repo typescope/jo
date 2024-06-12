@@ -520,15 +520,21 @@ object X86 extends Assembler:
       case Rel(r, offset) =>
         // See Table 2-2. 32-Bit Addressing Forms with the ModR/M Byte in [1]
 
-        if r == 4 then // ESP
+        if offset > 127 || offset < -128 then
+          // TODO use scale index
+          if r != destReg then
+            move(Reg(r), destReg)
+          add(destReg, Int32(offset))
+          load(Reg(destReg), destReg)
+        else if r == 4 then // ESP
           pb.addByte(0x8B.toByte)
           pb.addByte((0x40 | (destReg << 3) | r).toByte)
           pb.addByte(0x24)
-          pb.addByte(offset)
+          pb.addByte(offset.toByte)
         else
           pb.addByte(0x8B.toByte)
           pb.addByte((0x40 | (destReg << 3) | r).toByte)
-          pb.addByte(offset)
+          pb.addByte(offset.toByte)
 
       case l: Label =>
         withPatch(l, 6): (bb, loc) =>
@@ -596,49 +602,68 @@ object X86 extends Assembler:
         store(v, Reg(rd))
 
       case Rel(rd, offset) =>
-
         v match
           case l: Label =>
+            if offset > 127 || offset < -128 then
+              // TODO use scale index
+              add(rd, Int32(offset))
+              store(l, Reg(rd))
+              sub(rd, Int32(offset))
+
             // C7 /0 id    MOV r/m32, imm32
-            if rd == 4 then // ESP
+            else if rd == 4 then // ESP
               withPatch(l, 8): (bb, loc) =>
                 bb.addByte(0xC7.toByte)
                 bb.addByte(0x44)
                 bb.addByte(0x24)
-                bb.addByte(offset)
+                bb.addByte(offset.toByte)
                 bb.addInt(loc)
             else
               withPatch(l, 7): (bb, loc) =>
                 bb.addByte(0xC7.toByte)
                 bb.addByte((0x40 | rd).toByte)
-                bb.addByte(offset)
+                bb.addByte(offset.toByte)
                 bb.addInt(loc)
 
           case Int32(v) =>
+            if offset > 127 || offset < -128 then
+              // TODO use scale index
+              add(rd, Int32(offset))
+              store(Int32(v), Reg(rd))
+              sub(rd, Int32(offset))
+
             // C7 /0 id    MOV r/m32, imm32
-            if rd == 4 then // ESP
+            else if rd == 4 then // ESP
               pb.addByte(0xC7.toByte)
               pb.addByte(0x44)
               pb.addByte(0x24)
-              pb.addByte(offset)
+              pb.addByte(offset.toByte)
               pb.addInt(v)
             else
               pb.addByte(0xC7.toByte)
               pb.addByte((0x40 | rd).toByte)
-              pb.addByte(offset)
+              pb.addByte(offset.toByte)
               pb.addInt(v)
 
           case Reg(rv) =>
+            if offset > 127 || offset < -128 then
+              // TODO use scale index
+              if rv == rd then
+                throw new Exception(s"Not supported, offset = $offset, rd = $rd, rv = $rv")
+              add(rd, Int32(offset))
+              store(v, Reg(rd))
+              sub(rd, Int32(offset))
+
             // 89 /r     MOV r/m32, r32
-            if rd == 4 then // ESP
+            else if rd == 4 then // ESP
               pb.addByte(0x89.toByte)
               pb.addByte((0x40 | (rv << 3) | 4).toByte)
               pb.addByte(0x24)
-              pb.addByte(offset)
+              pb.addByte(offset.toByte)
             else
               pb.addByte(0x89.toByte)
               pb.addByte((0x40 | (rv << 3) | rd).toByte)
-              pb.addByte(offset)
+              pb.addByte(offset.toByte)
 
       case l: Label =>
         v match
@@ -706,7 +731,8 @@ object X86 extends Assembler:
 
       case Rel(r, offset) =>
         if offset != 0 then
-          add(r, Int32(offset))
+          // TODO: handl offset
+          throw new Exception("Relative address in jump not supported")
         jump(Reg(r))
 
       case l: Label =>

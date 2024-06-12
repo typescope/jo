@@ -32,6 +32,11 @@ extends Backend:
   /** Maps global symbols to addresses */
   val symbolAddrMap: mutable.Map[Symbol, Addr] = mutable.Map.from(nativeFunctions)
 
+  /** The memory allocator */
+  val allocatorType = Type.Proc("size" :: Nil, Type.Int :: Nil, Type.Int)
+  val allocatorSym = Symbol.createFunSymbol("alloc", allocatorType)
+  symbolAddrMap(allocatorSym) = Label(allocatorSym.name)
+
   def freshVirtualReg()(using ctx: Context): Int =
     ctx.generator.fresh()
 
@@ -82,6 +87,9 @@ extends Backend:
     // Stack pointer is initialized by the kernel, initialize frame pointer
     cb.mark(label)
     cb.add(Instr.Sub(Reg(SP_REG), Int32(4), SP_REG))
+
+    genAllocator(cb)
+
     val endLabel = Label("_end")
     cb.add(Instr.Store(endLabel, Reg(SP_REG)))
     cb.add(Instr.Move(Reg(SP_REG), FP_REG))
@@ -97,7 +105,7 @@ extends Backend:
         gen(Instr.Move(Reg(arg), dest))
 
       case Location.Mem(baseReg, offset) =>
-        val addr = Rel(baseReg, offset.toByte)
+        val addr = Rel(baseReg, offset)
         gen(Instr.Load(addr, dest))
     end match
 
@@ -113,8 +121,6 @@ extends Backend:
   def compile(fdef: Fun)(using ctx: Context): CalleeProtocol =
     val sym = fdef.symbol
     val paramCount = fdef.params.size
-
-    assert(paramCount < 31, s"At most 30 parameters, $sym has " + paramCount)
 
     // TODO: bind retLoc
     val proto @ CalleeProtocol(paramLocs, retLoc, resLocs, savedRegs) =
@@ -144,7 +150,7 @@ extends Backend:
 
 
   /** Compile a conditional statement, i.e if/then/else */
-  def compile(ifword: Word.If)(using ctx: Context): Unit =
+  def compile(ifword: If)(using ctx: Context): Unit =
     val labelFalse = Label("_false")
     val labelEnd = Label("_ifEnd")
 
@@ -190,7 +196,7 @@ extends Backend:
           vs.push(Reg(resReg))
         end if
 
-  def compile(whileDo: Word.While)(using ctx: Context): Unit =
+  def compile(whileDo: While)(using ctx: Context): Unit =
     val labelBegin = Label("_whileBegin")
     val labelEnd = Label("_whileEnd")
 
@@ -229,7 +235,7 @@ extends Backend:
           gen(Instr.Move(value, dest))
 
         case Location.Mem(reg, offset) =>
-          val addr = Rel(reg, offset.toByte)
+          val addr = Rel(reg, offset)
            gen(Instr.Store(value, addr))
       end match
 
@@ -264,13 +270,13 @@ extends Backend:
       item match
         case reg: Flex =>
           regPositions(reg.reg) = index
-          storeValue(Reg(reg.reg), index.toByte)
+          storeValue(Reg(reg.reg), index)
 
         case Fixed.Argument(i) =>
-          storeValue(args(i), index.toByte)
+          storeValue(args(i), index)
 
         case Fixed.ReturnAddress =>
-          storeValue(returnLoc, index.toByte)
+          storeValue(returnLoc, index)
 
     // update FP
     val stackDelta = onStack.size << 2
@@ -293,13 +299,13 @@ extends Backend:
 
     // restore registers
     for (reg, index) <- regPositions do
-      loadValue(reg, index.toByte)
+      loadValue(reg, index)
 
   /** Initialize a value definition
     *
     * Calling the passed function will compile the initializer.
     */
-  def compile(assign: Word.Assign)(using ctx: Context): Unit =
+  def compile(assign: Assign)(using ctx: Context): Unit =
     val sym = assign.symbol
 
     compile(assign.rhs)
@@ -308,6 +314,112 @@ extends Backend:
       if sym.isLocal then Instr.Move(rhsValue, ctx.getRegForLocal(sym))
       else Instr.Store(rhsValue, symbolAddrMap(sym))
     gen(instr)
+
+  /** Generate a bump allocator
+    *
+    * TODO: implement it in Stk.
+    */
+  def genAllocator(cb: CodeBuffer): Unit =
+    val allocLabel = symbolAddrMap(allocatorSym).asInstanceOf[Label]
+
+    val initBreakLabel = Label("init_break")
+    val curBreakLabel = Label("current_break")
+
+    cb.add(Data.Uninit(initBreakLabel, Assembly.Type.Int32))
+    cb.add(Data.Uninit(curBreakLabel, Assembly.Type.Int32))
+
+    val doAllocLabel = Label("doAlloc")
+    val allocEndLabel = Label("allocEnd")
+
+    // use invalid arg to get the current break
+    cb.add(Instr.Move(Int32(0), X86.EBX))          // new break
+    cb.add(Instr.Move(Int32(45), X86.EAX))         // syscall number sys_brk
+    cb.add(Instr.Special(X86.Syscall))             // syscall
+    cb.add(Instr.Store(Reg(X86.EAX), initBreakLabel))
+    cb.add(Instr.Store(Reg(X86.EAX), curBreakLabel))
+
+    cb.add(Instr.Jump(allocEndLabel))
+
+    // start alloc function
+    cb.mark(allocLabel)
+
+    // callee-saved registers
+    cb.add(Instr.Add(Reg(FP_REG), Int32(-12), SP_REG))
+    cb.add(Instr.Store(Reg(X86.EBX), Rel(SP_REG, 0)))
+    cb.add(Instr.Store(Reg(X86.ECX), Rel(SP_REG, 4)))
+    cb.add(Instr.Store(Reg(X86.EDX), Rel(SP_REG, 8)))
+
+    cb.add(Instr.Load(curBreakLabel, X86.EBX))
+    cb.add(Instr.Load(initBreakLabel, X86.ECX))
+    cb.add(Instr.Add(Reg(X86.EAX), Reg(X86.ECX), X86.ECX))
+    cb.add(Instr.Gt(Reg(X86.ECX), Reg(X86.EBX), X86.EDX))
+    cb.add(Instr.JZero(Reg(X86.EDX), doAllocLabel))
+
+    // Avoid allocating at page boundary
+    cb.add(Instr.Add(Reg(X86.EAX), Reg(X86.EBX), X86.ECX))
+
+    // backup EAX
+    cb.add(Instr.Move(Reg(X86.EAX), X86.EDX))
+
+    // Add more pages
+    cb.add(Instr.Add(Reg(X86.EBX), Int32(1 << 12), X86.EBX))     // new break
+    cb.add(Instr.Move(Int32(45), X86.EAX))                  // syscall number sys_brk
+    cb.add(Instr.Special(X86.Syscall))                      // syscall
+    cb.add(Instr.Store(Reg(X86.EAX), curBreakLabel))
+
+    // restore EAX
+    cb.add(Instr.Move(Reg(X86.EDX), X86.EAX))
+
+    cb.mark(doAllocLabel)
+    cb.add(Instr.Store(Reg(X86.ECX), initBreakLabel))
+    cb.add(Instr.Sub(Reg(X86.ECX), Reg(X86.EAX), X86.EAX))
+
+    // restore callee-saved regs
+    cb.add(Instr.Load(Rel(SP_REG, 0), X86.EBX))
+    cb.add(Instr.Load(Rel(SP_REG, 4), X86.ECX))
+    cb.add(Instr.Load(Rel(SP_REG, 8), X86.EDX))
+
+    cb.add(Instr.Load(Reg(FP_REG), SP_REG))
+    cb.add(Instr.Jump(Reg(SP_REG)))
+    cb.mark(allocEndLabel)
+
+  /** Allocate a block of memory and push the start address onto value stack.
+    */
+  def alloc(size: Int)(using ctx: Context): Unit =
+    ctx.vs.push(Int32(size))
+    call(allocatorSym)
+
+  /** Compile [x = 3, y = 5] */
+  def compile(record: RecordLit)(using ctx: Context): Unit =
+    val recordType = record.tpe.asInstanceOf[Type.Record]
+    val size = Memory.size(recordType)
+
+    alloc(size)
+    val recordReg = ctx.vs.pop().asInstanceOf[Reg]
+
+    for (name, rhs) <- record.args do
+      compile(rhs)
+      val fieldValue = ctx.vs.pop()
+      val offset = Memory.fieldOffset(recordType, name)
+      val fieldAddr = Rel(recordReg.index, offset)
+      gen(Instr.Store(fieldValue, fieldAddr))
+
+    ctx.vs.push(recordReg)
+
+  /** Compile p.x */
+  def compile(select: Select)(using ctx: Context): Unit =
+    val field = select.name
+    val qualType = select.qual.tpe.dealias.asInstanceOf[Type.Record]
+    val offset = Memory.fieldOffset(qualType, field)
+
+    compile(select.qual)
+
+    val recordReg = ctx.vs.pop().asInstanceOf[Reg]
+    val fieldAddr = Rel(recordReg.index, offset)
+
+    val fieldReg = freshVirtualReg()
+    gen(Instr.Load(fieldAddr, fieldReg))
+    ctx.vs.push(Reg(fieldReg))
 
   /** Push an integer literal to value stack */
   def push(v: Int)(using ctx: Context): Unit =
@@ -356,16 +468,16 @@ extends Backend:
     *
     * The index begins from 0.
     */
-  def loadValue(destReg: Int, index: Byte)(using Context): Unit =
-    val addr = Rel(SP_REG, (index * 4).toByte)
+  def loadValue(destReg: Int, index: Int)(using Context): Unit =
+    val addr = Rel(SP_REG, index << 2)
     gen(Instr.Load(addr, destReg))
 
   /** Store a value to value stack relative to the stack pointer.
     *
     * The index begins from 0.
     */
-  def storeValue(value: Value, index: Byte)(using Context): Unit =
-    val addr = Rel(SP_REG, (index * 4).toByte)
+  def storeValue(value: Value, index: Int)(using Context): Unit =
+    val addr = Rel(SP_REG, index << 2)
     gen(Instr.Store(value, addr))
 
   def int2(fn: (Operand, Operand, Int) => Instr)(using ctx: Context) =
