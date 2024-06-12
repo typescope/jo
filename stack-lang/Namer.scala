@@ -169,15 +169,15 @@ class Namer(using Reporter):
         sc.define(sym, vdef.pos)
         Assign(sym, rhs)(Type.Void, vdef.pos)
 
-      case tdef: Ast.TypeDef =>
-        // TODO: fix scope of type definitions or make type checking lazy
-        val info = transform(tdef.rhs)
-        val sym = Symbol.createTypeSymbol(tdef.name, info)
-        sc.define(sym, tdef.pos, isType = true)
-        Phrase(Nil)(Type.Void, tdef.pos)
-
   private def transform(phrase: Ast.Phrase)(using sc: Scope): Phrase =
     val sc2 = sc.fresh()
+
+    for tdef <- phrase.tdefs do
+      // TODO: fix scope of type definitions or make type checking lazy
+      val info = transform(tdef.rhs)(using sc2)
+      val sym = Symbol.createTypeSymbol(tdef.name, info)
+      sc.define(sym, tdef.pos, isType = true)
+
     val wordsTyped = phrase.words.flatMap: word =>
         transform(word)(using sc2) match
           case Phrase(Nil) => Nil

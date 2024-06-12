@@ -317,22 +317,31 @@ object Parsing:
         val span = eat(Token.COMMA)
         paramsRest(acc += param())
 
-    def phrase(): Phrase =
-      word() match
-        case Some(w) => phraseRest(mutable.ArrayBuffer(w))
-        case None    =>
-          val (token, span) = peek()
-          error("Expect a word, found token " + token, span)
-          Phrase(Nil)(span)
+    def phrase(): Phrase = phrase(mutable.ArrayBuffer.empty[TypeDef])
 
-    def phraseRest(words: mutable.ArrayBuffer[Word]): Phrase =
+    def phrase(tdefs: mutable.ArrayBuffer[TypeDef]): Phrase =
+      val (token, span) = peek()
+      token match
+        case Token.TYPE   =>
+          phrase(tdefs += typeDef())
+
+        case _ =>
+
+          word() match
+            case Some(w) => phraseRest(tdefs.toList, mutable.ArrayBuffer(w))
+            case None    =>
+              val (token, span) = peek()
+              error("Expect a word, found token " + token, span)
+              Phrase(tdefs.toList, Nil)(span)
+
+    def phraseRest(tdefs: List[TypeDef], words: mutable.ArrayBuffer[Word]): Phrase =
       word() match
         case Some(w) =>
-          phraseRest(words += w)
+          phraseRest(tdefs, words += w)
 
         case None =>
           val pos = words.head.pos | words.last.pos
-          Phrase(words.toList)(pos)
+          Phrase(tdefs, words.toList)(pos)
 
     def word(): Option[Word] =
       val (token, span) = peek()
@@ -351,9 +360,6 @@ object Parsing:
 
         case Token.VAL | Token.VAR   =>
           Some(valDef(token))
-
-        case Token.TYPE   =>
-          Some(typeDef())
 
         case litToken: Token.IntLit  =>
           next()
@@ -418,7 +424,7 @@ object Parsing:
           eat(Token.ELSE)
           phrase()
         else
-          Phrase(Nil)(span3)
+          Phrase(Nil, Nil)(span3)
       val span2 = eat(Token.END)
       If(cond, thenp, elsep)(span1 | span2)
 

@@ -47,7 +47,7 @@ Syntactical Grammar
 
 
 ~~~
-    word    = integer | boolean | ident | if | fence | assign | valdef | while | typedef | record | select.
+    word    = integer | boolean | ident | if | fence | assign | valdef | while | record | select.
     fence   = LPAREN phrase RPAREN.
     assign  = ident EQL phrase SEMICOL.
     if      = IF phrase THEN phrase [ELSE phrase] END.
@@ -55,12 +55,12 @@ Syntactical Grammar
     record  = LBRACKET [tagargs] RBRACKET.
     select  = (ident | select) DOT ident.
 
-    phrase  = word [phrase].
+    phrase  = { typedef } word [phrase].
 
     valdef  = (VAL | VAR) ident COLON type EQL phrase SEMICOL.
     fundef  = FUN ident LPAREN [params] RPAREN EQL phrase SEMICOL.
 
-    typedef = TYPE ident EQL type.
+    typedef = TYPE ident EQL type SEMICOL.
     type    = ident | recordtyp.
 
     tagargs    = tagarg { COMMA tagarg }.

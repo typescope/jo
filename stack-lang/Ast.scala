@@ -61,7 +61,7 @@ object Ast:
     def name = ident.name
 
   case class Phrase
-    (words: List[Word])
+    (tdefs: List[TypeDef], words: List[Word])
     (val pos: Span)
   extends Positioned
 
@@ -105,6 +105,6 @@ object Ast:
   case class TypeDef
     (ident: Ident, rhs: TypeTree)
     (val pos: Span)
-  extends Word, Def
+  extends Def
 
   case class Prog(defs: List[Def], main: Phrase)
