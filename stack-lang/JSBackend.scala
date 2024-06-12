@@ -5,6 +5,37 @@ import Sast.*
 import Symbols.*
 import Types.*
 
+import JSBackend.encodeSymbolic
+
+object JSBackend:
+  def encodeSymbolic(operator: String): String =
+    val sb = new StringBuilder
+    for c <- operator do sb.append(encodeOperatorChar(c))
+    sb.toString
+
+  def encodeOperatorChar(c: Char): String =
+    if isDigit(c) || isLetter(c) then c.toString
+    else c match
+      case '+' => "plus"
+      case '-' => "minus"
+      case '*' => "mul"
+      case '/' => "div"
+      case '%' => "mod"
+      case '|' => "or"
+      case '&' => "and"
+      case '^' => "xor"
+      case '>' => "gt"
+      case '<' => "lt"
+      case '=' => "eq"
+      case '!' => "not"
+      case _   => throw new Exception("Not supported, c = " + c)
+
+  def isDigit(c: Char): Boolean =
+    c >= '0' && c <= '9'
+
+  def isLetter(c: Char): Boolean =
+    c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
+
 /**
   * JavaScript platform
   */
@@ -141,22 +172,22 @@ class JSBackend(outFile: String) extends Backend:
 
   /** Compile [x = 3, y = 5] */
   def compile(record: Word.RecordLit)(using Context): Unit =
-    // TODO: field name is symbolic, +, -?
     val fieldValues = mutable.Map.empty[String, String]
     for (name, rhs) <- record.args do
       compile(rhs)
       val arg = freshName("arg")
       addLine(s"const $arg = $pop();")
-      fieldValues(name) = arg
+      val encodedName = encodeSymbolic(name)
+      fieldValues(encodedName) = arg
     end for
     val obj = fieldValues.map(_ + ":" + _).mkString("{", ", ", "}")
     addLine(s"$push($obj)")
 
   /** Compile p.x */
   def compile(select: Word.Select)(using Context): Unit =
-    val field = select.name
+    val encodedField = encodeSymbolic(select.name)
     compile(select.qual)
-    addLine(s"$push($pop().$field);")
+    addLine(s"$push($pop().$encodedField);")
 
   /** Push an integer literal to value stack */
   def push(v: Int)(using Context): Unit =
