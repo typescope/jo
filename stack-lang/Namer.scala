@@ -59,7 +59,7 @@ class Namer(using Reporter):
           sc.define(sym, defn.pos, isType = true)
 
     val funs = new mutable.ArrayBuffer[Fun]
-    val inits = new mutable.ArrayBuffer[Word.Assign]
+    val inits = new mutable.ArrayBuffer[Assign]
     val locals = new mutable.ArrayBuffer[Symbol]
 
     val mainFunScope = sc.fresh(sym => if !sym.isParameter then locals.addOne(sym))
@@ -70,7 +70,7 @@ class Namer(using Reporter):
           val Some(sym) = sc.resolve(defn.name, isType = false): @unchecked
           val rhs = transform(valDef.rhs)(using mainFunScope)
           checker.expect(rhs, sym.info)
-          inits += new Word.Assign(sym, rhs).withPos(defn.pos)
+          inits += new Assign(sym, rhs)(Type.Void).withPos(defn.pos)
 
         case funDef: Ast.FunDef =>
           val Some(sym) = sc.resolve(defn.name, isType = false): @unchecked
@@ -82,7 +82,7 @@ class Namer(using Reporter):
     val mainPhrase = transform(prog.main)(using mainFunScope)
     val mainSym = Symbol.createFunSymbol("main", Type.Proc(Nil, Nil, Type.Void))
     val mainPos = mainPhrase.pos
-    val mainBody = Phrase((inits ++ mainPhrase.words).toList, mainPhrase.tpe).withPos(mainPos)
+    val mainBody = Phrase((inits ++ mainPhrase.words).toList)(mainPhrase.tpe).withPos(mainPos)
     val params = Nil
     val mainFun = Fun(mainSym, params, locals.toList, mainBody).withPos(mainPos)
 
@@ -90,17 +90,17 @@ class Namer(using Reporter):
 
     Prog(funs.toList, inits.map(_.symbol).toList, mainSym)
 
-  private def transform(word: Ast.Word)(using sc: Scope): List[Word] =
+  private def transform(word: Ast.Word)(using sc: Scope): Word =
     word match
       case Ast.IntLit(v)  =>
-        Word.IntLit(v).withPos(word.pos) :: Nil
+        IntLit(v)(Type.Int).withPos(word.pos)
 
       case Ast.BoolLit(v) =>
-        Word.BoolLit(v).withPos(word.pos) :: Nil
+        BoolLit(v)(Type.Bool).withPos(word.pos)
 
       case Ast.Fence(ws)  =>
         val phrase = transform(ws)
-        phrase.words
+        phrase
 
       case Ast.If(cond, thenp, elsep) =>
          val cond2 = transform(cond)
@@ -113,17 +113,17 @@ class Namer(using Reporter):
                s"found = ${then2.tpe} and ${else2.tpe}",
              word.pos)
 
-         Word.If(cond2, then2, else2).withPos(word.pos) :: Nil
+         If(cond2, then2, else2)(then2.tpe).withPos(word.pos)
 
       case Ast.While(cond, body) =>
          val cond2 = transform(cond)
          val body2 = transform(body)
          checker.expect(cond2, Type.Bool)
-         Word.While(cond2, body2).withPos(word.pos) :: Nil
+         While(cond2, body2)(Type.Void).withPos(word.pos)
 
       case Ast.Ident(name) =>
         val sym = sc.resolve(name, word.pos)
-        Word.Ident(sym).withPos(word.pos) :: Nil
+        Ident(sym)(sym.info).withPos(word.pos)
 
       case Ast.Assign(id, words) =>
         val sym = sc.resolve(id.name, id.pos)
@@ -132,7 +132,7 @@ class Namer(using Reporter):
 
         val rhs = transform(words)
         checker.expect(rhs, sym.info)
-        Word.Assign(sym, rhs).withPos(word.pos) :: Nil
+        Assign(sym, rhs)(Type.Void).withPos(word.pos)
 
       case Ast.RecordLit(namedArgs) =>
         val namedArgs2 = new mutable.ListMap[String, Phrase]
@@ -144,13 +144,14 @@ class Namer(using Reporter):
             checker.expectValueType(rhs2)
             namedArgs2 += id.name -> rhs2
         end for
-        Word.RecordLit(immutable.ListMap.from(namedArgs2)).withPos(word.pos) :: Nil
+        val fields = immutable.ListMap.from(namedArgs2)
+        val tpe = Type.Record(fields.map { case (k, v) => k -> v.tpe })
+        RecordLit(fields)(tpe).withPos(word.pos)
 
       case Ast.Select(qual, name) =>
-        // TODO: Do not flatten fence?
-        val qual2 :: Nil = transform(qual): @unchecked
-        checker.expectRecordType(qual2.tpe, name, qual.pos)
-        Word.Select(qual2, name).withPos(word.pos) :: Nil
+        val qual2 = transform(qual)
+        val tp = checker.fieldType(qual2.tpe, name, qual.pos)
+        Select(qual2, name)(tp).withPos(word.pos)
 
       case vdef: Ast.ValDef =>
         var flags: Flags = Flag.Local
@@ -166,19 +167,21 @@ class Namer(using Reporter):
         checker.expect(rhs, tpe)
 
         sc.define(sym, vdef.pos)
-        Word.Assign(sym, rhs).withPos(vdef.pos) :: Nil
+        Assign(sym, rhs)(Type.Void).withPos(vdef.pos)
 
       case tdef: Ast.TypeDef =>
         // TODO: fix scope of type definitions or make type checking lazy
         val info = transform(tdef.rhs)
         val sym = Symbol.createTypeSymbol(tdef.name, info)
         sc.define(sym, tdef.pos, isType = true)
-        Nil
+        Phrase(Nil)(Type.Void).withPos(tdef.pos)
 
   private def transform(phrase: Ast.Phrase)(using sc: Scope): Phrase =
     val sc2 = sc.fresh()
     val wordsTyped = phrase.words.flatMap: word =>
-        transform(word)(using sc2)
+        transform(word)(using sc2) match
+          case Phrase(Nil) => Nil
+          case word => word :: Nil
 
     val vs = new Checker.ValueStack
     checker.check(wordsTyped)(using vs)
@@ -200,7 +203,7 @@ class Namer(using Reporter):
 
           case None => Type.Void
 
-    Phrase(wordsTyped, tp).withPos(phrase.pos)
+    Phrase(wordsTyped)(tp).withPos(phrase.pos)
 
   private def transform(sym: Symbol, funDef: Ast.FunDef)(using sc: Scope): Fun =
     val locals = new mutable.ArrayBuffer[Symbol]

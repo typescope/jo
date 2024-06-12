@@ -178,39 +178,42 @@ object Interpreter:
 
   def exec(word: Word)(using vs: ValueStack, sc: Scope): Unit =
     word match
-      case Word.IntLit(v)  => vs.push(Value.IntVal(v))
+      case IntLit(v)  => vs.push(Value.IntVal(v))
 
-      case Word.BoolLit(v) => vs.push(Value.BoolVal(v))
+      case BoolLit(v) => vs.push(Value.BoolVal(v))
 
-      case Word.RecordLit(args) =>
+      case RecordLit(args) =>
         val fieldValues = mutable.Map.empty[String, Value]
         for (name, arg) <- args do
           exec(arg)
           fieldValues(name) = vs.pop()
         vs.push(Value.RecordVal(fieldValues.toMap))
 
-      case Word.Select(qual, name) =>
+      case Select(qual, name) =>
         exec(qual)
         val Value.RecordVal(fieldVals) = vs.pop(): @unchecked
         vs.push(fieldVals(name))
 
-      case Word.Assign(sym, words) =>
+      case Assign(sym, words) =>
         exec(words)
         sc.update(sym, vs.pop())
 
-      case Word.If(cond, thenp, elsep) =>
+      case If(cond, thenp, elsep) =>
         exec(cond)
         val Value.BoolVal(b) = vs.pop(): @unchecked
         if b then exec(thenp) else exec(elsep)
 
-      case Word.While(cond, body) =>
+      case While(cond, body) =>
         exec(cond)
         val Value.BoolVal(b) = vs.pop(): @unchecked
         if b then
           exec(body)
           exec(word)
 
-      case Word.Ident(sym) =>
+      case phrase: Phrase =>
+        exec(phrase)
+
+      case Ident(sym) =>
         sc.resolve(sym) match
           case Some(d) =>
             d match

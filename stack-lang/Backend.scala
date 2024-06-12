@@ -31,41 +31,43 @@ abstract class Backend:
     for word <- phrase.words do compile(word)
 
   /** Compile [x = 3, y = 5] */
-  def compile(record: Word.RecordLit)(using Context): Unit
+  def compile(record: RecordLit)(using Context): Unit
 
   /** Compile p.x */
-  def compile(select: Word.Select)(using Context): Unit
+  def compile(select: Select)(using Context): Unit
 
   /** Compile if/then/else */
-  def compile(ifElse: Word.If)(using Context): Unit
+  def compile(ifElse: If)(using Context): Unit
 
   /** Compile while/do */
-  def compile(whileDo: Word.While)(using Context): Unit
+  def compile(whileDo: While)(using Context): Unit
 
   /** Compile an assignment statement, i.e a = b + c */
-  def compile(ifword: Word.Assign)(using Context): Unit
+  def compile(ifword: Assign)(using Context): Unit
 
   /** Compile a word */
   def compile(word: Word)(using Context): Unit =
     word match
-      case Word.IntLit(v)  => push(v)
+      case IntLit(v)  => push(v)
 
-      case Word.BoolLit(v) => push(v)
+      case BoolLit(v) => push(v)
 
-      case record: Word.RecordLit => compile(record)
+      case record: RecordLit => compile(record)
 
-      case select: Word.Select => compile(select)
+      case select: Select => compile(select)
 
-      case assign: Word.Assign =>
+      case phrase: Phrase => compile(phrase)
+
+      case assign: Assign =>
         compile(assign)
 
-      case ifElse: Word.If =>
+      case ifElse: If =>
         compile(ifElse)
 
-      case whileDo: Word.While =>
+      case whileDo: While =>
         compile(whileDo)
 
-      case Word.Ident(sym) =>
+      case Ident(sym) =>
         if sym.isPrimitive then primitive(sym)
         else if sym.isFunction then call(sym)
         else push(sym)

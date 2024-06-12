@@ -150,7 +150,7 @@ extends Backend:
 
 
   /** Compile a conditional statement, i.e if/then/else */
-  def compile(ifword: Word.If)(using ctx: Context): Unit =
+  def compile(ifword: If)(using ctx: Context): Unit =
     val labelFalse = Label("_false")
     val labelEnd = Label("_ifEnd")
 
@@ -196,7 +196,7 @@ extends Backend:
           vs.push(Reg(resReg))
         end if
 
-  def compile(whileDo: Word.While)(using ctx: Context): Unit =
+  def compile(whileDo: While)(using ctx: Context): Unit =
     val labelBegin = Label("_whileBegin")
     val labelEnd = Label("_whileEnd")
 
@@ -305,7 +305,7 @@ extends Backend:
     *
     * Calling the passed function will compile the initializer.
     */
-  def compile(assign: Word.Assign)(using ctx: Context): Unit =
+  def compile(assign: Assign)(using ctx: Context): Unit =
     val sym = assign.symbol
 
     compile(assign.rhs)
@@ -390,7 +390,7 @@ extends Backend:
     call(allocatorSym)
 
   /** Compile [x = 3, y = 5] */
-  def compile(record: Word.RecordLit)(using ctx: Context): Unit =
+  def compile(record: RecordLit)(using ctx: Context): Unit =
     val recordType = record.tpe.asInstanceOf[Type.Record]
     val size = Memory.size(recordType)
 
@@ -407,7 +407,7 @@ extends Backend:
     ctx.vs.push(recordReg)
 
   /** Compile p.x */
-  def compile(select: Word.Select)(using ctx: Context): Unit =
+  def compile(select: Select)(using ctx: Context): Unit =
     val field = select.name
     val qualType = select.qual.tpe.dealias.asInstanceOf[Type.Record]
     val offset = Memory.fieldOffset(qualType, field)

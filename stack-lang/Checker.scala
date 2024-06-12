@@ -19,19 +19,19 @@ class Checker(using Reporter):
 
   def check(word: Word)(using vs: ValueStack): Unit =
     word match
-      case _: Word.IntLit | _: Word.BoolLit | _: Word.RecordLit | _: Word.Select =>
+      case _: IntLit | _: BoolLit | _: RecordLit | _: Select =>
         vs.push(word.tpe)
 
-      case Word.Assign(sym, words) =>
+      case Assign(sym, words) =>
         vs.expectEmpty("No result expected before assignment", word.pos)
 
-      case Word.If(cond, thenp, elsep) =>
+      case If(cond, thenp, elsep) =>
         if word.tpe.isValueType then vs.push(word.tpe)
 
-      case Word.While(cond, body) =>
+      case While(cond, body) =>
         vs.expectEmpty("No result expected before while loop", word.pos)
 
-      case Word.Ident(sym) =>
+      case Ident(sym) =>
         val info = sym.info
 
         info match
@@ -39,6 +39,8 @@ class Checker(using Reporter):
 
           case _ => if info.isValueType then vs.push(info)
 
+      case Phrase(words) =>
+        check(words)
 
   def check(words: List[Word])(using vs: ValueStack): Unit =
     for word <- words do check(word)
@@ -54,11 +56,15 @@ class Checker(using Reporter):
   def expectValueType(tree: Tree): Unit =
     expectValueType(tree.tpe, tree.pos)
 
-  def expectRecordType(tp: Type, field: String, pos: Span): Unit =
-    if !tp.isRecordType then
-      Reporter.error(s"Expect record type, found = $tp", pos)
-    else if !tp.hasField(field) then
-      Reporter.error(s"Expect field $field in record type $tp, found none", pos)
+  def fieldType(qualType: Type, field: String, pos: Span): Type =
+    if !qualType.isRecordType then
+      Reporter.error(s"Expect record type, found = $qualType", pos)
+      Type.Error
+    else if !qualType.hasField(field) then
+      Reporter.error(s"Expect field $field in record type $qualType, found none", pos)
+      Type.Error
+    else
+      qualType.fieldType(field)
 
 object Checker:
   /**

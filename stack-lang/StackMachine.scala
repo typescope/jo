@@ -115,7 +115,7 @@ extends Backend:
       symbolAddrMap -= local
 
 
-  def compile(ifword: Word.If)(using Context): Unit =
+  def compile(ifword: If)(using Context): Unit =
     val labelFalse = Label("_false")
     val labelEnd = Label("_ifEnd")
 
@@ -135,7 +135,7 @@ extends Backend:
 
       cb.mark(labelEnd)
 
-  def compile(whileDo: Word.While)(using Context): Unit =
+  def compile(whileDo: While)(using Context): Unit =
     val labelBegin = Label("_whileBegin")
     val labelEnd = Label("_whileEnd")
 
@@ -265,7 +265,7 @@ extends Backend:
     *
     * Calling the passed function will compile the initializer.
     */
-  def compile(assign: Word.Assign)(using Context): Unit =
+  def compile(assign: Assign)(using Context): Unit =
     val addr = symbolAddrMap(assign.symbol)
     compile(assign.rhs)
     useReg: r =>
@@ -338,7 +338,7 @@ extends Backend:
     call(allocatorSym)
 
   /** Compile [x = 3, y = 5] */
-  def compile(record: Word.RecordLit)(using Context): Unit =
+  def compile(record: RecordLit)(using Context): Unit =
     val recordType = record.tpe.asInstanceOf[Type.Record]
     val size = Memory.size(recordType)
 
@@ -355,7 +355,7 @@ extends Backend:
       push(Reg(r1))
 
   /** Compile p.x */
-  def compile(select: Word.Select)(using Context): Unit =
+  def compile(select: Select)(using Context): Unit =
     val field = select.name
     val qualType = select.qual.tpe.dealias.asInstanceOf[Type.Record]
     val offset = Memory.fieldOffset(qualType, field)

@@ -16,45 +16,29 @@ object Sast:
   sealed abstract class Tree extends Positioned with Product:
     def tpe: Type
 
-  enum Word extends Tree:
-    case IntLit(value: Int)
-    case BoolLit(value: Boolean)
-    case RecordLit(args: ListMap[String, Phrase])
-    case Ident(symbol: Symbol)
-    case Select(qual: Word, name: String)
-    case Assign(symbol: Symbol, rhs: Phrase)
-    case If(cond: Phrase, thenp: Phrase, elsep: Phrase)
-    case While(cond: Phrase, body: Phrase)
+  sealed abstract class Word extends Tree
 
-    // TODO: supply as parameter to reduce contract about error types
-    val tpe: Type =
-      this match
-        case _: IntLit   => Type.Int
-        case _: BoolLit  => Type.Bool
+  case class IntLit(value: Int)(val tpe: Type) extends Word
 
-        case _: Assign | _: While => Type.Void
+  case class BoolLit(value: Boolean)(val tpe: Type) extends Word
 
-        case ident: Ident => ident.symbol.info
+  case class RecordLit(args: ListMap[String, Phrase])(val tpe: Type) extends Word
 
-        case RecordLit(args) =>
-          Type.Record(args.map { case (k, v) => k -> v.tpe })
+  case class Ident(symbol: Symbol)(val tpe: Type) extends Word
 
-        case Select(qual, name) =>
-          val qualType = qual.tpe
-          if qualType.hasField(name) then qualType.fieldType(name)
-          else Type.Error
+  case class Select(qual: Word, name: String)(val tpe: Type) extends Word
 
-        case ifte: If => ifte.elsep.tpe // else can be empty thus void
+  case class Assign(symbol: Symbol, rhs: Phrase)(val tpe: Type) extends Word
 
-  case class Phrase(words: List[Word], tpe: Type) extends Tree:
+  case class If(cond: Phrase, thenp: Phrase, elsep: Phrase)(val tpe: Type) extends Word
+
+  case class While(cond: Phrase, body: Phrase)(val tpe: Type) extends Word
+
+  case class Phrase(words: List[Word])(val tpe: Type) extends Word:
     def isEmpty: Boolean = words.isEmpty
-    def resultCount: Byte = if tpe.isVoid then 0 else 1
 
   case class Fun(
-    symbol: Symbol,
-    params: List[Symbol],
-    locals: List[Symbol],
-    body  : Phrase)
+    symbol: Symbol, params: List[Symbol], locals: List[Symbol], body: Phrase)
   extends Tree:
     def name: String = symbol.name
     def tpe = symbol.info

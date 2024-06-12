@@ -130,7 +130,7 @@ class JSBackend(outFile: String) extends Backend:
     *
     * Calling the passed function will compile the initializer.
     */
-  def compile(assign: Word.Assign)(using Context): Unit =
+  def compile(assign: Assign)(using Context): Unit =
     compile(assign.rhs)
     val name = symbol2UniqueName(assign.symbol)
     addLine(s"$name = $pop();")
@@ -151,7 +151,7 @@ class JSBackend(outFile: String) extends Backend:
         compile(fdef.body)
       addLine("}\n")
 
-  def compile(ifword: Word.If)(using Context): Unit =
+  def compile(ifword: If)(using Context): Unit =
     compile(ifword.cond)
     addLine(s"if ($pop()) {")
     indent:
@@ -162,7 +162,7 @@ class JSBackend(outFile: String) extends Backend:
         compile(ifword.elsep)
     addLine("}")
 
-  def compile(whileDo: Word.While)(using Context): Unit =
+  def compile(whileDo: While)(using Context): Unit =
     compile(whileDo.cond)
     addLine(s"while ($pop()) {")
     indent:
@@ -171,7 +171,7 @@ class JSBackend(outFile: String) extends Backend:
     addLine("}")
 
   /** Compile [x = 3, y = 5] */
-  def compile(record: Word.RecordLit)(using Context): Unit =
+  def compile(record: RecordLit)(using Context): Unit =
     val fieldValues = mutable.Map.empty[String, String]
     for (name, rhs) <- record.args do
       compile(rhs)
@@ -184,7 +184,7 @@ class JSBackend(outFile: String) extends Backend:
     addLine(s"$push($obj)")
 
   /** Compile p.x */
-  def compile(select: Word.Select)(using Context): Unit =
+  def compile(select: Select)(using Context): Unit =
     val encodedField = encodeSymbolic(select.name)
     compile(select.qual)
     addLine(s"$push($pop().$encodedField);")
