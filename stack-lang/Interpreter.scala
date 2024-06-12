@@ -171,10 +171,29 @@ object Interpreter:
       sc.bind(sym, Uninit)
 
     val vs = new ValueStack
-    exec(Word.Ident(prog.main))(using vs, sc)
+    exec(prog.main)(using vs, sc)
 
   def exec(phrase: Phrase)(using ValueStack, Scope): Unit =
     for word <- phrase.words do exec(word)
+
+  def exec(sym: Symbol)(using vs: ValueStack, sc: Scope): Unit =
+    val Some(denot) = sc.resolve(sym): @unchecked
+    denot match
+      case value: Value =>
+        vs.push(value)
+
+      case Uninit =>
+        err("Accessing uninitialized variable " + sym)
+
+      case Action.Prim(fun) => fun(vs)
+
+      case Action.Fun(Fun(_, params, locals, body), sc2) =>
+        val funScope = new Scope.NestedScope(sc2)
+        for param <- params.reverse do
+          funScope.bind(param, vs.pop())
+        for param <- locals do
+          funScope.bind(param, Uninit)
+        exec(body)(using vs, funScope)
 
   def exec(word: Word)(using vs: ValueStack, sc: Scope): Unit =
     word match
@@ -214,26 +233,7 @@ object Interpreter:
         exec(phrase)
 
       case Ident(sym) =>
-        sc.resolve(sym) match
-          case Some(d) =>
-            d match
-              case value: Value => vs.push(value)
-
-              case Action.Prim(fun) => fun(vs)
-
-              case Uninit =>
-                err("Accessing uninitialized variable " + sym)
-
-              case Action.Fun(Fun(_, params, locals, body), sc2) =>
-                val funScope = new Scope.NestedScope(sc2)
-                for param <- params.reverse do
-                  funScope.bind(param, vs.pop())
-                for param <- locals do
-                  funScope.bind(param, Uninit)
-                exec(body)(using vs, funScope)
-
-          case None =>
-            err("Undefined identifier " + sym)
+        exec(sym)
 
 /***********************************************************************
  *
