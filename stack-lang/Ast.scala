@@ -75,8 +75,8 @@ object Ast:
   extends TypeTree
 
   case class Field
-   (ident: Ident, typ: TypeTree)
-   (val pos: Span)
+    (ident: Ident, typ: TypeTree)
+    (val pos: Span)
   extends Positioned:
     def name = ident.name
 
@@ -92,8 +92,8 @@ object Ast:
   extends Word, Def
 
   case class Param
-   (ident: Ident, typ: TypeTree)
-   (val pos: Span)
+    (ident: Ident, typ: TypeTree)
+    (val pos: Span)
   extends Positioned:
     def name = ident.name
 
