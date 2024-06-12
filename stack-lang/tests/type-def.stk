@@ -5,4 +5,10 @@ val b: Int = a a *;
 
 fun double(n: Int32): Int32 = n n +;
 
+fun foo(n: Int): Int =
+  type Weight = Int32;
+  val a: Weight = 10 double;
+  a double;
+
 b double p
+10 foo p
