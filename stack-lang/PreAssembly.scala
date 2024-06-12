@@ -345,7 +345,7 @@ object PreAssembly:
 
         case PlaceHolder.CalleeSaveRegisters =>
           for (savedReg, i) <- actualSavedRegs.zipWithIndex do
-            val addr = Rel(FP_REG, (-((spillCount + i + 1) << 2)).toByte)
+            val addr = Rel(FP_REG, -((spillCount + i + 1) << 2))
             cb.add(Instr.Store(Reg(savedReg), addr))
 
         case preInstr: PreInstr =>
@@ -368,7 +368,7 @@ object PreAssembly:
                 regRet = SP_REG
 
               for (savedReg, i) <- actualSavedRegs.zipWithIndex do
-                val addr = Rel(FP_REG, (-((spillCount + i + 1) << 2)).toByte)
+                val addr = Rel(FP_REG, -((spillCount + i + 1) << 2))
                 cb.add(Instr.Load(addr, savedReg))
 
               cb.add(Instr.Jump(Reg(regRet)))
@@ -405,7 +405,7 @@ object PreAssembly:
       // println(stackAlloc)
 
       def addr(i: Int): Addr =
-        Rel(regConfig.FP_REG, (-(i + 1 + spillCount) << 2).toByte)
+        Rel(regConfig.FP_REG, -(i + 1 + spillCount) << 2)
 
       if stackAlloc.isEmpty then
         commitAlloc(

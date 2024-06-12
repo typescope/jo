@@ -18,11 +18,8 @@ object Assembly:
   class Label(val name: String):
     override def toString() = "Label(" + name + ")"
 
-  /** A dynamic address represented by an offset relative to a register value
-    *
-    * TODO: change offset to Int
-    */
-  case class Rel(reg: Int, offset: Byte)
+  /** A dynamic address represented by an offset relative to a register value */
+  case class Rel(reg: Int, offset: Int)
 
   type Operand  = Int32 | Reg
   type Addr     = Label | Reg | Rel

@@ -92,16 +92,14 @@ extends Backend:
 
     cb.mark(label)
 
-    assert(paramCount < 31, s"At most 30 parameters, $sym has " + paramCount)
-
     // bind param address relative to FP_REG
     for (param, index) <- fdef.params.zipWithIndex do
-      val offset = ((paramCount + 1 - index) * 4).toByte
+      val offset = (paramCount + 1 - index) << 2
       symbolAddrMap(param) = Rel(FP_REG, offset)
 
     // the ordering does not matter
     for (local, index) <- fdef.locals.zipWithIndex do
-      val offset = (-(index + 1) << 2).toByte
+      val offset = -(index + 1) << 2
       symbolAddrMap(local) = Rel(FP_REG, offset)
 
     val sizeLocals = fdef.locals.size << 2
@@ -165,8 +163,8 @@ extends Backend:
   def ret(resCount: Int) =
     var i = resCount - 1
     while i >= 0 do
-      val src = Rel(SP_REG, (i << 2).toByte)
-      val dest = Rel(FP_REG, ((i - resCount) << 2).toByte)
+      val src = Rel(SP_REG, i << 2)
+      val dest = Rel(FP_REG, (i - resCount) << 2)
       useReg: r =>
         cb.add(Instr.Load(src, r))
         cb.add(Instr.Store(Reg(r), dest))
@@ -236,8 +234,8 @@ extends Backend:
       // 7. copy result -- after restoring FP to avoid overwriting
       var i = 0
       while i < resCount do
-        val src = Rel(SP_REG, ((-spOffset - i - 1) << 2).toByte)
-        val dest = Rel(SP_REG, ((resCount - i - 1) << 2).toByte)
+        val src = Rel(SP_REG, (-spOffset - i - 1) << 2)
+        val dest = Rel(SP_REG, (resCount - i - 1) << 2)
         cb.add(Instr.Load(src, r))
         cb.add(Instr.Store(Reg(r), dest))
         i += 1
@@ -351,7 +349,7 @@ extends Backend:
         compile(rhs)
         pop(r2)
         val offset = Memory.fieldOffset(recordType, name)
-        val fieldAddr = Rel(r1, offset.toByte)
+        val fieldAddr = Rel(r1, offset)
         cb.add(Instr.Store(Reg(r2), fieldAddr))
       end for
       push(Reg(r1))
@@ -364,7 +362,7 @@ extends Backend:
     compile(select.qual)
     useReg: r =>
       pop(r)
-      val fieldAddr = Rel(r, offset.toByte)
+      val fieldAddr = Rel(r, offset)
       cb.add(Instr.Load(fieldAddr, r))
       push(Reg(r))
 
@@ -411,7 +409,7 @@ extends Backend:
     * The index begins from 0.
     */
   def loadValue(destReg: Int, index: Byte): Unit =
-    val addr = Rel(SP_REG, (index * 4).toByte)
+    val addr = Rel(SP_REG, index << 2)
     cb.add(Instr.Load(addr, destReg))
 
   /** Store a value to value stack relative to the stack pointer.
@@ -419,7 +417,7 @@ extends Backend:
     * The index begins from 0.
     */
   def storeValue(value: Value, index: Byte): Unit =
-    val addr = Rel(SP_REG, (index * 4).toByte)
+    val addr = Rel(SP_REG, index << 2)
     cb.add(Instr.Store(value, addr))
 
   def int2(fn: (Operand, Operand, Int) => Instr)(using Context) =

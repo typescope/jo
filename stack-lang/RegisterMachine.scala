@@ -105,7 +105,7 @@ extends Backend:
         gen(Instr.Move(Reg(arg), dest))
 
       case Location.Mem(baseReg, offset) =>
-        val addr = Rel(baseReg, offset.toByte)
+        val addr = Rel(baseReg, offset)
         gen(Instr.Load(addr, dest))
     end match
 
@@ -121,8 +121,6 @@ extends Backend:
   def compile(fdef: Fun)(using ctx: Context): CalleeProtocol =
     val sym = fdef.symbol
     val paramCount = fdef.params.size
-
-    assert(paramCount < 31, s"At most 30 parameters, $sym has " + paramCount)
 
     // TODO: bind retLoc
     val proto @ CalleeProtocol(paramLocs, retLoc, resLocs, savedRegs) =
@@ -237,7 +235,7 @@ extends Backend:
           gen(Instr.Move(value, dest))
 
         case Location.Mem(reg, offset) =>
-          val addr = Rel(reg, offset.toByte)
+          val addr = Rel(reg, offset)
            gen(Instr.Store(value, addr))
       end match
 
@@ -272,13 +270,13 @@ extends Backend:
       item match
         case reg: Flex =>
           regPositions(reg.reg) = index
-          storeValue(Reg(reg.reg), index.toByte)
+          storeValue(Reg(reg.reg), index)
 
         case Fixed.Argument(i) =>
-          storeValue(args(i), index.toByte)
+          storeValue(args(i), index)
 
         case Fixed.ReturnAddress =>
-          storeValue(returnLoc, index.toByte)
+          storeValue(returnLoc, index)
 
     // update FP
     val stackDelta = onStack.size << 2
@@ -301,7 +299,7 @@ extends Backend:
 
     // restore registers
     for (reg, index) <- regPositions do
-      loadValue(reg, index.toByte)
+      loadValue(reg, index)
 
   /** Initialize a value definition
     *
@@ -403,7 +401,7 @@ extends Backend:
       compile(rhs)
       val fieldValue = ctx.vs.pop()
       val offset = Memory.fieldOffset(recordType, name)
-      val fieldAddr = Rel(recordReg.index, offset.toByte)
+      val fieldAddr = Rel(recordReg.index, offset)
       gen(Instr.Store(fieldValue, fieldAddr))
 
     ctx.vs.push(recordReg)
@@ -417,7 +415,7 @@ extends Backend:
     compile(select.qual)
 
     val recordReg = ctx.vs.pop().asInstanceOf[Reg]
-    val fieldAddr = Rel(recordReg.index, offset.toByte)
+    val fieldAddr = Rel(recordReg.index, offset)
 
     val fieldReg = freshVirtualReg()
     gen(Instr.Load(fieldAddr, fieldReg))
@@ -470,16 +468,16 @@ extends Backend:
     *
     * The index begins from 0.
     */
-  def loadValue(destReg: Int, index: Byte)(using Context): Unit =
-    val addr = Rel(SP_REG, (index * 4).toByte)
+  def loadValue(destReg: Int, index: Int)(using Context): Unit =
+    val addr = Rel(SP_REG, index << 2)
     gen(Instr.Load(addr, destReg))
 
   /** Store a value to value stack relative to the stack pointer.
     *
     * The index begins from 0.
     */
-  def storeValue(value: Value, index: Byte)(using Context): Unit =
-    val addr = Rel(SP_REG, (index * 4).toByte)
+  def storeValue(value: Value, index: Int)(using Context): Unit =
+    val addr = Rel(SP_REG, index << 2)
     gen(Instr.Store(value, addr))
 
   def int2(fn: (Operand, Operand, Int) => Instr)(using ctx: Context) =
