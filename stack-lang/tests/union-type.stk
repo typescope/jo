@@ -6,4 +6,7 @@ val a: Sum = #Left 3 of Sum;
 val b: Option = #None of Option;
 val c: Option = #Some 5 of Option;
 
-10 p
+match c
+  case #None => 0 p
+  case #Some n => n p
+end

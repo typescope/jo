@@ -35,8 +35,9 @@ object Sast:
 
   case class Ident
     (symbol: Symbol)
-    (val tpe: Type, val pos: Span)
-  extends Word
+    (val pos: Span)
+  extends Word:
+    def tpe: Type = symbol.info
 
   case class Select
     (qual: Word, name: String)
@@ -45,8 +46,9 @@ object Sast:
 
   case class Assign
     (symbol: Symbol, rhs: Phrase)
-    (val tpe: Type, val pos: Span)
-  extends Word
+    (val pos: Span)
+  extends Word:
+    def tpe: Type = Type.Void
 
   case class If
     (cond: Phrase, thenp: Phrase, elsep: Phrase)
@@ -55,8 +57,9 @@ object Sast:
 
   case class While
     (cond: Phrase, body: Phrase)
-    (val tpe: Type, val pos: Span)
-  extends Word
+    (val pos: Span)
+  extends Word:
+    def tpe: Type = Type.Void
 
   case class Phrase
     (words: List[Word])
@@ -64,11 +67,16 @@ object Sast:
   extends Word:
     def isEmpty: Boolean = words.isEmpty
 
+  object Phrase:
+    def apply(word: Word): Phrase =
+      Phrase(word :: Nil)(word.tpe, word.pos)
+
   /** Encode of a type with another type */
   case class Encoded
     (repr: Word)
-    (val tpe: Type, val pos: Span)
-  extends Word
+    (val tpe: Type)
+  extends Word:
+    def pos = repr.pos
 
   case class Fun
     (symbol: Symbol, params: List[Symbol], locals: List[Symbol], body: Phrase)

@@ -77,6 +77,17 @@ class Checker(using Reporter):
       val tagType = unionType.tagType(tag.name)
       expect(value, tagType)
       tagType
+
+  def tagType(tag: Ast.Ident, unionType: Type, typePos: Span): Type =
+    if !unionType.isUnionType then
+      Reporter.error(s"Expect union type, found = $unionType", typePos)
+      Type.Error
+    else if !unionType.hasTag(tag.name) then
+      Reporter.error(s"The tag ${tag.name} does not exist in union type $unionType", tag.pos)
+      Type.Error
+    else
+      unionType.tagType(tag.name)
+
 object Checker:
   /**
     * Represent the types of values on the value stack.

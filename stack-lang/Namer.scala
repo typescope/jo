@@ -44,7 +44,7 @@ class Namer(using Reporter):
           val Some(sym) = sc.resolve(defn.name, isType = false): @unchecked
           val rhs = transform(valDef.rhs)(using mainFunScope)
           checker.expect(rhs, sym.info)
-          inits += new Assign(sym, rhs)(Type.Void, defn.pos)
+          inits += new Assign(sym, rhs)(defn.pos)
 
         case funDef: Ast.FunDef =>
           val Some(sym) = sc.resolve(defn.name, isType = false): @unchecked
@@ -54,7 +54,8 @@ class Namer(using Reporter):
     end for
 
     val mainPhrase = transform(prog.main)(using mainFunScope)
-    val mainSym = Symbol.createFunSymbol("main", Type.Proc(Nil, Nil, Type.Void))
+    val mainType = Type.Proc(names = Nil, paramTypes = Nil, resType = Type.Void)
+    val mainSym = Symbol.createFunSymbol("main", mainType)
     val mainPos = mainPhrase.pos
     val mainBody = Phrase((inits ++ mainPhrase.words).toList)(mainPhrase.tpe, mainPos)
     val params = Nil
@@ -111,11 +112,11 @@ class Namer(using Reporter):
          val cond2 = transform(cond)
          val body2 = transform(body)
          checker.expect(cond2, Type.Bool)
-         While(cond2, body2)(Type.Void, word.pos)
+         While(cond2, body2)(word.pos)
 
       case Ast.Ident(name) =>
         val sym = sc.resolve(name, word.pos)
-        Ident(sym)(sym.info, word.pos)
+        Ident(sym)(word.pos)
 
       case Ast.Assign(id, words) =>
         val sym = sc.resolve(id.name, id.pos)
@@ -124,7 +125,7 @@ class Namer(using Reporter):
 
         val rhs = transform(words)
         checker.expect(rhs, sym.info)
-        Assign(sym, rhs)(Type.Void, word.pos)
+        Assign(sym, rhs)(word.pos)
 
       case record: Ast.RecordLit =>
         transform(record)
@@ -157,7 +158,7 @@ class Namer(using Reporter):
     checker.expect(rhs, tpe)
 
     sc.define(sym, vdef.pos)
-    Assign(sym, rhs)(Type.Void, vdef.pos)
+    Assign(sym, rhs)(vdef.pos)
 
   private def transform(ifte: Ast.If)(using sc: Scope): Word =
     val Ast.If(cond, thenp, elsep) = ifte
@@ -217,11 +218,74 @@ class Namer(using Reporter):
 
     val encodeType = Type.Record(fieldTypes)
 
-    Encoded(RecordLit(fields)(encodeType, variant.pos))(unionType, variant.pos)
+    Encoded(RecordLit(fields)(encodeType, variant.pos))(unionType)
 
-  private def transform(patmat: Ast.Match)(using sc: Scope): Word =
+  private def transform(patmat: Ast.Match)(using sc: Scope): Phrase =
+    val sc2 = sc.fresh()
+
     val Ast.Match(scrutinee, cases) = patmat
-    ???
+    val scrutinee2 = transform(scrutinee)
+    checker.expectValueType(scrutinee2)
+
+    val scrutType = scrutinee2.tpe
+    val scrutSym = Symbol.createValueSymbol("scrutinee", scrutType)
+    val bindAssign = Assign(scrutSym, scrutinee2)(scrutinee.pos)
+    sc2.define(scrutSym, scrutinee.pos)
+
+    def transformCases(cases: List[Ast.Case]): Phrase =
+      val caseScope = sc2.fresh()
+      cases match
+        case (caseDef @ Ast.Case(pat, body)) :: rest =>
+          pat match
+            case Ast.Wildcard() =>
+              // all remaining patterns are ignored
+              if cases.nonEmpty then
+                Reporter.error("Cases after wildcard are ignored", pat.pos)
+              transform(body)(using caseScope)
+
+            case Ast.TagPat(tag, bindings) =>
+              val tagType = checker.tagType(tag, scrutType, scrutinee.pos)
+              if tagType.isVoid && bindings.nonEmpty then
+                Reporter.error("The tag does not take arguments", tag.pos)
+                transformCases(rest)
+
+              else if !tagType.isVoid && bindings.isEmpty then
+                Reporter.error("The tag take an argument", tag.pos)
+                transformCases(rest)
+
+              else
+                val fieldTypes = immutable.ListMap("tag" -> Type.Int, "value" -> tagType)
+                val encodeType = Type.Record(fieldTypes)
+                val encodedScrut = Encoded(Ident(scrutSym)(scrutinee.pos))(encodeType)
+                val tagFieldSel = Select(encodedScrut, "tag")(Type.Int, tag.pos)
+
+                val bindingAssigns = mutable.ArrayBuffer.empty[Assign]
+                for binding <- bindings do
+                  val valFieldSel = Select(encodedScrut, "value")(tagType, binding.pos)
+                  val sym = Symbol.createValueSymbol(binding.name, tagType)
+                  bindingAssigns += Assign(sym, Phrase(valFieldSel))(binding.pos)
+                  caseScope.define(sym, binding.pos)
+
+                val tagIndex =
+                  if tagType.isError then -1
+                  else scrutType.tagIndex(tag.name)
+
+                val condWords =
+                  tagFieldSel
+                    :: IntLit(tagIndex)(Type.Int, tag.pos)
+                    :: Ident(predef.eql)(tag.pos)
+                    :: Nil
+
+                val cond = Phrase(condWords)(Type.Bool, tag.pos)
+                val body2 = transform(body)(using caseScope)
+                val elsep =  transformCases(rest)
+                Phrase(If(cond, body2, elsep)(body2.tpe, caseDef.pos))
+
+        case Nil =>
+          // TODO: throw runtime exception
+          Phrase(Nil)(Type.Void, patmat.pos)
+
+    transformCases(cases)
 
   private def transform(phrase: Ast.Phrase)(using sc: Scope): Phrase =
     val sc2 = sc.fresh()
