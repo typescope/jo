@@ -242,6 +242,16 @@ class Namer(using Reporter):
         end for
         Type.Record(immutable.ListMap.from(fieldTypes))
 
+      case Ast.UnionType(branches) =>
+        val branchTypes = new mutable.ListMap[String, Type]
+        for branch <- branches do
+          if branchTypes.contains(branch.name) then
+            Reporter.error("Branch " + branch.name + " already defined", branch.pos)
+          else
+            branchTypes += branch.name -> transform(branch.typ)
+        end for
+        Type.Union(immutable.ListMap.from(branchTypes))
+
   private enum Scope:
     case RootScope()
     case NestedScope(outer: Scope, definedHandler: Symbol => Unit)

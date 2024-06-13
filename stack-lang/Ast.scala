@@ -80,6 +80,17 @@ object Ast:
   extends Positioned:
     def name = ident.name
 
+  case class UnionType
+    (branches: List[Branch])
+    (val pos: Span)
+  extends TypeTree
+
+  case class Branch
+    (tag: Ident, typ: TypeTree)
+    (val pos: Span)
+  extends Positioned:
+    def name = tag.name
+
   //-------------------------- definitions -------------------------------------
 
   sealed trait Def extends Positioned with Product:

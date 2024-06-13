@@ -9,7 +9,7 @@ import scala.collection.immutable.ListMap
   * are structurally the same.
   */
 object Types:
-  sealed trait Type:
+  sealed abstract class Type:
     def isError: Boolean = this == Type.Error
 
     def isVoid: Boolean = this == Type.Void
@@ -19,6 +19,12 @@ object Types:
     def isRecordType: Boolean =
       this match
         case _: Type.Record => true
+        case Type.TypeRef(sym) => sym.info.isRecordType
+        case _ => false
+
+    def isUnionType: Boolean =
+      this match
+        case _: Type.Union => true
         case Type.TypeRef(sym) => sym.info.isRecordType
         case _ => false
 
@@ -70,6 +76,10 @@ object Types:
     case class Record(fields: ListMap[String, Type]) extends Type:
       override def toString =
         "[" + fields.map(_ + ": " + _).mkString(", ") + "]"
+
+    case class Union(branches: ListMap[String, Type]) extends Type:
+      override def toString =
+        "<" + branches.map(_ + " " + _).mkString(", ") + ">"
 
     case class Proc(
       names: List[String], paramTypes: List[Type], resType: Type)

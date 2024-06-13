@@ -374,27 +374,46 @@ object Parsing:
 
     def typ(): TypeTree =
       peek() match
-        case (Token.LBRACKET, _) => recordtyp()
+        case (Token.LBRACKET, _)   => recordType()
+        case (Token.Ident("<"), _) => unionType()
         case _ => ident()
 
-    def recordtyp(): RecordType =
+    def recordType(): RecordType =
       val span1 = eat(Token.LBRACKET)
       val fieldDecls = fields(mutable.ArrayBuffer.empty)
       val span2 = eat(Token.RBRACKET)
       RecordType(fieldDecls)(span1 | span2)
+
+    def unionType(): UnionType =
+      val span1 = eat(Token.Ident("<"))
+      val branchDecls = branches(mutable.ArrayBuffer.empty)
+      val span2 = eat(Token.Ident(">"))
+      UnionType(branchDecls)(span1 | span2)
 
     def fields(acc: mutable.ArrayBuffer[Field]): List[Field] =
       peek() match
         case (Token.RBRACKET, _) => acc.toList
         case _ =>
           if acc.nonEmpty then eat(Token.COMMA)
-          fields(acc += field())
+          val id = ident()
+          eat(Token.COLON)
+          val tp = typ()
+          val field = Field(id, tp)(id.pos | tp.pos)
+          fields(acc += field)
 
-    def field(): Field =
-      val id = ident()
-      eat(Token.COLON)
-      val tp = typ()
-      Field(id, tp)(id.pos | tp.pos)
+    def branches(acc: mutable.ArrayBuffer[Branch]): List[Branch] =
+      peek() match
+        case (Token.Ident(">"), _) => acc.toList
+        case _ =>
+          if acc.nonEmpty then eat(Token.COMMA)
+          val tag = ident()
+          val tp =
+            peek() match
+            case (Token.COMMA | Token.Ident(">"), span) => Ident("Void")(span)
+            case _ => typ()
+
+          val branch = Branch(tag, tp)(tag.pos | tp.pos)
+          branches(acc += branch)
 
     def ident(): Ident =
       val (token, span) = next()
