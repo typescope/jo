@@ -136,7 +136,7 @@ object Primitive:
 
   def abort(vs: ValueStack) =
     val IntVal(v) = vs.pop(): @unchecked
-    throw new Exception(v)
+    throw new Exception(v.toString)
 
   val operators: Map[Symbol, ValueStack => Unit] = Map(
       predef.add    ->    add,
@@ -157,7 +157,7 @@ object Primitive:
       predef.bor    ->    bor,
       predef.bnot   ->    bnot,
       predef.eql    ->    eql,
-      predef.p      ->    print
+      predef.p      ->    print,
       runtime.abort ->    abort
   )
 
