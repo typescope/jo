@@ -65,12 +65,35 @@ object Ast:
     (val pos: Span)
   extends Word
 
+  case class Match
+    (scrutinee: Phrase, cases: List[Case])
+    (val pos: Span)
+  extends Word
+
+  case class Case
+    (pat: Pattern, body: Phrase)
+    (val pos: Span)
+  extends Positioned
+
   case class Phrase
     (tdefs: List[TypeDef], words: List[Word])
     (val pos: Span)
   extends Positioned
 
-  //---------------------------- types ---- ------------------------------------
+  //---------------------------- patterns --------------------------------------
+  sealed abstract class Pattern extends Positioned with Product
+
+  case class Wildcard
+    ()
+    (val pos: Span)
+  extends Pattern
+
+  case class TagPat
+    (tag: Ident, bindings: List[Ident])
+    (val pos: Span)
+  extends Pattern
+
+  //------------------------------ types ---------------------------------------
 
   sealed trait TypeTree extends Positioned with Product
 

@@ -19,7 +19,8 @@ object Parsing:
 
   enum Token:
     case LPAREN, RPAREN, LBRACKET, RBRACKET, OF, IF, THEN, ELSE, END, COLON,
-         SEMICOL, DOT, VAL, VAR, FUN, EQL, TAG, EOF, COMMA, WHILE, DO, TYPE
+         SEMICOL, DOT, VAL, VAR, FUN, EQL, TAG, EOF, COMMA, WHILE, DO, TYPE,
+         MATCH, CASE, RARROW
     case IntLit(value: Int)
     case BoolLit(value: Boolean)
     case Ident(name: String)
@@ -158,6 +159,8 @@ object Parsing:
         case "if"      => Token.IF
         case "then"    => Token.THEN
         case "else"    => Token.ELSE
+        case "match"   => Token.MATCH
+        case "case"    => Token.CASE
         case "while"   => Token.WHILE
         case "do"      => Token.DO
         case "end"     => Token.END
@@ -174,6 +177,7 @@ object Parsing:
 
       stream.tokenEnd() match
         case "="   => Token.EQL
+        case "=>"  => Token.RARROW
         case name  => Token.Ident(name)
 
     def intLit(): Token.IntLit =
@@ -351,6 +355,7 @@ object Parsing:
         case Token.LPAREN    => Some(fence())
         case Token.LBRACKET  => Some(record())
         case Token.IF        => Some(ifElse())
+        case Token.MATCH     => Some(patmat())
         case Token.WHILE     => Some(whileDo())
         case Token.TAG       => Some(variant())
 
@@ -500,3 +505,48 @@ object Parsing:
       eat(Token.OF)
       val tp = typ()
       Variant(tag, value, tp)(span1 | tp.pos)
+
+    def patmat(): Match =
+      val span1 = eat(Token.MATCH)
+      val scrutinee = phrase()
+      val caseDecls = cases(mutable.ArrayBuffer.empty)
+      val span2 = eat(Token.END)
+      Match(scrutinee, caseDecls)(span1 | span2)
+
+    def cases(acc: mutable.ArrayBuffer[Case]): List[Case] =
+      peek() match
+        case (Token.END, _) => acc.toList
+        case _ =>
+          val span1 = eat(Token.CASE)
+          val pat = pattern()
+          eat(Token.RARROW)
+          val body = phrase()
+          val caseDecl = Case(pat, body)(span1 | body.pos)
+          cases(acc += caseDecl)
+
+    def pattern(): Pattern =
+      peek() match
+       case (Token.TAG, _) =>
+         val span1 = eat(Token.TAG)
+         val tag = ident()
+         peek() match
+           case (Token.RARROW, span) =>
+             TagPat(tag, bindings = Nil)(span)
+
+           case (_: Token.Ident, _) =>
+             val binding = ident()
+             TagPat(tag, binding :: Nil)(span1 | binding.pos)
+
+           case (token, span) =>
+             error("Expect a name, found = " + token, span)
+             next()
+             Wildcard()(span)
+
+       case (Token.Ident("_"), span) =>
+         next()
+         Wildcard()(span)
+
+       case (token, span) =>
+         error("Expect a pattern, found = " + token, span)
+         next()
+         Wildcard()(span)

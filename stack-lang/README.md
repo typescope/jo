@@ -30,7 +30,6 @@ Lexical Grammar
     RPAREN   = ")".
     LBRACKET = "[".
     RBRACKET = "]".
-    USCORE   = "_".
     OF       = "of".
     IF       = "if".
     THEN     = "then".
