@@ -30,33 +30,7 @@ class Namer(using Reporter):
 
     // Prepare scope according to scoping rules
     val sc = rootScope.fresh()
-    for defn <- prog.defs do
-      defn match
-        case vdef: Ast.ValDef =>
-          val tpe = transform(vdef.typ)(using sc)
-          checker.expectValueType(tpe, vdef.typ.pos)
-          val flags = if vdef.mutable then Flag.Mutable else Flag.empty
-          val sym = Symbol.createValueSymbol(defn.name, tpe, flags)
-          sc.define(sym, defn.pos)
-
-        case funDef: Ast.FunDef =>
-          val paramNames = funDef.params.map(_.name)
-          val paramTypes =
-            for param <- funDef.params yield
-              val paramType = transform(param.typ)(using sc)
-              checker.expectValueType(paramType, param.typ.pos)
-              paramType
-
-          val resType = transform(funDef.resType)(using sc)
-          val funType = Type.Proc(paramNames, paramTypes, resType)
-          val sym = Symbol.createFunSymbol(defn.name, funType)
-          sc.define(sym, defn.pos)
-
-        case tdef: Ast.TypeDef =>
-          // TODO: fix scope of type definitions or make type checking lazy
-          val info = transform(tdef.rhs)(using sc)
-          val sym = Symbol.createTypeSymbol(defn.name, info)
-          sc.define(sym, defn.pos, isType = true)
+    for defn <- prog.defs do index(defn)(using sc)
 
     val funs = new mutable.ArrayBuffer[Fun]
     val inits = new mutable.ArrayBuffer[Assign]
@@ -90,6 +64,34 @@ class Namer(using Reporter):
 
     Prog(funs.toList, inits.map(_.symbol).toList, mainSym)
 
+  private def index(defn: Ast.Def)(using sc: Scope) =
+   defn match
+     case vdef: Ast.ValDef =>
+       val tpe = transform(vdef.typ)(using sc)
+       checker.expectValueType(tpe, vdef.typ.pos)
+       val flags = if vdef.mutable then Flag.Mutable else Flag.empty
+       val sym = Symbol.createValueSymbol(defn.name, tpe, flags)
+       sc.define(sym, defn.pos)
+
+     case funDef: Ast.FunDef =>
+       val paramNames = funDef.params.map(_.name)
+       val paramTypes =
+         for param <- funDef.params yield
+           val paramType = transform(param.typ)(using sc)
+           checker.expectValueType(paramType, param.typ.pos)
+           paramType
+
+       val resType = transform(funDef.resType)(using sc)
+       val funType = Type.Proc(paramNames, paramTypes, resType)
+       val sym = Symbol.createFunSymbol(defn.name, funType)
+       sc.define(sym, defn.pos)
+
+     case tdef: Ast.TypeDef =>
+       // TODO: fix scope of type definitions or make type checking lazy
+       val info = transform(tdef.rhs)(using sc)
+       val sym = Symbol.createTypeSymbol(defn.name, info)
+       sc.define(sym, defn.pos, isType = true)
+
   private def transform(word: Ast.Word)(using sc: Scope): Word =
     word match
       case Ast.IntLit(v)  =>
@@ -102,18 +104,8 @@ class Namer(using Reporter):
         val phrase = transform(ws)
         phrase
 
-      case Ast.If(cond, thenp, elsep) =>
-         val cond2 = transform(cond)
-         val then2 = transform(thenp)
-         val else2 = transform(elsep)
-         checker.expect(cond2, Type.Bool)
-         if !matches(then2.tpe, else2.tpe) then
-           Reporter.error(
-             "Expect if branches to have the same type," +
-               s"found = ${then2.tpe} and ${else2.tpe}",
-             word.pos)
-
-         If(cond2, then2, else2)(then2.tpe, word.pos)
+      case ifte: Ast.If =>
+        transform(ifte)
 
       case Ast.While(cond, body) =>
          val cond2 = transform(cond)
@@ -134,49 +126,14 @@ class Namer(using Reporter):
         checker.expect(rhs, sym.info)
         Assign(sym, rhs)(Type.Void, word.pos)
 
-      case Ast.RecordLit(namedArgs) =>
-        val namedArgs2 = new mutable.ListMap[String, Phrase]
-        for Ast.NamedArg(id, rhs) <- namedArgs do
-          if namedArgs2.contains(id.name) then
-            Reporter.error("Arg " + id.name + " already defined", id.pos)
-          else
-            val rhs2 = transform(rhs)
-            checker.expectValueType(rhs2)
-            namedArgs2 += id.name -> rhs2
-        end for
-        val fields = immutable.ListMap.from(namedArgs2)
-        val tpe = Type.Record(fields.map { case (k, v) => k -> v.tpe })
-        RecordLit(fields)(tpe, word.pos)
+      case record: Ast.RecordLit =>
+        transform(record)
 
-      case Ast.Variant(tag, value, typ) =>
-        val value2 = transform(value)
-        val unionType = transform(typ)
-        val tagType = checker.checkTagValue(tag, value2, unionType, typ.pos)
+      case variant: Ast.Variant =>
+        transform(variant)
 
-        // encode variants as records
-        val tagIndex =
-          if tagType.isError then -1
-          else unionType.tagIndex(tag.name)
-
-        val tagValue =
-          Phrase(IntLit(tagIndex)(Type.Int, tag.pos) :: Nil)(Type.Int, tag.pos)
-
-        val fields =
-          if tagType.isVoid then
-            immutable.ListMap("tag" -> tagValue)
-          else
-            immutable.ListMap("tag" -> tagValue, "value" -> value2)
-
-        // desugar variant to record
-        val fieldTypes =
-          if tagType.isVoid then
-            immutable.ListMap("tag" -> Type.Int)
-          else
-            immutable.ListMap("tag" -> Type.Int, "value" -> tagType)
-
-        val encodeType = Type.Record(fieldTypes)
-
-        Encoded(RecordLit(fields)(encodeType, word.pos))(unionType, word.pos)
+      case patmat: Ast.Match =>
+        transform(patmat)
 
       case Ast.Select(qual, name) =>
         val qual2 = transform(qual)
@@ -184,20 +141,87 @@ class Namer(using Reporter):
         Select(qual2, name)(tp, word.pos)
 
       case vdef: Ast.ValDef =>
-        var flags: Flags = Flag.Local
-        if vdef.mutable then
-          flags = flags | Flag.Mutable
+        transform(vdef)
 
-        val tpe = transform(vdef.typ)
-        val rhs = transform(vdef.rhs)
+  private def transform(vdef: Ast.ValDef)(using sc: Scope): Word =
+    var flags: Flags = Flag.Local
+    if vdef.mutable then
+      flags = flags | Flag.Mutable
 
-        checker.expectValueType(tpe, vdef.typ.pos)
-        val sym = Symbol.createValueSymbol(vdef.name, tpe, flags)
+    val tpe = transform(vdef.typ)
+    val rhs = transform(vdef.rhs)
 
-        checker.expect(rhs, tpe)
+    checker.expectValueType(tpe, vdef.typ.pos)
+    val sym = Symbol.createValueSymbol(vdef.name, tpe, flags)
 
-        sc.define(sym, vdef.pos)
-        Assign(sym, rhs)(Type.Void, vdef.pos)
+    checker.expect(rhs, tpe)
+
+    sc.define(sym, vdef.pos)
+    Assign(sym, rhs)(Type.Void, vdef.pos)
+
+  private def transform(ifte: Ast.If)(using sc: Scope): Word =
+    val Ast.If(cond, thenp, elsep) = ifte
+    val cond2 = transform(cond)
+    val then2 = transform(thenp)
+    val else2 = transform(elsep)
+    checker.expect(cond2, Type.Bool)
+    if !matches(then2.tpe, else2.tpe) then
+      Reporter.error(
+        "Expect if branches to have the same type," +
+          s"found = ${then2.tpe} and ${else2.tpe}",
+        ifte.pos)
+
+    If(cond2, then2, else2)(then2.tpe, ifte.pos)
+
+  private def transform(record: Ast.RecordLit)(using sc: Scope): Word =
+    val Ast.RecordLit(namedArgs) = record
+    val namedArgs2 = new mutable.ListMap[String, Phrase]
+    for Ast.NamedArg(id, rhs) <- namedArgs do
+      if namedArgs2.contains(id.name) then
+        Reporter.error("Arg " + id.name + " already defined", id.pos)
+      else
+        val rhs2 = transform(rhs)
+        checker.expectValueType(rhs2)
+        namedArgs2 += id.name -> rhs2
+    end for
+    val fields = immutable.ListMap.from(namedArgs2)
+    val tpe = Type.Record(fields.map { case (k, v) => k -> v.tpe })
+    RecordLit(fields)(tpe, record.pos)
+
+  private def transform(variant: Ast.Variant)(using sc: Scope): Word =
+    val Ast.Variant(tag, value, typ) = variant
+    val value2 = transform(value)
+    val unionType = transform(typ)
+    val tagType = checker.checkTagValue(tag, value2, unionType, typ.pos)
+
+    // encode variants as records
+    val tagIndex =
+      if tagType.isError then -1
+      else unionType.tagIndex(tag.name)
+
+    val tagValue =
+      Phrase(IntLit(tagIndex)(Type.Int, tag.pos) :: Nil)(Type.Int, tag.pos)
+
+    val fields =
+      if tagType.isVoid then
+        immutable.ListMap("tag" -> tagValue)
+      else
+        immutable.ListMap("tag" -> tagValue, "value" -> value2)
+
+    // desugar variant to record
+    val fieldTypes =
+      if tagType.isVoid then
+        immutable.ListMap("tag" -> Type.Int)
+      else
+        immutable.ListMap("tag" -> Type.Int, "value" -> tagType)
+
+    val encodeType = Type.Record(fieldTypes)
+
+    Encoded(RecordLit(fields)(encodeType, variant.pos))(unionType, variant.pos)
+
+  private def transform(patmat: Ast.Match)(using sc: Scope): Word =
+    val Ast.Match(scrutinee, cases) = patmat
+    ???
 
   private def transform(phrase: Ast.Phrase)(using sc: Scope): Phrase =
     val sc2 = sc.fresh()
