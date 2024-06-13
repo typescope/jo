@@ -71,7 +71,7 @@ class Checker(using Reporter):
       Reporter.error(s"Expect union type, found = $unionType", typePos)
       Type.Error
     else if !unionType.hasTag(tag.name) then
-      Reporter.error(s"The tag $tag does not exist in union type $unionType", tag.pos)
+      Reporter.error(s"The tag ${tag.name} does not exist in union type $unionType", tag.pos)
       Type.Error
     else
       val tagType = unionType.tagType(tag.name)
