@@ -20,13 +20,15 @@ object Sast:
 
   case class IntLit
     (value: Int)
-    (val tpe: Type, val pos: Span)
-  extends Word
+    (val pos: Span)
+  extends Word:
+    def tpe: Type = Type.Int
 
   case class BoolLit
     (value: Boolean)
-    (val tpe: Type, val pos: Span)
-  extends Word
+    (val pos: Span)
+  extends Word:
+    def tpe: Type = Type.Bool
 
   case class RecordLit
     (args: ListMap[String, Phrase])

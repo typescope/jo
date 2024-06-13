@@ -96,10 +96,10 @@ class Namer(using Reporter):
   private def transform(word: Ast.Word)(using sc: Scope): Word =
     word match
       case Ast.IntLit(v)  =>
-        IntLit(v)(Type.Int, word.pos)
+        IntLit(v)(word.pos)
 
       case Ast.BoolLit(v) =>
-        BoolLit(v)(Type.Bool, word.pos)
+        BoolLit(v)(word.pos)
 
       case Ast.Fence(ws)  =>
         val phrase = transform(ws)
@@ -200,8 +200,7 @@ class Namer(using Reporter):
       if tagType.isError then -1
       else unionType.tagIndex(tag.name)
 
-    val tagValue =
-      Phrase(IntLit(tagIndex)(Type.Int, tag.pos) :: Nil)(Type.Int, tag.pos)
+    val tagValue = Phrase(IntLit(tagIndex)(tag.pos))
 
     val fields =
       if tagType.isVoid then
@@ -291,7 +290,7 @@ class Namer(using Reporter):
 
           val condWords =
             tagFieldSel
-              :: IntLit(tagIndex)(Type.Int, tag.pos)
+              :: IntLit(tagIndex)(tag.pos)
               :: Ident(predef.eql)(tag.pos)
               :: Nil
 
