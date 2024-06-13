@@ -228,64 +228,78 @@ class Namer(using Reporter):
     checker.expectValueType(scrutinee2)
 
     val scrutType = scrutinee2.tpe
-    val scrutSym = Symbol.createValueSymbol("scrutinee", scrutType)
+    val scrutSym = Symbol.createValueSymbol("scrutinee", scrutType, Flag.Local)
+    val scrutIdent = Ident(scrutSym)(scrutinee.pos)
     val bindAssign = Assign(scrutSym, scrutinee2)(scrutinee.pos)
     sc2.define(scrutSym, scrutinee.pos)
 
     def transformCases(cases: List[Ast.Case]): Phrase =
-      val caseScope = sc2.fresh()
       cases match
-        case (caseDef @ Ast.Case(pat, body)) :: rest =>
-          pat match
-            case Ast.Wildcard() =>
-              // all remaining patterns are ignored
-              if cases.nonEmpty then
-                Reporter.error("Cases after wildcard are ignored", pat.pos)
-              transform(body)(using caseScope)
-
-            case Ast.TagPat(tag, bindings) =>
-              val tagType = checker.tagType(tag, scrutType, scrutinee.pos)
-              if tagType.isVoid && bindings.nonEmpty then
-                Reporter.error("The tag does not take arguments", tag.pos)
-                transformCases(rest)
-
-              else if !tagType.isVoid && bindings.isEmpty then
-                Reporter.error("The tag take an argument", tag.pos)
-                transformCases(rest)
-
-              else
-                val fieldTypes = immutable.ListMap("tag" -> Type.Int, "value" -> tagType)
-                val encodeType = Type.Record(fieldTypes)
-                val encodedScrut = Encoded(Ident(scrutSym)(scrutinee.pos))(encodeType)
-                val tagFieldSel = Select(encodedScrut, "tag")(Type.Int, tag.pos)
-
-                val bindingAssigns = mutable.ArrayBuffer.empty[Assign]
-                for binding <- bindings do
-                  val valFieldSel = Select(encodedScrut, "value")(tagType, binding.pos)
-                  val sym = Symbol.createValueSymbol(binding.name, tagType)
-                  bindingAssigns += Assign(sym, Phrase(valFieldSel))(binding.pos)
-                  caseScope.define(sym, binding.pos)
-
-                val tagIndex =
-                  if tagType.isError then -1
-                  else scrutType.tagIndex(tag.name)
-
-                val condWords =
-                  tagFieldSel
-                    :: IntLit(tagIndex)(Type.Int, tag.pos)
-                    :: Ident(predef.eql)(tag.pos)
-                    :: Nil
-
-                val cond = Phrase(condWords)(Type.Bool, tag.pos)
-                val body2 = transform(body)(using caseScope)
-                val elsep =  transformCases(rest)
-                Phrase(If(cond, body2, elsep)(body2.tpe, caseDef.pos))
-
+        case caseDef :: rest =>
+          transform(scrutIdent, caseDef, () => transformCases(rest))(using sc2)
         case Nil =>
           // TODO: throw runtime exception
           Phrase(Nil)(Type.Void, patmat.pos)
+      end match
 
-    transformCases(cases)
+    val phrase = transformCases(cases)
+    Phrase(bindAssign :: phrase.words)(phrase.tpe, patmat.pos)
+
+  private def transform
+    (scrut: Ident, caseDef: Ast.Case, cont: () => Phrase)
+    (using sc: Scope): Phrase =
+
+    val caseScope = sc.fresh()
+
+    val Ast.Case(pat, body) = caseDef
+    val scrutPos = scrut.pos
+    val scrutType = scrut.tpe
+
+    pat match
+      case Ast.Wildcard() =>
+        // TODO: all remaining patterns are ignored
+        // if cases.nonEmpty then
+        //  Reporter.error("Cases after wildcard are ignored", pat.pos)
+        transform(body)(using caseScope)
+
+      case Ast.TagPat(tag, bindings) =>
+        val tagType = checker.tagType(tag, scrutType, scrutPos)
+        if tagType.isVoid && bindings.nonEmpty then
+          Reporter.error("The tag does not take arguments", tag.pos)
+          cont()
+
+        else if !tagType.isVoid && bindings.isEmpty then
+          Reporter.error("The tag take an argument", tag.pos)
+          cont()
+
+        else
+          val fieldTypes = immutable.ListMap("tag" -> Type.Int, "value" -> tagType)
+          val encodeType = Type.Record(fieldTypes)
+          val encodedScrut = Encoded(scrut)(encodeType)
+          val tagFieldSel = Select(encodedScrut, "tag")(Type.Int, tag.pos)
+
+          val bindingAssigns = mutable.ArrayBuffer.empty[Assign]
+          for binding <- bindings do
+            val valFieldSel = Select(encodedScrut, "value")(tagType, binding.pos)
+            val sym = Symbol.createValueSymbol(binding.name, tagType, Flag.Local)
+            bindingAssigns += Assign(sym, Phrase(valFieldSel))(binding.pos)
+            caseScope.define(sym, binding.pos)
+
+          val tagIndex =
+            if tagType.isError then -1
+            else scrutType.tagIndex(tag.name)
+
+          val condWords =
+            tagFieldSel
+              :: IntLit(tagIndex)(Type.Int, tag.pos)
+              :: Ident(predef.eql)(tag.pos)
+              :: Nil
+
+          val cond = Phrase(condWords)(Type.Bool, tag.pos)
+          val body2 = transform(body)(using caseScope)
+          val body3 = Phrase(bindingAssigns.toList ++ body2.words)(body2.tpe, body2.pos)
+          val elsep =  cont()
+          Phrase(If(cond, body3, elsep)(body3.tpe, caseDef.pos))
 
   private def transform(phrase: Ast.Phrase)(using sc: Scope): Phrase =
     val sc2 = sc.fresh()
