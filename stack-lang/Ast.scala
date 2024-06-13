@@ -60,6 +60,11 @@ object Ast:
   extends Positioned:
     def name = ident.name
 
+  case class Variant
+    (tag: Ident, value: Phrase, typ: TypeTree)
+    (val pos: Span)
+  extends Word
+
   case class Phrase
     (tdefs: List[TypeDef], words: List[Word])
     (val pos: Span)

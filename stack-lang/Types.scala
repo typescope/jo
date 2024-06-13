@@ -25,7 +25,7 @@ object Types:
     def isUnionType: Boolean =
       this match
         case _: Type.Union => true
-        case Type.TypeRef(sym) => sym.info.isRecordType
+        case Type.TypeRef(sym) => sym.info.isUnionType
         case _ => false
 
     def isValueType: Boolean =
@@ -56,6 +56,37 @@ object Types:
         case Type.TypeRef(sym) => sym.info.fieldType(name)
 
         case _ => throw new Exception("Not a record type: " + this)
+
+    def hasTag(tag: String): Boolean =
+      this match
+        case Type.Union(branches) => branches.contains(tag)
+        case Type.TypeRef(sym) => sym.info.hasTag(tag)
+        case _ => false
+
+    def tagType(tag: String): Type =
+      this match
+        case Type.Union(branches) =>
+          branches.get(tag) match
+            case Some(tp) => tp
+            case None =>
+              throw new Exception("No such tag " + tag + " in " + this)
+
+        case Type.TypeRef(sym) => sym.info.tagType(tag)
+
+        case _ => throw new Exception("Not a union type: " + this)
+
+    def tagIndex(tag: String): Int =
+      this match
+        case Type.Union(branches) =>
+          branches.keys.toList.indexOf(tag) match
+            case -1 =>
+              throw new Exception("No such tag " + tag + " in " + this)
+            case n =>
+              n
+
+        case Type.TypeRef(sym) => sym.info.tagIndex(tag)
+
+        case _ => throw new Exception("Not a union type: " + this)
 
     def dealias: Type =
       this match

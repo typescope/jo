@@ -66,6 +66,17 @@ class Checker(using Reporter):
     else
       qualType.fieldType(field)
 
+  def checkTagValue(tag: Ast.Ident, value: Phrase, unionType: Type, typePos: Span): Type =
+    if !unionType.isUnionType then
+      Reporter.error(s"Expect union type, found = $unionType", typePos)
+      Type.Error
+    else if !unionType.hasTag(tag.name) then
+      Reporter.error(s"The tag $tag does not exist in union type $unionType", tag.pos)
+      Type.Error
+    else
+      val tagType = unionType.tagType(tag.name)
+      expect(value, tagType)
+      tagType
 object Checker:
   /**
     * Represent the types of values on the value stack.

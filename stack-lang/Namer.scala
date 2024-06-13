@@ -148,6 +148,32 @@ class Namer(using Reporter):
         val tpe = Type.Record(fields.map { case (k, v) => k -> v.tpe })
         RecordLit(fields)(tpe, word.pos)
 
+      case Ast.Variant(tag, value, typ) =>
+        val value2 = transform(value)
+        val unionType = transform(typ)
+        val tagType = checker.checkTagValue(tag, value2, unionType, typ.pos)
+        // desugar variant to record
+        val fieldTypes =
+          if tagType.isVoid then
+            immutable.ListMap("tag" -> Type.Int)
+          else
+            immutable.ListMap("tag" -> Type.Int, "value" -> tagType)
+
+        val tagIndex =
+          if tagType.isError then -1
+          else unionType.tagIndex(tag.name)
+        val tagValue =
+          Phrase(IntLit(tagIndex)(Type.Int, tag.pos) :: Nil)(Type.Int, tag.pos)
+
+        val fields =
+          if tagType.isVoid then
+            immutable.ListMap("tag" -> tagValue)
+          else
+            immutable.ListMap("tag" -> tagValue, "value" -> value2)
+
+        val tpe = Type.Record(fieldTypes)
+        RecordLit(fields)(tpe, word.pos)
+
       case Ast.Select(qual, name) =>
         val qual2 = transform(qual)
         val tp = checker.fieldType(qual2.tpe, name, qual.pos)

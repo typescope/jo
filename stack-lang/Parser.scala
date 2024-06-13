@@ -18,8 +18,8 @@ import Reporter.*
 object Parsing:
 
   enum Token:
-    case LPAREN, RPAREN, LBRACKET, RBRACKET, IF, THEN, ELSE, END, COLON,
-         SEMICOL, DOT, VAL, VAR, FUN, EQL, EOF, COMMA, WHILE, DO, TYPE
+    case LPAREN, RPAREN, LBRACKET, RBRACKET, OF, IF, THEN, ELSE, END, COLON,
+         SEMICOL, DOT, VAL, VAR, FUN, EQL, TAG, EOF, COMMA, WHILE, DO, TYPE
     case IntLit(value: Int)
     case BoolLit(value: Boolean)
     case Ident(name: String)
@@ -123,6 +123,7 @@ object Parsing:
         case ')'    => Token.RPAREN
         case '['    => Token.LBRACKET
         case ']'    => Token.RBRACKET
+        case '#'    => Token.TAG
         case '.'    => Token.DOT
         case ':'    => Token.COLON
         case ';'    => Token.SEMICOL
@@ -153,6 +154,7 @@ object Parsing:
       stream.eatWhile(isNameRest)
 
       stream.tokenEnd() match
+        case "of"      => Token.OF
         case "if"      => Token.IF
         case "then"    => Token.THEN
         case "else"    => Token.ELSE
@@ -350,6 +352,7 @@ object Parsing:
         case Token.LBRACKET  => Some(record())
         case Token.IF        => Some(ifElse())
         case Token.WHILE     => Some(whileDo())
+        case Token.TAG       => Some(variant())
 
         case _: Token.Ident  =>
           val id = ident()
@@ -487,3 +490,13 @@ object Parsing:
       eat(Token.EQL)
       val arg = phrase()
       NamedArg(id, arg)(id.pos | arg.pos)
+
+    def variant(): Variant =
+      val span1 = eat(Token.TAG)
+      val tag = ident()
+      val value = peek() match
+        case (Token.OF, span) => Phrase(tdefs = Nil, words = Nil)(span)
+        case _ => phrase()
+      eat(Token.OF)
+      val tp = typ()
+      Variant(tag, value, tp)(span1 | tp.pos)
