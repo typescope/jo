@@ -201,6 +201,8 @@ object Interpreter:
 
       case BoolLit(v) => vs.push(Value.BoolVal(v))
 
+      case Encoded(repr) => exec(repr)
+
       case RecordLit(args) =>
         val fieldValues = mutable.Map.empty[String, Value]
         for (name, arg) <- args do
