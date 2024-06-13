@@ -64,6 +64,12 @@ object Sast:
   extends Word:
     def isEmpty: Boolean = words.isEmpty
 
+  /** Encode of a type with another type */
+  case class Encoded
+    (repr: Word)
+    (val tpe: Type, val pos: Span)
+  extends Word
+
   case class Fun
     (symbol: Symbol, params: List[Symbol], locals: List[Symbol], body: Phrase)
     (val pos: Span)

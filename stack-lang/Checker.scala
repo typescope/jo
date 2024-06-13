@@ -19,7 +19,7 @@ class Checker(using Reporter):
 
   def check(word: Word)(using vs: ValueStack): Unit =
     word match
-      case _: IntLit | _: BoolLit | _: RecordLit | _: Select =>
+      case _: IntLit | _: BoolLit | _: RecordLit | _: Select | _: Encoded =>
         vs.push(word.tpe)
 
       case Assign(sym, words) =>

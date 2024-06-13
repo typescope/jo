@@ -58,6 +58,8 @@ abstract class Backend:
 
       case phrase: Phrase => compile(phrase)
 
+      case encoded: Encoded => compile(encoded.repr)
+
       case assign: Assign =>
         compile(assign)
 
