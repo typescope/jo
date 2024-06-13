@@ -76,7 +76,7 @@ extends Backend:
     cb.add(Instr.Jump(symbolAddrMap(main)))
 
     cb.mark(endLabel)
-    exit(0)
+    exit(Int32(0))
 
   /** Compile a function
     *
@@ -151,8 +151,8 @@ extends Backend:
       cb.mark(labelEnd)
 
   // TODO: platform-agnostic
-  def exit(code: Int): Unit =
-    cb.add(Instr.Move(Int32(code), X86.EBX))  // exit code
+  def exit(code: Operand): Unit =
+    cb.add(Instr.Move(code, X86.EBX))  // exit code
     cb.add(Instr.Move(Int32(1), X86.EAX))     // syscall number
     cb.add(Instr.Special(X86.Syscall))        // syscall
 
@@ -401,6 +401,7 @@ extends Backend:
       case predef.bnot   =>   bnot()
       case predef.eql    =>   eql()
       case predef.p      =>   call(predef.p)
+      case runtime.abort =>   abort()
       case _             =>   throw new Exception("Unknown primitive: " + sym.name)
   end primitive
 
@@ -444,6 +445,11 @@ extends Backend:
       cb.add(Instr.Eq(Reg(r1), Reg(r2), r2))
       storeValue(Reg(r2), 1)
       pop()
+
+  def abort()(using Context) =
+    useReg: r =>
+      pop(r)
+      exit(Reg(r))
 
 end StackMachine
 

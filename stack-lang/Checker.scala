@@ -46,7 +46,7 @@ class Checker(using Reporter):
     for word <- words do check(word)
 
   def expect(tree: Tree, tp: Type): Unit =
-    if !matches(tree.tpe, tp) then
+    if !conforms(tree.tpe, tp) then
       Reporter.error(s"Expect type $tp, found = ${tree.tpe}", tree.pos)
 
   def expectValueType(tp: Type, pos: Span): Unit =
@@ -124,8 +124,8 @@ object Checker:
       else
         val argTypes = valueTypes.takeRight(paramTypes.size)
         val agree =
-          paramTypes.zip(argTypes).forall: (tp1, tp2) =>
-            matches(tp1, tp2)
+          argTypes.zip(paramTypes).forall: (tp1, tp2) =>
+            conforms(tp1, tp2)
 
         if !agree then
           Reporter.error(

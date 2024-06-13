@@ -14,6 +14,8 @@ object Types:
 
     def isVoid: Boolean = this == Type.Void
 
+    def isBottom: Boolean = this == Type.Bottom
+
     def isTypeRef: Boolean = this.isInstanceOf[Type.TypeRef]
 
     def isRecordType: Boolean =
@@ -30,9 +32,8 @@ object Types:
 
     def isValueType: Boolean =
       this match
-        case Type.Int | Type.Bool | Type.Error => true
-        case _: Type.TypeRef | _: Type.Record => true
-        case _ => false
+        case Type.Void | _: Type.Proc => false
+        case _ => true
 
     def resultType: Type =
       this match
@@ -95,9 +96,12 @@ object Types:
 
   object Type:
     case object Int extends Type
+
     case object Bool extends Type
 
     case object Void extends Type
+
+    case object Bottom extends Type
 
     case object Error extends Type
 
@@ -118,10 +122,14 @@ object Types:
       val paramCount = paramTypes.size
       val resCount = if resType.isValueType then 1 else 0
 
-  // TODO: handle non-termination
-  def matches(tp1: Type, tp2: Type): Boolean =
+  /** Whether `tp1` conforms to `tp2`.
+    *
+    * TODO: handle non-termination
+    */
+  def conforms(tp1: Type, tp2: Type): Boolean =
     tp1.isError
     || tp2.isError
+    || tp1.isBottom
     || tp1 == tp2
-    || tp1.isTypeRef && matches(tp1.dealias, tp2)
-    || tp2.isTypeRef && matches(tp1, tp2.dealias)
+    || tp1.isTypeRef && conforms(tp1.dealias, tp2)
+    || tp2.isTypeRef && conforms(tp1, tp2.dealias)

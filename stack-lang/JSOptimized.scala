@@ -200,12 +200,13 @@ class JSOptimized(outFile: String) extends Backend:
       addLine(s"if ($condStr) {")
       indent:
         compile(ifword.thenp)
-        assert(vs.size == 0, "Expect empty stack, found = " + vs)
+        vs.clear()
 
       if !ifword.elsep.isEmpty then
         addLine("} else {")
         indent:
           compile(ifword.elsep)
+          vs.clear()
       addLine("}")
 
     else
@@ -238,6 +239,7 @@ class JSOptimized(outFile: String) extends Backend:
       addLine(s"if ($condStr) {")
       indent:
         compile(whileDo.body)
+        vs.clear()
       addLine("} else break;")
     addLine("}")
 
@@ -292,6 +294,12 @@ class JSOptimized(outFile: String) extends Backend:
     val operand = vs.pop()
     vs.push(Item.Expr(s"(!$operand)"))
 
+  def abort(): Unit =
+    val operand = vs.pop()
+    addLine(s"throw $operand;")
+    // push dummy value to satisfy compiler invariant
+    vs.push(Item.Const("-1"));
+
   /**
     * Compile a primitive
     *
@@ -317,6 +325,7 @@ class JSOptimized(outFile: String) extends Backend:
       case predef.bnot   =>   bnot()
       case predef.eql    =>   binary("===")
       case predef.p      =>   call(predef.p)
+      case runtime.abort =>   abort()
       case _             =>   throw new Exception("Unknown primitive: " + sym.name)
   end primitive
 

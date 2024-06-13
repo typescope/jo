@@ -6,7 +6,15 @@ val a: Sum = #Left 3 of Sum;
 val b: Option = #None of Option;
 val c: Option = #Some 5 of Option;
 
+fun foo(x: Sum): Int =
+  match x
+    case #Left n =>  n n +
+    case #Right n => n n *
+  end;
+
 match c
   case #None => 0 p
   case #Some n => n p
 end
+
+a foo p

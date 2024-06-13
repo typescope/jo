@@ -217,6 +217,9 @@ class JSBackend(outFile: String) extends Backend:
     addLine(s"const $operand2 = $pop();")
     addLine(s"$push(($operand2 / $operand1)>>0);")
 
+  def abort(): Unit =
+    addLine(s"throw $pop();")
+
   /**
     * Compile a primitive
     *
@@ -242,6 +245,7 @@ class JSBackend(outFile: String) extends Backend:
       case predef.bnot   =>   addLine(s"$push(!$pop());")
       case predef.eql    =>   addLine(s"$push($pop() === $pop());")
       case predef.p      =>   call(predef.p)
+      case runtime.abort =>   abort()
       case _             =>   throw new Exception("Unknown primitive: " + sym.name)
   end primitive
 

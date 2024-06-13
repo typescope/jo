@@ -112,3 +112,7 @@ object Symbols:
 
     val allSymbols: List[Symbol] = symbols.toList
   end predef
+
+  object runtime:
+    private val abortType = Type.Proc("n" :: Nil, Type.Int :: Nil, Type.Bottom)
+    val abort = new Symbol("abort", abortType, Flag.Prim)

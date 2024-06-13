@@ -166,7 +166,7 @@ class Namer(using Reporter):
     val then2 = transform(thenp)
     val else2 = transform(elsep)
     checker.expect(cond2, Type.Bool)
-    if !matches(then2.tpe, else2.tpe) then
+    if !conforms(then2.tpe, else2.tpe) then
       Reporter.error(
         "Expect if branches to have the same type," +
           s"found = ${then2.tpe} and ${else2.tpe}",
@@ -237,8 +237,12 @@ class Namer(using Reporter):
         case caseDef :: rest =>
           transform(scrutIdent, caseDef, () => transformCases(rest))(using sc2)
         case Nil =>
-          // TODO: throw runtime exception
-          Phrase(Nil)(Type.Void, patmat.pos)
+          // abort
+          val words =
+            IntLit(1)(scrutIdent.pos)
+              :: Ident(runtime.abort)(scrutIdent.pos)
+              :: Nil
+          Phrase(words)(Type.Bottom, scrutIdent.pos)
       end match
 
     val phrase = transformCases(cases)

@@ -97,7 +97,7 @@ extends Backend:
     cb.add(Instr.Jump(symbolAddrMap(main)))
 
     cb.mark(endLabel)
-    exit(0)(cb)
+    exit(Int32(0))(cb)
 
   def load(loc: Location, dest: Int)(using Context): Unit =
     loc match
@@ -172,10 +172,13 @@ extends Backend:
         compile(ifword.thenp)
 
         if ifword.tpe.isVoid then
+          ctx.vs.clear()
+
           if !ifword.elsep.isEmpty then
             gen(Instr.Jump(labelEnd))
             gen(labelFalse)
             compile(ifword.elsep)
+            ctx.vs.clear()
 
           gen(labelEnd)
 
@@ -207,20 +210,22 @@ extends Backend:
       case Int32(i) =>
         if i != 0 then
           compile(whileDo.body)
+          ctx.vs.clear()
         else
           gen(Instr.Jump(labelEnd))
 
       case Reg(r) =>
         gen(Instr.JZero(Reg(r), labelEnd))
         compile(whileDo.body)
+        ctx.vs.clear()
 
     gen(Instr.Jump(labelBegin))
     gen(labelEnd)
 
   // TODO: platform-agnostic
-  def exit(code: Int)(cb: CodeBuffer): Unit =
+  def exit(code: Operand)(cb: CodeBuffer): Unit =
     // TODO: abstract over target buffer using context
-    cb.add(Instr.Move(Int32(code), X86.EBX))  // exit code
+    cb.add(Instr.Move(code, X86.EBX))  // exit code
     cb.add(Instr.Move(Int32(1), X86.EAX))     // syscall number
     cb.add(Instr.Special(X86.Syscall))        // syscall
 
@@ -461,6 +466,7 @@ extends Backend:
       case predef.bnot   =>   bnot()
       case predef.eql    =>   eql()
       case predef.p      =>   call(predef.p)
+      case runtime.abort =>   abort()
       case _             =>   throw new Exception("Unknown primitive: " + sym.name)
   end primitive
 
@@ -499,6 +505,17 @@ extends Backend:
     val reg = freshVirtualReg()
     gen(Instr.Eq(ctx.vs.pop(), ctx.vs.pop(), reg))
     ctx.vs.push(Reg(reg))
+
+  def abort()(using ctx: Context) =
+    val v = ctx.vs.pop()
+    gen(Instr.Move(v, X86.EBX))            // exit code
+    gen(Instr.Move(Int32(1), X86.EAX))     // syscall number
+    gen(Instr.Special(X86.Syscall))        // syscall
+
+    // TODO: how to handle this more principled?
+    // push dummy value to satisfy compiler invariant
+    ctx.vs.push(Int32(-1))
+
 end RegisterMachine
 
 object RegisterMachine:
