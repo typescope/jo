@@ -344,15 +344,15 @@ extends Backend:
 
     alloc(size)
     useTwoReg: (r1, r2) =>
-      pop(r1)
       for (name, rhs) <- record.args do
+        dup()
         compile(rhs)
         pop(r2)
+        pop(r1)
         val offset = Memory.fieldOffset(recordType, name)
         val fieldAddr = Rel(r1, offset)
         cb.add(Instr.Store(Reg(r2), fieldAddr))
       end for
-      push(Reg(r1))
 
   /** Compile p.x */
   def compile(select: Select)(using Context): Unit =
@@ -404,6 +404,12 @@ extends Backend:
       case runtime.abort =>   abort()
       case _             =>   throw new Exception("Unknown primitive: " + sym.name)
   end primitive
+
+  /** Duplicate the value on the top of stack. */
+  def dup()(using Context) =
+    useReg: r =>
+      loadValue(r, 0)
+      push(Reg(r))
 
   /** Load a value in value stack relative to the stack pointer.
     *
