@@ -41,22 +41,15 @@ object Types:
         case _ => throw new Exception("Not a proc type: " + this)
 
     def hasField(name: String): Boolean =
-      this match
-        case Type.Record(fields) => fields.contains(name)
-        case Type.TypeRef(sym) => sym.info.hasField(name)
-        case _ => false
+      val Type.Record(fields) = this.asRecordType
+      fields.contains(name)
 
     def fieldType(name: String): Type =
-      this match
-        case Type.Record(fields) =>
-          fields.get(name) match
-            case Some(tp) => tp
-            case None =>
-              throw new Exception("No such field " + name + " in " + this)
-
-        case Type.TypeRef(sym) => sym.info.fieldType(name)
-
-        case _ => throw new Exception("Not a record type: " + this)
+      val Type.Record(fields) = this.asRecordType
+      fields.get(name) match
+        case Some(tp) => tp
+        case None =>
+          throw new Exception("No such field " + name + " in " + this)
 
     def hasTag(tag: String): Boolean =
       this match
@@ -65,29 +58,19 @@ object Types:
         case _ => false
 
     def tagType(tag: String): Type =
-      this match
-        case Type.Union(branches) =>
-          branches.get(tag) match
-            case Some(tp) => tp
-            case None =>
-              throw new Exception("No such tag " + tag + " in " + this)
-
-        case Type.TypeRef(sym) => sym.info.tagType(tag)
-
-        case _ => throw new Exception("Not a union type: " + this)
+      val Type.Union(branches) = this.asUnionType
+      branches.get(tag) match
+        case Some(tp) => tp
+        case None =>
+          throw new Exception("No such tag " + tag + " in " + this)
 
     def tagIndex(tag: String): Int =
-      this match
-        case Type.Union(branches) =>
-          branches.keys.toList.indexOf(tag) match
-            case -1 =>
-              throw new Exception("No such tag " + tag + " in " + this)
-            case n =>
-              n
-
-        case Type.TypeRef(sym) => sym.info.tagIndex(tag)
-
-        case _ => throw new Exception("Not a union type: " + this)
+      val Type.Union(branches) = this.asUnionType
+      branches.keys.toList.indexOf(tag) match
+        case -1 =>
+          throw new Exception("No such tag " + tag + " in " + this)
+        case n =>
+          n
 
     def dealias: Type =
       this match
