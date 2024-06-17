@@ -513,8 +513,7 @@ extends Backend:
     gen(Instr.Move(Int32(1), X86.EAX))     // syscall number
     gen(Instr.Special(X86.Syscall))        // syscall
 
-    // TODO: how to handle this more principled?
-    // push dummy value to satisfy compiler invariant
+    // return a dummy value for compiler invariant -- abort never returns
     ctx.vs.push(Int32(-1))
 
 end RegisterMachine

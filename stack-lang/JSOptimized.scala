@@ -264,7 +264,8 @@ class JSOptimized(outFile: String) extends Backend:
   def abort()(using Context): Unit =
     val operand = vs.pop()
     addLine(s"throw $operand;")
-    // push dummy value to satisfy compiler invariant
+
+    // return a dummy value for compiler invariant -- abort never returns
     vs.push(Item.Const("-1"));
 
   /**
