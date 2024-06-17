@@ -124,7 +124,7 @@ object Types:
 
   /** Whether `tp1` conforms to `tp2`.
     *
-    * TODO: handle non-termination
+    * TODO: handle non-termination with recursive type
     */
   def conforms(tp1: Type, tp2: Type): Boolean =
     tp1.isError
