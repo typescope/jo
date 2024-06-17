@@ -15,7 +15,7 @@ match c
   case #None => 0 p                 // error
 end
 
-match c
+match c                             // error
   case #Some n => n p
   case #Some n => n p               // error
 end
