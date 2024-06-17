@@ -40,9 +40,7 @@ object JSBackend:
   * JavaScript platform
   */
 class JSBackend(outFile: String) extends Backend:
-  type Context = Unit
-
-  private val pw =  new PrintWriter(outFile)
+  type Context = PrintWriter
 
   private  val uniqueName = new UniqueName
   export uniqueName.freshName
@@ -63,10 +61,10 @@ class JSBackend(outFile: String) extends Backend:
   )
 
   private var indentCount = 0
-  private def addLine(code: String): Unit =
+  private def addLine(code: String)(using pw: Context): Unit =
     pw.append("  " * indentCount).append(code).append("\n")
 
-  private def newLine(): Unit =
+  private def newLine()(using pw: Context): Unit =
     pw.append("\n")
 
   private def indent(work: => Unit): Unit =
@@ -203,21 +201,21 @@ class JSBackend(outFile: String) extends Backend:
     val name = symbol2UniqueName(sym)
     addLine(s"$push($name);")
 
-  def binary(op: String): Unit =
+  def binary(op: String)(using Context): Unit =
     val operand1 = freshName("operand1")
     val operand2 = freshName("operand2")
     addLine(s"const $operand1 = $pop();")
     addLine(s"const $operand2 = $pop();")
     addLine(s"$push($operand2 $op $operand1);")
 
-  def div(): Unit =
+  def div()(using Context): Unit =
     val operand1 = freshName("operand1")
     val operand2 = freshName("operand2")
     addLine(s"const $operand1 = $pop();")
     addLine(s"const $operand2 = $pop();")
     addLine(s"$push(($operand2 / $operand1)>>0);")
 
-  def abort(): Unit =
+  def abort()(using Context): Unit =
     addLine(s"throw $pop();")
 
   /**
@@ -252,6 +250,8 @@ class JSBackend(outFile: String) extends Backend:
 
   /** Prepare to start the compilation */
   def doCompile(work: Context ?=> Unit): Unit =
+    given pw: Context =  new PrintWriter(outFile)
+
     addLine("(function() {")
 
     indentCount += 1
@@ -259,10 +259,11 @@ class JSBackend(outFile: String) extends Backend:
     addLine(s"function $pop() { return $vs.pop(); }\n")
     addLine(s"function $push(v) { $vs.push(v); }\n")
 
-    work(using ())
+    work
 
     indentCount -= 1
     addLine("})()")
+
     pw.close()
 
 end JSBackend

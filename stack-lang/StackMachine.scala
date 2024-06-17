@@ -21,16 +21,13 @@ extends Backend:
   import registerConfig.{ FP_REG, SP_REG, FREE_REGS }
 
 
-  type Context = Unit
+  type Context = CodeBuffer
 
   /** Maps symbols to addresses */
   val symbolAddrMap: mutable.Map[Symbol, Addr] = mutable.Map.from(nativeFunctions)
 
   /** Program entry pointer */
   val entry = Label("_entry")
-
-  /** Assembly code buffer */
-  val cb = new CodeBuffer(entry)
 
   /** The memory allocator */
   val allocatorType = Type.Proc("size" :: Nil, Type.Int :: Nil, Type.Int)
@@ -42,8 +39,10 @@ extends Backend:
 
   export regAlloc.{ useReg, useTwoReg }
 
+  def cb(using ctx: Context): CodeBuffer = ctx
+
   def compile(prog: Sast.Prog): Unit =
-    given Context = ()
+    given Context = new CodeBuffer(entry)
 
     for fun <- prog.funs do
       symbolAddrMap(fun.symbol) = Label(fun.name)
@@ -62,7 +61,7 @@ extends Backend:
     // generate code
     generator(cb.getResult())
 
-  def emitEntry(main: Symbol) =
+  def emitEntry(main: Symbol)(using Context) =
     // Stack pointer is initialized by the kernel, initialize frame pointer
     cb.mark(this.entry)
     cb.add(Instr.Sub(Reg(SP_REG), Int32(4), SP_REG))
@@ -151,8 +150,8 @@ extends Backend:
       cb.mark(labelEnd)
 
   // TODO: platform-agnostic
-  def exit(code: Operand): Unit =
-    cb.add(Instr.Move(code, X86.EBX))  // exit code
+  def exit(code: Operand)(using Context): Unit =
+    cb.add(Instr.Move(code, X86.EBX))         // exit code
     cb.add(Instr.Move(Int32(1), X86.EAX))     // syscall number
     cb.add(Instr.Special(X86.Syscall))        // syscall
 
@@ -160,7 +159,7 @@ extends Backend:
     *
     * Call stack goes from high address to low address.
     */
-  def ret(resCount: Int) =
+  def ret(resCount: Int)(using Context) =
     var i = resCount - 1
     while i >= 0 do
       val src = Rel(SP_REG, i << 2)
@@ -276,7 +275,7 @@ extends Backend:
     *
     * TODO: implement it in Stk.
     */
-  def genAllocator(): Unit =
+  def genAllocator()(using Context): Unit =
     val allocLabel = symbolAddrMap(allocatorSym).asInstanceOf[Label]
 
     val initBreakLabel = Label("init_break")
@@ -415,7 +414,7 @@ extends Backend:
     *
     * The index begins from 0.
     */
-  def loadValue(destReg: Int, index: Byte): Unit =
+  def loadValue(destReg: Int, index: Byte)(using Context): Unit =
     val addr = Rel(SP_REG, index << 2)
     cb.add(Instr.Load(addr, destReg))
 
@@ -423,7 +422,7 @@ extends Backend:
     *
     * The index begins from 0.
     */
-  def storeValue(value: Value, index: Byte): Unit =
+  def storeValue(value: Value, index: Byte)(using Context): Unit =
     val addr = Rel(SP_REG, index << 2)
     cb.add(Instr.Store(value, addr))
 
@@ -437,7 +436,7 @@ extends Backend:
       storeValue(Reg(r1), 1)
       pop()
 
-  def bnot() =
+  def bnot()(using Context) =
     useReg: r =>
       loadValue(r, 0)
       cb.add(Instr.Nor(Reg(r), Reg(r), r))
