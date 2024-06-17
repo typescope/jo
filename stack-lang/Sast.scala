@@ -16,7 +16,11 @@ object Sast:
   sealed abstract class Tree extends Positioned with Product:
     def tpe: Type
 
-  sealed abstract class Word extends Tree
+  sealed abstract class Word extends Tree:
+    def isEmpty: Boolean =
+      this match
+        case Phrase(Nil) => true
+        case _ => false
 
   case class IntLit
     (value: Int)
@@ -47,18 +51,18 @@ object Sast:
   extends Word
 
   case class Assign
-    (symbol: Symbol, rhs: Phrase)
+    (symbol: Symbol, rhs: Word)
     (val pos: Span)
   extends Word:
     def tpe: Type = Type.Void
 
   case class If
-    (cond: Phrase, thenp: Phrase, elsep: Phrase)
+    (cond: Word, thenp: Word, elsep: Word)
     (val tpe: Type, val pos: Span)
   extends Word
 
   case class While
-    (cond: Phrase, body: Phrase)
+    (cond: Word, body: Word)
     (val pos: Span)
   extends Word:
     def tpe: Type = Type.Void
@@ -66,8 +70,7 @@ object Sast:
   case class Phrase
     (words: List[Word])
     (val tpe: Type, val pos: Span)
-  extends Word:
-    def isEmpty: Boolean = words.isEmpty
+  extends Word
 
   object Phrase:
     def apply(word: Word): Phrase =
@@ -80,8 +83,10 @@ object Sast:
   extends Word:
     def pos = repr.pos
 
+    def isValueDrop = repr.tpe.isValueType && tpe.isVoid
+
   case class Fun
-    (symbol: Symbol, params: List[Symbol], locals: List[Symbol], body: Phrase)
+    (symbol: Symbol, params: List[Symbol], locals: List[Symbol], body: Word)
     (val pos: Span)
   extends Tree:
     def name: String = symbol.name

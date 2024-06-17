@@ -165,13 +165,11 @@ class JSOptimized(outFile: String) extends Backend:
       addLine(s"if ($condStr) {")
       indent:
         compile(ifword.thenp)
-        vs.clear()
 
       if !ifword.elsep.isEmpty then
         addLine("} else {")
         indent:
           compile(ifword.elsep)
-          vs.clear()
       addLine("}")
 
     else
@@ -204,9 +202,13 @@ class JSOptimized(outFile: String) extends Backend:
       addLine(s"if ($condStr) {")
       indent:
         compile(whileDo.body)
-        vs.clear()
       addLine("} else break;")
     addLine("}")
+
+  def compile(encoded: Encoded)(using Context): Unit =
+    compile(encoded.repr)
+    if encoded.isValueDrop then
+      vs.pop()
 
   /** Compile [x = 3, y = 5] */
   def compile(record: RecordLit)(using Context): Unit =
@@ -338,8 +340,6 @@ object JSOptimized:
     def get(i: Int): Item = stack(i)
 
     def set(i: Int, v: Item): Unit = stack(i) = v
-
-    def clear() = stack.clear()
 
     def size: Int = stack.size
 

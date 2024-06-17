@@ -172,13 +172,11 @@ extends Backend:
         compile(ifword.thenp)
 
         if ifword.tpe.isVoid then
-          ctx.vs.clear()
 
           if !ifword.elsep.isEmpty then
             gen(Instr.Jump(labelEnd))
             gen(labelFalse)
             compile(ifword.elsep)
-            ctx.vs.clear()
 
           gen(labelEnd)
 
@@ -210,17 +208,20 @@ extends Backend:
       case Int32(i) =>
         if i != 0 then
           compile(whileDo.body)
-          ctx.vs.clear()
         else
           gen(Instr.Jump(labelEnd))
 
       case Reg(r) =>
         gen(Instr.JZero(Reg(r), labelEnd))
         compile(whileDo.body)
-        ctx.vs.clear()
 
     gen(Instr.Jump(labelBegin))
     gen(labelEnd)
+
+  def compile(encoded: Encoded)(using ctx: Context): Unit =
+     compile(encoded.repr)
+     if encoded.isValueDrop then
+       ctx.vs.pop()
 
   // TODO: platform-agnostic
   def exit(code: Operand)(cb: CodeBuffer): Unit =
@@ -534,8 +535,6 @@ object RegisterMachine:
       slice.toSeq
 
     def push(v: Operand): Unit = stack.append(v)
-
-    def clear() = stack.clear()
 
     def size: Int = stack.size
 

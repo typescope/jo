@@ -88,6 +88,21 @@ class Checker(using Reporter):
     else
       unionType.tagType(tag.name)
 
+  /** Explicit drop of values in if/match expressions */
+  def adapt(word: Word, otherType: Type, pos: Span): Word =
+    val curType = word.tpe
+    Types.commonResultType(otherType, curType) match
+      case Some(commonType) =>
+        if commonType.isVoid && curType.isValueType then
+          Encoded(word)(Type.Void)
+        else
+          word
+
+      case None =>
+        Reporter.error(s"Cannot find common result type between $curType and $otherType", pos)
+        Phrase(word :: Nil)(Type.Error, pos)
+    end match
+
 object Checker:
   /**
     * Represent the types of values on the value stack.

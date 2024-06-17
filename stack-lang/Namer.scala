@@ -166,13 +166,12 @@ class Namer(using Reporter):
     val then2 = transform(thenp)
     val else2 = transform(elsep)
     checker.expect(cond2, Type.Bool)
-    if !conforms(then2.tpe, else2.tpe) then
-      Reporter.error(
-        "Expect if branches to have the same type," +
-          s"found = ${then2.tpe} and ${else2.tpe}",
-        ifte.pos)
 
-    If(cond2, then2, else2)(then2.tpe, ifte.pos)
+    // adapt result type
+    val then3 = checker.adapt(then2, else2.tpe, then2.pos)
+    val else3 = checker.adapt(else2, then3.tpe, else2.pos)
+
+    If(cond2, then3, else3)(else3.tpe, ifte.pos)
 
   private def transform(record: Ast.RecordLit)(using sc: Scope): Word =
     val Ast.RecordLit(namedArgs) = record
@@ -219,7 +218,7 @@ class Namer(using Reporter):
 
     Encoded(RecordLit(fields)(encodeType, variant.pos))(unionType)
 
-  private def transform(patmat: Ast.Match)(using sc: Scope): Phrase =
+  private def transform(patmat: Ast.Match)(using sc: Scope): Word =
     val sc2 = sc.fresh()
 
     val Ast.Match(scrutinee, cases) = patmat
@@ -232,25 +231,26 @@ class Namer(using Reporter):
     val bindAssign = Assign(scrutSym, scrutinee2)(scrutinee.pos)
     sc2.define(scrutSym, scrutinee.pos)
 
-    def transformCases(cases: List[Ast.Case]): Phrase =
+    def transformCases(cases: List[Ast.Case], resType: Type): Word =
       cases match
         case caseDef :: rest =>
-          transform(scrutIdent, caseDef, () => transformCases(rest))(using sc2)
+          transform(scrutIdent, caseDef, resType, tp => transformCases(rest, tp))(using sc2)
         case Nil =>
           // abort
           val words =
             IntLit(1)(scrutIdent.pos)
               :: Ident(runtime.abort)(scrutIdent.pos)
               :: Nil
-          Phrase(words)(Type.Bottom, scrutIdent.pos)
+          val res = Phrase(words)(Type.Bottom, patmat.pos)
+          checker.adapt(res, resType, patmat.pos)
       end match
 
-    val phrase = transformCases(cases)
-    Phrase(bindAssign :: phrase.words)(phrase.tpe, patmat.pos)
+    val body = transformCases(cases, Type.Bottom)
+    Phrase(bindAssign :: body :: Nil)(body.tpe, patmat.pos)
 
   private def transform
-    (scrut: Ident, caseDef: Ast.Case, cont: () => Phrase)
-    (using sc: Scope): Phrase =
+    (scrut: Ident, caseDef: Ast.Case, resType: Type, cont: Type => Word)
+    (using sc: Scope): Word =
 
     val caseScope = sc.fresh()
 
@@ -263,17 +263,20 @@ class Namer(using Reporter):
         // TODO: all remaining patterns are ignored
         // if cases.nonEmpty then
         //  Reporter.error("Cases after wildcard are ignored", pat.pos)
-        transform(body)(using caseScope)
+        val body2 = transform(body)(using caseScope)
+        val adapted = checker.adapt(body2, resType, body2.pos)
+        val elsep = cont(adapted.tpe)
+        checker.adapt(adapted, elsep.tpe, body2.pos)
 
       case Ast.TagPat(tag, bindings) =>
         val tagType = checker.tagType(tag, scrutType, scrutPos)
         if tagType.isVoid && bindings.nonEmpty then
           Reporter.error("The tag does not take arguments", tag.pos)
-          cont()
+          cont(Type.Bottom)
 
         else if !tagType.isVoid && bindings.isEmpty then
           Reporter.error("The tag take an argument", tag.pos)
-          cont()
+          cont(Type.Bottom)
 
         else
           val fieldTypes = immutable.ListMap("tag" -> Type.Int, "value" -> tagType)
@@ -300,8 +303,11 @@ class Namer(using Reporter):
 
           val cond = Phrase(condWords)(Type.Bool, tag.pos)
           val body2 = transform(body)(using caseScope)
-          val body3 = Phrase(bindingAssigns.toList ++ body2.words)(body2.tpe, body2.pos)
-          val elsep =  cont()
+          val adapted = checker.adapt(body2, resType, body2.pos)
+          val elsep = cont(adapted.tpe)
+          val adapted2 = checker.adapt(adapted, elsep.tpe, body2.pos)
+
+          val body3 = Phrase(bindingAssigns.toList :+ adapted2)(adapted2.tpe, caseDef.pos)
           Phrase(If(cond, body3, elsep)(body3.tpe, caseDef.pos))
 
   private def transform(phrase: Ast.Phrase)(using sc: Scope): Phrase =

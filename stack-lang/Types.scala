@@ -133,3 +133,22 @@ object Types:
     || tp1 == tp2
     || tp1.isTypeRef && conforms(tp1.dealias, tp2)
     || tp2.isTypeRef && conforms(tp1, tp2.dealias)
+
+
+  /** The common result type of two different types.
+    *
+    * This method is used to compute the result type of if- and match-
+    * expressions.
+    *
+    * The logic is different from computing join in the subtype lattice:
+    *
+    * - Type.Error always dominates
+    * - Type.Void dominates Type.Bottom
+    */
+  def commonResultType(tp1: Type, tp2: Type): Option[Type] =
+    if tp1.isError || tp2.isError then Some(Type.Error)
+    else if tp1.isVoid && tp2.isBottom then Some(Type.Void)
+    else if tp1.isBottom && tp2.isVoid then Some(Type.Void)
+    else if conforms(tp1, tp2) then Some(tp2)
+    else if conforms(tp2, tp1) then Some(tp1)
+    else None

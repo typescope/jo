@@ -45,6 +45,9 @@ abstract class Backend:
   /** Compile an assignment statement, i.e a = b + c */
   def compile(ifword: Assign)(using Context): Unit
 
+  /** Compile an encoding --- backend needs to handle value drop */
+  def compile(encoded: Encoded)(using Context): Unit
+
   /** Compile a word */
   def compile(word: Word)(using Context): Unit =
     word match
@@ -58,7 +61,7 @@ abstract class Backend:
 
       case phrase: Phrase => compile(phrase)
 
-      case encoded: Encoded => compile(encoded.repr)
+      case encoded: Encoded => compile(encoded)
 
       case assign: Assign =>
         compile(assign)

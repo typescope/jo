@@ -168,6 +168,11 @@ class JSBackend(outFile: String) extends Backend:
       compile(whileDo.cond)
     addLine("}")
 
+  def compile(encoded: Encoded)(using Context): Unit =
+    compile(encoded.repr)
+    if encoded.isValueDrop then
+      addLine(s"$pop();")
+
   /** Compile [x = 3, y = 5] */
   def compile(record: RecordLit)(using Context): Unit =
     val fieldValues = mutable.Map.empty[String, String]

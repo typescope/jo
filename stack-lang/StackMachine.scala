@@ -149,6 +149,11 @@ extends Backend:
       cb.add(Instr.Jump(labelBegin))
       cb.mark(labelEnd)
 
+  def compile(encoded: Encoded)(using Context): Unit =
+    compile(encoded.repr)
+    if encoded.isValueDrop then
+      pop()
+
   // TODO: platform-agnostic
   def exit(code: Operand)(using Context): Unit =
     cb.add(Instr.Move(code, X86.EBX))         // exit code
