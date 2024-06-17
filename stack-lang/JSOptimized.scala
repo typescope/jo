@@ -6,12 +6,13 @@ import Symbols.*
 import Types.*
 
 import JSBackend.encodeSymbolic
+import JSOptimized.{ ValueStack, Item }
 
 /**
   * JavaScript platform with code optimization
   */
 class JSOptimized(outFile: String) extends Backend:
-  type Context = Unit
+  type Context = ValueStack
 
   private val pw =  new PrintWriter(outFile)
 
@@ -24,44 +25,6 @@ class JSOptimized(outFile: String) extends Backend:
     "const", "class", "constructor"
   ).foreach: w =>
     freshName(w)
-
-  enum Item:
-    case Const(value: String)
-    case Ref(name: String)
-    case Expr(code: String)
-
-    def toJS: String =
-      this match
-        case Const(v)   =>  v
-        case Ref(n)     =>  n
-        case Expr(e)    =>  e
-
-  class ValueStack:
-    val stack: mutable.ArrayBuffer[Item] = new mutable.ArrayBuffer
-
-    def pop(): String =
-      if stack.nonEmpty then stack.remove(stack.size - 1).toJS
-      else throw new Exception("Stack is empty")
-
-    def pop(n: Int): Seq[String] =
-      assert(this.size >= n, s"size = $size, n = $n")
-      val slice = stack.slice(this.size - n, this.size)
-      stack.dropRightInPlace(n)
-      slice.map(_.toJS).toSeq
-
-    def push(v: Item): Unit = stack.append(v)
-
-    def get(i: Int): Item = stack(i)
-
-    def set(i: Int, v: Item): Unit = stack(i) = v
-
-    def clear() = stack.clear()
-
-    def size: Int = stack.size
-
-    override def toString() = stack.toString()
-
-  private val vs: ValueStack = new ValueStack
 
   private val symbol2UniqueName: mutable.Map[Symbol, String] = mutable.Map(
     predef.p -> "console.log"
@@ -78,6 +41,8 @@ class JSOptimized(outFile: String) extends Backend:
     indentCount += 1
     work
     indentCount -= 1
+
+  def vs(using ctx: Context): ValueStack = ctx
 
   def mapSymbolToJSName(sym: Symbol): String =
     val isOperator = !sym.name(0).isLetter
@@ -108,7 +73,7 @@ class JSOptimized(outFile: String) extends Backend:
     * As an optimization, a binding can be avoided if the stack item is not
     * effectful.
     */
-  def bindExpressions(): Unit =
+  def bindExpressions()(using Context): Unit =
     val count = vs.size
     var i = 0
     while i < count do
@@ -132,9 +97,10 @@ class JSOptimized(outFile: String) extends Backend:
 
       // Compile functions
       for fun <- prog.funs do
-        compile(fun)
+        compile(fun)(using new ValueStack)
 
-      call(prog.main)
+      val mainName = symbol2UniqueName(prog.main)
+      addLine("$mainName();")
 
   /**
     * Call the funtion.
@@ -170,7 +136,6 @@ class JSOptimized(outFile: String) extends Backend:
     * Calling the passed function will compile the body of the function.
     */
   def compile(fdef: Fun)(using Context): Unit =
-    vs.clear()
     val sym = fdef.symbol
     val name = symbol2UniqueName(sym)
     val funType = sym.info.asInstanceOf[Type.Proc]
@@ -280,21 +245,21 @@ class JSOptimized(outFile: String) extends Backend:
     else
       vs.push(Item.Ref(name))
 
-  def binary(op: String): Unit =
+  def binary(op: String)(using Context): Unit =
     val operand2 = vs.pop()
     val operand1 = vs.pop()
     vs.push(Item.Expr(s"($operand1 $op $operand2)"))
 
-  def div(): Unit =
+  def div()(using Context): Unit =
     val operand2 = vs.pop()
     val operand1 = vs.pop()
     vs.push(Item.Expr(s"(($operand1 / $operand2)>>0)"))
 
-  def bnot(): Unit =
+  def bnot()(using Context): Unit =
     val operand = vs.pop()
     vs.push(Item.Expr(s"(!$operand)"))
 
-  def abort(): Unit =
+  def abort()(using Context): Unit =
     val operand = vs.pop()
     addLine(s"throw $operand;")
     // push dummy value to satisfy compiler invariant
@@ -331,16 +296,51 @@ class JSOptimized(outFile: String) extends Backend:
 
 
   /** Prepare to start the compilation */
-  def doCompile(work: Context ?=> Unit): Unit =
+  def doCompile(work: => Unit): Unit =
     addLine("(function() {")
     indentCount += 1
 
-    work(using ())
+    work
 
-    if vs.size > 0 then
-      addLine(vs.pop())
     indentCount -= 1
     addLine("})()")
     pw.close()
 
 end JSOptimized
+
+object JSOptimized:
+  enum Item:
+    case Const(value: String)
+    case Ref(name: String)
+    case Expr(code: String)
+
+    def toJS: String =
+      this match
+        case Const(v)   =>  v
+        case Ref(n)     =>  n
+        case Expr(e)    =>  e
+
+  class ValueStack:
+    val stack: mutable.ArrayBuffer[Item] = new mutable.ArrayBuffer
+
+    def pop(): String =
+      if stack.nonEmpty then stack.remove(stack.size - 1).toJS
+      else throw new Exception("Stack is empty")
+
+    def pop(n: Int): Seq[String] =
+      assert(this.size >= n, s"size = $size, n = $n")
+      val slice = stack.slice(this.size - n, this.size)
+      stack.dropRightInPlace(n)
+      slice.map(_.toJS).toSeq
+
+    def push(v: Item): Unit = stack.append(v)
+
+    def get(i: Int): Item = stack(i)
+
+    def set(i: Int, v: Item): Unit = stack(i) = v
+
+    def clear() = stack.clear()
+
+    def size: Int = stack.size
+
+    override def toString() = stack.toString()
