@@ -343,7 +343,7 @@ extends Backend:
 
   /** Compile [x = 3, y = 5] */
   def compile(record: RecordLit)(using Context): Unit =
-    val recordType = record.tpe.asInstanceOf[Type.Record]
+    val recordType = record.tpe.asRecordType
     val size = Memory.size(recordType)
 
     alloc(size)
@@ -361,7 +361,7 @@ extends Backend:
   /** Compile p.x */
   def compile(select: Select)(using Context): Unit =
     val field = select.name
-    val qualType = select.qual.tpe.dealias.asInstanceOf[Type.Record]
+    val qualType = select.qual.tpe.asRecordType
     val offset = Memory.fieldOffset(qualType, field)
     compile(select.qual)
     useReg: r =>

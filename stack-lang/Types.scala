@@ -94,6 +94,10 @@ object Types:
         case Type.TypeRef(sym) => sym.info.dealias
         case _ => this
 
+    def asRecordType: Type.Record = this.dealias.asInstanceOf[Type.Record]
+
+    def asUnionType: Type.Union = this.dealias.asInstanceOf[Type.Union]
+
   object Type:
     case object Int extends Type
 
