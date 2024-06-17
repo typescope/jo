@@ -17,8 +17,8 @@ if a then    // error
   3 p
 end
 
-if 3 even then   // error
-  5
+if 3 even then
+  5               // error
 else
   4 even
 end
