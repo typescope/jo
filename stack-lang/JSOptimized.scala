@@ -100,7 +100,7 @@ class JSOptimized(outFile: String) extends Backend:
         compile(fun)(using new ValueStack)
 
       val mainName = symbol2UniqueName(prog.main)
-      addLine("$mainName();")
+      addLine(s"$mainName();")
 
   /**
     * Call the funtion.
