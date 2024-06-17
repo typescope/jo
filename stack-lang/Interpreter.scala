@@ -134,6 +134,10 @@ object Primitive:
     val IntVal(v) = vs.pop(): @unchecked
     println(v)
 
+  def abort(vs: ValueStack) =
+    val IntVal(v) = vs.pop(): @unchecked
+    throw new Exception(v.toString)
+
   val operators: Map[Symbol, ValueStack => Unit] = Map(
       predef.add    ->    add,
       predef.sub    ->    sub,
@@ -154,6 +158,7 @@ object Primitive:
       predef.bnot   ->    bnot,
       predef.eql    ->    eql,
       predef.p      ->    print,
+      runtime.abort ->    abort
   )
 
 object Interpreter:
@@ -200,6 +205,8 @@ object Interpreter:
       case IntLit(v)  => vs.push(Value.IntVal(v))
 
       case BoolLit(v) => vs.push(Value.BoolVal(v))
+
+      case Encoded(repr) => exec(repr)
 
       case RecordLit(args) =>
         val fieldValues = mutable.Map.empty[String, Value]

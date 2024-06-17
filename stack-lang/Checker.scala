@@ -19,7 +19,7 @@ class Checker(using Reporter):
 
   def check(word: Word)(using vs: ValueStack): Unit =
     word match
-      case _: IntLit | _: BoolLit | _: RecordLit | _: Select =>
+      case _: IntLit | _: BoolLit | _: RecordLit | _: Select | _: Encoded =>
         vs.push(word.tpe)
 
       case Assign(sym, words) =>
@@ -46,7 +46,7 @@ class Checker(using Reporter):
     for word <- words do check(word)
 
   def expect(tree: Tree, tp: Type): Unit =
-    if !matches(tree.tpe, tp) then
+    if !conforms(tree.tpe, tp) then
       Reporter.error(s"Expect type $tp, found = ${tree.tpe}", tree.pos)
 
   def expectValueType(tp: Type, pos: Span): Unit =
@@ -65,6 +65,43 @@ class Checker(using Reporter):
       Type.Error
     else
       qualType.fieldType(field)
+
+  def checkTagValue(tag: Ast.Ident, value: Phrase, unionType: Type, typePos: Span): Type =
+    if !unionType.isUnionType then
+      Reporter.error(s"Expect union type, found = $unionType", typePos)
+      Type.Error
+    else if !unionType.hasTag(tag.name) then
+      Reporter.error(s"The tag ${tag.name} does not exist in union type $unionType", tag.pos)
+      Type.Error
+    else
+      val tagType = unionType.tagType(tag.name)
+      expect(value, tagType)
+      tagType
+
+  def tagType(tag: Ast.Ident, unionType: Type, typePos: Span): Type =
+    if !unionType.isUnionType then
+      Reporter.error(s"Expect union type, found = $unionType", typePos)
+      Type.Error
+    else if !unionType.hasTag(tag.name) then
+      Reporter.error(s"The tag ${tag.name} does not exist in union type $unionType", tag.pos)
+      Type.Error
+    else
+      unionType.tagType(tag.name)
+
+  /** Explicit drop of values in if/match expressions */
+  def adapt(word: Word, otherType: Type, pos: Span): Word =
+    val curType = word.tpe
+    Types.commonResultType(otherType, curType) match
+      case Some(commonType) =>
+        if commonType.isVoid && curType.isValueType then
+          Encoded(word)(Type.Void)
+        else
+          word
+
+      case None =>
+        Reporter.error(s"Cannot find common result type between $curType and $otherType", pos)
+        Phrase(word :: Nil)(Type.Error, pos)
+    end match
 
 object Checker:
   /**
@@ -102,8 +139,8 @@ object Checker:
       else
         val argTypes = valueTypes.takeRight(paramTypes.size)
         val agree =
-          paramTypes.zip(argTypes).forall: (tp1, tp2) =>
-            matches(tp1, tp2)
+          argTypes.zip(paramTypes).forall: (tp1, tp2) =>
+            conforms(tp1, tp2)
 
         if !agree then
           Reporter.error(

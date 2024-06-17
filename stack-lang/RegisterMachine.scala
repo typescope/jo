@@ -97,7 +97,7 @@ extends Backend:
     cb.add(Instr.Jump(symbolAddrMap(main)))
 
     cb.mark(endLabel)
-    exit(0)(cb)
+    exit(Int32(0))(cb)
 
   def load(loc: Location, dest: Int)(using Context): Unit =
     loc match
@@ -172,6 +172,7 @@ extends Backend:
         compile(ifword.thenp)
 
         if ifword.tpe.isVoid then
+
           if !ifword.elsep.isEmpty then
             gen(Instr.Jump(labelEnd))
             gen(labelFalse)
@@ -217,10 +218,15 @@ extends Backend:
     gen(Instr.Jump(labelBegin))
     gen(labelEnd)
 
+  def compile(encoded: Encoded)(using ctx: Context): Unit =
+     compile(encoded.repr)
+     if encoded.isValueDrop then
+       ctx.vs.pop()
+
   // TODO: platform-agnostic
-  def exit(code: Int)(cb: CodeBuffer): Unit =
+  def exit(code: Operand)(cb: CodeBuffer): Unit =
     // TODO: abstract over target buffer using context
-    cb.add(Instr.Move(Int32(code), X86.EBX))  // exit code
+    cb.add(Instr.Move(code, X86.EBX))  // exit code
     cb.add(Instr.Move(Int32(1), X86.EAX))     // syscall number
     cb.add(Instr.Special(X86.Syscall))        // syscall
 
@@ -391,7 +397,7 @@ extends Backend:
 
   /** Compile [x = 3, y = 5] */
   def compile(record: RecordLit)(using ctx: Context): Unit =
-    val recordType = record.tpe.asInstanceOf[Type.Record]
+    val recordType = record.tpe.asRecordType
     val size = Memory.size(recordType)
 
     alloc(size)
@@ -409,7 +415,7 @@ extends Backend:
   /** Compile p.x */
   def compile(select: Select)(using ctx: Context): Unit =
     val field = select.name
-    val qualType = select.qual.tpe.dealias.asInstanceOf[Type.Record]
+    val qualType = select.qual.tpe.asRecordType
     val offset = Memory.fieldOffset(qualType, field)
 
     compile(select.qual)
@@ -461,6 +467,7 @@ extends Backend:
       case predef.bnot   =>   bnot()
       case predef.eql    =>   eql()
       case predef.p      =>   call(predef.p)
+      case runtime.abort =>   abort()
       case _             =>   throw new Exception("Unknown primitive: " + sym.name)
   end primitive
 
@@ -499,6 +506,16 @@ extends Backend:
     val reg = freshVirtualReg()
     gen(Instr.Eq(ctx.vs.pop(), ctx.vs.pop(), reg))
     ctx.vs.push(Reg(reg))
+
+  def abort()(using ctx: Context) =
+    val v = ctx.vs.pop()
+    gen(Instr.Move(v, X86.EBX))            // exit code
+    gen(Instr.Move(Int32(1), X86.EAX))     // syscall number
+    gen(Instr.Special(X86.Syscall))        // syscall
+
+    // return a dummy value for compiler invariant -- abort never returns
+    ctx.vs.push(Int32(-1))
+
 end RegisterMachine
 
 object RegisterMachine:
@@ -517,8 +534,6 @@ object RegisterMachine:
       slice.toSeq
 
     def push(v: Operand): Unit = stack.append(v)
-
-    def clear() = stack.clear()
 
     def size: Int = stack.size
 

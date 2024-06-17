@@ -9,24 +9,25 @@ import scala.collection.immutable.ListMap
   * are structurally the same.
   */
 object Types:
-  sealed trait Type:
+  sealed abstract class Type:
     def isError: Boolean = this == Type.Error
 
     def isVoid: Boolean = this == Type.Void
 
+    def isBottom: Boolean = this == Type.Bottom
+
     def isTypeRef: Boolean = this.isInstanceOf[Type.TypeRef]
 
     def isRecordType: Boolean =
-      this match
-        case _: Type.Record => true
-        case Type.TypeRef(sym) => sym.info.isRecordType
-        case _ => false
+      this.dealias.isInstanceOf[Type.Record]
+
+    def isUnionType: Boolean =
+      this.dealias.isInstanceOf[Type.Union]
 
     def isValueType: Boolean =
       this match
-        case Type.Int | Type.Bool | Type.Error => true
-        case _: Type.TypeRef | _: Type.Record => true
-        case _ => false
+        case Type.Void | _: Type.Proc => false
+        case _ => true
 
     def resultType: Type =
       this match
@@ -34,33 +35,58 @@ object Types:
         case _ => throw new Exception("Not a proc type: " + this)
 
     def hasField(name: String): Boolean =
-      this match
-        case Type.Record(fields) => fields.contains(name)
-        case Type.TypeRef(sym) => sym.info.hasField(name)
-        case _ => false
+      val Type.Record(fields) = this.asRecordType
+      fields.contains(name)
 
     def fieldType(name: String): Type =
+      val Type.Record(fields) = this.asRecordType
+      fields.get(name) match
+        case Some(tp) => tp
+        case None =>
+          throw new Exception("No such field " + name + " in " + this)
+
+    def hasTag(tag: String): Boolean =
       this match
-        case Type.Record(fields) =>
-          fields.get(name) match
-            case Some(tp) => tp
-            case None =>
-              throw new Exception("No such field " + name + " in " + this)
+        case Type.Union(branches) => branches.contains(tag)
+        case Type.TypeRef(sym) => sym.info.hasTag(tag)
+        case _ => false
 
-        case Type.TypeRef(sym) => sym.info.fieldType(name)
+    def tagType(tag: String): Type =
+      val Type.Union(branches) = this.asUnionType
+      branches.get(tag) match
+        case Some(tp) => tp
+        case None =>
+          throw new Exception("No such tag " + tag + " in " + this)
 
-        case _ => throw new Exception("Not a record type: " + this)
+    def tagIndex(tag: String): Int =
+      val Type.Union(branches) = this.asUnionType
+      branches.keys.toList.indexOf(tag) match
+        case -1 =>
+          throw new Exception("No such tag " + tag + " in " + this)
+        case n =>
+          n
+
+    def tags: List[String] =
+      val Type.Union(branches) = this.asUnionType
+      branches.keys.toList
 
     def dealias: Type =
       this match
         case Type.TypeRef(sym) => sym.info.dealias
         case _ => this
 
+    def asRecordType: Type.Record = this.dealias.asInstanceOf[Type.Record]
+
+    def asUnionType: Type.Union = this.dealias.asInstanceOf[Type.Union]
+
   object Type:
     case object Int extends Type
+
     case object Bool extends Type
 
     case object Void extends Type
+
+    case object Bottom extends Type
 
     case object Error extends Type
 
@@ -71,16 +97,43 @@ object Types:
       override def toString =
         "[" + fields.map(_ + ": " + _).mkString(", ") + "]"
 
+    case class Union(branches: ListMap[String, Type]) extends Type:
+      override def toString =
+        "<" + branches.map(_ + " " + _).mkString(", ") + ">"
+
     case class Proc(
       names: List[String], paramTypes: List[Type], resType: Type)
     extends Type:
       val paramCount = paramTypes.size
       val resCount = if resType.isValueType then 1 else 0
 
-  // TODO: handle non-termination
-  def matches(tp1: Type, tp2: Type): Boolean =
+  /** Whether `tp1` conforms to `tp2`.
+    *
+    * TODO: handle non-termination with recursive type
+    */
+  def conforms(tp1: Type, tp2: Type): Boolean =
     tp1.isError
     || tp2.isError
+    || tp1.isBottom
     || tp1 == tp2
-    || tp1.isTypeRef && matches(tp1.dealias, tp2)
-    || tp2.isTypeRef && matches(tp1, tp2.dealias)
+    || tp1.isTypeRef && conforms(tp1.dealias, tp2)
+    || tp2.isTypeRef && conforms(tp1, tp2.dealias)
+
+
+  /** The common result type of two different types.
+    *
+    * This method is used to compute the result type of if- and match-
+    * expressions.
+    *
+    * The logic is different from computing join in the subtype lattice:
+    *
+    * - Type.Error always dominates
+    * - Type.Void dominates Type.Bottom
+    */
+  def commonResultType(tp1: Type, tp2: Type): Option[Type] =
+    if tp1.isError || tp2.isError then Some(Type.Error)
+    else if tp1.isVoid && tp2.isBottom then Some(Type.Void)
+    else if tp1.isBottom && tp2.isVoid then Some(Type.Void)
+    else if conforms(tp1, tp2) then Some(tp2)
+    else if conforms(tp2, tp1) then Some(tp1)
+    else None
