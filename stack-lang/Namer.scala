@@ -231,11 +231,30 @@ class Namer(using Reporter):
     val bindAssign = Assign(scrutSym, scrutinee2)(scrutinee.pos)
     sc2.define(scrutSym, scrutinee.pos)
 
-    def transformCases(cases: List[Ast.Case], resType: Type): Word =
+    val allTags = if scrutType.isUnionType then scrutType.tags else Nil
+
+    def subtractPattern(tags: List[String], pat: Ast.Pattern): List[String] =
+      if tags.isEmpty then
+        Reporter.error("The case is unreachable", pat.pos)
+        Nil
+      else pat match
+        case Ast.Wildcard() => Nil
+        case Ast.TagPat(Ast.Ident(name), _) =>
+          if tags.contains(name) then
+            tags.filter(_ != name)
+          else
+            if allTags.contains(name) then
+              Reporter.error("The case is unreachable", pat.pos)
+            tags
+
+    def transformCases(cases: List[Ast.Case], resType: Type, tagsRest: List[String]): Word =
       cases match
         case caseDef :: rest =>
-          transform(scrutIdent, caseDef, resType, tp => transformCases(rest, tp))(using sc2)
+          val tagsRest2 = subtractPattern(tagsRest, caseDef.pat)
+          transform(scrutIdent, caseDef, resType, tp => transformCases(rest, tp, tagsRest2))(using sc2)
         case Nil =>
+          if tagsRest.nonEmpty then
+            Reporter.error("Unmatched case(s): " + tagsRest.mkString(", "), scrutIdent.pos)
           // abort
           val words =
             IntLit(1)(scrutIdent.pos)
@@ -245,7 +264,7 @@ class Namer(using Reporter):
           checker.adapt(res, resType, patmat.pos)
       end match
 
-    val body = transformCases(cases, Type.Bottom)
+    val body = transformCases(cases, Type.Bottom, allTags)
     Phrase(bindAssign :: body :: Nil)(body.tpe, patmat.pos)
 
   private def transform

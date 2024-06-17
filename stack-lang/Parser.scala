@@ -530,8 +530,8 @@ object Parsing:
          val span1 = eat(Token.TAG)
          val tag = ident()
          peek() match
-           case (Token.RARROW, span) =>
-             TagPat(tag, bindings = Nil)(span)
+           case (Token.RARROW, _) =>
+             TagPat(tag, bindings = Nil)(span1 | tag.pos)
 
            case (_: Token.Ident, _) =>
              val binding = ident()

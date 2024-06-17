@@ -19,16 +19,10 @@ object Types:
     def isTypeRef: Boolean = this.isInstanceOf[Type.TypeRef]
 
     def isRecordType: Boolean =
-      this match
-        case _: Type.Record => true
-        case Type.TypeRef(sym) => sym.info.isRecordType
-        case _ => false
+      this.dealias.isInstanceOf[Type.Record]
 
     def isUnionType: Boolean =
-      this match
-        case _: Type.Union => true
-        case Type.TypeRef(sym) => sym.info.isUnionType
-        case _ => false
+      this.dealias.isInstanceOf[Type.Union]
 
     def isValueType: Boolean =
       this match
@@ -71,6 +65,10 @@ object Types:
           throw new Exception("No such tag " + tag + " in " + this)
         case n =>
           n
+
+    def tags: List[String] =
+      val Type.Union(branches) = this.asUnionType
+      branches.keys.toList
 
     def dealias: Type =
       this match
