@@ -83,7 +83,7 @@ extends Backend:
     */
   def compile(fdef: Fun)(using Context): Unit =
     val sym = fdef.symbol
-    val funType = sym.info.asInstanceOf[Type.Proc]
+    val funType = sym.info.asProcType
     val label = symbolAddrMap(sym).asInstanceOf[Label]
 
     val paramCount = funType.paramCount
@@ -207,7 +207,7 @@ extends Backend:
     */
   def call(fun: Symbol)(using Context) =
     val addr = symbolAddrMap(fun).asInstanceOf[Label]
-    val funType = fun.info.asInstanceOf[Type.Proc]
+    val funType = fun.info.asProcType
     val argCount = funType.paramCount
     val resCount = funType.resCount
     val returnLoc = Label("returnLoc")

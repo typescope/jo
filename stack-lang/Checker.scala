@@ -34,10 +34,11 @@ class Checker(using Reporter):
       case Ident(sym) =>
         val info = sym.info
 
-        info match
-          case tp: Type.Proc => vs.call(sym, tp, word.pos)
+        if info.isProcType then
+          vs.call(sym, info.asProcType, word.pos)
 
-          case _ => if info.isValueType then vs.push(info)
+        else if info.isValueType then
+          vs.push(info)
 
       case Phrase(words) =>
         check(words)

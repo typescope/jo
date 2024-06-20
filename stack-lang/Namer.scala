@@ -5,6 +5,7 @@ import Sast.*
 import Types.*
 import Symbols.*
 import Reporter.Span
+import Namer.{ Scope, DelayedTask, errorSymbol }
 
 /**
   * The namer handles name resolution and desugaring.
@@ -13,8 +14,6 @@ import Reporter.Span
   */
 class Namer(using Reporter):
   val checker = new Checker
-
-  val errorSymbol = Symbol.createFunSymbol("error", Type.Error)
 
   def transform(prog: Ast.Prog): Sast.Prog =
     val rootScope = new Scope.RootScope()
@@ -30,7 +29,7 @@ class Namer(using Reporter):
 
     // Prepare scope according to scoping rules
     val sc = rootScope.fresh()
-    for defn <- prog.defs do index(defn)(using sc)
+    index(prog.defs)(using sc)
 
     val funs = new mutable.ArrayBuffer[Fun]
     val inits = new mutable.ArrayBuffer[Assign]
@@ -65,33 +64,64 @@ class Namer(using Reporter):
 
     Prog(funs.toList, inits.map(_.symbol).toList, mainSym)
 
-  private def index(defn: Ast.Def)(using sc: Scope) =
-   defn match
-     case vdef: Ast.ValDef =>
-       val tpe = transform(vdef.typ)(using sc)
-       checker.expectValueType(tpe, vdef.typ.pos)
-       val flags = if vdef.mutable then Flag.Mutable else Flag.empty
-       val sym = Symbol.createValueSymbol(defn.name, tpe, flags)
-       sc.define(sym, defn.pos)
+  private def index(defs: List[Ast.Def])(using sc: Scope): Unit =
+    val tasks = new mutable.ArrayBuffer[DelayedTask]
 
-     case funDef: Ast.FunDef =>
-       val paramNames = funDef.params.map(_.name)
-       val paramTypes =
-         for param <- funDef.params yield
-           val paramType = transform(param.typ)(using sc)
-           checker.expectValueType(paramType, param.typ.pos)
-           paramType
+    for defn <- defs do
+      tasks += index(defn)
 
-       val resType = transform(funDef.resType)(using sc)
-       val funType = Type.Proc(paramNames, paramTypes, resType)
-       val sym = Symbol.createFunSymbol(defn.name, funType)
-       sc.define(sym, defn.pos)
+    for task <- tasks do
+      val typ = task.check()
+      task.holder.complete(typ)
 
-     case tdef: Ast.TypeDef =>
-       // TODO: fix scope of type definitions or make type checking lazy
-       val info = transform(tdef.rhs)(using sc)
-       val sym = Symbol.createTypeSymbol(defn.name, info)
-       sc.define(sym, defn.pos, isType = true)
+  private def index(defn: Ast.Def)(using sc: Scope): DelayedTask =
+
+    // Maybe first try eager --- if failed, try delay as last resort?
+    // It's not worh the complexity
+    val delayedType = Type.Delayed()
+
+    defn match
+      case vdef: Ast.ValDef =>
+        val flags = if vdef.mutable then Flag.Mutable else Flag.empty
+        val sym = Symbol.createValueSymbol(defn.name, delayedType, flags)
+        sc.define(sym, defn.pos)
+
+        val delayedCheck = () =>
+          val tpe = transform(vdef.typ)(using sc)
+          checker.expectValueType(tpe, vdef.typ.pos)
+          tpe
+
+        DelayedTask(sym, delayedCheck, delayedType)
+
+      case funDef: Ast.FunDef =>
+        val sym = Symbol.createFunSymbol(defn.name, delayedType)
+        sc.define(sym, defn.pos)
+
+        val delayedCheck = () =>
+          val paramNames = funDef.params.map(_.name)
+          val paramTypes =
+            for param <- funDef.params yield
+              val paramType = transform(param.typ)(using sc)
+              checker.expectValueType(paramType, param.typ.pos)
+              paramType
+
+          val resType = transform(funDef.resType)(using sc)
+          Type.Proc(paramNames, paramTypes, resType)
+
+        DelayedTask(sym, delayedCheck, delayedType)
+
+      case tdef: Ast.TypeDef =>
+        val sym = Symbol.createTypeSymbol(defn.name, delayedType)
+        sc.define(sym, defn.pos, isType = true)
+
+        val delayedCheck = () =>
+          val info = transform(tdef.rhs)(using sc)
+          checker.expectValueType(info, tdef.rhs.pos)
+          info
+
+        DelayedTask(sym, delayedCheck, delayedType)
+    end match
+  end index
 
   private def transform(word: Ast.Word)(using sc: Scope): Word =
     word match
@@ -332,16 +362,12 @@ class Namer(using Reporter):
   private def transform(phrase: Ast.Phrase)(using sc: Scope): Phrase =
     val sc2 = sc.fresh()
 
-    for tdef <- phrase.tdefs do
-      // TODO: fix scope of type definitions or make type checking lazy
-      val info = transform(tdef.rhs)(using sc2)
-      val sym = Symbol.createTypeSymbol(tdef.name, info)
-      sc.define(sym, tdef.pos, isType = true)
+    index(phrase.tdefs)(using sc2)
 
     val wordsTyped = phrase.words.flatMap: word =>
-        transform(word)(using sc2) match
-          case Phrase(Nil) => Nil
-          case word => word :: Nil
+      transform(word)(using sc2) match
+        case Phrase(Nil) => Nil
+        case word => word :: Nil
 
     val vs = new Checker.ValueStack
     checker.check(wordsTyped)(using vs)
@@ -412,6 +438,12 @@ class Namer(using Reporter):
         end for
         Type.Union(immutable.ListMap.from(branchTypes))
 
+object Namer:
+  val errorSymbol = Symbol.createFunSymbol("error", Type.Error)
+
+  private class DelayedTask
+    (val sym: Symbol, val check: () => Type, val holder: Type.Delayed)
+
   private enum Scope:
     case RootScope()
     case NestedScope(outer: Scope, definedHandler: Symbol => Unit)
@@ -446,14 +478,14 @@ class Namer(using Reporter):
 
         case res  => res
 
-    def resolve(name: String, span: Span, isType: Boolean = false): Symbol =
+    def resolve(name: String, span: Span, isType: Boolean = false)(using Reporter): Symbol =
       resolve(name, isType) match
         case Some(sym) => sym
         case None =>
           Reporter.error("Undefined identifier " + name, span)
           errorSymbol
 
-    def define(sym: Symbol, span: Span, isType: Boolean = false): Unit =
+    def define(sym: Symbol, span: Span, isType: Boolean = false)(using Reporter): Unit =
       val table = getTable(isType)
       table.get(sym.name) match
         case None =>
