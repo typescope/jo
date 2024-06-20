@@ -1,6 +1,5 @@
 import Symbols.Symbol
 
-import scala.collection.immutable.ListMap
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
@@ -135,7 +134,6 @@ object Types:
 
     /** Delayed type for symbols to enable type inference and recursive types */
     case class Delayed() extends Type:
-      // TODO: change equals and hash
       private var _underlying: Type = null
 
       def complete(tpe: Type): Unit =
@@ -148,9 +146,23 @@ object Types:
         assert(_underlying != null)
         _underlying
 
+      override def equals(that: Any): Boolean =
+        if !isComplete then false
+        else
+          that match
+            case tp: Delayed =>
+              tp.isComplete && tp.underlying == this.underlying
+
+            case _ =>
+              false
+          end match
+
+      override def hashCode(): Int =
+        if !isComplete then throw new Exception("Hashing incomplete type")
+        else underlying.hashCode
+
       override def toString =
         "Delayed(" + _underlying + ")"
-
 
 
   /** Whether `tp1` conforms to `tp2`.
@@ -188,7 +200,7 @@ object Types:
     */
   private type Assumptions = Map[Symbol, List[Symbol]]
 
-  private def checkConforms(tp1: Type, tp2: Type)(using Assumptions): Boolean =
+  private def checkConforms(tp1: Type, tp2: Type)(using ass: Assumptions): Boolean =
     tp1.isError
     || tp2.isError
     || tp1.isBottom

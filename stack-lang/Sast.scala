@@ -1,5 +1,4 @@
 import scala.collection.mutable
-import scala.collection.immutable.ListMap
 
 import Symbols.*
 import Types.*

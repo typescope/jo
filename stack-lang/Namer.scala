@@ -1,5 +1,4 @@
 import scala.collection.mutable
-import scala.collection.immutable
 
 import Sast.*
 import Types.*
@@ -209,16 +208,16 @@ class Namer(using Reporter):
 
   private def transform(record: Ast.RecordLit)(using sc: Scope): Word =
     val Ast.RecordLit(namedArgs) = record
-    val namedArgs2 = new mutable.ListMap[String, Phrase]
+    val namedArgs2 = new mutable.ArrayBuffer[(String, Phrase)]
     for Ast.NamedArg(id, rhs) <- namedArgs do
-      if namedArgs2.contains(id.name) then
+      if namedArgs2.exists(_._1 == id.name) then
         Reporter.error("Arg " + id.name + " already defined", id.pos)
       else
         val rhs2 = transform(rhs)
         checker.expectValueType(rhs2)
         namedArgs2 += id.name -> rhs2
     end for
-    val fields = namedArgs2.toList.reverse
+    val fields = namedArgs2.toList
     val tpe = Type.Record(fields.map { case (k, v) => k -> v.tpe })
     RecordLit(fields)(tpe, record.pos)
 
@@ -423,24 +422,26 @@ class Namer(using Reporter):
             Type.Error
 
       case Ast.RecordType(fields) =>
-        val fieldTypes = new mutable.ListMap[String, Type]
+        val fieldTypes = new mutable.ArrayBuffer[(String, Type)]
         for field <- fields do
-          if fieldTypes.contains(field.name) then
+          if fieldTypes.exists(_._1 == field.name) then
             Reporter.error("Field " + field.name + " already defined", field.pos)
           else
             fieldTypes += field.name -> transform(field.typ)
         end for
-        Type.Record(fieldTypes.toList.reverse)
+        val res = Type.Record(fieldTypes.toList)
+        println(res)
+        res
 
       case Ast.UnionType(branches) =>
-        val branchTypes = new mutable.ListMap[String, Type]
+        val branchTypes = new mutable.ArrayBuffer[(String, Type)]
         for branch <- branches do
-          if branchTypes.contains(branch.name) then
+          if branchTypes.exists(_._1 == branch.name) then
             Reporter.error("Branch " + branch.name + " already defined", branch.pos)
           else
             branchTypes += branch.name -> transform(branch.typ)
         end for
-        Type.Union(branchTypes.toList.reverse)
+        Type.Union(branchTypes.toList)
 
 object Namer:
   val errorSymbol = Symbol.createFunSymbol("error", Type.Error)
