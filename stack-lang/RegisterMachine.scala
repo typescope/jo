@@ -124,7 +124,7 @@ extends Backend:
 
     // TODO: bind retLoc
     val proto @ CalleeProtocol(paramLocs, retLoc, resLocs, savedRegs) =
-      callConvention.callee(sym.info.asInstanceOf[Type.Proc])
+      callConvention.callee(sym.info.asProcType)
 
     // Compile function to a temporary buffer for register allocation
     gen(PlaceHolder.InitStackPointer)
@@ -251,7 +251,7 @@ extends Backend:
   /** Call the funtion */
   def call(fun: Symbol)(using ctx: Context) =
     val target = symbolAddrMap(fun).asInstanceOf[Label]
-    val funType = fun.info.asInstanceOf[Type.Proc]
+    val funType = fun.info.asProcType
     val argCount = funType.paramCount
     val resCount = funType.resCount
 

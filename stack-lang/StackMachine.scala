@@ -83,7 +83,7 @@ extends Backend:
     */
   def compile(fdef: Fun)(using Context): Unit =
     val sym = fdef.symbol
-    val funType = sym.info.asInstanceOf[Type.Proc]
+    val funType = sym.info.asProcType
     val label = symbolAddrMap(sym).asInstanceOf[Label]
 
     val paramCount = funType.paramCount
@@ -207,7 +207,7 @@ extends Backend:
     */
   def call(fun: Symbol)(using Context) =
     val addr = symbolAddrMap(fun).asInstanceOf[Label]
-    val funType = fun.info.asInstanceOf[Type.Proc]
+    val funType = fun.info.asProcType
     val argCount = funType.paramCount
     val resCount = funType.resCount
     val returnLoc = Label("returnLoc")
@@ -347,16 +347,16 @@ extends Backend:
     val size = Memory.size(recordType)
 
     alloc(size)
-    useTwoReg: (r1, r2) =>
-      for (name, rhs) <- record.args do
-        dup()
-        compile(rhs)
+    for (name, rhs) <- record.args do
+      dup()
+      compile(rhs)
+      useTwoReg: (r1, r2) =>
         pop(r2)
         pop(r1)
         val offset = Memory.fieldOffset(recordType, name)
         val fieldAddr = Rel(r1, offset)
         cb.add(Instr.Store(Reg(r2), fieldAddr))
-      end for
+    end for
 
   /** Compile p.x */
   def compile(select: Select)(using Context): Unit =
