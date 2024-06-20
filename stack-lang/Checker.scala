@@ -61,33 +61,39 @@ class Checker(using Reporter):
     if !qualType.isRecordType then
       Reporter.error(s"Expect record type, found = $qualType", pos)
       Type.Error
-    else if !qualType.hasField(field) then
-      Reporter.error(s"Expect field $field in record type $qualType, found none", pos)
-      Type.Error
     else
-      qualType.fieldType(field)
+      val recordType = qualType.asRecordType
+      if !recordType.hasField(field) then
+        Reporter.error(s"Expect field $field in record type $recordType, found none", pos)
+        Type.Error
+      else
+        recordType.fieldType(field)
 
-  def checkTagValue(tag: Ast.Ident, value: Phrase, unionType: Type, typePos: Span): Type =
-    if !unionType.isUnionType then
-      Reporter.error(s"Expect union type, found = $unionType", typePos)
-      Type.Error
-    else if !unionType.hasTag(tag.name) then
-      Reporter.error(s"The tag ${tag.name} does not exist in union type $unionType", tag.pos)
+  def checkTagValue(tag: Ast.Ident, value: Phrase, targetType: Type, typePos: Span): Type =
+    if !targetType.isUnionType then
+      Reporter.error(s"Expect union type, found = $targetType", typePos)
       Type.Error
     else
-      val tagType = unionType.tagType(tag.name)
-      expect(value, tagType)
-      tagType
+      val unionType = targetType.asUnionType
+      if !unionType.hasTag(tag.name) then
+        Reporter.error(s"The tag ${tag.name} does not exist in union type $unionType", tag.pos)
+        Type.Error
+      else
+        val tagType = unionType.tagType(tag.name)
+        expect(value, tagType)
+        tagType
 
   def tagType(tag: Ast.Ident, unionType: Type, typePos: Span): Type =
     if !unionType.isUnionType then
       Reporter.error(s"Expect union type, found = $unionType", typePos)
       Type.Error
-    else if !unionType.hasTag(tag.name) then
-      Reporter.error(s"The tag ${tag.name} does not exist in union type $unionType", tag.pos)
-      Type.Error
     else
-      unionType.tagType(tag.name)
+      val unionType2 = unionType.asUnionType
+      if !unionType2.hasTag(tag.name) then
+        Reporter.error(s"The tag ${tag.name} does not exist in union type $unionType2", tag.pos)
+        Type.Error
+      else
+        unionType2.tagType(tag.name)
 
   /** Explicit drop of values in if/match expressions */
   def adapt(word: Word, otherType: Type, pos: Span): Word =

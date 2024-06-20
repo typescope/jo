@@ -35,7 +35,7 @@ object Sast:
     def tpe: Type = Type.Bool
 
   case class RecordLit
-    (args: ListMap[String, Phrase])
+    (args: List[(String, Phrase)])
     (val tpe: Type, val pos: Span)
   extends Word
 

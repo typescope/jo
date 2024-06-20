@@ -218,7 +218,7 @@ class Namer(using Reporter):
         checker.expectValueType(rhs2)
         namedArgs2 += id.name -> rhs2
     end for
-    val fields = immutable.ListMap.from(namedArgs2)
+    val fields = namedArgs2.toList.reverse
     val tpe = Type.Record(fields.map { case (k, v) => k -> v.tpe })
     RecordLit(fields)(tpe, record.pos)
 
@@ -231,22 +231,22 @@ class Namer(using Reporter):
     // encode variants as records
     val tagIndex =
       if tagType.isError then -1
-      else unionType.tagIndex(tag.name)
+      else unionType.asUnionType.tagIndex(tag.name)
 
     val tagValue = Phrase(IntLit(tagIndex)(tag.pos))
 
     val fields =
       if tagType.isVoid then
-        immutable.ListMap("tag" -> tagValue)
+        List("tag" -> tagValue)
       else
-        immutable.ListMap("tag" -> tagValue, "value" -> value2)
+        List("tag" -> tagValue, "value" -> value2)
 
     // desugar variant to record
     val fieldTypes =
       if tagType.isVoid then
-        immutable.ListMap("tag" -> Type.Int)
+        List("tag" -> Type.Int)
       else
-        immutable.ListMap("tag" -> Type.Int, "value" -> tagType)
+        List("tag" -> Type.Int, "value" -> tagType)
 
     val encodeType = Type.Record(fieldTypes)
 
@@ -265,7 +265,7 @@ class Namer(using Reporter):
     val bindAssign = Assign(scrutSym, scrutinee2)(scrutinee.pos)
     sc2.define(scrutSym, scrutinee.pos)
 
-    val allTags = if scrutType.isUnionType then scrutType.tags else Nil
+    val allTags = if scrutType.isUnionType then scrutType.asUnionType.tags else Nil
 
     def subtractPattern(tags: List[String], pat: Ast.Pattern): List[String] =
       if tags.isEmpty then
@@ -332,7 +332,7 @@ class Namer(using Reporter):
           cont(Type.Bottom)
 
         else
-          val fieldTypes = immutable.ListMap("tag" -> Type.Int, "value" -> tagType)
+          val fieldTypes = List("tag" -> Type.Int, "value" -> tagType)
           val encodeType = Type.Record(fieldTypes)
           val encodedScrut = Encoded(scrut)(encodeType)
           val tagFieldSel = Select(encodedScrut, "tag")(Type.Int, tag.pos)
@@ -346,7 +346,7 @@ class Namer(using Reporter):
 
           val tagIndex =
             if tagType.isError then -1
-            else scrutType.tagIndex(tag.name)
+            else scrutType.asUnionType.tagIndex(tag.name)
 
           val condWords =
             tagFieldSel
@@ -430,7 +430,7 @@ class Namer(using Reporter):
           else
             fieldTypes += field.name -> transform(field.typ)
         end for
-        Type.Record(immutable.ListMap.from(fieldTypes))
+        Type.Record(fieldTypes.toList.reverse)
 
       case Ast.UnionType(branches) =>
         val branchTypes = new mutable.ListMap[String, Type]
@@ -440,7 +440,7 @@ class Namer(using Reporter):
           else
             branchTypes += branch.name -> transform(branch.typ)
         end for
-        Type.Union(immutable.ListMap.from(branchTypes))
+        Type.Union(branchTypes.toList.reverse)
 
 object Namer:
   val errorSymbol = Symbol.createFunSymbol("error", Type.Error)
