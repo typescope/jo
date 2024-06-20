@@ -207,8 +207,8 @@ object Types:
     || tp1 == tp2
     || tp1.is[Type.TypeRef] && tp2.is[Type.TypeRef]
        && checkConformsTypeRef(tp1.as[Type.TypeRef], tp2.as[Type.TypeRef])
-    || tp1.is[Type.TypeRef] && checkConforms(tp1.dealias, tp2)
-    || tp2.is[Type.TypeRef] && checkConforms(tp1, tp2.dealias)
+    || tp1.is[Type.TypeRef] && tp1.dealias != tp1 && checkConforms(tp1.dealias, tp2)
+    || tp2.is[Type.TypeRef] && tp2.dealias != tp2 && checkConforms(tp1, tp2.dealias)
     || tp1.is[Type.Delayed] && checkConforms(tp1.underlying, tp2)
     || tp2.is[Type.Delayed] && checkConforms(tp1, tp2.underlying)
     || tp1.is[Type.Record] && tp2.is[Type.Record]

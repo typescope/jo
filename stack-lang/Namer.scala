@@ -429,9 +429,7 @@ class Namer(using Reporter):
           else
             fieldTypes += field.name -> transform(field.typ)
         end for
-        val res = Type.Record(fieldTypes.toList)
-        println(res)
-        res
+        Type.Record(fieldTypes.toList)
 
       case Ast.UnionType(branches) =>
         val branchTypes = new mutable.ArrayBuffer[(String, Type)]
