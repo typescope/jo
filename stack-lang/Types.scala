@@ -170,7 +170,34 @@ object Types:
   def conforms(tp1: Type, tp2: Type): Boolean =
     checkConforms(tp1,tp2)(using Map.empty)
 
+  /** The assumption that a type A is a subtype of B
+    *
+    * In essence, the subtyping follows Amber's rule for recursive types.
+    *
+    *                    Γ, α <: β ⊢ S <: T
+    *                   ---------------------
+    *                      μα.S  <: μβ.T
+    *
+    * The rule is sound and sufficiently expressive in pratical usage. For
+    * example, it rules out that μα.α → ⊥ is a subtype of μβ.β → ⊤.
+    *
+    * However, it cannot prove that μα.α → Int is a subtype of μβ.β → Int. The
+    * original paper includes a rule that takes equality of recursive types
+    * into consideration:
+    *
+    *                         A = B
+    *                    ----------------
+    *                       Γ ⊢ A <: B
+    *
+    * The equality above is defined not syntatically but semantically. Such
+    * equality is only theoretically motivated, thus it is not implemented in
+    * the current language.
+    *
+    * - Paper: Subtyping recursive types, Roberto M. Amadio, Luca Cardelli, 1993
+    * - Link: https://dl.acm.org/doi/10.1145/155183.155231
+    */
   private type Assumptions = Map[Symbol, List[Symbol]]
+
   private def checkConforms(tp1: Type, tp2: Type)(using Assumptions): Boolean =
     tp1.isError
     || tp2.isError
