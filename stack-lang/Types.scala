@@ -1,6 +1,8 @@
 import Symbols.Symbol
 
 import scala.collection.immutable.ListMap
+import scala.collection.mutable
+import scala.reflect.ClassTag
 
 /** The type system of Stk.
   *
@@ -15,10 +17,6 @@ object Types:
     def isVoid: Boolean = this == Type.Void
 
     def isBottom: Boolean = this == Type.Bottom
-
-    def isTypeRef: Boolean = this.isInstanceOf[Type.TypeRef]
-
-    def isDelayed: Boolean = this.isInstanceOf[Type.Delayed]
 
     def isRecordType: Boolean =
       this.dealias.isInstanceOf[Type.Record]
@@ -38,6 +36,13 @@ object Types:
     def asUnionType: Type.Union = this.dealias.asInstanceOf[Type.Union]
 
     def asProcType: Type.Proc = this.dealias.asInstanceOf[Type.Proc]
+
+    def is[T <: Type : ClassTag]: Boolean =
+      this match
+        case tp: T => true
+        case _     => false
+
+    def as[T <: Type]: T = this.asInstanceOf[T]
 
     def resultType: Type =
       this.underlying match
@@ -85,10 +90,23 @@ object Types:
       val Type.Union(branches) = this.asUnionType
       branches.keys.toList
 
+    /** Transitively eliminate type aliases and delayed types */
     def dealias: Type =
-      this.underlying match
-        case Type.TypeRef(sym) => sym.info.dealias
-        case tp => tp
+      // detect cycles in symbol definitions, e.g., type A = A
+      val encountered = new mutable.ArrayBuffer[Symbol]
+      def recur(tp: Type): Type =
+        tp.underlying match
+          case tref @ Type.TypeRef(sym) =>
+            if encountered.contains(sym) then
+              tref
+            else
+              encountered += sym
+              recur(sym.info)
+            end if
+
+          case tp => tp
+      end recur
+      recur(this)
 
   object Type:
     case object Int extends Type
@@ -143,27 +161,48 @@ object Types:
       override def toString =
         "Delayed(" + _underlying + ")"
 
+
+
   /** Whether `tp1` conforms to `tp2`.
     *
     * TODO: handle non-termination with recursive type
     */
   def conforms(tp1: Type, tp2: Type): Boolean =
+    checkConforms(tp1,tp2)(using Map.empty)
+
+  private type Assumptions = Map[Symbol, List[Symbol]]
+  private def checkConforms(tp1: Type, tp2: Type)(using Assumptions): Boolean =
     tp1.isError
     || tp2.isError
     || tp1.isBottom
     || tp1 == tp2
-    || tp1.isTypeRef && conforms(tp1.dealias, tp2)
-    || tp2.isTypeRef && conforms(tp1, tp2.dealias)
-    || tp1.isDelayed && conforms(tp1.underlying, tp2)
-    || tp2.isDelayed && conforms(tp1, tp2.underlying)
-    || tp1.isRecordType && tp2.isRecordType
-       && conformsRecordType(tp1.asRecordType, tp2.asRecordType)
+    || tp1.is[Type.TypeRef] && tp2.is[Type.TypeRef]
+       && checkConformsTypeRef(tp1.as[Type.TypeRef], tp2.as[Type.TypeRef])
+    || tp1.is[Type.TypeRef] && checkConforms(tp1.dealias, tp2)
+    || tp2.is[Type.TypeRef] && checkConforms(tp1, tp2.dealias)
+    || tp1.is[Type.Delayed] && checkConforms(tp1.underlying, tp2)
+    || tp2.is[Type.Delayed] && checkConforms(tp1, tp2.underlying)
+    || tp1.is[Type.Record] && tp2.is[Type.Record]
+       && checkConformsRecordType(tp1.as[Type.Record], tp2.as[Type.Record])
 
-  def conformsRecordType(tp1: Type.Record, tp2: Type.Record): Boolean =
+  private def checkConformsTypeRef(tp1: Type.TypeRef, tp2: Type.TypeRef)(using ass: Assumptions): Boolean =
+    ass.get(tp1.symbol) match
+      case Some(syms) =>
+        if syms.contains(tp2.symbol) then
+          true
+        else
+          val ass2 = ass.updated(tp1.symbol, tp2.symbol :: syms)
+          checkConforms(tp1.symbol.info, tp2.symbol.info)(using ass2)
+
+      case None =>
+        val ass2 = ass.updated(tp1.symbol, tp2.symbol :: Nil)
+        checkConforms(tp1.symbol.info, tp2.symbol.info)(using ass2)
+
+  private def checkConformsRecordType(tp1: Type.Record, tp2: Type.Record)(using Assumptions): Boolean =
     val names1 = tp1.fieldNames
     val names2 = tp2.fieldNames
     names1.size <= names2.size && names1.zip(names2).forall: (a, b) =>
-      a == b && conforms(tp1.fieldType(a), tp2.fieldType(b))
+      a == b && checkConforms(tp1.fieldType(a), tp2.fieldType(b))
 
   /** The common result type of two different types.
     *

@@ -16,6 +16,7 @@ object Symbols:
     def isParameter: Boolean = flags.is(Flag.Param)
     def isLocal    : Boolean = flags.is(Flag.Local)
     def isMutable  : Boolean = flags.is(Flag.Mutable)
+    def isType     : Boolean = flags.is(Flag.Type)
 
     override def toString() = name
 

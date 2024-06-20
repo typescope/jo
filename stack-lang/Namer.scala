@@ -71,8 +71,14 @@ class Namer(using Reporter):
       tasks += index(defn)
 
     for task <- tasks do
-      val typ = task.check()
+      val typ = task.typer()
       task.holder.complete(typ)
+
+    // Peform check after all types are completed
+    // type A = B; type B = A;
+    for task <- tasks do
+      for check <- task.checks do
+        check(task.symbol.info)
 
   private def index(defn: Ast.Def)(using sc: Scope): DelayedTask =
 
@@ -86,18 +92,18 @@ class Namer(using Reporter):
         val sym = Symbol.createValueSymbol(defn.name, delayedType, flags)
         sc.define(sym, defn.pos)
 
-        val delayedCheck = () =>
+        val typer = () =>
           val tpe = transform(vdef.typ)(using sc)
           checker.expectValueType(tpe, vdef.typ.pos)
           tpe
 
-        DelayedTask(sym, delayedCheck, delayedType)
+        DelayedTask(sym, typer, delayedType, checks = Nil)
 
       case funDef: Ast.FunDef =>
         val sym = Symbol.createFunSymbol(defn.name, delayedType)
         sc.define(sym, defn.pos)
 
-        val delayedCheck = () =>
+        val typer = () =>
           val paramNames = funDef.params.map(_.name)
           val paramTypes =
             for param <- funDef.params yield
@@ -108,18 +114,16 @@ class Namer(using Reporter):
           val resType = transform(funDef.resType)(using sc)
           Type.Proc(paramNames, paramTypes, resType)
 
-        DelayedTask(sym, delayedCheck, delayedType)
+        DelayedTask(sym, typer, delayedType, checks = Nil)
 
       case tdef: Ast.TypeDef =>
         val sym = Symbol.createTypeSymbol(defn.name, delayedType)
         sc.define(sym, defn.pos, isType = true)
 
-        val delayedCheck = () =>
-          val info = transform(tdef.rhs)(using sc)
-          checker.expectValueType(info, tdef.rhs.pos)
-          info
-
-        DelayedTask(sym, delayedCheck, delayedType)
+        // check type symbols after completion to allow cycles, type A = A
+        val typer = () => transform(tdef.rhs)(using sc)
+        val check = (info: Type) => checker.expectValueType(info, tdef.rhs.pos)
+        DelayedTask(sym, typer, delayedType, checks = List(check))
     end match
   end index
 
@@ -441,8 +445,11 @@ class Namer(using Reporter):
 object Namer:
   val errorSymbol = Symbol.createFunSymbol("error", Type.Error)
 
-  private class DelayedTask
-    (val sym: Symbol, val check: () => Type, val holder: Type.Delayed)
+  private class DelayedTask(
+    val symbol: Symbol,
+    val typer: () => Type,
+    val holder: Type.Delayed,
+    val checks: List[Type => Unit])
 
   private enum Scope:
     case RootScope()
