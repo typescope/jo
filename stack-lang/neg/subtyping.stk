@@ -1,0 +1,11 @@
+type S = [a: Int, b: S, c: Int];
+type T = [a: Int, b: T];
+
+fun test1(t: T): S = t;  // error
+
+type X = [a: Int, b: Y, c: Int];
+type Y = [a: Int, b: X];
+
+fun test2(x: X): Y = x;  // error
+
+1 p
