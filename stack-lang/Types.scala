@@ -18,6 +18,8 @@ object Types:
 
     def isTypeRef: Boolean = this.isInstanceOf[Type.TypeRef]
 
+    def isDelayed: Boolean = this.isInstanceOf[Type.Delayed]
+
     def isRecordType: Boolean =
       this.dealias.isInstanceOf[Type.Record]
 
@@ -25,14 +27,27 @@ object Types:
       this.dealias.isInstanceOf[Type.Union]
 
     def isValueType: Boolean =
-      this match
+      this.dealias match
         case Type.Void | _: Type.Proc => false
         case _ => true
 
+    def isProcType: Boolean = this.underlying.isInstanceOf[Type.Proc]
+
+    def asRecordType: Type.Record = this.dealias.asInstanceOf[Type.Record]
+
+    def asUnionType: Type.Union = this.dealias.asInstanceOf[Type.Union]
+
+    def asProcType: Type.Proc = this.dealias.asInstanceOf[Type.Proc]
+
     def resultType: Type =
-      this match
+      this.underlying match
         case Type.Proc(_, _, resType) => resType
         case _ => throw new Exception("Not a proc type: " + this)
+
+    def underlying: Type =
+      this match
+        case delayed: Type.Delayed => delayed.take
+        case _ => this
 
     def hasField(name: String): Boolean =
       val Type.Record(fields) = this.asRecordType
@@ -46,7 +61,7 @@ object Types:
           throw new Exception("No such field " + name + " in " + this)
 
     def hasTag(tag: String): Boolean =
-      this match
+      this.dealias match
         case Type.Union(branches) => branches.contains(tag)
         case Type.TypeRef(sym) => sym.info.hasTag(tag)
         case _ => false
@@ -71,13 +86,9 @@ object Types:
       branches.keys.toList
 
     def dealias: Type =
-      this match
+      this.underlying match
         case Type.TypeRef(sym) => sym.info.dealias
-        case _ => this
-
-    def asRecordType: Type.Record = this.dealias.asInstanceOf[Type.Record]
-
-    def asUnionType: Type.Union = this.dealias.asInstanceOf[Type.Union]
+        case tp => tp
 
   object Type:
     case object Int extends Type
@@ -93,7 +104,14 @@ object Types:
     case class TypeRef(symbol: Symbol) extends Type:
       override def toString() = symbol.name
 
+    /** A record type --- named tuples
+      *
+      * Warning: flattening of nested tuples is dangerous with subtyping
+      * of records.
+      */
     case class Record(fields: ListMap[String, Type]) extends Type:
+      val fieldNames: List[String] = fields.keys.toList
+
       override def toString =
         "[" + fields.map(_ + ": " + _).mkString(", ") + "]"
 
@@ -107,6 +125,24 @@ object Types:
       val paramCount = paramTypes.size
       val resCount = if resType.isValueType then 1 else 0
 
+    /** Delayed type for symbols to enable type inference and recursive types */
+    case class Delayed() extends Type:
+      // TODO: change equals and hash
+      private var _underlying: Type = null
+
+      def complete(tpe: Type): Unit =
+        assert(_underlying == null, "Double completing: " + _underlying)
+        _underlying = tpe
+
+      def isComplete: Boolean = _underlying != null
+
+      def take: Type =
+        assert(_underlying != null)
+        _underlying
+
+      override def toString =
+        "Delayed(" + _underlying + ")"
+
   /** Whether `tp1` conforms to `tp2`.
     *
     * TODO: handle non-termination with recursive type
@@ -118,7 +154,16 @@ object Types:
     || tp1 == tp2
     || tp1.isTypeRef && conforms(tp1.dealias, tp2)
     || tp2.isTypeRef && conforms(tp1, tp2.dealias)
+    || tp1.isDelayed && conforms(tp1.underlying, tp2)
+    || tp2.isDelayed && conforms(tp1, tp2.underlying)
+    || tp1.isRecordType && tp2.isRecordType
+       && conformsRecordType(tp1.asRecordType, tp2.asRecordType)
 
+  def conformsRecordType(tp1: Type.Record, tp2: Type.Record): Boolean =
+    val names1 = tp1.fieldNames
+    val names2 = tp2.fieldNames
+    names1.size <= names2.size && names1.zip(names2).forall: (a, b) =>
+      a == b && conforms(tp1.fieldType(a), tp2.fieldType(b))
 
   /** The common result type of two different types.
     *
