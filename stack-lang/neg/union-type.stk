@@ -3,7 +3,7 @@ type Sum = <Left Int, Right Int>;
 type Bot = < >;
 
 val a: Sum = #Left true of Sum;     // error
-val b: Option = #None of Sum;       // error // error
+val b: Option = #None of Sum;       // error
 val c: Option = #Some 5 of Option;
 
 match c                             // error
