@@ -347,16 +347,16 @@ extends Backend:
     val size = Memory.size(recordType)
 
     alloc(size)
-    useTwoReg: (r1, r2) =>
-      for (name, rhs) <- record.args do
-        dup()
-        compile(rhs)
+    for (name, rhs) <- record.args do
+      dup()
+      compile(rhs)
+      useTwoReg: (r1, r2) =>
         pop(r2)
         pop(r1)
         val offset = Memory.fieldOffset(recordType, name)
         val fieldAddr = Rel(r1, offset)
         cb.add(Instr.Store(Reg(r2), fieldAddr))
-      end for
+    end for
 
   /** Compile p.x */
   def compile(select: Select)(using Context): Unit =
