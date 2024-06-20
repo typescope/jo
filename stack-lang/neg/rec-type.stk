@@ -6,10 +6,10 @@ type D = [a: A, c: D];
 type X = Y;
 type Y = X;
 
-fun test1(a: A): A =
-  a.x; // error
+fun test1(a: A): A = a.x; // error
 
-fun test2(x: X): Void =
-  x.a; // error
+fun test2(x: X): Void = x.a; // error
+
+fun test3(a: A): Int = a; // error
 
 10 p

@@ -1,6 +1,5 @@
 import Symbols.Symbol
 
-import scala.collection.immutable.ListMap
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
@@ -54,42 +53,6 @@ object Types:
         case delayed: Type.Delayed => delayed.take
         case _ => this
 
-    def hasField(name: String): Boolean =
-      val Type.Record(fields) = this.asRecordType
-      fields.contains(name)
-
-    def fieldType(name: String): Type =
-      val Type.Record(fields) = this.asRecordType
-      fields.get(name) match
-        case Some(tp) => tp
-        case None =>
-          throw new Exception("No such field " + name + " in " + this)
-
-    def hasTag(tag: String): Boolean =
-      this.dealias match
-        case Type.Union(branches) => branches.contains(tag)
-        case Type.TypeRef(sym) => sym.info.hasTag(tag)
-        case _ => false
-
-    def tagType(tag: String): Type =
-      val Type.Union(branches) = this.asUnionType
-      branches.get(tag) match
-        case Some(tp) => tp
-        case None =>
-          throw new Exception("No such tag " + tag + " in " + this)
-
-    def tagIndex(tag: String): Int =
-      val Type.Union(branches) = this.asUnionType
-      branches.keys.toList.indexOf(tag) match
-        case -1 =>
-          throw new Exception("No such tag " + tag + " in " + this)
-        case n =>
-          n
-
-    def tags: List[String] =
-      val Type.Union(branches) = this.asUnionType
-      branches.keys.toList
-
     /** Transitively eliminate type aliases and delayed types */
     def dealias: Type =
       // detect cycles in symbol definitions, e.g., type A = A
@@ -127,13 +90,39 @@ object Types:
       * Warning: flattening of nested tuples is dangerous with subtyping
       * of records.
       */
-    case class Record(fields: ListMap[String, Type]) extends Type:
-      val fieldNames: List[String] = fields.keys.toList
+    case class Record(fields: List[(String, Type)]) extends Type:
+      val fieldNames: List[String] = fields.map(_._1)
+
+      def getFieldType(field: String): Option[Type] =
+        fields.collectFirst:
+          case (f, tp) if f == field => tp
+
+      def hasField(name: String): Boolean =
+        fieldNames.contains(name)
+
+      def fieldType(name: String): Type =
+        getFieldType(name).get
 
       override def toString =
         "[" + fields.map(_ + ": " + _).mkString(", ") + "]"
 
-    case class Union(branches: ListMap[String, Type]) extends Type:
+    case class Union(branches: List[(String, Type)]) extends Type:
+      val tags: List[String] = branches.map(_._1)
+
+      def getTagType(tag: String): Option[Type] =
+        branches.collectFirst:
+          case (t, tp) if t == tag => tp
+
+      def hasTag(tag: String): Boolean =
+        tags.contains(tag)
+
+      def tagType(tag: String): Type =
+        getTagType(tag).get
+
+      def tagIndex(tag: String): Int =
+        branches.indexWhere:
+          case (t, _) => t == tag
+
       override def toString =
         "<" + branches.map(_ + " " + _).mkString(", ") + ">"
 
@@ -145,7 +134,6 @@ object Types:
 
     /** Delayed type for symbols to enable type inference and recursive types */
     case class Delayed() extends Type:
-      // TODO: change equals and hash
       private var _underlying: Type = null
 
       def complete(tpe: Type): Unit =
@@ -158,9 +146,23 @@ object Types:
         assert(_underlying != null)
         _underlying
 
+      override def equals(that: Any): Boolean =
+        if !isComplete then false
+        else
+          that match
+            case tp: Delayed =>
+              tp.isComplete && tp.underlying == this.underlying
+
+            case _ =>
+              false
+          end match
+
+      override def hashCode(): Int =
+        if !isComplete then throw new Exception("Hashing incomplete type")
+        else underlying.hashCode
+
       override def toString =
         "Delayed(" + _underlying + ")"
-
 
 
   /** Whether `tp1` conforms to `tp2`.
@@ -198,15 +200,15 @@ object Types:
     */
   private type Assumptions = Map[Symbol, List[Symbol]]
 
-  private def checkConforms(tp1: Type, tp2: Type)(using Assumptions): Boolean =
+  private def checkConforms(tp1: Type, tp2: Type)(using ass: Assumptions): Boolean =
     tp1.isError
     || tp2.isError
     || tp1.isBottom
     || tp1 == tp2
     || tp1.is[Type.TypeRef] && tp2.is[Type.TypeRef]
        && checkConformsTypeRef(tp1.as[Type.TypeRef], tp2.as[Type.TypeRef])
-    || tp1.is[Type.TypeRef] && checkConforms(tp1.dealias, tp2)
-    || tp2.is[Type.TypeRef] && checkConforms(tp1, tp2.dealias)
+    || tp1.is[Type.TypeRef] && tp1.dealias != tp1 && checkConforms(tp1.dealias, tp2)
+    || tp2.is[Type.TypeRef] && tp2.dealias != tp2 && checkConforms(tp1, tp2.dealias)
     || tp1.is[Type.Delayed] && checkConforms(tp1.underlying, tp2)
     || tp2.is[Type.Delayed] && checkConforms(tp1, tp2.underlying)
     || tp1.is[Type.Record] && tp2.is[Type.Record]
@@ -228,7 +230,7 @@ object Types:
   private def checkConformsRecordType(tp1: Type.Record, tp2: Type.Record)(using Assumptions): Boolean =
     val names1 = tp1.fieldNames
     val names2 = tp2.fieldNames
-    names1.size <= names2.size && names1.zip(names2).forall: (a, b) =>
+    names1.size >= names2.size && names1.zip(names2).forall: (a, b) =>
       a == b && checkConforms(tp1.fieldType(a), tp2.fieldType(b))
 
   /** The common result type of two different types.
