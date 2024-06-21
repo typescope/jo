@@ -51,7 +51,7 @@ enum Value extends Denotation:
 object Uninit extends Denotation
 
 enum Action extends Denotation:
-  case Fun(fun: Sast.Fun, scope: Scope)
+  case Fun(fun: Sast.FunDef, scope: Scope)
   case Prim(fun: ValueStack => Unit)
 
 enum Scope:
@@ -193,7 +193,7 @@ object Interpreter:
 
       case Action.Prim(fun) => fun(vs)
 
-      case Action.Fun(Fun(_, params, locals, body), sc2) =>
+      case Action.Fun(FunDef(_, params, locals, body), sc2) =>
         val funScope = new Scope.NestedScope(sc2)
         for param <- params.reverse do
           funScope.bind(param, vs.pop())
