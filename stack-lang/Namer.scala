@@ -47,18 +47,22 @@ class Namer(using Reporter):
     defn match
       case vdef: Ast.ValDef =>
         lazy val rhs = transform(vdef.rhs)
-        lazy val tpe = transform(vdef.typ)(using sc)
+        lazy val tpe: Type =
+          if vdef.typ.isEmpty then
+            rhs.tpe
+          else
+            val tp = transform(vdef.typ)(using sc)
+            checker.expectValueType(tpe, vdef.typ.pos)
+            checker.expect(rhs, tp)
+            tp
+
         val delayedType = Type.Delayed()(tpe)
 
         val flags = if vdef.mutable then Flag.Mutable else Flag.empty
         val sym = Symbol.createValueSymbol(defn.name, delayedType, flags)
         sc.define(sym, defn.pos)
 
-        val typer = () =>
-          checker.expectValueType(tpe, vdef.typ.pos)
-          checker.expect(rhs, tpe)
-          ValDef(sym, rhs)(vdef.pos)
-
+        val typer = () => ValDef(sym, rhs)(vdef.pos)
         DelayedTask(sym, typer)
 
       case funDef: Ast.FunDef =>
@@ -152,13 +156,17 @@ class Namer(using Reporter):
     if vdef.mutable then
       flags = flags | Flag.Mutable
 
-    val tpe = transform(vdef.typ)
     val rhs = transform(vdef.rhs)
+    val tpe =
+      if vdef.typ.isEmpty then
+        rhs.tpe
+      else
+        val tp = transform(vdef.typ)
+        checker.expectValueType(tp, vdef.typ.pos)
+        checker.expect(rhs, tp)
+        tp
 
-    checker.expectValueType(tpe, vdef.typ.pos)
     val sym = Symbol.createValueSymbol(vdef.name, tpe, flags)
-
-    checker.expect(rhs, tpe)
 
     sc.define(sym, vdef.pos)
     ValDef(sym, rhs)(vdef.pos)
@@ -408,6 +416,9 @@ class Namer(using Reporter):
             branchTypes += branch.name -> transform(branch.typ)
         end for
         Type.Union(branchTypes.toList)
+
+      case _: Ast.EmptyTypeTree =>
+        Reporter.abort("Unexpected empty type tree", tpt.pos)
 
 object Namer:
   val errorSymbol = Symbol.createFunSymbol("error", Type.Error)

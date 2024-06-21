@@ -3,7 +3,7 @@ type Point = [x: Int, y: Int];
 var pt: Point = [x = 0, y = 0];
 
 // allocation of 4096 objects
-var i: Int = 0;
+var i = 0;
 while i 4096 < do
   pt = [x = i, y = i i *];
   i = i 1 +;

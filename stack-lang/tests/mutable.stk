@@ -1,4 +1,4 @@
-var a: Int = 10;
+var a = 10;
 
 fun foo(): Int =
   a = a 2 *;

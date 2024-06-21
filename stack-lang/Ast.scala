@@ -78,7 +78,8 @@ object Ast:
   case class Phrase
     (tdefs: List[TypeDef], words: List[Word])
     (val pos: Span)
-  extends Positioned
+  extends Positioned:
+    def isEmpty: Boolean = tdefs.isEmpty && words.isEmpty
 
   //---------------------------- patterns --------------------------------------
   sealed abstract class Pattern extends Positioned with Product
@@ -95,7 +96,13 @@ object Ast:
 
   //------------------------------ types ---------------------------------------
 
-  sealed trait TypeTree extends Positioned with Product
+  sealed trait TypeTree extends Positioned with Product:
+    def isEmpty: Boolean = this.isInstanceOf[EmptyTypeTree]
+
+  case class EmptyTypeTree
+    ()
+    (val pos: Span)
+  extends TypeTree
 
   case class RecordType
     (fields: List[Field])

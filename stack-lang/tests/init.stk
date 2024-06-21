@@ -1,4 +1,4 @@
-val c: Int = 3 double;
+val c = 3 double;
 
 fun double(n: Int): Int = n n +;
 
