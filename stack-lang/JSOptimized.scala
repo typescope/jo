@@ -99,8 +99,8 @@ class JSOptimized(outFile: String) extends Backend:
       for fun <- prog.funs do
         compile(fun)(using new ValueStack)
 
-      val mainName = symbol2UniqueName(prog.main)
-      addLine(s"$mainName();")
+      val initName = symbol2UniqueName(prog.init)
+      addLine(s"$initName();")
 
   /**
     * Call the funtion.
@@ -135,7 +135,7 @@ class JSOptimized(outFile: String) extends Backend:
     *
     * Calling the passed function will compile the body of the function.
     */
-  def compile(fdef: Fun)(using Context): Unit =
+  def compile(fdef: FunDef)(using Context): Unit =
     val sym = fdef.symbol
     val name = symbol2UniqueName(sym)
     val funType = sym.info.asProcType

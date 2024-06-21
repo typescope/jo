@@ -22,8 +22,11 @@ class Checker(using Reporter):
       case _: IntLit | _: BoolLit | _: RecordLit | _: Select | _: Encoded =>
         vs.push(word.tpe)
 
-      case Assign(sym, words) =>
+      case _: Assign =>
         vs.expectEmpty("No result expected before assignment", word.pos)
+
+      case _: ValDef =>
+        vs.expectEmpty("No result expected before definition", word.pos)
 
       case If(cond, thenp, elsep) =>
         if word.tpe.isValueType then vs.push(word.tpe)

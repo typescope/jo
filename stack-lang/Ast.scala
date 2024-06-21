@@ -95,7 +95,13 @@ object Ast:
 
   //------------------------------ types ---------------------------------------
 
-  sealed trait TypeTree extends Positioned with Product
+  sealed trait TypeTree extends Positioned with Product:
+    def isEmpty: Boolean = this.isInstanceOf[EmptyTypeTree]
+
+  case class EmptyTypeTree
+    ()
+    (val pos: Span)
+  extends TypeTree
 
   case class RecordType
     (fields: List[Field])

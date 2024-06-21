@@ -277,8 +277,14 @@ object Parsing:
       val mutable = modifier == Token.VAR
       val span1 = eat(modifier)
       val id = ident()
-      eat(Token.COLON)
-      val tpt = typ()
+
+      val tpt =
+        if peek()._1 == Token.COLON then
+          eat(Token.COLON)
+          typ()
+        else
+          EmptyTypeTree()(id.pos)
+
       eat(Token.EQL)
       val words = phrase()
       val span2 = eat(Token.SEMICOL)

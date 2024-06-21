@@ -94,7 +94,7 @@ class JSBackend(outFile: String) extends Backend:
       for fun <- prog.funs do
         compile(fun)
 
-      call(prog.main)
+      call(prog.init)
 
 
   /**
@@ -137,7 +137,7 @@ class JSBackend(outFile: String) extends Backend:
     *
     * Calling the passed function will compile the body of the function.
     */
-  def compile(fdef: Fun)(using Context): Unit =
+  def compile(fdef: FunDef)(using Context): Unit =
     val sym = fdef.symbol
     val name = symbol2UniqueName(sym)
     uniqueName.newScope:

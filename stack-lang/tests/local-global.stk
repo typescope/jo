@@ -1,6 +1,6 @@
-var i: Int = 0;
+var i = 0;
 while i 4096 < do
-  val sum: Int = i i i * +;
+  val sum = i i i * +;
   i = i 1 +;
 end
 

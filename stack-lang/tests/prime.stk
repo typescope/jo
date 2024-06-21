@@ -23,7 +23,7 @@ fun prime(primes: NList, cur: Int, until: Int): Void =
 
 fun primeUntil(until: Int): Void =
   var primes: NList = [head = 2, tail = #Nil of List];
-  var cur: Int = 3;
+  var cur = 3;
   while cur until < do
     if primes cur isPrime then
       cur p

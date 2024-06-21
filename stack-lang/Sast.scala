@@ -34,7 +34,7 @@ object Sast:
     def tpe: Type = Type.Bool
 
   case class RecordLit
-    (args: List[(String, Phrase)])
+    (args: List[(String, Word)])
     (val tpe: Type, val pos: Span)
   extends Word
 
@@ -71,10 +71,6 @@ object Sast:
     (val tpe: Type, val pos: Span)
   extends Word
 
-  object Phrase:
-    def apply(word: Word): Phrase =
-      Phrase(word :: Nil)(word.tpe, word.pos)
-
   /** Encode of a type with another type */
   case class Encoded
     (repr: Word)
@@ -84,12 +80,37 @@ object Sast:
 
     def isValueDrop = repr.tpe.isValueType && tpe.isVoid
 
-  case class Fun
+  sealed trait Def extends Tree:
+    val symbol: Symbol
+    val name: String = symbol.name
+
+  case class ValDef
+    (symbol: Symbol, rhs: Word)
+    (val pos: Span)
+  extends Word, Def:
+    def tpe: Type = Type.Void
+
+  case class TypeDef
+    (symbol: Symbol)
+    (val pos: Span)
+  extends Def:
+    def tpe: Type = Type.Void
+
+  case class FunDef
     (symbol: Symbol, params: List[Symbol], locals: List[Symbol], body: Word)
     (val pos: Span)
-  extends Tree:
-    def name: String = symbol.name
+  extends Def:
     def tpe = symbol.info
 
-  case class Prog
-    (funs: List[Fun], vals: List[Symbol], main: Symbol)
+  case class Prog(defs: List[Def], main: Word):
+    def vals: List[Symbol] =
+      defs.filter(_.isInstanceOf[ValDef]).map(_.symbol)
+
+    def funs: List[FunDef] =
+      defs.filter(_.isInstanceOf[FunDef]).asInstanceOf
+
+    def init: Symbol =
+      main match
+        case Ident(sym) => sym
+        case _ =>
+          throw new Exception("Ident expected, found = " + main)

@@ -76,3 +76,6 @@ abstract class Backend:
         if sym.isPrimitive then primitive(sym)
         else if sym.isFunction then call(sym)
         else push(sym)
+
+      case _: ValDef =>
+        throw new Exception("Unexpected " + word)

@@ -4,6 +4,7 @@
 //> using file Types.scala
 //> using file Namer.scala
 //> using file Checker.scala
+//> using file ExplicitInit.scala
 //> using file Parser.scala
 //> using file Reporter.scala
 //> using file Assembly.scala
@@ -80,4 +81,5 @@ def run(args: String*) =
     IO.fileContent(sourceFile)    |>
     Parsing.parse                 |>
     new Namer().transform         |>
+    ExplicitInit.transform        |>
     backend.compile
