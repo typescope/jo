@@ -62,7 +62,9 @@ class Namer(using Reporter):
         val sym = Symbol.createValueSymbol(defn.name, delayedType, flags)
         sc.define(sym, defn.pos)
 
-        val typer = () => ValDef(sym, rhs)(vdef.pos)
+        val typer = () =>
+          val tp = tpe // ensure tpe is forced for error checking
+          ValDef(sym, rhs)(vdef.pos)
         DelayedTask(sym, typer)
 
       case funDef: Ast.FunDef =>
