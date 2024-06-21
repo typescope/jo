@@ -78,8 +78,7 @@ object Ast:
   case class Phrase
     (tdefs: List[TypeDef], words: List[Word])
     (val pos: Span)
-  extends Positioned:
-    def isEmpty: Boolean = tdefs.isEmpty && words.isEmpty
+  extends Positioned
 
   //---------------------------- patterns --------------------------------------
   sealed abstract class Pattern extends Positioned with Product
