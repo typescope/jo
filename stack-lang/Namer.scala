@@ -52,7 +52,7 @@ class Namer(using Reporter):
             rhs.tpe
           else
             val tp = transform(vdef.typ)(using sc)
-            checker.expectValueType(tpe, vdef.typ.pos)
+            checker.expectValueType(tp, vdef.typ.pos)
             checker.expect(rhs, tp)
             tp
 
