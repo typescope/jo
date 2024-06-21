@@ -59,6 +59,9 @@ class Namer(using Reporter):
     val params = Nil
     val mainFun = Fun(mainSym, params, locals.toList, mainBody)(mainPos)
 
+    // main phrase should not produce values
+    checker.expect(mainPhrase, Type.Void)
+
     funs += mainFun
 
     Prog(funs.toList, inits.map(_.symbol).toList, mainSym)

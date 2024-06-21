@@ -72,7 +72,7 @@ extends Backend:
       val proto = compile(fun)(using ctx)
 
       // perform register allocation
-      assert(ctx.vs.size == 0, ctx.vs.size)
+      assert(ctx.vs.size == 0, sym.name + " " + ctx.vs.size)
       val label = symbolAddrMap(sym).asInstanceOf[Label]
       doGraphColoring(
         label, ctx.buffer.getResult(), registerConfig, proto.savedRegs,
