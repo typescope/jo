@@ -1,0 +1,37 @@
+type List = <Nil, Cons NList>;
+type NList = [head: Int, tail: List]; // non-empty list
+
+fun isPrime(primes: NList, n: Int): Bool =
+  if n primes.head % 0 == then false
+  else
+    match primes.tail
+      case #Nil    => true
+      case #Cons l => l n isPrime
+    end
+  end;
+
+fun prime(primes: NList, cur: Int, until: Int): Void =
+  if cur until < then
+    if primes cur isPrime then
+      cur p
+      val primes2: NList = [head = cur, tail = #Cons primes of List];
+      primes2 (1 cur +) until prime
+    else
+      primes (1 cur +) until prime
+    end
+  end;
+
+fun primeUntil(until: Int): Void =
+  var primes: NList = [head = 2, tail = #Nil of List];
+  var cur: Int = 3;
+  while cur until < do
+    if primes cur isPrime then
+      cur p
+      primes = [head = cur, tail = #Cons primes of List];
+    end
+    cur = cur 1 +;
+  end;
+
+[head = 2, tail = #Nil of List] 3 100 prime
+
+100 primeUntil
