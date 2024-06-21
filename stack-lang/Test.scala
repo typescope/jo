@@ -4,6 +4,7 @@
 //> using file Symbols.scala
 //> using file Namer.scala
 //> using file Checker.scala
+//> using file ExplicitInit.scala
 //> using file Parser.scala
 //> using file Reporter.scala
 //> using file Assembly.scala
@@ -50,6 +51,7 @@ object Test:
       IO.fileContent(test)          |>
       Parsing.parse                 |>
       new Namer().transform         |>
+      ExplicitInit.transform        |>
       backend.compile
 
       verifyErrors(test, Nil)

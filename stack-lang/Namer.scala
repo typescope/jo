@@ -28,59 +28,26 @@ class Namer(using Reporter):
 
     // Prepare scope according to scoping rules
     val sc = rootScope.fresh()
-    index(prog.defs)(using sc)
+    val defs = transform(prog.defs)(using sc)
+    val main2 = transform(prog.main)(using sc)
 
-    val funs = new mutable.ArrayBuffer[Fun]
-    val inits = new mutable.ArrayBuffer[Assign]
-    val locals = new mutable.ArrayBuffer[Symbol]
+    Prog(defs, main2)
 
-    val mainFunScope = sc.fresh(sym => if !sym.isParameter then locals.addOne(sym))
-
-    for defn <- prog.defs yield
-      defn match
-        case valDef: Ast.ValDef =>
-          val Some(sym) = sc.resolve(defn.name, isType = false): @unchecked
-          val rhs = transform(valDef.rhs)(using mainFunScope)
-          checker.expect(rhs, sym.info)
-          inits += new Assign(sym, rhs)(defn.pos)
-
-        case funDef: Ast.FunDef =>
-          val Some(sym) = sc.resolve(defn.name, isType = false): @unchecked
-          funs += transform(sym, funDef)(using sc)
-
-        case tdef: Ast.TypeDef =>
-    end for
-
-    val mainPhrase = transform(prog.main)(using mainFunScope)
-    val mainType = Type.Proc(names = Nil, paramTypes = Nil, resType = Type.Void)
-    val mainSym = Symbol.createFunSymbol("main", mainType)
-    val mainPos = mainPhrase.pos
-    val mainBody = Phrase((inits ++ mainPhrase.words).toList)(mainPhrase.tpe, mainPos)
-    val params = Nil
-    val mainFun = Fun(mainSym, params, locals.toList, mainBody)(mainPos)
-
-    // main phrase should not produce values
-    checker.expect(mainPhrase, Type.Void)
-
-    funs += mainFun
-
-    Prog(funs.toList, inits.map(_.symbol).toList, mainSym)
-
-  private def index(defs: List[Ast.Def])(using sc: Scope): Unit =
+  private def transform(defs: List[Ast.Def])(using sc: Scope): List[Def] =
     val tasks = new mutable.ArrayBuffer[DelayedTask]
 
     for defn <- defs do
       tasks += index(defn)
 
-    for task <- tasks do
-      val typ = task.typer()
-      task.holder.complete(typ)
+    val defsTyped = for task <- tasks yield task.typer()
 
     // Peform check after all types are completed
     // type A = B; type B = A;
     for task <- tasks do
       for check <- task.checks do
         check(task.symbol.info)
+
+    defsTyped.toList
 
   private def index(defn: Ast.Def)(using sc: Scope): DelayedTask =
 
@@ -96,10 +63,13 @@ class Namer(using Reporter):
 
         val typer = () =>
           val tpe = transform(vdef.typ)(using sc)
+          val rhs = transform(vdef.rhs)
+          delayedType.complete(tpe)
           checker.expectValueType(tpe, vdef.typ.pos)
-          tpe
+          checker.expect(rhs, tpe)
+          ValDef(sym, rhs)(vdef.pos)
 
-        DelayedTask(sym, typer, delayedType, checks = Nil)
+        DelayedTask(sym, typer, checks = Nil)
 
       case funDef: Ast.FunDef =>
         val sym = Symbol.createFunSymbol(defn.name, delayedType)
@@ -114,18 +84,27 @@ class Namer(using Reporter):
               paramType
 
           val resType = transform(funDef.resType)(using sc)
-          Type.Proc(paramNames, paramTypes, resType)
+          val tpe = Type.Proc(paramNames, paramTypes, resType)
+          delayedType.complete(tpe)
 
-        DelayedTask(sym, typer, delayedType, checks = Nil)
+          transform(sym, funDef)
+
+        DelayedTask(sym, typer, checks = Nil)
 
       case tdef: Ast.TypeDef =>
         val sym = Symbol.createTypeSymbol(defn.name, delayedType)
         sc.define(sym, defn.pos, isType = true)
 
         // check type symbols after completion to allow cycles, type A = A
-        val typer = () => transform(tdef.rhs)(using sc)
-        val check = (info: Type) => checker.expectValueType(info, tdef.rhs.pos)
-        DelayedTask(sym, typer, delayedType, checks = List(check))
+        val typer = () =>
+          val tpe = transform(tdef.rhs)(using sc)
+          delayedType.complete(tpe)
+          TypeDef(sym)(tdef.pos)
+
+        val check = (info: Type) =>
+          checker.expectValueType(info, tdef.rhs.pos)
+
+        DelayedTask(sym, typer, checks = List(check))
     end match
   end index
 
@@ -235,7 +214,7 @@ class Namer(using Reporter):
       if tagType.isError then -1
       else unionType.asUnionType.tagIndex(tag.name)
 
-    val tagValue = Phrase(IntLit(tagIndex)(tag.pos))
+    val tagValue = IntLit(tagIndex)(tag.pos)
 
     val fields =
       if tagType.isVoid then
@@ -343,7 +322,7 @@ class Namer(using Reporter):
           for binding <- bindings do
             val valFieldSel = Select(encodedScrut, "value")(tagType, binding.pos)
             val sym = Symbol.createValueSymbol(binding.name, tagType, Flag.Local)
-            bindingAssigns += Assign(sym, Phrase(valFieldSel))(binding.pos)
+            bindingAssigns += Assign(sym, valFieldSel)(binding.pos)
             caseScope.define(sym, binding.pos)
 
           val tagIndex =
@@ -363,12 +342,12 @@ class Namer(using Reporter):
           val adapted2 = checker.adapt(adapted, elsep.tpe, body2.pos)
 
           val body3 = Phrase(bindingAssigns.toList :+ adapted2)(adapted2.tpe, caseDef.pos)
-          Phrase(If(cond, body3, elsep)(body3.tpe, caseDef.pos))
+          If(cond, body3, elsep)(body3.tpe, caseDef.pos)
 
   private def transform(phrase: Ast.Phrase)(using sc: Scope): Phrase =
     val sc2 = sc.fresh()
 
-    index(phrase.tdefs)(using sc2)
+    transform(phrase.tdefs)(using sc2)
 
     val wordsTyped = phrase.words.flatMap: word =>
       transform(word)(using sc2) match
@@ -449,8 +428,7 @@ object Namer:
 
   private class DelayedTask(
     val symbol: Symbol,
-    val typer: () => Type,
-    val holder: Type.Delayed,
+    val typer: () => Def,
     val checks: List[Type => Unit])
 
   private enum Scope:

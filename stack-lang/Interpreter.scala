@@ -14,6 +14,7 @@
 //> using file Types.scala
 //> using file Namer.scala
 //> using file Checker.scala
+//> using file ExplicitInit.scala
 //> using file Parser.scala
 //> using file IO.scala
 //> using file Reporter.scala
@@ -253,4 +254,5 @@ def run(file: String) = Reporter.monitor:
   IO.fileContent(file)    |>
   Parsing.parse           |>
   new Namer().transform   |>
+  ExplicitInit.transform  |>
   Interpreter.exec
