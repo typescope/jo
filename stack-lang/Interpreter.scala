@@ -243,6 +243,9 @@ object Interpreter:
       case Ident(sym) =>
         exec(sym)
 
+      case _: ValDef =>
+        throw new Exception("Unexpected " + word)
+
 /***********************************************************************
  *
  * Main entry point

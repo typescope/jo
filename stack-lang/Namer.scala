@@ -173,7 +173,7 @@ class Namer(using Reporter):
     checker.expect(rhs, tpe)
 
     sc.define(sym, vdef.pos)
-    Assign(sym, rhs)(vdef.pos)
+    ValDef(sym, rhs)(vdef.pos)
 
   private def transform(ifte: Ast.If)(using sc: Scope): Word =
     val Ast.If(cond, thenp, elsep) = ifte
@@ -243,7 +243,7 @@ class Namer(using Reporter):
     val scrutType = scrutinee2.tpe
     val scrutSym = Symbol.createValueSymbol("scrutinee", scrutType, Flag.Local)
     val scrutIdent = Ident(scrutSym)(scrutinee.pos)
-    val bindAssign = Assign(scrutSym, scrutinee2)(scrutinee.pos)
+    val bind = ValDef(scrutSym, scrutinee2)(scrutinee.pos)
     sc2.define(scrutSym, scrutinee.pos)
 
     val allTags = if scrutType.isUnionType then scrutType.asUnionType.tags else Nil
@@ -280,7 +280,7 @@ class Namer(using Reporter):
       end match
 
     val body = transformCases(cases, Type.Bottom, allTags)
-    Phrase(bindAssign :: body :: Nil)(body.tpe, patmat.pos)
+    Phrase(bind :: body :: Nil)(body.tpe, patmat.pos)
 
   private def transform
     (scrut: Ident, caseDef: Ast.Case, resType: Type, cont: Type => Word)
@@ -318,11 +318,11 @@ class Namer(using Reporter):
           val encodedScrut = Encoded(scrut)(encodeType)
           val tagFieldSel = Select(encodedScrut, "tag")(Type.Int, tag.pos)
 
-          val bindingAssigns = mutable.ArrayBuffer.empty[Assign]
+          val vals = mutable.ArrayBuffer.empty[ValDef]
           for binding <- bindings do
             val valFieldSel = Select(encodedScrut, "value")(tagType, binding.pos)
             val sym = Symbol.createValueSymbol(binding.name, tagType, Flag.Local)
-            bindingAssigns += Assign(sym, valFieldSel)(binding.pos)
+            vals += ValDef(sym, valFieldSel)(binding.pos)
             caseScope.define(sym, binding.pos)
 
           val tagIndex =
@@ -341,7 +341,7 @@ class Namer(using Reporter):
           val elsep = cont(adapted.tpe)
           val adapted2 = checker.adapt(adapted, elsep.tpe, body2.pos)
 
-          val body3 = Phrase(bindingAssigns.toList :+ adapted2)(adapted2.tpe, caseDef.pos)
+          val body3 = Phrase(vals.toList :+ adapted2)(adapted2.tpe, caseDef.pos)
           If(cond, body3, elsep)(body3.tpe, caseDef.pos)
 
   private def transform(phrase: Ast.Phrase)(using sc: Scope): Phrase =
@@ -359,15 +359,13 @@ class Namer(using Reporter):
 
     val tp =
       if !vs.isError && vs.size > 1 then
-        Reporter.error(
-          "At most one value expected, found = " + vs.size, phrase.pos)
+        Reporter.error("At most one value expected, found = " + vs.size, phrase.pos)
         Type.Error
       else
         vs.pop() match
           case Some(tp) =>
             if !tp.isValueType then
-              Reporter.error(
-                "Value expected, found type = " + tp, phrase.pos)
+              Reporter.error("Value expected, found type = " + tp, phrase.pos)
               Type.Error
             else
               tp
@@ -376,7 +374,7 @@ class Namer(using Reporter):
 
     Phrase(wordsTyped)(tp, phrase.pos)
 
-  private def transform(sym: Symbol, funDef: Ast.FunDef)(using sc: Scope): Fun =
+  private def transform(sym: Symbol, funDef: Ast.FunDef)(using sc: Scope): FunDef =
     val locals = new mutable.ArrayBuffer[Symbol]
     val funScope = sc.fresh(sym => if !sym.isParameter then locals.addOne(sym))
     val paramSyms =
@@ -389,7 +387,7 @@ class Namer(using Reporter):
 
     val body2 = transform(funDef.body)(using funScope)
     checker.expect(body2, sym.info.resultType)
-    Fun(sym, paramSyms, locals.toList, body2)(funDef.pos)
+    FunDef(sym, paramSyms, locals.toList, body2)(funDef.pos)
 
   private def transform(tpt: Ast.TypeTree)(using sc: Scope): Type =
     tpt match

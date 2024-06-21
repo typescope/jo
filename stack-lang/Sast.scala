@@ -85,7 +85,7 @@ object Sast:
     val name: String = symbol.name
 
   case class ValDef
-    (symbol: Symbol, rhs: Phrase)
+    (symbol: Symbol, rhs: Word)
     (val pos: Span)
   extends Word, Def:
     def tpe: Type = Type.Void
@@ -96,11 +96,21 @@ object Sast:
   extends Def:
     def tpe: Type = Type.Void
 
-  case class Fun
+  case class FunDef
     (symbol: Symbol, params: List[Symbol], locals: List[Symbol], body: Word)
     (val pos: Span)
   extends Def:
-    def name: String = symbol.name
     def tpe = symbol.info
 
-  case class Prog(defs: List[Def], main: Word)
+  case class Prog(defs: List[Def], main: Word):
+    def vals: List[Symbol] =
+      defs.filter(_.isInstanceOf[ValDef]).map(_.symbol)
+
+    def funs: List[FunDef] =
+      defs.filter(_.isInstanceOf[FunDef]).asInstanceOf
+
+    def init: Symbol =
+      main match
+        case Ident(sym) => sym
+        case _ =>
+          throw new Exception("Ident expected, found = " + main)

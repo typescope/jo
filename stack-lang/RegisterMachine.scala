@@ -78,7 +78,7 @@ extends Backend:
         label, ctx.buffer.getResult(), registerConfig, proto.savedRegs,
         cb, ctx.generator)
 
-    entry(entryLabel, prog.main, cb)
+    entry(entryLabel, prog.init, cb)
 
     // generate code
     generator(cb.getResult())
@@ -118,7 +118,7 @@ extends Backend:
     *
     * Calling the passed function will compile the body of the function.
     */
-  def compile(fdef: Fun)(using ctx: Context): CalleeProtocol =
+  def compile(fdef: FunDef)(using ctx: Context): CalleeProtocol =
     val sym = fdef.symbol
     val paramCount = fdef.params.size
 

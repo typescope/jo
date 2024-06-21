@@ -56,12 +56,12 @@ extends Backend:
     for fun <- prog.funs do
       compile(fun)
 
-    emitEntry(prog.main)
+    emitEntry(prog.init)
 
     // generate code
     generator(cb.getResult())
 
-  def emitEntry(main: Symbol)(using Context) =
+  def emitEntry(init: Symbol)(using Context) =
     // Stack pointer is initialized by the kernel, initialize frame pointer
     cb.mark(this.entry)
     cb.add(Instr.Sub(Reg(SP_REG), Int32(4), SP_REG))
@@ -72,7 +72,7 @@ extends Backend:
     cb.add(Instr.Store(endLabel, Reg(SP_REG)))
     cb.add(Instr.Move(Reg(SP_REG), FP_REG))
 
-    cb.add(Instr.Jump(symbolAddrMap(main)))
+    cb.add(Instr.Jump(symbolAddrMap(init)))
 
     cb.mark(endLabel)
     exit(Int32(0))
@@ -81,7 +81,7 @@ extends Backend:
     *
     * Calling the passed function will compile the body of the function.
     */
-  def compile(fdef: Fun)(using Context): Unit =
+  def compile(fdef: FunDef)(using Context): Unit =
     val sym = fdef.symbol
     val funType = sym.info.asProcType
     val label = symbolAddrMap(sym).asInstanceOf[Label]
