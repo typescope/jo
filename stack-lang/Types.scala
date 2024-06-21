@@ -133,17 +133,17 @@ object Types:
       val resCount = if resType.isValueType then 1 else 0
 
     /** Delayed type for symbols to enable type inference and recursive types */
-    case class Delayed() extends Type:
+    case class Delayed()(infoCompleter: => Type) extends Type:
       private var _underlying: Type = null
 
-      def complete(tpe: Type): Unit =
+      private def complete(): Unit =
         assert(_underlying == null, "Double completing: " + _underlying)
-        _underlying = tpe
+        _underlying = infoCompleter
 
       def isComplete: Boolean = _underlying != null
 
       def take: Type =
-        assert(_underlying != null)
+        if !isComplete then complete()
         _underlying
 
       override def equals(that: Any): Boolean =

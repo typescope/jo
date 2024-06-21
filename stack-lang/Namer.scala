@@ -39,43 +39,30 @@ class Namer(using Reporter):
     for defn <- defs do
       tasks += index(defn)
 
-    val defsTyped = for task <- tasks yield task.typer()
-
-    // Peform check after all types are completed
-    // type A = B; type B = A;
-    for task <- tasks do
-      for check <- task.checks do
-        check(task.symbol.info)
-
-    defsTyped.toList
+    for task <- tasks.toList yield
+      task.typer()
 
   private def index(defn: Ast.Def)(using sc: Scope): DelayedTask =
 
-    // Maybe first try eager --- if failed, try delay as last resort?
-    // It's not worh the complexity
-    val delayedType = Type.Delayed()
-
     defn match
       case vdef: Ast.ValDef =>
+        lazy val rhs = transform(vdef.rhs)
+        lazy val tpe = transform(vdef.typ)(using sc)
+        val delayedType = Type.Delayed()(tpe)
+
         val flags = if vdef.mutable then Flag.Mutable else Flag.empty
         val sym = Symbol.createValueSymbol(defn.name, delayedType, flags)
         sc.define(sym, defn.pos)
 
         val typer = () =>
-          val tpe = transform(vdef.typ)(using sc)
-          val rhs = transform(vdef.rhs)
-          delayedType.complete(tpe)
           checker.expectValueType(tpe, vdef.typ.pos)
           checker.expect(rhs, tpe)
           ValDef(sym, rhs)(vdef.pos)
 
-        DelayedTask(sym, typer, checks = Nil)
+        DelayedTask(sym, typer)
 
       case funDef: Ast.FunDef =>
-        val sym = Symbol.createFunSymbol(defn.name, delayedType)
-        sc.define(sym, defn.pos)
-
-        val typer = () =>
+        val delayedType = Type.Delayed() {
           val paramNames = funDef.params.map(_.name)
           val paramTypes =
             for param <- funDef.params yield
@@ -84,27 +71,28 @@ class Namer(using Reporter):
               paramType
 
           val resType = transform(funDef.resType)(using sc)
-          val tpe = Type.Proc(paramNames, paramTypes, resType)
-          delayedType.complete(tpe)
+          Type.Proc(paramNames, paramTypes, resType)
+        }
 
-          transform(sym, funDef)
+        val sym = Symbol.createFunSymbol(defn.name, delayedType)
+        sc.define(sym, defn.pos)
 
-        DelayedTask(sym, typer, checks = Nil)
+        val typer = () => transform(sym, funDef)
+        DelayedTask(sym, typer)
 
       case tdef: Ast.TypeDef =>
+        lazy val info = transform(tdef.rhs)
+        val delayedType = Type.Delayed()(info)
+
         val sym = Symbol.createTypeSymbol(defn.name, delayedType)
         sc.define(sym, defn.pos, isType = true)
 
         // check type symbols after completion to allow cycles, type A = A
         val typer = () =>
-          val tpe = transform(tdef.rhs)(using sc)
-          delayedType.complete(tpe)
+          checker.expectValueType(info, tdef.rhs.pos)
           TypeDef(sym)(tdef.pos)
 
-        val check = (info: Type) =>
-          checker.expectValueType(info, tdef.rhs.pos)
-
-        DelayedTask(sym, typer, checks = List(check))
+        DelayedTask(sym, typer)
     end match
   end index
 
@@ -424,10 +412,7 @@ class Namer(using Reporter):
 object Namer:
   val errorSymbol = Symbol.createFunSymbol("error", Type.Error)
 
-  private class DelayedTask(
-    val symbol: Symbol,
-    val typer: () => Def,
-    val checks: List[Type => Unit])
+  private class DelayedTask(val symbol: Symbol, val typer: () => Def)
 
   private enum Scope:
     case RootScope()
