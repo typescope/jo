@@ -15,6 +15,8 @@ object Types:
 
     def isVoid: Boolean = this == Type.Void
 
+    def isAny: Boolean = this == Type.Any
+
     def isBottom: Boolean = this == Type.Bottom
 
     def isRecordType: Boolean =
@@ -80,6 +82,8 @@ object Types:
 
     case object Void extends Type
 
+    case object Any extends Type
+
     case object Bottom extends Type
 
     case object Error extends Type
@@ -140,15 +144,15 @@ object Types:
     extends Type:
       val typeParamCount = names.size
 
-      val typeParamRefs: List[TypeParamRef] =
-        for i <- (0 until names.size).toList
-        yield TypeParamRef(this, i)
-
+    /** An index reference to type parameter
+      *
+      * There is no support for nested type parameters. Therefore, there is no
+      * need to distinguish the holders that the type parameters are attached
+      * to.
+      */
     case class TypeParamRef
-      (binder: TypeLambda, index: Int)
-    extends Type:
-      def bound: Type = binder.bounds(index)
-      def name: String = binder.names(index)
+      (name: String, index: Int)
+    extends Type
 
     case class AppliedType
       (tctor: Type, targs: List[Type])
@@ -236,6 +240,7 @@ object Types:
     tp1.isError
     || tp2.isError
     || tp1.isBottom
+    || tp2.isAny && tp1.isValueType
     || tp1 == tp2
     || tp1.is[Type.TypeRef] && tp2.is[Type.TypeRef]
        && checkConformsTypeRef(tp1.as[Type.TypeRef], tp2.as[Type.TypeRef])
@@ -291,7 +296,7 @@ object Types:
       case Type.TypeParamRef(_, index) =>
         to(index)
 
-      case Type.Void | Type.Error | Type.Bottom | Type.Int | Type.Bool =>
+      case Type.Void | Type.Error | Type.Any | Type.Bottom | Type.Int | Type.Bool =>
         tpe
 
       case _: Type.TypeRef =>
@@ -331,7 +336,7 @@ object Types:
     */
   def eliminateSymbols(tpe: Type, syms: List[Symbol]): Type =
     tpe match
-      case Type.Void | Type.Error | Type.Bottom | Type.Int | Type.Bool =>
+      case Type.Void | Type.Error | Type.Any | Type.Bottom | Type.Int | Type.Bool =>
         tpe
 
       case Type.TypeRef(sym) =>

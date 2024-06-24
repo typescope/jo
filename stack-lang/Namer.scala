@@ -87,7 +87,30 @@ class Namer(using Reporter):
         DelayedTask(sym, typer)
 
       case tdef: Ast.TypeDef =>
-        lazy val info = transformType(tdef.rhs)
+        lazy val info =
+          if tdef.tparams.isEmpty then
+            transformType(tdef.rhs)
+          else
+            val sc2 = sc.fresh()
+            val names = new mutable.ArrayBuffer[String]
+            val bounds = new mutable.ArrayBuffer[Type]
+            val tparamSyms =
+              for (tparam, i) <- tdef.tparams.zipWithIndex yield
+                names += tparam.name
+                bounds +=(
+                  if tparam.bound.isEmpty then Type.Any
+                  else transformType(tparam.bound)
+                )
+
+                val info = Type.TypeParamRef(tparam.name, i)
+                val sym = Symbol.createTypeSymbol(tparam.name, info)
+                sc2.define(sym, tparam.pos)
+                sym
+
+            val body = transformType(tdef.rhs)(using sc2)
+            val body2 = eliminateSymbols(body, tparamSyms)
+            Type.TypeLambda(names.toList, bounds.toList, body2)
+
         val delayedType = Type.Delayed()(info)
 
         val sym = Symbol.createTypeSymbol(defn.name, delayedType)
