@@ -1,23 +1,11 @@
-#!/bin/env bash
+#!/bin/bash
 
 DIR=$(dirname "$0")
 
-INTERPRETER=$DIR/Interpreter.scala
-COMPILER=$DIR/Driver.scala
-
-# compile
-echo "Compiling $INTERPRETER"
-scala-cli compile $INTERPRETER
-scala-cli --power package -f --native $INTERPRETER -o stki
-
-echo "Compiling $COMPILER"
-scala-cli --power package -f --native $COMPILER -o stkc
-
 # run tests
-RES1=$DIR/tests/int.txt
-RES2=$DIR/tests/exe.txt
-RES3=$DIR/tests/js.txt
-
+RES1=$DIR/tests/pos/int.txt
+RES2=$DIR/tests/pos/exe.txt
+RES3=$DIR/tests/pos/js.txt
 
 retcode=0
 
@@ -29,39 +17,39 @@ check() {
     fi
 }
 
-for file in $DIR/tests/*.stk; do
+for file in $DIR/tests/pos/*.stk; do
     echo "testing $file"
     exe=${file%.*}.run
     js=${file%.*}.js
-    ./stki $file > $RES1 2>&1
+    bin/stki $file > $RES1 2>&1
 
     # # layout 1
-    ./stkc $file -o $exe -p linux-x86 -layout c1
+    bin/stkc $file -o $exe -p linux-x86 -layout c1
     $exe > $RES2
     check $RES1 $RES2
 
     # layout 2
-    ./stkc $file -o $exe -p linux-x86 -layout c2
+    bin/stkc $file -o $exe -p linux-x86 -layout c2
     $exe > $RES2 2>&1
     check $RES1 $RES2
 
     # layout 3
-    ./stkc $file -o $exe -p linux-x86 -layout c3
+    bin/stkc $file -o $exe -p linux-x86 -layout c3
     $exe > $RES2 2>&1
     check $RES1 $RES2
 
     # fast linux
-    ./stkc $file -o $exe -p linux-x86-fast
+    bin/stkc $file -o $exe -p linux-x86-fast
     $exe > $RES2 2>&1
     check $RES1 $RES2
 
     # JavaScript
-    ./stkc $file -o $js -p js
+    bin/stkc $file -o $js -p js
     node $js > $RES3 2>&1
     check $RES1 $RES3
 
     # JavaScript optimized
-    ./stkc $file -o $js -p js-opt
+    bin/stkc $file -o $js -p js-opt
     node $js > $RES3 2>&1
     check $RES1 $RES3
 done

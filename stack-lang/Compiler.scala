@@ -1,30 +1,3 @@
-//> using file Ast.scala
-//> using file Sast.scala
-//> using file Symbols.scala
-//> using file Types.scala
-//> using file Namer.scala
-//> using file Checker.scala
-//> using file ExplicitInit.scala
-//> using file Parser.scala
-//> using file Reporter.scala
-//> using file Assembly.scala
-//> using file Backend.scala
-//> using file IO.scala
-//> using file Assembler.scala
-//> using file Linux.scala
-//> using file X86.scala
-//> using file CallConvention.scala
-//> using file PreAssembly.scala
-//> using file StackMachine.scala
-//> using file RegisterMachine.scala
-//> using file Memory.scala
-//> using file ELF32.scala
-//> using file UniqueName.scala
-//> using file JSBackend.scala
-//> using file JSOptimized.scala
-//> using file Liveness.scala
-//> using file GraphColoring.scala
-
 import Reporter.*
 
 /***********************************************************************
@@ -33,7 +6,7 @@ import Reporter.*
  *
  ***********************************************************************/
 @main
-def run(args: String*) =
+def compile(args: String*) =
   val optionSpec = Map(
     "-o" -> true,
     "-p" -> true,

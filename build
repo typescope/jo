@@ -1,0 +1,10 @@
+#!/bin/bash
+
+set -e
+
+# compile
+echo "Compiling interpreter"
+scala-cli --power package -f --native project.scala stack-lang -M eval -o bin/stki
+
+echo "Compiling $COMPILER"
+scala-cli --power package -f --native project.scala stack-lang -M compile -o bin/stkc
