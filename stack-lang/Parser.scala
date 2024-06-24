@@ -320,7 +320,7 @@ object Parsing:
         eat(Token.LBRACKET)
         val items = new mutable.ArrayBuffer[TypeParam]
         items += tparam()
-        while peek()._1 != Token.RBRACKET do
+        while peek()._1 != Token.RBRACKET && peek()._1 != Token.EOF do
           eat(Token.COMMA)
           items += tparam()
         eat(Token.RBRACKET)
@@ -439,7 +439,7 @@ object Parsing:
       eat(Token.LBRACKET)
       val targs = new mutable.ArrayBuffer[TypeTree]
       targs += typ()
-      while peek()._1 != Token.RBRACKET do
+      while peek()._1 != Token.RBRACKET && peek()._1 != Token.EOF do
         eat(Token.COMMA)
         targs += typ()
       val span = eat(Token.RBRACKET)
@@ -447,7 +447,7 @@ object Parsing:
 
     def fields(acc: mutable.ArrayBuffer[Field]): List[Field] =
       peek() match
-        case (Token.RBRACKET, _) => acc.toList
+        case (Token.RBRACKET | Token.EOF, _) => acc.toList
         case _ =>
           if acc.nonEmpty then eat(Token.COMMA)
           val id = ident()
@@ -458,7 +458,7 @@ object Parsing:
 
     def branches(acc: mutable.ArrayBuffer[Branch]): List[Branch] =
       peek() match
-        case (Token.Ident(">"), _) => acc.toList
+        case (Token.Ident(">") | Token.EOF, _) => acc.toList
         case _ =>
           if acc.nonEmpty then eat(Token.COMMA)
           val tag = ident()
@@ -474,7 +474,7 @@ object Parsing:
       val (token, span) = next()
       token match
         case id: Token.Ident =>
-          new Ident(id.name)(span)
+          Ident(id.name)(span)
 
         case token =>
           error("Expect identifier, found token " + token, span)
@@ -532,7 +532,7 @@ object Parsing:
 
     def namedArgs(acc: mutable.ArrayBuffer[NamedArg]): List[NamedArg] =
       peek() match
-        case (Token.RBRACKET, _) => acc.toList
+        case (Token.RBRACKET | Token.EOF, _) => acc.toList
         case _ =>
           if acc.nonEmpty then eat(Token.COMMA)
           namedArgs(acc += namedArg())
@@ -562,7 +562,7 @@ object Parsing:
 
     def cases(acc: mutable.ArrayBuffer[Case]): List[Case] =
       peek() match
-        case (Token.END, _) => acc.toList
+        case (Token.END | Token.EOF, _) => acc.toList
         case _ =>
           val span1 = eat(Token.CASE)
           val pat = pattern()
