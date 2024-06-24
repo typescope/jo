@@ -20,7 +20,7 @@ object Parsing:
   enum Token:
     case LPAREN, RPAREN, LBRACKET, RBRACKET, OF, IF, THEN, ELSE, END, COLON,
          SEMICOL, DOT, VAL, VAR, FUN, EQL, TAG, EOF, COMMA, WHILE, DO, TYPE,
-         MATCH, CASE, RARROW
+         SUBTYPE, MATCH, CASE, RARROW
     case IntLit(value: Int)
     case BoolLit(value: Boolean)
     case Ident(name: String)
@@ -43,7 +43,7 @@ object Parsing:
     def isNameRest(c: Char): Boolean =
       isNameStart(c) || isDigit(c)
 
-    val OP_CHAR = Array('+', '-', '*', '/', '%', '|', '&', '^', '>', '<', '=', '!')
+    val OP_CHAR = Array('+', '-', '*', '/', '%', '|', '&', '^', '>', '<', '=', '!', ':')
     def isOperator(c: Char): Boolean =
       OP_CHAR.indexOf(c) >= 0
 
@@ -126,7 +126,6 @@ object Parsing:
         case ']'    => Token.RBRACKET
         case '#'    => Token.TAG
         case '.'    => Token.DOT
-        case ':'    => Token.COLON
         case ';'    => Token.SEMICOL
         case ','    => Token.COMMA
 
@@ -177,6 +176,8 @@ object Parsing:
 
       stream.tokenEnd() match
         case "="   => Token.EQL
+        case ":"   => Token.COLON
+        case "<:"  => Token.SUBTYPE
         case "=>"  => Token.RARROW
         case name  => Token.Ident(name)
 

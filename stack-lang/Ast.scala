@@ -125,6 +125,12 @@ object Ast:
   extends Positioned:
     def name = tag.name
 
+  case class AppliedType
+    (tpeCtor: Ident, targs: List[TypeTree])
+    (val pos: Span)
+  extends Positioned:
+    assert(targs.nonEmpty)
+
   //-------------------------- definitions -------------------------------------
 
   sealed trait Def extends Positioned with Product:
@@ -147,8 +153,14 @@ object Ast:
     (val pos: Span)
   extends Def
 
+  case class TypeParam
+    (ident: Ident, bound: TypeTree)
+    (val pos: Span)
+  extends Positioned:
+    def name = ident.name
+
   case class TypeDef
-    (ident: Ident, rhs: TypeTree)
+    (ident: Ident, tparams: List[TypeParam], rhs: TypeTree)
     (val pos: Span)
   extends Def
 
