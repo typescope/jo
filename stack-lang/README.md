@@ -24,6 +24,7 @@ Lexical Grammar
     EQL      = "=".
     RARROW   = "=>".
     TAG      = "#".
+    SUBTYPE  = "<:".
     COMMA    = ",".
     DOT      = ".".
     LPAREN   = "(".
@@ -70,8 +71,14 @@ Syntactical Grammar
     valdef  = (VAL | VAR) ident [COLON type] EQL phrase SEMICOL.
     fundef  = FUN ident LPAREN [params] RPAREN EQL phrase SEMICOL.
 
-    typedef = TYPE ident EQL type SEMICOL.
-    type    = ident | record_typ | union_typ.
+    typedef = TYPE [tparams] ident EQL type SEMICOL.
+    tparams = LBRACKET tparam {COMMA tparam} RBRACKET.
+    tparam  = ident [SUBTYPE type].
+
+    applied_type = ident targs.
+    targs        = LBRACKET type { COMMA type } RBRACKET.
+
+    type    = ident | record_typ | union_typ | applied_type.
 
     named_args = named_arg { COMMA named_arg }.
     named_arg  = ident EQL phrase.
