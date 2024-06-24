@@ -435,7 +435,7 @@ object Parsing:
       val span2 = eat(Token.Ident(">"))
       UnionType(branchDecls)(span1 | span2)
 
-    def appliedType(typCtor: Ident): AppliedType =
+    def appliedType(tctor: Ident): AppliedType =
       eat(Token.LBRACKET)
       val targs = new mutable.ArrayBuffer[TypeTree]
       targs += typ()
@@ -443,7 +443,7 @@ object Parsing:
         eat(Token.COMMA)
         targs += typ()
       val span = eat(Token.RBRACKET)
-      AppliedType(typCtor, targs.toList)(typCtor.pos | span)
+      AppliedType(tctor, targs.toList)(tctor.pos | span)
 
     def fields(acc: mutable.ArrayBuffer[Field]): List[Field] =
       peek() match

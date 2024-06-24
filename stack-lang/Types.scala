@@ -34,6 +34,8 @@ object Types:
 
     def asUnionType: Type.Union = this.dealias.asInstanceOf[Type.Union]
 
+    def asTypeLambda: Type.TypeLambda = this.dealias.asInstanceOf[Type.TypeLambda]
+
     def asProcType: Type.Proc = this.dealias.asInstanceOf[Type.Proc]
 
     def is[T <: Type : ClassTag]: Boolean =
@@ -149,8 +151,11 @@ object Types:
       def name: String = binder.names(index)
 
     case class AppliedType
-      (tpeCtor: Type, targs: List[Type])
-    extends Type
+      (tctor: Type, targs: List[Type])
+    extends Type:
+      def reduce: Type =
+        val typeLambda = tctor.asTypeLambda
+        substTypeParams(typeLambda.body, targs)
 
     /** Delayed type for symbols to enable type inference and recursive types */
     case class Delayed
@@ -223,6 +228,10 @@ object Types:
     */
   private type Assumptions = Map[Symbol, List[Symbol]]
 
+  /** Check whether one type conforms to the other type.
+    *
+    * TODO: ensure termination for type lambdas.
+    */
   private def checkConforms(tp1: Type, tp2: Type)(using ass: Assumptions): Boolean =
     tp1.isError
     || tp2.isError
@@ -236,6 +245,8 @@ object Types:
     || tp2.is[Type.Delayed] && checkConforms(tp1, tp2.underlying)
     || tp1.is[Type.Record] && tp2.is[Type.Record]
        && checkConformsRecordType(tp1.as[Type.Record], tp2.as[Type.Record])
+    || tp1.is[Type.AppliedType] && checkConforms(tp1.as[Type.TypeLambda], tp2)
+    || tp2.is[Type.AppliedType] && checkConforms(tp1, tp2.as[Type.TypeLambda])
 
   private def checkConformsTypeRef(tp1: Type.TypeRef, tp2: Type.TypeRef)(using ass: Assumptions): Boolean =
     ass.get(tp1.symbol) match
@@ -274,7 +285,45 @@ object Types:
     else if conforms(tp2, tp1) then Some(tp1)
     else None
 
-  def reduce(appliedType: Type.AppliedType) = ???
+  /** Substitute type params with the given types */
+  def substTypeParams(tpe: Type, to: List[Type]): Type =
+    tpe match
+      case Type.TypeParamRef(_, index) =>
+        to(index)
+
+      case Type.Void | Type.Error | Type.Bottom | Type.Int | Type.Bool =>
+        tpe
+
+      case _: Type.TypeRef =>
+        tpe
+
+      case Type.Record(fields) =>
+        val fields2 =
+          for (name, tpe) <- fields
+          yield name -> substTypeParams(tpe, to)
+        Type.Record(fields2)
+
+      case Type.Union(branches) =>
+        val branches2 =
+          for (tag, tpe) <- branches
+          yield tag -> substTypeParams(tpe, to)
+        Type.Union(branches2)
+
+      case Type.AppliedType(tctor, targs) =>
+        // first-class type ctor might be supported later
+        val tctor2 = substTypeParams(tctor, to)
+        val targs2 = for targ <- targs yield substTypeParams(targ, to)
+        Type.AppliedType(tctor2, targs2)
+
+      case _: Type.TypeLambda =>
+        // nested type lambdas not supported
+        tpe
+
+      case tp: Type.Proc =>
+        tp
+
+      case tp: Type.Delayed =>
+        substTypeParams(tp.underlying, to)
 
   /** Replace type symbol reference with sym.info
     *
@@ -301,16 +350,15 @@ object Types:
           yield tag -> eliminateSymbols(tpe, syms)
         Type.Union(branches2)
 
-      case Type.AppliedType(tpeCtor, targs) =>
+      case Type.AppliedType(tctor, targs) =>
         // first-class type ctor might be supported later
-        val tpeCtor2 = eliminateSymbols(tpeCtor, syms)
+        val tctor2 = eliminateSymbols(tctor, syms)
         val targs2 = for targ <- targs yield eliminateSymbols(targ, syms)
-        Type.AppliedType(tpeCtor2, targs2)
+        Type.AppliedType(tctor2, targs2)
 
       case _: Type.TypeLambda | _: Type.TypeParamRef =>
         // nested type lambdas not supported
         tpe
-
 
       case tp: Type.Proc =>
         tp
