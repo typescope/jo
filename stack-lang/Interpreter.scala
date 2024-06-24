@@ -2,22 +2,7 @@
  *                                                                      *
  * The implementation of the stack-oriented language in an interpreter. *
  *                                                                      *
- * Run the interpreter with scala-cli:                                  *
- *                                                                      *
- *     scala-cli interpreter.scala -- "3 5 + p"                         *
- *                                                                      *
  ************************************************************************/
-
-//> using file Ast.scala
-//> using file Sast.scala
-//> using file Symbols.scala
-//> using file Types.scala
-//> using file Namer.scala
-//> using file Checker.scala
-//> using file ExplicitInit.scala
-//> using file Parser.scala
-//> using file IO.scala
-//> using file Reporter.scala
 
 import scala.collection.mutable
 
@@ -252,7 +237,7 @@ object Interpreter:
  *
  ***********************************************************************/
 @main
-def run(file: String) = Reporter.monitor:
+def eval(file: String) = Reporter.monitor:
   given Reporter = Reporter.withSource(file)
   IO.fileContent(file)    |>
   Parsing.parse           |>

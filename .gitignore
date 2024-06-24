@@ -8,3 +8,6 @@ hs_err_pid*
 *.run
 *.js
 *~
+
+bin/stkc
+bin/stki
