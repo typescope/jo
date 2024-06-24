@@ -107,9 +107,9 @@ object Symbols:
     val bnot   =  createPrimSymbol("not", typeNot)
     val p      =  createPrimSymbol("p",   typePrint)
 
-    val Int    =  new Symbol("Int",  Type.Int,  Flag.Prim)
-    val Bool   =  new Symbol("Bool", Type.Bool, Flag.Prim)
-    val Void   =  new Symbol("Void", Type.Void, Flag.Prim)
+    val Int    =  new Symbol("Int",  Type.Int,  Flag.Prim | Flag.Type)
+    val Bool   =  new Symbol("Bool", Type.Bool, Flag.Prim | Flag.Type)
+    val Void   =  new Symbol("Void", Type.Void, Flag.Prim | Flag.Type)
 
     val allSymbols: List[Symbol] = symbols.toList
   end predef

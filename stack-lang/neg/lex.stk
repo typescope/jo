@@ -1,4 +1,4 @@
 val a: Int = 0 1 +
 val b: Int = 5 4 9 23 - + *;
 val c: Int = b a
-3 p                            // error // error // error
+3 p                            // error // error
