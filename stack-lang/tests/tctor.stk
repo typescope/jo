@@ -22,6 +22,11 @@ val t: Tuple2[[a: Int, b: Int], [a: Int, b: Int, c: Int]] = [
     y = [a = 15, b = 16, c = 17]
 ];
 
+type F[X] = [a: X];
+type M = [a: M];
+type G[T <: F[T]] = [x: T];
+fun test(o: G[M]): G[M] = o;
+
 x.a p x.b p
 
 c foreach
