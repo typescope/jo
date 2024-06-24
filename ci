@@ -62,7 +62,7 @@ rm $RES3
 echo
 echo "Running negative tests"
 echo
-scala-cli stack-lang/Test.scala
+scala-cli project.scala stack-lang -M negTest
 if [[ $? != 0 ]]; then
   retcode=1
 fi

@@ -68,7 +68,7 @@ object Test:
     success
 
 @main
-def test() =
+def negTest() =
   val failed = new mutable.ArrayBuffer[String]
   val tests = Test.testsIn("tests/neg")
   for sourceFile <- tests  do
