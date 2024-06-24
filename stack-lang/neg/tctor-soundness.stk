@@ -16,4 +16,4 @@ val t: Tuple2[[a: Int, b: Int], [a: Int]] = [      // error
 type F[X] = [a: X];
 type M = [a: Int];
 type G[T <: F[T]] = [x: T];
-fun test(o: G[M]): G[M] = o;
+fun test(o: G[M]): G[M] = o; // error // error
