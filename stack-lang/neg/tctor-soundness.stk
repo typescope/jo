@@ -1,0 +1,8 @@
+type A[T] = B[T];
+type B[T] = A[T];
+
+type S[T] = S[[a: T, b: T]];
+
+fun test1(a: A[Int]): B[Int] = a;  // error
+
+fun test2(a: S[Int]): S[[a: Int, b: Int]] = a;  // error
