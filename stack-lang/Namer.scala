@@ -70,22 +70,7 @@ class Namer(using Reporter):
         DelayedTask(sym, typer)
 
       case funDef: Ast.FunDef =>
-        val delayedType = Type.Delayed() {
-          val paramNames = funDef.params.map(_.name)
-          val paramTypes =
-            for param <- funDef.params yield
-              val paramType = transformType(param.typ)
-              checker.checkValueType(paramType, param.typ.pos)
-
-          val resType = transformType(funDef.resType)
-          Type.Proc(paramNames, paramTypes, resType)
-        }
-
-        val sym = Symbol.createFunSymbol(defn.name, delayedType)
-        sc.define(sym, defn.pos)
-
-        val typer = () => transform(sym, funDef)
-        DelayedTask(sym, typer)
+        transform(funDef)
 
       case tdef: Ast.TypeDef =>
         val names = new mutable.ArrayBuffer[String]
@@ -400,20 +385,36 @@ class Namer(using Reporter):
 
     Phrase(wordsTyped)(tp, phrase.pos)
 
-  private def transform(sym: Symbol, funDef: Ast.FunDef)(using sc: Scope): FunDef =
+  private def transform(funDef: Ast.FunDef)(using sc: Scope): DelayedTask =
     val locals = new mutable.ArrayBuffer[Symbol]
+    val paramSyms = new mutable.ArrayBuffer[Symbol]
     val funScope = sc.fresh(sym => if !sym.isParameter then locals.addOne(sym))
-    val paramSyms =
-      for param <- funDef.params
-      yield
-        val tpe = transformType(param.typ)
-        val paramSym = Symbol.createParamSymbol(param.name, tpe)
-        funScope.define(paramSym, param.pos)
-        paramSym
 
-    val body2 = transform(funDef.body)(using funScope)
-    checker.checkType(body2, sym.info.resultType)
-    FunDef(sym, paramSyms, locals.toList, body2)(funDef.pos)
+    val paramNames = funDef.params.map(_.name)
+
+    lazy val info =
+      val paramTypes =
+        for param <- funDef.params yield
+          val tpe = transformType(param.typ)
+          val paramSym = Symbol.createParamSymbol(param.name, tpe)
+          funScope.define(paramSym, param.pos)
+          paramSyms += paramSym
+          tpe
+
+      val resType = transformType(funDef.resType)
+      Type.Proc(paramNames, paramTypes, resType)
+
+    val delayedType = Type.Delayed()(info)
+    val sym = Symbol.createFunSymbol(funDef.name, delayedType)
+    sc.define(sym, funDef.pos)
+
+    val typer = () =>
+      delayedType.force()
+      val body2 = transform(funDef.body)(using funScope)
+      checker.checkType(body2, sym.info.resultType)
+      FunDef(sym, paramSyms.toList, locals.toList, body2)(funDef.pos)
+
+    DelayedTask(sym, typer)
 
   private def transformType(tpt: Ast.TypeTree)(using sc: Scope): Type =
     tpt match

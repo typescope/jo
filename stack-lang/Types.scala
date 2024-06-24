@@ -57,7 +57,7 @@ object Types:
 
     def underlying: Type =
       this match
-        case delayed: Type.Delayed => delayed.take
+        case delayed: Type.Delayed => delayed.force()
         case _ => this
 
     /** A grounded type cannot be simplied further at the top-level
@@ -84,7 +84,7 @@ object Types:
       def recur(tp: Type): Type =
         tp match
           case delayed: Type.Delayed =>
-            recur(delayed.take)
+            recur(delayed.force())
 
           case tref @ Type.TypeRef(sym) =>
             if encountered.contains(sym) then
@@ -226,7 +226,7 @@ object Types:
 
       def isComplete: Boolean = _underlying != null
 
-      def take: Type =
+      def force(): Type =
         if !isComplete then complete()
         _underlying
 
