@@ -307,10 +307,35 @@ object Parsing:
     def typeDef(): TypeDef =
       val span1 = eat(Token.TYPE)
       val id = ident()
+      val typeParams = tparams()
       eat(Token.EQL)
       val rhs = typ()
       val span2 = eat(Token.SEMICOL)
-      TypeDef(id, rhs)(span1 | span2)
+      TypeDef(id, typeParams, rhs)(span1 | span2)
+
+    def tparams(): List[TypeParam] =
+      val (token, _) = peek()
+      if token == Token.EQL then Nil
+      else
+        eat(Token.LBRACKET)
+        val items = new mutable.ArrayBuffer[TypeParam]
+        items += tparam()
+        while peek()._1 != Token.RBRACKET do
+          eat(Token.COMMA)
+          items += tparam()
+        eat(Token.RBRACKET)
+        items.toList
+
+    def tparam(): TypeParam =
+      val id = ident()
+      val bound =
+        if peek()._1 == Token.SUBTYPE then
+          eat(Token.SUBTYPE)
+          typ()
+        else
+          EmptyTypeTree()(id.pos)
+
+      TypeParam(id, bound)(id.pos | bound.pos)
 
     def params(): List[Param] =
       val (token, _) = peek()
@@ -391,7 +416,12 @@ object Parsing:
       peek() match
         case (Token.LBRACKET, _)   => recordType()
         case (Token.Ident("<"), _) => unionType()
-        case _ => ident()
+        case _ =>
+          val id = ident()
+          if peek()._1 == Token.LBRACKET then
+            appliedType(id)
+          else
+            id
 
     def recordType(): RecordType =
       val span1 = eat(Token.LBRACKET)
@@ -404,6 +434,16 @@ object Parsing:
       val branchDecls = branches(mutable.ArrayBuffer.empty)
       val span2 = eat(Token.Ident(">"))
       UnionType(branchDecls)(span1 | span2)
+
+    def appliedType(typCtor: Ident): AppliedType =
+      eat(Token.LBRACKET)
+      val targs = new mutable.ArrayBuffer[TypeTree]
+      targs += typ()
+      while peek()._1 != Token.RBRACKET do
+        eat(Token.COMMA)
+        targs += typ()
+      val span = eat(Token.RBRACKET)
+      AppliedType(typCtor, targs.toList)(typCtor.pos | span)
 
     def fields(acc: mutable.ArrayBuffer[Field]): List[Field] =
       peek() match

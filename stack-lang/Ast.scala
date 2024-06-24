@@ -128,7 +128,7 @@ object Ast:
   case class AppliedType
     (tpeCtor: Ident, targs: List[TypeTree])
     (val pos: Span)
-  extends Positioned:
+  extends TypeTree:
     assert(targs.nonEmpty)
 
   //-------------------------- definitions -------------------------------------
