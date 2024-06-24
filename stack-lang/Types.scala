@@ -25,7 +25,7 @@ object Types:
 
     def isValueType: Boolean =
       this.dealias match
-        case Type.Void | _: Type.Proc => false
+        case Type.Void | _: Type.Proc | _: Type.TypeLambda => false
         case _ => true
 
     def isProcType: Boolean = this.underlying.isInstanceOf[Type.Proc]
@@ -126,14 +126,37 @@ object Types:
       override def toString =
         "<" + branches.map(_ + " " + _).mkString(", ") + ">"
 
-    case class Proc(
-      names: List[String], paramTypes: List[Type], resType: Type)
+    case class Proc
+      (names: List[String], paramTypes: List[Type], resType: Type)
     extends Type:
       val paramCount = paramTypes.size
       val resCount = if resType.isValueType then 1 else 0
 
+    /** A type lambda */
+    case class TypeLambda
+      (names: List[String], bounds: List[Type], body: Type)
+    extends Type:
+      val typeParamCount = names.size
+
+      val typeParamRefs: List[TypeParamRef] =
+        for i <- (0 until names.size).toList
+        yield TypeParamRef(this, i)
+
+    case class TypeParamRef
+      (binder: TypeLambda, index: Int)
+    extends Type:
+      def bound: Type = binder.bounds(index)
+      def name: String = binder.names(index)
+
+    case class AppliedType
+      (tpeCtor: Type, targs: List[Type])
+    extends Type
+
     /** Delayed type for symbols to enable type inference and recursive types */
-    case class Delayed()(infoCompleter: => Type) extends Type:
+    case class Delayed
+      ()
+      (infoCompleter: => Type)
+    extends Type:
       private var _underlying: Type = null
 
       private def complete(): Unit =
@@ -250,3 +273,47 @@ object Types:
     else if conforms(tp1, tp2) then Some(tp2)
     else if conforms(tp2, tp1) then Some(tp1)
     else None
+
+  def reduce(appliedType: Type.AppliedType) = ???
+
+  /** Replace type symbol reference with sym.info
+    *
+    * This method is used in type checking definitions with type parameters.
+    */
+  def eliminateSymbols(tpe: Type, syms: List[Symbol]): Type =
+    tpe match
+      case Type.Void | Type.Error | Type.Bottom | Type.Int | Type.Bool =>
+        tpe
+
+      case Type.TypeRef(sym) =>
+        if syms.contains(sym) then sym.info
+        else tpe
+
+      case Type.Record(fields) =>
+        val fields2 =
+          for (name, tpe) <- fields
+          yield name -> eliminateSymbols(tpe, syms)
+        Type.Record(fields2)
+
+      case Type.Union(branches) =>
+        val branches2 =
+          for (tag, tpe) <- branches
+          yield tag -> eliminateSymbols(tpe, syms)
+        Type.Union(branches2)
+
+      case Type.AppliedType(tpeCtor, targs) =>
+        // first-class type ctor might be supported later
+        val tpeCtor2 = eliminateSymbols(tpeCtor, syms)
+        val targs2 = for targ <- targs yield eliminateSymbols(targ, syms)
+        Type.AppliedType(tpeCtor2, targs2)
+
+      case _: Type.TypeLambda | _: Type.TypeParamRef =>
+        // nested type lambdas not supported
+        tpe
+
+
+      case tp: Type.Proc =>
+        tp
+
+      case tp: Type.Delayed =>
+        eliminateSymbols(tp.underlying, syms)
