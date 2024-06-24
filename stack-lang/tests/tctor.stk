@@ -13,4 +13,9 @@ fun foreach(l: List[Int]): Void =
       xs.tail foreach
   end;
 
+type Pair[T] = [a: T, b: T];
+val x: Pair[Int] = [a = 36, b = 49];
+
+x.a p x.b p
+
 c foreach

@@ -92,9 +92,7 @@ class Namer(using Reporter):
 
         lazy val info =
           if tdef.tparams.isEmpty then
-            val tp = transformType(tdef.rhs)
-            checker.expectValueType(tp, tdef.rhs.pos)
-            tp
+            transformType(tdef.rhs)
           else
             val sc2 = sc.fresh()
             val tparamSyms =
@@ -112,7 +110,6 @@ class Namer(using Reporter):
 
             val body = transformType(tdef.rhs)(using sc2)
             val tp = eliminateSymbols(body, tparamSyms)
-            checker.expectValueType(tp, tdef.rhs.pos)
             Type.TypeLambda(names.toList, bounds.toList, tp)
 
         val delayedType = Type.Delayed()(info)
@@ -121,7 +118,14 @@ class Namer(using Reporter):
         sc.define(sym, defn.pos)
 
         // check type symbols after completion to allow cycles, type A = A
-        val typer = () => TypeDef(sym)(tdef.pos)
+        val typer = () =>
+          info match
+            case Type.TypeLambda(_, _, body) =>
+              checker.expectValueType(body, tdef.rhs.pos)
+            case tp =>
+              checker.expectValueType(tp, tdef.rhs.pos)
+
+          TypeDef(sym)(tdef.pos)
 
         DelayedTask(sym, typer)
     end match
@@ -388,7 +392,7 @@ class Namer(using Reporter):
         vs.pop() match
           case Some(tp) =>
             if !tp.isValueType then
-              Reporter.error("Value expected, found type = " + tp, phrase.pos)
+              Reporter.error("Value expected, found type = " + tp.show, phrase.pos)
               Type.Error
             else
               tp

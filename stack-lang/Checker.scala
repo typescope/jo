@@ -51,35 +51,35 @@ class Checker(using Reporter):
 
   def expect(tree: Tree, tp: Type): Unit =
     if !conforms(tree.tpe, tp) then
-      Reporter.error(s"Expect type $tp, found = ${tree.tpe}", tree.pos)
+      Reporter.error(s"Expect type ${tp.show}, found = ${tree.tpe.show}", tree.pos)
 
   def expectValueType(tp: Type, pos: Span): Unit =
     if !tp.isValueType then
-      Reporter.error(s"Expect value type, found = $tp", pos)
+      Reporter.error(s"Expect value type, found = ${tp.show}", pos)
 
   def expectValueType(tree: Tree): Unit =
     expectValueType(tree.tpe, tree.pos)
 
   def fieldType(qualType: Type, field: String, pos: Span): Type =
     if !qualType.isRecordType then
-      Reporter.error(s"Expect record type, found = $qualType", pos)
+      Reporter.error(s"Expect record type, found = ${qualType.show}", pos)
       Type.Error
     else
       val recordType = qualType.asRecordType
       if !recordType.hasField(field) then
-        Reporter.error(s"Expect field $field in record type $recordType, found none", pos)
+        Reporter.error(s"Expect field $field in record type ${recordType.show}, found none", pos)
         Type.Error
       else
         recordType.fieldType(field)
 
   def checkTagValue(tag: Ast.Ident, value: Phrase, targetType: Type, typePos: Span): Type =
     if !targetType.isUnionType then
-      Reporter.error(s"Expect union type, found = $targetType", typePos)
+      Reporter.error(s"Expect union type, found = ${targetType.show}", typePos)
       Type.Error
     else
       val unionType = targetType.asUnionType
       if !unionType.hasTag(tag.name) then
-        Reporter.error(s"The tag ${tag.name} does not exist in union type $unionType", tag.pos)
+        Reporter.error(s"The tag ${tag.name} does not exist in union type ${unionType.show}", tag.pos)
         Type.Error
       else
         val tagType = unionType.tagType(tag.name)
@@ -88,7 +88,7 @@ class Checker(using Reporter):
 
   def tagType(tag: Ast.Ident, unionType: Type, typePos: Span): Type =
     if !unionType.isUnionType then
-      Reporter.error(s"Expect union type, found = $unionType", typePos)
+      Reporter.error(s"Expect union type, found = ${unionType.show}", typePos)
       Type.Error
     else
       val unionType2 = unionType.asUnionType
@@ -109,7 +109,7 @@ class Checker(using Reporter):
           word
 
       case None =>
-        Reporter.error(s"Cannot find common result type between $curType and $otherType", pos)
+        Reporter.error(s"Cannot find common result type between ${curType.show} and ${otherType.show}", pos)
         Phrase(word :: Nil)(Type.Error, pos)
     end match
 

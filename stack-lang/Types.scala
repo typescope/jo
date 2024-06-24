@@ -103,6 +103,37 @@ object Types:
       end recur
       recur(this)
 
+    def show: String =
+      this match
+        case Type.Int | Type.Bool | Type.Void | Type.Any | Type.Bottom | Type.Error =>
+          this.toString
+
+        case Type.TypeRef(sym) =>
+          sym.name
+
+        case Type.Record(fields) =>
+          "[" + fields.map(_ + ": " + _.show).mkString(", ") + "]"
+
+        case Type.Union(branches) =>
+          "<" + branches.map(_ + " " + _.show).mkString(", ") + ">"
+
+        case delay: Type.Delayed =>
+          delay.underlying.show
+
+        case Type.AppliedType(tctor, targs) =>
+          tctor.show + targs.map(_.show).mkString("[", ", ", "]")
+
+        case Type.TypeLambda(names, bounds, body) =>
+          val params = names.zip(bounds).map(_ + " <: " + _.show).mkString("[", ", ", "]")
+          params + " => " + body.show
+
+        case Type.TypeParamRef(name, _) =>
+          name
+
+        case Type.Proc(names, paramTypes, resType) =>
+          val params = names.zip(paramTypes).map(_ + " <: " + _.show).mkString("(", ", ", ")")
+          params + ": " + resType.show
+
   object Type:
     case object Int extends Type
 
@@ -116,8 +147,7 @@ object Types:
 
     case object Error extends Type
 
-    case class TypeRef(symbol: Symbol) extends Type:
-      override def toString() = symbol.name
+    case class TypeRef(symbol: Symbol) extends Type
 
     /** A record type --- named tuples
       *
@@ -137,9 +167,6 @@ object Types:
       def fieldType(name: String): Type =
         getFieldType(name).get
 
-      override def toString =
-        "[" + fields.map(_ + ": " + _).mkString(", ") + "]"
-
     case class Union(branches: List[(String, Type)]) extends Type:
       val tags: List[String] = branches.map(_._1)
 
@@ -156,9 +183,6 @@ object Types:
       def tagIndex(tag: String): Int =
         branches.indexWhere:
           case (t, _) => t == tag
-
-      override def toString =
-        "<" + branches.map(_ + " " + _).mkString(", ") + ">"
 
     case class Proc
       (names: List[String], paramTypes: List[Type], resType: Type)
