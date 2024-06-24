@@ -366,11 +366,11 @@ object Parsing:
         case _ =>
 
           word() match
-            case Some(w) => phraseRest(tdefs.toList, mutable.ArrayBuffer(w))
+            case Some(w) =>
+              phraseRest(tdefs.toList, mutable.ArrayBuffer(w))
+
             case None    =>
-              val (token, span) = peek()
-              error("Expect a word, found token " + token, span)
-              Phrase(tdefs.toList, Nil)(span)
+              Phrase(tdefs.toList, words = Nil)(span)
 
     def phraseRest(tdefs: List[TypeDef], words: mutable.ArrayBuffer[Word]): Phrase =
       word() match

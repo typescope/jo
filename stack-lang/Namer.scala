@@ -18,9 +18,9 @@ class Namer(using Reporter):
     val rootScope = new Scope.RootScope()
 
     // Predefined type names
-    rootScope.define(predef.Int, Reporter.NoSpan, isType = true)
-    rootScope.define(predef.Bool, Reporter.NoSpan, isType = true)
-    rootScope.define(predef.Void, Reporter.NoSpan, isType = true)
+    rootScope.define(predef.Int, Reporter.NoSpan)
+    rootScope.define(predef.Bool, Reporter.NoSpan)
+    rootScope.define(predef.Void, Reporter.NoSpan)
 
     // Predefined term names
     for sym <- predef.allSymbols do
@@ -87,13 +87,16 @@ class Namer(using Reporter):
         DelayedTask(sym, typer)
 
       case tdef: Ast.TypeDef =>
+        val names = new mutable.ArrayBuffer[String]
+        val bounds = new mutable.ArrayBuffer[Type]
+
         lazy val info =
           if tdef.tparams.isEmpty then
-            transformType(tdef.rhs)
+            val tp = transformType(tdef.rhs)
+            checker.expectValueType(tp, tdef.rhs.pos)
+            tp
           else
             val sc2 = sc.fresh()
-            val names = new mutable.ArrayBuffer[String]
-            val bounds = new mutable.ArrayBuffer[Type]
             val tparamSyms =
               for (tparam, i) <- tdef.tparams.zipWithIndex yield
                 names += tparam.name
@@ -108,18 +111,17 @@ class Namer(using Reporter):
                 sym
 
             val body = transformType(tdef.rhs)(using sc2)
-            val body2 = eliminateSymbols(body, tparamSyms)
-            Type.TypeLambda(names.toList, bounds.toList, body2)
+            val tp = eliminateSymbols(body, tparamSyms)
+            checker.expectValueType(tp, tdef.rhs.pos)
+            Type.TypeLambda(names.toList, bounds.toList, tp)
 
         val delayedType = Type.Delayed()(info)
 
         val sym = Symbol.createTypeSymbol(defn.name, delayedType)
-        sc.define(sym, defn.pos, isType = true)
+        sc.define(sym, defn.pos)
 
         // check type symbols after completion to allow cycles, type A = A
-        val typer = () =>
-          checker.expectValueType(info, tdef.rhs.pos)
-          TypeDef(sym)(tdef.pos)
+        val typer = () => TypeDef(sym)(tdef.pos)
 
         DelayedTask(sym, typer)
     end match
@@ -496,8 +498,8 @@ object Namer:
           Reporter.error("Undefined identifier " + name, span)
           errorSymbol
 
-    def define(sym: Symbol, span: Span, isType: Boolean = false)(using Reporter): Unit =
-      val table = getTable(isType)
+    def define(sym: Symbol, span: Span)(using Reporter): Unit =
+      val table = getTable(sym.isType)
       table.get(sym.name) match
         case None =>
           table(sym.name) = sym

@@ -57,12 +57,32 @@ object Types:
         case delayed: Type.Delayed => delayed.take
         case _ => this
 
-    /** Transitively eliminate type aliases and delayed types */
+    /** A grounded type cannot be simplied further at the top-level
+      *
+      * The following types are grounded:
+      *
+      * - primitive types
+      * - procedure types
+      * - record types
+      * - union types
+      */
+    def isGrounded: Boolean =
+      this match
+        case Type.Any | Type.Bottom | Type.Int | Type.Bool | Type.Error | Type.Void => true
+        case _: Type.Proc | _: Type.Record | _: Type.Union => true
+        case _: Type.TypeLambda | _: Type.TypeParamRef => true
+        case _: Type.TypeRef | _: Type.AppliedType => false
+        case _: Type.Delayed => false
+
+    /** Transitively eliminate top-level type aliases, delayed types and applied types */
     def dealias: Type =
       // detect cycles in symbol definitions, e.g., type A = A
       val encountered = new mutable.ArrayBuffer[Symbol]
       def recur(tp: Type): Type =
-        tp.underlying match
+        tp match
+          case delayed: Type.Delayed =>
+            recur(delayed.take)
+
           case tref @ Type.TypeRef(sym) =>
             if encountered.contains(sym) then
               tref
@@ -70,6 +90,14 @@ object Types:
               encountered += sym
               recur(sym.info)
             end if
+
+          case app @ Type.AppliedType(tctor, targs) =>
+            tctor.dealias match
+              case tl: Type.TypeLambda =>
+                substTypeParams(tl.body, targs)
+
+              case tp =>
+                tp
 
           case tp => tp
       end recur
@@ -156,10 +184,7 @@ object Types:
 
     case class AppliedType
       (tctor: Type, targs: List[Type])
-    extends Type:
-      def reduce: Type =
-        val typeLambda = tctor.asTypeLambda
-        substTypeParams(typeLambda.body, targs)
+    extends Type
 
     /** Delayed type for symbols to enable type inference and recursive types */
     case class Delayed
@@ -244,14 +269,14 @@ object Types:
     || tp1 == tp2
     || tp1.is[Type.TypeRef] && tp2.is[Type.TypeRef]
        && checkConformsTypeRef(tp1.as[Type.TypeRef], tp2.as[Type.TypeRef])
-    || tp1.is[Type.TypeRef] && tp1.dealias != tp1 && checkConforms(tp1.dealias, tp2)
-    || tp2.is[Type.TypeRef] && tp2.dealias != tp2 && checkConforms(tp1, tp2.dealias)
+    || tp1.is[Type.TypeRef] && checkConformsProxyType(tp1.as[Type.TypeRef], tp2)
+    || tp2.is[Type.TypeRef] && checkConformsProxyType(tp1, tp2.as[Type.TypeRef])
     || tp1.is[Type.Delayed] && checkConforms(tp1.underlying, tp2)
     || tp2.is[Type.Delayed] && checkConforms(tp1, tp2.underlying)
     || tp1.is[Type.Record] && tp2.is[Type.Record]
        && checkConformsRecordType(tp1.as[Type.Record], tp2.as[Type.Record])
-    || tp1.is[Type.AppliedType] && checkConforms(tp1.as[Type.TypeLambda], tp2)
-    || tp2.is[Type.AppliedType] && checkConforms(tp1, tp2.as[Type.TypeLambda])
+    || tp1.is[Type.AppliedType] && checkConformsProxyType(tp1.as[Type.AppliedType], tp2)
+    || tp2.is[Type.AppliedType] && checkConformsProxyType(tp1, tp2.as[Type.AppliedType])
 
   private def checkConformsTypeRef(tp1: Type.TypeRef, tp2: Type.TypeRef)(using ass: Assumptions): Boolean =
     ass.get(tp1.symbol) match
@@ -265,6 +290,14 @@ object Types:
       case None =>
         val ass2 = ass.updated(tp1.symbol, tp2.symbol :: Nil)
         checkConforms(tp1.symbol.info, tp2.symbol.info)(using ass2)
+
+  private def checkConformsProxyType(tp1: Type.AppliedType | Type.TypeRef, tp2: Type)(using ass: Assumptions): Boolean =
+    val tp1b = tp1.dealias
+    tp1b.isGrounded && checkConforms(tp1b, tp2)
+
+  private def checkConformsProxyType(tp1: Type, tp2: Type.AppliedType | Type.TypeRef)(using ass: Assumptions): Boolean =
+    val tp2b = tp2.dealias
+    tp2b.isGrounded && checkConforms(tp1, tp2b)
 
   private def checkConformsRecordType(tp1: Type.Record, tp2: Type.Record)(using Assumptions): Boolean =
     val names1 = tp1.fieldNames
