@@ -73,51 +73,7 @@ class Namer(using Reporter):
         transform(funDef)
 
       case tdef: Ast.TypeDef =>
-        val names = new mutable.ArrayBuffer[String]
-        val bounds = new mutable.ArrayBuffer[Type]
-
-        lazy val info =
-          if tdef.tparams.isEmpty then
-            transformType(tdef.rhs)
-          else
-            val sc2 = sc.fresh()
-            val tparamSyms =
-              for (tparam, i) <- tdef.tparams.zipWithIndex yield
-                names += tparam.name
-
-                val info = Type.TypeParamRef(tparam.name, i)
-                val sym = Symbol.createTypeSymbol(tparam.name, info)
-                sc2.define(sym, tparam.pos)
-                sym
-
-            for tparam <- tdef.tparams do
-              bounds +=(
-                if tparam.bound.isEmpty then Type.Any
-                else
-                  val bound = transformType(tparam.bound)(using sc2)
-                  eliminateSymbols(bound, tparamSyms)
-              )
-
-            val body = transformType(tdef.rhs)(using sc2)
-            val tp = eliminateSymbols(body, tparamSyms)
-            Type.TypeLambda(names.toList, bounds.toList, tp)
-
-        val delayedType = Type.Delayed()(info)
-
-        val sym = Symbol.createTypeSymbol(defn.name, delayedType)
-        sc.define(sym, defn.pos)
-
-        // check type symbols after completion to allow cycles, type A = A
-        val typer = () =>
-          info match
-            case Type.TypeLambda(_, _, body) =>
-              checker.checkValueType(body, tdef.rhs.pos)
-            case tp =>
-              checker.checkValueType(tp, tdef.rhs.pos)
-
-          TypeDef(sym)(tdef.pos)
-
-        DelayedTask(sym, typer)
+        transform(tdef)
     end match
   end index
 
@@ -413,6 +369,53 @@ class Namer(using Reporter):
       val body2 = transform(funDef.body)(using funScope)
       checker.checkType(body2, sym.info.resultType)
       FunDef(sym, paramSyms.toList, locals.toList, body2)(funDef.pos)
+
+    DelayedTask(sym, typer)
+
+  private def transform(tdef: Ast.TypeDef)(using sc: Scope): DelayedTask =
+    val names = new mutable.ArrayBuffer[String]
+    val bounds = new mutable.ArrayBuffer[Type]
+
+    lazy val info =
+      if tdef.tparams.isEmpty then
+        transformType(tdef.rhs)
+      else
+        val sc2 = sc.fresh()
+        val tparamSyms =
+          for (tparam, i) <- tdef.tparams.zipWithIndex yield
+            names += tparam.name
+
+            val info = Type.TypeParamRef(tparam.name, i)
+            val sym = Symbol.createTypeSymbol(tparam.name, info)
+            sc2.define(sym, tparam.pos)
+            sym
+
+        for tparam <- tdef.tparams do
+          bounds +=(
+            if tparam.bound.isEmpty then Type.Any
+            else
+              val bound = transformType(tparam.bound)(using sc2)
+              eliminateSymbols(bound, tparamSyms)
+          )
+
+        val body = transformType(tdef.rhs)(using sc2)
+        val tp = eliminateSymbols(body, tparamSyms)
+        Type.TypeLambda(names.toList, bounds.toList, tp)
+
+    val delayedType = Type.Delayed()(info)
+
+    val sym = Symbol.createTypeSymbol(tdef.name, delayedType)
+    sc.define(sym, tdef.pos)
+
+    // check type symbols after completion to allow cycles, type A = A
+    val typer = () =>
+      info match
+        case Type.TypeLambda(_, _, body) =>
+          checker.checkValueType(body, tdef.rhs.pos)
+        case tp =>
+          checker.checkValueType(tp, tdef.rhs.pos)
+
+      TypeDef(sym)(tdef.pos)
 
     DelayedTask(sym, typer)
 
