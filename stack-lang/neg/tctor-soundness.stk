@@ -6,3 +6,9 @@ type S[T] = S[[a: T, b: T]];
 fun test1(a: A[Int]): B[Int] = a;  // error
 
 fun test2(a: S[Int]): S[[a: Int, b: Int]] = a;  // error
+
+type Tuple2[S <: [a: Int], T <: S] = [x: S, y: T];
+val t: Tuple2[[a: Int, b: Int], [a: Int]] = [      // error
+    x = [a = 13, b = 14],
+    y = [a = 15, b = 16, c = 17]
+];

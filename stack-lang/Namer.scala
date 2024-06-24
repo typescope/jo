@@ -31,6 +31,8 @@ class Namer(using Reporter):
     val defs = transform(prog.defs)(using sc)
     val main2 = transform(prog.main)(using sc)
 
+    checker.performDelayedChecks()
+
     Prog(defs, main2)
 
   private def transform(defs: List[Ast.Def])(using sc: Scope): List[Def] =
@@ -52,9 +54,9 @@ class Namer(using Reporter):
             rhs.tpe
           else
             val tp = transformType(vdef.typ)
-            checker.expectValueType(tp, vdef.typ.pos)
-            checker.expect(rhs, tp)
-            tp
+            val tp2 = checker.checkValueType(tp, vdef.typ.pos)
+            checker.checkType(rhs, tp2)
+            tp2
 
         val delayedType = Type.Delayed()(tpe)
 
@@ -73,8 +75,7 @@ class Namer(using Reporter):
           val paramTypes =
             for param <- funDef.params yield
               val paramType = transformType(param.typ)
-              checker.expectValueType(paramType, param.typ.pos)
-              paramType
+              checker.checkValueType(paramType, param.typ.pos)
 
           val resType = transformType(funDef.resType)
           Type.Proc(paramNames, paramTypes, resType)
@@ -98,15 +99,19 @@ class Namer(using Reporter):
             val tparamSyms =
               for (tparam, i) <- tdef.tparams.zipWithIndex yield
                 names += tparam.name
-                bounds +=(
-                  if tparam.bound.isEmpty then Type.Any
-                  else transformType(tparam.bound)
-                )
 
                 val info = Type.TypeParamRef(tparam.name, i)
                 val sym = Symbol.createTypeSymbol(tparam.name, info)
                 sc2.define(sym, tparam.pos)
                 sym
+
+            for tparam <- tdef.tparams do
+              bounds +=(
+                if tparam.bound.isEmpty then Type.Any
+                else
+                  val bound = transformType(tparam.bound)(using sc2)
+                  eliminateSymbols(bound, tparamSyms)
+              )
 
             val body = transformType(tdef.rhs)(using sc2)
             val tp = eliminateSymbols(body, tparamSyms)
@@ -121,9 +126,9 @@ class Namer(using Reporter):
         val typer = () =>
           info match
             case Type.TypeLambda(_, _, body) =>
-              checker.expectValueType(body, tdef.rhs.pos)
+              checker.checkValueType(body, tdef.rhs.pos)
             case tp =>
-              checker.expectValueType(tp, tdef.rhs.pos)
+              checker.checkValueType(tp, tdef.rhs.pos)
 
           TypeDef(sym)(tdef.pos)
 
@@ -149,7 +154,7 @@ class Namer(using Reporter):
       case Ast.While(cond, body) =>
          val cond2 = transform(cond)
          val body2 = transform(body)
-         checker.expect(cond2, Type.Bool)
+         checker.checkType(cond2, Type.Bool)
          While(cond2, body2)(word.pos)
 
       case Ast.Ident(name) =>
@@ -162,7 +167,7 @@ class Namer(using Reporter):
           Reporter.error("The variable " + id.name + " is not mutable", id.pos)
 
         val rhs = transform(words)
-        checker.expect(rhs, sym.info)
+        checker.checkType(rhs, sym.info)
         Assign(sym, rhs)(word.pos)
 
       case record: Ast.RecordLit =>
@@ -193,9 +198,9 @@ class Namer(using Reporter):
         rhs.tpe
       else
         val tp = transformType(vdef.typ)
-        checker.expectValueType(tp, vdef.typ.pos)
-        checker.expect(rhs, tp)
-        tp
+        val tp2 = checker.checkValueType(tp, vdef.typ.pos)
+        checker.checkType(rhs, tp2)
+        tp2
 
     val sym = Symbol.createValueSymbol(vdef.name, tpe, flags)
 
@@ -207,7 +212,7 @@ class Namer(using Reporter):
     val cond2 = transform(cond)
     val then2 = transform(thenp)
     val else2 = transform(elsep)
-    checker.expect(cond2, Type.Bool)
+    checker.checkType(cond2, Type.Bool)
 
     // adapt result type
     val then3 = checker.adapt(then2, else2.tpe, then2.pos)
@@ -223,7 +228,7 @@ class Namer(using Reporter):
         Reporter.error("Arg " + id.name + " already defined", id.pos)
       else
         val rhs2 = transform(rhs)
-        checker.expectValueType(rhs2)
+        checker.checkValueType(rhs2)
         namedArgs2 += id.name -> rhs2
     end for
     val fields = namedArgs2.toList
@@ -265,7 +270,7 @@ class Namer(using Reporter):
 
     val Ast.Match(scrutinee, cases) = patmat
     val scrutinee2 = transform(scrutinee)
-    checker.expectValueType(scrutinee2)
+    checker.checkValueType(scrutinee2)
 
     val scrutType = scrutinee2.tpe
     val scrutSym = Symbol.createValueSymbol("scrutinee", scrutType, Flag.Local)
@@ -390,13 +395,7 @@ class Namer(using Reporter):
         Type.Error
       else
         vs.pop() match
-          case Some(tp) =>
-            if !tp.isValueType then
-              Reporter.error("Value expected, found type = " + tp.show, phrase.pos)
-              Type.Error
-            else
-              tp
-
+          case Some(tp) => checker.checkValueType(tp, phrase.pos)
           case None => Type.Void
 
     Phrase(wordsTyped)(tp, phrase.pos)
@@ -413,7 +412,7 @@ class Namer(using Reporter):
         paramSym
 
     val body2 = transform(funDef.body)(using funScope)
-    checker.expect(body2, sym.info.resultType)
+    checker.checkType(body2, sym.info.resultType)
     FunDef(sym, paramSyms, locals.toList, body2)(funDef.pos)
 
   private def transformType(tpt: Ast.TypeTree)(using sc: Scope): Type =
@@ -451,6 +450,8 @@ class Namer(using Reporter):
       case Ast.AppliedType(tctor, targs) =>
         val tctor2 = transformType(tctor)
         val targs2 = for targ <- targs yield transformType(targ)
+        checker.delayedCheck:
+          checker.checkBounds(tctor2, targs2, tctor.pos, targs.map(_.pos))
         Type.AppliedType(tctor2, targs2)
 
       case _: Ast.EmptyTypeTree =>

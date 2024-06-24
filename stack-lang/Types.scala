@@ -25,6 +25,9 @@ object Types:
     def isUnionType: Boolean =
       this.dealias.isInstanceOf[Type.Union]
 
+    def isTypeLambda: Boolean =
+      this.dealias.isInstanceOf[Type.TypeLambda]
+
     def isValueType: Boolean =
       this.dealias match
         case Type.Void | _: Type.Proc | _: Type.TypeLambda => false
@@ -194,7 +197,7 @@ object Types:
     case class TypeLambda
       (names: List[String], bounds: List[Type], body: Type)
     extends Type:
-      val typeParamCount = names.size
+      val paramCount = names.size
 
     /** An index reference to type parameter
       *

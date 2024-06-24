@@ -17,6 +17,15 @@ import scala.collection.mutable
 class Checker(using Reporter):
   import Checker.ValueStack
 
+  private val delayedChecks = new mutable.ArrayBuffer[() => Unit]
+
+  def delayedCheck(check: => Unit): Unit =
+    delayedChecks.addOne(() => check)
+
+  def performDelayedChecks(): Unit =
+    for check <- delayedChecks do check()
+    delayedChecks.clear()
+
   def check(word: Word)(using vs: ValueStack): Unit =
     word match
       case _: IntLit | _: BoolLit | _: RecordLit | _: Select | _: Encoded =>
@@ -49,16 +58,34 @@ class Checker(using Reporter):
   def check(words: List[Word])(using vs: ValueStack): Unit =
     for word <- words do check(word)
 
-  def expect(tree: Tree, tp: Type): Unit =
+  def checkBounds(tctor: Type, targs: List[Type], tctorPos: Span, targPos: List[Span]): Unit =
+    if !tctor.isTypeLambda then
+      Reporter.error(s"Expect type lambda, found = ${tctor.show}", tctorPos)
+    else
+      val tl = tctor.asTypeLambda
+      if tl.paramCount != targs.size then
+        Reporter.error(s"Expect ${tl.paramCount} args, found = ${targs.size}", targPos.head | targPos.last)
+      else
+        for i <- 0 until targs.size do
+          val arg = targs(i)
+          val bound = tl.bounds(i)
+          val actualBound = substTypeParams(bound, targs)
+          if !conforms(arg, actualBound) then
+            Reporter.error(s"Arg type ${arg.show} does not conform to bound = ${bound.show}, which expands to ${actualBound.show}", targPos(i))
+
+  def checkType(tree: Tree, tp: Type): Unit =
     if !conforms(tree.tpe, tp) then
       Reporter.error(s"Expect type ${tp.show}, found = ${tree.tpe.show}", tree.pos)
 
-  def expectValueType(tp: Type, pos: Span): Unit =
+  def checkValueType(tp: Type, pos: Span): Type =
     if !tp.isValueType then
       Reporter.error(s"Expect value type, found = ${tp.show}", pos)
+      Type.Error
+    else
+      tp
 
-  def expectValueType(tree: Tree): Unit =
-    expectValueType(tree.tpe, tree.pos)
+  def checkValueType(tree: Tree): Type =
+    checkValueType(tree.tpe, tree.pos)
 
   def fieldType(qualType: Type, field: String, pos: Span): Type =
     if !qualType.isRecordType then
@@ -83,7 +110,7 @@ class Checker(using Reporter):
         Type.Error
       else
         val tagType = unionType.tagType(tag.name)
-        expect(value, tagType)
+        checkType(value, tagType)
         tagType
 
   def tagType(tag: Ast.Ident, unionType: Type, typePos: Span): Type =

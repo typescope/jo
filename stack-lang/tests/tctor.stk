@@ -16,6 +16,12 @@ fun foreach(l: List[Int]): Void =
 type Pair[T] = [a: T, b: T];
 val x: Pair[Int] = [a = 36, b = 49];
 
+type Tuple2[S <: [a: Int], T <: S] = [x: S, y: T];
+val t: Tuple2[[a: Int, b: Int], [a: Int, b: Int, c: Int]] = [
+    x = [a = 13, b = 14],
+    y = [a = 15, b = 16, c = 17]
+];
+
 x.a p x.b p
 
 c foreach
