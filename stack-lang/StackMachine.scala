@@ -432,7 +432,6 @@ extends Backend:
     cb.add(Instr.Store(value, addr))
 
   def int2(fn: (Operand, Operand, Int) => Instr)(using Context) =
-    // TODO: check type of value
     useTwoReg: (r1, r2) =>
       // Reduce arithmetic on stack pointer to 1
       loadValue(r1, 1)
