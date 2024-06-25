@@ -11,4 +11,5 @@ object Memory:
   def fieldOffset(recordType: Type.Record, field: String): Int =
     val index = recordType.fields.toList.indexWhere:
       case (k, v) => k == field
+    assert(index >= 0, index)
     index << 2

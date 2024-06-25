@@ -207,7 +207,7 @@ class Namer(using Reporter):
     val fieldTypes = new mutable.ArrayBuffer[(String, Type)]
     fieldTypes += "tag" -> Type.Int
     for (tp, index) <- tagTypes.zipWithIndex do
-      fieldTypes += index.toString -> tp
+      fieldTypes += s"v$index" -> tp
 
     val encodeType = Type.Record(fieldTypes.toList)
 
@@ -313,7 +313,9 @@ class Namer(using Reporter):
             vals += ValDef(sym, valFieldSel)(binding.pos)
             caseScope.define(sym, binding.pos)
 
-          val tagIndex = scrutType.asUnionType.tagIndex(tag.name)
+          val tagIndex =
+            if tagTypesOpt.isEmpty then -1
+            else scrutType.asUnionType.tagIndex(tag.name)
 
           val condWords =
             tagFieldSel
