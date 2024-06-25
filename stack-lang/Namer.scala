@@ -201,7 +201,7 @@ class Namer(using Reporter):
     val fields = new mutable.ArrayBuffer[(String, Word)]
     fields += "tag" -> tagValue
     for (value, index) <- values2.zipWithIndex do
-      fields += index.toString -> value
+      fields += s"v$index" -> value
 
     // desugar variant to record
     val fieldTypes = new mutable.ArrayBuffer[(String, Type)]
@@ -299,7 +299,7 @@ class Namer(using Reporter):
           val fieldTypes = new mutable.ArrayBuffer[(String, Type)]
           fieldTypes += "tag" -> Type.Int
           for (tagType, i) <- tagTypes.zipWithIndex do
-            fieldTypes += i.toString -> tagType
+            fieldTypes += s"v$i" -> tagType
 
           val encodeType = Type.Record(fieldTypes.toList)
           val encodedScrut = Encoded(scrut)(encodeType)
@@ -308,7 +308,7 @@ class Namer(using Reporter):
           val vals = mutable.ArrayBuffer.empty[ValDef]
           for (binding, i) <- bindings.zipWithIndex do
             val boundType = tagTypes(i)
-            val valFieldSel = Select(encodedScrut, i.toString)(boundType, binding.pos)
+            val valFieldSel = Select(encodedScrut, s"v$i")(boundType, binding.pos)
             val sym = Symbol.createValueSymbol(binding.name, boundType, Flag.Local)
             vals += ValDef(sym, valFieldSel)(binding.pos)
             caseScope.define(sym, binding.pos)
