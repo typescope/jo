@@ -61,7 +61,7 @@ object Ast:
     def name = ident.name
 
   case class Variant
-    (tag: Ident, value: Phrase, typ: TypeTree)
+    (tag: Ident, values: List[Word], typ: TypeTree)
     (val pos: Span)
   extends Word
 
@@ -120,7 +120,7 @@ object Ast:
   extends TypeTree
 
   case class Branch
-    (tag: Ident, typ: TypeTree)
+    (tag: Ident, tps: List[TypeTree])
     (val pos: Span)
   extends Positioned:
     def name = tag.name
