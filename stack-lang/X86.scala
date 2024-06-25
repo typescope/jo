@@ -269,16 +269,38 @@ object X86 extends Assembler:
           pop(EAX)
 
         else                        // reg and rv are not EAX, not equal
-          push(EAX)
-          move(Reg(reg), EAX)
-          move(Reg(rv), reg)        // divisor in reg
-          push(EDX)
+          val divisorReg =
+            if rv != EAX && rv != EDX then
+              rv.toByte
+            else
+              val freeReg = if reg == EBX then ECX else EBX
+              push(freeReg)
+              move(Reg(rv), freeReg)
+              freeReg
+
+          // put divident in EDX:EAX where EDX should be 0
+          // reg can be EDX
+          if reg != EAX then
+            push(EAX)
+            move(Reg(reg), EAX)
+
+          if reg != EDX then
+            push(EDX)
+          // import to set high bits to 0
           move(Int32(0), EDX)
+
           pb.addByte(0xF7.toByte)
-          pb.addByte((0xC0 | (7 << 3) | reg).toByte)
-          move(Reg(EAX), reg)
-          pop(EDX)
-          pop(EAX)
+          pb.addByte((0xC0 | (7 << 3) | divisorReg).toByte)
+
+          if reg != EDX then
+            pop(EDX)
+
+          if reg != EAX then
+            move(Reg(EAX), reg)
+            pop(EAX)
+
+          if divisorReg != rv then
+            pop(divisorReg)
 
       case _: Int32 =>
         // F7 /7	IDIV r/m32
@@ -305,6 +327,7 @@ object X86 extends Assembler:
 
   /** Modulo the register with the value */
   def mod(reg: Int, v: Operand)(using pb: PatchableBuffer) =
+    // https://www.felixcloutier.com/x86/idiv
     // TODO: reminder sign does not always agree with divident
     v match
       case Reg(rv) =>
@@ -320,27 +343,56 @@ object X86 extends Assembler:
           pop(EDX)
 
         else if reg == rv then       // it's implied that reg and rv are not EAX
+          // TODO: const fold
           push(EAX)
           move(Reg(reg), EAX)        // divisor and divident are EAX
-          if rv != EDX then push(EDX)
+          if reg != EDX then
+            push(EDX)
+
+          // import to set high bits to 0
           move(Int32(0), EDX)
+
           pb.addByte(0xF7.toByte)
           pb.addByte((0xC0 | (7 << 3) | EAX).toByte)
-          move(Reg(EDX), reg)
-          if rv != EDX then pop(EDX)
+
+          if reg != EDX then
+            move(Reg(EDX), reg)
+            pop(EDX)
           pop(EAX)
 
         else                        // reg and rv are not EAX, not equal
-          push(EAX)
-          move(Reg(reg), EAX)
-          move(Reg(rv), reg)        // divisor in reg
-          if rv != EDX then push(EDX)
+          val divisorReg =
+            if rv != EAX && rv != EDX then
+              rv.toByte
+            else
+              val freeReg = if reg == EBX then ECX else EBX
+              push(freeReg)
+              move(Reg(rv), freeReg)
+              freeReg
+
+          // put divident in EDX:EAX where EDX should be 0
+          // reg can be EDX
+          if reg != EAX then
+            push(EAX)
+            move(Reg(reg), EAX)
+
+          if reg != EDX then
+            push(EDX)
+          // import to set high bits to 0
           move(Int32(0), EDX)
+
           pb.addByte(0xF7.toByte)
-          pb.addByte((0xC0 | (7 << 3) | reg).toByte)
-          move(Reg(EDX), reg)
-          if rv != EDX then pop(EDX)
-          pop(EAX)
+          pb.addByte((0xC0 | (7 << 3) | divisorReg).toByte)
+
+          if reg != EDX then
+            move(Reg(EDX), reg)
+            pop(EDX)
+
+          if reg != EAX then
+            pop(EAX)
+
+          if divisorReg != rv then
+            pop(divisorReg)
 
       case _: Int32 =>
         // F7 /7	IDIV r/m32

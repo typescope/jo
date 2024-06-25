@@ -462,12 +462,28 @@ object Parsing:
         case _ =>
           if acc.nonEmpty then eat(Token.COMMA)
           val tag = ident()
-          val tp =
+          val tps = new mutable.ArrayBuffer[TypeTree]
+          while
             peek() match
-            case (Token.COMMA | Token.Ident(">"), span) => Ident("Void")(span)
-            case _ => typ()
+              case (Token.COMMA | Token.Ident(">") | Token.EOF, span) =>
+                false
+              case _ =>
+                if tps.nonEmpty then
+                  val id = ident()
+                  if id.name != "*" then
+                    error("Expect *, found = " + id.name, id.pos)
+                    false
+                  else
+                    tps += typ()
+                    true
+                else
+                  tps += typ()
+                  true
+            end match
+          do ()
 
-          val branch = Branch(tag, tp)(tag.pos | tp.pos)
+          val posEnd = if tps.isEmpty then tag.pos else tps.last.pos
+          val branch = Branch(tag, tps.toList)(tag.pos | posEnd)
           branches(acc += branch)
 
     def ident(): Ident =
@@ -546,12 +562,18 @@ object Parsing:
     def variant(): Variant =
       val span1 = eat(Token.TAG)
       val tag = ident()
-      val value = peek() match
-        case (Token.OF, span) => Phrase(tdefs = Nil, words = Nil)(span)
-        case _ => phrase()
+      val words = new mutable.ArrayBuffer[Word]
+      while
+        word() match
+          case Some(w) =>
+            words += w
+            true
+          case _ =>
+            false
+      do ()
       eat(Token.OF)
       val tp = typ()
-      Variant(tag, value, tp)(span1 | tp.pos)
+      Variant(tag, words.toList, tp)(span1 | tp.pos)
 
     def patmat(): Match =
       val span1 = eat(Token.MATCH)
@@ -576,18 +598,24 @@ object Parsing:
        case (Token.TAG, _) =>
          val span1 = eat(Token.TAG)
          val tag = ident()
-         peek() match
-           case (Token.RARROW, _) =>
-             TagPat(tag, bindings = Nil)(span1 | tag.pos)
+         val bindings = new mutable.ArrayBuffer[Ident]
+         while
+           peek() match
+             case (Token.RARROW, _) =>
+               false
 
-           case (_: Token.Ident, _) =>
-             val binding = ident()
-             TagPat(tag, binding :: Nil)(span1 | binding.pos)
+             case (_: Token.Ident, _) =>
+               bindings += ident()
+               true
 
-           case (token, span) =>
-             error("Expect a name, found = " + token, span)
-             next()
-             Wildcard()(span)
+             case (token, span) =>
+               error("Expect a name, found = " + token, span)
+               next()
+               false
+         do ()
+
+         val posEnd = if bindings.isEmpty then tag.pos else bindings.last.pos
+         TagPat(tag, bindings.toList)(span1 | posEnd)
 
        case (Token.Ident("_"), span) =>
          next()

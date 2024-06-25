@@ -118,7 +118,8 @@ object Types:
           "[" + fields.map(_ + ": " + _.show).mkString(", ") + "]"
 
         case Type.Union(branches) =>
-          "<" + branches.map(_ + " " + _.show).mkString(", ") + ">"
+          def concat(tps: List[Type]) = tps.map(_.show).mkString(" * ")
+          "<" + branches.map(_ + " " + concat(_)).mkString(", ") + ">"
 
         case delay: Type.Delayed =>
           delay.underlying.show
@@ -170,17 +171,17 @@ object Types:
       def fieldType(name: String): Type =
         getFieldType(name).get
 
-    case class Union(branches: List[(String, Type)]) extends Type:
+    case class Union(branches: List[(String, List[Type])]) extends Type:
       val tags: List[String] = branches.map(_._1)
 
-      def getTagType(tag: String): Option[Type] =
+      def getTagType(tag: String): Option[List[Type]] =
         branches.collectFirst:
-          case (t, tp) if t == tag => tp
+          case (t, tps) if t == tag => tps
 
       def hasTag(tag: String): Boolean =
         tags.contains(tag)
 
-      def tagType(tag: String): Type =
+      def tagType(tag: String): List[Type] =
         getTagType(tag).get
 
       def tagIndex(tag: String): Int =
@@ -370,8 +371,10 @@ object Types:
 
       case Type.Union(branches) =>
         val branches2 =
-          for (tag, tpe) <- branches
-          yield tag -> substTypeParams(tpe, to)
+          for
+            (tag, tps) <- branches
+          yield
+            tag -> tps.map(tp => substTypeParams(tp, to))
         Type.Union(branches2)
 
       case Type.AppliedType(tctor, targs) =>
@@ -411,8 +414,10 @@ object Types:
 
       case Type.Union(branches) =>
         val branches2 =
-          for (tag, tpe) <- branches
-          yield tag -> eliminateSymbols(tpe, syms)
+          for
+            (tag, tps) <- branches
+          yield
+            tag -> tps.map(tp => eliminateSymbols(tp, syms))
         Type.Union(branches2)
 
       case Type.AppliedType(tctor, targs) =>

@@ -488,7 +488,6 @@ extends Backend:
     gen(Instr.Store(value, addr))
 
   def int2(fn: (Operand, Operand, Int) => Instr)(using ctx: Context) =
-    // TODO: check type of value
     val arg2 = ctx.vs.pop()
     val arg1 = ctx.vs.pop()
     val reg = freshVirtualReg()

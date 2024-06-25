@@ -60,11 +60,11 @@ Syntactical Grammar
     while   = WHILE phrase DO phrase END.
     record  = LBRACKET [named_args] RBRACKET.
     select  = (ident | select) DOT ident.
-    variant = TAG ident [phrase] OF type.
+    variant = TAG ident {word} OF type.
 
     match   = MATCH phrase {case} END.
     case    = CASE pat RARROW phrase.
-    pat     = TAG ident [ident] | USCORE.
+    pat     = TAG ident {ident} | USCORE.
 
     phrase  = { typedef } word [phrase].
 
@@ -88,7 +88,8 @@ Syntactical Grammar
 
     union_typ  = '<' [branches] '>'.
     branches   = branch { COMMA branch }.
-    branch     = ident [type].
+    branch     = ident {types}.
+    types      = type [ '*' type ].
 
     program = {valdef | fundef | typedef} phrase.
 

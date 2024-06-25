@@ -177,34 +177,41 @@ class Namer(using Reporter):
     RecordLit(fields)(tpe, record.pos)
 
   private def transform(variant: Ast.Variant)(using sc: Scope): Word =
-    val Ast.Variant(tag, value, typ) = variant
-    val value2 = transform(value)
+    val Ast.Variant(tag, values, typ) = variant
+    val values2 = values.map(transform)
     val unionType = transformType(typ)
-    val tagType = checker.checkTagValue(tag, value2, unionType, typ.pos)
+    val tagTypesOpt = checker.tagTypes(tag, unionType, typ.pos)
+
+    val tagTypes =
+      tagTypesOpt match
+        case Some(tagTypes) =>
+          checker.checkTagValues(values2, tagTypes, tag.pos)
+          tagTypes
+
+        case None =>
+          Nil
 
     // encode variants as records
     val tagIndex =
-      if tagType.isError then -1
+      if tagTypesOpt.isEmpty then -1
       else unionType.asUnionType.tagIndex(tag.name)
 
     val tagValue = IntLit(tagIndex)(tag.pos)
 
-    val fields =
-      if tagType.isVoid then
-        List("tag" -> tagValue)
-      else
-        List("tag" -> tagValue, "value" -> value2)
+    val fields = new mutable.ArrayBuffer[(String, Word)]
+    fields += "tag" -> tagValue
+    for (value, index) <- values2.zipWithIndex do
+      fields += s"v$index" -> value
 
     // desugar variant to record
-    val fieldTypes =
-      if tagType.isVoid then
-        List("tag" -> Type.Int)
-      else
-        List("tag" -> Type.Int, "value" -> tagType)
+    val fieldTypes = new mutable.ArrayBuffer[(String, Type)]
+    fieldTypes += "tag" -> Type.Int
+    for (tp, index) <- tagTypes.zipWithIndex do
+      fieldTypes += s"v$index" -> tp
 
-    val encodeType = Type.Record(fieldTypes)
+    val encodeType = Type.Record(fieldTypes.toList)
 
-    Encoded(RecordLit(fields)(encodeType, variant.pos))(unionType)
+    Encoded(RecordLit(fields.toList)(encodeType, variant.pos))(unionType)
 
   private def transform(patmat: Ast.Match)(using sc: Scope): Word =
     val sc2 = sc.fresh()
@@ -276,30 +283,38 @@ class Namer(using Reporter):
         checker.adapt(adapted, elsep.tpe, body2.pos)
 
       case Ast.TagPat(tag, bindings) =>
-        val tagType = checker.tagType(tag, scrutType, scrutPos)
-        if tagType.isVoid && bindings.nonEmpty then
-          Reporter.error("The tag does not take arguments", tag.pos)
+        val tagTypesOpt = checker.tagTypes(tag, scrutType, scrutPos)
+        val tagTypes = tagTypesOpt match
+            case Some(tps) => tps
+            case None => Nil
+
+        if tagTypesOpt.isEmpty then
           cont(Type.Bottom)
 
-        else if !tagType.isVoid && bindings.isEmpty then
-          Reporter.error("The tag take an argument", tag.pos)
+        else if tagTypes.size != bindings.size then
+          Reporter.error(s"The tag takes ${tagTypes.size} arguments, found = ${bindings.size}", tag.pos)
           cont(Type.Bottom)
 
         else
-          val fieldTypes = List("tag" -> Type.Int, "value" -> tagType)
-          val encodeType = Type.Record(fieldTypes)
+          val fieldTypes = new mutable.ArrayBuffer[(String, Type)]
+          fieldTypes += "tag" -> Type.Int
+          for (tagType, i) <- tagTypes.zipWithIndex do
+            fieldTypes += s"v$i" -> tagType
+
+          val encodeType = Type.Record(fieldTypes.toList)
           val encodedScrut = Encoded(scrut)(encodeType)
           val tagFieldSel = Select(encodedScrut, "tag")(Type.Int, tag.pos)
 
           val vals = mutable.ArrayBuffer.empty[ValDef]
-          for binding <- bindings do
-            val valFieldSel = Select(encodedScrut, "value")(tagType, binding.pos)
-            val sym = Symbol.createValueSymbol(binding.name, tagType, Flag.Local)
+          for (binding, i) <- bindings.zipWithIndex do
+            val boundType = tagTypes(i)
+            val valFieldSel = Select(encodedScrut, s"v$i")(boundType, binding.pos)
+            val sym = Symbol.createValueSymbol(binding.name, boundType, Flag.Local)
             vals += ValDef(sym, valFieldSel)(binding.pos)
             caseScope.define(sym, binding.pos)
 
           val tagIndex =
-            if tagType.isError then -1
+            if tagTypesOpt.isEmpty then -1
             else scrutType.asUnionType.tagIndex(tag.name)
 
           val condWords =
@@ -442,12 +457,13 @@ class Namer(using Reporter):
         Type.Record(fieldTypes.toList)
 
       case Ast.UnionType(branches) =>
-        val branchTypes = new mutable.ArrayBuffer[(String, Type)]
+        val branchTypes = new mutable.ArrayBuffer[(String, List[Type])]
         for branch <- branches do
           if branchTypes.exists(_._1 == branch.name) then
             Reporter.error("Branch " + branch.name + " already defined", branch.pos)
           else
-            branchTypes += branch.name -> transformType(branch.typ)
+            val tps = for tpt <- branch.tpts yield transformType(tpt)
+            branchTypes += branch.name -> tps
         end for
         Type.Union(branchTypes.toList)
 

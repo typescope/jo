@@ -99,31 +99,24 @@ class Checker(using Reporter):
       else
         recordType.fieldType(field)
 
-  def checkTagValue(tag: Ast.Ident, value: Phrase, targetType: Type, typePos: Span): Type =
-    if !targetType.isUnionType then
-      Reporter.error(s"Expect union type, found = ${targetType.show}", typePos)
-      Type.Error
+  def checkTagValues(values: List[Word], tagTypes: List[Type], tagPos: Span): Unit =
+    if tagTypes.size != values.size then
+      Reporter.error(s"Expect ${tagTypes.size} args, found = ${values.size}", tagPos)
     else
-      val unionType = targetType.asUnionType
-      if !unionType.hasTag(tag.name) then
-        Reporter.error(s"The tag ${tag.name} does not exist in union type ${unionType.show}", tag.pos)
-        Type.Error
-      else
-        val tagType = unionType.tagType(tag.name)
+      for (value, tagType) <- values.zip(tagTypes) do
         checkType(value, tagType)
-        tagType
 
-  def tagType(tag: Ast.Ident, unionType: Type, typePos: Span): Type =
+  def tagTypes(tag: Ast.Ident, unionType: Type, typePos: Span): Option[List[Type]] =
     if !unionType.isUnionType then
       Reporter.error(s"Expect union type, found = ${unionType.show}", typePos)
-      Type.Error
+      None
     else
       val unionType2 = unionType.asUnionType
       if !unionType2.hasTag(tag.name) then
         Reporter.error(s"The tag ${tag.name} does not exist in union type $unionType2", tag.pos)
-        Type.Error
+        None
       else
-        unionType2.tagType(tag.name)
+        Some(unionType2.tagType(tag.name))
 
   /** Explicit drop of values in if/match expressions */
   def adapt(word: Word, otherType: Type, pos: Span): Word =

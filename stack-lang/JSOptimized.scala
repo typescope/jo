@@ -212,11 +212,11 @@ class JSOptimized(outFile: String) extends Backend:
 
   /** Compile [x = 3, y = 5] */
   def compile(record: RecordLit)(using Context): Unit =
-    val fieldValues = mutable.Map.empty[String, String]
+    val fieldValues = new mutable.ArrayBuffer[(String, String)]
     for (name, rhs) <- record.args do
       compile(rhs)
       val encodedName = encodeSymbolic(name)
-      fieldValues(encodedName) = vs.pop()
+      fieldValues += encodedName -> vs.pop()
     end for
     val obj = fieldValues.map(_ + ":" + _).mkString("{", ", ", "}")
     vs.push(Item.Expr(obj))

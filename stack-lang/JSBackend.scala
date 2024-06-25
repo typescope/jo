@@ -175,13 +175,13 @@ class JSBackend(outFile: String) extends Backend:
 
   /** Compile [x = 3, y = 5] */
   def compile(record: RecordLit)(using Context): Unit =
-    val fieldValues = mutable.Map.empty[String, String]
+    val fieldValues = new mutable.ArrayBuffer[(String, String)]
     for (name, rhs) <- record.args do
       compile(rhs)
       val arg = freshName("arg")
       addLine(s"const $arg = $pop();")
       val encodedName = encodeSymbolic(name)
-      fieldValues(encodedName) = arg
+      fieldValues += encodedName -> arg
     end for
     val obj = fieldValues.map(_ + ":" + _).mkString("{", ", ", "}")
     addLine(s"$push($obj)")
