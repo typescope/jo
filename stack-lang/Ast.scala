@@ -120,7 +120,7 @@ object Ast:
   extends TypeTree
 
   case class Branch
-    (tag: Ident, tps: List[TypeTree])
+    (tag: Ident, tpts: List[TypeTree])
     (val pos: Span)
   extends Positioned:
     def name = tag.name
