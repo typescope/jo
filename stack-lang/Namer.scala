@@ -196,22 +196,8 @@ class Namer(using Reporter):
       if tagTypesOpt.isEmpty then -1
       else unionType.asUnionType.tagIndex(tag.name)
 
-    val tagValue = IntLit(tagIndex)(tag.pos)
-
-    val fields = new mutable.ArrayBuffer[(String, Word)]
-    fields += "tag" -> tagValue
-    for (value, index) <- values2.zipWithIndex do
-      fields += s"v$index" -> value
-
-    // desugar variant to record
-    val fieldTypes = new mutable.ArrayBuffer[(String, Type)]
-    fieldTypes += "tag" -> Type.Int
-    for (tp, index) <- tagTypes.zipWithIndex do
-      fieldTypes += s"v$index" -> tp
-
-    val encodeType = Type.Record(fieldTypes.toList)
-
-    Encoded(RecordLit(fields.toList)(encodeType, variant.pos))(unionType)
+    val encodedValue = Desugaring.encodeVariant(tagIndex, values2, tagTypes, tag.pos, variant.pos)
+    Encoded(encodedValue)(unionType)
 
   private def transform(patmat: Ast.Match)(using sc: Scope): Word =
     val sc2 = sc.fresh()
@@ -296,34 +282,21 @@ class Namer(using Reporter):
           cont(Type.Bottom)
 
         else
-          val fieldTypes = new mutable.ArrayBuffer[(String, Type)]
-          fieldTypes += "tag" -> Type.Int
-          for (tagType, i) <- tagTypes.zipWithIndex do
-            fieldTypes += s"v$i" -> tagType
-
-          val encodeType = Type.Record(fieldTypes.toList)
+          val encodeType = Desugaring.encodeUnionType(tagTypes)
           val encodedScrut = Encoded(scrut)(encodeType)
-          val tagFieldSel = Select(encodedScrut, "tag")(Type.Int, tag.pos)
 
           val vals = mutable.ArrayBuffer.empty[ValDef]
           for (binding, i) <- bindings.zipWithIndex do
-            val boundType = tagTypes(i)
-            val valFieldSel = Select(encodedScrut, s"v$i")(boundType, binding.pos)
-            val sym = Symbol.createValueSymbol(binding.name, boundType, Flag.Local)
-            vals += ValDef(sym, valFieldSel)(binding.pos)
+            val arg = Desugaring.selectVariantArg(encodedScrut, i, binding.pos)
+            val sym = Symbol.createValueSymbol(binding.name, arg.tpe, Flag.Local)
+            vals += ValDef(sym, arg)(binding.pos)
             caseScope.define(sym, binding.pos)
 
           val tagIndex =
             if tagTypesOpt.isEmpty then -1
             else scrutType.asUnionType.tagIndex(tag.name)
 
-          val condWords =
-            tagFieldSel
-              :: IntLit(tagIndex)(tag.pos)
-              :: Ident(predef.eql)(tag.pos)
-              :: Nil
-
-          val cond = Phrase(condWords)(Type.Bool, tag.pos)
+          val cond = Desugaring.testVariantTag(encodedScrut, tagIndex, tag.pos)
           val body2 = transform(body)(using caseScope)
           val adapted = checker.adapt(body2, resType, body2.pos)
           val elsep = cont(adapted.tpe)
