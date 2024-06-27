@@ -44,7 +44,11 @@ class Checker(using Reporter):
         vs.expectEmpty("No result expected before while loop", word.pos)
 
       case Ident(sym) =>
-        val info = sym.info
+        // The type of the symbol can be different after type erasure
+        val info = word.tpe
+
+        if info.isPolyType then
+          Reporter.error(s"Function $sym expects type arguments", word.pos)
 
         if info.isProcType then
           vs.call(sym, info.asProcType, word.pos)
@@ -58,24 +62,48 @@ class Checker(using Reporter):
   def check(words: List[Word])(using vs: ValueStack): Unit =
     for word <- words do check(word)
 
-  def checkBounds(tctor: Type, targs: List[Type], tctorPos: Span, targPos: List[Span]): Unit =
-    if !tctor.isTypeLambda then
-      Reporter.error(s"Expect type lambda, found = ${tctor.show}", tctorPos)
+  def checkBounds(tctor: TypeTree, targs: List[TypeTree]): Unit =
+    if !tctor.tpe.isTypeLambda then
+      Reporter.error(s"Expect type lambda, found = ${tctor.tpe.show}", tctor.pos)
     else
-      val tl = tctor.asTypeLambda
+      val tl = tctor.tpe.asTypeLambda
       if tl.paramCount != targs.size then
-        Reporter.error(s"Expect ${tl.paramCount} args, found = ${targs.size}", targPos.head | targPos.last)
+        Reporter.error(s"Expect ${tl.paramCount} args, found = ${targs.size}", targs.head.pos | targs.last.pos)
       else
-        for i <- 0 until targs.size do
-          val arg = targs(i)
-          val bound = tl.bounds(i)
-          val actualBound = substTypeParams(bound, targs)
-          if !conforms(arg, actualBound) then
-            Reporter.error(s"Arg type ${arg.show} does not conform to bound = ${bound.show}, which expands to ${actualBound.show}", targPos(i))
+        for (targ, bound) <- targs.zip(tl.bounds) do
+          val argType = targ.tpe
+          val actualBound = substTypeParams(bound, targs.map(_.tpe))
+          if !conforms(argType, actualBound) then
+            Reporter.error(s"Arg type ${argType.show} does not conform to bound = ${bound.show}, which expands to ${actualBound.show}", targ.pos)
+
+  def checkTypeApply(fun: Word, targs: List[TypeTree]): Word =
+    if !fun.tpe.isPolyType then
+      Reporter.error(s"Expect a poly function type, found = ${fun.tpe.show}", fun.pos)
+      Phrase(words = Nil)(Type.Error, fun.pos | targs.last.pos)
+    else
+      val polyType = fun.tpe.asPolyType
+      if polyType.paramCount != targs.size then
+        Reporter.error(s"Expect ${polyType.paramCount} args, found = ${targs.size}", targs.head.pos | targs.last.pos)
+        Phrase(words = Nil)(Type.Error, fun.pos | targs.last.pos)
+      else
+        for (targ, bound) <- targs.zip(polyType.bounds) do
+          val argType = targ.tpe
+          val actualBound = substTypeParams(bound, targs.map(_.tpe))
+          if !conforms(argType, actualBound) then
+            Reporter.error(s"Arg type ${argType.show} does not conform to bound = ${bound.show}, which expands to ${actualBound.show}", targ.pos)
+        end for
+        val tpe = substTypeParams(polyType.resType, targs.map(_.tpe))
+        // TODO: generalize
+        val funSym = fun.asInstanceOf[Ident].symbol
+        // perform type erasure
+        Ident(funSym)(fun.pos, tpe)
 
   def checkType(tree: Tree, tp: Type): Unit =
     if !conforms(tree.tpe, tp) then
       Reporter.error(s"Expect type ${tp.show}, found = ${tree.tpe.show}", tree.pos)
+
+  def checkValueType(tree: Tree): Unit =
+    checkValueType(tree.tpe, tree.pos)
 
   def checkValueType(tp: Type, pos: Span): Type =
     if !tp.isValueType then
@@ -83,9 +111,6 @@ class Checker(using Reporter):
       Type.Error
     else
       tp
-
-  def checkValueType(tree: Tree): Type =
-    checkValueType(tree.tpe, tree.pos)
 
   def fieldType(qualType: Type, field: String, pos: Span): Type =
     if !qualType.isRecordType then

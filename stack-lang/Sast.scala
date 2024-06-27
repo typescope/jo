@@ -40,9 +40,8 @@ object Sast:
 
   case class Ident
     (symbol: Symbol)
-    (val pos: Span)
-  extends Word:
-    def tpe: Type = symbol.info
+    (val pos: Span, val tpe: Type = symbol.info)
+  extends Word
 
   case class Select
     (qual: Word, name: String)
@@ -79,6 +78,11 @@ object Sast:
     def pos = repr.pos
 
     def isValueDrop = repr.tpe.isValueType && tpe.isVoid
+
+  case class TypeTree
+    (tpe: Type)
+    (val pos: Span)
+  extends Tree
 
   sealed trait Def extends Tree:
     val symbol: Symbol

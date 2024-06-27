@@ -30,10 +30,12 @@ object Types:
 
     def isValueType: Boolean =
       this.dealias match
-        case Type.Void | _: Type.Proc | _: Type.TypeLambda => false
+        case Type.Void | _: Type.Proc | _: Type.TypeLambda | _: Type.PolyType => false
         case _ => true
 
     def isProcType: Boolean = this.underlying.isInstanceOf[Type.Proc]
+
+    def isPolyType: Boolean = this.underlying.isInstanceOf[Type.PolyType]
 
     def asRecordType: Type.Record = this.dealias.asInstanceOf[Type.Record]
 
@@ -43,17 +45,14 @@ object Types:
 
     def asProcType: Type.Proc = this.dealias.asInstanceOf[Type.Proc]
 
+    def asPolyType: Type.PolyType = this.dealias.asInstanceOf[Type.PolyType]
+
     def is[T <: Type : ClassTag]: Boolean =
       this match
         case tp: T => true
         case _     => false
 
     def as[T <: Type]: T = this.asInstanceOf[T]
-
-    def resultType: Type =
-      this.underlying match
-        case Type.Proc(_, _, resType) => resType
-        case _ => throw new Exception("Not a proc type: " + this)
 
     def underlying: Type =
       this match
@@ -72,7 +71,7 @@ object Types:
     def isGrounded: Boolean =
       this match
         case Type.Any | Type.Bottom | Type.Int | Type.Bool | Type.Error | Type.Void => true
-        case _: Type.Proc | _: Type.Record | _: Type.Union => true
+        case _: Type.PolyType | _: Type.Proc | _: Type.Record | _: Type.Union => true
         case _: Type.TypeLambda | _: Type.TypeParamRef => true
         case _: Type.TypeRef | _: Type.AppliedType => false
         case _: Type.Delayed => false
@@ -128,8 +127,12 @@ object Types:
           tctor.show + targs.map(_.show).mkString("[", ", ", "]")
 
         case Type.TypeLambda(names, bounds, body) =>
-          val params = names.zip(bounds).map(_ + " <: " + _.show).mkString("[", ", ", "]")
-          params + " => " + body.show
+          val tparams = names.zip(bounds).map(_ + " <: " + _.show).mkString("[", ", ", "]")
+          tparams + " => " + body.show
+
+        case Type.PolyType(names, bounds, resType) =>
+          val tparams = names.zip(bounds).map(_ + " <: " + _.show).mkString("[", ", ", "]")
+          tparams + resType.show
 
         case Type.TypeParamRef(name, _) =>
           name
@@ -138,6 +141,7 @@ object Types:
           val params = names.zip(paramTypes).map(_ + " <: " + _.show).mkString("(", ", ", ")")
           params + ": " + resType.show
 
+  // TODO: move types out of the object
   object Type:
     case object Int extends Type
 
@@ -188,6 +192,11 @@ object Types:
         branches.indexWhere:
           case (t, _) => t == tag
 
+    case class PolyType
+      (names: List[String], bounds: List[Type], resType: Type)
+    extends Type:
+      val paramCount = bounds.size
+
     case class Proc
       (names: List[String], paramTypes: List[Type], resType: Type)
     extends Type:
@@ -236,7 +245,7 @@ object Types:
         else
           that match
             case tp: Delayed =>
-              tp.isComplete && tp.underlying == this.underlying
+              tp.isComplete && tp._underlying == this._underlying
 
             case _ =>
               false
@@ -244,7 +253,7 @@ object Types:
 
       override def hashCode(): Int =
         if !isComplete then throw new Exception("Hashing incomplete type")
-        else underlying.hashCode
+        else _underlying.hashCode
 
       override def toString =
         "Delayed(" + _underlying + ")"
@@ -383,8 +392,8 @@ object Types:
         val targs2 = for targ <- targs yield substTypeParams(targ, to)
         Type.AppliedType(tctor2, targs2)
 
-      case _: Type.TypeLambda =>
-        // nested type lambdas not supported
+      case _: Type.TypeLambda | _: Type.PolyType =>
+        // nested type lambdas or polymorphic types are not supported
         tpe
 
       case tp: Type.Proc =>
@@ -426,8 +435,8 @@ object Types:
         val targs2 = for targ <- targs yield eliminateSymbols(targ, syms)
         Type.AppliedType(tctor2, targs2)
 
-      case _: Type.TypeLambda | _: Type.TypeParamRef =>
-        // nested type lambdas not supported
+      case _: Type.TypeLambda | _: Type.TypeParamRef | _: Type.PolyType =>
+        // nested type lambdas and poly types are not supported
         tpe
 
       case tp: Type.Proc =>
