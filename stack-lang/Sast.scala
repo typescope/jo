@@ -101,7 +101,7 @@ object Sast:
     def tpe: Type = Type.Void
 
   case class FunDef
-    (symbol: Symbol, params: List[Symbol], locals: List[Symbol], body: Word)
+    (symbol: Symbol, tparams: List[Symbol], params: List[Symbol], locals: List[Symbol], body: Word)
     (val pos: Span)
   extends Def:
     def tpe = symbol.info

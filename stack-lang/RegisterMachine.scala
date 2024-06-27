@@ -122,9 +122,13 @@ extends Backend:
     val sym = fdef.symbol
     val paramCount = fdef.params.size
 
+    val funType =
+       if sym.info.isPolyType then sym.info.asPolyType.resultType.asProcType
+       else sym.info.asProcType
+
     // TODO: bind retLoc
     val proto @ CalleeProtocol(paramLocs, retLoc, resLocs, savedRegs) =
-      callConvention.callee(sym.info.asProcType)
+      callConvention.callee(funType)
 
     // Compile function to a temporary buffer for register allocation
     gen(PlaceHolder.InitStackPointer)

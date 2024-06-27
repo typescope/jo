@@ -337,6 +337,7 @@ class Namer(using Reporter):
   private def transform(funDef: Ast.FunDef)(using sc: Scope): DelayedTask =
     val locals = new mutable.ArrayBuffer[Symbol]
     val paramSyms = new mutable.ArrayBuffer[Symbol]
+    val tparamSyms = new mutable.ArrayBuffer[Symbol]
     val bounds = new mutable.ArrayBuffer[Type]
     val funScope = sc.fresh(sym => if !sym.isParameter then locals.addOne(sym))
 
@@ -349,19 +350,19 @@ class Namer(using Reporter):
       resTypeTree.tpe
 
     lazy val info =
-      val tparamSyms =
-        for (tparam, i) <- funDef.tparams.zipWithIndex yield
-          val info = Type.TypeParamRef(tparam.name, i)
-          val sym = Symbol.createTypeSymbol(tparam.name, info)
-          funScope.define(sym, tparam.pos)
-          sym
+      for (tparam, i) <- funDef.tparams.zipWithIndex yield
+        val info = Type.TypeParamRef(tparam.name, i)
+        val sym = Symbol.createTypeSymbol(tparam.name, info)
+        funScope.define(sym, tparam.pos)
+        tparamSyms += sym
+        sym
 
       for tparam <- funDef.tparams do
         bounds +=(
           if tparam.bound.isEmpty then Type.Any
           else
             val boundTree = transformType(tparam.bound)(using funScope)
-            eliminateSymbols(boundTree.tpe, tparamSyms)
+            eliminateSymbols(boundTree.tpe, tparamSyms.toList)
         )
 
       val paramTypes =
@@ -384,7 +385,7 @@ class Namer(using Reporter):
       delayedType.force()
       val body2 = transform(funDef.body)(using funScope)
       checker.checkType(body2, finalResultType)
-      FunDef(sym, paramSyms.toList, locals.toList, body2)(funDef.pos)
+      FunDef(sym, tparamSyms.toList, paramSyms.toList, locals.toList, body2)(funDef.pos)
 
     DelayedTask(sym, typer)
 

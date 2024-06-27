@@ -138,7 +138,11 @@ class JSOptimized(outFile: String) extends Backend:
   def compile(fdef: FunDef)(using Context): Unit =
     val sym = fdef.symbol
     val name = symbol2UniqueName(sym)
-    val funType = sym.info.asProcType
+
+    val funType =
+       if sym.info.isPolyType then sym.info.asPolyType.resultType.asProcType
+       else sym.info.asProcType
+
     val resCount = funType.resCount
 
     uniqueName.newScope:

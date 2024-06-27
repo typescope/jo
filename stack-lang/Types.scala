@@ -193,15 +193,15 @@ object Types:
           case (t, _) => t == tag
 
     case class PolyType
-      (names: List[String], bounds: List[Type], resType: Type)
+      (names: List[String], bounds: List[Type], resultType: Type)
     extends Type:
       val paramCount = bounds.size
 
     case class Proc
-      (names: List[String], paramTypes: List[Type], resType: Type)
+      (names: List[String], paramTypes: List[Type], resultType: Type)
     extends Type:
       val paramCount = paramTypes.size
-      val resCount = if resType.isValueType then 1 else 0
+      val resCount = if resultType.isValueType then 1 else 0
 
     /** A type lambda */
     case class TypeLambda

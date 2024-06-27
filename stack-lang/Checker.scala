@@ -92,7 +92,7 @@ class Checker(using Reporter):
           if !conforms(argType, actualBound) then
             Reporter.error(s"Arg type ${argType.show} does not conform to bound = ${bound.show}, which expands to ${actualBound.show}", targ.pos)
         end for
-        val tpe = substTypeParams(polyType.resType, targs.map(_.tpe))
+        val tpe = substTypeParams(polyType.resultType, targs.map(_.tpe))
         // TODO: generalize
         val funSym = fun.asInstanceOf[Ident].symbol
         // perform type erasure

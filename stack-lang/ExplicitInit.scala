@@ -35,12 +35,13 @@ object ExplicitInit:
     inits += transform(prog.main)(using initLocals)
 
     // synthesize init function
-    val initType = Type.Proc(names = Nil, paramTypes = Nil, resType = Type.Void)
+    val initType = Type.Proc(names = Nil, paramTypes = Nil, resultType = Type.Void)
     val initSym = Symbol.createFunSymbol("<init>", initType)
     val initPos = prog.main.pos
     val initBody = Phrase(inits.toList)(prog.main.tpe, initPos)
+    val initTypeParams = Nil
     val initParams = Nil
-    val initFun = FunDef(initSym, initParams, initLocals.toList, initBody)(initPos)
+    val initFun = FunDef(initSym, initTypeParams, initParams, initLocals.toList, initBody)(initPos)
 
     defs += initFun
     Prog(defs.toList, Ident(initSym)(initPos))

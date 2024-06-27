@@ -83,7 +83,10 @@ extends Backend:
     */
   def compile(fdef: FunDef)(using Context): Unit =
     val sym = fdef.symbol
-    val funType = sym.info.asProcType
+    val funType =
+       if sym.info.isPolyType then sym.info.asPolyType.resultType.asProcType
+       else sym.info.asProcType
+
     val label = symbolAddrMap(sym).asInstanceOf[Label]
 
     val paramCount = funType.paramCount
