@@ -347,7 +347,7 @@ class Namer(using Reporter):
     lazy val finalResultType =
       // TODO: missing kind check
       val resTypeTree = transformType(funDef.resType)(using funScope)
-      resTypeTree.tpe
+      eliminateSymbols(resTypeTree.tpe, tparamSyms.toList)
 
     lazy val info =
       for (tparam, i) <- funDef.tparams.zipWithIndex yield
@@ -375,7 +375,7 @@ class Namer(using Reporter):
 
       val procType = Type.Proc(paramNames, paramTypes, finalResultType)
       if bounds.isEmpty then procType
-      else Type.PolyType(tparamNames, bounds.toList, procType)
+      else Type.PolyType(tparamNames, bounds.toList, eliminateSymbols(procType, tparamSyms.toList))
 
     val delayedType = Type.Delayed()(info)
     val sym = Symbol.createFunSymbol(funDef.name, delayedType)

@@ -114,11 +114,11 @@ object Types:
           sym.name
 
         case Type.Record(fields) =>
-          "[" + fields.map(_ + ": " + _.show).mkString(", ") + "]"
+          fields.map(_ + ": " + _.show).mkString("{", ", ", "}")
 
         case Type.Union(branches) =>
           def concat(tps: List[Type]) = tps.map(_.show).mkString(" * ")
-          "<" + branches.map(_ + " " + concat(_)).mkString(", ") + ">"
+          branches.map(_ + " " + concat(_)).mkString("<", ", ", ">")
 
         case delay: Type.Delayed =>
           delay.underlying.show
@@ -396,8 +396,11 @@ object Types:
         // nested type lambdas or polymorphic types are not supported
         tpe
 
-      case tp: Type.Proc =>
-        tp
+      case Type.Proc(names, paramTypes, resType) =>
+        // proc can be nested inside poly type
+        val paramTypes2 = paramTypes.map(tp => substTypeParams(tp, to))
+        val resType2 = substTypeParams(resType, to)
+        Type.Proc(names, paramTypes2, resType2)
 
       case tp: Type.Delayed =>
         substTypeParams(tp.underlying, to)
@@ -439,8 +442,11 @@ object Types:
         // nested type lambdas and poly types are not supported
         tpe
 
-      case tp: Type.Proc =>
-        tp
+      case Type.Proc(names, paramTypes, resType) =>
+        // proc can be nested inside poly type
+        val paramTypes2 = paramTypes.map(tp => eliminateSymbols(tp, syms))
+        val resType2 = eliminateSymbols(resType, syms)
+        Type.Proc(names, paramTypes2, resType2)
 
       case tp: Type.Delayed =>
         eliminateSymbols(tp.underlying, syms)
