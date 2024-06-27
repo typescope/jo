@@ -1,7 +1,7 @@
 type A = A;
 type B = B;
-type C = [a: A, c: C];
-type D = [a: A, c: D];
+type C = {a: A, c: C};
+type D = {a: A, c: D};
 
 type X = Y;
 type Y = X;

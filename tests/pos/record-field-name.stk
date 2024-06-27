@@ -1,6 +1,6 @@
-type Alg = [+ : Int, - : Int];
+type Alg = {+ : Int, - : Int};
 
-val alg: Alg = [+ = 5, - = 10];
+val alg: Alg = {+ = 5, - = 10};
 
 alg.+ p
 alg.- p

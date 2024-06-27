@@ -1,5 +1,5 @@
 type Int32 = Int;
-type Unit = [];
+type Unit = {};
 type Option = <None, Some Int>;
 type Sum = <Left Int, Right Int>;
 type Bot = < >;
