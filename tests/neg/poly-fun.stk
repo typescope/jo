@@ -1,4 +1,4 @@
-fun foo[T <: {a: Int}](x: T): T = x.a;
+fun foo[T <: {a: Int}](x: T): T = x.a;  // error
 
 val a = 10 foo;  // error
 
