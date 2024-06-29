@@ -18,9 +18,10 @@ import Reporter.*
 object Parsing:
 
   enum Token:
-    case LPAREN, RPAREN, LBRACKET, RBRACKET, OF, IF, THEN, ELSE, END, COLON,
-         SEMICOL, DOT, VAL, VAR, FUN, EQL, TAG, EOF, COMMA, WHILE, DO, TYPE,
-         SUBTYPE, MATCH, CASE, RARROW
+    case LPAREN, RPAREN, LBRACKET, RBRACKET, LBRACE, RBRACE
+    case OF, IF, THEN, ELSE, VAL, VAR, FUN,  WHILE, DO, TYPE, MATCH, CASE, END
+    case TAG, SEMICOL, COMMA, DOT, EOF
+    case COLON, RARROW, EQL, SUBTYPE
     case IntLit(value: Int)
     case BoolLit(value: Boolean)
     case Ident(name: String)
@@ -124,6 +125,8 @@ object Parsing:
         case ')'    => Token.RPAREN
         case '['    => Token.LBRACKET
         case ']'    => Token.RBRACKET
+        case '{'    => Token.LBRACE
+        case '}'    => Token.RBRACE
         case '#'    => Token.TAG
         case '.'    => Token.DOT
         case ';'    => Token.SEMICOL
@@ -294,6 +297,7 @@ object Parsing:
     def funDef(): FunDef =
       val span1 = eat(Token.FUN)
       val id = ident()
+      val tparams = typeParams()
       eat(Token.LPAREN)
       val paramList = params()
       eat(Token.RPAREN)
@@ -302,31 +306,31 @@ object Parsing:
       eat(Token.EQL)
       val words = phrase()
       val span2 = eat(Token.SEMICOL)
-      FunDef(id, paramList, resType, words)(span1 | span2)
+      FunDef(id, tparams, paramList, resType, words)(span1 | span2)
 
     def typeDef(): TypeDef =
       val span1 = eat(Token.TYPE)
       val id = ident()
-      val typeParams = tparams()
+      val tparams = typeParams()
       eat(Token.EQL)
       val rhs = typ()
       val span2 = eat(Token.SEMICOL)
-      TypeDef(id, typeParams, rhs)(span1 | span2)
+      TypeDef(id, tparams, rhs)(span1 | span2)
 
-    def tparams(): List[TypeParam] =
+    def typeParams(): List[TypeParam] =
       val (token, _) = peek()
-      if token == Token.EQL then Nil
+      if token != Token.LBRACKET then Nil
       else
         eat(Token.LBRACKET)
         val items = new mutable.ArrayBuffer[TypeParam]
-        items += tparam()
+        items += typeParam()
         while peek()._1 != Token.RBRACKET && peek()._1 != Token.EOF do
           eat(Token.COMMA)
-          items += tparam()
+          items += typeParam()
         eat(Token.RBRACKET)
         items.toList
 
-    def tparam(): TypeParam =
+    def typeParam(): TypeParam =
       val id = ident()
       val bound =
         if peek()._1 == Token.SUBTYPE then
@@ -385,7 +389,7 @@ object Parsing:
       val (token, span) = peek()
       token match
         case Token.LPAREN    => Some(fence())
-        case Token.LBRACKET  => Some(record())
+        case Token.LBRACE    => Some(record())
         case Token.IF        => Some(ifElse())
         case Token.MATCH     => Some(patmat())
         case Token.WHILE     => Some(whileDo())
@@ -396,6 +400,7 @@ object Parsing:
           peek() match
             case (Token.EQL, _) => Some(assign(id))
             case (Token.DOT, _) => Some(select(id))
+            case (Token.LBRACKET, _) => Some(typeApply(id))
             case _ => Some(id)
 
         case Token.VAL | Token.VAR   =>
@@ -414,7 +419,7 @@ object Parsing:
 
     def typ(): TypeTree =
       peek() match
-        case (Token.LBRACKET, _)   => recordType()
+        case (Token.LBRACE, _)   => recordType()
         case (Token.Ident("<"), _) => unionType()
         case _ =>
           val id = ident()
@@ -424,9 +429,9 @@ object Parsing:
             id
 
     def recordType(): RecordType =
-      val span1 = eat(Token.LBRACKET)
+      val span1 = eat(Token.LBRACE)
       val fieldDecls = fields(mutable.ArrayBuffer.empty)
-      val span2 = eat(Token.RBRACKET)
+      val span2 = eat(Token.RBRACE)
       RecordType(fieldDecls)(span1 | span2)
 
     def unionType(): UnionType =
@@ -436,6 +441,11 @@ object Parsing:
       UnionType(branchDecls)(span1 | span2)
 
     def appliedType(tctor: Ident): AppliedType =
+      val targs = typeArgs()
+      val endPos = targs.last.pos
+      AppliedType(tctor, targs.toList)(tctor.pos | endPos)
+
+    def typeArgs(): List[TypeTree] =
       eat(Token.LBRACKET)
       val targs = new mutable.ArrayBuffer[TypeTree]
       targs += typ()
@@ -443,11 +453,11 @@ object Parsing:
         eat(Token.COMMA)
         targs += typ()
       val span = eat(Token.RBRACKET)
-      AppliedType(tctor, targs.toList)(tctor.pos | span)
+      targs.toList
 
     def fields(acc: mutable.ArrayBuffer[Field]): List[Field] =
       peek() match
-        case (Token.RBRACKET | Token.EOF, _) => acc.toList
+        case (Token.RBRACE | Token.EOF, _) => acc.toList
         case _ =>
           if acc.nonEmpty then eat(Token.COMMA)
           val id = ident()
@@ -540,15 +550,20 @@ object Parsing:
         case (Token.DOT, _) => select(sel)
         case _ => sel
 
+    def typeApply(id: Ident): TypeApply =
+      val targs = typeArgs()
+      val endPos = targs.last.pos
+      TypeApply(id, targs)(id.pos | endPos)
+
     def record(): RecordLit =
-      val span1 = eat(Token.LBRACKET)
+      val span1 = eat(Token.LBRACE)
       val args = namedArgs(mutable.ArrayBuffer.empty)
-      val span2 = eat(Token.RBRACKET)
+      val span2 = eat(Token.RBRACE)
       RecordLit(args)(span1 | span2)
 
     def namedArgs(acc: mutable.ArrayBuffer[NamedArg]): List[NamedArg] =
       peek() match
-        case (Token.RBRACKET | Token.EOF, _) => acc.toList
+        case (Token.RBRACE | Token.EOF, _) => acc.toList
         case _ =>
           if acc.nonEmpty then eat(Token.COMMA)
           namedArgs(acc += namedArg())

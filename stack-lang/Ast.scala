@@ -75,6 +75,11 @@ object Ast:
     (val pos: Span)
   extends Positioned
 
+  case class TypeApply
+    (fun: Word, targs: List[TypeTree])
+    (val pos: Span)
+  extends Word
+
   case class Phrase
     (tdefs: List[TypeDef], words: List[Word])
     (val pos: Span)
@@ -149,7 +154,7 @@ object Ast:
     def name = ident.name
 
   case class FunDef
-    (ident: Ident, params: List[Param], resType: TypeTree, body: Phrase)
+    (ident: Ident, tparams: List[TypeParam], params: List[Param], resType: TypeTree, body: Phrase)
     (val pos: Span)
   extends Def
 

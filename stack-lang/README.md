@@ -31,6 +31,8 @@ Lexical Grammar
     RPAREN   = ")".
     LBRACKET = "[".
     RBRACKET = "]".
+    LBRACE   = "{".
+    RBRACE   = "}".
     OF       = "of".
     IF       = "if".
     THEN     = "then".
@@ -53,14 +55,15 @@ Syntactical Grammar
 
 
 ~~~
-    word    = integer | boolean | ident | if | fence | assign | valdef | while | record | select | variant | match.
+    word    = integer | boolean | ident | if | fence | assign | valdef | while | record | select | variant | match | tapply.
     fence   = LPAREN phrase RPAREN.
     assign  = ident EQL phrase SEMICOL.
     if      = IF phrase THEN phrase [ELSE phrase] END.
     while   = WHILE phrase DO phrase END.
-    record  = LBRACKET [named_args] RBRACKET.
+    record  = LBRACE [named_args] RBRACE.
     select  = (ident | select) DOT ident.
     variant = TAG ident {word} OF type.
+    tapply  = ident targs.
 
     match   = MATCH phrase {case} END.
     case    = CASE pat RARROW phrase.
@@ -69,7 +72,7 @@ Syntactical Grammar
     phrase  = { typedef } word [phrase].
 
     valdef  = (VAL | VAR) ident [COLON type] EQL phrase SEMICOL.
-    fundef  = FUN ident LPAREN [params] RPAREN EQL phrase SEMICOL.
+    fundef  = FUN ident [tparams] LPAREN [params] RPAREN EQL phrase SEMICOL.
 
     typedef = TYPE [tparams] ident EQL type SEMICOL.
     tparams = LBRACKET tparam {COMMA tparam} RBRACKET.
@@ -82,7 +85,7 @@ Syntactical Grammar
 
     named_args = named_arg { COMMA named_arg }.
     named_arg  = ident EQL phrase.
-    record_typ = LBRACKET [fields]  RBRACKET.
+    record_typ = LBRACE [fields]  RBRACE.
     fields     = field { COMMA field }.
     field      = ident COLON type.
 

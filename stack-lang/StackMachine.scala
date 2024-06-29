@@ -30,7 +30,7 @@ extends Backend:
   val entry = Label("_entry")
 
   /** The memory allocator */
-  val allocatorType = Type.Proc("size" :: Nil, Type.Int :: Nil, Type.Int)
+  val allocatorType = ProcType("size" :: Nil, IntType :: Nil, IntType)
   val allocatorSym = Symbol.createFunSymbol("alloc", allocatorType)
   symbolAddrMap(allocatorSym) = Label(allocatorSym.name)
 
@@ -83,7 +83,8 @@ extends Backend:
     */
   def compile(fdef: FunDef)(using Context): Unit =
     val sym = fdef.symbol
-    val funType = sym.info.asProcType
+    val funType = sym.info.erasePolyType.asProcType
+
     val label = symbolAddrMap(sym).asInstanceOf[Label]
 
     val paramCount = funType.paramCount
@@ -207,7 +208,7 @@ extends Backend:
     */
   def call(fun: Symbol)(using Context) =
     val addr = symbolAddrMap(fun).asInstanceOf[Label]
-    val funType = fun.info.asProcType
+    val funType = fun.info.erasePolyType.asProcType
     val argCount = funType.paramCount
     val resCount = funType.resCount
     val returnLoc = Label("returnLoc")

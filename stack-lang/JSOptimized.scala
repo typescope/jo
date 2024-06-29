@@ -107,7 +107,7 @@ class JSOptimized(outFile: String) extends Backend:
     */
   def call(fun: Symbol)(using Context): Unit =
     val name = symbol2UniqueName(fun)
-    val funType = fun.info.asProcType
+    val funType = fun.info.erasePolyType.asProcType
     val paramCount = funType.paramCount
     val resCount = funType.resCount
 
@@ -138,7 +138,8 @@ class JSOptimized(outFile: String) extends Backend:
   def compile(fdef: FunDef)(using Context): Unit =
     val sym = fdef.symbol
     val name = symbol2UniqueName(sym)
-    val funType = sym.info.asProcType
+
+    val funType = sym.info.erasePolyType.asProcType
     val resCount = funType.resCount
 
     uniqueName.newScope:

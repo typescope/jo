@@ -10,13 +10,13 @@ import scala.collection.mutable
   * - Union types are desugared to record types
   */
 object Desugaring:
-  def encodeUnionType(tagTypes: List[Type]): Type.Record =
+  def encodeUnionType(tagTypes: List[Type]): RecordType =
     val fieldTypes = new mutable.ArrayBuffer[(String, Type)]
-    fieldTypes += "tag" -> Type.Int
+    fieldTypes += "tag" -> IntType
     for (tagType, i) <- tagTypes.zipWithIndex do
       fieldTypes += s"v$i" -> tagType
 
-    Type.Record(fieldTypes.toList)
+    RecordType(fieldTypes.toList)
 
   def encodeVariant(
     tagIndex: Int, values: List[Word], tagTypes: List[Type],
@@ -40,10 +40,10 @@ object Desugaring:
     Select(value, fieldName)(fieldType, pos)
 
   def testVariantTag(value: Word, tagIndex: Int, pos: Span): Word =
-    val tagSelect = Select(value, "tag")(Type.Int, pos)
+    val tagSelect = Select(value, "tag")(IntType, pos)
     val words =
       tagSelect
       :: IntLit(tagIndex)(pos)
       :: Ident(predef.eql)(pos)
       :: Nil
-    Phrase(words)(Type.Bool, pos)
+    Phrase(words)(BoolType, pos)

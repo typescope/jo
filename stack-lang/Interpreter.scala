@@ -178,7 +178,7 @@ object Interpreter:
 
       case Action.Prim(fun) => fun(vs)
 
-      case Action.Fun(FunDef(_, params, locals, body), sc2) =>
+      case Action.Fun(FunDef(_, _, params, locals, body), sc2) =>
         val funScope = new Scope.NestedScope(sc2)
         for param <- params.reverse do
           funScope.bind(param, vs.pop())

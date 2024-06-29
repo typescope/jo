@@ -11,37 +11,43 @@ import scala.reflect.ClassTag
   */
 object Types:
   sealed abstract class Type:
-    def isError: Boolean = this == Type.Error
+    def isError: Boolean = this == ErrorType
 
-    def isVoid: Boolean = this == Type.Void
+    def isVoid: Boolean = this == VoidType
 
-    def isAny: Boolean = this == Type.Any
+    def isAny: Boolean = this == AnyType
 
-    def isBottom: Boolean = this == Type.Bottom
+    def isBottom: Boolean = this == BottomType
 
     def isRecordType: Boolean =
-      this.dealias.isInstanceOf[Type.Record]
+      this.approx(isUp = true).isInstanceOf[RecordType]
 
     def isUnionType: Boolean =
-      this.dealias.isInstanceOf[Type.Union]
+      this.approx(isUp = true).isInstanceOf[UnionType]
 
     def isTypeLambda: Boolean =
-      this.dealias.isInstanceOf[Type.TypeLambda]
+      this.approx(isUp = true).isInstanceOf[TypeLambda]
+
+    def isProcType: Boolean =
+      this.approx(isUp = true).isInstanceOf[ProcType]
+
+    def isPolyType: Boolean =
+      this.approx(isUp = true).isInstanceOf[PolyType]
 
     def isValueType: Boolean =
       this.dealias match
-        case Type.Void | _: Type.Proc | _: Type.TypeLambda => false
+        case VoidType | _: ProcType | _: TypeLambda | _: PolyType => false
         case _ => true
 
-    def isProcType: Boolean = this.underlying.isInstanceOf[Type.Proc]
+    def asRecordType: RecordType = this.approx(isUp = true).asInstanceOf[RecordType]
 
-    def asRecordType: Type.Record = this.dealias.asInstanceOf[Type.Record]
+    def asUnionType: UnionType = this.approx(isUp = true).asInstanceOf[UnionType]
 
-    def asUnionType: Type.Union = this.dealias.asInstanceOf[Type.Union]
+    def asTypeLambda: TypeLambda = this.approx(isUp = true).asInstanceOf[TypeLambda]
 
-    def asTypeLambda: Type.TypeLambda = this.dealias.asInstanceOf[Type.TypeLambda]
+    def asProcType: ProcType = this.approx(isUp = true).asInstanceOf[ProcType]
 
-    def asProcType: Type.Proc = this.dealias.asInstanceOf[Type.Proc]
+    def asPolyType: PolyType = this.approx(isUp = true).asInstanceOf[PolyType]
 
     def is[T <: Type : ClassTag]: Boolean =
       this match
@@ -49,16 +55,6 @@ object Types:
         case _     => false
 
     def as[T <: Type]: T = this.asInstanceOf[T]
-
-    def resultType: Type =
-      this.underlying match
-        case Type.Proc(_, _, resType) => resType
-        case _ => throw new Exception("Not a proc type: " + this)
-
-    def underlying: Type =
-      this match
-        case delayed: Type.Delayed => delayed.force()
-        case _ => this
 
     /** A grounded type cannot be simplied further at the top-level
       *
@@ -71,22 +67,32 @@ object Types:
       */
     def isGrounded: Boolean =
       this match
-        case Type.Any | Type.Bottom | Type.Int | Type.Bool | Type.Error | Type.Void => true
-        case _: Type.Proc | _: Type.Record | _: Type.Union => true
-        case _: Type.TypeLambda | _: Type.TypeParamRef => true
-        case _: Type.TypeRef | _: Type.AppliedType => false
-        case _: Type.Delayed => false
+        case AnyType | BottomType | IntType | BoolType | ErrorType | VoidType => true
+        case _: PolyType | _: ProcType | _: RecordType | _: UnionType | _: TypeBound => true
+        case _: TypeLambda | _: TypeParamRef => true
+        case _: TypeRef | _: AppliedType => false
+        case _: DelayedType => false
+
+    /** Erase a poly type by replacing type parameters with Any */
+    def erasePolyType: Type =
+      // implementation assumption: no nested poly types
+      this.dealias match
+        case PolyType(_, bounds, resType) =>
+          // cannot subst with bounds as they might be recursive
+          substTypeParams(resType, bounds.map(_ => AnyType))
+
+        case tp => tp
 
     /** Transitively eliminate top-level type aliases, delayed types and applied types */
     def dealias: Type =
       // detect cycles in symbol definitions, e.g., type A = A
       val encountered = new mutable.ArrayBuffer[Symbol]
-      def recur(tp: Type): Type =
+      def recur(tp: Type): Type = Debug.trace(s"$tp.dealias", enable = false):
         tp match
-          case delayed: Type.Delayed =>
+          case delayed: DelayedType =>
             recur(delayed.force())
 
-          case tref @ Type.TypeRef(sym) =>
+          case tref @ TypeRef(sym) =>
             if encountered.contains(sym) then
               tref
             else
@@ -94,166 +100,223 @@ object Types:
               recur(sym.info)
             end if
 
-          case app @ Type.AppliedType(tctor, targs) =>
-            tctor.dealias match
-              case tl: Type.TypeLambda =>
-                substTypeParams(tl.body, targs)
+          case app @ AppliedType(tctor, targs) =>
+            recur(tctor) match
+              case tl: TypeLambda =>
+                recur(substTypeParams(tl.body, targs))
 
-              case tp =>
-                tp
+              case _ =>
+                app
 
           case tp => tp
       end recur
       recur(this)
 
+    /** Approximate top-level type aliases, delayed types, applied types
+      *
+      *
+      * The difference with `dealias` is that this method approximates type
+      * bounds while `dealias` does not.
+      *
+      * It approximates a type to its upper bound or lower bound according to
+      * the spec.
+      */
+    private def approx(isUp: Boolean): Type =
+      // detect cycles in symbol definitions, e.g., type A = A
+      val encountered = new mutable.ArrayBuffer[Symbol]
+      def recur(tp: Type, isUp: Boolean): Type = Debug.trace(s"$tp.approx", enable = false):
+        tp match
+          case delayed: DelayedType =>
+            recur(delayed.force(), isUp)
+
+          case tref @ TypeRef(sym) =>
+            if encountered.contains(sym) then
+              tref
+            else
+              encountered += sym
+              recur(sym.info, isUp)
+            end if
+
+          case TypeBound(lo, hi) =>
+            if isUp then recur(hi, isUp) else recur(lo, isUp)
+
+          case app @ AppliedType(tctor, targs) =>
+            recur(tctor, isUp) match
+              case tl: TypeLambda =>
+                recur(substTypeParams(tl.body, targs), isUp)
+
+              case _ =>
+                app
+
+          case tp => tp
+      end recur
+      recur(this, isUp)
+
     def show: String =
       this match
-        case Type.Int | Type.Bool | Type.Void | Type.Any | Type.Bottom | Type.Error =>
+        case IntType | BoolType | VoidType | AnyType | BottomType | ErrorType =>
           this.toString
 
-        case Type.TypeRef(sym) =>
+        case TypeRef(sym) =>
           sym.name
 
-        case Type.Record(fields) =>
-          "[" + fields.map(_ + ": " + _.show).mkString(", ") + "]"
+        case RecordType(fields) =>
+          fields.map(_ + ": " + _.show).mkString("{", ", ", "}")
 
-        case Type.Union(branches) =>
+        case UnionType(branches) =>
           def concat(tps: List[Type]) = tps.map(_.show).mkString(" * ")
-          "<" + branches.map(_ + " " + concat(_)).mkString(", ") + ">"
+          branches.map(_ + " " + concat(_)).mkString("<", ", ", ">")
 
-        case delay: Type.Delayed =>
+        case delay: DelayedType =>
           delay.underlying.show
 
-        case Type.AppliedType(tctor, targs) =>
+        case AppliedType(tctor, targs) =>
           tctor.show + targs.map(_.show).mkString("[", ", ", "]")
 
-        case Type.TypeLambda(names, bounds, body) =>
-          val params = names.zip(bounds).map(_ + " <: " + _.show).mkString("[", ", ", "]")
-          params + " => " + body.show
+        case TypeLambda(names, bounds, body) =>
+          val tparams = names.zip(bounds).map(_ + " <: " + _.show).mkString("[", ", ", "]")
+          tparams + " => " + body.show
 
-        case Type.TypeParamRef(name, _) =>
+        case PolyType(names, bounds, resType) =>
+          val tparams = names.zip(bounds).map(_ + " <: " + _.show).mkString("[", ", ", "]")
+          tparams + resType.show
+
+        case TypeParamRef(name, _) =>
           name
 
-        case Type.Proc(names, paramTypes, resType) =>
+        case TypeBound(lo, hi) =>
+          lo.show + " .. " + hi.show
+
+        case ProcType(names, paramTypes, resType) =>
           val params = names.zip(paramTypes).map(_ + " <: " + _.show).mkString("(", ", ", ")")
           params + ": " + resType.show
+  end Type
 
-  object Type:
-    case object Int extends Type
+  case object IntType extends Type
 
-    case object Bool extends Type
+  case object BoolType extends Type
 
-    case object Void extends Type
+  case object VoidType extends Type
 
-    case object Any extends Type
+  case object AnyType extends Type
 
-    case object Bottom extends Type
+  case object BottomType extends Type
 
-    case object Error extends Type
+  case object ErrorType extends Type
 
-    case class TypeRef(symbol: Symbol) extends Type
+  case class TypeRef(symbol: Symbol) extends Type
 
-    /** A record type --- named tuples
-      *
-      * Warning: flattening of nested tuples is dangerous with subtyping
-      * of records.
-      */
-    case class Record(fields: List[(String, Type)]) extends Type:
-      val fieldNames: List[String] = fields.map(_._1)
-
-      def getFieldType(field: String): Option[Type] =
-        fields.collectFirst:
-          case (f, tp) if f == field => tp
-
-      def hasField(name: String): Boolean =
-        fieldNames.contains(name)
-
-      def fieldType(name: String): Type =
-        getFieldType(name).get
-
-    case class Union(branches: List[(String, List[Type])]) extends Type:
-      val tags: List[String] = branches.map(_._1)
-
-      def getTagType(tag: String): Option[List[Type]] =
-        branches.collectFirst:
-          case (t, tps) if t == tag => tps
-
-      def hasTag(tag: String): Boolean =
-        tags.contains(tag)
-
-      def tagType(tag: String): List[Type] =
-        getTagType(tag).get
-
-      def tagIndex(tag: String): Int =
-        branches.indexWhere:
-          case (t, _) => t == tag
-
-    case class Proc
-      (names: List[String], paramTypes: List[Type], resType: Type)
-    extends Type:
-      val paramCount = paramTypes.size
-      val resCount = if resType.isValueType then 1 else 0
-
-    /** A type lambda */
-    case class TypeLambda
-      (names: List[String], bounds: List[Type], body: Type)
-    extends Type:
-      val paramCount = names.size
-
-    /** An index reference to type parameter
-      *
-      * There is no support for nested type parameters. Therefore, there is no
-      * need to distinguish the holders that the type parameters are attached
-      * to.
-      */
-    case class TypeParamRef
-      (name: String, index: Int)
-    extends Type
-
-    case class AppliedType
-      (tctor: Type, targs: List[Type])
-    extends Type
-
-    /** Delayed type for symbols to enable type inference and recursive types */
-    case class Delayed
-      ()
-      (infoCompleter: => Type)
-    extends Type:
-      private var _underlying: Type = null
-
-      private def complete(): Unit =
-        assert(_underlying == null, "Double completing: " + _underlying)
-        _underlying = infoCompleter
-
-      def isComplete: Boolean = _underlying != null
-
-      def force(): Type =
-        if !isComplete then complete()
-        _underlying
-
-      override def equals(that: Any): Boolean =
-        if !isComplete then false
-        else
-          that match
-            case tp: Delayed =>
-              tp.isComplete && tp.underlying == this.underlying
-
-            case _ =>
-              false
-          end match
-
-      override def hashCode(): Int =
-        if !isComplete then throw new Exception("Hashing incomplete type")
-        else underlying.hashCode
-
-      override def toString =
-        "Delayed(" + _underlying + ")"
-
-
-  /** Whether `tp1` conforms to `tp2`.
+  /** A record type --- named tuples
     *
-    * TODO: handle non-termination with recursive type
+    * Warning: flattening of nested tuples is dangerous with subtyping
+    * of records.
     */
+  case class RecordType(fields: List[(String, Type)]) extends Type:
+    val fieldNames: List[String] = fields.map(_._1)
+
+    def getFieldType(field: String): Option[Type] =
+      fields.collectFirst:
+        case (f, tp) if f == field => tp
+
+    def hasField(name: String): Boolean =
+      fieldNames.contains(name)
+
+    def fieldType(name: String): Type =
+      getFieldType(name).get
+
+  case class UnionType(branches: List[(String, List[Type])]) extends Type:
+    val tags: List[String] = branches.map(_._1)
+
+    def getTagType(tag: String): Option[List[Type]] =
+      branches.collectFirst:
+        case (t, tps) if t == tag => tps
+
+    def hasTag(tag: String): Boolean =
+      tags.contains(tag)
+
+    def tagType(tag: String): List[Type] =
+      getTagType(tag).get
+
+    def tagIndex(tag: String): Int =
+      branches.indexWhere:
+        case (t, _) => t == tag
+
+  case class PolyType
+    (names: List[String], bounds: List[Type], resultType: Type)
+  extends Type:
+    val paramCount = bounds.size
+
+  case class ProcType
+    (names: List[String], paramTypes: List[Type], resultType: Type)
+  extends Type:
+    val paramCount = paramTypes.size
+    val resCount = if resultType.isValueType then 1 else 0
+
+  /** A type lambda */
+  case class TypeLambda
+    (names: List[String], bounds: List[Type], body: Type)
+  extends Type:
+    val paramCount = names.size
+
+  /** An index reference to type parameter
+    *
+    * There is no support for nested type parameters. Therefore, there is no
+    * need to distinguish the holders that the type parameters are attached
+    * to.
+    */
+  case class TypeParamRef
+    (name: String, index: Int)
+  extends Type
+
+  case class AppliedType
+    (tctor: Type, targs: List[Type])
+  extends Type
+
+  /** Represents upper and lower bounds of type parameters */
+  case class TypeBound
+    (lo: Type, hi: Type)
+  extends Type
+
+  /** Delayed type for symbols to enable type inference and recursive types */
+  case class DelayedType
+    ()
+    (infoCompleter: => Type)
+  extends Type:
+    private var _underlying: Type = null
+
+    def underlying: Type = force()
+
+    private def complete(): Unit =
+      assert(_underlying == null, "Double completing: " + _underlying)
+      _underlying = infoCompleter
+
+    def isComplete: Boolean = _underlying != null
+
+    def force(): Type =
+      if !isComplete then complete()
+      _underlying
+
+    override def equals(that: Any): Boolean =
+      if !isComplete then false
+      else
+        that match
+          case tp: DelayedType =>
+            tp.isComplete && tp._underlying == this._underlying
+
+          case _ =>
+            false
+        end match
+
+    override def hashCode(): Int =
+      if !isComplete then throw new Exception("Hashing incomplete type")
+      else _underlying.hashCode
+
+    override def toString =
+      "Delayed(" + _underlying + ")"
+  end DelayedType
+
+
+  /** Whether `tp1` conforms to `tp2` */
   def conforms(tp1: Type, tp2: Type): Boolean =
     checkConforms(tp1,tp2)(using Map.empty)
 
@@ -285,28 +348,30 @@ object Types:
     */
   private type Assumptions = Map[Symbol, List[Symbol]]
 
-  /** Check whether one type conforms to the other type.
-    *
-    * TODO: ensure termination for type lambdas.
-    */
-  private def checkConforms(tp1: Type, tp2: Type)(using ass: Assumptions): Boolean =
+  /** Check whether one type conforms to the other type */
+  private def checkConforms(tp1: Type, tp2: Type)(using ass: Assumptions): Boolean = Debug.trace(s"${tp1.show} <: ${tp2.show}", enable = false) {
     tp1.isError
     || tp2.isError
     || tp1.isBottom
     || tp2.isAny && tp1.isValueType
     || tp1 == tp2
-    || tp1.is[Type.TypeRef] && tp2.is[Type.TypeRef]
-       && checkConformsTypeRef(tp1.as[Type.TypeRef], tp2.as[Type.TypeRef])
-    || tp1.is[Type.TypeRef] && checkConformsProxyType(tp1.as[Type.TypeRef], tp2)
-    || tp2.is[Type.TypeRef] && checkConformsProxyType(tp1, tp2.as[Type.TypeRef])
-    || tp1.is[Type.Delayed] && checkConforms(tp1.underlying, tp2)
-    || tp2.is[Type.Delayed] && checkConforms(tp1, tp2.underlying)
-    || tp1.is[Type.Record] && tp2.is[Type.Record]
-       && checkConformsRecordType(tp1.as[Type.Record], tp2.as[Type.Record])
-    || tp1.is[Type.AppliedType] && checkConformsProxyType(tp1.as[Type.AppliedType], tp2)
-    || tp2.is[Type.AppliedType] && checkConformsProxyType(tp1, tp2.as[Type.AppliedType])
+    || tp1.is[TypeRef] && tp2.is[TypeRef]
+       && checkConformsTypeRef(tp1.as[TypeRef], tp2.as[TypeRef])
+    || tp1.is[TypeRef] && checkConformsProxyType(tp1.as[TypeRef], tp2)
+    || tp2.is[TypeRef] && checkConformsProxyType(tp1, tp2.as[TypeRef])
+    || tp1.is[DelayedType] && checkConforms(tp1.as[DelayedType].underlying, tp2)
+    || tp2.is[DelayedType] && checkConforms(tp1, tp2.as[DelayedType].underlying)
+    || tp1.is[RecordType] && tp2.is[RecordType]
+       && checkConformsRecordType(tp1.as[RecordType], tp2.as[RecordType])
+    || tp1.is[AppliedType] && checkConformsProxyType(tp1.as[AppliedType], tp2)
+    || tp2.is[AppliedType] && checkConformsProxyType(tp1, tp2.as[AppliedType])
+    || tp1.is[TypeBound] && tp2.is[TypeBound]
+       && checkConformsTypeBound(tp1.as[TypeBound], tp2.as[TypeBound])
+    || tp2.is[TypeBound] && checkConforms(tp1, tp2.as[TypeBound].lo)
+    || tp1.is[TypeBound] && checkConforms(tp1.as[TypeBound].hi, tp2)
+  }
 
-  private def checkConformsTypeRef(tp1: Type.TypeRef, tp2: Type.TypeRef)(using ass: Assumptions): Boolean =
+  private def checkConformsTypeRef(tp1: TypeRef, tp2: TypeRef)(using ass: Assumptions): Boolean =
     ass.get(tp1.symbol) match
       case Some(syms) =>
         if syms.contains(tp2.symbol) then
@@ -319,19 +384,22 @@ object Types:
         val ass2 = ass.updated(tp1.symbol, tp2.symbol :: Nil)
         checkConforms(tp1.symbol.info, tp2.symbol.info)(using ass2)
 
-  private def checkConformsProxyType(tp1: Type.AppliedType | Type.TypeRef, tp2: Type)(using ass: Assumptions): Boolean =
+  private def checkConformsProxyType(tp1: AppliedType | TypeRef, tp2: Type)(using ass: Assumptions): Boolean =
     val tp1b = tp1.dealias
     tp1b.isGrounded && checkConforms(tp1b, tp2)
 
-  private def checkConformsProxyType(tp1: Type, tp2: Type.AppliedType | Type.TypeRef)(using ass: Assumptions): Boolean =
+  private def checkConformsProxyType(tp1: Type, tp2: AppliedType | TypeRef)(using ass: Assumptions): Boolean =
     val tp2b = tp2.dealias
     tp2b.isGrounded && checkConforms(tp1, tp2b)
 
-  private def checkConformsRecordType(tp1: Type.Record, tp2: Type.Record)(using Assumptions): Boolean =
+  private def checkConformsRecordType(tp1: RecordType, tp2: RecordType)(using Assumptions): Boolean =
     val names1 = tp1.fieldNames
     val names2 = tp2.fieldNames
     names1.size >= names2.size && names1.zip(names2).forall: (a, b) =>
       a == b && checkConforms(tp1.fieldType(a), tp2.fieldType(b))
+
+  private def checkConformsTypeBound(tp1: TypeBound, tp2: TypeBound)(using Assumptions): Boolean =
+    checkConforms(tp2.lo, tp1.lo) && checkConforms(tp1.hi, tp2.hi)
 
   /** The common result type of two different types.
     *
@@ -340,13 +408,13 @@ object Types:
     *
     * The logic is different from computing join in the subtype lattice:
     *
-    * - Type.Error always dominates
-    * - Type.Void dominates Type.Bottom
+    * - ErrorType always dominates
+    * - VoidType dominates BottomType
     */
   def commonResultType(tp1: Type, tp2: Type): Option[Type] =
-    if tp1.isError || tp2.isError then Some(Type.Error)
-    else if tp1.isVoid && tp2.isBottom then Some(Type.Void)
-    else if tp1.isBottom && tp2.isVoid then Some(Type.Void)
+    if tp1.isError || tp2.isError then Some(ErrorType)
+    else if tp1.isVoid && tp2.isBottom then Some(VoidType)
+    else if tp1.isBottom && tp2.isVoid then Some(VoidType)
     else if conforms(tp1, tp2) then Some(tp2)
     else if conforms(tp2, tp1) then Some(tp1)
     else None
@@ -354,84 +422,103 @@ object Types:
   /** Substitute type params with the given types */
   def substTypeParams(tpe: Type, to: List[Type]): Type =
     tpe match
-      case Type.TypeParamRef(_, index) =>
+      case TypeParamRef(_, index) =>
         to(index)
 
-      case Type.Void | Type.Error | Type.Any | Type.Bottom | Type.Int | Type.Bool =>
+      case VoidType | ErrorType | AnyType | BottomType | IntType | BoolType =>
         tpe
 
-      case _: Type.TypeRef =>
+      case _: TypeRef =>
         tpe
 
-      case Type.Record(fields) =>
+      case RecordType(fields) =>
         val fields2 =
           for (name, tpe) <- fields
           yield name -> substTypeParams(tpe, to)
-        Type.Record(fields2)
+        RecordType(fields2)
 
-      case Type.Union(branches) =>
+      case UnionType(branches) =>
         val branches2 =
           for
             (tag, tps) <- branches
           yield
             tag -> tps.map(tp => substTypeParams(tp, to))
-        Type.Union(branches2)
+        UnionType(branches2)
 
-      case Type.AppliedType(tctor, targs) =>
+      case AppliedType(tctor, targs) =>
         // first-class type ctor might be supported later
         val tctor2 = substTypeParams(tctor, to)
         val targs2 = for targ <- targs yield substTypeParams(targ, to)
-        Type.AppliedType(tctor2, targs2)
+        AppliedType(tctor2, targs2)
 
-      case _: Type.TypeLambda =>
-        // nested type lambdas not supported
+      case _: TypeLambda | _: PolyType =>
+        // nested type lambdas or polymorphic types are not supported
         tpe
 
-      case tp: Type.Proc =>
-        tp
+      case TypeBound(lo, hi) =>
+        TypeBound(substTypeParams(lo, to), substTypeParams(hi, to))
 
-      case tp: Type.Delayed =>
+      case ProcType(names, paramTypes, resType) =>
+        // proc can be nested inside poly type
+        val paramTypes2 = paramTypes.map(tp => substTypeParams(tp, to))
+        val resType2 = substTypeParams(resType, to)
+        ProcType(names, paramTypes2, resType2)
+
+      case tp: DelayedType =>
         substTypeParams(tp.underlying, to)
 
-  /** Replace type symbol reference with sym.info
+  /** Substitute type symbols with the supplied types.
     *
     * This method is used in type checking definitions with type parameters.
     */
-  def eliminateSymbols(tpe: Type, syms: List[Symbol]): Type =
+  def substSymbols(tpe: Type, substs: Map[Symbol, Type]): Type =
     tpe match
-      case Type.Void | Type.Error | Type.Any | Type.Bottom | Type.Int | Type.Bool =>
+      case VoidType | ErrorType | AnyType | BottomType | IntType | BoolType =>
         tpe
 
-      case Type.TypeRef(sym) =>
-        if syms.contains(sym) then sym.info
-        else tpe
+      case TypeRef(sym) =>
+        substs.getOrElse(sym, tpe)
 
-      case Type.Record(fields) =>
+      case RecordType(fields) =>
         val fields2 =
           for (name, tpe) <- fields
-          yield name -> eliminateSymbols(tpe, syms)
-        Type.Record(fields2)
+          yield name -> substSymbols(tpe, substs)
+        RecordType(fields2)
 
-      case Type.Union(branches) =>
+      case UnionType(branches) =>
         val branches2 =
           for
             (tag, tps) <- branches
           yield
-            tag -> tps.map(tp => eliminateSymbols(tp, syms))
-        Type.Union(branches2)
+            tag -> tps.map(tp => substSymbols(tp, substs))
+        UnionType(branches2)
 
-      case Type.AppliedType(tctor, targs) =>
+      case AppliedType(tctor, targs) =>
         // first-class type ctor might be supported later
-        val tctor2 = eliminateSymbols(tctor, syms)
-        val targs2 = for targ <- targs yield eliminateSymbols(targ, syms)
-        Type.AppliedType(tctor2, targs2)
+        val tctor2 = substSymbols(tctor, substs)
+        val targs2 = for targ <- targs yield substSymbols(targ, substs)
+        AppliedType(tctor2, targs2)
 
-      case _: Type.TypeLambda | _: Type.TypeParamRef =>
-        // nested type lambdas not supported
-        tpe
+      case TypeLambda(names, bounds, resType) =>
+        val bounds2 = for bound <- bounds yield substSymbols(bound, substs)
+        val resType2 = substSymbols(resType, substs)
+        TypeLambda(names, bounds2, resType2)
 
-      case tp: Type.Proc =>
-        tp
+      case PolyType(names, bounds, resType) =>
+        val bounds2 = for bound <- bounds yield substSymbols(bound, substs)
+        val resType2 = substSymbols(resType, substs)
+        PolyType(names, bounds2, resType2)
 
-      case tp: Type.Delayed =>
-        eliminateSymbols(tp.underlying, syms)
+      case _: TypeParamRef => tpe
+
+      case TypeBound(lo, hi) =>
+        TypeBound(substSymbols(lo, substs), substSymbols(hi, substs))
+
+      case ProcType(names, paramTypes, resType) =>
+        // proc can be nested inside poly type
+        val paramTypes2 = paramTypes.map(tp => substSymbols(tp, substs))
+        val resType2 = substSymbols(resType, substs)
+        ProcType(names, paramTypes2, resType2)
+
+      case tp: DelayedType =>
+        substSymbols(tp.underlying, substs)

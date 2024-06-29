@@ -1,11 +1,11 @@
-type Point = [x: Int, y: Int];
+type Point = {x: Int, y: Int};
 
-var pt: Point = [x = 0, y = 0];
+var pt: Point = {x = 0, y = 0};
 
 // allocation of 4096 objects
 var i = 0;
 while i 4096 < do
-  pt = [x = i, y = i i *];
+  pt = {x = i, y = i i *};
   i = i 1 +;
 end
 

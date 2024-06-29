@@ -1,8 +1,8 @@
-type S = [a: Int, b: S, c: Int];
-type T = [a: Int, b: T];
+type S = {a: Int, b: S, c: Int};
+type T = {a: Int, b: T};
 
 fun test1(s: S): T = s;
 
-fun test2(v: [a: Int, b: Bool]): [a: Int] = v;
+fun test2(v: {a: Int, b: Bool}): {a: Int} = v;
 
 10 p

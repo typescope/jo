@@ -53,12 +53,12 @@ class Namer(using Reporter):
           if vdef.typ.isEmpty then
             rhs.tpe
           else
-            val tp = transformType(vdef.typ)
-            val tp2 = checker.checkValueType(tp, vdef.typ.pos)
+            val tpt = transformType(vdef.typ)
+            val tp2 = checker.checkValueType(tpt.tpe, tpt.pos)
             checker.checkType(rhs, tp2)
             tp2
 
-        val delayedType = Type.Delayed()(tpe)
+        val delayedType = DelayedType()(tpe)
 
         val flags = if vdef.mutable then Flag.Mutable else Flag.empty
         val sym = Symbol.createValueSymbol(defn.name, delayedType, flags)
@@ -95,7 +95,7 @@ class Namer(using Reporter):
       case Ast.While(cond, body) =>
          val cond2 = transform(cond)
          val body2 = transform(body)
-         checker.checkType(cond2, Type.Bool)
+         checker.checkType(cond2, BoolType)
          While(cond2, body2)(word.pos)
 
       case Ast.Ident(name) =>
@@ -125,6 +125,11 @@ class Namer(using Reporter):
         val tp = checker.fieldType(qual2.tpe, name, qual.pos)
         Select(qual2, name)(tp, word.pos)
 
+      case Ast.TypeApply(fun, targs) =>
+        val fun2 = transform(fun)
+        val targs2 = targs.map(transformType)
+        checker.checkTypeApply(fun2, targs2)
+
       case vdef: Ast.ValDef =>
         transform(vdef)
 
@@ -138,8 +143,8 @@ class Namer(using Reporter):
       if vdef.typ.isEmpty then
         rhs.tpe
       else
-        val tp = transformType(vdef.typ)
-        val tp2 = checker.checkValueType(tp, vdef.typ.pos)
+        val tpt = transformType(vdef.typ)
+        val tp2 = checker.checkValueType(tpt.tpe, tpt.pos)
         checker.checkType(rhs, tp2)
         tp2
 
@@ -153,7 +158,7 @@ class Namer(using Reporter):
     val cond2 = transform(cond)
     val then2 = transform(thenp)
     val else2 = transform(elsep)
-    checker.checkType(cond2, Type.Bool)
+    checker.checkType(cond2, BoolType)
 
     // adapt result type
     val then3 = checker.adapt(then2, else2.tpe, then2.pos)
@@ -173,14 +178,14 @@ class Namer(using Reporter):
         namedArgs2 += id.name -> rhs2
     end for
     val fields = namedArgs2.toList
-    val tpe = Type.Record(fields.map { case (k, v) => k -> v.tpe })
+    val tpe = RecordType(fields.map { case (k, v) => k -> v.tpe })
     RecordLit(fields)(tpe, record.pos)
 
   private def transform(variant: Ast.Variant)(using sc: Scope): Word =
     val Ast.Variant(tag, values, typ) = variant
     val values2 = values.map(transform)
     val unionType = transformType(typ)
-    val tagTypesOpt = checker.tagTypes(tag, unionType, typ.pos)
+    val tagTypesOpt = checker.tagTypes(tag, unionType.tpe, unionType.pos)
 
     val tagTypes =
       tagTypesOpt match
@@ -194,10 +199,10 @@ class Namer(using Reporter):
     // encode variants as records
     val tagIndex =
       if tagTypesOpt.isEmpty then -1
-      else unionType.asUnionType.tagIndex(tag.name)
+      else unionType.tpe.asUnionType.tagIndex(tag.name)
 
     val encodedValue = Desugaring.encodeVariant(tagIndex, values2, tagTypes, tag.pos, variant.pos)
-    Encoded(encodedValue)(unionType)
+    Encoded(encodedValue)(unionType.tpe)
 
   private def transform(patmat: Ast.Match)(using sc: Scope): Word =
     val sc2 = sc.fresh()
@@ -241,11 +246,11 @@ class Namer(using Reporter):
             IntLit(1)(scrutIdent.pos)
               :: Ident(runtime.abort)(scrutIdent.pos)
               :: Nil
-          val res = Phrase(words)(Type.Bottom, patmat.pos)
+          val res = Phrase(words)(BottomType, patmat.pos)
           checker.adapt(res, resType, patmat.pos)
       end match
 
-    val body = transformCases(cases, Type.Bottom, allTags)
+    val body = transformCases(cases, BottomType, allTags)
     Phrase(bind :: body :: Nil)(body.tpe, patmat.pos)
 
   private def transform
@@ -275,11 +280,11 @@ class Namer(using Reporter):
             case None => Nil
 
         if tagTypesOpt.isEmpty then
-          cont(Type.Bottom)
+          cont(BottomType)
 
         else if tagTypes.size != bindings.size then
           Reporter.error(s"The tag takes ${tagTypes.size} arguments, found = ${bindings.size}", tag.pos)
-          cont(Type.Bottom)
+          cont(BottomType)
 
         else
           val encodeType = Desugaring.encodeUnionType(tagTypes)
@@ -321,42 +326,72 @@ class Namer(using Reporter):
     val tp =
       if !vs.isError && vs.size > 1 then
         Reporter.error("At most one value expected, found = " + vs.size, phrase.pos)
-        Type.Error
+        ErrorType
       else
         vs.pop() match
           case Some(tp) => checker.checkValueType(tp, phrase.pos)
-          case None => Type.Void
+          case None => VoidType
 
     Phrase(wordsTyped)(tp, phrase.pos)
 
   private def transform(funDef: Ast.FunDef)(using sc: Scope): DelayedTask =
     val locals = new mutable.ArrayBuffer[Symbol]
     val paramSyms = new mutable.ArrayBuffer[Symbol]
+    val tparamSyms = new mutable.ArrayBuffer[Symbol]
+    val bounds = new mutable.ArrayBuffer[Type]
     val funScope = sc.fresh(sym => if !sym.isParameter then locals.addOne(sym))
 
     val paramNames = funDef.params.map(_.name)
+    val tparamNames = funDef.tparams.map(_.name)
+
+    lazy val finalResultType =
+      // TODO: missing kind check
+      val resTypeTree = transformType(funDef.resType)(using funScope)
+      resTypeTree.tpe
 
     lazy val info =
+      for (tparam, i) <- funDef.tparams.zipWithIndex yield
+        val info = DelayedType() { bounds(i) }
+        val sym = Symbol.createTypeSymbol(tparam.name, info)
+        funScope.define(sym, tparam.pos)
+        tparamSyms += sym
+        sym
+
+      for tparam <- funDef.tparams do
+        bounds +=(
+          if tparam.bound.isEmpty then
+            TypeBound(BottomType, AnyType)
+          else
+            val boundTree = transformType(tparam.bound)(using funScope)
+            TypeBound(BottomType, boundTree.tpe)
+        )
+
       val paramTypes =
         for param <- funDef.params yield
-          val tpe = transformType(param.typ)
-          val paramSym = Symbol.createParamSymbol(param.name, tpe)
+          val tpt = transformType(param.typ)(using funScope)
+          val paramSym = Symbol.createParamSymbol(param.name, tpt.tpe)
           funScope.define(paramSym, param.pos)
           paramSyms += paramSym
-          tpe
+          tpt.tpe
 
-      val resType = transformType(funDef.resType)
-      Type.Proc(paramNames, paramTypes, resType)
+      val procType = ProcType(paramNames, paramTypes, finalResultType)
+      if bounds.isEmpty then procType
+      else
+        val tparamRefs = tparamSyms.zipWithIndex.map: (tparamSym, i) =>
+          TypeParamRef(tparamSym.name, i)
+        val substs = tparamSyms.zip(tparamRefs).toMap
+        val rawType = PolyType(tparamNames, bounds.toList, procType)
+        substSymbols(rawType, substs)
 
-    val delayedType = Type.Delayed()(info)
+    val delayedType = DelayedType()(info)
     val sym = Symbol.createFunSymbol(funDef.name, delayedType)
     sc.define(sym, funDef.pos)
 
     val typer = () =>
       delayedType.force()
       val body2 = transform(funDef.body)(using funScope)
-      checker.checkType(body2, sym.info.resultType)
-      FunDef(sym, paramSyms.toList, locals.toList, body2)(funDef.pos)
+      checker.checkType(body2, finalResultType)
+      FunDef(sym, tparamSyms.toList, paramSyms.toList, locals.toList, body2)(funDef.pos)
 
     DelayedTask(sym, typer)
 
@@ -366,31 +401,36 @@ class Namer(using Reporter):
 
     lazy val info =
       if tdef.tparams.isEmpty then
-        transformType(tdef.rhs)
+        transformType(tdef.rhs).tpe
       else
         val sc2 = sc.fresh()
         val tparamSyms =
           for (tparam, i) <- tdef.tparams.zipWithIndex yield
             names += tparam.name
 
-            val info = Type.TypeParamRef(tparam.name, i)
+            val info = DelayedType() { bounds(i) }
             val sym = Symbol.createTypeSymbol(tparam.name, info)
             sc2.define(sym, tparam.pos)
             sym
 
         for tparam <- tdef.tparams do
           bounds +=(
-            if tparam.bound.isEmpty then Type.Any
+            if tparam.bound.isEmpty then
+              TypeBound(BottomType, AnyType)
             else
-              val bound = transformType(tparam.bound)(using sc2)
-              eliminateSymbols(bound, tparamSyms)
+              val boundTree = transformType(tparam.bound)(using sc2)
+              TypeBound(BottomType, boundTree.tpe)
           )
 
-        val body = transformType(tdef.rhs)(using sc2)
-        val tp = eliminateSymbols(body, tparamSyms)
-        Type.TypeLambda(names.toList, bounds.toList, tp)
+        val tparamRefs = tparamSyms.zipWithIndex.map: (tparamSym, i) =>
+          TypeParamRef(tparamSym.name, i)
+        val subst = tparamSyms.zip(tparamRefs).toMap
 
-    val delayedType = Type.Delayed()(info)
+        val body = transformType(tdef.rhs)(using sc2)
+        val rawType = TypeLambda(names.toList, bounds.toList, body.tpe)
+        substSymbols(rawType, subst)
+
+    val delayedType = DelayedType()(info)
 
     val sym = Symbol.createTypeSymbol(tdef.name, delayedType)
     sc.define(sym, tdef.pos)
@@ -398,7 +438,7 @@ class Namer(using Reporter):
     // check type symbols after completion to allow cycles, type A = A
     val typer = () =>
       info match
-        case Type.TypeLambda(_, _, body) =>
+        case TypeLambda(_, _, body) =>
           checker.checkValueType(body, tdef.rhs.pos)
         case tp =>
           checker.checkValueType(tp, tdef.rhs.pos)
@@ -407,17 +447,16 @@ class Namer(using Reporter):
 
     DelayedTask(sym, typer)
 
-  private def transformType(tpt: Ast.TypeTree)(using sc: Scope): Type =
+  private def transformType(tpt: Ast.TypeTree)(using sc: Scope): TypeTree =
     tpt match
       case Ast.Ident(name) =>
         sc.resolve(name, isType = true) match
           case Some(sym) =>
-            if sym.isPrimitive then sym.info
-            else Type.TypeRef(sym)
+            TypeTree(TypeRef(sym))(tpt.pos)
 
           case None =>
             Reporter.error("Unknown type " + tpt, tpt.pos)
-            Type.Error
+            TypeTree(ErrorType)(tpt.pos)
 
       case Ast.RecordType(fields) =>
         val fieldTypes = new mutable.ArrayBuffer[(String, Type)]
@@ -425,9 +464,9 @@ class Namer(using Reporter):
           if fieldTypes.exists(_._1 == field.name) then
             Reporter.error("Field " + field.name + " already defined", field.pos)
           else
-            fieldTypes += field.name -> transformType(field.typ)
+            fieldTypes += field.name -> transformType(field.typ).tpe
         end for
-        Type.Record(fieldTypes.toList)
+        TypeTree(RecordType(fieldTypes.toList))(tpt.pos)
 
       case Ast.UnionType(branches) =>
         val branchTypes = new mutable.ArrayBuffer[(String, List[Type])]
@@ -435,23 +474,22 @@ class Namer(using Reporter):
           if branchTypes.exists(_._1 == branch.name) then
             Reporter.error("Branch " + branch.name + " already defined", branch.pos)
           else
-            val tps = for tpt <- branch.tpts yield transformType(tpt)
+            val tps = for tpt <- branch.tpts yield transformType(tpt).tpe
             branchTypes += branch.name -> tps
         end for
-        Type.Union(branchTypes.toList)
+        TypeTree(UnionType(branchTypes.toList))(tpt.pos)
 
       case Ast.AppliedType(tctor, targs) =>
         val tctor2 = transformType(tctor)
         val targs2 = for targ <- targs yield transformType(targ)
-        checker.delayedCheck:
-          checker.checkBounds(tctor2, targs2, tctor.pos, targs.map(_.pos))
-        Type.AppliedType(tctor2, targs2)
+        checker.delayedCheck { checker.checkBounds(tctor2, targs2) }
+        TypeTree(AppliedType(tctor2.tpe, targs2.map(_.tpe)))(tpt.pos)
 
       case _: Ast.EmptyTypeTree =>
         Reporter.abort("Unexpected empty type tree", tpt.pos)
 
 object Namer:
-  val errorSymbol = Symbol.createFunSymbol("error", Type.Error)
+  val errorSymbol = Symbol.createFunSymbol("error", ErrorType)
 
   private class DelayedTask(val symbol: Symbol, val typer: () => Def)
 

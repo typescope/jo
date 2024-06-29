@@ -102,7 +102,7 @@ class JSBackend(outFile: String) extends Backend:
     */
   def call(fun: Symbol)(using Context): Unit =
     val name = symbol2UniqueName(fun)
-    val funType = fun.info.asProcType
+    val funType = fun.info.erasePolyType.asProcType
     val paramCount = funType.paramCount
 
     var i: Int = paramCount - 1

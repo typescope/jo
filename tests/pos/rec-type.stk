@@ -1,15 +1,15 @@
 type A = A;
 type B = B;
-type C = [a: A, c: C];
-type D = [a: A, c: D];
-type E = [a: A, c: E, d: D];
+type C = {a: A, c: C};
+type D = {a: A, c: D};
+type E = {a: A, c: E, d: D};
 
 type X = Y;
 type Y = X;
 
 fun test1(a: A): B = a;
 
-fun test2(c: C): [a: A, c: C] = c.c;
+fun test2(c: C): {a: A, c: C} = c.c;
 
 fun test3(c: C): D = c.c;
 

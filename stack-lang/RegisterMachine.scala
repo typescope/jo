@@ -27,13 +27,13 @@ extends Backend:
     *
     * Its type does not matter.
     */
-  val returnAddrSym = Symbol.createParamSymbol("return", Type.Int)
+  val returnAddrSym = Symbol.createParamSymbol("return", IntType)
 
   /** Maps global symbols to addresses */
   val symbolAddrMap: mutable.Map[Symbol, Addr] = mutable.Map.from(nativeFunctions)
 
   /** The memory allocator */
-  val allocatorType = Type.Proc("size" :: Nil, Type.Int :: Nil, Type.Int)
+  val allocatorType = ProcType("size" :: Nil, IntType :: Nil, IntType)
   val allocatorSym = Symbol.createFunSymbol("alloc", allocatorType)
   symbolAddrMap(allocatorSym) = Label(allocatorSym.name)
 
@@ -121,10 +121,11 @@ extends Backend:
   def compile(fdef: FunDef)(using ctx: Context): CalleeProtocol =
     val sym = fdef.symbol
     val paramCount = fdef.params.size
+    val funType = sym.info.erasePolyType.asProcType
 
     // TODO: bind retLoc
     val proto @ CalleeProtocol(paramLocs, retLoc, resLocs, savedRegs) =
-      callConvention.callee(sym.info.asProcType)
+      callConvention.callee(funType)
 
     // Compile function to a temporary buffer for register allocation
     gen(PlaceHolder.InitStackPointer)
@@ -250,8 +251,9 @@ extends Backend:
 
   /** Call the funtion */
   def call(fun: Symbol)(using ctx: Context) =
+    // TODO: erasure better handled together with boxing/unboxing?
+    val funType = fun.info.erasePolyType.asProcType
     val target = symbolAddrMap(fun).asInstanceOf[Label]
-    val funType = fun.info.asProcType
     val argCount = funType.paramCount
     val resCount = funType.resCount
 

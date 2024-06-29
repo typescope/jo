@@ -72,20 +72,20 @@ object Symbols:
       symbols += sym
       sym
 
-    private val oneBoolType = Type.Bool :: Nil
-    private val oneIntType = Type.Int :: Nil
-    private val twoIntTypes = Type.Int :: Type.Int :: Nil
-    private val twoBoolTypes = Type.Bool :: Type.Bool :: Nil
+    private val oneBoolType = BoolType :: Nil
+    private val oneIntType = IntType :: Nil
+    private val twoIntTypes = IntType :: IntType :: Nil
+    private val twoBoolTypes = BoolType :: BoolType :: Nil
 
-    private val typeArith = Type.Proc("m" :: "n" :: Nil, twoIntTypes, Type.Int)
-    private val typeComp = Type.Proc("m" :: "n" :: Nil, twoIntTypes, Type.Bool)
-    private val typeBits = Type.Proc("m" :: "n" :: Nil, twoIntTypes, Type.Int)
+    private val typeArith = ProcType("m" :: "n" :: Nil, twoIntTypes, IntType)
+    private val typeComp = ProcType("m" :: "n" :: Nil, twoIntTypes, BoolType)
+    private val typeBits = ProcType("m" :: "n" :: Nil, twoIntTypes, IntType)
 
-    private val typeAnd = Type.Proc("a" :: "b" :: Nil, twoBoolTypes, Type.Bool)
-    private val typeOr  = Type.Proc("a" :: "b" :: Nil, twoBoolTypes, Type.Bool)
-    private val typeNot  = Type.Proc("a" :: Nil, oneBoolType, Type.Bool)
+    private val typeAnd = ProcType("a" :: "b" :: Nil, twoBoolTypes, BoolType)
+    private val typeOr  = ProcType("a" :: "b" :: Nil, twoBoolTypes, BoolType)
+    private val typeNot  = ProcType("a" :: Nil, oneBoolType, BoolType)
 
-    private val typePrint  = Type.Proc("n" :: Nil, oneIntType, Type.Void)
+    private val typePrint  = ProcType("n" :: Nil, oneIntType, VoidType)
 
     val add    =  createPrimSymbol("+",   typeArith)
     val sub    =  createPrimSymbol("-",   typeArith)
@@ -107,13 +107,13 @@ object Symbols:
     val bnot   =  createPrimSymbol("not", typeNot)
     val p      =  createPrimSymbol("p",   typePrint)
 
-    val Int    =  new Symbol("Int",  Type.Int,  Flag.Prim | Flag.Type)
-    val Bool   =  new Symbol("Bool", Type.Bool, Flag.Prim | Flag.Type)
-    val Void   =  new Symbol("Void", Type.Void, Flag.Prim | Flag.Type)
+    val Int    =  new Symbol("Int",  IntType,  Flag.Prim | Flag.Type)
+    val Bool   =  new Symbol("Bool", BoolType, Flag.Prim | Flag.Type)
+    val Void   =  new Symbol("Void", VoidType, Flag.Prim | Flag.Type)
 
     val allSymbols: List[Symbol] = symbols.toList
   end predef
 
   object runtime:
-    private val abortType = Type.Proc("n" :: Nil, Type.Int :: Nil, Type.Bottom)
+    private val abortType = ProcType("n" :: Nil, IntType :: Nil, BottomType)
     val abort = new Symbol("abort", abortType, Flag.Prim)
