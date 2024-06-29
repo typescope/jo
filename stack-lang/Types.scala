@@ -33,9 +33,9 @@ object Types:
         case VoidType | _: ProcType | _: TypeLambda | _: PolyType => false
         case _ => true
 
-    def isProcType: Boolean = this.underlying.isInstanceOf[ProcType]
+    def isProcType: Boolean = this.dealias.isInstanceOf[ProcType]
 
-    def isPolyType: Boolean = this.underlying.isInstanceOf[PolyType]
+    def isPolyType: Boolean = this.dealias.isInstanceOf[PolyType]
 
     def asRecordType: RecordType = this.dealias.asInstanceOf[RecordType]
 
@@ -53,11 +53,6 @@ object Types:
         case _     => false
 
     def as[T <: Type]: T = this.asInstanceOf[T]
-
-    def underlying: Type =
-      this match
-        case delayed: DelayedType => delayed.force()
-        case _ => this
 
     /** A grounded type cannot be simplied further at the top-level
       *
@@ -239,6 +234,8 @@ object Types:
   extends Type:
     private var _underlying: Type = null
 
+    def underlying: Type = force()
+
     private def complete(): Unit =
       assert(_underlying == null, "Double completing: " + _underlying)
       _underlying = infoCompleter
@@ -318,8 +315,8 @@ object Types:
        && checkConformsTypeRef(tp1.as[TypeRef], tp2.as[TypeRef])
     || tp1.is[TypeRef] && checkConformsProxyType(tp1.as[TypeRef], tp2)
     || tp2.is[TypeRef] && checkConformsProxyType(tp1, tp2.as[TypeRef])
-    || tp1.is[DelayedType] && checkConforms(tp1.underlying, tp2)
-    || tp2.is[DelayedType] && checkConforms(tp1, tp2.underlying)
+    || tp1.is[DelayedType] && checkConforms(tp1.as[DelayedType].underlying, tp2)
+    || tp2.is[DelayedType] && checkConforms(tp1, tp2.as[DelayedType].underlying)
     || tp1.is[RecordType] && tp2.is[RecordType]
        && checkConformsRecordType(tp1.as[RecordType], tp2.as[RecordType])
     || tp1.is[AppliedType] && checkConformsProxyType(tp1.as[AppliedType], tp2)
