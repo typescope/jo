@@ -67,14 +67,21 @@ class Checker(using Reporter):
       Reporter.error(s"Expect type lambda, found = ${tctor.tpe.show}", tctor.pos)
     else
       val tl = tctor.tpe.asTypeLambda
-      if tl.paramCount != targs.size then
-        Reporter.error(s"Expect ${tl.paramCount} args, found = ${targs.size}", targs.head.pos | targs.last.pos)
-      else
-        for (targ, bound) <- targs.zip(tl.bounds) do
-          val argType = targ.tpe
-          val actualBound = substTypeParams(bound, targs.map(_.tpe))
-          if !conforms(argType, actualBound) then
-            Reporter.error(s"Arg type ${argType.show} does not conform to bound = ${bound.show}, which expands to ${actualBound.show}", targ.pos)
+      checkBounds(tl.bounds, targs)
+
+  def checkBounds(bounds: List[Type], targs: List[TypeTree]): Unit =
+    if bounds.size != targs.size then
+      Reporter.error(s"Expect ${bounds.size} args, found = ${targs.size}", targs.head.pos | targs.last.pos)
+    else
+      for (targ, bound) <- targs.zip(bounds) do
+        val argType = targ.tpe
+        val TypeBound(lo, hi) = bound.as[TypeBound]
+        val loActual = substTypeParams(lo, targs.map(_.tpe))
+        val hiActual = substTypeParams(hi, targs.map(_.tpe))
+        if !conforms(argType, hiActual) then
+          Reporter.error(s"Arg type ${argType.show} does not conform to bound = ${hi.show}, which expands to ${hiActual.show}", targ.pos)
+        if !conforms(loActual, argType) then
+          Reporter.error(s"Arg type ${argType.show} does not conform to bound = ${hi.show}, which expands to ${hiActual.show}", targ.pos)
 
   def checkTypeApply(fun: Word, targs: List[TypeTree]): Word =
     if !fun.tpe.isPolyType then
@@ -86,12 +93,7 @@ class Checker(using Reporter):
         Reporter.error(s"Expect ${polyType.paramCount} args, found = ${targs.size}", targs.head.pos | targs.last.pos)
         Phrase(words = Nil)(ErrorType, fun.pos | targs.last.pos)
       else
-        for (targ, bound) <- targs.zip(polyType.bounds) do
-          val argType = targ.tpe
-          val actualBound = substTypeParams(bound, targs.map(_.tpe))
-          if !conforms(argType, actualBound) then
-            Reporter.error(s"Arg type ${argType.show} does not conform to bound = ${bound.show}, which expands to ${actualBound.show}", targ.pos)
-        end for
+        checkBounds(polyType.bounds, targs)
         val tpe = substTypeParams(polyType.resultType, targs.map(_.tpe))
         // TODO: generalize
         val funSym = fun.asInstanceOf[Ident].symbol

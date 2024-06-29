@@ -332,7 +332,7 @@ object Types:
     || tp1.is[TypeBound] && tp2.is[TypeBound]
        && checkConformsTypeBound(tp1.as[TypeBound], tp2.as[TypeBound])
     || tp2.is[TypeBound] && checkConforms(tp1, tp2.as[TypeBound].lo)
-    || tp1.is[TypeBound] && { println("here"); true } && checkConforms(tp1.as[TypeBound].hi, tp2)
+    || tp1.is[TypeBound] && checkConforms(tp1.as[TypeBound].hi, tp2)
   }
 
   private def checkConformsTypeRef(tp1: TypeRef, tp2: TypeRef)(using ass: Assumptions): Boolean =
