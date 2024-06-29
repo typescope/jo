@@ -353,18 +353,18 @@ object Types:
     * - Link: https://dl.acm.org/doi/10.1145/155183.155231
     */
   private class Context(
-    subtypings: Map[Symbol, List[Symbol]],
+    subtypings: Map[Type, List[Type]],
     reducing: List[Symbol]):       // symbols under reduction, used to avoid non-termination
 
     def this() = this(Map.empty, Nil)
 
-    def withSubtyping(sym1: Symbol, sym2: Symbol): Context =
-      val subtypings2 = this.subtypings.updated(sym1, sym2 :: this.subtypings.getOrElse(sym1, Nil))
+    def withSubtyping(tp1: Type, tp2: Type): Context =
+      val subtypings2 = this.subtypings.updated(tp1, tp2 :: this.subtypings.getOrElse(tp1, Nil))
       new Context(subtypings2, reducing)
 
-    def isSubtype(sym1: Symbol, sym2: Symbol): Boolean =
-      this.subtypings.get(sym1) match
-        case Some(syms) if syms.contains(sym2) => true
+    def isSubtype(tp1: Type, tp2: Type): Boolean =
+      this.subtypings.get(tp1) match
+        case Some(tps) if tps.contains(tp2) => true
         case _ => false
 
     def withReducing(sym: Symbol) =
@@ -403,36 +403,19 @@ object Types:
   }
 
   private def checkConformsAppliedType(tp1: AppliedType, tp2: AppliedType)(using ctx: Context): Boolean =
-    def tryStructural: Boolean =
-      (tp1.tctor, tp2.tctor) match
-         case (tref1: TypeRef, tref2: TypeRef) =>
-           ctx.isSubtype(tref1.symbol, tref2.symbol)
-           && tp1.targs.zip(tp2.targs).forall: (targ1, targ2) =>
-             // Cannot assume covariance
-             checkConforms(targ1, targ2) && checkConforms(targ2, targ1)
-         case _ =>
-           false
-
-    def tryReduction: Boolean =
-      given Context =
-        (tp1.tctor, tp2.tctor) match
-          case (tref1: TypeRef, tref2: TypeRef) =>
-            ctx.withSubtyping(tref1.symbol, tref2.symbol)
-          case _ =>
-            ctx
-
+    if ctx.isSubtype(tp1, tp2) then
+      true
+    else
+      given Context = ctx.withSubtyping(tp1, tp2)
       reduceTypeAndThen(tp1): tp1b =>
         reduceTypeAndThen(tp2): tp2b =>
           checkConforms(tp1b, tp2b)
-    end tryReduction
-
-    tryStructural || tryReduction
 
   private def checkConformsTypeRef(tp1: TypeRef, tp2: TypeRef)(using ctx: Context): Boolean =
-    if ctx.isSubtype(tp1.symbol, tp2.symbol) then
+    if ctx.isSubtype(tp1, tp2) then
       true
     else
-      given Context = ctx.withSubtyping(tp1.symbol, tp2.symbol)
+      given Context = ctx.withSubtyping(tp1, tp2)
       reduceTypeAndThen(tp1): tp1b =>
         reduceTypeAndThen(tp2): tp2b =>
           checkConforms(tp1b, tp2b)

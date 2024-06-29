@@ -21,4 +21,4 @@ fun test3(o: G[M]): G[M] = o; // error // error
 type C[T] = {a: Int, b: C[{x: T}]};
 type D[T] = {a: Int, b: D[{x: T}]};
 
-fun test4[T](o: C[T]): D[T] = o;
+fun test4[T](o: C[T]): D[T] = o; // error
