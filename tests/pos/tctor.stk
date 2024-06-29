@@ -32,6 +32,11 @@ type B[T] = {a: Int, b: B[T]};
 
 fun test2[T](o: A[T]): B[T] = o;
 
+type C[T] = {a: Int, b: C[{x: T}]};
+type D[T] = {a: Int, b: D[{x: T}]};
+
+fun test3[T](o: C[T]): D[T] = o;
+
 x.a p x.b p
 
 c foreach
