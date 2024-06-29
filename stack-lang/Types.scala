@@ -316,10 +316,7 @@ object Types:
   end DelayedType
 
 
-  /** Whether `tp1` conforms to `tp2`.
-    *
-    * TODO: handle non-termination with recursive type
-    */
+  /** Whether `tp1` conforms to `tp2` */
   def conforms(tp1: Type, tp2: Type): Boolean =
     checkConforms(tp1,tp2)(using Map.empty)
 
@@ -351,10 +348,7 @@ object Types:
     */
   private type Assumptions = Map[Symbol, List[Symbol]]
 
-  /** Check whether one type conforms to the other type.
-    *
-    * TODO: ensure termination for type lambdas.
-    */
+  /** Check whether one type conforms to the other type */
   private def checkConforms(tp1: Type, tp2: Type)(using ass: Assumptions): Boolean = Debug.trace(s"${tp1.show} <: ${tp2.show}", enable = false) {
     tp1.isError
     || tp2.isError
