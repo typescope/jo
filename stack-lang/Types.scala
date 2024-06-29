@@ -318,7 +318,7 @@ object Types:
 
   /** Whether `tp1` conforms to `tp2` */
   def conforms(tp1: Type, tp2: Type): Boolean =
-    checkConforms(tp1,tp2)(using Map.empty)
+    checkConforms(tp1,tp2)(using new Assumptions())
 
   /** The assumption that a type A is a subtype of B
     *
@@ -346,7 +346,11 @@ object Types:
     * - Paper: Subtyping recursive types, Roberto M. Amadio, Luca Cardelli, 1993
     * - Link: https://dl.acm.org/doi/10.1145/155183.155231
     */
-  private type Assumptions = Map[Symbol, List[Symbol]]
+  private case class Assumptions(
+    syms: Map[Symbol, List[Symbol]],            // non-parameter type symbols
+    apps: Map[AppliedType, List[AppliedType]]   // applied types
+  ):
+    def this() = this(Map.empty, Map.empty)
 
   /** Check whether one type conforms to the other type */
   private def checkConforms(tp1: Type, tp2: Type)(using ass: Assumptions): Boolean = Debug.trace(s"${tp1.show} <: ${tp2.show}", enable = false) {
@@ -363,6 +367,8 @@ object Types:
     || tp2.is[DelayedType] && checkConforms(tp1, tp2.as[DelayedType].underlying)
     || tp1.is[RecordType] && tp2.is[RecordType]
        && checkConformsRecordType(tp1.as[RecordType], tp2.as[RecordType])
+    || tp1.is[AppliedType] && tp2.is[AppliedType]
+       && checkConformsAppliedType(tp1.as[AppliedType], tp2.as[AppliedType])
     || tp1.is[AppliedType] && checkConformsProxyType(tp1.as[AppliedType], tp2)
     || tp2.is[AppliedType] && checkConformsProxyType(tp1, tp2.as[AppliedType])
     || tp1.is[TypeBound] && tp2.is[TypeBound]
@@ -371,17 +377,30 @@ object Types:
     || tp1.is[TypeBound] && checkConforms(tp1.as[TypeBound].hi, tp2)
   }
 
+  private def checkConformsAppliedType(tp1: AppliedType, tp2: AppliedType)(using ass: Assumptions): Boolean =
+    ass.apps.get(tp1) match
+      case Some(tps) =>
+        if tps.contains(tp2) then
+          true
+        else
+          val ass2 = ass.copy(apps = ass.apps.updated(tp1, tp2 :: tps))
+          checkConforms(tp1.dealias, tp2.dealias)(using ass2)
+
+      case None =>
+        val ass2 = ass.copy(apps = ass.apps.updated(tp1, tp2 :: Nil))
+        checkConforms(tp1.dealias, tp2.dealias)(using ass2)
+
   private def checkConformsTypeRef(tp1: TypeRef, tp2: TypeRef)(using ass: Assumptions): Boolean =
-    ass.get(tp1.symbol) match
+    ass.syms.get(tp1.symbol) match
       case Some(syms) =>
         if syms.contains(tp2.symbol) then
           true
         else
-          val ass2 = ass.updated(tp1.symbol, tp2.symbol :: syms)
+          val ass2 = ass.copy(syms = ass.syms.updated(tp1.symbol, tp2.symbol :: syms))
           checkConforms(tp1.symbol.info, tp2.symbol.info)(using ass2)
 
       case None =>
-        val ass2 = ass.updated(tp1.symbol, tp2.symbol :: Nil)
+        val ass2 = ass.copy(syms = ass.syms.updated(tp1.symbol, tp2.symbol :: Nil))
         checkConforms(tp1.symbol.info, tp2.symbol.info)(using ass2)
 
   private def checkConformsProxyType(tp1: AppliedType | TypeRef, tp2: Type)(using ass: Assumptions): Boolean =
