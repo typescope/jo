@@ -1,4 +1,8 @@
 import scala.collection.mutable
+import scala.concurrent.{ ExecutionContext, Future, Await }
+import scala.concurrent.duration.*
+
+import java.util.concurrent.TimeoutException
 
 import Reporter.{ Error, FatalError, SourcePosition, Span, State, Source }
 
@@ -173,7 +177,7 @@ object Reporter:
   def monitor(fn: State ?=> Unit): Unit =
     val state = new State()
     try
-      fn(using state)
+      timeout(1000) { fn(using state) }
     catch
       case error: FatalError.CodeError =>
         println("[error] " + error.content)
@@ -184,6 +188,13 @@ object Reporter:
           println(error)
           println
         println(error.message)
+      case error: TimeoutException =>
+        println("Operation time out")
+
+  def timeout[T](seconds: Int)(work: => T): T =
+    given ExecutionContext = ExecutionContext.global
+    val workFuture = Future { work }
+    Await.result(workFuture, Duration(seconds, SECONDS))
 
   def withSource(file: String)(using state: State) =
     state.sources.get(file) match

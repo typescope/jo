@@ -25,7 +25,12 @@ val t: Tuple2[{a: Int, b: Int}, {a: Int, b: Int, c: Int}] = {
 type F[X] = {a: X};
 type M = {a: M};
 type G[T <: F[T]] = {x: T};
-fun test(o: G[M]): G[M] = o;
+fun test1(o: G[M]): G[M] = o;
+
+type A[T] = {a: Int, b: A[T]};
+type B[T] = {a: Int, b: B[T]};
+
+fun test2[T](o: A[T]): B[T] = o;
 
 x.a p x.b p
 
