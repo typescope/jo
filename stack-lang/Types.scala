@@ -76,6 +76,16 @@ object Types:
         case _: Type.TypeRef | _: Type.AppliedType => false
         case _: Type.Delayed => false
 
+    /** Erase a poly type by replacing type parameters with Any */
+    def erasePolyType: Type =
+      // implementation assumption: no nested poly types
+      this.dealias match
+        case Type.PolyType(_, bounds, resType) =>
+          // cannot subst with bounds as they might be recursive
+          substTypeParams(resType, bounds.map(_ => Type.Any))
+
+        case tp => tp
+
     /** Transitively eliminate top-level type aliases, delayed types and applied types */
     def dealias: Type =
       // detect cycles in symbol definitions, e.g., type A = A

@@ -83,9 +83,7 @@ extends Backend:
     */
   def compile(fdef: FunDef)(using Context): Unit =
     val sym = fdef.symbol
-    val funType =
-       if sym.info.isPolyType then sym.info.asPolyType.resultType.asProcType
-       else sym.info.asProcType
+    val funType = sym.info.erasePolyType.asProcType
 
     val label = symbolAddrMap(sym).asInstanceOf[Label]
 
@@ -210,7 +208,7 @@ extends Backend:
     */
   def call(fun: Symbol)(using Context) =
     val addr = symbolAddrMap(fun).asInstanceOf[Label]
-    val funType = fun.info.asProcType
+    val funType = fun.info.erasePolyType.asProcType
     val argCount = funType.paramCount
     val resCount = funType.resCount
     val returnLoc = Label("returnLoc")

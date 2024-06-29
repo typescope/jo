@@ -1,0 +1,11 @@
+fun ident[T](x: T): T = x;
+
+fun swap[S, T](x: {a: S, b: T}): {a: T, b: S} =
+  { a = x.b, b = x.a };
+
+3 ident[Int] p
+
+val x = { a = 4, b = false };
+val y = x swap[Int, Bool];
+
+y.b p
