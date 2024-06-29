@@ -3,9 +3,9 @@ type B[T] = A[T];
 
 type S[T] = S[{a: T, b: T}];
 
-fun test1(a: A[Int]): B[Int] = a;  // error
+fun test1(a: A[Int]): B[Int] = a;
 
-fun test2(a: S[Int]): S[{a: Int, b: Int}] = a;  // error
+fun test2(a: S[Int]): S[{a: Int, b: Int}] = a;
 
 type Tuple2[S <: {a: Int}, T <: S] = {x: S, y: T};
 val t: Tuple2[{a: Int, b: Int}, {a: Int}] = {      // error
@@ -16,4 +16,9 @@ val t: Tuple2[{a: Int, b: Int}, {a: Int}] = {      // error
 type F[X] = {a: X};
 type M = {a: Int};
 type G[T <: F[T]] = {x: T};
-fun test(o: G[M]): G[M] = o; // error // error
+fun test3(o: G[M]): G[M] = o; // error // error
+
+type C[T] = {a: Int, b: C[{x: T}]};
+type D[T] = {a: Int, b: D[{x: T}]};
+
+fun test4[T](o: C[T]): D[T] = o;

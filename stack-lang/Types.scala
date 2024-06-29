@@ -83,6 +83,12 @@ object Types:
 
         case tp => tp
 
+    /** Strip top-level delayed type */
+    def stripDelayed: Type =
+      this match
+        case delayed: DelayedType => delayed.underlying
+        case tp => tp
+
     /** Transitively eliminate top-level type aliases, delayed types and applied types */
     def dealias: Type =
       // detect cycles in symbol definitions, e.g., type A = A
@@ -90,7 +96,7 @@ object Types:
       def recur(tp: Type): Type = Debug.trace(s"$tp.dealias", enable = false):
         tp match
           case delayed: DelayedType =>
-            recur(delayed.force())
+            recur(delayed.underlying)
 
           case tref @ TypeRef(sym) =>
             if encountered.contains(sym) then
@@ -318,7 +324,7 @@ object Types:
 
   /** Whether `tp1` conforms to `tp2` */
   def conforms(tp1: Type, tp2: Type): Boolean =
-    checkConforms(tp1,tp2)(using new Assumptions())
+    checkConforms(tp1,tp2)(using new Context())
 
   /** The assumption that a type A is a subtype of B
     *
@@ -346,14 +352,29 @@ object Types:
     * - Paper: Subtyping recursive types, Roberto M. Amadio, Luca Cardelli, 1993
     * - Link: https://dl.acm.org/doi/10.1145/155183.155231
     */
-  private case class Assumptions(
-    syms: Map[Symbol, List[Symbol]],            // non-parameter type symbols
-    apps: Map[AppliedType, List[AppliedType]]   // applied types
-  ):
-    def this() = this(Map.empty, Map.empty)
+  private class Context(
+    subtypings: Map[Symbol, List[Symbol]],
+    reducing: List[Symbol]):       // symbols under reduction, used to avoid non-termination
+
+    def this() = this(Map.empty, Nil)
+
+    def withSubtyping(sym1: Symbol, sym2: Symbol): Context =
+      val subtypings2 = this.subtypings.updated(sym1, sym2 :: this.subtypings.getOrElse(sym1, Nil))
+      new Context(subtypings2, reducing)
+
+    def isSubtype(sym1: Symbol, sym2: Symbol): Boolean =
+      this.subtypings.get(sym1) match
+        case Some(syms) if syms.contains(sym2) => true
+        case _ => false
+
+    def withReducing(sym: Symbol) =
+      new Context(subtypings, sym :: reducing)
+
+    def isReducing(sym: Symbol): Boolean =
+      reducing.contains(sym)
 
   /** Check whether one type conforms to the other type */
-  private def checkConforms(tp1: Type, tp2: Type)(using ass: Assumptions): Boolean = Debug.trace(s"${tp1.show} <: ${tp2.show}", enable = false) {
+  private def checkConforms(tp1: Type, tp2: Type)(using Context): Boolean = Debug.trace(s"${tp1.show} <: ${tp2.show}", enable = false) {
     tp1.isError
     || tp2.isError
     || tp1.isBottom
@@ -361,66 +382,94 @@ object Types:
     || tp1 == tp2
     || tp1.is[TypeRef] && tp2.is[TypeRef]
        && checkConformsTypeRef(tp1.as[TypeRef], tp2.as[TypeRef])
-    || tp1.is[TypeRef] && checkConformsProxyType(tp1.as[TypeRef], tp2)
-    || tp2.is[TypeRef] && checkConformsProxyType(tp1, tp2.as[TypeRef])
+    || tp1.is[TypeRef]
+       && reduceTypeAndThen(tp1.as[TypeRef]) { tp1b => checkConforms(tp1b, tp2) }
+    || tp2.is[TypeRef]
+       && reduceTypeAndThen(tp2.as[TypeRef]) { tp2b => checkConforms(tp1, tp2b) }
     || tp1.is[DelayedType] && checkConforms(tp1.as[DelayedType].underlying, tp2)
     || tp2.is[DelayedType] && checkConforms(tp1, tp2.as[DelayedType].underlying)
     || tp1.is[RecordType] && tp2.is[RecordType]
        && checkConformsRecordType(tp1.as[RecordType], tp2.as[RecordType])
     || tp1.is[AppliedType] && tp2.is[AppliedType]
        && checkConformsAppliedType(tp1.as[AppliedType], tp2.as[AppliedType])
-    || tp1.is[AppliedType] && checkConformsProxyType(tp1.as[AppliedType], tp2)
-    || tp2.is[AppliedType] && checkConformsProxyType(tp1, tp2.as[AppliedType])
+    || tp1.is[AppliedType]
+       && reduceTypeAndThen(tp1.as[AppliedType]) { tp1b => checkConforms(tp1b, tp2) }
+    || tp2.is[AppliedType]
+       && reduceTypeAndThen(tp2.as[AppliedType]) { tp2b => checkConforms(tp1, tp2b) }
     || tp1.is[TypeBound] && tp2.is[TypeBound]
        && checkConformsTypeBound(tp1.as[TypeBound], tp2.as[TypeBound])
     || tp2.is[TypeBound] && checkConforms(tp1, tp2.as[TypeBound].lo)
     || tp1.is[TypeBound] && checkConforms(tp1.as[TypeBound].hi, tp2)
   }
 
-  private def checkConformsAppliedType(tp1: AppliedType, tp2: AppliedType)(using ass: Assumptions): Boolean =
-    ass.apps.get(tp1) match
-      case Some(tps) =>
-        if tps.contains(tp2) then
-          true
+  private def checkConformsAppliedType(tp1: AppliedType, tp2: AppliedType)(using ctx: Context): Boolean =
+    def tryStructural: Boolean =
+      (tp1.tctor, tp2.tctor) match
+         case (tref1: TypeRef, tref2: TypeRef) =>
+           ctx.isSubtype(tref1.symbol, tref2.symbol)
+           && tp1.targs.zip(tp2.targs).forall: (targ1, targ2) =>
+             // Cannot assume covariance
+             checkConforms(targ1, targ2) && checkConforms(targ2, targ1)
+         case _ =>
+           false
+
+    def tryReduction: Boolean =
+      given Context =
+        (tp1.tctor, tp2.tctor) match
+          case (tref1: TypeRef, tref2: TypeRef) =>
+            ctx.withSubtyping(tref1.symbol, tref2.symbol)
+          case _ =>
+            ctx
+
+      reduceTypeAndThen(tp1): tp1b =>
+        reduceTypeAndThen(tp2): tp2b =>
+          checkConforms(tp1b, tp2b)
+    end tryReduction
+
+    tryStructural || tryReduction
+
+  private def checkConformsTypeRef(tp1: TypeRef, tp2: TypeRef)(using ctx: Context): Boolean =
+    if ctx.isSubtype(tp1.symbol, tp2.symbol) then
+      true
+    else
+      given Context = ctx.withSubtyping(tp1.symbol, tp2.symbol)
+      reduceTypeAndThen(tp1): tp1b =>
+        reduceTypeAndThen(tp2): tp2b =>
+          checkConforms(tp1b, tp2b)
+
+  private def reduceTypeAndThen
+              (tp: AppliedType | TypeRef)
+              (check: Context ?=> Type => Boolean)
+              (using ctx: Context): Boolean =
+
+    tp match
+      case AppliedType(tctor, targs) =>
+        tctor match
+          case tref: TypeRef =>
+            reduceTypeAndThen(tref): tctor2 =>
+              tctor2 match
+                case tl: TypeLambda =>
+                  check(substTypeParams(tl.body, targs))
+                case _ =>
+                  check(tp)
+
+          case _ => check(tp)
+
+      case TypeRef(sym) =>
+        if ctx.isReducing(sym) then
+          // cycles detected
+          false
         else
-          val ass2 = ass.copy(apps = ass.apps.updated(tp1, tp2 :: tps))
-          val tp1b = tp1.dealias
-          val tp2b = tp2.dealias
-          tp1b.isGrounded && tp2b.isGrounded
-          && checkConforms(tp1b, tp2b)(using ass2)
+          given Context = ctx.withReducing(sym)
+          check(sym.info.stripDelayed)
 
-      case None =>
-        val ass2 = ass.copy(apps = ass.apps.updated(tp1, tp2 :: Nil))
-        checkConforms(tp1.dealias, tp2.dealias)(using ass2)
-
-  private def checkConformsTypeRef(tp1: TypeRef, tp2: TypeRef)(using ass: Assumptions): Boolean =
-    ass.syms.get(tp1.symbol) match
-      case Some(syms) =>
-        if syms.contains(tp2.symbol) then
-          true
-        else
-          val ass2 = ass.copy(syms = ass.syms.updated(tp1.symbol, tp2.symbol :: syms))
-          checkConforms(tp1.symbol.info, tp2.symbol.info)(using ass2)
-
-      case None =>
-        val ass2 = ass.copy(syms = ass.syms.updated(tp1.symbol, tp2.symbol :: Nil))
-        checkConforms(tp1.symbol.info, tp2.symbol.info)(using ass2)
-
-  private def checkConformsProxyType(tp1: AppliedType | TypeRef, tp2: Type)(using ass: Assumptions): Boolean =
-    val tp1b = tp1.dealias
-    tp1b.isGrounded && checkConforms(tp1b, tp2)
-
-  private def checkConformsProxyType(tp1: Type, tp2: AppliedType | TypeRef)(using ass: Assumptions): Boolean =
-    val tp2b = tp2.dealias
-    tp2b.isGrounded && checkConforms(tp1, tp2b)
-
-  private def checkConformsRecordType(tp1: RecordType, tp2: RecordType)(using Assumptions): Boolean =
+  private def checkConformsRecordType(tp1: RecordType, tp2: RecordType)(using Context): Boolean =
     val names1 = tp1.fieldNames
     val names2 = tp2.fieldNames
     names1.size >= names2.size && names1.zip(names2).forall: (a, b) =>
       a == b && checkConforms(tp1.fieldType(a), tp2.fieldType(b))
 
-  private def checkConformsTypeBound(tp1: TypeBound, tp2: TypeBound)(using Assumptions): Boolean =
+  private def checkConformsTypeBound(tp1: TypeBound, tp2: TypeBound)(using Context): Boolean =
     checkConforms(tp2.lo, tp1.lo) && checkConforms(tp1.hi, tp2.hi)
 
   /** The common result type of two different types.
