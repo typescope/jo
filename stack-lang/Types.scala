@@ -384,7 +384,10 @@ object Types:
           true
         else
           val ass2 = ass.copy(apps = ass.apps.updated(tp1, tp2 :: tps))
-          checkConforms(tp1.dealias, tp2.dealias)(using ass2)
+          val tp1b = tp1.dealias
+          val tp2b = tp2.dealias
+          tp1b.isGrounded && tp2b.isGrounded
+          && checkConforms(tp1b, tp2b)(using ass2)
 
       case None =>
         val ass2 = ass.copy(apps = ass.apps.updated(tp1, tp2 :: Nil))
