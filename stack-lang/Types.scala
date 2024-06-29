@@ -66,7 +66,7 @@ object Types:
     def isGrounded: Boolean =
       this match
         case AnyType | BottomType | IntType | BoolType | ErrorType | VoidType => true
-        case _: PolyType | _: ProcType | _: RecordType | _: UnionType => true
+        case _: PolyType | _: ProcType | _: RecordType | _: UnionType | _: TypeBound => true
         case _: TypeLambda | _: TypeParamRef => true
         case _: TypeRef | _: AppliedType => false
         case _: DelayedType => false
@@ -97,6 +97,9 @@ object Types:
               encountered += sym
               recur(sym.info)
             end if
+
+          case TypeBound(lo, hi) =>
+            hi
 
           case app @ AppliedType(tctor, targs) =>
             tctor.dealias match
@@ -141,6 +144,9 @@ object Types:
 
         case TypeParamRef(name, _) =>
           name
+
+        case TypeBound(lo, hi) =>
+          lo.show + " .. " + hi.show
 
         case ProcType(names, paramTypes, resType) =>
           val params = names.zip(paramTypes).map(_ + " <: " + _.show).mkString("(", ", ", ")")
@@ -225,6 +231,11 @@ object Types:
 
   case class AppliedType
     (tctor: Type, targs: List[Type])
+  extends Type
+
+  /** Represents upper and lower bounds of type parameters */
+  case class TypeBound
+    (lo: Type, hi: Type)
   extends Type
 
   /** Delayed type for symbols to enable type inference and recursive types */
@@ -321,6 +332,12 @@ object Types:
        && checkConformsRecordType(tp1.as[RecordType], tp2.as[RecordType])
     || tp1.is[AppliedType] && checkConformsProxyType(tp1.as[AppliedType], tp2)
     || tp2.is[AppliedType] && checkConformsProxyType(tp1, tp2.as[AppliedType])
+    || tp1.is[TypeBound] && tp2.is[TypeBound]
+       && checkConformsTypeBound(tp1.as[TypeBound], tp2.as[TypeBound])
+    || tp2.is[TypeBound] && checkConforms(tp1, tp2.as[TypeBound].hi)
+       && checkConforms(tp2.as[TypeBound].lo, tp2)
+    || tp1.is[TypeBound] && checkConforms(tp1.as[TypeBound].lo, tp2)
+       && checkConforms(tp1.as[TypeBound].hi, tp2)
 
   private def checkConformsTypeRef(tp1: TypeRef, tp2: TypeRef)(using ass: Assumptions): Boolean =
     ass.get(tp1.symbol) match
@@ -348,6 +365,9 @@ object Types:
     val names2 = tp2.fieldNames
     names1.size >= names2.size && names1.zip(names2).forall: (a, b) =>
       a == b && checkConforms(tp1.fieldType(a), tp2.fieldType(b))
+
+  private def checkConformsTypeBound(tp1: TypeBound, tp2: TypeBound)(using Assumptions): Boolean =
+    checkConforms(tp2.lo, tp1.lo) && checkConforms(tp1.hi, tp2.hi)
 
   /** The common result type of two different types.
     *
@@ -403,6 +423,9 @@ object Types:
         // nested type lambdas or polymorphic types are not supported
         tpe
 
+      case TypeBound(lo, hi) =>
+        TypeBound(substTypeParams(lo, to), substTypeParams(hi, to))
+
       case ProcType(names, paramTypes, resType) =>
         // proc can be nested inside poly type
         val paramTypes2 = paramTypes.map(tp => substTypeParams(tp, to))
@@ -455,6 +478,9 @@ object Types:
         PolyType(names, bounds2, resType2)
 
       case _: TypeParamRef => tpe
+
+      case TypeBound(lo, hi) =>
+        TypeBound(substSymbols(lo, substs), substSymbols(hi, substs))
 
       case ProcType(names, paramTypes, resType) =>
         // proc can be nested inside poly type

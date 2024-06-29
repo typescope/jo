@@ -1,5 +1,7 @@
 fun foo[T <: {a: Int}](x: T): T = x.a;  // error
 
+fun bar[T](x: T): T = 3; // error
+
 val a = 10 foo;  // error
 
 val b = {b = 10} foo[{b: Int}]; // error

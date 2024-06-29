@@ -362,7 +362,7 @@ class Namer(using Reporter):
           if tparam.bound.isEmpty then AnyType
           else
             val boundTree = transformType(tparam.bound)(using funScope)
-            boundTree.tpe
+            TypeBound(BottomType, boundTree.tpe)
         )
 
       val paramTypes =
@@ -417,7 +417,7 @@ class Namer(using Reporter):
             if tparam.bound.isEmpty then AnyType
             else
               val boundTree = transformType(tparam.bound)(using sc2)
-              boundTree.tpe
+              TypeBound(BottomType, boundTree.tpe)
           )
 
         val tparamRefs = tparamSyms.zipWithIndex.map: (tparamSym, i) =>
