@@ -27,13 +27,13 @@ extends Backend:
     *
     * Its type does not matter.
     */
-  val returnAddrSym = Symbol.createParamSymbol("return", Type.Int)
+  val returnAddrSym = Symbol.createParamSymbol("return", IntType)
 
   /** Maps global symbols to addresses */
   val symbolAddrMap: mutable.Map[Symbol, Addr] = mutable.Map.from(nativeFunctions)
 
   /** The memory allocator */
-  val allocatorType = Type.Proc("size" :: Nil, Type.Int :: Nil, Type.Int)
+  val allocatorType = ProcType("size" :: Nil, IntType :: Nil, IntType)
   val allocatorSym = Symbol.createFunSymbol("alloc", allocatorType)
   symbolAddrMap(allocatorSym) = Label(allocatorSym.name)
 

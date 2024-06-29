@@ -14,8 +14,8 @@ import scala.collection.mutable
   * algorithms.
   */
 trait CallConvention:
-  def caller(funInfo: Type.Proc): CallerProtocol
-  def callee(funInfo: Type.Proc): CalleeProtocol
+  def caller(funInfo: ProcType): CallerProtocol
+  def callee(funInfo: ProcType): CalleeProtocol
 
 object CallConvention:
   enum Location:
@@ -138,7 +138,7 @@ object CallConvention:
       val callerHandled = if resCount > argCount then resCount else argCount
       FREE_REGS.diff(PARAM_REGS.take(callerHandled))
 
-    def caller(funInfo: Type.Proc): CallerProtocol =
+    def caller(funInfo: ProcType): CallerProtocol =
       val argCount = funInfo.paramCount
       val resCount = funInfo.resCount
 
@@ -162,7 +162,7 @@ object CallConvention:
 
       CallerProtocol(inRegs.toMap, onStack.toList, resLocs)
 
-    def callee(funInfo: Type.Proc): CalleeProtocol =
+    def callee(funInfo: ProcType): CalleeProtocol =
       val argCount = funInfo.paramCount
       val resCount = funInfo.resCount
 

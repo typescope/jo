@@ -79,12 +79,12 @@ class Checker(using Reporter):
   def checkTypeApply(fun: Word, targs: List[TypeTree]): Word =
     if !fun.tpe.isPolyType then
       Reporter.error(s"Expect a poly function type, found = ${fun.tpe.show}", fun.pos)
-      Phrase(words = Nil)(Type.Error, fun.pos | targs.last.pos)
+      Phrase(words = Nil)(ErrorType, fun.pos | targs.last.pos)
     else
       val polyType = fun.tpe.asPolyType
       if polyType.paramCount != targs.size then
         Reporter.error(s"Expect ${polyType.paramCount} args, found = ${targs.size}", targs.head.pos | targs.last.pos)
-        Phrase(words = Nil)(Type.Error, fun.pos | targs.last.pos)
+        Phrase(words = Nil)(ErrorType, fun.pos | targs.last.pos)
       else
         for (targ, bound) <- targs.zip(polyType.bounds) do
           val argType = targ.tpe
@@ -108,19 +108,19 @@ class Checker(using Reporter):
   def checkValueType(tp: Type, pos: Span): Type =
     if !tp.isValueType then
       Reporter.error(s"Expect value type, found = ${tp.show}", pos)
-      Type.Error
+      ErrorType
     else
       tp
 
   def fieldType(qualType: Type, field: String, pos: Span): Type =
     if !qualType.isRecordType then
       Reporter.error(s"Expect record type, found = ${qualType.show}", pos)
-      Type.Error
+      ErrorType
     else
       val recordType = qualType.asRecordType
       if !recordType.hasField(field) then
         Reporter.error(s"Expect field $field in record type ${recordType.show}, found none", pos)
-        Type.Error
+        ErrorType
       else
         recordType.fieldType(field)
 
@@ -149,13 +149,13 @@ class Checker(using Reporter):
     Types.commonResultType(otherType, curType) match
       case Some(commonType) =>
         if commonType.isVoid && curType.isValueType then
-          Encoded(word)(Type.Void)
+          Encoded(word)(VoidType)
         else
           word
 
       case None =>
         Reporter.error(s"Cannot find common result type between ${curType.show} and ${otherType.show}", pos)
-        Phrase(word :: Nil)(Type.Error, pos)
+        Phrase(word :: Nil)(ErrorType, pos)
     end match
 
 object Checker:
@@ -181,10 +181,10 @@ object Checker:
         Reporter.error(s"$msg, found = $size", pos)
         setError()
 
-    def call(fun: Symbol, tp: Type.Proc, pos: Span)(using Reporter): Unit =
+    def call(fun: Symbol, tp: ProcType, pos: Span)(using Reporter): Unit =
       if isError then return
 
-      val Type.Proc(names, paramTypes, resType) = tp
+      val ProcType(names, paramTypes, resType) = tp
 
       if this.size < paramTypes.size then
         Reporter.error(
@@ -222,7 +222,7 @@ object Checker:
       if valueTypes.isEmpty then
         None
       else if isError then
-        Some(Type.Error)
+        Some(ErrorType)
       else
         val tp = valueTypes.remove(this.size - 1)
         Some(tp)

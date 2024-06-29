@@ -25,13 +25,13 @@ object Sast:
     (value: Int)
     (val pos: Span)
   extends Word:
-    def tpe: Type = Type.Int
+    def tpe: Type = IntType
 
   case class BoolLit
     (value: Boolean)
     (val pos: Span)
   extends Word:
-    def tpe: Type = Type.Bool
+    def tpe: Type = BoolType
 
   case class RecordLit
     (args: List[(String, Word)])
@@ -52,7 +52,7 @@ object Sast:
     (symbol: Symbol, rhs: Word)
     (val pos: Span)
   extends Word:
-    def tpe: Type = Type.Void
+    def tpe: Type = VoidType
 
   case class If
     (cond: Word, thenp: Word, elsep: Word)
@@ -63,7 +63,7 @@ object Sast:
     (cond: Word, body: Word)
     (val pos: Span)
   extends Word:
-    def tpe: Type = Type.Void
+    def tpe: Type = VoidType
 
   case class Phrase
     (words: List[Word])
@@ -92,13 +92,13 @@ object Sast:
     (symbol: Symbol, rhs: Word)
     (val pos: Span)
   extends Word, Def:
-    def tpe: Type = Type.Void
+    def tpe: Type = VoidType
 
   case class TypeDef
     (symbol: Symbol)
     (val pos: Span)
   extends Def:
-    def tpe: Type = Type.Void
+    def tpe: Type = VoidType
 
   case class FunDef
     (symbol: Symbol, tparams: List[Symbol], params: List[Symbol], locals: List[Symbol], body: Word)

@@ -30,7 +30,7 @@ extends Backend:
   val entry = Label("_entry")
 
   /** The memory allocator */
-  val allocatorType = Type.Proc("size" :: Nil, Type.Int :: Nil, Type.Int)
+  val allocatorType = ProcType("size" :: Nil, IntType :: Nil, IntType)
   val allocatorSym = Symbol.createFunSymbol("alloc", allocatorType)
   symbolAddrMap(allocatorSym) = Label(allocatorSym.name)
 
