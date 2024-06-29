@@ -15,7 +15,7 @@ object Test:
       else inputs
     }
 
-  def compileAndCheck(test: String): Boolean =
+  def compileAndCheck(test: String): Boolean = Reporter.timeout(30):
     val backend = Linux.createX86StackMachine(test, "c1")
     val state = new State()
     given reporter: Reporter = Reporter.withSource(test)(using state)
