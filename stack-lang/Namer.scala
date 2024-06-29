@@ -359,7 +359,8 @@ class Namer(using Reporter):
 
       for tparam <- funDef.tparams do
         bounds +=(
-          if tparam.bound.isEmpty then AnyType
+          if tparam.bound.isEmpty then
+            TypeBound(BottomType, AnyType)
           else
             val boundTree = transformType(tparam.bound)(using funScope)
             TypeBound(BottomType, boundTree.tpe)
@@ -414,7 +415,8 @@ class Namer(using Reporter):
 
         for tparam <- tdef.tparams do
           bounds +=(
-            if tparam.bound.isEmpty then AnyType
+            if tparam.bound.isEmpty then
+              TypeBound(BottomType, AnyType)
             else
               val boundTree = transformType(tparam.bound)(using sc2)
               TypeBound(BottomType, boundTree.tpe)

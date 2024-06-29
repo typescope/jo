@@ -85,7 +85,7 @@ object Types:
     def dealias: Type =
       // detect cycles in symbol definitions, e.g., type A = A
       val encountered = new mutable.ArrayBuffer[Symbol]
-      def recur(tp: Type): Type =
+      def recur(tp: Type): Type = Debug.trace(s"$tp.dealias", enable = false):
         tp match
           case delayed: DelayedType =>
             recur(delayed.force())
@@ -97,9 +97,6 @@ object Types:
               encountered += sym
               recur(sym.info)
             end if
-
-          case TypeBound(lo, hi) =>
-            hi
 
           case app @ AppliedType(tctor, targs) =>
             tctor.dealias match
@@ -316,7 +313,7 @@ object Types:
     *
     * TODO: ensure termination for type lambdas.
     */
-  private def checkConforms(tp1: Type, tp2: Type)(using ass: Assumptions): Boolean =
+  private def checkConforms(tp1: Type, tp2: Type)(using ass: Assumptions): Boolean = Debug.trace(s"${tp1.show} <: ${tp2.show}", enable = false) {
     tp1.isError
     || tp2.isError
     || tp1.isBottom
@@ -334,10 +331,9 @@ object Types:
     || tp2.is[AppliedType] && checkConformsProxyType(tp1, tp2.as[AppliedType])
     || tp1.is[TypeBound] && tp2.is[TypeBound]
        && checkConformsTypeBound(tp1.as[TypeBound], tp2.as[TypeBound])
-    || tp2.is[TypeBound] && checkConforms(tp1, tp2.as[TypeBound].hi)
-       && checkConforms(tp2.as[TypeBound].lo, tp2)
-    || tp1.is[TypeBound] && checkConforms(tp1.as[TypeBound].lo, tp2)
-       && checkConforms(tp1.as[TypeBound].hi, tp2)
+    || tp2.is[TypeBound] && checkConforms(tp1, tp2.as[TypeBound].lo)
+    || tp1.is[TypeBound] && { println("here"); true } && checkConforms(tp1.as[TypeBound].hi, tp2)
+  }
 
   private def checkConformsTypeRef(tp1: TypeRef, tp2: TypeRef)(using ass: Assumptions): Boolean =
     ass.get(tp1.symbol) match
