@@ -347,11 +347,11 @@ class Namer(using Reporter):
     lazy val finalResultType =
       // TODO: missing kind check
       val resTypeTree = transformType(funDef.resType)(using funScope)
-      eliminateSymbols(resTypeTree.tpe, tparamSyms.toList)
+      resTypeTree.tpe
 
     lazy val info =
       for (tparam, i) <- funDef.tparams.zipWithIndex yield
-        val info = Type.TypeParamRef(tparam.name, i)
+        val info = Type.Delayed() { bounds(i) }
         val sym = Symbol.createTypeSymbol(tparam.name, info)
         funScope.define(sym, tparam.pos)
         tparamSyms += sym
@@ -362,7 +362,7 @@ class Namer(using Reporter):
           if tparam.bound.isEmpty then Type.Any
           else
             val boundTree = transformType(tparam.bound)(using funScope)
-            eliminateSymbols(boundTree.tpe, tparamSyms.toList)
+            boundTree.tpe
         )
 
       val paramTypes =
@@ -375,7 +375,12 @@ class Namer(using Reporter):
 
       val procType = Type.Proc(paramNames, paramTypes, finalResultType)
       if bounds.isEmpty then procType
-      else Type.PolyType(tparamNames, bounds.toList, eliminateSymbols(procType, tparamSyms.toList))
+      else
+        val tparamRefs = tparamSyms.zipWithIndex.map: (tparamSym, i) =>
+          Type.TypeParamRef(tparamSym.name, i)
+        val substs = tparamSyms.zip(tparamRefs).toMap
+        val rawType = Type.PolyType(tparamNames, bounds.toList, procType)
+        substSymbols(rawType, substs)
 
     val delayedType = Type.Delayed()(info)
     val sym = Symbol.createFunSymbol(funDef.name, delayedType)
@@ -402,7 +407,7 @@ class Namer(using Reporter):
           for (tparam, i) <- tdef.tparams.zipWithIndex yield
             names += tparam.name
 
-            val info = Type.TypeParamRef(tparam.name, i)
+            val info = Type.Delayed() { bounds(i) }
             val sym = Symbol.createTypeSymbol(tparam.name, info)
             sc2.define(sym, tparam.pos)
             sym
@@ -412,12 +417,16 @@ class Namer(using Reporter):
             if tparam.bound.isEmpty then Type.Any
             else
               val boundTree = transformType(tparam.bound)(using sc2)
-              eliminateSymbols(boundTree.tpe, tparamSyms)
+              boundTree.tpe
           )
 
+        val tparamRefs = tparamSyms.zipWithIndex.map: (tparamSym, i) =>
+          Type.TypeParamRef(tparamSym.name, i)
+        val subst = tparamSyms.zip(tparamRefs).toMap
+
         val body = transformType(tdef.rhs)(using sc2)
-        val tp = eliminateSymbols(body.tpe, tparamSyms)
-        Type.TypeLambda(names.toList, bounds.toList, tp)
+        val rawType = Type.TypeLambda(names.toList, bounds.toList, body.tpe)
+        substSymbols(rawType, subst)
 
     val delayedType = Type.Delayed()(info)
 

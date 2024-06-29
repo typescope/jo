@@ -1,0 +1,5 @@
+fun foo[T <: {a: Int}](x: T): T = x.a;
+
+val a = 10 foo;  // error
+
+val b = {b = 10} foo[{b: Int}]; // error

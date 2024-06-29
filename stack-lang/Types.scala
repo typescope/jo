@@ -415,23 +415,22 @@ object Types:
       case tp: Type.Delayed =>
         substTypeParams(tp.underlying, to)
 
-  /** Replace type symbol reference with sym.info
+  /** Substitute type symbols with the supplied types.
     *
     * This method is used in type checking definitions with type parameters.
     */
-  def eliminateSymbols(tpe: Type, syms: List[Symbol]): Type =
+  def substSymbols(tpe: Type, substs: Map[Symbol, Type]): Type =
     tpe match
       case Type.Void | Type.Error | Type.Any | Type.Bottom | Type.Int | Type.Bool =>
         tpe
 
       case Type.TypeRef(sym) =>
-        if syms.contains(sym) then sym.info
-        else tpe
+        substs.getOrElse(sym, tpe)
 
       case Type.Record(fields) =>
         val fields2 =
           for (name, tpe) <- fields
-          yield name -> eliminateSymbols(tpe, syms)
+          yield name -> substSymbols(tpe, substs)
         Type.Record(fields2)
 
       case Type.Union(branches) =>
@@ -439,24 +438,32 @@ object Types:
           for
             (tag, tps) <- branches
           yield
-            tag -> tps.map(tp => eliminateSymbols(tp, syms))
+            tag -> tps.map(tp => substSymbols(tp, substs))
         Type.Union(branches2)
 
       case Type.AppliedType(tctor, targs) =>
         // first-class type ctor might be supported later
-        val tctor2 = eliminateSymbols(tctor, syms)
-        val targs2 = for targ <- targs yield eliminateSymbols(targ, syms)
+        val tctor2 = substSymbols(tctor, substs)
+        val targs2 = for targ <- targs yield substSymbols(targ, substs)
         Type.AppliedType(tctor2, targs2)
 
-      case _: Type.TypeLambda | _: Type.TypeParamRef | _: Type.PolyType =>
-        // nested type lambdas and poly types are not supported
-        tpe
+      case Type.TypeLambda(names, bounds, resType) =>
+        val bounds2 = for bound <- bounds yield substSymbols(bound, substs)
+        val resType2 = substSymbols(resType, substs)
+        Type.TypeLambda(names, bounds2, resType2)
+
+      case Type.PolyType(names, bounds, resType) =>
+        val bounds2 = for bound <- bounds yield substSymbols(bound, substs)
+        val resType2 = substSymbols(resType, substs)
+        Type.PolyType(names, bounds2, resType2)
+
+      case _: Type.TypeParamRef => tpe
 
       case Type.Proc(names, paramTypes, resType) =>
         // proc can be nested inside poly type
-        val paramTypes2 = paramTypes.map(tp => eliminateSymbols(tp, syms))
-        val resType2 = eliminateSymbols(resType, syms)
+        val paramTypes2 = paramTypes.map(tp => substSymbols(tp, substs))
+        val resType2 = substSymbols(resType, substs)
         Type.Proc(names, paramTypes2, resType2)
 
       case tp: Type.Delayed =>
-        eliminateSymbols(tp.underlying, syms)
+        substSymbols(tp.underlying, substs)

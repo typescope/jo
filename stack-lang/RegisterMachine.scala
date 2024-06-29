@@ -251,8 +251,9 @@ extends Backend:
 
   /** Call the funtion */
   def call(fun: Symbol)(using ctx: Context) =
-    val target = symbolAddrMap(fun).asInstanceOf[Label]
+    // TODO: erasure better handled together with boxing/unboxing?
     val funType = fun.info.erasePolyType.asProcType
+    val target = symbolAddrMap(fun).asInstanceOf[Label]
     val argCount = funType.paramCount
     val resCount = funType.resCount
 

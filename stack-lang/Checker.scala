@@ -198,8 +198,10 @@ object Checker:
             conforms(tp1, tp2)
 
         if !agree then
+          val expect = paramTypes.map(_.show).mkString("(", ", ", ")")
+          val actual = argTypes.map(_.show).mkString("(", ", ", ")")
           Reporter.error(
-            s"Function $fun expects arguments $paramTypes, found = ${argTypes}",
+            s"Function $fun expects arguments $expect, found = $actual",
             pos)
           setError()
         end if

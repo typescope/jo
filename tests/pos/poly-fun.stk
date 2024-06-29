@@ -1,5 +1,7 @@
 fun ident[T](x: T): T = x;
 
+fun foo[T <: {a: Int}](x: T): Int = x.a;
+
 fun swap[S, T](x: {a: S, b: T}): {a: T, b: S} =
   { a = x.b, b = x.a };
 
@@ -9,3 +11,5 @@ val x = { a = 4, b = false };
 val y = x swap[Int, Bool];
 
 y.b p
+
+x foo[{a: Int}] p
