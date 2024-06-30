@@ -55,15 +55,23 @@ Syntactical Grammar
 
 
 ~~~
-    word    = integer | boolean | ident | if | fence | assign | valdef | while | record | select | variant | match | tapply.
+    word    = integer | boolean | ident | select | if | fence | assign | valdef | while | record | variant | match | tapply | lambda.
+
+    select  = (ident | select) DOT ident.
+
     fence   = LPAREN phrase RPAREN.
     assign  = ident EQL phrase SEMICOL.
     if      = IF phrase THEN phrase [ELSE phrase] END.
     while   = WHILE phrase DO phrase END.
+
     record  = LBRACE [named_args] RBRACE.
-    select  = (ident | select) DOT ident.
+    named_args = named_arg { COMMA named_arg }.
+    named_arg  = ident EQL phrase.
+
     variant = TAG ident {word} OF type.
+
     tapply  = ident targs.
+    lambda  = LPAREN [params] RPAREN RARROW phrase.
 
     match   = MATCH phrase {case} END.
     case    = CASE pat RARROW phrase.
@@ -81,18 +89,18 @@ Syntactical Grammar
     applied_type = ident targs.
     targs        = LBRACKET type { COMMA type } RBRACKET.
 
-    type    = ident | record_typ | union_typ | applied_type.
+    type    = ident | record_typ | union_typ | applied_type | fun_type.
 
-    named_args = named_arg { COMMA named_arg }.
-    named_arg  = ident EQL phrase.
     record_typ = LBRACE [fields]  RBRACE.
     fields     = field { COMMA field }.
     field      = ident COLON type.
 
     union_typ  = '<' [branches] '>'.
     branches   = branch { COMMA branch }.
-    branch     = ident {types}.
+    branch     = ident [types].
     types      = type [ '*' type ].
+
+    fun_type   = [types] RARROW type.
 
     program = {valdef | fundef | typedef} phrase.
 
