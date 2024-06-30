@@ -177,7 +177,7 @@ object Reporter:
   def monitor(fn: State ?=> Unit): Unit =
     val state = new State()
     try
-      timeout(1000) { fn(using state) }
+      timeout(100) { fn(using state) }
     catch
       case error: FatalError.CodeError =>
         println("[error] " + error.content)
