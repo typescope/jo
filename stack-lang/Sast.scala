@@ -70,6 +70,11 @@ object Sast:
     (val tpe: Type, val pos: Span)
   extends Word
 
+  case class Closure
+    (symbol: Symbol, captured: List[Symbol])
+    (val tpe: Type, val pos: Span)
+  extends Word
+
   /** Encode of a type with another type */
   case class Encoded
     (repr: Word)
@@ -103,7 +108,7 @@ object Sast:
   case class FunDef
     (symbol: Symbol, tparams: List[Symbol], params: List[Symbol], locals: List[Symbol], body: Word)
     (val pos: Span)
-  extends Def:
+  extends Word, Def:
     def tpe = symbol.info
 
   case class Prog(defs: List[Def], main: Word):
