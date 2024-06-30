@@ -465,7 +465,7 @@ class Namer(using Reporter):
             Reporter.error("Field " + field.name + " already defined", field.pos)
           else
             val tpt = transformType(field.typ)
-            checker.checkValueType(tpt)
+            checker.delayedCheck { checker.checkValueType(tpt) }
             fieldTypes += field.name -> tpt.tpe
         end for
         TypeTree(RecordType(fieldTypes.toList))(tpt.pos)
@@ -479,7 +479,7 @@ class Namer(using Reporter):
             val tps =
               for tpt <- branch.tpts yield
                 val tpt2 = transformType(tpt)
-                checker.checkValueType(tpt2)
+                checker.delayedCheck { checker.checkValueType(tpt2) }
                 tpt2.tpe
 
             branchTypes += branch.name -> tps
@@ -500,7 +500,7 @@ class Namer(using Reporter):
             tpt.tpe
 
         val resType2 = transformType(resType)
-        checker.checkValueType(resType2)
+        checker.delayedCheck { checker.checkValueType(resType2) }
 
         TypeTree(FunctionType(paramTypes2, resType2.tpe))(tpt.pos)
 
