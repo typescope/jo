@@ -143,7 +143,7 @@ object Ast:
     assert(targs.nonEmpty)
 
   case class FunctionType
-    (argTypes: List[TypeTree], resultType: TypeTree)
+    (paramTypes: List[TypeTree], resultType: TypeTree)
     (val pos: Span)
   extends TypeTree
 

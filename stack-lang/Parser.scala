@@ -418,9 +418,39 @@ object Parsing:
           None
 
     def typ(): TypeTree =
+      val tps = simpleTypes()
+      peek() match
+        case (Token.RARROW, _) =>
+          next()
+          val resType = typ()
+          FunctionType(tps, resType)(tps.head.pos | resType.pos)
+
+        case (token, span) =>
+          if tps.size > 1 then
+            error("`=>` expected, found = " + token, span)
+            tps.head
+          else
+            tps.head
+
+    def simpleTypes(): List[TypeTree] =
+      val tps = new mutable.ArrayBuffer[TypeTree]
+      tps += simpleType()
+      while peek()._1 == Token.Ident("*") do
+        next()
+        tps += simpleType()
+
+      tps.toList
+
+    def simpleType(): TypeTree =
       peek() match
         case (Token.LBRACE, _)   => recordType()
         case (Token.Ident("<"), _) => unionType()
+
+        case (Token.RARROW, span)   =>
+          next()
+          val resType = typ()
+          FunctionType(paramTypes = Nil, resType)(span | resType.pos)
+
         case _ =>
           val id = ident()
           if peek()._1 == Token.LBRACKET then

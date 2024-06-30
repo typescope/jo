@@ -464,7 +464,9 @@ class Namer(using Reporter):
           if fieldTypes.exists(_._1 == field.name) then
             Reporter.error("Field " + field.name + " already defined", field.pos)
           else
-            fieldTypes += field.name -> transformType(field.typ).tpe
+            val tpt = transformType(field.typ)
+            checker.checkValueType(tpt)
+            fieldTypes += field.name -> tpt.tpe
         end for
         TypeTree(RecordType(fieldTypes.toList))(tpt.pos)
 
@@ -474,7 +476,12 @@ class Namer(using Reporter):
           if branchTypes.exists(_._1 == branch.name) then
             Reporter.error("Branch " + branch.name + " already defined", branch.pos)
           else
-            val tps = for tpt <- branch.tpts yield transformType(tpt).tpe
+            val tps =
+              for tpt <- branch.tpts yield
+                val tpt2 = transformType(tpt)
+                checker.checkValueType(tpt2)
+                tpt2.tpe
+
             branchTypes += branch.name -> tps
         end for
         TypeTree(UnionType(branchTypes.toList))(tpt.pos)
@@ -484,6 +491,18 @@ class Namer(using Reporter):
         val targs2 = for targ <- targs yield transformType(targ)
         checker.delayedCheck { checker.checkBounds(tctor2, targs2) }
         TypeTree(AppliedType(tctor2.tpe, targs2.map(_.tpe)))(tpt.pos)
+
+      case Ast.FunctionType(paramTypes, resType) =>
+        val paramTypes2 =
+          for paramType <- paramTypes yield
+            val tpt = transformType(paramType)
+            checker.checkValueType(tpt)
+            tpt.tpe
+
+        val resType2 = transformType(resType)
+        checker.checkValueType(resType2)
+
+        TypeTree(FunctionType(paramTypes2, resType2.tpe))(tpt.pos)
 
       case _: Ast.EmptyTypeTree =>
         Reporter.abort("Unexpected empty type tree", tpt.pos)
