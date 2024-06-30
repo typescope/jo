@@ -446,6 +446,12 @@ object Parsing:
         case (Token.LBRACE, _)   => recordType()
         case (Token.Ident("<"), _) => unionType()
 
+        case (Token.LPAREN, _)   =>
+          next()
+          val tp = typ()
+          eat(Token.RPAREN)
+          tp
+
         case (Token.RARROW, span)   =>
           next()
           val resType = typ()
@@ -502,28 +508,21 @@ object Parsing:
         case _ =>
           if acc.nonEmpty then eat(Token.COMMA)
           val tag = ident()
-          val tps = new mutable.ArrayBuffer[TypeTree]
-          while
-            peek() match
-              case (Token.COMMA | Token.Ident(">") | Token.EOF, span) =>
-                false
-              case _ =>
-                if tps.nonEmpty then
-                  val id = ident()
-                  if id.name != "*" then
-                    error("Expect *, found = " + id.name, id.pos)
-                    false
-                  else
-                    tps += typ()
-                    true
-                else
-                  tps += typ()
-                  true
-            end match
-          do ()
+          val tps1 =
+            if peek()._1 == Token.COMMA || peek()._1 == Token.Ident(">") then Nil
+            else simpleTypes()
 
-          val posEnd = if tps.isEmpty then tag.pos else tps.last.pos
-          val branch = Branch(tag, tps.toList)(tag.pos | posEnd)
+          val tps2 =
+            peek() match
+              case (Token.RARROW, _) if tps1.nonEmpty =>
+                next()
+                val resType = typ()
+                FunctionType(tps1, resType)(tps1.head.pos | resType.pos) :: Nil
+
+              case _ => tps1
+
+          val posEnd = if tps2.isEmpty then tag.pos else tps2.last.pos
+          val branch = Branch(tag, tps2)(tag.pos | posEnd)
           branches(acc += branch)
 
     def ident(): Ident =
