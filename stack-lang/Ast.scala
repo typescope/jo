@@ -85,7 +85,13 @@ object Ast:
     (val pos: Span)
   extends Positioned
 
+  case class Lambda
+    (params: List[Param], body: Phrase)
+    (val pos: Span)
+  extends Positioned
+
   //---------------------------- patterns --------------------------------------
+
   sealed abstract class Pattern extends Positioned with Product
 
   case class Wildcard
@@ -135,6 +141,11 @@ object Ast:
     (val pos: Span)
   extends TypeTree:
     assert(targs.nonEmpty)
+
+  case class FunctionType
+    (argTypes: List[TypeTree], resultType: TypeTree)
+    (val pos: Span)
+  extends TypeTree
 
   //-------------------------- definitions -------------------------------------
 
