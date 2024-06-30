@@ -381,7 +381,7 @@ class Namer(using Reporter):
           TypeParamRef(tparamSym.name, i)
         val substs = tparamSyms.zip(tparamRefs).toMap
         val rawType = PolyType(tparamNames, bounds.toList, procType)
-        substSymbols(rawType, substs)
+        TypeOps.substSymbols(rawType, substs)
 
     val delayedType = DelayedType()(info)
     val sym = Symbol.createFunSymbol(funDef.name, delayedType)
@@ -428,7 +428,7 @@ class Namer(using Reporter):
 
         val body = transformType(tdef.rhs)(using sc2)
         val rawType = TypeLambda(names.toList, bounds.toList, body.tpe)
-        substSymbols(rawType, subst)
+        TypeOps.substSymbols(rawType, subst)
 
     val delayedType = DelayedType()(info)
 

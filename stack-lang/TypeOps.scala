@@ -4,6 +4,37 @@ import Symbols.*
 /** Operations on types */
 object TypeOps:
 
+  /** The common result type of two different types.
+    *
+    * This method is used to compute the result type of if- and match-
+    * expressions.
+    *
+    * The logic is different from computing join in the subtype lattice:
+    *
+    * - ErrorType always dominates
+    * - VoidType dominates BottomType
+    */
+  def commonResultType(tp1: Type, tp2: Type): Option[Type] =
+    if tp1.isError || tp2.isError then Some(ErrorType)
+    else if tp1.isVoid && tp2.isBottom then Some(VoidType)
+    else if tp1.isBottom && tp2.isVoid then Some(VoidType)
+    else if Subtyping.conforms(tp1, tp2) then Some(tp2)
+    else if Subtyping.conforms(tp2, tp1) then Some(tp1)
+    else None
+
+  /** Substitute type params with the given types */
+  def substTypeParams(tpe: Type, to: List[Type]): Type =
+    val typeMap = new TypeOps.TypeParamTypeMap
+    typeMap(tpe)(using to)
+
+  /** Substitute type symbols with the supplied types.
+    *
+    * This method is used in type checking definitions with type parameters.
+    */
+  def substSymbols(tpe: Type, substs: Map[Symbol, Type]): Type =
+    val typeMap = new TypeOps.SymbolsTypeMap
+    typeMap(tpe)(using substs)
+
   trait TypeMap:
     type Context
 

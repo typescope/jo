@@ -76,11 +76,11 @@ class Checker(using Reporter):
       for (targ, bound) <- targs.zip(bounds) do
         val argType = targ.tpe
         val TypeBound(lo, hi) = bound.as[TypeBound]
-        val loActual = substTypeParams(lo, targs.map(_.tpe))
-        val hiActual = substTypeParams(hi, targs.map(_.tpe))
-        if !conforms(argType, hiActual) then
+        val loActual = TypeOps.substTypeParams(lo, targs.map(_.tpe))
+        val hiActual = TypeOps.substTypeParams(hi, targs.map(_.tpe))
+        if !Subtyping.conforms(argType, hiActual) then
           Reporter.error(s"Arg type ${argType.show} does not conform to bound = ${hi.show}, which expands to ${hiActual.show}", targ.pos)
-        if !conforms(loActual, argType) then
+        if !Subtyping.conforms(loActual, argType) then
           Reporter.error(s"Arg type ${argType.show} does not conform to bound = ${hi.show}, which expands to ${hiActual.show}", targ.pos)
 
   def checkTypeApply(fun: Word, targs: List[TypeTree]): Word =
@@ -94,14 +94,14 @@ class Checker(using Reporter):
         Phrase(words = Nil)(ErrorType, fun.pos | targs.last.pos)
       else
         checkBounds(polyType.bounds, targs)
-        val tpe = substTypeParams(polyType.resultType, targs.map(_.tpe))
+        val tpe = TypeOps.substTypeParams(polyType.resultType, targs.map(_.tpe))
         // TODO: generalize
         val funSym = fun.asInstanceOf[Ident].symbol
         // perform type erasure
         Ident(funSym)(fun.pos, tpe)
 
   def checkType(tree: Tree, tp: Type): Unit =
-    if !conforms(tree.tpe, tp) then
+    if !Subtyping.conforms(tree.tpe, tp) then
       Reporter.error(s"Expect type ${tp.show}, found = ${tree.tpe.show}", tree.pos)
 
   def checkValueType(tree: Tree): Unit =
@@ -148,7 +148,7 @@ class Checker(using Reporter):
   /** Explicit drop of values in if/match expressions */
   def adapt(word: Word, otherType: Type, pos: Span): Word =
     val curType = word.tpe
-    Types.commonResultType(otherType, curType) match
+    TypeOps.commonResultType(otherType, curType) match
       case Some(commonType) =>
         if commonType.isVoid && curType.isValueType then
           Encoded(word)(VoidType)
@@ -197,7 +197,7 @@ object Checker:
         val argTypes = valueTypes.takeRight(paramTypes.size)
         val agree =
           argTypes.zip(paramTypes).forall: (tp1, tp2) =>
-            conforms(tp1, tp2)
+            Subtyping.conforms(tp1, tp2)
 
         if !agree then
           val expect = paramTypes.map(_.show).mkString("(", ", ", ")")
