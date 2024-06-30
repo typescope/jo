@@ -1,6 +1,8 @@
 import Types.*
 import Symbols.*
 
+import scala.collection.mutable
+
 /** Operations on types */
 object TypeOps:
 
@@ -34,6 +36,78 @@ object TypeOps:
   def substSymbols(tpe: Type, substs: Map[Symbol, Type]): Type =
     val typeMap = new TypeOps.SymbolsTypeMap
     typeMap(tpe)(using substs)
+
+
+  /** Approximate top-level type aliases, delayed types, applied types
+    *
+    *
+    * The difference with `dealias` is that this method approximates type
+    * bounds while `dealias` does not.
+    *
+    * It approximates a type to its upper bound or lower bound according to
+    * the spec.
+    */
+  def approx(tp: Type, isUp: Boolean): Type =
+    // detect cycles in symbol definitions, e.g., type A = A
+    val encountered = new mutable.ArrayBuffer[Symbol]
+    def recur(tp: Type, isUp: Boolean): Type = Debug.trace(s"$tp.approx", enable = false):
+      tp match
+        case delayed: DelayedType =>
+          recur(delayed.force(), isUp)
+
+        case tref @ TypeRef(sym) =>
+          if encountered.contains(sym) then
+            tref
+          else
+            encountered += sym
+            recur(sym.info, isUp)
+          end if
+
+        case TypeBound(lo, hi) =>
+          if isUp then recur(hi, isUp) else recur(lo, isUp)
+
+        case app @ AppliedType(tctor, targs) =>
+          recur(tctor, isUp) match
+            case tl: TypeLambda =>
+              recur(TypeOps.substTypeParams(tl.body, targs), isUp)
+
+            case _ =>
+              app
+
+        case tp => tp
+    end recur
+    recur(tp, isUp)
+  end approx
+
+  /** Transitively eliminate top-level type aliases, delayed types and applied types */
+  def dealias(tp: Type): Type =
+    // detect cycles in symbol definitions, e.g., type A = A
+    val encountered = new mutable.ArrayBuffer[Symbol]
+    def recur(tp: Type): Type = Debug.trace(s"$tp.dealias", enable = false):
+      tp match
+        case delayed: DelayedType =>
+          recur(delayed.underlying)
+
+        case tref @ TypeRef(sym) =>
+          if encountered.contains(sym) then
+            tref
+          else
+            encountered += sym
+            recur(sym.info)
+          end if
+
+        case app @ AppliedType(tctor, targs) =>
+          recur(tctor) match
+            case tl: TypeLambda =>
+              recur(TypeOps.substTypeParams(tl.body, targs))
+
+            case _ =>
+              app
+
+        case tp => tp
+    end recur
+    recur(tp)
+  end dealias
 
   trait TypeMap:
     type Context

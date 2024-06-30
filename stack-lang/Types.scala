@@ -20,39 +20,39 @@ object Types:
     def isBottom: Boolean = this == BottomType
 
     def isRecordType: Boolean =
-      this.approx(isUp = true).isInstanceOf[RecordType]
+      TypeOps.approx(this, isUp = true).isInstanceOf[RecordType]
 
     def isUnionType: Boolean =
-      this.approx(isUp = true).isInstanceOf[UnionType]
+      TypeOps.approx(this, isUp = true).isInstanceOf[UnionType]
 
     def isTypeLambda: Boolean =
-      this.approx(isUp = true).isInstanceOf[TypeLambda]
+      TypeOps.approx(this, isUp = true).isInstanceOf[TypeLambda]
 
     def isProcType: Boolean =
-      this.approx(isUp = true).isInstanceOf[ProcType]
+      TypeOps.approx(this, isUp = true).isInstanceOf[ProcType]
 
     def isFunctionType: Boolean =
-      this.approx(isUp = true).isInstanceOf[FunctionType]
+      TypeOps.approx(this, isUp = true).isInstanceOf[FunctionType]
 
     def isPolyType: Boolean =
-      this.approx(isUp = true).isInstanceOf[PolyType]
+      TypeOps.approx(this, isUp = true).isInstanceOf[PolyType]
 
     def isValueType: Boolean =
-      this.dealias match
+      TypeOps.approx(this, isUp = true)  match
         case VoidType | _: ProcType | _: TypeLambda | _: PolyType => false
         case _ => true
 
-    def asRecordType: RecordType = this.approx(isUp = true).asInstanceOf[RecordType]
+    def asRecordType: RecordType = TypeOps.approx(this, isUp = true).asInstanceOf[RecordType]
 
-    def asUnionType: UnionType = this.approx(isUp = true).asInstanceOf[UnionType]
+    def asUnionType: UnionType = TypeOps.approx(this, isUp = true).asInstanceOf[UnionType]
 
-    def asTypeLambda: TypeLambda = this.approx(isUp = true).asInstanceOf[TypeLambda]
+    def asTypeLambda: TypeLambda = TypeOps.approx(this, isUp = true).asInstanceOf[TypeLambda]
 
-    def asProcType: ProcType = this.approx(isUp = true).asInstanceOf[ProcType]
+    def asProcType: ProcType = TypeOps.approx(this, isUp = true).asInstanceOf[ProcType]
 
-    def asFunctionType: FunctionType = this.approx(isUp = true).asInstanceOf[FunctionType]
+    def asFunctionType: FunctionType = TypeOps.approx(this, isUp = true).asInstanceOf[FunctionType]
 
-    def asPolyType: PolyType = this.approx(isUp = true).asInstanceOf[PolyType]
+    def asPolyType: PolyType = TypeOps.approx(this, isUp = true).asInstanceOf[PolyType]
 
     def is[T <: Type : ClassTag]: Boolean =
       this match
@@ -81,7 +81,7 @@ object Types:
     /** Erase a poly type by replacing type parameters with Any */
     def erasePolyType: Type =
       // implementation assumption: no nested poly types
-      this.dealias match
+      TypeOps.dealias(this) match
         case PolyType(_, bounds, resType) =>
           // cannot subst with bounds as they might be recursive
           // TODO: do it in a principled way
@@ -94,75 +94,6 @@ object Types:
       this match
         case delayed: DelayedType => delayed.underlying
         case tp => tp
-
-    /** Transitively eliminate top-level type aliases, delayed types and applied types */
-    def dealias: Type =
-      // detect cycles in symbol definitions, e.g., type A = A
-      val encountered = new mutable.ArrayBuffer[Symbol]
-      def recur(tp: Type): Type = Debug.trace(s"$tp.dealias", enable = false):
-        tp match
-          case delayed: DelayedType =>
-            recur(delayed.underlying)
-
-          case tref @ TypeRef(sym) =>
-            if encountered.contains(sym) then
-              tref
-            else
-              encountered += sym
-              recur(sym.info)
-            end if
-
-          case app @ AppliedType(tctor, targs) =>
-            recur(tctor) match
-              case tl: TypeLambda =>
-                recur(TypeOps.substTypeParams(tl.body, targs))
-
-              case _ =>
-                app
-
-          case tp => tp
-      end recur
-      recur(this)
-
-    /** Approximate top-level type aliases, delayed types, applied types
-      *
-      *
-      * The difference with `dealias` is that this method approximates type
-      * bounds while `dealias` does not.
-      *
-      * It approximates a type to its upper bound or lower bound according to
-      * the spec.
-      */
-    private def approx(isUp: Boolean): Type =
-      // detect cycles in symbol definitions, e.g., type A = A
-      val encountered = new mutable.ArrayBuffer[Symbol]
-      def recur(tp: Type, isUp: Boolean): Type = Debug.trace(s"$tp.approx", enable = false):
-        tp match
-          case delayed: DelayedType =>
-            recur(delayed.force(), isUp)
-
-          case tref @ TypeRef(sym) =>
-            if encountered.contains(sym) then
-              tref
-            else
-              encountered += sym
-              recur(sym.info, isUp)
-            end if
-
-          case TypeBound(lo, hi) =>
-            if isUp then recur(hi, isUp) else recur(lo, isUp)
-
-          case app @ AppliedType(tctor, targs) =>
-            recur(tctor, isUp) match
-              case tl: TypeLambda =>
-                recur(TypeOps.substTypeParams(tl.body, targs), isUp)
-
-              case _ =>
-                app
-
-          case tp => tp
-      end recur
-      recur(this, isUp)
 
     def show: String =
       this match
