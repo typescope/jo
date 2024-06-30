@@ -121,7 +121,7 @@ extends Backend:
   def compile(fdef: FunDef)(using ctx: Context): CalleeProtocol =
     val sym = fdef.symbol
     val paramCount = fdef.params.size
-    val funType = sym.info.erasePolyType.asProcType
+    val funType = TypeOps.erasePolyType(sym.info).asProcType
 
     // TODO: bind retLoc
     val proto @ CalleeProtocol(paramLocs, retLoc, resLocs, savedRegs) =
@@ -252,7 +252,7 @@ extends Backend:
   /** Call the funtion */
   def call(fun: Symbol)(using ctx: Context) =
     // TODO: erasure better handled together with boxing/unboxing?
-    val funType = fun.info.erasePolyType.asProcType
+    val funType = TypeOps.erasePolyType(fun.info).asProcType
     val target = symbolAddrMap(fun).asInstanceOf[Label]
     val argCount = funType.paramCount
     val resCount = funType.resCount

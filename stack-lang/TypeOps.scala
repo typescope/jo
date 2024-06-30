@@ -37,6 +37,39 @@ object TypeOps:
     val typeMap = new TypeOps.SymbolsTypeMap
     typeMap(tpe)(using substs)
 
+  /** Strip top-level delayed type */
+  def stripDelayed(tp: Type): Type =
+    tp match
+      case delayed: DelayedType => delayed.underlying
+      case tp => tp
+
+  /** A grounded type cannot be simplied further at the top-level
+    *
+    * The following types are grounded:
+    *
+    * - primitive types
+    * - procedure types
+    * - record types
+    * - union types
+    */
+  def isGrounded(tp: Type): Boolean =
+    tp match
+      case AnyType | BottomType | IntType | BoolType | ErrorType | VoidType => true
+      case _: PolyType | _: ProcType | _: FunctionType | _: RecordType | _: UnionType | _: TypeBound => true
+      case _: TypeLambda | _: TypeParamRef => true
+      case _: TypeRef | _: AppliedType => false
+      case _: DelayedType => false
+
+  /** Erase a poly type by replacing type parameters with Any */
+  def erasePolyType(tp: Type): Type =
+    // implementation assumption: no nested poly types
+    dealias(tp) match
+      case PolyType(_, bounds, resType) =>
+        // cannot subst with bounds as they might be recursive
+        // TODO: do it in a principled way
+        TypeOps.substTypeParams(resType, bounds.map(_ => AnyType))
+
+      case tp => tp
 
   /** Approximate top-level type aliases, delayed types, applied types
     *
@@ -108,6 +141,50 @@ object TypeOps:
     end recur
     recur(tp)
   end dealias
+
+  def show(tp: Type): String =
+    tp match
+      case IntType | BoolType | VoidType | AnyType | BottomType | ErrorType =>
+        tp.toString
+
+      case TypeRef(sym) =>
+        sym.name
+
+      case RecordType(fields) =>
+        fields.map(_ + ": " + show(_)).mkString("{", ", ", "}")
+
+      case UnionType(branches) =>
+        def concat(tps: List[Type]) = tps.map(_.show).mkString(" * ")
+        branches.map(_ + " " + concat(_)).mkString("<", ", ", ">")
+
+      case delay: DelayedType =>
+        show(delay.underlying)
+
+      case AppliedType(tctor, targs) =>
+        show(tctor) + targs.map(show).mkString("[", ", ", "]")
+
+      case TypeLambda(names, bounds, body) =>
+        val tparams = names.zip(bounds).map(_ + " <: " + show(_)).mkString("[", ", ", "]")
+        tparams + " => " + show(body)
+
+      case PolyType(names, bounds, resType) =>
+        val tparams = names.zip(bounds).map(_ + " <: " + show(_)).mkString("[", ", ", "]")
+        tparams + show(resType)
+
+      case TypeParamRef(name, _) =>
+        name
+
+      case TypeBound(lo, hi) =>
+        show(lo) + " .. " + show(hi)
+
+      case ProcType(names, paramTypes, resType) =>
+        val params = names.zip(paramTypes).map(_ + ": " + show(_)).mkString("(", ", ", ")")
+        params + ": " + show(resType)
+
+      case FunctionType(paramTypes, resType) =>
+        val params = paramTypes.map(show).mkString(" * ")
+        params + " => " + show(resType)
+  end show
 
   trait TypeMap:
     type Context

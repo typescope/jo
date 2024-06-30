@@ -126,7 +126,7 @@ object Subtyping:
           false
         else
           given Context = ctx.withReducing(sym)
-          check(sym.info.stripDelayed)
+          check(TypeOps.stripDelayed(sym.info))
 
   private def checkConformsFunctionType(tp1: FunctionType, tp2: FunctionType)(using Context): Boolean =
     tp1.paramTypes.size == tp2.paramTypes.size
