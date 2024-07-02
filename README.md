@@ -1,4 +1,20 @@
-# [stack lang](./stack-lang)
+# [Stk](./stack-lang): Programs as Proses
+
+Stk is a type-safe and functional language designed around the programming
+paradigm "programs as proses".
+
+It has the following features:
+
+- The most human-friendly language with prose-like syntax
+- The best language for eDSLs (embedded domain-specific languages)
+- The language that AI can speak well thanks to its natural syntax
+- The language that eliminates dependency hell
+
+It ushers a new era of programming that employs programming languages as human
+interface. It can be used in terminals, emails, instant messaging, etc to
+perform tasks via a human-like language in a natural way. Combining with AI, it
+gets even more powerful in scenarios like message-based programming, low-code
+programming, etc.
 
 ## Build
 
