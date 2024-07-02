@@ -218,32 +218,34 @@ object Parsing:
     end str2Int
 
    /**
-     * A scanner that supports peeking one token ahead.
+     * A scanner that supports peeking tokens ahead.
      */
   class LookAheadScanner(scanner: Scanner) extends Scanner:
-    var peekedToken: Option[(Token, Span)] = None
+    var peekedTokens: mutable.ListBuffer[(Token, Span)] = new mutable.ListBuffer
     def next() =
-      peekedToken match
-        case None =>
-          scanner.next()
-        case Some(token) =>
-          peekedToken = None
-          token
+      if peekedTokens.isEmpty then
+        scanner.next()
+      else
+        peekedTokens.remove(0)
 
-    def peek() =
-      peekedToken match
-        case None =>
-          val token = scanner.next()
-          peekedToken = Some(token)
-          token
-        case Some(token) =>
-          token
+    def peekItem(i: Int): (Token, Span)  =
+      var isEOF = false
+      while peekedTokens.size <= i && !isEOF do
+        val item @ (token, _) = scanner.next()
+        isEOF = token == Token.EOF
+        peekedTokens.append(item)
+
+      if isEOF then peekedTokens.last else peekedTokens(i)
+
+    def peek(i: Int): Token = peekItem(i)._1
 
   class StackLangParser(code: String)(using Reporter) extends Parser:
     val scanner = new LookAheadScanner(new StackLangScanner(code))
 
-    def next() = scanner.next()
-    def peek() = scanner.peek()
+    def next(): (Token, Span) = scanner.next()
+    def peek(): Token = scanner.peek(0)
+    def peek(i: Int): Token = scanner.peek(i)
+    def peekItem(): (Token, Span) = scanner.peekItem(0)
     def eat(expect: Token): Span =
       val (actual, span) = next()
       if actual != expect then
@@ -253,7 +255,7 @@ object Parsing:
     def parse(): Prog =
       val p = prog()
       // With parsing errors, ensure finish scanning
-      while peek()._1 != Token.EOF do next()
+      while peek() != Token.EOF do next()
       p
 
     def prog(): Prog =
@@ -263,7 +265,7 @@ object Parsing:
       Prog(defs, words)
 
     def definitions(acc: mutable.ArrayBuffer[Def]): List[Def] =
-      val (token, span) = peek()
+      val token = peek()
       token match
         case Token.VAL | Token.VAR =>
           definitions(acc += valDef(token))
@@ -283,7 +285,7 @@ object Parsing:
       val id = ident()
 
       val tpt =
-        if peek()._1 == Token.COLON then
+        if peek() == Token.COLON then
           eat(Token.COLON)
           typ()
         else
@@ -298,9 +300,7 @@ object Parsing:
       val span1 = eat(Token.FUN)
       val id = ident()
       val tparams = typeParams()
-      eat(Token.LPAREN)
       val paramList = params()
-      eat(Token.RPAREN)
       eat(Token.COLON)
       val resType = typ()
       eat(Token.EQL)
@@ -318,13 +318,12 @@ object Parsing:
       TypeDef(id, tparams, rhs)(span1 | span2)
 
     def typeParams(): List[TypeParam] =
-      val (token, _) = peek()
-      if token != Token.LBRACKET then Nil
+      if peek() != Token.LBRACKET then Nil
       else
         eat(Token.LBRACKET)
         val items = new mutable.ArrayBuffer[TypeParam]
         items += typeParam()
-        while peek()._1 != Token.RBRACKET && peek()._1 != Token.EOF do
+        while peek() != Token.RBRACKET && peek() != Token.EOF do
           eat(Token.COMMA)
           items += typeParam()
         eat(Token.RBRACKET)
@@ -333,7 +332,7 @@ object Parsing:
     def typeParam(): TypeParam =
       val id = ident()
       val bound =
-        if peek()._1 == Token.SUBTYPE then
+        if peek() == Token.SUBTYPE then
           eat(Token.SUBTYPE)
           typ()
         else
@@ -342,9 +341,12 @@ object Parsing:
       TypeParam(id, bound)(id.pos | bound.pos)
 
     def params(): List[Param] =
-      val (token, _) = peek()
-      if token == Token.RPAREN then Nil
-      else paramsRest(mutable.ArrayBuffer(param()))
+      eat(Token.LPAREN)
+      val list =
+        if peek() == Token.RPAREN then Nil
+        else paramsRest(mutable.ArrayBuffer(param()))
+      eat(Token.RPAREN)
+      list
 
     def param(): Param =
       val id = ident()
@@ -353,7 +355,7 @@ object Parsing:
       Param(id, tpt)(id.pos | tpt.pos)
 
     def paramsRest(acc: mutable.ArrayBuffer[Param]): List[Param] =
-      val (token, _) = peek()
+      val token = peek()
       if token == Token.RPAREN || token == Token.EOF then acc.toList
       else
         val span = eat(Token.COMMA)
@@ -362,7 +364,7 @@ object Parsing:
     def phrase(): Phrase = phrase(mutable.ArrayBuffer.empty[TypeDef])
 
     def phrase(tdefs: mutable.ArrayBuffer[TypeDef]): Phrase =
-      val (token, span) = peek()
+      val (token, span) = peekItem()
       token match
         case Token.TYPE   =>
           phrase(tdefs += typeDef())
@@ -386,9 +388,9 @@ object Parsing:
           Phrase(tdefs, words.toList)(pos)
 
     def word(): Option[Word] =
-      val (token, span) = peek()
+      val (token, span) = peekItem()
       token match
-        case Token.LPAREN    => Some(fence())
+        case Token.LPAREN    => Some(lambdaOrFence())
         case Token.LBRACE    => Some(record())
         case Token.IF        => Some(ifElse())
         case Token.MATCH     => Some(patmat())
@@ -398,9 +400,9 @@ object Parsing:
         case _: Token.Ident  =>
           val id = ident()
           peek() match
-            case (Token.EQL, _) => Some(assign(id))
-            case (Token.DOT, _) => Some(select(id))
-            case (Token.LBRACKET, _) => Some(typeApply(id))
+            case Token.EQL => Some(assign(id))
+            case Token.DOT => Some(select(id))
+            case Token.LBRACKET => Some(typeApply(id))
             case _ => Some(id)
 
         case Token.VAL | Token.VAR   =>
@@ -419,7 +421,7 @@ object Parsing:
 
     def typ(): TypeTree =
       val tps = simpleTypes()
-      peek() match
+      peekItem() match
         case (Token.RARROW, _) =>
           next()
           val resType = typ()
@@ -435,7 +437,7 @@ object Parsing:
     def simpleTypes(): List[TypeTree] =
       val tps = new mutable.ArrayBuffer[TypeTree]
       tps += simpleType()
-      while peek()._1 == Token.Ident("*") do
+      while peek() == Token.Ident("*") do
         next()
         tps += simpleType()
 
@@ -443,23 +445,23 @@ object Parsing:
 
     def simpleType(): TypeTree =
       peek() match
-        case (Token.LBRACE, _)   => recordType()
-        case (Token.Ident("<"), _) => unionType()
+        case Token.LBRACE   => recordType()
+        case Token.Ident("<") => unionType()
 
-        case (Token.LPAREN, _)   =>
+        case Token.LPAREN   =>
           next()
           val tp = typ()
           eat(Token.RPAREN)
           tp
 
-        case (Token.RARROW, span)   =>
-          next()
+        case Token.RARROW   =>
+          val span = next()._2
           val resType = typ()
           FunctionType(paramTypes = Nil, resType)(span | resType.pos)
 
         case _ =>
           val id = ident()
-          if peek()._1 == Token.LBRACKET then
+          if peek() == Token.LBRACKET then
             appliedType(id)
           else
             id
@@ -485,7 +487,7 @@ object Parsing:
       eat(Token.LBRACKET)
       val targs = new mutable.ArrayBuffer[TypeTree]
       targs += typ()
-      while peek()._1 != Token.RBRACKET && peek()._1 != Token.EOF do
+      while peek() != Token.RBRACKET && peek() != Token.EOF do
         eat(Token.COMMA)
         targs += typ()
       val span = eat(Token.RBRACKET)
@@ -493,7 +495,7 @@ object Parsing:
 
     def fields(acc: mutable.ArrayBuffer[Field]): List[Field] =
       peek() match
-        case (Token.RBRACE | Token.EOF, _) => acc.toList
+        case Token.RBRACE | Token.EOF => acc.toList
         case _ =>
           if acc.nonEmpty then eat(Token.COMMA)
           val id = ident()
@@ -504,17 +506,17 @@ object Parsing:
 
     def branches(acc: mutable.ArrayBuffer[Branch]): List[Branch] =
       peek() match
-        case (Token.Ident(">") | Token.EOF, _) => acc.toList
+        case Token.Ident(">") | Token.EOF => acc.toList
         case _ =>
           if acc.nonEmpty then eat(Token.COMMA)
           val tag = ident()
           val tps1 =
-            if peek()._1 == Token.COMMA || peek()._1 == Token.Ident(">") then Nil
+            if peek() == Token.COMMA || peek() == Token.Ident(">") then Nil
             else simpleTypes()
 
           val tps2 =
             peek() match
-              case (Token.RARROW, _) if tps1.nonEmpty =>
+              case Token.RARROW if tps1.nonEmpty =>
                 next()
                 val resType = typ()
                 FunctionType(tps1, resType)(tps1.head.pos | resType.pos) :: Nil
@@ -535,6 +537,24 @@ object Parsing:
           error("Expect identifier, found token " + token, span)
           Ident("error")(span)
 
+    def lambdaOrFence(): Word =
+      val token1 = peek(1)
+      val token2 = peek(2)
+      if
+        token2 == Token.COLON
+        || token1 == Token.RPAREN && token2 == Token.RARROW
+      then
+        lambda()
+      else
+        fence()
+
+    def lambda(): Word =
+      val (_, startPos) = peekItem()
+      val paramList = params()
+      eat(Token.RARROW)
+      val body = phrase()
+      Lambda(paramList, body)(startPos | body.pos)
+
     def fence(): Word =
       val span1 = eat(Token.LPAREN)
       val words = phrase()
@@ -547,7 +567,7 @@ object Parsing:
       eat(Token.THEN)
       val thenp = phrase()
       // else is optional
-      val (token, span3) = peek()
+      val (token, span3) = peekItem()
       val elsep =
         if token == Token.ELSE then
           eat(Token.ELSE)
@@ -576,7 +596,7 @@ object Parsing:
       val id = ident()
       val sel = Select(qual, id.name)(qual.pos | id.pos)
       peek() match
-        case (Token.DOT, _) => select(sel)
+        case Token.DOT => select(sel)
         case _ => sel
 
     def typeApply(id: Ident): TypeApply =
@@ -592,7 +612,7 @@ object Parsing:
 
     def namedArgs(acc: mutable.ArrayBuffer[NamedArg]): List[NamedArg] =
       peek() match
-        case (Token.RBRACE | Token.EOF, _) => acc.toList
+        case Token.RBRACE | Token.EOF => acc.toList
         case _ =>
           if acc.nonEmpty then eat(Token.COMMA)
           namedArgs(acc += namedArg())
@@ -628,7 +648,7 @@ object Parsing:
 
     def cases(acc: mutable.ArrayBuffer[Case]): List[Case] =
       peek() match
-        case (Token.END | Token.EOF, _) => acc.toList
+        case Token.END | Token.EOF => acc.toList
         case _ =>
           val span1 = eat(Token.CASE)
           val pat = pattern()
@@ -639,33 +659,33 @@ object Parsing:
 
     def pattern(): Pattern =
       peek() match
-       case (Token.TAG, _) =>
+       case Token.TAG =>
          val span1 = eat(Token.TAG)
          val tag = ident()
          val bindings = new mutable.ArrayBuffer[Ident]
          while
            peek() match
-             case (Token.RARROW, _) =>
+             case Token.RARROW =>
                false
 
-             case (_: Token.Ident, _) =>
+             case _: Token.Ident =>
                bindings += ident()
                true
 
-             case (token, span) =>
+             case _ =>
+               val (token, span) = next()
                error("Expect a name, found = " + token, span)
-               next()
                false
          do ()
 
          val posEnd = if bindings.isEmpty then tag.pos else bindings.last.pos
          TagPat(tag, bindings.toList)(span1 | posEnd)
 
-       case (Token.Ident("_"), span) =>
-         next()
+       case Token.Ident("_") =>
+         val (_, span) = next()
          Wildcard()(span)
 
-       case (token, span) =>
+       case _ =>
+         val (token, span) = next()
          error("Expect a pattern, found = " + token, span)
-         next()
          Wildcard()(span)

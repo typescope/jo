@@ -130,6 +130,9 @@ class Namer(using Reporter):
         val targs2 = targs.map(transformType)
         checker.checkTypeApply(fun2, targs2)
 
+      case Ast.Lambda(params, body) =>
+        Phrase(words = Nil)(FunctionType(IntType :: Nil, IntType), word.pos)
+
       case vdef: Ast.ValDef =>
         transform(vdef)
 

@@ -80,13 +80,13 @@ object Ast:
     (val pos: Span)
   extends Word
 
-  case class Phrase
-    (tdefs: List[TypeDef], words: List[Word])
-    (val pos: Span)
-  extends Positioned
-
   case class Lambda
     (params: List[Param], body: Phrase)
+    (val pos: Span)
+  extends Word
+
+  case class Phrase
+    (tdefs: List[TypeDef], words: List[Word])
     (val pos: Span)
   extends Positioned
 
