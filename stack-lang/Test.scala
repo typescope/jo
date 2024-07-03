@@ -3,7 +3,7 @@ import java.io.{ File => JFile }
 import scala.collection.mutable
 import scala.io.Source
 
-import Reporter.{ Error, FatalError, State }
+import Reporter.{ ReportItem, FatalError, State }
 
 object Test:
   /** Creates a list of tests */
@@ -36,9 +36,9 @@ object Test:
         false
 
       case error: FatalError.StopAfterPhase =>
-        verifyErrors(test, state.errors)
+        verifyErrors(test, state.reports)
 
-  def verifyErrors(test: String, errors: List[Error])(using Reporter): Boolean =
+  def verifyErrors(test: String, errors: List[ReportItem])(using Reporter): Boolean =
     val errorMap = mutable.Map.empty[Int, Int] // line -> count
     var errorsExpected = 0
     var lineNum = 0

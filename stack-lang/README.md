@@ -16,7 +16,6 @@ Lexical Grammar
     USCORE = "_".
 
     COLON    = ":".
-    SEMICOL  = ";".
     VAL      = "val".
     VAR      = "var".
     FUN      = "fun".
@@ -60,7 +59,7 @@ Syntactical Grammar
     select  = (ident | select) DOT ident.
 
     fence   = LPAREN phrase RPAREN.
-    assign  = ident EQL phrase [SEMICOL].
+    assign  = ident EQL phrase.
     if      = IF phrase THEN phrase [ELSE phrase] [END].
     while   = WHILE phrase DO phrase [END].
 
@@ -79,10 +78,10 @@ Syntactical Grammar
 
     phrase  = { typedef } word [phrase].
 
-    valdef  = (VAL | VAR) ident [COLON type] EQL phrase [SEMICOL].
-    fundef  = FUN ident [tparams] LPAREN [params] RPAREN EQL phrase [END | SEMICOL].
+    valdef  = (VAL | VAR) ident [COLON type] EQL phrase.
+    fundef  = FUN ident [tparams] LPAREN [params] RPAREN EQL phrase [END].
 
-    typedef = TYPE [tparams] ident EQL type [SEMICOL].
+    typedef = TYPE [tparams] ident EQL type.
     tparams = LBRACKET tparam {COMMA tparam} RBRACKET.
     tparam  = ident [SUBTYPE type].
 

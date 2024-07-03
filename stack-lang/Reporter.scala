@@ -4,7 +4,7 @@ import scala.concurrent.duration.*
 
 import java.util.concurrent.TimeoutException
 
-import Reporter.{ Error, FatalError, SourcePosition, Span, State, Source }
+import Reporter.{ ReportItem, Kind, FatalError, SourcePosition, Span, State, Source }
 
 /**
   * Deals with error reporting
@@ -17,27 +17,26 @@ class Reporter(source: Source, state: State):
 
   def abort(message: String, span: Span): Nothing =
     val sourcePos = new SourcePosition(source, span.start, span.length)
-    val error = new Error(message, sourcePos)
+    val error = new ReportItem(Kind.Error, message, sourcePos)
     throw new FatalError.CodeError(error)
 
-  def error(message: String, span: Span): Unit =
+  private def report(kind: Kind, message: String, span: Span): Unit =
     val sourcePos = new SourcePosition(source, span.start, span.length)
-    state.addError(new Error(message, sourcePos))
+    state.add(new ReportItem(kind, message, sourcePos))
 
-  def hasErrors: Boolean = state.errors.nonEmpty
+  def error(message: String, span: Span): Unit =
+    report(Kind.Error, message, span)
 
-  def errorsCount = state.errors.size
+  def warn(message: String, span: Span): Unit =
+    report(Kind.Warning, message, span)
 
-  def report(): Unit =
-    for error <- state.errors do
-      println(error.message)
-      println
+  def hasErrors: Boolean = state.hasErrors
 
   // TODO: change fn to phase: Phase[T, U] <: T => U to get phase name
   extension [T](v: T)
     inline def |> [U](inline fn: T => U): U =
       if this.hasErrors then
-        throw FatalError.StopAfterPhase(s"$errorsCount error(s) found")
+        throw FatalError.StopAfterPhase()
       else
         fn(v)
   end extension
@@ -46,14 +45,31 @@ object Reporter:
 
   /** Shared state of reporters */
   class State(
-    errorBuffer: mutable.ArrayBuffer[Error],
+    reported: mutable.ArrayBuffer[ReportItem],
     private[Reporter] val sources: mutable.Map[String, Source]):
 
     def this() = this(mutable.ArrayBuffer.empty, mutable.Map.empty)
 
-    def errors: List[Error] = errorBuffer.toList
+    def reports: List[ReportItem] = reported.toList
 
-    def addError(error: Error) = errorBuffer += error
+    def hasErrors: Boolean = reported.exists(_.kind == Kind.Error)
+
+    def add(item: ReportItem) = reported += item
+
+    def print() =
+      var errorCount = 0
+      var warningCount = 0
+
+      for item <- this.reports do
+        item.kind match
+          case Kind.Error => errorCount += 1
+          case Kind.Warning => warningCount += 1
+          case Kind.Info =>
+
+        println(item)
+        println
+
+      println(s"$errorCount error(s), $warningCount warning(s)")
 
   trait Positioned:
     this: Product =>
@@ -158,24 +174,27 @@ object Reporter:
     override def toString() =
       source.file + ":" + (startLine + 1) + ":" + (startLineColumn + 1)
 
-  /** An non-fatal error that does not abort the compilation */
-  case class Error(message: String, pos: SourcePosition):
+
+  enum Kind:
+    case Error, Warning, Info
+
+  class ReportItem(val kind: Kind, val message: String, val pos: SourcePosition):
     override def toString() =
       val isOneLine = pos.isOneLine
       val lineContent = pos.source.readLine(pos.startLine).replaceAll("[\n\r]$", "")
       val padding = " " * pos.startLineColumn
       val num = if pos.length == 0 then 1 else pos.length
       val pointer = if isOneLine then "^" * num  else "^"
-      s"""|---------- Error at $pos ---------------
+      s"""|---------- $kind at $pos ---------------
           || $lineContent
           || $padding$pointer
           || $padding$message""".stripMargin
 
   /** A fatal error that aborts the compilation */
   enum FatalError extends Exception:
-    case CodeError(content: Error)
+    case CodeError(content: ReportItem)
     case InternalError(message: String)
-    case StopAfterPhase(message: String)
+    case StopAfterPhase()
 
   def monitor(fn: State ?=> Unit): Unit =
     val state = new State()
@@ -187,10 +206,7 @@ object Reporter:
       case error: FatalError.InternalError =>
         println("[error] " + error.message)
       case error: FatalError.StopAfterPhase =>
-        for error <- state.errors do
-          println(error)
-          println
-        println(error.message)
+        state.print()
       case error: TimeoutException =>
         println("Operation time out")
 
@@ -216,3 +232,6 @@ object Reporter:
 
   def error(message: String, span: Span)(using rp: Reporter): Unit =
     rp.error(message, span)
+
+  def warn(message: String, span: Span)(using rp: Reporter): Unit =
+    rp.warn(message, span)

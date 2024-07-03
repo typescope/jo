@@ -40,17 +40,19 @@ object Parsing:
     *
     * The indentation info is the same for all tokens of the same line.
     */
-  case class Indent(line: Int, indent: Int):
+  class Indent(private val line: Int, private val indent: Int):
     /** Whether the other indentation is a unindentation to the current one */
     def isUnindent(other: Indent): Boolean =
       this.line != other.line && other.indent <= this.indent
+
+    def isSame(other: Indent): Boolean = this.indent == other.indent
 
   val IndentAcceptAll = Indent(-1, -1)
 
   enum Token:
     case LPAREN, RPAREN, LBRACKET, RBRACKET, LBRACE, RBRACE
     case OF, IF, THEN, ELSE, VAL, VAR, FUN,  WHILE, DO, TYPE, MATCH, CASE, END
-    case TAG, SEMICOL, COMMA, DOT, EOF
+    case TAG, COMMA, DOT, EOF
     case COLON, RARROW, EQL, SUBTYPE
     case IntLit(value: Int)
     case BoolLit(value: Boolean)
@@ -198,7 +200,6 @@ object Parsing:
         case '}'    => Token.RBRACE
         case '#'    => Token.TAG
         case '.'    => Token.DOT
-        case ';'    => Token.SEMICOL
         case ','    => Token.COMMA
 
         case '-'    =>
@@ -323,6 +324,20 @@ object Parsing:
         error("Unexpected token, found = " + item.token + ", expect = " + expect, item.pos)
       item
 
+    /** Eat the next `end` if the indentation matches */
+    def eatEndOpt(indent: Indent) =
+      val peekedItem = peekItem()
+      if
+        peekedItem.token == Token.END
+        && peekedItem.indent.isSame(indent)
+      then
+        eat(Token.END)
+
+    def checkAlign(reference: TokenInfo, item: TokenInfo): Unit =
+      if !reference.indent.isSame(item.indent) then
+        warn(s"${item.token} is not aligned with ${reference.token}", item.pos)
+
+
     def parse(): Prog =
       val p = prog()
       // With parsing errors, ensure finish scanning
@@ -364,7 +379,6 @@ object Parsing:
 
       eat(Token.EQL)
       val rhs = phrase(mod.indent)
-      if peek() == Token.SEMICOL then eat(Token.SEMICOL)
       ValDef(id, tpt, rhs, mutable)(mod.pos | rhs.pos)
 
     def funDef(): FunDef =
@@ -382,8 +396,7 @@ object Parsing:
       eat(Token.EQL)
       val body = phrase(fun.indent)
 
-      if peek() == Token.END then eat(Token.END)
-      else if peek() == Token.SEMICOL then eat(Token.SEMICOL)
+      eatEndOpt(fun.indent)
 
       FunDef(id, tparams, paramList, resType, body)(fun.pos | body.pos)
 
@@ -393,7 +406,6 @@ object Parsing:
       val tparams = typeParams()
       eat(Token.EQL)
       val rhs = typ()
-      if peek() == Token.SEMICOL then eat(Token.SEMICOL)
       TypeDef(id, tparams, rhs)(typeItem.pos | rhs.pos)
 
     def typeParams(): List[TypeParam] =
@@ -659,15 +671,20 @@ object Parsing:
       val cond = phrase(IndentAcceptAll)
       val thenItem = eat(Token.THEN)
       val thenp = phrase(thenItem.indent)
+      checkAlign(ifItem, thenItem)
+
       // else is optional
       val nextItem = peekItem()
       val elsep =
-        if nextItem == Token.ELSE then
+        if nextItem.token == Token.ELSE then
           eat(Token.ELSE)
+          checkAlign(ifItem, nextItem)
           phrase(nextItem.indent)
         else
           Phrase(Nil, Nil)(thenp.pos)
-      if peek() == Token.END then eat(Token.END)
+
+      eatEndOpt(ifItem.indent)
+
       If(cond, thenp, elsep)(ifItem.pos | elsep.pos)
 
     def whileDo(): Word =
@@ -675,13 +692,14 @@ object Parsing:
       val cond = phrase(IndentAcceptAll)
       val doItem = eat(Token.DO)
       val body = phrase(doItem.indent)
-      if peek() == Token.END then eat(Token.END)
+
+      eatEndOpt(whileItem.indent)
+
       While(cond, body)(whileItem.pos | body.pos)
 
     def assign(id: Ident, limitIndent: Indent): Assign =
       eat(Token.EQL)
       val rhs = phrase(limitIndent)
-      if peek() == Token.SEMICOL then eat(Token.SEMICOL)
       Assign(id, rhs)(id.pos | rhs.pos)
 
     def select(qual: Ident | Select): Select =
@@ -737,20 +755,26 @@ object Parsing:
       val matchItem = eat(Token.MATCH)
       val scrutinee = phrase(IndentAcceptAll)
       val caseDecls = cases(mutable.ArrayBuffer.empty)
-      if peek() == Token.END then eat(Token.END)
+
+      eatEndOpt(matchItem.indent)
+
       val span2 = if caseDecls.isEmpty then scrutinee.pos else caseDecls.last.pos
       Match(scrutinee, caseDecls)(matchItem.pos | span2)
 
-    def cases(acc: mutable.ArrayBuffer[Case]): List[Case] =
-      peek() match
-        case Token.END | Token.EOF => acc.toList
-        case _ =>
-          val caseItem = eat(Token.CASE)
-          val pat = pattern()
-          eat(Token.RARROW)
-          val body = phrase(caseItem.indent)
-          val caseDecl = Case(pat, body)(caseItem.pos | body.pos)
-          cases(acc += caseDecl)
+    def cases(acc: mutable.ArrayBuffer[(Case, TokenInfo)]): List[Case] =
+      if peek() == Token.CASE then
+        val caseItem = eat(Token.CASE)
+
+        if acc.nonEmpty then
+          checkAlign(acc.head._2, caseItem)
+
+        val pat = pattern()
+        eat(Token.RARROW)
+        val body = phrase(caseItem.indent)
+        val caseDecl = Case(pat, body)(caseItem.pos | body.pos)
+        cases(acc += caseDecl -> caseItem)
+      else
+        acc.map(_._1).toList
 
     def pattern(): Pattern =
       peek() match

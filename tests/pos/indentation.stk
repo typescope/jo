@@ -1,0 +1,38 @@
+fun fact0(n: Int) =
+  if 0 n == then 1
+  else n 1 - fact0 n *
+  end
+end
+
+fun fact1(n: Int) =
+  if 0 n == then 1
+  else n 1 - fact1 n *
+end
+
+fun fact2(n: Int) =
+  if 0 n == then 1
+  else n 1 - fact2 n *
+  end
+
+fun fact3(n: Int) = if 0 n == then 1 else n 1 - fact3 n *
+
+fun fact4(n: Int) = if 0 n == then 1 else n 1 - fact4 n * end
+
+fun fact5(n: Int) =
+  if 0 n == then 1
+  else n 1 - fact5 n * end
+
+var a = 10
+while a 10 > do
+  a = a 1 -
+
+while a 10 > do
+  a = a 1 -
+end
+
+
+val b =
+  if a 0 > then
+    10 fact0
+  else
+    5 fact1
