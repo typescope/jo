@@ -110,6 +110,11 @@ class Namer(using Reporter):
         checker.checkType(rhs, sym.info)
         Assign(sym, rhs)(word.pos)
 
+      case Ast.Call(word) =>
+        transform(word)
+        // TODO: introduce Sast
+        ???
+
       case record: Ast.RecordLit =>
         transform(record)
 
