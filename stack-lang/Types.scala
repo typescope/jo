@@ -13,11 +13,11 @@ object Types:
   sealed abstract class Type:
     def isError: Boolean = this == ErrorType
 
-    def isVoid: Boolean = this == VoidType
+    def isVoid: Boolean = TypeOps.dealias(this) == VoidType
 
-    def isAny: Boolean = this == AnyType
+    def isAny: Boolean = TypeOps.dealias(this) == AnyType
 
-    def isBottom: Boolean = this == BottomType
+    def isBottom: Boolean = TypeOps.approx(this, isUp = true) == BottomType
 
     def isRecordType: Boolean =
       TypeOps.approx(this, isUp = true).isInstanceOf[RecordType]
