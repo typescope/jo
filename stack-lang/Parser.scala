@@ -301,8 +301,13 @@ object Parsing:
       val id = ident()
       val tparams = typeParams()
       val paramList = params()
-      eat(Token.COLON)
-      val resType = typ()
+      val resType =
+        if peek() == Token.COLON then
+          eat(Token.COLON)
+          typ()
+        else
+          EmptyTypeTree()(id.pos)
+
       eat(Token.EQL)
       val words = phrase()
       val span2 = eat(Token.SEMICOL)

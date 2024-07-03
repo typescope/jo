@@ -1,0 +1,17 @@
+fun foo(x: Int) = x x +;
+
+val a: Int = 5 foo;
+
+fun fact(x: Int) =
+  if 0 x == then 1
+  else x 1 - fact x *
+  end;
+
+val b: Int = 10 fact;
+
+fun f(x: Int) = x g;
+fun g(x: Int) = x f;
+
+fun h(x: Int): Int = x f x g +;
+
+fun k(x: Int): Bool = x f x g and;

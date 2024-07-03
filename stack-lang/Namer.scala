@@ -357,6 +357,8 @@ class Namer(using Reporter):
     var bodyTyped: Word = null
     // can be called multiple types from the info completer
     def checkBody(): Word =
+      // trigger checking of parameters first to have the current scope
+      paramTypes
       bodyTyped = transform(funDef.body)(using funScope)
       bodyTyped
 
@@ -366,6 +368,9 @@ class Namer(using Reporter):
       if bodyTyped == null then checkBody() else bodyTyped
 
     lazy val givenResultType =
+      // trigger checking of parameters first to have the current scope
+      paramTypes
+
       assert(!funDef.resType.isEmpty)
       val resTypeTree = transformType(funDef.resType)(using funScope)
       checker.delayedCheck { checker.checkValueType(resTypeTree) }

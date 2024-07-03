@@ -1,0 +1,24 @@
+fun foo(x: Int) = x x +;
+
+val a: Bool = 5 foo; // error
+
+fun fact(x: Int) =
+  if 0 x == then 1
+  else x 1 - fact x *
+  end;
+
+val b: Bool = 10 fact; // error
+
+fun f(x: Int) =
+  val a = x g;
+  val b = a.field;     // error
+  a;
+
+fun g(x: Int) =
+  val a = x f;
+  val b = a.field;    // error
+  a;
+
+fun h(x: Int): Int =
+  val a = x f;
+  a.field;           // error
