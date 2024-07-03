@@ -81,7 +81,7 @@ object Parsing:
     def isNameRest(c: Char): Boolean =
       isNameStart(c) || isDigit(c)
 
-    val OP_CHAR = Array('+', '-', '*', '/', '%', '|', '&', '^', '>', '<', '=', '!', ':')
+    val OP_CHAR = Array('+', '-', '*', '/', '%', '|', '&', '^', '>', '<', '=', ':')
     def isOperator(c: Char): Boolean =
       OP_CHAR.indexOf(c) >= 0
 
@@ -493,21 +493,27 @@ object Parsing:
 
     def word(): Option[Word] =
       val item = peekItem()
+
+      def continue(word: Word): Some[Word] =
+        peek() match
+          case Token.DOT  => continue(select(word))
+          case _ => Some(word)
+
       item.token match
-        case Token.LPAREN    => Some(lambdaOrFence())
-        case Token.LBRACE    => Some(record())
-        case Token.IF        => Some(ifElse())
-        case Token.MATCH     => Some(patmat())
-        case Token.WHILE     => Some(whileDo())
-        case Token.TAG       => Some(variant())
+        case Token.LPAREN    => continue(lambdaOrFence())
+        case Token.LBRACE    => continue(record())
+        case Token.IF        => continue(ifElse())
+        case Token.MATCH     => continue(patmat())
+        case Token.WHILE     => continue(whileDo())
+        case Token.TAG       => continue(variant())
+        case Token.RARROW    => Some(call())
 
         case _: Token.Ident  =>
           val id = ident()
           peek() match
-            case Token.EQL => Some(assign(id, item.indent))
-            case Token.DOT => Some(select(id))
-            case Token.LBRACKET => Some(typeApply(id))
-            case _ => Some(id)
+            case Token.EQL      => Some(assign(id, item.indent))
+            case Token.LBRACKET => continue(typeApply(id))
+            case _              => continue(id)
 
         case Token.VAL | Token.VAR   =>
           Some(valDef(item.token))
@@ -661,10 +667,10 @@ object Parsing:
       Lambda(paramList, body)(paren.pos | body.pos)
 
     def fence(): Word =
-      val lparen = eat(Token.LPAREN)
-      val words = phrase(IndentAcceptAll)
-      val rparen = eat(Token.RPAREN)
-      Fence(words)(lparen.pos | rparen.pos)
+      eat(Token.LPAREN)
+      val enclosedPhrase = phrase(IndentAcceptAll)
+      eat(Token.RPAREN)
+      enclosedPhrase
 
     def ifElse(): Word =
       val ifItem = eat(Token.IF)
@@ -702,7 +708,18 @@ object Parsing:
       val rhs = phrase(limitIndent)
       Assign(id, rhs)(id.pos | rhs.pos)
 
-    def select(qual: Ident | Select): Select =
+    def call(): Word =
+      val arrow = eat(Token.RARROW)
+      word() match
+        case Some(fun) =>
+          Call(fun)(arrow.pos | fun.pos)
+
+        case None =>
+          val nextItem = peekItem()
+          error("Expect a function, found = " + nextItem.token, nextItem.pos)
+          Phrase(tdefs = Nil, words = Nil)(arrow.pos)
+
+    def select(qual: Word): Select =
       eat(Token.DOT)
       val id = ident()
       val sel = Select(qual, id.name)(qual.pos | id.pos)

@@ -24,13 +24,13 @@ object Ast:
     (val pos: Span)
   extends Word, TypeTree
 
-  case class Fence
-    (words: Phrase)
+  case class Assign
+    (ident: Ident, words: Phrase)
     (val pos: Span)
   extends Word
 
-  case class Assign
-    (ident: Ident, words: Phrase)
+  case class Call
+    (fun: Word)
     (val pos: Span)
   extends Word
 
@@ -45,7 +45,7 @@ object Ast:
   extends Word
 
   case class Select
-    (qual: Ident | Select, name: String)
+    (qual: Word, name: String)
     (val pos: Span)
   extends Word
 
@@ -88,7 +88,7 @@ object Ast:
   case class Phrase
     (tdefs: List[TypeDef], words: List[Word])
     (val pos: Span)
-  extends Positioned
+  extends Word
 
   //---------------------------- patterns --------------------------------------
 

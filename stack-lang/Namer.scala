@@ -85,9 +85,8 @@ class Namer(using Reporter):
       case Ast.BoolLit(v) =>
         BoolLit(v)(word.pos)
 
-      case Ast.Fence(ws)  =>
-        val phrase = transform(ws)
-        phrase
+      case phrase: Ast.Phrase  =>
+        transform(phrase)
 
       case ifte: Ast.If =>
         transform(ifte)
