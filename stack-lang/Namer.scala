@@ -373,7 +373,7 @@ class Namer(using Reporter):
 
       assert(!funDef.resType.isEmpty)
       val resTypeTree = transformType(funDef.resType)(using funScope)
-      checker.delayedCheck { checker.checkValueType(resTypeTree) }
+      checker.delayedCheck { checker.checkVoidOrValueType(resTypeTree) }
       resTypeTree.tpe
 
     lazy val paramTypes =
@@ -435,13 +435,14 @@ class Namer(using Reporter):
     sc.define(sym, funDef.pos)
 
     val typer = () =>
+      // force sym info completer
+      sym.info
+
       val bodyTyped = getCheckedBody()
 
       if !funDef.resType.isEmpty then
         checker.checkType(bodyTyped, givenResultType)
 
-      // force sym info completer
-      sym.info
       val locals = Nil
       FunDef(sym, tparamSyms.toList, paramSyms.toList, locals, bodyTyped)(funDef.pos)
 

@@ -114,6 +114,9 @@ class Checker(using Reporter):
     else
       tp
 
+  def checkVoidOrValueType(tree: Tree): Unit =
+    if !tree.tpe.isVoid then checkValueType(tree)
+
   def fieldType(qualType: Type, field: String, pos: Span): Type =
     if !qualType.isRecordType then
       Reporter.error(s"Expect record type, found = ${qualType.show}", pos)
