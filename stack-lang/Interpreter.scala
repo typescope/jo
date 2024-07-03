@@ -63,12 +63,7 @@ enum Scope:
         case _ => err("Unknown name to update: " + sym.name)
 
   def bind(sym: Symbol, denot: Denotation): Unit =
-    map.get(sym) match
-      case None =>
-        map(sym) = denot
-
-      case Some(d) =>
-        err(sym.name + " is already bound to " + d)
+    map(sym) = denot
 
 object Primitive:
   import Value.*
