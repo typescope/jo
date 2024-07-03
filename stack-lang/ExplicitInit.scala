@@ -55,7 +55,7 @@ object ExplicitInit:
 
   def transform(word: Word)(using info: LocalsInfo): Word =
     word match
-      case _: IntLit | _: BoolLit | _: Ident =>
+      case _: IntLit | _: BoolLit | _: Ident | _: FunRef =>
         word
 
       case Select(qual, name) =>
@@ -76,6 +76,9 @@ object ExplicitInit:
       case ValDef(sym, rhs) =>
         info += sym
         Assign(sym, transform(rhs))(word.pos)
+
+      case fdef : FunDef =>
+        transform(fdef)
 
       case If(cond, thenp, elsep) =>
         If(transform(cond), transform(thenp), transform(elsep))(word.tpe, word.pos)
