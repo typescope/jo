@@ -1,15 +1,15 @@
-type A = A;
-type B = B;
-type C = {a: A, c: C};
-type D = {a: A, c: D};
+type A = A
+type B = B
+type C = {a: A, c: C}
+type D = {a: A, c: D}
 
-type X = Y;
-type Y = X;
+type X = Y
+type Y = X
 
-fun test1(a: A): A = a.x; // error
+fun test1(a: A): A = a.x // error
 
-fun test2(x: X): Void = x.a; // error
+fun test2(x: X): Void = x.a // error
 
-fun test3(a: A): Int = a; // error
+fun test3(a: A): Int = a // error
 
 10 p

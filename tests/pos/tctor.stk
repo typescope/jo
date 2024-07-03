@@ -1,8 +1,8 @@
-type List[T] = <Nil, Cons {head: T, tail: List[T]}>;
+type List[T] = <Nil, Cons {head: T, tail: List[T]}>
 
-val a: List[Int] = #Nil of List[Int];
-val b: List[Int] = #Cons {head = 5, tail = a} of List[Int];
-val c: List[Int] = #Cons {head = 20, tail = b} of List[Int];
+val a: List[Int] = #Nil of List[Int]
+val b: List[Int] = #Cons {head = 5, tail = a} of List[Int]
+val c: List[Int] = #Cons {head = 20, tail = b} of List[Int]
 
 fun foreach(l: List[Int]): Void =
   match l
@@ -11,26 +11,26 @@ fun foreach(l: List[Int]): Void =
     case #Cons xs =>
       xs.head p
       xs.tail foreach
-  end;
+  end
 
-type Pair[T] = {a: T, b: T};
-val x: Pair[Int] = {a = 36, b = 49};
+type Pair[T] = {a: T, b: T}
+val x: Pair[Int] = {a = 36, b = 49}
 
-type Tuple2[S <: {a: Int}, T <: S] = {x: S, y: T};
+type Tuple2[S <: {a: Int}, T <: S] = {x: S, y: T}
 val t: Tuple2[{a: Int, b: Int}, {a: Int, b: Int, c: Int}] = {
     x = {a = 13, b = 14},
     y = {a = 15, b = 16, c = 17}
-};
+}
 
-type F[X] = {a: X};
-type M = {a: M};
-type G[T <: F[T]] = {x: T};
-fun test1(o: G[M]): G[M] = o;
+type F[X] = {a: X}
+type M = {a: M}
+type G[T <: F[T]] = {x: T}
+fun test1(o: G[M]): G[M] = o
 
-type A[T] = {a: Int, b: A[T]};
-type B[T] = {a: Int, b: B[T]};
+type A[T] = {a: Int, b: A[T]}
+type B[T] = {a: Int, b: B[T]}
 
-fun test2[T](o: A[T]): B[T] = o;
+fun test2[T](o: A[T]): B[T] = o
 
 x.a p x.b p
 

@@ -2,7 +2,7 @@
 
 fun mc(n: Int): Int =
   if n 100 > then n 10 -
-  else n 11 + mc mc end;
+  else n 11 + mc mc
 
 -3 mc p
 10 mc p

@@ -1,5 +1,5 @@
-val a = 3 5 +;
-val b: Int = 3 6*;
+val a = 3 5 +
+val b: Int = 3 6*
 
 a p             // 8
 b p             // 18

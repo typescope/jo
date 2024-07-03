@@ -1,4 +1,4 @@
-type List = <Nil, Cons Int * List>;
+type List = <Nil, Cons Int * List>
 
 fun isPrime(primes: List, n: Int): Bool =
   match primes
@@ -8,22 +8,18 @@ fun isPrime(primes: List, n: Int): Bool =
         false
       else
         xs n isPrime
-      end
-  end;
 
 fun prime(primes: List, cur: Int, until: Int): Void =
   if cur until < then
     if primes cur isPrime then
       cur p
-      val primes2: List = #Cons cur primes of List;
+      val primes2: List = #Cons cur primes of List
       primes2 (1 cur +) until prime
     else
       primes (1 cur +) until prime
-    end
-  end;
 
 fun primeUntil(until: Int): Void =
-  var primes: List = #Cons 2 (#Nil of List) of List;
+  var primes: List = #Cons 2 (#Nil of List) of List
   var cur = 3;
   while cur until < do
     if primes cur isPrime then
@@ -31,7 +27,6 @@ fun primeUntil(until: Int): Void =
       primes = #Cons cur primes of List;
     end
     cur = cur 1 +;
-  end;
 
 (#Cons 2 (#Nil of List) of List) 3 100 prime
 

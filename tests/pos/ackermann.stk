@@ -3,7 +3,6 @@ fun A(m: Int, n: Int): Int =
   else
     if n 0 == then (m 1 -) 1 A
     else (m 1 -) m (n 1 -) A A end
-  end;
 
 0 3 A p
 4 0 A p
