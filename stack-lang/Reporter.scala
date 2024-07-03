@@ -77,6 +77,9 @@ object Reporter:
 
   /** The start and end of a token relative to the beginning of some file  */
   case class Span(start: Int, length: Int):
+    /** A zero length span at the same point */
+    def point: Span = Span(start, 0)
+
     def |(that: Span): Span =
       if this `eq` NoSpan then that
       else if that `eq` NoSpan then this

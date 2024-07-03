@@ -60,9 +60,9 @@ Syntactical Grammar
     select  = (ident | select) DOT ident.
 
     fence   = LPAREN phrase RPAREN.
-    assign  = ident EQL phrase SEMICOL.
-    if      = IF phrase THEN phrase [ELSE phrase] END.
-    while   = WHILE phrase DO phrase END.
+    assign  = ident EQL phrase [SEMICOL].
+    if      = IF phrase THEN phrase [ELSE phrase] [END].
+    while   = WHILE phrase DO phrase [END].
 
     record  = LBRACE [named_args] RBRACE.
     named_args = named_arg { COMMA named_arg }.
@@ -73,16 +73,16 @@ Syntactical Grammar
     tapply  = ident targs.
     lambda  = LPAREN [params] RPAREN RARROW phrase.
 
-    match   = MATCH phrase {case} END.
+    match   = MATCH phrase {case} [END].
     case    = CASE pat RARROW phrase.
     pat     = TAG ident {ident} | USCORE.
 
     phrase  = { typedef } word [phrase].
 
-    valdef  = (VAL | VAR) ident [COLON type] EQL phrase SEMICOL.
-    fundef  = FUN ident [tparams] LPAREN [params] RPAREN EQL phrase SEMICOL.
+    valdef  = (VAL | VAR) ident [COLON type] EQL phrase [SEMICOL].
+    fundef  = FUN ident [tparams] LPAREN [params] RPAREN EQL phrase [END | SEMICOL].
 
-    typedef = TYPE [tparams] ident EQL type SEMICOL.
+    typedef = TYPE [tparams] ident EQL type [SEMICOL].
     tparams = LBRACKET tparam {COMMA tparam} RBRACKET.
     tparam  = ident [SUBTYPE type].
 
