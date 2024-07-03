@@ -380,6 +380,7 @@ class Namer(using Reporter):
       for (tparam, i) <- funDef.tparams.zipWithIndex yield
         val info = DelayedType() { bounds(i) }
         val sym = Symbol.createTypeSymbol(tparam.name, info)
+        tparamSyms += sym
         funScope.define(sym, tparam.pos)
 
       for tparam <- funDef.tparams do
