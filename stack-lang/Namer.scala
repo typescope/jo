@@ -257,8 +257,8 @@ class Namer(using Reporter):
     Phrase(bind :: body :: Nil)(body.tpe, patmat.pos)
 
   private def transform
-    (scrut: Ident, caseDef: Ast.Case, resType: Type, cont: Type => Word)
-    (using sc: Scope): Word =
+      (scrut: Ident, caseDef: Ast.Case, resType: Type, cont: Type => Word)
+      (using sc: Scope): Word =
 
     val caseScope = sc.fresh()
 
@@ -338,11 +338,10 @@ class Namer(using Reporter):
     Phrase(wordsTyped)(tp, phrase.pos)
 
   private def transform(funDef: Ast.FunDef)(using sc: Scope): DelayedTask =
-    val locals = new mutable.ArrayBuffer[Symbol]
     val paramSyms = new mutable.ArrayBuffer[Symbol]
     val tparamSyms = new mutable.ArrayBuffer[Symbol]
     val bounds = new mutable.ArrayBuffer[Type]
-    val funScope = sc.fresh(sym => if !sym.isParameter then locals.addOne(sym))
+    val funScope = sc.fresh()
 
     val paramNames = funDef.params.map(_.name)
     val tparamNames = funDef.tparams.map(_.name)
@@ -394,7 +393,8 @@ class Namer(using Reporter):
       delayedType.force()
       val body2 = transform(funDef.body)(using funScope)
       checker.checkType(body2, finalResultType)
-      FunDef(sym, tparamSyms.toList, paramSyms.toList, locals.toList, body2)(funDef.pos)
+      val locals = Nil
+      FunDef(sym, tparamSyms.toList, paramSyms.toList, locals, body2)(funDef.pos)
 
     DelayedTask(sym, typer)
 
@@ -517,34 +517,23 @@ object Namer:
 
   private enum Scope:
     case RootScope()
-    case NestedScope(outer: Scope, definedHandler: Symbol => Unit)
+    case NestedScope(outer: Scope)
 
     private val termNames: mutable.Map[String, Symbol] = mutable.Map.empty
     private val typeNames: mutable.Map[String, Symbol] = mutable.Map.empty
 
     def fresh(): Scope =
-      new Scope.NestedScope(this, _ => ())
-
-    def fresh(definedHandler: Symbol => Unit): Scope =
-      new Scope.NestedScope(this, definedHandler)
+      new Scope.NestedScope(this)
 
     private def getTable(isType: Boolean) =
       if isType then typeNames else termNames
-
-    def notifyDefined(sym: Symbol): Unit =
-      this match
-        case Scope.RootScope() =>
-
-        case ns: NestedScope =>
-          ns.definedHandler(sym)
-          ns.outer.notifyDefined(sym)
 
     def resolve(name: String, isType: Boolean): Option[Symbol] =
       val table = getTable(isType)
       table.get(name) match
         case None =>
           this match
-            case NestedScope(outer, _) => outer.resolve(name, isType)
+            case NestedScope(outer) => outer.resolve(name, isType)
             case _ => None
 
         case res  => res
@@ -561,7 +550,6 @@ object Namer:
       table.get(sym.name) match
         case None =>
           table(sym.name) = sym
-          notifyDefined(sym)
 
         case Some(sym) =>
           Reporter.error(sym.name + " is already bound", span)
