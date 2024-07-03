@@ -70,10 +70,15 @@ object Sast:
     (val tpe: Type, val pos: Span)
   extends Word
 
-  case class Closure
-    (symbol: Symbol, captured: List[Symbol])
-    (val tpe: Type, val pos: Span)
-  extends Word
+  /** A reference to a function as a runtime value.
+    *
+    * TODO It can be removed and replaced by Ident once we have syntax for call.
+    */
+  case class FunRef
+    (symbol: Symbol)
+    (val pos: Span)
+  extends Word:
+    def tpe: Type = TypeRef(symbol)
 
   /** Encode of a type with another type */
   case class Encoded

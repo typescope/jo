@@ -124,6 +124,8 @@ object Types:
     val paramCount = paramTypes.size
     val resCount = if resultType.isValueType then 1 else 0
 
+    def toFunType: FunctionType = FunctionType(paramTypes, resultType)
+
   /** A type lambda */
   case class TypeLambda
     (names: List[String], bounds: List[Type], body: Type)
@@ -153,7 +155,10 @@ object Types:
     (lo: Type, hi: Type)
   extends Type
 
-  /** Delayed type for symbols to enable type inference and recursive types */
+  /** Delayed type for symbols to enable type inference and recursive types
+    *
+    * TODO: is it still necessary after info completer?
+    */
   case class DelayedType
     ()
     (infoCompleter: => Type)

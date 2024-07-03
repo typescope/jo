@@ -36,7 +36,7 @@ class Namer(using Reporter):
     Prog(defs, main2)
 
   private def transform(defs: List[Ast.Def])(using sc: Scope): List[Def] =
-    val tasks = new mutable.ArrayBuffer[DelayedTask]
+    val tasks = new mutable.ArrayBuffer[DelayedTask[Def]]
 
     for defn <- defs do
       tasks += index(defn)
@@ -44,7 +44,7 @@ class Namer(using Reporter):
     for task <- tasks.toList yield
       task.typer()
 
-  private def index(defn: Ast.Def)(using sc: Scope): DelayedTask =
+  private def index(defn: Ast.Def)(using sc: Scope): DelayedTask[Def] =
 
     defn match
       case vdef: Ast.ValDef =>
@@ -131,7 +131,15 @@ class Namer(using Reporter):
         checker.checkTypeApply(fun2, targs2)
 
       case Ast.Lambda(params, body) =>
-        Phrase(words = Nil)(FunctionType(IntType :: Nil, IntType), word.pos)
+        val sc2 = sc.fresh()
+        val id = Ast.Ident("anon")(word.pos)
+        val resType = Ast.EmptyTypeTree()(body.pos)
+        val tparams = Nil
+        val funDef = Ast.FunDef(id, tparams, params, resType, body)(word.pos)
+        val funDef2 = transform(funDef)(using sc2).typer()
+        val ref = FunRef(funDef2.symbol)(word.pos)
+        val lambdaType = funDef2.tpe.asProcType.toFunType
+        Phrase(funDef2 :: ref :: Nil)(lambdaType, word.pos)
 
       case vdef: Ast.ValDef =>
         transform(vdef)
@@ -337,7 +345,7 @@ class Namer(using Reporter):
 
     Phrase(wordsTyped)(tp, phrase.pos)
 
-  private def transform(funDef: Ast.FunDef)(using sc: Scope): DelayedTask =
+  private def transform(funDef: Ast.FunDef)(using sc: Scope): DelayedTask[FunDef] =
     val paramSyms = new mutable.ArrayBuffer[Symbol]
     val tparamSyms = new mutable.ArrayBuffer[Symbol]
     val bounds = new mutable.ArrayBuffer[Type]
@@ -346,18 +354,28 @@ class Namer(using Reporter):
     val paramNames = funDef.params.map(_.name)
     val tparamNames = funDef.tparams.map(_.name)
 
-    lazy val finalResultType =
-      // TODO: missing kind check
+    var bodyTyped: Word = null
+    // can be called multiple types from the info completer
+    def checkBody(): Word =
+      bodyTyped = transform(funDef.body)(using funScope)
+      bodyTyped
+
+    def checkBodyType(): Type = checkBody().tpe
+
+    def getCheckedBody(): Word =
+      if bodyTyped == null then checkBody() else bodyTyped
+
+    lazy val givenResultType =
+      assert(!funDef.resType.isEmpty)
       val resTypeTree = transformType(funDef.resType)(using funScope)
+      checker.delayedCheck { checker.checkValueType(resTypeTree) }
       resTypeTree.tpe
 
-    lazy val info =
+    lazy val paramTypes =
       for (tparam, i) <- funDef.tparams.zipWithIndex yield
         val info = DelayedType() { bounds(i) }
         val sym = Symbol.createTypeSymbol(tparam.name, info)
         funScope.define(sym, tparam.pos)
-        tparamSyms += sym
-        sym
 
       for tparam <- funDef.tparams do
         bounds +=(
@@ -368,15 +386,15 @@ class Namer(using Reporter):
             TypeBound(BottomType, boundTree.tpe)
         )
 
-      val paramTypes =
-        for param <- funDef.params yield
-          val tpt = transformType(param.typ)(using funScope)
-          val paramSym = Symbol.createParamSymbol(param.name, tpt.tpe)
-          funScope.define(paramSym, param.pos)
-          paramSyms += paramSym
-          tpt.tpe
+      for param <- funDef.params yield
+        val tpt = transformType(param.typ)(using funScope)
+        val paramSym = Symbol.createParamSymbol(param.name, tpt.tpe)
+        funScope.define(paramSym, param.pos)
+        paramSyms += paramSym
+        tpt.tpe
 
-      val procType = ProcType(paramNames, paramTypes, finalResultType)
+    def createFunType(resType: Type): Type =
+      val procType = ProcType(paramNames, paramTypes, resType)
       if bounds.isEmpty then procType
       else
         val tparamRefs = tparamSyms.zipWithIndex.map: (tparamSym, i) =>
@@ -385,20 +403,46 @@ class Namer(using Reporter):
         val rawType = PolyType(tparamNames, bounds.toList, procType)
         TypeOps.substSymbols(rawType, substs)
 
-    val delayedType = DelayedType()(info)
-    val sym = Symbol.createFunSymbol(funDef.name, delayedType)
+    val infoCompleter: InfoCompleter = new InfoCompleter:
+      def complete(): Type =
+        if !funDef.resType.isEmpty then
+          val tp = createFunType(givenResultType)
+          state = InfoState.Completed(tp)
+          tp
+        else
+          state match
+            case InfoState.Incomplete =>
+              // Bottom type is not always the best choice, e.g., it does not
+              // support member selection
+              val resType = BottomType
+              state = InfoState.Completing(createFunType(resType))
+              createFunType(checkBodyType())
+
+            case InfoState.Completing(tp) =>
+              // recursion happened, issue a warning?
+              tp
+
+            case InfoState.Completed(tp) =>
+              // TODO: only report errors the last time it's called
+              tp
+
+    val sym = Symbol.createFunSymbol(funDef.name, infoCompleter)
     sc.define(sym, funDef.pos)
 
     val typer = () =>
-      delayedType.force()
-      val body2 = transform(funDef.body)(using funScope)
-      checker.checkType(body2, finalResultType)
+      val bodyTyped = getCheckedBody()
+
+      if !funDef.resType.isEmpty then
+        checker.checkType(bodyTyped, givenResultType)
+
+      // force sym info completer
+      sym.info
       val locals = Nil
-      FunDef(sym, tparamSyms.toList, paramSyms.toList, locals, body2)(funDef.pos)
+      FunDef(sym, tparamSyms.toList, paramSyms.toList, locals, bodyTyped)(funDef.pos)
 
     DelayedTask(sym, typer)
 
-  private def transform(tdef: Ast.TypeDef)(using sc: Scope): DelayedTask =
+  private def transform(tdef: Ast.TypeDef)(using sc: Scope): DelayedTask[TypeDef] =
     val names = new mutable.ArrayBuffer[String]
     val bounds = new mutable.ArrayBuffer[Type]
 
@@ -513,7 +557,8 @@ class Namer(using Reporter):
 object Namer:
   val errorSymbol = Symbol.createFunSymbol("error", ErrorType)
 
-  private class DelayedTask(val symbol: Symbol, val typer: () => Def)
+  private class DelayedTask[+T <: Def]
+      (val symbol: Symbol, val typer: () => T)
 
   private enum Scope:
     case RootScope()

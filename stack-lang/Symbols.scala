@@ -8,8 +8,61 @@ import scala.collection.mutable
   * might change, e.g., due to erasure or encoding of types.
   */
 object Symbols:
+  enum InfoState:
+    case Incomplete
+    case Completing(current: Type)
+    case Completed(cache: Type)
 
-  final class Symbol(val name: String, val info: Type, flags: Flags):
+  /** The result should not be cached by the symbol.
+    *
+    * Fix-point computation may call the info completer multiple times. Caching
+    * of the result is performed by the info completer.
+    */
+  abstract class InfoCompleter:
+    protected var state = InfoState.Incomplete
+
+    /** The implementation should check whether state is completing.
+      *
+      * - if state is completing, return the type in the completing state.
+      * - if state is incomplete, set state to Completing and start completing.
+      *
+      * If a info completer is sure no cycles will occur, e.g., in the case of
+      * fully specified type, it may directly set the state to completed.
+      */
+    protected def complete(): Type
+
+    def result: Type =
+      state match
+        case InfoState.Incomplete          => compute()
+        case InfoState.Completing(current) => current
+        case InfoState.Completed(cache)    => cache
+
+    def compute(): Type =
+      val res = complete()
+
+      state match
+        case InfoState.Completing(prev) =>
+          if Subtyping.conforms(res, prev) then
+            // Due to monotonicity, prev <: res, now res <: prev,
+            // thus fix-point is reached
+            state = InfoState.Completed(res)
+            res
+          else
+            // update cache, run another iteration
+            state = InfoState.Completing(res)
+            compute()
+
+        case InfoState.Completed(tp) => tp
+
+        case InfoState.Incomplete =>
+          throw new Exception("Completer does not change state")
+
+  final class Symbol(val name: String, infoOrCompleter: Type | InfoCompleter, flags: Flags):
+    def info: Type =
+      infoOrCompleter match
+        case tp: Type => tp
+        case completer: InfoCompleter => completer.result
+
     def isPrimitive: Boolean = flags.is(Flag.Prim)
     def isFunction : Boolean = flags.is(Flag.Fun)
     def isValue    : Boolean = flags.is(Flag.Val)
@@ -21,13 +74,13 @@ object Symbols:
     override def toString() = name
 
   object Symbol:
-    def createValueSymbol(name: String, tp: Type) =
+    def createValueSymbol(name: String, tp: Type | InfoCompleter) =
       new Symbol(name, tp, Flag.Val)
 
-    def createValueSymbol(name: String, tp: Type, flags: Flags) =
+    def createValueSymbol(name: String, tp: Type | InfoCompleter, flags: Flags) =
       new Symbol(name, tp, Flag.Val | flags)
 
-    def createFunSymbol(name: String, info: Type) =
+    def createFunSymbol(name: String, info: Type | InfoCompleter) =
       new Symbol(name, info, Flag.Fun)
 
     def createTypeSymbol(name: String, info: Type) =

@@ -19,9 +19,9 @@ object Desugaring:
     RecordType(fieldTypes.toList)
 
   def encodeVariant(
-    tagIndex: Int, values: List[Word], tagTypes: List[Type],
-    tagPos: Span, variantPos: Span
-  ): Word =
+      tagIndex: Int, values: List[Word], tagTypes: List[Type],
+      tagPos: Span, variantPos: Span
+    ): Word =
 
     val encodeType = encodeUnionType(tagTypes)
     val tagValue = IntLit(tagIndex)(tagPos)
