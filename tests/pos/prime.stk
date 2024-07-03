@@ -20,13 +20,13 @@ fun prime(primes: List, cur: Int, until: Int): Void =
 
 fun primeUntil(until: Int): Void =
   var primes: List = #Cons 2 (#Nil of List) of List
-  var cur = 3;
+  var cur = 3
   while cur until < do
     if primes cur isPrime then
       cur p
-      primes = #Cons cur primes of List;
+      primes = #Cons cur primes of List
     end
-    cur = cur 1 +;
+    cur = cur 1 +
 
 (#Cons 2 (#Nil of List) of List) 3 100 prime
 
