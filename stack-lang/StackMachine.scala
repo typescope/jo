@@ -47,7 +47,7 @@ extends Backend:
     for fun <- prog.funs do
       symbolAddrMap(fun.symbol) = Label(fun.name)
 
-    for sym <- prog.vals do
+    for ValDef(sym, _) <- prog.vals do
       val label = Label(sym.name)
       symbolAddrMap(sym) = label
       cb.add(Data.Uninit(label, Assembly.Type.Int32))

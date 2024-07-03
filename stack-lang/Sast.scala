@@ -116,8 +116,8 @@ object Sast:
     def tpe = symbol.info
 
   case class Prog(defs: List[Def], main: Word):
-    def vals: List[Symbol] =
-      defs.filter(_.isInstanceOf[ValDef]).map(_.symbol)
+    def vals: List[ValDef] =
+      defs.filter(_.isInstanceOf[ValDef]).asInstanceOf
 
     def funs: List[FunDef] =
       defs.filter(_.isInstanceOf[FunDef]).asInstanceOf

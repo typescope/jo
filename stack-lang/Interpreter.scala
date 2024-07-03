@@ -158,10 +158,11 @@ object Interpreter:
     for fun <- prog.funs do
       sc.bind(fun.symbol, Action.Fun(fun, sc))
 
-    for sym <- prog.vals do
-      sc.bind(sym, Uninit)
-
     val vs = new ValueStack
+    for ValDef(sym, rhs) <- prog.vals do
+      exec(rhs)(using vs, sc)
+      sc.bind(sym, vs.pop())
+
     exec(prog.main)(using vs, sc)
 
   def exec(phrase: Phrase)(using ValueStack, Scope): Unit =
@@ -228,8 +229,9 @@ object Interpreter:
       case Ident(sym) =>
         exec(sym)
 
-      case _: ValDef =>
-        throw new Exception("Unexpected " + word)
+      case ValDef(sym, rhs) =>
+        exec(rhs)
+        sc.bind(sym, vs.pop())
 
 /***********************************************************************
  *
@@ -242,5 +244,4 @@ def eval(file: String) = Reporter.monitor:
   IO.fileContent(file)    |>
   Parsing.parse           |>
   new Namer().transform   |>
-  ExplicitInit.transform  |>
   Interpreter.exec

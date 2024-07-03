@@ -91,7 +91,7 @@ class JSOptimized(outFile: String) extends Backend:
       for fun <- prog.funs do
         mapSymbolToJSName(fun.symbol)
 
-      for sym <- prog.vals do
+      for ValDef(sym, _) <- prog.vals do
         val uniqueName = mapSymbolToJSName(sym)
         addLine(s"var $uniqueName; // ${sym.name}")
 
