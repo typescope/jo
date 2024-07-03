@@ -37,6 +37,8 @@ class Checker(using Reporter):
       case _: ValDef =>
         vs.expectEmpty("No result expected before definition", word.pos)
 
+      case _: FunDef =>
+
       case If(cond, thenp, elsep) =>
         if word.tpe.isValueType then vs.push(word.tpe)
 
@@ -55,6 +57,9 @@ class Checker(using Reporter):
 
         else if info.isValueType then
           vs.push(info)
+
+      case FunRef(sym) =>
+        vs.push(word.tpe)
 
       case Phrase(words) =>
         check(words)

@@ -137,8 +137,8 @@ class Namer(using Reporter):
         val tparams = Nil
         val funDef = Ast.FunDef(id, tparams, params, resType, body)(word.pos)
         val funDef2 = transform(funDef)(using sc2).typer()
-        val ref = FunRef(funDef2.symbol)(word.pos)
         val lambdaType = funDef2.tpe.asProcType.toFunType
+        val ref = FunRef(funDef2.symbol)(lambdaType, word.pos)
         Phrase(funDef2 :: ref :: Nil)(lambdaType, word.pos)
 
       case vdef: Ast.ValDef =>

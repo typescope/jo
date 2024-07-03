@@ -76,9 +76,8 @@ object Sast:
     */
   case class FunRef
     (symbol: Symbol)
-    (val pos: Span)
-  extends Word:
-    def tpe: Type = TypeRef(symbol)
+    (val tpe: Type, val pos: Span)
+  extends Word
 
   /** Encode of a type with another type */
   case class Encoded
