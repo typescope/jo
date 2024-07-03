@@ -541,7 +541,7 @@ object Parsing:
       val token1 = peek(1)
       val token2 = peek(2)
       if
-        token2 == Token.COLON
+        token1.isInstanceOf[Token.Ident] && token2 == Token.COLON
         || token1 == Token.RPAREN && token2 == Token.RARROW
       then
         lambda()
