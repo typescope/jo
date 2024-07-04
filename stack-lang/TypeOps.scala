@@ -15,6 +15,8 @@ object TypeOps:
     *
     * - ErrorType always dominates
     * - VoidType dominates BottomType
+    *
+    * Also, do not infer Any as common type, which is useless.
     */
   def commonResultType(tp1: Type, tp2: Type): Option[Type] =
     if tp1.isError || tp2.isError then Some(ErrorType)
@@ -22,7 +24,6 @@ object TypeOps:
     else if tp1.isBottom && tp2.isVoid then Some(VoidType)
     else if Subtyping.conforms(tp1, tp2) then Some(tp2)
     else if Subtyping.conforms(tp2, tp1) then Some(tp1)
-    else if tp1.isValueType && tp2.isValueType then Some(AnyType)
     else None
 
   /** Substitute type params with the given types */

@@ -17,9 +17,9 @@ if a then    // error
   3 p
 
 if 3 even then
-  5               // error
+  5
 else
-  4 even
+  4 even         // error
 
 
 while a 3 * do    // error
