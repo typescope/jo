@@ -134,6 +134,14 @@ class Checker(using Reporter):
       else
         recordType.fieldType(field)
 
+  def commonResultType(tp1: Type, tp2: Type, pos: Span): Type =
+    val commonTypeOpt = TypeOps.commonResultType(tp1, tp2)
+    commonTypeOpt match
+      case Some(tp) => tp
+      case None =>
+        Reporter.error(s"Cannot find common result type, tp1 = ${tp1.show}, tp2 = ${tp2.show}", pos)
+        ErrorType
+
   def checkTagValues(values: List[Word], tagTypes: List[Type], tagPos: Span): Unit =
     if tagTypes.size != values.size then
       Reporter.error(s"Expect ${tagTypes.size} args, found = ${values.size}", tagPos)
@@ -154,19 +162,12 @@ class Checker(using Reporter):
         Some(unionType2.tagType(tag.name))
 
   /** Explicit drop of values in if/match expressions */
-  def adapt(word: Word, otherType: Type, pos: Span): Word =
+  def adapt(word: Word, targetType: Type): Word =
     val curType = word.tpe
-    TypeOps.commonResultType(otherType, curType) match
-      case Some(commonType) =>
-        if commonType.isVoid && curType.isValueType then
-          Encoded(word)(VoidType)
-        else
-          word
-
-      case None =>
-        Reporter.error(s"Cannot find common result type between ${curType.show} and ${otherType.show}", pos)
-        Phrase(word :: Nil)(ErrorType, pos)
-    end match
+    if targetType.isVoid && curType.isValueType then
+      Encoded(word)(VoidType)
+    else
+      word
 
 object Checker:
   /**

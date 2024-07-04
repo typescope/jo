@@ -14,3 +14,10 @@ fun g(x: Int) = x f
 fun h(x: Int): Int = x f x g +
 
 fun k(x: Int): Bool = x f x g and
+
+fun m(x: Int) =
+  if 0 x == then { a = 1 }
+  else { a = x 1 - m, b = x }
+
+fun test(x: Int): { a: Int } =
+  10 m

@@ -176,10 +176,10 @@ class Namer(using Reporter):
     checker.checkType(cond2, BoolType)
 
     // adapt result type
-    val then3 = checker.adapt(then2, else2.tpe, then2.pos)
-    val else3 = checker.adapt(else2, then3.tpe, else2.pos)
-
-    If(cond2, then3, else3)(else3.tpe, ifte.pos)
+    val commonType = checker.commonResultType(then2.tpe, else2.tpe, else2.pos)
+    val then3 = checker.adapt(then2, commonType)
+    val else3 = checker.adapt(else2, commonType)
+    If(cond2, then3, else3)(commonType, ifte.pos)
 
   private def transform(record: Ast.RecordLit)(using sc: Scope): Word =
     val Ast.RecordLit(namedArgs) = record
@@ -262,7 +262,7 @@ class Namer(using Reporter):
               :: Ident(runtime.abort)(scrutIdent.pos)
               :: Nil
           val res = Phrase(words)(BottomType, patmat.pos)
-          checker.adapt(res, resType, patmat.pos)
+          checker.adapt(res, resType)
       end match
 
     val body = transformCases(cases, BottomType, allTags)
@@ -280,13 +280,10 @@ class Namer(using Reporter):
 
     pat match
       case Ast.Wildcard() =>
-        // TODO: all remaining patterns are ignored
-        // if cases.nonEmpty then
-        //  Reporter.error("Cases after wildcard are ignored", pat.pos)
         val body2 = transform(body)(using caseScope)
-        val adapted = checker.adapt(body2, resType, body2.pos)
-        val elsep = cont(adapted.tpe)
-        checker.adapt(adapted, elsep.tpe, body2.pos)
+        val commonType = checker.commonResultType(body2.tpe, resType, body2.pos)
+        val elsep = cont(commonType)
+        checker.adapt(body2, elsep.tpe)
 
       case Ast.TagPat(tag, bindings) =>
         val tagTypesOpt = checker.tagTypes(tag, scrutType, scrutPos)
@@ -318,9 +315,9 @@ class Namer(using Reporter):
 
           val cond = Desugaring.testVariantTag(encodedScrut, tagIndex, tag.pos)
           val body2 = transform(body)(using caseScope)
-          val adapted = checker.adapt(body2, resType, body2.pos)
-          val elsep = cont(adapted.tpe)
-          val adapted2 = checker.adapt(adapted, elsep.tpe, body2.pos)
+          val commonType = checker.commonResultType(body2.tpe, resType, body2.pos)
+          val elsep = cont(commonType)
+          val adapted2 = checker.adapt(body2, elsep.tpe)
 
           val body3 = Phrase(vals.toList :+ adapted2)(adapted2.tpe, caseDef.pos)
           If(cond, body3, elsep)(body3.tpe, caseDef.pos)

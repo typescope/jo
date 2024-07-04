@@ -22,6 +22,7 @@ object TypeOps:
     else if tp1.isBottom && tp2.isVoid then Some(VoidType)
     else if Subtyping.conforms(tp1, tp2) then Some(tp2)
     else if Subtyping.conforms(tp2, tp1) then Some(tp1)
+    else if tp1.isValueType && tp2.isValueType then Some(AnyType)
     else None
 
   /** Substitute type params with the given types */
@@ -144,8 +145,12 @@ object TypeOps:
 
   def show(tp: Type): String =
     tp match
-      case IntType | BoolType | VoidType | AnyType | BottomType | ErrorType =>
-        tp.toString
+      case IntType     => "Int"
+      case BoolType    => "Bool"
+      case VoidType    => "Void"
+      case AnyType     => "Any"
+      case BottomType  => "Any"
+      case ErrorType   => "Error"
 
       case TypeRef(sym) =>
         sym.name
