@@ -265,7 +265,7 @@ object Checker:
       * We only allow self cycles, so it suffices to compute fixed point for the
       * current info completer.
       */
-    def complete(sym: Symbol): Type = Debug.trace(s"Completing $sym", enable = false):
+    def complete(sym: Symbol): Type = Debug.trace(s"Completing $sym", (_: Type).show, enable = false):
       if !completers.contains(sym) then
         Reporter.abort("No completer for " + sym, sym.sourcePos)
 

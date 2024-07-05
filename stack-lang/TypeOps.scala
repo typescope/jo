@@ -150,7 +150,7 @@ object TypeOps:
       case BoolType    => "Bool"
       case VoidType    => "Void"
       case AnyType     => "Any"
-      case BottomType  => "Any"
+      case BottomType  => "Bottom"
       case ErrorType   => "Error"
 
       case TypeRef(sym) =>

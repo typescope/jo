@@ -3,17 +3,21 @@ import java.io.{ BufferedReader, PrintWriter }
 object Debug:
   private var indent: Int = 0
   private def indentPrefix: String = " " * indent
-  inline def trace[T](msg: => String, inline enable: Boolean)(inline op: T): T =
+
+  inline def trace[T](msg: => String, show: T => String, inline enable: Boolean)(inline op: T): T =
     inline if enable then {
       val m = msg
       println(indentPrefix + "==> " + m )
       indent = indent + 1
       val res = op
       indent = indent - 1
-      println(indentPrefix + "<== " + m + " = " + res)
+      println(indentPrefix + "<== " + m + " = " + show(res))
       res
     }
     else op
+
+  inline def trace[T](msg: => String, inline enable: Boolean)(inline op: T): T =
+    Debug.trace[T](msg, t => t.toString, enable)(op)
 
   inline def trace(msg: => String, inline enable: Boolean): Unit =
      inline if enable then println(indentPrefix +  msg)
