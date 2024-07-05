@@ -1,4 +1,5 @@
 import scala.collection.mutable
+import scala.annotation.constructorOnly
 
 import Sast.*
 import Types.*
@@ -11,10 +12,10 @@ import Namer.{ Scope, DelayedTask, errorSymbol }
   *
   * It converts ASTs to Semantic ASTs.
   */
-class Namer(using Reporter):
-  val checker = new Checker
+class Namer(@constructorOnly reporter: Reporter):
+  val checker = new Checker(reporter)
 
-  def transform(prog: Ast.Prog): Sast.Prog =
+  def transform(prog: Ast.Prog)(using Reporter): Sast.Prog =
     val rootScope = new Scope.RootScope()
 
     // Predefined type names
@@ -35,7 +36,7 @@ class Namer(using Reporter):
 
     Prog(defs, main2)
 
-  private def transform(defs: List[Ast.Def])(using sc: Scope): List[Def] =
+  private def transform(defs: List[Ast.Def])(using sc: Scope, rp: Reporter): List[Def] =
     val tasks = new mutable.ArrayBuffer[DelayedTask[Def]]
 
     for defn <- defs do
@@ -44,7 +45,7 @@ class Namer(using Reporter):
     for task <- tasks.toList yield
       task.typer()
 
-  private def index(defn: Ast.Def)(using sc: Scope): DelayedTask[Def] =
+  private def index(defn: Ast.Def)(using sc: Scope, rp: Reporter): DelayedTask[Def] =
 
     defn match
       case vdef: Ast.ValDef =>
@@ -77,7 +78,7 @@ class Namer(using Reporter):
     end match
   end index
 
-  private def transform(word: Ast.Word)(using sc: Scope): Word =
+  private def transform(word: Ast.Word)(using sc: Scope, rp: Reporter): Word =
     word match
       case Ast.IntLit(v)  =>
         IntLit(v)(word.span)
@@ -148,7 +149,7 @@ class Namer(using Reporter):
       case vdef: Ast.ValDef =>
         transform(vdef)
 
-  private def transform(vdef: Ast.ValDef)(using sc: Scope): Word =
+  private def transform(vdef: Ast.ValDef)(using sc: Scope, rp: Reporter): Word =
     var flags: Flags = Flag.Local
     if vdef.mutable then
       flags = flags | Flag.Mutable
@@ -168,7 +169,7 @@ class Namer(using Reporter):
     sc.define(sym, vdef.span)
     ValDef(sym, rhs)(vdef.span)
 
-  private def transform(ifte: Ast.If)(using sc: Scope): Word =
+  private def transform(ifte: Ast.If)(using sc: Scope, rp: Reporter): Word =
     val Ast.If(cond, thenp, elsep) = ifte
     val cond2 = transform(cond)
     val then2 = transform(thenp)
@@ -181,7 +182,7 @@ class Namer(using Reporter):
     val else3 = checker.adapt(else2, commonType)
     If(cond2, then3, else3)(commonType, ifte.span)
 
-  private def transform(record: Ast.RecordLit)(using sc: Scope): Word =
+  private def transform(record: Ast.RecordLit)(using sc: Scope, rp: Reporter): Word =
     val Ast.RecordLit(namedArgs) = record
     val namedArgs2 = new mutable.ArrayBuffer[(String, Phrase)]
     for Ast.NamedArg(id, rhs) <- namedArgs do
@@ -196,7 +197,7 @@ class Namer(using Reporter):
     val tpe = RecordType(fields.map { case (k, v) => k -> v.tpe })
     RecordLit(fields)(tpe, record.span)
 
-  private def transform(variant: Ast.Variant)(using sc: Scope): Word =
+  private def transform(variant: Ast.Variant)(using sc: Scope, rp: Reporter): Word =
     val Ast.Variant(tag, values, typ) = variant
     val values2 = values.map(transform)
     val unionType = transformType(typ)
@@ -219,7 +220,7 @@ class Namer(using Reporter):
     val encodedValue = Desugaring.encodeVariant(tagIndex, values2, tagTypes, tag.span, variant.span)
     Encoded(encodedValue)(unionType.tpe)
 
-  private def transform(patmat: Ast.Match)(using sc: Scope): Word =
+  private def transform(patmat: Ast.Match)(using sc: Scope, rp: Reporter): Word =
     val sc2 = sc.fresh()
 
     val Ast.Match(scrutinee, cases) = patmat
@@ -270,7 +271,7 @@ class Namer(using Reporter):
 
   private def transform
       (scrut: Ident, caseDef: Ast.Case, resType: Type, cont: Type => Word)
-      (using sc: Scope): Word =
+      (using sc: Scope, rp: Reporter): Word =
 
     val caseScope = sc.fresh()
 
@@ -322,7 +323,7 @@ class Namer(using Reporter):
           val body3 = Phrase(vals.toList :+ adapted2)(adapted2.tpe, caseDef.span)
           If(cond, body3, elsep)(body3.tpe, caseDef.span)
 
-  private def transform(phrase: Ast.Phrase)(using sc: Scope): Phrase =
+  private def transform(phrase: Ast.Phrase)(using sc: Scope, rp: Reporter): Phrase =
     val sc2 = sc.fresh()
 
     transform(phrase.tdefs)(using sc2)
@@ -346,7 +347,7 @@ class Namer(using Reporter):
 
     Phrase(wordsTyped)(tp, phrase.span)
 
-  private def transform(funDef: Ast.FunDef)(using sc: Scope): DelayedTask[FunDef] =
+  private def transform(funDef: Ast.FunDef)(using sc: Scope, rp: Reporter): DelayedTask[FunDef] =
     val paramSyms = new mutable.ArrayBuffer[Symbol]
     val tparamSyms = new mutable.ArrayBuffer[Symbol]
     val bounds = new mutable.ArrayBuffer[Type]
@@ -424,10 +425,10 @@ class Namer(using Reporter):
       if !funDef.resType.isEmpty then givenFunType
       else createFunType(BottomType)
 
-    val sym = Symbol.createFunSymbol(funDef.name, checker.completionHandler.complete, funDef.ident.pos)
+    val sym = Symbol.createFunSymbol(funDef.name, checker.symbolTypeProvider, funDef.ident.pos)
     sc.define(sym, funDef.span)
 
-    checker.completionHandler.addProvider(sym, initialType, computeType)
+    checker.symbolTypeProvider.addProvider(sym, initialType, computeType)
 
     val typer = () =>
       // force sym info completer
@@ -443,7 +444,7 @@ class Namer(using Reporter):
 
     DelayedTask(sym, typer)
 
-  private def transform(tdef: Ast.TypeDef)(using sc: Scope): DelayedTask[TypeDef] =
+  private def transform(tdef: Ast.TypeDef)(using sc: Scope, rp: Reporter): DelayedTask[TypeDef] =
     val names = new mutable.ArrayBuffer[String]
     val bounds = new mutable.ArrayBuffer[Type]
 
@@ -495,7 +496,7 @@ class Namer(using Reporter):
 
     DelayedTask(sym, typer)
 
-  private def transformType(tpt: Ast.TypeTree)(using sc: Scope): TypeTree =
+  private def transformType(tpt: Ast.TypeTree)(using sc: Scope, rp: Reporter): TypeTree =
     tpt match
       case Ast.Ident(name) =>
         sc.resolve(name, isType = true) match
@@ -557,6 +558,9 @@ class Namer(using Reporter):
 
 object Namer:
   val errorSymbol = Symbol.createFunSymbol("error", ErrorType, pos = null)
+
+  def transform(using reporter: Reporter): Ast.Prog => Prog =
+    new Namer(reporter).transform
 
   private class DelayedTask[+T <: Def]
       (val symbol: Symbol, val typer: () => T)

@@ -48,11 +48,9 @@ def compile(args: String*) =
       case None =>
         Linux.createX86StackMachine(outFile, layout)
 
-  Reporter.monitor:
-    given Reporter = Reporter.withSource(sourceFile)
-
+  Reporter.monitor(sourceFile):
     IO.fileContent(sourceFile)    |>
     Parsing.parse                 |>
-    new Namer().transform         |>
+    Namer.transform               |>
     new ExplicitInit().transform  |>
     backend.compile

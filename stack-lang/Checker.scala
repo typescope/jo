@@ -4,6 +4,7 @@ import Types.*
 import Reporter.Span
 
 import scala.collection.mutable
+import scala.annotation.constructorOnly
 
 /**
   * Check stack safety
@@ -14,7 +15,7 @@ import scala.collection.mutable
   * - The condition of an if-statement works as a fence and result in one value.
   * - Empty stack is never popped.
   */
-class Checker(using Reporter):
+class Checker(@constructorOnly reporter: Reporter):
   import Checker.ValueStack
 
   private val delayedChecks = new mutable.ArrayBuffer[() => Unit]
@@ -26,10 +27,10 @@ class Checker(using Reporter):
     for check <- delayedChecks do check()
     delayedChecks.clear()
 
-  /** Handles possible cycles in symbol info completion  */
-  val completionHandler = new Checker.CompletionHandler
+  /** Handles possible cycles in result type inference  */
+  val symbolTypeProvider = new Checker.SymbolTypeProvider(using reporter)
 
-  def check(word: Word)(using vs: ValueStack): Unit =
+  def check(word: Word)(using vs: ValueStack, rp: Reporter): Unit =
     word match
       case _: IntLit | _: BoolLit | _: RecordLit | _: Select | _: Encoded =>
         vs.push(word.tpe)
@@ -67,17 +68,17 @@ class Checker(using Reporter):
       case Phrase(words) =>
         check(words)
 
-  def check(words: List[Word])(using vs: ValueStack): Unit =
+  def check(words: List[Word])(using ValueStack, Reporter): Unit =
     for word <- words do check(word)
 
-  def checkBounds(tctor: TypeTree, targs: List[TypeTree]): Unit =
+  def checkBounds(tctor: TypeTree, targs: List[TypeTree])(using Reporter): Unit =
     if !tctor.tpe.isTypeLambda then
       Reporter.error(s"Expect type lambda, found = ${tctor.tpe.show}", tctor.pos)
     else
       val tl = tctor.tpe.asTypeLambda
       checkBounds(tl.bounds, targs)
 
-  def checkBounds(bounds: List[Type], targs: List[TypeTree]): Unit =
+  def checkBounds(bounds: List[Type], targs: List[TypeTree])(using Reporter): Unit =
     if bounds.size != targs.size then
       Reporter.error(s"Expect ${bounds.size} args, found = ${targs.size}", (targs.head.span | targs.last.span).toPos)
     else
@@ -91,7 +92,7 @@ class Checker(using Reporter):
         if !Subtyping.conforms(loActual, argType) then
           Reporter.error(s"Arg type ${argType.show} does not conform to bound = ${hi.show}, which expands to ${hiActual.show}", targ.pos)
 
-  def checkTypeApply(fun: Word, targs: List[TypeTree]): Word =
+  def checkTypeApply(fun: Word, targs: List[TypeTree])(using Reporter): Word =
     if !fun.tpe.isPolyType then
       Reporter.error(s"Expect a poly function type, found = ${fun.tpe.show}", fun.pos)
       Phrase(words = Nil)(ErrorType, fun.span | targs.last.span)
@@ -108,24 +109,24 @@ class Checker(using Reporter):
         // perform type erasure
         Ident(funSym)(fun.span, tpe)
 
-  def checkType(tree: Tree, tp: Type): Unit =
+  def checkType(tree: Tree, tp: Type)(using Reporter): Unit =
     if !Subtyping.conforms(tree.tpe, tp) then
       Reporter.error(s"Expect type ${tp.show}, found = ${tree.tpe.show}", tree.pos)
 
-  def checkValueType(tree: Tree): Unit =
+  def checkValueType(tree: Tree)(using Reporter): Unit =
     checkValueType(tree.tpe, tree.span)
 
-  def checkValueType(tp: Type, span: Span): Type =
+  def checkValueType(tp: Type, span: Span)(using Reporter): Type =
     if !tp.isValueType then
       Reporter.error(s"Expect value type, found = ${tp.show}", span.toPos)
       ErrorType
     else
       tp
 
-  def checkVoidOrValueType(tree: Tree): Unit =
+  def checkVoidOrValueType(tree: Tree)(using Reporter): Unit =
     if !tree.tpe.isVoid then checkValueType(tree)
 
-  def fieldType(qualType: Type, field: String, span: Span): Type =
+  def fieldType(qualType: Type, field: String, span: Span)(using Reporter): Type =
     if !qualType.isRecordType then
       Reporter.error(s"Expect record type, found = ${qualType.show}", span.toPos)
       ErrorType
@@ -137,7 +138,7 @@ class Checker(using Reporter):
       else
         recordType.fieldType(field)
 
-  def commonResultType(tp1: Type, tp2: Type, span: Span): Type =
+  def commonResultType(tp1: Type, tp2: Type, span: Span)(using Reporter): Type =
     val commonTypeOpt = TypeOps.commonResultType(tp1, tp2)
     commonTypeOpt match
       case Some(tp) => tp
@@ -145,14 +146,14 @@ class Checker(using Reporter):
         Reporter.error(s"Cannot find common result type, tp1 = ${tp1.show}, tp2 = ${tp2.show}", span.toPos)
         ErrorType
 
-  def checkTagValues(values: List[Word], tagTypes: List[Type], tagSpan: Span): Unit =
+  def checkTagValues(values: List[Word], tagTypes: List[Type], tagSpan: Span)(using Reporter): Unit =
     if tagTypes.size != values.size then
       Reporter.error(s"Expect ${tagTypes.size} args, found = ${values.size}", tagSpan.toPos)
     else
       for (value, tagType) <- values.zip(tagTypes) do
         checkType(value, tagType)
 
-  def tagTypes(tag: Ast.Ident, unionType: Type, typeSpan: Span): Option[List[Type]] =
+  def tagTypes(tag: Ast.Ident, unionType: Type, typeSpan: Span)(using Reporter): Option[List[Type]] =
     if !unionType.isUnionType then
       Reporter.error(s"Expect union type, found = ${unionType.show}", typeSpan.toPos)
       None
@@ -244,7 +245,7 @@ object Checker:
   end ValueStack
 
 
-  final class CompletionHandler(using Reporter):
+  final class SymbolTypeProvider(using Reporter) extends InfoProvider:
     /** All pending completers --- removed after completion */
     private val completers = mutable.Map.empty[Symbol, InfoCompleter]
 
@@ -265,13 +266,13 @@ object Checker:
       * We only allow self cycles, so it suffices to compute fixed point for the
       * current info completer.
       */
-    def complete(sym: Symbol): Type = Debug.trace(s"Completing $sym", (_: Type).show, enable = false):
+    def apply(sym: Symbol): Type = Debug.trace(s"Retriving $sym", (_: Type).show, enable = false):
       if !completers.contains(sym) then
         Reporter.abort("No completer for " + sym, sym.sourcePos)
 
       val completer = completers(sym)
 
-      def iterate(current: Type): Type =
+      def iterate(current: Type): Type = Debug.trace(s"Compute type for $sym", (_: Type).show, enable = false):
         if Subtyping.conforms(current, completer.currentType) then
           // Due to monotonicity, prev <: current, now current <: prev,
           // thus fix-point has reached

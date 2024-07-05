@@ -4,23 +4,32 @@ import scala.concurrent.duration.*
 
 import java.util.concurrent.TimeoutException
 
-import Reporter.{ ReportItem, Kind, FatalError, SourcePosition, Span, State, Source }
+import Reporter.{ ReportItem, Kind, FatalError, SourcePosition, Span, Source }
 
 /**
   * Deals with error reporting
   */
-class Reporter(val source: Source, state: State):
+class Reporter(
+  val source: Source,
+  reported: mutable.ArrayBuffer[ReportItem],
+  sources: mutable.Map[String, Source]):
+
   export source.addLineOffset
 
   def withSource(file: String): Reporter =
-    Reporter.withSource(file)(using state)
+    sources.get(file) match
+      case Some(source) => new Reporter(source, reported, sources)
+      case None =>
+        val source = new Source(file)
+        sources(file) = source
+        new Reporter(source, reported, sources)
 
   def abort(message: String, pos: SourcePosition): Nothing =
     val error = new ReportItem(Kind.Error, message, pos)
     throw new FatalError.CodeError(error)
 
   private def report(kind: Kind, message: String, pos: SourcePosition): Unit =
-    state.add(new ReportItem(kind, message, pos))
+    reported += new ReportItem(kind, message, pos)
 
   def error(message: String, pos: SourcePosition): Unit =
     report(Kind.Error, message, pos)
@@ -28,7 +37,24 @@ class Reporter(val source: Source, state: State):
   def warn(message: String, pos: SourcePosition): Unit =
     report(Kind.Warning, message, pos)
 
-  def hasErrors: Boolean = state.hasErrors
+  def hasErrors: Boolean = reported.exists(_.kind == Kind.Error)
+
+  def reports: List[ReportItem] = reported.toList
+
+  def print() =
+    var errorCount = 0
+    var warningCount = 0
+
+    for item <- this.reports do
+      item.kind match
+        case Kind.Error => errorCount += 1
+        case Kind.Warning => warningCount += 1
+        case Kind.Info =>
+
+      println(item)
+      println
+
+    println(s"$errorCount error(s), $warningCount warning(s)")
 
   // TODO: change fn to phase: Phase[T, U] <: T => U to get phase name
   extension [T](v: T)
@@ -40,35 +66,6 @@ class Reporter(val source: Source, state: State):
   end extension
 
 object Reporter:
-
-  /** Shared state of reporters */
-  class State(
-    reported: mutable.ArrayBuffer[ReportItem],
-    private[Reporter] val sources: mutable.Map[String, Source]):
-
-    def this() = this(mutable.ArrayBuffer.empty, mutable.Map.empty)
-
-    def reports: List[ReportItem] = reported.toList
-
-    def hasErrors: Boolean = reported.exists(_.kind == Kind.Error)
-
-    def add(item: ReportItem) = reported += item
-
-    def print() =
-      var errorCount = 0
-      var warningCount = 0
-
-      for item <- this.reports do
-        item.kind match
-          case Kind.Error => errorCount += 1
-          case Kind.Warning => warningCount += 1
-          case Kind.Info =>
-
-        println(item)
-        println
-
-      println(s"$errorCount error(s), $warningCount warning(s)")
-
   trait Positioned:
     this: Product =>
 
@@ -201,17 +198,23 @@ object Reporter:
     case InternalError(message: String)
     case StopAfterPhase()
 
-  def monitor(fn: State ?=> Unit): Unit =
-    val state = new State()
+  def createReporter(file: String): Reporter =
+    val source = new Source(file)
+    val sources = mutable.Map(file -> source)
+    val reported = new mutable.ArrayBuffer[ReportItem]
+    new Reporter(source, reported, sources)
+
+  def monitor[T](file: String)(fn: Reporter ?=> Unit): Unit =
+    val reporter = createReporter(file)
     try
-      timeout(100) { fn(using state) }
+      timeout(100) { fn(using reporter) }
     catch
       case error: FatalError.CodeError =>
         println("[error] " + error.content)
       case error: FatalError.InternalError =>
         println("[error] " + error.message)
       case error: FatalError.StopAfterPhase =>
-        state.print()
+        reporter.print()
       case error: TimeoutException =>
         println("Operation time out")
 
@@ -219,15 +222,6 @@ object Reporter:
     given ExecutionContext = ExecutionContext.global
     val workFuture = Future { work }
     Await.result(workFuture, Duration(seconds, SECONDS))
-
-  def withSource(file: String)(using state: State) =
-    state.sources.get(file) match
-      case Some(source) => new Reporter(source, state)
-      case None =>
-        val source = new Source(file)
-        state.sources(file) = source
-        new Reporter(source, state)
-
 
   def abort(message: String, pos: SourcePosition)(using rp: Reporter): Nothing =
     rp.abort(message, pos)
@@ -240,3 +234,5 @@ object Reporter:
 
   def warn(message: String, pos: SourcePosition)(using rp: Reporter): Unit =
     rp.warn(message, pos)
+
+  def reports(using rp: Reporter): List[ReportItem] = rp.reports

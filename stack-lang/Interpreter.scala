@@ -234,9 +234,8 @@ object Interpreter:
  *
  ***********************************************************************/
 @main
-def eval(file: String) = Reporter.monitor:
-  given Reporter = Reporter.withSource(file)
+def eval(file: String) = Reporter.monitor(file):
   IO.fileContent(file)    |>
   Parsing.parse           |>
-  new Namer().transform   |>
+  Namer.transform         |>
   Interpreter.exec

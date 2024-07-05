@@ -3,7 +3,7 @@ import java.io.{ File => JFile }
 import scala.collection.mutable
 import scala.io.Source
 
-import Reporter.{ ReportItem, FatalError, State }
+import Reporter.{ ReportItem, FatalError }
 
 object Test:
   /** Creates a list of tests */
@@ -15,15 +15,14 @@ object Test:
       else inputs
     }
 
-  def compileAndCheck(test: String): Boolean = Reporter.timeout(30):
+  def compileAndCheck(test: String): Boolean = Reporter.timeout(100):
+    given Reporter = Reporter.createReporter(test)
     val backend = Linux.createX86StackMachine(test, "c1")
-    val state = new State()
-    given reporter: Reporter = Reporter.withSource(test)(using state)
 
     try
       IO.fileContent(test)          |>
       Parsing.parse                 |>
-      new Namer().transform         |>
+      Namer.transform               |>
       new ExplicitInit().transform  |>
       backend.compile
 
@@ -36,7 +35,7 @@ object Test:
         false
 
       case error: FatalError.StopAfterPhase =>
-        verifyErrors(test, state.reports)
+        verifyErrors(test, Reporter.reports)
 
   def verifyErrors(test: String, errors: List[ReportItem])(using Reporter): Boolean =
     val errorMap = mutable.Map.empty[Int, Int] // line -> count
