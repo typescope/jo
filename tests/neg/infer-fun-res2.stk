@@ -20,3 +20,11 @@ fun q(x: Int) =
 
 fun test2(x: Int): { a: Int } =
   10 q
+
+fun h(x: Int) =
+  if 0 x == then
+    { a = 1 (x 1 - h).c + }   // error
+  else {
+    a = x,
+    b = x x +
+  }
