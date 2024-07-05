@@ -35,6 +35,7 @@ enum Value extends Denotation:
   case FunVal(fun: Sast.FunDef, scope: Scope)
 
 object Uninit extends Denotation
+case class PrimAction(op: ValueStack => Unit) extends Denotation
 
 enum Scope:
   case RootScope()
@@ -42,14 +43,14 @@ enum Scope:
 
   private val map: mutable.Map[Symbol, Denotation] = mutable.Map.empty
 
-  def resolve(sym: Symbol): Option[Denotation] =
+  def resolve(sym: Symbol): Denotation =
     map.get(sym) match
       case None =>
         this match
           case NestedScope(outer) => outer.resolve(sym)
-          case _ => None
+          case _ => throw new Exception("Not found " + sym)
 
-      case res  => res
+      case Some(res)  => res
 
   def update(sym: Symbol, denot: Denotation): Unit =
     if map.contains(sym) then
@@ -143,6 +144,9 @@ object Interpreter:
   def exec(prog: Prog): Unit =
     val rootScope = new Scope.RootScope()
 
+    for (sym, op) <- Primitive.operators do
+      rootScope.bind(sym, PrimAction(op))
+
     val sc = new Scope.NestedScope(rootScope)
     for fun <- prog.funs do
       sc.bind(fun.symbol, Value.FunVal(fun, sc))
@@ -205,21 +209,20 @@ object Interpreter:
         exec(phrase)
 
       case Ident(sym) =>
-        if sym.isPrimitive then
-          Primitive.operators(sym)(vs)
+        sc.resolve(sym) match
+          case PrimAction(op) => op(vs)
 
-        else if sym.isFunction then
-          val Some(Value.FunVal(fdef, sc2)) = sc.resolve(sym): @unchecked
-          exec(fdef)(using vs, sc2)
+          case fval @ Value.FunVal(fdef, sc2) =>
+            if sym.isFunction then
+              exec(fdef)(using vs, sc2)
+            else
+              vs.push(fval)
 
-        else
-          val Some(denot) = sc.resolve(sym): @unchecked
-          denot match
-            case Uninit =>
-              err("Accessing uninitialized variable " + sym)
+          case Uninit =>
+            err("Accessing uninitialized variable " + sym)
 
-            case value: Value =>
-              vs.push(value)
+          case value: Value =>
+            vs.push(value)
 
       case ValDef(sym, rhs) =>
         exec(rhs)
@@ -234,7 +237,7 @@ object Interpreter:
         sc.bind(fdef.symbol, Value.FunVal(fdef, sc))
 
       case FunRef(sym) =>
-        val Some(funVal: Value.FunVal) = sc.resolve(sym): @unchecked
+        val (funVal: Value.FunVal) = sc.resolve(sym): @unchecked
         vs.push(funVal)
 
 /***********************************************************************
