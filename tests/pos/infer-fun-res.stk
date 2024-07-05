@@ -8,23 +8,10 @@ fun fact(x: Int) =
 
 val b: Int = 10 fact
 
-fun f(x: Int) = x g
-fun g(x: Int) = x f
-
-fun h(x: Int): Int = x f x g +
-
-fun k(x: Int): Bool = x f x g and
-
-fun m(x: Int) =
-  if 0 x == then { a = 1 }
-  else { a = x 1 - m, b = x }
-
-fun test1(x: Int): { a: Int } =
-  10 m
-
-fun q(x: Int) =
-  if 0 x == then { a = 1 }
-  else { a = x, b = 1 (x 1 - q).a + }
-
-fun test2(x: Int): { a: Int } =
-  10 q
+// fun q(x: Int) =
+//   if 0 x == then { a = 1 }
+//   else { a = x, b = 1 (x 1 - q).a + }
+//
+// fun test2(x: Int): { a: Int } =
+//   10 q
+//

@@ -9,58 +9,32 @@ import scala.collection.mutable
   * might change, e.g., due to erasure or encoding of types.
   */
 object Symbols:
-  enum InfoState:
-    case Incomplete
-    case Completing(current: Type)
-    case Completed(cache: Type)
-
-  abstract class CompletionHandler:
-    def complete(sym: Symbol, infoCompleter: InfoCompleter): Type
-
-  /** The result should not be cached by the symbol.
+  /** Provides type to a symbol
     *
-    * Fix-point computation may call the info completer multiple times. Caching
-    * of the result is performed by the info completer.
+    * The provider needs to perform cache. The symbol does not cache.
     */
-  abstract class InfoCompleter(handler: CompletionHandler):
-    private var state = InfoState.Incomplete
-
-    /** The implementation should first set state of completing
-      *
-      * If a info completer is sure no cycles will occur, e.g., in the case of
-      * fully specified type, it may directly set the state to completed.
-      *
-      * This method should only be called by completion handler. The using
-      * parameter is supplied only as a protection against accidentally calling
-      * `doComplete`.
-      */
-    def doComplete()(using CompletionHandler): Type
-
-    def complete(tp: Type): Unit =
-      state = InfoState.Completed(tp)
-
-    def completing(tp: Type): Unit =
-      assert(state != InfoState.Completed, "monotonicity violated")
-      state = InfoState.Completing(tp)
-
-    def currentState: InfoState = state
-
-    def result(sym: Symbol): Type =
-      state match
-        case InfoState.Incomplete          => handler.complete(sym, this)
-        case InfoState.Completing(current) => current
-        case InfoState.Completed(cache)    => cache
+  abstract class InfoProvider extends (Symbol => Type)
 
   final class Symbol(
     val name: String,
-    infoOrCompleter: Type | InfoCompleter,
+    infoProvider: Type | InfoProvider,
     flags: Flags,
     val sourcePos: SourcePosition):
 
+    /** Do not cache the result from provider
+      *
+      * The result may change due to
+      *
+      * - fixed point computation
+      * - type inference
+      * - erasure
+      *
+      * The cache is done by the provider
+      */
     def info: Type =
-      infoOrCompleter match
+      infoProvider match
         case tp: Type => tp
-        case completer: InfoCompleter => completer.result(this)
+        case provider: InfoProvider => provider(this)
 
     def isPrimitive: Boolean = flags.is(Flag.Prim)
     def isFunction : Boolean = flags.is(Flag.Fun)
@@ -73,13 +47,13 @@ object Symbols:
     override def toString() = name
 
   object Symbol:
-    def createValueSymbol(name: String, tp: Type | InfoCompleter, pos: SourcePosition) =
+    def createValueSymbol(name: String, tp: Type | InfoProvider, pos: SourcePosition) =
       new Symbol(name, tp, Flag.Val, pos)
 
-    def createValueSymbol(name: String, tp: Type | InfoCompleter, flags: Flags, pos: SourcePosition) =
+    def createValueSymbol(name: String, tp: Type | InfoProvider, flags: Flags, pos: SourcePosition) =
       new Symbol(name, tp, Flag.Val | flags, pos)
 
-    def createFunSymbol(name: String, info: Type | InfoCompleter, pos: SourcePosition) =
+    def createFunSymbol(name: String, info: Type | InfoProvider, pos: SourcePosition) =
       new Symbol(name, info, Flag.Fun, pos)
 
     def createTypeSymbol(name: String, info: Type, pos: SourcePosition) =

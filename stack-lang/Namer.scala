@@ -410,19 +410,24 @@ class Namer(using Reporter):
         val rawType = PolyType(tparamNames, bounds.toList, procType)
         TypeOps.substSymbols(rawType, substs)
 
-    val infoCompleter: InfoCompleter = new InfoCompleter(checker.completionHandler):
-      def doComplete()(using CompletionHandler): Type =
-        if !funDef.resType.isEmpty then
-          val tp = createFunType(givenResultType)
-          this.complete(tp)
-          tp
-        else
-          val resType = BottomType
-          this.completing(createFunType(resType))
-          createFunType(checkBodyType())
+    lazy val givenFunType =
+      assert(!funDef.resType.isEmpty)
+      createFunType(givenResultType)
 
-    val sym = Symbol.createFunSymbol(funDef.name, infoCompleter, funDef.ident.pos)
+    def computeType(): Type =
+      if !funDef.resType.isEmpty then
+        givenFunType
+      else
+        createFunType(checkBodyType())
+
+    val initialType = () =>
+      if !funDef.resType.isEmpty then givenFunType
+      else createFunType(BottomType)
+
+    val sym = Symbol.createFunSymbol(funDef.name, checker.completionHandler.complete, funDef.ident.pos)
     sc.define(sym, funDef.span)
+
+    checker.completionHandler.addProvider(sym, initialType, computeType)
 
     val typer = () =>
       // force sym info completer

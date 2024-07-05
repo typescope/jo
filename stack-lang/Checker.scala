@@ -27,41 +27,7 @@ class Checker(using Reporter):
     delayedChecks.clear()
 
   /** Handles possible cycles in symbol info completion  */
-  val completionHandler = new CompletionHandler:
-
-    /** We only allow self cycles, so it suffices to compute fixed point for the
-      * current info completer.
-      */
-    val completing = new mutable.ArrayBuffer[Symbol]
-
-    def complete(sym: Symbol, completer: InfoCompleter): Type =
-      def iterate(current: Type): Type =
-        completer.currentState match
-          case InfoState.Completing(prev) =>
-            if Subtyping.conforms(current, prev) then
-              // Due to monotonicity, prev <: current, now current <: prev,
-              // thus fix-point has reached
-              completer.complete(current)
-              current
-            else
-              // update cache, run another iteration
-              completer.completing(current)
-              iterate(completer.doComplete()(using this))
-
-          case InfoState.Completed(tp) => tp
-
-          case InfoState.Incomplete =>
-            throw new Exception("Completer did not change state in doComplete")
-      end iterate
-
-      if completing.contains(sym) && completing.size > 1 then
-        val cycle = completing.map(_.name).mkString(", ")
-        Reporter.error("Mutual recursion needs explicit return type: " + cycle, sym.sourcePos)
-        completer.complete(ErrorType)
-        completer.result(sym)
-      else
-        completing += sym
-        iterate(completer.doComplete()(using this))
+  val completionHandler = new Checker.CompletionHandler
 
   def check(word: Word)(using vs: ValueStack): Unit =
     word match
@@ -274,3 +240,92 @@ object Checker:
       else
         val tp = valueTypes.remove(this.size - 1)
         Some(tp)
+    end pop
+  end ValueStack
+
+
+  final class CompletionHandler(using Reporter):
+    /** All pending completers --- removed after completion */
+    private val completers = mutable.Map.empty[Symbol, InfoCompleter]
+
+    /** The symbols currently in progress of being completed */
+    private val completing = new mutable.ArrayBuffer[Symbol]
+
+    /**
+      * Add an info provider for the symbol
+      *
+      * @param initial the initial approximation type for the symbol without computation
+      * @param compute compute the type for the symbol
+      */
+    def addProvider(sym: Symbol, initial: () => Type, compute: () => Type) =
+      assert(!completers.contains(sym), "Duplicate provider " + sym)
+      completers(sym) = InfoCompleter(initial, compute)
+
+    /**
+      * We only allow self cycles, so it suffices to compute fixed point for the
+      * current info completer.
+      */
+    def complete(sym: Symbol): Type = Debug.trace(s"Completing $sym", enable = false):
+      if !completers.contains(sym) then
+        Reporter.abort("No completer for " + sym, sym.sourcePos)
+
+      val completer = completers(sym)
+
+      def iterate(current: Type): Type =
+        if Subtyping.conforms(current, completer.currentType) then
+          // Due to monotonicity, prev <: current, now current <: prev,
+          // thus fix-point has reached
+          current
+        else
+          // update cache, run another iteration
+          completer.completing(current)
+          iterate(completer.compute())
+      end iterate
+
+      if completing.contains(sym) && completing.last != sym then
+        val cycle = completing.dropWhile(_ != sym).map(_.name).mkString(", ")
+        Reporter.error("Mutual recursion needs explicit return type: " + cycle, sym.sourcePos)
+        ErrorType
+      else if completing.contains(sym) then
+        completer.currentType
+      else if completer.isComplete then
+        completer.currentType
+      else
+        completing += sym
+
+        val tp0 = completer.initial()
+        completer.completing(tp0)
+        val tp = iterate(completer.compute()) // trigger at list one computation
+        completer.complete(tp)
+
+        completing -= sym
+        tp
+
+  private enum InfoState:
+    case Incomplete
+    case Completing(current: Type)
+    case Completed(cache: Type)
+
+  private class InfoCompleter(val initial: () => Type, val compute: () => Type):
+    private var state = InfoState.Incomplete
+
+    def complete(tp: Type): Unit =
+      assert(state != InfoState.Completed, "Double completion")
+      state = InfoState.Completed(tp)
+
+    def completing(tp: Type): Unit =
+      assert(state != InfoState.Completed, "monotonicity violated")
+      state = InfoState.Completing(tp)
+
+    def isComplete: Boolean = state.isInstanceOf[InfoState.Completed]
+
+    def currentState: InfoState = state
+
+    def currentType: Type =
+      currentState match
+        case InfoState.Completing(tp) => tp
+
+        case InfoState.Completed(tp) => tp
+
+        case InfoState.Incomplete =>
+           throw new Exception("Unexpected condition")
