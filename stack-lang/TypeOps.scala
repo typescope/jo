@@ -73,6 +73,12 @@ object TypeOps:
 
       case tp => tp
 
+  def finalResultType(tp: Type): Type =
+    tp match
+      case PolyType(_, bounds, resType) => finalResultType(resType)
+      case ProcType(_, _, resType) => resType
+      case tp => tp
+
   /** Approximate top-level type aliases, delayed types, applied types
     *
     *
