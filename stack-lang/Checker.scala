@@ -245,7 +245,7 @@ object Checker:
   end ValueStack
 
 
-  final class SymbolTypeProvider(using Reporter) extends InfoProvider:
+  final class SymbolTypeProvider(using rp: Reporter) extends InfoProvider:
     /** All pending completers --- removed after completion */
     private val completers = mutable.Map.empty[Symbol, InfoCompleter]
 
@@ -258,7 +258,7 @@ object Checker:
       * @param initial the initial approximation type for the symbol without computation
       * @param compute compute the type for the symbol
       */
-    def addProvider(sym: Symbol, initial: () => Type, compute: () => Type) =
+    def addProvider(sym: Symbol, initial: Reporter => Type, compute: Reporter => Type) =
       assert(!completers.contains(sym), "Duplicate provider " + sym)
       completers(sym) = InfoCompleter(initial, compute)
 
@@ -272,15 +272,18 @@ object Checker:
 
       val completer = completers(sym)
 
-      def iterate(current: Type): Type = Debug.trace(s"Compute type for $sym", (_: Type).show, enable = false):
+      def iterate(current: Type)(using rp: Reporter): Type = Debug.trace(s"Compute type for $sym", (_: Type).show, enable = false):
         if Subtyping.conforms(current, completer.currentType) then
           // Due to monotonicity, prev <: current, now current <: prev,
           // thus fix-point has reached
+          for item <- rp.reports do this.rp.report(item)
           current
         else
           // update cache, run another iteration
           completer.completing(current)
-          iterate(completer.compute())
+          // throw the old reporter away without reporting any errors
+          val reporter = rp.withSource(sym.sourcePos.source).fresh()
+          iterate(completer.compute(reporter))(using reporter)
       end iterate
 
       if completing.contains(sym) && completing.last != sym then
@@ -294,9 +297,12 @@ object Checker:
       else
         completing += sym
 
-        val tp0 = completer.initial()
+        val tp0 = completer.initial(rp)
         completer.completing(tp0)
-        val tp = iterate(completer.compute()) // trigger at list one computation
+
+        // trigger at list one computation
+        val reporter = rp.withSource(sym.sourcePos.source).fresh()
+        val tp = iterate(completer.compute(reporter))(using reporter)
         completer.complete(tp)
 
         completing -= sym
@@ -307,7 +313,7 @@ object Checker:
     case Completing(current: Type)
     case Completed(cache: Type)
 
-  private class InfoCompleter(val initial: () => Type, val compute: () => Type):
+  private class InfoCompleter(val initial: Reporter => Type, val compute: Reporter => Type):
     private var state = InfoState.Incomplete
 
     def complete(tp: Type): Unit =

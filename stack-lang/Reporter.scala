@@ -24,12 +24,21 @@ class Reporter(
         sources(file) = source
         new Reporter(source, reported, sources)
 
+  def withSource(source: Source): Reporter =
+    new Reporter(source, reported, sources)
+
+  def fresh(): Reporter =
+    new Reporter(source, mutable.ArrayBuffer.empty, sources)
+
   def abort(message: String, pos: SourcePosition): Nothing =
     val error = new ReportItem(Kind.Error, message, pos)
     throw new FatalError.CodeError(error)
 
-  private def report(kind: Kind, message: String, pos: SourcePosition): Unit =
+  def report(kind: Kind, message: String, pos: SourcePosition): Unit =
     reported += new ReportItem(kind, message, pos)
+
+  def report(item: ReportItem): Unit =
+    reported += item
 
   def error(message: String, pos: SourcePosition): Unit =
     report(Kind.Error, message, pos)

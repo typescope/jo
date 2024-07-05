@@ -358,15 +358,15 @@ class Namer(@constructorOnly reporter: Reporter):
 
     var bodyTyped: Word = null
     // can be called multiple types from the info completer
-    def checkBody(): Word =
+    def checkBody()(using Reporter): Word =
       // trigger checking of parameters first to have the current scope
       paramTypes
       bodyTyped = transform(funDef.body)(using funScope)
       bodyTyped
 
-    def checkBodyType(): Type = checkBody().tpe
+    def checkBodyType()(using Reporter): Type = checkBody().tpe
 
-    def getCheckedBody(): Word =
+    def getCheckedBody()(using Reporter): Word =
       if bodyTyped == null then checkBody() else bodyTyped
 
     lazy val givenResultType =
@@ -415,7 +415,7 @@ class Namer(@constructorOnly reporter: Reporter):
       assert(!funDef.resType.isEmpty)
       createFunType(givenResultType)
 
-    def computeType(): Type =
+    def computeType(using Reporter): Type =
       if !funDef.resType.isEmpty then
         givenFunType
       else
@@ -428,7 +428,9 @@ class Namer(@constructorOnly reporter: Reporter):
     val sym = Symbol.createFunSymbol(funDef.name, checker.symbolTypeProvider, funDef.ident.pos)
     sc.define(sym, funDef.span)
 
-    checker.symbolTypeProvider.addProvider(sym, initialType, computeType)
+    checker.symbolTypeProvider.addProvider(
+      sym, rp => initialType(), rp => computeType(using rp)
+    )
 
     val typer = () =>
       // force sym info completer
