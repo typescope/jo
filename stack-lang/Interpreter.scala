@@ -171,7 +171,7 @@ object Interpreter:
       funScope.bind(param, Uninit)
     exec(fdef.body)(using vs, funScope)
 
-  def exec(word: Word)(using vs: ValueStack, sc: Scope): Unit = Debug.trace(SastOps.show(word) + ", stack = " + vs.show, enable = false):
+  def exec(word: Word)(using vs: ValueStack, sc: Scope): Unit = Debug.trace(Printing.show(word) + ", stack = " + vs.show, enable = false):
     word match
       case IntLit(v)  => vs.push(Value.IntVal(v))
 
