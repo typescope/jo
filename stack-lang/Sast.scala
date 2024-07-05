@@ -23,51 +23,51 @@ object Sast:
 
   case class IntLit
     (value: Int)
-    (val pos: Span)
+    (val span: Span)
   extends Word:
     def tpe: Type = IntType
 
   case class BoolLit
     (value: Boolean)
-    (val pos: Span)
+    (val span: Span)
   extends Word:
     def tpe: Type = BoolType
 
   case class RecordLit
     (args: List[(String, Word)])
-    (val tpe: Type, val pos: Span)
+    (val tpe: Type, val span: Span)
   extends Word
 
   case class Ident
     (symbol: Symbol)
-    (val pos: Span, val tpe: Type = symbol.info)
+    (val span: Span, val tpe: Type = symbol.info)
   extends Word
 
   case class Select
     (qual: Word, name: String)
-    (val tpe: Type, val pos: Span)
+    (val tpe: Type, val span: Span)
   extends Word
 
   case class Assign
     (symbol: Symbol, rhs: Word)
-    (val pos: Span)
+    (val span: Span)
   extends Word:
     def tpe: Type = VoidType
 
   case class If
     (cond: Word, thenp: Word, elsep: Word)
-    (val tpe: Type, val pos: Span)
+    (val tpe: Type, val span: Span)
   extends Word
 
   case class While
     (cond: Word, body: Word)
-    (val pos: Span)
+    (val span: Span)
   extends Word:
     def tpe: Type = VoidType
 
   case class Phrase
     (words: List[Word])
-    (val tpe: Type, val pos: Span)
+    (val tpe: Type, val span: Span)
   extends Word
 
   /** A reference to a function as a runtime value.
@@ -76,7 +76,7 @@ object Sast:
     */
   case class FunRef
     (symbol: Symbol)
-    (val tpe: Type, val pos: Span)
+    (val tpe: Type, val span: Span)
   extends Word
 
   /** Encode of a type with another type */
@@ -84,13 +84,13 @@ object Sast:
     (repr: Word)
     (val tpe: Type)
   extends Word:
-    def pos = repr.pos
+    def span = repr.span
 
     def isValueDrop = repr.tpe.isValueType && tpe.isVoid
 
   case class TypeTree
     (tpe: Type)
-    (val pos: Span)
+    (val span: Span)
   extends Tree
 
   sealed trait Def extends Tree:
@@ -99,19 +99,19 @@ object Sast:
 
   case class ValDef
     (symbol: Symbol, rhs: Word)
-    (val pos: Span)
+    (val span: Span)
   extends Word, Def:
     def tpe: Type = VoidType
 
   case class TypeDef
     (symbol: Symbol)
-    (val pos: Span)
+    (val span: Span)
   extends Def:
     def tpe: Type = VoidType
 
   case class FunDef
     (symbol: Symbol, tparams: List[Symbol], params: List[Symbol], locals: List[Symbol], body: Word)
-    (val pos: Span)
+    (val span: Span)
   extends Word, Def:
     def tpe = symbol.info
 

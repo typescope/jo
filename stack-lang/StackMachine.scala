@@ -31,7 +31,7 @@ extends Backend:
 
   /** The memory allocator */
   val allocatorType = ProcType("size" :: Nil, IntType :: Nil, IntType)
-  val allocatorSym = Symbol.createFunSymbol("alloc", allocatorType)
+  val allocatorSym = Symbol.createFunSymbol("alloc", allocatorType, pos = null)
   symbolAddrMap(allocatorSym) = Label(allocatorSym.name)
 
   /** A simple register allocator */

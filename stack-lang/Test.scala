@@ -24,7 +24,7 @@ object Test:
       IO.fileContent(test)          |>
       Parsing.parse                 |>
       new Namer().transform         |>
-      ExplicitInit.transform        |>
+      new ExplicitInit().transform  |>
       backend.compile
 
       verifyErrors(test, Nil)

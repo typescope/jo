@@ -9,26 +9,24 @@ import Reporter.{ ReportItem, Kind, FatalError, SourcePosition, Span, State, Sou
 /**
   * Deals with error reporting
   */
-class Reporter(source: Source, state: State):
+class Reporter(val source: Source, state: State):
   export source.addLineOffset
 
   def withSource(file: String): Reporter =
     Reporter.withSource(file)(using state)
 
-  def abort(message: String, span: Span): Nothing =
-    val sourcePos = new SourcePosition(source, span.start, span.length)
-    val error = new ReportItem(Kind.Error, message, sourcePos)
+  def abort(message: String, pos: SourcePosition): Nothing =
+    val error = new ReportItem(Kind.Error, message, pos)
     throw new FatalError.CodeError(error)
 
-  private def report(kind: Kind, message: String, span: Span): Unit =
-    val sourcePos = new SourcePosition(source, span.start, span.length)
-    state.add(new ReportItem(kind, message, sourcePos))
+  private def report(kind: Kind, message: String, pos: SourcePosition): Unit =
+    state.add(new ReportItem(kind, message, pos))
 
-  def error(message: String, span: Span): Unit =
-    report(Kind.Error, message, span)
+  def error(message: String, pos: SourcePosition): Unit =
+    report(Kind.Error, message, pos)
 
-  def warn(message: String, span: Span): Unit =
-    report(Kind.Warning, message, span)
+  def warn(message: String, pos: SourcePosition): Unit =
+    report(Kind.Warning, message, pos)
 
   def hasErrors: Boolean = state.hasErrors
 
@@ -76,9 +74,11 @@ object Reporter:
 
     Positioned.checkComponentPos(this)
 
-    def hasPos: Boolean = pos `ne` NoSpan
+    def hasPos: Boolean = span `ne` NoSpan
 
-    def pos: Span
+    def span: Span
+
+    def pos(using Reporter): SourcePosition = span.toPos
 
   object Positioned:
     def checkComponentPos(obj: Product): Unit =
@@ -107,6 +107,12 @@ object Reporter:
         val end2 = that.start + that.length
         val end3 = if end1 > end2 then end1 else end2
         Span(start3, end3 - start3)
+
+    def toPos(source: Source): SourcePosition =
+      new SourcePosition(source, this.start, this.length)
+
+    def toPos(using rp: Reporter): SourcePosition =
+      toPos(rp.source)
 
   object NoSpan extends Span(-1, -1)
 
@@ -174,7 +180,6 @@ object Reporter:
     override def toString() =
       source.file + ":" + (startLine + 1) + ":" + (startLineColumn + 1)
 
-
   enum Kind:
     case Error, Warning, Info
 
@@ -224,14 +229,14 @@ object Reporter:
         new Reporter(source, state)
 
 
-  def abort(message: String, span: Span)(using rp: Reporter): Nothing =
-    rp.abort(message, span)
+  def abort(message: String, pos: SourcePosition)(using rp: Reporter): Nothing =
+    rp.abort(message, pos)
 
   def abortInternal(message: String): Nothing =
     throw new FatalError.InternalError(message)
 
-  def error(message: String, span: Span)(using rp: Reporter): Unit =
-    rp.error(message, span)
+  def error(message: String, pos: SourcePosition)(using rp: Reporter): Unit =
+    rp.error(message, pos)
 
-  def warn(message: String, span: Span)(using rp: Reporter): Unit =
-    rp.warn(message, span)
+  def warn(message: String, pos: SourcePosition)(using rp: Reporter): Unit =
+    rp.warn(message, pos)

@@ -66,7 +66,7 @@ object Parsing:
 
 
   /** The indent info is the same for all tokens of the same line */
-  case class TokenInfo(token: Token, pos: Span, indent: Indent)
+  case class TokenInfo(token: Token, span: Span, indent: Indent)
 
   trait Scanner:
     def next(): TokenInfo
@@ -220,7 +220,7 @@ object Parsing:
           else if isOperator(c)   then operator()
           else if isSpace(c)      then nextToken()
           else
-            error("Unexpected character: " + c, stream.tokenSpan())
+            error("Unexpected character: " + c, stream.tokenSpan().toPos)
             nextToken()
 
     def name(): Token =
@@ -282,7 +282,7 @@ object Parsing:
       end while
 
       if overflow then
-        error("Integer literal overflow: " + str, stream.tokenSpan())
+        error("Integer literal overflow: " + str, stream.tokenSpan().toPos)
 
       sum
     end str2Int
@@ -321,7 +321,7 @@ object Parsing:
     def eat(expect: Token): TokenInfo =
       val item = next()
       if item.token != expect then
-        error("Unexpected token, found = " + item.token + ", expect = " + expect, item.pos)
+        error("Unexpected token, found = " + item.token + ", expect = " + expect, item.span.toPos)
       item
 
     /** Eat the next `end` if the indentation matches */
@@ -335,7 +335,7 @@ object Parsing:
 
     def checkAlign(reference: TokenInfo, item: TokenInfo): Unit =
       if !reference.indent.isSame(item.indent) then
-        warn(s"${item.token} is not aligned with ${reference.token}", item.pos)
+        warn(s"${item.token} is not aligned with ${reference.token}", item.span.toPos)
 
 
     def parse(): Prog =
@@ -375,11 +375,11 @@ object Parsing:
           eat(Token.COLON)
           typ()
         else
-          EmptyTypeTree()(id.pos)
+          EmptyTypeTree()(id.span)
 
       eat(Token.EQL)
       val rhs = phrase(mod.indent)
-      ValDef(id, tpt, rhs, mutable)(mod.pos | rhs.pos)
+      ValDef(id, tpt, rhs, mutable)(mod.span | rhs.span)
 
     def funDef(): FunDef =
       val fun = eat(Token.FUN)
@@ -391,14 +391,14 @@ object Parsing:
           eat(Token.COLON)
           typ()
         else
-          EmptyTypeTree()(id.pos)
+          EmptyTypeTree()(id.span)
 
       eat(Token.EQL)
       val body = phrase(fun.indent)
 
       eatEndOpt(fun.indent)
 
-      FunDef(id, tparams, paramList, resType, body)(fun.pos | body.pos)
+      FunDef(id, tparams, paramList, resType, body)(fun.span | body.span)
 
     def typeDef(): TypeDef =
       val typeItem = eat(Token.TYPE)
@@ -406,7 +406,7 @@ object Parsing:
       val tparams = typeParams()
       eat(Token.EQL)
       val rhs = typ()
-      TypeDef(id, tparams, rhs)(typeItem.pos | rhs.pos)
+      TypeDef(id, tparams, rhs)(typeItem.span | rhs.span)
 
     def typeParams(): List[TypeParam] =
       if peek() != Token.LBRACKET then Nil
@@ -427,9 +427,9 @@ object Parsing:
           eat(Token.SUBTYPE)
           typ()
         else
-          EmptyTypeTree()(id.pos)
+          EmptyTypeTree()(id.span)
 
-      TypeParam(id, bound)(id.pos | bound.pos)
+      TypeParam(id, bound)(id.span | bound.span)
 
     def params(): List[Param] =
       eat(Token.LPAREN)
@@ -443,7 +443,7 @@ object Parsing:
       val id = ident()
       eat(Token.COLON)
       val tpt = typ()
-      Param(id, tpt)(id.pos | tpt.pos)
+      Param(id, tpt)(id.span | tpt.span)
 
     def paramsRest(acc: mutable.ArrayBuffer[Param]): List[Param] =
       val token = peek()
@@ -459,7 +459,7 @@ object Parsing:
     def phrase(tdefs: mutable.ArrayBuffer[TypeDef], limitIndent: Indent): Phrase =
       val item = peekItem()
       if limitIndent.isUnindent(item.indent) then
-        Phrase(tdefs = Nil, words = Nil)(item.pos.point)
+        Phrase(tdefs = Nil, words = Nil)(item.span.point)
 
       else item.token match
         case Token.TYPE   =>
@@ -472,7 +472,7 @@ object Parsing:
               phraseRest(tdefs.toList, mutable.ArrayBuffer(w), limitIndent)
 
             case None    =>
-              Phrase(tdefs.toList, words = Nil)(item.pos.point)
+              Phrase(tdefs.toList, words = Nil)(item.span.point)
 
     def phraseRest(
         tdefs: List[TypeDef],
@@ -481,15 +481,15 @@ object Parsing:
       ): Phrase =
       val item = peekItem()
       if limitIndent.isUnindent(item.indent) then
-        val pos = words.head.pos | words.last.pos
-        Phrase(tdefs, words.toList)(pos)
+        val span = words.head.span | words.last.span
+        Phrase(tdefs, words.toList)(span)
       else word() match
         case Some(w) =>
           phraseRest(tdefs, words += w, limitIndent)
 
         case None =>
-          val pos = words.head.pos | words.last.pos
-          Phrase(tdefs, words.toList)(pos)
+          val span = words.head.span | words.last.span
+          Phrase(tdefs, words.toList)(span)
 
     def word(): Option[Word] =
       val item = peekItem()
@@ -520,11 +520,11 @@ object Parsing:
 
         case litToken: Token.IntLit  =>
           next()
-          Some(IntLit(litToken.value)(item.pos))
+          Some(IntLit(litToken.value)(item.span))
 
         case litToken: Token.BoolLit =>
           next()
-          Some(BoolLit(litToken.value)(item.pos))
+          Some(BoolLit(litToken.value)(item.span))
 
         case token =>
           None
@@ -536,11 +536,11 @@ object Parsing:
         case Token.RARROW =>
           next()
           val resType = typ()
-          FunctionType(tps, resType)(tps.head.pos | resType.pos)
+          FunctionType(tps, resType)(tps.head.span | resType.span)
 
         case token =>
           if tps.size > 1 then
-            error("`=>` expected, found = " + token, item.pos)
+            error("`=>` expected, found = " + token, item.span.toPos)
             tps.head
           else
             tps.head
@@ -566,9 +566,9 @@ object Parsing:
           tp
 
         case Token.RARROW   =>
-          val span = next()._2
+          val arrow = next()
           val resType = typ()
-          FunctionType(paramTypes = Nil, resType)(span | resType.pos)
+          FunctionType(paramTypes = Nil, resType)(arrow.span | resType.span)
 
         case _ =>
           val id = ident()
@@ -581,18 +581,18 @@ object Parsing:
       val lbrace = eat(Token.LBRACE)
       val fieldDecls = fields(mutable.ArrayBuffer.empty)
       val rbrace = eat(Token.RBRACE)
-      RecordType(fieldDecls)(lbrace.pos | rbrace.pos)
+      RecordType(fieldDecls)(lbrace.span | rbrace.span)
 
     def unionType(): UnionType =
       val less = eat(Token.Ident("<"))
       val branchDecls = branches(mutable.ArrayBuffer.empty)
       val big = eat(Token.Ident(">"))
-      UnionType(branchDecls)(less.pos | big.pos)
+      UnionType(branchDecls)(less.span | big.span)
 
     def appliedType(tctor: Ident): AppliedType =
       val targs = typeArgs()
-      val endPos = targs.last.pos
-      AppliedType(tctor, targs.toList)(tctor.pos | endPos)
+      val last = targs.last
+      AppliedType(tctor, targs.toList)(tctor.span | last.span)
 
     def typeArgs(): List[TypeTree] =
       eat(Token.LBRACKET)
@@ -612,7 +612,7 @@ object Parsing:
           val id = ident()
           eat(Token.COLON)
           val tp = typ()
-          val field = Field(id, tp)(id.pos | tp.pos)
+          val field = Field(id, tp)(id.span | tp.span)
           fields(acc += field)
 
     def branches(acc: mutable.ArrayBuffer[Branch]): List[Branch] =
@@ -630,23 +630,23 @@ object Parsing:
               case Token.RARROW if tps1.nonEmpty =>
                 next()
                 val resType = typ()
-                FunctionType(tps1, resType)(tps1.head.pos | resType.pos) :: Nil
+                FunctionType(tps1, resType)(tps1.head.span | resType.span) :: Nil
 
               case _ => tps1
 
-          val posEnd = if tps2.isEmpty then tag.pos else tps2.last.pos
-          val branch = Branch(tag, tps2)(tag.pos | posEnd)
+          val spanEnd = if tps2.isEmpty then tag.span else tps2.last.span
+          val branch = Branch(tag, tps2)(tag.span | spanEnd)
           branches(acc += branch)
 
     def ident(): Ident =
       val item = next()
       item.token match
         case id: Token.Ident =>
-          Ident(id.name)(item.pos)
+          Ident(id.name)(item.span)
 
         case token =>
-          error("Expect identifier, found token " + token, item.pos)
-          Ident("error")(item.pos)
+          error("Expect identifier, found token " + token, item.span.toPos)
+          Ident("error")(item.span)
 
     def lambdaOrFence(): Word =
       val token1 = peek(1)
@@ -664,7 +664,7 @@ object Parsing:
       val paramList = params()
       eat(Token.RARROW)
       val body = phrase(paren.indent)
-      Lambda(paramList, body)(paren.pos | body.pos)
+      Lambda(paramList, body)(paren.span | body.span)
 
     def fence(): Word =
       eat(Token.LPAREN)
@@ -687,11 +687,11 @@ object Parsing:
           checkAlign(ifItem, nextItem)
           phrase(nextItem.indent)
         else
-          Phrase(Nil, Nil)(thenp.pos)
+          Phrase(Nil, Nil)(thenp.span)
 
       eatEndOpt(ifItem.indent)
 
-      If(cond, thenp, elsep)(ifItem.pos | elsep.pos)
+      If(cond, thenp, elsep)(ifItem.span | elsep.span)
 
     def whileDo(): Word =
       val whileItem = eat(Token.WHILE)
@@ -701,42 +701,42 @@ object Parsing:
 
       eatEndOpt(whileItem.indent)
 
-      While(cond, body)(whileItem.pos | body.pos)
+      While(cond, body)(whileItem.span | body.span)
 
     def assign(id: Ident, limitIndent: Indent): Assign =
       eat(Token.EQL)
       val rhs = phrase(limitIndent)
-      Assign(id, rhs)(id.pos | rhs.pos)
+      Assign(id, rhs)(id.span | rhs.span)
 
     def call(): Word =
       val arrow = eat(Token.RARROW)
       word() match
         case Some(fun) =>
-          Call(fun)(arrow.pos | fun.pos)
+          Call(fun)(arrow.span | fun.span)
 
         case None =>
           val nextItem = peekItem()
-          error("Expect a function, found = " + nextItem.token, nextItem.pos)
-          Phrase(tdefs = Nil, words = Nil)(arrow.pos)
+          error("Expect a function, found = " + nextItem.token, nextItem.span.toPos)
+          Phrase(tdefs = Nil, words = Nil)(arrow.span)
 
     def select(qual: Word): Select =
       eat(Token.DOT)
       val id = ident()
-      val sel = Select(qual, id.name)(qual.pos | id.pos)
+      val sel = Select(qual, id.name)(qual.span | id.span)
       peek() match
         case Token.DOT => select(sel)
         case _ => sel
 
     def typeApply(id: Ident): TypeApply =
       val targs = typeArgs()
-      val endPos = targs.last.pos
-      TypeApply(id, targs)(id.pos | endPos)
+      val last = targs.last
+      TypeApply(id, targs)(id.span | last.span)
 
     def record(): RecordLit =
       val lbrace = eat(Token.LBRACE)
       val args = namedArgs(mutable.ArrayBuffer.empty)
       val rbrace = eat(Token.RBRACE)
-      RecordLit(args)(lbrace.pos | rbrace.pos)
+      RecordLit(args)(lbrace.span | rbrace.span)
 
     def namedArgs(acc: mutable.ArrayBuffer[NamedArg]): List[NamedArg] =
       peek() match
@@ -750,7 +750,7 @@ object Parsing:
       val id = ident()
       eat(Token.EQL)
       val arg = phrase(IndentAcceptAll)
-      NamedArg(id, arg)(id.pos | arg.pos)
+      NamedArg(id, arg)(id.span | arg.span)
 
     def variant(): Variant =
       val tagSign = eat(Token.TAG)
@@ -766,7 +766,7 @@ object Parsing:
       do ()
       eat(Token.OF)
       val tp = typ()
-      Variant(tag, words.toList, tp)(tagSign.pos | tp.pos)
+      Variant(tag, words.toList, tp)(tagSign.span | tp.span)
 
     def patmat(): Match =
       val matchItem = eat(Token.MATCH)
@@ -775,8 +775,8 @@ object Parsing:
 
       eatEndOpt(matchItem.indent)
 
-      val span2 = if caseDecls.isEmpty then scrutinee.pos else caseDecls.last.pos
-      Match(scrutinee, caseDecls)(matchItem.pos | span2)
+      val span2 = if caseDecls.isEmpty then scrutinee.span else caseDecls.last.span
+      Match(scrutinee, caseDecls)(matchItem.span | span2)
 
     def cases(acc: mutable.ArrayBuffer[(Case, TokenInfo)]): List[Case] =
       if peek() == Token.CASE then
@@ -788,7 +788,7 @@ object Parsing:
         val pat = pattern()
         eat(Token.RARROW)
         val body = phrase(caseItem.indent)
-        val caseDecl = Case(pat, body)(caseItem.pos | body.pos)
+        val caseDecl = Case(pat, body)(caseItem.span | body.span)
         cases(acc += caseDecl -> caseItem)
       else
         acc.map(_._1).toList
@@ -810,18 +810,18 @@ object Parsing:
 
              case _ =>
                val item = next()
-               error("Expect a name, found = " + item.token, item.pos)
+               error("Expect a name, found = " + item.token, item.span.toPos)
                false
          do ()
 
-         val posEnd = if bindings.isEmpty then tag.pos else bindings.last.pos
-         TagPat(tag, bindings.toList)(tagSign.pos | posEnd)
+         val spanEnd = if bindings.isEmpty then tag.span else bindings.last.span
+         TagPat(tag, bindings.toList)(tagSign.span | spanEnd)
 
        case Token.Ident("_") =>
          val item = next()
-         Wildcard()(item.pos)
+         Wildcard()(item.span)
 
        case _ =>
          val item = next()
-         error("Expect a pattern, found = " + item.token, item.pos)
-         Wildcard()(item.pos)
+         error("Expect a pattern, found = " + item.token, item.span.toPos)
+         Wildcard()(item.span)

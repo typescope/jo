@@ -27,14 +27,14 @@ extends Backend:
     *
     * Its type does not matter.
     */
-  val returnAddrSym = Symbol.createParamSymbol("return", IntType)
+  val returnAddrSym = Symbol.createParamSymbol("return", IntType, pos = null)
 
   /** Maps global symbols to addresses */
   val symbolAddrMap: mutable.Map[Symbol, Addr] = mutable.Map.from(nativeFunctions)
 
   /** The memory allocator */
   val allocatorType = ProcType("size" :: Nil, IntType :: Nil, IntType)
-  val allocatorSym = Symbol.createFunSymbol("alloc", allocatorType)
+  val allocatorSym = Symbol.createFunSymbol("alloc", allocatorType, pos = null)
   symbolAddrMap(allocatorSym) = Label(allocatorSym.name)
 
   def freshVirtualReg()(using ctx: Context): Int =

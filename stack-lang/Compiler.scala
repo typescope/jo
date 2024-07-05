@@ -54,5 +54,5 @@ def compile(args: String*) =
     IO.fileContent(sourceFile)    |>
     Parsing.parse                 |>
     new Namer().transform         |>
-    ExplicitInit.transform        |>
+    new ExplicitInit().transform  |>
     backend.compile

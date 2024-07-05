@@ -11,7 +11,7 @@ import scala.collection.mutable
   * - Augment function definitions with a list of local symbols.
   * - Remove type definitions.
   */
-object ExplicitInit:
+class ExplicitInit(using Reporter):
   def transform(prog: Prog): Prog =
     val initLocals = new mutable.ArrayBuffer[Symbol]
     val defs = new mutable.ArrayBuffer[Def]
@@ -24,10 +24,10 @@ object ExplicitInit:
 
         case vdef: ValDef =>
           val rhs = transform(vdef.rhs)(using initLocals)
-          inits += Assign(vdef.symbol, rhs)(vdef.pos)
+          inits += Assign(vdef.symbol, rhs)(vdef.span)
 
-          val empty = Phrase(words = Nil)(rhs.tpe, rhs.pos)
-          defs += ValDef(vdef.symbol, empty)(vdef.pos)
+          val empty = Phrase(words = Nil)(rhs.tpe, rhs.span)
+          defs += ValDef(vdef.symbol, empty)(vdef.span)
 
         case tdef: TypeDef =>
     end for
@@ -36,22 +36,22 @@ object ExplicitInit:
 
     // synthesize init function
     val initType = ProcType(names = Nil, paramTypes = Nil, resultType = VoidType)
-    val initSym = Symbol.createFunSymbol("<init>", initType)
-    val initPos = prog.main.pos
-    val initBody = Phrase(inits.toList)(prog.main.tpe, initPos)
+    val initSym = Symbol.createFunSymbol("<init>", initType, prog.main.pos)
+    val initSpan = prog.main.span
+    val initBody = Phrase(inits.toList)(prog.main.tpe, initSpan)
     val initTypeParams = Nil
     val initParams = Nil
-    val initFun = FunDef(initSym, initTypeParams, initParams, initLocals.toList, initBody)(initPos)
+    val initFun = FunDef(initSym, initTypeParams, initParams, initLocals.toList, initBody)(initSpan)
 
     defs += initFun
-    Prog(defs.toList, Ident(initSym)(initPos))
+    Prog(defs.toList, Ident(initSym)(initSpan))
 
   type LocalsInfo = mutable.ArrayBuffer[Symbol]
 
   def transform(fun: FunDef): FunDef =
     val locals = new mutable.ArrayBuffer[Symbol]
     val body = transform(fun.body)(using locals)
-    fun.copy(locals = locals.toList, body = body)(fun.pos)
+    fun.copy(locals = locals.toList, body = body)(fun.span)
 
   def transform(word: Word)(using info: LocalsInfo): Word =
     word match
@@ -59,32 +59,32 @@ object ExplicitInit:
         word
 
       case Select(qual, name) =>
-        Select(transform(qual), name)(word.tpe, word.pos)
+        Select(transform(qual), name)(word.tpe, word.span)
 
       case RecordLit(fields) =>
         val fields2 = fields.map:
           case (f, rhs) => f -> transform(rhs)
 
-        RecordLit(fields2)(word.tpe, word.pos)
+        RecordLit(fields2)(word.tpe, word.span)
 
       case Encoded(repr) =>
         Encoded(transform(repr))(word.tpe)
 
       case Assign(sym, rhs) =>
-        Assign(sym, transform(rhs))(word.pos)
+        Assign(sym, transform(rhs))(word.span)
 
       case ValDef(sym, rhs) =>
         info += sym
-        Assign(sym, transform(rhs))(word.pos)
+        Assign(sym, transform(rhs))(word.span)
 
       case fdef : FunDef =>
         transform(fdef)
 
       case If(cond, thenp, elsep) =>
-        If(transform(cond), transform(thenp), transform(elsep))(word.tpe, word.pos)
+        If(transform(cond), transform(thenp), transform(elsep))(word.tpe, word.span)
 
       case While(cond, body) =>
-        While(transform(cond), transform(body))(word.pos)
+        While(transform(cond), transform(body))(word.span)
 
       case Phrase(words) =>
-        Phrase(words.map(transform))(word.tpe, word.pos)
+        Phrase(words.map(transform))(word.tpe, word.span)

@@ -1,4 +1,5 @@
 import Types.*
+import Reporter.SourcePosition
 
 import scala.collection.mutable
 
@@ -13,55 +14,53 @@ object Symbols:
     case Completing(current: Type)
     case Completed(cache: Type)
 
+  abstract class CompletionHandler:
+    def complete(sym: Symbol, infoCompleter: InfoCompleter): Type
+
   /** The result should not be cached by the symbol.
     *
     * Fix-point computation may call the info completer multiple times. Caching
     * of the result is performed by the info completer.
     */
-  abstract class InfoCompleter:
-    protected var state = InfoState.Incomplete
+  abstract class InfoCompleter(handler: CompletionHandler):
+    private var state = InfoState.Incomplete
 
-    /** The implementation should check whether state is completing.
-      *
-      * - if state is completing, return the type in the completing state.
-      * - if state is incomplete, set state to Completing and start completing.
+    /** The implementation should first set state of completing
       *
       * If a info completer is sure no cycles will occur, e.g., in the case of
       * fully specified type, it may directly set the state to completed.
+      *
+      * This method should only be called by completion handler. The using
+      * parameter is supplied only as a protection against accidentally calling
+      * `doComplete`.
       */
-    protected def complete(): Type
+    def doComplete()(using CompletionHandler): Type
 
-    def result: Type =
+    def complete(tp: Type): Unit =
+      state = InfoState.Completed(tp)
+
+    def completing(tp: Type): Unit =
+      assert(state != InfoState.Completed, "monotonicity violated")
+      state = InfoState.Completing(tp)
+
+    def currentState: InfoState = state
+
+    def result(sym: Symbol): Type =
       state match
-        case InfoState.Incomplete          => compute()
+        case InfoState.Incomplete          => handler.complete(sym, this)
         case InfoState.Completing(current) => current
         case InfoState.Completed(cache)    => cache
 
-    def compute(): Type =
-      val res = complete()
+  final class Symbol(
+    val name: String,
+    infoOrCompleter: Type | InfoCompleter,
+    flags: Flags,
+    val sourcePos: SourcePosition):
 
-      state match
-        case InfoState.Completing(prev) =>
-          if Subtyping.conforms(res, prev) then
-            // Due to monotonicity, prev <: res, now res <: prev,
-            // thus fix-point is reached
-            state = InfoState.Completed(res)
-            res
-          else
-            // update cache, run another iteration
-            state = InfoState.Completing(res)
-            compute()
-
-        case InfoState.Completed(tp) => tp
-
-        case InfoState.Incomplete =>
-          throw new Exception("Completer does not change state")
-
-  final class Symbol(val name: String, infoOrCompleter: Type | InfoCompleter, flags: Flags):
     def info: Type =
       infoOrCompleter match
         case tp: Type => tp
-        case completer: InfoCompleter => completer.result
+        case completer: InfoCompleter => completer.result(this)
 
     def isPrimitive: Boolean = flags.is(Flag.Prim)
     def isFunction : Boolean = flags.is(Flag.Fun)
@@ -74,20 +73,20 @@ object Symbols:
     override def toString() = name
 
   object Symbol:
-    def createValueSymbol(name: String, tp: Type | InfoCompleter) =
-      new Symbol(name, tp, Flag.Val)
+    def createValueSymbol(name: String, tp: Type | InfoCompleter, pos: SourcePosition) =
+      new Symbol(name, tp, Flag.Val, pos)
 
-    def createValueSymbol(name: String, tp: Type | InfoCompleter, flags: Flags) =
-      new Symbol(name, tp, Flag.Val | flags)
+    def createValueSymbol(name: String, tp: Type | InfoCompleter, flags: Flags, pos: SourcePosition) =
+      new Symbol(name, tp, Flag.Val | flags, pos)
 
-    def createFunSymbol(name: String, info: Type | InfoCompleter) =
-      new Symbol(name, info, Flag.Fun)
+    def createFunSymbol(name: String, info: Type | InfoCompleter, pos: SourcePosition) =
+      new Symbol(name, info, Flag.Fun, pos)
 
-    def createTypeSymbol(name: String, info: Type) =
-      new Symbol(name, info, Flag.Type)
+    def createTypeSymbol(name: String, info: Type, pos: SourcePosition) =
+      new Symbol(name, info, Flag.Type, pos)
 
-    def createParamSymbol(name: String, tp: Type) =
-      new Symbol(name, tp, Flag.Param | Flag.Val | Flag.Local)
+    def createParamSymbol(name: String, tp: Type, pos: SourcePosition) =
+      new Symbol(name, tp, Flag.Param | Flag.Val | Flag.Local, pos)
 
   type Flag  = Flag.Flag
   type Flags = Flag.Flags
@@ -121,7 +120,7 @@ object Symbols:
     private val symbols: mutable.ArrayBuffer[Symbol] = new mutable.ArrayBuffer
 
     private def createPrimSymbol(name: String, tp: Type): Symbol =
-      val sym = new Symbol(name, tp, Flag.Prim)
+      val sym = new Symbol(name, tp, Flag.Prim, sourcePos = null)
       symbols += sym
       sym
 
@@ -160,13 +159,13 @@ object Symbols:
     val bnot   =  createPrimSymbol("not", typeNot)
     val p      =  createPrimSymbol("p",   typePrint)
 
-    val Int    =  new Symbol("Int",  IntType,  Flag.Prim | Flag.Type)
-    val Bool   =  new Symbol("Bool", BoolType, Flag.Prim | Flag.Type)
-    val Void   =  new Symbol("Void", VoidType, Flag.Prim | Flag.Type)
+    val Int    =  new Symbol("Int",  IntType,  Flag.Prim | Flag.Type, sourcePos = null)
+    val Bool   =  new Symbol("Bool", BoolType, Flag.Prim | Flag.Type, sourcePos = null)
+    val Void   =  new Symbol("Void", VoidType, Flag.Prim | Flag.Type, sourcePos = null)
 
     val allSymbols: List[Symbol] = symbols.toList
   end predef
 
   object runtime:
     private val abortType = ProcType("n" :: Nil, IntType :: Nil, BottomType)
-    val abort = new Symbol("abort", abortType, Flag.Prim)
+    val abort = new Symbol("abort", abortType, Flag.Prim, sourcePos = null)
