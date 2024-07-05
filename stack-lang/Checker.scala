@@ -32,8 +32,11 @@ class Checker(@constructorOnly reporter: Reporter):
 
   def check(word: Word)(using vs: ValueStack, rp: Reporter): Unit =
     word match
-      case _: IntLit | _: BoolLit | _: RecordLit | _: Select | _: Encoded | _: Phrase =>
+      case _: IntLit | _: BoolLit | _: RecordLit | _: Select | _: Encoded =>
         vs.push(word.tpe)
+
+      case _: Phrase =>
+        if word.tpe.isValueType then vs.push(word.tpe)
 
       case _: Assign =>
         vs.expectEmpty("No result expected before assignment", word.span)
