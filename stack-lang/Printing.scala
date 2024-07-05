@@ -2,10 +2,13 @@ import scala.collection.immutable.Vector
 
 import Sast.*
 import Types.Type
+import Symbols.Symbol
 
 object Printing:
 
   def show(word: Word): String = showWord(word).toString
+
+  def show(prog: Prog): String = showProg(prog).toString
 
   //----------------------------------------------------------------------------
 
@@ -82,6 +85,8 @@ object Printing:
 
   given typeTextMaker: TextMaker[Type] = v => Text(v.show)
 
+  given symbolTextMaker: TextMaker[Symbol] = v => Text(v.name)
+
   extension [T](t: T)(using TextMaker[T])
     def ~[S](s: S)(using TextMaker[S]): Text =
       Text(t) ~ Text(s)
@@ -111,20 +116,24 @@ object Printing:
 
   // implementation
 
-  def show(prog: Prog): Text =
+  def showProg(prog: Prog): Text =
     rep(prog.defs, Text.BlankLine) ~ showWord(prog.main)
 
   def showDef(defn: Def): Text =
     defn match
       case ValDef(sym, rhs) =>
         val mod = if sym.isMutable then "var" else "val"
-        mod ~ " " ~ sym.name ~ " = " ~ rhs
+        mod ~ " " ~ sym.name ~ " = " ~ rhs ~ Text.BreakLine
 
       case fdef: FunDef =>
         val tparams = fdef.tparams.map(sym => sym.name + " " + sym.info.show)
         val tparamStr = if tparams.isEmpty then "" else tparams.mkString("[", ", ", "]")
         val params = fdef.params.map(sym => sym.name + ": " + sym.info.show)
         val resType = TypeOps.finalResultType(fdef.symbol.info)
+        val locals = rep(fdef.locals, Text(", "))
+        val captures = rep(fdef.captures, Text(", "))
+        "@locals(" ~ locals ~ ")" ~ Text.BreakLine ~
+        "@captures(" ~ captures ~ ")" ~ Text.BreakLine ~
         "fun " ~ fdef.name ~ " " ~ tparamStr ~ params.mkString("(", ", ", "): ") ~ resType.show ~ " ="
         ~ indent(Text(fdef.body))
 
@@ -160,7 +169,7 @@ object Printing:
         "=> " ~ fun
 
       case Assign(sym, rhs) =>
-        Text.BreakLine ~ sym.name ~ " = " ~ rhs
+        Text.BreakLine ~ sym.name ~ " = " ~ rhs ~ Text.BreakLine
 
       case vdef: ValDef =>
         showDef(vdef)
@@ -182,6 +191,6 @@ object Printing:
         if words.size == 1 then
           showWord(words.head)
         else if words.size > 1 then
-          "(" ~ rep(words, Text(", ")) ~ ")"
+          rep(words, Text(" "))
         else
           Text.Empty

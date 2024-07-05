@@ -42,7 +42,7 @@ class ExplicitInit(using Reporter):
     val initSpan = prog.main.span
     val initBody = Phrase(inits.toList)(prog.main.tpe, initSpan)
 
-    val initLocals = initNamesInfo.free.distinct.toList
+    val initLocals = initNamesInfo.locals.distinct.toList
     val initCaptures =
       initNamesInfo.free.filter(!initLocals.contains(_)).distinct.toList
 

@@ -43,4 +43,4 @@ object SastOps:
           While(this(cond), this(body))(word.span)
 
         case Phrase(words) =>
-          Phrase(words.map(this.recur))(word.tpe, word.span)
+          Phrase(words.map(this.apply))(word.tpe, word.span)

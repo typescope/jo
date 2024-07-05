@@ -249,7 +249,8 @@ object Interpreter:
  ***********************************************************************/
 @main
 def eval(file: String) = Reporter.monitor(file):
-  IO.fileContent(file)    |>
-  Parsing.parse           |>
-  Namer.transform         |>
+  IO.fileContent(file)        |>
+  Parsing.parse               |>
+  Namer.transform             |>
+  Debug.peek(enable = false)  |>
   Interpreter.exec

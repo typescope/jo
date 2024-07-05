@@ -53,4 +53,5 @@ def compile(args: String*) =
     Parsing.parse                 |>
     Namer.transform               |>
     new ExplicitInit().transform  |>
+    Debug.peek(enable = false)    |>
     backend.compile

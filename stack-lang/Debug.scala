@@ -39,6 +39,10 @@ object Debug:
   extension [T](inline v: T)
     inline def <|(msg: => String, inline enable: Boolean): T = measure(msg, enable)(v)
 
+  def peek(enable: Boolean): Sast.Prog => Sast.Prog = prog =>
+    if enable then println(Printing.show(prog))
+    prog
+
   def displayPrompt(reader: BufferedReader = Console.in, writer: PrintWriter = PrintWriter(Console.err, true)): Unit =
     writer.println()
     writer.print("a)bort, s)tack, r)esume: ")
