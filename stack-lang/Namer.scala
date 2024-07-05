@@ -441,8 +441,10 @@ class Namer(@constructorOnly reporter: Reporter):
       if !funDef.resType.isEmpty then
         checker.checkType(bodyTyped, givenResultType)
 
-      val locals = Nil
-      FunDef(sym, tparamSyms.toList, paramSyms.toList, locals, bodyTyped)(funDef.span)
+      FunDef(
+        sym, tparamSyms.toList, paramSyms.toList, bodyTyped)(
+        locals = Nil, captures = Nil, funDef.span
+      )
 
     DelayedTask(sym, typer)
 

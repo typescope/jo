@@ -174,11 +174,11 @@ object Interpreter:
 
       case Action.Prim(fun) => fun(vs)
 
-      case Action.Fun(FunDef(_, _, params, locals, body), sc2) =>
+      case Action.Fun(fdef @ FunDef(_, _, params, body), sc2) =>
         val funScope = new Scope.NestedScope(sc2)
         for param <- params.reverse do
           funScope.bind(param, vs.pop())
-        for param <- locals do
+        for param <- fdef.locals do
           funScope.bind(param, Uninit)
         exec(body)(using vs, funScope)
 
