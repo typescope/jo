@@ -68,7 +68,12 @@ object SastOps:
           show(body) + "\n"
 
       case Phrase(words) =>
-        words.map(show).mkString("(", " ", "}")
+        if words.size == 1 then
+          show(words.head)
+        else if words.size > 1 then
+          words.map(show).mkString("{", " ", "}")
+        else
+          ""
 
   trait TreeMap:
     type Context

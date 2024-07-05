@@ -26,6 +26,8 @@ class ValueStack:
 
   def push(v: Value): Unit = stack.append(v)
 
+  def show: String = stack.toString
+
 sealed abstract class Denotation
 
 enum Value extends Denotation:
@@ -169,7 +171,7 @@ object Interpreter:
       funScope.bind(param, Uninit)
     exec(fdef.body)(using vs, funScope)
 
-  def exec(word: Word)(using vs: ValueStack, sc: Scope): Unit =
+  def exec(word: Word)(using vs: ValueStack, sc: Scope): Unit = Debug.trace(SastOps.show(word) + ", stack = " + vs.show, enable = false):
     word match
       case IntLit(v)  => vs.push(Value.IntVal(v))
 
@@ -214,7 +216,7 @@ object Interpreter:
 
           case fval @ Value.FunVal(fdef, sc2) =>
             if sym.isFunction then
-              exec(fdef)(using vs, sc2)
+              call(fdef)(using vs, sc2)
             else
               vs.push(fval)
 
