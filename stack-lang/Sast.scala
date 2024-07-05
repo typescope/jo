@@ -79,6 +79,12 @@ object Sast:
     (val tpe: Type, val span: Span)
   extends Word
 
+  case class Call
+    (word: Word)
+    (val span: Span)
+  extends Word:
+    def tpe: Type = word.tpe
+
   /** Encode of a type with another type */
   case class Encoded
     (repr: Word)

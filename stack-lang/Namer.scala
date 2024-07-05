@@ -112,9 +112,7 @@ class Namer(@constructorOnly reporter: Reporter):
         Assign(sym, rhs)(word.span)
 
       case Ast.Call(word) =>
-        transform(word)
-        // TODO: introduce Sast
-        ???
+        Call(transform(word))(word.span)
 
       case record: Ast.RecordLit =>
         transform(record)

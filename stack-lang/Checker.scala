@@ -32,7 +32,7 @@ class Checker(@constructorOnly reporter: Reporter):
 
   def check(word: Word)(using vs: ValueStack, rp: Reporter): Unit =
     word match
-      case _: IntLit | _: BoolLit | _: RecordLit | _: Select | _: Encoded =>
+      case _: IntLit | _: BoolLit | _: RecordLit | _: Select | _: Encoded | _: Phrase =>
         vs.push(word.tpe)
 
       case _: Assign =>
@@ -49,6 +49,13 @@ class Checker(@constructorOnly reporter: Reporter):
       case While(cond, body) =>
         vs.expectEmpty("No result expected before while loop", word.span)
 
+      case Call(word) =>
+        val tp = word.tpe
+        if tp.isFunctionType then
+          vs.call(tp.asFunctionType, word.span)
+        else
+          Reporter.error(s"Function type expected, found = ${tp.show}", word.pos)
+
       case Ident(sym) =>
         // The type of the symbol can be different after type erasure
         val info = word.tpe
@@ -64,9 +71,6 @@ class Checker(@constructorOnly reporter: Reporter):
 
       case FunRef(sym) =>
         vs.push(word.tpe)
-
-      case Phrase(words) =>
-        check(words)
 
   def check(words: List[Word])(using ValueStack, Reporter): Unit =
     for word <- words do check(word)
@@ -197,13 +201,19 @@ object Checker:
         setError()
 
     def call(fun: Symbol, tp: ProcType, span: Span)(using Reporter): Unit =
-      if isError then return
+      val ProcType(_, paramTypes, resType) = tp
+      call(paramTypes, resType, span)
 
-      val ProcType(names, paramTypes, resType) = tp
+    def call(tp: FunctionType, span: Span)(using Reporter): Unit =
+      val FunctionType(paramTypes, resType) = tp
+      call(paramTypes, resType, span)
+
+    def call(paramTypes: List[Type], resType: Type, span: Span)(using Reporter): Unit =
+      if isError then return
 
       if this.size < paramTypes.size then
         Reporter.error(
-          s"Function $fun expects ${paramTypes.size} arguments, found = $size",
+          s"Function expects ${paramTypes.size} arguments, found = $size",
           span.toPos)
         setError()
       else
@@ -216,7 +226,7 @@ object Checker:
           val expect = paramTypes.map(_.show).mkString("(", ", ", ")")
           val actual = argTypes.map(_.show).mkString("(", ", ", ")")
           Reporter.error(
-            s"Function $fun expects arguments $expect, found = $actual",
+            s"Function expects arguments $expect, found = $actual",
             span.toPos)
           setError()
         end if

@@ -32,12 +32,9 @@ enum Value extends Denotation:
   case IntVal(value: Int)
   case BoolVal(value: Boolean)
   case RecordVal(fields: Map[String, Value])
+  case FunVal(fun: Sast.FunDef, scope: Scope)
 
 object Uninit extends Denotation
-
-enum Action extends Denotation:
-  case Fun(fun: Sast.FunDef, scope: Scope)
-  case Prim(fun: ValueStack => Unit)
 
 enum Scope:
   case RootScope()
@@ -146,12 +143,9 @@ object Interpreter:
   def exec(prog: Prog): Unit =
     val rootScope = new Scope.RootScope()
 
-    for (k, v) <- Primitive.operators do
-      rootScope.bind(k, Action.Prim(v))
-
     val sc = new Scope.NestedScope(rootScope)
     for fun <- prog.funs do
-      sc.bind(fun.symbol, Action.Fun(fun, sc))
+      sc.bind(fun.symbol, Value.FunVal(fun, sc))
 
     val vs = new ValueStack
     for ValDef(sym, rhs) <- prog.vals do
@@ -163,24 +157,13 @@ object Interpreter:
   def exec(phrase: Phrase)(using ValueStack, Scope): Unit =
     for word <- phrase.words do exec(word)
 
-  def exec(sym: Symbol)(using vs: ValueStack, sc: Scope): Unit =
-    val Some(denot) = sc.resolve(sym): @unchecked
-    denot match
-      case value: Value =>
-        vs.push(value)
-
-      case Uninit =>
-        err("Accessing uninitialized variable " + sym)
-
-      case Action.Prim(fun) => fun(vs)
-
-      case Action.Fun(fdef @ FunDef(_, _, params, body), sc2) =>
-        val funScope = new Scope.NestedScope(sc2)
-        for param <- params.reverse do
-          funScope.bind(param, vs.pop())
-        for param <- fdef.locals do
-          funScope.bind(param, Uninit)
-        exec(body)(using vs, funScope)
+  def call(fdef: FunDef)(using vs: ValueStack, sc: Scope): Unit =
+    val funScope = new Scope.NestedScope(sc)
+    for param <- fdef.params.reverse do
+      funScope.bind(param, vs.pop())
+    for param <- fdef.locals do
+      funScope.bind(param, Uninit)
+    exec(fdef.body)(using vs, funScope)
 
   def exec(word: Word)(using vs: ValueStack, sc: Scope): Unit =
     word match
@@ -222,11 +205,37 @@ object Interpreter:
         exec(phrase)
 
       case Ident(sym) =>
-        exec(sym)
+        if sym.isPrimitive then
+          Primitive.operators(sym)(vs)
+
+        else if sym.isFunction then
+          val Some(Value.FunVal(fdef, sc2)) = sc.resolve(sym): @unchecked
+          exec(fdef)(using vs, sc2)
+
+        else
+          val Some(denot) = sc.resolve(sym): @unchecked
+          denot match
+            case Uninit =>
+              err("Accessing uninitialized variable " + sym)
+
+            case value: Value =>
+              vs.push(value)
 
       case ValDef(sym, rhs) =>
         exec(rhs)
         sc.bind(sym, vs.pop())
+
+      case Call(word) =>
+        exec(word)
+        val Value.FunVal(fdef, sc2) = vs.pop(): @unchecked
+        call(fdef)(using vs, sc2)
+
+      case fdef: FunDef =>
+        sc.bind(fdef.symbol, Value.FunVal(fdef, sc))
+
+      case FunRef(sym) =>
+        val Some(funVal: Value.FunVal) = sc.resolve(sym): @unchecked
+        vs.push(funVal)
 
 /***********************************************************************
  *
