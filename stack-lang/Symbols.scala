@@ -39,10 +39,11 @@ object Symbols:
     def isPrimitive: Boolean = flags.is(Flag.Prim)
     def isFunction : Boolean = flags.is(Flag.Fun)
     def isValue    : Boolean = flags.is(Flag.Val)
-    def isParameter: Boolean = flags.is(Flag.Param)
-    def isLocal    : Boolean = flags.is(Flag.Local)
-    def isMutable  : Boolean = flags.is(Flag.Mutable)
     def isType     : Boolean = flags.is(Flag.Type)
+    def isParameter: Boolean = flags.isAllOf(Flag.Val | Flag.Param)
+    def isLocal    : Boolean = flags.isAllOf(Flag.Val | Flag.Local)
+    def isMutable  : Boolean = flags.isAllOf(Flag.Val | Flag.Mutable)
+    def isAnon     : Boolean = flags.isAllOf(Flag.Fun | Flag.Anon)
 
     override def toString() = name
 
@@ -72,10 +73,15 @@ object Symbols:
     val Prim    : Flag = 1
     val Fun     : Flag = 1 << 1
     val Val     : Flag = 1 << 2
-    val Param   : Flag = 1 << 3
-    val Local   : Flag = 1 << 4
-    val Mutable : Flag = 1 << 5
-    val Type    : Flag = 1 << 6
+    val Type    : Flag = 1 << 3
+
+    // val flags
+    val Param   : Flag = 1 << 4
+    val Local   : Flag = 1 << 5
+    val Mutable : Flag = 1 << 7
+
+    // fun flags
+    val Anon    : Flag = 1 << 4
 
     val empty : Flags = 0
 
@@ -85,8 +91,14 @@ object Symbols:
       def isOneOf(flag: Flag, flags: Flag*) =
         (fs & flag) > 0 || flags.exists(flag => (flag & fs) > 0)
 
+      def isOneOf(flags: Flags) =
+        (fs & flags) > 0
+
       def isAllOf(flag: Flag, flags: Flag*) =
         (fs & flag) > 0 && flags.forall(flag => (flag & fs) > 0)
+
+      def isAllOf(flags: Flags) =
+        (fs & flags) == flags
 
       def |(fs2: Flags): Flags = fs | fs2
 

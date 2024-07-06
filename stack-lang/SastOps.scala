@@ -6,6 +6,21 @@ object SastOps:
 
     def apply(word: Word)(using Context): Word
 
+    def recurValDef(vdef: ValDef)(using Context): ValDef =
+      ValDef(vdef.symbol, this(vdef.rhs))(vdef.span)
+
+    def recurFunDef(fdef: FunDef)(using Context): FunDef =
+      val body = this(fdef.body)
+      fdef.copy(body = body)(fdef.locals, fdef.captures, fdef.span)
+
+    def recurTypeDef(tdef: TypeDef)(using Context): TypeDef = tdef
+
+    def recur(defn: Def)(using Context): Def =
+      defn match
+        case vdef: ValDef => recurValDef(vdef)
+        case fdef: FunDef => recurFunDef(fdef)
+        case tdef: TypeDef => recurTypeDef(tdef)
+
     def recur(word: Word)(using Context): Word =
       word match
         case _: IntLit | _: BoolLit | _: Ident | _: FunRef =>
@@ -29,12 +44,11 @@ object SastOps:
         case Assign(sym, rhs) =>
           Assign(sym, this(rhs))(word.span)
 
-        case ValDef(sym, rhs) =>
-          Assign(sym, this(rhs))(word.span)
+        case vdef: ValDef =>
+          recur(vdef)
 
         case fdef: FunDef =>
-          val body = this(fdef.body)
-          fdef.copy(body = body)(fdef.locals, fdef.captures, fdef.span)
+          recur(fdef)
 
         case If(cond, thenp, elsep) =>
           If(this(cond), this(thenp), this(elsep))(word.tpe, word.span)
