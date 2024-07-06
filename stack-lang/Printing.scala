@@ -24,12 +24,12 @@ object Printing:
 
     def ~(that: Text): Text =
       (this, that) match
-      case (Text.Empty, _) => that
-      case (_, Text.Empty) => this
-      case (Group(parts1), Group(parts2)) => Group(parts1 ++ parts2)
-      case (Group(parts1), _) => Group(parts1 :+ that)
-      case (_, Group(parts2)) => Group(this +: parts2)
-      case _ => Group(Vector(this, that))
+        case (Text.Empty, _) => that
+        case (_, Text.Empty) => this
+        case (Group(parts1), Group(parts2)) => Group(parts1 ++ parts2)
+        case (Group(parts1), _) => Group(parts1 :+ that)
+        case (_, Group(parts2)) => Group(this +: parts2)
+        case _ => Group(Vector(this, that))
 
     def ~[T](that: T)(using TextMaker[T]): Text =
       this ~ Text(that)
@@ -91,17 +91,6 @@ object Printing:
     def ~[S](s: S)(using TextMaker[S]): Text =
       Text(t) ~ Text(s)
 
-    // TODO: why the method above is not enough? Seems to be a compiler bug.
-    def ~(s: String): Text =
-      Text(t) ~ Text(s)
-
-    def ~(s: Word): Text =
-      Text(t) ~ Text(s)
-
-    def ~(s: Text): Text =
-      Text(t) ~ s
-  end extension
-
   def indent(text: Text): Text = Text.Indent(text)
 
   def rep[T](list: List[T], separator: String)(using TextMaker[T]): Text =
@@ -123,14 +112,14 @@ object Printing:
     defn match
       case ValDef(sym, rhs) =>
         val mod = if sym.isMutable then "var" else "val"
-        mod ~ " " ~ sym.name ~ " = " ~ rhs ~ Text.BreakLine
+        mod ~ " " ~ sym.name ~ ": " ~ sym.info ~ " = " ~ rhs ~ Text.BreakLine
 
       case fdef: FunDef =>
         val tparams = fdef.tparams.map(sym => sym.name + " " + sym.info.show)
         val tparamStr = if tparams.isEmpty then "" else tparams.mkString("[", ", ", "]")
         val params = fdef.params.map(sym => sym.name + ": " + sym.info.show)
         val resType = TypeOps.finalResultType(fdef.symbol.info)
-        val locals = rep(fdef.locals, Text(", "))
+        val locals = rep(fdef.locals.map(sym => sym ~ ": " ~ sym.info), Text(", "))
         val captures = rep(fdef.captures, Text(", "))
         "@locals(" ~ locals ~ ")" ~ Text.BreakLine ~
         "@captures(" ~ captures ~ ")" ~ Text.BreakLine ~
