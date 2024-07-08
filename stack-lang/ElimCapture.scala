@@ -26,7 +26,7 @@ object ElimCapture:
       yield treeMap.recur(defn)(using ctx.withOwner(defn.symbol))
 
     val main = treeMap.apply(prog.main)
-    Prog(defns, main)
+    Prog(defns ++ ctx.lifted.toList, main)
 
   /** Compute the transitive capture of locals
     *
@@ -108,22 +108,23 @@ object ElimCapture:
       val owners: List[Symbol],                 // symbols of enclosing functions
       val funInfos: Map[Symbol, FunInfo],       // rewiring of funs and locals
       val rewiring: Map[Symbol, Symbol],        // rewiring of funs and locals
-      val captures: Map[Symbol, List[Symbol]]   // captured locals in a function
+      val captures: Map[Symbol, List[Symbol]],  // captured locals in a function
+      val lifted: mutable.ArrayBuffer[FunDef]   // lifted funs
     ):
 
-    def this() = this(Nil, Map.empty, Map.empty, Map.empty)
+    def this() = this(Nil, Map.empty, Map.empty, Map.empty, new mutable.ArrayBuffer)
 
     def withFun(fdef: FunDef): Context =
-      new Context(owners, funInfos, rewiring, captures.updated(fdef.symbol, fdef.captures))
+      new Context(owners, funInfos, rewiring, captures.updated(fdef.symbol, fdef.captures), lifted)
 
     def withRewire(from: Symbol, to: Symbol): Context =
-      new Context(owners, funInfos, rewiring.updated(from, to), captures)
+      new Context(owners, funInfos, rewiring.updated(from, to), captures, lifted)
 
     def withFunInfo(fun: Symbol, info: FunInfo): Context =
-      new Context(owners, funInfos.updated(fun, info), rewiring, captures)
+      new Context(owners, funInfos.updated(fun, info), rewiring, captures, lifted)
 
     def withOwner(fun: Symbol): Context =
-      new Context(fun :: owners, funInfos, rewiring, captures)
+      new Context(fun :: owners, funInfos, rewiring, captures, lifted)
 
     def flatName(fun: Symbol): String =
       assert(owners.nonEmpty, fun.name)
@@ -155,7 +156,7 @@ object ElimCapture:
       * - named local functions do not need wrapper
       * - capture of type parameters (closure conversion after erasure?)
       */
-    def transform(fdef: FunDef)(using ctx: Context): FunDef =
+    def transform(fdef: FunDef)(using ctx: Context): Word =
       val FunInfo(funSym, captures) = ctx.funInfos(fdef.symbol)
 
       val bodyItems = new mutable.ArrayBuffer[Word]
@@ -174,7 +175,11 @@ object ElimCapture:
 
       bodyItems += this(fdef.body)(using ctx2.withOwner(fdef.symbol))
       val body = Phrase(bodyItems.toList)(fdef.body.tpe, fdef.body.span)
-      FunDef(funSym, fdef.tparams, fdef.params :+ envSym, body)(locals = locals.toList, captures = Nil, fdef.span)
+
+      ctx.lifted += FunDef(funSym, fdef.tparams, fdef.params :+ envSym, body)
+                          (locals = locals.toList, captures = Nil, fdef.span)
+
+      Phrase(words = Nil)(VoidType, fdef.span)
 
     def apply(word: Word)(using ctx: Context): Word = Debug.trace(Printing.show(word) + ", ctx = " + ctx.show, (_: Word) => "", enable = false):
       word match
@@ -200,7 +205,7 @@ object ElimCapture:
           Encoded(closure)(word.tpe)
 
         case fdef: FunDef =>
-          if fdef.symbol.isLocal  then transform(fdef)
+          if ctx.owners.nonEmpty then transform(fdef)
           else recur(fdef)(using ctx.withOwner(fdef.symbol))
 
         case Phrase(words) =>
