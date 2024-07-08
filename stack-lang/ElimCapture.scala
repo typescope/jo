@@ -15,11 +15,15 @@ import Reporter.Span
 object ElimCapture:
   val treeMap = new ClosureTreeMap
 
+  val EnvParamName = "$env"
+  val EnvFieldName = "env"
+  val FunFieldName = "fun"
+
   def transform(prog: Prog): Prog =
-    given Context = new Context
+    given ctx: Context = new Context
     val defns =
       for defn <- prog.defs
-      yield treeMap.recur(defn)
+      yield treeMap.recur(defn)(using ctx.withOwner(defn.symbol))
 
     val main = treeMap.apply(prog.main)
     Prog(defns, main)
@@ -62,7 +66,7 @@ object ElimCapture:
     all.toList
   end transitiveCapture
 
-  def makeWrapperSymbols(fdef: FunDef)(using Context): WrapperInfo =
+  def makeFunInfo(fdef: FunDef)(using ctx: Context): FunInfo =
     val captures = transitiveCapture(fdef.symbol)
     // Cannot have same names in the symbol --- they must be the same symbol
 
@@ -72,18 +76,15 @@ object ElimCapture:
     val resType = TypeOps.finalResultType(fdef.symbol.info)
 
     val envType = RecordType(captures.map(sym => sym.name -> sym.info))
-    val envSym = Symbol.createValueSymbol("env", envType, Flag.Local, fdef.symbol.sourcePos)
-
-    var funType: Type = ProcType(paramNames :+ envSym.name, paramTypes :+ envType, resType)
+    var funType: Type = ProcType(paramNames :+ EnvParamName, paramTypes :+ envType, resType)
     if tparamBounds.nonEmpty then
       funType = PolyType(fdef.tparams.map(_.name), tparamBounds, funType)
 
-    val funSym = Symbol.createFunSymbol(fdef.name + "$cc", funType, fdef.symbol.sourcePos)
-    WrapperInfo(funSym, envSym)
+    val funName = ctx.flatName(fdef.symbol)
+    val funSym = Symbol.createFunSymbol(funName, funType, fdef.symbol.sourcePos)
+    FunInfo(funSym, captures)
 
-  def createEnvRecord(fun: Symbol, span: Span)(using Context): RecordLit =
-    val captures = transitiveCapture(fun)
-    // create env record
+  def createEnvRecord(fun: Symbol, captures: List[Symbol], span: Span)(using Context): RecordLit =
     val fields =
       for capture <- captures
       yield capture.name -> Ident(capture)(span)
@@ -96,23 +97,37 @@ object ElimCapture:
 
     RecordLit(fields)(envType, span)
 
-  case class WrapperInfo(funSym: Symbol, envSym: Symbol)
+  /** The information about a function during the transformation
+    *
+    * @param funSym   the symbol for the function after transform
+    * @param captures the transitive captures of the function
+    */
+  case class FunInfo(funSym: Symbol, captures: List[Symbol])
+
   class Context(
-      val wrappers: Map[Symbol, WrapperInfo],   // rewiring of funs and locals
+      val owners: List[Symbol],                 // symbols of enclosing functions
+      val funInfos: Map[Symbol, FunInfo],       // rewiring of funs and locals
       val rewiring: Map[Symbol, Symbol],        // rewiring of funs and locals
       val captures: Map[Symbol, List[Symbol]]   // captured locals in a function
     ):
 
-    def this() = this(Map.empty, Map.empty, Map.empty)
+    def this() = this(Nil, Map.empty, Map.empty, Map.empty)
 
     def withFun(fdef: FunDef): Context =
-      new Context(wrappers, rewiring, captures.updated(fdef.symbol, fdef.captures))
+      new Context(owners, funInfos, rewiring, captures.updated(fdef.symbol, fdef.captures))
 
     def withRewire(from: Symbol, to: Symbol): Context =
-      new Context(wrappers, rewiring.updated(from, to), captures)
+      new Context(owners, funInfos, rewiring.updated(from, to), captures)
 
-    def withWrapper(fun: Symbol, info: WrapperInfo): Context =
-      new Context(wrappers.updated(fun, info), rewiring, captures)
+    def withFunInfo(fun: Symbol, info: FunInfo): Context =
+      new Context(owners, funInfos.updated(fun, info), rewiring, captures)
+
+    def withOwner(fun: Symbol): Context =
+      new Context(fun :: owners, funInfos, rewiring, captures)
+
+    def flatName(fun: Symbol): String =
+      assert(owners.nonEmpty, fun.name)
+      owners.foldLeft(fun.name) { (acc, owner) => owner.name + "$" + acc }
 
     def show: String =
       " { rewires: " + rewiring.toString + ", captures: " + captures + "}"
@@ -141,20 +156,23 @@ object ElimCapture:
       * - capture of type parameters (closure conversion after erasure?)
       */
     def transform(fdef: FunDef)(using ctx: Context): FunDef =
-      val WrapperInfo(funSym, envSym) = ctx.wrappers(fdef.symbol)
+      val FunInfo(funSym, captures) = ctx.funInfos(fdef.symbol)
 
       val bodyItems = new mutable.ArrayBuffer[Word]
       val locals = mutable.ArrayBuffer.from(fdef.locals)
 
+      val envType = RecordType(captures.map(sym => sym.name -> sym.info))
+      val envSym = Symbol.createValueSymbol(EnvParamName, envType, Flag.Local, fdef.symbol.sourcePos)
+
       var ctx2 = ctx
-      for capture <- fdef.captures do
+      for capture <- captures do
         val subst = Symbol.createValueSymbol(capture.name, capture.info, Flag.Local, capture.sourcePos)
         locals += subst
         ctx2 = ctx2.withRewire(capture, subst)
         val rhs = Select(Ident(envSym)(fdef.span), capture.name)(capture.info, fdef.span)
         bodyItems += Assign(subst, rhs)(rhs.span)
 
-      bodyItems += this(fdef.body)(using ctx2)
+      bodyItems += this(fdef.body)(using ctx2.withOwner(fdef.symbol))
       val body = Phrase(bodyItems.toList)(fdef.body.tpe, fdef.body.span)
       FunDef(funSym, fdef.tparams, fdef.params :+ envSym, body)(locals = locals.toList, captures = Nil, fdef.span)
 
@@ -163,8 +181,8 @@ object ElimCapture:
         case Ident(sym) =>
           if sym.isFunction then
             if sym.isLocal then
-              val env = createEnvRecord(sym, word.span)
-              val subst = ctx.rewiring(sym)
+              val FunInfo(subst, captures) = ctx.funInfos(sym)
+              val env = createEnvRecord(sym, captures, word.span)
               val fun = Ident(subst)(word.span)
               // TODO: handle param insertion properly after introducing call syntax
               Phrase(env :: fun :: Nil)(word.tpe, word.span)
@@ -174,15 +192,16 @@ object ElimCapture:
             Ident(ctx.rewiring.getOrElse(sym, sym))(word.span)
 
         case FunRef(sym) =>
-          val env = createEnvRecord(sym, word.span)
-          val recordType = RecordType(List("fun" -> word.tpe, "env" -> env.tpe))
-          val WrapperInfo(subst, _) = ctx.wrappers(sym)
+          val FunInfo(subst, captures) = ctx.funInfos(sym)
+          val env = createEnvRecord(sym, captures, word.span)
+          val recordType = RecordType(List(FunFieldName -> word.tpe, EnvFieldName -> env.tpe))
           val funRef2 = FunRef(subst)(subst.info, word.span)
-          val closure = RecordLit(List("fun" -> funRef2, "env" -> env))(recordType, word.span)
+          val closure = RecordLit(List(FunFieldName -> funRef2, EnvFieldName -> env))(recordType, word.span)
           Encoded(closure)(word.tpe)
 
         case fdef: FunDef =>
-          transform(fdef)
+          if fdef.symbol.isLocal  then transform(fdef)
+          else recur(fdef)(using ctx.withOwner(fdef.symbol))
 
         case Phrase(words) =>
           var ctx2 = ctx
@@ -194,7 +213,7 @@ object ElimCapture:
           for
             case fdef: FunDef <- words
           do
-            ctx2 = ctx2.withWrapper(fdef.symbol, makeWrapperSymbols(fdef)(using ctx2))
+            ctx2 = ctx2.withFunInfo(fdef.symbol, makeFunInfo(fdef)(using ctx2))
 
           val words2 =
             for word <- words yield this(word)(using ctx2)

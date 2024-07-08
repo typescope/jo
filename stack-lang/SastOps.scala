@@ -45,10 +45,10 @@ object SastOps:
           Assign(sym, this(rhs))(word.span)
 
         case vdef: ValDef =>
-          recur(vdef)
+          recurValDef(vdef)
 
         case fdef: FunDef =>
-          recur(fdef)
+          recurFunDef(fdef)
 
         case If(cond, thenp, elsep) =>
           If(this(cond), this(thenp), this(elsep))(word.tpe, word.span)
