@@ -146,7 +146,7 @@ object Printing:
       case RecordLit(fields) =>
         "{" ~ indent:
             rep(
-              fields.map { (f, rhs) => f ~ rhs },
+              fields.map { (f, rhs) => f ~ " = " ~ rhs },
               Text(", ")
             )
         ~ "}"

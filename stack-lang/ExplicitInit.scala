@@ -66,7 +66,7 @@ object ExplicitInit:
       given info: NamesInfo = new NamesInfo
       val body = recur(fdef.body)
       val locals = info.locals.distinct.toList
-      val masked = fdef.symbol :: fdef.params :: locals
+      val masked = fdef.params ++ locals
       val free = info.free.filter(sym => !masked.contains(sym)).distinct.toList
       fdef.copy(body = body)(locals, free, fdef.span)
 

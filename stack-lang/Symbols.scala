@@ -18,7 +18,7 @@ object Symbols:
   final class Symbol(
     val name: String,
     infoProvider: Type | InfoProvider,
-    flags: Flags,
+    val flags: Flags,
     val sourcePos: SourcePosition):
 
     /** Do not cache the result from provider
@@ -40,10 +40,13 @@ object Symbols:
     def isFunction : Boolean = flags.is(Flag.Fun)
     def isValue    : Boolean = flags.is(Flag.Val)
     def isType     : Boolean = flags.is(Flag.Type)
+    def isLocal    : Boolean = flags.is(Flag.Local)
     def isParameter: Boolean = flags.isAllOf(Flag.Val | Flag.Param)
-    def isLocal    : Boolean = flags.isAllOf(Flag.Val | Flag.Local)
     def isMutable  : Boolean = flags.isAllOf(Flag.Val | Flag.Mutable)
     def isAnon     : Boolean = flags.isAllOf(Flag.Fun | Flag.Anon)
+
+    def isOneOf(testFlags: Flags) = this.flags.isOneOf(testFlags)
+    def isAllOf(testFlags: Flags) = this.flags.isAllOf(testFlags)
 
     override def toString() = name
 
@@ -75,27 +78,23 @@ object Symbols:
     val Val     : Flag = 1 << 2
     val Type    : Flag = 1 << 3
 
+    // common flags
+    val Local   : Flag = 1 << 4
+
     // val flags
-    val Param   : Flag = 1 << 4
-    val Local   : Flag = 1 << 5
-    val Mutable : Flag = 1 << 7
+    val Param   : Flag = 1 << 5
+    val Mutable : Flag = 1 << 6
 
     // fun flags
-    val Anon    : Flag = 1 << 4
+    val Anon    : Flag = 1 << 5
 
     val empty : Flags = 0
 
     extension (fs: Flags)
       def is(flag: Flag) = (fs & flag) > 0
 
-      def isOneOf(flag: Flag, flags: Flag*) =
-        (fs & flag) > 0 || flags.exists(flag => (flag & fs) > 0)
-
       def isOneOf(flags: Flags) =
         (fs & flags) > 0
-
-      def isAllOf(flag: Flag, flags: Flag*) =
-        (fs & flag) > 0 && flags.forall(flag => (flag & fs) > 0)
 
       def isAllOf(flags: Flags) =
         (fs & flags) == flags
