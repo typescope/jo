@@ -54,5 +54,5 @@ def compile(args: String*) =
     Namer.transform               |>
     new ExplicitInit().transform  |>
     ElimCapture.transform         |>
-    Debug.peek(enable = true)     |>
+    Debug.peek(enable = false)     |>
     backend.compile

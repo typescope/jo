@@ -104,7 +104,9 @@ class JSBackend(outFile: String) extends Backend:
     val name = symbol2UniqueName(fun)
     val funType = TypeOps.erasePolyType(fun.info).asProcType
     val paramCount = funType.paramCount
+    call(name, paramCount)
 
+  def call(name: String, paramCount: Int)(using Context): Unit =
     var i: Int = paramCount - 1
     val args = new Array[String](paramCount)
     while i >= 0  do
@@ -194,12 +196,19 @@ class JSBackend(outFile: String) extends Backend:
 
   /** Compile a reference to a function */
   def compile(ref: FunRef)(using ctx: Context): Unit =
-    ???
+    val fun = symbol2UniqueName(ref.symbol)
+    addLine(s"$push($fun)")
 
   /** Compile function call */
   def compile(call: Call)(using Context): Unit =
     compile(call.word)
-    ???
+    val funType = call.tpe.asFunctionType
+    val closName = freshName("closure")
+    addLine(s"const $closName = $pop();")
+    val selectEnv = closName + "." + ElimCapture.EnvFieldName
+    val selectProc = closName + "." + ElimCapture.ProcFieldName
+    addLine(s"$push($selectEnv)")
+    this.call(selectProc, funType.paramCount + 1)
 
   /** Push an integer literal to value stack */
   def push(v: Int)(using Context): Unit =
