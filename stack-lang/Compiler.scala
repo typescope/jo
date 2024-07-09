@@ -30,23 +30,23 @@ def compile(args: String*) =
   val backend =
     options.get("-p") match
       case Some(pf) =>
-        if pf == "linux-x86" then
+        if pf == "linux-x86-stack" then
           Linux.createX86StackMachine(outFile, layout)
 
-        else if pf == "linux-x86-fast" then
+        else if pf == "linux-x86-reg" then
           Linux.createX86RegisterMachine(outFile, layout)
 
-        else if pf == "js" then
+        else if pf == "js-stack" then
           new JSBackend(outFile)
 
-        else if pf == "js-opt" then
+        else if pf == "js-reg" then
           new JSOptimized(outFile)
 
         else
           throw new Exception("Unknow platform: " + pf)
 
       case None =>
-        Linux.createX86StackMachine(outFile, layout)
+        Linux.createX86RegisterMachine(outFile, layout)
 
   Reporter.monitor(sourceFile):
     IO.fileContent(sourceFile)    |>

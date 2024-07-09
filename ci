@@ -24,32 +24,32 @@ for file in $DIR/tests/pos/*.stk; do
     bin/stki $file > $RES1 2>&1
 
     # # layout 1
-    bin/stkc $file -o $exe -p linux-x86 -layout c1
+    bin/stkc $file -o $exe -p linux-x86-stack -layout c1
     $exe > $RES2
     check $RES1 $RES2
 
     # layout 2
-    bin/stkc $file -o $exe -p linux-x86 -layout c2
+    bin/stkc $file -o $exe -p linux-x86-stack -layout c2
     $exe > $RES2 2>&1
     check $RES1 $RES2
 
     # layout 3
-    bin/stkc $file -o $exe -p linux-x86 -layout c3
+    bin/stkc $file -o $exe -p linux-x86-stack -layout c3
     $exe > $RES2 2>&1
     check $RES1 $RES2
 
     # fast linux
-    bin/stkc $file -o $exe -p linux-x86-fast
+    bin/stkc $file -o $exe -p linux-x86-reg
     $exe > $RES2 2>&1
     check $RES1 $RES2
 
     # JavaScript
-    bin/stkc $file -o $js -p js
+    bin/stkc $file -o $js -p js-stack
     node $js > $RES3 2>&1
     check $RES1 $RES3
 
     # JavaScript optimized
-    bin/stkc $file -o $js -p js-opt
+    bin/stkc $file -o $js -p js-reg
     node $js > $RES3 2>&1
     check $RES1 $RES3
 done
