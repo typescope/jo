@@ -230,6 +230,15 @@ class JSOptimized(outFile: String) extends Backend:
     // TODO: binding required for mutable fields
     vs.push(Item.Ref(s"$qual.$encodedField"))
 
+  /** Compile a reference to a function */
+  def compile(ref: FunRef)(using ctx: Context): Unit =
+    ???
+
+  /** Compile function call */
+  def compile(call: Call)(using Context): Unit =
+    compile(call.word)
+    ???
+
   /** Push an integer literal to value stack */
   def push(v: Int)(using Context): Unit =
     vs.push(Item.Const(v.toString))

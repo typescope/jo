@@ -48,6 +48,12 @@ abstract class Backend:
   /** Compile an encoding --- backend needs to handle value drop */
   def compile(encoded: Encoded)(using Context): Unit
 
+  /** Compile a reference to a function */
+  def compile(ref: FunRef)(using Context): Unit
+
+  /** Compile function call */
+  def compile(call: Call)(using Context): Unit
+
   /** Compile a word */
   def compile(word: Word)(using Context): Unit =
     word match
@@ -62,6 +68,10 @@ abstract class Backend:
       case phrase: Phrase => compile(phrase)
 
       case encoded: Encoded => compile(encoded)
+
+      case ref: FunRef => compile(ref)
+
+      case call: Call => compile(call)
 
       case assign: Assign =>
         compile(assign)

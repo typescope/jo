@@ -17,7 +17,7 @@ object ElimCapture:
 
   val EnvParamName = "$env"
   val EnvFieldName = "env"
-  val FunFieldName = "fun"
+  val ProcFieldName = "proc"
 
   def transform(prog: Prog): Prog =
     given ctx: Context = new Context
@@ -27,6 +27,14 @@ object ElimCapture:
 
     val main = treeMap.apply(prog.main)
     Prog(defns ++ ctx.lifted.toList, main)
+
+  /** The encoded type of a function */
+  def encodedRecordType(funType: FunctionType): RecordType =
+    val paramNames = funType.paramTypes.zipWithIndex.map("p" + _._2)
+    val paramTypes = funType.paramTypes :+ AnyType
+    val procType = ProcType(paramNames :+ EnvParamName, paramTypes, funType.resultType)
+    val envType = AnyType
+    RecordType(List(ProcFieldName -> procType, EnvFieldName -> envType))
 
   /** Compute the transitive capture of locals
     *
@@ -40,7 +48,7 @@ object ElimCapture:
     *
     * TODO: cache to improve performance
     */
-  def transitiveCapture(fun: Symbol)(using ctx: Context): List[Symbol] =
+  private def transitiveCapture(fun: Symbol)(using ctx: Context): List[Symbol] =
     val all = new mutable.ArrayBuffer[Symbol]
     val visited = new mutable.ArrayBuffer[Symbol]
     def recur(fun: Symbol): Unit = Debug.trace("fun = " + fun, enable = false):
@@ -66,7 +74,7 @@ object ElimCapture:
     all.toList
   end transitiveCapture
 
-  def makeFunInfo(fdef: FunDef)(using ctx: Context): FunInfo =
+  private def makeFunInfo(fdef: FunDef)(using ctx: Context): FunInfo =
     val captures = transitiveCapture(fdef.symbol)
     // Cannot have same names in the symbol --- they must be the same symbol
 
@@ -84,7 +92,7 @@ object ElimCapture:
     val funSym = Symbol.createFunSymbol(funName, funType, fdef.symbol.sourcePos)
     FunInfo(funSym, captures)
 
-  def createEnvRecord(fun: Symbol, captures: List[Symbol], span: Span)(using Context): RecordLit =
+  private def createEnvRecord(fun: Symbol, captures: List[Symbol], span: Span)(using Context): RecordLit =
     val fields =
       for capture <- captures
       yield capture.name -> Ident(capture)(span)
@@ -199,9 +207,9 @@ object ElimCapture:
         case FunRef(sym) =>
           val FunInfo(subst, captures) = ctx.funInfos(sym)
           val env = createEnvRecord(sym, captures, word.span)
-          val recordType = RecordType(List(FunFieldName -> word.tpe, EnvFieldName -> env.tpe))
+          val recordType = RecordType(List(ProcFieldName -> subst.info, EnvFieldName -> env.tpe))
           val funRef2 = FunRef(subst)(subst.info, word.span)
-          val closure = RecordLit(List(FunFieldName -> funRef2, EnvFieldName -> env))(recordType, word.span)
+          val closure = RecordLit(List(ProcFieldName -> funRef2, EnvFieldName -> env))(recordType, word.span)
           Encoded(closure)(word.tpe)
 
         case fdef: FunDef =>

@@ -192,6 +192,15 @@ class JSBackend(outFile: String) extends Backend:
     compile(select.qual)
     addLine(s"$push($pop().$encodedField);")
 
+  /** Compile a reference to a function */
+  def compile(ref: FunRef)(using ctx: Context): Unit =
+    ???
+
+  /** Compile function call */
+  def compile(call: Call)(using Context): Unit =
+    compile(call.word)
+    ???
+
   /** Push an integer literal to value stack */
   def push(v: Int)(using Context): Unit =
     addLine(s"$push($v);")

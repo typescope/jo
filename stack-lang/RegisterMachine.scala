@@ -323,6 +323,15 @@ extends Backend:
       else Instr.Store(rhsValue, symbolAddrMap(sym))
     gen(instr)
 
+  /** Compile a reference to a function */
+  def compile(ref: FunRef)(using ctx: Context): Unit =
+    ???
+
+  /** Compile function call */
+  def compile(call: Call)(using Context): Unit =
+    compile(call.word)
+    ???
+
   /** Generate a bump allocator
     *
     * TODO: implement it in Stk.

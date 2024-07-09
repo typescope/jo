@@ -148,7 +148,9 @@ object Types:
 
   case class FunctionType
     (paramTypes: List[Type], resultType: Type)
-  extends Type
+  extends Type:
+    val paramCount = paramTypes.size
+    val resCount = if resultType.isValueType then 1 else 0
 
   /** Represents upper and lower bounds of type parameters */
   case class TypeBound
