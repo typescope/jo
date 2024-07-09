@@ -11,6 +11,8 @@ fun test(f: F2): F1 = f
 
 fun makeMul(x: Int): Int => Int = (n: Int) => x n *
 
+fun app(x: Int, f: Int => Int): Int = x => f
+
 val f0 = (x: Int) => x x +
 10 => f0 p
 
@@ -19,3 +21,5 @@ val f1 = 5 makeMul
 
 val f2 = 8 makeMul
 3 => f2 p
+
+10 f2 app p
