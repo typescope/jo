@@ -36,7 +36,7 @@ object PreAssembly:
     */
   enum PreInstr:
     case Instr(instr: Assembly.Instr)
-    case Call(label: Label, argRegs: List[Int], retRegs: List[Int])
+    case Call(addr: Addr, argRegs: List[Int], retRegs: List[Int])
     case Return(addrReg: Int, resRegs: List[Int])
 
     lazy val regInfo = this match
