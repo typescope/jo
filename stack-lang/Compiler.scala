@@ -55,5 +55,5 @@ def compile(args: String*) =
     new ExplicitInit().transform  |>
     Debug.peek(enable = false)    |>
     ElimCapture.transform         |>
-    Debug.peek(enable = true)     |>
+    Debug.peek(enable = false)     |>
     backend.compile
