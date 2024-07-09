@@ -41,8 +41,12 @@ object PreAssembly:
 
     lazy val regInfo = this match
       case Instr(instr)                  => analyzeRegInfo(instr)
-      case Call(label, argRegs, retRegs) => RegInfo(argRegs, retRegs)
       case Return(addrReg, resRegs)      => RegInfo(Nil, addrReg :: resRegs)
+      case Call(addr, argRegs, retRegs)  =>
+        addr match
+          case Reg(index)    => RegInfo(index :: argRegs, retRegs)
+          case Rel(index, _) => RegInfo(index :: argRegs, retRegs)
+          case _: Label      => RegInfo(argRegs, retRegs)
 
   type Item = PreInstr | Label | PlaceHolder
 
@@ -292,6 +296,17 @@ object PreAssembly:
     generator: VirtualRegGenerator,
     addr: Int => Addr): List[PreAssembly.Item] =
 
+    def spillReg(reg: Int, current: PreInstr)(rewrite: Int => PreInstr): List[PreInstr] =
+      stackAlloc.get(reg) match
+        case Some(i) =>
+          val virtualReg = generator.fresh()
+          val loadInstr = PreInstr.Instr(Instr.Load(addr(i), virtualReg))
+          val newInstr = rewrite(virtualReg)
+          loadInstr :: newInstr :: Nil
+
+        case None =>
+          current :: Nil
+
     instrs.flatMap:
       case label: Label        => label :: Nil
 
@@ -299,20 +314,22 @@ object PreAssembly:
 
       case preInstr: PreInstr  =>
         preInstr match
-          case PreInstr.Call(_, _, _) =>
-            // spill should never concern call
-            preInstr :: Nil
+          case PreInstr.Call(addr, argRegs, resRegs) =>
+            addr match
+              case Reg(index) =>
+                spillReg(index, preInstr): virtualReg =>
+                  PreInstr.Call(Reg(virtualReg), argRegs, resRegs)
+
+              case Rel(index, offset) =>
+                spillReg(index, preInstr): virtualReg =>
+                  PreInstr.Call(Rel(virtualReg, offset), argRegs, resRegs)
+
+              case _: Label      =>
+                preInstr :: Nil
 
           case PreInstr.Return(addrReg, resRegs) =>
-            stackAlloc.get(addrReg) match
-              case Some(i) =>
-                val virtualReg = generator.fresh()
-                val loadInstr = PreInstr.Instr(Instr.Load(addr(i), virtualReg))
-                val returnInstr2 = PreInstr.Return(virtualReg, resRegs)
-                loadInstr :: returnInstr2 :: Nil
-
-              case None =>
-                preInstr :: Nil
+            spillReg(addrReg, preInstr): virtualReg =>
+              PreInstr.Return(virtualReg, resRegs)
 
           case PreInstr.Instr(instr) =>
             val instrs =
@@ -358,7 +375,7 @@ object PreAssembly:
                 cb.add(instr2)
 
             case PreInstr.Call(addr, _, _) =>
-              cb.add(Instr.Jump(addr))
+              cb.add(subst(Instr.Jump(addr), regAlloc))
 
             case PreInstr.Return(reg, _) =>
               var regRet = regAlloc.getOrElse(reg, reg)
