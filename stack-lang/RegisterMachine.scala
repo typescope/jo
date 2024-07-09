@@ -327,7 +327,7 @@ extends Backend:
   def compile(ref: FunRef)(using ctx: Context): Unit =
     val target = symbolAddrMap(ref.symbol).asInstanceOf[Label]
     val targetReg = freshVirtualReg()
-    gen(Instr.Load(target, targetReg))
+    gen(Instr.Move(target, targetReg))
     ctx.vs.push(Reg(targetReg))
 
   /** Compile function call */

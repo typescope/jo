@@ -53,6 +53,7 @@ def compile(args: String*) =
     Parsing.parse                 |>
     Namer.transform               |>
     new ExplicitInit().transform  |>
+    Debug.peek(enable = false)    |>
     ElimCapture.transform         |>
-    Debug.peek(enable = false)     |>
+    Debug.peek(enable = true)     |>
     backend.compile

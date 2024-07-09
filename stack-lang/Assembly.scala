@@ -23,7 +23,6 @@ object Assembly:
 
   type Operand  = Int32 | Reg
   type Addr     = Label | Reg | Rel
-  type Constant = Int32 | Label
   type Value    = Int32 | Label | Reg
 
   enum Arith:
