@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 DIR=$(dirname "$0")
 
 # run tests
@@ -9,12 +11,13 @@ RES3=$DIR/tests/pos/js.txt
 
 retcode=0
 
+error() {
+    echo "[error] testing $file failed!"
+    retcode=1
+}
+
 check() {
-    diff $1 $2
-    if [[ $? != 0 ]]; then
-        echo "[error] testing $file failed!"
-        retcode=1
-    fi
+    diff $1 $2 || error
 }
 
 for file in $DIR/tests/pos/*.stk; do
