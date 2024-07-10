@@ -67,7 +67,7 @@ class Namer(@constructorOnly reporter: Reporter):
       val ownerFunOpt = sc.owningFunctionOf(sym)
       val curFunOpt = sc.owningFunction
       if ownerFunOpt != curFunOpt then
-        Reporter.error("Cannot capture mutable variable " + sym.name, span.toPos)
+        Reporter.error("Cannot capture local mutable variable " + sym.name, span.toPos)
 
   private def transform(word: Ast.Word)(using sc: Scope, rp: Reporter): Word =
     word match
