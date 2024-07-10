@@ -27,8 +27,11 @@ class Checker(@constructorOnly reporter: Reporter):
     for check <- delayedChecks do check()
     delayedChecks.clear()
 
-  /** Handles possible cycles in result type inference  */
-  val symbolTypeProvider = new Checker.SymbolTypeProvider(using reporter)
+  /** Handles possible cycles in result type inference for functions  */
+  val cyclicTypeProvider = new Checker.CyclicTypeProvider(using reporter)
+
+  /** Handles value and type definitions */
+  val nonCyclicTypeProvider = new Checker.ValueTypeProvider(using reporter)
 
   def check(word: Word)(using vs: ValueStack, rp: Reporter): Unit =
     word match
@@ -258,9 +261,15 @@ object Checker:
   end ValueStack
 
 
-  final class SymbolTypeProvider(using rp: Reporter) extends InfoProvider:
-    /** All pending completers --- removed after completion */
-    private val completers = mutable.Map.empty[Symbol, InfoCompleter]
+  /** Type provider for fun definitions that might involve cycles
+    *
+    * Fixed-point computation is performed for soundness.
+    *
+    * Only self-cycles are allowed.
+    */
+  final class CyclicTypeProvider(using rp: Reporter) extends InfoProvider:
+    /** All pending completers --- never removed */
+    private val completers = mutable.Map.empty[Symbol, InfoCompleter.FixedPoint]
 
     /** The symbols currently in progress of being completed */
     private val completing = new mutable.ArrayBuffer[Symbol]
@@ -273,7 +282,7 @@ object Checker:
       */
     def addProvider(sym: Symbol, initial: Reporter => Type, compute: Reporter => Type) =
       assert(!completers.contains(sym), "Duplicate provider " + sym)
-      completers(sym) = InfoCompleter(initial, compute)
+      completers(sym) = new InfoCompleter.FixedPoint(initial, compute)
 
     /**
       * We only allow self cycles, so it suffices to compute fixed point for the
@@ -321,12 +330,63 @@ object Checker:
         completing -= sym
         tp
 
+  /** Type provider for value definitions
+    *
+    * No worries about cycles and no fixed-point computation is performed.
+    */
+  final class ValueTypeProvider(using rp: Reporter) extends InfoProvider:
+    /** All completers --- never removed  */
+    private val completers = mutable.Map.empty[Symbol, InfoCompleter.Simple]
+
+    /** The symbols currently in progress of being completed */
+    private val completing = new mutable.ArrayBuffer[Symbol]
+
+    /**
+      * Add an info provider for the symbol
+      *
+      * @param initial the initial approximation type for the symbol without computation
+      * @param compute compute the type for the symbol
+      */
+    def addProvider(sym: Symbol, provider: Symbol => Type) =
+      assert(!completers.contains(sym), "Duplicate provider " + sym)
+      completers(sym) = new InfoCompleter.Simple(provider)
+
+    /**
+      * We only allow self cycles, so it suffices to compute fixed point for the
+      * current info completer.
+      */
+    def apply(sym: Symbol): Type = Debug.trace(s"Retriving $sym", (_: Type).show, enable = false):
+      if !completers.contains(sym) then
+        Reporter.abort("No completer for " + sym, sym.sourcePos)
+
+      val completer = completers(sym)
+
+      if completing.contains(sym) && completing.last != sym then
+        val cycle = completing.dropWhile(_ != sym).map(_.name).mkString(", ")
+        Reporter.error("Mutual recursion needs explicit return type: " + cycle, sym.sourcePos)
+        ErrorType
+      else if completing.contains(sym) then
+        completer.currentType
+      else if completer.isComplete then
+        completer.currentType
+      else
+        completing += sym
+
+        val tp = completer.compute(sym)
+        completer.complete(tp)
+
+        completing -= sym
+        tp
+
   private enum InfoState:
     case Incomplete
     case Completing(current: Type)
     case Completed(cache: Type)
 
-  private class InfoCompleter(val initial: Reporter => Type, val compute: Reporter => Type):
+  private enum InfoCompleter:
+    case FixedPoint(initial: Reporter => Type, compute: Reporter => Type)
+    case Simple(compute: Symbol => Type)
+
     private var state = InfoState.Incomplete
 
     def complete(tp: Type): Unit =
@@ -339,10 +399,8 @@ object Checker:
 
     def isComplete: Boolean = state.isInstanceOf[InfoState.Completed]
 
-    def currentState: InfoState = state
-
     def currentType: Type =
-      currentState match
+      state match
         case InfoState.Completing(tp) => tp
 
         case InfoState.Completed(tp) => tp

@@ -5,7 +5,7 @@ import Sast.*
 import Types.*
 import Symbols.*
 import Reporter.Span
-import Namer.{ Scope, DelayedTask, errorSymbol }
+import Namer.{ Scope, LazyValue, DelayedDef, errorSymbol }
 
 /**
   * The namer handles name resolution and desugaring.
@@ -37,38 +37,21 @@ class Namer(@constructorOnly reporter: Reporter):
     Prog(defs, main2)
 
   private def transform(defs: List[Ast.Def])(using sc: Scope, rp: Reporter): List[Def] =
-    val tasks = new mutable.ArrayBuffer[DelayedTask[Def]]
+    val delayedDefs = new mutable.ArrayBuffer[DelayedDef[Def]]
 
     for defn <- defs do
-      tasks += index(defn)
+      val delayedDef = index(defn)
+      sc.define(delayedDef.symbol, defn.span)
+      delayedDefs += delayedDef
 
-    for task <- tasks.toList yield
-      task.typer()
+    for delayedDef <- delayedDefs.toList yield
+      delayedDef.force()
 
-  private def index(defn: Ast.Def)(using sc: Scope, rp: Reporter): DelayedTask[Def] =
+  private def index(defn: Ast.Def)(using sc: Scope, rp: Reporter): DelayedDef[Def] =
 
     defn match
       case vdef: Ast.ValDef =>
-        lazy val rhs = transform(vdef.rhs)
-        lazy val tpe: Type =
-          if vdef.typ.isEmpty then
-            rhs.tpe
-          else
-            val tpt = transformType(vdef.typ)
-            val tp2 = checker.checkValueType(tpt.tpe, tpt.span)
-            checker.checkType(rhs, tp2)
-            tp2
-
-        val delayedType = DelayedType()(tpe)
-
-        val flags = if vdef.mutable then Flag.Mutable else Flag.empty
-        val sym = Symbol.createValueSymbol(defn.name, delayedType, flags, vdef.ident.pos)
-        sc.define(sym, defn.span)
-
-        val typer = () =>
-          val tp = tpe // ensure tpe is forced for error checking
-          ValDef(sym, rhs)(vdef.span)
-        DelayedTask(sym, typer)
+        transform(vdef)
 
       case funDef: Ast.FunDef =>
         transform(funDef)
@@ -139,33 +122,15 @@ class Namer(@constructorOnly reporter: Reporter):
         val resType = Ast.EmptyTypeTree()(body.span)
         val tparams = Nil
         val funDef = Ast.FunDef(id, tparams, params, resType, body)(word.span)
-        val funDef2 = transform(funDef)(using sc2).typer()
+        val funDef2 = transform(funDef)(using sc2).force()
         val lambdaType = funDef2.tpe.asProcType.toFunType
         val ref = FunRef(funDef2.symbol)(lambdaType, word.span)
         Phrase(funDef2 :: ref :: Nil)(lambdaType, word.span)
 
       case vdef: Ast.ValDef =>
-        transform(vdef)
-
-  private def transform(vdef: Ast.ValDef)(using sc: Scope, rp: Reporter): Word =
-    var flags: Flags = Flag.Local
-    if vdef.mutable then
-      flags = flags | Flag.Mutable
-
-    val rhs = transform(vdef.rhs)
-    val tpe =
-      if vdef.typ.isEmpty then
-        rhs.tpe
-      else
-        val tpt = transformType(vdef.typ)
-        val tp2 = checker.checkValueType(tpt.tpe, tpt.span)
-        checker.checkType(rhs, tp2)
-        tp2
-
-    val sym = Symbol.createValueSymbol(vdef.name, tpe, flags, vdef.ident.pos)
-
-    sc.define(sym, vdef.span)
-    ValDef(sym, rhs)(vdef.span)
+        val delayedDef = transform(vdef)
+        sc.define(delayedDef.symbol, vdef.span)
+        delayedDef.force()
 
   private def transform(ifte: Ast.If)(using sc: Scope, rp: Reporter): Word =
     val Ast.If(cond, thenp, elsep) = ifte
@@ -345,11 +310,48 @@ class Namer(@constructorOnly reporter: Reporter):
 
     Phrase(wordsTyped)(tp, phrase.span)
 
-  private def transform(funDef: Ast.FunDef)(using sc: Scope, rp: Reporter): DelayedTask[FunDef] =
+  private def transform(vdef: Ast.ValDef)(using sc: Scope, rp: Reporter): DelayedDef[ValDef] =
+    // TODO: add Local flag
+    var flags: Flags = Flag.empty
+    if vdef.mutable then
+      flags = flags | Flag.Mutable
+
+    if sc.owners.nonEmpty then
+      flags = flags | Flag.Local
+
+    val sym = Symbol.createValueSymbol(vdef.name, checker.nonCyclicTypeProvider, flags, vdef.ident.pos)
+
+    def checkRHS(sym: Symbol): Word =
+      val sc2 = sc.fresh(sym)
+      transform(vdef.rhs)(using sc2)
+
+    val rhs: LazyValue[Symbol, Word] = LazyValue(checkRHS)
+
+    def computeType(sym: Symbol): Type =
+      if vdef.typ.isEmpty then
+        rhs.get(sym).tpe
+      else
+        val tpt = transformType(vdef.typ)
+        val tp2 = checker.checkValueType(tpt.tpe, tpt.span)
+        checker.checkType(rhs.get(sym), tp2)
+        tp2
+
+    checker.nonCyclicTypeProvider.addProvider(sym, computeType)
+
+    val typer = () => ValDef(sym, rhs.get(sym))(vdef.span)
+    DelayedDef(sym, typer)
+
+  private def transform(funDef: Ast.FunDef)(using sc: Scope, rp: Reporter): DelayedDef[FunDef] =
     val paramSyms = new mutable.ArrayBuffer[Symbol]
     val tparamSyms = new mutable.ArrayBuffer[Symbol]
     val bounds = new mutable.ArrayBuffer[Type]
-    val funScope = sc.fresh()
+
+    var flags: Flags = Flag.empty
+    if sc.owners.nonEmpty then
+      flags = flags | Flag.Local
+
+    val sym = Symbol.createFunSymbol(funDef.name, checker.cyclicTypeProvider, flags, funDef.ident.pos)
+    val funScope = sc.fresh(sym)
 
     val paramNames = funDef.params.map(_.name)
     val tparamNames = funDef.tparams.map(_.name)
@@ -378,8 +380,8 @@ class Namer(@constructorOnly reporter: Reporter):
 
     lazy val paramTypes =
       for (tparam, i) <- funDef.tparams.zipWithIndex yield
-        val info = DelayedType() { bounds(i) }
-        val sym = Symbol.createTypeSymbol(tparam.name, info, tparam.pos)
+        val infoProvider: InfoProvider = (sym: Symbol) => bounds(i)
+        val sym = Symbol.createTypeSymbol(tparam.name, infoProvider, tparam.pos)
         tparamSyms += sym
         funScope.define(sym, tparam.span)
 
@@ -417,23 +419,18 @@ class Namer(@constructorOnly reporter: Reporter):
       if !funDef.resType.isEmpty then
         givenFunType
       else
+        // perform actual check without using the cache
         createFunType(checkBodyType())
 
     val initialType = () =>
       if !funDef.resType.isEmpty then givenFunType
       else createFunType(BottomType)
 
-    val sym = Symbol.createFunSymbol(funDef.name, checker.symbolTypeProvider, funDef.ident.pos)
-    sc.define(sym, funDef.span)
-
-    checker.symbolTypeProvider.addProvider(
+    checker.cyclicTypeProvider.addProvider(
       sym, rp => initialType(), rp => computeType(using rp)
     )
 
     val typer = () =>
-      // force sym info completer
-      sym.info
-
       val bodyTyped = getCheckedBody()
 
       if !funDef.resType.isEmpty then
@@ -441,25 +438,28 @@ class Namer(@constructorOnly reporter: Reporter):
 
       FunDef(
         sym, tparamSyms.toList, paramSyms.toList, bodyTyped)(
-        locals = Nil, captures = Nil, funDef.span
-      )
+        locals = Nil, captures = Nil, funDef.span)
 
-    DelayedTask(sym, typer)
+    DelayedDef(sym, typer)
 
-  private def transform(tdef: Ast.TypeDef)(using sc: Scope, rp: Reporter): DelayedTask[TypeDef] =
+  private def transform(tdef: Ast.TypeDef)(using sc: Scope, rp: Reporter): DelayedDef[TypeDef] =
     val names = new mutable.ArrayBuffer[String]
     val bounds = new mutable.ArrayBuffer[Type]
 
-    lazy val info =
+    val sym = Symbol.createTypeSymbol(tdef.name, checker.nonCyclicTypeProvider, tdef.ident.pos)
+
+    def computeInfo(sym: Symbol): Type =
       if tdef.tparams.isEmpty then
-        transformType(tdef.rhs).tpe
+        val rhs = transformType(tdef.rhs)
+        checker.delayedCheck { checker.checkValueType(rhs) }
+        rhs.tpe
       else
-        val sc2 = sc.fresh()
+        val sc2 = sc.fresh(sym)
         val tparamSyms =
           for (tparam, i) <- tdef.tparams.zipWithIndex yield
             names += tparam.name
 
-            val info = DelayedType() { bounds(i) }
+            val info: InfoProvider = sym => bounds(i)
             val sym = Symbol.createTypeSymbol(tparam.name, info, tparam.pos)
             sc2.define(sym, tparam.span)
             sym
@@ -477,26 +477,16 @@ class Namer(@constructorOnly reporter: Reporter):
           TypeParamRef(tparamSym.name, i)
         val subst = tparamSyms.zip(tparamRefs).toMap
 
-        val body = transformType(tdef.rhs)(using sc2)
-        val rawType = TypeLambda(names.toList, bounds.toList, body.tpe)
+        val rhs = transformType(tdef.rhs)(using sc2)
+        checker.delayedCheck { checker.checkValueType(rhs) }
+        val rawType = TypeLambda(names.toList, bounds.toList, rhs.tpe)
         TypeOps.substSymbols(rawType, subst)
 
-    val delayedType = DelayedType()(info)
-
-    val sym = Symbol.createTypeSymbol(tdef.name, delayedType, tdef.ident.pos)
-    sc.define(sym, tdef.span)
+    checker.nonCyclicTypeProvider.addProvider(sym, computeInfo)
 
     // check type symbols after completion to allow cycles, type A = A
-    val typer = () =>
-      info match
-        case TypeLambda(_, _, body) =>
-          checker.checkValueType(body, tdef.rhs.span)
-        case tp =>
-          checker.checkValueType(tp, tdef.rhs.span)
-
-      TypeDef(sym)(tdef.span)
-
-    DelayedTask(sym, typer)
+    val typer = () => TypeDef(sym)(tdef.span)
+    DelayedDef(sym, typer)
 
   /** Type check type tree
     *
@@ -568,18 +558,35 @@ object Namer:
   def transform(using reporter: Reporter): Ast.Prog => Prog =
     new Namer(reporter).transform
 
-  private class DelayedTask[+T <: Def]
-      (val symbol: Symbol, val typer: () => T)
+  private class DelayedDef[+T <: Def](val symbol: Symbol, delayed: () => T):
+    private lazy val definition: T = delayed()
+    def force(): T =
+      symbol.info // force symbol
+      definition
+
+  private class LazyValue[S, T](compute: S => T):
+    var cache: T | Null = null
+    def get(s: S): T =
+      if cache == null then cache = compute(s)
+      cache.asInstanceOf[T]
 
   private enum Scope:
     case RootScope()
-    case NestedScope(outer: Scope)
+    case NestedScope(outer: Scope)(val allOwners: List[Symbol])
 
     private val termNames: mutable.Map[String, Symbol] = mutable.Map.empty
     private val typeNames: mutable.Map[String, Symbol] = mutable.Map.empty
 
+    def owners: List[Symbol] =
+      this match
+        case ns: NestedScope => ns.allOwners
+        case _ => Nil
+
     def fresh(): Scope =
-      new Scope.NestedScope(this)
+      new Scope.NestedScope(this)(owners)
+
+    def fresh(owner: Symbol): Scope =
+      new Scope.NestedScope(this)(owner :: owners)
 
     private def getTable(isType: Boolean) =
       if isType then typeNames else termNames

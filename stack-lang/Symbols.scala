@@ -12,6 +12,9 @@ object Symbols:
   /** Provides type to a symbol
     *
     * The provider needs to perform cache. The symbol does not cache.
+    *
+    * An abstract class is used instead of a type alias to enable runtime
+    * type test.
     */
   abstract class InfoProvider extends (Symbol => Type)
 
@@ -60,10 +63,13 @@ object Symbols:
     def createFunSymbol(name: String, info: Type | InfoProvider, pos: SourcePosition) =
       new Symbol(name, info, Flag.Fun, pos)
 
-    def createTypeSymbol(name: String, info: Type, pos: SourcePosition) =
+    def createFunSymbol(name: String, info: Type | InfoProvider, flags: Flags, pos: SourcePosition) =
+      new Symbol(name, info, Flag.Fun | flags, pos)
+
+    def createTypeSymbol(name: String, info: Type | InfoProvider, pos: SourcePosition) =
       new Symbol(name, info, Flag.Type, pos)
 
-    def createParamSymbol(name: String, tp: Type, pos: SourcePosition) =
+    def createParamSymbol(name: String, tp: Type | InfoProvider, pos: SourcePosition) =
       new Symbol(name, tp, Flag.Param | Flag.Val | Flag.Local, pos)
 
   type Flag  = Flag.Flag
