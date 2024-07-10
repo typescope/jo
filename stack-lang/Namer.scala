@@ -498,6 +498,10 @@ class Namer(@constructorOnly reporter: Reporter):
 
     DelayedTask(sym, typer)
 
+  /** Type check type tree
+    *
+    * Checks must be delayed by using `checker.delayedCheck`.
+    */
   private def transformType(tpt: Ast.TypeTree)(using sc: Scope, rp: Reporter): TypeTree =
     tpt match
       case Ast.Ident(name) =>
@@ -547,7 +551,7 @@ class Namer(@constructorOnly reporter: Reporter):
         val paramTypes2 =
           for paramType <- paramTypes yield
             val tpt = transformType(paramType)
-            checker.checkValueType(tpt)
+            checker.delayedCheck { checker.checkValueType(tpt) }
             tpt.tpe
 
         val resType2 = transformType(resType)
