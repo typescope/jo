@@ -30,7 +30,10 @@ class Namer(@constructorOnly reporter: Reporter):
     // Prepare scope according to scoping rules
     val sc = rootScope.fresh()
     val defs = transform(prog.defs)(using sc)
-    val main2 = transform(prog.main)(using sc)
+
+    // Create dummy main symbol to make it easier to tell whether a definition is local or not
+    val dummyMainSym = Symbol.createFunSymbol("$main", ProcType(Nil, Nil, VoidType), prog.main.pos)
+    val main2 = transform(prog.main)(using sc.fresh(dummyMainSym))
 
     checker.performDelayedChecks()
 
