@@ -61,6 +61,14 @@ class Namer(@constructorOnly reporter: Reporter):
     end match
   end index
 
+  private def checkCapture(sym: Symbol, span: Span)(using sc: Scope, rp: Reporter): Unit =
+    if sym.isAllOf(Flag.Val | Flag.Mutable | Flag.Local) then
+      // check no capture of mutable local vars
+      val ownerFunOpt = sc.owningFunctionOf(sym)
+      val curFunOpt = sc.owningFunction
+      if ownerFunOpt != curFunOpt then
+        Reporter.error("Cannot capture mutable variable " + sym.name, span.toPos)
+
   private def transform(word: Ast.Word)(using sc: Scope, rp: Reporter): Word =
     word match
       case Ast.IntLit(v)  =>
@@ -83,12 +91,14 @@ class Namer(@constructorOnly reporter: Reporter):
 
       case Ast.Ident(name) =>
         val sym = sc.resolve(name, word.span)
+        checkCapture(sym, word.span)
         Ident(sym)(word.span)
 
       case Ast.Assign(id, words) =>
         val sym = sc.resolve(id.name, id.span)
-        if !sym.isMutable then
-          Reporter.error("The variable " + id.name + " is not mutable", id.pos)
+
+        checker.checkMutable(sym, id.span)
+        checkCapture(sym, id.span)
 
         val rhs = transform(words)
         checker.checkType(rhs, sym.info)
@@ -577,10 +587,25 @@ object Namer:
     private val termNames: mutable.Map[String, Symbol] = mutable.Map.empty
     private val typeNames: mutable.Map[String, Symbol] = mutable.Map.empty
 
+    /** All owners of the current scope
+      *
+      * A owner can be either a function or a value definition.
+      */
     def owners: List[Symbol] =
       this match
         case ns: NestedScope => ns.allOwners
         case _ => Nil
+
+    /** Find the owning function of a term symbol */
+    def owningFunctionOf(sym: Symbol): Option[Symbol] =
+      if termNames.get(sym.name) == Some(sym) then this.owningFunction
+      else
+        this match
+          case NestedScope(outer) => outer.owningFunctionOf(sym)
+          case _ => None
+
+    def owningFunction: Option[Symbol] =
+      owners.find(owner => owner.isFunction)
 
     def fresh(): Scope =
       new Scope.NestedScope(this)(owners)

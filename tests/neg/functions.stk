@@ -1,0 +1,5 @@
+fun foo(x: Int): Int =
+  var m = x x +
+  val f = (n: Int) =>
+    m n *   // error
+  x => f

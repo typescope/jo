@@ -136,6 +136,10 @@ class Checker(@constructorOnly reporter: Reporter):
   def checkVoidOrValueType(tree: Tree)(using Reporter): Unit =
     if !tree.tpe.isVoid then checkValueType(tree)
 
+  def checkMutable(sym: Symbol, span: Span)(using Reporter): Unit =
+    if !sym.isAllOf(Flag.Val | Flag.Mutable) then
+      Reporter.error(sym.name + " is not a mutable value", span.toPos)
+
   def fieldType(qualType: Type, field: String, span: Span)(using Reporter): Type =
     if !qualType.isRecordType then
       Reporter.error(s"Expect record type, found = ${qualType.show}", span.toPos)
