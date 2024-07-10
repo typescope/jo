@@ -4,65 +4,87 @@ import scala.concurrent.duration.*
 
 import java.util.concurrent.TimeoutException
 
-import Reporter.{ Error, FatalError, SourcePosition, Span, State, Source }
+import Reporter.{ ReportItem, Kind, FatalError, SourcePosition, Span, Source }
 
 /**
   * Deals with error reporting
   */
-class Reporter(source: Source, state: State):
+class Reporter(
+  val source: Source,
+  reported: mutable.ArrayBuffer[ReportItem],
+  sources: mutable.Map[String, Source]):
+
   export source.addLineOffset
 
   def withSource(file: String): Reporter =
-    Reporter.withSource(file)(using state)
+    sources.get(file) match
+      case Some(source) => new Reporter(source, reported, sources)
+      case None =>
+        val source = new Source(file)
+        sources(file) = source
+        new Reporter(source, reported, sources)
 
-  def abort(message: String, span: Span): Nothing =
-    val sourcePos = new SourcePosition(source, span.start, span.length)
-    val error = new Error(message, sourcePos)
+  def withSource(source: Source): Reporter =
+    new Reporter(source, reported, sources)
+
+  def fresh(): Reporter =
+    new Reporter(source, mutable.ArrayBuffer.empty, sources)
+
+  def abort(message: String, pos: SourcePosition): Nothing =
+    val error = new ReportItem(Kind.Error, message, pos)
     throw new FatalError.CodeError(error)
 
-  def error(message: String, span: Span): Unit =
-    val sourcePos = new SourcePosition(source, span.start, span.length)
-    state.addError(new Error(message, sourcePos))
+  def report(kind: Kind, message: String, pos: SourcePosition): Unit =
+    reported += new ReportItem(kind, message, pos)
 
-  def hasErrors: Boolean = state.errors.nonEmpty
+  def report(item: ReportItem): Unit =
+    reported += item
 
-  def errorsCount = state.errors.size
+  def error(message: String, pos: SourcePosition): Unit =
+    report(Kind.Error, message, pos)
 
-  def report(): Unit =
-    for error <- state.errors do
-      println(error.message)
+  def warn(message: String, pos: SourcePosition): Unit =
+    report(Kind.Warning, message, pos)
+
+  def hasErrors: Boolean = reported.exists(_.kind == Kind.Error)
+
+  def reports: List[ReportItem] = reported.toList
+
+  def print() =
+    var errorCount = 0
+    var warningCount = 0
+
+    for item <- this.reports do
+      item.kind match
+        case Kind.Error => errorCount += 1
+        case Kind.Warning => warningCount += 1
+        case Kind.Info =>
+
+      println(item)
       println
+
+    println(s"$errorCount error(s), $warningCount warning(s)")
 
   // TODO: change fn to phase: Phase[T, U] <: T => U to get phase name
   extension [T](v: T)
     inline def |> [U](inline fn: T => U): U =
       if this.hasErrors then
-        throw FatalError.StopAfterPhase(s"$errorsCount error(s) found")
+        throw FatalError.StopAfterPhase()
       else
         fn(v)
   end extension
 
 object Reporter:
-
-  /** Shared state of reporters */
-  class State(
-    errorBuffer: mutable.ArrayBuffer[Error],
-    private[Reporter] val sources: mutable.Map[String, Source]):
-
-    def this() = this(mutable.ArrayBuffer.empty, mutable.Map.empty)
-
-    def errors: List[Error] = errorBuffer.toList
-
-    def addError(error: Error) = errorBuffer += error
-
   trait Positioned:
     this: Product =>
 
     Positioned.checkComponentPos(this)
 
-    def hasPos: Boolean = pos `ne` NoSpan
+    def hasPos: Boolean = span `ne` NoSpan
 
-    def pos: Span
+    def span: Span
+
+    def pos(using Reporter): SourcePosition = span.toPos
 
   object Positioned:
     def checkComponentPos(obj: Product): Unit =
@@ -77,6 +99,9 @@ object Reporter:
 
   /** The start and end of a token relative to the beginning of some file  */
   case class Span(start: Int, length: Int):
+    /** A zero length span at the same point */
+    def point: Span = Span(start, 0)
+
     def |(that: Span): Span =
       if this `eq` NoSpan then that
       else if that `eq` NoSpan then this
@@ -88,6 +113,12 @@ object Reporter:
         val end2 = that.start + that.length
         val end3 = if end1 > end2 then end1 else end2
         Span(start3, end3 - start3)
+
+    def toPos(source: Source): SourcePosition =
+      new SourcePosition(source, this.start, this.length)
+
+    def toPos(using rp: Reporter): SourcePosition =
+      toPos(rp.source)
 
   object NoSpan extends Span(-1, -1)
 
@@ -155,39 +186,44 @@ object Reporter:
     override def toString() =
       source.file + ":" + (startLine + 1) + ":" + (startLineColumn + 1)
 
-  /** An non-fatal error that does not abort the compilation */
-  case class Error(message: String, pos: SourcePosition):
+  enum Kind:
+    case Error, Warning, Info
+
+  class ReportItem(val kind: Kind, val message: String, val pos: SourcePosition):
     override def toString() =
       val isOneLine = pos.isOneLine
       val lineContent = pos.source.readLine(pos.startLine).replaceAll("[\n\r]$", "")
       val padding = " " * pos.startLineColumn
       val num = if pos.length == 0 then 1 else pos.length
       val pointer = if isOneLine then "^" * num  else "^"
-      s"""|---------- Error at $pos ---------------
+      s"""|---------- $kind at $pos ---------------
           || $lineContent
           || $padding$pointer
           || $padding$message""".stripMargin
 
   /** A fatal error that aborts the compilation */
   enum FatalError extends Exception:
-    case CodeError(content: Error)
+    case CodeError(content: ReportItem)
     case InternalError(message: String)
-    case StopAfterPhase(message: String)
+    case StopAfterPhase()
 
-  def monitor(fn: State ?=> Unit): Unit =
-    val state = new State()
+  def createReporter(file: String): Reporter =
+    val source = new Source(file)
+    val sources = mutable.Map(file -> source)
+    val reported = new mutable.ArrayBuffer[ReportItem]
+    new Reporter(source, reported, sources)
+
+  def monitor[T](file: String)(fn: Reporter ?=> Unit): Unit =
+    val reporter = createReporter(file)
     try
-      timeout(1000) { fn(using state) }
+      timeout(100) { fn(using reporter) }
     catch
       case error: FatalError.CodeError =>
         println("[error] " + error.content)
       case error: FatalError.InternalError =>
         println("[error] " + error.message)
       case error: FatalError.StopAfterPhase =>
-        for error <- state.errors do
-          println(error)
-          println
-        println(error.message)
+        reporter.print()
       case error: TimeoutException =>
         println("Operation time out")
 
@@ -196,20 +232,16 @@ object Reporter:
     val workFuture = Future { work }
     Await.result(workFuture, Duration(seconds, SECONDS))
 
-  def withSource(file: String)(using state: State) =
-    state.sources.get(file) match
-      case Some(source) => new Reporter(source, state)
-      case None =>
-        val source = new Source(file)
-        state.sources(file) = source
-        new Reporter(source, state)
-
-
-  def abort(message: String, span: Span)(using rp: Reporter): Nothing =
-    rp.abort(message, span)
+  def abort(message: String, pos: SourcePosition)(using rp: Reporter): Nothing =
+    rp.abort(message, pos)
 
   def abortInternal(message: String): Nothing =
     throw new FatalError.InternalError(message)
 
-  def error(message: String, span: Span)(using rp: Reporter): Unit =
-    rp.error(message, span)
+  def error(message: String, pos: SourcePosition)(using rp: Reporter): Unit =
+    rp.error(message, pos)
+
+  def warn(message: String, pos: SourcePosition)(using rp: Reporter): Unit =
+    rp.warn(message, pos)
+
+  def reports(using rp: Reporter): List[ReportItem] = rp.reports

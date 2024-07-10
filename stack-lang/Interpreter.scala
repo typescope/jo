@@ -26,18 +26,18 @@ class ValueStack:
 
   def push(v: Value): Unit = stack.append(v)
 
+  def show: String = stack.toString
+
 sealed abstract class Denotation
 
 enum Value extends Denotation:
   case IntVal(value: Int)
   case BoolVal(value: Boolean)
   case RecordVal(fields: Map[String, Value])
+  case FunVal(fun: Sast.FunDef, scope: Scope)
 
 object Uninit extends Denotation
-
-enum Action extends Denotation:
-  case Fun(fun: Sast.FunDef, scope: Scope)
-  case Prim(fun: ValueStack => Unit)
+case class PrimAction(op: ValueStack => Unit) extends Denotation
 
 enum Scope:
   case RootScope()
@@ -45,14 +45,14 @@ enum Scope:
 
   private val map: mutable.Map[Symbol, Denotation] = mutable.Map.empty
 
-  def resolve(sym: Symbol): Option[Denotation] =
+  def resolve(sym: Symbol): Denotation =
     map.get(sym) match
       case None =>
         this match
           case NestedScope(outer) => outer.resolve(sym)
-          case _ => None
+          case _ => throw new Exception("Not found " + sym)
 
-      case res  => res
+      case Some(res)  => res
 
   def update(sym: Symbol, denot: Denotation): Unit =
     if map.contains(sym) then
@@ -63,12 +63,7 @@ enum Scope:
         case _ => err("Unknown name to update: " + sym.name)
 
   def bind(sym: Symbol, denot: Denotation): Unit =
-    map.get(sym) match
-      case None =>
-        map(sym) = denot
-
-      case Some(d) =>
-        err(sym.name + " is already bound to " + d)
+    map(sym) = denot
 
 object Primitive:
   import Value.*
@@ -151,42 +146,32 @@ object Interpreter:
   def exec(prog: Prog): Unit =
     val rootScope = new Scope.RootScope()
 
-    for (k, v) <- Primitive.operators do
-      rootScope.bind(k, Action.Prim(v))
+    for (sym, op) <- Primitive.operators do
+      rootScope.bind(sym, PrimAction(op))
 
     val sc = new Scope.NestedScope(rootScope)
     for fun <- prog.funs do
-      sc.bind(fun.symbol, Action.Fun(fun, sc))
-
-    for sym <- prog.vals do
-      sc.bind(sym, Uninit)
+      sc.bind(fun.symbol, Value.FunVal(fun, sc))
 
     val vs = new ValueStack
+    for ValDef(sym, rhs) <- prog.vals do
+      exec(rhs)(using vs, sc)
+      sc.bind(sym, vs.pop())
+
     exec(prog.main)(using vs, sc)
 
   def exec(phrase: Phrase)(using ValueStack, Scope): Unit =
     for word <- phrase.words do exec(word)
 
-  def exec(sym: Symbol)(using vs: ValueStack, sc: Scope): Unit =
-    val Some(denot) = sc.resolve(sym): @unchecked
-    denot match
-      case value: Value =>
-        vs.push(value)
+  def call(fdef: FunDef)(using vs: ValueStack, sc: Scope): Unit =
+    val funScope = new Scope.NestedScope(sc)
+    for param <- fdef.params.reverse do
+      funScope.bind(param, vs.pop())
+    for param <- fdef.locals do
+      funScope.bind(param, Uninit)
+    exec(fdef.body)(using vs, funScope)
 
-      case Uninit =>
-        err("Accessing uninitialized variable " + sym)
-
-      case Action.Prim(fun) => fun(vs)
-
-      case Action.Fun(FunDef(_, _, params, locals, body), sc2) =>
-        val funScope = new Scope.NestedScope(sc2)
-        for param <- params.reverse do
-          funScope.bind(param, vs.pop())
-        for param <- locals do
-          funScope.bind(param, Uninit)
-        exec(body)(using vs, funScope)
-
-  def exec(word: Word)(using vs: ValueStack, sc: Scope): Unit =
+  def exec(word: Word)(using vs: ValueStack, sc: Scope): Unit = Debug.trace(Printing.show(word) + ", stack = " + vs.show, enable = false):
     word match
       case IntLit(v)  => vs.push(Value.IntVal(v))
 
@@ -226,10 +211,36 @@ object Interpreter:
         exec(phrase)
 
       case Ident(sym) =>
-        exec(sym)
+        sc.resolve(sym) match
+          case PrimAction(op) => op(vs)
 
-      case _: ValDef =>
-        throw new Exception("Unexpected " + word)
+          case fval @ Value.FunVal(fdef, sc2) =>
+            if sym.isFunction then
+              call(fdef)(using vs, sc2)
+            else
+              vs.push(fval)
+
+          case Uninit =>
+            err("Accessing uninitialized variable " + sym)
+
+          case value: Value =>
+            vs.push(value)
+
+      case ValDef(sym, rhs) =>
+        exec(rhs)
+        sc.bind(sym, vs.pop())
+
+      case Call(word) =>
+        exec(word)
+        val Value.FunVal(fdef, sc2) = vs.pop(): @unchecked
+        call(fdef)(using vs, sc2)
+
+      case fdef: FunDef =>
+        sc.bind(fdef.symbol, Value.FunVal(fdef, sc))
+
+      case FunRef(sym) =>
+        val (funVal: Value.FunVal) = sc.resolve(sym): @unchecked
+        vs.push(funVal)
 
 /***********************************************************************
  *
@@ -237,10 +248,9 @@ object Interpreter:
  *
  ***********************************************************************/
 @main
-def eval(file: String) = Reporter.monitor:
-  given Reporter = Reporter.withSource(file)
-  IO.fileContent(file)    |>
-  Parsing.parse           |>
-  new Namer().transform   |>
-  ExplicitInit.transform  |>
+def eval(file: String) = Reporter.monitor(file):
+  IO.fileContent(file)        |>
+  Parsing.parse               |>
+  Namer.transform             |>
+  Debug.peek(enable = false)  |>
   Interpreter.exec

@@ -2,7 +2,7 @@
 
 set -e
 
-if [ $1 == "-fast" ]; then
+if [ "$1" = "-fast" ]; then
     OPT=""
 else
     OPT="--native"

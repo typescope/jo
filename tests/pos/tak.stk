@@ -8,7 +8,6 @@ fun tak(x: Int, y: Int, z: Int): Int =
       (y 1 -) z x tak
       (z 1 -) x y tak
       tak
-    end;
 
 1 1 1 tak p
 1 2 3 tak p

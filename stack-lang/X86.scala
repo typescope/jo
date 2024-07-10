@@ -533,18 +533,6 @@ object X86 extends Assembler:
       case l: Label =>
         // B8+ rd id   MOV r32, imm32
         withPatch(l, 5): (bb, loc) =>
-          pb.addByte((0xB8 | reg).toByte)
-          pb.addInt(loc)
-
-  /** Move the value to the register */
-  def const(c: Constant, reg: Int)(using pb: PatchableBuffer) =
-    c match
-      case v: Int32 =>
-        move(v, reg)
-
-      case l: Label =>
-        withPatch(l, 5): (bb, loc) =>
-          // B8+ rd id   MOV r32, imm32
           bb.addByte((0xB8 | reg).toByte)
           bb.addInt(loc)
 

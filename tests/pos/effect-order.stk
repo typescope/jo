@@ -1,3 +1,3 @@
-fun traceDouble(x: Int): Int = x p x x +;
+fun traceDouble(x: Int): Int = x p x x +
 
 5 traceDouble 6 p p

@@ -31,7 +31,7 @@ extends Backend:
 
   /** The memory allocator */
   val allocatorType = ProcType("size" :: Nil, IntType :: Nil, IntType)
-  val allocatorSym = Symbol.createFunSymbol("alloc", allocatorType)
+  val allocatorSym = Symbol.createFunSymbol("alloc", allocatorType, pos = null)
   symbolAddrMap(allocatorSym) = Label(allocatorSym.name)
 
   /** A simple register allocator */
@@ -47,7 +47,7 @@ extends Backend:
     for fun <- prog.funs do
       symbolAddrMap(fun.symbol) = Label(fun.name)
 
-    for sym <- prog.vals do
+    for ValDef(sym, _) <- prog.vals do
       val label = Label(sym.name)
       symbolAddrMap(sym) = label
       cb.add(Data.Uninit(label, Assembly.Type.Int32))
@@ -83,7 +83,7 @@ extends Backend:
     */
   def compile(fdef: FunDef)(using Context): Unit =
     val sym = fdef.symbol
-    val funType = sym.info.erasePolyType.asProcType
+    val funType = TypeOps.erasePolyType(sym.info).asProcType
 
     val label = symbolAddrMap(sym).asInstanceOf[Label]
 
@@ -208,9 +208,12 @@ extends Backend:
     */
   def call(fun: Symbol)(using Context) =
     val addr = symbolAddrMap(fun).asInstanceOf[Label]
-    val funType = fun.info.erasePolyType.asProcType
+    val funType = TypeOps.erasePolyType(fun.info).asProcType
     val argCount = funType.paramCount
     val resCount = funType.resCount
+    call(addr, argCount, resCount)
+
+  def call(addr: Addr, argCount: Int, resCount: Int)(using Context) =
     val returnLoc = Label("returnLoc")
 
     // 1. save FP
@@ -245,27 +248,6 @@ extends Backend:
         cb.add(Instr.Store(Reg(r), dest))
         i += 1
 
-  /** Pop the value on the top of the value stack to the given register.
-    *
-    * Value stack goes from low address to high address.
-    */
-  def pop(destReg: Int)(using Context) =
-    cb.add(Instr.Load(Reg(SP_REG), destReg))
-    cb.add(Instr.Add(Reg(SP_REG), Int32(4), SP_REG))
-
-  /**
-    * Pop the value on the top of the value stack without using it.
-    */
-  def pop()(using Context) =
-    cb.add(Instr.Add(Reg(SP_REG), Int32(4), SP_REG))
-
-  /**
-    * Push value on the value stack.
-    */
-  def push(v: Value)(using Context) =
-    cb.add(Instr.Sub(Reg(SP_REG), Int32(4), SP_REG))
-    cb.add(Instr.Store(v, Reg(SP_REG)))
-
   /** Initialize a value definition
     *
     * Calling the passed function will compile the initializer.
@@ -276,6 +258,59 @@ extends Backend:
     useReg: r =>
       pop(r)
       cb.add(Instr.Store(Reg(r), addr))
+
+  /** Compile a reference to a function */
+  def compile(ref: FunRef)(using Context): Unit =
+    val label = symbolAddrMap(ref.symbol).asInstanceOf[Label]
+    push(label)
+
+  /** Compile function call */
+  def compile(call: Call)(using Context): Unit =
+    compile(call.word)
+    useTwoReg: (r1, r2) =>
+      pop(r1)
+      val funType = call.tpe.asFunctionType
+      val recordType = ElimCapture.encodedRecordType(funType)
+
+      val envOffset = Memory.fieldOffset(recordType, ElimCapture.EnvFieldName)
+      val envAddr = Rel(r1, envOffset)
+      cb.add(Instr.Load(envAddr, r2))
+      push(Reg(r2))
+
+      val procOffset = Memory.fieldOffset(recordType, ElimCapture.ProcFieldName)
+      val procAddr = Rel(r1, procOffset)
+      cb.add(Instr.Load(procAddr, r2))
+
+      this.call(Reg(r2), funType.paramCount + 1, funType.resCount)
+
+  /** Compile [x = 3, y = 5] */
+  def compile(record: RecordLit)(using Context): Unit =
+    val recordType = record.tpe.asRecordType
+    val size = Memory.size(recordType)
+
+    alloc(size)
+    for (name, rhs) <- record.args do
+      dup()
+      compile(rhs)
+      useTwoReg: (r1, r2) =>
+        pop(r2)
+        pop(r1)
+        val offset = Memory.fieldOffset(recordType, name)
+        val fieldAddr = Rel(r1, offset)
+        cb.add(Instr.Store(Reg(r2), fieldAddr))
+    end for
+
+  /** Compile p.x */
+  def compile(select: Select)(using Context): Unit =
+    val field = select.name
+    val qualType = select.qual.tpe.asRecordType
+    val offset = Memory.fieldOffset(qualType, field)
+    compile(select.qual)
+    useReg: r =>
+      pop(r)
+      val fieldAddr = Rel(r, offset)
+      cb.add(Instr.Load(fieldAddr, r))
+      push(Reg(r))
 
   /** Generate a bump allocator
     *
@@ -342,34 +377,26 @@ extends Backend:
     push(size)
     call(allocatorSym)
 
-  /** Compile [x = 3, y = 5] */
-  def compile(record: RecordLit)(using Context): Unit =
-    val recordType = record.tpe.asRecordType
-    val size = Memory.size(recordType)
+  /** Pop the value on the top of the value stack to the given register.
+    *
+    * Value stack goes from low address to high address.
+    */
+  def pop(destReg: Int)(using Context) =
+    cb.add(Instr.Load(Reg(SP_REG), destReg))
+    cb.add(Instr.Add(Reg(SP_REG), Int32(4), SP_REG))
 
-    alloc(size)
-    for (name, rhs) <- record.args do
-      dup()
-      compile(rhs)
-      useTwoReg: (r1, r2) =>
-        pop(r2)
-        pop(r1)
-        val offset = Memory.fieldOffset(recordType, name)
-        val fieldAddr = Rel(r1, offset)
-        cb.add(Instr.Store(Reg(r2), fieldAddr))
-    end for
+  /**
+    * Pop the value on the top of the value stack without using it.
+    */
+  def pop()(using Context) =
+    cb.add(Instr.Add(Reg(SP_REG), Int32(4), SP_REG))
 
-  /** Compile p.x */
-  def compile(select: Select)(using Context): Unit =
-    val field = select.name
-    val qualType = select.qual.tpe.asRecordType
-    val offset = Memory.fieldOffset(qualType, field)
-    compile(select.qual)
-    useReg: r =>
-      pop(r)
-      val fieldAddr = Rel(r, offset)
-      cb.add(Instr.Load(fieldAddr, r))
-      push(Reg(r))
+  /**
+    * Push value on the value stack.
+    */
+  def push(v: Value)(using Context) =
+    cb.add(Instr.Sub(Reg(SP_REG), Int32(4), SP_REG))
+    cb.add(Instr.Store(v, Reg(SP_REG)))
 
   /** Push an integer literal to value stack */
   def push(v: Int)(using Context): Unit = push(Int32(v))

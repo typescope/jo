@@ -4,84 +4,83 @@ import Symbols.*
 
 import scala.collection.mutable
 
-/** The compiler phase that make initialization explicit.
+/** The compiler phase that makes initialization explicit.
   *
   * - Wrap all val defintions in a <init> function with the main phrase.
   * - Rewrite val definitions to assign statement.
   * - Augment function definitions with a list of local symbols.
   * - Remove type definitions.
   */
-object ExplicitInit:
+class ExplicitInit(using Reporter):
+  val treeMap = new ExplicitInit.LocalsTreeMap
+
   def transform(prog: Prog): Prog =
-    val initLocals = new mutable.ArrayBuffer[Symbol]
+    val initNamesInfo = new ExplicitInit.NamesInfo
     val defs = new mutable.ArrayBuffer[Def]
     val inits = new mutable.ArrayBuffer[Word]
 
     for defn <- prog.defs do
       defn match
         case funDef: FunDef  =>
-          defs += transform(funDef)
+          defs += treeMap.transform(funDef)
 
         case vdef: ValDef =>
-          val rhs = transform(vdef.rhs)(using initLocals)
-          inits += Assign(vdef.symbol, rhs)(vdef.pos)
+          val rhs = treeMap.apply(vdef.rhs)(using initNamesInfo)
+          inits += Assign(vdef.symbol, rhs)(vdef.span)
 
-          val empty = Phrase(words = Nil)(rhs.tpe, rhs.pos)
-          defs += ValDef(vdef.symbol, empty)(vdef.pos)
+          val empty = Phrase(words = Nil)(rhs.tpe, rhs.span)
+          defs += ValDef(vdef.symbol, empty)(vdef.span)
 
         case tdef: TypeDef =>
     end for
 
-    inits += transform(prog.main)(using initLocals)
+    inits += treeMap.apply(prog.main)(using initNamesInfo)
 
     // synthesize init function
     val initType = ProcType(names = Nil, paramTypes = Nil, resultType = VoidType)
-    val initSym = Symbol.createFunSymbol("<init>", initType)
-    val initPos = prog.main.pos
-    val initBody = Phrase(inits.toList)(prog.main.tpe, initPos)
-    val initTypeParams = Nil
-    val initParams = Nil
-    val initFun = FunDef(initSym, initTypeParams, initParams, initLocals.toList, initBody)(initPos)
+    val initSym = Symbol.createFunSymbol("<init>", initType, prog.main.pos)
+    val initSpan = prog.main.span
+    val initBody = Phrase(inits.toList)(prog.main.tpe, initSpan)
+
+    val initLocals = initNamesInfo.locals.distinct.toList
+    val initCaptures =
+      initNamesInfo.free.filter(!initLocals.contains(_)).distinct.toList
+
+    val initFun = FunDef(
+      initSym, tparams = Nil, params = Nil, initBody)(
+      initLocals.toList, initCaptures, initSpan
+    )
 
     defs += initFun
-    Prog(defs.toList, Ident(initSym)(initPos))
+    Prog(defs.toList, Ident(initSym)(initSpan))
 
-  type LocalsInfo = mutable.ArrayBuffer[Symbol]
-
-  def transform(fun: FunDef): FunDef =
+object ExplicitInit:
+  class NamesInfo:
     val locals = new mutable.ArrayBuffer[Symbol]
-    val body = transform(fun.body)(using locals)
-    fun.copy(locals = locals.toList, body = body)(fun.pos)
+    val free = new mutable.ArrayBuffer[Symbol]
 
-  def transform(word: Word)(using info: LocalsInfo): Word =
-    word match
-      case _: IntLit | _: BoolLit | _: Ident =>
-        word
+  class LocalsTreeMap extends SastOps.TreeMap:
+    type Context = NamesInfo
 
-      case Select(qual, name) =>
-        Select(transform(qual), name)(word.tpe, word.pos)
+    def transform(fdef: FunDef): FunDef =
+      given info: NamesInfo = new NamesInfo
+      val body = recur(fdef.body)
+      val locals = info.locals.distinct.toList
+      val masked = fdef.params ++ locals
+      val free = info.free.filter(sym => !masked.contains(sym)).distinct.toList
+      fdef.copy(body = body)(locals, free, fdef.span)
 
-      case RecordLit(fields) =>
-        val fields2 = fields.map:
-          case (f, rhs) => f -> transform(rhs)
+    def apply(word: Word)(using info: Context): Word =
+      word match
+        case Ident(sym) =>
+          info.free += sym
+          word
 
-        RecordLit(fields2)(word.tpe, word.pos)
+        case ValDef(sym, rhs) =>
+          info.locals += sym
+          Assign(sym, this(rhs))(word.span)
 
-      case Encoded(repr) =>
-        Encoded(transform(repr))(word.tpe)
+        case fdef: FunDef =>
+          transform(fdef)
 
-      case Assign(sym, rhs) =>
-        Assign(sym, transform(rhs))(word.pos)
-
-      case ValDef(sym, rhs) =>
-        info += sym
-        Assign(sym, transform(rhs))(word.pos)
-
-      case If(cond, thenp, elsep) =>
-        If(transform(cond), transform(thenp), transform(elsep))(word.tpe, word.pos)
-
-      case While(cond, body) =>
-        While(transform(cond), transform(body))(word.pos)
-
-      case Phrase(words) =>
-        Phrase(words.map(transform))(word.tpe, word.pos)
+        case _ => recur(word)

@@ -16,7 +16,6 @@ Lexical Grammar
     USCORE = "_".
 
     COLON    = ":".
-    SEMICOL  = ";".
     VAL      = "val".
     VAR      = "var".
     FUN      = "fun".
@@ -55,44 +54,53 @@ Syntactical Grammar
 
 
 ~~~
-    word    = integer | boolean | ident | if | fence | assign | valdef | while | record | select | variant | match | tapply.
-    fence   = LPAREN phrase RPAREN.
-    assign  = ident EQL phrase SEMICOL.
-    if      = IF phrase THEN phrase [ELSE phrase] END.
-    while   = WHILE phrase DO phrase END.
-    record  = LBRACE [named_args] RBRACE.
-    select  = (ident | select) DOT ident.
-    variant = TAG ident {word} OF type.
-    tapply  = ident targs.
+    word    = integer | boolean | ident | select | if | fence | assign | valdef | while | record | variant | match | tapply | lambda | call.
 
-    match   = MATCH phrase {case} END.
+    select  = word DOT ident.
+
+    fence   = LPAREN phrase RPAREN.
+    assign  = ident EQL phrase.
+    if      = IF phrase THEN phrase [ELSE phrase] [END].
+    while   = WHILE phrase DO phrase [END].
+
+    record  = LBRACE [named_args] RBRACE.
+    named_args = named_arg { COMMA named_arg }.
+    named_arg  = ident EQL phrase.
+
+    variant = TAG ident {word} OF type.
+
+    tapply  = ident targs.
+    lambda  = LPAREN [params] RPAREN RARROW phrase.
+    call    = RARROW word.
+
+    match   = MATCH phrase {case} [END].
     case    = CASE pat RARROW phrase.
     pat     = TAG ident {ident} | USCORE.
 
     phrase  = { typedef } word [phrase].
 
-    valdef  = (VAL | VAR) ident [COLON type] EQL phrase SEMICOL.
-    fundef  = FUN ident [tparams] LPAREN [params] RPAREN EQL phrase SEMICOL.
+    valdef  = (VAL | VAR) ident [COLON type] EQL phrase.
+    fundef  = FUN ident [tparams] LPAREN [params] RPAREN EQL phrase [END].
 
-    typedef = TYPE [tparams] ident EQL type SEMICOL.
+    typedef = TYPE [tparams] ident EQL type.
     tparams = LBRACKET tparam {COMMA tparam} RBRACKET.
     tparam  = ident [SUBTYPE type].
 
     applied_type = ident targs.
     targs        = LBRACKET type { COMMA type } RBRACKET.
 
-    type    = ident | record_typ | union_typ | applied_type.
+    type    = ident | record_typ | union_typ | applied_type | fun_type | LPAREN type RPAREN.
 
-    named_args = named_arg { COMMA named_arg }.
-    named_arg  = ident EQL phrase.
     record_typ = LBRACE [fields]  RBRACE.
     fields     = field { COMMA field }.
     field      = ident COLON type.
 
     union_typ  = '<' [branches] '>'.
     branches   = branch { COMMA branch }.
-    branch     = ident {types}.
+    branch     = ident [types].
     types      = type [ '*' type ].
+
+    fun_type   = [types] RARROW type.
 
     program = {valdef | fundef | typedef} phrase.
 

@@ -4,6 +4,7 @@ import Types.*
 import Reporter.Span
 
 import scala.collection.mutable
+import scala.annotation.constructorOnly
 
 /**
   * Check stack safety
@@ -14,7 +15,7 @@ import scala.collection.mutable
   * - The condition of an if-statement works as a fence and result in one value.
   * - Empty stack is never popped.
   */
-class Checker(using Reporter):
+class Checker(@constructorOnly reporter: Reporter):
   import Checker.ValueStack
 
   private val delayedChecks = new mutable.ArrayBuffer[() => Unit]
@@ -26,22 +27,40 @@ class Checker(using Reporter):
     for check <- delayedChecks do check()
     delayedChecks.clear()
 
-  def check(word: Word)(using vs: ValueStack): Unit =
+  /** Handles possible cycles in result type inference for functions  */
+  val cyclicTypeProvider = new Checker.CyclicTypeProvider(using reporter)
+
+  /** Handles value and type definitions */
+  val nonCyclicTypeProvider = new Checker.ValueTypeProvider(using reporter)
+
+  def check(word: Word)(using vs: ValueStack, rp: Reporter): Unit =
     word match
       case _: IntLit | _: BoolLit | _: RecordLit | _: Select | _: Encoded =>
         vs.push(word.tpe)
 
+      case _: Phrase =>
+        if word.tpe.isValueType then vs.push(word.tpe)
+
       case _: Assign =>
-        vs.expectEmpty("No result expected before assignment", word.pos)
+        vs.expectEmpty("No result expected before assignment", word.span)
 
       case _: ValDef =>
-        vs.expectEmpty("No result expected before definition", word.pos)
+        vs.expectEmpty("No result expected before definition", word.span)
+
+      case _: FunDef =>
 
       case If(cond, thenp, elsep) =>
         if word.tpe.isValueType then vs.push(word.tpe)
 
       case While(cond, body) =>
-        vs.expectEmpty("No result expected before while loop", word.pos)
+        vs.expectEmpty("No result expected before while loop", word.span)
+
+      case Call(word) =>
+        val tp = word.tpe
+        if tp.isFunctionType then
+          vs.call(tp.asFunctionType, word.span)
+        else
+          Reporter.error(s"Function type expected, found = ${tp.show}", word.pos)
 
       case Ident(sym) =>
         // The type of the symbol can be different after type erasure
@@ -51,91 +70,106 @@ class Checker(using Reporter):
           Reporter.error(s"Function $sym expects type arguments", word.pos)
 
         if info.isProcType then
-          vs.call(sym, info.asProcType, word.pos)
+          vs.call(sym, info.asProcType, word.span)
 
         else if info.isValueType then
           vs.push(info)
 
-      case Phrase(words) =>
-        check(words)
+      case FunRef(sym) =>
+        vs.push(word.tpe)
 
-  def check(words: List[Word])(using vs: ValueStack): Unit =
+  def check(words: List[Word])(using ValueStack, Reporter): Unit =
     for word <- words do check(word)
 
-  def checkBounds(tctor: TypeTree, targs: List[TypeTree]): Unit =
+  def checkBounds(tctor: TypeTree, targs: List[TypeTree])(using Reporter): Unit =
     if !tctor.tpe.isTypeLambda then
       Reporter.error(s"Expect type lambda, found = ${tctor.tpe.show}", tctor.pos)
     else
       val tl = tctor.tpe.asTypeLambda
       checkBounds(tl.bounds, targs)
 
-  def checkBounds(bounds: List[Type], targs: List[TypeTree]): Unit =
+  def checkBounds(bounds: List[Type], targs: List[TypeTree])(using Reporter): Unit =
     if bounds.size != targs.size then
-      Reporter.error(s"Expect ${bounds.size} args, found = ${targs.size}", targs.head.pos | targs.last.pos)
+      Reporter.error(s"Expect ${bounds.size} args, found = ${targs.size}", (targs.head.span | targs.last.span).toPos)
     else
       for (targ, bound) <- targs.zip(bounds) do
         val argType = targ.tpe
         val TypeBound(lo, hi) = bound.as[TypeBound]
-        val loActual = substTypeParams(lo, targs.map(_.tpe))
-        val hiActual = substTypeParams(hi, targs.map(_.tpe))
-        if !conforms(argType, hiActual) then
+        val loActual = TypeOps.substTypeParams(lo, targs.map(_.tpe))
+        val hiActual = TypeOps.substTypeParams(hi, targs.map(_.tpe))
+        if !Subtyping.conforms(argType, hiActual) then
           Reporter.error(s"Arg type ${argType.show} does not conform to bound = ${hi.show}, which expands to ${hiActual.show}", targ.pos)
-        if !conforms(loActual, argType) then
+        if !Subtyping.conforms(loActual, argType) then
           Reporter.error(s"Arg type ${argType.show} does not conform to bound = ${hi.show}, which expands to ${hiActual.show}", targ.pos)
 
-  def checkTypeApply(fun: Word, targs: List[TypeTree]): Word =
+  def checkTypeApply(fun: Word, targs: List[TypeTree])(using Reporter): Word =
     if !fun.tpe.isPolyType then
       Reporter.error(s"Expect a poly function type, found = ${fun.tpe.show}", fun.pos)
-      Phrase(words = Nil)(ErrorType, fun.pos | targs.last.pos)
+      Phrase(words = Nil)(ErrorType, fun.span | targs.last.span)
     else
       val polyType = fun.tpe.asPolyType
       if polyType.paramCount != targs.size then
-        Reporter.error(s"Expect ${polyType.paramCount} args, found = ${targs.size}", targs.head.pos | targs.last.pos)
-        Phrase(words = Nil)(ErrorType, fun.pos | targs.last.pos)
+        Reporter.error(s"Expect ${polyType.paramCount} args, found = ${targs.size}", (targs.head.span | targs.last.span).toPos)
+        Phrase(words = Nil)(ErrorType, fun.span | targs.last.span)
       else
         checkBounds(polyType.bounds, targs)
-        val tpe = substTypeParams(polyType.resultType, targs.map(_.tpe))
+        val tpe = TypeOps.substTypeParams(polyType.resultType, targs.map(_.tpe))
         // TODO: generalize
         val funSym = fun.asInstanceOf[Ident].symbol
         // perform type erasure
-        Ident(funSym)(fun.pos, tpe)
+        Ident(funSym)(fun.span, tpe)
 
-  def checkType(tree: Tree, tp: Type): Unit =
-    if !conforms(tree.tpe, tp) then
+  def checkType(tree: Tree, tp: Type)(using Reporter): Unit =
+    if !Subtyping.conforms(tree.tpe, tp) then
       Reporter.error(s"Expect type ${tp.show}, found = ${tree.tpe.show}", tree.pos)
 
-  def checkValueType(tree: Tree): Unit =
-    checkValueType(tree.tpe, tree.pos)
+  def checkValueType(tree: Tree)(using Reporter): Unit =
+    checkValueType(tree.tpe, tree.span)
 
-  def checkValueType(tp: Type, pos: Span): Type =
+  def checkValueType(tp: Type, span: Span)(using Reporter): Type =
     if !tp.isValueType then
-      Reporter.error(s"Expect value type, found = ${tp.show}", pos)
+      Reporter.error(s"Expect value type, found = ${tp.show}", span.toPos)
       ErrorType
     else
       tp
 
-  def fieldType(qualType: Type, field: String, pos: Span): Type =
+  def checkVoidOrValueType(tree: Tree)(using Reporter): Unit =
+    if !tree.tpe.isVoid then checkValueType(tree)
+
+  def checkMutable(sym: Symbol, span: Span)(using Reporter): Unit =
+    if !sym.isAllOf(Flag.Val | Flag.Mutable) then
+      Reporter.error(sym.name + " is not a mutable value", span.toPos)
+
+  def fieldType(qualType: Type, field: String, span: Span)(using Reporter): Type =
     if !qualType.isRecordType then
-      Reporter.error(s"Expect record type, found = ${qualType.show}", pos)
+      Reporter.error(s"Expect record type, found = ${qualType.show}", span.toPos)
       ErrorType
     else
       val recordType = qualType.asRecordType
       if !recordType.hasField(field) then
-        Reporter.error(s"Expect field $field in record type ${recordType.show}, found none", pos)
+        Reporter.error(s"Expect field $field in record type ${recordType.show}, found none", span.toPos)
         ErrorType
       else
         recordType.fieldType(field)
 
-  def checkTagValues(values: List[Word], tagTypes: List[Type], tagPos: Span): Unit =
+  def commonResultType(tp1: Type, tp2: Type, span: Span)(using Reporter): Type =
+    val commonTypeOpt = TypeOps.commonResultType(tp1, tp2)
+    commonTypeOpt match
+      case Some(tp) => tp
+      case None =>
+        Reporter.error(s"Cannot find common result type, tp1 = ${tp1.show}, tp2 = ${tp2.show}", span.toPos)
+        ErrorType
+
+  def checkTagValues(values: List[Word], tagTypes: List[Type], tagSpan: Span)(using Reporter): Unit =
     if tagTypes.size != values.size then
-      Reporter.error(s"Expect ${tagTypes.size} args, found = ${values.size}", tagPos)
+      Reporter.error(s"Expect ${tagTypes.size} args, found = ${values.size}", tagSpan.toPos)
     else
       for (value, tagType) <- values.zip(tagTypes) do
         checkType(value, tagType)
 
-  def tagTypes(tag: Ast.Ident, unionType: Type, typePos: Span): Option[List[Type]] =
+  def tagTypes(tag: Ast.Ident, unionType: Type, typeSpan: Span)(using Reporter): Option[List[Type]] =
     if !unionType.isUnionType then
-      Reporter.error(s"Expect union type, found = ${unionType.show}", typePos)
+      Reporter.error(s"Expect union type, found = ${unionType.show}", typeSpan.toPos)
       None
     else
       val unionType2 = unionType.asUnionType
@@ -146,19 +180,12 @@ class Checker(using Reporter):
         Some(unionType2.tagType(tag.name))
 
   /** Explicit drop of values in if/match expressions */
-  def adapt(word: Word, otherType: Type, pos: Span): Word =
+  def adapt(word: Word, targetType: Type): Word =
     val curType = word.tpe
-    Types.commonResultType(otherType, curType) match
-      case Some(commonType) =>
-        if commonType.isVoid && curType.isValueType then
-          Encoded(word)(VoidType)
-        else
-          word
-
-      case None =>
-        Reporter.error(s"Cannot find common result type between ${curType.show} and ${otherType.show}", pos)
-        Phrase(word :: Nil)(ErrorType, pos)
-    end match
+    if targetType.isVoid && curType.isValueType then
+      Encoded(word)(VoidType)
+    else
+      word
 
 object Checker:
   /**
@@ -178,33 +205,39 @@ object Checker:
 
     def size: Int = valueTypes.size
 
-    def expectEmpty(msg: String, pos: Span)(using Reporter): Unit =
+    def expectEmpty(msg: String, span: Span)(using Reporter): Unit =
       if !isError && this.size != 0 then
-        Reporter.error(s"$msg, found = $size", pos)
+        Reporter.error(s"$msg, found = $size", span.toPos)
         setError()
 
-    def call(fun: Symbol, tp: ProcType, pos: Span)(using Reporter): Unit =
-      if isError then return
+    def call(fun: Symbol, tp: ProcType, span: Span)(using Reporter): Unit =
+      val ProcType(_, paramTypes, resType) = tp
+      call(paramTypes, resType, span)
 
-      val ProcType(names, paramTypes, resType) = tp
+    def call(tp: FunctionType, span: Span)(using Reporter): Unit =
+      val FunctionType(paramTypes, resType) = tp
+      call(paramTypes, resType, span)
+
+    def call(paramTypes: List[Type], resType: Type, span: Span)(using Reporter): Unit =
+      if isError then return
 
       if this.size < paramTypes.size then
         Reporter.error(
-          s"Function $fun expects ${paramTypes.size} arguments, found = $size",
-          pos)
+          s"Function expects ${paramTypes.size} arguments, found = $size",
+          span.toPos)
         setError()
       else
         val argTypes = valueTypes.takeRight(paramTypes.size)
         val agree =
           argTypes.zip(paramTypes).forall: (tp1, tp2) =>
-            conforms(tp1, tp2)
+            Subtyping.conforms(tp1, tp2)
 
         if !agree then
           val expect = paramTypes.map(_.show).mkString("(", ", ", ")")
           val actual = argTypes.map(_.show).mkString("(", ", ", ")")
           Reporter.error(
-            s"Function $fun expects arguments $expect, found = $actual",
-            pos)
+            s"Function expects arguments $expect, found = $actual",
+            span.toPos)
           setError()
         end if
 
@@ -228,3 +261,153 @@ object Checker:
       else
         val tp = valueTypes.remove(this.size - 1)
         Some(tp)
+    end pop
+  end ValueStack
+
+
+  /** Type provider for fun definitions that might involve cycles
+    *
+    * Fixed-point computation is performed for soundness.
+    *
+    * Only self-cycles are allowed.
+    */
+  final class CyclicTypeProvider(using rp: Reporter) extends InfoProvider:
+    /** All pending completers --- never removed */
+    private val completers = mutable.Map.empty[Symbol, InfoCompleter.FixedPoint]
+
+    /** The symbols currently in progress of being completed */
+    private val completing = new mutable.ArrayBuffer[Symbol]
+
+    /**
+      * Add an info provider for the symbol
+      *
+      * @param initial the initial approximation type for the symbol without computation
+      * @param compute compute the type for the symbol
+      */
+    def addProvider(sym: Symbol, initial: Reporter => Type, compute: Reporter => Type) =
+      assert(!completers.contains(sym), "Duplicate provider " + sym)
+      completers(sym) = new InfoCompleter.FixedPoint(initial, compute)
+
+    /**
+      * We only allow self cycles, so it suffices to compute fixed point for the
+      * current info completer.
+      */
+    def apply(sym: Symbol): Type = Debug.trace(s"Retriving $sym", (_: Type).show, enable = false):
+      if !completers.contains(sym) then
+        Reporter.abort("No completer for " + sym, sym.sourcePos)
+
+      val completer = completers(sym)
+
+      def iterate(current: Type)(using rp: Reporter): Type = Debug.trace(s"Compute type for $sym", (_: Type).show, enable = false):
+        if Subtyping.conforms(current, completer.currentType) then
+          // Due to monotonicity, prev <: current, now current <: prev,
+          // thus fix-point has reached
+          for item <- rp.reports do this.rp.report(item)
+          current
+        else
+          // update cache, run another iteration
+          completer.completing(current)
+          // throw the old reporter away without reporting any errors
+          val reporter = rp.withSource(sym.sourcePos.source).fresh()
+          iterate(completer.compute(reporter))(using reporter)
+      end iterate
+
+      if completing.contains(sym) && completing.last != sym then
+        val cycle = completing.dropWhile(_ != sym).map(_.name).mkString(", ")
+        Reporter.error("Mutual recursion needs explicit return type: " + cycle, sym.sourcePos)
+        ErrorType
+      else if completing.contains(sym) then
+        completer.currentType
+      else if completer.isComplete then
+        completer.currentType
+      else
+        completing += sym
+
+        val tp0 = completer.initial(rp)
+        completer.completing(tp0)
+
+        // trigger at list one computation
+        val reporter = rp.withSource(sym.sourcePos.source).fresh()
+        val tp = iterate(completer.compute(reporter))(using reporter)
+        completer.complete(tp)
+
+        completing -= sym
+        tp
+
+  /** Type provider for value definitions
+    *
+    * No worries about cycles and no fixed-point computation is performed.
+    */
+  final class ValueTypeProvider(using rp: Reporter) extends InfoProvider:
+    /** All completers --- never removed  */
+    private val completers = mutable.Map.empty[Symbol, InfoCompleter.Simple]
+
+    /** The symbols currently in progress of being completed */
+    private val completing = new mutable.ArrayBuffer[Symbol]
+
+    /**
+      * Add an info provider for the symbol
+      *
+      * @param initial the initial approximation type for the symbol without computation
+      * @param compute compute the type for the symbol
+      */
+    def addProvider(sym: Symbol, provider: Symbol => Type) =
+      assert(!completers.contains(sym), "Duplicate provider " + sym)
+      completers(sym) = new InfoCompleter.Simple(provider)
+
+    /**
+      * We only allow self cycles, so it suffices to compute fixed point for the
+      * current info completer.
+      */
+    def apply(sym: Symbol): Type = Debug.trace(s"Retriving $sym", (_: Type).show, enable = false):
+      if !completers.contains(sym) then
+        Reporter.abort("No completer for " + sym, sym.sourcePos)
+
+      val completer = completers(sym)
+
+      if completing.contains(sym) && completing.last != sym then
+        val cycle = completing.dropWhile(_ != sym).map(_.name).mkString(", ")
+        Reporter.error("Mutual recursion needs explicit return type: " + cycle, sym.sourcePos)
+        ErrorType
+      else if completing.contains(sym) then
+        completer.currentType
+      else if completer.isComplete then
+        completer.currentType
+      else
+        completing += sym
+
+        val tp = completer.compute(sym)
+        completer.complete(tp)
+
+        completing -= sym
+        tp
+
+  private enum InfoState:
+    case Incomplete
+    case Completing(current: Type)
+    case Completed(cache: Type)
+
+  private enum InfoCompleter:
+    case FixedPoint(initial: Reporter => Type, compute: Reporter => Type)
+    case Simple(compute: Symbol => Type)
+
+    private var state = InfoState.Incomplete
+
+    def complete(tp: Type): Unit =
+      assert(state != InfoState.Completed, "Double completion")
+      state = InfoState.Completed(tp)
+
+    def completing(tp: Type): Unit =
+      assert(state != InfoState.Completed, "monotonicity violated")
+      state = InfoState.Completing(tp)
+
+    def isComplete: Boolean = state.isInstanceOf[InfoState.Completed]
+
+    def currentType: Type =
+      state match
+        case InfoState.Completing(tp) => tp
+
+        case InfoState.Completed(tp) => tp
+
+        case InfoState.Incomplete =>
+           throw new Exception("Unexpected condition")

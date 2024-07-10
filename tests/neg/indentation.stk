@@ -1,0 +1,13 @@
+fun fact(n: Int) =
+  if 0 n == then 1
+  else n 1 - fact n *
+
+fun fact1(n: Int) =
+  if 0 n == then 1
+    else n 1 - fact1 n *   // error
+
+
+fun fact2(n: Int) =
+  if 0 n == then 1
+  else n 1 - fact2 n *
+     end                    // error

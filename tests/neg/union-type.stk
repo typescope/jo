@@ -1,23 +1,20 @@
-type Option = <None, Some Int>;
-type Sum = <Left Int, Right Int>;
-type Bot = < >;
+type Option = <None, Some Int>
+type Sum = <Left Int, Right Int>
+type Bot = < >
 
-val a: Sum = #Left true of Sum;     // error
-val b: Option = #None of Sum;       // error  // error
-val c: Option = #Some 5 of Option;
+val a: Sum = #Left true of Sum     // error
+val b: Option = #None of Sum       // error  // error
+val c: Option = #Some 5 of Option
 
 match c                             // error
   case #None => 0 p
-end
 
 match c
   case _     => 1 p
   case #None => 0 p                 // error
-end
 
 match c                             // error
   case #Some n => n p
   case #Some n => n p               // error
-end
 
 10 p

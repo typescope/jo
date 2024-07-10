@@ -27,14 +27,14 @@ extends Backend:
     *
     * Its type does not matter.
     */
-  val returnAddrSym = Symbol.createParamSymbol("return", IntType)
+  val returnAddrSym = Symbol.createParamSymbol("return", IntType, pos = null)
 
   /** Maps global symbols to addresses */
   val symbolAddrMap: mutable.Map[Symbol, Addr] = mutable.Map.from(nativeFunctions)
 
   /** The memory allocator */
   val allocatorType = ProcType("size" :: Nil, IntType :: Nil, IntType)
-  val allocatorSym = Symbol.createFunSymbol("alloc", allocatorType)
+  val allocatorSym = Symbol.createFunSymbol("alloc", allocatorType, pos = null)
   symbolAddrMap(allocatorSym) = Label(allocatorSym.name)
 
   def freshVirtualReg()(using ctx: Context): Int =
@@ -60,7 +60,7 @@ extends Backend:
     for fun <- prog.funs do
       symbolAddrMap(fun.symbol) = Label(fun.name)
 
-    for sym <- prog.vals do
+    for ValDef(sym, _) <- prog.vals do
       val label = Label(sym.name)
       symbolAddrMap(sym) = label
       cb.add(Data.Uninit(label, Assembly.Type.Int32))
@@ -121,11 +121,11 @@ extends Backend:
   def compile(fdef: FunDef)(using ctx: Context): CalleeProtocol =
     val sym = fdef.symbol
     val paramCount = fdef.params.size
-    val funType = sym.info.erasePolyType.asProcType
+    val funType = TypeOps.erasePolyType(sym.info).asProcType
 
     // TODO: bind retLoc
     val proto @ CalleeProtocol(paramLocs, retLoc, resLocs, savedRegs) =
-      callConvention.callee(funType)
+      callConvention.callee(funType.paramTypes, funType.resultType)
 
     // Compile function to a temporary buffer for register allocation
     gen(PlaceHolder.InitStackPointer)
@@ -252,15 +252,15 @@ extends Backend:
   /** Call the funtion */
   def call(fun: Symbol)(using ctx: Context) =
     // TODO: erasure better handled together with boxing/unboxing?
-    val funType = fun.info.erasePolyType.asProcType
+    val funType = TypeOps.erasePolyType(fun.info).asProcType
     val target = symbolAddrMap(fun).asInstanceOf[Label]
-    val argCount = funType.paramCount
-    val resCount = funType.resCount
+    call(target, funType.paramTypes, funType.resultType)
 
+  def call(target: Addr, paramTypes: List[Type], resType: Type)(using ctx: Context) =
     val proto @ CallerProtocol(inRegs, onStack, resLocs) =
-      callConvention.caller(funType)
+      callConvention.caller(paramTypes, resType)
 
-    val args = ctx.vs.pop(argCount)
+    val args = ctx.vs.pop(paramTypes.size)
     val returnLoc = Label("returnLoc")
 
     for (fixed, dest) <- inRegs do
@@ -322,6 +322,34 @@ extends Backend:
       if sym.isLocal then Instr.Move(rhsValue, ctx.getRegForLocal(sym))
       else Instr.Store(rhsValue, symbolAddrMap(sym))
     gen(instr)
+
+  /** Compile a reference to a function */
+  def compile(ref: FunRef)(using ctx: Context): Unit =
+    val target = symbolAddrMap(ref.symbol).asInstanceOf[Label]
+    val targetReg = freshVirtualReg()
+    gen(Instr.Move(target, targetReg))
+    ctx.vs.push(Reg(targetReg))
+
+  /** Compile function call */
+  def compile(call: Call)(using ctx: Context): Unit =
+    compile(call.word)
+
+    val funType = call.tpe.asFunctionType
+    val recordType = ElimCapture.encodedRecordType(funType)
+
+    val closure = ctx.vs.pop().asInstanceOf[Reg]
+    val envReg = freshVirtualReg()
+    val envOffset = Memory.fieldOffset(recordType, ElimCapture.EnvFieldName)
+    val envAddr = Rel(closure.index, envOffset)
+    gen(Instr.Load(envAddr, envReg))
+    ctx.vs.push(Reg(envReg))
+
+    val procReg = freshVirtualReg()
+    val procOffset = Memory.fieldOffset(recordType, ElimCapture.ProcFieldName)
+    val procAddr = Rel(closure.index, procOffset)
+    gen(Instr.Load(procAddr, procReg))
+
+    this.call(Reg(procReg), funType.paramTypes :+ AnyType, funType.resultType)
 
   /** Generate a bump allocator
     *

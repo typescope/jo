@@ -1,4 +1,4 @@
-fun fact(n: Int): Int = if n 0 == then 1 else n 1 - fact n * end;
+fun fact(n: Int): Int = if n 0 == then 1 else n 1 - fact n *
 
 0 fact p
 4 fact p        // 24
