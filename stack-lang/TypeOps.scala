@@ -39,12 +39,6 @@ object TypeOps:
     val typeMap = new TypeOps.SymbolsTypeMap
     typeMap(tpe)(using substs)
 
-  /** Strip top-level delayed type */
-  def stripDelayed(tp: Type): Type =
-    tp match
-      case delayed: DelayedType => delayed.underlying
-      case tp => tp
-
   /** A grounded type cannot be simplied further at the top-level
     *
     * The following types are grounded:
@@ -60,8 +54,6 @@ object TypeOps:
       case _: PolyType | _: ProcType | _: FunctionType | _: RecordType | _: UnionType | _: TypeBound => true
       case _: TypeLambda | _: TypeParamRef => true
       case _: TypeRef | _: AppliedType => false
-      case _: DelayedType => false
-
   /** Erase a poly type by replacing type parameters with Any */
   def erasePolyType(tp: Type): Type =
     // implementation assumption: no nested poly types
@@ -79,7 +71,7 @@ object TypeOps:
       case ProcType(_, _, resType) => resType
       case tp => tp
 
-  /** Approximate top-level type aliases, delayed types, applied types
+  /** Approximate top-level type aliases, applied types and type parameters
     *
     *
     * The difference with `dealias` is that this method approximates type
@@ -93,9 +85,6 @@ object TypeOps:
     val encountered = new mutable.ArrayBuffer[Symbol]
     def recur(tp: Type, isUp: Boolean): Type = Debug.trace(s"$tp.approx", enable = false):
       tp match
-        case delayed: DelayedType =>
-          recur(delayed.force(), isUp)
-
         case tref @ TypeRef(sym) =>
           if encountered.contains(sym) then
             tref
@@ -120,15 +109,12 @@ object TypeOps:
     recur(tp, isUp)
   end approx
 
-  /** Transitively eliminate top-level type aliases, delayed types and applied types */
+  /** Transitively eliminate top-level type aliases and applied types */
   def dealias(tp: Type): Type =
     // detect cycles in symbol definitions, e.g., type A = A
     val encountered = new mutable.ArrayBuffer[Symbol]
     def recur(tp: Type): Type = Debug.trace(s"$tp.dealias", enable = false):
       tp match
-        case delayed: DelayedType =>
-          recur(delayed.underlying)
-
         case tref @ TypeRef(sym) =>
           if encountered.contains(sym) then
             tref
@@ -168,9 +154,6 @@ object TypeOps:
       case UnionType(branches) =>
         def concat(tps: List[Type]) = tps.map(_.show).mkString(" * ")
         branches.map(_ + " " + concat(_)).mkString("<", ", ", ">")
-
-      case delay: DelayedType =>
-        show(delay.underlying)
 
       case AppliedType(tctor, targs) =>
         show(tctor) + targs.map(show).mkString("[", ", ", "]")
@@ -252,9 +235,6 @@ object TypeOps:
           val paramTypes2 = paramTypes.map(tp => this(tp))
           val resType2 = this(resType)
           FunctionType(paramTypes2, resType2)
-
-        case tp: DelayedType =>
-          this(tp.underlying)
 
   class SymbolsTypeMap extends TypeMap:
     type Context = Map[Symbol, Type]
