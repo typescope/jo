@@ -66,8 +66,6 @@ object Subtyping:
        && reduceTypeAndThen(tp1.as[TypeRef]) { tp1b => checkConforms(tp1b, tp2) }
     || tp2.is[TypeRef]
        && reduceTypeAndThen(tp2.as[TypeRef]) { tp2b => checkConforms(tp1, tp2b) }
-    || tp1.is[DelayedType] && checkConforms(tp1.as[DelayedType].underlying, tp2)
-    || tp2.is[DelayedType] && checkConforms(tp1, tp2.as[DelayedType].underlying)
     || tp1.is[FunctionType] && tp2.is[FunctionType]
        && checkConformsFunctionType(tp1.as[FunctionType], tp2.as[FunctionType])
     || tp1.is[ProcType] && tp2.is[ProcType]
@@ -128,7 +126,7 @@ object Subtyping:
           false
         else
           given Context = ctx.withReducing(sym)
-          check(TypeOps.stripDelayed(sym.info))
+          check(sym.info)
 
   private def checkConformsFunctionType(tp1: FunctionType, tp2: FunctionType)(using Context): Boolean =
     tp1.paramTypes.size == tp2.paramTypes.size
