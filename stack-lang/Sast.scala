@@ -79,7 +79,16 @@ object Sast:
   case class Apply
     (fun: Word, args: List[Word])
     (val tpe: Type, val span: Span)
-  extends Word
+  extends Word:
+    def isPrimitiveCall: Boolean =
+      fun match
+        case Ident(sym) => sym.isPrimitive
+        case _ => false
+
+    /** Get the primitive symbol associated with the call */
+    def primitive: Symbol =
+      val Ident(sym) = fun: @unchecked
+      sym
 
   /** Encoding of a type with another type
     *

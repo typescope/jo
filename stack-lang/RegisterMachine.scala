@@ -99,6 +99,38 @@ class RegisterMachine(
     cb.mark(endLabel)
     exit(Int32(0))(cb)
 
+  def compile(phrase: Phrase)(using Context): Unit =
+    for word <- phrase.words do compile(word)
+
+  def compile(word: Word)(using Context): Unit =
+    word match
+      case IntLit(v)  => push(v)
+
+      case BoolLit(v) => push(v)
+
+      case record: RecordLit => compile(record)
+
+      case select: Select => compile(select)
+
+      case phrase: Phrase => compile(phrase)
+
+      case encoded: Encoded => compile(encoded)
+
+      case app: Apply => compile(app)
+
+      case tapp: TypeApply => compile(tapp)
+
+      case assign: Assign => compile(assign)
+
+      case ifElse: If => compile(ifElse)
+
+      case whileDo: While => compile(whileDo)
+
+      case id: Ident => compile(id)
+
+      case _: ValDef | _: FunDef =>
+        throw new Exception("Unexpected " + word)
+
   def load(loc: Location, dest: Int)(using Context): Unit =
     loc match
       case Location.Reg(arg) =>
@@ -250,13 +282,13 @@ class RegisterMachine(
     gen(PreInstr.Return(retAddrReg, resRegs.toList))
 
   /** Call the funtion */
-  def call(fun: Symbol)(using ctx: Context) =
+  def call(fun: Symbol)(using ctx: Context): Unit =
     // TODO: erasure better handled together with boxing/unboxing?
     val funType = TypeOps.erasePolyType(fun.info).asProcType
     val target = symbolAddrMap(fun).asInstanceOf[Label]
     call(target, funType.paramTypes, funType.resultType)
 
-  def call(target: Addr, paramTypes: List[Type], resType: Type)(using ctx: Context) =
+  def call(target: Addr, paramTypes: List[Type], resType: Type)(using ctx: Context): Unit =
     val proto @ CallerProtocol(inRegs, onStack, resLocs) =
       callConvention.caller(paramTypes, resType)
 

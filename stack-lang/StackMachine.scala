@@ -77,6 +77,39 @@ class StackMachine(
     cb.mark(endLabel)
     exit(Int32(0))
 
+
+  def compile(phrase: Phrase)(using Context): Unit =
+    for word <- phrase.words do compile(word)
+
+  def compile(word: Word)(using Context): Unit =
+    word match
+      case IntLit(v)  => push(v)
+
+      case BoolLit(v) => push(v)
+
+      case record: RecordLit => compile(record)
+
+      case select: Select => compile(select)
+
+      case phrase: Phrase => compile(phrase)
+
+      case encoded: Encoded => compile(encoded)
+
+      case app: Apply => compile(app)
+
+      case tapp: TypeApply => compile(tapp)
+
+      case assign: Assign => compile(assign)
+
+      case ifElse: If => compile(ifElse)
+
+      case whileDo: While => compile(whileDo)
+
+      case id: Ident => compile(id)
+
+      case _: ValDef | _: FunDef =>
+        throw new Exception("Unexpected " + word)
+
   /** Compile a function
     *
     * Calling the passed function will compile the body of the function.
@@ -206,14 +239,14 @@ class StackMachine(
     *  │   value M   │
     *  └─────────────┘ ◄─────── SP
     */
-  def call(fun: Symbol)(using Context) =
+  def call(fun: Symbol)(using Context): Unit =
     val addr = symbolAddrMap(fun).asInstanceOf[Label]
     val funType = TypeOps.erasePolyType(fun.info).asProcType
     val argCount = funType.paramCount
     val resCount = funType.resCount
     call(addr, argCount, resCount)
 
-  def call(addr: Addr, argCount: Int, resCount: Int)(using Context) =
+  def call(addr: Addr, argCount: Int, resCount: Int)(using Context): Unit =
     val returnLoc = Label("returnLoc")
 
     // 1. save FP

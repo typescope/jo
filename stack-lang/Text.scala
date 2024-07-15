@@ -7,7 +7,7 @@ enum Text:
   case Atom(content: String)
   case Empty
 
-  def ~(that: Text): Text =
+  def join(that: Text): Text =
     (this, that) match
       case (Text.Empty, _) => that
       case (_, Text.Empty) => this
@@ -15,9 +15,6 @@ enum Text:
       case (Group(parts1), _) => Group(parts1 :+ that)
       case (_, Group(parts2)) => Group(this +: parts2)
       case _ => Group(Vector(this, that))
-
-  def ~[T](that: T)(using Text.Maker[T]): Text =
-    this ~ Text(that)
 
   override def toString =
     val sb = new StringBuilder
@@ -60,15 +57,21 @@ object Text:
 
   type Maker[T] = (v: T) =>  Text
 
-  given stringTextMaker: Maker[String] = (v) =>
+  given Maker[String] = (v) =>
     if v.isEmpty then Text.Empty
     else Text.Atom(v)
 
+  given Maker[Text] = (v) => v
+
+  given Maker[Int] = (v) => Text.Atom(v.toString)
+
+  given Maker[Boolean] = (v) => Text.Atom(v.toString)
+
   extension [T](t: T)(using Maker[T])
     def ~[S](s: S)(using Maker[S]): Text =
-      Text(t) ~ Text(s)
+      Text(t).join(Text(s))
 
-  def indent(text: Text): Text = Text.Indent(text)
+  def indent[T](v: T)(using Maker[T]): Text = Text.Indent(Text(v))
 
   def rep[T](list: List[T], separator: String)(using Maker[T]): Text =
     rep(list, Text(separator), acc = Text.Empty)
