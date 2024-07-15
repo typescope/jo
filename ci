@@ -47,12 +47,7 @@ for file in $DIR/tests/pos/*.stk; do
     check $RES1 $RES2
 
     # JavaScript
-    bin/stkc $file -o $js -p js-stack
-    node $js > $RES3 2>&1
-    check $RES1 $RES3
-
-    # JavaScript optimized
-    bin/stkc $file -o $js -p js-reg
+    bin/stkc $file -o $js -p js
     node $js > $RES3 2>&1
     check $RES1 $RES3
 done

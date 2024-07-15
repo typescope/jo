@@ -5,26 +5,23 @@ import Sast.*
 import Symbols.*
 import Types.*
 
-import JSBackend.encodeSymbolic
-import JSOptimized.{ ValueStack, Item }
+import JSOptimized.encodeSymbolic
 
 /**
   * JavaScript platform with code optimization
   */
-class JSOptimized(outFile: String) extends Backend:
-  type Context = ValueStack
-
+class JSOptimized(outFile: String):
   private val pw =  new PrintWriter(outFile)
 
   private  val uniqueName = new UniqueName
   export uniqueName.freshName
 
   // Make keywords unavailable
-  List(
-    "for", "while", "function", "var", "let", "break", "continue", "if",
-    "const", "class", "constructor"
-  ).foreach: w =>
-    freshName(w)
+  for word <- List(
+      "for", "while", "function", "var", "let", "break", "continue", "if",
+      "const", "class", "constructor")
+  do
+    freshName(word)
 
   private val symbol2UniqueName: mutable.Map[Symbol, String] = mutable.Map(
     predef.p -> "console.log"

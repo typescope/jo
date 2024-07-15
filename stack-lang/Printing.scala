@@ -4,6 +4,8 @@ import Sast.*
 import Types.Type
 import Symbols.Symbol
 
+import Text.*
+
 object Printing:
 
   def show(word: Word): String = showWord(word).toString
@@ -12,96 +14,15 @@ object Printing:
 
   //----------------------------------------------------------------------------
 
-  // DSL for print
+  given Text.Maker[Word] = v => showWord(v)
 
-  enum Text:
-    case BlankLine
-    case BreakLine
-    case Group(parts: Vector[Text])
-    case Indent(text: Text)
-    case Atom(content: String)
-    case Empty
+  given Text.Maker[Def] = v => showDef(v)
 
-    def ~(that: Text): Text =
-      (this, that) match
-        case (Text.Empty, _) => that
-        case (_, Text.Empty) => this
-        case (Group(parts1), Group(parts2)) => Group(parts1 ++ parts2)
-        case (Group(parts1), _) => Group(parts1 :+ that)
-        case (_, Group(parts2)) => Group(this +: parts2)
-        case _ => Group(Vector(this, that))
+  given Text.Maker[Type] = v => Text(v.show)
 
-    def ~[T](that: T)(using TextMaker[T]): Text =
-      this ~ Text(that)
+  given Text.Maker[TypeTree] = v => Text(v.tpe.show)
 
-    override def toString =
-      val sb = new StringBuilder
-      var indent = 0
-      var isNewLine = false
-
-      def convert(text: Text): Unit =
-        text match
-        case Empty =>
-        case BlankLine =>
-          sb.append("\n\n")
-          isNewLine = true
-        case BreakLine =>
-          sb.append("\n")
-          isNewLine = true
-        case Indent(text) =>
-          indent += 1
-          sb.append("\n")
-          isNewLine = true
-          convert(text)
-          sb.append("\n")
-          isNewLine = true
-          indent -= 1
-        case Group(parts) =>
-          for part <- parts
-          do convert(part)
-        case Atom(content) =>
-          for line <- content.linesWithSeparators do
-            if isNewLine then sb.append("  " * indent)
-            sb.append(line)
-            isNewLine = line.endsWith("\n")
-      end convert
-      convert(this)
-      sb.toString
-    end toString
-  end Text
-
-  object Text:
-    def apply[T](v: T)(using maker: TextMaker[T]): Text = maker(v)
-
-  type TextMaker[T] = (v: T) =>  Text
-
-  given stringTextMaker: TextMaker[String] = (v) =>
-    if v.isEmpty then Text.Empty
-    else Text.Atom(v)
-
-  given TextMaker[Word] = v => showWord(v)
-
-  given TextMaker[Def] = v => showDef(v)
-
-  given TextMaker[Type] = v => Text(v.show)
-
-  given TextMaker[TypeTree] = v => Text(v.tpe.show)
-
-  given TextMaker[Symbol] = v => Text(v.name)
-
-  extension [T](t: T)(using TextMaker[T])
-    def ~[S](s: S)(using TextMaker[S]): Text =
-      Text(t) ~ Text(s)
-
-  def indent(text: Text): Text = Text.Indent(text)
-
-  def rep[T](list: List[T], separator: String)(using TextMaker[T]): Text =
-    rep(list, Text(separator), acc = Text.Empty)
-
-  def rep[T](list: List[T], separator: Text, acc: Text = Text.Empty)(using maker: TextMaker[T]): Text =
-    list match
-    case x :: xs => rep(xs, separator, if acc == Text.Empty then maker(x) else acc ~ separator ~ maker(x))
-    case Nil     => acc
+  given Text.Maker[Symbol] = v => Text(v.name)
 
   //----------------------------------------------------------------------------
 

@@ -31,7 +31,7 @@ object Linux:
   /**
     * Create a new x86 register machine
     */
-  def createX86RegisterMachine(outFile: String, layoutName: String): Backend =
+  def createX86RegisterMachine(outFile: String, layoutName: String): RegisterMachine =
     val layout = Assembler.continuousLayout(layoutName, PROG_START, PAGE_SIZE)
     val elf = new ELF32(outFile, layout, ELF32.EM_386)
 
@@ -51,7 +51,7 @@ object Linux:
   /**
     * Create a new x86 stack machine
     */
-  def createX86StackMachine(outFile: String, layoutName: String): Backend =
+  def createX86StackMachine(outFile: String, layoutName: String): StackMachine =
     val layout = Assembler.continuousLayout(layoutName, PROG_START, PAGE_SIZE)
     val elf = new ELF32(outFile, layout, ELF32.EM_386)
 

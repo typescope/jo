@@ -16,8 +16,8 @@ import StackMachine.RegisterAllocator
 class StackMachine(
   registerConfig: RegisterConfig,
   nativeFunctions: Map[Symbol, Label],
-  generator: Assembly.Prog => Unit)
-extends Backend:
+  generator: Assembly.Prog => Unit):
+
   import registerConfig.{ FP_REG, SP_REG, FREE_REGS }
 
 
