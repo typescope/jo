@@ -3,4 +3,4 @@ fun foo(x: Int): Int =
   val f = (n: Int) =>
     m = 10  // error
     m n *   // error
-  x => f
+  f x
