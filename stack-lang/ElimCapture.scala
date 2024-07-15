@@ -110,12 +110,12 @@ object ElimCapture:
     * @param funSym   the symbol for the function after transform
     * @param captures the transitive captures of the function
     */
-  case class FunInfo(funSym: Symbol, captures: List[Symbol])
+  case class FunInfo(newFunSym: Symbol, captures: List[Symbol])
 
   class Context(
       val owners: List[Symbol],                 // symbols of enclosing functions
-      val funInfos: Map[Symbol, FunInfo],       // rewiring of funs and locals
-      val rewiring: Map[Symbol, Symbol],        // rewiring of funs and locals
+      val funInfos: Map[Symbol, FunInfo],       // rewiring of funs
+      val rewiring: Map[Symbol, Symbol],        // rewiring of locals
       val captures: Map[Symbol, List[Symbol]],  // captured locals in a function
       val lifted: mutable.ArrayBuffer[FunDef]   // lifted funs
     ):

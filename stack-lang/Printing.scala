@@ -92,18 +92,18 @@ object Printing:
 
       case If(cond, thenp, elsep) =>
         "if " ~ cond ~ " then" ~ indent:
-           showWord(thenp)
+            thenp
         ~ "else" ~ indent:
-          showWord(elsep)
+           elsep
 
       case While(cond, body) =>
         "while " ~ cond ~ " do" ~ indent:
-          showWord(body)
+            body
 
       case Phrase(words) =>
         if words.size == 1 then
           showWord(words.head)
         else if words.size > 1 then
-          rep(words, Text(" "))
+          rep(words, Text.BreakLine)
         else
           Text.Empty

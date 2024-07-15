@@ -72,12 +72,12 @@ class JSOptimized(outFile: String):
   def compile(prog: Prog): Unit =
     val pw =  new PrintWriter(outFile)
 
-    val globals = rep(prog.vals.map(_.symbol), Text.BreakLine)
+    val globals = rep(prog.vals, Text.BreakLine)
     val funs = rep(prog.funs, Text.BlankLine)
 
     val text =
       "(function() {" ~ indent:
-           globals ~ funs ~ Text.BreakLine ~ prog.main ~ ";"
+           globals ~ Text.BreakLine ~ funs ~ Text.BreakLine ~ prog.main ~ ";"
       ~ "})()"
 
     pw.append(text.toString)
@@ -132,7 +132,10 @@ class JSOptimized(outFile: String):
 
       case Assign(sym, rhs) =>
         cont(rhs): t =>
-          sym ~ " = " ~ t ~ ";" ~ cont()
+          if sym.isMutable then
+            sym ~ " = " ~ t ~ ";" ~ cont()
+          else
+            "const " ~ sym ~ " = " ~ t ~ ";" ~ cont()
 
       case If(cond, thenp, elsep) =>
         cont(cond): v =>
@@ -178,7 +181,7 @@ class JSOptimized(outFile: String):
     val resCount = funType.resCount
 
     uniqueName.newScope:
-      val locals = fdef.locals.map("var " ~ _ ~ ";" ~ Text.BreakLine)
+      val locals = fdef.locals.filter(_.isMutable).map("var " ~ _ ~ ";" ~ Text.BreakLine)
       "function " ~ sym ~ "(" ~ rep(fdef.params, Text(", ")) ~ ")" ~ " {" ~ indent:
           if resCount == 0 then
             rep(locals, Text.Empty) ~ fdef.body
@@ -254,21 +257,25 @@ object JSOptimized:
     sb.toString
 
   def encodeOperatorChar(c: Char): String =
-    if isDigit(c) || isLetter(c) || c == '_' then c.toString
-    else c match
-      case '+' => "plus"
-      case '-' => "minus"
-      case '*' => "mul"
-      case '/' => "div"
-      case '%' => "mod"
-      case '|' => "or"
-      case '&' => "and"
-      case '^' => "xor"
-      case '>' => "gt"
-      case '<' => "lt"
-      case '=' => "eq"
-      case '!' => "not"
-      case _   => throw new Exception("Not supported, c = " + c)
+    if isDigit(c) || isLetter(c) || c == '_' then
+      c.toString
+    else
+      val base = c match
+        case '+' => "plus"
+        case '-' => "minus"
+        case '*' => "mul"
+        case '/' => "div"
+        case '%' => "mod"
+        case '|' => "or"
+        case '&' => "and"
+        case '^' => "xor"
+        case '>' => "gt"
+        case '<' => "lt"
+        case '=' => "eq"
+        case '!' => "not"
+        case '$' => "dollar"
+        case _   => throw new Exception("Not supported, c = " + c)
+      "_" + base + "_"
 
   def isDigit(c: Char): Boolean =
     c >= '0' && c <= '9'
