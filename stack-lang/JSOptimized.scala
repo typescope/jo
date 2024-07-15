@@ -12,8 +12,6 @@ import JSOptimized.encodeSymbolic
   * JavaScript platform with code optimization
   */
 class JSOptimized(outFile: String):
-  private val pw =  new PrintWriter(outFile)
-
   private  val uniqueName = new UniqueName
   export uniqueName.freshName
 
@@ -39,7 +37,9 @@ class JSOptimized(outFile: String):
 
   //----------------------------------------------------------------------------
 
-  given Text.Maker[Word] = word => compile(word)
+  given Text.Maker[Word] = word =>
+    val ctx: Context = vs => vs.headOption.getOrElse(Text.Empty)
+    compile(word)(using ctx)
 
   given Text.Maker[Symbol] = sym => Text(jsName(sym))
 
@@ -49,37 +49,61 @@ class JSOptimized(outFile: String):
 
   //----------------------------------------------------------------------------
 
+  type Context = List[Text] => Text
+
+  def cont(text: Text)(using cont: Context): Text = cont(text :: Nil)
+  def cont()(using cont: Context): Text = cont(Nil)
+  def cont(expr: Word)(cont: Text => Text): Text =
+    val cont2: Context = { case text :: Nil => cont(text) }
+    compile(expr)(using cont2)
+
+  def cont(exprs: List[Word])(c: List[Text] => Text): Text =
+    exprs match
+      case Nil => c(Nil)
+      case expr :: exprs =>
+        cont(expr): t =>
+          cont(exprs): ts =>
+            c(t :: ts)
+
+  //----------------------------------------------------------------------------
+
   def compile(prog: Prog): Unit =
+    val pw =  new PrintWriter(outFile)
+
+    val globals = rep(prog.vals.map(_.symbol), Text.BreakLine)
+    val funs = rep(prog.funs, Text.BlankLine)
+
     val text =
       "(function() {" ~ indent:
-          rep(prog.vals.map(_.symbol), Text.BreakLine) ~
-              rep(prog.funs, Text.BlankLine) ~ prog.main
+           globals ~ funs ~ prog.main
       ~ "})()"
 
     pw.append(text.toString)
     pw.close()
 
-  def compile(word: Word): Text =
+  def compile(word: Word)(using Context): Text =
     word match
       case IntLit(v)  =>
-        Text(v)
+        cont(Text(v))
 
       case BoolLit(v) =>
-        Text(v)
+        cont(Text(v))
 
       case RecordLit(fields) =>
-        given Text.Maker[(String, Word)] =
-          case (name, rhs) =>
-            val encodedName = encodeSymbolic(name)
-            encodedName ~ ":" ~ rhs
-
-        "{" ~ rep(fields, Text(", ")) ~ "}"
+        cont(fields.map(_._2)): ts =>
+          val fields2 = fields.map(_._1).zip(ts).map(_ ~ _)
+          cont("{" ~ rep(fields2, Text(", ")) ~ "}")
 
       case Select(qual, name) =>
-        qual ~ "." ~ encodeSymbolic(name)
+        cont(qual): t =>
+          cont(t ~ "." ~ encodeSymbolic(name))
 
       case Phrase(words) =>
-        "(" ~ rep(words, Text(", ")) ~ ")"
+        if words.isEmpty then
+          cont()
+        else
+          val stats :+ expr = words
+          rep(stats, Text.BreakLine) ~ Text.BreakLine ~ compile(expr)
 
       case Encoded(repr) =>
         compile(repr)
@@ -88,27 +112,48 @@ class JSOptimized(outFile: String):
         if app.isPrimitiveCall then
           primitive(app.primitive, args)
         else
-          fun ~ "(" ~ rep(args, Text(", ")) ~ ")"
+          cont(fun): v =>
+            cont(args): vs =>
+              val call = v ~ "(" ~ rep(vs, Text(", ")) ~ ")"
+              if app.tpe.isValueType then cont(call)
+              else call ~ Text.BreakLine ~ cont()
 
       case TypeApply(fun, _) =>
         compile(fun)
 
       case Assign(sym, rhs) =>
-        sym ~ " = " ~ rhs ~ ";"
+        cont(rhs): t =>
+          sym ~ " = " ~ t ~ ";" ~ Text.BreakLine ~ cont()
 
       case If(cond, thenp, elsep) =>
-        // TODO: return value
-        "if (" ~ cond ~ ")" ~ " {" ~
-            indent(thenp) ~
-        "}" ~ " else {" ~
-            indent(elsep) ~
-        "}"
+        cont(cond): v =>
+          if word.tpe.isValueType then
+            val resName = freshName("res")
+            "var " ~ resName ~ ";" ~ Text.BreakLine ~
+            "if (" ~ v ~ ")" ~ " {" ~ indent:
+                compile(thenp): v =>
+                  Text.BreakLine ~ resName ~ " = " ~ v ~ ";"
+            ~ "}" ~ " else {" ~ indent:
+                compile(elsep): v =>
+                  Text.BreakLine ~ resName ~ " = " ~ v ~ ";"
+            ~ "}" ~ Text.BreakLine ~
+            cont(Text(resName))
+
+          else
+            "if (" ~ t ~ ")" ~ " {" ~ indent:
+               thenp
+            ~ "}" ~ " else {" ~ indent:
+               elsep
+            ~ "}"
+            ~ cont()
 
       case While(cond, body) =>
-        "while (" ~ cond ~ ") {" ~ indent(body) ~ "}"
+        cont(cond): t =>
+          "while (" ~ t ~ ") {" ~ indent(body) ~ "}"
+          ~ cont()
 
       case Ident(sym) =>
-        Text(sym)
+        cont(Text(sym))
 
       case _: ValDef | _: FunDef =>
         throw new Exception("Unexpected " + word)
@@ -123,33 +168,48 @@ class JSOptimized(outFile: String):
     val funType = TypeOps.erasePolyType(sym.info).asProcType
     val resCount = funType.resCount
 
-    // TODO: return
     uniqueName.newScope:
-      val locals = fdef.locals.map("var " ~ _ ~ ";")
+      val locals = fdef.locals.map("var " ~ _ ~ ";" ~ Text.BreakLine)
       "function " ~ sym ~ "(" ~ rep(fdef.params, Text(", ")) ~ ")" ~ " {" ~ indent:
-          rep(locals, Text.BreakLine) ~ fdef.body
+          if resCount == 0 then
+            rep(locals, Text.Empty) ~ fdef.body
+          else
+            rep(locals, Text.Empty) ~ cont(fdef.body) { v =>
+              "return " ~ v ~ ";" ~  Text.BreakLine
+            }
       ~ "}"
 
   def div(args: List[Word]): Text =
     val a :: b :: Nil = args: @unchecked
-    "((" ~ a ~ " / " ~ b ~ ")" ~ " >> 0" ~ ")"
+    cont(a): v1 =>
+      cont(b): v2 =>
+        cont("((" ~ v1 ~ " / " ~ v2 ~ ")" ~ " >> 0" ~ ")")
 
   def bnot(args: List[Word]): Text =
     val operand :: Nil = args: @unchecked
-    "(!" ~ operand  ~ ")"
+    cont(operand): v =>
+      cont("(!" ~ v  ~ ")")
 
   def abort(args: List[Word]): Text =
-    val operand :: Nil = args: @unchecked
-    "throw "  ~ operand ~ ";"
+    val arg :: Nil = args: @unchecked
+    cont(arg): v =>
+      "throw "  ~ v ~ ";" ~ Text.BreakLine ~ cont(Text("null"))
+
+  def print(args: List[Word]): Text =
+    val arg :: Nil = args: @unchecked
+    cont(arg): v =>
+      predef.p ~ "(" ~ rep(args, Text(", "))  ~ ")" ~ cont()
 
   /**
     * Compile a primitive
     *
     */
-  def primitive(sym: Symbol, args: List[Word]): Text =
+  def primitive(sym: Symbol, args: List[Word])(using Context): Text =
     def binary(op: String): Text =
       val a :: b :: Nil = args: @unchecked
-      "(" ~ a ~ op ~ b ~ ")"
+      cont(a): v1 =>
+        cont(b): v2 =>
+          cont("(" ~ v1 ~ op ~ v2 ~ ")")
 
     sym match
       case predef.add    =>   binary("+")
@@ -170,7 +230,7 @@ class JSOptimized(outFile: String):
       case predef.bor    =>   binary("||")
       case predef.bnot   =>   bnot(args)
       case predef.eql    =>   binary("===")
-      case predef.p      =>   predef.p ~ "(" ~ rep(args, Text(", "))  ~ ")"
+      case predef.p      =>   print(args)
       case runtime.abort =>   abort(args)
       case _             =>   throw new Exception("Unknown primitive: " + sym.name)
   end primitive

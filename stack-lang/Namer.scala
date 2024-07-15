@@ -231,12 +231,10 @@ class Namer(@constructorOnly reporter: Reporter):
           if tagsRest.nonEmpty then
             Reporter.error("Unmatched case(s): " + tagsRest.mkString(", "), scrutIdent.pos)
           // abort
-          val words =
-            IntLit(1)(scrutIdent.span)
-              :: Ident(runtime.abort)(scrutIdent.span)
-              :: Nil
-          val res = Phrase(words)(BottomType, patmat.span)
-          checker.adapt(res, resType)
+          val abort = Ident(runtime.abort)(scrutIdent.span)
+          val args = IntLit(1)(scrutIdent.span) :: Nil
+          val app = Apply(abort, args)(BottomType, patmat.span)
+          checker.adapt(app, resType)
 
       end match
 
