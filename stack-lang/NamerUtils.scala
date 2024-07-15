@@ -104,7 +104,8 @@ object NamerUtils:
         val call = Apply(fun, (preArgs ++ postArgs).toList)(resType, span)
 
         if resType.isValueType then
-          push(call)
+          // allow chaining of calls
+          words.insert(0, call)
         else
           output(call)
 
