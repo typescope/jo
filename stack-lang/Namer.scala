@@ -302,7 +302,6 @@ class Namer(@constructorOnly reporter: Reporter):
     typer.transform(phrase)
 
   private def transform(vdef: Ast.ValDef)(using sc: Scope, rp: Reporter): DelayedDef[ValDef] =
-    // TODO: add Local flag
     var flags: Flags = Flag.empty
     if vdef.mutable then
       flags = flags | Flag.Mutable
@@ -577,7 +576,7 @@ object Namer:
         case ns: NestedScope => ns.allOwners
         case _ => Nil
 
-    def isLocalScope = owners.isEmpty
+    def isLocalScope = owners.nonEmpty
 
     /** Find the owning function of a term symbol */
     def owningFunctionOf(sym: Symbol): Option[Symbol] =

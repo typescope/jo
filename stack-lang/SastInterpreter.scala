@@ -181,10 +181,13 @@ object SastInterpreter:
         if b then exec(thenp) else exec(elsep)
 
       case While(cond, body) =>
-        val BoolVal(b) = eval(cond): @unchecked
-        if b then
-          exec(body)
-          exec(word)
+        // avoid stackoverflow
+        def loop(): Unit =
+          val BoolVal(b) = eval(cond): @unchecked
+          if b then
+            exec(body)
+            loop()
+        loop()
         Nil
 
       case phrase: Phrase =>
@@ -209,6 +212,9 @@ object SastInterpreter:
         (funDenot: @unchecked) match
           case FunVal(fdef, sc2) => call(fdef, argVals)(using sc2)
           case PrimAction(op)    => op(argVals)
+
+      case TypeApply(fun, _) =>
+        exec(fun)
 
       case fdef: FunDef =>
         sc.bind(fdef.symbol, FunVal(fdef, sc))
