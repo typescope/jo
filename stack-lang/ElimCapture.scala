@@ -191,26 +191,29 @@ object ElimCapture:
 
     def apply(word: Word)(using ctx: Context): Word = Debug.trace(Printing.show(word) + ", ctx = " + ctx.show, (_: Word) => "", enable = false):
       word match
+        case Apply(fun, args) =>
+          val fun2 = this(fun)
+          val args2 = args.map(this.apply)
+          if fun2.tpe.isFunctionType then
+            val funType = fun2.tpe.asFunctionType
+            val recordType = ElimCapture.encodedRecordType(funType)
+            val closure = Encoded(fun2)(recordType)
+            val env = Select(closure, EnvFieldName)(recordType.fieldType(EnvFieldName), fun2.span)
+            val proc = Select(closure, ProcFieldName)(recordType.fieldType(ProcFieldName), fun2.span)
+            Apply(proc, args2 :+ env)(word.tpe, word.span)
+          else
+            Apply(fun2, args2)(word.tpe, word.span)
+
         case Ident(sym) =>
-          if sym.isFunction then
-            if sym.isLocal then
-              val FunInfo(subst, captures) = ctx.funInfos(sym)
-              val env = createEnvRecord(sym, captures, word.span)
-              val fun = Ident(subst)(word.span)
-              // TODO: handle param insertion properly after introducing call syntax
-              Phrase(env :: fun :: Nil)(word.tpe, word.span)
-            else
-              word
+          if sym.isAllOf(Flag.Fun | Flag.Local) then
+            val FunInfo(subst, captures) = ctx.funInfos(sym)
+            val env = createEnvRecord(sym, captures, word.span)
+            val recordType = RecordType(List(ProcFieldName -> subst.info, EnvFieldName -> env.tpe))
+            val funRef2 = Ident(subst)(word.span)
+            val closure = RecordLit(List(ProcFieldName -> funRef2, EnvFieldName -> env))(recordType, word.span)
+            Encoded(closure)(word.tpe)
           else
             Ident(ctx.rewiring.getOrElse(sym, sym))(word.span)
-
-        case FunRef(sym) =>
-          val FunInfo(subst, captures) = ctx.funInfos(sym)
-          val env = createEnvRecord(sym, captures, word.span)
-          val recordType = RecordType(List(ProcFieldName -> subst.info, EnvFieldName -> env.tpe))
-          val funRef2 = FunRef(subst)(subst.info, word.span)
-          val closure = RecordLit(List(ProcFieldName -> funRef2, EnvFieldName -> env))(recordType, word.span)
-          Encoded(closure)(word.tpe)
 
         case fdef: FunDef =>
           if ctx.owners.nonEmpty then transform(fdef)

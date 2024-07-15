@@ -233,15 +233,14 @@ class JSOptimized(outFile: String) extends Backend:
     vs.push(Item.Ref(s"$qual.$encodedField"))
 
   /** Compile a reference to a function */
-  def compile(ref: FunRef)(using ctx: Context): Unit =
+  def compile(ref: Ident)(using ctx: Context): Unit =
     val fun = symbol2UniqueName(ref.symbol)
     vs.push(Item.Ref(fun))
 
   /** Compile function call */
-  def compile(call: Call)(using Context): Unit =
-    compile(call.word)
-    val funType = call.tpe.asFunctionType
-
+  def compile(app: Apply)(using Context): Unit =
+    compile(app.fun)
+    val funType = app.tpe.asFunctionType
 
     val closName = freshName("closure")
     addLine(s"let $closName = ${vs.pop()};")

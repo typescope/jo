@@ -49,10 +49,10 @@ abstract class Backend:
   def compile(encoded: Encoded)(using Context): Unit
 
   /** Compile a reference to a function */
-  def compile(ref: FunRef)(using Context): Unit
+  def compile(ref: Ident)(using Context): Unit
 
   /** Compile function call */
-  def compile(call: Call)(using Context): Unit
+  def compile(app: Apply)(using Context): Unit
 
   /** Compile a word */
   def compile(word: Word)(using Context): Unit =
@@ -69,9 +69,7 @@ abstract class Backend:
 
       case encoded: Encoded => compile(encoded)
 
-      case ref: FunRef => compile(ref)
-
-      case call: Call => compile(call)
+      case app: Apply => compile(app)
 
       case assign: Assign =>
         compile(assign)

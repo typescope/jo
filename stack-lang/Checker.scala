@@ -27,59 +27,13 @@ class Checker(@constructorOnly reporter: Reporter):
     for check <- delayedChecks do check()
     delayedChecks.clear()
 
+  // TODO: move type provider to Namer and class defs to NamerUtils.scala
+
   /** Handles possible cycles in result type inference for functions  */
   val cyclicTypeProvider = new Checker.CyclicTypeProvider(using reporter)
 
   /** Handles value and type definitions */
   val nonCyclicTypeProvider = new Checker.ValueTypeProvider(using reporter)
-
-  def check(word: Word)(using vs: ValueStack, rp: Reporter): Unit =
-    word match
-      case _: IntLit | _: BoolLit | _: RecordLit | _: Select | _: Encoded =>
-        vs.push(word.tpe)
-
-      case _: Phrase =>
-        if word.tpe.isValueType then vs.push(word.tpe)
-
-      case _: Assign =>
-        vs.expectEmpty("No result expected before assignment", word.span)
-
-      case _: ValDef =>
-        vs.expectEmpty("No result expected before definition", word.span)
-
-      case _: FunDef =>
-
-      case If(cond, thenp, elsep) =>
-        if word.tpe.isValueType then vs.push(word.tpe)
-
-      case While(cond, body) =>
-        vs.expectEmpty("No result expected before while loop", word.span)
-
-      case Call(word) =>
-        val tp = word.tpe
-        if tp.isFunctionType then
-          vs.call(tp.asFunctionType, word.span)
-        else
-          Reporter.error(s"Function type expected, found = ${tp.show}", word.pos)
-
-      case Ident(sym) =>
-        // The type of the symbol can be different after type erasure
-        val info = word.tpe
-
-        if info.isPolyType then
-          Reporter.error(s"Function $sym expects type arguments", word.pos)
-
-        if info.isProcType then
-          vs.call(sym, info.asProcType, word.span)
-
-        else if info.isValueType then
-          vs.push(info)
-
-      case FunRef(sym) =>
-        vs.push(word.tpe)
-
-  def check(words: List[Word])(using ValueStack, Reporter): Unit =
-    for word <- words do check(word)
 
   def checkBounds(tctor: TypeTree, targs: List[TypeTree])(using Reporter): Unit =
     if !tctor.tpe.isTypeLambda then
@@ -114,10 +68,7 @@ class Checker(@constructorOnly reporter: Reporter):
       else
         checkBounds(polyType.bounds, targs)
         val tpe = TypeOps.substTypeParams(polyType.resultType, targs.map(_.tpe))
-        // TODO: generalize
-        val funSym = fun.asInstanceOf[Ident].symbol
-        // perform type erasure
-        Ident(funSym)(fun.span, tpe)
+        TypeApply(fun, targs)(tpe, fun.span)
 
   def checkType(tree: Tree, tp: Type)(using Reporter): Unit =
     if !Subtyping.conforms(tree.tpe, tp) then
@@ -250,8 +201,6 @@ object Checker:
       assert(tp.isValueType, tp)
       valueTypes += tp
       if tp.isError then setError()
-
-    def push(tps: List[Type]): Unit = for tp <- tps do push(tp)
 
     def pop(): Option[Type] =
       if valueTypes.isEmpty then

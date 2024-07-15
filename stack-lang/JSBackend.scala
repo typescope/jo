@@ -195,14 +195,14 @@ class JSBackend(outFile: String) extends Backend:
     addLine(s"$push($pop().$encodedField);")
 
   /** Compile a reference to a function */
-  def compile(ref: FunRef)(using ctx: Context): Unit =
+  def compile(ref: Ident)(using ctx: Context): Unit =
     val fun = symbol2UniqueName(ref.symbol)
     addLine(s"$push($fun)")
 
   /** Compile function call */
-  def compile(call: Call)(using Context): Unit =
-    compile(call.word)
-    val funType = call.tpe.asFunctionType
+  def compile(app: Apply)(using Context): Unit =
+    compile(app.fun)
+    val funType = app.tpe.asFunctionType
     val closName = freshName("closure")
     addLine(s"const $closName = $pop();")
     val selectEnv = closName + "." + ElimCapture.EnvFieldName

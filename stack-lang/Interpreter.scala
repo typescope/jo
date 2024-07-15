@@ -230,17 +230,13 @@ object Interpreter:
         exec(rhs)
         sc.bind(sym, vs.pop())
 
-      case Call(word) =>
-        exec(word)
+      case Apply(fun, args) =>
+        exec(fun)
         val Value.FunVal(fdef, sc2) = vs.pop(): @unchecked
         call(fdef)(using vs, sc2)
 
       case fdef: FunDef =>
         sc.bind(fdef.symbol, Value.FunVal(fdef, sc))
-
-      case FunRef(sym) =>
-        val (funVal: Value.FunVal) = sc.resolve(sym): @unchecked
-        vs.push(funVal)
 
 /***********************************************************************
  *

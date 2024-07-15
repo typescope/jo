@@ -260,16 +260,16 @@ extends Backend:
       cb.add(Instr.Store(Reg(r), addr))
 
   /** Compile a reference to a function */
-  def compile(ref: FunRef)(using Context): Unit =
+  def compile(ref: Ident)(using Context): Unit =
     val label = symbolAddrMap(ref.symbol).asInstanceOf[Label]
     push(label)
 
   /** Compile function call */
-  def compile(call: Call)(using Context): Unit =
-    compile(call.word)
+  def compile(app: Apply)(using Context): Unit =
+    compile(app.fun)
     useTwoReg: (r1, r2) =>
       pop(r1)
-      val funType = call.tpe.asFunctionType
+      val funType = app.tpe.asFunctionType
       val recordType = ElimCapture.encodedRecordType(funType)
 
       val envOffset = Memory.fieldOffset(recordType, ElimCapture.EnvFieldName)

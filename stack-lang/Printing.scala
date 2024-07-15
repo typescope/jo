@@ -79,13 +79,15 @@ object Printing:
     if v.isEmpty then Text.Empty
     else Text.Atom(v)
 
-  given wordTextMaker: TextMaker[Word] = v => showWord(v)
+  given TextMaker[Word] = v => showWord(v)
 
-  given defTextMaker: TextMaker[Def] = v => showDef(v)
+  given TextMaker[Def] = v => showDef(v)
 
-  given typeTextMaker: TextMaker[Type] = v => Text(v.show)
+  given TextMaker[Type] = v => Text(v.show)
 
-  given symbolTextMaker: TextMaker[Symbol] = v => Text(v.name)
+  given TextMaker[TypeTree] = v => Text(v.tpe.show)
+
+  given TextMaker[Symbol] = v => Text(v.name)
 
   extension [T](t: T)(using TextMaker[T])
     def ~[S](s: S)(using TextMaker[S]): Text =
@@ -138,8 +140,6 @@ object Printing:
 
       case Ident(sym) => Text(sym.name)
 
-      case FunRef(sym) => Text(sym.name)
-
       case Select(qual, name) =>
         qual ~ "." ~ name
 
@@ -154,8 +154,11 @@ object Printing:
       case Encoded(repr) =>
         "(" ~ repr ~ ": " ~ word.tpe ~ ")"
 
-      case Call(fun) =>
-        "=> " ~ fun
+      case Apply(fun, args) =>
+        fun ~ "(" ~ rep(args, Text(", ")) ~ ")"
+
+      case TypeApply(fun, targs) =>
+        fun ~ "[" ~ rep(targs, Text(", ")) ~ "]"
 
       case Assign(sym, rhs) =>
         Text.BreakLine ~ sym.name ~ " = " ~ rhs ~ Text.BreakLine

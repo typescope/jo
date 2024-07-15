@@ -324,17 +324,31 @@ extends Backend:
     gen(instr)
 
   /** Compile a reference to a function */
-  def compile(ref: FunRef)(using ctx: Context): Unit =
-    val target = symbolAddrMap(ref.symbol).asInstanceOf[Label]
-    val targetReg = freshVirtualReg()
-    gen(Instr.Move(target, targetReg))
-    ctx.vs.push(Reg(targetReg))
+  def compile(id: Ident)(using ctx: Context): Unit =
+    val sym = id.symbol
+    if sym.isValue then
+      if sym.isLocal then
+        val reg = ctx.getRegForLocal(sym)
+        ctx.vs.push(Reg(reg))
+      else
+        val reg = freshVirtualReg()
+        val addr = symbolAddrMap(sym)
+        gen(Instr.Load(addr, reg))
+        ctx.vs.push(Reg(reg))
+    else
+      if sym.isPrimitive then
+        throw new Exception("Unexpected primitive " + sym)
+      else
+        val target = symbolAddrMap(id.symbol).asInstanceOf[Label]
+        val targetReg = freshVirtualReg()
+        gen(Instr.Move(target, targetReg))
+        ctx.vs.push(Reg(targetReg))
 
   /** Compile function call */
-  def compile(call: Call)(using ctx: Context): Unit =
-    compile(call.word)
+  def compile(app: Apply)(using ctx: Context): Unit =
+    compile(app.fun)
 
-    val funType = call.tpe.asFunctionType
+    val funType = app.tpe.asFunctionType
     val recordType = ElimCapture.encodedRecordType(funType)
 
     val closure = ctx.vs.pop().asInstanceOf[Reg]

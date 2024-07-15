@@ -39,7 +39,7 @@ class Namer(@constructorOnly reporter: Reporter):
 
     Prog(defs, main2)
 
-  private def transform(defs: List[Ast.Def])(using sc: Scope, rp: Reporter): List[Def] =
+  def transform(defs: List[Ast.Def])(using sc: Scope, rp: Reporter): List[Def] =
     val delayedDefs = new mutable.ArrayBuffer[DelayedDef[Def]]
 
     for defn <- defs do
@@ -51,7 +51,6 @@ class Namer(@constructorOnly reporter: Reporter):
       delayedDef.force()
 
   private def index(defn: Ast.Def)(using sc: Scope, rp: Reporter): DelayedDef[Def] =
-
     defn match
       case vdef: Ast.ValDef =>
         transform(vdef)
@@ -72,7 +71,7 @@ class Namer(@constructorOnly reporter: Reporter):
       if ownerFunOpt != curFunOpt then
         Reporter.error("Cannot capture local mutable variable " + sym.name, span.toPos)
 
-  private def transform(word: Ast.Word)(using sc: Scope, rp: Reporter): Word =
+  def transform(word: Ast.Word)(using sc: Scope, rp: Reporter): Word =
     word match
       case Ast.IntLit(v)  =>
         IntLit(v)(word.span)
@@ -107,9 +106,6 @@ class Namer(@constructorOnly reporter: Reporter):
         checker.checkType(rhs, sym.info)
         Assign(sym, rhs)(word.span)
 
-      case Ast.Call(word) =>
-        Call(transform(word))(word.span)
-
       case record: Ast.RecordLit =>
         transform(record)
 
@@ -137,7 +133,7 @@ class Namer(@constructorOnly reporter: Reporter):
         val funDef = Ast.FunDef(id, tparams, params, resType, body)(word.span)
         val funDef2 = transform(funDef)(using sc2).force()
         val lambdaType = funDef2.tpe.asProcType.toFunType
-        val ref = FunRef(funDef2.symbol)(lambdaType, word.span)
+        val ref = Ident(funDef2.symbol)(word.span)
         Phrase(funDef2 :: ref :: Nil)(lambdaType, word.span)
 
       case vdef: Ast.ValDef =>
@@ -160,7 +156,7 @@ class Namer(@constructorOnly reporter: Reporter):
 
   private def transform(record: Ast.RecordLit)(using sc: Scope, rp: Reporter): Word =
     val Ast.RecordLit(namedArgs) = record
-    val namedArgs2 = new mutable.ArrayBuffer[(String, Phrase)]
+    val namedArgs2 = new mutable.ArrayBuffer[(String, Word)]
     for Ast.NamedArg(id, rhs) <- namedArgs do
       if namedArgs2.exists(_._1 == id.name) then
         Reporter.error("Arg " + id.name + " already defined", id.pos)
@@ -299,29 +295,9 @@ class Namer(@constructorOnly reporter: Reporter):
           val body3 = Phrase(vals.toList :+ adapted2)(adapted2.tpe, caseDef.span)
           If(cond, body3, elsep)(body3.tpe, caseDef.span)
 
-  private def transform(phrase: Ast.Phrase)(using sc: Scope, rp: Reporter): Phrase =
-    val sc2 = sc.fresh()
-
-    transform(phrase.tdefs)(using sc2)
-
-    val wordsTyped = phrase.words.flatMap: word =>
-      transform(word)(using sc2) match
-        case Phrase(Nil) => Nil
-        case word => word :: Nil
-
-    val vs = new Checker.ValueStack
-    checker.check(wordsTyped)(using vs)
-
-    val tp =
-      if !vs.isError && vs.size > 1 then
-        Reporter.error("At most one value expected, found = " + vs.size, phrase.pos)
-        ErrorType
-      else
-        vs.pop() match
-          case Some(tp) => checker.checkValueType(tp, phrase.span)
-          case None => VoidType
-
-    Phrase(wordsTyped)(tp, phrase.span)
+  private def transform(phrase: Ast.Phrase)(using sc: Scope, rp: Reporter): Word =
+    val typer = new NamerUtils.PhraseTyper(this, checker)
+    typer.transform(phrase)
 
   private def transform(vdef: Ast.ValDef)(using sc: Scope, rp: Reporter): DelayedDef[ValDef] =
     // TODO: add Local flag
@@ -329,7 +305,7 @@ class Namer(@constructorOnly reporter: Reporter):
     if vdef.mutable then
       flags = flags | Flag.Mutable
 
-    if sc.owners.nonEmpty then
+    if sc.isLocalScope then
       flags = flags | Flag.Local
 
     val sym = Symbol.createValueSymbol(vdef.name, checker.nonCyclicTypeProvider, flags, vdef.ident.pos)
@@ -360,7 +336,7 @@ class Namer(@constructorOnly reporter: Reporter):
     val bounds = new mutable.ArrayBuffer[Type]
 
     var flags: Flags = Flag.empty
-    if sc.owners.nonEmpty then
+    if sc.isLocalScope then
       flags = flags | Flag.Local
 
     val sym = Symbol.createFunSymbol(funDef.name, checker.cyclicTypeProvider, flags, funDef.ident.pos)
@@ -583,7 +559,7 @@ object Namer:
       if cache == null then cache = compute(s)
       cache.asInstanceOf[T]
 
-  private enum Scope:
+  enum Scope:
     case RootScope()
     case NestedScope(outer: Scope)(val allOwners: List[Symbol])
 
@@ -594,10 +570,12 @@ object Namer:
       *
       * A owner can be either a function or a value definition.
       */
-    def owners: List[Symbol] =
+    private def owners: List[Symbol] =
       this match
         case ns: NestedScope => ns.allOwners
         case _ => Nil
+
+    def isLocalScope = owners.isEmpty
 
     /** Find the owning function of a term symbol */
     def owningFunctionOf(sym: Symbol): Option[Symbol] =
