@@ -72,6 +72,8 @@ class Reporter(
         throw FatalError.StopAfterPhase()
       else
         fn(v)
+
+    inline def |+ [U](inline fn: T => U): U = fn(v)
   end extension
 
 object Reporter:

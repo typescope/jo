@@ -155,7 +155,7 @@ object Printing:
         "(" ~ repr ~ ": " ~ word.tpe ~ ")"
 
       case Apply(fun, args) =>
-        fun ~ "(" ~ rep(args, Text(", ")) ~ ")"
+        "(" ~ fun ~ " " ~ rep(args, Text(" ")) ~ ")"
 
       case TypeApply(fun, targs) =>
         fun ~ "[" ~ rep(targs, Text(", ")) ~ "]"

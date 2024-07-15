@@ -3,6 +3,7 @@ import scala.collection.mutable
 import Sast.*
 import Types.*
 import Symbols.*
+import Reporter.Span
 
 import Namer.Scope
 
@@ -51,6 +52,7 @@ object NamerUtils:
         // TODO: type inference
         if tp.isPolyType then
           Reporter.error(s"Function ${Printing.show(word)} expects type arguments", word.pos)
+          errorTree(word.span)
 
         else if tp.isProcType then
           call(word, tp.asProcType)
@@ -72,16 +74,19 @@ object NamerUtils:
       call(fun, Nil, funType.paramTypes, funType.resultType)
 
     def call(fun: Word, preTypes: List[Type], postTypes: List[Type], resType: Type)(using Reporter): Unit =
+      println(Printing.show(fun))
       if values.size < preTypes.size then
         Reporter.error(
           s"Function ${Printing.show(fun)} expects ${preTypes.size} pre arguments, found = ${values.size}",
           fun.pos)
-        push(Phrase(Nil)(ErrorType, fun.span))
+        push(errorTree(fun.span))
+
       else if words.size < postTypes.size then
         Reporter.error(
           s"Function ${Printing.show(fun)} expects ${postTypes.size} post arguments, found = ${words.size}",
           fun.pos)
-        push(Phrase(Nil)(ErrorType, fun.span))
+        push(errorTree(fun.span))
+
       else
         val preArgs = values.takeRight(preTypes.size)
         for (arg, paramType) <- preArgs.zip(preTypes) do
@@ -89,11 +94,11 @@ object NamerUtils:
 
         values.dropRightInPlace(preTypes.size)
 
-        val postArgs = words.takeInPlace(postTypes.size)
+        val postArgs = words.take(postTypes.size)
         for (arg, paramType) <- postArgs.zip(postTypes) do
           checker.checkType(arg, paramType)
 
-        values.dropInPlace(postTypes.size)
+        words.dropInPlace(postTypes.size)
 
         var span = preArgs.foldLeft(fun.span)(_ | _.span)
         span = postArgs.foldLeft(span)(_ | _.span)
@@ -115,4 +120,6 @@ object NamerUtils:
 
       values.clear
       statements += word
+
+    def errorTree(span: Span): Word = Phrase(Nil)(ErrorType, span)
   end PhraseTyper
