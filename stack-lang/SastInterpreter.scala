@@ -15,7 +15,7 @@ object SastInterpreter:
     case RecordVal(fields: Map[String, Value])
     case FunVal(fun: Sast.FunDef, scope: Scope)
 
-  case class PrimAction(op: List[Value] => Option[Value]) extends Denotation
+  case class PrimAction(op: List[Value] => List[Value]) extends Denotation
   case object Uninit extends Denotation
 
   import Value.*
@@ -49,21 +49,21 @@ object SastInterpreter:
       map(sym) = denot
   end Scope
 
-  def int2(op: (Int, Int) => Int)(args: List[Value]): Some[Value] =
+  def int2(op: (Int, Int) => Int)(args: List[Value]): List[Value] =
     val IntVal(a) :: IntVal(b) :: Nil = args: @unchecked
-    Some(IntVal(op(b, a)))
+    IntVal(op(a, b)) :: Nil
 
-  def int2bool(op: (Int, Int) => Boolean)(args: List[Value]): Some[Value] =
+  def int2bool(op: (Int, Int) => Boolean)(args: List[Value]): List[Value] =
     val IntVal(a) :: IntVal(b) :: Nil = args: @unchecked
-    Some(BoolVal(op(b, a)))
+    BoolVal(op(a, b)) :: Nil
 
-  def bool2(op: (Boolean, Boolean) => Boolean)(args: List[Value]): Some[Value] =
+  def bool2(op: (Boolean, Boolean) => Boolean)(args: List[Value]): List[Value] =
     val BoolVal(a) :: BoolVal(b) :: Nil = args: @unchecked
-    Some(BoolVal(op(b, a)))
+    BoolVal(op(a, b)) :: Nil
 
-  def bool1(op: Boolean => Boolean)(args: List[Value]): Some[Value] =
+  def bool1(op: Boolean => Boolean)(args: List[Value]): List[Value] =
     val BoolVal(a) :: Nil = args: @unchecked
-    Some(BoolVal(op(a)))
+    BoolVal(op(a)) :: Nil
 
   def add(args: List[Value]) = int2(_ + _)(args)
   def sub(args: List[Value]) = int2(_ - _)(args)
@@ -86,20 +86,20 @@ object SastInterpreter:
   def bor (args: List[Value]) = bool2(_ || _)(args)
   def bnot(args: List[Value]) = bool1(! _   )(args)
 
-  def eql(args: List[Value]): Some[Value] =
+  def eql(args: List[Value]): List[Value] =
     val a :: b :: Nil = args: @unchecked
-    Some(BoolVal(a == b))
+    BoolVal(a == b) :: Nil
 
-  def print(args: List[Value]): Option[Value] =
+  def print(args: List[Value]): List[Value] =
     val IntVal(v) :: Nil = args: @unchecked
     println(v)
-    None
+    Nil
 
-  def abort(args: List[Value]): Option[Value] =
+  def abort(args: List[Value]): List[Value] =
     val IntVal(v) :: Nil = args: @unchecked
     throw new Exception(v.toString)
 
-  val primitiveOperators: Map[Symbol, List[Value] => Option[Value]] = Map(
+  val primitiveOperators: Map[Symbol, List[Value] => List[Value]] = Map(
       predef.add    ->    add,
       predef.sub    ->    sub,
       predef.mul    ->    mul,
@@ -137,13 +137,13 @@ object SastInterpreter:
 
     exec(prog.main)(using sc)
 
-  def exec(phrase: Phrase)(using Scope): Option[Denotation] =
+  def exec(phrase: Phrase)(using Scope): List[Denotation] =
     val results = for word <- phrase.words yield exec(word)
 
-    if results.isEmpty then None
+    if results.isEmpty then Nil
     else results.last
 
-  def call(fdef: FunDef, args: List[Value])(using sc: Scope): Option[Denotation] =
+  def call(fdef: FunDef, args: List[Value])(using sc: Scope): List[Denotation] =
     val funScope = sc.fresh()
     for (param, arg) <- fdef.params.zip(args) do
       funScope.bind(param, arg)
@@ -152,29 +152,29 @@ object SastInterpreter:
     exec(fdef.body)(using funScope)
 
   def eval(word: Word)(using sc: Scope): Value =
-    val Some(value: Value) = exec(word): @unchecked
+    val (value: Value) :: Nil = exec(word): @unchecked
     value
 
-  def exec(word: Word)(using sc: Scope): Option[Denotation] = Debug.trace(Printing.show(word), enable = false):
+  def exec(word: Word)(using sc: Scope): List[Denotation] = Debug.trace(Printing.show(word), enable = false):
     word match
-      case IntLit(v)  => Some(IntVal(v))
+      case IntLit(v)  => IntVal(v) :: Nil
 
-      case BoolLit(v) => Some(BoolVal(v))
+      case BoolLit(v) => BoolVal(v) :: Nil
 
       case Encoded(repr) => exec(repr)
 
       case RecordLit(args) =>
         val fieldValues = mutable.Map.empty[String, Value]
         for (name, arg) <- args do fieldValues(name) = eval(arg)
-        Some(RecordVal(fieldValues.toMap))
+        RecordVal(fieldValues.toMap) :: Nil
 
       case Select(qual, name) =>
         val RecordVal(fieldVals) = eval(qual): @unchecked
-        Some(fieldVals(name))
+        fieldVals(name) :: Nil
 
       case Assign(sym, rhs) =>
         sc.update(sym, eval(rhs))
-        None
+        Nil
 
       case If(cond, thenp, elsep) =>
         val BoolVal(b) = eval(cond): @unchecked
@@ -185,7 +185,7 @@ object SastInterpreter:
         if b then
           exec(body)
           exec(word)
-        None
+        Nil
 
       case phrase: Phrase =>
         exec(phrase)
@@ -196,14 +196,14 @@ object SastInterpreter:
             err("Accessing uninitialized variable " + sym)
 
           case denot =>
-            Some(denot)
+            denot :: Nil
 
       case ValDef(sym, rhs) =>
         sc.bind(sym, eval(rhs))
-        None
+        Nil
 
       case Apply(fun, args) =>
-        val Some(funDenot) = exec(fun): @unchecked
+        val funDenot :: Nil = exec(fun): @unchecked
         val argVals = args.map(eval)
 
         (funDenot: @unchecked) match
@@ -212,12 +212,12 @@ object SastInterpreter:
 
       case fdef: FunDef =>
         sc.bind(fdef.symbol, FunVal(fdef, sc))
-        None
+        Nil
 
 @main
 def sastEval(file: String) = Reporter.monitor(file):
   IO.fileContent(file)        |>
   Parsing.parse               |>
-  Namer.transform             |>
+  Namer.transform             |+
   Debug.peek(enable = false)  |>
   SastInterpreter.exec

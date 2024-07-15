@@ -226,6 +226,7 @@ class Namer(@constructorOnly reporter: Reporter):
         case caseDef :: rest =>
           val tagsRest2 = subtractPattern(tagsRest, caseDef.pat)
           transform(scrutIdent, caseDef, resType, tp => transformCases(rest, tp, tagsRest2))(using sc2)
+
         case Nil =>
           if tagsRest.nonEmpty then
             Reporter.error("Unmatched case(s): " + tagsRest.mkString(", "), scrutIdent.pos)
@@ -236,6 +237,7 @@ class Namer(@constructorOnly reporter: Reporter):
               :: Nil
           val res = Phrase(words)(BottomType, patmat.span)
           checker.adapt(res, resType)
+
       end match
 
     val body = transformCases(cases, BottomType, allTags)
