@@ -38,7 +38,7 @@ class ExplicitInit(using Reporter):
 
     // synthesize init function
     val initType = ProcType(names = Nil, paramTypes = Nil, resultType = VoidType)
-    val initSym = Symbol.createFunSymbol("<init>", initType, prog.main.pos)
+    val initSym = Symbol.createFunSymbol("_init", initType, prog.main.pos)
     val initSpan = prog.main.span
     val initBody = Phrase(inits.toList)(prog.main.tpe, initSpan)
 
@@ -52,7 +52,7 @@ class ExplicitInit(using Reporter):
     )
 
     defs += initFun
-    Prog(defs.toList, Ident(initSym)(initSpan))
+    Prog(defs.toList, Apply(Ident(initSym)(initSpan), Nil)(VoidType, initSpan))
 
 object ExplicitInit:
   class NamesInfo:

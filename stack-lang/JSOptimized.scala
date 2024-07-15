@@ -54,7 +54,9 @@ class JSOptimized(outFile: String):
   def cont(text: Text)(using cont: Context): Text = cont(text :: Nil)
   def cont()(using cont: Context): Text = cont(Nil)
   def cont(expr: Word)(cont: Text => Text): Text =
-    val cont2: Context = { case text :: Nil => cont(text) }
+    val cont2: Context = (vs: List[Text]) =>
+      val text :: Nil = vs: @unchecked
+      cont(text)
     compile(expr)(using cont2)
 
   def cont(exprs: List[Word])(c: List[Text] => Text): Text =
@@ -75,7 +77,7 @@ class JSOptimized(outFile: String):
 
     val text =
       "(function() {" ~ indent:
-           globals ~ funs ~ prog.main
+           globals ~ funs ~ Text.BreakLine ~ prog.main ~ ";"
       ~ "})()"
 
     pw.append(text.toString)
@@ -91,7 +93,7 @@ class JSOptimized(outFile: String):
 
       case RecordLit(fields) =>
         cont(fields.map(_._2)): ts =>
-          val fields2 = fields.map(_._1).zip(ts).map(_ ~ _)
+          val fields2 = fields.map(_._1).zip(ts).map(_ ~ ": " ~ _)
           cont("{" ~ rep(fields2, Text(", ")) ~ "}")
 
       case Select(qual, name) =>
@@ -99,11 +101,18 @@ class JSOptimized(outFile: String):
           cont(t ~ "." ~ encodeSymbolic(name))
 
       case Phrase(words) =>
-        if words.isEmpty then
-          cont()
-        else
-          val stats :+ expr = words
-          rep(stats, Text.BreakLine) ~ Text.BreakLine ~ compile(expr)
+        words match
+          case Nil =>
+            cont()
+
+          case _ =>
+            if word.tpe.isValueType then
+              val stats :+ expr = words: @unchecked
+              val sep = if stats.isEmpty then Text.Empty else Text.BreakLine
+              rep(stats, Text.BreakLine) ~ sep ~ compile(expr)
+
+            else
+              rep(words, Text.BreakLine)
 
       case Encoded(repr) =>
         compile(repr)
@@ -116,14 +125,14 @@ class JSOptimized(outFile: String):
             cont(args): vs =>
               val call = v ~ "(" ~ rep(vs, Text(", ")) ~ ")"
               if app.tpe.isValueType then cont(call)
-              else call ~ Text.BreakLine ~ cont()
+              else call ~ cont()
 
       case TypeApply(fun, _) =>
         compile(fun)
 
       case Assign(sym, rhs) =>
         cont(rhs): t =>
-          sym ~ " = " ~ t ~ ";" ~ Text.BreakLine ~ cont()
+          sym ~ " = " ~ t ~ ";" ~ cont()
 
       case If(cond, thenp, elsep) =>
         cont(cond): v =>
@@ -131,20 +140,20 @@ class JSOptimized(outFile: String):
             val resName = freshName("res")
             "var " ~ resName ~ ";" ~ Text.BreakLine ~
             "if (" ~ v ~ ")" ~ " {" ~ indent:
-                compile(thenp): v =>
-                  Text.BreakLine ~ resName ~ " = " ~ v ~ ";"
+                cont(thenp): v =>
+                  resName ~ " = " ~ v ~ ";"
             ~ "}" ~ " else {" ~ indent:
-                compile(elsep): v =>
-                  Text.BreakLine ~ resName ~ " = " ~ v ~ ";"
+                cont(elsep): v =>
+                  resName ~ " = " ~ v ~ ";"
             ~ "}" ~ Text.BreakLine ~
             cont(Text(resName))
 
           else
-            "if (" ~ t ~ ")" ~ " {" ~ indent:
-               thenp
-            ~ "}" ~ " else {" ~ indent:
-               elsep
-            ~ "}"
+            "if (" ~ v ~ ")" ~ " {" ~
+               indent(thenp)
+            ~ "}" ~ (if elsep.isEmpty then Text.Empty else " else {" ~
+               indent(elsep)
+            ~ "}")
             ~ cont()
 
       case While(cond, body) =>
@@ -179,26 +188,26 @@ class JSOptimized(outFile: String):
             }
       ~ "}"
 
-  def div(args: List[Word]): Text =
+  def div(args: List[Word])(using Context): Text =
     val a :: b :: Nil = args: @unchecked
     cont(a): v1 =>
       cont(b): v2 =>
         cont("((" ~ v1 ~ " / " ~ v2 ~ ")" ~ " >> 0" ~ ")")
 
-  def bnot(args: List[Word]): Text =
+  def bnot(args: List[Word])(using Context): Text =
     val operand :: Nil = args: @unchecked
     cont(operand): v =>
       cont("(!" ~ v  ~ ")")
 
-  def abort(args: List[Word]): Text =
+  def abort(args: List[Word])(using Context): Text =
     val arg :: Nil = args: @unchecked
     cont(arg): v =>
       "throw "  ~ v ~ ";" ~ Text.BreakLine ~ cont(Text("null"))
 
-  def print(args: List[Word]): Text =
+  def print(args: List[Word])(using Context): Text =
     val arg :: Nil = args: @unchecked
     cont(arg): v =>
-      predef.p ~ "(" ~ rep(args, Text(", "))  ~ ")" ~ cont()
+      predef.p ~ "(" ~ rep(args, Text(", "))  ~ ");" ~ cont()
 
   /**
     * Compile a primitive
@@ -209,7 +218,7 @@ class JSOptimized(outFile: String):
       val a :: b :: Nil = args: @unchecked
       cont(a): v1 =>
         cont(b): v2 =>
-          cont("(" ~ v1 ~ op ~ v2 ~ ")")
+          cont("(" ~ v1 ~ " " ~ op ~ " " ~ v2 ~ ")")
 
     sym match
       case predef.add    =>   binary("+")
@@ -245,7 +254,7 @@ object JSOptimized:
     sb.toString
 
   def encodeOperatorChar(c: Char): String =
-    if isDigit(c) || isLetter(c) then c.toString
+    if isDigit(c) || isLetter(c) || c == '_' then c.toString
     else c match
       case '+' => "plus"
       case '-' => "minus"
