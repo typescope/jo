@@ -232,8 +232,11 @@ object Interpreter:
 
       case Apply(fun, args) =>
         exec(fun)
-        val Value.FunVal(fdef, sc2) = vs.pop(): @unchecked
-        call(fdef)(using vs, sc2)
+        val funVal = vs.pop()
+        val argVals =
+          for arg <- args yield
+            exec(arg)
+            vs.pop()
 
       case fdef: FunDef =>
         sc.bind(fdef.symbol, Value.FunVal(fdef, sc))

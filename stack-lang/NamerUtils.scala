@@ -74,7 +74,6 @@ object NamerUtils:
       call(fun, Nil, funType.paramTypes, funType.resultType)
 
     def call(fun: Word, preTypes: List[Type], postTypes: List[Type], resType: Type)(using Reporter): Unit =
-      println(Printing.show(fun))
       if values.size < preTypes.size then
         Reporter.error(
           s"Function ${Printing.show(fun)} expects ${preTypes.size} pre arguments, found = ${values.size}",
