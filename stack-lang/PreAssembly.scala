@@ -359,7 +359,7 @@ object PreAssembly:
           // Update SP at the beginning of function
           val frameSize = spillCount + actualSavedRegs.size
           cb.add(Instr.Move(Reg(SP_REG), FP_REG))
-          cb.add(Instr.Sub(Reg(FP_REG), Int32(frameSize << 2), SP_REG))
+          cb.add(Instr.Sub(Reg(SP_REG), Int32(frameSize << 2), SP_REG))
 
         case PlaceHolder.CalleeSaveRegisters =>
           for (savedReg, i) <- actualSavedRegs.zipWithIndex do
