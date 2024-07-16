@@ -13,7 +13,14 @@ import Namer.{ Scope, LazyValue, DelayedDef, errorSymbol }
   * It converts ASTs to Semantic ASTs.
   */
 class Namer(@constructorOnly reporter: Reporter):
-  val checker = new Checker(reporter)
+  val checker = new Checker
+
+  /** Handles possible cycles in result type inference for functions  */
+  val cyclicTypeProvider = new NamerUtils.CyclicTypeProvider(using reporter)
+
+  /** Handles value and type definitions */
+  val nonCyclicTypeProvider = new NamerUtils.ValueTypeProvider(using reporter)
+
 
   def transform(prog: Ast.Prog)(using Reporter): Sast.Prog =
     val rootScope = new Scope.RootScope()
@@ -80,7 +87,9 @@ class Namer(@constructorOnly reporter: Reporter):
         BoolLit(v)(word.span)
 
       case phrase: Ast.Phrase  =>
-        transform(phrase)
+        // A new instance is required to support nested phrases
+        val phraseTyper = new NamerUtils.PhraseTyper(this, checker)
+        phraseTyper.transform(phrase)
 
       case ifte: Ast.If =>
         transform(ifte)
@@ -295,10 +304,6 @@ class Namer(@constructorOnly reporter: Reporter):
           val body3 = Phrase(vals.toList :+ adapted2)(adapted2.tpe, caseDef.span)
           If(cond, body3, elsep)(body3.tpe, caseDef.span)
 
-  private def transform(phrase: Ast.Phrase)(using sc: Scope, rp: Reporter): Word =
-    val typer = new NamerUtils.PhraseTyper(this, checker)
-    typer.transform(phrase)
-
   private def transform(vdef: Ast.ValDef)(using sc: Scope, rp: Reporter): DelayedDef[ValDef] =
     var flags: Flags = Flag.empty
     if vdef.mutable then
@@ -307,7 +312,7 @@ class Namer(@constructorOnly reporter: Reporter):
     if sc.isLocalScope then
       flags = flags | Flag.Local
 
-    val sym = Symbol.createValueSymbol(vdef.name, checker.nonCyclicTypeProvider, flags, vdef.ident.pos)
+    val sym = Symbol.createValueSymbol(vdef.name, this.nonCyclicTypeProvider, flags, vdef.ident.pos)
 
     def checkRHS(sym: Symbol): Word =
       val sc2 = sc.fresh(sym)
@@ -324,7 +329,7 @@ class Namer(@constructorOnly reporter: Reporter):
         checker.checkType(rhs.get(sym), tp2)
         tp2
 
-    checker.nonCyclicTypeProvider.addProvider(sym, computeType)
+    this.nonCyclicTypeProvider.addProvider(sym, computeType)
 
     val typer = () => ValDef(sym, rhs.get(sym))(vdef.span)
     DelayedDef(sym, typer)
@@ -338,7 +343,7 @@ class Namer(@constructorOnly reporter: Reporter):
     if sc.isLocalScope then
       flags = flags | Flag.Local
 
-    val sym = Symbol.createFunSymbol(funDef.name, checker.cyclicTypeProvider, flags, funDef.ident.pos)
+    val sym = Symbol.createFunSymbol(funDef.name, this.cyclicTypeProvider, flags, funDef.ident.pos)
     val funScope = sc.fresh(sym)
 
     val paramNames = funDef.params.map(_.name)
@@ -414,8 +419,10 @@ class Namer(@constructorOnly reporter: Reporter):
       if !funDef.resType.isEmpty then givenFunType
       else createFunType(BottomType)
 
-    checker.cyclicTypeProvider.addProvider(
-      sym, rp => initialType(), rp => computeType(using rp)
+    this.cyclicTypeProvider.addProvider(
+      sym,
+      rp => initialType(),
+      rp => computeType(using rp)
     )
 
     val typer = () =>
@@ -434,7 +441,7 @@ class Namer(@constructorOnly reporter: Reporter):
     val names = new mutable.ArrayBuffer[String]
     val bounds = new mutable.ArrayBuffer[Type]
 
-    val sym = Symbol.createTypeSymbol(tdef.name, checker.nonCyclicTypeProvider, tdef.ident.pos)
+    val sym = Symbol.createTypeSymbol(tdef.name, this.nonCyclicTypeProvider, tdef.ident.pos)
 
     def computeInfo(sym: Symbol): Type =
       if tdef.tparams.isEmpty then
@@ -470,7 +477,7 @@ class Namer(@constructorOnly reporter: Reporter):
         val rawType = TypeLambda(names.toList, bounds.toList, rhs.tpe)
         TypeOps.substSymbols(rawType, subst)
 
-    checker.nonCyclicTypeProvider.addProvider(sym, computeInfo)
+    this.nonCyclicTypeProvider.addProvider(sym, computeInfo)
 
     // check type symbols after completion to allow cycles, type A = A
     val typer = () => TypeDef(sym)(tdef.span)
