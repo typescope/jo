@@ -56,27 +56,15 @@ class StackMachine(
     for fun <- prog.funs do
       compile(fun)
 
-    emitEntry(prog.init)
-
-    // generate code
-    generator(cb.getResult())
-
-  def emitEntry(init: Symbol)(using Context) =
     // Stack pointer is initialized by the kernel, initialize frame pointer
     cb.mark(this.entry)
     cb.add(Instr.Sub(Reg(SP_REG), Int32(4), SP_REG))
-
     genAllocator()
-
-    val endLabel = Label("_end")
-    cb.add(Instr.Store(endLabel, Reg(SP_REG)))
-    cb.add(Instr.Move(Reg(SP_REG), FP_REG))
-
-    cb.add(Instr.Jump(symbolAddrMap(init)))
-
-    cb.mark(endLabel)
+    compile(prog.main)
     exit(Int32(0))
 
+    // generate code
+    generator(cb.getResult())
 
   def compile(phrase: Phrase)(using Context): Unit =
     for word <- phrase.words do compile(word)
@@ -292,29 +280,30 @@ class StackMachine(
       pop(r)
       cb.add(Instr.Store(Reg(r), addr))
 
-  /** Compile a reference to a function */
+  /** Compile a reference */
   def compile(ref: Ident)(using Context): Unit =
-    val label = symbolAddrMap(ref.symbol).asInstanceOf[Label]
-    push(label)
+    val addr = symbolAddrMap(ref.symbol)
+    if ref.symbol.isValue then
+      useReg: r =>
+        cb.add(Instr.Load(addr, r))
+        push(Reg(r))
+    else
+      push(addr.asInstanceOf[Value])
 
   /** Compile function call */
   def compile(app: Apply)(using Context): Unit =
-    compile(app.fun)
-    useTwoReg: (r1, r2) =>
-      pop(r1)
-      val funType = app.tpe.asFunctionType
-      val recordType = ElimCapture.encodedRecordType(funType)
+    if app.isPrimitiveCall then
+      for arg <- app.args do compile(arg)
+      primitive(app.primitive)
+    else
+      compile(app.fun)
+      for arg <- app.args do compile(arg)
 
-      val envOffset = Memory.fieldOffset(recordType, ElimCapture.EnvFieldName)
-      val envAddr = Rel(r1, envOffset)
-      cb.add(Instr.Load(envAddr, r2))
-      push(Reg(r2))
-
-      val procOffset = Memory.fieldOffset(recordType, ElimCapture.ProcFieldName)
-      val procAddr = Rel(r1, procOffset)
-      cb.add(Instr.Load(procAddr, r2))
-
-      this.call(Reg(r2), funType.paramCount + 1, funType.resCount)
+      useReg: r =>
+        val resCount = if app.tpe.isValueType then 1 else 0
+        loadValue(r, app.args.size.toByte)
+        this.call(Reg(r), app.args.size, resCount)
+        pop() // pop the address
 
   /** Compile [x = 3, y = 5] */
   def compile(record: RecordLit)(using Context): Unit =
@@ -425,7 +414,7 @@ class StackMachine(
     cb.add(Instr.Add(Reg(SP_REG), Int32(4), SP_REG))
 
   /**
-    * Push value on the value stack.
+    * Push value or address on the value stack.
     */
   def push(v: Value)(using Context) =
     cb.add(Instr.Sub(Reg(SP_REG), Int32(4), SP_REG))
@@ -437,13 +426,6 @@ class StackMachine(
   /** Push a Boolean literal to value stack */
   def push(v: Boolean)(using Context): Unit =
     push(Int32(if v then 1 else 0))
-
-  /** Push the value associated with the given symbol to value stack */
-  def push(sym: Symbol)(using Context): Unit =
-    val addr = symbolAddrMap(sym)
-    useReg: r =>
-      cb.add(Instr.Load(addr, r))
-      push(Reg(r))
 
   def primitive(sym: Symbol)(using Context): Unit =
     sym match
