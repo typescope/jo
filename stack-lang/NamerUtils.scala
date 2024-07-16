@@ -81,12 +81,14 @@ object NamerUtils:
         Reporter.error(
           s"Function ${Printing.show(fun)} expects ${preTypes.size} pre arguments, found = ${values.size}",
           fun.pos)
+        values.clear()
         push(errorTree(fun.span))
 
       else if words.size < postTypes.size then
         Reporter.error(
           s"Function ${Printing.show(fun)} expects ${postTypes.size} post arguments, found = ${words.size}",
           fun.pos)
+        values.clear()
         push(errorTree(fun.span))
 
       else
@@ -177,7 +179,10 @@ object NamerUtils:
       if completing.contains(sym) && completing.last != sym then
         val cycle = completing.dropWhile(_ != sym).map(_.name).mkString(", ")
         Reporter.error("Mutual recursion needs explicit return type: " + cycle, sym.sourcePos)
-        ErrorType
+        completing.dropRightInPlace(cycle.size)
+        val tp = completer.currentType
+        completer.complete(tp)
+        tp
       else if completing.contains(sym) then
         completer.currentType
       else if completer.isComplete then
