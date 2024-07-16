@@ -85,7 +85,7 @@ class StackMachine(
 
       case app: Apply => compile(app)
 
-      case tapp: TypeApply => compile(tapp)
+      case TypeApply(fun, _) => compile(fun)
 
       case assign: Assign => compile(assign)
 
@@ -234,7 +234,7 @@ class StackMachine(
     val resCount = funType.resCount
     call(addr, argCount, resCount)
 
-  def call(addr: Addr, argCount: Int, resCount: Int)(using Context): Unit =
+  def call(addr: Addr, argCount: Int, resCount: Int, funAddrOnStack: Boolean = false)(using Context): Unit =
     val returnLoc = Label("returnLoc")
 
     // 1. save FP
@@ -253,7 +253,7 @@ class StackMachine(
 
     useReg: r =>
       // 5. restore SP
-      val spOffset = 2 + argCount - resCount
+      val spOffset = 2 + argCount - resCount + (if funAddrOnStack then 1 else 0)
       cb.add(Instr.Add(Reg(FP_REG), Int32(spOffset * 4), SP_REG))
 
       // 6. restore FP before copy result --- avoid overwriting
@@ -302,8 +302,7 @@ class StackMachine(
       useReg: r =>
         val resCount = if app.tpe.isValueType then 1 else 0
         loadValue(r, app.args.size.toByte)
-        this.call(Reg(r), app.args.size, resCount)
-        pop() // pop the address
+        this.call(Reg(r), app.args.size, resCount, funAddrOnStack = true)
 
   /** Compile [x = 3, y = 5] */
   def compile(record: RecordLit)(using Context): Unit =
