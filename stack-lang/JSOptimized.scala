@@ -93,7 +93,7 @@ class JSOptimized(outFile: String):
 
       case RecordLit(fields) =>
         cont(fields.map(_._2)): ts =>
-          val fields2 = fields.map(_._1).zip(ts).map(_ ~ ": " ~ _)
+          val fields2 = fields.map(_._1).zip(ts).map(encodeSymbolic(_) ~ ": " ~ _)
           cont("{" ~ rep(fields2, Text(", ")) ~ "}")
 
       case Select(qual, name) =>
