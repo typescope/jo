@@ -138,6 +138,6 @@ object Sast:
 
     def init: Symbol =
       main match
-        case Ident(sym) => sym
+        case Apply(Ident(sym), Nil) => sym
         case _ =>
           throw new Exception("Ident expected, found = " + main)

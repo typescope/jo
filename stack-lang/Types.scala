@@ -52,6 +52,8 @@ object Types:
 
     def asFunctionType: FunctionType = TypeOps.approx(this, isUp = true).asInstanceOf[FunctionType]
 
+    def asAppliableType: AppliableType = TypeOps.approx(this, isUp = true).asInstanceOf[AppliableType]
+
     def asPolyType: PolyType = TypeOps.approx(this, isUp = true).asInstanceOf[PolyType]
 
     def is[T <: Type : ClassTag]: Boolean =
@@ -118,12 +120,16 @@ object Types:
   extends Type:
     val paramCount = bounds.size
 
+  sealed trait AppliableType:
+    def paramTypes: List[Type]
+    def resultType: Type
+
+    def paramCount = paramTypes.size
+    def resCount = if resultType.isValueType then 1 else 0
+
   case class ProcType
     (names: List[String], paramTypes: List[Type], resultType: Type)
-  extends Type:
-    val paramCount = paramTypes.size
-    val resCount = if resultType.isValueType then 1 else 0
-
+  extends Type with AppliableType:
     def toFunType: FunctionType = FunctionType(paramTypes, resultType)
 
   /** A type lambda */
@@ -148,9 +154,7 @@ object Types:
 
   case class FunctionType
     (paramTypes: List[Type], resultType: Type)
-  extends Type:
-    val paramCount = paramTypes.size
-    val resCount = if resultType.isValueType then 1 else 0
+  extends Type with AppliableType
 
   /** Represents upper and lower bounds of type parameters */
   case class TypeBound

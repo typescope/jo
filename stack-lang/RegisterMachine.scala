@@ -118,7 +118,7 @@ class RegisterMachine(
 
       case app: Apply => compile(app)
 
-      case tapp: TypeApply => compile(tapp)
+      case TypeApply(fun, _) => compile(fun)
 
       case assign: Assign => compile(assign)
 
@@ -378,24 +378,17 @@ class RegisterMachine(
 
   /** Compile function call */
   def compile(app: Apply)(using ctx: Context): Unit =
-    compile(app.fun)
+    if app.isPrimitiveCall then
+      for arg <- app.args do compile(arg)
+      primitive(app.primitive)
 
-    val funType = app.tpe.asFunctionType
-    val recordType = ElimCapture.encodedRecordType(funType)
+    else
+      compile(app.fun)
+      val fun = ctx.vs.pop().asInstanceOf[Reg]
+      val funType = app.fun.tpe.asAppliableType
 
-    val closure = ctx.vs.pop().asInstanceOf[Reg]
-    val envReg = freshVirtualReg()
-    val envOffset = Memory.fieldOffset(recordType, ElimCapture.EnvFieldName)
-    val envAddr = Rel(closure.index, envOffset)
-    gen(Instr.Load(envAddr, envReg))
-    ctx.vs.push(Reg(envReg))
-
-    val procReg = freshVirtualReg()
-    val procOffset = Memory.fieldOffset(recordType, ElimCapture.ProcFieldName)
-    val procAddr = Rel(closure.index, procOffset)
-    gen(Instr.Load(procAddr, procReg))
-
-    this.call(Reg(procReg), funType.paramTypes :+ AnyType, funType.resultType)
+      for arg <- app.args do compile(arg)
+      this.call(fun, funType.paramTypes, funType.resultType)
 
   /** Generate a bump allocator
     *
@@ -510,17 +503,6 @@ class RegisterMachine(
   /** Push a Boolean literal to value stack */
   def push(v: Boolean)(using ctx: Context): Unit =
     ctx.vs.push(Int32(if v then 1 else 0))
-
-  /** Push the value associated with the given symbol to value stack */
-  def push(sym: Symbol)(using ctx: Context): Unit =
-    if sym.isLocal then
-      val reg = ctx.getRegForLocal(sym)
-      ctx.vs.push(Reg(reg))
-    else
-      val reg = freshVirtualReg()
-      val addr = symbolAddrMap(sym)
-      gen(Instr.Load(addr, reg))
-      ctx.vs.push(Reg(reg))
 
   def primitive(sym: Symbol)(using Context): Unit =
     sym match
