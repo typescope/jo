@@ -44,9 +44,9 @@ object PreAssembly:
       case Return(addrReg, resRegs)      => RegInfo(Nil, addrReg :: resRegs)
       case Call(addr, argRegs, retRegs)  =>
         addr match
-          case Reg(index)    => RegInfo(index :: argRegs, retRegs)
-          case Rel(index, _) => RegInfo(index :: argRegs, retRegs)
-          case _: Label      => RegInfo(argRegs, retRegs)
+          case Reg(index)    => RegInfo(retRegs, index :: argRegs)
+          case Rel(index, _) => RegInfo(retRegs, index :: argRegs)
+          case _: Label      => RegInfo(retRegs, argRegs)
 
   type Item = PreInstr | Label | PlaceHolder
 
@@ -400,8 +400,6 @@ object PreAssembly:
     var spillCount = 0
     var instrs = preAsm
     while continue do
-      // println(s"<${label.name}>:")
-      // println(Assembly.Prog(Nil, instrs, label).show())
 
       val liveness = Liveness.analyze(instrs)
       // println(liveness)
