@@ -124,6 +124,7 @@ class StackMachine(
       symbolAddrMap(local) = Rel(FP_REG, offset)
 
     val sizeLocals = fdef.locals.size << 2
+    cb.add(Instr.Move(Reg(SP_REG), FP_REG))
     cb.add(Instr.Sub(Reg(FP_REG), Int32(sizeLocals), SP_REG))
 
     compile(fdef.body)
@@ -243,8 +244,8 @@ class StackMachine(
     // 2. save return
     storeValue(returnLoc, -2)
 
-    // 3. update FP
-    cb.add(Instr.Sub(Reg(SP_REG), Int32(8), FP_REG))
+    // 3. update SP
+    cb.add(Instr.Sub(Reg(SP_REG), Int32(8), SP_REG))
 
     // 4. jump to target
     cb.add(Instr.Jump(addr))
@@ -360,7 +361,7 @@ class StackMachine(
 
     // start alloc function
     cb.mark(allocLabel)
-    cb.add(Instr.Move(Reg(FP_REG), SP_REG))
+    cb.add(Instr.Move(Reg(SP_REG), FP_REG))
     cb.add(Instr.Load(Rel(FP_REG, 8), X86.EAX))
     cb.add(Instr.Load(curBreakLabel, X86.EBX))
     cb.add(Instr.Load(initBreakLabel, X86.ECX))

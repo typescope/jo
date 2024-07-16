@@ -318,9 +318,10 @@ class RegisterMachine(
         case Fixed.ReturnAddress =>
           storeValue(returnLoc, index)
 
-    // update FP
+    // We cannot update FP because spilling is relative to FP --- changing FP
+    // will cause problem for the next jump instruction.
     val stackDelta = onStack.size << 2
-    gen(Instr.Sub(Reg(SP_REG), Int32(stackDelta), FP_REG))
+    gen(Instr.Sub(Reg(SP_REG), Int32(stackDelta), SP_REG))
 
     // jump to target
     gen(PreInstr.Call(target, proto.argRegs, proto.resRegs))
@@ -331,15 +332,16 @@ class RegisterMachine(
     // restore SP
     gen(Instr.Add(Reg(FP_REG), Int32(stackDelta), SP_REG))
 
+    // restore registers before copying result, spilling may happen for copying
+    // result which will depend on FP being restored
+    for (reg, index) <- regPositions do
+      loadValue(reg, index)
+
     // copy result
     for loc <- resLocs do
       val virtualReg = freshVirtualReg()
       ctx.vs.push(Reg(virtualReg))
       load(loc, virtualReg)
-
-    // restore registers
-    for (reg, index) <- regPositions do
-      loadValue(reg, index)
 
   /** Initialize a value definition
     *
@@ -417,6 +419,9 @@ class RegisterMachine(
 
     // start alloc function
     cb.mark(allocLabel)
+
+    // init FP
+    cb.add(Instr.Move(Reg(SP_REG), FP_REG))
 
     // callee-saved registers
     cb.add(Instr.Add(Reg(FP_REG), Int32(-12), SP_REG))
