@@ -27,13 +27,13 @@ object CallConvention:
     case Argument(index: Int)
     case ReturnAddress
 
-  /** Reserved and caller saved registers can be placed on stack positions
-    * unknown to the calee.
+  /** Caller saved registers can be placed on stack positions unknown to the
+    * calee.
+    *
+    * SP and FP are special in that they serve as reference points. They cannot
+    * be changed by the call convention.
     */
-  enum Flex:
-    val reg: Int
-    case Reserved(reg: Int)
-    case CallerSaved(reg: Int)
+  case class Flex(reg: Int)
 
   case class CallerProtocol(
     inRegs: Map[Fixed, Int],
@@ -150,12 +150,12 @@ object CallConvention:
         inRegs(Fixed.Argument(i)) = PARAM_REGS(i)
 
       for reg <- callerSaved(argCount, resCount) do
-        onStack += Flex.CallerSaved(reg)
+        onStack += Flex(reg)
 
       for i <- argInRegsNum until argCount do
         onStack += Fixed.Argument(i)
 
-      onStack += Flex.Reserved(FP_REG)
+      onStack += Flex(FP_REG)
       onStack += Fixed.ReturnAddress
 
       val resLocs = resLocations(resCount)

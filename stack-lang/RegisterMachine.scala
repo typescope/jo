@@ -304,13 +304,13 @@ class RegisterMachine(
           gen(Instr.Move(returnLoc, dest))
 
     var index = 0
-    val regPositions = mutable.Map.empty[Int, Int]
+    val savedRegPositions = mutable.Map.empty[Int, Int]
     for item <- onStack do
       index -= 1
       item match
-        case reg: Flex =>
-          regPositions(reg.reg) = index
-          storeValue(Reg(reg.reg), index)
+        case Flex(reg) =>
+          savedRegPositions(reg) = index
+          storeValue(Reg(reg), index)
 
         case Fixed.Argument(i) =>
           storeValue(args(i), index)
@@ -332,16 +332,24 @@ class RegisterMachine(
     // restore SP
     gen(Instr.Add(Reg(FP_REG), Int32(stackDelta), SP_REG))
 
-    // restore registers before copying result, spilling may happen for copying
-    // result which will depend on FP being restored
-    for (reg, index) <- regPositions do
-      loadValue(reg, index)
+    // Restore FP before copying result, spilling may happen for copying
+    // result which will depend on FP being restored.
+    //
+    // However, we need to ensure that restoring regs will not overwrite return.
+    // Therefore, other regs are restored after copying the result.
+    loadValue(FP_REG, savedRegPositions(FP_REG))
 
     // copy result
     for loc <- resLocs do
       val virtualReg = freshVirtualReg()
       ctx.vs.push(Reg(virtualReg))
       load(loc, virtualReg)
+
+    // restore remaining regs
+    for
+      (reg, index) <- savedRegPositions if reg != FP_REG
+    do
+      loadValue(reg, index)
 
   /** Initialize a value definition
     *
