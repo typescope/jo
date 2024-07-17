@@ -131,32 +131,41 @@ class RegisterMachine(
       case _: ValDef | _: FunDef =>
         throw new Exception("Unexpected " + word)
 
-  def load(loc: Location, dest: Int)(using Context): Unit =
+  def load(loc: Location, dest: Int, base: Rel)(using Context): Unit =
     loc match
-      case Location.Reg(arg) =>
-        gen(Instr.Move(Reg(arg), dest))
+      case Location.Reg(reg) =>
+        gen(Instr.Move(Reg(reg), dest))
 
-      case Location.Mem(baseReg, offset) =>
-        val addr = Rel(baseReg, offset)
+      case loc: Location.Stack =>
+        val addr = Location.map(loc, base)
         gen(Instr.Load(addr, dest))
     end match
 
-  def bindParam(param: Symbol, loc: Location)(using ctx: Context): Unit =
+  def save(value: Value, loc: Location, base: Rel)(using Context): Unit =
+    loc match
+      case Location.Reg(reg) =>
+        gen(Instr.Move(value, reg))
+
+      case loc: Location.Stack =>
+        val addr = Location.map(loc, base)
+        gen(Instr.Store(value, addr))
+    end match
+
+  def bindParam(param: Symbol, loc: Location, base: Rel)(using ctx: Context): Unit =
     val paramReg = freshVirtualReg()
     ctx.setRegForLocal(param, paramReg)
-    load(loc, paramReg)
+    load(loc, paramReg, base)
 
   /** Compile a function
     *
     * Calling the passed function will compile the body of the function.
     */
-  def compile(fdef: FunDef)(using ctx: Context): CalleeProtocol =
+  def compile(fdef: FunDef)(using ctx: Context): Protocol =
     val sym = fdef.symbol
     val paramCount = fdef.params.size
     val funType = TypeOps.erasePolyType(sym.info).asProcType
 
-    // TODO: bind retLoc
-    val proto @ CalleeProtocol(paramLocs, retLoc, resLocs, savedRegs) =
+    val proto @ Protocol(inProto, outProto, savedRegs) =
       callConvention.callee(funType.paramTypes, funType.resultType)
 
     // Compile function to a temporary buffer for register allocation
@@ -165,11 +174,13 @@ class RegisterMachine(
     // callee-saved registers
     gen(PlaceHolder.CalleeSaveRegisters)
 
-    // bind param to virtual registers and load data
-    for (param, loc) <- fdef.params.zip(paramLocs) do
-      bindParam(param, loc)
+    val base = Rel(FP_REG, (inProto.stackItemCount - 1) << 2)
 
-    bindParam(returnAddrSym, retLoc)
+    // bind param to virtual registers and load data
+    for (param, loc) <- fdef.params.zip(inProto.paramLocs) do
+      bindParam(param, loc, base)
+
+    bindParam(returnAddrSym, inProto.retLoc, base)
 
     for local <- fdef.locals do
       val localReg = freshVirtualReg()
@@ -177,7 +188,7 @@ class RegisterMachine(
 
     compile(fdef.body)
 
-    ret(resLocs)
+    ret(outProto)
 
     proto
 
@@ -267,15 +278,17 @@ class RegisterMachine(
   def ret(resLocs: List[Location])(using ctx: Context) =
     val values = ctx.vs.pop(resLocs.size)
     val resRegs = mutable.ArrayBuffer.empty[Int]
+
+    val base = Rel(FP_REG, -4)
     for (value, loc) <- values.zip(resLocs) do
       loc match
         case Location.Reg(dest) =>
           resRegs += dest
           gen(Instr.Move(value, dest))
 
-        case Location.Mem(reg, offset) =>
-          val addr = Rel(reg, offset)
-           gen(Instr.Store(value, addr))
+        case loc: Location.Stack =>
+          val addr = Location.map(loc, base)
+          gen(Instr.Store(value, addr))
       end match
 
     val retAddrReg = ctx.getRegForLocal(this.returnAddrSym)
@@ -289,42 +302,32 @@ class RegisterMachine(
     call(target, funType.paramTypes, funType.resultType)
 
   def call(target: Addr, paramTypes: List[Type], resType: Type)(using ctx: Context): Unit =
-    val proto @ CallerProtocol(inRegs, onStack, resLocs) =
+    val proto @ Protocol(inProto, outProto, savedRegs) =
       callConvention.caller(paramTypes, resType)
 
     val args = ctx.vs.pop(paramTypes.size)
     val returnLoc = Label("returnLoc")
 
-    for (fixed, dest) <- inRegs do
-      fixed match
-        case Fixed.Argument(i) =>
-          gen(Instr.Move(args(i), dest))
-
-        case Fixed.ReturnAddress =>
-          gen(Instr.Move(returnLoc, dest))
-
     var index = 0
     val savedRegPositions = mutable.Map.empty[Int, Int]
-    for item <- onStack do
+    for savedReg <- savedRegs do
       index -= 1
-      item match
-        case Flex(reg) =>
-          savedRegPositions(reg) = index
-          storeValue(Reg(reg), index)
+      savedRegPositions(savedReg) = index
+      storeValue(Reg(savedReg), index)
 
-        case Fixed.Argument(i) =>
-          storeValue(args(i), index)
+    val base = Rel(SP_REG, (index - 1) << 2)
+    for (paramLoc, i) <- inProto.paramLocs.zipWithIndex do
+      save(args(i), paramLoc, base)
 
-        case Fixed.ReturnAddress =>
-          storeValue(returnLoc, index)
+    save(returnLoc, inProto.retLoc, base)
 
     // We cannot update FP because spilling is relative to FP --- changing FP
     // will cause problem for the next jump instruction.
-    val stackDelta = onStack.size << 2
+    val stackDelta = (savedRegs.size + inProto.stackItemCount) << 2
     gen(Instr.Sub(Reg(SP_REG), Int32(stackDelta), SP_REG))
 
     // jump to target
-    gen(PreInstr.Call(target, proto.argRegs, proto.resRegs))
+    gen(PreInstr.Call(target, proto.inRegs, proto.outRegs))
 
     // post call
     gen(returnLoc)
@@ -339,11 +342,12 @@ class RegisterMachine(
     // Therefore, other regs are restored after copying the result.
     loadValue(FP_REG, savedRegPositions(FP_REG))
 
+    val resBase = Rel(SP_REG, -4 - stackDelta)
     // copy result
-    for loc <- resLocs do
+    for loc <- outProto do
       val virtualReg = freshVirtualReg()
       ctx.vs.push(Reg(virtualReg))
-      load(loc, virtualReg)
+      load(loc, virtualReg, resBase)
 
     // restore remaining regs
     for
