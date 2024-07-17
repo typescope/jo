@@ -5,20 +5,19 @@ import Symbols.*
 
 /** An interpreter for S-AST */
 object SastInterpreter:
+  import Denotation.*
+
   def err(msg: String) = throw new Exception(msg)
 
-  sealed abstract class Denotation
-
-  enum Value extends Denotation:
+  enum Denotation:
     case IntVal(value: Int)
     case BoolVal(value: Boolean)
     case RecordVal(fields: Map[String, Value])
     case FunVal(fun: Sast.FunDef, scope: Scope)
+    case PrimAction(op: List[Value] => List[Value])
+    case Uninit
 
-  case class PrimAction(op: List[Value] => List[Value]) extends Denotation
-  case object Uninit extends Denotation
-
-  import Value.*
+  type Value = IntVal | BoolVal | RecordVal | FunVal
 
   enum Scope:
     case RootScope()
@@ -210,8 +209,8 @@ object SastInterpreter:
         val argVals = args.map(eval)
 
         (funDenot: @unchecked) match
-          case FunVal(fdef, sc2) => call(fdef, argVals)(using sc2)
-          case PrimAction(op)    => op(argVals)
+          case FunVal(fdef, sc) => call(fdef, argVals)(using sc)
+          case PrimAction(op) => op(argVals)
 
       case TypeApply(fun, _) =>
         exec(fun)
