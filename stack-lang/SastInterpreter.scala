@@ -45,6 +45,7 @@ object SastInterpreter:
           case _ => err("Unknown name to update: " + sym.name)
 
     def bind(sym: Symbol, denot: Denotation): Unit =
+      assert(!map.contains(sym), "Double binding")
       map(sym) = denot
   end Scope
 
@@ -184,6 +185,7 @@ object SastInterpreter:
         def loop(): Unit =
           val BoolVal(b) = eval(cond): @unchecked
           if b then
+            given Scope = sc.fresh()
             exec(body)
             loop()
         loop()

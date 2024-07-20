@@ -274,10 +274,14 @@ object Interpreter:
         if b then exec(thenp) else exec(elsep)
 
       case While(cond, body) =>
-        val BoolVal(b) = eval(cond): @unchecked
-        if b then
-          exec(body)
-          exec(word)
+        // avoid stackoverflow
+        def loop(): Unit =
+          val BoolVal(b) = eval(cond): @unchecked
+          if b then
+            given Scope = sc.fresh()
+            exec(body)
+            loop()
+        loop()
 
       case phrase: Phrase =>
         exec(phrase)
