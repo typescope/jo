@@ -20,6 +20,9 @@ check() {
     diff $1 $2 || error
 }
 
+# compile project
+scala-cli compile project.scala stack-lang
+
 for file in $DIR/tests/pos/*.stk; do
     echo "testing $file"
     exe=${file%.*}.run
