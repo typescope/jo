@@ -12,5 +12,5 @@ fi
 echo "Generating interpreter"
 scala-cli --power package -f $OPT project.scala stack-lang -M sastEval -o bin/stki
 
-echo "Genearting compiler"
+echo "Generating compiler"
 scala-cli --power package -f $OPT project.scala stack-lang -M compile -o bin/stkc
