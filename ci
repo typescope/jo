@@ -26,6 +26,9 @@ for file in $DIR/tests/pos/*.stk; do
     js=${file%.*}.js
     bin/stki $file > $RES1 2>&1
 
+    # Ast interpreter
+    scala-cli project.scala stack-lang -M eval -- $file > $RES2 2>&1
+
     # # layout 1
     bin/stkc $file -o $exe -p linux-x86-stack -layout c1
     $exe > $RES2
