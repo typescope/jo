@@ -38,7 +38,7 @@ object Printing:
         mod ~ " " ~ sym.name ~ ": " ~ sym.info ~ " = " ~ rhs ~ Text.BreakLine
 
       case fdef: FunDef =>
-        val tparams = fdef.tparams.map(sym => sym.name + " " + sym.info.show)
+        val tparams = fdef.tparams.map(sym => sym.name + " <: " + sym.info.show)
         val tparamStr = if tparams.isEmpty then "" else tparams.mkString("[", ", ", "]")
         val params = fdef.params.map(sym => sym.name + ": " + sym.info.show)
         val resType = TypeOps.finalResultType(fdef.symbol.info)

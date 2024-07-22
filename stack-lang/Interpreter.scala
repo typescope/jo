@@ -176,33 +176,22 @@ object Interpreter:
 
   def exec(phrase: Phrase)(using vs: ValueStack, sc: Scope): Unit =
     val vs2 = new ValueStack
+    for word <- phrase.words do exec(word)(using vs2, sc)
 
-    def processCall(words: List[Word]): Unit =
-      if vs2.size == 1 then
-        vs2.pop() match
-          case ClosureVal(lam, sc2) =>
-            // always call the first function in phrase
-            val paramCount = lam.params.size
-            assert(words.size >= paramCount, "words = " + words + ", paramCount = " + paramCount)
-            for arg <- words.take(paramCount) do exec(arg)(using vs2, sc2)
-            call(lam)(using vs2, sc2)
-            processCall(words.drop(paramCount))
+    def processCall(values: List[Value]): Unit =
+      values match
+        case ClosureVal(lam, sc2) :: values2 if vs2.size == 0 && values2.nonEmpty =>
+          // always call the first function in phrase
+          val paramCount = lam.params.size
+          assert(values2.size >= paramCount, "values2 = " + values2 + ", paramCount = " + paramCount + ", lamda = " + lam)
+          for arg <- values2.take(paramCount) do vs2.push(arg)
+          val res = call(lam)(using vs2, sc2)
+          processCall(res :: values2.drop(paramCount))
 
-          case value =>
-            vs2.push(value)
-            process(words)
-      else
-        process(words)
+        case _ =>
+          for value <- values do vs2.push(value)
 
-    def process(words: List[Word]): Unit =
-      words match
-        case word :: rest =>
-          exec(word)
-          processCall(rest)
-        case Nil =>
-    end process
-
-    process(phrase.words)
+    processCall(vs2.take)
 
     for value <- vs2.take do vs.push(value)
 
@@ -212,11 +201,11 @@ object Interpreter:
       funScope.bind(param.name, vs.pop())
     exec(fdef.body)(using vs, funScope)
 
-  def call(lam: Lambda)(using vs: ValueStack, sc: Scope): Unit =
+  def call(lam: Lambda)(using vs: ValueStack, sc: Scope): Value =
     val lamScope = sc.fresh()
     for param <- lam.params.reverse do
       lamScope.bind(param.name, vs.pop())
-    exec(lam.body)(using vs, lamScope)
+    eval(lam.body)(using vs, lamScope)
 
   def exec(value: Value, cases: List[Case])(using vs: ValueStack, sc: Scope): Unit =
     val VariantVal(tag, values) = value: @unchecked
@@ -298,7 +287,7 @@ object Interpreter:
       case TypeApply(fun, _) =>
         exec(fun)
 
-      case lam @ Lambda(params, body) =>
+      case lam: Lambda =>
         vs.push(ClosureVal(lam, sc))
 
 /***********************************************************************

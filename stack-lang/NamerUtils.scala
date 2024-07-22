@@ -42,11 +42,7 @@ object NamerUtils:
         * phrase unless no arguments is available
         */
       def isFunctionCall(tp: FunctionType): Boolean =
-        this.values.isEmpty
-        && (
-          words.nonEmpty && words(0).tpe.isValueType
-          || tp.paramTypes.isEmpty
-        )
+        this.values.isEmpty && words.nonEmpty
 
       while this.words.nonEmpty do
         val word = this.words.remove(0)
@@ -60,14 +56,25 @@ object NamerUtils:
         else if tp.isProcType then
           call(word, tp.asProcType)
 
-        else if tp.isFunctionType && isFunctionCall(tp.asFunctionType) then
-          call(word, tp.asFunctionType)
-
         else if word.tpe.isValueType then
           push(word)
 
         else
           output(word)
+      end while
+
+      // handle function calls, which have lower precedence than procedure calls
+      words ++= values
+      values.clear()
+
+      while this.words.nonEmpty do
+        val word = this.words.remove(0)
+        val tp = word.tpe
+
+        if tp.isFunctionType && isFunctionCall(tp.asFunctionType) then
+          call(word, tp.asFunctionType)
+        else
+          push(word)
       end while
 
     def call(fun: Word, procType: ProcType)(using Reporter): Unit =
