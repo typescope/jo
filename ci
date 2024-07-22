@@ -20,8 +20,8 @@ check() {
     diff $1 $2 || error
 }
 
-# compile project
-scala-cli compile project.scala stack-lang
+# generate AST interpreter
+scala-cli --power package -f project.scala stack-lang -M eval -o bin/asti
 
 for file in $DIR/tests/pos/*.stk; do
     echo "testing $file"
@@ -30,7 +30,7 @@ for file in $DIR/tests/pos/*.stk; do
     bin/stki $file > $RES1 2>&1
 
     # Ast interpreter
-    scala-cli project.scala stack-lang -M eval -- $file > $RES2 2>&1
+    bin/asti $file > $RES2 2>&1
     check $RES1 $RES2
 
     # # layout 1
