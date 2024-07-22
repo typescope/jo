@@ -20,11 +20,18 @@ check() {
     diff $1 $2 || error
 }
 
+# generate AST interpreter
+scala-cli --power package -f project.scala stack-lang -M eval -o bin/asti
+
 for file in $DIR/tests/pos/*.stk; do
     echo "testing $file"
     exe=${file%.*}.run
     js=${file%.*}.js
     bin/stki $file > $RES1 2>&1
+
+    # Ast interpreter
+    bin/asti $file > $RES2 2>&1
+    check $RES1 $RES2
 
     # # layout 1
     bin/stkc $file -o $exe -p linux-x86-stack -layout c1
@@ -47,12 +54,7 @@ for file in $DIR/tests/pos/*.stk; do
     check $RES1 $RES2
 
     # JavaScript
-    bin/stkc $file -o $js -p js-stack
-    node $js > $RES3 2>&1
-    check $RES1 $RES3
-
-    # JavaScript optimized
-    bin/stkc $file -o $js -p js-reg
+    bin/stkc $file -o $js -p js
     node $js > $RES3 2>&1
     check $RES1 $RES3
 done

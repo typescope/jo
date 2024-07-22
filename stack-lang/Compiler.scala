@@ -27,33 +27,31 @@ def compile(args: String*) =
 
   val layout = options.getOrElse("-layout", "c1")
 
-  val backend =
+  val backend: Sast.Prog => Unit =
     options.get("-p") match
       case Some(pf) =>
         if pf == "linux-x86-stack" then
-          Linux.createX86StackMachine(outFile, layout)
+          Linux.createX86StackMachine(outFile, layout).compile
 
         else if pf == "linux-x86-reg" then
-          Linux.createX86RegisterMachine(outFile, layout)
+          Linux.createX86RegisterMachine(outFile, layout).compile
 
-        else if pf == "js-stack" then
-          new JSBackend(outFile)
-
-        else if pf == "js-reg" then
-          new JSOptimized(outFile)
+        else if pf == "js" then
+          new JSOptimized(outFile).compile
 
         else
           throw new Exception("Unknow platform: " + pf)
 
       case None =>
-        Linux.createX86RegisterMachine(outFile, layout)
+        Linux.createX86RegisterMachine(outFile, layout).compile
 
   Reporter.monitor(sourceFile):
     IO.fileContent(sourceFile)    |>
     Parsing.parse                 |>
-    Namer.transform               |>
-    new ExplicitInit().transform  |>
+    Namer.transform               |+
     Debug.peek(enable = false)    |>
-    ElimCapture.transform         |>
-    Debug.peek(enable = false)     |>
-    backend.compile
+    new ExplicitInit().transform  |+
+    Debug.peek(enable = false)    |>
+    ElimCapture.transform         |+
+    Debug.peek(enable = false)    |>
+    backend

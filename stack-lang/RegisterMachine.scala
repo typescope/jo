@@ -17,8 +17,8 @@ class RegisterMachine(
   registerConfig: RegisterConfig,
   callConvention: CallConvention,
   nativeFunctions: Map[Symbol, Label],
-  generator: Assembly.Prog => Unit)
-extends Backend:
+  generator: Assembly.Prog => Unit):
+
   import registerConfig.{ FP_REG, SP_REG, FREE_REGS }
 
   type Context = FunctionContext
@@ -99,32 +99,73 @@ extends Backend:
     cb.mark(endLabel)
     exit(Int32(0))(cb)
 
-  def load(loc: Location, dest: Int)(using Context): Unit =
-    loc match
-      case Location.Reg(arg) =>
-        gen(Instr.Move(Reg(arg), dest))
+  def compile(phrase: Phrase)(using Context): Unit =
+    for word <- phrase.words do compile(word)
 
-      case Location.Mem(baseReg, offset) =>
-        val addr = Rel(baseReg, offset)
+  def compile(word: Word)(using Context): Unit =
+    word match
+      case IntLit(v)  => push(v)
+
+      case BoolLit(v) => push(v)
+
+      case record: RecordLit => compile(record)
+
+      case select: Select => compile(select)
+
+      case phrase: Phrase => compile(phrase)
+
+      case encoded: Encoded => compile(encoded)
+
+      case app: Apply => compile(app)
+
+      case TypeApply(fun, _) => compile(fun)
+
+      case assign: Assign => compile(assign)
+
+      case ifElse: If => compile(ifElse)
+
+      case whileDo: While => compile(whileDo)
+
+      case id: Ident => compile(id)
+
+      case _: ValDef | _: FunDef =>
+        throw new Exception("Unexpected " + word)
+
+  def load(loc: Location, dest: Int, base: Rel)(using Context): Unit =
+    loc match
+      case Location.Reg(reg) =>
+        gen(Instr.Move(Reg(reg), dest))
+
+      case loc: Location.Stack =>
+        val addr = Location.map(loc, base)
         gen(Instr.Load(addr, dest))
     end match
 
-  def bindParam(param: Symbol, loc: Location)(using ctx: Context): Unit =
+  def save(value: Value, loc: Location, base: Rel)(using Context): Unit =
+    loc match
+      case Location.Reg(reg) =>
+        gen(Instr.Move(value, reg))
+
+      case loc: Location.Stack =>
+        val addr = Location.map(loc, base)
+        gen(Instr.Store(value, addr))
+    end match
+
+  def bindParam(param: Symbol, loc: Location, base: Rel)(using ctx: Context): Unit =
     val paramReg = freshVirtualReg()
     ctx.setRegForLocal(param, paramReg)
-    load(loc, paramReg)
+    load(loc, paramReg, base)
 
   /** Compile a function
     *
     * Calling the passed function will compile the body of the function.
     */
-  def compile(fdef: FunDef)(using ctx: Context): CalleeProtocol =
+  def compile(fdef: FunDef)(using ctx: Context): Protocol =
     val sym = fdef.symbol
     val paramCount = fdef.params.size
     val funType = TypeOps.erasePolyType(sym.info).asProcType
 
-    // TODO: bind retLoc
-    val proto @ CalleeProtocol(paramLocs, retLoc, resLocs, savedRegs) =
+    val proto @ Protocol(inProto, outProto, savedRegs) =
       callConvention.callee(funType.paramTypes, funType.resultType)
 
     // Compile function to a temporary buffer for register allocation
@@ -133,11 +174,13 @@ extends Backend:
     // callee-saved registers
     gen(PlaceHolder.CalleeSaveRegisters)
 
-    // bind param to virtual registers and load data
-    for (param, loc) <- fdef.params.zip(paramLocs) do
-      bindParam(param, loc)
+    val base = Rel(FP_REG, (inProto.stackItemCount - 1) << 2)
 
-    bindParam(returnAddrSym, retLoc)
+    // bind param to virtual registers and load data
+    for (param, loc) <- fdef.params.zip(inProto.paramLocs) do
+      bindParam(param, loc, base)
+
+    bindParam(returnAddrSym, inProto.retLoc, base)
 
     for local <- fdef.locals do
       val localReg = freshVirtualReg()
@@ -145,7 +188,7 @@ extends Backend:
 
     compile(fdef.body)
 
-    ret(resLocs)
+    ret(outProto)
 
     proto
 
@@ -235,63 +278,56 @@ extends Backend:
   def ret(resLocs: List[Location])(using ctx: Context) =
     val values = ctx.vs.pop(resLocs.size)
     val resRegs = mutable.ArrayBuffer.empty[Int]
+
+    val base = Rel(FP_REG, -4)
     for (value, loc) <- values.zip(resLocs) do
       loc match
         case Location.Reg(dest) =>
           resRegs += dest
           gen(Instr.Move(value, dest))
 
-        case Location.Mem(reg, offset) =>
-          val addr = Rel(reg, offset)
-           gen(Instr.Store(value, addr))
+        case loc: Location.Stack =>
+          val addr = Location.map(loc, base)
+          gen(Instr.Store(value, addr))
       end match
 
     val retAddrReg = ctx.getRegForLocal(this.returnAddrSym)
     gen(PreInstr.Return(retAddrReg, resRegs.toList))
 
   /** Call the funtion */
-  def call(fun: Symbol)(using ctx: Context) =
+  def call(fun: Symbol)(using ctx: Context): Unit =
     // TODO: erasure better handled together with boxing/unboxing?
     val funType = TypeOps.erasePolyType(fun.info).asProcType
     val target = symbolAddrMap(fun).asInstanceOf[Label]
     call(target, funType.paramTypes, funType.resultType)
 
-  def call(target: Addr, paramTypes: List[Type], resType: Type)(using ctx: Context) =
-    val proto @ CallerProtocol(inRegs, onStack, resLocs) =
+  def call(target: Addr, paramTypes: List[Type], resType: Type)(using ctx: Context): Unit =
+    val proto @ Protocol(inProto, outProto, savedRegs) =
       callConvention.caller(paramTypes, resType)
 
     val args = ctx.vs.pop(paramTypes.size)
     val returnLoc = Label("returnLoc")
 
-    for (fixed, dest) <- inRegs do
-      fixed match
-        case Fixed.Argument(i) =>
-          gen(Instr.Move(args(i), dest))
-
-        case Fixed.ReturnAddress =>
-          gen(Instr.Move(returnLoc, dest))
-
     var index = 0
-    val regPositions = mutable.Map.empty[Int, Int]
-    for item <- onStack do
+    val savedRegPositions = mutable.Map.empty[Int, Int]
+    for savedReg <- savedRegs do
       index -= 1
-      item match
-        case reg: Flex =>
-          regPositions(reg.reg) = index
-          storeValue(Reg(reg.reg), index)
+      savedRegPositions(savedReg) = index
+      storeValue(Reg(savedReg), index)
 
-        case Fixed.Argument(i) =>
-          storeValue(args(i), index)
+    val base = Rel(SP_REG, (index - 1) << 2)
+    for (paramLoc, i) <- inProto.paramLocs.zipWithIndex do
+      save(args(i), paramLoc, base)
 
-        case Fixed.ReturnAddress =>
-          storeValue(returnLoc, index)
+    save(returnLoc, inProto.retLoc, base)
 
-    // update FP
-    val stackDelta = onStack.size << 2
-    gen(Instr.Sub(Reg(SP_REG), Int32(stackDelta), FP_REG))
+    // We cannot update FP because spilling is relative to FP --- changing FP
+    // will cause problem for the next jump instruction.
+    val stackDelta = (savedRegs.size + inProto.stackItemCount) << 2
+    gen(Instr.Sub(Reg(SP_REG), Int32(stackDelta), SP_REG))
 
     // jump to target
-    gen(PreInstr.Call(target, proto.argRegs, proto.resRegs))
+    gen(PreInstr.Call(target, proto.inRegs, proto.outRegs))
 
     // post call
     gen(returnLoc)
@@ -299,14 +335,24 @@ extends Backend:
     // restore SP
     gen(Instr.Add(Reg(FP_REG), Int32(stackDelta), SP_REG))
 
+    // Restore FP before copying result, spilling may happen for copying
+    // result which will depend on FP being restored.
+    //
+    // However, we need to ensure that restoring regs will not overwrite return.
+    // Therefore, other regs are restored after copying the result.
+    loadValue(FP_REG, savedRegPositions(FP_REG))
+
+    val resBase = Rel(SP_REG, -4 - stackDelta)
     // copy result
-    for loc <- resLocs do
+    for loc <- outProto do
       val virtualReg = freshVirtualReg()
       ctx.vs.push(Reg(virtualReg))
-      load(loc, virtualReg)
+      load(loc, virtualReg, resBase)
 
-    // restore registers
-    for (reg, index) <- regPositions do
+    // restore remaining regs
+    for
+      (reg, index) <- savedRegPositions if reg != FP_REG
+    do
       loadValue(reg, index)
 
   /** Initialize a value definition
@@ -324,32 +370,39 @@ extends Backend:
     gen(instr)
 
   /** Compile a reference to a function */
-  def compile(ref: FunRef)(using ctx: Context): Unit =
-    val target = symbolAddrMap(ref.symbol).asInstanceOf[Label]
-    val targetReg = freshVirtualReg()
-    gen(Instr.Move(target, targetReg))
-    ctx.vs.push(Reg(targetReg))
+  def compile(id: Ident)(using ctx: Context): Unit =
+    val sym = id.symbol
+    if sym.isValue then
+      if sym.isLocal then
+        val reg = ctx.getRegForLocal(sym)
+        ctx.vs.push(Reg(reg))
+      else
+        val reg = freshVirtualReg()
+        val addr = symbolAddrMap(sym)
+        gen(Instr.Load(addr, reg))
+        ctx.vs.push(Reg(reg))
+    else
+      if sym.isPrimitive then
+        throw new Exception("Unexpected primitive " + sym)
+      else
+        val target = symbolAddrMap(id.symbol).asInstanceOf[Label]
+        val targetReg = freshVirtualReg()
+        gen(Instr.Move(target, targetReg))
+        ctx.vs.push(Reg(targetReg))
 
   /** Compile function call */
-  def compile(call: Call)(using ctx: Context): Unit =
-    compile(call.word)
+  def compile(app: Apply)(using ctx: Context): Unit =
+    if app.isPrimitiveCall then
+      for arg <- app.args do compile(arg)
+      primitive(app.primitive)
 
-    val funType = call.tpe.asFunctionType
-    val recordType = ElimCapture.encodedRecordType(funType)
+    else
+      compile(app.fun)
+      val fun = ctx.vs.pop().asInstanceOf[Reg]
+      val funType = app.fun.tpe.asAppliableType
 
-    val closure = ctx.vs.pop().asInstanceOf[Reg]
-    val envReg = freshVirtualReg()
-    val envOffset = Memory.fieldOffset(recordType, ElimCapture.EnvFieldName)
-    val envAddr = Rel(closure.index, envOffset)
-    gen(Instr.Load(envAddr, envReg))
-    ctx.vs.push(Reg(envReg))
-
-    val procReg = freshVirtualReg()
-    val procOffset = Memory.fieldOffset(recordType, ElimCapture.ProcFieldName)
-    val procAddr = Rel(closure.index, procOffset)
-    gen(Instr.Load(procAddr, procReg))
-
-    this.call(Reg(procReg), funType.paramTypes :+ AnyType, funType.resultType)
+      for arg <- app.args do compile(arg)
+      this.call(fun, funType.paramTypes, funType.resultType)
 
   /** Generate a bump allocator
     *
@@ -378,6 +431,9 @@ extends Backend:
 
     // start alloc function
     cb.mark(allocLabel)
+
+    // init FP
+    cb.add(Instr.Move(Reg(SP_REG), FP_REG))
 
     // callee-saved registers
     cb.add(Instr.Add(Reg(FP_REG), Int32(-12), SP_REG))
@@ -464,17 +520,6 @@ extends Backend:
   /** Push a Boolean literal to value stack */
   def push(v: Boolean)(using ctx: Context): Unit =
     ctx.vs.push(Int32(if v then 1 else 0))
-
-  /** Push the value associated with the given symbol to value stack */
-  def push(sym: Symbol)(using ctx: Context): Unit =
-    if sym.isLocal then
-      val reg = ctx.getRegForLocal(sym)
-      ctx.vs.push(Reg(reg))
-    else
-      val reg = freshVirtualReg()
-      val addr = symbolAddrMap(sym)
-      gen(Instr.Load(addr, reg))
-      ctx.vs.push(Reg(reg))
 
   def primitive(sym: Symbol)(using Context): Unit =
     sym match

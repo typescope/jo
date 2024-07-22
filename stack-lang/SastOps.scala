@@ -23,7 +23,7 @@ object SastOps:
 
     def recur(word: Word)(using Context): Word =
       word match
-        case _: IntLit | _: BoolLit | _: Ident | _: FunRef =>
+        case _: IntLit | _: BoolLit | _: Ident =>
           word
 
         case Select(qual, name) =>
@@ -38,8 +38,11 @@ object SastOps:
         case Encoded(repr) =>
           Encoded(this(repr))(word.tpe)
 
-        case Call(fun) =>
-          Call(this(fun))(word.span)
+        case Apply(fun, args) =>
+          Apply(this(fun), args.map(this.apply))(word.tpe, word.span)
+
+        case TypeApply(fun, targs) =>
+          TypeApply(this(fun), targs)(word.tpe, word.span)
 
         case Assign(sym, rhs) =>
           Assign(sym, this(rhs))(word.span)

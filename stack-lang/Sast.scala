@@ -40,8 +40,9 @@ object Sast:
 
   case class Ident
     (symbol: Symbol)
-    (val span: Span, val tpe: Type = symbol.info)
-  extends Word
+    (val span: Span)
+  extends Word:
+    val tpe: Type = TypeRef(symbol)
 
   case class Select
     (qual: Word, name: String)
@@ -70,22 +71,29 @@ object Sast:
     (val tpe: Type, val span: Span)
   extends Word
 
-  /** A reference to a function as a runtime value.
-    *
-    * TODO It can be removed and replaced by Ident once we have syntax for call.
-    */
-  case class FunRef
-    (symbol: Symbol)
+  case class TypeApply
+    (fun: Word, targs: List[TypeTree])
     (val tpe: Type, val span: Span)
   extends Word
 
-  case class Call
-    (word: Word)
-    (val span: Span)
+  case class Apply
+    (fun: Word, args: List[Word])
+    (val tpe: Type, val span: Span)
   extends Word:
-    def tpe: Type = word.tpe
+    def isPrimitiveCall: Boolean =
+      fun match
+        case Ident(sym) => sym.isPrimitive
+        case _ => false
 
-  /** Encode of a type with another type */
+    /** Get the primitive symbol associated with the call */
+    def primitive: Symbol =
+      val Ident(sym) = fun: @unchecked
+      sym
+
+  /** Encoding of a type with another type
+    *
+    * It is also used to explicitly represent dropped values.
+    */
   case class Encoded
     (repr: Word)
     (val tpe: Type)
@@ -130,6 +138,6 @@ object Sast:
 
     def init: Symbol =
       main match
-        case Ident(sym) => sym
+        case Apply(Ident(sym), Nil) => sym
         case _ =>
           throw new Exception("Ident expected, found = " + main)

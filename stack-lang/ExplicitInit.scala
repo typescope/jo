@@ -38,7 +38,7 @@ class ExplicitInit(using Reporter):
 
     // synthesize init function
     val initType = ProcType(names = Nil, paramTypes = Nil, resultType = VoidType)
-    val initSym = Symbol.createFunSymbol("<init>", initType, prog.main.pos)
+    val initSym = Symbol.createFunSymbol("_init", initType, prog.main.pos)
     val initSpan = prog.main.span
     val initBody = Phrase(inits.toList)(prog.main.tpe, initSpan)
 
@@ -48,11 +48,11 @@ class ExplicitInit(using Reporter):
 
     val initFun = FunDef(
       initSym, tparams = Nil, params = Nil, initBody)(
-      initLocals.toList, initCaptures, initSpan
+      initLocals.filter(_.isValue).toList, initCaptures, initSpan
     )
 
     defs += initFun
-    Prog(defs.toList, Ident(initSym)(initSpan))
+    Prog(defs.toList, Apply(Ident(initSym)(initSpan), Nil)(VoidType, initSpan))
 
 object ExplicitInit:
   class NamesInfo:
@@ -68,7 +68,7 @@ object ExplicitInit:
       val locals = info.locals.distinct.toList
       val masked = fdef.params ++ locals
       val free = info.free.filter(sym => !masked.contains(sym)).distinct.toList
-      fdef.copy(body = body)(locals, free, fdef.span)
+      fdef.copy(body = body)(locals.filter(_.isValue), free, fdef.span)
 
     def apply(word: Word)(using info: Context): Word =
       word match
@@ -81,6 +81,7 @@ object ExplicitInit:
           Assign(sym, this(rhs))(word.span)
 
         case fdef: FunDef =>
+          info.locals += fdef.symbol
           transform(fdef)
 
         case _ => recur(word)

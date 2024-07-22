@@ -1,6 +1,6 @@
 import Types.*
 import CallConvention.*
-import Assembly.RegisterConfig
+import Assembly.{ RegisterConfig, Rel }
 
 import scala.collection.mutable
 /**
@@ -14,44 +14,39 @@ import scala.collection.mutable
   * algorithms.
   */
 trait CallConvention:
-  def caller(paramTypes: List[Type], resType: Type): CallerProtocol
-  def callee(paramTypes: List[Type], resType: Type): CalleeProtocol
+  def caller(paramTypes: List[Type], resType: Type): Protocol
+  def callee(paramTypes: List[Type], resType: Type): Protocol
 
 object CallConvention:
   enum Location:
-    case Mem(baseReg: Int, offset: Int)
+    /** A location relative to the first stack element */
+    case Stack(offset: Int)
     case Reg(index: Int)
 
-  /** Argument and return address must be at fixed locations known to callee */
-  enum Fixed:
-    case Argument(index: Int)
-    case ReturnAddress
+    def isStack: Boolean = this.isInstanceOf[Location.Stack]
 
-  /** Reserved and caller saved registers can be placed on stack positions
-    * unknown to the calee.
-    */
-  enum Flex:
-    val reg: Int
-    case Reserved(reg: Int)
-    case CallerSaved(reg: Int)
+  object Location:
+    /** Map a relative stack position to memory address */
+    def map(loc: Stack, base: Rel): Assembly.Addr =
+      Assembly.Rel(base.reg, loc.offset + base.offset)
 
-  case class CallerProtocol(
-    inRegs: Map[Fixed, Int],
-    onStack: List[Fixed | Flex],
-    resLocs: List[Location]):
+  case class InProtocol(paramLocs: List[Location], retLoc: Location):
+    val stackItemCount: Int =
+      val size = paramLocs.filter(_.isStack).size
+      if retLoc.isStack then size + 1 else size
 
-    val argRegs: List[Int] = inRegs.values.toList
+    def regs: List[Int] =
+      (retLoc :: paramLocs).collect:
+        case Location.Reg(reg) => reg
 
-    val resRegs: List[Int] =
-      resLocs.flatMap:
-        case Location.Reg(index) => index :: Nil
-        case _ => Nil
+  case class Protocol(
+      in: InProtocol,
+      out: List[Location],
+      savedRegs: List[Int]):
 
-  case class CalleeProtocol(
-    paramLocs: List[Location],
-    retLoc: Location,
-    resLocs: List[Location],
-    savedRegs: List[Int])
+    val inRegs: List[Int] = in.regs
+
+    val outRegs: List[Int] = out.collect { case Location.Reg(reg) => reg }
 
   /**
     * A calling convention that passes first 4 arguments via registers and all
@@ -88,46 +83,49 @@ object CallConvention:
   extends CallConvention:
     import registerConfig.{ FP_REG, SP_REG, FREE_REGS }
 
-    /** Parameter locations in a function call */
-    private def paramLocations(paramCount: Int): List[Location] =
-      val regNum = regArgNum(paramCount)
-      val stackNum = paramCount - regNum
-      // 2 for FP and return address
-      val firstStackItem = (stackNum + 2 - 1) << 2
-      computeLocations(paramCount, regNum, FP_REG, firstStackItem)
-
-    private def regArgNum(argCount: Int): Int =
-      if argCount <= PARAM_REGS.size then argCount
-      else PARAM_REGS.size
-
-    private def regResNum(resCount: Int): Int =
-      if resCount <= PARAM_REGS.size then resCount
-      else PARAM_REGS.size
-
-    /** Argument locations in a function call */
-    private def resLocations(resCount: Int): List[Location] =
-      computeLocations(resCount, regResNum(resCount), FP_REG, -4)
-
-    private def computeLocations(
-      valueCount: Int,
-      regValueNum: Int,
-      baseReg: Int,
-      startOffset: Int): List[Location] =
-
+    private def inProtocol(paramCount: Int): InProtocol =
       val buffer = new mutable.ArrayBuffer[Location]
 
+      val regValueNum =
+        if paramCount <= PARAM_REGS.size then paramCount
+        else PARAM_REGS.size
+
       var i = 0
-      while i < valueCount do
+      var stackOffset = 0
+      while i < paramCount do
         // ordering of args
         if i < regValueNum then
           buffer += Location.Reg(PARAM_REGS(i))
         else
-          val delta = (i - regValueNum) << 2
-          val offset = startOffset - delta
-          val loc = Location.Mem(baseReg, offset)
+          val loc = Location.Stack(stackOffset)
+          stackOffset -= 4
           buffer += loc
         i += 1
       end while
+
+      val retLoc = Location.Stack(stackOffset)
+      InProtocol(buffer.toList, retLoc)
+
+    private def outProtocol(resCount: Int): List[Location] =
+      val buffer = new mutable.ArrayBuffer[Location]
+
+      val regValueNum =
+        if resCount <= PARAM_REGS.size then resCount
+        else PARAM_REGS.size
+
+      var i = 0
+      var stackOffset = 0
+      while i < resCount do
+        // ordering of args
+        if i < regValueNum then
+          buffer += Location.Reg(PARAM_REGS(i))
+        else
+          val loc = Location.Stack(stackOffset)
+          stackOffset -= 4
+          buffer += loc
+        i += 1
+      end while
+
       buffer.toList
 
     private def callerSaved(argCount: Int, resCount: Int): List[Int] =
@@ -138,36 +136,16 @@ object CallConvention:
       val callerHandled = if resCount > argCount then resCount else argCount
       FREE_REGS.diff(PARAM_REGS.take(callerHandled))
 
-    def caller(paramTypes: List[Type], resType: Type): CallerProtocol =
+    def caller(paramTypes: List[Type], resType: Type): Protocol =
       val argCount = paramTypes.size
       val resCount = if resType.isVoid then 0 else 1
 
-      val onStack = mutable.ArrayBuffer.empty[Fixed | Flex]
-      val inRegs = mutable.Map.empty[Fixed, Int]
-      val argInRegsNum = regArgNum(argCount)
+      val savedRegs = FP_REG :: callerSaved(argCount, resCount)
+      Protocol(inProtocol(argCount), outProtocol(resCount), savedRegs)
 
-      for i <- 0 until argInRegsNum do
-        inRegs(Fixed.Argument(i)) = PARAM_REGS(i)
-
-      for reg <- callerSaved(argCount, resCount) do
-        onStack += Flex.CallerSaved(reg)
-
-      for i <- argInRegsNum until argCount do
-        onStack += Fixed.Argument(i)
-
-      onStack += Flex.Reserved(FP_REG)
-      onStack += Fixed.ReturnAddress
-
-      val resLocs = resLocations(resCount)
-
-      CallerProtocol(inRegs.toMap, onStack.toList, resLocs)
-
-    def callee(paramTypes: List[Type], resType: Type): CalleeProtocol =
+    def callee(paramTypes: List[Type], resType: Type): Protocol =
       val argCount = paramTypes.size
       val resCount = if resType.isVoid then 0 else 1
 
-      val paramLocs = paramLocations(argCount)
-      val retLoc = Location.Mem(FP_REG, 0)
-      val resLocs = resLocations(resCount)
       val savedRegs = calleeSaved(argCount, resCount)
-      CalleeProtocol(paramLocs, retLoc, resLocs, savedRegs)
+      Protocol(inProtocol(argCount), outProtocol(resCount), savedRegs)

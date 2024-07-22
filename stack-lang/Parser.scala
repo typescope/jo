@@ -506,7 +506,6 @@ object Parsing:
         case Token.MATCH     => continue(patmat())
         case Token.WHILE     => continue(whileDo())
         case Token.TAG       => continue(variant())
-        case Token.RARROW    => Some(call())
 
         case _: Token.Ident  =>
           val id = ident()
@@ -707,17 +706,6 @@ object Parsing:
       eat(Token.EQL)
       val rhs = phrase(limitIndent)
       Assign(id, rhs)(id.span | rhs.span)
-
-    def call(): Word =
-      val arrow = eat(Token.RARROW)
-      word() match
-        case Some(fun) =>
-          Call(fun)(arrow.span | fun.span)
-
-        case None =>
-          val nextItem = peekItem()
-          error("Expect a function, found = " + nextItem.token, nextItem.span.toPos)
-          Phrase(tdefs = Nil, words = Nil)(arrow.span)
 
     def select(qual: Word): Select =
       eat(Token.DOT)

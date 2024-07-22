@@ -31,7 +31,7 @@ object Linux:
   /**
     * Create a new x86 register machine
     */
-  def createX86RegisterMachine(outFile: String, layoutName: String): Backend =
+  def createX86RegisterMachine(outFile: String, layoutName: String): RegisterMachine =
     val layout = Assembler.continuousLayout(layoutName, PROG_START, PAGE_SIZE)
     val elf = new ELF32(outFile, layout, ELF32.EM_386)
 
@@ -51,7 +51,7 @@ object Linux:
   /**
     * Create a new x86 stack machine
     */
-  def createX86StackMachine(outFile: String, layoutName: String): Backend =
+  def createX86StackMachine(outFile: String, layoutName: String): StackMachine =
     val layout = Assembler.continuousLayout(layoutName, PROG_START, PAGE_SIZE)
     val elf = new ELF32(outFile, layout, ELF32.EM_386)
 
@@ -76,8 +76,8 @@ object Linux:
   def linkPrintStackMachineX86()(using pb: PatchableBuffer): Unit =
     pb.defineLabel(printLabel)
 
-    // init SP pointer
-    X86.lower(Instr.Move(Reg(X86.EBP), X86.ESP))
+    // init FP pointer
+    X86.lower(Instr.Move(Reg(X86.ESP), X86.EBP))
 
     // use call stack to prepare string for syscall
     // reserve 16 bytes on stack
@@ -141,8 +141,8 @@ object Linux:
   def linkPrintRegisterMachineX86()(using pb: PatchableBuffer): Unit =
     pb.defineLabel(printLabel)
 
-    // move ebp, esp
-    X86.move(Reg(X86.EBP), X86.ESP)
+    // init FP
+    X86.move(Reg(X86.ESP), X86.EBP)
 
     // callee-saved registers
     pb.addByte((0x50 | X86.EBX).toByte)

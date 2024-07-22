@@ -54,7 +54,7 @@ Syntactical Grammar
 
 
 ~~~
-    word    = integer | boolean | ident | select | if | fence | assign | valdef | while | record | variant | match | tapply | lambda | call.
+    word    = integer | boolean | ident | select | if | fence | assign | valdef | while | record | variant | match | tapply | lambda.
 
     select  = word DOT ident.
 
@@ -71,7 +71,6 @@ Syntactical Grammar
 
     tapply  = ident targs.
     lambda  = LPAREN [params] RPAREN RARROW phrase.
-    call    = RARROW word.
 
     match   = MATCH phrase {case} [END].
     case    = CASE pat RARROW phrase.

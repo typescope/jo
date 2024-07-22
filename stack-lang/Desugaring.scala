@@ -20,30 +20,27 @@ object Desugaring:
 
   def encodeVariant(
       tagIndex: Int, values: List[Word], tagTypes: List[Type],
-      tagPos: Span, variantPos: Span
+      tagSpan: Span, variantSpan: Span
     ): Word =
 
     val encodeType = encodeUnionType(tagTypes)
-    val tagValue = IntLit(tagIndex)(tagPos)
+    val tagValue = IntLit(tagIndex)(tagSpan)
 
     val fields = new mutable.ArrayBuffer[(String, Word)]
     fields += "tag" -> tagValue
     for (value, index) <- values.zipWithIndex do
       fields += s"v$index" -> value
 
-    RecordLit(fields.toList)(encodeType, variantPos)
+    RecordLit(fields.toList)(encodeType, variantSpan)
 
-  def selectVariantArg(value: Word, argIndex: Int, pos: Span): Word =
+  def selectVariantArg(value: Word, argIndex: Int, span: Span): Word =
     val fieldName = s"v$argIndex"
     val recordType = value.tpe.asRecordType
     val fieldType = recordType.fieldType(fieldName)
-    Select(value, fieldName)(fieldType, pos)
+    Select(value, fieldName)(fieldType, span)
 
-  def testVariantTag(value: Word, tagIndex: Int, pos: Span): Word =
-    val tagSelect = Select(value, "tag")(IntType, pos)
-    val words =
-      tagSelect
-      :: IntLit(tagIndex)(pos)
-      :: Ident(predef.eql)(pos)
-      :: Nil
-    Phrase(words)(BoolType, pos)
+  def testVariantTag(value: Word, tagIndex: Int, span: Span): Word =
+    val tagSelect = Select(value, "tag")(IntType, span)
+    val args =  tagSelect :: IntLit(tagIndex)(span) :: Nil
+    val fun = Ident(predef.eql)(span)
+    Apply(fun, args)(BoolType, span)

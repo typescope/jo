@@ -4,302 +4,230 @@ import scala.collection.mutable
 import Sast.*
 import Symbols.*
 import Types.*
+import Text.*
 
-import JSBackend.encodeSymbolic
-import JSOptimized.{ ValueStack, Item }
+import JSOptimized.encodeSymbolic
 
 /**
   * JavaScript platform with code optimization
   */
-class JSOptimized(outFile: String) extends Backend:
-  type Context = ValueStack
-
-  private val pw =  new PrintWriter(outFile)
-
+class JSOptimized(outFile: String):
   private  val uniqueName = new UniqueName
   export uniqueName.freshName
 
   // Make keywords unavailable
-  List(
-    "for", "while", "function", "var", "let", "break", "continue", "if",
-    "const", "class", "constructor"
-  ).foreach: w =>
-    freshName(w)
+  for word <- List(
+      "for", "while", "function", "var", "let", "break", "continue", "if",
+      "const", "class", "constructor")
+  do
+    freshName(word)
 
   private val symbol2UniqueName: mutable.Map[Symbol, String] = mutable.Map(
     predef.p -> "console.log"
   )
 
-  private var indentCount = 0
-  private def addLine(code: String): Unit =
-    pw.append("  " * indentCount).append(code).append("\n")
+  def jsName(sym: Symbol): String =
+    symbol2UniqueName.get(sym) match
+      case Some(name) => name
 
-  private def newLine(): Unit =
-    pw.append("\n")
+      case None =>
+        val uniqueName = freshName(encodeSymbolic(sym.name))
+        symbol2UniqueName(sym) = uniqueName
+        uniqueName
 
-  private def indent(work: => Unit): Unit =
-    indentCount += 1
-    work
-    indentCount -= 1
+  //----------------------------------------------------------------------------
 
-  def vs(using ctx: Context): ValueStack = ctx
+  given Text.Maker[Word] = word =>
+    val ctx: Context = vs => vs.headOption.getOrElse(Text.Empty)
+    compile(word)(using ctx)
 
-  def mapSymbolToJSName(sym: Symbol): String =
-    val isOperator = !sym.name(0).isLetter
-    val uniqueName =
-      if isOperator then freshName("operator")
-      else freshName(sym.name)
+  given Text.Maker[Symbol] = sym => Text(jsName(sym))
 
-    symbol2UniqueName(sym) = uniqueName
-    uniqueName
+  given Text.Maker[FunDef] = fdef => compile(fdef)
 
-  /**
-    * Bind all values in stack.
-    *
-    * This happens when the chain of computation is interrupted by an effectful
-    * operation such as printing or operations that return multiple values.
-    *
-    * Given that computations in the stack may produce effects as well, we need
-    * to maintain the order of effects.
-    *
-    * When it happens, we do the following:
-    *
-    * 1. Bind all expressions in the stack to variables in the generated code.
-    *
-    * 2. Replace the corresponding expressions with the variables.
-    *
-    * 3. Generate code for the effectful operation.
-    *
-    * As an optimization, a binding can be avoided if the stack item is not
-    * effectful.
-    */
-  def bindExpressions()(using Context): Unit =
-    val count = vs.size
-    var i = 0
-    while i < count do
-      val item = vs.get(i)
-      item match
-        case Item.Expr(e) =>
-          val name = freshName("x")
-          addLine(s"const $name = $e;")
-          vs.set(i, Item.Ref(name))
-        case _ =>
-      i = i + 1
+  given Text.Maker[ValDef] = vdef => "var " ~ vdef.symbol ~ ";"
+
+  //----------------------------------------------------------------------------
+
+  type Context = List[Text] => Text
+
+  def cont(text: Text)(using cont: Context): Text = cont(text :: Nil)
+  def cont()(using cont: Context): Text = cont(Nil)
+  def cont(expr: Word)(cont: Text => Text): Text =
+    val cont2: Context = (vs: List[Text]) =>
+      val text :: Nil = vs: @unchecked
+      cont(text)
+    compile(expr)(using cont2)
+
+  def cont(exprs: List[Word])(c: List[Text] => Text): Text =
+    exprs match
+      case Nil => c(Nil)
+      case expr :: exprs =>
+        cont(expr): t =>
+          cont(exprs): ts =>
+            c(t :: ts)
+
+  //----------------------------------------------------------------------------
 
   def compile(prog: Prog): Unit =
-    doCompile:
-      for fun <- prog.funs do
-        mapSymbolToJSName(fun.symbol)
+    val pw =  new PrintWriter(outFile)
 
-      for ValDef(sym, _) <- prog.vals do
-        val uniqueName = mapSymbolToJSName(sym)
-        addLine(s"var $uniqueName; // ${sym.name}")
+    val globals = rep(prog.vals, Text.BreakLine)
+    val funs = rep(prog.funs, Text.BlankLine)
 
-      // Compile functions
-      for fun <- prog.funs do
-        compile(fun)(using new ValueStack)
+    val text =
+      "(function() {" ~ indent:
+           globals ~ Text.BreakLine ~ funs ~ Text.BreakLine ~ prog.main ~ ";"
+      ~ "})()"
 
-      val initName = symbol2UniqueName(prog.init)
-      addLine(s"$initName();")
+    pw.append(text.toString)
+    pw.close()
 
-  /**
-    * Call the funtion.
-    */
-  def call(fun: Symbol)(using Context): Unit =
-    val name = symbol2UniqueName(fun)
-    val funType = TypeOps.erasePolyType(fun.info).asProcType
-    val paramCount = funType.paramCount
-    val resCount = funType.resCount
-    call(name, paramCount, resCount)
+  def compile(word: Word)(using Context): Text =
+    word match
+      case IntLit(v)  =>
+        cont(Text(v))
 
-  def call(name: String, paramCount: Int, resCount: Int)(using Context): Unit =
-    var i: Int = 0
-    val args = vs.pop(paramCount)
-    val argsStr = args.mkString(", ")
+      case BoolLit(v) =>
+        cont(Text(v))
 
-    if resCount == 0 then
-      bindExpressions()
-      addLine(s"$name($argsStr);")
-    else if resCount == 1 then
-      vs.push(Item.Expr(s"$name($argsStr)"))
+      case RecordLit(fields) =>
+        cont(fields.map(_._2)): ts =>
+          val fields2 = fields.map(_._1).zip(ts).map(encodeSymbolic(_) ~ ": " ~ _)
+          cont("{" ~ rep(fields2, Text(", ")) ~ "}")
 
-  /** Initialize a value definition
-    *
-    * Calling the passed function will compile the initializer.
-    */
-  def compile(assign: Assign)(using Context): Unit =
-    compile(assign.rhs)
-    val name = symbol2UniqueName(assign.symbol)
-    val rhs = vs.pop()
-    addLine(s"$name = $rhs;")
+      case Select(qual, name) =>
+        cont(qual): t =>
+          cont(t ~ "." ~ encodeSymbolic(name))
+
+      case Phrase(words) =>
+        words match
+          case Nil =>
+            cont()
+
+          case _ =>
+            if word.tpe.isValueType then
+              val stats :+ expr = words: @unchecked
+              val sep = if stats.isEmpty then Text.Empty else Text.BreakLine
+              rep(stats, Text.BreakLine) ~ sep ~ compile(expr)
+
+            else
+              rep(words, Text.BreakLine)
+
+      case Encoded(repr) =>
+        compile(repr)
+
+      case app @ Apply(fun, args) =>
+        if app.isPrimitiveCall then
+          primitive(app.primitive, args)
+        else
+          cont(fun): v =>
+            cont(args): vs =>
+              val call = v ~ "(" ~ rep(vs, Text(", ")) ~ ")"
+              if app.tpe.isValueType then cont(call)
+              else call ~ cont()
+
+      case TypeApply(fun, _) =>
+        compile(fun)
+
+      case Assign(sym, rhs) =>
+        cont(rhs): t =>
+          if sym.isMutable then
+            sym ~ " = " ~ t ~ ";" ~ cont()
+          else
+            "const " ~ sym ~ " = " ~ t ~ ";" ~ cont()
+
+      case If(cond, thenp, elsep) =>
+        cont(cond): v =>
+          if word.tpe.isValueType then
+            val resName = freshName("res")
+            "var " ~ resName ~ ";" ~ Text.BreakLine ~
+            "if (" ~ v ~ ")" ~ " {" ~ indent:
+                cont(thenp): v =>
+                  resName ~ " = " ~ v ~ ";"
+            ~ "}" ~ " else {" ~ indent:
+                cont(elsep): v =>
+                  resName ~ " = " ~ v ~ ";"
+            ~ "}" ~ Text.BreakLine ~
+            cont(Text(resName))
+
+          else
+            "if (" ~ v ~ ")" ~ " {" ~
+               indent(thenp)
+            ~ "}" ~ (if elsep.isEmpty then Text.Empty else " else {" ~
+               indent(elsep)
+            ~ "}")
+            ~ cont()
+
+      case While(cond, body) =>
+        cont(cond): t =>
+          "while (" ~ t ~ ") {" ~ indent(body) ~ "}"
+          ~ cont()
+
+      case Ident(sym) =>
+        cont(Text(sym))
+
+      case _: ValDef | _: FunDef =>
+        throw new Exception("Unexpected " + word)
 
   /** Compile a function
     *
     * Calling the passed function will compile the body of the function.
     */
-  def compile(fdef: FunDef)(using Context): Unit =
+  def compile(fdef: FunDef): Text =
     val sym = fdef.symbol
-    val name = symbol2UniqueName(sym)
 
     val funType = TypeOps.erasePolyType(sym.info).asProcType
     val resCount = funType.resCount
 
     uniqueName.newScope:
-      val paramStr = fdef.params.map(mapSymbolToJSName).mkString(", ")
-      val localStr = fdef.locals.map(mapSymbolToJSName).mkString(", ")
-      addLine(s"function $name($paramStr) { // ${sym.name}")
-      indent:
-        if fdef.locals.nonEmpty then addLine(s"var $localStr;")
-        compile(fdef.body)
-        assert(vs.size == resCount, s"expect $resCount, found = " + vs)
-        if resCount != 0 then
-          val retStr = vs.pop()
-          addLine(s"return $retStr;")
+      val locals = fdef.locals.filter(_.isMutable).map("var " ~ _ ~ ";" ~ Text.BreakLine)
+      "function " ~ sym ~ "(" ~ rep(fdef.params, Text(", ")) ~ ")" ~ " {" ~ indent:
+          if resCount == 0 then
+            rep(locals, Text.Empty) ~ fdef.body
+          else
+            rep(locals, Text.Empty) ~ cont(fdef.body) { v =>
+              "return " ~ v ~ ";" ~  Text.BreakLine
+            }
+      ~ "}"
 
-      addLine("}\n")
+  def div(args: List[Word])(using Context): Text =
+    val a :: b :: Nil = args: @unchecked
+    cont(a): v1 =>
+      cont(b): v2 =>
+        cont("((" ~ v1 ~ " / " ~ v2 ~ ")" ~ " >> 0" ~ ")")
 
-  def compile(ifword: If)(using Context): Unit =
-    bindExpressions()
+  def bnot(args: List[Word])(using Context): Text =
+    val operand :: Nil = args: @unchecked
+    cont(operand): v =>
+      cont("(!" ~ v  ~ ")")
 
-    compile(ifword.cond)
+  def abort(args: List[Word])(using Context): Text =
+    val arg :: Nil = args: @unchecked
+    cont(arg): v =>
+      "throw "  ~ v ~ ";" ~ Text.BreakLine ~ cont(Text("null"))
 
-    val condStr = vs.pop()
-    if ifword.tpe.isVoid then
-      addLine(s"if ($condStr) {")
-      indent:
-        compile(ifword.thenp)
-
-      if !ifword.elsep.isEmpty then
-        addLine("} else {")
-        indent:
-          compile(ifword.elsep)
-      addLine("}")
-
-    else
-      assert(!ifword.elsep.isEmpty)
-
-      val resName = freshName("resIf")
-      addLine(s"let $resName;")
-
-      addLine(s"if ($condStr) {")
-      indent:
-        compile(ifword.thenp)
-        val retStr = vs.pop()
-        addLine(s"$resName = $retStr;")
-      addLine("} else {")
-      indent:
-        compile(ifword.elsep)
-        val retStr = vs.pop()
-        addLine(s"$resName = $retStr;")
-      addLine("}")
-
-      vs.push(Item.Ref(resName));
-
-  def compile(whileDo: While)(using Context): Unit =
-    bindExpressions()
-
-    addLine(s"while (true) {")
-    indent:
-      compile(whileDo.cond)
-      val condStr = vs.pop()
-      addLine(s"if ($condStr) {")
-      indent:
-        compile(whileDo.body)
-      addLine("} else break;")
-    addLine("}")
-
-  def compile(encoded: Encoded)(using Context): Unit =
-    compile(encoded.repr)
-    if encoded.isValueDrop then
-      vs.pop()
-
-  /** Compile [x = 3, y = 5] */
-  def compile(record: RecordLit)(using Context): Unit =
-    val fieldValues = new mutable.ArrayBuffer[(String, String)]
-    for (name, rhs) <- record.args do
-      compile(rhs)
-      val encodedName = encodeSymbolic(name)
-      fieldValues += encodedName -> vs.pop()
-    end for
-    val obj = fieldValues.map(_ + ":" + _).mkString("{", ", ", "}")
-    vs.push(Item.Expr(obj))
-
-  /** Compile p.x */
-  def compile(select: Select)(using Context): Unit =
-    val encodedField = encodeSymbolic(select.name)
-    compile(select.qual)
-    val qual = vs.pop()
-    // TODO: binding required for mutable fields
-    vs.push(Item.Ref(s"$qual.$encodedField"))
-
-  /** Compile a reference to a function */
-  def compile(ref: FunRef)(using ctx: Context): Unit =
-    val fun = symbol2UniqueName(ref.symbol)
-    vs.push(Item.Ref(fun))
-
-  /** Compile function call */
-  def compile(call: Call)(using Context): Unit =
-    compile(call.word)
-    val funType = call.tpe.asFunctionType
-
-
-    val closName = freshName("closure")
-    addLine(s"let $closName = ${vs.pop()};")
-    val selectEnv = closName + "." + ElimCapture.EnvFieldName
-    vs.push(Item.Ref(s"$selectEnv"))
-
-    val selectProc = closName + "." + ElimCapture.ProcFieldName
-    this.call(selectProc, funType.paramCount + 1, funType.resCount)
-
-  /** Push an integer literal to value stack */
-  def push(v: Int)(using Context): Unit =
-    vs.push(Item.Const(v.toString))
-
-  /** Push a Boolean literal to value stack */
-  def push(v: Boolean)(using Context): Unit =
-    vs.push(Item.Const(v.toString))
-
-  /** Push the value associated with the given symbol to value stack */
-  def push(sym: Symbol)(using Context): Unit =
-    val name = symbol2UniqueName(sym)
-    if sym.isMutable then
-      val nameCurValue = freshName(sym.name)
-      addLine(s"const $nameCurValue = $name;")
-      vs.push(Item.Ref(nameCurValue))
-    else
-      vs.push(Item.Ref(name))
-
-  def binary(op: String)(using Context): Unit =
-    val operand2 = vs.pop()
-    val operand1 = vs.pop()
-    vs.push(Item.Expr(s"($operand1 $op $operand2)"))
-
-  def div()(using Context): Unit =
-    val operand2 = vs.pop()
-    val operand1 = vs.pop()
-    vs.push(Item.Expr(s"(($operand1 / $operand2)>>0)"))
-
-  def bnot()(using Context): Unit =
-    val operand = vs.pop()
-    vs.push(Item.Expr(s"(!$operand)"))
-
-  def abort()(using Context): Unit =
-    val operand = vs.pop()
-    addLine(s"throw $operand;")
-
-    // return a dummy value for compiler invariant -- abort never returns
-    vs.push(Item.Const("-1"));
+  def print(args: List[Word])(using Context): Text =
+    val arg :: Nil = args: @unchecked
+    cont(arg): v =>
+      predef.p ~ "(" ~ rep(args, Text(", "))  ~ ");" ~ cont()
 
   /**
     * Compile a primitive
     *
     */
-  def primitive(sym: Symbol)(using Context): Unit =
+  def primitive(sym: Symbol, args: List[Word])(using Context): Text =
+    def binary(op: String): Text =
+      val a :: b :: Nil = args: @unchecked
+      cont(a): v1 =>
+        cont(b): v2 =>
+          cont("(" ~ v1 ~ " " ~ op ~ " " ~ v2 ~ ")")
+
     sym match
       case predef.add    =>   binary("+")
       case predef.sub    =>   binary("-")
       case predef.mul    =>   binary("*")
-      case predef.div    =>   div()
+      case predef.div    =>   div(args)
       case predef.mod    =>   binary("%")
       case predef.gt     =>   binary(">")
       case predef.lt     =>   binary("<")
@@ -312,58 +240,45 @@ class JSOptimized(outFile: String) extends Backend:
       case predef.lxor   =>   binary("^")
       case predef.band   =>   binary("&&")
       case predef.bor    =>   binary("||")
-      case predef.bnot   =>   bnot()
+      case predef.bnot   =>   bnot(args)
       case predef.eql    =>   binary("===")
-      case predef.p      =>   call(predef.p)
-      case runtime.abort =>   abort()
+      case predef.p      =>   print(args)
+      case runtime.abort =>   abort(args)
       case _             =>   throw new Exception("Unknown primitive: " + sym.name)
   end primitive
 
 
-  /** Prepare to start the compilation */
-  def doCompile(work: => Unit): Unit =
-    addLine("(function() {")
-    indentCount += 1
-
-    work
-
-    indentCount -= 1
-    addLine("})()")
-    pw.close()
-
 end JSOptimized
 
 object JSOptimized:
-  enum Item:
-    case Const(value: String)
-    case Ref(name: String)
-    case Expr(code: String)
+  def encodeSymbolic(operator: String): String =
+    val sb = new StringBuilder
+    for c <- operator do sb.append(encodeOperatorChar(c))
+    sb.toString
 
-    def toJS: String =
-      this match
-        case Const(v)   =>  v
-        case Ref(n)     =>  n
-        case Expr(e)    =>  e
+  def encodeOperatorChar(c: Char): String =
+    if isDigit(c) || isLetter(c) || c == '_' then
+      c.toString
+    else
+      val base = c match
+        case '+' => "plus"
+        case '-' => "minus"
+        case '*' => "mul"
+        case '/' => "div"
+        case '%' => "mod"
+        case '|' => "or"
+        case '&' => "and"
+        case '^' => "xor"
+        case '>' => "gt"
+        case '<' => "lt"
+        case '=' => "eq"
+        case '!' => "not"
+        case '$' => "dollar"
+        case _   => throw new Exception("Not supported, c = " + c)
+      "_" + base + "_"
 
-  class ValueStack:
-    val stack: mutable.ArrayBuffer[Item] = new mutable.ArrayBuffer
+  def isDigit(c: Char): Boolean =
+    c >= '0' && c <= '9'
 
-    def pop(): String =
-      if stack.nonEmpty then stack.remove(stack.size - 1).toJS
-      else throw new Exception("Stack is empty")
-
-    def pop(n: Int): Seq[String] =
-      assert(this.size >= n, s"size = $size, n = $n")
-      val slice = stack.slice(this.size - n, this.size)
-      stack.dropRightInPlace(n)
-      slice.map(_.toJS).toSeq
-
-    def push(v: Item): Unit = stack.append(v)
-
-    def get(i: Int): Item = stack(i)
-
-    def set(i: Int, v: Item): Unit = stack(i) = v
-
-    def size: Int = stack.size
-
-    override def toString() = stack.toString()
+  def isLetter(c: Char): Boolean =
+    c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'

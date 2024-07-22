@@ -16,8 +16,8 @@ import StackMachine.RegisterAllocator
 class StackMachine(
   registerConfig: RegisterConfig,
   nativeFunctions: Map[Symbol, Label],
-  generator: Assembly.Prog => Unit)
-extends Backend:
+  generator: Assembly.Prog => Unit):
+
   import registerConfig.{ FP_REG, SP_REG, FREE_REGS }
 
 
@@ -56,26 +56,47 @@ extends Backend:
     for fun <- prog.funs do
       compile(fun)
 
-    emitEntry(prog.init)
+    // Stack pointer is initialized by the kernel, initialize frame pointer
+    cb.mark(this.entry)
+    cb.add(Instr.Sub(Reg(SP_REG), Int32(4), SP_REG))
+    genAllocator()
+    compile(prog.main)
+    exit(Int32(0))
 
     // generate code
     generator(cb.getResult())
 
-  def emitEntry(init: Symbol)(using Context) =
-    // Stack pointer is initialized by the kernel, initialize frame pointer
-    cb.mark(this.entry)
-    cb.add(Instr.Sub(Reg(SP_REG), Int32(4), SP_REG))
+  def compile(phrase: Phrase)(using Context): Unit =
+    for word <- phrase.words do compile(word)
 
-    genAllocator()
+  def compile(word: Word)(using Context): Unit =
+    word match
+      case IntLit(v)  => push(v)
 
-    val endLabel = Label("_end")
-    cb.add(Instr.Store(endLabel, Reg(SP_REG)))
-    cb.add(Instr.Move(Reg(SP_REG), FP_REG))
+      case BoolLit(v) => push(v)
 
-    cb.add(Instr.Jump(symbolAddrMap(init)))
+      case record: RecordLit => compile(record)
 
-    cb.mark(endLabel)
-    exit(Int32(0))
+      case select: Select => compile(select)
+
+      case phrase: Phrase => compile(phrase)
+
+      case encoded: Encoded => compile(encoded)
+
+      case app: Apply => compile(app)
+
+      case TypeApply(fun, _) => compile(fun)
+
+      case assign: Assign => compile(assign)
+
+      case ifElse: If => compile(ifElse)
+
+      case whileDo: While => compile(whileDo)
+
+      case id: Ident => compile(id)
+
+      case _: ValDef | _: FunDef =>
+        throw new Exception("Unexpected " + word)
 
   /** Compile a function
     *
@@ -103,7 +124,8 @@ extends Backend:
       symbolAddrMap(local) = Rel(FP_REG, offset)
 
     val sizeLocals = fdef.locals.size << 2
-    cb.add(Instr.Sub(Reg(FP_REG), Int32(sizeLocals), SP_REG))
+    cb.add(Instr.Move(Reg(SP_REG), FP_REG))
+    cb.add(Instr.Sub(Reg(SP_REG), Int32(sizeLocals), SP_REG))
 
     compile(fdef.body)
     ret(resCount)
@@ -206,14 +228,14 @@ extends Backend:
     *  │   value M   │
     *  └─────────────┘ ◄─────── SP
     */
-  def call(fun: Symbol)(using Context) =
+  def call(fun: Symbol)(using Context): Unit =
     val addr = symbolAddrMap(fun).asInstanceOf[Label]
     val funType = TypeOps.erasePolyType(fun.info).asProcType
     val argCount = funType.paramCount
     val resCount = funType.resCount
     call(addr, argCount, resCount)
 
-  def call(addr: Addr, argCount: Int, resCount: Int)(using Context) =
+  def call(addr: Addr, argCount: Int, resCount: Int, funAddrOnStack: Boolean = false)(using Context): Unit =
     val returnLoc = Label("returnLoc")
 
     // 1. save FP
@@ -222,8 +244,8 @@ extends Backend:
     // 2. save return
     storeValue(returnLoc, -2)
 
-    // 3. update FP
-    cb.add(Instr.Sub(Reg(SP_REG), Int32(8), FP_REG))
+    // 3. update SP
+    cb.add(Instr.Sub(Reg(SP_REG), Int32(8), SP_REG))
 
     // 4. jump to target
     cb.add(Instr.Jump(addr))
@@ -232,7 +254,7 @@ extends Backend:
 
     useReg: r =>
       // 5. restore SP
-      val spOffset = 2 + argCount - resCount
+      val spOffset = 2 + argCount - resCount + (if funAddrOnStack then 1 else 0)
       cb.add(Instr.Add(Reg(FP_REG), Int32(spOffset * 4), SP_REG))
 
       // 6. restore FP before copy result --- avoid overwriting
@@ -259,29 +281,29 @@ extends Backend:
       pop(r)
       cb.add(Instr.Store(Reg(r), addr))
 
-  /** Compile a reference to a function */
-  def compile(ref: FunRef)(using Context): Unit =
-    val label = symbolAddrMap(ref.symbol).asInstanceOf[Label]
-    push(label)
+  /** Compile a reference */
+  def compile(ref: Ident)(using Context): Unit =
+    val addr = symbolAddrMap(ref.symbol)
+    if ref.symbol.isValue then
+      useReg: r =>
+        cb.add(Instr.Load(addr, r))
+        push(Reg(r))
+    else
+      push(addr.asInstanceOf[Value])
 
   /** Compile function call */
-  def compile(call: Call)(using Context): Unit =
-    compile(call.word)
-    useTwoReg: (r1, r2) =>
-      pop(r1)
-      val funType = call.tpe.asFunctionType
-      val recordType = ElimCapture.encodedRecordType(funType)
+  def compile(app: Apply)(using Context): Unit =
+    if app.isPrimitiveCall then
+      for arg <- app.args do compile(arg)
+      primitive(app.primitive)
+    else
+      compile(app.fun)
+      for arg <- app.args do compile(arg)
 
-      val envOffset = Memory.fieldOffset(recordType, ElimCapture.EnvFieldName)
-      val envAddr = Rel(r1, envOffset)
-      cb.add(Instr.Load(envAddr, r2))
-      push(Reg(r2))
-
-      val procOffset = Memory.fieldOffset(recordType, ElimCapture.ProcFieldName)
-      val procAddr = Rel(r1, procOffset)
-      cb.add(Instr.Load(procAddr, r2))
-
-      this.call(Reg(r2), funType.paramCount + 1, funType.resCount)
+      useReg: r =>
+        val resCount = if app.tpe.isValueType then 1 else 0
+        loadValue(r, app.args.size.toByte)
+        this.call(Reg(r), app.args.size, resCount, funAddrOnStack = true)
 
   /** Compile [x = 3, y = 5] */
   def compile(record: RecordLit)(using Context): Unit =
@@ -339,7 +361,7 @@ extends Backend:
 
     // start alloc function
     cb.mark(allocLabel)
-    cb.add(Instr.Move(Reg(FP_REG), SP_REG))
+    cb.add(Instr.Move(Reg(SP_REG), FP_REG))
     cb.add(Instr.Load(Rel(FP_REG, 8), X86.EAX))
     cb.add(Instr.Load(curBreakLabel, X86.EBX))
     cb.add(Instr.Load(initBreakLabel, X86.ECX))
@@ -392,7 +414,7 @@ extends Backend:
     cb.add(Instr.Add(Reg(SP_REG), Int32(4), SP_REG))
 
   /**
-    * Push value on the value stack.
+    * Push value or address on the value stack.
     */
   def push(v: Value)(using Context) =
     cb.add(Instr.Sub(Reg(SP_REG), Int32(4), SP_REG))
@@ -404,13 +426,6 @@ extends Backend:
   /** Push a Boolean literal to value stack */
   def push(v: Boolean)(using Context): Unit =
     push(Int32(if v then 1 else 0))
-
-  /** Push the value associated with the given symbol to value stack */
-  def push(sym: Symbol)(using Context): Unit =
-    val addr = symbolAddrMap(sym)
-    useReg: r =>
-      cb.add(Instr.Load(addr, r))
-      push(Reg(r))
 
   def primitive(sym: Symbol)(using Context): Unit =
     sym match

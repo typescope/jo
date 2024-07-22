@@ -29,11 +29,6 @@ object Ast:
     (val span: Span)
   extends Word
 
-  case class Call
-    (fun: Word)
-    (val span: Span)
-  extends Word
-
   case class If
     (cond: Phrase, thenp: Phrase, elsep: Phrase)
     (val span: Span)

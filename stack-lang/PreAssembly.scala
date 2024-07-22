@@ -44,9 +44,9 @@ object PreAssembly:
       case Return(addrReg, resRegs)      => RegInfo(Nil, addrReg :: resRegs)
       case Call(addr, argRegs, retRegs)  =>
         addr match
-          case Reg(index)    => RegInfo(index :: argRegs, retRegs)
-          case Rel(index, _) => RegInfo(index :: argRegs, retRegs)
-          case _: Label      => RegInfo(argRegs, retRegs)
+          case Reg(index)    => RegInfo(retRegs, index :: argRegs)
+          case Rel(index, _) => RegInfo(retRegs, index :: argRegs)
+          case _: Label      => RegInfo(retRegs, argRegs)
 
   type Item = PreInstr | Label | PlaceHolder
 
@@ -358,7 +358,8 @@ object PreAssembly:
         case PlaceHolder.InitStackPointer =>
           // Update SP at the beginning of function
           val frameSize = spillCount + actualSavedRegs.size
-          cb.add(Instr.Sub(Reg(FP_REG), Int32(frameSize << 2), SP_REG))
+          cb.add(Instr.Move(Reg(SP_REG), FP_REG))
+          cb.add(Instr.Sub(Reg(SP_REG), Int32(frameSize << 2), SP_REG))
 
         case PlaceHolder.CalleeSaveRegisters =>
           for (savedReg, i) <- actualSavedRegs.zipWithIndex do
@@ -400,8 +401,6 @@ object PreAssembly:
     var spillCount = 0
     var instrs = preAsm
     while continue do
-      // println(s"<${label.name}>:")
-      // println(Assembly.Prog(Nil, instrs, label).show())
 
       val liveness = Liveness.analyze(instrs)
       // println(liveness)
