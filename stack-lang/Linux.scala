@@ -20,7 +20,7 @@ object Linux:
   val heapStartLabel = Label("_heapStart")
 
   val nativeFunctions = Map(
-    Symbols.predef.p -> printLabel
+    Predef.p -> printLabel
   )
 
   val x86RegConfig = new RegisterConfig:

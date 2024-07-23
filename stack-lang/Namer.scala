@@ -27,12 +27,12 @@ class Namer(@constructorOnly reporter: Reporter):
     val rootScope = new Scope.RootScope()
 
     // Predefined type names
-    rootScope.define(predef.Int, Positions.NoSpan)
-    rootScope.define(predef.Bool, Positions.NoSpan)
-    rootScope.define(predef.Void, Positions.NoSpan)
+    rootScope.define(Predef.Int, Positions.NoSpan)
+    rootScope.define(Predef.Bool, Positions.NoSpan)
+    rootScope.define(Predef.Void, Positions.NoSpan)
 
     // Predefined term names
-    for sym <- predef.allSymbols do
+    for sym <- Predef.allSymbols do
       rootScope.define(sym, Positions.NoSpan)
 
     // Prepare scope according to scoping rules
@@ -241,7 +241,7 @@ class Namer(@constructorOnly reporter: Reporter):
           if tagsRest.nonEmpty then
             Reporter.error("Unmatched case(s): " + tagsRest.mkString(", "), scrutIdent.pos)
           // abort
-          val abort = Ident(runtime.abort)(scrutIdent.span)
+          val abort = Ident(Predef.abort)(scrutIdent.span)
           val args = IntLit(1)(scrutIdent.span) :: Nil
           val app = Apply(abort, args)(BottomType, patmat.span)
           checker.adapt(app, resType)

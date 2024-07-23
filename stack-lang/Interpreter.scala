@@ -7,7 +7,6 @@
 import scala.collection.mutable
 
 import Ast.*
-import Symbols.{ predef, runtime }
 
 /***********************************************************************
  *
@@ -133,26 +132,26 @@ object Interpreter:
     throw new Exception(v.toString)
 
   val primitiveOperators: Map[String, ValueStack => Unit] = Map(
-      predef.add.name    ->    add,
-      predef.sub.name    ->    sub,
-      predef.mul.name    ->    mul,
-      predef.div.name    ->    div,
-      predef.mod.name    ->    mod,
-      predef.gt.name     ->    gt,
-      predef.lt.name     ->    lt,
-      predef.ge.name     ->    ge,
-      predef.le.name     ->    le,
-      predef.srl.name    ->    srl,
-      predef.sll.name    ->    sll,
-      predef.land.name   ->    land,
-      predef.lor.name    ->    lor,
-      predef.lxor.name   ->    lxor,
-      predef.band.name   ->    band,
-      predef.bor.name    ->    bor,
-      predef.bnot.name   ->    bnot,
-      predef.eql.name    ->    eql,
-      predef.p.name      ->    print,
-      runtime.abort.name ->    abort
+      Predef.add.name    ->    add,
+      Predef.sub.name    ->    sub,
+      Predef.mul.name    ->    mul,
+      Predef.div.name    ->    div,
+      Predef.mod.name    ->    mod,
+      Predef.gt.name     ->    gt,
+      Predef.lt.name     ->    lt,
+      Predef.ge.name     ->    ge,
+      Predef.le.name     ->    le,
+      Predef.srl.name    ->    srl,
+      Predef.sll.name    ->    sll,
+      Predef.land.name   ->    land,
+      Predef.lor.name    ->    lor,
+      Predef.lxor.name   ->    lxor,
+      Predef.band.name   ->    band,
+      Predef.bor.name    ->    bor,
+      Predef.bnot.name   ->    bnot,
+      Predef.eql.name    ->    eql,
+      Predef.p.name      ->    print,
+      Predef.abort.name  ->    abort
   )
 
   //----------------------------------------------------------------------------
