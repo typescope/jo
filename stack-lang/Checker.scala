@@ -70,7 +70,7 @@ class Checker:
     if !tree.tpe.isVoid then checkValueType(tree)
 
   def checkMutable(sym: Symbol, span: Span)(using Reporter): Unit =
-    if !sym.isAllOf(Flag.Val | Flag.Mutable) then
+    if !sym.isAllOf(Flags.Val | Flags.Mutable) then
       Reporter.error(sym.name + " is not a mutable value", span.toPos)
 
   def fieldType(qualType: Type, field: String, span: Span)(using Reporter): Type =

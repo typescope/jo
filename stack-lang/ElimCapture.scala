@@ -60,13 +60,13 @@ object ElimCapture:
         // locals.
         for
           capture <- captures
-          if capture.isAllOf(Flag.Local | Flag.Val) && !all.contains(capture)
+          if capture.isAllOf(Flags.Local | Flags.Val) && !all.contains(capture)
         do
           all += capture
 
         for
           capture <- captures
-          if capture.isAllOf(Flag.Local | Flag.Fun)
+          if capture.isAllOf(Flags.Local | Flags.Fun)
         do
           recur(capture)
     end recur
@@ -171,11 +171,11 @@ object ElimCapture:
       val locals = mutable.ArrayBuffer.from(fdef.locals)
 
       val envType = RecordType(captures.map(sym => sym.name -> sym.info))
-      val envSym = Symbol.createValueSymbol(EnvParamName, envType, Flag.Local, fdef.symbol.sourcePos)
+      val envSym = Symbol.createValueSymbol(EnvParamName, envType, Flags.Local, fdef.symbol.sourcePos)
 
       var ctx2 = ctx
       for capture <- captures do
-        val subst = Symbol.createValueSymbol(capture.name, capture.info, Flag.Local, capture.sourcePos)
+        val subst = Symbol.createValueSymbol(capture.name, capture.info, Flags.Local, capture.sourcePos)
         locals += subst
         ctx2 = ctx2.withRewire(capture, subst)
         val rhs = Select(Ident(envSym)(fdef.span), capture.name)(capture.info, fdef.span)
@@ -205,7 +205,7 @@ object ElimCapture:
             Apply(fun2, args2)(word.tpe, word.span)
 
         case Ident(sym) =>
-          if sym.isAllOf(Flag.Fun | Flag.Local) then
+          if sym.isAllOf(Flags.Fun | Flags.Local) then
             val FunInfo(subst, captures) = ctx.funInfos(sym)
             val env = createEnvRecord(sym, captures, word.span)
             val recordType = RecordType(List(ProcFieldName -> subst.info, EnvFieldName -> env.tpe))

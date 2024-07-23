@@ -3,6 +3,7 @@ import scala.annotation.constructorOnly
 
 import Sast.*
 import Types.*
+import Flags.*
 import Symbols.*
 import Positions.Span
 import Namer.{ Scope, LazyValue, DelayedDef, errorSymbol }
@@ -71,7 +72,7 @@ class Namer(@constructorOnly reporter: Reporter):
   end index
 
   private def checkCapture(sym: Symbol, span: Span)(using sc: Scope, rp: Reporter): Unit =
-    if sym.isAllOf(Flag.Val | Flag.Mutable | Flag.Local) then
+    if sym.isAllOf(Flags.Val | Flags.Mutable | Flags.Local) then
       // check no capture of mutable local vars
       val ownerFunOpt = sc.owningFunctionOf(sym)
       val curFunOpt = sc.owningFunction
@@ -209,7 +210,7 @@ class Namer(@constructorOnly reporter: Reporter):
     checker.checkValueType(scrutinee2)
 
     val scrutType = scrutinee2.tpe
-    val scrutSym = Symbol.createValueSymbol("scrutinee", scrutType, Flag.Local, scrutinee2.pos)
+    val scrutSym = Symbol.createValueSymbol("scrutinee", scrutType, Flags.Local, scrutinee2.pos)
     val scrutIdent = Ident(scrutSym)(scrutinee.span)
     val bind = ValDef(scrutSym, scrutinee2)(scrutinee.span)
     sc2.define(scrutSym, scrutinee.span)
@@ -287,7 +288,7 @@ class Namer(@constructorOnly reporter: Reporter):
           val vals = mutable.ArrayBuffer.empty[ValDef]
           for (binding, i) <- bindings.zipWithIndex do
             val arg = Desugaring.selectVariantArg(encodedScrut, i, binding.span)
-            val sym = Symbol.createValueSymbol(binding.name, arg.tpe, Flag.Local, arg.pos)
+            val sym = Symbol.createValueSymbol(binding.name, arg.tpe, Flags.Local, arg.pos)
             vals += ValDef(sym, arg)(binding.span)
             caseScope.define(sym, binding.span)
 
@@ -305,12 +306,12 @@ class Namer(@constructorOnly reporter: Reporter):
           If(cond, body3, elsep)(body3.tpe, caseDef.span)
 
   private def transform(vdef: Ast.ValDef)(using sc: Scope, rp: Reporter): DelayedDef[ValDef] =
-    var flags: Flags = Flag.empty
+    var flags: Flags = Flags.empty
     if vdef.mutable then
-      flags = flags | Flag.Mutable
+      flags = flags | Flags.Mutable
 
     if sc.isLocalScope then
-      flags = flags | Flag.Local
+      flags = flags | Flags.Local
 
     val sym = Symbol.createValueSymbol(vdef.name, this.nonCyclicTypeProvider, flags, vdef.ident.pos)
 
@@ -339,9 +340,9 @@ class Namer(@constructorOnly reporter: Reporter):
     val tparamSyms = new mutable.ArrayBuffer[Symbol]
     val bounds = new mutable.ArrayBuffer[Type]
 
-    var flags: Flags = Flag.empty
+    var flags: Flags = Flags.empty
     if sc.isLocalScope then
-      flags = flags | Flag.Local
+      flags = flags | Flags.Local
 
     val sym = Symbol.createFunSymbol(funDef.name, this.cyclicTypeProvider, flags, funDef.ident.pos)
     val funScope = sc.fresh(sym)
