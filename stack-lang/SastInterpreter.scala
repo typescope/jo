@@ -224,7 +224,7 @@ object SastInterpreter:
 @main
 def sastEval(file: String) = Reporter.monitor(file):
   IO.fileContent(file)        |>
-  Parsing.parse               |>
+  Parser.parse                |>
   Namer.transform             |+
   Debug.peek(enable = false)  |>
   SastInterpreter.exec

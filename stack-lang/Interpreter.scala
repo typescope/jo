@@ -298,5 +298,5 @@ object Interpreter:
 @main
 def eval(file: String) = Reporter.monitor(file):
   IO.fileContent(file)        |>
-  Parsing.parse               |>
+  Parser.parse                |>
   Interpreter.exec
