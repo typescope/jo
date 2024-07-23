@@ -2,7 +2,7 @@ import scala.collection.mutable
 
 import Symbols.*
 import Types.*
-import Reporter.{ Positioned, Span }
+import Positions.{ Positioned, Span }
 
 /***********************************************************************
  *

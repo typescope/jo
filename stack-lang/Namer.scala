@@ -4,7 +4,7 @@ import scala.annotation.constructorOnly
 import Sast.*
 import Types.*
 import Symbols.*
-import Reporter.Span
+import Positions.Span
 import Namer.{ Scope, LazyValue, DelayedDef, errorSymbol }
 
 /**
@@ -26,13 +26,13 @@ class Namer(@constructorOnly reporter: Reporter):
     val rootScope = new Scope.RootScope()
 
     // Predefined type names
-    rootScope.define(predef.Int, Reporter.NoSpan)
-    rootScope.define(predef.Bool, Reporter.NoSpan)
-    rootScope.define(predef.Void, Reporter.NoSpan)
+    rootScope.define(predef.Int, Positions.NoSpan)
+    rootScope.define(predef.Bool, Positions.NoSpan)
+    rootScope.define(predef.Void, Positions.NoSpan)
 
     // Predefined term names
     for sym <- predef.allSymbols do
-      rootScope.define(sym, Reporter.NoSpan)
+      rootScope.define(sym, Positions.NoSpan)
 
     // Prepare scope according to scoping rules
     val sc = rootScope.fresh()

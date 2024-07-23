@@ -3,7 +3,7 @@ import scala.collection.mutable
 import Sast.*
 import Symbols.*
 import Types.*
-import Reporter.Span
+import Positions.Span
 
 /**
   * Eliminate captures of locals in functions

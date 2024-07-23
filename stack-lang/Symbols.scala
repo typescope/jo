@@ -1,5 +1,5 @@
 import Types.*
-import Reporter.SourcePosition
+import Positions.SourcePosition
 
 import scala.collection.mutable
 

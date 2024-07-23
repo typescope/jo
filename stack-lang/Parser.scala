@@ -8,6 +8,7 @@ import scala.collection.mutable
 
 import Ast.*
 import Reporter.*
+import Positions.Span
 
 /***********************************************************************
  *

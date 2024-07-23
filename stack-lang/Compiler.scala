@@ -1,5 +1,3 @@
-import Reporter.*
-
 /***********************************************************************
  *
  * Main entry point for the compiler

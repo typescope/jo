@@ -1,7 +1,7 @@
 import Symbols.*
 import Types.*
 import Sast.*
-import Reporter.Span
+import Positions.Span
 
 import scala.collection.mutable
 

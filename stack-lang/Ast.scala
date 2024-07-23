@@ -1,4 +1,4 @@
-import Reporter.{ Positioned, Span }
+import Positions.{ Positioned, Span }
 
 
 /***********************************************************************
