@@ -3,8 +3,8 @@ import scala.collection.mutable
 import Sast.*
 import Types.*
 import Symbols.*
-import Reporter.Span
 
+import Positions.Span
 import Namer.Scope
 
 object NamerUtils:

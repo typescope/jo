@@ -1,7 +1,6 @@
-import Symbols.*
 import Types.*
 import Sast.*
-import Reporter.Span
+import Positions.Span
 
 import scala.collection.mutable
 
@@ -42,5 +41,5 @@ object Desugaring:
   def testVariantTag(value: Word, tagIndex: Int, span: Span): Word =
     val tagSelect = Select(value, "tag")(IntType, span)
     val args =  tagSelect :: IntLit(tagIndex)(span) :: Nil
-    val fun = Ident(predef.eql)(span)
+    val fun = Ident(Predef.eql)(span)
     Apply(fun, args)(BoolType, span)

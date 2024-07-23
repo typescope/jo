@@ -100,26 +100,26 @@ object SastInterpreter:
     throw new Exception(v.toString)
 
   val primitiveOperators: Map[Symbol, List[Value] => List[Value]] = Map(
-      predef.add    ->    add,
-      predef.sub    ->    sub,
-      predef.mul    ->    mul,
-      predef.div    ->    div,
-      predef.mod    ->    mod,
-      predef.gt     ->    gt,
-      predef.lt     ->    lt,
-      predef.ge     ->    ge,
-      predef.le     ->    le,
-      predef.srl    ->    srl,
-      predef.sll    ->    sll,
-      predef.land   ->    land,
-      predef.lor    ->    lor,
-      predef.lxor   ->    lxor,
-      predef.band   ->    band,
-      predef.bor    ->    bor,
-      predef.bnot   ->    bnot,
-      predef.eql    ->    eql,
-      predef.p      ->    print,
-      runtime.abort ->    abort
+      Predef.add    ->    add,
+      Predef.sub    ->    sub,
+      Predef.mul    ->    mul,
+      Predef.div    ->    div,
+      Predef.mod    ->    mod,
+      Predef.gt     ->    gt,
+      Predef.lt     ->    lt,
+      Predef.ge     ->    ge,
+      Predef.le     ->    le,
+      Predef.srl    ->    srl,
+      Predef.sll    ->    sll,
+      Predef.land   ->    land,
+      Predef.lor    ->    lor,
+      Predef.lxor   ->    lxor,
+      Predef.band   ->    band,
+      Predef.bor    ->    bor,
+      Predef.bnot   ->    bnot,
+      Predef.eql    ->    eql,
+      Predef.p      ->    print,
+      Predef.abort  ->    abort
   )
 
   def exec(prog: Prog): Unit =
@@ -224,7 +224,7 @@ object SastInterpreter:
 @main
 def sastEval(file: String) = Reporter.monitor(file):
   IO.fileContent(file)        |>
-  Parsing.parse               |>
+  Parser.parse                |>
   Namer.transform             |+
   Debug.peek(enable = false)  |>
   SastInterpreter.exec

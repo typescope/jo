@@ -1,0 +1,216 @@
+import Tokens.*
+import Scanner.*
+import Positions.Span
+import Reporter.*
+
+/** The scanner interface */
+class Scanner(stream: CharStream)(using Reporter):
+  def this(code: String)(using Reporter) = this(new CharStream(code))
+
+  /** Return the token, its span and the line indentation where the token ends */
+  def next(): TokenInfo =
+    nextToken().withInfo(stream.tokenSpan(), stream.lineIndent())
+
+  def nextToken(): Token =
+    if !stream.hasMore() then return Token.EOF
+
+    // mark the start of a new token
+    stream.tokenStart()
+
+    stream.eat() match
+      case '('    => Token.LPAREN
+      case ')'    => Token.RPAREN
+      case '['    => Token.LBRACKET
+      case ']'    => Token.RBRACKET
+      case '{'    => Token.LBRACE
+      case '}'    => Token.RBRACE
+      case '#'    => Token.TAG
+      case '.'    => Token.DOT
+      case ','    => Token.COMMA
+
+      case '-'    =>
+        if stream.curChar(isDigit) then intLit()
+        else operator()
+
+      case '/'    =>
+        if stream.curChar() == '/' then
+          stream.eatLine()
+          stream.tokenStart()
+          nextToken()
+        else
+          operator()
+
+      case c      =>
+        if      isDigit(c)      then intLit()
+        else if isNameStart(c)  then name()
+        else if isOperator(c)   then operator()
+        else if isSpace(c)      then nextToken()
+        else
+          error("Unexpected character: " + c, stream.tokenSpan().toPos)
+          nextToken()
+
+  def name(): Token =
+    stream.eatWhile(isNameRest)
+
+    stream.tokenEnd() match
+      case "of"      => Token.OF
+      case "if"      => Token.IF
+      case "then"    => Token.THEN
+      case "else"    => Token.ELSE
+      case "match"   => Token.MATCH
+      case "case"    => Token.CASE
+      case "while"   => Token.WHILE
+      case "do"      => Token.DO
+      case "end"     => Token.END
+      case "val"     => Token.VAL
+      case "var"     => Token.VAR
+      case "fun"     => Token.FUN
+      case "type"    => Token.TYPE
+      case "true"    => Token.BoolLit(true)
+      case "false"   => Token.BoolLit(false)
+      case name      => Token.Ident(name)
+
+  def operator(): Token =
+    stream.eatWhile(c => isOperator(c) && !stream.isComment())
+
+    stream.tokenEnd() match
+      case "="   => Token.EQL
+      case ":"   => Token.COLON
+      case "<:"  => Token.SUBTYPE
+      case "=>"  => Token.RARROW
+      case name  => Token.Ident(name)
+
+  def intLit(): Token.IntLit =
+    stream.eatWhile(isDigit)
+    val intStr = stream.tokenEnd()
+    val value = str2Int(intStr)
+    new Token.IntLit(value)
+
+  def str2Int(str: String): Int =
+    val first = str(0)
+    val length = str.size
+    val isNegative = first == '-'
+
+    var sum: Int = 0
+    if !isNegative then sum = first - '0'
+    var overflow = false
+
+    var i = 1
+    while i < length do
+      val c = str(i)
+      val v = c - '0'
+      sum = sum * 10 + (if isNegative then -v else v)
+
+      if !isNegative & sum < 0 then overflow = true
+      else if isNegative & sum > 0 then overflow = true
+
+      i += 1
+    end while
+
+    if overflow then
+      error("Integer literal overflow: " + str, stream.tokenSpan().toPos)
+
+    sum
+  end str2Int
+
+object Scanner:
+  def isNameStart(c: Char): Boolean =
+    isLetter(c) || c == '_'
+
+  def isNameRest(c: Char): Boolean =
+    isNameStart(c) || isDigit(c)
+
+  val OP_CHAR = Array('+', '-', '*', '/', '%', '|', '&', '^', '>', '<', '=', ':')
+  def isOperator(c: Char): Boolean =
+    OP_CHAR.indexOf(c) >= 0
+
+  def isSpace(c: Char): Boolean =
+    c == ' ' || c == '\n' || c == '\t'
+
+  def isDigit(c: Char): Boolean =
+    c >= '0' && c <= '9'
+
+  def isLetter(c: Char): Boolean =
+    c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
+
+  class CharStream(code: String)(using reporter: Reporter):
+    private val LEN = code.length
+    private var index: Int = 0
+
+    /** Current line number, starting from 0 */
+    private var lineNum: Int = 0
+
+    /** Indentation of the current line */
+    private var lineIndentation: Int = countStartingSpace()
+
+    /** Starting offset for the current token */
+    private var curTokenStart: Int = -1
+
+    /** Used to create token content */
+    private val sb = new StringBuilder
+
+    def curChar() = code(index)
+
+    def eat(): Char =
+      val c = curChar()
+      index += 1
+      if c == '\n' then
+        lineNum += 1
+        reporter.addLineOffset(index)
+        lineIndentation = countStartingSpace()
+      else if !hasMore() then
+        reporter.addLineOffset(index)
+      c
+
+    /** Count starting space from the current position
+      *
+      * TODO: don't treat tab as 2 spaces
+      */
+    def countStartingSpace(): Int =
+      var count = 0
+      var curIndex = index
+      while
+        curIndex < LEN
+        && (code(curIndex) == ' ' || code(curIndex) == '\t')
+      do
+        count = count + 1
+        // 1 tab = 2 space
+        if code(curIndex) == '\t' then count = count + 1
+        curIndex = curIndex + 1
+      end while
+      count
+
+    def eatWhile(pred: Char => Boolean): Unit =
+      while hasMore() && pred(curChar()) do
+        eat()
+
+    def eatLine(): Unit =
+      eatWhile(c => c != '\n')
+      eat()
+
+    def curChar(pred: Char => Boolean): Boolean =
+      hasMore() && pred(curChar())
+
+    def isComment(): Boolean =
+      index < LEN - 1 && curChar() == '/' && code(index + 1) == '/'
+
+    def hasMore(): Boolean = index < LEN
+
+    def tokenStart(): Unit =
+      curTokenStart = index
+
+    def tokenEnd(): String =
+      if curTokenStart == -1 then
+        abortInternal("Token is not marked by calling tokenStart()")
+
+      sb.clear()
+      var i = curTokenStart
+      while i < index do
+        sb += code(i)
+        i += 1
+
+      sb.toString()
+
+    def tokenSpan(): Span = Span(curTokenStart, index - curTokenStart)
+
+    def lineIndent(): Indent = Indent(lineNum, lineIndentation)

@@ -1,5 +1,3 @@
-import Reporter.*
-
 /***********************************************************************
  *
  * Main entry point for the compiler
@@ -47,7 +45,7 @@ def compile(args: String*) =
 
   Reporter.monitor(sourceFile):
     IO.fileContent(sourceFile)    |>
-    Parsing.parse                 |>
+    Parser.parse                  |>
     Namer.transform               |+
     Debug.peek(enable = false)    |>
     new ExplicitInit().transform  |+

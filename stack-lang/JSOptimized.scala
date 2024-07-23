@@ -23,7 +23,7 @@ class JSOptimized(outFile: String):
     freshName(word)
 
   private val symbol2UniqueName: mutable.Map[Symbol, String] = mutable.Map(
-    predef.p -> "console.log"
+    Predef.p -> "console.log"
   )
 
   def jsName(sym: Symbol): String =
@@ -210,7 +210,7 @@ class JSOptimized(outFile: String):
   def print(args: List[Word])(using Context): Text =
     val arg :: Nil = args: @unchecked
     cont(arg): v =>
-      predef.p ~ "(" ~ rep(args, Text(", "))  ~ ");" ~ cont()
+      Predef.p ~ "(" ~ rep(args, Text(", "))  ~ ");" ~ cont()
 
   /**
     * Compile a primitive
@@ -224,26 +224,26 @@ class JSOptimized(outFile: String):
           cont("(" ~ v1 ~ " " ~ op ~ " " ~ v2 ~ ")")
 
     sym match
-      case predef.add    =>   binary("+")
-      case predef.sub    =>   binary("-")
-      case predef.mul    =>   binary("*")
-      case predef.div    =>   div(args)
-      case predef.mod    =>   binary("%")
-      case predef.gt     =>   binary(">")
-      case predef.lt     =>   binary("<")
-      case predef.ge     =>   binary(">=")
-      case predef.le     =>   binary("<=")
-      case predef.srl    =>   binary(">>")
-      case predef.sll    =>   binary("<<")
-      case predef.land   =>   binary("&")
-      case predef.lor    =>   binary("|")
-      case predef.lxor   =>   binary("^")
-      case predef.band   =>   binary("&&")
-      case predef.bor    =>   binary("||")
-      case predef.bnot   =>   bnot(args)
-      case predef.eql    =>   binary("===")
-      case predef.p      =>   print(args)
-      case runtime.abort =>   abort(args)
+      case Predef.add    =>   binary("+")
+      case Predef.sub    =>   binary("-")
+      case Predef.mul    =>   binary("*")
+      case Predef.div    =>   div(args)
+      case Predef.mod    =>   binary("%")
+      case Predef.gt     =>   binary(">")
+      case Predef.lt     =>   binary("<")
+      case Predef.ge     =>   binary(">=")
+      case Predef.le     =>   binary("<=")
+      case Predef.srl    =>   binary(">>")
+      case Predef.sll    =>   binary("<<")
+      case Predef.land   =>   binary("&")
+      case Predef.lor    =>   binary("|")
+      case Predef.lxor   =>   binary("^")
+      case Predef.band   =>   binary("&&")
+      case Predef.bor    =>   binary("||")
+      case Predef.bnot   =>   bnot(args)
+      case Predef.eql    =>   binary("===")
+      case Predef.p      =>   print(args)
+      case Predef.abort  =>   abort(args)
       case _             =>   throw new Exception("Unknown primitive: " + sym.name)
   end primitive
 
