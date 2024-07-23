@@ -14,9 +14,6 @@ object Flags:
   val Param   : Flag = 1 << 5
   val Mutable : Flag = 1 << 6
 
-  // fun flags
-  val Anon    : Flag = 1 << 5
-
   val empty   : Flags = 0
 
   extension (fs: Flags)

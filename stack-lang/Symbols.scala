@@ -47,7 +47,6 @@ object Symbols:
     def isLocal    : Boolean = flags.is(Flags.Local)
     def isParameter: Boolean = flags.isAllOf(Flags.Val | Flags.Param)
     def isMutable  : Boolean = flags.isAllOf(Flags.Val | Flags.Mutable)
-    def isAnon     : Boolean = flags.isAllOf(Flags.Fun | Flags.Anon)
 
     def isOneOf(testFlags: Flags) = this.flags.isOneOf(testFlags)
     def isAllOf(testFlags: Flags) = this.flags.isAllOf(testFlags)
