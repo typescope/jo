@@ -2,8 +2,6 @@ import Types.*
 import Flags.*
 import Positions.SourcePosition
 
-import scala.collection.mutable
-
 /** Symbols refer to definitions (names) in the program.
   *
   * Symbols are stable in the compilation process, while the types of a symbol

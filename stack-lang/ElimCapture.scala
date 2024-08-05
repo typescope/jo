@@ -92,7 +92,7 @@ object ElimCapture:
     val funSym = Symbol.createFunSymbol(funName, funType, fdef.symbol.sourcePos)
     FunInfo(funSym, captures)
 
-  private def createEnvRecord(fun: Symbol, captures: List[Symbol], span: Span)(using Context): RecordLit =
+  private def createEnvRecord(captures: List[Symbol], span: Span)(using Context): RecordLit =
     val fields =
       for capture <- captures
       yield capture.name -> Ident(capture)(span)
@@ -207,7 +207,7 @@ object ElimCapture:
         case Ident(sym) =>
           if sym.isAllOf(Flags.Fun | Flags.Local) then
             val FunInfo(subst, captures) = ctx.funInfos(sym)
-            val env = createEnvRecord(sym, captures, word.span)
+            val env = createEnvRecord(captures, word.span)
             val recordType = RecordType(List(ProcFieldName -> subst.info, EnvFieldName -> env.tpe))
             val funRef2 = Ident(subst)(word.span)
             val closure = RecordLit(List(ProcFieldName -> funRef2, EnvFieldName -> env))(recordType, word.span)
