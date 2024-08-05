@@ -7,7 +7,6 @@
 import scala.collection.mutable
 
 import Ast.*
-import Positions.Span
 import Reporter.*
 import Tokens.*
 
@@ -183,7 +182,7 @@ class Parser(code: String)(using Reporter):
     val token = peek()
     if token == Token.RPAREN || token == Token.EOF then acc.toList
     else
-      val span = eat(Token.COMMA)
+      eat(Token.COMMA)
       paramsRest(acc += param())
 
   /** Parse a phrase within the indentation */
@@ -334,7 +333,7 @@ class Parser(code: String)(using Reporter):
     while peek() != Token.RBRACKET && peek() != Token.EOF do
       eat(Token.COMMA)
       targs += typ()
-    val span = eat(Token.RBRACKET)
+    eat(Token.RBRACKET)
     targs.toList
 
   def fields(acc: mutable.ArrayBuffer[Field]): List[Field] =

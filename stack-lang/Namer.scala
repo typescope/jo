@@ -6,7 +6,7 @@ import Types.*
 import Flags.*
 import Symbols.*
 import Positions.Span
-import Namer.{ Scope, LazyValue, DelayedDef, errorSymbol }
+import Namer.{ Scope, LazyValue, DelayedDef }
 
 /**
   * The namer handles name resolution and desugaring.

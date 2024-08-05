@@ -1,5 +1,3 @@
-import scala.collection.mutable
-
 import Symbols.*
 import Types.*
 import Positions.{ Positioned, Span }

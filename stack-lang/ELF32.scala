@@ -169,7 +169,6 @@ class ELF32(outFile: String, layout: Layout, machine: Short):
 
     // Segment header table
     val segHeaderOff  = secHeaderOff + secHeaderSize
-    val segHeaderSize = PH_ENTRY_SIZE * segNum
 
     //////////////////////////////  file header  ////////////////////////////////
 

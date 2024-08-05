@@ -1,7 +1,6 @@
 import scala.collection.mutable
 
 import Assembly.{ Type => _, * }
-import Assembler.{ Patch, PatchableBuffer }
 import Sast.*
 import Symbols.*
 import Types.*

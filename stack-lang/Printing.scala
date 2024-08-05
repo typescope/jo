@@ -1,5 +1,3 @@
-import scala.collection.immutable.Vector
-
 import Sast.*
 import Types.Type
 import Symbols.Symbol

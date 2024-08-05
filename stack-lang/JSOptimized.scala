@@ -3,7 +3,6 @@ import scala.collection.mutable
 
 import Sast.*
 import Symbols.*
-import Types.*
 import Text.*
 
 import JSOptimized.encodeSymbolic

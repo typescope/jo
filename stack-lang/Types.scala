@@ -1,6 +1,5 @@
 import Symbols.Symbol
 
-import scala.collection.mutable
 import scala.reflect.ClassTag
 
 /** The type system of Stk.

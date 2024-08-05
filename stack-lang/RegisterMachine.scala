@@ -2,7 +2,6 @@ import scala.collection.mutable
 
 import Assembly.{ Type => _, * }
 import PreAssembly.*
-import Assembler.{ Patch, PatchableBuffer }
 import Sast.*
 import Symbols.*
 import Types.*
@@ -19,7 +18,7 @@ class RegisterMachine(
   nativeFunctions: Map[Symbol, Label],
   generator: Assembly.Prog => Unit):
 
-  import registerConfig.{ FP_REG, SP_REG, FREE_REGS }
+  import registerConfig.{ FP_REG, SP_REG }
 
   type Context = FunctionContext
 
@@ -162,7 +161,6 @@ class RegisterMachine(
     */
   def compile(fdef: FunDef)(using ctx: Context): Protocol =
     val sym = fdef.symbol
-    val paramCount = fdef.params.size
     val funType = TypeOps.erasePolyType(sym.info).asProcType
 
     val proto @ Protocol(inProto, outProto, savedRegs) =

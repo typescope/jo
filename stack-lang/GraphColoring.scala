@@ -437,6 +437,7 @@ object GraphColoring:
   enum State:
     case Simplify, Coalesce, Freeze, Spill, Select
 
+  final val DEBUG = false
   var round = 1
 
   def alloc(name: String, liveness: Liveness.Result, regs: List[Int], reserved: List[Int], preColor: Int): Result =
@@ -454,8 +455,9 @@ object GraphColoring:
     var i = 0
 
     while state != Select do
-      // Files.write(Paths.get(s"$name-$round-$i-before-$state.dot"), graph.toDot.getBytes)
-      i += 1
+      if DEBUG then
+        Files.write(Paths.get(s"$name-$round-$i-before-$state.dot"), graph.toDot.getBytes)
+        i += 1
 
       graph.check()
 

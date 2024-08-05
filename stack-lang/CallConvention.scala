@@ -81,7 +81,7 @@ object CallConvention:
   class RegisterCallConvention(
     registerConfig: RegisterConfig, PARAM_REGS: List[Int])
   extends CallConvention:
-    import registerConfig.{ FP_REG, SP_REG, FREE_REGS }
+    import registerConfig.{ FP_REG, FREE_REGS }
 
     private def inProtocol(paramCount: Int): InProtocol =
       val buffer = new mutable.ArrayBuffer[Location]

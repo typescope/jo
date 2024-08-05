@@ -10,8 +10,6 @@
  *                                                                      *
  ************************************************************************/
 
-import scala.collection.mutable
-
 import Assembly.*
 import Assembler.{ Patch, PatchableBuffer, withPatch }
 
