@@ -185,44 +185,45 @@ class Parser(code: String)(using Reporter):
       eat(Token.COMMA)
       paramsRest(acc += param())
 
-  /** Parse a phrase within the indentation */
-  def phrase(limitIndent: Indent): Phrase =
-    phrase(mutable.ArrayBuffer.empty[TypeDef], limitIndent)
+  /** Parse a block within the indentation */
+  def block(limitIndent: Indent): Block =
+    blockRest(mutable.ArrayBuffer(), limitIndent)
 
-  def phrase(tdefs: mutable.ArrayBuffer[TypeDef], limitIndent: Indent): Phrase =
-    val item = peekItem()
-    if limitIndent.isUnindent(item.indent) then
-      Phrase(tdefs = Nil, words = Nil)(item.span.point)
+  def blockRest(phrases: mutable.ArrayBuffer[Phrase], limitIndent: Indent): Block =
+    phrase(limitIndent) match
+      case Some(phrase) =>
+        blockRest(tdefs, phrases += phrase, limitIndent)
 
-    else item.token match
-      case Token.TYPE   =>
-        phrase(tdefs += typeDef(), limitIndent)
+      case None =>
+        val span = phrases.head.span | phrases.last.span
+        Block(tdefs, phrases.toList)(span)
 
-      case _ =>
-
-        word() match
-          case Some(w) =>
-            phraseRest(tdefs.toList, mutable.ArrayBuffer(w), limitIndent)
-
-          case None    =>
-            Phrase(tdefs.toList, words = Nil)(item.span.point)
-
-  def phraseRest(
-      tdefs: List[TypeDef],
-      words: mutable.ArrayBuffer[Word],
-      limitIndent: Indent
-    ): Phrase =
+  def wordsRest(words: mutable.ArrayBuffer[Word], limitIndent: Indent): Phrase =
     val item = peekItem()
     if limitIndent.isUnindent(item.indent) then
       val span = words.head.span | words.last.span
-      Phrase(tdefs, words.toList)(span)
+      Phrase(words.toList)(span)
     else word() match
       case Some(w) =>
-        phraseRest(tdefs, words += w, limitIndent)
+        wordsRest(words += w, limitIndent)
 
       case None =>
         val span = words.head.span | words.last.span
-        Phrase(tdefs, words.toList)(span)
+        Words(words.toList)(span)
+
+  def isAssign(): Boolean =
+    val token0 = peek(0)
+    val token1 = peek(1)
+    token0.isInstanceOf[Token.Ident] && token1 == Token.EQL
+
+  def isLambda(): Boolean =
+    val token0 = peek(0)
+    val token1 = peek(1)
+    val token2 = peek(2)
+    token0 == Token.LPAREN && (
+      token1.isInstanceOf[Token.Ident] && (token2 == Token.COLON || token2 == Token.COMMA)
+      || token1 == Token.RPAREN && token2 == Token.RARROW
+    )
 
   def word(): Option[Word] =
     val item = peekItem()
@@ -233,22 +234,15 @@ class Parser(code: String)(using Reporter):
         case _ => Some(word)
 
     item.token match
-      case Token.LPAREN    => continue(lambdaOrFence())
-      case Token.LBRACE    => continue(record())
-      case Token.IF        => continue(ifElse())
-      case Token.MATCH     => continue(patmat())
-      case Token.WHILE     => continue(whileDo())
-      case Token.TAG       => continue(variant())
+      case Token.LPAREN if !isLambda() => continue(fence())
+      case Token.LBRACE                => continue(record())
+      case Token.TAG                   => continue(variant())
 
-      case _: Token.Ident  =>
+      case _: Token.Ident if !isAssign() =>
         val id = ident()
         peek() match
-          case Token.EQL      => Some(assign(id, item.indent))
           case Token.LBRACKET => continue(typeApply(id))
           case _              => continue(id)
-
-      case Token.VAL | Token.VAR   =>
-        Some(valDef(item.token))
 
       case litToken: Token.IntLit  =>
         next()
@@ -260,6 +254,28 @@ class Parser(code: String)(using Reporter):
 
       case token =>
         None
+
+  def phrase(limitIndent: Indent): Option[Phrase] =
+    val item = peekItem()
+
+    if limitIndent.isUnindent(item.indent) then
+      None
+    else item.token match
+      case Token.IF        => Some(ifElse())
+      case Token.MATCH     => Some(patmat())
+      case Token.WHILE     => Some(whileDo())
+
+      case Token.VAL | Token.VAR   =>
+        Some(valDef(item.token))
+
+      case token =>
+        if isAssign() then
+          Some(assign())
+        else if isLambda() then
+          Some(lambda())
+        else
+          word().map: w =>
+            wordsRest(mutable.ArrayBuffer(w), limitIndent)
 
   def typ(): TypeTree =
     val tps = simpleTypes()
@@ -379,17 +395,6 @@ class Parser(code: String)(using Reporter):
       case token =>
         error("Expect identifier, found token " + token, item.span.toPos)
         Ident("error")(item.span)
-
-  def lambdaOrFence(): Word =
-    val token1 = peek(1)
-    val token2 = peek(2)
-    if
-      token1.isInstanceOf[Token.Ident] && token2 == Token.COLON
-      || token1 == Token.RPAREN && token2 == Token.RARROW
-    then
-      lambda()
-    else
-      fence()
 
   def lambda(): Word =
     val paren = peekItem()
