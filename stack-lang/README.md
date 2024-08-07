@@ -56,9 +56,9 @@ Syntactical Grammar
 ~~~
     words   = word {word}.
 
-    word    = integer | boolean | ident | select | fence | record | variant | tapply.
+    word    = integer | boolean | ident | select | fence | record | variant | tapply | lambda.
 
-    phrase  = words | assign | valdef | typedef | while | if | match | lambda.
+    phrase  = words | assign | valdef | typedef | while | if | match.
 
     block   = { phrase }.
 

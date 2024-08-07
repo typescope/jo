@@ -7,7 +7,8 @@ import Positions.{ Positioned, Span }
  *
  ***********************************************************************/
 object Ast:
-  sealed trait Word extends Positioned with Product
+  sealed trait Phrase extends Positioned with Product
+  sealed trait Word extends Phrase
 
   case class IntLit
     (value: Int)
@@ -27,17 +28,17 @@ object Ast:
   case class Assign
     (ident: Ident, words: Phrase)
     (val span: Span)
-  extends Word
+  extends Phrase
 
   case class If
     (cond: Phrase, thenp: Phrase, elsep: Phrase)
     (val span: Span)
-  extends Word
+  extends Phrase
 
   case class While
     (cond: Phrase, body: Phrase)
     (val span: Span)
-  extends Word
+  extends Phrase
 
   case class Select
     (qual: Word, name: String)
@@ -80,8 +81,13 @@ object Ast:
     (val span: Span)
   extends Word
 
-  case class Phrase
-    (tdefs: List[TypeDef], words: List[Word])
+  case class Words
+    (words: List[Word])
+    (val span: Span)
+  extends Phrase
+
+  case class Block
+    (phrases: List[Phrase])
     (val span: Span)
   extends Word
 
@@ -151,7 +157,7 @@ object Ast:
   case class ValDef
     (ident: Ident, typ: TypeTree, rhs: Phrase, mutable: Boolean)
     (val span: Span)
-  extends Word, Def
+  extends Phrase, Def
 
   case class Param
     (ident: Ident, typ: TypeTree)
@@ -173,6 +179,6 @@ object Ast:
   case class TypeDef
     (ident: Ident, tparams: List[TypeParam], rhs: TypeTree)
     (val span: Span)
-  extends Def
+  extends Phrase, Def
 
   case class Prog(defs: List[Def], main: Phrase)
