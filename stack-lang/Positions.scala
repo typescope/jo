@@ -63,7 +63,9 @@ object Positions:
 
     def offsetToLineColumn(offset: Int): LineColumn =
       var from = 0
-      val last = lineOffsets.size - 2 // ignore the last entry
+      val last =
+        if lineOffsets.size <= 1 then 0
+        else lineOffsets.size - 2 // ignore the last EOF entry
       var to = last
 
       while from != to do
@@ -81,10 +83,11 @@ object Positions:
         else
           to = mid
 
+      val lineOffset = if from < lineOffsets.size then lineOffsets(from) else offset
       // println(s"from = $from, to = $to, offset = $offset, $lineOffsets")
-      assert(offset >= lineOffsets(from) && (from == last || offset < lineOffsets(from + 1)))
+      assert(offset >= lineOffset && (from == last || offset < lineOffsets(from + 1)))
 
-      LineColumn(from, offset - lineOffsets(from))
+      LineColumn(from, offset - lineOffset)
 
     def lineLength(line: Int) =
       assert(line < lineOffsets.size - 1)  // ignore the last entry
