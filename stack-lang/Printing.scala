@@ -80,7 +80,7 @@ object Printing:
         fun ~ "[" ~ rep(targs, Text(", ")) ~ "]"
 
       case Assign(sym, rhs) =>
-        Text.BreakLine ~ sym.name ~ " = " ~ rhs ~ Text.BreakLine
+        sym.name ~ " = " ~ rhs
 
       case vdef: ValDef =>
         showDef(vdef)
