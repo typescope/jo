@@ -59,7 +59,11 @@ object NamerUtils:
           push(word)
 
         else
-          output(word)
+          if words.nonEmpty then
+            // Mixing non-value words in value context is an error
+            Reporter.error("The code does not return a value", word.pos)
+          else
+            output(word)
       end while
 
       // handle function calls, which have lower precedence than procedure calls
@@ -121,7 +125,8 @@ object NamerUtils:
           if words.nonEmpty then
             // Mixing non-value words in value context is an error
             Reporter.error("The call does not return a value", call.pos)
-          output(call)
+          else
+            output(call)
 
     def push(value: Word): Unit =
       val tp = value.tpe

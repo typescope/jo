@@ -6,6 +6,11 @@ fun fact1(n: Int) =
   if 0 n == then 1
     else n 1 - fact1 n *   // error
 
+fun foo() =
+    4 p
+  5 p          // error
+    6 p
+      7 p      // expression continues to this line
 
 fun fact2(n: Int) =
   if 0 n == then 1
