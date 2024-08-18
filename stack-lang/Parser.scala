@@ -9,6 +9,7 @@ import scala.collection.mutable
 import Ast.*
 import Reporter.*
 import Tokens.*
+import Positions.SourcePosition
 
 /***********************************************************************
  *
@@ -187,12 +188,20 @@ class Parser(code: String)(using Reporter):
 
   /** Parse a block within the indentation */
   def block(limitIndent: Indent): Phrase =
-    blockRest(mutable.ArrayBuffer(), limitIndent)
+    blockRest(mutable.ArrayBuffer(), limitIndent, peekItem().span.toPos)
 
-  def blockRest(phrases: mutable.ArrayBuffer[Phrase], limitIndent: Indent): Phrase =
+  def blockRest(phrases: mutable.ArrayBuffer[Phrase], limitIndent: Indent, refPos: SourcePosition): Phrase =
     phrase(limitIndent) match
       case Some(phrase) =>
-        blockRest(phrases += phrase, limitIndent)
+        // check alignment of phrases in a block
+        if
+          phrase.pos.startLineColumn != refPos.startLineColumn
+          || phrase.pos.startLine == refPos.startLine && phrases.nonEmpty
+        then
+          val diagnosis = s"expect offset = ${refPos.startLineColumn}, found = ${phrase.pos.startLineColumn}"
+          error(s"The phrase is not vertically aligned in block, $diagnosis", phrase.pos)
+
+        blockRest(phrases += phrase, limitIndent, refPos)
 
       case None =>
         if phrases.isEmpty then
@@ -216,7 +225,6 @@ class Parser(code: String)(using Reporter):
         wordsRest(words += w, limitIndent)
 
       case None =>
-        error("Unexpected token in expression " + item.token, item.span.toPos)
         val span = words.head.span | words.last.span
         Words(words.toList)(span)
 
@@ -414,12 +422,13 @@ class Parser(code: String)(using Reporter):
     Lambda(paramList, body)(paren.span | body.span)
 
   def fence(): Word =
-    eat(Token.LPAREN)
+    val lparen = eat(Token.LPAREN)
     val enclosed = block(IndentAcceptAll)
-    eat(Token.RPAREN)
+    val rparen = eat(Token.RPAREN)
+    val span = lparen.span | rparen.span
     enclosed match
-      case blk: Block => blk
-      case phrase     => Block(phrase :: Nil)(phrase.span)
+      case blk: Block => Block(blk.phrases)(span)
+      case phrase     => Block(phrase :: Nil)(span)
 
   def ifElse(): Phrase =
     val ifItem = eat(Token.IF)
