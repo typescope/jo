@@ -79,18 +79,30 @@ class Namer(@constructorOnly reporter: Reporter):
       if ownerFunOpt != curFunOpt then
         Reporter.error("Cannot capture local mutable variable " + sym.name, span.toPos)
 
-  def transform(word: Ast.Word)(using sc: Scope, rp: Reporter): Word =
-    word match
-      case Ast.IntLit(v)  =>
-        IntLit(v)(word.span)
+  def transform(block: Ast.Block)(using sc: Scope, rp: Reporter): Word =
+    val words = for phrase <- block.phrases yield transform(phrase)
+    if words.isEmpty then
+      Phrase(words)(VoidType, block.span)
 
-      case Ast.BoolLit(v) =>
-        BoolLit(v)(word.span)
+    else if words.size == 1 then
+      words.head
 
-      case phrase: Ast.Phrase  =>
+    else
+      // encode dropping of values
+      val stats :+ last = words: @unchecked
+      val stats2 = for stat <- stats yield
+        if stat.tpe.isValueType then Encoded(stat)(VoidType) else stat
+      Phrase(stats2 :+ last)(last.tpe, block.span)
+
+  def transform(phrase: Ast.Phrase)(using sc: Scope, rp: Reporter): Word =
+    phrase match
+      case words: Ast.Words  =>
         // A new instance is required to support nested phrases
         val phraseTyper = new NamerUtils.PhraseTyper(this, checker)
-        phraseTyper.transform(phrase)
+        phraseTyper.transform(words)
+
+      case word: Ast.Word =>
+        transform(word)
 
       case ifte: Ast.If =>
         transform(ifte)
@@ -99,12 +111,7 @@ class Namer(@constructorOnly reporter: Reporter):
          val cond2 = transform(cond)
          val body2 = transform(body)
          checker.checkType(cond2, BoolType)
-         While(cond2, body2)(word.span)
-
-      case Ast.Ident(name) =>
-        val sym = sc.resolve(name, word.span)
-        checkCapture(sym, word.span)
-        Ident(sym)(word.span)
+         While(cond2, body2)(phrase.span)
 
       case Ast.Assign(id, words) =>
         val sym = sc.resolve(id.name, id.span)
@@ -114,7 +121,31 @@ class Namer(@constructorOnly reporter: Reporter):
 
         val rhs = transform(words)
         checker.checkType(rhs, sym.info)
-        Assign(sym, rhs)(word.span)
+        Assign(sym, rhs)(phrase.span)
+
+      case patmat: Ast.Match =>
+        transform(patmat)
+
+      case vdef: Ast.ValDef =>
+        val delayedDef = transform(vdef)
+        sc.define(delayedDef.symbol, vdef.span)
+        delayedDef.force()
+
+      case tdef: Ast.TypeDef =>
+        transform(tdef)
+
+  def transform(word: Ast.Word)(using sc: Scope, rp: Reporter): Word =
+    word match
+      case Ast.IntLit(v)  =>
+        IntLit(v)(word.span)
+
+      case Ast.BoolLit(v) =>
+        BoolLit(v)(word.span)
+
+      case Ast.Ident(name) =>
+        val sym = sc.resolve(name, word.span)
+        checkCapture(sym, word.span)
+        Ident(sym)(word.span)
 
       case record: Ast.RecordLit =>
         transform(record)
@@ -122,18 +153,10 @@ class Namer(@constructorOnly reporter: Reporter):
       case variant: Ast.Variant =>
         transform(variant)
 
-      case patmat: Ast.Match =>
-        transform(patmat)
-
       case Ast.Select(qual, name) =>
         val qual2 = transform(qual)
         val tp = checker.fieldType(qual2.tpe, name, qual.span)
         Select(qual2, name)(tp, word.span)
-
-      case Ast.TypeApply(fun, targs) =>
-        val fun2 = transform(fun)
-        val targs2 = targs.map(transformType)
-        checker.checkTypeApply(fun2, targs2)
 
       case Ast.Lambda(params, body) =>
         val sc2 = sc.fresh()
@@ -146,10 +169,13 @@ class Namer(@constructorOnly reporter: Reporter):
         val ref = Ident(funDef2.symbol)(word.span)
         Phrase(funDef2 :: ref :: Nil)(lambdaType, word.span)
 
-      case vdef: Ast.ValDef =>
-        val delayedDef = transform(vdef)
-        sc.define(delayedDef.symbol, vdef.span)
-        delayedDef.force()
+      case Ast.TypeApply(fun, targs) =>
+        val fun2 = transform(fun)
+        val targs2 = targs.map(transformType)
+        checker.checkTypeApply(fun2, targs2)
+
+      case block: Ast.Block =>
+        transform(block)
 
   private def transform(ifte: Ast.If)(using sc: Scope, rp: Reporter): Word =
     val Ast.If(cond, thenp, elsep) = ifte

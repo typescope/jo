@@ -205,6 +205,7 @@ class Parser(code: String)(using Reporter):
           val span = phrases.head.span | phrases.last.span
           Block(phrases.toList)(span)
 
+  /** An expression ends with unindentation */
   def wordsRest(words: mutable.ArrayBuffer[Word], limitIndent: Indent): Phrase =
     val item = peekItem()
     if limitIndent.isUnindent(item.indent) then
@@ -215,6 +216,7 @@ class Parser(code: String)(using Reporter):
         wordsRest(words += w, limitIndent)
 
       case None =>
+        error("Unexpected token in expression " + item.token, item.span.toPos)
         val span = words.head.span | words.last.span
         Words(words.toList)(span)
 
@@ -283,7 +285,7 @@ class Parser(code: String)(using Reporter):
           Some(assign(id, item.indent))
         else
           word().map: w =>
-            wordsRest(mutable.ArrayBuffer(w), limitIndent)
+            wordsRest(mutable.ArrayBuffer(w), item.indent)
 
   def typ(): TypeTree =
     val tps = simpleTypes()

@@ -21,10 +21,9 @@ object NamerUtils:
     private val values = mutable.ArrayBuffer.empty[Word]
     private val stats  = mutable.ArrayBuffer.empty[Word]
 
-    def transform(phrase: Ast.Phrase)(using  sc: Scope, rp: Reporter): Word =
+    def transform(phrase: Ast.Words)(using  sc: Scope, rp: Reporter): Word =
       val sc2 = sc.fresh()
 
-      namer.transform(phrase.tdefs)(using sc2)
       for word <- phrase.words do
         words += namer.transform(word)(using sc2)
 
@@ -119,6 +118,9 @@ object NamerUtils:
           // allow chaining of calls
           words.insert(0, call)
         else
+          if words.nonEmpty then
+            // Mixing non-value words in value context is an error
+            Reporter.error("The call does not return a value", call.pos)
           output(call)
 
     def push(value: Word): Unit =

@@ -7,8 +7,10 @@ import Positions.{ Positioned, Span }
  *
  ***********************************************************************/
 object Ast:
-  sealed trait Phrase extends Positioned with Product
-  sealed trait Word extends Phrase
+  sealed abstract class Tree extends Positioned with Product
+
+  sealed abstract class Phrase extends Tree
+  sealed abstract class Word extends Phrase
 
   case class IntLit
     (value: Int)
@@ -53,7 +55,7 @@ object Ast:
   case class NamedArg
     (ident: Ident, arg: Phrase)
     (val span: Span)
-  extends Positioned:
+  extends Tree:
     def name = ident.name
 
   case class Variant
@@ -64,12 +66,12 @@ object Ast:
   case class Match
     (scrutinee: Phrase, cases: List[Case])
     (val span: Span)
-  extends Word
+  extends Phrase
 
   case class Case
     (pat: Pattern, body: Phrase)
     (val span: Span)
-  extends Positioned
+  extends Tree
 
   case class TypeApply
     (fun: Word, targs: List[TypeTree])
@@ -93,7 +95,7 @@ object Ast:
 
   //---------------------------- patterns --------------------------------------
 
-  sealed abstract class Pattern extends Positioned with Product
+  sealed abstract class Pattern extends Tree
 
   case class Wildcard
     ()
@@ -107,7 +109,7 @@ object Ast:
 
   //------------------------------ types ---------------------------------------
 
-  sealed trait TypeTree extends Positioned with Product:
+  sealed trait TypeTree extends Tree:
     def isEmpty: Boolean = this.isInstanceOf[EmptyTypeTree]
 
   case class EmptyTypeTree
@@ -123,7 +125,7 @@ object Ast:
   case class Field
     (ident: Ident, typ: TypeTree)
     (val span: Span)
-  extends Positioned:
+  extends Tree:
     def name = ident.name
 
   case class UnionType
@@ -134,7 +136,7 @@ object Ast:
   case class Branch
     (tag: Ident, tpts: List[TypeTree])
     (val span: Span)
-  extends Positioned:
+  extends Tree:
     def name = tag.name
 
   case class AppliedType
@@ -150,7 +152,7 @@ object Ast:
 
   //-------------------------- definitions -------------------------------------
 
-  sealed trait Def extends Positioned with Product:
+  sealed trait Def extends Tree:
     val ident: Ident
     val name: String = ident.name
 
@@ -162,7 +164,7 @@ object Ast:
   case class Param
     (ident: Ident, typ: TypeTree)
     (val span: Span)
-  extends Positioned:
+  extends Tree:
     def name = ident.name
 
   case class FunDef
@@ -173,7 +175,7 @@ object Ast:
   case class TypeParam
     (ident: Ident, bound: TypeTree)
     (val span: Span)
-  extends Positioned:
+  extends Tree:
     def name = ident.name
 
   case class TypeDef
