@@ -80,7 +80,8 @@ class Namer(@constructorOnly reporter: Reporter):
         Reporter.error("Cannot capture local mutable variable " + sym.name, span.toPos)
 
   def transform(block: Ast.Block)(using sc: Scope, rp: Reporter): Word =
-    val words = for phrase <- block.phrases yield transform(phrase)
+    val sc2 = sc.fresh()
+    val words = for phrase <- block.phrases yield transform(phrase)(using sc2, rp)
     if words.isEmpty then
       Phrase(words)(VoidType, block.span)
 

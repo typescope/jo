@@ -207,9 +207,6 @@ class Parser(code: String)(using Reporter):
         if phrases.isEmpty then
           Block(phrases = Nil)(peekItem().span)
 
-        else if phrases.size == 1 then
-          phrases.head
-
         else
           val span = phrases.head.span | phrases.last.span
           Block(phrases.toList)(span)
