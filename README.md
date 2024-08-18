@@ -11,7 +11,7 @@ It has the following features:
 
 It is a perfect fit for the usage of programming languages as human
 interface. It can be used in terminals, emails, instant messaging, etc to
-perform tasks via a human-like language in a natural way. Combining with AI, it
+perform tasks via a human-like language in a natural way. Combined with AI, it
 gets even more powerful in scenarios like message-based programming, low-code
 programming, etc.
 

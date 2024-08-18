@@ -54,6 +54,7 @@ object TypeOps:
       case _: PolyType | _: ProcType | _: FunctionType | _: RecordType | _: UnionType | _: TypeBound => true
       case _: TypeLambda | _: TypeParamRef => true
       case _: TypeRef | _: AppliedType => false
+
   /** Erase a poly type by replacing type parameters with Any */
   def erasePolyType(tp: Type): Type =
     // implementation assumption: no nested poly types

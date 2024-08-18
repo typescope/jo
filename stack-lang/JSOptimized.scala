@@ -166,7 +166,7 @@ class JSOptimized(outFile: String):
       case Ident(sym) =>
         cont(Text(sym))
 
-      case _: ValDef | _: FunDef =>
+      case _: ValDef | _: FunDef | _: TypeDef =>
         throw new Exception("Unexpected " + word)
 
   /** Compile a function

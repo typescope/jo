@@ -94,7 +94,7 @@ class StackMachine(
 
       case id: Ident => compile(id)
 
-      case _: ValDef | _: FunDef =>
+      case _: ValDef | _: FunDef | _: TypeDef =>
         throw new Exception("Unexpected " + word)
 
   /** Compile a function

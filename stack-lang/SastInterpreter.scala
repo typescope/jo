@@ -202,10 +202,6 @@ object SastInterpreter:
           case denot =>
             denot :: Nil
 
-      case ValDef(sym, rhs) =>
-        sc.bind(sym, eval(rhs))
-        Nil
-
       case Apply(fun, args) =>
         val funDenot :: Nil = exec(fun): @unchecked
         val argVals = args.map(eval)
@@ -217,8 +213,15 @@ object SastInterpreter:
       case TypeApply(fun, _) =>
         exec(fun)
 
+      case ValDef(sym, rhs) =>
+        sc.bind(sym, eval(rhs))
+        Nil
+
       case fdef: FunDef =>
         sc.bind(fdef.symbol, FunVal(fdef, sc))
+        Nil
+
+      case tdef: TypeDef =>
         Nil
 
 @main

@@ -54,32 +54,36 @@ Syntactical Grammar
 
 
 ~~~
-    word    = integer | boolean | ident | select | if | fence | assign | valdef | while | record | variant | match | tapply | lambda.
+    words   = word {word}.
+
+    word    = integer | boolean | ident | select | fence | record | variant | tapply | lambda.
+
+    phrase  = words | assign | valdef | typedef | while | if | match.
+
+    block   = { phrase }.
 
     select  = word DOT ident.
 
-    fence   = LPAREN phrase RPAREN.
-    assign  = ident EQL phrase.
-    if      = IF phrase THEN phrase [ELSE phrase] [END].
-    while   = WHILE phrase DO phrase [END].
+    fence   = LPAREN block RPAREN.
+    assign  = ident EQL block.
+    if      = IF block THEN block [ELSE block] [END].
+    while   = WHILE block DO block [END].
 
-    record  = LBRACE [named_args] RBRACE.
+    record     = LBRACE [named_args] RBRACE.
     named_args = named_arg { COMMA named_arg }.
-    named_arg  = ident EQL phrase.
+    named_arg  = ident EQL block.
 
     variant = TAG ident {word} OF type.
 
     tapply  = ident targs.
-    lambda  = LPAREN [params] RPAREN RARROW phrase.
+    lambda  = LPAREN [params] RPAREN RARROW block.
 
-    match   = MATCH phrase {case} [END].
-    case    = CASE pat RARROW phrase.
+    match   = MATCH block {case} [END].
+    case    = CASE pat RARROW block.
     pat     = TAG ident {ident} | USCORE.
 
-    phrase  = { typedef } word [phrase].
-
-    valdef  = (VAL | VAR) ident [COLON type] EQL phrase.
-    fundef  = FUN ident [tparams] LPAREN [params] RPAREN EQL phrase [END].
+    valdef  = (VAL | VAR) ident [COLON type] EQL block.
+    fundef  = FUN ident [tparams] LPAREN [params] RPAREN EQL block [END].
 
     typedef = TYPE [tparams] ident EQL type.
     tparams = LBRACKET tparam {COMMA tparam} RBRACKET.
@@ -101,7 +105,7 @@ Syntactical Grammar
 
     fun_type   = [types] RARROW type.
 
-    program = {valdef | fundef | typedef} phrase.
+    program = {valdef | fundef | typedef} block.
 
     params  = param {COMMA param}.
     param   = ident COLON type.

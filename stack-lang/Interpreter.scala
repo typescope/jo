@@ -173,7 +173,7 @@ object Interpreter:
 
     exec(prog.main)(using vs, sc)
 
-  def exec(phrase: Phrase)(using vs: ValueStack, sc: Scope): Unit =
+  def exec(phrase: Words)(using vs: ValueStack, sc: Scope): Unit =
     val vs2 = new ValueStack
     for word <- phrase.words do exec(word)(using vs2, sc)
 
@@ -226,9 +226,50 @@ object Interpreter:
 
     exec(body)(using vs, caseScope)
 
-  def eval(word: Word)(using vs: ValueStack, sc: Scope): Value =
-    exec(word)
+  def eval(phrase: Phrase)(using vs: ValueStack, sc: Scope): Value =
+    exec(phrase)
     vs.pop()
+
+  def exec(block: Block)(using vs: ValueStack, sc: Scope): Unit =
+    val lastIndex = block.phrases.size - 1
+    val sc2 = sc.fresh()
+    for i <- 0 to lastIndex do
+      // only the last phrase pushes to the value stack
+      val vs2 = if i == lastIndex then vs else new ValueStack
+      exec(block.phrases(i))(using vs2, sc2)
+
+  def exec(phrase: Phrase)(using vs: ValueStack, sc: Scope): Unit =
+    phrase match
+      case Ast.Match(scrut, cases) =>
+        exec(eval(scrut), cases)
+
+      case Assign(id, rhs) =>
+        sc.update(id.name, eval(rhs))
+
+      case If(cond, thenp, elsep) =>
+        val BoolVal(b) = eval(cond): @unchecked
+        if b then exec(thenp) else exec(elsep)
+
+      case While(cond, body) =>
+        // avoid stackoverflow
+        def loop(): Unit =
+          val BoolVal(b) = eval(cond): @unchecked
+          if b then
+            given Scope = sc.fresh()
+            exec(body)
+            loop()
+        loop()
+
+      case word: Word =>
+        exec(word)
+
+      case words: Words =>
+        exec(words)
+
+      case vdef: ValDef =>
+        sc.bind(vdef.name, eval(vdef.rhs))
+
+      case tdef: TypeDef =>
 
   def exec(word: Word)(using vs: ValueStack, sc: Scope): Unit =
     word match
@@ -251,43 +292,20 @@ object Interpreter:
         for word <- words do values += eval(word)
         vs.push(VariantVal(tag.name, values.toList))
 
-      case Ast.Match(scrut, cases) =>
-        exec(eval(scrut), cases)
-
-      case Assign(id, rhs) =>
-        sc.update(id.name, eval(rhs))
-
-      case If(cond, thenp, elsep) =>
-        val BoolVal(b) = eval(cond): @unchecked
-        if b then exec(thenp) else exec(elsep)
-
-      case While(cond, body) =>
-        // avoid stackoverflow
-        def loop(): Unit =
-          val BoolVal(b) = eval(cond): @unchecked
-          if b then
-            given Scope = sc.fresh()
-            exec(body)
-            loop()
-        loop()
-
-      case phrase: Phrase =>
-        exec(phrase)
-
       case Ident(name) =>
         sc.resolve(name) match
           case PrimAction(op) => op(vs)
           case FunCall(fdef, sc) => call(fdef)(using vs, sc)
           case value: Value => vs.push(value)
 
-      case vdef: ValDef =>
-        sc.bind(vdef.name, eval(vdef.rhs))
-
       case TypeApply(fun, _) =>
         exec(fun)
 
       case lam: Lambda =>
         vs.push(ClosureVal(lam, sc))
+
+      case block: Block =>
+        exec(block)
 
 /***********************************************************************
  *

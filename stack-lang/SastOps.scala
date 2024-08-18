@@ -53,6 +53,9 @@ object SastOps:
         case fdef: FunDef =>
           recurFunDef(fdef)
 
+        case tdef: TypeDef =>
+          recurTypeDef(tdef)
+
         case If(cond, thenp, elsep) =>
           If(this(cond), this(thenp), this(elsep))(word.tpe, word.span)
 

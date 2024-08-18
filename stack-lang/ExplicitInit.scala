@@ -64,7 +64,7 @@ object ExplicitInit:
 
     def transform(fdef: FunDef): FunDef =
       given info: NamesInfo = new NamesInfo
-      val body = recur(fdef.body)
+      val body = this(fdef.body)
       val locals = info.locals.distinct.toList
       val masked = fdef.params ++ locals
       val free = info.free.filter(sym => !masked.contains(sym)).distinct.toList
@@ -83,5 +83,13 @@ object ExplicitInit:
         case fdef: FunDef =>
           info.locals += fdef.symbol
           transform(fdef)
+
+        case Phrase(words) =>
+          val words2 =
+            for
+              word <- words if !word.isInstanceOf[TypeDef]
+            yield
+              this(word)
+          Phrase(words2)(word.tpe, word.span)
 
         case _ => recur(word)

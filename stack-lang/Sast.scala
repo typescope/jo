@@ -105,14 +105,14 @@ object Sast:
     (val span: Span)
   extends Tree
 
-  sealed trait Def extends Tree:
+  sealed abstract class Def extends Word:
     val symbol: Symbol
     val name: String = symbol.name
 
   case class ValDef
     (symbol: Symbol, rhs: Word)
     (val span: Span)
-  extends Word, Def:
+  extends Def:
     def tpe: Type = VoidType
 
   case class TypeDef
@@ -124,7 +124,7 @@ object Sast:
   case class FunDef
     (symbol: Symbol, tparams: List[Symbol], params: List[Symbol], body: Word)
     (val locals: List[Symbol], val captures: List[Symbol], val span: Span)
-  extends Word, Def:
+  extends Def:
     def tpe = symbol.info
 
   case class Prog(defs: List[Def], main: Word):

@@ -127,7 +127,7 @@ class RegisterMachine(
 
       case id: Ident => compile(id)
 
-      case _: ValDef | _: FunDef =>
+      case _: ValDef | _: FunDef | _: TypeDef =>
         throw new Exception("Unexpected " + word)
 
   def load(loc: Location, dest: Int, base: Rel)(using Context): Unit =

@@ -1,8 +1,8 @@
 type Y[T] = Y[T] => (T => T)
 
 fun Y[T](f: (T => T) => (T => T)): T => T =
-    ((x: Y[T]) => f ((a: T) => x x a))
-    ((x: Y[T]) => f ((a: T) => x x a))
+  val g = ((x: Y[T]) => f ((a: T) => x x a))
+  g g
 
 val fact0 = (f: Int => Int) => (n: Int) =>
   if n 0 == then 1

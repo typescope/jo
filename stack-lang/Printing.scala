@@ -80,13 +80,16 @@ object Printing:
         fun ~ "[" ~ rep(targs, Text(", ")) ~ "]"
 
       case Assign(sym, rhs) =>
-        Text.BreakLine ~ sym.name ~ " = " ~ rhs ~ Text.BreakLine
+        sym.name ~ " = " ~ rhs
 
       case vdef: ValDef =>
         showDef(vdef)
 
       case fdef: FunDef =>
         showDef(fdef)
+
+      case tdef: TypeDef =>
+        showDef(tdef)
 
       case If(cond, thenp, elsep) =>
         "if " ~ cond ~ " then" ~ indent:

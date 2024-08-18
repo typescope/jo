@@ -4,10 +4,10 @@ fun tak(x: Int, y: Int, z: Int): Int =
     if x y <= then
       y
     else
-      (x 1 -) y z tak
-      (y 1 -) z x tak
-      (z 1 -) x y tak
-      tak
+      val a = (x 1 -) y z tak
+      val b = (y 1 -) z x tak
+      val c = (z 1 -) x y tak
+      a b c tak
 
 1 1 1 tak p
 1 2 3 tak p
