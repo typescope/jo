@@ -132,7 +132,9 @@ class Namer(@constructorOnly reporter: Reporter):
         delayedDef.force()
 
       case tdef: Ast.TypeDef =>
-        transform(tdef)
+        val delayedDef = transform(tdef)
+        sc.define(delayedDef.symbol, tdef.span)
+        delayedDef.force()
 
   def transform(word: Ast.Word)(using sc: Scope, rp: Reporter): Word =
     word match

@@ -88,6 +88,9 @@ object Printing:
       case fdef: FunDef =>
         showDef(fdef)
 
+      case tdef: TypeDef =>
+        showDef(tdef)
+
       case If(cond, thenp, elsep) =>
         "if " ~ cond ~ " then" ~ indent:
             thenp

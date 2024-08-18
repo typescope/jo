@@ -287,6 +287,9 @@ class Parser(code: String)(using Reporter):
       case Token.VAL | Token.VAR   =>
         Some(valDef(item.token))
 
+      case Token.TYPE =>
+        Some(typeDef())
+
       case token =>
         if isAssign() then
           val id = ident()
