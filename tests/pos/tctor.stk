@@ -32,6 +32,7 @@ type B[T] = {a: Int, b: B[T]}
 
 fun test2[T](o: A[T]): B[T] = o
 
-x.a p x.b p
+x.a p
+x.b p
 
 c foreach
