@@ -15,6 +15,7 @@ import Namer.{ Scope, LazyValue, DelayedDef }
   */
 class Namer(@constructorOnly reporter: Reporter):
   val checker = new Checker
+  val phraseTyper = new NamerUtils.PhraseTyper(this, checker)
 
   /** Handles possible cycles in result type inference for functions  */
   val cyclicTypeProvider = new NamerUtils.CyclicTypeProvider(using reporter)
@@ -98,8 +99,6 @@ class Namer(@constructorOnly reporter: Reporter):
   def transform(phrase: Ast.Phrase)(using sc: Scope, rp: Reporter): Word =
     phrase match
       case words: Ast.Words  =>
-        // A new instance is required to support nested phrases
-        val phraseTyper = new NamerUtils.PhraseTyper(this, checker)
         phraseTyper.transform(words)
 
       case word: Ast.Word =>

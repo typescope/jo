@@ -12,6 +12,9 @@ object NamerUtils:
     * Perform type checking for a list of words.
     *
     * Used to check stack safety and construct function call nodes.
+    *
+    * Instance of the class should be able to be reused to type check different
+    * phrases. Therefore, it should not contain any phrase-specific state.
     */
   class PhraseTyper(namer: Namer, checker: Checker):
     def transform(phrase: Ast.Words)(using  sc: Scope, rp: Reporter): Word =
