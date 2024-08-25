@@ -86,7 +86,8 @@ object Ast:
   case class Expr
     (words: List[Word])
     (val span: Span)
-  extends Phrase
+  extends Phrase:
+    assert(words.nonEmpty)
 
   case class Block
     (phrases: List[Phrase])
