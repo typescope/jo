@@ -212,18 +212,18 @@ class Parser(code: String)(using Reporter):
           Block(phrases.toList)(span)
 
   /** An expression ends with unindentation */
-  def wordsRest(words: mutable.ArrayBuffer[Word], limitIndent: Indent): Phrase =
+  def exprRest(words: mutable.ArrayBuffer[Word], limitIndent: Indent): Phrase =
     val item = peekItem()
     if limitIndent.isUnindent(item.indent) then
       val span = words.head.span | words.last.span
-      Words(words.toList)(span)
+      Expr(words.toList)(span)
     else word() match
       case Some(w) =>
-        wordsRest(words += w, limitIndent)
+        exprRest(words += w, limitIndent)
 
       case None =>
         val span = words.head.span | words.last.span
-        Words(words.toList)(span)
+        Expr(words.toList)(span)
 
   def isAssign(): Boolean =
     val token0 = peek(0)
@@ -293,7 +293,7 @@ class Parser(code: String)(using Reporter):
           Some(assign(id, item.indent))
         else
           word().map: w =>
-            wordsRest(mutable.ArrayBuffer(w), item.indent)
+            exprRest(mutable.ArrayBuffer(w), item.indent)
 
   def typ(): TypeTree =
     val tps = simpleTypes()

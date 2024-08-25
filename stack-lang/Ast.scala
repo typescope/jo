@@ -83,7 +83,7 @@ object Ast:
     (val span: Span)
   extends Word
 
-  case class Words
+  case class Expr
     (words: List[Word])
     (val span: Span)
   extends Phrase

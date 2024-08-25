@@ -173,9 +173,9 @@ object Interpreter:
 
     exec(prog.main)(using vs, sc)
 
-  def exec(phrase: Words)(using vs: ValueStack, sc: Scope): Unit =
+  def exec(expr: Expr)(using vs: ValueStack, sc: Scope): Unit =
     val vs2 = new ValueStack
-    for word <- phrase.words do exec(word)(using vs2, sc)
+    for word <- expr.words do exec(word)(using vs2, sc)
 
     def processCall(values: List[Value]): Unit =
       values match
@@ -263,8 +263,8 @@ object Interpreter:
       case word: Word =>
         exec(word)
 
-      case words: Words =>
-        exec(words)
+      case expr: Expr =>
+        exec(expr)
 
       case vdef: ValDef =>
         sc.bind(vdef.name, eval(vdef.rhs))

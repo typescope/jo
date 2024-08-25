@@ -54,11 +54,11 @@ Syntactical Grammar
 
 
 ~~~
-    words   = word {word}.
+    expr    = word {word}.
 
     word    = integer | boolean | ident | select | fence | record | variant | tapply | lambda.
 
-    phrase  = words | assign | valdef | typedef | while | if | match.
+    phrase  = expr | assign | valdef | typedef | while | if | match.
 
     block   = { phrase }.
 

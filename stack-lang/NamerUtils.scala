@@ -9,25 +9,25 @@ import Namer.Scope
 
 object NamerUtils:
   /**
-    * Perform type checking for a list of words.
+    * Perform type checking for an expression.
     *
     * Used to check stack safety and construct function call nodes.
     *
     * Instance of the class should be able to be reused to type check different
-    * phrases. Therefore, it should not contain any phrase-specific state.
+    * expression. Therefore, it should not contain any expression-specific state.
     */
-  class PhraseTyper(namer: Namer, checker: Checker):
-    def transform(phrase: Ast.Words)(using  sc: Scope, rp: Reporter): Word =
+  class ExprTyper(namer: Namer, checker: Checker):
+    def transform(expr: Ast.Expr)(using  sc: Scope, rp: Reporter): Word =
       val sc2 = sc.fresh()
 
       val words  = mutable.ListBuffer.empty[Word]
-      for word <- phrase.words do
+      for word <- expr.words do
         words += namer.transform(word)(using sc2)
 
       val values = mutable.ArrayBuffer.empty[Word]
 
-      /** A function is automatically called if it's the first element in a
-        * phrase unless no arguments is available
+      /** A function is automatically called if it's the first element in an
+        * expression unless no arguments is available
         */
       def isFunctionCall(tp: FunctionType): Boolean =
         values.isEmpty && words.nonEmpty
@@ -87,10 +87,10 @@ object NamerUtils:
       end while
 
       if values.size > 1 then
-        Reporter.error("At most one value expected, found = " + values.size, phrase.pos)
+        Reporter.error("At most one value expected, found = " + values.size, expr.pos)
 
       val tp = if values.isEmpty then VoidType else values.last.tpe
-      Phrase(values.toList)(tp, phrase.span)
+      Phrase(values.toList)(tp, expr.span)
     end transform
 
     def call(
@@ -145,7 +145,7 @@ object NamerUtils:
         Apply(fun, (preArgs ++ postArgs).toList)(resType, span)
 
     def errorTree(span: Span): Word = Phrase(Nil)(ErrorType, span)
-  end PhraseTyper
+  end ExprTyper
 
   /** Type provider for fun definitions that might involve cycles
     *
