@@ -37,7 +37,7 @@ class ExplicitInit(using Reporter):
     inits += treeMap.apply(prog.main)(using initNamesInfo)
 
     // synthesize init function
-    val initType = ProcType(names = Nil, paramTypes = Nil, resultType = VoidType)
+    val initType = ProcType(preParams = Nil, postParams = Nil, resultType = VoidType)
     val initSym = Symbol.createFunSymbol("_init", initType, prog.main.pos)
     val initSpan = prog.main.span
     val initBody = Phrase(inits.toList)(prog.main.tpe, initSpan)

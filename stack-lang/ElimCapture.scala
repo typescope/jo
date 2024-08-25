@@ -30,9 +30,10 @@ object ElimCapture:
 
   /** The encoded type of a function */
   def encodedRecordType(funType: FunctionType): RecordType =
-    val paramNames = funType.paramTypes.zipWithIndex.map("p" + _._2)
-    val paramTypes = funType.paramTypes :+ AnyType
-    val procType = ProcType(paramNames :+ EnvParamName, paramTypes, funType.resultType)
+    val paramInfos = funType.paramTypes.zipWithIndex.map: (tp, i) =>
+      ParamInfo("p" + i, tp)
+    val paramInfos2 = paramInfos :+ ParamInfo(EnvParamName, AnyType)
+    val procType = ProcType(preParams = paramInfos2, postParams = Nil, funType.resultType)
     val envType = AnyType
     RecordType(List(ProcFieldName -> procType, EnvFieldName -> envType))
 
@@ -79,12 +80,12 @@ object ElimCapture:
     // Cannot have same names in the symbol --- they must be the same symbol
 
     val tparamBounds = fdef.tparams.map(_.info)
-    val paramNames = fdef.params.map(_.name)
-    val paramTypes = fdef.params.map(_.info)
+    val paramInfos = fdef.params.map(param => ParamInfo(param.name, param.info))
     val resType = TypeOps.finalResultType(fdef.symbol.info)
 
     val envType = RecordType(captures.map(sym => sym.name -> sym.info))
-    var funType: Type = ProcType(paramNames :+ EnvParamName, paramTypes :+ envType, resType)
+    val paramInfos2 = paramInfos :+ ParamInfo(EnvParamName, envType)
+    var funType: Type = ProcType(preParams = paramInfos2, postParams = Nil, resType)
     if tparamBounds.nonEmpty then
       funType = PolyType(fdef.tparams.map(_.name), tparamBounds, funType)
 

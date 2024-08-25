@@ -14,11 +14,13 @@ object Linux:
   val PAGE_SIZE  = 0x1000
   val PROG_START = 0x08048000
 
-  val printLabel = Label("_print")
+  val printLabel     = Label("_print")
   val heapStartLabel = Label("_heapStart")
+  val allocateLabel  = Label(Predef.allocate.name)
 
   val nativeFunctions = Map(
-    Predef.p -> printLabel
+    Predef.p        -> printLabel,
+    Predef.allocate -> allocateLabel
   )
 
   val x86RegConfig = new RegisterConfig:

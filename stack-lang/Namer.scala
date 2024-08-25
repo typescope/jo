@@ -375,14 +375,13 @@ class Namer(@constructorOnly reporter: Reporter):
     val sym = Symbol.createFunSymbol(funDef.name, this.cyclicTypeProvider, flags, funDef.ident.pos)
     val funScope = sc.fresh(sym)
 
-    val paramNames = funDef.params.map(_.name)
     val tparamNames = funDef.tparams.map(_.name)
 
     var bodyTyped: Word = null
     // can be called multiple types from the info completer
     def checkBody()(using Reporter): Word =
       // trigger checking of parameters first to have the current scope
-      paramTypes
+      paramInfos
       bodyTyped = transform(funDef.body)(using funScope)
       bodyTyped
 
@@ -393,14 +392,14 @@ class Namer(@constructorOnly reporter: Reporter):
 
     lazy val givenResultType =
       // trigger checking of parameters first to have the current scope
-      paramTypes
+      paramInfos
 
       assert(!funDef.resType.isEmpty)
       val resTypeTree = transformType(funDef.resType)(using funScope)
       checker.delayedCheck { checker.checkVoidOrValueType(resTypeTree) }
       resTypeTree.tpe
 
-    lazy val paramTypes =
+    lazy val paramInfos =
       for (tparam, i) <- funDef.tparams.zipWithIndex yield
         val infoProvider: InfoProvider = (sym: Symbol) => bounds(i)
         val sym = Symbol.createTypeSymbol(tparam.name, infoProvider, tparam.pos)
@@ -421,10 +420,10 @@ class Namer(@constructorOnly reporter: Reporter):
         val paramSym = Symbol.createParamSymbol(param.name, tpt.tpe, param.pos)
         funScope.define(paramSym, param.span)
         paramSyms += paramSym
-        tpt.tpe
+        ParamInfo(param.name, tpt.tpe)
 
     def createFunType(resType: Type): Type =
-      val procType = ProcType(paramNames, paramTypes, resType)
+      val procType = ProcType(preParams = paramInfos, postParams = Nil, resType)
       if bounds.isEmpty then procType
       else
         val tparamRefs = tparamSyms.zipWithIndex.map: (tparamSym, i) =>

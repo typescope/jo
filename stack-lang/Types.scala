@@ -126,9 +126,12 @@ object Types:
     def paramCount = paramTypes.size
     def resCount = if resultType.isValueType then 1 else 0
 
+  case class ParamInfo(name: String, tpe: Type)
+
   case class ProcType
-    (names: List[String], paramTypes: List[Type], resultType: Type)
+    (preParams: List[ParamInfo], postParams: List[ParamInfo], resultType: Type)
   extends Type with AppliableType:
+    val paramTypes: List[Type] = preParams.map(_.tpe) ++ postParams.map(_.tpe)
     def toFunType: FunctionType = FunctionType(paramTypes, resultType)
 
   /** A type lambda */

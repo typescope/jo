@@ -173,9 +173,10 @@ object TypeOps:
       case TypeBound(lo, hi) =>
         show(lo) + " .. " + show(hi)
 
-      case ProcType(names, paramTypes, resType) =>
-        val params = names.zip(paramTypes).map(_ + ": " + show(_)).mkString("(", ", ", ")")
-        params + ": " + show(resType)
+      case ProcType(pre, post, resType) =>
+        val preStr = pre.map(info => info.name + ": " + show(info.tpe)).mkString("(", ", ", ")")
+        val postStr = post.map(info => info.name + ": " + show(info.tpe)).mkString("(", ", ", ")")
+        preStr + postStr + ": " + show(resType)
 
       case FunctionType(paramTypes, resType) =>
         val params = paramTypes.map(show).mkString(" * ")
@@ -227,10 +228,18 @@ object TypeOps:
         case TypeBound(lo, hi) =>
           TypeBound(this(lo), this(hi))
 
-        case ProcType(names, paramTypes, resType) =>
-          val paramTypes2 = paramTypes.map(tp => this(tp))
+        case ProcType(preParams, postParams, resType) =>
+          val preParams2 =
+            for info <- preParams
+            yield info.copy(tpe = this(info.tpe))
+
+          val postParams2 =
+            for info <- postParams
+            yield info.copy(tpe = this(info.tpe))
+
           val resType2 = this(resType)
-          ProcType(names, paramTypes2, resType2)
+
+          ProcType(preParams2, postParams2, resType2)
 
         case FunctionType(paramTypes, resType) =>
           val paramTypes2 = paramTypes.map(tp => this(tp))
