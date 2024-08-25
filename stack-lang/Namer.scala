@@ -423,7 +423,7 @@ class Namer(@constructorOnly reporter: Reporter):
         ParamInfo(param.name, tpt.tpe)
 
     def createFunType(resType: Type): Type =
-      val procType = ProcType(preParams = paramInfos, postParams = Nil, resType)
+      val procType = ProcType(preParams = Nil, postParams = paramInfos, resType)
       if bounds.isEmpty then procType
       else
         val tparamRefs = tparamSyms.zipWithIndex.map: (tparamSym, i) =>

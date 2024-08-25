@@ -1,18 +1,18 @@
 // https://mathworld.wolfram.com/TAKFunction.html
 
 fun tak(x: Int, y: Int, z: Int): Int =
-    if x y <= then
+    if x <= y then
       y
     else
-      val a = (x 1 -) y z tak
-      val b = (y 1 -) z x tak
-      val c = (z 1 -) x y tak
-      a b c tak
+      val a = tak (x - 1) y z
+      val b = tak (y - 1) z x
+      val c = tak (z - 1) x y
+      tak a b c
 
-1 1 1 tak p
-1 2 3 tak p
-2 3 1 tak p
-3 2 1 tak p
+tak 1 1 1 p
+tak 1 2 3 p
+tak 2 3 1 p
+tak 3 2 1 p
 
-3 4 5 tak p
-10 15 13 tak p
+tak 3 4 5 p
+tak 10 15 13 p

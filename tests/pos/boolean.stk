@@ -1,28 +1,28 @@
-if true not then
+if not true then
   1 p
 else
   2 p
 end
 
-if false not then
+if not false then
   1 p
 else
   2 p
 end
 
-if false not then
+if not false then
   10 p
 else
   20 p
 end
 
-if false true and then
+if false and true then
   99 p
 else
  -99 p
 end
 
-if false true or then
+if false or true then
   999 p
 else
   -999 p

@@ -1,29 +1,29 @@
-if 2 3 * 5 > then
+if 2 * 3 > 5 then
   200 p
 else
   -200 p
 end
 
 
-if 2 3 * 5 < then
+if 2 * 3 < 5 then
   200 p
 else
   -200 p
 end
 
-if 4 3 * 11 >= then
+if 4 * 3 >= 11 then
   400 p
 else
   -400 p
 end
 
-if 4 3 * 11 <= then
+if 4 * 3 <= 11 then
   400 p
 else
   -400 p
 end
 
-if 4 3 * 12 <= then
+if 4 * 3 <= 12 then
   500 p
 else
   -500 p

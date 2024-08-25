@@ -99,7 +99,7 @@ object NamerUtils:
       values: mutable.ArrayBuffer[Word])(
       using Reporter): Word =
 
-      call(fun, procType.paramTypes, Nil, procType.resultType, words, values)
+      call(fun, procType.preParamTypes, procType.postParamTypes, procType.resultType, words, values)
 
     def call(
       fun: Word, funType: FunctionType,

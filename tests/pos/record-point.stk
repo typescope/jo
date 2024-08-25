@@ -1,13 +1,13 @@
 type Point = {x: Int, y: Int}
 
 fun prod(p1: Point, p2: Point): Point =
-  {x = p1.x p2.x *, y = p1.y p2.y *}
+  {x = p1.x * p2.x, y = p1.y * p2.y}
 
 val p1: Point = {x = 3, y = 5}
 val p2: Point = {x = 6, y = 8}
-val p3: Point = p1 p2 prod
+val p3: Point = prod p1 p2
 
-(p1 p3 prod).x p
+(prod p1 p3).x p
 p3.x p
 p3.y p
 

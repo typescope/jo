@@ -1,7 +1,7 @@
 var i = 0
-while i 4096 < do
-  val sum = i i i * +
-  i = i 1 +
+while i < 4096 do
+  val sum = i * i + i
+  i = i + 1
 
 
 i p

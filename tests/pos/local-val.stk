@@ -1,29 +1,29 @@
 fun fact(n: Int): Int =
-  if n 0 == then 1
+  if n == 0 then 1
   else
-    val r = n 1 - fact
-    r n *
+    val r = fact (n - 1)
+    r * n
 
 fun mul(m: Int, n: Int): Int =
-  if (m 0 ==) (n 0 ==) or then 0
+  if (m == 0) or (n == 0) then 0
   else
-    if 1 m & 0 == then
-      val a = m 1 >> n mul
-      a a +
+    if 1 & m == 0 then
+      val a = mul m (1 >> n)
+      a + a
     else
-      val b = m 1 >> n mul
-      b b + n +
+      val b = mul m (1 >> n)
+      b + b + n
 
 fun test1(): Void =
-  val a = 0 fact
-  val b = 4 fact
-  val c = 5 fact
+  val a = fact 0
+  val b = fact 4
+  val c = fact 5
   a p
   b p
   c p
 
 test1
-2 3 mul p
-0 3 mul p
-3 0 mul p
-5 6 mul p
+mul 2 3 p
+mul 0 3 p
+mul 3 0 p
+mul 5 6 p

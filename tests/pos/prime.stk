@@ -4,30 +4,30 @@ fun isPrime(primes: List, n: Int): Bool =
   match primes
     case #Nil => true
     case #Cons x xs =>
-      if n x % 0 == then
+      if n % x == 0 then
         false
       else
-        xs n isPrime
+        isPrime xs n
 
 fun prime(primes: List, cur: Int, until: Int): Void =
-  if cur until < then
-    if primes cur isPrime then
+  if cur < until then
+    if isPrime primes cur then
       cur p
       val primes2: List = #Cons cur primes of List
-      primes2 (1 cur +) until prime
+      prime primes2 (1 + cur) until
     else
-      primes (1 cur +) until prime
+      prime primes (1 + cur) until
 
 fun primeUntil(until: Int): Void =
   var primes: List = #Cons 2 (#Nil of List) of List
   var cur = 3
-  while cur until < do
-    if primes cur isPrime then
+  while cur < until do
+    if isPrime primes cur then
       cur p
       primes = #Cons cur primes of List
     end
-    cur = cur 1 +
+    cur = cur + 1
 
-(#Cons 2 (#Nil of List) of List) 3 100 prime
+prime (#Cons 2 (#Nil of List) of List) 3 100
 
-100 primeUntil
+primeUntil 100

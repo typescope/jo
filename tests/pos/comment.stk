@@ -1,3 +1,4 @@
-val a: Int = 2 6 +
-a 4 *// comment
+val a: Int = 2 + 6
+a *// comment
+  4
 a p

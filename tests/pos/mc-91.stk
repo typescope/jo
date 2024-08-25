@@ -1,11 +1,11 @@
 // https://en.wikipedia.org/wiki/McCarthy_91_function
 
 fun mc(n: Int): Int =
-  if n 100 > then n 10 -
-  else n 11 + mc mc
+  if n > 100 then n - 10
+  else mc (mc (n + 11))
 
--3 mc p
-10 mc p
-15 mc p
-90 mc p
-100 mc p
+mc -3 p
+mc 10 p
+mc 15 p
+mc 90 p
+mc 100 p

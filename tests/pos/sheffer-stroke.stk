@@ -1,19 +1,19 @@
-fun NAND(p: Bool, q: Bool): Bool = p q and not
-fun NOT (p: Bool): Bool          = p p NAND
-fun AND (p: Bool, q: Bool): Bool = p q NAND NOT
-fun OR  (p: Bool, q: Bool): Bool = p NOT q NOT NAND
+fun NAND(p: Bool, q: Bool): Bool = not (p and q)
+fun NOT (p: Bool): Bool          = NAND p p
+fun AND (p: Bool, q: Bool): Bool = NOT (NAND p q)
+fun OR  (p: Bool, q: Bool): Bool = NAND (NOT p) (NOT q)
 
-if true NOT then
+if NOT true then
   10 p
 else
   20 p
 
-if true false AND then
+if AND true false then
   1 p
 else
   2 p
 
-if true false OR then
+if OR true false then
   5 p
 else
   10 p

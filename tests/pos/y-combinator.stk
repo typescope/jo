@@ -1,14 +1,14 @@
 type Y[T] = Y[T] => (T => T)
 
 fun Y[T](f: (T => T) => (T => T)): T => T =
-  val g = ((x: Y[T]) => f ((a: T) => x x a))
+  val g = (x: Y[T]) => f ((a: T) => x x a)
   g g
 
 val fact0 = (f: Int => Int) => (n: Int) =>
-  if n 0 == then 1
-  else (f (n 1 -)) n *
+  if n == 0 then 1
+  else (f (n - 1)) * n
 
-val fact = fact0 Y[Int]
+val fact = Y[Int] fact0
 
 (fact 0) p
 (fact 4) p

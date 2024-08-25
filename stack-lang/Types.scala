@@ -131,6 +131,8 @@ object Types:
   case class ProcType
     (preParams: List[ParamInfo], postParams: List[ParamInfo], resultType: Type)
   extends Type with AppliableType:
+    val preParamTypes: List[Type] = preParams.map(_.tpe)
+    val postParamTypes: List[Type] = postParams.map(_.tpe)
     val paramTypes: List[Type] = preParams.map(_.tpe) ++ postParams.map(_.tpe)
     def toFunType: FunctionType = FunctionType(paramTypes, resultType)
 
