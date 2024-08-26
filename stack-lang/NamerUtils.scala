@@ -109,7 +109,7 @@ object NamerUtils:
       val word = parse(words, -1)
       if words.nonEmpty then
         val span = words.head.span | words.last.span
-        Reporter.error("Found unused value", span.toPos)
+        Reporter.error("Found unbound part, an expression should compose to a single function call", span.toPos)
       word
 
     end transform
