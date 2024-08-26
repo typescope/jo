@@ -36,7 +36,6 @@ object NamerUtils:
           if !callTree.tpe.isValueType && words.nonEmpty then
             // Mixing non-value words in value context is an error
             Reporter.error("The call does not return a value", callTree.pos)
-            values += callTree
           else
             // put back to allow chaining of function calls
             words.insert(0, callTree)
@@ -84,12 +83,14 @@ object NamerUtils:
           if !tp.isValueType && words.nonEmpty then
             // Mixing non-value words in value context is an error
             Reporter.error("The code does not return a value", word.pos)
-
-          values += word
+          else
+            values += word
       end while
 
-      assert(values.nonEmpty, "value expected")
-      if values.size > 1 then
+      if values.isEmpty then
+        assert(words.nonEmpty, "words expected")
+        values += words.remove(0)
+      else if values.size > 1 then
         // Given the expression `add 4 5`, in parsing the arguments for `add`,
         // we have both `4` and `5` in values. We need to put back `5`.
         words.prependAll(values.tail)

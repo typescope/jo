@@ -2,6 +2,6 @@ fun foo[T <: {a: Int}](x: T): T = x.a  // error
 
 fun bar[T](x: T): T = 3 // error
 
-val a = 10 foo  // error
+val a = foo 10  // error // error
 
-val b = {b = 10} foo[{b: Int}] // error
+val b = foo[{b: Int}] {b = 10} // error
