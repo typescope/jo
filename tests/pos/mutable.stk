@@ -5,3 +5,4 @@ fun foo(): Int =
   a
 
 foo p
+a p

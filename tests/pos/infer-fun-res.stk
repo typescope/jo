@@ -16,3 +16,5 @@ fun q(x: Int) =
 
 fun test2(x: Int): { a: Int } =
   q 10
+
+(test2 10).a p

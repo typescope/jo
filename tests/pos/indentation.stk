@@ -30,9 +30,11 @@ while a > 10 do
   a = a - 1
 end
 
-
 val b =
   if a > 0 then
     fact0 10
   else
     fact1 5
+
+a p
+b p
