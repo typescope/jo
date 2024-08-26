@@ -22,7 +22,7 @@ object NamerUtils:
     def parse(words: mutable.ListBuffer[Word], precedence: Int)(using rp: Reporter): Word =
       assert(words.nonEmpty, "input words are empty")
 
-      println("Parsing " + Printing.show(Phrase(words.toList)(VoidType, words.head.span)))
+      // println("Parsing " + words + ", precedence = " + precedence)
 
       val values = mutable.ArrayBuffer.empty[Word]
       var continue = true
@@ -51,7 +51,7 @@ object NamerUtils:
         // TODO: type inference
         if tp.isPolyType then
           Reporter.error(s"Function ${Printing.show(word)} expects type arguments", word.pos)
-          errorTree(word.span)
+          values += errorTree(word.span)
 
         else if tp.isProcType then
           // infix, postfix, prefix
@@ -75,28 +75,25 @@ object NamerUtils:
               val callTree = call(word, tp.asFunctionType, words, values, funPrec)
               handleCall(callTree)
             else
-              // put back word
-              words.insert(0, word)
-              continue = false
+              values += word
 
           else
             values += word
 
-        else if tp.isValueType then
-          values += word
-
         else
-          // Mixing non-value words in value context is an error
-          Reporter.error("The code does not return a value", word.pos)
+          if !tp.isValueType && words.nonEmpty then
+            // Mixing non-value words in value context is an error
+            Reporter.error("The code does not return a value", word.pos)
+
+          values += word
       end while
 
+      assert(values.nonEmpty, "value expected")
       if values.size > 1 then
-        val span = values.head.span | values.last.span
-        Reporter.error("At most one value expected, found = " + values.size, span.toPos)
-        errorTree(span)
-      else
-        assert(values.nonEmpty, "value expected")
-        values.head
+        // Given the expression `add 4 5`, in parsing the arguments for `add`,
+        // we have both `4` and `5` in values. We need to put back `5`.
+        words.prependAll(values.tail)
+      values.head
     end parse
 
 
@@ -109,7 +106,12 @@ object NamerUtils:
       for word <- expr.words do
         words += namer.transform(word)(using sc2)
 
-      parse(words, -1)
+      val word = parse(words, -1)
+      if words.nonEmpty then
+        val span = words.head.span | words.last.span
+        Reporter.error("Found unused value", span.toPos)
+      word
+
     end transform
 
     def call(
