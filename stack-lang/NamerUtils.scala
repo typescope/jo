@@ -56,7 +56,7 @@ object NamerUtils:
         else if tp.isProcType then
           // infix, postfix, prefix
           val procType = tp.asProcType
-          val procPrec = 100 // TODO
+          val procPrec = procType.precedence
 
           if procPrec > precedence then
             // continue if current function has higher binding power
@@ -69,7 +69,7 @@ object NamerUtils:
 
         else if tp.isFunctionType then
           // prefix
-          val funPrec = 40 // TODO
+          val funPrec = 100
           if values.isEmpty && words.nonEmpty then
             if funPrec > precedence then
               val callTree = call(word, tp.asFunctionType, words, values, funPrec)

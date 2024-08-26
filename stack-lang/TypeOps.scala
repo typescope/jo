@@ -69,7 +69,7 @@ object TypeOps:
   def finalResultType(tp: Type): Type =
     tp match
       case PolyType(_, bounds, resType) => finalResultType(resType)
-      case ProcType(_, _, resType) => resType
+      case ProcType(_, resType, _, _) => resType
       case tp => tp
 
   /** Approximate top-level type aliases, applied types and type parameters
@@ -173,9 +173,9 @@ object TypeOps:
       case TypeBound(lo, hi) =>
         show(lo) + " .. " + show(hi)
 
-      case ProcType(pre, post, resType) =>
-        val preStr = pre.map(info => info.name + ": " + show(info.tpe)).mkString("(", ", ", ")")
-        val postStr = post.map(info => info.name + ": " + show(info.tpe)).mkString("(", ", ", ")")
+      case ProcType(params, resType, n, _) =>
+        val preStr = params.take(n).map(info => info.name + ": " + show(info.tpe)).mkString("(", ", ", ")")
+        val postStr = params.drop(n).map(info => info.name + ": " + show(info.tpe)).mkString("(", ", ", ")")
         preStr + postStr + ": " + show(resType)
 
       case FunctionType(paramTypes, resType) =>
@@ -228,18 +228,14 @@ object TypeOps:
         case TypeBound(lo, hi) =>
           TypeBound(this(lo), this(hi))
 
-        case ProcType(preParams, postParams, resType) =>
-          val preParams2 =
-            for info <- preParams
-            yield info.copy(tpe = this(info.tpe))
-
-          val postParams2 =
-            for info <- postParams
+        case ProcType(params, resType, preParamCount, precedence) =>
+          val params2 =
+            for info <- params
             yield info.copy(tpe = this(info.tpe))
 
           val resType2 = this(resType)
 
-          ProcType(preParams2, postParams2, resType2)
+          ProcType(params2, resType2, preParamCount, precedence)
 
         case FunctionType(paramTypes, resType) =>
           val paramTypes2 = paramTypes.map(tp => this(tp))

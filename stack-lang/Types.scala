@@ -129,11 +129,11 @@ object Types:
   case class ParamInfo(name: String, tpe: Type)
 
   case class ProcType
-    (preParams: List[ParamInfo], postParams: List[ParamInfo], resultType: Type)
+    (params: List[ParamInfo], resultType: Type, preParamCount: Int, precedence: Int)
   extends Type with AppliableType:
-    val preParamTypes: List[Type] = preParams.map(_.tpe)
-    val postParamTypes: List[Type] = postParams.map(_.tpe)
-    val paramTypes: List[Type] = preParams.map(_.tpe) ++ postParams.map(_.tpe)
+    val preParamTypes: List[Type] = params.take(preParamCount).map(_.tpe)
+    val postParamTypes: List[Type] = params.drop(preParamCount).map(_.tpe)
+    val paramTypes: List[Type] = params.map(_.tpe)
     def toFunType: FunctionType = FunctionType(paramTypes, resultType)
 
   /** A type lambda */
