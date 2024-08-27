@@ -33,7 +33,7 @@ object ElimCapture:
     val paramInfos = funType.paramTypes.zipWithIndex.map: (tp, i) =>
       ParamInfo("p" + i, tp)
     val paramInfos2 = paramInfos :+ ParamInfo(EnvParamName, AnyType)
-    val procType = ProcType(paramInfos2, funType.resultType, preParamCount = 0, precedence = 0)
+    val procType = ProcType(paramInfos2, funType.resultType, preParamCount = 0)
     val envType = AnyType
     RecordType(List(ProcFieldName -> procType, EnvFieldName -> envType))
 
@@ -85,7 +85,7 @@ object ElimCapture:
 
     val envType = RecordType(captures.map(sym => sym.name -> sym.info))
     val paramInfos2 = paramInfos :+ ParamInfo(EnvParamName, envType)
-    var funType: Type = ProcType(paramInfos2, resType, preParamCount = 0, precedence = 0)
+    var funType: Type = ProcType(paramInfos2, resType, preParamCount = 0)
     if tparamBounds.nonEmpty then
       funType = PolyType(fdef.tparams.map(_.name), tparamBounds, funType)
 

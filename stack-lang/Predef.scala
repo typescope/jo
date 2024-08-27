@@ -20,35 +20,35 @@ object Predef:
   private val aBool = ParamInfo("a", BoolType)
   private val bBool = ParamInfo("b", BoolType)
 
-  private val typeArith = ProcType(aInt :: bInt :: Nil, IntType, preParamCount = 1, precedence = 0)
-  private val typeComp  = ProcType(aInt :: bInt :: Nil, BoolType, preParamCount = 1, precedence = 0)
-  private val typeBits  = ProcType(aInt :: bInt :: Nil, IntType, preParamCount = 1, precedence = 0)
+  private val typeArith = ProcType(aInt :: bInt :: Nil, IntType, preParamCount = 1)
+  private val typeComp  = ProcType(aInt :: bInt :: Nil, BoolType, preParamCount = 1)
+  private val typeBits  = ProcType(aInt :: bInt :: Nil, IntType, preParamCount = 1)
 
-  private val typeAnd = ProcType(aBool :: bBool :: Nil, BoolType, preParamCount = 1, precedence = 0)
-  private val typeOr  = ProcType(aBool :: bBool :: Nil, BoolType, preParamCount = 1, precedence = 0)
-  private val typeNot = ProcType(aBool :: Nil, BoolType, preParamCount = 0, precedence = 0)
+  private val typeAnd = ProcType(aBool :: bBool :: Nil, BoolType, preParamCount = 1)
+  private val typeOr  = ProcType(aBool :: bBool :: Nil, BoolType, preParamCount = 1)
+  private val typeNot = ProcType(aBool :: Nil, BoolType, preParamCount = 0)
 
-  private val typePrint  = ProcType(params = aInt :: Nil, VoidType, preParamCount = 1, precedence = 0)
+  private val typePrint  = ProcType(params = aInt :: Nil, VoidType, preParamCount = 1)
 
-  val add    =  createPrimSymbol("+",   typeArith.copy(precedence = 50))
-  val sub    =  createPrimSymbol("-",   typeArith.copy(precedence = 50))
-  val mul    =  createPrimSymbol("*",   typeArith.copy(precedence = 60))
-  val div    =  createPrimSymbol("/",   typeArith.copy(precedence = 60))
-  val mod    =  createPrimSymbol("%",   typeArith.copy(precedence = 60))
-  val gt     =  createPrimSymbol(">",   typeComp.copy(precedence = 40))
-  val lt     =  createPrimSymbol("<",   typeComp.copy(precedence = 40))
-  val ge     =  createPrimSymbol(">=",  typeComp.copy(precedence = 40))
-  val le     =  createPrimSymbol("<=",  typeComp.copy(precedence = 40))
-  val eql    =  createPrimSymbol("==",  typeComp.copy(precedence = 40))
-  val srl    =  createPrimSymbol(">>",  typeBits.copy(precedence = 70))
-  val sll    =  createPrimSymbol("<<",  typeBits.copy(precedence = 70))
-  val land   =  createPrimSymbol("&",   typeBits.copy(precedence = 70))
-  val lor    =  createPrimSymbol("|",   typeBits.copy(precedence = 70))
-  val lxor   =  createPrimSymbol("^",   typeBits.copy(precedence = 70))
-  val band   =  createPrimSymbol("and", typeAnd.copy(precedence = 30))
-  val bor    =  createPrimSymbol("or",  typeOr.copy(precedence = 20))
-  val bnot   =  createPrimSymbol("not", typeNot.copy(precedence = 35))
-  val p      =  createPrimSymbol("p",   typePrint.copy(precedence = 10))
+  val add    =  createPrimSymbol("+",   typeArith)
+  val sub    =  createPrimSymbol("-",   typeArith)
+  val mul    =  createPrimSymbol("*",   typeArith)
+  val div    =  createPrimSymbol("/",   typeArith)
+  val mod    =  createPrimSymbol("%",   typeArith)
+  val gt     =  createPrimSymbol(">",   typeComp)
+  val lt     =  createPrimSymbol("<",   typeComp)
+  val ge     =  createPrimSymbol(">=",  typeComp)
+  val le     =  createPrimSymbol("<=",  typeComp)
+  val eql    =  createPrimSymbol("==",  typeComp)
+  val srl    =  createPrimSymbol(">>",  typeBits)
+  val sll    =  createPrimSymbol("<<",  typeBits)
+  val land   =  createPrimSymbol("&",   typeBits)
+  val lor    =  createPrimSymbol("|",   typeBits)
+  val lxor   =  createPrimSymbol("^",   typeBits)
+  val band   =  createPrimSymbol("and", typeAnd)
+  val bor    =  createPrimSymbol("or",  typeOr)
+  val bnot   =  createPrimSymbol("not", typeNot)
+  val p      =  createPrimSymbol("p",   typePrint)
 
   val Int    =  new Symbol("Int",  IntType,  Flags.Prim | Flags.Type, sourcePos = null)
   val Bool   =  new Symbol("Bool", BoolType, Flags.Prim | Flags.Type, sourcePos = null)
@@ -59,14 +59,10 @@ object Predef:
   //----------------------------------------------------------------------------
   // run-time symbols are only available to the compiler
 
-  private val abortType = ProcType(
-      ParamInfo("n", IntType) :: Nil, BottomType,
-      preParamCount = 0, precedence = 0)
+  private val abortType = ProcType(ParamInfo("n", IntType) :: Nil, BottomType, preParamCount = 0)
   val abort = new Symbol("abort", abortType, Flags.Prim, sourcePos = null)
 
   //----------------------------------------------------------------------------
   // the memory allocator
-  private val allocateType = ProcType(
-      ParamInfo("size", IntType) :: Nil, IntType,
-      preParamCount = 0, precedence = 0)
+  private val allocateType = ProcType(ParamInfo("size", IntType) :: Nil, IntType, preParamCount = 0)
   val allocate = new Symbol("alloc", allocateType, Flags.Prim, sourcePos = null)

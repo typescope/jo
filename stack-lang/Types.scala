@@ -129,7 +129,7 @@ object Types:
   case class ParamInfo(name: String, tpe: Type)
 
   case class ProcType
-    (params: List[ParamInfo], resultType: Type, preParamCount: Int, precedence: Int)
+    (params: List[ParamInfo], resultType: Type, preParamCount: Int)
   extends Type with AppliableType:
     val preParamTypes: List[Type] = params.take(preParamCount).map(_.tpe)
     val postParamTypes: List[Type] = params.drop(preParamCount).map(_.tpe)

@@ -41,7 +41,7 @@ class Namer(@constructorOnly reporter: Reporter):
     val defs = transform(prog.defs)(using sc)
 
     // Create dummy main symbol to make it easier to tell whether a definition is local or not
-    val dummyMainSym = Symbol.createFunSymbol("$main", ProcType(Nil, VoidType, 0, 0), prog.main.pos)
+    val dummyMainSym = Symbol.createFunSymbol("$main", ProcType(Nil, VoidType, 0), prog.main.pos)
     val main2 = transform(prog.main)(using sc.fresh(dummyMainSym))
 
     checker.performDelayedChecks()
@@ -423,7 +423,7 @@ class Namer(@constructorOnly reporter: Reporter):
         ParamInfo(param.name, tpt.tpe)
 
     def createFunType(resType: Type): Type =
-      val procType = ProcType(paramInfos, resType, preParamCount = 0, precedence = 100)
+      val procType = ProcType(paramInfos, resType, preParamCount = 0)
       if bounds.isEmpty then procType
       else
         val tparamRefs = tparamSyms.zipWithIndex.map: (tparamSym, i) =>

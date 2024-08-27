@@ -8,6 +8,36 @@ import Positions.Span
 import Namer.Scope
 
 object NamerUtils:
+  /** The precedence of a function word
+    *
+    * We fix the precedence of names in the compiler according to established
+    * convention in mathematics and programming languages.
+    *
+    * We make `and/or/not` the same precedence to make it simpler for
+    * programmers.
+    *
+    * We disallow setting precedence of other function names (no matter it is
+    * user-defined or primitive) for usability: programmers should not learn and
+    * remember precedence beyond the basic ones. When in doubt, parentheses can
+    * be used.
+    */
+  def precedence(word: Word): Int =
+    assert(word.tpe.isProcType || word.tpe.isFunctionType)
+    word match
+      case Ident(sym)        => precedence(sym.name)
+      case TypeApply(fun, _) => precedence(fun)
+      case _                 => 100
+
+  // TODO: ~  ->
+  def precedence(fun: String): Int =
+    fun match
+      case "and" | "or" | "not"                     => 10
+      case ">"   | "<"  | ">=" | "<=" | "==" | "!=" => 20
+      case "+"   | "-"                              => 30
+      case "<<"  | ">>" | "|"  | "&"  | "^"         => 40
+      case "*"   | "/"  | "%"                       => 50
+      case _                                        => 100
+
   /**
     * Perform type checking for an expression.
     *
@@ -19,7 +49,7 @@ object NamerUtils:
   class ExprTyper(namer: Namer, checker: Checker):
 
     /** Parse a word from the words with the limit precedence */
-    def parse(words: mutable.ListBuffer[Word], precedence: Int)(using rp: Reporter): Word =
+    def parse(words: mutable.ListBuffer[Word], precLimit: Int)(using rp: Reporter): Word =
       assert(words.nonEmpty, "input words are empty")
 
       // println("Parsing " + words + ", precedence = " + precedence)
@@ -54,10 +84,9 @@ object NamerUtils:
 
         else if tp.isProcType then
           // infix, postfix, prefix
-          val procType = tp.asProcType
-          val procPrec = procType.precedence
+          val procPrec = precedence(word)
 
-          if procPrec > precedence then
+          if procPrec > precLimit then
             // continue if current function has higher binding power
             val callTree = call(word, tp.asProcType, words, values, procPrec)
             handleCall(callTree)
@@ -68,9 +97,9 @@ object NamerUtils:
 
         else if tp.isFunctionType then
           // prefix
-          val funPrec = 100
           if values.isEmpty && words.nonEmpty then
-            if funPrec > precedence then
+            val funPrec = precedence(word)
+            if funPrec > precLimit then
               val callTree = call(word, tp.asFunctionType, words, values, funPrec)
               handleCall(callTree)
             else
