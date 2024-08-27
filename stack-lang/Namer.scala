@@ -81,8 +81,12 @@ class Namer(@constructorOnly reporter: Reporter):
         Reporter.error("Cannot capture local mutable variable " + sym.name, span.toPos)
 
   def transform(block: Ast.Block)(using sc: Scope, rp: Reporter): Word =
-    val sc2 = sc.fresh()
-    val words = for phrase <- block.phrases yield transform(phrase)(using sc2, rp)
+    var sc2 = sc
+    val words =
+      for phrase <- block.phrases yield
+        sc2 = sc2.fresh()
+        transform(phrase)(using sc2, rp)
+
     if words.isEmpty then
       Phrase(words)(VoidType, block.span)
 
@@ -128,8 +132,10 @@ class Namer(@constructorOnly reporter: Reporter):
 
       case vdef: Ast.ValDef =>
         val delayedDef = transform(vdef)
+        val vdef2 = delayedDef.force()
+        // a val is not available for checking its rhs
         sc.define(delayedDef.symbol, vdef.span)
-        delayedDef.force()
+        vdef2
 
       case tdef: Ast.TypeDef =>
         val delayedDef = transform(tdef)
