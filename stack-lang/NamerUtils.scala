@@ -99,6 +99,7 @@ object NamerUtils:
           // prefix
           if values.isEmpty && words.nonEmpty then
             val funPrec = precedence(word)
+            // println("funPrec = " + funPrec + ", precLimit = " + precLimit)
             if funPrec > precLimit then
               val callTree = call(word, tp.asFunctionType, words, values, funPrec)
               handleCall(callTree)
