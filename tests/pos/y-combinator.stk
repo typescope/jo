@@ -10,7 +10,7 @@ val fact0 = (f: Int => Int) => (n: Int) =>
 
 val fact = Y[Int] fact0
 
-(fact 0) p
-(fact 4) p
-(fact 5) p
-(fact 10) p
+fact 0 p
+fact 4 p
+fact 5 p
+fact 10 p
