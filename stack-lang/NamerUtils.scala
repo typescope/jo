@@ -22,7 +22,7 @@ object NamerUtils:
     * be used.
     */
   def precedence(word: Word): Int =
-    assert(word.tpe.isProcType || word.tpe.isFunctionType)
+    assert(word.tpe.isProcType || word.tpe.isFunctionType || word.tpe.isPolyType, word)
     word match
       case Ident(sym)        => precedence(sym.name)
       case TypeApply(fun, _) => precedence(fun)
