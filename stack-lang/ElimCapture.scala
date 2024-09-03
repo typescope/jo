@@ -85,6 +85,7 @@ object ElimCapture:
 
     val envType = RecordType(captures.map(sym => sym.name -> sym.info))
     val paramInfos2 = paramInfos :+ ParamInfo(EnvParamName, envType)
+
     var funType: Type = ProcType(paramInfos2, resType, preParamCount = 0)
     if tparamBounds.nonEmpty then
       funType = PolyType(fdef.tparams.map(_.name), tparamBounds, funType)
@@ -165,7 +166,7 @@ object ElimCapture:
       * - named local functions do not need wrapper
       * - capture of type parameters (closure conversion after erasure?)
       */
-    def transform(fdef: FunDef)(using ctx: Context): Word =
+    def lift(fdef: FunDef)(using ctx: Context): Word =
       val FunInfo(funSym, captures) = ctx.funInfos(fdef.symbol)
 
       val bodyItems = new mutable.ArrayBuffer[Word]
@@ -184,8 +185,8 @@ object ElimCapture:
 
       bodyItems += this(fdef.body)(using ctx2.withOwner(fdef.symbol))
       val body = Phrase(bodyItems.toList)(fdef.body.tpe, fdef.body.span)
-
-      ctx.lifted += FunDef(funSym, fdef.tparams, fdef.params :+ envSym, body)
+      val params = if captures.isEmpty then fdef.params else fdef.params :+ envSym
+      ctx.lifted += FunDef(funSym, fdef.tparams, params, body)
                           (locals = locals.toList, captures = Nil, fdef.span)
 
       Phrase(words = Nil)(VoidType, fdef.span)
@@ -195,29 +196,39 @@ object ElimCapture:
         case Apply(fun, args) =>
           val fun2 = this(fun)
           val args2 = args.map(this.apply)
-          if fun2.tpe.isFunctionType then
-            val funType = fun2.tpe.asFunctionType
-            val recordType = ElimCapture.encodedRecordType(funType)
-            val closure = Encoded(fun2)(recordType)
-            val env = Select(closure, EnvFieldName)(recordType.fieldType(EnvFieldName), fun2.span)
-            val proc = Select(closure, ProcFieldName)(recordType.fieldType(ProcFieldName), fun2.span)
-            Apply(proc, args2 :+ env)(word.tpe, word.span)
-          else
-            Apply(fun2, args2)(word.tpe, word.span)
+
+          fun2 match
+            case Encoded(RecordLit((ProcFieldName, proc) :: (EnvFieldName, env) :: Nil)) =>
+              // local function call
+              Apply(proc, args2 :+ env)(word.tpe, word.span)
+
+            case _ =>
+              if fun2.tpe.isFunctionType then
+                // non-local function call
+                val funType = fun2.tpe.asFunctionType
+                val recordType = ElimCapture.encodedRecordType(funType)
+                val closure = Encoded(fun2)(recordType)
+                val env = Select(closure, EnvFieldName)(recordType.fieldType(EnvFieldName), fun2.span)
+                val proc = Select(closure, ProcFieldName)(recordType.fieldType(ProcFieldName), fun2.span)
+                Apply(proc, args2 :+ env)(word.tpe, word.span)
+              else
+                // global function call
+                Apply(fun2, args2)(word.tpe, word.span)
 
         case Ident(sym) =>
           if sym.isAllOf(Flags.Fun | Flags.Local) then
+            // local function reference
             val FunInfo(subst, captures) = ctx.funInfos(sym)
+            val funRef2 = Ident(subst)(word.span)
             val env = createEnvRecord(captures, word.span)
             val recordType = RecordType(List(ProcFieldName -> subst.info, EnvFieldName -> env.tpe))
-            val funRef2 = Ident(subst)(word.span)
             val closure = RecordLit(List(ProcFieldName -> funRef2, EnvFieldName -> env))(recordType, word.span)
-            Encoded(closure)(word.tpe)
+            Encoded(closure)(sym.info)
           else
             Ident(ctx.rewiring.getOrElse(sym, sym))(word.span)
 
         case fdef: FunDef =>
-          if ctx.owners.nonEmpty then transform(fdef)
+          if ctx.owners.nonEmpty then lift(fdef)
           else recur(fdef)(using ctx.withOwner(fdef.symbol))
 
         case Phrase(words) =>

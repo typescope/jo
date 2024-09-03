@@ -19,6 +19,8 @@ object Sast:
         case Phrase(Nil) => true
         case _ => false
 
+    def show: String = Printing.show(this)
+
   case class IntLit
     (value: Int)
     (val span: Span)

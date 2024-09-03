@@ -119,7 +119,7 @@ object Types:
   extends Type:
     val paramCount = bounds.size
 
-  sealed trait InvokableType:
+  sealed trait InvokableType extends Type:
     def paramTypes: List[Type]
     def resultType: Type
 
