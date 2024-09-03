@@ -269,6 +269,9 @@ object Interpreter:
       case vdef: ValDef =>
         sc.bind(vdef.name, eval(vdef.rhs))
 
+      case fdef: FunDef =>
+        sc.bind(fdef.name, FunCall(fdef, sc))
+
       case tdef: TypeDef =>
 
   def exec(word: Word)(using vs: ValueStack, sc: Scope): Unit =

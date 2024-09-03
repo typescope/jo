@@ -137,8 +137,15 @@ class Namer(@constructorOnly reporter: Reporter):
         sc.define(delayedDef.symbol, vdef.span)
         vdef2
 
+      case fdef: Ast.FunDef =>
+        val delayedDef = transform(fdef)
+        // A function is available for checking its rhs
+        sc.define(delayedDef.symbol, fdef.span)
+        delayedDef.force()
+
       case tdef: Ast.TypeDef =>
         val delayedDef = transform(tdef)
+        // A type definition is available for checking its rhs
         sc.define(delayedDef.symbol, tdef.span)
         delayedDef.force()
 

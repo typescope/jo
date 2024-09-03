@@ -105,6 +105,9 @@ object Sast:
     (val span: Span)
   extends Tree
 
+  //----------------------------------------------------------------------------
+  // definitions
+
   sealed abstract class Def extends Word:
     val symbol: Symbol
     val name: String = symbol.name

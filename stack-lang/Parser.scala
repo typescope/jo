@@ -120,7 +120,7 @@ class Parser(code: String)(using Reporter):
     val preParamList = paramSection()
     val id = ident()
     val tparams = typeParams()
-    val postParamList = params()
+    val postParamList = paramSection()
     val resType =
       if peek() == Token.COLON then
         eat(Token.COLON)
@@ -288,6 +288,9 @@ class Parser(code: String)(using Reporter):
 
       case Token.VAL | Token.VAR   =>
         Some(valDef(item.token))
+
+      case Token.FUN   =>
+        Some(funDef())
 
       case Token.TYPE =>
         Some(typeDef())

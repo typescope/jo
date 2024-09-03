@@ -58,7 +58,7 @@ Syntactical Grammar
 
     word    = integer | boolean | ident | select | fence | record | variant | tapply | lambda.
 
-    phrase  = expr | assign | valdef | typedef | while | if | match.
+    phrase  = expr | assign | valdef | fundef | typedef | while | if | match.
 
     block   = { phrase }.
 

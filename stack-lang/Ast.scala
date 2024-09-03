@@ -172,7 +172,7 @@ object Ast:
     (ident: Ident, tparams: List[TypeParam], params: List[Param],
         resType: TypeTree, body: Phrase, preParamCount: Int)
     (val span: Span)
-  extends Def
+  extends Phrase, Def
 
   case class TypeParam
     (ident: Ident, bound: TypeTree)
