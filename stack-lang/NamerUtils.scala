@@ -8,98 +8,182 @@ import Positions.Span
 import Namer.Scope
 
 object NamerUtils:
+  /** The precedence of a function word
+    *
+    * We fix the precedence of names in the compiler according to established
+    * convention in mathematics and programming languages.
+    *
+    * We make `and/or/not` the same precedence to make it simpler for
+    * programmers.
+    *
+    * We disallow setting precedence of other function names (no matter it is
+    * user-defined or primitive) for usability: programmers should not learn and
+    * remember precedence beyond the basic ones. When in doubt, parentheses can
+    * be used.
+    */
+  def precedence(word: Word): Int =
+    assert(word.tpe.isProcType || word.tpe.isFunctionType || word.tpe.isPolyType, word)
+    word match
+      case Ident(sym)        => precedence(sym.name)
+      case TypeApply(fun, _) => precedence(fun)
+      case _                 => 100
+
+  // TODO: ~  ->
+  def precedence(fun: String): Int =
+    fun match
+      case "and" | "or" | "not"                     => 10
+      case ">"   | "<"  | ">=" | "<=" | "==" | "!=" => 20
+      case "+"   | "-"                              => 30
+      case "<<"  | ">>" | "|"  | "&"  | "^"         => 40
+      case "*"   | "/"  | "%"                       => 50
+      case _                                        => 100
+
   /**
-    * Represent the types of values on the value stack.
+    * Perform type checking for an expression.
     *
     * Used to check stack safety and construct function call nodes.
     *
-    * A new instance should be created for each phrase to support checking
-    * nested phrases.
+    * Instance of the class should be able to be reused to type check different
+    * expression. Therefore, it should not contain any expression-specific state.
     */
-  class PhraseTyper(namer: Namer, checker: Checker):
-    private val words  = mutable.ListBuffer.empty[Word]
-    private val values = mutable.ArrayBuffer.empty[Word]
-    private val stats  = mutable.ArrayBuffer.empty[Word]
+  class ExprTyper(namer: Namer, checker: Checker):
 
-    def transform(phrase: Ast.Words)(using  sc: Scope, rp: Reporter): Word =
-      val sc2 = sc.fresh()
+    /** Parse a word from the words with the limit precedence */
+    def parse(words: mutable.ListBuffer[Word], precLimit: Int)(using rp: Reporter): Word =
+      assert(words.nonEmpty, "input words are empty")
 
-      for word <- phrase.words do
-        words += namer.transform(word)(using sc2)
+      // println("Parsing " + words + ", precedence = " + precedence)
 
-      process()
+      val values = mutable.ArrayBuffer.empty[Word]
+      var continue = true
 
-      if values.size > 1 then
-        Reporter.error("At most one value expected, found = " + values.size, phrase.pos)
+      def handleCall(callTree: Word): Unit =
+        if callTree.tpe.isError then
+          words.clear
+          values.clear
+          values += callTree
+        else
+          if !callTree.tpe.isValueType && words.nonEmpty then
+            // Mixing non-value words in value context is an error
+            Reporter.error("The call does not return a value", callTree.pos)
+          else
+            // put back to allow chaining of function calls
+            words.insert(0, callTree)
 
-      val tp = if values.isEmpty then VoidType else values.last.tpe
-      val words2 = (stats ++ values).toList
-      Phrase(words2)(tp, phrase.span)
+      //     3   2    1
+      // x c * a + b max
 
-    def process()(using rp: Reporter): Unit =
-      /** A function is automatically called if it's the first element in a
-        * phrase unless no arguments is available
-        */
-      def isFunctionCall(tp: FunctionType): Boolean =
-        this.values.isEmpty && words.nonEmpty
-
-      while this.words.nonEmpty do
-        val word = this.words.remove(0)
+      while continue && words.nonEmpty do
+        val word = words.remove(0)
         val tp = word.tpe
 
         // TODO: type inference
         if tp.isPolyType then
           Reporter.error(s"Function ${Printing.show(word)} expects type arguments", word.pos)
-          errorTree(word.span)
+          values += errorTree(word.span)
 
         else if tp.isProcType then
-          call(word, tp.asProcType)
+          // infix, postfix, prefix
+          val procPrec = precedence(word)
 
-        else if word.tpe.isValueType then
-          push(word)
+          if procPrec > precLimit then
+            // continue if current function has higher binding power
+            val callTree = call(word, tp.asProcType, words, values, procPrec)
+            handleCall(callTree)
+          else
+            // put back word
+            words.insert(0, word)
+            continue = false
+
+        else if tp.isFunctionType then
+          // prefix
+          if values.isEmpty && words.nonEmpty then
+            val funPrec = precedence(word)
+            // println("funPrec = " + funPrec + ", precLimit = " + precLimit)
+            if funPrec > precLimit then
+              val callTree = call(word, tp.asFunctionType, words, values, funPrec)
+              handleCall(callTree)
+            else
+              values += word
+
+          else
+            values += word
 
         else
-          if words.nonEmpty then
+          if !tp.isValueType && words.nonEmpty then
             // Mixing non-value words in value context is an error
             Reporter.error("The code does not return a value", word.pos)
           else
-            output(word)
+            values += word
       end while
 
-      // handle function calls, which have lower precedence than procedure calls
-      words ++= values
-      values.clear()
+      if values.isEmpty then
+        assert(words.nonEmpty, "words expected")
+        values += words.remove(0)
+      else if values.size > 1 then
+        // Given the expression `add 4 5`, in parsing the arguments for `add`,
+        // we have both `4` and `5` in values. We need to put back `5`.
+        words.prependAll(values.tail)
+      values.head
+    end parse
 
-      while this.words.nonEmpty do
-        val word = this.words.remove(0)
-        val tp = word.tpe
 
-        if tp.isFunctionType && isFunctionCall(tp.asFunctionType) then
-          call(word, tp.asFunctionType)
-        else
-          push(word)
-      end while
+    def transform(expr: Ast.Expr)(using  sc: Scope, rp: Reporter): Word =
+      assert(expr.words.nonEmpty)
 
-    def call(fun: Word, procType: ProcType)(using Reporter): Unit =
-      call(fun, procType.paramTypes, Nil, procType.resultType)
+      val sc2 = sc.fresh()
 
-    def call(fun: Word, funType: FunctionType)(using Reporter): Unit =
-      call(fun, Nil, funType.paramTypes, funType.resultType)
+      val words  = mutable.ListBuffer.empty[Word]
+      for word <- expr.words do
+        words += namer.transform(word)(using sc2)
 
-    def call(fun: Word, preTypes: List[Type], postTypes: List[Type], resType: Type)(using Reporter): Unit =
+      val word = parse(words, -1)
+      if words.nonEmpty then
+        val span = words.head.span | words.last.span
+        Reporter.error("Found unbound part, an expression should compose to a single function call", span.toPos)
+      word
+
+    end transform
+
+    def call(
+        fun: Word, procType: ProcType,
+        words: mutable.ListBuffer[Word],
+        values: mutable.ArrayBuffer[Word],
+        precedence: Int)(
+        using Reporter): Word
+    =
+      call(fun, procType.preParamTypes, procType.postParamTypes, procType.resultType, words, values, precedence)
+
+    def call(
+        fun: Word, funType: FunctionType,
+        words: mutable.ListBuffer[Word],
+        values: mutable.ArrayBuffer[Word],
+        precedence: Int)(
+        using Reporter): Word
+    =
+      call(fun, Nil, funType.paramTypes, funType.resultType, words, values, precedence)
+
+    def call(
+        fun: Word, preTypes: List[Type], postTypes: List[Type], resType: Type,
+        words: mutable.ListBuffer[Word],
+        values: mutable.ArrayBuffer[Word],
+        precedence: Int)(
+        using Reporter): Word
+    =
+
       if values.size < preTypes.size then
         Reporter.error(
           s"Function ${Printing.show(fun)} expects ${preTypes.size} pre arguments, found = ${values.size}",
           fun.pos)
-        values.clear()
-        push(errorTree(fun.span))
+        values.clear
+        errorTree(fun.span)
 
       else if words.size < postTypes.size then
         Reporter.error(
           s"Function ${Printing.show(fun)} expects ${postTypes.size} post arguments, found = ${words.size}",
           fun.pos)
-        values.clear()
-        push(errorTree(fun.span))
+        words.clear
+        errorTree(fun.span)
 
       else
         val preArgs = values.takeRight(preTypes.size)
@@ -108,40 +192,23 @@ object NamerUtils:
 
         values.dropRightInPlace(preTypes.size)
 
-        val postArgs = words.take(postTypes.size)
-        for (arg, paramType) <- postArgs.zip(postTypes) do
-          checker.checkType(arg, paramType)
-
-        words.dropInPlace(postTypes.size)
-
-        var span = preArgs.foldLeft(fun.span)(_ | _.span)
-        span = postArgs.foldLeft(span)(_ | _.span)
-        val call = Apply(fun, (preArgs ++ postArgs).toList)(resType, span)
-
-        if resType.isValueType then
-          // allow chaining of calls
-          words.insert(0, call)
-        else
+        val postArgs = mutable.ArrayBuffer.empty[Word]
+        for paramType <- postTypes do
           if words.nonEmpty then
-            // Mixing non-value words in value context is an error
-            Reporter.error("The call does not return a value", call.pos)
+            val arg = parse(words, precedence)
+            checker.checkType(arg, paramType)
+            postArgs += arg
           else
-            output(call)
+            Reporter.error(
+              s"Missing post argument for function ${Printing.show(fun)} , type = ${paramType.show}",
+              fun.pos)
 
-    def push(value: Word): Unit =
-      val tp = value.tpe
-      assert(tp.isValueType, tp)
-      values += value
-
-    def output(word: Word): Unit =
-      for word <- values do
-        stats += Encoded(word)(VoidType)
-
-      values.clear
-      stats += word
+        val items = (preArgs :+ fun) ++ postArgs
+        val span = items.head.span | items.last.span
+        Apply(fun, (preArgs ++ postArgs).toList)(resType, span)
 
     def errorTree(span: Span): Word = Phrase(Nil)(ErrorType, span)
-  end PhraseTyper
+  end ExprTyper
 
   /** Type provider for fun definitions that might involve cycles
     *

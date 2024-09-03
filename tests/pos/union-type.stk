@@ -11,14 +11,14 @@ val d: OptionSum = #Some (#Right 2024 of Sum) of OptionSum
 
 fun foo(x: Sum): Int =
   match x
-    case #Left n =>  n n +
-    case #Right n => n n *
+    case #Left n =>  n + n
+    case #Right n => n * n
 
 match c
   case #None => 0 p
   case #Some n => n p
 
-a foo p
+foo a p
 
 match d
   case #None => 0 p

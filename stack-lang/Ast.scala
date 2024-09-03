@@ -83,10 +83,11 @@ object Ast:
     (val span: Span)
   extends Word
 
-  case class Words
+  case class Expr
     (words: List[Word])
     (val span: Span)
-  extends Phrase
+  extends Phrase:
+    assert(words.nonEmpty)
 
   case class Block
     (phrases: List[Phrase])
@@ -168,9 +169,10 @@ object Ast:
     def name = ident.name
 
   case class FunDef
-    (ident: Ident, tparams: List[TypeParam], params: List[Param], resType: TypeTree, body: Phrase)
+    (ident: Ident, tparams: List[TypeParam], params: List[Param],
+        resType: TypeTree, body: Phrase, preParamCount: Int)
     (val span: Span)
-  extends Def
+  extends Phrase, Def
 
   case class TypeParam
     (ident: Ident, bound: TypeTree)

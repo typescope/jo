@@ -31,11 +31,6 @@ class RegisterMachine(
   /** Maps global symbols to addresses */
   val symbolAddrMap: mutable.Map[Symbol, Addr] = mutable.Map.from(nativeFunctions)
 
-  /** The memory allocator */
-  val allocatorType = ProcType("size" :: Nil, IntType :: Nil, IntType)
-  val allocatorSym = Symbol.createFunSymbol("alloc", allocatorType, pos = null)
-  symbolAddrMap(allocatorSym) = Label(allocatorSym.name)
-
   def freshVirtualReg()(using ctx: Context): Int =
     ctx.generator.fresh()
 
@@ -397,7 +392,7 @@ class RegisterMachine(
     else
       compile(app.fun)
       val fun = ctx.vs.pop().asInstanceOf[Reg]
-      val funType = app.fun.tpe.asAppliableType
+      val funType = app.fun.tpe.asInvokableType
 
       for arg <- app.args do compile(arg)
       this.call(fun, funType.paramTypes, funType.resultType)
@@ -407,7 +402,7 @@ class RegisterMachine(
     * TODO: implement it in Stk.
     */
   def genAllocator(cb: CodeBuffer): Unit =
-    val allocLabel = symbolAddrMap(allocatorSym).asInstanceOf[Label]
+    val allocLabel = symbolAddrMap(Predef.allocate).asInstanceOf[Label]
 
     val initBreakLabel = Label("init_break")
     val curBreakLabel = Label("current_break")
@@ -477,7 +472,7 @@ class RegisterMachine(
     */
   def alloc(size: Int)(using ctx: Context): Unit =
     ctx.vs.push(Int32(size))
-    call(allocatorSym)
+    call(Predef.allocate)
 
   /** Compile [x = 3, y = 5] */
   def compile(record: RecordLit)(using ctx: Context): Unit =

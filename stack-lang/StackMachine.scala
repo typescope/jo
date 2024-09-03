@@ -3,7 +3,6 @@ import scala.collection.mutable
 import Assembly.{ Type => _, * }
 import Sast.*
 import Symbols.*
-import Types.*
 
 import StackMachine.RegisterAllocator
 
@@ -27,11 +26,6 @@ class StackMachine(
 
   /** Program entry pointer */
   val entry = Label("_entry")
-
-  /** The memory allocator */
-  val allocatorType = ProcType("size" :: Nil, IntType :: Nil, IntType)
-  val allocatorSym = Symbol.createFunSymbol("alloc", allocatorType, pos = null)
-  symbolAddrMap(allocatorSym) = Label(allocatorSym.name)
 
   /** A simple register allocator */
   val regAlloc = new RegisterAllocator(FREE_REGS)
@@ -338,7 +332,7 @@ class StackMachine(
     * TODO: implement it in Stk.
     */
   def genAllocator()(using Context): Unit =
-    val allocLabel = symbolAddrMap(allocatorSym).asInstanceOf[Label]
+    val allocLabel = symbolAddrMap(Predef.allocate).asInstanceOf[Label]
 
     val initBreakLabel = Label("init_break")
     val curBreakLabel = Label("current_break")
@@ -396,7 +390,7 @@ class StackMachine(
     */
   def alloc(size: Int)(using Context): Unit =
     push(size)
-    call(allocatorSym)
+    call(Predef.allocate)
 
   /** Pop the value on the top of the value stack to the given register.
     *

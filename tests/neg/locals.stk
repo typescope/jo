@@ -1,17 +1,17 @@
 fun foo(n: Int): Int =
   var a: Int = 3
 
-  if n 5 > then
-    val b: Int = n 2 *
+  if n > 5 then
+    val b: Int = n * 2
   else
-    val c: Int = n 10 +
+    val c: Int = n + 10
     b p                // error
   end
 
   c p                  // error
 
-  while a 0 > do
-    var d: Int = a 2 +
+  while a > 0 do
+    var d: Int = a + 2
     d p
     b p                // error
   end
@@ -23,4 +23,4 @@ fun foo(n: Int): Int =
 fun bar(): Int = a     // error
 
 a p                    // error
-10 foo p
+foo 10 p

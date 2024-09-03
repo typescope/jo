@@ -1,7 +1,8 @@
 var a = 10
 
 fun foo(): Int =
-  a = a 2 *
+  a = a * 2
   a
 
 foo p
+a p

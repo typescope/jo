@@ -10,7 +10,7 @@ fun foreach(l: List[Int]): Void =
 
     case #Cons xs =>
       xs.head p
-      xs.tail foreach
+      foreach xs.tail
   end
 
 type Pair[T] = {a: T, b: T}
@@ -35,4 +35,4 @@ fun test2[T](o: A[T]): B[T] = o
 x.a p
 x.b p
 
-c foreach
+foreach c

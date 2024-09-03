@@ -54,11 +54,11 @@ Syntactical Grammar
 
 
 ~~~
-    words   = word {word}.
+    expr    = word {word}.
 
     word    = integer | boolean | ident | select | fence | record | variant | tapply | lambda.
 
-    phrase  = words | assign | valdef | typedef | while | if | match.
+    phrase  = expr | assign | valdef | fundef | typedef | while | if | match.
 
     block   = { phrase }.
 
@@ -76,14 +76,14 @@ Syntactical Grammar
     variant = TAG ident {word} OF type.
 
     tapply  = ident targs.
-    lambda  = LPAREN [params] RPAREN RARROW block.
+    lambda  = param_section RARROW block.
 
     match   = MATCH block {case} [END].
     case    = CASE pat RARROW block.
     pat     = TAG ident {ident} | USCORE.
 
     valdef  = (VAL | VAR) ident [COLON type] EQL block.
-    fundef  = FUN ident [tparams] LPAREN [params] RPAREN EQL block [END].
+    fundef  = FUN [param_section] ident [tparams] [param_section] EQL block [END].
 
     typedef = TYPE [tparams] ident EQL type.
     tparams = LBRACKET tparam {COMMA tparam} RBRACKET.
@@ -107,6 +107,7 @@ Syntactical Grammar
 
     program = {valdef | fundef | typedef} block.
 
-    params  = param {COMMA param}.
-    param   = ident COLON type.
+    param_section = LPAREN [params] RPAREN
+    params        = param {COMMA param}.
+    param         = ident COLON type.
 ~~~

@@ -1,9 +1,9 @@
-fun fib(n: Int): Int = 1 1 1 n fibComp
+fun fib(n: Int): Int = fibComp 1 1 1 n
 
 fun fibComp(a: Int, b: Int, i: Int, n: Int): Int =
-  if i n == then a
+  if i == n then a
   else
     a p
-    b (b a +) (1 i +) n fibComp
+    fibComp b (b + a) (1 + i) n
 
-20 fib p
+fib 20 p

@@ -19,6 +19,8 @@ object Sast:
         case Phrase(Nil) => true
         case _ => false
 
+    def show: String = Printing.show(this)
+
   case class IntLit
     (value: Int)
     (val span: Span)
@@ -78,6 +80,10 @@ object Sast:
     (fun: Word, args: List[Word])
     (val tpe: Type, val span: Span)
   extends Word:
+    fun.tpe.asInvokableType match
+      case appType: InvokableType =>
+        assert(appType.paramTypes.size == args.size)
+
     def isPrimitiveCall: Boolean =
       fun match
         case Ident(sym) => sym.isPrimitive
@@ -104,6 +110,9 @@ object Sast:
     (tpe: Type)
     (val span: Span)
   extends Tree
+
+  //----------------------------------------------------------------------------
+  // definitions
 
   sealed abstract class Def extends Word:
     val symbol: Symbol

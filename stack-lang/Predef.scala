@@ -14,20 +14,21 @@ object Predef:
   //----------------------------------------------------------------------------
   // primitive symbols are available to programmers
 
-  private val oneBoolType = BoolType :: Nil
-  private val oneIntType = IntType :: Nil
-  private val twoIntTypes = IntType :: IntType :: Nil
-  private val twoBoolTypes = BoolType :: BoolType :: Nil
+  private val aInt = ParamInfo("a", IntType)
+  private val bInt = ParamInfo("b", IntType)
 
-  private val typeArith = ProcType("m" :: "n" :: Nil, twoIntTypes, IntType)
-  private val typeComp = ProcType("m" :: "n" :: Nil, twoIntTypes, BoolType)
-  private val typeBits = ProcType("m" :: "n" :: Nil, twoIntTypes, IntType)
+  private val aBool = ParamInfo("a", BoolType)
+  private val bBool = ParamInfo("b", BoolType)
 
-  private val typeAnd = ProcType("a" :: "b" :: Nil, twoBoolTypes, BoolType)
-  private val typeOr  = ProcType("a" :: "b" :: Nil, twoBoolTypes, BoolType)
-  private val typeNot  = ProcType("a" :: Nil, oneBoolType, BoolType)
+  private val typeArith = ProcType(aInt :: bInt :: Nil, IntType, preParamCount = 1)
+  private val typeComp  = ProcType(aInt :: bInt :: Nil, BoolType, preParamCount = 1)
+  private val typeBits  = ProcType(aInt :: bInt :: Nil, IntType, preParamCount = 1)
 
-  private val typePrint  = ProcType("n" :: Nil, oneIntType, VoidType)
+  private val typeAnd = ProcType(aBool :: bBool :: Nil, BoolType, preParamCount = 1)
+  private val typeOr  = ProcType(aBool :: bBool :: Nil, BoolType, preParamCount = 1)
+  private val typeNot = ProcType(aBool :: Nil, BoolType, preParamCount = 0)
+
+  private val typePrint  = ProcType(params = aInt :: Nil, VoidType, preParamCount = 1)
 
   val add    =  createPrimSymbol("+",   typeArith)
   val sub    =  createPrimSymbol("-",   typeArith)
@@ -58,5 +59,10 @@ object Predef:
   //----------------------------------------------------------------------------
   // run-time symbols are only available to the compiler
 
-  private val abortType = ProcType("n" :: Nil, IntType :: Nil, BottomType)
+  private val abortType = ProcType(ParamInfo("n", IntType) :: Nil, BottomType, preParamCount = 0)
   val abort = new Symbol("abort", abortType, Flags.Prim, sourcePos = null)
+
+  //----------------------------------------------------------------------------
+  // the memory allocator
+  private val allocateType = ProcType(ParamInfo("size", IntType) :: Nil, IntType, preParamCount = 0)
+  val allocate = new Symbol("alloc", allocateType, Flags.Prim, sourcePos = null)

@@ -9,17 +9,17 @@ fun qux(a: Int * Bool => Int * Bool => Int): Int * Bool => Int * Bool => Int = a
 
 fun test(f: F2): F1 = f
 
-fun makeMul(x: Int): Int => Int = (n: Int) => x n *
+fun makeMul(x: Int): Int => Int = (n: Int) => x * n
 
 fun app(x: Int, f: Int => Int): Int = f x
 
-val f0 = (x: Int) => x x +
+val f0 = (x: Int) => x + x
 (f0 10) p
 
-val f1 = 5 makeMul
+val f1 = makeMul 5
 (f1 2) p
 
-val f2 = 8 makeMul
+val f2 = makeMul 8
 (f2 3) p
 
-10 f2 app p
+app 10 f2 p

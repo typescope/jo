@@ -1,4 +1,4 @@
-val a: Int = 0 1 +
-val b: Int = 5 4 9 23 - + *;  // error
+val a: Int = 0 + 1
+val b: Int = 5 - 4 + 9 * 23 ;  // error
 val c: Int = b a
 3 p

@@ -4,11 +4,6 @@ set -e
 
 DIR=$(dirname "$0")
 
-# run tests
-RES1=$DIR/tests/pos/int.txt
-RES2=$DIR/tests/pos/exe.txt
-RES3=$DIR/tests/pos/js.txt
-
 retcode=0
 
 error() {
@@ -20,48 +15,45 @@ check() {
     diff $1 $2 || error
 }
 
-# generate AST interpreter
-scala-cli --power package -f project.scala stack-lang -M eval -o bin/asti
-
 for file in $DIR/tests/pos/*.stk; do
     echo "testing $file"
+    CHECK=$file.check
+    OUT=$file.out
+
     exe=${file%.*}.run
     js=${file%.*}.js
-    bin/stki $file > $RES1 2>&1
+    bin/stki $file > $OUT 2>&1
+    check $OUT $CHECK
 
     # Ast interpreter
-    bin/asti $file > $RES2 2>&1
-    check $RES1 $RES2
+    # bin/asti $file > $RES2 2>&1
+    # check $RES1 $RES2
 
     # # layout 1
     bin/stkc $file -o $exe -p linux-x86-stack -layout c1
-    $exe > $RES2
-    check $RES1 $RES2
+    $exe > $OUT 2>&1
+    check $OUT $CHECK
 
     # layout 2
     bin/stkc $file -o $exe -p linux-x86-stack -layout c2
-    $exe > $RES2 2>&1
-    check $RES1 $RES2
+    $exe > $OUT 2>&1
+    check $OUT $CHECK
 
     # layout 3
     bin/stkc $file -o $exe -p linux-x86-stack -layout c3
-    $exe > $RES2 2>&1
-    check $RES1 $RES2
+    $exe > $OUT 2>&1
+    check $OUT $CHECK
 
     # fast linux
     bin/stkc $file -o $exe -p linux-x86-reg
-    $exe > $RES2 2>&1
-    check $RES1 $RES2
+    $exe > $OUT 2>&1
+    check $OUT $CHECK
 
     # JavaScript
     bin/stkc $file -o $js -p js
-    node $js > $RES3 2>&1
-    check $RES1 $RES3
+    node $js > $OUT 2>&1
+    check $OUT $CHECK
 done
-
-rm $RES1
-rm $RES2
-rm $RES3
 
 # neg tests
 echo

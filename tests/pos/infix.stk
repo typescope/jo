@@ -1,0 +1,24 @@
+type Point = {x: Int, y: Int}
+
+fun mul(p1: Point, p2: Point): Point =
+  {x = p1.x * p2.x, y = p1.y * p2.y}
+
+fun add(p1: Point, p2: Point): Point =
+  {x = p1.x + p2.x, y = p1.y + p2.y}
+
+fun sub(p1: Point, p2: Point): Point =
+  {x = p1.x - p2.x, y = p1.y - p2.y}
+
+fun test =
+  fun (p1: Point) * (p2: Point): Point = mul p1 p2
+  fun (p1: Point) + (p2: Point): Point = add p1 p2
+  fun (p1: Point) - (p2: Point): Point = sub p1 p2
+
+  val p1: Point = {x = 3, y = 5}
+  val p2: Point = {x = 6, y = 8}
+  val p3: Point = p1 + p2 * p2
+
+  p3.x p
+  p3.y p
+
+test

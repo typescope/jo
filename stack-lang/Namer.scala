@@ -15,6 +15,7 @@ import Namer.{ Scope, LazyValue, DelayedDef }
   */
 class Namer(@constructorOnly reporter: Reporter):
   val checker = new Checker
+  val exprTyper = new NamerUtils.ExprTyper(this, checker)
 
   /** Handles possible cycles in result type inference for functions  */
   val cyclicTypeProvider = new NamerUtils.CyclicTypeProvider(using reporter)
@@ -40,7 +41,7 @@ class Namer(@constructorOnly reporter: Reporter):
     val defs = transform(prog.defs)(using sc)
 
     // Create dummy main symbol to make it easier to tell whether a definition is local or not
-    val dummyMainSym = Symbol.createFunSymbol("$main", ProcType(Nil, Nil, VoidType), prog.main.pos)
+    val dummyMainSym = Symbol.createFunSymbol("$main", ProcType(Nil, VoidType, 0), prog.main.pos)
     val main2 = transform(prog.main)(using sc.fresh(dummyMainSym))
 
     checker.performDelayedChecks()
@@ -80,8 +81,12 @@ class Namer(@constructorOnly reporter: Reporter):
         Reporter.error("Cannot capture local mutable variable " + sym.name, span.toPos)
 
   def transform(block: Ast.Block)(using sc: Scope, rp: Reporter): Word =
-    val sc2 = sc.fresh()
-    val words = for phrase <- block.phrases yield transform(phrase)(using sc2, rp)
+    var sc2 = sc
+    val words =
+      for phrase <- block.phrases yield
+        sc2 = sc2.fresh()
+        transform(phrase)(using sc2, rp)
+
     if words.isEmpty then
       Phrase(words)(VoidType, block.span)
 
@@ -97,10 +102,8 @@ class Namer(@constructorOnly reporter: Reporter):
 
   def transform(phrase: Ast.Phrase)(using sc: Scope, rp: Reporter): Word =
     phrase match
-      case words: Ast.Words  =>
-        // A new instance is required to support nested phrases
-        val phraseTyper = new NamerUtils.PhraseTyper(this, checker)
-        phraseTyper.transform(words)
+      case expr: Ast.Expr  =>
+        exprTyper.transform(expr)
 
       case word: Ast.Word =>
         transform(word)
@@ -129,11 +132,20 @@ class Namer(@constructorOnly reporter: Reporter):
 
       case vdef: Ast.ValDef =>
         val delayedDef = transform(vdef)
+        val vdef2 = delayedDef.force()
+        // a val is not available for checking its rhs
         sc.define(delayedDef.symbol, vdef.span)
+        vdef2
+
+      case fdef: Ast.FunDef =>
+        val delayedDef = transform(fdef)
+        // A function is available for checking its rhs
+        sc.define(delayedDef.symbol, fdef.span)
         delayedDef.force()
 
       case tdef: Ast.TypeDef =>
         val delayedDef = transform(tdef)
+        // A type definition is available for checking its rhs
         sc.define(delayedDef.symbol, tdef.span)
         delayedDef.force()
 
@@ -166,7 +178,8 @@ class Namer(@constructorOnly reporter: Reporter):
         val id = Ast.Ident("anon")(word.span)
         val resType = Ast.EmptyTypeTree()(body.span)
         val tparams = Nil
-        val funDef = Ast.FunDef(id, tparams, params, resType, body)(word.span)
+        val preParamCount = 0
+        val funDef = Ast.FunDef(id, tparams, params, resType, body, preParamCount)(word.span)
         val funDef2 = transform(funDef)(using sc2).force()
         val lambdaType = funDef2.tpe.asProcType.toFunType
         val ref = Ident(funDef2.symbol)(word.span)
@@ -376,14 +389,13 @@ class Namer(@constructorOnly reporter: Reporter):
     val sym = Symbol.createFunSymbol(funDef.name, this.cyclicTypeProvider, flags, funDef.ident.pos)
     val funScope = sc.fresh(sym)
 
-    val paramNames = funDef.params.map(_.name)
     val tparamNames = funDef.tparams.map(_.name)
 
     var bodyTyped: Word = null
     // can be called multiple types from the info completer
     def checkBody()(using Reporter): Word =
       // trigger checking of parameters first to have the current scope
-      paramTypes
+      paramInfos
       bodyTyped = transform(funDef.body)(using funScope)
       bodyTyped
 
@@ -394,14 +406,14 @@ class Namer(@constructorOnly reporter: Reporter):
 
     lazy val givenResultType =
       // trigger checking of parameters first to have the current scope
-      paramTypes
+      paramInfos
 
       assert(!funDef.resType.isEmpty)
       val resTypeTree = transformType(funDef.resType)(using funScope)
       checker.delayedCheck { checker.checkVoidOrValueType(resTypeTree) }
       resTypeTree.tpe
 
-    lazy val paramTypes =
+    lazy val paramInfos =
       for (tparam, i) <- funDef.tparams.zipWithIndex yield
         val infoProvider: InfoProvider = (sym: Symbol) => bounds(i)
         val sym = Symbol.createTypeSymbol(tparam.name, infoProvider, tparam.pos)
@@ -422,10 +434,10 @@ class Namer(@constructorOnly reporter: Reporter):
         val paramSym = Symbol.createParamSymbol(param.name, tpt.tpe, param.pos)
         funScope.define(paramSym, param.span)
         paramSyms += paramSym
-        tpt.tpe
+        ParamInfo(param.name, tpt.tpe)
 
     def createFunType(resType: Type): Type =
-      val procType = ProcType(paramNames, paramTypes, resType)
+      val procType = ProcType(paramInfos, resType, funDef.preParamCount)
       if bounds.isEmpty then procType
       else
         val tparamRefs = tparamSyms.zipWithIndex.map: (tparamSym, i) =>
