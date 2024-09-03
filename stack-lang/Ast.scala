@@ -169,7 +169,8 @@ object Ast:
     def name = ident.name
 
   case class FunDef
-    (ident: Ident, tparams: List[TypeParam], params: List[Param], resType: TypeTree, body: Phrase)
+    (ident: Ident, tparams: List[TypeParam], params: List[Param],
+        resType: TypeTree, body: Phrase, preParamCount: Int)
     (val span: Span)
   extends Def
 

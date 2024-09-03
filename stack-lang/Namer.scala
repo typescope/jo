@@ -171,7 +171,8 @@ class Namer(@constructorOnly reporter: Reporter):
         val id = Ast.Ident("anon")(word.span)
         val resType = Ast.EmptyTypeTree()(body.span)
         val tparams = Nil
-        val funDef = Ast.FunDef(id, tparams, params, resType, body)(word.span)
+        val preParamCount = 0
+        val funDef = Ast.FunDef(id, tparams, params, resType, body, preParamCount)(word.span)
         val funDef2 = transform(funDef)(using sc2).force()
         val lambdaType = funDef2.tpe.asProcType.toFunType
         val ref = Ident(funDef2.symbol)(word.span)
@@ -429,7 +430,7 @@ class Namer(@constructorOnly reporter: Reporter):
         ParamInfo(param.name, tpt.tpe)
 
     def createFunType(resType: Type): Type =
-      val procType = ProcType(paramInfos, resType, preParamCount = 0)
+      val procType = ProcType(paramInfos, resType, funDef.preParamCount)
       if bounds.isEmpty then procType
       else
         val tparamRefs = tparamSyms.zipWithIndex.map: (tparamSym, i) =>

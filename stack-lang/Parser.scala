@@ -117,9 +117,10 @@ class Parser(code: String)(using Reporter):
 
   def funDef(): FunDef =
     val fun = eat(Token.FUN)
+    val preParamList = paramSection()
     val id = ident()
     val tparams = typeParams()
-    val paramList = params()
+    val postParamList = params()
     val resType =
       if peek() == Token.COLON then
         eat(Token.COLON)
@@ -132,7 +133,11 @@ class Parser(code: String)(using Reporter):
 
     eatEndOpt(fun.indent)
 
-    FunDef(id, tparams, paramList, resType, body)(fun.span | body.span)
+    val paramList= preParamList ++ postParamList
+    FunDef(id, tparams, paramList, resType, body, preParamList.size)(fun.span | body.span)
+
+  def paramSection(): List[Param] =
+    if peek() == Token.LPAREN then params() else Nil
 
   def typeDef(): TypeDef =
     val typeItem = eat(Token.TYPE)
