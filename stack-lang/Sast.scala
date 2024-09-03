@@ -78,6 +78,10 @@ object Sast:
     (fun: Word, args: List[Word])
     (val tpe: Type, val span: Span)
   extends Word:
+    fun.tpe.asInvokableType match
+      case appType: InvokableType =>
+        assert(appType.paramTypes.size == args.size)
+
     def isPrimitiveCall: Boolean =
       fun match
         case Ident(sym) => sym.isPrimitive

@@ -392,7 +392,7 @@ class RegisterMachine(
     else
       compile(app.fun)
       val fun = ctx.vs.pop().asInstanceOf[Reg]
-      val funType = app.fun.tpe.asAppliableType
+      val funType = app.fun.tpe.asInvokableType
 
       for arg <- app.args do compile(arg)
       this.call(fun, funType.paramTypes, funType.resultType)

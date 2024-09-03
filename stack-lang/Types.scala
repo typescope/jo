@@ -51,7 +51,7 @@ object Types:
 
     def asFunctionType: FunctionType = TypeOps.approx(this, isUp = true).asInstanceOf[FunctionType]
 
-    def asAppliableType: AppliableType = TypeOps.approx(this, isUp = true).asInstanceOf[AppliableType]
+    def asInvokableType: InvokableType = TypeOps.approx(this, isUp = true).asInstanceOf[InvokableType]
 
     def asPolyType: PolyType = TypeOps.approx(this, isUp = true).asInstanceOf[PolyType]
 
@@ -119,7 +119,7 @@ object Types:
   extends Type:
     val paramCount = bounds.size
 
-  sealed trait AppliableType:
+  sealed trait InvokableType:
     def paramTypes: List[Type]
     def resultType: Type
 
@@ -130,7 +130,7 @@ object Types:
 
   case class ProcType
     (params: List[ParamInfo], resultType: Type, preParamCount: Int)
-  extends Type with AppliableType:
+  extends Type with InvokableType:
     val preParamTypes: List[Type] = params.take(preParamCount).map(_.tpe)
     val postParamTypes: List[Type] = params.drop(preParamCount).map(_.tpe)
     val paramTypes: List[Type] = params.map(_.tpe)
@@ -158,7 +158,7 @@ object Types:
 
   case class FunctionType
     (paramTypes: List[Type], resultType: Type)
-  extends Type with AppliableType
+  extends Type with InvokableType
 
   /** Represents upper and lower bounds of type parameters */
   case class TypeBound
