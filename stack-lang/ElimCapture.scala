@@ -185,7 +185,7 @@ object ElimCapture:
 
       bodyItems += this(fdef.body)(using ctx2.withOwner(fdef.symbol))
       val body = Phrase(bodyItems.toList)(fdef.body.tpe, fdef.body.span)
-      val params = if captures.isEmpty then fdef.params else fdef.params :+ envSym
+      val params = fdef.params :+ envSym
       ctx.lifted += FunDef(funSym, fdef.tparams, params, body)
                           (locals = locals.toList, captures = Nil, fdef.span)
 
