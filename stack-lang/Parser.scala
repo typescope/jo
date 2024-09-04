@@ -214,7 +214,7 @@ class Parser(code: String)(using Reporter):
       for phrase <- phrases do
         phrase match
           case word: Word        => words += word
-          case Expr(word :: Nil) => words += word
+          // case Expr(word :: Nil) => words += word
           case _                 => words += Block(phrase :: Nil)(phrase.span)
       finalResult
     else word() match
