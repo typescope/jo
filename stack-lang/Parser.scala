@@ -206,6 +206,13 @@ class Parser(code: String)(using Reporter):
     if limitIndent.isUnindent(item.indent) then
       val span = words.head.span | words.last.span
       Expr(words.toList)(span)
+    else if limitIndent.isIndent(item.indent) then
+      val Block(phrases) = block(limitIndent)
+      for phrase <- phrases do
+        phrase match
+          case word: Word => words += word
+          case _          => words += Block(phrase :: Nil)(phrase.span)
+      exprRest(words, limitIndent)
     else word() match
       case Some(w) =>
         exprRest(words += w, limitIndent)

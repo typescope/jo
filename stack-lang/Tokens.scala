@@ -46,6 +46,10 @@ object Tokens:
     def isUnindent(other: Indent): Boolean =
       this.line != other.line && other.indent <= this.indent
 
+    /** Whether the other is an indentation to the current one */
+    def isIndent(other: Indent): Boolean =
+      this.line != other.line && other.indent > this.indent
+
     def isSame(other: Indent): Boolean = this.indent == other.indent
 
   val IndentAcceptAll = Indent(-1, -1)
