@@ -212,7 +212,9 @@ class Parser(code: String)(using Reporter):
         phrase match
           case word: Word => words += word
           case _          => words += Block(phrase :: Nil)(phrase.span)
-      exprRest(words, limitIndent)
+
+      val span = words.head.span | words.last.span
+      Expr(words.toList)(span)
     else word() match
       case Some(w) =>
         exprRest(words += w, limitIndent)
