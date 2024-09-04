@@ -185,4 +185,18 @@ object Ast:
     (val span: Span)
   extends Phrase, Def
 
-  case class Prog(defs: List[Def], main: Phrase)
+  case class Prog(phrases: List[Phrase])(val span: Span) extends Tree:
+    // lazy val vals: List[ValDef] =
+    //   phrases.collect: phrase =>
+    //     phrase match
+    //       case vdef: ValDef => vdef
+    //
+    // lazy val funs: List[FunDef] =
+    //   phrases.collect: phrase =>
+    //     phrase match
+    //       case fdef: FunDef => fdef
+    //
+    lazy val defs: List[Def] =
+      phrases.collect: phrase =>
+        phrase match
+          case defn: Def => defn

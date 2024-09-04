@@ -38,17 +38,24 @@ class Namer(@constructorOnly reporter: Reporter):
 
     // Prepare scope according to scoping rules
     val sc = rootScope.fresh()
-    val defs = transform(prog.defs)(using sc)
+    val defs = index(prog.defs)(using sc)
 
-    // Create dummy main symbol to make it easier to tell whether a definition is local or not
-    val dummyMainSym = Symbol.createFunSymbol("$main", ProcType(Nil, VoidType, 0), prog.main.pos)
-    val main2 = transform(prog.main)(using sc.fresh(dummyMainSym))
+    var defIndex = -1
+    val words =
+      for phrase <- prog.phrases yield
+        phrase match
+          case defn: Ast.Def =>
+            defIndex += 1
+            defs(defIndex)
+
+          case _ =>
+            transform(phrase)(using sc)
 
     checker.performDelayedChecks()
 
-    Prog(defs, main2)
+    Prog(words)(prog.span)
 
-  def transform(defs: List[Ast.Def])(using sc: Scope, rp: Reporter): List[Def] =
+  def index(defs: List[Ast.Def])(using sc: Scope, rp: Reporter): List[Def] =
     val delayedDefs = new mutable.ArrayBuffer[DelayedDef[Def]]
 
     for defn <- defs do

@@ -16,31 +16,32 @@ class ExplicitInit(using Reporter):
 
   def transform(prog: Prog): Prog =
     val initNamesInfo = new ExplicitInit.NamesInfo
-    val defs = new mutable.ArrayBuffer[Def]
-    val inits = new mutable.ArrayBuffer[Word]
+    val defs = new mutable.ArrayBuffer[Word]
+    val stats = new mutable.ArrayBuffer[Word]
 
-    for defn <- prog.defs do
-      defn match
+    for word <- prog.words do
+      word match
         case funDef: FunDef  =>
           defs += treeMap.transform(funDef)
 
         case vdef: ValDef =>
-          val rhs = treeMap.apply(vdef.rhs)(using initNamesInfo)
-          inits += Assign(vdef.symbol, rhs)(vdef.span)
+          val rhs = treeMap(vdef.rhs)(using initNamesInfo)
+          stats += Assign(vdef.symbol, rhs)(vdef.span)
 
           val empty = Phrase(words = Nil)(rhs.tpe, rhs.span)
           defs += ValDef(vdef.symbol, empty)(vdef.span)
 
         case tdef: TypeDef =>
-    end for
 
-    inits += treeMap.apply(prog.main)(using initNamesInfo)
+        case _ =>
+          stats += treeMap(word)(using initNamesInfo)
+    end for
 
     // synthesize init function
     val initType = ProcType(params = Nil, resultType = VoidType, preParamCount = 0)
-    val initSym = Symbol.createFunSymbol("_init", initType, prog.main.pos)
-    val initSpan = prog.main.span
-    val initBody = Phrase(inits.toList)(prog.main.tpe, initSpan)
+    val initSym = Symbol.createFunSymbol("_init", initType, prog.pos)
+    val initSpan = prog.span
+    val initBody = Phrase(stats.toList)(VoidType, initSpan)
 
     val initLocals = initNamesInfo.locals.distinct.toList
     val initCaptures =
@@ -52,7 +53,8 @@ class ExplicitInit(using Reporter):
     )
 
     defs += initFun
-    Prog(defs.toList, Apply(Ident(initSym)(initSpan), Nil)(VoidType, initSpan))
+    defs += Apply(Ident(initSym)(initSpan), Nil)(VoidType, initSpan)
+    Prog(defs.toList)(prog.span)
 
 object ExplicitInit:
   class NamesInfo:

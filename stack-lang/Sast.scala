@@ -136,15 +136,30 @@ object Sast:
   extends Def:
     def tpe = symbol.info
 
-  case class Prog(defs: List[Def], main: Word):
+  case class Prog(words: List[Word])(val span: Span) extends Positioned:
     def vals: List[ValDef] =
-      defs.filter(_.isInstanceOf[ValDef]).asInstanceOf
+      assert(isNormalized, "Not normalized")
+      words.collect: word =>
+        word match
+          case vdef: ValDef => vdef
 
-    def funs: List[FunDef] =
-      defs.filter(_.isInstanceOf[FunDef]).asInstanceOf
+    val funs: List[FunDef] =
+      words.collect: word =>
+        word match
+          case fdef: FunDef => fdef
 
-    def init: Symbol =
-      main match
-        case Apply(Ident(sym), Nil) => sym
-        case _ =>
-          throw new Exception("Ident expected, found = " + main)
+    val isNormalized: Boolean =
+      words match
+        case funs :+ Apply(Ident(sym), Nil)
+             if funs.forall(_.isInstanceOf[FunDef])
+          => true
+
+        case _ => false
+
+    def entrySymbol: Symbol =
+      val Apply(Ident(sym), Nil) = entry: @unchecked
+      sym
+
+    def entry: Word =
+      assert(isNormalized, "Not normalized, found last = " + words.last.show)
+      words.last

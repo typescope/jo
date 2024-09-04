@@ -132,10 +132,15 @@ object SastInterpreter:
     for fun <- prog.funs do
       sc.bind(fun.symbol, FunVal(fun, sc))
 
-    for ValDef(sym, rhs) <- prog.vals do
-      sc.bind(sym, eval(rhs)(using sc))
+    for word <- prog.words do
+      word match
+        case ValDef(sym, rhs) =>
+          sc.bind(sym, eval(rhs)(using sc))
 
-    exec(prog.main)(using sc)
+        case fdef: FunDef =>
+
+        case _ =>
+         exec(word)(using sc)
 
   def exec(phrase: Phrase)(using Scope): List[Denotation] =
     val results = for word <- phrase.words yield exec(word)
