@@ -414,10 +414,11 @@ class Parser(code: String)(using Reporter):
     Lambda(paramList, body)(paren.span | body.span)
 
   def fence(): Word =
-    eat(Token.LPAREN)
-    val enclosed = block(IndentAcceptAll)
-    eat(Token.RPAREN)
-    enclosed
+    val lparen = eat(Token.LPAREN)
+    val Block(phrases) = block(IndentAcceptAll)
+    val rparen = eat(Token.RPAREN)
+    val span = lparen.span | rparen.span
+    Block(phrases)(span)
 
   def ifElse(): Phrase =
     val ifItem = eat(Token.IF)
