@@ -204,11 +204,8 @@ class Parser(code: String)(using Reporter):
   def exprRest(words: mutable.ArrayBuffer[Word], limitIndent: Indent): Phrase =
     val item = peekItem()
     def finalResult: Phrase =
-      if words.size == 1 then
-        words.head
-      else
-        val span = words.head.span | words.last.span
-        Expr(words.toList)(span)
+      val span = words.head.span | words.last.span
+      Expr(words.toList)(span)
 
     if limitIndent.isUnindent(item.indent) then
       finalResult
@@ -216,8 +213,9 @@ class Parser(code: String)(using Reporter):
       val Block(phrases) = block(limitIndent)
       for phrase <- phrases do
         phrase match
-          case word: Word => words += word
-          case _          => words += Block(phrase :: Nil)(phrase.span)
+          case word: Word        => words += word
+          case Expr(word :: Nil) => words += word
+          case _                 => words += Block(phrase :: Nil)(phrase.span)
       finalResult
     else word() match
       case Some(w) =>
