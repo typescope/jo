@@ -129,7 +129,7 @@ object SastInterpreter:
       rootScope.bind(sym, PrimAction(op))
 
     val sc = rootScope.fresh()
-    for fun <- prog.funs do
+    for case fun: FunDef <- prog.words do
       sc.bind(fun.symbol, FunVal(fun, sc))
 
     for word <- prog.words do

@@ -116,6 +116,6 @@ class Checker:
   def adapt(word: Word, targetType: Type): Word =
     val curType = word.tpe
     if targetType.isVoid && curType.isValueType then
-      Encoded(word)(VoidType)
+      Sast.dropValue(word)
     else
       word

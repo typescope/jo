@@ -41,7 +41,12 @@ class ExplicitInit(using Reporter):
     val initType = ProcType(params = Nil, resultType = VoidType, preParamCount = 0)
     val initSym = Symbol.createFunSymbol("_init", initType, prog.pos)
     val initSpan = prog.span
-    val initBody = Phrase(stats.toList)(VoidType, initSpan)
+    val statsNorm =
+      for stat <- stats.toList yield
+        if stat.tpe.isValueType then Sast.dropValue(stat)
+        else stat
+
+    val initBody = Phrase(statsNorm)(VoidType, initSpan)
 
     val initLocals = initNamesInfo.locals.distinct.toList
     val initCaptures =
