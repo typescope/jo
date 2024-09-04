@@ -40,6 +40,7 @@ class Namer(@constructorOnly reporter: Reporter):
     val sc = rootScope.fresh()
     val defs = index(prog.defs)(using sc)
 
+    val dummyMainSym = Symbol.createFunSymbol("_main", ProcType(Nil, VoidType, 0), prog.pos)
     var defIndex = -1
     val words =
       for phrase <- prog.phrases yield
@@ -49,7 +50,7 @@ class Namer(@constructorOnly reporter: Reporter):
             defs(defIndex)
 
           case _ =>
-            transform(phrase)(using sc)
+            transform(phrase)(using sc.fresh(dummyMainSym))
 
     checker.performDelayedChecks()
 
