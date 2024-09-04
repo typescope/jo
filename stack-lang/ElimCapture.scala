@@ -21,12 +21,16 @@ object ElimCapture:
 
   def transform(prog: Prog): Prog =
     given ctx: Context = new Context
-    val defns =
-      for defn <- prog.defs
-      yield treeMap.recur(defn)(using ctx.withOwner(defn.symbol))
+    val words2 =
+      for word <- prog.words yield
+        word match
+          case defn: Def =>
+            treeMap.recur(defn)(using ctx.withOwner(defn.symbol))
 
-    val main = treeMap.apply(prog.main)
-    Prog(defns ++ ctx.lifted.toList, main)
+          case _ =>
+            treeMap.apply(word)
+
+    Prog(ctx.lifted.toList ++ words2)(prog.span)
 
   /** The encoded type of a function */
   def encodedRecordType(funType: FunctionType): RecordType =
@@ -191,7 +195,7 @@ object ElimCapture:
 
       Phrase(words = Nil)(VoidType, fdef.span)
 
-    def apply(word: Word)(using ctx: Context): Word = Debug.trace(Printing.show(word) + ", ctx = " + ctx.show, (_: Word) => "", enable = false):
+    def apply(word: Word)(using ctx: Context): Word = Debug.trace(word.show + ", ctx = " + ctx.show, (_: Word) => "", enable = false):
       word match
         case Apply(fun, args) =>
           val fun2 = this(fun)

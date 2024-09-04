@@ -79,25 +79,9 @@ class Parser(code: String)(using Reporter):
     p
 
   def prog(): Prog =
-    val defs = definitions(new mutable.ArrayBuffer)
     val blk = block(IndentAcceptAll)
     eat(Token.EOF)
-    Prog(defs, blk)
-
-  def definitions(acc: mutable.ArrayBuffer[Def]): List[Def] =
-    val token = peek()
-    token match
-      case Token.VAL | Token.VAR =>
-        definitions(acc += valDef(token))
-
-      case Token.FUN =>
-         definitions(acc += funDef())
-
-      case Token.TYPE =>
-         definitions(acc += typeDef())
-
-      case _ =>
-        acc.toList
+    Prog(blk.phrases)(blk.span)
 
   def valDef(modifier: Token): ValDef =
     val mutable = modifier == Token.VAR
@@ -192,10 +176,10 @@ class Parser(code: String)(using Reporter):
       paramsRest(acc += param())
 
   /** Parse a block within the indentation */
-  def block(limitIndent: Indent): Phrase =
+  def block(limitIndent: Indent): Block =
     blockRest(mutable.ArrayBuffer(), limitIndent, peekItem().span.toPos)
 
-  def blockRest(phrases: mutable.ArrayBuffer[Phrase], limitIndent: Indent, refPos: SourcePosition): Phrase =
+  def blockRest(phrases: mutable.ArrayBuffer[Phrase], limitIndent: Indent, refPos: SourcePosition): Block =
     phrase(limitIndent) match
       case Some(phrase) =>
         // check alignment of phrases in a block
@@ -431,12 +415,10 @@ class Parser(code: String)(using Reporter):
 
   def fence(): Word =
     val lparen = eat(Token.LPAREN)
-    val enclosed = block(IndentAcceptAll)
+    val Block(phrases) = block(IndentAcceptAll)
     val rparen = eat(Token.RPAREN)
     val span = lparen.span | rparen.span
-    enclosed match
-      case blk: Block => Block(blk.phrases)(span)
-      case phrase     => Block(phrase :: Nil)(span)
+    Block(phrases)(span)
 
   def ifElse(): Phrase =
     val ifItem = eat(Token.IF)

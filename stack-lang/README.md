@@ -54,6 +54,8 @@ Syntactical Grammar
 
 
 ~~~
+    program    = block.
+
     expr    = word {word}.
 
     word    = integer | boolean | ident | select | fence | record | variant | tapply | lambda.
@@ -104,8 +106,6 @@ Syntactical Grammar
     types      = type [ '*' type ].
 
     fun_type   = [types] RARROW type.
-
-    program = {valdef | fundef | typedef} block.
 
     param_section = LPAREN [params] RPAREN
     params        = param {COMMA param}.

@@ -53,7 +53,7 @@ class StackMachine(
     cb.mark(this.entry)
     cb.add(Instr.Sub(Reg(SP_REG), Int32(4), SP_REG))
     genAllocator()
-    compile(prog.main)
+    compile(prog.entry)
     exit(Int32(0))
 
     // generate code

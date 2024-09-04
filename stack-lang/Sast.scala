@@ -19,6 +19,8 @@ object Sast:
         case Phrase(Nil) => true
         case _ => false
 
+    def isDef: Boolean = this.isInstanceOf[Def]
+
     def show: String = Printing.show(this)
 
   case class IntLit
@@ -136,15 +138,37 @@ object Sast:
   extends Def:
     def tpe = symbol.info
 
-  case class Prog(defs: List[Def], main: Word):
-    def vals: List[ValDef] =
-      defs.filter(_.isInstanceOf[ValDef]).asInstanceOf
+  case class Prog(words: List[Word])(val span: Span) extends Positioned:
+    lazy val vals: List[ValDef] =
+      assert(isNormalized, "Not normalized")
+      words.collect: word =>
+        word match
+          case vdef: ValDef => vdef
 
-    def funs: List[FunDef] =
-      defs.filter(_.isInstanceOf[FunDef]).asInstanceOf
+    lazy val funs: List[FunDef] =
+      assert(isNormalized, "Not normalized")
+      words.collect: word =>
+        word match
+          case fdef: FunDef => fdef
 
-    def init: Symbol =
-      main match
-        case Apply(Ident(sym), Nil) => sym
-        case _ =>
-          throw new Exception("Ident expected, found = " + main)
+    val isNormalized: Boolean =
+      words match
+        case defs :+ Apply(Ident(sym), Nil) =>
+          defs.forall(_.isDef)
+
+        case _ => false
+
+    lazy val entrySymbol: Symbol =
+      val Apply(Ident(sym), Nil) = entry: @unchecked
+      sym
+
+    lazy val entry: Word =
+      assert(isNormalized, "Not normalized, found last = " + words.last.show)
+      words.last
+
+  //----------------------------------------------------------------------------
+  // helpers
+
+  def dropValue(word: Word): Word =
+    assert(word.tpe.isValueType)
+    Encoded(word)(VoidType)

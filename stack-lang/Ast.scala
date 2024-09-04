@@ -9,7 +9,9 @@ import Positions.{ Positioned, Span }
 object Ast:
   sealed abstract class Tree extends Positioned with Product
 
-  sealed abstract class Phrase extends Tree
+  sealed abstract class Phrase extends Tree:
+    def isDef: Boolean = this.isInstanceOf[Def]
+
   sealed abstract class Word extends Phrase
 
   case class IntLit
@@ -185,4 +187,8 @@ object Ast:
     (val span: Span)
   extends Phrase, Def
 
-  case class Prog(defs: List[Def], main: Phrase)
+  case class Prog(phrases: List[Phrase])(val span: Span) extends Tree:
+    lazy val defs: List[Def] =
+      phrases.collect: phrase =>
+        phrase match
+          case defn: Def => defn

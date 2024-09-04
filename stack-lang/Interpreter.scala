@@ -163,15 +163,20 @@ object Interpreter:
       rootScope.bind(sym, PrimAction(op))
 
     val sc = rootScope.fresh()
-    for case fdef: FunDef <- prog.defs do
+    for case fdef: FunDef <- prog.phrases do
       sc.bind(fdef.name, FunCall(fdef, sc))
 
     val vs = new ValueStack
-    for case vdef: ValDef <- prog.defs do
-      exec(vdef.rhs)(using vs, sc)
-      sc.bind(vdef.name, vs.pop())
+    for phrase <- prog.phrases do
+      phrase match
+        case vdef: ValDef =>
+          exec(vdef.rhs)(using vs, sc)
+          sc.bind(vdef.name, vs.pop())
 
-    exec(prog.main)(using vs, sc)
+        case fdef: FunDef =>
+
+        case _ =>
+          exec(phrase)(using vs, sc)
 
   def exec(expr: Expr)(using vs: ValueStack, sc: Scope): Unit =
     val vs2 = new ValueStack

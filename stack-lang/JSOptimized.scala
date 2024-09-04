@@ -76,7 +76,7 @@ class JSOptimized(outFile: String):
 
     val text =
       "(function() {" ~ indent:
-           globals ~ Text.BreakLine ~ funs ~ Text.BreakLine ~ prog.main ~ ";"
+           globals ~ Text.BreakLine ~ funs ~ Text.BreakLine ~ prog.entry ~ ";"
       ~ "})()"
 
     pw.append(text.toString)

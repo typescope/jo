@@ -69,10 +69,10 @@ class RegisterMachine(
       assert(ctx.vs.size == 0, sym.name + " " + ctx.vs.size)
       val label = symbolAddrMap(sym).asInstanceOf[Label]
       doGraphColoring(
-        label, ctx.buffer.getResult(), registerConfig, proto.savedRegs,
-        cb, ctx.generator)
+          label, ctx.buffer.getResult(), registerConfig, proto.savedRegs,
+          cb, ctx.generator)
 
-    entry(entryLabel, prog.init, cb)
+    entry(entryLabel, prog.entrySymbol, cb)
 
     // generate code
     generator(cb.getResult())

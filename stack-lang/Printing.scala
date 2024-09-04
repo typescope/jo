@@ -27,7 +27,7 @@ object Printing:
   // implementation
 
   def showProg(prog: Prog): Text =
-    rep(prog.defs, Text.BlankLine) ~ showWord(prog.main)
+    rep(prog.words, Text.BlankLine)
 
   def showDef(defn: Def): Text =
     defn match
