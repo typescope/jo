@@ -50,7 +50,9 @@ class Namer(@constructorOnly reporter: Reporter):
             defs(defIndex)
 
           case _ =>
-            transform(phrase)(using sc.fresh(dummyMainSym))
+            val word = transform(phrase)(using sc.fresh(dummyMainSym))
+            checker.checkVoidOrValueType(word)
+            word
 
     checker.performDelayedChecks()
 
@@ -93,7 +95,10 @@ class Namer(@constructorOnly reporter: Reporter):
     val words =
       for phrase <- block.phrases yield
         sc2 = sc2.fresh()
-        transform(phrase)(using sc2, rp)
+        val word = transform(phrase)(using sc2, rp)
+        if !word.isDef then
+          checker.checkVoidOrValueType(word)
+        word
 
     if words.isEmpty then
       Phrase(words)(VoidType, block.span)
@@ -168,7 +173,15 @@ class Namer(@constructorOnly reporter: Reporter):
       case Ast.Ident(name) =>
         val sym = sc.resolve(name, word.span)
         checkCapture(sym, word.span)
-        Ident(sym)(word.span)
+        val id = Ident(sym)(word.span)
+        if sym.isFunction then
+          val procType = sym.info.asProcType
+          if procType.params.isEmpty then
+            Apply(id, args = Nil)(procType.resultType, id.span)
+          else
+            id
+        else
+          id
 
       case record: Ast.RecordLit =>
         transform(record)
