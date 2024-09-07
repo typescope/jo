@@ -174,7 +174,7 @@ class Namer(@constructorOnly reporter: Reporter):
         val sym = sc.resolve(name, word.span)
         checkCapture(sym, word.span)
         val id = Ident(sym)(word.span)
-        if sym.isFunction then
+        if sym.isFunction && sym.info.isProcType then
           val procType = sym.info.asProcType
           if procType.params.isEmpty then
             Apply(id, args = Nil)(procType.resultType, id.span)
