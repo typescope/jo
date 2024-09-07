@@ -1,0 +1,8 @@
+fun foo(x: Int): Void = x p
+
+fun bar(x: Int): Void =
+  foo  // error
+  x p
+
+bar    // error
+10 p

@@ -1,4 +1,5 @@
 val a: Int = 2 + 6
-a *// comment
+a
+  *// comment
   4
 a p
