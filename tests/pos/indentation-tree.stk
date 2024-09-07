@@ -72,3 +72,11 @@ println
     4
       +
       5
+
+println
+  indent
+    4
+    +
+    5
+    *
+    3 - 1
