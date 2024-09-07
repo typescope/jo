@@ -6,8 +6,9 @@ fun println(a: Int) = a p
 
 fun add(x: Int, y: Int) = x + y
 fun mul(x: Int, y: Int) = x * y
+fun indent(x: Int): Int = x
 
-val a =
+indent
   3
     *
     5
@@ -15,8 +16,7 @@ val a =
       2
         *
         4 - 1
-
-a p
+  p
 
 foo
   3
