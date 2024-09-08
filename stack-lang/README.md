@@ -54,7 +54,7 @@ Syntactical Grammar
 
 
 ~~~
-    program    = block.
+    program = block.
 
     expr    = word {word}.
 
@@ -66,7 +66,7 @@ Syntactical Grammar
 
     select  = word DOT ident.
 
-    fence   = LPAREN block RPAREN.
+    fence   = LPAREN expr RPAREN.
     assign  = ident EQL block.
     if      = IF block THEN block [ELSE block] [END].
     while   = WHILE block DO block [END].

@@ -431,10 +431,21 @@ class Parser(code: String)(using Reporter):
 
   def fence(): Word =
     val lparen = eat(Token.LPAREN)
-    val Block(phrases) = block(IndentAcceptAll)
-    val rparen = eat(Token.RPAREN)
-    val span = lparen.span | rparen.span
-    Block(phrases)(span)
+
+    phrase(IndentAcceptAll) match
+      case Some(p) =>
+        val rparen = eat(Token.RPAREN)
+        val span = lparen.span | rparen.span
+        // having span covering `(` and `)` is important for checking alignment
+        if !p.isInstanceOf[Expr] then
+          error("Expect an expression, found a non-expression phrase", p.span.toPos)
+
+        Block(p :: Nil)(span)
+
+      case None =>
+        val item = peekItem()
+        error("Expect an expression, found " + item.token, item.span.toPos)
+        Block(Nil)(lparen.span)
 
   def ifElse(): Phrase =
     val ifItem = eat(Token.IF)
