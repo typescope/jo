@@ -91,7 +91,7 @@ class Parser(code: String)(using Reporter):
     p
 
   def prog(): Prog =
-    val blk = block(Indent(0, 0))
+    val blk = block(Indent(line = -1, indent = -1))
     eat(Token.EOF)
     Prog(blk.phrases)(blk.span)
 
