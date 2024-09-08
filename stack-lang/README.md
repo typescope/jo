@@ -68,8 +68,8 @@ Syntactical Grammar
 
     fence   = LPAREN expr RPAREN.
     assign  = ident EQL block.
-    if      = IF block THEN block [ELSE block] [END].
-    while   = WHILE block DO block [END].
+    if      = IF expr THEN block [ELSE block] [END].
+    while   = WHILE expr DO block [END].
 
     record     = LBRACE [named_args] RBRACE.
     named_args = named_arg { COMMA named_arg }.

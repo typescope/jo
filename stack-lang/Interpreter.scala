@@ -268,9 +268,6 @@ object Interpreter:
       case word: Word =>
         exec(word)
 
-      case expr: Expr =>
-        exec(expr)
-
       case vdef: ValDef =>
         sc.bind(vdef.name, eval(vdef.rhs))
 
@@ -311,6 +308,9 @@ object Interpreter:
 
       case lam: Lambda =>
         vs.push(ClosureVal(lam, sc))
+
+      case expr: Expr =>
+        exec(expr)
 
       case block: Block =>
         exec(block)

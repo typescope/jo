@@ -115,9 +115,6 @@ class Namer(@constructorOnly reporter: Reporter):
 
   def transform(phrase: Ast.Phrase)(using sc: Scope, rp: Reporter): Word =
     phrase match
-      case expr: Ast.Expr  =>
-        exprTyper.transform(expr)
-
       case word: Ast.Word =>
         transform(word)
 
@@ -210,6 +207,9 @@ class Namer(@constructorOnly reporter: Reporter):
         val fun2 = transform(fun)
         val targs2 = targs.map(transformType)
         checker.checkTypeApply(fun2, targs2)
+
+      case expr: Ast.Expr  =>
+        exprTyper.transform(expr)
 
       case block: Ast.Block =>
         transform(block)

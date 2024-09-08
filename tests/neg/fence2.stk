@@ -1,3 +1,5 @@
 (val a = 2)                           // error
 (if 3 > 2 then 1 else 2)              // error
 (while 3 > 2 do 1 p)                  // error
+(a =                                  // error
+   3 + 6)

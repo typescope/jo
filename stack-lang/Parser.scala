@@ -9,7 +9,7 @@ import scala.collection.mutable
 import Ast.*
 import Reporter.*
 import Tokens.*
-import Positions.SourcePosition
+import Parser.SyntaxError
 
 /***********************************************************************
  *
@@ -43,6 +43,9 @@ object Parser:
       if isEOF then peekedTokens.last else peekedTokens(i)
 
     def peek(i: Int): Token = peekItem(i).token
+  end LookAheadScanner
+
+  class SyntaxError extends Exception
 end Parser
 
 class Parser(code: String)(using Reporter):
@@ -57,6 +60,15 @@ class Parser(code: String)(using Reporter):
     if item.token != expect then
       error("Unexpected token, found = " + item.token + ", expect = " + expect, item.span.toPos)
     item
+
+  def skipLine() =
+    val item = next()
+    val limitIndent = item.indent
+    while
+      !limitIndent.isUnindent(peekItem().indent)
+      && item.token != Token.EOF
+    do
+      next()
 
   /** Eat the next `end` if the indentation matches */
   def eatEndOpt(indent: Indent) =
@@ -177,39 +189,63 @@ class Parser(code: String)(using Reporter):
 
   /** Parse a block within the indentation */
   def block(limitIndent: Indent): Block =
-    blockRest(mutable.ArrayBuffer(), limitIndent, peekItem().span.toPos)
+    val blk = blockRest(mutable.ArrayBuffer(), limitIndent)
+    // check alignment of phrases in a block
+    blk.phrases match
+      case first :: rest =>
+        val refPos = first.pos
+        for phrs <- rest do
+          if
+            phrs.pos.startLineColumn != refPos.startLineColumn
+            || phrs.pos.startLine == refPos.startLine
+          then
+            val diagnosis = s"expect offset = ${refPos.startLineColumn}, found = ${phrs.pos.startLineColumn}"
+            error(s"The phrase is not vertically aligned in block, $diagnosis", phrs.pos)
+      case _ =>
+    blk
 
-  def blockRest(phrases: mutable.ArrayBuffer[Phrase], limitIndent: Indent, refPos: SourcePosition): Block =
-    phrase(limitIndent) match
-      case Some(phrase) =>
-        // check alignment of phrases in a block
-        if
-          phrase.pos.startLineColumn != refPos.startLineColumn
-          || phrase.pos.startLine == refPos.startLine && phrases.nonEmpty
-        then
-          val diagnosis = s"expect offset = ${refPos.startLineColumn}, found = ${phrase.pos.startLineColumn}"
-          error(s"The phrase is not vertically aligned in block, $diagnosis", phrase.pos)
+  def blockRest(phrases: mutable.ArrayBuffer[Phrase], limitIndent: Indent): Block =
+    val item = peekItem()
 
-        blockRest(phrases += phrase, limitIndent, refPos)
+    if limitIndent.isUnindent(item.indent) || item.token == Token.EOF then
+      if phrases.isEmpty then
+        Block(phrases = Nil)(peekItem().span)
+      else
+        val span = phrases.head.span | phrases.last.span
+        Block(phrases.toList)(span)
+    else
+      try
+        val phrs = phrase(limitIndent)
+        phrases += phrs
+      catch case error: SyntaxError =>
+        skipLine()
+
+      blockRest(phrases, limitIndent)
+
+  def expr(): Word = exprIndented(IndentAcceptAll)
+
+  def exprIndented(limitIndent: Indent): Word =
+    word() match
+      case Some(w) =>
+        exprRest(mutable.ArrayBuffer(w), limitIndent)
 
       case None =>
-        if phrases.isEmpty then
-          Block(phrases = Nil)(peekItem().span)
-
-        else
-          val span = phrases.head.span | phrases.last.span
-          Block(phrases.toList)(span)
+        val item = peekItem()
+        error("Expect an expression, found " + item.token, item.span.toPos)
+        throw new SyntaxError
 
   /** An expression ends with unindentation */
-  def exprRest(words: mutable.ArrayBuffer[Word], limitIndent: Indent): Phrase =
+  def exprRest(words: mutable.ArrayBuffer[Word], limitIndent: Indent): Word =
     val item = peekItem()
-    def finalResult: Phrase =
+    def finalResult: Word =
       if words.size == 1 then
         words.head
       else
         val span = words.head.span | words.last.span
         Expr(words.toList)(span)
 
+    if item.token == Token.EOF then
+      finalResult
     if limitIndent.isUnindent(item.indent) then
       finalResult
     else if limitIndent.isIndent(item.indent) then
@@ -220,7 +256,6 @@ class Parser(code: String)(using Reporter):
       for phrase <- first :: phrases do
         phrase match
           case word: Word        => words += word
-          case Expr(word :: Nil) => words += word
           case _                 => words += Block(phrase :: Nil)(phrase.span)
       finalResult
     else word() match
@@ -276,32 +311,28 @@ class Parser(code: String)(using Reporter):
       case token =>
         None
 
-  def phrase(limitIndent: Indent): Option[Phrase] =
+  def phrase(limitIndent: Indent): Phrase =
     val item = peekItem()
-
-    if limitIndent.isUnindent(item.indent) then
-      None
-    else item.token match
-      case Token.IF        => Some(ifElse())
-      case Token.MATCH     => Some(patmat())
-      case Token.WHILE     => Some(whileDo())
+    item.token match
+      case Token.IF        => ifElse()
+      case Token.MATCH     => patmat()
+      case Token.WHILE     => whileDo()
 
       case Token.VAL | Token.VAR   =>
-        Some(valDef(item.token))
+        valDef(item.token)
 
       case Token.FUN   =>
-        Some(funDef())
+        funDef()
 
       case Token.TYPE =>
-        Some(typeDef())
+        typeDef()
 
       case token =>
         if isAssign() then
           val id = ident()
-          Some(assign(id, item.indent))
+          assign(id, item.indent)
         else
-          word().map: w =>
-            exprRest(mutable.ArrayBuffer(w), item.indent)
+          exprIndented(item.indent)
 
   def typ(): TypeTree =
     val tps = simpleTypes()
@@ -431,25 +462,15 @@ class Parser(code: String)(using Reporter):
 
   def fence(): Word =
     val lparen = eat(Token.LPAREN)
-
-    phrase(IndentAcceptAll) match
-      case Some(p) =>
-        val rparen = eat(Token.RPAREN)
-        val span = lparen.span | rparen.span
-        // having span covering `(` and `)` is important for checking alignment
-        if !p.isInstanceOf[Expr] && !p.isInstanceOf[Word] then
-          error("Expect an expression, found a non-expression phrase", p.span.toPos)
-
-        Block(p :: Nil)(span)
-
-      case None =>
-        val item = peekItem()
-        error("Expect an expression, found " + item.token, item.span.toPos)
-        Block(Nil)(lparen.span)
+    val word = expr()
+    val rparen = eat(Token.RPAREN)
+    // having span covering `(` is important for checking alignment
+    val span = lparen.span | rparen.span
+    Block(word :: Nil)(span)
 
   def ifElse(): Phrase =
     val ifItem = eat(Token.IF)
-    val cond = block(IndentAcceptAll)
+    val cond = expr()
     val thenItem = eat(Token.THEN)
     val thenp = block(thenItem.indent)
     checkAlign(ifItem, thenItem)
@@ -470,7 +491,7 @@ class Parser(code: String)(using Reporter):
 
   def whileDo(): Phrase =
     val whileItem = eat(Token.WHILE)
-    val cond = block(IndentAcceptAll)
+    val cond = expr()
     val doItem = eat(Token.DO)
     val body = block(doItem.indent)
 
