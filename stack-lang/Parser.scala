@@ -91,7 +91,7 @@ class Parser(code: String)(using Reporter):
     p
 
   def prog(): Prog =
-    val blk = block(IndentAcceptAll)
+    val blk = block(Indent(0, 0))
     eat(Token.EOF)
     Prog(blk.phrases)(blk.span)
 
@@ -215,27 +215,25 @@ class Parser(code: String)(using Reporter):
         Block(phrases.toList)(span)
     else
       try
-        val phrs = phrase(limitIndent)
+        val phrs = phrase()
         phrases += phrs
       catch case error: SyntaxError =>
         skipLine()
 
       blockRest(phrases, limitIndent)
 
-  def expr(): Word = exprIndented(IndentAcceptAll)
-
-  def exprIndented(limitIndent: Indent): Word =
+  def expr(): Word =
+    val item = peekItem()
     word() match
       case Some(w) =>
-        exprRest(mutable.ArrayBuffer(w), limitIndent)
+        exprRest(mutable.ArrayBuffer(w), item.indent)
 
       case None =>
-        val item = peekItem()
         error("Expect an expression, found " + item.token, item.span.toPos)
         throw new SyntaxError
 
   /** An expression ends with unindentation */
-  def exprRest(words: mutable.ArrayBuffer[Word], limitIndent: Indent): Word =
+  def exprRest(words: mutable.ArrayBuffer[Word], lineIndent: Indent): Word =
     val item = peekItem()
     def finalResult: Word =
       if words.size == 1 then
@@ -244,23 +242,23 @@ class Parser(code: String)(using Reporter):
         val span = words.head.span | words.last.span
         Expr(words.toList)(span)
 
-    if item.token == Token.EOF then
+    if item.token == Token.EOF || lineIndent.isUnindent(item.indent) then
       finalResult
-    if limitIndent.isUnindent(item.indent) then
-      finalResult
-    else if limitIndent.isIndent(item.indent) then
+
+    else if lineIndent.isIndent(item.indent) then
       val first = finalResult
       words.clear()
 
-      val Block(phrases) = block(limitIndent)
+      val Block(phrases) = block(lineIndent)
       for phrase <- first :: phrases do
         phrase match
           case word: Word        => words += word
           case _                 => words += Block(phrase :: Nil)(phrase.span)
       finalResult
+
     else word() match
       case Some(w) =>
-        exprRest(words += w, limitIndent)
+        exprRest(words += w, lineIndent)
 
       case None =>
         finalResult
@@ -311,7 +309,7 @@ class Parser(code: String)(using Reporter):
       case token =>
         None
 
-  def phrase(limitIndent: Indent): Phrase =
+  def phrase(): Phrase =
     val item = peekItem()
     item.token match
       case Token.IF        => ifElse()
@@ -332,7 +330,7 @@ class Parser(code: String)(using Reporter):
           val id = ident()
           assign(id, item.indent)
         else
-          exprIndented(item.indent)
+          expr()
 
   def typ(): TypeTree =
     val tps = simpleTypes()
@@ -534,7 +532,7 @@ class Parser(code: String)(using Reporter):
   def namedArg(): NamedArg =
     val id = ident()
     eat(Token.EQL)
-    val arg = block(IndentAcceptAll)
+    val arg = expr()
     NamedArg(id, arg)(id.span | arg.span)
 
   def variant(): Variant =
@@ -555,7 +553,7 @@ class Parser(code: String)(using Reporter):
 
   def patmat(): Match =
     val matchItem = eat(Token.MATCH)
-    val scrutinee = block(IndentAcceptAll)
+    val scrutinee = expr()
     val caseDecls = cases(mutable.ArrayBuffer.empty)
 
     eatEndOpt(matchItem.indent)

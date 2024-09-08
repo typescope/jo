@@ -73,7 +73,7 @@ Syntactical Grammar
 
     record     = LBRACE [named_args] RBRACE.
     named_args = named_arg { COMMA named_arg }.
-    named_arg  = ident EQL block.
+    named_arg  = ident EQL expr.
 
     variant = TAG ident {word} OF type.
 
