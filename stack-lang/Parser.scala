@@ -207,7 +207,7 @@ class Parser(code: String)(using Reporter):
   def blockRest(phrases: mutable.ArrayBuffer[Phrase], limitIndent: Indent): Block =
     val item = peekItem()
 
-    if limitIndent.isUnindent(item.indent) || item.token == Token.EOF then
+    if limitIndent.isUnindent(item.indent) then
       if phrases.isEmpty then
         Block(phrases = Nil)(peekItem().span)
       else
@@ -215,12 +215,17 @@ class Parser(code: String)(using Reporter):
         Block(phrases.toList)(span)
     else
       try
-        val phrs = phrase()
-        phrases += phrs
+        phrase() match
+          case Some(phrs) =>
+            blockRest(phrases += phrs, limitIndent)
+
+          case None =>
+            val span = phrases.head.span | phrases.last.span
+            Block(phrases.toList)(span)
+
       catch case error: SyntaxError =>
         skipLine()
-
-      blockRest(phrases, limitIndent)
+        blockRest(phrases, limitIndent)
 
   def expr(): Word =
     val item = peekItem()
@@ -309,28 +314,29 @@ class Parser(code: String)(using Reporter):
       case token =>
         None
 
-  def phrase(): Phrase =
+  def phrase(): Option[Phrase] =
     val item = peekItem()
     item.token match
-      case Token.IF        => ifElse()
-      case Token.MATCH     => patmat()
-      case Token.WHILE     => whileDo()
+      case Token.IF        => Some(ifElse())
+      case Token.MATCH     => Some(patmat())
+      case Token.WHILE     => Some(whileDo())
 
       case Token.VAL | Token.VAR   =>
-        valDef(item.token)
+        Some(valDef(item.token))
 
       case Token.FUN   =>
-        funDef()
+        Some(funDef())
 
       case Token.TYPE =>
-        typeDef()
+        Some(typeDef())
 
       case token =>
         if isAssign() then
           val id = ident()
-          assign(id, item.indent)
+          Some(assign(id, item.indent))
         else
-          expr()
+          word().map: w =>
+            exprRest(mutable.ArrayBuffer(w), item.indent)
 
   def typ(): TypeTree =
     val tps = simpleTypes()
