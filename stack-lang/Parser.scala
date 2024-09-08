@@ -220,7 +220,11 @@ class Parser(code: String)(using Reporter):
             blockRest(phrases += phrs, limitIndent)
 
           case None =>
-            val span = phrases.head.span | phrases.last.span
+            val span =
+              if phrases.nonEmpty then
+                phrases.head.span | phrases.last.span
+              else
+                item.span
             Block(phrases.toList)(span)
 
       catch case error: SyntaxError =>
