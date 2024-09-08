@@ -30,17 +30,17 @@ object Ast:
   extends Word, TypeTree
 
   case class Assign
-    (ident: Ident, words: Phrase)
+    (ident: Ident, rhs: Word)
     (val span: Span)
   extends Phrase
 
   case class If
-    (cond: Phrase, thenp: Phrase, elsep: Phrase)
+    (cond: Word, thenp: Word, elsep: Word)
     (val span: Span)
   extends Phrase
 
   case class While
-    (cond: Phrase, body: Phrase)
+    (cond: Word, body: Word)
     (val span: Span)
   extends Phrase
 
@@ -55,7 +55,7 @@ object Ast:
   extends Word
 
   case class NamedArg
-    (ident: Ident, arg: Phrase)
+    (ident: Ident, arg: Word)
     (val span: Span)
   extends Tree:
     def name = ident.name
@@ -66,12 +66,12 @@ object Ast:
   extends Word
 
   case class Match
-    (scrutinee: Phrase, cases: List[Case])
+    (scrutinee: Word, cases: List[Case])
     (val span: Span)
   extends Phrase
 
   case class Case
-    (pat: Pattern, body: Phrase)
+    (pat: Pattern, body: Word)
     (val span: Span)
   extends Tree
 
@@ -81,14 +81,14 @@ object Ast:
   extends Word
 
   case class Lambda
-    (params: List[Param], body: Phrase)
+    (params: List[Param], body: Word)
     (val span: Span)
   extends Word
 
   case class Expr
     (words: List[Word])
     (val span: Span)
-  extends Phrase:
+  extends Word:
     assert(words.nonEmpty)
 
   case class Block
@@ -160,7 +160,7 @@ object Ast:
     val name: String = ident.name
 
   case class ValDef
-    (ident: Ident, typ: TypeTree, rhs: Phrase, mutable: Boolean)
+    (ident: Ident, typ: TypeTree, rhs: Word, mutable: Boolean)
     (val span: Span)
   extends Phrase, Def
 
@@ -172,7 +172,7 @@ object Ast:
 
   case class FunDef
     (ident: Ident, tparams: List[TypeParam], params: List[Param],
-        resType: TypeTree, body: Phrase, preParamCount: Int)
+        resType: TypeTree, body: Word, preParamCount: Int)
     (val span: Span)
   extends Phrase, Def
 

@@ -52,4 +52,4 @@ object Tokens:
 
     def isSame(other: Indent): Boolean = this.indent == other.indent
 
-  val IndentAcceptAll = Indent(-1, -1)
+    override def toString: String = "line = " + line + ", indent = " + indent
