@@ -437,7 +437,7 @@ class Parser(code: String)(using Reporter):
         val rparen = eat(Token.RPAREN)
         val span = lparen.span | rparen.span
         // having span covering `(` and `)` is important for checking alignment
-        if !p.isInstanceOf[Expr] then
+        if !p.isInstanceOf[Expr] && !p.isInstanceOf[Word] then
           error("Expect an expression, found a non-expression phrase", p.span.toPos)
 
         Block(p :: Nil)(span)
