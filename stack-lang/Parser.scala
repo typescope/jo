@@ -206,26 +206,19 @@ class Parser(code: String)(using Reporter):
 
   def blockRest(phrases: mutable.ArrayBuffer[Phrase], limitIndent: Indent): Block =
     val item = peekItem()
-
-    if limitIndent.isUnindent(item.indent) then
+    def finalResult: Block =
       if phrases.isEmpty then
         Block(phrases = Nil)(peekItem().span)
       else
         val span = phrases.head.span | phrases.last.span
         Block(phrases.toList)(span)
+
+    if limitIndent.isUnindent(item.indent) then finalResult
     else
       try
         phrase() match
-          case Some(phrs) =>
-            blockRest(phrases += phrs, limitIndent)
-
-          case None =>
-            val span =
-              if phrases.nonEmpty then
-                phrases.head.span | phrases.last.span
-              else
-                item.span
-            Block(phrases.toList)(span)
+          case Some(phrs) => blockRest(phrases += phrs, limitIndent)
+          case None       => finalResult
 
       catch case error: SyntaxError =>
         skipLine()
