@@ -119,24 +119,22 @@ object Sast:
   sealed abstract class Def extends Word:
     val symbol: Symbol
     val name: String = symbol.name
+    val tpe: Type = VoidType
 
   case class ValDef
     (symbol: Symbol, rhs: Word)
     (val span: Span)
-  extends Def:
-    def tpe: Type = VoidType
+  extends Def
 
   case class TypeDef
     (symbol: Symbol)
     (val span: Span)
-  extends Def:
-    def tpe: Type = VoidType
+  extends Def
 
   case class FunDef
     (symbol: Symbol, tparams: List[Symbol], params: List[Symbol], body: Word)
     (val locals: List[Symbol], val captures: List[Symbol], val span: Span)
-  extends Def:
-    def tpe = symbol.info
+  extends Def
 
   case class Prog(words: List[Word])(val span: Span) extends Positioned:
     lazy val vals: List[ValDef] =

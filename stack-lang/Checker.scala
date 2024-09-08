@@ -1,6 +1,7 @@
 import Sast.*
 import Symbols.*
 import Types.*
+import Inference.*
 import Positions.Span
 
 import scala.collection.mutable
@@ -68,6 +69,13 @@ class Checker:
 
   def checkVoidOrValueType(tree: Tree)(using Reporter): Unit =
     if !tree.tpe.isVoid then checkValueType(tree)
+
+  def checkType(tree: Tree, tt: TargetType)(using Reporter): Unit =
+    tt match
+      case TargetType.Unknown    =>
+      case TargetType.ValueType  => checkValueType(tree)
+      case TargetType.ProperType => checkVoidOrValueType(tree)
+      case TargetType.Known(tpe) => checkType(tree, tpe)
 
   def checkMutable(sym: Symbol, span: Span)(using Reporter): Unit =
     if !sym.isAllOf(Flags.Val | Flags.Mutable) then

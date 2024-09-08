@@ -6,6 +6,7 @@ import Symbols.*
 
 import Positions.Span
 import Namer.Scope
+import Inference.*
 
 object NamerUtils:
   /** The precedence of a function word
@@ -49,7 +50,7 @@ object NamerUtils:
   class ExprTyper(namer: Namer, checker: Checker):
 
     /** Parse a word from the words with the limit precedence */
-    def parse(words: mutable.ListBuffer[Word], precLimit: Int)(using rp: Reporter): Word =
+    private def parse(words: mutable.ListBuffer[Word], precLimit: Int)(using rp: Reporter): Word =
       assert(words.nonEmpty, "input words are empty")
 
       // println("Parsing " + words + ", precedence = " + precedence)
@@ -128,19 +129,22 @@ object NamerUtils:
     end parse
 
 
-    def transform(expr: Ast.Expr)(using  sc: Scope, rp: Reporter): Word =
+    def transform(expr: Ast.Expr)(using  sc: Scope, rp: Reporter, tt: TargetType): Word =
       assert(expr.words.nonEmpty)
 
       val sc2 = sc.fresh()
 
       val words  = mutable.ListBuffer.empty[Word]
       for word <- expr.words do
+        given TargetType = TargetType.Unknown
         words += namer.transform(word)(using sc2)
 
       val word = parse(words, -1)
       if words.nonEmpty then
         val span = words.head.span | words.last.span
         Reporter.error("Found unbound part, an expression should compose to a single function call", span.toPos)
+
+      checker.checkType(word, tt)
       word
 
     end transform
