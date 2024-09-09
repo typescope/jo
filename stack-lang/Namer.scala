@@ -336,9 +336,7 @@ class Namer(@constructorOnly reporter: Reporter):
 
       case Ast.TagPat(tag, bindings) =>
         val tagTypesOpt = checker.tagTypes(tag, scrutType, scrutSpan)
-        val tagTypes = tagTypesOpt match
-            case Some(tps) => tps
-            case None => Nil
+        val tagTypes = tagTypesOpt.getOrElse(Nil)
 
         if tagTypesOpt.isEmpty then
           cont(BottomType)
@@ -366,9 +364,10 @@ class Namer(@constructorOnly reporter: Reporter):
           val body2 = transform(body)(using caseScope, rp, tt)
           val commonType = checker.commonResultType(body2.tpe, resType, body2.span)
           val elsep = cont(commonType)
-          val adapted2 = checker.adapt(body2, elsep.tpe)
+          val commonType2 = checker.commonResultType(body2.tpe, elsep.tpe, body2.span)
+          val adapted = checker.adapt(body2, commonType2)
 
-          val body3 = Phrase(vals.toList :+ adapted2)(adapted2.tpe, caseDef.span)
+          val body3 = Phrase(vals.toList :+ adapted)(adapted.tpe, caseDef.span)
           If(cond, body3, elsep)(body3.tpe, caseDef.span)
 
   private def transform(vdef: Ast.ValDef)(using sc: Scope, rp: Reporter): DelayedDef[ValDef] =
