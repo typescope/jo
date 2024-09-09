@@ -224,7 +224,7 @@ class Namer(@constructorOnly reporter: Reporter):
     val else2 = transform(elsep)
 
     // adapt result type
-    val commonType = checker.commonResultType(then2.tpe, else2.tpe, else2.span)
+    val commonType = checker.commonResultType(then2.tpe, else2.tpe, ifte.span)
     val then3 = checker.adapt(then2, commonType)
     val else3 = checker.adapt(else2, commonType)
     If(cond2, then3, else3)(commonType, ifte.span)

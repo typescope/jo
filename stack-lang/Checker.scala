@@ -103,7 +103,7 @@ class Checker:
     else
       val unionType2 = unionType.asUnionType
       if !unionType2.hasTag(tag.name) then
-        Reporter.error(s"The tag ${tag.name} does not exist in union type $unionType2", tag.pos)
+        Reporter.error(s"The tag ${tag.name} does not exist in union type ${unionType2.show}", tag.pos)
         None
       else
         Some(unionType2.tagType(tag.name))
