@@ -26,8 +26,8 @@ fun f0(x: Int) = g0 x   // error
 fun g0(x: Int) = f0 x
 
 fun m(x: Int) =
-  if 0 == x then { a = 1 }
-  else { a = m (x - 1) , b = x }   // error
+  if 0 == x then { a = 1 }        // error
+  else { a = m (x - 1) , b = x }
 
 fun test1(x: Int): { a: Int } =
   m 10

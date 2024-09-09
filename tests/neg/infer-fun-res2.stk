@@ -30,7 +30,7 @@ fun h1(x: Int) =
   }
 
 fun h2(x: Int) =
-  if 0 == x then
+  if 0 == x then        // error
     false
   else
-    (h2 (x - 1)) * x     // error
+    (h2 (x - 1)) * x
