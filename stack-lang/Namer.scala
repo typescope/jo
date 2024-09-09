@@ -106,9 +106,7 @@ class Namer(@constructorOnly reporter: Reporter):
     else Phrase(words)(words.last.tpe, block.span)
 
   def transform(phrase: Ast.Phrase)(using sc: Scope, rp: Reporter, tt: TargetType): Word =
-    extension (word: Word) def check: Word =
-      checker.checkType(word, tt)
-      word
+    extension (word: Word) def check: Word = checker.adapt(word, tt)
 
     phrase match
       case word: Ast.Word =>
@@ -155,8 +153,7 @@ class Namer(@constructorOnly reporter: Reporter):
         delayedDef.force().check
 
   def transform(word: Ast.Word)(using sc: Scope, rp: Reporter, tt: TargetType): Word =
-    extension (word: Word) def adapt: Word =
-      checker.adapt(word, tt)
+    extension (word: Word) def adapt: Word = checker.adapt(word, tt)
 
     word match
       case Ast.IntLit(v)  =>

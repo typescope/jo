@@ -70,27 +70,23 @@ class Checker:
   def checkVoidOrValueType(tree: Tree)(using Reporter): Unit =
     if !tree.tpe.isVoid then checkValueType(tree)
 
-  def checkType(tree: Tree, tt: TargetType)(using Reporter): Unit =
-    tt match
-      case TargetType.Unknown          =>
-      case TargetType.ValueType        => checkValueType(tree)
-      case TargetType.ProperType       => checkVoidOrValueType(tree)
-      case TargetType.Known(tpe)       => checkType(tree, tpe)
-      case TargetType.Member(name)     => checkRecordType(tree, name)
-
   def checkMutable(sym: Symbol, span: Span)(using Reporter): Unit =
     if !sym.isAllOf(Flags.Val | Flags.Mutable) then
       Reporter.error(sym.name + " is not a mutable value", span.toPos)
 
-  def checkRecordType(tree: Tree, field: String)(using Reporter): Unit =
-    val tpe = tree.tpe
-    val pos = tree.pos
+  def checkRecordType(word: Word, field: String)(using Reporter): Word =
+    val tpe = word.tpe
+    val pos = word.pos
     if !tpe.isRecordType then
       Reporter.error(s"Expect record type, found = ${tpe.show}", pos)
+      Phrase(Nil)(ErrorType, word.span)
     else
       val recordType = tpe.asRecordType
       if !recordType.hasField(field) then
         Reporter.error(s"Expect field $field in record type ${tpe.show}, found none", pos)
+        Phrase(Nil)(ErrorType, word.span)
+      else
+        word
 
   def commonResultType(tp1: Type, tp2: Type, span: Span)(using Reporter): Type =
     val commonTypeOpt = TypeOps.commonResultType(tp1, tp2)
@@ -113,17 +109,29 @@ class Checker:
         Some(unionType2.tagType(tag.name))
 
   /** Explicit drop of values in if/match expressions */
-  def adapt(word: Word, targetType: Type): Word =
+  def adapt(word: Word, targetType: Type)(using Reporter): Word =
     val curType = word.tpe
     if targetType.isVoid && curType.isValueType then
       Sast.dropValue(word)
     else
+      checkType(word, targetType)
       word
 
   def adapt(word: Word, targetType: TargetType)(using Reporter): Word =
-    val word2 = targetType match
-      case TargetType.Known(tpe) => adapt(word, tpe)
-      case _ => word
+    targetType match
+      case TargetType.Unknown =>
+        word
 
-    checkType(word2, targetType)
-    word2
+      case TargetType.ValueType =>
+        checkValueType(word)
+        word
+
+      case TargetType.ProperType =>
+        checkVoidOrValueType(word)
+        word
+
+      case TargetType.Known(tpe) =>
+        adapt(word, tpe)
+
+      case TargetType.Member(name) =>
+        checkRecordType(word, name)
