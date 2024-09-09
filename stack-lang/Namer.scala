@@ -380,7 +380,7 @@ class Namer(@constructorOnly reporter: Reporter):
 
     val sym = Symbol.createValueSymbol(vdef.name, this.nonCyclicTypeProvider, flags, vdef.ident.pos)
 
-    def givenType: Type =
+    lazy val givenType: Type =
       val tpt = transformType(vdef.typ)
       val tp2 = checker.checkValueType(tpt.tpe, tpt.span)
       tp2
