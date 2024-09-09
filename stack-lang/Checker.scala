@@ -72,26 +72,25 @@ class Checker:
 
   def checkType(tree: Tree, tt: TargetType)(using Reporter): Unit =
     tt match
-      case TargetType.Unknown    =>
-      case TargetType.ValueType  => checkValueType(tree)
-      case TargetType.ProperType => checkVoidOrValueType(tree)
-      case TargetType.Known(tpe) => checkType(tree, tpe)
+      case TargetType.Unknown          =>
+      case TargetType.ValueType        => checkValueType(tree)
+      case TargetType.ProperType       => checkVoidOrValueType(tree)
+      case TargetType.Known(tpe)       => checkType(tree, tpe)
+      case TargetType.Member(name)     => checkRecordType(tree, name)
 
   def checkMutable(sym: Symbol, span: Span)(using Reporter): Unit =
     if !sym.isAllOf(Flags.Val | Flags.Mutable) then
       Reporter.error(sym.name + " is not a mutable value", span.toPos)
 
-  def fieldType(qualType: Type, field: String, span: Span)(using Reporter): Type =
-    if !qualType.isRecordType then
-      Reporter.error(s"Expect record type, found = ${qualType.show}", span.toPos)
-      ErrorType
+  def checkRecordType(tree: Tree, field: String)(using Reporter): Unit =
+    val tpe = tree.tpe
+    val pos = tree.pos
+    if !tpe.isRecordType then
+      Reporter.error(s"Expect record type, found = ${tpe.show}", pos)
     else
-      val recordType = qualType.asRecordType
+      val recordType = tpe.asRecordType
       if !recordType.hasField(field) then
-        Reporter.error(s"Expect field $field in record type ${recordType.show}, found none", span.toPos)
-        ErrorType
-      else
-        recordType.fieldType(field)
+        Reporter.error(s"Expect field $field in record type ${tpe.show}, found none", pos)
 
   def commonResultType(tp1: Type, tp2: Type, span: Span)(using Reporter): Type =
     val commonTypeOpt = TypeOps.commonResultType(tp1, tp2)

@@ -188,9 +188,13 @@ class Namer(@constructorOnly reporter: Reporter):
         transform(variant).adapt
 
       case Ast.Select(qual, name) =>
+        given TargetType = TargetType.Member(name)
         val qual2 = transform(qual)
-        val tp = checker.fieldType(qual2.tpe, name, qual.span)
-        Select(qual2, name)(tp, word.span).adapt
+        if qual2.tpe.isRecordType then
+          val tp = qual2.tpe.asRecordType.fieldType(name)
+          Select(qual2, name)(tp, word.span).adapt
+        else
+          Phrase(Nil)(ErrorType, word.span)
 
       case Ast.Lambda(params, body) =>
         // TODO: propagte target for arguments and body
