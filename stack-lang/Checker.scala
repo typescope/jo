@@ -101,13 +101,6 @@ class Checker:
         Reporter.error(s"Cannot find common result type, tp1 = ${tp1.show}, tp2 = ${tp2.show}", span.toPos)
         ErrorType
 
-  def checkTagValues(values: List[Word], tagTypes: List[Type], tagSpan: Span)(using Reporter): Unit =
-    if tagTypes.size != values.size then
-      Reporter.error(s"Expect ${tagTypes.size} args, found = ${values.size}", tagSpan.toPos)
-    else
-      for (value, tagType) <- values.zip(tagTypes) do
-        checkType(value, tagType)
-
   def tagTypes(tag: Ast.Ident, unionType: Type, typeSpan: Span)(using Reporter): Option[List[Type]] =
     if !unionType.isUnionType then
       Reporter.error(s"Expect union type, found = ${unionType.show}", typeSpan.toPos)
@@ -127,3 +120,11 @@ class Checker:
       Sast.dropValue(word)
     else
       word
+
+  def adapt(word: Word, targetType: TargetType)(using Reporter): Word =
+    val word2 = targetType match
+      case TargetType.Known(tpe) => adapt(word, tpe)
+      case _ => word
+
+    checkType(word2, targetType)
+    word2

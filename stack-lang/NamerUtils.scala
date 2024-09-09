@@ -144,9 +144,7 @@ object NamerUtils:
         val span = words.head.span | words.last.span
         Reporter.error("Found unbound part, an expression should compose to a single function call", span.toPos)
 
-      checker.checkType(word, tt)
-      word
-
+      checker.adapt(word, tt)
     end transform
 
     def call(
