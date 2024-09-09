@@ -201,7 +201,7 @@ class Namer(@constructorOnly reporter: Reporter):
         val preParamCount = 0
         val funDef = Ast.FunDef(id, tparams, params, resType, body, preParamCount)(word.span)
         val funDef2 = transform(funDef)(using sc2).force()
-        val lambdaType = funDef2.tpe.asProcType.toFunType
+        val lambdaType = funDef2.symbol.info.asProcType.toFunType
         val ref = Ident(funDef2.symbol)(word.span)
         Phrase(funDef2 :: ref :: Nil)(lambdaType, word.span).adapt
 
@@ -237,7 +237,6 @@ class Namer(@constructorOnly reporter: Reporter):
       else
         given TargetType = TargetType.ValueType
         val rhs2 = transform(rhs)
-        checker.checkValueType(rhs2)
         namedArgs2 += id.name -> rhs2
     end for
     val fields = namedArgs2.toList
@@ -273,8 +272,7 @@ class Namer(@constructorOnly reporter: Reporter):
     val sc2 = sc.fresh()
 
     val Ast.Match(scrutinee, cases) = patmat
-    val scrutinee2 = transform(scrutinee)
-    checker.checkValueType(scrutinee2)
+    val scrutinee2 = transform(scrutinee)(using sc, rp, TargetType.ValueType)
 
     val scrutType = scrutinee2.tpe
     val scrutSym = Symbol.createValueSymbol("scrutinee", scrutType, Flags.Local, scrutinee2.pos)
