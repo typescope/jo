@@ -16,7 +16,7 @@ import Inference.*
   */
 class Namer(@constructorOnly reporter: Reporter):
   val checker = new Checker
-  val exprTyper = new NamerUtils.ExprTyper(this, checker)
+  val exprTyper = new ExprTyper(this, checker)
 
   /** Handles possible cycles in result type inference for functions  */
   val cyclicTypeProvider = new NamerUtils.CyclicTypeProvider(using reporter)
