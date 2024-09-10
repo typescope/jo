@@ -76,10 +76,11 @@ class ExprTyper(namer: Namer, checker: Checker):
     val values = parse(words, -1)
 
     if values.size > 1 then
-      val span = values(1).span | values.last.span
+      val rest = values.init
+      val span = rest.head.span | rest.last.span
       Reporter.error("Found unbound part, an expression should compose to a single function call", span.toPos)
 
-    typeItem(values.head)
+    typeItem(values.last)
   end transform
 
   private def typeItem(item: Item)(using sc: Scope, rp: Reporter, tt: TargetType): Word =
