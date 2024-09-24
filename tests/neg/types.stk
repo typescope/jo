@@ -16,10 +16,17 @@ if a then    // error
   val z: Bool = 4 // error
   3 p
 
+val x =
+  if even 3 then   // error
+    5
+  else
+    even 4
+
+
 if even 3 then
   5
 else
-  even 4         // error
+  even 4
 
 
 while a * 3 do    // error

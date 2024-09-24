@@ -1,6 +1,7 @@
 import Sast.*
 import Symbols.*
 import Types.*
+import Inference.*
 import Positions.Span
 
 import scala.collection.mutable
@@ -73,17 +74,19 @@ class Checker:
     if !sym.isAllOf(Flags.Val | Flags.Mutable) then
       Reporter.error(sym.name + " is not a mutable value", span.toPos)
 
-  def fieldType(qualType: Type, field: String, span: Span)(using Reporter): Type =
-    if !qualType.isRecordType then
-      Reporter.error(s"Expect record type, found = ${qualType.show}", span.toPos)
-      ErrorType
+  def checkRecordType(word: Word, field: String)(using Reporter): Word =
+    val tpe = word.tpe
+    val pos = word.pos
+    if !tpe.isRecordType then
+      Reporter.error(s"Expect record type, found = ${tpe.show}", pos)
+      Phrase(Nil)(ErrorType, word.span)
     else
-      val recordType = qualType.asRecordType
+      val recordType = tpe.asRecordType
       if !recordType.hasField(field) then
-        Reporter.error(s"Expect field $field in record type ${recordType.show}, found none", span.toPos)
-        ErrorType
+        Reporter.error(s"Expect field $field in record type ${tpe.show}, found none", pos)
+        Phrase(Nil)(ErrorType, word.span)
       else
-        recordType.fieldType(field)
+        word
 
   def commonResultType(tp1: Type, tp2: Type, span: Span)(using Reporter): Type =
     val commonTypeOpt = TypeOps.commonResultType(tp1, tp2)
@@ -93,13 +96,6 @@ class Checker:
         Reporter.error(s"Cannot find common result type, tp1 = ${tp1.show}, tp2 = ${tp2.show}", span.toPos)
         ErrorType
 
-  def checkTagValues(values: List[Word], tagTypes: List[Type], tagSpan: Span)(using Reporter): Unit =
-    if tagTypes.size != values.size then
-      Reporter.error(s"Expect ${tagTypes.size} args, found = ${values.size}", tagSpan.toPos)
-    else
-      for (value, tagType) <- values.zip(tagTypes) do
-        checkType(value, tagType)
-
   def tagTypes(tag: Ast.Ident, unionType: Type, typeSpan: Span)(using Reporter): Option[List[Type]] =
     if !unionType.isUnionType then
       Reporter.error(s"Expect union type, found = ${unionType.show}", typeSpan.toPos)
@@ -107,15 +103,35 @@ class Checker:
     else
       val unionType2 = unionType.asUnionType
       if !unionType2.hasTag(tag.name) then
-        Reporter.error(s"The tag ${tag.name} does not exist in union type $unionType2", tag.pos)
+        Reporter.error(s"The tag ${tag.name} does not exist in union type ${unionType2.show}", tag.pos)
         None
       else
         Some(unionType2.tagType(tag.name))
 
   /** Explicit drop of values in if/match expressions */
-  def adapt(word: Word, targetType: Type): Word =
+  def adapt(word: Word, targetType: Type)(using Reporter): Word =
     val curType = word.tpe
     if targetType.isVoid && curType.isValueType then
       Sast.dropValue(word)
     else
+      checkType(word, targetType)
       word
+
+  def adapt(word: Word, targetType: TargetType)(using Reporter): Word =
+    targetType match
+      case TargetType.Unknown =>
+        word
+
+      case TargetType.ValueType =>
+        checkValueType(word)
+        word
+
+      case TargetType.ProperType =>
+        checkVoidOrValueType(word)
+        word
+
+      case TargetType.Known(tpe) =>
+        adapt(word, tpe)
+
+      case TargetType.Member(name) =>
+        checkRecordType(word, name)

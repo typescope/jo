@@ -7,6 +7,7 @@ import Flags.*
 import Symbols.*
 import Positions.Span
 import Namer.{ Scope, LazyValue, DelayedDef }
+import Inference.*
 
 /**
   * The namer handles name resolution and desugaring.
@@ -15,7 +16,7 @@ import Namer.{ Scope, LazyValue, DelayedDef }
   */
 class Namer(@constructorOnly reporter: Reporter):
   val checker = new Checker
-  val exprTyper = new NamerUtils.ExprTyper(this, checker)
+  val exprTyper = new ExprTyper(this, checker)
 
   /** Handles possible cycles in result type inference for functions  */
   val cyclicTypeProvider = new NamerUtils.CyclicTypeProvider(using reporter)
@@ -50,9 +51,9 @@ class Namer(@constructorOnly reporter: Reporter):
             defs(defIndex)
 
           case _ =>
-            val word = transform(phrase)(using sc.fresh(dummyMainSym))
-            checker.checkVoidOrValueType(word)
-            word
+            given Scope = sc.fresh(dummyMainSym)
+            given TargetType = TargetType.Known(VoidType)
+            transform(phrase)
 
     checker.performDelayedChecks()
 
@@ -90,30 +91,23 @@ class Namer(@constructorOnly reporter: Reporter):
       if ownerFunOpt != curFunOpt then
         Reporter.error("Cannot capture local mutable variable " + sym.name, span.toPos)
 
-  def transform(block: Ast.Block)(using sc: Scope, rp: Reporter): Word =
+  def transform(block: Ast.Block)(using sc: Scope, rp: Reporter, tt: TargetType): Word =
+    val phrases = block.phrases
     var sc2 = sc
     val words =
-      for phrase <- block.phrases yield
+      for (phrase, i) <- phrases.zipWithIndex yield
         sc2 = sc2.fresh()
-        val word = transform(phrase)(using sc2, rp)
-        if !word.isDef then
-          checker.checkVoidOrValueType(word)
-        word
+        val tt2 =
+          if i == phrases.size - 1 then tt
+          else TargetType.Known(VoidType)
+        transform(phrase)(using sc2, rp, tt2)
 
-    if words.isEmpty then
-      Phrase(words)(VoidType, block.span)
+    if words.isEmpty then Phrase(Nil)(VoidType, block.span)
+    else Phrase(words)(words.last.tpe, block.span)
 
-    else if words.size == 1 then
-      words.head
+  def transform(phrase: Ast.Phrase)(using sc: Scope, rp: Reporter, tt: TargetType): Word =
+    extension (word: Word) def check: Word = checker.adapt(word, tt)
 
-    else
-      // encode dropping of values
-      val stats :+ last = words: @unchecked
-      val stats2 = for stat <- stats yield
-        if stat.tpe.isValueType then Encoded(stat)(VoidType) else stat
-      Phrase(stats2 :+ last)(last.tpe, block.span)
-
-  def transform(phrase: Ast.Phrase)(using sc: Scope, rp: Reporter): Word =
     phrase match
       case word: Ast.Word =>
         transform(word)
@@ -122,10 +116,9 @@ class Namer(@constructorOnly reporter: Reporter):
         transform(ifte)
 
       case Ast.While(cond, body) =>
-         val cond2 = transform(cond)
-         val body2 = transform(body)
-         checker.checkType(cond2, BoolType)
-         While(cond2, body2)(phrase.span)
+         val cond2 = transform(cond)(using sc, rp, TargetType.Known(BoolType))
+         val body2 = transform(body)(using sc, rp, TargetType.Known(VoidType))
+         While(cond2, body2)(phrase.span).check
 
       case Ast.Assign(id, words) =>
         val sym = sc.resolve(id.name, id.span)
@@ -133,9 +126,9 @@ class Namer(@constructorOnly reporter: Reporter):
         checker.checkMutable(sym, id.span)
         checkCapture(sym, id.span)
 
+        given TargetType = TargetType.Known(sym.info)
         val rhs = transform(words)
-        checker.checkType(rhs, sym.info)
-        Assign(sym, rhs)(phrase.span)
+        Assign(sym, rhs)(phrase.span).check
 
       case patmat: Ast.Match =>
         transform(patmat)
@@ -145,53 +138,63 @@ class Namer(@constructorOnly reporter: Reporter):
         val vdef2 = delayedDef.force()
         // a val is not available for checking its rhs
         sc.define(delayedDef.symbol, vdef.span)
-        vdef2
+        vdef2.check
 
       case fdef: Ast.FunDef =>
         val delayedDef = transform(fdef)
         // A function is available for checking its rhs
         sc.define(delayedDef.symbol, fdef.span)
-        delayedDef.force()
+        delayedDef.force().check
 
       case tdef: Ast.TypeDef =>
         val delayedDef = transform(tdef)
         // A type definition is available for checking its rhs
         sc.define(delayedDef.symbol, tdef.span)
-        delayedDef.force()
+        delayedDef.force().check
 
-  def transform(word: Ast.Word)(using sc: Scope, rp: Reporter): Word =
+  def transform(word: Ast.Word)(using sc: Scope, rp: Reporter, tt: TargetType): Word =
+    extension (word: Word) def adapt: Word = checker.adapt(word, tt)
+
     word match
       case Ast.IntLit(v)  =>
-        IntLit(v)(word.span)
+        IntLit(v)(word.span).adapt
 
       case Ast.BoolLit(v) =>
-        BoolLit(v)(word.span)
+        BoolLit(v)(word.span).adapt
 
       case Ast.Ident(name) =>
         val sym = sc.resolve(name, word.span)
         checkCapture(sym, word.span)
         val id = Ident(sym)(word.span)
-        if sym.isFunction && sym.info.isProcType then
-          val procType = sym.info.asProcType
-          if procType.params.isEmpty then
-            Apply(id, args = Nil)(procType.resultType, id.span)
+        val autoApplied =
+          if sym.isFunction && sym.info.isProcType then
+            val procType = sym.info.asProcType
+            if procType.params.isEmpty then
+              Apply(id, args = Nil)(procType.resultType, id.span)
+            else
+              id
           else
             id
-        else
-          id
+
+        autoApplied.adapt
 
       case record: Ast.RecordLit =>
-        transform(record)
+        transform(record).adapt
 
       case variant: Ast.Variant =>
-        transform(variant)
+        transform(variant).adapt
 
       case Ast.Select(qual, name) =>
+        given TargetType = TargetType.Member(name)
         val qual2 = transform(qual)
-        val tp = checker.fieldType(qual2.tpe, name, qual.span)
-        Select(qual2, name)(tp, word.span)
+        if qual2.tpe.isRecordType then
+          val tp = qual2.tpe.asRecordType.fieldType(name)
+          Select(qual2, name)(tp, word.span).adapt
+        else
+          Phrase(Nil)(ErrorType, word.span)
 
       case Ast.Lambda(params, body) =>
+        // TODO: propagte target for arguments and body
         val sc2 = sc.fresh()
         val id = Ast.Ident("anon")(word.span)
         val resType = Ast.EmptyTypeTree()(body.span)
@@ -199,14 +202,14 @@ class Namer(@constructorOnly reporter: Reporter):
         val preParamCount = 0
         val funDef = Ast.FunDef(id, tparams, params, resType, body, preParamCount)(word.span)
         val funDef2 = transform(funDef)(using sc2).force()
-        val lambdaType = funDef2.tpe.asProcType.toFunType
+        val lambdaType = funDef2.symbol.info.asProcType.toFunType
         val ref = Ident(funDef2.symbol)(word.span)
-        Phrase(funDef2 :: ref :: Nil)(lambdaType, word.span)
+        Phrase(funDef2 :: ref :: Nil)(lambdaType, word.span).adapt
 
       case Ast.TypeApply(fun, targs) =>
         val fun2 = transform(fun)
         val targs2 = targs.map(transformType)
-        checker.checkTypeApply(fun2, targs2)
+        checker.checkTypeApply(fun2, targs2).adapt
 
       case expr: Ast.Expr  =>
         exprTyper.transform(expr)
@@ -214,15 +217,14 @@ class Namer(@constructorOnly reporter: Reporter):
       case block: Ast.Block =>
         transform(block)
 
-  private def transform(ifte: Ast.If)(using sc: Scope, rp: Reporter): Word =
+  private def transform(ifte: Ast.If)(using sc: Scope, rp: Reporter, tt: TargetType): Word =
     val Ast.If(cond, thenp, elsep) = ifte
-    val cond2 = transform(cond)
+    val cond2 = transform(cond)(using sc, rp, TargetType.Known(BoolType))
     val then2 = transform(thenp)
     val else2 = transform(elsep)
-    checker.checkType(cond2, BoolType)
 
     // adapt result type
-    val commonType = checker.commonResultType(then2.tpe, else2.tpe, else2.span)
+    val commonType = checker.commonResultType(then2.tpe, else2.tpe, ifte.span)
     val then3 = checker.adapt(then2, commonType)
     val else3 = checker.adapt(else2, commonType)
     If(cond2, then3, else3)(commonType, ifte.span)
@@ -234,8 +236,8 @@ class Namer(@constructorOnly reporter: Reporter):
       if namedArgs2.exists(_._1 == id.name) then
         Reporter.error("Arg " + id.name + " already defined", id.pos)
       else
+        given TargetType = TargetType.ValueType
         val rhs2 = transform(rhs)
-        checker.checkValueType(rhs2)
         namedArgs2 += id.name -> rhs2
     end for
     val fields = namedArgs2.toList
@@ -244,33 +246,34 @@ class Namer(@constructorOnly reporter: Reporter):
 
   private def transform(variant: Ast.Variant)(using sc: Scope, rp: Reporter): Word =
     val Ast.Variant(tag, values, typ) = variant
-    val values2 = values.map(transform)
+
     val unionType = transformType(typ)
     val tagTypesOpt = checker.tagTypes(tag, unionType.tpe, unionType.span)
 
-    val tagTypes =
-      tagTypesOpt match
-        case Some(tagTypes) =>
-          checker.checkTagValues(values2, tagTypes, tag.span)
-          tagTypes
+    tagTypesOpt match
+      case Some(tagTypes) =>
+        if tagTypes.size != values.size then
+          Reporter.error(s"Expect ${tagTypes.size} args, found = ${values.size}", tag.pos)
 
-        case None =>
-          Nil
+        val values2 =
+          for (value, tp) <- values.zip(tagTypes) yield
+            given TargetType = TargetType.Known(tp)
+            transform(value)
 
-    // encode variants as records
-    val tagIndex =
-      if tagTypesOpt.isEmpty then -1
-      else unionType.tpe.asUnionType.tagIndex(tag.name)
+        // encode variants as records
+        val tagIndex = unionType.tpe.asUnionType.tagIndex(tag.name)
+        val encodedValue = Desugaring.encodeVariant(tagIndex, values2, tagTypes, tag.span, variant.span)
+        Encoded(encodedValue)(unionType.tpe)
 
-    val encodedValue = Desugaring.encodeVariant(tagIndex, values2, tagTypes, tag.span, variant.span)
-    Encoded(encodedValue)(unionType.tpe)
+      case None =>
+        Phrase(Nil)(ErrorType, variant.span)
 
-  private def transform(patmat: Ast.Match)(using sc: Scope, rp: Reporter): Word =
+
+  private def transform(patmat: Ast.Match)(using sc: Scope, rp: Reporter, tt: TargetType): Word =
     val sc2 = sc.fresh()
 
     val Ast.Match(scrutinee, cases) = patmat
-    val scrutinee2 = transform(scrutinee)
-    checker.checkValueType(scrutinee2)
+    val scrutinee2 = transform(scrutinee)(using sc, rp, TargetType.ValueType)
 
     val scrutType = scrutinee2.tpe
     val scrutSym = Symbol.createValueSymbol("scrutinee", scrutType, Flags.Local, scrutinee2.pos)
@@ -316,7 +319,7 @@ class Namer(@constructorOnly reporter: Reporter):
 
   private def transform
       (scrut: Ident, caseDef: Ast.Case, resType: Type, cont: Type => Word)
-      (using sc: Scope, rp: Reporter): Word =
+      (using sc: Scope, rp: Reporter, tt: TargetType): Word =
 
     val caseScope = sc.fresh()
 
@@ -333,9 +336,7 @@ class Namer(@constructorOnly reporter: Reporter):
 
       case Ast.TagPat(tag, bindings) =>
         val tagTypesOpt = checker.tagTypes(tag, scrutType, scrutSpan)
-        val tagTypes = tagTypesOpt match
-            case Some(tps) => tps
-            case None => Nil
+        val tagTypes = tagTypesOpt.getOrElse(Nil)
 
         if tagTypesOpt.isEmpty then
           cont(BottomType)
@@ -360,12 +361,13 @@ class Namer(@constructorOnly reporter: Reporter):
             else scrutType.asUnionType.tagIndex(tag.name)
 
           val cond = Desugaring.testVariantTag(encodedScrut, tagIndex, tag.span)
-          val body2 = transform(body)(using caseScope)
+          val body2 = transform(body)(using caseScope, rp, tt)
           val commonType = checker.commonResultType(body2.tpe, resType, body2.span)
           val elsep = cont(commonType)
-          val adapted2 = checker.adapt(body2, elsep.tpe)
+          val commonType2 = checker.commonResultType(body2.tpe, elsep.tpe, body2.span)
+          val adapted = checker.adapt(body2, commonType2)
 
-          val body3 = Phrase(vals.toList :+ adapted2)(adapted2.tpe, caseDef.span)
+          val body3 = Phrase(vals.toList :+ adapted)(adapted.tpe, caseDef.span)
           If(cond, body3, elsep)(body3.tpe, caseDef.span)
 
   private def transform(vdef: Ast.ValDef)(using sc: Scope, rp: Reporter): DelayedDef[ValDef] =
@@ -378,20 +380,20 @@ class Namer(@constructorOnly reporter: Reporter):
 
     val sym = Symbol.createValueSymbol(vdef.name, this.nonCyclicTypeProvider, flags, vdef.ident.pos)
 
-    def checkRHS(sym: Symbol): Word =
-      val sc2 = sc.fresh(sym)
-      transform(vdef.rhs)(using sc2)
+    lazy val givenType: Type =
+      val tpt = transformType(vdef.typ)
+      val tp2 = checker.checkValueType(tpt.tpe, tpt.span)
+      tp2
 
-    val rhs: LazyValue[Symbol, Word] = LazyValue(checkRHS)
+    val rhs: LazyValue[Symbol, Word] = LazyValue: sym =>
+      given Scope = sc.fresh(sym)
+      given TargetType =
+        if vdef.typ.isEmpty then TargetType.ValueType
+        else TargetType.Known(givenType)
+      transform(vdef.rhs)
 
     def computeType(sym: Symbol): Type =
-      if vdef.typ.isEmpty then
-        rhs.get(sym).tpe
-      else
-        val tpt = transformType(vdef.typ)
-        val tp2 = checker.checkValueType(tpt.tpe, tpt.span)
-        checker.checkType(rhs.get(sym), tp2)
-        tp2
+      if vdef.typ.isEmpty then rhs.get(sym).tpe else givenType
 
     this.nonCyclicTypeProvider.addProvider(sym, computeType)
 
@@ -414,16 +416,20 @@ class Namer(@constructorOnly reporter: Reporter):
 
     var bodyTyped: Word = null
     // can be called multiple types from the info completer
-    def checkBody()(using Reporter): Word =
+    def recheckBody()(using Reporter): Word =
+      given Scope = funScope
+      given TargetType =
+        if funDef.resType.isEmpty then TargetType.ProperType
+        else TargetType.Known(givenResultType)
+
       // trigger checking of parameters first to have the current scope
       paramInfos
-      bodyTyped = transform(funDef.body)(using funScope)
+
+      bodyTyped = transform(funDef.body)
       bodyTyped
 
-    def checkBodyType()(using Reporter): Type = checkBody().tpe
-
     def getCheckedBody()(using Reporter): Word =
-      if bodyTyped == null then checkBody() else bodyTyped
+      if bodyTyped == null then recheckBody() else bodyTyped
 
     lazy val givenResultType =
       // trigger checking of parameters first to have the current scope
@@ -476,7 +482,7 @@ class Namer(@constructorOnly reporter: Reporter):
         givenFunType
       else
         // perform actual check without using the cache
-        createFunType(checkBodyType())
+        createFunType(recheckBody().tpe)
 
     val initialType = () =>
       if !funDef.resType.isEmpty then givenFunType
@@ -491,12 +497,9 @@ class Namer(@constructorOnly reporter: Reporter):
     val typer = () =>
       val bodyTyped = getCheckedBody()
 
-      if !funDef.resType.isEmpty then
-        checker.checkType(bodyTyped, givenResultType)
-
-      FunDef(
-        sym, tparamSyms.toList, paramSyms.toList, bodyTyped)(
-        locals = Nil, captures = Nil, funDef.span)
+      FunDef
+        (sym, tparamSyms.toList, paramSyms.toList, bodyTyped)
+        (locals = Nil, captures = Nil, funDef.span)
 
     DelayedDef(sym, typer)
 

@@ -134,6 +134,7 @@ object Types:
     val preParamTypes: List[Type] = params.take(preParamCount).map(_.tpe)
     val postParamTypes: List[Type] = params.drop(preParamCount).map(_.tpe)
     val paramTypes: List[Type] = params.map(_.tpe)
+    def postParamCount = params.size - preParamCount
     def toFunType: FunctionType = FunctionType(paramTypes, resultType)
 
   /** A type lambda */
