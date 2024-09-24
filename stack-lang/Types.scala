@@ -165,3 +165,6 @@ object Types:
   case class TypeBound
     (lo: Type, hi: Type)
   extends Type
+
+  class TypeVar(name: String, handler: Inference.Handler) extends Type:
+    override def toString = "TypeVar(" + name + ")"
