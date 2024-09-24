@@ -78,6 +78,8 @@ object Subtyping:
        && reduceTypeAndThen(tp1.as[AppliedType]) { tp1b => checkConforms(tp1b, tp2) }
     || tp2.is[AppliedType]
        && reduceTypeAndThen(tp2.as[AppliedType]) { tp2b => checkConforms(tp1, tp2b) }
+    || tp1.is[TypeVar] && tp1.as[TypeVar].isSubtype(tp2)
+    || tp2.is[TypeVar] && tp2.as[TypeVar].isSuptype(tp1)
     || tp1.is[TypeBound] && tp2.is[TypeBound]
        && checkConformsTypeBound(tp1.as[TypeBound], tp2.as[TypeBound])
     || tp2.is[TypeBound] && checkConforms(tp1, tp2.as[TypeBound].lo)

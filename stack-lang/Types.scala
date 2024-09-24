@@ -168,3 +168,11 @@ object Types:
 
   class TypeVar(name: String, handler: Inference.Handler) extends Type:
     override def toString = "TypeVar(" + name + ")"
+
+    def dealias: Type = handler.dealias(this)
+
+    def approx(isUp: Boolean) = handler.approx(this, isUp)
+
+    def isSubtype(tp: Type): Boolean = handler.isSubtype(this, tp)
+
+    def isSuptype(tp: Type): Boolean = handler.isSuptype(this, tp)

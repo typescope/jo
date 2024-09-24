@@ -39,22 +39,6 @@ object TypeOps:
     val typeMap = new TypeOps.SymbolsTypeMap
     typeMap(tpe)(using substs)
 
-  /** A grounded type cannot be simplied further at the top-level
-    *
-    * The following types are grounded:
-    *
-    * - primitive types
-    * - procedure types
-    * - record types
-    * - union types
-    */
-  def isGrounded(tp: Type): Boolean =
-    tp match
-      case AnyType | BottomType | IntType | BoolType | ErrorType | VoidType => true
-      case _: PolyType | _: ProcType | _: FunctionType | _: RecordType | _: UnionType | _: TypeBound => true
-      case _: TypeLambda | _: TypeParamRef => true
-      case _: TypeRef | _: AppliedType => false
-
   /** Erase a poly type by replacing type parameters with Any */
   def erasePolyType(tp: Type): Type =
     // implementation assumption: no nested poly types
@@ -94,6 +78,9 @@ object TypeOps:
             recur(sym.info, isUp)
           end if
 
+        case tvar: TypeVar =>
+          tvar.approx(isUp)
+
         case TypeBound(lo, hi) =>
           if isUp then recur(hi, isUp) else recur(lo, isUp)
 
@@ -124,6 +111,9 @@ object TypeOps:
             recur(sym.info)
           end if
 
+        case tvar: TypeVar =>
+          tvar.dealias
+
         case app @ AppliedType(tctor, targs) =>
           recur(tctor) match
             case tl: TypeLambda =>
@@ -145,6 +135,8 @@ object TypeOps:
       case AnyType     => "Any"
       case BottomType  => "Bottom"
       case ErrorType   => "Error"
+
+      case tvar: TypeVar => tvar.toString
 
       case TypeRef(sym) =>
         sym.name
@@ -193,7 +185,7 @@ object TypeOps:
         case VoidType | ErrorType | AnyType | BottomType | IntType | BoolType =>
           tp
 
-        case _: TypeRef | _: TypeParamRef =>
+        case _: TypeRef | _: TypeParamRef | _: TypeVar =>
           tp
 
         case RecordType(fields) =>
