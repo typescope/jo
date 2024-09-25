@@ -431,13 +431,14 @@ class Namer(@constructorOnly reporter: Reporter):
 
     val tparamSyms =
       for tparam <- funDef.tparams yield
-        val infoProvider: InfoProvider = (sym: Symbol) =>
+        lazy val bound =
           if tparam.bound.isEmpty then
             TypeBound(BottomType, AnyType)
           else
             val boundTree = transformType(tparam.bound)(using funScope)
             TypeBound(BottomType, boundTree.tpe)
 
+        val infoProvider: InfoProvider = (sym: Symbol) => bound
         val sym = Symbol.createTypeSymbol(tparam.name, infoProvider, tparam.pos)
         funScope.define(sym, tparam.span)
         sym
@@ -485,7 +486,7 @@ class Namer(@constructorOnly reporter: Reporter):
       val bodyTyped = getCheckedBody()
 
       FunDef
-        (sym, tparamSyms.toList, paramSyms.toList, bodyTyped)
+        (sym, tparamSyms, paramSyms, bodyTyped)
         (locals = Nil, captures = Nil, funDef.span)
 
     DelayedDef(sym, typer)
@@ -496,13 +497,14 @@ class Namer(@constructorOnly reporter: Reporter):
     val sc2 = sc.fresh(sym)
     val tparamSyms =
       for tparam <- tdef.tparams yield
-        val infoProvider: InfoProvider = (sym: Symbol) =>
+        lazy val bound =
           if tparam.bound.isEmpty then
             TypeBound(BottomType, AnyType)
           else
             val boundTree = transformType(tparam.bound)(using sc2)
             TypeBound(BottomType, boundTree.tpe)
 
+        val infoProvider: InfoProvider = (sym: Symbol) => bound
         val sym = Symbol.createTypeSymbol(tparam.name, infoProvider, tparam.pos)
         sc2.define(sym, tparam.span)
         sym
@@ -527,6 +529,7 @@ class Namer(@constructorOnly reporter: Reporter):
 
     // check type symbols after completion to allow cycles, type A = A
     val typer = () => TypeDef(sym)(tdef.span)
+
     DelayedDef(sym, typer)
 
   /** Type check type tree

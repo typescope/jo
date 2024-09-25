@@ -10,11 +10,14 @@ import scala.collection.mutable
   * Perform checks related to types  */
 class Checker:
   private val delayedChecks = new mutable.ArrayBuffer[() => Unit]
+  var checking = false
 
   def delayedCheck(check: => Unit): Unit =
+    if checking then throw new Exception("cannot add new task during checking")
     delayedChecks.addOne(() => check)
 
   def performDelayedChecks(): Unit =
+    checking = true
     for check <- delayedChecks do check()
     delayedChecks.clear()
 
