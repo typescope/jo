@@ -458,7 +458,8 @@ class Namer(@constructorOnly reporter: Reporter):
         val tparamRefs = tparamSyms.zipWithIndex.map: (tparamSym, i) =>
           TypeParamRef(tparamSym.name, i)
         val substs = tparamSyms.zip(tparamRefs).toMap
-        val rawType = PolyType(tparamSyms.map(_.toNamedInfo), procType)
+        val tparamInfos = tparamSyms.map(tparam => NamedInfo(tparam.name, tparam.info.as[TypeBound]))
+        val rawType = PolyType(tparamInfos, procType)
         TypeOps.substSymbols(rawType, substs)
 
     lazy val givenFunType =
@@ -521,7 +522,8 @@ class Namer(@constructorOnly reporter: Reporter):
 
         val rhs = transformType(tdef.rhs)(using sc2)
         checker.delayedCheck { checker.checkValueType(rhs) }
-        val rawType = TypeLambda(tparamSyms.map(_.toNamedInfo), rhs.tpe)
+        val tparamInfos = tparamSyms.map(tparam => NamedInfo(tparam.name, tparam.info.as[TypeBound]))
+        val rawType = TypeLambda(tparamInfos, rhs.tpe)
         TypeOps.substSymbols(rawType, subst)
     end computeInfo
 

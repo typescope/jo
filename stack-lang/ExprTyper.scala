@@ -137,7 +137,7 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Handler):
 
           if wordTyped.tpe.isPolyType then
             val polyType = wordTyped.tpe.asPolyType
-            val tvars = polyType.names.map(name => TypeVar(name, this.inferencer))
+            val tvars = this.inferencer.newTypeVars(polyType.tparams)
             val tpe = TypeOps.substTypeParams(polyType.resultType, tvars)
 
             val targs = tvars.map(tvar => TypeTree(tvar)(word.span))

@@ -82,8 +82,11 @@ object Subtyping:
     || tp2.is[TypeVar] && tp2.as[TypeVar].isSuptype(tp1)
     || tp1.is[TypeBound] && tp2.is[TypeBound]
        && checkConformsTypeBound(tp1.as[TypeBound], tp2.as[TypeBound])
-    || tp2.is[TypeBound] && checkConforms(tp1, tp2.as[TypeBound].lo)
-    || tp1.is[TypeBound] && checkConforms(tp1.as[TypeBound].hi, tp2)
+    || tp2.is[TypeBound]
+       && checkConforms(tp1, tp2.as[TypeBound].hi)
+       && checkConforms(tp2.as[TypeBound].lo, tp1)
+    || tp1.is[TypeBound]
+       && checkConforms(tp1.as[TypeBound].hi, tp2)
   }
 
   private def checkConformsAppliedType(tp1: AppliedType, tp2: AppliedType)(using ctx: Context): Boolean =

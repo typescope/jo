@@ -12,6 +12,8 @@ object Inference:
     case Known(tpe: Type)
 
   trait Handler:
+    def newTypeVars(tparams: List[NamedInfo[TypeBound]]): List[TypeVar]
+
     def dealias(tvar: TypeVar): Type
 
     def approx(tvar: TypeVar, isUp: Boolean): Type
@@ -22,10 +24,17 @@ object Inference:
 
   class UnificationHandler extends Handler:
     private val instantiations: mutable.Map[TypeVar, Type] = mutable.Map.empty
+    private val bounds: mutable.Map[TypeVar, TypeBound] = mutable.Map.empty
 
-    // TODO: record initial bounds of type variables
     // TODO: ensure instantiation of unconstrained type variables
     // TODO: non-termination for dealias, approx and conforms
+
+    def newTypeVars(tparams: List[NamedInfo[TypeBound]]): List[TypeVar] =
+      // TODO: F-bounds and dependencies between tparams
+      for tparam <- tparams yield
+        val tvar = TypeVar(tparam.name, this)
+        bounds(tvar) = tparam.info
+        tvar
 
     def dealias(tvar: TypeVar): Type =
       instantiations.get(tvar) match
@@ -45,9 +54,11 @@ object Inference:
         case None =>
           if tvar == tp then
             true
-          else
+          else if Subtyping.conforms(tp, bounds(tvar)) then
             instantiations(tvar) = tp
             true
+          else
+            false
 
     def isSuptype(tvar: TypeVar, tp: Type): Boolean =
       instantiations.get(tvar) match
@@ -57,6 +68,8 @@ object Inference:
         case None =>
           if tvar == tp then
             true
-          else
+          else if Subtyping.conforms(tp, bounds(tvar)) then
             instantiations(tvar) = tp
             true
+          else
+            false

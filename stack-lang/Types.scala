@@ -118,10 +118,10 @@ object Types:
         case NamedInfo(t, _) => t == tag
 
   case class PolyType
-    (tparams: List[NamedInfo[Type]], resultType: Type)
+    (tparams: List[NamedInfo[TypeBound]], resultType: Type)
   extends Type:
     val names: List[String] = tparams.map(_.name)
-    val bounds: List[Type] = tparams.map(_.info)
+    val bounds: List[TypeBound] = tparams.map(_.info)
     val paramCount = tparams.size
 
   sealed trait InvokableType extends Type:
@@ -142,7 +142,7 @@ object Types:
 
   /** A type lambda */
   case class TypeLambda
-    (tparams: List[NamedInfo[Type]], body: Type)
+    (tparams: List[NamedInfo[TypeBound]], body: Type)
   extends Type:
     val names: List[String] = tparams.map(_.name)
     val bounds: List[Type] = tparams.map(_.info)

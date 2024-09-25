@@ -85,7 +85,7 @@ object ElimCapture:
     val captures = transitiveCapture(fdef.symbol)
     // Cannot have same names in the symbol --- they must be the same symbol
 
-    val tparamInfos = fdef.tparams.map(_.toNamedInfo)
+    val tparamInfos = fdef.tparams.map(tparam => NamedInfo(tparam.name, tparam.info.as[TypeBound]))
     val paramInfos = fdef.params.map(_.toNamedInfo)
     val resType = TypeOps.finalResultType(fdef.symbol.info)
 

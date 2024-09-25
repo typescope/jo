@@ -208,7 +208,7 @@ object TypeOps:
         case TypeLambda(tparams, resType) =>
           val tparams2 =
             for tparam <- tparams
-            yield tparam.copy(info = this(tparam.info))
+            yield tparam.copy(info = this(tparam.info).as[TypeBound])
 
           val resType2 = this(resType)
           TypeLambda(tparams2, resType2)
@@ -216,7 +216,7 @@ object TypeOps:
         case PolyType(tparams, resType) =>
           val tparams2 =
             for tparam <- tparams
-            yield tparam.copy(info = this(tparam.info))
+            yield tparam.copy(info = this(tparam.info).as[TypeBound])
 
           val resType2 = this(resType)
           PolyType(tparams2, resType2)
