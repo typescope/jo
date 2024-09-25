@@ -66,7 +66,7 @@ object ExprTyper:
   * Instance of the class should be able to be reused to type check different
   * expression. Therefore, it should not contain any expression-specific state.
   */
-class ExprTyper(namer: Namer, checker: Checker):
+class ExprTyper(namer: Namer, checker: Checker, inferencer: Handler):
   import ExprTyper.Item
 
   def transform(expr: Ast.Expr)(using  sc: Scope, rp: Reporter, tt: TargetType): Word =
@@ -133,44 +133,46 @@ class ExprTyper(namer: Namer, checker: Checker):
       word match
         case _: Ast.Ident | _: Ast.TypeApply =>
           given TargetType = TargetType.Unknown
-          val word2 = namer.transform(word)
-          val tp = word2.tpe
+          var wordTyped = namer.transform(word)
 
-          if tp.isPolyType then
-            // TODO: type inference
-            Reporter.error(s"Function ${Printing.show(word2)} expects type arguments", word.pos)
-            values += Item.Typed(errorTree(word.span))
+          if wordTyped.tpe.isPolyType then
+            val polyType = wordTyped.tpe.asPolyType
+            val tvars = polyType.names.map(name => TypeVar(name, this.inferencer))
+            val tpe = TypeOps.substTypeParams(polyType.resultType, tvars)
 
-          else if tp.isProcType then
+            val targs = tvars.map(tvar => TypeTree(tvar)(word.span))
+            wordTyped = TypeApply(wordTyped, targs)(tpe, word.span)
+
+          val tp = wordTyped.tpe
+
+          if tp.isProcType then
             val procType = tp.asProcType
+            val precedence = ExprTyper.precedence(wordTyped)
             // infix, postfix, prefix
-            val procPrec = ExprTyper.precedence(word2)
-
-            if procPrec > precLimit then
+            if precedence > precLimit then
               // continue if current function has higher binding power
-              values ++= call(word2, procType.preParamTypes, procType.postParamTypes, procType.resultType, words, values, procPrec)
+              values ++= call(wordTyped, procType.preParamTypes, procType.postParamTypes, procType.resultType, words, values, precedence)
             else
               // put back word
               words.insert(0, word)
               continue = false
 
-          else if tp.isFunctionType && word2.isInstanceOf[Ident] then
+          else if tp.isFunctionType && wordTyped.isInstanceOf[Ident] then
             val funType = tp.asFunctionType
             // prefix
             if values.isEmpty && words.nonEmpty then
-              val funPrec = ExprTyper.precedence(word2)
-              // println("funPrec = " + funPrec + ", precLimit = " + precLimit)
-              if funPrec > precLimit then
+              val precedence = ExprTyper.precedence(wordTyped)
+              if precedence > precLimit then
                 val preTypes = Nil
-                values ++= call(word2, preTypes, funType.paramTypes, funType.resultType, words, values, funPrec)
+                values ++= call(wordTyped, preTypes, funType.paramTypes, funType.resultType, words, values, precedence)
               else
-                values += Item.Typed(word2)
+                values += Item.Typed(wordTyped)
 
             else
-              values += Item.Typed(word2)
+              values += Item.Typed(wordTyped)
 
           else
-            values += Item.Typed(word2)
+            values += Item.Typed(wordTyped)
         case _ =>
           values += Item.Raw(word)
     end while

@@ -12,7 +12,7 @@ val fact0 = (f: Int => Int) => (n: Int) =>
   if n == 0 then 1
   else (f (n - 1)) * n
 
-val fact = Y[Int] fact0
+val fact = Y fact0
 
 fact 0 p
 fact 4 p
