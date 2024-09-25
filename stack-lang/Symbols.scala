@@ -49,6 +49,8 @@ object Symbols:
     def isOneOf(testFlags: Flags) = this.flags.isOneOf(testFlags)
     def isAllOf(testFlags: Flags) = this.flags.isAllOf(testFlags)
 
+    def toNamedInfo: NamedInfo[Type] = NamedInfo(name, info)
+
     override def toString() = name
 
   object Symbol:

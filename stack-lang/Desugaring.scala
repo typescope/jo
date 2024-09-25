@@ -10,10 +10,10 @@ import scala.collection.mutable
   */
 object Desugaring:
   def encodeUnionType(tagTypes: List[Type]): RecordType =
-    val fieldTypes = new mutable.ArrayBuffer[(String, Type)]
-    fieldTypes += "tag" -> IntType
+    val fieldTypes = new mutable.ArrayBuffer[NamedInfo[Type]]
+    fieldTypes += NamedInfo("tag", IntType)
     for (tagType, i) <- tagTypes.zipWithIndex do
-      fieldTypes += s"v$i" -> tagType
+      fieldTypes += NamedInfo(s"v$i", tagType)
 
     RecordType(fieldTypes.toList)
 

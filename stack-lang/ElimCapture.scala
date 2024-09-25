@@ -35,11 +35,13 @@ object ElimCapture:
   /** The encoded type of a function */
   def encodedRecordType(funType: FunctionType): RecordType =
     val paramInfos = funType.paramTypes.zipWithIndex.map: (tp, i) =>
-      ParamInfo("p" + i, tp)
-    val paramInfos2 = paramInfos :+ ParamInfo(EnvParamName, AnyType)
+      NamedInfo("p" + i, tp)
+    val paramInfos2 = paramInfos :+ NamedInfo(EnvParamName, AnyType)
     val procType = ProcType(paramInfos2, funType.resultType, preParamCount = 0)
     val envType = AnyType
-    RecordType(List(ProcFieldName -> procType, EnvFieldName -> envType))
+    val fieldProc = NamedInfo(ProcFieldName, procType)
+    val fieldEnv = NamedInfo(EnvFieldName, envType)
+    RecordType(List(fieldProc, fieldEnv))
 
   /** Compute the transitive capture of locals
     *
@@ -83,16 +85,16 @@ object ElimCapture:
     val captures = transitiveCapture(fdef.symbol)
     // Cannot have same names in the symbol --- they must be the same symbol
 
-    val tparamBounds = fdef.tparams.map(_.info)
-    val paramInfos = fdef.params.map(param => ParamInfo(param.name, param.info))
+    val tparamInfos = fdef.tparams.map(_.toNamedInfo)
+    val paramInfos = fdef.params.map(_.toNamedInfo)
     val resType = TypeOps.finalResultType(fdef.symbol.info)
 
-    val envType = RecordType(captures.map(sym => sym.name -> sym.info))
-    val paramInfos2 = paramInfos :+ ParamInfo(EnvParamName, envType)
+    val envType = RecordType(captures.map(_.toNamedInfo))
+    val paramInfos2 = paramInfos :+ NamedInfo(EnvParamName, envType)
 
     var funType: Type = ProcType(paramInfos2, resType, preParamCount = 0)
-    if tparamBounds.nonEmpty then
-      funType = PolyType(fdef.tparams.map(_.name), tparamBounds, funType)
+    if tparamInfos.nonEmpty then
+      funType = PolyType(tparamInfos, funType)
 
     val funName = ctx.flatName(fdef.symbol)
     val funSym = Symbol.createFunSymbol(funName, funType, fdef.symbol.sourcePos)
@@ -103,10 +105,7 @@ object ElimCapture:
       for capture <- captures
       yield capture.name -> Ident(capture)(span)
 
-    val fieldTypes =
-      for capture <- captures
-      yield capture.name -> capture.info
-
+    val fieldTypes = captures.map(_.toNamedInfo)
     val envType = RecordType(fieldTypes)
 
     RecordLit(fields)(envType, span)
@@ -176,7 +175,7 @@ object ElimCapture:
       val bodyItems = new mutable.ArrayBuffer[Word]
       val locals = mutable.ArrayBuffer.from(fdef.locals)
 
-      val envType = RecordType(captures.map(sym => sym.name -> sym.info))
+      val envType = RecordType(captures.map(_.toNamedInfo))
       val envSym = Symbol.createValueSymbol(EnvParamName, envType, Flags.Local, fdef.symbol.sourcePos)
 
       var ctx2 = ctx
@@ -225,7 +224,9 @@ object ElimCapture:
             val FunInfo(subst, captures) = ctx.funInfos(sym)
             val funRef2 = Ident(subst)(word.span)
             val env = createEnvRecord(captures, word.span)
-            val recordType = RecordType(List(ProcFieldName -> subst.info, EnvFieldName -> env.tpe))
+            val procField = NamedInfo(ProcFieldName, subst.info)
+            val envField = NamedInfo(EnvFieldName, env.tpe)
+            val recordType = RecordType(List(procField, envField))
             val closure = RecordLit(List(ProcFieldName -> funRef2, EnvFieldName -> env))(recordType, word.span)
             Encoded(closure)(sym.info)
           else

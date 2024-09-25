@@ -9,7 +9,6 @@ object Memory:
 
   /** Offset relative to the start of the record in bytes */
   def fieldOffset(recordType: RecordType, field: String): Int =
-    val index = recordType.fields.toList.indexWhere:
-      case (k, v) => k == field
+    val index = recordType.fields.toList.indexWhere(_.name == field)
     assert(index >= 0, index)
     index << 2

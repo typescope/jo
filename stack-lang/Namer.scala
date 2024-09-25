@@ -242,7 +242,7 @@ class Namer(@constructorOnly reporter: Reporter):
         namedArgs2 += id.name -> rhs2
     end for
     val fields = namedArgs2.toList
-    val tpe = RecordType(fields.map { case (k, v) => k -> v.tpe })
+    val tpe = RecordType(fields.map { case (k, v) => NamedInfo(k, v.tpe) })
     RecordLit(fields)(tpe, record.span)
 
   private def transform(variant: Ast.Variant)(using sc: Scope, rp: Reporter): Word =
@@ -402,18 +402,12 @@ class Namer(@constructorOnly reporter: Reporter):
     DelayedDef(sym, typer)
 
   private def transform(funDef: Ast.FunDef)(using sc: Scope, rp: Reporter): DelayedDef[FunDef] =
-    val paramSyms = new mutable.ArrayBuffer[Symbol]
-    val tparamSyms = new mutable.ArrayBuffer[Symbol]
-    val bounds = new mutable.ArrayBuffer[Type]
-
     var flags: Flags = Flags.empty
     if sc.isLocalScope then
       flags = flags | Flags.Local
 
     val sym = Symbol.createFunSymbol(funDef.name, this.cyclicTypeProvider, flags, funDef.ident.pos)
     val funScope = sc.fresh(sym)
-
-    val tparamNames = funDef.tparams.map(_.name)
 
     var bodyTyped: Word = null
     // can be called multiple types from the info completer
@@ -423,9 +417,6 @@ class Namer(@constructorOnly reporter: Reporter):
         if funDef.resType.isEmpty then TargetType.ProperType
         else TargetType.Known(givenResultType)
 
-      // trigger checking of parameters first to have the current scope
-      paramInfos
-
       bodyTyped = transform(funDef.body)
       bodyTyped
 
@@ -433,45 +424,40 @@ class Namer(@constructorOnly reporter: Reporter):
       if bodyTyped == null then recheckBody() else bodyTyped
 
     lazy val givenResultType =
-      // trigger checking of parameters first to have the current scope
-      paramInfos
-
       assert(!funDef.resType.isEmpty)
       val resTypeTree = transformType(funDef.resType)(using funScope)
       checker.delayedCheck { checker.checkVoidOrValueType(resTypeTree) }
       resTypeTree.tpe
 
-    lazy val paramInfos =
-      for (tparam, i) <- funDef.tparams.zipWithIndex yield
-        val infoProvider: InfoProvider = (sym: Symbol) => bounds(i)
-        val sym = Symbol.createTypeSymbol(tparam.name, infoProvider, tparam.pos)
-        tparamSyms += sym
-        funScope.define(sym, tparam.span)
-
-      for tparam <- funDef.tparams do
-        bounds +=(
+    val tparamSyms =
+      for tparam <- funDef.tparams yield
+        val infoProvider: InfoProvider = (sym: Symbol) =>
           if tparam.bound.isEmpty then
             TypeBound(BottomType, AnyType)
           else
             val boundTree = transformType(tparam.bound)(using funScope)
             TypeBound(BottomType, boundTree.tpe)
-        )
 
+        val sym = Symbol.createTypeSymbol(tparam.name, infoProvider, tparam.pos)
+        funScope.define(sym, tparam.span)
+        sym
+
+    val paramSyms =
       for param <- funDef.params yield
         val tpt = transformType(param.typ)(using funScope)
         val paramSym = Symbol.createParamSymbol(param.name, tpt.tpe, param.pos)
         funScope.define(paramSym, param.span)
-        paramSyms += paramSym
-        ParamInfo(param.name, tpt.tpe)
+        paramSym
 
     def createFunType(resType: Type): Type =
-      val procType = ProcType(paramInfos, resType, funDef.preParamCount)
-      if bounds.isEmpty then procType
+      val procType = ProcType(paramSyms.map(_.toNamedInfo), resType, funDef.preParamCount)
+      if tparamSyms.isEmpty then
+        procType
       else
         val tparamRefs = tparamSyms.zipWithIndex.map: (tparamSym, i) =>
           TypeParamRef(tparamSym.name, i)
         val substs = tparamSyms.zip(tparamRefs).toMap
-        val rawType = PolyType(tparamNames, bounds.toList, procType)
+        val rawType = PolyType(tparamSyms.map(_.toNamedInfo), procType)
         TypeOps.substSymbols(rawType, substs)
 
     lazy val givenFunType =
@@ -505,10 +491,21 @@ class Namer(@constructorOnly reporter: Reporter):
     DelayedDef(sym, typer)
 
   private def transform(tdef: Ast.TypeDef)(using sc: Scope, rp: Reporter): DelayedDef[TypeDef] =
-    val names = new mutable.ArrayBuffer[String]
-    val bounds = new mutable.ArrayBuffer[Type]
-
     val sym = Symbol.createTypeSymbol(tdef.name, this.nonCyclicTypeProvider, tdef.ident.pos)
+
+    val sc2 = sc.fresh(sym)
+    val tparamSyms =
+      for tparam <- tdef.tparams yield
+        val infoProvider: InfoProvider = (sym: Symbol) =>
+          if tparam.bound.isEmpty then
+            TypeBound(BottomType, AnyType)
+          else
+            val boundTree = transformType(tparam.bound)(using sc2)
+            TypeBound(BottomType, boundTree.tpe)
+
+        val sym = Symbol.createTypeSymbol(tparam.name, infoProvider, tparam.pos)
+        sc2.define(sym, tparam.span)
+        sym
 
     def computeInfo(sym: Symbol): Type =
       if tdef.tparams.isEmpty then
@@ -516,33 +513,15 @@ class Namer(@constructorOnly reporter: Reporter):
         checker.delayedCheck { checker.checkValueType(rhs) }
         rhs.tpe
       else
-        val sc2 = sc.fresh(sym)
-        val tparamSyms =
-          for (tparam, i) <- tdef.tparams.zipWithIndex yield
-            names += tparam.name
-
-            val info: InfoProvider = sym => bounds(i)
-            val sym = Symbol.createTypeSymbol(tparam.name, info, tparam.pos)
-            sc2.define(sym, tparam.span)
-            sym
-
-        for tparam <- tdef.tparams do
-          bounds +=(
-            if tparam.bound.isEmpty then
-              TypeBound(BottomType, AnyType)
-            else
-              val boundTree = transformType(tparam.bound)(using sc2)
-              TypeBound(BottomType, boundTree.tpe)
-          )
-
         val tparamRefs = tparamSyms.zipWithIndex.map: (tparamSym, i) =>
           TypeParamRef(tparamSym.name, i)
         val subst = tparamSyms.zip(tparamRefs).toMap
 
         val rhs = transformType(tdef.rhs)(using sc2)
         checker.delayedCheck { checker.checkValueType(rhs) }
-        val rawType = TypeLambda(names.toList, bounds.toList, rhs.tpe)
+        val rawType = TypeLambda(tparamSyms.map(_.toNamedInfo), rhs.tpe)
         TypeOps.substSymbols(rawType, subst)
+    end computeInfo
 
     this.nonCyclicTypeProvider.addProvider(sym, computeInfo)
 
@@ -566,19 +545,19 @@ class Namer(@constructorOnly reporter: Reporter):
             TypeTree(ErrorType)(tpt.span)
 
       case Ast.RecordType(fields) =>
-        val fieldTypes = new mutable.ArrayBuffer[(String, Type)]
+        val fieldTypes = new mutable.ArrayBuffer[NamedInfo[Type]]
         for field <- fields do
           if fieldTypes.exists(_._1 == field.name) then
             Reporter.error("Field " + field.name + " already defined", field.pos)
           else
             val tpt = transformType(field.typ)
             checker.delayedCheck { checker.checkValueType(tpt) }
-            fieldTypes += field.name -> tpt.tpe
+            fieldTypes += NamedInfo(field.name, tpt.tpe)
         end for
         TypeTree(RecordType(fieldTypes.toList))(tpt.span)
 
       case Ast.UnionType(branches) =>
-        val branchTypes = new mutable.ArrayBuffer[(String, List[Type])]
+        val branchTypes = new mutable.ArrayBuffer[NamedInfo[List[Type]]]
         for branch <- branches do
           if branchTypes.exists(_._1 == branch.name) then
             Reporter.error("Branch " + branch.name + " already defined", branch.pos)
@@ -589,7 +568,7 @@ class Namer(@constructorOnly reporter: Reporter):
                 checker.delayedCheck { checker.checkValueType(tpt2) }
                 tpt2.tpe
 
-            branchTypes += branch.name -> tps
+            branchTypes += NamedInfo(branch.name, tps)
         end for
         TypeTree(UnionType(branchTypes.toList))(tpt.span)
 

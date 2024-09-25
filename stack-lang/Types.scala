@@ -79,17 +79,20 @@ object Types:
 
   case class TypeRef(symbol: Symbol) extends Type
 
+  /** A part of a type with a specific name */
+  case class NamedInfo[+T](name: String, info: T)
+
   /** A record type --- named tuples
     *
     * Warning: flattening of nested tuples is dangerous with subtyping
     * of records.
     */
-  case class RecordType(fields: List[(String, Type)]) extends Type:
-    val fieldNames: List[String] = fields.map(_._1)
+  case class RecordType(fields: List[NamedInfo[Type]]) extends Type:
+    val fieldNames: List[String] = fields.map(_.name)
 
     def getFieldType(field: String): Option[Type] =
       fields.collectFirst:
-        case (f, tp) if f == field => tp
+        case NamedInfo(f, tp) if f == field => tp
 
     def hasField(name: String): Boolean =
       fieldNames.contains(name)
@@ -97,12 +100,12 @@ object Types:
     def fieldType(name: String): Type =
       getFieldType(name).get
 
-  case class UnionType(branches: List[(String, List[Type])]) extends Type:
-    val tags: List[String] = branches.map(_._1)
+  case class UnionType(branches: List[NamedInfo[List[Type]]]) extends Type:
+    val tags: List[String] = branches.map(_.name)
 
     def getTagType(tag: String): Option[List[Type]] =
       branches.collectFirst:
-        case (t, tps) if t == tag => tps
+        case NamedInfo(t, tps) if t == tag => tps
 
     def hasTag(tag: String): Boolean =
       tags.contains(tag)
@@ -112,12 +115,14 @@ object Types:
 
     def tagIndex(tag: String): Int =
       branches.indexWhere:
-        case (t, _) => t == tag
+        case NamedInfo(t, _) => t == tag
 
   case class PolyType
-    (names: List[String], bounds: List[Type], resultType: Type)
+    (tparams: List[NamedInfo[Type]], resultType: Type)
   extends Type:
-    val paramCount = bounds.size
+    val names: List[String] = tparams.map(_.name)
+    val bounds: List[Type] = tparams.map(_.info)
+    val paramCount = tparams.size
 
   sealed trait InvokableType extends Type:
     def paramTypes: List[Type]
@@ -126,22 +131,22 @@ object Types:
     def paramCount = paramTypes.size
     def resCount = if resultType.isValueType then 1 else 0
 
-  case class ParamInfo(name: String, tpe: Type)
-
   case class ProcType
-    (params: List[ParamInfo], resultType: Type, preParamCount: Int)
+    (params: List[NamedInfo[Type]], resultType: Type, preParamCount: Int)
   extends Type with InvokableType:
-    val preParamTypes: List[Type] = params.take(preParamCount).map(_.tpe)
-    val postParamTypes: List[Type] = params.drop(preParamCount).map(_.tpe)
-    val paramTypes: List[Type] = params.map(_.tpe)
+    val preParamTypes: List[Type] = params.take(preParamCount).map(_.info)
+    val postParamTypes: List[Type] = params.drop(preParamCount).map(_.info)
+    val paramTypes: List[Type] = params.map(_.info)
     def postParamCount = params.size - preParamCount
     def toFunType: FunctionType = FunctionType(paramTypes, resultType)
 
   /** A type lambda */
   case class TypeLambda
-    (names: List[String], bounds: List[Type], body: Type)
+    (tparams: List[NamedInfo[Type]], body: Type)
   extends Type:
-    val paramCount = names.size
+    val names: List[String] = tparams.map(_.name)
+    val bounds: List[Type] = tparams.map(_.info)
+    val paramCount: Int = tparams.size
 
   /** An index reference to type parameter
     *
