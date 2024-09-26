@@ -149,7 +149,7 @@ object TypeOps:
       case tvar: TypeVar => tvar.toString
 
       case TypeRef(sym) =>
-        sym.name
+        if sym.isType then sym.name else sym.name + ": " + sym.info.show
 
       case RecordType(fields) =>
         fields.map(f => f.name + ": " + show(f.info)).mkString("{", ", ", "}")

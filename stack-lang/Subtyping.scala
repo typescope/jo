@@ -100,9 +100,7 @@ object Subtyping:
       if lessThan then ctx.reduceLeft(tp) else ctx.reduceRight(tp)
 
     def continue(tp1b: Type)(using Context): Boolean =
-      tp2 match
-        case tp: ProxyType => checkConformsProxyType(tp, tp1b, !lessThan)
-        case _ => checkConforms(tp1b, tp2, lessThan)
+      checkConforms(tp1b, tp2, lessThan)
 
     tp1 match
       case AppliedType(tctor, targs) =>
