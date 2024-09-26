@@ -71,7 +71,7 @@ class Checker:
       tp
 
   def checkVoidOrValueType(tree: Tree)(using Reporter): Unit =
-    if !tree.tpe.isVoid then checkValueType(tree)
+    if !tree.tpe.isVoidType then checkValueType(tree)
 
   def checkMutable(sym: Symbol, span: Span)(using Reporter): Unit =
     if !sym.isAllOf(Flags.Val | Flags.Mutable) then
@@ -114,7 +114,7 @@ class Checker:
   /** Explicit drop of values in if/match expressions */
   def adapt(word: Word, targetType: Type)(using Reporter): Word =
     val curType = word.tpe
-    if targetType.isVoid && curType.isValueType then
+    if targetType.isVoidType && curType.isValueType then
       Sast.dropValue(word)
     else
       checkType(word, targetType)

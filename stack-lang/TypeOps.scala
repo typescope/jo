@@ -20,8 +20,8 @@ object TypeOps:
     */
   def commonResultType(tp1: Type, tp2: Type): Option[Type] =
     if tp1.isError || tp2.isError then Some(ErrorType)
-    else if tp1.isVoid && tp2.isBottom then Some(VoidType)
-    else if tp1.isBottom && tp2.isVoid then Some(VoidType)
+    else if tp1.isVoidType && tp2.isBottom then Some(VoidType)
+    else if tp1.isBottom && tp2.isVoidType then Some(VoidType)
     else if Subtyping.conforms(tp1, tp2) then Some(tp2)
     else if Subtyping.conforms(tp2, tp1) then Some(tp1)
     else None
@@ -67,19 +67,23 @@ object TypeOps:
     */
   def approx(tp: Type, isUp: Boolean): Type =
     // detect cycles in symbol definitions, e.g., type A = A
-    val encountered = new mutable.ArrayBuffer[Symbol]
+    val encountered = new mutable.ArrayBuffer[ProxyType]
     def recur(tp: Type, isUp: Boolean): Type = Debug.trace(s"$tp.approx", enable = false):
       tp match
         case tref @ TypeRef(sym) =>
-          if encountered.contains(sym) then
+          if encountered.contains(tref) then
             tref
           else
-            encountered += sym
+            encountered += tref
             recur(sym.info, isUp)
           end if
 
         case tvar: TypeVar =>
-          tvar.approx(isUp)
+          if encountered.contains(tvar) then
+            tvar
+          else
+            encountered += tvar
+            recur(tvar.approx(isUp), isUp)
 
         case TypeBound(lo, hi) =>
           if isUp then recur(hi, isUp) else recur(lo, isUp)
@@ -97,22 +101,28 @@ object TypeOps:
     recur(tp, isUp)
   end approx
 
-  /** Transitively eliminate top-level type aliases and applied types */
+  /** Transitively eliminate top-level type aliases and applied types without any approximation
+    *
+    * In particular, type parameters are not reduced to their bounds.
+    */
   def dealias(tp: Type): Type =
     // detect cycles in symbol definitions, e.g., type A = A
-    val encountered = new mutable.ArrayBuffer[Symbol]
+    val encountered = new mutable.ArrayBuffer[ProxyType]
     def recur(tp: Type): Type = Debug.trace(s"$tp.dealias", enable = false):
       tp match
-        case tref @ TypeRef(sym) =>
-          if encountered.contains(sym) then
+        case tref: TypeRef =>
+          if encountered.contains(tref) || tref.symbol.isTypeParameter then
             tref
           else
-            encountered += sym
-            recur(sym.info)
-          end if
+            encountered += tref
+            recur(tref.symbol.info)
 
         case tvar: TypeVar =>
-          tvar.dealias
+          if encountered.contains(tvar) then
+            tvar
+          else
+            encountered += tvar
+            recur(tvar.dealias)
 
         case app @ AppliedType(tctor, targs) =>
           recur(tctor) match

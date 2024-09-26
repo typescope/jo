@@ -12,9 +12,9 @@ object Types:
   sealed abstract class Type:
     def isError: Boolean = this == ErrorType
 
-    def isVoid: Boolean = TypeOps.dealias(this) == VoidType
+    def isVoidType: Boolean = TypeOps.dealias(this) == VoidType
 
-    def isAny: Boolean = TypeOps.dealias(this) == AnyType
+    def isAnyType: Boolean = TypeOps.dealias(this) == AnyType
 
     def isBottom: Boolean = TypeOps.approx(this, isUp = true) == BottomType
 
@@ -77,8 +77,15 @@ object Types:
 
   case object ErrorType extends Type
 
+  /** A proxy type may be reduced to other types in subtype and shape checking.
+    *
+    * In addition, proxy types can lead to loops in types, thus need to be
+    * handled specially in subtyping and approximation.
+    */
+  sealed abstract class ProxyType extends Type
+
   /** A reference to either a type symbol or a term symbol */
-  case class TypeRef(symbol: Symbol) extends Type
+  case class TypeRef(symbol: Symbol) extends ProxyType
 
   /** A part of a type with a specific name */
   case class NamedInfo[+T](name: String, info: T)
@@ -161,7 +168,7 @@ object Types:
 
   case class AppliedType
     (tctor: Type, targs: List[Type])
-  extends Type
+  extends ProxyType
 
   case class FunctionType
     (paramTypes: List[Type], resultType: Type)
@@ -172,13 +179,13 @@ object Types:
     (lo: Type, hi: Type)
   extends Type
 
-  class TypeVar(name: String, handler: Inference.Handler) extends Type:
+  class TypeVar(name: String, handler: Inference.Handler) extends ProxyType:
     override def toString = "TypeVar(" + name + ")"
 
     def dealias: Type = handler.dealias(this)
 
     def approx(isUp: Boolean) = handler.approx(this, isUp)
 
-    def isSubtype(tp: Type): Boolean = handler.isSubtype(this, tp)
+    def isSubtype(tp: Type)(using Subtyping.Context): Boolean = handler.isSubtype(this, tp)
 
-    def isSuptype(tp: Type): Boolean = handler.isSuptype(this, tp)
+    def isSuptype(tp: Type)(using Subtyping.Context): Boolean = handler.isSuptype(this, tp)

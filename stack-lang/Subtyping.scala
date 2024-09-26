@@ -1,5 +1,4 @@
 import Types.*
-import Symbols.*
 
 object Subtyping:
   /** Whether `tp1` conforms to `tp2` */
@@ -32,116 +31,114 @@ object Subtyping:
     * - Paper: Subtyping recursive types, Roberto M. Amadio, Luca Cardelli, 1993
     * - Link: https://dl.acm.org/doi/10.1145/155183.155231
     */
-  private class Context(
-    subtypings: Map[Type, List[Type]],
-    reducing: List[Symbol]):       // symbols under reduction, used to avoid non-termination
+  class Context(
+    subtypings: Map[ProxyType, List[Type]],
+    suptypings: Map[ProxyType, List[Type]],
+    reducingLeft: List[ProxyType],
+    reducingRight: List[ProxyType]):
 
-    def this() = this(Map.empty, Nil)
+    def this() = this(Map.empty, Map.empty, Nil, Nil)
 
-    def withSubtyping(tp1: Type, tp2: Type): Context =
+    def withSubtyping(tp1: ProxyType, tp2: Type): Context =
       val subtypings2 = this.subtypings.updated(tp1, tp2 :: this.subtypings.getOrElse(tp1, Nil))
-      new Context(subtypings2, reducing)
+      new Context(subtypings2, suptypings, reducingLeft, reducingRight)
 
-    def isSubtype(tp1: Type, tp2: Type): Boolean =
+    def withSubtyping(tp1: Type, tp2: ProxyType): Context =
+      val suptypings2 = this.suptypings.updated(tp2, tp1 :: this.subtypings.getOrElse(tp2, Nil))
+      new Context(subtypings, suptypings2, reducingLeft, reducingRight)
+
+    def isSubtype(tp1: ProxyType, tp2: Type): Boolean =
       this.subtypings.get(tp1) match
         case Some(tps) if tps.contains(tp2) => true
         case _ => false
 
-    def withReducing(sym: Symbol) =
-      new Context(subtypings, sym :: reducing)
+    def isSubtype(tp1: Type, tp2: ProxyType): Boolean =
+      this.suptypings.get(tp2) match
+        case Some(tps) => tps.contains(tp1)
+        case _ => false
 
-    def isReducing(sym: Symbol): Boolean =
-      reducing.contains(sym)
+    def reduceLeft(tp: ProxyType): Context =
+      new Context(subtypings, suptypings, tp :: reducingLeft, reducingRight)
+
+    def reduceRight(tp: ProxyType): Context =
+      new Context(subtypings, suptypings, reducingLeft, tp :: reducingRight)
+
+    def isReducingLeft(tp: ProxyType): Boolean =
+      reducingLeft.contains(tp)
+
+    def isReducingRight(tp: ProxyType): Boolean =
+      reducingRight.contains(tp)
 
   /** Check whether one type conforms to the other type */
   private def checkConforms(tp1: Type, tp2: Type)(using ctx: Context): Boolean = Debug.trace(s"${tp1.show} <: ${tp2.show}", enable = false) {
     tp1.isError
     || tp2.isError
     || tp1.isBottom
-    || tp2.isAny && tp1.isValueType
+    || tp2.isAnyType && tp1.isValueType
     || tp1 == tp2
-    || tp1.is[TypeRef] && tp2.is[TypeRef]
-       && checkConformsTypeRef(tp1.as[TypeRef], tp2.as[TypeRef])
-    || tp1.is[TypeRef]
-       && checkConformsTypeRef(tp1.as[TypeRef], tp2)
-    || tp2.is[TypeRef]
-       && checkConformsTypeRef(tp1, tp2.as[TypeRef])
+    || tp1.is[ProxyType]
+       && checkConformsProxyType(tp1.as[ProxyType], tp2)
+    || tp2.is[ProxyType]
+       && checkConformsProxyType(tp1, tp2.as[ProxyType])
     || tp1.is[FunctionType] && tp2.is[FunctionType]
        && checkConformsFunctionType(tp1.as[FunctionType], tp2.as[FunctionType])
     || tp1.is[ProcType] && tp2.is[ProcType]
        && checkConformsProcType(tp1.as[ProcType], tp2.as[ProcType])
     || tp1.is[RecordType] && tp2.is[RecordType]
        && checkConformsRecordType(tp1.as[RecordType], tp2.as[RecordType])
-    || tp1.is[AppliedType] && tp2.is[AppliedType]
-       && checkConformsAppliedType(tp1.as[AppliedType], tp2.as[AppliedType])
-    || tp1.is[AppliedType]
-       && reduceTypeAndThen(tp1.as[AppliedType], isUp = true) { tp1b => checkConforms(tp1b, tp2) }
-    || tp2.is[AppliedType]
-       && reduceTypeAndThen(tp2.as[AppliedType], isUp = false) { tp2b => checkConforms(tp1, tp2b) }
-    || tp1.is[TypeVar]
-       && tp1.as[TypeVar].isSubtype(tp2)
-    || tp2.is[TypeVar]
-       && tp2.as[TypeVar].isSuptype(tp1)
   }
 
-  private def checkConformsAppliedType(tp1: AppliedType, tp2: AppliedType)(using ctx: Context): Boolean =
-    if ctx.isSubtype(tp1, tp2) then
-      true
-    else
+  private def checkConforms(tp1: Type, tp2: Type, lessThan: Boolean)(using ctx: Context): Boolean =
+    if lessThan then checkConforms(tp1, tp2) else checkConforms(tp2, tp1)
+
+  private def checkConformsProxyType(tp1: ProxyType, tp2: Type)(using ctx: Context): Boolean =
+    ctx.isSubtype(tp1, tp2) || !ctx.isReducingLeft(tp1) && {
       given Context = ctx.withSubtyping(tp1, tp2)
-      reduceTypeAndThen(tp1, isUp = true): tp1b =>
-        reduceTypeAndThen(tp2, isUp = false): tp2b =>
-          checkConforms(tp1b, tp2b)
+      checkConformsProxyType(tp1, tp2, lessThan = true)
+    }
 
-
-  private def checkConformsTypeRef(tp1: TypeRef, tp2: TypeRef)(using ctx: Context): Boolean =
-    if ctx.isSubtype(tp1, tp2) then
-      true
-    else
+  private def checkConformsProxyType(tp1: Type, tp2: ProxyType)(using ctx: Context): Boolean =
+    ctx.isSubtype(tp1, tp2) || !ctx.isReducingRight(tp2) && {
       given Context = ctx.withSubtyping(tp1, tp2)
-      reduceTypeAndThen(tp1, isUp = true): tp1b =>
-        reduceTypeAndThen(tp2, isUp = false): tp2b =>
-          checkConforms(tp1b, tp2b)
+      checkConformsProxyType(tp2, tp1, lessThan = false)
+    }
 
-  private def checkConformsTypeRef(tp1: TypeRef, tp2: Type)(using ctx: Context): Boolean =
-    reduceTypeAndThen(tp1, isUp = true): tp1b =>
-      checkConforms(tp1b, tp2)
+  private def checkConformsProxyType(tp1: ProxyType, tp2: Type, lessThan: Boolean)(using ctx: Context): Boolean =
+    def reducingCtx(tp: ProxyType): Context =
+      if lessThan then ctx.reduceLeft(tp) else ctx.reduceRight(tp)
 
-  private def checkConformsTypeRef(tp1: Type, tp2: TypeRef)(using ctx: Context): Boolean =
-    reduceTypeAndThen(tp2, isUp = false): tp2b =>
-      checkConforms(tp1, tp2b)
-
-  private
-  def reduceTypeAndThen
-      (tp: AppliedType | TypeRef, isUp: Boolean)
-      (check: Context ?=> Type => Boolean)
-      (using ctx: Context): Boolean =
-
-    tp match
+    tp1 match
       case AppliedType(tctor, targs) =>
         tctor match
           case tref: TypeRef =>
-            reduceTypeAndThen(tref, isUp): tctor2 =>
-              tctor2 match
-                case tl: TypeLambda =>
-                  check(TypeOps.substTypeParams(tl.body, targs))
-                case _ =>
-                  check(tp)
+            val isReducing = if lessThan then ctx.isReducingLeft(tref) else ctx.isReducingRight(tref)
+            !isReducing && reduce(tref, maximize = lessThan).match
+              case tl: TypeLambda =>
+                given Context = reducingCtx(tref)
+                checkConforms(TypeOps.substTypeParams(tl.body, targs), tp2, lessThan)
 
-          case _ => check(tp)
+              case tctor =>
+                false
 
-      case TypeRef(sym) =>
-        if ctx.isReducing(sym) then
-          // cycles detected
-          false
-        else
-          given Context = ctx.withReducing(sym)
-          sym.info match
-            case bound: TypeBound =>
-              assert(sym.isTypeParameter, sym)
-              check(if isUp then bound.hi else bound.lo)
-            case tp =>
-              check(tp)
+          case _ =>
+            throw new Exception("Unexpected type constructor: " + tctor.show)
+
+      case tref: TypeRef =>
+        given Context = reducingCtx(tref)
+        checkConforms(reduce(tref, maximize = lessThan), tp2, lessThan)
+
+      case tvar: TypeVar =>
+        given Context = reducingCtx(tvar)
+        if lessThan then tvar.isSubtype(tp2) else tvar.isSuptype(tp2)
+
+  private def reduce(tp: TypeRef, maximize: Boolean): Type =
+    val sym = tp.symbol
+    sym.info match
+      case bound: TypeBound =>
+        assert(sym.isTypeParameter, sym)
+        if maximize then bound.hi else bound.lo
+      case tp =>
+        tp
 
   private def checkConformsFunctionType(tp1: FunctionType, tp2: FunctionType)(using Context): Boolean =
     tp1.paramTypes.size == tp2.paramTypes.size

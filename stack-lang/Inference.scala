@@ -14,13 +14,21 @@ object Inference:
   trait Handler:
     def newTypeVars(tparams: List[NamedInfo[TypeBound]]): List[TypeVar]
 
+    /** Dealias the type without approximation.
+      *
+      * The method should not recursively call `TypeOps.dealias`.
+      */
     def dealias(tvar: TypeVar): Type
 
+    /** Approximate the type of the tvar to its bounds
+      *
+      * The method shoud not recursively call `TypeOps.approx`.
+      */
     def approx(tvar: TypeVar, isUp: Boolean): Type
 
-    def isSubtype(tvar: TypeVar, tp: Type): Boolean
+    def isSubtype(tvar: TypeVar, tp: Type)(using Subtyping.Context): Boolean
 
-    def isSuptype(tvar: TypeVar, tp: Type): Boolean
+    def isSuptype(tvar: TypeVar, tp: Type)(using Subtyping.Context): Boolean
 
   def isWithinBound(tp: Type, bound: TypeBound): Boolean =
     Subtyping.conforms(tp, bound.hi) && Subtyping.conforms(bound.lo, tp)
@@ -30,7 +38,6 @@ object Inference:
     private val bounds: mutable.Map[TypeVar, TypeBound] = mutable.Map.empty
 
     // TODO: ensure instantiation of unconstrained type variables
-    // TODO: non-termination for dealias, approx and conforms
 
     def newTypeVars(tparams: List[NamedInfo[TypeBound]]): List[TypeVar] =
       // TODO: F-bounds and dependencies between tparams
@@ -42,14 +49,14 @@ object Inference:
     def dealias(tvar: TypeVar): Type =
       instantiations.get(tvar) match
         case Some(inst) => inst
-        case None => bounds(tvar)
+        case None => tvar
 
     def approx(tvar: TypeVar, isUp: Boolean): Type =
       instantiations.get(tvar) match
         case Some(inst) => TypeOps.approx(inst, isUp)
         case None => AnyType
 
-    def isSubtype(tvar: TypeVar, tp: Type): Boolean =
+    def isSubtype(tvar: TypeVar, tp: Type)(using Subtyping.Context): Boolean =
       instantiations.get(tvar) match
         case Some(inst) =>
           Subtyping.conforms(inst, tp)
@@ -63,7 +70,7 @@ object Inference:
           else
             false
 
-    def isSuptype(tvar: TypeVar, tp: Type): Boolean =
+    def isSuptype(tvar: TypeVar, tp: Type)(using Subtyping.Context): Boolean =
       instantiations.get(tvar) match
         case Some(inst) =>
           Subtyping.conforms(tp, inst)
