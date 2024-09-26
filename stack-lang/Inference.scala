@@ -22,6 +22,9 @@ object Inference:
 
     def isSuptype(tvar: TypeVar, tp: Type): Boolean
 
+  def isWithinBound(tp: Type, bound: TypeBound): Boolean =
+    Subtyping.conforms(tp, bound.hi) && Subtyping.conforms(bound.lo, tp)
+
   class UnificationHandler extends Handler:
     private val instantiations: mutable.Map[TypeVar, Type] = mutable.Map.empty
     private val bounds: mutable.Map[TypeVar, TypeBound] = mutable.Map.empty
@@ -39,7 +42,7 @@ object Inference:
     def dealias(tvar: TypeVar): Type =
       instantiations.get(tvar) match
         case Some(inst) => inst
-        case None => AnyType
+        case None => bounds(tvar)
 
     def approx(tvar: TypeVar, isUp: Boolean): Type =
       instantiations.get(tvar) match
@@ -54,7 +57,7 @@ object Inference:
         case None =>
           if tvar == tp then
             true
-          else if Subtyping.conforms(tp, bounds(tvar)) then
+          else if isWithinBound(tp, bounds(tvar)) then
             instantiations(tvar) = tp
             true
           else
@@ -68,7 +71,7 @@ object Inference:
         case None =>
           if tvar == tp then
             true
-          else if Subtyping.conforms(tp, bounds(tvar)) then
+          else if isWithinBound(tp, bounds(tvar)) then
             instantiations(tvar) = tp
             true
           else

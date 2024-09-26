@@ -82,13 +82,6 @@ object Subtyping:
        && tp1.as[TypeVar].isSubtype(tp2)
     || tp2.is[TypeVar]
        && tp2.as[TypeVar].isSuptype(tp1)
-    || tp1.is[TypeBound] && tp2.is[TypeBound]
-       && checkConformsTypeBound(tp1.as[TypeBound], tp2.as[TypeBound])
-    || tp2.is[TypeBound]
-       && checkConforms(tp1, tp2.as[TypeBound].hi)
-       && checkConforms(tp2.as[TypeBound].lo, tp1)
-    || tp1.is[TypeBound]
-       && checkConforms(tp1.as[TypeBound].hi, tp2)
   }
 
   private def checkConformsAppliedType(tp1: AppliedType, tp2: AppliedType)(using ctx: Context): Boolean =
@@ -158,6 +151,3 @@ object Subtyping:
     val names2 = tp2.fieldNames
     names1.size >= names2.size && names1.zip(names2).forall: (a, b) =>
       a == b && checkConforms(tp1.fieldType(a), tp2.fieldType(b))
-
-  private def checkConformsTypeBound(tp1: TypeBound, tp2: TypeBound)(using Context): Boolean =
-    checkConforms(tp2.lo, tp1.lo) && checkConforms(tp1.hi, tp2.hi)
