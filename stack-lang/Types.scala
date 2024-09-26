@@ -77,6 +77,7 @@ object Types:
 
   case object ErrorType extends Type
 
+  /** A reference to either a type symbol or a term symbol */
   case class TypeRef(symbol: Symbol) extends Type
 
   /** A part of a type with a specific name */

@@ -95,10 +95,13 @@ object Subtyping:
 
 
   private def checkConformsTypeRef(tp1: TypeRef, tp2: TypeRef)(using ctx: Context): Boolean =
-    given Context = ctx.withSubtyping(tp1, tp2)
-    reduceTypeAndThen(tp1, isUp = true): tp1b =>
-      reduceTypeAndThen(tp2, isUp = false): tp2b =>
-        checkConforms(tp1b, tp2b)
+    if ctx.isSubtype(tp1, tp2) then
+      true
+    else
+      given Context = ctx.withSubtyping(tp1, tp2)
+      reduceTypeAndThen(tp1, isUp = true): tp1b =>
+        reduceTypeAndThen(tp2, isUp = false): tp2b =>
+          checkConforms(tp1b, tp2b)
 
   private def checkConformsTypeRef(tp1: TypeRef, tp2: Type)(using ctx: Context): Boolean =
     reduceTypeAndThen(tp1, isUp = true): tp1b =>
