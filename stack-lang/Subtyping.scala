@@ -54,14 +54,14 @@ object Subtyping:
       reducing.contains(sym)
 
   /** Check whether one type conforms to the other type */
-  private def checkConforms(tp1: Type, tp2: Type)(using ctx: Context): Boolean = Debug.trace(s"${tp1.show} <: ${tp2.show}", enable = false) {
+  private def checkConforms(tp1: Type, tp2: Type)(using ctx: Context): Boolean = Debug.trace(s"${tp1.show} <: ${tp2.show}", enable = true) {
     tp1.isError
     || tp2.isError
     || tp1.isBottom
     || tp2.isAny && tp1.isValueType
     || tp1 == tp2
     || tp1.is[TypeRef] && tp2.is[TypeRef]
-       && ctx.isSubtype(tp1.as[TypeRef], tp2.as[TypeRef])
+       && checkConformsTypeRef(tp1.as[TypeRef], tp2.as[TypeRef])
     || tp1.is[TypeRef]
        && checkConformsTypeRef(tp1.as[TypeRef], tp2)
     || tp2.is[TypeRef]
@@ -93,13 +93,18 @@ object Subtyping:
         reduceTypeAndThen(tp2, isUp = false): tp2b =>
           checkConforms(tp1b, tp2b)
 
-  private def checkConformsTypeRef(tp1: TypeRef, tp2: Type)(using ctx: Context): Boolean =
+
+  private def checkConformsTypeRef(tp1: TypeRef, tp2: TypeRef)(using ctx: Context): Boolean =
     given Context = ctx.withSubtyping(tp1, tp2)
+    reduceTypeAndThen(tp1, isUp = true): tp1b =>
+      reduceTypeAndThen(tp2, isUp = false): tp2b =>
+        checkConforms(tp1b, tp2b)
+
+  private def checkConformsTypeRef(tp1: TypeRef, tp2: Type)(using ctx: Context): Boolean =
     reduceTypeAndThen(tp1, isUp = true): tp1b =>
       checkConforms(tp1b, tp2)
 
   private def checkConformsTypeRef(tp1: Type, tp2: TypeRef)(using ctx: Context): Boolean =
-    given Context = ctx.withSubtyping(tp1, tp2)
     reduceTypeAndThen(tp2, isUp = false): tp2b =>
       checkConforms(tp1, tp2b)
 
