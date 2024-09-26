@@ -133,11 +133,12 @@ object Subtyping:
           false
         else
           given Context = ctx.withReducing(sym)
-          if sym.isTypeParameter then
-            val bound = sym.info.as[TypeBound]
-            check(if isUp then bound.hi else bound.lo)
-          else
-            check(sym.info)
+          sym.info match
+            case bound: TypeBound =>
+              assert(sym.isTypeParameter, sym)
+              check(if isUp then bound.hi else bound.lo)
+            case tp =>
+              check(tp)
 
   private def checkConformsFunctionType(tp1: FunctionType, tp2: FunctionType)(using Context): Boolean =
     tp1.paramTypes.size == tp2.paramTypes.size
