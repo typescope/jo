@@ -54,18 +54,18 @@ object Subtyping:
       reducing.contains(sym)
 
   /** Check whether one type conforms to the other type */
-  private def checkConforms(tp1: Type, tp2: Type)(using Context): Boolean = Debug.trace(s"${tp1.show} <: ${tp2.show}", enable = false) {
+  private def checkConforms(tp1: Type, tp2: Type)(using ctx: Context): Boolean = Debug.trace(s"${tp1.show} <: ${tp2.show}", enable = false) {
     tp1.isError
     || tp2.isError
     || tp1.isBottom
     || tp2.isAny && tp1.isValueType
     || tp1 == tp2
     || tp1.is[TypeRef] && tp2.is[TypeRef]
-       && checkConformsTypeRef(tp1.as[TypeRef], tp2.as[TypeRef])
+       && ctx.isSubtype(tp1.as[TypeRef], tp2.as[TypeRef])
     || tp1.is[TypeRef]
-       && reduceTypeAndThen(tp1.as[TypeRef]) { tp1b => checkConforms(tp1b, tp2) }
+       && checkConformsTypeRef(tp1.as[TypeRef], tp2)
     || tp2.is[TypeRef]
-       && reduceTypeAndThen(tp2.as[TypeRef]) { tp2b => checkConforms(tp1, tp2b) }
+       && checkConformsTypeRef(tp1, tp2.as[TypeRef])
     || tp1.is[FunctionType] && tp2.is[FunctionType]
        && checkConformsFunctionType(tp1.as[FunctionType], tp2.as[FunctionType])
     || tp1.is[ProcType] && tp2.is[ProcType]
@@ -75,11 +75,13 @@ object Subtyping:
     || tp1.is[AppliedType] && tp2.is[AppliedType]
        && checkConformsAppliedType(tp1.as[AppliedType], tp2.as[AppliedType])
     || tp1.is[AppliedType]
-       && reduceTypeAndThen(tp1.as[AppliedType]) { tp1b => checkConforms(tp1b, tp2) }
+       && reduceTypeAndThen(tp1.as[AppliedType], isUp = true) { tp1b => checkConforms(tp1b, tp2) }
     || tp2.is[AppliedType]
-       && reduceTypeAndThen(tp2.as[AppliedType]) { tp2b => checkConforms(tp1, tp2b) }
-    || tp1.is[TypeVar] && tp1.as[TypeVar].isSubtype(tp2)
-    || tp2.is[TypeVar] && tp2.as[TypeVar].isSuptype(tp1)
+       && reduceTypeAndThen(tp2.as[AppliedType], isUp = false) { tp2b => checkConforms(tp1, tp2b) }
+    || tp1.is[TypeVar]
+       && tp1.as[TypeVar].isSubtype(tp2)
+    || tp2.is[TypeVar]
+       && tp2.as[TypeVar].isSuptype(tp1)
     || tp1.is[TypeBound] && tp2.is[TypeBound]
        && checkConformsTypeBound(tp1.as[TypeBound], tp2.as[TypeBound])
     || tp2.is[TypeBound]
@@ -94,29 +96,31 @@ object Subtyping:
       true
     else
       given Context = ctx.withSubtyping(tp1, tp2)
-      reduceTypeAndThen(tp1): tp1b =>
-        reduceTypeAndThen(tp2): tp2b =>
+      reduceTypeAndThen(tp1, isUp = true): tp1b =>
+        reduceTypeAndThen(tp2, isUp = false): tp2b =>
           checkConforms(tp1b, tp2b)
 
-  private def checkConformsTypeRef(tp1: TypeRef, tp2: TypeRef)(using ctx: Context): Boolean =
-    if ctx.isSubtype(tp1, tp2) then
-      true
-    else
-      given Context = ctx.withSubtyping(tp1, tp2)
-      reduceTypeAndThen(tp1): tp1b =>
-        reduceTypeAndThen(tp2): tp2b =>
-          checkConforms(tp1b, tp2b)
+  private def checkConformsTypeRef(tp1: TypeRef, tp2: Type)(using ctx: Context): Boolean =
+    given Context = ctx.withSubtyping(tp1, tp2)
+    reduceTypeAndThen(tp1, isUp = true): tp1b =>
+      checkConforms(tp1b, tp2)
 
-  private def reduceTypeAndThen
-              (tp: AppliedType | TypeRef)
-              (check: Context ?=> Type => Boolean)
-              (using ctx: Context): Boolean =
+  private def checkConformsTypeRef(tp1: Type, tp2: TypeRef)(using ctx: Context): Boolean =
+    given Context = ctx.withSubtyping(tp1, tp2)
+    reduceTypeAndThen(tp2, isUp = false): tp2b =>
+      checkConforms(tp1, tp2b)
+
+  private
+  def reduceTypeAndThen
+      (tp: AppliedType | TypeRef, isUp: Boolean)
+      (check: Context ?=> Type => Boolean)
+      (using ctx: Context): Boolean =
 
     tp match
       case AppliedType(tctor, targs) =>
         tctor match
           case tref: TypeRef =>
-            reduceTypeAndThen(tref): tctor2 =>
+            reduceTypeAndThen(tref, isUp): tctor2 =>
               tctor2 match
                 case tl: TypeLambda =>
                   check(TypeOps.substTypeParams(tl.body, targs))
@@ -131,7 +135,11 @@ object Subtyping:
           false
         else
           given Context = ctx.withReducing(sym)
-          check(sym.info)
+          if sym.isTypeParameter then
+            val bound = sym.info.as[TypeBound]
+            check(if isUp then bound.hi else bound.lo)
+          else
+            check(sym.info)
 
   private def checkConformsFunctionType(tp1: FunctionType, tp2: FunctionType)(using Context): Boolean =
     tp1.paramTypes.size == tp2.paramTypes.size

@@ -439,7 +439,7 @@ class Namer(@constructorOnly reporter: Reporter):
             TypeBound(BottomType, boundTree.tpe)
 
         val infoProvider: InfoProvider = (sym: Symbol) => bound
-        val sym = Symbol.createTypeSymbol(tparam.name, infoProvider, tparam.pos)
+        val sym = Symbol.createTypeParamSymbol(tparam.name, infoProvider, tparam.pos)
         funScope.define(sym, tparam.span)
         sym
 
@@ -506,7 +506,7 @@ class Namer(@constructorOnly reporter: Reporter):
             TypeBound(BottomType, boundTree.tpe)
 
         val infoProvider: InfoProvider = (sym: Symbol) => bound
-        val sym = Symbol.createTypeSymbol(tparam.name, infoProvider, tparam.pos)
+        val sym = Symbol.createTypeParamSymbol(tparam.name, infoProvider, tparam.pos)
         sc2.define(sym, tparam.span)
         sym
 
