@@ -54,7 +54,7 @@ object Subtyping:
       reducing.contains(sym)
 
   /** Check whether one type conforms to the other type */
-  private def checkConforms(tp1: Type, tp2: Type)(using ctx: Context): Boolean = Debug.trace(s"${tp1.show} <: ${tp2.show}", enable = true) {
+  private def checkConforms(tp1: Type, tp2: Type)(using ctx: Context): Boolean = Debug.trace(s"${tp1.show} <: ${tp2.show}", enable = false) {
     tp1.isError
     || tp2.isError
     || tp1.isBottom
