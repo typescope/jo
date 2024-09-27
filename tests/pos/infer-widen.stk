@@ -1,6 +1,6 @@
-fun let[T](x: T) = x
+fun with[T](x: T) = x
 
-let[Int]
+with
   3
     *
     5
