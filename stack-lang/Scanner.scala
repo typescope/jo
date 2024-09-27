@@ -149,6 +149,9 @@ object Scanner:
     /** Used to create token content */
     private val sb = new StringBuilder
 
+    // add line offset for the starting line
+    reporter.addLineOffset(index)
+
     def curChar() = code(index)
 
     def eat(): Char =

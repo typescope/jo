@@ -237,6 +237,9 @@ class Parser(code: String)(using Reporter):
   /** An expression ends with unindentation */
   def exprRest(words: mutable.ArrayBuffer[Word], lineIndent: Indent): Word =
     val item = peekItem()
+
+    val isFirstTokenInLine = item.span.toPos.startLine != words.last.pos.endLine
+
     def finalResult: Word =
       if words.size == 1 then
         words.head
@@ -244,10 +247,10 @@ class Parser(code: String)(using Reporter):
         val span = words.head.span | words.last.span
         Expr(words.toList)(span)
 
-    if item.token == Token.EOF || lineIndent.isUnindent(item.indent) then
+    if item.token == Token.EOF || lineIndent.isUnindent(item.indent) && isFirstTokenInLine then
       finalResult
 
-    else if lineIndent.isIndent(item.indent) then
+    else if lineIndent.isIndent(item.indent) && isFirstTokenInLine then
       val first = finalResult
       words.clear()
 
@@ -467,6 +470,8 @@ class Parser(code: String)(using Reporter):
     val rparen = eat(Token.RPAREN)
     // having span covering `(` is important for checking alignment
     val span = lparen.span | rparen.span
+    if !span.toPos.isOneLine then
+      warn("Use indented syntax when parentheses span multiple lines", span.toPos)
     Block(word :: Nil)(span)
 
   def ifElse(): Phrase =

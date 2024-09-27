@@ -105,7 +105,7 @@ object X86 extends Assembler:
       case Syscall =>
         pb.addBytes(0xcd.toByte, 0x80.toByte)
 
-  def lower(binOp: Instr.Binary)(using pb: PatchableBuffer) =
+  def lower(binOp: Instr.Binary)(using pb: PatchableBuffer): Unit =
     binOp match
       case Instr.Binary(op, r1: Reg, r2: Reg, destReg) =>
         if destReg == r1.index then
@@ -156,7 +156,7 @@ object X86 extends Assembler:
               // Spill a register for temporary usage
               val rTemp = if destReg == EAX then EBX else EAX
               push(rTemp)
-              binaryOperation(op, rTemp, r)
+              lower(Instr.Binary(op, v, r, rTemp))
               move(Reg(rTemp), r.index)
               pop(rTemp)
 
