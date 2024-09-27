@@ -13,6 +13,7 @@ import Reporter.{ ReportItem, Kind, FatalError }
 class Reporter(
   val source: Source,                            // current source
   reported: mutable.ArrayBuffer[ReportItem],     // reported items
+  buffer: Boolean,                               // whether buffer reports
   sources: mutable.Map[String, Source])          // all sources
 extends SourceContext:
 
@@ -20,17 +21,17 @@ extends SourceContext:
 
   def withSource(file: String): Reporter =
     sources.get(file) match
-      case Some(source) => new Reporter(source, reported, sources)
+      case Some(source) => new Reporter(source, reported, buffer, sources)
       case None =>
         val source = new Source(file)
         sources(file) = source
-        new Reporter(source, reported, sources)
+        new Reporter(source, reported, buffer, sources)
 
   def withSource(source: Source): Reporter =
-    new Reporter(source, reported, sources)
+    new Reporter(source, reported, buffer, sources)
 
-  def fresh(): Reporter =
-    new Reporter(source, mutable.ArrayBuffer.empty, sources)
+  def fresh(buffer: Boolean = true): Reporter =
+    new Reporter(source, mutable.ArrayBuffer.empty, buffer, sources)
 
   def abort(message: String, pos: SourcePosition): Nothing =
     val error = new ReportItem(Kind.Error, message, pos)
@@ -41,8 +42,9 @@ extends SourceContext:
 
   def report(item: ReportItem): Unit =
     reported += item
-    println(item)
-    println
+    if !buffer then
+      println(item)
+      println
 
   def error(message: String, pos: SourcePosition): Unit =
     report(Kind.Error, message, pos)
@@ -100,11 +102,11 @@ object Reporter:
     case InternalError(message: String)
     case StopAfterPhase()
 
-  def createReporter(file: String): Reporter =
+  def createReporter(file: String, buffer: Boolean = false): Reporter =
     val source = new Source(file)
     val sources = mutable.Map(file -> source)
     val reported = new mutable.ArrayBuffer[ReportItem]
-    new Reporter(source, reported, sources)
+    new Reporter(source, reported, buffer, sources)
 
   def monitor[T](file: String)(fn: Reporter ?=> Unit): Unit =
     val reporter = createReporter(file)

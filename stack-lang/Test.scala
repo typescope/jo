@@ -16,7 +16,7 @@ object Test:
     }
 
   def compileAndCheck(test: String): Boolean = Reporter.timeout(100):
-    given Reporter = Reporter.createReporter(test)
+    given Reporter = Reporter.createReporter(test, buffer = true)
     val backend = Linux.createX86StackMachine(test, "c1")
 
     try
