@@ -93,17 +93,12 @@ object Positions:
 
       LineColumn(from, offset - lineOffset)
 
-    def lineLength(line: Int) =
-      assert(line < lineOffsets.size - 1)  // ignore the last entry
-      lineOffsets(line + 1) - lineOffsets(line)
-
     def readLine(line: Int): String =
       val jfile = new java.io.RandomAccessFile(file, "r")
-      val bytes = new Array[Byte](lineLength(line))
       jfile.seek(lineOffsets(line))
-      jfile.read(bytes)
+      val lineStr = jfile.readLine()
       jfile.close()
-      new String(bytes)
+      lineStr
 
   /** A position in a source file */
   case class SourcePosition(source: Source, start: Int, length: Int):

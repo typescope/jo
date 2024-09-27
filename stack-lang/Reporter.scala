@@ -37,10 +37,12 @@ extends SourceContext:
     throw new FatalError.CodeError(error)
 
   def report(kind: Kind, message: String, pos: SourcePosition): Unit =
-    reported += new ReportItem(kind, message, pos)
+    report(new ReportItem(kind, message, pos))
 
   def report(item: ReportItem): Unit =
     reported += item
+    println(item)
+    println
 
   def error(message: String, pos: SourcePosition): Unit =
     report(Kind.Error, message, pos)
@@ -52,7 +54,7 @@ extends SourceContext:
 
   def reports: List[ReportItem] = reported.toList
 
-  def print() =
+  def printSummary() =
     var errorCount = 0
     var warningCount = 0
 
@@ -61,9 +63,6 @@ extends SourceContext:
         case Kind.Error => errorCount += 1
         case Kind.Warning => warningCount += 1
         case Kind.Info =>
-
-      println(item)
-      println
 
     println(s"$errorCount error(s), $warningCount warning(s)")
 
@@ -117,7 +116,7 @@ object Reporter:
       case error: FatalError.InternalError =>
         println("[error] " + error.message)
       case error: FatalError.StopAfterPhase =>
-        reporter.print()
+        reporter.printSummary()
       case error: TimeoutException =>
         println("Operation time out")
 
