@@ -1,6 +1,9 @@
 import Types.*
 
 object Subtyping:
+  /** A subtyping task `left <: right` */
+  case class Task(left: Type, right: Type)
+
   /** Whether `tp1` conforms to `tp2` */
   def conforms(tp1: Type, tp2: Type): Boolean =
     checkConforms(tp1,tp2)(using new Context())
@@ -124,7 +127,14 @@ object Subtyping:
 
       case tvar: TypeVar =>
         given Context = reducingCtx(tvar)
-        if lessThan then tvar.isSubtype(tp2) else tvar.isSuptype(tp2)
+        val result = if lessThan then tvar.isSubtype(tp2) else tvar.isSuptype(tp2)
+        result match
+          case Inference.SubtypingResult.Success => true
+          case Inference.SubtypingResult.Fail => false
+          case Inference.SubtypingResult.Conditional(tasks, action) =>
+            val ok = tasks.forall(task => checkConforms(task.left, task.right))
+            if ok then action()
+            ok
 
   private def reduce(tp: TypeRef, maximize: Boolean): Type =
     val sym = tp.symbol

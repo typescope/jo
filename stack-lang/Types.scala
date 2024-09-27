@@ -184,8 +184,10 @@ object Types:
 
     def dealias: Type = handler.dealias(this)
 
-    def approx(isUp: Boolean) = handler.approx(this, isUp)
+    def approx(isUp: Boolean): Type = handler.approx(this, isUp)
 
-    def isSubtype(tp: Type)(using Subtyping.Context): Boolean = handler.isSubtype(this, tp)
+    def isSubtype(tp: Type)(using Subtyping.Context): Inference.SubtypingResult =
+      handler.isSubtype(this, tp)
 
-    def isSuptype(tp: Type)(using Subtyping.Context): Boolean = handler.isSuptype(this, tp)
+    def isSuptype(tp: Type)(using Subtyping.Context): Inference.SubtypingResult =
+      handler.isSuptype(this, tp)

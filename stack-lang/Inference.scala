@@ -11,6 +11,17 @@ object Inference:
     case Member(name: String)
     case Known(tpe: Type)
 
+  enum SubtypingResult:
+    case Success
+
+    case Fail
+
+    /** A conditional result with the given subtyping obligations.
+      *
+      * If the obligations are satisfied, execute the associated action once.
+      */
+    case Conditional(obligations: List[Subtyping.Task], action: () => Unit)
+
   trait Handler:
     def newTypeVars(tparams: List[NamedInfo[TypeBound]]): List[TypeVar]
 
@@ -26,12 +37,12 @@ object Inference:
       */
     def approx(tvar: TypeVar, isUp: Boolean): Type
 
-    def isSubtype(tvar: TypeVar, tp: Type)(using Subtyping.Context): Boolean
+    def isSubtype(tvar: TypeVar, tp: Type): SubtypingResult
 
-    def isSuptype(tvar: TypeVar, tp: Type)(using Subtyping.Context): Boolean
+    def isSuptype(tvar: TypeVar, tp: Type): SubtypingResult
 
-  def isWithinBound(tp: Type, bound: TypeBound): Boolean =
-    Subtyping.conforms(tp, bound.hi) && Subtyping.conforms(bound.lo, tp)
+  def boundCheckTasks(tp: Type, bound: TypeBound): List[Subtyping.Task] =
+    Subtyping.Task(tp, bound.hi) :: Subtyping.Task(bound.lo, tp) :: Nil
 
   class UnificationHandler extends Handler:
     private val instantiations: mutable.Map[TypeVar, Type] = mutable.Map.empty
@@ -56,30 +67,41 @@ object Inference:
         case Some(inst) => TypeOps.approx(inst, isUp)
         case None => AnyType
 
-    def isSubtype(tvar: TypeVar, tp: Type)(using Subtyping.Context): Boolean =
+    def isSubtype(tvar: TypeVar, tp: Type): SubtypingResult =
       instantiations.get(tvar) match
         case Some(inst) =>
-          Subtyping.conforms(inst, tp)
+          SubtypingResult.Conditional(
+            Subtyping.Task(inst, tp) :: Nil,
+            action = () => ()
+          )
 
         case None =>
           if tvar == tp then
-            true
-          else if isWithinBound(tp, bounds(tvar)) then
-            instantiations(tvar) = tp
-            true
+            SubtypingResult.Success
           else
-            false
+            val tasks = boundCheckTasks(tp, bounds(tvar))
+            val action = () => instantiations(tvar) = tp
+            SubtypingResult.Conditional(
+              tasks,
+              action
+            )
 
-    def isSuptype(tvar: TypeVar, tp: Type)(using Subtyping.Context): Boolean =
+
+    def isSuptype(tvar: TypeVar, tp: Type): SubtypingResult =
       instantiations.get(tvar) match
         case Some(inst) =>
-          Subtyping.conforms(tp, inst)
+          SubtypingResult.Conditional(
+            Subtyping.Task(tp, inst) :: Nil,
+            action = () => ()
+          )
 
         case None =>
           if tvar == tp then
-            true
-          else if isWithinBound(tp, bounds(tvar)) then
-            instantiations(tvar) = tp
-            true
+            SubtypingResult.Success
           else
-            false
+            val tasks = boundCheckTasks(tp, bounds(tvar))
+            val action = () => instantiations(tvar) = tp
+            SubtypingResult.Conditional(
+              tasks,
+              action
+            )
