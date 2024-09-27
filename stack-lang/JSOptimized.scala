@@ -17,7 +17,7 @@ class JSOptimized(outFile: String):
   // Make keywords unavailable
   for word <- List(
       "for", "while", "function", "var", "let", "break", "continue", "if",
-      "const", "class", "constructor")
+      "const", "class", "constructor", "with")
   do
     freshName(word)
 
