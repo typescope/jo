@@ -121,17 +121,24 @@ class Checker:
       word
 
   def adapt(word: Word, targetType: TargetType)(using Reporter): Word =
+    def widen(): Word = word.tpe match
+      case TypeRef(sym) if !sym.isType =>
+        Encoded(word)(sym.info)
+      case _ =>
+        word
+
     targetType match
       case TargetType.Unknown =>
+        // Don't widen if the target type is unknown
         word
 
       case TargetType.ValueType =>
         checkValueType(word)
-        word
+        widen()
 
       case TargetType.ProperType =>
         checkVoidOrValueType(word)
-        word
+        widen()
 
       case TargetType.Known(tpe) =>
         adapt(word, tpe)
