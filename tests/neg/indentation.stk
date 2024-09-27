@@ -6,6 +6,14 @@ val a =
       4
 
 
+val b =
+  20 - (                   // error
+    4 + 6) * 5
+
+val c =
+    20 - (                 // error
+  4 + 6) * 5
+
 fun fact(n: Int) =
   if 0 == n then 1
   else fact (n - 1) * n

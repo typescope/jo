@@ -54,18 +54,22 @@ object Positions:
     *
     * The lineOffsets contains one more entry for EOF if it does not end with
     * a new line.
+    *
+    * The starting line has the offset 0, which is the first entry.
     */
   class Source(val file: String, lineOffsets: mutable.ArrayBuffer[Int]):
-    def this(file: String) = this(file, mutable.ArrayBuffer(0))
+    def this(file: String) = this(file, mutable.ArrayBuffer())
 
     def addLineOffset(offset: Int): Unit =
+      assert(lineOffsets.isEmpty || offset > lineOffsets.last, "offset = " + offset + ", " + lineOffsets.last)
       lineOffsets += offset
 
     def offsetToLineColumn(offset: Int): LineColumn =
+      assert(lineOffsets.nonEmpty)
+      // it is possible that `lineOffsets.last < offset` for line inquiry from parser
+
       var from = 0
-      val last =
-        if lineOffsets.size <= 1 then 0
-        else lineOffsets.size - 2 // ignore the last EOF entry
+      val last = lineOffsets.size - 1
       var to = last
 
       while from != to do
@@ -83,7 +87,7 @@ object Positions:
         else
           to = mid
 
-      val lineOffset = if from < lineOffsets.size then lineOffsets(from) else offset
+      val lineOffset = lineOffsets(from)
       // println(s"from = $from, to = $to, offset = $offset, $lineOffsets")
       assert(offset >= lineOffset && (from == last || offset < lineOffsets(from + 1)))
 
