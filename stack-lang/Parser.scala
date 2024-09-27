@@ -467,6 +467,8 @@ class Parser(code: String)(using Reporter):
     val rparen = eat(Token.RPAREN)
     // having span covering `(` is important for checking alignment
     val span = lparen.span | rparen.span
+    if !span.toPos.isOneLine then
+      warn("Use indented syntax when parentheses span multiple lines", span.toPos)
     Block(word :: Nil)(span)
 
   def ifElse(): Phrase =

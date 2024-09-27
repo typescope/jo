@@ -1,3 +1,11 @@
+val a =
+  3 * (5 +                  // error
+       6
+      )
+      -
+      4
+
+
 fun fact(n: Int) =
   if 0 == n then 1
   else fact (n - 1) * n
