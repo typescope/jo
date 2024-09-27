@@ -146,7 +146,13 @@ object TypeOps:
       case BottomType  => "Bottom"
       case ErrorType   => "Error"
 
-      case tvar: TypeVar => tvar.toString
+      case tvar: TypeVar =>
+        val dealias = tvar.dealias
+        if dealias != tvar then
+          dealias.show
+        else
+          tvar.approx(isUp = true).show
+
 
       case TypeRef(sym) =>
         if sym.isType then sym.name else sym.name + ": " + sym.info.show

@@ -51,11 +51,12 @@ object Inference:
     // TODO: ensure instantiation of unconstrained type variables
 
     def newTypeVars(tparams: List[NamedInfo[TypeBound]]): List[TypeVar] =
-      // TODO: F-bounds and dependencies between tparams
-      for tparam <- tparams yield
-        val tvar = TypeVar(tparam.name, this)
-        bounds(tvar) = tparam.info
-        tvar
+      val tvars = for tparam <- tparams yield TypeVar(tparam.name, this)
+
+      for (tvar, tparam) <- tvars.zip(tparams) do
+        bounds(tvar) = TypeOps.substTypeParams(tparam.info, tvars).as[TypeBound]
+
+      tvars
 
     def dealias(tvar: TypeVar): Type =
       instantiations.get(tvar) match
@@ -65,7 +66,9 @@ object Inference:
     def approx(tvar: TypeVar, isUp: Boolean): Type =
       instantiations.get(tvar) match
         case Some(inst) => TypeOps.approx(inst, isUp)
-        case None => AnyType
+        case None =>
+          val bound = bounds(tvar)
+          if isUp then bound.hi else bound.lo
 
     def isSubtype(tvar: TypeVar, tp: Type): SubtypingResult =
       instantiations.get(tvar) match
