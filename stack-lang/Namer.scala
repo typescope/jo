@@ -194,18 +194,8 @@ class Namer(@constructorOnly reporter: Reporter):
         else
           Phrase(Nil)(ErrorType, word.span)
 
-      case Ast.Lambda(params, body) =>
-        // TODO: propagte target for arguments and body
-        val sc2 = sc.fresh()
-        val id = Ast.Ident("anon")(word.span)
-        val resType = Ast.EmptyTypeTree()(body.span)
-        val tparams = Nil
-        val preParamCount = 0
-        val funDef = Ast.FunDef(id, tparams, params, resType, body, preParamCount)(word.span)
-        val funDef2 = transform(funDef)(using sc2).force()
-        val lambdaType = funDef2.symbol.info.asProcType.toFunType
-        val ref = Ident(funDef2.symbol)(word.span)
-        Phrase(funDef2 :: ref :: Nil)(lambdaType, word.span).adapt
+      case lambda: Ast.Lambda =>
+        transform(lambda).adapt
 
       case Ast.TypeApply(fun, targs) =>
         val fun2 = transform(fun)
@@ -389,6 +379,52 @@ class Namer(@constructorOnly reporter: Reporter):
 
           val body3 = Phrase(vals.toList :+ adapted)(adapted.tpe, caseDef.span)
           If(cond, body3, elsep)(body3.tpe, caseDef.span)
+
+  private def transform(lambda: Ast.Lambda)(using sc: Scope, rp: Reporter, tt: TargetType): Word =
+     val Ast.Lambda(params, body) = lambda
+     // TODO: propagte target for arguments and body
+     val lambdaScope = sc.fresh()
+
+     val targetFunTypeOpt: Option[FunctionType] = tt.knownType.flatMap: tp =>
+       if tp.isFunctionType then
+         Some(tp.asFunctionType)
+       else
+         None
+
+     var hasErrors = false
+     if targetFunTypeOpt.isEmpty || targetFunTypeOpt.get.paramCount != params.size then
+       for param <- params if param.typ.isEmpty do
+         hasErrors = true
+         Reporter.error("Cannot infer the type of parameter " + param.name, param.pos)
+
+     if hasErrors then return Phrase(words = Nil)(ErrorType, lambda.span)
+
+     def inferArgType(i: Int): Type =
+       targetFunTypeOpt match
+         case Some(funType) => funType.paramTypes(i)
+         case None => ErrorType
+
+     val paramSyms =
+      for (param, i) <- params.zipWithIndex yield
+        val tp = if param.typ.isEmpty then inferArgType(i) else transformType(param.typ).tpe
+        val paramSym = Symbol.createParamSymbol(param.name, tp, param.pos)
+        lambdaScope.define(paramSym, param.span)
+        paramSym
+
+     val bodyTargetType = targetFunTypeOpt match
+       case Some(funType) => TargetType.Known(funType.resultType)
+       case None => TargetType.ProperType
+
+     val bodyTyped = transform(body)(using lambdaScope, rp, bodyTargetType)
+
+     val procType = ProcType(paramSyms.map(_.toNamedInfo), bodyTyped.tpe, preParamCount = 0)
+     val funSym = Symbol.createFunSymbol("anon", procType, Flags.Local, lambda.pos)
+     val tparamSyms = Nil
+     val funDef = FunDef(funSym, tparamSyms, paramSyms, bodyTyped)(locals = Nil, captures = Nil, lambda.span)
+
+     val lambdaType = procType.toFunType
+     val ref = Ident(funSym)(lambda.span)
+     Phrase(funDef :: ref :: Nil)(lambdaType, lambda.span)
 
   private def transform(vdef: Ast.ValDef)(using sc: Scope, rp: Reporter): DelayedDef[ValDef] =
     var flags: Flags = Flags.empty

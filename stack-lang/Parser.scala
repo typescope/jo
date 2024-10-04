@@ -166,26 +166,30 @@ class Parser(code: String)(using Reporter):
 
     TypeParam(id, bound)(id.span | bound.span)
 
-  def params(): List[Param] =
+  def params(typeOptional: Boolean = false): List[Param] =
     eat(Token.LPAREN)
     val list =
       if peek() == Token.RPAREN then Nil
-      else paramsRest(mutable.ArrayBuffer(param()))
+      else paramsRest(mutable.ArrayBuffer(param(typeOptional)), typeOptional)
     eat(Token.RPAREN)
     list
 
-  def param(): Param =
+  def param(typeOptional: Boolean): Param =
     val id = ident()
-    eat(Token.COLON)
-    val tpt = typ()
+    val tpt =
+      if peek() == Token.COLON then
+        eat(Token.COLON)
+        typ()
+      else
+        EmptyTypeTree()(id.span)
     Param(id, tpt)(id.span | tpt.span)
 
-  def paramsRest(acc: mutable.ArrayBuffer[Param]): List[Param] =
+  def paramsRest(acc: mutable.ArrayBuffer[Param], typeOptional: Boolean): List[Param] =
     val token = peek()
     if token == Token.RPAREN || token == Token.EOF then acc.toList
     else
       eat(Token.COMMA)
-      paramsRest(acc += param())
+      paramsRest(acc += param(typeOptional), typeOptional)
 
   /** Parse a block within the indentation */
   def block(limitIndent: Indent): Block =
@@ -277,9 +281,11 @@ class Parser(code: String)(using Reporter):
     val token0 = peek(0)
     val token1 = peek(1)
     val token2 = peek(2)
+    val token3 = peek(3)
     token0 == Token.LPAREN && (
       token1.isInstanceOf[Token.Ident] && (token2 == Token.COLON || token2 == Token.COMMA)
       || token1 == Token.RPAREN && token2 == Token.RARROW
+      || token1.isInstanceOf[Token.Ident] && token2 == Token.RPAREN && token3 == Token.RARROW
     )
 
   def word(): Option[Word] =
@@ -459,11 +465,11 @@ class Parser(code: String)(using Reporter):
         Ident("error")(item.span)
 
   def lambda(): Word =
-    val paren = peekItem()
-    val paramList = params()
+    val lparen = peekItem()
+    val paramList = params(typeOptional = true)
     eat(Token.RARROW)
-    val body = block(paren.indent)
-    Lambda(paramList, body)(paren.span | body.span)
+    val body = block(lparen.indent)
+    Lambda(paramList, body)(lparen.span | body.span)
 
   def fence(): Word =
     val lparen = eat(Token.LPAREN)

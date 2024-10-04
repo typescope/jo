@@ -2,10 +2,9 @@ type Y[T] = Y[T] => T
 
 fun Y[T](f: (T => T) => (T => T)): T => T =
   val g = (x: Y[T => T]) =>
-    f
-      (a: T) =>
-         val h = x x
-         h a
+    f (a: T) =>
+       val h = x x
+       h a
   g g
 
 val fact0 = (f: Int => Int) => (n: Int) =>

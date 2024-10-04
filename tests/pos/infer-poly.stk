@@ -1,3 +1,7 @@
 fun test1[X, Y <: X](y: Y): X = y
 
 test1 5 p
+
+fun app[X, Y](x: X, f: X => Y): Y = f x
+
+app 5 (x) => x * x
