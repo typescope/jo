@@ -243,7 +243,8 @@ class Namer(@constructorOnly reporter: Reporter):
               TargetType.Known(fieldType)
 
             case None =>
-              Reporter.error("Unused field " + field.name, field.pos)
+              // TODO: report unused field
+              // Reporter.error("Unused field " + field.name, field.pos)
               TargetType.ValueType
 
         case _ =>
