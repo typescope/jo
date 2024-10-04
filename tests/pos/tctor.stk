@@ -1,8 +1,8 @@
 type List[T] = <Nil, Cons {head: T, tail: List[T]}>
 
-val a: List[Int] = #Nil of List[Int]
-val b: List[Int] = #Cons {head = 5, tail = a} of List[Int]
-val c: List[Int] = #Cons {head = 20, tail = b} of List[Int]
+val a: List[Int] = #Nil
+val b: List[Int] = #Cons {head = 5, tail = a}
+val c: List[Int] = #Cons {head = 20, tail = b}
 
 fun foreach(l: List[Int]): Void =
   match l

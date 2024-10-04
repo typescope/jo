@@ -285,23 +285,24 @@ class Parser(code: String)(using Reporter):
   def word(): Option[Word] =
     val item = peekItem()
 
-    def continue(word: Word): Some[Word] =
+    def optSelect(word: Word): Some[Word] =
       peek() match
-        case Token.DOT  => continue(select(word))
+        case Token.DOT  => optSelect(select(word))
         case _ => Some(word)
 
     item.token match
-      case Token.LBRACE => continue(record())
-      case Token.TAG    => continue(variant())
+      case Token.LBRACE => optSelect(record())
+
+      case Token.TAG    => Some(variant())
 
       case Token.LPAREN =>
-        if isLambda() then continue(lambda()) else continue(fence())
+        if isLambda() then Some(lambda()) else optSelect(fence())
 
-      case _: Token.Ident if !isAssign() =>
+      case _: Token.Ident =>
         val id = ident()
         peek() match
-          case Token.LBRACKET => continue(typeApply(id))
-          case _              => continue(id)
+          case Token.LBRACKET => Some(typeApply(id))
+          case _              => optSelect(id)
 
       case litToken: Token.IntLit  =>
         next()
@@ -555,8 +556,13 @@ class Parser(code: String)(using Reporter):
         case _ =>
           false
     do ()
-    eat(Token.OF)
-    val tp = typ()
+    val tp =
+      if peek() == Token.AS then
+        eat(Token.AS)
+        typ()
+      else
+        EmptyTypeTree()(tag.span)
+
     Variant(tag, words.toList, tp)(tagSign.span | tp.span)
 
   def patmat(): Match =

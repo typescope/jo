@@ -32,7 +32,7 @@ Lexical Grammar
     RBRACKET = "]".
     LBRACE   = "{".
     RBRACE   = "}".
-    OF       = "of".
+    AS       = "as".
     IF       = "if".
     THEN     = "then".
     ELSE     = "else".
@@ -58,13 +58,13 @@ Syntactical Grammar
 
     expr    = word {word}.
 
-    word    = integer | boolean | ident | select | fence | record | variant | tapply | lambda.
+    word    = integer | boolean | ident | fence | record | tapply | select | variant | lambda.
 
     phrase  = expr | assign | valdef | fundef | typedef | while | if | match.
 
     block   = { phrase }.
 
-    select  = word DOT ident.
+    select  = (ident | record | fence | select) DOT ident.
 
     fence   = LPAREN expr RPAREN.
     assign  = ident EQL block.
@@ -75,7 +75,7 @@ Syntactical Grammar
     named_args = named_arg { COMMA named_arg }.
     named_arg  = ident EQL expr.
 
-    variant = TAG ident {word} OF type.
+    variant = TAG ident {word} [AS type].
 
     tapply  = ident targs.
     lambda  = param_section RARROW block.

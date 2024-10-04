@@ -11,6 +11,11 @@ object Inference:
     case Member(name: String)
     case Known(tpe: Type)
 
+    def knownType: Option[Type] =
+      this match
+        case Known(tpe) => Some(tpe)
+        case _ => None
+
   enum SubtypingResult:
     case Success
 

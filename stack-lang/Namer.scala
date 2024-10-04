@@ -230,14 +230,30 @@ class Namer(@constructorOnly reporter: Reporter):
     val else3 = checker.adapt(else2, commonType)
     If(cond2, then3, else3)(commonType, ifte.span)
 
-  private def transform(record: Ast.RecordLit)(using sc: Scope, rp: Reporter): Word =
+  private def transform(record: Ast.RecordLit)(using sc: Scope, rp: Reporter, tt: TargetType): Word =
     val Ast.RecordLit(namedArgs) = record
     val namedArgs2 = new mutable.ArrayBuffer[(String, Word)]
+
+    val knownTypeOpt = tt.knownType
+    def targetFieldType(field: Ast.Ident): TargetType =
+      knownTypeOpt match
+        case Some(tp) if tp.isRecordType =>
+          tp.asRecordType.getFieldType(field.name) match
+            case Some(fieldType) =>
+              TargetType.Known(fieldType)
+
+            case None =>
+              Reporter.error("Unused field " + field.name, field.pos)
+              TargetType.ValueType
+
+        case _ =>
+          TargetType.ValueType
+
     for Ast.NamedArg(id, rhs) <- namedArgs do
       if namedArgs2.exists(_._1 == id.name) then
         Reporter.error("Arg " + id.name + " already defined", id.pos)
       else
-        given TargetType = TargetType.ValueType
+        given TargetType = targetFieldType(id)
         val rhs2 = transform(rhs)
         namedArgs2 += id.name -> rhs2
     end for
@@ -245,11 +261,13 @@ class Namer(@constructorOnly reporter: Reporter):
     val tpe = RecordType(fields.map { case (k, v) => NamedInfo(k, v.tpe) })
     RecordLit(fields)(tpe, record.span)
 
-  private def transform(variant: Ast.Variant)(using sc: Scope, rp: Reporter): Word =
+  private def transform(variant: Ast.Variant)(using sc: Scope, rp: Reporter, tt: TargetType): Word =
     val Ast.Variant(tag, values, typ) = variant
 
-    val unionType = transformType(typ)
-    val tagTypesOpt = checker.tagTypes(tag, unionType.tpe, unionType.span)
+    val unionType =
+      if typ.isEmpty then tt.knownType.getOrElse(AnyType)
+      else transformType(typ).tpe
+    val tagTypesOpt = checker.tagTypes(tag, unionType, typ.span)
 
     tagTypesOpt match
       case Some(tagTypes) =>
@@ -262,9 +280,9 @@ class Namer(@constructorOnly reporter: Reporter):
             transform(value)
 
         // encode variants as records
-        val tagIndex = unionType.tpe.asUnionType.tagIndex(tag.name)
+        val tagIndex = unionType.asUnionType.tagIndex(tag.name)
         val encodedValue = Desugaring.encodeVariant(tagIndex, values2, tagTypes, tag.span, variant.span)
-        Encoded(encodedValue)(unionType.tpe)
+        Encoded(encodedValue)(unionType)
 
       case None =>
         Phrase(Nil)(ErrorType, variant.span)

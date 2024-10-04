@@ -4,10 +4,10 @@ type Bot = < >
 
 type OptionSum = <None, Some Sum>
 
-val a: Sum = #Left 3 of Sum
-val b: Option = #None of Option
-val c: Option = #Some 5 of Option
-val d: OptionSum = #Some (#Right 2024 of Sum) of OptionSum
+val a: Sum = #Left 3
+val b: Option = #None
+val c: Option = #Some 5
+val d: OptionSum = #Some (#Right 2024)
 
 fun foo(x: Sum): Int =
   match x

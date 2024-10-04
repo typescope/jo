@@ -19,9 +19,9 @@ fun preOrder(tree: Tree): Void =
       preOrder n.left
       preOrder n.right
 
-val a: Tree = #Leaf 3 of Tree
-val b: Tree = #Node { left = #Leaf 5 of Tree, right = #Leaf 6 of Tree, value = 10 } of Tree
-val tree: Tree = #Node {left = a, right = b, value = 20} of Tree
+val a: Tree = #Leaf 3
+val b: Tree = #Node { left = #Leaf 5, right = #Leaf 6, value = 10 }
+val tree: Tree = (#Node {left = a, right = b, value = 20})
 
 postOrder tree
 preOrder tree
