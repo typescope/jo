@@ -382,8 +382,6 @@ class Namer(@constructorOnly reporter: Reporter):
 
   private def transform(lambda: Ast.Lambda)(using sc: Scope, rp: Reporter, tt: TargetType): Word =
      val Ast.Lambda(params, body) = lambda
-     // TODO: propagte target for arguments and body
-     val lambdaScope = sc.fresh()
 
      val targetFunTypeOpt: Option[FunctionType] = tt.knownType.flatMap: tp =>
        if tp.isFunctionType then
@@ -398,6 +396,9 @@ class Namer(@constructorOnly reporter: Reporter):
          Reporter.error("Cannot infer the type of parameter " + param.name, param.pos)
 
      if hasErrors then return Phrase(words = Nil)(ErrorType, lambda.span)
+
+     val funSym = Symbol.createFunSymbol("anon", this.nonCyclicTypeProvider, Flags.Local, lambda.pos)
+     val lambdaScope = sc.fresh(funSym)
 
      def inferArgType(i: Int): Type =
        targetFunTypeOpt match
@@ -417,11 +418,12 @@ class Namer(@constructorOnly reporter: Reporter):
 
      val bodyTyped = transform(body)(using lambdaScope, rp, bodyTargetType)
 
+     // Provide type info for the function symbol
      val procType = ProcType(paramSyms.map(_.toNamedInfo), bodyTyped.tpe, preParamCount = 0)
-     val funSym = Symbol.createFunSymbol("anon", procType, Flags.Local, lambda.pos)
+     this.nonCyclicTypeProvider.addProvider(funSym, () => procType)
+
      val tparamSyms = Nil
      val funDef = FunDef(funSym, tparamSyms, paramSyms, bodyTyped)(locals = Nil, captures = Nil, lambda.span)
-
      val lambdaType = procType.toFunType
      val ref = Ident(funSym)(lambda.span)
      Phrase(funDef :: ref :: Nil)(lambdaType, lambda.span)
@@ -448,7 +450,7 @@ class Namer(@constructorOnly reporter: Reporter):
         else TargetType.Known(givenType)
       transform(vdef.rhs)
 
-    def computeType(sym: Symbol): Type =
+    def computeType(): Type =
       if vdef.typ.isEmpty then rhs.get(sym).tpe else givenType
 
     this.nonCyclicTypeProvider.addProvider(sym, computeType)
@@ -565,7 +567,7 @@ class Namer(@constructorOnly reporter: Reporter):
         sc2.define(sym, tparam.span)
         sym
 
-    def computeInfo(sym: Symbol): Type =
+    def computeInfo(): Type =
       if tdef.tparams.isEmpty then
         val rhs = transformType(tdef.rhs)
         checker.delayedCheck { checker.checkValueType(rhs) }
