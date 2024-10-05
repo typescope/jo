@@ -20,6 +20,11 @@ for file in $DIR/tests/pos/*.stk; do
     CHECK=$file.check
     OUT=$file.out
 
+    # create empty check file
+    if [ ! -f "$CHECK" ]; then
+        touch "$CHECK"
+    fi
+
     exe=${file%.*}.run
     js=${file%.*}.js
     bin/stki $file > $OUT 2>&1
