@@ -69,6 +69,10 @@ object Subtyping:
     || tp1.isBottom
     || tp2.isAnyType && tp1.isValueType
     || tp1 == tp2
+    || tp1.is[TypeVar]
+       && checkConformsProxyType(tp1.as[ProxyType], tp2)
+    || tp2.is[TypeVar]
+       && checkConformsProxyType(tp1, tp2.as[ProxyType])
     || tp1.is[ProxyType] && tp2.is[ProxyType]
        && checkConformsProxyType(tp1.as[ProxyType], tp2.as[ProxyType])
     || tp1.is[ProxyType]
