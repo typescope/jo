@@ -151,8 +151,7 @@ object TypeOps:
         if dealias != tvar then
           dealias.show
         else
-          tvar.approx(isUp = true).show
-
+          tvar.toString
 
       case TypeRef(sym) =>
         if sym.isType then sym.name else sym.name + ": " + sym.info.show

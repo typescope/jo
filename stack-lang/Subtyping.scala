@@ -81,6 +81,8 @@ object Subtyping:
        && checkConformsProcType(tp1.as[ProcType], tp2.as[ProcType])
     || tp1.is[RecordType] && tp2.is[RecordType]
        && checkConformsRecordType(tp1.as[RecordType], tp2.as[RecordType])
+    || tp1.is[UnionType] && tp2.is[UnionType]
+       && checkConformsUnionType(tp1.as[UnionType], tp2.as[UnionType])
   }
 
   private def checkConforms(tp1: Type, tp2: Type, lessThan: Boolean)(using ctx: Context): Boolean =
@@ -162,3 +164,12 @@ object Subtyping:
     val names2 = tp2.fieldNames
     names1.size >= names2.size && names1.zip(names2).forall: (a, b) =>
       a == b && checkConforms(tp1.fieldType(a), tp2.fieldType(b))
+
+  private def checkConformsUnionType(tp1: UnionType, tp2: UnionType)(using Context): Boolean =
+    val tags1 = tp1.tags
+    val tags2 = tp2.tags
+    tags1 == tags2 && tags1.forall: tag =>
+      val argTypes1 = tp1.tagType(tag)
+      val argTypes2 = tp2.tagType(tag)
+      argTypes1.size == argTypes2.size && argTypes1.zip(argTypes2).forall: (arg1, arg2) =>
+        checkConforms(arg1, arg2)

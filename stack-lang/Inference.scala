@@ -63,6 +63,11 @@ object Inference:
 
       tvars
 
+    def instantiate(tvar: TypeVar, tp: Type) =
+      assert(!instantiations.contains(tvar), "double instantiation: " + tvar)
+      // println("Instantiating " + tvar + " to " + tp.show)
+      instantiations(tvar) = tp
+
     def dealias(tvar: TypeVar): Type =
       instantiations.get(tvar) match
         case Some(inst) => inst
@@ -88,7 +93,7 @@ object Inference:
             SubtypingResult.Success
           else
             val tasks = boundCheckTasks(tp, bounds(tvar))
-            val action = () => instantiations(tvar) = tp
+            val action = () => instantiate(tvar, tp)
             SubtypingResult.Conditional(
               tasks,
               action
@@ -108,7 +113,7 @@ object Inference:
             SubtypingResult.Success
           else
             val tasks = boundCheckTasks(tp, bounds(tvar))
-            val action = () => instantiations(tvar) = tp
+            val action = () => instantiate(tvar, tp)
             SubtypingResult.Conditional(
               tasks,
               action
