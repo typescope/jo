@@ -4,4 +4,9 @@ test1 5 p
 
 fun app[X, Y](x: X, f: X => Y): Y = f x
 
-app 5 (x) => x * x
+app 5 ((x) => x * x) p
+
+fun app2[X, Y](f: X => Y, x: X): Y = f x
+
+// Scala cannot do this
+app2 ((x) => x + x) 5 p
