@@ -16,7 +16,8 @@ import Inference.*
   */
 class Namer(@constructorOnly reporter: Reporter):
   val checker = new Checker
-  val exprTyper = new ExprTyper(this, checker)
+  val inferencer: Inferencer = new UnificationSolver
+  val exprTyper = new ExprTyper(this, checker, inferencer)
 
   /** Handles possible cycles in result type inference for functions  */
   val cyclicTypeProvider = new NamerUtils.CyclicTypeProvider(using reporter)
@@ -388,25 +389,28 @@ class Namer(@constructorOnly reporter: Reporter):
        else
          None
 
-     var hasErrors = false
-     if targetFunTypeOpt.isEmpty || targetFunTypeOpt.get.paramCount != params.size then
-       for param <- params if param.typ.isEmpty do
-         hasErrors = true
-         Reporter.error("Cannot infer the type of parameter " + param.name, param.pos)
-
-     if hasErrors then return Phrase(words = Nil)(ErrorType, lambda.span)
+     if targetFunTypeOpt.nonEmpty then
+       val expect = targetFunTypeOpt.get.paramCount
+       if expect != params.size then
+         Reporter.error(s"Expect a function with $expect parameters, found = ${params.size}", lambda.pos)
+         return Phrase(words = Nil)(ErrorType, lambda.span)
 
      val funSym = Symbol.createFunSymbol("anon", this.nonCyclicTypeProvider, Flags.Local, lambda.pos)
      val lambdaScope = sc.fresh(funSym)
 
-     def inferArgType(i: Int): Type =
+     val tvars = new mutable.ArrayBuffer[(TypeVar, Ast.Param)]
+
+     def inferParamType(i: Int): Type =
        targetFunTypeOpt match
          case Some(funType) => funType.paramTypes(i)
-         case None => ErrorType
+         case None =>
+           val tvar = TypeVar(params(i).name, this.inferencer)
+           tvars += tvar -> params(i)
+           tvar
 
      val paramSyms =
       for (param, i) <- params.zipWithIndex yield
-        val tp = if param.typ.isEmpty then inferArgType(i) else transformType(param.typ).tpe
+        val tp = if param.typ.isEmpty then inferParamType(i) else transformType(param.typ).tpe
         val paramSym = Symbol.createParamSymbol(param.name, tp, param.pos)
         lambdaScope.define(paramSym, param.span)
         paramSym
@@ -420,6 +424,9 @@ class Namer(@constructorOnly reporter: Reporter):
      // Provide type info for the function symbol
      val procType = ProcType(paramSyms.map(_.toNamedInfo), bodyTyped.tpe, preParamCount = 0)
      this.nonCyclicTypeProvider.addProvider(funSym, () => procType)
+
+     for (tvar, param) <- tvars do
+       checker.checkInstantiated(tvar, param.span)
 
      val tparamSyms = Nil
      val funDef = FunDef(funSym, tparamSyms, paramSyms, bodyTyped)(locals = Nil, captures = Nil, lambda.span)

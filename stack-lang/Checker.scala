@@ -90,6 +90,10 @@ class Checker:
       else
         word
 
+  def checkInstantiated(tvar: TypeVar, span: Span)(using Reporter): Unit =
+    if !tvar.isInstantiated then
+      Reporter.error("Cannot infer a type for type variable " + tvar, span.toPos)
+
   def commonResultType(tp1: Type, tp2: Type, span: Span)(using Reporter): Type =
     val commonTypeOpt = TypeOps.commonResultType(tp1, tp2)
     commonTypeOpt match
