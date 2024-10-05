@@ -179,15 +179,15 @@ object Types:
     (lo: Type, hi: Type)
   extends Type
 
-  class TypeVar(name: String, engine: Inference.InferEngine) extends ProxyType:
+  class TypeVar(name: String, inferencer: Inference.Inferencer) extends ProxyType:
     override def toString = "TypeVar(" + name + ")"
 
-    def dealias: Type = engine.dealias(this)
+    def dealias: Type = inferencer.dealias(this)
 
-    def approx(isUp: Boolean): Type = engine.approx(this, isUp)
+    def approx(isUp: Boolean): Type = inferencer.approx(this, isUp)
 
-    def isSubtype(tp: Type)(using Subtyping.Context): Inference.SubtypingResult =
-      engine.isSubtype(this, tp)
+    def isSubtype(tp: Type)(using Subtyping.Context): List[Subtyping.Task] =
+      inferencer.isSubtype(this, tp)
 
-    def isSuptype(tp: Type)(using Subtyping.Context): Inference.SubtypingResult =
-      engine.isSuptype(this, tp)
+    def isSuptype(tp: Type)(using Subtyping.Context): List[Subtyping.Task] =
+      inferencer.isSuptype(this, tp)

@@ -16,20 +16,7 @@ object Inference:
         case Known(tpe) => Some(tpe)
         case _ => None
 
-  enum SubtypingResult:
-    case Success
-
-    case Fail
-
-    /** A conditional result with the given subtyping obligations.
-      *
-      * If the obligations are satisfied, execute the associated action once.
-      */
-    case Conditional(obligations: List[Subtyping.Task], action: () => Unit)
-
-  trait InferEngine:
-    def newTypeVars(tparams: List[NamedInfo[TypeBound]]): List[TypeVar]
-
+  trait Inferencer:
     /** Dealias the type without approximation.
       *
       * The method should not recursively call `TypeOps.dealias`.
@@ -42,31 +29,28 @@ object Inference:
       */
     def approx(tvar: TypeVar, isUp: Boolean): Type
 
-    def isSubtype(tvar: TypeVar, tp: Type): SubtypingResult
+    def isSubtype(tvar: TypeVar, tp: Type): List[Subtyping.Task]
 
-    def isSuptype(tvar: TypeVar, tp: Type): SubtypingResult
+    def isSuptype(tvar: TypeVar, tp: Type): List[Subtyping.Task]
 
-  def boundCheckTasks(tp: Type, bound: TypeBound): List[Subtyping.Task] =
-    Subtyping.Task(tp, bound.hi) :: Subtyping.Task(bound.lo, tp) :: Nil
-
-  class UnificationSolver extends InferEngine:
+  class UnificationSolver extends Inferencer:
     private val instantiations: mutable.Map[TypeVar, Type] = mutable.Map.empty
-    private val bounds: mutable.Map[TypeVar, TypeBound] = mutable.Map.empty
 
-    // TODO: ensure instantiation of unconstrained type variables
-
-    def newTypeVars(tparams: List[NamedInfo[TypeBound]]): List[TypeVar] =
-      val tvars = for tparam <- tparams yield TypeVar(tparam.name, this)
-
-      for (tvar, tparam) <- tvars.zip(tparams) do
-        bounds(tvar) = TypeOps.substTypeParams(tparam.info, tvars).as[TypeBound]
-
-      tvars
-
-    def instantiate(tvar: TypeVar, tp: Type) =
+    private def instantiate(tvar: TypeVar, tp: Type) =
       assert(!instantiations.contains(tvar), "double instantiation: " + tvar)
       // println("Instantiating " + tvar + " to " + tp.show)
       instantiations(tvar) = tp
+
+    private def constrain(tvar: TypeVar, tp: Type, tvarLeft: Boolean): List[Subtyping.Task] =
+      instantiations.get(tvar) match
+        case Some(inst) =>
+          if tvarLeft then Subtyping.Task(inst, tp) :: Nil
+          else Subtyping.Task(tp, inst) :: Nil
+
+        case None =>
+          assert(tvar != tp)
+          instantiate(tvar, tp)
+          Nil
 
     def dealias(tvar: TypeVar): Type =
       instantiations.get(tvar) match
@@ -75,46 +59,13 @@ object Inference:
 
     def approx(tvar: TypeVar, isUp: Boolean): Type =
       instantiations.get(tvar) match
-        case Some(inst) => TypeOps.approx(inst, isUp)
-        case None =>
-          val bound = bounds(tvar)
-          if isUp then bound.hi else bound.lo
-
-    def isSubtype(tvar: TypeVar, tp: Type): SubtypingResult =
-      instantiations.get(tvar) match
-        case Some(inst) =>
-          SubtypingResult.Conditional(
-            Subtyping.Task(inst, tp) :: Nil,
-            action = () => ()
-          )
+        case Some(inst) => inst
 
         case None =>
-          if tvar == tp then
-            SubtypingResult.Success
-          else
-            val tasks = boundCheckTasks(tp, bounds(tvar))
-            val action = () => instantiate(tvar, tp)
-            SubtypingResult.Conditional(
-              tasks,
-              action
-            )
+          tvar
 
+    def isSubtype(tvar: TypeVar, tp: Type): List[Subtyping.Task] =
+      constrain(tvar, tp, tvarLeft = true)
 
-    def isSuptype(tvar: TypeVar, tp: Type): SubtypingResult =
-      instantiations.get(tvar) match
-        case Some(inst) =>
-          SubtypingResult.Conditional(
-            Subtyping.Task(tp, inst) :: Nil,
-            action = () => ()
-          )
-
-        case None =>
-          if tvar == tp then
-            SubtypingResult.Success
-          else
-            val tasks = boundCheckTasks(tp, bounds(tvar))
-            val action = () => instantiate(tvar, tp)
-            SubtypingResult.Conditional(
-              tasks,
-              action
-            )
+    def isSuptype(tvar: TypeVar, tp: Type): List[Subtyping.Task] =
+      constrain(tvar, tp, tvarLeft = false)

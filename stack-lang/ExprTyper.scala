@@ -69,7 +69,7 @@ object ExprTyper:
 class ExprTyper(namer: Namer, checker: Checker):
   import ExprTyper.Item
 
-  val inferEngine: InferEngine = new UnificationSolver
+  val inferencer: Inferencer = new UnificationSolver
 
   def transform(expr: Ast.Expr)(using  sc: Scope, rp: Reporter, tt: TargetType): Word =
     assert(expr.words.nonEmpty)
@@ -139,11 +139,17 @@ class ExprTyper(namer: Namer, checker: Checker):
 
           if wordTyped.tpe.isPolyType then
             val polyType = wordTyped.tpe.asPolyType
-            val tvars = this.inferEngine.newTypeVars(polyType.tparams)
+
+
+            val tvars = for tparam <- polyType.tparams yield TypeVar(tparam.name, this.inferencer)
+            val targs = tvars.map(tvar => TypeTree(tvar)(word.span))
             val tpe = TypeOps.substTypeParams(polyType.resultType, tvars)
 
-            val targs = tvars.map(tvar => TypeTree(tvar)(word.span))
             wordTyped = TypeApply(wordTyped, targs)(tpe, word.span)
+
+            val bounds = for tparam <- polyType.tparams yield tparam.info
+            checker.delayedCheck { checker.checkBounds(bounds, targs) }
+          end if
 
           val tp = wordTyped.tpe
 

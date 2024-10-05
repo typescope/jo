@@ -6,8 +6,7 @@ import Positions.Span
 
 import scala.collection.mutable
 
-/**
-  * Perform checks related to types  */
+/** Perform checks related to types  */
 class Checker:
   private val delayedChecks = new mutable.ArrayBuffer[() => Unit]
   var checking = false
