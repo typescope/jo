@@ -27,7 +27,7 @@ object Inference:
       */
     case Conditional(obligations: List[Subtyping.Task], action: () => Unit)
 
-  trait Handler:
+  trait InferEngine:
     def newTypeVars(tparams: List[NamedInfo[TypeBound]]): List[TypeVar]
 
     /** Dealias the type without approximation.
@@ -49,7 +49,7 @@ object Inference:
   def boundCheckTasks(tp: Type, bound: TypeBound): List[Subtyping.Task] =
     Subtyping.Task(tp, bound.hi) :: Subtyping.Task(bound.lo, tp) :: Nil
 
-  class UnificationHandler extends Handler:
+  class UnificationSolver extends InferEngine:
     private val instantiations: mutable.Map[TypeVar, Type] = mutable.Map.empty
     private val bounds: mutable.Map[TypeVar, TypeBound] = mutable.Map.empty
 

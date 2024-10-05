@@ -66,8 +66,10 @@ object ExprTyper:
   * Instance of the class should be able to be reused to type check different
   * expression. Therefore, it should not contain any expression-specific state.
   */
-class ExprTyper(namer: Namer, checker: Checker, inferencer: Handler):
+class ExprTyper(namer: Namer, checker: Checker):
   import ExprTyper.Item
+
+  val inferEngine: InferEngine = new UnificationSolver
 
   def transform(expr: Ast.Expr)(using  sc: Scope, rp: Reporter, tt: TargetType): Word =
     assert(expr.words.nonEmpty)
@@ -137,7 +139,7 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Handler):
 
           if wordTyped.tpe.isPolyType then
             val polyType = wordTyped.tpe.asPolyType
-            val tvars = this.inferencer.newTypeVars(polyType.tparams)
+            val tvars = this.inferEngine.newTypeVars(polyType.tparams)
             val tpe = TypeOps.substTypeParams(polyType.resultType, tvars)
 
             val targs = tvars.map(tvar => TypeTree(tvar)(word.span))
