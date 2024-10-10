@@ -2,9 +2,9 @@ type Option = <None, Some Int>
 type Sum = <Left Int, Right Int>
 type Bot = < >
 
-val a: Sum = #Left true     // error
+val a: Sum = #Left(true)     // error
 val b: Option = #None as Sum       // error
-val c: Option = #Some 5
+val c: Option = #Some(5)
 
 match c                             // error
   case #None => 0 p
@@ -14,7 +14,7 @@ match c
   case #None => 0 p                 // error
 
 match c                             // error
-  case #Some n => n p
-  case #Some n => n p               // error
+  case #Some(n) => n p
+  case #Some(n) => n p               // error
 
 10 p

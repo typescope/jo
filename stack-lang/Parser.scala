@@ -550,18 +550,25 @@ class Parser(code: String)(using Reporter):
     val arg = expr()
     NamedArg(id, arg)(id.span | arg.span)
 
+  def termArgs(): List[Word] =
+    val acc: mutable.ArrayBuffer[Word] = mutable.ArrayBuffer.empty
+    eat(Token.LPAREN)
+    acc += expr()
+    var token = peek()
+    while
+      token == Token.COMMA
+    do
+      eat(Token.COMMA)
+      acc += expr()
+      token = peek()
+
+    eat(Token.RPAREN)
+    acc.toList
+
   def variant(): Variant =
     val tagSign = eat(Token.TAG)
     val tag = ident()
-    val words = new mutable.ArrayBuffer[Word]
-    while
-      word() match
-        case Some(w) =>
-          words += w
-          true
-        case _ =>
-          false
-    do ()
+    val args = if peek() == Token.LPAREN then termArgs() else Nil
     val tp =
       if peek() == Token.AS then
         eat(Token.AS)
@@ -569,7 +576,7 @@ class Parser(code: String)(using Reporter):
       else
         EmptyTypeTree()(tag.span)
 
-    Variant(tag, words.toList, tp)(tagSign.span | tp.span)
+    Variant(tag, args, tp)(tagSign.span | tp.span)
 
   def patmat(): Match =
     val matchItem = eat(Token.MATCH)
@@ -596,29 +603,32 @@ class Parser(code: String)(using Reporter):
     else
       acc.map(_._1).toList
 
+  def product_pattern(): Pattern =
+    val tagSign = eat(Token.TAG)
+    val tag = ident()
+    val bindings = if peek() == Token.LPAREN then pattern_bindings() else Nil
+    val spanEnd = if bindings.isEmpty then tag.span else bindings.last.span
+    TagPat(tag, bindings)(tagSign.span | spanEnd)
+
+  def pattern_bindings(): List[Ident] =
+    val bindings = new mutable.ArrayBuffer[Ident]
+    eat(Token.LPAREN)
+    bindings += ident()
+    var token = peek()
+    while
+      token == Token.COMMA
+    do
+      eat(Token.COMMA)
+      bindings += ident()
+      token = peek()
+
+    eat(Token.RPAREN)
+    bindings.toList
+
   def pattern(): Pattern =
     peek() match
      case Token.TAG =>
-       val tagSign = eat(Token.TAG)
-       val tag = ident()
-       val bindings = new mutable.ArrayBuffer[Ident]
-       while
-         peek() match
-           case Token.RARROW =>
-             false
-
-           case _: Token.Ident =>
-             bindings += ident()
-             true
-
-           case _ =>
-             val item = next()
-             error("Expect a name, found = " + item.token, item.span.toPos)
-             false
-       do ()
-
-       val spanEnd = if bindings.isEmpty then tag.span else bindings.last.span
-       TagPat(tag, bindings.toList)(tagSign.span | spanEnd)
+       product_pattern()
 
      case Token.Ident("_") =>
        val item = next()

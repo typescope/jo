@@ -75,14 +75,18 @@ Syntactical Grammar
     named_args = named_arg { COMMA named_arg }.
     named_arg  = ident EQL expr.
 
-    variant = TAG ident {word} [AS type].
+    variant = TAG ident [args] [AS type].
+    args    = LPAREN phrase {COMMA expr} RPAREN.
 
     tapply  = ident targs.
     lambda  = param_section RARROW block.
 
     match   = MATCH block {case} [END].
     case    = CASE pat RARROW block.
-    pat     = TAG ident {ident} | USCORE.
+    pat     = product_pat | USCORE.
+
+    product_pat = TAG ident [product_bindings]
+    product_bindings = LPAREN ident {COMMA ident} RPAREN
 
     valdef  = (VAL | VAR) ident [COLON type] EQL block.
     fundef  = FUN [param_section] ident [tparams] [param_section] EQL block [END].
