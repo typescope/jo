@@ -160,8 +160,8 @@ object TypeOps:
         fields.map(f => f.name + ": " + show(f.info)).mkString("{", ", ", "}")
 
       case UnionType(branches) =>
-        def concat(tps: List[Type]) = tps.map(_.show).mkString(" * ")
-        branches.map(b => b.name + " " + concat(b.info)).mkString("<", ", ", ">")
+        def paramStr(paramInfos: List[NamedInfo[Type]]) = paramInfos.map(param => param.name + ": " + show(param.info)).mkString("(", ", ", ")")
+        branches.map(b => b.name + " " + paramStr(b.info)).mkString("<", ", ", ">")
 
       case AppliedType(tctor, targs) =>
         show(tctor) + targs.map(show).mkString("[", ", ", "]")
@@ -212,7 +212,11 @@ object TypeOps:
         case UnionType(branches) =>
           val branches2 =
             for branch <- branches
-            yield branch.copy(info = branch.info.map(this.apply))
+            yield branch.copy(
+              info = branch.info.map(
+                param => param.copy(info = this.apply(param.info))
+              )
+            )
           UnionType(branches2)
 
         case AppliedType(tctor, targs) =>

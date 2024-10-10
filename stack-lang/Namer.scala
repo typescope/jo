@@ -615,7 +615,7 @@ class Namer(@constructorOnly reporter: Reporter):
       case Ast.RecordType(fields) =>
         val fieldTypes = new mutable.ArrayBuffer[NamedInfo[Type]]
         for field <- fields do
-          if fieldTypes.exists(_._1 == field.name) then
+          if fieldTypes.exists(_.name == field.name) then
             Reporter.error("Field " + field.name + " already defined", field.pos)
           else
             val tpt = transformType(field.typ)
@@ -625,18 +625,21 @@ class Namer(@constructorOnly reporter: Reporter):
         TypeTree(RecordType(fieldTypes.toList))(tpt.span)
 
       case Ast.UnionType(branches) =>
-        val branchTypes = new mutable.ArrayBuffer[NamedInfo[List[Type]]]
+        val branchTypes = new mutable.ArrayBuffer[NamedInfo[List[NamedInfo[Type]]]]
         for branch <- branches do
-          if branchTypes.exists(_._1 == branch.name) then
+          if branchTypes.exists(_.name == branch.name) then
             Reporter.error("Branch " + branch.name + " already defined", branch.pos)
           else
-            val tps =
-              for tpt <- branch.tpts yield
-                val tpt2 = transformType(tpt)
-                checker.delayedCheck { checker.checkValueType(tpt2) }
-                tpt2.tpe
+            val paramInfos = new mutable.ArrayBuffer[NamedInfo[Type]]
+            for param <- branch.params yield
+              if paramInfos.exists(_.name == param.name) then
+                Reporter.error("Parameter " + param.name + " already defined", param.pos)
 
-            branchTypes += NamedInfo(branch.name, tps)
+              val tpt = transformType(param.typ)
+              checker.delayedCheck { checker.checkValueType(tpt) }
+              paramInfos += NamedInfo(param.name, tpt.tpe)
+
+            branchTypes += NamedInfo(branch.name, paramInfos.toList)
         end for
         TypeTree(UnionType(branchTypes.toList))(tpt.span)
 

@@ -437,21 +437,9 @@ class Parser(code: String)(using Reporter):
       case _ =>
         if acc.nonEmpty then eat(Token.COMMA)
         val tag = ident()
-        val tps1 =
-          if peek() == Token.COMMA || peek() == Token.Ident(">") then Nil
-          else simpleTypes()
-
-        val tps2 =
-          peek() match
-            case Token.RARROW if tps1.nonEmpty =>
-              next()
-              val resType = typ()
-              FunctionType(tps1, resType)(tps1.head.span | resType.span) :: Nil
-
-            case _ => tps1
-
-        val spanEnd = if tps2.isEmpty then tag.span else tps2.last.span
-        val branch = Branch(tag, tps2)(tag.span | spanEnd)
+        val params = paramSection()
+        val spanEnd = if params.isEmpty then tag.span else params.last.span
+        val branch = Branch(tag, params)(tag.span | spanEnd)
         branches(acc += branch)
 
   def ident(): Ident =

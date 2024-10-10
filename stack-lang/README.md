@@ -106,8 +106,7 @@ Syntactical Grammar
 
     union_typ  = '<' [branches] '>'.
     branches   = branch { COMMA branch }.
-    branch     = ident [types].
-    types      = type [ '*' type ].
+    branch     = ident [param_section].
 
     fun_type   = [types] RARROW type.
 

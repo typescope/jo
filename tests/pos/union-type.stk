@@ -1,8 +1,8 @@
-type Option = <None, Some Int>
-type Sum = <Left Int, Right Int>
+type Option = <None, Some(value: Int)>
+type Sum = <Left(value: Int), Right(value: Int)>
 type Bot = < >
 
-type OptionSum = <None, Some Sum>
+type OptionSum = <None, Some(value: Sum)>
 
 val a: Sum = #Left(3)
 val b: Option = #None

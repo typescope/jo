@@ -1,4 +1,4 @@
-type List = <Nil, Cons Int * List>
+type List = <Nil, Cons(head: Int, tail: List)>
 
 fun isPrime(primes: List, n: Int): Bool =
   match primes

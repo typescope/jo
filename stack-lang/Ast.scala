@@ -137,7 +137,7 @@ object Ast:
   extends TypeTree
 
   case class Branch
-    (tag: Ident, tpts: List[TypeTree])
+    (tag: Ident, params: List[Param])
     (val span: Span)
   extends Tree:
     def name = tag.name

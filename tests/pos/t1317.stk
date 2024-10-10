@@ -1,8 +1,8 @@
 type B = { b: Int }
 type C = { c: Int }
 
-type Either[S, T] = <Left S, Right T >
-type List[T] = <Cons T * List[T], Nil>
+type Either[S, T] = <Left(value: S), Right(value: T)>
+type List[T] = <Cons(head: T, tail: List[T]), Nil>
 
 fun list[T](a: T, b: T): List[T] =
   #Cons(a, #Cons(b, #Nil))

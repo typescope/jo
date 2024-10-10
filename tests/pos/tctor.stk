@@ -1,4 +1,4 @@
-type List[T] = <Nil, Cons {head: T, tail: List[T]}>
+type List[T] = <Nil, Cons(value: {head: T, tail: List[T]})>
 
 val a: List[Int] = #Nil
 val b: List[Int] = #Cons({head = 5, tail = a})

@@ -1,5 +1,5 @@
-type Option = <None, Some Int>
-type Sum = <Left Int, Right Int>
+type Option = <None, Some(value: Int)>
+type Sum = <Left Int, Right(value: Int)>
 type Bot = < >
 
 val a: Sum = #Left(true)     // error

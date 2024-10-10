@@ -108,12 +108,12 @@ object Types:
     def fieldType(name: String): Type =
       getFieldType(name).get
 
-  case class UnionType(branches: List[NamedInfo[List[Type]]]) extends Type:
+  case class UnionType(branches: List[NamedInfo[List[NamedInfo[Type]]]]) extends Type:
     val tags: List[String] = branches.map(_.name)
 
     def getTagType(tag: String): Option[List[Type]] =
       branches.collectFirst:
-        case NamedInfo(t, tps) if t == tag => tps
+        case NamedInfo(t, tps) if t == tag => tps.map(_.info)
 
     def hasTag(tag: String): Boolean =
       tags.contains(tag)
