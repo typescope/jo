@@ -17,7 +17,7 @@ class JSOptimized(outFile: String):
   // Make keywords unavailable
   for word <- List(
       "for", "while", "function", "var", "let", "break", "continue", "if",
-      "const", "class", "constructor")
+      "const", "class", "constructor", "with")
   do
     freshName(word)
 
@@ -179,9 +179,12 @@ class JSOptimized(outFile: String):
     val funType = TypeOps.erasePolyType(sym.info).asProcType
     val resCount = funType.resCount
 
+    // create the name outside of the new scope to avoid conflicting names
+    val jsFunName = jsName(sym)
+
     uniqueName.newScope:
       val locals = fdef.locals.filter(_.isMutable).map("var " ~ _ ~ ";" ~ Text.BreakLine)
-      "function " ~ sym ~ "(" ~ rep(fdef.params, Text(", ")) ~ ")" ~ " {" ~ indent:
+      "function " ~ jsFunName ~ "(" ~ rep(fdef.params, Text(", ")) ~ ")" ~ " {" ~ indent:
           if resCount == 0 then
             rep(locals, Text.Empty) ~ fdef.body
           else

@@ -106,7 +106,7 @@ object Sast:
   extends Word:
     def span = repr.span
 
-    def isValueDrop = repr.tpe.isValueType && tpe.isVoid
+    def isValueDrop = repr.tpe.isValueType && tpe.isVoidType
 
   case class TypeTree
     (tpe: Type)

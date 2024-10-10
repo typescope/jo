@@ -6,15 +6,17 @@ import Positions.Span
 
 import scala.collection.mutable
 
-/**
-  * Perform checks related to types  */
+/** Perform checks related to types  */
 class Checker:
   private val delayedChecks = new mutable.ArrayBuffer[() => Unit]
+  var checking = false
 
   def delayedCheck(check: => Unit): Unit =
+    if checking then throw new Exception("cannot add new task during checking")
     delayedChecks.addOne(() => check)
 
   def performDelayedChecks(): Unit =
+    checking = true
     for check <- delayedChecks do check()
     delayedChecks.clear()
 
@@ -68,7 +70,7 @@ class Checker:
       tp
 
   def checkVoidOrValueType(tree: Tree)(using Reporter): Unit =
-    if !tree.tpe.isVoid then checkValueType(tree)
+    if !tree.tpe.isVoidType then checkValueType(tree)
 
   def checkMutable(sym: Symbol, span: Span)(using Reporter): Unit =
     if !sym.isAllOf(Flags.Val | Flags.Mutable) then
@@ -87,6 +89,10 @@ class Checker:
         Phrase(Nil)(ErrorType, word.span)
       else
         word
+
+  def checkInstantiated(tvar: TypeVar, span: Span)(using Reporter): Unit =
+    if !tvar.isInstantiated then
+      Reporter.error("Cannot infer a type for type variable " + tvar, span.toPos)
 
   def commonResultType(tp1: Type, tp2: Type, span: Span)(using Reporter): Type =
     val commonTypeOpt = TypeOps.commonResultType(tp1, tp2)
@@ -111,24 +117,31 @@ class Checker:
   /** Explicit drop of values in if/match expressions */
   def adapt(word: Word, targetType: Type)(using Reporter): Word =
     val curType = word.tpe
-    if targetType.isVoid && curType.isValueType then
+    if targetType.isVoidType && curType.isValueType then
       Sast.dropValue(word)
     else
       checkType(word, targetType)
       word
 
   def adapt(word: Word, targetType: TargetType)(using Reporter): Word =
+    def widen(): Word = word.tpe match
+      case TypeRef(sym) if !sym.isType =>
+        Encoded(word)(sym.info)
+      case _ =>
+        word
+
     targetType match
       case TargetType.Unknown =>
+        // Don't widen if the target type is unknown
         word
 
       case TargetType.ValueType =>
         checkValueType(word)
-        word
+        widen()
 
       case TargetType.ProperType =>
         checkVoidOrValueType(word)
-        word
+        widen()
 
       case TargetType.Known(tpe) =>
         adapt(word, tpe)

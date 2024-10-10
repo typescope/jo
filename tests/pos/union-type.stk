@@ -1,33 +1,33 @@
-type Option = <None, Some Int>
-type Sum = <Left Int, Right Int>
+type Option = <None, Some(value: Int)>
+type Sum = <Left(value: Int), Right(value: Int)>
 type Bot = < >
 
-type OptionSum = <None, Some Sum>
+type OptionSum = <None, Some(value: Sum)>
 
-val a: Sum = #Left 3 of Sum
-val b: Option = #None of Option
-val c: Option = #Some 5 of Option
-val d: OptionSum = #Some (#Right 2024 of Sum) of OptionSum
+val a: Sum = #Left(3)
+val b: Option = #None
+val c: Option = #Some(5)
+val d: OptionSum = #Some(#Right(2024))
 
 fun foo(x: Sum): Int =
   match x
-    case #Left n =>  n + n
-    case #Right n => n * n
+    case #Left(n) =>  n + n
+    case #Right(n) => n * n
 
 match c
   case #None => 0 p
-  case #Some n => n p
+  case #Some(n) => n p
 
 foo a p
 
 match d
   case #None => 0 p
-  case #Some sum =>
+  case #Some(sum) =>
     match sum
-      case #Left v  =>
+      case #Left(v)  =>
         99 p
         v p
 
-      case #Right v =>
+      case #Right(v) =>
         100 p
         v p

@@ -14,11 +14,11 @@ object Predef:
   //----------------------------------------------------------------------------
   // primitive symbols are available to programmers
 
-  private val aInt = ParamInfo("a", IntType)
-  private val bInt = ParamInfo("b", IntType)
+  private val aInt = NamedInfo("a", IntType)
+  private val bInt = NamedInfo("b", IntType)
 
-  private val aBool = ParamInfo("a", BoolType)
-  private val bBool = ParamInfo("b", BoolType)
+  private val aBool = NamedInfo("a", BoolType)
+  private val bBool = NamedInfo("b", BoolType)
 
   private val typeArith = ProcType(aInt :: bInt :: Nil, IntType, preParamCount = 1)
   private val typeComp  = ProcType(aInt :: bInt :: Nil, BoolType, preParamCount = 1)
@@ -59,10 +59,10 @@ object Predef:
   //----------------------------------------------------------------------------
   // run-time symbols are only available to the compiler
 
-  private val abortType = ProcType(ParamInfo("n", IntType) :: Nil, BottomType, preParamCount = 0)
+  private val abortType = ProcType(NamedInfo("n", IntType) :: Nil, BottomType, preParamCount = 0)
   val abort = new Symbol("abort", abortType, Flags.Prim, sourcePos = null)
 
   //----------------------------------------------------------------------------
   // the memory allocator
-  private val allocateType = ProcType(ParamInfo("size", IntType) :: Nil, IntType, preParamCount = 0)
+  private val allocateType = ProcType(NamedInfo("size", IntType) :: Nil, IntType, preParamCount = 0)
   val allocate = new Symbol("alloc", allocateType, Flags.Prim, sourcePos = null)

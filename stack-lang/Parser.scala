@@ -166,26 +166,30 @@ class Parser(code: String)(using Reporter):
 
     TypeParam(id, bound)(id.span | bound.span)
 
-  def params(): List[Param] =
+  def params(typeOptional: Boolean = false): List[Param] =
     eat(Token.LPAREN)
     val list =
       if peek() == Token.RPAREN then Nil
-      else paramsRest(mutable.ArrayBuffer(param()))
+      else paramsRest(mutable.ArrayBuffer(param(typeOptional)), typeOptional)
     eat(Token.RPAREN)
     list
 
-  def param(): Param =
+  def param(typeOptional: Boolean): Param =
     val id = ident()
-    eat(Token.COLON)
-    val tpt = typ()
+    val tpt =
+      if peek() == Token.COLON then
+        eat(Token.COLON)
+        typ()
+      else
+        EmptyTypeTree()(id.span)
     Param(id, tpt)(id.span | tpt.span)
 
-  def paramsRest(acc: mutable.ArrayBuffer[Param]): List[Param] =
+  def paramsRest(acc: mutable.ArrayBuffer[Param], typeOptional: Boolean): List[Param] =
     val token = peek()
     if token == Token.RPAREN || token == Token.EOF then acc.toList
     else
       eat(Token.COMMA)
-      paramsRest(acc += param())
+      paramsRest(acc += param(typeOptional), typeOptional)
 
   /** Parse a block within the indentation */
   def block(limitIndent: Indent): Block =
@@ -277,31 +281,34 @@ class Parser(code: String)(using Reporter):
     val token0 = peek(0)
     val token1 = peek(1)
     val token2 = peek(2)
+    val token3 = peek(3)
     token0 == Token.LPAREN && (
       token1.isInstanceOf[Token.Ident] && (token2 == Token.COLON || token2 == Token.COMMA)
       || token1 == Token.RPAREN && token2 == Token.RARROW
+      || token1.isInstanceOf[Token.Ident] && token2 == Token.RPAREN && token3 == Token.RARROW
     )
 
   def word(): Option[Word] =
     val item = peekItem()
 
-    def continue(word: Word): Some[Word] =
+    def optSelect(word: Word): Some[Word] =
       peek() match
-        case Token.DOT  => continue(select(word))
+        case Token.DOT  => optSelect(select(word))
         case _ => Some(word)
 
     item.token match
-      case Token.LBRACE => continue(record())
-      case Token.TAG    => continue(variant())
+      case Token.LBRACE => optSelect(record())
+
+      case Token.TAG    => Some(variant())
 
       case Token.LPAREN =>
-        if isLambda() then continue(lambda()) else continue(fence())
+        if isLambda() then Some(lambda()) else optSelect(fence())
 
-      case _: Token.Ident if !isAssign() =>
+      case _: Token.Ident =>
         val id = ident()
         peek() match
-          case Token.LBRACKET => continue(typeApply(id))
-          case _              => continue(id)
+          case Token.LBRACKET => Some(typeApply(id))
+          case _              => optSelect(id)
 
       case litToken: Token.IntLit  =>
         next()
@@ -430,21 +437,9 @@ class Parser(code: String)(using Reporter):
       case _ =>
         if acc.nonEmpty then eat(Token.COMMA)
         val tag = ident()
-        val tps1 =
-          if peek() == Token.COMMA || peek() == Token.Ident(">") then Nil
-          else simpleTypes()
-
-        val tps2 =
-          peek() match
-            case Token.RARROW if tps1.nonEmpty =>
-              next()
-              val resType = typ()
-              FunctionType(tps1, resType)(tps1.head.span | resType.span) :: Nil
-
-            case _ => tps1
-
-        val spanEnd = if tps2.isEmpty then tag.span else tps2.last.span
-        val branch = Branch(tag, tps2)(tag.span | spanEnd)
+        val params = paramSection()
+        val spanEnd = if params.isEmpty then tag.span else params.last.span
+        val branch = Branch(tag, params)(tag.span | spanEnd)
         branches(acc += branch)
 
   def ident(): Ident =
@@ -458,11 +453,11 @@ class Parser(code: String)(using Reporter):
         Ident("error")(item.span)
 
   def lambda(): Word =
-    val paren = peekItem()
-    val paramList = params()
+    val lparen = peekItem()
+    val paramList = params(typeOptional = true)
     eat(Token.RARROW)
-    val body = block(paren.indent)
-    Lambda(paramList, body)(paren.span | body.span)
+    val body = block(lparen.indent)
+    Lambda(paramList, body)(lparen.span | body.span)
 
   def fence(): Word =
     val lparen = eat(Token.LPAREN)
@@ -543,21 +538,33 @@ class Parser(code: String)(using Reporter):
     val arg = expr()
     NamedArg(id, arg)(id.span | arg.span)
 
+  def termArgs(): List[Word] =
+    val acc: mutable.ArrayBuffer[Word] = mutable.ArrayBuffer.empty
+    eat(Token.LPAREN)
+    acc += expr()
+    var token = peek()
+    while
+      token == Token.COMMA
+    do
+      eat(Token.COMMA)
+      acc += expr()
+      token = peek()
+
+    eat(Token.RPAREN)
+    acc.toList
+
   def variant(): Variant =
     val tagSign = eat(Token.TAG)
     val tag = ident()
-    val words = new mutable.ArrayBuffer[Word]
-    while
-      word() match
-        case Some(w) =>
-          words += w
-          true
-        case _ =>
-          false
-    do ()
-    eat(Token.OF)
-    val tp = typ()
-    Variant(tag, words.toList, tp)(tagSign.span | tp.span)
+    val args = if peek() == Token.LPAREN then termArgs() else Nil
+    val tp =
+      if peek() == Token.AS then
+        eat(Token.AS)
+        typ()
+      else
+        EmptyTypeTree()(tag.span)
+
+    Variant(tag, args, tp)(tagSign.span | tp.span)
 
   def patmat(): Match =
     val matchItem = eat(Token.MATCH)
@@ -584,29 +591,32 @@ class Parser(code: String)(using Reporter):
     else
       acc.map(_._1).toList
 
+  def product_pattern(): Pattern =
+    val tagSign = eat(Token.TAG)
+    val tag = ident()
+    val bindings = if peek() == Token.LPAREN then pattern_bindings() else Nil
+    val spanEnd = if bindings.isEmpty then tag.span else bindings.last.span
+    TagPat(tag, bindings)(tagSign.span | spanEnd)
+
+  def pattern_bindings(): List[Ident] =
+    val bindings = new mutable.ArrayBuffer[Ident]
+    eat(Token.LPAREN)
+    bindings += ident()
+    var token = peek()
+    while
+      token == Token.COMMA
+    do
+      eat(Token.COMMA)
+      bindings += ident()
+      token = peek()
+
+    eat(Token.RPAREN)
+    bindings.toList
+
   def pattern(): Pattern =
     peek() match
      case Token.TAG =>
-       val tagSign = eat(Token.TAG)
-       val tag = ident()
-       val bindings = new mutable.ArrayBuffer[Ident]
-       while
-         peek() match
-           case Token.RARROW =>
-             false
-
-           case _: Token.Ident =>
-             bindings += ident()
-             true
-
-           case _ =>
-             val item = next()
-             error("Expect a name, found = " + item.token, item.span.toPos)
-             false
-       do ()
-
-       val spanEnd = if bindings.isEmpty then tag.span else bindings.last.span
-       TagPat(tag, bindings.toList)(tagSign.span | spanEnd)
+       product_pattern()
 
      case Token.Ident("_") =>
        val item = next()

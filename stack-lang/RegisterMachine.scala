@@ -208,7 +208,7 @@ class RegisterMachine(
 
         compile(ifword.thenp)
 
-        if ifword.tpe.isVoid then
+        if ifword.tpe.isVoidType then
 
           if !ifword.elsep.isEmpty then
             gen(Instr.Jump(labelEnd))

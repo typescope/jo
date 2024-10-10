@@ -46,8 +46,12 @@ object Symbols:
     def isParameter: Boolean = flags.isAllOf(Flags.Val | Flags.Param)
     def isMutable  : Boolean = flags.isAllOf(Flags.Val | Flags.Mutable)
 
+    def isTypeParameter: Boolean = flags.isAllOf(Flags.Type | Flags.Param)
+
     def isOneOf(testFlags: Flags) = this.flags.isOneOf(testFlags)
     def isAllOf(testFlags: Flags) = this.flags.isAllOf(testFlags)
+
+    def toNamedInfo: NamedInfo[Type] = NamedInfo(name, info)
 
     override def toString() = name
 
@@ -69,3 +73,6 @@ object Symbols:
 
     def createParamSymbol(name: String, tp: Type | InfoProvider, pos: SourcePosition) =
       new Symbol(name, tp, Flags.Param | Flags.Val | Flags.Local, pos)
+
+    def createTypeParamSymbol(name: String, tp: Type | InfoProvider, pos: SourcePosition) =
+      new Symbol(name, tp, Flags.Param | Flags.Type, pos)

@@ -1,27 +1,27 @@
 type Tree = <
-  Leaf Int,
-  Node {left: Tree, right: Tree, value: Int}
+  Leaf(value: Int),
+  Node(left: Tree, right: Tree, value: Int)
 >
 
 fun postOrder(tree: Tree): Void =
   match tree
-    case #Leaf n => n p
-    case #Node n =>
-      postOrder n.left
-      postOrder n.right
-      n.value p
+    case #Leaf(n) => n p
+    case #Node(left, right, value) =>
+      postOrder left
+      postOrder right
+      value p
 
 fun preOrder(tree: Tree): Void =
   match tree
-    case #Leaf n => n p
-    case #Node n =>
-      n.value p
-      preOrder n.left
-      preOrder n.right
+    case #Leaf(n) => n p
+    case #Node(left, right, value) =>
+      value p
+      preOrder left
+      preOrder right
 
-val a: Tree = #Leaf 3 of Tree
-val b: Tree = #Node { left = #Leaf 5 of Tree, right = #Leaf 6 of Tree, value = 10 } of Tree
-val tree: Tree = #Node {left = a, right = b, value = 20} of Tree
+val a: Tree = #Leaf(3)
+val b: Tree = #Node(#Leaf(5), #Leaf(6), 10)
+val tree: Tree = #Node(a, b, 20)
 
 postOrder tree
 preOrder tree

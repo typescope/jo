@@ -93,7 +93,7 @@ object NamerUtils:
       * @param initial the initial approximation type for the symbol without computation
       * @param compute compute the type for the symbol
       */
-    def addProvider(sym: Symbol, provider: Symbol => Type) =
+    def addProvider(sym: Symbol, provider: () => Type) =
       assert(!completers.contains(sym), "Duplicate provider " + sym)
       completers(sym) = new InfoCompleter.Simple(provider)
 
@@ -118,7 +118,7 @@ object NamerUtils:
       else
         completing += sym
 
-        val tp = completer.compute(sym)
+        val tp = completer.compute()
         completer.complete(tp)
 
         completing -= sym
@@ -131,7 +131,7 @@ object NamerUtils:
 
   private enum InfoCompleter:
     case FixedPoint(initial: Reporter => Type, compute: Reporter => Type)
-    case Simple(compute: Symbol => Type)
+    case Simple(compute: () => Type)
 
     private var state = InfoState.Incomplete
 

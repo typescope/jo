@@ -138,14 +138,14 @@ object CallConvention:
 
     def caller(paramTypes: List[Type], resType: Type): Protocol =
       val argCount = paramTypes.size
-      val resCount = if resType.isVoid then 0 else 1
+      val resCount = if resType.isVoidType then 0 else 1
 
       val savedRegs = FP_REG :: callerSaved(argCount, resCount)
       Protocol(inProtocol(argCount), outProtocol(resCount), savedRegs)
 
     def callee(paramTypes: List[Type], resType: Type): Protocol =
       val argCount = paramTypes.size
-      val resCount = if resType.isVoid then 0 else 1
+      val resCount = if resType.isVoidType then 0 else 1
 
       val savedRegs = calleeSaved(argCount, resCount)
       Protocol(inProtocol(argCount), outProtocol(resCount), savedRegs)

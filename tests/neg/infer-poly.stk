@@ -1,0 +1,5 @@
+fun test1[X, Y <: X](x: X, y: Y): X = y
+
+test1 5 false // error
+
+val g = (x) => x   // error

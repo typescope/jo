@@ -20,8 +20,8 @@ object TypeOps:
     */
   def commonResultType(tp1: Type, tp2: Type): Option[Type] =
     if tp1.isError || tp2.isError then Some(ErrorType)
-    else if tp1.isVoid && tp2.isBottom then Some(VoidType)
-    else if tp1.isBottom && tp2.isVoid then Some(VoidType)
+    else if tp1.isVoidType && tp2.isBottom then Some(VoidType)
+    else if tp1.isBottom && tp2.isVoidType then Some(VoidType)
     else if Subtyping.conforms(tp1, tp2) then Some(tp2)
     else if Subtyping.conforms(tp2, tp1) then Some(tp1)
     else None
@@ -39,36 +39,20 @@ object TypeOps:
     val typeMap = new TypeOps.SymbolsTypeMap
     typeMap(tpe)(using substs)
 
-  /** A grounded type cannot be simplied further at the top-level
-    *
-    * The following types are grounded:
-    *
-    * - primitive types
-    * - procedure types
-    * - record types
-    * - union types
-    */
-  def isGrounded(tp: Type): Boolean =
-    tp match
-      case AnyType | BottomType | IntType | BoolType | ErrorType | VoidType => true
-      case _: PolyType | _: ProcType | _: FunctionType | _: RecordType | _: UnionType | _: TypeBound => true
-      case _: TypeLambda | _: TypeParamRef => true
-      case _: TypeRef | _: AppliedType => false
-
   /** Erase a poly type by replacing type parameters with Any */
   def erasePolyType(tp: Type): Type =
     // implementation assumption: no nested poly types
     dealias(tp) match
-      case PolyType(_, bounds, resType) =>
+      case PolyType(tparams, resType) =>
         // cannot subst with bounds as they might be recursive
         // TODO: do it in a principled way
-        TypeOps.substTypeParams(resType, bounds.map(_ => AnyType))
+        TypeOps.substTypeParams(resType, tparams.map(_ => AnyType))
 
       case tp => tp
 
   def finalResultType(tp: Type): Type =
     tp match
-      case PolyType(_, bounds, resType) => finalResultType(resType)
+      case PolyType(_, resType) => finalResultType(resType)
       case ProcType(_, resType, _) => resType
       case tp => tp
 
@@ -83,16 +67,23 @@ object TypeOps:
     */
   def approx(tp: Type, isUp: Boolean): Type =
     // detect cycles in symbol definitions, e.g., type A = A
-    val encountered = new mutable.ArrayBuffer[Symbol]
+    val encountered = new mutable.ArrayBuffer[ProxyType]
     def recur(tp: Type, isUp: Boolean): Type = Debug.trace(s"$tp.approx", enable = false):
       tp match
         case tref @ TypeRef(sym) =>
-          if encountered.contains(sym) then
+          if encountered.contains(tref) then
             tref
           else
-            encountered += sym
+            encountered += tref
             recur(sym.info, isUp)
           end if
+
+        case tvar: TypeVar =>
+          if encountered.contains(tvar) then
+            tvar
+          else
+            encountered += tvar
+            recur(tvar.approx(isUp), isUp)
 
         case TypeBound(lo, hi) =>
           if isUp then recur(hi, isUp) else recur(lo, isUp)
@@ -110,19 +101,28 @@ object TypeOps:
     recur(tp, isUp)
   end approx
 
-  /** Transitively eliminate top-level type aliases and applied types */
+  /** Transitively eliminate top-level type aliases and applied types without any approximation
+    *
+    * In particular, type parameters are not reduced to their bounds.
+    */
   def dealias(tp: Type): Type =
     // detect cycles in symbol definitions, e.g., type A = A
-    val encountered = new mutable.ArrayBuffer[Symbol]
+    val encountered = new mutable.ArrayBuffer[ProxyType]
     def recur(tp: Type): Type = Debug.trace(s"$tp.dealias", enable = false):
       tp match
-        case tref @ TypeRef(sym) =>
-          if encountered.contains(sym) then
+        case tref: TypeRef =>
+          if encountered.contains(tref) || tref.symbol.isTypeParameter then
             tref
           else
-            encountered += sym
-            recur(sym.info)
-          end if
+            encountered += tref
+            recur(tref.symbol.info)
+
+        case tvar: TypeVar =>
+          if encountered.contains(tvar) then
+            tvar
+          else
+            encountered += tvar
+            recur(tvar.dealias)
 
         case app @ AppliedType(tctor, targs) =>
           recur(tctor) match
@@ -146,26 +146,33 @@ object TypeOps:
       case BottomType  => "Bottom"
       case ErrorType   => "Error"
 
+      case tvar: TypeVar =>
+        val dealias = tvar.dealias
+        if dealias != tvar then
+          dealias.show
+        else
+          tvar.toString
+
       case TypeRef(sym) =>
-        sym.name
+        if sym.isType then sym.name else sym.name + ": " + sym.info.show
 
       case RecordType(fields) =>
-        fields.map(_ + ": " + show(_)).mkString("{", ", ", "}")
+        fields.map(f => f.name + ": " + show(f.info)).mkString("{", ", ", "}")
 
       case UnionType(branches) =>
-        def concat(tps: List[Type]) = tps.map(_.show).mkString(" * ")
-        branches.map(_ + " " + concat(_)).mkString("<", ", ", ">")
+        def paramStr(paramInfos: List[NamedInfo[Type]]) = paramInfos.map(param => param.name + ": " + show(param.info)).mkString("(", ", ", ")")
+        branches.map(b => b.name + " " + paramStr(b.info)).mkString("<", ", ", ">")
 
       case AppliedType(tctor, targs) =>
         show(tctor) + targs.map(show).mkString("[", ", ", "]")
 
-      case TypeLambda(names, bounds, body) =>
-        val tparams = names.zip(bounds).map(_ + " <: " + show(_)).mkString("[", ", ", "]")
-        tparams + " => " + show(body)
+      case TypeLambda(tparams, body) =>
+        val tparamStr = tparams.map(tparam => tparam.name + " <: " + show(tparam.info)).mkString("[", ", ", "]")
+        tparamStr + " => " + show(body)
 
-      case PolyType(names, bounds, resType) =>
-        val tparams = names.zip(bounds).map(_ + " <: " + show(_)).mkString("[", ", ", "]")
-        tparams + show(resType)
+      case PolyType(tparams, resType) =>
+        val tparamStr = tparams.map(tparam => tparam.name + " <: " + show(tparam.info)).mkString("[", ", ", "]")
+        tparamStr + show(resType)
 
       case TypeParamRef(name, _) =>
         name
@@ -174,8 +181,8 @@ object TypeOps:
         show(lo) + " .. " + show(hi)
 
       case ProcType(params, resType, n) =>
-        val preStr = params.take(n).map(info => info.name + ": " + show(info.tpe)).mkString("(", ", ", ")")
-        val postStr = params.drop(n).map(info => info.name + ": " + show(info.tpe)).mkString("(", ", ", ")")
+        val preStr = params.take(n).map(param => param.name + ": " + show(param.info)).mkString("(", ", ", ")")
+        val postStr = params.drop(n).map(param => param.name + ": " + show(param.info)).mkString("(", ", ", ")")
         preStr + postStr + ": " + show(resType)
 
       case FunctionType(paramTypes, resType) =>
@@ -193,21 +200,23 @@ object TypeOps:
         case VoidType | ErrorType | AnyType | BottomType | IntType | BoolType =>
           tp
 
-        case _: TypeRef | _: TypeParamRef =>
+        case _: TypeRef | _: TypeParamRef | _: TypeVar =>
           tp
 
         case RecordType(fields) =>
           val fields2 =
-            for (name, tpe) <- fields
-            yield name -> this(tpe)
+            for field <- fields
+            yield field.copy(info = this(field.info))
           RecordType(fields2)
 
         case UnionType(branches) =>
           val branches2 =
-            for
-              (tag, tps) <- branches
-            yield
-              tag -> tps.map(tp => this(tp))
+            for branch <- branches
+            yield branch.copy(
+              info = branch.info.map(
+                param => param.copy(info = this.apply(param.info))
+              )
+            )
           UnionType(branches2)
 
         case AppliedType(tctor, targs) =>
@@ -215,23 +224,29 @@ object TypeOps:
           val targs2 = for targ <- targs yield this(targ)
           AppliedType(tctor2, targs2)
 
-        case TypeLambda(names, bounds, resType) =>
-          val bounds2 = for bound <- bounds yield this(bound)
-          val resType2 = this(resType)
-          TypeLambda(names, bounds2, resType2)
+        case TypeLambda(tparams, resType) =>
+          val tparams2 =
+            for tparam <- tparams
+            yield tparam.copy(info = this(tparam.info).as[TypeBound])
 
-        case PolyType(names, bounds, resType) =>
-          val bounds2 = for bound <- bounds yield this(bound)
           val resType2 = this(resType)
-          PolyType(names, bounds2, resType2)
+          TypeLambda(tparams2, resType2)
+
+        case PolyType(tparams, resType) =>
+          val tparams2 =
+            for tparam <- tparams
+            yield tparam.copy(info = this(tparam.info).as[TypeBound])
+
+          val resType2 = this(resType)
+          PolyType(tparams2, resType2)
 
         case TypeBound(lo, hi) =>
           TypeBound(this(lo), this(hi))
 
         case ProcType(params, resType, preParamCount) =>
           val params2 =
-            for info <- params
-            yield info.copy(tpe = this(info.tpe))
+            for param <- params
+            yield param.copy(info = this(param.info))
 
           val resType2 = this(resType)
           ProcType(params2, resType2, preParamCount)

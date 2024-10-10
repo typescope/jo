@@ -53,7 +53,7 @@ class Scanner(stream: CharStream)(using Reporter):
     stream.eatWhile(isNameRest)
 
     stream.tokenEnd() match
-      case "of"      => Token.OF
+      case "as"      => Token.AS
       case "if"      => Token.IF
       case "then"    => Token.THEN
       case "else"    => Token.ELSE

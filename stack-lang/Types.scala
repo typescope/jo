@@ -12,9 +12,9 @@ object Types:
   sealed abstract class Type:
     def isError: Boolean = this == ErrorType
 
-    def isVoid: Boolean = TypeOps.dealias(this) == VoidType
+    def isVoidType: Boolean = TypeOps.dealias(this) == VoidType
 
-    def isAny: Boolean = TypeOps.dealias(this) == AnyType
+    def isAnyType: Boolean = TypeOps.dealias(this) == AnyType
 
     def isBottom: Boolean = TypeOps.approx(this, isUp = true) == BottomType
 
@@ -77,19 +77,30 @@ object Types:
 
   case object ErrorType extends Type
 
-  case class TypeRef(symbol: Symbol) extends Type
+  /** A proxy type may be reduced to other types in subtype and shape checking.
+    *
+    * In addition, proxy types can lead to loops in types, thus need to be
+    * handled specially in subtyping and approximation.
+    */
+  sealed abstract class ProxyType extends Type
+
+  /** A reference to either a type symbol or a term symbol */
+  case class TypeRef(symbol: Symbol) extends ProxyType
+
+  /** A part of a type with a specific name */
+  case class NamedInfo[+T](name: String, info: T)
 
   /** A record type --- named tuples
     *
     * Warning: flattening of nested tuples is dangerous with subtyping
     * of records.
     */
-  case class RecordType(fields: List[(String, Type)]) extends Type:
-    val fieldNames: List[String] = fields.map(_._1)
+  case class RecordType(fields: List[NamedInfo[Type]]) extends Type:
+    val fieldNames: List[String] = fields.map(_.name)
 
     def getFieldType(field: String): Option[Type] =
       fields.collectFirst:
-        case (f, tp) if f == field => tp
+        case NamedInfo(f, tp) if f == field => tp
 
     def hasField(name: String): Boolean =
       fieldNames.contains(name)
@@ -97,12 +108,12 @@ object Types:
     def fieldType(name: String): Type =
       getFieldType(name).get
 
-  case class UnionType(branches: List[(String, List[Type])]) extends Type:
-    val tags: List[String] = branches.map(_._1)
+  case class UnionType(branches: List[NamedInfo[List[NamedInfo[Type]]]]) extends Type:
+    val tags: List[String] = branches.map(_.name)
 
     def getTagType(tag: String): Option[List[Type]] =
       branches.collectFirst:
-        case (t, tps) if t == tag => tps
+        case NamedInfo(t, tps) if t == tag => tps.map(_.info)
 
     def hasTag(tag: String): Boolean =
       tags.contains(tag)
@@ -112,12 +123,14 @@ object Types:
 
     def tagIndex(tag: String): Int =
       branches.indexWhere:
-        case (t, _) => t == tag
+        case NamedInfo(t, _) => t == tag
 
   case class PolyType
-    (names: List[String], bounds: List[Type], resultType: Type)
+    (tparams: List[NamedInfo[TypeBound]], resultType: Type)
   extends Type:
-    val paramCount = bounds.size
+    val names: List[String] = tparams.map(_.name)
+    val bounds: List[TypeBound] = tparams.map(_.info)
+    val paramCount = tparams.size
 
   sealed trait InvokableType extends Type:
     def paramTypes: List[Type]
@@ -126,22 +139,22 @@ object Types:
     def paramCount = paramTypes.size
     def resCount = if resultType.isValueType then 1 else 0
 
-  case class ParamInfo(name: String, tpe: Type)
-
   case class ProcType
-    (params: List[ParamInfo], resultType: Type, preParamCount: Int)
+    (params: List[NamedInfo[Type]], resultType: Type, preParamCount: Int)
   extends Type with InvokableType:
-    val preParamTypes: List[Type] = params.take(preParamCount).map(_.tpe)
-    val postParamTypes: List[Type] = params.drop(preParamCount).map(_.tpe)
-    val paramTypes: List[Type] = params.map(_.tpe)
+    val preParamTypes: List[Type] = params.take(preParamCount).map(_.info)
+    val postParamTypes: List[Type] = params.drop(preParamCount).map(_.info)
+    val paramTypes: List[Type] = params.map(_.info)
     def postParamCount = params.size - preParamCount
     def toFunType: FunctionType = FunctionType(paramTypes, resultType)
 
   /** A type lambda */
   case class TypeLambda
-    (names: List[String], bounds: List[Type], body: Type)
+    (tparams: List[NamedInfo[TypeBound]], body: Type)
   extends Type:
-    val paramCount = names.size
+    val names: List[String] = tparams.map(_.name)
+    val bounds: List[Type] = tparams.map(_.info)
+    val paramCount: Int = tparams.size
 
   /** An index reference to type parameter
     *
@@ -155,7 +168,7 @@ object Types:
 
   case class AppliedType
     (tctor: Type, targs: List[Type])
-  extends Type
+  extends ProxyType
 
   case class FunctionType
     (paramTypes: List[Type], resultType: Type)
@@ -165,3 +178,19 @@ object Types:
   case class TypeBound
     (lo: Type, hi: Type)
   extends Type
+
+  class TypeVar(name: String, inferencer: Inference.Inferencer) extends ProxyType:
+    override def toString = "TypeVar(" + name + ")"
+
+    def isInstantiated: Boolean =
+      this.dealias != this
+
+    def dealias: Type = inferencer.dealias(this)
+
+    def approx(isUp: Boolean): Type = inferencer.approx(this, isUp)
+
+    def isSubtype(tp: Type): List[Subtyping.Task] =
+      inferencer.isSubtype(this, tp)
+
+    def isSuptype(tp: Type): List[Subtyping.Task] =
+      inferencer.isSuptype(this, tp)
