@@ -189,8 +189,8 @@ object Types:
 
     def approx(isUp: Boolean): Type = inferencer.approx(this, isUp)
 
-    def isSubtype(tp: Type)(using Subtyping.Context): List[Subtyping.Task] =
+    def isSubtype(tp: Type): List[Subtyping.Task] =
       inferencer.isSubtype(this, tp)
 
-    def isSuptype(tp: Type)(using Subtyping.Context): List[Subtyping.Task] =
+    def isSuptype(tp: Type): List[Subtyping.Task] =
       inferencer.isSuptype(this, tp)
