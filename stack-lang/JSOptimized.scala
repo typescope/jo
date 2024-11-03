@@ -68,15 +68,15 @@ class JSOptimized(outFile: String):
 
   //----------------------------------------------------------------------------
 
-  def compile(prog: Prog): Unit =
+  def compile(ns: Namespace): Unit =
     val pw =  new PrintWriter(outFile)
 
-    val globals = rep(prog.vals, Text.BreakLine)
-    val funs = rep(prog.funs, Text.BlankLine)
+    val funs = rep(prog.funDefs, Text.BlankLine)
 
+    // TODO: what's the entry function
     val text =
       "(function() {" ~ indent:
-           globals ~ Text.BreakLine ~ funs ~ Text.BreakLine ~ prog.entry ~ ";"
+           Text.BreakLine ~ funs ~ Text.BreakLine ~ ??? ~ ";"
       ~ "})()"
 
     pw.append(text.toString)

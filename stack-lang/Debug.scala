@@ -39,9 +39,9 @@ object Debug:
   extension [T](inline v: T)
     inline def <|(msg: => String, inline enable: Boolean): T = measure(msg, enable)(v)
 
-  def peek(enable: Boolean): Sast.Prog => Sast.Prog = prog =>
-    if enable then println(Printing.show(prog))
-    prog
+  def peek(enable: Boolean): Sast.Namespace => Sast.Namespace = ns =>
+    if enable then println(Printing.show(ns))
+    ns
 
   def displayPrompt(reader: BufferedReader = Console.in, writer: PrintWriter = PrintWriter(Console.err, true)): Unit =
     writer.println()

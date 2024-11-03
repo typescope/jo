@@ -19,7 +19,7 @@ import Parser.SyntaxError
 
 object Parser:
   /** Parse the supplied code */
-  def parse(code: String)(using Reporter): Prog =
+  def parse(code: String)(using Reporter): Namespace =
     new Parser(code).parse()
 
    /** A scanner that supports peeking tokens ahead. */

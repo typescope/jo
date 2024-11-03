@@ -6,7 +6,6 @@ import scala.collection.mutable
 
 /** The compiler phase that makes initialization explicit.
   *
-  * - Wrap all val defintions in a <init> function with the main phrase.
   * - Rewrite val definitions to assign statement.
   * - Augment function definitions with a list of local symbols.
   * - Remove type definitions.
@@ -14,52 +13,11 @@ import scala.collection.mutable
 class ExplicitInit(using Reporter):
   val treeMap = new ExplicitInit.LocalsTreeMap
 
-  def transform(prog: Prog): Prog =
-    val initNamesInfo = new ExplicitInit.NamesInfo
-    val defs = new mutable.ArrayBuffer[Word]
-    val stats = new mutable.ArrayBuffer[Word]
+  def transform(ns: Namespace): Namespace =
+    for funDef <- ns.funDefs do
+      defs += treeMap.transform(funDef)
 
-    for word <- prog.words do
-      word match
-        case funDef: FunDef  =>
-          defs += treeMap.transform(funDef)
-
-        case vdef: ValDef =>
-          val rhs = treeMap(vdef.rhs)(using initNamesInfo)
-          stats += Assign(vdef.symbol, rhs)(vdef.span)
-
-          val empty = Phrase(words = Nil)(rhs.tpe, rhs.span)
-          defs += ValDef(vdef.symbol, empty)(vdef.span)
-
-        case tdef: TypeDef =>
-
-        case _ =>
-          stats += treeMap(word)(using initNamesInfo)
-    end for
-
-    // synthesize init function
-    val initType = ProcType(params = Nil, resultType = VoidType, preParamCount = 0)
-    val initSym = Symbol.createFunSymbol("_init", initType, prog.pos)
-    val initSpan = prog.span
-    val statsNorm =
-      for stat <- stats.toList yield
-        if stat.tpe.isValueType then Sast.dropValue(stat)
-        else stat
-
-    val initBody = Phrase(statsNorm)(VoidType, initSpan)
-
-    val initLocals = initNamesInfo.locals.distinct.toList
-    val initCaptures =
-      initNamesInfo.free.filter(!initLocals.contains(_)).distinct.toList
-
-    val initFun = FunDef(
-      initSym, tparams = Nil, params = Nil, initBody)(
-      initLocals.filter(_.isValue).toList, initCaptures, initSpan
-    )
-
-    defs += initFun
-    defs += Apply(Ident(initSym)(initSpan), Nil)(VoidType, initSpan)
-    Prog(defs.toList)(prog.span)
+    Namespace(ns.symbol, Nil, defs.toList)(ns.span)
 
 object ExplicitInit:
   class NamesInfo:

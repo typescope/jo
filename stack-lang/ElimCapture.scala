@@ -19,18 +19,13 @@ object ElimCapture:
   val EnvFieldName = "env"
   val ProcFieldName = "proc"
 
-  def transform(prog: Prog): Prog =
+  def transform(ns: Namespace): Namespace =
     given ctx: Context = new Context
-    val words2 =
-      for word <- prog.words yield
-        word match
-          case defn: Def =>
-            treeMap.recur(defn)(using ctx.withOwner(defn.symbol))
+    val fdefs =
+      for fdef <- ns.funDefs yield
+        treeMap.recur(fdef)(using ctx.withOwner(fdef.symbol))
 
-          case _ =>
-            treeMap.apply(word)
-
-    Prog(ctx.lifted.toList ++ words2)(prog.span)
+    Namespace(ns.symbol, ns.typeDefs, fdefs)(ns.span)
 
   /** The encoded type of a function */
   def encodedRecordType(funType: FunctionType): RecordType =

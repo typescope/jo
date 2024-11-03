@@ -16,7 +16,7 @@ class RegisterMachine(
   registerConfig: RegisterConfig,
   callConvention: CallConvention,
   nativeFunctions: Map[Symbol, Label],
-  generator: Assembly.Prog => Unit):
+  generator: Prog => Unit):
 
   import registerConfig.{ FP_REG, SP_REG }
 
@@ -46,21 +46,16 @@ class RegisterMachine(
   def gen(label: Label)(using ctx: Context): Unit =
     ctx.buffer.gen(label)
 
-  def compile(prog: Sast.Prog): Unit =
+  def compile(ns: Namespace): Unit =
     // Buffer to hold the generated assembly code
     val entryLabel = Label("_entry")
     val cb = new CodeBuffer(entryLabel)
 
-    for fun <- prog.funs do
+    for fun <- prog.funDefs do
       symbolAddrMap(fun.symbol) = Label(fun.name)
 
-    for ValDef(sym, _) <- prog.vals do
-      val label = Label(sym.name)
-      symbolAddrMap(sym) = label
-      cb.add(Data.Uninit(label, Assembly.Type.Int32))
-
     // Compile functions
-    for fun <- prog.funs do
+    for fun <- prog.funDefs do
       val sym = fun.symbol
       val ctx = freshFunctionContext(sym)
       val proto = compile(fun)(using ctx)
@@ -72,7 +67,8 @@ class RegisterMachine(
           label, ctx.buffer.getResult(), registerConfig, proto.savedRegs,
           cb, ctx.generator)
 
-    entry(entryLabel, prog.entrySymbol, cb)
+    // TODO: what's the entry function
+    entry(entryLabel, ???, cb)
 
     // generate code
     generator(cb.getResult())

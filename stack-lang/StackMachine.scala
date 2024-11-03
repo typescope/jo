@@ -34,26 +34,21 @@ class StackMachine(
 
   def cb(using ctx: Context): CodeBuffer = ctx
 
-  def compile(prog: Sast.Prog): Unit =
+  def compile(ns: Namespace): Unit =
     given Context = new CodeBuffer(entry)
 
-    for fun <- prog.funs do
+    for fun <- ns.funDefs do
       symbolAddrMap(fun.symbol) = Label(fun.name)
 
-    for ValDef(sym, _) <- prog.vals do
-      val label = Label(sym.name)
-      symbolAddrMap(sym) = label
-      cb.add(Data.Uninit(label, Assembly.Type.Int32))
-
     // Compile functions
-    for fun <- prog.funs do
+    for fun <- ns.funDefs do
       compile(fun)
 
     // Stack pointer is initialized by the kernel, initialize frame pointer
     cb.mark(this.entry)
     cb.add(Instr.Sub(Reg(SP_REG), Int32(4), SP_REG))
     genAllocator()
-    compile(prog.entry)
+    // TODO: what's the entry function
     exit(Int32(0))
 
     // generate code

@@ -25,7 +25,7 @@ def compile(args: String*) =
 
   val layout = options.getOrElse("-layout", "c1")
 
-  val backend: Sast.Prog => Unit =
+  val backend: Sast.Namespace => Unit =
     options.get("-p") match
       case Some(pf) =>
         if pf == "linux-x86-stack" then

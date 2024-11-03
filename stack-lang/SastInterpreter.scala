@@ -122,7 +122,7 @@ object SastInterpreter:
       Predef.abort  ->    abort
   )
 
-  def exec(prog: Prog): Unit =
+  def exec(prog: Namespace): Unit =
     val rootScope = new Scope.RootScope()
 
     for (sym, op) <- primitiveOperators do

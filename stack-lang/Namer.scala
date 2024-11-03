@@ -26,7 +26,7 @@ class Namer(@constructorOnly reporter: Reporter):
   val nonCyclicTypeProvider = new NamerUtils.ValueTypeProvider(using reporter)
 
 
-  def transform(prog: Ast.Prog)(using Reporter): Sast.Prog =
+  def transform(ns: Ast.Namespace)(using Reporter): Sast.Prog =
     val rootScope = new Scope.RootScope()
 
     // Predefined type names
@@ -40,25 +40,12 @@ class Namer(@constructorOnly reporter: Reporter):
 
     // Prepare scope according to scoping rules
     val sc = rootScope.fresh()
-    val defs = index(prog.defs)(using sc)
-
-    val dummyMainSym = Symbol.createFunSymbol("_main", ProcType(Nil, VoidType, 0), prog.pos)
-    var defIndex = -1
-    val words =
-      for phrase <- prog.phrases yield
-        phrase match
-          case defn: Ast.Def =>
-            defIndex += 1
-            defs(defIndex)
-
-          case _ =>
-            given Scope = sc.fresh(dummyMainSym)
-            given TargetType = TargetType.Known(VoidType)
-            transform(phrase)
+    val tdefs = index(ns.typeDefs)(using sc)
+    val fdefs = index(ns.funDefs)(using sc)
 
     checker.performDelayedChecks()
 
-    Prog(words)(prog.span)
+    Namespace(???, tdefs, fdefs)(ns.span)
 
   def index(defs: List[Ast.Def])(using sc: Scope, rp: Reporter): List[Def] =
     val delayedDefs = new mutable.ArrayBuffer[DelayedDef[Def]]
@@ -667,7 +654,7 @@ class Namer(@constructorOnly reporter: Reporter):
 object Namer:
   val errorSymbol = Symbol.createFunSymbol("error", ErrorType, pos = null)
 
-  def transform(using reporter: Reporter): Ast.Prog => Prog =
+  def transform(using reporter: Reporter): Ast.Namespace => Namespace =
     new Namer(reporter).transform
 
   private class DelayedDef[+T <: Def](val symbol: Symbol, delayed: () => T):

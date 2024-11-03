@@ -8,7 +8,7 @@ object Printing:
 
   def show(word: Word): String = showWord(word).toString
 
-  def show(prog: Prog): String = showProg(prog).toString
+  def show(ns: Namespace): String = showNamespace(ns).toString
 
   //----------------------------------------------------------------------------
 
@@ -26,8 +26,10 @@ object Printing:
 
   // implementation
 
-  def showProg(prog: Prog): Text =
-    rep(prog.words, Text.BlankLine)
+  def showNamespace(ns: Namespace): Text =
+    "namespace" ~ " " ~ ns.symbol ~ indent:
+      rep(ns.typeDefs, Text.BlankLine) ~
+      rep(ns.funDefs, Text.BlankLine) ~
 
   def showDef(defn: Def): Text =
     defn match
