@@ -83,17 +83,42 @@ class Parser(code: String)(using Reporter):
     if !reference.indent.isSame(item.indent) then
       warn(s"${item.token} is not aligned with ${reference.token}", item.span.toPos)
 
+  def repeated[T](cond: () => Boolean, parseItem: () => T): List[T] =
+    val items = new mutable.ArrayBuffer[T]
+    while cond() do items += parseItem()
+    items.toList
 
-  def parse(): Prog =
-    val p = prog()
+  def parse(): Namespace =
+    val nspace = namespace()
     // With parsing errors, ensure finish scanning
     while peek() != Token.EOF do next()
-    p
+    nsapce
 
-  def prog(): Prog =
-    val blk = block(Indent(line = -1, indent = -1))
-    eat(Token.EOF)
-    Prog(blk.phrases)(blk.span)
+  def namespace(): Namespace =
+    val item = peek()
+    val id =
+      item match
+        case Token.Ident("namespace") => qualid()
+        case _ => Ident("Empty")(item.span)
+
+     // default Empty namespace
+     val tdefs = repeated(() => peek() == Token.TYPE, () => typeDef())
+     val fdefs = repeated(() => peek() == Token.FUN, () => funDef())
+     val endSpan =
+       if fdefs.isEmpty then
+         if tdefs.isEmpty then id.span else tdefs.last.span
+       else
+         fdefs.last.span
+
+     Namespace(id, tdefs, fdefs)(id.span | endSpan)
+
+  def qualid(): RefTree =
+    var qual = ident()
+    while peek() == Token.DOT then
+      val id = ident()
+      qual = Select(qual, id.name)(qual.span | id.span)
+
+    qual
 
   def valDef(modifier: Token): ValDef =
     val mutable = modifier == Token.VAR
