@@ -23,6 +23,8 @@ object Sast:
 
     def show: String = Printing.show(this)
 
+  sealed abstract trait RefTree extends Tree
+
   case class IntLit
     (value: Int)
     (val span: Span)
@@ -43,13 +45,13 @@ object Sast:
   case class Ident
     (symbol: Symbol)
     (val span: Span)
-  extends Word:
+  extends Word, RefTree:
     val tpe: Type = TypeRef(symbol)
 
   case class Select
     (qual: Word, name: String)
     (val tpe: Type, val span: Span)
-  extends Word
+  extends Word, RefTree
 
   case class Assign
     (symbol: Symbol, rhs: Word)
@@ -136,33 +138,10 @@ object Sast:
     (val locals: List[Symbol], val captures: List[Symbol], val span: Span)
   extends Def
 
-  case class Prog(words: List[Word])(val span: Span) extends Positioned:
-    lazy val vals: List[ValDef] =
-      assert(isNormalized, "Not normalized")
-      words.collect: word =>
-        word match
-          case vdef: ValDef => vdef
-
-    lazy val funs: List[FunDef] =
-      assert(isNormalized, "Not normalized")
-      words.collect: word =>
-        word match
-          case fdef: FunDef => fdef
-
-    val isNormalized: Boolean =
-      words match
-        case defs :+ Apply(Ident(sym), Nil) =>
-          defs.forall(_.isDef)
-
-        case _ => false
-
-    lazy val entrySymbol: Symbol =
-      val Apply(Ident(sym), Nil) = entry: @unchecked
-      sym
-
-    lazy val entry: Word =
-      assert(isNormalized, "Not normalized, found last = " + words.last.show)
-      words.last
+  case class Namespace
+    (symbol: Symbol, typeDefs: List[TypeDef], funDefs: List[FunDef])
+    (val span: Span)
+  extends Positioned
 
   //----------------------------------------------------------------------------
   // helpers

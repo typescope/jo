@@ -14,6 +14,8 @@ object Ast:
 
   sealed abstract class Word extends Phrase
 
+  sealed abstract trait RefTree extends Tree
+
   case class IntLit
     (value: Int)
     (val span: Span)
@@ -27,7 +29,7 @@ object Ast:
   case class Ident
     (name: String)
     (val span: Span)
-  extends Word, TypeTree
+  extends Word, RefTree, TypeTree
 
   case class Assign
     (ident: Ident, rhs: Word)
@@ -47,7 +49,7 @@ object Ast:
   case class Select
     (qual: Word, name: String)
     (val span: Span)
-  extends Word
+  extends Word, RefTree, TypeTree
 
   case class RecordLit
     (args: List[NamedArg])
@@ -187,8 +189,7 @@ object Ast:
     (val span: Span)
   extends Phrase, Def
 
-  case class Prog(phrases: List[Phrase])(val span: Span) extends Tree:
-    lazy val defs: List[Def] =
-      phrases.collect: phrase =>
-        phrase match
-          case defn: Def => defn
+  case class Namespace
+    (qualid: RefTree, typeDefs: List[TypeDef], funDefs: List[FunDef])
+    (val span: Span)
+  extends Tree

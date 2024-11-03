@@ -41,6 +41,7 @@ Lexical Grammar
     MATCH    = "match".
     CASE     = "case".
     END      = "end".
+    NSPACE   = "namespace".
     name     = (letter | USCORE) {letter | digit | USCORE}.
     operator = opchar { opchar }.
     ident    = name | operator.
@@ -54,7 +55,9 @@ Syntactical Grammar
 
 
 ~~~
-    program = block.
+    namespace = [NSPACE qualid] {typedef} {fundef}.
+
+    qualid = ident | qualid DOT ident.
 
     expr    = word {word}.
 
@@ -98,7 +101,7 @@ Syntactical Grammar
     applied_type = ident targs.
     targs        = LBRACKET type { COMMA type } RBRACKET.
 
-    type    = ident | record_typ | union_typ | applied_type | fun_type | LPAREN type RPAREN.
+    type    = qualid | record_typ | union_typ | applied_type | fun_type | LPAREN type RPAREN.
 
     record_typ = LBRACE [fields]  RBRACE.
     fields     = field { COMMA field }.

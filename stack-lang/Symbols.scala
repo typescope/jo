@@ -17,9 +17,13 @@ object Symbols:
     */
   abstract class InfoProvider extends (Symbol => Type)
 
+  abstract class NamespaceInfo:
+    def resolveTerm(name: String): Option[Symbol]
+    def resolveType(name: String): Option[Symbol]
+
   final class Symbol(
     val name: String,
-    infoProvider: Type | InfoProvider,
+    infoProvider: Type | InfoProvider | NamespaceInfo,
     val flags: Flags,
     val sourcePos: SourcePosition):
 
@@ -27,8 +31,7 @@ object Symbols:
       *
       * The result may change due to
       *
-      * - fixed point computation
-      * - type inference
+      * - fixed point computation for infering result type of functions
       * - erasure
       *
       * The cache is done by the provider
@@ -37,11 +40,18 @@ object Symbols:
       infoProvider match
         case tp: Type => tp
         case provider: InfoProvider => provider(this)
+        case nspace: NamespaceInfo => throw new Exception("Namespace does not have info")
+
+    def namespace: NamespaceInfo =
+      infoProvider match
+        case nspace: NamespaceInfo => nspace
+        case _ => throw new Exception("Symbol is not a namespace")
 
     def isPrimitive: Boolean = flags.is(Flags.Prim)
     def isFunction : Boolean = flags.is(Flags.Fun)
     def isValue    : Boolean = flags.is(Flags.Val)
     def isType     : Boolean = flags.is(Flags.Type)
+    def isNamespace: Boolean = flags.is(Flags.NSpace)
     def isLocal    : Boolean = flags.is(Flags.Local)
     def isParameter: Boolean = flags.isAllOf(Flags.Val | Flags.Param)
     def isMutable  : Boolean = flags.isAllOf(Flags.Val | Flags.Mutable)
