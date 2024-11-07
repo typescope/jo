@@ -30,29 +30,66 @@ class Namer(@constructorOnly reporter: Reporter):
     val rootScope = new Scope.RootScope()
 
     // Predefined type names
-    rootScope.define(Predef.Int, Positions.NoSpan)
-    rootScope.define(Predef.Bool, Positions.NoSpan)
-    rootScope.define(Predef.Void, Positions.NoSpan)
+    rootScope.define(Predef.Int)
+    rootScope.define(Predef.Bool)
+    rootScope.define(Predef.Void)
 
     // Predefined term names
     for sym <- Predef.allSymbols do
-      rootScope.define(sym, Positions.NoSpan)
+      rootScope.define(sym)
 
-    // Prepare scope according to scoping rules
+    // Prepare a fresh scope for user-defined names
     val sc = rootScope.fresh()
-    val tdefs = index(ns.typeDefs)(using sc)
-    val fdefs = index(ns.funDefs)(using sc)
+
+    val nsSymbol = resolveNamespace(ns.qualid)(using sc)
+    val nsInfo = nsSymbol.namespace
+
+    val tdefs = index(ns.typeDefs, nsInfo)(using sc)
+    val fdefs = index(ns.funDefs, nsInfo)(using sc)
 
     checker.performDelayedChecks()
 
-    Namespace(???, tdefs, fdefs)(ns.span)
+    Namespace(nsSymbol, tdefs, fdefs)(ns.span)
 
-  def index(defs: List[Ast.Def])(using sc: Scope, rp: Reporter): List[Def] =
+  def resolveNamespace(qualid: Ast.RefTree)(using sc: Scope, rp: Reporter): Symbol =
+    qualid match
+      case Select(qual, name) =>
+        assert(qual.isInstanceOf[Ast.RefTree], "Unexpected qualid = " + qualid)
+        val sym = resolveNamespace(qual.asInstanceOf[Ast.RefTree])
+        assert(sym.isNamespace, "Not a namespace: " + qual)
+
+        val nsInfo = sym.namespace
+        nsInfo.resolve(name) match
+         case Some(sym) => sym
+
+         case None =>
+           val sym = Symbol.createNamespace(name, new NamespaceInfo, qualid.pos)
+           nsInfo.define(sym)
+           sym
+
+      case Ident(name) =>
+        sc.resolve(name, isType = false) match
+          case None =>
+            val sym = Symbol.createNamespace(name, new NamespaceInfo, qualid.pos)
+            nsInfo.define(sym)
+            sym
+
+          case Some(sym) =>
+            if !sym.isNamespace then
+              Reporter.error("Not a namespace: " + sym.name, qualid.pos)
+              Symbol.createNamespace(name, new NamespaceInfo, qualid.pos)
+            else
+              sym
+
+  def index(defs: List[Ast.Def], nsInfo: NamespaceInfo)(using sc: Scope, rp: Reporter): List[Def] =
     val delayedDefs = new mutable.ArrayBuffer[DelayedDef[Def]]
 
     for defn <- defs do
       val delayedDef = index(defn)
-      sc.define(delayedDef.symbol, defn.span)
+      // Need to add to both given that the name can be access in two different
+      // ways in the current context.
+      nsInfo.define(delayedDef.symbol)
+      sc.define(delayedDef.symbol)
       delayedDefs += delayedDef
 
     for delayedDef <- delayedDefs.toList yield
@@ -125,19 +162,19 @@ class Namer(@constructorOnly reporter: Reporter):
         val delayedDef = transform(vdef)
         val vdef2 = delayedDef.force()
         // a val is not available for checking its rhs
-        sc.define(delayedDef.symbol, vdef.span)
+        sc.define(delayedDef.symbol)
         vdef2.check
 
       case fdef: Ast.FunDef =>
         val delayedDef = transform(fdef)
         // A function is available for checking its rhs
-        sc.define(delayedDef.symbol, fdef.span)
+        sc.define(delayedDef.symbol)
         delayedDef.force().check
 
       case tdef: Ast.TypeDef =>
         val delayedDef = transform(tdef)
         // A type definition is available for checking its rhs
-        sc.define(delayedDef.symbol, tdef.span)
+        sc.define(delayedDef.symbol)
         delayedDef.force().check
 
   def transform(word: Ast.Word)(using sc: Scope, rp: Reporter, tt: TargetType): Word =
@@ -276,7 +313,7 @@ class Namer(@constructorOnly reporter: Reporter):
     val scrutSym = Symbol.createValueSymbol("scrutinee", scrutType, Flags.Local, scrutinee2.pos)
     val scrutIdent = Ident(scrutSym)(scrutinee.span)
     val bind = ValDef(scrutSym, scrutinee2)(scrutinee.span)
-    sc2.define(scrutSym, scrutinee.span)
+    sc2.define(scrutSym)
 
     val allTags = if scrutType.isUnionType then scrutType.asUnionType.tags else Nil
 
@@ -351,7 +388,7 @@ class Namer(@constructorOnly reporter: Reporter):
             val arg = Desugaring.selectVariantArg(encodedScrut, i, binding.span)
             val sym = Symbol.createValueSymbol(binding.name, arg.tpe, Flags.Local, arg.pos)
             vals += ValDef(sym, arg)(binding.span)
-            caseScope.define(sym, binding.span)
+            caseScope.define(sym)
 
           val tagIndex =
             if tagTypesOpt.isEmpty then -1
@@ -399,7 +436,7 @@ class Namer(@constructorOnly reporter: Reporter):
       for (param, i) <- params.zipWithIndex yield
         val tp = if param.typ.isEmpty then inferParamType(i) else transformType(param.typ).tpe
         val paramSym = Symbol.createParamSymbol(param.name, tp, param.pos)
-        lambdaScope.define(paramSym, param.span)
+        lambdaScope.define(paramSym)
         paramSym
 
      val bodyTargetType = targetFunTypeOpt match
@@ -490,14 +527,14 @@ class Namer(@constructorOnly reporter: Reporter):
 
         val infoProvider: InfoProvider = (sym: Symbol) => bound
         val sym = Symbol.createTypeParamSymbol(tparam.name, infoProvider, tparam.pos)
-        funScope.define(sym, tparam.span)
+        funScope.define(sym)
         sym
 
     val paramSyms =
       for param <- funDef.params yield
         val tpt = transformType(param.typ)(using funScope)
         val paramSym = Symbol.createParamSymbol(param.name, tpt.tpe, param.pos)
-        funScope.define(paramSym, param.span)
+        funScope.define(paramSym)
         paramSym
 
     def createFunType(resType: Type): Type =
@@ -557,7 +594,7 @@ class Namer(@constructorOnly reporter: Reporter):
 
         val infoProvider: InfoProvider = (sym: Symbol) => bound
         val sym = Symbol.createTypeParamSymbol(tparam.name, infoProvider, tparam.pos)
-        sc2.define(sym, tparam.span)
+        sc2.define(sym)
         sym
 
     def computeInfo(): Type =
@@ -724,11 +761,11 @@ object Namer:
           Reporter.error("Undefined identifier " + name, span.toPos)
           errorSymbol
 
-    def define(sym: Symbol, span: Span)(using Reporter): Unit =
+    def define(sym: Symbol)(using Reporter): Unit =
       val table = getTable(sym.isType)
       table.get(sym.name) match
         case None =>
           table(sym.name) = sym
 
         case Some(sym) =>
-          Reporter.error(sym.name + " is already bound", span.toPos)
+          Reporter.error(sym.name + " is already bound", sym.sourcePos)

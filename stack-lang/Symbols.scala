@@ -2,6 +2,8 @@ import Types.*
 import Flags.*
 import Positions.SourcePosition
 
+import scala.collection.mutable
+
 /** Symbols refer to definitions (names) in the program.
   *
   * Symbols are stable in the compilation process, while the types of a symbol
@@ -17,9 +19,31 @@ object Symbols:
     */
   abstract class InfoProvider extends (Symbol => Type)
 
-  abstract class NamespaceInfo:
-    def resolveTerm(name: String): Option[Symbol]
-    def resolveType(name: String): Option[Symbol]
+  class NamespaceInfo:
+    private val termNames: mutable.Map[String, Symbol] = mutable.Map.empty
+    private val typeNames: mutable.Map[String, Symbol] = mutable.Map.empty
+
+    private def getTable(isType: Boolean) =
+      if isType then typeNames else termNames
+
+    def resolveTerm(name: String): Option[Symbol] =
+      val table = getTable(isType = false)
+      table.get(name)
+
+    def resolveType(name: String): Option[Symbol] =
+      val table = getTable(isType = true)
+      table.get(name)
+
+    def define(sym: Symbol)(using Reporter): Unit =
+      val table = getTable(sym.isType)
+      table.get(sym.name) match
+        case None =>
+          table(sym.name) = sym
+
+        case Some(sym) =>
+          Reporter.error(sym.name + " is already bound", sym.sourcePos)
+    end define
+  end NamepsaceInfo
 
   final class Symbol(
     val name: String,
@@ -86,3 +110,6 @@ object Symbols:
 
     def createTypeParamSymbol(name: String, tp: Type | InfoProvider, pos: SourcePosition) =
       new Symbol(name, tp, Flags.Param | Flags.Type, pos)
+
+    def createNamespaceSymbol(name: String, info: NamespaceInfo, pos: SourcePosition) =
+      new Symbol(name, info, Flags.Namespace, pos)

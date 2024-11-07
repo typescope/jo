@@ -19,8 +19,12 @@ import Parser.SyntaxError
 
 object Parser:
   /** Parse the supplied code */
-  def parse(code: String)(using Reporter): Namespace =
-    new Parser(code).parse()
+  def parse(code: String)(using reporter: Reporter): Namespace =
+    val path = java.nio.Paths.get(reporter.source.file)
+    val fileName = path.getFileName.toString
+    val name = fileName.replaceAll("\\.[^.]*$", "")
+    val defaultNamespace = Ident(name)(Positions.Span(0, 0))
+    new Parser(code).parse(defaultNamesapce)
 
    /** A scanner that supports peeking tokens ahead. */
   class LookAheadScanner(scanner: Scanner):
@@ -88,18 +92,18 @@ class Parser(code: String)(using Reporter):
     while cond() do items += parseItem()
     items.toList
 
-  def parse(): Namespace =
-    val nspace = namespace()
+  def parse(defaultNamespace: RefTree): Namespace =
+    val nspace = namespace(defaultNamespace)
     // With parsing errors, ensure finish scanning
     while peek() != Token.EOF do next()
     nsapce
 
-  def namespace(): Namespace =
+  def namespace(defaultNamespace: RefTree): Namespace =
     val item = peek()
     val id =
       item match
         case Token.Ident("namespace") => qualid()
-        case _ => Ident("Empty")(item.span)
+        case _ => defaultNamespace
 
      // default Empty namespace
      val tdefs = repeated(() => peek() == Token.TYPE, () => typeDef())
