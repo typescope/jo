@@ -38,18 +38,20 @@ class Namer(@constructorOnly reporter: Reporter):
     for sym <- Predef.allSymbols do
       rootScope.define(sym)
 
-    // Prepare a fresh scope for user-defined names
-    val sc = rootScope.fresh()
-
-    val nsSymbol = resolveNamespace(ns.qualid)(using sc)
+    // Prepare scope for user-defined namespaces
+    val userScope = rootScope.fresh()
+    val nsSymbol = resolveNamespace(ns.qualid)(using userScope)
     val nsInfo = nsSymbol.namespace
 
-    val tdefs = index(ns.typeDefs, nsInfo)(using sc)
-    val fdefs = index(ns.funDefs, nsInfo)(using sc)
+    // Prepare a fresh scope for checking current scope
+    val nsScope = userScope.fresh()
+
+    val tdefs = index(ns.typeDefs, nsInfo)(using nsScope)
+    val fdefs = index(ns.funDefs, nsInfo)(using nsScope)
 
     checker.performDelayedChecks()
 
-    Namespace(nsSymbol, tdefs, fdefs)(ns.span)
+    Namespace(nsSymbol, ns.fullName, tdefs, fdefs)(ns.span)
 
   def resolveNamespace(qualid: Ast.RefTree)(using sc: Scope, rp: Reporter): Symbol =
     qualid match
@@ -60,12 +62,12 @@ class Namer(@constructorOnly reporter: Reporter):
 
         val nsInfo = sym.namespace
         nsInfo.resolve(name) match
-         case Some(sym) => sym
+          case Some(sym) => sym
 
-         case None =>
-           val sym = Symbol.createNamespace(name, new NamespaceInfo, qualid.pos)
-           nsInfo.define(sym)
-           sym
+          case None =>
+            val sym = Symbol.createNamespace(name, new NamespaceInfo, qualid.pos)
+            nsInfo.define(sym)
+            sym
 
       case Ident(name) =>
         sc.resolve(name, isType = false) match

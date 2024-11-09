@@ -34,21 +34,25 @@ class StackMachine(
 
   def cb(using ctx: Context): CodeBuffer = ctx
 
-  def compile(ns: Namespace): Unit =
+  val workList = new WorkList[Symbol]
+
+  def compile(ns: Namespace, main: Symbol): Unit =
     given Context = new CodeBuffer(entry)
 
-    for fun <- ns.funDefs do
-      symbolAddrMap(fun.symbol) = Label(fun.name)
+    workList.add(main)
 
-    // Compile functions
-    for fun <- ns.funDefs do
+    val symbolDefMap = new mutable.Map[Symbol, FunDef]
+    for fdef <- ns.funDefs do symbolDefMap(fdef.symbol) = fdef
+
+    workList.run: sym =>
+      val fun = symbolDefMap(funSym)
       compile(fun)
 
     // Stack pointer is initialized by the kernel, initialize frame pointer
     cb.mark(this.entry)
     cb.add(Instr.Sub(Reg(SP_REG), Int32(4), SP_REG))
     genAllocator()
-    // TODO: what's the entry function
+    call(main)
     exit(Int32(0))
 
     // generate code

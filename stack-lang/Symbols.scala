@@ -105,7 +105,7 @@ object Symbols:
     def createTypeSymbol(name: String, info: Type | InfoProvider, pos: SourcePosition) =
       new Symbol(name, info, Flags.Type, pos)
 
-    def createParamSymbol(name: String, tp: Type | InfoProvider, pos: SourcePosition) =
+    def createParamSymbol(name: String, tp: Type, pos: SourcePosition) =
       new Symbol(name, tp, Flags.Param | Flags.Val | Flags.Local, pos)
 
     def createTypeParamSymbol(name: String, tp: Type | InfoProvider, pos: SourcePosition) =

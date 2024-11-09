@@ -14,16 +14,18 @@ class JSOptimized(outFile: String):
   private  val uniqueName = new UniqueName
   export uniqueName.freshName
 
-  // Make keywords unavailable
-  for word <- List(
-      "for", "while", "function", "var", "let", "break", "continue", "if",
-      "const", "class", "constructor", "with")
-  do
-    freshName(word)
-
-  private val symbol2UniqueName: mutable.Map[Symbol, String] = mutable.Map(
-    Predef.p -> "console.log"
+  val keywords = List(
+    "for", "while", "function", "var", "let", "break", "continue", "if",
+    "const", "class", "constructor", "with"
   )
+
+  // Make keywords unavailable
+  for word <- keywords do freshName(word)
+
+  private val symbol2UniqueName: mutable.Map[Symbol, String] =
+    mutable.Map(
+      Predef.p -> "console.log"
+    )
 
   def jsName(sym: Symbol): String =
     symbol2UniqueName.get(sym) match
@@ -32,6 +34,11 @@ class JSOptimized(outFile: String):
       case None =>
         val uniqueName = freshName(encodeSymbolic(sym.name))
         symbol2UniqueName(sym) = uniqueName
+
+        // Add function to work list
+        if sym.isFunction && !sym.isPrimitive then
+          workList.add(sym)
+
         uniqueName
 
   //----------------------------------------------------------------------------
@@ -41,8 +48,6 @@ class JSOptimized(outFile: String):
     compile(word)(using ctx)
 
   given Text.Maker[Symbol] = sym => Text(jsName(sym))
-
-  given Text.Maker[FunDef] = fdef => compile(fdef)
 
   given Text.Maker[ValDef] = vdef => "var " ~ vdef.symbol ~ ";"
 
@@ -67,19 +72,27 @@ class JSOptimized(outFile: String):
             c(t :: ts)
 
   //----------------------------------------------------------------------------
+  val workList = new WorkList[Symbol]
 
-  def compile(ns: Namespace): Unit =
+  def compile(ns: Namespace, main: Symbol): Unit =
     val pw =  new PrintWriter(outFile)
 
-    val funs = rep(prog.funDefs, Text.BlankLine)
+    workList.add(main)
 
-    // TODO: what's the entry function
-    val text =
-      "(function() {" ~ indent:
-           Text.BreakLine ~ funs ~ Text.BreakLine ~ ??? ~ ";"
-      ~ "})()"
+    val symbolDefMap = new mutable.Map[Symbol, FunDef]
+    for fdef <- ns.funDefs do symbolDefMap(fdef.symbol) = fdef
 
-    pw.append(text.toString)
+    pw.append("(function() {")
+
+    workList.run: funSym =>
+      val funText = indent(Text.BreakLine ~ compile(symbolDefMap(funSym)))
+      pw.append(funText.toString)
+
+    val mainCall = indent(Text.BreakLine ~ main ~ ";")
+    pw.append(mainCall.toString)
+
+    pw.append("})()")
+
     pw.close()
 
   def compile(word: Word)(using Context): Text =

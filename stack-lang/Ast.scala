@@ -192,4 +192,14 @@ object Ast:
   case class Namespace
     (qualid: RefTree, typeDefs: List[TypeDef], funDefs: List[FunDef])
     (val span: Span)
-  extends Tree
+  extends Tree:
+    val fullName: String = computeFullName(qualid)
+
+    private def computeFullName(id: RefTree): String =
+      id match
+        case Ident(name) =>
+          name
+
+        case Select(qual, name) =>
+          assert(qual.isInstanceOf[RefTree], "unexpected qual = " + qual)
+          computeFullName(qual.asInstanceOf[RefTree]) + "." + name

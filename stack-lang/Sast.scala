@@ -139,9 +139,10 @@ object Sast:
   extends Def
 
   case class Namespace
-    (symbol: Symbol, typeDefs: List[TypeDef], funDefs: List[FunDef])
+    (symbol: Symbol, fullName: String, typeDefs: List[TypeDef], funDefs: List[FunDef])
     (val span: Span)
-  extends Positioned
+  extends Positioned:
+    def mainSymbol: Option[Symbol] = funDefs.filter(_.symbol.name == "main").headOpt
 
   //----------------------------------------------------------------------------
   // helpers

@@ -44,12 +44,19 @@ def compile(args: String*) =
         Linux.createX86RegisterMachine(outFile, layout).compile
 
   Reporter.monitor(sourceFile):
-    IO.fileContent(sourceFile)    |>
-    Parser.parse                  |>
-    Namer.transform               |+
-    Debug.peek(enable = false)    |>
-    new ExplicitInit().transform  |+
-    Debug.peek(enable = false)    |>
-    ElimCapture.transform         |+
-    Debug.peek(enable = false)    |>
-    backend
+    val namespace =
+      IO.fileContent(sourceFile)    |>
+      Parser.parse                  |>
+      Namer.transform
+
+    namespace.mainSymbol match
+      case Some(main) =>
+        Debug.peek(enable = false)    |>
+        new ExplicitInit().transform  |+
+        Debug.peek(enable = false)    |>
+        ElimCapture.transform         |+
+        Debug.peek(enable = false)    |>
+        (ns: Sast.Namespace) => backend(ns, main)
+
+      case None =>
+        Reporter.abort("No main function found")

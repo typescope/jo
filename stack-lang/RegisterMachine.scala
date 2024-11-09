@@ -28,8 +28,22 @@ class RegisterMachine(
     */
   val returnAddrSym = Symbol.createParamSymbol("return", IntType, pos = null)
 
-  /** Maps global symbols to addresses */
-  val symbolAddrMap: mutable.Map[Symbol, Addr] = mutable.Map.from(nativeFunctions)
+  /** Maps function symbols to addresses */
+  val symbolAddrMap: mutable.Map[Symbol, Label] = mutable.Map.from(nativeFunctions)
+
+  def getAddress(sym: Symbol): Label =
+    assert(sym.isFunction, "Not a function, sym = " + sym)
+
+    symbolAddrMap.get(sym) match
+      case Some(addr) => addr
+
+      case None =>
+        symbolAddrMap(sym) = Label(sym.name)
+
+        // Add function to work list
+        if !sym.isPrimitive then workList.add(sym)
+
+        uniqueName
 
   def freshVirtualReg()(using ctx: Context): Int =
     ctx.generator.fresh()
@@ -46,29 +60,31 @@ class RegisterMachine(
   def gen(label: Label)(using ctx: Context): Unit =
     ctx.buffer.gen(label)
 
-  def compile(ns: Namespace): Unit =
+  val workList = new WorkList[Symbol]
+
+  def compile(ns: Namespace, main: Symbol): Unit =
     // Buffer to hold the generated assembly code
     val entryLabel = Label("_entry")
     val cb = new CodeBuffer(entryLabel)
 
-    for fun <- prog.funDefs do
-      symbolAddrMap(fun.symbol) = Label(fun.name)
+    workList.add(main)
 
-    // Compile functions
-    for fun <- prog.funDefs do
-      val sym = fun.symbol
+    val symbolDefMap = new mutable.Map[Symbol, FunDef]
+    for fdef <- ns.funDefs do symbolDefMap(fdef.symbol) = fdef
+
+    workList.run: sym =>
+      val fun = symbolDefMap(funSym)
       val ctx = freshFunctionContext(sym)
       val proto = compile(fun)(using ctx)
 
       // perform register allocation
       assert(ctx.vs.size == 0, sym.name + " " + ctx.vs.size)
-      val label = symbolAddrMap(sym).asInstanceOf[Label]
+      val label = getAddress(sym)
       doGraphColoring(
           label, ctx.buffer.getResult(), registerConfig, proto.savedRegs,
           cb, ctx.generator)
 
-    // TODO: what's the entry function
-    entry(entryLabel, ???, cb)
+    entry(entryLabel, main, cb)
 
     // generate code
     generator(cb.getResult())
@@ -84,7 +100,7 @@ class RegisterMachine(
     cb.add(Instr.Store(endLabel, Reg(SP_REG)))
     cb.add(Instr.Move(Reg(SP_REG), FP_REG))
 
-    cb.add(Instr.Jump(symbolAddrMap(main)))
+    cb.add(Instr.Jump(getAddress(main)))
 
     cb.mark(endLabel)
     exit(Int32(0))(cb)
@@ -287,7 +303,7 @@ class RegisterMachine(
   def call(fun: Symbol)(using ctx: Context): Unit =
     // TODO: erasure better handled together with boxing/unboxing?
     val funType = TypeOps.erasePolyType(fun.info).asProcType
-    val target = symbolAddrMap(fun).asInstanceOf[Label]
+    val target = getAddress(fun)
     call(target, funType.paramTypes, funType.resultType)
 
   def call(target: Addr, paramTypes: List[Type], resType: Type)(using ctx: Context): Unit =
@@ -344,10 +360,7 @@ class RegisterMachine(
     do
       loadValue(reg, index)
 
-  /** Initialize a value definition
-    *
-    * Calling the passed function will compile the initializer.
-    */
+  /** Compile assignment */
   def compile(assign: Assign)(using ctx: Context): Unit =
     val sym = assign.symbol
 
@@ -355,10 +368,10 @@ class RegisterMachine(
     val rhsValue = ctx.vs.pop()
     val instr =
       if sym.isLocal then Instr.Move(rhsValue, ctx.getRegForLocal(sym))
-      else Instr.Store(rhsValue, symbolAddrMap(sym))
+      else throw new Exception("assigning to non-local " + sym) // Instr.Store(rhsValue, getAddress(sym))
     gen(instr)
 
-  /** Compile a reference to a function */
+  /** Compile a reference to a name that produces a runtime value */
   def compile(id: Ident)(using ctx: Context): Unit =
     val sym = id.symbol
     if sym.isValue then
@@ -366,15 +379,16 @@ class RegisterMachine(
         val reg = ctx.getRegForLocal(sym)
         ctx.vs.push(Reg(reg))
       else
-        val reg = freshVirtualReg()
-        val addr = symbolAddrMap(sym)
-        gen(Instr.Load(addr, reg))
-        ctx.vs.push(Reg(reg))
+        throw new Exception("accessing non-local " + sym)
+        // val reg = freshVirtualReg()
+        // val addr = getAddress(sym)
+        // gen(Instr.Load(addr, reg))
+        // ctx.vs.push(Reg(reg))
     else
       if sym.isPrimitive then
         throw new Exception("Unexpected primitive " + sym)
       else
-        val target = symbolAddrMap(id.symbol).asInstanceOf[Label]
+        val target = getAddress(id.symbol)
         val targetReg = freshVirtualReg()
         gen(Instr.Move(target, targetReg))
         ctx.vs.push(Reg(targetReg))
@@ -398,7 +412,7 @@ class RegisterMachine(
     * TODO: implement it in Stk.
     */
   def genAllocator(cb: CodeBuffer): Unit =
-    val allocLabel = symbolAddrMap(Predef.allocate).asInstanceOf[Label]
+    val allocLabel = getAddress(Predef.allocate)
 
     val initBreakLabel = Label("init_break")
     val curBreakLabel = Label("current_break")
