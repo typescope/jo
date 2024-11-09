@@ -63,6 +63,11 @@ object IO:
     val bytes = java.nio.file.Files.readAllBytes(path)
     new String(bytes)
 
+  def fileNameNoExt(file: String): String =
+    val path = java.nio.Paths.get(file)
+    val fileName = path.getFileName.toString
+    fileName.replaceAll("\\.[^.]*$", "")
+
   /**
    * Little endian byte buffer
    */

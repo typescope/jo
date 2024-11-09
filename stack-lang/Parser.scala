@@ -20,9 +20,7 @@ import Parser.SyntaxError
 object Parser:
   /** Parse the supplied code */
   def parse(code: String)(using reporter: Reporter): Namespace =
-    val path = java.nio.Paths.get(reporter.source.file)
-    val fileName = path.getFileName.toString
-    val name = fileName.replaceAll("\\.[^.]*$", "")
+    val name = IO.fileNameNoExt(reporter.source.file)
     val defaultNamespace = Ident(name)(Positions.Span(0, 0))
     new Parser(code).parse(defaultNamesapce)
 
