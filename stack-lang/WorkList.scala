@@ -2,7 +2,7 @@ import scala.collection.mutable
 
 class WorkList[T]:
   private val todoList = new mutable.ArrayBuffer[T]
-  private val doneList = new mutable.Set[T]
+  private val doneList = mutable.Set.empty[T]
 
   def add(item: T): Unit =
     if !doneList.contains(item) then todoList += item

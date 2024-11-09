@@ -41,11 +41,11 @@ class StackMachine(
 
     workList.add(main)
 
-    val symbolDefMap = new mutable.Map[Symbol, FunDef]
+    val symbolDefMap = mutable.Map.empty[Symbol, FunDef]
     for fdef <- ns.funDefs do symbolDefMap(fdef.symbol) = fdef
 
     workList.run: sym =>
-      val fun = symbolDefMap(funSym)
+      val fun = symbolDefMap(sym)
       compile(fun)
 
     // Stack pointer is initialized by the kernel, initialize frame pointer

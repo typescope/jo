@@ -22,7 +22,7 @@ object Parser:
   def parse(code: String)(using reporter: Reporter): Namespace =
     val name = IO.fileNameNoExt(reporter.source.file)
     val defaultNamespace = Ident(name)(Positions.Span(0, 0))
-    new Parser(code).parse(defaultNamesapce)
+    new Parser(code).parse(defaultNamespace)
 
    /** A scanner that supports peeking tokens ahead. */
   class LookAheadScanner(scanner: Scanner):
@@ -94,7 +94,7 @@ class Parser(code: String)(using Reporter):
     val nspace = namespace(defaultNamespace)
     // With parsing errors, ensure finish scanning
     while peek() != Token.EOF do next()
-    nsapce
+    nspace
 
   def namespace(defaultNamespace: RefTree): Namespace =
     val item = peek()
@@ -103,20 +103,20 @@ class Parser(code: String)(using Reporter):
         case Token.Ident("namespace") => qualid()
         case _ => defaultNamespace
 
-     // default Empty namespace
-     val tdefs = repeated(() => peek() == Token.TYPE, () => typeDef())
-     val fdefs = repeated(() => peek() == Token.FUN, () => funDef())
-     val endSpan =
-       if fdefs.isEmpty then
-         if tdefs.isEmpty then id.span else tdefs.last.span
-       else
-         fdefs.last.span
+    // default Empty namespace
+    val tdefs = repeated(() => peek() == Token.TYPE, () => typeDef())
+    val fdefs = repeated(() => peek() == Token.FUN, () => funDef())
+    val endSpan =
+      if fdefs.isEmpty then
+        if tdefs.isEmpty then id.span else tdefs.last.span
+      else
+        fdefs.last.span
 
-     Namespace(id, tdefs, fdefs)(id.span | endSpan)
+    Namespace(id, tdefs, fdefs)(id.span | endSpan)
 
   def qualid(): RefTree =
-    var qual = ident()
-    while peek() == Token.DOT then
+    var qual: RefTree = ident()
+    while peek() == Token.DOT do
       val id = ident()
       qual = Select(qual, id.name)(qual.span | id.span)
 

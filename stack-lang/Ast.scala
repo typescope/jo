@@ -14,7 +14,7 @@ object Ast:
 
   sealed abstract class Word extends Phrase
 
-  sealed abstract trait RefTree extends Tree
+  sealed abstract trait RefTree extends Word
 
   case class IntLit
     (value: Int)

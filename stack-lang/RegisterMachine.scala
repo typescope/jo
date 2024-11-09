@@ -38,12 +38,13 @@ class RegisterMachine(
       case Some(addr) => addr
 
       case None =>
-        symbolAddrMap(sym) = Label(sym.name)
+        val label = Label(sym.name)
+        symbolAddrMap(sym) = label
 
         // Add function to work list
         if !sym.isPrimitive then workList.add(sym)
 
-        uniqueName
+        label
 
   def freshVirtualReg()(using ctx: Context): Int =
     ctx.generator.fresh()
@@ -69,11 +70,11 @@ class RegisterMachine(
 
     workList.add(main)
 
-    val symbolDefMap = new mutable.Map[Symbol, FunDef]
+    val symbolDefMap = mutable.Map.empty[Symbol, FunDef]
     for fdef <- ns.funDefs do symbolDefMap(fdef.symbol) = fdef
 
     workList.run: sym =>
-      val fun = symbolDefMap(funSym)
+      val fun = symbolDefMap(sym)
       val ctx = freshFunctionContext(sym)
       val proto = compile(fun)(using ctx)
 

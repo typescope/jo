@@ -43,7 +43,7 @@ object Symbols:
         case Some(sym) =>
           Reporter.error(sym.name + " is already bound", sym.sourcePos)
     end define
-  end NamepsaceInfo
+  end NamespaceInfo
 
   final class Symbol(
     val name: String,
@@ -112,4 +112,4 @@ object Symbols:
       new Symbol(name, tp, Flags.Param | Flags.Type, pos)
 
     def createNamespaceSymbol(name: String, info: NamespaceInfo, pos: SourcePosition) =
-      new Symbol(name, info, Flags.Namespace, pos)
+      new Symbol(name, info, Flags.NSpace, pos)

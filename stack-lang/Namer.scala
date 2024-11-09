@@ -26,7 +26,7 @@ class Namer(@constructorOnly reporter: Reporter):
   val nonCyclicTypeProvider = new NamerUtils.ValueTypeProvider(using reporter)
 
 
-  def transform(ns: Ast.Namespace)(using Reporter): Sast.Prog =
+  def transform(ns: Ast.Namespace)(using Reporter): Sast.Namespace =
     val rootScope = new Scope.RootScope()
 
     // Predefined type names
@@ -55,31 +55,31 @@ class Namer(@constructorOnly reporter: Reporter):
 
   def resolveNamespace(qualid: Ast.RefTree)(using sc: Scope, rp: Reporter): Symbol =
     qualid match
-      case Select(qual, name) =>
+      case Ast.Select(qual, name) =>
         assert(qual.isInstanceOf[Ast.RefTree], "Unexpected qualid = " + qualid)
         val sym = resolveNamespace(qual.asInstanceOf[Ast.RefTree])
         assert(sym.isNamespace, "Not a namespace: " + qual)
 
         val nsInfo = sym.namespace
-        nsInfo.resolve(name) match
+        nsInfo.resolveTerm(name) match
           case Some(sym) => sym
 
           case None =>
-            val sym = Symbol.createNamespace(name, new NamespaceInfo, qualid.pos)
+            val sym = Symbol.createNamespaceSymbol(name, new NamespaceInfo, qualid.pos)
             nsInfo.define(sym)
             sym
 
-      case Ident(name) =>
+      case Ast.Ident(name) =>
         sc.resolve(name, isType = false) match
           case None =>
-            val sym = Symbol.createNamespace(name, new NamespaceInfo, qualid.pos)
-            nsInfo.define(sym)
+            val sym = Symbol.createNamespaceSymbol(name, new NamespaceInfo, qualid.pos)
+            sc.define(sym)
             sym
 
           case Some(sym) =>
             if !sym.isNamespace then
               Reporter.error("Not a namespace: " + sym.name, qualid.pos)
-              Symbol.createNamespace(name, new NamespaceInfo, qualid.pos)
+              Symbol.createNamespaceSymbol(name, new NamespaceInfo, qualid.pos)
             else
               sym
 

@@ -142,7 +142,8 @@ object Sast:
     (symbol: Symbol, fullName: String, typeDefs: List[TypeDef], funDefs: List[FunDef])
     (val span: Span)
   extends Positioned:
-    def mainSymbol: Option[Symbol] = funDefs.filter(_.symbol.name == "main").headOpt
+    def mainSymbol: Option[Symbol] =
+      funDefs.filter(_.symbol.name == "main").map(_.symbol).headOption
 
   //----------------------------------------------------------------------------
   // helpers

@@ -25,7 +25,7 @@ def compile(args: String*) =
 
   val layout = options.getOrElse("-layout", "c1")
 
-  val backend: Sast.Namespace => Unit =
+  val backend: (Sast.Namespace, Symbols.Symbol) => Unit =
     options.get("-p") match
       case Some(pf) =>
         if pf == "linux-x86-stack" then
@@ -51,12 +51,13 @@ def compile(args: String*) =
 
     namespace.mainSymbol match
       case Some(main) =>
+        namespace                     |>
         Debug.peek(enable = false)    |>
         new ExplicitInit().transform  |+
         Debug.peek(enable = false)    |>
         ElimCapture.transform         |+
         Debug.peek(enable = false)    |>
-        (ns: Sast.Namespace) => backend(ns, main)
+        ((ns: Sast.Namespace) => backend(ns, main))
 
       case None =>
-        Reporter.abort("No main function found")
+        Reporter.abortInternal("No main function found")

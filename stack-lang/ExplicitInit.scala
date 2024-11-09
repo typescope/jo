@@ -14,10 +14,9 @@ class ExplicitInit(using Reporter):
   val treeMap = new ExplicitInit.LocalsTreeMap
 
   def transform(ns: Namespace): Namespace =
-    for funDef <- ns.funDefs do
-      defs += treeMap.transform(funDef)
+    val funs = for funDef <- ns.funDefs yield treeMap.transform(funDef)
 
-    Namespace(ns.symbol, Nil, defs.toList)(ns.span)
+    Namespace(ns.symbol, ns.fullName, Nil, funs)(ns.span)
 
 object ExplicitInit:
   class NamesInfo:

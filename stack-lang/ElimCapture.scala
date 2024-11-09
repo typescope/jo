@@ -23,9 +23,9 @@ object ElimCapture:
     given ctx: Context = new Context
     val fdefs =
       for fdef <- ns.funDefs yield
-        treeMap.recur(fdef)(using ctx.withOwner(fdef.symbol))
+        treeMap.recur(fdef)(using ctx.withOwner(fdef.symbol)).asInstanceOf[FunDef]
 
-    Namespace(ns.symbol, ns.typeDefs, fdefs)(ns.span)
+    Namespace(ns.symbol, ns.fullName, ns.typeDefs, fdefs)(ns.span)
 
   /** The encoded type of a function */
   def encodedRecordType(funType: FunctionType): RecordType =

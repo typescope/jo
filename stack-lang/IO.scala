@@ -64,7 +64,7 @@ object IO:
     new String(bytes)
 
   def fileNameNoExt(file: String): String =
-    val path = java.nio.Paths.get(file)
+    val path = java.nio.file.Paths.get(file)
     val fileName = path.getFileName.toString
     fileName.replaceAll("\\.[^.]*$", "")
 
