@@ -29,17 +29,17 @@ class RegisterMachine(
   val returnAddrSym = Symbol.createParamSymbol("return", IntType, pos = null)
 
   /** Maps function symbols to addresses */
-  val symbolAddrMap: mutable.Map[Symbol, Label] = mutable.Map.from(nativeFunctions)
+  val funLabelMap: mutable.Map[Symbol, Label] = mutable.Map.from(nativeFunctions)
 
   def getAddress(sym: Symbol): Label =
-    assert(sym.isFunction, "Not a function, sym = " + sym)
+    assert(sym.isFunction || funLabelMap.contains(sym), "Not a function, sym = " + sym)
 
-    symbolAddrMap.get(sym) match
+    funLabelMap.get(sym) match
       case Some(addr) => addr
 
       case None =>
         val label = Label(sym.name)
-        symbolAddrMap(sym) = label
+        funLabelMap(sym) = label
 
         // Add function to work list
         if !sym.isPrimitive then workList.add(sym)

@@ -21,8 +21,25 @@ class StackMachine(
 
   type Context = CodeBuffer
 
-  /** Maps symbols to addresses */
-  val symbolAddrMap: mutable.Map[Symbol, Addr] = mutable.Map.from(nativeFunctions)
+  /** Maps functions to addresses */
+  val funLabelMap: mutable.Map[Symbol, Label] = mutable.Map.from(nativeFunctions)
+
+  val symbolAddrMap: mutable.Map[Symbol, Addr] = mutable.Map.empty
+
+  def getAddress(sym: Symbol): Label =
+    assert(sym.isFunction || funLabelMap.contains(sym), "Not a function, sym = " + sym)
+
+    funLabelMap.get(sym) match
+      case Some(addr) => addr
+
+      case None =>
+        val label = Label(sym.name)
+        funLabelMap(sym) = label
+
+        // Add function to work list
+        if !sym.isPrimitive then workList.add(sym)
+
+        label
 
   /** Program entry pointer */
   val entry = Label("_entry")
@@ -99,12 +116,14 @@ class StackMachine(
     val sym = fdef.symbol
     val funType = TypeOps.erasePolyType(sym.info).asProcType
 
-    val label = symbolAddrMap(sym).asInstanceOf[Label]
+    val label = getAddress(sym)
 
     val paramCount = funType.paramCount
     val resCount = funType.resCount
 
     cb.mark(label)
+
+    symbolAddrMap.clear
 
     // bind param address relative to FP_REG
     for (param, index) <- fdef.params.zipWithIndex do
@@ -122,13 +141,6 @@ class StackMachine(
 
     compile(fdef.body)
     ret(resCount)
-
-    for param <- fdef.params do
-      symbolAddrMap -= param
-
-    for local <- fdef.locals do
-      symbolAddrMap -= local
-
 
   def compile(ifword: If)(using Context): Unit =
     val labelFalse = Label("_false")
@@ -222,7 +234,7 @@ class StackMachine(
     *  └─────────────┘ ◄─────── SP
     */
   def call(fun: Symbol)(using Context): Unit =
-    val addr = symbolAddrMap(fun).asInstanceOf[Label]
+    val addr = getAddress(fun)
     val funType = TypeOps.erasePolyType(fun.info).asProcType
     val argCount = funType.paramCount
     val resCount = funType.resCount
@@ -276,7 +288,7 @@ class StackMachine(
 
   /** Compile a reference */
   def compile(ref: Ident)(using Context): Unit =
-    val addr = symbolAddrMap(ref.symbol)
+    val addr = if ref.symbol.isLocal then symbolAddrMap(ref.symbol) else getAddress(ref.symbol)
     if ref.symbol.isValue then
       useReg: r =>
         cb.add(Instr.Load(addr, r))
@@ -332,7 +344,7 @@ class StackMachine(
     * TODO: implement it in Stk.
     */
   def genAllocator()(using Context): Unit =
-    val allocLabel = symbolAddrMap(Predef.allocate).asInstanceOf[Label]
+    val allocLabel = getAddress(Predef.allocate)
 
     val initBreakLabel = Label("init_break")
     val curBreakLabel = Label("current_break")
