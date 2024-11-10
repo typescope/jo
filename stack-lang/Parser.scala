@@ -101,7 +101,7 @@ class Parser(code: String)(using Reporter):
   def parse(defaultNamespace: RefTree): Namespace =
     val nspace = namespace(defaultNamespace)
     // With parsing errors, ensure finish scanning
-    while peek() != Token.EOF do next()
+    while peek() != Token.EOF do eat(Token.EOF)
     nspace
 
   def namespace(defaultNamespace: RefTree): Namespace =
