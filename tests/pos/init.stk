@@ -1,5 +1,6 @@
-val c = double 3
 
 fun double(n: Int): Int = n + n
 
-(2 * c) p         // 12
+fun main =
+  val c = double 3
+  (2 * c) p         // 12

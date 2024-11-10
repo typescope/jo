@@ -1,5 +1,3 @@
-var a: Int = 4
-
 fun even(x: Int): Bool = x % 2 == 0
 
 val b: Int = false // error
@@ -8,26 +6,28 @@ fun double(n: Int): Bool = n + n // error
 
 fun param(a: Int, a: Int): Int = a // error
 
-a = true     // error
-a = even 3   // error
-even false   // error
+fun test =
+  var a: Int = 4
+  a = true     // error
+  a = even 3   // error
+  even false   // error
 
-if a then    // error
-  val z: Bool = 4 // error
-  3 p
+  if a then    // error
+    val z: Bool = 4 // error
+    3 p
 
-val x =
-  if even 3 then   // error
+  val x =
+    if even 3 then   // error
+      5
+    else
+      even 4
+
+
+  if even 3 then
     5
   else
     even 4
 
 
-if even 3 then
-  5
-else
-  even 4
-
-
-while a * 3 do    // error
-  a p
+  while a * 3 do    // error
+    a p

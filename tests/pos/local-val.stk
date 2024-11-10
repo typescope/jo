@@ -22,8 +22,9 @@ fun test1(): Void =
   b p
   c p
 
-test1
-mul 2 3 p
-mul 0 3 p
-mul 3 0 p
-mul 5 6 p
+fun main =
+  test1
+  mul 2 3 p
+  mul 0 3 p
+  mul 3 0 p
+  mul 5 6 p

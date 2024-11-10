@@ -4,8 +4,9 @@ fun mc(n: Int): Int =
   if n > 100 then n - 10
   else mc (mc (n + 11))
 
-mc -3 p
-mc 10 p
-mc 15 p
-mc 90 p
-mc 100 p
+fun main =
+  mc -3 p
+  mc 10 p
+  mc 15 p
+  mc 90 p
+  mc 100 p

@@ -7,10 +7,11 @@ fun gcd(m: Int, n: Int): Int =
     else
        gcd (m - n) n
 
-gcd 1 3 p
+fun main =
+  gcd 1 3 p
 
-gcd 4 6 p
+  gcd 4 6 p
 
-gcd 4 1 p
+  gcd 4 1 p
 
-gcd 9 6 p
+  gcd 9 6 p

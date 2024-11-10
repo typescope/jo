@@ -17,4 +17,4 @@ fun test4(e: E): D = e
 
 fun test5(x: X): Y = x
 
-10 p
+fun main = 10 p

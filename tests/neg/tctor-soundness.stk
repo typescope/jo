@@ -8,10 +8,12 @@ fun test1(a: A[Int]): B[Int] = a
 fun test2(a: S[Int]): S[{a: Int, b: Int}] = a
 
 type Tuple2[S <: {a: Int}, T <: S] = {x: S, y: T}
-val t: Tuple2[{a: Int, b: Int}, {a: Int}] = {      // error
+
+fun test =
+  val t: Tuple2[{a: Int, b: Int}, {a: Int}] = {      // error
     x = {a = 13, b = 14},
     y = {a = 15, b = 16, c = 17}
-}
+  }
 
 type F[X] = {a: X}
 type M = {a: Int}

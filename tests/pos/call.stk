@@ -2,4 +2,4 @@ fun foo = 10 p
 
 fun bar = foo
 
-bar
+fun main = bar

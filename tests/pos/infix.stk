@@ -9,7 +9,7 @@ fun add(p1: Point, p2: Point): Point =
 fun sub(p1: Point, p2: Point): Point =
   {x = p1.x - p2.x, y = p1.y - p2.y}
 
-fun test =
+fun main =
   fun (p1: Point) * (p2: Point): Point = mul p1 p2
   fun (p1: Point) + (p2: Point): Point = add p1 p2
   fun (p1: Point) - (p2: Point): Point = sub p1 p2
@@ -20,5 +20,3 @@ fun test =
 
   p3.x p
   p3.y p
-
-test

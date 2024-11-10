@@ -4,30 +4,31 @@ type Bot = < >
 
 type OptionSum = <None, Some(value: Sum)>
 
-val a: Sum = #Left(3)
-val b: Option = #None
-val c: Option = #Some(5)
-val d: OptionSum = #Some(#Right(2024))
-
 fun foo(x: Sum): Int =
   match x
     case #Left(n) =>  n + n
     case #Right(n) => n * n
 
-match c
-  case #None => 0 p
-  case #Some(n) => n p
+fun main =
+  val a: Sum = #Left(3)
+  val b: Option = #None
+  val c: Option = #Some(5)
+  val d: OptionSum = #Some(#Right(2024))
 
-foo a p
+  match c
+    case #None => 0 p
+    case #Some(n) => n p
 
-match d
-  case #None => 0 p
-  case #Some(sum) =>
-    match sum
-      case #Left(v)  =>
-        99 p
-        v p
+  foo a p
 
-      case #Right(v) =>
-        100 p
-        v p
+  match d
+    case #None => 0 p
+    case #Some(sum) =>
+      match sum
+        case #Left(v)  =>
+          99 p
+          v p
+
+        case #Right(v) =>
+          100 p
+          v p

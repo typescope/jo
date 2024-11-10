@@ -10,4 +10,4 @@ fun fib(n: Int): Void =
     i = 1 + i
   end
 
-fib 20
+fun main = fib 20

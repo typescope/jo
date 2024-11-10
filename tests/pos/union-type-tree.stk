@@ -19,9 +19,10 @@ fun preOrder(tree: Tree): Void =
       preOrder left
       preOrder right
 
-val a: Tree = #Leaf(3)
-val b: Tree = #Node(#Leaf(5), #Leaf(6), 10)
-val tree: Tree = #Node(a, b, 20)
+fun main =
+  val a: Tree = #Leaf(3)
+  val b: Tree = #Node(#Leaf(5), #Leaf(6), 10)
+  val tree: Tree = #Node(a, b, 20)
 
-postOrder tree
-preOrder tree
+  postOrder tree
+  preOrder tree

@@ -13,13 +13,14 @@ fun makeMul(x: Int): Int => Int = (n: Int) => x * n
 
 fun app(x: Int, f: Int => Int): Int = f x
 
-val f0 = (x: Int) => x + x
-(f0 10) p
+fun main =
+  val f0 = (x: Int) => x + x
+  (f0 10) p
 
-val f1 = makeMul 5
-(f1 2) p
+  val f1 = makeMul 5
+  (f1 2) p
 
-val f2 = makeMul 8
-(f2 3) p
+  val f2 = makeMul 8
+  (f2 3) p
 
-app 10 f2 p
+  app 10 f2 p

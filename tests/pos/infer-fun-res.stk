@@ -1,12 +1,10 @@
 fun foo(x: Int) = x + x
 
-val a: Int = foo 5
 
 fun fact(x: Int) =
   if 0 == x then 1
   else fact (x - 1) * x
 
-val b: Int = fact 10
 
 fun q(x: Int) =
   if 0 == x then { a = 1 }
@@ -17,4 +15,8 @@ fun q(x: Int) =
 fun test2(x: Int): { a: Int } =
   q 10
 
-(test2 10).a p
+fun main =
+  val a: Int = foo 5
+  val b: Int = fact 10
+
+  (test2 10).a p

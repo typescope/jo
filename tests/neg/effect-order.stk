@@ -1,5 +1,6 @@
 fun traceDouble(x: Int): Int = x p x + x  // error
 
-traceDouble 5 6 p  // error
+fun main =
+  traceDouble 5 6 p  // error
 
-1 (5 p) + 2 // error  // error
+  1 (5 p) + 2 // error  // error

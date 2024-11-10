@@ -22,19 +22,20 @@ fun fact5(n: Int) =
   if 0 == n then 1
   else fact5 (n - 1) * n end
 
-var a = 10
-while a > 10 do
-  a = a - 1
+fun main =
+  var a = 10
+  while a > 10 do
+    a = a - 1
 
-while a > 10 do
-  a = a - 1
-end
+  while a > 10 do
+    a = a - 1
+  end
 
-val b =
-  if a > 0 then
-    fact0 10
-  else
-    fact1 5
+  val b =
+    if a > 0 then
+      fact0 10
+    else
+      fact1 5
 
-a p
-b p
+  a p
+  b p

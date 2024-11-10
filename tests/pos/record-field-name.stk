@@ -1,6 +1,7 @@
 type Alg = {+ : Int, - : Int}
 
-val alg: Alg = {+ = 5, - = 10}
+fun main =
+  val alg: Alg = {+ = 5, - = 10}
 
-alg.+ p
-alg.- p
+  alg.+ p
+  alg.- p

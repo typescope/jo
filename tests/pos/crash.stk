@@ -3,4 +3,4 @@ fun test(): Int =
   val * = (x: Int) => x * x
   app * 30 + *5
 
-test p
+fun main = test p

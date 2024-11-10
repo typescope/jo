@@ -9,4 +9,4 @@ fun pellComp(a: Int, b: Int, i: Int, n: Int): Int =
     a p
     pellComp b (a + (b * 2)) (i + 1) n
 
-pell 20 p
+fun main = pell 20 p
