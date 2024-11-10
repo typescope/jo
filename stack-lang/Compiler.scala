@@ -47,7 +47,8 @@ def compile(args: String*) =
     val namespace =
       IO.fileContent(sourceFile)    |>
       Parser.parse                  |>
-      Namer.transform
+      Namer.transform               |>
+      Debug.peek(enable = false)
 
     namespace.mainSymbol match
       case Some(main) =>

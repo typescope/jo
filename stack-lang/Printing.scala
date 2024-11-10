@@ -45,7 +45,7 @@ object Printing:
         val captures = rep(fdef.captures, Text(", "))
         "@locals(" ~ locals ~ ")" ~ Text.BreakLine ~
         "@captures(" ~ captures ~ ")" ~ Text.BreakLine ~
-        "fun " ~ fdef.name ~ " " ~ tparamStr ~ params.mkString("(", ", ", "): ") ~ resType.show ~ " ="
+        "fun " ~ fdef.name ~ tparamStr ~ params.mkString("(", ", ", "): ") ~ resType.show ~ " ="
         ~ indent(Text(fdef.body))
 
       case tdef: TypeDef =>
