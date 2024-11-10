@@ -89,7 +89,7 @@ class JSOptimized(outFile: String):
       val funText = indent(Text.BreakLine ~ compile(symbolDefMap(funSym)))
       pw.append(funText.toString)
 
-    val mainCall = indent(Text.BreakLine ~ main ~ ";")
+    val mainCall = indent(Text.BreakLine ~ main ~ "();")
     pw.append(mainCall.toString)
 
     pw.append("})()")
