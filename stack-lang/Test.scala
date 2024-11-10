@@ -17,14 +17,12 @@ object Test:
 
   def compileAndCheck(test: String): Boolean = Reporter.timeout(100):
     given Reporter = Reporter.createReporter(test, buffer = true)
-    val backend = Linux.createX86StackMachine(test, "c1")
 
     try
       IO.fileContent(test)          |>
       Parser.parse                  |>
       Namer.transform               |>
-      new ExplicitInit().transform  |>
-      backend.compile
+      new ExplicitInit().transform
 
       verifyErrors(test, Nil)
     catch

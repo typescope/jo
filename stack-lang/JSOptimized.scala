@@ -80,7 +80,8 @@ class JSOptimized(outFile: String):
     workList.add(main)
 
     val symbolDefMap = mutable.Map.empty[Symbol, FunDef]
-    for fdef <- ns.funDefs do symbolDefMap(fdef.symbol) = fdef
+    for case fdef: FunDef <- ns.defs do
+      symbolDefMap(fdef.symbol) = fdef
 
     pw.append("(function() {")
 

@@ -55,7 +55,7 @@ Syntactical Grammar
 
 
 ~~~
-    namespace = [NSPACE qualid] {typedef} {fundef} EOF.
+    namespace = [NSPACE qualid] {typedef | fundef} EOF.
 
     qualid = ident | qualid DOT ident.
 

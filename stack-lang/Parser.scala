@@ -85,9 +85,17 @@ class Parser(code: String)(using Reporter):
     if !reference.indent.isSame(item.indent) then
       warn(s"${item.token} is not aligned with ${reference.token}", item.span.toPos)
 
-  def repeated[T](cond: () => Boolean, parseItem: () => T): List[T] =
+  def repeated[T](parseItem: => Option[T]): List[T] =
     val items = new mutable.ArrayBuffer[T]
-    while cond() do items += parseItem()
+    var continue = true
+    while continue do
+      parseItem match
+        case Some(item) =>
+          items += item
+
+        case None =>
+          continue = false
+    end while
     items.toList
 
   def parse(defaultNamespace: RefTree): Namespace =
@@ -104,15 +112,14 @@ class Parser(code: String)(using Reporter):
         case _ => defaultNamespace
 
     // default Empty namespace
-    val tdefs = repeated(() => peek() == Token.TYPE, () => typeDef())
-    val fdefs = repeated(() => peek() == Token.FUN, () => funDef())
-    val endSpan =
-      if fdefs.isEmpty then
-        if tdefs.isEmpty then id.span else tdefs.last.span
-      else
-        fdefs.last.span
+    val defs = repeated:
+        if peek() == Token.TYPE then Some(typeDef())
+        else if peek() == Token.FUN then Some(funDef())
+        else None
 
-    Namespace(id, tdefs, fdefs)(id.span | endSpan)
+    val endSpan = if defs.isEmpty then id.span else defs.last.span
+
+    Namespace(id, defs)(id.span | endSpan)
 
   def qualid(): RefTree =
     var qual: RefTree = ident()

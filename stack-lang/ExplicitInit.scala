@@ -1,5 +1,4 @@
 import Sast.*
-import Types.*
 import Symbols.*
 
 import scala.collection.mutable
@@ -14,9 +13,9 @@ class ExplicitInit(using Reporter):
   val treeMap = new ExplicitInit.LocalsTreeMap
 
   def transform(ns: Namespace): Namespace =
-    val funs = for funDef <- ns.funDefs yield treeMap.transform(funDef)
+    val funs = for case funDef: FunDef <- ns.defs yield treeMap.transform(funDef)
 
-    Namespace(ns.symbol, ns.fullName, Nil, funs)(ns.span)
+    Namespace(ns.symbol, ns.fullName, funs)(ns.span)
 
 object ExplicitInit:
   class NamesInfo:

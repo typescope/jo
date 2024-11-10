@@ -28,8 +28,7 @@ object Printing:
 
   def showNamespace(ns: Namespace): Text =
     "namespace" ~ " " ~ ns.symbol ~ indent:
-      rep(ns.typeDefs, Text.BlankLine) ~
-      rep(ns.funDefs, Text.BlankLine)
+      rep(ns.defs, Text.BlankLine)
 
   def showDef(defn: Def): Text =
     defn match

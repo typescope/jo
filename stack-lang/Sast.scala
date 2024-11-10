@@ -139,11 +139,12 @@ object Sast:
   extends Def
 
   case class Namespace
-    (symbol: Symbol, fullName: String, typeDefs: List[TypeDef], funDefs: List[FunDef])
+    (symbol: Symbol, fullName: String, defs: List[Def])
     (val span: Span)
   extends Positioned:
     def mainSymbol: Option[Symbol] =
-      funDefs.filter(_.symbol.name == "main").map(_.symbol).headOption
+      val funs = defs.filter(defn => defn.symbol.isFunction && defn.symbol.name == "main")
+      funs.map(_.symbol).headOption
 
   //----------------------------------------------------------------------------
   // helpers

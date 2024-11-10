@@ -21,11 +21,11 @@ object ElimCapture:
 
   def transform(ns: Namespace): Namespace =
     given ctx: Context = new Context
-    val fdefs =
-      for fdef <- ns.funDefs yield
-        treeMap.recur(fdef)(using ctx.withOwner(fdef.symbol)).asInstanceOf[FunDef]
+    val defs =
+      for defn <- ns.defs yield
+        treeMap.recur(defn)(using ctx.withOwner(defn.symbol))
 
-    Namespace(ns.symbol, ns.fullName, ns.typeDefs, fdefs)(ns.span)
+    Namespace(ns.symbol, ns.fullName, defs)(ns.span)
 
   /** The encoded type of a function */
   def encodedRecordType(funType: FunctionType): RecordType =

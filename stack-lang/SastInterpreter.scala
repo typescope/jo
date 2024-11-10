@@ -122,25 +122,18 @@ object SastInterpreter:
       Predef.abort  ->    abort
   )
 
-  def exec(prog: Namespace): Unit =
+  def exec(ns: Namespace, main: Symbol): Unit =
     val rootScope = new Scope.RootScope()
 
     for (sym, op) <- primitiveOperators do
       rootScope.bind(sym, PrimAction(op))
 
     val sc = rootScope.fresh()
-    for case fun: FunDef <- prog.words do
+    for case fun: FunDef <- ns.defs do
       sc.bind(fun.symbol, FunVal(fun, sc))
 
-    for word <- prog.words do
-      word match
-        case ValDef(sym, rhs) =>
-          sc.bind(sym, eval(rhs)(using sc))
-
-        case fdef: FunDef =>
-
-        case _ =>
-         exec(word)(using sc)
+    val FunVal(fdef, sc2) = sc.resolve(main): @unchecked
+    call(fdef, args = Nil)(using sc2)
 
   def exec(phrase: Phrase)(using Scope): List[Denotation] =
     val results = for word <- phrase.words yield exec(word)
@@ -231,8 +224,14 @@ object SastInterpreter:
 
 @main
 def sastEval(file: String) = Reporter.monitor(file):
-  IO.fileContent(file)        |>
-  Parser.parse                |>
-  Namer.transform             |+
-  Debug.peek(enable = false)  |>
-  SastInterpreter.exec
+    val namespace =
+      IO.fileContent(file)    |>
+      Parser.parse            |>
+      Namer.transform
+
+    namespace.mainSymbol match
+      case Some(main) =>
+        SastInterpreter.exec(namespace, main)
+
+      case None =>
+        Reporter.abortInternal("No main function found")

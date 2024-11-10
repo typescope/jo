@@ -45,13 +45,11 @@ class Namer(@constructorOnly reporter: Reporter):
 
     // Prepare a fresh scope for checking current scope
     val nsScope = userScope.fresh()
-
-    val tdefs = index(ns.typeDefs, nsInfo)(using nsScope)
-    val fdefs = index(ns.funDefs, nsInfo)(using nsScope)
+    val defs = index(ns.defs, nsInfo)(using nsScope)
 
     checker.performDelayedChecks()
 
-    Namespace(nsSymbol, ns.fullName, tdefs, fdefs)(ns.span)
+    Namespace(nsSymbol, ns.fullName, defs)(ns.span)
 
   def resolveNamespace(qualid: Ast.RefTree)(using sc: Scope, rp: Reporter): Symbol =
     qualid match

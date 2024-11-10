@@ -163,10 +163,9 @@ object Interpreter:
       rootScope.bind(sym, PrimAction(op))
 
     val sc = rootScope.fresh()
-    for fdef: FunDef <- ns.funDefs do
+    for case fdef: FunDef <- ns.defs do
       sc.bind(fdef.name, FunCall(fdef, sc))
 
-    val vs = new ValueStack
     // TODO
     ???
 
