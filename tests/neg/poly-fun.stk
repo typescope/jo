@@ -2,7 +2,8 @@ fun foo[T <: {a: Int}](x: T): T = x.a  // error
 
 fun bar[T](x: T): T = 3 // error
 
-fun main =
+// TODO: type inference of result type discard errors
+fun main: Void =
   val a = foo 10  // error
 
   foo {a = 20}

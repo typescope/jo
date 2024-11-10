@@ -163,6 +163,7 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
               // continue if current function has higher binding power
               values ++= call(wordTyped, procType.preParamTypes, procType.postParamTypes, procType.resultType, words, values, precedence)
             else
+              // TODO: wordTyped is discarded and it will be checked!
               // put back word
               words.insert(0, word)
               continue = false
