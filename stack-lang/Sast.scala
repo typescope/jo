@@ -23,8 +23,6 @@ object Sast:
 
     def show: String = Printing.show(this)
 
-  sealed abstract trait RefTree extends Tree
-
   case class IntLit
     (value: Int)
     (val span: Span)
@@ -45,13 +43,13 @@ object Sast:
   case class Ident
     (symbol: Symbol)
     (val span: Span)
-  extends Word, RefTree:
+  extends Word:
     val tpe: Type = TypeRef(symbol)
 
   case class Select
     (qual: Word, name: String)
     (val tpe: Type, val span: Span)
-  extends Word, RefTree
+  extends Word
 
   case class Assign
     (symbol: Symbol, rhs: Word)
