@@ -19,12 +19,8 @@ class Namer(@constructorOnly reporter: Reporter):
   val inferencer: Inferencer = new UnificationSolver
   val exprTyper = new ExprTyper(this, checker, inferencer)
 
-  /** Handles possible cycles in result type inference for functions  */
-  val cyclicTypeProvider = new NamerUtils.CyclicTypeProvider(using reporter)
-
-  /** Handles value and type definitions */
+  /** Handles cyclic definitions */
   val nonCyclicTypeProvider = new NamerUtils.ValueTypeProvider(using reporter)
-
 
   def transform(ns: Ast.Namespace)(using Reporter): Sast.Namespace =
     val rootScope = new Scope.RootScope()
@@ -493,28 +489,10 @@ class Namer(@constructorOnly reporter: Reporter):
     if sc.isLocalScope then
       flags = flags | Flags.Local
 
-    val sym = Symbol.createFunSymbol(funDef.name, this.cyclicTypeProvider, flags, funDef.ident.pos)
+    var funTypeMakerDelayInit: () => Type = null
+    val infoProvider: InfoProvider = (sym: Symbol) => funTypeMakerDelayInit()
+    val sym = Symbol.createFunSymbol(funDef.name, infoProvider, flags, funDef.ident.pos)
     val funScope = sc.fresh(sym)
-
-    var bodyTyped: Word = null
-    // can be called multiple types from the info completer
-    def recheckBody()(using Reporter): Word =
-      given Scope = funScope
-      given TargetType =
-        if funDef.resType.isEmpty then TargetType.ProperType
-        else TargetType.Known(givenResultType)
-
-      bodyTyped = transform(funDef.body)
-      bodyTyped
-
-    def getCheckedBody()(using Reporter): Word =
-      if bodyTyped == null then recheckBody() else bodyTyped
-
-    lazy val givenResultType =
-      assert(!funDef.resType.isEmpty)
-      val resTypeTree = transformType(funDef.resType)(using funScope)
-      checker.delayedCheck { checker.checkVoidOrValueType(resTypeTree) }
-      resTypeTree.tpe
 
     val tparamSyms =
       for tparam <- funDef.tparams yield
@@ -537,8 +515,29 @@ class Namer(@constructorOnly reporter: Reporter):
         funScope.define(paramSym)
         paramSym
 
-    def createFunType(resType: Type): Type =
-      val procType = ProcType(paramSyms.map(_.toNamedInfo), resType, funDef.preParamCount)
+    // We cannot simply introduce a type variable as the result type because the
+    // type variable might refer to type parameters in its instantiation, thus
+    // requires substitution.
+    //
+    // Either we give up using type variables or we report an error if result
+    // type variables are instantiated with types that refer to type parameters.
+    //
+    // The latter seems to be a good compromise and does not harm usability.
+    lazy val resultType =
+      if !funDef.resType.isEmpty then
+        val resTypeTree = transformType(funDef.resType)(using funScope)
+        checker.delayedCheck { checker.checkVoidOrValueType(resTypeTree) }
+        resTypeTree.tpe
+      else
+        val tvar = TypeVar("X", this.inferencer)
+        checker.delayedCheck {
+          checker.checkInstantiated(tvar, funDef.resType.span)
+          // TODO: check that instantiation does not refer to local type sysmbols
+        }
+        tvar
+
+    funTypeMakerDelayInit = () =>
+      val procType = ProcType(paramSyms.map(_.toNamedInfo), resultType, funDef.preParamCount)
       if tparamSyms.isEmpty then
         procType
       else
@@ -549,32 +548,14 @@ class Namer(@constructorOnly reporter: Reporter):
         val rawType = PolyType(tparamInfos, procType)
         TypeOps.substSymbols(rawType, substs)
 
-    lazy val givenFunType =
-      assert(!funDef.resType.isEmpty)
-      createFunType(givenResultType)
-
-    def computeType(using Reporter): Type =
-      if !funDef.resType.isEmpty then
-        givenFunType
-      else
-        // perform actual check without using the cache
-        createFunType(recheckBody().tpe)
-
-    val initialType = () =>
-      if !funDef.resType.isEmpty then givenFunType
-      else createFunType(BottomType)
-
-    this.cyclicTypeProvider.addProvider(
-      sym,
-      rp => initialType(),
-      rp => computeType(using rp)
-    )
-
     val typer = () =>
-      val bodyTyped = getCheckedBody()
+      given Scope = funScope
+      given TargetType = TargetType.Known(resultType)
+
+      val body = transform(funDef.body)
 
       FunDef
-        (sym, tparamSyms, paramSyms, bodyTyped)
+        (sym, tparamSyms, paramSyms, body)
         (locals = Nil, captures = Nil, funDef.span)
 
     DelayedDef(sym, typer)

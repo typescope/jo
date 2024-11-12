@@ -2,8 +2,8 @@ fun foo[T <: {a: Int}](x: T): T = x.a  // error
 
 fun bar[T](x: T): T = 3 // error
 
-// TODO: type inference of result type discard errors
-fun main: Void =
+// Check that type inference of result type does not discard errors
+fun main =
   val a = foo 10  // error
 
   foo {a = 20}

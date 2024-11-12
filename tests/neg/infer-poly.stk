@@ -1,7 +1,7 @@
 fun test1[X, Y <: X](x: X, y: Y): X = y
 
-// TODO: type inference of result type discard errors
-fun main: Void =
+// Check that type inference of result type does not discard errors
+fun main =
   test1 5 false // error
 
   val g = (x) => x   // error

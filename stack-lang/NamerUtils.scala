@@ -97,10 +97,6 @@ object NamerUtils:
       assert(!completers.contains(sym), "Duplicate provider " + sym)
       completers(sym) = new InfoCompleter.Simple(provider)
 
-    /**
-      * We only allow self cycles, so it suffices to compute fixed point for the
-      * current info completer.
-      */
     def apply(sym: Symbol): Type = Debug.trace(s"Retriving $sym", (_: Type).show, enable = false):
       if !completers.contains(sym) then
         Reporter.abort("No completer for " + sym, sym.sourcePos)
