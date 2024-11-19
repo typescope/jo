@@ -6,7 +6,7 @@ import Symbols.*
 object NamerUtils:
   /** Type provider for value definitions
     *
-    * No worries about cycles and no fixed-point computation is performed.
+    * Cycles are forbidden and no fixed-point computation is performed.
     */
   final class ValueTypeProvider(using rp: Reporter) extends InfoProvider:
     /** All completers --- never removed  */
@@ -31,9 +31,9 @@ object NamerUtils:
 
       val completer = completers(sym)
 
-      if completing.contains(sym) && completing.last != sym then
+      if completing.contains(sym) then
         val cycle = completing.dropWhile(_ != sym).map(_.name).mkString(", ")
-        Reporter.error("Mutual recursion needs explicit return type: " + cycle, sym.sourcePos)
+        Reporter.error("Recursive function needs explicit return type: " + cycle, sym.sourcePos)
         ErrorType
       else if completing.contains(sym) then
         completer.currentType

@@ -469,7 +469,7 @@ class Namer(@constructorOnly reporter: Reporter):
       val tp2 = checker.checkValueType(tpt.tpe, tpt.span)
       tp2
 
-    val rhs: LazyValue[Symbol, Word] = LazyValue: sym =>
+    val rhs: Word =
       given Scope = sc.fresh(sym)
       given TargetType =
         if vdef.typ.isEmpty then TargetType.ValueType
@@ -477,11 +477,11 @@ class Namer(@constructorOnly reporter: Reporter):
       transform(vdef.rhs)
 
     def computeType(): Type =
-      if vdef.typ.isEmpty then rhs.get(sym).tpe else givenType
+      if vdef.typ.isEmpty then rhs.tpe else givenType
 
     this.nonCyclicTypeProvider.addProvider(sym, computeType)
 
-    val typer = () => ValDef(sym, rhs.get(sym))(vdef.span)
+    val typer = () => ValDef(sym, rhs)(vdef.span)
     DelayedDef(sym, typer)
 
   private def transform(funDef: Ast.FunDef)(using sc: Scope, rp: Reporter): DelayedDef[FunDef] =
