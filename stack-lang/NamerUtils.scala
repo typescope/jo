@@ -21,9 +21,12 @@ object NamerUtils:
       * @param initial the initial approximation type for the symbol without computation
       * @param compute compute the type for the symbol
       */
-    def addProvider(sym: Symbol, provider: () => Type) =
+    def addProvider(sym: Symbol, provider: () => Type): Unit =
+      addProvider(sym, provider, () => ErrorType)
+
+    def addProvider(sym: Symbol, provider: () => Type, errorType: () => Type): Unit =
       assert(!completers.contains(sym), "Duplicate provider " + sym)
-      completers(sym) = new InfoCompleter(provider)
+      completers(sym) = new InfoCompleter(provider, errorType)
 
     def apply(sym: Symbol): Type = Debug.trace(s"Retriving $sym", (_: Type).show, enable = false):
       if !completers.contains(sym) then
@@ -34,7 +37,11 @@ object NamerUtils:
       if completing.contains(sym) then
         val cycle = completing.dropWhile(_ != sym).map(_.name).mkString(", ")
         Reporter.error("Recursive function needs explicit return type: " + cycle, sym.sourcePos)
-        ErrorType
+        completing.dropRightInPlace(cycle.size)
+        val tp = completer.errorType()
+        completer.complete(tp)
+        tp
+
       else if completing.contains(sym) then
         completer.currentType
       else if completer.isComplete then
@@ -52,7 +59,7 @@ object NamerUtils:
     case Incomplete
     case Completed(cache: Type)
 
-  private class InfoCompleter(val compute: () => Type):
+  private class InfoCompleter(val compute: () => Type, val errorType: () => Type):
 
     private var state = InfoState.Incomplete
 

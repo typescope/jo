@@ -547,7 +547,7 @@ class Namer(@constructorOnly reporter: Reporter):
       given TargetType = targetType
       transform(funDef.body)
 
-    def computeInfo() =
+    def computeInfo(resultType: Type) =
       val procType = ProcType(paramSyms.map(_.toNamedInfo), resultType, funDef.preParamCount)
       if tparamSyms.isEmpty then
         procType
@@ -559,7 +559,7 @@ class Namer(@constructorOnly reporter: Reporter):
         val rawType = PolyType(tparamInfos, procType)
         TypeOps.substSymbols(rawType, substs)
 
-    this.nonCyclicTypeProvider.addProvider(sym, computeInfo)
+    this.nonCyclicTypeProvider.addProvider(sym, () => computeInfo(resultType), () => computeInfo(ErrorType))
 
     val typer = () =>
       FunDef
