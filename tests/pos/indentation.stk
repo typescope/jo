@@ -1,24 +1,24 @@
-fun fact0(n: Int) =
+fun fact0(n: Int): Int =
   if 0 == n then 1
   else fact0 (n - 1) * n
   end
 end
 
-fun fact1(n: Int) =
+fun fact1(n: Int): Int =
   if 0 == n then 1
   else fact1 (n - 1) * n
 end
 
-fun fact2(n: Int) =
+fun fact2(n: Int): Int =
   if 0 == n then 1
   else fact2 (n - 1) * n
   end
 
-fun fact3(n: Int) = if 0 == n then 1 else fact3 (n - 1) * n
+fun fact3(n: Int): Int = if 0 == n then 1 else fact3 (n - 1) * n
 
-fun fact4(n: Int) = if 0 == n then 1 else fact4 (n - 1) * n end
+fun fact4(n: Int): Int = if 0 == n then 1 else fact4 (n - 1) * n end
 
-fun fact5(n: Int) =
+fun fact5(n: Int): Int =
   if 0 == n then 1
   else fact5 (n - 1) * n end
 
