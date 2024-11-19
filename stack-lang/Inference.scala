@@ -8,7 +8,7 @@ object Inference:
     case Unknown
     case ValueType
     case ProperType // value type or void
-    case Member(name: String)
+    case TermMember(name: String)
     case Known(tpe: Type)
 
     def knownType: Option[Type] =

@@ -206,13 +206,27 @@ class Namer(@constructorOnly reporter: Reporter):
         transform(variant).adapt
 
       case Ast.Select(qual, name) =>
-        given TargetType = TargetType.Member(name)
-        val qual2 = transform(qual)
-        if qual2.tpe.isRecordType then
-          val tp = qual2.tpe.asRecordType.fieldType(name)
-          Select(qual2, name)(tp, word.span).adapt
-        else
-          Phrase(Nil)(ErrorType, word.span)
+        val qual2 =
+          given TargetType = TargetType.TermMember(name)
+          transform(qual)
+
+        qual2.tpe match
+          case TypeRef(sym) if sym.isNamespace =>
+            sym.namespace.resolveTerm(name) match
+              case Some(sym) =>
+                val tp = TypeRef(sym)
+                Select(qual2, name)(tp, word.span).adapt
+
+              case None =>
+                Reporter.error(s"The namespace $sym does not contain the member $name", word.pos)
+                Phrase(Nil)(ErrorType, word.span)
+
+          case tp =>
+            if tp.isRecordType then
+              val tp = qual2.tpe.asRecordType.fieldType(name)
+              Select(qual2, name)(tp, word.span).adapt
+            else
+              Phrase(Nil)(ErrorType, word.span)
 
       case lambda: Ast.Lambda =>
         transform(lambda).adapt
@@ -623,6 +637,25 @@ class Namer(@constructorOnly reporter: Reporter):
 
           case None =>
             Reporter.error("Unknown type " + tpt, tpt.pos)
+            TypeTree(ErrorType)(tpt.span)
+
+      case Ast.Select(qual, name) =>
+        val qual2 =
+          given TargetType = TargetType.Unknown
+          transform(qual)
+
+        qual2.tpe match
+          case TypeRef(sym) if sym.isNamespace =>
+            sym.namespace.resolveType(name) match
+              case Some(sym) =>
+                val tp = TypeRef(sym)
+                TypeTree(tp)(tpt.span)
+
+              case None =>
+                Reporter.error(s"The namespace $sym does not contain the type member $name", qual.pos)
+                TypeTree(ErrorType)(tpt.span)
+
+          case tp =>
             TypeTree(ErrorType)(tpt.span)
 
       case Ast.RecordType(fields) =>

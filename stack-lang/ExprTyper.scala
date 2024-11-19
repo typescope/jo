@@ -131,7 +131,7 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
     while continue && words.nonEmpty do
       val word = words.remove(0)
       word match
-        case _: Ast.Ident | _: Ast.TypeApply =>
+        case _: Ast.RefTree | _: Ast.TypeApply =>
           given TargetType = TargetType.Unknown
           var wordTyped = namer.transform(word)
 

@@ -14,7 +14,7 @@ object Ast:
 
   sealed abstract class Word extends Phrase
 
-  sealed abstract trait RefTree extends Word
+  sealed abstract trait RefTree extends Word, TypeTree
 
   case class IntLit
     (value: Int)
@@ -29,7 +29,7 @@ object Ast:
   case class Ident
     (name: String)
     (val span: Span)
-  extends Word, RefTree, TypeTree
+  extends Word, RefTree
 
   case class Assign
     (ident: Ident, rhs: Word)
@@ -49,7 +49,7 @@ object Ast:
   case class Select
     (qual: Word, name: String)
     (val span: Span)
-  extends Word, RefTree, TypeTree
+  extends Word, RefTree
 
   case class RecordLit
     (args: List[NamedArg])
@@ -145,7 +145,7 @@ object Ast:
     def name = tag.name
 
   case class AppliedType
-    (tpeCtor: Ident, targs: List[TypeTree])
+    (tpeCtor: RefTree, targs: List[TypeTree])
     (val span: Span)
   extends TypeTree:
     assert(targs.nonEmpty)

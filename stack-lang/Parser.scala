@@ -108,7 +108,9 @@ class Parser(code: String)(using Reporter):
     val item = peek()
     val id =
       item match
-        case Token.Ident("namespace") => qualid()
+        case Token.Ident("namespace") =>
+          next()
+          qualid()
         case _ => defaultNamespace
 
     // default Empty namespace
@@ -124,6 +126,7 @@ class Parser(code: String)(using Reporter):
   def qualid(): RefTree =
     var qual: RefTree = ident()
     while peek() == Token.DOT do
+      next()
       val id = ident()
       qual = Select(qual, id.name)(qual.span | id.span)
 
@@ -421,7 +424,7 @@ class Parser(code: String)(using Reporter):
         FunctionType(paramTypes = Nil, resType)(arrow.span | resType.span)
 
       case _ =>
-        val id = ident()
+        val id = qualid()
         if peek() == Token.LBRACKET then
           appliedType(id)
         else
@@ -439,7 +442,7 @@ class Parser(code: String)(using Reporter):
     val big = eat(Token.Ident(">"))
     UnionType(branchDecls)(less.span | big.span)
 
-  def appliedType(tctor: Ident): AppliedType =
+  def appliedType(tctor: RefTree): AppliedType =
     val targs = typeArgs()
     val last = targs.last
     AppliedType(tctor, targs.toList)(tctor.span | last.span)

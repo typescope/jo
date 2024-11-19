@@ -76,19 +76,30 @@ class Checker:
     if !sym.isAllOf(Flags.Val | Flags.Mutable) then
       Reporter.error(sym.name + " is not a mutable value", span.toPos)
 
-  def checkRecordType(word: Word, field: String)(using Reporter): Word =
+  def checkTermMember(word: Word, member: String)(using Reporter): Word =
     val tpe = word.tpe
     val pos = word.pos
-    if !tpe.isRecordType then
-      Reporter.error(s"Expect record type, found = ${tpe.show}", pos)
-      Phrase(Nil)(ErrorType, word.span)
-    else
-      val recordType = tpe.asRecordType
-      if !recordType.hasField(field) then
-        Reporter.error(s"Expect field $field in record type ${tpe.show}, found none", pos)
-        Phrase(Nil)(ErrorType, word.span)
-      else
-        word
+    tpe match
+      case TypeRef(sym) if sym.isNamespace =>
+        sym.namespace.resolveTerm(member) match
+          case Some(_) =>
+            word
+
+          case None =>
+            Reporter.error(s"The namespace $sym does not contain the member $member", word.pos)
+            Phrase(Nil)(ErrorType, word.span)
+
+      case _ =>
+        if !tpe.isRecordType then
+          Reporter.error(s"Expect record type, found = ${tpe.show}", pos)
+          Phrase(Nil)(ErrorType, word.span)
+        else
+          val recordType = tpe.asRecordType
+          if !recordType.hasField(member) then
+            Reporter.error(s"Expect field $member in record type ${tpe.show}, found none", pos)
+            Phrase(Nil)(ErrorType, word.span)
+          else
+            word
 
   def checkInstantiated(tvar: TypeVar, span: Span)(using Reporter): Unit =
     if !tvar.isInstantiated then
@@ -146,5 +157,5 @@ class Checker:
       case TargetType.Known(tpe) =>
         adapt(word, tpe)
 
-      case TargetType.Member(name) =>
-        checkRecordType(word, name)
+      case TargetType.TermMember(name) =>
+        checkTermMember(word, name)
