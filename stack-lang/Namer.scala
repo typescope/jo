@@ -6,7 +6,7 @@ import Types.*
 import Flags.*
 import Symbols.*
 import Positions.Span
-import Namer.{ Scope, LazyValue, DelayedDef }
+import Namer.{ Scope, DelayedDef }
 import Inference.*
 
 /**
@@ -688,12 +688,6 @@ object Namer:
     def force(): T =
       symbol.info // force symbol
       definition
-
-  private class LazyValue[S, T](compute: S => T):
-    var cache: T | Null = null
-    def get(s: S): T =
-      if cache == null then cache = compute(s)
-      cache.asInstanceOf[T]
 
   enum Scope:
     case RootScope()
