@@ -67,4 +67,4 @@ object NamerUtils:
         case InfoState.Completed(tp) => tp
 
         case InfoState.Incomplete =>
-           throw new Exception("Unexpected condition")
+          throw new Exception("Unexpected condition")

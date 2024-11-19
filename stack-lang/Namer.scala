@@ -489,9 +489,7 @@ class Namer(@constructorOnly reporter: Reporter):
     if sc.isLocalScope then
       flags = flags | Flags.Local
 
-    var funTypeMakerDelayInit: () => Type = null
-    val infoProvider: InfoProvider = (sym: Symbol) => funTypeMakerDelayInit()
-    val sym = Symbol.createFunSymbol(funDef.name, infoProvider, flags, funDef.ident.pos)
+    val sym = Symbol.createFunSymbol(funDef.name, this.nonCyclicTypeProvider, flags, funDef.ident.pos)
     val funScope = sc.fresh(sym)
 
     val tparamSyms =
@@ -515,28 +513,41 @@ class Namer(@constructorOnly reporter: Reporter):
         funScope.define(paramSym)
         paramSym
 
+    lazy val givenResultType =
+      assert(!funDef.resType.isEmpty)
+      val resTypeTree = transformType(funDef.resType)(using funScope)
+      checker.delayedCheck { checker.checkVoidOrValueType(resTypeTree) }
+      resTypeTree.tpe
+
+    // Inferring result type would need fixed point computation for recursive
+    // functions. That complicates the machinery in the namer (in particular
+    // post checks).
+    //
     // We cannot simply introduce a type variable as the result type because the
     // type variable might refer to type parameters in its instantiation, thus
     // requires substitution.
     //
-    // Either we give up using type variables or we report an error if result
-    // type variables are instantiated with types that refer to type parameters.
-    //
-    // The latter seems to be a good compromise and does not harm usability.
+    // Generalizing a substitution mechanism is not worth the effort for the
+    // moment. Therefore, recursive functions have to be explicitly typed.
     lazy val resultType =
       if !funDef.resType.isEmpty then
-        val resTypeTree = transformType(funDef.resType)(using funScope)
-        checker.delayedCheck { checker.checkVoidOrValueType(resTypeTree) }
-        resTypeTree.tpe
+        givenResultType
       else
-        val tvar = TypeVar("X", this.inferencer)
-        checker.delayedCheck {
-          checker.checkInstantiated(tvar, funDef.resType.span)
-          // TODO: check that instantiation does not refer to local type sysmbols
-        }
-        tvar
+        typedBody.tpe
+      end if
 
-    funTypeMakerDelayInit = () =>
+    lazy val typedBody =
+      val targetType =
+        if !funDef.resType.isEmpty then
+          TargetType.Known(givenResultType)
+        else
+          TargetType.ProperType
+
+      given Scope = funScope
+      given TargetType = targetType
+      transform(funDef.body)
+
+    def computeInfo() =
       val procType = ProcType(paramSyms.map(_.toNamedInfo), resultType, funDef.preParamCount)
       if tparamSyms.isEmpty then
         procType
@@ -548,14 +559,11 @@ class Namer(@constructorOnly reporter: Reporter):
         val rawType = PolyType(tparamInfos, procType)
         TypeOps.substSymbols(rawType, substs)
 
+    this.nonCyclicTypeProvider.addProvider(sym, computeInfo)
+
     val typer = () =>
-      given Scope = funScope
-      given TargetType = TargetType.Known(resultType)
-
-      val body = transform(funDef.body)
-
       FunDef
-        (sym, tparamSyms, paramSyms, body)
+        (sym, tparamSyms, paramSyms, typedBody)
         (locals = Nil, captures = Nil, funDef.span)
 
     DelayedDef(sym, typer)
