@@ -1,0 +1,12 @@
+namespace test
+
+type A = Int
+
+type List[T] = <Nil, Cons(head: T, tail: List[T])>
+
+fun double(n: test.A): test.A = n + n
+
+fun concat(a: Int, l: test.List[Int]): test.List[Int] = #Cons(a, l)
+
+fun main =
+  test.double 10 p

@@ -214,8 +214,7 @@ class Namer(@constructorOnly reporter: Reporter):
           case TypeRef(sym) if sym.isNamespace =>
             sym.namespace.resolveTerm(name) match
               case Some(sym) =>
-                val tp = TypeRef(sym)
-                Select(qual2, name)(tp, word.span).adapt
+                Ident(sym)(word.span).adapt
 
               case None =>
                 Reporter.error(s"The namespace $sym does not contain the member $name", word.pos)
