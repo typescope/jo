@@ -39,6 +39,9 @@ object Inference:
     private def instantiate(tvar: TypeVar, tp: Type) =
       assert(!instantiations.contains(tvar), "double instantiation: " + tvar)
       // println("Instantiating " + tvar + " to " + tp.show)
+
+      // TODO: substitute occurrence in existing substitutions
+      // TODO: check that tvar does not occur in tp
       instantiations(tvar) = tp
 
     private def constrain(tvar: TypeVar, tp: Type, tvarLeft: Boolean): List[Subtyping.Task] =
