@@ -1,12 +1,12 @@
 fun foo(x: Int) = x + x
 
 
-fun fact(x: Int) =
+fun fact(x: Int): Int =
   if 0 == x then 1
   else fact (x - 1) * x
 
 
-fun q(x: Int) =
+fun q(x: Int): { a: Int } =
   if 0 == x then { a = 1 }
   else
     val r = q (x - 1)
