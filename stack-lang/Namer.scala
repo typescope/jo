@@ -536,6 +536,8 @@ class Namer(@constructorOnly reporter: Reporter):
         sym
 
     lazy val paramSyms =
+      tparamSyms
+
       for param <- funDef.params yield
         val tpt = transformType(param.typ)(using funScope)
         val paramSym = Symbol.createParamSymbol(param.name, tpt.tpe, param.pos)
@@ -543,6 +545,8 @@ class Namer(@constructorOnly reporter: Reporter):
         paramSym
 
     lazy val givenResultType =
+      tparamSyms
+
       assert(!funDef.resType.isEmpty)
       val resTypeTree = transformType(funDef.resType)(using funScope)
       checker.delayedCheck { checker.checkVoidOrValueType(resTypeTree) }
@@ -566,7 +570,6 @@ class Namer(@constructorOnly reporter: Reporter):
       end if
 
     lazy val typedBody =
-      tparamSyms
       paramSyms
 
       val targetType =
