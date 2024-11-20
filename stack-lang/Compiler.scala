@@ -72,5 +72,4 @@ def compile(args: String*): Unit =
         if mains.isEmpty then
           Reporter.abortInternal("No main function found")
         else
-
           Reporter.abortInternal("Multiple main function detected: " + mains)

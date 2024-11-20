@@ -521,7 +521,7 @@ class Namer(@constructorOnly reporter: Reporter):
     val sym = Symbol.createFunSymbol(funDef.name, this.nonCyclicTypeProvider, flags, funDef.ident.pos)
     val funScope = sc.fresh(sym)
 
-    val tparamSyms =
+    lazy val tparamSyms =
       for tparam <- funDef.tparams yield
         lazy val bound =
           if tparam.bound.isEmpty then
@@ -535,7 +535,7 @@ class Namer(@constructorOnly reporter: Reporter):
         funScope.define(sym)
         sym
 
-    val paramSyms =
+    lazy val paramSyms =
       for param <- funDef.params yield
         val tpt = transformType(param.typ)(using funScope)
         val paramSym = Symbol.createParamSymbol(param.name, tpt.tpe, param.pos)

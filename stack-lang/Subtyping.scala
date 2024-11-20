@@ -124,6 +124,8 @@ object Subtyping:
               case tctor =>
                 false
 
+          case ErrorType => true
+
           case _ =>
             throw new Exception("Unexpected type constructor: " + tctor.show)
 
