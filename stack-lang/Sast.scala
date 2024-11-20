@@ -131,6 +131,10 @@ object Sast:
     (val span: Span)
   extends Def
 
+  /** Represents a named function definition
+    *
+    * @param locals contains a list of local value symbols (excluding params)
+    */
   case class FunDef
     (symbol: Symbol, tparams: List[Symbol], params: List[Symbol], body: Word)
     (val locals: List[Symbol], val captures: List[Symbol], val span: Span)
