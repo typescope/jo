@@ -1,0 +1,5 @@
+fun concat(a: Int, l: test.List[Int]): test.List[Int] = #Cons(a, l)
+
+fun main =
+  test.triple 10    // error   // error
+  test.double 10 p
