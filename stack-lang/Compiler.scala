@@ -4,7 +4,7 @@
  *
  ***********************************************************************/
 @main
-def compile(args: String*) =
+def compile(args: String*): Unit =
   val optionSpec = Map(
     "-o" -> true,
     "-p" -> true,
@@ -13,19 +13,24 @@ def compile(args: String*) =
 
   val (options, rest) = IO.parseOptions(args, optionSpec)
 
-  assert(rest.size == 1, "Expect a single source file as input, found = " + rest)
-  val sourceFile = rest.head
+  if rest.isEmpty then
+    println("Expect source file as input")
+    return
+
+  val sourceFiles = rest
 
   val outFile =
     options.get("-o") match
       case Some(file) => file
       case None =>
-        val tokens = sourceFile.split("\\.(?=[^\\.]+$)")
-        tokens(0)
+        if sourceFiles.size == 1 then
+          IO.fileNameNoExt(sourceFiles.head)
+        else
+          "out"
 
   val layout = options.getOrElse("-layout", "c1")
 
-  val backend: (Sast.Namespace, Symbols.Symbol) => Unit =
+  val backend: (List[Sast.Namespace], Symbols.Symbol) => Unit =
     options.get("-p") match
       case Some(pf) =>
         if pf == "linux-x86-stack" then
@@ -43,22 +48,29 @@ def compile(args: String*) =
       case None =>
         Linux.createX86RegisterMachine(outFile, layout).compile
 
-  Reporter.monitor(sourceFile):
-    val namespace =
-      IO.fileContent(sourceFile)    |>
-      Parser.parse                  |>
+  Reporter.monitor:
+
+    val namespacesSAST =
+      Parser.parse(sourceFiles)     |>
       Namer.transform               |+
       Debug.peek(enable = false)
 
-    namespace.mainSymbol match
-      case Some(main) =>
-        namespace                     |>
+    val mains = namespacesSAST.collect:
+      case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get
+
+    mains match
+      case main :: Nil =>
+        namespacesSAST                |>
         Debug.peek(enable = false)    |>
         new ExplicitInit().transform  |+
         Debug.peek(enable = false)    |>
         ElimCapture.transform         |+
         Debug.peek(enable = false)    |>
-        ((ns: Sast.Namespace) => backend(ns, main))
+        ((nss: List[Sast.Namespace]) => backend(nss, main))
 
-      case None =>
-        Reporter.abortInternal("No main function found")
+      case _ =>
+        if mains.isEmpty then
+          Reporter.abortInternal("No main function found")
+        else
+
+          Reporter.abortInternal("Multiple main function detected: " + mains)

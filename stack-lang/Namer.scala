@@ -5,7 +5,7 @@ import Sast.*
 import Types.*
 import Flags.*
 import Symbols.*
-import Positions.Span
+import Positions.*
 import Namer.{ Scope, DelayedDef }
 import Inference.*
 
@@ -22,7 +22,7 @@ class Namer(@constructorOnly reporter: Reporter):
   /** Handles cyclic definitions */
   val nonCyclicTypeProvider = new NamerUtils.ValueTypeProvider(using reporter)
 
-  def transform(ns: Ast.Namespace)(using Reporter): Sast.Namespace =
+  def createUserScope()(using Reporter): Scope =
     val rootScope = new Scope.RootScope()
 
     // Predefined type names
@@ -35,19 +35,36 @@ class Namer(@constructorOnly reporter: Reporter):
       rootScope.define(sym)
 
     // Prepare scope for user-defined namespaces
-    val userScope = rootScope.fresh()
-    val nsSymbol = resolveNamespace(ns.qualid)(using userScope)
-    val nsInfo = nsSymbol.namespace
+    rootScope.fresh()
 
-    // Prepare a fresh scope for checking current scope
-    val nsScope = userScope.fresh()
-    val defs = index(ns.defs, nsInfo)(using nsScope)
+  def transform(nss: List[Ast.Namespace])(using rp: Reporter): List[Namespace] =
+    val userScope: Scope = createUserScope()
 
+    val delayedNamespaces = new mutable.ArrayBuffer[() => Namespace]
+
+    for ns <- nss do
+      given Source = Reporter.source(ns.source)
+
+      // TODO: check redefinition
+      val nsSymbol = resolveNamespace(ns.qualid)(using userScope)
+      val nsInfo = nsSymbol.namespace
+
+      // Prepare a fresh scope for checking current scope
+      val nsScope = userScope.fresh()
+      val delayedDefs = index(ns.defs, nsInfo)(using nsScope)
+
+      val force = () =>
+        val defs = for delayed <- delayedDefs.toList yield delayed.force()
+        Namespace(nsSymbol, ns.fullName, defs)(ns.span)
+
+      delayedNamespaces += force
+    end for
+
+    val namespaces = delayedNamespaces.map(_.apply())
     checker.performDelayedChecks()
+    namespaces.toList
 
-    Namespace(nsSymbol, ns.fullName, defs)(ns.span)
-
-  def resolveNamespace(qualid: Ast.RefTree)(using sc: Scope, rp: Reporter): Symbol =
+  def resolveNamespace(qualid: Ast.RefTree)(using sc: Scope, rp: Reporter, so: Source): Symbol =
     qualid match
       case Ast.Select(qual, name) =>
         assert(qual.isInstanceOf[Ast.RefTree], "Unexpected qualid = " + qualid)
@@ -77,7 +94,7 @@ class Namer(@constructorOnly reporter: Reporter):
             else
               sym
 
-  def index(defs: List[Ast.Def], nsInfo: NamespaceInfo)(using sc: Scope, rp: Reporter): List[Def] =
+  private def index(defs: List[Ast.Def], nsInfo: NamespaceInfo)(using sc: Scope, rp: Reporter, so: Source): List[DelayedDef[Def]] =
     val delayedDefs = new mutable.ArrayBuffer[DelayedDef[Def]]
 
     for defn <- defs do
@@ -88,10 +105,9 @@ class Namer(@constructorOnly reporter: Reporter):
       sc.define(delayedDef.symbol)
       delayedDefs += delayedDef
 
-    for delayedDef <- delayedDefs.toList yield
-      delayedDef.force()
+    delayedDefs.toList
 
-  private def index(defn: Ast.Def)(using sc: Scope, rp: Reporter): DelayedDef[Def] =
+  private def index(defn: Ast.Def)(using sc: Scope, rp: Reporter, so: Source): DelayedDef[Def] =
     defn match
       case vdef: Ast.ValDef =>
         transform(vdef)
@@ -104,7 +120,7 @@ class Namer(@constructorOnly reporter: Reporter):
     end match
   end index
 
-  private def checkCapture(sym: Symbol, span: Span)(using sc: Scope, rp: Reporter): Unit =
+  private def checkCapture(sym: Symbol, span: Span)(using sc: Scope, rp: Reporter, so: Source): Unit =
     if sym.isAllOf(Flags.Val | Flags.Mutable | Flags.Local) then
       // check no capture of mutable local vars
       val ownerFunOpt = sc.owningFunctionOf(sym)
@@ -112,7 +128,7 @@ class Namer(@constructorOnly reporter: Reporter):
       if ownerFunOpt != curFunOpt then
         Reporter.error("Cannot capture local mutable variable " + sym.name, span.toPos)
 
-  def transform(block: Ast.Block)(using sc: Scope, rp: Reporter, tt: TargetType): Word =
+  def transform(block: Ast.Block)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
     val phrases = block.phrases
     var sc2 = sc
     val words =
@@ -121,12 +137,12 @@ class Namer(@constructorOnly reporter: Reporter):
         val tt2 =
           if i == phrases.size - 1 then tt
           else TargetType.Known(VoidType)
-        transform(phrase)(using sc2, rp, tt2)
+        transform(phrase)(using sc2, rp, so, tt2)
 
     if words.isEmpty then Phrase(Nil)(VoidType, block.span)
     else Phrase(words)(words.last.tpe, block.span)
 
-  def transform(phrase: Ast.Phrase)(using sc: Scope, rp: Reporter, tt: TargetType): Word =
+  def transform(phrase: Ast.Phrase)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
     extension (word: Word) def check: Word = checker.adapt(word, tt)
 
     phrase match
@@ -137,8 +153,8 @@ class Namer(@constructorOnly reporter: Reporter):
         transform(ifte)
 
       case Ast.While(cond, body) =>
-         val cond2 = transform(cond)(using sc, rp, TargetType.Known(BoolType))
-         val body2 = transform(body)(using sc, rp, TargetType.Known(VoidType))
+         val cond2 = transform(cond)(using sc, rp, so, TargetType.Known(BoolType))
+         val body2 = transform(body)(using sc, rp, so, TargetType.Known(VoidType))
          While(cond2, body2)(phrase.span).check
 
       case Ast.Assign(id, words) =>
@@ -173,7 +189,7 @@ class Namer(@constructorOnly reporter: Reporter):
         sc.define(delayedDef.symbol)
         delayedDef.force().check
 
-  def transform(word: Ast.Word)(using sc: Scope, rp: Reporter, tt: TargetType): Word =
+  def transform(word: Ast.Word)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
     extension (word: Word) def adapt: Word = checker.adapt(word, tt)
 
     word match
@@ -241,9 +257,9 @@ class Namer(@constructorOnly reporter: Reporter):
       case block: Ast.Block =>
         transform(block)
 
-  private def transform(ifte: Ast.If)(using sc: Scope, rp: Reporter, tt: TargetType): Word =
+  private def transform(ifte: Ast.If)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
     val Ast.If(cond, thenp, elsep) = ifte
-    val cond2 = transform(cond)(using sc, rp, TargetType.Known(BoolType))
+    val cond2 = transform(cond)(using sc, rp, so, TargetType.Known(BoolType))
     val then2 = transform(thenp)
     val else2 = transform(elsep)
 
@@ -253,7 +269,7 @@ class Namer(@constructorOnly reporter: Reporter):
     val else3 = checker.adapt(else2, commonType)
     If(cond2, then3, else3)(commonType, ifte.span)
 
-  private def transform(record: Ast.RecordLit)(using sc: Scope, rp: Reporter, tt: TargetType): Word =
+  private def transform(record: Ast.RecordLit)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
     val Ast.RecordLit(namedArgs) = record
     val namedArgs2 = new mutable.ArrayBuffer[(String, Word)]
 
@@ -285,7 +301,7 @@ class Namer(@constructorOnly reporter: Reporter):
     val tpe = RecordType(fields.map { case (k, v) => NamedInfo(k, v.tpe) })
     RecordLit(fields)(tpe, record.span)
 
-  private def transform(variant: Ast.Variant)(using sc: Scope, rp: Reporter, tt: TargetType): Word =
+  private def transform(variant: Ast.Variant)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
     val Ast.Variant(tag, values, typ) = variant
 
     val unionType =
@@ -312,11 +328,11 @@ class Namer(@constructorOnly reporter: Reporter):
         Phrase(Nil)(ErrorType, variant.span)
 
 
-  private def transform(patmat: Ast.Match)(using sc: Scope, rp: Reporter, tt: TargetType): Word =
+  private def transform(patmat: Ast.Match)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
     val sc2 = sc.fresh()
 
     val Ast.Match(scrutinee, cases) = patmat
-    val scrutinee2 = transform(scrutinee)(using sc, rp, TargetType.ValueType)
+    val scrutinee2 = transform(scrutinee)(using sc, rp, so, TargetType.ValueType)
 
     val scrutType = scrutinee2.tpe
     val scrutSym = Symbol.createValueSymbol("scrutinee", scrutType, Flags.Local, scrutinee2.pos)
@@ -362,7 +378,7 @@ class Namer(@constructorOnly reporter: Reporter):
 
   private def transform
       (scrut: Ident, caseDef: Ast.Case, resType: Type, cont: Type => Word)
-      (using sc: Scope, rp: Reporter, tt: TargetType): Word =
+      (using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
 
     val caseScope = sc.fresh()
 
@@ -404,7 +420,7 @@ class Namer(@constructorOnly reporter: Reporter):
             else scrutType.asUnionType.tagIndex(tag.name)
 
           val cond = Desugaring.testVariantTag(encodedScrut, tagIndex, tag.span)
-          val body2 = transform(body)(using caseScope, rp, tt)
+          val body2 = transform(body)(using caseScope, rp, so, tt)
           val commonType = checker.commonResultType(body2.tpe, resType, body2.span)
           val elsep = cont(commonType)
           val commonType2 = checker.commonResultType(body2.tpe, elsep.tpe, body2.span)
@@ -413,7 +429,7 @@ class Namer(@constructorOnly reporter: Reporter):
           val body3 = Phrase(vals.toList :+ adapted)(adapted.tpe, caseDef.span)
           If(cond, body3, elsep)(body3.tpe, caseDef.span)
 
-  private def transform(lambda: Ast.Lambda)(using sc: Scope, rp: Reporter, tt: TargetType): Word =
+  private def transform(lambda: Ast.Lambda)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
      val Ast.Lambda(params, body) = lambda
 
      val targetFunTypeOpt: Option[FunctionType] = tt.knownType.flatMap: tp =>
@@ -452,7 +468,7 @@ class Namer(@constructorOnly reporter: Reporter):
        case Some(funType) => TargetType.Known(funType.resultType)
        case None => TargetType.ProperType
 
-     val bodyTyped = transform(body)(using lambdaScope, rp, bodyTargetType)
+     val bodyTyped = transform(body)(using lambdaScope, rp, so, bodyTargetType)
 
      // Provide type info for the function symbol
      val procType = ProcType(paramSyms.map(_.toNamedInfo), bodyTyped.tpe, preParamCount = 0)
@@ -467,7 +483,7 @@ class Namer(@constructorOnly reporter: Reporter):
      val ref = Ident(funSym)(lambda.span)
      Phrase(funDef :: ref :: Nil)(lambdaType, lambda.span)
 
-  private def transform(vdef: Ast.ValDef)(using sc: Scope, rp: Reporter): DelayedDef[ValDef] =
+  private def transform(vdef: Ast.ValDef)(using sc: Scope, rp: Reporter, so: Source): DelayedDef[ValDef] =
     var flags: Flags = Flags.empty
     if vdef.mutable then
       flags = flags | Flags.Mutable
@@ -497,7 +513,7 @@ class Namer(@constructorOnly reporter: Reporter):
     val typer = () => ValDef(sym, rhs)(vdef.span)
     DelayedDef(sym, typer)
 
-  private def transform(funDef: Ast.FunDef)(using sc: Scope, rp: Reporter): DelayedDef[FunDef] =
+  private def transform(funDef: Ast.FunDef)(using sc: Scope, rp: Reporter, so: Source): DelayedDef[FunDef] =
     var flags: Flags = Flags.empty
     if sc.isLocalScope then
       flags = flags | Flags.Local
@@ -581,7 +597,7 @@ class Namer(@constructorOnly reporter: Reporter):
 
     DelayedDef(sym, typer)
 
-  private def transform(tdef: Ast.TypeDef)(using sc: Scope, rp: Reporter): DelayedDef[TypeDef] =
+  private def transform(tdef: Ast.TypeDef)(using sc: Scope, rp: Reporter, so: Source): DelayedDef[TypeDef] =
     val sym = Symbol.createTypeSymbol(tdef.name, this.nonCyclicTypeProvider, tdef.ident.pos)
 
     val sc2 = sc.fresh(sym)
@@ -627,7 +643,7 @@ class Namer(@constructorOnly reporter: Reporter):
     *
     * Checks must be delayed by using `checker.delayedCheck`.
     */
-  private def transformType(tpt: Ast.TypeTree)(using sc: Scope, rp: Reporter): TypeTree =
+  private def transformType(tpt: Ast.TypeTree)(using sc: Scope, rp: Reporter, so: Source): TypeTree =
     tpt match
       case Ast.Ident(name) =>
         sc.resolve(name, isType = true) match
@@ -712,7 +728,7 @@ class Namer(@constructorOnly reporter: Reporter):
 object Namer:
   val errorSymbol = Symbol.createFunSymbol("error", ErrorType, pos = null)
 
-  def transform(using reporter: Reporter): Ast.Namespace => Namespace =
+  def transform(using reporter: Reporter): List[Ast.Namespace] => List[Namespace] =
     new Namer(reporter).transform
 
   private class DelayedDef[+T <: Def](val symbol: Symbol, delayed: () => T):
@@ -769,7 +785,7 @@ object Namer:
 
         case res  => res
 
-    def resolve(name: String, span: Span, isType: Boolean = false)(using Reporter): Symbol =
+    def resolve(name: String, span: Span, isType: Boolean = false)(using Reporter, Source): Symbol =
       resolve(name, isType) match
         case Some(sym) => sym
         case None =>

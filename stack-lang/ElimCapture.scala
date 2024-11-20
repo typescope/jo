@@ -19,7 +19,10 @@ object ElimCapture:
   val EnvFieldName = "env"
   val ProcFieldName = "proc"
 
-  def transform(ns: Namespace): Namespace =
+  def transform(nss: List[Namespace]): List[Namespace] =
+    for ns <- nss yield transformNamespace(ns)
+
+  def transformNamespace(ns: Namespace): Namespace =
     given ctx: Context = new Context
     val defs =
       for defn <- ns.defs yield

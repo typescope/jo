@@ -1,11 +1,11 @@
 import Tokens.*
 import Scanner.*
-import Positions.Span
+import Positions.*
 import Reporter.*
 
 /** The scanner interface */
-class Scanner(stream: CharStream)(using Reporter):
-  def this(code: String)(using Reporter) = this(new CharStream(code))
+class Scanner(stream: CharStream)(using Reporter, Source):
+  def this(code: String)(using Reporter, Source) = this(new CharStream(code))
 
   /** Return the token, its span and the line indentation where the token ends */
   def next(): TokenInfo =
@@ -133,7 +133,7 @@ object Scanner:
   def isLetter(c: Char): Boolean =
     c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
 
-  class CharStream(code: String)(using reporter: Reporter):
+  class CharStream(code: String)(using source: Source):
     private val LEN = code.length
     private var index: Int = 0
 
@@ -150,7 +150,7 @@ object Scanner:
     private val sb = new StringBuilder
 
     // add line offset for the starting line
-    reporter.addLineOffset(index)
+    source.addLineOffset(index)
 
     def curChar() = code(index)
 
@@ -159,10 +159,10 @@ object Scanner:
       index += 1
       if c == '\n' then
         lineNum += 1
-        reporter.addLineOffset(index)
+        source.addLineOffset(index)
         lineIndentation = countStartingSpace()
       else if !hasMore() then
-        reporter.addLineOffset(index)
+        source.addLineOffset(index)
       c
 
     /** Count starting space from the current position

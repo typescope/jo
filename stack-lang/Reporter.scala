@@ -4,34 +4,28 @@ import scala.concurrent.duration.*
 
 import java.util.concurrent.TimeoutException
 
-import Positions.{ Source, SourcePosition, SourceContext }
+import Positions.{ Source, SourcePosition }
 import Reporter.{ ReportItem, Kind, FatalError }
 
 /**
   * Deals with error reporting
   */
 class Reporter(
-  val source: Source,                            // current source
   reported: mutable.ArrayBuffer[ReportItem],     // reported items
   buffer: Boolean,                               // whether buffer reports
-  sources: mutable.Map[String, Source])          // all sources
-extends SourceContext:
+  sources: mutable.Map[String, Source]           // all sources
+):
 
-  export source.addLineOffset
-
-  def withSource(file: String): Reporter =
+  def getSource(file: String): Source =
     sources.get(file) match
-      case Some(source) => new Reporter(source, reported, buffer, sources)
+      case Some(source) => source
       case None =>
         val source = new Source(file)
         sources(file) = source
-        new Reporter(source, reported, buffer, sources)
-
-  def withSource(source: Source): Reporter =
-    new Reporter(source, reported, buffer, sources)
+        source
 
   def fresh(buffer: Boolean = true): Reporter =
-    new Reporter(source, mutable.ArrayBuffer.empty, buffer, sources)
+    new Reporter(mutable.ArrayBuffer.empty, buffer, sources)
 
   def abort(message: String, pos: SourcePosition): Nothing =
     val error = new ReportItem(Kind.Error, message, pos)
@@ -102,14 +96,13 @@ object Reporter:
     case InternalError(message: String)
     case StopAfterPhase()
 
-  def createReporter(file: String, buffer: Boolean = false): Reporter =
-    val source = new Source(file)
-    val sources = mutable.Map(file -> source)
+  def createReporter(buffer: Boolean = false): Reporter =
+    val sources = mutable.Map.empty[String, Source]
     val reported = new mutable.ArrayBuffer[ReportItem]
-    new Reporter(source, reported, buffer, sources)
+    new Reporter(reported, buffer, sources)
 
-  def monitor[T](file: String)(fn: Reporter ?=> Unit): Unit =
-    val reporter = createReporter(file)
+  def monitor[T](fn: Reporter ?=> Unit): Unit =
+    val reporter = createReporter()
     try
       timeout(100) { fn(using reporter) }
     catch
@@ -140,3 +133,5 @@ object Reporter:
     rp.warn(message, pos)
 
   def reports(using rp: Reporter): List[ReportItem] = rp.reports
+
+  def source(file: String)(using rp: Reporter): Source = rp.getSource(file)

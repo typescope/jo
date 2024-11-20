@@ -68,6 +68,18 @@ object IO:
     val fileName = path.getFileName.toString
     fileName.replaceAll("\\.[^.]*$", "")
 
+  def isFile(path: String): Boolean =
+    val file = new java.io.File(path)
+    file.isFile()
+
+  def isDirectory(path: String): Boolean =
+    val file = new java.io.File(path)
+    file.isDirectory()
+
+  def list(dir: String): List[String] =
+    val file = new java.io.File(dir)
+    file.listFiles.map(_.getPath).toList
+
   /**
    * Little endian byte buffer
    */

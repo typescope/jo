@@ -12,8 +12,13 @@ import scala.collection.mutable
 class ExplicitInit(using Reporter):
   val treeMap = new ExplicitInit.LocalsTreeMap
 
-  def transform(ns: Namespace): Namespace =
-    val funs = for case funDef: FunDef <- ns.defs yield treeMap.transform(funDef)
+  def transform(nss: List[Namespace]): List[Namespace] =
+    for ns <- nss yield transformNamespace(ns)
+
+  def transformNamespace(ns: Namespace): Namespace =
+    val funs =
+      for case funDef: FunDef <- ns.defs
+      yield treeMap.transform(funDef)
 
     Namespace(ns.symbol, ns.fullName, funs)(ns.span)
 

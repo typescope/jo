@@ -7,6 +7,7 @@
 import scala.collection.mutable
 
 import Ast.*
+import Positions.*
 import Reporter.*
 import Tokens.*
 import Parser.SyntaxError
@@ -18,11 +19,17 @@ import Parser.SyntaxError
  ***********************************************************************/
 
 object Parser:
+  def parse(sourceFiles: List[String])(using Reporter): List[Namespace] =
+    for file <- sourceFiles yield
+      Reporter.source(file) |>
+      Parser.parse
+
   /** Parse the supplied code */
-  def parse(code: String)(using reporter: Reporter): Namespace =
-    val name = IO.fileNameNoExt(reporter.source.file)
+  def parse(source: Source)(using rp: Reporter): Namespace =
+    val name = IO.fileNameNoExt(source.file)
     val defaultNamespace = Ident(name)(Positions.Span(0, 0))
-    new Parser(code).parse(defaultNamespace)
+    val parser = new Parser(source.content)(using rp, source)
+    parser.parse(defaultNamespace)
 
    /** A scanner that supports peeking tokens ahead. */
   class LookAheadScanner(scanner: Scanner):
@@ -50,7 +57,7 @@ object Parser:
   class SyntaxError extends Exception
 end Parser
 
-class Parser(code: String)(using Reporter):
+class Parser(code: String)(using reporter: Reporter, source: Source):
   val scanner = new Parser.LookAheadScanner(new Scanner(code))
 
   def next(): TokenInfo = scanner.next()
@@ -121,7 +128,7 @@ class Parser(code: String)(using Reporter):
 
     val endSpan = if defs.isEmpty then id.span else defs.last.span
 
-    Namespace(id, defs)(id.span | endSpan)
+    Namespace(id, defs, source.file)(id.span | endSpan)
 
   def qualid(): RefTree =
     var qual: RefTree = ident()

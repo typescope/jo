@@ -16,12 +16,16 @@ object Test:
     }
 
   def compileAndCheck(test: String): Boolean = Reporter.timeout(100):
-    given Reporter = Reporter.createReporter(test, buffer = true)
+    given Reporter = Reporter.createReporter(buffer = true)
+
+    val sourceFiles =
+      if IO.isFile(test) then test :: Nil
+      else IO.list(test).filter(_.endsWith(".stk"))
 
     try
-      IO.fileContent(test)          |>
-      Parser.parse                  |>
-      Namer.transform               |>
+      Parser.parse(sourceFiles)     |>
+      Namer.transform               |+
+      Debug.peek(enable = false)
       new ExplicitInit().transform
 
       verifyErrors(test, Nil)

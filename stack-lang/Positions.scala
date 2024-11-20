@@ -11,7 +11,7 @@ object Positions:
 
     def span: Span
 
-    def pos(using SourceContext): SourcePosition = span.toPos
+    def pos(using Source): SourcePosition = span.toPos
 
   private def checkComponentPos(obj: Product): Unit =
     def checkPos(elem: Any): Unit =
@@ -40,11 +40,8 @@ object Positions:
         val end3 = if end1 > end2 then end1 else end2
         Span(start3, end3 - start3)
 
-    def toPos(source: Source): SourcePosition =
+    def toPos(using source: Source): SourcePosition =
       new SourcePosition(source, this.start, this.length)
-
-    def toPos(using ctx: SourceContext): SourcePosition =
-      toPos(ctx.source)
 
   object NoSpan extends Span(-1, -1)
 
@@ -59,6 +56,8 @@ object Positions:
     */
   class Source(val file: String, lineOffsets: mutable.ArrayBuffer[Int]):
     def this(file: String) = this(file, mutable.ArrayBuffer())
+
+    def content: String = IO.fileContent(file)
 
     def addLineOffset(offset: Int): Unit =
       assert(lineOffsets.isEmpty || offset > lineOffsets.last, "offset = " + offset + ", " + lineOffsets.last)
@@ -113,7 +112,3 @@ object Positions:
 
     override def toString() =
       source.file + ":" + (startLine + 1) + ":" + (startLineColumn + 1)
-
-  /** A context with source information */
-  trait SourceContext:
-    def source: Source

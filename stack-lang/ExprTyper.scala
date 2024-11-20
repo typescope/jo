@@ -4,7 +4,7 @@ import Sast.*
 import Types.*
 import Symbols.*
 
-import Positions.Span
+import Positions.*
 import Namer.Scope
 import Inference.*
 
@@ -69,7 +69,7 @@ object ExprTyper:
 class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
   import ExprTyper.Item
 
-  def transform(expr: Ast.Expr)(using  sc: Scope, rp: Reporter, tt: TargetType): Word =
+  def transform(expr: Ast.Expr)(using  sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
     assert(expr.words.nonEmpty)
 
     val words = mutable.ListBuffer.from(expr.words)
@@ -83,7 +83,7 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
     typeItem(values.last)
   end transform
 
-  private def typeItem(item: Item)(using sc: Scope, rp: Reporter, tt: TargetType): Word =
+  private def typeItem(item: Item)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
     item match
       case Item.Typed(word) => checker.adapt(word, tt)
 
@@ -119,7 +119,7 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
           checker.adapt(word, tt)
 
   /** Parse items from the words with the limit precedence */
-  private def parse(words: mutable.ListBuffer[Ast.Word], precLimit: Int)(using rp: Reporter, sc: Scope): List[Item] =
+  private def parse(words: mutable.ListBuffer[Ast.Word], precLimit: Int)(using rp: Reporter, sc: Scope, so: Source): List[Item] =
     // println("Parsing " + words + ", precedence = " + precedence)
 
     val values = mutable.ArrayBuffer.empty[Item]
@@ -196,7 +196,7 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
       words: mutable.ListBuffer[Ast.Word],
       values: mutable.ArrayBuffer[Item],
       precedence: Int)(
-      using Reporter, Scope): List[Item]
+      using Reporter, Scope, Source): List[Item]
   =
     val preArgs = values.takeRight(preTypes.size).toList
     values.dropRightInPlace(preTypes.size)

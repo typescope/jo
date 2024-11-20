@@ -53,13 +53,16 @@ class StackMachine(
 
   val workList = new WorkList[Symbol]
 
-  def compile(ns: Namespace, main: Symbol): Unit =
+  def compile(nss: List[Namespace], main: Symbol): Unit =
     given Context = new CodeBuffer(entry)
 
     workList.add(main)
 
     val symbolDefMap = mutable.Map.empty[Symbol, FunDef]
-    for case fdef: FunDef <- ns.defs do
+    for
+      ns <- nss
+      case fdef: FunDef <- ns.defs
+    do
       symbolDefMap(fdef.symbol) = fdef
 
     workList.run: sym =>

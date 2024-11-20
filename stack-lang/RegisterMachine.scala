@@ -63,7 +63,7 @@ class RegisterMachine(
 
   val workList = new WorkList[Symbol]
 
-  def compile(ns: Namespace, main: Symbol): Unit =
+  def compile(nss: List[Namespace], main: Symbol): Unit =
     // Buffer to hold the generated assembly code
     val entryLabel = Label("_entry")
     val cb = new CodeBuffer(entryLabel)
@@ -71,7 +71,10 @@ class RegisterMachine(
     workList.add(main)
 
     val symbolDefMap = mutable.Map.empty[Symbol, FunDef]
-    for case fdef: FunDef <- ns.defs do
+    for
+      ns <- nss
+      case fdef: FunDef <- ns.defs
+    do
       symbolDefMap(fdef.symbol) = fdef
 
     workList.run: sym =>

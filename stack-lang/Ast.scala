@@ -190,7 +190,7 @@ object Ast:
   extends Phrase, Def
 
   case class Namespace
-    (qualid: RefTree, defs: List[Def])
+    (qualid: RefTree, defs: List[Def], source: String)
     (val span: Span)
   extends Tree:
     val fullName: String = computeFullName(qualid)
