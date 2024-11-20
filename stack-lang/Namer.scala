@@ -43,11 +43,15 @@ class Namer(@constructorOnly reporter: Reporter):
     val delayedNamespaces = new mutable.ArrayBuffer[() => Namespace]
 
     for ns <- nss do
-      given Source = Reporter.source(ns.source)
+      given source: Source = Reporter.source(ns.source)
 
-      // TODO: check redefinition
       val nsSymbol = resolveNamespace(ns.qualid)(using userScope)
       val nsInfo = nsSymbol.namespace
+
+      // check redefinition
+      if nsSymbol.sourcePos.source != source then
+        val file = nsSymbol.sourcePos.source.file
+        rp.error(s"The namespace ${ns.fullName} is already defined in $file", ns.qualid.pos)
 
       // Prepare a fresh scope for checking current scope
       val nsScope = userScope.fresh()
