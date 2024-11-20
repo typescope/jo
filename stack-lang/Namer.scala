@@ -566,6 +566,9 @@ class Namer(@constructorOnly reporter: Reporter):
       end if
 
     lazy val typedBody =
+      tparamSyms
+      paramSyms
+
       val targetType =
         if !funDef.resType.isEmpty then
           TargetType.Known(givenResultType)
