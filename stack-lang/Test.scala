@@ -11,7 +11,8 @@ object Test:
     val dir = new JFile(dirPath)
     assert(dir.exists(), s"the directory $dirPath does not exist")
     dir.listFiles.foldLeft(List.empty[String]) { case (inputs, f) =>
-      if (f.getName.endsWith(".stk")) f.getPath :: inputs
+      val name = f.getName
+      if (name.endsWith(".stk") || f.isDirectory) f.getPath :: inputs
       else inputs
     }
 
@@ -25,7 +26,7 @@ object Test:
     try
       Parser.parse(sourceFiles)     |>
       Namer.transform               |+
-      Debug.peek(enable = false)
+      Debug.peek(enable = false)    |>
       new ExplicitInit().transform
 
       verifyErrors(test, Nil)
