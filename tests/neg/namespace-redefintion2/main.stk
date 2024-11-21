@@ -1,0 +1,4 @@
+namespace test
+
+fun main =
+  test.lib.double 10 p
