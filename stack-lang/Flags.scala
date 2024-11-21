@@ -15,6 +15,9 @@ object Flags:
   val Param   : Flag = 1 << 6
   val Mutable : Flag = 1 << 7
 
+  // namespace flags
+  val Branch  : Flag = 1 << 6
+
   val empty   : Flags = 0
 
   extension (fs: Flags)

@@ -45,13 +45,8 @@ class Namer(@constructorOnly reporter: Reporter):
     for ns <- nss do
       given source: Source = Reporter.source(ns.source)
 
-      val nsSymbol = resolveNamespace(ns.qualid)(using userScope)
+      val nsSymbol = resolveNamespace(ns.qualid, isBranch = false)(using userScope)
       val nsInfo = nsSymbol.namespace
-
-      // check redefinition
-      if nsSymbol.sourcePos.source != source then
-        val file = nsSymbol.sourcePos.source.file
-        rp.error(s"The namespace ${ns.fullName} is already defined in $file", ns.qualid.pos)
 
       // Prepare a fresh scope for checking current scope
       val nsScope = userScope.fresh()
@@ -68,35 +63,59 @@ class Namer(@constructorOnly reporter: Reporter):
     checker.performDelayedChecks()
     namespaces.toList
 
-  def resolveNamespace(qualid: Ast.RefTree)(using sc: Scope, rp: Reporter, so: Source): Symbol =
+  /** Resolve namespace and create on demand
+    *
+    * It also checks redefinition of namespace.
+    */
+  def resolveNamespace(qualid: Ast.RefTree, isBranch: Boolean)(using sc: Scope, rp: Reporter, so: Source): Symbol =
+    def check(sym: Symbol): Symbol =
+      val name = sym.name
+      val file = sym.sourcePos.source.file
+      if sym.isAllOf(Flags.NSpace) then
+        if isBranch && !sym.isAllOf(Flags.Branch) then
+          rp.error(s"The $name is already defined as a namespace in $file", qualid.pos)
+          sym
+
+        else if !isBranch then
+          // leaf namespace should not exist
+          if sym.isAllOf(Flags.Branch) then
+            rp.error(s"The namespace $name is already defined as a branch name in $file", qualid.pos)
+          else
+            rp.error(s"The namespace $name is already defined in $file", qualid.pos)
+
+          Symbol.createNamespaceSymbol(sym.name, new NamespaceInfo, qualid.pos, isBranch)
+
+        else
+          sym
+
+      else
+        rp.error(s"The $name is already defined as a member in $file", qualid.pos)
+        Symbol.createNamespaceSymbol(sym.name, new NamespaceInfo, qualid.pos, isBranch)
+
     qualid match
       case Ast.Select(qual, name) =>
         assert(qual.isInstanceOf[Ast.RefTree], "Unexpected qualid = " + qualid)
-        val sym = resolveNamespace(qual.asInstanceOf[Ast.RefTree])
-        assert(sym.isNamespace, "Not a namespace: " + qual)
+        val sym = resolveNamespace(qual.asInstanceOf[Ast.RefTree], isBranch = true)
 
+        assert(sym.isNamespace, "Not a namespace " + sym)
         val nsInfo = sym.namespace
+
         nsInfo.resolveTerm(name) match
-          case Some(sym) => sym
+          case Some(sym) => check(sym)
 
           case None =>
-            val sym = Symbol.createNamespaceSymbol(name, new NamespaceInfo, qualid.pos)
+            val sym = Symbol.createNamespaceSymbol(name, new NamespaceInfo, qualid.pos, isBranch)
             nsInfo.define(sym)
             sym
 
       case Ast.Ident(name) =>
         sc.resolve(name, isType = false) match
           case None =>
-            val sym = Symbol.createNamespaceSymbol(name, new NamespaceInfo, qualid.pos)
+            val sym = Symbol.createNamespaceSymbol(name, new NamespaceInfo, qualid.pos, isBranch)
             sc.define(sym)
             sym
 
-          case Some(sym) =>
-            if !sym.isNamespace then
-              Reporter.error("Not a namespace: " + sym.name, qualid.pos)
-              Symbol.createNamespaceSymbol(name, new NamespaceInfo, qualid.pos)
-            else
-              sym
+          case Some(sym) => check(sym)
 
   private def index(defs: List[Ast.Def], nsInfo: NamespaceInfo)(using sc: Scope, rp: Reporter, so: Source): List[DelayedDef[Def]] =
     val delayedDefs = new mutable.ArrayBuffer[DelayedDef[Def]]

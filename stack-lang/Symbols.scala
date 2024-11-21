@@ -111,5 +111,6 @@ object Symbols:
     def createTypeParamSymbol(name: String, tp: Type | InfoProvider, pos: SourcePosition) =
       new Symbol(name, tp, Flags.Param | Flags.Type, pos)
 
-    def createNamespaceSymbol(name: String, info: NamespaceInfo, pos: SourcePosition) =
-      new Symbol(name, info, Flags.NSpace, pos)
+    def createNamespaceSymbol(name: String, info: NamespaceInfo, pos: SourcePosition, isBranch: Boolean) =
+      val flags = if isBranch then Flags.NSpace | Flags.Branch else Flags.NSpace
+      new Symbol(name, info, flags, pos)
