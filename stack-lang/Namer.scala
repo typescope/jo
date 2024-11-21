@@ -83,7 +83,7 @@ class Namer(@constructorOnly reporter: Reporter):
           else
             rp.error(s"The namespace $name is already defined in $file", qualid.pos)
 
-          Symbol.createNamespaceSymbol(sym.name, new NamespaceInfo, qualid.pos, isBranch)
+          sym
 
         else
           sym
