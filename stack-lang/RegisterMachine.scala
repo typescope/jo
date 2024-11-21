@@ -22,7 +22,7 @@ class RegisterMachine(
 
   type Context = FunctionContext
 
-  /** A dummy parameter representing the return address ---
+  /** A dummy parameter representing the return address
     *
     * Its type does not matter.
     */
@@ -167,10 +167,7 @@ class RegisterMachine(
     ctx.setRegForLocal(param, paramReg)
     load(loc, paramReg, base)
 
-  /** Compile a function
-    *
-    * Calling the passed function will compile the body of the function.
-    */
+  /** Compile a function */
   def compile(fdef: FunDef)(using ctx: Context): Protocol =
     val sym = fdef.symbol
     val funType = TypeOps.erasePolyType(sym.info).asProcType
@@ -483,8 +480,7 @@ class RegisterMachine(
     cb.add(Instr.Jump(Reg(SP_REG)))
     cb.mark(allocEndLabel)
 
-  /** Allocate a block of memory and push the start address onto value stack.
-    */
+  /** Allocate a block of memory and push the start address onto value stack */
   def alloc(size: Int)(using ctx: Context): Unit =
     ctx.vs.push(Int32(size))
     call(Predef.allocate)

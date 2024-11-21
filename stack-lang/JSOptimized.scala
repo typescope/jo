@@ -186,10 +186,7 @@ class JSOptimized(outFile: String):
       case _: ValDef | _: FunDef | _: TypeDef =>
         throw new Exception("Unexpected " + word)
 
-  /** Compile a function
-    *
-    * Calling the passed function will compile the body of the function.
-    */
+  /** Compile a function */
   def compile(fdef: FunDef): Text =
     val sym = fdef.symbol
 
@@ -231,10 +228,7 @@ class JSOptimized(outFile: String):
     cont(arg): v =>
       Predef.p ~ "(" ~ rep(args, Text(", "))  ~ ");" ~ cont()
 
-  /**
-    * Compile a primitive
-    *
-    */
+  /** Compile a primitive */
   def primitive(sym: Symbol, args: List[Word])(using Context): Text =
     def binary(op: String): Text =
       val a :: b :: Nil = args: @unchecked

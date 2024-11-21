@@ -112,10 +112,7 @@ class StackMachine(
       case _: ValDef | _: FunDef | _: TypeDef =>
         throw new Exception("Unexpected " + word)
 
-  /** Compile a function
-    *
-    * Calling the passed function will compile the body of the function.
-    */
+  /** Compile a function */
   def compile(fdef: FunDef, cb: CodeBuffer): Unit =
     val sym = fdef.symbol
     val funType = TypeOps.erasePolyType(sym.info).asProcType
@@ -194,7 +191,7 @@ class StackMachine(
 
   /** Return from a procedure or function.
     *
-    * Call stack goes from high address to low address.
+    * Stack goes from high address to low address.
     */
   def ret(resCount: Int, cb: CodeBuffer) =
     var i = resCount - 1
@@ -279,10 +276,7 @@ class StackMachine(
         cb.add(Instr.Store(Reg(r), dest))
         i += 1
 
-  /** Initialize a value definition
-    *
-    * Calling the passed function will compile the initializer.
-    */
+  /** Initialize a value definition */
   def compile(assign: Assign)(using Context): Unit =
     val addr = ctx.symbolAddrMap(assign.symbol)
     compile(assign.rhs)
@@ -405,37 +399,29 @@ class StackMachine(
     cb.add(Instr.Jump(Reg(X86.EBX)))
     cb.mark(allocEndLabel)
 
-  /** Allocate a block of memory and push the start address onto value stack.
-    */
+  /** Allocate a block of memory and push the start address onto stack */
   def alloc(size: Int)(using Context): Unit =
     push(size)
     call(Predef.allocate)
 
-  /** Pop the value on the top of the value stack to the given register.
-    *
-    * Value stack goes from low address to high address.
-    */
+  /** Pop the value on the top of the stack to the given register */
   def pop(destReg: Int)(using Context) =
     cb.add(Instr.Load(Reg(SP_REG), destReg))
     cb.add(Instr.Add(Reg(SP_REG), Int32(4), SP_REG))
 
-  /**
-    * Pop the value on the top of the value stack without using it.
-    */
+  /** Pop the value on the top of the stack without using it */
   def pop()(using Context) =
     cb.add(Instr.Add(Reg(SP_REG), Int32(4), SP_REG))
 
-  /**
-    * Push value or address on the value stack.
-    */
+  /** Push value or address on the stack */
   def push(v: Value)(using Context) =
     cb.add(Instr.Sub(Reg(SP_REG), Int32(4), SP_REG))
     cb.add(Instr.Store(v, Reg(SP_REG)))
 
-  /** Push an integer literal to value stack */
+  /** Push an integer literal to stack */
   def push(v: Int)(using Context): Unit = push(Int32(v))
 
-  /** Push a Boolean literal to value stack */
+  /** Push a Boolean literal to stack */
   def push(v: Boolean)(using Context): Unit =
     push(Int32(if v then 1 else 0))
 
@@ -470,7 +456,7 @@ class StackMachine(
       loadValue(r, 0)
       push(Reg(r))
 
-  /** Load a value in value stack relative to the stack pointer.
+  /** Load a value on stack relative to the stack pointer.
     *
     * The index begins from 0.
     */
@@ -478,7 +464,7 @@ class StackMachine(
     val addr = Rel(SP_REG, index << 2)
     cb.add(Instr.Load(addr, destReg))
 
-  /** Store a value to value stack relative to the stack pointer.
+  /** Store a value to stack relative to the stack pointer.
     *
     * The index begins from 0.
     */
@@ -525,7 +511,7 @@ object StackMachine:
     *
     * @param freeRegs All registers for temporary usage in a processor.
     *
-    * The registers reserved for call stack pointer and value stack pointer are excluded.
+    * The registers reserved for stack pointer are excluded.
     */
   class RegisterAllocator(freeRegs: List[Int]):
     var freeIndex = 0
