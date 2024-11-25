@@ -20,7 +20,7 @@ class ExplicitInit(using Reporter):
       for case funDef: FunDef <- ns.defs
       yield treeMap.transform(funDef)
 
-    Namespace(ns.symbol, ns.fullName, funs)(ns.span)
+    Namespace(ns.symbol, ns.fullName, ns.imports, funs)(ns.span)
 
 object ExplicitInit:
   class NamesInfo:

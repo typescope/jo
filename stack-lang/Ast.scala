@@ -195,7 +195,7 @@ object Ast:
   extends Tree
 
   case class Namespace
-    (imports: List[Import], qualid: RefTree, defs: List[Def], source: String)
+    (qualid: RefTree, imports: List[Import], defs: List[Def], source: String)
     (val span: Span)
   extends Tree:
     val fullName: String = computeFullName(qualid)

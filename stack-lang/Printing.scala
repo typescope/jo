@@ -27,8 +27,18 @@ object Printing:
   // implementation
 
   def showNamespace(ns: Namespace): Text =
-    "namespace" ~ " " ~ ns.symbol ~ indent:
-      rep(ns.defs, Text.BlankLine)
+    "namespace "  ~ ns.symbol ~ Text.BlankLine ~
+    showImports(ns.imports) ~ Text.BlankLine ~
+    rep(ns.defs, Text.BlankLine)
+
+  def showImports(imports: List[Symbol]): Text =
+    imports match
+      case item :: items =>
+        // TODO: fully qualified name
+        "import " ~ Text(item) ~ Text.BreakLine ~ showImports(items)
+
+      case Nil =>
+        Text.Empty
 
   def showDef(defn: Def): Text =
     defn match

@@ -22,7 +22,7 @@ class Namer(@constructorOnly reporter: Reporter):
   /** Handles cyclic definitions */
   val nonCyclicTypeProvider = new NamerUtils.ValueTypeProvider(using reporter)
 
-  def createUserScope()(using Reporter): Scope =
+  def createPredefScope()(using Reporter): Scope =
     val rootScope = new Scope.RootScope()
 
     // Predefined type names
@@ -35,26 +35,42 @@ class Namer(@constructorOnly reporter: Reporter):
       rootScope.define(sym)
 
     // Prepare scope for user-defined namespaces
-    rootScope.fresh()
+    rootScope
 
   def transform(nss: List[Ast.Namespace])(using rp: Reporter): List[Namespace] =
-    val userScope: Scope = createUserScope()
+    // All namespace are located in the scope
+    val allNamespaces = new Scope.RootScope()
+
+    // Predef names are by-default accessible. However, other namespaces are not
+    // accessible unless explicitly imported.
+    val predefScope: Scope = createPredefScope()
 
     val delayedNamespaces = new mutable.ArrayBuffer[() => Namespace]
 
     for ns <- nss do
       given source: Source = Reporter.source(ns.source)
 
-      val nsSymbol = resolveNamespace(ns.qualid, isBranch = false)(using userScope)
+      val importScope: Scope = predefScope.fresh()
+      val defsScope: Scope = importScope.fresh()
+
+      val nsSymbol = resolveNamespace(ns.qualid, isBranch = false)(using allNamespaces)
       val nsInfo = nsSymbol.namespace
 
-      // Prepare a fresh scope for checking current scope
-      val nsScope = userScope.fresh()
-      val delayedDefs = index(ns.defs, nsInfo)(using nsScope)
+      val delayedDefs = index(ns.defs, nsInfo)(using defsScope)
 
       val force = () =>
+        // handle imports after indexing members
+        val imports = new mutable.ArrayBuffer[Symbol]
+        for imp <- ns.imports do
+          // TODO: what about type names?
+          given Scope = allNamespaces
+          val sym = resolveGlobal(imp.qualid, isType = false)
+          imports += sym
+          // TODO: abstract scope and better error position for duplicate imports
+          importScope.define(sym)
+
         val defs = for delayed <- delayedDefs.toList yield delayed.force()
-        Namespace(nsSymbol, ns.fullName, defs)(ns.span)
+        Namespace(nsSymbol, ns.fullName, imports.toList, defs)(ns.span)
 
       delayedNamespaces += force
     end for
@@ -63,7 +79,7 @@ class Namer(@constructorOnly reporter: Reporter):
     checker.performDelayedChecks()
     namespaces.toList
 
-  /** Resolve namespace and create on demand
+  /** Resolve namespace and create intermediate namespace on demand
     *
     * It also checks redefinition of namespace.
     */
@@ -116,6 +132,35 @@ class Namer(@constructorOnly reporter: Reporter):
             sym
 
           case Some(sym) => check(sym)
+
+
+  /** Resolve a global */
+  def resolveGlobal(qualid: Ast.RefTree, isType: Boolean)(using sc: Scope, rp: Reporter, so: Source): Symbol =
+    qualid match
+      case Ast.Select(qual, name) =>
+        val sym = resolveGlobal(qual.asInstanceOf[Ast.RefTree], isType = false)
+
+        if sym.isNamespace then
+          val nsInfo = sym.namespace
+
+          nsInfo.resolveTerm(name) match
+            case Some(sym) => sym
+
+            case None =>
+              rp.error(s"Member named $name not found in the namespace ${sym.name}", qualid.pos)
+              Symbol.createFunSymbol(name, ErrorType, pos = qualid.pos)
+
+        else
+          if !sym.info.isError then
+            rp.error("Not a namespace, only a namespace can be selected", qual.pos)
+          Symbol.createFunSymbol(name, ErrorType, pos = qualid.pos)
+
+      case Ast.Ident(name) =>
+        sc.resolve(name, isType) match
+          case Some(sym) => sym
+          case None =>
+            rp.error(s"The name $name is not found", qualid.pos)
+            Symbol.createFunSymbol(name, ErrorType, pos = qualid.pos)
 
   private def index(defs: List[Ast.Def], nsInfo: NamespaceInfo)(using sc: Scope, rp: Reporter, so: Source): List[DelayedDef[Def]] =
     val delayedDefs = new mutable.ArrayBuffer[DelayedDef[Def]]

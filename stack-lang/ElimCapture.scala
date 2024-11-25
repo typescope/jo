@@ -28,7 +28,7 @@ object ElimCapture:
       for defn <- ns.defs yield
         treeMap.recur(defn)(using ctx.withOwner(defn.symbol))
 
-    Namespace(ns.symbol, ns.fullName, defs ++ ctx.lifted.toList)(ns.span)
+    Namespace(ns.symbol, ns.fullName, ns.imports, defs ++ ctx.lifted.toList)(ns.span)
 
   /** The encoded type of a function */
   def encodedRecordType(funType: FunctionType): RecordType =
