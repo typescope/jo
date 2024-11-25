@@ -141,7 +141,7 @@ object Sast:
   extends Def
 
   case class Namespace
-    (symbol: Symbol, fullName: String, defs: List[Def])
+    (symbol: Symbol, fullName: String, imports: List[Symbol],  defs: List[Def])
     (val span: Span)
   extends Positioned:
     def mainSymbol: Option[Symbol] =

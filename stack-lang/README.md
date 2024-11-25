@@ -42,6 +42,7 @@ Lexical Grammar
     CASE     = "case".
     END      = "end".
     NSPACE   = "namespace".
+    IMPORT   = "import".
     name     = (letter | USCORE) {letter | digit | USCORE}.
     operator = opchar { opchar }.
     ident    = name | operator.
@@ -55,9 +56,11 @@ Syntactical Grammar
 
 
 ~~~
-    namespace = [NSPACE qualid] {typedef | fundef} EOF.
+    namespace = [NSPACE qualid] {import} {typedef | fundef} EOF.
 
     qualid = ident | qualid DOT ident.
+
+    import = IMPORT qualid.
 
     expr    = word {word}.
 

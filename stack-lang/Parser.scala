@@ -115,12 +115,15 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val item = peek()
     val id =
       item match
-        case Token.Ident("namespace") =>
+        case Token.NSPACE =>
           next()
           qualid()
         case _ => defaultNamespace
 
-    // default Empty namespace
+    val imports = repeated:
+      if peek() == Token.IMPORT then Some(importStat())
+      else None
+
     val defs = repeated:
         if peek() == Token.TYPE then Some(typeDef())
         else if peek() == Token.FUN then Some(funDef())
@@ -128,7 +131,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     val endSpan = if defs.isEmpty then id.span else defs.last.span
 
-    Namespace(id, defs, source.file)(id.span | endSpan)
+    Namespace(id, imports, defs, source.file)(id.span | endSpan)
 
   def qualid(): RefTree =
     var qual: RefTree = ident()
@@ -138,6 +141,11 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       qual = Select(qual, id.name)(qual.span | id.span)
 
     qual
+
+  def importStat(): Import =
+    val info = eat(Token.IMPORT)
+    val id = qualid()
+    Import(id)(info.span | id.span)
 
   def valDef(modifier: Token): ValDef =
     val mutable = modifier == Token.VAR

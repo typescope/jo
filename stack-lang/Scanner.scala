@@ -53,22 +53,24 @@ class Scanner(stream: CharStream)(using Reporter, Source):
     stream.eatWhile(isNameRest)
 
     stream.tokenEnd() match
-      case "as"      => Token.AS
-      case "if"      => Token.IF
-      case "then"    => Token.THEN
-      case "else"    => Token.ELSE
-      case "match"   => Token.MATCH
-      case "case"    => Token.CASE
-      case "while"   => Token.WHILE
-      case "do"      => Token.DO
-      case "end"     => Token.END
-      case "val"     => Token.VAL
-      case "var"     => Token.VAR
-      case "fun"     => Token.FUN
-      case "type"    => Token.TYPE
-      case "true"    => Token.BoolLit(true)
-      case "false"   => Token.BoolLit(false)
-      case name      => Token.Ident(name)
+      case "as"        => Token.AS
+      case "if"        => Token.IF
+      case "then"      => Token.THEN
+      case "else"      => Token.ELSE
+      case "match"     => Token.MATCH
+      case "case"      => Token.CASE
+      case "while"     => Token.WHILE
+      case "do"        => Token.DO
+      case "end"       => Token.END
+      case "val"       => Token.VAL
+      case "var"       => Token.VAR
+      case "fun"       => Token.FUN
+      case "type"      => Token.TYPE
+      case "import"    => Token.IMPORT
+      case "namespace" => Token.NSPACE
+      case "true"      => Token.BoolLit(true)
+      case "false"     => Token.BoolLit(false)
+      case name        => Token.Ident(name)
 
   def operator(): Token =
     stream.eatWhile(c => isOperator(c) && !stream.isComment())

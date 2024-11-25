@@ -189,8 +189,13 @@ object Ast:
     (val span: Span)
   extends Phrase, Def
 
+  case class Import
+    (qualid: RefTree)
+    (val span: Span)
+  extends Tree
+
   case class Namespace
-    (qualid: RefTree, defs: List[Def], source: String)
+    (imports: List[Import], qualid: RefTree, defs: List[Def], source: String)
     (val span: Span)
   extends Tree:
     val fullName: String = computeFullName(qualid)
