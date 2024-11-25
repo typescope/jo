@@ -1,4 +1,6 @@
 namespace test
 
+import test.lib
+
 fun main =
-  test.lib.double 10 p
+  lib.double 10 p

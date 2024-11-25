@@ -90,7 +90,9 @@ class Checker:
             Phrase(Nil)(ErrorType, word.span)
 
       case _ =>
-        if !tpe.isRecordType then
+        if tpe.isError then
+          word
+        else if !tpe.isRecordType then
           Reporter.error(s"Expect record type, found = ${tpe.show}", pos)
           Phrase(Nil)(ErrorType, word.span)
         else

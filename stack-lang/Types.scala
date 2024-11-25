@@ -10,7 +10,7 @@ import scala.reflect.ClassTag
   */
 object Types:
   sealed abstract class Type:
-    def isError: Boolean = this == ErrorType
+    def isError: Boolean = TypeOps.dealias(this) == ErrorType
 
     def isVoidType: Boolean = TypeOps.dealias(this) == VoidType
 

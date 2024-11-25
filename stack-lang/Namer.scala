@@ -59,6 +59,8 @@ class Namer(@constructorOnly reporter: Reporter):
       val delayedDefs = index(ns.defs, nsInfo)(using defsScope)
 
       val force = () =>
+        // Make current namespace name available
+        importScope.define(nsSymbol)
         // handle imports after indexing members
         val imports = new mutable.ArrayBuffer[Symbol]
         for imp <- ns.imports do
