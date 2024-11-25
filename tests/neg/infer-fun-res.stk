@@ -10,17 +10,17 @@ fun b: Bool = fact 10 // error
 
 fun f(x: Int) =       // error
   val a = g x
-  val b = a.field     // error
+  val b = a.field
   a
 
 fun g(x: Int) =
   val a = f x
-  val b = a.field    // error
+  val b = a.field
   a
 
 fun h(x: Int): Int =
   val a = f x
-  a.field            // error
+  a.field
 
 fun f0(x: Int) = g0 x   // error
 fun g0(x: Int) = f0 x

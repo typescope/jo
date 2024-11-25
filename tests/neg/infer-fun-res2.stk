@@ -15,7 +15,7 @@ fun q(x: Int) =                 // error
   if 0 == x then { a = 1 }
   else {
     a = x,
-    b = 1 + (q (x - 1)).c       // error
+    b = 1 + (q (x - 1)).c
   }
 
 fun test2(x: Int): { a: Int } =
@@ -23,7 +23,7 @@ fun test2(x: Int): { a: Int } =
 
 fun h1(x: Int) =                 // error
   if 0 == x then
-    { a = 1 + (h1 (x - 1)).c }   // error
+    { a = 1 + (h1 (x - 1)).c }
   else {
     a = x,
     b = x + x
