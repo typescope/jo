@@ -4,9 +4,9 @@ type A = Int
 
 type List[T] = <Nil, Cons(head: T, tail: List[T])>
 
-fun double(n: test.A): test.A = n + n
+fun double(n: A): A = n + n
 
-fun concat(a: Int, l: test.List[Int]): test.List[Int] = #Cons(a, l)
+fun concat(a: Int, l: List[Int]): List[Int] = #Cons(a, l)
 
 fun main =
-  test.double 10 p
+  double 10 p
