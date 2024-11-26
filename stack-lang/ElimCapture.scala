@@ -123,26 +123,28 @@ object ElimCapture:
       val funInfos: Map[Symbol, FunInfo],       // rewiring of funs
       val rewiring: Map[Symbol, Symbol],        // rewiring of locals
       val captures: Map[Symbol, List[Symbol]],  // captured locals in a function
-      val lifted: mutable.ArrayBuffer[FunDef]   // lifted funs
+      val lifted: mutable.ArrayBuffer[FunDef],  // lifted funs
+      val uniq: UniqueName
     ):
 
-    def this() = this(Nil, Map.empty, Map.empty, Map.empty, new mutable.ArrayBuffer)
+
+    def this() = this(Nil, Map.empty, Map.empty, Map.empty, new mutable.ArrayBuffer, new UniqueName)
 
     def withFun(fdef: FunDef): Context =
-      new Context(owners, funInfos, rewiring, captures.updated(fdef.symbol, fdef.captures), lifted)
+      new Context(owners, funInfos, rewiring, captures.updated(fdef.symbol, fdef.captures), lifted, uniq)
 
     def withRewire(from: Symbol, to: Symbol): Context =
-      new Context(owners, funInfos, rewiring.updated(from, to), captures, lifted)
+      new Context(owners, funInfos, rewiring.updated(from, to), captures, lifted, uniq)
 
     def withFunInfo(fun: Symbol, info: FunInfo): Context =
-      new Context(owners, funInfos.updated(fun, info), rewiring, captures, lifted)
+      new Context(owners, funInfos.updated(fun, info), rewiring, captures, lifted, uniq)
 
     def withOwner(fun: Symbol): Context =
-      new Context(fun :: owners, funInfos, rewiring, captures, lifted)
+      new Context(fun :: owners, funInfos, rewiring, captures, lifted, uniq)
 
     def flatName(fun: Symbol): String =
       assert(owners.nonEmpty, fun.name)
-      owners.foldLeft(fun.name) { (acc, owner) => owner.name + "$" + acc }
+      owners.foldLeft(fun.name) { (acc, owner) => uniq.freshName(owner.name + "$" + acc) }
 
     def show: String =
       " { rewires: " + rewiring.toString + ", captures: " + captures + "}"
