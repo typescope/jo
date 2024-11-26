@@ -42,7 +42,14 @@ object Diagnostics:
       val padding = " " * pos.startLineColumn
       val num = if pos.length == 0 then 1 else pos.length
       val pointer = if isOneLine then "^" * num  else "^"
+
+      val pos2 = symBefore.sourcePos
+      val lineContent2 = pos2.source.readLine(pos2.startLine).replaceAll("[\n\r]$", "")
+
       s"""|---------- $kind at $pos ---------------
           || $lineContent
           || $padding$pointer
-          || $padding$message""".stripMargin
+          || $padding$message
+          ||
+          || The name `${symNow.name}` is already defined at $pos2:
+          || $lineContent2""".stripMargin
