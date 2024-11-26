@@ -67,6 +67,10 @@ class Namer(@constructorOnly reporter: Reporter):
           // TODO: what about type names?
           given Scope = allNamespaces
           val sym = resolveGlobal(imp.qualid, isType = false)
+
+          if sym.isAllOf(Flags.NSpace | Flags.Branch) then
+            rp.error("Only a concrete namespace can be imported", imp.pos)
+
           imports += sym
           // TODO: abstract scope and better error position for duplicate imports
           importScope.define(sym)
