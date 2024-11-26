@@ -128,7 +128,7 @@ Each source file defines a _namespace_. Each file has the following structure:
 ```
 namespace io.net
 
-import a.c
+import system
 
 type List[T] = <Nil, Cons(head: T, tail: List[T])>
 
@@ -158,9 +158,9 @@ code.
 
 There are two exceptions:
 
-- The name of the current namespace is always implicitly imported. Therefore it
-can be used if needed.
+- The name of the current namespace is always implicitly imported.
 - The language defines a list of predefined names, which are always imported.
 
 An import statement may either import a leaf namespace or one of its term
-member.  It is disallowed to import a branch namespace.
+member.  It is disallowed to import a branch namespace. Namespaces can mutually
+import each other, i.e., they may have cyclic dependencies.
