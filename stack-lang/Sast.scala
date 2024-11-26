@@ -144,6 +144,8 @@ object Sast:
     (symbol: Symbol, fullName: String, imports: List[Symbol],  defs: List[Def])
     (val span: Span)
   extends Positioned:
+    def info: NamespaceInfo = symbol.info.as[NamespaceInfo]
+
     def mainSymbol: Option[Symbol] =
       val funs = defs.filter(defn => defn.symbol.isFunction && defn.symbol.name == "main")
       funs.map(_.symbol).headOption

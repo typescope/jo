@@ -19,14 +19,17 @@ object ElimCapture:
   val EnvFieldName = "env"
   val ProcFieldName = "proc"
 
-  def transform(nss: List[Namespace]): List[Namespace] =
+  def transform(nss: List[Namespace])(using Reporter): List[Namespace] =
     for ns <- nss yield transformNamespace(ns)
 
-  def transformNamespace(ns: Namespace): Namespace =
+  def transformNamespace(ns: Namespace)(using Reporter): Namespace =
     given ctx: Context = new Context
     val defs =
       for defn <- ns.defs yield
         treeMap.recur(defn)(using ctx.withOwner(defn.symbol))
+
+    // Enter names to name table of the namespace
+    for fdef <- ctx.lifted do ns.info.define(fdef.symbol)
 
     Namespace(ns.symbol, ns.fullName, ns.imports, defs ++ ctx.lifted.toList)(ns.span)
 
