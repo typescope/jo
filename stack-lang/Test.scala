@@ -3,7 +3,8 @@ import java.io.{ File => JFile }
 import scala.collection.mutable
 import scala.io.Source
 
-import Reporter.{ ReportItem, FatalError }
+import Reporter.FatalError
+import Diagnostics.*
 
 object Test:
   /** Creates a list of tests */
@@ -40,7 +41,7 @@ object Test:
       case error: FatalError.StopAfterPhase =>
         verifyErrors(sourceFiles, Reporter.reports)
 
-  def verifyErrors(sourceFiles: List[String], errors: List[ReportItem])(using Reporter): Boolean =
+  def verifyErrors(sourceFiles: List[String], errors: List[Diagnostic])(using Reporter): Boolean =
     val errorMap = mutable.Map.empty[(String, Int), Int] // line -> count
     var errorsExpected = 0
 
@@ -64,7 +65,7 @@ object Test:
       println(s"Expect $errorsExpected errors, found = ${errors.size}")
 
     for ((file, line), count) <- errorMap do
-      val found = errors.filter(e => e.pos.startLine == line && e.pos.source.file == file).size
+      val found = errors.filter(e => e.positioned && e.pos.startLine == line && e.pos.source.file == file).size
       if count != found then
         success = false
         println("Incorrect number of errors at line " + file + ":" + line + ", found = " + found + ", expect = " + count)

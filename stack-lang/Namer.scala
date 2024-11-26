@@ -232,7 +232,7 @@ class Namer(@constructorOnly reporter: Reporter):
          While(cond2, body2)(phrase.span).check
 
       case Ast.Assign(id, words) =>
-        val sym = sc.resolve(id.name, id.span)
+        val sym = sc.resolve(id.name, id.pos)
 
         checker.checkMutable(sym, id.span)
         checkCapture(sym, id.span)
@@ -274,7 +274,7 @@ class Namer(@constructorOnly reporter: Reporter):
         BoolLit(v)(word.span).adapt
 
       case Ast.Ident(name) =>
-        val sym = sc.resolve(name, word.span)
+        val sym = sc.resolve(name, word.pos)
         checkCapture(sym, word.span)
         val id = Ident(sym)(word.span)
         val autoApplied =
@@ -823,8 +823,7 @@ object Namer:
     case RootScope()
     case NestedScope(outer: Scope)(val allOwners: List[Symbol])
 
-    private val termNames: mutable.Map[String, Symbol] = mutable.Map.empty
-    private val typeNames: mutable.Map[String, Symbol] = mutable.Map.empty
+    private val table: NameTable = new NameTable
 
     /** All owners of the current scope
       *
@@ -839,7 +838,7 @@ object Namer:
 
     /** Find the owning function of a term symbol */
     def owningFunctionOf(sym: Symbol): Option[Symbol] =
-      if termNames.get(sym.name) == Some(sym) then this.owningFunction
+      if table.resolveTerm(sym.name) == Some(sym) then this.owningFunction
       else
         this match
           case NestedScope(outer) => outer.owningFunctionOf(sym)
@@ -854,12 +853,8 @@ object Namer:
     def fresh(owner: Symbol): Scope =
       new Scope.NestedScope(this)(owner :: owners)
 
-    private def getTable(isType: Boolean) =
-      if isType then typeNames else termNames
-
     def resolve(name: String, isType: Boolean): Option[Symbol] =
-      val table = getTable(isType)
-      table.get(name) match
+      table.resolve(name, isType) match
         case None =>
           this match
             case NestedScope(outer) => outer.resolve(name, isType)
@@ -867,18 +862,12 @@ object Namer:
 
         case res  => res
 
-    def resolve(name: String, span: Span, isType: Boolean = false)(using Reporter, Source): Symbol =
+    def resolve(name: String, pos: SourcePosition, isType: Boolean = false)(using Reporter): Symbol =
       resolve(name, isType) match
         case Some(sym) => sym
         case None =>
-          Reporter.error("Undefined identifier " + name, span.toPos)
+          Reporter.error("Undefined identifier " + name, pos)
           errorSymbol
 
     def define(sym: Symbol)(using Reporter): Unit =
-      val table = getTable(sym.isType)
-      table.get(sym.name) match
-        case None =>
-          table(sym.name) = sym
-
-        case Some(sym) =>
-          Reporter.error(sym.name + " is already bound", sym.sourcePos)
+      table.define(sym)

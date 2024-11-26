@@ -1,17 +1,18 @@
+import Positions.*
+import Reporter.*
+import Diagnostics.*
+
 import scala.collection.mutable
 import scala.concurrent.{ ExecutionContext, Future, Await }
 import scala.concurrent.duration.*
 
 import java.util.concurrent.TimeoutException
 
-import Positions.{ Source, SourcePosition }
-import Reporter.{ ReportItem, Kind, FatalError }
-
 /**
   * Deals with error reporting
   */
 class Reporter(
-  reported: mutable.ArrayBuffer[ReportItem],     // reported items
+  reported: mutable.ArrayBuffer[Diagnostic],     // reported items
   buffer: Boolean,                               // whether buffer reports
   sources: mutable.Map[String, Source]           // all sources
 ):
@@ -34,7 +35,7 @@ class Reporter(
   def report(kind: Kind, message: String, pos: SourcePosition): Unit =
     report(new ReportItem(kind, message, pos))
 
-  def report(item: ReportItem): Unit =
+  def report(item: Diagnostic): Unit =
     reported += item
     if !buffer then
       println(item)
@@ -48,7 +49,7 @@ class Reporter(
 
   def hasErrors: Boolean = reported.exists(_.kind == Kind.Error)
 
-  def reports: List[ReportItem] = reported.toList
+  def reports: List[Diagnostic] = reported.toList
 
   def printSummary() =
     var errorCount = 0
@@ -74,31 +75,15 @@ class Reporter(
   end extension
 
 object Reporter:
-  /** Kind of reports */
-  enum Kind:
-    case Error, Warning, Info
-
-  class ReportItem(val kind: Kind, val message: String, val pos: SourcePosition):
-    override def toString() =
-      val isOneLine = pos.isOneLine
-      val lineContent = pos.source.readLine(pos.startLine).replaceAll("[\n\r]$", "")
-      val padding = " " * pos.startLineColumn
-      val num = if pos.length == 0 then 1 else pos.length
-      val pointer = if isOneLine then "^" * num  else "^"
-      s"""|---------- $kind at $pos ---------------
-          || $lineContent
-          || $padding$pointer
-          || $padding$message""".stripMargin
-
   /** A fatal error that aborts the compilation */
   enum FatalError extends Exception:
-    case CodeError(content: ReportItem)
+    case CodeError(content: Diagnostic)
     case InternalError(message: String)
     case StopAfterPhase()
 
   def createReporter(buffer: Boolean = false): Reporter =
     val sources = mutable.Map.empty[String, Source]
-    val reported = new mutable.ArrayBuffer[ReportItem]
+    val reported = new mutable.ArrayBuffer[Diagnostic]
     new Reporter(reported, buffer, sources)
 
   def monitor[T](fn: Reporter ?=> Unit): Unit =
@@ -132,6 +117,6 @@ object Reporter:
   def warn(message: String, pos: SourcePosition)(using rp: Reporter): Unit =
     rp.warn(message, pos)
 
-  def reports(using rp: Reporter): List[ReportItem] = rp.reports
+  def reports(using rp: Reporter): List[Diagnostic] = rp.reports
 
   def source(file: String)(using rp: Reporter): Source = rp.getSource(file)
