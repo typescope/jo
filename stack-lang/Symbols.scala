@@ -2,8 +2,6 @@ import Types.*
 import Flags.*
 import Positions.SourcePosition
 
-import scala.collection.mutable
-
 /** Symbols refer to definitions (names) in the program.
   *
   * Symbols are stable in the compilation process, while the types of a symbol
@@ -19,35 +17,9 @@ object Symbols:
     */
   abstract class InfoProvider extends (Symbol => Type)
 
-  class NamespaceInfo:
-    private val termNames: mutable.Map[String, Symbol] = mutable.Map.empty
-    private val typeNames: mutable.Map[String, Symbol] = mutable.Map.empty
-
-    private def getTable(isType: Boolean) =
-      if isType then typeNames else termNames
-
-    def resolveTerm(name: String): Option[Symbol] =
-      val table = getTable(isType = false)
-      table.get(name)
-
-    def resolveType(name: String): Option[Symbol] =
-      val table = getTable(isType = true)
-      table.get(name)
-
-    def define(sym: Symbol)(using Reporter): Unit =
-      val table = getTable(sym.isType)
-      table.get(sym.name) match
-        case None =>
-          table(sym.name) = sym
-
-        case Some(sym) =>
-          Reporter.error(sym.name + " is already bound", sym.sourcePos)
-    end define
-  end NamespaceInfo
-
   final class Symbol(
     val name: String,
-    infoProvider: Type | InfoProvider | NamespaceInfo,
+    infoProvider: Type | InfoProvider,
     val flags: Flags,
     val sourcePos: SourcePosition):
 
@@ -64,12 +36,6 @@ object Symbols:
       infoProvider match
         case tp: Type => tp
         case provider: InfoProvider => provider(this)
-        case nspace: NamespaceInfo => throw new Exception("Namespace does not have info")
-
-    def namespace: NamespaceInfo =
-      infoProvider match
-        case nspace: NamespaceInfo => nspace
-        case _ => throw new Exception("Symbol is not a namespace")
 
     def isPrimitive: Boolean = flags.is(Flags.Prim)
     def isFunction : Boolean = flags.is(Flags.Fun)

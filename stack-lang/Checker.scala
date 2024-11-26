@@ -81,7 +81,8 @@ class Checker:
     val pos = word.pos
     tpe match
       case TypeRef(sym) if sym.isNamespace =>
-        sym.namespace.resolveTerm(member) match
+        val nsInfo = sym.info.as[NamespaceInfo]
+        nsInfo.resolveTerm(member) match
           case Some(_) =>
             word
 

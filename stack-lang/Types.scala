@@ -1,6 +1,7 @@
 import Symbols.Symbol
 
 import scala.reflect.ClassTag
+import scala.collection.mutable
 
 /** The type system of Stk.
   *
@@ -38,7 +39,7 @@ object Types:
 
     def isValueType: Boolean =
       TypeOps.approx(this, isUp = true)  match
-        case VoidType | _: ProcType | _: TypeLambda | _: PolyType => false
+        case VoidType | _: ProcType | _: TypeLambda | _: PolyType | _: NamespaceInfo => false
         case _ => true
 
     def asRecordType: RecordType = TypeOps.approx(this, isUp = true).asInstanceOf[RecordType]
@@ -194,3 +195,29 @@ object Types:
 
     def isSuptype(tp: Type): List[Subtyping.Task] =
       inferencer.isSuptype(this, tp)
+
+  class NamespaceInfo extends Type:
+    private val termNames: mutable.Map[String, Symbol] = mutable.Map.empty
+    private val typeNames: mutable.Map[String, Symbol] = mutable.Map.empty
+
+    private def getTable(isType: Boolean) =
+      if isType then typeNames else termNames
+
+    def resolveTerm(name: String): Option[Symbol] =
+      val table = getTable(isType = false)
+      table.get(name)
+
+    def resolveType(name: String): Option[Symbol] =
+      val table = getTable(isType = true)
+      table.get(name)
+
+    def define(sym: Symbol)(using Reporter): Unit =
+      val table = getTable(sym.isType)
+      table.get(sym.name) match
+        case None =>
+          table(sym.name) = sym
+
+        case Some(sym) =>
+          Reporter.error(sym.name + " is already bound", sym.sourcePos)
+    end define
+  end NamespaceInfo

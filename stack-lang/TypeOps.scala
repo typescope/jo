@@ -188,6 +188,8 @@ object TypeOps:
       case FunctionType(paramTypes, resType) =>
         val params = paramTypes.map(show).mkString(" * ")
         params + " => " + show(resType)
+
+      case _: NamespaceInfo => "{ ...namespace }"
   end show
 
   trait TypeMap:
@@ -200,7 +202,7 @@ object TypeOps:
         case VoidType | ErrorType | AnyType | BottomType | IntType | BoolType =>
           tp
 
-        case _: TypeRef | _: TypeParamRef | _: TypeVar =>
+        case _: TypeRef | _: TypeParamRef | _: TypeVar | _: NamespaceInfo =>
           tp
 
         case RecordType(fields) =>

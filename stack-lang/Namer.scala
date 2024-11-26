@@ -53,14 +53,14 @@ class Namer(@constructorOnly reporter: Reporter):
       val importScope: Scope = predefScope.fresh()
       val defsScope: Scope = importScope.fresh()
 
-      val nsSymbol = resolveNamespace(ns.qualid, isBranch = false)(using allNamespaces)
-      val nsInfo = nsSymbol.namespace
+      val nsSym = resolveNamespace(ns.qualid, isBranch = false)(using allNamespaces)
+      val nsInfo = nsSym.info.as[NamespaceInfo]
 
       val delayedDefs = index(ns.defs, nsInfo)(using defsScope)
 
       val force = () =>
         // Make current namespace name available
-        importScope.define(nsSymbol)
+        importScope.define(nsSym)
         // handle imports after indexing members
         val imports = new mutable.ArrayBuffer[Symbol]
         for imp <- ns.imports do
@@ -76,7 +76,7 @@ class Namer(@constructorOnly reporter: Reporter):
           importScope.define(sym)
 
         val defs = for delayed <- delayedDefs.toList yield delayed.force()
-        Namespace(nsSymbol, ns.fullName, imports.toList, defs)(ns.span)
+        Namespace(nsSym, ns.fullName, imports.toList, defs)(ns.span)
 
       delayedNamespaces += force
     end for
@@ -120,7 +120,7 @@ class Namer(@constructorOnly reporter: Reporter):
         val sym = resolveNamespace(qual.asInstanceOf[Ast.RefTree], isBranch = true)
 
         assert(sym.isNamespace, "Not a namespace " + sym)
-        val nsInfo = sym.namespace
+        val nsInfo = sym.info.as[NamespaceInfo]
 
         nsInfo.resolveTerm(name) match
           case Some(sym) => check(sym)
@@ -147,7 +147,7 @@ class Namer(@constructorOnly reporter: Reporter):
         val sym = resolveGlobal(qual.asInstanceOf[Ast.RefTree], isType = false)
 
         if sym.isNamespace then
-          val nsInfo = sym.namespace
+          val nsInfo = sym.info.as[NamespaceInfo]
 
           nsInfo.resolveTerm(name) match
             case Some(sym) => sym
@@ -302,7 +302,8 @@ class Namer(@constructorOnly reporter: Reporter):
 
         qual2.tpe match
           case TypeRef(sym) if sym.isNamespace =>
-            sym.namespace.resolveTerm(name) match
+            val nsInfo = sym.info.as[NamespaceInfo]
+            nsInfo.resolveTerm(name) match
               case Some(sym) =>
                 Ident(sym)(word.span).adapt
 
@@ -741,7 +742,8 @@ class Namer(@constructorOnly reporter: Reporter):
 
         qual2.tpe match
           case TypeRef(sym) if sym.isNamespace =>
-            sym.namespace.resolveType(name) match
+            val nsInfo = sym.info.as[NamespaceInfo]
+            nsInfo.resolveType(name) match
               case Some(sym) =>
                 val tp = TypeRef(sym)
                 TypeTree(tp)(tpt.span)
