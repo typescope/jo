@@ -1,4 +1,4 @@
-# [Stk](./stack-lang): Programs as Proses
+# Stk
 
 Stk is a statically typed functional programming language with the following features:
 

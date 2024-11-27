@@ -7,13 +7,14 @@ fun Y[T](f: (T => T) => (T => T)): T => T =
        h a
   g g
 
-val fact0 = (f: Int => Int) => (n: Int) =>
-  if n == 0 then 1
-  else (f (n - 1)) * n
+fun main =
+  val fact0 = (f: Int => Int) => (n: Int) =>
+    if n == 0 then 1
+    else (f (n - 1)) * n
 
-val fact = Y fact0
+  val fact = Y fact0
 
-fact 0 p
-fact 4 p
-fact 5 p
-fact 10 p
+  fact 0 p
+  fact 4 p
+  fact 5 p
+  fact 10 p

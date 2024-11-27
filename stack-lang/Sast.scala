@@ -131,38 +131,26 @@ object Sast:
     (val span: Span)
   extends Def
 
+  /** Represents a named function definition
+    *
+    * @param locals contains a list of local value symbols (excluding params)
+    */
   case class FunDef
     (symbol: Symbol, tparams: List[Symbol], params: List[Symbol], body: Word)
     (val locals: List[Symbol], val captures: List[Symbol], val span: Span)
   extends Def
 
-  case class Prog(words: List[Word])(val span: Span) extends Positioned:
-    lazy val vals: List[ValDef] =
-      assert(isNormalized, "Not normalized")
-      words.collect: word =>
-        word match
-          case vdef: ValDef => vdef
+  case class Namespace
+    (symbol: Symbol, imports: List[Symbol],  defs: List[Def])
+    (val span: Span)
+  extends Positioned:
+    def info: NamespaceInfo = symbol.info.as[NamespaceInfo]
 
-    lazy val funs: List[FunDef] =
-      assert(isNormalized, "Not normalized")
-      words.collect: word =>
-        word match
-          case fdef: FunDef => fdef
+    val fullName: String = symbol.fullName
 
-    val isNormalized: Boolean =
-      words match
-        case defs :+ Apply(Ident(sym), Nil) =>
-          defs.forall(_.isDef)
-
-        case _ => false
-
-    lazy val entrySymbol: Symbol =
-      val Apply(Ident(sym), Nil) = entry: @unchecked
-      sym
-
-    lazy val entry: Word =
-      assert(isNormalized, "Not normalized, found last = " + words.last.show)
-      words.last
+    def mainSymbol: Option[Symbol] =
+      val funs = defs.filter(defn => defn.symbol.isFunction && defn.symbol.name == "main")
+      funs.map(_.symbol).headOption
 
   //----------------------------------------------------------------------------
   // helpers

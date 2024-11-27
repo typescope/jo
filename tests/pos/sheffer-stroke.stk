@@ -3,18 +3,19 @@ fun NOT (p: Bool): Bool          = NAND p p
 fun AND (p: Bool, q: Bool): Bool = NOT (NAND p q)
 fun OR  (p: Bool, q: Bool): Bool = NAND (NOT p) (NOT q)
 
-if NOT true then
-  10 p
-else
-  20 p
+fun main =
+  if NOT true then
+    10 p
+  else
+    20 p
 
-if AND true false then
-  1 p
-else
-  2 p
+  if AND true false then
+    1 p
+  else
+    2 p
 
-if OR true false then
-  5 p
-else
-  10 p
-end
+  if OR true false then
+    5 p
+  else
+    10 p
+  end

@@ -1,0 +1,5 @@
+namespace test
+
+type A = Int
+
+fun double(n: A): A = n + n

@@ -10,7 +10,7 @@ import scala.reflect.ClassTag
   */
 object Types:
   sealed abstract class Type:
-    def isError: Boolean = this == ErrorType
+    def isError: Boolean = TypeOps.dealias(this) == ErrorType
 
     def isVoidType: Boolean = TypeOps.dealias(this) == VoidType
 
@@ -38,7 +38,7 @@ object Types:
 
     def isValueType: Boolean =
       TypeOps.approx(this, isUp = true)  match
-        case VoidType | _: ProcType | _: TypeLambda | _: PolyType => false
+        case VoidType | _: ProcType | _: TypeLambda | _: PolyType | _: NamespaceInfo => false
         case _ => true
 
     def asRecordType: RecordType = TypeOps.approx(this, isUp = true).asInstanceOf[RecordType]
@@ -194,3 +194,8 @@ object Types:
 
     def isSuptype(tp: Type): List[Subtyping.Task] =
       inferencer.isSuptype(this, tp)
+
+  class NamespaceInfo(val table: NameTable) extends Type:
+    def this() = this(new NameTable)
+
+    export table.*

@@ -4,11 +4,26 @@ import Symbols.*
 import scala.collection.mutable
 
 object Predef:
-  private val symbols: mutable.ArrayBuffer[Symbol] = new mutable.ArrayBuffer
+  private val termNames: mutable.Map[String, Symbol] = mutable.Map.empty
+  private val typeNames: mutable.Map[String, Symbol] = mutable.Map.empty
 
-  private def createPrimSymbol(name: String, tp: Type): Symbol =
-    val sym = new Symbol(name, tp, Flags.Prim, sourcePos = null)
-    symbols += sym
+  val nameTable: NameTable = new NameTable(termNames, typeNames)
+
+  val predefSym = Symbol.createNamespaceSymbol(
+      "predef", new NamespaceInfo(nameTable),
+      owner = null, pos = null, isBranch = false)
+
+  private def createPrimSymbol(name: String, tp: Type, isType: Boolean = false): Symbol =
+    val flags = if isType then Flags.Prim | Flags.Type else Flags.Prim
+    val sym = new Symbol(name, tp, flags, owner = predefSym, sourcePos = null)
+
+    if isType then
+      assert(!typeNames.contains(sym.name))
+      typeNames(sym.name) = sym
+    else
+      assert(!termNames.contains(sym.name))
+      termNames(sym.name) = sym
+
     sym
 
   //----------------------------------------------------------------------------
@@ -50,19 +65,17 @@ object Predef:
   val bnot   =  createPrimSymbol("not", typeNot)
   val p      =  createPrimSymbol("p",   typePrint)
 
-  val Int    =  new Symbol("Int",  IntType,  Flags.Prim | Flags.Type, sourcePos = null)
-  val Bool   =  new Symbol("Bool", BoolType, Flags.Prim | Flags.Type, sourcePos = null)
-  val Void   =  new Symbol("Void", VoidType, Flags.Prim | Flags.Type, sourcePos = null)
-
-  val allSymbols: List[Symbol] = symbols.toList
+  val Int    =  createPrimSymbol("Int",  IntType,  isType = true)
+  val Bool   =  createPrimSymbol("Bool", BoolType, isType = true)
+  val Void   =  createPrimSymbol("Void", VoidType, isType = true)
 
   //----------------------------------------------------------------------------
   // run-time symbols are only available to the compiler
 
   private val abortType = ProcType(NamedInfo("n", IntType) :: Nil, BottomType, preParamCount = 0)
-  val abort = new Symbol("abort", abortType, Flags.Prim, sourcePos = null)
+  val abort = new Symbol("abort", abortType, Flags.Prim, owner = predefSym, sourcePos = null)
 
   //----------------------------------------------------------------------------
   // the memory allocator
   private val allocateType = ProcType(NamedInfo("size", IntType) :: Nil, IntType, preParamCount = 0)
-  val allocate = new Symbol("alloc", allocateType, Flags.Prim, sourcePos = null)
+  val allocate = new Symbol("alloc", allocateType, Flags.Prim, owner = predefSym, sourcePos = null)

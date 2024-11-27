@@ -122,25 +122,21 @@ object SastInterpreter:
       Predef.abort  ->    abort
   )
 
-  def exec(prog: Prog): Unit =
+  def exec(nss: List[Namespace], main: Symbol): Unit =
     val rootScope = new Scope.RootScope()
 
     for (sym, op) <- primitiveOperators do
       rootScope.bind(sym, PrimAction(op))
 
     val sc = rootScope.fresh()
-    for case fun: FunDef <- prog.words do
+    for
+      ns <- nss
+      case fun: FunDef <- ns.defs
+    do
       sc.bind(fun.symbol, FunVal(fun, sc))
 
-    for word <- prog.words do
-      word match
-        case ValDef(sym, rhs) =>
-          sc.bind(sym, eval(rhs)(using sc))
-
-        case fdef: FunDef =>
-
-        case _ =>
-         exec(word)(using sc)
+    val FunVal(fdef, sc2) = sc.resolve(main): @unchecked
+    call(fdef, args = Nil)(using sc2)
 
   def exec(phrase: Phrase)(using Scope): List[Denotation] =
     val results = for word <- phrase.words yield exec(word)
@@ -230,9 +226,19 @@ object SastInterpreter:
         Nil
 
 @main
-def sastEval(file: String) = Reporter.monitor(file):
-  IO.fileContent(file)        |>
-  Parser.parse                |>
-  Namer.transform             |+
-  Debug.peek(enable = false)  |>
-  SastInterpreter.exec
+def sastEval(args: String*) = Reporter.monitor:
+    val sourceFiles = args.toList
+    val namespacesSAST =
+      Parser.parse(sourceFiles)     |>
+      Namer.transform               |>
+      Debug.peek(enable = false)
+
+    val mains = namespacesSAST.collect:
+      case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get
+
+    mains match
+      case main :: _ =>
+        SastInterpreter.exec(namespacesSAST, main)
+
+      case Nil =>
+        Reporter.abortInternal("No main function found")

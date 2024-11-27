@@ -8,7 +8,7 @@ object Printing:
 
   def show(word: Word): String = showWord(word).toString
 
-  def show(prog: Prog): String = showProg(prog).toString
+  def show(ns: Namespace): String = showNamespace(ns).toString
 
   //----------------------------------------------------------------------------
 
@@ -26,8 +26,19 @@ object Printing:
 
   // implementation
 
-  def showProg(prog: Prog): Text =
-    rep(prog.words, Text.BlankLine)
+  def showNamespace(ns: Namespace): Text =
+    "namespace "  ~ ns.symbol ~ Text.BlankLine ~
+    showImports(ns.imports) ~ Text.BlankLine ~
+    rep(ns.defs, Text.BlankLine)
+
+  def showImports(imports: List[Symbol]): Text =
+    imports match
+      case item :: items =>
+        // TODO: fully qualified name
+        "import " ~ Text(item) ~ Text.BreakLine ~ showImports(items)
+
+      case Nil =>
+        Text.Empty
 
   def showDef(defn: Def): Text =
     defn match
@@ -44,7 +55,7 @@ object Printing:
         val captures = rep(fdef.captures, Text(", "))
         "@locals(" ~ locals ~ ")" ~ Text.BreakLine ~
         "@captures(" ~ captures ~ ")" ~ Text.BreakLine ~
-        "fun " ~ fdef.name ~ " " ~ tparamStr ~ params.mkString("(", ", ", "): ") ~ resType.show ~ " ="
+        "fun " ~ fdef.name ~ tparamStr ~ params.mkString("(", ", ", "): ") ~ resType.show ~ " ="
         ~ indent(Text(fdef.body))
 
       case tdef: TypeDef =>

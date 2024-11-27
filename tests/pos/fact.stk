@@ -1,5 +1,6 @@
 fun fact(n: Int): Int = if n == 0 then 1 else fact (n - 1) * n
 
-fact 0 p
-fact 4 p        // 24
-fact 5 p        // 120
+fun main =
+  fact 0 p
+  fact 4 p        // 24
+  fact 5 p        // 120

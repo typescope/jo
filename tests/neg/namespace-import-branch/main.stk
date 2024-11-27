@@ -1,0 +1,6 @@
+namespace app
+
+import test    // error
+
+fun main =
+  test.lib.double 10 p

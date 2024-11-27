@@ -8,7 +8,7 @@ object Inference:
     case Unknown
     case ValueType
     case ProperType // value type or void
-    case Member(name: String)
+    case TermMember(name: String)
     case Known(tpe: Type)
 
     def knownType: Option[Type] =
@@ -39,6 +39,13 @@ object Inference:
     private def instantiate(tvar: TypeVar, tp: Type) =
       assert(!instantiations.contains(tvar), "double instantiation: " + tvar)
       // println("Instantiating " + tvar + " to " + tp.show)
+
+      // We do not
+      //
+      // - substitute occurrence in existing substitutions
+      // - check that tvar does not occur in tp
+      //
+      // They are handled by subtype checking implicitly.
       instantiations(tvar) = tp
 
     private def constrain(tvar: TypeVar, tp: Type, tvarLeft: Boolean): List[Subtyping.Task] =

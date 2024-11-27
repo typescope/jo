@@ -11,25 +11,25 @@ fun check1(x: Int): Bool = f1 x
 fun check2(x: Int): Bool = f2 x
 fun check3(x: Int): Bool = f3 x
 
-fun q(x: Int) =
+fun q(x: Int) =                 // error
   if 0 == x then { a = 1 }
   else {
     a = x,
-    b = 1 + (q (x - 1)).c       // error
+    b = 1 + (q (x - 1)).c
   }
 
 fun test2(x: Int): { a: Int } =
   q 10
 
-fun h1(x: Int) =
+fun h1(x: Int) =                 // error
   if 0 == x then
-    { a = 1 + (h1 (x - 1)).c }   // error
+    { a = 1 + (h1 (x - 1)).c }
   else {
     a = x,
     b = x + x
   }
 
-fun h2(x: Int) =
+fun h2(x: Int) =        // error
   if 0 == x then        // error
     false
   else

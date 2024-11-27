@@ -1,11 +1,12 @@
 fun with[T](x: T) = x
 
-with
-  3
-    *
-    5
-      +
-      2
-        *
-        4 - 1
-  p
+fun main =
+  with
+    3
+      *
+      5
+        +
+        2
+          *
+          4 - 1
+    p

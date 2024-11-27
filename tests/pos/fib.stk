@@ -6,4 +6,4 @@ fun fibComp(a: Int, b: Int, i: Int, n: Int): Int =
     a p
     fibComp b (b + a) (1 + i) n
 
-fib 20 p
+fun main = fib 20 p

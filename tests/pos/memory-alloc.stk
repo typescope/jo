@@ -1,12 +1,13 @@
 type Point = {x: Int, y: Int}
 
-var pt: Point = {x = 0, y = 0}
+fun main =
+  var pt: Point = {x = 0, y = 0}
 
-// allocation of 4096 objects
-var i = 0
-while i < 4096 do
-  pt = {x = i, y = i * i}
-  i = i + 1
+  // allocation of 4096 objects
+  var i = 0
+  while i < 4096 do
+    pt = {x = i, y = i * i}
+    i = i + 1
 
-pt.x p
-pt.y p
+  pt.x p
+  pt.y p

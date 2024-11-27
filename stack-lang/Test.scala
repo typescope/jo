@@ -3,7 +3,8 @@ import java.io.{ File => JFile }
 import scala.collection.mutable
 import scala.io.Source
 
-import Reporter.{ ReportItem, FatalError }
+import Reporter.FatalError
+import Diagnostics.*
 
 object Test:
   /** Creates a list of tests */
@@ -11,57 +12,63 @@ object Test:
     val dir = new JFile(dirPath)
     assert(dir.exists(), s"the directory $dirPath does not exist")
     dir.listFiles.foldLeft(List.empty[String]) { case (inputs, f) =>
-      if (f.getName.endsWith(".stk")) f.getPath :: inputs
+      val name = f.getName
+      if (name.endsWith(".stk") || f.isDirectory) f.getPath :: inputs
       else inputs
     }
 
   def compileAndCheck(test: String): Boolean = Reporter.timeout(100):
-    given Reporter = Reporter.createReporter(test, buffer = true)
-    val backend = Linux.createX86StackMachine(test, "c1")
+    given Reporter = Reporter.createReporter(buffer = true)
+
+    val sourceFiles =
+      if IO.isFile(test) then test :: Nil
+      else IO.list(test).filter(_.endsWith(".stk"))
 
     try
-      IO.fileContent(test)          |>
-      Parser.parse                  |>
-      Namer.transform               |>
-      new ExplicitInit().transform  |>
-      backend.compile
+      Parser.parse(sourceFiles)     |>
+      Namer.transform               |+
+      Debug.peek(enable = false)    |>
+      new ExplicitInit().transform
 
-      verifyErrors(test, Nil)
+      verifyErrors(sourceFiles, Nil)
     catch
       case error: FatalError.CodeError =>
-        verifyErrors(test, error.content :: Nil)
+        verifyErrors(sourceFiles, error.content :: Nil)
 
       case error: FatalError.InternalError =>
         false
 
       case error: FatalError.StopAfterPhase =>
-        verifyErrors(test, Reporter.reports)
+        verifyErrors(sourceFiles, Reporter.reports)
 
-  def verifyErrors(test: String, errors: List[ReportItem])(using Reporter): Boolean =
-    val errorMap = mutable.Map.empty[Int, Int] // line -> count
+  def verifyErrors(sourceFiles: List[String], errors: List[Diagnostic])(using Reporter): Boolean =
+    val errorMap = mutable.Map.empty[(String, Int), Int] // line -> count
     var errorsExpected = 0
-    var lineNum = 0
 
-    val source = Source.fromFile(test)
-    for line <- source.getLines() do
-      val count = "// error".r.findAllMatchIn(line).size
-      if count > 0 then
-        errorMap(lineNum) = count
-        errorsExpected += count
-      lineNum += 1
+    for
+      file <- sourceFiles
+    do
+      val source = Source.fromFile(file)
+      var lineNum = 0
+      for line <- source.getLines() do
+        val count = "// error".r.findAllMatchIn(line).size
+        if count > 0 then
+          errorMap(file -> lineNum) = count
+          errorsExpected += count
+        lineNum += 1
+      source.close()
     end for
-    source.close()
 
     var success = errorsExpected == errors.size
 
     if !success then
-      println(s"Expect $errorsExpected errors in $test, found = ${errors.size}")
+      println(s"Expect $errorsExpected errors, found = ${errors.size}")
 
-    for (line, count) <- errorMap do
-      val found = errors.filter(_.pos.startLine == line).size
+    for ((file, line), count) <- errorMap do
+      val found = errors.filter(e => e.positioned && e.pos.startLine == line && e.pos.source.file == file).size
       if count != found then
         success = false
-        println("Incorrect number of errors at line " + test + ":" + line)
+        println("Incorrect number of errors at line " + file + ":" + line + ", found = " + found + ", expect = " + count)
     end for
 
     success

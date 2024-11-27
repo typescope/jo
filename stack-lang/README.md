@@ -41,6 +41,8 @@ Lexical Grammar
     MATCH    = "match".
     CASE     = "case".
     END      = "end".
+    NSPACE   = "namespace".
+    IMPORT   = "import".
     name     = (letter | USCORE) {letter | digit | USCORE}.
     operator = opchar { opchar }.
     ident    = name | operator.
@@ -54,7 +56,11 @@ Syntactical Grammar
 
 
 ~~~
-    program = block.
+    namespace = [NSPACE qualid] {import} {typedef | fundef} EOF.
+
+    qualid = ident | qualid DOT ident.
+
+    import = IMPORT qualid.
 
     expr    = word {word}.
 
@@ -98,7 +104,7 @@ Syntactical Grammar
     applied_type = ident targs.
     targs        = LBRACKET type { COMMA type } RBRACKET.
 
-    type    = ident | record_typ | union_typ | applied_type | fun_type | LPAREN type RPAREN.
+    type    = qualid | record_typ | union_typ | applied_type | fun_type | LPAREN type RPAREN.
 
     record_typ = LBRACE [fields]  RBRACE.
     fields     = field { COMMA field }.
@@ -114,3 +120,47 @@ Syntactical Grammar
     params        = param {COMMA param}.
     param         = ident COLON type.
 ~~~
+
+## Namespaces
+
+Each source file defines a _namespace_. Each file has the following structure:
+
+```
+namespace io.net
+
+import system
+
+type List[T] = <Nil, Cons(head: T, tail: List[T])>
+
+fun foo(...) { ... }
+```
+
+The name of the namespace should be a valid `qualid`. If the namespace is not
+specified, the compiler uses the name part of the file as its default namespace.
+
+Namespaces form a tree-like structure. We call the leaves of the tree _leaf
+namespaces_, and internal nodes of the tree _branch namespaces_.
+
+Branch namespaces only have namespaces as members. Leaf namespaces only have
+functions and type definitions as members.
+
+The naming of a namespace must follow the following rules:
+
+- The same name cannot be used twice.
+- If a `qualid` is used as a prefix of another namespace, it cannot be used as
+  name of a leaf namespace; vice versa.
+
+Import statements make other namespaces usable in the current namespace.
+Namespaces must be imported before they can be used. In another word,
+referencing to another namespace directly with `qualid` is disallowed.  This
+rule is intended to make dependencies between namespaces explicit in source
+code.
+
+There are two exceptions:
+
+- The name of the current namespace is always implicitly imported.
+- The language defines a list of predefined names, which are always imported.
+
+An import statement may either import a leaf namespace or one of its term
+member.  It is disallowed to import a branch namespace. Namespaces can mutually
+import each other, i.e., they may have cyclic dependencies.

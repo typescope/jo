@@ -4,7 +4,7 @@ import Sast.*
 import Types.*
 import Symbols.*
 
-import Positions.Span
+import Positions.*
 import Namer.Scope
 import Inference.*
 
@@ -69,7 +69,7 @@ object ExprTyper:
 class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
   import ExprTyper.Item
 
-  def transform(expr: Ast.Expr)(using  sc: Scope, rp: Reporter, tt: TargetType): Word =
+  def transform(expr: Ast.Expr)(using  sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
     assert(expr.words.nonEmpty)
 
     val words = mutable.ListBuffer.from(expr.words)
@@ -78,12 +78,12 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
     if values.size > 1 then
       val rest = values.init
       val span = rest.head.span | rest.last.span
-      Reporter.error("Found unbound part, an expression should compose to a single function call", span.toPos)
+      Reporter.error("Found extra value, an expression should produce at most one value", span.toPos)
 
     typeItem(values.last)
   end transform
 
-  private def typeItem(item: Item)(using sc: Scope, rp: Reporter, tt: TargetType): Word =
+  private def typeItem(item: Item)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
     item match
       case Item.Typed(word) => checker.adapt(word, tt)
 
@@ -119,7 +119,7 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
           checker.adapt(word, tt)
 
   /** Parse items from the words with the limit precedence */
-  private def parse(words: mutable.ListBuffer[Ast.Word], precLimit: Int)(using rp: Reporter, sc: Scope): List[Item] =
+  private def parse(words: mutable.ListBuffer[Ast.Word], precLimit: Int)(using rp: Reporter, sc: Scope, so: Source): List[Item] =
     // println("Parsing " + words + ", precedence = " + precedence)
 
     val values = mutable.ArrayBuffer.empty[Item]
@@ -131,7 +131,7 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
     while continue && words.nonEmpty do
       val word = words.remove(0)
       word match
-        case _: Ast.Ident | _: Ast.TypeApply =>
+        case _: Ast.RefTree | _: Ast.TypeApply =>
           given TargetType = TargetType.Unknown
           var wordTyped = namer.transform(word)
 
@@ -147,7 +147,7 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
 
             val bounds = for tparam <- polyType.tparams yield tparam.info
             checker.delayedCheck {
-              for tvar <- tvars do checker.checkInstantiated(tvar, word.span)
+              for tvar <- tvars do checker.checkInstantiated(tvar, word.pos)
 
               checker.checkBounds(bounds, targs)
             }
@@ -163,6 +163,7 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
               // continue if current function has higher binding power
               values ++= call(wordTyped, procType.preParamTypes, procType.postParamTypes, procType.resultType, words, values, precedence)
             else
+              // TODO: wordTyped is discarded and it will be checked!
               // put back word
               words.insert(0, word)
               continue = false
@@ -195,7 +196,7 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
       words: mutable.ListBuffer[Ast.Word],
       values: mutable.ArrayBuffer[Item],
       precedence: Int)(
-      using Reporter, Scope): List[Item]
+      using Reporter, Scope, Source): List[Item]
   =
     val preArgs = values.takeRight(preTypes.size).toList
     values.dropRightInPlace(preTypes.size)

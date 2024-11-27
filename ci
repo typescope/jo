@@ -15,18 +15,39 @@ check() {
     diff $1 $2 || error
 }
 
-for file in $DIR/tests/pos/*.stk; do
+for item in $DIR/tests/pos/*.stk; do
+
+    if [[ $item == *.ignore ]]; then
+        echo "ignore $item"
+        continue
+
+    elif [[ -d $item ]]; then
+        # directory
+        file=$(ls $item/*.stk)
+        CHECK=$item/expect.check
+        OUT=$item/actual.out
+        exe=$item/prog.run
+        js=$item/prog.js
+
+    elif [[ -f $item ]] && [[ $item == *.stk ]]; then
+        # single source file
+        file=$item
+        CHECK=$file.check
+        OUT=$file.out
+        exe=${file%.*}.run
+        js=${file%.*}.js
+
+    else
+        continue
+    fi
+
     echo "testing $file"
-    CHECK=$file.check
-    OUT=$file.out
 
     # create empty check file
     if [ ! -f "$CHECK" ]; then
         touch "$CHECK"
     fi
 
-    exe=${file%.*}.run
-    js=${file%.*}.js
     bin/stki $file > $OUT 2>&1
     check $OUT $CHECK
 

@@ -2,7 +2,7 @@ import Sast.*
 import Symbols.*
 import Types.*
 import Inference.*
-import Positions.Span
+import Positions.*
 
 import scala.collection.mutable
 
@@ -20,14 +20,14 @@ class Checker:
     for check <- delayedChecks do check()
     delayedChecks.clear()
 
-  def checkBounds(tctor: TypeTree, targs: List[TypeTree])(using Reporter): Unit =
+  def checkBounds(tctor: TypeTree, targs: List[TypeTree])(using Reporter, Source): Unit =
     if !tctor.tpe.isTypeLambda then
       Reporter.error(s"Expect type lambda, found = ${tctor.tpe.show}", tctor.pos)
     else
       val tl = tctor.tpe.asTypeLambda
       checkBounds(tl.bounds, targs)
 
-  def checkBounds(bounds: List[Type], targs: List[TypeTree])(using Reporter): Unit =
+  def checkBounds(bounds: List[Type], targs: List[TypeTree])(using Reporter, Source): Unit =
     if bounds.size != targs.size then
       Reporter.error(s"Expect ${bounds.size} args, found = ${targs.size}", (targs.head.span | targs.last.span).toPos)
     else
@@ -41,7 +41,7 @@ class Checker:
         if !Subtyping.conforms(loActual, argType) then
           Reporter.error(s"Arg type ${argType.show} does not conform to bound = ${hi.show}, which expands to ${hiActual.show}", targ.pos)
 
-  def checkTypeApply(fun: Word, targs: List[TypeTree])(using Reporter): Word =
+  def checkTypeApply(fun: Word, targs: List[TypeTree])(using Reporter, Source): Word =
     if !fun.tpe.isPolyType then
       Reporter.error(s"Expect a poly function type, found = ${fun.tpe.show}", fun.pos)
       Phrase(words = Nil)(ErrorType, fun.span | targs.last.span)
@@ -55,54 +55,74 @@ class Checker:
         val tpe = TypeOps.substTypeParams(polyType.resultType, targs.map(_.tpe))
         TypeApply(fun, targs)(tpe, fun.span)
 
-  def checkType(tree: Tree, tp: Type)(using Reporter): Unit =
+  def checkType(tree: Tree, tp: Type)(using Reporter, Source): Unit =
     if !Subtyping.conforms(tree.tpe, tp) then
       Reporter.error(s"Expect type ${tp.show}, found = ${tree.tpe.show}", tree.pos)
 
-  def checkValueType(tree: Tree)(using Reporter): Unit =
-    checkValueType(tree.tpe, tree.span)
+  def checkValueType(tree: Tree)(using Reporter, Source): Unit =
+    checkValueType(tree.tpe, tree.pos)
 
-  def checkValueType(tp: Type, span: Span)(using Reporter): Type =
+  def checkValueType(tp: Type, pos: SourcePosition)(using Reporter): Type =
     if !tp.isValueType then
-      Reporter.error(s"Expect value type, found = ${tp.show}", span.toPos)
+      Reporter.error(s"Expect value type, found = ${tp.show}", pos)
       ErrorType
     else
       tp
 
-  def checkVoidOrValueType(tree: Tree)(using Reporter): Unit =
+  def checkVoidOrValueType(tree: Tree)(using Reporter, Source): Unit =
     if !tree.tpe.isVoidType then checkValueType(tree)
 
-  def checkMutable(sym: Symbol, span: Span)(using Reporter): Unit =
+  def checkMutable(sym: Symbol, pos: SourcePosition)(using Reporter): Unit =
     if !sym.isAllOf(Flags.Val | Flags.Mutable) then
-      Reporter.error(sym.name + " is not a mutable value", span.toPos)
+      Reporter.error(sym.name + " is not a mutable value", pos)
 
-  def checkRecordType(word: Word, field: String)(using Reporter): Word =
+  def checkTermMember(word: Word, member: String)(using Reporter, Source): Word =
     val tpe = word.tpe
     val pos = word.pos
-    if !tpe.isRecordType then
-      Reporter.error(s"Expect record type, found = ${tpe.show}", pos)
-      Phrase(Nil)(ErrorType, word.span)
-    else
-      val recordType = tpe.asRecordType
-      if !recordType.hasField(field) then
-        Reporter.error(s"Expect field $field in record type ${tpe.show}, found none", pos)
-        Phrase(Nil)(ErrorType, word.span)
-      else
-        word
+    tpe match
+      case TypeRef(sym) if sym.isNamespace =>
+        val nsInfo = sym.info.as[NamespaceInfo]
+        nsInfo.resolveTerm(member) match
+          case Some(_) =>
+            word
 
-  def checkInstantiated(tvar: TypeVar, span: Span)(using Reporter): Unit =
+          case None =>
+            Reporter.error(s"The namespace $sym does not contain the member $member", word.pos)
+            Phrase(Nil)(ErrorType, word.span)
+
+      case _ =>
+        if tpe.isError then
+          word
+        else if !tpe.isRecordType then
+          Reporter.error(s"Expect record type, found = ${tpe.show}", pos)
+          Phrase(Nil)(ErrorType, word.span)
+        else
+          val recordType = tpe.asRecordType
+          if !recordType.hasField(member) then
+            Reporter.error(s"Expect field $member in record type ${tpe.show}, found none", pos)
+            Phrase(Nil)(ErrorType, word.span)
+          else
+            word
+
+  def checkInstantiated(tvar: TypeVar, pos: SourcePosition)(using Reporter): Unit =
     if !tvar.isInstantiated then
-      Reporter.error("Cannot infer a type for type variable " + tvar, span.toPos)
+      Reporter.error("Cannot infer a type for type variable " + tvar, pos)
 
-  def commonResultType(tp1: Type, tp2: Type, span: Span)(using Reporter): Type =
+  def checkCapture(sym: Symbol, pos: SourcePosition)(using sc: Namer.Scope, rp: Reporter): Unit =
+    if sym.isAllOf(Flags.Val | Flags.Mutable) then
+      // check no capture of mutable local vars
+      if sc.owner.enclosingFunction != sym.enclosingFunction then
+        Reporter.error("Cannot capture local mutable variable " + sym.name, pos)
+
+  def commonResultType(tp1: Type, tp2: Type, pos: SourcePosition)(using Reporter): Type =
     val commonTypeOpt = TypeOps.commonResultType(tp1, tp2)
     commonTypeOpt match
       case Some(tp) => tp
       case None =>
-        Reporter.error(s"Cannot find common result type, tp1 = ${tp1.show}, tp2 = ${tp2.show}", span.toPos)
+        Reporter.error(s"Cannot find common result type, tp1 = ${tp1.show}, tp2 = ${tp2.show}", pos)
         ErrorType
 
-  def tagTypes(tag: Ast.Ident, unionType: Type, typeSpan: Span)(using Reporter): Option[List[Type]] =
+  def tagTypes(tag: Ast.Ident, unionType: Type, typeSpan: Span)(using Reporter, Source): Option[List[Type]] =
     if !unionType.isUnionType then
       Reporter.error(s"Expect union type, found = ${unionType.show}", typeSpan.toPos)
       None
@@ -115,7 +135,7 @@ class Checker:
         Some(unionType2.tagType(tag.name))
 
   /** Explicit drop of values in if/match expressions */
-  def adapt(word: Word, targetType: Type)(using Reporter): Word =
+  def adapt(word: Word, targetType: Type)(using Reporter, Source): Word =
     val curType = word.tpe
     if targetType.isVoidType && curType.isValueType then
       Sast.dropValue(word)
@@ -123,7 +143,7 @@ class Checker:
       checkType(word, targetType)
       word
 
-  def adapt(word: Word, targetType: TargetType)(using Reporter): Word =
+  def adapt(word: Word, targetType: TargetType)(using Reporter, Source): Word =
     def widen(): Word = word.tpe match
       case TypeRef(sym) if !sym.isType =>
         Encoded(word)(sym.info)
@@ -146,5 +166,5 @@ class Checker:
       case TargetType.Known(tpe) =>
         adapt(word, tpe)
 
-      case TargetType.Member(name) =>
-        checkRecordType(word, name)
+      case TargetType.TermMember(name) =>
+        checkTermMember(word, name)

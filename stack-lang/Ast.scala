@@ -14,6 +14,8 @@ object Ast:
 
   sealed abstract class Word extends Phrase
 
+  sealed abstract trait RefTree extends Word, TypeTree
+
   case class IntLit
     (value: Int)
     (val span: Span)
@@ -27,7 +29,7 @@ object Ast:
   case class Ident
     (name: String)
     (val span: Span)
-  extends Word, TypeTree
+  extends Word, RefTree
 
   case class Assign
     (ident: Ident, rhs: Word)
@@ -47,7 +49,7 @@ object Ast:
   case class Select
     (qual: Word, name: String)
     (val span: Span)
-  extends Word
+  extends Word, RefTree
 
   case class RecordLit
     (args: List[NamedArg])
@@ -143,7 +145,7 @@ object Ast:
     def name = tag.name
 
   case class AppliedType
-    (tpeCtor: Ident, targs: List[TypeTree])
+    (tpeCtor: RefTree, targs: List[TypeTree])
     (val span: Span)
   extends TypeTree:
     assert(targs.nonEmpty)
@@ -187,8 +189,26 @@ object Ast:
     (val span: Span)
   extends Phrase, Def
 
-  case class Prog(phrases: List[Phrase])(val span: Span) extends Tree:
-    lazy val defs: List[Def] =
-      phrases.collect: phrase =>
-        phrase match
-          case defn: Def => defn
+  case class Import
+    (qualid: RefTree)
+    (val span: Span)
+  extends Tree:
+    qualidWellFormed(qualid)
+
+  case class Namespace
+    (qualid: RefTree, imports: List[Import], defs: List[Def], source: String)
+    (val span: Span)
+  extends Tree:
+    qualidWellFormed(qualid)
+
+  def qualidWellFormed(qualid: RefTree): Unit =
+    qualid match
+      case _: Ident =>
+
+      case Select(qual, name) =>
+        qual match
+          case id: RefTree =>
+            qualidWellFormed(id)
+
+          case _ =>
+            throw new Exception("malformed qualid: " + qualid)

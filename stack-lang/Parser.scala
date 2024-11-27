@@ -7,6 +7,7 @@
 import scala.collection.mutable
 
 import Ast.*
+import Positions.*
 import Reporter.*
 import Tokens.*
 import Parser.SyntaxError
@@ -18,9 +19,17 @@ import Parser.SyntaxError
  ***********************************************************************/
 
 object Parser:
+  def parse(sourceFiles: List[String])(using Reporter): List[Namespace] =
+    for file <- sourceFiles yield
+      Reporter.source(file) |>
+      Parser.parse
+
   /** Parse the supplied code */
-  def parse(code: String)(using Reporter): Prog =
-    new Parser(code).parse()
+  def parse(source: Source)(using rp: Reporter): Namespace =
+    val name = IO.fileNameNoExt(source.file)
+    val defaultNamespace = Ident(name)(Positions.Span(0, 0))
+    val parser = new Parser(source.content)(using rp, source)
+    parser.parse(defaultNamespace)
 
    /** A scanner that supports peeking tokens ahead. */
   class LookAheadScanner(scanner: Scanner):
@@ -48,7 +57,7 @@ object Parser:
   class SyntaxError extends Exception
 end Parser
 
-class Parser(code: String)(using Reporter):
+class Parser(code: String)(using reporter: Reporter, source: Source):
   val scanner = new Parser.LookAheadScanner(new Scanner(code))
 
   def next(): TokenInfo = scanner.next()
@@ -83,17 +92,60 @@ class Parser(code: String)(using Reporter):
     if !reference.indent.isSame(item.indent) then
       warn(s"${item.token} is not aligned with ${reference.token}", item.span.toPos)
 
+  def repeated[T](parseItem: => Option[T]): List[T] =
+    val items = new mutable.ArrayBuffer[T]
+    var continue = true
+    while continue do
+      parseItem match
+        case Some(item) =>
+          items += item
 
-  def parse(): Prog =
-    val p = prog()
+        case None =>
+          continue = false
+    end while
+    items.toList
+
+  def parse(defaultNamespace: RefTree): Namespace =
+    val nspace = namespace(defaultNamespace)
     // With parsing errors, ensure finish scanning
-    while peek() != Token.EOF do next()
-    p
+    while peek() != Token.EOF do eat(Token.EOF)
+    nspace
 
-  def prog(): Prog =
-    val blk = block(Indent(line = -1, indent = -1))
-    eat(Token.EOF)
-    Prog(blk.phrases)(blk.span)
+  def namespace(defaultNamespace: RefTree): Namespace =
+    val item = peek()
+    val id =
+      item match
+        case Token.NSPACE =>
+          next()
+          qualid()
+        case _ => defaultNamespace
+
+    val imports = repeated:
+      if peek() == Token.IMPORT then Some(importStat())
+      else None
+
+    val defs = repeated:
+        if peek() == Token.TYPE then Some(typeDef())
+        else if peek() == Token.FUN then Some(funDef())
+        else None
+
+    val endSpan = if defs.isEmpty then id.span else defs.last.span
+
+    Namespace(id, imports, defs, source.file)(id.span | endSpan)
+
+  def qualid(): RefTree =
+    var qual: RefTree = ident()
+    while peek() == Token.DOT do
+      next()
+      val id = ident()
+      qual = Select(qual, id.name)(qual.span | id.span)
+
+    qual
+
+  def importStat(): Import =
+    val info = eat(Token.IMPORT)
+    val id = qualid()
+    Import(id)(info.span | id.span)
 
   def valDef(modifier: Token): ValDef =
     val mutable = modifier == Token.VAR
@@ -387,7 +439,7 @@ class Parser(code: String)(using Reporter):
         FunctionType(paramTypes = Nil, resType)(arrow.span | resType.span)
 
       case _ =>
-        val id = ident()
+        val id = qualid()
         if peek() == Token.LBRACKET then
           appliedType(id)
         else
@@ -405,7 +457,7 @@ class Parser(code: String)(using Reporter):
     val big = eat(Token.Ident(">"))
     UnionType(branchDecls)(less.span | big.span)
 
-  def appliedType(tctor: Ident): AppliedType =
+  def appliedType(tctor: RefTree): AppliedType =
     val targs = typeArgs()
     val last = targs.last
     AppliedType(tctor, targs.toList)(tctor.span | last.span)

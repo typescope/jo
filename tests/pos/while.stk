@@ -7,5 +7,6 @@ fun fact(n: Int): Int =
   end
   s
 
-fact 3 p
-fact 5 p
+fun main =
+  fact 3 p
+  fact 5 p

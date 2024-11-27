@@ -9,11 +9,12 @@ fun test2[X <: Int](x: X): Int = x
 fun swap[S, T](x: {a: S, b: T}): {a: T, b: S} =
   { a = x.b, b = x.a }
 
-ident[Int] 3 p
+fun main =
+  ident[Int] 3 p
 
-val x = { a = 4, b = false }
-val y = swap[Int, Bool] x
+  val x = { a = 4, b = false }
+  val y = swap[Int, Bool] x
 
-y.b p
+  y.b p
 
-foo[{a: Int}] x p
+  foo[{a: Int}] x p

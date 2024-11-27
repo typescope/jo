@@ -1,0 +1,6 @@
+namespace test
+
+import test.lib
+
+fun main =
+  lib.double 10 p

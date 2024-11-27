@@ -156,27 +156,18 @@ object Interpreter:
 
   //----------------------------------------------------------------------------
 
-  def exec(prog: Prog): Unit =
+  def exec(ns: Namespace): Unit =
     val rootScope = new Scope.RootScope()
 
     for (sym, op) <- primitiveOperators do
       rootScope.bind(sym, PrimAction(op))
 
     val sc = rootScope.fresh()
-    for case fdef: FunDef <- prog.phrases do
+    for case fdef: FunDef <- ns.defs do
       sc.bind(fdef.name, FunCall(fdef, sc))
 
-    val vs = new ValueStack
-    for phrase <- prog.phrases do
-      phrase match
-        case vdef: ValDef =>
-          exec(vdef.rhs)(using vs, sc)
-          sc.bind(vdef.name, vs.pop())
-
-        case fdef: FunDef =>
-
-        case _ =>
-          exec(phrase)(using vs, sc)
+    // TODO
+    ???
 
   def exec(expr: Expr)(using vs: ValueStack, sc: Scope): Unit =
     val vs2 = new ValueStack
@@ -321,7 +312,4 @@ object Interpreter:
  *
  ***********************************************************************/
 @main
-def eval(file: String) = Reporter.monitor(file):
-  IO.fileContent(file)        |>
-  Parser.parse                |>
-  Interpreter.exec
+def eval(file: String) = ???

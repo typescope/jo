@@ -1,37 +1,32 @@
+import Positions.*
+import Reporter.*
+import Diagnostics.*
+
 import scala.collection.mutable
 import scala.concurrent.{ ExecutionContext, Future, Await }
 import scala.concurrent.duration.*
 
 import java.util.concurrent.TimeoutException
 
-import Positions.{ Source, SourcePosition, SourceContext }
-import Reporter.{ ReportItem, Kind, FatalError }
-
 /**
   * Deals with error reporting
   */
 class Reporter(
-  val source: Source,                            // current source
-  reported: mutable.ArrayBuffer[ReportItem],     // reported items
+  reported: mutable.ArrayBuffer[Diagnostic],     // reported items
   buffer: Boolean,                               // whether buffer reports
-  sources: mutable.Map[String, Source])          // all sources
-extends SourceContext:
+  sources: mutable.Map[String, Source]           // all sources
+):
 
-  export source.addLineOffset
-
-  def withSource(file: String): Reporter =
+  def getSource(file: String): Source =
     sources.get(file) match
-      case Some(source) => new Reporter(source, reported, buffer, sources)
+      case Some(source) => source
       case None =>
         val source = new Source(file)
         sources(file) = source
-        new Reporter(source, reported, buffer, sources)
-
-  def withSource(source: Source): Reporter =
-    new Reporter(source, reported, buffer, sources)
+        source
 
   def fresh(buffer: Boolean = true): Reporter =
-    new Reporter(source, mutable.ArrayBuffer.empty, buffer, sources)
+    new Reporter(mutable.ArrayBuffer.empty, buffer, sources)
 
   def abort(message: String, pos: SourcePosition): Nothing =
     val error = new ReportItem(Kind.Error, message, pos)
@@ -40,7 +35,7 @@ extends SourceContext:
   def report(kind: Kind, message: String, pos: SourcePosition): Unit =
     report(new ReportItem(kind, message, pos))
 
-  def report(item: ReportItem): Unit =
+  def report(item: Diagnostic): Unit =
     reported += item
     if !buffer then
       println(item)
@@ -54,7 +49,7 @@ extends SourceContext:
 
   def hasErrors: Boolean = reported.exists(_.kind == Kind.Error)
 
-  def reports: List[ReportItem] = reported.toList
+  def reports: List[Diagnostic] = reported.toList
 
   def printSummary() =
     var errorCount = 0
@@ -80,36 +75,19 @@ extends SourceContext:
   end extension
 
 object Reporter:
-  /** Kind of reports */
-  enum Kind:
-    case Error, Warning, Info
-
-  class ReportItem(val kind: Kind, val message: String, val pos: SourcePosition):
-    override def toString() =
-      val isOneLine = pos.isOneLine
-      val lineContent = pos.source.readLine(pos.startLine).replaceAll("[\n\r]$", "")
-      val padding = " " * pos.startLineColumn
-      val num = if pos.length == 0 then 1 else pos.length
-      val pointer = if isOneLine then "^" * num  else "^"
-      s"""|---------- $kind at $pos ---------------
-          || $lineContent
-          || $padding$pointer
-          || $padding$message""".stripMargin
-
   /** A fatal error that aborts the compilation */
   enum FatalError extends Exception:
-    case CodeError(content: ReportItem)
+    case CodeError(content: Diagnostic)
     case InternalError(message: String)
     case StopAfterPhase()
 
-  def createReporter(file: String, buffer: Boolean = false): Reporter =
-    val source = new Source(file)
-    val sources = mutable.Map(file -> source)
-    val reported = new mutable.ArrayBuffer[ReportItem]
-    new Reporter(source, reported, buffer, sources)
+  def createReporter(buffer: Boolean = false): Reporter =
+    val sources = mutable.Map.empty[String, Source]
+    val reported = new mutable.ArrayBuffer[Diagnostic]
+    new Reporter(reported, buffer, sources)
 
-  def monitor[T](file: String)(fn: Reporter ?=> Unit): Unit =
-    val reporter = createReporter(file)
+  def monitor[T](fn: Reporter ?=> Unit): Unit =
+    val reporter = createReporter()
     try
       timeout(100) { fn(using reporter) }
     catch
@@ -139,4 +117,6 @@ object Reporter:
   def warn(message: String, pos: SourcePosition)(using rp: Reporter): Unit =
     rp.warn(message, pos)
 
-  def reports(using rp: Reporter): List[ReportItem] = rp.reports
+  def reports(using rp: Reporter): List[Diagnostic] = rp.reports
+
+  def source(file: String)(using rp: Reporter): Source = rp.getSource(file)

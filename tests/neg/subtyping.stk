@@ -8,4 +8,4 @@ type Y = {a: Int, b: X}
 
 fun test2(x: X): Y = x  // error
 
-1 p
+fun main = 1 p

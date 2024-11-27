@@ -11,27 +11,36 @@ import JSOptimized.encodeSymbolic
   * JavaScript platform with code optimization
   */
 class JSOptimized(outFile: String):
-  private  val uniqueName = new UniqueName
-  export uniqueName.freshName
+  private val unique = new UniqueName
+
+  val keywords = List(
+    "for", "while", "function", "var", "let", "break", "continue", "if",
+    "const", "class", "constructor", "with"
+  )
 
   // Make keywords unavailable
-  for word <- List(
-      "for", "while", "function", "var", "let", "break", "continue", "if",
-      "const", "class", "constructor", "with")
-  do
-    freshName(word)
+  for word <- keywords do unique.freshName(word)
 
-  private val symbol2UniqueName: mutable.Map[Symbol, String] = mutable.Map(
-    Predef.p -> "console.log"
-  )
+  private val symbol2UniqueName: mutable.Map[Symbol, String] =
+    mutable.Map(
+      Predef.p -> "console.log"
+    )
 
   def jsName(sym: Symbol): String =
     symbol2UniqueName.get(sym) match
       case Some(name) => name
 
       case None =>
-        val uniqueName = freshName(encodeSymbolic(sym.name))
+        assert(!sym.isPrimitive)
+
+        val rawName = if sym.isFunction then sym.fullName else sym.name
+        val uniqueName = unique.freshName(encodeSymbolic(rawName))
         symbol2UniqueName(sym) = uniqueName
+
+        // Add function to work list
+        if sym.isFunction then
+          workList.add(sym)
+
         uniqueName
 
   //----------------------------------------------------------------------------
@@ -41,8 +50,6 @@ class JSOptimized(outFile: String):
     compile(word)(using ctx)
 
   given Text.Maker[Symbol] = sym => Text(jsName(sym))
-
-  given Text.Maker[FunDef] = fdef => compile(fdef)
 
   given Text.Maker[ValDef] = vdef => "var " ~ vdef.symbol ~ ";"
 
@@ -67,19 +74,31 @@ class JSOptimized(outFile: String):
             c(t :: ts)
 
   //----------------------------------------------------------------------------
+  val workList = new WorkList[Symbol]
 
-  def compile(prog: Prog): Unit =
+  def compile(nss: List[Namespace], main: Symbol): Unit =
     val pw =  new PrintWriter(outFile)
 
-    val globals = rep(prog.vals, Text.BreakLine)
-    val funs = rep(prog.funs, Text.BlankLine)
+    workList.add(main)
 
-    val text =
-      "(function() {" ~ indent:
-           globals ~ Text.BreakLine ~ funs ~ Text.BreakLine ~ prog.entry ~ ";"
-      ~ "})()"
+    val symbolDefMap = mutable.Map.empty[Symbol, FunDef]
+    for
+      ns <- nss
+      case fdef: FunDef <- ns.defs
+    do
+      symbolDefMap(fdef.symbol) = fdef
 
-    pw.append(text.toString)
+    pw.append("(function() {")
+
+    workList.run: funSym =>
+      val funText = indent(Text.BreakLine ~ compile(symbolDefMap(funSym)))
+      pw.append(funText.toString)
+
+    val mainCall = indent(Text.BreakLine ~ main ~ "();")
+    pw.append(mainCall.toString)
+
+    pw.append("})()")
+
     pw.close()
 
   def compile(word: Word)(using Context): Text =
@@ -139,7 +158,7 @@ class JSOptimized(outFile: String):
       case If(cond, thenp, elsep) =>
         cont(cond): v =>
           if word.tpe.isValueType then
-            val resName = freshName("res")
+            val resName = unique.freshName("res")
             "var " ~ resName ~ ";" ~ Text.BreakLine ~
             "if (" ~ v ~ ")" ~ " {" ~ indent:
                 cont(thenp): v =>
@@ -169,10 +188,7 @@ class JSOptimized(outFile: String):
       case _: ValDef | _: FunDef | _: TypeDef =>
         throw new Exception("Unexpected " + word)
 
-  /** Compile a function
-    *
-    * Calling the passed function will compile the body of the function.
-    */
+  /** Compile a function */
   def compile(fdef: FunDef): Text =
     val sym = fdef.symbol
 
@@ -182,7 +198,7 @@ class JSOptimized(outFile: String):
     // create the name outside of the new scope to avoid conflicting names
     val jsFunName = jsName(sym)
 
-    uniqueName.newScope:
+    unique.newScope:
       val locals = fdef.locals.filter(_.isMutable).map("var " ~ _ ~ ";" ~ Text.BreakLine)
       "function " ~ jsFunName ~ "(" ~ rep(fdef.params, Text(", ")) ~ ")" ~ " {" ~ indent:
           if resCount == 0 then
@@ -214,10 +230,7 @@ class JSOptimized(outFile: String):
     cont(arg): v =>
       Predef.p ~ "(" ~ rep(args, Text(", "))  ~ ");" ~ cont()
 
-  /**
-    * Compile a primitive
-    *
-    */
+  /** Compile a primitive */
   def primitive(sym: Symbol, args: List[Word])(using Context): Text =
     def binary(op: String): Text =
       val a :: b :: Nil = args: @unchecked
@@ -262,22 +275,24 @@ object JSOptimized:
     if isDigit(c) || isLetter(c) || c == '_' then
       c.toString
     else
-      val base = c match
-        case '+' => "plus"
-        case '-' => "minus"
-        case '*' => "mul"
-        case '/' => "div"
-        case '%' => "mod"
-        case '|' => "or"
-        case '&' => "and"
-        case '^' => "xor"
-        case '>' => "gt"
-        case '<' => "lt"
-        case '=' => "eq"
-        case '!' => "not"
-        case '$' => "dollar"
+      extension (base: String) def wrap: String = "_" + base + "_"
+
+      c match
+        case '+' => "plus".wrap
+        case '-' => "minus".wrap
+        case '*' => "mul".wrap
+        case '/' => "div".wrap
+        case '%' => "mod".wrap
+        case '|' => "or".wrap
+        case '&' => "and".wrap
+        case '^' => "xor".wrap
+        case '>' => "gt".wrap
+        case '<' => "lt".wrap
+        case '=' => "eq".wrap
+        case '!' => "not".wrap
+        case '$' => "dollar".wrap
+        case '.' => "_"
         case _   => throw new Exception("Not supported, c = " + c)
-      "_" + base + "_"
 
   def isDigit(c: Char): Boolean =
     c >= '0' && c <= '9'

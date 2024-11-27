@@ -10,6 +10,7 @@ fun list[T](a: T, b: T): List[T] =
 fun left[U, V](a: U): Either[U, V] = #Left(a)
 fun right[X, Y](a: Y): Either[X, Y] = #Right(a)
 
-list
-  left  { b = 3 }
-  right { c = 3 }
+fun main =
+  list
+    left  { b = 3 }
+    right { c = 3 }

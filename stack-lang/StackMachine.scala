@@ -19,10 +19,25 @@ class StackMachine(
   import registerConfig.{ FP_REG, SP_REG, FREE_REGS }
 
 
-  type Context = CodeBuffer
+  type Context = StackMachine.Context
 
-  /** Maps symbols to addresses */
-  val symbolAddrMap: mutable.Map[Symbol, Addr] = mutable.Map.from(nativeFunctions)
+  /** Maps functions to addresses */
+  val funLabelMap: mutable.Map[Symbol, Label] = mutable.Map.from(nativeFunctions)
+
+  def getAddress(sym: Symbol): Label =
+    assert(sym.isFunction || funLabelMap.contains(sym), "Not a function, sym = " + sym)
+
+    funLabelMap.get(sym) match
+      case Some(addr) => addr
+
+      case None =>
+        val label = Label(sym.name)
+        funLabelMap(sym) = label
+
+        // Add function to work list
+        if !sym.isPrimitive then workList.add(sym)
+
+        label
 
   /** Program entry pointer */
   val entry = Label("_entry")
@@ -32,28 +47,34 @@ class StackMachine(
 
   export regAlloc.{ useReg, useTwoReg }
 
-  def cb(using ctx: Context): CodeBuffer = ctx
+  def cb(using ctx: Context): CodeBuffer = ctx.cb
 
-  def compile(prog: Sast.Prog): Unit =
-    given Context = new CodeBuffer(entry)
+  def ctx(using ctx: Context): Context = ctx
 
-    for fun <- prog.funs do
-      symbolAddrMap(fun.symbol) = Label(fun.name)
+  val workList = new WorkList[Symbol]
 
-    for ValDef(sym, _) <- prog.vals do
-      val label = Label(sym.name)
-      symbolAddrMap(sym) = label
-      cb.add(Data.Uninit(label, Assembly.Type.Int32))
+  def compile(nss: List[Namespace], main: Symbol): Unit =
+    val cb = new CodeBuffer(entry)
 
-    // Compile functions
-    for fun <- prog.funs do
-      compile(fun)
+    workList.add(main)
 
+    val symbolDefMap = mutable.Map.empty[Symbol, FunDef]
+    for
+      ns <- nss
+      case fdef: FunDef <- ns.defs
+    do
+      symbolDefMap(fdef.symbol) = fdef
+
+    workList.run: sym =>
+      val fun = symbolDefMap(sym)
+      compile(fun, cb)
+
+    given Context = new Context(cb, Map.empty)
     // Stack pointer is initialized by the kernel, initialize frame pointer
     cb.mark(this.entry)
     cb.add(Instr.Sub(Reg(SP_REG), Int32(4), SP_REG))
     genAllocator()
-    compile(prog.entry)
+    call(main)
     exit(Int32(0))
 
     // generate code
@@ -91,44 +112,36 @@ class StackMachine(
       case _: ValDef | _: FunDef | _: TypeDef =>
         throw new Exception("Unexpected " + word)
 
-  /** Compile a function
-    *
-    * Calling the passed function will compile the body of the function.
-    */
-  def compile(fdef: FunDef)(using Context): Unit =
+  /** Compile a function */
+  def compile(fdef: FunDef, cb: CodeBuffer): Unit =
     val sym = fdef.symbol
     val funType = TypeOps.erasePolyType(sym.info).asProcType
 
-    val label = symbolAddrMap(sym).asInstanceOf[Label]
+    val label = getAddress(sym)
 
     val paramCount = funType.paramCount
     val resCount = funType.resCount
 
     cb.mark(label)
 
+    val symAddrMap = mutable.Map.empty[Symbol, Addr]
+
     // bind param address relative to FP_REG
     for (param, index) <- fdef.params.zipWithIndex do
       val offset = (paramCount + 1 - index) << 2
-      symbolAddrMap(param) = Rel(FP_REG, offset)
+      symAddrMap(param) = Rel(FP_REG, offset)
 
     // the ordering does not matter
     for (local, index) <- fdef.locals.zipWithIndex do
       val offset = -(index + 1) << 2
-      symbolAddrMap(local) = Rel(FP_REG, offset)
+      symAddrMap(local) = Rel(FP_REG, offset)
 
     val sizeLocals = fdef.locals.size << 2
     cb.add(Instr.Move(Reg(SP_REG), FP_REG))
     cb.add(Instr.Sub(Reg(SP_REG), Int32(sizeLocals), SP_REG))
 
-    compile(fdef.body)
-    ret(resCount)
-
-    for param <- fdef.params do
-      symbolAddrMap -= param
-
-    for local <- fdef.locals do
-      symbolAddrMap -= local
-
+    compile(fdef.body)(using new Context(cb, symAddrMap.toMap))
+    ret(resCount, cb)
 
   def compile(ifword: If)(using Context): Unit =
     val labelFalse = Label("_false")
@@ -178,9 +191,9 @@ class StackMachine(
 
   /** Return from a procedure or function.
     *
-    * Call stack goes from high address to low address.
+    * Stack goes from high address to low address.
     */
-  def ret(resCount: Int)(using Context) =
+  def ret(resCount: Int, cb: CodeBuffer) =
     var i = resCount - 1
     while i >= 0 do
       val src = Rel(SP_REG, i << 2)
@@ -222,7 +235,7 @@ class StackMachine(
     *  └─────────────┘ ◄─────── SP
     */
   def call(fun: Symbol)(using Context): Unit =
-    val addr = symbolAddrMap(fun).asInstanceOf[Label]
+    val addr = getAddress(fun)
     val funType = TypeOps.erasePolyType(fun.info).asProcType
     val argCount = funType.paramCount
     val resCount = funType.resCount
@@ -263,12 +276,9 @@ class StackMachine(
         cb.add(Instr.Store(Reg(r), dest))
         i += 1
 
-  /** Initialize a value definition
-    *
-    * Calling the passed function will compile the initializer.
-    */
+  /** Initialize a value definition */
   def compile(assign: Assign)(using Context): Unit =
-    val addr = symbolAddrMap(assign.symbol)
+    val addr = ctx.symbolAddrMap(assign.symbol)
     compile(assign.rhs)
     useReg: r =>
       pop(r)
@@ -276,7 +286,10 @@ class StackMachine(
 
   /** Compile a reference */
   def compile(ref: Ident)(using Context): Unit =
-    val addr = symbolAddrMap(ref.symbol)
+    val addr =
+      if ref.symbol.isLocal then ctx.symbolAddrMap(ref.symbol)
+      else getAddress(ref.symbol)
+
     if ref.symbol.isValue then
       useReg: r =>
         cb.add(Instr.Load(addr, r))
@@ -332,7 +345,7 @@ class StackMachine(
     * TODO: implement it in Stk.
     */
   def genAllocator()(using Context): Unit =
-    val allocLabel = symbolAddrMap(Predef.allocate).asInstanceOf[Label]
+    val allocLabel = getAddress(Predef.allocate)
 
     val initBreakLabel = Label("init_break")
     val curBreakLabel = Label("current_break")
@@ -386,37 +399,29 @@ class StackMachine(
     cb.add(Instr.Jump(Reg(X86.EBX)))
     cb.mark(allocEndLabel)
 
-  /** Allocate a block of memory and push the start address onto value stack.
-    */
+  /** Allocate a block of memory and push the start address onto stack */
   def alloc(size: Int)(using Context): Unit =
     push(size)
     call(Predef.allocate)
 
-  /** Pop the value on the top of the value stack to the given register.
-    *
-    * Value stack goes from low address to high address.
-    */
+  /** Pop the value on the top of the stack to the given register */
   def pop(destReg: Int)(using Context) =
     cb.add(Instr.Load(Reg(SP_REG), destReg))
     cb.add(Instr.Add(Reg(SP_REG), Int32(4), SP_REG))
 
-  /**
-    * Pop the value on the top of the value stack without using it.
-    */
+  /** Pop the value on the top of the stack without using it */
   def pop()(using Context) =
     cb.add(Instr.Add(Reg(SP_REG), Int32(4), SP_REG))
 
-  /**
-    * Push value or address on the value stack.
-    */
+  /** Push value or address on the stack */
   def push(v: Value)(using Context) =
     cb.add(Instr.Sub(Reg(SP_REG), Int32(4), SP_REG))
     cb.add(Instr.Store(v, Reg(SP_REG)))
 
-  /** Push an integer literal to value stack */
+  /** Push an integer literal to stack */
   def push(v: Int)(using Context): Unit = push(Int32(v))
 
-  /** Push a Boolean literal to value stack */
+  /** Push a Boolean literal to stack */
   def push(v: Boolean)(using Context): Unit =
     push(Int32(if v then 1 else 0))
 
@@ -451,7 +456,7 @@ class StackMachine(
       loadValue(r, 0)
       push(Reg(r))
 
-  /** Load a value in value stack relative to the stack pointer.
+  /** Load a value on stack relative to the stack pointer.
     *
     * The index begins from 0.
     */
@@ -459,7 +464,7 @@ class StackMachine(
     val addr = Rel(SP_REG, index << 2)
     cb.add(Instr.Load(addr, destReg))
 
-  /** Store a value to value stack relative to the stack pointer.
+  /** Store a value to stack relative to the stack pointer.
     *
     * The index begins from 0.
     */
@@ -499,12 +504,14 @@ class StackMachine(
 end StackMachine
 
 object StackMachine:
+  class Context(val cb: CodeBuffer, val symbolAddrMap: Map[Symbol, Addr])
+
   /**
     * A simple register allocator.
     *
     * @param freeRegs All registers for temporary usage in a processor.
     *
-    * The registers reserved for call stack pointer and value stack pointer are excluded.
+    * The registers reserved for stack pointer are excluded.
     */
   class RegisterAllocator(freeRegs: List[Int]):
     var freeIndex = 0

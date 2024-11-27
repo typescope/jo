@@ -28,6 +28,7 @@ fun primeUntil(until: Int): Void =
     end
     cur = cur + 1
 
-prime #Cons(2, #Nil) 3 100
+fun main =
+  prime #Cons(2, #Nil) 3 100
 
-primeUntil 100
+  primeUntil 100

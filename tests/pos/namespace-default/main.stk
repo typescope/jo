@@ -1,0 +1,6 @@
+import test
+
+fun concat(a: Int, l: test.List[Int]): test.List[Int] = #Cons(a, l)
+
+fun main =
+  test.double 10 p
