@@ -808,8 +808,6 @@ class Namer(@constructorOnly reporter: Reporter):
         Reporter.abort("Unexpected empty type tree", tpt.pos)
 
 object Namer:
-  val errorSymbol = Symbol.createFunSymbol("error", ErrorType, pos = null)
-
   def transform(using reporter: Reporter): List[Ast.Namespace] => List[Namespace] =
     new Namer(reporter).transform
 
@@ -867,7 +865,7 @@ object Namer:
         case Some(sym) => sym
         case None =>
           Reporter.error("Undefined identifier " + name, pos)
-          errorSymbol
+          Symbol.createFunSymbol(name, ErrorType, pos)
 
     def define(sym: Symbol)(using Reporter): Unit =
       table.define(sym)
