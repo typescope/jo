@@ -26,7 +26,7 @@ object ElimCapture:
     given ctx: Context = new Context
     val defs =
       for defn <- ns.defs yield
-        treeMap.recur(defn)(using ctx.withOwner(defn.symbol))
+        treeMap.recur(defn)
 
     // Enter names to name table of the namespace
     for fdef <- ctx.lifted do ns.info.define(fdef.symbol)
@@ -68,13 +68,13 @@ object ElimCapture:
         // locals.
         for
           capture <- captures
-          if capture.isAllOf(Flags.Local | Flags.Val) && !all.contains(capture)
+          if capture.is(Flags.Val) && capture.isLocal && !all.contains(capture)
         do
           all += capture
 
         for
           capture <- captures
-          if capture.isAllOf(Flags.Local | Flags.Fun)
+          if capture.is(Flags.Fun) && capture.isLocal
         do
           recur(capture)
     end recur
@@ -83,8 +83,12 @@ object ElimCapture:
   end transitiveCapture
 
   private def makeFunInfo(fdef: FunDef)(using ctx: Context): FunInfo =
+    val oldFunSym = fdef.symbol
     val captures = transitiveCapture(fdef.symbol)
-    // Cannot have same names in the symbol --- they must be the same symbol
+    // Cannot have same names in the captured symbol
+    assert(
+      captures.size == captures.map(_.name).toSet.size,
+      "[Internal error] captured different variables with same name")
 
     val tparamInfos = fdef.tparams.map(tparam => NamedInfo(tparam.name, tparam.info.as[TypeBound]))
     val paramInfos = fdef.params.map(_.toNamedInfo)
@@ -98,7 +102,7 @@ object ElimCapture:
       funType = PolyType(tparamInfos, funType)
 
     val funName = ctx.flatName(fdef.symbol)
-    val funSym = Symbol.createFunSymbol(funName, funType, fdef.symbol.sourcePos)
+    val funSym = Symbol.createFunSymbol(funName, funType, oldFunSym.enclosingNamespace, oldFunSym.sourcePos)
     FunInfo(funSym, captures)
 
   private def createEnvRecord(captures: List[Symbol], span: Span)(using Context): RecordLit =
@@ -119,7 +123,6 @@ object ElimCapture:
   case class FunInfo(newFunSym: Symbol, captures: List[Symbol])
 
   class Context(
-      val owners: List[Symbol],                 // symbols of enclosing functions
       val funInfos: Map[Symbol, FunInfo],       // rewiring of funs
       val rewiring: Map[Symbol, Symbol],        // rewiring of locals
       val captures: Map[Symbol, List[Symbol]],  // captured locals in a function
@@ -128,23 +131,21 @@ object ElimCapture:
     ):
 
 
-    def this() = this(Nil, Map.empty, Map.empty, Map.empty, new mutable.ArrayBuffer, new UniqueName)
+    def this() = this(Map.empty, Map.empty, Map.empty, new mutable.ArrayBuffer, new UniqueName)
 
     def withFun(fdef: FunDef): Context =
-      new Context(owners, funInfos, rewiring, captures.updated(fdef.symbol, fdef.captures), lifted, uniq)
+      new Context(funInfos, rewiring, captures.updated(fdef.symbol, fdef.captures), lifted, uniq)
 
     def withRewire(from: Symbol, to: Symbol): Context =
-      new Context(owners, funInfos, rewiring.updated(from, to), captures, lifted, uniq)
+      new Context(funInfos, rewiring.updated(from, to), captures, lifted, uniq)
 
     def withFunInfo(fun: Symbol, info: FunInfo): Context =
-      new Context(owners, funInfos.updated(fun, info), rewiring, captures, lifted, uniq)
-
-    def withOwner(fun: Symbol): Context =
-      new Context(fun :: owners, funInfos, rewiring, captures, lifted, uniq)
+      new Context(funInfos.updated(fun, info), rewiring, captures, lifted, uniq)
 
     def flatName(fun: Symbol): String =
-      assert(owners.nonEmpty, fun.name)
-      owners.foldLeft(fun.name) { (acc, owner) => uniq.freshName(owner.name + "$" + acc) }
+      val name = fun.ownersIterator.foldLeft(fun.name): (acc, owner) =>
+        if owner.isFunction then acc + "$" + owner.name else acc
+      uniq.freshName(name)
 
     def show: String =
       " { rewires: " + rewiring.toString + ", captures: " + captures + "}"
@@ -179,17 +180,17 @@ object ElimCapture:
       val locals = mutable.ArrayBuffer.from(fdef.locals)
 
       val envType = RecordType(captures.map(_.toNamedInfo))
-      val envSym = Symbol.createValueSymbol(EnvParamName, envType, Flags.Local, fdef.symbol.sourcePos)
+      val envSym = Symbol.createValueSymbol(EnvParamName, envType, funSym, fdef.symbol.sourcePos)
 
       var ctx2 = ctx
       for capture <- captures do
-        val subst = Symbol.createValueSymbol(capture.name, capture.info, Flags.Local, capture.sourcePos)
+        val subst = Symbol.createValueSymbol(capture.name, capture.info, funSym, capture.sourcePos)
         locals += subst
         ctx2 = ctx2.withRewire(capture, subst)
         val rhs = Select(Ident(envSym)(fdef.span), capture.name)(capture.info, fdef.span)
         bodyItems += Assign(subst, rhs)(rhs.span)
 
-      bodyItems += this(fdef.body)(using ctx2.withOwner(fdef.symbol))
+      bodyItems += this(fdef.body)(using ctx2)
       val body = Phrase(bodyItems.toList)(fdef.body.tpe, fdef.body.span)
       val params = fdef.params :+ envSym
       ctx.lifted += FunDef(funSym, fdef.tparams, params, body)
@@ -222,7 +223,7 @@ object ElimCapture:
                 Apply(fun2, args2)(word.tpe, word.span)
 
         case Ident(sym) =>
-          if sym.isAllOf(Flags.Fun | Flags.Local) then
+          if sym.is(Flags.Fun) && sym.isLocal then
             // local function reference
             val FunInfo(subst, captures) = ctx.funInfos(sym)
             val funRef2 = Ident(subst)(word.span)
@@ -236,8 +237,8 @@ object ElimCapture:
             Ident(ctx.rewiring.getOrElse(sym, sym))(word.span)
 
         case fdef: FunDef =>
-          if ctx.owners.nonEmpty then lift(fdef)
-          else recur(fdef)(using ctx.withOwner(fdef.symbol))
+          if fdef.symbol.isLocal then lift(fdef)
+          else recur(fdef)
 
         case Phrase(words) =>
           var ctx2 = ctx

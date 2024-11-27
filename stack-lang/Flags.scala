@@ -8,15 +8,12 @@ object Flags:
   val Type    : Flag = 1 << 3
   val NSpace  : Flag = 1 << 4
 
-  // common flags
-  val Local   : Flag = 1 << 5
-
   // val flags
-  val Param   : Flag = 1 << 6
-  val Mutable : Flag = 1 << 7
+  val Param   : Flag = 1 << 5
+  val Mutable : Flag = 1 << 6
 
   // namespace flags
-  val Branch  : Flag = 1 << 6
+  val Branch  : Flag = 1 << 5
 
   val empty   : Flags = 0
 

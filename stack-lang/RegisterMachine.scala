@@ -26,7 +26,7 @@ class RegisterMachine(
     *
     * Its type does not matter.
     */
-  val returnAddrSym = Symbol.createParamSymbol("return", IntType, pos = null)
+  val returnAddrSym = Symbol.createParamSymbol("return", IntType, owner = Predef.predefSym, pos = null)
 
   /** Maps function symbols to addresses */
   val funLabelMap: mutable.Map[Symbol, Label] = mutable.Map.from(nativeFunctions)

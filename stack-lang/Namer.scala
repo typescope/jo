@@ -24,18 +24,18 @@ class Namer(@constructorOnly reporter: Reporter):
 
   def transform(nss: List[Ast.Namespace])(using rp: Reporter): List[Namespace] =
     // All namespace are located in the scope
-    val allNamespaces = new Scope.RootScope(new NameTable)
+    val rootNamespaceScope = new Scope.RootScope(new NameTable, owner = null)
 
     // Predef names are by-default accessible. However, other namespaces are not
     // accessible unless explicitly imported.
-    val predefScope: Scope = new Scope.RootScope(Predef.nameTable)
+    val predefScope: Scope = new Scope.RootScope(Predef.nameTable, owner = null)
 
     val delayedNamespaces = new mutable.ArrayBuffer[() => Namespace]
 
     for ns <- nss do
       given source: Source = Reporter.source(ns.source)
 
-      val nsSym = resolveNamespace(ns.qualid, isBranch = false)(using allNamespaces)
+      val nsSym = resolveNamespace(ns.qualid, isBranch = false)(using rootNamespaceScope)
       val nsInfo = nsSym.info.as[NamespaceInfo]
 
       val importScope: Scope = predefScope.fresh(nsSym)
@@ -50,7 +50,7 @@ class Namer(@constructorOnly reporter: Reporter):
         val imports = new mutable.ArrayBuffer[Symbol]
         for imp <- ns.imports do
           // TODO: what about type names?
-          given Scope = allNamespaces
+          given Scope = rootNamespaceScope
           val sym = resolveGlobal(imp.qualid, isType = false)
 
           if sym.isAllOf(Flags.NSpace | Flags.Branch) then
@@ -77,18 +77,18 @@ class Namer(@constructorOnly reporter: Reporter):
   def resolveNamespace(qualid: Ast.RefTree, isBranch: Boolean)(using sc: Scope, rp: Reporter, so: Source): Symbol =
     def check(sym: Symbol): Symbol =
       val name = sym.name
-      val file = sym.sourcePos.source.file
-      if sym.isAllOf(Flags.NSpace) then
-        if isBranch && !sym.isAllOf(Flags.Branch) then
-          rp.error(s"The $name is already defined as a namespace in $file", qualid.pos)
+      val pos = sym.sourcePos
+      if sym.isNamespace then
+        if isBranch && !sym.is(Flags.Branch) then
+          rp.error(s"The $name is already defined as a namespace at $pos", qualid.pos)
           sym
 
         else if !isBranch then
           // leaf namespace should not exist
-          if sym.isAllOf(Flags.Branch) then
-            rp.error(s"The namespace $name is already defined as a branch name in $file", qualid.pos)
+          if sym.is(Flags.Branch) then
+            rp.error(s"The namespace $name is already defined as a branch name at $pos", qualid.pos)
           else
-            rp.error(s"The namespace $name is already defined in $file", qualid.pos)
+            rp.error(s"The namespace $name is already defined at $pos", qualid.pos)
 
           sym
 
@@ -96,29 +96,29 @@ class Namer(@constructorOnly reporter: Reporter):
           sym
 
       else
-        rp.error(s"The $name is already defined as a member in $file", qualid.pos)
-        Symbol.createNamespaceSymbol(sym.name, new NamespaceInfo, qualid.pos, isBranch)
+        rp.error(s"The $name is already defined as a member at $pos", qualid.pos)
+        Symbol.createNamespaceSymbol(sym.name, new NamespaceInfo, sym.owner, qualid.pos, isBranch)
 
     qualid match
       case Ast.Select(qual, name) =>
         assert(qual.isInstanceOf[Ast.RefTree], "Unexpected qualid = " + qualid)
-        val sym = resolveNamespace(qual.asInstanceOf[Ast.RefTree], isBranch = true)
+        val nsSym = resolveNamespace(qual.asInstanceOf[Ast.RefTree], isBranch = true)
 
-        assert(sym.isNamespace, "Not a namespace " + sym)
-        val nsInfo = sym.info.as[NamespaceInfo]
+        assert(nsSym.isNamespace, "Not a namespace " + nsSym)
+        val nsInfo = nsSym.info.as[NamespaceInfo]
 
         nsInfo.resolveTerm(name) match
           case Some(sym) => check(sym)
 
           case None =>
-            val sym = Symbol.createNamespaceSymbol(name, new NamespaceInfo, qualid.pos, isBranch)
+            val sym = Symbol.createNamespaceSymbol(name, new NamespaceInfo, nsSym, qualid.pos, isBranch)
             nsInfo.define(sym)
             sym
 
       case Ast.Ident(name) =>
         sc.resolve(name, isType = false) match
           case None =>
-            val sym = Symbol.createNamespaceSymbol(name, new NamespaceInfo, qualid.pos, isBranch)
+            val sym = Symbol.createNamespaceSymbol(name, new NamespaceInfo, sc.owner, qualid.pos, isBranch)
             sc.define(sym)
             sym
 
@@ -139,19 +139,19 @@ class Namer(@constructorOnly reporter: Reporter):
 
             case None =>
               rp.error(s"Member named $name not found in the namespace ${sym.name}", qualid.pos)
-              Symbol.createFunSymbol(name, ErrorType, pos = qualid.pos)
+              Symbol.createFunSymbol(name, ErrorType, sym, pos = qualid.pos)
 
         else
           if !sym.info.isError then
             rp.error("Not a namespace, only a namespace can be selected", qual.pos)
-          Symbol.createFunSymbol(name, ErrorType, pos = qualid.pos)
+          Symbol.createFunSymbol(name, ErrorType, sym, pos = qualid.pos)
 
       case Ast.Ident(name) =>
         sc.resolve(name, isType) match
           case Some(sym) => sym
           case None =>
             rp.error(s"The name $name is not found", qualid.pos)
-            Symbol.createFunSymbol(name, ErrorType, pos = qualid.pos)
+            Symbol.createFunSymbol(name, ErrorType, sc.owner, pos = qualid.pos)
 
   private def index(defs: List[Ast.Def])(using sc: Scope, rp: Reporter, so: Source): List[DelayedDef[Def]] =
     val delayedDefs = new mutable.ArrayBuffer[DelayedDef[Def]]
@@ -180,11 +180,9 @@ class Namer(@constructorOnly reporter: Reporter):
   end index
 
   private def checkCapture(sym: Symbol, span: Span)(using sc: Scope, rp: Reporter, so: Source): Unit =
-    if sym.isAllOf(Flags.Val | Flags.Mutable | Flags.Local) then
+    if sym.isAllOf(Flags.Val | Flags.Mutable) then
       // check no capture of mutable local vars
-      val ownerFunOpt = sc.owningFunctionOf(sym)
-      val curFunOpt = sc.owningFunction
-      if ownerFunOpt != curFunOpt then
+      if sc.owner != sym.owner then
         Reporter.error("Cannot capture local mutable variable " + sym.name, span.toPos)
 
   def transform(block: Ast.Block)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
@@ -395,7 +393,7 @@ class Namer(@constructorOnly reporter: Reporter):
     val scrutinee2 = transform(scrutinee)(using sc, rp, so, TargetType.ValueType)
 
     val scrutType = scrutinee2.tpe
-    val scrutSym = Symbol.createValueSymbol("scrutinee", scrutType, Flags.Local, scrutinee2.pos)
+    val scrutSym = Symbol.createValueSymbol("scrutinee", scrutType, sc.owner, scrutinee2.pos)
     val scrutIdent = Ident(scrutSym)(scrutinee.span)
     val bind = ValDef(scrutSym, scrutinee2)(scrutinee.span)
     sc2.define(scrutSym)
@@ -471,7 +469,7 @@ class Namer(@constructorOnly reporter: Reporter):
           val vals = mutable.ArrayBuffer.empty[ValDef]
           for (binding, i) <- bindings.zipWithIndex do
             val arg = Desugaring.selectVariantArg(encodedScrut, i, binding.span)
-            val sym = Symbol.createValueSymbol(binding.name, arg.tpe, Flags.Local, arg.pos)
+            val sym = Symbol.createValueSymbol(binding.name, arg.tpe, sc.owner, arg.pos)
             vals += ValDef(sym, arg)(binding.span)
             caseScope.define(sym)
 
@@ -504,7 +502,7 @@ class Namer(@constructorOnly reporter: Reporter):
          Reporter.error(s"Expect a function with $expect parameters, found = ${params.size}", lambda.pos)
          return Phrase(words = Nil)(ErrorType, lambda.span)
 
-     val funSym = Symbol.createFunSymbol("anon", this.nonCyclicTypeProvider, Flags.Local, lambda.pos)
+     val funSym = Symbol.createFunSymbol("anon", this.nonCyclicTypeProvider, sc.owner, lambda.pos)
      val lambdaScope = sc.fresh(funSym)
 
      val tvars = new mutable.ArrayBuffer[(TypeVar, Ast.Param)]
@@ -520,7 +518,7 @@ class Namer(@constructorOnly reporter: Reporter):
      val paramSyms =
       for (param, i) <- params.zipWithIndex yield
         val tp = if param.typ.isEmpty then inferParamType(i) else transformType(param.typ).tpe
-        val paramSym = Symbol.createParamSymbol(param.name, tp, param.pos)
+        val paramSym = Symbol.createParamSymbol(param.name, tp, funSym, param.pos)
         lambdaScope.define(paramSym)
         paramSym
 
@@ -544,14 +542,9 @@ class Namer(@constructorOnly reporter: Reporter):
      Phrase(funDef :: ref :: Nil)(lambdaType, lambda.span)
 
   private def transform(vdef: Ast.ValDef)(using sc: Scope, rp: Reporter, so: Source): DelayedDef[ValDef] =
-    var flags: Flags = Flags.empty
-    if vdef.mutable then
-      flags = flags | Flags.Mutable
+    val flags: Flags = if vdef.mutable then Flags.Mutable else Flags.empty
 
-    if sc.isLocalScope then
-      flags = flags | Flags.Local
-
-    val sym = Symbol.createValueSymbol(vdef.name, this.nonCyclicTypeProvider, flags, vdef.ident.pos)
+    val sym = Symbol.createValueSymbol(vdef.name, this.nonCyclicTypeProvider, flags, sc.owner, vdef.ident.pos)
 
     lazy val givenType: Type =
       val tpt = transformType(vdef.typ)
@@ -574,12 +567,8 @@ class Namer(@constructorOnly reporter: Reporter):
     DelayedDef(sym, typer)
 
   private def transform(funDef: Ast.FunDef)(using sc: Scope, rp: Reporter, so: Source): DelayedDef[FunDef] =
-    var flags: Flags = Flags.empty
-    if sc.isLocalScope then
-      flags = flags | Flags.Local
-
-    val sym = Symbol.createFunSymbol(funDef.name, this.nonCyclicTypeProvider, flags, funDef.ident.pos)
-    val funScope = sc.fresh(sym)
+    val funSym = Symbol.createFunSymbol(funDef.name, this.nonCyclicTypeProvider, sc.owner, funDef.ident.pos)
+    val funScope = sc.fresh(funSym)
 
     lazy val tparamSyms =
       for tparam <- funDef.tparams yield
@@ -591,7 +580,7 @@ class Namer(@constructorOnly reporter: Reporter):
             TypeBound(BottomType, boundTree.tpe)
 
         val infoProvider: InfoProvider = (sym: Symbol) => bound
-        val sym = Symbol.createTypeParamSymbol(tparam.name, infoProvider, tparam.pos)
+        val sym = Symbol.createTypeParamSymbol(tparam.name, infoProvider, funSym, tparam.pos)
         funScope.define(sym)
         sym
 
@@ -600,7 +589,7 @@ class Namer(@constructorOnly reporter: Reporter):
 
       for param <- funDef.params yield
         val tpt = transformType(param.typ)(using funScope)
-        val paramSym = Symbol.createParamSymbol(param.name, tpt.tpe, param.pos)
+        val paramSym = Symbol.createParamSymbol(param.name, tpt.tpe, funSym, param.pos)
         funScope.define(paramSym)
         paramSym
 
@@ -654,19 +643,19 @@ class Namer(@constructorOnly reporter: Reporter):
         val rawType = PolyType(tparamInfos, procType)
         TypeOps.substSymbols(rawType, substs)
 
-    this.nonCyclicTypeProvider.addProvider(sym, () => computeInfo(resultType), () => computeInfo(ErrorType))
+    this.nonCyclicTypeProvider.addProvider(funSym, () => computeInfo(resultType), () => computeInfo(ErrorType))
 
     val typer = () =>
       FunDef
-        (sym, tparamSyms, paramSyms, typedBody)
+        (funSym, tparamSyms, paramSyms, typedBody)
         (locals = Nil, captures = Nil, funDef.span)
 
-    DelayedDef(sym, typer)
+    DelayedDef(funSym, typer)
 
   private def transform(tdef: Ast.TypeDef)(using sc: Scope, rp: Reporter, so: Source): DelayedDef[TypeDef] =
-    val sym = Symbol.createTypeSymbol(tdef.name, this.nonCyclicTypeProvider, tdef.ident.pos)
+    val typeSym = Symbol.createTypeSymbol(tdef.name, this.nonCyclicTypeProvider, sc.owner, tdef.ident.pos)
 
-    val sc2 = sc.fresh(sym)
+    val sc2 = sc.fresh(typeSym)
     val tparamSyms =
       for tparam <- tdef.tparams yield
         lazy val bound =
@@ -677,7 +666,7 @@ class Namer(@constructorOnly reporter: Reporter):
             TypeBound(BottomType, boundTree.tpe)
 
         val infoProvider: InfoProvider = (sym: Symbol) => bound
-        val sym = Symbol.createTypeParamSymbol(tparam.name, infoProvider, tparam.pos)
+        val sym = Symbol.createTypeParamSymbol(tparam.name, infoProvider, typeSym, tparam.pos)
         sc2.define(sym)
         sym
 
@@ -698,12 +687,12 @@ class Namer(@constructorOnly reporter: Reporter):
         TypeOps.substSymbols(rawType, subst)
     end computeInfo
 
-    this.nonCyclicTypeProvider.addProvider(sym, computeInfo)
+    this.nonCyclicTypeProvider.addProvider(typeSym, computeInfo)
 
     // check type symbols after completion to allow cycles, type A = A
-    val typer = () => TypeDef(sym)(tdef.span)
+    val typer = () => TypeDef(typeSym)(tdef.span)
 
-    DelayedDef(sym, typer)
+    DelayedDef(typeSym, typer)
 
   /** Type check type tree
     *
@@ -803,47 +792,31 @@ object Namer:
       definition
 
   enum Scope:
-    case RootScope(table: NameTable)
-    case NestedScope(outer: Scope, table: NameTable)(val allOwners: List[Symbol])
+    case RootScope(table: NameTable, owner: Symbol)
+    case NestedScope(outer: Scope, table: NameTable, owner: Symbol)
 
     protected val table: NameTable
 
-    /** All owners of the current scope
+    /** The owner symbol of the current scope
       *
-      * A owner can be either a function or a value definition.
+      * It can be null for top-level scopes
       */
-    private def owners: List[Symbol] =
-      this match
-        case ns: NestedScope => ns.allOwners
-        case _ => Nil
-
-    def isLocalScope = owners.nonEmpty && owners.head.isFunction
-
-    /** Find the owning function of a term symbol */
-    def owningFunctionOf(sym: Symbol): Option[Symbol] =
-      if table.resolveTerm(sym.name) == Some(sym) then this.owningFunction
-      else
-        this match
-          case NestedScope(outer, _) => outer.owningFunctionOf(sym)
-          case _ => None
-
-    def owningFunction: Option[Symbol] =
-      owners.find(owner => owner.isFunction)
+    val owner: Symbol
 
     def fresh(): Scope =
-      new Scope.NestedScope(this, new NameTable)(owners)
+      new Scope.NestedScope(this, new NameTable, owner)
 
     def fresh(owner: Symbol): Scope =
-      new Scope.NestedScope(this, new NameTable)(owner :: owners)
+      new Scope.NestedScope(this, new NameTable, owner)
 
     def fresh(owner: Symbol, nameTable: NameTable): Scope =
-      new Scope.NestedScope(this, nameTable)(owner :: owners)
+      new Scope.NestedScope(this, nameTable, owner)
 
     def resolve(name: String, isType: Boolean): Option[Symbol] =
       table.resolve(name, isType) match
         case None =>
           this match
-            case NestedScope(outer, _) => outer.resolve(name, isType)
+            case nsc: NestedScope => nsc.outer.resolve(name, isType)
             case _ => None
 
         case res  => res
@@ -853,7 +826,7 @@ object Namer:
         case Some(sym) => sym
         case None =>
           Reporter.error("Undefined identifier " + name, pos)
-          Symbol.createFunSymbol(name, ErrorType, pos)
+          Symbol.createFunSymbol(name, ErrorType, owner, pos)
 
     def define(sym: Symbol)(using Reporter): Unit =
       table.define(sym)
