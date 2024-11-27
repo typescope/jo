@@ -60,11 +60,11 @@ class Checker:
       Reporter.error(s"Expect type ${tp.show}, found = ${tree.tpe.show}", tree.pos)
 
   def checkValueType(tree: Tree)(using Reporter, Source): Unit =
-    checkValueType(tree.tpe, tree.span)
+    checkValueType(tree.tpe, tree.pos)
 
-  def checkValueType(tp: Type, span: Span)(using Reporter, Source): Type =
+  def checkValueType(tp: Type, pos: SourcePosition)(using Reporter): Type =
     if !tp.isValueType then
-      Reporter.error(s"Expect value type, found = ${tp.show}", span.toPos)
+      Reporter.error(s"Expect value type, found = ${tp.show}", pos)
       ErrorType
     else
       tp
@@ -72,9 +72,9 @@ class Checker:
   def checkVoidOrValueType(tree: Tree)(using Reporter, Source): Unit =
     if !tree.tpe.isVoidType then checkValueType(tree)
 
-  def checkMutable(sym: Symbol, span: Span)(using Reporter, Source): Unit =
+  def checkMutable(sym: Symbol, pos: SourcePosition)(using Reporter): Unit =
     if !sym.isAllOf(Flags.Val | Flags.Mutable) then
-      Reporter.error(sym.name + " is not a mutable value", span.toPos)
+      Reporter.error(sym.name + " is not a mutable value", pos)
 
   def checkTermMember(word: Word, member: String)(using Reporter, Source): Word =
     val tpe = word.tpe
@@ -104,16 +104,22 @@ class Checker:
           else
             word
 
-  def checkInstantiated(tvar: TypeVar, span: Span)(using Reporter, Source): Unit =
+  def checkInstantiated(tvar: TypeVar, pos: SourcePosition)(using Reporter): Unit =
     if !tvar.isInstantiated then
-      Reporter.error("Cannot infer a type for type variable " + tvar, span.toPos)
+      Reporter.error("Cannot infer a type for type variable " + tvar, pos)
 
-  def commonResultType(tp1: Type, tp2: Type, span: Span)(using Reporter, Source): Type =
+  def checkCapture(sym: Symbol, pos: SourcePosition)(using sc: Namer.Scope, rp: Reporter): Unit =
+    if sym.isAllOf(Flags.Val | Flags.Mutable) then
+      // check no capture of mutable local vars
+      if sc.owner.enclosingFunction != sym.enclosingFunction then
+        Reporter.error("Cannot capture local mutable variable " + sym.name, pos)
+
+  def commonResultType(tp1: Type, tp2: Type, pos: SourcePosition)(using Reporter): Type =
     val commonTypeOpt = TypeOps.commonResultType(tp1, tp2)
     commonTypeOpt match
       case Some(tp) => tp
       case None =>
-        Reporter.error(s"Cannot find common result type, tp1 = ${tp1.show}, tp2 = ${tp2.show}", span.toPos)
+        Reporter.error(s"Cannot find common result type, tp1 = ${tp1.show}, tp2 = ${tp2.show}", pos)
         ErrorType
 
   def tagTypes(tag: Ast.Ident, unionType: Type, typeSpan: Span)(using Reporter, Source): Option[List[Type]] =

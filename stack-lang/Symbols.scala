@@ -63,6 +63,13 @@ object Symbols:
         // The assertion in the constructor ensures `owner` cannot be null
         owner.enclosingNamespace
 
+    def enclosingFunction: Symbol =
+      if this.isFunction then
+        this
+      else
+        // owner can be null, let exception be thrown
+        owner.enclosingFunction
+
     def ownersIterator: Iterator[Symbol] =
       var current = this
       new Iterator[Symbol]:

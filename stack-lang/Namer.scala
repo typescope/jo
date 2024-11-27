@@ -179,12 +179,6 @@ class Namer(@constructorOnly reporter: Reporter):
     end match
   end index
 
-  private def checkCapture(sym: Symbol, span: Span)(using sc: Scope, rp: Reporter, so: Source): Unit =
-    if sym.isAllOf(Flags.Val | Flags.Mutable) then
-      // check no capture of mutable local vars
-      if sc.owner != sym.owner then
-        Reporter.error("Cannot capture local mutable variable " + sym.name, span.toPos)
-
   def transform(block: Ast.Block)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
     val phrases = block.phrases
     var sc2 = sc
@@ -217,8 +211,8 @@ class Namer(@constructorOnly reporter: Reporter):
       case Ast.Assign(id, words) =>
         val sym = sc.resolve(id.name, id.pos)
 
-        checker.checkMutable(sym, id.span)
-        checkCapture(sym, id.span)
+        checker.checkMutable(sym, id.pos)
+        checker.checkCapture(sym, id.pos)
 
         given TargetType = TargetType.Known(sym.info)
         val rhs = transform(words)
@@ -258,7 +252,7 @@ class Namer(@constructorOnly reporter: Reporter):
 
       case Ast.Ident(name) =>
         val sym = sc.resolve(name, word.pos)
-        checkCapture(sym, word.span)
+        checker.checkCapture(sym, word.pos)
         val id = Ident(sym)(word.span)
         val autoApplied =
           if sym.isFunction && sym.info.isProcType then
@@ -322,7 +316,7 @@ class Namer(@constructorOnly reporter: Reporter):
     val else2 = transform(elsep)
 
     // adapt result type
-    val commonType = checker.commonResultType(then2.tpe, else2.tpe, ifte.span)
+    val commonType = checker.commonResultType(then2.tpe, else2.tpe, ifte.pos)
     val then3 = checker.adapt(then2, commonType)
     val else3 = checker.adapt(else2, commonType)
     If(cond2, then3, else3)(commonType, ifte.span)
@@ -447,7 +441,7 @@ class Namer(@constructorOnly reporter: Reporter):
     pat match
       case Ast.Wildcard() =>
         val body2 = transform(body)(using caseScope)
-        val commonType = checker.commonResultType(body2.tpe, resType, body2.span)
+        val commonType = checker.commonResultType(body2.tpe, resType, body2.pos)
         val elsep = cont(commonType)
         checker.adapt(body2, elsep.tpe)
 
@@ -479,9 +473,9 @@ class Namer(@constructorOnly reporter: Reporter):
 
           val cond = Desugaring.testVariantTag(encodedScrut, tagIndex, tag.span)
           val body2 = transform(body)(using caseScope, rp, so, tt)
-          val commonType = checker.commonResultType(body2.tpe, resType, body2.span)
+          val commonType = checker.commonResultType(body2.tpe, resType, body2.pos)
           val elsep = cont(commonType)
-          val commonType2 = checker.commonResultType(body2.tpe, elsep.tpe, body2.span)
+          val commonType2 = checker.commonResultType(body2.tpe, elsep.tpe, body2.pos)
           val adapted = checker.adapt(body2, commonType2)
 
           val body3 = Phrase(vals.toList :+ adapted)(adapted.tpe, caseDef.span)
@@ -533,7 +527,7 @@ class Namer(@constructorOnly reporter: Reporter):
      this.nonCyclicTypeProvider.addProvider(funSym, () => procType)
 
      for (tvar, param) <- tvars do
-       checker.checkInstantiated(tvar, param.span)
+       checker.checkInstantiated(tvar, param.pos)
 
      val tparamSyms = Nil
      val funDef = FunDef(funSym, tparamSyms, paramSyms, bodyTyped)(locals = Nil, captures = Nil, lambda.span)
@@ -548,7 +542,7 @@ class Namer(@constructorOnly reporter: Reporter):
 
     lazy val givenType: Type =
       val tpt = transformType(vdef.typ)
-      val tp2 = checker.checkValueType(tpt.tpe, tpt.span)
+      val tp2 = checker.checkValueType(tpt.tpe, tpt.pos)
       tp2
 
     val rhs: Word =

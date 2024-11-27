@@ -147,7 +147,7 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
 
             val bounds = for tparam <- polyType.tparams yield tparam.info
             checker.delayedCheck {
-              for tvar <- tvars do checker.checkInstantiated(tvar, word.span)
+              for tvar <- tvars do checker.checkInstantiated(tvar, word.pos)
 
               checker.checkBounds(bounds, targs)
             }
