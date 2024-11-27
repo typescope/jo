@@ -146,8 +146,7 @@ object Sast:
   extends Positioned:
     def info: NamespaceInfo = symbol.info.as[NamespaceInfo]
 
-    val fullName: String = symbol.ownersIterator.foldLeft(symbol.name):
-      (acc, owner) => owner.name + "." + acc
+    val fullName: String = symbol.fullName
 
     def mainSymbol: Option[Symbol] =
       val funs = defs.filter(defn => defn.symbol.isFunction && defn.symbol.name == "main")
