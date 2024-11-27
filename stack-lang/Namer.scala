@@ -22,41 +22,26 @@ class Namer(@constructorOnly reporter: Reporter):
   /** Handles cyclic definitions */
   val nonCyclicTypeProvider = new NamerUtils.ValueTypeProvider(using reporter)
 
-  def createPredefScope()(using Reporter): Scope =
-    val rootScope = new Scope.RootScope()
-
-    // Predefined type names
-    rootScope.define(Predef.Int)
-    rootScope.define(Predef.Bool)
-    rootScope.define(Predef.Void)
-
-    // Predefined term names
-    for sym <- Predef.allSymbols do
-      rootScope.define(sym)
-
-    // Prepare scope for user-defined namespaces
-    rootScope
-
   def transform(nss: List[Ast.Namespace])(using rp: Reporter): List[Namespace] =
     // All namespace are located in the scope
-    val allNamespaces = new Scope.RootScope()
+    val allNamespaces = new Scope.RootScope(new NameTable)
 
     // Predef names are by-default accessible. However, other namespaces are not
     // accessible unless explicitly imported.
-    val predefScope: Scope = createPredefScope()
+    val predefScope: Scope = new Scope.RootScope(Predef.nameTable)
 
     val delayedNamespaces = new mutable.ArrayBuffer[() => Namespace]
 
     for ns <- nss do
       given source: Source = Reporter.source(ns.source)
 
-      val importScope: Scope = predefScope.fresh()
-      val defsScope: Scope = importScope.fresh()
-
       val nsSym = resolveNamespace(ns.qualid, isBranch = false)(using allNamespaces)
       val nsInfo = nsSym.info.as[NamespaceInfo]
 
-      val delayedDefs = index(ns.defs, nsInfo)(using defsScope)
+      val importScope: Scope = predefScope.fresh(nsSym)
+      val defsScope: Scope = importScope.fresh(nsSym, nsInfo.table)
+
+      val delayedDefs = index(ns.defs)(using defsScope)
 
       val force = () =>
         // Make current namespace name available
@@ -168,14 +153,14 @@ class Namer(@constructorOnly reporter: Reporter):
             rp.error(s"The name $name is not found", qualid.pos)
             Symbol.createFunSymbol(name, ErrorType, pos = qualid.pos)
 
-  private def index(defs: List[Ast.Def], nsInfo: NamespaceInfo)(using sc: Scope, rp: Reporter, so: Source): List[DelayedDef[Def]] =
+  private def index(defs: List[Ast.Def])(using sc: Scope, rp: Reporter, so: Source): List[DelayedDef[Def]] =
     val delayedDefs = new mutable.ArrayBuffer[DelayedDef[Def]]
 
     for defn <- defs do
       val delayedDef = index(defn)
-      // Need to add to both given that the name can be access in two different
-      // ways in the current context.
-      nsInfo.define(delayedDef.symbol)
+      // The name table is shared between NamespaceInfo and current scope. This
+      // way, by entering once the name can be access in two different ways in
+      // the current context.
       sc.define(delayedDef.symbol)
       delayedDefs += delayedDef
 
@@ -818,10 +803,10 @@ object Namer:
       definition
 
   enum Scope:
-    case RootScope()
-    case NestedScope(outer: Scope)(val allOwners: List[Symbol])
+    case RootScope(table: NameTable)
+    case NestedScope(outer: Scope, table: NameTable)(val allOwners: List[Symbol])
 
-    private val table: NameTable = new NameTable
+    protected val table: NameTable
 
     /** All owners of the current scope
       *
@@ -832,30 +817,33 @@ object Namer:
         case ns: NestedScope => ns.allOwners
         case _ => Nil
 
-    def isLocalScope = owners.nonEmpty
+    def isLocalScope = owners.nonEmpty && owners.head.isFunction
 
     /** Find the owning function of a term symbol */
     def owningFunctionOf(sym: Symbol): Option[Symbol] =
       if table.resolveTerm(sym.name) == Some(sym) then this.owningFunction
       else
         this match
-          case NestedScope(outer) => outer.owningFunctionOf(sym)
+          case NestedScope(outer, _) => outer.owningFunctionOf(sym)
           case _ => None
 
     def owningFunction: Option[Symbol] =
       owners.find(owner => owner.isFunction)
 
     def fresh(): Scope =
-      new Scope.NestedScope(this)(owners)
+      new Scope.NestedScope(this, new NameTable)(owners)
 
     def fresh(owner: Symbol): Scope =
-      new Scope.NestedScope(this)(owner :: owners)
+      new Scope.NestedScope(this, new NameTable)(owner :: owners)
+
+    def fresh(owner: Symbol, nameTable: NameTable): Scope =
+      new Scope.NestedScope(this, nameTable)(owner :: owners)
 
     def resolve(name: String, isType: Boolean): Option[Symbol] =
       table.resolve(name, isType) match
         case None =>
           this match
-            case NestedScope(outer) => outer.resolve(name, isType)
+            case NestedScope(outer, _) => outer.resolve(name, isType)
             case _ => None
 
         case res  => res

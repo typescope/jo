@@ -195,7 +195,7 @@ object Types:
     def isSuptype(tp: Type): List[Subtyping.Task] =
       inferencer.isSuptype(this, tp)
 
-  class NamespaceInfo extends Type:
-    val table: NameTable = new NameTable
+  class NamespaceInfo(val table: NameTable) extends Type:
+    def this() = this(new NameTable)
 
     export table.*

@@ -2,9 +2,11 @@ import Symbols.*
 
 import scala.collection.mutable
 
-class NameTable:
-  private val termNames: mutable.Map[String, Symbol] = mutable.Map.empty
-  private val typeNames: mutable.Map[String, Symbol] = mutable.Map.empty
+class NameTable(
+  termNames: mutable.Map[String, Symbol],
+  typeNames: mutable.Map[String, Symbol]):
+
+  def this() = this(mutable.Map.empty, mutable.Map.empty)
 
   private def getTable(isType: Boolean) =
     if isType then typeNames else termNames
