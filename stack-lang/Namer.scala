@@ -61,7 +61,7 @@ class Namer(@constructorOnly reporter: Reporter):
           importScope.define(sym)
 
         val defs = for delayed <- delayedDefs.toList yield delayed.force()
-        Namespace(nsSym, ns.fullName, imports.toList, defs)(ns.span)
+        Namespace(nsSym, imports.toList, defs)(ns.span)
 
       delayedNamespaces += force
     end for

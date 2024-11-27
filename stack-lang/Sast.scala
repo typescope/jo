@@ -141,10 +141,13 @@ object Sast:
   extends Def
 
   case class Namespace
-    (symbol: Symbol, fullName: String, imports: List[Symbol],  defs: List[Def])
+    (symbol: Symbol, imports: List[Symbol],  defs: List[Def])
     (val span: Span)
   extends Positioned:
     def info: NamespaceInfo = symbol.info.as[NamespaceInfo]
+
+    val fullName: String = symbol.ownersIterator.foldLeft(symbol.name):
+      (acc, owner) => owner.name + "." + acc
 
     def mainSymbol: Option[Symbol] =
       val funs = defs.filter(defn => defn.symbol.isFunction && defn.symbol.name == "main")

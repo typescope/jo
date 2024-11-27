@@ -31,7 +31,7 @@ object ElimCapture:
     // Enter names to name table of the namespace
     for fdef <- ctx.lifted do ns.info.define(fdef.symbol)
 
-    Namespace(ns.symbol, ns.fullName, ns.imports, defs ++ ctx.lifted.toList)(ns.span)
+    Namespace(ns.symbol, ns.imports, defs ++ ctx.lifted.toList)(ns.span)
 
   /** The encoded type of a function */
   def encodedRecordType(funType: FunctionType): RecordType =

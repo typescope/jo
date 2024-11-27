@@ -192,19 +192,23 @@ object Ast:
   case class Import
     (qualid: RefTree)
     (val span: Span)
-  extends Tree
+  extends Tree:
+    qualidWellFormed(qualid)
 
   case class Namespace
     (qualid: RefTree, imports: List[Import], defs: List[Def], source: String)
     (val span: Span)
   extends Tree:
-    val fullName: String = computeFullName(qualid)
+    qualidWellFormed(qualid)
 
-    private def computeFullName(id: RefTree): String =
-      id match
-        case Ident(name) =>
-          name
+  def qualidWellFormed(qualid: RefTree): Unit =
+    qualid match
+      case _: Ident =>
 
-        case Select(qual, name) =>
-          assert(qual.isInstanceOf[RefTree], "unexpected qual = " + qual)
-          computeFullName(qual.asInstanceOf[RefTree]) + "." + name
+      case Select(qual, name) =>
+        qual match
+          case id: RefTree =>
+            qualidWellFormed(id)
+
+          case _ =>
+            throw new Exception("malformed qualid: " + qualid)
