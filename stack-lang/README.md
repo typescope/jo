@@ -41,6 +41,8 @@ Lexical Grammar
     MATCH    = "match".
     CASE     = "case".
     END      = "end".
+    WITH     = "with".
+    PARAM    = "param".
     NSPACE   = "namespace".
     IMPORT   = "import".
     name     = (letter | USCORE) {letter | digit | USCORE}.
@@ -56,13 +58,13 @@ Syntactical Grammar
 
 
 ~~~
-    namespace = [NSPACE qualid] {import} {typedef | fundef} EOF.
+    namespace = [NSPACE qualid] {import} {typedef | fundef | paramdef} EOF.
 
     qualid = ident | qualid DOT ident.
 
     import = IMPORT qualid.
 
-    expr    = word {word}.
+    expr    = word {word} [with_clause].
 
     word    = integer | boolean | ident | fence | record | tapply | select | variant | lambda.
 
@@ -71,6 +73,8 @@ Syntactical Grammar
     block   = { phrase }.
 
     select  = (ident | record | fence | select) DOT ident.
+
+    with_clause = WITH qualid EQL expr { COMMA qualid EQL expr }.
 
     fence   = LPAREN expr RPAREN.
     assign  = ident EQL block.
@@ -96,6 +100,8 @@ Syntactical Grammar
 
     valdef  = (VAL | VAR) ident [COLON type] EQL block.
     fundef  = FUN [param_section] ident [tparams] [param_section] EQL block [END].
+
+    paramdef = PARAM param
 
     typedef = TYPE [tparams] ident EQL type.
     tparams = LBRACKET tparam {COMMA tparam} RBRACKET.
