@@ -26,6 +26,11 @@ object Ast:
     (val span: Span)
   extends Word
 
+  case class StringLit
+    (value: String)
+    (val span: Span)
+  extends Word
+
   case class Ident
     (name: String)
     (val span: Span)
@@ -92,6 +97,12 @@ object Ast:
     (val span: Span)
   extends Word:
     assert(words.nonEmpty)
+
+  case class With
+    (expr: Word, bindings: List[(RefTree, Word)])
+    (val span: Span)
+  extends Word:
+    assert(bindings.nonEmpty)
 
   case class Block
     (phrases: List[Phrase])
@@ -169,7 +180,7 @@ object Ast:
   case class Param
     (ident: Ident, typ: TypeTree)
     (val span: Span)
-  extends Tree:
+  extends Def:
     def name = ident.name
 
   case class FunDef

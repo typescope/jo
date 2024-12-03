@@ -69,6 +69,8 @@ object Types:
 
   case object BoolType extends Type
 
+  case object StringType extends Type
+
   case object VoidType extends Type
 
   case object AnyType extends Type

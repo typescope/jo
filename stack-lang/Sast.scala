@@ -35,6 +35,12 @@ object Sast:
   extends Word:
     def tpe: Type = BoolType
 
+  case class StringLit
+    (value: String)
+    (val span: Span)
+  extends Word:
+    def tpe: Type = StringType
+
   case class RecordLit
     (args: List[(String, Word)])
     (val tpe: Type, val span: Span)
@@ -72,6 +78,12 @@ object Sast:
     (words: List[Word])
     (val tpe: Type, val span: Span)
   extends Word
+
+  case class With
+    (expr: Word, bindings: List[(RefTree, Word)])
+    (val tpe: Type, val span: Span)
+  extends Word:
+    assert(words.nonEmpty)
 
   case class TypeApply
     (fun: Word, targs: List[TypeTree])
@@ -141,7 +153,7 @@ object Sast:
   extends Def
 
   case class Namespace
-    (symbol: Symbol, imports: List[Symbol],  defs: List[Def])
+    (symbol: Symbol, imports: List[Symbol], contextParams: List[Symbol], defs: List[Def])
     (val span: Span)
   extends Positioned:
     def info: NamespaceInfo = symbol.info.as[NamespaceInfo]

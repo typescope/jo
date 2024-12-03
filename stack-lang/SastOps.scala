@@ -20,6 +20,7 @@ object SastOps:
         case vdef: ValDef => recurValDef(vdef)
         case fdef: FunDef => recurFunDef(fdef)
         case tdef: TypeDef => recurTypeDef(tdef)
+        case cparam: ContextParam => cparam
 
     def recur(word: Word)(using Context): Word =
       word match
@@ -43,6 +44,9 @@ object SastOps:
 
         case TypeApply(fun, targs) =>
           TypeApply(this(fun), targs)(word.tpe, word.span)
+
+        case With(expr, bindings) =>
+          With(this(expr), bindings.map { case (param, e) => param -> this(e) })
 
         case Assign(sym, rhs) =>
           Assign(sym, this(rhs))(word.span)

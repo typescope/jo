@@ -35,7 +35,7 @@ object Printing:
     imports match
       case item :: items =>
         // TODO: fully qualified name
-        "import " ~ Text(item) ~ Text.BreakLine ~ showImports(items)
+        "import " ~ Text(item.fullName) ~ Text.BreakLine ~ showImports(items)
 
       case Nil =>
         Text.Empty

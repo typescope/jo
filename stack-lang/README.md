@@ -50,6 +50,7 @@ Lexical Grammar
     ident    = name | operator.
     integer  = ["-"] digit {digit}.
     boolean  = "true" | "false".
+    string   = "..."
 
     comment = "//" {any character} NLINE.
 ~~~
@@ -66,7 +67,7 @@ Syntactical Grammar
 
     expr    = word {word} [with_clause].
 
-    word    = integer | boolean | ident | fence | record | tapply | select | variant | lambda.
+    word    = integer | boolean | string | ident | fence | record | tapply | select | variant | lambda.
 
     phrase  = expr | assign | valdef | fundef | typedef | while | if | match.
 
