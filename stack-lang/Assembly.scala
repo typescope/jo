@@ -71,12 +71,13 @@ object Assembly:
     case Special[T](instr: T)
 
   enum Type:
-    case Int8, Int32
+    case Int8, Int32, String
 
   enum Data:
     val label: Label
     case Int8(label: Label, v: Byte)
     case Int32(label: Label, v: Int)
+    case String(label: Label, v: String)
     case Uninit(label: Label, tp: Type)
 
   case class Prog(data: List[Data], instrs: List[Instr | Label], entry: Label):
@@ -87,6 +88,7 @@ object Assembly:
         item match
           case Data.Int8(l, v)     => sb.append(l.name + " = " + v  + "\n")
           case Data.Int32(l, v)    => sb.append(l.name + " = " + v + "\n")
+          case Data.String(l, v)    => sb.append(l.name + " = " + v + "\n")
           case Data.Uninit(l, tp)  => sb.append(l.name + " : " + tp + "\n")
 
       var i = 0

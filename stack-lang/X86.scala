@@ -70,6 +70,11 @@ object X86 extends Assembler:
         pb.align(4)
         pb.addInt(v)
 
+      case Data.String(l, v)    =>
+        pb.align(4)
+        for b <- v.getBytes("UTF-8") do pb.addByte(b)
+        pb.addByte(0)
+
       case Data.Uninit(l, tp)  =>
         tp match
           case Type.Int8  =>  pb.addByte(0)

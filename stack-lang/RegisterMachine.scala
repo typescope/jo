@@ -46,6 +46,17 @@ class RegisterMachine(
 
         label
 
+  /** Maps string constants to labels */
+  val stringTable: mutable.Map[String, Label] = mutable.Map.empty
+
+  def addString(v: String): Label =
+    stringTable.get(v) match
+      case Some(label) => label
+      case None =>
+        val label = Label("string")
+        stringTable(v) = label
+        label
+
   def freshVirtualReg()(using ctx: Context): Int =
     ctx.generator.fresh()
 
@@ -86,8 +97,13 @@ class RegisterMachine(
       assert(ctx.vs.size == 0, sym.name + " " + ctx.vs.size)
       val label = getAddress(sym)
       doGraphColoring(
-          label, ctx.buffer.getResult(), registerConfig, proto.savedRegs,
-          cb, ctx.generator)
+        label, ctx.buffer.getResult(),
+        registerConfig, proto.savedRegs,
+        cb, ctx.generator)
+
+    // Add string constants
+    for (v, label) <- stringTable do
+      cb.add(Data.String(label, v))
 
     entry(entryLabel, main, cb)
 
@@ -115,9 +131,16 @@ class RegisterMachine(
 
   def compile(word: Word)(using Context): Unit =
     word match
-      case IntLit(v)  => push(v)
+      case IntLit(v) => ctx.vs.push(Int32(v))
 
-      case BoolLit(v) => push(v)
+      case BoolLit(v) =>
+        ctx.vs.push(Int32(if v then 1 else 0))
+
+      case StringLit(v) =>
+        val label = addString(v)
+        val reg = freshVirtualReg()
+        gen(Instr.Move(label, reg))
+        ctx.vs.push(Reg(reg))
 
       case record: RecordLit => compile(record)
 
@@ -516,14 +539,6 @@ class RegisterMachine(
     val fieldReg = freshVirtualReg()
     gen(Instr.Load(fieldAddr, fieldReg))
     ctx.vs.push(Reg(fieldReg))
-
-  /** Push an integer literal to value stack */
-  def push(v: Int)(using ctx: Context): Unit =
-    ctx.vs.push(Int32(v))
-
-  /** Push a Boolean literal to value stack */
-  def push(v: Boolean)(using ctx: Context): Unit =
-    ctx.vs.push(Int32(if v then 1 else 0))
 
   def primitive(sym: Symbol)(using Context): Unit =
     sym match

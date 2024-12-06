@@ -109,6 +109,10 @@ class JSOptimized(outFile: String):
       case BoolLit(v) =>
         cont(Text(v))
 
+      case StringLit(v) =>
+        // TODO: handle escapes
+        cont("\"" ~ v ~ "\"")
+
       case RecordLit(fields) =>
         cont(fields.map(_._2)): ts =>
           val fields2 = fields.map(_._1).zip(ts).map(encodeSymbolic(_) ~ ": " ~ _)

@@ -45,6 +45,8 @@ object Predef:
 
   private val typePrint  = ProcType(params = aInt :: Nil, VoidType, preParamCount = 1)
 
+  private val abortType = ProcType(NamedInfo("msg", StringType) :: Nil, BottomType, preParamCount = 0)
+
   val add    =  createPrimSymbol("+",   typeArith)
   val sub    =  createPrimSymbol("-",   typeArith)
   val mul    =  createPrimSymbol("*",   typeArith)
@@ -64,6 +66,7 @@ object Predef:
   val bor    =  createPrimSymbol("or",  typeOr)
   val bnot   =  createPrimSymbol("not", typeNot)
   val p      =  createPrimSymbol("p",   typePrint)
+  val abort  =  createPrimSymbol("abort", abortType)
 
   val Int    =  createPrimSymbol("Int",  IntType,  isType = true)
   val Bool   =  createPrimSymbol("Bool", BoolType, isType = true)
@@ -72,8 +75,7 @@ object Predef:
   //----------------------------------------------------------------------------
   // run-time symbols are only available to the compiler
 
-  private val abortType = ProcType(NamedInfo("n", IntType) :: Nil, BottomType, preParamCount = 0)
-  val abort = new Symbol("abort", abortType, Flags.Prim, owner = predefSym, sourcePos = null)
+
 
   //----------------------------------------------------------------------------
   // the memory allocator

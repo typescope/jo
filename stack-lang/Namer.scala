@@ -419,7 +419,7 @@ class Namer(@constructorOnly reporter: Reporter):
             Reporter.error("Unmatched case(s): " + tagsRest.mkString(", "), scrutIdent.pos)
           // abort
           val abort = Ident(Predef.abort)(scrutIdent.span)
-          val args = IntLit(1)(scrutIdent.span) :: Nil
+          val args = StringLit("Unhandled match at " + scrutIndent.pos)(scrutIdent.span) :: Nil
           val app = Apply(abort, args)(BottomType, patmat.span)
           checker.adapt(app, resType)
 

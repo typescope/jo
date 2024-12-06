@@ -45,6 +45,7 @@ object Assembler:
 
     /////////////// data segment ////////////
 
+    // TODO: separate read-only and bss data into different segments
     elf.newSegment(SEG_DATA, ELF32.PT_LOAD, ELF32.PF_RW): baseAddr =>
       val pb = new PatchableBuffer(baseAddr, labelMap)
       assembler.lowerData(prog.data)(using pb)

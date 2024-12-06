@@ -39,6 +39,17 @@ class StackMachine(
 
         label
 
+  /** Maps string constants to labels */
+  val stringTable: mutable.Map[String, Label] = mutable.Map.empty
+
+  def addString(v: String): Label =
+    stringTable.get(v) match
+      case Some(label) => label
+      case None =>
+        val label = Label("string")
+        stringTable(v) = label
+        label
+
   /** Program entry pointer */
   val entry = Label("_entry")
 
@@ -69,6 +80,10 @@ class StackMachine(
       val fun = symbolDefMap(sym)
       compile(fun, cb)
 
+    // Add string constants
+    for (v, label) <- stringTable do
+      cb.add(Data.String(label, v))
+
     given Context = new Context(cb, Map.empty)
     // Stack pointer is initialized by the kernel, initialize frame pointer
     cb.mark(this.entry)
@@ -85,9 +100,16 @@ class StackMachine(
 
   def compile(word: Word)(using Context): Unit =
     word match
-      case IntLit(v)  => push(v)
+      case IntLit(v) => push(Int32(v))
 
-      case BoolLit(v) => push(v)
+      case BoolLit(v) => push(Int32(if v then 1 else 0))
+
+      case StringLit(v) =>
+        val label = addString(v)
+
+        useReg: r =>
+          cb.add(Instr.Move(label, r))
+          push(Reg(r))
 
       case record: RecordLit => compile(record)
 
@@ -417,13 +439,6 @@ class StackMachine(
   def push(v: Value)(using Context) =
     cb.add(Instr.Sub(Reg(SP_REG), Int32(4), SP_REG))
     cb.add(Instr.Store(v, Reg(SP_REG)))
-
-  /** Push an integer literal to stack */
-  def push(v: Int)(using Context): Unit = push(Int32(v))
-
-  /** Push a Boolean literal to stack */
-  def push(v: Boolean)(using Context): Unit =
-    push(Int32(if v then 1 else 0))
 
   def primitive(sym: Symbol)(using Context): Unit =
     sym match
