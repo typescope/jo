@@ -71,13 +71,3 @@ object Predef:
   val Int    =  createPrimSymbol("Int",  IntType,  isType = true)
   val Bool   =  createPrimSymbol("Bool", BoolType, isType = true)
   val Void   =  createPrimSymbol("Void", VoidType, isType = true)
-
-  //----------------------------------------------------------------------------
-  // run-time symbols are only available to the compiler
-
-
-
-  //----------------------------------------------------------------------------
-  // the memory allocator
-  private val allocateType = ProcType(NamedInfo("size", IntType) :: Nil, IntType, preParamCount = 0)
-  val allocate = new Symbol("alloc", allocateType, Flags.Prim, owner = predefSym, sourcePos = null)

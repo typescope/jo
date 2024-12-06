@@ -16,11 +16,13 @@ object Linux:
 
   val printLabel     = Label("_print")
   val abortLabel     = Label("_abort")
+  val exitLabel      = Label("_exit")
   val heapStartLabel = Label("_heapStart")
 
   val nativeFunctions = Map(
-    Predef.p     -> printLabel
-    Predef.abort -> abortLabel
+    Predef.p           -> printLabel
+    Predef.abort       -> abortLabel
+    NativeRuntime.exit -> exitLabel
   )
 
   val x86RegConfig = new RegisterConfig:
@@ -39,6 +41,7 @@ object Linux:
       def link()(using pb: PatchableBuffer) =
         linkPrintRegisterMachineX86()
         linkAbortRegisterMachineX86()
+        linkExitRegisterMachineX86()
 
     // TODO: pass external native link requirements
     val generator = (prog: Prog) =>
@@ -61,6 +64,7 @@ object Linux:
       def link()(using pb: PatchableBuffer) =
         linkPrintStackMachineX86()
         linkAbortStackMachineX86()
+        linkExitStackMachineX86()
 
     // TODO: pass external native link requirements
     val generator = (prog: Prog) =>
@@ -268,6 +272,35 @@ object Linux:
     // exit(1)
     X86.move(Int32(1), X86.EAX)
     X86.move(Int32(1), X86.EBX)
+    pb.addBytes(0xcd.toByte, 0x80.toByte)          // int    $0x80
+
+    // program exits, no need for return
+
+  /**
+    * Implement exit in machine code.
+    */
+  def linkExitRegisterMachineX86()(using pb: PatchableBuffer): Unit =
+    pb.defineLabel(exitLabel)
+
+    // argument is in EAX
+    X86.move(Reg(X86.EAX), X86.EBX)
+    X86.move(Int32(1), X86.EAX)
+    pb.addBytes(0xcd.toByte, 0x80.toByte)          // int    $0x80
+
+    // program exits, no need for return
+
+  /**
+    * Implement exit in machine code.
+    */
+  def linkExitStackMachineX86()(using pb: PatchableBuffer): Unit =
+    pb.defineLabel(exitLabel)
+
+    // init FP pointer
+    X86.move(Reg(X86.ESP), X86.EBP)
+
+    // load argument
+    X86.load(Rel(X86.EBP, 8), X86.EBX)
+    X86.move(Int32(1), X86.EAX)
     pb.addBytes(0xcd.toByte, 0x80.toByte)          // int    $0x80
 
     // program exits, no need for return

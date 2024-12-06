@@ -123,8 +123,10 @@ class RegisterMachine(
 
     cb.add(Instr.Jump(getAddress(main)))
 
+    // exit runtime
+    cb.add(Instr.Jump(getAddress(NativeRuntime.exit)))
+
     cb.mark(endLabel)
-    exit(Int32(0))(cb)
 
   def compile(phrase: Phrase)(using Context): Unit =
     for word <- phrase.words do compile(word)
@@ -296,13 +298,6 @@ class RegisterMachine(
      compile(encoded.repr)
      if encoded.isValueDrop then
        ctx.vs.pop()
-
-  // TODO: platform-agnostic
-  def exit(code: Operand)(cb: CodeBuffer): Unit =
-    // TODO: abstract over target buffer using context
-    cb.add(Instr.Move(code, X86.EBX))  // exit code
-    cb.add(Instr.Move(Int32(1), X86.EAX))     // syscall number
-    cb.add(Instr.Special(X86.Syscall))        // syscall
 
   /** Return from a function. */
   def ret(resLocs: List[Location])(using ctx: Context) =

@@ -149,6 +149,7 @@ object Assembler:
         addByte(0)
 
     def defineLabel(label: Label) =
+      assert(!labelMap.contains(label))
       newLabels += label
       labelMap(label) = currentAddr()
 

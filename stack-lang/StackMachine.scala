@@ -90,7 +90,9 @@ class StackMachine(
     cb.add(Instr.Sub(Reg(SP_REG), Int32(4), SP_REG))
     genAllocator()
     call(main)
-    exit(Int32(0))
+
+    // exit
+    call(NativeRuntime.exit)
 
     // generate code
     generator(cb.getResult())
@@ -204,12 +206,6 @@ class StackMachine(
     compile(encoded.repr)
     if encoded.isValueDrop then
       pop()
-
-  // TODO: platform-agnostic
-  def exit(code: Operand)(using Context): Unit =
-    cb.add(Instr.Move(code, X86.EBX))         // exit code
-    cb.add(Instr.Move(Int32(1), X86.EAX))     // syscall number
-    cb.add(Instr.Special(X86.Syscall))        // syscall
 
   /** Return from a procedure or function.
     *
