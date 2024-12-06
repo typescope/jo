@@ -561,7 +561,7 @@ class RegisterMachine(
       case Predef.bnot   =>   bnot()
       case Predef.eql    =>   eql()
       case Predef.p      =>   call(Predef.p)
-      case Predef.abort  =>   abort()
+      case Predef.abort  =>   call(Predef.abort)
       case _             =>   throw new Exception("Unknown primitive: " + sym.name)
   end primitive
 
@@ -599,15 +599,6 @@ class RegisterMachine(
     val reg = freshVirtualReg()
     gen(Instr.Eq(ctx.vs.pop(), ctx.vs.pop(), reg))
     ctx.vs.push(Reg(reg))
-
-  def abort()(using ctx: Context) =
-    val v = ctx.vs.pop()
-    gen(Instr.Move(v, X86.EBX))            // exit code
-    gen(Instr.Move(Int32(1), X86.EAX))     // syscall number
-    gen(Instr.Special(X86.Syscall))        // syscall
-
-    // return a dummy value for compiler invariant -- abort never returns
-    ctx.vs.push(Int32(-1))
 
 end RegisterMachine
 

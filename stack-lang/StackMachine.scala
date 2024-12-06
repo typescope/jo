@@ -461,7 +461,7 @@ class StackMachine(
       case Predef.bnot   =>   bnot()
       case Predef.eql    =>   eql()
       case Predef.p      =>   call(Predef.p)
-      case Predef.abort  =>   abort()
+      case Predef.abort  =>   call(Predef.abort)
       case _             =>   throw new Exception("Unknown primitive: " + sym.name)
   end primitive
 
@@ -510,11 +510,6 @@ class StackMachine(
       cb.add(Instr.Eq(Reg(r1), Reg(r2), r2))
       storeValue(Reg(r2), 1)
       pop()
-
-  def abort()(using Context) =
-    useReg: r =>
-      pop(r)
-      exit(Reg(r))
 
 end StackMachine
 

@@ -72,8 +72,9 @@ object X86 extends Assembler:
 
       case Data.String(l, v)    =>
         pb.align(4)
-        for b <- v.getBytes("UTF-8") do pb.addByte(b)
-        pb.addByte(0)
+        val bytes = v.getBytes("UTF-8")
+        pb.addInt(bytes.size)
+        for b <-  do pb.addByte(b)
 
       case Data.Uninit(l, tp)  =>
         tp match

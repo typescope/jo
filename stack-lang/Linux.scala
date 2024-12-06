@@ -15,12 +15,12 @@ object Linux:
   val PROG_START = 0x08048000
 
   val printLabel     = Label("_print")
+  val abortLabel     = Label("_abort")
   val heapStartLabel = Label("_heapStart")
-  val allocateLabel  = Label(Predef.allocate.name)
 
   val nativeFunctions = Map(
-    Predef.p        -> printLabel,
-    Predef.allocate -> allocateLabel
+    Predef.p     -> printLabel
+    Predef.abort -> abortLabel
   )
 
   val x86RegConfig = new RegisterConfig:
@@ -36,7 +36,9 @@ object Linux:
     val elf = new ELF32(outFile, layout, ELF32.EM_386)
 
     val linker  = new Linker:
-      def link()(using pb: PatchableBuffer) = linkPrintRegisterMachineX86()
+      def link()(using pb: PatchableBuffer) =
+        linkPrintRegisterMachineX86()
+        linkAbortRegisterMachineX86()
 
     // TODO: pass external native link requirements
     val generator = (prog: Prog) =>
@@ -56,7 +58,9 @@ object Linux:
     val elf = new ELF32(outFile, layout, ELF32.EM_386)
 
     val linker  = new Linker:
-      def link()(using pb: PatchableBuffer) = linkPrintStackMachineX86()
+      def link()(using pb: PatchableBuffer) =
+        linkPrintStackMachineX86()
+        linkAbortStackMachineX86()
 
     // TODO: pass external native link requirements
     val generator = (prog: Prog) =>
@@ -77,7 +81,7 @@ object Linux:
     pb.defineLabel(printLabel)
 
     // init FP pointer
-    X86.lower(Instr.Move(Reg(X86.ESP), X86.EBP))
+    X86.move(Reg(X86.ESP), X86.EBP)
 
     // use call stack to prepare string for syscall
     // reserve 16 bytes on stack
@@ -206,3 +210,64 @@ object Linux:
     // return to caller
     X86.load(Reg(X86.EBP), X86.EAX)
     X86.jump(Reg(X86.EAX))
+
+  /**
+    * Implement abort in machine code.
+    */
+  def linkAbortRegisterMachineX86()(using pb: PatchableBuffer): Unit =
+    pb.defineLabel(abortLabel)
+
+    // argument string is in EAX
+
+    // store size of string to EDX
+    X86.load(Reg(X86.EAX), X86.EDX)
+
+    // make ECX points to start of string content
+    X86.move(Int32(4), X86.ECX)
+    X86.add(X86.ECX, Reg(X86.EAX))
+
+    // write(1, str, len)
+    X86.move(Int32(4), X86.EAX)
+    X86.move(Int32(1), X86.EBX)
+    pb.addBytes(0xcd.toByte, 0x80.toByte)          // int    $0x80
+
+    // exit(1)
+    X86.move(Int32(1), X86.EAX)
+    X86.move(Int32(1), X86.EBX)
+    pb.addBytes(0xcd.toByte, 0x80.toByte)          // int    $0x80
+
+    // program exits, no need for return
+
+
+  /**
+    * Implement abort in machine code.
+    */
+  def linkAbortStackMachineX86()(using pb: PatchableBuffer): Unit =
+    pb.defineLabel(abortLabel)
+
+    // init FP pointer
+    X86.move(Reg(X86.ESP), X86.EBP)
+
+    // load argument
+    X86.load(Rel(X86.EBP, 8), X86.EAX)
+
+    // argument string is in EAX
+
+    // store size of string to EDX
+    X86.load(Reg(X86.EAX), X86.EDX)
+
+    // make ECX points to start of string content
+    X86.move(Int32(4), X86.ECX)
+    X86.add(X86.ECX, Reg(X86.EAX))
+
+    // write(1, str, len)
+    X86.move(Int32(4), X86.EAX)
+    X86.move(Int32(1), X86.EBX)
+    pb.addBytes(0xcd.toByte, 0x80.toByte)          // int    $0x80
+
+    // exit(1)
+    X86.move(Int32(1), X86.EAX)
+    X86.move(Int32(1), X86.EBX)
+    pb.addBytes(0xcd.toByte, 0x80.toByte)          // int    $0x80
+
+    // program exits, no need for return

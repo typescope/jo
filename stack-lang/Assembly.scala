@@ -75,9 +75,16 @@ object Assembly:
 
   enum Data:
     val label: Label
+
     case Int8(label: Label, v: Byte)
+
     case Int32(label: Label, v: Int)
+
+    /** A string is represented by a 4-byte head indicating its size followed by the
+      * content of the string.
+      */
     case String(label: Label, v: String)
+
     case Uninit(label: Label, tp: Type)
 
   case class Prog(data: List[Data], instrs: List[Instr | Label], entry: Label):
