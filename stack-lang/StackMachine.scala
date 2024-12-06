@@ -92,7 +92,7 @@ class StackMachine(
     call(main)
 
     // exit
-    call(NativeRuntime.exit)
+    call(NativeRuntime.finish)
 
     // generate code
     generator(cb.getResult())

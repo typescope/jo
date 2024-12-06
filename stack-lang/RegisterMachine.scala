@@ -124,7 +124,7 @@ class RegisterMachine(
     cb.add(Instr.Jump(getAddress(main)))
 
     // exit runtime
-    cb.add(Instr.Jump(getAddress(NativeRuntime.exit)))
+    cb.add(Instr.Jump(getAddress(NativeRuntime.finish)))
 
     cb.mark(endLabel)
 
