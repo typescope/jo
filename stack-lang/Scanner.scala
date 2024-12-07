@@ -40,6 +40,9 @@ class Scanner(stream: CharStream)(using Reporter, Source):
         else
           operator()
 
+      case '"'    =>
+        stringLit()
+
       case c      =>
         if      isDigit(c)      then intLit()
         else if isNameStart(c)  then name()
@@ -68,6 +71,8 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       case "type"      => Token.TYPE
       case "import"    => Token.IMPORT
       case "namespace" => Token.NSPACE
+      case "with"      => Token.WITH
+      case "param"     => Token.PARAM
       case "true"      => Token.BoolLit(true)
       case "false"     => Token.BoolLit(false)
       case name        => Token.Ident(name)
@@ -81,6 +86,14 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       case "<:"  => Token.SUBTYPE
       case "=>"  => Token.RARROW
       case name  => Token.Ident(name)
+
+  def stringLit(): Token =
+    stream.eatWhile(c => c != '\n' && (c != '"' || stream.lastEq('\')))
+    if stream.curChar == '\n' then
+      error("Missing closing double quote: string cannot span multiple lines", stream.tokenSpan().toPos)
+    stream.eat()
+    // TODO: transform backquote
+    new Token.StringLit(stream.tokenEnd())
 
   def intLit(): Token.IntLit =
     stream.eatWhile(isDigit)
@@ -195,6 +208,9 @@ object Scanner:
 
     def curChar(pred: Char => Boolean): Boolean =
       hasMore() && pred(curChar())
+
+    def lastEq(c: Char): Boolean =
+      index > 0 && code(index - 1) == c
 
     def isComment(): Boolean =
       index < LEN - 1 && curChar() == '/' && code(index + 1) == '/'

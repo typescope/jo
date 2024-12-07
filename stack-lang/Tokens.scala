@@ -4,11 +4,12 @@ object Tokens:
   /** Tokens recognized by the scanner */
   enum Token:
     case LPAREN, RPAREN, LBRACKET, RBRACKET, LBRACE, RBRACE
-    case AS, IF, THEN, ELSE, VAL, VAR, FUN,  WHILE, DO, TYPE, MATCH, CASE, END, IMPORT, NSPACE
+    case AS, CASE, DO, END, ELSE, FUN, IF, IMPORT, MATCH, NSPACE, PARAM, THEN, TYPE, VAL, VAR, WHILE, WITH
     case TAG, COMMA, DOT, EOF
     case COLON, RARROW, EQL, SUBTYPE
     case IntLit(value: Int)
     case BoolLit(value: Boolean)
+    case StringLit(value: String)
     case Ident(name: String)
 
     def withInfo(span: Span, indent: Indent): TokenInfo =
