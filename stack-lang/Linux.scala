@@ -14,13 +14,15 @@ object Linux:
   val PAGE_SIZE  = 0x1000
   val PROG_START = 0x08048000
 
+  val pLabel         = Label("_p")
   val printLabel     = Label("_print")
   val abortLabel     = Label("_abort")
   val finishLabel    = Label("_finish")
   val heapStartLabel = Label("_heapStart")
 
   val nativeFunctions = Map(
-    Predef.p             -> printLabel
+    Predef.p             -> pLabel
+    Predef.print         -> printLabel
     Predef.abort         -> abortLabel
     NativeRuntime.finish -> finishLabel
   )
@@ -39,6 +41,7 @@ object Linux:
 
     val linker  = new Linker:
       def link()(using pb: PatchableBuffer) =
+        linkPRegisterMachineX86()
         linkPrintRegisterMachineX86()
         linkAbortRegisterMachineX86()
         linkFinishX86()
@@ -62,6 +65,7 @@ object Linux:
 
     val linker  = new Linker:
       def link()(using pb: PatchableBuffer) =
+        linkPStackMachineX86()
         linkPrintStackMachineX86()
         linkAbortStackMachineX86()
         linkFinishX86()
@@ -81,8 +85,8 @@ object Linux:
     *
     * TODO reduce duplication with native call convention support
     */
-  def linkPrintStackMachineX86()(using pb: PatchableBuffer): Unit =
-    pb.defineLabel(printLabel)
+  def linkPStackMachineX86()(using pb: PatchableBuffer): Unit =
+    pb.defineLabel(pLabel)
 
     // init FP pointer
     X86.move(Reg(X86.ESP), X86.EBP)
@@ -146,8 +150,8 @@ object Linux:
     *
     * It assumes the call convention of register machines.
     */
-  def linkPrintRegisterMachineX86()(using pb: PatchableBuffer): Unit =
-    pb.defineLabel(printLabel)
+  def linkPRegisterMachineX86()(using pb: PatchableBuffer): Unit =
+    pb.defineLabel(pLabel)
 
     // init FP
     X86.move(Reg(X86.ESP), X86.EBP)
@@ -233,12 +237,12 @@ object Linux:
     // write(1, str, len)
     X86.move(Int32(4), X86.EAX)
     X86.move(Int32(1), X86.EBX)
-    pb.addBytes(0xcd.toByte, 0x80.toByte)          // int    $0x80
+    X86.int80()
 
     // exit(1)
     X86.move(Int32(1), X86.EAX)
     X86.move(Int32(1), X86.EBX)
-    pb.addBytes(0xcd.toByte, 0x80.toByte)          // int    $0x80
+    X86.int80()
 
     // program exits, no need for return
 
@@ -267,14 +271,81 @@ object Linux:
     // write(1, str, len)
     X86.move(Int32(4), X86.EAX)
     X86.move(Int32(1), X86.EBX)
-    pb.addBytes(0xcd.toByte, 0x80.toByte)          // int    $0x80
+    X86.int80()
 
     // exit(1)
     X86.move(Int32(1), X86.EAX)
     X86.move(Int32(1), X86.EBX)
-    pb.addBytes(0xcd.toByte, 0x80.toByte)          // int    $0x80
+    X86.int80()
 
     // program exits, no need for return
+
+  /**
+    * Implement print in machine code.
+    */
+  def linkPrintStackMachineX86()(using pb: PatchableBuffer): Unit =
+    pb.defineLabel(printLabel)
+
+    // init FP pointer
+    X86.move(Reg(X86.ESP), X86.EBP)
+
+    // load argument
+    X86.load(Rel(X86.EBP, 8), X86.EAX)
+
+    // argument string is in EAX
+
+    // store size of string to EDX
+    X86.load(Reg(X86.EAX), X86.EDX)
+
+    // make ECX points to start of string content
+    X86.move(Int32(4), X86.ECX)
+    X86.add(X86.ECX, Reg(X86.EAX))
+
+    // write(1, str, len)
+    X86.move(Int32(4), X86.EAX)
+    X86.move(Int32(1), X86.EBX)
+    X86.int80()
+
+    // return to caller
+    X86.load(Reg(X86.EBP), X86.EAX)
+    X86.jump(Reg(X86.EAX))
+
+  /**
+    * Implement print in machine code.
+    */
+  def linkPrintRegisterMachineX86()(using pb: PatchableBuffer): Unit =
+    pb.defineLabel(printLabel)
+
+    // init FP
+    X86.move(Reg(X86.ESP), X86.EBP)
+
+    // callee-saved registers
+    X86.push(X86.EBX)
+    X86.push(X86.ECX)
+    X86.push(X86.EDX)
+
+    // argument string is in EAX
+
+    // store size of string to EDX
+    X86.load(Reg(X86.EAX), X86.EDX)
+
+    // make ECX points to start of string content
+    X86.move(Int32(4), X86.ECX)
+    X86.add(X86.ECX, Reg(X86.EAX))
+
+    // write(1, str, len)
+    X86.move(Int32(4), X86.EAX)
+    X86.move(Int32(1), X86.EBX)
+    X86.int80()
+
+    // restore callee-saved registers -- in reverse order
+    X86.pop(X86.EDX)
+    X86.pop(X86.ECX)
+    X86.pop(X86.EBX)
+
+    // return to caller
+    X86.load(Reg(X86.EBP), X86.EAX)
+    X86.jump(Reg(X86.EAX))
 
   /**
     * Tells runtime that program has finished.
@@ -284,6 +355,6 @@ object Linux:
 
     X86.move(Int32(1), X86.EAX)
     X86.move(Int32(0), X86.EBX)
-    pb.addBytes(0xcd.toByte, 0x80.toByte)          // int    $0x80
+    X86.int80()
 
     // program exits, no need for return

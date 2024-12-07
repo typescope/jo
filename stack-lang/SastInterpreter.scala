@@ -12,12 +12,13 @@ object SastInterpreter:
   enum Denotation:
     case IntVal(value: Int)
     case BoolVal(value: Boolean)
+    case StringVal(value: String)
     case RecordVal(fields: Map[String, Value])
     case FunVal(fun: Sast.FunDef, scope: Scope)
     case PrimAction(op: List[Value] => List[Value])
     case Uninit
 
-  type Value = IntVal | BoolVal | RecordVal | FunVal
+  type Value = IntVal | BoolVal | StringVal | RecordVal | FunVal
 
   enum Scope:
     case RootScope()
@@ -90,9 +91,14 @@ object SastInterpreter:
     val a :: b :: Nil = args: @unchecked
     BoolVal(a == b) :: Nil
 
-  def print(args: List[Value]): List[Value] =
+  def p(args: List[Value]): List[Value] =
     val IntVal(v) :: Nil = args: @unchecked
     println(v)
+    Nil
+
+  def print(args: List[Value]): List[Value] =
+    val StringVal(v) :: Nil = args: @unchecked
+    print(v)
     Nil
 
   def abort(args: List[Value]): List[Value] =
@@ -118,7 +124,8 @@ object SastInterpreter:
       Predef.bor    ->    bor,
       Predef.bnot   ->    bnot,
       Predef.eql    ->    eql,
-      Predef.p      ->    print,
+      Predef.p      ->    p,
+      Predef.print  ->    print,
       Predef.abort  ->    abort
   )
 
@@ -161,6 +168,8 @@ object SastInterpreter:
       case IntLit(v)  => IntVal(v) :: Nil
 
       case BoolLit(v) => BoolVal(v) :: Nil
+
+      case StringLit(v) => StringVal(v) :: Nil
 
       case Encoded(repr) => exec(repr)
 

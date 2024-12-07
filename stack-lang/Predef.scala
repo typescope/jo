@@ -35,6 +35,8 @@ object Predef:
   private val aBool = NamedInfo("a", BoolType)
   private val bBool = NamedInfo("b", BoolType)
 
+  private val strParam = NamedInfo("s", StringType)
+
   private val typeArith = ProcType(aInt :: bInt :: Nil, IntType, preParamCount = 1)
   private val typeComp  = ProcType(aInt :: bInt :: Nil, BoolType, preParamCount = 1)
   private val typeBits  = ProcType(aInt :: bInt :: Nil, IntType, preParamCount = 1)
@@ -43,7 +45,8 @@ object Predef:
   private val typeOr  = ProcType(aBool :: bBool :: Nil, BoolType, preParamCount = 1)
   private val typeNot = ProcType(aBool :: Nil, BoolType, preParamCount = 0)
 
-  private val typePrint  = ProcType(params = aInt :: Nil, VoidType, preParamCount = 1)
+  private val typePrintInt  = ProcType(params = aInt :: Nil, VoidType, preParamCount = 1)
+  private val typePrintStr  = ProcType(params = strParam :: Nil, VoidType, preParamCount = 0)
 
   private val abortType = ProcType(NamedInfo("msg", StringType) :: Nil, BottomType, preParamCount = 0)
 
@@ -65,9 +68,11 @@ object Predef:
   val band   =  createPrimSymbol("and", typeAnd)
   val bor    =  createPrimSymbol("or",  typeOr)
   val bnot   =  createPrimSymbol("not", typeNot)
-  val p      =  createPrimSymbol("p",   typePrint)
+  val p      =  createPrimSymbol("p",   typePrintInt)
+  val print  =  createPrimSymbol("print", typePrintStr)
   val abort  =  createPrimSymbol("abort", abortType)
 
-  val Int    =  createPrimSymbol("Int",  IntType,  isType = true)
-  val Bool   =  createPrimSymbol("Bool", BoolType, isType = true)
-  val Void   =  createPrimSymbol("Void", VoidType, isType = true)
+  val Int    =  createPrimSymbol("Int",    IntType,  isType = true)
+  val Bool   =  createPrimSymbol("Bool",   BoolType, isType = true)
+  val String =  createPrimSymbol("String", BoolType, isType = true)
+  val Void   =  createPrimSymbol("Void",   VoidType, isType = true)

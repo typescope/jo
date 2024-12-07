@@ -192,6 +192,9 @@ object X86 extends Assembler:
     pb.addByte(0x0F)
     pb.addByte(0x34)
 
+  def int80()(using pb: PatchableBuffer) =
+    pb.addBytes(0xcd.toByte, 0x80.toByte) // int    $0x80
+
   def push(reg: Int)(using pb: PatchableBuffer) =
     // 50+rd    PUSH r32
     pb.addByte((0x50 | reg).toByte)

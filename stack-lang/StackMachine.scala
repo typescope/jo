@@ -457,6 +457,7 @@ class StackMachine(
       case Predef.bnot   =>   bnot()
       case Predef.eql    =>   eql()
       case Predef.p      =>   call(Predef.p)
+      case Predef.print  =>   call(Predef.print)
       case Predef.abort  =>   call(Predef.abort)
       case _             =>   throw new Exception("Unknown primitive: " + sym.name)
   end primitive

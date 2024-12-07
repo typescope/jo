@@ -23,7 +23,8 @@ class JSOptimized(outFile: String):
 
   private val symbol2UniqueName: mutable.Map[Symbol, String] =
     mutable.Map(
-      Predef.p -> "console.log"
+      Predef.p     -> "console.log",
+      Predef.print -> "process.stdout.write",
     )
 
   def jsName(sym: Symbol): String =
@@ -229,10 +230,15 @@ class JSOptimized(outFile: String):
     cont(arg): v =>
       "throw "  ~ v ~ ";" ~ Text.BreakLine ~ cont(Text("null"))
 
+  def p(args: List[Word])(using Context): Text =
+    val arg :: Nil = args: @unchecked
+    cont(arg): v =>
+      Predef.p ~ "(" ~ arg  ~ ");" ~ cont()
+
   def print(args: List[Word])(using Context): Text =
     val arg :: Nil = args: @unchecked
     cont(arg): v =>
-      Predef.p ~ "(" ~ rep(args, Text(", "))  ~ ");" ~ cont()
+      Predef.print ~ "(" ~ arg  ~ ");" ~ cont()
 
   /** Compile a primitive */
   def primitive(sym: Symbol, args: List[Word])(using Context): Text =
@@ -261,7 +267,8 @@ class JSOptimized(outFile: String):
       case Predef.bor    =>   binary("||")
       case Predef.bnot   =>   bnot(args)
       case Predef.eql    =>   binary("===")
-      case Predef.p      =>   print(args)
+      case Predef.p      =>   p(args)
+      case Predef.print  =>   print(args)
       case Predef.abort  =>   abort(args)
       case _             =>   throw new Exception("Unknown primitive: " + sym.name)
   end primitive
