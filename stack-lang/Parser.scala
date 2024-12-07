@@ -127,6 +127,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val defs = repeated:
         if peek() == Token.TYPE then Some(typeDef())
         else if peek() == Token.FUN then Some(funDef())
+        else if peek() == Token.PARAM then Some(paramDef())
         else None
 
     val endSpan = if defs.isEmpty then id.span else defs.last.span
@@ -183,6 +184,13 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     val paramList= preParamList ++ postParamList
     FunDef(id, tparams, paramList, resType, body, preParamList.size)(fun.span | body.span)
+
+  def paramDef(): Param =
+    val token = eat(Token.PARAM)
+    val id = ident()
+    eat(Token.COLON)
+    val tpt = typ()
+    Param(id, tpt)(token.span | tpt.span)
 
   def paramSection(): List[Param] =
     if peek() == Token.LPAREN then params() else Nil
@@ -280,6 +288,17 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         skipLine()
         blockRest(phrases, limitIndent)
 
+  def optWithClause(expr: Word): Word =
+    if peek() != Token.WITH then
+      expr
+    else
+      val token = eat(Token.WITH)
+      val id = qualid()
+      eat(Token.EQL)
+      val rhs = block(token.indent)
+      val word = With(expr, id, rhs)
+      optWithCaluse(word)
+
   def expr(): Word =
     val item = peekItem()
     word() match
@@ -362,13 +381,17 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           case Token.LBRACKET => Some(typeApply(id))
           case _              => optSelect(id)
 
-      case litToken: Token.IntLit  =>
+      case lit: Token.IntLit  =>
         next()
-        Some(IntLit(litToken.value)(item.span))
+        Some(IntLit(lit.value)(item.span))
 
-      case litToken: Token.BoolLit =>
+      case lit: Token.BoolLit =>
         next()
-        Some(BoolLit(litToken.value)(item.span))
+        Some(BoolLit(lit.value)(item.span))
+
+      case lit: Token.StringLit  =>
+        next()
+        Some(StringLit(lit.value)(item.span))
 
       case token =>
         None
@@ -393,9 +416,11 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         if isAssign() then
           val id = ident()
           Some(assign(id, item.indent))
+
         else
           word().map: w =>
-            exprRest(mutable.ArrayBuffer(w), item.indent)
+            val expr = exprRest(mutable.ArrayBuffer(w), item.indent)
+            optWithClause(expr)
 
   def typ(): TypeTree =
     val tps = simpleTypes()

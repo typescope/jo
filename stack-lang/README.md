@@ -65,17 +65,17 @@ Syntactical Grammar
 
     import = IMPORT qualid.
 
-    expr    = word {word} [with_clause].
+    expr    = word {word}.
 
     word    = integer | boolean | string | ident | fence | record | tapply | select | variant | lambda.
 
-    phrase  = expr | assign | valdef | fundef | typedef | while | if | match.
+    phrase  = expr | with_clause | assign | valdef | fundef | typedef | while | if | match.
 
     block   = { phrase }.
 
     select  = (ident | record | fence | select) DOT ident.
 
-    with_clause = WITH qualid EQL expr { COMMA qualid EQL expr }.
+    with_clause = (expr | with_clause) WITH qualid EQL expr.
 
     fence   = LPAREN expr RPAREN.
     assign  = ident EQL block.

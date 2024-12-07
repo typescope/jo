@@ -99,7 +99,7 @@ object Ast:
     assert(words.nonEmpty)
 
   case class With
-    (expr: Word, bindings: List[(RefTree, Word)])
+    (expr: Word, paramRef: RefTree, rhs: Word)
     (val span: Span)
   extends Word:
     assert(bindings.nonEmpty)
