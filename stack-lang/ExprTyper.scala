@@ -94,13 +94,13 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
         val span = call.span
         if preArgs.size < call.preTypes.size then
           Reporter.error(
-            s"Function ${Printing.show(fun)} expects ${call.preTypes.size} pre arguments, found = ${preArgs.size}",
+            s"Function ${fun.show} expects ${call.preTypes.size} pre arguments, found = ${preArgs.size}",
             span.toPos)
           errorTree(span)
 
         else if postArgs.size < call.postTypes.size then
           Reporter.error(
-            s"Function ${Printing.show(fun)} expects ${call.postTypes.size} post arguments, found = ${postArgs.size}",
+            s"Function ${fun.show} expects ${call.postTypes.size} post arguments, found = ${postArgs.size}",
             span.toPos)
           errorTree(span)
 

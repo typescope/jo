@@ -21,7 +21,7 @@ object Sast:
 
     def isDef: Boolean = this.isInstanceOf[Def]
 
-    def show: String = Printing.show(this)
+    def show: String = SastPrinting.show(this)
 
   case class IntLit
     (value: Int)

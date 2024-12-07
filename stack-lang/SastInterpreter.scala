@@ -163,7 +163,7 @@ object SastInterpreter:
     val (value: Value) :: Nil = exec(word): @unchecked
     value
 
-  def exec(word: Word)(using sc: Scope): List[Denotation] = Debug.trace(Printing.show(word), enable = false):
+  def exec(word: Word)(using sc: Scope): List[Denotation] = Debug.trace(word.show, enable = false):
     word match
       case IntLit(v)  => IntVal(v) :: Nil
 

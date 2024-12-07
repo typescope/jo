@@ -4,7 +4,7 @@ import Symbols.Symbol
 
 import Text.*
 
-object Printing:
+object SastPrinting:
 
   def show(word: Word): String = showWord(word).toString
 
@@ -66,6 +66,10 @@ object Printing:
       case IntLit(n) => Text(n.toString)
 
       case BoolLit(b) => Text(b.toString)
+
+      case StringLit(s) =>
+        // TODO: backquotes
+        "\"" ~ Text(s) ~ "\""
 
       case Ident(sym) => Text(sym.name)
 

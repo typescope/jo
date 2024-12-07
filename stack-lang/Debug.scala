@@ -41,7 +41,7 @@ object Debug:
 
   def peek(enable: Boolean)(nss: List[Sast.Namespace]): List[Sast.Namespace] =
     if enable then
-      for ns <- nss do println(Printing.show(ns))
+      for ns <- nss do println(SastPrinting.show(ns))
     nss
 
   def displayPrompt(reader: BufferedReader = Console.in, writer: PrintWriter = PrintWriter(Console.err, true)): Unit =
