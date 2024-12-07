@@ -22,9 +22,9 @@ object AstPrinting:
 
   given Text.Maker[TypeTree] = v => showType(v)
 
-  given Text.Maker[Param] = v => v.ident ~ ": " ~ v.typ
+  given Text.Maker[Param] = v => v.ident ~ showTypeAnnot(v.typ)
 
-  given Text.Maker[TypeParam] = v => v.ident ~ " <: " ~ v.bound
+  given Text.Maker[TypeParam] = v => v.ident ~ showTypeBound(v.bound)
 
   given Text.Maker[Import] = v => "import " ~ v.qualid
 
@@ -38,13 +38,19 @@ object AstPrinting:
     rep(ns.imports, Text.BreakLine) ~ Text.BlankLine ~
     rep(ns.defs, Text.BlankLine)
 
+  def showTypeAnnot(typ: TypeTree): Text =
+    if typ.isEmpty then Text.Empty else ": " ~ typ
+
+  def showTypeBound(typ: TypeTree): Text =
+    if typ.isEmpty then Text.Empty else " <: " ~ typ
+
   def showDef(defn: Def): Text =
     defn match
       case Param(id, tpt) => "param " ~ id ~ ": " ~ tpt
 
       case ValDef(id, tpt, rhs, mutable) =>
         val mod = if mutable then "var" else "val"
-        mod ~ " " ~ id ~ ": " ~ tpt ~ " = " ~ rhs ~ Text.BreakLine
+        mod ~ " " ~ id ~ showTypeAnnot(tpt) ~ " = " ~ rhs
 
       case fdef: FunDef =>
         val tparams =
@@ -55,7 +61,9 @@ object AstPrinting:
           if fdef.params.isEmpty then Text.Empty
           else "(" ~ rep(fdef.params, Text(", "))  ~ ")"
 
-        "fun " ~ fdef.name ~ tparams ~ params ~ ": " ~ fdef.resType ~ " ="
+        val resType = showTypeAnnot(fdef.resType)
+
+        "fun " ~ fdef.name ~ tparams ~ params ~ resType ~ " ="
         ~ indent(Text(fdef.body))
 
       case tdef: TypeDef =>
@@ -91,10 +99,10 @@ object AstPrinting:
         typ ~ "#" ~ tag ~ "(" ~ rep(values, Text(", ")) ~ ")"
 
       case Lambda(params, body) =>
-        "(" ~ rep(params, Text(", ")) ~ ") => " ~ body
+        "(" ~ rep(params, Text(", ")) ~ ") =>" ~ indent(body)
 
       case With(expr, paramRef, rhs) =>
-        expr ~ " with " ~ paramRef ~ " = " ~ rhs
+        "(" ~ expr ~ " with " ~ paramRef ~ " = " ~ rhs ~ ")"
 
       case TypeApply(fun, targs) =>
         fun ~ "[" ~ rep(targs, Text(", ")) ~ "]"
@@ -103,7 +111,7 @@ object AstPrinting:
         if words.size == 1 then
           showWord(words.head)
         else if words.size > 1 then
-          rep(words, Text(" "))
+          "(" ~ rep(words, Text(" ")) ~ ")"
         else
           Text.Empty
 
