@@ -26,6 +26,10 @@ object AstPrinting:
 
   given Text.Maker[TypeParam] = v => v.ident ~ showTypeBound(v.bound)
 
+  given Text.Maker[Pattern] = v => showPattern(v)
+
+  given Text.Maker[Case] = v => "case " ~ v.pat ~ " =>" ~ indent(v.body)
+
   given Text.Maker[Import] = v => "import " ~ v.qualid
 
 
@@ -96,7 +100,10 @@ object AstPrinting:
         ~ "}"
 
       case Variant(tag, values, typ) =>
-        typ ~ "#" ~ tag ~ "(" ~ rep(values, Text(", ")) ~ ")"
+        val args =
+          if values.isEmpty then Text.Empty
+          else "(" ~ rep(values, Text(", ")) ~ ")"
+        typ ~ "#" ~ tag ~ args
 
       case Lambda(params, body) =>
         "(" ~ rep(params, Text(", ")) ~ ") =>" ~ indent(body)
@@ -139,14 +146,23 @@ object AstPrinting:
       case Assign(id, rhs) =>
         id ~ " = " ~ rhs
 
-      case patmat: Ast.Match => ???
+      case patmat: Ast.Match =>
+        "match " ~ patmat.scrutinee ~ indent:
+          rep(patmat.cases, Text.BlankLine)
 
       case defn: Def =>
         showDef(defn)
 
+  def showPattern(pat: Pattern): Text =
+    pat match
+      case _: Wildcard => Text("_")
+
+      case TagPat(tag, bindings) =>
+        "#" ~ tag ~ "(" ~ rep(bindings, Text(", ")) ~ ")"
+
   def showType(tpt: TypeTree): Text =
     tpt match
-      case _: EmptyTypeTree => Text("_")
+      case _: EmptyTypeTree => Text.Empty
 
       case ref: RefTree => showWord(ref)
 
@@ -155,11 +171,14 @@ object AstPrinting:
 
       case UnionType(branches) =>
          val branchesText = branches.map: b =>
-           b.tag ~ "(" ~ rep(b.params, Text(", ")) ~ ")"
-         "<" ~ rep(branchesText, Text(",")) ~ ">"
+           val params =
+             if b.params.isEmpty then Text.Empty
+             else "(" ~ rep(b.params, Text(", ")) ~ ")"
+           b.tag ~ params
+         "<" ~ rep(branchesText, Text(", ")) ~ ">"
 
       case AppliedType(tpeCtor, targs) =>
-        tpeCtor ~ "[" ~ rep(targs, Text(",")) ~ "]"
+        tpeCtor ~ "[" ~ rep(targs, Text(", ")) ~ "]"
 
       case FunctionType(paramTypes, resultType) =>
-        rep(paramTypes, Text(",")) ~ " => " ~ resultType
+        rep(paramTypes, Text(", ")) ~ " => " ~ resultType
