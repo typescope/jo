@@ -34,8 +34,7 @@ object Printing:
   def showImports(imports: List[Symbol]): Text =
     imports match
       case item :: items =>
-        // TODO: fully qualified name
-        "import " ~ Text(item.fullName) ~ Text.BreakLine ~ showImports(items)
+        "import " ~ item.fullName ~ Text.BreakLine ~ showImports(items)
 
       case Nil =>
         Text.Empty

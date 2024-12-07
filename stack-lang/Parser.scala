@@ -20,7 +20,12 @@ import Parser.SyntaxError
 
 object Parser:
   def main(args: Array[String]): Unit =
-    Reporter.monitor { Parser.parse(args.toList) }
+    Reporter.monitor:
+      val nss = Parser.parse(args.toList)
+      for ns <- nss do
+        println(ns.source + ":")
+        println(AstPrinting.show(ns))
+        println
 
   def parse(sourceFiles: List[String])(using Reporter): List[Namespace] =
     for file <- sourceFiles yield
@@ -299,7 +304,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       val id = qualid()
       eat(Token.EQL)
       val rhs = block(token.indent)
-      val word = With(expr, id, rhs)(token.span | rhs.span)
+      val word = With(expr, id, rhs)(expr.span | rhs.span)
       optWithClause(word)
 
   def expr(): Word =
@@ -500,7 +505,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     eat(Token.RBRACKET)
     targs.toList
 
-  def fields(acc: mutable.ArrayBuffer[Field]): List[Field] =
+  def fields(acc: mutable.ArrayBuffer[Param]): List[Param] =
     peek() match
       case Token.RBRACE | Token.EOF => acc.toList
       case _ =>
@@ -508,7 +513,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         val id = ident()
         eat(Token.COLON)
         val tp = typ()
-        val field = Field(id, tp)(id.span | tp.span)
+        val field = Param(id, tp)(id.span | tp.span)
         fields(acc += field)
 
   def branches(acc: mutable.ArrayBuffer[Branch]): List[Branch] =

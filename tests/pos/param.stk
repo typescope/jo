@@ -1,0 +1,29 @@
+param indent: Int
+
+fun padding(unit: Int): Int = indent * unit
+
+param alpha: Int
+param beta: Int
+
+fun foo(n: Int): Int = alpha + beta * n
+
+fun main =
+  padding 2 with indent = 2
+  padding 2 with indent = 6
+
+  padding 4
+    with indent = 6
+
+  padding 4
+  with indent = 8
+
+  foo 10 with alpha = 3 with beta = 6
+
+  foo 5
+    with alpha = 3
+    with beta = 6
+
+  foo
+    5
+    with alpha = 3
+    with beta = 6

@@ -133,15 +133,9 @@ object Ast:
   extends TypeTree
 
   case class RecordType
-    (fields: List[Field])
+    (fields: List[Param])
     (val span: Span)
   extends TypeTree
-
-  case class Field
-    (ident: Ident, typ: TypeTree)
-    (val span: Span)
-  extends Tree:
-    def name = ident.name
 
   case class UnionType
     (branches: List[Branch])
