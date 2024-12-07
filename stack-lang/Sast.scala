@@ -80,10 +80,16 @@ object Sast:
   extends Word
 
   case class With
-    (expr: Word, param: Symbol, rhs: Word)
+    (expr: Word, args: List[WithArg])
     (val tpe: Type, val span: Span)
   extends Word:
     assert(words.nonEmpty)
+
+  case class WithArg
+    (paramRef: Symbol, rhs: Word)
+    (val span: Span)
+  extends Tree:
+    def tpe: Type = VoidType
 
   case class TypeApply
     (fun: Word, targs: List[TypeTree])

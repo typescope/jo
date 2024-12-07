@@ -17,13 +17,11 @@ fun main =
   padding 4
   with indent = 8
 
-  foo 10 with alpha = 3 with beta = 6
+  foo 10 with alpha = 3, beta = 6
+
+  foo 5 with
+    alpha = 3,
+    beta = 6
 
   foo 5
-    with alpha = 3
-    with beta = 6
-
-  foo
-    5
-    with alpha = 3
-    with beta = 6
+    with alpha = 3, beta = 6

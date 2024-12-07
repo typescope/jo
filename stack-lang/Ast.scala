@@ -99,9 +99,15 @@ object Ast:
     assert(words.nonEmpty)
 
   case class With
-    (expr: Word, paramRef: RefTree, rhs: Word)
+    (expr: Word, args: List[WithArg])
     (val span: Span)
-  extends Word
+  extends Word:
+    assert(args.nonEmpty)
+
+  case class WithArg
+    (paramRef: RefTree, rhs: Word)
+    (val span: Span)
+  extends Tree
 
   case class Block
     (phrases: List[Phrase])

@@ -75,7 +75,9 @@ Syntactical Grammar
 
     select  = (ident | record | fence | select) DOT ident.
 
-    with_clause = (expr | with_clause) WITH qualid EQL expr.
+    with_clause = expr WITH with_binding {COMMA with_binding}.
+
+    with_binding = qualid EQL expr.
 
     fence   = LPAREN expr RPAREN.
     assign  = ident EQL block.

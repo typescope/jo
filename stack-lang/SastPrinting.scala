@@ -22,6 +22,8 @@ object SastPrinting:
 
   given Text.Maker[Symbol] = v => Text(v.name)
 
+  given Text.Maker[WithArg] = v => v.paramRef ~ " = " ~ v.rhs
+
   //----------------------------------------------------------------------------
 
   // implementation
@@ -92,6 +94,9 @@ object SastPrinting:
 
       case TypeApply(fun, targs) =>
         fun ~ "[" ~ rep(targs, Text(", ")) ~ "]"
+
+      case With(expr, args) =>
+        "(" ~ expr ~ " with " ~ rep(args, Text(", ")) ~ ")"
 
       case Assign(sym, rhs) =>
         sym.name ~ " = " ~ rhs

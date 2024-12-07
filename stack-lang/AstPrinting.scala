@@ -28,6 +28,8 @@ object AstPrinting:
 
   given Text.Maker[Pattern] = v => showPattern(v)
 
+  given Text.Maker[WithArg] = v => v.paramRef ~ " = " ~ v.rhs
+
   given Text.Maker[Case] = v => "case " ~ v.pat ~ " =>" ~ indent(v.body)
 
   given Text.Maker[Import] = v => "import " ~ v.qualid
@@ -108,8 +110,8 @@ object AstPrinting:
       case Lambda(params, body) =>
         "(" ~ rep(params, Text(", ")) ~ ") =>" ~ indent(body)
 
-      case With(expr, paramRef, rhs) =>
-        "(" ~ expr ~ " with " ~ paramRef ~ " = " ~ rhs ~ ")"
+      case With(expr, args) =>
+        "(" ~ expr ~ " with " ~ rep(args, Text(", ")) ~ ")"
 
       case TypeApply(fun, targs) =>
         fun ~ "[" ~ rep(targs, Text(", ")) ~ "]"

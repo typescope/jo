@@ -113,6 +113,17 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     end while
     items.toList
 
+  def oneOrMore[T](parseItem: () => T, sep: Token): List[T] =
+    val items = new mutable.ArrayBuffer[T]
+    items += parseItem()
+    var continue = peek() == sep
+    while continue do
+      next()
+      items += parseItem()
+      continue = peek() == sep
+
+    items.toList
+
   def parse(defaultNamespace: RefTree): Namespace =
     val nspace = namespace(defaultNamespace)
     // With parsing errors, ensure finish scanning
@@ -300,12 +311,15 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     if peek() != Token.WITH then
       expr
     else
-      val token = eat(Token.WITH)
-      val id = qualid()
-      eat(Token.EQL)
-      val rhs = block(token.indent)
-      val word = With(expr, id, rhs)(expr.span | rhs.span)
-      optWithClause(word)
+      eat(Token.WITH)
+      val args = oneOrMore(withArg, Token.COMMA)
+      With(expr, args)(expr.span | args.last.span)
+
+  def withArg(): WithArg =
+    val id = qualid()
+    eat(Token.EQL)
+    val rhs = expr()
+    WithArg(id, rhs)(id.span | rhs.span)
 
   def expr(): Word =
     val item = peekItem()
