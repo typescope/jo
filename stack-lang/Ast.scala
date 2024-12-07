@@ -101,8 +101,7 @@ object Ast:
   case class With
     (expr: Word, paramRef: RefTree, rhs: Word)
     (val span: Span)
-  extends Word:
-    assert(bindings.nonEmpty)
+  extends Word
 
   case class Block
     (phrases: List[Phrase])
@@ -180,8 +179,7 @@ object Ast:
   case class Param
     (ident: Ident, typ: TypeTree)
     (val span: Span)
-  extends Def:
-    def name = ident.name
+  extends Def
 
   case class FunDef
     (ident: Ident, tparams: List[TypeParam], params: List[Param],

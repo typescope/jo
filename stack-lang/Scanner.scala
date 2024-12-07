@@ -88,8 +88,8 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       case name  => Token.Ident(name)
 
   def stringLit(): Token =
-    stream.eatWhile(c => c != '\n' && (c != '"' || stream.lastEq('\')))
-    if stream.curChar == '\n' then
+    stream.eatWhile(c => c != '\n' && (c != '"' || stream.lastEq('\\')))
+    if stream.curChar() == '\n' then
       error("Missing closing double quote: string cannot span multiple lines", stream.tokenSpan().toPos)
     stream.eat()
     // TODO: transform backquote

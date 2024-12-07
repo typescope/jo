@@ -1,0 +1,16 @@
+#!/bin/bash
+
+files=(
+    stack-lang/Ast.scala
+    stack-lang/Diagnostics.scala
+    stack-lang/IO.scala
+    stack-lang/Parser.scala
+    stack-lang/Positions.scala
+    stack-lang/Reporter.scala
+    stack-lang/Scanner.scala
+    stack-lang/Tokens.scala
+)
+
+FILES=${files[*]}
+
+scala-cli project.scala $FILES --main-class Parser -- $@

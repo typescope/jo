@@ -80,7 +80,7 @@ object Sast:
   extends Word
 
   case class With
-    (expr: Word, bindings: List[(RefTree, Word)])
+    (expr: Word, param: Symbol, rhs: Word)
     (val tpe: Type, val span: Span)
   extends Word:
     assert(words.nonEmpty)

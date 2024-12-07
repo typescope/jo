@@ -19,6 +19,9 @@ import Parser.SyntaxError
  ***********************************************************************/
 
 object Parser:
+  def main(args: Array[String]): Unit =
+    Reporter.monitor { Parser.parse(args.toList) }
+
   def parse(sourceFiles: List[String])(using Reporter): List[Namespace] =
     for file <- sourceFiles yield
       Reporter.source(file) |>
@@ -296,8 +299,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       val id = qualid()
       eat(Token.EQL)
       val rhs = block(token.indent)
-      val word = With(expr, id, rhs)
-      optWithCaluse(word)
+      val word = With(expr, id, rhs)(token.span | rhs.span)
+      optWithClause(word)
 
   def expr(): Word =
     val item = peekItem()
