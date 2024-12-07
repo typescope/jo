@@ -158,7 +158,10 @@ object AstPrinting:
       case _: Wildcard => Text("_")
 
       case TagPat(tag, bindings) =>
-        "#" ~ tag ~ "(" ~ rep(bindings, Text(", ")) ~ ")"
+        val params =
+          if bindings.isEmpty then Text.Empty
+          else "(" ~ rep(bindings, Text(", ")) ~ ")"
+        "#" ~ tag ~ params
 
   def showType(tpt: TypeTree): Text =
     tpt match
