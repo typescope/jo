@@ -1,4 +1,8 @@
+package sast
+
 import Symbols.Symbol
+
+import typing.Inference
 
 import scala.reflect.ClassTag
 

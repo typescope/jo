@@ -1,11 +1,13 @@
-import java.io.PrintWriter
-import scala.collection.mutable
+package js
 
-import Sast.*
-import Symbols.*
-import Text.*
+import sast.Sast.*
+import sast.Symbols.*
+import common.Text.*
 
 import JSOptimized.encodeSymbolic
+
+import java.io.PrintWriter
+import scala.collection.mutable
 
 /**
   * JavaScript platform with code optimization

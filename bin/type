@@ -32,11 +32,8 @@ files=(
     stack-lang/sast/Subtyping.scala
     stack-lang/sast/Types.scala
     stack-lang/sast/TypeOps.scala
-
-    # interpreter
-    stack-lang/SastInterpreter.scala
 )
 
 FILES=${files[*]}
 
-scala-cli project.scala $FILES --main-class sastEval -- $@
+scala-cli project.scala $FILES --main-class typing.Namer -- $@

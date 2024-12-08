@@ -3,14 +3,20 @@
  * The parser for the stack-oriented language.                          *
  *                                                                      *
  ************************************************************************/
+package parsing
 
-import scala.collection.mutable
+import ast.Ast.*
+import pos.Positions
+import pos.Positions.*
 
-import Ast.*
-import Positions.*
-import Reporter.*
+import common.IO
+import reporting.Reporter
+import reporting.Reporter.{ error, warn }
+
 import Tokens.*
 import Parser.SyntaxError
+
+import scala.collection.mutable
 
 /***********************************************************************
  *

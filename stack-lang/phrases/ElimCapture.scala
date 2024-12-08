@@ -1,9 +1,12 @@
-import scala.collection.mutable
+package phases
 
-import Sast.*
-import Symbols.*
-import Types.*
-import Positions.Span
+import common.Debug
+import sast.Sast.*
+import sast.Symbols.*
+import sast.Types.*
+import pos.Positions.Span
+
+import scala.collection.mutable
 
 /**
   * Eliminate captures of locals in functions

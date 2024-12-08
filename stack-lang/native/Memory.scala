@@ -1,4 +1,6 @@
-import Types.*
+package native
+
+import sast.Types.*
 
 /** Code related to runtime memory
   */

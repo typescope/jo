@@ -3,8 +3,8 @@ import java.io.{ File => JFile }
 import scala.collection.mutable
 import scala.io.Source
 
-import Reporter.FatalError
-import Diagnostics.*
+import reporting.Reporter.FatalError
+import reporting.Diagnostics.*
 
 object Test:
   /** Creates a list of tests */

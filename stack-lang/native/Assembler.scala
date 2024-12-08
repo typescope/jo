@@ -1,4 +1,6 @@
-import IO.ByteBuffer
+package native
+
+import common.IO.ByteBuffer
 import Assembly.*
 import Assembler.*
 

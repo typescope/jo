@@ -1,3 +1,5 @@
+package common
+
 import java.io.{ BufferedReader, PrintWriter }
 
 object Debug:
@@ -38,11 +40,6 @@ object Debug:
 
   extension [T](inline v: T)
     inline def <|(msg: => String, inline enable: Boolean): T = measure(msg, enable)(v)
-
-  def peek(enable: Boolean)(nss: List[Sast.Namespace]): List[Sast.Namespace] =
-    if enable then
-      for ns <- nss do println(SastPrinting.show(ns))
-    nss
 
   def displayPrompt(reader: BufferedReader = Console.in, writer: PrintWriter = PrintWriter(Console.err, true)): Unit =
     writer.println()

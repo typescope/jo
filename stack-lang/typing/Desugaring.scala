@@ -1,6 +1,9 @@
-import Types.*
-import Sast.*
-import Positions.Span
+package typing
+
+import sast.Predef
+import sast.Types.*
+import sast.Sast.*
+import pos.Positions.Span
 
 import scala.collection.mutable
 

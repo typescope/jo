@@ -1,3 +1,5 @@
+package sast
+
 object Flags:
   opaque type Flag <: Flags = Long
   opaque type Flags = Long

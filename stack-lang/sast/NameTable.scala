@@ -1,5 +1,9 @@
+package sast
+
 import Symbols.*
-import Diagnostics.*
+
+import reporting.Diagnostics.*
+import reporting.Reporter
 
 import scala.collection.mutable
 

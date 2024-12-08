@@ -1,4 +1,7 @@
-import Positions.*
+package reporting
+
+import pos.Positions.*
+
 import Reporter.*
 import Diagnostics.*
 

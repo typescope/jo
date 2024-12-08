@@ -1,4 +1,6 @@
-import Positions.*
+package reporting
+
+import pos.Positions.*
 
 
 object Diagnostics:

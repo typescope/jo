@@ -1,6 +1,9 @@
+package sast
+
 import Symbols.*
 import Types.*
-import Positions.{ Positioned, Span }
+
+import pos.Positions.{ Positioned, Span }
 
 /***********************************************************************
  *
@@ -21,7 +24,7 @@ object Sast:
 
     def isDef: Boolean = this.isInstanceOf[Def]
 
-    def show: String = SastPrinting.show(this)
+    def show: String = Printing.show(this)
 
   case class IntLit
     (value: Int)

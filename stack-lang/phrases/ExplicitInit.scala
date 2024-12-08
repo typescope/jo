@@ -1,5 +1,7 @@
-import Sast.*
-import Symbols.*
+package phases
+
+import sast.Sast.*
+import sast.Symbols.*
 
 import scala.collection.mutable
 

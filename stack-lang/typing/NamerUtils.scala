@@ -1,7 +1,12 @@
-import scala.collection.mutable
+package typing
 
-import Types.*
-import Symbols.*
+import sast.Types.*
+import sast.Symbols.*
+
+import common.Debug
+import reporting.Reporter
+
+import scala.collection.mutable
 
 object NamerUtils:
   /** Type provider for value definitions

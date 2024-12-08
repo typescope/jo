@@ -1,7 +1,8 @@
-import scala.collection.mutable
+package native
 
 import Assembly.*
 
+import scala.collection.mutable
 
 /** Code representation of a function before register allocation.
   *

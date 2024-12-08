@@ -1,6 +1,9 @@
+package sast
+
 import Types.*
 import Flags.*
-import Positions.SourcePosition
+
+import pos.Positions.SourcePosition
 
 /** Symbols refer to definitions (names) in the program.
   *

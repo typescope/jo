@@ -1,4 +1,8 @@
+package sast
+
 import Types.*
+
+import common.Debug
 
 object Subtyping:
   /** A subtyping task `left <: right` */

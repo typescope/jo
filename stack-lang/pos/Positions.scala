@@ -1,3 +1,7 @@
+package pos
+
+import common.IO
+
 import scala.collection.mutable
 
 object Positions:

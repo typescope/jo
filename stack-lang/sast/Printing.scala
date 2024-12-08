@@ -1,14 +1,23 @@
+package sast
+
 import Sast.*
 import Types.Type
 import Symbols.Symbol
 
-import Text.*
+import common.StringUtil
+import common.Text
+import common.Text.*
 
 object Printing:
 
   def show(word: Word): String = showWord(word).toString
 
   def show(ns: Namespace): String = showNamespace(ns).toString
+
+  inline def peek(enable: Boolean)(nss: List[Namespace]): List[Namespace] =
+    inline if enable then
+      for ns <- nss do println(show(ns))
+    nss
 
   //----------------------------------------------------------------------------
 
@@ -72,7 +81,7 @@ object Printing:
       case BoolLit(b) => Text(b.toString)
 
       case StringLit(s) =>
-        "\"" ~ Scanner.escape(s) ~ "\""
+        "\"" ~ StringUtil.escape(s) ~ "\""
 
       case Ident(sym) => Text(sym.name)
 

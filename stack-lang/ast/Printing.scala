@@ -1,5 +1,10 @@
+package ast
+
 import Ast.*
-import Text.*
+
+import common.StringUtil
+import common.Text
+import common.Text.*
 
 object Printing:
 
@@ -86,7 +91,7 @@ object Printing:
 
       case BoolLit(b) => Text(b.toString)
 
-      case StringLit(s) => "\"" ~ Scanner.escape(s) ~ "\""
+      case StringLit(s) => "\"" ~ StringUtil.escape(s) ~ "\""
 
       case Ident(name) => Text(name)
 

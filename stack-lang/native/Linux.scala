@@ -6,6 +6,7 @@
  * - x64                                                                *
  *                                                                      *
  ************************************************************************/
+package native
 
 import Assembly.*
 import Assembler.PatchableBuffer

@@ -1,13 +1,21 @@
-import scala.collection.mutable
-import scala.annotation.constructorOnly
+package typing
 
-import Sast.*
-import Types.*
-import Flags.*
-import Symbols.*
-import Positions.*
+import ast.Ast
+import sast.*
+import sast.Flags.*
+import sast.Sast.*
+import sast.Symbols.*
+import sast.Types.*
+
+import parsing.Parser
+import pos.Positions.*
+import reporting.Reporter
+
 import Namer.{ Scope, DelayedDef }
 import Inference.*
+
+import scala.collection.mutable
+import scala.annotation.constructorOnly
 
 /**
   * The namer handles name resolution and desugaring.
@@ -823,7 +831,7 @@ object Namer:
 
       for ns <- nss do
         println(ns.symbol.sourcePos.source.file + ":")
-        println(SastPrinting.show(ns))
+        println(ns.show)
         println
 
   def transform(using reporter: Reporter): List[Ast.Namespace] => List[Namespace] =

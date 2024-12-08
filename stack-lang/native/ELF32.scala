@@ -8,13 +8,14 @@
  *       https://refspecs.linuxbase.org/elf/elf.pdf                     *
  *                                                                      *
  ************************************************************************/
-
-import scala.collection.mutable
+package native
 
 import Assembler.PatchableBuffer
-import IO.ByteBuffer
+import common.IO.ByteBuffer
 
 import ELF32.*
+
+import scala.collection.mutable
 
 class ELF32(outFile: String, layout: Layout, machine: Short):
   private val strtable: mutable.ArrayBuffer[Byte   ] = new mutable.ArrayBuffer

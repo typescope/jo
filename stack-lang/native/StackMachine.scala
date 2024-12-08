@@ -1,10 +1,12 @@
-import scala.collection.mutable
+package native
 
 import Assembly.{ Type => _, * }
-import Sast.*
-import Symbols.*
+import sast.Sast.*
+import sast.Symbols.*
 
 import StackMachine.RegisterAllocator
+
+import scala.collection.mutable
 
 /**
   * Implementation based on a stack machine.

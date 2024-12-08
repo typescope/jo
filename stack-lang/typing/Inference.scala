@@ -1,4 +1,7 @@
-import Types.*
+package typing
+
+import sast.Types.*
+import sast.Subtyping
 
 import scala.collection.mutable
 

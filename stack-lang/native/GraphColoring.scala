@@ -1,7 +1,9 @@
-import scala.collection.mutable
+package native
 
 import Assembly.*
 import PreAssembly.*
+
+import scala.collection.mutable
 
 /**
   * Register allocation based on graph coloring.

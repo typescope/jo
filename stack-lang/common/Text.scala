@@ -1,3 +1,5 @@
+package common
+
 /** DSL for string construction  */
 enum Text:
   case BlankLine

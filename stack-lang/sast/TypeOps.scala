@@ -1,5 +1,9 @@
+package sast
+
 import Types.*
 import Symbols.*
+
+import common.Debug
 
 import scala.collection.mutable
 

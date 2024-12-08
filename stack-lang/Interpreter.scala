@@ -6,7 +6,7 @@
 
 import scala.collection.mutable
 
-import Ast.*
+import ast.Ast.*
 
 /***********************************************************************
  *

@@ -9,6 +9,7 @@
  *   [2] Table 2-2. 32-Bit Addressing Forms with the ModR/M Byte in [1] *
  *                                                                      *
  ************************************************************************/
+package native
 
 import Assembly.*
 import Assembler.{ Patch, PatchableBuffer, withPatch }

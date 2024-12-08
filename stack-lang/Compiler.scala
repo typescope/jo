@@ -1,3 +1,9 @@
+import sast.*
+import js.JSOptimized
+import native.Linux
+import phases.*
+import reporting.Reporter
+
 /***********************************************************************
  *
  * Main entry point for the compiler
@@ -61,11 +67,11 @@ def compile(args: String*): Unit =
     mains match
       case main :: Nil =>
         namespacesSAST                |>
-        Debug.peek(enable = false)    |>
+        Printing.peek(enable = false) |>
         new ExplicitInit().transform  |+
-        Debug.peek(enable = false)    |>
+        Printing.peek(enable = false) |>
         ElimCapture.transform         |+
-        Debug.peek(enable = false)    |>
+        Printing.peek(enable = false) |>
         ((nss: List[Sast.Namespace]) => backend(nss, main))
 
       case _ =>

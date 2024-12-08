@@ -1,3 +1,5 @@
+package common
+
 /**
   * A simple unique name generator.
   */

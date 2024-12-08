@@ -1,3 +1,5 @@
+package sast
+
 import Sast.*
 
 object SastOps:

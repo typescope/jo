@@ -1,10 +1,16 @@
+package typing
+
 import scala.collection.mutable
 
-import Sast.*
-import Types.*
-import Symbols.*
+import ast.Ast
+import sast.*
+import sast.Sast.*
+import sast.Types.*
+import sast.Symbols.*
+import pos.Positions.*
 
-import Positions.*
+import reporting.Reporter
+
 import Namer.Scope
 import Inference.*
 

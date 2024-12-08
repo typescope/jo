@@ -1,4 +1,6 @@
-import Types.*
+package native
+
+import sast.Types.*
 import CallConvention.*
 import Assembly.{ RegisterConfig, Rel }
 

@@ -1,7 +1,13 @@
 import scala.collection.mutable
 
-import Sast.*
-import Symbols.*
+import sast.*
+import sast.Sast.*
+import sast.Symbols.*
+
+import common.Debug
+import parsing.Parser
+import reporting.Reporter
+import typing.Namer
 
 /** An interpreter for S-AST */
 object SastInterpreter:
@@ -14,7 +20,7 @@ object SastInterpreter:
     case BoolVal(value: Boolean)
     case StringVal(value: String)
     case RecordVal(fields: Map[String, Value])
-    case FunVal(fun: Sast.FunDef, env: Env)
+    case FunVal(fun: FunDef, env: Env)
     case PrimAction(op: List[Value] => List[Value])
     case Uninit
 
@@ -253,7 +259,7 @@ def sastEval(args: String*) = Reporter.monitor:
     val namespacesSAST =
       Parser.parse(sourceFiles)     |>
       Namer.transform               |>
-      Debug.peek(enable = false)
+      Printing.peek(enable = false)
 
     val mains = namespacesSAST.collect:
       case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get

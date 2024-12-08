@@ -1,12 +1,15 @@
-import scala.collection.mutable
+package native
+
+import sast.Sast.*
+import sast.Symbols.*
+import sast.Types.*
 
 import Assembly.{ Type => _, * }
 import PreAssembly.*
-import Sast.*
-import Symbols.*
-import Types.*
 import CallConvention.*
 import RegisterMachine.*
+
+import scala.collection.mutable
 
 /** Fast implementation with register allocation
   *
