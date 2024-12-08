@@ -6,7 +6,10 @@
  * - x64                                                                *
  *                                                                      *
  ************************************************************************/
-package native
+package native.os
+
+import register.RegisterMacine
+import stack.StackMacine
 
 import Assembly.*
 import Assembler.PatchableBuffer

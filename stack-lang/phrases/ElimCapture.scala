@@ -1,10 +1,15 @@
 package phases
 
 import common.Debug
+import common.UniqueName
+
 import ast.Positions.Span
+import sast.*
 import sast.Sast.*
 import sast.Symbols.*
 import sast.Types.*
+
+import reporting.Reporter
 
 import scala.collection.mutable
 
@@ -29,7 +34,7 @@ object ElimCapture:
     given ctx: Context = new Context
     val defs =
       for defn <- ns.defs yield
-        treeMap.recur(defn)
+        treeMap.recurDef(defn)
 
     // Enter names to name table of the namespace
     for fdef <- ctx.lifted do ns.info.define(fdef.symbol)

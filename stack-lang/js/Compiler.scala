@@ -1,20 +1,21 @@
+package js
+
+import common.IO
+import parsing.Parser
 import sast.*
-import js.JSOptimized
-import native.Linux
+import typing.Namer
 import phases.*
 import reporting.Reporter
 
 /***********************************************************************
  *
- * Main entry point for the compiler
+ * Main entry point for the JS compiler
  *
  ***********************************************************************/
 @main
 def compile(args: String*): Unit =
   val optionSpec = Map(
     "-o" -> true,
-    "-p" -> true,
-    "-layout" -> true, // only valid for linux-x86 platform
   )
 
   val (options, rest) = IO.parseOptions(args, optionSpec)
@@ -32,34 +33,15 @@ def compile(args: String*): Unit =
         if sourceFiles.size == 1 then
           IO.fileNameNoExt(sourceFiles.head)
         else
-          "out"
+          "out.js"
 
-  val layout = options.getOrElse("-layout", "c1")
-
-  val backend: (List[Sast.Namespace], Symbols.Symbol) => Unit =
-    options.get("-p") match
-      case Some(pf) =>
-        if pf == "linux-x86-stack" then
-          Linux.createX86StackMachine(outFile, layout).compile
-
-        else if pf == "linux-x86-reg" then
-          Linux.createX86RegisterMachine(outFile, layout).compile
-
-        else if pf == "js" then
-          new JSOptimized(outFile).compile
-
-        else
-          throw new Exception("Unknow platform: " + pf)
-
-      case None =>
-        Linux.createX86RegisterMachine(outFile, layout).compile
+  val backend = new JSOptimized(outFile)
 
   Reporter.monitor:
-
     val namespacesSAST =
       Parser.parse(sourceFiles)     |>
       Namer.transform               |+
-      Debug.peek(enable = false)
+      Printing.peek(enable = false)
 
     val mains = namespacesSAST.collect:
       case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get
@@ -72,7 +54,7 @@ def compile(args: String*): Unit =
         Printing.peek(enable = false) |>
         ElimCapture.transform         |+
         Printing.peek(enable = false) |>
-        ((nss: List[Sast.Namespace]) => backend(nss, main))
+        ((nss: List[Sast.Namespace]) => backend.compile(nss, main))
 
       case _ =>
         if mains.isEmpty then

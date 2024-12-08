@@ -1,4 +1,4 @@
-package native
+package native.stack
 
 import Assembly.{ Type => _, * }
 import sast.Sast.*

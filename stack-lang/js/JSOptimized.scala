@@ -1,8 +1,13 @@
 package js
 
+import sast.*
 import sast.Sast.*
 import sast.Symbols.*
+
+import common.Text
 import common.Text.*
+import common.UniqueName
+import common.WorkList
 
 import JSOptimized.encodeSymbolic
 

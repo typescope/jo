@@ -1,6 +1,6 @@
 package ast
 
-import ast.Positions.{ Positioned, Span }
+import Positions.{ Positioned, Span }
 
 
 /***********************************************************************

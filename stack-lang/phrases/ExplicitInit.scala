@@ -1,5 +1,6 @@
 package phases
 
+import sast.*
 import sast.Sast.*
 import sast.Symbols.*
 
@@ -11,7 +12,7 @@ import scala.collection.mutable
   * - Augment function definitions with a list of local symbols.
   * - Remove type definitions.
   */
-class ExplicitInit(using Reporter):
+class ExplicitInit:
   val treeMap = new ExplicitInit.LocalsTreeMap
 
   def transform(nss: List[Namespace]): List[Namespace] =

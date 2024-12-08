@@ -1,4 +1,4 @@
-package native
+package native.register
 
 import sast.Sast.*
 import sast.Symbols.*
