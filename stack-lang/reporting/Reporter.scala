@@ -1,6 +1,6 @@
 package reporting
 
-import pos.Positions.*
+import ast.Positions.*
 
 import Reporter.*
 import Diagnostics.*

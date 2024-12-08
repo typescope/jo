@@ -1,6 +1,6 @@
 package parsing
 
-import pos.Positions.Span
+import ast.Positions.Span
 
 object Tokens:
   /** Tokens recognized by the scanner */

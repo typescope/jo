@@ -1,10 +1,10 @@
 package phases
 
 import common.Debug
+import ast.Positions.Span
 import sast.Sast.*
 import sast.Symbols.*
 import sast.Types.*
-import pos.Positions.Span
 
 import scala.collection.mutable
 

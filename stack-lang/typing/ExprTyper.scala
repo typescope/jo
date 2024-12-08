@@ -7,8 +7,8 @@ import sast.*
 import sast.Sast.*
 import sast.Types.*
 import sast.Symbols.*
-import pos.Positions.*
 
+import ast.Positions.*
 import reporting.Reporter
 
 import Namer.Scope

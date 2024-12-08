@@ -3,7 +3,7 @@ package sast
 import Types.*
 import Flags.*
 
-import pos.Positions.SourcePosition
+import ast.Positions.SourcePosition
 
 /** Symbols refer to definitions (names) in the program.
   *

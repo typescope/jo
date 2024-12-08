@@ -6,8 +6,8 @@
 package parsing
 
 import ast.Ast.*
-import pos.Positions
-import pos.Positions.*
+import ast.Positions
+import ast.Positions.*
 
 import common.IO
 import reporting.Reporter

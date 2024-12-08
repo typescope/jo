@@ -3,7 +3,7 @@ package sast
 import Symbols.*
 import Types.*
 
-import pos.Positions.{ Positioned, Span }
+import ast.Positions.{ Positioned, Span }
 
 /***********************************************************************
  *

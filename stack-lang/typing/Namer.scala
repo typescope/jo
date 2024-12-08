@@ -7,8 +7,8 @@ import sast.Sast.*
 import sast.Symbols.*
 import sast.Types.*
 
+import ast.Positions.*
 import parsing.Parser
-import pos.Positions.*
 import reporting.Reporter
 
 import Namer.{ Scope, DelayedDef }

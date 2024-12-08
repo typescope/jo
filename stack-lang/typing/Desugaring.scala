@@ -3,7 +3,7 @@ package typing
 import sast.Predef
 import sast.Types.*
 import sast.Sast.*
-import pos.Positions.Span
+import ast.Positions.Span
 
 import scala.collection.mutable
 

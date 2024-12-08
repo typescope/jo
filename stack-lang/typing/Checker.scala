@@ -6,7 +6,7 @@ import sast.Sast.*
 import sast.Symbols.*
 import sast.Types.*
 
-import pos.Positions.*
+import ast.Positions.*
 import reporting.Reporter
 
 import Inference.*

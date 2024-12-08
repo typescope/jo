@@ -4,7 +4,7 @@ import Tokens.*
 import Scanner.*
 
 import common.StringUtil
-import pos.Positions.*
+import ast.Positions.*
 import reporting.Reporter
 import reporting.Reporter.{ error, abortInternal }
 
