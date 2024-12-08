@@ -309,6 +309,9 @@ class Namer(@constructorOnly reporter: Reporter):
       case lambda: Ast.Lambda =>
         transform(lambda).adapt
 
+      case Ast.Fence(phrase) =>
+        transform(phrase)
+
       case Ast.TypeApply(fun, targs) =>
         val fun2 = transform(fun)
         val targs2 = targs.map(transformType)

@@ -560,13 +560,18 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   def fence(): Word =
     val lparen = eat(Token.LPAREN)
-    val word = expr()
+    val nested = phrase() match
+      case Some(p) => p
+      case None =>
+        error("Phrase expected within parentheses", lparen.span.toPos)
+        Block(Nil)(lparen.span)
+
     val rparen = eat(Token.RPAREN)
     // having span covering `(` is important for checking alignment
     val span = lparen.span | rparen.span
     if !span.toPos.isOneLine then
       warn("Use indented syntax when parentheses span multiple lines", span.toPos)
-    Block(word :: Nil)(span)
+    Fence(nested)(span)
 
   def ifElse(): Phrase =
     val ifItem = eat(Token.IF)

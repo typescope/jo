@@ -110,6 +110,9 @@ object AstPrinting:
       case Lambda(params, body) =>
         "(" ~ rep(params, Text(", ")) ~ ") =>" ~ indent(body)
 
+      case Fence(phrase) =>
+        "(" ~ phrase ~ ")"
+
       case With(expr, args) =>
         "(" ~ expr ~ " with " ~ rep(args, Text(", ")) ~ ")"
 

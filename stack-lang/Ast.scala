@@ -83,6 +83,11 @@ object Ast:
     (val span: Span)
   extends Tree
 
+  case class Fence
+    (phrase: Phrase)
+    (val span: Span)
+  extends Word
+
   case class TypeApply
     (fun: Word, targs: List[TypeTree])
     (val span: Span)

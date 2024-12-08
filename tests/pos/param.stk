@@ -11,23 +11,33 @@ fun println(s: String): Void =
   print s
   print "\n"
 
+fun printInt(x: Int): Void = x p
+
 fun main =
   println "test context parameters"
 
   val a = padding 2 with indent = 2
-  padding 2 with indent = 6
+  printInt a
 
-  padding 4
-    with indent = 6
+  printInt
+    padding 2 with indent = 6
 
-  padding 4
-  with indent = 8
+  printInt
+    padding 4
+      with indent = 6
 
-  foo 10 with alpha = 3, beta = 6
+  printInt
+    padding 4
+    with indent = 8
+
+  printInt
+    foo 10 with alpha = 3, beta = 6
 
   val b = foo 5 with
     alpha = 3,
     beta = 6
+  printInt b
 
-  foo 5
-    with alpha = 3, beta = 6
+  printInt
+    foo (foo 5 with beta = 3)
+      with alpha = 4, beta = 6

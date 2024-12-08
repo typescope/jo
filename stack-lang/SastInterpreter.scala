@@ -14,25 +14,25 @@ object SastInterpreter:
     case BoolVal(value: Boolean)
     case StringVal(value: String)
     case RecordVal(fields: Map[String, Value])
-    case FunVal(fun: Sast.FunDef, scope: Scope)
+    case FunVal(fun: Sast.FunDef, env: Env)
     case PrimAction(op: List[Value] => List[Value])
     case Uninit
 
   type Value = IntVal | BoolVal | StringVal | RecordVal | FunVal
 
-  enum Scope:
-    case RootScope()
-    case NestedScope(outer: Scope)
+  enum Env:
+    case RootEnv()
+    case NestedEnv(outer: Env)
 
     private val map: mutable.Map[Symbol, Denotation] = mutable.Map.empty
 
-    def fresh(): Scope = new Scope.NestedScope(this)
+    def fresh(): Env = new Env.NestedEnv(this)
 
     def resolve(sym: Symbol): Denotation =
       map.get(sym) match
         case None =>
           this match
-            case NestedScope(outer) => outer.resolve(sym)
+            case NestedEnv(outer) => outer.resolve(sym)
             case _ => throw new Exception("Not found " + sym)
 
         case Some(res)  => res
@@ -42,13 +42,15 @@ object SastInterpreter:
         map(sym) = denot
       else
         this match
-          case NestedScope(outer) => outer.update(sym, denot)
+          case NestedEnv(outer) => outer.update(sym, denot)
           case _ => err("Unknown name to update: " + sym.name)
 
     def bind(sym: Symbol, denot: Denotation): Unit =
       assert(!map.contains(sym), "Double binding")
       map(sym) = denot
-  end Scope
+  end Env
+
+  type Params = Map[Symbol, Value]
 
   def int2(op: (Int, Int) => Int)(args: List[Value]): List[Value] =
     val IntVal(a) :: IntVal(b) :: Nil = args: @unchecked
@@ -98,12 +100,12 @@ object SastInterpreter:
 
   def print(args: List[Value]): List[Value] =
     val StringVal(v) :: Nil = args: @unchecked
-    print(v)
+    System.out.print(v)
     Nil
 
   def abort(args: List[Value]): List[Value] =
-    val IntVal(v) :: Nil = args: @unchecked
-    throw new Exception(v.toString)
+    val StringVal(v) :: Nil = args: @unchecked
+    throw new Exception(v)
 
   val primitiveOperators: Map[Symbol, List[Value] => List[Value]] = Map(
       Predef.add    ->    add,
@@ -130,40 +132,41 @@ object SastInterpreter:
   )
 
   def exec(nss: List[Namespace], main: Symbol): Unit =
-    val rootScope = new Scope.RootScope()
+    val rootEnv = new Env.RootEnv()
 
     for (sym, op) <- primitiveOperators do
-      rootScope.bind(sym, PrimAction(op))
+      rootEnv.bind(sym, PrimAction(op))
 
-    val sc = rootScope.fresh()
+    val env = rootEnv.fresh()
     for
       ns <- nss
       case fun: FunDef <- ns.defs
     do
-      sc.bind(fun.symbol, FunVal(fun, sc))
+      env.bind(fun.symbol, FunVal(fun, env))
 
-    val FunVal(fdef, sc2) = sc.resolve(main): @unchecked
-    call(fdef, args = Nil)(using sc2)
+    val FunVal(fdef, env2) = env.resolve(main): @unchecked
+    val params = Map.empty[Symbol, Value]
+    call(fdef, args = Nil)(using env2, params)
 
-  def exec(phrase: Phrase)(using Scope): List[Denotation] =
+  def exec(phrase: Phrase)(using Env, Params): List[Denotation] =
     val results = for word <- phrase.words yield exec(word)
 
     if results.isEmpty then Nil
     else results.last
 
-  def call(fdef: FunDef, args: List[Value])(using sc: Scope): List[Denotation] =
-    val funScope = sc.fresh()
+  def call(fdef: FunDef, args: List[Value])(using env: Env, params: Params): List[Denotation] =
+    val funEnv = env.fresh()
     for (param, arg) <- fdef.params.zip(args) do
-      funScope.bind(param, arg)
+      funEnv.bind(param, arg)
     for param <- fdef.locals do
-      funScope.bind(param, Uninit)
-    exec(fdef.body)(using funScope)
+      funEnv.bind(param, Uninit)
+    exec(fdef.body)(using funEnv)
 
-  def eval(word: Word)(using sc: Scope): Value =
+  def eval(word: Word)(using env: Env, params: Params): Value =
     val (value: Value) :: Nil = exec(word): @unchecked
     value
 
-  def exec(word: Word)(using sc: Scope): List[Denotation] = Debug.trace(word.show, enable = false):
+  def exec(word: Word)(using env: Env, params: Params): List[Denotation] = Debug.trace(word.show, enable = false):
     word match
       case IntLit(v)  => IntVal(v) :: Nil
 
@@ -183,19 +186,24 @@ object SastInterpreter:
         fieldVals(name) :: Nil
 
       case Assign(sym, rhs) =>
-        sc.update(sym, eval(rhs))
+        env.update(sym, eval(rhs))
         Nil
 
       case If(cond, thenp, elsep) =>
         val BoolVal(b) = eval(cond): @unchecked
         if b then exec(thenp) else exec(elsep)
 
+      case With(expr, args) =>
+        val params2 = args.foldLeft(params): (params, arg) =>
+          params.updated(arg.paramRef, eval(arg.rhs))
+        exec(expr)(using env, params2)
+
       case While(cond, body) =>
         // avoid stackoverflow
         def loop(): Unit =
           val BoolVal(b) = eval(cond): @unchecked
           if b then
-            given Scope = sc.fresh()
+            given Env = env.fresh()
             exec(body)
             loop()
         loop()
@@ -205,30 +213,35 @@ object SastInterpreter:
         exec(phrase)
 
       case Ident(sym) =>
-        sc.resolve(sym) match
-          case Uninit =>
-            err("Accessing uninitialized variable " + sym)
+        if sym.isAllOf(Flags.Param | Flags.Context) then
+          params.get(sym) match
+            case Some(v) => v :: Nil
+            case None => throw new Exception("Unbound context parameter " + sym)
+        else
+          env.resolve(sym) match
+            case Uninit =>
+              err("Accessing uninitialized variable " + sym)
 
-          case denot =>
-            denot :: Nil
+            case denot =>
+              denot :: Nil
 
       case Apply(fun, args) =>
         val funDenot :: Nil = exec(fun): @unchecked
         val argVals = args.map(eval)
 
         (funDenot: @unchecked) match
-          case FunVal(fdef, sc) => call(fdef, argVals)(using sc)
+          case FunVal(fdef, env) => call(fdef, argVals)(using env)
           case PrimAction(op) => op(argVals)
 
       case TypeApply(fun, _) =>
         exec(fun)
 
       case ValDef(sym, rhs) =>
-        sc.bind(sym, eval(rhs))
+        env.bind(sym, eval(rhs))
         Nil
 
       case fdef: FunDef =>
-        sc.bind(fdef.symbol, FunVal(fdef, sc))
+        env.bind(fdef.symbol, FunVal(fdef, env))
         Nil
 
       case tdef: TypeDef =>
