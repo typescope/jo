@@ -86,7 +86,7 @@ object AstPrinting:
 
       case BoolLit(b) => Text(b.toString)
 
-      case StringLit(s) => "\"" ~ s ~ "\"" // TODO: backslash
+      case StringLit(s) => "\"" ~ Scanner.escape(s) ~ "\""
 
       case Ident(name) => Text(name)
 

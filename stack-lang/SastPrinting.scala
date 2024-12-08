@@ -70,8 +70,7 @@ object SastPrinting:
       case BoolLit(b) => Text(b.toString)
 
       case StringLit(s) =>
-        // TODO: backquotes
-        "\"" ~ Text(s) ~ "\""
+        "\"" ~ Scanner.escape(s) ~ "\""
 
       case Ident(sym) => Text(sym.name)
 

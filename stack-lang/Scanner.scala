@@ -92,8 +92,10 @@ class Scanner(stream: CharStream)(using Reporter, Source):
     if stream.curChar() == '\n' then
       error("Missing closing double quote: string cannot span multiple lines", stream.tokenSpan().toPos)
     stream.eat()
+    val rawString = stream.tokenEnd()
     // TODO: transform backquote
-    new Token.StringLit(stream.tokenEnd())
+    val content = rawString.substring(1, rawString.size - 1)
+    new Token.StringLit(unescape(content))
 
   def intLit(): Token.IntLit =
     stream.eatWhile(isDigit)
@@ -147,6 +149,53 @@ object Scanner:
 
   def isLetter(c: Char): Boolean =
     c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
+
+  /** Translate escape in the string
+    *
+    * Java 15 added String.translateEscapes. Don't depend on it for clarity.
+    */
+  def unescape(s: String): String =
+    val sb = new StringBuilder
+
+    var i = 0
+    while i < s.size do
+      val c = s(i)
+      if i == 0 || s(i - 1) != '\\' then
+        if c != '\\' then sb += c
+      else
+        c match
+          case 'b'  => sb += '\b'
+          case 'f'  => sb += '\f'
+          case 'n'  => sb += '\n'
+          case 'r'  => sb += '\r'
+          case 't'  => sb += '\t'
+          case '"'  => sb += '"'
+          case '\\' => sb += '\\'
+      end if
+      i += 1
+    end while
+    sb.toString
+
+  /** Escape a string -- the opposite of unescape */
+  def escape(s: String): String =
+    val sb = new StringBuilder
+
+    var i = 0
+    while i < s.size do
+      val c = s(i)
+      c match
+        case '\b'  => sb ++= "\\b"
+        case '\f'  => sb ++= "\\f"
+        case '\n'  => sb ++= "\\n"
+        case '\r'  => sb ++= "\\r"
+        case '\t'  => sb ++= "\\t"
+        case '"'   => sb ++= "\\\""
+        case '\\'  => sb ++= "\\\\"
+        case _     => sb += c
+      i += 1
+    end while
+    sb.toString
+
 
   class CharStream(code: String)(using source: Source):
     private val LEN = code.length

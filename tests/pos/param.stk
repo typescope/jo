@@ -7,8 +7,14 @@ param beta: Int
 
 fun foo(n: Int): Int = alpha + beta * n
 
+fun println(s: String): Void =
+  print s
+  print "\n"
+
 fun main =
-  padding 2 with indent = 2
+  println "test context parameters"
+
+  val a = padding 2 with indent = 2
   padding 2 with indent = 6
 
   padding 4
@@ -19,7 +25,7 @@ fun main =
 
   foo 10 with alpha = 3, beta = 6
 
-  foo 5 with
+  val b = foo 5 with
     alpha = 3,
     beta = 6
 
