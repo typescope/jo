@@ -176,6 +176,14 @@ class Namer(@constructorOnly reporter: Reporter):
 
       case tdef: Ast.TypeDef =>
         transform(tdef)
+
+      case pdef: Ast.Param =>
+        val infoProvider: InfoProvider = sym => transformType(pdef.typ).tpe
+        val sym = Symbol.createValueSymbol(pdef.name, infoProvider, Flags.Param | Flags.Context, sc.owner, pdef.pos)
+        val defSast = () =>
+          val tpt = TypeTree(sym.info)(pdef.typ.span)
+          ParamDef(sym, tpt)(pdef.span)
+        DelayedDef(sym, defSast)
     end match
   end index
 
@@ -250,6 +258,9 @@ class Namer(@constructorOnly reporter: Reporter):
       case Ast.BoolLit(v) =>
         BoolLit(v)(word.span).adapt
 
+      case Ast.StringLit(v) =>
+        StringLit(v)(word.span).adapt
+
       case Ast.Ident(name) =>
         val sym = sc.resolve(name, word.pos)
         checker.checkCapture(sym, word.pos)
@@ -306,8 +317,35 @@ class Namer(@constructorOnly reporter: Reporter):
       case expr: Ast.Expr  =>
         exprTyper.transform(expr)
 
+      case Ast.With(expr, args) =>
+        val exprSast = transform(expr)
+        val argsSast = for arg <- args yield transform(arg)
+        With(exprSast, argsSast)(exprSast.tpe, word.span)
+
       case block: Ast.Block =>
         transform(block)
+
+  private def transform(arg: Ast.WithArg)(using sc: Scope, rp: Reporter, so: Source): WithArg =
+    val paramRef =
+      given TargetType = TargetType.ValueType
+      transform(arg.paramRef)
+
+    val paramSym =
+      paramRef.tpe match
+        case TypeRef(sym) if sym.isAllOf(Flags.Param | Flags.Context) =>
+          sym
+
+        case _ =>
+          Reporter.error("A reference to a contextual parameter expected", paramRef.pos)
+          Symbol.createFunSymbol(arg.paramRef.name, ErrorType, sc.owner, paramRef.pos)
+
+    val rhsSast =
+      given TargetType =
+        if paramSym.info.isError then TargetType.ValueType
+        else TargetType.Known(paramSym.info)
+      transform(arg.rhs)
+
+    WithArg(paramSym, rhsSast)(arg.span)
 
   private def transform(ifte: Ast.If)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
     val Ast.If(cond, thenp, elsep) = ifte
@@ -419,7 +457,7 @@ class Namer(@constructorOnly reporter: Reporter):
             Reporter.error("Unmatched case(s): " + tagsRest.mkString(", "), scrutIdent.pos)
           // abort
           val abort = Ident(Predef.abort)(scrutIdent.span)
-          val args = StringLit("Unhandled match at " + scrutIndent.pos)(scrutIdent.span) :: Nil
+          val args = StringLit("Unhandled match at " + scrutIdent.pos)(scrutIdent.span) :: Nil
           val app = Apply(abort, args)(BottomType, patmat.span)
           checker.adapt(app, resType)
 
@@ -776,6 +814,15 @@ class Namer(@constructorOnly reporter: Reporter):
         Reporter.abort("Unexpected empty type tree", tpt.pos)
 
 object Namer:
+  def main(args: Array[String]): Unit =
+    Reporter.monitor:
+      val nss = Parser.parse(args.toList) |> transform
+
+      for ns <- nss do
+        println(ns.symbol.sourcePos.source.file + ":")
+        println(SastPrinting.show(ns))
+        println
+
   def transform(using reporter: Reporter): List[Ast.Namespace] => List[Namespace] =
     new Namer(reporter).transform
 

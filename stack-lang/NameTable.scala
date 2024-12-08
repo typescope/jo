@@ -1,4 +1,5 @@
 import Symbols.*
+import Diagnostics.*
 
 import scala.collection.mutable
 
@@ -36,7 +37,7 @@ class NameTable(
 
 object NameTable:
   class DoubleDefinition(symBefore: Symbol, symNow: Symbol)
-  extends Diagnostics.Diagnostic:
+  extends Diagnostic:
     assert(symBefore.name == symNow.name)
 
     val kind = Kind.Error

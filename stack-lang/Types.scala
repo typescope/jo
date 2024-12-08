@@ -86,7 +86,10 @@ object Types:
     */
   sealed abstract class ProxyType extends Type
 
-  /** A reference to either a type symbol or a term symbol */
+  /** A reference to either a type symbol or a term symbol
+    *
+    * TODO: rename to RefType
+    */
   case class TypeRef(symbol: Symbol) extends ProxyType
 
   /** A part of a type with a specific name */

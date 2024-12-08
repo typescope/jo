@@ -60,8 +60,10 @@ object SastPrinting:
         ~ indent(Text(fdef.body))
 
       case tdef: TypeDef =>
-        "type " ~ tdef.symbol.name ~ " = " ~ tdef.symbol.info.show
+        "type " ~ tdef.name ~ " = " ~ tdef.symbol.info.show
 
+      case pdef: ParamDef =>
+        "param " ~ pdef.name ~ ": " ~ pdef.tpt
 
   def showWord(word: Word): Text =
     word match
@@ -100,15 +102,6 @@ object SastPrinting:
       case Assign(sym, rhs) =>
         sym.name ~ " = " ~ rhs
 
-      case vdef: ValDef =>
-        showDef(vdef)
-
-      case fdef: FunDef =>
-        showDef(fdef)
-
-      case tdef: TypeDef =>
-        showDef(tdef)
-
       case If(cond, thenp, elsep) =>
         "if " ~ cond ~ " then" ~ indent:
             thenp
@@ -126,3 +119,9 @@ object SastPrinting:
           rep(words, Text.BreakLine)
         else
           Text.Empty
+
+      case vdef: ValDef => showDef(vdef)
+
+      case fdef: FunDef => showDef(fdef)
+
+      case tdef: TypeDef => showDef(tdef)

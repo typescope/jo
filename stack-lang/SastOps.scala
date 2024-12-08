@@ -15,16 +15,18 @@ object SastOps:
 
     def recurTypeDef(tdef: TypeDef)(using Context): TypeDef = tdef
 
-    def recur(defn: Def)(using Context): Def =
+    def recurParamDef(pdef: ParamDef)(using Context): ParamDef = pdef
+
+    def recurDef(defn: Def)(using Context): Def =
       defn match
-        case vdef: ValDef => recurValDef(vdef)
-        case fdef: FunDef => recurFunDef(fdef)
-        case tdef: TypeDef => recurTypeDef(tdef)
-        case cparam: ContextParam => cparam
+        case vdef: ValDef   => recurValDef(vdef)
+        case fdef: FunDef   => recurFunDef(fdef)
+        case tdef: TypeDef  => recurTypeDef(tdef)
+        case pdef: ParamDef => recurParamDef(pdef)
 
     def recur(word: Word)(using Context): Word =
       word match
-        case _: IntLit | _: BoolLit | _: Ident =>
+        case _: IntLit | _: BoolLit | _: StringLit | _: Ident =>
           word
 
         case Select(qual, name) =>
@@ -45,20 +47,20 @@ object SastOps:
         case TypeApply(fun, targs) =>
           TypeApply(this(fun), targs)(word.tpe, word.span)
 
-        case With(expr, bindings) =>
-          With(this(expr), bindings.map { case (param, e) => param -> this(e) })
+        case With(expr, args) =>
+          val args2 = args.map: arg =>
+            arg.copy(arg.paramRef, this(arg.rhs))(arg.span)
+
+          With(this(expr), args2)(word.tpe, word.span)
 
         case Assign(sym, rhs) =>
           Assign(sym, this(rhs))(word.span)
 
-        case vdef: ValDef =>
-          recurValDef(vdef)
+        case vdef: ValDef => recurValDef(vdef)
 
-        case fdef: FunDef =>
-          recurFunDef(fdef)
+        case fdef: FunDef => recurFunDef(fdef)
 
-        case tdef: TypeDef =>
-          recurTypeDef(tdef)
+        case tdef: TypeDef => recurTypeDef(tdef)
 
         case If(cond, thenp, elsep) =>
           If(this(cond), this(thenp), this(elsep))(word.tpe, word.span)

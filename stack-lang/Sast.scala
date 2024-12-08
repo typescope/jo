@@ -74,6 +74,7 @@ object Sast:
   extends Word:
     def tpe: Type = VoidType
 
+  // TODO: rename to Block
   case class Phrase
     (words: List[Word])
     (val tpe: Type, val span: Span)
@@ -83,7 +84,7 @@ object Sast:
     (expr: Word, args: List[WithArg])
     (val tpe: Type, val span: Span)
   extends Word:
-    assert(words.nonEmpty)
+    assert(args.nonEmpty)
 
   case class WithArg
     (paramRef: Symbol, rhs: Word)
@@ -134,20 +135,26 @@ object Sast:
   //----------------------------------------------------------------------------
   // definitions
 
-  sealed abstract class Def extends Word:
+  sealed trait Def extends Tree:
     val symbol: Symbol
     val name: String = symbol.name
     val tpe: Type = VoidType
 
+  /** Represents definition of contextual parameters */
+  case class ParamDef
+    (symbol: Symbol, tpt: TypeTree)
+    (val span: Span)
+  extends Def
+
   case class ValDef
     (symbol: Symbol, rhs: Word)
     (val span: Span)
-  extends Def
+  extends Word, Def
 
   case class TypeDef
     (symbol: Symbol)
     (val span: Span)
-  extends Def
+  extends Word, Def
 
   /** Represents a named function definition
     *
@@ -156,10 +163,10 @@ object Sast:
   case class FunDef
     (symbol: Symbol, tparams: List[Symbol], params: List[Symbol], body: Word)
     (val locals: List[Symbol], val captures: List[Symbol], val span: Span)
-  extends Def
+  extends Word, Def
 
   case class Namespace
-    (symbol: Symbol, imports: List[Symbol], contextParams: List[Symbol], defs: List[Def])
+    (symbol: Symbol, imports: List[Symbol], defs: List[Def])
     (val span: Span)
   extends Positioned:
     def info: NamespaceInfo = symbol.info.as[NamespaceInfo]

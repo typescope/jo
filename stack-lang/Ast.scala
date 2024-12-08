@@ -14,7 +14,8 @@ object Ast:
 
   sealed abstract class Word extends Phrase
 
-  sealed abstract trait RefTree extends Word, TypeTree
+  sealed abstract trait RefTree extends Word, TypeTree:
+    def name: String
 
   case class IntLit
     (value: Int)
