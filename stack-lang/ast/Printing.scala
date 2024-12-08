@@ -1,7 +1,7 @@
 import Ast.*
 import Text.*
 
-object AstPrinting:
+object Printing:
 
   def show(word: Word): String = showWord(word).toString
 

@@ -24,7 +24,7 @@ object Parser:
       val nss = Parser.parse(args.toList)
       for ns <- nss do
         println(ns.source + ":")
-        println(AstPrinting.show(ns))
+        println(ns.show)
         println
 
   def parse(sourceFiles: List[String])(using Reporter): List[Namespace] =

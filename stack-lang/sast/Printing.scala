@@ -4,7 +4,7 @@ import Symbols.Symbol
 
 import Text.*
 
-object SastPrinting:
+object Printing:
 
   def show(word: Word): String = showWord(word).toString
 

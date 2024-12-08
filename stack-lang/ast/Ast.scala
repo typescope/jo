@@ -12,7 +12,8 @@ object Ast:
   sealed abstract class Phrase extends Tree:
     def isDef: Boolean = this.isInstanceOf[Def]
 
-  sealed abstract class Word extends Phrase
+  sealed abstract class Word extends Phrase:
+    def show: String = Printing.show(this)
 
   sealed abstract trait RefTree extends Word, TypeTree:
     def name: String
@@ -215,6 +216,8 @@ object Ast:
     (val span: Span)
   extends Tree:
     qualidWellFormed(qualid)
+
+    def show: String = Printing.show(this)
 
   def qualidWellFormed(qualid: RefTree): Unit =
     qualid match

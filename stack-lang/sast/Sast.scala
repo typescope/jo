@@ -177,6 +177,8 @@ object Sast:
       val funs = defs.filter(defn => defn.symbol.isFunction && defn.symbol.name == "main")
       funs.map(_.symbol).headOption
 
+    def show: String = Printing.show(this)
+
   //----------------------------------------------------------------------------
   // helpers
 
