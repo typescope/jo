@@ -327,7 +327,7 @@ class Namer(@constructorOnly reporter: Reporter):
 
   private def transform(arg: Ast.WithArg)(using sc: Scope, rp: Reporter, so: Source): WithArg =
     val paramRef =
-      given TargetType = TargetType.ValueType
+      given TargetType = TargetType.Unknown
       transform(arg.paramRef)
 
     val paramSym =
@@ -335,8 +335,8 @@ class Namer(@constructorOnly reporter: Reporter):
         case TypeRef(sym) if sym.isAllOf(Flags.Param | Flags.Context) =>
           sym
 
-        case _ =>
-          Reporter.error("A reference to a contextual parameter expected", paramRef.pos)
+        case tp =>
+          Reporter.error("A reference to a contextual parameter expected, found = " + tp.show, paramRef.pos)
           Symbol.createFunSymbol(arg.paramRef.name, ErrorType, sc.owner, paramRef.pos)
 
     val rhsSast =

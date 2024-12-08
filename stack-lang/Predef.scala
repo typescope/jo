@@ -74,5 +74,5 @@ object Predef:
 
   val Int    =  createPrimSymbol("Int",    IntType,  isType = true)
   val Bool   =  createPrimSymbol("Bool",   BoolType, isType = true)
-  val String =  createPrimSymbol("String", BoolType, isType = true)
+  val String =  createPrimSymbol("String", StringType, isType = true)
   val Void   =  createPrimSymbol("Void",   VoidType, isType = true)
