@@ -39,6 +39,7 @@ files=(
     stack-lang/js/Compiler.scala
     stack-lang/js/JSOptimized.scala
     stack-lang/js/JSRuntime.scala
+    stack-lang/js/LowerContextParams.scala
 
     stack-lang/phrases/ElimCapture.scala
     stack-lang/phrases/ExplicitInit.scala

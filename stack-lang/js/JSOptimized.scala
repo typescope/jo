@@ -17,9 +17,6 @@ import scala.collection.mutable
 
 /**
   * JavaScript platform with code optimization
-  *
-  * TODO: move handling of context parameters to a pre-phase for better
-  * maintainability.
   */
 class JSOptimized(outFile: String, runtime: Map[Symbol, String], runtimeCode: String):
   private val unique = new UniqueName
@@ -166,19 +163,6 @@ class JSOptimized(outFile: String, runtime: Map[Symbol, String], runtimeCode: St
       case TypeApply(fun, _) =>
         compile(fun)
 
-      case With(expr, args) =>
-        val argsRhs = args.map(_.rhs)
-        val argsKey = args.map(_.paramRef.fullName)
-        cont(argsRhs): vs =>
-          assert(vs.size == args.size)
-          // TODO: key may contain invalid char
-          val keyValues = argsKey.zip(vs).map("\"" ~ _ ~ "\"" ~ ": " ~ _)
-          // JS accepts trailing commas for the last entry
-          val map = "{" ~ rep(keyValues, Text(", ")) ~ "}"
-          val callbackBody = cont(expr)(v => "return " ~ v ~ ";")
-          val callback = "function () {" ~ callbackBody  ~ "; }"
-          cont(jsName(JSRuntime.withParam) ~ "(" ~ map ~ "," ~ callback ~ ")")
-
       case Assign(sym, rhs) =>
         cont(rhs): t =>
           if sym.isMutable then
@@ -214,13 +198,10 @@ class JSOptimized(outFile: String, runtime: Map[Symbol, String], runtimeCode: St
           ~ cont()
 
       case Ident(sym) =>
-        if sym.isAllOf(Flags.Context | Flags.Param) then
-          // TODO: key may contain invalid char
-          cont(jsName(JSRuntime.readParam) ~ "(\"" ~ sym.fullName  ~"\")")
-        else
-          cont(Text(sym))
+        assert(!sym.isAllOf(Flags.Context | Flags.Param), "Unexpected context parameter")
+        cont(Text(sym))
 
-      case _: ValDef | _: FunDef | _: TypeDef =>
+      case _: ValDef | _: FunDef | _: TypeDef |  _: With =>
         throw new Exception("Unexpected " + word)
 
   /** Compile a function */
@@ -260,15 +241,11 @@ class JSOptimized(outFile: String, runtime: Map[Symbol, String], runtimeCode: St
     cont(arg): v =>
       "throw "  ~ v ~ ";" ~ Text.BreakLine ~ cont(Text("null"))
 
-  def p(args: List[Word])(using Context): Text =
-    val arg :: Nil = args: @unchecked
-    cont(arg): v =>
-      Predef.p ~ "(" ~ arg  ~ ");" ~ cont()
-
-  def print(args: List[Word])(using Context): Text =
-    val arg :: Nil = args: @unchecked
-    cont(arg): v =>
-      Predef.print ~ "(" ~ arg  ~ ");" ~ cont()
+  def call(funSym: Symbol, args: List[Word])(using Context): Text =
+    cont(args): vs =>
+      val call = funSym ~ "(" ~ rep(vs, Text(", ")) ~ ")"
+      if funSym.info.asProcType.resCount == 1 then cont(call)
+      else call ~ cont()
 
   /** Compile a primitive */
   def primitive(sym: Symbol, args: List[Word])(using Context): Text =
@@ -297,9 +274,9 @@ class JSOptimized(outFile: String, runtime: Map[Symbol, String], runtimeCode: St
       case Predef.bor    =>   binary("||")
       case Predef.bnot   =>   bnot(args)
       case Predef.eql    =>   binary("===")
-      case Predef.p      =>   p(args)
-      case Predef.print  =>   print(args)
       case Predef.abort  =>   abort(args)
+      case Predef.p      =>   call(Predef.p, args)
+      case Predef.print  =>   call(Predef.print, args)
       case _             =>   throw new Exception("Unknown primitive: " + sym.name)
   end primitive
 

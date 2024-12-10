@@ -90,7 +90,7 @@ object Sast:
     assert(args.nonEmpty)
 
   case class WithArg
-    (paramRef: Symbol, rhs: Word)
+    (paramRef: Ident, rhs: Word)
     (val span: Span)
   extends Tree:
     def tpe: Type = VoidType

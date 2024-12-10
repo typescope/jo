@@ -54,6 +54,8 @@ def compile(args: String*): Unit =
         Printing.peek(enable = false) |>
         ElimCapture.transform         |+
         Printing.peek(enable = false) |>
+        LowerContextParams.transform  |+
+        Printing.peek(enable = false) |>
         ((nss: List[Sast.Namespace]) => backend.compile(nss, main))
 
       case _ =>

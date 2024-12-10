@@ -10,47 +10,45 @@ object JSRuntime:
   // run-time symbols are only available to the compiler
 
   // read context parameter
-  val readParam =
+  val getParam =
     val tpe = ProcType(NamedInfo("key", StringType) :: Nil, AnyType, preParamCount = 0)
-    new Symbol("readParam", tpe, Flags.Prim, owner = Predef.predefSym, sourcePos = null)
+    new Symbol("readParam", tpe, Flags.Fun, owner = Predef.predefSym, sourcePos = null)
 
-  // define context parameters
-  // def withParam(keyValues: Any, callback: () => Any): Any
-  val withParam =
-    val keyValuesParam = NamedInfo("keyValues", AnyType)
-    val callbackParam = NamedInfo("callback", FunctionType(paramTypes = Nil, AnyType))
-    val tpe = ProcType( keyValuesParam :: callbackParam :: Nil, AnyType, preParamCount = 0)
-    new Symbol("withParam", tpe, Flags.Prim, owner = Predef.predefSym, sourcePos = null)
+  // define new context parameter
+  // set the new value, return the existing value associated with the same key
+  val setParam =
+    val key = NamedInfo("key", StringType)
+    val value = NamedInfo("value", AnyType)
+    val tpe = ProcType(key :: value :: Nil, AnyType, preParamCount = 0)
+    new Symbol("pushParam", tpe, Flags.Fun, owner = Predef.predefSym, sourcePos = null)
 
-  private val readParamRuntimeName = "__runtime_readParam"
-  private val withParamRuntimeName = "__runtime_withParam"
+  private val getParamRuntimeName = "__runtime_getParam"
+  private val setParamRuntimeName = "__runtime_setParam"
 
   val runtimeSymbolMap: Map[Symbol, String] = Map(
     Predef.p     -> "console.log",
     Predef.print -> "process.stdout.write",
-    readParam    -> readParamRuntimeName,
-    withParam    -> withParamRuntimeName
+    getParam    -> getParamRuntimeName,
+    setParam    -> setParamRuntimeName,
   )
 
   private val paramsName = "__runtime_contextParams"
 
   val runtimeCode: String = s"""
-var $paramsName = {};
+const $paramsName = {};
 
-function $readParamRuntimeName(key) {
-  if (key in $paramsName) {
-     return $paramsName[key];
+function $getParamRuntimeName(key) {
+  const v = $paramsName[key];
+  if (v) {
+     return v;
   } else {
      throw "Unbound parameter " + key;
   }
 }
 
-function $withParamRuntimeName(keyValues, callback) {
-  const last = $paramsName;
-  $paramsName = Object.create(last);
-  for (let key in keyValues) $paramsName[key] = keyValues[key];
-  const res = callback();
-  $paramsName = last;
-  return res;
+function $setParamRuntimeName(key, value) {
+  const old = $paramsName[key];
+  $paramsName[key] = value;
+  return old;
 }
 """

@@ -356,7 +356,7 @@ class Namer(@constructorOnly reporter: Reporter):
         else TargetType.Known(paramSym.info)
       transform(arg.rhs)
 
-    WithArg(paramSym, rhsSast)(arg.span)
+    WithArg(Ident(paramSym)(arg.paramRef.span), rhsSast)(arg.span)
 
   private def transform(ifte: Ast.If)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
     val Ast.If(cond, thenp, elsep) = ifte
