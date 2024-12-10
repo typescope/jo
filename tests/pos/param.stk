@@ -41,3 +41,8 @@ fun main =
   printInt
     foo (foo 5 with beta = 3)
       with alpha = 4, beta = 6
+
+  // check that with args are evaluated with outer bindings
+  printInt
+    foo (foo 5 with alpha = 2 + beta, beta = 3 + alpha)
+      with alpha = 4, beta = 6

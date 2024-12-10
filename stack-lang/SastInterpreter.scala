@@ -201,7 +201,7 @@ object SastInterpreter:
 
       case With(expr, args) =>
         val params2 = args.foldLeft(params): (params, arg) =>
-          params.updated(arg.paramRef, eval(arg.rhs))
+          params.updated(arg.paramRef.symbol, eval(arg.rhs))
         exec(expr)(using env, params2)
 
       case While(cond, body) =>
