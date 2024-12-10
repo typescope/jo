@@ -31,11 +31,11 @@ def compile(args: String*): Unit =
       case Some(file) => file
       case None =>
         if sourceFiles.size == 1 then
-          IO.fileNameNoExt(sourceFiles.head)
+          IO.fileNameNoExt(sourceFiles.head) + ".js"
         else
           "out.js"
 
-  val backend = new JSOptimized(outFile)
+  val backend = new JSOptimized(outFile, JSRuntime.runtimeSymbolMap, JSRuntime.runtimeCode)
 
   Reporter.monitor:
     val namespacesSAST =

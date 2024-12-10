@@ -4,6 +4,7 @@ import sast.*
 import sast.Sast.*
 import sast.Symbols.*
 
+import common.StringUtil
 import common.Text
 import common.Text.*
 import common.UniqueName
@@ -16,8 +17,11 @@ import scala.collection.mutable
 
 /**
   * JavaScript platform with code optimization
+  *
+  * TODO: move handling of context parameters to a pre-phase for better
+  * maintainability.
   */
-class JSOptimized(outFile: String):
+class JSOptimized(outFile: String, runtime: Map[Symbol, String], runtimeCode: String):
   private val unique = new UniqueName
 
   val keywords = List(
@@ -28,11 +32,10 @@ class JSOptimized(outFile: String):
   // Make keywords unavailable
   for word <- keywords do unique.freshName(word)
 
-  private val symbol2UniqueName: mutable.Map[Symbol, String] =
-    mutable.Map(
-      Predef.p     -> "console.log",
-      Predef.print -> "process.stdout.write",
-    )
+  // Make runtime symbols unavailable
+  for name <- runtime.values do unique.freshName(name)
+
+  private val symbol2UniqueName: mutable.Map[Symbol, String] = mutable.Map.from(runtime)
 
   def jsName(sym: Symbol): String =
     symbol2UniqueName.get(sym) match
@@ -98,6 +101,10 @@ class JSOptimized(outFile: String):
 
     pw.append("(function() {")
 
+    // runtime code
+    pw.append(indent(this.runtimeCode).toString)
+
+    // user code
     workList.run: funSym =>
       val funText = indent(Text.BreakLine ~ compile(symbolDefMap(funSym)))
       pw.append(funText.toString)
@@ -118,8 +125,7 @@ class JSOptimized(outFile: String):
         cont(Text(v))
 
       case StringLit(v) =>
-        // TODO: handle escapes
-        cont("\"" ~ v ~ "\"")
+        cont("\"" ~ StringUtil.escape(v) ~ "\"")
 
       case RecordLit(fields) =>
         cont(fields.map(_._2)): ts =>
@@ -160,6 +166,19 @@ class JSOptimized(outFile: String):
       case TypeApply(fun, _) =>
         compile(fun)
 
+      case With(expr, args) =>
+        val argsRhs = args.map(_.rhs)
+        val argsKey = args.map(_.paramRef.fullName)
+        cont(argsRhs): vs =>
+          assert(vs.size == args.size)
+          // TODO: key may contain invalid char
+          val keyValues = argsKey.zip(vs).map("\"" ~ _ ~ "\"" ~ ": " ~ _)
+          // JS accepts trailing commas for the last entry
+          val map = "{" ~ rep(keyValues, Text(", ")) ~ "}"
+          val callbackBody = cont(expr)(v => "return " ~ v ~ ";")
+          val callback = "function () {" ~ callbackBody  ~ "; }"
+          cont(jsName(JSRuntime.withParam) ~ "(" ~ map ~ "," ~ callback ~ ")")
+
       case Assign(sym, rhs) =>
         cont(rhs): t =>
           if sym.isMutable then
@@ -195,7 +214,11 @@ class JSOptimized(outFile: String):
           ~ cont()
 
       case Ident(sym) =>
-        cont(Text(sym))
+        if sym.isAllOf(Flags.Context | Flags.Param) then
+          // TODO: key may contain invalid char
+          cont(jsName(JSRuntime.readParam) ~ "(\"" ~ sym.fullName  ~"\")")
+        else
+          cont(Text(sym))
 
       case _: ValDef | _: FunDef | _: TypeDef =>
         throw new Exception("Unexpected " + word)

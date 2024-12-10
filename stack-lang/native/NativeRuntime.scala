@@ -1,8 +1,9 @@
 package native
 
-import Symbols.*
-import Types.*
+import sast.Symbols.*
+import sast.Types.*
 
+/** Functions to support native platform at runtime */
 object NativeRuntime:
   //----------------------------------------------------------------------------
   // run-time symbols are only available to the compiler
