@@ -129,16 +129,10 @@ class RegisterMachine(
 
     genAllocator(cb)
 
-    val endLabel = Label("_end")
-    cb.add(Instr.Store(endLabel, Reg(SP_REG)))
+    val finishLabel = getAddress(NativeRuntime.finish)
+    cb.add(Instr.Store(finishLabel, Reg(SP_REG)))
     cb.add(Instr.Move(Reg(SP_REG), FP_REG))
-
     cb.add(Instr.Jump(getAddress(main)))
-
-    // exit runtime
-    cb.add(Instr.Jump(getAddress(NativeRuntime.finish)))
-
-    cb.mark(endLabel)
 
   def compile(phrase: Phrase)(using Context): Unit =
     for word <- phrase.words do compile(word)
