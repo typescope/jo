@@ -22,17 +22,20 @@ object JSRuntime:
     val tpe = ProcType(key :: value :: Nil, AnyType, preParamCount = 0)
     new Symbol("pushParam", tpe, Flags.Fun, owner = Predef.predefSym, sourcePos = null)
 
+  private val paramsName = "__runtime_contextParams"
   private val getParamRuntimeName = "__runtime_getParam"
   private val setParamRuntimeName = "__runtime_setParam"
 
-  val runtimeSymbolMap: Map[Symbol, String] = Map(
+  val symbolMap: Map[Symbol, String] = Map(
     Predef.p     -> "console.log",
     Predef.print -> "process.stdout.write",
-    getParam    -> getParamRuntimeName,
-    setParam    -> setParamRuntimeName,
+    getParam     -> getParamRuntimeName,
+    setParam     -> setParamRuntimeName,
   )
 
-  private val paramsName = "__runtime_contextParams"
+  val runtimeNames: List[String] = List(
+    "console", "process", paramsName, getParamRuntimeName, setParamRuntimeName
+  )
 
   val runtimeCode: String = s"""
 const $paramsName = {};

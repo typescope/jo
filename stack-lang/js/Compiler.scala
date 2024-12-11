@@ -35,7 +35,7 @@ def compile(args: String*): Unit =
         else
           "out.js"
 
-  val backend = new JSOptimized(outFile, JSRuntime.runtimeSymbolMap, JSRuntime.runtimeCode)
+  val backend = new JSOptimized(outFile)
 
   Reporter.monitor:
     val namespacesSAST =

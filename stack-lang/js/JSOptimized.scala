@@ -18,7 +18,7 @@ import scala.collection.mutable
 /**
   * JavaScript platform with code optimization
   */
-class JSOptimized(outFile: String, runtime: Map[Symbol, String], runtimeCode: String):
+class JSOptimized(outFile: String):
   private val unique = new UniqueName
 
   val keywords = List(
@@ -30,9 +30,10 @@ class JSOptimized(outFile: String, runtime: Map[Symbol, String], runtimeCode: St
   for word <- keywords do unique.freshName(word)
 
   // Make runtime symbols unavailable
-  for name <- runtime.values do unique.freshName(name)
+  for name <- JSRuntime.runtimeNames do unique.freshName(name)
 
-  private val symbol2UniqueName: mutable.Map[Symbol, String] = mutable.Map.from(runtime)
+  private val symbol2UniqueName: mutable.Map[Symbol, String] =
+    mutable.Map.from(JSRuntime.symbolMap)
 
   def jsName(sym: Symbol): String =
     symbol2UniqueName.get(sym) match
@@ -99,7 +100,7 @@ class JSOptimized(outFile: String, runtime: Map[Symbol, String], runtimeCode: St
     pw.append("(function() {")
 
     // runtime code
-    pw.append(indent(this.runtimeCode).toString)
+    pw.append(indent(JSRuntime.runtimeCode).toString)
 
     // user code
     workList.run: funSym =>
