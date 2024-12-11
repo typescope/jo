@@ -8,11 +8,19 @@
  ************************************************************************/
 package native.os
 
-import register.RegisterMacine
-import stack.StackMacine
+import sast.Predef
 
-import Assembly.*
-import Assembler.PatchableBuffer
+import native.register.RegisterMachine
+import native.register.CallConvention
+import native.stack.StackMachine
+
+import native.Assembly.*
+import native.Assembler.PatchableBuffer
+import native.NativeRuntime
+import native.Assembler
+import native.Linker
+import native.ELF32
+import native.cpu.X86
 
 object Linux:
   val PAGE_SIZE  = 0x1000
@@ -25,9 +33,9 @@ object Linux:
   val heapStartLabel = Label("_heapStart")
 
   val nativeFunctions = Map(
-    Predef.p             -> pLabel
-    Predef.print         -> printLabel
-    Predef.abort         -> abortLabel
+    Predef.p             -> pLabel,
+    Predef.print         -> printLabel,
+    Predef.abort         -> abortLabel,
     NativeRuntime.finish -> finishLabel
   )
 
@@ -44,7 +52,8 @@ object Linux:
     val elf = new ELF32(outFile, layout, ELF32.EM_386)
 
     val linker  = new Linker:
-      def link()(using pb: PatchableBuffer) =
+      def linkData()(using pb: PatchableBuffer) = ()
+      def linkCode()(using pb: PatchableBuffer) =
         linkPRegisterMachineX86()
         linkPrintRegisterMachineX86()
         linkAbortRegisterMachineX86()
@@ -68,7 +77,8 @@ object Linux:
     val elf = new ELF32(outFile, layout, ELF32.EM_386)
 
     val linker  = new Linker:
-      def link()(using pb: PatchableBuffer) =
+      def linkData()(using pb: PatchableBuffer) = ()
+      def linkCode()(using pb: PatchableBuffer) =
         linkPStackMachineX86()
         linkPrintStackMachineX86()
         linkAbortStackMachineX86()
@@ -355,7 +365,7 @@ object Linux:
     * Tells runtime that program has finished.
     */
   def linkFinishX86()(using pb: PatchableBuffer): Unit =
-    pb.defineLabel(exitLabel)
+    pb.defineLabel(finishLabel)
 
     X86.move(Int32(1), X86.EAX)
     X86.move(Int32(0), X86.EBX)

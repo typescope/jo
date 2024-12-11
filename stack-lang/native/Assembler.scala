@@ -16,12 +16,6 @@ trait Assembler:
   /** Compile the code to byte stream. */
   def lowerCode(code: List[Instr | Label])(using PatchableBuffer): Unit
 
-/**
-  * The linker performs linking of all external machine code dependencies.
-  */
-trait Linker:
-  def link()(using pb: PatchableBuffer): Unit
-
 object Assembler:
   private val VAL_STACK_SIZE = 4096
 
@@ -50,6 +44,7 @@ object Assembler:
     // TODO: separate read-only and bss data into different segments
     elf.newSegment(SEG_DATA, ELF32.PT_LOAD, ELF32.PF_RW): baseAddr =>
       val pb = new PatchableBuffer(baseAddr, labelMap)
+      linker.linkData()(using pb)
       assembler.lowerData(prog.data)(using pb)
 
       assert(pb.getPatches().isEmpty, "patch size non empty for data section")
@@ -65,7 +60,7 @@ object Assembler:
 
     elf.newSegment(SEG_CODE, ELF32.PT_LOAD, ELF32.PF_RX): baseAddr =>
       val pb = new PatchableBuffer(baseAddr, labelMap)
-      linker.link()(using pb)
+      linker.linkCode()(using pb)
       assembler.lowerCode(prog.instrs)(using pb)
 
       // The patches depend on labels of other segments, so they need to

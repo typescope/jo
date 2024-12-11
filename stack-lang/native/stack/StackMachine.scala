@@ -1,8 +1,17 @@
 package native.stack
 
-import Assembly.{ Type => _, * }
+import common.WorkList
+
+import sast.*
 import sast.Sast.*
 import sast.Symbols.*
+
+import native.Memory
+import native.NativeRuntime
+
+import native.Assembly
+import native.Assembly.*
+import native.cpu.X86
 
 import StackMachine.RegisterAllocator
 
@@ -84,7 +93,7 @@ class StackMachine(
 
     // Add string constants
     for (v, label) <- stringTable do
-      cb.add(Data.String(label, v))
+      cb.add(Data.StringLit(label, v))
 
     given Context = new Context(cb, Map.empty)
     // Stack pointer is initialized by the kernel, initialize frame pointer
@@ -135,7 +144,7 @@ class StackMachine(
 
       case id: Ident => compile(id)
 
-      case _: ValDef | _: FunDef | _: TypeDef =>
+      case _: ValDef | _: FunDef | _: TypeDef | _: With =>
         throw new Exception("Unexpected " + word)
 
   /** Compile a function */
@@ -365,13 +374,13 @@ class StackMachine(
     * TODO: implement it in Stk.
     */
   def genAllocator()(using Context): Unit =
-    val allocLabel = getAddress(Predef.allocate)
+    val allocLabel = getAddress(NativeRuntime.allocate)
 
     val initBreakLabel = Label("init_break")
     val curBreakLabel = Label("current_break")
 
-    cb.add(Data.Uninit(initBreakLabel, Assembly.Type.Int32))
-    cb.add(Data.Uninit(curBreakLabel, Assembly.Type.Int32))
+    cb.add(Data.Uninit(initBreakLabel, Type.Int32))
+    cb.add(Data.Uninit(curBreakLabel, Type.Int32))
 
     val doAllocLabel = Label("doAlloc")
     val allocEndLabel = Label("allocEnd")
@@ -421,8 +430,8 @@ class StackMachine(
 
   /** Allocate a block of memory and push the start address onto stack */
   def alloc(size: Int)(using Context): Unit =
-    push(size)
-    call(Predef.allocate)
+    push(Int32(size))
+    call(NativeRuntime.allocate)
 
   /** Pop the value on the top of the stack to the given register */
   def pop(destReg: Int)(using Context) =

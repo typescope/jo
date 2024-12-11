@@ -1,10 +1,19 @@
 package native.register
 
+import common.WorkList
+
+import sast.*
 import sast.Sast.*
 import sast.Symbols.*
 import sast.Types.*
 
-import Assembly.{ Type => _, * }
+import native.Memory
+import native.NativeRuntime
+import native.cpu.X86
+
+import native.Assembly
+import native.Assembly.{ Type => _, * }
+
 import PreAssembly.*
 import CallConvention.*
 import RegisterMachine.*
@@ -106,7 +115,7 @@ class RegisterMachine(
 
     // Add string constants
     for (v, label) <- stringTable do
-      cb.add(Data.String(label, v))
+      cb.add(Data.StringLit(label, v))
 
     entry(entryLabel, main, cb)
 
@@ -134,7 +143,7 @@ class RegisterMachine(
   def compile(phrase: Phrase)(using Context): Unit =
     for word <- phrase.words do compile(word)
 
-  def compile(word: Word)(using Context): Unit =
+  def compile(word: Word)(using ctx: Context): Unit =
     word match
       case IntLit(v) => ctx.vs.push(Int32(v))
 
@@ -167,7 +176,7 @@ class RegisterMachine(
 
       case id: Ident => compile(id)
 
-      case _: ValDef | _: FunDef | _: TypeDef =>
+      case _: ValDef | _: FunDef | _: TypeDef | _: With =>
         throw new Exception("Unexpected " + word)
 
   def load(loc: Location, dest: Int, base: Rel)(using Context): Unit =
@@ -435,7 +444,7 @@ class RegisterMachine(
     * TODO: implement it in Stk.
     */
   def genAllocator(cb: CodeBuffer): Unit =
-    val allocLabel = getAddress(Predef.allocate)
+    val allocLabel = getAddress(NativeRuntime.allocate)
 
     val initBreakLabel = Label("init_break")
     val curBreakLabel = Label("current_break")
@@ -504,7 +513,7 @@ class RegisterMachine(
   /** Allocate a block of memory and push the start address onto value stack */
   def alloc(size: Int)(using ctx: Context): Unit =
     ctx.vs.push(Int32(size))
-    call(Predef.allocate)
+    call(NativeRuntime.allocate)
 
   /** Compile [x = 3, y = 5] */
   def compile(record: RecordLit)(using ctx: Context): Unit =

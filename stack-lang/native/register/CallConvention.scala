@@ -1,4 +1,5 @@
-package native.register
+package native
+package register
 
 import sast.Types.*
 import CallConvention.*

@@ -9,7 +9,8 @@
  *   [2] Table 2-2. 32-Bit Addressing Forms with the ModR/M Byte in [1] *
  *                                                                      *
  ************************************************************************/
-package native.cpu
+package native
+package cpu
 
 import Assembly.*
 import Assembler.{ Patch, PatchableBuffer, withPatch }
@@ -71,11 +72,11 @@ object X86 extends Assembler:
         pb.align(4)
         pb.addInt(v)
 
-      case Data.String(l, v)    =>
+      case Data.StringLit(l, v)    =>
         pb.align(4)
         val bytes = v.getBytes("UTF-8")
         pb.addInt(bytes.size)
-        for b <-  do pb.addByte(b)
+        for b <- bytes do pb.addByte(b)
 
       case Data.Uninit(l, tp)  =>
         tp match

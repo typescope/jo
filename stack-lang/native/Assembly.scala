@@ -73,7 +73,7 @@ object Assembly:
     case Special[T](instr: T)
 
   enum Type:
-    case Int8, Int32, String
+    case Int8, Int32
 
   enum Data:
     val label: Label
@@ -85,7 +85,7 @@ object Assembly:
     /** A string is represented by a 4-byte head indicating its size followed by the
       * content of the string.
       */
-    case String(label: Label, v: String)
+    case StringLit(label: Label, v: String)
 
     case Uninit(label: Label, tp: Type)
 
@@ -95,10 +95,10 @@ object Assembly:
 
       for item <- data do
         item match
-          case Data.Int8(l, v)     => sb.append(l.name + " = " + v  + "\n")
-          case Data.Int32(l, v)    => sb.append(l.name + " = " + v + "\n")
-          case Data.String(l, v)    => sb.append(l.name + " = " + v + "\n")
-          case Data.Uninit(l, tp)  => sb.append(l.name + " : " + tp + "\n")
+          case Data.Int8(l, v)      => sb.append(l.name + " = " + v  + "\n")
+          case Data.Int32(l, v)     => sb.append(l.name + " = " + v + "\n")
+          case Data.StringLit(l, v) => sb.append(l.name + " = " + v + "\n")
+          case Data.Uninit(l, tp)   => sb.append(l.name + " : " + tp + "\n")
 
       var i = 0
 

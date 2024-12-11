@@ -11,6 +11,8 @@
 package native
 
 import Assembler.PatchableBuffer
+
+import common.IO
 import common.IO.ByteBuffer
 
 import ELF32.*

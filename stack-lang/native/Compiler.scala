@@ -1,8 +1,13 @@
 package native
 
 import sast.*
+import parsing.Parser
 import phases.*
 import reporting.Reporter
+import typing.Namer
+
+import common.IO
+import os.Linux
 
 /***********************************************************************
  *
@@ -56,7 +61,7 @@ def compile(args: String*): Unit =
     val namespacesSAST =
       Parser.parse(sourceFiles)     |>
       Namer.transform               |+
-      Debug.peek(enable = false)
+      Printing.peek(enable = false)
 
     val mains = namespacesSAST.collect:
       case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get
