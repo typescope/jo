@@ -224,8 +224,12 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val typeItem = eat(Token.TYPE)
     val id = ident()
     val tparams = typeParams()
-    eat(Token.EQL)
-    val rhs = typ()
+    val rhs =
+      if peek() == Token.EQL then
+        eat(Token.EQL)
+        typ()
+      else
+        EmptyTypeTree()(id.span)
     TypeDef(id, tparams, rhs)(typeItem.span | rhs.span)
 
   def typeParams(): List[TypeParam] =

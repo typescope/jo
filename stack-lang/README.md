@@ -106,7 +106,7 @@ Syntactical Grammar
 
     paramdef = PARAM param
 
-    typedef = TYPE [tparams] ident EQL type.
+    typedef = TYPE ident[tparams] [EQL type].
     tparams = LBRACKET tparam {COMMA tparam} RBRACKET.
     tparam  = ident [SUBTYPE type].
 

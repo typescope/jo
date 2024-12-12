@@ -16,6 +16,7 @@ files=(
 
     # typer
     stack-lang/common/Debug.scala
+    stack-lang/common/Dynamic.scala
     stack-lang/typing/Checker.scala
     stack-lang/typing/Desugaring.scala
     stack-lang/typing/ExprTyper.scala

@@ -8,6 +8,7 @@ import sast.Symbols.*
 import sast.Types.*
 
 import ast.Positions.*
+import common.Dynamic
 import parsing.Parser
 import reporting.Reporter
 
@@ -30,13 +31,36 @@ class Namer(@constructorOnly reporter: Reporter):
   /** Handles cyclic definitions */
   val nonCyclicTypeProvider = new NamerUtils.ValueTypeProvider(using reporter)
 
+  def transformPredef(ns: Ast.Namespace)(using rp: Reporter): Namespace =
+    val rootNamespaceScope = new Scope.RootScope(new NameTable, owner = null)
+
+    // The predef namespace is checked without the predef scope
+    given source: Source = Reporter.source(ns.source)
+
+    val nsSym = resolveNamespace(ns.qualid, isBranch = false)(using rootNamespaceScope)
+    val nsInfo = nsSym.info.as[NamespaceInfo]
+
+    if ns.imports.nonEmpty then
+      Reporter.error("Predef cannot define imports", ns.imports.head.pos)
+
+    val defsScope = new Scope.RootScope(nsInfo.nameTable, owner = nsSym)
+    val delayedDefs = index(ns.defs)(using defsScope)
+    val defs = for delayed <- delayedDefs.toList yield delayed.force()
+
+    Namespace(nsSym, imports = Nil, defs)(ns.span)
+
+
   def transform(nss: List[Ast.Namespace])(using rp: Reporter): List[Namespace] =
     // All namespace are located in the scope
     val rootNamespaceScope = new Scope.RootScope(new NameTable, owner = null)
 
+    val predefNamespace = Predef.load("lib/Predef.stk")
+    val predef: Predef = new Predef(predefNamespace.info.nameTable)
+    Dynamic.install(Predef.key, predef)
+
     // Predef names are by-default accessible. However, other namespaces are not
     // accessible unless explicitly imported.
-    val predefScope: Scope = new Scope.RootScope(Predef.nameTable, owner = null)
+    val predefScope: Scope = new Scope.RootScope(predef.nameTable, owner = null)
 
     val delayedNamespaces = new mutable.ArrayBuffer[() => Namespace]
 
@@ -47,7 +71,7 @@ class Namer(@constructorOnly reporter: Reporter):
       val nsInfo = nsSym.info.as[NamespaceInfo]
 
       val importScope: Scope = predefScope.fresh(nsSym)
-      val defsScope: Scope = importScope.fresh(nsSym, nsInfo.table)
+      val defsScope: Scope = importScope.fresh(nsSym, nsInfo.nameTable)
 
       val delayedDefs = index(ns.defs)(using defsScope)
 
@@ -467,7 +491,7 @@ class Namer(@constructorOnly reporter: Reporter):
           if tagsRest.nonEmpty then
             Reporter.error("Unmatched case(s): " + tagsRest.mkString(", "), scrutIdent.pos)
           // abort
-          val abort = Ident(Predef.abort)(scrutIdent.span)
+          val abort = Ident(Predef.instance.abort)(scrutIdent.span)
           val args = StringLit("Unhandled match at " + scrutIdent.pos)(scrutIdent.span) :: Nil
           val app = Apply(abort, args)(BottomType, patmat.span)
           checker.adapt(app, resType)
@@ -715,9 +739,25 @@ class Namer(@constructorOnly reporter: Reporter):
 
     def computeInfo(): Type =
       if tdef.tparams.isEmpty then
-        val rhs = transformType(tdef.rhs)
-        checker.delayedCheck { checker.checkValueType(rhs) }
-        rhs.tpe
+        if tdef.rhs.isEmpty then
+          if sc.owner.fullName == "stk.Predef" then
+            val typeName = tdef.name
+            if typeName == "Int" then IntType
+            else if typeName == "Bool" then BoolType
+            else if typeName == "String" then StringType
+            else if typeName == "Void" then VoidType
+            else if typeName == "Any" then AnyType
+            else if typeName == "Bottom" then BottomType
+            else
+              Reporter.error("Unknown primitive type " + typeName, tdef.pos)
+              AnyType
+          else
+            AnyType
+        else
+          val rhs = transformType(tdef.rhs)
+          checker.delayedCheck { checker.checkValueType(rhs) }
+          rhs.tpe
+
       else
         val tparamRefs = tparamSyms.zipWithIndex.map: (tparamSym, i) =>
           TypeParamRef(tparamSym.name, i)
