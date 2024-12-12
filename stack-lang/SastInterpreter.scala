@@ -52,8 +52,10 @@ object SastInterpreter:
           case _ => err("Unknown name to update: " + sym.name)
 
     def bind(sym: Symbol, denot: Denotation): Unit =
-      assert(!map.contains(sym), "Double binding")
+      assert(!map.contains(sym), "Double binding " + sym)
       map(sym) = denot
+
+    def contains(sym: Symbol): Boolean = map.contains(sym)
   end Env
 
   type Params = Map[Symbol, Value]
@@ -113,44 +115,52 @@ object SastInterpreter:
     val StringVal(v) :: Nil = args: @unchecked
     throw new Exception(v)
 
-  val primitiveOperators: Map[Symbol, List[Value] => List[Value]] = Map(
-      Predef.add    ->    add,
-      Predef.sub    ->    sub,
-      Predef.mul    ->    mul,
-      Predef.div    ->    div,
-      Predef.mod    ->    mod,
-      Predef.gt     ->    gt,
-      Predef.lt     ->    lt,
-      Predef.ge     ->    ge,
-      Predef.le     ->    le,
-      Predef.srl    ->    srl,
-      Predef.sll    ->    sll,
-      Predef.land   ->    land,
-      Predef.lor    ->    lor,
-      Predef.lxor   ->    lxor,
-      Predef.band   ->    band,
-      Predef.bor    ->    bor,
-      Predef.bnot   ->    bnot,
-      Predef.eql    ->    eql,
-      Predef.p      ->    p,
-      Predef.print  ->    print,
-      Predef.abort  ->    abort
-  )
-
-  def exec(nss: List[Namespace], main: Symbol): Unit =
+  def createRootEnv(): Env =
     val rootEnv = new Env.RootEnv()
+
+    val predef = Predef.instance
+
+    val primitiveOperators: Map[Symbol, List[Value] => List[Value]] = Map(
+      predef.add    ->    add,
+      predef.sub    ->    sub,
+      predef.mul    ->    mul,
+      predef.div    ->    div,
+      predef.mod    ->    mod,
+      predef.gt     ->    gt,
+      predef.lt     ->    lt,
+      predef.ge     ->    ge,
+      predef.le     ->    le,
+      predef.srl    ->    srl,
+      predef.sll    ->    sll,
+      predef.land   ->    land,
+      predef.lor    ->    lor,
+      predef.lxor   ->    lxor,
+      predef.band   ->    band,
+      predef.bor    ->    bor,
+      predef.bnot   ->    bnot,
+      predef.eql    ->    eql,
+      predef.p      ->    p,
+      predef.print  ->    print,
+      predef.abort  ->    abort
+    )
 
     for (sym, op) <- primitiveOperators do
       rootEnv.bind(sym, PrimAction(op))
 
-    val env = rootEnv.fresh()
+    rootEnv
+
+  def exec(nss: List[Namespace], main: Symbol): Unit =
+    val rootEnv = createRootEnv()
+
     for
       ns <- nss
       case fun: FunDef <- ns.defs
     do
-      env.bind(fun.symbol, FunVal(fun, env))
+      // Predef symbols without an implementation should be ignored
+      if !rootEnv.contains(fun.symbol) then
+        rootEnv.bind(fun.symbol, FunVal(fun, rootEnv))
 
-    val FunVal(fdef, env2) = env.resolve(main): @unchecked
+    val FunVal(fdef, env2) = rootEnv.resolve(main): @unchecked
     val params = Map.empty[Symbol, Value]
     call(fdef, args = Nil)(using env2, params)
 

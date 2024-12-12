@@ -100,7 +100,7 @@ class Namer(@constructorOnly reporter: Reporter):
 
     val namespaces = delayedNamespaces.map(_.apply())
     checker.performDelayedChecks()
-    namespaces.toList
+    predefNamespace :: namespaces.toList
 
   /** Resolve namespace and create intermediate namespace on demand
     *
