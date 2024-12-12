@@ -7,10 +7,6 @@ param beta: Int
 
 fun foo(n: Int): Int = alpha + beta * n
 
-fun println(s: String): Void =
-  print s
-  print "\n"
-
 fun printInt(x: Int): Void = x p
 
 fun main =
