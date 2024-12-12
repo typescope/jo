@@ -752,7 +752,7 @@ class Namer(@constructorOnly reporter: Reporter):
               Reporter.error("Unknown primitive type " + typeName, tdef.pos)
               AnyType
           else
-            AnyType
+            TypeBound(BottomType, AnyType)
         else
           val rhs = transformType(tdef.rhs)
           checker.delayedCheck { checker.checkValueType(rhs) }
