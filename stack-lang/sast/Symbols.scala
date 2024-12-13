@@ -81,6 +81,17 @@ object Symbols:
             current = res
             res
 
+    def termMember(name: String): Symbol =
+      member(name, isType = false).get
+
+    def typeMember(name: String): Symbol =
+      member(name, isType = true).get
+
+    def member(name: String, isType: Boolean): Option[Symbol] =
+      info match
+        case nsInfo: NamespaceInfo => nsInfo.resolve(name, isType)
+        case _ => None
+
     def fullName: String = this.ownersIterator.foldLeft(this.name):
       (acc, owner) => owner.name + "." + acc
 

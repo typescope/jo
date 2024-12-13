@@ -10,11 +10,8 @@ import common.Dynamic
   * Run-time symbols are only available to the compiler.
   */
 class JSRuntime(val runtimeRootNameTable: NameTable):
-  def resolveTerm(path: String): Symbol =
+  def resolveNamespace(path: String): Symbol =
     NameTable.resolvePath(runtimeRootNameTable, path, isType = false)
-
-  def resolveType(path: String): Symbol =
-    NameTable.resolvePath(runtimeRootNameTable, path, isType = true)
 
   private val paramsName = "__runtime_contextParams"
 
@@ -24,11 +21,12 @@ class JSRuntime(val runtimeRootNameTable: NameTable):
 
   val globalDefCode: String = s"""const $paramsName = {};"""
 
-  val getParam = resolveTerm("stk.runtime.JS.getParam")
-  val setParam = resolveTerm("stk.runtime.JS.setParam")
+  val JS = resolveNamespace("stk.runtime.JS")
+  val JS_getParam = JS.termMember("getParam")
+  val JS_setParam = JS.termMember("setParam")
 
-  val print = resolveTerm("stk.runtime.JS.print")
-  val p = resolveTerm("stk.runtime.JS.p")
+  val JS_print = JS.termMember("print")
+  val JS_p = JS.termMember("p")
 
 object JSRuntime:
   val key = new Dynamic.Key[JSRuntime]("js-runtime")

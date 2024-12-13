@@ -278,8 +278,8 @@ class JSOptimized(outFile: String):
       case defn.Predef_bnot   =>   bnot(args)
       case defn.Predef_eql    =>   binary("===")
       case defn.Predef_abort  =>   abort(args)
-      case defn.Predef_print  =>   call(runtime.print, args)
-      case defn.Predef_p      =>   call(runtime.p, args)
+      case defn.Predef_print  =>   call(runtime.JS_print, args)
+      case defn.Predef_p      =>   call(runtime.JS_p, args)
 
       case defn.Predef_js  =>
         val StringLit(code) :: Nil = args : @unchecked
