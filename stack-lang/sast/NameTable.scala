@@ -45,7 +45,7 @@ object NameTable:
     resolvePath(nameTable, path.split("\\.").toList, isType)
 
   private def resolvePath(nameTable: NameTable, parts: List[String], isType: Boolean): Option[Symbol] =
-    parts match
+    (parts: @unchecked) match
       case name :: Nil => nameTable.resolve(name, isType)
 
       case name :: rest =>

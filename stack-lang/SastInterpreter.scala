@@ -1,5 +1,6 @@
 import scala.collection.mutable
 
+import ast.Ast
 import sast.*
 import sast.Sast.*
 import sast.Symbols.*
@@ -118,30 +119,30 @@ object SastInterpreter:
   def createRootEnv(): Env =
     val rootEnv = new Env.RootEnv()
 
-    val predef = Predef.instance
+    val defn = Definitions.instance
 
     val primitiveOperators: Map[Symbol, List[Value] => List[Value]] = Map(
-      predef.add    ->    add,
-      predef.sub    ->    sub,
-      predef.mul    ->    mul,
-      predef.div    ->    div,
-      predef.mod    ->    mod,
-      predef.gt     ->    gt,
-      predef.lt     ->    lt,
-      predef.ge     ->    ge,
-      predef.le     ->    le,
-      predef.srl    ->    srl,
-      predef.sll    ->    sll,
-      predef.land   ->    land,
-      predef.lor    ->    lor,
-      predef.lxor   ->    lxor,
-      predef.band   ->    band,
-      predef.bor    ->    bor,
-      predef.bnot   ->    bnot,
-      predef.eql    ->    eql,
-      predef.p      ->    p,
-      predef.print  ->    print,
-      predef.abort  ->    abort
+      defn.Predef_add    ->    add,
+      defn.Predef_sub    ->    sub,
+      defn.Predef_mul    ->    mul,
+      defn.Predef_div    ->    div,
+      defn.Predef_mod    ->    mod,
+      defn.Predef_gt     ->    gt,
+      defn.Predef_lt     ->    lt,
+      defn.Predef_ge     ->    ge,
+      defn.Predef_le     ->    le,
+      defn.Predef_srl    ->    srl,
+      defn.Predef_sll    ->    sll,
+      defn.Predef_land   ->    land,
+      defn.Predef_lor    ->    lor,
+      defn.Predef_lxor   ->    lxor,
+      defn.Predef_band   ->    band,
+      defn.Predef_bor    ->    bor,
+      defn.Predef_bnot   ->    bnot,
+      defn.Predef_eql    ->    eql,
+      defn.Predef_p      ->    p,
+      defn.Predef_print  ->    print,
+      defn.Predef_abort  ->    abort
     )
 
     for (sym, op) <- primitiveOperators do
@@ -266,9 +267,12 @@ object SastInterpreter:
 @main
 def sastEval(args: String*) = Reporter.monitor:
     val sourceFiles = args.toList
+    val stdLib = "lib/Predef.stk" :: Nil
+    val namer = (nss: List[Ast.Namespace]) => Namer.transform(nss, stdLib)
+
     val namespacesSAST =
       Parser.parse(sourceFiles)     |>
-      Namer.transform               |>
+      namer                         |>
       Printing.peek(enable = false)
 
     val mains = namespacesSAST.collect:
