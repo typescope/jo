@@ -43,7 +43,6 @@ object Symbols:
         case tp: Type => tp
         case provider: InfoProvider => provider(this)
 
-    def isPrimitive: Boolean = flags.is(Flags.Prim)
     def isFunction : Boolean = flags.is(Flags.Fun)
     def isValue    : Boolean = flags.is(Flags.Val)
     def isType     : Boolean = flags.is(Flags.Type)

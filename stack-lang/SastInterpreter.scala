@@ -22,7 +22,7 @@ object SastInterpreter:
     case StringVal(value: String)
     case RecordVal(fields: Map[String, Value])
     case FunVal(fun: FunDef, env: Env)
-    case PrimAction(op: List[Value] => List[Value])
+    case PlatformCall(op: List[Value] => List[Value])
     case Uninit
 
   type Value = IntVal | BoolVal | StringVal | RecordVal | FunVal
@@ -121,7 +121,7 @@ object SastInterpreter:
 
     val defn = Definitions.instance
 
-    val primitiveOperators: Map[Symbol, List[Value] => List[Value]] = Map(
+    val platformCalls: Map[Symbol, List[Value] => List[Value]] = Map(
       defn.Predef_add    ->    add,
       defn.Predef_sub    ->    sub,
       defn.Predef_mul    ->    mul,
@@ -145,8 +145,8 @@ object SastInterpreter:
       defn.Predef_abort  ->    abort
     )
 
-    for (sym, op) <- primitiveOperators do
-      rootEnv.bind(sym, PrimAction(op))
+    for (sym, op) <- platformCalls do
+      rootEnv.bind(sym, PlatformCall(op))
 
     rootEnv
 
@@ -248,7 +248,7 @@ object SastInterpreter:
 
         (funDenot: @unchecked) match
           case FunVal(fdef, env) => call(fdef, argVals)(using env)
-          case PrimAction(op) => op(argVals)
+          case PlatformCall(op) => op(argVals)
 
       case TypeApply(fun, _) =>
         exec(fun)

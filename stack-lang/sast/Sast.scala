@@ -108,16 +108,6 @@ object Sast:
       case appType: InvokableType =>
         assert(appType.paramTypes.size == args.size)
 
-    def isPrimitiveCall: Boolean =
-      fun match
-        case Ident(sym) => sym.isPrimitive
-        case _ => false
-
-    /** Get the primitive symbol associated with the call */
-    def primitive: Symbol =
-      val Ident(sym) = fun: @unchecked
-      sym
-
   /** Encoding of a type with another type
     *
     * It is also used to explicitly represent dropped values.
