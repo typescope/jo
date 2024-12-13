@@ -32,7 +32,7 @@ object LowerContextParams extends SastOps.TreeMap:
     word match
       case Ident(sym) if sym.isAllOf(Flags.Context | Flags.Param) =>
         val arg = StringLit(sym.fullName)(word.span)
-        val fun = Ident(JSRuntime.getParam)(word.span)
+        val fun = Ident(JSRuntime.instance.getParam)(word.span)
         val app = Apply(fun, arg :: Nil)(word.tpe, word.span)
         app
 
@@ -58,7 +58,7 @@ object LowerContextParams extends SastOps.TreeMap:
           val paramName = arg.paramRef.symbol.fullName
           val key = StringLit(paramName)(arg.paramRef.span)
           val value = Ident(argValueSym)(arg.rhs.span)
-          val funSetParam = Ident(JSRuntime.setParam)(arg.span)
+          val funSetParam = Ident(JSRuntime.instance.setParam)(arg.span)
           val setParamCall = Apply(funSetParam, key :: value :: Nil)(AnyType, span)
           val oldValueSym = new Symbol("old_" + paramName, arg.rhs.tpe, Flags.Val, owner = ctx.funSymbol, sourcePos = arg.rhs.pos)
           ctx.locals += oldValueSym
@@ -75,7 +75,7 @@ object LowerContextParams extends SastOps.TreeMap:
           val paramName = paramRef.symbol.fullName
           val key = StringLit(paramName)(paramRef.span)
           val value = Ident(oldValueSym)(paramRef.span)
-          val funSetParam = Ident(JSRuntime.setParam)(paramRef.span)
+          val funSetParam = Ident(JSRuntime.instance.setParam)(paramRef.span)
           stats += dropValue(Apply(funSetParam, key :: value :: Nil)(AnyType, span))
 
         // 5. res

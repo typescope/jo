@@ -2,6 +2,7 @@ package js
 
 import common.IO
 import parsing.Parser
+import ast.Ast
 import sast.*
 import typing.Namer
 import phases.*
@@ -38,10 +39,20 @@ def compile(args: String*): Unit =
   val backend = new JSOptimized(outFile)
 
   Reporter.monitor:
+    val rootNameTable = new NameTable
+    val runtimeNameTable = new NameTable
+    val stdlib = "lib/Predef.stk" :: Nil
+    val runtime = "runtime/JS.stk" :: Nil
+
+    val typeCheck = (nss: List[Ast.Namespace]) =>
+      Namer.transform(nss, stdlib, runtime, rootNameTable, runtimeNameTable)
+
     val namespacesSAST =
       Parser.parse(sourceFiles)     |>
-      Namer.transform               |+
+      typeCheck                     |+
       Printing.peek(enable = false)
+
+    JSRuntime.initialize(runtimeNameTable)
 
     val mains = namespacesSAST.collect:
       case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get

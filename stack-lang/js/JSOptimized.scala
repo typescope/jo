@@ -29,19 +29,13 @@ class JSOptimized(outFile: String):
   // Make keywords unavailable
   for word <- keywords do unique.freshName(word)
 
-  // Make runtime symbols unavailable
-  for name <- JSRuntime.runtimeNames do unique.freshName(name)
-
-  private val symbol2UniqueName: mutable.Map[Symbol, String] =
-    mutable.Map.from(JSRuntime.symbolMap)
+  private val symbol2UniqueName: mutable.Map[Symbol, String] = mutable.Map.empty
 
   def jsName(sym: Symbol): String =
     symbol2UniqueName.get(sym) match
       case Some(name) => name
 
       case None =>
-        assert(!sym.isPrimitive)
-
         val rawName = if sym.isFunction then sym.fullName else sym.name
         val uniqueName = unique.freshName(encodeSymbolic(rawName))
         symbol2UniqueName(sym) = uniqueName
@@ -88,6 +82,11 @@ class JSOptimized(outFile: String):
   def compile(nss: List[Namespace], main: Symbol): Unit =
     val pw =  new PrintWriter(outFile)
 
+    val runtime = JSRuntime.instance
+
+    // Make runtime symbols unavailable
+    for name <- runtime.runtimeNames do unique.freshName(name)
+
     workList.add(main)
 
     val symbolDefMap = mutable.Map.empty[Symbol, FunDef]
@@ -100,7 +99,7 @@ class JSOptimized(outFile: String):
     pw.append("(function() {")
 
     // runtime code
-    pw.append(indent(JSRuntime.runtimeCode).toString)
+    pw.append(indent(runtime.globalDefCode).toString)
 
     // user code
     workList.run: funSym =>
@@ -152,14 +151,7 @@ class JSOptimized(outFile: String):
         compile(repr)
 
       case app @ Apply(fun, args) =>
-        if app.isPrimitiveCall then
-          primitive(app.primitive, args)
-        else
-          cont(fun): v =>
-            cont(args): vs =>
-              val call = v ~ "(" ~ rep(vs, Text(", ")) ~ ")"
-              if app.tpe.isValueType then cont(call)
-              else call ~ cont()
+        call(fun, args)
 
       case TypeApply(fun, _) =>
         compile(fun)
@@ -242,14 +234,24 @@ class JSOptimized(outFile: String):
     cont(arg): v =>
       "throw "  ~ v ~ ";" ~ Text.BreakLine ~ cont(Text("null"))
 
-  def call(funSym: Symbol, args: List[Word])(using Context): Text =
-    cont(args): vs =>
-      val call = funSym ~ "(" ~ rep(vs, Text(", ")) ~ ")"
-      if funSym.info.asProcType.resCount == 1 then cont(call)
-      else call ~ cont()
+
+  def call(fun: Word, args: List[Word])(using Context): Text =
+    fun match
+      case Ident(sym) if sym.owner == Definitions.instance.Predef =>
+        call(sym, args)
+
+      case _ =>
+        cont(fun): v =>
+          cont(args): vs =>
+            val call = v ~ "(" ~ rep(vs, Text(", ")) ~ ")"
+            if fun.tpe.asProcType.resCount == 1 then cont(call)
+            else call ~ cont()
 
   /** Compile a primitive */
-  def primitive(sym: Symbol, args: List[Word])(using Context): Text =
+  def call(sym: Symbol, args: List[Word])(using Context): Text =
+    val defn = Definitions.instance
+    val runtime = JSRuntime.instance
+
     def binary(op: String): Text =
       val a :: b :: Nil = args: @unchecked
       cont(a): v1 =>
@@ -257,29 +259,39 @@ class JSOptimized(outFile: String):
           cont("(" ~ v1 ~ " " ~ op ~ " " ~ v2 ~ ")")
 
     sym match
-      case Predef.add    =>   binary("+")
-      case Predef.sub    =>   binary("-")
-      case Predef.mul    =>   binary("*")
-      case Predef.div    =>   div(args)
-      case Predef.mod    =>   binary("%")
-      case Predef.gt     =>   binary(">")
-      case Predef.lt     =>   binary("<")
-      case Predef.ge     =>   binary(">=")
-      case Predef.le     =>   binary("<=")
-      case Predef.srl    =>   binary(">>")
-      case Predef.sll    =>   binary("<<")
-      case Predef.land   =>   binary("&")
-      case Predef.lor    =>   binary("|")
-      case Predef.lxor   =>   binary("^")
-      case Predef.band   =>   binary("&&")
-      case Predef.bor    =>   binary("||")
-      case Predef.bnot   =>   bnot(args)
-      case Predef.eql    =>   binary("===")
-      case Predef.abort  =>   abort(args)
-      case Predef.p      =>   call(Predef.p, args)
-      case Predef.print  =>   call(Predef.print, args)
-      case _             =>   throw new Exception("Unknown primitive: " + sym.name)
-  end primitive
+      case defn.Predef_add    =>   binary("+")
+      case defn.Predef_sub    =>   binary("-")
+      case defn.Predef_mul    =>   binary("*")
+      case defn.Predef_div    =>   div(args)
+      case defn.Predef_mod    =>   binary("%")
+      case defn.Predef_gt     =>   binary(">")
+      case defn.Predef_lt     =>   binary("<")
+      case defn.Predef_ge     =>   binary(">=")
+      case defn.Predef_le     =>   binary("<=")
+      case defn.Predef_srl    =>   binary(">>")
+      case defn.Predef_sll    =>   binary("<<")
+      case defn.Predef_land   =>   binary("&")
+      case defn.Predef_lor    =>   binary("|")
+      case defn.Predef_lxor   =>   binary("^")
+      case defn.Predef_band   =>   binary("&&")
+      case defn.Predef_bor    =>   binary("||")
+      case defn.Predef_bnot   =>   bnot(args)
+      case defn.Predef_eql    =>   binary("===")
+      case defn.Predef_abort  =>   abort(args)
+      case defn.Predef_print  =>   call(runtime.print, args)
+      case defn.Predef_p      =>   call(runtime.p, args)
+
+      case defn.Predef_js  =>
+        val StringLit(code) :: Nil = args : @unchecked
+        cont(Text(code))
+
+      case _ =>
+        cont(args): vs =>
+          val call = sym ~ "(" ~ rep(vs, Text(", ")) ~ ")"
+          if sym.info.asProcType.resCount == 1 then cont(call)
+          else call ~ cont()
+    end match
+  end call
 
 
 end JSOptimized

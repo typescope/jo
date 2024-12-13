@@ -1,0 +1,22 @@
+namespace stk.runtime.JS
+
+fun getProp(o: Any, prop: String): Any = js "o[prop]"
+fun setProp(o: Any, prop: String, v: Any): Void = js "o[prop] = v"
+
+fun isDefined(o: Any): Bool = js "o"
+
+fun concat(a: String, b: String): String = js "a + b"
+
+fun print(s: String): Void = js "process.stdout.write(s)"
+
+fun p(n: Int): Void = js "process.stdout.write(n.toString() + \"\\n\")"
+
+fun getParam(key: String): Any =
+  val v = getProp (js "__runtime_contextParams") key
+  if isDefined v then v
+  else abort (concat "Unbound parameter " key)
+
+fun setParam(key: String, value: Any): Any =
+  val old = getProp (js "__runtime_contextParams") key
+  setProp (js "__runtime_contextParams") key value
+  old

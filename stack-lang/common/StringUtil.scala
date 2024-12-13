@@ -7,12 +7,14 @@ object StringUtil:
     */
   def unescape(s: String): String =
     val sb = new StringBuilder
+    var isLastEscape = false
 
     var i = 0
     while i < s.size do
       val c = s(i)
-      if i == 0 || s(i - 1) != '\\' then
-        if c != '\\' then sb += c
+      if i == 0 || !isLastEscape then
+        if c == '\\' then isLastEscape = true
+        else sb += c
       else
         c match
           case 'b'  => sb += '\b'
@@ -22,6 +24,7 @@ object StringUtil:
           case 't'  => sb += '\t'
           case '"'  => sb += '"'
           case '\\' => sb += '\\'
+        isLastEscape = false
       end if
       i += 1
     end while

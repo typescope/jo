@@ -2,56 +2,39 @@ package js
 
 import sast.*
 import sast.Symbols.*
-import sast.Types.*
 
-/** Functions to support JS platform at runtime */
-object JSRuntime:
-  //----------------------------------------------------------------------------
-  // run-time symbols are only available to the compiler
+import common.Dynamic
 
-  // read context parameter
-  val getParam =
-    val tpe = ProcType(NamedInfo("key", StringType) :: Nil, AnyType, preParamCount = 0)
-    new Symbol("readParam", tpe, Flags.Fun, owner = Predef.predefSym, sourcePos = null)
+/** Functions to support JS platform at runtime
+  *
+  * Run-time symbols are only available to the compiler.
+  */
+class JSRuntime(val runtimeRootNameTable: NameTable):
+  def resolveTerm(path: String): Symbol =
+    NameTable.resolvePath(runtimeRootNameTable, path, isType = false)
 
-  // define new context parameter
-  // set the new value, return the existing value associated with the same key
-  val setParam =
-    val key = NamedInfo("key", StringType)
-    val value = NamedInfo("value", AnyType)
-    val tpe = ProcType(key :: value :: Nil, AnyType, preParamCount = 0)
-    new Symbol("pushParam", tpe, Flags.Fun, owner = Predef.predefSym, sourcePos = null)
+  def resolveType(path: String): Symbol =
+    NameTable.resolvePath(runtimeRootNameTable, path, isType = true)
 
   private val paramsName = "__runtime_contextParams"
-  private val getParamRuntimeName = "__runtime_getParam"
-  private val setParamRuntimeName = "__runtime_setParam"
-
-  val symbolMap: Map[Symbol, String] = Map(
-    Predef.p     -> "console.log",
-    Predef.print -> "process.stdout.write",
-    getParam     -> getParamRuntimeName,
-    setParam     -> setParamRuntimeName,
-  )
 
   val runtimeNames: List[String] = List(
-    "console", "process", paramsName, getParamRuntimeName, setParamRuntimeName
+    "console", "process", paramsName
   )
 
-  val runtimeCode: String = s"""
-const $paramsName = {};
+  val globalDefCode: String = s"""const $paramsName = {};"""
 
-function $getParamRuntimeName(key) {
-  const v = $paramsName[key];
-  if (v) {
-     return v;
-  } else {
-     throw "Unbound parameter " + key;
-  }
-}
+  val getParam = resolveTerm("stk.runtime.JS.getParam")
+  val setParam = resolveTerm("stk.runtime.JS.setParam")
 
-function $setParamRuntimeName(key, value) {
-  const old = $paramsName[key];
-  $paramsName[key] = value;
-  return old;
-}
-"""
+  val print = resolveTerm("stk.runtime.JS.print")
+  val p = resolveTerm("stk.runtime.JS.p")
+
+object JSRuntime:
+  val key = new Dynamic.Key[JSRuntime]("js-runtime")
+
+  def initialize(runtimeRootNameTable: NameTable): Unit =
+    val jsRuntime = new JSRuntime(runtimeRootNameTable)
+    Dynamic.install(JSRuntime.key, jsRuntime)
+
+  def instance: JSRuntime = Dynamic.get(JSRuntime.key)

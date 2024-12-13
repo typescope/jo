@@ -858,14 +858,14 @@ object Namer:
   def transform(nssAst: List[Ast.Namespace], stdlib: List[String], runtime: List[String])(using rp: Reporter) : List[Namespace] =
     val rootNameTable = new NameTable
     val runtimeNameTable = new NameTable
-    transform(nssAst, stdlib, rootNameTable, runtime, runtimeNameTable)
+    transform(nssAst, stdlib, runtime, rootNameTable, runtimeNameTable)
 
   /** The stdlib cannot depend on pre-defined symbols */
   def transform(
     nssAst: List[Ast.Namespace],
     stdlib: List[String],
-    rootNameTable: NameTable,
     runtime: List[String],
+    rootNameTable: NameTable,
     runtimeNameTable: NameTable)(using rp: Reporter)
   : List[Namespace] =
 
