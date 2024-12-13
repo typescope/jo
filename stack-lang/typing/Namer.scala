@@ -845,7 +845,9 @@ class Namer(@constructorOnly reporter: Reporter):
 object Namer:
   def main(args: Array[String]): Unit =
     Reporter.monitor:
-      val namer = (nssAst: List[Ast.Namespace]) => transform(nssAst, "lib/Predef.stk" :: Nil)
+      val stdLib = "lib/Predef.stk" :: Nil
+      val runtimeFiles = Nil
+      val namer = (nssAst: List[Ast.Namespace]) => transform(nssAst, stdLib, runtimeFiles)
       val nss = Parser.parse(args.toList) |> namer
 
       for ns <- nss do
@@ -853,17 +855,41 @@ object Namer:
         println(ns.show)
         println
 
-  /** The stdlib cannot depend on pre-defined symbols */
-  def transform(nssAst: List[Ast.Namespace], stdlib: List[String])(using rp: Reporter): List[Namespace] =
+  def transform(nssAst: List[Ast.Namespace], stdlib: List[String], runtime: List[String])(using rp: Reporter) : List[Namespace] =
     val rootNameTable = new NameTable
+    val runtimeNameTable = new NameTable
+    transform(nssAst, stdlib, rootNameTable, runtime, runtimeNameTable)
 
-    val stdlibNSs = transformStdLib(stdlib, rootNameTable)
+  /** The stdlib cannot depend on pre-defined symbols */
+  def transform(
+    nssAst: List[Ast.Namespace],
+    stdlib: List[String],
+    rootNameTable: NameTable,
+    runtime: List[String],
+    runtimeNameTable: NameTable)(using rp: Reporter)
+  : List[Namespace] =
+
+    // StdLib is compiled without the Predef
+    val nssStdLib = transform(stdlib, rootNameTable, predef = new NameTable)
     Definitions.initialize(rootNameTable)
 
-    val nss = new Namer(rp).transform(nssAst, rootNameTable, Definitions.instance.Predef_nameTable)
-    stdlibNSs ++ nss
+    val predefNameTable = Definitions.instance.Predef_nameTable
 
-  def transformStdLib(files: List[String], rootNameTable: NameTable)(using rp: Reporter): List[Namespace] =
+    // Runtime definitions are not entered into the root name table thus is
+    // inaccessible in user programs
+    val nssRuntime = transform(runtime, runtimeNameTable, predefNameTable)
+
+    val nss = new Namer(rp).transform(nssAst, rootNameTable, predefNameTable)
+    nssStdLib ++ nssRuntime ++ nss
+
+  def transform(files: List[String], rootNameTable: NameTable, predef: NameTable)(using rp: Reporter): List[Namespace] =
+    val namer = (nss: List[Ast.Namespace]) =>
+      new Namer(rp).transform(nss, rootNameTable, predef)
+    // `|>` will stop early in the presence of parsing errors
+    Parser.parse(files) |> namer
+
+  def transformRunTime(files: List[String])(using rp: Reporter): List[Namespace] =
+    val rootNameTable = new NameTable
     val noPredef = new NameTable
     val namer = (nss: List[Ast.Namespace]) =>
       new Namer(rp).transform(nss, rootNameTable, noPredef)

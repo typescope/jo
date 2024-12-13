@@ -10,10 +10,10 @@ class Definitions(val rootNameTable: NameTable):
   // primitive symbols are available to programmers
 
   def resolveTerm(path: String): Symbol =
-    NameTable.resolvePath(rootNameTable, path, isType = false).get
+    NameTable.resolvePath(rootNameTable, path, isType = false)
 
   def resolveType(path: String): Symbol =
-    NameTable.resolvePath(rootNameTable, path, isType = true).get
+    NameTable.resolvePath(rootNameTable, path, isType = true)
 
   val Predef        =  resolveTerm("stk.Predef")
   val Predef_nameTable = Predef.info.as[NamespaceInfo].nameTable

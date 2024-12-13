@@ -268,7 +268,8 @@ object SastInterpreter:
 def sastEval(args: String*) = Reporter.monitor:
     val sourceFiles = args.toList
     val stdLib = "lib/Predef.stk" :: Nil
-    val namer = (nss: List[Ast.Namespace]) => Namer.transform(nss, stdLib)
+    val runtime = Nil
+    val namer = (nss: List[Ast.Namespace]) => Namer.transform(nss, stdLib, runtime)
 
     val namespacesSAST =
       Parser.parse(sourceFiles)     |>

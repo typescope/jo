@@ -41,8 +41,8 @@ class NameTable(
   end define
 
 object NameTable:
-  def resolvePath(nameTable: NameTable, path: String, isType: Boolean): Option[Symbol] =
-    resolvePath(nameTable, path.split("\\.").toList, isType)
+  def resolvePath(nameTable: NameTable, path: String, isType: Boolean): Symbol =
+    resolvePath(nameTable, path.split("\\.").toList, isType).get
 
   private def resolvePath(nameTable: NameTable, parts: List[String], isType: Boolean): Option[Symbol] =
     (parts: @unchecked) match
