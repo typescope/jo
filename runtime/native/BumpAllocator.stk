@@ -1,0 +1,36 @@
+namespace stk.runtime.native.BumpAllocator
+
+import stk.runtime.native.Core
+import stk.runtime.native.Syscall
+
+type Shape = { freeFrom: Int, freeUntil: Int }
+
+fun init(): Void =
+  val start = Syscall.sys_brk 0
+  Core.writeInt state 0 start
+  Core.writeInt state 4 start
+
+fun alloc(size: Int): Any =
+  var freeFrom = state.freeFrom
+  var freeUtil = state.freeUntil
+
+  if freeFrom + size > freeUntil then
+     freeFrom = newFreeFrom
+     freeFrom = Syscall.sys_brk 1024
+     if freeFrom == -1 then
+       abort("Unable to alloc memory from system")
+
+     freeUntil = freeFrom + 1024
+
+     // update data
+     // TODO: use stk syntax once record can be mutable
+     core.writeInt state 4 freeUntil
+
+  val res = freeFrom
+
+  freeFrom = freeFrom + size
+  // update data
+  // TODO: use stk syntax once record can be mutable
+  Core.writeInt state 0 freeFrom
+
+  res
