@@ -35,12 +35,12 @@ object Parser:
 
   def parse(sourceFiles: List[String])(using Reporter): List[Namespace] =
     for file <- sourceFiles yield
-      Reporter.source(file) |>
-      Parser.parse
+      Parser.parse(file)
 
   /** Parse the supplied code */
-  def parse(source: Source)(using rp: Reporter): Namespace =
-    val name = IO.fileNameNoExt(source.file)
+  def parse(path: String)(using rp: Reporter): Namespace =
+    val source = Reporter.source(path)
+    val name = IO.fileNameNoExt(path)
     val defaultNamespace = Ident(name)(Positions.Span(0, 0))
     val parser = new Parser(source.content)(using rp, source)
     parser.parse(defaultNamespace)

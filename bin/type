@@ -23,10 +23,10 @@ files=(
     stack-lang/typing/Inference.scala
     stack-lang/typing/Namer.scala
     stack-lang/typing/NamerUtils.scala
+    stack-lang/sast/Definitions.scala
     stack-lang/sast/Flags.scala
     stack-lang/sast/NameTable.scala
     stack-lang/sast/Printing.scala
-    stack-lang/sast/Predef.scala
     stack-lang/sast/Sast.scala
     stack-lang/sast/SastOps.scala
     stack-lang/sast/Symbols.scala

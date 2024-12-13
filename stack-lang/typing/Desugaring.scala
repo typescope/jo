@@ -1,6 +1,6 @@
 package typing
 
-import sast.Predef
+import sast.Definitions
 import sast.Types.*
 import sast.Sast.*
 import ast.Positions.Span
@@ -44,5 +44,5 @@ object Desugaring:
   def testVariantTag(value: Word, tagIndex: Int, span: Span): Word =
     val tagSelect = Select(value, "tag")(IntType, span)
     val args =  tagSelect :: IntLit(tagIndex)(span) :: Nil
-    val fun = Ident(Predef.instance.eql)(span)
+    val fun = Ident(Definitions.instance.Predef_eql)(span)
     Apply(fun, args)(BoolType, span)

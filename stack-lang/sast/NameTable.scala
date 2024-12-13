@@ -1,6 +1,7 @@
 package sast
 
 import Symbols.*
+import Types.*
 
 import reporting.Diagnostics.*
 import reporting.Reporter
@@ -40,6 +41,21 @@ class NameTable(
   end define
 
 object NameTable:
+  def resolvePath(nameTable: NameTable, path: String, isType: Boolean): Option[Symbol] =
+    resolvePath(nameTable, path.split("\\.").toList, isType)
+
+  private def resolvePath(nameTable: NameTable, parts: List[String], isType: Boolean): Option[Symbol] =
+    parts match
+      case name :: Nil => nameTable.resolve(name, isType)
+
+      case name :: rest =>
+        nameTable.resolveTerm(name).flatMap: sym =>
+          if sym.isNamespace then
+            val nameTable = sym.info.as[NamespaceInfo].nameTable
+            resolvePath(nameTable, rest, isType)
+          else
+            None
+
   class DoubleDefinition(symBefore: Symbol, symNow: Symbol)
   extends Diagnostic:
     assert(symBefore.name == symNow.name)

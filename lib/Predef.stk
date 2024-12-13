@@ -1,0 +1,60 @@
+namespace stk.Predef
+
+//--------------------------------------------------------------
+// primitive types
+//
+// primitive type symbols are handled specially in the namer
+
+type Int
+
+type Bool
+
+type String
+
+type Void
+
+type Any
+
+type Bottom
+
+//--------------------------------------------------------------
+// primitive and predefined functions
+//
+// primitive functions are handled specially by the compiler
+
+fun (a: Int) + (b: Int): Int = abort("primitive +")
+fun (a: Int) - (b: Int): Int = abort("primitive -")
+fun (a: Int) * (b: Int): Int = abort("primitive *")
+fun (a: Int) / (b: Int): Int = abort("primitive /")
+fun (a: Int) % (b: Int): Int = abort("primitive %")
+
+fun (a: Int) > (b: Int): Bool = abort("primitive >")
+fun (a: Int) < (b: Int): Bool = abort("primitive <")
+fun (a: Int) >= (b: Int): Bool = abort("primitive >=")
+fun (a: Int) <= (b: Int): Bool = abort("primitive <=")
+fun (a: Int) == (b: Int): Bool = abort("primitive ==")
+
+fun (a: Int) >> (b: Int): Int = abort("primitive >>")
+fun (a: Int) << (b: Int): Int = abort("primitive <<")
+fun (a: Int) & (b: Int): Int = abort("primitive &")
+fun (a: Int) | (b: Int): Int = abort("primitive |")
+fun (a: Int) ^ (b: Int): Int = abort("primitive ^")
+
+fun (a: Bool) and (b: Bool): Bool = abort("primitive and")
+fun (a: Bool) or (b: Bool): Bool = abort("primitive and")
+fun not (b: Bool): Bool = abort("primitive not")
+
+fun (n: Int) p: Void = abort("primitive p")
+
+fun print(s: String): Void = abort("primitive print")
+
+fun println(s: String): Void =
+  print s
+  print "\n"
+
+fun abort(s: String): Bottom = abort("primitive print")
+
+//-------------------------------------------------------------
+
+// A piece of JS code --- it is specially handled under JS platform.
+fun js(s: String): Bottom = abort("primitive js")
