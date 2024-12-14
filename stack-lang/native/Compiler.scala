@@ -1,5 +1,6 @@
 package native
 
+import ast.Ast
 import sast.*
 import parsing.Parser
 import phases.*
@@ -7,7 +8,10 @@ import reporting.Reporter
 import typing.Namer
 
 import common.IO
-import os.Linux
+
+import native.Assembly.Prog
+import native.os.Linux
+import native.cpu.X86
 
 /***********************************************************************
  *
@@ -15,7 +19,7 @@ import os.Linux
  *
  ***********************************************************************/
 
-def createBackend(runtimeNameTable: NameTable): Backend =
+def createBackend(options: Map[String, String], runtimeNameTable: NameTable): Backend =
   options.get("-p") match
     case Some(pf) =>
       if pf == "linux-x86-stack" then
@@ -81,10 +85,10 @@ def compile(args: String*): Unit =
 
     mains match
       case main :: Nil =>
-        val backend = createBackend(runtimeNameTable)
+        val backend = createBackend(options, runtimeNameTable)
 
         val assembler = (prog: Prog) =>
-          Assembler.lower(layoutName, outFile, X86, backend.runtime)
+          Linux.lower(prog, layout, outFile, X86, backend.runtime)
 
         namespacesSAST                |>
         Printing.peek(enable = false) |>

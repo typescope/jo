@@ -1,12 +1,11 @@
-package native.cpu
+package native.os
 
 import sast.NameTable
-import sast.Symbols.*
 
-import native.Assembly.Label
-import native.Assembler.Linker
+import native.Assembly.*
 import native.Assembler.PatchableBuffer
 
+import native.cpu.X86
 
 /** Linker for linux system call on x86 stack machhine */
 class LinuxSyscallX86StackLinker(runtimeRootNameTable: NameTable)

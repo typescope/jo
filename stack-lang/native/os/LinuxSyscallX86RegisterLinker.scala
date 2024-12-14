@@ -1,11 +1,11 @@
-package native.cpu
+package native.os
 
 import sast.NameTable
-import sast.Symbols.*
 
-import native.Assembly.Label
-import native.Assembler.Linker
+import native.Assembly.*
 import native.Assembler.PatchableBuffer
+
+import native.cpu.X86
 
 
 /** Linker for linux system call on x86 register machhine */
@@ -27,13 +27,13 @@ extends LinuxSyscall(runtimeRootNameTable):
 
     // load argument
     X86.move(Int32(4), X86.EAX)
-    X86.move(Rel(X86.EBP, 8), X86.EBX)
+    X86.load(Rel(X86.EBP, 8), X86.EBX)
     X86.load(Rel(X86.EBP, 12), X86.ECX)
     X86.load(Rel(X86.EBP, 16), X86.EDX)
     X86.int80()
 
     // copy EAX to result location
-    X86.store(X86.EAX, Rel(X86.EBP, -4))
+    X86.store(Reg(X86.EAX), Rel(X86.EBP, -4))
 
     // return to caller
     X86.load(Reg(X86.EBP), X86.EAX)
@@ -70,7 +70,7 @@ extends LinuxSyscall(runtimeRootNameTable):
     X86.int80()
 
     // copy EAX to result location
-    X86.store(X86.EAX, Rel(X86.EBP, -4))
+    X86.store(Reg(X86.EAX), Rel(X86.EBP, -4))
 
     // return to caller
     X86.load(Reg(X86.EBP), X86.EAX)

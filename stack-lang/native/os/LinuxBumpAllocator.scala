@@ -4,8 +4,8 @@ import sast.NameTable
 import sast.Symbols.*
 
 import native.Assembly.Label
-import native.Assembler.Linker
 import native.Assembler.PatchableBuffer
+import native.Linker
 
 class LinuxBumpAllocator(runtimeRootNameTable: NameTable)
 extends Linker:
@@ -14,8 +14,10 @@ extends Linker:
   def resolveNamespace(path: String) =
     NameTable.resolvePath(runtimeRootNameTable, path, isType = false)
 
+  val Core = resolveNamespace("stk.runtime.native.Core")
+  val Core_alloc = Core.termMember("alloc")
+
   val BumpAllocator = resolveNamespace("stk.runtime.native.BumpAllocator")
-  val BumpAllocator_getState = BumpAllocator.termMember("getState")
   val BumpAllocator_init = BumpAllocator.termMember("init")
   val BumpAllocator_alloc = BumpAllocator.termMember("alloc")
 
@@ -27,7 +29,7 @@ extends Linker:
   def linkCode()(using pb: PatchableBuffer): Unit = ()
 
   def locate(sym: Symbol): Option[Symbol] =
-    if sym == NativeRuntime.instance.Core_alloc then
+    if sym == Core_alloc then
       Some(BumpAllocator_alloc)
     else
       None

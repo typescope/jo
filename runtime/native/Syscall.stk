@@ -1,9 +1,13 @@
 namespace stk.runtime.native.Syscall
 
+// TODO: import type
+// import stk.runtime.native.Core.Addr
+
 // Linux system calls
 
 fun sys_brk(size: Int): Int = abort "sys_brk"
 
 fun sys_exit(code: Int): Bottom = abort "sys_exit"
 
-fun sys_write(fd: Int, addr: Addr, len: Int): Int = abort "sys_write"
+// TODO: change Any to Addr
+fun sys_write(fd: Int, addr: Any, len: Int): Int = abort "sys_write"

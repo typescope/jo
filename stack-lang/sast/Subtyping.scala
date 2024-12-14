@@ -146,7 +146,8 @@ object Subtyping:
     val sym = tp.symbol
     sym.info match
       case bound: TypeBound =>
-        assert(sym.isTypeParameter, sym)
+        // Type definitions can also be bounded
+        // assert(sym.isTypeParameter, sym)
         if maximize then bound.hi else bound.lo
       case tp =>
         tp

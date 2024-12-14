@@ -2,9 +2,9 @@ package native
 
 import sast.*
 import sast.Symbols.*
-import sast.Types.*
 
-import Assembly.Label
+import native.Assembly.Label
+import native.Assembler.PatchableBuffer
 
 /** Functions to support native platform at runtime
   *
@@ -19,13 +19,13 @@ extends Linker:
     NameTable.resolvePath(runtimeRootNameTable, path, isType = false)
 
   val Core = resolveNamespace("stk.runtime.native.Core")
-  val Core_addAddr = Core.termMember("addAddr")
-  val Core_as = Core.termMember("as")
 
   val Core_alloc = Core.termMember("alloc")
 
+  val Core_cast = Core.termMember("cast")
   val Core_data = Core.termMember("data")
 
+  val Core_addAddr = Core.termMember("addAddr")
   val Core_writeInt = Core.termMember("writeInt")
   val Core_readInt = Core.termMember("readInt")
   val Core_writeByte = Core.termMember("writeByte")
@@ -43,19 +43,23 @@ extends Linker:
       else if sym == defn.Predef_abort then return Some(Core_abortImpl)
 
     val iter = linkers.iterator
-    while iter.hasNext then
+    while iter.hasNext do
       val linker = iter.next()
-      linker.locate(sym)) match
+      linker.locate(sym) match
         case None =>
         case res => return res
 
+    None
+
   def locate(qualid: String): Option[Label] =
     val iter = linkers.iterator
-    while iter.hasNext then
+    while iter.hasNext do
       val linker = iter.next()
-      linker.locate(qualid)) match
+      linker.locate(qualid) match
         case None =>
         case res => return res
+
+    None
 
   def linkData()(using pb: PatchableBuffer): Unit =
     linkers.foreach(_.linkData())

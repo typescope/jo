@@ -18,7 +18,7 @@ fun alloc(size: Int): Any =
 
   // TODO: use stk syntax once record can be mutable
   var freeFrom = Core.readInt data 0
-  var freeUtil = Core.readInt data 4
+  var freeUntil = Core.readInt data 4
 
   if freeFrom + size > freeUntil then
      freeFrom = Syscall.sys_brk 1024
@@ -29,7 +29,7 @@ fun alloc(size: Int): Any =
 
      // update data
      // TODO: use stk syntax once record can be mutable
-     core.writeInt data 4 freeUntil
+     Core.writeInt data 4 freeUntil
 
   val res = freeFrom
 

@@ -1,7 +1,5 @@
 package native.register
 
-import common.WorkList
-
 import sast.*
 import sast.Sast.*
 import sast.Symbols.*
@@ -27,7 +25,7 @@ import scala.collection.mutable
 class RegisterMachine(
   registerConfig: RegisterConfig,
   callConvention: CallConvention,
-  runtime: NativeRuntime)
+  val runtime: NativeRuntime)
 extends Backend:
 
   import registerConfig.{ FP_REG, SP_REG }
@@ -38,7 +36,7 @@ extends Backend:
     *
     * Its type does not matter.
     */
-  val returnAddrSym = Symbol.createParamSymbol("return", IntType, owner = Predef.predefSym, pos = null)
+  val returnAddrSym = Symbol.createParamSymbol("return", IntType, owner = runtime.Core, pos = runtime.Core.sourcePos)
 
   def freshVirtualReg()(using ctx: Context): Int =
     ctx.generator.fresh()
@@ -55,7 +53,7 @@ extends Backend:
   def gen(label: Label)(using ctx: Context): Unit =
     ctx.buffer.gen(label)
 
-  def compile(nss: List[Namespace], main: Symbol): Unit =
+  def compile(nss: List[Namespace], main: Symbol): Prog =
     // Buffer to hold the generated assembly code
     val entryLabel = Label("_entry")
     val cb = new CodeBuffer(entryLabel)
@@ -91,17 +89,17 @@ extends Backend:
     cb.mark(entryLabel)
     cb.add(Instr.Sub(Reg(SP_REG), Int32(4), SP_REG))
 
-    for init <- runtime.inits do callParameterless(init, cb)
+    for init <- runtime.inits() do callParameterless(init, cb)
 
     callParameterless(main, cb)
 
-    callParameterless(NativeRuntime.instance.Core_finish, cb)
+    callParameterless(runtime.Core_finish, cb)
 
     // generate code
     cb.getResult()
 
   def callParameterless(funSym: Symbol, cb: CodeBuffer) =
-    assert(funSym.info.asFunctionType.params.isEmpty)
+    assert(funSym.info.asProcType.params.isEmpty)
     val addr = getAddress(funSym)
     val returnLoc = Label("returnLoc")
 
@@ -396,32 +394,47 @@ extends Backend:
         // gen(Instr.Load(addr, reg))
         // ctx.vs.push(Reg(reg))
     else
-      if sym.isPrimitive then
-        throw new Exception("Unexpected primitive " + sym)
-      else
-        val target = getAddress(id.symbol)
-        val targetReg = freshVirtualReg()
-        gen(Instr.Move(target, targetReg))
-        ctx.vs.push(Reg(targetReg))
+      val target = getAddress(id.symbol)
+      val targetReg = freshVirtualReg()
+      gen(Instr.Move(target, targetReg))
+      ctx.vs.push(Reg(targetReg))
 
   /** Compile function call */
   def compile(app: Apply)(using ctx: Context): Unit =
-    if app.isPrimitiveCall then
-      for arg <- app.args do compile(arg)
-      primitive(app.primitive)
+    app.funSymbol match
+      case Some(sym) =>
+        if sym.owner == Definitions.instance.Predef then
+          for arg <- app.args do compile(arg)
+          callPredef(sym)
+        else if sym.owner == runtime.Core then
+          if sym == runtime.Core_data then
+            // TODO: error instead of crash -- in early phases
+            val StringLit(qualid) :: Nil = app.args: @unchecked
+            val Some(label) = runtime.locate(qualid): @unchecked
+            val targetReg = freshVirtualReg()
+            gen(Instr.Move(label, targetReg))
+            ctx.vs.push(Reg(targetReg))
+          else if sym == runtime.Core_cast then
+            for arg <- app.args do compile(arg)
+          else
+            for arg <- app.args do compile(arg)
+            callCore(sym)
+        else
+          for arg <- app.args do compile(arg)
+          call(sym)
 
-    else
-      compile(app.fun)
-      val fun = ctx.vs.pop().asInstanceOf[Reg]
-      val funType = app.fun.tpe.asInvokableType
+      case _ =>
+        compile(app.fun)
+        val fun = ctx.vs.pop().asInstanceOf[Reg]
+        val funType = app.fun.tpe.asInvokableType
 
-      for arg <- app.args do compile(arg)
-      this.call(fun, funType.paramTypes, funType.resultType)
+        for arg <- app.args do compile(arg)
+        this.call(fun, funType.paramTypes, funType.resultType)
 
   /** Allocate a block of memory and push the start address onto value stack */
   def alloc(size: Int)(using ctx: Context): Unit =
     ctx.vs.push(Int32(size))
-    call(NativeRuntime.instanc.Core_alloc)
+    call(runtime.Core_alloc)
 
   /** Compile [x = 3, y = 5] */
   def compile(record: RecordLit)(using ctx: Context): Unit =
@@ -455,31 +468,38 @@ extends Backend:
     gen(Instr.Load(fieldAddr, fieldReg))
     ctx.vs.push(Reg(fieldReg))
 
-  def primitive(sym: Symbol)(using Context): Unit =
+  def callPredef(sym: Symbol)(using Context): Unit =
+    val defn = Definitions.instance
     sym match
-      case Predef.add    =>   int2(Instr.Add)
-      case Predef.sub    =>   int2(Instr.Sub)
-      case Predef.mul    =>   int2(Instr.Mul)
-      case Predef.div    =>   int2(Instr.Div)
-      case Predef.mod    =>   int2(Instr.Mod)
-      case Predef.gt     =>   int2(Instr.Gt)
-      case Predef.lt     =>   int2(Instr.Lt)
-      case Predef.ge     =>   int2(Instr.Ge)
-      case Predef.le     =>   int2(Instr.Le)
-      case Predef.srl    =>   int2(Instr.Srl)
-      case Predef.sll    =>   int2(Instr.Sll)
-      case Predef.land   =>   int2(Instr.And)
-      case Predef.lor    =>   int2(Instr.Or)
-      case Predef.lxor   =>   int2(Instr.Xor)
-      case Predef.band   =>   int2(Instr.And)
-      case Predef.bor    =>   int2(Instr.Or)
-      case Predef.bnot   =>   bnot()
-      case Predef.eql    =>   eql()
-      case Predef.p      =>   call(Predef.p)
-      case Predef.print  =>   call(Predef.print)
-      case Predef.abort  =>   call(Predef.abort)
-      case _             =>   throw new Exception("Unknown primitive: " + sym.name)
-  end primitive
+      case defn.Predef_add    =>   int2(Instr.Add)
+      case defn.Predef_sub    =>   int2(Instr.Sub)
+      case defn.Predef_mul    =>   int2(Instr.Mul)
+      case defn.Predef_div    =>   int2(Instr.Div)
+      case defn.Predef_mod    =>   int2(Instr.Mod)
+      case defn.Predef_gt     =>   int2(Instr.Gt)
+      case defn.Predef_lt     =>   int2(Instr.Lt)
+      case defn.Predef_ge     =>   int2(Instr.Ge)
+      case defn.Predef_le     =>   int2(Instr.Le)
+      case defn.Predef_srl    =>   int2(Instr.Srl)
+      case defn.Predef_sll    =>   int2(Instr.Sll)
+      case defn.Predef_land   =>   int2(Instr.And)
+      case defn.Predef_lor    =>   int2(Instr.Or)
+      case defn.Predef_lxor   =>   int2(Instr.Xor)
+      case defn.Predef_band   =>   int2(Instr.And)
+      case defn.Predef_bor    =>   int2(Instr.Or)
+      case defn.Predef_bnot   =>   bnot()
+      case defn.Predef_eql    =>   eql()
+      case _                  =>   call(sym)
+  end callPredef
+
+  def callCore(sym: Symbol)(using Context): Unit =
+    sym match
+      case runtime.Core_addAddr   => ???
+      case runtime.Core_writeInt  => ???
+      case runtime.Core_readInt   => ???
+      case runtime.Core_writeByte => ???
+      case runtime.Core_readByte  => ???
+      case _                      => call(sym)
 
   /** Load a value relative to the stack pointer.
     *

@@ -1,6 +1,8 @@
 package native
 
-import Assembler.PatchableBuffer
+import sast.Symbols.Symbol
+import native.Assembler.PatchableBuffer
+import native.Assembly.Label
 
 /**
   * The linker performs linking of all external machine code dependencies.

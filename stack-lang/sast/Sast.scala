@@ -108,6 +108,12 @@ object Sast:
       case appType: InvokableType =>
         assert(appType.paramTypes.size == args.size)
 
+    def funSymbol: Option[Symbol] =
+      fun match
+        case Ident(sym)               => Some(sym)
+        case TypeApply(Ident(sym), _) => Some(sym)
+        case _                        => None
+
   /** Encoding of a type with another type
     *
     * It is also used to explicitly represent dropped values.

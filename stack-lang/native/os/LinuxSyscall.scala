@@ -4,8 +4,8 @@ import sast.NameTable
 import sast.Symbols.*
 
 import native.Assembly.Label
-import native.Assembler.Linker
 import native.Assembler.PatchableBuffer
+import native.Linker
 
 abstract class LinuxSyscall(runtimeRootNameTable: NameTable) extends Linker:
   def resolveNamespace(path: String) =
@@ -29,9 +29,9 @@ abstract class LinuxSyscall(runtimeRootNameTable: NameTable) extends Linker:
 
   def locate(sym: Symbol): Option[Label] =
     if sym.owner == Syscall then
-      if sym == Syscall_sys_brk then sys_brk_label
-      else if sym = Syscall_sys_exit then sys_exit_label
-      else if sym = Syscall_sys_write then sys_write_label
+      if sym == Syscall_sys_brk then Some(sys_brk_label)
+      else if sym == Syscall_sys_exit then Some(sys_exit_label)
+      else if sym == Syscall_sys_write then Some(sys_write_label)
       else throw new Exception("Unexpected symbol " + sym)
     else None
 

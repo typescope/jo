@@ -1,7 +1,5 @@
 package native.stack
 
-import common.WorkList
-
 import sast.*
 import sast.Sast.*
 import sast.Symbols.*
@@ -12,7 +10,6 @@ import native.NativeRuntime
 
 import native.Assembly
 import native.Assembly.*
-import native.cpu.X86
 
 import StackMachine.RegisterAllocator
 
@@ -23,7 +20,7 @@ import scala.collection.mutable
   *
   * The class is CPU- and OS-agnostic.
   */
-class StackMachine(registerConfig: RegisterConfig, runtime: NativeRuntime)
+class StackMachine(registerConfig: RegisterConfig, val runtime: NativeRuntime)
 extends Backend:
 
   import registerConfig.{ FP_REG, SP_REG, FREE_REGS }
@@ -70,7 +67,7 @@ extends Backend:
     cb.add(Instr.Sub(Reg(SP_REG), Int32(4), SP_REG))
 
     // Call init from linkers
-    for init <- runtime.inits do call(init)
+    for init <- runtime.inits() do call(init)
 
     call(main)
 
@@ -300,12 +297,24 @@ extends Backend:
 
   /** Compile function call */
   def compile(app: Apply)(using Context): Unit =
-    fun match
-      case Ident(sym) =>
-        for arg <- app.args do compile(arg)
+    app.funSymbol match
+      case Some(sym) =>
         if sym.owner == Definitions.instance.Predef then
+          for arg <- app.args do compile(arg)
           callPredef(sym)
+        else if sym.owner == runtime.Core then
+          if sym == runtime.Core_data then
+            // TODO: error instead of crash -- in early phases
+            val StringLit(qualid) :: Nil = app.args: @unchecked
+            val Some(label) = runtime.locate(qualid): @unchecked
+            push(label)
+          else if sym == runtime.Core_cast then
+            for arg <- app.args do compile(arg)
+          else
+            for arg <- app.args do compile(arg)
+            callCore(sym)
         else
+          for arg <- app.args do compile(arg)
           call(sym)
 
       case _ =>
@@ -389,7 +398,16 @@ extends Backend:
       case defn.Predef_bnot   =>   bnot()
       case defn.Predef_eql    =>   eql()
       case _                  =>   call(sym)
-  end primitive
+  end callPredef
+
+  def callCore(sym: Symbol)(using Context): Unit =
+    sym match
+      case runtime.Core_addAddr   => ???
+      case runtime.Core_writeInt  => ???
+      case runtime.Core_readInt   => ???
+      case runtime.Core_writeByte => ???
+      case runtime.Core_readByte  => ???
+      case _                      => call(sym)
 
   /** Duplicate the value on the top of stack. */
   def dup()(using Context) =

@@ -17,8 +17,6 @@ trait Assembler:
   def lowerCode(code: List[Instr | Label])(using PatchableBuffer): Unit
 
 object Assembler:
-  private val VAL_STACK_SIZE = 4096
-
   private val SEG_DATA = "data"
   private val SEG_CODE = "code"
   private val SEG_HEAP = "heap"
@@ -30,11 +28,6 @@ object Assembler:
       else List(SEG_HEAP, SEG_CODE, SEG_DATA)
 
     new ELF32.ContinuousLayout(order, baseAddr, align)
-
-  def lower(prog: Prog, layoutName: String, outFile: String, assembler: Assembler, linker: Linker): Unit =
-    val layout = Assembler.continuousLayout(layoutName, PROG_START, PAGE_SIZE)
-    val elf = new ELF32(outFile, layout, ELF32.EM_386)
-    Assembler.lower(elf, prog, assembler, linker)
 
   /**
     * Generate ELF with the given program and assembler

@@ -1,7 +1,14 @@
 package native
 
-import native.Assembly.Prog
-import native.NativeRuntime
+import native.Assembly.*
+
+import sast.*
+import sast.Sast.*
+import sast.Symbols.*
+
+import common.WorkList
+
+import scala.collection.mutable
 
 abstract class Backend:
   def runtime: NativeRuntime
@@ -22,14 +29,14 @@ abstract class Backend:
       case None =>
         runtime.locate(sym) match
           case Some(addrOrSymbol) =>
-            addr match
+            addrOrSymbol match
               case label: Label =>
                 // cache result
                 funLabelMap(sym) = label
                 label
 
               case redirectSym: Symbol =>
-                getAddress(sym)
+                getAddress(redirectSym)
 
           case None =>
             val label = Label(sym.name)
