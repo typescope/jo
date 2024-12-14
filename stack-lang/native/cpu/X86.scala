@@ -63,25 +63,31 @@ object X86 extends Assembler:
         case instr: Instr => X86.lower(instr)
 
   def lower(data: Data)(using pb: PatchableBuffer): Unit =
-    pb.defineLabel(data.label)
     data match
       case Data.Int8(l, v)     =>
+        pb.defineLabel(data.label)
         pb.addByte(v)
 
       case Data.Int32(l, v)    =>
         pb.align(4)
+        pb.defineLabel(data.label)
         pb.addInt(v)
 
       case Data.StringLit(l, v)    =>
         pb.align(4)
+        pb.defineLabel(data.label)
         val bytes = v.getBytes("UTF-8")
         pb.addInt(bytes.size)
         for b <- bytes do pb.addByte(b)
 
       case Data.Uninit(l, tp)  =>
         tp match
-          case Type.Int8  =>  pb.addByte(0)
+          case Type.Int8  =>
+            pb.defineLabel(data.label)
+            pb.addByte(0)
+
           case Type.Int32 =>
+            pb.defineLabel(data.label)
             pb.align(4)
             pb.addInt(0)
 

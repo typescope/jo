@@ -4,7 +4,8 @@ import stk.runtime.native.Syscall
 
 type Addr
 
-type Struct[T <: {}] = T
+fun data(qualid: String): Addr =
+  abort "native global"
 
 fun writeInt(arr: Addr, offset: Int, value: Int): Void =
   abort "native writeInt"

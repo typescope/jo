@@ -6,4 +6,4 @@ fun sys_brk(size: Int): Int = abort "sys_brk"
 
 fun sys_exit(code: Int): Bottom = abort "sys_exit"
 
-fun sys_write(fd: Int, addr: Addr, len: Int): Void = abort "sys_write"
+fun sys_write(fd: Int, addr: Addr, len: Int): Int = abort "sys_write"

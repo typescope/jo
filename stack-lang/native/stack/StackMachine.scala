@@ -22,10 +22,7 @@ import scala.collection.mutable
   *
   * The class is CPU- and OS-agnostic.
   */
-class StackMachine(
-  registerConfig: RegisterConfig,
-  nativeFunctions: Map[Symbol, Label],
-  generator: Assembly.Prog => Unit):
+class StackMachine(registerConfig: RegisterConfig, runtime: NativeRuntime):
 
   import registerConfig.{ FP_REG, SP_REG, FREE_REGS }
 
@@ -33,22 +30,34 @@ class StackMachine(
   type Context = StackMachine.Context
 
   /** Maps functions to addresses */
-  val funLabelMap: mutable.Map[Symbol, Label] = mutable.Map.from(nativeFunctions)
+  val funLabelMap: mutable.Map[Symbol, Label] = mutable.Map.empty
 
   def getAddress(sym: Symbol): Label =
-    assert(sym.isFunction || funLabelMap.contains(sym), "Not a function, sym = " + sym)
+    assert(sym.isFunction, "Not a function, sym = " + sym)
 
     funLabelMap.get(sym) match
       case Some(addr) => addr
 
       case None =>
-        val label = Label(sym.name)
-        funLabelMap(sym) = label
+        runtime.locate(sym) match
+          case Some(addrOrSymbol) =>
+            addr match
+              case label: Label =>
+                // cache result
+                funLabelMap(sym) = label
+                label
 
-        // Add function to work list
-        if !sym.isPrimitive then workList.add(sym)
+              case redirectSym: Symbol =>
+                getAddress(sym)
 
-        label
+          case None =>
+            val label = Label(sym.name)
+            funLabelMap(sym) = label
+
+            // Add function to work list
+            workList.add(sym)
+
+            label
 
   /** Maps string constants to labels */
   val stringTable: mutable.Map[String, Label] = mutable.Map.empty
@@ -75,7 +84,7 @@ class StackMachine(
 
   val workList = new WorkList[Symbol]
 
-  def compile(nss: List[Namespace], main: Symbol): Unit =
+  def compile(nss: List[Namespace], main: Symbol): Prog =
     val cb = new CodeBuffer(entry)
 
     workList.add(main)
@@ -99,14 +108,13 @@ class StackMachine(
     // Stack pointer is initialized by the kernel, initialize frame pointer
     cb.mark(this.entry)
     cb.add(Instr.Sub(Reg(SP_REG), Int32(4), SP_REG))
-    genAllocator()
     call(main)
 
     // exit
-    call(NativeRuntime.finish)
+    call(NativeRuntime.instance.finish)
 
     // generate code
-    generator(cb.getResult())
+    cb.getResult()
 
   def compile(phrase: Phrase)(using Context): Unit =
     for word <- phrase.words do compile(word)
@@ -328,23 +336,26 @@ class StackMachine(
 
   /** Compile function call */
   def compile(app: Apply)(using Context): Unit =
-    if app.isPrimitiveCall then
-      for arg <- app.args do compile(arg)
-      primitive(app.primitive)
-    else
-      compile(app.fun)
-      for arg <- app.args do compile(arg)
+    fun match
+      case Ident(sym) =>
+        if sym.owner == Definitions.instance.Predef then
+          call(sym, args)
 
-      useReg: r =>
-        val resCount = if app.tpe.isValueType then 1 else 0
-        loadValue(r, app.args.size.toByte)
-        this.call(Reg(r), app.args.size, resCount, funAddrOnStack = true)
+      case _ =>
+        compile(app.fun)
+        for arg <- app.args do compile(arg)
+
+        useReg: r =>
+          val resCount = if app.tpe.isValueType then 1 else 0
+          loadValue(r, app.args.size.toByte)
+          this.call(Reg(r), app.args.size, resCount, funAddrOnStack = true)
 
   /** Compile [x = 3, y = 5] */
   def compile(record: RecordLit)(using Context): Unit =
     val recordType = record.tpe.asRecordType
     val size = Memory.size(recordType)
 
+    // TODO: Explicit allocation in a separate phase
     alloc(size)
     for (name, rhs) <- record.args do
       dup()
@@ -369,69 +380,10 @@ class StackMachine(
       cb.add(Instr.Load(fieldAddr, r))
       push(Reg(r))
 
-  /** Generate a bump allocator
-    *
-    * TODO: implement it in Stk.
-    */
-  def genAllocator()(using Context): Unit =
-    val allocLabel = getAddress(NativeRuntime.allocate)
-
-    val initBreakLabel = Label("init_break")
-    val curBreakLabel = Label("current_break")
-
-    cb.add(Data.Uninit(initBreakLabel, Type.Int32))
-    cb.add(Data.Uninit(curBreakLabel, Type.Int32))
-
-    val doAllocLabel = Label("doAlloc")
-    val allocEndLabel = Label("allocEnd")
-
-    // use invalid arg to get the current break
-    cb.add(Instr.Move(Int32(0), X86.EBX))          // new break
-    cb.add(Instr.Move(Int32(45), X86.EAX))         // syscall number sys_brk
-    cb.add(Instr.Special(X86.Syscall))             // syscall
-    cb.add(Instr.Store(Reg(X86.EAX), initBreakLabel))
-    cb.add(Instr.Store(Reg(X86.EAX), curBreakLabel))
-
-    cb.add(Instr.Jump(allocEndLabel))
-
-    // start alloc function
-    cb.mark(allocLabel)
-    cb.add(Instr.Move(Reg(SP_REG), FP_REG))
-    cb.add(Instr.Load(Rel(FP_REG, 8), X86.EAX))
-    cb.add(Instr.Load(curBreakLabel, X86.EBX))
-    cb.add(Instr.Load(initBreakLabel, X86.ECX))
-    cb.add(Instr.Add(Reg(X86.EAX), Reg(X86.ECX), X86.ECX))
-    cb.add(Instr.Gt(Reg(X86.ECX), Reg(X86.EBX), X86.EDX))
-    cb.add(Instr.JZero(Reg(X86.EDX), doAllocLabel))
-
-    // Avoid allocating at page boundary
-    cb.add(Instr.Add(Reg(X86.EAX), Reg(X86.EBX), X86.ECX))
-
-    // backup EAX
-    cb.add(Instr.Move(Reg(X86.EAX), X86.EDX))
-
-    // Add more pages
-    cb.add(Instr.Add(Reg(X86.EBX), Int32(1 << 12), X86.EBX))     // new break
-    cb.add(Instr.Move(Int32(45), X86.EAX))                  // syscall number sys_brk
-    cb.add(Instr.Special(X86.Syscall))                      // syscall
-    cb.add(Instr.Store(Reg(X86.EAX), curBreakLabel))
-
-    // restore EAX
-    cb.add(Instr.Move(Reg(X86.EDX), X86.EAX))
-
-    cb.mark(doAllocLabel)
-    cb.add(Instr.Store(Reg(X86.ECX), initBreakLabel))
-    cb.add(Instr.Sub(Reg(X86.ECX), Reg(X86.EAX), X86.EAX))
-    cb.add(Instr.Store(Reg(X86.EAX), Rel(FP_REG, -4)))
-
-    cb.add(Instr.Load(Reg(FP_REG), X86.EBX))
-    cb.add(Instr.Jump(Reg(X86.EBX)))
-    cb.mark(allocEndLabel)
-
   /** Allocate a block of memory and push the start address onto stack */
   def alloc(size: Int)(using Context): Unit =
     push(Int32(size))
-    call(NativeRuntime.allocate)
+    call(NativeRuntime.instance.Core_alloc)
 
   /** Pop the value on the top of the stack to the given register */
   def pop(destReg: Int)(using Context) =
@@ -447,30 +399,29 @@ class StackMachine(
     cb.add(Instr.Sub(Reg(SP_REG), Int32(4), SP_REG))
     cb.add(Instr.Store(v, Reg(SP_REG)))
 
-  def primitive(sym: Symbol)(using Context): Unit =
+  def callPredef(sym: Symbol)(using Context): Unit =
+    val defn = Definitions.instance
+
     sym match
-      case Predef.add    =>   int2(Instr.Add)
-      case Predef.sub    =>   int2(Instr.Sub)
-      case Predef.mul    =>   int2(Instr.Mul)
-      case Predef.div    =>   int2(Instr.Div)
-      case Predef.mod    =>   int2(Instr.Mod)
-      case Predef.gt     =>   int2(Instr.Gt)
-      case Predef.lt     =>   int2(Instr.Lt)
-      case Predef.ge     =>   int2(Instr.Ge)
-      case Predef.le     =>   int2(Instr.Le)
-      case Predef.srl    =>   int2(Instr.Srl)
-      case Predef.sll    =>   int2(Instr.Sll)
-      case Predef.land   =>   int2(Instr.And)
-      case Predef.lor    =>   int2(Instr.Or)
-      case Predef.lxor   =>   int2(Instr.Xor)
-      case Predef.band   =>   int2(Instr.And)
-      case Predef.bor    =>   int2(Instr.Or)
-      case Predef.bnot   =>   bnot()
-      case Predef.eql    =>   eql()
-      case Predef.p      =>   call(Predef.p)
-      case Predef.print  =>   call(Predef.print)
-      case Predef.abort  =>   call(Predef.abort)
-      case _             =>   throw new Exception("Unknown primitive: " + sym.name)
+      case defn.Predef_add    =>   int2(Instr.Add)
+      case defn.Predef_sub    =>   int2(Instr.Sub)
+      case defn.Predef_mul    =>   int2(Instr.Mul)
+      case defn.Predef_div    =>   int2(Instr.Div)
+      case defn.Predef_mod    =>   int2(Instr.Mod)
+      case defn.Predef_gt     =>   int2(Instr.Gt)
+      case defn.Predef_lt     =>   int2(Instr.Lt)
+      case defn.Predef_ge     =>   int2(Instr.Ge)
+      case defn.Predef_le     =>   int2(Instr.Le)
+      case defn.Predef_srl    =>   int2(Instr.Srl)
+      case defn.Predef_sll    =>   int2(Instr.Sll)
+      case defn.Predef_land   =>   int2(Instr.And)
+      case defn.Predef_lor    =>   int2(Instr.Or)
+      case defn.Predef_lxor   =>   int2(Instr.Xor)
+      case defn.Predef_band   =>   int2(Instr.And)
+      case defn.Predef_bor    =>   int2(Instr.Or)
+      case defn.Predef_bnot   =>   bnot()
+      case defn.Predef_eql    =>   eql()
+      case _                  =>   call(sym)
   end primitive
 
   /** Duplicate the value on the top of stack. */

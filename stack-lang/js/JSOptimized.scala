@@ -238,7 +238,7 @@ class JSOptimized(outFile: String):
   def call(fun: Word, args: List[Word])(using Context): Text =
     fun match
       case Ident(sym) if sym.owner == Definitions.instance.Predef =>
-        call(sym, args)
+        callPredef(sym, args)
 
       case _ =>
         cont(fun): v =>
@@ -249,6 +249,13 @@ class JSOptimized(outFile: String):
 
   /** Compile a primitive */
   def call(sym: Symbol, args: List[Word])(using Context): Text =
+    cont(args): vs =>
+      val call = sym ~ "(" ~ rep(vs, Text(", ")) ~ ")"
+      if sym.info.asProcType.resCount == 1 then cont(call)
+      else call ~ cont()
+
+  /** Compile a primitive */
+  def callPredef(sym: Symbol, args: List[Word])(using Context): Text =
     val defn = Definitions.instance
     val runtime = JSRuntime.instance
 
@@ -285,11 +292,7 @@ class JSOptimized(outFile: String):
         val StringLit(code) :: Nil = args : @unchecked
         cont(Text(code))
 
-      case _ =>
-        cont(args): vs =>
-          val call = sym ~ "(" ~ rep(vs, Text(", ")) ~ ")"
-          if sym.info.asProcType.resCount == 1 then cont(call)
-          else call ~ cont()
+      case _ => call(sym, args)
     end match
   end call
 

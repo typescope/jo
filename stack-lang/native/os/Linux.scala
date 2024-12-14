@@ -8,367 +8,43 @@
  ************************************************************************/
 package native.os
 
-import sast.Predef
-
 import native.register.RegisterMachine
 import native.register.CallConvention
 import native.stack.StackMachine
 
-import native.Assembly.*
-import native.Assembler.PatchableBuffer
-import native.NativeRuntime
-import native.Assembler
-import native.Linker
-import native.ELF32
 import native.cpu.X86
 
 object Linux:
   val PAGE_SIZE  = 0x1000
   val PROG_START = 0x08048000
 
-  val pLabel         = Label("_p")
-  val printLabel     = Label("_print")
-  val abortLabel     = Label("_abort")
-  val finishLabel    = Label("_finish")
-  val heapStartLabel = Label("_heapStart")
-
-  val nativeFunctions = Map(
-    Predef.p             -> pLabel,
-    Predef.print         -> printLabel,
-    Predef.abort         -> abortLabel,
-    NativeRuntime.finish -> finishLabel
-  )
-
   val x86RegConfig = new RegisterConfig:
-    val FREE_REGS = List(X86.EAX, X86.ECX, X86.EDX, X86.EBX, X86.ESI, X86.EDI)
+    val FREE_REGS = List(X86.EAX, X86.EBX, X86.ECX, X86.EDX, X86.ESI, X86.EDI)
     val SP_REG = X86.ESP
     val FP_REG = X86.EBP
 
   /**
     * Create a new x86 register machine
     */
-  def createX86RegisterMachine(outFile: String, layoutName: String): RegisterMachine =
-    val layout = Assembler.continuousLayout(layoutName, PROG_START, PAGE_SIZE)
-    val elf = new ELF32(outFile, layout, ELF32.EM_386)
-
-    val linker  = new Linker:
-      def linkData()(using pb: PatchableBuffer) = ()
-      def linkCode()(using pb: PatchableBuffer) =
-        linkPRegisterMachineX86()
-        linkPrintRegisterMachineX86()
-        linkAbortRegisterMachineX86()
-        linkFinishX86()
-
-    // TODO: pass external native link requirements
-    val generator = (prog: Prog) =>
-      Assembler.lower(elf, prog, heapStartLabel, X86, linker)
+  def createX86RegisterMachine(runtimeRootNameTable: NameTable): RegisterMachine =
+    val bumpAllocator = new LinuxBumpAllocator(runtimeRootNameTable)
+    val syscalls = new LinuxSyscallX86RegisterLinker(runtimeRootNameTable)
+    val linkers = List(bumpAllocator, syscalls)
+    val runtime = new NativeRuntime(runtimeRootNameTable, linkers)
 
     val paramRegs: List[Int] = List(X86.EAX, X86.EBX, X86.ECX, X86.EDX)
     val callConv =
       new CallConvention.RegisterCallConvention(x86RegConfig, paramRegs)
 
-    new RegisterMachine(x86RegConfig, callConv, nativeFunctions, generator)
+    new RegisterMachine(x86RegConfig, callConv, runtime)
 
   /**
     * Create a new x86 stack machine
     */
-  def createX86StackMachine(outFile: String, layoutName: String): StackMachine =
-    val layout = Assembler.continuousLayout(layoutName, PROG_START, PAGE_SIZE)
-    val elf = new ELF32(outFile, layout, ELF32.EM_386)
-
-    val linker  = new Linker:
-      def linkData()(using pb: PatchableBuffer) = ()
-      def linkCode()(using pb: PatchableBuffer) =
-        linkPStackMachineX86()
-        linkPrintStackMachineX86()
-        linkAbortStackMachineX86()
-        linkFinishX86()
-
-    // TODO: pass external native link requirements
-    val generator = (prog: Prog) =>
-      Assembler.lower(elf, prog, heapStartLabel, X86, linker)
-
-    new StackMachine(x86RegConfig, nativeFunctions, generator)
-
-  /**
-    * Implement the printing in machine code.
-    *
-    * The arguments are passed via stack.
-    *
-    * It assumes that all registers are free.
-    *
-    * TODO reduce duplication with native call convention support
-    */
-  def linkPStackMachineX86()(using pb: PatchableBuffer): Unit =
-    pb.defineLabel(pLabel)
-
-    // init FP pointer
-    X86.move(Reg(X86.ESP), X86.EBP)
-
-    // use call stack to prepare string for syscall
-    // reserve 16 bytes on stack
-    pb.addBytes(0x89.toByte, 0xe1.toByte)          // mov    %esp,%ecx
-    pb.addBytes(0x83.toByte, 0xec.toByte, 0x10)    // sub    $0x10,%esp
-    pb.addByte(0xbb.toByte); pb.addInt(0x0a)       // mov    $0xa,%ebx
-
-    // load argument
-    X86.load(Rel(X86.EBP, 8), X86.EAX)
-
-    // add new line
-    pb.addByte(0x49)                               // dec      %ecx
-    pb.addBytes(0x88.toByte, 0x19)                 // mov %bl, (%ecx)
-
-    // negative numbers: store flag at %sp
-    pb.addBytes(0xc6.toByte, 0x04, 0x24, 0)        // movb   $0x0,(%esp)     ; clear flag
-    pb.addBytes(0x83.toByte, 0xf8.toByte, 0)       // cmp    $0x0,%eax
-    pb.addBytes(0x7d, 0x0a)                        // jge    <loop>
-    pb.addByte(0xba.toByte); pb.addInt(0x2d)       // mov    $0x2d,%edx
-    pb.addBytes(0x88.toByte, 0x14, 0x24)           // mov    %dl,(%esp)
-    pb.addBytes(0xf7.toByte, 0xd8.toByte)          // neg    %eax
-
-    // loop
-    pb.addBytes(0x31, 0xd2.toByte)                 // xor    %edx,%edx
-    pb.addBytes(0xf7.toByte, 0xf3.toByte)          // div    %ebx
-    pb.addByte (0x49)                              // dec    %ecx
-    pb.addBytes(0x83.toByte, 0xc2.toByte, 0x30)    // add    $0x30,%edx
-    pb.addBytes(0x88.toByte, 0x11)                 // mov    %dl,(%ecx)
-    pb.addBytes(0x85.toByte, 0xc0.toByte)          // test   %eax,%eax
-    pb.addBytes(0x75, 0xf2.toByte)                 // jne    <loop>
-
-    // handle sign
-    pb.addBytes(0x8b.toByte, 0x14, 0x24)           // mov    (%esp),%edx
-    pb.addBytes(0x83.toByte, 0xfa.toByte, 0x2d)    // cmp    $0x2d,%edx
-    pb.addBytes(0x8a.toByte, 0x14, 0x24)           // mov    (%esp),%dl
-    pb.addBytes(0x80.toByte, 0xfa.toByte, 0x2d)    // cmp    $0x2d,%dl
-
-    pb.addBytes(0x75, 0x03)                        // jne    <system call>
-    pb.addByte (0x49)                              // dec    %ecx
-    pb.addBytes(0x88.toByte, 0x11)                 // mov    %dl,(%ecx)
-
-    // write stdout system call
-    pb.addByte(0xb8.toByte); pb.addInt(0x04)       // mov    $0x4,%eax
-    pb.addByte(0xbb.toByte); pb.addInt(0x01)       // mov    $0x1,%ebx
-    pb.addBytes(0x8d.toByte, 0x54, 0x24, 0x10)     // lea    0x10(%esp),%edx
-    pb.addBytes(0x29, 0xca.toByte)                 // sub    %ecx,%edx
-    pb.addBytes(0xcd.toByte, 0x80.toByte)          // int    $0x80
-
-    // restore stack pointer
-    pb.addBytes(0x83.toByte, 0xc4.toByte, 0x10)    // add    $0x10,%esp
-
-    // return to caller
-    X86.load(Reg(X86.EBP), X86.EAX)
-    X86.jump(Reg(X86.EAX))
-
-  /**
-    * Implement print in machine code.
-    *
-    * It assumes the call convention of register machines.
-    */
-  def linkPRegisterMachineX86()(using pb: PatchableBuffer): Unit =
-    pb.defineLabel(pLabel)
-
-    // init FP
-    X86.move(Reg(X86.ESP), X86.EBP)
-
-    // callee-saved registers
-    pb.addByte((0x50 | X86.EBX).toByte)
-    pb.addByte((0x50 | X86.ECX).toByte)
-    pb.addByte((0x50 | X86.EDX).toByte)
-
-    // use call stack to prepare string for syscall
-    // reserve 16 bytes on stack
-    pb.addBytes(0x89.toByte, 0xe1.toByte)          // mov    %esp,%ecx
-    pb.addBytes(0x83.toByte, 0xec.toByte, 0x10)    // sub    $0x10,%esp
-    pb.addByte(0xbb.toByte); pb.addInt(0x0a)       // mov    $0xa,%ebx
-
-    // argument is in EAX
-
-    // add new line
-    pb.addByte(0x49)                               // dec      %ecx
-    pb.addBytes(0x88.toByte, 0x19)                 // mov %bl, (%ecx)
-
-    // negative numbers: store flag at %sp
-    pb.addBytes(0xc6.toByte, 0x04, 0x24, 0)        // movb   $0x0,(%esp)     ; clear flag
-    pb.addBytes(0x83.toByte, 0xf8.toByte, 0)       // cmp    $0x0,%eax
-    pb.addBytes(0x7d, 0x0a)                        // jge    <loop>
-    pb.addByte(0xba.toByte); pb.addInt(0x2d)       // mov    $0x2d,%edx
-    pb.addBytes(0x88.toByte, 0x14, 0x24)           // mov    %dl,(%esp)
-    pb.addBytes(0xf7.toByte, 0xd8.toByte)          // neg    %eax
-
-    // loop
-    pb.addBytes(0x31, 0xd2.toByte)                 // xor    %edx,%edx
-    pb.addBytes(0xf7.toByte, 0xf3.toByte)          // div    %ebx
-    pb.addByte (0x49)                              // dec    %ecx
-    pb.addBytes(0x83.toByte, 0xc2.toByte, 0x30)    // add    $0x30,%edx
-    pb.addBytes(0x88.toByte, 0x11)                 // mov    %dl,(%ecx)
-    pb.addBytes(0x85.toByte, 0xc0.toByte)          // test   %eax,%eax
-    pb.addBytes(0x75, 0xf2.toByte)                 // jne    <loop>
-
-    // handle sign
-    pb.addBytes(0x8b.toByte, 0x14, 0x24)           // mov    (%esp),%edx
-    pb.addBytes(0x83.toByte, 0xfa.toByte, 0x2d)    // cmp    $0x2d,%edx
-    pb.addBytes(0x8a.toByte, 0x14, 0x24)           // mov    (%esp),%dl
-    pb.addBytes(0x80.toByte, 0xfa.toByte, 0x2d)    // cmp    $0x2d,%dl
-
-    pb.addBytes(0x75, 0x03)                        // jne    <system call>
-    pb.addByte (0x49)                              // dec    %ecx
-    pb.addBytes(0x88.toByte, 0x11)                 // mov    %dl,(%ecx)
-
-    // write stdout system call
-    pb.addByte(0xb8.toByte); pb.addInt(0x04)       // mov    $0x4,%eax
-    pb.addByte(0xbb.toByte); pb.addInt(0x01)       // mov    $0x1,%ebx
-    pb.addBytes(0x8d.toByte, 0x54, 0x24, 0x10)     // lea    0x10(%esp),%edx
-    pb.addBytes(0x29, 0xca.toByte)                 // sub    %ecx,%edx
-    pb.addBytes(0xcd.toByte, 0x80.toByte)          // int    $0x80
-
-    // restore stack pointer
-    pb.addBytes(0x83.toByte, 0xc4.toByte, 0x10)    // add    $0x10,%esp
-
-    // restore callee-saved registers -- in reverse order
-    pb.addByte((0x58 | X86.EDX).toByte)
-    pb.addByte((0x58 | X86.ECX).toByte)
-    pb.addByte((0x58 | X86.EBX).toByte)
-
-    // return to caller
-    X86.load(Reg(X86.EBP), X86.EAX)
-    X86.jump(Reg(X86.EAX))
-
-  /**
-    * Implement abort in machine code.
-    */
-  def linkAbortRegisterMachineX86()(using pb: PatchableBuffer): Unit =
-    pb.defineLabel(abortLabel)
-
-    // argument string is in EAX
-
-    // store size of string to EDX
-    X86.load(Reg(X86.EAX), X86.EDX)
-
-    // make ECX points to start of string content
-    X86.move(Int32(4), X86.ECX)
-    X86.add(X86.ECX, Reg(X86.EAX))
-
-    // write(1, str, len)
-    X86.move(Int32(4), X86.EAX)
-    X86.move(Int32(1), X86.EBX)
-    X86.int80()
-
-    // exit(1)
-    X86.move(Int32(1), X86.EAX)
-    X86.move(Int32(1), X86.EBX)
-    X86.int80()
-
-    // program exits, no need for return
-
-
-  /**
-    * Implement abort in machine code.
-    */
-  def linkAbortStackMachineX86()(using pb: PatchableBuffer): Unit =
-    pb.defineLabel(abortLabel)
-
-    // init FP pointer
-    X86.move(Reg(X86.ESP), X86.EBP)
-
-    // load argument
-    X86.load(Rel(X86.EBP, 8), X86.EAX)
-
-    // argument string is in EAX
-
-    // store size of string to EDX
-    X86.load(Reg(X86.EAX), X86.EDX)
-
-    // make ECX points to start of string content
-    X86.move(Int32(4), X86.ECX)
-    X86.add(X86.ECX, Reg(X86.EAX))
-
-    // write(1, str, len)
-    X86.move(Int32(4), X86.EAX)
-    X86.move(Int32(1), X86.EBX)
-    X86.int80()
-
-    // exit(1)
-    X86.move(Int32(1), X86.EAX)
-    X86.move(Int32(1), X86.EBX)
-    X86.int80()
-
-    // program exits, no need for return
-
-  /**
-    * Implement print in machine code.
-    */
-  def linkPrintStackMachineX86()(using pb: PatchableBuffer): Unit =
-    pb.defineLabel(printLabel)
-
-    // init FP pointer
-    X86.move(Reg(X86.ESP), X86.EBP)
-
-    // load argument
-    X86.load(Rel(X86.EBP, 8), X86.EAX)
-
-    // argument string is in EAX
-
-    // store size of string to EDX
-    X86.load(Reg(X86.EAX), X86.EDX)
-
-    // make ECX points to start of string content
-    X86.move(Int32(4), X86.ECX)
-    X86.add(X86.ECX, Reg(X86.EAX))
-
-    // write(1, str, len)
-    X86.move(Int32(4), X86.EAX)
-    X86.move(Int32(1), X86.EBX)
-    X86.int80()
-
-    // return to caller
-    X86.load(Reg(X86.EBP), X86.EAX)
-    X86.jump(Reg(X86.EAX))
-
-  /**
-    * Implement print in machine code.
-    */
-  def linkPrintRegisterMachineX86()(using pb: PatchableBuffer): Unit =
-    pb.defineLabel(printLabel)
-
-    // init FP
-    X86.move(Reg(X86.ESP), X86.EBP)
-
-    // callee-saved registers
-    X86.push(X86.EBX)
-    X86.push(X86.ECX)
-    X86.push(X86.EDX)
-
-    // argument string is in EAX
-
-    // store size of string to EDX
-    X86.load(Reg(X86.EAX), X86.EDX)
-
-    // make ECX points to start of string content
-    X86.move(Int32(4), X86.ECX)
-    X86.add(X86.ECX, Reg(X86.EAX))
-
-    // write(1, str, len)
-    X86.move(Int32(4), X86.EAX)
-    X86.move(Int32(1), X86.EBX)
-    X86.int80()
-
-    // restore callee-saved registers -- in reverse order
-    X86.pop(X86.EDX)
-    X86.pop(X86.ECX)
-    X86.pop(X86.EBX)
-
-    // return to caller
-    X86.load(Reg(X86.EBP), X86.EAX)
-    X86.jump(Reg(X86.EAX))
-
-  /**
-    * Tells runtime that program has finished.
-    */
-  def linkFinishX86()(using pb: PatchableBuffer): Unit =
-    pb.defineLabel(finishLabel)
-
-    X86.move(Int32(1), X86.EAX)
-    X86.move(Int32(0), X86.EBX)
-    X86.int80()
-
-    // program exits, no need for return
+  def createX86StackMachine(runtimeRootNameTable: NameTable): StackMachine =
+    val bumpAllocator = new LinuxBumpAllocator(runtimeRootNameTable)
+    val syscalls = new LinuxSyscallX86StackLinker(runtimeRootNameTable)
+    val linkers = List(bumpAllocator, syscalls)
+    val runtime = new NativeRuntime(runtimeRootNameTable, linkers)
+
+    new StackMachine(x86RegConfig, runtime)

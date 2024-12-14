@@ -31,12 +31,17 @@ object Assembler:
 
     new ELF32.ContinuousLayout(order, baseAddr, align)
 
+  def lower(prog: Prog, layoutName: String, outFile: String, assembler: Assembler, linker: Linker): Unit =
+    val layout = Assembler.continuousLayout(layoutName, PROG_START, PAGE_SIZE)
+    val elf = new ELF32(outFile, layout, ELF32.EM_386)
+    Assembler.lower(elf, prog, assembler, linker)
+
   /**
     * Generate ELF with the given program and assembler
     *
     * The code is OS- and CPU-agnostic.
     */
-  def lower(elf: ELF32, prog: Prog, heapStartLabel: Label, assembler: Assembler, linker: Linker): Unit =
+  def lower(elf: ELF32, prog: Prog, assembler: Assembler, linker: Linker): Unit =
     val labelMap: mutable.Map[Label, Int] = mutable.Map.empty
 
     /////////////// data segment ////////////
@@ -71,20 +76,6 @@ object Assembler:
 
       for label <- pb.getDefinedLabels() do
         elf.addFunSymbol(label.name, labelMap(label), secIndex)
-
-    /////////////// heap segment ////////////
-
-    elf.newSegment(SEG_HEAP, ELF32.PT_LOAD, ELF32.PF_RW): baseAddr =>
-      val flags = ELF32.SHF_ALLOC
-      val chunk = new ELF32.DataChunk:
-        def fileSize = 0
-        def memorySize = VAL_STACK_SIZE
-        def fileBytes() = new Array[Byte](0)
-
-      val secIndex = elf.addSection(".heap", baseAddr, chunk, flags)
-
-      elf.addDataSymbol(heapStartLabel.name, baseAddr, secIndex)
-      labelMap(heapStartLabel) = baseAddr
 
     ////////////////// write file /////////////////
 

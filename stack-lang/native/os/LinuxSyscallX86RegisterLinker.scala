@@ -1,0 +1,71 @@
+package native.cpu
+
+import native.Assembly.*
+
+/** Linker for linux system call on x86 register machhine */
+
+class LinuxSyscallX86RegisterLinker(runtimeRootNameTable: NameTable)
+extends LinuxSyscall(runtimeRootNameTable):
+  /**
+    * Implement sys_write in machine code.
+    *
+    * The arguments are passed via stack.
+    *
+    * It assumes that all registers are free.
+    */
+  def sysWrite()(using pb: PatchableBuffer): Unit =
+    pb.defineLabel(sysWriteLabel)
+
+    // init FP pointer
+    X86.move(Reg(X86.ESP), X86.EBP)
+
+    // load argument
+    X86.move(Int32(4), X86.EAX)
+    X86.move(Rel(X86.EBP, 8), X86.EBX)
+    X86.load(Rel(X86.EBP, 12), X86.ECX)
+    X86.load(Rel(X86.EBP, 16), X86.EDX)
+    X86.int80()
+
+    // copy EAX to result location
+    X86.store(X86.EAX, Rel(X86.EBP, -4))
+
+    // return to caller
+    X86.load(Reg(X86.EBP), X86.EAX)
+    X86.jump(Reg(X86.EAX))
+
+  /**
+    * Implement sys_exit in machine code.
+    */
+  def sysExit()(using pb: PatchableBuffer): Unit =
+    pb.defineLabel(sysExitLabel)
+
+    // init FP pointer
+    X86.move(Reg(X86.ESP), X86.EBP)
+
+    // load argument
+    X86.move(Int32(1), X86.EAX)
+    X86.load(Rel(X86.EBP, 8), X86.EBX)
+    X86.int80()
+
+    // program exits, no need for return
+
+  /**
+    * Implement sys_brk in machine code.
+    */
+  def sysBrk()(using pb: PatchableBuffer): Unit =
+    pb.defineLabel(sysBrkLabel)
+
+    // init FP pointer
+    X86.move(Reg(X86.ESP), X86.EBP)
+
+    // load argument
+    X86.move(Int32(45), X86.EAX)
+    X86.load(Rel(X86.EBP, 8), X86.EBX)
+    X86.int80()
+
+    // copy EAX to result location
+    X86.store(X86.EAX, Rel(X86.EBP, -4))
+
+    // return to caller
+    X86.load(Reg(X86.EBP), X86.EAX)
+    X86.jump(Reg(X86.EAX))
