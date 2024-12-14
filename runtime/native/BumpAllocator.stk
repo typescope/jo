@@ -7,12 +7,18 @@ type State = { freeFrom: Int, freeUntil: Int }
 
 fun init(): Void =
   val start = Syscall.sys_brk 0
-  Core.writeInt (Core.data "stk.runtime.native.BumpAllocator.state") 0 start
-  Core.writeInt (Core.data "stk.runtime.native.BumpAllocator.state") 4 start
+  val data = Core.data "stk.runtime.native.BumpAllocator.state"
+
+  // TODO: use stk syntax once record can be mutable
+  Core.writeInt data 0 start
+  Core.writeInt data 4 start
 
 fun alloc(size: Int): Any =
-  var freeFrom = Core.readInt (Core.data "stk.runtime.native.BumpAllocator.state") 0
-  var freeUtil = Core.readInt (Core.data "stk.runtime.native.BumpAllocator.state") 4
+  val data = Core.data "stk.runtime.native.BumpAllocator.state"
+
+  // TODO: use stk syntax once record can be mutable
+  var freeFrom = Core.readInt data 0
+  var freeUtil = Core.readInt data 4
 
   if freeFrom + size > freeUntil then
      freeFrom = Syscall.sys_brk 1024
@@ -23,7 +29,7 @@ fun alloc(size: Int): Any =
 
      // update data
      // TODO: use stk syntax once record can be mutable
-     core.writeInt (Core.data "stk.runtime.native.BumpAllocator.state") 4 freeUntil
+     core.writeInt data 4 freeUntil
 
   val res = freeFrom
 
@@ -31,6 +37,6 @@ fun alloc(size: Int): Any =
 
   // update data
   // TODO: use stk syntax once record can be mutable
-  Core.writeInt (Core.data "stk.runtime.native.BumpAllocator.state") 0 freeFrom
+  Core.writeInt data 0 freeFrom
 
   res
