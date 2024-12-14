@@ -75,7 +75,7 @@ extends Backend:
     call(main)
 
     // exit
-    call(NativeRuntime.instance.finish)
+    call(runtime.Core_finish)
 
     // generate code
     cb.getResult()
@@ -350,7 +350,7 @@ extends Backend:
   /** Allocate a block of memory and push the start address onto stack */
   def alloc(size: Int)(using Context): Unit =
     push(Int32(size))
-    call(NativeRuntime.instance.Core_alloc)
+    call(runtime.Core_alloc)
 
   /** Pop the value on the top of the stack to the given register */
   def pop(destReg: Int)(using Context) =

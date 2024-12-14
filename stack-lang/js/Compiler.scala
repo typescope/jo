@@ -36,8 +36,6 @@ def compile(args: String*): Unit =
         else
           "out.js"
 
-  val backend = new JSOptimized(outFile)
-
   Reporter.monitor:
     val rootNameTable = new NameTable
     val runtimeNameTable = new NameTable
@@ -52,7 +50,9 @@ def compile(args: String*): Unit =
       typeCheck                     |+
       Printing.peek(enable = false)
 
-    JSRuntime.initialize(runtimeNameTable)
+    val jsRuntime = new JSRuntime(runtimeNameTable)
+    val contextParamsLower = new LowerContextParams(jsRuntime)
+    val backend = new JSOptimized(outFile, jsRuntime)
 
     val mains = namespacesSAST.collect:
       case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get
@@ -65,7 +65,7 @@ def compile(args: String*): Unit =
         Printing.peek(enable = false) |>
         ElimCapture.transform         |+
         Printing.peek(enable = false) |>
-        LowerContextParams.transform  |+
+        contextParamsLower.transform  |+
         Printing.peek(enable = false) |>
         ((nss: List[Sast.Namespace]) => backend.compile(nss, main))
 

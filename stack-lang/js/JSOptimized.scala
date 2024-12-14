@@ -18,7 +18,7 @@ import scala.collection.mutable
 /**
   * JavaScript platform with code optimization
   */
-class JSOptimized(outFile: String):
+class JSOptimized(outFile: String, runtime: JSRuntime):
   private val unique = new UniqueName
 
   val keywords = List(
@@ -81,8 +81,6 @@ class JSOptimized(outFile: String):
 
   def compile(nss: List[Namespace], main: Symbol): Unit =
     val pw =  new PrintWriter(outFile)
-
-    val runtime = JSRuntime.instance
 
     // Make runtime symbols unavailable
     for name <- runtime.runtimeNames do unique.freshName(name)
@@ -257,7 +255,6 @@ class JSOptimized(outFile: String):
   /** Compile a primitive */
   def callPredef(sym: Symbol, args: List[Word])(using Context): Text =
     val defn = Definitions.instance
-    val runtime = JSRuntime.instance
 
     def binary(op: String): Text =
       val a :: b :: Nil = args: @unchecked
