@@ -294,7 +294,7 @@ class JSOptimized(outFile: String):
 
       case _ => call(sym, args)
     end match
-  end call
+  end callPredef
 
 
 end JSOptimized

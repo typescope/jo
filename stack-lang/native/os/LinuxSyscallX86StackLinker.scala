@@ -1,19 +1,16 @@
 package native.cpu
 
-import native.Assembly.*
+import sast.NameTable
+import sast.Symbols.*
+
+import native.Assembly.Label
+import native.Assembler.Linker
+import native.Assembler.PatchableBuffer
+
 
 /** Linker for linux system call on x86 stack machhine */
 class LinuxSyscallX86StackLinker(runtimeRootNameTable: NameTable)
 extends LinuxSyscall(runtimeRootNameTable):
-
-  def linkData()(using pb: PatchableBuffer): Unit = ()
-
-  def linkCode()(using pb: PatchableBuffer): Unit =
-    sysWrite()
-    sysExit()
-    sysBrk()
-
-  def locate(sym: Symbol): Option[Label] = ???
 
   /**
     * Implement sys_write in machine code.
@@ -21,7 +18,7 @@ extends LinuxSyscall(runtimeRootNameTable):
     * It assumes the call convention of register machines.
     */
   def sysWrite()(using pb: PatchableBuffer): Unit =
-    pb.defineLabel(sysWriteLabel)
+    pb.defineLabel(sys_write_label)
 
     // init FP
     X86.move(Reg(X86.ESP), X86.EBP)
@@ -48,7 +45,7 @@ extends LinuxSyscall(runtimeRootNameTable):
     * Implement abort in machine code.
     */
   def sysExit()(using pb: PatchableBuffer): Unit =
-    pb.defineLabel(sysExitLabel)
+    pb.defineLabel(sys_exit_label)
 
     // init FP
     X86.move(Reg(X86.ESP), X86.EBP)
@@ -63,7 +60,7 @@ extends LinuxSyscall(runtimeRootNameTable):
     * Implement sysBrk in machine code.
     */
   def sysBrk()(using pb: PatchableBuffer): Unit =
-    pb.defineLabel(sysBrkLabel)
+    pb.defineLabel(sys_brk_label)
 
     // init FP
     X86.move(Reg(X86.ESP), X86.EBP)

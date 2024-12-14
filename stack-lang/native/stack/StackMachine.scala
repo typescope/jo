@@ -6,6 +6,7 @@ import sast.*
 import sast.Sast.*
 import sast.Symbols.*
 
+import native.Backend
 import native.Memory
 import native.NativeRuntime
 
@@ -22,53 +23,13 @@ import scala.collection.mutable
   *
   * The class is CPU- and OS-agnostic.
   */
-class StackMachine(registerConfig: RegisterConfig, runtime: NativeRuntime):
+class StackMachine(registerConfig: RegisterConfig, runtime: NativeRuntime)
+extends Backend:
 
   import registerConfig.{ FP_REG, SP_REG, FREE_REGS }
 
 
   type Context = StackMachine.Context
-
-  /** Maps functions to addresses */
-  val funLabelMap: mutable.Map[Symbol, Label] = mutable.Map.empty
-
-  def getAddress(sym: Symbol): Label =
-    assert(sym.isFunction, "Not a function, sym = " + sym)
-
-    funLabelMap.get(sym) match
-      case Some(addr) => addr
-
-      case None =>
-        runtime.locate(sym) match
-          case Some(addrOrSymbol) =>
-            addr match
-              case label: Label =>
-                // cache result
-                funLabelMap(sym) = label
-                label
-
-              case redirectSym: Symbol =>
-                getAddress(sym)
-
-          case None =>
-            val label = Label(sym.name)
-            funLabelMap(sym) = label
-
-            // Add function to work list
-            workList.add(sym)
-
-            label
-
-  /** Maps string constants to labels */
-  val stringTable: mutable.Map[String, Label] = mutable.Map.empty
-
-  def addString(v: String): Label =
-    stringTable.get(v) match
-      case Some(label) => label
-      case None =>
-        val label = Label("string")
-        stringTable(v) = label
-        label
 
   /** Program entry pointer */
   val entry = Label("_entry")
@@ -81,8 +42,6 @@ class StackMachine(registerConfig: RegisterConfig, runtime: NativeRuntime):
   def cb(using ctx: Context): CodeBuffer = ctx.cb
 
   def ctx(using ctx: Context): Context = ctx
-
-  val workList = new WorkList[Symbol]
 
   def compile(nss: List[Namespace], main: Symbol): Prog =
     val cb = new CodeBuffer(entry)
@@ -105,9 +64,14 @@ class StackMachine(registerConfig: RegisterConfig, runtime: NativeRuntime):
       cb.add(Data.StringLit(label, v))
 
     given Context = new Context(cb, Map.empty)
+
     // Stack pointer is initialized by the kernel, initialize frame pointer
     cb.mark(this.entry)
     cb.add(Instr.Sub(Reg(SP_REG), Int32(4), SP_REG))
+
+    // Call init from linkers
+    for init <- runtime.inits do call(init)
+
     call(main)
 
     // exit
@@ -338,8 +302,11 @@ class StackMachine(registerConfig: RegisterConfig, runtime: NativeRuntime):
   def compile(app: Apply)(using Context): Unit =
     fun match
       case Ident(sym) =>
+        for arg <- app.args do compile(arg)
         if sym.owner == Definitions.instance.Predef then
-          call(sym, args)
+          callPredef(sym)
+        else
+          call(sym)
 
       case _ =>
         compile(app.fun)

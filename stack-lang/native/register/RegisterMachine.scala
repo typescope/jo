@@ -7,9 +7,9 @@ import sast.Sast.*
 import sast.Symbols.*
 import sast.Types.*
 
+import native.Backend
 import native.Memory
 import native.NativeRuntime
-import native.cpu.X86
 
 import native.Assembly
 import native.Assembly.{ Type => _, * }
@@ -27,8 +27,8 @@ import scala.collection.mutable
 class RegisterMachine(
   registerConfig: RegisterConfig,
   callConvention: CallConvention,
-  nativeFunctions: Map[Symbol, Label],
-  generator: Prog => Unit):
+  runtime: NativeRuntime)
+extends Backend:
 
   import registerConfig.{ FP_REG, SP_REG }
 
@@ -39,35 +39,6 @@ class RegisterMachine(
     * Its type does not matter.
     */
   val returnAddrSym = Symbol.createParamSymbol("return", IntType, owner = Predef.predefSym, pos = null)
-
-  /** Maps function symbols to addresses */
-  val funLabelMap: mutable.Map[Symbol, Label] = mutable.Map.from(nativeFunctions)
-
-  def getAddress(sym: Symbol): Label =
-    assert(sym.isFunction || funLabelMap.contains(sym), "Not a function, sym = " + sym)
-
-    funLabelMap.get(sym) match
-      case Some(addr) => addr
-
-      case None =>
-        val label = Label(sym.name)
-        funLabelMap(sym) = label
-
-        // Add function to work list
-        if !sym.isPrimitive then workList.add(sym)
-
-        label
-
-  /** Maps string constants to labels */
-  val stringTable: mutable.Map[String, Label] = mutable.Map.empty
-
-  def addString(v: String): Label =
-    stringTable.get(v) match
-      case Some(label) => label
-      case None =>
-        val label = Label("string")
-        stringTable(v) = label
-        label
 
   def freshVirtualReg()(using ctx: Context): Int =
     ctx.generator.fresh()
@@ -83,8 +54,6 @@ class RegisterMachine(
 
   def gen(label: Label)(using ctx: Context): Unit =
     ctx.buffer.gen(label)
-
-  val workList = new WorkList[Symbol]
 
   def compile(nss: List[Namespace], main: Symbol): Unit =
     // Buffer to hold the generated assembly code
@@ -117,22 +86,38 @@ class RegisterMachine(
     for (v, label) <- stringTable do
       cb.add(Data.StringLit(label, v))
 
-    entry(entryLabel, main, cb)
 
-    // generate code
-    generator(cb.getResult())
-
-  def entry(label: Label, main: Symbol, cb: CodeBuffer) =
     // Stack pointer is initialized by the kernel, initialize frame pointer
-    cb.mark(label)
+    cb.mark(entryLabel)
     cb.add(Instr.Sub(Reg(SP_REG), Int32(4), SP_REG))
 
-    genAllocator(cb)
+    for init <- runtime.inits do callParameterless(init, cb)
 
-    val finishLabel = getAddress(NativeRuntime.finish)
-    cb.add(Instr.Store(finishLabel, Reg(SP_REG)))
-    cb.add(Instr.Move(Reg(SP_REG), FP_REG))
-    cb.add(Instr.Jump(getAddress(main)))
+    callParameterless(main, cb)
+
+    callParameterless(NativeRuntime.instance.Core_finish, cb)
+
+    // generate code
+    cb.getResult()
+
+  def callParameterless(funSym: Symbol, cb: CodeBuffer) =
+    assert(funSym.info.asFunctionType.params.isEmpty)
+    val addr = getAddress(funSym)
+    val returnLoc = Label("returnLoc")
+
+    // save FP and return address
+    cb.add(Instr.Store(Reg(FP_REG), Rel(SP_REG, -4)))
+    cb.add(Instr.Store(returnLoc, Rel(SP_REG, -8)))
+    cb.add(Instr.Sub(Reg(SP_REG), Int32(8), SP_REG))
+
+    cb.add(Instr.Jump(addr))
+
+    cb.mark(returnLoc)
+
+    // restore FP and SP
+    cb.add(Instr.Add(Reg(FP_REG), Int32(8), SP_REG))
+    cb.add(Instr.Load(Rel(FP_REG, 4), FP_REG))
+
 
   def compile(phrase: Phrase)(using Context): Unit =
     for word <- phrase.words do compile(word)
@@ -433,81 +418,10 @@ class RegisterMachine(
       for arg <- app.args do compile(arg)
       this.call(fun, funType.paramTypes, funType.resultType)
 
-  /** Generate a bump allocator
-    *
-    * TODO: implement it in Stk.
-    */
-  def genAllocator(cb: CodeBuffer): Unit =
-    val allocLabel = getAddress(NativeRuntime.allocate)
-
-    val initBreakLabel = Label("init_break")
-    val curBreakLabel = Label("current_break")
-
-    cb.add(Data.Uninit(initBreakLabel, Assembly.Type.Int32))
-    cb.add(Data.Uninit(curBreakLabel, Assembly.Type.Int32))
-
-    val doAllocLabel = Label("doAlloc")
-    val allocEndLabel = Label("allocEnd")
-
-    // use invalid arg to get the current break
-    cb.add(Instr.Move(Int32(0), X86.EBX))          // new break
-    cb.add(Instr.Move(Int32(45), X86.EAX))         // syscall number sys_brk
-    cb.add(Instr.Special(X86.Syscall))             // syscall
-    cb.add(Instr.Store(Reg(X86.EAX), initBreakLabel))
-    cb.add(Instr.Store(Reg(X86.EAX), curBreakLabel))
-
-    cb.add(Instr.Jump(allocEndLabel))
-
-    // start alloc function
-    cb.mark(allocLabel)
-
-    // init FP
-    cb.add(Instr.Move(Reg(SP_REG), FP_REG))
-
-    // callee-saved registers
-    cb.add(Instr.Add(Reg(FP_REG), Int32(-12), SP_REG))
-    cb.add(Instr.Store(Reg(X86.EBX), Rel(SP_REG, 0)))
-    cb.add(Instr.Store(Reg(X86.ECX), Rel(SP_REG, 4)))
-    cb.add(Instr.Store(Reg(X86.EDX), Rel(SP_REG, 8)))
-
-    cb.add(Instr.Load(curBreakLabel, X86.EBX))
-    cb.add(Instr.Load(initBreakLabel, X86.ECX))
-    cb.add(Instr.Add(Reg(X86.EAX), Reg(X86.ECX), X86.ECX))
-    cb.add(Instr.Gt(Reg(X86.ECX), Reg(X86.EBX), X86.EDX))
-    cb.add(Instr.JZero(Reg(X86.EDX), doAllocLabel))
-
-    // Avoid allocating at page boundary
-    cb.add(Instr.Add(Reg(X86.EAX), Reg(X86.EBX), X86.ECX))
-
-    // backup EAX
-    cb.add(Instr.Move(Reg(X86.EAX), X86.EDX))
-
-    // Add more pages
-    cb.add(Instr.Add(Reg(X86.EBX), Int32(1 << 12), X86.EBX))     // new break
-    cb.add(Instr.Move(Int32(45), X86.EAX))                  // syscall number sys_brk
-    cb.add(Instr.Special(X86.Syscall))                      // syscall
-    cb.add(Instr.Store(Reg(X86.EAX), curBreakLabel))
-
-    // restore EAX
-    cb.add(Instr.Move(Reg(X86.EDX), X86.EAX))
-
-    cb.mark(doAllocLabel)
-    cb.add(Instr.Store(Reg(X86.ECX), initBreakLabel))
-    cb.add(Instr.Sub(Reg(X86.ECX), Reg(X86.EAX), X86.EAX))
-
-    // restore callee-saved regs
-    cb.add(Instr.Load(Rel(SP_REG, 0), X86.EBX))
-    cb.add(Instr.Load(Rel(SP_REG, 4), X86.ECX))
-    cb.add(Instr.Load(Rel(SP_REG, 8), X86.EDX))
-
-    cb.add(Instr.Load(Reg(FP_REG), SP_REG))
-    cb.add(Instr.Jump(Reg(SP_REG)))
-    cb.mark(allocEndLabel)
-
   /** Allocate a block of memory and push the start address onto value stack */
   def alloc(size: Int)(using ctx: Context): Unit =
     ctx.vs.push(Int32(size))
-    call(NativeRuntime.allocate)
+    call(NativeRuntime.instanc.Core_alloc)
 
   /** Compile [x = 3, y = 5] */
   def compile(record: RecordLit)(using ctx: Context): Unit =

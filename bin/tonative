@@ -40,6 +40,7 @@ files=(
 
     stack-lang/native/Assembler.scala
     stack-lang/native/Assembly.scala
+    stack-lang/native/Backend.scala
     stack-lang/native/Compiler.scala
     stack-lang/native/Linker.scala
     stack-lang/native/cpu/X86.scala
@@ -47,6 +48,10 @@ files=(
     stack-lang/native/Memory.scala
     stack-lang/native/NativeRuntime.scala
     stack-lang/native/os/Linux.scala
+    stack-lang/native/os/LinuxBumpAllocator.scala
+    stack-lang/native/os/LinuxSyscall.scala
+    stack-lang/native/os/LinuxSyscallX86RegisterLinker.scala
+    stack-lang/native/os/LinuxSyscallX86StackLinker.scala
     stack-lang/native/register/CallConvention.scala
     stack-lang/native/register/GraphColoring.scala
     stack-lang/native/register/Liveness.scala

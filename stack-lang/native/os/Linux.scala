@@ -8,6 +8,8 @@
  ************************************************************************/
 package native.os
 
+import native.NativeRuntime
+
 import native.register.RegisterMachine
 import native.register.CallConvention
 import native.stack.StackMachine
@@ -26,7 +28,7 @@ object Linux:
   /**
     * Create a new x86 register machine
     */
-  def createX86RegisterMachine(runtimeRootNameTable: NameTable): RegisterMachine =
+  def createX86RegisterMachine(runtimeRootNameTable: NameTable): Backend =
     val bumpAllocator = new LinuxBumpAllocator(runtimeRootNameTable)
     val syscalls = new LinuxSyscallX86RegisterLinker(runtimeRootNameTable)
     val linkers = List(bumpAllocator, syscalls)
@@ -41,7 +43,7 @@ object Linux:
   /**
     * Create a new x86 stack machine
     */
-  def createX86StackMachine(runtimeRootNameTable: NameTable): StackMachine =
+  def createX86StackMachine(runtimeRootNameTable: NameTable): Backend =
     val bumpAllocator = new LinuxBumpAllocator(runtimeRootNameTable)
     val syscalls = new LinuxSyscallX86StackLinker(runtimeRootNameTable)
     val linkers = List(bumpAllocator, syscalls)

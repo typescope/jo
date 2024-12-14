@@ -1,8 +1,19 @@
 package native.os
 
+import sast.NameTable
+import sast.Symbols.*
+
+import native.Assembly.Label
+import native.Assembler.Linker
+import native.Assembler.PatchableBuffer
+
 abstract class LinuxSyscall(runtimeRootNameTable: NameTable) extends Linker:
   def resolveNamespace(path: String) =
     NameTable.resolvePath(runtimeRootNameTable, path, isType = false)
+
+  val sys_exit_label = Label("__sys_exit")
+  val sys_write_label = Label("__sys_write")
+  val sys_brk_label = Label("__sys_brk")
 
   val Syscall = resolveNamespace("stk.runtime.native.Syscall")
   val Syscall_sys_brk = Syscall.termMember("sys_brk")
@@ -18,13 +29,15 @@ abstract class LinuxSyscall(runtimeRootNameTable: NameTable) extends Linker:
 
   def locate(sym: Symbol): Option[Label] =
     if sym.owner == Syscall then
-      if sym == Syscall_sys_brk then LinuxSyscall.sysBrkLabel
-      else if sym = Syscall_sys_exit then LinuxSyscall.sysExitLabel
-      else if sym = Syscall_sys_write then LinuxSyscall.sysWriteLabel
+      if sym == Syscall_sys_brk then sys_brk_label
+      else if sym = Syscall_sys_exit then sys_exit_label
+      else if sym = Syscall_sys_write then sys_write_label
       else throw new Exception("Unexpected symbol " + sym)
     else None
 
   def locate(qualid: String): Option[Label] = None
+
+  def inits(): List[Symbol] = Nil
 
   /**
     * Implement sys_write in machine code.
@@ -40,9 +53,3 @@ abstract class LinuxSyscall(runtimeRootNameTable: NameTable) extends Linker:
     * Implement print in machine code.
     */
   def sysBrk()(using pb: PatchableBuffer): Unit
-
-
-object LinuxSyscall:
-  val sysExitLabel = Label("__sys_exit")
-  val sysWriteLabel = Label("__sys_write")
-  val sysBrkLabel = Label("__sys_brk")

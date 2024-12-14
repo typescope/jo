@@ -63,11 +63,4 @@ extends Linker:
   def linkCode()(using pb: PatchableBuffer): Unit =
     linkers.foreach(_.linkCode())
 
-object NativeRuntime:
-  val key = new Dynamic.Key[NativeRuntime]("native-runtime")
-
-  def initialize(runtimeRootNameTable: NameTable): Unit =
-    val nativeRuntime = new NativeRuntime(runtimeRootNameTable)
-    Dynamic.install(NativeRuntime.key, nativeRuntime)
-
-  def instance: NativeRuntime = Dynamic.get(NativeRuntime.key)
+  def inits(): List[Symbol] = linkers.flatMap(_.inits())

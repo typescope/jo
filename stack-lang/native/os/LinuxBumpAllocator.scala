@@ -1,5 +1,12 @@
 package native.os
 
+import sast.NameTable
+import sast.Symbols.*
+
+import native.Assembly.Label
+import native.Assembler.Linker
+import native.Assembler.PatchableBuffer
+
 class LinuxBumpAllocator(runtimeRootNameTable: NameTable)
 extends Linker:
   val allocatorStateLabel = Label("allocatorState")
@@ -30,3 +37,5 @@ extends Linker:
       Some(allocatorStateLabel)
     else
       None
+
+  def inits(): List[Symbol] = BumpAllocator_init :: Nil

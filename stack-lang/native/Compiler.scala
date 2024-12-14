@@ -14,6 +14,22 @@ import os.Linux
  * Main entry point for the compiler
  *
  ***********************************************************************/
+
+def createBackend(runtimeNameTable: NameTable): Backend =
+  options.get("-p") match
+    case Some(pf) =>
+      if pf == "linux-x86-stack" then
+        Linux.createX86StackMachine(runtimeNameTable)
+
+      else if pf == "linux-x86-reg" then
+        Linux.createX86RegisterMachine(runtimeNameTable)
+
+      else
+        throw new Exception("Unknow platform: " + pf)
+
+    case None =>
+      Linux.createX86RegisterMachine(runtimeNameTable)
+
 @main
 def compile(args: String*): Unit =
   val optionSpec = Map(
@@ -41,40 +57,43 @@ def compile(args: String*): Unit =
 
   val layout = options.getOrElse("-layout", "c1")
 
-  val backend: (List[Sast.Namespace], Symbols.Symbol) => Unit =
-    options.get("-p") match
-      case Some(pf) =>
-        if pf == "linux-x86-stack" then
-          Linux.createX86StackMachine(outFile, layout).compile
-
-        else if pf == "linux-x86-reg" then
-          Linux.createX86RegisterMachine(outFile, layout).compile
-
-        else
-          throw new Exception("Unknow platform: " + pf)
-
-      case None =>
-        Linux.createX86RegisterMachine(outFile, layout).compile
+  val rootNameTable = new NameTable
+  val runtimeNameTable = new NameTable
+  val stdlib = "lib/Predef.stk" :: Nil
+  val runtime = List(
+    "runtime/native/Core.stk",
+    "runtime/native/Syscall.stk",
+    "runtime/native/BumpAllocator.stk",
+  )
 
   Reporter.monitor:
+    val typeCheck = (nss: List[Ast.Namespace]) =>
+      Namer.transform(nss, stdlib, runtime, rootNameTable, runtimeNameTable)
 
     val namespacesSAST =
       Parser.parse(sourceFiles)     |>
-      Namer.transform               |+
+      typeCheck                     |+
       Printing.peek(enable = false)
+
 
     val mains = namespacesSAST.collect:
       case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get
 
     mains match
       case main :: Nil =>
+        val backend = createBackend(runtimeNameTable)
+
+        val assembler = (prog: Prog) =>
+          Assembler.lower(layoutName, outFile, X86, backend.runtime)
+
         namespacesSAST                |>
         Printing.peek(enable = false) |>
         new ExplicitInit().transform  |+
         Printing.peek(enable = false) |>
         ElimCapture.transform         |+
         Printing.peek(enable = false) |>
-        ((nss: List[Sast.Namespace]) => backend(nss, main))
+        ((nss: List[Sast.Namespace]) => backend.compile(nss, main)) |>
+        assembler
 
       case _ =>
         if mains.isEmpty then
