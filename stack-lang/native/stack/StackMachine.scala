@@ -402,12 +402,25 @@ extends Backend:
 
   def callCore(sym: Symbol)(using Context): Unit =
     sym match
-      case runtime.Core_addAddr   => ???
-      case runtime.Core_writeInt  => ???
-      case runtime.Core_readInt   => ???
+      case runtime.Core_addAddr   => int2(Instr.And)
+
+      case runtime.Core_writeInt  =>
+        useTwoReg: (r1, r2) =>
+          pop(r1)
+          pop(r2)
+          cb.add(Instr.Store(Reg(r2), Reg(r1)))
+
+      case runtime.Core_readInt   =>
+        useReg: r =>
+          pop(r)
+          cb.add(Instr.Load(Reg(r), r))
+          push(Reg(r))
+
       case runtime.Core_writeByte => ???
+
       case runtime.Core_readByte  => ???
-      case _                      => call(sym)
+
+      case _ => call(sym)
 
   /** Duplicate the value on the top of stack. */
   def dup()(using Context) =

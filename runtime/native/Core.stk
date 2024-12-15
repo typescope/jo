@@ -7,17 +7,17 @@ type Addr
 fun data(qualid: String): Addr =
   abort "native global"
 
-fun writeInt(arr: Addr, offset: Int, value: Int): Void =
+fun writeInt(arr: Addr, value: Int): Void =
   abort "native writeInt"
 
-fun readInt(arr: Addr, offset: Int): Int =
+fun readInt(arr: Addr): Int =
   abort "native readInt"
 
 // The caller needs to make sure the value fit into one byte
-fun writeByte(arr: Addr, offset: Int, value: Int): Void =
+fun writeByte(arr: Addr, value: Int): Void =
   abort "native writeInt"
 
-fun readByte(arr: Addr, offset: Int): Int =
+fun readByte(arr: Addr): Int =
   abort "native readByte"
 
 fun addAddr(arr: Addr, offset: Int): Addr =
@@ -43,28 +43,28 @@ fun int2String(n: Int): String =
     var index = 14
     while remains > 0 do
       val digit = remains % 10
-      writeByte buf index (48 + digit) // '0' = 48
+      writeByte (addByte buf index) (48 + digit) // '0' = 48
       index = index - 1
       remains = remains / 10
+
+    // sign char
+    if negative then
+      writeByte (addAddr buf index) 45 // '-' = 45
+      index = index - 1
 
     val startIndex = index - 1
     val len = 10 - index + (if negative then 1 else 0)
     var freeFrom = 4
 
     // adapt to string format
-    writeInt buf 0 len
+    writeInt buf len
 
-    // sign char
-    if negative then
-      writeByte buf 5 45 // '-' = 45
-      freeFrom = 5
-
-    // copy char to front
+    // copy bytes to front
     if startIndex > freeFrom then
       var copyIndex = 0
       while copyIndex < len do
-        val c = readByte buf (startIndex + copyIndex)
-        writeByte buf (freeFrom + copyIndex) c
+        val c = readByte (addAddr buf (startIndex + copyIndex))
+        writeByte (addAddr buf (freeFrom + copyIndex)) c
         copyIndex = copyIndex + 1
 
     buf cast[String]
