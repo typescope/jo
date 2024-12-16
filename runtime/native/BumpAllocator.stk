@@ -11,14 +11,14 @@ fun init(): Void =
 
   // TODO: use stk syntax once record can be mutable
   Core.writeInt data start
-  Core.writeInt (addAddr data 4) start
+  Core.writeInt (Core.addAddr data 4) start
 
 fun alloc(size: Int): Any =
   val data = Core.data "stk.runtime.native.BumpAllocator.state"
 
   // TODO: use stk syntax once record can be mutable
-  var freeFrom = Core.readInt data 0
-  var freeUntil = Core.readInt data 4
+  var freeFrom = Core.readInt data
+  var freeUntil = Core.readInt (Core.addAddr data 4)
 
   if freeFrom + size > freeUntil then
      freeFrom = Syscall.sys_brk 1024
@@ -29,7 +29,7 @@ fun alloc(size: Int): Any =
 
      // update data
      // TODO: use stk syntax once record can be mutable
-     Core.writeInt (addAddr data 4) freeUntil
+     Core.writeInt (Core.addAddr data 4) freeUntil
 
   val res = freeFrom
 
