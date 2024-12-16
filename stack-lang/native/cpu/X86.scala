@@ -47,11 +47,6 @@ object X86 extends Assembler:
   final val ESI: Byte = 6
   final val EDI: Byte = 7
 
-  /**
-    * Special x86 instructions for performance optimization
-    */
-  sealed abstract class Extension
-  case object Syscall extends Extension
 
   def lowerData(data: List[Data])(using pb: PatchableBuffer): Unit =
     for item <- data do X86.lower(item)
@@ -110,14 +105,6 @@ object X86 extends Assembler:
 
       case Instr.JZero(r, label) =>
         jzero(r.index, label)
-
-      case special: Instr.Special[Extension @unchecked] =>
-        lower(special.instr)
-
-  def lower(instr: Extension)(using pb: PatchableBuffer) =
-    instr match
-      case Syscall =>
-        pb.addBytes(0xcd.toByte, 0x80.toByte)
 
   def lower(binOp: Instr.Binary)(using pb: PatchableBuffer): Unit =
     binOp match

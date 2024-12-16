@@ -70,8 +70,6 @@ object Assembly:
     // TODO: Change to JCond --- conditional jump
     case JZero(reg: Reg, label: Label)
 
-    case Special[T](instr: T)
-
   enum Type:
     case Int8, Int32
 

@@ -130,8 +130,6 @@ object PreAssembly:
       case Instr.JZero(reg: Reg, label: Label) =>
         useRegs += reg.index
 
-      case _: Instr.Special[?] =>
-        // TODO
     end match
 
     RegInfo(defRegs.toList, useRegs.toList)
@@ -177,10 +175,6 @@ object PreAssembly:
 
       case Instr.JZero(Reg(index), label: Label) =>
         Instr.JZero(Reg(substReg(index)), label) :: Nil
-
-      case _: Instr.Special[?] =>
-        // TODO
-        instr :: Nil
     end match
 
   def substDest(instr: Instr, regAlloc: Map[Int, Int]): Instr =
@@ -205,9 +199,6 @@ object PreAssembly:
       case Instr.JZero(reg: Reg, label: Label) =>
         instr
 
-      case _: Instr.Special[?] =>
-        // TODO
-        instr
     end match
 
   def substSource(instr: Instr, regAlloc: Map[Int, Int]): Instr =
@@ -247,9 +238,6 @@ object PreAssembly:
       case Instr.JZero(Reg(index), label: Label) =>
         Instr.JZero(Reg(substReg(index)), label)
 
-      case _: Instr.Special[?] =>
-        // TODO
-        instr
     end match
 
   /** Spill registers
