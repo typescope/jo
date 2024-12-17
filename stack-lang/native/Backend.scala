@@ -10,8 +10,8 @@ import common.WorkList
 
 import scala.collection.mutable
 
-abstract class Backend(val runtime: NativeRuntime):
-  def compile(nss: List[Namespace]): Prog
+abstract class Backend(
+  val runtime: NativeRuntime, main: Symbol):
 
   /** Maps function symbols to addresses */
   val funLabelMap: mutable.Map[Symbol, Label] = mutable.Map.empty
@@ -46,7 +46,15 @@ abstract class Backend(val runtime: NativeRuntime):
 
             label
 
-  def run(nss: List[Namespace], main: Symbol)(fn: FunDef => Unit) =
+  def compileFunDef(fdef: FunDef)(using cb: CodeBuffer): Unit
+
+  def callNoArgs(sym: Symbol)(using cb: CodeBuffer): Unit
+
+  def compile(nss: List[Namespace]): Prog =
+    // Buffer to hold the generated assembly code
+    val entryLabel = Label("_entry")
+    given cb: CodeBuffer = new CodeBuffer(entryLabel)
+
     workList.add(main)
     workList.add(runtime.Core_finish)
     for init <- runtime.inits() do workList.add(init)
@@ -59,8 +67,22 @@ abstract class Backend(val runtime: NativeRuntime):
       symbolDefMap(fdef.symbol) = fdef
 
     workList.run: sym =>
-      val fun = symbolDefMap(sym)
-      fn(fun)
+      val fdef = symbolDefMap(sym)
+      compileFunDef(fdef)
+
+    // Add string constants
+    for (v, label) <- stringTable do
+      cb.add(Data.StringLit(label, v))
+
+    cb.mark(entryLabel)
+    for init <- runtime.inits() do callNoArgs(init)
+
+    callNoArgs(main)
+
+    callNoArgs(runtime.Core_finish)
+
+    // generate code
+    cb.getResult()
 
 
   /** Maps string constants to labels */

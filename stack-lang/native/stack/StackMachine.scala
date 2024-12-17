@@ -20,13 +20,13 @@ import scala.collection.mutable
   *
   * The class is CPU- and OS-agnostic.
   */
-class StackMachine(registerConfig: RegisterConfig, runtime: NativeRuntime, main: Symbol)
-extends Backend(runtime):
+class StackMachine(
+  registerConfig: RegisterConfig, runtime: NativeRuntime, main: Symbol)
+extends Backend(runtime, main):
 
   import registerConfig.{ FP_REG, SP_REG, FREE_REGS }
 
-
-  type Context = StackMachine.Context
+  type LocalAddr = Map[Symbol, Addr]
 
   /** Program entry pointer */
   val entry = Label("_entry")
@@ -36,41 +36,10 @@ extends Backend(runtime):
 
   export regAlloc.{ useReg, useTwoReg }
 
-  def cb(using ctx: Context): CodeBuffer = ctx.cb
-
-  def ctx(using ctx: Context): Context = ctx
-
-  def compile(nss: List[Namespace]): Prog =
-    val cb = new CodeBuffer(entry)
-
-    this.run(nss, main): fun =>
-      compile(fun, cb)
-
-    // Add string constants
-    for (v, label) <- stringTable do
-      cb.add(Data.StringLit(label, v))
-
-    given Context = new Context(cb, Map.empty)
-
-    // Stack pointer is initialized by the kernel, initialize frame pointer
-    cb.mark(this.entry)
-    cb.add(Instr.Sub(Reg(SP_REG), Int32(4), SP_REG))
-
-    // Call init from linkers
-    for init <- runtime.inits() do call(init)
-
-    call(main)
-
-    // exit
-    call(runtime.Core_finish)
-
-    // generate code
-    cb.getResult()
-
-  def compile(phrase: Phrase)(using Context): Unit =
+  def compile(phrase: Phrase)(using LocalAddr, CodeBuffer): Unit =
     for word <- phrase.words do compile(word)
 
-  def compile(word: Word)(using Context): Unit =
+  def compile(word: Word)(using addr: LocalAddr, cb: CodeBuffer): Unit =
     word match
       case IntLit(v) => push(Int32(v))
 
@@ -106,8 +75,10 @@ extends Backend(runtime):
       case _: ValDef | _: FunDef | _: TypeDef | _: With =>
         throw new Exception("Unexpected " + word)
 
+  def callNoArgs(fun: Symbol)(using cb: CodeBuffer): Unit = call(fun)
+
   /** Compile a function */
-  def compile(fdef: FunDef, cb: CodeBuffer): Unit =
+  def compileFunDef(fdef: FunDef)(using cb: CodeBuffer): Unit =
     val sym = fdef.symbol
     val funType = TypeOps.erasePolyType(sym.info).asProcType
 
@@ -134,10 +105,10 @@ extends Backend(runtime):
     cb.add(Instr.Move(Reg(SP_REG), FP_REG))
     cb.add(Instr.Sub(Reg(SP_REG), Int32(sizeLocals), SP_REG))
 
-    compile(fdef.body)(using new Context(cb, symAddrMap.toMap))
-    ret(resCount, cb)
+    compile(fdef.body)(using symAddrMap.toMap, cb)
+    ret(resCount)
 
-  def compile(ifword: If)(using Context): Unit =
+  def compile(ifword: If)(using addr: LocalAddr, cb: CodeBuffer): Unit =
     val labelFalse = Label("_false")
     val labelEnd = Label("_ifEnd")
 
@@ -157,7 +128,7 @@ extends Backend(runtime):
 
       cb.mark(labelEnd)
 
-  def compile(whileDo: While)(using Context): Unit =
+  def compile(whileDo: While)(using addr: LocalAddr, cb: CodeBuffer): Unit =
     val labelBegin = Label("_whileBegin")
     val labelEnd = Label("_whileEnd")
 
@@ -172,7 +143,7 @@ extends Backend(runtime):
       cb.add(Instr.Jump(labelBegin))
       cb.mark(labelEnd)
 
-  def compile(encoded: Encoded)(using Context): Unit =
+  def compile(encoded: Encoded)(using LocalAddr, CodeBuffer): Unit =
     compile(encoded.repr)
     if encoded.isValueDrop then
       pop(Size.B32)
@@ -181,7 +152,7 @@ extends Backend(runtime):
     *
     * Stack goes from high address to low address.
     */
-  def ret(resCount: Int, cb: CodeBuffer) =
+  def ret(resCount: Int)(using cb: CodeBuffer) =
     var i = resCount - 1
     while i >= 0 do
       val src = Rel(SP_REG, i << 2)
@@ -222,14 +193,14 @@ extends Backend(runtime):
     *  │   value M   │
     *  └─────────────┘ ◄─────── SP
     */
-  def call(fun: Symbol)(using Context): Unit =
+  def call(fun: Symbol)(using cb: CodeBuffer): Unit =
     val addr = getAddress(fun)
     val funType = TypeOps.erasePolyType(fun.info).asProcType
     val argCount = funType.paramCount
     val resCount = funType.resCount
     call(addr, argCount, resCount)
 
-  def call(addr: Addr, argCount: Int, resCount: Int, funAddrOnStack: Boolean = false)(using Context): Unit =
+  def call(addr: Addr, argCount: Int, resCount: Int, funAddrOnStack: Boolean = false)(using cb: CodeBuffer): Unit =
     val returnLoc = Label("returnLoc")
 
     // 1. save FP
@@ -265,28 +236,28 @@ extends Backend(runtime):
         i += 1
 
   /** Initialize a value definition */
-  def compile(assign: Assign)(using Context): Unit =
-    val addr = ctx.symbolAddrMap(assign.symbol)
+  def compile(assign: Assign)(using addr: LocalAddr, cb: CodeBuffer): Unit =
+    val loc = addr(assign.symbol)
     compile(assign.rhs)
     useReg: r =>
       pop(r, Size.B32)
-      cb.add(Instr.Store(Reg(r), addr))
+      cb.add(Instr.Store(Reg(r), loc))
 
   /** Compile a reference */
-  def compile(ref: Ident)(using Context): Unit =
-    val addr =
-      if ref.symbol.isLocal then ctx.symbolAddrMap(ref.symbol)
+  def compile(ref: Ident)(using addr: LocalAddr, cb: CodeBuffer): Unit =
+    val loc =
+      if ref.symbol.isLocal then addr(ref.symbol)
       else getAddress(ref.symbol)
 
     if ref.symbol.isValue then
       useReg: r =>
-        cb.add(Instr.Load(addr, r, Size.B32))
+        cb.add(Instr.Load(loc, r, Size.B32))
         push(Reg(r))
     else
       push(addr.asInstanceOf[Value])
 
   /** Compile function call */
-  def compile(app: Apply)(using Context): Unit =
+  def compile(app: Apply)(using LocalAddr, CodeBuffer): Unit =
     app.funSymbol match
       case Some(sym) =>
         if sym.owner == Definitions.instance.Predef then
@@ -317,7 +288,7 @@ extends Backend(runtime):
           this.call(Reg(r), app.args.size, resCount, funAddrOnStack = true)
 
   /** Compile [x = 3, y = 5] */
-  def compile(record: RecordLit)(using Context): Unit =
+  def compile(record: RecordLit)(using addr: LocalAddr, cb: CodeBuffer): Unit =
     val recordType = record.tpe.asRecordType
     val size = Memory.size(recordType)
 
@@ -335,7 +306,7 @@ extends Backend(runtime):
     end for
 
   /** Compile p.x */
-  def compile(select: Select)(using Context): Unit =
+  def compile(select: Select)(using addr: LocalAddr, cb: CodeBuffer): Unit =
     val field = select.name
     val qualType = select.qual.tpe.asRecordType
     val offset = Memory.fieldOffset(qualType, field)
@@ -347,27 +318,27 @@ extends Backend(runtime):
       push(Reg(r))
 
   /** Allocate a block of memory and push the start address onto stack */
-  def alloc(size: Int)(using Context): Unit =
+  def alloc(size: Int)(using LocalAddr, CodeBuffer): Unit =
     push(Int32(size))
     call(runtime.Core_alloc)
 
   /** Pop the value on the top of the stack to the given register */
-  def pop(destReg: Int, size: Size)(using Context) =
+  def pop(destReg: Int, size: Size)(using cb: CodeBuffer) =
     assert(size == Size.B32)
     cb.add(Instr.Load(Reg(SP_REG), destReg, size))
     cb.add(Instr.Add(Reg(SP_REG), Int32(4), SP_REG))
 
   /** Pop the value on the top of the stack without using it */
-  def pop(size: Size)(using Context) =
+  def pop(size: Size)(using cb: CodeBuffer) =
     assert(size == Size.B32)
     cb.add(Instr.Add(Reg(SP_REG), Int32(4), SP_REG))
 
   /** Push value or address on the stack */
-  def push(v: Value)(using Context) =
+  def push(v: Value)(using cb: CodeBuffer) =
     cb.add(Instr.Sub(Reg(SP_REG), Int32(4), SP_REG))
     cb.add(Instr.Store(v, Reg(SP_REG)))
 
-  def callPredef(sym: Symbol)(using Context): Unit =
+  def callPredef(sym: Symbol)(using cb: CodeBuffer): Unit =
     val defn = Definitions.instance
 
     sym match
@@ -392,7 +363,7 @@ extends Backend(runtime):
       case _                  =>   call(sym)
   end callPredef
 
-  def callCore(sym: Symbol)(using Context): Unit =
+  def callCore(sym: Symbol)(using cb: CodeBuffer): Unit =
     sym match
       case runtime.Core_addAddr   => int2(Instr.And)
 
@@ -423,7 +394,7 @@ extends Backend(runtime):
       case _ => call(sym)
 
   /** Duplicate the value on the top of stack. */
-  def dup(size: Size)(using Context) =
+  def dup(size: Size)(using CodeBuffer) =
     useReg: r =>
       loadValue(r, 0, size)
       push(Reg(r))
@@ -432,7 +403,7 @@ extends Backend(runtime):
     *
     * The index begins from 0.
     */
-  def loadValue(destReg: Int, index: Byte, size: Size)(using Context): Unit =
+  def loadValue(destReg: Int, index: Byte, size: Size)(using cb: CodeBuffer): Unit =
     val addr = Rel(SP_REG, index << 2)
     cb.add(Instr.Load(addr, destReg, size))
 
@@ -440,12 +411,12 @@ extends Backend(runtime):
     *
     * The index begins from 0.
     */
-  def storeValue(value: Value, index: Byte)(using Context): Unit =
+  def storeValue(value: Value, index: Byte)(using cb: CodeBuffer): Unit =
     val addr = Rel(SP_REG, index << 2)
     // TODO: pass in size
     cb.add(Instr.Store(value, addr))
 
-  def int2(fn: (Operand, Operand, Int) => Instr)(using Context) =
+  def int2(fn: (Operand, Operand, Int) => Instr)(using cb: CodeBuffer) =
     useTwoReg: (r1, r2) =>
       // Reduce arithmetic on stack pointer to 1
       loadValue(r1, 1, Size.B32)
@@ -454,14 +425,14 @@ extends Backend(runtime):
       storeValue(Reg(r1), 1)
       pop(Size.B32)
 
-  def bnot()(using Context) =
+  def bnot()(using cb: CodeBuffer) =
     useReg: r =>
       loadValue(r, 0, Size.B32)
       cb.add(Instr.Nor(Reg(r), Reg(r), r))
       cb.add(Instr.And(Reg(r), Int32(1), r))
       storeValue(Reg(r), 0)
 
-  def eql()(using Context) =
+  def eql()(using cb: CodeBuffer) =
     useTwoReg: (r1, r2) =>
       loadValue(r1, 0, Size.B32)
       loadValue(r2, 1, Size.B32)
@@ -472,8 +443,6 @@ extends Backend(runtime):
 end StackMachine
 
 object StackMachine:
-  class Context(val cb: CodeBuffer, val symbolAddrMap: Map[Symbol, Addr])
-
   /**
     * A simple register allocator.
     *

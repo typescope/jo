@@ -27,7 +27,7 @@ class RegisterMachine(
   callConvention: CallConvention,
   runtime: NativeRuntime,
   main: Symbol)
-extends Backend(runtime):
+extends Backend(runtime, main):
 
   import registerConfig.{ FP_REG, SP_REG }
 
@@ -54,43 +54,7 @@ extends Backend(runtime):
   def gen(label: Label)(using ctx: Context): Unit =
     ctx.buffer.gen(label)
 
-  def compile(nss: List[Namespace]): Prog =
-    // Buffer to hold the generated assembly code
-    val entryLabel = Label("_entry")
-    val cb = new CodeBuffer(entryLabel)
-
-    this.run(nss, main): fdef =>
-      val sym = fdef.symbol
-      val ctx = freshFunctionContext(sym)
-      val proto = compile(fdef)(using ctx)
-
-      // perform register allocation
-      assert(ctx.vs.size == 0, sym.name + " " + ctx.vs.size)
-      val label = getAddress(sym)
-      doGraphColoring(
-        label, ctx.buffer.getResult(),
-        registerConfig, proto.savedRegs,
-        cb, ctx.generator)
-
-    // Add string constants
-    for (v, label) <- stringTable do
-      cb.add(Data.StringLit(label, v))
-
-
-    // Stack pointer is initialized by the kernel, initialize frame pointer
-    cb.mark(entryLabel)
-    cb.add(Instr.Sub(Reg(SP_REG), Int32(4), SP_REG))
-
-    for init <- runtime.inits() do callParameterless(init, cb)
-
-    callParameterless(main, cb)
-
-    callParameterless(runtime.Core_finish, cb)
-
-    // generate code
-    cb.getResult()
-
-  def callParameterless(funSym: Symbol, cb: CodeBuffer) =
+  def callNoArgs(funSym: Symbol)(using cb: CodeBuffer) =
     assert(funSym.info.asProcType.params.isEmpty)
     val addr = getAddress(funSym)
     val returnLoc = Label("returnLoc")
@@ -173,6 +137,16 @@ extends Backend(runtime):
     val paramReg = freshVirtualReg()
     ctx.setRegForLocal(param, paramReg)
     load(loc, paramReg, base)
+
+  def compileFunDef(fdef: FunDef)(using cb: CodeBuffer): Unit =
+    val sym = fdef.symbol
+    val ctx = freshFunctionContext(sym)
+    val proto = compile(fdef)(using ctx)
+
+    // perform register allocation
+    assert(ctx.vs.size == 0, sym.name + " " + ctx.vs.size)
+    val label = getAddress(sym)
+    doGraphColoring(label, ctx.buffer.getResult(), registerConfig, proto.savedRegs, cb, ctx.generator)
 
   /** Compile a function */
   def compile(fdef: FunDef)(using ctx: Context): Protocol =
