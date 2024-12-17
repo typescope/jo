@@ -20,8 +20,8 @@ import scala.collection.mutable
   *
   * The class is CPU- and OS-agnostic.
   */
-class StackMachine(registerConfig: RegisterConfig, val runtime: NativeRuntime)
-extends Backend:
+class StackMachine(registerConfig: RegisterConfig, runtime: NativeRuntime, main: Symbol)
+extends Backend(runtime):
 
   import registerConfig.{ FP_REG, SP_REG, FREE_REGS }
 
@@ -40,20 +40,10 @@ extends Backend:
 
   def ctx(using ctx: Context): Context = ctx
 
-  def compile(nss: List[Namespace], main: Symbol): Prog =
+  def compile(nss: List[Namespace]): Prog =
     val cb = new CodeBuffer(entry)
 
-    workList.add(main)
-
-    val symbolDefMap = mutable.Map.empty[Symbol, FunDef]
-    for
-      ns <- nss
-      case fdef: FunDef <- ns.defs
-    do
-      symbolDefMap(fdef.symbol) = fdef
-
-    workList.run: sym =>
-      val fun = symbolDefMap(sym)
+    this.run(nss, main): fun =>
       compile(fun, cb)
 
     // Add string constants

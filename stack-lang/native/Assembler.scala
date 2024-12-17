@@ -165,8 +165,13 @@ object Assembler:
         val bb: ByteBuffer = (b: Byte) => buffer.addOne(b)
 
         val patchFn: () => List[Byte] = () =>
-          val Some(loc) = pb.resolve(label): @unchecked
-          fn(bb, loc)
-          buffer.toList
+           pb.resolve(label) match
+             case Some(loc) =>
+               pb.resolve(label): @unchecked
+               fn(bb, loc)
+               buffer.toList
+
+             case None =>
+               throw new Exception("Linking error: Not found " + label)
 
         pb.addPatch(Patch(pb.currentOffset(), size, patchFn))

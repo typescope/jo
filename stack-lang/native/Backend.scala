@@ -10,9 +10,8 @@ import common.WorkList
 
 import scala.collection.mutable
 
-abstract class Backend:
-  def runtime: NativeRuntime
-  def compile(nss: List[Namespace], main: Symbol): Prog
+abstract class Backend(val runtime: NativeRuntime):
+  def compile(nss: List[Namespace]): Prog
 
   /** Maps function symbols to addresses */
   val funLabelMap: mutable.Map[Symbol, Label] = mutable.Map.empty
@@ -46,6 +45,23 @@ abstract class Backend:
             workList.add(sym)
 
             label
+
+  def run(nss: List[Namespace], main: Symbol)(fn: FunDef => Unit) =
+    workList.add(main)
+    workList.add(runtime.Core_finish)
+    for init <- runtime.inits() do workList.add(init)
+
+    val symbolDefMap = mutable.Map.empty[Symbol, FunDef]
+    for
+      ns <- nss
+      case fdef: FunDef <- ns.defs
+    do
+      symbolDefMap(fdef.symbol) = fdef
+
+    workList.run: sym =>
+      val fun = symbolDefMap(sym)
+      fn(fun)
+
 
   /** Maps string constants to labels */
   val stringTable: mutable.Map[String, Label] = mutable.Map.empty

@@ -25,8 +25,9 @@ import scala.collection.mutable
 class RegisterMachine(
   registerConfig: RegisterConfig,
   callConvention: CallConvention,
-  val runtime: NativeRuntime)
-extends Backend:
+  runtime: NativeRuntime,
+  main: Symbol)
+extends Backend(runtime):
 
   import registerConfig.{ FP_REG, SP_REG }
 
@@ -53,24 +54,15 @@ extends Backend:
   def gen(label: Label)(using ctx: Context): Unit =
     ctx.buffer.gen(label)
 
-  def compile(nss: List[Namespace], main: Symbol): Prog =
+  def compile(nss: List[Namespace]): Prog =
     // Buffer to hold the generated assembly code
     val entryLabel = Label("_entry")
     val cb = new CodeBuffer(entryLabel)
 
-    workList.add(main)
-
-    val symbolDefMap = mutable.Map.empty[Symbol, FunDef]
-    for
-      ns <- nss
-      case fdef: FunDef <- ns.defs
-    do
-      symbolDefMap(fdef.symbol) = fdef
-
-    workList.run: sym =>
-      val fun = symbolDefMap(sym)
+    this.run(nss, main): fdef =>
+      val sym = fdef.symbol
       val ctx = freshFunctionContext(sym)
-      val proto = compile(fun)(using ctx)
+      val proto = compile(fdef)(using ctx)
 
       // perform register allocation
       assert(ctx.vs.size == 0, sym.name + " " + ctx.vs.size)

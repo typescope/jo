@@ -9,6 +9,7 @@
 package native.os
 
 import sast.NameTable
+import sast.Symbols.Symbol
 
 import native.Assembler
 import native.Assembly.*
@@ -40,7 +41,7 @@ object Linux:
   /**
     * Create a new x86 register machine
     */
-  def createX86RegisterMachine(runtimeRootNameTable: NameTable): Backend =
+  def createX86RegisterMachine(runtimeRootNameTable: NameTable, main: Symbol): Backend =
     val bumpAllocator = new LinuxBumpAllocator(runtimeRootNameTable)
     val syscalls = new LinuxSyscallX86RegisterLinker(runtimeRootNameTable)
     val linkers = List(bumpAllocator, syscalls)
@@ -50,15 +51,15 @@ object Linux:
     val callConv =
       new CallConvention.RegisterCallConvention(x86RegConfig, paramRegs)
 
-    new RegisterMachine(x86RegConfig, callConv, runtime)
+    new RegisterMachine(x86RegConfig, callConv, runtime, main)
 
   /**
     * Create a new x86 stack machine
     */
-  def createX86StackMachine(runtimeRootNameTable: NameTable): Backend =
+  def createX86StackMachine(runtimeRootNameTable: NameTable, main: Symbol): Backend =
     val bumpAllocator = new LinuxBumpAllocator(runtimeRootNameTable)
     val syscalls = new LinuxSyscallX86StackLinker(runtimeRootNameTable)
     val linkers = List(bumpAllocator, syscalls)
     val runtime = new NativeRuntime(runtimeRootNameTable, linkers)
 
-    new StackMachine(x86RegConfig, runtime)
+    new StackMachine(x86RegConfig, runtime, main)

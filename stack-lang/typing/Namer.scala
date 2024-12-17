@@ -888,14 +888,6 @@ object Namer:
     // `|>` will stop early in the presence of parsing errors
     Parser.parse(files) |> namer
 
-  def transformRunTime(files: List[String])(using rp: Reporter): List[Namespace] =
-    val rootNameTable = new NameTable
-    val noPredef = new NameTable
-    val namer = (nss: List[Ast.Namespace]) =>
-      new Namer(rp).transform(nss, rootNameTable, noPredef)
-    // `|>` will stop early in the presence of parsing errors
-    Parser.parse(files) |> namer
-
   private class DelayedDef[+T <: Def](val symbol: Symbol, delayed: () => T):
     private lazy val definition: T = delayed()
     def force(): T =

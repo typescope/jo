@@ -2,6 +2,7 @@ package native
 
 import ast.Ast
 import sast.*
+import sast.Symbols.Symbol
 import parsing.Parser
 import phases.*
 import reporting.Reporter
@@ -19,20 +20,20 @@ import native.cpu.X86
  *
  ***********************************************************************/
 
-def createBackend(options: Map[String, String], runtimeNameTable: NameTable): Backend =
+def createBackend(options: Map[String, String], runtimeNameTable: NameTable, main: Symbol): Backend =
   options.get("-p") match
     case Some(pf) =>
       if pf == "linux-x86-stack" then
-        Linux.createX86StackMachine(runtimeNameTable)
+        Linux.createX86StackMachine(runtimeNameTable, main)
 
       else if pf == "linux-x86-reg" then
-        Linux.createX86RegisterMachine(runtimeNameTable)
+        Linux.createX86RegisterMachine(runtimeNameTable, main)
 
       else
         throw new Exception("Unknow platform: " + pf)
 
     case None =>
-      Linux.createX86RegisterMachine(runtimeNameTable)
+      Linux.createX86RegisterMachine(runtimeNameTable, main)
 
 @main
 def compile(args: String*): Unit =
@@ -85,7 +86,7 @@ def compile(args: String*): Unit =
 
     mains match
       case main :: Nil =>
-        val backend = createBackend(options, runtimeNameTable)
+        val backend = createBackend(options, runtimeNameTable, main)
 
         val assembler = (prog: Prog) =>
           Linux.lower(prog, layout, outFile, X86, backend.runtime)
@@ -95,8 +96,8 @@ def compile(args: String*): Unit =
         new ExplicitInit().transform  |+
         Printing.peek(enable = false) |>
         ElimCapture.transform         |+
-        Printing.peek(enable = false) |>
-        ((nss: List[Sast.Namespace]) => backend.compile(nss, main)) |>
+        Printing.peek(enable = true)  |>
+        backend.compile               |>
         assembler
 
       case _ =>
