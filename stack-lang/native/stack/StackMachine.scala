@@ -365,13 +365,13 @@ extends Backend(runtime, main):
 
   def callCore(sym: Symbol)(using cb: CodeBuffer): Unit =
     sym match
-      case runtime.Core_addAddr   => int2(Instr.And)
+      case runtime.Core_addAddr   => int2(Instr.Add)
 
       case runtime.Core_writeInt  =>
         useTwoReg: (r1, r2) =>
           pop(r1, Size.B32)
           pop(r2, Size.B32)
-          cb.add(Instr.Store(Reg(r2), Reg(r1)))
+          cb.add(Instr.Store(Reg(r1), Reg(r2)))
 
       case runtime.Core_readInt   =>
         useReg: r =>
@@ -383,7 +383,7 @@ extends Backend(runtime, main):
         useTwoReg: (r1, r2) =>
           pop(r1, Size.B32)
           pop(r2, Size.B32)
-          cb.add(Instr.Store(Reg8(r2), Reg(r1)))
+          cb.add(Instr.Store(Reg8(r1), Reg(r2)))
 
       case runtime.Core_readByte  =>
         useReg: r =>
