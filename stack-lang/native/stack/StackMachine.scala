@@ -154,7 +154,7 @@ extends Backend:
     compile(ifword.cond)
 
     useReg: r =>
-      pop(r)
+      pop(r, Size.B32)
       val target = if ifword.elsep.isEmpty then labelEnd else labelFalse
       cb.add(Instr.JZero(Reg(r), target))
 
@@ -174,7 +174,7 @@ extends Backend:
     cb.mark(labelBegin)
     compile(whileDo.cond)
     useReg: r =>
-      pop(r)
+      pop(r, Size.B32)
       cb.add(Instr.JZero(Reg(r), labelEnd))
 
       compile(whileDo.body)
@@ -185,7 +185,7 @@ extends Backend:
   def compile(encoded: Encoded)(using Context): Unit =
     compile(encoded.repr)
     if encoded.isValueDrop then
-      pop()
+      pop(Size.B32)
 
   /** Return from a procedure or function.
     *
@@ -197,12 +197,12 @@ extends Backend:
       val src = Rel(SP_REG, i << 2)
       val dest = Rel(FP_REG, (i - resCount) << 2)
       useReg: r =>
-        cb.add(Instr.Load(src, r))
+        cb.add(Instr.Load(src, r, Size.B32))
         cb.add(Instr.Store(Reg(r), dest))
       i -= 1
 
     useReg: r =>
-      cb.add(Instr.Load(Reg(FP_REG), r))
+      cb.add(Instr.Load(Reg(FP_REG), r, Size.B32))
       cb.add(Instr.Jump(Reg(r)))
 
   /**
@@ -263,14 +263,14 @@ extends Backend:
 
       // 6. restore FP before copy result --- avoid overwriting
       val fpAddr = Rel(FP_REG, 4)
-      cb.add(Instr.Load(fpAddr, FP_REG))
+      cb.add(Instr.Load(fpAddr, FP_REG, Size.B32))
 
       // 7. copy result -- after restoring FP to avoid overwriting
       var i = 0
       while i < resCount do
         val src = Rel(SP_REG, (-spOffset - i - 1) << 2)
         val dest = Rel(SP_REG, (resCount - i - 1) << 2)
-        cb.add(Instr.Load(src, r))
+        cb.add(Instr.Load(src, r, Size.B32))
         cb.add(Instr.Store(Reg(r), dest))
         i += 1
 
@@ -279,7 +279,7 @@ extends Backend:
     val addr = ctx.symbolAddrMap(assign.symbol)
     compile(assign.rhs)
     useReg: r =>
-      pop(r)
+      pop(r, Size.B32)
       cb.add(Instr.Store(Reg(r), addr))
 
   /** Compile a reference */
@@ -290,7 +290,7 @@ extends Backend:
 
     if ref.symbol.isValue then
       useReg: r =>
-        cb.add(Instr.Load(addr, r))
+        cb.add(Instr.Load(addr, r, Size.B32))
         push(Reg(r))
     else
       push(addr.asInstanceOf[Value])
@@ -323,7 +323,7 @@ extends Backend:
 
         useReg: r =>
           val resCount = if app.tpe.isValueType then 1 else 0
-          loadValue(r, app.args.size.toByte)
+          loadValue(r, app.args.size.toByte, Size.B32)
           this.call(Reg(r), app.args.size, resCount, funAddrOnStack = true)
 
   /** Compile [x = 3, y = 5] */
@@ -334,11 +334,11 @@ extends Backend:
     // TODO: Explicit allocation in a separate phase
     alloc(size)
     for (name, rhs) <- record.args do
-      dup()
+      dup(Size.B32)
       compile(rhs)
       useTwoReg: (r1, r2) =>
-        pop(r2)
-        pop(r1)
+        pop(r2, Size.B32)
+        pop(r1, Size.B32)
         val offset = Memory.fieldOffset(recordType, name)
         val fieldAddr = Rel(r1, offset)
         cb.add(Instr.Store(Reg(r2), fieldAddr))
@@ -351,9 +351,9 @@ extends Backend:
     val offset = Memory.fieldOffset(qualType, field)
     compile(select.qual)
     useReg: r =>
-      pop(r)
+      pop(r, Size.B32)
       val fieldAddr = Rel(r, offset)
-      cb.add(Instr.Load(fieldAddr, r))
+      cb.add(Instr.Load(fieldAddr, r, Size.B32))
       push(Reg(r))
 
   /** Allocate a block of memory and push the start address onto stack */
@@ -362,12 +362,14 @@ extends Backend:
     call(runtime.Core_alloc)
 
   /** Pop the value on the top of the stack to the given register */
-  def pop(destReg: Int)(using Context) =
-    cb.add(Instr.Load(Reg(SP_REG), destReg))
+  def pop(destReg: Int, size: Size)(using Context) =
+    assert(size == Size.B32)
+    cb.add(Instr.Load(Reg(SP_REG), destReg, size))
     cb.add(Instr.Add(Reg(SP_REG), Int32(4), SP_REG))
 
   /** Pop the value on the top of the stack without using it */
-  def pop()(using Context) =
+  def pop(size: Size)(using Context) =
+    assert(size == Size.B32)
     cb.add(Instr.Add(Reg(SP_REG), Int32(4), SP_REG))
 
   /** Push value or address on the stack */
@@ -406,35 +408,43 @@ extends Backend:
 
       case runtime.Core_writeInt  =>
         useTwoReg: (r1, r2) =>
-          pop(r1)
-          pop(r2)
+          pop(r1, Size.B32)
+          pop(r2, Size.B32)
           cb.add(Instr.Store(Reg(r2), Reg(r1)))
 
       case runtime.Core_readInt   =>
         useReg: r =>
-          pop(r)
-          cb.add(Instr.Load(Reg(r), r))
+          pop(r, Size.B32)
+          cb.add(Instr.Load(Reg(r), r, Size.B32))
           push(Reg(r))
 
-      case runtime.Core_writeByte => ???
+      case runtime.Core_writeByte =>
+        useTwoReg: (r1, r2) =>
+          pop(r1, Size.B32)
+          pop(r2, Size.B32)
+          cb.add(Instr.Store(Reg8(r2), Reg(r1)))
 
-      case runtime.Core_readByte  => ???
+      case runtime.Core_readByte  =>
+        useReg: r =>
+          pop(r, Size.B32)
+          cb.add(Instr.Load(Reg(r), r, Size.B8))
+          push(Reg8(r))
 
       case _ => call(sym)
 
   /** Duplicate the value on the top of stack. */
-  def dup()(using Context) =
+  def dup(size: Size)(using Context) =
     useReg: r =>
-      loadValue(r, 0)
+      loadValue(r, 0, size)
       push(Reg(r))
 
   /** Load a value on stack relative to the stack pointer.
     *
     * The index begins from 0.
     */
-  def loadValue(destReg: Int, index: Byte)(using Context): Unit =
+  def loadValue(destReg: Int, index: Byte, size: Size)(using Context): Unit =
     val addr = Rel(SP_REG, index << 2)
-    cb.add(Instr.Load(addr, destReg))
+    cb.add(Instr.Load(addr, destReg, size))
 
   /** Store a value to stack relative to the stack pointer.
     *
@@ -442,31 +452,32 @@ extends Backend:
     */
   def storeValue(value: Value, index: Byte)(using Context): Unit =
     val addr = Rel(SP_REG, index << 2)
+    // TODO: pass in size
     cb.add(Instr.Store(value, addr))
 
   def int2(fn: (Operand, Operand, Int) => Instr)(using Context) =
     useTwoReg: (r1, r2) =>
       // Reduce arithmetic on stack pointer to 1
-      loadValue(r1, 1)
-      loadValue(r2, 0)
+      loadValue(r1, 1, Size.B32)
+      loadValue(r2, 0, Size.B32)
       cb.add(fn(Reg(r1), Reg(r2), r1))
       storeValue(Reg(r1), 1)
-      pop()
+      pop(Size.B32)
 
   def bnot()(using Context) =
     useReg: r =>
-      loadValue(r, 0)
+      loadValue(r, 0, Size.B32)
       cb.add(Instr.Nor(Reg(r), Reg(r), r))
       cb.add(Instr.And(Reg(r), Int32(1), r))
       storeValue(Reg(r), 0)
 
   def eql()(using Context) =
     useTwoReg: (r1, r2) =>
-      loadValue(r1, 0)
-      loadValue(r2, 1)
+      loadValue(r1, 0, Size.B32)
+      loadValue(r2, 1, Size.B32)
       cb.add(Instr.Eq(Reg(r1), Reg(r2), r2))
       storeValue(Reg(r2), 1)
-      pop()
+      pop(Size.B32)
 
 end StackMachine
 

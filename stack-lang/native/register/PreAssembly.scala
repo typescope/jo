@@ -105,7 +105,8 @@ object PreAssembly:
 
       case Instr.Store(v: Value, addr: Addr) =>
         v match
-          case Reg(r) => useRegs += r
+          case Reg(r)   => useRegs += r
+          case Reg8(r)  => useRegs += r
           case _: Label =>
           case _: Int32 =>
 
@@ -114,7 +115,7 @@ object PreAssembly:
           case Rel(r, _) => useRegs += r
           case _: Label =>
 
-      case Instr.Load(addr: Addr, destReg) =>
+      case Instr.Load(addr: Addr, destReg, size) =>
         defRegs += destReg
         addr match
           case Reg(r)    => useRegs += r
@@ -167,8 +168,8 @@ object PreAssembly:
       case Instr.Store(v: Value, addr: Addr) =>
         Instr.Store(substValue(v), substAddr(addr)) :: Nil
 
-      case Instr.Load(addr: Addr, destReg) =>
-        Instr.Load(substAddr(addr), substReg(destReg)) :: Nil
+      case Instr.Load(addr: Addr, destReg, size) =>
+        Instr.Load(substAddr(addr), substReg(destReg), size) :: Nil
 
       case Instr.Jump(addr: Addr) =>
         Instr.Jump(substAddr(addr)) :: Nil
@@ -190,8 +191,8 @@ object PreAssembly:
       case Instr.Store(v: Value, addr: Addr) =>
         instr
 
-      case Instr.Load(addr: Addr, destReg) =>
-        Instr.Load(addr, substReg(destReg))
+      case Instr.Load(addr: Addr, destReg, size) =>
+        Instr.Load(addr, substReg(destReg), size)
 
       case Instr.Jump(addr: Addr) =>
         instr
@@ -229,8 +230,8 @@ object PreAssembly:
       case Instr.Store(v: Value, addr: Addr) =>
         Instr.Store(substValue(v), substAddr(addr))
 
-      case Instr.Load(addr: Addr, destReg) =>
-        Instr.Load(substAddr(addr), destReg)
+      case Instr.Load(addr: Addr, destReg, size) =>
+        Instr.Load(substAddr(addr), destReg, size)
 
       case Instr.Jump(addr: Addr) =>
         Instr.Jump(substAddr(addr))
@@ -264,7 +265,7 @@ object PreAssembly:
       stackAlloc.get(use) match
         case Some(i) =>
           val virtualReg = generator.fresh()
-          before += Instr.Load(addr(i), virtualReg)
+          before += Instr.Load(addr(i), virtualReg, Size.B32)
           currentInstr = substSource(currentInstr, Map(use -> virtualReg))
         case None =>
 
@@ -290,7 +291,7 @@ object PreAssembly:
       stackAlloc.get(reg) match
         case Some(i) =>
           val virtualReg = generator.fresh()
-          val loadInstr = PreInstr.Instr(Instr.Load(addr(i), virtualReg))
+          val loadInstr = PreInstr.Instr(Instr.Load(addr(i), virtualReg, Size.B32))
           val newInstr = rewrite(virtualReg)
           loadInstr :: newInstr :: Nil
 
@@ -377,7 +378,7 @@ object PreAssembly:
 
               for (savedReg, i) <- actualSavedRegs.zipWithIndex do
                 val addr = Rel(FP_REG, -((spillCount + i + 1) << 2))
-                cb.add(Instr.Load(addr, savedReg))
+                cb.add(Instr.Load(addr, savedReg, Size.B32))
 
               cb.add(Instr.Jump(Reg(regRet)))
 

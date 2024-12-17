@@ -37,7 +37,7 @@ extends LinuxSyscall(runtimeRootNameTable):
     X86.push(X86.EDX)
 
     // return to caller
-    X86.load(Reg(X86.EBP), X86.EBX)
+    X86.load(Reg(X86.EBP), X86.EBX, Size.B32)
     X86.jump(Reg(X86.EBX))
 
   /**
@@ -77,5 +77,5 @@ extends LinuxSyscall(runtimeRootNameTable):
     X86.pop(X86.EBX)
 
     // return to caller
-    X86.load(Reg(X86.EBP), X86.EBX)
+    X86.load(Reg(X86.EBP), X86.EBX, Size.B32)
     X86.jump(Reg(X86.EBX))

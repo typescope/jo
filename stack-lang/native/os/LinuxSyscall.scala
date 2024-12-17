@@ -17,7 +17,7 @@ abstract class LinuxSyscall(runtimeRootNameTable: NameTable) extends Linker:
 
   val Syscall = resolveNamespace("stk.runtime.native.Syscall")
   val Syscall_sys_brk = Syscall.termMember("sys_brk")
-  val Syscall_sys_exit = Syscall.termMember("sys_brk")
+  val Syscall_sys_exit = Syscall.termMember("sys_exit")
   val Syscall_sys_write = Syscall.termMember("sys_write")
 
   def linkData()(using pb: PatchableBuffer): Unit = ()

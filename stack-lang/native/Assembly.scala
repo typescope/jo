@@ -7,14 +7,16 @@ import scala.collection.mutable
  *
  * Assembly Language Definition
  *
- * TODO remove abstraction
  ***********************************************************************/
 object Assembly:
   /** A constant 32-bit integer */
   case class Int32(value: Int)
 
-  /** A register */
+  /** A 32-bit register */
   case class Reg(index: Int)
+
+  /** A 8-bit register */
+  case class Reg8(index: Int)
 
   /** A normal class uses referential equality for better performance. */
   class Label(val name: String):
@@ -25,7 +27,7 @@ object Assembly:
 
   type Operand  = Int32 | Reg
   type Addr     = Label | Reg | Rel
-  type Value    = Int32 | Label | Reg
+  type Value    = Int32 | Label | Reg | Reg8
 
   enum Arith:
     case Add, Sub, Mul, Div, Mod
@@ -63,12 +65,15 @@ object Assembly:
 
     case Move(v: Value, destReg: Int)
     case Store(v: Value, addr: Addr)
-    case Load(addr: Addr, destReg: Int)
+    case Load(addr: Addr, destReg: Int, size: Size)
 
     case Jump(addr: Addr)
 
     // TODO: Change to JCond --- conditional jump
     case JZero(reg: Reg, label: Label)
+
+  enum Size:
+    case B8, B32
 
   enum Type:
     case Int8, Int32

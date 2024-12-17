@@ -114,7 +114,7 @@ extends Backend:
 
     // restore FP and SP
     cb.add(Instr.Add(Reg(FP_REG), Int32(8), SP_REG))
-    cb.add(Instr.Load(Rel(FP_REG, 4), FP_REG))
+    cb.add(Instr.Load(Rel(FP_REG, 4), FP_REG, Size.B32))
 
 
   def compile(phrase: Phrase)(using Context): Unit =
@@ -163,7 +163,8 @@ extends Backend:
 
       case loc: Location.Stack =>
         val addr = Location.map(loc, base)
-        gen(Instr.Load(addr, dest))
+        // TODO: pass in size
+        gen(Instr.Load(addr, dest, Size.B32))
     end match
 
   def save(value: Value, loc: Location, base: Rel)(using Context): Unit =
@@ -465,7 +466,7 @@ extends Backend:
     val fieldAddr = Rel(recordReg.index, offset)
 
     val fieldReg = freshVirtualReg()
-    gen(Instr.Load(fieldAddr, fieldReg))
+    gen(Instr.Load(fieldAddr, fieldReg, Size.B32))
     ctx.vs.push(Reg(fieldReg))
 
   def callPredef(sym: Symbol)(using Context): Unit =
@@ -507,7 +508,8 @@ extends Backend:
     */
   def loadValue(destReg: Int, index: Int)(using Context): Unit =
     val addr = Rel(SP_REG, index << 2)
-    gen(Instr.Load(addr, destReg))
+    // TODO: pass in size
+    gen(Instr.Load(addr, destReg, Size.B32))
 
   /** Store a value to value stack relative to the stack pointer.
     *

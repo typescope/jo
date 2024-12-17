@@ -19,13 +19,11 @@ trait Assembler:
 object Assembler:
   private val SEG_DATA = "data"
   private val SEG_CODE = "code"
-  private val SEG_HEAP = "heap"
 
   def continuousLayout(orderName: String, baseAddr: Int, align: Int): ELF32.Layout =
     val order =
-      if orderName == "c1" then List(SEG_DATA, SEG_CODE, SEG_HEAP)
-      else if orderName == "c2" then List(SEG_CODE, SEG_HEAP, SEG_DATA)
-      else List(SEG_HEAP, SEG_CODE, SEG_DATA)
+      if orderName == "c1" then List(SEG_DATA, SEG_CODE)
+      else List(SEG_CODE, SEG_DATA)
 
     new ELF32.ContinuousLayout(order, baseAddr, align)
 

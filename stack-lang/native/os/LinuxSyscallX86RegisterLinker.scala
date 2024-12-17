@@ -27,16 +27,16 @@ extends LinuxSyscall(runtimeRootNameTable):
 
     // load argument
     X86.move(Int32(4), X86.EAX)
-    X86.load(Rel(X86.EBP, 8), X86.EBX)
-    X86.load(Rel(X86.EBP, 12), X86.ECX)
-    X86.load(Rel(X86.EBP, 16), X86.EDX)
+    X86.load(Rel(X86.EBP, 8), X86.EBX, Size.B32)
+    X86.load(Rel(X86.EBP, 12), X86.ECX, Size.B32)
+    X86.load(Rel(X86.EBP, 16), X86.EDX, Size.B32)
     X86.int80()
 
     // copy EAX to result location
     X86.store(Reg(X86.EAX), Rel(X86.EBP, -4))
 
     // return to caller
-    X86.load(Reg(X86.EBP), X86.EAX)
+    X86.load(Reg(X86.EBP), X86.EAX, Size.B32)
     X86.jump(Reg(X86.EAX))
 
   /**
@@ -50,7 +50,7 @@ extends LinuxSyscall(runtimeRootNameTable):
 
     // load argument
     X86.move(Int32(1), X86.EAX)
-    X86.load(Rel(X86.EBP, 8), X86.EBX)
+    X86.load(Rel(X86.EBP, 8), X86.EBX, Size.B32)
     X86.int80()
 
     // program exits, no need for return
@@ -66,12 +66,12 @@ extends LinuxSyscall(runtimeRootNameTable):
 
     // load argument
     X86.move(Int32(45), X86.EAX)
-    X86.load(Rel(X86.EBP, 8), X86.EBX)
+    X86.load(Rel(X86.EBP, 8), X86.EBX, Size.B32)
     X86.int80()
 
     // copy EAX to result location
     X86.store(Reg(X86.EAX), Rel(X86.EBP, -4))
 
     // return to caller
-    X86.load(Reg(X86.EBP), X86.EAX)
+    X86.load(Reg(X86.EBP), X86.EAX, Size.B32)
     X86.jump(Reg(X86.EAX))

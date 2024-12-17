@@ -65,11 +65,6 @@ for item in $DIR/tests/pos/*.stk; do
     $exe > $OUT 2>&1
     check $OUT $CHECK
 
-    # layout 3
-    bin/stkc $file -o $exe -p linux-x86-stack -layout c3
-    $exe > $OUT 2>&1
-    check $OUT $CHECK
-
     # fast linux
     bin/stkc $file -o $exe -p linux-x86-reg
     $exe > $OUT 2>&1

@@ -94,8 +94,8 @@ object X86 extends Assembler:
       case Instr.Store(v, addr) =>
         store(v, addr)
 
-      case Instr.Load(addr, destReg) =>
-        load(addr, destReg)
+      case Instr.Load(addr, destReg, size) =>
+        load(addr, destReg, size)
 
       case Instr.Move(v, destReg) =>
         move(v, destReg)
@@ -527,6 +527,11 @@ object X86 extends Assembler:
         pb.addByte(0x8B.toByte)
         pb.addByte((0xC0 | (reg << 3) | rv).toByte)
 
+      case Reg8(rv) =>
+        // 8A /r       MOV r8, r/m8
+        pb.addByte(0x8B.toByte)
+        pb.addByte((0xC0 | (reg << 3) | rv).toByte)
+
       case Int32(v) =>
         // B8+ rd id   MOV r32, imm32
         pb.addByte((0xB8 | reg).toByte)
@@ -538,50 +543,66 @@ object X86 extends Assembler:
           bb.addByte((0xB8 | reg).toByte)
           bb.addInt(loc)
 
-  def load(addr: Addr, destReg: Int)(using pb: PatchableBuffer): Unit =
+  def load(addr: Addr, destReg: Int, size: Size)(using pb: PatchableBuffer): Unit =
     addr match
       case Reg(r) =>
         // See Table 2-2. 32-Bit Addressing Forms with the ModR/M Byte in [1]
 
-        // 8B /r MOV r32, r/m32
+        size match
+          case Size.B8  =>
+            // 8A /r MOV r8, r/m8
+            pb.addByte(0x8A.toByte)
+
+          case Size.B32 =>
+            // 8B /r MOV r32, r/m32
+            pb.addByte(0x8B.toByte)
+
         if r == 4 then // ESP
-          pb.addByte(0x8B.toByte)
           pb.addByte(((destReg << 3) | r).toByte)
           pb.addByte(0x24)
         else if r == 5 then // EBP
-          pb.addByte(0x8B.toByte)
           pb.addByte((0x40 | (destReg << 3) | r).toByte)
           pb.addByte(0)
         else
-          pb.addByte(0x8B.toByte)
           pb.addByte(((destReg << 3) | r).toByte)
 
       case Rel(r, 0) =>
-        load(Reg(r), destReg)
+        load(Reg(r), destReg, size)
 
       case Rel(r, offset) =>
         // See Table 2-2. 32-Bit Addressing Forms with the ModR/M Byte in [1]
 
-        if offset > 127 || offset < -128 then
-          // TODO use scale index
-          if r != destReg then
-            move(Reg(r), destReg)
-          add(destReg, Int32(offset))
-          load(Reg(destReg), destReg)
-        else if r == 4 then // ESP
-          pb.addByte(0x8B.toByte)
-          pb.addByte((0x40 | (destReg << 3) | r).toByte)
+        size match
+          case Size.B8  =>
+            // 8A /r MOV r8, r/m8
+            pb.addByte(0x8A.toByte)
+
+          case Size.B32 =>
+            // 8B /r MOV r32, r/m32
+            pb.addByte(0x8B.toByte)
+
+        if r == 4 then // ESP
+          pb.addByte((0x80 | (destReg << 3) | r).toByte)
           pb.addByte(0x24)
-          pb.addByte(offset.toByte)
+          pb.addInt(offset)
         else
-          pb.addByte(0x8B.toByte)
-          pb.addByte((0x40 | (destReg << 3) | r).toByte)
-          pb.addByte(offset.toByte)
+          pb.addByte((0x80 | (destReg << 3) | r).toByte)
+          pb.addInt(offset)
 
       case l: Label =>
         withPatch(l, 6): (bb, loc) =>
+          // 8A /r  MOV r8, r/m8
           // 8B /r  MOV r32, r/m32
-          bb.addByte(0x8B.toByte)
+
+          size match
+            case Size.B8  =>
+              // 8A /r MOV r8, r/m8
+              bb.addByte(0x8A.toByte)
+
+            case Size.B32 =>
+              // 8B /r MOV r32, r/m32
+              bb.addByte(0x8B.toByte)
+
           bb.addByte(((destReg << 3) | 5).toByte)
           bb.addInt(loc)
 
@@ -640,72 +661,79 @@ object X86 extends Assembler:
               pb.addByte(0x89.toByte)
               pb.addByte(((rv << 3) | rd).toByte)
 
+          case Reg8(rv) =>
+            // 88 /r     MOV r/m8, r8
+            if rd == 4 then // esp
+              pb.addByte(0x88.toByte)
+              pb.addByte(((rv << 3) | 4).toByte)
+              pb.addByte(0x24)
+            else if rd == 5 then // ebp
+              pb.addByte(0x88.toByte)
+              pb.addByte((0x40 | (rv << 3) | rd).toByte)
+              pb.addByte(0)
+            else
+              pb.addByte(0x88.toByte)
+              pb.addByte(((rv << 3) | rd).toByte)
+
       case Rel(rd, 0) =>
         store(v, Reg(rd))
 
       case Rel(rd, offset) =>
         v match
           case l: Label =>
-            if offset > 127 || offset < -128 then
-              // TODO use scale index
-              add(rd, Int32(offset))
-              store(l, Reg(rd))
-              sub(rd, Int32(offset))
 
             // C7 /0 id    MOV r/m32, imm32
-            else if rd == 4 then // ESP
-              withPatch(l, 8): (bb, loc) =>
+            if rd == 4 then // ESP
+              withPatch(l, 11): (bb, loc) =>
                 bb.addByte(0xC7.toByte)
-                bb.addByte(0x44)
-                bb.addByte(0x24)
-                bb.addByte(offset.toByte)
+                bb.addByte(0x84.toByte) // disp32
+                bb.addByte(0x24.toByte) // [EBP]
+                bb.addInt(offset)
                 bb.addInt(loc)
             else
-              withPatch(l, 7): (bb, loc) =>
+              withPatch(l, 10): (bb, loc) =>
                 bb.addByte(0xC7.toByte)
-                bb.addByte((0x40 | rd).toByte)
-                bb.addByte(offset.toByte)
+                bb.addByte((0x80 | rd).toByte)
+                bb.addInt(offset)
                 bb.addInt(loc)
 
           case Int32(v) =>
-            if offset > 127 || offset < -128 then
-              // TODO use scale index
-              add(rd, Int32(offset))
-              store(Int32(v), Reg(rd))
-              sub(rd, Int32(offset))
-
             // C7 /0 id    MOV r/m32, imm32
-            else if rd == 4 then // ESP
+            if rd == 4 then // ESP
               pb.addByte(0xC7.toByte)
-              pb.addByte(0x44)
-              pb.addByte(0x24)
-              pb.addByte(offset.toByte)
+              pb.addByte(0x84.toByte) // disp32
+              pb.addByte(0x24) // [EBP]
+              pb.addInt(offset)
               pb.addInt(v)
             else
               pb.addByte(0xC7.toByte)
-              pb.addByte((0x40 | rd).toByte)
-              pb.addByte(offset.toByte)
+              pb.addByte((0x80 | rd).toByte)
+              pb.addInt(offset)
               pb.addInt(v)
 
           case Reg(rv) =>
-            if offset > 127 || offset < -128 then
-              // TODO use scale index
-              if rv == rd then
-                throw new Exception(s"Not supported, offset = $offset, rd = $rd, rv = $rv")
-              add(rd, Int32(offset))
-              store(v, Reg(rd))
-              sub(rd, Int32(offset))
-
             // 89 /r     MOV r/m32, r32
-            else if rd == 4 then // ESP
+            if rd == 4 then // ESP
               pb.addByte(0x89.toByte)
-              pb.addByte((0x40 | (rv << 3) | 4).toByte)
-              pb.addByte(0x24)
-              pb.addByte(offset.toByte)
+              pb.addByte((0x80 | (rv << 3) | 4).toByte) // disp32
+              pb.addByte(0x24) // [EBP]
+              pb.addInt(offset)
             else
               pb.addByte(0x89.toByte)
-              pb.addByte((0x40 | (rv << 3) | rd).toByte)
-              pb.addByte(offset.toByte)
+              pb.addByte((0x80 | (rv << 3) | rd).toByte)  // disp32
+              pb.addInt(offset)
+
+          case Reg8(rv) =>
+            // 88 /r     MOV r/m8, r8
+            if rd == 4 then // ESP
+              pb.addByte(0x88.toByte)
+              pb.addByte((0x80 | (rv << 3) | 4).toByte) // disp32
+              pb.addByte(0x24) // [EBP]
+              pb.addInt(offset)
+            else
+              pb.addByte(0x88.toByte)
+              pb.addByte((0x80 | (rv << 3) | rd).toByte)  // disp32
+              pb.addInt(offset)
 
       case l: Label =>
         v match
@@ -759,9 +787,15 @@ object X86 extends Assembler:
             // 89 /r     MOV r/m32, r32
             withPatch(l, 6): (bb, loc) =>
               bb.addByte(0x89.toByte)
-              bb.addByte(((rv << 3) | 5).toByte)
+              bb.addByte(((rv << 3) | 5).toByte) // disp32
               bb.addInt(loc)
 
+          case Reg8(rv) =>
+            // 88 /r     MOV r/m8, r8
+            withPatch(l, 6): (bb, loc) =>
+              bb.addByte(0x88.toByte)
+              bb.addByte(((rv << 3) | 5).toByte)  // disp32
+              bb.addInt(loc)
 
   def jump(addr: Addr)(using pb: PatchableBuffer): Unit =
     addr match
