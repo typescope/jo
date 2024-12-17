@@ -119,14 +119,14 @@ extends Backend(runtime, main):
       val target = if ifword.elsep.isEmpty then labelEnd else labelFalse
       cb.add(Instr.JZero(Reg(r), target))
 
-      compile(ifword.thenp)
+    compile(ifword.thenp)
 
-      if !ifword.elsep.isEmpty then
-        cb.add(Instr.Jump(labelEnd))
-        cb.mark(labelFalse)
-        compile(ifword.elsep)
+    if !ifword.elsep.isEmpty then
+      cb.add(Instr.Jump(labelEnd))
+      cb.mark(labelFalse)
+      compile(ifword.elsep)
 
-      cb.mark(labelEnd)
+    cb.mark(labelEnd)
 
   def compile(whileDo: While)(using addr: LocalAddr, cb: CodeBuffer): Unit =
     val labelBegin = Label("_whileBegin")
