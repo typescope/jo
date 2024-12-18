@@ -12,13 +12,11 @@ import native.Assembler.PatchableBuffer
   */
 class NativeRuntime(runtimeRootNameTable: NameTable, linkers: List[Linker])
 extends Linker:
+  import runtimeRootNameTable.resolvePath
 
   val defn = Definitions.instance
 
-  def resolveNamespace(path: String): Symbol =
-    NameTable.resolvePath(runtimeRootNameTable, path, isType = false)
-
-  val Core = resolveNamespace("stk.runtime.native.Core")
+  val Core = resolvePath("stk.runtime.native.Core")
 
   val Core_alloc = Core.termMember("alloc")
 

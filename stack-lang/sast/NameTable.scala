@@ -29,6 +29,9 @@ class NameTable(
     val table = getTable(isType)
     table.get(name)
 
+  def resolvePath(path: String) =
+    NameTable.resolvePath(this, path, isType = false)
+
   def define(sym: Symbol)(using rp: Reporter): Unit =
     val table = getTable(sym.isType)
     table.get(sym.name) match
@@ -42,7 +45,9 @@ class NameTable(
 
 object NameTable:
   def resolvePath(nameTable: NameTable, path: String, isType: Boolean): Symbol =
-    resolvePath(nameTable, path.split("\\.").toList, isType).get
+    resolvePath(nameTable, path.split("\\.").toList, isType) match
+      case Some(sym) => sym
+      case None => throw new Exception("Not found: " + path)
 
   private def resolvePath(nameTable: NameTable, parts: List[String], isType: Boolean): Option[Symbol] =
     (parts: @unchecked) match

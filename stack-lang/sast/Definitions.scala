@@ -1,15 +1,13 @@
 package sast
 
-import Symbols.*
 import Types.*
 
 import common.Dynamic
 
-class Definitions(val rootNameTable: NameTable):
-  def resolveNamespace(path: String): Symbol =
-    NameTable.resolvePath(rootNameTable, path, isType = false)
+class Definitions(rootNameTable: NameTable):
+  import rootNameTable.resolvePath
 
-  val Predef =  resolveNamespace("stk.Predef")
+  val Predef =  resolvePath("stk.Predef")
   val Predef_nameTable = Predef.info.as[NamespaceInfo].nameTable
 
   // primitive terms without implementation in source code
