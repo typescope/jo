@@ -15,6 +15,15 @@ check() {
     diff $1 $2 || error
 }
 
+# check that scripts work
+bin/parse tests/pos/fact.stk
+bin/type  tests/pos/fact.stk
+bin/eval  tests/pos/fact.stk
+bin/jsc   tests/pos/fact.stk
+bin/smc   tests/pos/fact.stk
+# bin/rmc   tests/pos/fact.stk
+
+
 for item in $DIR/tests/pos/*.stk; do
 
     if [[ $item == *.ignore ]]; then
@@ -48,10 +57,7 @@ for item in $DIR/tests/pos/*.stk; do
         touch "$CHECK"
     fi
 
-    # check
-    bin/parse $file > /dev/null 2>&1
-    bin/type $file > /dev/null 2>&1
-
+    echo "  - eval"
     bin/eval $file > $OUT 2>&1
     check $OUT $CHECK
 
@@ -60,22 +66,26 @@ for item in $DIR/tests/pos/*.stk; do
     # check $RES1 $RES2
 
     # # layout 1
+    echo "  - smc layout c1"
     bin/smc $file -o $exe -layout c1
     $exe > $OUT 2>&1
     check $OUT $CHECK
 
     # layout 2
+    echo "  - smc layout c2"
     bin/smc $file -o $exe -layout c2
     $exe > $OUT 2>&1
     check $OUT $CHECK
 
     # TODO fast linux
+    # echo "  - rmc"
     # bin/rmc $file -o $exe -p linux-x86-reg
     # $exe > $OUT 2>&1
     # check $OUT $CHECK
 
     # JavaScript
-    bin/jsc $file -o $js -p js
+    echo "  - jsc"
+    bin/jsc $file -o $js
     node $js > $OUT 2>&1
     check $OUT $CHECK
 done
