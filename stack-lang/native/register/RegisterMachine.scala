@@ -12,6 +12,11 @@ import native.NativeRuntime
 import native.Assembly
 import native.Assembly.{ Type => _, * }
 
+import native.cpu.X86
+import native.os.Linux
+import native.os.LinuxBumpAllocator
+import native.os.LinuxSyscallX86RegisterLinker
+
 import PreAssembly.*
 import CallConvention.*
 import RegisterMachine.*
@@ -577,3 +582,20 @@ object RegisterMachine:
     val generator = new VirtualRegGenerator
     val buffer = new PreAssembly.ItemBuffer
     FunctionContext(fun, vs, generator, buffer, localsMap)
+
+  /**
+    * Create a new x86 register machine
+    */
+  def createLinux86(runtimeRootNameTable: NameTable, main: Symbol): Backend =
+    val bumpAllocator = new LinuxBumpAllocator(runtimeRootNameTable)
+    val syscalls = new LinuxSyscallX86RegisterLinker(runtimeRootNameTable)
+    val linkers = List(bumpAllocator, syscalls)
+    val runtime = new NativeRuntime(runtimeRootNameTable, linkers)
+
+    val paramRegs: List[Int] = List(X86.EAX, X86.EBX, X86.ECX, X86.EDX)
+    val callConv =
+      new CallConvention.RegisterCallConvention(Linux.x86RegConfig, paramRegs)
+
+    new RegisterMachine(Linux.x86RegConfig, callConv, runtime, main)
+
+  def main(args: Array[String]): Unit = native.Compiler.compile(createLinux86, args)

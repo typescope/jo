@@ -19,89 +19,76 @@ import native.cpu.X86
  * Main entry point for the compiler
  *
  ***********************************************************************/
+object Compiler:
+  type BackendBuilder = (NameTable, Symbol) => Backend
 
-def createBackend(options: Map[String, String], runtimeNameTable: NameTable, main: Symbol): Backend =
-  options.get("-p") match
-    case Some(pf) =>
-      if pf == "linux-x86-stack" then
-        Linux.createX86StackMachine(runtimeNameTable, main)
-
-      else if pf == "linux-x86-reg" then
-        Linux.createX86RegisterMachine(runtimeNameTable, main)
-
-      else
-        throw new Exception("Unknow platform: " + pf)
-
-    case None =>
-      Linux.createX86RegisterMachine(runtimeNameTable, main)
-
-@main
-def compile(args: String*): Unit =
   val optionSpec = Map(
     "-o" -> true,
-    "-p" -> true,
     "-layout" -> true,
   )
 
-  val (options, rest) = IO.parseOptions(args, optionSpec)
+  def compile(backendBuilder: BackendBuilder, args: Array[String]): Unit =
 
-  if rest.isEmpty then
-    println("Expect source file as input")
-    return
+    val (options, rest) = IO.parseOptions(args, optionSpec)
 
-  val sourceFiles = rest
+    if rest.isEmpty then
+      println("Expect source file as input")
+      return
 
-  val outFile =
-    options.get("-o") match
-      case Some(file) => file
-      case None =>
-        if sourceFiles.size == 1 then
-          IO.fileNameNoExt(sourceFiles.head)
-        else
-          "out"
+    val sourceFiles = rest
 
-  val layout = options.getOrElse("-layout", "c1")
+    val outFile =
+      options.get("-o") match
+        case Some(file) => file
+        case None =>
+          if sourceFiles.size == 1 then
+            IO.fileNameNoExt(sourceFiles.head)
+          else
+            "out"
 
-  val rootNameTable = new NameTable
-  val runtimeNameTable = new NameTable
-  val stdlib = "lib/Predef.stk" :: Nil
-  val runtime = List(
-    "runtime/native/Core.stk",
-    "runtime/native/Syscall.stk",
-    "runtime/native/BumpAllocator.stk",
-  )
+    val layout = options.getOrElse("-layout", "c1")
 
-  Reporter.monitor:
-    val typeCheck = (nss: List[Ast.Namespace]) =>
-      Namer.transform(nss, stdlib, runtime, rootNameTable, runtimeNameTable)
+    val rootNameTable = new NameTable
+    val runtimeNameTable = new NameTable
+    val stdlib = "lib/Predef.stk" :: Nil
+    val runtime = List(
+      "runtime/native/Core.stk",
+      "runtime/native/Syscall.stk",
+      "runtime/native/BumpAllocator.stk",
+    )
 
-    val namespacesSAST =
-      Parser.parse(sourceFiles)     |>
-      typeCheck                     |+
-      Printing.peek(enable = false)
+    Reporter.monitor:
+      val typeCheck = (nss: List[Ast.Namespace]) =>
+        Namer.transform(nss, stdlib, runtime, rootNameTable, runtimeNameTable)
+
+      val namespacesSAST =
+        Parser.parse(sourceFiles)     |>
+        typeCheck                     |+
+        Printing.peek(enable = false)
 
 
-    val mains = namespacesSAST.collect:
-      case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get
+      val mains = namespacesSAST.collect:
+        case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get
 
-    mains match
-      case main :: Nil =>
-        val backend = createBackend(options, runtimeNameTable, main)
+      mains match
+        case main :: Nil =>
+          val backend = backendBuilder(runtimeNameTable, main)
 
-        val assembler = (prog: Prog) =>
-          Linux.lower(prog, layout, outFile, X86, backend.runtime)
+          val assembler = (prog: Prog) =>
+            Linux.lower(prog, layout, outFile, X86, backend.runtime)
 
-        namespacesSAST                |>
-        Printing.peek(enable = false) |>
-        new ExplicitInit().transform  |+
-        Printing.peek(enable = false) |>
-        ElimCapture.transform         |+
-        Printing.peek(enable = false) |>
-        backend.compile               |>
-        assembler
+          namespacesSAST                |>
+          Printing.peek(enable = false) |>
+          new ExplicitInit().transform  |+
+          Printing.peek(enable = false) |>
+          ElimCapture.transform         |+
+          Printing.peek(enable = false) |>
+          backend.compile               |>
+          assembler
 
-      case _ =>
-        if mains.isEmpty then
-          Reporter.abortInternal("No main function found")
-        else
-          Reporter.abortInternal("Multiple main function detected: " + mains)
+        case _ =>
+          if mains.isEmpty then
+            Reporter.abortInternal("No main function found")
+          else
+            Reporter.abortInternal("Multiple main function detected: " + mains)
+      end match

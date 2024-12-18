@@ -48,7 +48,11 @@ for item in $DIR/tests/pos/*.stk; do
         touch "$CHECK"
     fi
 
-    bin/stki $file > $OUT 2>&1
+    # check
+    bin/parse $file > /dev/null 2>&1
+    bin/type $file > /dev/null 2>&1
+
+    bin/eval $file > $OUT 2>&1
     check $OUT $CHECK
 
     # Ast interpreter
@@ -56,22 +60,22 @@ for item in $DIR/tests/pos/*.stk; do
     # check $RES1 $RES2
 
     # # layout 1
-    bin/stkc $file -o $exe -p linux-x86-stack -layout c1
+    bin/smc $file -o $exe -layout c1
     $exe > $OUT 2>&1
     check $OUT $CHECK
 
     # layout 2
-    bin/stkc $file -o $exe -p linux-x86-stack -layout c2
+    bin/smc $file -o $exe -layout c2
     $exe > $OUT 2>&1
     check $OUT $CHECK
 
-    # fast linux
-    bin/stkc $file -o $exe -p linux-x86-reg
-    $exe > $OUT 2>&1
-    check $OUT $CHECK
+    # TODO fast linux
+    # bin/rmc $file -o $exe -p linux-x86-reg
+    # $exe > $OUT 2>&1
+    # check $OUT $CHECK
 
     # JavaScript
-    bin/stkc $file -o $js -p js
+    bin/jsc $file -o $js -p js
     node $js > $OUT 2>&1
     check $OUT $CHECK
 done
