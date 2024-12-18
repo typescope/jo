@@ -25,6 +25,7 @@ extends Linker:
     pb.defineLabel(allocatorStateLabel)
     pb.align(4)
     pb.addInt(0)
+    pb.addInt(0)
 
   def linkCode()(using pb: PatchableBuffer): Unit = ()
 

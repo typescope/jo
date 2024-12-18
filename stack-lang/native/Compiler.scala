@@ -96,7 +96,7 @@ def compile(args: String*): Unit =
         new ExplicitInit().transform  |+
         Printing.peek(enable = false) |>
         ElimCapture.transform         |+
-        Printing.peek(enable = true)  |>
+        Printing.peek(enable = false) |>
         backend.compile               |>
         assembler
 

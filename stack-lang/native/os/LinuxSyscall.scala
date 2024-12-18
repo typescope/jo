@@ -10,13 +10,13 @@ import native.Linker
 abstract class LinuxSyscall(runtimeRootNameTable: NameTable) extends Linker:
   import runtimeRootNameTable.resolvePath
 
-  val sys_exit_label = Label("__sys_exit")
+  val sys_exit_label  = Label("__sys_exit")
   val sys_write_label = Label("__sys_write")
-  val sys_brk_label = Label("__sys_brk")
+  val sys_brk_label   = Label("__sys_brk")
 
   val Syscall = resolvePath("stk.runtime.native.Syscall")
-  val Syscall_sys_brk = Syscall.termMember("sys_brk")
-  val Syscall_sys_exit = Syscall.termMember("sys_exit")
+  val Syscall_sys_brk   = Syscall.termMember("sys_brk")
+  val Syscall_sys_exit  = Syscall.termMember("sys_exit")
   val Syscall_sys_write = Syscall.termMember("sys_write")
 
   def linkData()(using pb: PatchableBuffer): Unit = ()

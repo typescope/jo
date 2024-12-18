@@ -27,9 +27,9 @@ extends LinuxSyscall(runtimeRootNameTable):
 
     // load argument
     X86.move(Int32(4), X86.EAX)
-    X86.load(Rel(X86.EBP, 8), X86.EBX, Size.B32)
+    X86.load(Rel(X86.EBP, 16), X86.EBX, Size.B32)
     X86.load(Rel(X86.EBP, 12), X86.ECX, Size.B32)
-    X86.load(Rel(X86.EBP, 16), X86.EDX, Size.B32)
+    X86.load(Rel(X86.EBP, 8), X86.EDX, Size.B32)
     X86.int80()
 
     // copy EAX to result location
