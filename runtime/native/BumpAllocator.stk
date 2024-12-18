@@ -18,25 +18,26 @@ fun alloc(size: Int): Any =
 
   // TODO: use stk syntax once record can be mutable
   var freeFrom = Core.readInt data
-  var freeUntil = Core.readInt (Core.addAddr data 4)
+  val lastFreeUntil = Core.readInt (Core.addAddr data 4)
 
-  if freeFrom + size > freeUntil then
-     freeFrom = Syscall.sys_brk 1024
-     if freeFrom == -1 then
+  if freeFrom + size > lastFreeUntil then
+     val newFreeUntil = Syscall.sys_brk (lastFreeUntil + 4096)
+     if newFreeUntil == -1 then
        abort("Unable to alloc memory from system")
 
-     freeUntil = freeFrom + 1024
+     // avoid allocating at page boundary
+     freeFrom = lastFreeUntil
 
      // update data
      // TODO: use stk syntax once record can be mutable
-     Core.writeInt (Core.addAddr data 4) freeUntil
+     Core.writeInt (Core.addAddr data 4) newFreeUntil
 
   val res = freeFrom
 
-  freeFrom = freeFrom + size
+  val newFreeFrom = freeFrom + size
 
   // update data
   // TODO: use stk syntax once record can be mutable
-  Core.writeInt data freeFrom
+  Core.writeInt data newFreeFrom
 
   res
