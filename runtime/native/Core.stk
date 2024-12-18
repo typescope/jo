@@ -52,8 +52,8 @@ fun int2String(n: Int): String =
       writeByte (addAddr buf index) 45 // '-' = 45
       index = index - 1
 
-    val startIndex = index - 1
-    val len = 10 - index + (if negative then 1 else 0)
+    val startIndex = index + 1
+    val len = 14 - index
     var freeFrom = 4
 
     // adapt to string format
@@ -123,7 +123,6 @@ fun pInt(n: Int): Void =
     pDigit(r7 / 100)
     pDigit(r8 / 10)
     pDigit(r9)
-    print "\n"
 
 fun xDigit(n: Int): Void =
   if n == 0 then print "0"

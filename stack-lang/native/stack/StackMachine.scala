@@ -393,7 +393,7 @@ extends Backend(runtime, main):
         useReg: r =>
           pop(r, Size.B32)
           cb.add(Instr.Load(Reg(r), r, Size.B8))
-          push(Reg8(r))
+          push(Reg(r))
 
       case _ => call(sym)
 
@@ -462,7 +462,6 @@ object StackMachine:
       *
       * The allocated register will be released after the function return.
       *
-      * TODO: spilling if no temp registers are available?
       */
     def useReg(fn: Int => Unit): Unit =
       if freeIndex >= freeRegs.size then
