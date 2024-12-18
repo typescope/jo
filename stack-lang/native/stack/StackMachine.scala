@@ -249,16 +249,17 @@ extends Backend(runtime, main):
 
   /** Compile a reference */
   def compile(ref: Ident)(using addr: LocalAddr, cb: CodeBuffer): Unit =
-    val loc =
-      if ref.symbol.isLocal then addr(ref.symbol)
-      else getAddress(ref.symbol)
-
     if ref.symbol.isValue then
+      val loc =
+        if ref.symbol.isLocal then addr(ref.symbol)
+        else getAddress(ref.symbol)
+
       useReg: r =>
         cb.add(Instr.Load(loc, r, Size.B32))
         push(Reg(r))
     else
-      push(addr.asInstanceOf[Value])
+      val label = getAddress(ref.symbol)
+      push(label)
 
   /** Compile function call */
   def compile(app: Apply)(using LocalAddr, CodeBuffer): Unit =
