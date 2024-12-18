@@ -76,7 +76,7 @@ fun print(s: String): Void =
   val addr = s cast[Addr]
   val len = readInt addr
   val contentAddr = addAddr addr 4
-  Syscall.sys_write 0 contentAddr len
+  Syscall.sys_write 1 contentAddr len
 
 fun finish: Void =
   Syscall.sys_exit 0
