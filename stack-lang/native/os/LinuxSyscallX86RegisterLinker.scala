@@ -76,6 +76,6 @@ extends LinuxSyscall(runtimeRootNameTable):
     // restore callee-saved registers -- in reverse order
     X86.pop(X86.EBX)
 
-    // return to caller
-    X86.load(Reg(X86.EBP), X86.EBX, Size.B32)
-    X86.jump(Reg(X86.EBX))
+    // return to caller --- ESP is not used anymore
+    X86.load(Reg(X86.EBP), X86.ESP, Size.B32)
+    X86.jump(Reg(X86.ESP))

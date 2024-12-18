@@ -55,6 +55,7 @@ abstract class Backend(
     val entryLabel = Label("_entry")
     given cb: CodeBuffer = new CodeBuffer(entryLabel)
 
+    // All hand-coded calls must be registered explicitly
     workList.add(main)
     workList.add(runtime.Core_finish)
     for init <- runtime.inits() do workList.add(init)

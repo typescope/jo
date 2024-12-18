@@ -459,14 +459,44 @@ extends Backend(runtime, main):
       case _                  =>   call(sym)
   end callPredef
 
-  def callCore(sym: Symbol)(using Context): Unit =
+  def callCore(sym: Symbol)(using ctx: Context): Unit =
     sym match
-      case runtime.Core_addAddr   => ???
-      case runtime.Core_writeInt  => ???
-      case runtime.Core_readInt   => ???
-      case runtime.Core_writeByte => ???
-      case runtime.Core_readByte  => ???
-      case _                      => call(sym)
+      case runtime.Core_addAddr   => int2(Instr.Add)
+
+      case runtime.Core_writeInt  =>
+        val v = ctx.vs.pop()
+        val Reg(addr) = ctx.vs.pop(): @unchecked
+        gen(Instr.Store(v, Reg(addr)))
+
+      case runtime.Core_readInt   =>
+        val Reg(reg) = ctx.vs.pop(): @unchecked
+        gen(Instr.Load(Reg(reg), reg, Size.B32))
+        ctx.vs.push(Reg(reg))
+
+      case runtime.Core_writeByte =>
+        val v = ctx.vs.pop()
+        val Reg(addr) = ctx.vs.pop(): @unchecked
+
+        val reg8 =
+          v match
+            case Int32(n) =>
+              assert(n >= 0 && n < 256, "overflow for writeByte: " + n)
+              val reg = freshVirtualReg()
+              gen(Instr.Move(v, reg))
+              Reg8(reg)
+
+            case Reg(reg) =>
+              Reg8(reg)
+          end match
+
+        gen(Instr.Store(reg8, Reg(addr)))
+
+      case runtime.Core_readByte  =>
+        val Reg(reg) = ctx.vs.pop(): @unchecked
+        gen(Instr.Load(Reg(reg), reg, Size.B8))
+        ctx.vs.push(Reg(reg))
+
+      case _ => call(sym)
 
   /** Load a value relative to the stack pointer.
     *
