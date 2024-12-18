@@ -32,6 +32,7 @@ fun int2String(n: Int): String =
   // MAX_VALUE =  2147483647
   // MIN_VALUE = -2147483648
   if n == 0 then "0"
+  else if n == -2147483648 then "-2147483648" // its negation is still negative
   else
     // memory allocator will handle alignment
     val buf = alloc 15 // max 11 + 4-byte head for length
