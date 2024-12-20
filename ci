@@ -67,19 +67,19 @@ for item in $DIR/tests/pos/*.stk; do
 
     # # layout 1
     echo "  - smc layout c1"
-    bin/smc $file -o $exe -layout c1
+    bin/stac $file -o $exe -layout c1
     $exe > $OUT 2>&1
     check $OUT $CHECK
 
     # layout 2
     echo "  - smc layout c2"
-    bin/smc $file -o $exe -layout c2
+    bin/stac $file -o $exe -layout c2
     $exe > $OUT 2>&1
     check $OUT $CHECK
 
     # TODO fast linux
     # echo "  - rmc"
-    # bin/rmc $file -o $exe -p linux-x86-reg
+    # bin/regc $file -o $exe
     # $exe > $OUT 2>&1
     # check $OUT $CHECK
 
