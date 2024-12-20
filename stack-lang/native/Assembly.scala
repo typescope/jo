@@ -93,7 +93,7 @@ object Assembly:
     case Uninit(label: Label, tp: Type)
 
   case class Prog(data: List[Data], instrs: List[Instr | Label], entry: Label):
-    def show() =
+    def show =
       val sb = new StringBuilder
 
       for item <- data do

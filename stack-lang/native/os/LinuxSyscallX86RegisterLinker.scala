@@ -34,7 +34,7 @@ extends LinuxSyscall(runtimeRootNameTable):
     // result of syscall in EAX
 
     // restore callee-saved reg
-    X86.push(X86.EDX)
+    X86.pop(X86.EDX)
 
     // return to caller
     X86.load(Reg(X86.EBP), X86.EBX, Size.B32)

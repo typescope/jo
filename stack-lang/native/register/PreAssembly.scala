@@ -64,6 +64,7 @@ object PreAssembly:
     def gen(label: Label): Unit = code.addOne(label)
     def getResult(): List[Item] = code.toList
     def clear(): Unit = code.clear()
+    def show: String = code.map("\t" + _.toString).mkString("\n")
 
   /**
     * A virtual register generator.
@@ -151,6 +152,7 @@ object PreAssembly:
     def subst(value: Addr | Value): Addr | Value =
       value match
         case Reg(r) => Reg(substReg(r))
+        case Reg8(r) => Reg8(substReg(r))
         case Rel(r, offset) => Rel(substReg(r), offset)
         case _ =>  value
 
@@ -217,6 +219,7 @@ object PreAssembly:
     def subst(value: Addr | Value): Addr | Value =
       value match
         case Reg(r) => Reg(substReg(r))
+        case Reg8(r) => Reg8(substReg(r))
         case Rel(r, offset) => Rel(substReg(r), offset)
         case _ =>  value
 

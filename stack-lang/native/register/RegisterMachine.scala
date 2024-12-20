@@ -475,8 +475,9 @@ extends Backend(runtime, main):
 
       case runtime.Core_readInt   =>
         val Reg(reg) = ctx.vs.pop(): @unchecked
-        gen(Instr.Load(Reg(reg), reg, Size.B32))
-        ctx.vs.push(Reg(reg))
+        val regResult = freshVirtualReg()
+        gen(Instr.Load(Reg(reg), regResult, Size.B32))
+        ctx.vs.push(Reg(regResult))
 
       case runtime.Core_writeByte =>
         val v = ctx.vs.pop()
