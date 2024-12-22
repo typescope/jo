@@ -32,8 +32,7 @@ object Liveness:
       predecessorMap.keys.toSeq.sorted.map(k => s"$k -> " + predecessorMap(k)).mkString("\n")
 
 
-  type WorkList = mutable.ArrayDeque[WorkItem]
-  case class WorkItem(index: Int, succLiveSet: LiveSet)
+  case class WorkItem(index: Int, succInLiveSet: LiveSet)
 
   case class Result(liveSets: Map[Int, LiveSet], moves: Map[Int, Set[Int]], instrs: Seq[PreInstr]):
     override def toString() =
@@ -41,38 +40,41 @@ object Liveness:
 
   def analyze(items: Seq[PreAssembly.Item]): Result =
     val workList = mutable.ArrayDeque.empty[WorkItem]
-    val codeInfo = collectCodeInfo(items, workList)
+    val codeInfo = collectCodeInfo(items)
     val result = mutable.Map.empty[Int, LiveSet]
 
     // println(codeInfo)
 
+    assert(codeInfo.instrs.last.isInstanceOf[PreInstr.Return], "last instr is not return")
+    workList += WorkItem(codeInfo.instrs.size - 1, Set.empty)
+
     while workList.nonEmpty do
-      val WorkItem(loc, succLiveSet) = workList.removeLast()
+      val WorkItem(loc, succInLiveSet) = workList.removeLast()
       val RegInfo(defs, uses) = codeInfo.instrs(loc).regInfo
       // println(s"$index info: defs = $defs, uses = $uses")
 
-      val oldPosLiveSet = result.getOrElse(loc, Set.empty)
-      val newPosLiveSet = oldPosLiveSet.union(succLiveSet)
+      val oldOutLiveSet = result.getOrElse(loc, Set.empty)
+      val newOutLiveSet = oldOutLiveSet.union(succInLiveSet)
       // predLiveSet cannot change if newPosLiveSet is the same
-      if !result.contains(loc) || newPosLiveSet != oldPosLiveSet then
-        result(loc) = newPosLiveSet
-        val predLiveSet = (newPosLiveSet -- defs) ++ uses
+      if !result.contains(loc) || newOutLiveSet != oldOutLiveSet then
+        result(loc) = newOutLiveSet
+        val curInLiveSet = (newOutLiveSet -- defs) ++ uses
         for pred <- codeInfo.predecessors(loc) do
           // println(s"$index -> $pred: $predLiveSet")
-          workList += WorkItem(pred, predLiveSet)
+          workList += WorkItem(pred, curInLiveSet)
     end while
 
     Result(result.toMap, codeInfo.moves, codeInfo.instrs)
 
   /** Collect code info and initialize work list for each instruction. */
-  def collectCodeInfo(items: Seq[PreAssembly.Item], workList: WorkList): CodeInfo =
-    val labelInfo = mutable.Map.empty[Label, Int]
+  def collectCodeInfo(items: Seq[PreAssembly.Item]): CodeInfo =
+    val labelAddr = mutable.Map.empty[Label, Int]
 
     val instrs = new mutable.ArrayBuffer[PreInstr]
     for item <- items do
       item match
         case label: Label =>
-          labelInfo(label) = instrs.size
+          labelAddr(label) = instrs.size
 
         case instr: PreInstr =>
           instrs += instr
@@ -88,7 +90,6 @@ object Liveness:
     val size = instrs.size
     while index < size do
       val preInstr = instrs(index)
-      workList += WorkItem(index, Set.empty)
 
       preInstr match
         case PreInstr.Call(_, _, _) | _: PreInstr.Return =>
@@ -104,10 +105,10 @@ object Liveness:
               throw new Exception("Unexpected instruction " + instr)
 
             case Jump(label: Label) =>
-              jumpTargets(index) = labelInfo(label)
+              jumpTargets(index) = labelAddr(label)
 
             case JZero(_, label: Label) =>
-              jumpTargets(index) = labelInfo(label)
+              jumpTargets(index) = labelAddr(label)
 
             case _ =>
       end match
