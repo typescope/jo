@@ -311,8 +311,11 @@ object X86 extends Assembler:
           push(EAX)
           move(Reg(reg), EAX)
 
-        push(EDX)
+        if reg != EDX then
+          push(EDX)
+
         move(Int32(0), EDX)
+
         push(ECX) // to store divisor
         move(v, ECX)
 
@@ -320,7 +323,9 @@ object X86 extends Assembler:
         pb.addByte((0xC0 | (7 << 3) | ECX).toByte)
 
         pop(ECX)
-        pop(EDX)
+
+        if reg != EDX then
+          pop(EDX)
 
         if reg != EAX then
           move(Reg(EAX), reg)
@@ -403,17 +408,22 @@ object X86 extends Assembler:
           push(EAX)
           move(Reg(reg), EAX)
 
-        push(EDX)
+        if reg != EDX then
+          push(EDX)
+
         move(Int32(0), EDX)
+
         push(ECX) // to store divisor
         move(v, ECX)
 
         pb.addByte(0xF7.toByte)
         pb.addByte((0xC0 | (7 << 3) | ECX).toByte)
 
-        move(Reg(EDX), reg)
         pop(ECX)
-        pop(EDX)
+
+        if reg != EDX then
+          move(Reg(EDX), reg)
+          pop(EDX)
 
         if reg != EAX then
           pop(EAX)
