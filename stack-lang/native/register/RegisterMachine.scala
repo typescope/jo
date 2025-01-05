@@ -31,6 +31,7 @@ class RegisterMachine(
   registerConfig: RegisterConfig,
   callConvention: CallConvention,
   runtime: NativeRuntime,
+  rules: GraphColoring.PlatformRules,
   main: Symbol)
 extends Backend(runtime, main):
 
@@ -148,10 +149,15 @@ extends Backend(runtime, main):
     val ctx = freshFunctionContext(sym)
     val proto = compile(fdef)(using ctx)
 
+    // println(sym.toString + ":")
+    // println(ctx.buffer.show)
+
     // perform register allocation
     assert(ctx.vs.size == 0, sym.name + " " + ctx.vs.size)
     val label = getAddress(sym)
-    doGraphColoring(label, ctx.buffer.getResult(), registerConfig, proto.savedRegs, cb, ctx.generator)
+    doGraphColoring(
+      label, ctx.buffer.getResult(), registerConfig, proto.savedRegs, cb,
+      ctx.generator, rules)
 
   /** Compile a function */
   def compile(fdef: FunDef)(using ctx: Context): Protocol =
@@ -598,6 +604,15 @@ object RegisterMachine:
     val callConv =
       new CallConvention.RegisterCallConvention(Linux.x86RegConfig, paramRegs)
 
-    new RegisterMachine(Linux.x86RegConfig, callConv, runtime, main)
+    val x86rules = new GraphColoring.PlatformRules:
+      def conflicts(info: Liveness.Info): List[(Int, Int)] =
+        // The only available r8 registers on x86 are AL, CL, DL, BL, AH, CH, DH, BH
+        for
+          reg2 <- List(X86.ESP, X86.EBP, X86.ESI, X86.EDI)
+          reg1 <- info.bit8Regs
+        yield
+          reg1 -> reg2
+
+    new RegisterMachine(Linux.x86RegConfig, callConv, runtime, x86rules, main)
 
   def main(args: Array[String]): Unit = native.Compiler.compile(createLinux86, args)

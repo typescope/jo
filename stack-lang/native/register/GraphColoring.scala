@@ -9,12 +9,42 @@ import scala.collection.mutable
 /**
   * Register allocation based on graph coloring.
   *
-  * TODO: how to coalesce spillings in a simple way? Increase the number of
-  * registers with a cost model?
+  * The algorithm performs simplification until it reaches a state where all
+  * nodes have degree >= k. It then selects a random node to spill to enable
+  * more simplifictions. The process repeats until the graph contains only
+  * pre-colored registers.
+  *
+  * Spillings require inserting load/store instructions. As these instructions
+  * use registers, liveness analysis and graph coloring need to be executed on
+  * the rewritten assembly code again. The process repeats until coloring
+  * succeeds without spillings.
+  *
+  * The algorithm only handles uniform register resources. It assumes all
+  * registers are the same. A concrete achitecture needs to encode sub-word
+  * register usage as using the whole register, as well as encode allocation
+  * constraints with conflict edges.
+  *
+  * For example, it is not possible to directly use the sub-word of the register
+  * ESI on x86. Either the backend generates adapting instructions with bit
+  * masks or it constrains the 8-bit virtual register with a conflict edge to
+  * ESI.
+  *
+  * A cost model can be used to spill least-used (thus less expensive)
+  * registers.
+  *
+  * Currently, each spilled register occupies a memory cell. In principle,
+  * the same cell can be shared by multiple non-conflicting spilled nodes.
+  *
+  * TODO: how to coalesce spillings in a simple way?
   */
 object GraphColoring:
   enum Node:
     case Single(reg: Int)
+
+    /** A merged node
+      *
+      * This is not strictly necessary. However, it is useful for debugging.
+      */
     case Merged(node1: Node, node2: Node)
 
     def show: String =
@@ -27,12 +57,15 @@ object GraphColoring:
     case Coalesce(node: Node.Merged)
     case Spill(node: Node, conflicts: Set[Node])
 
-  case class Edge(node1: Node, node2: Node)
-
   /** Interference graph */
   class Graph(
-    preColor: Int,
+    /** Registers less than this number are virtual registers */
+    preColorLimit: Int,
+
+    /** Bidirectional conflict edges */
     var conflicts: Map[Node, Set[Node]],
+
+    /** Bidirectional move edges */
     var moves: Map[Node, Set[Node]]):
 
     val actions = mutable.ArrayBuffer.empty[Action]
@@ -40,7 +73,7 @@ object GraphColoring:
     def isPreColored(node: Node): Boolean =
       node match
         case Node.Single(reg) =>
-          reg < preColor
+          reg < preColorLimit
 
         case Node.Merged(node1, node2) =>
           isPreColored(node1) || isPreColored(node2)
@@ -49,7 +82,7 @@ object GraphColoring:
     def preColor(node: Node): Option[Int] =
       node match
         case Node.Single(reg) =>
-          if reg < preColor then Some(reg) else None
+          if reg < preColorLimit then Some(reg) else None
 
         case Node.Merged(node1, node2) =>
           preColor(node1) match
@@ -224,7 +257,16 @@ object GraphColoring:
 
   end Graph
 
-  def build(result: Liveness.Result, reserved: List[Int], preColor: Int): Graph =
+  /** Generate additional constraints for a specific platform (os+arch) */
+  trait PlatformRules:
+    /** Return extra conflicts specific to the platform */
+    def conflicts(info: Liveness.Info): List[(Int, Int)]
+
+  /** Create conflict graph from liveness data
+    *
+    * @param extracConflicts Platform-specific constraints can be encoded as extra conflicts
+    */
+  def build(info: Liveness.Info, reserved: List[Int], preColor: Int, extraConflicts: List[(Int, Int)]): Graph =
     val nodeMap = mutable.Map.empty[Int, Node]
     val conflicts = mutable.Map.empty[Node, Set[Node]]
     val moves = mutable.Map.empty[Node, Set[Node]]
@@ -253,27 +295,25 @@ object GraphColoring:
             if notReserved(reg1) then conflictsNode2 + node1
             else conflictsNode2
 
-    for (loc, outLiveSet) <- result.liveSets do
-      for
-        reg2 <- outLiveSet
-      do
-        val preInstr = result.instrs(loc)
-        val RegInfo(defs, uses) = preInstr.regInfo
-
-        preInstr match
-          case PreInstr.Instr(Instr.Move(v, reg1)) =>
-             v match
-               case Reg(reg3) if reg3 != reg2 => addConflict(reg1, reg2)
-               case _ => addConflict(reg1, reg2)
-
-          case _ =>
-             for reg1 <- defs do addConflict(reg1, reg2)
-
-      end for
-
     for
-      (reg1, toSet) <- result.moves if !reserved.contains(reg1)
+      (loc, outLiveSet) <- info.liveSets
+      reg2 <- outLiveSet
     do
+      val preInstr = info.instrs(loc)
+      val RegInfo(defs, uses) = preInstr.regInfo
+
+      preInstr match
+        case PreInstr.Instr(Instr.Move(v, reg1)) =>
+           v match
+             case Reg(reg3) if reg3 != reg2 => addConflict(reg1, reg2)
+             case _ => addConflict(reg1, reg2)
+
+        case _ =>
+           for reg1 <- defs do addConflict(reg1, reg2)
+
+    end for
+
+    for (reg1, toSet) <- info.moves if !reserved.contains(reg1) do
       val node1 = nodeMap.getOrElse(reg1, Node.Single(reg1))
       // It is meaningless to add a move edge if two nodes are in conflict.
       // It is never possible to coalesce the two nodes
@@ -289,8 +329,11 @@ object GraphColoring:
         moves(node2) = moves.getOrElse(node2, Set.empty) + node1
       end for
 
+    for (reg1, reg2) <- extraConflicts do addConflict(reg1, reg2)
+
     Graph(preColor, conflicts.toMap, moves.toMap)
 
+  /** Remove non-move nodes that are always satisfiable */
   def simplify(graph: Graph, k: Int): Boolean =
     graph.conflicts.exists: (node, conflictees) =>
       if
@@ -303,6 +346,7 @@ object GraphColoring:
       else
         false
 
+  /** Merge two move-related nodes into a single node */
   def coalesce(graph: Graph, k: Int): Boolean =
     // No need to consider nodes not in moves as they can be simplied
     graph.moves.exists: (node1, targets) =>
@@ -329,6 +373,7 @@ object GraphColoring:
         else
           false
 
+  /** Decouple two move-related nodes to enable simplification */
   def freeze(graph: Graph, k: Int): Boolean =
     graph.moves.exists: (node, targets) =>
       assert(targets.nonEmpty, node.show + " -> " + targets + ", " + graph)
@@ -339,6 +384,7 @@ object GraphColoring:
         else
           false
 
+  /** Spill a node with degree big or equal to k */
   def spill(graph: Graph, k: Int): Boolean =
     // Pick a random node to spill.
     //
@@ -443,13 +489,17 @@ object GraphColoring:
   final val DEBUG = false
   var round = 1
 
-  def alloc(name: String, liveness: Liveness.Result, regs: List[Int], reserved: List[Int], preColor: Int): Result =
+  def alloc(
+    name: String, liveness: Liveness.Info, regs: List[Int],
+    reserved: List[Int], preColor: Int,
+    extraConflicts: List[(Int, Int)]): Result =
+
     import State.*
 
     round += 1
 
     val k = regs.size
-    val graph = build(liveness, reserved, preColor)
+    val graph = build(liveness, reserved, preColor, extraConflicts)
 
     var state = State.Simplify
 

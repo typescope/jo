@@ -529,6 +529,8 @@ object X86 extends Assembler:
 
       case Reg8(rv) =>
         // 8A /r       MOV r8, r/m8
+        assert(rv < 4, "Only support ah, ch, dh, bh")
+
         pb.addByte(0x8B.toByte)
         pb.addByte((0xC0 | (reg << 3) | rv).toByte)
 
@@ -544,6 +546,9 @@ object X86 extends Assembler:
           bb.addInt(loc)
 
   def load(addr: Addr, destReg: Int, size: Size)(using pb: PatchableBuffer): Unit =
+    if size == Size.B8 then
+      assert(destReg < 4, "Only support ah, ch, dh, bh")
+
     addr match
       case Reg(r) =>
         // See Table 2-2. 32-Bit Addressing Forms with the ModR/M Byte in [1]
@@ -663,6 +668,9 @@ object X86 extends Assembler:
 
           case Reg8(rv) =>
             // 88 /r     MOV r/m8, r8
+
+            assert(rv < 4, "Only support ah, ch, dh, bh")
+
             if rd == 4 then // esp
               pb.addByte(0x88.toByte)
               pb.addByte(((rv << 3) | 4).toByte)
@@ -725,6 +733,9 @@ object X86 extends Assembler:
 
           case Reg8(rv) =>
             // 88 /r     MOV r/m8, r8
+
+            assert(rv < 4, "Only support ah, ch, dh, bh")
+
             if rd == 4 then // ESP
               pb.addByte(0x88.toByte)
               pb.addByte((0x80 | (rv << 3) | 4).toByte) // disp32

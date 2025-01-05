@@ -80,6 +80,7 @@ object PreAssembly:
       index += 1
       index
 
+
   /** Analyze the assigned and used registers of an instruction */
   def analyzeRegInfo(instr: Instr): RegInfo =
     val useRegs = mutable.ArrayBuffer.empty[Int]
@@ -386,9 +387,13 @@ object PreAssembly:
               cb.add(Instr.Jump(Reg(regRet)))
 
   def doGraphColoring(
-    label: Label, preAsm: List[Item],
-    regConfig: RegisterConfig, calleeSavedRegs: List[Int],
-    cb: CodeBuffer, generator: VirtualRegGenerator): Unit =
+    label: Label,
+    preAsm: List[Item],
+    regConfig: RegisterConfig,
+    calleeSavedRegs: List[Int],
+    cb: CodeBuffer,
+    generator: VirtualRegGenerator,
+    rules: GraphColoring.PlatformRules): Unit =
 
     // Register allocation
     var continue = true
@@ -402,13 +407,16 @@ object PreAssembly:
       val reservedRegisters: List[Int] =
         List(regConfig.FP_REG, regConfig.SP_REG)
 
+      val extraConflicts = rules.conflicts(liveness)
+
       val GraphColoring.Result(regAlloc, stackAlloc, usedRegs) =
           GraphColoring.alloc(
             label.name,
             liveness,
             regConfig.FREE_REGS,
             reservedRegisters,
-            VIRTUAL_REG_START_INDEX
+            VIRTUAL_REG_START_INDEX,
+            extraConflicts
           )
 
       // println(regAlloc)

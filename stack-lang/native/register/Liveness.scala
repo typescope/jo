@@ -18,9 +18,10 @@ object Liveness:
   type LiveSet   = Set[Int]
 
   class CodeInfo(
-    val instrs: Seq[PreInstr],
     predecessorMap: Map[Int, Set[Int]],
-    val moves: Map[Int, Set[Int]]):
+    val instrs: Seq[PreInstr],
+    val moves: Map[Int, Set[Int]],
+    val bit8Regs: Set[Int]):
 
     def predecessors(index: Int): Set[Int] =
       predecessorMap.get(index) match
@@ -34,11 +35,16 @@ object Liveness:
 
   case class WorkItem(index: Int, succInLiveSet: LiveSet)
 
-  case class Result(liveSets: Map[Int, LiveSet], moves: Map[Int, Set[Int]], instrs: Seq[PreInstr]):
+  case class Info(
+    liveSets: Map[Int, LiveSet],
+    moves: Map[Int, Set[Int]],
+    instrs: Seq[PreInstr],
+    bit8Regs: Set[Int]):
+
     override def toString() =
       liveSets.keys.toSeq.sorted.map(k => s"$k: " + liveSets(k)).mkString("\n")
 
-  def analyze(items: Seq[PreAssembly.Item]): Result =
+  def analyze(items: Seq[PreAssembly.Item]): Info =
     val workList = mutable.ArrayDeque.empty[WorkItem]
     val codeInfo = collectCodeInfo(items)
     val result = mutable.Map.empty[Int, LiveSet]
@@ -64,7 +70,7 @@ object Liveness:
           workList += WorkItem(pred, curInLiveSet)
     end while
 
-    Result(result.toMap, codeInfo.moves, codeInfo.instrs)
+    Info(result.toMap, codeInfo.moves, codeInfo.instrs, codeInfo.bit8Regs)
 
   /** Collect code info and initialize work list for each instruction. */
   def collectCodeInfo(items: Seq[PreAssembly.Item]): CodeInfo =
@@ -85,6 +91,7 @@ object Liveness:
     val predecessorMap = mutable.Map.empty[Int, Set[Int]]
     val jumpTargets = mutable.Map.empty[Int, Int]
     val moves = mutable.Map.empty[Int, Set[Int]]
+    val bit8Regs = mutable.Set.empty[Int]
 
     var index = 0
     val size = instrs.size
@@ -100,6 +107,15 @@ object Liveness:
             case Move(Reg(srcReg), destReg) =>
               val moveTargets = moves.getOrElse(srcReg, Set.empty)
               moves(srcReg) = moveTargets + destReg
+
+            case Move(Reg8(srcReg), _) =>
+              bit8Regs += srcReg
+
+            case Store(Reg8(srcReg), _) =>
+              bit8Regs += srcReg
+
+            case Load(_, destReg, Size.B8) =>
+              bit8Regs += destReg
 
             case Jump(_: Reg | _: Rel) =>
               throw new Exception("Unexpected instruction " + instr)
@@ -137,4 +153,4 @@ object Liveness:
       predecessorMap(toIndex) = preds + fromIndex
     end for
 
-    CodeInfo(instrs.toList, predecessorMap.toMap, moves.toMap)
+    CodeInfo(predecessorMap.toMap, instrs.toList, moves.toMap, bit8Regs.toSet)

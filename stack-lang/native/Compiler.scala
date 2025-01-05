@@ -75,6 +75,7 @@ object Compiler:
           val backend = backendBuilder(runtimeNameTable, main)
 
           val assembler = (prog: Prog) =>
+            // println(prog.show)
             Linux.lower(prog, layout, outFile, X86, backend.runtime)
 
           namespacesSAST                |>
