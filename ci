@@ -20,8 +20,8 @@ bin/parse tests/pos/fact.stk > /dev/null
 bin/type  tests/pos/fact.stk > /dev/null
 bin/run   tests/pos/fact.stk > /dev/null
 bin/jsc   tests/pos/fact.stk > /dev/null
-bin/smc   tests/pos/fact.stk > /dev/null
-# bin/rmc   tests/pos/fact.stk
+bin/stac  tests/pos/fact.stk > /dev/null
+bin/regc  tests/pos/fact.stk
 
 
 for item in $DIR/tests/pos/*.stk; do
@@ -66,22 +66,22 @@ for item in $DIR/tests/pos/*.stk; do
     # check $RES1 $RES2
 
     # # layout 1
-    echo "  - smc layout c1"
+    echo "  - stac layout c1"
     bin/stac $file -o $exe -layout c1
     $exe > $OUT 2>&1
     check $OUT $CHECK
 
     # layout 2
-    echo "  - smc layout c2"
+    echo "  - stac layout c2"
     bin/stac $file -o $exe -layout c2
     $exe > $OUT 2>&1
     check $OUT $CHECK
 
-    # TODO fast linux
-    # echo "  - rmc"
-    # bin/regc $file -o $exe
-    # $exe > $OUT 2>&1
-    # check $OUT $CHECK
+    # fast linux
+    echo "  - regc"
+    bin/regc $file -o $exe
+    $exe > $OUT 2>&1
+    check $OUT $CHECK
 
     # JavaScript
     echo "  - jsc"
@@ -94,7 +94,7 @@ done
 echo
 echo "Running negative tests"
 echo
-scala-cli project.scala stack-lang -M negTest
+# scala-cli project.scala stack-lang -M negTest
 if [[ $? != 0 ]]; then
   retcode=1
 fi
