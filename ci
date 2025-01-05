@@ -18,7 +18,7 @@ check() {
 # check that scripts work
 bin/parse tests/pos/fact.stk > /dev/null
 bin/type  tests/pos/fact.stk > /dev/null
-bin/eval  tests/pos/fact.stk > /dev/null
+bin/run   tests/pos/fact.stk > /dev/null
 bin/jsc   tests/pos/fact.stk > /dev/null
 bin/smc   tests/pos/fact.stk > /dev/null
 # bin/rmc   tests/pos/fact.stk
@@ -58,7 +58,7 @@ for item in $DIR/tests/pos/*.stk; do
     fi
 
     echo "  - eval"
-    bin/eval $file > $OUT 2>&1
+    bin/run $file > $OUT 2>&1
     check $OUT $CHECK
 
     # Ast interpreter
