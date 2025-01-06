@@ -855,7 +855,7 @@ object Namer:
         println(ns.show)
         println
 
-  def transform(nssAst: List[Ast.Namespace], stdlib: List[String], runtime: List[String])(using rp: Reporter) : List[Namespace] =
+  def transform(nssAst: List[Ast.Namespace], stdlib: List[String], runtime: List[String])(using Reporter) : List[Namespace] =
     val rootNameTable = new NameTable
     val runtimeNameTable = new NameTable
     transform(nssAst, stdlib, runtime, rootNameTable, runtimeNameTable)

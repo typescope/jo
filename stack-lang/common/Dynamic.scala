@@ -33,3 +33,5 @@ object Dynamic:
     res
 
   def get[T](key: Key[T]): T = map(key).asInstanceOf[T]
+
+  def reset(): Unit = map.clear()
