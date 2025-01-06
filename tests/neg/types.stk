@@ -2,7 +2,7 @@ fun even(x: Int): Bool = x % 2 == 0
 
 fun double(n: Int): Bool = n + n // error
 
-fun param(a: Int, a: Int): Int = a // error
+fun paramDuplicate(a: Int, a: Int): Int = a // error
 
 fun test =
 

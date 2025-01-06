@@ -24,7 +24,7 @@ object Test:
     }
 
   def compileAndCheck(test: String): Boolean = Reporter.timeout(100):
-    given Reporter = Reporter.createReporter(buffer = true)
+    given rp: Reporter = Reporter.createReporter(buffer = true)
 
     Dynamic.reset()
 
@@ -38,7 +38,7 @@ object Test:
       val nss = Parser.parse(sourceFiles)
       Namer.transform(nss, stdLib, runtimeFiles)
 
-      verifyErrors(sourceFiles, Nil)
+      verifyErrors(sourceFiles, rp.reports)
     catch
       case error: FatalError.CodeError =>
         verifyErrors(sourceFiles, error.content :: Nil)

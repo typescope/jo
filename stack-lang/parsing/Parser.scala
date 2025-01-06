@@ -34,7 +34,7 @@ object Parser:
         println
 
   def parse(sourceFiles: List[String])(using Reporter): List[Namespace] =
-    for file <- sourceFiles yield
+    for file <- sourceFiles.sorted yield
       Parser.parse(file)
 
   /** Parse the supplied code */
