@@ -132,26 +132,26 @@ object Interpreter:
     throw new Exception(v.toString)
 
   val primitiveOperators: Map[String, ValueStack => Unit] = Map(
-      Predef.add.name    ->    add,
-      Predef.sub.name    ->    sub,
-      Predef.mul.name    ->    mul,
-      Predef.div.name    ->    div,
-      Predef.mod.name    ->    mod,
-      Predef.gt.name     ->    gt,
-      Predef.lt.name     ->    lt,
-      Predef.ge.name     ->    ge,
-      Predef.le.name     ->    le,
-      Predef.srl.name    ->    srl,
-      Predef.sll.name    ->    sll,
-      Predef.land.name   ->    land,
-      Predef.lor.name    ->    lor,
-      Predef.lxor.name   ->    lxor,
-      Predef.band.name   ->    band,
-      Predef.bor.name    ->    bor,
-      Predef.bnot.name   ->    bnot,
-      Predef.eql.name    ->    eql,
-      Predef.p.name      ->    print,
-      Predef.abort.name  ->    abort
+      "+"     ->    add,
+      "-"     ->    sub,
+      "*"     ->    mul,
+      "/"     ->    div,
+      "%"     ->    mod,
+      ">"     ->    gt,
+      "<"     ->    lt,
+      ">="    ->    ge,
+      "<="    ->    le,
+      ">>"    ->    srl,
+      "<<"    ->    sll,
+      "and"   ->    land,
+      "|"     ->    lor,
+      "^"     ->    lxor,
+      "and"   ->    band,
+      "or"    ->    bor,
+      "not"   ->    bnot,
+      "="     ->    eql,
+      "p"     ->    print,
+      "abort" ->    abort
   )
 
   //----------------------------------------------------------------------------
@@ -236,7 +236,7 @@ object Interpreter:
 
   def exec(phrase: Phrase)(using vs: ValueStack, sc: Scope): Unit =
     phrase match
-      case Ast.Match(scrut, cases) =>
+      case Match(scrut, cases) =>
         exec(eval(scrut), cases)
 
       case Assign(id, rhs) =>
