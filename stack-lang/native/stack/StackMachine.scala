@@ -22,7 +22,7 @@ import scala.collection.mutable
 /**
   * Implementation based on a stack machine.
   *
-  * The class is CPU- and OS-agnostic.
+  * The class is arch- and OS-agnostic.
   */
 class StackMachine(
   registerConfig: RegisterConfig, runtime: NativeRuntime, main: Symbol)

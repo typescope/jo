@@ -10,7 +10,7 @@
  *                                                                      *
  ************************************************************************/
 package native
-package cpu
+package arch
 
 import Assembly.*
 import Assembler.{ Patch, PatchableBuffer, withPatch }

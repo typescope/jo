@@ -12,7 +12,7 @@ import native.NativeRuntime
 import native.Assembly
 import native.Assembly.{ Type => _, * }
 
-import native.cpu.X86
+import native.arch.X86
 import native.os.Linux
 import native.os.LinuxBumpAllocator
 import native.os.LinuxSyscallX86RegisterLinker
@@ -25,7 +25,7 @@ import scala.collection.mutable
 
 /** Fast implementation with register allocation
   *
-  * The class is CPU- and OS-agnostic.
+  * The class is arch- and OS-agnostic.
   */
 class RegisterMachine(
   registerConfig: RegisterConfig,

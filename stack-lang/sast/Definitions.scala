@@ -5,9 +5,8 @@ import Types.*
 import common.Dynamic
 
 class Definitions(rootNameTable: NameTable):
-  import rootNameTable.resolvePath
 
-  val Predef =  resolvePath("stk.Predef")
+  val Predef =  rootNameTable.resolvePath("stk.Predef")
   val Predef_nameTable = Predef.info.as[NamespaceInfo].nameTable
 
   // primitive terms without implementation in source code

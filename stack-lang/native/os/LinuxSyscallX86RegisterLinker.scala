@@ -5,7 +5,7 @@ import sast.NameTable
 import native.Assembly.*
 import native.Assembler.PatchableBuffer
 
-import native.cpu.X86
+import native.arch.X86
 
 /** Linker for linux system call on x86 stack machhine */
 class LinuxSyscallX86RegisterLinker(runtimeRootNameTable: NameTable)

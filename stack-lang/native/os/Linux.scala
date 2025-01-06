@@ -13,7 +13,7 @@ import native.Assembly.*
 import native.ELF32
 import native.Linker
 
-import native.cpu.X86
+import native.arch.X86
 
 object Linux:
   val PAGE_SIZE  = 0x1000

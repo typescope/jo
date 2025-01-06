@@ -43,7 +43,7 @@ files=(
     stack-lang/native/Backend.scala
     stack-lang/native/Compiler.scala
     stack-lang/native/Linker.scala
-    stack-lang/native/cpu/X86.scala
+    stack-lang/native/arch/X86.scala
     stack-lang/native/ELF32.scala
     stack-lang/native/Memory.scala
     stack-lang/native/NativeRuntime.scala

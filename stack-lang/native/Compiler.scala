@@ -12,7 +12,7 @@ import common.IO
 
 import native.Assembly.Prog
 import native.os.Linux
-import native.cpu.X86
+import native.arch.X86
 
 /***********************************************************************
  *
