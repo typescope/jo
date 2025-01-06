@@ -1,6 +1,7 @@
 package native
 
 import native.Assembly.*
+import native.runtime.NativeRuntime
 
 import sast.*
 import sast.Sast.*

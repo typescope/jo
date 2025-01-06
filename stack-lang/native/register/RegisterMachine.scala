@@ -7,15 +7,16 @@ import sast.Types.*
 
 import native.Backend
 import native.Memory
-import native.NativeRuntime
 
 import native.Assembly
 import native.Assembly.{ Type => _, * }
 
 import native.arch.X86
 import native.os.Linux
-import native.os.LinuxBumpAllocator
 import native.os.LinuxSyscallX86RegisterLinker
+
+import native.runtime.NativeRuntime
+import native.runtime.BumpAllocator
 
 import PreAssembly.*
 import CallConvention.*
@@ -595,7 +596,7 @@ object RegisterMachine:
     * Create a new x86 register machine
     */
   def createLinux86(runtimeRootNameTable: NameTable, main: Symbol): Backend =
-    val bumpAllocator = new LinuxBumpAllocator(runtimeRootNameTable)
+    val bumpAllocator = new BumpAllocator(runtimeRootNameTable)
     val syscalls = new LinuxSyscallX86RegisterLinker(runtimeRootNameTable)
     val linkers = List(bumpAllocator, syscalls)
     val runtime = new NativeRuntime(runtimeRootNameTable, linkers)

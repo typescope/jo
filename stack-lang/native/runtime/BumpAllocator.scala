@@ -1,4 +1,4 @@
-package native.os
+package native.runtime
 
 import sast.NameTable
 import sast.Symbols.*
@@ -7,7 +7,7 @@ import native.Assembly.Label
 import native.Assembler.PatchableBuffer
 import native.Linker
 
-class LinuxBumpAllocator(runtimeRootNameTable: NameTable)
+class BumpAllocator(runtimeRootNameTable: NameTable)
 extends Linker:
   val allocatorStateLabel = Label("allocatorState")
 

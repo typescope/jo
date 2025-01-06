@@ -1,4 +1,5 @@
 package native
+package runtime
 
 import sast.*
 import sast.Symbols.*

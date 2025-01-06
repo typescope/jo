@@ -46,9 +46,7 @@ files=(
     stack-lang/native/arch/X86.scala
     stack-lang/native/ELF32.scala
     stack-lang/native/Memory.scala
-    stack-lang/native/NativeRuntime.scala
     stack-lang/native/os/Linux.scala
-    stack-lang/native/os/LinuxBumpAllocator.scala
     stack-lang/native/os/LinuxSyscall.scala
     stack-lang/native/os/LinuxSyscallX86RegisterLinker.scala
     stack-lang/native/os/LinuxSyscallX86StackLinker.scala
@@ -57,6 +55,9 @@ files=(
     stack-lang/native/register/Liveness.scala
     stack-lang/native/register/PreAssembly.scala
     stack-lang/native/register/RegisterMachine.scala
+
+    stack-lang/native/runtime/NativeRuntime.scala
+    stack-lang/native/runtime/BumpAllocator.scala
 
     stack-lang/phrases/ElimCapture.scala
     stack-lang/phrases/ExplicitInit.scala
