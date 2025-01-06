@@ -58,7 +58,7 @@ for item in $DIR/tests/pos/*.stk; do
     fi
 
     echo "  - eval"
-    bin/run $file > $OUT 2>&1
+    bin/run.native $file > $OUT 2>&1
     check $OUT $CHECK
 
     # Ast interpreter
@@ -67,25 +67,25 @@ for item in $DIR/tests/pos/*.stk; do
 
     # # layout 1
     echo "  - stac layout c1"
-    bin/stac $file -o $exe -layout c1
+    bin/stac.native $file -o $exe -layout c1
     $exe > $OUT 2>&1
     check $OUT $CHECK
 
     # layout 2
     echo "  - stac layout c2"
-    bin/stac $file -o $exe -layout c2
+    bin/stac.native $file -o $exe -layout c2
     $exe > $OUT 2>&1
     check $OUT $CHECK
 
     # fast linux
     echo "  - regc"
-    bin/regc $file -o $exe
+    bin/regc.native $file -o $exe
     $exe > $OUT 2>&1
     check $OUT $CHECK
 
     # JavaScript
     echo "  - jsc"
-    bin/jsc $file -o $js
+    bin/jsc.native $file -o $js
     node $js > $OUT 2>&1
     check $OUT $CHECK
 done

@@ -1,9 +1,11 @@
+package sast
+
 import scala.collection.mutable
 
 import ast.Ast
-import sast.*
-import sast.Sast.*
-import sast.Symbols.*
+
+import Sast.*
+import Symbols.*
 
 import common.Debug
 import parsing.Parser
@@ -11,7 +13,7 @@ import reporting.Reporter
 import typing.Namer
 
 /** An interpreter for S-AST */
-object SastInterpreter:
+object Interpreter:
   import Denotation.*
 
   def err(msg: String) = throw new Exception(msg)
@@ -264,8 +266,7 @@ object SastInterpreter:
       case tdef: TypeDef =>
         Nil
 
-@main
-def sastEval(args: String*) = Reporter.monitor:
+  def main(args: Array[String]): Unit = Reporter.monitor:
     val sourceFiles = args.toList
     val stdlib = "lib/Predef.stk" :: Nil
     val runtime = Nil
@@ -281,7 +282,7 @@ def sastEval(args: String*) = Reporter.monitor:
 
     mains match
       case main :: _ =>
-        SastInterpreter.exec(namespacesSAST, main)
+        exec(namespacesSAST, main)
 
       case Nil =>
         Reporter.abortInternal("No main function found")

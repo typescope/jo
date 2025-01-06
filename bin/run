@@ -35,9 +35,9 @@ files=(
     stack-lang/sast/TypeOps.scala
 
     # interpreter
-    stack-lang/SastInterpreter.scala
+    stack-lang/sast/Interpreter.scala
 )
 
 FILES=${files[*]}
 
-scala-cli project.scala $FILES --main-class sastEval -- $@
+scala-cli project.scala $FILES --main-class sast.Interpreter -- $@

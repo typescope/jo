@@ -3,10 +3,11 @@
  * The implementation of the stack-oriented language in an interpreter. *
  *                                                                      *
  ************************************************************************/
+package ast
 
 import scala.collection.mutable
 
-import ast.Ast.*
+import Ast.*
 
 /***********************************************************************
  *
@@ -305,11 +306,3 @@ object Interpreter:
 
       case block: Block =>
         exec(block)
-
-/***********************************************************************
- *
- * Main entry point
- *
- ***********************************************************************/
-@main
-def eval(file: String) = ???
