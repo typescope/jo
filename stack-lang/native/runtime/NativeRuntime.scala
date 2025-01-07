@@ -11,7 +11,8 @@ import native.Assembler.PatchableBuffer
   *
   * Run-time symbols are not visible to user programs.
   */
-class NativeRuntime(runtimeRootNameTable: NameTable, linkers: List[Linker])
+class NativeRuntime(
+  runtimeRootNameTable: NameTable, linkers: List[Linker], userMain: Symbol)
 extends Linker:
   import runtimeRootNameTable.resolvePath
 
@@ -19,7 +20,8 @@ extends Linker:
 
   val Core = resolvePath("stk.runtime.native.Core")
 
-  val Core_alloc = Core.termMember("alloc")
+  val Core_start = Core.termMember("start")
+  val Core_mainStub = Core.termMember("mainStub")
 
   val Core_cast = Core.termMember("cast")
   val Core_data = Core.termMember("data")
@@ -32,14 +34,18 @@ extends Linker:
 
   val Core_print = Core.termMember("print")
   val Core_p = Core.termMember("p")
-  val Core_finish = Core.termMember("finish")
   val Core_abortImpl = Core.termMember("abortImpl")
+
+  val GC = resolvePath("stk.runtime.native.GC")
+  val GC_alloc = GC.termMember("alloc")
 
   def locate(sym: Symbol): Option[Label | Symbol] =
     if sym.owner == defn.Predef then
       if sym == defn.Predef_print then return Some(Core_print)
       else if sym == defn.Predef_p then return Some(Core_p)
       else if sym == defn.Predef_abort then return Some(Core_abortImpl)
+
+    if sym == Core_mainStub then return Some(userMain)
 
     val iter = linkers.iterator
     while iter.hasNext do
@@ -65,5 +71,3 @@ extends Linker:
 
   def linkCode()(using pb: PatchableBuffer): Unit =
     linkers.foreach(_.linkCode())
-
-  def inits(): List[Symbol] = linkers.flatMap(_.inits())

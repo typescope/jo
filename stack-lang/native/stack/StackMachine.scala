@@ -27,8 +27,8 @@ import scala.collection.mutable
   * The class is arch- and OS-agnostic.
   */
 class StackMachine(
-  registerConfig: RegisterConfig, runtime: NativeRuntime, main: Symbol)
-extends Backend(runtime, main):
+  registerConfig: RegisterConfig, runtime: NativeRuntime)
+extends Backend(runtime):
 
   import registerConfig.{ FP_REG, SP_REG, FREE_REGS }
 
@@ -487,12 +487,12 @@ object StackMachine:
           fn(r1, r2)
   end RegisterAllocator
 
-  def createLinux86(runtimeRootNameTable: NameTable, main: Symbol): Backend =
+  def createLinux86(runtimeRootNameTable: NameTable): Backend =
     val bumpAllocator = new BumpAllocator(runtimeRootNameTable)
     val syscalls = new LinuxSyscallX86StackLinker(runtimeRootNameTable)
     val linkers = List(bumpAllocator, syscalls)
-    val runtime = new NativeRuntime(runtimeRootNameTable, linkers)
+    val runtime = new NativeRuntime(runtimeRootNameTable, linkers, main)
 
-    new StackMachine(Linux.x86RegConfig, runtime, main)
+    new StackMachine(Linux.x86RegConfig, runtime)
 
   def main(args: Array[String]): Unit = native.Compiler.compile(createLinux86, args)

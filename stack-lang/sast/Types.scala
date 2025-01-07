@@ -45,6 +45,8 @@ object Types:
         case VoidType | _: ProcType | _: TypeLambda | _: PolyType | _: NamespaceInfo => false
         case _ => true
 
+    def isInvokableType: Boolean = isFunctionType || isProcType
+
     def asRecordType: RecordType = TypeOps.approx(this, isUp = true).asInstanceOf[RecordType]
 
     def asUnionType: UnionType = TypeOps.approx(this, isUp = true).asInstanceOf[UnionType]
@@ -207,4 +209,4 @@ object Types:
   class NamespaceInfo(val nameTable: NameTable) extends Type:
     def this() = this(new NameTable)
 
-    export nameTable.*
+    export nameTable.{ resolve, resolveType, resolveTerm, define }

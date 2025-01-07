@@ -32,9 +32,8 @@ class RegisterMachine(
   registerConfig: RegisterConfig,
   callConvention: CallConvention,
   runtime: NativeRuntime,
-  rules: GraphColoring.PlatformRules,
-  main: Symbol)
-extends Backend(runtime, main):
+  rules: GraphColoring.PlatformRules)
+extends Backend(runtime):
 
   import registerConfig.{ FP_REG, SP_REG }
 
@@ -413,7 +412,7 @@ extends Backend(runtime, main):
   /** Allocate a block of memory and push the start address onto value stack */
   def alloc(size: Int)(using ctx: Context): Unit =
     ctx.vs.push(Int32(size))
-    call(runtime.Core_alloc)
+    call(runtime.GC_alloc)
 
   /** Compile [x = 3, y = 5] */
   def compile(record: RecordLit)(using ctx: Context): Unit =
@@ -599,7 +598,7 @@ object RegisterMachine:
     val bumpAllocator = new BumpAllocator(runtimeRootNameTable)
     val syscalls = new LinuxSyscallX86RegisterLinker(runtimeRootNameTable)
     val linkers = List(bumpAllocator, syscalls)
-    val runtime = new NativeRuntime(runtimeRootNameTable, linkers)
+    val runtime = new NativeRuntime(runtimeRootNameTable, linkers, main)
 
     val paramRegs: List[Int] = List(X86.EAX, X86.EBX, X86.ECX, X86.EDX)
     val callConv =
@@ -614,6 +613,6 @@ object RegisterMachine:
         yield
           reg1 -> reg2
 
-    new RegisterMachine(Linux.x86RegConfig, callConv, runtime, x86rules, main)
+    new RegisterMachine(Linux.x86RegConfig, callConv, runtime, x86rules)
 
   def main(args: Array[String]): Unit = native.Compiler.compile(createLinux86, args)

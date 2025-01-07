@@ -36,8 +36,6 @@ abstract class LinuxSyscall(runtimeRootNameTable: NameTable) extends Linker:
 
   def locate(qualid: String): Option[Label] = None
 
-  def inits(): List[Symbol] = Nil
-
   /**
     * Implement sys_write in machine code.
     */

@@ -43,6 +43,9 @@ class NameTable(
         rp.report(error)
   end define
 
+  def show: String =
+    "terms: { " + termNames + "}" + "\ntypes: { " + typeNames + "}"
+
 object NameTable:
   def resolvePath(nameTable: NameTable, path: String, isType: Boolean): Symbol =
     resolvePath(nameTable, path.split("\\.").toList, isType) match

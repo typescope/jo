@@ -1,13 +1,16 @@
 package typing
 
 import ast.Ast
+import ast.Positions.*
+
 import sast.*
 import sast.Flags.*
 import sast.Sast.*
 import sast.Symbols.*
 import sast.Types.*
 
-import ast.Positions.*
+import common.Debug
+
 import parsing.Parser
 import reporting.Reporter
 
@@ -38,6 +41,7 @@ class Namer(@constructorOnly reporter: Reporter):
     // accessible unless explicitly imported.
     val predefScope: Scope = new Scope.RootScope(predef, owner = null)
 
+    val delayedImports = new mutable.ArrayBuffer[() => Unit]
     val delayedNamespaces = new mutable.ArrayBuffer[() => Namespace]
 
     for ns <- nss do
@@ -50,14 +54,14 @@ class Namer(@constructorOnly reporter: Reporter):
       val defsScope: Scope = importScope.fresh(nsSym, nsInfo.nameTable)
 
       val delayedDefs = index(ns.defs)(using defsScope)
+      val imports = new mutable.ArrayBuffer[Symbol]
 
-      val force = () =>
+      delayedImports += { () =>
         // Make current namespace name available
         importScope.define(nsSym)
         // handle imports after indexing members
-        val imports = new mutable.ArrayBuffer[Symbol]
         for imp <- ns.imports do
-          // TODO: what about type names?
+          // TODO: what about type names? Import both
           given Scope = rootNamespaceScope
           val sym = resolveGlobal(imp.qualid, isType = false)
 
@@ -67,13 +71,15 @@ class Namer(@constructorOnly reporter: Reporter):
           imports += sym
           // TODO: abstract scope and better error position for duplicate imports
           importScope.define(sym)
+      }
 
+      delayedNamespaces += { () =>
         val defs = for delayed <- delayedDefs.toList yield delayed.force()
         Namespace(nsSym, imports.toList, defs)(ns.span)
-
-      delayedNamespaces += force
+      }
     end for
 
+    delayedImports.foreach(_.apply())
     val namespaces = delayedNamespaces.map(_.apply())
     checker.performDelayedChecks()
     namespaces.toList
@@ -273,17 +279,7 @@ class Namer(@constructorOnly reporter: Reporter):
         val sym = sc.resolve(name, word.pos)
         checker.checkCapture(sym, word.pos)
         val id = Ident(sym)(word.span)
-        val autoApplied =
-          if sym.isFunction && sym.info.isProcType then
-            val procType = sym.info.asProcType
-            if procType.params.isEmpty then
-              Apply(id, args = Nil)(procType.resultType, id.span)
-            else
-              id
-          else
-            id
-
-        autoApplied.adapt
+        id.adapt
 
       case record: Ast.RecordLit =>
         transform(record).adapt
@@ -915,7 +911,7 @@ object Namer:
     def fresh(owner: Symbol, nameTable: NameTable): Scope =
       new Scope.NestedScope(this, nameTable, owner)
 
-    def resolve(name: String, isType: Boolean): Option[Symbol] =
+    def resolve(name: String, isType: Boolean): Option[Symbol] = Debug.trace(s"Resolving $name in scope " + table.show, enable = false):
       table.resolve(name, isType) match
         case None =>
           this match
@@ -928,7 +924,8 @@ object Namer:
       resolve(name, isType) match
         case Some(sym) => sym
         case None =>
-          Reporter.error("Undefined identifier " + name, pos)
+          val kind = if isType then "type" else "term"
+          Reporter.error(s"Undefined $kind identifier " + name, pos)
           Symbol.createFunSymbol(name, ErrorType, owner, pos)
 
     def define(sym: Symbol)(using Reporter): Unit =

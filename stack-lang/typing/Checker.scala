@@ -150,28 +150,38 @@ class Checker:
       checkType(word, targetType)
       word
 
+  def widen(word: Word): Word = word.tpe match
+    case TypeRef(sym) if !sym.isType =>
+      Encoded(word)(sym.info)
+    case _ =>
+      word
+
   def adapt(word: Word, targetType: TargetType)(using Reporter, Source): Word =
-    def widen(): Word = word.tpe match
-      case TypeRef(sym) if !sym.isType =>
-        Encoded(word)(sym.info)
-      case _ =>
+    val word2 =
+      if word.tpe.isInvokableType then
+        val invokeType = word.tpe.asInvokableType
+        if invokeType.paramCount == 0 then
+          Apply(word, args = Nil)(invokeType.resultType, word.span)
+        else
+          word
+      else
         word
 
     targetType match
       case TargetType.Unknown =>
         // Don't widen if the target type is unknown
-        word
+        word2
 
       case TargetType.ValueType =>
-        checkValueType(word)
-        widen()
+        checkValueType(word2)
+        widen(word2)
 
       case TargetType.ProperType =>
-        checkVoidOrValueType(word)
-        widen()
+        checkVoidOrValueType(word2)
+        widen(word2)
 
       case TargetType.Known(tpe) =>
-        adapt(word, tpe)
+        adapt(word2, tpe)
 
       case TargetType.TermMember(name) =>
-        checkTermMember(word, name)
+        checkTermMember(word2, name)

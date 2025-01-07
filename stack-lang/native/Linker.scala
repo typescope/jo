@@ -26,9 +26,3 @@ trait Linker:
 
   /** Locate the address of a global data linked by the linker */
   def locate(qualid: String): Option[Label]
-
-  /** The initialization functions that should be called when program starts
-    *
-    * The functions must be parameter-less.
-    */
-  def inits(): List[Symbol]

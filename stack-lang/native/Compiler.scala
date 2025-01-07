@@ -53,6 +53,7 @@ object Compiler:
     val stdlib = "lib/Predef.stk" :: Nil
     val runtime = List(
       "runtime/native/Core.stk",
+      "runtime/native/GC.stk",
       "runtime/native/Syscall.stk",
       "runtime/native/BumpAllocator.stk",
     )

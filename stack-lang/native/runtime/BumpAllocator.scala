@@ -11,13 +11,13 @@ class BumpAllocator(runtimeRootNameTable: NameTable)
 extends Linker:
   val allocatorStateLabel = Label("allocatorState")
 
-  def resolveNamespace(path: String) =
-    NameTable.resolvePath(runtimeRootNameTable, path, isType = false)
+  import runtimeRootNameTable.resolvePath
 
-  val Core = resolveNamespace("stk.runtime.native.Core")
-  val Core_alloc = Core.termMember("alloc")
+  val GC = resolvePath("stk.runtime.native.GC")
+  val GC_alloc = GC.termMember("alloc")
+  val GC_init = GC.termMember("init")
 
-  val BumpAllocator = resolveNamespace("stk.runtime.native.BumpAllocator")
+  val BumpAllocator = resolvePath("stk.runtime.native.BumpAllocator")
   val BumpAllocator_init = BumpAllocator.termMember("init")
   val BumpAllocator_alloc = BumpAllocator.termMember("alloc")
 
@@ -30,8 +30,10 @@ extends Linker:
   def linkCode()(using pb: PatchableBuffer): Unit = ()
 
   def locate(sym: Symbol): Option[Symbol] =
-    if sym == Core_alloc then
+    if sym == GC_alloc then
       Some(BumpAllocator_alloc)
+    else if sym == GC_init then
+      Some(BumpAllocator_init)
     else
       None
 
@@ -40,5 +42,3 @@ extends Linker:
       Some(allocatorStateLabel)
     else
       None
-
-  def inits(): List[Symbol] = BumpAllocator_init :: Nil

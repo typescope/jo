@@ -11,8 +11,7 @@ import common.WorkList
 
 import scala.collection.mutable
 
-abstract class Backend(
-  val runtime: NativeRuntime, main: Symbol):
+abstract class Backend(val runtime: NativeRuntime):
 
   /** Maps function symbols to addresses */
   val funLabelMap: mutable.Map[Symbol, Label] = mutable.Map.empty
@@ -56,10 +55,8 @@ abstract class Backend(
     val entryLabel = Label("_entry")
     given cb: CodeBuffer = new CodeBuffer(entryLabel)
 
-    // All hand-coded calls must be registered explicitly
-    workList.add(main)
-    workList.add(runtime.Core_finish)
-    for init <- runtime.inits() do workList.add(init)
+    // Hand-coded calls must be registered explicitly
+    workList.add(runtime.Core_start)
 
     val symbolDefMap = mutable.Map.empty[Symbol, FunDef]
     for
@@ -77,11 +74,7 @@ abstract class Backend(
       cb.add(Data.StringLit(label, v))
 
     cb.mark(entryLabel)
-    for init <- runtime.inits() do callNoArgs(init)
-
-    callNoArgs(main)
-
-    callNoArgs(runtime.Core_finish)
+    callNoArgs(runtime.Core_start)
 
     // generate code
     cb.getResult()

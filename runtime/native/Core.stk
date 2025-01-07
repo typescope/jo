@@ -1,6 +1,7 @@
 namespace stk.runtime.native.Core
 
 import stk.runtime.native.Syscall
+import stk.runtime.native.GC
 
 type Addr
 
@@ -25,8 +26,14 @@ fun addAddr(arr: Addr, offset: Int): Addr =
 
 fun (arr: Any) cast[T]: T = abort("runtime cast")
 
-// The backend may wire it to different allocators based on user choice
-fun alloc(size: Int): Addr = abort "runtime alloc"
+fun start(): Void =
+  GC.init
+
+  mainStub
+
+  finish
+
+fun mainStub(): Void = abort("error mainStub")
 
 fun int2String(n: Int): String =
   // MAX_VALUE =  2147483647
@@ -35,7 +42,7 @@ fun int2String(n: Int): String =
   else if n == -2147483648 then "-2147483648" // its negation is still negative
   else
     // memory allocator will handle alignment
-    val buf = alloc 15 // max 11 + 4-byte head for length
+    val buf = GC.alloc 15 // max 11 + 4-byte head for length
 
     val negative = n < 0
     var remains = if negative then 0 - n else n
