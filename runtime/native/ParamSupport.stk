@@ -5,8 +5,109 @@ import stk.runtime.native.GC
 
 type State = { keys: Core.Addr, values: Core.Addr }
 
-fun init(): Void = 0
+fun init(): Void =
+  val data = Core.data "stk.runtime.native.ParamSupport.state"
+  // TODO: make the size configurable
+  val keysArr = GC.alloc 4096
+  val valsArr = GC.alloc 4096
+  Core.writeInt data (keysArr Core.cast[Int])
+  Core.writeInt (Core.addAddr data 4) (valsArr Core.cast[Int])
 
-fun getParam(key: String): Any = abort "error ParamSupport.getParam"
+fun computeHash(key: String): Int =
+  // 1021 is the largest prime < 4096/4
+  // key addresses are 4-byte aligned
+  ((key Core.cast[Int]) << 2) % 1021
 
-fun setParam(key: String, value: Any): Any = abort "error ParamSupport.setParam"
+fun readKeyAt(index: Int): Int =
+  val state = (Core.data "stk.runtime.native.ParamSupport.state") Core.cast[State]
+  Core.readInt
+    Core.addAddr
+      state.keys Core.cast[Core.Addr]
+      index * 4
+
+fun writeKeyAt(index: Int, key: String): Void =
+  val state = (Core.data "stk.runtime.native.ParamSupport.state") Core.cast[State]
+  Core.writeInt
+    Core.addAddr
+      state.keys Core.cast[Core.Addr]
+      index * 4
+    key Core.cast[Int]
+
+fun readValueAt(index: Int): Any =
+  val state = (Core.data "stk.runtime.native.ParamSupport.state") Core.cast[State]
+  Core.readInt
+    Core.addAddr
+      state.values Core.cast[Core.Addr]
+      index * 4
+
+fun writeValueAt(index: Int, Value: Any): Void =
+  val state = (Core.data "stk.runtime.native.ParamSupport.state") Core.cast[State]
+  Core.writeInt
+    Core.addAddr
+      state.values Core.cast[Core.Addr]
+      index * 4
+    key Core.cast[Int]
+
+fun hasParam(key: String): Boolean =
+  val hash = computeHash key
+
+  var index = hash
+  var continue = true
+  while continue && index < 1024 do
+    var foundKey = readKeyAt index
+    if fundKey Core.cast[Int] == 0 then
+      continue = false
+      index = 1024
+    else if foundKey Core.cast[Int] == (key Core.cast[Int]) then
+      continue = false
+    else
+      index = index + 4
+
+   index < 1024
+
+fun getParam(key: String): Any =
+  val hash = computeHash key
+
+  var index = hash
+  var continue = true
+  while continue && index < 1024 do
+    var foundKey = readKeyAt index
+    if fundKey == 0 then
+      continue = false
+      index = 1024
+    else if foundKey == (key Core.cast[Int]) then
+      continue = false
+    else
+      index = index + 4
+
+  if index >= 1024 then
+    print "Unbound parameter "
+    print key
+    abort "\n"
+  else
+    readValueAt index
+
+// convenient if we can return two values: whether the value is absent
+fun setParam(key: String, value: Any): Any =
+  val hash = computeHash key
+
+  var index = hash
+  var continue = true
+  while continue && index < 1024 do
+    var foundKey = readKeyAt index
+    if fundKey == 0 then
+      writeKeyAt index key
+      continue = false
+    else if foundKey == (key Core.cast[Int]) then
+      continue = false
+    else
+      index = index + 4
+
+  if index >= 1024 then
+    print "error: no free slot for parameter "
+    println key
+    abort "\n"
+  else
+    val oldValue = readValueAt index
+    writeValueAt index value
+    oldValue

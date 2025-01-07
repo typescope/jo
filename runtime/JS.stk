@@ -11,6 +11,10 @@ fun print(s: String): Void = js "process.stdout.write(s)"
 
 fun p(n: Int): Void = js "process.stdout.write(n.toString() + \"\\n\")"
 
+fun hasParam(key: String): Boolean =
+  val v = getProp (js "__runtime_contextParams") key
+  isDefined v
+
 fun getParam(key: String): Any =
   val v = getProp (js "__runtime_contextParams") key
   if isDefined v then v

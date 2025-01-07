@@ -54,7 +54,18 @@ extends SastOps.TreeMap:
           stats += Assign(argValueSym, this(arg.rhs))(arg.rhs.span)
           argValueSym
 
-        // 2. val oldX = setParam("x", v)
+        // 2. val hasX = hasParam("x")
+        val hasXSyms = args.map: arg =>
+          val paramName = arg.paramRef.symbol.fullName
+          val key = StringLit(paramName)(arg.paramRef.span)
+          val funHasParam = Ident(hasParamSym)(arg.span)
+          val hasParamCall = Apply(funHasParam, key :: Nil)(BoolType, span)
+          val hasXSym = new Symbol("has_" + paramName, BoolType, Flags.Val, owner = ctx.funSymbol, sourcePos = arg.rhs.pos)
+          ctx.locals += hasXSym
+          stats += Assign(hasXSym, hasParamCall)(arg.span)
+          hasXSym
+
+        // 3. val oldX = setParam("x", v)
         val oldValueSyms = args.zip(argValueSyms).map: (arg, argValueSym) =>
           val paramName = arg.paramRef.symbol.fullName
           val key = StringLit(paramName)(arg.paramRef.span)
@@ -66,18 +77,25 @@ extends SastOps.TreeMap:
           stats += Assign(oldValueSym, setParamCall)(arg.span)
           oldValueSym
 
-        // 3. val res = expr
+        // 4. val res = expr
         val resSym = new Symbol("res", expr.tpe, Flags.Val, owner = ctx.funSymbol, sourcePos = null)
         ctx.locals += resSym
         stats += Assign(resSym, this(expr))(expr.span)
 
-        // 4. setParam("x", oldX)
-        paramRefs.zip(oldValueSyms).foreach: (paramRef, oldValueSym) =>
-          val paramName = paramRef.symbol.fullName
-          val key = StringLit(paramName)(paramRef.span)
-          val value = Ident(oldValueSym)(paramRef.span)
-          val funSetParam = Ident(setParamSym)(paramRef.span)
-          stats += dropValue(Apply(funSetParam, key :: value :: Nil)(AnyType, span))
+        // 5. if hasX then setParam("x", oldX)
+        paramRefs.zip(hasXSyms).zip(oldValueSyms).foreach:
+          case ((paramRef, hasX), oldValueSym) =>
+            val paramName = paramRef.symbol.fullName
+
+            val key = StringLit(paramName)(paramRef.span)
+            val value = Ident(oldValueSym)(paramRef.span)
+            val funSetParam = Ident(setParamSym)(paramRef.span)
+            val setParamCall = dropValue(Apply(funSetParam, key :: value :: Nil)(AnyType, span))
+
+            val cond = Ident(hasX)(paramRef.span)
+            val ifStat = If()
+
+            stats +=
 
         // 5. res
         stats += Ident(resSym)(expr.span)

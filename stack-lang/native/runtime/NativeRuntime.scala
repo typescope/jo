@@ -42,6 +42,7 @@ extends Linker:
   val ParamSupport = resolvePath("stk.runtime.native.ParamSupport")
   val ParamSupport_getParam = ParamSupport.termMember("getParam")
   val ParamSupport_setParam = ParamSupport.termMember("setParam")
+  val ParamSupport_hasParam = ParamSupport.termMember("hasParam")
 
   def locate(sym: Symbol): Option[Label | Symbol] =
     if sym.owner == defn.Predef then
