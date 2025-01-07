@@ -40,10 +40,10 @@ files=(
     stack-lang/js/Compiler.scala
     stack-lang/js/JSOptimized.scala
     stack-lang/js/JSRuntime.scala
-    stack-lang/js/LowerContextParams.scala
 
-    stack-lang/phrases/ElimCapture.scala
-    stack-lang/phrases/ExplicitInit.scala
+    stack-lang/phases/ElimCapture.scala
+    stack-lang/phases/ExplicitInit.scala
+    stack-lang/phases/LowerContextParams.scala
 )
 
 FILES=${files[*]}

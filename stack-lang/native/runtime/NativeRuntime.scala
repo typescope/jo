@@ -39,6 +39,10 @@ extends Linker:
   val GC = resolvePath("stk.runtime.native.GC")
   val GC_alloc = GC.termMember("alloc")
 
+  val ParamSupport = resolvePath("stk.runtime.native.ParamSupport")
+  val ParamSupport_getParam = ParamSupport.termMember("getParam")
+  val ParamSupport_setParam = ParamSupport.termMember("setParam")
+
   def locate(sym: Symbol): Option[Label | Symbol] =
     if sym.owner == defn.Predef then
       if sym == defn.Predef_print then return Some(Core_print)

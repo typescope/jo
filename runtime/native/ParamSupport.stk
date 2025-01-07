@@ -1,0 +1,12 @@
+namespace stk.runtime.native.ParamSupport
+
+import stk.runtime.native.Core
+import stk.runtime.native.GC
+
+type State = { keys: Core.Addr, values: Core.Addr }
+
+fun init(): Void = 0
+
+fun getParam(key: String): Any = abort "error ParamSupport.getParam"
+
+fun setParam(key: String, value: Any): Any = abort "error ParamSupport.setParam"

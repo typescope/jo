@@ -1,4 +1,4 @@
-package js
+package phases
 
 import ast.Positions.Source
 import sast.*
@@ -9,7 +9,8 @@ import sast.Types.*
 import scala.collection.mutable
 
 /** The compiler phase translate context parameters to runtime calls */
-class LowerContextParams(runtime: JSRuntime) extends SastOps.TreeMap:
+class LowerContextParams(getParamSym: Symbol, setParamSym: Symbol)
+extends SastOps.TreeMap:
   class FunContext(val funSymbol: Symbol, val locals: mutable.ArrayBuffer[Symbol])
 
   type Context = FunContext
@@ -32,7 +33,7 @@ class LowerContextParams(runtime: JSRuntime) extends SastOps.TreeMap:
     word match
       case Ident(sym) if sym.isAllOf(Flags.Context | Flags.Param) =>
         val arg = StringLit(sym.fullName)(word.span)
-        val fun = Ident(runtime.JS_getParam)(word.span)
+        val fun = Ident(getParamSym)(word.span)
         val app = Apply(fun, arg :: Nil)(word.tpe, word.span)
         app
 
@@ -58,7 +59,7 @@ class LowerContextParams(runtime: JSRuntime) extends SastOps.TreeMap:
           val paramName = arg.paramRef.symbol.fullName
           val key = StringLit(paramName)(arg.paramRef.span)
           val value = Ident(argValueSym)(arg.rhs.span)
-          val funSetParam = Ident(runtime.JS_setParam)(arg.span)
+          val funSetParam = Ident(setParamSym)(arg.span)
           val setParamCall = Apply(funSetParam, key :: value :: Nil)(AnyType, span)
           val oldValueSym = new Symbol("old_" + paramName, arg.rhs.tpe, Flags.Val, owner = ctx.funSymbol, sourcePos = arg.rhs.pos)
           ctx.locals += oldValueSym
@@ -75,7 +76,7 @@ class LowerContextParams(runtime: JSRuntime) extends SastOps.TreeMap:
           val paramName = paramRef.symbol.fullName
           val key = StringLit(paramName)(paramRef.span)
           val value = Ident(oldValueSym)(paramRef.span)
-          val funSetParam = Ident(runtime.JS_setParam)(paramRef.span)
+          val funSetParam = Ident(setParamSym)(paramRef.span)
           stats += dropValue(Apply(funSetParam, key :: value :: Nil)(AnyType, span))
 
         // 5. res

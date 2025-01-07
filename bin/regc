@@ -59,8 +59,10 @@ files=(
     stack-lang/native/runtime/NativeRuntime.scala
     stack-lang/native/runtime/BumpAllocator.scala
 
-    stack-lang/phrases/ElimCapture.scala
-    stack-lang/phrases/ExplicitInit.scala
+    stack-lang/phases/ElimCapture.scala
+    stack-lang/phases/ExplicitInit.scala
+    stack-lang/phases/LowerContextParams.scala
+
 )
 
 FILES=${files[*]}

@@ -2,6 +2,7 @@ namespace stk.runtime.native.Core
 
 import stk.runtime.native.Syscall
 import stk.runtime.native.GC
+import stk.runtime.native.ParamSupport
 
 type Addr
 
@@ -28,6 +29,7 @@ fun (arr: Any) cast[T]: T = abort("runtime cast")
 
 fun start(): Void =
   GC.init
+  ParamSupport.init
 
   mainStub
 

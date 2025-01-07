@@ -54,6 +54,7 @@ object Compiler:
     val runtime = List(
       "runtime/native/Core.stk",
       "runtime/native/GC.stk",
+      "runtime/native/ParamSupport.stk",
       "runtime/native/Syscall.stk",
       "runtime/native/BumpAllocator.stk",
     )
@@ -75,6 +76,10 @@ object Compiler:
         case main :: Nil =>
           val backend = backendBuilder(runtimeNameTable, main)
 
+          val contextParamsLower = new LowerContextParams(
+              backend.runtime.ParamSupport_getParam,
+              backend.runtime.ParamSupport_setParam)
+
           val assembler = (prog: Prog) =>
             // println(prog.show)
             Linux.lower(prog, layout, outFile, X86, backend.runtime)
@@ -84,6 +89,8 @@ object Compiler:
           new ExplicitInit().transform  |+
           Printing.peek(enable = false) |>
           ElimCapture.transform         |+
+          Printing.peek(enable = false) |>
+          contextParamsLower.transform  |+
           Printing.peek(enable = false) |>
           backend.compile               |>
           assembler
