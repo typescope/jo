@@ -27,7 +27,7 @@ object Symbols:
     val owner: Symbol,        // can be null for top-level namespace symbols
     val sourcePos: SourcePosition):
 
-    assert(owner != null || flags.isAllOf(Flags.NSpace))
+    assert(owner != null || flags.is(Flags.NSpace))
 
     /** Do not cache the result from provider
       *

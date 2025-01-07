@@ -394,24 +394,23 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def word(): Option[Word] =
     val item = peekItem()
 
-    def optSelect(word: Word): Some[Word] =
+    def optSelectAndTypeApply(word: Word): Some[Word] =
       peek() match
-        case Token.DOT  => optSelect(select(word))
-        case _ => Some(word)
+        case Token.DOT      => optSelectAndTypeApply(select(word))
+        case Token.LBRACKET => Some(typeApply(word))
+        case _              => Some(word)
 
     item.token match
-      case Token.LBRACE => optSelect(record())
+      case Token.LBRACE => optSelectAndTypeApply(record())
 
       case Token.TAG    => Some(variant())
 
       case Token.LPAREN =>
-        if isLambda() then Some(lambda()) else optSelect(fence())
+        if isLambda() then Some(lambda()) else optSelectAndTypeApply(fence())
 
       case _: Token.Ident =>
         val id = ident()
-        peek() match
-          case Token.LBRACKET => Some(typeApply(id))
-          case _              => optSelect(id)
+        optSelectAndTypeApply(id)
 
       case lit: Token.IntLit  =>
         next()
@@ -627,10 +626,10 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case Token.DOT => select(sel)
       case _ => sel
 
-  def typeApply(id: Ident): TypeApply =
+  def typeApply(fun: Word): TypeApply =
     val targs = typeArgs()
     val last = targs.last
-    TypeApply(id, targs)(id.span | last.span)
+    TypeApply(fun, targs)(fun.span | last.span)
 
   def record(): RecordLit =
     val lbrace = eat(Token.LBRACE)

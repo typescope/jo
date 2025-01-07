@@ -165,7 +165,7 @@ class Namer(@constructorOnly reporter: Reporter):
           case Some(sym) => sym
           case None =>
             rp.error(s"The name $name is not found", qualid.pos)
-            Symbol.createFunSymbol(name, ErrorType, sc.owner, pos = qualid.pos)
+            Symbol.createNamespaceSymbol(name, new NamespaceInfo, sc.owner, pos = qualid.pos, isBranch = false)
 
   private def index(defs: List[Ast.Def])(using sc: Scope, rp: Reporter, so: Source): List[DelayedDef[Def]] =
     val delayedDefs = new mutable.ArrayBuffer[DelayedDef[Def]]

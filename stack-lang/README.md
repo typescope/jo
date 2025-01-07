@@ -91,7 +91,7 @@ Syntactical Grammar
     variant = TAG ident [args] [AS type].
     args    = LPAREN phrase {COMMA expr} RPAREN.
 
-    tapply  = ident targs.
+    tapply  = word targs.
     lambda  = param_section RARROW block.
 
     match   = MATCH block {case} [END].
