@@ -6,7 +6,6 @@ import sast.Symbols.*
 
 import native.Backend
 import native.Memory
-import native.NativeRuntime
 
 import native.Assembly
 import native.Assembly.*
@@ -327,7 +326,7 @@ extends Backend(runtime):
   /** Allocate a block of memory and push the start address onto stack */
   def alloc(size: Int)(using LocalAddr, CodeBuffer): Unit =
     push(Int32(size))
-    call(runtime.Core_alloc)
+    call(runtime.GC_alloc)
 
   /** Pop the value on the top of the stack to the given register */
   def pop(destReg: Int, size: Size)(using cb: CodeBuffer) =
@@ -487,7 +486,7 @@ object StackMachine:
           fn(r1, r2)
   end RegisterAllocator
 
-  def createLinux86(runtimeRootNameTable: NameTable): Backend =
+  def createLinux86(runtimeRootNameTable: NameTable, main: Symbol): Backend =
     val bumpAllocator = new BumpAllocator(runtimeRootNameTable)
     val syscalls = new LinuxSyscallX86StackLinker(runtimeRootNameTable)
     val linkers = List(bumpAllocator, syscalls)
