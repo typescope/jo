@@ -80,14 +80,12 @@ extends Backend(runtime):
       case _: ValDef | _: FunDef | _: TypeDef | _: With =>
         throw new Exception("Unexpected " + word)
 
-  def callNoArgs(fun: Symbol)(using cb: CodeBuffer): Unit = call(fun)
-
   /** Compile a function */
   def compileFunDef(fdef: FunDef)(using cb: CodeBuffer): Unit =
     val sym = fdef.symbol
     val funType = TypeOps.erasePolyType(sym.info).asProcType
 
-    val label = getAddress(sym)
+    val label = getFunAddress(sym)
 
     val paramCount = funType.paramCount
     val resCount = funType.resCount
@@ -199,7 +197,7 @@ extends Backend(runtime):
     *  └─────────────┘ ◄─────── SP
     */
   def call(fun: Symbol)(using cb: CodeBuffer): Unit =
-    val addr = getAddress(fun)
+    val addr = getFunAddress(fun)
     val funType = TypeOps.erasePolyType(fun.info).asProcType
     val argCount = funType.paramCount
     val resCount = funType.resCount
@@ -252,14 +250,17 @@ extends Backend(runtime):
   def compile(ref: Ident)(using addr: LocalAddr, cb: CodeBuffer): Unit =
     if ref.symbol.isValue then
       val loc =
-        if ref.symbol.isLocal then addr(ref.symbol)
-        else getAddress(ref.symbol)
+        if ref.symbol.isLocal then
+          addr(ref.symbol)
+        else
+          throw new Exception("accessing non-local variable " + ref.symbol)
 
       useReg: r =>
         cb.add(Instr.Load(loc, r, Size.B32))
         push(Reg(r))
     else
-      val label = getAddress(ref.symbol)
+      assert(ref.symbol.is(Flags.Fun))
+      val label = getFunAddress(ref.symbol)
       push(label)
 
   /** Compile function call */

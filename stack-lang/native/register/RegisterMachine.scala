@@ -60,25 +60,6 @@ extends Backend(runtime):
   def gen(label: Label)(using ctx: Context): Unit =
     ctx.buffer.gen(label)
 
-  def callNoArgs(funSym: Symbol)(using cb: CodeBuffer) =
-    assert(funSym.info.asProcType.params.isEmpty)
-    val addr = getAddress(funSym)
-    val returnLoc = Label("returnLoc")
-
-    // save FP and return address
-    cb.add(Instr.Store(Reg(FP_REG), Rel(SP_REG, -4)))
-    cb.add(Instr.Store(returnLoc, Rel(SP_REG, -8)))
-    cb.add(Instr.Sub(Reg(SP_REG), Int32(8), SP_REG))
-
-    cb.add(Instr.Jump(addr))
-
-    cb.mark(returnLoc)
-
-    // restore FP and SP
-    cb.add(Instr.Add(Reg(FP_REG), Int32(8), SP_REG))
-    cb.add(Instr.Load(Rel(FP_REG, 4), FP_REG, Size.B32))
-
-
   def compile(phrase: Phrase)(using Context): Unit =
     for word <- phrase.words do compile(word)
 
@@ -154,7 +135,7 @@ extends Backend(runtime):
 
     // perform register allocation
     assert(ctx.vs.size == 0, sym.name + " " + ctx.vs.size)
-    val label = getAddress(sym)
+    val label = getFunAddress(sym)
     doGraphColoring(
       label, ctx.buffer.getResult(), registerConfig, proto.savedRegs, cb,
       ctx.generator, rules)
@@ -290,7 +271,7 @@ extends Backend(runtime):
   def call(fun: Symbol)(using ctx: Context): Unit =
     // TODO: erasure better handled together with boxing/unboxing?
     val funType = TypeOps.erasePolyType(fun.info).asProcType
-    val target = getAddress(fun)
+    val target = getFunAddress(fun)
     call(target, funType.paramTypes, funType.resultType)
 
   def call(target: Addr, paramTypes: List[Type], resType: Type)(using ctx: Context): Unit =
@@ -355,7 +336,7 @@ extends Backend(runtime):
     val rhsValue = ctx.vs.pop()
     val instr =
       if sym.isLocal then Instr.Move(rhsValue, ctx.getRegForLocal(sym))
-      else throw new Exception("assigning to non-local " + sym) // Instr.Store(rhsValue, getAddress(sym))
+      else throw new Exception("assigning to non-local " + sym)
     gen(instr)
 
   /** Compile a reference to a name that produces a runtime value */
@@ -366,13 +347,13 @@ extends Backend(runtime):
         val reg = ctx.getRegForLocal(sym)
         ctx.vs.push(Reg(reg))
       else
-        throw new Exception("accessing non-local " + sym)
+        throw new Exception("accessing non-local variable " + sym)
         // val reg = freshVirtualReg()
         // val addr = getAddress(sym)
         // gen(Instr.Load(addr, reg))
-        // ctx.vs.push(Reg(reg))
     else
-      val target = getAddress(id.symbol)
+      assert(sym.is(Flags.Fun))
+      val target = getFunAddress(id.symbol)
       val targetReg = freshVirtualReg()
       gen(Instr.Move(target, targetReg))
       ctx.vs.push(Reg(targetReg))
@@ -388,7 +369,10 @@ extends Backend(runtime):
           if sym == runtime.Core_data then
             // TODO: error instead of crash -- in early phases
             val StringLit(qualid) :: Nil = app.args: @unchecked
-            val Some(label) = runtime.locate(qualid): @unchecked
+            val label = runtime.locate(qualid) match
+              case Some(label) => label
+              case None => throw new Exception("Runtime data not defined: " + qualid)
+
             val targetReg = freshVirtualReg()
             gen(Instr.Move(label, targetReg))
             ctx.vs.push(Reg(targetReg))

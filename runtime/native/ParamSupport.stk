@@ -3,7 +3,7 @@ namespace stk.runtime.native.ParamSupport
 import stk.runtime.native.Core
 import stk.runtime.native.GC
 
-type State = { keys: Core.Addr, values: Core.Addr }
+type State = { keys: Core.Addr, values: Core.Addr, lastOverwrittenValue: Any }
 
 fun init(): Void =
   val data = Core.data "stk.runtime.native.ParamSupport.state"
@@ -13,6 +13,17 @@ fun init(): Void =
   Core.writeInt data (keysArr Core.cast[Int])
   Core.writeInt (Core.addAddr data 4) (valsArr Core.cast[Int])
 
+  // Use -1 as a sentinel to indicate free cells in the hash table
+  //
+  // It assumes that addresses for parameter keys are positive.
+  var i = 0
+  while i < 1024 do
+    writeKeyAt i -1
+    i = i + 1
+
+// Assumption:
+// (1) The keys for manipulating the same param share the same physical address.
+// (2) The underlying physical address do not change.
 fun computeHash(key: String): Int =
   // 1021 is the largest prime < 4096/4
   // key addresses are 4-byte aligned
@@ -25,7 +36,7 @@ fun readKeyAt(index: Int): Int =
       state.keys Core.cast[Core.Addr]
       index * 4
 
-fun writeKeyAt(index: Int, key: String): Void =
+fun writeKeyAt(index: Int, key: Int): Void =
   val state = (Core.data "stk.runtime.native.ParamSupport.state") Core.cast[State]
   Core.writeInt
     Core.addAddr
@@ -40,39 +51,22 @@ fun readValueAt(index: Int): Any =
       state.values Core.cast[Core.Addr]
       index * 4
 
-fun writeValueAt(index: Int, Value: Any): Void =
+fun writeValueAt(index: Int, value: Any): Void =
   val state = (Core.data "stk.runtime.native.ParamSupport.state") Core.cast[State]
   Core.writeInt
     Core.addAddr
       state.values Core.cast[Core.Addr]
       index * 4
-    key Core.cast[Int]
-
-fun hasParam(key: String): Boolean =
-  val hash = computeHash key
-
-  var index = hash
-  var continue = true
-  while continue && index < 1024 do
-    var foundKey = readKeyAt index
-    if fundKey Core.cast[Int] == 0 then
-      continue = false
-      index = 1024
-    else if foundKey Core.cast[Int] == (key Core.cast[Int]) then
-      continue = false
-    else
-      index = index + 4
-
-   index < 1024
+    value Core.cast[Int]
 
 fun getParam(key: String): Any =
   val hash = computeHash key
 
   var index = hash
   var continue = true
-  while continue && index < 1024 do
+  while continue and index < 1024 do
     var foundKey = readKeyAt index
-    if fundKey == 0 then
+    if foundKey < 0 then
       continue = false
       index = 1024
     else if foundKey == (key Core.cast[Int]) then
@@ -87,16 +81,20 @@ fun getParam(key: String): Any =
   else
     readValueAt index
 
-// convenient if we can return two values: whether the value is absent
-fun setParam(key: String, value: Any): Any =
+// Return the hash index of the previous value corresponding to the key.
+//
+// If existing binding is associated with the key, return the negative index of
+// the new binding.
+fun setParam(key: String, value: Any): Int =
   val hash = computeHash key
 
   var index = hash
   var continue = true
-  while continue && index < 1024 do
-    var foundKey = readKeyAt index
-    if fundKey == 0 then
-      writeKeyAt index key
+  var foundKey = -1
+  while continue and index < 1024 do
+    foundKey = readKeyAt index
+    if foundKey < 0 then
+      writeKeyAt index (key Core.cast[Int])
       continue = false
     else if foundKey == (key Core.cast[Int]) then
       continue = false
@@ -108,6 +106,28 @@ fun setParam(key: String, value: Any): Any =
     println key
     abort "\n"
   else
-    val oldValue = readValueAt index
+    backupValueAt index
     writeValueAt index value
-    oldValue
+    if foundKey > 0 then foundKey else 0 - index
+
+fun backupValueAt(index: Int): Void =
+  val data = Core.data "stk.runtime.native.ParamSupport.state"
+  Core.writeInt
+    Core.addAddr data 8
+    (readValueAt index) Core.cast[Int]
+
+fun getLastOverwrittenValue(): Any =
+  val data = Core.data "stk.runtime.native.ParamSupport.state"
+  Core.readInt
+    Core.addAddr data 8
+
+fun restoreParam(index: Int, value: Any): Void =
+  if index >= 1024 or index <= -1024 then
+    print "index = "
+    index p
+    abort "error: Index >= 1024\n"
+
+  if index >= 0 then
+    writeValueAt index value
+  else
+    writeKeyAt (0 - index) -1

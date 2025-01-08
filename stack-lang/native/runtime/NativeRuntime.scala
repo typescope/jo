@@ -42,7 +42,10 @@ extends Linker:
   val ParamSupport = resolvePath("stk.runtime.native.ParamSupport")
   val ParamSupport_getParam = ParamSupport.termMember("getParam")
   val ParamSupport_setParam = ParamSupport.termMember("setParam")
-  val ParamSupport_hasParam = ParamSupport.termMember("hasParam")
+  val ParamSupport_getLastOverwrittenValue = ParamSupport.termMember("getLastOverwrittenValue")
+  val ParamSupport_restoreParam = ParamSupport.termMember("restoreParam")
+
+  val paramSupportStateLabel = Label("paramSupportState")
 
   def locate(sym: Symbol): Option[Label | Symbol] =
     if sym.owner == defn.Predef then
@@ -62,6 +65,9 @@ extends Linker:
     None
 
   def locate(qualid: String): Option[Label] =
+    if qualid == "stk.runtime.native.ParamSupport.state" then
+      return Some(paramSupportStateLabel)
+
     val iter = linkers.iterator
     while iter.hasNext do
       val linker = iter.next()
@@ -72,6 +78,12 @@ extends Linker:
     None
 
   def linkData()(using pb: PatchableBuffer): Unit =
+    pb.defineLabel(paramSupportStateLabel)
+    pb.align(4)
+    pb.addInt(0)
+    pb.addInt(0)
+    pb.addInt(0)
+
     linkers.foreach(_.linkData())
 
   def linkCode()(using pb: PatchableBuffer): Unit =
