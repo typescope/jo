@@ -7,6 +7,9 @@ param beta: Int
 
 fun foo(n: Int): Int = alpha + beta * n
 
+fun test(a: Int): Int =
+  foo 10 with a = 20           // error
+
 fun main =
   padding 2 with indent = true // error
 
