@@ -19,6 +19,7 @@ class JSRuntime(runtimeRootNameTable: NameTable):
   val JS_getParam = JS.termMember("getParam")
   val JS_setParam = JS.termMember("setParam")
   val JS_hasParam = JS.termMember("hasParam")
+  val JS_delParam = JS.termMember("delParam")
 
   val JS_print = JS.termMember("print")
   val JS_p = JS.termMember("p")

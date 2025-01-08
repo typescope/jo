@@ -51,7 +51,12 @@ def compile(args: String*): Unit =
       Printing.peek(enable = false)
 
     val jsRuntime = new JSRuntime(runtimeNameTable)
-    val contextParamsLower = new LowerContextParams(jsRuntime.JS_getParam, jsRuntime.JS_setParam)
+    val contextParamsLower = new LowerContextParams(
+        jsRuntime.JS_hasParam,
+        jsRuntime.JS_getParam,
+        jsRuntime.JS_setParam,
+        jsRuntime.JS_delParam)
+
     val backend = new JSOptimized(outFile, jsRuntime)
 
     val mains = namespacesSAST.collect:

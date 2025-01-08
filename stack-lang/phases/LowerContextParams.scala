@@ -8,8 +8,22 @@ import sast.Types.*
 
 import scala.collection.mutable
 
-/** The compiler phase translate context parameters to runtime calls */
-class LowerContextParams(getParamSym: Symbol, setParamSym: Symbol)
+/** The compiler phase translate context parameters to runtime calls
+  *
+  * This phase is generic and can be used for all platforms, as long as the
+  * following support functions are provided:
+  *
+  *     fun hasParam(key: String): Bool = ...
+  *     fun getParam(key: String): Any = ...
+  *     fun setParam(key: String, value: Any): Any = ...
+  *     fun delParam(key: String): Void = ...
+  *
+  * Currently, only JS backend uses phase. The native backend handles it in
+  * during assembly translation in a different way for speed.
+  */
+class LowerContextParams(
+  hasParamSym: Symbol, getParamSym: Symbol,
+  setParamSym: Symbol, delParamSym: Symbol)
 extends SastOps.TreeMap:
   class FunContext(val funSymbol: Symbol, val locals: mutable.ArrayBuffer[Symbol])
 
@@ -38,8 +52,6 @@ extends SastOps.TreeMap:
         app
 
       case With(expr, args) =>
-        // pushParams(runtimeArray({ key = "a.key", value = rhs })
-        val span = args.head.span | args.last.span
         given Source = ctx.funSymbol.sourcePos.source
 
         val paramRefs = args.map(_.paramRef)
@@ -59,7 +71,7 @@ extends SastOps.TreeMap:
           val paramName = arg.paramRef.symbol.fullName
           val key = StringLit(paramName)(arg.paramRef.span)
           val funHasParam = Ident(hasParamSym)(arg.span)
-          val hasParamCall = Apply(funHasParam, key :: Nil)(BoolType, span)
+          val hasParamCall = Apply(funHasParam, key :: Nil)(BoolType, arg.paramRef.span)
           val hasXSym = new Symbol("has_" + paramName, BoolType, Flags.Val, owner = ctx.funSymbol, sourcePos = arg.rhs.pos)
           ctx.locals += hasXSym
           stats += Assign(hasXSym, hasParamCall)(arg.span)
@@ -71,7 +83,7 @@ extends SastOps.TreeMap:
           val key = StringLit(paramName)(arg.paramRef.span)
           val value = Ident(argValueSym)(arg.rhs.span)
           val funSetParam = Ident(setParamSym)(arg.span)
-          val setParamCall = Apply(funSetParam, key :: value :: Nil)(AnyType, span)
+          val setParamCall = Apply(funSetParam, key :: value :: Nil)(AnyType, arg.span)
           val oldValueSym = new Symbol("old_" + paramName, arg.rhs.tpe, Flags.Val, owner = ctx.funSymbol, sourcePos = arg.rhs.pos)
           ctx.locals += oldValueSym
           stats += Assign(oldValueSym, setParamCall)(arg.span)
@@ -82,7 +94,7 @@ extends SastOps.TreeMap:
         ctx.locals += resSym
         stats += Assign(resSym, this(expr))(expr.span)
 
-        // 5. if hasX then setParam("x", oldX)
+        // 5. if hasX then setParam("x", oldX) else delParam("x")
         paramRefs.zip(hasXSyms).zip(oldValueSyms).foreach:
           case ((paramRef, hasX), oldValueSym) =>
             val paramName = paramRef.symbol.fullName
@@ -90,12 +102,15 @@ extends SastOps.TreeMap:
             val key = StringLit(paramName)(paramRef.span)
             val value = Ident(oldValueSym)(paramRef.span)
             val funSetParam = Ident(setParamSym)(paramRef.span)
-            val setParamCall = dropValue(Apply(funSetParam, key :: value :: Nil)(AnyType, span))
+            val setParamCall = dropValue(Apply(funSetParam, key :: value :: Nil)(AnyType, paramRef.span))
+
+            val funDelParam = Ident(delParamSym)(paramRef.span)
+            val delParamCall = Apply(funDelParam, key :: Nil)(VoidType, paramRef.span)
 
             val cond = Ident(hasX)(paramRef.span)
-            val ifStat = If()
+            val ifStat = If(cond, setParamCall, delParamCall)(VoidType, paramRef.span)
 
-            stats +=
+            stats += ifStat
 
         // 5. res
         stats += Ident(resSym)(expr.span)

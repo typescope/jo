@@ -11,7 +11,7 @@ fun print(s: String): Void = js "process.stdout.write(s)"
 
 fun p(n: Int): Void = js "process.stdout.write(n.toString() + \"\\n\")"
 
-fun hasParam(key: String): Boolean =
+fun hasParam(key: String): Bool =
   val v = getProp (js "__runtime_contextParams") key
   isDefined v
 
@@ -24,3 +24,6 @@ fun setParam(key: String, value: Any): Any =
   val old = getProp (js "__runtime_contextParams") key
   setProp (js "__runtime_contextParams") key value
   old
+
+fun delParam(key: String): Void =
+  setProp (js "__runtime_contextParams") key (js "undefined")
