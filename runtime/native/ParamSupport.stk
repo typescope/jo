@@ -108,7 +108,7 @@ fun setParam(key: String, value: Any): Int =
   else
     backupValueAt index
     writeValueAt index value
-    if foundKey > 0 then foundKey else 0 - index
+    if foundKey > 0 then index else 0 - index
 
 fun backupValueAt(index: Int): Void =
   val data = Core.data "stk.runtime.native.ParamSupport.state"
