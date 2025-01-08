@@ -570,7 +570,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def fence(): Word =
     val lparen = eat(Token.LPAREN)
     val nested = phrase() match
-      case Some(p) => p
+      case Some(p) =>
+        Block(p :: Nil)(p.span)
+
       case None =>
         error("Phrase expected within parentheses", lparen.span.toPos)
         Block(Nil)(lparen.span)
