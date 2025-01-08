@@ -1,4 +1,6 @@
-fun fact(n: Int): Int = if n == 0 then 1 else fact (n - 1) * n
+fun fact(n: Int): Int =
+  if n == 0 then 1
+  else fact (n - 1) * n
 
 fun main =
   fact 0 p

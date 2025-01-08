@@ -2,15 +2,17 @@
 
 set -e
 
-if [ "$1" = "-fast" ]; then
-    OPT=""
-else
-    OPT="--native"
-fi
+OPT="--native"
 
 # compile
 echo "Generating interpreter"
-scala-cli --power package -f $OPT project.scala stack-lang -M sastEval -o bin/stki
+scala-cli --power package -f $OPT project.scala stack-lang -M sast.Interpreter -o bin/run.native
 
-echo "Generating compiler"
-scala-cli --power package -f $OPT project.scala stack-lang -M compile -o bin/stkc
+echo "Generating js compiler"
+scala-cli --power package -f $OPT project.scala stack-lang -M js.compile -o bin/jsc.native
+
+echo "Generating stack compiler"
+scala-cli --power package -f $OPT project.scala stack-lang -M native.stack.StackMachine -o bin/stac.native
+
+echo "Generating register compiler"
+scala-cli --power package -f $OPT project.scala stack-lang -M native.stack.StackMachine -o bin/regc.native

@@ -1,0 +1,90 @@
+package native
+package runtime
+
+import sast.*
+import sast.Symbols.*
+
+import native.Assembly.Label
+import native.Assembler.PatchableBuffer
+
+/** Functions to support native platform at runtime
+  *
+  * Run-time symbols are not visible to user programs.
+  */
+class NativeRuntime(
+  runtimeRootNameTable: NameTable, linkers: List[Linker], userMain: Symbol)
+extends Linker:
+  import runtimeRootNameTable.resolvePath
+
+  val defn = Definitions.instance
+
+  val Core = resolvePath("stk.runtime.native.Core")
+
+  val Core_start = Core.termMember("start")
+  val Core_mainStub = Core.termMember("mainStub")
+
+  val Core_cast = Core.termMember("cast")
+  val Core_data = Core.termMember("data")
+
+  val Core_addAddr = Core.termMember("addAddr")
+  val Core_writeInt = Core.termMember("writeInt")
+  val Core_readInt = Core.termMember("readInt")
+  val Core_writeByte = Core.termMember("writeByte")
+  val Core_readByte = Core.termMember("readByte")
+
+  val Core_print = Core.termMember("print")
+  val Core_p = Core.termMember("p")
+  val Core_abortImpl = Core.termMember("abortImpl")
+
+  val GC = resolvePath("stk.runtime.native.GC")
+  val GC_alloc = GC.termMember("alloc")
+
+  val ParamSupport = resolvePath("stk.runtime.native.ParamSupport")
+  val ParamSupport_getParam = ParamSupport.termMember("getParam")
+  val ParamSupport_setParam = ParamSupport.termMember("setParam")
+  val ParamSupport_getLastOverwrittenValue = ParamSupport.termMember("getLastOverwrittenValue")
+  val ParamSupport_restoreParam = ParamSupport.termMember("restoreParam")
+
+  val paramSupportStateLabel = Label("paramSupportState")
+
+  def locate(sym: Symbol): Option[Label | Symbol] =
+    if sym.owner == defn.Predef then
+      if sym == defn.Predef_print then return Some(Core_print)
+      else if sym == defn.Predef_p then return Some(Core_p)
+      else if sym == defn.Predef_abort then return Some(Core_abortImpl)
+
+    if sym == Core_mainStub then return Some(userMain)
+
+    val iter = linkers.iterator
+    while iter.hasNext do
+      val linker = iter.next()
+      linker.locate(sym) match
+        case None =>
+        case res => return res
+
+    None
+
+  def locate(qualid: String): Option[Label] =
+    if qualid == "stk.runtime.native.ParamSupport.state" then
+      return Some(paramSupportStateLabel)
+
+    val iter = linkers.iterator
+    while iter.hasNext do
+      val linker = iter.next()
+      linker.locate(qualid) match
+        case None =>
+        case res => return res
+
+    None
+
+  def linkData()(using pb: PatchableBuffer): Unit =
+    pb.defineLabel(paramSupportStateLabel)
+    pb.align(4)
+    pb.addInt(0)
+    pb.addInt(0)
+    pb.addInt(0)
+
+    linkers.foreach(_.linkData())
+
+  def linkCode()(using pb: PatchableBuffer): Unit =
+    linkers.foreach(_.linkCode())

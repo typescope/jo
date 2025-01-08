@@ -18,19 +18,19 @@ Stk is a statically typed functional programming language with the following fea
 Run the interpreter:
 
 ``` shell
-bin/stki tests/pos/fact.stk
+bin/run.native tests/pos/fact.stk
 ```
 
 Run the compiler targeting Linux/x86:
 
 ``` shell
-bin/stkc -p linux-x86-fast tests/pos/fact.stk -o fact
+bin/regc.native tests/pos/fact.stk -o fact
 ./fact
 ```
 
 Run the compiler targeting JavaScript:
 
 ``` shell
-bin/stkc -p js-opt tests/pos/fact.stk -o fact.js
+bin/jsc.native tests/pos/fact.stk -o fact.js
 node fact.js
 ```

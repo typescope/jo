@@ -41,6 +41,8 @@ Lexical Grammar
     MATCH    = "match".
     CASE     = "case".
     END      = "end".
+    WITH     = "with".
+    PARAM    = "param".
     NSPACE   = "namespace".
     IMPORT   = "import".
     name     = (letter | USCORE) {letter | digit | USCORE}.
@@ -48,6 +50,7 @@ Lexical Grammar
     ident    = name | operator.
     integer  = ["-"] digit {digit}.
     boolean  = "true" | "false".
+    string   = "..."
 
     comment = "//" {any character} NLINE.
 ~~~
@@ -56,7 +59,7 @@ Syntactical Grammar
 
 
 ~~~
-    namespace = [NSPACE qualid] {import} {typedef | fundef} EOF.
+    namespace = [NSPACE qualid] {import} {typedef | fundef | paramdef} EOF.
 
     qualid = ident | qualid DOT ident.
 
@@ -64,15 +67,19 @@ Syntactical Grammar
 
     expr    = word {word}.
 
-    word    = integer | boolean | ident | fence | record | tapply | select | variant | lambda.
+    word    = integer | boolean | string | ident | fence | record | tapply | select | variant | lambda.
 
-    phrase  = expr | assign | valdef | fundef | typedef | while | if | match.
+    phrase  = expr | with_clause | assign | valdef | fundef | typedef | while | if | match.
 
     block   = { phrase }.
 
     select  = (ident | record | fence | select) DOT ident.
 
-    fence   = LPAREN expr RPAREN.
+    with_clause = expr WITH with_binding {COMMA with_binding}.
+
+    with_binding = qualid EQL expr.
+
+    fence   = LPAREN phrase RPAREN.
     assign  = ident EQL block.
     if      = IF expr THEN block [ELSE block] [END].
     while   = WHILE expr DO block [END].
@@ -84,7 +91,7 @@ Syntactical Grammar
     variant = TAG ident [args] [AS type].
     args    = LPAREN phrase {COMMA expr} RPAREN.
 
-    tapply  = ident targs.
+    tapply  = word targs.
     lambda  = param_section RARROW block.
 
     match   = MATCH block {case} [END].
@@ -97,7 +104,9 @@ Syntactical Grammar
     valdef  = (VAL | VAR) ident [COLON type] EQL block.
     fundef  = FUN [param_section] ident [tparams] [param_section] EQL block [END].
 
-    typedef = TYPE [tparams] ident EQL type.
+    paramdef = PARAM param
+
+    typedef = TYPE ident[tparams] [EQL type].
     tparams = LBRACKET tparam {COMMA tparam} RBRACKET.
     tparam  = ident [SUBTYPE type].
 

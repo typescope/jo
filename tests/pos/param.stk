@@ -1,0 +1,44 @@
+param indent: Int
+
+fun padding(unit: Int): Int = indent * unit
+
+param alpha: Int
+param beta: Int
+
+fun foo(n: Int): Int = alpha + beta * n
+
+fun printInt(x: Int): Void = x p
+
+fun main =
+  println "test context parameters"
+
+  val a = padding 2 with indent = 2
+  printInt a
+
+  printInt
+    padding 2 with indent = 6
+
+  printInt
+    padding 4
+      with indent = 6
+
+  printInt
+    padding 4
+    with indent = 8
+
+  printInt
+    foo 10 with alpha = 3, beta = 6
+
+  val b = foo 5 with
+    alpha = 3,
+    beta = 6
+  printInt b
+
+  printInt
+    foo (foo 5 with beta = 3)
+      with alpha = 4, beta = 6
+
+  // check that with args are evaluated with outer bindings
+  printInt
+    foo (foo 5 with alpha = 2 + beta, beta = 3 + alpha)
+      with alpha = 4, beta = 6

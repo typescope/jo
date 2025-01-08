@@ -1,0 +1,3 @@
+import stk.runtime.JS    // error
+
+fun main = JS.print "hello\n"  // error

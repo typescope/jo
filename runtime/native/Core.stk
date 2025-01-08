@@ -1,0 +1,165 @@
+namespace stk.runtime.native.Core
+
+import stk.runtime.native.Syscall
+import stk.runtime.native.GC
+import stk.runtime.native.ParamSupport
+
+type Addr
+
+fun data(qualid: String): Addr =
+  abort "native global"
+
+fun writeInt(arr: Addr, value: Int): Void =
+  abort "native writeInt"
+
+fun readInt(arr: Addr): Int =
+  abort "native readInt"
+
+// The caller needs to make sure the value fit into one byte
+fun writeByte(arr: Addr, value: Int): Void =
+  abort "native writeInt"
+
+fun readByte(arr: Addr): Int =
+  abort "native readByte"
+
+fun addAddr(arr: Addr, offset: Int): Addr =
+  abort "native addAddr"
+
+fun (arr: Any) cast[T]: T = abort("runtime cast")
+
+fun start(): Void =
+  GC.init
+  ParamSupport.init
+
+  mainStub
+
+  finish
+
+fun mainStub(): Void = abort("error mainStub")
+
+fun int2String(n: Int): String =
+  // MAX_VALUE =  2147483647
+  // MIN_VALUE = -2147483648
+  if n == 0 then "0"
+  else if n == -2147483648 then "-2147483648" // its negation is still negative
+  else
+    // memory allocator will handle alignment
+    val buf = GC.alloc 15 // max 11 + 4-byte head for length
+
+    val negative = n < 0
+    var remains = if negative then 0 - n else n
+
+    // write from end of buffer
+    var index = 14
+    while remains > 0 do
+      val digit = remains % 10
+      writeByte (addAddr buf index) (48 + digit) // '0' = 48
+      index = index - 1
+      remains = remains / 10
+
+    // sign char
+    if negative then
+      writeByte (addAddr buf index) 45 // '-' = 45
+      index = index - 1
+
+    val startIndex = index + 1
+    val len = 14 - index
+    var freeFrom = 4
+
+    // adapt to string format
+    writeInt buf len
+
+    // copy bytes to front
+    if startIndex > freeFrom then
+      var copyIndex = 0
+      while copyIndex < len do
+        val c = readByte (addAddr buf (startIndex + copyIndex))
+        writeByte (addAddr buf (freeFrom + copyIndex)) c
+        copyIndex = copyIndex + 1
+
+    buf cast[String]
+
+fun p(n: Int): Void =
+  println (int2String n)
+
+fun print(s: String): Void =
+  val addr = s cast[Addr]
+  val len = readInt addr
+  val contentAddr = addAddr addr 4
+  Syscall.sys_write 1 contentAddr len
+
+fun finish: Void =
+  Syscall.sys_exit 0
+
+fun abortImpl(msg: String): Bottom =
+  print msg
+  Syscall.sys_exit 1
+
+fun pDigit(n: Int): Void =
+  if n == 0 then print "0"
+  else if n == 1 then print "1"
+  else if n == 2 then print "2"
+  else if n == 3 then print "3"
+  else if n == 4 then print "4"
+  else if n == 5 then print "5"
+  else if n == 6 then print "6"
+  else if n == 7 then print "7"
+  else if n == 8 then print "8"
+  else if n == 9 then print "9"
+  else abort("Unexpected number > 9")
+
+fun pInt(n: Int): Void =
+  if n == 0 then print "0\n"
+  else if n < 0 then pInt (0 - n)
+  else
+    var r0 = n
+    var r1 = r0 % 1000000000
+    var r2 = r1 % 100000000
+    var r3 = r2 % 10000000
+    var r4 = r3 % 1000000
+    var r5 = r4 % 100000
+    var r6 = r5 % 10000
+    var r7 = r6 % 1000
+    var r8 = r7 % 100
+    var r9 = r8 % 10
+
+    pDigit(r0 / 1000000000)
+    pDigit(r1 / 100000000)
+    pDigit(r2 / 10000000)
+    pDigit(r3 / 1000000)
+    pDigit(r4 / 100000)
+    pDigit(r5 / 10000)
+    pDigit(r6 / 1000)
+    pDigit(r7 / 100)
+    pDigit(r8 / 10)
+    pDigit(r9)
+
+fun xDigit(n: Int): Void =
+  if n == 0 then print "0"
+  else if n == 1 then print "1"
+  else if n == 2 then print "2"
+  else if n == 3 then print "3"
+  else if n == 4 then print "4"
+  else if n == 5 then print "5"
+  else if n == 6 then print "6"
+  else if n == 7 then print "7"
+  else if n == 8 then print "8"
+  else if n == 9 then print "9"
+  else if n == 10 then print "A"
+  else if n == 11 then print "B"
+  else if n == 12 then print "C"
+  else if n == 13 then print "D"
+  else if n == 14 then print "E"
+  else if n == 15 then print "F"
+  else abort("Unexpected number for xDigit > 16")
+
+fun xInt(n: Int): Void =
+  print "0x"
+  xDigit ((n & (15 << 28)) >> 28)
+  xDigit ((n & (15 << 24)) >> 24)
+  xDigit ((n & (15 << 20)) >> 20)
+  xDigit ((n & (15 << 16)) >> 16)
+  xDigit ((n & (15 << 12)) >> 12)
+  xDigit ((n & (15 << 8)) >> 8)
+  xDigit ((n & (15 << 4)) >> 4)
+  xDigit (n & 15)

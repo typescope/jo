@@ -1,0 +1,19 @@
+param indent: Int
+
+fun padding(unit: Int): Int = indent * unit
+
+param alpha: Int
+param beta: Int
+
+fun foo(n: Int): Int = alpha + beta * n
+
+fun test(a: Int): Int =
+  foo 10 with a = 20           // error
+
+fun main =
+  padding 2 with indent = true // error
+
+  padding 4
+    with foo = 6   // error
+
+  foo 10 with alpha = 3, beta = 6

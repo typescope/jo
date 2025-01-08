@@ -1,0 +1,10 @@
+namespace bar
+
+import foo
+import foo.triple
+
+type A = Int
+
+fun double(n: foo.B): A = n + n
+
+fun quadruple(x: foo.B): A = triple x + x

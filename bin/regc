@@ -1,0 +1,70 @@
+#!/bin/bash
+
+files=(
+    # parser
+    stack-lang/ast/Ast.scala
+    stack-lang/ast/Positions.scala
+    stack-lang/ast/Printing.scala
+    stack-lang/common/IO.scala
+    stack-lang/common/StringUtil.scala
+    stack-lang/common/Text.scala
+    stack-lang/parsing/Parser.scala
+    stack-lang/parsing/Scanner.scala
+    stack-lang/parsing/Tokens.scala
+    stack-lang/reporting/Reporter.scala
+    stack-lang/reporting/Diagnostics.scala
+
+    # typer
+    stack-lang/common/Debug.scala
+    stack-lang/common/Dynamic.scala
+    stack-lang/typing/Checker.scala
+    stack-lang/typing/Desugaring.scala
+    stack-lang/typing/ExprTyper.scala
+    stack-lang/typing/Inference.scala
+    stack-lang/typing/Namer.scala
+    stack-lang/typing/NamerUtils.scala
+    stack-lang/sast/Definitions.scala
+    stack-lang/sast/Flags.scala
+    stack-lang/sast/NameTable.scala
+    stack-lang/sast/Printing.scala
+    stack-lang/sast/Sast.scala
+    stack-lang/sast/SastOps.scala
+    stack-lang/sast/Symbols.scala
+    stack-lang/sast/Subtyping.scala
+    stack-lang/sast/Types.scala
+    stack-lang/sast/TypeOps.scala
+
+    # native compiler
+    stack-lang/common/UniqueName.scala
+    stack-lang/common/WorkList.scala
+
+    stack-lang/native/Assembler.scala
+    stack-lang/native/Assembly.scala
+    stack-lang/native/Backend.scala
+    stack-lang/native/Compiler.scala
+    stack-lang/native/Linker.scala
+    stack-lang/native/arch/X86.scala
+    stack-lang/native/ELF32.scala
+    stack-lang/native/Memory.scala
+    stack-lang/native/os/Linux.scala
+    stack-lang/native/os/LinuxSyscall.scala
+    stack-lang/native/os/LinuxSyscallX86RegisterLinker.scala
+    stack-lang/native/os/LinuxSyscallX86StackLinker.scala
+    stack-lang/native/register/CallConvention.scala
+    stack-lang/native/register/GraphColoring.scala
+    stack-lang/native/register/Liveness.scala
+    stack-lang/native/register/PreAssembly.scala
+    stack-lang/native/register/RegisterMachine.scala
+
+    stack-lang/native/runtime/NativeRuntime.scala
+    stack-lang/native/runtime/BumpAllocator.scala
+    stack-lang/native/LowerContextParams.scala
+
+    stack-lang/phases/ElimCapture.scala
+    stack-lang/phases/ExplicitInit.scala
+
+)
+
+FILES=${files[*]}
+
+scala-cli project.scala $FILES --main-class native.register.RegisterMachine -- $@

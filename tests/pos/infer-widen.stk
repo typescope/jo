@@ -1,7 +1,7 @@
-fun with[T](x: T) = x
+fun id[T](x: T) = x
 
 fun main =
-  with
+  id
     3
       *
       5

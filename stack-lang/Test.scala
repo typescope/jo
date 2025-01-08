@@ -3,8 +3,14 @@ import java.io.{ File => JFile }
 import scala.collection.mutable
 import scala.io.Source
 
-import Reporter.FatalError
-import Diagnostics.*
+import common.Dynamic
+import common.IO
+import parsing.Parser
+import typing.Namer
+
+import reporting.Reporter
+import reporting.Reporter.FatalError
+import reporting.Diagnostics.*
 
 object Test:
   /** Creates a list of tests */
@@ -18,19 +24,21 @@ object Test:
     }
 
   def compileAndCheck(test: String): Boolean = Reporter.timeout(100):
-    given Reporter = Reporter.createReporter(buffer = true)
+    given rp: Reporter = Reporter.createReporter(buffer = true)
+
+    Dynamic.reset()
 
     val sourceFiles =
       if IO.isFile(test) then test :: Nil
       else IO.list(test).filter(_.endsWith(".stk"))
 
     try
-      Parser.parse(sourceFiles)     |>
-      Namer.transform               |+
-      Debug.peek(enable = false)    |>
-      new ExplicitInit().transform
+      val stdLib = "lib/Predef.stk" :: Nil
+      val runtimeFiles = Nil
+      val nss = Parser.parse(sourceFiles)
+      Namer.transform(nss, stdLib, runtimeFiles)
 
-      verifyErrors(sourceFiles, Nil)
+      verifyErrors(sourceFiles, rp.reports)
     catch
       case error: FatalError.CodeError =>
         verifyErrors(sourceFiles, error.content :: Nil)
