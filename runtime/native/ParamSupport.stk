@@ -83,8 +83,8 @@ fun getParam(key: String): Any =
 
 // Return the hash index of the previous value corresponding to the key.
 //
-// If existing binding is associated with the key, return the negative index of
-// the new binding.
+// If existing binding is associated with the key, return the index of
+// the new binding + 1024.
 fun setParam(key: String, value: Any): Int =
   val hash = computeHash key
 
@@ -108,7 +108,7 @@ fun setParam(key: String, value: Any): Int =
   else
     backupValueAt index
     writeValueAt index value
-    if foundKey > 0 then index else 0 - index
+    if foundKey > 0 then index else index + 1024
 
 fun backupValueAt(index: Int): Void =
   val data = Core.data "stk.runtime.native.ParamSupport.state"
@@ -122,12 +122,12 @@ fun getLastOverwrittenValue(): Any =
     Core.addAddr data 8
 
 fun restoreParam(index: Int, value: Any): Void =
-  if index >= 1024 or index <= -1024 then
+  if index >= 2048 or index < 0 then
     print "index = "
     index p
-    abort "error: Index >= 1024\n"
+    abort "error: invalid Index >= 1024\n"
 
-  if index >= 0 then
+  if index < 1024 then
     writeValueAt index value
   else
-    writeKeyAt (0 - index) -1
+    writeKeyAt (index - 1024) -1
