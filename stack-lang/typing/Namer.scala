@@ -337,14 +337,15 @@ class Namer(@constructorOnly reporter: Reporter):
             else TargetType.Known(paramRefTyped.symbol.info)
           transform(default)
 
-        // No need to call .adapt --- target type propagated into children
-        DefaultParam(paramRefTyped, defaultTyped)(defaultTyped.tpe, word.span)
+        DefaultParam(paramRefTyped, defaultTyped)(defaultTyped.tpe, word.span).adapt
 
       case block: Ast.Block =>
         transform(block)
 
-  private def transformParamRef(ref: Ast.RefTree)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Ident =
-    val paramRef = transform(ref)
+  private def transformParamRef(ref: Ast.RefTree)(using sc: Scope, rp: Reporter, so: Source): Ident =
+    val paramRef =
+      given TargetType = TargetType.Unknown
+      transform(ref)
 
     val paramSym =
       paramRef.tpe match
@@ -358,9 +359,7 @@ class Namer(@constructorOnly reporter: Reporter):
     Ident(paramSym)(ref.span)
 
   private def transform(arg: Ast.WithArg)(using sc: Scope, rp: Reporter, so: Source): WithArg =
-    val paramRef =
-      given TargetType = TargetType.Unknown
-      transformParamRef(arg.paramRef)
+    val paramRef = transformParamRef(arg.paramRef)
 
     val rhsSast =
       given TargetType =
