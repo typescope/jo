@@ -78,6 +78,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       case "namespace" => Token.NSPACE
       case "with"      => Token.WITH
       case "param"     => Token.PARAM
+      case "default"   => Token.DEFAULT
       case "true"      => Token.BoolLit(true)
       case "false"     => Token.BoolLit(false)
       case name        => Token.Ident(name)

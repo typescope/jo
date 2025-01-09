@@ -118,6 +118,11 @@ object Ast:
     (val span: Span)
   extends Tree
 
+  case class DefaultParam
+    (paramRef: RefTree, default: Word)
+    (val span: Span)
+  extends Word
+
   case class Block
     (phrases: List[Phrase])
     (val span: Span)
@@ -211,24 +216,20 @@ object Ast:
     (qualid: RefTree)
     (val span: Span)
   extends Tree:
-    qualidWellFormed(qualid)
+    assert(isQualid(qualid), "malformed qualid: " + qualid)
 
   case class Namespace
     (qualid: RefTree, imports: List[Import], defs: List[Def], source: String)
     (val span: Span)
   extends Tree:
-    qualidWellFormed(qualid)
+    assert(isQualid(qualid), "malformed qualid: " + qualid)
 
     def show: String = Printing.show(this)
 
-  def qualidWellFormed(qualid: RefTree): Unit =
-    qualid match
-      case _: Ident =>
+  def isQualid(word: Word): Boolean =
+    word match
+      case _: Ident => true
 
-      case Select(qual, name) =>
-        qual match
-          case id: RefTree =>
-            qualidWellFormed(id)
+      case Select(qual, name) => isQualid(qual)
 
-          case _ =>
-            throw new Exception("malformed qualid: " + qualid)
+      case _ => false
