@@ -50,10 +50,15 @@ object SastOps:
           TypeApply(this(fun), targs)(word.tpe, word.span)
 
         case With(expr, args) =>
+          // Don't map paramRef --- the client code should match DefaultParam
           val args2 = args.map: arg =>
             arg.copy(arg.paramRef, this(arg.rhs))(arg.span)
 
           With(this(expr), args2)(word.tpe, word.span)
+
+        case DefaultParam(paramRef, default) =>
+          // Don't map paramRef --- the client code should match DefaultParam
+          DefaultParam(paramRef, this(default))(word.tpe, word.span)
 
         case Assign(sym, rhs) =>
           Assign(sym, this(rhs))(word.span)

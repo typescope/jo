@@ -108,6 +108,9 @@ object Printing:
       case With(expr, args) =>
         "(" ~ expr ~ " with " ~ rep(args, Text(", ")) ~ ")"
 
+      case DefaultParam(paramRef, default) =>
+        paramRef ~ " default " ~ default
+
       case Assign(sym, rhs) =>
         sym.name ~ " = " ~ rhs
 

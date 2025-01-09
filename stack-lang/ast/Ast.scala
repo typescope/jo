@@ -11,6 +11,7 @@ import Positions.{ Positioned, Span }
 object Ast:
   sealed abstract class Tree extends Positioned with Product
 
+  // TODO: remove the concept phrase from AST
   sealed abstract class Phrase extends Tree:
     def isDef: Boolean = this.isInstanceOf[Def]
 
@@ -116,12 +117,14 @@ object Ast:
   case class WithArg
     (paramRef: RefTree, rhs: Word)
     (val span: Span)
-  extends Tree
+  extends Tree:
+    assert(isQualid(paramRef))
 
   case class DefaultParam
     (paramRef: RefTree, default: Word)
     (val span: Span)
-  extends Word
+  extends Word:
+    assert(isQualid(paramRef))
 
   case class Block
     (phrases: List[Phrase])

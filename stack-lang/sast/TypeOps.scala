@@ -105,7 +105,8 @@ object TypeOps:
     recur(tp, isUp)
   end approx
 
-  /** Transitively eliminate top-level type aliases and applied types without any approximation
+  /** Transitively eliminate top-level type aliases and applied types without
+    * any approximation but with widening.
     *
     * In particular, type parameters are not reduced to their bounds.
     */

@@ -329,13 +329,22 @@ class Namer(@constructorOnly reporter: Reporter):
         val argsSast = for arg <- args yield transform(arg)
         With(exprSast, argsSast)(exprSast.tpe, word.span)
 
+      case Ast.DefaultParam(paramRef, default) =>
+        val paramRefTyped = transformParamRef(paramRef)
+        val defaultTyped =
+          given TargetType =
+            if paramRefTyped.tpe.isError then TargetType.ValueType
+            else TargetType.Known(paramRefTyped.symbol.info)
+          transform(default)
+
+        // No need to call .adapt --- target type propagated into children
+        DefaultParam(paramRefTyped, defaultTyped)(defaultTyped.tpe, word.span)
+
       case block: Ast.Block =>
         transform(block)
 
-  private def transform(arg: Ast.WithArg)(using sc: Scope, rp: Reporter, so: Source): WithArg =
-    val paramRef =
-      given TargetType = TargetType.Unknown
-      transform(arg.paramRef)
+  private def transformParamRef(ref: Ast.RefTree)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Ident =
+    val paramRef = transform(ref)
 
     val paramSym =
       paramRef.tpe match
@@ -344,15 +353,22 @@ class Namer(@constructorOnly reporter: Reporter):
 
         case tp =>
           Reporter.error("A reference to a contextual parameter expected, found = " + tp.show, paramRef.pos)
-          Symbol.createFunSymbol(arg.paramRef.name, ErrorType, sc.owner, paramRef.pos)
+          Symbol.createFunSymbol(ref.name, ErrorType, sc.owner, paramRef.pos)
+
+    Ident(paramSym)(ref.span)
+
+  private def transform(arg: Ast.WithArg)(using sc: Scope, rp: Reporter, so: Source): WithArg =
+    val paramRef =
+      given TargetType = TargetType.Unknown
+      transformParamRef(arg.paramRef)
 
     val rhsSast =
       given TargetType =
-        if paramSym.info.isError then TargetType.ValueType
-        else TargetType.Known(paramSym.info)
+        if paramRef.tpe.isError then TargetType.ValueType
+        else TargetType.Known(paramRef.symbol.info)
       transform(arg.rhs)
 
-    WithArg(Ident(paramSym)(arg.paramRef.span), rhsSast)(arg.span)
+    WithArg(paramRef, rhsSast)(arg.span)
 
   private def transform(ifte: Ast.If)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
     val Ast.If(cond, thenp, elsep) = ifte
