@@ -337,7 +337,7 @@ class Namer(@constructorOnly reporter: Reporter):
             else TargetType.Known(paramRefTyped.symbol.info)
           transform(default)
 
-        DefaultParam(paramRefTyped, defaultTyped)(defaultTyped.tpe, word.span).adapt
+        DefaultParam(paramRefTyped, defaultTyped)(paramRefTyped.tpe, word.span).adapt
 
       case block: Ast.Block =>
         transform(block)
