@@ -1,0 +1,10 @@
+param newLine: Bool
+
+fun printOpt(s: String): Void =
+  val addNewLine = newLine default false
+  print s
+  if addNewLine then print "\n"
+
+fun main =
+  printOpt "hello "
+  printOpt "world!" with newLine = true

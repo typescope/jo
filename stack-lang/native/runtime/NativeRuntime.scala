@@ -44,6 +44,8 @@ extends Linker:
   val ParamSupport_setParam = ParamSupport.termMember("setParam")
   val ParamSupport_getLastOverwrittenValue = ParamSupport.termMember("getLastOverwrittenValue")
   val ParamSupport_restoreParam = ParamSupport.termMember("restoreParam")
+  val ParamSupport_readValueAt = ParamSupport.termMember("readValueAt")
+  val ParamSupport_getParamIndex = ParamSupport.termMember("getParamIndex")
 
   val paramSupportStateLabel = Label("paramSupportState")
 

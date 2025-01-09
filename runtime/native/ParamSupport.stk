@@ -59,7 +59,10 @@ fun writeValueAt(index: Int, value: Any): Void =
       index * 4
     value Core.cast[Int]
 
-fun getParam(key: String): Any =
+// Return index of the param
+//
+// return -1 if absent
+fun getParamIndex(key: String): Int =
   val hash = computeHash key
 
   var index = hash
@@ -74,7 +77,12 @@ fun getParam(key: String): Any =
     else
       index = index + 4
 
-  if index >= 1024 then
+  if index >= 1024 then -1 else index
+
+fun getParam(key: String): Any =
+  val index = getParamIndex(key)
+
+  if index < 0 then
     print "Unbound parameter "
     print key
     abort "\n"

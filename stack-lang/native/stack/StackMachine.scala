@@ -77,7 +77,7 @@ extends Backend(runtime):
 
       case id: Ident => compile(id)
 
-      case _: ValDef | _: FunDef | _: TypeDef | _: With =>
+      case _: ValDef | _: FunDef | _: TypeDef | _: With | _: DefaultParam =>
         throw new Exception("Unexpected " + word)
 
   /** Compile a function */

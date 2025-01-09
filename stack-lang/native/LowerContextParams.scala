@@ -56,6 +56,28 @@ class LowerContextParams(runtime: NativeRuntime) extends SastOps.TreeMap:
         val app = Apply(fun, arg :: Nil)(word.tpe, word.span)
         app
 
+      case DefaultParam(paramRef, default) =>
+        val paramName = paramRef.symbol.fullName
+        val key = StringLit(paramName)(paramRef.span)
+        val funGetParamIndex = Ident(runtime.ParamSupport_getParamIndex)(paramRef.span)
+        val getParamIndexCall = Apply(funGetParamIndex, key :: Nil)(IntType, paramRef.span)
+
+        val indexSym = new Symbol("index_" + paramName, IntType, Flags.Val, owner = ctx.funSymbol, sourcePos = null)
+        ctx.locals += indexSym
+        val indexAssign = Assign(indexSym, getParamIndexCall)(paramRef.span)
+
+        val indexIdent = Ident(indexSym)(paramRef.span)
+
+        val funReadValueAt = Ident(runtime.ParamSupport_readValueAt)(paramRef.span)
+        val readValueAtCall = Apply(funReadValueAt, indexIdent :: Nil)(word.tpe, paramRef.span)
+
+        val funLessThan = Ident(Definitions.instance.Predef_lt)(paramRef.span)
+        val zero = IntLit(0)(paramRef.span)
+        val cond = Apply(funLessThan, indexIdent :: zero :: Nil)(BoolType, paramRef.span)
+        val ifExpr = If(cond, default, readValueAtCall)(word.tpe, word.span)
+
+        Phrase(indexAssign :: ifExpr  :: Nil)(word.tpe, word.span)
+
       case With(expr, args) =>
         given Source = ctx.funSymbol.sourcePos.source
 
@@ -92,10 +114,13 @@ class LowerContextParams(runtime: NativeRuntime) extends SastOps.TreeMap:
 
           (hashIndexSym, oldValueSym)
 
-        // 3. val res = expr
+        // 3. val res = expr only if expr is not void
         val resSym = new Symbol("res", expr.tpe, Flags.Val, owner = ctx.funSymbol, sourcePos = null)
-        ctx.locals += resSym
-        stats += Assign(resSym, this(expr))(expr.span)
+        if expr.tpe.isVoidType then
+          stats += this(expr)
+        else
+          ctx.locals += resSym
+          stats += Assign(resSym, this(expr))(expr.span)
 
         // 4. restore(hashIndex, oldValueX)
         paramRefs.zip(restorePairSyms).foreach:
@@ -108,7 +133,8 @@ class LowerContextParams(runtime: NativeRuntime) extends SastOps.TreeMap:
             stats += restoreParamCall
 
         // 5. res
-        stats += Ident(resSym)(expr.span)
+        if !expr.tpe.isVoidType then
+          stats += Ident(resSym)(expr.span)
 
         Phrase(stats.toList)(expr.tpe, word.span)
 

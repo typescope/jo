@@ -57,8 +57,8 @@ extends SastOps.TreeMap:
         val funHasParam = Ident(hasParamSym)(paramRef.span)
         val hasParamCall = Apply(funHasParam, key :: Nil)(BoolType, paramRef.span)
 
-        val funGetParam = Ident(getParamSym)(word.span)
-        val getParamCall = Apply(funGetParam, key :: Nil)(word.tpe, word.span)
+        val funGetParam = Ident(getParamSym)(paramRef.span)
+        val getParamCall = Apply(funGetParam, key :: Nil)(word.tpe, paramRef.span)
 
         If(hasParamCall, getParamCall, default)(word.tpe, word.span)
 
