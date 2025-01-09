@@ -121,6 +121,9 @@ object Printing:
       case With(expr, args) =>
         "(" ~ expr ~ " with " ~ rep(args, Text(", ")) ~ ")"
 
+      case DefaultParam(paramRef, default) =>
+        paramRef ~ " default " ~ default
+
       case TypeApply(fun, targs) =>
         fun ~ "[" ~ rep(targs, Text(", ")) ~ "]"
 

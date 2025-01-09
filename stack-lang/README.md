@@ -43,6 +43,7 @@ Lexical Grammar
     END      = "end".
     WITH     = "with".
     PARAM    = "param".
+    DEFAULT  = "default".
     NSPACE   = "namespace".
     IMPORT   = "import".
     name     = (letter | USCORE) {letter | digit | USCORE}.
@@ -69,13 +70,15 @@ Syntactical Grammar
 
     word    = integer | boolean | string | ident | fence | record | tapply | select | variant | lambda.
 
-    phrase  = expr | with_clause | assign | valdef | fundef | typedef | while | if | match.
+    phrase  = expr | with_clause | default_param | assign | valdef | fundef | typedef | while | if | match.
 
     block   = { phrase }.
 
     select  = (ident | record | fence | select) DOT ident.
 
     with_clause = expr WITH with_binding {COMMA with_binding}.
+
+    default_param = qualid DEFAULT expr.
 
     with_binding = qualid EQL expr.
 

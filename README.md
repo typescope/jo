@@ -34,3 +34,5 @@ Run the compiler targeting JavaScript:
 bin/jsc.native tests/pos/fact.stk -o fact.js
 node fact.js
 ```
+
+Note: The native backend only supports linux-x86.

@@ -51,6 +51,17 @@ extends SastOps.TreeMap:
         val app = Apply(fun, arg :: Nil)(word.tpe, word.span)
         app
 
+      case DefaultParam(paramRef, default) =>
+        val paramName = paramRef.symbol.fullName
+        val key = StringLit(paramName)(paramRef.span)
+        val funHasParam = Ident(hasParamSym)(paramRef.span)
+        val hasParamCall = Apply(funHasParam, key :: Nil)(BoolType, paramRef.span)
+
+        val funGetParam = Ident(getParamSym)(paramRef.span)
+        val getParamCall = Apply(funGetParam, key :: Nil)(word.tpe, paramRef.span)
+
+        If(hasParamCall, getParamCall, default)(word.tpe, word.span)
+
       case With(expr, args) =>
         given Source = ctx.funSymbol.sourcePos.source
 
@@ -89,10 +100,13 @@ extends SastOps.TreeMap:
           stats += Assign(oldValueSym, setParamCall)(arg.span)
           oldValueSym
 
-        // 4. val res = expr
+        // 4. val res = expr only if expr is not void
         val resSym = new Symbol("res", expr.tpe, Flags.Val, owner = ctx.funSymbol, sourcePos = null)
-        ctx.locals += resSym
-        stats += Assign(resSym, this(expr))(expr.span)
+        if expr.tpe.isVoidType then
+          stats += this(expr)
+        else
+          ctx.locals += resSym
+          stats += Assign(resSym, this(expr))(expr.span)
 
         // 5. if hasX then setParam("x", oldX) else delParam("x")
         paramRefs.zip(hasXSyms).zip(oldValueSyms).foreach:
@@ -113,7 +127,8 @@ extends SastOps.TreeMap:
             stats += ifStat
 
         // 5. res
-        stats += Ident(resSym)(expr.span)
+        if !expr.tpe.isVoidType then
+          stats += Ident(resSym)(expr.span)
 
         Phrase(stats.toList)(expr.tpe, word.span)
 

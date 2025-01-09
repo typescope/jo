@@ -244,6 +244,11 @@ object Interpreter:
             case denot =>
               denot :: Nil
 
+      case DefaultParam(paramRef, default) =>
+        params.get(paramRef.symbol) match
+          case Some(v) => v :: Nil
+          case None    => exec(default)
+
       case Apply(fun, args) =>
         val funDenot :: Nil = exec(fun): @unchecked
         val argVals = args.map(eval)

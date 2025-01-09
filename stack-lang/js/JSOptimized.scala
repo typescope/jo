@@ -4,6 +4,7 @@ import sast.*
 import sast.Sast.*
 import sast.Symbols.*
 
+import common.Debug
 import common.StringUtil
 import common.Text
 import common.Text.*
@@ -49,7 +50,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
   //----------------------------------------------------------------------------
 
   given Text.Maker[Word] = word =>
-    val ctx: Context = vs => vs.headOption.getOrElse(Text.Empty)
+    val ctx = new StatContext(() => Text.Empty)
     compile(word)(using ctx)
 
   given Text.Maker[Symbol] = sym => Text(jsName(sym))
@@ -58,15 +59,22 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
 
   //----------------------------------------------------------------------------
 
-  type Context = List[Text] => Text
+  case class ValueContext(cont: Text => Text)
+  case class StatContext(cont: ()=> Text)
+  type Context = ValueContext | StatContext
 
-  def cont(text: Text)(using cont: Context): Text = cont(text :: Nil)
-  def cont()(using cont: Context): Text = cont(Nil)
-  def cont(expr: Word)(cont: Text => Text): Text =
-    val cont2: Context = (vs: List[Text]) =>
-      val text :: Nil = vs: @unchecked
-      cont(text)
-    compile(expr)(using cont2)
+  def cont(text: Text)(using cont1: Context): Text =
+    cont1 match
+      case ValueContext(cont2) => cont2(text)
+      case StatContext(cont2)  => text ~ cont2()
+
+  def cont()(using cont1: Context): Text =
+    cont1 match
+      case ValueContext(cont2) => throw new Exception("Value expected, found none")
+      case StatContext(cont2)  => cont2()
+
+  def cont(expr: Word)(cont1: Text => Text): Text =
+    compile(expr)(using ValueContext(cont1))
 
   def cont(exprs: List[Word])(c: List[Text] => Text): Text =
     exprs match
@@ -111,7 +119,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
 
     pw.close()
 
-  def compile(word: Word)(using Context): Text =
+  def compile(word: Word)(using Context): Text = Debug.trace("Compiling " + word.show, enable = false):
     word match
       case IntLit(v)  =>
         cont(Text(v))
@@ -192,7 +200,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
         assert(!sym.isAllOf(Flags.Context | Flags.Param), "Unexpected context parameter")
         cont(Text(sym))
 
-      case _: ValDef | _: FunDef | _: TypeDef |  _: With =>
+      case _: ValDef | _: FunDef | _: TypeDef |  _: With | _: DefaultParam =>
         throw new Exception("Unexpected " + word)
 
   /** Compile a function */

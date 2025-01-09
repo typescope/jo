@@ -18,7 +18,7 @@ enum Text:
       case (_, Group(parts2)) => Group(this +: parts2)
       case _ => Group(Vector(this, that))
 
-  override def toString =
+  override def toString() =
     val sb = new StringBuilder
     var indent = 0
     var isNewLine = false
