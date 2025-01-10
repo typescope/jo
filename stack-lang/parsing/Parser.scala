@@ -322,8 +322,21 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       expr
     else
       eat(Token.WITH)
-      val args = oneOrMore(withArg, Token.COMMA)
-      With(expr, args)(expr.span | args.last.span)
+      peek() match
+        case Token.Ident("none") =>
+          val token = next()
+          With(expr, Nil, only = true)(expr.span | token.span)
+
+        case _ =>
+          val only = peek() match
+            case Token.Ident("only") =>
+              next()
+              true
+
+            case _ => false
+
+          val args = oneOrMore(withArg, Token.COMMA)
+          With(expr, args, only)(expr.span | args.last.span)
 
   def withArg(): WithArg =
     val id = qualid()

@@ -76,10 +76,11 @@ Syntactical Grammar
 
     select  = (ident | record | fence | select) DOT ident.
 
-    with_clause = expr WITH with_binding {COMMA with_binding}.
+    with_clause = expr WITH (([ONLY] with_bindings) | NONE)
 
     default_param = qualid DEFAULT expr.
 
+    with_bindings = with_binding {COMMA with_binding}.
     with_binding = qualid EQL expr.
 
     fence   = LPAREN phrase RPAREN.

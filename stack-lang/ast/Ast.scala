@@ -106,10 +106,10 @@ object Ast:
     assert(words.nonEmpty)
 
   case class With
-    (expr: Word, args: List[WithArg])
+    (expr: Word, args: List[WithArg], only: Boolean)
     (val span: Span)
   extends Word:
-    assert(args.nonEmpty)
+    assert(args.nonEmpty || only)
 
   case class WithArg
     (paramRef: RefTree, rhs: Word)
