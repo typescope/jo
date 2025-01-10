@@ -21,8 +21,6 @@ object Printing:
 
   given Text.Maker[Word] = v => showWord(v)
 
-  given Text.Maker[Phrase] = v => showPhrase(v)
-
   given Text.Maker[Def] = v => showDef(v)
 
   given Text.Maker[TypeTree] = v => showType(v)
@@ -137,14 +135,6 @@ object Printing:
 
       case Block(phrases) =>
         rep(phrases, Text.BreakLine)
-
-    end match
-  end showWord
-
-  def showPhrase(phrase: Phrase): Text =
-    phrase match
-      case word: Word =>
-        showWord(word)
 
       case If(cond, thenp, elsep) =>
         "if " ~ cond ~ " then" ~ indent:

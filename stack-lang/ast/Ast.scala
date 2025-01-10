@@ -11,11 +11,8 @@ import Positions.{ Positioned, Span }
 object Ast:
   sealed abstract class Tree extends Positioned with Product
 
-  // TODO: remove the concept phrase from AST
-  sealed abstract class Phrase extends Tree:
+  sealed abstract class Word extends Tree:
     def isDef: Boolean = this.isInstanceOf[Def]
-
-  sealed abstract class Word extends Phrase:
     def show: String = Printing.show(this)
 
   sealed abstract trait RefTree extends Word, TypeTree:
@@ -44,17 +41,17 @@ object Ast:
   case class Assign
     (ident: Ident, rhs: Word)
     (val span: Span)
-  extends Phrase
+  extends Word
 
   case class If
     (cond: Word, thenp: Word, elsep: Word)
     (val span: Span)
-  extends Phrase
+  extends Word
 
   case class While
     (cond: Word, body: Word)
     (val span: Span)
-  extends Phrase
+  extends Word
 
   case class Select
     (qual: Word, name: String)
@@ -80,7 +77,7 @@ object Ast:
   case class Match
     (scrutinee: Word, cases: List[Case])
     (val span: Span)
-  extends Phrase
+  extends Word
 
   case class Case
     (pat: Pattern, body: Word)
@@ -88,7 +85,7 @@ object Ast:
   extends Tree
 
   case class Fence
-    (phrase: Phrase)
+    (phrase: Word)
     (val span: Span)
   extends Word
 
@@ -127,7 +124,7 @@ object Ast:
     assert(isQualid(paramRef))
 
   case class Block
-    (phrases: List[Phrase])
+    (phrases: List[Word])
     (val span: Span)
   extends Word
 
@@ -191,7 +188,7 @@ object Ast:
   case class ValDef
     (ident: Ident, typ: TypeTree, rhs: Word, mutable: Boolean)
     (val span: Span)
-  extends Phrase, Def
+  extends Word, Def
 
   case class Param
     (ident: Ident, typ: TypeTree)
@@ -202,7 +199,7 @@ object Ast:
     (ident: Ident, tparams: List[TypeParam], params: List[Param],
         resType: TypeTree, body: Word, preParamCount: Int)
     (val span: Span)
-  extends Phrase, Def
+  extends Word, Def
 
   case class TypeParam
     (ident: Ident, bound: TypeTree)
@@ -213,7 +210,7 @@ object Ast:
   case class TypeDef
     (ident: Ident, tparams: List[TypeParam], rhs: TypeTree)
     (val span: Span)
-  extends Phrase, Def
+  extends Word, Def
 
   case class Import
     (qualid: RefTree)

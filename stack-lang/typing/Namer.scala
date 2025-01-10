@@ -215,53 +215,6 @@ class Namer(@constructorOnly reporter: Reporter):
     if words.isEmpty then Phrase(Nil)(VoidType, block.span)
     else Phrase(words)(words.last.tpe, block.span)
 
-  def transform(phrase: Ast.Phrase)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
-    extension (word: Word) def check: Word = checker.adapt(word, tt)
-
-    phrase match
-      case word: Ast.Word =>
-        transform(word)
-
-      case ifte: Ast.If =>
-        transform(ifte)
-
-      case Ast.While(cond, body) =>
-         val cond2 = transform(cond)(using sc, rp, so, TargetType.Known(BoolType))
-         val body2 = transform(body)(using sc, rp, so, TargetType.Known(VoidType))
-         While(cond2, body2)(phrase.span).check
-
-      case Ast.Assign(id, words) =>
-        val sym = sc.resolve(id.name, id.pos)
-
-        checker.checkMutable(sym, id.pos)
-        checker.checkCapture(sym, id.pos)
-
-        given TargetType = TargetType.Known(sym.info)
-        val rhs = transform(words)
-        Assign(sym, rhs)(phrase.span).check
-
-      case patmat: Ast.Match =>
-        transform(patmat)
-
-      case vdef: Ast.ValDef =>
-        val delayedDef = transform(vdef)
-        val vdef2 = delayedDef.force()
-        // a val is not available for checking its rhs
-        sc.define(delayedDef.symbol)
-        vdef2.check
-
-      case fdef: Ast.FunDef =>
-        val delayedDef = transform(fdef)
-        // A function is available for checking its rhs
-        sc.define(delayedDef.symbol)
-        delayedDef.force().check
-
-      case tdef: Ast.TypeDef =>
-        val delayedDef = transform(tdef)
-        // A type definition is available for checking its rhs
-        sc.define(delayedDef.symbol)
-        delayedDef.force().check
-
   def transform(word: Ast.Word)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
     extension (word: Word) def adapt: Word = checker.adapt(word, tt)
 
@@ -338,6 +291,46 @@ class Namer(@constructorOnly reporter: Reporter):
           transform(default)
 
         DefaultParam(paramRefTyped, defaultTyped)(paramRefTyped.tpe, word.span).adapt
+
+      case ifte: Ast.If =>
+        transform(ifte)
+
+      case Ast.While(cond, body) =>
+         val cond2 = transform(cond)(using sc, rp, so, TargetType.Known(BoolType))
+         val body2 = transform(body)(using sc, rp, so, TargetType.Known(VoidType))
+         While(cond2, body2)(word.span).adapt
+
+      case Ast.Assign(id, words) =>
+        val sym = sc.resolve(id.name, id.pos)
+
+        checker.checkMutable(sym, id.pos)
+        checker.checkCapture(sym, id.pos)
+
+        given TargetType = TargetType.Known(sym.info)
+        val rhs = transform(words)
+        Assign(sym, rhs)(word.span).adapt
+
+      case patmat: Ast.Match =>
+        transform(patmat)
+
+      case vdef: Ast.ValDef =>
+        val delayedDef = transform(vdef)
+        val vdef2 = delayedDef.force()
+        // a val is not available for checking its rhs
+        sc.define(delayedDef.symbol)
+        vdef2.adapt
+
+      case fdef: Ast.FunDef =>
+        val delayedDef = transform(fdef)
+        // A function is available for checking its rhs
+        sc.define(delayedDef.symbol)
+        delayedDef.force().adapt
+
+      case tdef: Ast.TypeDef =>
+        val delayedDef = transform(tdef)
+        // A type definition is available for checking its rhs
+        sc.define(delayedDef.symbol)
+        delayedDef.force().adapt
 
       case block: Ast.Block =>
         transform(block)
