@@ -139,7 +139,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
         cont(qual): t =>
           cont(t ~ "." ~ encodeSymbolic(name))
 
-      case Phrase(words) =>
+      case Block(words) =>
         words match
           case Nil =>
             cont()

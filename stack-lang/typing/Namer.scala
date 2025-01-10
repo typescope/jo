@@ -212,55 +212,8 @@ class Namer(@constructorOnly reporter: Reporter):
           else TargetType.Known(VoidType)
         transform(phrase)(using sc2, rp, so, tt2)
 
-    if words.isEmpty then Phrase(Nil)(VoidType, block.span)
-    else Phrase(words)(words.last.tpe, block.span)
-
-  def transform(phrase: Ast.Phrase)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
-    extension (word: Word) def check: Word = checker.adapt(word, tt)
-
-    phrase match
-      case word: Ast.Word =>
-        transform(word)
-
-      case ifte: Ast.If =>
-        transform(ifte)
-
-      case Ast.While(cond, body) =>
-         val cond2 = transform(cond)(using sc, rp, so, TargetType.Known(BoolType))
-         val body2 = transform(body)(using sc, rp, so, TargetType.Known(VoidType))
-         While(cond2, body2)(phrase.span).check
-
-      case Ast.Assign(id, words) =>
-        val sym = sc.resolve(id.name, id.pos)
-
-        checker.checkMutable(sym, id.pos)
-        checker.checkCapture(sym, id.pos)
-
-        given TargetType = TargetType.Known(sym.info)
-        val rhs = transform(words)
-        Assign(sym, rhs)(phrase.span).check
-
-      case patmat: Ast.Match =>
-        transform(patmat)
-
-      case vdef: Ast.ValDef =>
-        val delayedDef = transform(vdef)
-        val vdef2 = delayedDef.force()
-        // a val is not available for checking its rhs
-        sc.define(delayedDef.symbol)
-        vdef2.check
-
-      case fdef: Ast.FunDef =>
-        val delayedDef = transform(fdef)
-        // A function is available for checking its rhs
-        sc.define(delayedDef.symbol)
-        delayedDef.force().check
-
-      case tdef: Ast.TypeDef =>
-        val delayedDef = transform(tdef)
-        // A type definition is available for checking its rhs
-        sc.define(delayedDef.symbol)
-        delayedDef.force().check
+    if words.isEmpty then Block(Nil)(VoidType, block.span)
+    else Block(words)(words.last.tpe, block.span)
 
   def transform(word: Ast.Word)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
     extension (word: Word) def adapt: Word = checker.adapt(word, tt)
@@ -301,14 +254,14 @@ class Namer(@constructorOnly reporter: Reporter):
 
               case None =>
                 Reporter.error(s"The namespace $sym does not contain the member $name", word.pos)
-                Phrase(Nil)(ErrorType, word.span)
+                Block(Nil)(ErrorType, word.span)
 
           case tp =>
             if tp.isRecordType then
               val tp = qual2.tpe.asRecordType.fieldType(name)
               Select(qual2, name)(tp, word.span).adapt
             else
-              Phrase(Nil)(ErrorType, word.span)
+              Block(Nil)(ErrorType, word.span)
 
       case lambda: Ast.Lambda =>
         transform(lambda).adapt
@@ -324,10 +277,10 @@ class Namer(@constructorOnly reporter: Reporter):
       case expr: Ast.Expr  =>
         exprTyper.transform(expr)
 
-      case Ast.With(expr, args) =>
+      case Ast.With(expr, args, only) =>
         val exprSast = transform(expr)
         val argsSast = for arg <- args yield transform(arg)
-        With(exprSast, argsSast)(exprSast.tpe, word.span)
+        With(exprSast, argsSast, only)(exprSast.tpe, word.span)
 
       case Ast.DefaultParam(paramRef, default) =>
         val paramRefTyped = transformParamRef(paramRef)
@@ -338,6 +291,46 @@ class Namer(@constructorOnly reporter: Reporter):
           transform(default)
 
         DefaultParam(paramRefTyped, defaultTyped)(paramRefTyped.tpe, word.span).adapt
+
+      case ifte: Ast.If =>
+        transform(ifte)
+
+      case Ast.While(cond, body) =>
+         val cond2 = transform(cond)(using sc, rp, so, TargetType.Known(BoolType))
+         val body2 = transform(body)(using sc, rp, so, TargetType.Known(VoidType))
+         While(cond2, body2)(word.span).adapt
+
+      case Ast.Assign(id, words) =>
+        val sym = sc.resolve(id.name, id.pos)
+
+        checker.checkMutable(sym, id.pos)
+        checker.checkCapture(sym, id.pos)
+
+        given TargetType = TargetType.Known(sym.info)
+        val rhs = transform(words)
+        Assign(sym, rhs)(word.span).adapt
+
+      case patmat: Ast.Match =>
+        transform(patmat)
+
+      case vdef: Ast.ValDef =>
+        val delayedDef = transform(vdef)
+        val vdef2 = delayedDef.force()
+        // a val is not available for checking its rhs
+        sc.define(delayedDef.symbol)
+        vdef2.adapt
+
+      case fdef: Ast.FunDef =>
+        val delayedDef = transform(fdef)
+        // A function is available for checking its rhs
+        sc.define(delayedDef.symbol)
+        delayedDef.force().adapt
+
+      case tdef: Ast.TypeDef =>
+        val delayedDef = transform(tdef)
+        // A type definition is available for checking its rhs
+        sc.define(delayedDef.symbol)
+        delayedDef.force().adapt
 
       case block: Ast.Block =>
         transform(block)
@@ -437,7 +430,7 @@ class Namer(@constructorOnly reporter: Reporter):
         Encoded(encodedValue)(unionType)
 
       case None =>
-        Phrase(Nil)(ErrorType, variant.span)
+        Block(Nil)(ErrorType, variant.span)
 
 
   private def transform(patmat: Ast.Match)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
@@ -488,7 +481,7 @@ class Namer(@constructorOnly reporter: Reporter):
       end match
 
     val body = transformCases(cases, BottomType, allTags)
-    Phrase(bind :: body :: Nil)(body.tpe, patmat.span)
+    Block(bind :: body :: Nil)(body.tpe, patmat.span)
 
   private def transform
       (scrut: Ident, caseDef: Ast.Case, resType: Type, cont: Type => Word)
@@ -540,7 +533,7 @@ class Namer(@constructorOnly reporter: Reporter):
           val commonType2 = checker.commonResultType(body2.tpe, elsep.tpe, body2.pos)
           val adapted = checker.adapt(body2, commonType2)
 
-          val body3 = Phrase(vals.toList :+ adapted)(adapted.tpe, caseDef.span)
+          val body3 = Block(vals.toList :+ adapted)(adapted.tpe, caseDef.span)
           If(cond, body3, elsep)(body3.tpe, caseDef.span)
 
   private def transform(lambda: Ast.Lambda)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
@@ -556,7 +549,7 @@ class Namer(@constructorOnly reporter: Reporter):
        val expect = targetFunTypeOpt.get.paramCount
        if expect != params.size then
          Reporter.error(s"Expect a function with $expect parameters, found = ${params.size}", lambda.pos)
-         return Phrase(words = Nil)(ErrorType, lambda.span)
+         return Block(words = Nil)(ErrorType, lambda.span)
 
      val funSym = Symbol.createFunSymbol("anon", this.nonCyclicTypeProvider, sc.owner, lambda.pos)
      val lambdaScope = sc.fresh(funSym)
@@ -595,7 +588,7 @@ class Namer(@constructorOnly reporter: Reporter):
      val funDef = FunDef(funSym, tparamSyms, paramSyms, bodyTyped)(locals = Nil, captures = Nil, lambda.span)
      val lambdaType = procType.toFunType
      val ref = Ident(funSym)(lambda.span)
-     Phrase(funDef :: ref :: Nil)(lambdaType, lambda.span)
+     Block(funDef :: ref :: Nil)(lambdaType, lambda.span)
 
   private def transform(vdef: Ast.ValDef)(using sc: Scope, rp: Reporter, so: Source): DelayedDef[ValDef] =
     val flags: Flags = if vdef.mutable then Flags.Mutable else Flags.empty

@@ -167,8 +167,8 @@ object Interpreter:
     val params = Map.empty[Symbol, Value]
     call(fdef, args = Nil)(using env2, params)
 
-  def exec(phrase: Phrase)(using Env, Params): List[Denotation] =
-    val results = for word <- phrase.words yield exec(word)
+  def exec(block: Block)(using Env, Params): List[Denotation] =
+    val results = for word <- block.words yield exec(word)
 
     if results.isEmpty then Nil
     else results.last
@@ -212,8 +212,9 @@ object Interpreter:
         val BoolVal(b) = eval(cond): @unchecked
         if b then exec(thenp) else exec(elsep)
 
-      case With(expr, args) =>
-        val params2 = args.foldLeft(params): (params, arg) =>
+      case With(expr, args, only) =>
+        val params1: Params = if only then Map.empty else params
+        val params2 = args.foldLeft(params1): (params, arg) =>
           params.updated(arg.paramRef.symbol, eval(arg.rhs))
         exec(expr)(using env, params2)
 
@@ -228,8 +229,8 @@ object Interpreter:
         loop()
         Nil
 
-      case phrase: Phrase =>
-        exec(phrase)
+      case block: Block =>
+        exec(block)
 
       case Ident(sym) =>
         if sym.isAllOf(Flags.Param | Flags.Context) then

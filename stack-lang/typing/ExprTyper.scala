@@ -210,5 +210,5 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
     val (postArgs, rest) = parse(words, precedence).splitAt(postTypes.size)
     Item.Call(fun, preArgs, postArgs)(preTypes, postTypes, resultType) :: rest
 
-  def errorTree(span: Span): Word = Phrase(Nil)(ErrorType, span)
+  def errorTree(span: Span): Word = Block(Nil)(ErrorType, span)
 end ExprTyper

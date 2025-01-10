@@ -27,3 +27,12 @@ fun setParam(key: String, value: Any): Any =
 
 fun delParam(key: String): Void =
   setProp (js "__runtime_contextParams") key (js "undefined")
+
+// create a new object holding key/values and return the old one
+fun newPage(): Any =
+  val old = js "__runtime_contextParams"
+  js "__runtime_contextParams = {}"
+  old
+
+fun restorePage(old: Any): Void =
+  js "__runtime_contextParams = old"

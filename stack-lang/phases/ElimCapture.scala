@@ -199,12 +199,12 @@ object ElimCapture:
         bodyItems += Assign(subst, rhs)(rhs.span)
 
       bodyItems += this(fdef.body)(using ctx2)
-      val body = Phrase(bodyItems.toList)(fdef.body.tpe, fdef.body.span)
+      val body = Block(bodyItems.toList)(fdef.body.tpe, fdef.body.span)
       val params = fdef.params :+ envSym
       ctx.lifted += FunDef(funSym, fdef.tparams, params, body)
                           (locals = locals.toList, captures = Nil, fdef.span)
 
-      Phrase(words = Nil)(VoidType, fdef.span)
+      Block(words = Nil)(VoidType, fdef.span)
 
     def apply(word: Word)(using ctx: Context): Word = Debug.trace(word.show + ", ctx = " + ctx.show, (_: Word) => "", enable = false):
       word match
@@ -248,7 +248,7 @@ object ElimCapture:
           if fdef.symbol.isLocal then lift(fdef)
           else recur(fdef)
 
-        case Phrase(words) =>
+        case Block(words) =>
           var ctx2 = ctx
 
           for case fdef: FunDef <- words do
@@ -263,6 +263,6 @@ object ElimCapture:
           val words2 =
             for word <- words yield this(word)(using ctx2)
 
-          Phrase(words2)(word.tpe, word.span)
+          Block(words2)(word.tpe, word.span)
 
         case _ => recur(word)

@@ -49,12 +49,12 @@ object SastOps:
         case TypeApply(fun, targs) =>
           TypeApply(this(fun), targs)(word.tpe, word.span)
 
-        case With(expr, args) =>
+        case With(expr, args, only) =>
           // Don't map paramRef --- the client code should match DefaultParam
           val args2 = args.map: arg =>
             arg.copy(arg.paramRef, this(arg.rhs))(arg.span)
 
-          With(this(expr), args2)(word.tpe, word.span)
+          With(this(expr), args2, only)(word.tpe, word.span)
 
         case DefaultParam(paramRef, default) =>
           // Don't map paramRef --- the client code should match DefaultParam
@@ -75,5 +75,5 @@ object SastOps:
         case While(cond, body) =>
           While(this(cond), this(body))(word.span)
 
-        case Phrase(words) =>
-          Phrase(words.map(this.apply))(word.tpe, word.span)
+        case Block(words) =>
+          Block(words.map(this.apply))(word.tpe, word.span)

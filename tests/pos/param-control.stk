@@ -1,0 +1,25 @@
+param newLine: Bool
+param times: Int
+
+fun printOpt(s: String): Void =
+  val addNewLine = newLine default false
+  val count = times default 1
+  var index = 0
+  while index < count do
+    print s
+    if addNewLine then print "\n"
+    index = index + 1
+
+fun sayNoParam(s: String): Void =
+  printOpt s with none
+
+fun sayOnlyNewLine(s: String): Void =
+  printOpt s with only newLine = true
+
+fun sayOnlyTimes(s: String, repeat: Int): Void =
+  printOpt s with only times = repeat
+
+fun main =
+  sayNoParam "Hello world!" with newLine = true, times = 2
+  sayOnlyTimes "Bravo!" 3 with newLine = true, times = 2
+  sayOnlyNewLine "Bonjour!" with newLine = false, times = 2

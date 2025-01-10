@@ -55,12 +55,12 @@ object ExplicitInit:
           info.locals += fdef.symbol
           transform(fdef)
 
-        case Phrase(words) =>
+        case Block(words) =>
           val words2 =
             for
               word <- words if !word.isInstanceOf[TypeDef]
             yield
               this(word)
-          Phrase(words2)(word.tpe, word.span)
+          Block(words2)(word.tpe, word.span)
 
         case _ => recur(word)

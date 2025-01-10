@@ -297,7 +297,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case _ =>
     blk
 
-  def blockRest(phrases: mutable.ArrayBuffer[Phrase], limitIndent: Indent): Block =
+  def blockRest(phrases: mutable.ArrayBuffer[Word], limitIndent: Indent): Block =
     val item = peekItem()
     def finalResult: Block =
       if phrases.isEmpty then
@@ -322,8 +322,21 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       expr
     else
       eat(Token.WITH)
-      val args = oneOrMore(withArg, Token.COMMA)
-      With(expr, args)(expr.span | args.last.span)
+      peek() match
+        case Token.Ident("none") =>
+          val token = next()
+          With(expr, Nil, only = true)(expr.span | token.span)
+
+        case _ =>
+          val only = peek() match
+            case Token.Ident("only") =>
+              next()
+              true
+
+            case _ => false
+
+          val args = oneOrMore(withArg, Token.COMMA)
+          With(expr, args, only)(expr.span | args.last.span)
 
   def withArg(): WithArg =
     val id = qualid()
@@ -367,10 +380,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       words.clear()
 
       val Block(phrases) = block(lineIndent)
-      for phrase <- first :: phrases do
-        phrase match
-          case word: Word        => words += word
-          case _                 => words += Block(phrase :: Nil)(phrase.span)
+      words += first
+      words ++= phrases
       finalResult
 
     else word() match
@@ -432,7 +443,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case token =>
         None
 
-  def phrase(): Option[Phrase] =
+  def phrase(): Option[Word] =
     val item = peekItem()
     item.token match
       case Token.IF        => Some(ifElse())
@@ -592,7 +603,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       warn("Use indented syntax when parentheses span multiple lines", span.toPos)
     Fence(nested)(span)
 
-  def ifElse(): Phrase =
+  def ifElse(): Word =
     val ifItem = eat(Token.IF)
     val cond = expr()
     val thenItem = eat(Token.THEN)
@@ -613,7 +624,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     If(cond, thenp, elsep)(ifItem.span | elsep.span)
 
-  def whileDo(): Phrase =
+  def whileDo(): Word =
     val whileItem = eat(Token.WHILE)
     val cond = expr()
     val doItem = eat(Token.DO)

@@ -6,7 +6,7 @@ import stk.runtime.native.ParamSupport
 
 type Addr
 
-fun data(qualid: String): Addr =
+fun dataAddr(qualid: String): Addr =
   abort "native global"
 
 fun writeInt(arr: Addr, value: Int): Void =

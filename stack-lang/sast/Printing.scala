@@ -105,8 +105,11 @@ object Printing:
       case TypeApply(fun, targs) =>
         fun ~ "[" ~ rep(targs, Text(", ")) ~ "]"
 
-      case With(expr, args) =>
-        "(" ~ expr ~ " with " ~ rep(args, Text(", ")) ~ ")"
+      case With(expr, args, only) =>
+        if only && args.isEmpty then expr ~ " with none"
+        else
+          val onlyText = if only then Text("only ") else Text.Empty
+          expr ~ " with " ~ onlyText ~ indent(rep(args, Text.BreakLine))
 
       case DefaultParam(paramRef, default) =>
         paramRef ~ " default " ~ default
@@ -124,7 +127,7 @@ object Printing:
         "while " ~ cond ~ " do" ~ indent:
             body
 
-      case Phrase(words) =>
+      case Block(words) =>
         if words.size == 1 then
           showWord(words.head)
         else if words.size > 1 then

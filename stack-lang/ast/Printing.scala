@@ -21,8 +21,6 @@ object Printing:
 
   given Text.Maker[Word] = v => showWord(v)
 
-  given Text.Maker[Phrase] = v => showPhrase(v)
-
   given Text.Maker[Def] = v => showDef(v)
 
   given Text.Maker[TypeTree] = v => showType(v)
@@ -118,8 +116,11 @@ object Printing:
       case Fence(phrase) =>
         "(" ~ phrase ~ ")"
 
-      case With(expr, args) =>
-        "(" ~ expr ~ " with " ~ rep(args, Text(", ")) ~ ")"
+      case With(expr, args, only) =>
+        if only && args.isEmpty then expr ~ " with none"
+        else
+          val onlyText = if only then Text("only ") else Text.Empty
+          expr ~ " with " ~ onlyText ~ indent(rep(args, Text.BreakLine))
 
       case DefaultParam(paramRef, default) =>
         paramRef ~ " default " ~ default
@@ -137,14 +138,6 @@ object Printing:
 
       case Block(phrases) =>
         rep(phrases, Text.BreakLine)
-
-    end match
-  end showWord
-
-  def showPhrase(phrase: Phrase): Text =
-    phrase match
-      case word: Word =>
-        showWord(word)
 
       case If(cond, thenp, elsep) =>
         "if " ~ cond ~ " then" ~ indent:
