@@ -223,10 +223,6 @@ object Interpreter:
 
     exec(body)(using vs, caseScope)
 
-  def eval(phrase: Phrase)(using vs: ValueStack, sc: Scope): Value =
-    exec(phrase)
-    vs.pop()
-
   def exec(block: Block)(using vs: ValueStack, sc: Scope): Unit =
     val lastIndex = block.phrases.size - 1
     val sc2 = sc.fresh()
@@ -234,39 +230,6 @@ object Interpreter:
       // only the last phrase pushes to the value stack
       val vs2 = if i == lastIndex then vs else new ValueStack
       exec(block.phrases(i))(using vs2, sc2)
-
-  def exec(phrase: Phrase)(using vs: ValueStack, sc: Scope): Unit =
-    phrase match
-      case Match(scrut, cases) =>
-        exec(eval(scrut), cases)
-
-      case Assign(id, rhs) =>
-        sc.update(id.name, eval(rhs))
-
-      case If(cond, thenp, elsep) =>
-        val BoolVal(b) = eval(cond): @unchecked
-        if b then exec(thenp) else exec(elsep)
-
-      case While(cond, body) =>
-        // avoid stackoverflow
-        def loop(): Unit =
-          val BoolVal(b) = eval(cond): @unchecked
-          if b then
-            given Scope = sc.fresh()
-            exec(body)
-            loop()
-        loop()
-
-      case word: Word =>
-        exec(word)
-
-      case vdef: ValDef =>
-        sc.bind(vdef.name, eval(vdef.rhs))
-
-      case fdef: FunDef =>
-        sc.bind(fdef.name, FunCall(fdef, sc))
-
-      case tdef: TypeDef =>
 
   def exec(word: Word)(using vs: ValueStack, sc: Scope): Unit =
     word match
@@ -306,3 +269,31 @@ object Interpreter:
 
       case block: Block =>
         exec(block)
+
+      case Match(scrut, cases) =>
+        exec(eval(scrut), cases)
+
+      case Assign(id, rhs) =>
+        sc.update(id.name, eval(rhs))
+
+      case If(cond, thenp, elsep) =>
+        val BoolVal(b) = eval(cond): @unchecked
+        if b then exec(thenp) else exec(elsep)
+
+      case While(cond, body) =>
+        // avoid stackoverflow
+        def loop(): Unit =
+          val BoolVal(b) = eval(cond): @unchecked
+          if b then
+            given Scope = sc.fresh()
+            exec(body)
+            loop()
+        loop()
+
+      case vdef: ValDef =>
+        sc.bind(vdef.name, eval(vdef.rhs))
+
+      case fdef: FunDef =>
+        sc.bind(fdef.name, FunCall(fdef, sc))
+
+      case tdef: TypeDef =>

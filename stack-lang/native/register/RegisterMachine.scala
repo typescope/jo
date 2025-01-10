@@ -60,8 +60,8 @@ extends Backend(runtime):
   def gen(label: Label)(using ctx: Context): Unit =
     ctx.buffer.gen(label)
 
-  def compile(phrase: Phrase)(using Context): Unit =
-    for word <- phrase.words do compile(word)
+  def compile(block: Block)(using Context): Unit =
+    for word <- block.words do compile(word)
 
   def compile(word: Word)(using ctx: Context): Unit =
     word match
@@ -80,7 +80,7 @@ extends Backend(runtime):
 
       case select: Select => compile(select)
 
-      case phrase: Phrase => compile(phrase)
+      case block: Block => compile(block)
 
       case encoded: Encoded => compile(encoded)
 

@@ -75,5 +75,5 @@ object SastOps:
         case While(cond, body) =>
           While(this(cond), this(body))(word.span)
 
-        case Phrase(words) =>
-          Phrase(words.map(this.apply))(word.tpe, word.span)
+        case Block(words) =>
+          Block(words.map(this.apply))(word.tpe, word.span)

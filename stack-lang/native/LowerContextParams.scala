@@ -76,7 +76,7 @@ class LowerContextParams(runtime: NativeRuntime) extends SastOps.TreeMap:
         val cond = Apply(funLessThan, indexIdent :: zero :: Nil)(BoolType, paramRef.span)
         val ifExpr = If(cond, default, readValueAtCall)(word.tpe, word.span)
 
-        Phrase(indexAssign :: ifExpr  :: Nil)(word.tpe, word.span)
+        Block(indexAssign :: ifExpr  :: Nil)(word.tpe, word.span)
 
       case With(expr, args) =>
         given Source = ctx.funSymbol.sourcePos.source
@@ -136,6 +136,6 @@ class LowerContextParams(runtime: NativeRuntime) extends SastOps.TreeMap:
         if !expr.tpe.isVoidType then
           stats += Ident(resSym)(expr.span)
 
-        Phrase(stats.toList)(expr.tpe, word.span)
+        Block(stats.toList)(expr.tpe, word.span)
 
       case _ => recur(word)

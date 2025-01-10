@@ -41,8 +41,8 @@ extends Backend(runtime):
 
   export regAlloc.{ useReg, useTwoReg }
 
-  def compile(phrase: Phrase)(using LocalAddr, CodeBuffer): Unit =
-    for word <- phrase.words do compile(word)
+  def compile(block: Block)(using LocalAddr, CodeBuffer): Unit =
+    for word <- block.words do compile(word)
 
   def compile(word: Word)(using addr: LocalAddr, cb: CodeBuffer): Unit =
     word match
@@ -61,7 +61,7 @@ extends Backend(runtime):
 
       case select: Select => compile(select)
 
-      case phrase: Phrase => compile(phrase)
+      case block: Block => compile(block)
 
       case encoded: Encoded => compile(encoded)
 

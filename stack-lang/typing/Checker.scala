@@ -51,12 +51,12 @@ class Checker:
   def checkTypeApply(fun: Word, targs: List[TypeTree])(using Reporter, Source): Word =
     if !fun.tpe.isPolyType then
       Reporter.error(s"Expect a poly function type, found = ${fun.tpe.show}", fun.pos)
-      Phrase(words = Nil)(ErrorType, fun.span | targs.last.span)
+      Block(words = Nil)(ErrorType, fun.span | targs.last.span)
     else
       val polyType = fun.tpe.asPolyType
       if polyType.paramCount != targs.size then
         Reporter.error(s"Expect ${polyType.paramCount} args, found = ${targs.size}", (targs.head.span | targs.last.span).toPos)
-        Phrase(words = Nil)(ErrorType, fun.span | targs.last.span)
+        Block(words = Nil)(ErrorType, fun.span | targs.last.span)
       else
         checkBounds(polyType.bounds, targs)
         val tpe = TypeOps.substTypeParams(polyType.resultType, targs.map(_.tpe))
@@ -95,19 +95,19 @@ class Checker:
 
           case None =>
             Reporter.error(s"The namespace $sym does not contain the member $member", word.pos)
-            Phrase(Nil)(ErrorType, word.span)
+            Block(Nil)(ErrorType, word.span)
 
       case _ =>
         if tpe.isError then
           word
         else if !tpe.isRecordType then
           Reporter.error(s"Expect record type, found = ${tpe.show}", pos)
-          Phrase(Nil)(ErrorType, word.span)
+          Block(Nil)(ErrorType, word.span)
         else
           val recordType = tpe.asRecordType
           if !recordType.hasField(member) then
             Reporter.error(s"Expect field $member in record type ${tpe.show}, found none", pos)
-            Phrase(Nil)(ErrorType, word.span)
+            Block(Nil)(ErrorType, word.span)
           else
             word
 

@@ -124,7 +124,7 @@ object Printing:
         "while " ~ cond ~ " do" ~ indent:
             body
 
-      case Phrase(words) =>
+      case Block(words) =>
         if words.size == 1 then
           showWord(words.head)
         else if words.size > 1 then

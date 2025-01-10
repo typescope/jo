@@ -19,7 +19,7 @@ object Sast:
   sealed abstract class Word extends Tree:
     def isEmpty: Boolean =
       this match
-        case Phrase(Nil) => true
+        case Block(Nil) => true
         case _ => false
 
     def isDef: Boolean = this.isInstanceOf[Def]
@@ -77,8 +77,7 @@ object Sast:
   extends Word:
     def tpe: Type = VoidType
 
-  // TODO: rename to Block
-  case class Phrase
+  case class Block
     (words: List[Word])
     (val tpe: Type, val span: Span)
   extends Word

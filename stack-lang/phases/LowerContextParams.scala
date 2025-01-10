@@ -130,6 +130,6 @@ extends SastOps.TreeMap:
         if !expr.tpe.isVoidType then
           stats += Ident(resSym)(expr.span)
 
-        Phrase(stats.toList)(expr.tpe, word.span)
+        Block(stats.toList)(expr.tpe, word.span)
 
       case _ => recur(word)

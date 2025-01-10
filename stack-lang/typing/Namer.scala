@@ -212,8 +212,8 @@ class Namer(@constructorOnly reporter: Reporter):
           else TargetType.Known(VoidType)
         transform(phrase)(using sc2, rp, so, tt2)
 
-    if words.isEmpty then Phrase(Nil)(VoidType, block.span)
-    else Phrase(words)(words.last.tpe, block.span)
+    if words.isEmpty then Block(Nil)(VoidType, block.span)
+    else Block(words)(words.last.tpe, block.span)
 
   def transform(word: Ast.Word)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
     extension (word: Word) def adapt: Word = checker.adapt(word, tt)
@@ -254,14 +254,14 @@ class Namer(@constructorOnly reporter: Reporter):
 
               case None =>
                 Reporter.error(s"The namespace $sym does not contain the member $name", word.pos)
-                Phrase(Nil)(ErrorType, word.span)
+                Block(Nil)(ErrorType, word.span)
 
           case tp =>
             if tp.isRecordType then
               val tp = qual2.tpe.asRecordType.fieldType(name)
               Select(qual2, name)(tp, word.span).adapt
             else
-              Phrase(Nil)(ErrorType, word.span)
+              Block(Nil)(ErrorType, word.span)
 
       case lambda: Ast.Lambda =>
         transform(lambda).adapt
@@ -430,7 +430,7 @@ class Namer(@constructorOnly reporter: Reporter):
         Encoded(encodedValue)(unionType)
 
       case None =>
-        Phrase(Nil)(ErrorType, variant.span)
+        Block(Nil)(ErrorType, variant.span)
 
 
   private def transform(patmat: Ast.Match)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
@@ -481,7 +481,7 @@ class Namer(@constructorOnly reporter: Reporter):
       end match
 
     val body = transformCases(cases, BottomType, allTags)
-    Phrase(bind :: body :: Nil)(body.tpe, patmat.span)
+    Block(bind :: body :: Nil)(body.tpe, patmat.span)
 
   private def transform
       (scrut: Ident, caseDef: Ast.Case, resType: Type, cont: Type => Word)
@@ -533,7 +533,7 @@ class Namer(@constructorOnly reporter: Reporter):
           val commonType2 = checker.commonResultType(body2.tpe, elsep.tpe, body2.pos)
           val adapted = checker.adapt(body2, commonType2)
 
-          val body3 = Phrase(vals.toList :+ adapted)(adapted.tpe, caseDef.span)
+          val body3 = Block(vals.toList :+ adapted)(adapted.tpe, caseDef.span)
           If(cond, body3, elsep)(body3.tpe, caseDef.span)
 
   private def transform(lambda: Ast.Lambda)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
@@ -549,7 +549,7 @@ class Namer(@constructorOnly reporter: Reporter):
        val expect = targetFunTypeOpt.get.paramCount
        if expect != params.size then
          Reporter.error(s"Expect a function with $expect parameters, found = ${params.size}", lambda.pos)
-         return Phrase(words = Nil)(ErrorType, lambda.span)
+         return Block(words = Nil)(ErrorType, lambda.span)
 
      val funSym = Symbol.createFunSymbol("anon", this.nonCyclicTypeProvider, sc.owner, lambda.pos)
      val lambdaScope = sc.fresh(funSym)
@@ -588,7 +588,7 @@ class Namer(@constructorOnly reporter: Reporter):
      val funDef = FunDef(funSym, tparamSyms, paramSyms, bodyTyped)(locals = Nil, captures = Nil, lambda.span)
      val lambdaType = procType.toFunType
      val ref = Ident(funSym)(lambda.span)
-     Phrase(funDef :: ref :: Nil)(lambdaType, lambda.span)
+     Block(funDef :: ref :: Nil)(lambdaType, lambda.span)
 
   private def transform(vdef: Ast.ValDef)(using sc: Scope, rp: Reporter, so: Source): DelayedDef[ValDef] =
     val flags: Flags = if vdef.mutable then Flags.Mutable else Flags.empty
