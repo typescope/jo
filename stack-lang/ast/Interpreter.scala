@@ -203,6 +203,11 @@ object Interpreter:
       lamScope.bind(param.name, vs.pop())
     eval(lam.body)(using vs, lamScope)
 
+
+  def eval(word: Word)(using vs: ValueStack, sc: Scope): Value =
+    exec(word)
+    vs.pop()
+
   def exec(value: Value, cases: List[Case])(using vs: ValueStack, sc: Scope): Unit =
     val VariantVal(tag, values) = value: @unchecked
     def matches(caseDef: Case): Boolean =
