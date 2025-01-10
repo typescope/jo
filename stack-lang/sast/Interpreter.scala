@@ -212,8 +212,9 @@ object Interpreter:
         val BoolVal(b) = eval(cond): @unchecked
         if b then exec(thenp) else exec(elsep)
 
-      case With(expr, args) =>
-        val params2 = args.foldLeft(params): (params, arg) =>
+      case With(expr, args, only) =>
+        val params1: Params = if only then Map.empty else params
+        val params2 = args.foldLeft(params1): (params, arg) =>
           params.updated(arg.paramRef.symbol, eval(arg.rhs))
         exec(expr)(using env, params2)
 
