@@ -55,7 +55,9 @@ def compile(args: String*): Unit =
         jsRuntime.JS_hasParam,
         jsRuntime.JS_getParam,
         jsRuntime.JS_setParam,
-        jsRuntime.JS_delParam)
+        jsRuntime.JS_delParam,
+        jsRuntime.JS_newPage,
+        jsRuntime.JS_restorePage)
 
     val backend = new JSOptimized(outFile, jsRuntime)
 
