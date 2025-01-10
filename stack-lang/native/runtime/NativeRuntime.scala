@@ -24,7 +24,7 @@ extends Linker:
   val Core_mainStub = Core.termMember("mainStub")
 
   val Core_cast = Core.termMember("cast")
-  val Core_data = Core.termMember("data")
+  val Core_data = Core.termMember("dataAddr")
 
   val Core_addAddr = Core.termMember("addAddr")
   val Core_writeInt = Core.termMember("writeInt")
@@ -46,6 +46,8 @@ extends Linker:
   val ParamSupport_restoreParam = ParamSupport.termMember("restoreParam")
   val ParamSupport_readValueAt = ParamSupport.termMember("readValueAt")
   val ParamSupport_getParamIndex = ParamSupport.termMember("getParamIndex")
+  val ParamSupport_newPage = ParamSupport.termMember("newPage")
+  val ParamSupport_restorePage = ParamSupport.termMember("restorePage")
 
   val paramSupportStateLabel = Label("paramSupportState")
 
@@ -82,8 +84,6 @@ extends Linker:
   def linkData()(using pb: PatchableBuffer): Unit =
     pb.defineLabel(paramSupportStateLabel)
     pb.align(4)
-    pb.addInt(0)
-    pb.addInt(0)
     pb.addInt(0)
 
     linkers.foreach(_.linkData())
