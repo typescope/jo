@@ -47,6 +47,9 @@ Lexical Grammar
     DEFAULT  = "default".
     NSPACE   = "namespace".
     IMPORT   = "import".
+    DEF      = "def".
+    THIS     = "this".
+    OBJECT   = "object".
     name     = (letter | USCORE) {letter | digit | USCORE}.
     operator = opchar { opchar }.
     ident    = name | operator.
@@ -118,21 +121,26 @@ Syntactical Grammar
     applied_type = ident targs.
     targs        = LBRACKET type { COMMA type } RBRACKET.
 
-    type    = qualid | record_typ | union_typ | applied_type | fun_type | LPAREN type RPAREN.
+    type    = qualid | record_typ | union_typ | applied_type | fun_type | object_type | LPAREN type RPAREN.
 
     record_typ = LBRACE [fields]  RBRACE.
     fields     = field { COMMA field }.
     field      = ident COLON type.
 
-    union_typ  = '<' [branches] '>'.
+    union_typ  = '<' {branch} '>'.
     branches   = branch { COMMA branch }.
     branch     = ident [param_section].
 
     fun_type   = [types] RARROW type.
 
+    object_type = OBJECT LBRACE {method_decl} RBRACE.
+    method_decl =  DEF ident param_section COLON type.
+
     param_section = LPAREN [params] RPAREN
     params        = param {COMMA param}.
     param         = ident COLON type.
+
+
 ~~~
 
 ## Namespaces
