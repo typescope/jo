@@ -54,13 +54,13 @@ fun int2String(n: Int): String =
     while remains > 0 do
       val digit = remains % 10
       writeByte (addAddr buf index) (48 + digit) // '0' = 48
-      index = index - 1
-      remains = remains / 10
+      index <- index - 1
+      remains <- remains / 10
 
     // sign char
     if negative then
       writeByte (addAddr buf index) 45 // '-' = 45
-      index = index - 1
+      index <- index - 1
 
     val startIndex = index + 1
     val len = 14 - index
@@ -75,7 +75,7 @@ fun int2String(n: Int): String =
       while copyIndex < len do
         val c = readByte (addAddr buf (startIndex + copyIndex))
         writeByte (addAddr buf (freeFrom + copyIndex)) c
-        copyIndex = copyIndex + 1
+        copyIndex <- copyIndex + 1
 
     buf cast[String]
 

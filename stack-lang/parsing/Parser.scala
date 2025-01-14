@@ -394,7 +394,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def isAssign(): Boolean =
     val token0 = peek(0)
     val token1 = peek(1)
-    token0.isInstanceOf[Token.Ident] && token1 == Token.EQL
+    token0.isInstanceOf[Token.Ident] && token1 == Token.ASSIGN
 
   def isLambda(): Boolean =
     val token0 = peek(0)
@@ -635,7 +635,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     While(cond, body)(whileItem.span | body.span)
 
   def assign(id: Ident, limitIndent: Indent): Assign =
-    eat(Token.EQL)
+    eat(Token.ASSIGN)
     val rhs = block(limitIndent)
     Assign(id, rhs)(id.span | rhs.span)
 

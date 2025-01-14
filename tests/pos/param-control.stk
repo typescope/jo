@@ -8,7 +8,7 @@ fun printOpt(s: String): Void =
   while index < count do
     print s
     if addNewLine then print "\n"
-    index = index + 1
+    index <- index + 1
 
 fun sayNoParam(s: String): Void =
   printOpt s with none
