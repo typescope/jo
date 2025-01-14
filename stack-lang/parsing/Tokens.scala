@@ -6,7 +6,7 @@ object Tokens:
   /** Tokens recognized by the scanner */
   enum Token:
     case LPAREN, RPAREN, LBRACKET, RBRACKET, LBRACE, RBRACE
-    case AS, CASE, DO, END, ELSE, FUN, IF, IMPORT, MATCH, NSPACE, PARAM, THEN, TYPE, VAL, VAR, WHILE, WITH, DEFAULT
+    case AS, CASE, DO, END, ELSE, FUN, IF, IMPORT, MATCH, NSPACE, PARAM, THEN, TYPE, VAL, VAR, ASSIGN, WHILE, WITH, DEFAULT
     case TAG, COMMA, DOT, EOF
     case COLON, RARROW, EQL, SUBTYPE
     case IntLit(value: Int)

@@ -25,10 +25,10 @@ fun fact5(n: Int): Int =
 fun main =
   var a = 10
   while a > 10 do
-    a = a - 1
+    a <- a - 1
 
   while a > 10 do
-    a = a - 1
+    a <- a - 1
   end
 
   val b =

@@ -727,7 +727,7 @@ class Namer(@constructorOnly reporter: Reporter):
             if typeName == "Int" then IntType
             else if typeName == "Bool" then BoolType
             else if typeName == "String" then StringType
-            else if typeName == "Void" then VoidType
+            else if typeName == "void" then VoidType
             else if typeName == "Any" then AnyType
             else if typeName == "Bottom" then BottomType
             else

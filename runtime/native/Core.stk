@@ -9,14 +9,14 @@ type Addr
 fun dataAddr(qualid: String): Addr =
   abort "native global"
 
-fun writeInt(arr: Addr, value: Int): Void =
+fun writeInt(arr: Addr, value: Int): void =
   abort "native writeInt"
 
 fun readInt(arr: Addr): Int =
   abort "native readInt"
 
 // The caller needs to make sure the value fit into one byte
-fun writeByte(arr: Addr, value: Int): Void =
+fun writeByte(arr: Addr, value: Int): void =
   abort "native writeInt"
 
 fun readByte(arr: Addr): Int =
@@ -27,7 +27,7 @@ fun addAddr(arr: Addr, offset: Int): Addr =
 
 fun (arr: Any) cast[T]: T = abort("runtime cast")
 
-fun start(): Void =
+fun start(): void =
   GC.init
   ParamSupport.init
 
@@ -35,7 +35,7 @@ fun start(): Void =
 
   finish
 
-fun mainStub(): Void = abort("error mainStub")
+fun mainStub(): void = abort("error mainStub")
 
 fun int2String(n: Int): String =
   // MAX_VALUE =  2147483647
@@ -54,13 +54,13 @@ fun int2String(n: Int): String =
     while remains > 0 do
       val digit = remains % 10
       writeByte (addAddr buf index) (48 + digit) // '0' = 48
-      index = index - 1
-      remains = remains / 10
+      index <- index - 1
+      remains <- remains / 10
 
     // sign char
     if negative then
       writeByte (addAddr buf index) 45 // '-' = 45
-      index = index - 1
+      index <- index - 1
 
     val startIndex = index + 1
     val len = 14 - index
@@ -75,27 +75,27 @@ fun int2String(n: Int): String =
       while copyIndex < len do
         val c = readByte (addAddr buf (startIndex + copyIndex))
         writeByte (addAddr buf (freeFrom + copyIndex)) c
-        copyIndex = copyIndex + 1
+        copyIndex <- copyIndex + 1
 
     buf cast[String]
 
-fun p(n: Int): Void =
+fun p(n: Int): void =
   println (int2String n)
 
-fun print(s: String): Void =
+fun print(s: String): void =
   val addr = s cast[Addr]
   val len = readInt addr
   val contentAddr = addAddr addr 4
   Syscall.sys_write 1 contentAddr len
 
-fun finish: Void =
+fun finish: void =
   Syscall.sys_exit 0
 
 fun abortImpl(msg: String): Bottom =
   print msg
   Syscall.sys_exit 1
 
-fun pDigit(n: Int): Void =
+fun pDigit(n: Int): void =
   if n == 0 then print "0"
   else if n == 1 then print "1"
   else if n == 2 then print "2"
@@ -108,7 +108,7 @@ fun pDigit(n: Int): Void =
   else if n == 9 then print "9"
   else abort("Unexpected number > 9")
 
-fun pInt(n: Int): Void =
+fun pInt(n: Int): void =
   if n == 0 then print "0\n"
   else if n < 0 then pInt (0 - n)
   else
@@ -134,7 +134,7 @@ fun pInt(n: Int): Void =
     pDigit(r8 / 10)
     pDigit(r9)
 
-fun xDigit(n: Int): Void =
+fun xDigit(n: Int): void =
   if n == 0 then print "0"
   else if n == 1 then print "1"
   else if n == 2 then print "2"
@@ -153,7 +153,7 @@ fun xDigit(n: Int): Void =
   else if n == 15 then print "F"
   else abort("Unexpected number for xDigit > 16")
 
-fun xInt(n: Int): Void =
+fun xInt(n: Int): void =
   print "0x"
   xDigit ((n & (15 << 28)) >> 28)
   xDigit ((n & (15 << 24)) >> 24)

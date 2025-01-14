@@ -1,5 +1,5 @@
 var a: Int = 10
-fun mutate(): Void = a = 20
+fun mutate(): void = a = 20
 fun foo(x: Int): Int = a mutate x +
 
 a 5 foo p a p p

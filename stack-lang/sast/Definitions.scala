@@ -38,7 +38,7 @@ class Definitions(rootNameTable: NameTable):
   val Predef_Int    =  Predef.typeMember("Int")
   val Predef_Bool   =  Predef.typeMember("Bool")
   val Predef_String =  Predef.typeMember("String")
-  val Predef_Void   =  Predef.typeMember("Void")
+  val Predef_Void   =  Predef.typeMember("void")
 
 object Definitions:
   val key = new Dynamic.Key[Definitions]("definitions")

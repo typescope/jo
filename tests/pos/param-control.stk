@@ -1,22 +1,22 @@
 param newLine: Bool
 param times: Int
 
-fun printOpt(s: String): Void =
+fun printOpt(s: String): void =
   val addNewLine = newLine default false
   val count = times default 1
   var index = 0
   while index < count do
     print s
     if addNewLine then print "\n"
-    index = index + 1
+    index <- index + 1
 
-fun sayNoParam(s: String): Void =
+fun sayNoParam(s: String): void =
   printOpt s with none
 
-fun sayOnlyNewLine(s: String): Void =
+fun sayOnlyNewLine(s: String): void =
   printOpt s with only newLine = true
 
-fun sayOnlyTimes(s: String, repeat: Int): Void =
+fun sayOnlyTimes(s: String, repeat: Int): void =
   printOpt s with only times = repeat
 
 fun main =

@@ -5,7 +5,7 @@ import stk.runtime.native.Syscall
 
 type State = { freeFrom: Int, freeUntil: Int }
 
-fun init(): Void =
+fun init(): void =
   val start = Syscall.sys_brk 0
   val data = Core.dataAddr "stk.runtime.native.BumpAllocator.state"
 
@@ -26,7 +26,7 @@ fun alloc(size: Int): Any =
        abort("Unable to alloc memory from system")
 
      // avoid allocating at page boundary
-     freeFrom = lastFreeUntil
+     freeFrom <- lastFreeUntil
 
      // update data
      // TODO: use stk syntax once record can be mutable

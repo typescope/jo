@@ -2,8 +2,8 @@ fun fact(n: Int): Int =
   var a = 1
   var s = 1
   while a <= n do
-    s = a * s
-    a = 1 + a
+    s <- a * s
+    a <- 1 + a
   end
   s
 

@@ -1,6 +1,6 @@
 fun foo(x: Int): Int =
   var m = x + x
   val f = (n: Int) =>
-    m = 10  // error
+    m <- 10  // error
     m * n   // error
   f x

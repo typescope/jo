@@ -1,15 +1,15 @@
 namespace stk.runtime.JS
 
 fun getProp(o: Any, prop: String): Any = js "o[prop]"
-fun setProp(o: Any, prop: String, v: Any): Void = js "o[prop] = v"
+fun setProp(o: Any, prop: String, v: Any): void = js "o[prop] = v"
 
 fun isDefined(o: Any): Bool = js "o"
 
 fun concat(a: String, b: String): String = js "a + b"
 
-fun print(s: String): Void = js "process.stdout.write(s)"
+fun print(s: String): void = js "process.stdout.write(s)"
 
-fun p(n: Int): Void = js "process.stdout.write(n.toString() + \"\\n\")"
+fun p(n: Int): void = js "process.stdout.write(n.toString() + \"\\n\")"
 
 fun hasParam(key: String): Bool =
   val v = getProp (js "__runtime_contextParams") key
@@ -25,7 +25,7 @@ fun setParam(key: String, value: Any): Any =
   setProp (js "__runtime_contextParams") key value
   old
 
-fun delParam(key: String): Void =
+fun delParam(key: String): void =
   setProp (js "__runtime_contextParams") key (js "undefined")
 
 // create a new object holding key/values and return the old one
@@ -34,5 +34,5 @@ fun newPage(): Any =
   js "__runtime_contextParams = {}"
   old
 
-fun restorePage(old: Any): Void =
+fun restorePage(old: Any): void =
   js "__runtime_contextParams = old"
