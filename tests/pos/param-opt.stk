@@ -1,6 +1,6 @@
 param newLine: Bool
 
-fun printOpt(s: String): Void =
+fun printOpt(s: String): void =
   val addNewLine = newLine default false
   print s
   if addNewLine then print "\n"

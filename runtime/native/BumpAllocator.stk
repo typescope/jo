@@ -5,7 +5,7 @@ import stk.runtime.native.Syscall
 
 type State = { freeFrom: Int, freeUntil: Int }
 
-fun init(): Void =
+fun init(): void =
   val start = Syscall.sys_brk 0
   val data = Core.dataAddr "stk.runtime.native.BumpAllocator.state"
 

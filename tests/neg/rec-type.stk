@@ -8,7 +8,7 @@ type Y = X
 
 fun test1(a: A): A = a.x // error
 
-fun test2(x: X): Void = x.a // error
+fun test2(x: X): void = x.a // error
 
 fun test3(a: A): Int = a
 

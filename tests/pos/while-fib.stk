@@ -1,4 +1,4 @@
-fun fib(n: Int): Void =
+fun fib(n: Int): void =
   var a = 1
   var b = 1
   var i = 1

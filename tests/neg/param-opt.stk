@@ -1,6 +1,6 @@
 param newLine: Bool
 
-fun printOpt(s: String): Void =
+fun printOpt(s: String): void =
   val a = s default true             // error
 
   val b = newLine default 3          // error

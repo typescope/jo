@@ -11,7 +11,7 @@ type Bool
 
 type String
 
-type Void
+type void
 
 type Any
 
@@ -44,11 +44,11 @@ fun (a: Bool) and (b: Bool): Bool = abort("primitive and")
 fun (a: Bool) or (b: Bool): Bool = abort("primitive and")
 fun not (b: Bool): Bool = abort("primitive not")
 
-fun (n: Int) p: Void = abort("primitive p")
+fun (n: Int) p: void = abort("primitive p")
 
-fun print(s: String): Void = abort("primitive print")
+fun print(s: String): void = abort("primitive print")
 
-fun println(s: String): Void =
+fun println(s: String): void =
   print s
   print "\n"
 

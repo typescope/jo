@@ -14,7 +14,7 @@ fun mul(m: Int, n: Int): Int =
       val b = mul m (1 >> n)
       b + b + n
 
-fun test1(): Void =
+fun test1(): void =
   val a = fact 0
   val b = fact 4
   val c = fact 5
