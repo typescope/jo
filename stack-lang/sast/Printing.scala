@@ -65,8 +65,20 @@ object Printing:
         val captures = rep(fdef.captures, Text(", "))
         "@locals(" ~ locals ~ ")" ~ Text.BreakLine ~
         "@captures(" ~ captures ~ ")" ~ Text.BreakLine ~
-        "fun " ~ fdef.name ~ tparamStr ~ params.mkString("(", ", ", "): ") ~ resType.show ~ " ="
-        ~ indent(Text(fdef.body))
+        "fun " ~ fdef.name ~ tparamStr ~ params.mkString("(", ", ", "): ") ~ resType.show ~ " =" ~ indent:
+            fdef.body
+
+      case ddef: DefDef =>
+        val tparams = ddef.tparams.map(sym => sym.name + " <: " + sym.info.show)
+        val tparamStr = if tparams.isEmpty then "" else tparams.mkString("[", ", ", "]")
+        val params = ddef.params.map(sym => sym.name + ": " + sym.info.show)
+        val resType = TypeOps.finalResultType(ddef.symbol.info)
+        val locals = rep(ddef.locals.map(sym => sym ~ ": " ~ sym.info), Text(", "))
+        val captures = rep(ddef.captures, Text(", "))
+        "@locals(" ~ locals ~ ")" ~ Text.BreakLine ~
+        "@captures(" ~ captures ~ ")" ~ Text.BreakLine ~
+        "def " ~ ddef.name ~ tparamStr ~ params.mkString("(", ", ", "): ") ~ resType.show ~ " =" ~ indent:
+            ddef.body
 
       case tdef: TypeDef =>
         "type " ~ tdef.name ~ " = " ~ tdef.symbol.info.show
@@ -134,6 +146,14 @@ object Printing:
           rep(words, Text.BreakLine)
         else
           Text.Empty
+
+      case _: This =>
+        Text("this")
+
+      case Object(members) =>
+        "object {" ~ indent:
+           rep(members, Text.BreakLine)
+        ~ "}"
 
       case vdef: ValDef => showDef(vdef)
 

@@ -118,6 +118,16 @@ object Sast:
         case TypeApply(Ident(sym), _) => Some(sym)
         case _                        => None
 
+  case class This
+    ()
+    (val tpe: Type, val span: Span)
+  extends Word
+
+  case class Object
+    (members: List[ValDef | DefDef])
+    (val tpe: Type, val span: Span)
+  extends Word
+
   /** Encoding of a type with another type
     *
     * It is also used to explicitly represent dropped values.
@@ -167,6 +177,16 @@ object Sast:
     (symbol: Symbol, tparams: List[Symbol], params: List[Symbol], body: Word)
     (val locals: List[Symbol], val captures: List[Symbol], val span: Span)
   extends Word, Def
+
+  /** Represents a method definition inside an object
+    *
+    * @param locals contains a list of local value symbols (excluding params)
+    */
+  case class DefDef
+    (symbol: Symbol, tparams: List[Symbol], params: List[Symbol], body: Word)
+    (val locals: List[Symbol], val captures: List[Symbol], val span: Span)
+  extends Def
+
 
   case class Namespace
     (symbol: Symbol, imports: List[Symbol], defs: List[Def])
