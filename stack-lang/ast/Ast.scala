@@ -128,6 +128,16 @@ object Ast:
     (val span: Span)
   extends Word
 
+  case class This
+    ()
+    (val span: Span)
+  extends Word
+
+  case class Object
+    (members: List[ValDef | DefDef])
+    (val span: Span)
+  extends Word
+
   //---------------------------- patterns --------------------------------------
 
   sealed abstract class Pattern extends Tree
@@ -179,6 +189,11 @@ object Ast:
     (val span: Span)
   extends TypeTree
 
+  case class ObjectType
+    (members: List[DefDef])
+    (val span: Span)
+  extends TypeTree
+
   //-------------------------- definitions -------------------------------------
 
   sealed trait Def extends Tree:
@@ -200,6 +215,11 @@ object Ast:
         resType: TypeTree, body: Word, preParamCount: Int)
     (val span: Span)
   extends Word, Def
+
+  case class DefDef
+    (ident: Ident, tparams: List[TypeParam], params: List[Param], resType: TypeTree, body: Word)
+    (val span: Span)
+  extends Def
 
   case class TypeParam
     (ident: Ident, bound: TypeTree)
