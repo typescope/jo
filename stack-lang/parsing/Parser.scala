@@ -210,6 +210,29 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val paramList= preParamList ++ postParamList
     FunDef(id, tparams, paramList, resType, body, preParamList.size)(fun.span | body.span)
 
+  def defDef(needBody: Boolean): DefDef =
+    val defToken = eat(Token.DEF)
+    val id = ident()
+    val tparams = typeParams()
+    val paramList = paramSection()
+    val resType =
+      if peek() == Token.COLON then
+        eat(Token.COLON)
+        typ()
+      else
+        EmptyTypeTree()(id.span)
+
+    val body =
+      if needBody then
+        eat(Token.EQL)
+        block(defToken.indent)
+      else
+        Block(Nil)(resType.span)
+
+    eatEndOpt(defToken.indent)
+
+    DefDef(id, tparams, paramList, resType, body)(defToken.span | body.span)
+
   def paramDef(): Param =
     val token = eat(Token.PARAM)
     val id = ident()
@@ -440,6 +463,13 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         next()
         Some(StringLit(lit.value)(item.span))
 
+      case Token.THIS =>
+        next()
+        optSelectAndTypeApply(This()(item.span))
+
+      case Token.OBJECT =>
+        Some(objectLit())
+
       case token =>
         None
 
@@ -499,6 +529,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   def simpleType(): TypeTree =
     peek() match
+      case Token.OBJECT   => objectType()
       case Token.LBRACE   => recordType()
       case Token.Ident("<") => unionType()
 
@@ -531,6 +562,15 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val branchDecls = branches(mutable.ArrayBuffer.empty)
     val big = eat(Token.Ident(">"))
     UnionType(branchDecls)(less.span | big.span)
+
+  def objectType(): ObjectType =
+    val objToken = eat(Token.OBJECT)
+    eat(Token.LBRACE)
+    val decls: List[DefDef] = repeated:
+        if peek() == Token.DEF then Some(defDef(needBody = false))
+        else None
+    val endToken = eat(Token.RBRACE)
+    ObjectType(decls)(objToken.span | endToken.span)
 
   def appliedType(tctor: RefTree): AppliedType =
     val targs = typeArgs()
@@ -699,6 +739,17 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         EmptyTypeTree()(tag.span)
 
     Variant(tag, args, tp)(tagSign.span | tp.span)
+
+  def objectLit(): Object =
+    val objToken = eat(Token.OBJECT)
+    eat(Token.LBRACE)
+    val members: List[ValDef | DefDef] = repeated:
+        if peek() == Token.DEF then Some(defDef(needBody = true))
+        else if peek() == Token.VAL then Some(valDef(Token.VAL))
+        else if peek() == Token.VAR then Some(valDef(Token.VAR))
+        else None
+    val endToken = eat(Token.RBRACE)
+    Object(members)(objToken.span | endToken.span)
 
   def patmat(): Match =
     val matchItem = eat(Token.MATCH)

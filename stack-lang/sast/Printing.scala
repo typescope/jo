@@ -115,7 +115,7 @@ object Printing:
         paramRef ~ " default " ~ default
 
       case Assign(sym, rhs) =>
-        sym.name ~ " = " ~ rhs
+        sym.name ~ " <- " ~ rhs
 
       case If(cond, thenp, elsep) =>
         "if " ~ cond ~ " then" ~ indent:

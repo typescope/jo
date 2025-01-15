@@ -167,7 +167,7 @@ object Printing:
             body
 
       case Assign(id, rhs) =>
-        id ~ " = " ~ rhs
+        id ~ " <- " ~ rhs
 
       case patmat: Ast.Match =>
         "match " ~ patmat.scrutinee ~ indent:
