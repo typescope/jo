@@ -43,6 +43,10 @@ class NameTable(
         rp.report(error)
   end define
 
+  def terms: List[Symbol] = termNames.values.toList
+
+  def types: List[Symbol] = typeNames.values.toList
+
   def show: String =
     "terms: { " + termNames + "}" + "\ntypes: { " + typeNames + "}"
 
@@ -59,7 +63,7 @@ object NameTable:
       case name :: rest =>
         nameTable.resolveTerm(name).flatMap: sym =>
           if sym.isNamespace then
-            val nameTable = sym.info.as[NamespaceInfo].nameTable
+            val nameTable = sym.info.as[NameTableInfo].nameTable
             resolvePath(nameTable, rest, isType)
           else
             None

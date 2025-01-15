@@ -48,7 +48,7 @@ class Namer(@constructorOnly reporter: Reporter):
       given source: Source = Reporter.source(ns.source)
 
       val nsSym = resolveNamespace(ns.qualid, isBranch = false)(using rootNamespaceScope)
-      val nsInfo = nsSym.info.as[NamespaceInfo]
+      val nsInfo = nsSym.info.as[NameTableInfo]
 
       val importScope: Scope = predefScope.fresh(nsSym)
       val defsScope: Scope = importScope.fresh(nsSym, nsInfo.nameTable)
@@ -111,7 +111,7 @@ class Namer(@constructorOnly reporter: Reporter):
 
       else
         rp.error(s"The $name is already defined as a member at $pos", qualid.pos)
-        Symbol.createNamespaceSymbol(sym.name, new NamespaceInfo, sym.owner, qualid.pos, isBranch)
+        Symbol.createNamespaceSymbol(sym.name, new NameTableInfo, sym.owner, qualid.pos, isBranch)
 
     qualid match
       case Ast.Select(qual, name) =>
@@ -119,20 +119,20 @@ class Namer(@constructorOnly reporter: Reporter):
         val nsSym = resolveNamespace(qual.asInstanceOf[Ast.RefTree], isBranch = true)
 
         assert(nsSym.isNamespace, "Not a namespace " + nsSym)
-        val nsInfo = nsSym.info.as[NamespaceInfo]
+        val nsInfo = nsSym.info.as[NameTableInfo]
 
         nsInfo.resolveTerm(name) match
           case Some(sym) => check(sym)
 
           case None =>
-            val sym = Symbol.createNamespaceSymbol(name, new NamespaceInfo, nsSym, qualid.pos, isBranch)
+            val sym = Symbol.createNamespaceSymbol(name, new NameTableInfo, nsSym, qualid.pos, isBranch)
             nsInfo.define(sym)
             sym
 
       case Ast.Ident(name) =>
         sc.resolve(name, isType = false) match
           case None =>
-            val sym = Symbol.createNamespaceSymbol(name, new NamespaceInfo, sc.owner, qualid.pos, isBranch)
+            val sym = Symbol.createNamespaceSymbol(name, new NameTableInfo, sc.owner, qualid.pos, isBranch)
             sc.define(sym)
             sym
 
@@ -146,7 +146,7 @@ class Namer(@constructorOnly reporter: Reporter):
         val sym = resolveGlobal(qual.asInstanceOf[Ast.RefTree], isType = false)
 
         if sym.isNamespace then
-          val nsInfo = sym.info.as[NamespaceInfo]
+          val nsInfo = sym.info.as[NameTableInfo]
 
           nsInfo.resolveTerm(name) match
             case Some(sym) => sym
@@ -165,14 +165,14 @@ class Namer(@constructorOnly reporter: Reporter):
           case Some(sym) => sym
           case None =>
             rp.error(s"The name $name is not found", qualid.pos)
-            Symbol.createNamespaceSymbol(name, new NamespaceInfo, sc.owner, pos = qualid.pos, isBranch = false)
+            Symbol.createNamespaceSymbol(name, new NameTableInfo, sc.owner, pos = qualid.pos, isBranch = false)
 
   private def index(defs: List[Ast.Def])(using sc: Scope, rp: Reporter, so: Source): List[DelayedDef[Def]] =
     val delayedDefs = new mutable.ArrayBuffer[DelayedDef[Def]]
 
     for defn <- defs do
       val delayedDef = index(defn)
-      // The name table is shared between NamespaceInfo and current scope. This
+      // The name table is shared between NameTableInfo and current scope. This
       // way, by entering once the name can be access in two different ways in
       // the current context.
       sc.define(delayedDef.symbol)
@@ -185,8 +185,8 @@ class Namer(@constructorOnly reporter: Reporter):
       case vdef: Ast.ValDef =>
         transform(vdef)
 
-      case funDef: Ast.FunDef =>
-        transform(funDef)
+      case pdef: Ast.ProcDef =>
+        transformProcDef(pdef)
 
       case tdef: Ast.TypeDef =>
         transform(tdef)
@@ -200,20 +200,6 @@ class Namer(@constructorOnly reporter: Reporter):
         DelayedDef(sym, defSast)
     end match
   end index
-
-  def transform(block: Ast.Block)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
-    val phrases = block.phrases
-    var sc2 = sc
-    val words =
-      for (phrase, i) <- phrases.zipWithIndex yield
-        sc2 = sc2.fresh()
-        val tt2 =
-          if i == phrases.size - 1 then tt
-          else TargetType.Known(VoidType)
-        transform(phrase)(using sc2, rp, so, tt2)
-
-    if words.isEmpty then Block(Nil)(VoidType, block.span)
-    else Block(words)(words.last.tpe, block.span)
 
   def transform(word: Ast.Word)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
     extension (word: Word) def adapt: Word = checker.adapt(word, tt)
@@ -245,23 +231,13 @@ class Namer(@constructorOnly reporter: Reporter):
           given TargetType = TargetType.TermMember(name)
           transform(qual)
 
-        qual2.tpe match
-          case TypeRef(sym) if sym.isNamespace =>
-            val nsInfo = sym.info.as[NamespaceInfo]
-            nsInfo.resolveTerm(name) match
-              case Some(sym) =>
-                Ident(sym)(word.span).adapt
+        qual2.tpe.getTermMember(name) match
+          case Some(tp) =>
+            Select(qual2, name)(tp, word.span).adapt
 
-              case None =>
-                Reporter.error(s"The namespace $sym does not contain the member $name", word.pos)
-                Block(Nil)(ErrorType, word.span)
-
-          case tp =>
-            if tp.isRecordType then
-              val tp = qual2.tpe.asRecordType.fieldType(name)
-              Select(qual2, name)(tp, word.span).adapt
-            else
-              Block(Nil)(ErrorType, word.span)
+          case None =>
+            Reporter.error(s"The prefix does not contain the member $name", qual.pos)
+            Block(Nil)(ErrorType, word.span)
 
       case lambda: Ast.Lambda =>
         transform(lambda).adapt
@@ -321,7 +297,7 @@ class Namer(@constructorOnly reporter: Reporter):
         vdef2.adapt
 
       case fdef: Ast.FunDef =>
-        val delayedDef = transform(fdef)
+        val delayedDef = transformProcDef(fdef)
         // A function is available for checking its rhs
         sc.define(delayedDef.symbol)
         delayedDef.force().adapt
@@ -334,6 +310,59 @@ class Namer(@constructorOnly reporter: Reporter):
 
       case block: Ast.Block =>
         transform(block)
+
+      case _: Ast.This =>
+        transform(Ast.Ident("this")(word.span))
+
+      case obj: Ast.Object =>
+        transform(obj)
+
+  def transform(obj: Ast.Object)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
+    val nameTable = new NameTable
+
+    // create a dummy symbol for `this`
+    val thisType = NameTableInfo(nameTable, isContainerValue = true)
+    val thisSym = Symbol.createValueSymbol("this", thisType, sc.owner, obj.pos)
+
+    // scope for checking member methods
+    val sc2 = sc.fresh(thisSym, nameTable)
+
+    // TODO: `this` should not be available in field initialization
+    sc2.define(thisSym)
+
+    val delayedDefs = new mutable.ArrayBuffer[DelayedDef[Def]]
+
+    for member <- obj.members do
+      given Scope = sc2
+      val delayedDef = index(member)
+      sc2.define(delayedDef.symbol)
+      delayedDefs += delayedDef
+
+    val membersTyped: List[ValDef | FunDef] =
+      for delayedDef <- delayedDefs.toList yield
+        delayedDef.force() match
+          case fdef: FunDef => fdef
+          case vdef: ValDef => vdef
+          case tree => throw new Exception("Unexpected tree: " + tree)
+      end for
+
+    val methods = nameTable.terms.filter(_.isMethod)
+    val objType = ObjectType(methods.map(_.toNamedInfo))
+    Object(membersTyped)(objType, obj.span)
+
+  def transform(block: Ast.Block)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
+    val phrases = block.phrases
+    var sc2 = sc
+    val words =
+      for (phrase, i) <- phrases.zipWithIndex yield
+        sc2 = sc2.fresh()
+        val tt2 =
+          if i == phrases.size - 1 then tt
+          else TargetType.Known(VoidType)
+        transform(phrase)(using sc2, rp, so, tt2)
+
+    if words.isEmpty then Block(Nil)(VoidType, block.span)
+    else Block(words)(words.last.tpe, block.span)
 
   private def transformParamRef(ref: Ast.RefTree)(using sc: Scope, rp: Reporter, so: Source): Ident =
     val paramRef =
@@ -615,7 +644,7 @@ class Namer(@constructorOnly reporter: Reporter):
     val typer = () => ValDef(sym, rhs)(vdef.span)
     DelayedDef(sym, typer)
 
-  private def transform(funDef: Ast.FunDef)(using sc: Scope, rp: Reporter, so: Source): DelayedDef[FunDef] =
+  private def transformProcDef(funDef: Ast.ProcDef)(using sc: Scope, rp: Reporter, so: Source): DelayedDef[FunDef] =
     val funSym = Symbol.createFunSymbol(funDef.name, this.nonCyclicTypeProvider, sc.owner, funDef.ident.pos)
     val funScope = sc.fresh(funSym)
 
@@ -681,7 +710,14 @@ class Namer(@constructorOnly reporter: Reporter):
       transform(funDef.body)
 
     def computeInfo(resultType: Type) =
-      val procType = ProcType(paramSyms.map(_.toNamedInfo), resultType, funDef.preParamCount)
+      val procType =
+        funDef match
+          case fdef: Ast.FunDef =>
+            ProcType(paramSyms.map(_.toNamedInfo), resultType, fdef.preParamCount)
+
+          case _: Ast.DefDef =>
+            MethodType(paramSyms.map(_.toNamedInfo), resultType)
+
       if tparamSyms.isEmpty then
         procType
       else
@@ -825,7 +861,7 @@ class Namer(@constructorOnly reporter: Reporter):
 
         qual2.tpe match
           case TypeRef(sym) if sym.isNamespace =>
-            val nsInfo = sym.info.as[NamespaceInfo]
+            val nsInfo = sym.info.as[NameTableInfo]
             nsInfo.resolveType(name) match
               case Some(sym) =>
                 val tp = TypeRef(sym)

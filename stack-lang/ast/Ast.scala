@@ -215,16 +215,23 @@ object Ast:
     (val span: Span)
   extends Def
 
+  sealed abstract trait ProcDef extends Def:
+    val ident: Ident
+    val tparams: List[TypeParam]
+    val params: List[Param]
+    val resType: TypeTree
+    val body: Word
+
   case class FunDef
     (ident: Ident, tparams: List[TypeParam], params: List[Param],
         resType: TypeTree, body: Word, preParamCount: Int)
     (val span: Span)
-  extends Word, Def
+  extends Word, ProcDef
 
   case class DefDef
     (ident: Ident, tparams: List[TypeParam], params: List[Param], resType: TypeTree, body: Word)
     (val span: Span)
-  extends Def
+  extends ProcDef
 
   case class TypeParam
     (ident: Ident, bound: TypeTree)

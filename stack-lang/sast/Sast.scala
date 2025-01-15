@@ -124,7 +124,7 @@ object Sast:
   extends Word
 
   case class Object
-    (members: List[ValDef | DefDef])
+    (members: List[ValDef | FunDef])
     (val tpe: Type, val span: Span)
   extends Word
 
@@ -169,7 +169,7 @@ object Sast:
     (val span: Span)
   extends Word, Def
 
-  /** Represents a named function definition
+  /** Represents a named function or method definition
     *
     * @param locals contains a list of local value symbols (excluding params)
     */
@@ -178,21 +178,11 @@ object Sast:
     (val locals: List[Symbol], val captures: List[Symbol], val span: Span)
   extends Word, Def
 
-  /** Represents a method definition inside an object
-    *
-    * @param locals contains a list of local value symbols (excluding params)
-    */
-  case class DefDef
-    (symbol: Symbol, tparams: List[Symbol], params: List[Symbol], body: Word)
-    (val locals: List[Symbol], val captures: List[Symbol], val span: Span)
-  extends Def
-
-
   case class Namespace
     (symbol: Symbol, imports: List[Symbol], defs: List[Def])
     (val span: Span)
   extends Positioned:
-    def info: NamespaceInfo = symbol.info.as[NamespaceInfo]
+    def info: NameTableInfo = symbol.info.as[NameTableInfo]
 
     val fullName: String = symbol.fullName
 

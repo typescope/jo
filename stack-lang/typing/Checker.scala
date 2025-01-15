@@ -85,38 +85,19 @@ class Checker:
 
   def checkTermMember(word: Word, member: String)(using Reporter, Source): Word =
     val tpe = word.tpe
-    val pos = word.pos
-    tpe match
-      case TypeRef(sym) if sym.isNamespace =>
-        val nsInfo = sym.info.as[NamespaceInfo]
-        nsInfo.resolveTerm(member) match
-          case Some(_) =>
-            word
-
-          case None =>
-            Reporter.error(s"The namespace $sym does not contain the member $member", word.pos)
-            Block(Nil)(ErrorType, word.span)
-
-      case _ =>
-        if tpe.isError then
-          word
-        else if !tpe.isRecordType then
-          Reporter.error(s"Expect record type, found = ${tpe.show}", pos)
-          Block(Nil)(ErrorType, word.span)
-        else
-          val recordType = tpe.asRecordType
-          if !recordType.hasField(member) then
-            Reporter.error(s"Expect field $member in record type ${tpe.show}, found none", pos)
-            Block(Nil)(ErrorType, word.span)
-          else
-            word
+    if tpe.hasTermMember(member) || tpe.isError then
+      word
+    else
+      Reporter.error(s"The prefix does not contain the member $member", word.pos)
+      Block(Nil)(ErrorType, word.span)
 
   def checkInstantiated(tvar: TypeVar, pos: SourcePosition)(using Reporter): Unit =
     if !tvar.isInstantiated then
       Reporter.error("Cannot infer a type for type variable " + tvar, pos)
 
   def checkCapture(sym: Symbol, pos: SourcePosition)(using sc: Namer.Scope, rp: Reporter): Unit =
-    if sym.isAllOf(Flags.Val | Flags.Mutable) then
+    // TODO: better capture check for mutable fields of objects
+    if sym.isAllOf(Flags.Val | Flags.Mutable) && !sym.owner.info.hasTermMember(sym.name) then
       // check no capture of mutable local vars
       if sc.owner.enclosingFunction != sym.enclosingFunction then
         Reporter.error("Cannot capture local mutable variable " + sym.name, pos)

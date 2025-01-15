@@ -48,7 +48,8 @@ object Types:
 
     def isValueType: Boolean =
       TypeOps.approx(this, isUp = true)  match
-        case VoidType | _: ProcType | _: TypeLambda | _: PolyType | _: NamespaceInfo => false
+        case VoidType | _: ProcType | _: TypeLambda | _: PolyType => false
+        case info: NameTableInfo => info.isValueType
         case _ => true
 
     def isInvokableType: Boolean = isFunctionType || isProcType || isMethodType
@@ -66,6 +67,20 @@ object Types:
     def asInvokableType: InvokableType = TypeOps.approx(this, isUp = true).asInstanceOf[InvokableType]
 
     def asPolyType: PolyType = TypeOps.approx(this, isUp = true).asInstanceOf[PolyType]
+
+    def getTermMember(name: String): Option[Type] =
+      TypeOps.approx(this, isUp = true) match
+        case info: NameTableInfo =>
+          info.resolveTerm(name).map(sym => TypeRef(sym))
+
+        case recordType: RecordType =>
+          recordType.getFieldType(name)
+
+        case _ => None
+
+    def termMember(name: String): Type = getTermMember(name).get
+
+    def hasTermMember(name: String): Boolean = getTermMember(name).nonEmpty
 
     def is[T <: Type : ClassTag]: Boolean =
       this match
@@ -118,9 +133,6 @@ object Types:
     def getFieldType(field: String): Option[Type] =
       fields.collectFirst:
         case NamedInfo(f, tp) if f == field => tp
-
-    def hasField(name: String): Boolean =
-      fieldNames.contains(name)
 
     def fieldType(name: String): Type =
       getFieldType(name).get
@@ -236,7 +248,9 @@ object Types:
     def isSuptype(tp: Type): List[Subtyping.Task] =
       inferencer.isSuptype(this, tp)
 
-  class NamespaceInfo(val nameTable: NameTable) extends Type:
-    def this() = this(new NameTable)
+  class NameTableInfo(val nameTable: NameTable, isContainerValue: Boolean) extends Type:
+    def this() = this(new NameTable, isContainerValue = false)
+
+    override def isValueType: Boolean = isContainerValue
 
     export nameTable.{ resolve, resolveType, resolveTerm, define }

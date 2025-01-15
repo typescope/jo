@@ -15,10 +15,6 @@ object SastOps:
       val body = this(fdef.body)
       fdef.copy(body = body)(fdef.locals, fdef.captures, fdef.span)
 
-    def recurDefDef(ddef: DefDef)(using Context): DefDef =
-      val body = this(ddef.body)
-      ddef.copy(body = body)(ddef.locals, ddef.captures, ddef.span)
-
     def recurTypeDef(tdef: TypeDef)(using Context): TypeDef = tdef
 
     def recurParamDef(pdef: ParamDef)(using Context): ParamDef = pdef
@@ -27,7 +23,6 @@ object SastOps:
       defn match
         case vdef: ValDef   => recurValDef(vdef)
         case fdef: FunDef   => recurFunDef(fdef)
-        case ddef: DefDef   => recurDefDef(ddef)
         case tdef: TypeDef  => recurTypeDef(tdef)
         case pdef: ParamDef => recurParamDef(pdef)
 
@@ -84,10 +79,10 @@ object SastOps:
           Block(words.map(this.apply))(word.tpe, word.span)
 
         case Object(members) =>
-          val members2: List[ValDef | DefDef] =
+          val members2: List[ValDef | FunDef] =
             for member <- members yield
               member match
                 case vdef: ValDef => recurValDef(vdef)
-                case ddef: DefDef => recurDefDef(ddef)
+                case ddef: FunDef => recurFunDef(ddef)
             end for
           Object(members2)(word.tpe, word.span)

@@ -25,6 +25,8 @@ object Printing:
 
   given Text.Maker[Def] = v => showDef(v)
 
+  given Text.Maker[ValDef | FunDef] = v => showDef(v)
+
   given Text.Maker[Type] = v => Text(v.show)
 
   given Text.Maker[TypeTree] = v => Text(v.tpe.show)
@@ -63,22 +65,11 @@ object Printing:
         val resType = TypeOps.finalResultType(fdef.symbol.info)
         val locals = rep(fdef.locals.map(sym => sym ~ ": " ~ sym.info), Text(", "))
         val captures = rep(fdef.captures, Text(", "))
+        val keyword = if fdef.symbol.isMethod then "def " else "fun "
         "@locals(" ~ locals ~ ")" ~ Text.BreakLine ~
         "@captures(" ~ captures ~ ")" ~ Text.BreakLine ~
-        "fun " ~ fdef.name ~ tparamStr ~ params.mkString("(", ", ", "): ") ~ resType.show ~ " =" ~ indent:
+        keyword ~ fdef.name ~ tparamStr ~ params.mkString("(", ", ", "): ") ~ resType.show ~ " =" ~ indent:
             fdef.body
-
-      case ddef: DefDef =>
-        val tparams = ddef.tparams.map(sym => sym.name + " <: " + sym.info.show)
-        val tparamStr = if tparams.isEmpty then "" else tparams.mkString("[", ", ", "]")
-        val params = ddef.params.map(sym => sym.name + ": " + sym.info.show)
-        val resType = TypeOps.finalResultType(ddef.symbol.info)
-        val locals = rep(ddef.locals.map(sym => sym ~ ": " ~ sym.info), Text(", "))
-        val captures = rep(ddef.captures, Text(", "))
-        "@locals(" ~ locals ~ ")" ~ Text.BreakLine ~
-        "@captures(" ~ captures ~ ")" ~ Text.BreakLine ~
-        "def " ~ ddef.name ~ tparamStr ~ params.mkString("(", ", ", "): ") ~ resType.show ~ " =" ~ indent:
-            ddef.body
 
       case tdef: TypeDef =>
         "type " ~ tdef.name ~ " = " ~ tdef.symbol.info.show
