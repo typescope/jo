@@ -85,12 +85,16 @@ object Subtyping:
        && checkConformsProxyType(tp1, tp2.as[ProxyType])
     || tp1.is[FunctionType] && tp2.is[FunctionType]
        && checkConformsFunctionType(tp1.as[FunctionType], tp2.as[FunctionType])
-    || tp1.is[ProcType] && tp2.is[ProcType]
-       && checkConformsProcType(tp1.as[ProcType], tp2.as[ProcType])
+    || tp1.is[ObjectType] && tp2.is[ObjectType]
+       && checkConformsObjectType(tp1.as[ObjectType], tp2.as[ObjectType])
     || tp1.is[RecordType] && tp2.is[RecordType]
        && checkConformsRecordType(tp1.as[RecordType], tp2.as[RecordType])
     || tp1.is[UnionType] && tp2.is[UnionType]
        && checkConformsUnionType(tp1.as[UnionType], tp2.as[UnionType])
+    || tp1.is[ProcType] && tp2.is[ProcType]
+       && checkConformsProcType(tp1.as[ProcType], tp2.as[ProcType])
+    || tp1.is[MethodType] && tp2.is[MethodType]
+       && checkConformsMethodType(tp1.as[MethodType], tp2.as[MethodType])
   }
 
   private def checkConforms(tp1: Type, tp2: Type, lessThan: Boolean)(using ctx: Context): Boolean =
@@ -164,11 +168,27 @@ object Subtyping:
        checkConforms(paramType2, paramType1)
     && checkConforms(tp1.resultType, tp2.resultType)
 
+  private def checkConformsMethodType(tp1: MethodType, tp2: MethodType)(using Context): Boolean =
+    tp1.paramTypes.size == tp2.paramTypes.size
+    && tp1.paramTypes.zip(tp2.paramTypes).forall: (paramType1, paramType2) =>
+       checkConforms(paramType2, paramType1)
+    && checkConforms(tp1.resultType, tp2.resultType)
+
+  // TODO: loosen record typing and use coersion semantics
   private def checkConformsRecordType(tp1: RecordType, tp2: RecordType)(using Context): Boolean =
     val names1 = tp1.fieldNames
     val names2 = tp2.fieldNames
     names1.size >= names2.size && names1.zip(names2).forall: (a, b) =>
       a == b && checkConforms(tp1.fieldType(a), tp2.fieldType(b))
+
+  private def checkConformsObjectType(tp1: ObjectType, tp2: ObjectType)(using Context): Boolean =
+    val names1 = tp1.memberNames
+    val names2 = tp2.memberNames
+    names1.size >= names2.size && names1.forall: memberName =>
+      val memberType1 = tp1.memberType(memberName)
+      tp2.getMemberType(memberName) match
+        case None => false
+        case Some(memberType2) => checkConforms(memberType1, memberType2)
 
   private def checkConformsUnionType(tp1: UnionType, tp2: UnionType)(using Context): Boolean =
     val tags1 = tp1.tags

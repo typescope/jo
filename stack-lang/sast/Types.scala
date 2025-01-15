@@ -28,11 +28,17 @@ object Types:
     def isUnionType: Boolean =
       TypeOps.approx(this, isUp = true).isInstanceOf[UnionType]
 
+    def isObjectType: Boolean =
+      TypeOps.approx(this, isUp = true).isInstanceOf[ObjectType]
+
     def isTypeLambda: Boolean =
       TypeOps.approx(this, isUp = true).isInstanceOf[TypeLambda]
 
     def isProcType: Boolean =
       TypeOps.approx(this, isUp = true).isInstanceOf[ProcType]
+
+    def isMethodType: Boolean =
+      TypeOps.approx(this, isUp = true).isInstanceOf[MethodType]
 
     def isFunctionType: Boolean =
       TypeOps.approx(this, isUp = true).isInstanceOf[FunctionType]
@@ -45,7 +51,7 @@ object Types:
         case VoidType | _: ProcType | _: TypeLambda | _: PolyType | _: NamespaceInfo => false
         case _ => true
 
-    def isInvokableType: Boolean = isFunctionType || isProcType
+    def isInvokableType: Boolean = isFunctionType || isProcType || isMethodType
 
     def asRecordType: RecordType = TypeOps.approx(this, isUp = true).asInstanceOf[RecordType]
 
@@ -136,6 +142,24 @@ object Types:
       branches.indexWhere:
         case NamedInfo(t, _) => t == tag
 
+  /** A record type --- named tuples
+    *
+    * Warning: flattening of nested tuples is dangerous with subtyping
+    * of records.
+    */
+  case class ObjectType(members: List[NamedInfo[Type]]) extends Type:
+    val memberNames: List[String] = members.map(_.name)
+
+    def getMemberType(name: String): Option[Type] =
+      members.collectFirst:
+        case NamedInfo(m, tp) if m == name => tp
+
+    def hasMember(name: String): Boolean =
+      memberNames.contains(name)
+
+    def memberType(name: String): Type =
+      getMemberType(name).get
+
   case class PolyType
     (tparams: List[NamedInfo[TypeBound]], resultType: Type)
   extends Type:
@@ -157,6 +181,12 @@ object Types:
     val postParamTypes: List[Type] = params.drop(preParamCount).map(_.info)
     val paramTypes: List[Type] = params.map(_.info)
     def postParamCount = params.size - preParamCount
+    def toFunType: FunctionType = FunctionType(paramTypes, resultType)
+
+  case class MethodType
+    (params: List[NamedInfo[Type]], resultType: Type)
+  extends Type with InvokableType:
+    val paramTypes: List[Type] = params.map(_.info)
     def toFunType: FunctionType = FunctionType(paramTypes, resultType)
 
   /** A type lambda */

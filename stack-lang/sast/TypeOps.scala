@@ -165,6 +165,9 @@ object TypeOps:
       case RecordType(fields) =>
         fields.map(f => f.name + ": " + show(f.info)).mkString("{", ", ", "}")
 
+      case ObjectType(members) =>
+        members.map(m => m.name + ": " + show(m.info)).mkString("object {", "; ", "}")
+
       case UnionType(branches) =>
         def paramStr(paramInfos: List[NamedInfo[Type]]) = paramInfos.map(param => param.name + ": " + show(param.info)).mkString("(", ", ", ")")
         branches.map(b => b.name + " " + paramStr(b.info)).mkString("<", ", ", ">")
@@ -194,6 +197,10 @@ object TypeOps:
       case FunctionType(paramTypes, resType) =>
         val params = paramTypes.map(show).mkString(" * ")
         params + " => " + show(resType)
+
+      case MethodType(params, resType) =>
+        val paramStr = params.map(param => param.name + ": " + show(param.info)).mkString("(", ", ", ")")
+        paramStr + ": " + show(resType)
 
       case _: NamespaceInfo => "{ ...namespace }"
   end show
@@ -226,6 +233,12 @@ object TypeOps:
               )
             )
           UnionType(branches2)
+
+        case ObjectType(members) =>
+          val members2 =
+            for member <- members
+            yield member.copy(info = this(member.info))
+          ObjectType(members2)
 
         case AppliedType(tctor, targs) =>
           val tctor2 = apply(tctor)
@@ -263,6 +276,14 @@ object TypeOps:
           val paramTypes2 = paramTypes.map(tp => this(tp))
           val resType2 = this(resType)
           FunctionType(paramTypes2, resType2)
+
+        case MethodType(params, resType) =>
+          val params2 =
+            for param <- params
+            yield param.copy(info = this(param.info))
+
+          val resType2 = this(resType)
+          MethodType(params2, resType2)
 
   class SymbolsTypeMap extends TypeMap:
     type Context = Map[Symbol, Type]
