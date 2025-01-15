@@ -72,7 +72,7 @@ Syntactical Grammar
 
     expr    = word {word}.
 
-    word    = integer | boolean | string | ident | fence | record | tapply | select | variant | lambda.
+    word    = integer | boolean | string | ident | fence | record | tapply | select | variant | lambda | object | this.
 
     phrase  = expr | with_clause | default_param | assign | valdef | fundef | typedef | while | if | match.
 
@@ -99,6 +99,9 @@ Syntactical Grammar
     variant = TAG ident [args] [AS type].
     args    = LPAREN phrase {COMMA expr} RPAREN.
 
+    object     = OBJECT LBRACE {member} RBRACE.
+    member     = valdef | defdef.
+
     tapply  = word targs.
     lambda  = param_section RARROW block.
 
@@ -111,6 +114,7 @@ Syntactical Grammar
 
     valdef  = (VAL | VAR) ident [COLON type] EQL block.
     fundef  = FUN [param_section] ident [tparams] [param_section] EQL block [END].
+    defdef  = DEF ident [tparams] [param_section] EQL block [END].
 
     paramdef = PARAM param
 
