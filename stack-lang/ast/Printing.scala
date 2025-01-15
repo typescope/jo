@@ -72,8 +72,25 @@ object Printing:
 
         val resType = showTypeAnnot(fdef.resType)
 
-        "fun " ~ fdef.name ~ tparams ~ params ~ resType ~ " ="
-        ~ indent(Text(fdef.body))
+        "fun " ~ fdef.name ~ tparams ~ params ~ resType ~ " =" ~ indent:
+          fdef.body
+
+      case ddef: DefDef =>
+        val tparams =
+          if ddef.tparams.isEmpty then Text.Empty
+          else "[" ~ rep(ddef.tparams, Text(", "))  ~ "]"
+
+        val params =
+          if ddef.params.isEmpty then Text.Empty
+          else "(" ~ rep(ddef.params, Text(", "))  ~ ")"
+
+        val resType = showTypeAnnot(ddef.resType)
+
+        val body =
+          if ddef.body.isEmptyBlock then Text.Empty
+          else " =" ~ indent(ddef.body)
+
+        "def " ~ ddef.name ~ tparams ~ params ~ resType ~ body
 
       case tdef: TypeDef =>
         val tparams =
@@ -156,6 +173,14 @@ object Printing:
         "match " ~ patmat.scrutinee ~ indent:
           rep(patmat.cases, Text.BlankLine)
 
+      case _: This =>
+        Text("this")
+
+      case Object(members) =>
+        "object {" ~ indent:
+           rep(members, Text.BreakLine)
+        ~ "}"
+
       case defn: Def =>
         showDef(defn)
 
@@ -191,3 +216,8 @@ object Printing:
 
       case FunctionType(paramTypes, resultType) =>
         rep(paramTypes, Text(", ")) ~ " => " ~ resultType
+
+      case ObjectType(members) =>
+        "object {" ~ indent:
+           rep(members, Text.BreakLine)
+        ~ "}"

@@ -15,6 +15,11 @@ object Ast:
     def isDef: Boolean = this.isInstanceOf[Def]
     def show: String = Printing.show(this)
 
+    def isEmptyBlock: Boolean =
+      this match
+        case Block(Nil) => true
+        case _ => false
+
   sealed abstract trait RefTree extends Word, TypeTree:
     def name: String
 
