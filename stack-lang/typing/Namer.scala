@@ -759,6 +759,50 @@ class Namer(@constructorOnly reporter: Reporter):
 
     DelayedDef(typeSym, typer)
 
+  private def transformMethodDecl(ddef: Ast.DefDef)(using sc: Scope, rp: Reporter, so: Source): TypeTree =
+    val defScope = sc.fresh()
+
+    val tparamSyms =
+      for tparam <- ddef.tparams yield
+        val bound =
+          if tparam.bound.isEmpty then
+            TypeBound(BottomType, AnyType)
+          else
+            val boundTree = transformType(tparam.bound)(using defScope)
+            TypeBound(BottomType, boundTree.tpe)
+
+        val infoProvider: InfoProvider = (sym: Symbol) => bound
+        val sym = Symbol.createTypeParamSymbol(tparam.name, infoProvider, sc.owner, tparam.pos)
+        defScope.define(sym)
+        sym
+
+    val paramSyms =
+      for param <- ddef.params yield
+        val tpt = transformType(param.typ)(using defScope)
+        val paramSym = Symbol.createParamSymbol(param.name, tpt.tpe, sc.owner, param.pos)
+        defScope.define(paramSym)
+        paramSym
+
+    val resultType =
+      assert(!ddef.resType.isEmpty)
+      val resTypeTree = transformType(ddef.resType)(using defScope)
+      checker.delayedCheck { checker.checkVoidOrValueType(resTypeTree) }
+      resTypeTree.tpe
+
+    val methodType = MethodType(paramSyms.map(_.toNamedInfo), resultType)
+    val finalType =
+      if tparamSyms.isEmpty then
+        methodType
+      else
+        val tparamRefs = tparamSyms.zipWithIndex.map: (tparamSym, i) =>
+          TypeParamRef(tparamSym.name, i)
+        val substs = tparamSyms.zip(tparamRefs).toMap
+        val tparamInfos = tparamSyms.map(tparam => NamedInfo(tparam.name, tparam.info.as[TypeBound]))
+        val rawType = PolyType(tparamInfos, methodType)
+        TypeOps.substSymbols(rawType, substs)
+
+    TypeTree(finalType)(ddef.span)
+
   /** Type check type tree
     *
     * Checks must be delayed by using `checker.delayedCheck`.
@@ -805,6 +849,17 @@ class Namer(@constructorOnly reporter: Reporter):
             fieldTypes += NamedInfo(field.name, tpt.tpe)
         end for
         TypeTree(RecordType(fieldTypes.toList))(tpt.span)
+
+      case Ast.ObjectType(members) =>
+        val memberTypes = new mutable.ArrayBuffer[NamedInfo[Type]]
+        for member <- members do
+          if memberTypes.exists(_.name == member.name) then
+            Reporter.error("Member " + member.name + " already defined", member.pos)
+          else
+            val memberTypeTree = transformMethodDecl(member)
+            memberTypes += NamedInfo(member.name, memberTypeTree.tpe)
+        end for
+        TypeTree(RecordType(memberTypes.toList))(tpt.span)
 
       case Ast.UnionType(branches) =>
         val branchTypes = new mutable.ArrayBuffer[NamedInfo[List[NamedInfo[Type]]]]
