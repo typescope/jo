@@ -165,8 +165,11 @@ object TypeOps:
       case RecordType(fields) =>
         fields.map(f => f.name + ": " + show(f.info)).mkString("{", ", ", "}")
 
-      case ObjectType(members) =>
-        members.map(m => m.name + ": " + show(m.info)).mkString("object {", "; ", "}")
+      case ObjectType(members, muts) =>
+        members.map: m =>
+          val mod = if muts.contains(m.name) then "var " else ""
+          mod + m.name + ": " + show(m.info)
+        .mkString("object {", "; ", "}")
 
       case UnionType(branches) =>
         def paramStr(paramInfos: List[NamedInfo[Type]]) = paramInfos.map(param => param.name + ": " + show(param.info)).mkString("(", ", ", ")")
@@ -234,11 +237,11 @@ object TypeOps:
             )
           UnionType(branches2)
 
-        case ObjectType(members) =>
+        case ObjectType(members, muts) =>
           val members2 =
             for member <- members
             yield member.copy(info = this(member.info))
-          ObjectType(members2)
+          ObjectType(members2, muts)
 
         case AppliedType(tctor, targs) =>
           val tctor2 = apply(tctor)

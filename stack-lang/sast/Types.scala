@@ -162,7 +162,10 @@ object Types:
     * Warning: flattening of nested tuples is dangerous with subtyping
     * of records.
     */
-  case class ObjectType(members: List[NamedInfo[Type]]) extends Type:
+  case class ObjectType(
+    members: List[NamedInfo[Type]],
+    mutableFields: List[String])
+  extends Type:
     val memberNames: List[String] = members.map(_.name)
 
     def getMemberType(name: String): Option[Type] =

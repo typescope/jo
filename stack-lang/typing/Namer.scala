@@ -336,29 +336,33 @@ class Namer(@constructorOnly reporter: Reporter):
     // scope for checking member methods
     val sc2 = sc.fresh(thisSym, nameTable)
 
-    // TODO: `this` should not be available in field initialization
-    sc2.define(thisSym)
+    val vals = new mutable.ArrayBuffer[ValDef]
+    val delayedDefs = new mutable.ArrayBuffer[DelayedDef[FunDef]]
 
-    val delayedDefs = new mutable.ArrayBuffer[DelayedDef[Def]]
-
-    for member <- obj.members do
+    for case vdef: Ast.ValDef <- obj.members do
       given Scope = sc2
       given TargetType = TargetType.ObjectMember
-      val delayedDef = index(member)
+      val vdefTyped = transform(vdef).force()
+      sc2.define(vdefTyped.symbol)
+      vals += vdefTyped
+
+    // `this` should not be available in field initialization
+    sc2.define(thisSym)
+
+    for case ddef: Ast.DefDef <- obj.members do
+      given Scope = sc2
+      given TargetType = TargetType.ObjectMember
+      val delayedDef = transformProcDef(ddef)
       sc2.define(delayedDef.symbol)
       delayedDefs += delayedDef
 
-    val membersTyped: List[ValDef | FunDef] =
-      for delayedDef <- delayedDefs.toList yield
-        delayedDef.force() match
-          case fdef: FunDef => fdef
-          case vdef: ValDef => vdef
-          case tree => throw new Exception("Unexpected tree: " + tree)
-      end for
+    val defs: List[FunDef] =
+      for delayedDef <- delayedDefs.toList yield delayedDef.force()
 
-    val methods = nameTable.terms.filter(_.isMethod)
-    val objType = ObjectType(methods.map(_.toNamedInfo))
-    Object(membersTyped)(objType, obj.span)
+    val members = nameTable.terms.map(_.toNamedInfo)
+    val mutables = vals.filter(_.isMutable).map(_.name).toList
+    val objType = ObjectType(members, mutables)
+    Object(vals.toList, defs)(objType, obj.span)
 
   def transform(block: Ast.Block)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
     val phrases = block.phrases

@@ -78,11 +78,7 @@ object SastOps:
         case Block(words) =>
           Block(words.map(this.apply))(word.tpe, word.span)
 
-        case Object(members) =>
-          val members2: List[ValDef | FunDef] =
-            for member <- members yield
-              member match
-                case vdef: ValDef => recurValDef(vdef)
-                case ddef: FunDef => recurFunDef(ddef)
-            end for
-          Object(members2)(word.tpe, word.span)
+        case Object(vals, defs) =>
+          val vals2: List[ValDef] = vals.map(recurValDef)
+          val defs2: List[FunDef] = defs.map(recurFunDef)
+          Object(vals2, defs2)(word.tpe, word.span)

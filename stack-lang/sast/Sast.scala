@@ -125,7 +125,7 @@ object Sast:
   extends Word
 
   case class Object
-    (members: List[ValDef | FunDef])
+    (vals: List[ValDef], defs: List[FunDef])
     (val tpe: Type, val span: Span)
   extends Word
 
@@ -163,7 +163,8 @@ object Sast:
   case class ValDef
     (symbol: Symbol, rhs: Word)
     (val span: Span)
-  extends Word, Def
+  extends Word, Def:
+    val isMutable = symbol.isMutable
 
   case class TypeDef
     (symbol: Symbol)

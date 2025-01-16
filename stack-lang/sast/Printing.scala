@@ -141,9 +141,11 @@ object Printing:
       case _: This =>
         Text("this")
 
-      case Object(members) =>
+      case Object(vals, defs) =>
         "object {" ~ indent:
-           rep(members, Text.BreakLine)
+           rep(vals, Text.BreakLine)
+           ~ Text.BlankLine
+           ~ rep(defs, Text.BreakLine)
         ~ "}"
 
       case vdef: ValDef => showDef(vdef)
