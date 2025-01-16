@@ -105,7 +105,7 @@ Syntactical Grammar
     tapply  = word targs.
     lambda  = param_section RARROW block.
 
-    match   = MATCH block {case} [END].
+    match   = MATCH expr {case} [END].
     case    = CASE pat RARROW block.
     pat     = product_pat | USCORE.
 

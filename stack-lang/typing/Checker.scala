@@ -96,7 +96,7 @@ class Checker:
       Reporter.error("Cannot infer a type for type variable " + tvar, pos)
 
   def checkCapture(sym: Symbol, pos: SourcePosition)(using sc: Namer.Scope, rp: Reporter): Unit =
-    if sym.isMutable && sym.isField then
+    if sym.isMutable && !sym.isField then
       // check no capture of mutable local vars
       if sc.owner.enclosingFunction != sym.enclosingFunction then
         Reporter.error("Cannot capture local mutable variable " + sym.name, pos)
