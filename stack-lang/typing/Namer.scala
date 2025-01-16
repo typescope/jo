@@ -244,7 +244,8 @@ class Namer(@constructorOnly reporter: Reporter):
                 Select(qual2, name)(tp, word.span).adapt
 
           case None =>
-            Reporter.error(s"The prefix does not contain the member $name", qual.pos)
+            // Error already reported
+            // Reporter.error(s"The prefix does not contain the member $name", qual.pos)
             Block(Nil)(ErrorType, word.span)
 
       case lambda: Ast.Lambda =>
