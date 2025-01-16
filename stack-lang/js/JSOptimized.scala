@@ -153,8 +153,11 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
             else
               rep(words, Text.BreakLine)
 
-      case Encoded(repr) =>
-        compile(repr)
+      case encoded @ Encoded(repr) =>
+        if encoded.isValueDrop then
+          compile(repr) ~ ";"
+        else
+          compile(repr)
 
       case app @ Apply(fun, args) =>
         call(fun, args)
@@ -251,14 +254,14 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
           cont(args): vs =>
             val call = v ~ "(" ~ rep(vs, Text(", ")) ~ ")"
             if fun.tpe.asProcType.resCount == 1 then cont(call)
-            else call ~ cont()
+            else call ~ ";"  ~ cont()
 
   /** Compile a primitive */
   def call(sym: Symbol, args: List[Word])(using Context): Text =
     cont(args): vs =>
       val call = sym ~ "(" ~ rep(vs, Text(", ")) ~ ")"
       if sym.info.asProcType.resCount == 1 then cont(call)
-      else call ~ cont()
+      else call ~ ";" ~ cont()
 
   /** Compile a primitive */
   def callPredef(sym: Symbol, args: List[Word])(using Context): Text =
