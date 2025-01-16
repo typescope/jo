@@ -76,6 +76,9 @@ object Types:
         case recordType: RecordType =>
           recordType.getFieldType(name)
 
+        case objectType: ObjectType =>
+          objectType.getMemberType(name)
+
         case _ => None
 
     def termMember(name: String): Type = getTermMember(name).get
@@ -165,12 +168,6 @@ object Types:
     def getMemberType(name: String): Option[Type] =
       members.collectFirst:
         case NamedInfo(m, tp) if m == name => tp
-
-    def hasMember(name: String): Boolean =
-      memberNames.contains(name)
-
-    def memberType(name: String): Type =
-      getMemberType(name).get
 
   case class PolyType
     (tparams: List[NamedInfo[TypeBound]], resultType: Type)

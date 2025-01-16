@@ -131,7 +131,7 @@ Syntactical Grammar
     fields     = field { COMMA field }.
     field      = ident COLON type.
 
-    union_typ  = '<' {branch} '>'.
+    union_typ  = '<' [branches] '>'.
     branches   = branch { COMMA branch }.
     branch     = ident [param_section].
 

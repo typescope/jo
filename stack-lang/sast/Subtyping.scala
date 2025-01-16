@@ -185,7 +185,7 @@ object Subtyping:
     val names1 = tp1.memberNames
     val names2 = tp2.memberNames
     names1.size >= names2.size && names1.forall: memberName =>
-      val memberType1 = tp1.memberType(memberName)
+      val memberType1 = tp1.termMember(memberName)
       tp2.getMemberType(memberName) match
         case None => false
         case Some(memberType2) => checkConforms(memberType1, memberType2)

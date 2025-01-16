@@ -53,7 +53,10 @@ class Namer(@constructorOnly reporter: Reporter):
       val importScope: Scope = predefScope.fresh(nsSym)
       val defsScope: Scope = importScope.fresh(nsSym, nsInfo.nameTable)
 
-      val delayedDefs = index(ns.defs)(using defsScope)
+      val delayedDefs =
+        given TargetType = TargetType.NamespaceMember
+        index(ns.defs)(using defsScope)
+
       val imports = new mutable.ArrayBuffer[Symbol]
 
       delayedImports += { () =>
@@ -167,7 +170,7 @@ class Namer(@constructorOnly reporter: Reporter):
             rp.error(s"The name $name is not found", qualid.pos)
             Symbol.createNamespaceSymbol(name, new NameTableInfo, sc.owner, pos = qualid.pos, isBranch = false)
 
-  private def index(defs: List[Ast.Def])(using sc: Scope, rp: Reporter, so: Source): List[DelayedDef[Def]] =
+  private def index(defs: List[Ast.Def])(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): List[DelayedDef[Def]] =
     val delayedDefs = new mutable.ArrayBuffer[DelayedDef[Def]]
 
     for defn <- defs do
@@ -180,7 +183,7 @@ class Namer(@constructorOnly reporter: Reporter):
 
     delayedDefs.toList
 
-  private def index(defn: Ast.Def)(using sc: Scope, rp: Reporter, so: Source): DelayedDef[Def] =
+  private def index(defn: Ast.Def)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): DelayedDef[Def] =
     defn match
       case vdef: Ast.ValDef =>
         transform(vdef)
@@ -339,6 +342,7 @@ class Namer(@constructorOnly reporter: Reporter):
 
     for member <- obj.members do
       given Scope = sc2
+      given TargetType = TargetType.ObjectMember
       val delayedDef = index(member)
       sc2.define(delayedDef.symbol)
       delayedDefs += delayedDef
@@ -624,8 +628,11 @@ class Namer(@constructorOnly reporter: Reporter):
      val ref = Ident(funSym)(lambda.span)
      Block(funDef :: ref :: Nil)(lambdaType, lambda.span)
 
-  private def transform(vdef: Ast.ValDef)(using sc: Scope, rp: Reporter, so: Source): DelayedDef[ValDef] =
-    val flags: Flags = if vdef.mutable then Flags.Mutable else Flags.empty
+  private def transform(vdef: Ast.ValDef)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): DelayedDef[ValDef] =
+    var flags: Flags = if tt == TargetType.ObjectMember then Flags.Field else Flags.empty
+
+    if vdef.mutable then
+      flags = flags | Flags.Mutable
 
     val sym = Symbol.createValueSymbol(vdef.name, this.nonCyclicTypeProvider, flags, sc.owner, vdef.ident.pos)
 
@@ -649,8 +656,10 @@ class Namer(@constructorOnly reporter: Reporter):
     val typer = () => ValDef(sym, rhs)(vdef.span)
     DelayedDef(sym, typer)
 
-  private def transformProcDef(funDef: Ast.ProcDef)(using sc: Scope, rp: Reporter, so: Source): DelayedDef[FunDef] =
-    val funSym = Symbol.createFunSymbol(funDef.name, this.nonCyclicTypeProvider, sc.owner, funDef.ident.pos)
+  private def transformProcDef(funDef: Ast.ProcDef)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): DelayedDef[FunDef] =
+    val flags = if tt == TargetType.ObjectMember then Flags.Method else Flags.Fun
+
+    val funSym = Symbol.createSymbol(funDef.name, this.nonCyclicTypeProvider, flags, sc.owner, funDef.ident.pos)
     val funScope = sc.fresh(funSym)
 
     lazy val tparamSyms =

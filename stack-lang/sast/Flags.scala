@@ -14,6 +14,7 @@ object Flags:
   val Param   : Flag = 1 << 5
   val Mutable : Flag = 1 << 6
   val Context : Flag = 1 << 7
+  val Field   : Flag = 1 << 8
 
   // namespace flags
   val Branch  : Flag = 1 << 5

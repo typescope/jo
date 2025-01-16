@@ -50,6 +50,7 @@ object Symbols:
     def isNamespace: Boolean = flags.is(Flags.NSpace)
     def isParameter: Boolean = flags.isAllOf(Flags.Val | Flags.Param)
     def isMutable  : Boolean = flags.isAllOf(Flags.Val | Flags.Mutable)
+    def isField    : Boolean = flags.isAllOf(Flags.Val | Flags.Field)
 
     def isTypeParameter: Boolean = flags.isAllOf(Flags.Type | Flags.Param)
 
@@ -101,6 +102,9 @@ object Symbols:
     override def toString() = name
 
   object Symbol:
+    def createSymbol(name: String, info: Type | InfoProvider, flags: Flags, owner: Symbol, pos: SourcePosition) =
+      new Symbol(name, info, flags, owner, pos)
+
     def createValueSymbol(name: String, tp: Type | InfoProvider, owner: Symbol, pos: SourcePosition) =
       new Symbol(name, tp, Flags.Val, owner, pos)
 
