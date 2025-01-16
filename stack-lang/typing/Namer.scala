@@ -234,7 +234,7 @@ class Namer(@constructorOnly reporter: Reporter):
         qual2.tpe.getTermMember(name) match
           case Some(tp) =>
             tp match
-              case TypeRef(sym) =>
+              case TypeRef(sym) if !sym.isType =>
                 Ident(sym)(word.span).adapt
 
               case _ =>
