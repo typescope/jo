@@ -233,7 +233,12 @@ class Namer(@constructorOnly reporter: Reporter):
 
         qual2.tpe.getTermMember(name) match
           case Some(tp) =>
-            Select(qual2, name)(tp, word.span).adapt
+            tp match
+              case TypeRef(sym) =>
+                Ident(sym)(word.span).adapt
+
+              case _ =>
+                Select(qual2, name)(tp, word.span).adapt
 
           case None =>
             Reporter.error(s"The prefix does not contain the member $name", qual.pos)

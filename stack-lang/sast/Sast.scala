@@ -58,7 +58,8 @@ object Sast:
   case class Select
     (qual: Word, name: String)
     (val tpe: Type, val span: Span)
-  extends Word
+  extends Word:
+    assert(qual.tpe.isValueType)
 
   case class Assign
     (symbol: Symbol, rhs: Word)
