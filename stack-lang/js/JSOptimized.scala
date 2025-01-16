@@ -146,8 +146,8 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
             if word.tpe.isValueType then
               val stats :+ expr = words: @unchecked
               val sep = if stats.isEmpty then Text.Empty else Text.BreakLine
-              rep(stats, Text.BreakLine) ~ sep ~ run(expr): vs =>
-                cont(vs)
+              rep(stats, Text.BreakLine) ~ sep ~ run(expr): v =>
+                cont(v)
 
             else
               rep(words, Text.BreakLine) ~ cont()
@@ -156,7 +156,8 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
         if encoded.isValueDrop then
           repr ~ ";" ~ cont()
         else
-          cont(compile(repr))
+          run(repr): v =>
+            cont(v)
 
       case app @ Apply(fun, args) =>
         call(fun, args)
