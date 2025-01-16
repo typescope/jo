@@ -4,8 +4,7 @@ fun effect(n: Int): Int =
 
 fun main =
   val r =
-    effect 1
-      +
+    (effect 1) +
       if effect 2 > 0 then
         val c = effect 3
         c

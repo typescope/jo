@@ -399,11 +399,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       finalResult
 
     else if lineIndent.isIndent(item.indent) && isFirstTokenInLine then
-      val first = finalResult
-      words.clear()
-
       val Block(phrases) = block(lineIndent)
-      words += first
       words ++= phrases
       finalResult
 
