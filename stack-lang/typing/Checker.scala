@@ -140,10 +140,10 @@ class Checker:
 
   def adapt(word: Word, targetType: TargetType)(using Reporter, Source): Word = Debug.trace("Adapting " + word.show, (_: Word).show, enable = false):
     val word2 =
-      if word.tpe.isInvokableType then
-        val invokeType = word.tpe.asInvokableType
-        if invokeType.paramCount == 0 then
-          Apply(word, args = Nil)(invokeType.resultType, word.span)
+      if word.tpe.isProcType then
+        val procType = word.tpe.asProcType
+        if procType.paramCount == 0 then
+          Apply(word, args = Nil)(procType.resultType, word.span)
         else
           word
       else

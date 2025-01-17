@@ -635,11 +635,7 @@ class Namer(@constructorOnly reporter: Reporter):
   private def transform(lambda: Ast.Lambda)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
      val Ast.Lambda(params, body) = lambda
 
-     val targetFunTypeOpt: Option[FunctionType] = tt.knownType.flatMap: tp =>
-       if tp.isFunctionType then
-         Some(tp.asFunctionType)
-       else
-         None
+     val targetFunTypeOpt: Option[ProcType] = tt.knownType.flatMap(_.toFunctionType)
 
      if targetFunTypeOpt.nonEmpty then
        val expect = targetFunTypeOpt.get.paramCount
@@ -647,7 +643,7 @@ class Namer(@constructorOnly reporter: Reporter):
          Reporter.error(s"Expect a function with $expect parameters, found = ${params.size}", lambda.pos)
          return Block(words = Nil)(ErrorType, lambda.span)
 
-     val funSym = Symbol.createFunSymbol("anon", this.nonCyclicTypeProvider, sc.owner, lambda.pos)
+     val funSym = Symbol.createSymbol("apply", this.nonCyclicTypeProvider, Flags.Method, sc.owner, lambda.pos)
      val lambdaScope = sc.fresh(funSym)
 
      val tvars = new mutable.ArrayBuffer[(TypeVar, Ast.Param)]
@@ -681,10 +677,9 @@ class Namer(@constructorOnly reporter: Reporter):
        checker.checkInstantiated(tvar, param.pos)
 
      val tparamSyms = Nil
-     val ref = Ident(funSym)(lambda.span)
      val funDef = FunDef(funSym, tparamSyms, paramSyms, bodyTyped)(locals = Nil, captures = Nil, lambda.span)
-     val lambdaType = procType.toFunType
-     Block(funDef :: ref :: Nil)(lambdaType, lambda.span)
+     val objType = ObjectType(NamedInfo("apply", procType) :: Nil, mutableFields = Nil)
+     Object(vals = Nil, defs = funDef :: Nil)(objType, lambda.span)
 
   private def transform(vdef: Ast.ValDef)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): DelayedDef[ValDef] =
     var flags: Flags = if tt == TargetType.ObjectMember then Flags.Field else Flags.empty
@@ -990,16 +985,20 @@ class Namer(@constructorOnly reporter: Reporter):
         TypeTree(AppliedType(tctor2.tpe, targs2.map(_.tpe)))(tpt.span)
 
       case Ast.FunctionType(paramTypes, resType) =>
+        var i = 0
         val paramTypes2 =
           for paramType <- paramTypes yield
             val tpt = transformType(paramType)
             checker.delayedCheck { checker.checkValueType(tpt) }
-            tpt.tpe
+            val namedInfo = NamedInfo("param" + i, tpt.tpe)
+            i = i+1
+            namedInfo
 
         val resType2 = transformType(resType)
         checker.delayedCheck { checker.checkValueType(resType2) }
-
-        TypeTree(FunctionType(paramTypes2, resType2.tpe))(tpt.span)
+        val applyType = ProcType(paramTypes2, resType2.tpe, preParamCount = 0)
+        val objType = ObjectType(NamedInfo("apply", applyType) :: Nil, mutableFields = Nil)
+        TypeTree(objType)(tpt.span)
 
       case _: Ast.EmptyTypeTree =>
         Reporter.abort("Unexpected empty type tree", tpt.pos)

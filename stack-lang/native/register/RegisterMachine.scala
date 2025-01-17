@@ -388,7 +388,7 @@ extends Backend(runtime):
       case _ =>
         compile(app.fun)
         val fun = ctx.vs.pop().asInstanceOf[Reg]
-        val funType = app.fun.tpe.asInvokableType
+        val funType = app.fun.tpe.asProcType
 
         for arg <- app.args do compile(arg)
         this.call(fun, funType.paramTypes, funType.resultType)

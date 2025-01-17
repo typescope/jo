@@ -38,12 +38,12 @@ object TreeChecker extends SastOps.TreeMap:
         word
 
       case Apply(fun, args) =>
-        fun.tpe.asInvokableType match
-          case appType: InvokableType =>
-            val expectArgSize = appType.paramTypes.size
+        fun.tpe.asProcType match
+          case funType =>
+            val expectArgSize = funType.paramTypes.size
             assert(expectArgSize == args.size, s"args do not match, expect = $expectArgSize, found = " + args.size)
 
-            for (paramType, arg) <- appType.paramTypes.zip(args) do
+            for (paramType, arg) <- funType.paramTypes.zip(args) do
               Subtyping.conforms(arg.tpe, paramType)
         end match
         word

@@ -83,8 +83,6 @@ object Subtyping:
        && checkConformsProxyType(tp1.as[ProxyType], tp2)
     || tp2.is[ProxyType]
        && checkConformsProxyType(tp1, tp2.as[ProxyType])
-    || tp1.is[FunctionType] && tp2.is[FunctionType]
-       && checkConformsFunctionType(tp1.as[FunctionType], tp2.as[FunctionType])
     || tp1.is[ObjectType] && tp2.is[ObjectType]
        && checkConformsObjectType(tp1.as[ObjectType], tp2.as[ObjectType])
     || tp1.is[RecordType] && tp2.is[RecordType]
@@ -153,12 +151,6 @@ object Subtyping:
         if maximize then bound.hi else bound.lo
       case tp =>
         tp
-
-  private def checkConformsFunctionType(tp1: FunctionType, tp2: FunctionType)(using Context): Boolean =
-    tp1.paramTypes.size == tp2.paramTypes.size
-    && tp1.paramTypes.zip(tp2.paramTypes).forall: (paramType1, paramType2) =>
-       checkConforms(paramType2, paramType1)
-    && checkConforms(tp1.resultType, tp2.resultType)
 
   private def checkConformsProcType(tp1: ProcType, tp2: ProcType)(using Context): Boolean =
     tp1.paramTypes.size == tp2.paramTypes.size

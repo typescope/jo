@@ -163,13 +163,13 @@ object TypeOps:
         if sym.isType then sym.name else sym.name + ": " + sym.info.show
 
       case RecordType(fields) =>
-        fields.map(f => f.name + ": " + show(f.info)).mkString("{", ", ", "}")
+        fields.map(f => f.name + ": " + show(f.info)).mkString("{ ", ", ", " }")
 
       case ObjectType(members, muts) =>
         members.map: m =>
           val mod = if muts.contains(m.name) then "var " else ""
           mod + m.name + ": " + show(m.info)
-        .mkString("object {", "; ", "}")
+        .mkString("object { ", "; ", " }")
 
       case UnionType(branches) =>
         def paramStr(paramInfos: List[NamedInfo[Type]]) = paramInfos.map(param => param.name + ": " + show(param.info)).mkString("(", ", ", ")")
@@ -201,10 +201,6 @@ object TypeOps:
 
         val postStr = params.drop(n).map(param => param.name + ": " + show(param.info)).mkString("(", ", ", ")")
         preStr + postStr + ": " + show(resType)
-
-      case FunctionType(paramTypes, resType) =>
-        val params = paramTypes.map(show).mkString(" * ")
-        params + " => " + show(resType)
 
       case _: NameTableInfo => "{ ...nametable }"
   end show
@@ -275,11 +271,6 @@ object TypeOps:
 
           val resType2 = this(resType)
           ProcType(params2, resType2, preParamCount)
-
-        case FunctionType(paramTypes, resType) =>
-          val paramTypes2 = paramTypes.map(tp => this(tp))
-          val resType2 = this(resType)
-          FunctionType(paramTypes2, resType2)
 
   class SymbolsTypeMap extends TypeMap:
     type Context = Map[Symbol, Type]

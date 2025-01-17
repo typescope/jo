@@ -120,9 +120,9 @@ object Sast:
     (fun: Word, args: List[Word])
     (val tpe: Type, val span: Span)
   extends Word:
-    fun.tpe.asInvokableType match
-      case appType: InvokableType =>
-        assert(appType.paramTypes.size == args.size)
+    fun.tpe.asProcType match
+      case procType =>
+        assert(procType.paramTypes.size == args.size)
 
     def funSymbol: Option[Symbol] =
       fun match

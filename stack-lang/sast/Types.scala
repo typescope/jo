@@ -37,9 +37,6 @@ object Types:
     def isProcType: Boolean =
       TypeOps.approx(this, isUp = true).isInstanceOf[ProcType]
 
-    def isFunctionType: Boolean =
-      TypeOps.approx(this, isUp = true).isInstanceOf[FunctionType]
-
     def isPolyType: Boolean =
       TypeOps.approx(this, isUp = true).isInstanceOf[PolyType]
 
@@ -47,9 +44,6 @@ object Types:
       TypeOps.approx(this, isUp = true)  match
         case VoidType | _: ProcType | _: TypeLambda | _: PolyType | _: NameTableInfo => false
         case _ => true
-
-    def isInvokableType: Boolean =
-      TypeOps.approx(this, isUp = true).isInstanceOf[InvokableType]
 
     def asRecordType: RecordType =
       TypeOps.approx(this, isUp = true).asInstanceOf[RecordType]
@@ -63,17 +57,30 @@ object Types:
     def asProcType: ProcType =
       TypeOps.approx(this, isUp = true).asInstanceOf[ProcType]
 
-    def asFunctionType: FunctionType =
-      TypeOps.approx(this, isUp = true).asInstanceOf[FunctionType]
-
-    def asInvokableType: InvokableType =
-      TypeOps.approx(this, isUp = true).asInstanceOf[InvokableType]
-
     def asPolyType: PolyType =
       TypeOps.approx(this, isUp = true).asInstanceOf[PolyType]
 
     def asObjectType: ObjectType =
       TypeOps.approx(this, isUp = true).asInstanceOf[ObjectType]
+
+    def isFunctionType: Boolean =
+      TypeOps.approx(this, isUp = true) match
+         case objType: ObjectType =>
+           objType.members.size == 1 && objType.getMemberType("apply").match
+              case Some(tp) => tp.isProcType
+              case None => false
+
+         case _ => false
+
+    def toFunctionType: Option[ProcType] =
+      TypeOps.approx(this, isUp = true) match
+        case objType: ObjectType if objType.members.size == 1 =>
+          objType.getMemberType("apply").flatMap: applyType =>
+            TypeOps.approx(applyType, isUp = true) match
+            case procType: ProcType => Some(procType)
+            case _ => None
+
+        case _ => None
 
     def getTermMember(name: String): Option[Type] =
       TypeOps.approx(this, isUp = true) match
@@ -188,21 +195,14 @@ object Types:
     val bounds: List[TypeBound] = tparams.map(_.info)
     val paramCount = tparams.size
 
-  sealed trait InvokableType extends Type:
-    def paramTypes: List[Type]
-    def resultType: Type
-
-    def paramCount = paramTypes.size
-    def resCount = if resultType.isValueType then 1 else 0
-
   case class ProcType
     (params: List[NamedInfo[Type]], resultType: Type, preParamCount: Int)
-  extends Type with InvokableType:
+  extends Type:
     val preParamTypes: List[Type] = params.take(preParamCount).map(_.info)
     val postParamTypes: List[Type] = params.drop(preParamCount).map(_.info)
     val paramTypes: List[Type] = params.map(_.info)
+    val paramCount: Int = params.size
     def postParamCount = params.size - preParamCount
-    def toFunType: FunctionType = FunctionType(paramTypes, resultType)
 
   /** A type lambda */
   case class TypeLambda
@@ -225,10 +225,6 @@ object Types:
   case class AppliedType
     (tctor: Type, targs: List[Type])
   extends ProxyType
-
-  case class FunctionType
-    (paramTypes: List[Type], resultType: Type)
-  extends Type with InvokableType
 
   /** Represents upper and lower bounds of type parameters */
   case class TypeBound
