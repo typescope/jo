@@ -1,15 +1,17 @@
 package typing
 
 import ast.Ast
+import ast.Positions.*
+
 import sast.*
 import sast.Sast.*
 import sast.Symbols.*
 import sast.Types.*
 
-import ast.Positions.*
 import reporting.Reporter
-
 import Inference.*
+
+import common.Debug
 
 import scala.collection.mutable
 
@@ -136,7 +138,7 @@ class Checker:
     case _ =>
       word
 
-  def adapt(word: Word, targetType: TargetType)(using Reporter, Source): Word =
+  def adapt(word: Word, targetType: TargetType)(using Reporter, Source): Word = Debug.trace("Adapting " + word.show, (_: Word).show, enable = false):
     val word2 =
       if word.tpe.isInvokableType then
         val invokeType = word.tpe.asInvokableType

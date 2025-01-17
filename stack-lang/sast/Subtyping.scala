@@ -93,8 +93,6 @@ object Subtyping:
        && checkConformsUnionType(tp1.as[UnionType], tp2.as[UnionType])
     || tp1.is[ProcType] && tp2.is[ProcType]
        && checkConformsProcType(tp1.as[ProcType], tp2.as[ProcType])
-    || tp1.is[MethodType] && tp2.is[MethodType]
-       && checkConformsMethodType(tp1.as[MethodType], tp2.as[MethodType])
   }
 
   private def checkConforms(tp1: Type, tp2: Type, lessThan: Boolean)(using ctx: Context): Boolean =
@@ -163,12 +161,6 @@ object Subtyping:
     && checkConforms(tp1.resultType, tp2.resultType)
 
   private def checkConformsProcType(tp1: ProcType, tp2: ProcType)(using Context): Boolean =
-    tp1.paramTypes.size == tp2.paramTypes.size
-    && tp1.paramTypes.zip(tp2.paramTypes).forall: (paramType1, paramType2) =>
-       checkConforms(paramType2, paramType1)
-    && checkConforms(tp1.resultType, tp2.resultType)
-
-  private def checkConformsMethodType(tp1: MethodType, tp2: MethodType)(using Context): Boolean =
     tp1.paramTypes.size == tp2.paramTypes.size
     && tp1.paramTypes.zip(tp2.paramTypes).forall: (paramType1, paramType2) =>
        checkConforms(paramType2, paramType1)

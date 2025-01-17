@@ -60,8 +60,12 @@ object SastOps:
           // Don't map paramRef --- the client code should match DefaultParam
           DefaultParam(paramRef, this(default))(word.tpe, word.span)
 
-        case Assign(sym, rhs) =>
-          Assign(sym, this(rhs))(word.span)
+        case Assign(id, rhs) =>
+          // Don't map id --- the client code should match Assign
+          Assign(id, this(rhs))(word.span)
+
+        case FieldAssign(qual, name, rhs) =>
+          FieldAssign(this(qual), name, this(rhs))(word.span)
 
         case vdef: ValDef => recurValDef(vdef)
 

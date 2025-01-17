@@ -117,8 +117,11 @@ object Printing:
       case DefaultParam(paramRef, default) =>
         paramRef ~ " default " ~ default
 
-      case Assign(sym, rhs) =>
-        sym.name ~ " <- " ~ rhs
+      case Assign(id, rhs) =>
+        id ~ " <- " ~ rhs
+
+      case FieldAssign(qual, name, rhs) =>
+        qual ~ "." ~ name ~ " <- " ~ rhs
 
       case If(cond, thenp, elsep) =>
         "if " ~ cond ~ " then" ~ indent:

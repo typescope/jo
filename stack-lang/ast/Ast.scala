@@ -44,7 +44,7 @@ object Ast:
   extends Word, RefTree
 
   case class Assign
-    (ident: Ident, rhs: Word)
+    (lhs: RefTree, rhs: Word)
     (val span: Span)
   extends Word
 
@@ -139,7 +139,7 @@ object Ast:
   extends Word
 
   case class Object
-    (members: List[ValDef | DefDef])
+    (members: List[ValDef | FunDef])
     (val span: Span)
   extends Word
 
@@ -195,7 +195,7 @@ object Ast:
   extends TypeTree
 
   case class ObjectType
-    (members: List[DefDef])
+    (members: List[FunDef])
     (val span: Span)
   extends TypeTree
 
@@ -215,23 +215,11 @@ object Ast:
     (val span: Span)
   extends Def
 
-  sealed abstract trait ProcDef extends Def:
-    val ident: Ident
-    val tparams: List[TypeParam]
-    val params: List[Param]
-    val resType: TypeTree
-    val body: Word
-
   case class FunDef
     (ident: Ident, tparams: List[TypeParam], params: List[Param],
         resType: TypeTree, body: Word, preParamCount: Int)
     (val span: Span)
-  extends Word, ProcDef
-
-  case class DefDef
-    (ident: Ident, tparams: List[TypeParam], params: List[Param], resType: TypeTree, body: Word)
-    (val span: Span)
-  extends ProcDef
+  extends Word, Def
 
   case class TypeParam
     (ident: Ident, bound: TypeTree)

@@ -29,7 +29,7 @@ object ExprTyper:
     * be used.
     */
   def precedence(word: Word): Int =
-    assert(word.tpe.isProcType || word.tpe.isFunctionType || word.tpe.isPolyType, word)
+    assert(word.tpe.isInvokableType || word.tpe.isPolyType, word)
     word match
       case Ident(sym)        => precedence(sym.name)
       case TypeApply(fun, _) => precedence(fun)
@@ -162,12 +162,16 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
           val tp = wordTyped.tpe
 
           if tp.isProcType then
-            val procType = tp.asProcType
             val precedence = ExprTyper.precedence(wordTyped)
             // infix, postfix, prefix
             if precedence > precLimit then
+              val procType = tp.asProcType
+              val preParamTypes = procType.preParamTypes
+              val postParamTypes = procType.postParamTypes
+              val resType = procType.resultType
+
               // continue if current function has higher binding power
-              values ++= call(wordTyped, procType.preParamTypes, procType.postParamTypes, procType.resultType, words, values, precedence)
+              values ++= call(wordTyped, preParamTypes, postParamTypes, resType, words, values, precedence)
             else
               // TODO: wordTyped is discarded and it will be checked!
               // put back word

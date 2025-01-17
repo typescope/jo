@@ -37,9 +37,6 @@ object Types:
     def isProcType: Boolean =
       TypeOps.approx(this, isUp = true).isInstanceOf[ProcType]
 
-    def isMethodType: Boolean =
-      TypeOps.approx(this, isUp = true).isInstanceOf[MethodType]
-
     def isFunctionType: Boolean =
       TypeOps.approx(this, isUp = true).isInstanceOf[FunctionType]
 
@@ -52,21 +49,32 @@ object Types:
         case info: NameTableInfo => info.isValueType
         case _ => true
 
-    def isInvokableType: Boolean = isFunctionType || isProcType || isMethodType
+    def isInvokableType: Boolean =
+      TypeOps.approx(this, isUp = true).isInstanceOf[InvokableType]
 
-    def asRecordType: RecordType = TypeOps.approx(this, isUp = true).asInstanceOf[RecordType]
+    def asRecordType: RecordType =
+      TypeOps.approx(this, isUp = true).asInstanceOf[RecordType]
 
-    def asUnionType: UnionType = TypeOps.approx(this, isUp = true).asInstanceOf[UnionType]
+    def asUnionType: UnionType =
+      TypeOps.approx(this, isUp = true).asInstanceOf[UnionType]
 
-    def asTypeLambda: TypeLambda = TypeOps.approx(this, isUp = true).asInstanceOf[TypeLambda]
+    def asTypeLambda: TypeLambda =
+      TypeOps.approx(this, isUp = true).asInstanceOf[TypeLambda]
 
-    def asProcType: ProcType = TypeOps.approx(this, isUp = true).asInstanceOf[ProcType]
+    def asProcType: ProcType =
+      TypeOps.approx(this, isUp = true).asInstanceOf[ProcType]
 
-    def asFunctionType: FunctionType = TypeOps.approx(this, isUp = true).asInstanceOf[FunctionType]
+    def asFunctionType: FunctionType =
+      TypeOps.approx(this, isUp = true).asInstanceOf[FunctionType]
 
-    def asInvokableType: InvokableType = TypeOps.approx(this, isUp = true).asInstanceOf[InvokableType]
+    def asInvokableType: InvokableType =
+      TypeOps.approx(this, isUp = true).asInstanceOf[InvokableType]
 
-    def asPolyType: PolyType = TypeOps.approx(this, isUp = true).asInstanceOf[PolyType]
+    def asPolyType: PolyType =
+      TypeOps.approx(this, isUp = true).asInstanceOf[PolyType]
+
+    def asObjectType: ObjectType =
+      TypeOps.approx(this, isUp = true).asInstanceOf[ObjectType]
 
     def getTermMember(name: String): Option[Type] =
       TypeOps.approx(this, isUp = true) match
@@ -172,6 +180,8 @@ object Types:
       members.collectFirst:
         case NamedInfo(m, tp) if m == name => tp
 
+    def isMutable(name: String): Boolean = mutableFields.contains(name)
+
   case class PolyType
     (tparams: List[NamedInfo[TypeBound]], resultType: Type)
   extends Type:
@@ -193,12 +203,6 @@ object Types:
     val postParamTypes: List[Type] = params.drop(preParamCount).map(_.info)
     val paramTypes: List[Type] = params.map(_.info)
     def postParamCount = params.size - preParamCount
-    def toFunType: FunctionType = FunctionType(paramTypes, resultType)
-
-  case class MethodType
-    (params: List[NamedInfo[Type]], resultType: Type)
-  extends Type with InvokableType:
-    val paramTypes: List[Type] = params.map(_.info)
     def toFunType: FunctionType = FunctionType(paramTypes, resultType)
 
   /** A type lambda */

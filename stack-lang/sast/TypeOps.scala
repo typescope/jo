@@ -193,17 +193,18 @@ object TypeOps:
         show(lo) + " .. " + show(hi)
 
       case ProcType(params, resType, n) =>
-        val preStr = params.take(n).map(param => param.name + ": " + show(param.info)).mkString("(", ", ", ")")
+        val preStr =
+          if n > 0 then
+            params.take(n).map(param => param.name + ": " + show(param.info)).mkString("(", ", ", ")")
+          else
+            ""
+
         val postStr = params.drop(n).map(param => param.name + ": " + show(param.info)).mkString("(", ", ", ")")
         preStr + postStr + ": " + show(resType)
 
       case FunctionType(paramTypes, resType) =>
         val params = paramTypes.map(show).mkString(" * ")
         params + " => " + show(resType)
-
-      case MethodType(params, resType) =>
-        val paramStr = params.map(param => param.name + ": " + show(param.info)).mkString("(", ", ", ")")
-        paramStr + ": " + show(resType)
 
       case _: NameTableInfo => "{ ...nametable }"
   end show
@@ -279,14 +280,6 @@ object TypeOps:
           val paramTypes2 = paramTypes.map(tp => this(tp))
           val resType2 = this(resType)
           FunctionType(paramTypes2, resType2)
-
-        case MethodType(params, resType) =>
-          val params2 =
-            for param <- params
-            yield param.copy(info = this(param.info))
-
-          val resType2 = this(resType)
-          MethodType(params2, resType2)
 
   class SymbolsTypeMap extends TypeMap:
     type Context = Map[Symbol, Type]

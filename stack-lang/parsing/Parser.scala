@@ -210,7 +210,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val paramList= preParamList ++ postParamList
     FunDef(id, tparams, paramList, resType, body, preParamList.size)(fun.span | body.span)
 
-  def defDef(needBody: Boolean): DefDef =
+  def defDef(needBody: Boolean): FunDef =
     val defToken = eat(Token.DEF)
     val id = ident()
     val tparams = typeParams()
@@ -231,7 +231,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     eatEndOpt(defToken.indent)
 
-    DefDef(id, tparams, paramList, resType, body)(defToken.span | body.span)
+    val preParamCount = 0
+    FunDef(id, tparams, paramList, resType, body, preParamCount)(defToken.span | body.span)
 
   def paramDef(): Param =
     val token = eat(Token.PARAM)
@@ -410,11 +411,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case None =>
         finalResult
 
-  def isAssign(): Boolean =
-    val token0 = peek(0)
-    val token1 = peek(1)
-    token0.isInstanceOf[Token.Ident] && token1 == Token.ASSIGN
-
   def isLambda(): Boolean =
     val token0 = peek(0)
     val token1 = peek(1)
@@ -486,17 +482,14 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         Some(typeDef())
 
       case token =>
-        if isAssign() then
-          val id = ident()
-          Some(assign(id, item.indent))
-
-        else
-          word().map: w =>
-            if isQualid(w) && peek() == Token.DEFAULT then
-              defaultParam(w.asInstanceOf[RefTree])
-            else
-              val expr = exprRest(mutable.ArrayBuffer(w), item.indent)
-              optWithClause(expr)
+        word().map: w =>
+          if isQualid(w) && peek() == Token.DEFAULT then
+            defaultParam(w.asInstanceOf[RefTree])
+          else if w.isInstanceOf[RefTree] && peek() == Token.ASSIGN then
+            assign(w.asInstanceOf[RefTree], item.indent)
+          else
+            val expr = exprRest(mutable.ArrayBuffer(w), item.indent)
+            optWithClause(expr)
 
   def typ(): TypeTree =
     val tps = simpleTypes()
@@ -562,7 +555,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def objectType(): ObjectType =
     val objToken = eat(Token.OBJECT)
     eat(Token.LBRACE)
-    val decls: List[DefDef] = repeated:
+    val decls: List[FunDef] = repeated:
         if peek() == Token.DEF then Some(defDef(needBody = false))
         else None
     val endToken = eat(Token.RBRACE)
@@ -670,10 +663,10 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     While(cond, body)(whileItem.span | body.span)
 
-  def assign(id: Ident, limitIndent: Indent): Assign =
+  def assign(ref: RefTree, limitIndent: Indent): Assign =
     eat(Token.ASSIGN)
     val rhs = block(limitIndent)
-    Assign(id, rhs)(id.span | rhs.span)
+    Assign(ref, rhs)(ref.span | rhs.span)
 
   def select(qual: Word): Select =
     eat(Token.DOT)
@@ -739,7 +732,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def objectLit(): Object =
     val objToken = eat(Token.OBJECT)
     eat(Token.LBRACE)
-    val members: List[ValDef | DefDef] = repeated:
+    val members: List[ValDef | FunDef] = repeated:
         if peek() == Token.DEF then Some(defDef(needBody = true))
         else if peek() == Token.VAL then Some(valDef(Token.VAL))
         else if peek() == Token.VAR then Some(valDef(Token.VAR))

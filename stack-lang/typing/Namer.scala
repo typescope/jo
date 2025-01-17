@@ -188,8 +188,8 @@ class Namer(@constructorOnly reporter: Reporter):
       case vdef: Ast.ValDef =>
         transform(vdef)
 
-      case pdef: Ast.ProcDef =>
-        transformProcDef(pdef)
+      case fdef: Ast.FunDef =>
+        transformFunDef(fdef)
 
       case tdef: Ast.TypeDef =>
         transform(tdef)
@@ -219,9 +219,13 @@ class Namer(@constructorOnly reporter: Reporter):
 
       case Ast.Ident(name) =>
         val sym = sc.resolve(name, word.pos)
-        checker.checkCapture(sym, word.pos)
-        val id = Ident(sym)(word.span)
-        id.adapt
+        if sym.isField || sym.isMethod then
+          val thisSym = sc.resolve("this", word.pos)
+          val qual = This()(thisSym.info, word.span)
+          Select(qual, sym.name)(sym.info, word.span).adapt
+        else
+          checker.checkCapture(sym, word.pos)
+          Ident(sym)(word.span).adapt
 
       case record: Ast.RecordLit =>
         transform(record).adapt
@@ -237,7 +241,7 @@ class Namer(@constructorOnly reporter: Reporter):
         qual2.tpe.getTermMember(name) match
           case Some(tp) =>
             tp match
-              case TypeRef(sym) if !sym.isType =>
+              case TypeRef(sym) if !sym.isField && !sym.isMethod =>
                 Ident(sym)(word.span).adapt
 
               case _ =>
@@ -285,15 +289,8 @@ class Namer(@constructorOnly reporter: Reporter):
          val body2 = transform(body)(using sc, rp, so, TargetType.Known(VoidType))
          While(cond2, body2)(word.span).adapt
 
-      case Ast.Assign(id, words) =>
-        val sym = sc.resolve(id.name, id.pos)
-
-        checker.checkMutable(sym, id.pos)
-        checker.checkCapture(sym, id.pos)
-
-        given TargetType = TargetType.Known(sym.info)
-        val rhs = transform(words)
-        Assign(sym, rhs)(word.span).adapt
+      case assign: Ast.Assign =>
+        transform(assign).adapt
 
       case patmat: Ast.Match =>
         transform(patmat)
@@ -306,7 +303,7 @@ class Namer(@constructorOnly reporter: Reporter):
         vdef2.adapt
 
       case fdef: Ast.FunDef =>
-        val delayedDef = transformProcDef(fdef)
+        val delayedDef = transformFunDef(fdef)
         // A function is available for checking its rhs
         sc.define(delayedDef.symbol)
         delayedDef.force().adapt
@@ -349,10 +346,10 @@ class Namer(@constructorOnly reporter: Reporter):
     // `this` should not be available in field initialization
     sc2.define(thisSym)
 
-    for case ddef: Ast.DefDef <- obj.members do
+    for case fdef: Ast.FunDef <- obj.members do
       given Scope = sc2
       given TargetType = TargetType.ObjectMember
-      val delayedDef = transformProcDef(ddef)
+      val delayedDef = transformFunDef(fdef)
       sc2.define(delayedDef.symbol)
       delayedDefs += delayedDef
 
@@ -377,6 +374,54 @@ class Namer(@constructorOnly reporter: Reporter):
 
     if words.isEmpty then Block(Nil)(VoidType, block.span)
     else Block(words)(words.last.tpe, block.span)
+
+  def transform(assign: Ast.Assign)(using sc: Scope, rp: Reporter, so: Source): Word =
+    val Ast.Assign(ref, rhs) = assign
+
+    ref match
+      case id: Ast.Ident =>
+        val sym = sc.resolve(id.name, id.pos)
+
+        checker.checkMutable(sym, id.pos)
+
+        given TargetType = TargetType.Known(sym.info)
+        val rhs2 = transform(rhs)
+
+        if sym.isField then
+          val thisSym = sc.resolve("this", id.pos)
+          val qual = This()(thisSym.info, id.span)
+          FieldAssign(qual, sym.name, rhs2)(assign.span)
+
+        else
+          val id = Ident(sym)(ref.span)
+          checker.checkCapture(sym, id.pos)
+          Assign(id, rhs2)(assign.span)
+
+      case Ast.Select(qual, name) =>
+        val qual2 =
+          given TargetType = TargetType.TermMember(name)
+          transform(qual)
+
+        if qual2.tpe.isObjectType then
+          val objType = qual2.tpe.asObjectType
+          objType.getMemberType(name) match
+            case Some(tp) =>
+              if !objType.isMutable(name) then
+                Reporter.error(s"The field $name is immutable", ref.pos)
+
+              val rhs2 =
+                given TargetType = TargetType.Known(tp)
+                transform(rhs)
+
+              FieldAssign(qual2, name, rhs2)(assign.span)
+
+            case None =>
+              // error already reported
+              Block(Nil)(ErrorType, assign.span)
+
+        else
+          Reporter.error("Expect an object, found = " + qual2.tpe.show, qual.pos)
+          Block(Nil)(ErrorType, assign.span)
 
   private def transformParamRef(ref: Ast.RefTree)(using sc: Scope, rp: Reporter, so: Source): Ident =
     val paramRef =
@@ -628,9 +673,9 @@ class Namer(@constructorOnly reporter: Reporter):
        checker.checkInstantiated(tvar, param.pos)
 
      val tparamSyms = Nil
+     val ref = Ident(funSym)(lambda.span)
      val funDef = FunDef(funSym, tparamSyms, paramSyms, bodyTyped)(locals = Nil, captures = Nil, lambda.span)
      val lambdaType = procType.toFunType
-     val ref = Ident(funSym)(lambda.span)
      Block(funDef :: ref :: Nil)(lambdaType, lambda.span)
 
   private def transform(vdef: Ast.ValDef)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): DelayedDef[ValDef] =
@@ -661,7 +706,7 @@ class Namer(@constructorOnly reporter: Reporter):
     val typer = () => ValDef(sym, rhs)(vdef.span)
     DelayedDef(sym, typer)
 
-  private def transformProcDef(funDef: Ast.ProcDef)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): DelayedDef[FunDef] =
+  private def transformFunDef(funDef: Ast.FunDef)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): DelayedDef[FunDef] =
     val flags = if tt == TargetType.ObjectMember then Flags.Method else Flags.Fun
 
     val funSym = Symbol.createSymbol(funDef.name, this.nonCyclicTypeProvider, flags, sc.owner, funDef.ident.pos)
@@ -729,13 +774,7 @@ class Namer(@constructorOnly reporter: Reporter):
       transform(funDef.body)
 
     def computeInfo(resultType: Type) =
-      val procType =
-        funDef match
-          case fdef: Ast.FunDef =>
-            ProcType(paramSyms.map(_.toNamedInfo), resultType, fdef.preParamCount)
-
-          case _: Ast.DefDef =>
-            MethodType(paramSyms.map(_.toNamedInfo), resultType)
+      val procType = ProcType(paramSyms.map(_.toNamedInfo), resultType, funDef.preParamCount)
 
       if tparamSyms.isEmpty then
         procType
@@ -814,7 +853,7 @@ class Namer(@constructorOnly reporter: Reporter):
 
     DelayedDef(typeSym, typer)
 
-  private def transformMethodDecl(ddef: Ast.DefDef)(using sc: Scope, rp: Reporter, so: Source): TypeTree =
+  private def transformMethodDecl(ddef: Ast.FunDef)(using sc: Scope, rp: Reporter, so: Source): TypeTree =
     val defScope = sc.fresh()
 
     val tparamSyms =
@@ -844,7 +883,7 @@ class Namer(@constructorOnly reporter: Reporter):
       checker.delayedCheck { checker.checkVoidOrValueType(resTypeTree) }
       resTypeTree.tpe
 
-    val methodType = MethodType(paramSyms.map(_.toNamedInfo), resultType)
+    val methodType = ProcType(paramSyms.map(_.toNamedInfo), resultType, preParamCount = 0)
     val finalType =
       if tparamSyms.isEmpty then
         methodType
