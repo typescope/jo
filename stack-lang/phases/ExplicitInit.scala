@@ -49,7 +49,7 @@ object ExplicitInit:
 
         case ValDef(sym, rhs) =>
           info.locals += sym
-          Assign(sym, this(rhs))(word.span)
+          Assign(Ident(sym)(sym.sourcePos.span), this(rhs))(word.span)
 
         case fdef: FunDef =>
           info.locals += fdef.symbol

@@ -196,7 +196,7 @@ object ElimCapture:
         locals += subst
         ctx2 = ctx2.withRewire(capture, subst)
         val rhs = Select(Ident(envSym)(fdef.span), capture.name)(capture.info, fdef.span)
-        bodyItems += Assign(subst, rhs)(rhs.span)
+        bodyItems += Assign(Ident(subst)(fdef.symbol.sourcePos.span), rhs)(rhs.span)
 
       bodyItems += this(fdef.body)(using ctx2)
       val body = Block(bodyItems.toList)(fdef.body.tpe, fdef.body.span)

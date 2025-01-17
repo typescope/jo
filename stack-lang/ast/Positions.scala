@@ -108,6 +108,8 @@ object Positions:
     lazy val startPos = source.offsetToLineColumn(start)
     lazy val endPos = source.offsetToLineColumn(start + length)
 
+    def span: Span = Span(start, length)
+
     def startLine: Int = startPos.line
     def endLine: Int = endPos.line
     def startLineColumn: Int = startPos.column

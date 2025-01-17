@@ -53,8 +53,6 @@ object Sast:
     (symbol: Symbol)
     (val span: Span)
   extends Word:
-    assert(!symbol.isOneOf(Flags.NSpace | Flags.Method | Flags.Field), symbol)
-
     val tpe: Type = TypeRef(symbol)
 
   case class Select
@@ -65,9 +63,10 @@ object Sast:
 
   /** Assignment to local vars */
   case class Assign
-    (id: Ident, rhs: Word)
+    (ident: Ident, rhs: Word)
     (val span: Span)
   extends Word:
+    val symbol = ident.symbol
     def tpe: Type = VoidType
 
   /** Assignment to object fields */
@@ -160,9 +159,9 @@ object Sast:
   // definitions
 
   sealed trait Def extends Tree:
-    def symbol: Symbol
-    def name: String = symbol.name
-    def tpe: Type = VoidType
+    val symbol: Symbol
+    val name: String = symbol.name
+    val tpe: Type = VoidType
 
   /** Represents definition of contextual parameters */
   case class ParamDef

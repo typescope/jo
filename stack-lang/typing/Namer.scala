@@ -1010,7 +1010,7 @@ object Namer:
       val stdLib = "lib/Predef.stk" :: Nil
       val runtimeFiles = Nil
       val namer = (nssAst: List[Ast.Namespace]) => transform(nssAst, stdLib, runtimeFiles)
-      val nss = Parser.parse(args.toList) |> namer
+      val nss = Parser.parse(args.toList) |> namer |> TreeChecker.check
 
       for ns <- nss do
         println(ns.symbol.sourcePos.source.file + ":")

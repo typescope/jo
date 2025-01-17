@@ -251,8 +251,8 @@ object Interpreter:
           case objVal: ObjectVal =>
             objVal.values(name) :: Nil
 
-      case Assign(id, rhs) =>
-        env.update(id.symbol, eval(rhs))
+      case Assign(ident, rhs) =>
+        env.update(ident.symbol, eval(rhs))
         Nil
 
       case FieldAssign(qual, name, rhs) =>
@@ -353,6 +353,7 @@ object Interpreter:
     val namespacesSAST =
       Parser.parse(sourceFiles)     |>
       typeCheck                     |>
+      TreeChecker.check             |>
       Printing.peek(enable = false)
 
     val mains = namespacesSAST.collect:

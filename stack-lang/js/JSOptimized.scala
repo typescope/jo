@@ -165,7 +165,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
       case TypeApply(fun, _) =>
         compile(fun)
 
-      case Assign(sym, rhs) =>
+      case Assign(Ident(sym), rhs) =>
         run(rhs): t =>
           if sym.isMutable then
             sym ~ " = " ~ t ~ ";" ~ cont()

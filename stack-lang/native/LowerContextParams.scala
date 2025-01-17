@@ -66,7 +66,7 @@ class LowerContextParams(runtime: NativeRuntime) extends SastOps.TreeMap:
 
         val indexSym = new Symbol("index_" + paramName, IntType, Flags.Val, owner = ctx.funSymbol, sourcePos = null)
         ctx.locals += indexSym
-        val indexAssign = Assign(indexSym, getParamIndexCall)(paramRef.span)
+        val indexAssign = Assign(Ident(indexSym)(paramRef.span), getParamIndexCall)(paramRef.span)
 
         val indexIdent = Ident(indexSym)(paramRef.span)
 
@@ -92,7 +92,7 @@ class LowerContextParams(runtime: NativeRuntime) extends SastOps.TreeMap:
           val paramName = arg.paramRef.symbol.fullName
           val argValueSym = new Symbol("arg_" + paramName, arg.rhs.tpe, Flags.Val, owner = ctx.funSymbol, sourcePos = arg.rhs.pos)
           ctx.locals += argValueSym
-          stats += Assign(argValueSym, this(arg.rhs))(arg.rhs.span)
+          stats += Assign(Ident(argValueSym)(arg.paramRef.span), this(arg.rhs))(arg.rhs.span)
           argValueSym
 
         if only then
@@ -102,7 +102,7 @@ class LowerContextParams(runtime: NativeRuntime) extends SastOps.TreeMap:
 
           val funNewPage = Ident(runtime.ParamSupport_newPage)(word.span)
           val newPageCall = Apply(funNewPage, args = Nil)(AnyType, word.span)
-          stats += Assign(oldPageSym, newPageCall)(word.span)
+          stats += Assign(Ident(oldPageSym)(word.span), newPageCall)(word.span)
 
           // 3. setParam("x", v)
           args.zip(argValueSyms).foreach: (arg, argValueSym) =>
@@ -119,7 +119,7 @@ class LowerContextParams(runtime: NativeRuntime) extends SastOps.TreeMap:
             stats += this(expr)
           else
             ctx.locals += resSym
-            stats += Assign(resSym, this(expr))(expr.span)
+            stats += Assign(Ident(resSym)(expr.span), this(expr))(expr.span)
 
           // 5. restore page
           val funRestorePage = Ident(runtime.ParamSupport_restorePage)(word.span)
@@ -146,13 +146,13 @@ class LowerContextParams(runtime: NativeRuntime) extends SastOps.TreeMap:
             val setParamCall = Apply(funSetParam, key :: value :: Nil)(IntType, arg.span)
             val hashIndexSym = new Symbol("hash_index_" + paramName, IntType, Flags.Val, owner = ctx.funSymbol, sourcePos = arg.rhs.pos)
             ctx.locals += hashIndexSym
-            stats += Assign(hashIndexSym, setParamCall)(arg.span)
+            stats += Assign(Ident(hashIndexSym)(arg.paramRef.span), setParamCall)(arg.span)
 
             val funGetLastOverwrittenValue = Ident(runtime.ParamSupport_getLastOverwrittenValue)(arg.span)
             val getLastOverwrittenValueCall = Apply(funGetLastOverwrittenValue, Nil)(AnyType, arg.paramRef.span)
             val oldValueSym = new Symbol("old_value_" + paramName, arg.rhs.tpe, Flags.Val, owner = ctx.funSymbol, sourcePos = arg.rhs.pos)
             ctx.locals += oldValueSym
-            stats += Assign(oldValueSym, getLastOverwrittenValueCall)(arg.span)
+            stats += Assign(Ident(oldValueSym)(arg.paramRef.span), getLastOverwrittenValueCall)(arg.span)
 
             (hashIndexSym, oldValueSym)
 
@@ -162,7 +162,7 @@ class LowerContextParams(runtime: NativeRuntime) extends SastOps.TreeMap:
             stats += this(expr)
           else
             ctx.locals += resSym
-            stats += Assign(resSym, this(expr))(expr.span)
+            stats += Assign(Ident(resSym)(expr.span), this(expr))(expr.span)
 
           // 4. restore(hashIndex, oldValueX)
           paramRefs.zip(restorePairSyms).foreach:
