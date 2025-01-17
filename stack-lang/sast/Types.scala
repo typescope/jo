@@ -45,8 +45,7 @@ object Types:
 
     def isValueType: Boolean =
       TypeOps.approx(this, isUp = true)  match
-        case VoidType | _: ProcType | _: TypeLambda | _: PolyType => false
-        case info: NameTableInfo => info.isValueType
+        case VoidType | _: ProcType | _: TypeLambda | _: PolyType | _: NameTableInfo => false
         case _ => true
 
     def isInvokableType: Boolean =
@@ -252,9 +251,7 @@ object Types:
     def isSuptype(tp: Type): List[Subtyping.Task] =
       inferencer.isSuptype(this, tp)
 
-  class NameTableInfo(val nameTable: NameTable, isContainerValue: Boolean) extends Type:
-    def this() = this(new NameTable, isContainerValue = false)
-
-    override def isValueType: Boolean = isContainerValue
+  class NameTableInfo(val nameTable: NameTable) extends Type:
+    def this() = this(new NameTable)
 
     export nameTable.{ resolve, resolveType, resolveTerm, define }

@@ -28,6 +28,16 @@ object Interpreter:
     case PlatformCall(op: List[Value] => List[Value])
     case Uninit
 
+    def show: String = this match
+      case IntVal(value) => value.toString
+      case BoolVal(value) => value.toString
+      case StringVal(value) => "\"" + value + "\""
+      case RecordVal(fields) => fields.map(_ + " = " + _.show).mkString("{", ", ", "}")
+      case ObjectVal(values, vals, defs,  env) => values.map(_ + " = " + _.show).mkString("object {", ", ", "}")
+      case FunVal(fun, env) => "closue(env = " + env.show(recursive = false) + ")"
+      case PlatformCall(op) => "platformCall"
+      case Uninit => "Uninit"
+
   type Value = IntVal | BoolVal | StringVal | RecordVal | ObjectVal | FunVal
 
   enum Env:
@@ -73,6 +83,20 @@ object Interpreter:
           case _ => throw new Exception("No binding for `this`")
 
     def contains(sym: Symbol): Boolean = map.contains(sym)
+
+    def show(recursive: Boolean): String =
+      var bindings = map.map(_.name + " -> " + _.show).toList
+
+      if thisValue != null then
+        bindings = ("this -> " + thisValue.show) :: bindings
+
+      if recursive then
+        this match
+          case NestedEnv(outer) =>
+            bindings = ("outer -> " + outer.show) :: bindings
+          case _ =>
+
+      bindings.mkString("{", ", ", "}")
   end Env
 
   type Params = Map[Symbol, Value]
@@ -200,11 +224,11 @@ object Interpreter:
 
     exec(fdef.body)(using funEnv)
 
-  def eval(word: Word)(using env: Env, params: Params): Value =
+  def eval(word: Word)(using env: Env, params: Params): Value = Debug.trace(word.show + ", env = " + env.show(recursive = false), (_: Value).show, enable = false):
     val (value: Value) :: Nil = exec(word): @unchecked
     value
 
-  def exec(word: Word)(using env: Env, params: Params): List[Denotation] = Debug.trace(word.show, enable = false):
+  def exec(word: Word)(using env: Env, params: Params): List[Denotation] =
     word match
       case IntLit(v)  => IntVal(v) :: Nil
 
@@ -281,8 +305,7 @@ object Interpreter:
 
       case Apply(fun, args) =>
         fun match
-          case Select(qual, name) => // if qual.tpe.isObjectType
-            println("qual.tpe = " + qual.tpe.show + ", qual.tpe.isObjectType = " + qual.tpe.isObjectType)
+          case Select(qual, name) if qual.tpe.isObjectType =>
             val (objVal: ObjectVal) = eval(qual): @unchecked
             val argVals = args.map(eval)
             val fdef = objVal.defs(name)

@@ -220,8 +220,8 @@ class Namer(@constructorOnly reporter: Reporter):
       case Ast.Ident(name) =>
         val sym = sc.resolve(name, word.pos)
         if sym.isField || sym.isMethod then
-          val thisSym = sc.resolve("this", word.pos)
-          val qual = This()(thisSym.info, word.span)
+          val thisTypeSym = sc.resolve("this", word.pos, isType = true)
+          val qual = This()(TypeRef(thisTypeSym), word.span)
           Select(qual, sym.name)(sym.info, word.span).adapt
         else
           checker.checkCapture(sym, word.pos)
@@ -318,7 +318,8 @@ class Namer(@constructorOnly reporter: Reporter):
         transform(block)
 
       case _: Ast.This =>
-        transform(Ast.Ident("this")(word.span))
+        val thisTypeSym = sc.resolve("this", word.pos, isType = true)
+        This()(TypeRef(thisTypeSym), word.span)
 
       case obj: Ast.Object =>
         transform(obj)
@@ -326,12 +327,17 @@ class Namer(@constructorOnly reporter: Reporter):
   def transform(obj: Ast.Object)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
     val nameTable = new NameTable
 
-    // create a dummy symbol for `this`
-    val thisType = NameTableInfo(nameTable, isContainerValue = true)
-    val thisSym = Symbol.createValueSymbol("this", thisType, sc.owner, obj.pos)
+    // create a type symbol representing type of `this` for checking the object body
+    val infoProvider: InfoProvider = sym =>
+      val members = nameTable.terms.map(sym => NamedInfo(sym.name, TypeRef(sym)))
+      val mutables = nameTable.terms.filter(_.isMutable).map(_.name).toList
+      ObjectType(members, mutables)
+
+    // type this = {...}
+    val thisTypeSym = Symbol.createTypeSymbol("this", infoProvider, sc.owner, obj.pos)
 
     // scope for checking member methods
-    val sc2 = sc.fresh(thisSym, nameTable)
+    val sc2 = sc.fresh(thisTypeSym, nameTable)
 
     val vals = new mutable.ArrayBuffer[ValDef]
     val delayedDefs = new mutable.ArrayBuffer[DelayedDef[FunDef]]
@@ -343,8 +349,8 @@ class Namer(@constructorOnly reporter: Reporter):
       sc2.define(vdefTyped.symbol)
       vals += vdefTyped
 
-    // `this` should not be available in field initialization
-    sc2.define(thisSym)
+    // `type this = { ... }` should not be available in field initialization
+    sc2.define(thisTypeSym)
 
     for case fdef: Ast.FunDef <- obj.members do
       given Scope = sc2
@@ -356,9 +362,11 @@ class Namer(@constructorOnly reporter: Reporter):
     val defs: List[FunDef] =
       for delayedDef <- delayedDefs.toList yield delayedDef.force()
 
+    // external object type
     val members = nameTable.terms.map(_.toNamedInfo)
-    val mutables = vals.filter(_.isMutable).map(_.name).toList
+    val mutables = nameTable.terms.filter(_.isMutable).map(_.name).toList
     val objType = ObjectType(members, mutables)
+
     Object(vals.toList, defs)(objType, obj.span)
 
   def transform(block: Ast.Block)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
@@ -388,8 +396,8 @@ class Namer(@constructorOnly reporter: Reporter):
         val rhs2 = transform(rhs)
 
         if sym.isField then
-          val thisSym = sc.resolve("this", id.pos)
-          val qual = This()(thisSym.info, id.span)
+          val thisTypeSym = sc.resolve("this", id.pos, isType = true)
+          val qual = This()(TypeRef(thisTypeSym), id.span)
           FieldAssign(qual, sym.name, rhs2)(assign.span)
 
         else
@@ -953,7 +961,8 @@ class Namer(@constructorOnly reporter: Reporter):
             val memberTypeTree = transformMethodDecl(member)
             memberTypes += NamedInfo(member.name, memberTypeTree.tpe)
         end for
-        TypeTree(RecordType(memberTypes.toList))(tpt.span)
+        val tp = ObjectType(memberTypes.toList, mutableFields = Nil)
+        TypeTree(tp)(tpt.span)
 
       case Ast.UnionType(branches) =>
         val branchTypes = new mutable.ArrayBuffer[NamedInfo[List[NamedInfo[Type]]]]
