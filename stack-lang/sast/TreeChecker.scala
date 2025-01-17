@@ -22,7 +22,7 @@ object TreeChecker extends SastOps.TreeMap:
   def apply(word: Word)(using info: Context): Word =
     word match
       case Ident(sym) =>
-        assert(!sym.isOneOf(Flags.NSpace | Flags.Method | Flags.Field), sym)
+        assert(!sym.isOneOf(Flags.NSpace | Flags.Method | Flags.Field | Flags.Type), sym)
         word
 
       case Select(qual, name) =>
@@ -42,6 +42,9 @@ object TreeChecker extends SastOps.TreeMap:
           case appType: InvokableType =>
             val expectArgSize = appType.paramTypes.size
             assert(expectArgSize == args.size, s"args do not match, expect = $expectArgSize, found = " + args.size)
+
+            for (paramType, arg) <- appType.paramTypes.zip(args) do
+              Subtyping.conforms(arg.tpe, paramType)
         end match
         word
 

@@ -53,6 +53,8 @@ object Sast:
     (symbol: Symbol)
     (val span: Span)
   extends Word:
+    assert(!symbol.isType)
+
     val tpe: Type = TypeRef(symbol)
 
   case class Select
