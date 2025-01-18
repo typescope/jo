@@ -133,11 +133,6 @@ object Ast:
     (val span: Span)
   extends Word
 
-  case class This
-    ()
-    (val span: Span)
-  extends Word
-
   case class Object
     (members: List[ValDef | FunDef])
     (val span: Span)

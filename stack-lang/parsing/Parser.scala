@@ -455,10 +455,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         next()
         Some(StringLit(lit.value)(item.span))
 
-      case Token.THIS =>
-        next()
-        optSelectAndTypeApply(This()(item.span))
-
       case Token.OBJECT =>
         Some(objectLit())
 

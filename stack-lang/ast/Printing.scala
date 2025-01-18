@@ -161,9 +161,6 @@ object Printing:
         "match " ~ patmat.scrutinee ~ indent:
           rep(patmat.cases, Text.BlankLine)
 
-      case _: This =>
-        Text("this")
-
       case Object(members) =>
         "object {" ~ indent:
            rep(members, Text.BreakLine)

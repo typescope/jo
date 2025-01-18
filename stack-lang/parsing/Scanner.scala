@@ -81,7 +81,6 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       case "default"   => Token.DEFAULT
       case "true"      => Token.BoolLit(true)
       case "false"     => Token.BoolLit(false)
-      case "this"      => Token.THIS
       case "object"    => Token.OBJECT
       case "def"       => Token.DEF
       case name        => Token.Ident(name)

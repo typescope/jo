@@ -317,10 +317,6 @@ class Namer(@constructorOnly reporter: Reporter):
       case block: Ast.Block =>
         transform(block)
 
-      case _: Ast.This =>
-        val thisSym = sc.resolve("this", word.pos)
-        Ident(thisSym)(word.span)
-
       case obj: Ast.Object =>
         transform(obj)
 

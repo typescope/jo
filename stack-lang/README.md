@@ -48,7 +48,6 @@ Lexical Grammar
     NSPACE   = "namespace".
     IMPORT   = "import".
     DEF      = "def".
-    THIS     = "this".
     OBJECT   = "object".
     name     = (letter | USCORE) {letter | digit | USCORE}.
     operator = opchar { opchar }.
@@ -72,13 +71,13 @@ Syntactical Grammar
 
     expr    = word {word}.
 
-    word    = integer | boolean | string | ident | fence | record | tapply | select | variant | lambda | object | this.
+    word    = integer | boolean | string | ident | fence | record | tapply | select | variant | lambda | object.
 
     phrase  = expr | with_clause | default_param | assign | valdef | fundef | typedef | while | if | match.
 
     block   = { phrase }.
 
-    select  = (ident | record | fence | select | this) DOT ident.
+    select  = (ident | record | fence | select) DOT ident.
 
     with_clause = expr WITH (([ONLY] with_bindings) | NONE)
 
