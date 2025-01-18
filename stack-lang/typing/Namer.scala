@@ -220,8 +220,8 @@ class Namer(@constructorOnly reporter: Reporter):
       case Ast.Ident(name) =>
         val sym = sc.resolve(name, word.pos)
         if sym.isField || sym.isMethod then
-          val thisTypeSym = sc.resolve("this", word.pos, isType = true)
-          val qual = This()(TypeRef(thisTypeSym), word.span)
+          val thisSym = sc.resolve("this", word.pos)
+          val qual = Ident(thisSym)(word.span)
           Select(qual, sym.name)(sym.info, word.span).adapt
         else
           checker.checkCapture(sym, word.pos)
@@ -318,8 +318,8 @@ class Namer(@constructorOnly reporter: Reporter):
         transform(block)
 
       case _: Ast.This =>
-        val thisTypeSym = sc.resolve("this", word.pos, isType = true)
-        This()(TypeRef(thisTypeSym), word.span)
+        val thisSym = sc.resolve("this", word.pos)
+        Ident(thisSym)(word.span)
 
       case obj: Ast.Object =>
         transform(obj)
@@ -327,17 +327,15 @@ class Namer(@constructorOnly reporter: Reporter):
   def transform(obj: Ast.Object)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
     val nameTable = new NameTable
 
-    // create a type symbol representing type of `this` for checking the object body
     val infoProvider: InfoProvider = sym =>
       val members = nameTable.terms.map(sym => NamedInfo(sym.name, TypeRef(sym)))
       val mutables = nameTable.terms.filter(_.isMutable).map(_.name).toList
       ObjectType(members, mutables)
 
-    // type this = {...}
-    val thisTypeSym = Symbol.createTypeSymbol("this", infoProvider, sc.owner, obj.pos)
+    val thisSym = Symbol.createValueSymbol("this", infoProvider, sc.owner, obj.pos)
 
     // scope for checking member methods
-    val sc2 = sc.fresh(thisTypeSym, nameTable)
+    val sc2 = sc.fresh(thisSym, nameTable)
 
     val vals = new mutable.ArrayBuffer[ValDef]
     val delayedDefs = new mutable.ArrayBuffer[DelayedDef[FunDef]]
@@ -349,8 +347,8 @@ class Namer(@constructorOnly reporter: Reporter):
       sc2.define(vdefTyped.symbol)
       vals += vdefTyped
 
-    // `type this = { ... }` should not be available in field initialization
-    sc2.define(thisTypeSym)
+    // `this` should not be available in field initialization
+    sc2.define(thisSym)
 
     for case fdef: Ast.FunDef <- obj.members do
       given Scope = sc2
@@ -367,7 +365,7 @@ class Namer(@constructorOnly reporter: Reporter):
     val mutables = nameTable.terms.filter(_.isMutable).map(_.name).toList
     val objType = ObjectType(members, mutables)
 
-    Object(vals.toList, defs)(objType, obj.span)
+    Object(thisSym, vals.toList, defs)(objType, obj.span)
 
   def transform(block: Ast.Block)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
     val phrases = block.phrases
@@ -396,8 +394,8 @@ class Namer(@constructorOnly reporter: Reporter):
         val rhs2 = transform(rhs)
 
         if sym.isField then
-          val thisTypeSym = sc.resolve("this", id.pos, isType = true)
-          val qual = This()(TypeRef(thisTypeSym), id.span)
+          val thisSym = sc.resolve("this", id.pos)
+          val qual = Ident(thisSym)(id.span)
           FieldAssign(qual, sym.name, rhs2)(assign.span)
 
         else
@@ -643,7 +641,10 @@ class Namer(@constructorOnly reporter: Reporter):
          Reporter.error(s"Expect a function with $expect parameters, found = ${params.size}", lambda.pos)
          return Block(words = Nil)(ErrorType, lambda.span)
 
-     val funSym = Symbol.createSymbol("apply", this.nonCyclicTypeProvider, Flags.Method, sc.owner, lambda.pos)
+     // Each object has a self symbol
+     val thisSym = Symbol.createValueSymbol("this", this.nonCyclicTypeProvider, sc.owner, lambda.pos)
+
+     val funSym = Symbol.createSymbol("apply", this.nonCyclicTypeProvider, Flags.Method, thisSym, lambda.pos)
      val lambdaScope = sc.fresh(funSym)
 
      val tvars = new mutable.ArrayBuffer[(TypeVar, Ast.Param)]
@@ -679,7 +680,10 @@ class Namer(@constructorOnly reporter: Reporter):
      val tparamSyms = Nil
      val funDef = FunDef(funSym, tparamSyms, paramSyms, bodyTyped)(locals = Nil, captures = Nil, lambda.span)
      val objType = ObjectType(NamedInfo("apply", procType) :: Nil, mutableFields = Nil)
-     Object(vals = Nil, defs = funDef :: Nil)(objType, lambda.span)
+
+     this.nonCyclicTypeProvider.addProvider(thisSym, () => objType)
+
+     Object(thisSym, vals = Nil, defs = funDef :: Nil)(objType, lambda.span)
 
   private def transform(vdef: Ast.ValDef)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): DelayedDef[ValDef] =
     var flags: Flags = if tt == TargetType.ObjectMember then Flags.Field else Flags.empty

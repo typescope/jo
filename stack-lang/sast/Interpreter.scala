@@ -23,17 +23,26 @@ object Interpreter:
     case BoolVal(value: Boolean)
     case StringVal(value: String)
     case RecordVal(fields: Map[String, Value])
-    case ObjectVal(values: mutable.Map[String, Value], vals: Map[String, Symbol], defs: Map[String, FunDef],  env: Env)
     case FunVal(fun: FunDef, env: Env)
+
+    case ObjectVal(
+      values: mutable.Map[String, Value],
+      self: Symbol,
+      vals: Map[String, Symbol],
+      defs: Map[String, FunDef],
+      env: Env)
+
     case PlatformCall(op: List[Value] => List[Value])
+
     case Uninit
+
 
     def show: String = this match
       case IntVal(value) => value.toString
       case BoolVal(value) => value.toString
       case StringVal(value) => "\"" + value + "\""
       case RecordVal(fields) => fields.map(_ + " = " + _.show).mkString("{", ", ", "}")
-      case ObjectVal(values, vals, defs,  env) => values.map(_ + " = " + _.show).mkString("object {", ", ", "}")
+      case ObjectVal(values, self, vals, defs,  env) => values.map(_ + " = " + _.show).mkString("object {", ", ", "}")
       case FunVal(fun, env) => "closue(env = " + env.show(recursive = false) + ")"
       case PlatformCall(op) => "platformCall"
       case Uninit => "Uninit"
@@ -45,8 +54,6 @@ object Interpreter:
     case NestedEnv(outer: Env)
 
     private val map: mutable.Map[Symbol, Denotation] = mutable.Map.empty
-
-    private var thisValue: Value = null
 
     def fresh(): Env = new Env.NestedEnv(this)
 
@@ -71,24 +78,10 @@ object Interpreter:
       assert(!map.contains(sym), "Double binding " + sym)
       map(sym) = denot
 
-    def bindThis(value: Value): Unit =
-      assert(thisValue == null, "Double binding this")
-      thisValue = value
-
-    def resolveThis(): Value =
-      if thisValue != null then thisValue
-      else
-        this match
-          case NestedEnv(outer) => outer.resolveThis()
-          case _ => throw new Exception("No binding for `this`")
-
     def contains(sym: Symbol): Boolean = map.contains(sym)
 
     def show(recursive: Boolean): String =
       var bindings = map.map(_.name + " -> " + _.show).toList
-
-      if thisValue != null then
-        bindings = ("this -> " + thisValue.show) :: bindings
 
       if recursive then
         this match
@@ -211,10 +204,8 @@ object Interpreter:
     if results.isEmpty then Nil
     else results.last
 
-  def call(fdef: FunDef, args: List[Value], thisValue: Value = null)(using env: Env, params: Params): List[Denotation] =
+  def call(fdef: FunDef, args: List[Value])(using env: Env, params: Params): List[Denotation] =
     val funEnv = env.fresh()
-
-    if thisValue != null then funEnv.bindThis(thisValue)
 
     for (param, arg) <- fdef.params.zip(args) do
       funEnv.bind(param, arg)
@@ -309,7 +300,9 @@ object Interpreter:
             val (objVal: ObjectVal) = eval(qual): @unchecked
             val argVals = args.map(eval)
             val fdef = objVal.defs(name)
-            call(fdef, argVals, objVal)(using objVal.env)
+            val env2 = objVal.env.fresh()
+            env2.bind(objVal.self, objVal)
+            call(fdef, argVals)(using env2)
 
           case _ =>
             val funDenot :: Nil = exec(fun): @unchecked
@@ -330,16 +323,13 @@ object Interpreter:
         env.bind(fdef.symbol, FunVal(fdef, env))
         Nil
 
-      case Object(vals, defs) =>
+      case Object(self, vals, defs) =>
         val fieldInits = vals.map(vdef => vdef.name -> eval(vdef.rhs))
         val fieldVals = mutable.Map.from(fieldInits)
         val valSyms = vals.map(vdef => vdef.name -> vdef.symbol).toMap
         val defTrees = defs.map(mdef => mdef.name -> mdef).toMap
-        val objVal = ObjectVal(fieldVals, valSyms, defTrees, env)
+        val objVal = ObjectVal(fieldVals, self, valSyms, defTrees, env)
         objVal :: Nil
-
-      case _: This =>
-        env.resolveThis() :: Nil
 
       case tdef: TypeDef =>
         Nil

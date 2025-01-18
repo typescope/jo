@@ -130,13 +130,8 @@ object Sast:
         case TypeApply(Ident(sym), _) => Some(sym)
         case _                        => None
 
-  case class This
-    ()
-    (val tpe: Type, val span: Span)
-  extends Word
-
   case class Object
-    (vals: List[ValDef], defs: List[FunDef])
+    (self: Symbol, vals: List[ValDef], defs: List[FunDef])
     (val tpe: Type, val span: Span)
   extends Word
 

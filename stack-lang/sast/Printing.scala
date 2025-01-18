@@ -141,10 +141,7 @@ object Printing:
         else
           Text.Empty
 
-      case _: This =>
-        Text("this")
-
-      case Object(vals, defs) =>
+      case Object(self, vals, defs) =>
         "object {" ~ indent:
            rep(vals, Text.BreakLine)
            ~ Text.BlankLine

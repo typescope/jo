@@ -33,10 +33,6 @@ object TreeChecker extends SastOps.TreeMap:
         assert(qual.tpe.isObjectType, "Object type expected, found = " + qual.tpe.show)
         word
 
-      case _: This =>
-        assert(word.tpe.isObjectType, "this should have object type, found = " + word.tpe.show)
-        word
-
       case Apply(fun, args) =>
         fun.tpe.asProcType match
           case funType =>

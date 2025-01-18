@@ -28,7 +28,7 @@ object SastOps:
 
     def recur(word: Word)(using Context): Word =
       word match
-        case _: IntLit | _: BoolLit | _: StringLit | _: Ident | _: This =>
+        case _: IntLit | _: BoolLit | _: StringLit | _: Ident =>
           word
 
         case Select(qual, name) =>
@@ -82,7 +82,7 @@ object SastOps:
         case Block(words) =>
           Block(words.map(this.apply))(word.tpe, word.span)
 
-        case Object(vals, defs) =>
+        case Object(self, vals, defs) =>
           val vals2: List[ValDef] = vals.map(recurValDef)
           val defs2: List[FunDef] = defs.map(recurFunDef)
-          Object(vals2, defs2)(word.tpe, word.span)
+          Object(self, vals2, defs2)(word.tpe, word.span)
