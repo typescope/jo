@@ -7,7 +7,6 @@ import sast.Sast.*
 import sast.Symbols.*
 
 import native.Backend
-import native.Memory
 
 import native.Assembly
 import native.Assembly.*
@@ -59,10 +58,6 @@ extends Backend(runtime):
           cb.add(Instr.Move(label, r))
           push(Reg(r))
 
-      case record: RecordLit => compile(record)
-
-      case select: Select => compile(select)
-
       case block: Block => compile(block)
 
       case encoded: Encoded => compile(encoded)
@@ -73,15 +68,14 @@ extends Backend(runtime):
 
       case assign: Assign => compile(assign)
 
-      case fieldAssign: FieldAssign => compile(fieldAssign)
-
       case ifElse: If => compile(ifElse)
 
       case whileDo: While => compile(whileDo)
 
       case id: Ident => compile(id)
 
-      case _: ValDef | _: FunDef | _: TypeDef | _: With | _: DefaultParam =>
+      case _: ValDef | _: FunDef | _: TypeDef | _: With | _: DefaultParam |
+           _: Select | _: FieldAssign | _: RecordLit | _: Object =>
         throw new Exception("Unexpected " + word)
 
   /** Compile a function */
@@ -297,62 +291,6 @@ extends Backend(runtime):
           val resCount = if app.tpe.isValueType then 1 else 0
           loadValue(r, app.args.size.toByte, Size.B32)
           this.call(Reg(r), app.args.size, resCount, funAddrOnStack = true)
-
-  /** Compile [x = 3, y = 5] */
-  def compile(record: RecordLit)(using addr: LocalAddr, cb: CodeBuffer): Unit =
-    val recordType = record.tpe.asRecordType
-    val size = Memory.size(recordType)
-
-    // TODO: Explicit allocation in a separate phase
-    alloc(size)
-    for (name, rhs) <- record.args do
-      dup(Size.B32)
-      compile(rhs)
-      useTwoReg: (r1, r2) =>
-        pop(r2, Size.B32)
-        pop(r1, Size.B32)
-        val offset = Memory.fieldOffset(recordType, name)
-        val fieldAddr = Rel(r1, offset)
-        cb.add(Instr.Store(Reg(r2), fieldAddr))
-    end for
-
-  /** Compile p.x */
-  def compile(select: Select)(using addr: LocalAddr, cb: CodeBuffer): Unit =
-    val Select(qual, field) = select
-    val qualType =
-      if qual.tpe.isRecordType then
-        qual.tpe.asRecordType
-      else
-        Memory.toRecordType(qual.tpe.asObjectType)
-
-    val offset = Memory.fieldOffset(qualType, field)
-    compile(select.qual)
-    useReg: r =>
-      pop(r, Size.B32)
-      val fieldAddr = Rel(r, offset)
-      cb.add(Instr.Load(fieldAddr, r, Size.B32))
-      push(Reg(r))
-
-  /** Compile qual.x = rhs */
-  def compile(assign: FieldAssign)(using addr: LocalAddr, cb: CodeBuffer): Unit =
-    val FieldAssign(qual, field, rhs) = assign
-    compile(qual)
-    compile(rhs)
-
-    // Mutable fields only possible in objects (not records)
-    val qualType = Memory.toRecordType(qual.tpe.asObjectType)
-    val offset = Memory.fieldOffset(qualType, field)
-
-    useTwoReg: (r1, r2) =>
-      pop(r1, Size.B32)  // rhs
-      pop(r2, Size.B32)  // qual
-      val fieldAddr = Rel(r2, offset)
-      cb.add(Instr.Store(Reg(r1), fieldAddr))
-
-  /** Allocate a block of memory and push the start address onto stack */
-  def alloc(size: Int)(using LocalAddr, CodeBuffer): Unit =
-    push(Int32(size))
-    call(runtime.GC_alloc)
 
   /** Pop the value on the top of the stack to the given register */
   def pop(destReg: Int, size: Size)(using cb: CodeBuffer) =

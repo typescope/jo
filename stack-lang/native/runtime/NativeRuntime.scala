@@ -20,6 +20,8 @@ extends Linker:
 
   val Core = resolvePath("stk.runtime.native.Core")
 
+  val Core_Addr = Core.typeMember("Addr")
+
   val Core_start = Core.termMember("start")
   val Core_mainStub = Core.termMember("mainStub")
 

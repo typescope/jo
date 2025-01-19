@@ -60,6 +60,7 @@ files=(
     stack-lang/native/runtime/NativeRuntime.scala
     stack-lang/native/runtime/BumpAllocator.scala
     stack-lang/native/LowerContextParams.scala
+    stack-lang/native/ExplicitAlloc.scala
 
     stack-lang/phases/ElimCapture.scala
 

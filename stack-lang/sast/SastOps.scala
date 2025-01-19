@@ -94,7 +94,7 @@ object SastOps:
     end recur
   end TreeMap
 
-  trait TreeAccumulator:
+  trait TreeTraverser:
     type Context
 
     def apply(word: Word)(using Context): Unit
@@ -176,7 +176,7 @@ object SastOps:
           vals.map(recurValDef)
           defs.map(recurFunDef)
     end recur
-  end TreeAccumulator
+  end TreeTraverser
 
   def freeVariables(fdef: FunDef): List[Symbol] =
     val census = new FreeVariables
@@ -185,7 +185,7 @@ object SastOps:
     val masked = fdef.params ++ locals
     census.free.filter(sym => !masked.contains(sym)).distinct.toList
 
-  class FreeVariables extends TreeAccumulator:
+  class FreeVariables extends TreeTraverser:
     val locals = new mutable.ArrayBuffer[Symbol]
     val free = new mutable.ArrayBuffer[Symbol]
 
