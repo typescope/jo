@@ -15,6 +15,11 @@ object Ast:
     def isDef: Boolean = this.isInstanceOf[Def]
     def show: String = Printing.show(this)
 
+    def isEmptyBlock: Boolean =
+      this match
+        case Block(Nil) => true
+        case _ => false
+
   sealed abstract trait RefTree extends Word, TypeTree:
     def name: String
 
@@ -39,7 +44,7 @@ object Ast:
   extends Word, RefTree
 
   case class Assign
-    (ident: Ident, rhs: Word)
+    (lhs: RefTree, rhs: Word)
     (val span: Span)
   extends Word
 
@@ -128,6 +133,11 @@ object Ast:
     (val span: Span)
   extends Word
 
+  case class Object
+    (members: List[ValDef | FunDef])
+    (val span: Span)
+  extends Word
+
   //---------------------------- patterns --------------------------------------
 
   sealed abstract class Pattern extends Tree
@@ -176,6 +186,11 @@ object Ast:
 
   case class FunctionType
     (paramTypes: List[TypeTree], resultType: TypeTree)
+    (val span: Span)
+  extends TypeTree
+
+  case class ObjectType
+    (members: List[FunDef])
     (val span: Span)
   extends TypeTree
 

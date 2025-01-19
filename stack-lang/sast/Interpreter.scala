@@ -24,10 +24,30 @@ object Interpreter:
     case StringVal(value: String)
     case RecordVal(fields: Map[String, Value])
     case FunVal(fun: FunDef, env: Env)
+
+    case ObjectVal(
+      values: mutable.Map[String, Value],
+      self: Symbol,
+      vals: Map[String, Symbol],
+      defs: Map[String, FunDef],
+      env: Env)
+
     case PlatformCall(op: List[Value] => List[Value])
+
     case Uninit
 
-  type Value = IntVal | BoolVal | StringVal | RecordVal | FunVal
+
+    def show: String = this match
+      case IntVal(value) => value.toString
+      case BoolVal(value) => value.toString
+      case StringVal(value) => "\"" + value + "\""
+      case RecordVal(fields) => fields.map(_ + " = " + _.show).mkString("{", ", ", "}")
+      case ObjectVal(values, self, vals, defs,  env) => values.map(_ + " = " + _.show).mkString("object {", ", ", "}")
+      case FunVal(fun, env) => "closue(env = " + env.show(recursive = false) + ")"
+      case PlatformCall(op) => "platformCall"
+      case Uninit => "Uninit"
+
+  type Value = IntVal | BoolVal | StringVal | RecordVal | ObjectVal | FunVal
 
   enum Env:
     case RootEnv()
@@ -59,6 +79,17 @@ object Interpreter:
       map(sym) = denot
 
     def contains(sym: Symbol): Boolean = map.contains(sym)
+
+    def show(recursive: Boolean): String =
+      var bindings = map.map(_.name + " -> " + _.show).toList
+
+      if recursive then
+        this match
+          case NestedEnv(outer) =>
+            bindings = ("outer -> " + outer.show) :: bindings
+          case _ =>
+
+      bindings.mkString("{", ", ", "}")
   end Env
 
   type Params = Map[Symbol, Value]
@@ -175,17 +206,20 @@ object Interpreter:
 
   def call(fdef: FunDef, args: List[Value])(using env: Env, params: Params): List[Denotation] =
     val funEnv = env.fresh()
+
     for (param, arg) <- fdef.params.zip(args) do
       funEnv.bind(param, arg)
+
     for param <- fdef.locals do
       funEnv.bind(param, Uninit)
+
     exec(fdef.body)(using funEnv)
 
-  def eval(word: Word)(using env: Env, params: Params): Value =
+  def eval(word: Word)(using env: Env, params: Params): Value = Debug.trace(word.show + ", env = " + env.show(recursive = false), (_: Value).show, enable = false):
     val (value: Value) :: Nil = exec(word): @unchecked
     value
 
-  def exec(word: Word)(using env: Env, params: Params): List[Denotation] = Debug.trace(word.show, enable = false):
+  def exec(word: Word)(using env: Env, params: Params): List[Denotation] =
     word match
       case IntLit(v)  => IntVal(v) :: Nil
 
@@ -201,11 +235,21 @@ object Interpreter:
         RecordVal(fieldValues.toMap) :: Nil
 
       case Select(qual, name) =>
-        val RecordVal(fieldVals) = eval(qual): @unchecked
-        fieldVals(name) :: Nil
+        eval(qual): @unchecked match
+          case RecordVal(fieldVals) =>
+            fieldVals(name) :: Nil
 
-      case Assign(sym, rhs) =>
-        env.update(sym, eval(rhs))
+          case objVal: ObjectVal =>
+            objVal.values(name) :: Nil
+
+      case Assign(ident, rhs) =>
+        env.update(ident.symbol, eval(rhs))
+        Nil
+
+      case FieldAssign(qual, name, rhs) =>
+        val (objVal: ObjectVal) = eval(qual): @unchecked
+        val rhsValue = eval(rhs)
+        objVal.values(name) = rhsValue
         Nil
 
       case If(cond, thenp, elsep) =>
@@ -251,12 +295,22 @@ object Interpreter:
           case None    => exec(default)
 
       case Apply(fun, args) =>
-        val funDenot :: Nil = exec(fun): @unchecked
-        val argVals = args.map(eval)
+        fun match
+          case Select(qual, name) if qual.tpe.isObjectType =>
+            val (objVal: ObjectVal) = eval(qual): @unchecked
+            val argVals = args.map(eval)
+            val fdef = objVal.defs(name)
+            val env2 = objVal.env.fresh()
+            env2.bind(objVal.self, objVal)
+            call(fdef, argVals)(using env2)
 
-        (funDenot: @unchecked) match
-          case FunVal(fdef, env) => call(fdef, argVals)(using env)
-          case PlatformCall(op) => op(argVals)
+          case _ =>
+            val funDenot :: Nil = exec(fun): @unchecked
+            val argVals = args.map(eval)
+
+            (funDenot: @unchecked) match
+              case FunVal(fdef, env) => call(fdef, argVals)(using env)
+              case PlatformCall(op) => op(argVals)
 
       case TypeApply(fun, _) =>
         exec(fun)
@@ -268,6 +322,14 @@ object Interpreter:
       case fdef: FunDef =>
         env.bind(fdef.symbol, FunVal(fdef, env))
         Nil
+
+      case Object(self, vals, defs) =>
+        val fieldInits = vals.map(vdef => vdef.name -> eval(vdef.rhs))
+        val fieldVals = mutable.Map.from(fieldInits)
+        val valSyms = vals.map(vdef => vdef.name -> vdef.symbol).toMap
+        val defTrees = defs.map(mdef => mdef.name -> mdef).toMap
+        val objVal = ObjectVal(fieldVals, self, valSyms, defTrees, env)
+        objVal :: Nil
 
       case tdef: TypeDef =>
         Nil
@@ -281,6 +343,7 @@ object Interpreter:
     val namespacesSAST =
       Parser.parse(sourceFiles)     |>
       typeCheck                     |>
+      TreeChecker.check             |>
       Printing.peek(enable = false)
 
     val mains = namespacesSAST.collect:

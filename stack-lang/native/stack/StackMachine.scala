@@ -1,11 +1,12 @@
 package native.stack
 
+import common.Debug
+
 import sast.*
 import sast.Sast.*
 import sast.Symbols.*
 
 import native.Backend
-import native.Memory
 
 import native.Assembly
 import native.Assembly.*
@@ -44,7 +45,7 @@ extends Backend(runtime):
   def compile(block: Block)(using LocalAddr, CodeBuffer): Unit =
     for word <- block.words do compile(word)
 
-  def compile(word: Word)(using addr: LocalAddr, cb: CodeBuffer): Unit =
+  def compile(word: Word)(using addr: LocalAddr, cb: CodeBuffer): Unit = Debug.trace("Compiling " + word.show, enable = false):
     word match
       case IntLit(v) => push(Int32(v))
 
@@ -56,10 +57,6 @@ extends Backend(runtime):
         useReg: r =>
           cb.add(Instr.Move(label, r))
           push(Reg(r))
-
-      case record: RecordLit => compile(record)
-
-      case select: Select => compile(select)
 
       case block: Block => compile(block)
 
@@ -77,7 +74,10 @@ extends Backend(runtime):
 
       case id: Ident => compile(id)
 
-      case _: ValDef | _: FunDef | _: TypeDef | _: With | _: DefaultParam =>
+      case _: TypeDef =>
+
+      case _: ValDef | _: FunDef  | _: With | _: DefaultParam |
+           _: Select | _: FieldAssign | _: RecordLit | _: Object =>
         throw new Exception("Unexpected " + word)
 
   /** Compile a function */
@@ -102,6 +102,7 @@ extends Backend(runtime):
     // the ordering does not matter
     for (local, index) <- fdef.locals.zipWithIndex do
       val offset = -(index + 1) << 2
+      assert(!symAddrMap.contains(local), "Double binding " + local + " in " + sym)
       symAddrMap(local) = Rel(FP_REG, offset)
 
     val sizeLocals = fdef.locals.size << 2
@@ -238,7 +239,7 @@ extends Backend(runtime):
         cb.add(Instr.Store(Reg(r), dest))
         i += 1
 
-  /** Initialize a value definition */
+  /** Compile x = e */
   def compile(assign: Assign)(using addr: LocalAddr, cb: CodeBuffer): Unit =
     val loc = addr(assign.symbol)
     compile(assign.rhs)
@@ -293,41 +294,6 @@ extends Backend(runtime):
           val resCount = if app.tpe.isValueType then 1 else 0
           loadValue(r, app.args.size.toByte, Size.B32)
           this.call(Reg(r), app.args.size, resCount, funAddrOnStack = true)
-
-  /** Compile [x = 3, y = 5] */
-  def compile(record: RecordLit)(using addr: LocalAddr, cb: CodeBuffer): Unit =
-    val recordType = record.tpe.asRecordType
-    val size = Memory.size(recordType)
-
-    // TODO: Explicit allocation in a separate phase
-    alloc(size)
-    for (name, rhs) <- record.args do
-      dup(Size.B32)
-      compile(rhs)
-      useTwoReg: (r1, r2) =>
-        pop(r2, Size.B32)
-        pop(r1, Size.B32)
-        val offset = Memory.fieldOffset(recordType, name)
-        val fieldAddr = Rel(r1, offset)
-        cb.add(Instr.Store(Reg(r2), fieldAddr))
-    end for
-
-  /** Compile p.x */
-  def compile(select: Select)(using addr: LocalAddr, cb: CodeBuffer): Unit =
-    val field = select.name
-    val qualType = select.qual.tpe.asRecordType
-    val offset = Memory.fieldOffset(qualType, field)
-    compile(select.qual)
-    useReg: r =>
-      pop(r, Size.B32)
-      val fieldAddr = Rel(r, offset)
-      cb.add(Instr.Load(fieldAddr, r, Size.B32))
-      push(Reg(r))
-
-  /** Allocate a block of memory and push the start address onto stack */
-  def alloc(size: Int)(using LocalAddr, CodeBuffer): Unit =
-    push(Int32(size))
-    call(runtime.GC_alloc)
 
   /** Pop the value on the top of the stack to the given register */
   def pop(destReg: Int, size: Size)(using cb: CodeBuffer) =

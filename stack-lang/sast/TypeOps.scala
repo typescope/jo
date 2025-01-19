@@ -147,7 +147,7 @@ object TypeOps:
       case IntType     => "Int"
       case BoolType    => "Bool"
       case StringType  => "String"
-      case VoidType    => "Void"
+      case VoidType    => "void"
       case AnyType     => "Any"
       case BottomType  => "Bottom"
       case ErrorType   => "Error"
@@ -163,7 +163,17 @@ object TypeOps:
         if sym.isType then sym.name else sym.name + ": " + sym.info.show
 
       case RecordType(fields) =>
-        fields.map(f => f.name + ": " + show(f.info)).mkString("{", ", ", "}")
+        fields.map(f => f.name + ": " + show(f.info)).mkString("{ ", ", ", " }")
+
+      case ObjectType(fields, methods, muts) =>
+        val fieldList = fields.map: f =>
+          val mod = if muts.contains(f.name) then "var " else " val "
+          mod + f.name + ": " + show(f.info)
+
+        val methodList = methods.map: m =>
+          "def " + m.name + show(m.info)
+
+        (fieldList ++ methodList).mkString("object { ", "; ", " }")
 
       case UnionType(branches) =>
         def paramStr(paramInfos: List[NamedInfo[Type]]) = paramInfos.map(param => param.name + ": " + show(param.info)).mkString("(", ", ", ")")
@@ -187,15 +197,16 @@ object TypeOps:
         show(lo) + " .. " + show(hi)
 
       case ProcType(params, resType, n) =>
-        val preStr = params.take(n).map(param => param.name + ": " + show(param.info)).mkString("(", ", ", ")")
+        val preStr =
+          if n > 0 then
+            params.take(n).map(param => param.name + ": " + show(param.info)).mkString("(", ", ", ")")
+          else
+            ""
+
         val postStr = params.drop(n).map(param => param.name + ": " + show(param.info)).mkString("(", ", ", ")")
         preStr + postStr + ": " + show(resType)
 
-      case FunctionType(paramTypes, resType) =>
-        val params = paramTypes.map(show).mkString(" * ")
-        params + " => " + show(resType)
-
-      case _: NamespaceInfo => "{ ...namespace }"
+      case _: NameTableInfo => "{ ...nametable }"
   end show
 
   trait TypeMap:
@@ -208,7 +219,7 @@ object TypeOps:
         case VoidType | ErrorType | AnyType | BottomType | IntType | BoolType | StringType =>
           tp
 
-        case _: TypeRef | _: TypeParamRef | _: TypeVar | _: NamespaceInfo =>
+        case _: TypeRef | _: TypeParamRef | _: TypeVar | _: NameTableInfo =>
           tp
 
         case RecordType(fields) =>
@@ -226,6 +237,17 @@ object TypeOps:
               )
             )
           UnionType(branches2)
+
+        case ObjectType(fields, methods, muts) =>
+          val fields2 =
+            for field <- fields
+            yield field.copy(info = this(field.info))
+
+          val methods2 =
+            for method <- methods
+            yield method.copy(info = this(method.info))
+
+          ObjectType(fields2, methods2, muts)
 
         case AppliedType(tctor, targs) =>
           val tctor2 = apply(tctor)
@@ -258,11 +280,6 @@ object TypeOps:
 
           val resType2 = this(resType)
           ProcType(params2, resType2, preParamCount)
-
-        case FunctionType(paramTypes, resType) =>
-          val paramTypes2 = paramTypes.map(tp => this(tp))
-          val resType2 = this(resType)
-          FunctionType(paramTypes2, resType2)
 
   class SymbolsTypeMap extends TypeMap:
     type Context = Map[Symbol, Type]

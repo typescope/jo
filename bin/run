@@ -32,6 +32,7 @@ files=(
     stack-lang/sast/SastOps.scala
     stack-lang/sast/Symbols.scala
     stack-lang/sast/Subtyping.scala
+    stack-lang/sast/TreeChecker.scala
     stack-lang/sast/Types.scala
     stack-lang/sast/TypeOps.scala
 

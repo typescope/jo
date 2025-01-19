@@ -28,38 +28,71 @@ object Types:
     def isUnionType: Boolean =
       TypeOps.approx(this, isUp = true).isInstanceOf[UnionType]
 
+    def isObjectType: Boolean =
+      TypeOps.approx(this, isUp = true).isInstanceOf[ObjectType]
+
     def isTypeLambda: Boolean =
       TypeOps.approx(this, isUp = true).isInstanceOf[TypeLambda]
 
     def isProcType: Boolean =
       TypeOps.approx(this, isUp = true).isInstanceOf[ProcType]
 
-    def isFunctionType: Boolean =
-      TypeOps.approx(this, isUp = true).isInstanceOf[FunctionType]
-
     def isPolyType: Boolean =
       TypeOps.approx(this, isUp = true).isInstanceOf[PolyType]
 
     def isValueType: Boolean =
       TypeOps.approx(this, isUp = true)  match
-        case VoidType | _: ProcType | _: TypeLambda | _: PolyType | _: NamespaceInfo => false
+        case VoidType | _: ProcType | _: TypeLambda | _: PolyType | _: NameTableInfo => false
         case _ => true
 
-    def isInvokableType: Boolean = isFunctionType || isProcType
+    def asRecordType: RecordType =
+      TypeOps.approx(this, isUp = true).asInstanceOf[RecordType]
 
-    def asRecordType: RecordType = TypeOps.approx(this, isUp = true).asInstanceOf[RecordType]
+    def asUnionType: UnionType =
+      TypeOps.approx(this, isUp = true).asInstanceOf[UnionType]
 
-    def asUnionType: UnionType = TypeOps.approx(this, isUp = true).asInstanceOf[UnionType]
+    def asTypeLambda: TypeLambda =
+      TypeOps.approx(this, isUp = true).asInstanceOf[TypeLambda]
 
-    def asTypeLambda: TypeLambda = TypeOps.approx(this, isUp = true).asInstanceOf[TypeLambda]
+    def asProcType: ProcType =
+      TypeOps.approx(this, isUp = true).asInstanceOf[ProcType]
 
-    def asProcType: ProcType = TypeOps.approx(this, isUp = true).asInstanceOf[ProcType]
+    def asPolyType: PolyType =
+      TypeOps.approx(this, isUp = true).asInstanceOf[PolyType]
 
-    def asFunctionType: FunctionType = TypeOps.approx(this, isUp = true).asInstanceOf[FunctionType]
+    def asObjectType: ObjectType =
+      TypeOps.approx(this, isUp = true).asInstanceOf[ObjectType]
 
-    def asInvokableType: InvokableType = TypeOps.approx(this, isUp = true).asInstanceOf[InvokableType]
+    def isFunctionType: Boolean =
+      TypeOps.approx(this, isUp = true) match
+         case ObjectType(Nil, NamedInfo("apply", _) :: Nil, Nil) => true
+         case _ => false
 
-    def asPolyType: PolyType = TypeOps.approx(this, isUp = true).asInstanceOf[PolyType]
+    def toFunctionType: Option[ProcType] =
+      TypeOps.approx(this, isUp = true) match
+        case ObjectType(Nil, NamedInfo("apply", tp) :: Nil, Nil) =>
+         TypeOps.approx(tp, isUp = true) match
+            case procType: ProcType => Some(procType)
+            case _ => None
+
+        case _ => None
+
+    def getTermMember(name: String): Option[Type] =
+      TypeOps.approx(this, isUp = true) match
+        case info: NameTableInfo =>
+          info.resolveTerm(name).map(sym => TypeRef(sym))
+
+        case recordType: RecordType =>
+          recordType.getFieldType(name)
+
+        case objectType: ObjectType =>
+          objectType.getMemberType(name)
+
+        case _ => None
+
+    def termMember(name: String): Type = getTermMember(name).get
+
+    def hasTermMember(name: String): Boolean = getTermMember(name).nonEmpty
 
     def is[T <: Type : ClassTag]: Boolean =
       this match
@@ -113,9 +146,6 @@ object Types:
       fields.collectFirst:
         case NamedInfo(f, tp) if f == field => tp
 
-    def hasField(name: String): Boolean =
-      fieldNames.contains(name)
-
     def fieldType(name: String): Type =
       getFieldType(name).get
 
@@ -136,6 +166,27 @@ object Types:
       branches.indexWhere:
         case NamedInfo(t, _) => t == tag
 
+  /** The type of an object */
+  case class ObjectType(
+    fields: List[NamedInfo[Type]],
+    methods: List[NamedInfo[Type]],
+    mutableFields: List[String])
+  extends Type:
+    def fieldNames = fields.map(_.name)
+    def methodNames = methods.map(_.name)
+
+    def getMemberType(name: String): Option[Type] =
+      val fieldOpt = fields.collectFirst:
+        case NamedInfo(m, tp) if m == name => tp
+
+      if fieldOpt.isEmpty then
+        methods.collectFirst:
+          case NamedInfo(m, tp) if m == name => tp
+      else
+        fieldOpt
+
+    def isMutable(name: String): Boolean = mutableFields.contains(name)
+
   case class PolyType
     (tparams: List[NamedInfo[TypeBound]], resultType: Type)
   extends Type:
@@ -143,21 +194,23 @@ object Types:
     val bounds: List[TypeBound] = tparams.map(_.info)
     val paramCount = tparams.size
 
-  sealed trait InvokableType extends Type:
-    def paramTypes: List[Type]
-    def resultType: Type
-
-    def paramCount = paramTypes.size
-    def resCount = if resultType.isValueType then 1 else 0
-
   case class ProcType
     (params: List[NamedInfo[Type]], resultType: Type, preParamCount: Int)
-  extends Type with InvokableType:
+  extends Type:
     val preParamTypes: List[Type] = params.take(preParamCount).map(_.info)
     val postParamTypes: List[Type] = params.drop(preParamCount).map(_.info)
     val paramTypes: List[Type] = params.map(_.info)
+    val paramCount: Int = params.size
+
+    def prepend(paramsToAdd: List[NamedInfo[Type]]): ProcType =
+      ProcType(paramsToAdd ++ params, resultType, preParamCount)
+
+    def append(paramsToAdd: List[NamedInfo[Type]]): ProcType =
+      ProcType(params ++ paramsToAdd, resultType, preParamCount)
+
     def postParamCount = params.size - preParamCount
-    def toFunType: FunctionType = FunctionType(paramTypes, resultType)
+
+    def resCount = if resultType.isValueType then 1 else 0
 
   /** A type lambda */
   case class TypeLambda
@@ -181,10 +234,6 @@ object Types:
     (tctor: Type, targs: List[Type])
   extends ProxyType
 
-  case class FunctionType
-    (paramTypes: List[Type], resultType: Type)
-  extends Type with InvokableType
-
   /** Represents upper and lower bounds of type parameters */
   case class TypeBound
     (lo: Type, hi: Type)
@@ -206,7 +255,7 @@ object Types:
     def isSuptype(tp: Type): List[Subtyping.Task] =
       inferencer.isSuptype(this, tp)
 
-  class NamespaceInfo(val nameTable: NameTable) extends Type:
+  class NameTableInfo(val nameTable: NameTable) extends Type:
     def this() = this(new NameTable)
 
     export nameTable.{ resolve, resolveType, resolveTerm, define }

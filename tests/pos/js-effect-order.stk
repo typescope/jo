@@ -1,0 +1,15 @@
+fun effect(n: Int): Int =
+  n p
+  n
+
+fun main =
+  val r =
+    (effect 1) +
+      if effect 2 > 0 then
+        val c = effect 3
+        c
+      else
+        val c = effect 4
+        c
+
+  r p

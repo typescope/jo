@@ -29,7 +29,7 @@ object ExprTyper:
     * be used.
     */
   def precedence(word: Word): Int =
-    assert(word.tpe.isProcType || word.tpe.isFunctionType || word.tpe.isPolyType, word)
+    assert(word.tpe.isProcType || word.tpe.isPolyType, word)
     word match
       case Ident(sym)        => precedence(sym.name)
       case TypeApply(fun, _) => precedence(fun)
@@ -162,12 +162,16 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
           val tp = wordTyped.tpe
 
           if tp.isProcType then
-            val procType = tp.asProcType
             val precedence = ExprTyper.precedence(wordTyped)
             // infix, postfix, prefix
             if precedence > precLimit then
+              val procType = tp.asProcType
+              val preParamTypes = procType.preParamTypes
+              val postParamTypes = procType.postParamTypes
+              val resType = procType.resultType
+
               // continue if current function has higher binding power
-              values ++= call(wordTyped, procType.preParamTypes, procType.postParamTypes, procType.resultType, words, values, precedence)
+              values ++= call(wordTyped, preParamTypes, postParamTypes, resType, words, values, precedence)
             else
               // TODO: wordTyped is discarded and it will be checked!
               // put back word
@@ -175,13 +179,14 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
               continue = false
 
           else if tp.isFunctionType && wordTyped.isInstanceOf[Ident] then
-            val funType = tp.asFunctionType
+            val funType = tp.toFunctionType.get
+            val autoApply = Select(wordTyped, "apply")(funType, wordTyped.span)
             // prefix
             if values.isEmpty && words.nonEmpty then
-              val precedence = ExprTyper.precedence(wordTyped)
+              val precedence = ExprTyper.precedence(autoApply)
               if precedence > precLimit then
                 val preTypes = Nil
-                values ++= call(wordTyped, preTypes, funType.paramTypes, funType.resultType, words, values, precedence)
+                values ++= call(autoApply, preTypes, funType.paramTypes, funType.resultType, words, values, precedence)
               else
                 values += Item.Typed(wordTyped)
 

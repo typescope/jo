@@ -44,11 +44,13 @@ object Symbols:
         case provider: InfoProvider => provider(this)
 
     def isFunction : Boolean = flags.is(Flags.Fun)
+    def isMethod   : Boolean = flags.is(Flags.Method)
     def isValue    : Boolean = flags.is(Flags.Val)
     def isType     : Boolean = flags.is(Flags.Type)
     def isNamespace: Boolean = flags.is(Flags.NSpace)
     def isParameter: Boolean = flags.isAllOf(Flags.Val | Flags.Param)
     def isMutable  : Boolean = flags.isAllOf(Flags.Val | Flags.Mutable)
+    def isField    : Boolean = flags.isAllOf(Flags.Val | Flags.Field)
 
     def isTypeParameter: Boolean = flags.isAllOf(Flags.Type | Flags.Param)
 
@@ -66,7 +68,7 @@ object Symbols:
         owner.enclosingNamespace
 
     def enclosingFunction: Symbol =
-      if this.isFunction then
+      if this.isFunction || this.isMethod then
         this
       else
         // owner can be null, let exception be thrown
@@ -89,7 +91,7 @@ object Symbols:
 
     def member(name: String, isType: Boolean): Option[Symbol] =
       info match
-        case nsInfo: NamespaceInfo => nsInfo.resolve(name, isType)
+        case nsInfo: NameTableInfo => nsInfo.resolve(name, isType)
         case _ => None
 
     def fullName: String = this.ownersIterator.foldLeft(this.name):
@@ -100,6 +102,9 @@ object Symbols:
     override def toString() = name
 
   object Symbol:
+    def createSymbol(name: String, info: Type | InfoProvider, flags: Flags, owner: Symbol, pos: SourcePosition) =
+      new Symbol(name, info, flags, owner, pos)
+
     def createValueSymbol(name: String, tp: Type | InfoProvider, owner: Symbol, pos: SourcePosition) =
       new Symbol(name, tp, Flags.Val, owner, pos)
 
@@ -118,6 +123,6 @@ object Symbols:
     def createTypeParamSymbol(name: String, tp: Type | InfoProvider, owner: Symbol, pos: SourcePosition) =
       new Symbol(name, tp, Flags.Param | Flags.Type, owner, pos)
 
-    def createNamespaceSymbol(name: String, info: NamespaceInfo, owner: Symbol, pos: SourcePosition, isBranch: Boolean) =
+    def createNamespaceSymbol(name: String, info: NameTableInfo, owner: Symbol, pos: SourcePosition, isBranch: Boolean) =
       val flags = if isBranch then Flags.NSpace | Flags.Branch else Flags.NSpace
       new Symbol(name, info, flags, owner, pos)

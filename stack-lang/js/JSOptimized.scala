@@ -24,7 +24,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
 
   val keywords = List(
     "for", "while", "function", "var", "let", "break", "continue", "if",
-    "const", "class", "constructor", "with"
+    "const", "class", "constructor", "with", "this"
   )
 
   // Make keywords unavailable
@@ -55,8 +55,6 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
 
   given Text.Maker[Symbol] = sym => Text(jsName(sym))
 
-  given Text.Maker[ValDef] = vdef => "var " ~ vdef.symbol ~ ";"
-
   //----------------------------------------------------------------------------
 
   case class ValueContext(cont: Text => Text)
@@ -73,15 +71,15 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
       case ValueContext(cont2) => throw new Exception("Value expected, found none")
       case StatContext(cont2)  => cont2()
 
-  def cont(expr: Word)(cont1: Text => Text): Text =
+  def run(expr: Word)(cont1: Text => Text): Text =
     compile(expr)(using ValueContext(cont1))
 
-  def cont(exprs: List[Word])(c: List[Text] => Text): Text =
+  def run(exprs: List[Word])(c: List[Text] => Text): Text =
     exprs match
       case Nil => c(Nil)
       case expr :: exprs =>
-        cont(expr): t =>
-          cont(exprs): ts =>
+        run(expr): t =>
+          run(exprs): ts =>
             c(t :: ts)
 
   //----------------------------------------------------------------------------
@@ -131,13 +129,13 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
         cont("\"" ~ StringUtil.escape(v) ~ "\"")
 
       case RecordLit(fields) =>
-        cont(fields.map(_._2)): ts =>
-          val fields2 = fields.map(_._1).zip(ts).map(encodeSymbolic(_) ~ ": " ~ _)
+        run(fields.map(_._2)): vs =>
+          val fields2 = fields.map(_._1).zip(vs).map(encodeSymbolic(_) ~ ": " ~ _)
           cont("{" ~ rep(fields2, Text(", ")) ~ "}")
 
       case Select(qual, name) =>
-        cont(qual): t =>
-          cont(t ~ "." ~ encodeSymbolic(name))
+        run(qual): v =>
+          cont(v ~ "." ~ encodeSymbolic(name))
 
       case Block(words) =>
         words match
@@ -148,13 +146,18 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
             if word.tpe.isValueType then
               val stats :+ expr = words: @unchecked
               val sep = if stats.isEmpty then Text.Empty else Text.BreakLine
-              rep(stats, Text.BreakLine) ~ sep ~ compile(expr)
+              rep(stats, Text.BreakLine) ~ sep ~ run(expr): v =>
+                cont(v)
 
             else
-              rep(words, Text.BreakLine)
+              rep(words, Text.BreakLine) ~ cont()
 
-      case Encoded(repr) =>
-        compile(repr)
+      case encoded @ Encoded(repr) =>
+        if encoded.isValueDrop then
+          repr ~ ";" ~ cont()
+        else
+          run(repr): v =>
+            cont(v)
 
       case app @ Apply(fun, args) =>
         call(fun, args)
@@ -162,23 +165,27 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
       case TypeApply(fun, _) =>
         compile(fun)
 
-      case Assign(sym, rhs) =>
-        cont(rhs): t =>
+      case Assign(Ident(sym), rhs) =>
+        run(rhs): t =>
           if sym.isMutable then
             sym ~ " = " ~ t ~ ";" ~ cont()
           else
             "const " ~ sym ~ " = " ~ t ~ ";" ~ cont()
 
+      case FieldAssign(qual, name, rhs) =>
+        run(qual): v =>
+          v ~ "." ~ encodeSymbolic(name) ~ " = " ~ rhs ~ cont()
+
       case If(cond, thenp, elsep) =>
-        cont(cond): v =>
+        run(cond): v =>
           if word.tpe.isValueType then
             val resName = unique.freshName("res")
             "var " ~ resName ~ ";" ~ Text.BreakLine ~
             "if (" ~ v ~ ")" ~ " {" ~ indent:
-                cont(thenp): v =>
+                run(thenp): v =>
                   resName ~ " = " ~ v ~ ";"
             ~ "}" ~ " else {" ~ indent:
-                cont(elsep): v =>
+                run(elsep): v =>
                   resName ~ " = " ~ v ~ ";"
             ~ "}" ~ Text.BreakLine ~
             cont(Text(resName))
@@ -192,7 +199,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
             ~ cont()
 
       case While(cond, body) =>
-        cont(cond): t =>
+        run(cond): t =>
           "while (" ~ t ~ ") {" ~ indent(body) ~ "}"
           ~ cont()
 
@@ -200,7 +207,10 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
         assert(!sym.isAllOf(Flags.Context | Flags.Param), "Unexpected context parameter")
         cont(Text(sym))
 
-      case _: ValDef | _: FunDef | _: TypeDef |  _: With | _: DefaultParam =>
+      case _: TypeDef =>
+        cont()
+
+      case _: ValDef | _: FunDef |  _: With | _: DefaultParam | _: Object =>
         throw new Exception("Unexpected " + word)
 
   /** Compile a function */
@@ -219,25 +229,25 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
           if resCount == 0 then
             rep(locals, Text.Empty) ~ fdef.body
           else
-            rep(locals, Text.Empty) ~ cont(fdef.body) { v =>
+            rep(locals, Text.Empty) ~ run(fdef.body) { v =>
               "return " ~ v ~ ";" ~  Text.BreakLine
             }
       ~ "}"
 
   def div(args: List[Word])(using Context): Text =
     val a :: b :: Nil = args: @unchecked
-    cont(a): v1 =>
-      cont(b): v2 =>
+    run(a): v1 =>
+      run(b): v2 =>
         cont("((" ~ v1 ~ " / " ~ v2 ~ ")" ~ " >> 0" ~ ")")
 
   def bnot(args: List[Word])(using Context): Text =
     val operand :: Nil = args: @unchecked
-    cont(operand): v =>
+    run(operand): v =>
       cont("(!" ~ v  ~ ")")
 
   def abort(args: List[Word])(using Context): Text =
     val arg :: Nil = args: @unchecked
-    cont(arg): v =>
+    run(arg): v =>
       "throw "  ~ v ~ ";" ~ Text.BreakLine ~ cont(Text("null"))
 
 
@@ -247,18 +257,25 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
         callPredef(sym, args)
 
       case _ =>
-        cont(fun): v =>
-          cont(args): vs =>
+        run(fun): v =>
+          run(args): vs =>
             val call = v ~ "(" ~ rep(vs, Text(", ")) ~ ")"
-            if fun.tpe.asProcType.resCount == 1 then cont(call)
-            else call ~ cont()
+            if fun.tpe.asProcType.resCount == 1 then
+              val resName = unique.freshName("res")
+              "const " ~ resName ~ " = " ~ call ~ ";" ~ Text.BreakLine
+              ~ cont(Text(resName))
+            else
+              call ~ ";"  ~ cont()
 
   /** Compile a primitive */
   def call(sym: Symbol, args: List[Word])(using Context): Text =
-    cont(args): vs =>
+    run(args): vs =>
       val call = sym ~ "(" ~ rep(vs, Text(", ")) ~ ")"
-      if sym.info.asProcType.resCount == 1 then cont(call)
-      else call ~ cont()
+      if sym.info.asProcType.resCount == 1 then
+        val resName = unique.freshName("res")
+        "const " ~ resName ~ " = " ~ call ~ ";" ~ Text.BreakLine ~ cont(Text(resName))
+      else
+        call ~ ";" ~ cont()
 
   /** Compile a primitive */
   def callPredef(sym: Symbol, args: List[Word])(using Context): Text =
@@ -266,8 +283,8 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
 
     def binary(op: String): Text =
       val a :: b :: Nil = args: @unchecked
-      cont(a): v1 =>
-        cont(b): v2 =>
+      run(a): v1 =>
+        run(b): v2 =>
           cont("(" ~ v1 ~ " " ~ op ~ " " ~ v2 ~ ")")
 
     sym match

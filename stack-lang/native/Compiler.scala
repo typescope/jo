@@ -77,6 +77,7 @@ object Compiler:
           val backend = backendBuilder(runtimeNameTable, main)
 
           val contextParamsLower = new native.LowerContextParams(backend.runtime)
+          val explicitAlloc = new native.ExplicitAlloc(backend.runtime)
 
           val assembler = (prog: Prog) =>
             // println(prog.show)
@@ -84,11 +85,12 @@ object Compiler:
 
           namespacesSAST                |>
           Printing.peek(enable = false) |>
-          new ExplicitInit().transform  |+
-          Printing.peek(enable = false) |>
           ElimCapture.transform         |+
+          TreeChecker.check             |>
           Printing.peek(enable = false) |>
           contextParamsLower.transform  |+
+          Printing.peek(enable = false) |>
+          explicitAlloc.transform       |+
           Printing.peek(enable = false) |>
           backend.compile               |>
           assembler

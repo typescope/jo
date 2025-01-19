@@ -26,6 +26,15 @@ object Sast:
 
     def show: String = Printing.show(this)
 
+    /** Whether the word can be duplicated as neighbors without affecting program semantics */
+    def isIdempotent: Boolean =
+      this match
+        case _: IntLit | _: BoolLit | _: Ident => true
+
+        case Select(qual, _) => qual.isIdempotent
+
+        case _ => false
+
   case class IntLit
     (value: Int)
     (val span: Span)
@@ -53,15 +62,27 @@ object Sast:
     (symbol: Symbol)
     (val span: Span)
   extends Word:
+    assert(!symbol.isType)
+
     val tpe: Type = TypeRef(symbol)
 
   case class Select
     (qual: Word, name: String)
     (val tpe: Type, val span: Span)
-  extends Word
+  extends Word:
+    assert(qual.tpe.isValueType)
 
+  /** Assignment to local vars */
   case class Assign
-    (symbol: Symbol, rhs: Word)
+    (ident: Ident, rhs: Word)
+    (val span: Span)
+  extends Word:
+    val symbol = ident.symbol
+    def tpe: Type = VoidType
+
+  /** Assignment to object fields */
+  case class FieldAssign
+    (qual: Word, name: String, rhs: Word)
     (val span: Span)
   extends Word:
     def tpe: Type = VoidType
@@ -108,15 +129,20 @@ object Sast:
     (fun: Word, args: List[Word])
     (val tpe: Type, val span: Span)
   extends Word:
-    fun.tpe.asInvokableType match
-      case appType: InvokableType =>
-        assert(appType.paramTypes.size == args.size)
+    fun.tpe.asProcType match
+      case procType =>
+        assert(procType.paramTypes.size == args.size, procType.show + ", " + args)
 
     def funSymbol: Option[Symbol] =
       fun match
         case Ident(sym)               => Some(sym)
         case TypeApply(Ident(sym), _) => Some(sym)
         case _                        => None
+
+  case class Object
+    (self: Symbol, vals: List[ValDef], defs: List[FunDef])
+    (val tpe: Type, val span: Span)
+  extends Word
 
   /** Encoding of a type with another type
     *
@@ -152,27 +178,29 @@ object Sast:
   case class ValDef
     (symbol: Symbol, rhs: Word)
     (val span: Span)
-  extends Word, Def
+  extends Word, Def:
+    val isMutable = symbol.isMutable
 
   case class TypeDef
     (symbol: Symbol)
     (val span: Span)
   extends Word, Def
 
-  /** Represents a named function definition
+  /** Represents a named function or method definition
     *
     * @param locals contains a list of local value symbols (excluding params)
     */
   case class FunDef
     (symbol: Symbol, tparams: List[Symbol], params: List[Symbol], body: Word)
-    (val locals: List[Symbol], val captures: List[Symbol], val span: Span)
-  extends Word, Def
+    (val locals: List[Symbol], val span: Span)
+  extends Word, Def:
+    lazy val freeVariables: List[Symbol] = SastOps.freeVariables(this)
 
   case class Namespace
     (symbol: Symbol, imports: List[Symbol], defs: List[Def])
     (val span: Span)
   extends Positioned:
-    def info: NamespaceInfo = symbol.info.as[NamespaceInfo]
+    def info: NameTableInfo = symbol.info.as[NameTableInfo]
 
     val fullName: String = symbol.fullName
 

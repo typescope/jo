@@ -36,15 +36,16 @@ extends SastOps.TreeMap:
     for ns <- nss yield transformNamespace(ns)
 
   def transformNamespace(ns: Namespace): Namespace =
-    val funs =
-      for case fdef: FunDef <- ns.defs
-      yield
+    val defs = ns.defs.map:
+      case fdef: FunDef =>
         val locals2 = mutable.ArrayBuffer.from(fdef.locals)
         given Context = FunContext(fdef.symbol, locals2)
         val body2 = this(fdef.body)
-        fdef.copy(body = body2)(locals2.toList, fdef.captures, fdef.span)
+        fdef.copy(body = body2)(locals2.toList, fdef.span)
 
-    Namespace(ns.symbol, ns.imports, funs)(ns.span)
+      case defn => defn
+
+    Namespace(ns.symbol, ns.imports, defs)(ns.span)
 
   override def apply(word: Word)(using ctx: Context): Word =
     word match
@@ -77,7 +78,7 @@ extends SastOps.TreeMap:
           val paramName = arg.paramRef.symbol.fullName
           val argValueSym = new Symbol("arg_" + paramName, arg.rhs.tpe, Flags.Val, owner = ctx.funSymbol, sourcePos = arg.rhs.pos)
           ctx.locals += argValueSym
-          stats += Assign(argValueSym, this(arg.rhs))(arg.rhs.span)
+          stats += Assign(Ident(argValueSym)(arg.rhs.span), this(arg.rhs))(arg.rhs.span)
           argValueSym
 
         if only then
@@ -87,7 +88,7 @@ extends SastOps.TreeMap:
 
           val funNewPage = Ident(newPageSym)(word.span)
           val newPageCall = Apply(funNewPage, args = Nil)(AnyType, word.span)
-          stats += Assign(oldPageSym, newPageCall)(word.span)
+          stats += Assign(Ident(oldPageSym)(word.span), newPageCall)(word.span)
 
           // 3. setParam("x", v)
           args.zip(argValueSyms).foreach: (arg, argValueSym) =>
@@ -104,7 +105,7 @@ extends SastOps.TreeMap:
             stats += this(expr)
           else
             ctx.locals += resSym
-            stats += Assign(resSym, this(expr))(expr.span)
+            stats += Assign(Ident(resSym)(expr.span), this(expr))(expr.span)
 
           // 5. restore page
           val funRestorePage = Ident(restorePageSym)(word.span)
@@ -129,7 +130,7 @@ extends SastOps.TreeMap:
             val hasParamCall = Apply(funHasParam, key :: Nil)(BoolType, arg.paramRef.span)
             val hasXSym = new Symbol("has_" + paramName, BoolType, Flags.Val, owner = ctx.funSymbol, sourcePos = arg.rhs.pos)
             ctx.locals += hasXSym
-            stats += Assign(hasXSym, hasParamCall)(arg.span)
+            stats += Assign(Ident(hasXSym)(arg.paramRef.span), hasParamCall)(arg.span)
             hasXSym
 
           // 3. val oldX = setParam("x", v)
@@ -141,7 +142,7 @@ extends SastOps.TreeMap:
             val setParamCall = Apply(funSetParam, key :: value :: Nil)(AnyType, arg.span)
             val oldValueSym = new Symbol("old_" + paramName, arg.rhs.tpe, Flags.Val, owner = ctx.funSymbol, sourcePos = arg.rhs.pos)
             ctx.locals += oldValueSym
-            stats += Assign(oldValueSym, setParamCall)(arg.span)
+            stats += Assign(Ident(oldValueSym)(arg.paramRef.span), setParamCall)(arg.span)
             oldValueSym
 
           // 4. val res = expr only if expr is not void
@@ -150,7 +151,7 @@ extends SastOps.TreeMap:
             stats += this(expr)
           else
             ctx.locals += resSym
-            stats += Assign(resSym, this(expr))(expr.span)
+            stats += Assign(Ident(resSym)(expr.span), this(expr))(expr.span)
 
           // 5. if hasX then setParam("x", oldX) else delParam("x")
           paramRefs.zip(hasXSyms).zip(oldValueSyms).foreach:

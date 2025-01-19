@@ -23,6 +23,8 @@ object Printing:
 
   given Text.Maker[Def] = v => showDef(v)
 
+  given Text.Maker[ValDef | FunDef] = v => showDef(v)
+
   given Text.Maker[TypeTree] = v => showType(v)
 
   given Text.Maker[Param] = v => v.ident ~ showTypeAnnot(v.typ)
@@ -72,8 +74,11 @@ object Printing:
 
         val resType = showTypeAnnot(fdef.resType)
 
-        "fun " ~ fdef.name ~ tparams ~ params ~ resType ~ " ="
-        ~ indent(Text(fdef.body))
+        val body =
+          if fdef.body.isEmptyBlock then Text.Empty
+          else " =" ~ indent(fdef.body)
+
+        "fun " ~ fdef.name ~ tparams ~ params ~ resType ~ body
 
       case tdef: TypeDef =>
         val tparams =
@@ -149,12 +154,17 @@ object Printing:
         "while " ~ cond ~ " do" ~ indent:
             body
 
-      case Assign(id, rhs) =>
-        id ~ " = " ~ rhs
+      case Assign(lhs, rhs) =>
+        lhs ~ " <- " ~ rhs
 
       case patmat: Ast.Match =>
         "match " ~ patmat.scrutinee ~ indent:
           rep(patmat.cases, Text.BlankLine)
+
+      case Object(members) =>
+        "object {" ~ indent:
+           rep(members, Text.BreakLine)
+        ~ "}"
 
       case defn: Def =>
         showDef(defn)
@@ -191,3 +201,8 @@ object Printing:
 
       case FunctionType(paramTypes, resultType) =>
         rep(paramTypes, Text(", ")) ~ " => " ~ resultType
+
+      case ObjectType(members) =>
+        "object {" ~ indent:
+           rep(members, Text.BreakLine)
+        ~ "}"

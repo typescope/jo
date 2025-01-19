@@ -25,6 +25,8 @@ object Printing:
 
   given Text.Maker[Def] = v => showDef(v)
 
+  given Text.Maker[ValDef | FunDef] = v => showDef(v)
+
   given Text.Maker[Type] = v => Text(v.show)
 
   given Text.Maker[TypeTree] = v => Text(v.tpe.show)
@@ -62,11 +64,10 @@ object Printing:
         val params = fdef.params.map(sym => sym.name + ": " + sym.info.show)
         val resType = TypeOps.finalResultType(fdef.symbol.info)
         val locals = rep(fdef.locals.map(sym => sym ~ ": " ~ sym.info), Text(", "))
-        val captures = rep(fdef.captures, Text(", "))
+        val keyword = if fdef.symbol.isMethod then "def " else "fun "
         "@locals(" ~ locals ~ ")" ~ Text.BreakLine ~
-        "@captures(" ~ captures ~ ")" ~ Text.BreakLine ~
-        "fun " ~ fdef.name ~ tparamStr ~ params.mkString("(", ", ", "): ") ~ resType.show ~ " ="
-        ~ indent(Text(fdef.body))
+        keyword ~ fdef.name ~ tparamStr ~ params.mkString("(", ", ", "): ") ~ resType.show ~ " =" ~ indent:
+            fdef.body
 
       case tdef: TypeDef =>
         "type " ~ tdef.name ~ " = " ~ tdef.symbol.info.show
@@ -114,8 +115,11 @@ object Printing:
       case DefaultParam(paramRef, default) =>
         paramRef ~ " default " ~ default
 
-      case Assign(sym, rhs) =>
-        sym.name ~ " = " ~ rhs
+      case Assign(id, rhs) =>
+        id ~ " <- " ~ rhs
+
+      case FieldAssign(qual, name, rhs) =>
+        qual ~ "." ~ name ~ " <- " ~ rhs
 
       case If(cond, thenp, elsep) =>
         "if " ~ cond ~ " then" ~ indent:
@@ -134,6 +138,13 @@ object Printing:
           rep(words, Text.BreakLine)
         else
           Text.Empty
+
+      case Object(self, vals, defs) =>
+        "object {" ~ indent:
+           rep(vals, Text.BreakLine)
+           ~ Text.BlankLine
+           ~ rep(defs, Text.BreakLine)
+        ~ "}"
 
       case vdef: ValDef => showDef(vdef)
 

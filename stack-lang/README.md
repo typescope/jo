@@ -47,6 +47,8 @@ Lexical Grammar
     DEFAULT  = "default".
     NSPACE   = "namespace".
     IMPORT   = "import".
+    DEF      = "def".
+    OBJECT   = "object".
     name     = (letter | USCORE) {letter | digit | USCORE}.
     operator = opchar { opchar }.
     ident    = name | operator.
@@ -69,7 +71,7 @@ Syntactical Grammar
 
     expr    = word {word}.
 
-    word    = integer | boolean | string | ident | fence | record | tapply | select | variant | lambda.
+    word    = integer | boolean | string | ident | fence | record | tapply | select | variant | lambda | object.
 
     phrase  = expr | with_clause | default_param | assign | valdef | fundef | typedef | while | if | match.
 
@@ -96,10 +98,13 @@ Syntactical Grammar
     variant = TAG ident [args] [AS type].
     args    = LPAREN phrase {COMMA expr} RPAREN.
 
+    object     = OBJECT LBRACE {member} RBRACE.
+    member     = valdef | defdef.
+
     tapply  = word targs.
     lambda  = param_section RARROW block.
 
-    match   = MATCH block {case} [END].
+    match   = MATCH expr {case} [END].
     case    = CASE pat RARROW block.
     pat     = product_pat | USCORE.
 
@@ -108,6 +113,7 @@ Syntactical Grammar
 
     valdef  = (VAL | VAR) ident [COLON type] EQL block.
     fundef  = FUN [param_section] ident [tparams] [param_section] EQL block [END].
+    defdef  = DEF ident [tparams] [param_section] EQL block [END].
 
     paramdef = PARAM param
 
@@ -118,7 +124,7 @@ Syntactical Grammar
     applied_type = ident targs.
     targs        = LBRACKET type { COMMA type } RBRACKET.
 
-    type    = qualid | record_typ | union_typ | applied_type | fun_type | LPAREN type RPAREN.
+    type    = qualid | record_typ | union_typ | applied_type | fun_type | object_type | LPAREN type RPAREN.
 
     record_typ = LBRACE [fields]  RBRACE.
     fields     = field { COMMA field }.
@@ -130,9 +136,14 @@ Syntactical Grammar
 
     fun_type   = [types] RARROW type.
 
+    object_type = OBJECT LBRACE {method_decl} RBRACE.
+    method_decl =  DEF ident param_section COLON type.
+
     param_section = LPAREN [params] RPAREN
     params        = param {COMMA param}.
     param         = ident COLON type.
+
+
 ~~~
 
 ## Namespaces

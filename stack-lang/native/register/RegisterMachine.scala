@@ -6,7 +6,6 @@ import sast.Symbols.*
 import sast.Types.*
 
 import native.Backend
-import native.Memory
 
 import native.Assembly
 import native.Assembly.{ Type => _, * }
@@ -76,10 +75,6 @@ extends Backend(runtime):
         gen(Instr.Move(label, reg))
         ctx.vs.push(Reg(reg))
 
-      case record: RecordLit => compile(record)
-
-      case select: Select => compile(select)
-
       case block: Block => compile(block)
 
       case encoded: Encoded => compile(encoded)
@@ -96,7 +91,10 @@ extends Backend(runtime):
 
       case id: Ident => compile(id)
 
-      case _: ValDef | _: FunDef | _: TypeDef | _: With | _: DefaultParam =>
+      case _: TypeDef =>
+
+      case _: ValDef | _: FunDef | _: With | _: DefaultParam |
+           _: Select | _: FieldAssign | _: RecordLit | _: Object =>
         throw new Exception("Unexpected " + word)
 
   def load(loc: Location, dest: Int, base: Rel)(using Context): Unit =
@@ -388,47 +386,10 @@ extends Backend(runtime):
       case _ =>
         compile(app.fun)
         val fun = ctx.vs.pop().asInstanceOf[Reg]
-        val funType = app.fun.tpe.asInvokableType
+        val funType = app.fun.tpe.asProcType
 
         for arg <- app.args do compile(arg)
         this.call(fun, funType.paramTypes, funType.resultType)
-
-  /** Allocate a block of memory and push the start address onto value stack */
-  def alloc(size: Int)(using ctx: Context): Unit =
-    ctx.vs.push(Int32(size))
-    call(runtime.GC_alloc)
-
-  /** Compile [x = 3, y = 5] */
-  def compile(record: RecordLit)(using ctx: Context): Unit =
-    val recordType = record.tpe.asRecordType
-    val size = Memory.size(recordType)
-
-    alloc(size)
-    val recordReg = ctx.vs.pop().asInstanceOf[Reg]
-
-    for (name, rhs) <- record.args do
-      compile(rhs)
-      val fieldValue = ctx.vs.pop()
-      val offset = Memory.fieldOffset(recordType, name)
-      val fieldAddr = Rel(recordReg.index, offset)
-      gen(Instr.Store(fieldValue, fieldAddr))
-
-    ctx.vs.push(recordReg)
-
-  /** Compile p.x */
-  def compile(select: Select)(using ctx: Context): Unit =
-    val field = select.name
-    val qualType = select.qual.tpe.asRecordType
-    val offset = Memory.fieldOffset(qualType, field)
-
-    compile(select.qual)
-
-    val recordReg = ctx.vs.pop().asInstanceOf[Reg]
-    val fieldAddr = Rel(recordReg.index, offset)
-
-    val fieldReg = freshVirtualReg()
-    gen(Instr.Load(fieldAddr, fieldReg, Size.B32))
-    ctx.vs.push(Reg(fieldReg))
 
   def callPredef(sym: Symbol)(using Context): Unit =
     val defn = Definitions.instance
@@ -565,7 +526,7 @@ object RegisterMachine:
     def getRegForLocal(local: Symbol): Int = localsToReg(local)
 
     def setRegForLocal(local: Symbol, reg: Int) =
-      assert(!localsToReg.contains(local))
+      assert(!localsToReg.contains(local), "duplicate symbol " + local + " in " + fun)
       localsToReg(local) = reg
 
   def freshFunctionContext(fun: Symbol): FunctionContext =

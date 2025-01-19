@@ -68,9 +68,8 @@ def compile(args: String*): Unit =
       case main :: Nil =>
         namespacesSAST                |>
         Printing.peek(enable = false) |>
-        new ExplicitInit().transform  |+
-        Printing.peek(enable = false) |>
         ElimCapture.transform         |+
+        TreeChecker.check             |>
         Printing.peek(enable = false) |>
         contextParamsLower.transform  |+
         Printing.peek(enable = false) |>
