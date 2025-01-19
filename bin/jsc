@@ -43,7 +43,6 @@ files=(
     stack-lang/js/JSRuntime.scala
 
     stack-lang/phases/ElimCapture.scala
-    stack-lang/phases/ExplicitInit.scala
     stack-lang/phases/LowerContextParams.scala
 )
 

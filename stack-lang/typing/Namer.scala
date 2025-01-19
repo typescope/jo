@@ -357,7 +357,7 @@ class Namer(@constructorOnly reporter: Reporter):
       for delayedDef <- delayedDefs.toList yield delayedDef.force()
 
     // external object type
-    val members = nameTable.terms.map(_.toNamedInfo)
+    val members = nameTable.terms.filter(_ != thisSym).map(_.toNamedInfo)
     val mutables = nameTable.terms.filter(_.isMutable).map(_.name).toList
     val objType = ObjectType(members, mutables)
 

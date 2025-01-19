@@ -42,7 +42,7 @@ extends SastOps.TreeMap:
         val locals2 = mutable.ArrayBuffer.from(fdef.locals)
         given Context = FunContext(fdef.symbol, locals2)
         val body2 = this(fdef.body)
-        fdef.copy(body = body2)(locals2.toList, fdef.captures, fdef.span)
+        fdef.copy(body = body2)(locals2.toList, fdef.span)
 
     Namespace(ns.symbol, ns.imports, funs)(ns.span)
 

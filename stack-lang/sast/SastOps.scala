@@ -35,7 +35,9 @@ object SastOps:
           word
 
         case Select(qual, name) =>
-          Select(this(qual), name)(word.tpe, word.span)
+          val qual2 = this(qual)
+          val memberType = qual2.tpe.termMember(name)
+          Select(qual2, name)(memberType, word.span)
 
         case RecordLit(fields) =>
           val fields2 = fields.map:

@@ -131,7 +131,7 @@ object Sast:
   extends Word:
     fun.tpe.asProcType match
       case procType =>
-        assert(procType.paramTypes.size == args.size)
+        assert(procType.paramTypes.size == args.size, procType.show + ", " + args)
 
     def funSymbol: Option[Symbol] =
       fun match

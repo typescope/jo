@@ -202,7 +202,16 @@ object Types:
     val postParamTypes: List[Type] = params.drop(preParamCount).map(_.info)
     val paramTypes: List[Type] = params.map(_.info)
     val paramCount: Int = params.size
+
+    def prepend(paramsToAdd: List[NamedInfo[Type]]): ProcType =
+      ProcType(paramsToAdd ++ params, resultType, preParamCount)
+
+    def append(paramsToAdd: List[NamedInfo[Type]]): ProcType =
+      ProcType(params ++ paramsToAdd, resultType, preParamCount)
+
     def postParamCount = params.size - preParamCount
+
+    def resCount = if resultType.isValueType then 1 else 0
 
   /** A type lambda */
   case class TypeLambda

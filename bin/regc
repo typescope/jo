@@ -62,7 +62,6 @@ files=(
     stack-lang/native/LowerContextParams.scala
 
     stack-lang/phases/ElimCapture.scala
-    stack-lang/phases/ExplicitInit.scala
 
 )
 
