@@ -168,11 +168,10 @@ object Subtyping:
   private def checkConformsObjectType(tp1: ObjectType, tp2: ObjectType)(using Context): Boolean =
     val names1 = tp1.memberNames
     val names2 = tp2.memberNames
-    names1.size >= names2.size && names1.forall: memberName =>
-      val memberType1 = tp1.termMember(memberName)
-      tp2.getMemberType(memberName) match
-        case None => false
-        case Some(memberType2) => checkConforms(memberType1, memberType2)
+    names1.size >= names2.size && names1.zip(names2).forall: (a, b) =>
+      a == b
+      && tp1.isMutable(a) == tp2.isMutable(a)
+      && checkConforms(tp1.termMember(a), tp2.termMember(b))
 
   private def checkConformsUnionType(tp1: UnionType, tp2: UnionType)(using Context): Boolean =
     val tags1 = tp1.tags

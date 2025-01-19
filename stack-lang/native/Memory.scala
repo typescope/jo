@@ -12,5 +12,9 @@ object Memory:
   /** Offset relative to the start of the record in bytes */
   def fieldOffset(recordType: RecordType, field: String): Int =
     val index = recordType.fields.toList.indexWhere(_.name == field)
-    assert(index >= 0, index)
+    assert(index >= 0, field + " not found in " + recordType.show)
     index << 2
+
+  /** Convert object type to record type for native platform */
+  def toRecordType(objType: ObjectType): RecordType =
+    RecordType(objType.members)

@@ -31,6 +31,7 @@ object TreeChecker extends SastOps.TreeMap:
 
       case FieldAssign(qual, name, rhs) =>
         assert(qual.tpe.isObjectType, "Object type expected, found = " + qual.tpe.show)
+        assert(qual.tpe.asObjectType.isMutable(name), s"Field $name is not mutable")
         word
 
       case Apply(fun, args) =>

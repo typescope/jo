@@ -1,5 +1,7 @@
 package native.stack
 
+import common.Debug
+
 import sast.*
 import sast.Sast.*
 import sast.Symbols.*
@@ -44,7 +46,7 @@ extends Backend(runtime):
   def compile(block: Block)(using LocalAddr, CodeBuffer): Unit =
     for word <- block.words do compile(word)
 
-  def compile(word: Word)(using addr: LocalAddr, cb: CodeBuffer): Unit =
+  def compile(word: Word)(using addr: LocalAddr, cb: CodeBuffer): Unit = Debug.trace("Compiling " + word.show, enable = false):
     word match
       case IntLit(v) => push(Int32(v))
 
@@ -70,6 +72,8 @@ extends Backend(runtime):
       case TypeApply(fun, _) => compile(fun)
 
       case assign: Assign => compile(assign)
+
+      case fieldAssign: FieldAssign => compile(fieldAssign)
 
       case ifElse: If => compile(ifElse)
 
@@ -238,7 +242,7 @@ extends Backend(runtime):
         cb.add(Instr.Store(Reg(r), dest))
         i += 1
 
-  /** Initialize a value definition */
+  /** Compile x = e */
   def compile(assign: Assign)(using addr: LocalAddr, cb: CodeBuffer): Unit =
     val loc = addr(assign.symbol)
     compile(assign.rhs)
@@ -314,8 +318,13 @@ extends Backend(runtime):
 
   /** Compile p.x */
   def compile(select: Select)(using addr: LocalAddr, cb: CodeBuffer): Unit =
-    val field = select.name
-    val qualType = select.qual.tpe.asRecordType
+    val Select(qual, field) = select
+    val qualType =
+      if qual.tpe.isRecordType then
+        qual.tpe.asRecordType
+      else
+        Memory.toRecordType(qual.tpe.asObjectType)
+
     val offset = Memory.fieldOffset(qualType, field)
     compile(select.qual)
     useReg: r =>
@@ -323,6 +332,22 @@ extends Backend(runtime):
       val fieldAddr = Rel(r, offset)
       cb.add(Instr.Load(fieldAddr, r, Size.B32))
       push(Reg(r))
+
+  /** Compile qual.x = rhs */
+  def compile(assign: FieldAssign)(using addr: LocalAddr, cb: CodeBuffer): Unit =
+    val FieldAssign(qual, field, rhs) = assign
+    compile(qual)
+    compile(rhs)
+
+    // Mutable fields only possible in objects (not records)
+    val qualType = Memory.toRecordType(qual.tpe.asObjectType)
+    val offset = Memory.fieldOffset(qualType, field)
+
+    useTwoReg: (r1, r2) =>
+      pop(r1, Size.B32)  // rhs
+      pop(r2, Size.B32)  // qual
+      val fieldAddr = Rel(r2, offset)
+      cb.add(Instr.Store(Reg(r1), fieldAddr))
 
   /** Allocate a block of memory and push the start address onto stack */
   def alloc(size: Int)(using LocalAddr, CodeBuffer): Unit =

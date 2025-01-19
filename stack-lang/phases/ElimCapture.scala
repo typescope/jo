@@ -228,7 +228,6 @@ object ElimCapture:
           val capture2 = rewire(capture)
           val subst = Symbol.createValueSymbol(capture2.name, capture2.info, liftedSym, fdef.symbol.sourcePos)
           val lhs = Ident(subst)(span)
-          println("captureToField = " + captureToField + ", capture2 = " + capture2)
           val rhs = Select(Ident(paramThis)(span), captureToField(capture2))(capture2.info, span)
           aliases += Assign(lhs, rhs)(span)
           substs(capture2) = subst
@@ -241,12 +240,11 @@ object ElimCapture:
         val params = paramThis :: fdef.params
 
         ctx.lifted += FunDef(liftedSym, fdef.tparams, params, body2)
-                            (locals = lifter.locals.toList, fdef.span)
+                            (locals = (lifter.locals ++ substs.values).toList, fdef.span)
+      end for
 
-
-      val externalMembers = memberTypes.filter(m => objType.hasTermMember(m.name))
-      val externalType = RecordType(externalMembers.toList)
-      Encoded(RecordLit(members.toList)(externalType, obj.span))(objType)
+      val recordType = RecordType(memberTypes.toList)
+      Encoded(RecordLit(members.toList)(recordType, obj.span))(objType)
 
     def transform(app: Apply)(using ctx: Context): Word =
       val Apply(fun, args) = app

@@ -69,6 +69,7 @@ def compile(args: String*): Unit =
         namespacesSAST                |>
         Printing.peek(enable = false) |>
         ElimCapture.transform         |+
+        TreeChecker.check             |>
         Printing.peek(enable = false) |>
         contextParamsLower.transform  |+
         Printing.peek(enable = false) |>
