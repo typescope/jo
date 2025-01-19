@@ -270,6 +270,7 @@ object ElimCapture:
         case Select(qual, name) =>
           assert(qual.tpe.isObjectType, "Expect object type, found = " + qual.tpe.show)
 
+          // TODO: handle polymorphic methods
           val qual2 = this(qual)
           val procType = qual2.tpe.termMember(name).asProcType
           val liftedProcType = procType.prepend(NamedInfo("this", qual2.tpe) :: Nil)

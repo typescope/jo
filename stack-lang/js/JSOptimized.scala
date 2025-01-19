@@ -207,7 +207,10 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
         assert(!sym.isAllOf(Flags.Context | Flags.Param), "Unexpected context parameter")
         cont(Text(sym))
 
-      case _: ValDef | _: FunDef | _: TypeDef |  _: With | _: DefaultParam | _: Object =>
+      case _: TypeDef =>
+        cont()
+
+      case _: ValDef | _: FunDef |  _: With | _: DefaultParam | _: Object =>
         throw new Exception("Unexpected " + word)
 
   /** Compile a function */
