@@ -101,6 +101,11 @@ object ElimCapture:
 
     type Context = ElimCapture.Context
 
+    def rewire(sym: Symbol)(using ctx: Context): Symbol =
+      ctx.rewiring.get(sym) match
+        case Some(sym) => rewire(sym)
+        case None => sym
+
     /**
       * Each local functions is transformed from
       *
@@ -149,7 +154,7 @@ object ElimCapture:
       * an object type.
       *
       * At method call sites, we still have the invariant that the receiver has
-      * an object type. We augment call with the receiver as argument.
+      * an object type. We augment call with the receiver as an argument.
       *
       * We also adapt the type of `fun` to agree with arguments to satisfy the
       * invariant of Apply nodes.
@@ -163,8 +168,10 @@ object ElimCapture:
       val allCaptures: List[Symbol] =
         obj.defs.foldLeft(List.empty[Symbol]): (acc, fdef) =>
           transitiveCapture(fdef).foldLeft(acc): (acc, sym) =>
-            if acc.contains(sym) || sym == obj.self then acc
-            else sym :: acc
+            // rewiring is important -- the captured variable might have been rebound
+            val sym1 = rewire(sym)
+            if acc.contains(sym1) || sym1 == obj.self then acc
+            else sym1 :: acc
 
       // Avoid duplicate names in records/objects
       val uniq = new UniqueName
@@ -189,7 +196,7 @@ object ElimCapture:
 
       for vdef <- obj.vals do
         uniq.freshName(vdef.name)
-        members += vdef.name -> vdef.rhs
+        members += vdef.name -> this(vdef.rhs)
         memberTypes += NamedInfo(vdef.name, vdef.rhs.tpe)
 
       for fdef <- obj.defs do
@@ -217,11 +224,14 @@ object ElimCapture:
         val substs = mutable.Map.empty[Symbol, Symbol]
         val aliases = new mutable.ArrayBuffer[Assign]
         for capture <- transitiveCapture(fdef) if capture != obj.self do
-          val subst = Symbol.createValueSymbol(capture.name, capture.info, liftedSym, fdef.symbol.sourcePos)
+          // Rewiring is important -- the captured variable might have been rebound
+          val capture2 = rewire(capture)
+          val subst = Symbol.createValueSymbol(capture2.name, capture2.info, liftedSym, fdef.symbol.sourcePos)
           val lhs = Ident(subst)(span)
-          val rhs = Select(Ident(paramThis)(span), captureToField(capture))(capture.info, span)
+          println("captureToField = " + captureToField + ", capture2 = " + capture2)
+          val rhs = Select(Ident(paramThis)(span), captureToField(capture2))(capture2.info, span)
           aliases += Assign(lhs, rhs)(span)
-          substs(capture) = subst
+          substs(capture2) = subst
 
         substs(obj.self) = paramThis
 
@@ -253,7 +263,7 @@ object ElimCapture:
               capture <- captures
             yield
               // the captured sym needs substitution in recursive functions
-              val sym = ctx.rewiring.getOrElse(capture, capture)
+              val sym = rewire(capture)
               Ident(sym)(app.span)
 
           Apply(funSubst, args2 ++ extraArgs)(app.tpe, app.span)
@@ -284,9 +294,9 @@ object ElimCapture:
     def apply(word: Word)(using ctx: Context): Word = Debug.trace(word.show + ", ctx = " + ctx.show, (_: Word).show, enable = false):
       word match
         case Ident(sym) =>
-          ctx.rewiring.get(sym) match
-            case Some(subst) => Ident(subst)(word.span)
-            case _ => word
+          val sym2 = rewire(sym)
+          if sym2 != sym then Ident(sym2)(word.span)
+          else word
 
         case apply: Apply =>
           transform(apply)
@@ -359,7 +369,7 @@ object ElimCapture:
     end transitiveCapture
 
     private def makeLiftInfo(fdef: FunDef)(using ctx: Context): LiftInfo =
-      val captures = transitiveCapture(fdef)
+      val captures = transitiveCapture(fdef).map(sym => rewire(sym))
       // Cannot have same names in the captured symbol
       //
       // TODO: This is possible via transitive capture.

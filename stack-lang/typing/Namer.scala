@@ -220,8 +220,7 @@ class Namer(@constructorOnly reporter: Reporter):
       case Ast.Ident(name) =>
         val sym = sc.resolve(name, word.pos)
         if sym.isField || sym.isMethod then
-          val thisSym = sc.resolve("this", word.pos)
-          val qual = Ident(thisSym)(word.span)
+          val qual = Ident(sym.owner)(word.span)
           Select(qual, sym.name)(sym.info, word.span).adapt
         else
           checker.checkCapture(sym, word.pos)
@@ -390,8 +389,7 @@ class Namer(@constructorOnly reporter: Reporter):
         val rhs2 = transform(rhs)
 
         if sym.isField then
-          val thisSym = sc.resolve("this", id.pos)
-          val qual = Ident(thisSym)(id.span)
+          val qual = Ident(sym.owner)(id.span)
           FieldAssign(qual, sym.name, rhs2)(assign.span)
 
         else
