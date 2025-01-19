@@ -68,7 +68,7 @@ object Symbols:
         owner.enclosingNamespace
 
     def enclosingFunction: Symbol =
-      if this.isFunction then
+      if this.isFunction || this.isMethod then
         this
       else
         // owner can be null, let exception be thrown

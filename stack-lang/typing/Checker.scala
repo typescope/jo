@@ -135,6 +135,7 @@ class Checker:
   def widen(word: Word): Word = word.tpe match
     case TypeRef(sym) if !sym.isType =>
       Encoded(word)(sym.info)
+
     case _ =>
       word
 
