@@ -27,18 +27,23 @@ class ExplicitAlloc(runtime: NativeRuntime) extends SastOps.TreeMap:
     for ns <- nss yield transformNamespace(ns)
 
   def transformNamespace(ns: Namespace): Namespace =
-    val funs =
-      for case fdef: FunDef <- ns.defs
-      yield
+    val defs = ns.defs.map:
+      case fdef: FunDef =>
         val locals2 = mutable.ArrayBuffer.from(fdef.locals)
         given Context = FunContext(fdef.symbol, locals2)
         val body2 = this(fdef.body)
         fdef.copy(body = body2)(locals2.toList, fdef.span)
 
-    Namespace(ns.symbol, ns.imports, funs)(ns.span)
+      case defn => defn
+
+    Namespace(ns.symbol, ns.imports, defs)(ns.span)
 
   override def apply(word: Word)(using ctx: Context): Word =
     word match
+      case encode @ Encoded(rc: RecordLit) if encode.tpe.isObjectType =>
+        val encoding = this(Memory.encodeObject(rc))
+        Encoded(encoding)(encode.tpe)
+
       case RecordLit(args) =>
         val stats = new mutable.ArrayBuffer[Word]
         val allocFun = Ident(runtime.GC_alloc)(word.span)
@@ -64,18 +69,17 @@ class ExplicitAlloc(runtime: NativeRuntime) extends SastOps.TreeMap:
         Encoded(Block(stats.toList)(ref.tpe, word.span))(word.tpe)
 
       case select @ Select(qual, _) =>
-        // readInt (addAddr qual offset)
-        val recordType =
-          if qual.tpe.isRecordType then qual.tpe.asRecordType
-          else Memory.toRecordType(qual.tpe.asObjectType)
-
         val select2 = select.copy(qual = this(qual))(select.tpe, select.span)
 
-        Memory.readField(recordType, select2, runtime)
+        if qual.tpe.isRecordType then
+          val recordType = qual.tpe.asRecordType
+          Memory.readField(recordType, select2, runtime)
+        else
+          Memory.readObjectMember(qual.tpe.asObjectType, select2, runtime)
 
       case FieldAssign(qual, name, rhs) =>
         // Only object is mutable
-        val recordType = Memory.toRecordType(qual.tpe.asObjectType)
-        Memory.writeField(recordType, name, this(qual), this(rhs), runtime)
+        val objectType = qual.tpe.asObjectType
+        Memory.writeObjectField(objectType, name, this(qual), this(rhs), runtime)
 
       case _ => recur(word)

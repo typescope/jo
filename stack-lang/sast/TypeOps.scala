@@ -147,7 +147,7 @@ object TypeOps:
       case IntType     => "Int"
       case BoolType    => "Bool"
       case StringType  => "String"
-      case VoidType    => "Void"
+      case VoidType    => "void"
       case AnyType     => "Any"
       case BottomType  => "Bottom"
       case ErrorType   => "Error"
@@ -165,11 +165,15 @@ object TypeOps:
       case RecordType(fields) =>
         fields.map(f => f.name + ": " + show(f.info)).mkString("{ ", ", ", " }")
 
-      case ObjectType(members, muts) =>
-        members.map: m =>
-          val mod = if muts.contains(m.name) then "var " else ""
-          mod + m.name + ": " + show(m.info)
-        .mkString("object { ", "; ", " }")
+      case ObjectType(fields, methods, muts) =>
+        val fieldList = fields.map: f =>
+          val mod = if muts.contains(f.name) then "var " else " val "
+          mod + f.name + ": " + show(f.info)
+
+        val methodList = methods.map: m =>
+          "def " + m.name + show(m.info)
+
+        (fieldList ++ methodList).mkString("object { ", "; ", " }")
 
       case UnionType(branches) =>
         def paramStr(paramInfos: List[NamedInfo[Type]]) = paramInfos.map(param => param.name + ": " + show(param.info)).mkString("(", ", ", ")")
@@ -234,11 +238,16 @@ object TypeOps:
             )
           UnionType(branches2)
 
-        case ObjectType(members, muts) =>
-          val members2 =
-            for member <- members
-            yield member.copy(info = this(member.info))
-          ObjectType(members2, muts)
+        case ObjectType(fields, methods, muts) =>
+          val fields2 =
+            for field <- fields
+            yield field.copy(info = this(field.info))
+
+          val methods2 =
+            for method <- methods
+            yield method.copy(info = this(method.info))
+
+          ObjectType(fields2, methods2, muts)
 
         case AppliedType(tctor, targs) =>
           val tctor2 = apply(tctor)

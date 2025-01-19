@@ -317,23 +317,24 @@ class Namer(@constructorOnly reporter: Reporter):
         transform(block)
 
       case obj: Ast.Object =>
-        transform(obj)
+        transform(obj).adapt
 
-  def transform(obj: Ast.Object)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
+  def transform(obj: Ast.Object)(using sc: Scope, rp: Reporter, so: Source): Word =
     val nameTable = new NameTable
+    val vals = new mutable.ArrayBuffer[ValDef]
+    val delayedDefs = new mutable.ArrayBuffer[DelayedDef[FunDef]]
 
     val infoProvider: InfoProvider = sym =>
-      val members = nameTable.terms.map(sym => NamedInfo(sym.name, TypeRef(sym)))
-      val mutables = nameTable.terms.filter(_.isMutable).map(_.name).toList
-      ObjectType(members, mutables)
+      val fieldTypes = vals.map(vdef => NamedInfo(vdef.name, vdef.symbol.info)).toList
+      val methodTypes = delayedDefs.map(d => NamedInfo(d.symbol.name, TypeRef(d.symbol))).toList
+      val mutables = vals.filter(_.isMutable).map(_.name).toList
+      ObjectType(fieldTypes, methodTypes, mutables)
 
     val thisSym = Symbol.createValueSymbol("this", infoProvider, sc.owner, obj.pos)
 
     // scope for checking member methods
     val sc2 = sc.fresh(thisSym, nameTable)
 
-    val vals = new mutable.ArrayBuffer[ValDef]
-    val delayedDefs = new mutable.ArrayBuffer[DelayedDef[FunDef]]
 
     for case vdef: Ast.ValDef <- obj.members do
       given Scope = sc2
@@ -356,9 +357,10 @@ class Namer(@constructorOnly reporter: Reporter):
       for delayedDef <- delayedDefs.toList yield delayedDef.force()
 
     // external object type
-    val members = nameTable.terms.filter(_ != thisSym).map(_.toNamedInfo)
-    val mutables = nameTable.terms.filter(_.isMutable).map(_.name).toList
-    val objType = ObjectType(members, mutables)
+    val fieldTypes = vals.map(vdef => NamedInfo(vdef.name, vdef.symbol.info)).toList
+    val methodTypes = delayedDefs.map(d => NamedInfo(d.symbol.name, TypeRef(d.symbol))).toList
+    val mutables = vals.filter(_.isMutable).map(_.name).toList
+    val objType = ObjectType(fieldTypes, methodTypes, mutables)
 
     Object(thisSym, vals.toList, defs)(objType, obj.span)
 
@@ -673,7 +675,7 @@ class Namer(@constructorOnly reporter: Reporter):
 
      val tparamSyms = Nil
      val funDef = FunDef(funSym, tparamSyms, paramSyms, bodyTyped)(locals = Nil, lambda.span)
-     val objType = ObjectType(NamedInfo("apply", procType) :: Nil, mutableFields = Nil)
+     val objType = ObjectType(fields = Nil, methods = NamedInfo("apply", procType) :: Nil, mutableFields = Nil)
 
      this.nonCyclicTypeProvider.addProvider(thisSym, () => objType)
 
@@ -946,15 +948,16 @@ class Namer(@constructorOnly reporter: Reporter):
         TypeTree(RecordType(fieldTypes.toList))(tpt.span)
 
       case Ast.ObjectType(members) =>
-        val memberTypes = new mutable.ArrayBuffer[NamedInfo[Type]]
+        val fieldTypes = new mutable.ArrayBuffer[NamedInfo[Type]]
+        val methodTypes = new mutable.ArrayBuffer[NamedInfo[Type]]
         for member <- members do
-          if memberTypes.exists(_.name == member.name) then
+          if fieldTypes.exists(_.name == member.name) || methodTypes.exists(_.name == member.name) then
             Reporter.error("Member " + member.name + " already defined", member.pos)
           else
             val memberTypeTree = transformMethodDecl(member)
-            memberTypes += NamedInfo(member.name, memberTypeTree.tpe)
+            methodTypes += NamedInfo(member.name, memberTypeTree.tpe)
         end for
-        val tp = ObjectType(memberTypes.toList, mutableFields = Nil)
+        val tp = ObjectType(fields = fieldTypes.toList, methods = methodTypes.toList, mutableFields = Nil)
         TypeTree(tp)(tpt.span)
 
       case Ast.UnionType(branches) =>
@@ -995,7 +998,7 @@ class Namer(@constructorOnly reporter: Reporter):
         val resType2 = transformType(resType)
         checker.delayedCheck { checker.checkValueType(resType2) }
         val applyType = ProcType(paramTypes2, resType2.tpe, preParamCount = 0)
-        val objType = ObjectType(NamedInfo("apply", applyType) :: Nil, mutableFields = Nil)
+        val objType = ObjectType(fields = Nil, methods = NamedInfo("apply", applyType) :: Nil, mutableFields = Nil)
         TypeTree(objType)(tpt.span)
 
       case _: Ast.EmptyTypeTree =>

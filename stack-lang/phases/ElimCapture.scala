@@ -187,7 +187,7 @@ object ElimCapture:
            for capture <- allCaptures
            yield NamedInfo(captureToField(capture), capture.info)
 
-         ObjectType(objType.members ++ capturedMembers.toList, objType.mutableFields)
+         ObjectType(objType.fields ++ capturedMembers.toList, objType.methods, objType.mutableFields)
 
       val thisTypeName = ctx.uniq.freshName("ThisType")
       val thisTypeAliasSym = Symbol.createTypeSymbol(thisTypeName, infoProvider, owner.enclosingNamespace, obj.self.sourcePos)

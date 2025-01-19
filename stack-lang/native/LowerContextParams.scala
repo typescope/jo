@@ -40,15 +40,16 @@ class LowerContextParams(runtime: NativeRuntime) extends SastOps.TreeMap:
     for ns <- nss yield transformNamespace(ns)
 
   def transformNamespace(ns: Namespace): Namespace =
-    val funs =
-      for case fdef: FunDef <- ns.defs
-      yield
+    val defs = ns.defs.map:
+      case fdef: FunDef =>
         val locals2 = mutable.ArrayBuffer.from(fdef.locals)
         given Context = FunContext(fdef.symbol, locals2)
         val body2 = this(fdef.body)
         fdef.copy(body = body2)(locals2.toList, fdef.span)
 
-    Namespace(ns.symbol, ns.imports, funs)(ns.span)
+      case defn => defn
+
+    Namespace(ns.symbol, ns.imports, defs)(ns.span)
 
   override def apply(word: Word)(using ctx: Context): Word =
     word match

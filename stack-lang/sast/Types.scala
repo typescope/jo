@@ -65,18 +65,13 @@ object Types:
 
     def isFunctionType: Boolean =
       TypeOps.approx(this, isUp = true) match
-         case objType: ObjectType =>
-           objType.members.size == 1 && objType.getMemberType("apply").match
-              case Some(tp) => tp.isProcType
-              case None => false
-
+         case ObjectType(Nil, NamedInfo("apply", _) :: Nil, Nil) => true
          case _ => false
 
     def toFunctionType: Option[ProcType] =
       TypeOps.approx(this, isUp = true) match
-        case objType: ObjectType if objType.members.size == 1 =>
-          objType.getMemberType("apply").flatMap: applyType =>
-            TypeOps.approx(applyType, isUp = true) match
+        case ObjectType(Nil, NamedInfo("apply", tp) :: Nil, Nil) =>
+         TypeOps.approx(tp, isUp = true) match
             case procType: ProcType => Some(procType)
             case _ => None
 
@@ -171,20 +166,24 @@ object Types:
       branches.indexWhere:
         case NamedInfo(t, _) => t == tag
 
-  /** A record type --- named tuples
-    *
-    * Warning: flattening of nested tuples is dangerous with subtyping
-    * of records.
-    */
+  /** The type of an object */
   case class ObjectType(
-    members: List[NamedInfo[Type]],
+    fields: List[NamedInfo[Type]],
+    methods: List[NamedInfo[Type]],
     mutableFields: List[String])
   extends Type:
-    val memberNames: List[String] = members.map(_.name)
+    def fieldNames = fields.map(_.name)
+    def methodNames = methods.map(_.name)
 
     def getMemberType(name: String): Option[Type] =
-      members.collectFirst:
+      val fieldOpt = fields.collectFirst:
         case NamedInfo(m, tp) if m == name => tp
+
+      if fieldOpt.isEmpty then
+        methods.collectFirst:
+          case NamedInfo(m, tp) if m == name => tp
+      else
+        fieldOpt
 
     def isMutable(name: String): Boolean = mutableFields.contains(name)
 
