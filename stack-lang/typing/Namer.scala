@@ -674,7 +674,7 @@ class Namer(@constructorOnly reporter: Reporter):
        checker.checkInstantiated(tvar, param.pos)
 
      val tparamSyms = Nil
-     val funDef = FunDef(funSym, tparamSyms, paramSyms, bodyTyped)(locals = Nil, captures = Nil, lambda.span)
+     val funDef = FunDef(funSym, tparamSyms, paramSyms, bodyTyped)(locals = Nil, lambda.span)
      val objType = ObjectType(NamedInfo("apply", procType) :: Nil, mutableFields = Nil)
 
      this.nonCyclicTypeProvider.addProvider(thisSym, () => objType)
@@ -794,7 +794,7 @@ class Namer(@constructorOnly reporter: Reporter):
     val typer = () =>
       FunDef
         (funSym, tparamSyms, paramSyms, typedBody)
-        (locals = Nil, captures = Nil, funDef.span)
+        (locals = Nil, funDef.span)
 
     DelayedDef(funSym, typer)
 

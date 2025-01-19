@@ -64,10 +64,8 @@ object Printing:
         val params = fdef.params.map(sym => sym.name + ": " + sym.info.show)
         val resType = TypeOps.finalResultType(fdef.symbol.info)
         val locals = rep(fdef.locals.map(sym => sym ~ ": " ~ sym.info), Text(", "))
-        val captures = rep(fdef.captures, Text(", "))
         val keyword = if fdef.symbol.isMethod then "def " else "fun "
         "@locals(" ~ locals ~ ")" ~ Text.BreakLine ~
-        "@captures(" ~ captures ~ ")" ~ Text.BreakLine ~
         keyword ~ fdef.name ~ tparamStr ~ params.mkString("(", ", ", "): ") ~ resType.show ~ " =" ~ indent:
             fdef.body
 

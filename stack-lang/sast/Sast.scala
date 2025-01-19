@@ -26,6 +26,15 @@ object Sast:
 
     def show: String = Printing.show(this)
 
+    /** Whether the word can be duplicated as neighbors without affecting program semantics */
+    def isIdempotent: Boolean =
+      this match
+        case _: IntLit | _: BoolLit | _: Ident => true
+
+        case Select(qual, _) => qual.isIdempotent
+
+        case _ => false
+
   case class IntLit
     (value: Int)
     (val span: Span)
@@ -183,8 +192,9 @@ object Sast:
     */
   case class FunDef
     (symbol: Symbol, tparams: List[Symbol], params: List[Symbol], body: Word)
-    (val locals: List[Symbol], val captures: List[Symbol], val span: Span)
-  extends Word, Def
+    (val locals: List[Symbol], val span: Span)
+  extends Word, Def:
+    lazy val freeVariables: List[Symbol] = SastOps.freeVariables(this)
 
   case class Namespace
     (symbol: Symbol, imports: List[Symbol], defs: List[Def])
