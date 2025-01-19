@@ -203,8 +203,8 @@ object ElimCapture:
       for capture <- allCaptures yield
         val field = uniq.freshName(capture.name)
         captureToField(capture) = field
+        members += field -> Ident(capture)(obj.span)
         memberTypes += NamedInfo(field, capture.info)
-
 
       for fdef <- obj.defs do
         val span = fdef.symbol.sourcePos.span
