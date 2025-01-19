@@ -47,7 +47,6 @@ object Memory:
   def readObjectMember(objType: ObjectType, select: Select, runtime: NativeRuntime): Word =
     val recordType = toRecordType(objType)
     if select.tpe.isValueType then
-      println(recordType.show)
       val tableType = recordType.termMember(FTABLE).asRecordType
       val tableSelect = Select(select.qual, FTABLE)(tableType, select.span)
       val table = readField(recordType, tableSelect, runtime)
