@@ -24,7 +24,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
 
   val keywords = List(
     "for", "while", "function", "var", "let", "break", "continue", "if",
-    "const", "class", "constructor", "with"
+    "const", "class", "constructor", "with", "this"
   )
 
   // Make keywords unavailable
@@ -172,6 +172,10 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
           else
             "const " ~ sym ~ " = " ~ t ~ ";" ~ cont()
 
+      case FieldAssign(qual, name, rhs) =>
+        run(qual): v =>
+          v ~ "." ~ encodeSymbolic(name) ~ " = " ~ rhs ~ cont()
+
       case If(cond, thenp, elsep) =>
         run(cond): v =>
           if word.tpe.isValueType then
@@ -203,7 +207,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
         assert(!sym.isAllOf(Flags.Context | Flags.Param), "Unexpected context parameter")
         cont(Text(sym))
 
-      case _: ValDef | _: FunDef | _: TypeDef |  _: With | _: DefaultParam =>
+      case _: ValDef | _: FunDef | _: TypeDef |  _: With | _: DefaultParam | _: Object =>
         throw new Exception("Unexpected " + word)
 
   /** Compile a function */
