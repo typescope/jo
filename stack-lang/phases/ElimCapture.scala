@@ -232,6 +232,7 @@ object ElimCapture:
           aliases += Assign(lhs, rhs)(span)
           substs(capture2) = subst
 
+        val aliasSyms = substs.values.toList
         substs(obj.self) = paramThis
 
         val lifter = new Lifter(fdef.symbol)
@@ -239,8 +240,8 @@ object ElimCapture:
         val body2 = Block(aliases.toList :+ body)(body.tpe, body.span)
         val params = paramThis :: fdef.params
 
-        ctx.lifted += FunDef(liftedSym, fdef.tparams, params, body2)
-                            (locals = (lifter.locals ++ substs.values).toList, fdef.span)
+        val locals = (lifter.locals ++ aliasSyms).toList
+        ctx.lifted += FunDef(liftedSym, fdef.tparams, params, body2)(locals, fdef.span)
       end for
 
       val recordType = RecordType(memberTypes.toList)

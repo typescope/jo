@@ -100,6 +100,7 @@ extends Backend(runtime):
     // the ordering does not matter
     for (local, index) <- fdef.locals.zipWithIndex do
       val offset = -(index + 1) << 2
+      assert(!symAddrMap.contains(local), "Double binding " + local + " in " + sym)
       symAddrMap(local) = Rel(FP_REG, offset)
 
     val sizeLocals = fdef.locals.size << 2

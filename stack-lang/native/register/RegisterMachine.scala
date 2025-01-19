@@ -524,7 +524,7 @@ object RegisterMachine:
     def getRegForLocal(local: Symbol): Int = localsToReg(local)
 
     def setRegForLocal(local: Symbol, reg: Int) =
-      assert(!localsToReg.contains(local))
+      assert(!localsToReg.contains(local), "duplicate symbol " + local + " in " + fun)
       localsToReg(local) = reg
 
   def freshFunctionContext(fun: Symbol): FunctionContext =
