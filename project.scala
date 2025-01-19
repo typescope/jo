@@ -1,3 +1,3 @@
-//> using scala 3.4.2
-//> using jvm 11
+//> using scala 3.6.2
+//> using jvm 17
 //> using option -Wunused:all

@@ -90,6 +90,8 @@ extends Backend(runtime):
 
       case assign: Assign => compile(assign)
 
+      case fieldAssign: FieldAssign => compile(fieldAssign)
+
       case ifElse: If => compile(ifElse)
 
       case whileDo: While => compile(whileDo)
@@ -429,6 +431,21 @@ extends Backend(runtime):
     val fieldReg = freshVirtualReg()
     gen(Instr.Load(fieldAddr, fieldReg, Size.B32))
     ctx.vs.push(Reg(fieldReg))
+
+  /** Compile qual.x = rhs */
+  def compile(fieldAssign: FieldAssign)(using ctx: Context): Unit =
+    val FieldAssign(qual, field, rhs) = fieldAssign
+    val qualType = Memory.toRecordType(qual.tpe.asObjectType)
+    val offset = Memory.fieldOffset(qualType, field)
+
+    compile(qual)
+    compile(rhs)
+
+    val value = ctx.vs.pop()
+    val recordReg = ctx.vs.pop().asInstanceOf[Reg]
+    val fieldAddr = Rel(recordReg.index, offset)
+
+    gen(Instr.Store(value, fieldAddr))
 
   def callPredef(sym: Symbol)(using Context): Unit =
     val defn = Definitions.instance
