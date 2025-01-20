@@ -11,7 +11,9 @@ fun print(s: String): void = js "process.stdout.write(s)"
 
 fun p(n: Int): void = js "process.stdout.write(n.toString() + \"\\n\")"
 
-fun abort(msg: String): Bottom = js "throw msg"
+fun abort(msg: String): Bottom =
+  js "throw msg"
+  js "null"
 
 //------------------------------------------------------------------------------
 //
