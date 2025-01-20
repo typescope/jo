@@ -4,6 +4,12 @@ import stk.runtime.native.Syscall
 import stk.runtime.native.GC
 import stk.runtime.native.ParamSupport
 
+
+//------------------------------------------------------------------------------
+//
+// Utilities
+//
+
 type Addr
 
 fun dataAddr(qualid: String): Addr =
@@ -27,6 +33,11 @@ fun addAddr(arr: Addr, offset: Int): Addr =
 
 fun (arr: Any) cast[T]: T = abort("runtime cast")
 
+//------------------------------------------------------------------------------
+//
+// program life time
+//
+
 fun start(): void =
   GC.init
   ParamSupport.init
@@ -35,7 +46,15 @@ fun start(): void =
 
   finish
 
+fun finish: void =
+  Syscall.sys_exit 0
+
 fun mainStub(): void = abort("error mainStub")
+
+//------------------------------------------------------------------------------
+//
+// Predef implementation
+//
 
 fun int2String(n: Int): String =
   // MAX_VALUE =  2147483647
@@ -88,9 +107,26 @@ fun print(s: String): void =
   val contentAddr = addAddr addr 4
   Syscall.sys_write 1 contentAddr len
 
-fun finish: void =
-  Syscall.sys_exit 0
-
 fun abortImpl(msg: String): Bottom =
   print msg
   Syscall.sys_exit 1
+
+//------------------------------------------------------------------------------
+//
+// Array support
+//
+
+fun arrayCreate(size: Int): Any =
+  val arr = GC.alloc (size * 4)
+  object {
+    def length = size
+
+    def set(i: Int, value: Any): void =
+      writeInt
+        addAddr arr (i * 4)
+        value cast[Int]
+
+    def apply(i: Int): Any =
+      readInt
+         addAddr arr (i * 4)
+  }

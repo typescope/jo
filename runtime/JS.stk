@@ -11,6 +11,47 @@ fun print(s: String): void = js "process.stdout.write(s)"
 
 fun p(n: Int): void = js "process.stdout.write(n.toString() + \"\\n\")"
 
+fun abort(msg: String): Bottom =
+  js "throw msg"
+  js "null"
+
+//------------------------------------------------------------------------------
+//
+// Array support
+//
+
+fun arrayCreateBool(size: Int): Any =
+  arrayWrapContent (js "new Int8Array(size)")
+
+fun arrayCreateInt(size: Int): Any =
+  arrayWrapContent (js "new Int32Array(size)")
+
+fun arrayCreateObject(size: Int): Any =
+  arrayWrapContent (js "new Array(size)")
+
+fun arrayWrapContent(arr: Any): Any =
+  // Lifting functions might change name of captured variables.
+  // The small closed function will ensure the parameter name stay unchanged.
+  fun arrayLength(array: Any): Int =
+    js "array.length"
+
+  fun arrayGet(array: Any, index: Int): Any =
+    js "array[index]"
+
+  fun arraySet(array: Any, index: Int, value: Any): void =
+    js "array[index] = value"
+
+  object {
+    def length = arrayLength arr
+    def set(i: Int, value: Any): void = arraySet arr i value
+    def apply(i: Int): Any = arrayGet arr i
+  }
+
+//------------------------------------------------------------------------------
+//
+// Context parameter support
+//
+
 fun hasParam(key: String): Bool =
   val v = getProp (js "__runtime_contextParams") key
   isDefined v

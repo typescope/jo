@@ -85,7 +85,9 @@ object Printing:
           if tdef.tparams.isEmpty then Text.Empty
           else "[" ~ rep(tdef.tparams, Text(", "))  ~ "]"
 
-        "type " ~ tdef.ident ~ tparams ~ " = " ~ tdef.rhs
+        val token = if tdef.isBound then " <: " else " = "
+
+        "type " ~ tdef.ident ~ tparams ~ token ~ tdef.rhs
 
 
   def showWord(word: Word): Text =

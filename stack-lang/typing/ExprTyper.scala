@@ -178,8 +178,8 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
               words.insert(0, word)
               continue = false
 
-          else if tp.isFunctionType && wordTyped.isInstanceOf[Ident] then
-            val funType = tp.toFunctionType.get
+          else if wordTyped.isInstanceOf[Ident] && tp.hasApplyMethod then
+            val funType = tp.termMember("apply").asProcType
             val autoApply = Select(wordTyped, "apply")(funType, wordTyped.span)
             // prefix
             if values.isEmpty && words.nonEmpty then

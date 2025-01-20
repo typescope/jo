@@ -34,6 +34,8 @@ extends Linker:
   val Core_writeByte = Core.termMember("writeByte")
   val Core_readByte = Core.termMember("readByte")
 
+  val Core_arrayCreate = Core.termMember("arrayCreate")
+
   val Core_print = Core.termMember("print")
   val Core_p = Core.termMember("p")
   val Core_abortImpl = Core.termMember("abortImpl")

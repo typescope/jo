@@ -32,6 +32,8 @@ object Interpreter:
       defs: Map[String, FunDef],
       env: Env)
 
+    case ArrayVal(content: Array[Value])
+
     case PlatformCall(op: List[Value] => List[Value])
 
     case Uninit
@@ -44,10 +46,11 @@ object Interpreter:
       case RecordVal(fields) => fields.map(_ + " = " + _.show).mkString("{", ", ", "}")
       case ObjectVal(values, self, vals, defs,  env) => values.map(_ + " = " + _.show).mkString("object {", ", ", "}")
       case FunVal(fun, env) => "closue(env = " + env.show(recursive = false) + ")"
+      case ArrayVal(content) => "[...]"
       case PlatformCall(op) => "platformCall"
       case Uninit => "Uninit"
 
-  type Value = IntVal | BoolVal | StringVal | RecordVal | ObjectVal | FunVal
+  type Value = IntVal | BoolVal | StringVal | RecordVal | ObjectVal | FunVal | ArrayVal
 
   enum Env:
     case RootEnv()
@@ -145,6 +148,10 @@ object Interpreter:
     System.out.print(v)
     Nil
 
+  def newArray(args: List[Value]): List[Value] =
+    val IntVal(size) :: Nil = args: @unchecked
+    ArrayVal(new Array[Value](size)) :: Nil
+
   def abort(args: List[Value]): List[Value] =
     val StringVal(v) :: Nil = args: @unchecked
     throw new Exception(v)
@@ -175,7 +182,8 @@ object Interpreter:
       defn.Predef_eql    ->    eql,
       defn.Predef_p      ->    p,
       defn.Predef_print  ->    print,
-      defn.Predef_abort  ->    abort
+      defn.Predef_abort  ->    abort,
+      defn.Predef_array  ->    newArray
     )
 
     for (sym, op) <- platformCalls do
@@ -297,12 +305,32 @@ object Interpreter:
       case Apply(fun, args) =>
         fun match
           case Select(qual, name) if qual.tpe.isObjectType =>
-            val (objVal: ObjectVal) = eval(qual): @unchecked
-            val argVals = args.map(eval)
-            val fdef = objVal.defs(name)
-            val env2 = objVal.env.fresh()
-            env2.bind(objVal.self, objVal)
-            call(fdef, argVals)(using env2)
+            eval(qual): @unchecked match
+              case objVal: ObjectVal =>
+                val argVals = args.map(eval)
+                val fdef = objVal.defs(name)
+                val env2 = objVal.env.fresh()
+                env2.bind(objVal.self, objVal)
+                call(fdef, argVals)(using env2)
+
+              case arrayVal: ArrayVal =>
+                val argVals = args.map(eval)
+
+                if name == "apply" then
+                  val IntVal(index) :: Nil = argVals: @unchecked
+                  arrayVal.content(index) :: Nil
+
+                else if name == "set" then
+                  val IntVal(index) :: v :: Nil = argVals: @unchecked
+                  arrayVal.content(index) = v
+                   Nil
+
+                else if name == "length" then
+                  assert(argVals.isEmpty)
+                  IntVal(arrayVal.content.length) :: Nil
+
+                else
+                   throw new Exception(s"Unexpect method $name on array")
 
           case _ =>
             val funDenot :: Nil = exec(fun): @unchecked

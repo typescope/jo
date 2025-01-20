@@ -1,0 +1,48 @@
+fun main =
+  testIntArray
+  testBoolArray
+  testObjectArray
+
+fun testIntArray =
+  val arr: Array[Int] = array[Int] 3
+
+  arr.set 0 10
+  arr.set 1 12
+  arr.set 2 14
+
+  arr.length p
+  arr 0 p
+  arr 1 p
+  arr 2 p
+
+fun testBoolArray =
+  val arr = array[Bool] 3
+
+  fun (b: Bool) pb: void =
+    if b then println "true" else println "false"
+
+  arr.set 0 true
+  arr.set 1 false
+  arr.set 2 true
+
+  arr.length p
+  arr 0 pb
+  arr 1 pb
+  arr 2 pb
+
+fun testObjectArray =
+  val arr = array[String] 3
+
+  arr.set 0 "a"
+  arr.set 1 "b"
+  arr.set 2 "c"
+
+  arr.length p
+  println
+    arr 0
+
+  println
+    arr 1
+
+  println
+    arr 2

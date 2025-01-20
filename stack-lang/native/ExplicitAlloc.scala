@@ -19,9 +19,11 @@ import scala.collection.mutable
   *     fun addAddr(arr: Addr, offset: Int): Addr = ...
   */
 class ExplicitAlloc(runtime: NativeRuntime) extends SastOps.TreeMap:
-  class FunContext(val funSymbol: Symbol, val locals: mutable.ArrayBuffer[Symbol])
 
+  class FunContext(val funSymbol: Symbol, val locals: mutable.ArrayBuffer[Symbol])
   type Context = FunContext
+
+  val Predef_array = Definitions.instance.Predef_array
 
   def transform(nss: List[Namespace]): List[Namespace] =
     for ns <- nss yield transformNamespace(ns)
@@ -81,5 +83,9 @@ class ExplicitAlloc(runtime: NativeRuntime) extends SastOps.TreeMap:
         // Only object is mutable
         val objectType = qual.tpe.asObjectType
         Memory.writeObjectField(objectType, name, this(qual), this(rhs), runtime)
+
+      case Apply(TypeApply(fun @ Ident(sym), tpt :: Nil), arg :: Nil) if sym == Predef_array  =>
+        val fun2 = Ident(runtime.Core_arrayCreate)(fun.span)
+        Encoded(Apply(fun2, this(arg) :: Nil)(AnyType, word.span))(word.tpe)
 
       case _ => recur(word)

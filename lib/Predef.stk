@@ -54,7 +54,26 @@ fun println(s: String): void =
 
 fun abort(s: String): Bottom = abort("primitive print")
 
+fun assert(cond: Bool, message: String): void =
+  if not cond then abort message
+
 //-------------------------------------------------------------
+//
+// Arrays
+//
+
+type Array[T] <: object {
+  def length: Int
+  def set(i: Int, value: T): void
+  def apply(i: Int): T
+}
+
+fun array[T](size: Int): Array[T] = abort("primitive array")
+
+//-------------------------------------------------------------
+//
+// Platform support
+//
 
 // A piece of JS code --- it is specially handled under JS platform.
 fun js(s: String): Bottom = abort("primitive js")
