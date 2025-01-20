@@ -3,7 +3,7 @@ namespace stk.Predef
 //--------------------------------------------------------------
 // primitive types
 //
-// primitive type symbols are handled specially in the namer
+//* primitive type symbols are handled specially in the namer
 
 type Int
 
@@ -19,7 +19,7 @@ type Bottom
 
 type Array[T] <: object {
   def length: Int
-  def update(i: Int, value: T): void
+  def set(i: Int, value: T): void
   def apply(i: Int): T
 }
 
@@ -60,7 +60,10 @@ fun println(s: String): void =
 
 fun abort(s: String): Bottom = abort("primitive print")
 
-fun array[T](size: Int): Array[T] = abort("primitive newArray")
+fun assert(cond: Bool, message: String): void =
+  if not cond then abort message
+
+fun array[T](size: Int): Array[T] = abort("primitive array")
 
 //-------------------------------------------------------------
 
