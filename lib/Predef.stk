@@ -17,6 +17,12 @@ type Any
 
 type Bottom
 
+type Array[T] <: object {
+  def length: Int
+  def update(i: Int, value: T): void
+  def apply(i: Int): T
+}
+
 //--------------------------------------------------------------
 // primitive and predefined functions
 //
@@ -53,6 +59,8 @@ fun println(s: String): void =
   print "\n"
 
 fun abort(s: String): Bottom = abort("primitive print")
+
+fun array[T](size: Int): Array[T] = abort("primitive newArray")
 
 //-------------------------------------------------------------
 

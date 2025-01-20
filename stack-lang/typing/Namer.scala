@@ -629,7 +629,7 @@ class Namer(@constructorOnly reporter: Reporter):
   private def transform(lambda: Ast.Lambda)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
      val Ast.Lambda(params, body) = lambda
 
-     val targetFunTypeOpt: Option[ProcType] = tt.knownType.flatMap(_.toFunctionType)
+     val targetFunTypeOpt: Option[ProcType] = tt.knownType.flatMap(_.getFunctionApplyType)
 
      if targetFunTypeOpt.nonEmpty then
        val expect = targetFunTypeOpt.get.paramCount
@@ -835,7 +835,11 @@ class Namer(@constructorOnly reporter: Reporter):
         else
           val rhs = transformType(tdef.rhs)
           checker.delayedCheck { checker.checkValueType(rhs) }
-          rhs.tpe
+
+          if tdef.isBound then
+            TypeBound(BottomType, rhs.tpe)
+          else
+            rhs.tpe
 
       else
         val tparamRefs = tparamSyms.zipWithIndex.map: (tparamSym, i) =>
@@ -845,7 +849,12 @@ class Namer(@constructorOnly reporter: Reporter):
         val rhs = transformType(tdef.rhs)(using sc2)
         checker.delayedCheck { checker.checkValueType(rhs) }
         val tparamInfos = tparamSyms.map(tparam => NamedInfo(tparam.name, tparam.info.as[TypeBound]))
-        val rawType = TypeLambda(tparamInfos, rhs.tpe)
+
+        val rhsType =
+          if tdef.isBound then TypeBound(BottomType, rhs.tpe)
+          else rhs.tpe
+
+        val rawType = TypeLambda(tparamInfos, rhsType)
         TypeOps.substSymbols(rawType, subst)
     end computeInfo
 

@@ -9,7 +9,6 @@ import ast.Ast.*
 import ast.Positions
 import ast.Positions.*
 
-import common.IO
 import reporting.Reporter
 import reporting.Reporter.{ error, warn }
 
@@ -40,10 +39,8 @@ object Parser:
   /** Parse the supplied code */
   def parse(path: String)(using rp: Reporter): Namespace =
     val source = Reporter.source(path)
-    val name = IO.fileNameNoExt(path)
-    val defaultNamespace = Ident(name)(Positions.Span(0, 0))
     val parser = new Parser(source.content)(using rp, source)
-    parser.parse(defaultNamespace)
+    parser.parse()
 
    /** A scanner that supports peeking tokens ahead. */
   class LookAheadScanner(scanner: Scanner):
@@ -130,20 +127,22 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     items.toList
 
-  def parse(defaultNamespace: RefTree): Namespace =
-    val nspace = namespace(defaultNamespace)
+  def parse(): Namespace =
+    val nspace = namespace()
     // With parsing errors, ensure finish scanning
     while peek() != Token.EOF do eat(Token.EOF)
     nspace
 
-  def namespace(defaultNamespace: RefTree): Namespace =
+  def namespace(): Namespace =
     val item = peek()
     val id =
       item match
         case Token.NSPACE =>
           next()
           qualid()
-        case _ => defaultNamespace
+
+        case _ =>
+          Ident("__empty__")(Span(0, 0))
 
     val imports = repeated:
       if peek() == Token.IMPORT then Some(importStat())
@@ -248,13 +247,19 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val typeItem = eat(Token.TYPE)
     val id = ident()
     val tparams = typeParams()
+    var isBound = false
     val rhs =
       if peek() == Token.EQL then
         eat(Token.EQL)
         typ()
+      else if peek() == Token.SUBTYPE then
+        isBound = true
+        eat(Token.SUBTYPE)
+        typ()
       else
+        isBound = true
         EmptyTypeTree()(id.span)
-    TypeDef(id, tparams, rhs)(typeItem.span | rhs.span)
+    TypeDef(id, tparams, rhs, isBound)(typeItem.span | rhs.span)
 
   def typeParams(): List[TypeParam] =
     if peek() != Token.LBRACKET then Nil

@@ -32,6 +32,8 @@ object Interpreter:
       defs: Map[String, FunDef],
       env: Env)
 
+    case ArrayVal(content: Array[Value])
+
     case PlatformCall(op: List[Value] => List[Value])
 
     case Uninit

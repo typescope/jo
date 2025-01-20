@@ -223,7 +223,7 @@ object Ast:
     def name = ident.name
 
   case class TypeDef
-    (ident: Ident, tparams: List[TypeParam], rhs: TypeTree)
+    (ident: Ident, tparams: List[TypeParam], rhs: TypeTree, isBound: Boolean)
     (val span: Span)
   extends Word, Def
 

@@ -32,6 +32,8 @@ class Definitions(rootNameTable: NameTable):
   val Predef_print  =  Predef.termMember("print")
   val Predef_abort  =  Predef.termMember("abort")
 
+  val Predef_array  =  Predef.termMember("array")
+
   val Predef_js     =  Predef.termMember("js")
 
   // types
@@ -39,6 +41,8 @@ class Definitions(rootNameTable: NameTable):
   val Predef_Bool   =  Predef.typeMember("Bool")
   val Predef_String =  Predef.typeMember("String")
   val Predef_Void   =  Predef.typeMember("void")
+  val Predef_Array  =  Predef.typeMember("Array")
+
 
 object Definitions:
   val key = new Dynamic.Key[Definitions]("definitions")

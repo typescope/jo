@@ -63,12 +63,12 @@ object Types:
     def asObjectType: ObjectType =
       TypeOps.approx(this, isUp = true).asInstanceOf[ObjectType]
 
-    def isFunctionType: Boolean =
+    def hasApplyMethod: Boolean =
       TypeOps.approx(this, isUp = true) match
-         case ObjectType(Nil, NamedInfo("apply", _) :: Nil, Nil) => true
-         case _ => false
+        case objType: ObjectType => objType.termMember("apply").isProcType
+        case _ => false
 
-    def toFunctionType: Option[ProcType] =
+    def getFunctionApplyType: Option[ProcType] =
       TypeOps.approx(this, isUp = true) match
         case ObjectType(Nil, NamedInfo("apply", tp) :: Nil, Nil) =>
          TypeOps.approx(tp, isUp = true) match
@@ -88,7 +88,9 @@ object Types:
         case objectType: ObjectType =>
           objectType.getMemberType(name)
 
-        case _ => None
+        case tp =>
+          println(this.show + " approx to " + tp.show)
+          None
 
     def termMember(name: String): Type = getTermMember(name).get
 
