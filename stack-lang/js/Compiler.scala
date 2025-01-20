@@ -59,6 +59,8 @@ def compile(args: String*): Unit =
         jsRuntime.JS_newPage,
         jsRuntime.JS_restorePage)
 
+    val runtimeLowerer = new LowerRuntime(jsRuntime)
+
     val backend = new JSOptimized(outFile, jsRuntime)
 
     val mains = namespacesSAST.collect:
@@ -70,6 +72,8 @@ def compile(args: String*): Unit =
         Printing.peek(enable = false) |>
         ElimCapture.transform         |+
         TreeChecker.check             |>
+        Printing.peek(enable = false) |>
+        runtimeLowerer.transform      |+
         Printing.peek(enable = false) |>
         contextParamsLower.transform  |+
         Printing.peek(enable = false) |>

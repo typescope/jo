@@ -245,12 +245,6 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
     run(operand): v =>
       cont("(!" ~ v  ~ ")")
 
-  def abort(args: List[Word])(using Context): Text =
-    val arg :: Nil = args: @unchecked
-    run(arg): v =>
-      "throw "  ~ v ~ ";" ~ Text.BreakLine ~ cont(Text("null"))
-
-
   def call(fun: Word, args: List[Word])(using Context): Text =
     fun match
       case Ident(sym) if sym.owner == Definitions.instance.Predef =>
@@ -306,9 +300,6 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
       case defn.Predef_bor    =>   binary("||")
       case defn.Predef_bnot   =>   bnot(args)
       case defn.Predef_eql    =>   binary("===")
-      case defn.Predef_abort  =>   abort(args)
-      case defn.Predef_print  =>   call(runtime.JS_print, args)
-      case defn.Predef_p      =>   call(runtime.JS_p, args)
 
       case defn.Predef_js  =>
         val StringLit(code) :: Nil = args : @unchecked
