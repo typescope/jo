@@ -66,7 +66,12 @@ object Subtyping:
     def isReducingRight(tp: ProxyType): Boolean =
       reducingRight.contains(tp)
 
-  /** Check whether one type conforms to the other type */
+  /**
+    * Check whether one type conforms to the other type
+    *
+    * We intentionally do not check subtyping of bound type. They may only
+    * surface in deal with TypeRef, which is handled specially.
+    */
   private def checkConforms(tp1: Type, tp2: Type)(using ctx: Context): Boolean = Debug.trace(s"${tp1.show} <: ${tp2.show}", enable = false) {
     tp1.isError
     || tp2.isError
@@ -147,8 +152,13 @@ object Subtyping:
     sym.info match
       case bound: TypeBound =>
         // Type definitions can also be bounded
-        // assert(sym.isTypeParameter, sym)
-        if maximize then bound.hi else bound.lo
+        if sym.isTypeParameter then
+          if maximize then bound.hi else bound.lo
+
+        else
+          // Treat type definition without only bounds as nominal type
+          tp
+
       case tp =>
         tp
 
