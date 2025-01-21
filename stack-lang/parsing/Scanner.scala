@@ -12,6 +12,11 @@ import reporting.Reporter.{ error, abortInternal }
 class Scanner(stream: CharStream)(using Reporter, Source):
   def this(code: String)(using Reporter, Source) = this(new CharStream(code))
 
+  def eat(c: Char): Unit =
+    val res = stream.eat()
+    if c != res then
+      error(s"Expect character $c, found : " + res, stream.lastCharSpan().toPos)
+
   /** Return the token, its span and the line indentation where the token ends */
   def next(): TokenInfo =
     nextToken().withInfo(stream.tokenSpan(), stream.lineIndent())
@@ -47,6 +52,9 @@ class Scanner(stream: CharStream)(using Reporter, Source):
 
       case '"'    =>
         stringLit()
+
+      case '\''    =>
+        charLit()
 
       case c      =>
         if      isDigit(c)      then intLit()
@@ -100,10 +108,21 @@ class Scanner(stream: CharStream)(using Reporter, Source):
     stream.eatWhile(c => c != '\n' && (c != '"' || stream.lastEq('\\')))
     if stream.curChar() == '\n' then
       error("Missing closing double quote: string cannot span multiple lines", stream.tokenSpan().toPos)
-    stream.eat()
+    else
+      eat('\"')
     val rawString = stream.tokenEnd()
     val content = rawString.substring(1, rawString.size - 1)
     new Token.StringLit(StringUtil.unescape(content))
+
+  def charLit(): Token =
+    if stream.curChar() == '\\' then
+      // only support one char: \b \f \n \r \t \' \\
+      stream.eat()
+    stream.eat()
+    eat('\'')
+    val rawString = stream.tokenEnd()
+    val content = rawString.substring(1, rawString.size - 1)
+    new Token.CharLit(StringUtil.unescapeChar(content))
 
   def intLit(): Token.IntLit =
     stream.eatWhile(isDigit)
@@ -243,5 +262,7 @@ object Scanner:
       sb.toString()
 
     def tokenSpan(): Span = Span(curTokenStart, index - curTokenStart)
+
+    def lastCharSpan(): Span = Span(index - 1, 1)
 
     def lineIndent(): Indent = Indent(lineNum, lineIndentation)

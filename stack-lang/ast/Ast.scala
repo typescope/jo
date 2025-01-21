@@ -33,6 +33,11 @@ object Ast:
     (val span: Span)
   extends Word
 
+  case class CharLit
+    (value: Char)
+    (val span: Span)
+  extends Word
+
   case class StringLit
     (value: String)
     (val span: Span)

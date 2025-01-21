@@ -1,7 +1,7 @@
 package sast
 
 import Sast.*
-import Types.Type
+import Types.*
 import Symbols.Symbol
 
 import common.StringUtil
@@ -77,12 +77,17 @@ object Printing:
 
   def showWord(word: Word): Text =
     word match
-      case IntLit(n) => Text(n.toString)
+      case Literal(c) =>
+        c match
+          case Constant.Bool(b) => Text(b.toString)
 
-      case BoolLit(b) => Text(b.toString)
+          case Constant.String(s) =>
+            "\"" ~ StringUtil.escape(s) ~ "\""
 
-      case StringLit(s) =>
-        "\"" ~ StringUtil.escape(s) ~ "\""
+          case Constant.Int(n) =>
+            word.tpe match
+              case PrimType.Char => "'" ~ StringUtil.escapeChar(n.toChar) ~ "'"
+              case _ => Text(n.toString)
 
       case Ident(sym) => Text(sym.name)
 

@@ -1,5 +1,6 @@
 package native
 
+import sast.Constant
 import sast.Types.*
 import sast.Sast.*
 
@@ -72,7 +73,7 @@ object Memory:
       if offset == 0 then
         ref
       else
-        val offsetLit = IntLit(offset)(rhs.span)
+        val offsetLit = Literal(Constant.Int(offset))(PrimType.Int, rhs.span)
         val addAddrFun = Ident(runtime.Core_addAddr)(rhs.span)
         Apply(addAddrFun, ref :: offsetLit :: Nil)(TypeRef(runtime.Core_Addr), rhs.span)
 
@@ -86,9 +87,9 @@ object Memory:
       if offset == 0 then
         qual
       else
-        val offsetLit = IntLit(offset)(select.span)
+        val offsetLit = Literal(Constant.Int(offset))(PrimType.Int, select.span)
         val addAddrFun = Ident(runtime.Core_addAddr)(select.span)
         Apply(addAddrFun, qual :: offsetLit :: Nil)(TypeRef(runtime.Core_Addr), select.span)
 
     val readIntFun = Ident(runtime.Core_readInt)(select.span)
-    Encoded(Apply(readIntFun, addr :: Nil)(IntType, select.span))(select.tpe)
+    Encoded(Apply(readIntFun, addr :: Nil)(PrimType.Int, select.span))(select.tpe)

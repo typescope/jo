@@ -33,6 +33,8 @@ import scala.collection.mutable
   */
 class LowerContextParams(runtime: NativeRuntime) extends phases.Phase:
 
+  val defn = Definitions.instance
+  val StringType = TypeRef(defn.Predef_String)
   class FunContext(val funSymbol: Symbol)
   type Context = FunContext
   def createContext(fdef: FunDef) = FunContext(fdef.symbol)
@@ -40,7 +42,7 @@ class LowerContextParams(runtime: NativeRuntime) extends phases.Phase:
   override def transformIdent(word: Ident)(using ctx: Context): Word =
     word match
       case Ident(sym) if sym.isAllOf(Flags.Context | Flags.Param) =>
-        val arg = StringLit(sym.fullName)(word.span)
+        val arg = StringLit(sym.fullName)(StringType, word.span)
         val fun = Ident(runtime.ParamSupport_getParam)(word.span)
         val app = Apply(fun, arg :: Nil)(word.tpe, word.span)
         app
@@ -51,11 +53,11 @@ class LowerContextParams(runtime: NativeRuntime) extends phases.Phase:
   override def transformDefaultParam(word: DefaultParam)(using ctx: Context): Word =
     val DefaultParam(paramRef, default) = word
       val paramName = paramRef.symbol.fullName
-      val key = StringLit(paramName)(paramRef.span)
+      val key = StringLit(paramName)(StringType, paramRef.span)
       val funGetParamIndex = Ident(runtime.ParamSupport_getParamIndex)(paramRef.span)
-      val getParamIndexCall = Apply(funGetParamIndex, key :: Nil)(IntType, paramRef.span)
+      val getParamIndexCall = Apply(funGetParamIndex, key :: Nil)(PrimType.Int, paramRef.span)
 
-      val indexSym = new Symbol("index_" + paramName, IntType, Flags.Val, owner = ctx.funSymbol, sourcePos = null)
+      val indexSym = new Symbol("index_" + paramName, PrimType.Int, Flags.Val, owner = ctx.funSymbol, sourcePos = null)
       val indexAssign = Assign(Ident(indexSym)(paramRef.span), getParamIndexCall)(paramRef.span)
 
       val indexIdent = Ident(indexSym)(paramRef.span)
@@ -64,8 +66,8 @@ class LowerContextParams(runtime: NativeRuntime) extends phases.Phase:
       val readValueAtCall = Apply(funReadValueAt, indexIdent :: Nil)(word.tpe, paramRef.span)
 
       val funLessThan = Ident(Definitions.instance.Predef_lt)(paramRef.span)
-      val zero = IntLit(0)(paramRef.span)
-      val cond = Apply(funLessThan, indexIdent :: zero :: Nil)(BoolType, paramRef.span)
+      val zero = Literal(Constant.Int(0))(PrimType.Int, paramRef.span)
+      val cond = Apply(funLessThan, indexIdent :: zero :: Nil)(PrimType.Bool, paramRef.span)
       val ifExpr = If(cond, default, readValueAtCall)(word.tpe, word.span)
 
       Block(indexAssign :: ifExpr  :: Nil)(word.tpe, word.span)
@@ -96,7 +98,7 @@ class LowerContextParams(runtime: NativeRuntime) extends phases.Phase:
       // 3. setParam("x", v)
       args.zip(argValueSyms).foreach: (arg, argValueSym) =>
         val paramName = arg.paramRef.symbol.fullName
-        val key = StringLit(paramName)(arg.paramRef.span)
+        val key = StringLit(paramName)(StringType, arg.paramRef.span)
         val value = Ident(argValueSym)(arg.rhs.span)
         val funSetParam = Ident(runtime.ParamSupport_setParam)(arg.span)
         val setParamCall = Apply(funSetParam, key :: value :: Nil)(AnyType, arg.span)
@@ -128,11 +130,11 @@ class LowerContextParams(runtime: NativeRuntime) extends phases.Phase:
       //    (hashIndex, oldX)
       val restorePairSyms = args.zip(argValueSyms).map: (arg, argValueSym) =>
         val paramName = arg.paramRef.symbol.fullName
-        val key = StringLit(paramName)(arg.paramRef.span)
+        val key = StringLit(paramName)(StringType, arg.paramRef.span)
         val value = Ident(argValueSym)(arg.rhs.span)
         val funSetParam = Ident(runtime.ParamSupport_setParam)(arg.span)
-        val setParamCall = Apply(funSetParam, key :: value :: Nil)(IntType, arg.span)
-        val hashIndexSym = new Symbol("hash_index_" + paramName, IntType, Flags.Val, owner = ctx.funSymbol, sourcePos = arg.rhs.pos)
+        val setParamCall = Apply(funSetParam, key :: value :: Nil)(PrimType.Int, arg.span)
+        val hashIndexSym = new Symbol("hash_index_" + paramName, PrimType.Int, Flags.Val, owner = ctx.funSymbol, sourcePos = arg.rhs.pos)
         stats += Assign(Ident(hashIndexSym)(arg.paramRef.span), setParamCall)(arg.span)
 
         val funGetLastOverwrittenValue = Ident(runtime.ParamSupport_getLastOverwrittenValue)(arg.span)

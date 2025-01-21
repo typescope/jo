@@ -47,16 +47,20 @@ extends Backend(runtime):
 
   def compile(word: Word)(using addr: LocalAddr, cb: CodeBuffer): Unit = Debug.trace("Compiling " + word.show, enable = false):
     word match
-      case IntLit(v) => push(Int32(v))
+      case Literal(c) =>
+        c match
+          case Constant.Bool(b) =>
+            push(Int32(if b then 1 else 0))
 
-      case BoolLit(v) => push(Int32(if v then 1 else 0))
+          case Constant.String(s) =>
+            val label = addString(s)
 
-      case StringLit(v) =>
-        val label = addString(v)
+            useReg: r =>
+              cb.add(Instr.Move(label, r))
+              push(Reg(r))
 
-        useReg: r =>
-          cb.add(Instr.Move(label, r))
-          push(Reg(r))
+          case Constant.Int(n) =>
+            push(Int32(n))
 
       case block: Block => compile(block)
 
@@ -274,7 +278,7 @@ extends Backend(runtime):
         else if sym.owner == runtime.Core then
           if sym == runtime.Core_data then
             // TODO: error instead of crash -- in early phases
-            val StringLit(qualid) :: Nil = app.args: @unchecked
+            val Literal(Constant.String(qualid)) :: Nil = app.args: @unchecked
             val Some(label) = runtime.locate(qualid): @unchecked
             push(label)
           else if sym == runtime.Core_cast then

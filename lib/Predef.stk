@@ -5,11 +5,13 @@ namespace stk.Predef
 //
 // primitive type symbols are handled specially in the namer
 
+type Byte
+
+type Char
+
 type Int
 
 type Bool
-
-type String
 
 type void
 
@@ -18,9 +20,9 @@ type Any
 type Bottom
 
 //--------------------------------------------------------------
-// primitive and predefined functions
+// primitive functions
 //
-// primitive functions are handled specially by the compiler
+// primitive functions are handled specially by the backend compiler
 
 fun (a: Int) + (b: Int): Int = abort("primitive +")
 fun (a: Int) - (b: Int): Int = abort("primitive -")
@@ -44,6 +46,11 @@ fun (a: Bool) and (b: Bool): Bool = abort("primitive and")
 fun (a: Bool) or (b: Bool): Bool = abort("primitive and")
 fun not (b: Bool): Bool = abort("primitive not")
 
+//-------------------------------------------------------------
+//
+// Utility functions
+//
+
 fun (n: Int) p: void = abort("primitive p")
 
 fun print(s: String): void = abort("primitive print")
@@ -59,6 +66,21 @@ fun assert(cond: Bool, message: String): void =
 
 //-------------------------------------------------------------
 //
+// Coercion of types
+//
+// For numeric types, widening coercion is automatically inserted.
+
+fun byteToInt(b: Byte): Int = abort "byteToInt"
+fun byteToChar(b: Byte): Char = abort "byteToChar"
+
+fun intToChar(n: Int): Char = abort "intToChar"
+fun intToByte(n: Int): Byte = abort "intToByte"
+
+fun charToByte(c: Char): Byte = abort "charToByte"
+fun charToInt(c: Char): Int = abort "charToInt"
+
+//-------------------------------------------------------------
+//
 // Arrays
 //
 
@@ -69,6 +91,13 @@ type Array[T] <: object {
 }
 
 fun array[T](size: Int): Array[T] = abort("primitive array")
+
+//-------------------------------------------------------------
+//
+// String type
+//
+
+type String
 
 //-------------------------------------------------------------
 //

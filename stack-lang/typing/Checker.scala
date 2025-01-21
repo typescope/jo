@@ -123,14 +123,39 @@ class Checker:
       else
         Some(unionType2.tagType(tag.name))
 
+  def adaptIntLiteral(n: Int, from: Type, targetType: PrimType)(using Reporter, Source): Type =
+    targetType match
+      case PrimType.Byte if n < 128 && n >= -128 => PrimType.Byte
+
+      case PrimType.Char if n < 65536 && n >= 0 => PrimType.Char
+
+      case PrimType.Int => PrimType.Int
+
+      case _ => from
+
   /** Explicit drop of values in if/match expressions */
   def adapt(word: Word, targetType: Type)(using Reporter, Source): Word =
     val curType = word.tpe
     if targetType.isVoidType && curType.isValueType then
       Sast.dropValue(word)
     else
-      checkType(word, targetType)
-      word
+      if targetType.isPrimType && !Subtyping.conforms(word.tpe, targetType) then
+        // Numeric coercion
+        word match
+          case Literal(Constant.Int(n)) =>
+            val tp2 = adaptIntLiteral(n, word.tpe, targetType.asPrimType)
+            val word2 = Literal(Constant.Int(n))(tp2, word.span)
+            checkType(word2, targetType)
+            word2
+
+          case _ =>
+            // TODO: only widening coercion is allowed for non-literals
+            checkType(word, targetType)
+            word
+
+      else
+        checkType(word, targetType)
+        word
 
   def widen(word: Word): Word = word.tpe match
     case TypeRef(sym) if !sym.isType =>

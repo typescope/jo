@@ -41,7 +41,7 @@ class ExplicitAlloc(runtime: NativeRuntime) extends phases.Phase:
 
     val recordType = word.tpe.asRecordType
     val size = Memory.size(recordType)
-    val sizeLit = IntLit(size)(word.span)
+    val sizeLit = Literal(Constant.Int(size))(PrimType.Int, word.span)
     val allocApply = Apply(allocFun, sizeLit :: Nil)(addrType, word.span)
 
     val refSym =

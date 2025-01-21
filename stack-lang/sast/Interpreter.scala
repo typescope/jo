@@ -226,11 +226,16 @@ object Interpreter:
 
   def exec(word: Word)(using env: Env, params: Params): List[Denotation] =
     word match
-      case IntLit(v)  => IntVal(v) :: Nil
+      case Literal(c)  =>
+        c match
+          case Constant.Int(n) =>
+            IntVal(n) :: Nil
 
-      case BoolLit(v) => BoolVal(v) :: Nil
+          case Constant.Bool(b) =>
+            BoolVal(b) :: Nil
 
-      case StringLit(v) => StringVal(v) :: Nil
+          case Constant.String(s) =>
+            StringVal(s) :: Nil
 
       case Encoded(repr) => exec(repr)
 

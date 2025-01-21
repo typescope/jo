@@ -170,6 +170,26 @@ class Namer(@constructorOnly reporter: Reporter):
             rp.error(s"The name $name is not found", qualid.pos)
             Symbol.createNamespaceSymbol(name, new NameTableInfo, sc.owner, pos = qualid.pos, isBranch = false)
 
+  def resolvePath(path: String, isType: Boolean)(using sc: Scope): Symbol =
+    resolvePath(path.split("\\.").toList, isType) match
+      case Some(sym) =>
+        sym
+
+      case None =>
+        throw new Exception("Not found required symbol: " + path)
+
+  def resolvePath(parts: List[String], isType: Boolean)(using sc: Scope): Option[Symbol] =
+    (parts: @unchecked) match
+      case name :: Nil => sc.resolve(name, isType)
+
+      case name :: rest =>
+        sc.resolve(name, isType = false).flatMap: sym =>
+          if sym.isNamespace then
+            val nameTable = sym.info.as[NameTableInfo].nameTable
+            NameTable.resolvePath(nameTable, rest, isType)
+          else
+            None
+
   private def index(defs: List[Ast.Def])(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): List[DelayedDef[Def]] =
     val delayedDefs = new mutable.ArrayBuffer[DelayedDef[Def]]
 
@@ -209,13 +229,18 @@ class Namer(@constructorOnly reporter: Reporter):
 
     word match
       case Ast.IntLit(v)  =>
-        IntLit(v)(word.span).adapt
+        Literal(Constant.Int(v.toInt))(PrimType.Int, word.span).adapt
+
+      case Ast.CharLit(v) =>
+        Literal(Constant.Int(v.toInt))(PrimType.Char, word.span).adapt
 
       case Ast.BoolLit(v) =>
-        BoolLit(v)(word.span).adapt
+        Literal(Constant.Bool(v))(PrimType.Bool, word.span).adapt
 
       case Ast.StringLit(v) =>
-        StringLit(v)(word.span).adapt
+        // TODO: use full name `stk.Predef.String`
+        val stringSym = resolvePath("String", isType = true)
+        Literal(Constant.String(v))(TypeRef(stringSym), word.span).adapt
 
       case Ast.Ident(name) =>
         val sym = sc.resolve(name, word.pos)
@@ -284,7 +309,7 @@ class Namer(@constructorOnly reporter: Reporter):
         transform(ifte)
 
       case Ast.While(cond, body) =>
-         val cond2 = transform(cond)(using sc, rp, so, TargetType.Known(BoolType))
+         val cond2 = transform(cond)(using sc, rp, so, TargetType.Known(PrimType.Bool))
          val body2 = transform(body)(using sc, rp, so, TargetType.Known(VoidType))
          While(cond2, body2)(word.span).adapt
 
@@ -454,7 +479,7 @@ class Namer(@constructorOnly reporter: Reporter):
 
   private def transform(ifte: Ast.If)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
     val Ast.If(cond, thenp, elsep) = ifte
-    val cond2 = transform(cond)(using sc, rp, so, TargetType.Known(BoolType))
+    val cond2 = transform(cond)(using sc, rp, so, TargetType.Known(PrimType.Bool))
     val then2 = transform(thenp)
     val else2 = transform(elsep)
 
@@ -561,11 +586,13 @@ class Namer(@constructorOnly reporter: Reporter):
           if tagsRest.nonEmpty then
             Reporter.error("Unmatched case(s): " + tagsRest.mkString(", "), scrutIdent.pos)
 
-          // TODO: namer should not assume Definitions are available -- move to later phase
           // abort
-          val abort = Ident(Definitions.instance.Predef_abort)(scrutIdent.span)
-          val args = StringLit("Unhandled match at " + scrutIdent.pos)(scrutIdent.span) :: Nil
-          val app = Apply(abort, args)(BottomType, patmat.span)
+          // TODO: use full name `stk.Predef.abort`
+          val abortSym = resolvePath("abort", isType = false)
+          val stringSym = resolvePath("Predef.String", isType = false)
+          val abort = Ident(abortSym)(scrutIdent.span)
+          val arg = Literal(Constant.String("Unhandled match at " + scrutIdent.pos))(TypeRef(stringSym), scrutIdent.span)
+          val app = Apply(abort, arg :: Nil)(BottomType, patmat.span)
           checker.adapt(app, resType)
 
       end match
@@ -819,9 +846,10 @@ class Namer(@constructorOnly reporter: Reporter):
         if tdef.rhs.isEmpty then
           if sc.owner.fullName == "stk.Predef" then
             val typeName = tdef.name
-            if typeName == "Int" then IntType
-            else if typeName == "Bool" then BoolType
-            else if typeName == "String" then StringType
+            if typeName == "Int" then PrimType.Int
+            else if typeName == "Byte" then PrimType.Byte
+            else if typeName == "Char" then PrimType.Char
+            else if typeName == "Bool" then PrimType.Bool
             else if typeName == "void" then VoidType
             else if typeName == "Any" then AnyType
             else if typeName == "Bottom" then BottomType

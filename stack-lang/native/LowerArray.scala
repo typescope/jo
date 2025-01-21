@@ -43,7 +43,7 @@ class LowerArray(runtime: NativeRuntime) extends phases.Phase:
 
         if name == "length" then
           val fun2 = Ident(runtime.Core_arrayLength)(fun.span)
-          Apply(fun2, args2)(IntType, word.span)
+          Apply(fun2, args2)(PrimType.Int, word.span)
 
         else if name == "apply" then
           val fun2 = Ident(runtime.Core_arrayGet)(fun.span)

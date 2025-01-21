@@ -42,7 +42,7 @@ extends Backend(runtime):
     *
     * Its type does not matter.
     */
-  val returnAddrSym = Symbol.createParamSymbol("return", IntType, owner = runtime.Core, pos = runtime.Core.sourcePos)
+  val returnAddrSym = Symbol.createParamSymbol("return", PrimType.Int, owner = runtime.Core, pos = runtime.Core.sourcePos)
 
   def freshVirtualReg()(using ctx: Context): Int =
     ctx.generator.fresh()
@@ -64,16 +64,19 @@ extends Backend(runtime):
 
   def compile(word: Word)(using ctx: Context): Unit =
     word match
-      case IntLit(v) => ctx.vs.push(Int32(v))
+      case Literal(c) =>
+        c match
+          case Constant.Bool(b) =>
+            ctx.vs.push(Int32(if b then 1 else 0))
 
-      case BoolLit(v) =>
-        ctx.vs.push(Int32(if v then 1 else 0))
+          case Constant.String(s) =>
+            val label = addString(s)
+            val reg = freshVirtualReg()
+            gen(Instr.Move(label, reg))
+            ctx.vs.push(Reg(reg))
 
-      case StringLit(v) =>
-        val label = addString(v)
-        val reg = freshVirtualReg()
-        gen(Instr.Move(label, reg))
-        ctx.vs.push(Reg(reg))
+          case Constant.Int(n) =>
+            ctx.vs.push(Int32(n))
 
       case block: Block => compile(block)
 

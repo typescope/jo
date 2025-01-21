@@ -456,6 +456,10 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         next()
         Some(BoolLit(lit.value)(item.span))
 
+      case lit: Token.CharLit  =>
+        next()
+        Some(CharLit(lit.value)(item.span))
+
       case lit: Token.StringLit  =>
         next()
         Some(StringLit(lit.value)(item.span))

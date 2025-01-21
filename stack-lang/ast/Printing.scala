@@ -94,6 +94,8 @@ object Printing:
     word match
       case IntLit(n) => Text(n.toString)
 
+      case CharLit(c) => Text("'" ~ StringUtil.escapeChar(c) ~ "'")
+
       case BoolLit(b) => Text(b.toString)
 
       case StringLit(s) => "\"" ~ StringUtil.escape(s) ~ "\""
