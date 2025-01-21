@@ -1,0 +1,33 @@
+type IntArray =
+  object {
+    def length: Int
+    def set(i: Int, value: Int): void
+    def apply(i: Int): Int
+  }
+
+type A =
+  object {
+    def length: Int
+  }
+
+type B =
+  object {
+    def set(i: Int, value: Int): void
+  }
+
+type C =
+  object {
+    def apply(i: Int): Int
+  }
+
+fun main =
+  val arr: Array[Int] = array[Int] 3
+
+  val f: IntArray = arr // error
+  val a: A = arr // error
+  val b: B = arr // error
+  val c: C = arr // error
+
+  arr.set 0 10
+  arr.set 1 12
+  arr.set 2 14
