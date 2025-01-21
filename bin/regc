@@ -63,6 +63,7 @@ files=(
     stack-lang/native/LowerArray.scala
     stack-lang/native/ExplicitAlloc.scala
 
+    stack-lang/phases/Phase.scala
     stack-lang/phases/ElimCapture.scala
 
 )

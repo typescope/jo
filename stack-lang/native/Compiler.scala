@@ -92,7 +92,7 @@ object Compiler:
           contextParamsLower.transform  |+
           Printing.peek(enable = false) |>
           arrayLowerer.transform        |+
-          Printing.peek(enable = true)  |>
+          Printing.peek(enable = false) |>
           explicitAlloc.transform       |+
           Printing.peek(enable = false) |>
           backend.compile               |>

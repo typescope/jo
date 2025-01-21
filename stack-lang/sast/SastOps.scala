@@ -6,17 +6,102 @@ import Symbols.Symbol
 import scala.collection.mutable
 
 object SastOps:
-  trait TreeMap:
+  abstract class TreeMap:
     type Context
 
-    def apply(word: Word)(using Context): Word
+    final def apply(word: Word)(using Context): Word =
+      transform(word)
+
+    def transform(word: Word)(using Context): Word =
+      word match
+        case lit: IntLit => transformIntLit(lit)
+
+        case lit: BoolLit => transformBoolLit(lit)
+
+        case lit: StringLit => transformStringLit(lit)
+
+        case ident: Ident => transformIdent(ident)
+
+        case select: Select => transformSelect(select)
+
+        case rc: RecordLit => transformRecord(rc)
+
+        case encoding: Encoded => transformEncoded(encoding)
+
+        case apply: Apply => transformApply(apply)
+
+        case tapply: TypeApply => transformTypeApply(tapply)
+
+        case withExpr: With => transformWith(withExpr)
+
+        case defaultParam: DefaultParam => transformDefaultParam(defaultParam)
+
+        case assign: Assign => transformAssign(assign)
+
+        case fieldAssign: FieldAssign => transformFieldAssign(fieldAssign)
+
+        case vdef: ValDef => transformValDef(vdef)
+
+        case fdef: FunDef => transformFunDef(fdef)
+
+        case tdef: TypeDef => transformTypeDef(tdef)
+
+        case ifElse: If => transformIf(ifElse)
+
+        case whileDo: While => transformWhile(whileDo)
+
+        case block: Block => transformBlock(block)
+
+        case obj: Object => transformObject(obj)
+    end transform
+
+    def transformIntLit(lit: IntLit)(using Context): Word = recur(lit)
+
+    def transformBoolLit(lit: BoolLit)(using Context): Word = recur(lit)
+
+    def transformStringLit(lit: StringLit)(using Context): Word = recur(lit)
+
+    def transformIdent(ident: Ident)(using Context): Word = recur(ident)
+
+    def transformSelect(select: Select)(using Context): Word = recur(select)
+
+    def transformRecord(rc: RecordLit)(using Context): Word = recur(rc)
+
+    def transformEncoded(encoding: Encoded)(using Context): Word = recur(encoding)
+
+    def transformApply(apply: Apply)(using Context): Word = recur(apply)
+
+    def transformTypeApply(tapply: TypeApply)(using Context): Word = recur(tapply)
+
+    def transformWith(withExpr: With)(using Context): Word = recur(withExpr)
+
+    def transformDefaultParam(defaultParam: DefaultParam)(using Context): Word = recur(defaultParam)
+
+    def transformAssign(assign: Assign)(using Context): Word = recur(assign)
+
+    def transformFieldAssign(fieldAssign: FieldAssign)(using Context): Word = recur(fieldAssign)
+
+    def transformValDef(vdef: ValDef)(using Context): Word = recur(vdef)
+
+    def transformFunDef(fdef: FunDef)(using Context): Word = recur(fdef)
+
+    def transformTypeDef(tdef: TypeDef)(using Context): Word = recur(tdef)
+
+    def transformIf(ifElse: If)(using Context): Word = recur(ifElse)
+
+    def transformWhile(whileDo: While)(using Context): Word = recur(whileDo)
+
+    def transformBlock(block: Block)(using Context): Word = recur(block)
+
+    def transformObject(obj: Object)(using Context): Word = recur(obj)
+
 
     def recurValDef(vdef: ValDef)(using Context): ValDef =
       ValDef(vdef.symbol, this(vdef.rhs))(vdef.span)
 
     def recurFunDef(fdef: FunDef)(using Context): FunDef =
       val body = this(fdef.body)
-      fdef.copy(body = body)(fdef.locals, fdef.span)
+      fdef.copy(body = body)(fdef.span)
 
     def recurTypeDef(tdef: TypeDef)(using Context): TypeDef = tdef
 
@@ -178,14 +263,16 @@ object SastOps:
     end recur
   end TreeTraverser
 
-  def freeVariables(fdef: FunDef): List[Symbol] =
-    val census = new FreeVariables
+  /** Returns (locals, free) */
+  def variableCensus(fdef: FunDef): (List[Symbol], List[Symbol]) =
+    val census = new VariableCensus
     census(fdef.body)(using fdef.symbol)
     val locals = census.locals.distinct.toList
     val masked = fdef.params ++ locals
-    census.free.filter(sym => !masked.contains(sym)).distinct.toList
+    val free = census.free.filter(sym => !masked.contains(sym)).distinct.toList
+    (locals.filter(_.info.isValueType), free)
 
-  class FreeVariables extends TreeTraverser:
+  class VariableCensus extends TreeTraverser:
     val locals = new mutable.ArrayBuffer[Symbol]
     val free = new mutable.ArrayBuffer[Symbol]
 
@@ -193,7 +280,8 @@ object SastOps:
     type Context = Symbol
 
     override def recurFunDef(fdef: FunDef)(using Context): Unit =
-      free ++= freeVariables(fdef)
+      locals += fdef.symbol
+      free ++= variableCensus(fdef)._2
 
     def apply(word: Word)(using Context): Unit =
       word match
@@ -203,6 +291,10 @@ object SastOps:
 
         case ValDef(sym, rhs) =>
           if !sym.isField then locals += sym
+          recur(rhs)
+
+        case Assign(Ident(sym), rhs) =>
+          locals += sym
           recur(rhs)
 
         case obj: Object =>

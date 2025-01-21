@@ -200,9 +200,13 @@ object Sast:
     */
   case class FunDef
     (symbol: Symbol, tparams: List[Symbol], params: List[Symbol], body: Word)
-    (val locals: List[Symbol], val span: Span)
+    (val span: Span)
   extends Word, Def:
-    lazy val freeVariables: List[Symbol] = SastOps.freeVariables(this)
+    private lazy val census: (List[Symbol], List[Symbol]) =
+      SastOps.variableCensus(this)
+
+    lazy val locals: List[Symbol] = census._1
+    lazy val freeVariables: List[Symbol] = census._2
 
   case class Namespace
     (symbol: Symbol, imports: List[Symbol], defs: List[Def])
