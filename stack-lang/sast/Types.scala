@@ -77,6 +77,12 @@ object Types:
 
         case _ => None
 
+    def refersTo(symbol: Symbol): Boolean =
+      this match
+        case TypeRef(sym) => sym == symbol || sym.info.refersTo(symbol)
+        case AppliedType(ctor, _) => ctor.refersTo(symbol)
+        case _ => false
+
     def getTermMember(name: String): Option[Type] =
       TypeOps.approx(this, isUp = true) match
         case info: NameTableInfo =>

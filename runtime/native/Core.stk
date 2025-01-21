@@ -115,18 +115,35 @@ fun abortImpl(msg: String): Bottom =
 //
 // Array support
 //
+// A native array is represented as follows:
+//
+//    0       4                   size + 4
+//    ┌───────┬──────────────────────┐
+//    │ size  │  content             │
+//    └───────┴──────────────────────┘
+//
+// TODO: Represent arrays of different primitive types differently.
+//
 
 fun arrayCreate(size: Int): Any =
-  val arr = GC.alloc (size * 4)
-  object {
-    def length = size
+  val arr = GC.alloc (size * 4 + 4)
+  writeInt arr size
+  // TODO: zero memory
+  arr
 
-    def set(i: Int, value: Any): void =
-      writeInt
-        addAddr arr (i * 4)
-        value cast[Int]
+fun arrayLength(arr: Any): Int =
+  readInt
+    arr cast[Addr]
 
-    def apply(i: Int): Any =
-      readInt
-         addAddr arr (i * 4)
-  }
+fun arrayGet(arr: Any, i: Int): Any =
+  readInt
+    addAddr
+      arr cast[Addr]
+      i * 4 + 4
+
+fun arraySet(arr: Any, i: Int, value: Any): void =
+  writeInt
+    addAddr
+      arr cast[Addr]
+      i * 4 + 4
+    value cast[Int]

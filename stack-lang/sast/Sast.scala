@@ -33,7 +33,15 @@ object Sast:
 
         case Select(qual, _) => qual.isIdempotent
 
+        case Encoded(expr) => expr.isIdempotent
+
         case _ => false
+
+    /** Strip possible encoding */
+    def strip: Word =
+      this match
+        case Encoded(expr) => expr.strip
+        case _ => this
 
   case class IntLit
     (value: Int)
