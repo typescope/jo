@@ -101,7 +101,7 @@ fun int2String(n: Int): String =
 fun p(n: Int): void =
   println (int2String n)
 
-fun print(s: String): void =
+fun print(s: Any): void =
   val addr = s cast[Addr]
   val len = readInt addr
   val contentAddr = addAddr addr 4

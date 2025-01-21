@@ -97,7 +97,12 @@ fun array[T](size: Int): Array[T] = abort("primitive array")
 // String type
 //
 
-type String
+type String <: object {
+  def length: Int
+  def apply(i: Int): Char
+  def +(other: String): String
+  def subString(from: Int, len: Int): String
+}
 
 //-------------------------------------------------------------
 //

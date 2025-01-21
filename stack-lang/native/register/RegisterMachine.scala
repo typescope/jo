@@ -369,7 +369,7 @@ extends Backend(runtime):
         else if sym.owner == runtime.Core then
           if sym == runtime.Core_data then
             // TODO: error instead of crash -- in early phases
-            val StringLit(qualid) :: Nil = app.args: @unchecked
+            val Literal(Constant.String(qualid)) :: Nil = app.args: @unchecked
             val label = runtime.locate(qualid) match
               case Some(label) => label
               case None => throw new Exception("Runtime data not defined: " + qualid)

@@ -30,7 +30,7 @@ fun createPage(): State =
 // Assumption:
 // (1) The keys for manipulating the same param share the same physical address.
 // (2) The underlying physical address do not change.
-fun computeHash(key: String): Int =
+fun computeHash(key: Any): Int =
   // 1021 is the largest prime < 4096/4
   // key addresses are 4-byte aligned
   ((key Core.cast[Int]) << 2) % 1021
@@ -78,6 +78,7 @@ fun writeValueAt(index: Int, value: Any): void =
 // return -1 if absent
 fun getParamIndex(key: String): Int =
   val hash = computeHash key
+  val keyAny: Any = key
 
   var index = hash
   var continue = true
@@ -86,7 +87,7 @@ fun getParamIndex(key: String): Int =
     if foundKey < 0 then
       continue <- false
       index <- 1024
-    else if foundKey == (key Core.cast[Int]) then
+    else if foundKey == (keyAny Core.cast[Int]) then
       continue <- false
     else
       index <- index + 4
@@ -94,7 +95,7 @@ fun getParamIndex(key: String): Int =
   if index >= 1024 then -1 else index
 
 fun getParam(key: String): Any =
-  val index = getParamIndex(key)
+  val index = getParamIndex key
 
   if index < 0 then
     print "Unbound parameter "
@@ -109,6 +110,7 @@ fun getParam(key: String): Any =
 // the new binding + 1024.
 fun setParam(key: String, value: Any): Int =
   val hash = computeHash key
+  val keyAny: Any = key
 
   var index = hash
   var continue = true
@@ -116,9 +118,9 @@ fun setParam(key: String, value: Any): Int =
   while continue and index < 1024 do
     foundKey <- readKeyAt index
     if foundKey < 0 then
-      writeKeyAt index (key Core.cast[Int])
+      writeKeyAt index (keyAny Core.cast[Int])
       continue <- false
-    else if foundKey == (key Core.cast[Int]) then
+    else if foundKey == (keyAny Core.cast[Int]) then
       continue <- false
     else
       index <- index + 4

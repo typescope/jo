@@ -589,7 +589,7 @@ class Namer(@constructorOnly reporter: Reporter):
           // abort
           // TODO: use full name `stk.Predef.abort`
           val abortSym = resolvePath("abort", isType = false)
-          val stringSym = resolvePath("Predef.String", isType = false)
+          val stringSym = resolvePath("String", isType = true)
           val abort = Ident(abortSym)(scrutIdent.span)
           val arg = Literal(Constant.String("Unhandled match at " + scrutIdent.pos))(TypeRef(stringSym), scrutIdent.span)
           val app = Apply(abort, arg :: Nil)(BottomType, patmat.span)
