@@ -18,74 +18,57 @@ import scala.collection.mutable
   *     fun alloc(size: Int): Addr = ...
   *     fun addAddr(arr: Addr, offset: Int): Addr = ...
   */
-class ExplicitAlloc(runtime: NativeRuntime) extends SastOps.TreeMap:
+class ExplicitAlloc(runtime: NativeRuntime) extends phases.Phase:
 
-  class FunContext(val funSymbol: Symbol, val locals: mutable.ArrayBuffer[Symbol])
+  class FunContext(val funSymbol: Symbol)
   type Context = FunContext
+  def createContext(fdef: FunDef) = FunContext(fdef.symbol)
 
-  val Predef_array = Definitions.instance.Predef_array
-
-  def transform(nss: List[Namespace]): List[Namespace] =
-    for ns <- nss yield transformNamespace(ns)
-
-  def transformNamespace(ns: Namespace): Namespace =
-    val defs = ns.defs.map:
-      case fdef: FunDef =>
-        val locals2 = mutable.ArrayBuffer.from(fdef.locals)
-        given Context = FunContext(fdef.symbol, locals2)
-        val body2 = this(fdef.body)
-        fdef.copy(body = body2)(locals2.toList, fdef.span)
-
-      case defn => defn
-
-    Namespace(ns.symbol, ns.imports, defs)(ns.span)
-
-  override def apply(word: Word)(using ctx: Context): Word =
+  override def transformEncoded(word: Encoded)(using ctx: Context): Word =
     word match
       case encode @ Encoded(rc: RecordLit) if encode.tpe.isObjectType =>
         val encoding = this(Memory.encodeObject(rc))
         Encoded(encoding)(encode.tpe)
 
-      case RecordLit(args) =>
-        val stats = new mutable.ArrayBuffer[Word]
-        val allocFun = Ident(runtime.GC_alloc)(word.span)
-        val addrType = TypeRef(runtime.Core_Addr)
+      case _ =>
+        super.transformEncoded(word)
 
-        val recordType = word.tpe.asRecordType
-        val size = Memory.size(recordType)
-        val sizeLit = IntLit(size)(word.span)
-        val allocApply = Apply(allocFun, sizeLit :: Nil)(addrType, word.span)
+  override def transformRecord(word: RecordLit)(using ctx: Context): Word =
+    val RecordLit(args) = word
+    val stats = new mutable.ArrayBuffer[Word]
+    val allocFun = Ident(runtime.GC_alloc)(word.span)
+    val addrType = TypeRef(runtime.Core_Addr)
 
-        val refSym =
-          given Source = ctx.funSymbol.sourcePos.source
-          Symbol.createValueSymbol("ref", addrType, ctx.funSymbol, word.pos)
-        ctx.locals += refSym
-        val ref = Ident(refSym)(word.span)
+    val recordType = word.tpe.asRecordType
+    val size = Memory.size(recordType)
+    val sizeLit = IntLit(size)(word.span)
+    val allocApply = Apply(allocFun, sizeLit :: Nil)(addrType, word.span)
 
-        stats += Assign(ref, allocApply)(word.span)
+    val refSym =
+      given Source = ctx.funSymbol.sourcePos.source
+      Symbol.createValueSymbol("ref", addrType, ctx.funSymbol, word.pos)
+    val ref = Ident(refSym)(word.span)
 
-        for (name, rhs) <- args do
-          stats += Memory.writeField(recordType, name, ref, this(rhs), runtime)
+    stats += Assign(ref, allocApply)(word.span)
 
-        stats += ref
-        Encoded(Block(stats.toList)(ref.tpe, word.span))(word.tpe)
+    for (name, rhs) <- args do
+      stats += Memory.writeField(recordType, name, ref, this(rhs), runtime)
 
-      case select @ Select(qual, _) =>
-        val select2 = select.copy(qual = this(qual))(select.tpe, select.span)
+    stats += ref
+    Encoded(Block(stats.toList)(ref.tpe, word.span))(word.tpe)
 
-        if qual.tpe.isRecordType then
-          val recordType = qual.tpe.asRecordType
-          Memory.readField(recordType, select2, runtime)
-        else
-          Memory.readObjectMember(qual.tpe.asObjectType, select2, runtime)
+  override def transformSelect(select: Select)(using ctx: Context): Word =
+    val qual = select.qual
+    val select2 = select.copy(qual = this(qual))(select.tpe, select.span)
 
-      case FieldAssign(qual, name, rhs) =>
-        // Only object is mutable
-        val objectType = qual.tpe.asObjectType
-        Memory.writeObjectField(objectType, name, this(qual), this(rhs), runtime)
+    if qual.tpe.isRecordType then
+      val recordType = qual.tpe.asRecordType
+      Memory.readField(recordType, select2, runtime)
+    else
+      Memory.readObjectMember(qual.tpe.asObjectType, select2, runtime)
 
-      case Apply(TypeApply(fun @ Ident(sym), tpt :: Nil), arg :: Nil) if sym == Predef_array  =>
-        val fun2 = Ident(runtime.Core_arrayCreate)(fun.span)
-        Encoded(Apply(fun2, this(arg) :: Nil)(AnyType, word.span))(word.tpe)
-
-      case _ => recur(word)
+  override def transformFieldAssign(word: FieldAssign)(using ctx: Context): Word =
+    val FieldAssign(qual, name, rhs) = word
+    // Only object is mutable
+    val objectType = qual.tpe.asObjectType
+    Memory.writeObjectField(objectType, name, this(qual), this(rhs), runtime)

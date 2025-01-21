@@ -36,19 +36,19 @@ object Interpreter:
 
     case PlatformCall(op: List[Value] => List[Value])
 
-    case Uninit
-
-
-    def show: String = this match
-      case IntVal(value) => value.toString
-      case BoolVal(value) => value.toString
-      case StringVal(value) => "\"" + value + "\""
-      case RecordVal(fields) => fields.map(_ + " = " + _.show).mkString("{", ", ", "}")
-      case ObjectVal(values, self, vals, defs,  env) => values.map(_ + " = " + _.show).mkString("object {", ", ", "}")
-      case FunVal(fun, env) => "closue(env = " + env.show(recursive = false) + ")"
-      case ArrayVal(content) => "[...]"
-      case PlatformCall(op) => "platformCall"
-      case Uninit => "Uninit"
+    def show(level: Int = 2): String =
+      if level == 0 then
+        "..."
+      else
+        this match
+        case IntVal(value) => value.toString
+        case BoolVal(value) => value.toString
+        case StringVal(value) => "\"" + value + "\""
+        case RecordVal(fields) => fields.map(_ + " = " + _.show(level - 1)).mkString("{", ", ", "}")
+        case ObjectVal(values, self, vals, defs,  env) => values.map(_ + " = " + _.show(level - 1)).mkString("object {", ", ", "}")
+        case FunVal(fun, env) => "closue(env = " + env.show(recursive = false) + ")"
+        case ArrayVal(content) => "[...]"
+        case PlatformCall(op) => "platformCall"
 
   type Value = IntVal | BoolVal | StringVal | RecordVal | ObjectVal | FunVal | ArrayVal
 
@@ -218,12 +218,9 @@ object Interpreter:
     for (param, arg) <- fdef.params.zip(args) do
       funEnv.bind(param, arg)
 
-    for param <- fdef.locals do
-      funEnv.bind(param, Uninit)
-
     exec(fdef.body)(using funEnv)
 
-  def eval(word: Word)(using env: Env, params: Params): Value = Debug.trace(word.show + ", env = " + env.show(recursive = false), (_: Value).show, enable = false):
+  def eval(word: Word)(using env: Env, params: Params): Value = Debug.trace(word.show + ", env = " + env.show(recursive = false), (_: Value).show(), enable = false):
     val (value: Value) :: Nil = exec(word): @unchecked
     value
 
@@ -290,12 +287,7 @@ object Interpreter:
             case Some(v) => v :: Nil
             case None => throw new Exception("Unbound context parameter " + sym)
         else
-          env.resolve(sym) match
-            case Uninit =>
-              err("Accessing uninitialized variable " + sym)
-
-            case denot =>
-              denot :: Nil
+          env.resolve(sym) :: Nil
 
       case DefaultParam(paramRef, default) =>
         params.get(paramRef.symbol) match

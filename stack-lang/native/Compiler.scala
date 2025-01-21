@@ -77,6 +77,7 @@ object Compiler:
           val backend = backendBuilder(runtimeNameTable, main)
 
           val contextParamsLower = new native.LowerContextParams(backend.runtime)
+          val arrayLowerer = new native.LowerArray(backend.runtime)
           val explicitAlloc = new native.ExplicitAlloc(backend.runtime)
 
           val assembler = (prog: Prog) =>
@@ -89,6 +90,8 @@ object Compiler:
           TreeChecker.check             |>
           Printing.peek(enable = false) |>
           contextParamsLower.transform  |+
+          Printing.peek(enable = false) |>
+          arrayLowerer.transform        |+
           Printing.peek(enable = false) |>
           explicitAlloc.transform       |+
           Printing.peek(enable = false) |>

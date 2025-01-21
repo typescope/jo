@@ -34,8 +34,7 @@ object ElimCapture:
     val lifter = new Lifter(fdef.symbol)
     val body = lifter.apply(fdef.body)
     val lifted = ctx.lifted.toList
-    val locals = lifter.locals.toList
-    fdef.copy(body = body)(locals, fdef.span) :: lifted
+    fdef.copy(body = body)(fdef.span) :: lifted
 
   private def createLiftedFunSym(
     fdef: FunDef,
@@ -91,8 +90,6 @@ object ElimCapture:
 
   /** A new instance is created for each top-level function */
   class Lifter(owner: Symbol) extends SastOps.TreeMap:
-    val locals = new mutable.ArrayBuffer[Symbol]
-
     /** Local function definitions */
     val localDefs = mutable.Map.empty[Symbol, FunDef]
 
@@ -120,7 +117,9 @@ object ElimCapture:
       *
       * - capture of type parameters (closure conversion after erasure?)
       */
-    def liftLocalFunction(fdef: FunDef)(using ctx: Context): Word =
+    override def transformFunDef(fdef: FunDef)(using ctx: Context): Word =
+      localDefs(fdef.symbol) = fdef
+
       val LiftInfo(funSym, captures) = ctx.liftInfos(fdef.symbol)
 
       val substs = mutable.Map.empty[Symbol, Symbol]
@@ -133,8 +132,7 @@ object ElimCapture:
       val lifter = new Lifter(funSym)
       val body = lifter(fdef.body)(using ctx.withSubsts(substs.toMap))
       val params = fdef.params ++ paramSymsCaptured
-      ctx.lifted += FunDef(funSym, fdef.tparams, params, body)
-                          (locals = lifter.locals.toList, fdef.span)
+      ctx.lifted += FunDef(funSym, fdef.tparams, params, body)(fdef.span)
 
       Block(words = Nil)(VoidType, fdef.span)
 
@@ -163,7 +161,7 @@ object ElimCapture:
       *
       * - capture of type parameters (closure conversion after erasure?)
       */
-    def liftObject(obj: Object)(using ctx: Context): Word =
+    override def transformObject(obj: Object)(using ctx: Context): Word =
       val objType = obj.tpe.asObjectType
       val allCaptures: List[Symbol] =
         obj.defs.foldLeft(List.empty[Symbol]): (acc, fdef) =>
@@ -232,7 +230,6 @@ object ElimCapture:
           aliases += Assign(lhs, rhs)(span)
           substs(capture2) = subst
 
-        val aliasSyms = substs.values.toList
         substs(obj.self) = paramThis
 
         val lifter = new Lifter(fdef.symbol)
@@ -240,14 +237,13 @@ object ElimCapture:
         val body2 = Block(aliases.toList :+ body)(body.tpe, body.span)
         val params = paramThis :: fdef.params
 
-        val locals = (lifter.locals ++ aliasSyms).toList
-        ctx.lifted += FunDef(liftedSym, fdef.tparams, params, body2)(locals, fdef.span)
+        ctx.lifted += FunDef(liftedSym, fdef.tparams, params, body2)(fdef.span)
       end for
 
       val recordType = RecordType(memberTypes.toList)
       Encoded(RecordLit(members.toList)(recordType, obj.span))(objType)
 
-    def transform(app: Apply)(using ctx: Context): Word =
+    override def transformApply(app: Apply)(using ctx: Context): Word =
       val Apply(fun, args) = app
 
       val args2 = args.map(this.apply)
@@ -281,7 +277,6 @@ object ElimCapture:
             given Positions.Source = owner.sourcePos.source
             val receiverSym = Symbol.createValueSymbol("o", qual2.tpe, owner, qual2.pos)
             val receiver = Ident(receiverSym)(qual2.span)
-            this.locals += receiverSym
             val assign = Assign(Ident(receiverSym)(qual2.span), qual2)(qual2.span)
             val proc = Select(receiver, name)(procType, fun.span)
             val apply = Apply(Encoded(proc)(liftedProcType), receiver :: args2)(app.tpe, app.span)
@@ -291,44 +286,43 @@ object ElimCapture:
          // global function call
          Apply(fun, args2)(app.tpe, app.span)
 
-    def apply(word: Word)(using ctx: Context): Word = Debug.trace(word.show + ", ctx = " + ctx.show, (_: Word).show, enable = false):
-      word match
-        case Ident(sym) =>
-          val sym2 = rewire(sym)
-          if sym2 != sym then Ident(sym2)(word.span)
-          else word
 
-        case apply: Apply =>
-          transform(apply)
+    override def transformValDef(vdef: ValDef)(using ctx: Context): Word =
+      val ValDef(sym, rhs) = vdef
+      Assign(Ident(sym)(sym.sourcePos.span), this(rhs))(vdef.span)
 
-        case ValDef(sym, rhs) =>
-          this.locals += sym
-          Assign(Ident(sym)(sym.sourcePos.span), this(rhs))(word.span)
+    override def transformBlock(block: Block)(using ctx: Context): Word =
+      var ctx2 = ctx
 
-        case fdef: FunDef =>
-          localDefs(fdef.symbol) = fdef
+      // Enter the lifting info in the context for transforming the block
+      for
+        case fdef: FunDef <- block.words
+      do
+        // Local functions are not mutually recursive
+        localDefs(fdef.symbol) = fdef
+        val liftInfo = makeLiftInfo(fdef)
+        ctx2 = ctx2.withLiftInfo(fdef.symbol, liftInfo)
 
-          liftLocalFunction(fdef)
+      super.transformBlock(block)(using ctx2)
 
-        case obj: Object =>
-          liftObject(obj)
+    override def transformIdent(ident: Ident)(using ctx: Context): Word =
+      val sym2 = rewire(ident.symbol)
+      if sym2 != ident.symbol then Ident(sym2)(ident.span)
+      else ident
 
-        case Block(words) =>
-          var ctx2 = ctx
+    private def makeLiftInfo(fdef: FunDef)(using ctx: Context): LiftInfo =
+      val captures = transitiveCapture(fdef).map(sym => rewire(sym))
+      // Cannot have same names in the captured symbol
+      //
+      // TODO: This is possible via transitive capture.
+      assert(
+        captures.size == captures.map(_.name).toSet.size,
+        "[Internal error] captured different variables with same name")
 
-          // Enter the lifting info in the context for transforming the block
-          for
-            case fdef: FunDef <- words
-          do
-            // Local functions are not mutually recursive
-            localDefs(fdef.symbol) = fdef
-            val liftInfo = makeLiftInfo(fdef)
-            ctx2 = ctx2.withLiftInfo(fdef.symbol, liftInfo)
+      val paramCaptures = captures.map(_.toNamedInfo)
 
-          recur(word)(using ctx2)
-
-        case _ => recur(word)
-    end apply
+      val funSym = createLiftedFunSym(fdef, prependParams = Nil, appendParams = paramCaptures)
+      LiftInfo(funSym, captures)
 
     /** Compute the transitive capture of locals
       *
@@ -358,7 +352,7 @@ object ElimCapture:
             if capture.is(Flags.Val) && !all.contains(capture) then
               all += capture
             else if capture.is(Flags.Fun) then
-              recur(localDefs(capture))
+              recur(this.localDefs(capture))
       end recur
 
       recur(fdef)
@@ -367,17 +361,3 @@ object ElimCapture:
       this.captures(fdef.symbol) = res
       res
     end transitiveCapture
-
-    private def makeLiftInfo(fdef: FunDef)(using ctx: Context): LiftInfo =
-      val captures = transitiveCapture(fdef).map(sym => rewire(sym))
-      // Cannot have same names in the captured symbol
-      //
-      // TODO: This is possible via transitive capture.
-      assert(
-        captures.size == captures.map(_.name).toSet.size,
-        "[Internal error] captured different variables with same name")
-
-      val paramCaptures = captures.map(_.toNamedInfo)
-
-      val funSym = createLiftedFunSym(fdef, prependParams = Nil, appendParams = paramCaptures)
-      LiftInfo(funSym, captures)
