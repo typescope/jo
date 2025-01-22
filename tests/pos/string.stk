@@ -1,0 +1,30 @@
+fun main =
+  val c1 = 'a'
+  val c2: Char = 4
+
+  val b1: Byte = 50
+  val b2: Byte = 'e'
+
+  val i1: Int = 'a'
+
+  test
+
+fun test =
+  val a = "hello"
+  val b = "world"
+
+  a.length p
+
+  println a
+
+  val c =
+    (a . + " ") . + b
+
+  c.length p
+  println c
+
+  val d =
+    a.substring 1 3
+
+  d.length p
+  println d

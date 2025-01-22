@@ -104,13 +104,18 @@ fun print(s: StringImpl): void =
         Syscall.sys_write 1 content len
 
       case #Concat(len, lhs, rhs) =>
-        recur lhs
-        recur rhs
+        // TODO: annoying
+        val any1: Any = lhs
+        val any2: Any = rhs
+        recur
+          (any1 cast[StringImpl]).repr
+        recur
+          (any2 cast[StringImpl]).repr
 
   recur s.repr
 
 fun abortImpl(msg: String): Bottom =
-  print msg
+  println msg
   Syscall.sys_exit 1
 
 //------------------------------------------------------------------------------
@@ -231,6 +236,7 @@ fun String_create(repr: StringRepr): String =
         writeByte
           addAddr buf index
           this (String_add_Int from index) cast[Int]
+        index <- String_add_Int index 1
 
       String_create #Raw(len, buf)
   }
