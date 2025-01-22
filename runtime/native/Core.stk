@@ -157,9 +157,6 @@ fun arraySet(arr: Any, i: Int, value: Any): void =
 // String support
 //
 
-// TODO: we cannot use `a + b` in the method, due to name conflicts
-fun String_add_Int(a: Int, b: Int): Int = a + b
-
 type StringRepr = <
   // Array[Byte] currently is the same as Array[Int]
   // TODO: unicode support is missing
@@ -217,7 +214,7 @@ fun String_substring(source: String, from: Int, len: Int): StringRepr =
     // TODO: unicode support
     writeByte
       addAddr buf index
-      source (String_add_Int from index) cast[Int]
-    index <- String_add_Int index 1
+      source (from + index) cast[Int]
+    index <- index + 1
 
   #Raw(len, buf)
