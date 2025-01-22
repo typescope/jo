@@ -15,8 +15,8 @@ import scala.collection.mutable
   * This phase assumes the following support functions defined in
   * runtime/native/ParamSupport.stk:
   *
-  *     fun getParam(key: String): Any = ...
-  *     fun setParam(key: String, value: Any): Int = ...
+  *     fun getParam(key: Any): Any = ...
+  *     fun setParam(key: Any, value: Any): Int = ...
   *     fun getLastOverwrittenValue(): Any = ...
   *     fun restoreParam(index: Int, value: Any): void = ...
   *     fun newPage(): Any = ...
@@ -33,8 +33,6 @@ import scala.collection.mutable
   */
 class LowerContextParams(runtime: NativeRuntime) extends phases.Phase:
 
-  val defn = Definitions.instance
-  val StringType = TypeRef(defn.Predef_String)
   class FunContext(val funSymbol: Symbol)
   type Context = FunContext
   def createContext(fdef: FunDef) = FunContext(fdef.symbol)
@@ -42,7 +40,9 @@ class LowerContextParams(runtime: NativeRuntime) extends phases.Phase:
   override def transformIdent(word: Ident)(using ctx: Context): Word =
     word match
       case Ident(sym) if sym.isAllOf(Flags.Context | Flags.Param) =>
-        val arg = StringLit(sym.fullName)(StringType, word.span)
+        // Use AnyType instead String to avoid creating String and make sure its address is static
+        // At runtime, it's a byte array initialized in the constant area
+        val arg = StringLit(sym.fullName)(AnyType, word.span)
         val fun = Ident(runtime.ParamSupport_getParam)(word.span)
         val app = Apply(fun, arg :: Nil)(word.tpe, word.span)
         app
@@ -53,7 +53,9 @@ class LowerContextParams(runtime: NativeRuntime) extends phases.Phase:
   override def transformDefaultParam(word: DefaultParam)(using ctx: Context): Word =
     val DefaultParam(paramRef, default) = word
       val paramName = paramRef.symbol.fullName
-      val key = StringLit(paramName)(StringType, paramRef.span)
+      // Use AnyType instead String to avoid creating String and make sure its address is static
+      // At runtime, it's a byte array initialized in the constant area
+      val key = StringLit(paramName)(AnyType, paramRef.span)
       val funGetParamIndex = Ident(runtime.ParamSupport_getParamIndex)(paramRef.span)
       val getParamIndexCall = Apply(funGetParamIndex, key :: Nil)(PrimType.Int, paramRef.span)
 
@@ -98,7 +100,9 @@ class LowerContextParams(runtime: NativeRuntime) extends phases.Phase:
       // 3. setParam("x", v)
       args.zip(argValueSyms).foreach: (arg, argValueSym) =>
         val paramName = arg.paramRef.symbol.fullName
-        val key = StringLit(paramName)(StringType, arg.paramRef.span)
+        // Use AnyType instead String to avoid creating String and make sure its address is static
+        // At runtime, it's a byte array initialized in the constant area
+        val key = StringLit(paramName)(AnyType, arg.paramRef.span)
         val value = Ident(argValueSym)(arg.rhs.span)
         val funSetParam = Ident(runtime.ParamSupport_setParam)(arg.span)
         val setParamCall = Apply(funSetParam, key :: value :: Nil)(AnyType, arg.span)
@@ -130,7 +134,9 @@ class LowerContextParams(runtime: NativeRuntime) extends phases.Phase:
       //    (hashIndex, oldX)
       val restorePairSyms = args.zip(argValueSyms).map: (arg, argValueSym) =>
         val paramName = arg.paramRef.symbol.fullName
-        val key = StringLit(paramName)(StringType, arg.paramRef.span)
+        // Use AnyType instead String to avoid creating String and make sure its address is static
+        // At runtime, it's a byte array initialized in the constant area
+        val key = StringLit(paramName)(AnyType, arg.paramRef.span)
         val value = Ident(argValueSym)(arg.rhs.span)
         val funSetParam = Ident(runtime.ParamSupport_setParam)(arg.span)
         val setParamCall = Apply(funSetParam, key :: value :: Nil)(PrimType.Int, arg.span)

@@ -77,7 +77,9 @@ extends Backend(runtime):
             gen(Instr.Move(label, reg))
             ctx.vs.push(Reg(reg))
 
-            call(String_fromByteString)
+            // Context parameter runtime expects raw string as input
+            if !word.tpe.isAnyType then
+              call(String_fromByteString)
 
           case Constant.Int(n) =>
             ctx.vs.push(Int32(n))

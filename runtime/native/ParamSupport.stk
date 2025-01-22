@@ -76,8 +76,10 @@ fun writeValueAt(index: Int, value: Any): void =
 // Return index of the param
 //
 // return -1 if absent
-fun getParamIndex(key: String): Int =
+fun getParamIndex(key: Core.Addr): Int =
   val hash = computeHash key
+
+  // TODO: annoying
   val keyAny: Any = key
 
   var index = hash
@@ -94,12 +96,13 @@ fun getParamIndex(key: String): Int =
 
   if index >= 1024 then -1 else index
 
-fun getParam(key: String): Any =
+fun getParam(key: Core.Addr): Any =
   val index = getParamIndex key
 
   if index < 0 then
     print "Unbound parameter "
-    print key
+    print
+      Core.String_fromByteString key
     abort "\n"
   else
     readValueAt index
@@ -108,7 +111,7 @@ fun getParam(key: String): Any =
 //
 // If existing binding is associated with the key, return the index of
 // the new binding + 1024.
-fun setParam(key: String, value: Any): Int =
+fun setParam(key: Core.Addr, value: Any): Int =
   val hash = computeHash key
   val keyAny: Any = key
 
@@ -127,7 +130,8 @@ fun setParam(key: String, value: Any): Int =
 
   if index >= 1024 then
     print "error: no free slot for parameter "
-    println key
+    println
+      Core.String_fromByteString key
     abort "\n"
   else
     backupValueAt index
