@@ -27,6 +27,11 @@ class JSRuntime(runtimeRootNameTable: NameTable):
   val JS_arrayCreateInt = JS.termMember("arrayCreateInt")
   val JS_arrayCreateObject = JS.termMember("arrayCreateObject")
 
+  val JS_stringLength = JS.termMember("stringLength")
+  val JS_stringGet = JS.termMember("stringGet")
+  val JS_stringSubstring = JS.termMember("stringSubstring")
+  val JS_stringPlus = JS.termMember("stringPlus")
+
   val JS_abort = JS.termMember("abort")
   val JS_print = JS.termMember("print")
   val JS_p = JS.termMember("p")

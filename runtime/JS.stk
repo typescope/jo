@@ -49,6 +49,23 @@ fun arrayWrapContent(arr: Any): Any =
 
 //------------------------------------------------------------------------------
 //
+// String support
+//
+
+fun stringGet(str: Any, index: Int): Any =
+  js "str[index]"
+
+fun stringSubstring(str: Any, index: Int, len: Int): Any =
+  js "str.substring(index, index + len)"
+
+fun stringLength(str: Any) =
+  js "str.length"
+
+fun stringPlus(str: Any, other: Any): Any =
+  js "str + other"
+
+//------------------------------------------------------------------------------
+//
 // Context parameter support
 //
 
