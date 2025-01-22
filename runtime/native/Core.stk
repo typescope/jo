@@ -129,23 +129,23 @@ fun abortImpl(msg: String): Bottom =
 // TODO: Represent arrays of different primitive types differently.
 //
 
-fun arrayCreate(size: Int): Any =
+fun Array_create(size: Int): Any =
   val arr = GC.alloc (size * 4 + 4)
   writeInt arr size
   // TODO: zero memory
   arr
 
-fun arrayLength(arr: Any): Int =
+fun Array_length(arr: Any): Int =
   readInt
     arr cast[Addr]
 
-fun arrayGet(arr: Any, i: Int): Any =
+fun Array_apply(arr: Any, i: Int): Any =
   readInt
     addAddr
       arr cast[Addr]
       i * 4 + 4
 
-fun arraySet(arr: Any, i: Int, value: Any): void =
+fun Array_set(arr: Any, i: Int, value: Any): void =
   writeInt
     addAddr
       arr cast[Addr]

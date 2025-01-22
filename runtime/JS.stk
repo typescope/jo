@@ -20,16 +20,16 @@ fun abort(msg: String): Bottom =
 // Array support
 //
 
-fun arrayCreateBool(size: Int): Any =
-  arrayWrapContent (js "new Int8Array(size)")
+fun Array_createBool(size: Int): Any =
+  Array_wrapContent (js "new Int8Array(size)")
 
-fun arrayCreateInt(size: Int): Any =
-  arrayWrapContent (js "new Int32Array(size)")
+fun Array_createInt(size: Int): Any =
+  Array_wrapContent (js "new Int32Array(size)")
 
-fun arrayCreateObject(size: Int): Any =
-  arrayWrapContent (js "new Array(size)")
+fun Array_createObject(size: Int): Any =
+  Array_wrapContent (js "new Array(size)")
 
-fun arrayWrapContent(arr: Any): Any =
+fun Array_wrapContent(arr: Any): Any =
   // Lifting functions might change name of captured variables.
   // The small closed function will ensure the parameter name stay unchanged.
   fun arrayLength(array: Any): Int =
@@ -52,16 +52,16 @@ fun arrayWrapContent(arr: Any): Any =
 // String support
 //
 
-fun stringGet(str: Any, index: Int): Any =
+fun String_apply(str: Any, index: Int): Any =
   js "str[index]"
 
-fun stringSubstring(str: Any, index: Int, len: Int): Any =
+fun String_substring(str: Any, index: Int, len: Int): Any =
   js "str.substring(index, index + len)"
 
-fun stringLength(str: Any) =
+fun String_length(str: Any) =
   js "str.length"
 
-fun stringPlus(str: Any, other: Any): Any =
+fun String_plus(str: Any, other: Any): Any =
   js "str + other"
 
 //------------------------------------------------------------------------------

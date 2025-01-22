@@ -34,13 +34,13 @@ class LowerRuntime(runtime: JSRuntime) extends phases.Phase:
       case TypeApply(Ident(sym), tpt :: Nil) if sym == defn.Predef_array =>
         val fun2 =
           if Subtyping.conforms(tpt.tpe, PrimType.Int) then
-            Ident(runtime.JS_arrayCreateInt)(fun.span)
+            Ident(runtime.JS_Array_createInt)(fun.span)
 
           else if Subtyping.conforms(tpt.tpe, PrimType.Bool) then
-            Ident(runtime.JS_arrayCreateBool)(fun.span)
+            Ident(runtime.JS_Array_createBool)(fun.span)
 
           else
-            Ident(runtime.JS_arrayCreateObject)(fun.span)
+            Ident(runtime.JS_Array_createObject)(fun.span)
 
         Encoded(Apply(fun2, args2)(app.tpe, app.span))(app.tpe)
 
@@ -58,21 +58,21 @@ class LowerRuntime(runtime: JSRuntime) extends phases.Phase:
         assert(qual.isIdempotent, fun.show)
 
         if name == "length" then
-          val fun2 = Ident(runtime.JS_stringLength)(fun.span)
+          val fun2 = Ident(runtime.JS_String_length)(fun.span)
           Apply(fun2, args2)(PrimType.Int, app.span)
 
         else if name == "apply" then
-          val fun2 = Ident(runtime.JS_stringGet)(fun.span)
+          val fun2 = Ident(runtime.JS_String_apply)(fun.span)
           Encoded(Apply(fun2, args2)(AnyType, app.span))(app.tpe)
 
         else if name == "substring" then
           // 'substring' semantics change, need rewire
-          val fun2 = Ident(runtime.JS_stringSubstring)(fun.span)
+          val fun2 = Ident(runtime.JS_String_substring)(fun.span)
           Encoded(Apply(fun2, args2)(AnyType, app.span))(app.tpe)
 
         else if name == "+" then
           // '+' is supported directly by JavaScript, but backend will rewrite `+` to `_plus_`
-          val fun2 = Ident(runtime.JS_stringPlus)(fun.span)
+          val fun2 = Ident(runtime.JS_String_plus)(fun.span)
           Encoded(Apply(fun2, args2)(AnyType, app.span))(app.tpe)
 
         else

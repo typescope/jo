@@ -34,10 +34,10 @@ extends Linker:
   val Core_writeByte = Core.termMember("writeByte")
   val Core_readByte = Core.termMember("readByte")
 
-  val Core_arrayCreate = Core.termMember("arrayCreate")
-  val Core_arrayLength = Core.termMember("arrayLength")
-  val Core_arrayGet = Core.termMember("arrayGet")
-  val Core_arraySet = Core.termMember("arraySet")
+  val Core_Array_create = Core.termMember("Array_create")
+  val Core_Array_length = Core.termMember("Array_length")
+  val Core_Array_apply = Core.termMember("Array_apply")
+  val Core_Array_set = Core.termMember("Array_set")
 
   val Core_String_fromByteString = Core.termMember("String_fromByteString")
   val Core_String_length = Core.termMember("String_length")

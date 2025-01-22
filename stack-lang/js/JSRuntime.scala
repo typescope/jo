@@ -23,14 +23,14 @@ class JSRuntime(runtimeRootNameTable: NameTable):
   val JS_newPage  = JS.termMember("newPage")
   val JS_restorePage = JS.termMember("restorePage")
 
-  val JS_arrayCreateBool = JS.termMember("arrayCreateBool")
-  val JS_arrayCreateInt = JS.termMember("arrayCreateInt")
-  val JS_arrayCreateObject = JS.termMember("arrayCreateObject")
+  val JS_Array_createBool = JS.termMember("Array_createBool")
+  val JS_Array_createInt = JS.termMember("Array_createInt")
+  val JS_Array_createObject = JS.termMember("Array_createObject")
 
-  val JS_stringLength = JS.termMember("stringLength")
-  val JS_stringGet = JS.termMember("stringGet")
-  val JS_stringSubstring = JS.termMember("stringSubstring")
-  val JS_stringPlus = JS.termMember("stringPlus")
+  val JS_String_length = JS.termMember("String_length")
+  val JS_String_apply = JS.termMember("String_apply")
+  val JS_String_substring = JS.termMember("String_substring")
+  val JS_String_plus = JS.termMember("String_plus")
 
   val JS_abort = JS.termMember("abort")
   val JS_print = JS.termMember("print")

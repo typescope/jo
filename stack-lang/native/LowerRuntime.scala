@@ -7,7 +7,7 @@ import sast.Types.*
 
 import native.runtime.NativeRuntime
 
-/** This phase lowers array to native runtime calls
+/** This phase lowers Array and String to native runtime calls
   *
   * This phase assumes the following support functions defined in
   * runtime/native/Core.stk:
@@ -20,6 +20,9 @@ import native.runtime.NativeRuntime
   * This phase should happen before ExplicitAlloc so that arrays are not treated
   * as objects.
   *
+  * String literals are handled in the backend for flexibility: Some string
+  * literals do not have the type String. For example, the context parameter
+  * runtime expects raw byte string as input.
   */
 class LowerRuntime(runtime: NativeRuntime) extends phases.Phase:
 
@@ -40,7 +43,7 @@ class LowerRuntime(runtime: NativeRuntime) extends phases.Phase:
 
     fun.strip match
       case TypeApply(fun @ Ident(sym), tpt :: Nil) if sym == Predef_array  =>
-        val fun2 = Ident(runtime.Core_arrayCreate)(fun.span)
+        val fun2 = Ident(runtime.Core_Array_create)(fun.span)
         Encoded(Apply(fun2, args2)(AnyType, app.span))(app.tpe)
 
       case Select(qual, name) if qual.tpe.refersTo(Predef_Array) =>
@@ -48,15 +51,15 @@ class LowerRuntime(runtime: NativeRuntime) extends phases.Phase:
         assert(qual.isIdempotent, fun.show)
 
         if name == "length" then
-          val fun2 = Ident(runtime.Core_arrayLength)(fun.span)
+          val fun2 = Ident(runtime.Core_Array_length)(fun.span)
           Apply(fun2, args2)(PrimType.Int, app.span)
 
         else if name == "apply" then
-          val fun2 = Ident(runtime.Core_arrayGet)(fun.span)
+          val fun2 = Ident(runtime.Core_Array_apply)(fun.span)
           Encoded(Apply(fun2, args2)(AnyType, app.span))(app.tpe)
 
         else if name == "set" then
-          val fun2 = Ident(runtime.Core_arraySet)(fun.span)
+          val fun2 = Ident(runtime.Core_Array_set)(fun.span)
           Apply(fun2, args2)(VoidType, app.span)
 
         else
@@ -75,12 +78,10 @@ class LowerRuntime(runtime: NativeRuntime) extends phases.Phase:
           Encoded(Apply(fun2, args2)(AnyType, app.span))(app.tpe)
 
         else if name == "substring" then
-          // 'substring' semantics change, need rewire
           val fun2 = Ident(runtime.Core_String_substring)(fun.span)
           Encoded(Apply(fun2, args2)(AnyType, app.span))(app.tpe)
 
         else if name == "+" then
-          // '+' is supported directly by JavaScript, but backend will rewrite `+` to `_plus_`
           val fun2 = Ident(runtime.Core_String_plus)(fun.span)
           Encoded(Apply(fun2, args2)(AnyType, app.span))(app.tpe)
 
