@@ -28,8 +28,9 @@ class LowerRuntime(runtime: JSRuntime) extends phases.Phase:
     val Apply(fun, args) = app
 
     val args2 = args.map(this.apply)
+    val fun2 = this(fun)
 
-    this(fun).strip match
+    fun2.strip match
       case TypeApply(Ident(sym), tpt :: Nil) if sym == defn.Predef_array =>
         val fun2 =
           if Subtyping.conforms(tpt.tpe, PrimType.Int) then
@@ -78,5 +79,4 @@ class LowerRuntime(runtime: JSRuntime) extends phases.Phase:
           throw new Exception("Unexpected method on array: " + name)
 
       case _ =>
-        assert(fun.isIdempotent, fun.show)
-        Apply(fun, args2)(app.tpe, app.span)
+        Apply(fun2, args2)(app.tpe, app.span)
