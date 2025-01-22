@@ -38,6 +38,8 @@ extends Backend(runtime):
 
   type Context = FunctionContext
 
+  val String_fromByteString = runtime.Core_String_fromByteString
+
   /** A dummy parameter representing the return address
     *
     * Its type does not matter.
@@ -74,6 +76,8 @@ extends Backend(runtime):
             val reg = freshVirtualReg()
             gen(Instr.Move(label, reg))
             ctx.vs.push(Reg(reg))
+
+            call(String_fromByteString)
 
           case Constant.Int(n) =>
             ctx.vs.push(Int32(n))

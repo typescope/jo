@@ -560,8 +560,19 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def objectType(): ObjectType =
     val objToken = eat(Token.OBJECT)
     eat(Token.LBRACE)
-    val decls: List[FunDef] = repeated:
-        if peek() == Token.DEF then Some(defDef(needBody = false))
+    val decls: List[ValDef | FunDef] = repeated:
+        if peek() == Token.DEF then
+          Some(defDef(needBody = false))
+
+        else if peek() == Token.VAL || peek() == Token.VAR then
+          val mod = next()
+          val mutable = mod.token == Token.VAR
+          val id = ident()
+          eat(Token.COLON)
+          val tpt = typ()
+          val body = Block(phrases = Nil)(id.span)
+          Some(ValDef(id, tpt, body, mutable)(mod.span | tpt.span))
+
         else None
     val endToken = eat(Token.RBRACE)
     ObjectType(decls)(objToken.span | endToken.span)

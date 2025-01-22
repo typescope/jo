@@ -39,6 +39,8 @@ extends Linker:
   val Core_arrayGet = Core.termMember("arrayGet")
   val Core_arraySet = Core.termMember("arraySet")
 
+  val Core_String_fromByteString = Core.termMember("String_fromByteString")
+
   val Core_print = Core.termMember("print")
   val Core_p = Core.termMember("p")
   val Core_abortImpl = Core.termMember("abortImpl")

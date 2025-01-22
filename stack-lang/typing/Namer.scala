@@ -984,15 +984,23 @@ class Namer(@constructorOnly reporter: Reporter):
 
       case Ast.ObjectType(members) =>
         val fieldTypes = new mutable.ArrayBuffer[NamedInfo[Type]]
+        val mutableFields = new mutable.ArrayBuffer[String]
         val methodTypes = new mutable.ArrayBuffer[NamedInfo[Type]]
-        for member <- members do
+
+        members.foreach: member =>
           if fieldTypes.exists(_.name == member.name) || methodTypes.exists(_.name == member.name) then
             Reporter.error("Member " + member.name + " already defined", member.pos)
           else
-            val memberTypeTree = transformMethodDecl(member)
-            methodTypes += NamedInfo(member.name, memberTypeTree.tpe)
-        end for
-        val tp = ObjectType(fields = fieldTypes.toList, methods = methodTypes.toList, mutableFields = Nil)
+            member match
+              case methodDecl: Ast.FunDef =>
+                val memberTypeTree = transformMethodDecl(methodDecl)
+                methodTypes += NamedInfo(member.name, memberTypeTree.tpe)
+              case vdef: Ast.ValDef =>
+                if vdef.mutable then mutableFields += vdef.name
+                val fieldTypeTree = transformType(vdef.typ)
+                fieldTypes += NamedInfo(vdef.name, fieldTypeTree.tpe)
+
+        val tp = ObjectType(fieldTypes.toList, methodTypes.toList, mutableFields.toList)
         TypeTree(tp)(tpt.span)
 
       case Ast.UnionType(branches) =>

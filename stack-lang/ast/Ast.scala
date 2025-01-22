@@ -195,7 +195,7 @@ object Ast:
   extends TypeTree
 
   case class ObjectType
-    (members: List[FunDef])
+    (members: List[ValDef | FunDef])
     (val span: Span)
   extends TypeTree
 

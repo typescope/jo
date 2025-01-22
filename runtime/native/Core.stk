@@ -63,13 +63,13 @@ fun int2String(n: Int): String =
   else if n == -2147483648 then "-2147483648" // its negation is still negative
   else
     // memory allocator will handle alignment
-    val buf = GC.alloc 15 // max 11 + 4-byte head for length
+    val buf = GC.alloc 11 // max 11
 
     val negative = n < 0
     var remains = if negative then 0 - n else n
 
     // write from end of buffer
-    var index = 14
+    var index = 10
     while remains > 0 do
       val digit = remains % 10
       writeByte (addAddr buf index) (48 + digit) // '0' = 48
@@ -82,30 +82,32 @@ fun int2String(n: Int): String =
       index <- index - 1
 
     val startIndex = index + 1
-    val len = 14 - index
-    var freeFrom = 4
-
-    // adapt to string format
-    writeInt buf len
+    val len = 10 - index
 
     // copy bytes to front
-    if startIndex > freeFrom then
+    if startIndex > 0 then
       var copyIndex = 0
       while copyIndex < len do
         val c = readByte (addAddr buf (startIndex + copyIndex))
-        writeByte (addAddr buf (freeFrom + copyIndex)) c
+        writeByte (addAddr buf copyIndex) c
         copyIndex <- copyIndex + 1
 
-    buf cast[String]
+    String_create #Raw(len, buf) cast[String]
 
 fun p(n: Int): void =
   println (int2String n)
 
-fun print(s: Any): void =
-  val addr = s cast[Addr]
-  val len = readInt addr
-  val contentAddr = addAddr addr 4
-  Syscall.sys_write 1 contentAddr len
+fun print(s: StringImpl): void =
+  fun recur(repr: StringRepr): void =
+    match repr
+      case #Raw(len, content) =>
+        Syscall.sys_write 1 content len
+
+      case #Concat(len, lhs, rhs) =>
+        recur lhs
+        recur rhs
+
+  recur s.repr
 
 fun abortImpl(msg: String): Bottom =
   print msg
@@ -147,3 +149,92 @@ fun arraySet(arr: Any, i: Int, value: Any): void =
       arr cast[Addr]
       i * 4 + 4
     value cast[Int]
+
+//------------------------------------------------------------------------------
+//
+// String support
+//
+
+// TODO: we cannot use `a + b` in the method, due to name conflicts
+fun String_add_Int(a: Int, b: Int): Int = a + b
+
+type StringRepr = <
+  // Array[Byte] currently is the same as Array[Int]
+  // TODO: unicode support is missing
+  Raw(length: Int, content: Addr),
+
+  Concat(length: Int, lhs: String, rhs: String)
+>
+
+// The order of the methods must match the declaration in Prdef.stk
+type StringImpl = object {
+  val repr: StringRepr
+  def length: Int
+  def apply(i: Int): Char
+  def +(other: String): String
+  def substring(from: Int, len: Int): String
+}
+
+// This function is called to convert a string literal to a proper string object.
+fun String_fromByteString(byteArray: Any): String =
+  val length = readInt (byteArray cast[Addr])
+  val contentAddr = addAddr (byteArray cast[Addr]) 4
+  String_create #Raw(length, contentAddr)
+
+fun String_create(repr: StringRepr): String =
+  // Check that object agrees with the protocol
+  val o: StringImpl = object {
+    val repr = repr
+    def length: Int =
+      match this.repr
+        case #Raw(len, _) => len
+        case #Concat(len, lhs, rhs) => len
+
+    def apply(i: Int): Char =
+      match this.repr
+        case #Raw(len, content) =>
+          if i >= len or i < 0 then abort "index out of bound"
+
+          // TODO: unicode support
+          val v =
+            readByte
+              addAddr content i
+
+          v cast[Char]
+
+        case #Concat(len, lhs, rhs) =>
+          if i >= len or i < 0 then abort "index out of bound"
+
+          if i >= lhs.length then
+            rhs (i - lhs.length)
+          else
+            lhs i
+
+    def +(other: String): String =
+      val len = String_add_Int this.length other.length
+
+      // TODO: annoying
+      val any: Any = this
+
+      val repr2: StringRepr = #Concat(len, any cast[String], other)
+      String_create repr2
+
+    def substring(from: Int, len: Int): String =
+      if from < 0 then abort "from should not be negative"
+      if len < 0 then abort "len should not be negative"
+      if String_add_Int from len > this.length then abort "substring out of range"
+
+      val buf = GC.alloc len
+      var index = 0
+      while index < len do
+        // TODO: unicode support
+        writeByte
+          addAddr buf index
+          this (String_add_Int from index) cast[Int]
+
+      String_create #Raw(len, buf)
+  }
+
+  // TODO: annoying
+  val any: Any = o
+  any cast[String]

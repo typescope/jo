@@ -5,6 +5,9 @@ import sast.Sast.*
 import sast.Symbols.*
 import sast.Types.*
 
+/** Lower String and Array to JS runtime calls.
+  *
+  */
 class LowerRuntime(runtime: JSRuntime) extends phases.Phase:
 
   val defn = Definitions.instance

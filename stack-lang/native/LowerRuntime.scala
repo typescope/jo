@@ -7,7 +7,7 @@ import sast.Types.*
 
 import native.runtime.NativeRuntime
 
-/** The compiler phase translate array operations to runtime calls
+/** This phase lowers array to native runtime calls
   *
   * This phase assumes the following support functions defined in
   * runtime/native/Core.stk:
@@ -19,8 +19,9 @@ import native.runtime.NativeRuntime
   *
   * This phase should happen before ExplicitAlloc so that arrays are not treated
   * as objects.
+  *
   */
-class LowerArray(runtime: NativeRuntime) extends phases.Phase:
+class LowerRuntime(runtime: NativeRuntime) extends phases.Phase:
 
   type Context = Unit
   def createContext(fdef: FunDef): Context = ()

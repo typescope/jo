@@ -34,6 +34,8 @@ extends Backend(runtime):
 
   type LocalAddr = Map[Symbol, Addr]
 
+  val String_fromByteString = runtime.Core_String_fromByteString
+
   /** Program entry pointer */
   val entry = Label("_entry")
 
@@ -58,6 +60,8 @@ extends Backend(runtime):
             useReg: r =>
               cb.add(Instr.Move(label, r))
               push(Reg(r))
+
+            call(String_fromByteString)
 
           case Constant.Int(n) =>
             push(Int32(n))

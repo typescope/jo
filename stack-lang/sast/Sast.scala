@@ -44,7 +44,7 @@ object Sast:
         case _ => this
 
   case class Literal
-    (c: Constant)
+    (constant: Constant)
     (val tpe: Type, val span: Span)
   extends Word
 
