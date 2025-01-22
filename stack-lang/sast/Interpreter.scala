@@ -329,6 +329,28 @@ object Interpreter:
                 else
                    throw new Exception(s"Unexpect method $name on array")
 
+              case strVal: StringVal =>
+                val argVals = args.map(eval)
+
+                if name == "apply" then
+                  val IntVal(index) :: Nil = argVals: @unchecked
+                  IntVal(strVal.value(index)) :: Nil
+
+                else if name == "+" then
+                  val (other: StringVal) :: Nil = argVals: @unchecked
+                  StringVal(strVal.value + other.value) :: Nil
+
+                else if name == "length" then
+                  assert(argVals.isEmpty)
+                  IntVal(strVal.value.length) :: Nil
+
+                else if name == "substring" then
+                  val IntVal(from) :: IntVal(len) :: Nil = argVals: @unchecked
+                  StringVal(strVal.value.substring(from, from + len)) :: Nil
+
+                else
+                   throw new Exception(s"Unexpect method $name on array")
+
           case _ =>
             val funDenot :: Nil = exec(fun): @unchecked
             val argVals = args.map(eval)
