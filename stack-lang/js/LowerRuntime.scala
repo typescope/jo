@@ -73,7 +73,7 @@ class LowerRuntime(runtime: JSRuntime) extends phases.Phase:
         else if name == "+" then
           // '+' is supported directly by JavaScript, but backend will rewrite `+` to `_plus_`
           val fun2 = Ident(runtime.JS_stringPlus)(fun.span)
-          Encoded(Apply(fun2, args2)(StringType, app.span))(app.tpe)
+          Encoded(Apply(fun2, args2)(AnyType, app.span))(app.tpe)
 
         else
           throw new Exception("Unexpected method on array: " + name)

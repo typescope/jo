@@ -40,6 +40,10 @@ extends Linker:
   val Core_arraySet = Core.termMember("arraySet")
 
   val Core_String_fromByteString = Core.termMember("String_fromByteString")
+  val Core_String_length = Core.termMember("String_length")
+  val Core_String_apply = Core.termMember("String_apply")
+  val Core_String_plus = Core.termMember("String_plus")
+  val Core_String_substring = Core.termMember("String_substring")
 
   val Core_print = Core.termMember("print")
   val Core_p = Core.termMember("p")
