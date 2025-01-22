@@ -79,9 +79,6 @@ fun writeValueAt(index: Int, value: Any): void =
 fun getParamIndex(key: Core.Addr): Int =
   val hash = computeHash key
 
-  // TODO: annoying
-  val keyAny: Any = key
-
   var index = hash
   var continue = true
   while continue and index < 1024 do
@@ -89,7 +86,7 @@ fun getParamIndex(key: Core.Addr): Int =
     if foundKey < 0 then
       continue <- false
       index <- 1024
-    else if foundKey == (keyAny Core.cast[Int]) then
+    else if foundKey == (key Core.cast[Int]) then
       continue <- false
     else
       index <- index + 4
@@ -113,7 +110,6 @@ fun getParam(key: Core.Addr): Any =
 // the new binding + 1024.
 fun setParam(key: Core.Addr, value: Any): Int =
   val hash = computeHash key
-  val keyAny: Any = key
 
   var index = hash
   var continue = true
@@ -121,9 +117,9 @@ fun setParam(key: Core.Addr, value: Any): Int =
   while continue and index < 1024 do
     foundKey <- readKeyAt index
     if foundKey < 0 then
-      writeKeyAt index (keyAny Core.cast[Int])
+      writeKeyAt index (key Core.cast[Int])
       continue <- false
-    else if foundKey == (keyAny Core.cast[Int]) then
+    else if foundKey == (key Core.cast[Int]) then
       continue <- false
     else
       index <- index + 4
