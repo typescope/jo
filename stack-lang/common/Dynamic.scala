@@ -14,6 +14,10 @@ object Dynamic:
 
   class Key[+T](val name: String)
 
+  class Lazy[+T](delayed: => T):
+    private lazy val value: T = delayed
+    def force(): T = value
+
   /** Install the mapping until end of the program
     *
     * The key must not have been installed.

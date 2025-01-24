@@ -4,7 +4,7 @@ import Types.*
 
 import common.Dynamic
 
-class Definitions(rootNameTable: NameTable):
+final class Definitions(rootNameTable: NameTable):
 
   val Predef =  rootNameTable.resolvePath("stk.Predef")
   val Predef_nameTable = Predef.info.as[NameTableInfo].nameTable
@@ -45,10 +45,10 @@ class Definitions(rootNameTable: NameTable):
 
 
 object Definitions:
-  val key = new Dynamic.Key[Definitions]("definitions")
+  private val key = new Dynamic.Key[Dynamic.Lazy[Definitions]]("definitions")
 
   def initialize(rootNameTable: NameTable): Unit =
-    val definitions = new Definitions(rootNameTable)
-    Dynamic.install(Definitions.key, definitions)
+    val lazyDefinitions = Dynamic.Lazy(new Definitions(rootNameTable))
+    Dynamic.install(Definitions.key, lazyDefinitions)
 
-  def instance: Definitions = Dynamic.get(key)
+  def instance: Definitions = Dynamic.get(key).force()

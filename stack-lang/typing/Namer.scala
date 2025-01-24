@@ -238,8 +238,7 @@ class Namer(@constructorOnly reporter: Reporter):
         Literal(Constant.Bool(v))(PrimType.Bool, word.span).adapt
 
       case Ast.StringLit(v) =>
-        // TODO: use full name `stk.Predef.String`
-        val stringSym = resolvePath("String", isType = true)
+        val stringSym = Definitions.instance.Predef_String
         Literal(Constant.String(v))(TypeRef(stringSym), word.span).adapt
 
       case Ast.Ident(name) =>
@@ -587,9 +586,8 @@ class Namer(@constructorOnly reporter: Reporter):
             Reporter.error("Unmatched case(s): " + tagsRest.mkString(", "), scrutIdent.pos)
 
           // abort
-          // TODO: use full name `stk.Predef.abort`
-          val abortSym = resolvePath("abort", isType = false)
-          val stringSym = resolvePath("String", isType = true)
+          val abortSym = Definitions.instance.Predef_abort
+          val stringSym = Definitions.instance.Predef_String
           val abort = Ident(abortSym)(scrutIdent.span)
           val arg = Literal(Constant.String("Unhandled match at " + scrutIdent.pos))(TypeRef(stringSym), scrutIdent.span)
           val app = Apply(abort, arg :: Nil)(BottomType, patmat.span)
@@ -1074,10 +1072,13 @@ object Namer:
     runtimeNameTable: NameTable)(using rp: Reporter)
   : List[Namespace] =
 
-    // StdLib is compiled without the Predef
-    val nssStdLib = transform(stdlib, rootNameTable, predef = new NameTable)
+    // Install lazy definitions
     Definitions.initialize(rootNameTable)
 
+    // StdLib is compiled without the Predef
+    val nssStdLib = transform(stdlib, rootNameTable, predef = new NameTable)
+
+    // Must be after type checking the stdlib
     val predefNameTable = Definitions.instance.Predef_nameTable
 
     // Runtime definitions are not entered into the root name table thus is
