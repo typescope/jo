@@ -170,26 +170,6 @@ class Namer(@constructorOnly reporter: Reporter):
             rp.error(s"The name $name is not found", qualid.pos)
             Symbol.createNamespaceSymbol(name, new NameTableInfo, sc.owner, pos = qualid.pos, isBranch = false)
 
-  def resolvePath(path: String, isType: Boolean)(using sc: Scope): Symbol =
-    resolvePath(path.split("\\.").toList, isType) match
-      case Some(sym) =>
-        sym
-
-      case None =>
-        throw new Exception("Not found required symbol: " + path)
-
-  def resolvePath(parts: List[String], isType: Boolean)(using sc: Scope): Option[Symbol] =
-    (parts: @unchecked) match
-      case name :: Nil => sc.resolve(name, isType)
-
-      case name :: rest =>
-        sc.resolve(name, isType = false).flatMap: sym =>
-          if sym.isNamespace then
-            val nameTable = sym.info.as[NameTableInfo].nameTable
-            NameTable.resolvePath(nameTable, rest, isType)
-          else
-            None
-
   private def index(defs: List[Ast.Def])(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): List[DelayedDef[Def]] =
     val delayedDefs = new mutable.ArrayBuffer[DelayedDef[Def]]
 
