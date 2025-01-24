@@ -31,6 +31,7 @@ extends phases.Phase:
 
   val defn = Definitions.instance
   val StringType = TypeRef(defn.Predef_String)
+  val BoolType = TypeRef(defn.Predef_Bool)
 
   class FunContext(val funSymbol: Symbol)
   type Context = FunContext
@@ -52,7 +53,7 @@ extends phases.Phase:
     val paramName = paramRef.symbol.fullName
     val key = StringLit(paramName)(StringType, paramRef.span)
     val funHasParam = Ident(hasParamSym)(paramRef.span)
-    val hasParamCall = Apply(funHasParam, key :: Nil)(PrimType.Bool, paramRef.span)
+    val hasParamCall = Apply(funHasParam, key :: Nil)(BoolType, paramRef.span)
 
     val funGetParam = Ident(getParamSym)(paramRef.span)
     val getParamCall = Apply(funGetParam, key :: Nil)(word.tpe, paramRef.span)
@@ -118,8 +119,8 @@ extends phases.Phase:
         val paramName = arg.paramRef.symbol.fullName
         val key = StringLit(paramName)(StringType, arg.paramRef.span)
         val funHasParam = Ident(hasParamSym)(arg.span)
-        val hasParamCall = Apply(funHasParam, key :: Nil)(PrimType.Bool, arg.paramRef.span)
-        val hasXSym = new Symbol("has_" + paramName, PrimType.Bool, Flags.Val, owner = ctx.funSymbol, sourcePos = arg.rhs.pos)
+        val hasParamCall = Apply(funHasParam, key :: Nil)(BoolType, arg.paramRef.span)
+        val hasXSym = new Symbol("has_" + paramName, BoolType, Flags.Val, owner = ctx.funSymbol, sourcePos = arg.rhs.pos)
         stats += Assign(Ident(hasXSym)(arg.paramRef.span), hasParamCall)(arg.span)
         hasXSym
 

@@ -37,12 +37,22 @@ final class Definitions(rootNameTable: NameTable):
   val Predef_js     =  Predef.termMember("js")
 
   // types
-  val Predef_Int    =  Predef.typeMember("Int")
   val Predef_Bool   =  Predef.typeMember("Bool")
+  val Predef_Byte   =  Predef.typeMember("Byte")
+  val Predef_Char   =  Predef.typeMember("Char")
+  val Predef_Int    =  Predef.typeMember("Int")
   val Predef_String =  Predef.typeMember("String")
   val Predef_Void   =  Predef.typeMember("void")
   val Predef_Array  =  Predef.typeMember("Array")
 
+  val IntType     = TypeRef(Predef_Int)
+  val BoolType    = TypeRef(Predef_Bool)
+  val ByteType    = TypeRef(Predef_Byte)
+  val CharType    = TypeRef(Predef_Char)
+  val StringType  = TypeRef(Predef_String)
+
+  def isPrimitiveValueType(tp: Type): Boolean =
+    tp.refersToAny(Predef_Bool :: Predef_Byte :: Predef_Char :: Predef_Int :: Nil)
 
 object Definitions:
   private val key = new Dynamic.Key[Dynamic.Lazy[Definitions]]("definitions")

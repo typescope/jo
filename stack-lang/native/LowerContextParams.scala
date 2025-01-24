@@ -33,6 +33,9 @@ import scala.collection.mutable
   */
 class LowerContextParams(runtime: NativeRuntime) extends phases.Phase:
 
+  val BoolType = Definitions.instance.BoolType
+  val IntType = Definitions.instance.IntType
+
   class FunContext(val funSymbol: Symbol)
   type Context = FunContext
   def createContext(fdef: FunDef) = FunContext(fdef.symbol)
@@ -57,9 +60,9 @@ class LowerContextParams(runtime: NativeRuntime) extends phases.Phase:
       // At runtime, it's a byte array initialized in the constant area
       val key = StringLit(paramName)(AnyType, paramRef.span)
       val funGetParamIndex = Ident(runtime.ParamSupport_getParamIndex)(paramRef.span)
-      val getParamIndexCall = Apply(funGetParamIndex, key :: Nil)(PrimType.Int, paramRef.span)
+      val getParamIndexCall = Apply(funGetParamIndex, key :: Nil)(IntType, paramRef.span)
 
-      val indexSym = new Symbol("index_" + paramName, PrimType.Int, Flags.Val, owner = ctx.funSymbol, sourcePos = null)
+      val indexSym = new Symbol("index_" + paramName, IntType, Flags.Val, owner = ctx.funSymbol, sourcePos = null)
       val indexAssign = Assign(Ident(indexSym)(paramRef.span), getParamIndexCall)(paramRef.span)
 
       val indexIdent = Ident(indexSym)(paramRef.span)
@@ -68,8 +71,8 @@ class LowerContextParams(runtime: NativeRuntime) extends phases.Phase:
       val readValueAtCall = Apply(funReadValueAt, indexIdent :: Nil)(word.tpe, paramRef.span)
 
       val funLessThan = Ident(Definitions.instance.Predef_lt)(paramRef.span)
-      val zero = Literal(Constant.Int(0))(PrimType.Int, paramRef.span)
-      val cond = Apply(funLessThan, indexIdent :: zero :: Nil)(PrimType.Bool, paramRef.span)
+      val zero = Literal(Constant.Int(0))(IntType, paramRef.span)
+      val cond = Apply(funLessThan, indexIdent :: zero :: Nil)(BoolType, paramRef.span)
       val ifExpr = If(cond, default, readValueAtCall)(word.tpe, word.span)
 
       Block(indexAssign :: ifExpr  :: Nil)(word.tpe, word.span)
@@ -139,8 +142,8 @@ class LowerContextParams(runtime: NativeRuntime) extends phases.Phase:
         val key = StringLit(paramName)(AnyType, arg.paramRef.span)
         val value = Ident(argValueSym)(arg.rhs.span)
         val funSetParam = Ident(runtime.ParamSupport_setParam)(arg.span)
-        val setParamCall = Apply(funSetParam, key :: value :: Nil)(PrimType.Int, arg.span)
-        val hashIndexSym = new Symbol("hash_index_" + paramName, PrimType.Int, Flags.Val, owner = ctx.funSymbol, sourcePos = arg.rhs.pos)
+        val setParamCall = Apply(funSetParam, key :: value :: Nil)(IntType, arg.span)
+        val hashIndexSym = new Symbol("hash_index_" + paramName, IntType, Flags.Val, owner = ctx.funSymbol, sourcePos = arg.rhs.pos)
         stats += Assign(Ident(hashIndexSym)(arg.paramRef.span), setParamCall)(arg.span)
 
         val funGetLastOverwrittenValue = Ident(runtime.ParamSupport_getLastOverwrittenValue)(arg.span)

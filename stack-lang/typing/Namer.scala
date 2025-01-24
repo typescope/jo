@@ -229,17 +229,20 @@ class Namer(@constructorOnly reporter: Reporter):
 
     word match
       case Ast.IntLit(v)  =>
-        Literal(Constant.Int(v.toInt))(PrimType.Int, word.span).adapt
+        val tp = Definitions.instance.CharType
+        Literal(Constant.Int(v.toInt))(tp, word.span).adapt
 
       case Ast.CharLit(v) =>
-        Literal(Constant.Int(v.toInt))(PrimType.Char, word.span).adapt
+        val tp = Definitions.instance.CharType
+        Literal(Constant.Int(v.toInt))(tp, word.span).adapt
 
       case Ast.BoolLit(v) =>
-        Literal(Constant.Bool(v))(PrimType.Bool, word.span).adapt
+        val tp = Definitions.instance.BoolType
+        Literal(Constant.Bool(v))(tp, word.span).adapt
 
       case Ast.StringLit(v) =>
-        val stringSym = Definitions.instance.Predef_String
-        Literal(Constant.String(v))(TypeRef(stringSym), word.span).adapt
+        val tp = Definitions.instance.StringType
+        Literal(Constant.String(v))(tp, word.span).adapt
 
       case Ast.Ident(name) =>
         val sym = sc.resolve(name, word.pos)
@@ -308,7 +311,8 @@ class Namer(@constructorOnly reporter: Reporter):
         transform(ifte)
 
       case Ast.While(cond, body) =>
-         val cond2 = transform(cond)(using sc, rp, so, TargetType.Known(PrimType.Bool))
+         val boolType = Definitions.instance.BoolType
+         val cond2 = transform(cond)(using sc, rp, so, TargetType.Known(boolType))
          val body2 = transform(body)(using sc, rp, so, TargetType.Known(VoidType))
          While(cond2, body2)(word.span).adapt
 
@@ -478,7 +482,8 @@ class Namer(@constructorOnly reporter: Reporter):
 
   private def transform(ifte: Ast.If)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
     val Ast.If(cond, thenp, elsep) = ifte
-    val cond2 = transform(cond)(using sc, rp, so, TargetType.Known(PrimType.Bool))
+    val boolType = Definitions.instance.BoolType
+    val cond2 = transform(cond)(using sc, rp, so, TargetType.Known(boolType))
     val then2 = transform(thenp)
     val else2 = transform(elsep)
 
@@ -587,9 +592,9 @@ class Namer(@constructorOnly reporter: Reporter):
 
           // abort
           val abortSym = Definitions.instance.Predef_abort
-          val stringSym = Definitions.instance.Predef_String
+          val stringType = Definitions.instance.StringType
           val abort = Ident(abortSym)(scrutIdent.span)
-          val arg = Literal(Constant.String("Unhandled match at " + scrutIdent.pos))(TypeRef(stringSym), scrutIdent.span)
+          val arg = Literal(Constant.String("Unhandled match at " + scrutIdent.pos))(stringType, scrutIdent.span)
           val app = Apply(abort, arg :: Nil)(BottomType, patmat.span)
           checker.adapt(app, resType)
 
@@ -844,16 +849,13 @@ class Namer(@constructorOnly reporter: Reporter):
         if tdef.rhs.isEmpty then
           if sc.owner.fullName == "stk.Predef" then
             val typeName = tdef.name
-            if typeName == "Int" then PrimType.Int
-            else if typeName == "Byte" then PrimType.Byte
-            else if typeName == "Char" then PrimType.Char
-            else if typeName == "Bool" then PrimType.Bool
-            else if typeName == "void" then VoidType
+            if typeName == "void" then VoidType
             else if typeName == "Any" then AnyType
             else if typeName == "Bottom" then BottomType
             else
-              Reporter.error("Unknown primitive type " + typeName, tdef.pos)
-              AnyType
+              // Int, Char, Byte
+              TypeBound(BottomType, AnyType)
+
           else
             TypeBound(BottomType, AnyType)
         else

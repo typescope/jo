@@ -14,8 +14,9 @@ import scala.collection.mutable
   */
 object Desugaring:
   def encodeUnionType(tagTypes: List[Type]): RecordType =
+    val IntType = Definitions.instance.IntType
     val fieldTypes = new mutable.ArrayBuffer[NamedInfo[Type]]
-    fieldTypes += NamedInfo("tag", PrimType.Int)
+    fieldTypes += NamedInfo("tag", IntType)
     for (tagType, i) <- tagTypes.zipWithIndex do
       fieldTypes += NamedInfo(s"v$i", tagType)
 
@@ -26,8 +27,10 @@ object Desugaring:
       tagSpan: Span, variantSpan: Span
     ): Word =
 
+    val IntType = Definitions.instance.IntType
+
     val encodeType = encodeUnionType(tagTypes)
-    val tagValue = Literal(Constant.Int(tagIndex))(PrimType.Int, tagSpan)
+    val tagValue = Literal(Constant.Int(tagIndex))(IntType, tagSpan)
 
     val fields = new mutable.ArrayBuffer[(String, Word)]
     fields += "tag" -> tagValue
@@ -43,8 +46,10 @@ object Desugaring:
     Select(value, fieldName)(fieldType, span)
 
   def testVariantTag(value: Word, tagIndex: Int, span: Span): Word =
-    val tagSelect = Select(value, "tag")(PrimType.Int, span)
-    val tagValue = Literal(Constant.Int(tagIndex))(PrimType.Int, span)
+    val IntType = Definitions.instance.IntType
+    val tagSelect = Select(value, "tag")(IntType, span)
+    val tagValue = Literal(Constant.Int(tagIndex))(IntType, span)
     val args =  tagSelect :: tagValue :: Nil
     val fun = Ident(Definitions.instance.Predef_eql)(span)
-    Apply(fun, args)(PrimType.Bool, span)
+    val tp = Definitions.instance.BoolType
+    Apply(fun, args)(tp, span)

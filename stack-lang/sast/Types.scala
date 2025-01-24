@@ -22,9 +22,6 @@ object Types:
 
     def isBottom: Boolean = TypeOps.approx(this, isUp = true) == BottomType
 
-    def isPrimType: Boolean =
-      TypeOps.approx(this, isUp = true).isInstanceOf[PrimType]
-
     def isRecordType: Boolean =
       TypeOps.approx(this, isUp = true).isInstanceOf[RecordType]
 
@@ -47,9 +44,6 @@ object Types:
       TypeOps.approx(this, isUp = true)  match
         case VoidType | _: ProcType | _: TypeLambda | _: PolyType | _: NameTableInfo => false
         case _ => true
-
-    def asPrimType: PrimType =
-      TypeOps.approx(this, isUp = true).asInstanceOf[PrimType]
 
     def asRecordType: RecordType =
       TypeOps.approx(this, isUp = true).asInstanceOf[RecordType]
@@ -89,6 +83,12 @@ object Types:
         case AppliedType(ctor, _) => ctor.refersTo(symbol)
         case _ => false
 
+    def refersToAny(symbols: List[Symbol]): Boolean =
+      this match
+        case TypeRef(sym) => symbols.contains(sym) || sym.info.refersToAny(symbols)
+        case AppliedType(ctor, _) => ctor.refersToAny(symbols)
+        case _ => false
+
     def getTermMember(name: String): Option[Type] =
       TypeOps.approx(this, isUp = true) match
         case info: NameTableInfo =>
@@ -117,9 +117,6 @@ object Types:
 
     def show: String = TypeOps.show(this)
   end Type
-
-  enum PrimType extends Type:
-    case Bool, Byte, Char, Int
 
   case object VoidType extends Type
 

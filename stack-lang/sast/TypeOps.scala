@@ -144,8 +144,6 @@ object TypeOps:
 
   def show(tp: Type): String =
     tp match
-      case tp: PrimType  => tp.toString
-
       case VoidType    => "void"
       case AnyType     => "Any"
       case BottomType  => "Bottom"
@@ -215,7 +213,7 @@ object TypeOps:
 
     def recur(tp: Type)(using Context): Type =
       tp match
-        case VoidType | ErrorType | AnyType | BottomType | _: PrimType =>
+        case VoidType | ErrorType | AnyType | BottomType =>
           tp
 
         case _: TypeRef | _: TypeParamRef | _: TypeVar | _: NameTableInfo =>

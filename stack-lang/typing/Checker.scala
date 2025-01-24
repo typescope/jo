@@ -123,15 +123,18 @@ class Checker:
       else
         Some(unionType2.tagType(tag.name))
 
-  def adaptIntLiteral(n: Int, from: Type, targetType: PrimType)(using Reporter, Source): Type =
-    targetType match
-      case PrimType.Byte if n < 128 && n >= -128 => PrimType.Byte
+  def adaptIntLiteral(n: Int, origType: Type, targetType: Type)(using Reporter, Source): Type =
+    val defn = Definitions.instance
 
-      case PrimType.Char if n < 65536 && n >= 0 => PrimType.Char
+    if
+      targetType.refersTo(defn.Predef_Byte) && n < 128 && n >= -128
+      || targetType.refersTo(defn.Predef_Char) && n < 65536 && n >= 0
+      || targetType.refersTo(defn.Predef_Int)
+    then
+      targetType
 
-      case PrimType.Int => PrimType.Int
-
-      case _ => from
+    else
+      origType
 
   /** Explicit drop of values in if/match expressions */
   def adapt(word: Word, targetType: Type)(using Reporter, Source): Word =
@@ -139,11 +142,12 @@ class Checker:
     if targetType.isVoidType && curType.isValueType then
       Sast.dropValue(word)
     else
-      if targetType.isPrimType && !Subtyping.conforms(word.tpe, targetType) then
+      val isPrimitive = Definitions.instance.isPrimitiveValueType(targetType)
+      if isPrimitive && !Subtyping.conforms(word.tpe, targetType) then
         // Numeric coercion
         word match
           case Literal(Constant.Int(n)) =>
-            val tp2 = adaptIntLiteral(n, word.tpe, targetType.asPrimType)
+            val tp2 = adaptIntLiteral(n, word.tpe, targetType)
             val word2 = Literal(Constant.Int(n))(tp2, word.span)
             checkType(word2, targetType)
             word2

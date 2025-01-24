@@ -85,9 +85,11 @@ object Printing:
             "\"" ~ StringUtil.escape(s) ~ "\""
 
           case Constant.Int(n) =>
-            word.tpe match
-              case PrimType.Char => "'" ~ StringUtil.escapeChar(n.toChar) ~ "'"
-              case _ => Text(n.toString)
+            val isChar = word.tpe.refersTo(Definitions.instance.Predef_Char)
+            if isChar then
+              "'" ~ StringUtil.escapeChar(n.toChar) ~ "'"
+            else
+              Text(n.toString)
 
       case Ident(sym) => Text(sym.name)
 

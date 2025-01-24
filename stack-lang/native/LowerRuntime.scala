@@ -34,8 +34,8 @@ class LowerRuntime(runtime: NativeRuntime) extends phases.Phase:
   val Predef_array = defn.Predef_array
   val Predef_Array = defn.Predef_Array
 
-  val Predef_String = Definitions.instance.Predef_String
-  val StringType = TypeRef(Predef_String)
+  val StringType = defn.StringType
+  val IntType = defn.IntType
 
   override def transformApply(app: Apply)(using ctx: Context): Word =
     val Apply(fun, args) = app
@@ -52,7 +52,7 @@ class LowerRuntime(runtime: NativeRuntime) extends phases.Phase:
 
         if name == "length" then
           val fun2 = Ident(runtime.Core_Array_length)(fun.span)
-          Apply(fun2, args2)(PrimType.Int, app.span)
+          Apply(fun2, args2)(IntType, app.span)
 
         else if name == "apply" then
           val fun2 = Ident(runtime.Core_Array_apply)(fun.span)
@@ -71,7 +71,7 @@ class LowerRuntime(runtime: NativeRuntime) extends phases.Phase:
 
         if name == "length" then
           val fun2 = Ident(runtime.Core_String_length)(fun.span)
-          Apply(fun2, args2)(PrimType.Int, app.span)
+          Apply(fun2, args2)(IntType, app.span)
 
         else if name == "apply" then
           val fun2 = Ident(runtime.Core_String_apply)(fun.span)

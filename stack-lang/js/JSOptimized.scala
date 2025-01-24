@@ -3,7 +3,6 @@ package js
 import sast.*
 import sast.Sast.*
 import sast.Symbols.*
-import sast.Types.*
 
 import common.Debug
 import common.StringUtil
@@ -22,6 +21,8 @@ import scala.collection.mutable
   */
 class JSOptimized(outFile: String, runtime: JSRuntime):
   private val unique = new UniqueName
+
+  val defn = Definitions.instance
 
   val keywords = List(
     "for", "while", "function", "var", "let", "break", "continue", "if",
@@ -128,12 +129,10 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
             cont("\"" ~ StringUtil.escape(s) ~ "\"")
 
           case Constant.Int(n) =>
-            word.tpe match
-              case PrimType.Char =>
-                cont("'" ~ StringUtil.escapeChar(n.toChar) ~ "'")
-
-              case _ =>
-                cont(Text(n.toString))
+            if word.tpe.refersTo(defn.Predef_Char) then
+              cont("'" ~ StringUtil.escapeChar(n.toChar) ~ "'")
+            else
+              cont(Text(n.toString))
 
       case RecordLit(fields) =>
         run(fields.map(_._2)): vs =>

@@ -12,8 +12,10 @@ class LowerRuntime(runtime: JSRuntime) extends phases.Phase:
 
   val defn = Definitions.instance
 
-  val Predef_String = Definitions.instance.Predef_String
-  val StringType = TypeRef(Predef_String)
+  val Predef_String = defn.Predef_String
+  val StringType = defn.StringType
+  val BoolType = defn.BoolType
+  val IntType = defn.IntType
 
   val rewiring = Map(
     defn.Predef_p -> runtime.JS_p,
@@ -33,10 +35,10 @@ class LowerRuntime(runtime: JSRuntime) extends phases.Phase:
     fun2.strip match
       case TypeApply(Ident(sym), tpt :: Nil) if sym == defn.Predef_array =>
         val fun2 =
-          if Subtyping.conforms(tpt.tpe, PrimType.Int) then
+          if Subtyping.conforms(tpt.tpe, IntType) then
             Ident(runtime.JS_Array_createInt)(fun.span)
 
-          else if Subtyping.conforms(tpt.tpe, PrimType.Bool) then
+          else if Subtyping.conforms(tpt.tpe, BoolType) then
             Ident(runtime.JS_Array_createBool)(fun.span)
 
           else
@@ -59,7 +61,7 @@ class LowerRuntime(runtime: JSRuntime) extends phases.Phase:
 
         if name == "length" then
           val fun2 = Ident(runtime.JS_String_length)(fun.span)
-          Apply(fun2, args2)(PrimType.Int, app.span)
+          Apply(fun2, args2)(IntType, app.span)
 
         else if name == "apply" then
           val fun2 = Ident(runtime.JS_String_apply)(fun.span)
