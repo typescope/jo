@@ -3,6 +3,7 @@ package native
 import sast.Constant
 import sast.Types.*
 import sast.Sast.*
+import sast.Definitions
 
 import native.runtime.NativeRuntime
 

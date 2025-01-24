@@ -34,7 +34,9 @@ class LowerRuntime(runtime: NativeRuntime) extends phases.Phase:
   val Predef_array = defn.Predef_array
   val Predef_Array = defn.Predef_Array
 
+  val Predef_String = defn.Predef_String
   val StringType = defn.StringType
+
   val IntType = defn.IntType
 
   override def transformApply(app: Apply)(using ctx: Context): Word =

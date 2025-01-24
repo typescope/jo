@@ -229,7 +229,7 @@ class Namer(@constructorOnly reporter: Reporter):
 
     word match
       case Ast.IntLit(v)  =>
-        val tp = Definitions.instance.CharType
+        val tp = Definitions.instance.IntType
         Literal(Constant.Int(v.toInt))(tp, word.span).adapt
 
       case Ast.CharLit(v) =>
