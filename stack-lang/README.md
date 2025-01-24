@@ -78,7 +78,7 @@ Syntactical Grammar
 
     block   = { phrase }.
 
-    select  = (ident | record | fence | select) DOT ident.
+    select  = word DOT ident.
 
     with_clause = expr WITH (([ONLY] with_bindings) | NONE)
 

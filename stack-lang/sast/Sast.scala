@@ -59,6 +59,7 @@ object Sast:
   extends Word:
     assert(!symbol.isType)
 
+    def name: String = symbol.name
     val tpe: Type = TypeRef(symbol)
 
   case class Select

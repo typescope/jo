@@ -439,7 +439,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     item.token match
       case Token.LBRACE => optSelectAndTypeApply(record())
 
-      case Token.TAG    => Some(variant())
+      case Token.TAG    => optSelectAndTypeApply(variant())
 
       case Token.LPAREN =>
         if isLambda() then Some(lambda()) else optSelectAndTypeApply(fence())
@@ -450,22 +450,22 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
       case lit: Token.IntLit  =>
         next()
-        Some(IntLit(lit.value)(item.span))
+        optSelectAndTypeApply(IntLit(lit.value)(item.span))
 
       case lit: Token.BoolLit =>
         next()
-        Some(BoolLit(lit.value)(item.span))
+        optSelectAndTypeApply(BoolLit(lit.value)(item.span))
 
       case lit: Token.CharLit  =>
         next()
-        Some(CharLit(lit.value)(item.span))
+        optSelectAndTypeApply(CharLit(lit.value)(item.span))
 
       case lit: Token.StringLit  =>
         next()
-        Some(StringLit(lit.value)(item.span))
+        optSelectAndTypeApply(StringLit(lit.value)(item.span))
 
       case Token.OBJECT =>
-        Some(objectLit())
+        optSelectAndTypeApply(objectLit())
 
       case token =>
         None
