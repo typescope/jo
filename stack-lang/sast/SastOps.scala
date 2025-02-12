@@ -14,11 +14,7 @@ object SastOps:
 
     def transform(word: Word)(using Context): Word =
       word match
-        case lit: IntLit => transformIntLit(lit)
-
-        case lit: BoolLit => transformBoolLit(lit)
-
-        case lit: StringLit => transformStringLit(lit)
+        case lit: Literal => transformLiteral(lit)
 
         case ident: Ident => transformIdent(ident)
 
@@ -55,11 +51,7 @@ object SastOps:
         case obj: Object => transformObject(obj)
     end transform
 
-    def transformIntLit(lit: IntLit)(using Context): Word = recur(lit)
-
-    def transformBoolLit(lit: BoolLit)(using Context): Word = recur(lit)
-
-    def transformStringLit(lit: StringLit)(using Context): Word = recur(lit)
+    def transformLiteral(lit: Literal)(using Context): Word = recur(lit)
 
     def transformIdent(ident: Ident)(using Context): Word = recur(ident)
 
@@ -116,7 +108,7 @@ object SastOps:
 
     def recur(word: Word)(using Context): Word =
       word match
-        case _: IntLit | _: BoolLit | _: StringLit | _: Ident =>
+        case _: Literal | _: Ident =>
           word
 
         case Select(qual, name) =>
@@ -201,7 +193,7 @@ object SastOps:
 
     def recur(word: Word)(using Context): Unit =
       word match
-        case _: IntLit | _: BoolLit | _: StringLit | _: Ident =>
+        case _: Literal | _: Ident =>
 
         case Select(qual, name) =>
           this(qual)

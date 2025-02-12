@@ -56,7 +56,7 @@ object NameTable:
       case Some(sym) => sym
       case None => throw new Exception("Not found: " + path)
 
-  private def resolvePath(nameTable: NameTable, parts: List[String], isType: Boolean): Option[Symbol] =
+  def resolvePath(nameTable: NameTable, parts: List[String], isType: Boolean): Option[Symbol] =
     (parts: @unchecked) match
       case name :: Nil => nameTable.resolve(name, isType)
 

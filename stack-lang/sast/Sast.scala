@@ -29,7 +29,7 @@ object Sast:
     /** Whether the word can be duplicated as neighbors without affecting program semantics */
     def isIdempotent: Boolean =
       this match
-        case _: IntLit | _: BoolLit | _: Ident => true
+        case _: Literal | _: Ident => true
 
         case Select(qual, _) => qual.isIdempotent
 
@@ -43,23 +43,10 @@ object Sast:
         case Encoded(expr) => expr.strip
         case _ => this
 
-  case class IntLit
-    (value: Int)
-    (val span: Span)
-  extends Word:
-    def tpe: Type = IntType
-
-  case class BoolLit
-    (value: Boolean)
-    (val span: Span)
-  extends Word:
-    def tpe: Type = BoolType
-
-  case class StringLit
-    (value: String)
-    (val span: Span)
-  extends Word:
-    def tpe: Type = StringType
+  case class Literal
+    (constant: Constant)
+    (val tpe: Type, val span: Span)
+  extends Word
 
   case class RecordLit
     (args: List[(String, Word)])
@@ -72,6 +59,7 @@ object Sast:
   extends Word:
     assert(!symbol.isType)
 
+    def name: String = symbol.name
     val tpe: Type = TypeRef(symbol)
 
   case class Select
@@ -228,3 +216,6 @@ object Sast:
   def dropValue(word: Word): Word =
     assert(word.tpe.isValueType)
     Encoded(word)(VoidType)
+
+  def StringLit(s: String)(tp: Type, span: Span) =
+    Literal(Constant.String(s))(tp, span)

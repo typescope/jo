@@ -20,6 +20,8 @@ import scala.collection.mutable
   */
 class ExplicitAlloc(runtime: NativeRuntime) extends phases.Phase:
 
+  val IntType = Definitions.instance.IntType
+
   class FunContext(val funSymbol: Symbol)
   type Context = FunContext
   def createContext(fdef: FunDef) = FunContext(fdef.symbol)
@@ -41,7 +43,7 @@ class ExplicitAlloc(runtime: NativeRuntime) extends phases.Phase:
 
     val recordType = word.tpe.asRecordType
     val size = Memory.size(recordType)
-    val sizeLit = IntLit(size)(word.span)
+    val sizeLit = Literal(Constant.Int(size))(IntType, word.span)
     val allocApply = Apply(allocFun, sizeLit :: Nil)(addrType, word.span)
 
     val refSym =

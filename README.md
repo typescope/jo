@@ -2,9 +2,9 @@
 
 Stk is a statically typed functional programming language with the following features:
 
+- Context parameters for contextual abstraction and deep configurability
+- Fine-grained effect control and effect parametricity
 - Flexible prefix, infix and postfix functions
-- Dynamic parameters for contextual abstraction and parametric global state
-- Inverted dependencies to avoid dependency hell
 - Indented syntax to avoid semicolons, parentheses and braces
 
 ## Build
@@ -34,5 +34,3 @@ Run the compiler targeting JavaScript:
 bin/jsc.native tests/pos/fact.stk -o fact.js
 node fact.js
 ```
-
-Note: The native backend only supports linux-x86.

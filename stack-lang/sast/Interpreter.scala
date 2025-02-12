@@ -97,6 +97,10 @@ object Interpreter:
 
   type Params = Map[Symbol, Value]
 
+  def int1(op: Int => Int)(args: List[Value]): List[Value] =
+    val IntVal(a) :: Nil = args: @unchecked
+    IntVal(op(a)) :: Nil
+
   def int2(op: (Int, Int) => Int)(args: List[Value]): List[Value] =
     val IntVal(a) :: IntVal(b) :: Nil = args: @unchecked
     IntVal(op(a, b)) :: Nil
@@ -134,6 +138,13 @@ object Interpreter:
   def bor (args: List[Value]) = bool2(_ || _)(args)
   def bnot(args: List[Value]) = bool1(! _   )(args)
 
+  def byteToChar(args: List[Value]) = int1(n => n)(args)
+  def byteToInt(args: List[Value]) = int1(n => n)(args)
+  def charToByte(args: List[Value]) = int1(_ & 255)(args)
+  def charToInt(args: List[Value]) = int1(n => n)(args)
+  def intToByte(args: List[Value]) = int1(_ & 255)(args)
+  def intToChar(args: List[Value]) = int1(_ & 65535)(args)
+
   def eql(args: List[Value]): List[Value] =
     val a :: b :: Nil = args: @unchecked
     BoolVal(a == b) :: Nil
@@ -146,6 +157,11 @@ object Interpreter:
   def print(args: List[Value]): List[Value] =
     val StringVal(v) :: Nil = args: @unchecked
     System.out.print(v)
+    Nil
+
+  def printChar(args: List[Value]): List[Value] =
+    val IntVal(v) :: Nil = args: @unchecked
+    System.out.print(v.toChar)
     Nil
 
   def newArray(args: List[Value]): List[Value] =
@@ -162,28 +178,35 @@ object Interpreter:
     val defn = Definitions.instance
 
     val platformCalls: Map[Symbol, List[Value] => List[Value]] = Map(
-      defn.Predef_add    ->    add,
-      defn.Predef_sub    ->    sub,
-      defn.Predef_mul    ->    mul,
-      defn.Predef_div    ->    div,
-      defn.Predef_mod    ->    mod,
-      defn.Predef_gt     ->    gt,
-      defn.Predef_lt     ->    lt,
-      defn.Predef_ge     ->    ge,
-      defn.Predef_le     ->    le,
-      defn.Predef_srl    ->    srl,
-      defn.Predef_sll    ->    sll,
-      defn.Predef_land   ->    land,
-      defn.Predef_lor    ->    lor,
-      defn.Predef_lxor   ->    lxor,
-      defn.Predef_band   ->    band,
-      defn.Predef_bor    ->    bor,
-      defn.Predef_bnot   ->    bnot,
-      defn.Predef_eql    ->    eql,
-      defn.Predef_p      ->    p,
-      defn.Predef_print  ->    print,
-      defn.Predef_abort  ->    abort,
-      defn.Predef_array  ->    newArray
+      defn.Predef_add        ->       add,
+      defn.Predef_sub        ->       sub,
+      defn.Predef_mul        ->       mul,
+      defn.Predef_div        ->       div,
+      defn.Predef_mod        ->       mod,
+      defn.Predef_gt         ->       gt,
+      defn.Predef_lt         ->       lt,
+      defn.Predef_ge         ->       ge,
+      defn.Predef_le         ->       le,
+      defn.Predef_srl        ->       srl,
+      defn.Predef_sll        ->       sll,
+      defn.Predef_land       ->       land,
+      defn.Predef_lor        ->       lor,
+      defn.Predef_lxor       ->       lxor,
+      defn.Predef_band       ->       band,
+      defn.Predef_bor        ->       bor,
+      defn.Predef_bnot       ->       bnot,
+      defn.Predef_eql        ->       eql,
+      defn.Predef_p          ->       p,
+      defn.Predef_print      ->       print,
+      defn.Predef_printChar  ->       printChar,
+      defn.Predef_abort      ->       abort,
+      defn.Predef_array      ->       newArray,
+      defn.Predef_byteToChar ->       byteToChar,
+      defn.Predef_byteToInt  ->       byteToInt,
+      defn.Predef_charToByte ->       charToByte,
+      defn.Predef_charToInt  ->       charToInt,
+      defn.Predef_intToByte  ->       intToByte,
+      defn.Predef_intToChar  ->       intToChar
     )
 
     for (sym, op) <- platformCalls do
@@ -226,11 +249,16 @@ object Interpreter:
 
   def exec(word: Word)(using env: Env, params: Params): List[Denotation] =
     word match
-      case IntLit(v)  => IntVal(v) :: Nil
+      case Literal(c)  =>
+        c match
+          case Constant.Int(n) =>
+            IntVal(n) :: Nil
 
-      case BoolLit(v) => BoolVal(v) :: Nil
+          case Constant.Bool(b) =>
+            BoolVal(b) :: Nil
 
-      case StringLit(v) => StringVal(v) :: Nil
+          case Constant.String(s) =>
+            StringVal(s) :: Nil
 
       case Encoded(repr) => exec(repr)
 
@@ -320,6 +348,28 @@ object Interpreter:
                 else if name == "length" then
                   assert(argVals.isEmpty)
                   IntVal(arrayVal.content.length) :: Nil
+
+                else
+                   throw new Exception(s"Unexpect method $name on array")
+
+              case strVal: StringVal =>
+                val argVals = args.map(eval)
+
+                if name == "apply" then
+                  val IntVal(index) :: Nil = argVals: @unchecked
+                  IntVal(strVal.value(index)) :: Nil
+
+                else if name == "+" then
+                  val (other: StringVal) :: Nil = argVals: @unchecked
+                  StringVal(strVal.value + other.value) :: Nil
+
+                else if name == "length" then
+                  assert(argVals.isEmpty)
+                  IntVal(strVal.value.length) :: Nil
+
+                else if name == "substring" then
+                  val IntVal(from) :: IntVal(len) :: Nil = argVals: @unchecked
+                  StringVal(strVal.value.substring(from, from + len)) :: Nil
 
                 else
                    throw new Exception(s"Unexpect method $name on array")

@@ -34,14 +34,28 @@ extends Linker:
   val Core_writeByte = Core.termMember("writeByte")
   val Core_readByte = Core.termMember("readByte")
 
-  val Core_arrayCreate = Core.termMember("arrayCreate")
-  val Core_arrayLength = Core.termMember("arrayLength")
-  val Core_arrayGet = Core.termMember("arrayGet")
-  val Core_arraySet = Core.termMember("arraySet")
+  val Core_Array_create = Core.termMember("Array_create")
+  val Core_Array_length = Core.termMember("Array_length")
+  val Core_Array_apply = Core.termMember("Array_apply")
+  val Core_Array_set = Core.termMember("Array_set")
+
+  val Core_String_fromByteString = Core.termMember("String_fromByteString")
+  val Core_String_length = Core.termMember("String_length")
+  val Core_String_apply = Core.termMember("String_apply")
+  val Core_String_plus = Core.termMember("String_plus")
+  val Core_String_substring = Core.termMember("String_substring")
 
   val Core_print = Core.termMember("print")
+  val Core_printChar = Core.termMember("printChar")
   val Core_p = Core.termMember("p")
   val Core_abortImpl = Core.termMember("abortImpl")
+
+  val Core_byteToChar = Core.termMember("byteToChar")
+  val Core_byteToInt = Core.termMember("byteToInt")
+  val Core_charToByte = Core.termMember("charToByte")
+  val Core_charToInt = Core.termMember("charToInt")
+  val Core_intToByte = Core.termMember("intToByte")
+  val Core_intToChar = Core.termMember("intToChar")
 
   val GC = resolvePath("stk.runtime.native.GC")
   val GC_alloc = GC.termMember("alloc")
@@ -59,11 +73,6 @@ extends Linker:
   val paramSupportStateLabel = Label("paramSupportState")
 
   def locate(sym: Symbol): Option[Label | Symbol] =
-    if sym.owner == defn.Predef then
-      if sym == defn.Predef_print then return Some(Core_print)
-      else if sym == defn.Predef_p then return Some(Core_p)
-      else if sym == defn.Predef_abort then return Some(Core_abortImpl)
-
     if sym == Core_mainStub then return Some(userMain)
 
     val iter = linkers.iterator

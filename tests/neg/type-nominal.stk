@@ -1,0 +1,25 @@
+type StringRepr = <
+  Raw(length: Int, content: Array[Byte]),
+
+  Concat(length: Int, lhs: String, rhs: String)
+>
+
+
+type String <: object {
+  def length: Int
+  def apply(i: Int): Char
+  def +(other: String): String
+  def substring(from: Int, len: Int): String
+}
+
+type StringImpl = object {
+  val repr: StringRepr
+  def length: Int
+  def apply(i: Int): Char
+  def +(other: String): String
+  def substring(from: Int, len: Int): String
+}
+
+fun test(a: String): StringImpl = a  // error
+
+fun test2(a: String): StringRepr = a // error

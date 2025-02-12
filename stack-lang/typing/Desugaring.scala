@@ -1,6 +1,7 @@
 package typing
 
 import sast.Definitions
+import sast.Constant
 import sast.Types.*
 import sast.Sast.*
 import ast.Positions.Span
@@ -13,6 +14,7 @@ import scala.collection.mutable
   */
 object Desugaring:
   def encodeUnionType(tagTypes: List[Type]): RecordType =
+    val IntType = Definitions.instance.IntType
     val fieldTypes = new mutable.ArrayBuffer[NamedInfo[Type]]
     fieldTypes += NamedInfo("tag", IntType)
     for (tagType, i) <- tagTypes.zipWithIndex do
@@ -25,8 +27,10 @@ object Desugaring:
       tagSpan: Span, variantSpan: Span
     ): Word =
 
+    val IntType = Definitions.instance.IntType
+
     val encodeType = encodeUnionType(tagTypes)
-    val tagValue = IntLit(tagIndex)(tagSpan)
+    val tagValue = Literal(Constant.Int(tagIndex))(IntType, tagSpan)
 
     val fields = new mutable.ArrayBuffer[(String, Word)]
     fields += "tag" -> tagValue
@@ -42,7 +46,10 @@ object Desugaring:
     Select(value, fieldName)(fieldType, span)
 
   def testVariantTag(value: Word, tagIndex: Int, span: Span): Word =
+    val IntType = Definitions.instance.IntType
     val tagSelect = Select(value, "tag")(IntType, span)
-    val args =  tagSelect :: IntLit(tagIndex)(span) :: Nil
+    val tagValue = Literal(Constant.Int(tagIndex))(IntType, span)
+    val args =  tagSelect :: tagValue :: Nil
     val fun = Ident(Definitions.instance.Predef_eql)(span)
-    Apply(fun, args)(BoolType, span)
+    val tp = Definitions.instance.BoolType
+    Apply(fun, args)(tp, span)

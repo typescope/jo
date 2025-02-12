@@ -54,6 +54,7 @@ Lexical Grammar
     ident    = name | operator.
     integer  = ["-"] digit {digit}.
     boolean  = "true" | "false".
+    char     = '_'
     string   = "..."
 
     comment = "//" {any character} NLINE.
@@ -71,13 +72,13 @@ Syntactical Grammar
 
     expr    = word {word}.
 
-    word    = integer | boolean | string | ident | fence | record | tapply | select | variant | lambda | object.
+    word    = integer | boolean | char | string | ident | fence | record | tapply | select | variant | lambda | object.
 
     phrase  = expr | with_clause | default_param | assign | valdef | fundef | typedef | while | if | match.
 
     block   = { phrase }.
 
-    select  = (ident | record | fence | select) DOT ident.
+    select  = word DOT ident.
 
     with_clause = expr WITH (([ONLY] with_bindings) | NONE)
 
@@ -136,8 +137,9 @@ Syntactical Grammar
 
     fun_type   = [types] RARROW type.
 
-    object_type = OBJECT LBRACE {method_decl} RBRACE.
+    object_type = OBJECT LBRACE {method_decl | val_decl} RBRACE.
     method_decl =  DEF ident param_section COLON type.
+    val_decl    =  (VAL | VAR) ident COLON type.
 
     param_section = LPAREN [params] RPAREN
     params        = param {COMMA param}.

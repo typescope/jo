@@ -63,13 +63,13 @@ fun int2String(n: Int): String =
   else if n == -2147483648 then "-2147483648" // its negation is still negative
   else
     // memory allocator will handle alignment
-    val buf = GC.alloc 15 // max 11 + 4-byte head for length
+    val buf = GC.alloc 11 // max 11
 
     val negative = n < 0
     var remains = if negative then 0 - n else n
 
     // write from end of buffer
-    var index = 14
+    var index = 10
     while remains > 0 do
       val digit = remains % 10
       writeByte (addAddr buf index) (48 + digit) // '0' = 48
@@ -82,34 +82,60 @@ fun int2String(n: Int): String =
       index <- index - 1
 
     val startIndex = index + 1
-    val len = 14 - index
-    var freeFrom = 4
-
-    // adapt to string format
-    writeInt buf len
+    val len = 10 - index
 
     // copy bytes to front
-    if startIndex > freeFrom then
+    if startIndex > 0 then
       var copyIndex = 0
       while copyIndex < len do
         val c = readByte (addAddr buf (startIndex + copyIndex))
-        writeByte (addAddr buf (freeFrom + copyIndex)) c
+        writeByte (addAddr buf copyIndex) c
         copyIndex <- copyIndex + 1
 
-    buf cast[String]
+    #Raw(len, buf) as StringRepr cast[String]
 
 fun p(n: Int): void =
   println (int2String n)
 
-fun print(s: String): void =
-  val addr = s cast[Addr]
-  val len = readInt addr
-  val contentAddr = addAddr addr 4
-  Syscall.sys_write 1 contentAddr len
+fun print(repr: StringRepr): void =
+  match repr
+    case #Raw(len, content) =>
+      Syscall.sys_write 1 content len
+
+    case #Concat(len, lhs, rhs) =>
+      // TODO: annoying
+      val any1: Any = lhs
+      val any2: Any = rhs
+      print
+        any1 cast[StringRepr]
+      print
+        any2 cast[StringRepr]
+
+fun printChar(c: Char): void =
+  // TODO: remove allocation
+  val content = GC.alloc 1
+  // TODO: handle unicode
+  writeByte content (c cast[Int])
+  Syscall.sys_write 1 content 1
 
 fun abortImpl(msg: String): Bottom =
-  print msg
+  println msg
   Syscall.sys_exit 1
+
+//------------------------------------------------------------------------------
+//
+// Coercion of types
+//
+// For numeric types, widening coercion is automatically inserted.
+
+fun byteToInt(b: Byte): Int = b cast[Int]
+fun byteToChar(b: Byte): Char = b cast[Char]
+
+fun intToChar(n: Int): Char = (n & 65535) cast[Char]
+fun intToByte(n: Int): Byte = (n & 255) cast[Byte]
+
+fun charToByte(c: Char): Byte = ((c cast[Int]) & 255) cast[Byte]
+fun charToInt(c: Char): Int = c cast[Int]
 
 //------------------------------------------------------------------------------
 //
@@ -125,25 +151,92 @@ fun abortImpl(msg: String): Bottom =
 // TODO: Represent arrays of different primitive types differently.
 //
 
-fun arrayCreate(size: Int): Any =
+fun Array_create(size: Int): Any =
   val arr = GC.alloc (size * 4 + 4)
   writeInt arr size
   // TODO: zero memory
   arr
 
-fun arrayLength(arr: Any): Int =
+fun Array_length(arr: Any): Int =
   readInt
     arr cast[Addr]
 
-fun arrayGet(arr: Any, i: Int): Any =
+fun Array_apply(arr: Any, i: Int): Any =
   readInt
     addAddr
       arr cast[Addr]
       i * 4 + 4
 
-fun arraySet(arr: Any, i: Int, value: Any): void =
+fun Array_set(arr: Any, i: Int, value: Any): void =
   writeInt
     addAddr
       arr cast[Addr]
       i * 4 + 4
     value cast[Int]
+
+//------------------------------------------------------------------------------
+//
+// String support
+//
+
+type StringRepr = <
+  // Array[Byte] currently is the same as Array[Int]
+  // TODO: unicode support is missing
+  Raw(length: Int, content: Addr),
+
+  Concat(length: Int, lhs: String, rhs: String)
+>
+
+// This function is called to convert a string literal to a proper string object.
+fun String_fromByteString(byteArray: Any): String =
+  val length = readInt (byteArray cast[Addr])
+  val contentAddr = addAddr (byteArray cast[Addr]) 4
+
+  #Raw(length, contentAddr) as StringRepr
+    cast[String]
+
+
+fun String_length(repr: StringRepr): Int =
+  match repr
+    case #Raw(len, _) => len
+    case #Concat(len, lhs, rhs) => len
+
+fun String_apply(repr: StringRepr, i: Int): Char =
+  match repr
+    case #Raw(len, content) =>
+      if i >= len or i < 0 then abort "index out of bound"
+
+      // TODO: unicode support
+      val v =
+        readByte
+          addAddr content i
+
+      v cast[Char]
+
+    case #Concat(len, lhs, rhs) =>
+      if i >= len or i < 0 then abort "index out of bound"
+
+      if i >= lhs.length then
+        rhs (i - lhs.length)
+      else
+        lhs i
+
+fun String_plus(lhs: String, rhs: String): StringRepr =
+  val len = lhs.length + rhs.length
+  #Concat(len, lhs, rhs)
+
+fun String_substring(source: String, from: Int, len: Int): StringRepr =
+  if from < 0 then abort "from should not be negative"
+  if len < 0 then abort "len should not be negative"
+  if from + len > source.length then abort "substring out of range"
+
+  val buf = GC.alloc len
+  var index = 0
+  while index < len do
+    // TODO: unicode support
+    writeByte
+      addAddr buf index
+      source (from + index) cast[Int]
+    index <- index + 1
+
+  #Raw(len, buf)

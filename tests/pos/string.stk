@@ -1,0 +1,70 @@
+fun main =
+  val c1 = 'a'
+  val c2: Char = 4
+
+  val b1: Byte = 50
+  val b2: Byte = 'e'
+
+  val i1: Int = 'a'
+
+  test
+
+fun test =
+  val a = "hello"
+  val b = "world"
+
+  a.length p
+
+  println a
+
+  val c =
+    (a . + " ") . + b
+
+  c.length p
+  println c
+
+  printChar
+    c 3
+  printChar '\n'
+
+  val d =
+    a.substring 1 3
+
+  d.length p
+  println d
+
+  coercion
+  coercion_truncate
+
+fun coercion =
+  // byte
+  val b: Byte = 45
+  b p
+  printChar b
+  printChar '\n'
+
+  // char
+  val c: Char = 'a'
+  c p
+  val b_c: Byte = charToByte c
+  b_c p
+
+  // int
+  val i: Int = 100
+  val b_i: Byte = intToByte i
+  val c_i: Char = intToChar i
+  b_i p
+  c_i p
+
+fun coercion_truncate =
+  // char
+  val c: Char = intToChar (1024 + 56)
+  val b_c: Byte = charToByte c
+  b_c p
+
+  // int - overlow
+  val i: Int = 65536 + 1024 + 64
+  val b_i: Byte = intToByte i
+  val c_i: Char = intToChar i
+  b_i p
+  c_i p

@@ -1,5 +1,10 @@
 namespace stk.runtime.JS
 
+//------------------------------------------------------------------------------
+//
+// Utility functions
+//
+
 fun getProp(o: Any, prop: String): Any = js "o[prop]"
 fun setProp(o: Any, prop: String, v: Any): void = js "o[prop] = v"
 
@@ -7,7 +12,16 @@ fun isDefined(o: Any): Bool = js "o"
 
 fun concat(a: String, b: String): String = js "a + b"
 
+fun (arr: Any) cast[T]: T = abort("runtime cast")
+
+//------------------------------------------------------------------------------
+//
+// Predef functions
+//
+
 fun print(s: String): void = js "process.stdout.write(s)"
+
+fun printChar(c: Char): void = js "process.stdout.write(String.fromCharCode(c))"
 
 fun p(n: Int): void = js "process.stdout.write(n.toString() + \"\\n\")"
 
@@ -15,21 +29,37 @@ fun abort(msg: String): Bottom =
   js "throw msg"
   js "null"
 
+
+//------------------------------------------------------------------------------
+//
+// Coercion of types
+//
+// For numeric types, widening coercion is automatically inserted.
+
+fun byteToInt(b: Byte): Int = b cast[Int]
+fun byteToChar(b: Byte): Char = b cast[Char]
+
+fun intToChar(n: Int): Char = (n & 65535) cast[Char]
+fun intToByte(n: Int): Byte = (n & 255) cast[Byte]
+
+fun charToByte(c: Char): Byte = ((c cast[Int]) & 255) cast[Byte]
+fun charToInt(c: Char): Int = c cast[Int]
+
 //------------------------------------------------------------------------------
 //
 // Array support
 //
 
-fun arrayCreateBool(size: Int): Any =
-  arrayWrapContent (js "new Int8Array(size)")
+fun Array_createBool(size: Int): Any =
+  Array_wrapContent (js "new Int8Array(size)")
 
-fun arrayCreateInt(size: Int): Any =
-  arrayWrapContent (js "new Int32Array(size)")
+fun Array_createInt(size: Int): Any =
+  Array_wrapContent (js "new Int32Array(size)")
 
-fun arrayCreateObject(size: Int): Any =
-  arrayWrapContent (js "new Array(size)")
+fun Array_createObject(size: Int): Any =
+  Array_wrapContent (js "new Array(size)")
 
-fun arrayWrapContent(arr: Any): Any =
+fun Array_wrapContent(arr: Any): Any =
   // Lifting functions might change name of captured variables.
   // The small closed function will ensure the parameter name stay unchanged.
   fun arrayLength(array: Any): Int =
@@ -46,6 +76,23 @@ fun arrayWrapContent(arr: Any): Any =
     def set(i: Int, value: Any): void = arraySet arr i value
     def apply(i: Int): Any = arrayGet arr i
   }
+
+//------------------------------------------------------------------------------
+//
+// String support
+//
+
+fun String_apply(str: Any, index: Int): Any =
+  js "str.charCodeAt(index)"
+
+fun String_substring(str: Any, index: Int, len: Int): Any =
+  js "str.substring(index, index + len)"
+
+fun String_length(str: Any) =
+  js "str.length"
+
+fun String_plus(str: Any, other: Any): Any =
+  js "str + other"
 
 //------------------------------------------------------------------------------
 //

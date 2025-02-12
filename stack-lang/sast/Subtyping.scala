@@ -147,6 +147,12 @@ object Subtyping:
         val tasks = if lessThan then tvar.isSubtype(tp2) else tvar.isSuptype(tp2)
         tasks.forall(task => checkConforms(task.left, task.right))
 
+  /** Reduce a type reference
+    *
+    * It's important to not return the original type reference if the type
+    * cannot be reduced. Otherwise, the recursive subtyping can trivially
+    * succeed for two unrelated symbolic types.
+    */
   private def reduce(tp: TypeRef, maximize: Boolean): Type =
     val sym = tp.symbol
     sym.info match
@@ -156,8 +162,8 @@ object Subtyping:
           if maximize then bound.hi else bound.lo
 
         else
-          // Treat type definition without only bounds as nominal type
-          tp
+          // Treat type definition with only bounds as nominal type
+          if maximize then AnyType else BottomType
 
       case tp =>
         tp

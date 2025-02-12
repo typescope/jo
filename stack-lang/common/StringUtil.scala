@@ -37,15 +37,35 @@ object StringUtil:
     var i = 0
     while i < s.size do
       val c = s(i)
-      c match
-        case '\b'  => sb ++= "\\b"
-        case '\f'  => sb ++= "\\f"
-        case '\n'  => sb ++= "\\n"
-        case '\r'  => sb ++= "\\r"
-        case '\t'  => sb ++= "\\t"
-        case '"'   => sb ++= "\\\""
-        case '\\'  => sb ++= "\\\\"
-        case _     => sb += c
+      sb ++= escapeChar(c)
       i += 1
     end while
     sb.toString
+
+  def unescapeChar(s: String): Char =
+    assert(s.size == 1 || s.size == 2, s)
+
+    if s(0) == '\\' then
+      assert(s.size == 2)
+      s(1) match
+        case 'b'  => '\b'
+        case 'f'  => '\f'
+        case 'n'  => '\n'
+        case 'r'  => '\r'
+        case 't'  => '\t'
+        case '\''  => '\''
+        case '\\' => '\\'
+    else
+      assert(s.size == 1)
+      s(0)
+
+  def escapeChar(c: Char): String =
+    c match
+      case '\b'  =>  "\\b"
+      case '\f'  =>  "\\f"
+      case '\n'  =>  "\\n"
+      case '\r'  =>  "\\r"
+      case '\t'  =>  "\\t"
+      case '"'   =>  "\\\""
+      case '\\'  =>  "\\\\"
+      case _     =>  c.toString

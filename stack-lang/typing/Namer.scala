@@ -209,13 +209,20 @@ class Namer(@constructorOnly reporter: Reporter):
 
     word match
       case Ast.IntLit(v)  =>
-        IntLit(v)(word.span).adapt
+        val tp = Definitions.instance.IntType
+        Literal(Constant.Int(v.toInt))(tp, word.span).adapt
+
+      case Ast.CharLit(v) =>
+        val tp = Definitions.instance.CharType
+        Literal(Constant.Int(v.toInt))(tp, word.span).adapt
 
       case Ast.BoolLit(v) =>
-        BoolLit(v)(word.span).adapt
+        val tp = Definitions.instance.BoolType
+        Literal(Constant.Bool(v))(tp, word.span).adapt
 
       case Ast.StringLit(v) =>
-        StringLit(v)(word.span).adapt
+        val tp = Definitions.instance.StringType
+        Literal(Constant.String(v))(tp, word.span).adapt
 
       case Ast.Ident(name) =>
         val sym = sc.resolve(name, word.pos)
@@ -284,7 +291,8 @@ class Namer(@constructorOnly reporter: Reporter):
         transform(ifte)
 
       case Ast.While(cond, body) =>
-         val cond2 = transform(cond)(using sc, rp, so, TargetType.Known(BoolType))
+         val boolType = Definitions.instance.BoolType
+         val cond2 = transform(cond)(using sc, rp, so, TargetType.Known(boolType))
          val body2 = transform(body)(using sc, rp, so, TargetType.Known(VoidType))
          While(cond2, body2)(word.span).adapt
 
@@ -454,7 +462,8 @@ class Namer(@constructorOnly reporter: Reporter):
 
   private def transform(ifte: Ast.If)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
     val Ast.If(cond, thenp, elsep) = ifte
-    val cond2 = transform(cond)(using sc, rp, so, TargetType.Known(BoolType))
+    val boolType = Definitions.instance.BoolType
+    val cond2 = transform(cond)(using sc, rp, so, TargetType.Known(boolType))
     val then2 = transform(thenp)
     val else2 = transform(elsep)
 
@@ -561,11 +570,12 @@ class Namer(@constructorOnly reporter: Reporter):
           if tagsRest.nonEmpty then
             Reporter.error("Unmatched case(s): " + tagsRest.mkString(", "), scrutIdent.pos)
 
-          // TODO: namer should not assume Definitions are available -- move to later phase
           // abort
-          val abort = Ident(Definitions.instance.Predef_abort)(scrutIdent.span)
-          val args = StringLit("Unhandled match at " + scrutIdent.pos)(scrutIdent.span) :: Nil
-          val app = Apply(abort, args)(BottomType, patmat.span)
+          val abortSym = Definitions.instance.Predef_abort
+          val stringType = Definitions.instance.StringType
+          val abort = Ident(abortSym)(scrutIdent.span)
+          val arg = Literal(Constant.String("Unhandled match at " + scrutIdent.pos))(stringType, scrutIdent.span)
+          val app = Apply(abort, arg :: Nil)(BottomType, patmat.span)
           checker.adapt(app, resType)
 
       end match
@@ -819,15 +829,13 @@ class Namer(@constructorOnly reporter: Reporter):
         if tdef.rhs.isEmpty then
           if sc.owner.fullName == "stk.Predef" then
             val typeName = tdef.name
-            if typeName == "Int" then IntType
-            else if typeName == "Bool" then BoolType
-            else if typeName == "String" then StringType
-            else if typeName == "void" then VoidType
+            if typeName == "void" then VoidType
             else if typeName == "Any" then AnyType
             else if typeName == "Bottom" then BottomType
             else
-              Reporter.error("Unknown primitive type " + typeName, tdef.pos)
-              AnyType
+              // Int, Char, Byte
+              TypeBound(BottomType, AnyType)
+
           else
             TypeBound(BottomType, AnyType)
         else
@@ -956,15 +964,23 @@ class Namer(@constructorOnly reporter: Reporter):
 
       case Ast.ObjectType(members) =>
         val fieldTypes = new mutable.ArrayBuffer[NamedInfo[Type]]
+        val mutableFields = new mutable.ArrayBuffer[String]
         val methodTypes = new mutable.ArrayBuffer[NamedInfo[Type]]
-        for member <- members do
+
+        members.foreach: member =>
           if fieldTypes.exists(_.name == member.name) || methodTypes.exists(_.name == member.name) then
             Reporter.error("Member " + member.name + " already defined", member.pos)
           else
-            val memberTypeTree = transformMethodDecl(member)
-            methodTypes += NamedInfo(member.name, memberTypeTree.tpe)
-        end for
-        val tp = ObjectType(fields = fieldTypes.toList, methods = methodTypes.toList, mutableFields = Nil)
+            member match
+              case methodDecl: Ast.FunDef =>
+                val memberTypeTree = transformMethodDecl(methodDecl)
+                methodTypes += NamedInfo(member.name, memberTypeTree.tpe)
+              case vdef: Ast.ValDef =>
+                if vdef.mutable then mutableFields += vdef.name
+                val fieldTypeTree = transformType(vdef.typ)
+                fieldTypes += NamedInfo(vdef.name, fieldTypeTree.tpe)
+
+        val tp = ObjectType(fieldTypes.toList, methodTypes.toList, mutableFields.toList)
         TypeTree(tp)(tpt.span)
 
       case Ast.UnionType(branches) =>
@@ -1038,10 +1054,13 @@ object Namer:
     runtimeNameTable: NameTable)(using rp: Reporter)
   : List[Namespace] =
 
-    // StdLib is compiled without the Predef
-    val nssStdLib = transform(stdlib, rootNameTable, predef = new NameTable)
+    // Install lazy definitions
     Definitions.initialize(rootNameTable)
 
+    // StdLib is compiled without the Predef
+    val nssStdLib = transform(stdlib, rootNameTable, predef = new NameTable)
+
+    // Must be after type checking the stdlib
     val predefNameTable = Definitions.instance.Predef_nameTable
 
     // Runtime definitions are not entered into the root name table thus is

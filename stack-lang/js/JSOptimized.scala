@@ -22,6 +22,8 @@ import scala.collection.mutable
 class JSOptimized(outFile: String, runtime: JSRuntime):
   private val unique = new UniqueName
 
+  val defn = Definitions.instance
+
   val keywords = List(
     "for", "while", "function", "var", "let", "break", "continue", "if",
     "const", "class", "constructor", "with", "this"
@@ -119,14 +121,16 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
 
   def compile(word: Word)(using Context): Text = Debug.trace("Compiling " + word.show, enable = false):
     word match
-      case IntLit(v)  =>
-        cont(Text(v))
+      case Literal(c)  =>
+        c match
+          case Constant.Bool(b) => cont(Text(b.toString))
 
-      case BoolLit(v) =>
-        cont(Text(v))
+          case Constant.String(s) =>
+            cont("\"" ~ StringUtil.escape(s) ~ "\"")
 
-      case StringLit(v) =>
-        cont("\"" ~ StringUtil.escape(v) ~ "\"")
+          case Constant.Int(n) =>
+            // JS does not have char literal
+            cont(Text(n.toString))
 
       case RecordLit(fields) =>
         run(fields.map(_._2)): vs =>
@@ -302,7 +306,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
       case defn.Predef_eql    =>   binary("===")
 
       case defn.Predef_js  =>
-        val StringLit(code) :: Nil = args : @unchecked
+        val Literal(Constant.String(code)) :: Nil = args : @unchecked
         cont(Text(code))
 
       case _ => call(sym, args)

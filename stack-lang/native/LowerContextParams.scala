@@ -15,8 +15,8 @@ import scala.collection.mutable
   * This phase assumes the following support functions defined in
   * runtime/native/ParamSupport.stk:
   *
-  *     fun getParam(key: String): Any = ...
-  *     fun setParam(key: String, value: Any): Int = ...
+  *     fun getParam(key: Any): Any = ...
+  *     fun setParam(key: Any, value: Any): Int = ...
   *     fun getLastOverwrittenValue(): Any = ...
   *     fun restoreParam(index: Int, value: Any): void = ...
   *     fun newPage(): Any = ...
@@ -33,6 +33,9 @@ import scala.collection.mutable
   */
 class LowerContextParams(runtime: NativeRuntime) extends phases.Phase:
 
+  val BoolType = Definitions.instance.BoolType
+  val IntType = Definitions.instance.IntType
+
   class FunContext(val funSymbol: Symbol)
   type Context = FunContext
   def createContext(fdef: FunDef) = FunContext(fdef.symbol)
@@ -40,7 +43,9 @@ class LowerContextParams(runtime: NativeRuntime) extends phases.Phase:
   override def transformIdent(word: Ident)(using ctx: Context): Word =
     word match
       case Ident(sym) if sym.isAllOf(Flags.Context | Flags.Param) =>
-        val arg = StringLit(sym.fullName)(word.span)
+        // Use AnyType instead String to avoid creating String and make sure its address is static
+        // At runtime, it's a byte array initialized in the constant area
+        val arg = StringLit(sym.fullName)(AnyType, word.span)
         val fun = Ident(runtime.ParamSupport_getParam)(word.span)
         val app = Apply(fun, arg :: Nil)(word.tpe, word.span)
         app
@@ -51,7 +56,9 @@ class LowerContextParams(runtime: NativeRuntime) extends phases.Phase:
   override def transformDefaultParam(word: DefaultParam)(using ctx: Context): Word =
     val DefaultParam(paramRef, default) = word
       val paramName = paramRef.symbol.fullName
-      val key = StringLit(paramName)(paramRef.span)
+      // Use AnyType instead String to avoid creating String and make sure its address is static
+      // At runtime, it's a byte array initialized in the constant area
+      val key = StringLit(paramName)(AnyType, paramRef.span)
       val funGetParamIndex = Ident(runtime.ParamSupport_getParamIndex)(paramRef.span)
       val getParamIndexCall = Apply(funGetParamIndex, key :: Nil)(IntType, paramRef.span)
 
@@ -64,7 +71,7 @@ class LowerContextParams(runtime: NativeRuntime) extends phases.Phase:
       val readValueAtCall = Apply(funReadValueAt, indexIdent :: Nil)(word.tpe, paramRef.span)
 
       val funLessThan = Ident(Definitions.instance.Predef_lt)(paramRef.span)
-      val zero = IntLit(0)(paramRef.span)
+      val zero = Literal(Constant.Int(0))(IntType, paramRef.span)
       val cond = Apply(funLessThan, indexIdent :: zero :: Nil)(BoolType, paramRef.span)
       val ifExpr = If(cond, default, readValueAtCall)(word.tpe, word.span)
 
@@ -96,7 +103,9 @@ class LowerContextParams(runtime: NativeRuntime) extends phases.Phase:
       // 3. setParam("x", v)
       args.zip(argValueSyms).foreach: (arg, argValueSym) =>
         val paramName = arg.paramRef.symbol.fullName
-        val key = StringLit(paramName)(arg.paramRef.span)
+        // Use AnyType instead String to avoid creating String and make sure its address is static
+        // At runtime, it's a byte array initialized in the constant area
+        val key = StringLit(paramName)(AnyType, arg.paramRef.span)
         val value = Ident(argValueSym)(arg.rhs.span)
         val funSetParam = Ident(runtime.ParamSupport_setParam)(arg.span)
         val setParamCall = Apply(funSetParam, key :: value :: Nil)(AnyType, arg.span)
@@ -128,7 +137,9 @@ class LowerContextParams(runtime: NativeRuntime) extends phases.Phase:
       //    (hashIndex, oldX)
       val restorePairSyms = args.zip(argValueSyms).map: (arg, argValueSym) =>
         val paramName = arg.paramRef.symbol.fullName
-        val key = StringLit(paramName)(arg.paramRef.span)
+        // Use AnyType instead String to avoid creating String and make sure its address is static
+        // At runtime, it's a byte array initialized in the constant area
+        val key = StringLit(paramName)(AnyType, arg.paramRef.span)
         val value = Ident(argValueSym)(arg.rhs.span)
         val funSetParam = Ident(runtime.ParamSupport_setParam)(arg.span)
         val setParamCall = Apply(funSetParam, key :: value :: Nil)(IntType, arg.span)

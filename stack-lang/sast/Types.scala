@@ -5,6 +5,7 @@ import Symbols.Symbol
 import typing.Inference
 
 import scala.reflect.ClassTag
+import scala.collection.mutable
 
 /** The type system of Stk.
   *
@@ -78,10 +79,37 @@ object Types:
         case _ => None
 
     def refersTo(symbol: Symbol): Boolean =
-      this match
-        case TypeRef(sym) => sym == symbol || sym.info.refersTo(symbol)
-        case AppliedType(ctor, _) => ctor.refersTo(symbol)
-        case _ => false
+      val visited = new mutable.ArrayBuffer[Symbol]
+
+      def recur(tp: Type): Boolean =
+        tp match
+          case TypeRef(sym) =>
+            sym == symbol || !visited.contains(sym) && {
+              visited += sym
+              recur(sym.info)
+            }
+
+          case AppliedType(ctor, _) => recur(ctor)
+
+          case _ => false
+      end recur
+      recur(this)
+
+    def refersAny(symbols: List[Symbol]): Boolean =
+      val visited = new mutable.ArrayBuffer[Symbol]
+      def recur(tp: Type): Boolean =
+        tp match
+          case TypeRef(sym) =>
+            symbols.contains(sym) || !visited.contains(sym) && {
+              visited += sym
+              recur(sym.info)
+            }
+
+          case AppliedType(ctor, _) => recur(ctor)
+
+          case _ => false
+      end recur
+      recur(this)
 
     def getTermMember(name: String): Option[Type] =
       TypeOps.approx(this, isUp = true) match
@@ -95,7 +123,6 @@ object Types:
           objectType.getMemberType(name)
 
         case tp =>
-          println(this.show + " approx to " + tp.show)
           None
 
     def termMember(name: String): Type = getTermMember(name).get
@@ -111,12 +138,6 @@ object Types:
 
     def show: String = TypeOps.show(this)
   end Type
-
-  case object IntType extends Type
-
-  case object BoolType extends Type
-
-  case object StringType extends Type
 
   case object VoidType extends Type
 

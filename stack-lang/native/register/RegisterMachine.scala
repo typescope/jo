@@ -38,11 +38,13 @@ extends Backend(runtime):
 
   type Context = FunctionContext
 
+  val String_fromByteString = runtime.Core_String_fromByteString
+
   /** A dummy parameter representing the return address
     *
     * Its type does not matter.
     */
-  val returnAddrSym = Symbol.createParamSymbol("return", IntType, owner = runtime.Core, pos = runtime.Core.sourcePos)
+  val returnAddrSym = Symbol.createParamSymbol("return", AnyType, owner = runtime.Core, pos = runtime.Core.sourcePos)
 
   def freshVirtualReg()(using ctx: Context): Int =
     ctx.generator.fresh()
@@ -64,16 +66,23 @@ extends Backend(runtime):
 
   def compile(word: Word)(using ctx: Context): Unit =
     word match
-      case IntLit(v) => ctx.vs.push(Int32(v))
+      case Literal(c) =>
+        c match
+          case Constant.Bool(b) =>
+            ctx.vs.push(Int32(if b then 1 else 0))
 
-      case BoolLit(v) =>
-        ctx.vs.push(Int32(if v then 1 else 0))
+          case Constant.String(s) =>
+            val label = addString(s)
+            val reg = freshVirtualReg()
+            gen(Instr.Move(label, reg))
+            ctx.vs.push(Reg(reg))
 
-      case StringLit(v) =>
-        val label = addString(v)
-        val reg = freshVirtualReg()
-        gen(Instr.Move(label, reg))
-        ctx.vs.push(Reg(reg))
+            // Context parameter runtime expects raw string as input
+            if !word.tpe.isAnyType then
+              call(String_fromByteString)
+
+          case Constant.Int(n) =>
+            ctx.vs.push(Int32(n))
 
       case block: Block => compile(block)
 
@@ -366,7 +375,7 @@ extends Backend(runtime):
         else if sym.owner == runtime.Core then
           if sym == runtime.Core_data then
             // TODO: error instead of crash -- in early phases
-            val StringLit(qualid) :: Nil = app.args: @unchecked
+            val Literal(Constant.String(qualid)) :: Nil = app.args: @unchecked
             val label = runtime.locate(qualid) match
               case Some(label) => label
               case None => throw new Exception("Runtime data not defined: " + qualid)
@@ -374,8 +383,6 @@ extends Backend(runtime):
             val targetReg = freshVirtualReg()
             gen(Instr.Move(label, targetReg))
             ctx.vs.push(Reg(targetReg))
-          else if sym == runtime.Core_cast then
-            for arg <- app.args do compile(arg)
           else
             for arg <- app.args do compile(arg)
             callCore(sym)
