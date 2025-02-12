@@ -123,7 +123,6 @@ object Types:
           objectType.getMemberType(name)
 
         case tp =>
-          println(this.show + " approx to " + tp.show)
           None
 
     def termMember(name: String): Type = getTermMember(name).get
