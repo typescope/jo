@@ -165,13 +165,8 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
             val precedence = ExprTyper.precedence(wordTyped)
             // infix, postfix, prefix
             if precedence > precLimit then
-              val procType = tp.asProcType
-              val preParamTypes = procType.preParamTypes
-              val postParamTypes = procType.postParamTypes
-              val resType = procType.resultType
-
               // continue if current function has higher binding power
-              values ++= call(wordTyped, preParamTypes, postParamTypes, resType, words, values, precedence)
+              values ++= call(wordTyped, tp.asProcType, words, values, precedence)
             else
               // TODO: wordTyped is discarded and it will be checked!
               // put back word
@@ -185,8 +180,7 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
             if values.isEmpty && words.nonEmpty then
               val precedence = ExprTyper.precedence(autoApply)
               if precedence > precLimit then
-                val preTypes = Nil
-                values ++= call(autoApply, preTypes, funType.paramTypes, funType.resultType, words, values, precedence)
+                values ++= call(autoApply, funType, words, values, precedence)
               else
                 values += Item.Typed(wordTyped)
 
@@ -195,6 +189,7 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
 
           else
             values += Item.Typed(wordTyped)
+
         case _ =>
           values += Item.Raw(word)
     end while
@@ -203,12 +198,17 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
   end parse
 
   def call(
-      fun: Word, preTypes: List[Type], postTypes: List[Type], resultType: Type,
+      fun: Word, procType: ProcType,
       words: mutable.ListBuffer[Ast.Word],
       values: mutable.ArrayBuffer[Item],
       precedence: Int)(
       using Reporter, Scope, Source): List[Item]
   =
+
+    val preTypes = procType.preParamTypes
+    val postTypes = procType.postParamTypes
+    val resultType = procType.resultType
+
     val preArgs = values.takeRight(preTypes.size).toList
     values.dropRightInPlace(preTypes.size)
 
