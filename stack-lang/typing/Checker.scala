@@ -169,7 +169,10 @@ class Checker:
     if targetType.isVoidType && curType.isValueType then
       Sast.dropValue(word)
     else
-      val isNumeric = Definitions.instance.isNumericType(targetType)
+      val isNumeric =
+         Definitions.instance.isNumericType(word.tpe)
+         && Definitions.instance.isNumericType(targetType)
+
       if isNumeric && !Subtyping.conforms(word.tpe, targetType) then
         // Numeric coercion
         word match

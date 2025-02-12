@@ -62,7 +62,7 @@ final class Definitions(rootNameTable: NameTable):
   val StringType  = TypeRef(Predef_String)
 
   def isNumericType(tp: Type): Boolean =
-    tp.refersAny(Predef_Bool :: Predef_Byte :: Predef_Char :: Predef_Int :: Nil)
+    tp.refersAny(Predef_Byte :: Predef_Char :: Predef_Int :: Nil)
 
 object Definitions:
   private val key = new Dynamic.Key[Dynamic.Lazy[Definitions]]("definitions")
