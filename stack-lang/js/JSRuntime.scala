@@ -11,7 +11,7 @@ class JSRuntime(runtimeRootNameTable: NameTable):
 
   private val paramsName = "__runtime_contextParams"
 
-  val runtimeNames = List("console", "process", paramsName)
+  val runtimeNames = List("console", "process", paramsName, "String")
 
   val globalDefCode: String = s"""var $paramsName = {};"""
 

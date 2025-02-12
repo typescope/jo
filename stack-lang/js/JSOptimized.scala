@@ -129,10 +129,8 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
             cont("\"" ~ StringUtil.escape(s) ~ "\"")
 
           case Constant.Int(n) =>
-            if word.tpe.refersTo(defn.Predef_Char) then
-              cont("'" ~ StringUtil.escapeChar(n.toChar) ~ "'")
-            else
-              cont(Text(n.toString))
+            // JS does not have char literal
+            cont(Text(n.toString))
 
       case RecordLit(fields) =>
         run(fields.map(_._2)): vs =>

@@ -21,7 +21,7 @@ fun (arr: Any) cast[T]: T = abort("runtime cast")
 
 fun print(s: String): void = js "process.stdout.write(s)"
 
-fun printChar(c: Char): void = js "process.stdout.write(c.toString())"
+fun printChar(c: Char): void = js "process.stdout.write(String.fromCharCode(c))"
 
 fun p(n: Int): void = js "process.stdout.write(n.toString() + \"\\n\")"
 
@@ -83,7 +83,7 @@ fun Array_wrapContent(arr: Any): Any =
 //
 
 fun String_apply(str: Any, index: Int): Any =
-  js "str[index]"
+  js "str.charCodeAt(index)"
 
 fun String_substring(str: Any, index: Int, len: Int): Any =
   js "str.substring(index, index + len)"
