@@ -287,8 +287,6 @@ extends Backend(runtime):
             val Literal(Constant.String(qualid)) :: Nil = app.args: @unchecked
             val Some(label) = runtime.locate(qualid): @unchecked
             push(label)
-          else if sym == runtime.Core_cast then
-            for arg <- app.args do compile(arg)
           else
             for arg <- app.args do compile(arg)
             callCore(sym)

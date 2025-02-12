@@ -32,3 +32,39 @@ fun test =
 
   d.length p
   println d
+
+  coercion
+  coercion_truncate
+
+fun coercion =
+  // byte
+  val b: Byte = 45
+  b p
+  printChar b
+  printChar '\n'
+
+  // char
+  val c: Char = 'a'
+  c p
+  val b_c: Byte = charToByte c
+  b_c p
+
+  // int
+  val i: Int = 100
+  val b_i: Byte = intToByte i
+  val c_i: Char = intToChar i
+  b_i p
+  c_i p
+
+fun coercion_truncate =
+  // char
+  val c: Char = intToChar (1024 + 56)
+  val b_c: Byte = charToByte c
+  b_c p
+
+  // int - overlow
+  val i: Int = 65536 + 1024 + 64
+  val b_i: Byte = intToByte i
+  val c_i: Char = intToChar i
+  b_i p
+  c_i p

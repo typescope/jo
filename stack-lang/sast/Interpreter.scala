@@ -97,6 +97,10 @@ object Interpreter:
 
   type Params = Map[Symbol, Value]
 
+  def int1(op: Int => Int)(args: List[Value]): List[Value] =
+    val IntVal(a) :: Nil = args: @unchecked
+    IntVal(op(a)) :: Nil
+
   def int2(op: (Int, Int) => Int)(args: List[Value]): List[Value] =
     val IntVal(a) :: IntVal(b) :: Nil = args: @unchecked
     IntVal(op(a, b)) :: Nil
@@ -133,6 +137,13 @@ object Interpreter:
   def band(args: List[Value]) = bool2(_ && _)(args)
   def bor (args: List[Value]) = bool2(_ || _)(args)
   def bnot(args: List[Value]) = bool1(! _   )(args)
+
+  def byteToChar(args: List[Value]) = int1(n => n)(args)
+  def byteToInt(args: List[Value]) = int1(n => n)(args)
+  def charToByte(args: List[Value]) = int1(_ & 255)(args)
+  def charToInt(args: List[Value]) = int1(n => n)(args)
+  def intToByte(args: List[Value]) = int1(_ & 255)(args)
+  def intToChar(args: List[Value]) = int1(_ & 65535)(args)
 
   def eql(args: List[Value]): List[Value] =
     val a :: b :: Nil = args: @unchecked
@@ -189,7 +200,13 @@ object Interpreter:
       defn.Predef_print      ->       print,
       defn.Predef_printChar  ->       printChar,
       defn.Predef_abort      ->       abort,
-      defn.Predef_array      ->       newArray
+      defn.Predef_array      ->       newArray,
+      defn.Predef_byteToChar ->       byteToChar,
+      defn.Predef_byteToInt  ->       byteToInt,
+      defn.Predef_charToByte ->       charToByte,
+      defn.Predef_charToInt  ->       charToInt,
+      defn.Predef_intToByte  ->       intToByte,
+      defn.Predef_intToChar  ->       intToChar
     )
 
     for (sym, op) <- platformCalls do

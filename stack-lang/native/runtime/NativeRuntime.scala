@@ -50,6 +50,13 @@ extends Linker:
   val Core_p = Core.termMember("p")
   val Core_abortImpl = Core.termMember("abortImpl")
 
+  val Core_byteToChar = Core.termMember("byteToChar")
+  val Core_byteToInt = Core.termMember("byteToInt")
+  val Core_charToByte = Core.termMember("charToByte")
+  val Core_charToInt = Core.termMember("charToInt")
+  val Core_intToByte = Core.termMember("intToByte")
+  val Core_intToChar = Core.termMember("intToChar")
+
   val GC = resolvePath("stk.runtime.native.GC")
   val GC_alloc = GC.termMember("alloc")
 

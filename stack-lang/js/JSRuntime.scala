@@ -23,6 +23,14 @@ class JSRuntime(runtimeRootNameTable: NameTable):
   val JS_newPage  = JS.termMember("newPage")
   val JS_restorePage = JS.termMember("restorePage")
 
+  val JS_cast = JS.termMember("cast")
+  val JS_byteToChar = JS.termMember("byteToChar")
+  val JS_byteToInt = JS.termMember("byteToInt")
+  val JS_charToByte = JS.termMember("charToByte")
+  val JS_charToInt = JS.termMember("charToInt")
+  val JS_intToByte = JS.termMember("intToByte")
+  val JS_intToChar = JS.termMember("intToChar")
+
   val JS_Array_createBool = JS.termMember("Array_createBool")
   val JS_Array_createInt = JS.termMember("Array_createInt")
   val JS_Array_createObject = JS.termMember("Array_createObject")

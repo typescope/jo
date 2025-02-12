@@ -48,7 +48,13 @@ class LowerRuntime(runtime: NativeRuntime) extends phases.Phase:
     defn.Predef_p -> runtime.Core_p,
     defn.Predef_print -> runtime.Core_print,
     defn.Predef_printChar -> runtime.Core_printChar,
-    defn.Predef_abort -> runtime.Core_abortImpl
+    defn.Predef_abort -> runtime.Core_abortImpl,
+    defn.Predef_byteToChar -> runtime.Core_byteToChar,
+    defn.Predef_byteToInt -> runtime.Core_byteToInt,
+    defn.Predef_charToByte -> runtime.Core_charToByte,
+    defn.Predef_charToInt -> runtime.Core_charToInt,
+    defn.Predef_intToByte -> runtime.Core_intToByte,
+    defn.Predef_intToChar -> runtime.Core_intToChar
   )
 
   override def transformApply(app: Apply)(using ctx: Context): Word =
@@ -59,6 +65,10 @@ class LowerRuntime(runtime: NativeRuntime) extends phases.Phase:
       case TypeApply(fun @ Ident(sym), tpt :: Nil) if sym == Predef_array  =>
         val fun2 = Ident(runtime.Core_Array_create)(fun.span)
         Encoded(Apply(fun2, args2)(AnyType, app.span))(app.tpe)
+
+      case TypeApply(Ident(sym), tpt :: Nil) if sym == runtime.Core_cast =>
+        assert(args2.size == 1, args2)
+        Encoded(args2.head)(tpt.tpe)
 
       case ref @ Ident(sym) =>
         // global function call

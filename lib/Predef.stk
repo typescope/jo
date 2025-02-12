@@ -5,8 +5,10 @@ namespace stk.Predef
 //
 // primitive type symbols are handled specially in the namer
 
+// [-128, 127]
 type Byte
 
+// [0, 65535]
 type Char
 
 type Int

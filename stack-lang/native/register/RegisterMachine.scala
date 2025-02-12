@@ -383,8 +383,6 @@ extends Backend(runtime):
             val targetReg = freshVirtualReg()
             gen(Instr.Move(label, targetReg))
             ctx.vs.push(Reg(targetReg))
-          else if sym == runtime.Core_cast then
-            for arg <- app.args do compile(arg)
           else
             for arg <- app.args do compile(arg)
             callCore(sym)

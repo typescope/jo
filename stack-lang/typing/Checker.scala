@@ -136,14 +136,41 @@ class Checker:
     else
       origType
 
+  def autoCoerceNumeric(word: Word, targetType: Type)(using Reporter, Source): Word =
+    val defn = Definitions.instance
+    val origType = word.tpe
+    if origType.refersTo(defn.Predef_Byte) then
+      if targetType.refersTo(defn.Predef_Char) then
+        val byteToChar = Ident(defn.Predef_byteToChar)(word.span)
+        Apply(byteToChar, word :: Nil)(targetType, word.span)
+      else if targetType.refersTo(defn.Predef_Int) then
+        val byteToInt = Ident(defn.Predef_byteToInt)(word.span)
+        Apply(byteToInt, word :: Nil)(targetType, word.span)
+      else
+        Reporter.abortInternal("Unexpected numeric type " + targetType.show)
+
+    else if origType.refersTo(defn.Predef_Char) then
+      if targetType.refersTo(defn.Predef_Byte) then
+        word
+      else if targetType.refersTo(defn.Predef_Int) then
+        val charToInt = Ident(defn.Predef_charToInt)(word.span)
+        Apply(charToInt, word :: Nil)(targetType, word.span)
+      else
+        Reporter.abortInternal("Unexpected numeric type " + targetType.show)
+
+    else if origType.refersTo(defn.Predef_Int) then
+      word
+    else
+      Reporter.abortInternal("Unexpected numeric type " + origType.show)
+
   /** Explicit drop of values in if/match expressions */
   def adapt(word: Word, targetType: Type)(using Reporter, Source): Word =
     val curType = word.tpe
     if targetType.isVoidType && curType.isValueType then
       Sast.dropValue(word)
     else
-      val isPrimitive = Definitions.instance.isPrimitiveValueType(targetType)
-      if isPrimitive && !Subtyping.conforms(word.tpe, targetType) then
+      val isNumeric = Definitions.instance.isNumericType(targetType)
+      if isNumeric && !Subtyping.conforms(word.tpe, targetType) then
         // Numeric coercion
         word match
           case Literal(Constant.Int(n)) =>
@@ -154,8 +181,9 @@ class Checker:
 
           case _ =>
             // TODO: only widening coercion is allowed for non-literals
-            checkType(word, targetType)
-            word
+            val word2 = autoCoerceNumeric(word, targetType)
+            checkType(word2, targetType)
+            word2
 
       else
         checkType(word, targetType)

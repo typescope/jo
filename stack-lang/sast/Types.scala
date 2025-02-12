@@ -95,7 +95,7 @@ object Types:
       end recur
       recur(this)
 
-    def refersToAny(symbols: List[Symbol]): Boolean =
+    def refersAny(symbols: List[Symbol]): Boolean =
       val visited = new mutable.ArrayBuffer[Symbol]
       def recur(tp: Type): Boolean =
         tp match

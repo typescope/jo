@@ -38,6 +38,14 @@ final class Definitions(rootNameTable: NameTable):
 
   val Predef_js     =  Predef.termMember("js")
 
+  // numeric coercion
+  val Predef_byteToChar = Predef.termMember("byteToChar")
+  val Predef_byteToInt = Predef.termMember("byteToInt")
+  val Predef_charToByte = Predef.termMember("charToByte")
+  val Predef_charToInt = Predef.termMember("charToInt")
+  val Predef_intToByte = Predef.termMember("intToByte")
+  val Predef_intToChar = Predef.termMember("intToChar")
+
   // types
   val Predef_Bool   =  Predef.typeMember("Bool")
   val Predef_Byte   =  Predef.typeMember("Byte")
@@ -53,8 +61,8 @@ final class Definitions(rootNameTable: NameTable):
   val CharType    = TypeRef(Predef_Char)
   val StringType  = TypeRef(Predef_String)
 
-  def isPrimitiveValueType(tp: Type): Boolean =
-    tp.refersToAny(Predef_Bool :: Predef_Byte :: Predef_Char :: Predef_Int :: Nil)
+  def isNumericType(tp: Type): Boolean =
+    tp.refersAny(Predef_Bool :: Predef_Byte :: Predef_Char :: Predef_Int :: Nil)
 
 object Definitions:
   private val key = new Dynamic.Key[Dynamic.Lazy[Definitions]]("definitions")

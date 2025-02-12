@@ -124,6 +124,21 @@ fun abortImpl(msg: String): Bottom =
 
 //------------------------------------------------------------------------------
 //
+// Coercion of types
+//
+// For numeric types, widening coercion is automatically inserted.
+
+fun byteToInt(b: Byte): Int = b cast[Int]
+fun byteToChar(b: Byte): Char = b cast[Char]
+
+fun intToChar(n: Int): Char = (n & 65535) cast[Char]
+fun intToByte(n: Int): Byte = (n & 255) cast[Byte]
+
+fun charToByte(c: Char): Byte = ((c cast[Int]) & 255) cast[Byte]
+fun charToInt(c: Char): Int = c cast[Int]
+
+//------------------------------------------------------------------------------
+//
 // Array support
 //
 // A native array is represented as follows:

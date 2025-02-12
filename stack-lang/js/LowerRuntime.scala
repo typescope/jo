@@ -21,7 +21,13 @@ class LowerRuntime(runtime: JSRuntime) extends phases.Phase:
     defn.Predef_p -> runtime.JS_p,
     defn.Predef_print -> runtime.JS_print,
     defn.Predef_printChar -> runtime.JS_printChar,
-    defn.Predef_abort -> runtime.JS_abort
+    defn.Predef_abort -> runtime.JS_abort,
+    defn.Predef_byteToChar -> runtime.JS_byteToChar,
+    defn.Predef_byteToInt -> runtime.JS_byteToInt,
+    defn.Predef_charToByte -> runtime.JS_charToByte,
+    defn.Predef_charToInt -> runtime.JS_charToInt,
+    defn.Predef_intToByte -> runtime.JS_intToByte,
+    defn.Predef_intToChar -> runtime.JS_intToChar
   )
 
   type Context = Unit
@@ -46,6 +52,10 @@ class LowerRuntime(runtime: JSRuntime) extends phases.Phase:
             Ident(runtime.JS_Array_createObject)(fun.span)
 
         Encoded(Apply(fun2, args2)(app.tpe, app.span))(app.tpe)
+
+      case TypeApply(Ident(sym), tpt :: Nil) if sym == runtime.JS_cast =>
+        assert(args2.size == 1, args2)
+        Encoded(args2.head)(tpt.tpe)
 
       case ref @ Ident(sym) =>
         // global function call
