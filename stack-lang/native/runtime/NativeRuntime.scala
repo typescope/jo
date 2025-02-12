@@ -46,6 +46,7 @@ extends Linker:
   val Core_String_substring = Core.termMember("String_substring")
 
   val Core_print = Core.termMember("print")
+  val Core_printChar = Core.termMember("printChar")
   val Core_p = Core.termMember("p")
   val Core_abortImpl = Core.termMember("abortImpl")
 
@@ -65,11 +66,6 @@ extends Linker:
   val paramSupportStateLabel = Label("paramSupportState")
 
   def locate(sym: Symbol): Option[Label | Symbol] =
-    if sym.owner == defn.Predef then
-      if sym == defn.Predef_print then return Some(Core_print)
-      else if sym == defn.Predef_p then return Some(Core_p)
-      else if sym == defn.Predef_abort then return Some(Core_abortImpl)
-
     if sym == Core_mainStub then return Some(userMain)
 
     val iter = linkers.iterator

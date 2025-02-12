@@ -148,6 +148,11 @@ object Interpreter:
     System.out.print(v)
     Nil
 
+  def printChar(args: List[Value]): List[Value] =
+    val IntVal(v) :: Nil = args: @unchecked
+    System.out.print(v.toChar)
+    Nil
+
   def newArray(args: List[Value]): List[Value] =
     val IntVal(size) :: Nil = args: @unchecked
     ArrayVal(new Array[Value](size)) :: Nil
@@ -162,28 +167,29 @@ object Interpreter:
     val defn = Definitions.instance
 
     val platformCalls: Map[Symbol, List[Value] => List[Value]] = Map(
-      defn.Predef_add    ->    add,
-      defn.Predef_sub    ->    sub,
-      defn.Predef_mul    ->    mul,
-      defn.Predef_div    ->    div,
-      defn.Predef_mod    ->    mod,
-      defn.Predef_gt     ->    gt,
-      defn.Predef_lt     ->    lt,
-      defn.Predef_ge     ->    ge,
-      defn.Predef_le     ->    le,
-      defn.Predef_srl    ->    srl,
-      defn.Predef_sll    ->    sll,
-      defn.Predef_land   ->    land,
-      defn.Predef_lor    ->    lor,
-      defn.Predef_lxor   ->    lxor,
-      defn.Predef_band   ->    band,
-      defn.Predef_bor    ->    bor,
-      defn.Predef_bnot   ->    bnot,
-      defn.Predef_eql    ->    eql,
-      defn.Predef_p      ->    p,
-      defn.Predef_print  ->    print,
-      defn.Predef_abort  ->    abort,
-      defn.Predef_array  ->    newArray
+      defn.Predef_add        ->       add,
+      defn.Predef_sub        ->       sub,
+      defn.Predef_mul        ->       mul,
+      defn.Predef_div        ->       div,
+      defn.Predef_mod        ->       mod,
+      defn.Predef_gt         ->       gt,
+      defn.Predef_lt         ->       lt,
+      defn.Predef_ge         ->       ge,
+      defn.Predef_le         ->       le,
+      defn.Predef_srl        ->       srl,
+      defn.Predef_sll        ->       sll,
+      defn.Predef_land       ->       land,
+      defn.Predef_lor        ->       lor,
+      defn.Predef_lxor       ->       lxor,
+      defn.Predef_band       ->       band,
+      defn.Predef_bor        ->       bor,
+      defn.Predef_bnot       ->       bnot,
+      defn.Predef_eql        ->       eql,
+      defn.Predef_p          ->       p,
+      defn.Predef_print      ->       print,
+      defn.Predef_printChar  ->       printChar,
+      defn.Predef_abort      ->       abort,
+      defn.Predef_array      ->       newArray
     )
 
     for (sym, op) <- platformCalls do

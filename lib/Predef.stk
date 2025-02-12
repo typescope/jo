@@ -55,9 +55,11 @@ fun (n: Int) p: void = abort("primitive p")
 
 fun print(s: String): void = abort("primitive print")
 
+fun printChar(c: Char): void = abort("primitive printChar")
+
 fun println(s: String): void =
   print s
-  print "\n"
+  printChar '\n'
 
 fun abort(s: String): Bottom = abort("primitive print")
 

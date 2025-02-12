@@ -20,6 +20,7 @@ class LowerRuntime(runtime: JSRuntime) extends phases.Phase:
   val rewiring = Map(
     defn.Predef_p -> runtime.JS_p,
     defn.Predef_print -> runtime.JS_print,
+    defn.Predef_printChar -> runtime.JS_printChar,
     defn.Predef_abort -> runtime.JS_abort
   )
 

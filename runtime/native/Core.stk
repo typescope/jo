@@ -111,6 +111,13 @@ fun print(repr: StringRepr): void =
       print
         any2 cast[StringRepr]
 
+fun printChar(c: Char): void =
+  // TODO: remove allocation
+  val content = GC.alloc 1
+  // TODO: handle unicode
+  writeByte content (c cast[Int])
+  Syscall.sys_write 1 content 1
+
 fun abortImpl(msg: String): Bottom =
   println msg
   Syscall.sys_exit 1

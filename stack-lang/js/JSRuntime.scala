@@ -34,4 +34,5 @@ class JSRuntime(runtimeRootNameTable: NameTable):
 
   val JS_abort = JS.termMember("abort")
   val JS_print = JS.termMember("print")
+  val JS_printChar = JS.termMember("printChar")
   val JS_p = JS.termMember("p")

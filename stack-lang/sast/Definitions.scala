@@ -28,9 +28,11 @@ final class Definitions(rootNameTable: NameTable):
   val Predef_band   =  Predef.termMember("and")
   val Predef_bor    =  Predef.termMember("or")
   val Predef_bnot   =  Predef.termMember("not")
-  val Predef_p      =  Predef.termMember("p")
-  val Predef_print  =  Predef.termMember("print")
-  val Predef_abort  =  Predef.termMember("abort")
+
+  val Predef_p          =  Predef.termMember("p")
+  val Predef_print      =  Predef.termMember("print")
+  val Predef_printChar  =  Predef.termMember("printChar")
+  val Predef_abort      =  Predef.termMember("abort")
 
   val Predef_array  =  Predef.termMember("array")
 

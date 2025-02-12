@@ -44,6 +44,13 @@ class LowerRuntime(runtime: NativeRuntime) extends phases.Phase:
 
   val IntType = defn.IntType
 
+  val rewiring = Map(
+    defn.Predef_p -> runtime.Core_p,
+    defn.Predef_print -> runtime.Core_print,
+    defn.Predef_printChar -> runtime.Core_printChar,
+    defn.Predef_abort -> runtime.Core_abortImpl
+  )
+
   override def transformApply(app: Apply)(using ctx: Context): Word =
     val Apply(fun, args) = app
      val args2 = args.map(this.apply)
@@ -52,6 +59,15 @@ class LowerRuntime(runtime: NativeRuntime) extends phases.Phase:
       case TypeApply(fun @ Ident(sym), tpt :: Nil) if sym == Predef_array  =>
         val fun2 = Ident(runtime.Core_Array_create)(fun.span)
         Encoded(Apply(fun2, args2)(AnyType, app.span))(app.tpe)
+
+      case ref @ Ident(sym) =>
+        // global function call
+        val fun2 = rewiring.get(sym) match
+            case Some(subst) => Ident(subst)(fun.span)
+            case _ => ref
+
+        // TODO: need encoding if result type does not agree
+        Apply(fun2, args2)(app.tpe, app.span)
 
       case Select(qual, name) if qual.tpe.refersTo(Predef_Array) =>
         // After lambda lift, `qual` is stable thus can be thrown away
