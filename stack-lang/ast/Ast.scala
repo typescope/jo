@@ -216,8 +216,9 @@ object Ast:
     (val span: Span)
   extends Word, Def
 
-  case class Param
-    (ident: Ident, typ: TypeTree)
+  /** Context parameter definition */
+  case class ParamDef
+    (ident: Ident, typ: TypeTree, default: Option[Word])
     (val span: Span)
   extends Def
 
@@ -226,6 +227,12 @@ object Ast:
         resType: TypeTree, body: Word, preParamCount: Int)
     (val span: Span)
   extends Word, Def
+
+  case class Param
+    (ident: Ident, typ: TypeTree)
+    (val span: Span)
+  extends Tree:
+    def name = ident.name
 
   case class TypeParam
     (ident: Ident, bound: TypeTree)
