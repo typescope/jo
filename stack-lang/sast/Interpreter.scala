@@ -289,7 +289,7 @@ object Interpreter:
         val BoolVal(b) = eval(cond): @unchecked
         if b then exec(thenp) else exec(elsep)
 
-      case With(expr, args, only) =>
+      case With(expr, args, _) =>
         val params2 = args.foldLeft(params): (params, arg) =>
           params.updated(arg.paramRef.symbol, eval(arg.rhs))
         exec(expr)(using env, params2)

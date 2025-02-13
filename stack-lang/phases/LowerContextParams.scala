@@ -23,8 +23,7 @@ import scala.collection.mutable
   */
 class LowerContextParams(
   hasParamSym: Symbol, getParamSym: Symbol,
-  setParamSym: Symbol, delParamSym: Symbol,
-  newPageSym: Symbol, restorePageSym: Symbol)
+  setParamSym: Symbol, delParamSym: Symbol)
 extends phases.Phase:
 
   val defn = Definitions.instance
@@ -60,7 +59,7 @@ extends phases.Phase:
 
 
   override def transformWith(word: With)(using ctx: Context): Word =
-    val With(expr, args, only) = word
+    val With(expr, args, _) = word
     given Source = ctx.funSymbol.sourcePos.source
 
     val paramRefs = args.map(_.paramRef)

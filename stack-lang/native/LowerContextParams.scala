@@ -76,7 +76,7 @@ class LowerContextParams(runtime: NativeRuntime) extends phases.Phase:
       Block(indexAssign :: ifExpr  :: Nil)(word.tpe, word.span)
 
   override def transformWith(word: With)(using ctx: Context): Word =
-    val With(expr, args, only) = word
+    val With(expr, args, _) = word
     given Source = ctx.funSymbol.sourcePos.source
 
     val paramRefs = args.map(_.paramRef)
