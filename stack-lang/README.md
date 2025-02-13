@@ -43,6 +43,7 @@ Lexical Grammar
     CASE     = "case".
     END      = "end".
     WITH     = "with".
+    ALLOW    = "allow".
     PARAM    = "param".
     DEFAULT  = "default".
     NSPACE   = "namespace".
@@ -80,7 +81,7 @@ Syntactical Grammar
 
     select  = word DOT ident.
 
-    with_clause = expr WITH (([ONLY] with_bindings) | NONE)
+    with_clause = expr [WITH with_bindings] [ALLOW qualid {COMMA qualid}].
 
     default_param = qualid DEFAULT expr.
 
