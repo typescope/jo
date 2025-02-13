@@ -134,11 +134,10 @@ object Printing:
               else " allow" ~ rep(ids, Text(", "))
 
         val withText =
-
-        if args.isEmpty then
-          Text.Empty
-        else
-          " with " ~ indent(rep(args, Text.BreakLine))
+          if args.isEmpty then
+            Text.Empty
+          else
+            " with " ~ indent(rep(args, Text.BreakLine))
 
         expr ~ withText ~ allowText
 

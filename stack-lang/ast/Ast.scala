@@ -119,6 +119,8 @@ object Ast:
     (expr: Word, args: List[WithArg], allow: Option[List[RefTree]])
     (val span: Span)
   extends Word:
+    assert(args.nonEmpty || allow.nonEmpty)
+
     for
       params <- allow
       param <- params
