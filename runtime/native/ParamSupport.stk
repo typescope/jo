@@ -157,16 +157,3 @@ fun restoreParam(index: Int, value: Any): void =
     writeValueAt index value
   else
     writeKeyAt (index - 1024) -1
-
-// create a new page holding key/values and return the old one
-fun newPage(): Any =
-  val statePointerAddr = Core.dataAddr "stk.runtime.native.ParamSupport.state"
-  val oldPage = Core.readInt statePointerAddr Core.cast[State]
-  val page = createPage
-  Core.writeInt statePointerAddr (page Core.cast[Int])
-  oldPage
-
-fun restorePage(oldPage: Any): void =
-  val statePointerAddr = Core.dataAddr "stk.runtime.native.ParamSupport.state"
-  val currentPage = Core.readInt statePointerAddr Core.cast[State]
-  Core.writeInt statePointerAddr (oldPage Core.cast[Int])

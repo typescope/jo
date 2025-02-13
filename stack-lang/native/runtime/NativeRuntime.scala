@@ -67,8 +67,6 @@ extends Linker:
   val ParamSupport_restoreParam = ParamSupport.termMember("restoreParam")
   val ParamSupport_readValueAt = ParamSupport.termMember("readValueAt")
   val ParamSupport_getParamIndex = ParamSupport.termMember("getParamIndex")
-  val ParamSupport_newPage = ParamSupport.termMember("newPage")
-  val ParamSupport_restorePage = ParamSupport.termMember("restorePage")
 
   val paramSupportStateLabel = Label("paramSupportState")
 
