@@ -9,7 +9,7 @@ import scala.collection.mutable
 object EffectAnalysis:
   /** The stable cache for effects of functions */
   class Cache(
-    val effects: mutable.Map[Symbol, List[Symbol]],
+    val effects: mutable.Map[Symbol, Vector[Symbol]],
     val code: mutable.Map[Symbol, FunDef])
 
   /** Compute effects of the given function
@@ -17,41 +17,31 @@ object EffectAnalysis:
     * It should only be called from outside. Internally, `getEffects` should be
     * called.
     */
-  def effects(fun: Symbol)(using cache: Cache): List[Symbol] =
-    given temp: TempCache = TempCache()
-    var effs = getEffects(fun)
-    while temp.isUsed && temp.hasChanged do
-      temp.reset()
-      effs = getEffects(fun)
-    end while
-
-    // move temp to global stable cache
-    for (sym, effs) <- temp.effects do
-      assert(!cache.effects.contains(sym), sym)
-      cache.effects(sym) = effs.toList
-
-    effs.toList
+  def effects(fun: Symbol)(using cache: Cache): Vector[Symbol] =
+    fixpoint(getEffects(fun))
 
   /** Compute effects of the given word
     *
     * It should only be called from outside. Internally, `EffectAnalyzer.apply`
     * should be called.
     */
-  def effects(word: Word)(using cache: Cache): List[Symbol] =
+  def effects(word: Word)(using cache: Cache): Vector[Symbol] =
+    fixpoint(EffectAnalyzer.apply(word))
+
+  private def fixpoint(doTask: TempCache ?=> Vector[Symbol])(using cache: Cache): Vector[Symbol] =
     given temp: TempCache = TempCache()
-    var effs = EffectAnalyzer.apply(word)
+    var effs = doTask
     while temp.isUsed && temp.hasChanged do
       temp.reset()
-      effs = EffectAnalyzer.apply(word)
+      effs = doTask
     end while
 
     // move temp to global stable cache
     for (sym, effs) <- temp.effects do
       assert(!cache.effects.contains(sym), sym)
-      cache.effects(sym) = effs.toList
+      cache.effects(sym) = effs
 
-    effs.toList
-
+    effs
 
   /** Temporary caches are for temporary result of mutually recursive functions */
   private class TempCache(val effects: mutable.Map[Symbol, Vector[Symbol]]):
@@ -91,7 +81,7 @@ object EffectAnalysis:
   /** Produce a list of transitively reachabe param symbols for the function */
   private def getEffects(fun: Symbol)(using cache: Cache, temp: TempCache): Vector[Symbol] =
     cache.effects.get(fun) match
-      case Some(res) => res.toVector
+      case Some(res) => res
 
       case None =>
         temp.get(fun) match
