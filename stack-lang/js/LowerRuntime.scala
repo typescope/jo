@@ -8,7 +8,8 @@ import sast.Types.*
 /** Lower String and Array to JS runtime calls.
   *
   */
-class LowerRuntime(runtime: JSRuntime) extends phases.Phase:
+class LowerRuntime(runtime: JSRuntime) extends phases.Phase[Unit]:
+  val contextObject = phases.Phase.DummyContext
 
   val defn = Definitions.instance
 
@@ -29,9 +30,6 @@ class LowerRuntime(runtime: JSRuntime) extends phases.Phase:
     defn.Predef_intToByte -> runtime.JS_intToByte,
     defn.Predef_intToChar -> runtime.JS_intToChar
   )
-
-  type Context = Unit
-  def createContext(fdef: FunDef): Context = ()
 
   override def transformApply(app: Apply)(using ctx: Context): Word =
     val Apply(fun, args) = app

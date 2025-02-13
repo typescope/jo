@@ -30,9 +30,8 @@ import native.runtime.NativeRuntime
   * runtime expects raw byte string as input.
   */
 class LowerRuntime(runtime: NativeRuntime) extends phases.Phase:
-
-  type Context = Unit
-  def createContext(fdef: FunDef): Context = ()
+  val contextObject = phases.Phase.DummyContext
+  type Context = contextObject.Context
 
   val defn = Definitions.instance
 

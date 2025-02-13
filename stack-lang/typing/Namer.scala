@@ -687,7 +687,12 @@ class Namer(@constructorOnly reporter: Reporter):
 
   private def transformParamDef(pdef: Ast.ParamDef)(using sc: Scope, rp: Reporter, so: Source): List[DelayedDef[Def]] =
     val infoProvider: InfoProvider = sym => transformType(pdef.typ).tpe
-    val paramSym = Symbol.createValueSymbol(pdef.name, infoProvider, Flags.Param | Flags.Context, sc.owner, pdef.pos)
+
+    var flags = Flags.Param | Flags.Context
+    if pdef.default.nonEmpty then
+      flags = flags | Flags.Default
+
+    val paramSym = Symbol.createValueSymbol(pdef.name, infoProvider, flags, sc.owner, pdef.pos)
     val paramDefSast = () =>
       val tpt = TypeTree(paramSym.info)(pdef.typ.span)
       ParamDef(paramSym, tpt)(pdef.span)
