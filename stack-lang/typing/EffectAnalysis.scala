@@ -122,13 +122,19 @@ object EffectAnalysis:
           this(fun)
 
         case With(expr, args, allow) =>
-          val effsInner = this(expr)
-          val effsArgs = args.foldLeft(zero): (acc, arg) =>
-            acc ++ this(arg.rhs)
+          allow match
+            case Some(ids) =>
+              ids.map(_.symbol).toVector
 
-          val masked = args.map(_.paramRef.symbol)
-          val unmasked = effsInner.filter(eff => !masked.contains(eff))
-          effsArgs ++ unmasked
+            case None =>
+              val effsInner = this(expr)
+              val effsArgs = args.foldLeft(zero): (acc, arg) =>
+                acc ++ this(arg.rhs)
+
+              val masked = args.map(_.paramRef.symbol)
+              val unmasked = effsInner.filter(eff => !masked.contains(eff))
+
+              effsArgs ++ unmasked
 
         case Assign(ident, rhs) =>
           this(rhs)
