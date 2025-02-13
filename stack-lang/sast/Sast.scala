@@ -111,11 +111,6 @@ object Sast:
   extends Tree:
     def tpe: Type = VoidType
 
-  case class DefaultParam
-    (paramRef: Ident, default: Word)
-    (val tpe: Type, val span: Span)
-  extends Word
-
   case class TypeApply
     (fun: Word, targs: List[TypeTree])
     (val tpe: Type, val span: Span)

@@ -129,9 +129,6 @@ object Printing:
 
         expr ~ withText ~ allowText
 
-      case DefaultParam(paramRef, default) =>
-        paramRef ~ " default " ~ default
-
       case Assign(id, rhs) =>
         id ~ " <- " ~ rhs
 
