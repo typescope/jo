@@ -70,13 +70,14 @@ object EffectAnalysis:
 
       effects(fun) = effs
 
-    def get(fun: Symbol): Option[Vector[Symbol]] =
+    def getOrElse(fun: Symbol)(otherwise: => Vector[Symbol]): Vector[Symbol] =
       effects.get(fun) match
         case Some(res) =>
           used = true
-          Some(res)
+          res
 
-        case _ => None
+        case _ =>
+          otherwise
 
   /** Produce a list of transitively reachabe param symbols for the function */
   private def getEffects(fun: Symbol)(using cache: Cache, temp: TempCache): Vector[Symbol] =
@@ -84,14 +85,12 @@ object EffectAnalysis:
       case Some(res) => res
 
       case None =>
-        temp.get(fun) match
-          case Some(res) => res
-          case None =>
-            temp.update(fun, effs = Vector.empty)
-            val body = cache.code(fun).body
-            val effects = EffectAnalyzer.apply(body)
-            temp.update(fun, effects)
-            effects
+        temp.getOrElse(fun):
+          temp.update(fun, effs = Vector.empty)
+          val body = cache.code(fun).body
+          val effects = EffectAnalyzer.apply(body)
+          temp.update(fun, effects)
+          effects
 
   private object EffectAnalyzer:
     val zero = Vector.empty[Symbol]
