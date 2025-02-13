@@ -133,12 +133,6 @@ object Ast:
   extends Tree:
     assert(isQualid(paramRef))
 
-  case class DefaultParam
-    (paramRef: RefTree, default: Word)
-    (val span: Span)
-  extends Word:
-    assert(isQualid(paramRef))
-
   case class Block
     (phrases: List[Word])
     (val span: Span)

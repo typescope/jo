@@ -173,8 +173,10 @@ class Namer(@constructorOnly reporter: Reporter):
   private def index(defs: List[Ast.Def])(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): List[DelayedDef[Def]] =
     val delayedDefs = new mutable.ArrayBuffer[DelayedDef[Def]]
 
-    for defn <- defs do
-      val delayedDef = index(defn)
+    for
+      defn <- defs
+      delayedDef <- index(defn)
+    do
       // The name table is shared between NameTableInfo and current scope. This
       // way, by entering once the name can be access in two different ways in
       // the current context.
@@ -183,24 +185,19 @@ class Namer(@constructorOnly reporter: Reporter):
 
     delayedDefs.toList
 
-  private def index(defn: Ast.Def)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): DelayedDef[Def] =
+  private def index(defn: Ast.Def)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): List[DelayedDef[Def]] =
     defn match
       case vdef: Ast.ValDef =>
-        transform(vdef)
+        transformValDef(vdef) :: Nil
 
       case fdef: Ast.FunDef =>
-        transformFunDef(fdef)
+        transformFunDef(fdef) :: Nil
 
       case tdef: Ast.TypeDef =>
-        transform(tdef)
+        transformTypeDef(tdef) :: Nil
 
-      case pdef: Ast.Param =>
-        val infoProvider: InfoProvider = sym => transformType(pdef.typ).tpe
-        val sym = Symbol.createValueSymbol(pdef.name, infoProvider, Flags.Param | Flags.Context, sc.owner, pdef.pos)
-        val defSast = () =>
-          val tpt = TypeTree(sym.info)(pdef.typ.span)
-          ParamDef(sym, tpt)(pdef.span)
-        DelayedDef(sym, defSast)
+      case pdef: Ast.ParamDef =>
+        transformParamDef(pdef)
     end match
   end index
 
@@ -283,16 +280,6 @@ class Namer(@constructorOnly reporter: Reporter):
 
         With(exprSast, argsSast, allowSast)(exprSast.tpe, word.span)
 
-      case Ast.DefaultParam(paramRef, default) =>
-        val paramRefTyped = transformParamRef(paramRef)
-        val defaultTyped =
-          given TargetType =
-            if paramRefTyped.tpe.isError then TargetType.ValueType
-            else TargetType.Known(paramRefTyped.symbol.info)
-          transform(default)
-
-        DefaultParam(paramRefTyped, defaultTyped)(paramRefTyped.tpe, word.span).adapt
-
       case ifte: Ast.If =>
         transform(ifte)
 
@@ -309,7 +296,7 @@ class Namer(@constructorOnly reporter: Reporter):
         transform(patmat)
 
       case vdef: Ast.ValDef =>
-        val delayedDef = transform(vdef)
+        val delayedDef = transformValDef(vdef)
         val vdef2 = delayedDef.force()
         // a val is not available for checking its rhs
         sc.define(delayedDef.symbol)
@@ -322,7 +309,7 @@ class Namer(@constructorOnly reporter: Reporter):
         delayedDef.force().adapt
 
       case tdef: Ast.TypeDef =>
-        val delayedDef = transform(tdef)
+        val delayedDef = transformTypeDef(tdef)
         // A type definition is available for checking its rhs
         sc.define(delayedDef.symbol)
         delayedDef.force().adapt
@@ -353,7 +340,7 @@ class Namer(@constructorOnly reporter: Reporter):
     for case vdef: Ast.ValDef <- obj.members do
       given Scope = sc2
       given TargetType = TargetType.ObjectMember
-      val vdefTyped = transform(vdef).force()
+      val vdefTyped = transformValDef(vdef).force()
       sc2.define(vdefTyped.symbol)
       vals += vdefTyped
 
@@ -697,7 +684,33 @@ class Namer(@constructorOnly reporter: Reporter):
 
      Object(thisSym, vals = Nil, defs = funDef :: Nil)(objType, lambda.span)
 
-  private def transform(vdef: Ast.ValDef)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): DelayedDef[ValDef] =
+
+  private def transformParamDef(pdef: Ast.ParamDef)(using sc: Scope, rp: Reporter, so: Source): List[DelayedDef[Def]] =
+    val infoProvider: InfoProvider = sym => transformType(pdef.typ).tpe
+    val paramSym = Symbol.createValueSymbol(pdef.name, infoProvider, Flags.Param | Flags.Context, sc.owner, pdef.pos)
+    val paramDefSast = () =>
+      val tpt = TypeTree(paramSym.info)(pdef.typ.span)
+      ParamDef(paramSym, tpt)(pdef.span)
+
+    val delayedParamDef = DelayedDef(paramSym, paramDefSast)
+
+    pdef.default match
+      case Some(rhs) =>
+        val funInfoProvider: InfoProvider = sym => ProcType(params = Nil, resultType = paramSym.info, preParamCount = 0)
+        val defaultFunSym = Symbol.createSymbol(pdef.name + "$default", funInfoProvider, Flags.Fun | Flags.Context, sc.owner, pdef.pos)
+
+        val funDefSast = () =>
+          given Scope = sc.fresh(defaultFunSym)
+          given TargetType = TargetType.Known(paramSym.info)
+          val body = transform(rhs)
+          FunDef(defaultFunSym, tparams = Nil, params = Nil, body)(rhs.span)
+
+        DelayedDef(defaultFunSym, funDefSast) :: delayedParamDef :: Nil
+
+      case None =>
+        delayedParamDef :: Nil
+
+  private def transformValDef(vdef: Ast.ValDef)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): DelayedDef[ValDef] =
     var flags: Flags = if tt == TargetType.ObjectMember then Flags.Field else Flags.empty
 
     if vdef.mutable then
@@ -812,7 +825,7 @@ class Namer(@constructorOnly reporter: Reporter):
 
     DelayedDef(funSym, typer)
 
-  private def transform(tdef: Ast.TypeDef)(using sc: Scope, rp: Reporter, so: Source): DelayedDef[TypeDef] =
+  private def transformTypeDef(tdef: Ast.TypeDef)(using sc: Scope, rp: Reporter, so: Source): DelayedDef[TypeDef] =
     val typeSym = Symbol.createTypeSymbol(tdef.name, this.nonCyclicTypeProvider, sc.owner, tdef.ident.pos)
 
     val sc2 = sc.fresh(typeSym)

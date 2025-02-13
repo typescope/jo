@@ -386,11 +386,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     else
       expr
 
-  def defaultParam(qualid: RefTree): DefaultParam =
-    eat(Token.DEFAULT)
-    val default = expr()
-    DefaultParam(qualid, default)(qualid.span | default.span)
-
   def expr(): Word =
     val item = peekItem()
     word() match
@@ -501,9 +496,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
       case token =>
         word().map: w =>
-          if isQualid(w) && peek() == Token.DEFAULT then
-            defaultParam(w.asInstanceOf[RefTree])
-          else if w.isInstanceOf[RefTree] && peek() == Token.ASSIGN then
+          if w.isInstanceOf[RefTree] && peek() == Token.ASSIGN then
             assign(w.asInstanceOf[RefTree], item.indent)
           else
             val expr = exprRest(mutable.ArrayBuffer(w), item.indent)

@@ -146,9 +146,6 @@ object Printing:
 
         expr ~ withText ~ allowText
 
-      case DefaultParam(paramRef, default) =>
-        paramRef ~ " default " ~ default
-
       case TypeApply(fun, targs) =>
         fun ~ "[" ~ rep(targs, Text(", ")) ~ "]"
 
