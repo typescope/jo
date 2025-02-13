@@ -100,10 +100,10 @@ object Sast:
   extends Word
 
   case class With
-    (expr: Word, args: List[WithArg], only: Boolean)
+    (expr: Word, args: List[WithArg], allow: Option[List[Ident]])
     (val tpe: Type, val span: Span)
   extends Word:
-    assert(args.nonEmpty || only)
+    assert(args.nonEmpty || allow.nonEmpty)
 
   case class WithArg
     (paramRef: Ident, rhs: Word)

@@ -11,13 +11,13 @@ fun printOpt(s: String): void =
     index <- index + 1
 
 fun sayNoParam(s: String): void =
-  printOpt s with none
+  printOpt s allow none
 
 fun sayOnlyNewLine(s: String): void =
-  printOpt s with only newLine = true
+  printOpt s with newLine = true allow none
 
 fun sayOnlyTimes(s: String, repeat: Int): void =
-  printOpt s with only times = repeat
+  printOpt s with times = repeat allow none
 
 fun main =
   sayNoParam "Hello world!" with newLine = true, times = 2

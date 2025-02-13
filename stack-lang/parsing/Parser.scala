@@ -347,31 +347,38 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         blockRest(phrases, limitIndent)
 
   def optWithClause(expr: Word): Word =
-    if peek() != Token.WITH then
-      expr
-    else
+    if peek() == Token.WITH then
       eat(Token.WITH)
-      peek() match
-        case Token.Ident("none") =>
-          val token = next()
-          With(expr, Nil, only = true)(expr.span | token.span)
-
-        case _ =>
-          val only = peek() match
-            case Token.Ident("only") =>
-              next()
-              true
-
-            case _ => false
-
-          val args = oneOrMore(withArg, Token.COMMA)
-          With(expr, args, only)(expr.span | args.last.span)
+      val args = oneOrMore(withArg, Token.COMMA)
+      optAllowClause(expr, args)
+    else
+      optAllowClause(expr, bindings = Nil)
 
   def withArg(): WithArg =
     val id = qualid()
     eat(Token.EQL)
     val rhs = expr()
     WithArg(id, rhs)(id.span | rhs.span)
+
+  def optAllowClause(expr: Word, bindings: List[WithArg]): Word =
+    if peek() == Token.ALLOW then
+      eat(Token.ALLOW)
+      peek() match
+        case Token.Ident("none") =>
+          val token = next()
+          With(expr, bindings, allow = Some(Nil))(expr.span | token.span)
+
+        case _ =>
+          val params = oneOrMore(qualid, Token.COMMA)
+          With(expr, bindings, allow = Some(params))(expr.span | params.last.span)
+
+      end match
+
+    else if bindings.nonEmpty then
+      With(expr, bindings, allow = None)(expr.span | bindings.last.span)
+
+    else
+      expr
 
   def defaultParam(qualid: RefTree): DefaultParam =
     eat(Token.DEFAULT)

@@ -17,16 +17,13 @@ import scala.collection.mutable
   *     fun getParam(key: String): Any = ...
   *     fun setParam(key: String, value: Any): Any = ...
   *     fun delParam(key: String): void = ...
-  *     fun newPage(): Any = ...
-  *     fun restorePage(old: Any): void = ...
   *
   * Currently, only JS backend uses phase. The native backend handles it in
   * during assembly translation in a different way for speed.
   */
 class LowerContextParams(
   hasParamSym: Symbol, getParamSym: Symbol,
-  setParamSym: Symbol, delParamSym: Symbol,
-  newPageSym: Symbol, restorePageSym: Symbol)
+  setParamSym: Symbol, delParamSym: Symbol)
 extends phases.Phase:
 
   val defn = Definitions.instance
@@ -62,7 +59,7 @@ extends phases.Phase:
 
 
   override def transformWith(word: With)(using ctx: Context): Word =
-    val With(expr, args, only) = word
+    val With(expr, args, _) = word
     given Source = ctx.funSymbol.sourcePos.source
 
     val paramRefs = args.map(_.paramRef)
@@ -75,93 +72,54 @@ extends phases.Phase:
       stats += Assign(Ident(argValueSym)(arg.rhs.span), this(arg.rhs))(arg.rhs.span)
       argValueSym
 
-    if only then
-      // 2. newPage
-      val oldPageSym = new Symbol("oldPage", AnyType, Flags.Val, owner = ctx.funSymbol, sourcePos = word.pos)
+    // 2. val hasX = hasParam("x")
+    val hasXSyms = args.map: arg =>
+      val paramName = arg.paramRef.symbol.fullName
+      val key = StringLit(paramName)(StringType, arg.paramRef.span)
+      val funHasParam = Ident(hasParamSym)(arg.span)
+      val hasParamCall = Apply(funHasParam, key :: Nil)(BoolType, arg.paramRef.span)
+      val hasXSym = new Symbol("has_" + paramName, BoolType, Flags.Val, owner = ctx.funSymbol, sourcePos = arg.rhs.pos)
+      stats += Assign(Ident(hasXSym)(arg.paramRef.span), hasParamCall)(arg.span)
+      hasXSym
 
-      val funNewPage = Ident(newPageSym)(word.span)
-      val newPageCall = Apply(funNewPage, args = Nil)(AnyType, word.span)
-      stats += Assign(Ident(oldPageSym)(word.span), newPageCall)(word.span)
+    // 3. val oldX = setParam("x", v)
+    val oldValueSyms = args.zip(argValueSyms).map: (arg, argValueSym) =>
+      val paramName = arg.paramRef.symbol.fullName
+      val key = StringLit(paramName)(StringType, arg.paramRef.span)
+      val value = Ident(argValueSym)(arg.rhs.span)
+      val funSetParam = Ident(setParamSym)(arg.span)
+      val setParamCall = Apply(funSetParam, key :: value :: Nil)(AnyType, arg.span)
+      val oldValueSym = new Symbol("old_" + paramName, arg.rhs.tpe, Flags.Val, owner = ctx.funSymbol, sourcePos = arg.rhs.pos)
+      stats += Assign(Ident(oldValueSym)(arg.paramRef.span), setParamCall)(arg.span)
+      oldValueSym
 
-      // 3. setParam("x", v)
-      args.zip(argValueSyms).foreach: (arg, argValueSym) =>
-        val paramName = arg.paramRef.symbol.fullName
-        val key = StringLit(paramName)(StringType, arg.paramRef.span)
-        val value = Ident(argValueSym)(arg.rhs.span)
-        val funSetParam = Ident(setParamSym)(arg.span)
-        val setParamCall = Apply(funSetParam, key :: value :: Nil)(AnyType, arg.span)
-        stats += dropValue(setParamCall)
-
-      // 4. val res = expr only if expr is not void
-      val resSym = new Symbol("res", expr.tpe, Flags.Val, owner = ctx.funSymbol, sourcePos = expr.pos)
-      if expr.tpe.isVoidType then
-        stats += this(expr)
-      else
-        stats += Assign(Ident(resSym)(expr.span), this(expr))(expr.span)
-
-      // 5. restore page
-      val funRestorePage = Ident(restorePageSym)(word.span)
-      val oldPageIdent = Ident(oldPageSym)(word.span)
-      val restorePageCall = Apply(funRestorePage, oldPageIdent :: Nil)(VoidType, word.span)
-      stats += restorePageCall
-
-      // 6. res
-      if !expr.tpe.isVoidType then
-        stats += Ident(resSym)(expr.span)
-
-
-      Block(stats.toList)(expr.tpe, word.span)
-
+    // 4. val res = expr only if expr is not void
+    val resSym = new Symbol("res", expr.tpe, Flags.Val, owner = ctx.funSymbol, sourcePos = expr.pos)
+    if expr.tpe.isVoidType then
+      stats += this(expr)
     else
+      stats += Assign(Ident(resSym)(expr.span), this(expr))(expr.span)
 
-      // 2. val hasX = hasParam("x")
-      val hasXSyms = args.map: arg =>
-        val paramName = arg.paramRef.symbol.fullName
-        val key = StringLit(paramName)(StringType, arg.paramRef.span)
-        val funHasParam = Ident(hasParamSym)(arg.span)
-        val hasParamCall = Apply(funHasParam, key :: Nil)(BoolType, arg.paramRef.span)
-        val hasXSym = new Symbol("has_" + paramName, BoolType, Flags.Val, owner = ctx.funSymbol, sourcePos = arg.rhs.pos)
-        stats += Assign(Ident(hasXSym)(arg.paramRef.span), hasParamCall)(arg.span)
-        hasXSym
+    // 5. if hasX then setParam("x", oldX) else delParam("x")
+    paramRefs.zip(hasXSyms).zip(oldValueSyms).foreach:
+      case ((paramRef, hasX), oldValueSym) =>
+        val paramName = paramRef.symbol.fullName
 
-      // 3. val oldX = setParam("x", v)
-      val oldValueSyms = args.zip(argValueSyms).map: (arg, argValueSym) =>
-        val paramName = arg.paramRef.symbol.fullName
-        val key = StringLit(paramName)(StringType, arg.paramRef.span)
-        val value = Ident(argValueSym)(arg.rhs.span)
-        val funSetParam = Ident(setParamSym)(arg.span)
-        val setParamCall = Apply(funSetParam, key :: value :: Nil)(AnyType, arg.span)
-        val oldValueSym = new Symbol("old_" + paramName, arg.rhs.tpe, Flags.Val, owner = ctx.funSymbol, sourcePos = arg.rhs.pos)
-        stats += Assign(Ident(oldValueSym)(arg.paramRef.span), setParamCall)(arg.span)
-        oldValueSym
+        val key = StringLit(paramName)(StringType, paramRef.span)
+        val value = Ident(oldValueSym)(paramRef.span)
+        val funSetParam = Ident(setParamSym)(paramRef.span)
+        val setParamCall = dropValue(Apply(funSetParam, key :: value :: Nil)(AnyType, paramRef.span))
 
-      // 4. val res = expr only if expr is not void
-      val resSym = new Symbol("res", expr.tpe, Flags.Val, owner = ctx.funSymbol, sourcePos = expr.pos)
-      if expr.tpe.isVoidType then
-        stats += this(expr)
-      else
-        stats += Assign(Ident(resSym)(expr.span), this(expr))(expr.span)
+        val funDelParam = Ident(delParamSym)(paramRef.span)
+        val delParamCall = Apply(funDelParam, key :: Nil)(VoidType, paramRef.span)
 
-      // 5. if hasX then setParam("x", oldX) else delParam("x")
-      paramRefs.zip(hasXSyms).zip(oldValueSyms).foreach:
-        case ((paramRef, hasX), oldValueSym) =>
-          val paramName = paramRef.symbol.fullName
+        val cond = Ident(hasX)(paramRef.span)
+        val ifStat = If(cond, setParamCall, delParamCall)(VoidType, paramRef.span)
 
-          val key = StringLit(paramName)(StringType, paramRef.span)
-          val value = Ident(oldValueSym)(paramRef.span)
-          val funSetParam = Ident(setParamSym)(paramRef.span)
-          val setParamCall = dropValue(Apply(funSetParam, key :: value :: Nil)(AnyType, paramRef.span))
+        stats += ifStat
 
-          val funDelParam = Ident(delParamSym)(paramRef.span)
-          val delParamCall = Apply(funDelParam, key :: Nil)(VoidType, paramRef.span)
+    // 6. res
+    if !expr.tpe.isVoidType then
+      stats += Ident(resSym)(expr.span)
 
-          val cond = Ident(hasX)(paramRef.span)
-          val ifStat = If(cond, setParamCall, delParamCall)(VoidType, paramRef.span)
-
-          stats += ifStat
-
-      // 6. res
-      if !expr.tpe.isVoidType then
-        stats += Ident(resSym)(expr.span)
-
-      Block(stats.toList)(expr.tpe, word.span)
+    Block(stats.toList)(expr.tpe, word.span)

@@ -116,10 +116,16 @@ object Ast:
     assert(words.nonEmpty)
 
   case class With
-    (expr: Word, args: List[WithArg], only: Boolean)
+    (expr: Word, args: List[WithArg], allow: Option[List[RefTree]])
     (val span: Span)
   extends Word:
-    assert(args.nonEmpty || only)
+    assert(args.nonEmpty || allow.nonEmpty)
+
+    for
+      params <- allow
+      param <- params
+    do
+      assert(isQualid(param), param)
 
   case class WithArg
     (paramRef: RefTree, rhs: Word)
