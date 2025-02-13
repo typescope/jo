@@ -114,7 +114,7 @@ Syntactical Grammar
     fundef  = FUN [param_section] ident [tparams] [param_section] EQL block [END].
     defdef  = DEF ident [tparams] [param_section] EQL block [END].
 
-    paramdef = PARAM param [EQL phrase].
+    paramdef = PARAM param [EQL block].
 
     typedef = TYPE ident[tparams] [EQL type].
     tparams = LBRACKET tparam {COMMA tparam} RBRACKET.

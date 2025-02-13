@@ -233,12 +233,18 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val preParamCount = 0
     FunDef(id, tparams, paramList, resType, body, preParamCount)(defToken.span | body.span)
 
-  def paramDef(): Param =
+  def paramDef(): ParamDef =
     val token = eat(Token.PARAM)
     val id = ident()
     eat(Token.COLON)
     val tpt = typ()
-    Param(id, tpt)(token.span | tpt.span)
+    val default =
+      if peek() == Token.EQL then
+        eat(Token.EQL)
+        Some(block(token.indent))
+      else
+        None
+    ParamDef(id, tpt, default)(token.span | tpt.span)
 
   def paramSection(): List[Param] =
     if peek() == Token.LPAREN then params() else Nil
