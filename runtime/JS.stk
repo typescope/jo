@@ -8,7 +8,7 @@ namespace stk.runtime.JS
 fun getProp(o: Any, prop: String): Any = js "o[prop]"
 fun setProp(o: Any, prop: String, v: Any): void = js "o[prop] = v"
 
-fun isDefined(o: Any): Bool = js "o"
+fun isDefined(o: Any): Bool = js "o != undefined"
 
 fun concat(a: String, b: String): String = js "a + b"
 
