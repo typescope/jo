@@ -28,6 +28,8 @@ object Test:
 
     Dynamic.reset()
 
+    val noramlizer = new phases.NormalizeParams
+
     val sourceFiles =
       if IO.isFile(test) then test :: Nil
       else IO.list(test).filter(_.endsWith(".stk"))
@@ -36,7 +38,9 @@ object Test:
       val stdLib = "lib/Predef.stk" :: Nil
       val runtimeFiles = Nil
       val nss = Parser.parse(sourceFiles)
-      Namer.transform(nss, stdLib, runtimeFiles)
+
+      Namer.transform(nss, stdLib, runtimeFiles) |>
+      noramlizer.transform
 
       verifyErrors(sourceFiles, rp.reports)
     catch
