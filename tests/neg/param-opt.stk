@@ -1,4 +1,4 @@
-param newLine: Bool = 3
+param newLine: Bool = 3  // error
 
 fun printOpt(s: String): void =
   print s
