@@ -52,7 +52,7 @@ def compile(args: String*): Unit =
       typeCheck                     |+
       Printing.peek(enable = false) |>
       noramlizer.transform          |+
-      Printing.peek(enable = true)
+      Printing.peek(enable = false)
 
     val jsRuntime = new JSRuntime(runtimeNameTable)
     val contextParamsLower = new LowerContextParams(
