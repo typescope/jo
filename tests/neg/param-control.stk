@@ -1,0 +1,21 @@
+param pageWidth: Int
+param newLine: String
+
+fun pretty(s: String): void =
+  pageWidth p
+
+fun normalize(s: String): void =
+  print s
+  print newLine
+
+fun foo() =
+  pretty "hello, world!" allow none  // error
+  normalize "hello, world!" allow newLine
+
+fun bar() =
+  print
+    "Bonjour!" .+ newLine
+
+fun main =  // error
+  foo with pageWidth = 100, newLine = "\n"
+  bar
