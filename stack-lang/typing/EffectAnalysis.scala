@@ -9,15 +9,17 @@ import scala.collection.mutable
 object EffectAnalysis:
   /** The stable cache for effects of functions */
   class Cache(
-    val effects: mutable.Map[Symbol, Vector[Symbol]],
-    val code: mutable.Map[Symbol, FunDef])
+    val effects: mutable.Map[Symbol, Set[Symbol]],
+    val code: mutable.Map[Symbol, FunDef]):
+
+    def this() = this(mutable.Map.empty, mutable.Map.empty)
 
   /** Compute effects of the given function
     *
     * It should only be called from outside. Internally, `getEffects` should be
     * called.
     */
-  def effects(fun: Symbol)(using cache: Cache): Vector[Symbol] =
+  def effects(fun: Symbol)(using cache: Cache): Set[Symbol] =
     fixpoint(getEffects(fun))
 
   /** Compute effects of the given word
@@ -25,10 +27,10 @@ object EffectAnalysis:
     * It should only be called from outside. Internally, `EffectAnalyzer.apply`
     * should be called.
     */
-  def effects(word: Word)(using cache: Cache): Vector[Symbol] =
+  def effects(word: Word)(using cache: Cache): Set[Symbol] =
     fixpoint(EffectAnalyzer.apply(word))
 
-  private def fixpoint(doTask: TempCache ?=> Vector[Symbol])(using cache: Cache): Vector[Symbol] =
+  private def fixpoint(doTask: TempCache ?=> Set[Symbol])(using cache: Cache): Set[Symbol] =
     given temp: TempCache = TempCache()
     var effs = doTask
     while temp.isUsed && temp.hasChanged do
@@ -44,7 +46,7 @@ object EffectAnalysis:
     effs
 
   /** Temporary caches are for temporary result of mutually recursive functions */
-  private class TempCache(val effects: mutable.Map[Symbol, Vector[Symbol]]):
+  private class TempCache(val effects: mutable.Map[Symbol, Set[Symbol]]):
     /** Whether the temp cache has changed */
     private var changed: Boolean = false
 
@@ -61,7 +63,7 @@ object EffectAnalysis:
       used = false
       changed = false
 
-    def update(fun: Symbol, effs: Vector[Symbol]): Unit =
+    def update(fun: Symbol, effs: Set[Symbol]): Unit =
       effects.get(fun) match
         case Some(res) =>
           changed = effs.exists(eff => !res.contains(eff))
@@ -70,7 +72,7 @@ object EffectAnalysis:
 
       effects(fun) = effs
 
-    def getOrElse(fun: Symbol)(otherwise: => Vector[Symbol]): Vector[Symbol] =
+    def getOrElse(fun: Symbol)(otherwise: => Set[Symbol]): Set[Symbol] =
       effects.get(fun) match
         case Some(res) =>
           used = true
@@ -80,27 +82,27 @@ object EffectAnalysis:
           otherwise
 
   /** Produce a list of transitively reachabe param symbols for the function */
-  private def getEffects(fun: Symbol)(using cache: Cache, temp: TempCache): Vector[Symbol] =
+  private def getEffects(fun: Symbol)(using cache: Cache, temp: TempCache): Set[Symbol] =
     cache.effects.get(fun) match
       case Some(res) => res
 
       case None =>
         temp.getOrElse(fun):
-          temp.update(fun, effs = Vector.empty)
+          temp.update(fun, effs = Set.empty)
           val body = cache.code(fun).body
           val effects = EffectAnalyzer.apply(body)
           temp.update(fun, effects)
           effects
 
   private object EffectAnalyzer:
-    val zero = Vector.empty[Symbol]
+    val zero = Set.empty[Symbol]
 
-    def apply(word: Word)(using cache: Cache, temp: TempCache): Vector[Symbol] =
+    def apply(word: Word)(using cache: Cache, temp: TempCache): Set[Symbol] =
       word match
         case _: Literal => zero
 
         case Ident(sym) =>
-          if sym.isAllOf(Flags.Context | Flags.Param) then Vector(sym)
+          if sym.isAllOf(Flags.Context | Flags.Param) then Set(sym)
           else if sym.isFunction then getEffects(sym)
           else zero
 
@@ -124,7 +126,7 @@ object EffectAnalysis:
         case With(expr, args, allow) =>
           allow match
             case Some(ids) =>
-              ids.map(_.symbol).toVector
+              ids.map(_.symbol).toSet
 
             case None =>
               val effsInner = this(expr)
@@ -132,7 +134,7 @@ object EffectAnalysis:
                 acc ++ this(arg.rhs)
 
               val masked = args.map(_.paramRef.symbol)
-              val unmasked = effsInner.filter(eff => !masked.contains(eff))
+              val unmasked = effsInner -- masked
 
               effsArgs ++ unmasked
 

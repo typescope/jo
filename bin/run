@@ -38,6 +38,9 @@ files=(
     stack-lang/sast/Types.scala
     stack-lang/sast/TypeOps.scala
 
+    stack-lang/phases/Phase.scala
+    stack-lang/phases/NormalizeParams.scala
+
     # interpreter
     stack-lang/sast/Interpreter.scala
 )

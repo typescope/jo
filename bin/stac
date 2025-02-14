@@ -62,6 +62,7 @@ files=(
 
     stack-lang/phases/Phase.scala
     stack-lang/phases/ElimCapture.scala
+    stack-lang/phases/NormalizeParams.scala
 )
 
 FILES=${files[*]}

@@ -1,6 +1,6 @@
 package phases
 
-import sast.SastOps
+import sast.*
 import sast.Sast.*
 import sast.Symbols.Symbol
 
@@ -12,12 +12,13 @@ abstract class Phase[T] extends SastOps.TreeMap:
   type Context = T
 
   def transform(nss: List[Namespace]): List[Namespace] =
+    given Context = contextObject.newContext()
     for ns <- nss yield transformNamespace(ns)
 
-  def transformNamespace(ns: Namespace): Namespace =
+  def transformNamespace(ns: Namespace)(using ctx: Context): Namespace =
     val defs = ns.defs.map:
       case fdef: FunDef =>
-        given Context = contextObject.newContext(ns.symbol)
+        given Context = contextObject.newContext(ns.symbol, ctx)
         transformFunDef(fdef)
 
       case defn => defn
@@ -32,12 +33,12 @@ abstract class Phase[T] extends SastOps.TreeMap:
 object Phase:
   trait ContextObject[T]:
     def newContext(owner: Symbol, old: T): T
-    def newContext(namespace: Symbol): T
+    def newContext(): T
 
   object OwnerContext extends ContextObject[Symbol]:
     def newContext(owner: Symbol, old: Symbol): Symbol = owner
-    def newContext(namespace: Symbol): Symbol = namespace
+    def newContext(): Symbol = Definitions.instance.Predef
 
   object DummyContext extends ContextObject[Unit]:
     def newContext(owner: Symbol, old: Unit): Unit = ()
-    def newContext(namespace: Symbol): Unit = ()
+    def newContext(): Unit = ()

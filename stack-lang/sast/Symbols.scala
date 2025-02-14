@@ -94,6 +94,10 @@ object Symbols:
         case nsInfo: NameTableInfo => nsInfo.resolve(name, isType)
         case _ => None
 
+    /** The default value function associated with a context parameter */
+    def defaultFunction: Symbol =
+      this.owner.termMember(this.name + "$default")
+
     def fullName: String = this.ownersIterator.foldLeft(this.name):
       (acc, owner) => owner.name + "." + acc
 
