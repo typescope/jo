@@ -19,6 +19,7 @@ files=(
     stack-lang/common/Dynamic.scala
     stack-lang/typing/Checker.scala
     stack-lang/typing/Desugaring.scala
+    stack-lang/typing/EffectAnalysis.scala
     stack-lang/typing/ExprTyper.scala
     stack-lang/typing/Inference.scala
     stack-lang/typing/Namer.scala

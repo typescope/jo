@@ -316,11 +316,6 @@ object Interpreter:
         else
           env.resolve(sym) :: Nil
 
-      case DefaultParam(paramRef, default) =>
-        params.get(paramRef.symbol) match
-          case Some(v) => v :: Nil
-          case None    => exec(default)
-
       case Apply(fun, args) =>
         fun match
           case Select(qual, name) if qual.tpe.isObjectType =>
@@ -409,10 +404,14 @@ object Interpreter:
     val runtime = Nil
     val typeCheck = (nss: List[Ast.Namespace]) => Namer.transform(nss, stdlib, runtime)
 
+    val noramlizer = new phases.NormalizeParams
+
     val namespacesSAST =
       Parser.parse(sourceFiles)     |>
       typeCheck                     |>
       TreeChecker.check             |>
+      Printing.peek(enable = false) |>
+      noramlizer.transform          |>
       Printing.peek(enable = false)
 
     val mains = namespacesSAST.collect:

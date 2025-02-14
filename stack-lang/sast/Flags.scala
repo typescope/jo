@@ -11,13 +11,14 @@ object Flags:
   val Method  : Flag = 1 << 4
 
   // val flags
-  val Param   : Flag = 1 << 5
-  val Mutable : Flag = 1 << 6
-  val Context : Flag = 1 << 7
-  val Field   : Flag = 1 << 8
+  val Param   : Flag = 1 << 5  // a parameter
+  val Mutable : Flag = 1 << 6  // a mutable variable
+  val Context : Flag = 1 << 7  // context parameter or its default function
+  val Field   : Flag = 1 << 8  // an object field
+  val Default : Flag = 1 << 9  // context parameters with default value
 
   // namespace flags
-  val Branch  : Flag = 1 << 5
+  val Branch  : Flag = 1 << 5  // branch name space
 
   val empty   : Flags = 0
 

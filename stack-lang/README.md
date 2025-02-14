@@ -45,7 +45,6 @@ Lexical Grammar
     WITH     = "with".
     ALLOW    = "allow".
     PARAM    = "param".
-    DEFAULT  = "default".
     NSPACE   = "namespace".
     IMPORT   = "import".
     DEF      = "def".
@@ -75,15 +74,13 @@ Syntactical Grammar
 
     word    = integer | boolean | char | string | ident | fence | record | tapply | select | variant | lambda | object.
 
-    phrase  = expr | with_clause | default_param | assign | valdef | fundef | typedef | while | if | match.
+    phrase  = expr | with_clause | assign | valdef | fundef | typedef | while | if | match.
 
     block   = { phrase }.
 
     select  = word DOT ident.
 
     with_clause = expr [WITH with_bindings] [ALLOW qualid {COMMA qualid}].
-
-    default_param = qualid DEFAULT expr.
 
     with_bindings = with_binding {COMMA with_binding}.
     with_binding = qualid EQL expr.
@@ -117,7 +114,7 @@ Syntactical Grammar
     fundef  = FUN [param_section] ident [tparams] [param_section] EQL block [END].
     defdef  = DEF ident [tparams] [param_section] EQL block [END].
 
-    paramdef = PARAM param
+    paramdef = PARAM param [EQL block].
 
     typedef = TYPE ident[tparams] [EQL type].
     tparams = LBRACKET tparam {COMMA tparam} RBRACKET.

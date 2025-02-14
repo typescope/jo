@@ -12,7 +12,7 @@ object SastOps:
     final def apply(word: Word)(using Context): Word =
       transform(word)
 
-    def transform(word: Word)(using Context): Word =
+    final def transform(word: Word)(using Context): Word =
       word match
         case lit: Literal => transformLiteral(lit)
 
@@ -29,8 +29,6 @@ object SastOps:
         case tapply: TypeApply => transformTypeApply(tapply)
 
         case withExpr: With => transformWith(withExpr)
-
-        case defaultParam: DefaultParam => transformDefaultParam(defaultParam)
 
         case assign: Assign => transformAssign(assign)
 
@@ -67,17 +65,15 @@ object SastOps:
 
     def transformWith(withExpr: With)(using Context): Word = recur(withExpr)
 
-    def transformDefaultParam(defaultParam: DefaultParam)(using Context): Word = recur(defaultParam)
-
     def transformAssign(assign: Assign)(using Context): Word = recur(assign)
 
     def transformFieldAssign(fieldAssign: FieldAssign)(using Context): Word = recur(fieldAssign)
 
-    def transformValDef(vdef: ValDef)(using Context): Word = recur(vdef)
+    def transformValDef(vdef: ValDef)(using Context): Word = recurValDef(vdef)
 
-    def transformFunDef(fdef: FunDef)(using Context): Word = recur(fdef)
+    def transformFunDef(fdef: FunDef)(using Context): Word = recurFunDef(fdef)
 
-    def transformTypeDef(tdef: TypeDef)(using Context): Word = recur(tdef)
+    def transformTypeDef(tdef: TypeDef)(using Context): TypeDef = recurTypeDef(tdef)
 
     def transformIf(ifElse: If)(using Context): Word = recur(ifElse)
 
@@ -87,26 +83,16 @@ object SastOps:
 
     def transformObject(obj: Object)(using Context): Word = recur(obj)
 
-
-    def recurValDef(vdef: ValDef)(using Context): ValDef =
+    private def recurValDef(vdef: ValDef)(using Context): ValDef =
       ValDef(vdef.symbol, this(vdef.rhs))(vdef.span)
 
-    def recurFunDef(fdef: FunDef)(using Context): FunDef =
+    private def recurFunDef(fdef: FunDef)(using ctx: Context): FunDef =
       val body = this(fdef.body)
       fdef.copy(body = body)(fdef.span)
 
-    def recurTypeDef(tdef: TypeDef)(using Context): TypeDef = tdef
+    private def recurTypeDef(tdef: TypeDef)(using Context): TypeDef = tdef
 
-    def recurParamDef(pdef: ParamDef)(using Context): ParamDef = pdef
-
-    def recurDef(defn: Def)(using Context): Def =
-      defn match
-        case vdef: ValDef   => recurValDef(vdef)
-        case fdef: FunDef   => recurFunDef(fdef)
-        case tdef: TypeDef  => recurTypeDef(tdef)
-        case pdef: ParamDef => recurParamDef(pdef)
-
-    def recur(word: Word)(using Context): Word =
+    final def recur(word: Word)(using Context): Word =
       word match
         case _: Literal | _: Ident =>
           word
@@ -132,15 +118,11 @@ object SastOps:
           TypeApply(this(fun), targs)(word.tpe, word.span)
 
         case With(expr, args, only) =>
-          // Don't map paramRef --- the client code should match DefaultParam
+          // Don't map paramRef --- the client code should match this tree
           val args2 = args.map: arg =>
             arg.copy(arg.paramRef, this(arg.rhs))(arg.span)
 
           With(this(expr), args2, only)(word.tpe, word.span)
-
-        case DefaultParam(paramRef, default) =>
-          // Don't map paramRef --- the client code should match DefaultParam
-          DefaultParam(paramRef, this(default))(word.tpe, word.span)
 
         case Assign(id, rhs) =>
           // Don't map id --- the client code should match Assign
@@ -212,16 +194,12 @@ object SastOps:
         case TypeApply(fun, targs) =>
           this(fun)
 
-        case With(expr, args, only) =>
+        case With(expr, args, allow) =>
           args.foreach: arg =>
             this(arg.paramRef)
             this(arg.rhs)
 
           this(expr)
-
-        case DefaultParam(paramRef, default) =>
-          this(paramRef)
-          this(default)
 
         case Assign(ident, rhs) =>
           this(ident)
@@ -258,7 +236,7 @@ object SastOps:
   /** Returns (locals, free) */
   def variableCensus(fdef: FunDef): (List[Symbol], List[Symbol]) =
     val census = new VariableCensus
-    census(fdef.body)(using fdef.symbol)
+    census(fdef.body)(using ())
     val locals = census.locals.distinct.toList
     val masked = fdef.params ++ locals
     val free = census.free.filter(sym => !masked.contains(sym)).distinct.toList
@@ -268,8 +246,7 @@ object SastOps:
     val locals = new mutable.ArrayBuffer[Symbol]
     val free = new mutable.ArrayBuffer[Symbol]
 
-    // Use owner as context
-    type Context = Symbol
+    type Context = Unit
 
     override def recurFunDef(fdef: FunDef)(using Context): Unit =
       locals += fdef.symbol

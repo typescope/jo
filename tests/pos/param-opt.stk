@@ -1,9 +1,8 @@
-param newLine: Bool
+param newLine: Bool = false
 
 fun printOpt(s: String): void =
-  val addNewLine = newLine default false
   print s
-  if addNewLine then print "\n"
+  if newLine then print "\n"
 
 fun main =
   printOpt "hello "

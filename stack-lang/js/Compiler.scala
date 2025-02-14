@@ -45,9 +45,13 @@ def compile(args: String*): Unit =
     val typeCheck = (nss: List[Ast.Namespace]) =>
       Namer.transform(nss, stdlib, runtime, rootNameTable, runtimeNameTable)
 
+    val noramlizer = new phases.NormalizeParams
+
     val namespacesSAST =
       Parser.parse(sourceFiles)     |>
       typeCheck                     |+
+      Printing.peek(enable = false) |>
+      noramlizer.transform          |+
       Printing.peek(enable = false)
 
     val jsRuntime = new JSRuntime(runtimeNameTable)

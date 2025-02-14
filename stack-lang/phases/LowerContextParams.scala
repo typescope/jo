@@ -8,7 +8,7 @@ import sast.Types.*
 
 import scala.collection.mutable
 
-/** The compiler phase translate context parameters to runtime calls
+/** This phase translate context parameters to runtime calls
   *
   * This phase is generic and can be used for all platforms, as long as the
   * following support functions are provided:
@@ -24,15 +24,12 @@ import scala.collection.mutable
 class LowerContextParams(
   hasParamSym: Symbol, getParamSym: Symbol,
   setParamSym: Symbol, delParamSym: Symbol)
-extends phases.Phase:
+extends Phase[Symbol]:
+  val contextObject = Phase.OwnerContext
 
   val defn = Definitions.instance
   val StringType = TypeRef(defn.Predef_String)
   val BoolType = TypeRef(defn.Predef_Bool)
-
-  class FunContext(val funSymbol: Symbol)
-  type Context = FunContext
-  def createContext(fdef: FunDef) = FunContext(fdef.symbol)
 
   override def transformIdent(word: Ident)(using ctx: Context): Word =
     word match
@@ -45,22 +42,9 @@ extends phases.Phase:
       case _ =>
         word
 
-  override def transformDefaultParam(word: DefaultParam)(using ctx: Context): Word =
-    val DefaultParam(paramRef, default) = word
-    val paramName = paramRef.symbol.fullName
-    val key = StringLit(paramName)(StringType, paramRef.span)
-    val funHasParam = Ident(hasParamSym)(paramRef.span)
-    val hasParamCall = Apply(funHasParam, key :: Nil)(BoolType, paramRef.span)
-
-    val funGetParam = Ident(getParamSym)(paramRef.span)
-    val getParamCall = Apply(funGetParam, key :: Nil)(word.tpe, paramRef.span)
-
-    If(hasParamCall, getParamCall, default)(word.tpe, word.span)
-
-
   override def transformWith(word: With)(using ctx: Context): Word =
     val With(expr, args, _) = word
-    given Source = ctx.funSymbol.sourcePos.source
+    given Source = ctx.sourcePos.source
 
     val paramRefs = args.map(_.paramRef)
     val stats = new mutable.ArrayBuffer[Word]
@@ -68,7 +52,7 @@ extends phases.Phase:
     // 1. args are evaluated with the outer context
     val argValueSyms = args.map: arg =>
       val paramName = arg.paramRef.symbol.fullName
-      val argValueSym = new Symbol("arg_" + paramName, arg.rhs.tpe, Flags.Val, owner = ctx.funSymbol, sourcePos = arg.rhs.pos)
+      val argValueSym = new Symbol("arg_" + paramName, arg.rhs.tpe, Flags.Val, owner = ctx, sourcePos = arg.rhs.pos)
       stats += Assign(Ident(argValueSym)(arg.rhs.span), this(arg.rhs))(arg.rhs.span)
       argValueSym
 
@@ -78,7 +62,7 @@ extends phases.Phase:
       val key = StringLit(paramName)(StringType, arg.paramRef.span)
       val funHasParam = Ident(hasParamSym)(arg.span)
       val hasParamCall = Apply(funHasParam, key :: Nil)(BoolType, arg.paramRef.span)
-      val hasXSym = new Symbol("has_" + paramName, BoolType, Flags.Val, owner = ctx.funSymbol, sourcePos = arg.rhs.pos)
+      val hasXSym = new Symbol("has_" + paramName, BoolType, Flags.Val, owner = ctx, sourcePos = arg.rhs.pos)
       stats += Assign(Ident(hasXSym)(arg.paramRef.span), hasParamCall)(arg.span)
       hasXSym
 
@@ -89,12 +73,12 @@ extends phases.Phase:
       val value = Ident(argValueSym)(arg.rhs.span)
       val funSetParam = Ident(setParamSym)(arg.span)
       val setParamCall = Apply(funSetParam, key :: value :: Nil)(AnyType, arg.span)
-      val oldValueSym = new Symbol("old_" + paramName, arg.rhs.tpe, Flags.Val, owner = ctx.funSymbol, sourcePos = arg.rhs.pos)
+      val oldValueSym = new Symbol("old_" + paramName, arg.rhs.tpe, Flags.Val, owner = ctx, sourcePos = arg.rhs.pos)
       stats += Assign(Ident(oldValueSym)(arg.paramRef.span), setParamCall)(arg.span)
       oldValueSym
 
     // 4. val res = expr only if expr is not void
-    val resSym = new Symbol("res", expr.tpe, Flags.Val, owner = ctx.funSymbol, sourcePos = expr.pos)
+    val resSym = new Symbol("res", expr.tpe, Flags.Val, owner = ctx, sourcePos = expr.pos)
     if expr.tpe.isVoidType then
       stats += this(expr)
     else

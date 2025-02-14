@@ -1,22 +1,44 @@
 package phases
 
-import sast.SastOps
+import sast.*
 import sast.Sast.*
+import sast.Symbols.Symbol
+
+import Phase.ContextObject
 
 /** Shared code for phases */
-abstract class Phase extends SastOps.TreeMap:
-  def createContext(fdef: FunDef): Context
+abstract class Phase[T] extends SastOps.TreeMap:
+  val contextObject: ContextObject[T]
+  type Context = T
 
   def transform(nss: List[Namespace]): List[Namespace] =
+    given Context = contextObject.newContext()
     for ns <- nss yield transformNamespace(ns)
 
-  def transformNamespace(ns: Namespace): Namespace =
+  def transformNamespace(ns: Namespace)(using ctx: Context): Namespace =
     val defs = ns.defs.map:
       case fdef: FunDef =>
-        given Context = createContext(fdef)
-        val body2 = this(fdef.body)
-        fdef.copy(body = body2)(fdef.span)
+        given Context = contextObject.newContext(ns.symbol, ctx)
+        transformFunDef(fdef)
 
       case defn => defn
 
     Namespace(ns.symbol, ns.imports, defs)(ns.span)
+
+  override def transformFunDef(fdef: FunDef)(using ctx: Context): FunDef =
+    given Context = contextObject.newContext(fdef.symbol, ctx)
+    val body = this(fdef.body)
+    fdef.copy(body = body)(fdef.span)
+
+object Phase:
+  trait ContextObject[T]:
+    def newContext(owner: Symbol, old: T): T
+    def newContext(): T
+
+  object OwnerContext extends ContextObject[Symbol]:
+    def newContext(owner: Symbol, old: Symbol): Symbol = owner
+    def newContext(): Symbol = Definitions.instance.Predef
+
+  object DummyContext extends ContextObject[Unit]:
+    def newContext(owner: Symbol, old: Unit): Unit = ()
+    def newContext(): Unit = ()

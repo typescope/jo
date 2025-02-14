@@ -1,13 +1,8 @@
-param newLine: Bool
+param newLine: Bool = 3  // error
 
 fun printOpt(s: String): void =
-  val a = s default true             // error
-
-  val b = newLine default 3          // error
-
-  val addNewLine: Bool = newLine default 3 // error
   print s
-  if addNewLine then print "\n"
+  if newLine then print "\n"
 
 fun main =
   printOpt "hello "

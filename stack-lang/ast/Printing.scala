@@ -57,7 +57,12 @@ object Printing:
 
   def showDef(defn: Def): Text =
     defn match
-      case Param(id, tpt) => "param " ~ id ~ ": " ~ tpt
+      case ParamDef(id, tpt, default) =>
+        val rhs = default match
+          case None => Text.Empty
+          case Some(word) => " = " ~ word
+
+        "param " ~ id ~ ": " ~ tpt ~ rhs
 
       case ValDef(id, tpt, rhs, mutable) =>
         val mod = if mutable then "var" else "val"
@@ -140,9 +145,6 @@ object Printing:
             " with " ~ indent(rep(args, Text.BreakLine))
 
         expr ~ withText ~ allowText
-
-      case DefaultParam(paramRef, default) =>
-        paramRef ~ " default " ~ default
 
       case TypeApply(fun, targs) =>
         fun ~ "[" ~ rep(targs, Text(", ")) ~ "]"

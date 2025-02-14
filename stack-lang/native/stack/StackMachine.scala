@@ -86,8 +86,7 @@ extends Backend(runtime):
 
       case _: TypeDef =>
 
-      case _: ValDef | _: FunDef  | _: With | _: DefaultParam |
-           _: Select | _: FieldAssign | _: RecordLit | _: Object =>
+      case _: ValDef | _: FunDef  | _: With | _: Select | _: FieldAssign | _: RecordLit | _: Object =>
         throw new Exception("Unexpected " + word)
 
   /** Compile a function */

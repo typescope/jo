@@ -233,12 +233,18 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val preParamCount = 0
     FunDef(id, tparams, paramList, resType, body, preParamCount)(defToken.span | body.span)
 
-  def paramDef(): Param =
+  def paramDef(): ParamDef =
     val token = eat(Token.PARAM)
     val id = ident()
     eat(Token.COLON)
     val tpt = typ()
-    Param(id, tpt)(token.span | tpt.span)
+    val default =
+      if peek() == Token.EQL then
+        eat(Token.EQL)
+        Some(block(token.indent))
+      else
+        None
+    ParamDef(id, tpt, default)(token.span | tpt.span)
 
   def paramSection(): List[Param] =
     if peek() == Token.LPAREN then params() else Nil
@@ -380,11 +386,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     else
       expr
 
-  def defaultParam(qualid: RefTree): DefaultParam =
-    eat(Token.DEFAULT)
-    val default = expr()
-    DefaultParam(qualid, default)(qualid.span | default.span)
-
   def expr(): Word =
     val item = peekItem()
     word() match
@@ -495,9 +496,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
       case token =>
         word().map: w =>
-          if isQualid(w) && peek() == Token.DEFAULT then
-            defaultParam(w.asInstanceOf[RefTree])
-          else if w.isInstanceOf[RefTree] && peek() == Token.ASSIGN then
+          if w.isInstanceOf[RefTree] && peek() == Token.ASSIGN then
             assign(w.asInstanceOf[RefTree], item.indent)
           else
             val expr = exprRest(mutable.ArrayBuffer(w), item.indent)

@@ -18,13 +18,10 @@ import scala.collection.mutable
   *     fun alloc(size: Int): Addr = ...
   *     fun addAddr(arr: Addr, offset: Int): Addr = ...
   */
-class ExplicitAlloc(runtime: NativeRuntime) extends phases.Phase:
+class ExplicitAlloc(runtime: NativeRuntime) extends phases.Phase[Symbol]:
+  val contextObject = phases.Phase.OwnerContext
 
   val IntType = Definitions.instance.IntType
-
-  class FunContext(val funSymbol: Symbol)
-  type Context = FunContext
-  def createContext(fdef: FunDef) = FunContext(fdef.symbol)
 
   override def transformEncoded(word: Encoded)(using ctx: Context): Word =
     word match
@@ -47,8 +44,8 @@ class ExplicitAlloc(runtime: NativeRuntime) extends phases.Phase:
     val allocApply = Apply(allocFun, sizeLit :: Nil)(addrType, word.span)
 
     val refSym =
-      given Source = ctx.funSymbol.sourcePos.source
-      Symbol.createValueSymbol("ref", addrType, ctx.funSymbol, word.pos)
+      given Source = ctx.sourcePos.source
+      Symbol.createValueSymbol("ref", addrType, ctx, word.pos)
     val ref = Ident(refSym)(word.span)
 
     stats += Assign(ref, allocApply)(word.span)
