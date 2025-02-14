@@ -12,5 +12,10 @@ fun foo() =
   pretty "hello, world!" allow none  // error
   normalize "hello, world!" allow newLine
 
-fun main =
+fun bar() =
+  print
+    "Bonjour!" .+ newLine
+
+fun main =  // error
   foo with pageWidth = 100, newLine = "\n"
+  bar
