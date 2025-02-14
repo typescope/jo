@@ -1,0 +1,10 @@
+param pageWidth: Int
+
+fun pretty(s: String): void =
+  pageWidth p
+
+fun foo() =
+  pretty "hello, world!" allow none  // error
+
+fun main =
+  foo with pageWidth = 100
