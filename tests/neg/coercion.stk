@@ -1,0 +1,15 @@
+fun coercion =
+  // byte
+  val b: Byte = 45
+  b p
+  printChar b
+
+  // char
+  val c: Char = 'a'
+  c p
+  val b_c: Byte = c     // error
+
+  // int
+  val i: Int = 100
+  val b_i: Byte = i     // error
+  val c_i: Char = i     // error
