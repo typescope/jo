@@ -60,6 +60,7 @@ class NormalizeParams(using Reporter) extends Phase[NormalizeParams.Context]:
         fdef2.copy(body = body2)(fdef.span)
 
     else
+      if fdef.symbol.isLocal then ctx.cache.code(fdef.symbol) = fdef
       super.transformFunDef(fdef)
 
   /** Check `allow`-clause */
@@ -110,21 +111,24 @@ class NormalizeParams(using Reporter) extends Phase[NormalizeParams.Context]:
     for ddef <- obj.defs do
       ctx.cache.code(ddef.symbol) = ddef
       val effs = EffectAnalysis.effects(ddef.symbol)(using ctx.cache)
-      val args =
-        for eff <- effs.toList yield
-          val paramRef = Ident(eff)(span)
-          aliasMap.get(eff) match
-            case None =>
-              val alias = new Symbol("alias_" + eff.name, eff.info, Flags.Val, owner = ctx.owner, sourcePos = obj.pos)
-              aliasMap(eff) = ValDef(alias, paramRef)(span)
-              WithArg(paramRef, Ident(alias)(span))(span)
+      if effs.isEmpty then
+        newDefs += ddef
+      else
+        val args =
+          for eff <- effs.toList yield
+            val paramRef = Ident(eff)(span)
+            aliasMap.get(eff) match
+              case None =>
+                val alias = new Symbol("alias_" + eff.name, eff.info, Flags.Val, owner = ctx.owner, sourcePos = obj.pos)
+                aliasMap(eff) = ValDef(alias, paramRef)(span)
+                WithArg(paramRef, Ident(alias)(span))(span)
 
-            case Some(vdef) =>
-              WithArg(paramRef, Ident(vdef.symbol)(span))(span)
-          end match
-        end for
-      val body2 = With(this(ddef.body), args, allow = None)(ddef.body.tpe, ddef.body.span)
-      newDefs += ddef.copy(body = body2)(ddef.span)
+              case Some(vdef) =>
+                WithArg(paramRef, Ident(vdef.symbol)(span))(span)
+            end match
+          end for
+        val body2 = With(this(ddef.body), args, allow = None)(ddef.body.tpe, ddef.body.span)
+        newDefs += ddef.copy(body = body2)(ddef.span)
     end for
 
     val aliases = aliasMap.values.toSeq
