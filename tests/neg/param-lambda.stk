@@ -11,5 +11,5 @@ fun makeLinePrinter(): String => void =
   (text) => line text
 
 fun main =
-  val f = makeLinePrinter with indent = 5
-  f "hello, world!" with indent = 10
+  val f = makeLinePrinter allow none // error
+  f "hello, world!"
