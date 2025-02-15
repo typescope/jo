@@ -102,6 +102,8 @@ object EffectAnalysis:
         case _: Literal => zero
 
         case Ident(sym) =>
+          // Method calls will not contribute effects as each method is
+          // self-sufficient after deep capture.
           if sym.isAllOf(Flags.Context | Flags.Param) then Set(sym)
           else if sym.isFunction then getEffects(sym)
           else zero
@@ -117,6 +119,8 @@ object EffectAnalysis:
           this(repr)
 
         case Apply(fun, args) =>
+          // Method calls will not contribute effects as each method is
+          // self-sufficient after deep capture.
           args.foldLeft(this(fun)): (acc, arg) =>
             acc ++ this(arg)
 
@@ -162,7 +166,13 @@ object EffectAnalysis:
             acc ++ this(vdef.rhs)
 
           defs.foldLeft(effs): (acc, ddef) =>
-            acc ++ this(ddef.body)
+            // Cache the effects for method such that it can be used for the
+            // deep capture transform.
+            //
+            // Method calls will not contribute effects as each method is
+            // self-sufficient after deep capture.
+            cache.code(ddef.symbol) = ddef
+            acc ++ getEffects(ddef.symbol)
 
         case fdef: FunDef =>
           cache.code(fdef.symbol) = fdef
