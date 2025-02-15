@@ -7,7 +7,9 @@ import sast.Symbols.*
 import typing.EffectAnalysis
 import reporting.Reporter
 
-/** This phase normalize usage of context parameters
+import scala.collection.mutable
+
+/** This phase normalize the usage of context parameters
   *
   * - Optional context parameters are bound at program entry
   * - All transitive captures of context parameters are made explicit in objects
@@ -26,6 +28,12 @@ class NormalizeParams(using Reporter) extends Phase[NormalizeParams.Context]:
 
     for ns <- nss yield transformNamespace(ns)
 
+  /** Bind optional context parameters at program entry.
+    *
+    * Only bind optional context parameters whose default value are needed.
+    *
+    * TODO: Need to do the same for each thread.
+    */
   override  def transformFunDef(fdef: FunDef)(using ctx: Context): FunDef =
     if !fdef.symbol.isLocal && fdef.name == "main" then
       val effs = EffectAnalysis.effects(fdef.symbol)(using ctx.cache)
@@ -52,8 +60,10 @@ class NormalizeParams(using Reporter) extends Phase[NormalizeParams.Context]:
         fdef2.copy(body = body2)(fdef.span)
 
     else
+      if fdef.symbol.isLocal then ctx.cache.code(fdef.symbol) = fdef
       super.transformFunDef(fdef)
 
+  /** Check `allow`-clause */
   override  def transformWith(withExpr: With)(using ctx: Context): Word =
     withExpr.allow match
       case Some(ids) =>
@@ -67,6 +77,63 @@ class NormalizeParams(using Reporter) extends Phase[NormalizeParams.Context]:
       case _ =>
     end match
     withExpr
+
+  /** Capture all context parameters used in the methods of an object
+    *
+    * An object
+    *
+    *     object {
+    *       def foo() = ...
+    *       def bar() = ...
+    *       def baz() = ...
+    *     }
+    *
+    * is transformed to
+    *
+    *     val a = param1
+    *     val b = param2
+    *
+    *     object {
+    *       def foo() = ... with param1 = a
+    *       def bar() = ... with param2 = b
+    *       def baz() = ... with param1 = a, param2 = b
+    *     }
+    *
+    * Closure conversion will later turn `a` and `b` to fields of the object.
+    */
+  override def transformObject(obj: Object)(using ctx: Context): Word =
+    val newDefs = new mutable.ArrayBuffer[FunDef]
+    val aliasMap = mutable.Map.empty[Symbol, ValDef]
+
+    given Source = ctx.owner.sourcePos.source
+    val span = obj.span
+
+    for ddef <- obj.defs do
+      ctx.cache.code(ddef.symbol) = ddef
+      val effs = EffectAnalysis.effects(ddef.symbol)(using ctx.cache)
+      if effs.isEmpty then
+        newDefs += ddef
+      else
+        val args =
+          for eff <- effs.toList yield
+            val paramRef = Ident(eff)(span)
+            aliasMap.get(eff) match
+              case None =>
+                val alias = new Symbol("alias_" + eff.name, eff.info, Flags.Val, owner = ctx.owner, sourcePos = obj.pos)
+                aliasMap(eff) = ValDef(alias, paramRef)(span)
+                WithArg(paramRef, Ident(alias)(span))(span)
+
+              case Some(vdef) =>
+                WithArg(paramRef, Ident(vdef.symbol)(span))(span)
+            end match
+          end for
+        val body2 = With(this(ddef.body), args, allow = None)(ddef.body.tpe, ddef.body.span)
+        newDefs += ddef.copy(body = body2)(ddef.span)
+    end for
+
+    val aliases = aliasMap.values.toSeq
+    val obj2 = obj.copy(defs = newDefs.toList)(obj.tpe, obj.span)
+    Block((aliases :+ obj2).toList)(obj.tpe, obj.span)
 
 object NormalizeParams:
   class Context(val cache: EffectAnalysis.Cache, val owner: Symbol)
