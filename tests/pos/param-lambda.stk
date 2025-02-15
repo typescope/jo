@@ -1,0 +1,15 @@
+param indent: Int
+
+fun line(text: String): void =
+  var i = 0
+  while i < indent do
+    printChar ' '
+    i <- i + 1
+  println text
+
+fun makeLinePrinter(): String => void =
+  (text) => line text
+
+fun main =
+  val f = makeLinePrinter with indent = 5
+  f "hello, world!"
