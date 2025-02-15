@@ -1043,7 +1043,7 @@ class Namer(@constructorOnly reporter: Reporter):
             namedInfo
 
         val resType2 = transformType(resType)
-        checker.delayedCheck { checker.checkValueType(resType2) }
+        checker.delayedCheck { checker.checkVoidOrValueType(resType2) }
         val applyType = ProcType(paramTypes2, resType2.tpe, preParamCount = 0)
         val objType = ObjectType(fields = Nil, methods = NamedInfo("apply", applyType) :: Nil, mutableFields = Nil)
         TypeTree(objType)(tpt.span)
