@@ -1,0 +1,14 @@
+type StringRepr = <
+  Raw(str: String),
+
+  Concat(length: Int, lhs: StringRepr, rhs: StringRepr)
+>
+
+fun length(s: StringRepr) =
+  match s
+    case #Raw(str) => str.length
+    case #Concat(len, _, _) => len
+
+fun main =
+  val len = length #Raw("hello")
+  len p

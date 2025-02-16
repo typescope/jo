@@ -39,17 +39,15 @@ class NormalizeParams(using Reporter) extends Phase[NormalizeParams.Context]:
       val effs = EffectAnalysis.effects(fdef.symbol)(using ctx.cache)
       val fdef2 = super.transformFunDef(fdef)
 
-      val nonDefaultEffs = effs.filter(!_.is(Flags.Default))
-      if nonDefaultEffs.nonEmpty then
-        given Source = fdef.symbol.sourcePos.source
-        val list = nonDefaultEffs.mkString(", ")
-        Reporter.error("Context parameters not provided: " + list, fdef2.pos)
+      given Source = fdef.symbol.sourcePos.source
+      for (eff, trace) <- effs if !eff.is(Flags.Default) do
+        Reporter.error("Context parameter not provided: " + eff, fdef2.pos, trace)
 
-      val defaultEffs = effs.filter(_.is(Flags.Default))
+      val defaultEffs = effs.keys.filter(_.is(Flags.Default)).toList
       if defaultEffs.isEmpty then fdef2
       else
         val span = fdef.body.span
-        val args = defaultEffs.toList.map: eff =>
+        val args = defaultEffs.map: eff =>
           val defaultFunSym = eff.defaultFunction
           val paramRef = Ident(eff)(span)
           val defaultFunRef = Ident(defaultFunSym)(span)
@@ -67,13 +65,11 @@ class NormalizeParams(using Reporter) extends Phase[NormalizeParams.Context]:
   override  def transformWith(withExpr: With)(using ctx: Context): Word =
     withExpr.allow match
       case Some(ids) =>
-        val allowed = ids.map(_.symbol)
+        given Source = ctx.owner.sourcePos.source
+        val allowed = ids.map(_.symbol).toSet
         val effs = EffectAnalysis.effects(withExpr.expr)(using ctx.cache)
-        val notAllowed = effs -- allowed
-        if notAllowed.nonEmpty then
-          given Source = ctx.owner.sourcePos.source
-          val list = notAllowed.mkString(", ")
-          Reporter.error("More context parameters used than allowed: " + list, withExpr.expr.pos)
+        for (eff, trace) <- effs if !allowed.contains(eff) do
+          Reporter.error("Parameter not allowed: " + eff, withExpr.expr.pos, trace)
       case _ =>
     end match
     withExpr
@@ -110,12 +106,12 @@ class NormalizeParams(using Reporter) extends Phase[NormalizeParams.Context]:
 
     for ddef <- obj.defs do
       ctx.cache.code(ddef.symbol) = ddef
-      val effs = EffectAnalysis.effects(ddef.symbol)(using ctx.cache)
+      val effs = EffectAnalysis.effects(ddef.symbol)(using ctx.cache).keys.toList
       if effs.isEmpty then
         newDefs += ddef
       else
         val args =
-          for eff <- effs.toList yield
+          for eff <- effs yield
             val paramRef = Ident(eff)(span)
             aliasMap.get(eff) match
               case None =>

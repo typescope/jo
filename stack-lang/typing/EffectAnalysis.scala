@@ -1,5 +1,7 @@
 package typing
 
+import ast.Positions.*
+
 import sast.*
 import sast.Sast.*
 import sast.Symbols.Symbol
@@ -7,9 +9,12 @@ import sast.Symbols.Symbol
 import scala.collection.mutable
 
 object EffectAnalysis:
+  type Trace = Vector[SourcePosition]
+  type TracedEffects = Map[Symbol, Trace]
+
   /** The stable cache for effects of functions */
   class Cache(
-    val effects: mutable.Map[Symbol, Set[Symbol]],
+    val effects: mutable.Map[Symbol, TracedEffects],
     val code: mutable.Map[Symbol, FunDef]):
 
     def this() = this(mutable.Map.empty, mutable.Map.empty)
@@ -19,7 +24,7 @@ object EffectAnalysis:
     * It should only be called from outside. Internally, `getEffects` should be
     * called.
     */
-  def effects(fun: Symbol)(using cache: Cache): Set[Symbol] =
+  def effects(fun: Symbol)(using cache: Cache): TracedEffects =
     fixpoint(getEffects(fun))
 
   /** Compute effects of the given word
@@ -27,7 +32,7 @@ object EffectAnalysis:
     * It should only be called from outside. Internally, `EffectAnalyzer.apply`
     * should be called.
     */
-  def effects(word: Word)(using cache: Cache): Set[Symbol] =
+  def effects(word: Word)(using cache: Cache, source: Source): TracedEffects =
     fixpoint(EffectAnalyzer.apply(word))
 
   /** The fixed point computation stops if the in cache is equal to out cache.
@@ -36,7 +41,7 @@ object EffectAnalysis:
     *
     * See https://en.wikipedia.org/wiki/Knaster%E2%80%93Tarski_theorem
     */
-  private def fixpoint(doTask: TempCache ?=> Set[Symbol])(using cache: Cache): Set[Symbol] =
+  private def fixpoint(doTask: TempCache ?=> TracedEffects)(using cache: Cache): TracedEffects =
     given temp: TempCache = TempCache()
     var effs = doTask
     while temp.isUsed && temp.hasChanged do
@@ -49,18 +54,19 @@ object EffectAnalysis:
 
     effs
 
-  /** Temporary caches are for temporary result of mutually recursive functions
+  /** Temporary caches are used for computing effects of mutually recursive functions
     *
-    * The in cache is only used to provide initial values for out cache. It
+    * The `in` cache is the result from last round of computation. It is only
+    * used to provide initial values for `out` cache of the current round. It
     * should never be read directly.
     *
-    * The out cache should be read lazily such that computation is performed
+    * The `out` cache should be read lazily such that computation is performed
     * once in each round. The laziness is implemented by emptying `out` at
     * the beginning of each round.
     */
   private class TempCache(
-    private var in: Map[Symbol, Set[Symbol]],
-    private var out: Map[Symbol, Set[Symbol]]):
+    private var in: Map[Symbol, TracedEffects],
+    private var out: Map[Symbol, TracedEffects]):
 
     /** Whether the out cache has been used */
     private var used: Boolean = false
@@ -69,7 +75,10 @@ object EffectAnalysis:
 
     def isUsed: Boolean = used
 
-    def hasChanged: Boolean = in != out
+    def hasChanged: Boolean =
+      // Changes in trace are ignored
+      in.size != out.size || out.exists: (k, v) =>
+        v.keySet != in(k).keySet
 
     def reset(): Unit =
       used = false
@@ -78,12 +87,12 @@ object EffectAnalysis:
       out = Map.empty
 
     def init(fun: Symbol): Unit =
-      out = out.updated(fun, in.getOrElse(fun, Set.empty))
+      out = out.updated(fun, in.getOrElse(fun, Map.empty))
 
-    def update(fun: Symbol, effs: Set[Symbol]): Unit =
+    def update(fun: Symbol, effs: TracedEffects): Unit =
       out = out.updated(fun, effs)
 
-    def getOrElse(fun: Symbol)(otherwise: => Set[Symbol]): Set[Symbol] =
+    def getOrElse(fun: Symbol)(otherwise: => TracedEffects): TracedEffects =
       out.get(fun) match
         case Some(res) =>
           used = true
@@ -99,14 +108,15 @@ object EffectAnalysis:
         cache.effects(sym) = effs
 
   /** Produce a list of transitively reachabe param symbols for the function */
-  private def getEffects(fun: Symbol)(using cache: Cache, temp: TempCache): Set[Symbol] =
-    // Usage of stable cache has to be part of the computation for performance.
+  private def getEffects(fun: Symbol)(using cache: Cache, temp: TempCache): TracedEffects =
+    // Usage of stable cache has to be part of the computation for speed
     cache.effects.get(fun) match
       case Some(res) => res
 
       case None =>
-        // Read from out cache to make sure the computation is performance once.
+        // Read from out cache to make sure the computation is performed once.
         temp.getOrElse(fun):
+          given Source = fun.sourcePos.source
           temp.init(fun)
           val body = cache.code(fun).body
           val effects = EffectAnalyzer.apply(body)
@@ -114,17 +124,22 @@ object EffectAnalysis:
           effects
 
   private object EffectAnalyzer:
-    val zero = Set.empty[Symbol]
+    val zero = Map.empty[Symbol, Trace]
 
-    def apply(word: Word)(using cache: Cache, temp: TempCache): Set[Symbol] =
+    def apply(word: Word)(using cache: Cache, temp: TempCache, source: Source): TracedEffects =
       word match
         case _: Literal => zero
 
         case Ident(sym) =>
           // Method calls will not contribute effects as each method is
           // self-sufficient after deep capture.
-          if sym.isAllOf(Flags.Context | Flags.Param) then Set(sym)
-          else if sym.isFunction then getEffects(sym)
+          if sym.isAllOf(Flags.Context | Flags.Param) then
+            Map(sym -> Vector(word.pos))
+
+          else if sym.isFunction then
+            for (eff, trace) <- getEffects(sym) yield
+              eff -> (word.pos +: trace)
+
           else zero
 
         case Select(qual, name) =>
@@ -147,19 +162,15 @@ object EffectAnalysis:
           this(fun)
 
         case With(expr, args, allow) =>
-          allow match
-            case Some(ids) =>
-              ids.map(_.symbol).toSet
+          val effsInner = this(expr)
+          val effsArgs = args.foldLeft(zero): (acc, arg) =>
+            acc ++ this(arg.rhs)
 
-            case None =>
-              val effsInner = this(expr)
-              val effsArgs = args.foldLeft(zero): (acc, arg) =>
-                acc ++ this(arg.rhs)
+          val masked = args.map(_.paramRef.symbol)
+          val allowed = allow.getOrElse(Nil).map(_.symbol)
+          val unmaskedAllowed = (effsInner -- masked).filter((k, _) => allowed.contains(k))
 
-              val masked = args.map(_.paramRef.symbol)
-              val unmasked = effsInner -- masked
-
-              effsArgs ++ unmasked
+          effsArgs ++ unmaskedAllowed
 
         case Assign(ident, rhs) =>
           this(rhs)

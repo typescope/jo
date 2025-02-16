@@ -79,13 +79,13 @@ object NameTable:
     override def toString() =
       val message = "Redefinition of " + symBefore.name
       val pos = symNow.sourcePos
-      val lineContent = pos.source.readLine(pos.startLine).replaceAll("[\n\r]$", "")
+      val lineContent = pos.source.lineContent(pos.startLine)
       val padding = " " * pos.startLineColumn
       val num = if pos.length == 0 then 1 else pos.length
       val pointer = if pos.isOneLine then "^" * num else "^"
 
       val pos2 = symBefore.sourcePos
-      val lineContent2 = pos2.source.readLine(pos2.startLine).replaceAll("[\n\r]$", "")
+      val lineContent2 = pos2.source.lineContent(pos2.startLine)
       val num2 = if pos2.length == 0 then 1 else pos2.length
       val padding2 = " " * pos2.startLineColumn
       val pointer2 = if pos2.isOneLine then "^" * num2 else "^"

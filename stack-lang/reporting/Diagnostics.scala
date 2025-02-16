@@ -2,6 +2,7 @@ package reporting
 
 import ast.Positions.*
 
+import scala.collection.mutable
 
 object Diagnostics:
   /** Kind of reports */
@@ -13,12 +14,17 @@ object Diagnostics:
     def positioned: Boolean
     def pos: SourcePosition
 
+  //----------------------------------------------------------------------------
+  //
+  // Positioned report
+  //
+
   class ReportItem(val kind: Kind, val message: String, val pos: SourcePosition)
   extends Diagnostic:
     val positioned = true
     override def toString() =
       val isOneLine = pos.isOneLine
-      val lineContent = pos.source.readLine(pos.startLine).replaceAll("[\n\r]$", "")
+      val lineContent = pos.source.lineContent(pos.startLine)
       val padding = " " * pos.startLineColumn
       val num = if pos.length == 0 then 1 else pos.length
       val pointer = if isOneLine then "^" * num  else "^"
@@ -26,3 +32,67 @@ object Diagnostics:
           || $lineContent
           || $padding$pointer
           || $padding$message""".stripMargin
+
+
+  //----------------------------------------------------------------------------
+  //
+  // Traced error report
+  //
+
+  type Trace = Vector[SourcePosition]
+
+  val EMPTY_PADDING     = "    "
+  val CONNECTING_INDENT = "\u2502   "               // "|   "
+  val CHILD             = "\u251c\u2500\u2500 "     // "|-- "
+  val LAST_CHILD        = "\u2514\u2500\u2500 "     // "\-- "
+
+  class TracedItem(item: ReportItem, trace: Trace)
+  extends Diagnostic:
+    val positioned = true
+    val kind = item.kind
+    val pos = item.pos
+
+    override def toString() =
+      val traceText =
+        if trace.size > 1 then
+          System.lineSeparator() * 2
+          + "The following is the trace that leads to the problem: "
+          + System.lineSeparator() + buildStacktrace(trace)
+        else
+          ""
+
+      item.toString() + traceText
+
+  private def buildStacktrace(trace: Trace): String =
+    assert(trace.size > 1, trace.size)
+
+    val lines: mutable.ArrayBuffer[String] = new mutable.ArrayBuffer
+    for pos <- trace do
+      val isLastTraceItem = pos `eq` trace.last
+      val line =
+        val loc = "[ " + pos + " ]"
+        val code = pos.source.lineContent(pos.startLine)
+        s"$code\t$loc"
+
+      val positionMarkerLine =
+          (if isLastTraceItem then EMPTY_PADDING else CONNECTING_INDENT) + positionMarker(pos)
+
+      val prefix = if isLastTraceItem then LAST_CHILD else CHILD
+      lines += (prefix + line + System.lineSeparator() + positionMarkerLine)
+    end for
+
+    val sb = new StringBuilder
+    for line <- lines do sb.append(line)
+    sb.toString
+
+  /** Used to underline source positions in the stack trace
+   *  pos.source must exist
+   */
+  private def positionMarker(pos: SourcePosition): String =
+    val padding = " " * pos.startLineColumn
+    val carets =
+      if (pos.startLine == pos.endLine)
+        "^" * math.max(1, pos.endLineColumn - pos.startLineColumn)
+      else "^"
+
+    s"$padding$carets" + System.lineSeparator()
