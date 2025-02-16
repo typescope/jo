@@ -609,7 +609,7 @@ class Namer(@constructorOnly reporter: Reporter):
           val encodedScrut = Encoded(scrut)(encodeType)
 
           val vals = mutable.ArrayBuffer.empty[ValDef]
-          for (binding, i) <- bindings.zipWithIndex do
+          for (binding, i) <- bindings.zipWithIndex if binding.name != "_" do
             val arg = Desugaring.selectVariantArg(encodedScrut, i, binding.span)
             val sym = Symbol.createValueSymbol(binding.name, arg.tpe, sc.owner, arg.pos)
             vals += ValDef(sym, arg)(binding.span)
