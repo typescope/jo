@@ -38,6 +38,9 @@ class Reporter(
   def report(kind: Kind, message: String, pos: SourcePosition): Unit =
     report(new ReportItem(kind, message, pos))
 
+  def report(kind: Kind, message: String, pos: SourcePosition, trace: Trace): Unit =
+    report(new TracedItem(new ReportItem(kind, message, pos), trace))
+
   def report(item: Diagnostic): Unit =
     reported += item
     if !buffer then
@@ -49,6 +52,12 @@ class Reporter(
 
   def warn(message: String, pos: SourcePosition): Unit =
     report(Kind.Warning, message, pos)
+
+  def error(message: String, pos: SourcePosition, trace: Trace): Unit =
+    report(Kind.Error, message, pos, trace)
+
+  def warn(message: String, pos: SourcePosition, trace: Trace): Unit =
+    report(Kind.Warning, message, pos, trace)
 
   def hasErrors: Boolean = reported.exists(_.kind == Kind.Error)
 
@@ -119,6 +128,12 @@ object Reporter:
 
   def warn(message: String, pos: SourcePosition)(using rp: Reporter): Unit =
     rp.warn(message, pos)
+
+  def error(message: String, pos: SourcePosition, trace: Trace)(using rp: Reporter): Unit =
+    rp.error(message, pos, trace)
+
+  def warn(message: String, pos: SourcePosition, trace: Trace)(using rp: Reporter): Unit =
+    rp.warn(message, pos, trace)
 
   def reports(using rp: Reporter): List[Diagnostic] = rp.reports
 

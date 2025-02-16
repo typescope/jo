@@ -58,8 +58,8 @@ object Positions:
     *
     * The starting line has the offset 0, which is the first entry.
     */
-  class Source(val file: String, lineOffsets: mutable.ArrayBuffer[Int]):
-    def this(file: String) = this(file, mutable.ArrayBuffer())
+  class Source(val file: String, lineOffsets: mutable.ArrayBuffer[Int], lineCache: mutable.Map[Int, String]):
+    def this(file: String) = this(file, mutable.ArrayBuffer(), mutable.Map.empty)
 
     def content: String = IO.fileContent(file)
 
@@ -96,12 +96,17 @@ object Positions:
 
       LineColumn(from, offset - lineOffset)
 
-    def readLine(line: Int): String =
-      val jfile = new java.io.RandomAccessFile(file, "r")
-      jfile.seek(lineOffsets(line))
-      val lineStr = jfile.readLine()
-      jfile.close()
-      lineStr
+    def lineContent(line: Int): String =
+      lineCache.get(line) match
+        case Some(content) => content
+
+        case None =>
+          val jfile = new java.io.RandomAccessFile(file, "r")
+          jfile.seek(lineOffsets(line))
+          val lineStr = jfile.readLine().replaceAll("[\n\r]$", "")
+          jfile.close()
+          lineCache(line) = lineStr
+          lineStr
 
   /** A position in a source file */
   case class SourcePosition(source: Source, start: Int, length: Int):
