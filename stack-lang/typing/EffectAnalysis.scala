@@ -30,6 +30,12 @@ object EffectAnalysis:
   def effects(word: Word)(using cache: Cache): Set[Symbol] =
     fixpoint(EffectAnalyzer.apply(word))
 
+  /** The fixed point computation stops if the in cache is equal to out cache.
+    *
+    * For termination, it is important that the function is monotone.
+    *
+    * See https://en.wikipedia.org/wiki/Knaster%E2%80%93Tarski_theorem
+    */
   private def fixpoint(doTask: TempCache ?=> Set[Symbol])(using cache: Cache): Set[Symbol] =
     given temp: TempCache = TempCache()
     var effs = doTask
@@ -39,41 +45,46 @@ object EffectAnalysis:
     end while
 
     // move temp to global stable cache
-    for (sym, effs) <- temp.effects do
-      assert(!cache.effects.contains(sym), sym)
-      cache.effects(sym) = effs
+    temp.commit(cache)
 
     effs
 
-  /** Temporary caches are for temporary result of mutually recursive functions */
-  private class TempCache(val effects: mutable.Map[Symbol, Set[Symbol]]):
-    /** Whether the temp cache has changed */
-    private var changed: Boolean = false
+  /** Temporary caches are for temporary result of mutually recursive functions
+    *
+    * The in cache is only used to provide initial values for out cache. It
+    * should never be read directly.
+    *
+    * The out cache should be read lazily such that computation is performed
+    * once in each round. The laziness is implemented by emptying `out` at
+    * the beginning of each round.
+    */
+  private class TempCache(
+    private var in: Map[Symbol, Set[Symbol]],
+    private var out: Map[Symbol, Set[Symbol]]):
 
-    /** Whether the temp cache has been used */
+    /** Whether the out cache has been used */
     private var used: Boolean = false
 
-    def this() = this(mutable.Map.empty)
+    def this() = this(Map.empty, Map.empty)
 
     def isUsed: Boolean = used
 
-    def hasChanged: Boolean = changed
+    def hasChanged: Boolean = in != out
 
     def reset(): Unit =
       used = false
-      changed = false
+      in = out
+      // Important to empty out cache to force computation once in each round
+      out = Map.empty
+
+    def init(fun: Symbol): Unit =
+      out = out.updated(fun, in.getOrElse(fun, Set.empty))
 
     def update(fun: Symbol, effs: Set[Symbol]): Unit =
-      effects.get(fun) match
-        case Some(res) =>
-          changed = effs.exists(eff => !res.contains(eff))
-
-        case None =>
-
-      effects(fun) = effs
+      out = out.updated(fun, effs)
 
     def getOrElse(fun: Symbol)(otherwise: => Set[Symbol]): Set[Symbol] =
-      effects.get(fun) match
+      out.get(fun) match
         case Some(res) =>
           used = true
           res
@@ -81,14 +92,22 @@ object EffectAnalysis:
         case _ =>
           otherwise
 
+    /** Commit fixed point result to stable cache */
+    def commit(cache: Cache): Unit =
+      for (sym, effs) <- this.out do
+        assert(!cache.effects.contains(sym), sym)
+        cache.effects(sym) = effs
+
   /** Produce a list of transitively reachabe param symbols for the function */
   private def getEffects(fun: Symbol)(using cache: Cache, temp: TempCache): Set[Symbol] =
+    // Usage of stable cache has to be part of the computation for performance.
     cache.effects.get(fun) match
       case Some(res) => res
 
       case None =>
+        // Read from out cache to make sure the computation is performance once.
         temp.getOrElse(fun):
-          temp.update(fun, effs = Set.empty)
+          temp.init(fun)
           val body = cache.code(fun).body
           val effects = EffectAnalyzer.apply(body)
           temp.update(fun, effects)

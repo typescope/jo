@@ -1,0 +1,18 @@
+param pageWidth: Int
+param newLine: Bool
+
+fun pretty(s: String): void =
+  pageWidth p
+
+fun g(): void =
+  pretty "hello, word"
+  h
+
+fun h(): void = i
+
+fun i(): void =
+  g
+
+fun main = // error
+  g with pageWidth = 30
+  i
