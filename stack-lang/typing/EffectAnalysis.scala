@@ -168,9 +168,9 @@ object EffectAnalysis:
 
           val masked = args.map(_.paramRef.symbol)
           val allowed = allow.getOrElse(Nil).map(_.symbol)
-          val unmasked = effsInner -- masked -- allowed
+          val unmaskedAllowed = (effsInner -- masked).filter((k, _) => allowed.contains(k))
 
-          effsArgs ++ unmasked
+          effsArgs ++ unmaskedAllowed
 
         case Assign(ident, rhs) =>
           this(rhs)
