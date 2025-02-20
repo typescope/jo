@@ -261,7 +261,7 @@ object Interpreter:
 
       case "write" =>
         val StringVal(content) :: Nil = args: @unchecked
-        jfile.writeUTF(content)
+        jfile.write(content.getBytes("utf-8"))
         Nil
     } :: Nil
   )
