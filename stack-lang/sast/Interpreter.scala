@@ -36,6 +36,8 @@ object Interpreter:
 
     case PlatformCall(op: List[Value] => List[Value])
 
+    case PlatformObj(call: (String, List[Value]) => List[Value])
+
     def show(level: Int = 2): String =
       if level == 0 then
         "..."
@@ -49,8 +51,9 @@ object Interpreter:
         case FunVal(fun, env) => "closue(env = " + env.show(recursive = false) + ")"
         case ArrayVal(content) => "[...]"
         case PlatformCall(op) => "platformCall"
+        case PlatformObj(_) => "platformObject"
 
-  type Value = IntVal | BoolVal | StringVal | RecordVal | ObjectVal | FunVal | ArrayVal
+  type Value = IntVal | BoolVal | StringVal | RecordVal | ObjectVal | FunVal | ArrayVal | PlatformObj
 
   enum Env:
     case RootEnv()
@@ -213,6 +216,65 @@ object Interpreter:
 
     rootEnv
 
+  def stdin() = new PlatformObj((name: String, args: List[Value]) =>
+    assert(name == "write", name)
+    val res = System.console().readLine()
+    StringVal(res) :: Nil
+  )
+
+  def stdout() = new PlatformObj((name: String, args: List[Value]) =>
+    assert(name == "write", name)
+    val StringVal(content) :: Nil = args: @unchecked
+    System.out.print(content)
+    Nil
+  )
+
+  def stderr() = new PlatformObj((name: String, args: List[Value]) =>
+    assert(name == "write", name)
+    val StringVal(content) :: Nil = args: @unchecked
+    System.err.print(content)
+    Nil
+  )
+
+  def open() = new PlatformObj((name: String, args: List[Value]) =>
+    assert(name == "apply", name)
+    val StringVal(file) :: Nil = args: @unchecked
+    val jfile = new java.io.RandomAccessFile(file, "rw")
+    PlatformObj { (name: String, args: List[Value]) =>
+      name match
+      case "close" =>
+        jfile.close()
+        Nil
+
+      case "seek" =>
+        val IntVal(offset) :: Nil = args: @unchecked
+        jfile.seek(offset)
+        Nil
+
+      case "hasMore" =>
+        val res = jfile.getFilePointer() < jfile.length()
+        BoolVal(res) :: Nil
+
+      case "readLine" =>
+        val res = jfile.readLine()
+        StringVal(res) :: Nil
+
+      case "write" =>
+        val StringVal(content) :: Nil = args: @unchecked
+        jfile.writeUTF(content)
+        Nil
+    } :: Nil
+  )
+
+  def createRootParams(): Params =
+    val defn = Definitions.instance
+    Map(
+      defn.Predef_stdin  -> stdin(),
+      defn.Predef_stdout -> stdout(),
+      defn.Predef_stderr -> stderr(),
+      defn.Predef_open   -> open())
+
+
   def exec(nss: List[Namespace], main: Symbol): Unit =
     val rootEnv = createRootEnv()
 
@@ -225,7 +287,7 @@ object Interpreter:
         rootEnv.bind(fun.symbol, FunVal(fun, rootEnv))
 
     val FunVal(fdef, env2) = rootEnv.resolve(main): @unchecked
-    val params = Map.empty[Symbol, Value]
+    val params = createRootParams()
     call(fdef, args = Nil)(using env2, params)
 
   def exec(block: Block)(using Env, Params): List[Denotation] =
@@ -242,9 +304,10 @@ object Interpreter:
 
     exec(fdef.body)(using funEnv)
 
-  def eval(word: Word)(using env: Env, params: Params): Value = Debug.trace(word.show + ", env = " + env.show(recursive = false), (_: Value).show(), enable = false):
-    val (value: Value) :: Nil = exec(word): @unchecked
-    value
+  def eval(word: Word)(using env: Env, params: Params): Value =
+    Debug.trace(word.show + ", env = " + env.show(recursive = false), (_: Value).show(), enable = false):
+      val (value: Value) :: Nil = exec(word): @unchecked
+      value
 
   def exec(word: Word)(using env: Env, params: Params): List[Denotation] =
     word match
@@ -319,6 +382,9 @@ object Interpreter:
         fun match
           case Select(qual, name) if qual.tpe.isObjectType =>
             eval(qual): @unchecked match
+              case objNative: PlatformObj =>
+                objNative.call(name, args.map(eval))
+
               case objVal: ObjectVal =>
                 val argVals = args.map(eval)
                 val fdef = objVal.defs(name)

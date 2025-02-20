@@ -1,0 +1,2 @@
+fun main =
+  stdout.write("hello, world!\n")

@@ -46,6 +46,12 @@ final class Definitions(rootNameTable: NameTable):
   val Predef_intToChar  = Predef.termMember("intToChar")
   val Predef_intToStr   = Predef.termMember("intToStr")
 
+  // I/O
+  val Predef_open   = Predef.termMember("open")
+  val Predef_stdin  = Predef.termMember("stdin")
+  val Predef_stdout = Predef.termMember("stdout")
+  val Predef_stderr = Predef.termMember("stderr")
+
   // types
   val Predef_Bool   =  Predef.typeMember("Bool")
   val Predef_Byte   =  Predef.typeMember("Byte")
