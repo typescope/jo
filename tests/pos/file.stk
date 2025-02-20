@@ -1,2 +1,10 @@
 fun main =
-  stdout.write("hello, world!\n")
+  stdout.write("name: ")
+  val name = stdin.readLine with stdin = object { def readLine = "stk" }
+  stdout.write("hello, " .+ name)
+
+  val file = open("abc.txt")
+  file.write("123456789")
+  file.seek 0
+  stdout.write
+    file.readLine

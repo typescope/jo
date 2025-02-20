@@ -217,7 +217,7 @@ object Interpreter:
     rootEnv
 
   def stdin() = new PlatformObj((name: String, args: List[Value]) =>
-    assert(name == "write", name)
+    assert(name == "readLine", name)
     val res = System.console().readLine()
     StringVal(res) :: Nil
   )
