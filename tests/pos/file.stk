@@ -1,6 +1,9 @@
 fun main =
+  ioTest with stdin = object { def readLine = "stk" }
+
+fun ioTest =
   stdout.write("name: ")
-  val name = stdin.readLine with stdin = object { def readLine = "stk" }
+  val name = stdin.readLine
   println
     "hello, " .+ name
 
