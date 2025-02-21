@@ -94,7 +94,11 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
       val tp = wordTyped.tpe
 
       def isDotlessMethodCallPattern() = tp.isObjectType && rest.head.match
-        case Ast.Ident(name) => tp.termMember(name).isProcType
+        case Ast.Ident(name) =>
+          tp.getTermMember(name) match
+            case Some(memType) => memType.isProcType
+            case None => false
+
         case _ => false
 
       if tp.isError then
