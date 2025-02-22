@@ -53,7 +53,9 @@ fun not (b: Bool): Bool = abort("primitive not")
 // Utility functions
 //
 
-fun (n: Int) p: void = abort("primitive p")
+fun (n: Int) p: void =
+  println
+    intToStr n
 
 fun print(s: String): void = abort("primitive print")
 
@@ -83,6 +85,7 @@ fun intToByte(n: Int): Byte = abort "intToByte"
 fun charToByte(c: Char): Byte = abort "charToByte"
 fun charToInt(c: Char): Int = abort "charToInt"
 
+fun intToStr(n: Int): String = abort "intToStr"
 //-------------------------------------------------------------
 //
 // Arrays

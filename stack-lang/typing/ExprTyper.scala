@@ -282,29 +282,37 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
 
   /** Parse items from the words with the limit precedence for dotless call syntax */
   private def parseDotless(words: mutable.ListBuffer[Ast.Word], precLimit: Int)(using rp: Reporter, so: Source): Item =
+    // println("Parsing " + words + ", precedence = " + precLimit)
+
     var res = Item.Raw(words.remove(0))
     var continue = true
 
     // a + b - c * 2
 
     while continue && words.nonEmpty do
-      words.head match
+      val word = words.remove(0)
+      word match
         case ident: Ast.Ident =>
-          // TODO: support prefix operators?
-          val precedence = ExprTyper.precedence(ident.name)
-          // infix
-          if precedence > precLimit then
-            words.remove(0)
-            val rhs = parseDotless(words, precedence)
-            res = Item.InfixCall(res, ident, rhs)
-          else
+          if words.isEmpty then
             continue = false
+            Reporter.error("Exact one argument expected in dotless call syntax, found none", word.pos)
+
+          else
+            // TODO: support prefix operators?
+            val precedence = ExprTyper.precedence(ident.name)
+            // infix
+            if precedence > precLimit then
+              val rhs = parseDotless(words, precedence)
+              res = Item.InfixCall(res, ident, rhs)
+            else
+              words.insert(0, word)
+              continue = false
 
         case word =>
           continue = false
           words.clear
           Reporter.error("A method name expected here in dotless call syntax", word.pos)
-
+      end match
     end while
 
     res

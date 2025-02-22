@@ -56,47 +56,6 @@ fun mainStub(): void = abort("error mainStub")
 // Predef implementation
 //
 
-fun int2String(n: Int): String =
-  // MAX_VALUE =  2147483647
-  // MIN_VALUE = -2147483648
-  if n == 0 then "0"
-  else if n == -2147483648 then "-2147483648" // its negation is still negative
-  else
-    // memory allocator will handle alignment
-    val buf = GC.alloc 11 // max 11
-
-    val negative = n < 0
-    var remains = if negative then 0 - n else n
-
-    // write from end of buffer
-    var index = 10
-    while remains > 0 do
-      val digit = remains % 10
-      writeByte (addAddr buf index) (48 + digit) // '0' = 48
-      index <- index - 1
-      remains <- remains / 10
-
-    // sign char
-    if negative then
-      writeByte (addAddr buf index) 45 // '-' = 45
-      index <- index - 1
-
-    val startIndex = index + 1
-    val len = 10 - index
-
-    // copy bytes to front
-    if startIndex > 0 then
-      var copyIndex = 0
-      while copyIndex < len do
-        val c = readByte (addAddr buf (startIndex + copyIndex))
-        writeByte (addAddr buf copyIndex) c
-        copyIndex <- copyIndex + 1
-
-    #Raw(len, buf) as StringRepr cast[String]
-
-fun p(n: Int): void =
-  println (int2String n)
-
 fun print(repr: StringRepr): void =
   match repr
     case #Raw(len, content) =>
@@ -136,6 +95,44 @@ fun intToByte(n: Int): Byte = (n & 255) cast[Byte]
 
 fun charToByte(c: Char): Byte = ((c cast[Int]) & 255) cast[Byte]
 fun charToInt(c: Char): Int = c cast[Int]
+
+fun intToStr(n: Int): String =
+  // MAX_VALUE =  2147483647
+  // MIN_VALUE = -2147483648
+  if n == 0 then "0"
+  else if n == -2147483648 then "-2147483648" // its negation is still negative
+  else
+    // memory allocator will handle alignment
+    val buf = GC.alloc 11 // max 11
+
+    val negative = n < 0
+    var remains = if negative then 0 - n else n
+
+    // write from end of buffer
+    var index = 10
+    while remains > 0 do
+      val digit = remains % 10
+      writeByte (addAddr buf index) (48 + digit) // '0' = 48
+      index <- index - 1
+      remains <- remains / 10
+
+    // sign char
+    if negative then
+      writeByte (addAddr buf index) 45 // '-' = 45
+      index <- index - 1
+
+    val startIndex = index + 1
+    val len = 10 - index
+
+    // copy bytes to front
+    if startIndex > 0 then
+      var copyIndex = 0
+      while copyIndex < len do
+        val c = readByte (addAddr buf (startIndex + copyIndex))
+        writeByte (addAddr buf copyIndex) c
+        copyIndex <- copyIndex + 1
+
+    #Raw(len, buf) as StringRepr cast[String]
 
 //------------------------------------------------------------------------------
 //

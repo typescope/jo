@@ -19,7 +19,6 @@ class LowerRuntime(runtime: JSRuntime) extends phases.Phase[Unit]:
   val IntType = defn.IntType
 
   val rewiring = Map(
-    defn.Predef_p -> runtime.JS_p,
     defn.Predef_print -> runtime.JS_print,
     defn.Predef_printChar -> runtime.JS_printChar,
     defn.Predef_abort -> runtime.JS_abort,
@@ -28,7 +27,8 @@ class LowerRuntime(runtime: JSRuntime) extends phases.Phase[Unit]:
     defn.Predef_charToByte -> runtime.JS_charToByte,
     defn.Predef_charToInt -> runtime.JS_charToInt,
     defn.Predef_intToByte -> runtime.JS_intToByte,
-    defn.Predef_intToChar -> runtime.JS_intToChar
+    defn.Predef_intToChar -> runtime.JS_intToChar,
+    defn.Predef_intToStr -> runtime.JS_intToStr,
   )
 
   override def transformApply(app: Apply)(using ctx: Context): Word =

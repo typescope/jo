@@ -1,0 +1,50 @@
+type Complex = object {
+  def real: Int
+  def image: Int
+
+  def +(c: Complex): Complex
+  def -(c: Complex): Complex
+  def *(c: Complex): Complex
+
+  def show: String
+}
+
+fun add(a: Int, b: Int): Int = a + b
+fun sub(a: Int, b: Int): Int = a - b
+fun mul(a: Int, b: Int): Int = a * b
+
+fun Complex(x: Int, y: Int): Complex =
+  object {
+    def real = x
+    def image = y
+
+    def +(c: Complex): Complex =
+      Complex
+        add x c.real
+        add y c.image
+
+    def -(c: Complex): Complex =
+      Complex
+        sub x c.real
+        sub y c.image
+
+    def *(c: Complex): Complex =
+      Complex
+        sub
+          mul x c.real
+          mul y c.image
+        add
+          mul x c.image
+          mul y c.real
+
+    def show: String =
+      (intToStr x) + " + " + (intToStr y) + "i"
+  }
+
+fun main =
+  val c1 = Complex 1 3
+  val c2 = Complex 2 4
+  val c3 = Complex 1 5
+  val c4 = c1 + c2 * c3
+
+  println c4.show

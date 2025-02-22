@@ -43,7 +43,6 @@ class LowerRuntime(runtime: NativeRuntime) extends phases.Phase[Unit]:
   val IntType = defn.IntType
 
   val rewiring = Map(
-    defn.Predef_p -> runtime.Core_p,
     defn.Predef_print -> runtime.Core_print,
     defn.Predef_printChar -> runtime.Core_printChar,
     defn.Predef_abort -> runtime.Core_abortImpl,
@@ -52,7 +51,8 @@ class LowerRuntime(runtime: NativeRuntime) extends phases.Phase[Unit]:
     defn.Predef_charToByte -> runtime.Core_charToByte,
     defn.Predef_charToInt -> runtime.Core_charToInt,
     defn.Predef_intToByte -> runtime.Core_intToByte,
-    defn.Predef_intToChar -> runtime.Core_intToChar
+    defn.Predef_intToChar -> runtime.Core_intToChar,
+    defn.Predef_intToStr -> runtime.Core_intToStr,
   )
 
   override def transformApply(app: Apply)(using ctx: Context): Word =
