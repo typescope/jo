@@ -31,4 +31,4 @@ fun main =
 
   println "multiplier"
   val f = metaMaker.makeMul
-  f 10 p
+  (f 10) p

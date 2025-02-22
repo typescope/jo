@@ -3,8 +3,7 @@ type Y[T] = Y[T] => T
 fun Y[T](f: (T => T) => (T => T)): T => T =
   val g = (x: Y[T => T]) =>
     f (a: T) =>
-       val h = x x
-       h a
+       (x x) a
   g g
 
 fun main =
@@ -14,7 +13,7 @@ fun main =
 
   val fact = Y fact0
 
-  fact 0 p
-  fact 4 p
-  fact 5 p
-  fact 10 p
+  (fact 0) p
+  (fact 4) p
+  (fact 5) p
+  (fact 10) p

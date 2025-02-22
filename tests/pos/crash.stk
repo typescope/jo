@@ -1,6 +1,6 @@
 fun app(f: Int => Int, x: Int): Int = f x
 fun test(): Int =
   val * = (x: Int) => x * x
-  app * 30 + *5
+  app * 30 + (*5)
 
 fun main = test p
