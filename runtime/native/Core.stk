@@ -236,7 +236,7 @@ fun String_substring(source: String, from: Int, len: Int): StringRepr =
     // TODO: unicode support
     writeByte
       addAddr buf index
-      source (from + index) cast[Int]
+      (source (from + index)) cast[Int]
     index <- index + 1
 
   #Raw(len, buf)

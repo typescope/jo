@@ -89,8 +89,9 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
       namer.transform(head)
 
     case head :: rest =>
-      given TargetType = TargetType.Unknown
-      val wordTyped = namer.transform(head)
+      val wordTyped =
+        given TargetType = TargetType.Unknown
+        namer.transform(head)
       val tp = wordTyped.tpe
 
       def isDotlessMethodCallPattern() = tp.isObjectType && rest.head.match
