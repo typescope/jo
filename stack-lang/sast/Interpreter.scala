@@ -407,7 +407,8 @@ object Interpreter:
 
     val namespacesSAST =
       Parser.parse(sourceFiles)     |>
-      typeCheck                     |>
+      typeCheck                     |+
+      Printing.peek(enable = false) |>
       TreeChecker.check             |>
       Printing.peek(enable = false) |>
       noramlizer.transform          |>

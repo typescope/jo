@@ -35,7 +35,14 @@ object ExprTyper:
       case TypeApply(fun, _) => precedence(fun)
       case _                 => 100
 
-  // TODO: ~  ->
+
+  /** The precedence of common operators
+    *
+    * While users may define other operators, it is on purpose to disallow
+    * defining precedence for them --- no one can understand/remember them.
+    *
+    * Programs that do not depend on precedence rules are easier to understand.
+    */
   def precedence(fun: String): Int =
     fun match
       case "and" | "or" | "not"                     => 10
@@ -128,7 +135,9 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
       else
         // mixed prefix/infix/postfix pattern, arity depends on type of the function
         val words = mutable.ListBuffer.from(expr.words)
-        val values = parseMixed(words, -1)
+        val values = mutable.ArrayBuffer.empty[Item]
+
+        parseMixed(values, words, -1)
 
         if values.size > 1 then
           val rest = values.init
@@ -213,10 +222,9 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
 
 
   /** Parse items from the words with the limit precedence for mixed prefix/infix/postfix pattern */
-  private def parseMixed(words: mutable.ListBuffer[Ast.Word], precLimit: Int)(using rp: Reporter, sc: Scope, so: Source): List[Item] =
+  private def parseMixed(values: mutable.ArrayBuffer[Item], words: mutable.ListBuffer[Ast.Word], precLimit: Int)(using rp: Reporter, sc: Scope, so: Source): Unit =
     // println("Parsing " + words + ", precedence = " + precedence)
 
-    val values = mutable.ArrayBuffer.empty[Item]
     var continue = true
 
     //     3   2    1
@@ -261,12 +269,15 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
               val preArgs = values.takeRight(preTypes.size).toList
               values.dropRightInPlace(preTypes.size)
 
-              val (postArgs, rest) = parseMixed(words, precedence).splitAt(postTypes.size)
+              parseMixed(values, words, precedence)
+
+              val postArgs = values.takeRight(postTypes.size).toList
+              values.dropRightInPlace(postTypes.size)
+
               val call = Item.Call(wordTyped, preArgs, postArgs)(preTypes, postTypes, resultType)
 
               // continue if current function has higher binding power
               values += call
-              values ++= rest
             else
               // TODO: wordTyped is discarded and it will be checked!
               // put back word
@@ -279,8 +290,6 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
         case _ =>
           values += Item.Raw(word)
     end while
-
-    values.toList
   end parseMixed
 
   /** Parse items from the words with the limit precedence for dotless call syntax */

@@ -155,7 +155,7 @@ class Namer(@constructorOnly reporter: Reporter):
             case Some(sym) => sym
 
             case None =>
-              rp.error(s"Member named $name not found in the namespace ${sym.name}", qualid.pos)
+              rp.error(s"`$name` not found in the namespace ${sym.name}", qualid.pos)
               Symbol.createFunSymbol(name, ErrorType, sym, pos = qualid.pos)
 
         else
@@ -167,7 +167,7 @@ class Namer(@constructorOnly reporter: Reporter):
         sc.resolve(name, isType) match
           case Some(sym) => sym
           case None =>
-            rp.error(s"The name $name is not found", qualid.pos)
+            rp.error(s"`$name` is not found", qualid.pos)
             Symbol.createNamespaceSymbol(name, new NameTableInfo, sc.owner, pos = qualid.pos, isBranch = false)
 
   private def index(defs: List[Ast.Def])(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): List[DelayedDef[Def]] =
