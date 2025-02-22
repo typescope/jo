@@ -134,7 +134,7 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
 
       else
         // mixed prefix/infix/postfix pattern, arity depends on type of the function
-        val words = mutable.ListBuffer.from(expr.words)
+        val words: mutable.ListBuffer[Ast.Word | Word] = mutable.ListBuffer.from(wordTyped :: rest)
         val values = mutable.ArrayBuffer.empty[Item]
 
         parseMixed(values, words, -1)
@@ -222,10 +222,61 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
 
 
   /** Parse items from the words with the limit precedence for mixed prefix/infix/postfix pattern */
-  private def parseMixed(values: mutable.ArrayBuffer[Item], words: mutable.ListBuffer[Ast.Word], precLimit: Int)(using rp: Reporter, sc: Scope, so: Source): Unit =
+  private def parseMixed(values: mutable.ArrayBuffer[Item], words: mutable.ListBuffer[Ast.Word | Word], precLimit: Int)(using rp: Reporter, sc: Scope, so: Source): Unit =
     // println("Parsing " + words + ", precedence = " + precedence)
 
     var continue = true
+
+    def step(word: Word): Unit =
+      var wordTyped = word
+      if wordTyped.tpe.isPolyType then
+        val polyType = wordTyped.tpe.asPolyType
+
+        val tvars = for tparam <- polyType.tparams yield TypeVar(tparam.name, this.inferencer)
+        val targs = tvars.map(tvar => TypeTree(tvar)(word.span))
+        val tpe = TypeOps.substTypeParams(polyType.resultType, tvars)
+
+        wordTyped = TypeApply(wordTyped, targs)(tpe, word.span)
+
+        val bounds = for tparam <- polyType.tparams yield tparam.info
+        checker.delayedCheck {
+          for tvar <- tvars do checker.checkInstantiated(tvar, word.pos)
+
+          checker.checkBounds(bounds, targs)
+        }
+      end if
+
+      val tp = wordTyped.tpe
+
+      if tp.isProcType then
+        val procType = tp.asProcType
+        val precedence = ExprTyper.precedence(wordTyped)
+        // infix, postfix, prefix
+        if precedence > precLimit then
+          val preTypes = procType.preParamTypes
+          val postTypes = procType.postParamTypes
+          val resultType = procType.resultType
+
+          val preArgs = values.takeRight(preTypes.size).toList
+          values.dropRightInPlace(preTypes.size)
+
+          parseMixed(values, words, precedence)
+
+          val postArgs = values.takeRight(postTypes.size).toList
+          values.dropRightInPlace(postTypes.size)
+
+          val call = Item.Call(wordTyped, preArgs, postArgs)(preTypes, postTypes, resultType)
+
+          // continue if current function has higher binding power
+          values += call
+        else
+          // put back word
+          words.insert(0, wordTyped)
+          continue = false
+
+      else
+        values += Item.Typed(wordTyped)
+
 
     //     3   2    1
     // x c * a + b max
@@ -233,61 +284,24 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
     while continue && words.nonEmpty do
       val word = words.remove(0)
       word match
-        case _: Ast.RefTree | _: Ast.TypeApply =>
-          var wordTyped =
+        case ref: Ast.RefTree =>
+          val refTyped =
             given TargetType = TargetType.Unknown
-            namer.transform(word)
+            namer.transform(ref)
 
-          if wordTyped.tpe.isPolyType then
-            val polyType = wordTyped.tpe.asPolyType
+          step(refTyped)
 
-            val tvars = for tparam <- polyType.tparams yield TypeVar(tparam.name, this.inferencer)
-            val targs = tvars.map(tvar => TypeTree(tvar)(word.span))
-            val tpe = TypeOps.substTypeParams(polyType.resultType, tvars)
+        case tapp: Ast.TypeApply =>
+          val tappTyped =
+            given TargetType = TargetType.Unknown
+            namer.transform(tapp)
 
-            wordTyped = TypeApply(wordTyped, targs)(tpe, word.span)
+          step(tappTyped)
 
-            val bounds = for tparam <- polyType.tparams yield tparam.info
-            checker.delayedCheck {
-              for tvar <- tvars do checker.checkInstantiated(tvar, word.pos)
+        case word: Word =>
+          step(word)
 
-              checker.checkBounds(bounds, targs)
-            }
-          end if
-
-          val tp = wordTyped.tpe
-
-          if tp.isProcType then
-            val procType = tp.asProcType
-            val precedence = ExprTyper.precedence(wordTyped)
-            // infix, postfix, prefix
-            if precedence > precLimit then
-              val preTypes = procType.preParamTypes
-              val postTypes = procType.postParamTypes
-              val resultType = procType.resultType
-
-              val preArgs = values.takeRight(preTypes.size).toList
-              values.dropRightInPlace(preTypes.size)
-
-              parseMixed(values, words, precedence)
-
-              val postArgs = values.takeRight(postTypes.size).toList
-              values.dropRightInPlace(postTypes.size)
-
-              val call = Item.Call(wordTyped, preArgs, postArgs)(preTypes, postTypes, resultType)
-
-              // continue if current function has higher binding power
-              values += call
-            else
-              // TODO: wordTyped is discarded and it will be checked!
-              // put back word
-              words.insert(0, word)
-              continue = false
-
-          else
-            values += Item.Typed(wordTyped)
-
-        case _ =>
+        case word: Ast.Word =>
           values += Item.Raw(word)
     end while
   end parseMixed
