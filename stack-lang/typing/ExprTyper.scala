@@ -109,10 +109,7 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
 
         case _ => false
 
-      if tp.isError then
-        wordTyped
-
-      else if isDotlessMethodCallPattern() then
+      if isDotlessMethodCallPattern() then
         // Dotless method call pattern, where the infix operator takes exactly one parameter
         val words = mutable.ListBuffer.from(expr.words)
         val item = parseDotless(words, -1)
@@ -135,16 +132,14 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
       else
         // mixed prefix/infix/postfix pattern, arity depends on type of the function
         val words: mutable.ListBuffer[Ast.Word | Word] = mutable.ListBuffer.from(wordTyped :: rest)
-        val values = mutable.ArrayBuffer.empty[Item]
+        val values = parseMixed(words, -1)
 
-        parseMixed(values, words, -1)
-
+        assert(words.isEmpty, words)
         if values.size > 1 then
           val rest = values.init
           val span = rest.head.span | rest.last.span
           Reporter.error("Found extra value, an expression should produce at most one value", span.toPos)
 
-        assert(words.isEmpty, words)
 
         typeItem(values.last)
   end transform
@@ -222,9 +217,10 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
 
 
   /** Parse items from the words with the limit precedence for mixed prefix/infix/postfix pattern */
-  private def parseMixed(values: mutable.ArrayBuffer[Item], words: mutable.ListBuffer[Ast.Word | Word], precLimit: Int)(using rp: Reporter, sc: Scope, so: Source): Unit =
+  private def parseMixed(words: mutable.ListBuffer[Ast.Word | Word], precLimit: Int)(using rp: Reporter, sc: Scope, so: Source): List[Item] =
     // println("Parsing " + words + ", precedence = " + precedence)
 
+    val values = mutable.ArrayBuffer.empty[Item]
     var continue = true
 
     def step(word: Word): Unit =
@@ -260,15 +256,15 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
           val preArgs = values.takeRight(preTypes.size).toList
           values.dropRightInPlace(preTypes.size)
 
-          parseMixed(values, words, precedence)
-
-          val postArgs = values.takeRight(postTypes.size).toList
-          values.dropRightInPlace(postTypes.size)
+          val (postArgs, rest) = parseMixed(words, precedence).splitAt(postTypes.size)
 
           val call = Item.Call(wordTyped, preArgs, postArgs)(preTypes, postTypes, resultType)
 
           // continue if current function has higher binding power
           values += call
+
+          // It is important that the rest is added after the inserting `call`
+          values ++= rest
         else
           // put back word
           words.insert(0, wordTyped)
@@ -304,6 +300,8 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
         case word: Ast.Word =>
           values += Item.Raw(word)
     end while
+
+    values.toList
   end parseMixed
 
   /** Parse items from the words with the limit precedence for dotless call syntax */
