@@ -11,9 +11,9 @@ fun testIntArray =
   arr.set 2 14
 
   arr.length p
-  arr 0 p
-  arr 1 p
-  arr 2 p
+  (arr 0) p
+  (arr 1) p
+  (arr 2) p
 
 fun testBoolArray =
   val arr = array[Bool] 3
@@ -26,9 +26,9 @@ fun testBoolArray =
   arr.set 2 true
 
   arr.length p
-  arr 0 pb
-  arr 1 pb
-  arr 2 pb
+  (arr 0) pb
+  (arr 1) pb
+  (arr 2) pb
 
 fun testObjectArray =
   val arr = array[String] 3
