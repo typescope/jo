@@ -135,6 +135,8 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
           val span = rest.head.span | rest.last.span
           Reporter.error("Found extra value, an expression should produce at most one value", span.toPos)
 
+        assert(words.isEmpty, words)
+
         typeItem(values.last)
   end transform
 
@@ -224,8 +226,9 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
       val word = words.remove(0)
       word match
         case _: Ast.RefTree | _: Ast.TypeApply =>
-          given TargetType = TargetType.Unknown
-          var wordTyped = namer.transform(word)
+          var wordTyped =
+            given TargetType = TargetType.Unknown
+            namer.transform(word)
 
           if wordTyped.tpe.isPolyType then
             val polyType = wordTyped.tpe.asPolyType
@@ -263,7 +266,7 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
 
               // continue if current function has higher binding power
               values += call
-              values ++ rest
+              values ++= rest
             else
               // TODO: wordTyped is discarded and it will be checked!
               // put back word
