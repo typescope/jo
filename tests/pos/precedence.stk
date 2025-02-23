@@ -4,11 +4,11 @@ fun add(a: Int, b: Int): Int = a + b
 fun app(f: Int => Int, x: Int): Int = f x
 fun test(): Int =
   val * = (x: Int) => x + x
-  app * 30 + *5
+  app * 30 + (* 5)
 
 fun test2(): Int =
   val f = (x: Int) => x + x
-  app f 30 + f 5
+  app f 30 + (f 5)
 
 fun main =
   add 5 6 p

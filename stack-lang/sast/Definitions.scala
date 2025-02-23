@@ -29,7 +29,6 @@ final class Definitions(rootNameTable: NameTable):
   val Predef_bor    =  Predef.termMember("or")
   val Predef_bnot   =  Predef.termMember("not")
 
-  val Predef_p          =  Predef.termMember("p")
   val Predef_print      =  Predef.termMember("print")
   val Predef_printChar  =  Predef.termMember("printChar")
   val Predef_abort      =  Predef.termMember("abort")
@@ -40,11 +39,12 @@ final class Definitions(rootNameTable: NameTable):
 
   // numeric coercion
   val Predef_byteToChar = Predef.termMember("byteToChar")
-  val Predef_byteToInt = Predef.termMember("byteToInt")
+  val Predef_byteToInt  = Predef.termMember("byteToInt")
   val Predef_charToByte = Predef.termMember("charToByte")
-  val Predef_charToInt = Predef.termMember("charToInt")
-  val Predef_intToByte = Predef.termMember("intToByte")
-  val Predef_intToChar = Predef.termMember("intToChar")
+  val Predef_charToInt  = Predef.termMember("charToInt")
+  val Predef_intToByte  = Predef.termMember("intToByte")
+  val Predef_intToChar  = Predef.termMember("intToChar")
+  val Predef_intToStr   = Predef.termMember("intToStr")
 
   // types
   val Predef_Bool   =  Predef.typeMember("Bool")

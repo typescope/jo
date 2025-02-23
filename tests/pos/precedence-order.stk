@@ -1,0 +1,23 @@
+fun add(a: Int, b: Int) = a + b
+fun sub(a: Int, b: Int) = a - b
+fun mul(a: Int, b: Int) = a * b
+fun div(a: Int, b: Int) = a / b
+
+fun main =
+  testPostFix
+  testMixedInfixPostFix
+
+fun testPostFix =
+  fun (a: Int, b: Int) + = add a b
+  fun (a: Int, b: Int) - = sub a b
+  fun (a: Int, b: Int) * = mul a b
+  fun (a: Int, b: Int) / = div a b
+
+  val a = 3 5 + 3 2 * -
+  a p
+
+fun testMixedInfixPostFix =
+  fun (a: Int, b: Int) + = add a b
+
+  val a = 4 * 3 10 / 5 +
+  a p

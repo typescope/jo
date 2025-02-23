@@ -14,7 +14,7 @@ fun foo() =
 
 fun bar() =
   print
-    "Bonjour!" .+ newLine
+    "Bonjour!" + newLine
 
 fun main =  // error
   foo with pageWidth = 100, newLine = "\n"

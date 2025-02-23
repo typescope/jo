@@ -145,14 +145,13 @@ object Interpreter:
   def intToByte(args: List[Value]) = int1(_ & 255)(args)
   def intToChar(args: List[Value]) = int1(_ & 65535)(args)
 
+  def intToStr(args: List[Value]): List[Value] =
+    val IntVal(v) :: Nil = args: @unchecked
+    StringVal(v.toString()) :: Nil
+
   def eql(args: List[Value]): List[Value] =
     val a :: b :: Nil = args: @unchecked
     BoolVal(a == b) :: Nil
-
-  def p(args: List[Value]): List[Value] =
-    val IntVal(v) :: Nil = args: @unchecked
-    println(v)
-    Nil
 
   def print(args: List[Value]): List[Value] =
     val StringVal(v) :: Nil = args: @unchecked
@@ -196,7 +195,6 @@ object Interpreter:
       defn.Predef_bor        ->       bor,
       defn.Predef_bnot       ->       bnot,
       defn.Predef_eql        ->       eql,
-      defn.Predef_p          ->       p,
       defn.Predef_print      ->       print,
       defn.Predef_printChar  ->       printChar,
       defn.Predef_abort      ->       abort,
@@ -206,7 +204,8 @@ object Interpreter:
       defn.Predef_charToByte ->       charToByte,
       defn.Predef_charToInt  ->       charToInt,
       defn.Predef_intToByte  ->       intToByte,
-      defn.Predef_intToChar  ->       intToChar
+      defn.Predef_intToChar  ->       intToChar,
+      defn.Predef_intToStr   ->       intToStr,
     )
 
     for (sym, op) <- platformCalls do
@@ -408,7 +407,8 @@ object Interpreter:
 
     val namespacesSAST =
       Parser.parse(sourceFiles)     |>
-      typeCheck                     |>
+      typeCheck                     |+
+      Printing.peek(enable = false) |>
       TreeChecker.check             |>
       Printing.peek(enable = false) |>
       noramlizer.transform          |>

@@ -28,6 +28,7 @@ class JSRuntime(runtimeRootNameTable: NameTable):
   val JS_charToInt = JS.termMember("charToInt")
   val JS_intToByte = JS.termMember("intToByte")
   val JS_intToChar = JS.termMember("intToChar")
+  val JS_intToStr = JS.termMember("intToStr")
 
   val JS_Array_createBool = JS.termMember("Array_createBool")
   val JS_Array_createInt = JS.termMember("Array_createInt")
@@ -41,4 +42,3 @@ class JSRuntime(runtimeRootNameTable: NameTable):
   val JS_abort = JS.termMember("abort")
   val JS_print = JS.termMember("print")
   val JS_printChar = JS.termMember("printChar")
-  val JS_p = JS.termMember("p")
