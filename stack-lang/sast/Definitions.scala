@@ -35,8 +35,6 @@ final class Definitions(rootNameTable: NameTable):
 
   val Predef_array  =  Predef.termMember("array")
 
-  val Predef_js     =  Predef.termMember("js")
-
   // numeric coercion
   val Predef_byteToChar = Predef.termMember("byteToChar")
   val Predef_byteToInt  = Predef.termMember("byteToInt")

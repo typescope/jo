@@ -142,12 +142,3 @@ type File = object {
   def readLine(): String
   def write(content: String): void
 }
-
-
-//-------------------------------------------------------------
-//
-// Platform support
-//
-
-// A piece of JS code --- it is specially handled under JS platform.
-fun js(s: String): Bottom = abort("primitive js")

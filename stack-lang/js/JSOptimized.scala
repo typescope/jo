@@ -258,6 +258,10 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
       case Ident(sym) if sym.owner == Definitions.instance.Predef =>
         callPredef(sym, args)
 
+      case Ident(sym) if sym == runtime.JS_js  =>
+        val Literal(Constant.String(code)) :: Nil = args : @unchecked
+        cont(Text(code))
+
       case _ =>
         run(fun): v =>
           run(args): vs =>
@@ -308,10 +312,6 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
       case defn.Predef_bor    =>   binary("||")
       case defn.Predef_bnot   =>   bnot(args)
       case defn.Predef_eql    =>   binary("===")
-
-      case defn.Predef_js  =>
-        val Literal(Constant.String(code)) :: Nil = args : @unchecked
-        cont(Text(code))
 
       case _ => call(sym, args)
     end match

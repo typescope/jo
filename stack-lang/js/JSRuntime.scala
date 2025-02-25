@@ -22,6 +22,8 @@ class JSRuntime(runtimeRootNameTable: NameTable, main: Symbol):
   val JS_hasParam = JS.termMember("hasParam")
   val JS_delParam = JS.termMember("delParam")
 
+  val JS_js =  JS.termMember("js")
+
   val JS_start    = JS.termMember("start")
   val JS_mainStub = JS.termMember("mainStub")
 
