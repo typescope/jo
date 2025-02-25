@@ -5,10 +5,10 @@ fun ioTest =
   stdout.write("name: ")
   val name = stdin.readLine
   println
-    "hello, " .+ name
+    "hello, " + name
 
   val file = open("abc.txt")
   file.write("123456789")
   file.seek 0
   stdout.write
-    file.readLine .+ "\n"
+    file.readLine + "\n"

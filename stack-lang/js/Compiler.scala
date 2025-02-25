@@ -54,22 +54,21 @@ def compile(args: String*): Unit =
       noramlizer.transform          |+
       Printing.peek(enable = false)
 
-    val jsRuntime = new JSRuntime(runtimeNameTable)
-    val contextParamsLower = new LowerContextParams(
-        jsRuntime.JS_hasParam,
-        jsRuntime.JS_getParam,
-        jsRuntime.JS_setParam,
-        jsRuntime.JS_delParam)
-
-    val runtimeLowerer = new LowerRuntime(jsRuntime)
-
-    val backend = new JSOptimized(outFile, jsRuntime)
-
     val mains = namespacesSAST.collect:
       case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get
 
     mains match
       case main :: Nil =>
+        val jsRuntime = new JSRuntime(runtimeNameTable, main)
+        val contextParamsLower = new LowerContextParams(
+            jsRuntime.JS_hasParam,
+            jsRuntime.JS_getParam,
+            jsRuntime.JS_setParam,
+            jsRuntime.JS_delParam)
+
+        val runtimeLowerer = new LowerRuntime(jsRuntime)
+        val backend = new JSOptimized(outFile, jsRuntime)
+
         namespacesSAST                |>
         Printing.peek(enable = false) |>
         ElimCapture.transform         |+
@@ -79,7 +78,7 @@ def compile(args: String*): Unit =
         Printing.peek(enable = false) |>
         contextParamsLower.transform  |+
         Printing.peek(enable = false) |>
-        ((nss: List[Sast.Namespace]) => backend.compile(nss, main))
+        backend.compile
 
       case _ =>
         if mains.isEmpty then

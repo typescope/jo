@@ -39,15 +39,19 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
       case Some(name) => name
 
       case None =>
-        val rawName = if sym.isFunction then sym.fullName else sym.name
-        val uniqueName = unique.freshName(encodeSymbolic(rawName))
-        symbol2UniqueName(sym) = uniqueName
+        runtime.link(sym) match
+          case Some(sym) => jsName(sym)
 
-        // Add function to work list
-        if sym.isFunction then
-          workList.add(sym)
+          case None =>
+            val rawName = if sym.isFunction then sym.fullName else sym.name
+            val uniqueName = unique.freshName(encodeSymbolic(rawName))
+            symbol2UniqueName(sym) = uniqueName
 
-        uniqueName
+            // Add function to work list
+            if sym.isFunction then
+              workList.add(sym)
+
+            uniqueName
 
   //----------------------------------------------------------------------------
 
@@ -87,13 +91,13 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
   //----------------------------------------------------------------------------
   val workList = new WorkList[Symbol]
 
-  def compile(nss: List[Namespace], main: Symbol): Unit =
+  def compile(nss: List[Namespace]): Unit =
     val pw =  new PrintWriter(outFile)
 
     // Make runtime symbols unavailable
     for name <- runtime.runtimeNames do unique.freshName(name)
 
-    workList.add(main)
+    workList.add(runtime.JS_start)
 
     val symbolDefMap = mutable.Map.empty[Symbol, FunDef]
     for
@@ -112,7 +116,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
       val funText = indent(Text.BreakLine ~ compile(symbolDefMap(funSym)))
       pw.append(funText.toString)
 
-    val mainCall = indent(Text.BreakLine ~ main ~ "();")
+    val mainCall = indent(Text.BreakLine ~ runtime.JS_start ~ "();")
     pw.append(mainCall.toString)
 
     pw.append("})()")
@@ -342,6 +346,7 @@ object JSOptimized:
         case '=' => "eq".wrap
         case '!' => "not".wrap
         case '$' => "dollar".wrap
+        case '?' => "question".wrap
         case '.' => "_"
         case _   => throw new Exception("Not supported, c = " + c)
 

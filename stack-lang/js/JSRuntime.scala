@@ -1,12 +1,13 @@
 package js
 
 import sast.*
+import Symbols.Symbol
 
 /** Functions to support JS platform at runtime
   *
   * Run-time symbols are only available to the compiler.
   */
-class JSRuntime(runtimeRootNameTable: NameTable):
+class JSRuntime(runtimeRootNameTable: NameTable, main: Symbol):
   import runtimeRootNameTable.resolvePath
 
   private val paramsName = "__runtime_contextParams"
@@ -21,11 +22,15 @@ class JSRuntime(runtimeRootNameTable: NameTable):
   val JS_hasParam = JS.termMember("hasParam")
   val JS_delParam = JS.termMember("delParam")
 
+  val JS_start    = JS.termMember("start")
+  val JS_mainStub = JS.termMember("mainStub")
+
   val JS_cast = JS.termMember("cast")
   val JS_byteToChar = JS.termMember("byteToChar")
   val JS_byteToInt = JS.termMember("byteToInt")
   val JS_charToByte = JS.termMember("charToByte")
   val JS_charToInt = JS.termMember("charToInt")
+  val JS_charToStr = JS.termMember("charToStr")
   val JS_intToByte = JS.termMember("intToByte")
   val JS_intToChar = JS.termMember("intToChar")
   val JS_intToStr = JS.termMember("intToStr")
@@ -40,5 +45,6 @@ class JSRuntime(runtimeRootNameTable: NameTable):
   val JS_String_plus = JS.termMember("String_plus")
 
   val JS_abort = JS.termMember("abort")
-  val JS_print = JS.termMember("print")
-  val JS_printChar = JS.termMember("printChar")
+
+  def link(sym: Symbol): Option[Symbol] =
+    if sym == JS_mainStub then Some(main) else None

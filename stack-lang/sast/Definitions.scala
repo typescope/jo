@@ -42,6 +42,7 @@ final class Definitions(rootNameTable: NameTable):
   val Predef_byteToInt  = Predef.termMember("byteToInt")
   val Predef_charToByte = Predef.termMember("charToByte")
   val Predef_charToInt  = Predef.termMember("charToInt")
+  val Predef_charToStr  = Predef.termMember("charToStr")
   val Predef_intToByte  = Predef.termMember("intToByte")
   val Predef_intToChar  = Predef.termMember("intToChar")
   val Predef_intToStr   = Predef.termMember("intToStr")

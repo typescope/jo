@@ -70,13 +70,6 @@ fun print(repr: StringRepr): void =
       print
         any2 cast[StringRepr]
 
-fun printChar(c: Char): void =
-  // TODO: remove allocation
-  val content = GC.alloc 1
-  // TODO: handle unicode
-  writeByte content (c cast[Int])
-  Syscall.sys_write 1 content 1
-
 fun abortImpl(msg: String): Bottom =
   println msg
   Syscall.sys_exit 1
@@ -95,6 +88,13 @@ fun intToByte(n: Int): Byte = (n & 255) cast[Byte]
 
 fun charToByte(c: Char): Byte = ((c cast[Int]) & 255) cast[Byte]
 fun charToInt(c: Char): Int = c cast[Int]
+
+fun charToStr(c: Char): void =
+  // TODO: remove allocation
+  val content = GC.alloc 1
+  // TODO: handle unicode
+  writeByte content (c cast[Int])
+  #Raw(1, content) as StringRepr cast[String]
 
 fun intToStr(n: Int): String =
   // MAX_VALUE =  2147483647
