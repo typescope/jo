@@ -136,19 +136,62 @@ fun delParam(key: String): void =
 // I/O support
 //
 
-fun openFile(filePath: String): File =
-  val file = ???
-  object {
-    def close(): void = ???
-    def seek(offset: Int): void = ???
-    def hasMore(): Bool = ???
+type FS <: object {
+  def openSync(filePath: String, mode: String): Int
+  def closeSync(fd: Int): void
+  def writeSync(fd: Int, buffer: Any, offset: Int, len: Int, position: Int): Int
+  def readSync(fd: Int, buffer: Any, offset: Int, len: Int, position: Int): Int
+  def readFileSync(fd: Int): object { def toString(): String }
+  def fstatSync(fd: Int): Stat
+}
 
-    def readLine(): String = ???
-    def write(content: String): void = ???
+type Stat = object {
+  val size: Int
+}
+
+fun fs(): FS = js "require(\"fs\")"
+
+fun openFile(filePath: String): File =
+  val fd = fs.openSync filePath "r+"
+  val position = object { var pos: Int = 0 }
+  object {
+    def close(): void = fs.closeSync fd
+
+    def seek(offset: Int): void =
+      position.pos <- offset
+
+    def hasMore(): Bool =
+      val stat = fs.fstatSync fd
+      position.pos < stat.size
+
+    def readLine(): String =
+      // read 256 chunks, assuming normal length of lines
+      var continue = true
+      var res = ""
+      val buffer = js "Buffer.alloc(256)"
+      while continue do
+        val bytesRead = fs.readSync fd buffer 0 (js "buffer.byteLength") position.pos
+        position.pos <- position.pos + bytesRead
+        val str = js "buffer.toString('utf8', 0, bytesRead)"
+        val lines = js "str.split(/\\r?\\n/)"
+        if bytesRead < 256 or js "lines.length > 1" then
+          continue <- false
+        res <- res + (js "lines[0]")
+
+      res
+
+    def write(content: String): void =
+      val buffer = js "Buffer.from(content, 'utf8')"
+      val pos = position.pos
+      val bytesWritten = fs.writeSync fd buffer 0 (js "buffer.byteLength") position.pos
+      position.pos <- position.pos + bytesWritten
+      assert
+        (js "buffer.byteLength") == bytesWritten
+        "write file failed"
   }
 
 fun createStdIn() = object {
-  def readLine() = js "require(\"fs\").readFileSync(0).toString()"
+  def readLine() = (fs.readFileSync 0).toString
 }
 
 fun createStdOut() = object {

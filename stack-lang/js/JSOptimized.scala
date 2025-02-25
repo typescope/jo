@@ -26,7 +26,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
 
   val keywords = List(
     "for", "while", "function", "var", "let", "break", "continue", "if",
-    "const", "class", "constructor", "with", "this"
+    "const", "class", "constructor", "with", "this", "Buffer", "require"
   )
 
   // Make keywords unavailable
