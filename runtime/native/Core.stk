@@ -12,6 +12,8 @@ import stk.runtime.native.ParamSupport
 
 type Addr
 
+fun id[T](x: T): T = x
+
 fun dataAddr(qualid: String): Addr =
   abort "native global"
 
@@ -75,7 +77,7 @@ fun intToByte(n: Int): Byte = (n & 255) cast[Byte]
 fun charToByte(c: Char): Byte = ((c cast[Int]) & 255) cast[Byte]
 fun charToInt(c: Char): Int = c cast[Int]
 
-fun charToStr(c: Char): void =
+fun charToStr(c: Char): String =
   // TODO: remove allocation
   val content = GC.alloc 1
   // TODO: handle unicode
@@ -260,15 +262,17 @@ fun openFile = (filePath: String) =>
       var res = ""
       val buffer = GC.alloc 256
       while continue do
-        val bytesRead = Syscall.sys_read fd buffer 0 256
+        val bytesRead = Syscall.sys_read fd buffer 256
         val lineSeparatorIndex: Int = ???
         if bytesRead < 256 or lineSeparatorIndex >= 0 then
           continue <- false
-        res <- res + (#Raw lineSeparatorIndex buffer)
+        res <- res +
+          #Raw(lineSeparatorIndex, buffer) as StringRepr cast[String]
 
       res
 
-    def write(content: String): void = writeString fd content
+    def write(content: String): void =
+      writeString fd (id content cast[StringRepr])
   }
 
 fun writeString(fd: Int, repr: StringRepr): void =
@@ -280,13 +284,13 @@ fun writeString(fd: Int, repr: StringRepr): void =
         "write failed"
 
     case #Concat(len, lhs, rhs) =>
-      // TODO: annoying
-      val any1: Any = lhs
-      val any2: Any = rhs
-      print
-        any1 cast[StringRepr]
-      print
-        any2 cast[StringRepr]
+      writeString
+        fd
+        id lhs cast[StringRepr]
+
+      writeString
+        fd
+        id rhs cast[StringRepr]
 
 
 fun createStdIn() = object {
@@ -294,9 +298,9 @@ fun createStdIn() = object {
 }
 
 fun createStdOut() = object {
-  def write(s: String) = writeString 1 s
+  def write(s: String) = writeString 1 (id s cast[StringRepr])
 }
 
 fun createStdErr() = object {
-  def write(s: String) = writeString 2 s
+  def write(s: String) = writeString 2 (id s cast[StringRepr])
 }
