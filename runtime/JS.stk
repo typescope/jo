@@ -155,16 +155,16 @@ fun fs(): FS = js "require(\"fs\")"
 fun openFile(filePath: String): File =
   val mode = if fs.existsSync filePath then "r+" else "w+"
   val fd = fs.openSync filePath mode
-  val position = object { var pos: Int = 0 }
   object {
+    var position: Int = 0
     def close(): void = fs.closeSync fd
 
     def seek(offset: Int): void =
-      position.pos <- offset
+      position <- offset
 
     def hasMore(): Bool =
       val stat = fs.fstatSync fd
-      position.pos < stat.size
+      position < stat.size
 
     def readLine(): String =
       // read 256 chunks, assuming normal length of lines
@@ -172,8 +172,8 @@ fun openFile(filePath: String): File =
       var res = ""
       val buffer = js "Buffer.alloc(256)"
       while continue do
-        val bytesRead = fs.readSync fd buffer 0 (js "buffer.byteLength") position.pos
-        position.pos <- position.pos + bytesRead
+        val bytesRead = fs.readSync fd buffer 0 (js "buffer.byteLength") position
+        position <- position + bytesRead
         val str = js "buffer.toString('utf8', 0, bytesRead)"
         val lines = js "str.split(/\\r?\\n/)"
         if bytesRead < 256 or js "lines.length > 1" then
@@ -184,9 +184,8 @@ fun openFile(filePath: String): File =
 
     def write(content: String): void =
       val buffer = js "Buffer.from(content, 'utf8')"
-      val pos = position.pos
-      val bytesWritten = fs.writeSync fd buffer 0 (js "buffer.byteLength") position.pos
-      position.pos <- position.pos + bytesWritten
+      val bytesWritten = fs.writeSync fd buffer 0 (js "buffer.byteLength") position
+      position <- position + bytesWritten
       assert
         (js "buffer.byteLength") == bytesWritten
         "write file failed"
