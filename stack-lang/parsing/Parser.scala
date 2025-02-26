@@ -240,7 +240,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val tpt = typ()
     val default =
       if peek() == Token.EQL then
-        eat(Token.EQL)
+        val token = eat(Token.EQL)
         Some(block(token.indent))
       else
         None

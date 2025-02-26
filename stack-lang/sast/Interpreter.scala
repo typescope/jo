@@ -202,6 +202,11 @@ object Interpreter:
       defn.Predef_intToByte  ->       intToByte,
       defn.Predef_intToChar  ->       intToChar,
       defn.Predef_intToStr   ->       intToStr,
+
+      defn.Predef_open$default   ->  open,
+      defn.Predef_stdin$default  ->  stdin,
+      defn.Predef_stdout$default ->  stdout,
+      defn.Predef_stderr$default ->  stderr,
     )
 
     for (sym, op) <- platformCalls do
@@ -209,27 +214,27 @@ object Interpreter:
 
     rootEnv
 
-  def stdin() = new PlatformObj((name: String, args: List[Value]) =>
+  def stdin(args: List[Value]) = new PlatformObj((name: String, args: List[Value]) =>
     assert(name == "readLine", name)
     val res = System.console().readLine()
     StringVal(res) :: Nil
-  )
+  ) :: Nil
 
-  def stdout() = new PlatformObj((name: String, args: List[Value]) =>
+  def stdout(args: List[Value]) = new PlatformObj((name: String, args: List[Value]) =>
     assert(name == "write", name)
     val StringVal(content) :: Nil = args: @unchecked
     System.out.print(content)
     Nil
-  )
+  ) :: Nil
 
-  def stderr() = new PlatformObj((name: String, args: List[Value]) =>
+  def stderr(args: List[Value]) = new PlatformObj((name: String, args: List[Value]) =>
     assert(name == "write", name)
     val StringVal(content) :: Nil = args: @unchecked
     System.err.print(content)
     Nil
-  )
+  ) :: Nil
 
-  def open() = new PlatformObj((name: String, args: List[Value]) =>
+  def open(args: List[Value]) = new PlatformObj((name: String, args: List[Value]) =>
     assert(name == "apply", name)
     val StringVal(file) :: Nil = args: @unchecked
     val jfile = new java.io.RandomAccessFile(file, "rw")
@@ -257,16 +262,7 @@ object Interpreter:
         jfile.write(content.getBytes("utf-8"))
         Nil
     } :: Nil
-  )
-
-  def createRootParams(): Params =
-    val defn = Definitions.instance
-    Map(
-      defn.Predef_stdin  -> stdin(),
-      defn.Predef_stdout -> stdout(),
-      defn.Predef_stderr -> stderr(),
-      defn.Predef_open   -> open())
-
+  ) :: Nil
 
   def exec(nss: List[Namespace], main: Symbol): Unit =
     val rootEnv = createRootEnv()
@@ -280,7 +276,7 @@ object Interpreter:
         rootEnv.bind(fun.symbol, FunVal(fun, rootEnv))
 
     val FunVal(fdef, env2) = rootEnv.resolve(main): @unchecked
-    val params = createRootParams()
+    val params = Map.empty[Symbol, Value]
     call(fdef, args = Nil)(using env2, params)
 
   def exec(block: Block)(using Env, Params): List[Denotation] =

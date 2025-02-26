@@ -51,6 +51,11 @@ final class Definitions(rootNameTable: NameTable):
   val Predef_stdout = Predef.termMember("stdout")
   val Predef_stderr = Predef.termMember("stderr")
 
+  val Predef_open$default   = Predef.termMember("open$default")
+  val Predef_stdin$default  = Predef.termMember("stdin$default")
+  val Predef_stdout$default = Predef.termMember("stdout$default")
+  val Predef_stderr$default = Predef.termMember("stderr$default")
+
   // types
   val Predef_Bool   =  Predef.typeMember("Bool")
   val Predef_Byte   =  Predef.typeMember("Byte")
