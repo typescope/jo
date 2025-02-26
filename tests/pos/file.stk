@@ -12,3 +12,9 @@ fun ioTest =
   file.seek 0
   stdout.write
     file.readLine + "\n"
+  file.close
+
+  val file2 = open("abc.txt")
+  stdout.write
+    file2.readLine + "\n"
+  file2.close

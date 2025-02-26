@@ -143,6 +143,7 @@ type FS <: object {
   def readSync(fd: Int, buffer: Any, offset: Int, len: Int, position: Int): Int
   def readFileSync(fd: Int): object { def toString(): String }
   def fstatSync(fd: Int): Stat
+  def existsSync(filePath: String): Bool
 }
 
 type Stat = object {
@@ -152,7 +153,8 @@ type Stat = object {
 fun fs(): FS = js "require(\"fs\")"
 
 fun openFile(filePath: String): File =
-  val fd = fs.openSync filePath "r+"
+  val mode = if fs.existsSync filePath then "r+" else "w+"
+  val fd = fs.openSync filePath mode
   val position = object { var pos: Int = 0 }
   object {
     def close(): void = fs.closeSync fd
