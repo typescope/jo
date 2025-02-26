@@ -63,22 +63,53 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
 
   //----------------------------------------------------------------------------
 
-  case class ValueContext(cont: Text => Text)
+  /** A context where a result value is expected to continue execution
+    *
+    * @param isLast whether the context is the last poistion of an expression
+    *
+    * Typically, the continuation should be called with a value as it is the
+    * the case in big-step semantics. It can be literals, immutable variable
+    * names, etc., which are free of side effects.
+    *
+    * Functions calls, mutable variable references will change semantics except
+    * in last positions.
+    *
+    * The flag `isLast` is intented to generate better JS code. A function call
+    * in a last position does not need to introduce a temporary because no
+    * later calls can beyond the last position.
+    *
+    * Typical last positions are assignments and statements in blocks.
+    */
+  case class ValueContext(cont: Text => Text, isLast: Boolean)
+
+  /** A statement context where no result value is expected to continue execution */
   case class StatContext(cont: ()=> Text)
+
   type Context = ValueContext | StatContext
 
-  def cont(text: Text)(using cont1: Context): Text =
+  def cont(text: Text, sideEffect: Boolean = false)(using cont1: Context): Text =
     cont1 match
-      case ValueContext(cont2) => cont2(text)
-      case StatContext(cont2)  => text ~ cont2()
+      case ValueContext(cont2, isLast) =>
+        if isLast || !sideEffect then
+          cont2(text)
+        else
+          val resName = unique.freshName("res")
+          "const " ~ resName ~ " = " ~ text ~ ";" ~ Text.BreakLine
+          ~ cont2(Text(resName))
+
+      case StatContext(cont2)  =>
+        text ~ cont2()
 
   def cont()(using cont1: Context): Text =
     cont1 match
-      case ValueContext(cont2) => throw new Exception("Value expected, found none")
+      case ValueContext(_, _) => throw new Exception("Value expected, found none")
       case StatContext(cont2)  => cont2()
 
   def run(expr: Word)(cont1: Text => Text): Text =
-    compile(expr)(using ValueContext(cont1))
+    compile(expr)(using ValueContext(cont1, isLast = false))
+
+  def runLast(expr: Word)(cont1: Text => Text): Text =
+    compile(expr)(using ValueContext(cont1, isLast = true))
 
   def run(exprs: List[Word])(c: List[Text] => Text): Text =
     exprs match
@@ -154,8 +185,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
             if word.tpe.isValueType then
               val stats :+ expr = words: @unchecked
               val sep = if stats.isEmpty then Text.Empty else Text.BreakLine
-              rep(stats, Text.BreakLine) ~ sep ~ run(expr): v =>
-                cont(v)
+              rep(stats, Text.BreakLine) ~ sep ~ compile(expr)
 
             else
               rep(words, Text.BreakLine) ~ cont()
@@ -174,14 +204,14 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
         compile(fun)
 
       case Assign(Ident(sym), rhs) =>
-        run(rhs): t =>
+        runLast(rhs): t =>
           if sym.isMutable then
             sym ~ " = " ~ t ~ ";" ~ cont()
           else
             "const " ~ sym ~ " = " ~ t ~ ";" ~ cont()
 
       case FieldAssign(qual, name, rhs) =>
-        run(qual): v =>
+        runLast(qual): v =>
           v ~ "." ~ encodeSymbolic(name) ~ " = " ~ rhs ~ cont()
 
       case If(cond, thenp, elsep) =>
@@ -213,6 +243,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
 
       case Ident(sym) =>
         assert(!sym.isAllOf(Flags.Context | Flags.Param), "Unexpected context parameter")
+        // TODO: incorrect for mutable variables
         cont(Text(sym))
 
       case _: TypeDef =>
@@ -237,7 +268,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
           if resCount == 0 then
             rep(locals, Text.Empty) ~ fdef.body
           else
-            rep(locals, Text.Empty) ~ run(fdef.body) { v =>
+            rep(locals, Text.Empty) ~ runLast(fdef.body) { v =>
               "return " ~ v ~ ";" ~  Text.BreakLine
             }
       ~ "}"
@@ -267,9 +298,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
           run(args): vs =>
             val call = v ~ "(" ~ rep(vs, Text(", ")) ~ ")"
             if fun.tpe.asProcType.resCount == 1 then
-              val resName = unique.freshName("res")
-              "const " ~ resName ~ " = " ~ call ~ ";" ~ Text.BreakLine
-              ~ cont(Text(resName))
+              cont(call, sideEffect = true)
             else
               call ~ ";"  ~ cont()
 
@@ -278,8 +307,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
     run(args): vs =>
       val call = sym ~ "(" ~ rep(vs, Text(", ")) ~ ")"
       if sym.info.asProcType.resCount == 1 then
-        val resName = unique.freshName("res")
-        "const " ~ resName ~ " = " ~ call ~ ";" ~ Text.BreakLine ~ cont(Text(resName))
+        cont(call, sideEffect = true)
       else
         call ~ ";" ~ cont()
 
