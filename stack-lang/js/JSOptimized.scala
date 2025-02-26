@@ -243,8 +243,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
 
       case Ident(sym) =>
         assert(!sym.isAllOf(Flags.Context | Flags.Param), "Unexpected context parameter")
-        // TODO: incorrect for mutable variables
-        cont(Text(sym))
+        cont(Text(sym), sideEffect = sym.isMutable)
 
       case _: TypeDef =>
         cont()
