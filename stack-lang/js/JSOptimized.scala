@@ -237,9 +237,11 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
             ~ cont()
 
       case While(cond, body) =>
-        run(cond): t =>
-          "while (" ~ t ~ ") {" ~ indent(body) ~ "}"
-          ~ cont()
+        "while (true) {" ~ indent:
+          run(cond): c =>
+            "if (!" ~ c ~ ") break;" ~ Text.BreakLine ~ body
+        ~ "}"
+        ~ cont()
 
       case Ident(sym) =>
         assert(!sym.isAllOf(Flags.Context | Flags.Param), "Unexpected context parameter")
