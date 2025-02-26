@@ -216,7 +216,9 @@ object Interpreter:
 
   def stdin(args: List[Value]) = new PlatformObj((name: String, args: List[Value]) =>
     assert(name == "readLine", name)
-    val res = System.console().readLine()
+    val reader = new java.io.BufferedReader(new java.io.InputStreamReader(System.in))
+    val res = reader.readLine()
+    reader.close()
     StringVal(res) :: Nil
   ) :: Nil
 
