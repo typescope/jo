@@ -19,5 +19,4 @@ fun sys_seek(fd: Int, offset: Int, whence: Int): Int = abort "sys_seek"
 
 fun sys_read(fd: Int, addr: Any, len: Int): Int = abort "sys_read"
 
-fun sys_write(fd: Int, addr: Any, len: Int): Int = abort "sys_write
-"
+fun sys_write(fd: Int, addr: Any, len: Int): Int = abort "sys_write"
