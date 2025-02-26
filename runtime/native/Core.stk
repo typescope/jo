@@ -226,6 +226,31 @@ fun String_substring(source: String, from: Int, len: Int): StringRepr =
 
   #Raw(len, buf)
 
+fun String_bytes(repr: String): Any =
+  val bytes = GC.alloc repr.length
+
+  fun recur(repr: StringRepr, from: Int): Int =
+    match repr
+      case #Raw(len, content) =>
+        var i = 0
+        while i < len do
+          writeByte
+            addAddr
+              bytes
+              from + i
+            readByte
+              addAddr content i
+
+          i <- i + 1
+
+        from + len
+
+      case #Concat(len, lhs, rhs) =>
+        val index = recur (id lhs cast[StringRepr]) from
+        recur (id rhs cast[StringRepr]) index
+
+  recur (id repr cast[StringRepr]) 0
+  bytes
 
 //------------------------------------------------------------------------------
 //
@@ -233,7 +258,7 @@ fun String_substring(source: String, from: Int, len: Int): StringRepr =
 //
 
 fun openFile = (filePath: String) =>
-  val nameBytes = ???
+  val nameBytes = String_bytes filePath
 
   val O_CREAT = 1 << 8
   val O_RDWR = 2
