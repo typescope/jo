@@ -136,34 +136,44 @@ fun delParam(key: String): void =
 // I/O support
 //
 
-type FS <: object {
-  def openSync(filePath: String, mode: String): Int
-  def closeSync(fd: Int): void
-  def writeSync(fd: Int, buffer: Any, offset: Int, len: Int, position: Int): Int
-  def readSync(fd: Int, buffer: Any, offset: Int, len: Int, position: Int): Int
-  def readFileSync(fd: Int): object { def toString(): String }
-  def fstatSync(fd: Int): Stat
-  def existsSync(filePath: String): Bool
-}
+// APIs exposed by required("fs")
+fun openSync(filePath: String, mode: String): Int =
+  js "require(\"fs\").openSync(filePath, mode)"
+
+fun closeSync(fd: Int): void =
+  js "require(\"fs\").closeSync(fd)"
+
+fun writeSync(fd: Int, buffer: Any, offset: Int, len: Int, position: Int): Int =
+  js "require(\"fs\").writeSync(fd, buffer, offset, len, position)"
+
+fun readSync(fd: Int, buffer: Any, offset: Int, len: Int, position: Int): Int =
+  js "require(\"fs\").readSync(fd, buffer, offset, len, position)"
+
+fun readFileSync(fd: Int): object { def toString(): String } =
+  js "require(\"fs\").readFileSync(fd)"
+
+fun fstatSync(fd: Int): Stat =
+  js "require(\"fs\").fstatSync(fd)"
+
+fun existsSync(filePath: String): Bool =
+  js "require(\"fs\").existsSync(filePath)"
 
 type Stat = object {
   val size: Int
 }
 
-fun fs(): FS = js "require(\"fs\")"
-
 fun openFile(filePath: String): File =
-  val mode = if fs.existsSync filePath then "r+" else "w+"
-  val fd = fs.openSync filePath mode
+  val mode = if existsSync filePath then "r+" else "w+"
+  val fd = openSync filePath mode
   object {
     var position: Int = 0
-    def close(): void = fs.closeSync fd
+    def close(): void = closeSync fd
 
     def seek(offset: Int): void =
       position <- offset
 
     def hasMore(): Bool =
-      val stat = fs.fstatSync fd
+      val stat = fstatSync fd
       position < stat.size
 
     def readLine(): String =
@@ -172,7 +182,7 @@ fun openFile(filePath: String): File =
       var res = ""
       val buffer = js "Buffer.alloc(256)"
       while continue do
-        val bytesRead = fs.readSync fd buffer 0 (js "buffer.byteLength") position
+        val bytesRead = readSync fd buffer 0 (js "buffer.byteLength") position
         position <- position + bytesRead
         val str = js "buffer.toString('utf8', 0, bytesRead)"
         val lines = js "str.split(/\\r?\\n/)"
@@ -184,7 +194,7 @@ fun openFile(filePath: String): File =
 
     def write(content: String): void =
       val buffer = js "Buffer.from(content, 'utf8')"
-      val bytesWritten = fs.writeSync fd buffer 0 (js "buffer.byteLength") position
+      val bytesWritten = writeSync fd buffer 0 (js "buffer.byteLength") position
       position <- position + bytesWritten
       assert
         (js "buffer.byteLength") == bytesWritten
@@ -192,7 +202,7 @@ fun openFile(filePath: String): File =
   }
 
 fun createStdIn() = object {
-  def readLine() = (fs.readFileSync 0).toString
+  def readLine() = (readFileSync 0).toString
 }
 
 fun createStdOut() = object {

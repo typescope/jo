@@ -1,9 +1,9 @@
 namespace stk.Predef
 
 //--------------------------------------------------------------
-// primitive types
+// Basic types
 //
-// primitive type symbols are handled specially in the namer
+// `Any` and `Bottom` are handled specially in the namer
 
 // [-128, 127]
 type Byte
