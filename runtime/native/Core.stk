@@ -56,20 +56,6 @@ fun mainStub(): void = abort("error mainStub")
 // Predef implementation
 //
 
-fun print(repr: StringRepr): void =
-  match repr
-    case #Raw(len, content) =>
-      Syscall.sys_write 1 content len
-
-    case #Concat(len, lhs, rhs) =>
-      // TODO: annoying
-      val any1: Any = lhs
-      val any2: Any = rhs
-      print
-        any1 cast[StringRepr]
-      print
-        any2 cast[StringRepr]
-
 fun abortImpl(msg: String): Bottom =
   println msg
   Syscall.sys_exit 1
@@ -237,3 +223,80 @@ fun String_substring(source: String, from: Int, len: Int): StringRepr =
     index <- index + 1
 
   #Raw(len, buf)
+
+
+//------------------------------------------------------------------------------
+//
+// I/O support
+//
+
+fun openFile = (filePath: String) =>
+  val nameBytes = ???
+
+  val O_CREAT = 1 << 8
+  val O_RDWR = 2
+  val flags: Int = O_CREAT | O_RDWR
+
+  val S_IRUSR = 1 << 8
+  val S_IWUSR = 1 << 7
+  val S_IRGRP = 1 << 5
+  val S_IROTH = 1 << 2
+  val mode: Int = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH
+
+  val fd = Syscall.sys_open nameBytes flags mode
+  object {
+    def close(): void =
+      Syscall.sys_close fd
+
+    def seek(pos: Int): void =
+      val SEEK_SET = 0
+      Syscall.sys_seek fd pos SEEK_SET
+
+    def hasMore(): Bool = ???
+
+    def readLine(): String =
+      // read 256 chunks, assuming normal length of lines
+      var continue = true
+      var res = ""
+      val buffer = GC.alloc 256
+      while continue do
+        val bytesRead = Syscall.sys_read fd buffer 0 256
+        val lineSeparatorIndex: Int = ???
+        if bytesRead < 256 or lineSeparatorIndex >= 0 then
+          continue <- false
+        res <- res + (#Raw lineSeparatorIndex buffer)
+
+      res
+
+    def write(content: String): void = writeString fd content
+  }
+
+fun writeString(fd: Int, repr: StringRepr): void =
+  match repr
+    case #Raw(len, content) =>
+      val bytesWritten = Syscall.sys_write fd content len
+      assert
+        len == bytesWritten
+        "write failed"
+
+    case #Concat(len, lhs, rhs) =>
+      // TODO: annoying
+      val any1: Any = lhs
+      val any2: Any = rhs
+      print
+        any1 cast[StringRepr]
+      print
+        any2 cast[StringRepr]
+
+
+fun createStdIn() = object {
+  def readLine() = ???
+}
+
+fun createStdOut() = object {
+  def write(s: String) = writeString 1 s
+}
+
+fun createStdErr() = object {
+  def write(s: String) = writeString 2 s
+}

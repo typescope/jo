@@ -10,4 +10,14 @@ fun sys_brk(size: Int): Int = abort "sys_brk"
 fun sys_exit(code: Int): Bottom = abort "sys_exit"
 
 // TODO: change Any to Addr
-fun sys_write(fd: Int, addr: Any, len: Int): Int = abort "sys_write"
+
+fun sys_open(name: Any, flags: Int, mode: Int): Int = abort "sys_open"
+
+fun sys_close(fd: Int): Int = abort "sys_close"
+
+fun sys_seek(fd: Int, offset: Int, whence: Int): Int = abort "sys_seek"
+
+fun sys_read(fd: Int, addr: Any, len: Int): Int = abort "sys_read"
+
+fun sys_write(fd: Int, addr: Any, len: Int): Int = abort "sys_write
+"

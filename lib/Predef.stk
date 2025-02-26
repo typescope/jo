@@ -136,7 +136,7 @@ param stderr: object {
 
 type File = object {
   def close(): void
-  def seek(offset: Int): void
+  def seek(pos: Int): void
   def hasMore(): Bool
 
   def readLine(): String

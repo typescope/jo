@@ -165,8 +165,8 @@ fun openFile = (filePath: String) =>
     var position: Int = 0
     def close(): void = closeSync fd
 
-    def seek(offset: Int): void =
-      position <- offset
+    def seek(pos: Int): void =
+      position <- pos
 
     def hasMore(): Bool =
       val stat = fstatSync fd
