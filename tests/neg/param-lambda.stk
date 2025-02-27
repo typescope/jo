@@ -11,5 +11,5 @@ fun makeLinePrinter(): String => void =
   (text) => line text
 
 fun main =
-  val f = makeLinePrinter allow none // error
+  val f = makeLinePrinter allow stdout // error
   f "hello, world!"
