@@ -12,7 +12,6 @@ import native.Assembly
 import native.Assembly.*
 
 import native.os.Linux
-import native.os.LinuxSyscallX86StackLinker
 
 import native.runtime.NativeRuntime
 import native.runtime.BumpAllocator
@@ -462,7 +461,7 @@ object StackMachine:
 
   def createLinux86(runtimeRootNameTable: NameTable, main: Symbol): Backend =
     val bumpAllocator = new BumpAllocator(runtimeRootNameTable)
-    val syscalls = new LinuxSyscallX86StackLinker(runtimeRootNameTable)
+    val syscalls = Linux.createSyscallStack(runtimeRootNameTable)
     val linkers = List(bumpAllocator, syscalls)
     val runtime = new NativeRuntime(runtimeRootNameTable, linkers, main)
 

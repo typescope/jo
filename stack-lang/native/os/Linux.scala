@@ -8,7 +8,11 @@
  ************************************************************************/
 package native.os
 
+import sast.NameTable
+import sast.Symbols.Symbol
+
 import native.Assembler
+import native.Assembler.PatchableBuffer
 import native.Assembly.*
 import native.ELF32
 import native.Linker
@@ -28,3 +32,52 @@ object Linux:
     val layout = Assembler.continuousLayout(layoutName, PROG_START, PAGE_SIZE)
     val elf = new ELF32(outFile, layout, ELF32.EM_386)
     Assembler.lower(elf, prog, assembler, linker)
+
+  def createSyscallRegister(runtimeRootNameTable: NameTable): LinuxSyscall =
+    new LinuxSyscall(runtimeRootNameTable):
+      /**
+        * Implement syscalls in machine code.
+        *
+        * It assumes the call convention of register machines is the same as syscalls.
+        */
+      def linkSyscall(symbol: Symbol, label: Label)(using pb: PatchableBuffer): Unit =
+        pb.defineLabel(label)
+
+        X86.int80()
+
+        // result of syscall in EAX
+
+        // return to caller
+        X86.load(Reg(X86.ESP), X86.EBP, Size.B32)
+        X86.jump(Reg(X86.EBP))
+
+  def createSyscallStack(runtimeRootNameTable: NameTable): LinuxSyscall =
+    new LinuxSyscall(runtimeRootNameTable):
+      /**
+        * Implement syscalls in machine code.
+        *
+        * The input arguments are in the call convention of stack machine.
+        */
+      def linkSyscall(symbol: Symbol, label: Label)(using pb: PatchableBuffer): Unit =
+        val procType = symbol.info.asProcType
+        val paramCount = procType.paramCount
+
+        pb.defineLabel(label)
+
+        assert(paramCount <= 4, "paraCount = " + paramCount + " for " + symbol)
+        val regs = Array(X86.EAX, X86.EBX, X86.ECX, X86.EDX)
+
+        // load argument
+        for i <- 0 until paramCount do
+          val reg = regs(i)
+          val loc = Rel(X86.ESP, (paramCount - i - 1) * 4 + 8)
+          X86.load(loc, reg, Size.B32)
+
+        X86.int80()
+
+        // copy EAX to result location
+        X86.store(Reg(X86.EAX), Rel(X86.ESP, -4))
+
+        // return to caller
+        X86.load(Reg(X86.ESP), X86.EAX, Size.B32)
+        X86.jump(Reg(X86.EAX))

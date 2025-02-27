@@ -7,46 +7,42 @@ import native.Assembly.Label
 import native.Assembler.PatchableBuffer
 import native.Linker
 
+import scala.collection.mutable
+
 abstract class LinuxSyscall(runtimeRootNameTable: NameTable) extends Linker:
   import runtimeRootNameTable.resolvePath
 
-  val sys_exit_label  = Label("__sys_exit")
-  val sys_write_label = Label("__sys_write")
-  val sys_brk_label   = Label("__sys_brk")
-
   val Syscall = resolvePath("stk.runtime.native.Syscall")
-  val Syscall_sys_brk   = Syscall.termMember("sys_brk")
-  val Syscall_sys_exit  = Syscall.termMember("sys_exit")
-  val Syscall_sys_write = Syscall.termMember("sys_write")
+
+  val syscallSymbols = Set(
+    Syscall.termMember("__sys_brk"),
+    Syscall.termMember("__sys_exit"),
+    Syscall.termMember("__sys_open"),
+    Syscall.termMember("__sys_close"),
+    Syscall.termMember("__sys_read"),
+    Syscall.termMember("__sys_write"),
+    Syscall.termMember("__sys_seek"),
+  )
+
+  val syscallMap = mutable.Map.empty[Symbol, Label]
 
   def linkData()(using pb: PatchableBuffer): Unit = ()
 
   def linkCode()(using pb: PatchableBuffer): Unit =
-    sysWrite()
-    sysExit()
-    sysBrk()
+    for (sym, label) <- syscallMap do linkSyscall(sym, label)
+
+  def linkSyscall(symbol: Symbol, label: Label)(using PatchableBuffer): Unit
 
   def locate(sym: Symbol): Option[Label] =
-    if sym.owner == Syscall then
-      if sym == Syscall_sys_brk then Some(sys_brk_label)
-      else if sym == Syscall_sys_exit then Some(sys_exit_label)
-      else if sym == Syscall_sys_write then Some(sys_write_label)
-      else throw new Exception("Unexpected symbol " + sym)
+    if syscallSymbols.contains(sym) then
+      syscallMap.get(sym) match
+        case None =>
+          val label = Label(sym.name)
+          syscallMap(sym) = label
+          Some(label)
+
+        case res => res
+
     else None
 
   def locate(qualid: String): Option[Label] = None
-
-  /**
-    * Implement sys_write in machine code.
-    */
-  def sysWrite()(using pb: PatchableBuffer): Unit
-
-  /**
-    * Implement abort in machine code.
-    */
-  def sysExit()(using pb: PatchableBuffer): Unit
-
-  /**
-    * Implement print in machine code.
-    */
-  def sysBrk()(using pb: PatchableBuffer): Unit

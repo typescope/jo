@@ -51,7 +51,6 @@ files=(
     stack-lang/native/Memory.scala
     stack-lang/native/os/Linux.scala
     stack-lang/native/os/LinuxSyscall.scala
-    stack-lang/native/os/LinuxSyscallX86StackLinker.scala
     stack-lang/native/stack/StackMachine.scala
 
     stack-lang/native/runtime/NativeRuntime.scala
