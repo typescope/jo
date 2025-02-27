@@ -24,6 +24,9 @@ fun sys_read(fd: Int, addr: Any, len: Int): Int =
 fun sys_write(fd: Int, addr: Any, len: Int): Int =
   __sys_write 4 fd addr len
 
+fun sys_newfstat(fd: Int, stat: Any): Int =
+  __sys_newfstat 108 fd stat
+
 // Linux system calls
 
 fun __sys_brk(no: Int, size: Int): Int = abort "sys_brk"
@@ -39,3 +42,5 @@ fun __sys_seek(no: Int, fd: Int, offset: Int, whence: Int): Int = abort "sys_see
 fun __sys_read(no: Int, fd: Int, addr: Any, len: Int): Int = abort "sys_read"
 
 fun __sys_write(no: Int, fd: Int, addr: Any, len: Int): Int = abort "sys_write"
+
+fun __sys_newfstat(no: Int, fd: Int, stat: Any): Int = abort "sys_newfstat"

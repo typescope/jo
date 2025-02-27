@@ -69,7 +69,7 @@ fun println(s: String): void =
 
 fun ??? : Bottom = abort("not implemented")
 
-fun abort(s: String): Bottom = abort("primitive print")
+fun abort(s: String): Bottom = abort("primitive abort")
 
 fun assert(cond: Bool, message: String): void =
   if not cond then abort message

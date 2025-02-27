@@ -35,6 +35,9 @@ fun addAddr(arr: Addr, offset: Int): Addr =
 
 fun (arr: Any) cast[T]: T = abort("runtime cast")
 
+fun debug(s: String): void =
+  writeString 0 (id ("[DEBUG] " + s + "\n") cast[StringRepr])
+
 //------------------------------------------------------------------------------
 //
 // program life time
@@ -59,7 +62,7 @@ fun mainStub(): void = abort("error mainStub")
 //
 
 fun abortImpl(msg: String): Bottom =
-  println msg
+  writeString 0 (id msg cast[StringRepr])
   Syscall.sys_exit 1
 
 //------------------------------------------------------------------------------
@@ -289,15 +292,36 @@ fun openFile = (filePath: String) =>
     index
 
   val fd = Syscall.sys_open nameBytes flags mode
+  assert (fd > 0) ("sys_open = " + (intToStr fd))
+
   object {
     def close(): void =
       Syscall.sys_close fd
 
     def seek(pos: Int): void =
       val SEEK_SET = 0
-      Syscall.sys_seek fd pos SEEK_SET
+      val ret = Syscall.sys_seek fd pos SEEK_SET
+      assert (ret == 0) ("sys_seek = " + (intToStr ret))
 
-    def hasMore(): Bool = ???
+    def hasMore(): Bool =
+      // Always use `sys_newfstat` to avoid representation problems
+      val stat = GC.alloc 256
+      val ret = Syscall.sys_newfstat fd stat
+      assert (ret == 0) ("sys_newfstat = " + (intToStr ret))
+
+      val size = readInt (addAddr stat 20)
+
+      val SEEK_CUR = 1
+      val pos = Syscall.sys_seek fd 0 SEEK_CUR
+
+      // writeString
+      //   0
+      //   id ("size = " + (intToStr size) + "\n") cast[StringRepr]
+      // writeString
+      //   0
+      //   id ("pos = " + (intToStr pos) + "\n") cast[StringRepr]
+
+      pos < size
 
     def readLine(): String =
       var continue = true
@@ -322,7 +346,8 @@ fun openFile = (filePath: String) =>
               // go back to beginning of the next new line
               val offset = lineSeparatorIndex - bytesRead
               val SEEK_CUR = 1
-              Syscall.sys_seek fd offset SEEK_CUR
+              val ret = Syscall.sys_seek fd offset SEEK_CUR
+              assert (ret == 0) ("sys_seek = " + (intToStr ret))
 
           res <- res +
             #Raw(len, buffer) as StringRepr cast[String]

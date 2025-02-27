@@ -22,6 +22,7 @@ abstract class LinuxSyscall(runtimeRootNameTable: NameTable) extends Linker:
     Syscall.termMember("__sys_read"),
     Syscall.termMember("__sys_write"),
     Syscall.termMember("__sys_seek"),
+    Syscall.termMember("__sys_newfstat"),
   )
 
   val syscallMap = mutable.Map.empty[Symbol, Label]

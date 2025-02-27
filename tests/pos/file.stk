@@ -8,8 +8,10 @@ fun ioTest =
     "hello, " + name
 
   val file = open("abc.txt")
-  file.write("123456789")
+  file.write("123456789\n")
+  file.write("abcdef")
   file.seek 0
+  assert file.hasMore "no more"
   stdout.write
     file.readLine + "\n"
   file.close
