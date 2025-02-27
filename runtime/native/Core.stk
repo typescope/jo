@@ -266,7 +266,7 @@ fun String_bytes(repr: String): Any =
 fun openFile = (filePath: String) =>
   val nameBytes = String_bytes filePath
 
-  val O_CREAT = 1 << 8
+  val O_CREAT = 1 << 6
   val O_RDWR = 2
   val flags: Int = O_CREAT | O_RDWR
 
