@@ -7,7 +7,7 @@ fun line(text: String): Unit =
     i <- i + 1
   println text
 
-fun makeLinePrinter(): String => void =
+fun makeLinePrinter(): String => Unit =
   (text) => line text
 
 fun main =
