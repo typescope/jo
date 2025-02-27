@@ -426,6 +426,9 @@ object PreAssembly:
         Rel(regConfig.FP_REG, -(i + 1 + spillCount) << 2)
 
       if stackAlloc.isEmpty then
+        // println(label)
+        // for instr <- instrs do println("\t" + instr)
+
         commitAlloc(
           label, calleeSavedRegs, instrs, regAlloc,
           usedRegs, spillCount, cb, regConfig)

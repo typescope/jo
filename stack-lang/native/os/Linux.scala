@@ -31,6 +31,7 @@ object Linux:
   def lower(prog: Prog, layoutName: String, outFile: String, assembler: Assembler, linker: Linker): Unit =
     val layout = Assembler.continuousLayout(layoutName, PROG_START, PAGE_SIZE)
     val elf = new ELF32(outFile, layout, ELF32.EM_386)
+    // println(prog.show)
     Assembler.lower(elf, prog, assembler, linker)
 
   def createSyscallRegister(runtimeRootNameTable: NameTable): LinuxSyscall =
