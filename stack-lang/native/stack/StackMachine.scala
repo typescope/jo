@@ -351,6 +351,8 @@ extends Backend(runtime):
           pop(r1, Size.B32)
           pop(r2, Size.B32)
           cb.add(Instr.Store(Reg(r1), Reg(r2)))
+          // push dummy value to conform to signature
+          push(Int32(0))
 
       case runtime.Core_readInt   =>
         useReg: r =>
@@ -363,6 +365,8 @@ extends Backend(runtime):
           pop(r1, Size.B32)
           pop(r2, Size.B32)
           cb.add(Instr.Store(Reg8(r1), Reg(r2)))
+          // push dummy value to conform to signature
+          push(Int32(0))
 
       case runtime.Core_readByte  =>
         useTwoReg: (r1, r2) =>

@@ -194,7 +194,7 @@ class Checker:
 
       else if Subtyping.conforms(unitType, targetType) then
         val unit = RecordLit(args = Nil)(unitType, word.span)
-        Block(word :: unit :: Nil)(unitType, word.span)
+        Block(word.ensureDropValue :: unit :: Nil)(unitType, word.span)
 
       else
         Reporter.error(s"Expect type ${targetType.show}, found = ${curType.show}", word.pos)

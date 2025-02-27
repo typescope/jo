@@ -28,6 +28,9 @@ object Sast:
       assert(this.tpe.isValueType)
       Encoded(this)(VoidType)
 
+    def ensureDropValue: Word =
+      if this.tpe.isValueType then dropValue else this
+
     def show: String = Printing.show(this)
 
     /** Whether the word can be duplicated as neighbors without affecting program semantics */

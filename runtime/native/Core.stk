@@ -17,14 +17,17 @@ fun id[T](x: T): T = x
 fun dataAddr(qualid: String): Addr =
   abort "native global"
 
-fun writeInt(arr: Addr, value: Int): Unit =
+// return a dummy Int value which is simpler than Unit
+fun writeInt(arr: Addr, value: Int): Int =
   abort "native writeInt"
 
 fun readInt(arr: Addr): Int =
   abort "native readInt"
 
 // The caller needs to make sure the value fit into one byte
-fun writeByte(arr: Addr, value: Byte): Unit =
+//
+// return a dummy Int value which is simpler than Unit
+fun writeByte(arr: Addr, value: Byte): Int =
   abort "native writeInt"
 
 fun readByte(arr: Addr): Byte =
@@ -183,9 +186,7 @@ fun String_fromByteString(byteArray: Any): String =
   val length = readInt (byteArray cast[Addr])
   val contentAddr = addAddr (byteArray cast[Addr]) 4
 
-  #Raw(length, contentAddr) as StringRepr
-    cast[String]
-
+  #Raw(length, contentAddr) as StringRepr cast[String]
 
 fun String_length(repr: StringRepr): Int =
   match repr

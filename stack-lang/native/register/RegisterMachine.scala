@@ -1,5 +1,7 @@
 package native.register
 
+import common.Debug
+
 import sast.*
 import sast.Sast.*
 import sast.Symbols.*
@@ -62,7 +64,7 @@ extends Backend(runtime):
   def compile(block: Block)(using Context): Unit =
     for word <- block.words do compile(word)
 
-  def compile(word: Word)(using ctx: Context): Unit =
+  def compile(word: Word)(using ctx: Context): Unit = Debug.trace("Compiling " + word.show, enable = false):
     word match
       case Literal(c) =>
         c match
@@ -130,6 +132,8 @@ extends Backend(runtime):
     load(loc, paramReg, base)
 
   def compileFunDef(fdef: FunDef)(using cb: CodeBuffer): Unit =
+    // println(fdef.symbol.fullName.toString + ":")
+
     val sym = fdef.symbol
     val ctx = freshFunctionContext(sym)
     val proto = compile(fdef)(using ctx)
@@ -138,7 +142,7 @@ extends Backend(runtime):
     // println(ctx.buffer.show)
 
     // perform register allocation
-    assert(ctx.vs.size == 0, sym.name + " " + ctx.vs.size)
+    assert(ctx.vs.size == 0, sym.name + ", ctx.vs.size = " + ctx.vs.size)
     val label = getFunAddress(sym)
     doGraphColoring(
       label, ctx.buffer.getResult(), registerConfig, proto.savedRegs, cb,
@@ -427,6 +431,8 @@ extends Backend(runtime):
         val v = ctx.vs.pop()
         val Reg(addr) = ctx.vs.pop(): @unchecked
         gen(Instr.Store(v, Reg(addr)))
+        // push dummy value to conform to signature
+        ctx.vs.push(Int32(0))
 
       case runtime.Core_readInt   =>
         val Reg(reg) = ctx.vs.pop(): @unchecked
@@ -451,6 +457,8 @@ extends Backend(runtime):
           end match
 
         gen(Instr.Store(reg8, Reg(addr)))
+        // push dummy value to conform to signature
+        ctx.vs.push(Int32(0))
 
       case runtime.Core_readByte  =>
         val Reg(reg) = ctx.vs.pop(): @unchecked

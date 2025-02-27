@@ -80,7 +80,7 @@ object Memory:
         Apply(addAddrFun, ref :: offsetLit :: Nil)(TypeRef(runtime.Core_Addr), rhs.span)
 
     val writeIntFun = Ident(runtime.Core_writeInt)(rhs.span)
-    Apply(writeIntFun, addr :: rhs :: Nil)(VoidType, rhs.span)
+    Apply(writeIntFun, addr :: rhs :: Nil)(IntType, rhs.span).dropValue
 
   def readField(recordType: RecordType, select: Select, runtime: NativeRuntime): Word =
     val IntType = Definitions.instance.IntType

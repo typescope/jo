@@ -281,7 +281,7 @@ class Namer(@constructorOnly reporter: Reporter):
         With(exprSast, argsSast, allowSast)(exprSast.tpe, word.span)
 
       case ifte: Ast.If =>
-        transform(ifte)
+        transform(ifte).adapt
 
       case Ast.While(cond, body) =>
          val boolType = Definitions.instance.BoolType

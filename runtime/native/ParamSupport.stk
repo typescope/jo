@@ -52,7 +52,7 @@ fun writeKeyAt(index: Int, key: Int): Unit =
     Core.addAddr
       state.keys Core.cast[Core.Addr]
       index * 4
-    key Core.cast[Int]
+    key
 
 fun readValueAt(index: Int): Any =
   val statePointerAddr = Core.dataAddr "stk.runtime.native.ParamSupport.state"
