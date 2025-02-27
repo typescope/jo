@@ -270,6 +270,24 @@ fun openFile = (filePath: String) =>
   val S_IROTH = 1 << 2
   val mode: Int = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH
 
+  // return starting index of '\n' or '\r\n' or -1.
+  fun findLineSeparator(buffer: Addr, len: Int): Int =
+    var i = 0
+    var last = -1
+    var index = -1
+
+    while i < len do
+      val c = readByte (addAddr buffer i)
+      if c == '\n' then
+        if last == '\r' then index <- i - 1
+        else index <- i
+        i <- len
+      else
+        last <- c
+        i <- i + 1
+
+    index
+
   val fd = Syscall.sys_open nameBytes flags mode
   object {
     def close(): void =
@@ -282,17 +300,32 @@ fun openFile = (filePath: String) =>
     def hasMore(): Bool = ???
 
     def readLine(): String =
-      // read 256 chunks, assuming normal length of lines
       var continue = true
       var res = ""
-      val buffer = GC.alloc 256
       while continue do
+        // read 256-byte chunks, assuming normal length of lines
+        val buffer = GC.alloc 256
         val bytesRead = Syscall.sys_read fd buffer 256
-        val lineSeparatorIndex: Int = ???
-        if bytesRead < 256 or lineSeparatorIndex >= 0 then
+        if bytesRead <= 0 then
           continue <- false
-        res <- res +
-          #Raw(lineSeparatorIndex, buffer) as StringRepr cast[String]
+        else
+          val lineSeparatorIndex = findLineSeparator buffer bytesRead
+
+          var len = bytesRead
+          if bytesRead < 256 then
+            continue <- false
+
+          if lineSeparatorIndex >= 0 then
+            continue <- false
+            len <- lineSeparatorIndex
+            if lineSeparatorIndex < bytesRead - 1 then
+              // go back to beginning of the next new line
+              val offset = lineSeparatorIndex - bytesRead
+              val SEEK_CUR = 1
+              Syscall.sys_seek fd offset SEEK_CUR
+
+          res <- res +
+            #Raw(len, buffer) as StringRepr cast[String]
 
       res
 
@@ -319,7 +352,22 @@ fun writeString(fd: Int, repr: StringRepr): void =
 
 
 fun createStdIn() = object {
-  def readLine() = ???
+  def readLine() =
+    var continue = true
+    var res = ""
+    while continue do
+      // read 256-byte chunks, assuming normal length of lines
+      val buffer = GC.alloc 256
+      val bytesRead = Syscall.sys_read 0 buffer 256
+
+      if bytesRead < 256 then
+        continue <- false
+
+      if bytesRead > 0 then
+        res <- res +
+          #Raw(bytesRead, buffer) as StringRepr cast[String]
+
+    res
 }
 
 fun createStdOut() = object {
