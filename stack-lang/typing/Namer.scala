@@ -293,7 +293,7 @@ class Namer(@constructorOnly reporter: Reporter):
         transform(assign).adapt
 
       case patmat: Ast.Match =>
-        transform(patmat)
+        transform(patmat).adapt
 
       case vdef: Ast.ValDef =>
         val delayedDef = transformValDef(vdef)
