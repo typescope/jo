@@ -43,13 +43,16 @@ object Linux:
       def linkSyscall(symbol: Symbol, label: Label)(using pb: PatchableBuffer): Unit =
         pb.defineLabel(label)
 
+        // frame pointer must be set and untact
+        X86.move(Reg(X86.ESP), X86.EBP)
+
         X86.int80()
 
         // result of syscall in EAX
 
         // return to caller
-        X86.load(Reg(X86.ESP), X86.EBP, Size.B32)
-        X86.jump(Reg(X86.EBP))
+        X86.load(Reg(X86.ESP), X86.ESP, Size.B32)
+        X86.jump(Reg(X86.ESP))
 
   def createSyscallStack(runtimeRootNameTable: NameTable): LinuxSyscall =
     new LinuxSyscall(runtimeRootNameTable):
@@ -62,10 +65,13 @@ object Linux:
         val procType = symbol.info.asProcType
         val paramCount = procType.paramCount
 
-        pb.defineLabel(label)
-
         assert(paramCount <= 4, "paraCount = " + paramCount + " for " + symbol)
         val regs = Array(X86.EAX, X86.EBX, X86.ECX, X86.EDX)
+
+        pb.defineLabel(label)
+
+        // frame pointer must be set and untact
+        X86.move(Reg(X86.ESP), X86.EBP)
 
         // load argument
         for i <- 0 until paramCount do
