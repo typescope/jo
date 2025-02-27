@@ -188,13 +188,13 @@ fun String_fromByteString(byteArray: Any): String =
 
   #Raw(length, contentAddr) as StringRepr cast[String]
 
-fun String_length(repr: StringRepr): Int =
-  match repr
+fun String_length(repr: String): Int =
+  match id repr cast[StringRepr]
     case #Raw(len, _) => len
     case #Concat(len, lhs, rhs) => len
 
-fun String_apply(repr: StringRepr, i: Int): Char =
-  match repr
+fun String_apply(repr: String, i: Int): Char =
+  match id repr cast[StringRepr]
     case #Raw(len, content) =>
       if i >= len or i < 0 then abort "index out of bound"
 

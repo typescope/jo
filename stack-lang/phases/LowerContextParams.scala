@@ -28,15 +28,16 @@ extends Phase[Symbol]:
   val contextObject = Phase.OwnerContext
 
   val defn = Definitions.instance
-  val StringType = TypeRef(defn.Predef_String)
-  val BoolType = TypeRef(defn.Predef_Bool)
+  val StringType = defn.StringType
+  val BoolType = defn.BoolType
+  val UnitType = defn.UnitType
 
   override def transformIdent(word: Ident)(using ctx: Context): Word =
     word match
       case Ident(sym) if sym.isAllOf(Flags.Context | Flags.Param) =>
         val arg = StringLit(sym.fullName)(StringType, word.span)
         val fun = Ident(getParamSym)(word.span)
-        val app = Apply(fun, arg :: Nil)(word.tpe, word.span)
+        val app = Encoded(Apply(fun, arg :: Nil)(AnyType, word.span))(word.tpe)
         app
 
       case _ =>
@@ -95,7 +96,7 @@ extends Phase[Symbol]:
         val setParamCall = Apply(funSetParam, key :: value :: Nil)(AnyType, paramRef.span).dropValue
 
         val funDelParam = Ident(delParamSym)(paramRef.span)
-        val delParamCall = Apply(funDelParam, key :: Nil)(VoidType, paramRef.span).dropValue
+        val delParamCall = Apply(funDelParam, key :: Nil)(UnitType, paramRef.span).dropValue
 
         val cond = Ident(hasX)(paramRef.span)
         val ifStat = If(cond, setParamCall, delParamCall)(VoidType, paramRef.span)

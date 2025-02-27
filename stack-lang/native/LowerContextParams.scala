@@ -34,15 +34,16 @@ class LowerContextParams(runtime: NativeRuntime) extends phases.Phase[Symbol]:
 
   val BoolType = Definitions.instance.BoolType
   val IntType = Definitions.instance.IntType
+  val AddrType = TypeRef(runtime.Core_Addr)
 
   override def transformIdent(word: Ident)(using ctx: Context): Word =
     word match
       case Ident(sym) if sym.isAllOf(Flags.Context | Flags.Param) =>
         // Use AnyType instead String to avoid creating String and make sure its address is static
         // At runtime, it's a byte array initialized in the constant area
-        val arg = StringLit(sym.fullName)(AnyType, word.span)
+        val arg = Encoded(StringLit(sym.fullName)(AnyType, word.span))(AddrType)
         val fun = Ident(runtime.ParamSupport_getParam)(word.span)
-        val app = Apply(fun, arg :: Nil)(word.tpe, word.span)
+        val app = Encoded(Apply(fun, arg :: Nil)(AnyType, word.span))(word.tpe)
         app
 
       case _ =>
@@ -70,7 +71,7 @@ class LowerContextParams(runtime: NativeRuntime) extends phases.Phase[Symbol]:
       val paramName = arg.paramRef.symbol.fullName
       // Use AnyType instead String to avoid creating String and make sure its address is static
       // At runtime, it's a byte array initialized in the constant area
-      val key = StringLit(paramName)(AnyType, arg.paramRef.span)
+      val key = Encoded(StringLit(paramName)(AnyType, arg.paramRef.span))(AddrType)
       val value = Ident(argValueSym)(arg.rhs.span)
       val funSetParam = Ident(runtime.ParamSupport_setParam)(arg.span)
       val setParamCall = Apply(funSetParam, key :: value :: Nil)(IntType, arg.span)

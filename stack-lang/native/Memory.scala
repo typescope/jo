@@ -80,20 +80,19 @@ object Memory:
         Apply(addAddrFun, ref :: offsetLit :: Nil)(TypeRef(runtime.Core_Addr), rhs.span)
 
     val writeIntFun = Ident(runtime.Core_writeInt)(rhs.span)
-    Apply(writeIntFun, addr :: rhs :: Nil)(IntType, rhs.span).dropValue
+    Apply(writeIntFun, addr :: Encoded(rhs)(IntType) :: Nil)(IntType, rhs.span).dropValue
 
   def readField(recordType: RecordType, select: Select, runtime: NativeRuntime): Word =
     val IntType = Definitions.instance.IntType
+    val AddrType = TypeRef(runtime.Core_Addr)
 
     val Select(qual, field) = select
     val offset = Memory.fieldOffset(recordType, field)
-    val addr =
-      if offset == 0 then
-        qual
-      else
-        val offsetLit = Literal(Constant.Int(offset))(IntType, select.span)
-        val addAddrFun = Ident(runtime.Core_addAddr)(select.span)
-        Apply(addAddrFun, qual :: offsetLit :: Nil)(TypeRef(runtime.Core_Addr), select.span)
+    var addr: Word = Encoded(qual)(AddrType)
+    if offset != 0 then
+      val offsetLit = Literal(Constant.Int(offset))(IntType, select.span)
+      val addAddrFun = Ident(runtime.Core_addAddr)(select.span)
+      addr = Apply(addAddrFun, qual :: offsetLit :: Nil)(AddrType, select.span)
 
     val readIntFun = Ident(runtime.Core_readInt)(select.span)
     Encoded(Apply(readIntFun, addr :: Nil)(IntType, select.span))(select.tpe)

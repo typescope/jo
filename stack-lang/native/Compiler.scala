@@ -93,10 +93,13 @@ object Compiler:
           TreeChecker.check             |>
           Printing.peek(enable = false) |>
           contextParamsLower.transform  |+
+          TreeChecker.check             |>
           Printing.peek(enable = false) |>
           runtimeLowerer.transform      |+
+          TreeChecker.check             |>
           Printing.peek(enable = false) |>
           explicitAlloc.transform       |+
+          TreeChecker.check             |>
           Printing.peek(enable = false) |>
           backend.compile               |>
           assembler
