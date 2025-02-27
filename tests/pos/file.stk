@@ -7,7 +7,7 @@ fun ioTest =
   println
     "hello, " + name
 
-  val file = open("abc.txt")
+  val file = open("test-data.txt")
   file.write("123456789\n")
   file.write("abcdef")
   file.seek 0
@@ -16,7 +16,7 @@ fun ioTest =
     file.readLine + "\n"
   file.close
 
-  val file2 = open("abc.txt")
+  val file2 = open("test-data.txt")
   stdout.write
     file2.readLine + "\n"
   file2.close

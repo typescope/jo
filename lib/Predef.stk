@@ -120,6 +120,8 @@ type String <: object {
 //
 // I/O support
 //
+
+// Open a file or create one if absent
 param open: String => File = ???
 
 param stdin: object {
