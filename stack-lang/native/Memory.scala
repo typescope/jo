@@ -70,14 +70,14 @@ object Memory:
 
   def writeField(recordType: RecordType, field: String, ref: Word, rhs: Word, runtime: NativeRuntime): Word =
     val IntType = Definitions.instance.IntType
+    val AddrType = TypeRef(runtime.Core_Addr)
+
     val offset = Memory.fieldOffset(recordType, field)
-    val addr =
-      if offset == 0 then
-        ref
-      else
-        val offsetLit = Literal(Constant.Int(offset))(IntType, rhs.span)
-        val addAddrFun = Ident(runtime.Core_addAddr)(rhs.span)
-        Apply(addAddrFun, ref :: offsetLit :: Nil)(TypeRef(runtime.Core_Addr), rhs.span)
+    var addr: Word = Encoded(ref)(AddrType)
+    if offset != 0 then
+      val offsetLit = Literal(Constant.Int(offset))(IntType, rhs.span)
+      val addAddrFun = Ident(runtime.Core_addAddr)(rhs.span)
+      addr = Apply(addAddrFun, ref :: offsetLit :: Nil)(TypeRef(runtime.Core_Addr), rhs.span)
 
     val writeIntFun = Ident(runtime.Core_writeInt)(rhs.span)
     Apply(writeIntFun, addr :: Encoded(rhs)(IntType) :: Nil)(IntType, rhs.span).dropValue
