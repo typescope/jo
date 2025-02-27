@@ -581,6 +581,10 @@ object X86 extends Assembler:
         else
           pb.addByte(((destReg << 3) | r).toByte)
 
+        // clear high bits
+        if size == Size.B8 then
+          and(destReg, Int32((1 << 8) - 1))
+
       case Rel(r, 0) =>
         load(Reg(r), destReg, size)
 
@@ -604,6 +608,10 @@ object X86 extends Assembler:
           pb.addByte((0x80 | (destReg << 3) | r).toByte)
           pb.addInt(offset)
 
+        // clear high bits
+        if size == Size.B8 then
+          and(destReg, Int32((1 << 8) - 1))
+
       case l: Label =>
         withPatch(l, 6): (bb, loc) =>
           // 8A /r  MOV r8, r/m8
@@ -620,6 +628,10 @@ object X86 extends Assembler:
 
           bb.addByte(((destReg << 3) | 5).toByte)
           bb.addInt(loc)
+
+          // clear high bits
+          if size == Size.B8 then
+            and(destReg, Int32((1 << 8) - 1))
 
   def store(v: Value, addr: Addr)(using pb: PatchableBuffer): Unit =
     addr match

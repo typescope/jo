@@ -12,7 +12,6 @@ import native.Assembly
 import native.Assembly.*
 
 import native.os.Linux
-import native.os.LinuxSyscallX86StackLinker
 
 import native.runtime.NativeRuntime
 import native.runtime.BumpAllocator
@@ -366,10 +365,10 @@ extends Backend(runtime):
           cb.add(Instr.Store(Reg8(r1), Reg(r2)))
 
       case runtime.Core_readByte  =>
-        useReg: r =>
-          pop(r, Size.B32)
-          cb.add(Instr.Load(Reg(r), r, Size.B8))
-          push(Reg(r))
+        useTwoReg: (r1, r2) =>
+          pop(r1, Size.B32)
+          cb.add(Instr.Load(Reg(r1), r2, Size.B8))
+          push(Reg(r2))
 
       case _ => call(sym)
 
@@ -462,7 +461,7 @@ object StackMachine:
 
   def createLinux86(runtimeRootNameTable: NameTable, main: Symbol): Backend =
     val bumpAllocator = new BumpAllocator(runtimeRootNameTable)
-    val syscalls = new LinuxSyscallX86StackLinker(runtimeRootNameTable)
+    val syscalls = Linux.createSyscallStack(runtimeRootNameTable)
     val linkers = List(bumpAllocator, syscalls)
     val runtime = new NativeRuntime(runtimeRootNameTable, linkers, main)
 

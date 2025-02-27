@@ -35,16 +35,26 @@ final class Definitions(rootNameTable: NameTable):
 
   val Predef_array  =  Predef.termMember("array")
 
-  val Predef_js     =  Predef.termMember("js")
-
   // numeric coercion
   val Predef_byteToChar = Predef.termMember("byteToChar")
   val Predef_byteToInt  = Predef.termMember("byteToInt")
   val Predef_charToByte = Predef.termMember("charToByte")
   val Predef_charToInt  = Predef.termMember("charToInt")
+  val Predef_charToStr  = Predef.termMember("charToStr")
   val Predef_intToByte  = Predef.termMember("intToByte")
   val Predef_intToChar  = Predef.termMember("intToChar")
   val Predef_intToStr   = Predef.termMember("intToStr")
+
+  // I/O
+  val Predef_open   = Predef.termMember("open")
+  val Predef_stdin  = Predef.termMember("stdin")
+  val Predef_stdout = Predef.termMember("stdout")
+  val Predef_stderr = Predef.termMember("stderr")
+
+  val Predef_open$default   = Predef.termMember("open$default")
+  val Predef_stdin$default  = Predef.termMember("stdin$default")
+  val Predef_stdout$default = Predef.termMember("stdout$default")
+  val Predef_stderr$default = Predef.termMember("stderr$default")
 
   // types
   val Predef_Bool   =  Predef.typeMember("Bool")

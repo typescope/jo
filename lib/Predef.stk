@@ -1,9 +1,9 @@
 namespace stk.Predef
 
 //--------------------------------------------------------------
-// primitive types
+// Basic types
 //
-// primitive type symbols are handled specially in the namer
+// `Any` and `Bottom` are handled specially in the namer
 
 // [-128, 127]
 type Byte
@@ -57,15 +57,19 @@ fun (n: Int) p: void =
   println
     intToStr n
 
-fun print(s: String): void = abort("primitive print")
+fun print(s: String): void = stdout.write s
 
-fun printChar(c: Char): void = abort("primitive printChar")
+fun printChar(c: Char): void =
+  print
+    charToStr c
 
 fun println(s: String): void =
   print s
   printChar '\n'
 
-fun abort(s: String): Bottom = abort("primitive print")
+fun ??? : Bottom = abort("not implemented")
+
+fun abort(s: String): Bottom = abort("primitive abort")
 
 fun assert(cond: Bool, message: String): void =
   if not cond then abort message
@@ -81,11 +85,12 @@ fun byteToChar(b: Byte): Char = abort "byteToChar"
 
 fun intToChar(n: Int): Char = abort "intToChar"
 fun intToByte(n: Int): Byte = abort "intToByte"
+fun intToStr(n: Int): String = abort "intToStr"
 
 fun charToByte(c: Char): Byte = abort "charToByte"
 fun charToInt(c: Char): Int = abort "charToInt"
+fun charToStr(c: Char): String = abort "charToStr"
 
-fun intToStr(n: Int): String = abort "intToStr"
 //-------------------------------------------------------------
 //
 // Arrays
@@ -113,8 +118,23 @@ type String <: object {
 
 //-------------------------------------------------------------
 //
-// Platform support
+// I/O support
 //
 
-// A piece of JS code --- it is specially handled under JS platform.
-fun js(s: String): Bottom = abort("primitive js")
+// Open a file or create one if absent
+param open: String => File = ???
+
+param stdin: object { def readLine(): String} = ???
+
+param stdout: object {def write(content: String): void } = ???
+
+param stderr: object { def write(content: String): void } = ???
+
+type File = object {
+  def close(): void
+  def seek(pos: Int): void
+  def hasMore(): Bool
+
+  def readLine(): String
+  def write(content: String): void
+}

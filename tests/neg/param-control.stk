@@ -9,8 +9,8 @@ fun normalize(s: String): void =
   print newLine
 
 fun foo() =
-  pretty "hello, world!" allow none  // error
-  normalize "hello, world!" allow newLine
+  pretty "hello, world!" allow stdout  // error
+  normalize "hello, world!" allow stdout, newLine
 
 fun bar() =
   print

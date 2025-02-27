@@ -43,16 +43,20 @@ class LowerRuntime(runtime: NativeRuntime) extends phases.Phase[Unit]:
   val IntType = defn.IntType
 
   val rewiring = Map(
-    defn.Predef_print -> runtime.Core_print,
-    defn.Predef_printChar -> runtime.Core_printChar,
     defn.Predef_abort -> runtime.Core_abortImpl,
     defn.Predef_byteToChar -> runtime.Core_byteToChar,
-    defn.Predef_byteToInt -> runtime.Core_byteToInt,
+    defn.Predef_byteToInt  -> runtime.Core_byteToInt,
     defn.Predef_charToByte -> runtime.Core_charToByte,
-    defn.Predef_charToInt -> runtime.Core_charToInt,
-    defn.Predef_intToByte -> runtime.Core_intToByte,
-    defn.Predef_intToChar -> runtime.Core_intToChar,
-    defn.Predef_intToStr -> runtime.Core_intToStr,
+    defn.Predef_charToInt  -> runtime.Core_charToInt,
+    defn.Predef_charToStr  -> runtime.Core_charToStr,
+    defn.Predef_intToByte  -> runtime.Core_intToByte,
+    defn.Predef_intToChar  -> runtime.Core_intToChar,
+    defn.Predef_intToStr   -> runtime.Core_intToStr,
+
+    defn.Predef_open$default   -> runtime.Core_openFile,
+    defn.Predef_stdin$default  -> runtime.Core_createStdIn,
+    defn.Predef_stdout$default -> runtime.Core_createStdOut,
+    defn.Predef_stderr$default -> runtime.Core_createStdErr,
   )
 
   override def transformApply(app: Apply)(using ctx: Context): Word =

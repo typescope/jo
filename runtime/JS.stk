@@ -12,16 +12,27 @@ fun isDefined(o: Any): Bool = js "o != undefined"
 
 fun concat(a: String, b: String): String = js "a + b"
 
-fun (arr: Any) cast[T]: T = abort("runtime cast")
+fun (arr: Any) cast[T]: T = abort "runtime cast"
+
+// A piece of JS code
+//
+// It is only safe to reference a local variable name in the JS code.
+fun js(s: String): Bottom = abort("primitive js")
+
+//------------------------------------------------------------------------------
+//
+// program life time
+//
+
+fun start(): void =
+  mainStub
+
+fun mainStub(): void = abort "error mainStub"
 
 //------------------------------------------------------------------------------
 //
 // Predef functions
 //
-
-fun print(s: String): void = js "process.stdout.write(s)"
-
-fun printChar(c: Char): void = js "process.stdout.write(String.fromCharCode(c))"
 
 fun abort(msg: String): Bottom =
   js "throw msg"
@@ -43,6 +54,7 @@ fun intToStr(n: Int): String = js "n.toString()"
 
 fun charToByte(c: Char): Byte = ((c cast[Int]) & 255) cast[Byte]
 fun charToInt(c: Char): Int = c cast[Int]
+fun charToStr(c: Char): String = js "String.fromCharCode(c)"
 
 //------------------------------------------------------------------------------
 //
@@ -114,3 +126,85 @@ fun setParam(key: String, value: Any): Any =
 
 fun delParam(key: String): void =
   setProp (js "__runtime_contextParams") key (js "undefined")
+
+//------------------------------------------------------------------------------
+//
+// I/O support
+//
+
+// APIs exposed by required("fs")
+fun openSync(filePath: String, mode: String): Int =
+  js "require(\"fs\").openSync(filePath, mode)"
+
+fun closeSync(fd: Int): void =
+  js "require(\"fs\").closeSync(fd)"
+
+fun writeSync(fd: Int, buffer: Any, offset: Int, len: Int, position: Int): Int =
+  js "require(\"fs\").writeSync(fd, buffer, offset, len, position)"
+
+fun readSync(fd: Int, buffer: Any, offset: Int, len: Int, position: Int): Int =
+  js "require(\"fs\").readSync(fd, buffer, offset, len, position)"
+
+fun readFileSync(fd: Int): object { def toString(): String } =
+  js "require(\"fs\").readFileSync(fd)"
+
+fun fstatSync(fd: Int): Stat =
+  js "require(\"fs\").fstatSync(fd)"
+
+fun existsSync(filePath: String): Bool =
+  js "require(\"fs\").existsSync(filePath)"
+
+type Stat = object {
+  val size: Int
+}
+
+fun openFile = (filePath: String) =>
+  val mode = if existsSync filePath then "r+" else "w+"
+  val fd = openSync filePath mode
+  object {
+    var position: Int = 0
+    def close(): void = closeSync fd
+
+    def seek(pos: Int): void =
+      position <- pos
+
+    def hasMore(): Bool =
+      val stat = fstatSync fd
+      position < stat.size
+
+    def readLine(): String =
+      // read 256 chunks, assuming normal length of lines
+      var continue = true
+      var res = ""
+      val buffer = js "Buffer.alloc(256)"
+      while continue do
+        val bytesRead = readSync fd buffer 0 (js "buffer.byteLength") position
+        position <- position + bytesRead
+        val str = js "buffer.toString('utf8', 0, bytesRead)"
+        val lines = js "str.split(/\\r?\\n/)"
+        if bytesRead < 256 or js "lines.length > 1" then
+          continue <- false
+        res <- res + (js "lines[0]")
+
+      res
+
+    def write(content: String): void =
+      val buffer = js "Buffer.from(content, 'utf8')"
+      val bytesWritten = writeSync fd buffer 0 (js "buffer.byteLength") position
+      position <- position + bytesWritten
+      assert
+        (js "buffer.byteLength") == bytesWritten
+        "write file failed"
+  }
+
+fun createStdIn() = object {
+  def readLine() = (readFileSync 0).toString
+}
+
+fun createStdOut() = object {
+  def write(s: String) = js "process.stdout.write(s)"
+}
+
+fun createStdErr() = object {
+  def write(s: String) = js "process.stderr.write(s)"
+}

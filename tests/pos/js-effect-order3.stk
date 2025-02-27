@@ -1,0 +1,10 @@
+fun effect(n: Int): Int =
+  n p
+  n
+
+fun main =
+  var i = 0
+  while effect i < 3 do
+    println
+      "i = " + (intToStr i)
+    i <- i + 1

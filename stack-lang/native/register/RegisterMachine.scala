@@ -12,8 +12,6 @@ import native.Assembly.{ Type => _, * }
 
 import native.arch.X86
 import native.os.Linux
-import native.os.LinuxSyscallX86RegisterLinker
-
 import native.runtime.NativeRuntime
 import native.runtime.BumpAllocator
 
@@ -547,7 +545,7 @@ object RegisterMachine:
     */
   def createLinux86(runtimeRootNameTable: NameTable, main: Symbol): Backend =
     val bumpAllocator = new BumpAllocator(runtimeRootNameTable)
-    val syscalls = new LinuxSyscallX86RegisterLinker(runtimeRootNameTable)
+    val syscalls = Linux.createSyscallRegister(runtimeRootNameTable)
     val linkers = List(bumpAllocator, syscalls)
     val runtime = new NativeRuntime(runtimeRootNameTable, linkers, main)
 

@@ -168,7 +168,7 @@ object TypeOps:
           mod + f.name + ": " + show(f.info)
 
         val methodList = methods.map: m =>
-          "def " + m.name + show(m.info)
+          "def " + m.name + show(m.info.asProcType)
 
         (fieldList ++ methodList).mkString("object { ", "; ", " }")
 

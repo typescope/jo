@@ -45,17 +45,21 @@ extends Linker:
   val Core_String_plus           = Core.termMember("String_plus")
   val Core_String_substring      = Core.termMember("String_substring")
 
-  val Core_print     = Core.termMember("print")
-  val Core_printChar = Core.termMember("printChar")
   val Core_abortImpl = Core.termMember("abortImpl")
 
   val Core_byteToChar = Core.termMember("byteToChar")
   val Core_byteToInt  = Core.termMember("byteToInt")
   val Core_charToByte = Core.termMember("charToByte")
   val Core_charToInt  = Core.termMember("charToInt")
+  val Core_charToStr  = Core.termMember("charToStr")
   val Core_intToByte  = Core.termMember("intToByte")
   val Core_intToChar  = Core.termMember("intToChar")
   val Core_intToStr   = Core.termMember("intToStr")
+
+  val Core_openFile = Core.termMember("openFile")
+  val Core_createStdIn = Core.termMember("createStdIn")
+  val Core_createStdOut = Core.termMember("createStdOut")
+  val Core_createStdErr = Core.termMember("createStdErr")
 
   val GC = resolvePath("stk.runtime.native.GC")
   val GC_alloc = GC.termMember("alloc")

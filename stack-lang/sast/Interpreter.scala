@@ -36,6 +36,8 @@ object Interpreter:
 
     case PlatformCall(op: List[Value] => List[Value])
 
+    case PlatformObj(call: (String, List[Value]) => List[Value])
+
     def show(level: Int = 2): String =
       if level == 0 then
         "..."
@@ -49,8 +51,9 @@ object Interpreter:
         case FunVal(fun, env) => "closue(env = " + env.show(recursive = false) + ")"
         case ArrayVal(content) => "[...]"
         case PlatformCall(op) => "platformCall"
+        case PlatformObj(_) => "platformObject"
 
-  type Value = IntVal | BoolVal | StringVal | RecordVal | ObjectVal | FunVal | ArrayVal
+  type Value = IntVal | BoolVal | StringVal | RecordVal | ObjectVal | FunVal | ArrayVal | PlatformObj
 
   enum Env:
     case RootEnv()
@@ -145,6 +148,10 @@ object Interpreter:
   def intToByte(args: List[Value]) = int1(_ & 255)(args)
   def intToChar(args: List[Value]) = int1(_ & 65535)(args)
 
+  def charToStr(args: List[Value]): List[Value] =
+    val IntVal(v) :: Nil = args: @unchecked
+    StringVal(v.toChar.toString()) :: Nil
+
   def intToStr(args: List[Value]): List[Value] =
     val IntVal(v) :: Nil = args: @unchecked
     StringVal(v.toString()) :: Nil
@@ -152,16 +159,6 @@ object Interpreter:
   def eql(args: List[Value]): List[Value] =
     val a :: b :: Nil = args: @unchecked
     BoolVal(a == b) :: Nil
-
-  def print(args: List[Value]): List[Value] =
-    val StringVal(v) :: Nil = args: @unchecked
-    System.out.print(v)
-    Nil
-
-  def printChar(args: List[Value]): List[Value] =
-    val IntVal(v) :: Nil = args: @unchecked
-    System.out.print(v.toChar)
-    Nil
 
   def newArray(args: List[Value]): List[Value] =
     val IntVal(size) :: Nil = args: @unchecked
@@ -195,23 +192,79 @@ object Interpreter:
       defn.Predef_bor        ->       bor,
       defn.Predef_bnot       ->       bnot,
       defn.Predef_eql        ->       eql,
-      defn.Predef_print      ->       print,
-      defn.Predef_printChar  ->       printChar,
       defn.Predef_abort      ->       abort,
       defn.Predef_array      ->       newArray,
       defn.Predef_byteToChar ->       byteToChar,
       defn.Predef_byteToInt  ->       byteToInt,
       defn.Predef_charToByte ->       charToByte,
       defn.Predef_charToInt  ->       charToInt,
+      defn.Predef_charToStr  ->       charToStr,
       defn.Predef_intToByte  ->       intToByte,
       defn.Predef_intToChar  ->       intToChar,
       defn.Predef_intToStr   ->       intToStr,
+
+      defn.Predef_open$default   ->  open,
+      defn.Predef_stdin$default  ->  stdin,
+      defn.Predef_stdout$default ->  stdout,
+      defn.Predef_stderr$default ->  stderr,
     )
 
     for (sym, op) <- platformCalls do
       rootEnv.bind(sym, PlatformCall(op))
 
     rootEnv
+
+  def stdin(args: List[Value]) = new PlatformObj((name: String, args: List[Value]) =>
+    assert(name == "readLine", name)
+    val reader = new java.io.BufferedReader(new java.io.InputStreamReader(System.in))
+    val res = reader.readLine()
+    reader.close()
+    StringVal(res) :: Nil
+  ) :: Nil
+
+  def stdout(args: List[Value]) = new PlatformObj((name: String, args: List[Value]) =>
+    assert(name == "write", name)
+    val StringVal(content) :: Nil = args: @unchecked
+    System.out.print(content)
+    Nil
+  ) :: Nil
+
+  def stderr(args: List[Value]) = new PlatformObj((name: String, args: List[Value]) =>
+    assert(name == "write", name)
+    val StringVal(content) :: Nil = args: @unchecked
+    System.err.print(content)
+    Nil
+  ) :: Nil
+
+  def open(args: List[Value]) = new PlatformObj((name: String, args: List[Value]) =>
+    assert(name == "apply", name)
+    val StringVal(file) :: Nil = args: @unchecked
+    val jfile = new java.io.RandomAccessFile(file, "rw")
+    PlatformObj { (name: String, args: List[Value]) =>
+      name match
+      case "close" =>
+        jfile.close()
+        Nil
+
+      case "seek" =>
+        val IntVal(offset) :: Nil = args: @unchecked
+        jfile.seek(offset)
+        Nil
+
+      case "hasMore" =>
+        val res = jfile.getFilePointer() < jfile.length()
+        BoolVal(res) :: Nil
+
+      case "readLine" =>
+        val res = jfile.readLine()
+        StringVal(res) :: Nil
+
+      case "write" =>
+        val StringVal(content) :: Nil = args: @unchecked
+        jfile.write(content.getBytes("utf-8"))
+        Nil
+    } :: Nil
+  ) :: Nil
 
   def exec(nss: List[Namespace], main: Symbol): Unit =
     val rootEnv = createRootEnv()
@@ -242,9 +295,10 @@ object Interpreter:
 
     exec(fdef.body)(using funEnv)
 
-  def eval(word: Word)(using env: Env, params: Params): Value = Debug.trace(word.show + ", env = " + env.show(recursive = false), (_: Value).show(), enable = false):
-    val (value: Value) :: Nil = exec(word): @unchecked
-    value
+  def eval(word: Word)(using env: Env, params: Params): Value =
+    Debug.trace(word.show + ", env = " + env.show(recursive = false), (_: Value).show(), enable = false):
+      val (value: Value) :: Nil = exec(word): @unchecked
+      value
 
   def exec(word: Word)(using env: Env, params: Params): List[Denotation] =
     word match
@@ -319,6 +373,9 @@ object Interpreter:
         fun match
           case Select(qual, name) if qual.tpe.isObjectType =>
             eval(qual): @unchecked match
+              case objNative: PlatformObj =>
+                objNative.call(name, args.map(eval))
+
               case objVal: ObjectVal =>
                 val argVals = args.map(eval)
                 val fdef = objVal.defs(name)

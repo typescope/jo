@@ -167,8 +167,14 @@ object EffectAnalysis:
             acc ++ this(arg.rhs)
 
           val masked = args.map(_.paramRef.symbol)
-          val allowed = allow.getOrElse(Nil).map(_.symbol)
-          val unmaskedAllowed = (effsInner -- masked).filter((k, _) => allowed.contains(k))
+          val unmasked = (effsInner -- masked)
+          val unmaskedAllowed =
+            allow match
+              case Some(allowed) =>
+                val allowedSet = allowed.map(_.symbol).toSet
+                unmasked.filter((k, _) => allowedSet.contains(k))
+              case _ =>
+                unmasked
 
           effsArgs ++ unmaskedAllowed
 

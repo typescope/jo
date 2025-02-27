@@ -29,7 +29,12 @@ object Sast:
     /** Whether the word can be duplicated as neighbors without affecting program semantics */
     def isIdempotent: Boolean =
       this match
-        case _: Literal | _: Ident => true
+        case _: Literal => true
+
+        case Ident(sym) =>
+          // Be more cautious with mutable variables and context parameters
+          !sym.is(Flags.Mutable)
+          && !sym.isAllOf(Flags.Context | Flags.Param)
 
         case Select(qual, _) => qual.isIdempotent
 

@@ -40,7 +40,9 @@ class NormalizeParams(using Reporter) extends Phase[NormalizeParams.Context]:
       val fdef2 = super.transformFunDef(fdef)
 
       given Source = fdef.symbol.sourcePos.source
-      for (eff, trace) <- effs if !eff.is(Flags.Default) do
+      for
+        (eff, trace) <- effs if !eff.is(Flags.Default)
+      do
         Reporter.error("Context parameter not provided: " + eff, fdef2.pos, trace)
 
       val defaultEffs = effs.keys.filter(_.is(Flags.Default)).toList

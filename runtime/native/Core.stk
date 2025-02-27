@@ -12,6 +12,8 @@ import stk.runtime.native.ParamSupport
 
 type Addr
 
+fun id[T](x: T): T = x
+
 fun dataAddr(qualid: String): Addr =
   abort "native global"
 
@@ -22,16 +24,19 @@ fun readInt(arr: Addr): Int =
   abort "native readInt"
 
 // The caller needs to make sure the value fit into one byte
-fun writeByte(arr: Addr, value: Int): void =
+fun writeByte(arr: Addr, value: Byte): void =
   abort "native writeInt"
 
-fun readByte(arr: Addr): Int =
+fun readByte(arr: Addr): Byte =
   abort "native readByte"
 
 fun addAddr(arr: Addr, offset: Int): Addr =
   abort "native addAddr"
 
 fun (arr: Any) cast[T]: T = abort("runtime cast")
+
+fun debug(s: String): void =
+  writeString 0 (id ("[DEBUG] " + s + "\n") cast[StringRepr])
 
 //------------------------------------------------------------------------------
 //
@@ -56,29 +61,8 @@ fun mainStub(): void = abort("error mainStub")
 // Predef implementation
 //
 
-fun print(repr: StringRepr): void =
-  match repr
-    case #Raw(len, content) =>
-      Syscall.sys_write 1 content len
-
-    case #Concat(len, lhs, rhs) =>
-      // TODO: annoying
-      val any1: Any = lhs
-      val any2: Any = rhs
-      print
-        any1 cast[StringRepr]
-      print
-        any2 cast[StringRepr]
-
-fun printChar(c: Char): void =
-  // TODO: remove allocation
-  val content = GC.alloc 1
-  // TODO: handle unicode
-  writeByte content (c cast[Int])
-  Syscall.sys_write 1 content 1
-
 fun abortImpl(msg: String): Bottom =
-  println msg
+  writeString 0 (id msg cast[StringRepr])
   Syscall.sys_exit 1
 
 //------------------------------------------------------------------------------
@@ -96,6 +80,13 @@ fun intToByte(n: Int): Byte = (n & 255) cast[Byte]
 fun charToByte(c: Char): Byte = ((c cast[Int]) & 255) cast[Byte]
 fun charToInt(c: Char): Int = c cast[Int]
 
+fun charToStr(c: Char): String =
+  // TODO: remove allocation
+  val content = GC.alloc 1
+  // TODO: handle unicode
+  writeByte content (charToByte c)
+  #Raw(1, content) as StringRepr cast[String]
+
 fun intToStr(n: Int): String =
   // MAX_VALUE =  2147483647
   // MIN_VALUE = -2147483648
@@ -112,7 +103,10 @@ fun intToStr(n: Int): String =
     var index = 10
     while remains > 0 do
       val digit = remains % 10
-      writeByte (addAddr buf index) (48 + digit) // '0' = 48
+      writeByte
+        addAddr buf index
+        intToByte (48 + digit) // '0' = 48
+
       index <- index - 1
       remains <- remains / 10
 
@@ -233,7 +227,186 @@ fun String_substring(source: String, from: Int, len: Int): StringRepr =
     // TODO: unicode support
     writeByte
       addAddr buf index
-      (source (from + index)) cast[Int]
+      charToByte (source (from + index))
     index <- index + 1
 
   #Raw(len, buf)
+
+fun String_bytes(repr: String): Any =
+  val bytes = GC.alloc repr.length
+
+  fun recur(repr: StringRepr, from: Int): Int =
+    match repr
+      case #Raw(len, content) =>
+        var i = 0
+        while i < len do
+          writeByte
+            addAddr
+              bytes
+              from + i
+            readByte
+              addAddr content i
+
+          i <- i + 1
+
+        from + len
+
+      case #Concat(len, lhs, rhs) =>
+        val index = recur (id lhs cast[StringRepr]) from
+        recur (id rhs cast[StringRepr]) index
+
+  recur (id repr cast[StringRepr]) 0
+  bytes
+
+//------------------------------------------------------------------------------
+//
+// I/O support
+//
+
+fun openFile = (filePath: String) =>
+  val nameBytes = String_bytes filePath
+
+  val O_CREAT = 1 << 6
+  val O_RDWR = 2
+  val flags: Int = O_CREAT | O_RDWR
+
+  val S_IRUSR = 1 << 8
+  val S_IWUSR = 1 << 7
+  val S_IRGRP = 1 << 5
+  val S_IROTH = 1 << 2
+  val mode: Int = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH
+
+  // return starting index of '\n' or '\r\n' or -1.
+  fun findLineSeparator(buffer: Addr, len: Int): Int =
+    var i = 0
+    var last = -1
+    var index = -1
+
+    while i < len do
+      val c = readByte (addAddr buffer i)
+
+      // debug ((intToStr i) + " -> " + (intToStr c))
+
+      if c == '\n' then
+        if last == '\r' then index <- i - 1
+        else index <- i
+        i <- len
+      else
+        last <- c
+        i <- i + 1
+    end
+
+    index
+
+  val fd = Syscall.sys_open nameBytes flags mode
+  assert (fd > 0) ("sys_open = " + (intToStr fd))
+
+  object {
+    def close(): void =
+      Syscall.sys_close fd
+
+    def seek(pos: Int): void =
+      val SEEK_SET = 0
+      val ret = Syscall.sys_seek fd pos SEEK_SET
+      assert (ret >= 0) ("sys_seek = " + (intToStr ret))
+
+    def hasMore(): Bool =
+      // Always use `sys_newfstat` to avoid representation problems
+      val stat = GC.alloc 256
+      val ret = Syscall.sys_newfstat fd stat
+      assert (ret == 0) ("sys_newfstat = " + (intToStr ret))
+
+      val size = readInt (addAddr stat 20)
+
+      val SEEK_CUR = 1
+      val pos = Syscall.sys_seek fd 0 SEEK_CUR
+
+      // writeString
+      //   0
+      //   id ("size = " + (intToStr size) + "\n") cast[StringRepr]
+      // writeString
+      //   0
+      //   id ("pos = " + (intToStr pos) + "\n") cast[StringRepr]
+
+      pos < size
+
+    def readLine(): String =
+      var continue = true
+      var res = ""
+      while continue do
+        // read 256-byte chunks, assuming normal length of lines
+        val buffer = GC.alloc 256
+        val bytesRead = Syscall.sys_read fd buffer 256
+        if bytesRead <= 0 then
+          continue <- false
+        else
+          val lineSeparatorIndex = findLineSeparator buffer bytesRead
+
+          var len = bytesRead
+          if bytesRead < 256 then
+            continue <- false
+
+          if lineSeparatorIndex >= 0 then
+            continue <- false
+            len <- lineSeparatorIndex
+            if lineSeparatorIndex < bytesRead - 1 then
+              // go back to beginning of the next new line
+              val offset = lineSeparatorIndex - bytesRead
+              val SEEK_CUR = 1
+              val ret = Syscall.sys_seek fd offset SEEK_CUR
+              assert (ret >= 0) ("sys_seek = " + (intToStr ret))
+
+          res <- res +
+            #Raw(len, buffer) as StringRepr cast[String]
+        end
+      end
+      res
+
+    def write(content: String): void =
+      writeString fd (id content cast[StringRepr])
+  }
+
+fun writeString(fd: Int, repr: StringRepr): void =
+  match repr
+    case #Raw(len, content) =>
+      val bytesWritten = Syscall.sys_write fd content len
+      assert
+        len == bytesWritten
+        "write failed"
+
+    case #Concat(len, lhs, rhs) =>
+      writeString
+        fd
+        id lhs cast[StringRepr]
+
+      writeString
+        fd
+        id rhs cast[StringRepr]
+
+
+fun createStdIn() = object {
+  def readLine() =
+    var continue = true
+    var res = ""
+    while continue do
+      // read 256-byte chunks, assuming normal length of lines
+      val buffer = GC.alloc 256
+      val bytesRead = Syscall.sys_read 0 buffer 256
+
+      if bytesRead < 256 then
+        continue <- false
+
+      if bytesRead > 0 then
+        res <- res +
+          #Raw(bytesRead, buffer) as StringRepr cast[String]
+
+    res
+}
+
+fun createStdOut() = object {
+  def write(s: String) = writeString 1 (id s cast[StringRepr])
+}
+
+fun createStdErr() = object {
+  def write(s: String) = writeString 2 (id s cast[StringRepr])
+}

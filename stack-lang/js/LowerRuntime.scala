@@ -19,16 +19,20 @@ class LowerRuntime(runtime: JSRuntime) extends phases.Phase[Unit]:
   val IntType = defn.IntType
 
   val rewiring = Map(
-    defn.Predef_print -> runtime.JS_print,
-    defn.Predef_printChar -> runtime.JS_printChar,
-    defn.Predef_abort -> runtime.JS_abort,
+    defn.Predef_abort      -> runtime.JS_abort,
     defn.Predef_byteToChar -> runtime.JS_byteToChar,
-    defn.Predef_byteToInt -> runtime.JS_byteToInt,
+    defn.Predef_byteToInt  -> runtime.JS_byteToInt,
     defn.Predef_charToByte -> runtime.JS_charToByte,
-    defn.Predef_charToInt -> runtime.JS_charToInt,
-    defn.Predef_intToByte -> runtime.JS_intToByte,
-    defn.Predef_intToChar -> runtime.JS_intToChar,
-    defn.Predef_intToStr -> runtime.JS_intToStr,
+    defn.Predef_charToInt  -> runtime.JS_charToInt,
+    defn.Predef_charToStr  -> runtime.JS_charToStr,
+    defn.Predef_intToByte  -> runtime.JS_intToByte,
+    defn.Predef_intToChar  -> runtime.JS_intToChar,
+    defn.Predef_intToStr   -> runtime.JS_intToStr,
+
+    defn.Predef_open$default   -> runtime.JS_openFile,
+    defn.Predef_stdin$default  -> runtime.JS_createStdIn,
+    defn.Predef_stdout$default -> runtime.JS_createStdOut,
+    defn.Predef_stderr$default -> runtime.JS_createStdErr,
   )
 
   override def transformApply(app: Apply)(using ctx: Context): Word =

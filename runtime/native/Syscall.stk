@@ -3,11 +3,44 @@ namespace stk.runtime.native.Syscall
 // TODO: import type
 // import stk.runtime.native.Core.Addr
 
+// Linux system calls interface
+
+fun sys_brk(size: Int): Int = __sys_brk 45 size
+
+fun sys_exit(code: Int): Bottom = __sys_exit 1 code
+
+fun sys_open(name: Any, flags: Int, mode: Int): Int =
+  __sys_open 5 name flags mode
+
+fun sys_close(fd: Int): Int =
+  __sys_close 6 fd
+
+fun sys_seek(fd: Int, offset: Int, whence: Int): Int =
+  __sys_seek 19 fd offset whence
+
+fun sys_read(fd: Int, addr: Any, len: Int): Int =
+  __sys_read 3 fd addr len
+
+fun sys_write(fd: Int, addr: Any, len: Int): Int =
+  __sys_write 4 fd addr len
+
+fun sys_newfstat(fd: Int, stat: Any): Int =
+  __sys_newfstat 108 fd stat
+
 // Linux system calls
 
-fun sys_brk(size: Int): Int = abort "sys_brk"
+fun __sys_brk(no: Int, size: Int): Int = abort "sys_brk"
 
-fun sys_exit(code: Int): Bottom = abort "sys_exit"
+fun __sys_exit(no: Int, code: Int): Bottom = abort "sys_exit"
 
-// TODO: change Any to Addr
-fun sys_write(fd: Int, addr: Any, len: Int): Int = abort "sys_write"
+fun __sys_open(no: Int, name: Any, flags: Int, mode: Int): Int = abort "sys_open"
+
+fun __sys_close(no: Int, fd: Int): Int = abort "sys_close"
+
+fun __sys_seek(no: Int, fd: Int, offset: Int, whence: Int): Int = abort "sys_seek"
+
+fun __sys_read(no: Int, fd: Int, addr: Any, len: Int): Int = abort "sys_read"
+
+fun __sys_write(no: Int, fd: Int, addr: Any, len: Int): Int = abort "sys_write"
+
+fun __sys_newfstat(no: Int, fd: Int, stat: Any): Int = abort "sys_newfstat"

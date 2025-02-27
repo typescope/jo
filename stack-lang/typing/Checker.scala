@@ -28,6 +28,7 @@ class Checker:
     checking = true
     for check <- delayedChecks do check()
     delayedChecks.clear()
+    checking = false
 
   def checkBounds(tctor: TypeTree, targs: List[TypeTree])(using Reporter, Source): Unit =
     if !tctor.tpe.isTypeLambda then
