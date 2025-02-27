@@ -18,14 +18,13 @@ object TypeOps:
     * The logic is different from computing join in the subtype lattice:
     *
     * - ErrorType always dominates
-    * - VoidType dominates BottomType
+    * - VoidType dominates anything else
     *
     * Also, do not infer Any as common type, which is useless.
     */
   def commonResultType(tp1: Type, tp2: Type): Option[Type] =
     if tp1.isError || tp2.isError then Some(ErrorType)
-    else if tp1.isVoidType && tp2.isBottom then Some(VoidType)
-    else if tp1.isBottom && tp2.isVoidType then Some(VoidType)
+    else if tp1.isVoidType || tp2.isVoidType then Some(VoidType)
     else if Subtyping.conforms(tp1, tp2) then Some(tp2)
     else if Subtyping.conforms(tp2, tp1) then Some(tp1)
     else None

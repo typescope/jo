@@ -18,7 +18,7 @@ import scala.collection.mutable
   *     fun getParam(key: Any): Any = ...
   *     fun setParam(key: Any, value: Any): Int = ...
   *     fun getLastOverwrittenValue(): Any = ...
-  *     fun restoreParam(index: Int, value: Any): void = ...
+  *     fun restoreParam(index: Int, value: Any): Unit = ...
   *
   * The implementation makes the following assumptions:
   *
@@ -97,7 +97,7 @@ class LowerContextParams(runtime: NativeRuntime) extends phases.Phase[Symbol]:
         val index = Ident(hashIndexSym)(paramRef.span)
         val value = Ident(oldValueSym)(paramRef.span)
         val restoreParam = Ident(runtime.ParamSupport_restoreParam)(paramRef.span)
-        val restoreParamCall = Apply(restoreParam, index :: value :: Nil)(AnyType, paramRef.span)
+        val restoreParamCall = Apply(restoreParam, index :: value :: Nil)(AnyType, paramRef.span).dropValue
 
         stats += restoreParamCall
 

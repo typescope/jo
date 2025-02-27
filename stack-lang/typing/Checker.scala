@@ -168,7 +168,7 @@ class Checker:
       word
 
     else if targetType.isVoidType && curType.isValueType then
-      Sast.dropValue(word)
+      word.dropValue
 
     else
       val unitType = Definitions.instance.UnitType

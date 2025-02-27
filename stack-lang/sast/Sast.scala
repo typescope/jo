@@ -24,6 +24,10 @@ object Sast:
 
     def isDef: Boolean = this.isInstanceOf[Def]
 
+    def dropValue: Word =
+      assert(this.tpe.isValueType)
+      Encoded(this)(VoidType)
+
     def show: String = Printing.show(this)
 
     /** Whether the word can be duplicated as neighbors without affecting program semantics */
@@ -212,10 +216,6 @@ object Sast:
 
   //----------------------------------------------------------------------------
   // helpers
-
-  def dropValue(word: Word): Word =
-    assert(word.tpe.isValueType)
-    Encoded(word)(VoidType)
 
   def StringLit(s: String)(tp: Type, span: Span) =
     Literal(Constant.String(s))(tp, span)
