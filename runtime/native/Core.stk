@@ -24,10 +24,10 @@ fun readInt(arr: Addr): Int =
   abort "native readInt"
 
 // The caller needs to make sure the value fit into one byte
-fun writeByte(arr: Addr, value: Int): void =
+fun writeByte(arr: Addr, value: Byte): void =
   abort "native writeInt"
 
-fun readByte(arr: Addr): Int =
+fun readByte(arr: Addr): Byte =
   abort "native readByte"
 
 fun addAddr(arr: Addr, offset: Int): Addr =
@@ -84,7 +84,7 @@ fun charToStr(c: Char): String =
   // TODO: remove allocation
   val content = GC.alloc 1
   // TODO: handle unicode
-  writeByte content (c cast[Int])
+  writeByte content (charToByte c)
   #Raw(1, content) as StringRepr cast[String]
 
 fun intToStr(n: Int): String =
@@ -103,7 +103,10 @@ fun intToStr(n: Int): String =
     var index = 10
     while remains > 0 do
       val digit = remains % 10
-      writeByte (addAddr buf index) (48 + digit) // '0' = 48
+      writeByte
+        addAddr buf index
+        intToByte (48 + digit) // '0' = 48
+
       index <- index - 1
       remains <- remains / 10
 
@@ -224,7 +227,7 @@ fun String_substring(source: String, from: Int, len: Int): StringRepr =
     // TODO: unicode support
     writeByte
       addAddr buf index
-      (source (from + index)) cast[Int]
+      charToByte (source (from + index))
     index <- index + 1
 
   #Raw(len, buf)
@@ -281,6 +284,7 @@ fun openFile = (filePath: String) =>
 
     while i < len do
       val c = readByte (addAddr buffer i)
+
       if c == '\n' then
         if last == '\r' then index <- i - 1
         else index <- i
@@ -301,7 +305,7 @@ fun openFile = (filePath: String) =>
     def seek(pos: Int): void =
       val SEEK_SET = 0
       val ret = Syscall.sys_seek fd pos SEEK_SET
-      assert (ret == 0) ("sys_seek = " + (intToStr ret))
+      assert (ret >= 0) ("sys_seek = " + (intToStr ret))
 
     def hasMore(): Bool =
       // Always use `sys_newfstat` to avoid representation problems
@@ -347,7 +351,7 @@ fun openFile = (filePath: String) =>
               val offset = lineSeparatorIndex - bytesRead
               val SEEK_CUR = 1
               val ret = Syscall.sys_seek fd offset SEEK_CUR
-              assert (ret == 0) ("sys_seek = " + (intToStr ret))
+              assert (ret >= 0) ("sys_seek = " + (intToStr ret))
 
           res <- res +
             #Raw(len, buffer) as StringRepr cast[String]

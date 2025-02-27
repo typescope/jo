@@ -365,10 +365,11 @@ extends Backend(runtime):
           cb.add(Instr.Store(Reg8(r1), Reg(r2)))
 
       case runtime.Core_readByte  =>
-        useReg: r =>
-          pop(r, Size.B32)
-          cb.add(Instr.Load(Reg(r), r, Size.B8))
-          push(Reg(r))
+        useTwoReg: (r1, r2) =>
+          pop(r1, Size.B32)
+          cb.add(Instr.Move(Int32(0), r2))
+          cb.add(Instr.Load(Reg(r1), r2, Size.B8))
+          push(Reg(r2))
 
       case _ => call(sym)
 

@@ -455,6 +455,7 @@ extends Backend(runtime):
       case runtime.Core_readByte  =>
         val Reg(reg) = ctx.vs.pop(): @unchecked
         val regResult = freshVirtualReg()
+        gen(Instr.Move(Int32(0), regResult))
         gen(Instr.Load(Reg(reg), regResult, Size.B8))
         ctx.vs.push(Reg(regResult))
 
