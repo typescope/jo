@@ -61,14 +61,15 @@ final class Definitions(rootNameTable: NameTable):
   val Predef_Byte   =  Predef.typeMember("Byte")
   val Predef_Char   =  Predef.typeMember("Char")
   val Predef_Int    =  Predef.typeMember("Int")
+  val Predef_Unit   =  Predef.typeMember("Unit")
   val Predef_String =  Predef.typeMember("String")
-  val Predef_Void   =  Predef.typeMember("void")
   val Predef_Array  =  Predef.typeMember("Array")
 
   val IntType     = TypeRef(Predef_Int)
   val BoolType    = TypeRef(Predef_Bool)
   val ByteType    = TypeRef(Predef_Byte)
   val CharType    = TypeRef(Predef_Char)
+  val UnitType    = TypeRef(Predef_Unit)
   val StringType  = TypeRef(Predef_String)
 
   def isNumericType(tp: Type): Boolean =

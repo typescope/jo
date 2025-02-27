@@ -1,6 +1,6 @@
 param newLine: Bool = 3  // error
 
-fun printOpt(s: String): void =
+fun printOpt(s: String): Unit =
   print s
   if newLine then print "\n"
 

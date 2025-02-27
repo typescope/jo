@@ -7,7 +7,7 @@ param beta: Int
 
 fun foo(n: Int): Int = alpha + beta * n
 
-fun printInt(x: Int): void = x p
+fun printInt(x: Int): Unit = x p
 
 fun main =
   println "test context parameters"

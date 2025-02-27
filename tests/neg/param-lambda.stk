@@ -1,6 +1,6 @@
 param indent: Int
 
-fun line(text: String): void =
+fun line(text: String): Unit =
   var i = 0
   while i < indent do
     printChar ' '

@@ -3,7 +3,7 @@ type Tree = <
   Node(left: Tree, right: Tree, value: Int)
 >
 
-fun postOrder(tree: Tree): void =
+fun postOrder(tree: Tree): Unit =
   match tree
     case #Leaf(n) => n p
     case #Node(left, right, value) =>
@@ -11,7 +11,7 @@ fun postOrder(tree: Tree): void =
       postOrder right
       value p
 
-fun preOrder(tree: Tree): void =
+fun preOrder(tree: Tree): Unit =
   match tree
     case #Leaf(n) => n p
     case #Node(left, right, value) =>

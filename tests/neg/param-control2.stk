@@ -1,16 +1,16 @@
 param pageWidth: Int
 param newLine: Bool
 
-fun pretty(s: String): void =
+fun pretty(s: String): Unit =
   pageWidth p
 
-fun g(): void =
+fun g(): Unit =
   pretty "hello, word"
   h
 
-fun h(): void = i
+fun h(): Unit = i
 
-fun i(): void =
+fun i(): Unit =
   g
 
 fun main = // error

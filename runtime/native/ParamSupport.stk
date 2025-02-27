@@ -5,7 +5,7 @@ import stk.runtime.native.GC
 
 type State = { keys: Core.Addr, values: Core.Addr, lastOverwrittenValue: Any }
 
-fun init(): void =
+fun init(): Unit =
   val statePointerAddr = Core.dataAddr "stk.runtime.native.ParamSupport.state"
   val page = createPage
   Core.writeInt statePointerAddr (page Core.cast[Int])
@@ -44,7 +44,7 @@ fun readKeyAt(index: Int): Int =
       state.keys Core.cast[Core.Addr]
       index * 4
 
-fun writeKeyAt(index: Int, key: Int): void =
+fun writeKeyAt(index: Int, key: Int): Unit =
   val statePointerAddr = Core.dataAddr "stk.runtime.native.ParamSupport.state"
   val state = Core.readInt statePointerAddr Core.cast[State]
 
@@ -63,7 +63,7 @@ fun readValueAt(index: Int): Any =
       state.values Core.cast[Core.Addr]
       index * 4
 
-fun writeValueAt(index: Int, value: Any): void =
+fun writeValueAt(index: Int, value: Any): Unit =
   val statePointerAddr = Core.dataAddr "stk.runtime.native.ParamSupport.state"
   val state = Core.readInt statePointerAddr Core.cast[State]
 
@@ -134,7 +134,7 @@ fun setParam(key: Core.Addr, value: Any): Int =
     writeValueAt index value
     if foundKey > 0 then index else index + 1024
 
-fun backupValueAt(index: Int): void =
+fun backupValueAt(index: Int): Unit =
   val statePointerAddr = Core.dataAddr "stk.runtime.native.ParamSupport.state"
   val state = Core.readInt statePointerAddr Core.cast[Core.Addr]
 
@@ -147,7 +147,7 @@ fun getLastOverwrittenValue(): Any =
   val state = Core.readInt statePointerAddr Core.cast[State]
   state.lastOverwrittenValue
 
-fun restoreParam(index: Int, value: Any): void =
+fun restoreParam(index: Int, value: Any): Unit =
   if index >= 2048 or index < 0 then
     print "index = "
     index p

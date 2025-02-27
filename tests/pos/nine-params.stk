@@ -1,4 +1,4 @@
-fun foo(a: Int, b: Int, c: Int, d: Int, e: Int, f: Int, g: Int, h: Int, i: Int): void =
+fun foo(a: Int, b: Int, c: Int, d: Int, e: Int, f: Int, g: Int, h: Int, i: Int): Unit =
   a p
   b p
   c p
