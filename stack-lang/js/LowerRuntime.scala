@@ -53,7 +53,7 @@ class LowerRuntime(runtime: JSRuntime) extends phases.Phase[Unit]:
           else
             Ident(runtime.JS_Array_createObject)(fun.span)
 
-        Encoded(Apply(fun2, args2)(app.tpe, app.span))(app.tpe)
+        Encoded(Apply(fun2, args2)(AnyType, app.span))(app.tpe)
 
       case TypeApply(Ident(sym), tpt :: Nil) if sym == runtime.JS_cast =>
         assert(args2.size == 1, args2)

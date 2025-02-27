@@ -41,6 +41,7 @@ class LowerRuntime(runtime: NativeRuntime) extends phases.Phase[Unit]:
   val StringType = defn.StringType
 
   val IntType = defn.IntType
+  val UnitType = defn.UnitType
 
   val rewiring = Map(
     defn.Predef_abort -> runtime.Core_abortImpl,
@@ -95,7 +96,7 @@ class LowerRuntime(runtime: NativeRuntime) extends phases.Phase[Unit]:
 
         else if name == "set" then
           val fun2 = Ident(runtime.Core_Array_set)(fun.span)
-          Apply(fun2, args2)(VoidType, app.span)
+          Apply(fun2, args2)(UnitType, app.span)
 
         else
           throw new Exception("Unexpected method on array: " + name)
