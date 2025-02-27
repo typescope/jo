@@ -75,7 +75,7 @@ object Subtyping:
   private def checkConforms(tp1: Type, tp2: Type)(using ctx: Context): Boolean = Debug.trace(s"${tp1.show} <: ${tp2.show}", enable = false) {
     tp1.isError
     || tp2.isError
-    || tp1.isBottom
+    || tp1.isBottom && tp2.isValueType
     || tp2.isAnyType && tp1.isValueType
     || tp1 == tp2
     || tp1.is[TypeVar]

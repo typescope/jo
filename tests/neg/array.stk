@@ -1,7 +1,7 @@
 type IntArray =
   object {
     def length: Int
-    def set(i: Int, value: Int): void
+    def set(i: Int, value: Int): Unit
     def apply(i: Int): Int
   }
 
@@ -12,7 +12,7 @@ type A =
 
 type B =
   object {
-    def set(i: Int, value: Int): void
+    def set(i: Int, value: Int): Unit
   }
 
 type C =

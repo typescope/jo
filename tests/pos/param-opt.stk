@@ -1,6 +1,6 @@
 param newLine: Bool = false
 
-fun printOpt(s: String): void =
+fun printOpt(s: String): Unit =
   print s
   if newLine then print "\n"
 

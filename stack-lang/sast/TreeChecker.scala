@@ -4,20 +4,24 @@ import Sast.*
 import Types.*
 import Symbols.*
 
-/** Check invariants of SAST */
-object TreeChecker extends SastOps.TreeTraverser:
-  type Context = Symbol
+import ast.Positions.Source
+import reporting.Reporter
 
-  def check(nss: List[Namespace]): List[Namespace] =
+/** Check invariants of SAST */
+object TreeChecker:
+  def check(nss: List[Namespace])(using Reporter): List[Namespace] =
     for
       ns <- nss
       case fdef: FunDef <- ns.defs
     do
-      given Context = fdef.symbol
-      this.recurFunDef(fdef)
+      given Source = fdef.symbol.sourcePos.source
+      new TreeChecker().recurFunDef(fdef)
     end for
 
     nss
+
+class TreeChecker()(using Source) extends SastOps.TreeTraverser:
+  type Context = Reporter
 
   def apply(word: Word)(using info: Context): Unit =
     word match
@@ -25,26 +29,37 @@ object TreeChecker extends SastOps.TreeTraverser:
         assert(!sym.isOneOf(Flags.NSpace | Flags.Method | Flags.Field | Flags.Type), sym)
 
       case Select(qual, name) =>
-        assert(qual.tpe.isValueType, "Qualifier should be a value type, found = " + qual.tpe.show)
+        if !qual.tpe.isValueType then
+          Reporter.error("Qualifier should be a value type, found = " + qual.tpe.show, word.pos)
 
       case _: RecordLit =>
-        assert(word.tpe.isRecordType, "Expect record type, found = " + word.tpe.show)
+        if !word.tpe.isRecordType then
+          Reporter.error("Expect record type, found = " + word.tpe.show, word.pos)
 
       case _: Object =>
-        assert(word.tpe.isObjectType, "Expect object type, found = " + word.tpe.show)
+        if !word.tpe.isObjectType then
+          Reporter.error("Expect object type, found = " + word.tpe.show, word.pos)
 
       case FieldAssign(qual, name, rhs) =>
-        assert(qual.tpe.isObjectType, "Object type expected, found = " + qual.tpe.show)
-        assert(qual.tpe.asObjectType.isMutable(name), s"Field $name is not mutable")
+        if !qual.tpe.isObjectType then
+          Reporter.error("Object type expected, found = " + qual.tpe.show, word.pos)
+
+        if !qual.tpe.asObjectType.isMutable(name) then
+          Reporter.error(s"Field $name is not mutable", word.pos)
 
       case Apply(fun, args) =>
         fun.tpe.asProcType match
           case funType =>
             val expectArgSize = funType.paramTypes.size
-            assert(expectArgSize == args.size, s"args do not match, expect = $expectArgSize, found = " + args.size)
+            if expectArgSize != args.size then
+              Reporter.error(s"args do not match, expect = $expectArgSize, found = " + args.size + ", tree = " + word.show, word.pos)
 
             for (paramType, arg) <- funType.paramTypes.zip(args) do
-              Subtyping.conforms(arg.tpe, paramType)
+              if !Subtyping.conforms(arg.tpe, paramType) then
+                Reporter.error("Found arg type = " + arg.tpe.show + ", paramType = " + paramType.show + ", tree = " + word.show, word.pos)
+
+            if !Subtyping.conforms(funType.resultType, word.tpe) then
+              Reporter.error("word.tpe = " + word.tpe.show + ", result type = " + funType.resultType + " tree = " + word.show, word.pos)
         end match
 
       case _ => recur(word)

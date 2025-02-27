@@ -9,7 +9,7 @@ fun isPrime(primes: List, n: Int): Bool =
       else
         isPrime xs n
 
-fun prime(primes: List, cur: Int, until: Int): void =
+fun prime(primes: List, cur: Int, until: Int): Unit =
   if cur < until then
     if isPrime primes cur then
       cur p
@@ -18,7 +18,7 @@ fun prime(primes: List, cur: Int, until: Int): void =
     else
       prime primes (1 + cur) until
 
-fun primeUntil(until: Int): void =
+fun primeUntil(until: Int): Unit =
   var primes: List = #Cons(2, #Nil)
   var cur = 3
   while cur < until do

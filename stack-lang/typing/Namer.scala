@@ -281,7 +281,7 @@ class Namer(@constructorOnly reporter: Reporter):
         With(exprSast, argsSast, allowSast)(exprSast.tpe, word.span)
 
       case ifte: Ast.If =>
-        transform(ifte)
+        transform(ifte).adapt
 
       case Ast.While(cond, body) =>
          val boolType = Definitions.instance.BoolType
@@ -293,7 +293,7 @@ class Namer(@constructorOnly reporter: Reporter):
         transform(assign).adapt
 
       case patmat: Ast.Match =>
-        transform(patmat)
+        transform(patmat).adapt
 
       case vdef: Ast.ValDef =>
         val delayedDef = transformValDef(vdef)
@@ -665,7 +665,7 @@ class Namer(@constructorOnly reporter: Reporter):
 
      val bodyTargetType = targetFunTypeOpt match
        case Some(funType) => TargetType.Known(funType.resultType)
-       case None => TargetType.ProperType
+       case None => TargetType.ValueType
 
      val bodyTyped = transform(body)(using lambdaScope, rp, so, bodyTargetType)
 
@@ -777,7 +777,7 @@ class Namer(@constructorOnly reporter: Reporter):
 
       assert(!funDef.resType.isEmpty)
       val resTypeTree = transformType(funDef.resType)(using funScope)
-      checker.delayedCheck { checker.checkVoidOrValueType(resTypeTree) }
+      checker.delayedCheck { checker.checkValueType(resTypeTree) }
       resTypeTree.tpe
 
     // Inferring result type would need fixed point computation for recursive
@@ -804,7 +804,7 @@ class Namer(@constructorOnly reporter: Reporter):
         if !funDef.resType.isEmpty then
           TargetType.Known(givenResultType)
         else
-          TargetType.ProperType
+          TargetType.ValueType
 
       given Scope = funScope
       given TargetType = targetType
@@ -853,8 +853,7 @@ class Namer(@constructorOnly reporter: Reporter):
         if tdef.rhs.isEmpty then
           if sc.owner.fullName == "stk.Predef" then
             val typeName = tdef.name
-            if typeName == "void" then VoidType
-            else if typeName == "Any" then AnyType
+            if typeName == "Any" then AnyType
             else if typeName == "Bottom" then BottomType
             else
               // Int, Char, Byte
@@ -922,7 +921,7 @@ class Namer(@constructorOnly reporter: Reporter):
     val resultType =
       assert(!ddef.resType.isEmpty)
       val resTypeTree = transformType(ddef.resType)(using defScope)
-      checker.delayedCheck { checker.checkVoidOrValueType(resTypeTree) }
+      checker.delayedCheck { checker.checkValueType(resTypeTree) }
       resTypeTree.tpe
 
     val methodType = ProcType(paramSyms.map(_.toNamedInfo), resultType, preParamCount = 0)
@@ -1043,7 +1042,7 @@ class Namer(@constructorOnly reporter: Reporter):
             namedInfo
 
         val resType2 = transformType(resType)
-        checker.delayedCheck { checker.checkVoidOrValueType(resType2) }
+        checker.delayedCheck { checker.checkValueType(resType2) }
         val applyType = ProcType(paramTypes2, resType2.tpe, preParamCount = 0)
         val objType = ObjectType(fields = Nil, methods = NamedInfo("apply", applyType) :: Nil, mutableFields = Nil)
         TypeTree(objType)(tpt.span)

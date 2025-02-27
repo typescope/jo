@@ -1,6 +1,6 @@
-fun foo(x: Int): void = x p
+fun foo(x: Int): Unit = x p
 
-fun bar(x: Int): void =
+fun bar(x: Int): Unit =
   foo  // error
   x p
 

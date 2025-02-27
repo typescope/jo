@@ -10,7 +10,6 @@ object Inference:
   enum TargetType:
     case Unknown
     case ValueType
-    case ProperType            // value type or void
     case NamespaceMember
     case ObjectMember
     case TermMember(name: String)

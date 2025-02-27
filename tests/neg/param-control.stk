@@ -1,10 +1,10 @@
 param pageWidth: Int
 param newLine: String
 
-fun pretty(s: String): void =
+fun pretty(s: String): Unit =
   pageWidth p
 
-fun normalize(s: String): void =
+fun normalize(s: String): Unit =
   print s
   print newLine
 

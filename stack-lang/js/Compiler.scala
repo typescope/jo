@@ -75,8 +75,10 @@ def compile(args: String*): Unit =
         TreeChecker.check             |>
         Printing.peek(enable = false) |>
         runtimeLowerer.transform      |+
+        TreeChecker.check             |>
         Printing.peek(enable = false) |>
         contextParamsLower.transform  |+
+        TreeChecker.check             |>
         Printing.peek(enable = false) |>
         backend.compile
 

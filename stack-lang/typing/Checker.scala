@@ -79,9 +79,6 @@ class Checker:
     else
       tp
 
-  def checkVoidOrValueType(tree: Tree)(using Reporter, Source): Unit =
-    if !tree.tpe.isVoidType then checkValueType(tree)
-
   def checkMutable(sym: Symbol, pos: SourcePosition)(using Reporter): Unit =
     if !sym.isAllOf(Flags.Val | Flags.Mutable) then
       Reporter.error(sym.name + " is not a mutable value", pos)
@@ -167,9 +164,15 @@ class Checker:
   /** Explicit drop of values in if/match expressions */
   def adapt(word: Word, targetType: Type)(using Reporter, Source): Word =
     val curType = word.tpe
-    if targetType.isVoidType && curType.isValueType then
-      Sast.dropValue(word)
+    if Subtyping.conforms(curType, targetType) then
+      word
+
+    else if targetType.isVoidType && curType.isValueType then
+      word.dropValue
+
     else
+      val unitType = Definitions.instance.UnitType
+
       val isNumeric =
          Definitions.instance.isNumericType(word.tpe)
          && Definitions.instance.isNumericType(targetType)
@@ -189,8 +192,12 @@ class Checker:
             checkType(word2, targetType)
             word2
 
+      else if Subtyping.conforms(unitType, targetType) then
+        val unit = RecordLit(args = Nil)(unitType, word.span)
+        Block(word.ensureDropValue :: unit :: Nil)(unitType, word.span)
+
       else
-        checkType(word, targetType)
+        Reporter.error(s"Expect type ${targetType.show}, found = ${curType.show}", word.pos)
         word
 
   def widen(word: Word): Word = word.tpe match
@@ -217,12 +224,12 @@ class Checker:
         word2
 
       case TargetType.ValueType =>
-        checkValueType(word2)
-        widen(word2)
-
-      case TargetType.ProperType =>
-        checkVoidOrValueType(word2)
-        widen(word2)
+        if word2.tpe.isVoidType then
+          // adapt to Unit type
+          adapt(word2, Definitions.instance.UnitType)
+        else
+          checkValueType(word2)
+          widen(word2)
 
       case TargetType.Known(tpe) =>
         adapt(word2, tpe)

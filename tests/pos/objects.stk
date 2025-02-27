@@ -1,9 +1,9 @@
 type Counter = object {
   def get(): Int
-  def inc(): void
-  def add(n: Int): void
-  def reset(): void
-  def upToEven(): void
+  def inc(): Unit
+  def add(n: Int): Unit
+  def reset(): Unit
+  def upToEven(): Unit
 }
 
 fun createCounter(init: Int): Counter = object {

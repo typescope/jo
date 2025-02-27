@@ -469,6 +469,7 @@ object Interpreter:
       TreeChecker.check             |>
       Printing.peek(enable = false) |>
       noramlizer.transform          |>
+      TreeChecker.check             |>
       Printing.peek(enable = false)
 
     val mains = namespacesSAST.collect:

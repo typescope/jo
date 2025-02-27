@@ -18,7 +18,7 @@ fun testIntArray =
 fun testBoolArray =
   val arr = array[Bool] 3
 
-  fun (b: Bool) pb: void =
+  fun (b: Bool) pb: Unit =
     if b then println "true" else println "false"
 
   arr.set 0 true

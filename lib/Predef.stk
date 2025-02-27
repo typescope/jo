@@ -15,7 +15,7 @@ type Int
 
 type Bool
 
-type void
+type Unit = {}
 
 type Any
 
@@ -53,17 +53,17 @@ fun not (b: Bool): Bool = abort("primitive not")
 // Utility functions
 //
 
-fun (n: Int) p: void =
+fun (n: Int) p: Unit =
   println
     intToStr n
 
-fun print(s: String): void = stdout.write s
+fun print(s: String): Unit = stdout.write s
 
-fun printChar(c: Char): void =
+fun printChar(c: Char): Unit =
   print
     charToStr c
 
-fun println(s: String): void =
+fun println(s: String): Unit =
   print s
   printChar '\n'
 
@@ -71,7 +71,7 @@ fun ??? : Bottom = abort("not implemented")
 
 fun abort(s: String): Bottom = abort("primitive abort")
 
-fun assert(cond: Bool, message: String): void =
+fun assert(cond: Bool, message: String): Unit =
   if not cond then abort message
 
 //-------------------------------------------------------------
@@ -98,7 +98,7 @@ fun charToStr(c: Char): String = abort "charToStr"
 
 type Array[T] <: object {
   def length: Int
-  def set(i: Int, value: T): void
+  def set(i: Int, value: T): Unit
   def apply(i: Int): T
 }
 
@@ -126,15 +126,15 @@ param open: String => File = ???
 
 param stdin: object { def readLine(): String} = ???
 
-param stdout: object {def write(content: String): void } = ???
+param stdout: object {def write(content: String): Unit } = ???
 
-param stderr: object { def write(content: String): void } = ???
+param stderr: object { def write(content: String): Unit } = ???
 
 type File = object {
-  def close(): void
-  def seek(pos: Int): void
+  def close(): Unit
+  def seek(pos: Int): Unit
   def hasMore(): Bool
 
   def readLine(): String
-  def write(content: String): void
+  def write(content: String): Unit
 }
