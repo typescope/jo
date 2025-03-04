@@ -163,28 +163,31 @@ class Namer(@constructorOnly reporter: Reporter):
               rp.error(s"`$name` is not found", qualid.pos)
               Symbol.createFunSymbol(name, ErrorType, importScope.owner, pos = qualid.pos)
 
-    val nameTable = qualid match
+    def importName(nameTable: NameTable): Unit =
+      val name = qualid.name
+      val syms = nameTable.resolve(name)
+      for sym <- syms do
+        if sym.isAllOf(Flags.NSpace | Flags.Branch) then
+          rp.error("Only concrete namespaces can be imported", qualid.pos)
+
+        imports += sym
+        // TODO: abstract scope and better error position for duplicate imports
+        importScope.define(sym)
+
+      if syms.isEmpty then
+        rp.error(s"`$name` cannot be found", qualid.pos)
+
+    qualid match
       case Ast.Select(qual, _) =>
         val sym = resolveNamespace(qual.asInstanceOf[Ast.RefTree])
-        if sym.info.isError then
-          new NameTable
+        if sym.isNamespace then
+          importName(sym.info.as[NameTableInfo].nameTable)
 
-        else if sym.isNamespace then
-          sym.info.as[NameTableInfo].nameTable
-
-        else
+        else if !sym.info.isError then
           rp.error("Expect namespace, found = " + sym.info.show, qual.pos)
-          new NameTable
 
-      case _ => rootNameTable
-
-    for sym <- nameTable.resolve(qualid.name) do
-      if sym.isAllOf(Flags.NSpace | Flags.Branch) then
-        rp.error("Only concrete namespaces can be imported", qualid.pos)
-
-      imports += sym
-      // TODO: abstract scope and better error position for duplicate imports
-      importScope.define(sym)
+      case _ =>
+        importName(rootNameTable)
 
   private def index(defs: List[Ast.Def])(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): List[DelayedDef[Def]] =
     val delayedDefs = new mutable.ArrayBuffer[DelayedDef[Def]]

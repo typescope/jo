@@ -148,7 +148,6 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
           val span = rest.head.span | rest.last.span
           Reporter.error("Found extra value, an expression should produce at most one value", span.toPos)
 
-
         typeItem(values.last)
   end transform
 
