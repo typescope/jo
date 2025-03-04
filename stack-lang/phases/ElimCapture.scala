@@ -280,6 +280,7 @@ object ElimCapture:
             Block(assign :: apply :: Nil)(app.tpe, app.span)
 
         case TypeApply(Select(qual, name), targs) =>
+          // TODO: after type erasure, the special handling here can be removed
           val qual2 = this(qual)
           val funType = fun.tpe.asProcType
           val polyType = qual2.tpe.termMember(name).asPolyType
