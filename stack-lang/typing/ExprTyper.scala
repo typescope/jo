@@ -209,7 +209,6 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
         val objSpan = obj.span
 
         if objType.isObjectType then
-          // TODO: support poly method type
           objType.getTermMember(meth.name) match
             case Some(tp) =>
               var fun: Word = Select(objWord, meth.name)(tp, objSpan | meth.span)
