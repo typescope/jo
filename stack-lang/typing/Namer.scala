@@ -339,7 +339,6 @@ class Namer(@constructorOnly reporter: Reporter):
     // scope for checking member methods
     val sc2 = sc.fresh(thisSym, nameTable)
 
-
     for case vdef: Ast.ValDef <- obj.members do
       given Scope = sc2
       given TargetType = TargetType.ObjectMember
@@ -351,6 +350,9 @@ class Namer(@constructorOnly reporter: Reporter):
     sc2.define(thisSym)
 
     for case fdef: Ast.FunDef <- obj.members do
+      if fdef.preParamCount != 0 then
+        Reporter.error("Methods cannot have pre-arguments", fdef.pos)
+
       given Scope = sc2
       given TargetType = TargetType.ObjectMember
       val delayedDef = transformFunDef(fdef)
@@ -944,6 +946,9 @@ class Namer(@constructorOnly reporter: Reporter):
 
   private def transformMethodDecl(ddef: Ast.FunDef)(using sc: Scope, rp: Reporter, so: Source): TypeTree =
     val defScope = sc.fresh()
+
+    if ddef.preParamCount != 0 then
+      Reporter.error("Methods cannot have pre-arguments", ddef.pos)
 
     val tparamSyms =
       for tparam <- ddef.tparams yield
