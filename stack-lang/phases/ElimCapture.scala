@@ -264,9 +264,6 @@ object ElimCapture:
           Apply(funSubst, args2 ++ extraArgs)(app.tpe, app.span)
 
         case Select(qual, name) =>
-          assert(qual.tpe.isObjectType, "Expect object type, found = " + qual.tpe.show)
-
-          // TODO: handle polymorphic methods
           val qual2 = this(qual)
           val procType = qual2.tpe.termMember(name).asProcType
           val liftedProcType = procType.prepend(NamedInfo("this", qual2.tpe) :: Nil)
@@ -280,6 +277,30 @@ object ElimCapture:
             val assign = Assign(Ident(receiverSym)(qual2.span), qual2)(qual2.span)
             val proc = Select(receiver, name)(procType, fun.span)
             val apply = Apply(Encoded(proc)(liftedProcType), receiver :: args2)(app.tpe, app.span)
+            Block(assign :: apply :: Nil)(app.tpe, app.span)
+
+        case TypeApply(Select(qual, name), targs) =>
+          // TODO: after type erasure, the special handling here can be removed
+          val qual2 = this(qual)
+          val funType = fun.tpe.asProcType
+          val polyType = qual2.tpe.termMember(name).asPolyType
+          val procType = polyType.resultType.asProcType
+          val thisParamType = NamedInfo("this", qual2.tpe)
+          val liftedFunType = funType.prepend(thisParamType :: Nil)
+          val liftedProcType = procType.prepend(thisParamType :: Nil)
+          val liftedPolyType = polyType.copy(resultType = liftedProcType)
+          if qual2.isIdempotent then
+            val meth = Encoded(Select(qual2, name)(polyType, fun.span))(liftedPolyType)
+            val fun2 = TypeApply(meth, targs)(liftedFunType, fun.span)
+            Apply(fun2, qual2 :: args2)(app.tpe, app.span)
+          else
+            given Positions.Source = owner.sourcePos.source
+            val receiverSym = Symbol.createValueSymbol("o", qual2.tpe, owner, qual2.pos)
+            val receiver = Ident(receiverSym)(qual2.span)
+            val assign = Assign(Ident(receiverSym)(qual2.span), qual2)(qual2.span)
+            val meth = Encoded(Select(receiver, name)(polyType, fun.span))(liftedPolyType)
+            val fun2 = TypeApply(meth, targs)(liftedFunType, fun.span)
+            val apply = Apply(fun2, receiver :: args2)(app.tpe, app.span)
             Block(assign :: apply :: Nil)(app.tpe, app.span)
 
         case _ =>

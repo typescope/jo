@@ -72,13 +72,16 @@ Syntactical Grammar
 
     expr    = word {word}.
 
-    word    = integer | boolean | char | string | ident | fence | record | tapply | select | variant | lambda | object.
+    word    = integer | boolean | char | string | ident | fence | record | tapply | apply | select | variant | lambda | object.
 
     phrase  = expr | with_clause | assign | valdef | fundef | typedef | while | if | match.
 
     block   = { phrase }.
 
     select  = word DOT ident.
+
+    apply  = word args.
+    args   = LPAREN phrase {COMMA expr} RPAREN.
 
     with_clause = expr [WITH with_bindings] [ALLOW qualid {COMMA qualid}].
 
@@ -95,7 +98,6 @@ Syntactical Grammar
     named_arg  = ident EQL expr.
 
     variant = TAG ident [args] [AS type].
-    args    = LPAREN phrase {COMMA expr} RPAREN.
 
     object     = OBJECT LBRACE {member} RBRACE.
     member     = valdef | defdef.

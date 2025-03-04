@@ -29,6 +29,18 @@ class NameTable(
     val table = getTable(isType)
     table.get(name)
 
+  def resolve(name: String): List[Symbol] =
+    resolveTerm(name) match
+      case Some(sym1) =>
+        resolveType(name) match
+          case Some(sym2) => sym1 :: sym2 :: Nil
+          case None => sym1 :: Nil
+
+      case None =>
+        resolveType(name) match
+          case Some(sym2) => sym2 :: Nil
+          case None => Nil
+
   def resolvePath(path: String) =
     NameTable.resolvePath(this, path, isType = false)
 

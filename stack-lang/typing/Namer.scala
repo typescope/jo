@@ -14,7 +14,7 @@ import common.Debug
 import parsing.Parser
 import reporting.Reporter
 
-import Namer.{ Scope, DelayedDef }
+import Namer.{ Scope, DelayedDef, errorWord }
 import Inference.*
 
 import scala.collection.mutable
@@ -64,16 +64,7 @@ class Namer(@constructorOnly reporter: Reporter):
         importScope.define(nsSym)
         // handle imports after indexing members
         for imp <- ns.imports do
-          // TODO: what about type names? Import both
-          given Scope = rootNamespaceScope
-          val sym = resolveGlobal(imp.qualid, isType = false)
-
-          if sym.isAllOf(Flags.NSpace | Flags.Branch) then
-            rp.error("Only a concrete namespace can be imported", imp.pos)
-
-          imports += sym
-          // TODO: abstract scope and better error position for duplicate imports
-          importScope.define(sym)
+          doImport(imp.qualid, importScope, rootNameTable, imports)
       }
 
       delayedNamespaces += { () =>
@@ -142,33 +133,61 @@ class Namer(@constructorOnly reporter: Reporter):
           case Some(sym) => check(sym)
 
 
-  /** Resolve a global */
-  def resolveGlobal(qualid: Ast.RefTree, isType: Boolean)(using sc: Scope, rp: Reporter, so: Source): Symbol =
-    qualid match
-      case Ast.Select(qual, name) =>
-        val sym = resolveGlobal(qual.asInstanceOf[Ast.RefTree], isType = false)
+  def doImport(qualid: Ast.RefTree, importScope: Scope, rootNameTable: NameTable, imports: mutable.ArrayBuffer[Symbol])
+      (using rp: Reporter, so: Source): Unit =
 
-        if sym.isNamespace then
-          val nsInfo = sym.info.as[NameTableInfo]
+    def resolveNamespace(qualid: Ast.RefTree): Symbol =
+      qualid match
+        case Ast.Select(qual, name) =>
+          val sym = resolveNamespace(qual.asInstanceOf[Ast.RefTree])
 
-          nsInfo.resolveTerm(name) match
+          if sym.isNamespace then
+            val nsInfo = sym.info.as[NameTableInfo]
+
+            nsInfo.resolveTerm(name) match
+              case Some(sym) => sym
+
+              case None =>
+                rp.error(s"`$name` not found in the namespace ${sym.name}", qualid.pos)
+                Symbol.createFunSymbol(name, ErrorType, sym, pos = qualid.pos)
+
+          else
+            if !sym.info.isError then
+              rp.error("Not a namespace, only a namespace can be selected", qual.pos)
+            Symbol.createFunSymbol(name, ErrorType, sym, pos = qualid.pos)
+
+        case Ast.Ident(name) =>
+          rootNameTable.resolve(name, isType = false) match
             case Some(sym) => sym
-
             case None =>
-              rp.error(s"`$name` not found in the namespace ${sym.name}", qualid.pos)
-              Symbol.createFunSymbol(name, ErrorType, sym, pos = qualid.pos)
+              rp.error(s"`$name` is not found", qualid.pos)
+              Symbol.createFunSymbol(name, ErrorType, importScope.owner, pos = qualid.pos)
 
-        else
-          if !sym.info.isError then
-            rp.error("Not a namespace, only a namespace can be selected", qual.pos)
-          Symbol.createFunSymbol(name, ErrorType, sym, pos = qualid.pos)
+    def importName(nameTable: NameTable): Unit =
+      val name = qualid.name
+      val syms = nameTable.resolve(name)
+      for sym <- syms do
+        if sym.isAllOf(Flags.NSpace | Flags.Branch) then
+          rp.error("Only concrete namespaces can be imported", qualid.pos)
 
-      case Ast.Ident(name) =>
-        sc.resolve(name, isType) match
-          case Some(sym) => sym
-          case None =>
-            rp.error(s"`$name` is not found", qualid.pos)
-            Symbol.createNamespaceSymbol(name, new NameTableInfo, sc.owner, pos = qualid.pos, isBranch = false)
+        imports += sym
+        // TODO: abstract scope and better error position for duplicate imports
+        importScope.define(sym)
+
+      if syms.isEmpty then
+        rp.error(s"`$name` cannot be found", qualid.pos)
+
+    qualid match
+      case Ast.Select(qual, _) =>
+        val sym = resolveNamespace(qual.asInstanceOf[Ast.RefTree])
+        if sym.isNamespace then
+          importName(sym.info.as[NameTableInfo].nameTable)
+
+        else if !sym.info.isError then
+          rp.error("Expect namespace, found = " + sym.info.show, qual.pos)
+
+      case _ =>
+        importName(rootNameTable)
 
   private def index(defs: List[Ast.Def])(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): List[DelayedDef[Def]] =
     val delayedDefs = new mutable.ArrayBuffer[DelayedDef[Def]]
@@ -253,13 +272,16 @@ class Namer(@constructorOnly reporter: Reporter):
           case None =>
             // Error already reported
             // Reporter.error(s"The prefix does not contain the member $name", qual.pos)
-            Block(Nil)(ErrorType, word.span)
+            errorWord(word.span)
 
       case lambda: Ast.Lambda =>
         transform(lambda).adapt
 
       case Ast.Fence(phrase) =>
         transform(phrase)
+
+      case app: Ast.Apply =>
+        transform(app)
 
       case Ast.TypeApply(fun, targs) =>
         val fun2 = transform(fun)
@@ -336,7 +358,6 @@ class Namer(@constructorOnly reporter: Reporter):
     // scope for checking member methods
     val sc2 = sc.fresh(thisSym, nameTable)
 
-
     for case vdef: Ast.ValDef <- obj.members do
       given Scope = sc2
       given TargetType = TargetType.ObjectMember
@@ -348,6 +369,9 @@ class Namer(@constructorOnly reporter: Reporter):
     sc2.define(thisSym)
 
     for case fdef: Ast.FunDef <- obj.members do
+      if fdef.preParamCount != 0 then
+        Reporter.error("Methods cannot have pre-arguments", fdef.pos)
+
       given Scope = sc2
       given TargetType = TargetType.ObjectMember
       val delayedDef = transformFunDef(fdef)
@@ -378,6 +402,51 @@ class Namer(@constructorOnly reporter: Reporter):
 
     if words.isEmpty then Block(Nil)(VoidType, block.span)
     else Block(words)(words.last.tpe, block.span)
+
+  /** Handles explicit postfix call syntax f(arg1, arg2, ...) */
+  def transform(apply: Ast.Apply)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
+    var fun =
+      given TargetType = TargetType.Unknown
+      transform(apply.fun)
+
+    // auto .apply insertion --- apply can be polymorphic
+    if fun.tpe.hasApplyMethod then
+      val procType = fun.tpe.termMember("apply")
+      fun = Select(fun, "apply")(procType, fun.span)
+
+    if fun.tpe.isPolyType then
+      fun = exprTyper.instantiatePoly(fun.tpe.asPolyType, fun)
+
+    val funType = fun.tpe
+
+    if funType.isProcType then
+      val procType = funType.asProcType
+      val paramSize = procType.paramTypes.size
+
+      val preArgTypes = procType.preParamTypes
+      if preArgTypes.size != 0 then
+        Reporter.error(
+          s"The postfix call syntax cannot be used, as the function takes prefix arguments",
+          fun.pos)
+        errorWord(apply.span)
+
+      else if apply.args.size != paramSize then
+          Reporter.error(
+            s"The function expects $paramSize arguments, found = ${apply.args.size}",
+            apply.pos)
+          errorWord(apply.span)
+      else
+        val argsTyped =
+          for (arg, paramType) <- apply.args.zip(procType.paramTypes) yield
+            given TargetType = TargetType.Known(paramType)
+            transform(arg)
+
+        val word = Apply(fun, argsTyped)(procType.resultType, apply.span)
+        checker.adapt(word, tt)
+    else
+      Reporter.error( s"Not a function", fun.pos)
+      errorWord(apply.span)
+
 
   def transform(assign: Ast.Assign)(using sc: Scope, rp: Reporter, so: Source): Word =
     val Ast.Assign(ref, rhs) = assign
@@ -420,11 +489,11 @@ class Namer(@constructorOnly reporter: Reporter):
 
             case None =>
               // error already reported
-              Block(Nil)(ErrorType, assign.span)
+              errorWord(assign.span)
 
         else
           Reporter.error("Expect an object, found = " + qual2.tpe.show, qual.pos)
-          Block(Nil)(ErrorType, assign.span)
+          errorWord(assign.span)
 
   private def transformParamRef(ref: Ast.RefTree)(using sc: Scope, rp: Reporter, so: Source): Ident =
     val paramRef =
@@ -522,7 +591,7 @@ class Namer(@constructorOnly reporter: Reporter):
         Encoded(encodedValue)(unionType)
 
       case None =>
-        Block(Nil)(ErrorType, variant.span)
+        errorWord(variant.span)
 
 
   private def transform(patmat: Ast.Match)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
@@ -638,7 +707,7 @@ class Namer(@constructorOnly reporter: Reporter):
        val expect = targetFunTypeOpt.get.paramCount
        if expect != params.size then
          Reporter.error(s"Expect a function with $expect parameters, found = ${params.size}", lambda.pos)
-         return Block(words = Nil)(ErrorType, lambda.span)
+         return errorWord(lambda.span)
 
      // Each object has a self symbol
      val thisSym = Symbol.createValueSymbol("this", this.nonCyclicTypeProvider, sc.owner, lambda.pos)
@@ -897,6 +966,9 @@ class Namer(@constructorOnly reporter: Reporter):
   private def transformMethodDecl(ddef: Ast.FunDef)(using sc: Scope, rp: Reporter, so: Source): TypeTree =
     val defScope = sc.fresh()
 
+    if ddef.preParamCount != 0 then
+      Reporter.error("Methods cannot have pre-arguments", ddef.pos)
+
     val tparamSyms =
       for tparam <- ddef.tparams yield
         val bound =
@@ -1062,6 +1134,8 @@ object Namer:
         println(ns.symbol.sourcePos.source.file + ":")
         println(ns.show)
         println
+
+  def errorWord(span: Span) = Block(words = Nil)(ErrorType, span)
 
   def transform(nssAst: List[Ast.Namespace], stdlib: List[String], runtime: List[String])(using Reporter) : List[Namespace] =
     val rootNameTable = new NameTable

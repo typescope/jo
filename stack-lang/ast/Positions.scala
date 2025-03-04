@@ -32,6 +32,14 @@ object Positions:
     /** A zero length span at the same point */
     def point: Span = Span(start, 0)
 
+    /** A zero length span at the end point */
+    def endPoint: Span = Span(start + length, 0)
+
+    def endOffset: Int = start + length
+
+    def followsImmediate(that: Span): Boolean =
+      that.endOffset == this.start
+
     def |(that: Span): Span =
       if this `eq` NoSpan then that
       else if that `eq` NoSpan then this

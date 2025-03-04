@@ -48,6 +48,11 @@ object Ast:
     (val span: Span)
   extends Word, RefTree
 
+  case class Apply
+    (fun: Word, args: List[Word])
+    (val span: Span)
+  extends Word
+
   case class Assign
     (lhs: RefTree, rhs: Word)
     (val span: Span)
