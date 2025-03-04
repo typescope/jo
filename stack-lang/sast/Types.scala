@@ -46,6 +46,8 @@ object Types:
         case VoidType | _: ProcType | _: TypeLambda | _: PolyType | _: NameTableInfo => false
         case _ => true
 
+    def dealias: Type = TypeOps.dealias(this)
+
     def asRecordType: RecordType =
       TypeOps.approx(this, isUp = true).asInstanceOf[RecordType]
 
@@ -277,7 +279,7 @@ object Types:
     def isInstantiated: Boolean =
       this.dealias != this
 
-    def dealias: Type = inferencer.dealias(this)
+    override def dealias: Type = inferencer.dealias(this)
 
     def approx(isUp: Boolean): Type = inferencer.approx(this, isUp)
 

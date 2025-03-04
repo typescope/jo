@@ -62,4 +62,15 @@ class TreeChecker()(using Source) extends SastOps.TreeTraverser:
               Reporter.error("word.tpe = " + word.tpe.show + ", result type = " + funType.resultType + " tree = " + word.show, word.pos)
         end match
 
+        fun match
+          case Select(qual, _) =>
+            if !qual.tpe.isObjectType then
+              Reporter.error("Expect object type, found = " + qual.tpe.show, qual.pos)
+
+          case TypeApply(Select(qual, _), targs) =>
+            if !qual.tpe.isObjectType then
+              Reporter.error("Expect object type, found = " + qual.tpe.show, qual.pos)
+
+          case _ =>
+
       case _ => recur(word)
