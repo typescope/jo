@@ -107,6 +107,10 @@ object Printing:
 
       case Ident(name) => Text(name)
 
+      case Apply(fun, args) =>
+        val argsText = rep(args, Text(", "))
+        fun ~ "(" ~ argsText ~ ")"
+
       case Select(qual, name) =>
         qual ~ "." ~ name
 

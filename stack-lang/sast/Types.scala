@@ -66,7 +66,10 @@ object Types:
 
     def hasApplyMethod: Boolean =
       TypeOps.approx(this, isUp = true) match
-        case objType: ObjectType => objType.termMember("apply").isProcType
+        case objType: ObjectType =>
+          val tp = objType.termMember("apply")
+          tp.isProcType || tp.isPolyType
+
         case _ => false
 
     def getFunctionApplyType: Option[ProcType] =

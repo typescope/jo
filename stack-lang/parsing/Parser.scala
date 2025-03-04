@@ -438,42 +438,48 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def word(): Option[Word] =
     val item = peekItem()
 
-    def optSelectAndTypeApply(word: Word): Some[Word] =
-      peek() match
-        case Token.DOT      => optSelectAndTypeApply(select(word))
-        case Token.LBRACKET => Some(typeApply(word))
-        case _              => Some(word)
+    def optSelectAndApply(word: Word): Some[Word] =
+      val item = peekItem()
+
+      item.token match
+        case Token.DOT      => optSelectAndApply(select(word))
+        case Token.LBRACKET => optSelectAndApply(typeApply(word))
+
+        case Token.LPAREN if item.span.followsImmediate(word.span) =>
+          optSelectAndApply(apply(word))
+
+        case _ => Some(word)
 
     item.token match
-      case Token.LBRACE => optSelectAndTypeApply(record())
+      case Token.LBRACE => optSelectAndApply(record())
 
-      case Token.TAG    => optSelectAndTypeApply(variant())
+      case Token.TAG    => optSelectAndApply(variant())
 
       case Token.LPAREN =>
-        if isLambda() then Some(lambda()) else optSelectAndTypeApply(fence())
+        if isLambda() then Some(lambda()) else optSelectAndApply(fence())
 
       case _: Token.Ident =>
         val id = ident()
-        optSelectAndTypeApply(id)
+        optSelectAndApply(id)
 
       case lit: Token.IntLit  =>
         next()
-        optSelectAndTypeApply(IntLit(lit.value)(item.span))
+        optSelectAndApply(IntLit(lit.value)(item.span))
 
       case lit: Token.BoolLit =>
         next()
-        optSelectAndTypeApply(BoolLit(lit.value)(item.span))
+        optSelectAndApply(BoolLit(lit.value)(item.span))
 
       case lit: Token.CharLit  =>
         next()
-        optSelectAndTypeApply(CharLit(lit.value)(item.span))
+        optSelectAndApply(CharLit(lit.value)(item.span))
 
       case lit: Token.StringLit  =>
         next()
-        optSelectAndTypeApply(StringLit(lit.value)(item.span))
+        optSelectAndApply(StringLit(lit.value)(item.span))
 
       case Token.OBJECT =>
-        optSelectAndTypeApply(objectLit())
+        optSelectAndApply(objectLit())
 
       case token =>
         None
@@ -703,6 +709,10 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val last = targs.last
     TypeApply(fun, targs)(fun.span | last.span)
 
+  def apply(fun: Word): Apply =
+    val (args, span) = termArgs()
+    Apply(fun, args)(fun.span | span)
+
   def record(): RecordLit =
     val lbrace = eat(Token.LBRACE)
     val args = namedArgs(mutable.ArrayBuffer.empty)
@@ -723,9 +733,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val arg = expr()
     NamedArg(id, arg)(id.span | arg.span)
 
-  def termArgs(): List[Word] =
+  def termArgs(): (List[Word], Span) =
     val acc: mutable.ArrayBuffer[Word] = mutable.ArrayBuffer.empty
-    eat(Token.LPAREN)
+    val startItem = eat(Token.LPAREN)
     acc += expr()
     var token = peek()
     while
@@ -735,19 +745,20 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       acc += expr()
       token = peek()
 
-    eat(Token.RPAREN)
-    acc.toList
+    val endItem = eat(Token.RPAREN)
+    val span = startItem.span | endItem.span
+    (acc.toList, span)
 
   def variant(): Variant =
     val tagSign = eat(Token.TAG)
     val tag = ident()
-    val args = if peek() == Token.LPAREN then termArgs() else Nil
+    val (args, span) = if peek() == Token.LPAREN then termArgs() else (Nil, tag.span)
     val tp =
       if peek() == Token.AS then
         eat(Token.AS)
         typ()
       else
-        EmptyTypeTree()(tag.span)
+        EmptyTypeTree()(span.endPoint)
 
     Variant(tag, args, tp)(tagSign.span | tp.span)
 

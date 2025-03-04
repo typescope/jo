@@ -14,7 +14,7 @@ import common.Debug
 import parsing.Parser
 import reporting.Reporter
 
-import Namer.{ Scope, DelayedDef }
+import Namer.{ Scope, DelayedDef, errorWord }
 import Inference.*
 
 import scala.collection.mutable
@@ -253,13 +253,16 @@ class Namer(@constructorOnly reporter: Reporter):
           case None =>
             // Error already reported
             // Reporter.error(s"The prefix does not contain the member $name", qual.pos)
-            Block(Nil)(ErrorType, word.span)
+            errorWord(word.span)
 
       case lambda: Ast.Lambda =>
         transform(lambda).adapt
 
       case Ast.Fence(phrase) =>
         transform(phrase)
+
+      case app: Ast.Apply =>
+        transform(app)
 
       case Ast.TypeApply(fun, targs) =>
         val fun2 = transform(fun)
@@ -379,6 +382,51 @@ class Namer(@constructorOnly reporter: Reporter):
     if words.isEmpty then Block(Nil)(VoidType, block.span)
     else Block(words)(words.last.tpe, block.span)
 
+  /** Handles explicit postfix call syntax f(arg1, arg2, ...) */
+  def transform(apply: Ast.Apply)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
+    var fun =
+      given TargetType = TargetType.Unknown
+      transform(apply.fun)
+
+    // auto .apply insertion --- apply can be polymorphic
+    if fun.tpe.hasApplyMethod then
+      val procType = fun.tpe.termMember("apply")
+      fun = Select(fun, "apply")(procType, fun.span)
+
+    if fun.tpe.isPolyType then
+      fun = exprTyper.instantiatePoly(fun.tpe.asPolyType, fun)
+
+    val funType = fun.tpe
+
+    if funType.isProcType then
+      val procType = funType.asProcType
+      val paramSize = procType.paramTypes.size
+
+      val preArgTypes = procType.preParamTypes
+      if preArgTypes.size != 0 then
+        Reporter.error(
+          s"The postfix call syntax cannot be used, as the function takes prefix arguments",
+          fun.pos)
+        errorWord(apply.span)
+
+      else if apply.args.size != paramSize then
+          Reporter.error(
+            s"The function expects $paramSize arguments, found = ${apply.args.size}",
+            apply.pos)
+          errorWord(apply.span)
+      else
+        val argsTyped =
+          for (arg, paramType) <- apply.args.zip(procType.paramTypes) yield
+            given TargetType = TargetType.Known(paramType)
+            transform(arg)
+
+        val word = Apply(fun, argsTyped)(procType.resultType, apply.span)
+        checker.adapt(word, tt)
+    else
+      Reporter.error( s"Not a function", fun.pos)
+      errorWord(apply.span)
+
+
   def transform(assign: Ast.Assign)(using sc: Scope, rp: Reporter, so: Source): Word =
     val Ast.Assign(ref, rhs) = assign
 
@@ -420,11 +468,11 @@ class Namer(@constructorOnly reporter: Reporter):
 
             case None =>
               // error already reported
-              Block(Nil)(ErrorType, assign.span)
+              errorWord(assign.span)
 
         else
           Reporter.error("Expect an object, found = " + qual2.tpe.show, qual.pos)
-          Block(Nil)(ErrorType, assign.span)
+          errorWord(assign.span)
 
   private def transformParamRef(ref: Ast.RefTree)(using sc: Scope, rp: Reporter, so: Source): Ident =
     val paramRef =
@@ -522,7 +570,7 @@ class Namer(@constructorOnly reporter: Reporter):
         Encoded(encodedValue)(unionType)
 
       case None =>
-        Block(Nil)(ErrorType, variant.span)
+        errorWord(variant.span)
 
 
   private def transform(patmat: Ast.Match)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
@@ -638,7 +686,7 @@ class Namer(@constructorOnly reporter: Reporter):
        val expect = targetFunTypeOpt.get.paramCount
        if expect != params.size then
          Reporter.error(s"Expect a function with $expect parameters, found = ${params.size}", lambda.pos)
-         return Block(words = Nil)(ErrorType, lambda.span)
+         return errorWord(lambda.span)
 
      // Each object has a self symbol
      val thisSym = Symbol.createValueSymbol("this", this.nonCyclicTypeProvider, sc.owner, lambda.pos)
@@ -1062,6 +1110,8 @@ object Namer:
         println(ns.symbol.sourcePos.source.file + ":")
         println(ns.show)
         println
+
+  def errorWord(span: Span) = Block(words = Nil)(ErrorType, span)
 
   def transform(nssAst: List[Ast.Namespace], stdlib: List[String], runtime: List[String])(using Reporter) : List[Namespace] =
     val rootNameTable = new NameTable

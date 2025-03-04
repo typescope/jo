@@ -23,12 +23,11 @@ fun test =
   c.length p
   println c
 
-  printChar
-    c 3
+  printChar c(3)
   printChar '\n'
 
   val d =
-    a.substring 1 3
+    a.substring(1, 3)
 
   d.length p
   println d

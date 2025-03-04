@@ -64,7 +64,10 @@ object ExprTyper:
     case Call(fun: Word, preArgs: List[Item], postArgs: List[Item])
              (val preTypes: List[Type], val postTypes: List[Type], val resultType: Type)
 
-    /** A dotless infix method call */
+    /** A dotless infix method call
+      *
+      * We could use Ast.Apply, but keep it for better error messages.
+      */
     case InfixCall(obj: Item, method: Ast.Ident, arg: Item)
 
     def span: Span =
@@ -119,14 +122,19 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
 
       else if tp.hasApplyMethod then
         // function apply pattern, all remaing words are arguments
-        val procType = tp.termMember("apply").asProcType
+        val memberType = tp.termMember("apply")
+        var fun: Word = Select(wordTyped, "apply")(memberType, wordTyped.span)
+
+        if fun.tpe.isPolyType then
+          fun = instantiatePoly(fun.tpe.asPolyType, fun)
+
+        val procType = fun.tpe.asProcType
         val preTypes = procType.preParamTypes
         val postTypes = procType.postParamTypes
         val resultType = procType.resultType
 
-        val autoApply = Select(wordTyped, "apply")(procType, wordTyped.span)
         val args = for word <- rest yield Item.Raw(word)
-        val item = Item.Call(autoApply, preArgs = Nil, postArgs = args)(preTypes, postTypes, resultType)
+        val item = Item.Call(fun, preArgs = Nil, postArgs = args)(preTypes, postTypes, resultType)
         typeItem(item)
 
       else
@@ -143,6 +151,22 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
 
         typeItem(values.last)
   end transform
+
+  def instantiatePoly(polyType: PolyType, fun: Word)(using Reporter, Source): Word =
+    val tvars = for tparam <- polyType.tparams yield TypeVar(tparam.name, this.inferencer)
+    val targs = tvars.map(tvar => TypeTree(tvar)(fun.span))
+    val tpe = TypeOps.substTypeParams(polyType.resultType, tvars)
+
+
+    val bounds = for tparam <- polyType.tparams yield tparam.info
+    checker.delayedCheck {
+      for tvar <- tvars do checker.checkInstantiated(tvar, fun.pos)
+
+      checker.checkBounds(bounds, targs)
+    }
+
+    TypeApply(fun, targs)(tpe, fun.span)
+
 
   private def typeItem(item: Item)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
     item match
@@ -188,8 +212,15 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
           // TODO: support poly method type
           objType.getTermMember(meth.name) match
             case Some(tp) =>
-              if tp.isProcType then
-                val procType = tp.asProcType
+              var fun: Word = Select(objWord, meth.name)(tp, objSpan | meth.span)
+
+              if tp.isPolyType then
+                fun = instantiatePoly(tp.asPolyType, fun)
+
+              val funType = fun.tpe
+
+              if funType.isProcType then
+                val procType = funType.asProcType
                 val paramSize = procType.paramTypes.size
                 if paramSize != 1 then
                   Reporter.error(
@@ -201,7 +232,6 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
                     given TargetType = TargetType.Known(procType.paramTypes.head)
                     typeItem(arg)
 
-                  val fun = Select(objWord, meth.name)(procType, objSpan | meth.span)
                   val word = Apply(fun, argTyped :: Nil)(procType.resultType, item.span)
                   checker.adapt(word, tt)
               else
@@ -227,20 +257,7 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
       var wordTyped = word
       if wordTyped.tpe.isPolyType then
         val polyType = wordTyped.tpe.asPolyType
-
-        val tvars = for tparam <- polyType.tparams yield TypeVar(tparam.name, this.inferencer)
-        val targs = tvars.map(tvar => TypeTree(tvar)(word.span))
-        val tpe = TypeOps.substTypeParams(polyType.resultType, tvars)
-
-        wordTyped = TypeApply(wordTyped, targs)(tpe, word.span)
-
-        val bounds = for tparam <- polyType.tparams yield tparam.info
-        checker.delayedCheck {
-          for tvar <- tvars do checker.checkInstantiated(tvar, word.pos)
-
-          checker.checkBounds(bounds, targs)
-        }
-      end if
+        wordTyped = instantiatePoly(polyType, wordTyped)
 
       val tp = wordTyped.tpe
 
