@@ -1,0 +1,12 @@
+fun foo =
+  val a = "hello   // error
+
+  val b = 3 + 5
+
+  abc"             // error
+
+  val c = 23 + 98
+
+  defd"            // error
+
+fun bar(x: Int) = x * x

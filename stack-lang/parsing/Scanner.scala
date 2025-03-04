@@ -112,7 +112,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
     else
       eat('\"')
     val rawString = stream.tokenEnd()
-    val content = rawString.substring(1, rawString.size - 1)
+    val content = if rawString.size <= 1 then "" else rawString.substring(1, rawString.size - 1)
     new Token.StringLit(StringUtil.unescape(content))
 
   def charLit(): Token =
