@@ -1,8 +1,6 @@
 namespace stk.runtime.native.Syscall
 
-import stk.runtime.native.Core
-
-type Addr = Core.Addr
+import stk.runtime.native.Core.Addr
 
 // Linux system calls interface
 

@@ -64,16 +64,7 @@ class Namer(@constructorOnly reporter: Reporter):
         importScope.define(nsSym)
         // handle imports after indexing members
         for imp <- ns.imports do
-          // TODO: what about type names? Import both
-          given Scope = rootNamespaceScope
-          val sym = resolveGlobal(imp.qualid, isType = false)
-
-          if sym.isAllOf(Flags.NSpace | Flags.Branch) then
-            rp.error("Only a concrete namespace can be imported", imp.pos)
-
-          imports += sym
-          // TODO: abstract scope and better error position for duplicate imports
-          importScope.define(sym)
+          doImport(imp.qualid, importScope, rootNameTable, imports)
       }
 
       delayedNamespaces += { () =>
@@ -142,33 +133,58 @@ class Namer(@constructorOnly reporter: Reporter):
           case Some(sym) => check(sym)
 
 
-  /** Resolve a global */
-  def resolveGlobal(qualid: Ast.RefTree, isType: Boolean)(using sc: Scope, rp: Reporter, so: Source): Symbol =
-    qualid match
-      case Ast.Select(qual, name) =>
-        val sym = resolveGlobal(qual.asInstanceOf[Ast.RefTree], isType = false)
+  def doImport(qualid: Ast.RefTree, importScope: Scope, rootNameTable: NameTable, imports: mutable.ArrayBuffer[Symbol])
+      (using rp: Reporter, so: Source): Unit =
 
-        if sym.isNamespace then
-          val nsInfo = sym.info.as[NameTableInfo]
+    def resolveNamespace(qualid: Ast.RefTree): Symbol =
+      qualid match
+        case Ast.Select(qual, name) =>
+          val sym = resolveNamespace(qual.asInstanceOf[Ast.RefTree])
 
-          nsInfo.resolveTerm(name) match
+          if sym.isNamespace then
+            val nsInfo = sym.info.as[NameTableInfo]
+
+            nsInfo.resolveTerm(name) match
+              case Some(sym) => sym
+
+              case None =>
+                rp.error(s"`$name` not found in the namespace ${sym.name}", qualid.pos)
+                Symbol.createFunSymbol(name, ErrorType, sym, pos = qualid.pos)
+
+          else
+            if !sym.info.isError then
+              rp.error("Not a namespace, only a namespace can be selected", qual.pos)
+            Symbol.createFunSymbol(name, ErrorType, sym, pos = qualid.pos)
+
+        case Ast.Ident(name) =>
+          rootNameTable.resolve(name, isType = false) match
             case Some(sym) => sym
-
             case None =>
-              rp.error(s"`$name` not found in the namespace ${sym.name}", qualid.pos)
-              Symbol.createFunSymbol(name, ErrorType, sym, pos = qualid.pos)
+              rp.error(s"`$name` is not found", qualid.pos)
+              Symbol.createFunSymbol(name, ErrorType, importScope.owner, pos = qualid.pos)
+
+    val nameTable = qualid match
+      case Ast.Select(qual, _) =>
+        val sym = resolveNamespace(qual.asInstanceOf[Ast.RefTree])
+        if sym.info.isError then
+          new NameTable
+
+        else if sym.isNamespace then
+          sym.info.as[NameTableInfo].nameTable
 
         else
-          if !sym.info.isError then
-            rp.error("Not a namespace, only a namespace can be selected", qual.pos)
-          Symbol.createFunSymbol(name, ErrorType, sym, pos = qualid.pos)
+          rp.error("Expect namespace, found = " + sym.info.show, qual.pos)
+          new NameTable
 
-      case Ast.Ident(name) =>
-        sc.resolve(name, isType) match
-          case Some(sym) => sym
-          case None =>
-            rp.error(s"`$name` is not found", qualid.pos)
-            Symbol.createNamespaceSymbol(name, new NameTableInfo, sc.owner, pos = qualid.pos, isBranch = false)
+      case _ => rootNameTable
+
+    for sym <- nameTable.resolve(qualid.name) do
+      if sym.isAllOf(Flags.NSpace | Flags.Branch) then
+        rp.error("Only concrete namespaces can be imported", qualid.pos)
+
+      imports += sym
+      // TODO: abstract scope and better error position for duplicate imports
+      importScope.define(sym)
 
   private def index(defs: List[Ast.Def])(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): List[DelayedDef[Def]] =
     val delayedDefs = new mutable.ArrayBuffer[DelayedDef[Def]]
