@@ -11,4 +11,5 @@ fun double(x = x * x           // error
 fun test =
   foo x with a, b = e x = 8    // error
 
-fun qux(x) { x * x }          // error
+fun qux(x)
+  { x * x }          // error

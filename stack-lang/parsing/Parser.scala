@@ -85,10 +85,12 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def skipLine(limitIndent: Indent) =
     var item = peekItem()
     while
-      !limitIndent.isUnindent(item.indent)
-      && item.token != Token.EOF
+      !limitIndent.isUnindent(item.indent) && item.token != Token.EOF && {
+        item = next()
+        true
+      }
     do
-      item = next()
+      item = peekItem()
 
   def skipUntil(tokens: Set[Token]) =
     var token = peek()
