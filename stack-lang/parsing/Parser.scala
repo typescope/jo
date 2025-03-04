@@ -76,19 +76,31 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def peek(i: Int): Token = scanner.peek(i)
   def peekItem(): TokenInfo = scanner.peekItem(0)
   def eat(expect: Token): TokenInfo =
-    val item = next()
+    val item = peekItem()
     if item.token != expect then
       error("Unexpected token, found = " + item.token + ", expect = " + expect, item.span.toPos)
-    item
+      throw new SyntaxError
+    next()
 
-  def skipLine() =
-    val item = next()
-    val limitIndent = item.indent
+  def skipLine(limitIndent: Indent) =
+    var item = peekItem()
     while
-      !limitIndent.isUnindent(peekItem().indent)
-      && item.token != Token.EOF
+      !limitIndent.isUnindent(item.indent) && item.token != Token.EOF && {
+        item = next()
+        true
+      }
     do
-      next()
+      item = peekItem()
+
+  def skipUntil(tokens: Set[Token]) =
+    var token = peek()
+    while
+      !tokens.contains(token) && token != Token.EOF && {
+        next()
+        true
+      }
+    do
+      token = peek()
 
   /** Eat the next `end` if the indentation matches */
   def eatEndOpt(indent: Indent) =
@@ -103,16 +115,19 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     if !reference.indent.isSame(item.indent) then
       warn(s"${item.token} is not aligned with ${reference.token}", item.span.toPos)
 
-  def repeated[T](parseItem: => Option[T]): List[T] =
+  def repeated[T](skipToIfError: Set[Token])(parseItem: => Option[T]): List[T] =
     val items = new mutable.ArrayBuffer[T]
     var continue = true
     while continue do
-      parseItem match
-        case Some(item) =>
-          items += item
+      try
+        parseItem match
+          case Some(item) =>
+            items += item
 
-        case None =>
-          continue = false
+          case None =>
+            continue = false
+      catch case _: SyntaxError =>
+        skipUntil(skipToIfError)
     end while
     items.toList
 
@@ -130,7 +145,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def parse(): Namespace =
     val nspace = namespace()
     // With parsing errors, ensure finish scanning
-    while peek() != Token.EOF do eat(Token.EOF)
+    skipUntil(Set(Token.EOF))
     nspace
 
   def namespace(): Namespace =
@@ -144,15 +159,23 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         case _ =>
           Ident("__empty__")(Span(0, 0))
 
-    val imports = repeated:
+    val errorSkipImport = Set(Token.IMPORT, Token.TYPE, Token.FUN, Token.PARAM)
+    val imports = repeated(errorSkipImport):
       if peek() == Token.IMPORT then Some(importStat())
       else None
 
-    val defs = repeated:
+    val errorSkipDef = Set(Token.TYPE, Token.FUN, Token.PARAM)
+    val defs = repeated(errorSkipDef):
         if peek() == Token.TYPE then Some(typeDef())
         else if peek() == Token.FUN then Some(funDef())
         else if peek() == Token.PARAM then Some(paramDef())
-        else None
+        else
+          val item = peekItem()
+          if item.token != Token.EOF then
+            error("Expect a definition, found = " + item.token, item.span.toPos)
+            throw new SyntaxError
+          else
+            None
 
     val endSpan = if defs.isEmpty then id.span else defs.last.span
 
@@ -349,7 +372,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           case None       => finalResult
 
       catch case error: SyntaxError =>
-        skipLine()
+        skipLine(limitIndent)
         blockRest(phrases, limitIndent)
 
   def optWithClause(expr: Word): Word =
@@ -572,7 +595,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def objectType(): ObjectType =
     val objToken = eat(Token.OBJECT)
     eat(Token.LBRACE)
-    val decls: List[ValDef | FunDef] = repeated:
+    val errorSkip = Set(Token.VAL, Token.VAR, Token.DEF)
+    val decls: List[ValDef | FunDef] = repeated(errorSkip):
         if peek() == Token.DEF then
           Some(defDef(needBody = false))
 
@@ -765,7 +789,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def objectLit(): Object =
     val objToken = eat(Token.OBJECT)
     eat(Token.LBRACE)
-    val members: List[ValDef | FunDef] = repeated:
+    val errorSkip = Set(Token.DEF, Token.VAL, Token.VAR)
+    val members: List[ValDef | FunDef] = repeated(errorSkip):
         if peek() == Token.DEF then Some(defDef(needBody = true))
         else if peek() == Token.VAL then Some(valDef(Token.VAL))
         else if peek() == Token.VAR then Some(valDef(Token.VAR))
