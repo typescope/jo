@@ -108,7 +108,9 @@ class NormalizeParams(using Reporter) extends Phase[NormalizeParams.Context]:
 
     for ddef <- obj.defs do
       ctx.cache.code(ddef.symbol) = ddef
-      val effs = EffectAnalysis.effects(ddef.symbol)(using ctx.cache).keys.toList
+      val effsTraced = EffectAnalysis.effects(ddef.symbol)(using ctx.cache)
+      val effs = (effsTraced -- ddef.methodReceives).keys.toList
+
       if effs.isEmpty then
         newDefs += ddef
       else

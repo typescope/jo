@@ -50,7 +50,7 @@ object ElimCapture:
 
     val paramInfos2 = prependParams ++ paramInfos ++ appendParams
 
-    var funType: Type = ProcType(paramInfos2, resType, preParamCount = 0)
+    var funType: Type = ProcType(paramInfos2, resType, fdef.receives, preParamCount = 0)
     if tparamInfos.nonEmpty then
       funType = PolyType(tparamInfos, funType)
 

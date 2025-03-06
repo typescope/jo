@@ -143,7 +143,13 @@ object EffectAnalysis:
           else zero
 
         case Select(qual, name) =>
-          this(qual)
+          val effs = this(qual)
+          if word.tpe.isProcType then
+            // a select with a ProcType must be a method call
+            val procType = word.tpe.asProcType
+            effs ++ procType.receives.getOrElse(Nil).map(_ -> Vector(word.pos))
+          else
+            effs
 
         case RecordLit(fields) =>
           fields.foldLeft(zero):
@@ -153,8 +159,7 @@ object EffectAnalysis:
           this(repr)
 
         case Apply(fun, args) =>
-          // Method calls will not contribute effects as each method is
-          // self-sufficient after deep capture.
+          // Method calls are handled in `Select`, procedure in `Ident`
           args.foldLeft(this(fun)): (acc, arg) =>
             acc ++ this(arg)
 
@@ -208,7 +213,8 @@ object EffectAnalysis:
             // Method calls will not contribute effects as each method is
             // self-sufficient after deep capture.
             cache.code(ddef.symbol) = ddef
-            acc ++ getEffects(ddef.symbol)
+            val rawEffects = getEffects(ddef.symbol)
+            acc ++ (rawEffects -- ddef.methodReceives)
 
         case fdef: FunDef =>
           cache.code(fdef.symbol) = fdef
