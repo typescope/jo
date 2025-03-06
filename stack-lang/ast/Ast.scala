@@ -195,9 +195,10 @@ object Ast:
     assert(targs.nonEmpty)
 
   case class FunctionType
-    (paramTypes: List[TypeTree], resultType: TypeTree)
+    (paramTypes: List[TypeTree], resultType: TypeTree, receives: List[RefTree])
     (val span: Span)
-  extends TypeTree
+  extends TypeTree:
+    for param <- receives do assert(isQualid(param), param)
 
   case class ObjectType
     (members: List[ValDef | FunDef])
@@ -221,11 +222,21 @@ object Ast:
     (val span: Span)
   extends Def
 
+  /** Representation of functions and methods
+    *
+    * TODO: a keyword `capture` can be introduced for methods to make capture
+    * explicit.
+    */
   case class FunDef
     (ident: Ident, tparams: List[TypeParam], params: List[Param],
-        resType: TypeTree, body: Word, preParamCount: Int)
+        resType: TypeTree, body: Word, preParamCount: Int, receives: Option[List[RefTree]])
     (val span: Span)
-  extends Word, Def
+  extends Word, Def:
+    for
+      params <- receives
+      param <- params
+    do
+      assert(isQualid(param), param)
 
   case class Param
     (ident: Ident, typ: TypeTree)

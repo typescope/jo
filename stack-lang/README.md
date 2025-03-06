@@ -141,8 +141,8 @@ Syntactical Grammar
     receive_params = RECEIVES qualid {COMMA qualid}.
 
     object_type = OBJECT LBRACE {method_decl | val_decl} RBRACE.
-    method_decl =  DEF ident param_section COLON type [receive_params].
-    val_decl    =  (VAL | VAR) ident COLON type.
+    method_decl = DEF ident param_section COLON type [receive_params].
+    val_decl    = (VAL | VAR) ident COLON type.
 
     param_section = LPAREN [params] RPAREN
     params        = param {COMMA param}.
