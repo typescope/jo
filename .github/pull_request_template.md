@@ -7,6 +7,8 @@ Fix #XXX: A short description
 - [ ] ast & parsing syntax
 - [ ] types & subtyping
 - [ ] sast & type checking
+- [ ] context check & transform
+- [ ] closure conversion
 - [ ] interpreter
 - backend
     - [ ] js backend
