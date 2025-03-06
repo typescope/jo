@@ -245,10 +245,10 @@ object Types:
     val paramCount: Int = params.size
 
     def prepend(paramsToAdd: List[NamedInfo[Type]]): ProcType =
-      ProcType(paramsToAdd ++ params, resultType, preParamCount)
+      ProcType(paramsToAdd ++ params, resultType, receives, preParamCount)
 
     def append(paramsToAdd: List[NamedInfo[Type]]): ProcType =
-      ProcType(params ++ paramsToAdd, resultType, preParamCount)
+      ProcType(params ++ paramsToAdd, resultType, receives, preParamCount)
 
     def postParamCount = params.size - preParamCount
 

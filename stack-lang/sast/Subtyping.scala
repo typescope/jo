@@ -175,7 +175,7 @@ object Subtyping:
     && checkConforms(tp1.resultType, tp2.resultType)
     && {
       tp1.receives.isEmpty ||
-      tp2.receives.nonEmpty && tp1.receves.get.forall { param =>
+      tp2.receives.nonEmpty && tp1.receives.get.forall { param =>
         tp2.receives.get.contains(param)
       }
     }

@@ -202,7 +202,7 @@ object TypeOps:
         val postStr = params.drop(n).map(param => param.name + ": " + show(param.info)).mkString("(", ", ", ")")
         val receivesStr = if receivesOpt.isEmpty then "" else " receives " + receivesOpt.get.map(_.name).mkString(", ")
 
-        preStr + postStr + ": " + show(resType) + receiveStr
+        preStr + postStr + ": " + show(resType) + receivesStr
 
       case _: NameTableInfo => "{ ...nametable }"
   end show
