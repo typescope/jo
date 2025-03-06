@@ -229,7 +229,8 @@ object Ast:
     */
   case class FunDef
     (ident: Ident, tparams: List[TypeParam], params: List[Param],
-        resType: TypeTree, body: Word, preParamCount: Int, receives: Option[List[RefTree]])
+        resType: TypeTree, receives: Option[List[RefTree]], body: Word,
+        preParamCount: Int)
     (val span: Span)
   extends Word, Def:
     for

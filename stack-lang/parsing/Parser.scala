@@ -217,6 +217,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val id = ident()
     val tparams = typeParams()
     val postParamList = paramSection()
+    val receiveParams = optReceiveParams()
+
     val resType =
       if peek() == Token.COLON then
         eat(Token.COLON)
@@ -229,14 +231,15 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     eatEndOpt(fun.indent)
 
-    val paramList= preParamList ++ postParamList
-    FunDef(id, tparams, paramList, resType, body, preParamList.size)(fun.span | body.span)
+    val paramList = preParamList ++ postParamList
+    FunDef(id, tparams, paramList, resType, receiveParams, body, preParamList.size)(fun.span | body.span)
 
   def defDef(needBody: Boolean): FunDef =
     val defToken = eat(Token.DEF)
     val id = ident()
     val tparams = typeParams()
     val paramList = paramSection()
+    val receiveParams = optReceiveParams()
     val resType =
       if peek() == Token.COLON then
         eat(Token.COLON)
@@ -254,7 +257,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     eatEndOpt(defToken.indent)
 
     val preParamCount = 0
-    FunDef(id, tparams, paramList, resType, body, preParamCount)(defToken.span | body.span)
+    FunDef(id, tparams, paramList, resType, receiveParams, body, preParamCount)(defToken.span | body.span)
 
   def paramDef(): ParamDef =
     val token = eat(Token.PARAM)
@@ -538,7 +541,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case Token.RARROW =>
         next()
         val resType = typ()
-        FunctionType(tps, resType)(tps.head.span | resType.span)
+        val params = optReceiveParams().getOrElse(Nil)
+        val endSpan = if params.isEmpty then resType.span else params.last.span
+        FunctionType(tps, resType, params)(tps.head.span | endSpan)
 
       case token =>
         if tps.size > 1 then
@@ -571,7 +576,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case Token.RARROW   =>
         val arrow = next()
         val resType = typ()
-        FunctionType(paramTypes = Nil, resType)(arrow.span | resType.span)
+        val params = optReceiveParams().getOrElse(Nil)
+        val endSpan = if params.isEmpty then resType.span else params.last.span
+        FunctionType(paramTypes = Nil, resType, params)(arrow.span | endSpan)
 
       case _ =>
         val id = qualid()
@@ -579,6 +586,13 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           appliedType(id)
         else
           id
+
+  def optReceiveParams(): Option[List[RefTree]] =
+    if peek() == Token.RECEIVES then
+      eat(Token.RECEIVES)
+      Some(oneOrMore(() => qualid(), Token.COMMA))
+    else
+      None
 
   def recordType(): RecordType =
     val lbrace = eat(Token.LBRACE)
