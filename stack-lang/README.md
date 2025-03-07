@@ -114,8 +114,8 @@ Syntactical Grammar
     product_bindings = LPAREN ident {COMMA ident} RPAREN
 
     valdef  = (VAL | VAR) ident [COLON type] EQL block.
-    fundef  = FUN [param_section] ident [tparams] [param_section] EQL block [END].
-    defdef  = DEF ident [tparams] [param_section] [receive_params] EQL block [END].
+    fundef  = FUN [param_section] ident [tparams] [param_section] [COLON type] [receive_params] EQL block [END].
+    defdef  = DEF ident [tparams] [param_section] [COLON type] [receive_params] EQL block [END].
 
     paramdef = PARAM param [EQL block].
 
