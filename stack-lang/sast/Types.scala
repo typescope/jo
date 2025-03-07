@@ -228,8 +228,16 @@ object Types:
     val bounds: List[TypeBound] = tparams.map(_.info)
     val paramCount = tparams.size
 
+  /** The type of a procedure or method
+    *
+    * The receive parameters of methods are always explicitly specified. If
+    * unspecified, the receive parameters of methods are regarded as empty.
+    *
+    * For procedure, if unspecified, it means the receive parameters will be
+    * inferred.
+    */
   case class ProcType
-    (params: List[NamedInfo[Type]], resultType: Type, preParamCount: Int)
+    (params: List[NamedInfo[Type]], resultType: Type, receives: Option[List[Symbol]], preParamCount: Int)
   extends Type:
     val preParamTypes: List[Type] = params.take(preParamCount).map(_.info)
     val postParamTypes: List[Type] = params.drop(preParamCount).map(_.info)
@@ -237,10 +245,10 @@ object Types:
     val paramCount: Int = params.size
 
     def prepend(paramsToAdd: List[NamedInfo[Type]]): ProcType =
-      ProcType(paramsToAdd ++ params, resultType, preParamCount)
+      ProcType(paramsToAdd ++ params, resultType, receives, preParamCount)
 
     def append(paramsToAdd: List[NamedInfo[Type]]): ProcType =
-      ProcType(params ++ paramsToAdd, resultType, preParamCount)
+      ProcType(params ++ paramsToAdd, resultType, receives, preParamCount)
 
     def postParamCount = params.size - preParamCount
 

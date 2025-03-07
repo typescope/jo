@@ -621,6 +621,10 @@ class Namer(@constructorOnly reporter: Reporter):
            tvars += tvar -> params(i)
            tvar
 
+     val ctxParams =
+       for funType <- targetFunTypeOpt yield funType.receives.getOrElse(Nil)
+
+
      val paramSyms =
       for (param, i) <- params.zipWithIndex yield
         val tp = if param.typ.isEmpty then inferParamType(i) else transformType(param.typ).tpe
@@ -635,7 +639,7 @@ class Namer(@constructorOnly reporter: Reporter):
      val bodyTyped = transform(body)(using lambdaScope, rp, so, bodyTargetType)
 
      // Provide type info for the function symbol
-     val procType = ProcType(paramSyms.map(_.toNamedInfo), bodyTyped.tpe, preParamCount = 0)
+     val procType = ProcType(paramSyms.map(_.toNamedInfo), bodyTyped.tpe, ctxParams, preParamCount = 0)
      this.nonCyclicTypeProvider.addProvider(funSym, () => procType)
 
      for (tvar, param) <- tvars do
@@ -666,7 +670,7 @@ class Namer(@constructorOnly reporter: Reporter):
 
     pdef.default match
       case Some(rhs) =>
-        val funInfoProvider: InfoProvider = sym => ProcType(params = Nil, resultType = paramSym.info, preParamCount = 0)
+        val funInfoProvider: InfoProvider = sym => ProcType(params = Nil, resultType = paramSym.info, receives = None, preParamCount = 0)
         val defaultFunSym = Symbol.createSymbol(pdef.name + "$default", funInfoProvider, Flags.Fun | Flags.Context, sc.owner, pdef.pos)
 
         val funDefSast = () =>
@@ -775,8 +779,14 @@ class Namer(@constructorOnly reporter: Reporter):
       given TargetType = targetType
       transform(funDef.body)
 
+    lazy val ctxParams = funDef.receives.map: params =>
+      for
+        param <- params
+      yield
+        transformParamRef(param).symbol
+
     def computeInfo(resultType: Type) =
-      val procType = ProcType(paramSyms.map(_.toNamedInfo), resultType, funDef.preParamCount)
+      val procType = ProcType(paramSyms.map(_.toNamedInfo), resultType, ctxParams, funDef.preParamCount)
 
       if tparamSyms.isEmpty then
         procType
@@ -892,7 +902,13 @@ class Namer(@constructorOnly reporter: Reporter):
       checker.delayedCheck { checker.checkValueType(resTypeTree) }
       resTypeTree.tpe
 
-    val methodType = ProcType(paramSyms.map(_.toNamedInfo), resultType, preParamCount = 0)
+    val ctxParams = ddef.receives.map: params =>
+      for
+        param <- params
+      yield
+        transformParamRef(param).symbol
+
+    val methodType = ProcType(paramSyms.map(_.toNamedInfo), resultType, ctxParams, preParamCount = 0)
     val finalType =
       if tparamSyms.isEmpty then
         methodType
@@ -999,7 +1015,7 @@ class Namer(@constructorOnly reporter: Reporter):
         checker.delayedCheck { checker.checkBounds(tctor2, targs2) }
         TypeTree(AppliedType(tctor2.tpe, targs2.map(_.tpe)))(tpt.span)
 
-      case Ast.FunctionType(paramTypes, resType) =>
+      case Ast.FunctionType(paramTypes, resType, receives) =>
         var i = 0
         val paramTypes2 =
           for paramType <- paramTypes yield
@@ -1009,9 +1025,15 @@ class Namer(@constructorOnly reporter: Reporter):
             i = i+1
             namedInfo
 
+        val ctxParams =
+          for
+            param <- receives
+          yield
+            transformParamRef(param).symbol
+
         val resType2 = transformType(resType)
         checker.delayedCheck { checker.checkValueType(resType2) }
-        val applyType = ProcType(paramTypes2, resType2.tpe, preParamCount = 0)
+        val applyType = ProcType(paramTypes2, resType2.tpe, Some(ctxParams), preParamCount = 0)
         val objType = ObjectType(fields = Nil, methods = NamedInfo("apply", applyType) :: Nil, mutableFields = Nil)
         TypeTree(objType)(tpt.span)
 

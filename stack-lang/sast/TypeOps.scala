@@ -56,7 +56,7 @@ object TypeOps:
   def finalResultType(tp: Type): Type =
     tp match
       case PolyType(_, resType) => finalResultType(resType)
-      case ProcType(_, resType, _) => resType
+      case ProcType(_, resType, _, _) => resType
       case tp => tp
 
   /** Approximate top-level type aliases, applied types and type parameters
@@ -192,7 +192,7 @@ object TypeOps:
       case TypeBound(lo, hi) =>
         show(lo) + " .. " + show(hi)
 
-      case ProcType(params, resType, n) =>
+      case ProcType(params, resType, receivesOpt, n) =>
         val preStr =
           if n > 0 then
             params.take(n).map(param => param.name + ": " + show(param.info)).mkString("(", ", ", ")")
@@ -200,7 +200,9 @@ object TypeOps:
             ""
 
         val postStr = params.drop(n).map(param => param.name + ": " + show(param.info)).mkString("(", ", ", ")")
-        preStr + postStr + ": " + show(resType)
+        val receivesStr = if receivesOpt.isEmpty then "" else " receives " + receivesOpt.get.map(_.name).mkString(", ")
+
+        preStr + postStr + ": " + show(resType) + receivesStr
 
       case _: NameTableInfo => "{ ...nametable }"
   end show
@@ -269,13 +271,13 @@ object TypeOps:
         case TypeBound(lo, hi) =>
           TypeBound(this(lo), this(hi))
 
-        case ProcType(params, resType, preParamCount) =>
+        case ProcType(params, resType, receivesOpt, preParamCount) =>
           val params2 =
             for param <- params
             yield param.copy(info = this(param.info))
 
           val resType2 = this(resType)
-          ProcType(params2, resType2, preParamCount)
+          ProcType(params2, resType2, receivesOpt, preParamCount)
 
   class SymbolsTypeMap extends TypeMap:
     type Context = Map[Symbol, Type]

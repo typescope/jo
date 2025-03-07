@@ -11,7 +11,7 @@ Lexical Grammar
     letter = "A" | "B" | ... | "Z" | "a" | "b" | ... | "z".
     digit  = "0" | "1" | "2" | "3" | ... | "7" | "8" | "9".
     opchar = "+" | "-" | "*" | "/" | "%" | "|" | "&" | "^" |
-             ">" | "<" | "=" | "!".
+             ">" | "<" | "=" | "!" | "?" .
     NLINE  = "\n".
     USCORE = "_".
 
@@ -49,6 +49,7 @@ Lexical Grammar
     IMPORT   = "import".
     DEF      = "def".
     OBJECT   = "object".
+    RECEIVES = "receives".
     name     = (letter | USCORE) {letter | digit | USCORE}.
     operator = opchar { opchar }.
     ident    = name | operator.
@@ -113,8 +114,8 @@ Syntactical Grammar
     product_bindings = LPAREN ident {COMMA ident} RPAREN
 
     valdef  = (VAL | VAR) ident [COLON type] EQL block.
-    fundef  = FUN [param_section] ident [tparams] [param_section] EQL block [END].
-    defdef  = DEF ident [tparams] [param_section] EQL block [END].
+    fundef  = FUN [param_section] ident [tparams] [param_section] [COLON type] [receive_params] EQL block [END].
+    defdef  = DEF ident [tparams] [param_section] [COLON type] [receive_params] EQL block [END].
 
     paramdef = PARAM param [EQL block].
 
@@ -135,11 +136,13 @@ Syntactical Grammar
     branches   = branch { COMMA branch }.
     branch     = ident [param_section].
 
-    fun_type   = [types] RARROW type.
+    fun_type   = [types] RARROW type [receive_params].
+
+    receive_params = RECEIVES qualid {COMMA qualid}.
 
     object_type = OBJECT LBRACE {method_decl | val_decl} RBRACE.
-    method_decl =  DEF ident param_section COLON type.
-    val_decl    =  (VAL | VAR) ident COLON type.
+    method_decl = DEF ident param_section COLON type [receive_params].
+    val_decl    = (VAL | VAR) ident COLON type.
 
     param_section = LPAREN [params] RPAREN
     params        = param {COMMA param}.

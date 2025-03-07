@@ -79,11 +79,15 @@ object Printing:
 
         val resType = showTypeAnnot(fdef.resType)
 
+        val receives =
+          if fdef.receives.isEmpty then Text.Empty
+          else " receives " ~ rep(fdef.receives.get, Text(", ")) ~ " "
+
         val body =
           if fdef.body.isEmptyBlock then Text.Empty
           else " =" ~ indent(fdef.body)
 
-        "fun " ~ fdef.name ~ tparams ~ params ~ resType ~ body
+        "fun " ~ fdef.name ~ tparams ~ params ~ resType ~ receives ~ body
 
       case tdef: TypeDef =>
         val tparams =
@@ -219,8 +223,12 @@ object Printing:
       case AppliedType(tpeCtor, targs) =>
         tpeCtor ~ "[" ~ rep(targs, Text(", ")) ~ "]"
 
-      case FunctionType(paramTypes, resultType) =>
-        rep(paramTypes, Text(", ")) ~ " => " ~ resultType
+      case FunctionType(paramTypes, resultType, receives) =>
+        val tp = rep(paramTypes, Text(", ")) ~ " => " ~ resultType
+        if receives.isEmpty then
+          tp
+        else
+          tp ~ " receives " ~ rep(receives, Text(", "))
 
       case ObjectType(members) =>
         "object {" ~ indent:

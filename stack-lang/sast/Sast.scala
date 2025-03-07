@@ -203,6 +203,17 @@ object Sast:
     lazy val locals: List[Symbol] = census._1
     lazy val freeVariables: List[Symbol] = census._2
 
+    def methodReceives: List[Symbol] = receives.getOrElse(Nil)
+
+    def receives: Option[List[Symbol]] =
+      // TODO: merge ProcType and PolyType
+      symbol.info: @unchecked match
+        case proc: ProcType =>
+          proc.receives
+
+        case PolyType(_, proc: ProcType) =>
+          proc.receives
+
   case class Namespace
     (symbol: Symbol, imports: List[Symbol], defs: List[Def])
     (val span: Span)

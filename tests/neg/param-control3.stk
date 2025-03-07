@@ -1,0 +1,22 @@
+param pageWidth: Int
+param newLine: Bool
+
+fun pretty(s: String): Unit =
+  println
+    "pageWidth = " + (intToStr pageWidth)
+
+  println
+    "newLine = " +
+      if newLine then "true" else "false"
+
+fun g(): Unit =
+  pretty "hello, word"
+  h
+
+fun h(): Unit receives newLine, stdout = i  // error
+
+fun i(): Unit =
+  g
+
+fun main =
+  g with pageWidth = 30, newLine = true
