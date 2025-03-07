@@ -217,7 +217,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val id = ident()
     val tparams = typeParams()
     val postParamList = paramSection()
-    val receiveParams = optReceiveParams()
 
     val resType =
       if peek() == Token.COLON then
@@ -225,6 +224,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         typ()
       else
         EmptyTypeTree()(id.span)
+
+    val receiveParams = optReceiveParams()
 
     eat(Token.EQL)
     val body = block(fun.indent)
@@ -239,13 +240,14 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val id = ident()
     val tparams = typeParams()
     val paramList = paramSection()
-    val receiveParams = optReceiveParams()
     val resType =
       if peek() == Token.COLON then
         eat(Token.COLON)
         typ()
       else
         EmptyTypeTree()(id.span)
+
+    val receiveParams = optReceiveParams()
 
     val body =
       if needBody then
