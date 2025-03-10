@@ -46,7 +46,7 @@ object Ast:
   case class Ident
     (name: String)
     (val span: Span)
-  extends Word, RefTree
+  extends Word, RefTree, Pattern
 
   case class Apply
     (fun: Word, args: List[Word])
@@ -150,12 +150,7 @@ object Ast:
 
   //---------------------------- patterns --------------------------------------
 
-  sealed abstract class Pattern extends Tree
-
-  case class Wildcard
-    ()
-    (val span: Span)
-  extends Pattern
+  sealed abstract trait Pattern extends Tree
 
   case class TagPat
     (tag: Ident, bindings: List[Ident])

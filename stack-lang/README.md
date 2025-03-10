@@ -108,7 +108,7 @@ Syntactical Grammar
 
     match   = MATCH expr {case} [END].
     case    = CASE pat RARROW block.
-    pat     = product_pat | USCORE.
+    pat     = product_pat | ident.
 
     product_pat = TAG ident [product_bindings]
     product_bindings = LPAREN ident {COMMA ident} RPAREN
