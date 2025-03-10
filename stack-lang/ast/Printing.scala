@@ -195,7 +195,7 @@ object Printing:
 
   def showPattern(pat: Pattern): Text =
     pat match
-      case _: Wildcard => Text("_")
+      case Ident(name) => Text(name)
 
       case TagPat(tag, bindings) =>
         val params =

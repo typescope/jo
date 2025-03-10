@@ -35,7 +35,7 @@ class PatternMatcher(namer: Namer, checker: Checker):
         Reporter.error("The case is unreachable", pat.pos)
         Nil
       else pat match
-        case Ast.Wildcard() => Nil
+        case Ast.Ident(_) => Nil
         case Ast.TagPat(Ast.Ident(name), _) =>
           if tags.contains(name) then
             tags.filter(_ != name)
@@ -78,11 +78,17 @@ class PatternMatcher(namer: Namer, checker: Checker):
     val scrutType = scrut.tpe
 
     pat match
-      case Ast.Wildcard() =>
+      case Ast.Ident(name) =>
+        val sym = Symbol.createValueSymbol(name, scrutType, sc.owner, pat.pos)
+        val vdef = ValDef(sym, scrut)(pat.span)
+        caseScope.define(sym)
+
         val body2 = namer.transform(body)(using caseScope)
         val commonType = checker.commonResultType(body2.tpe, resType, body2.pos)
         val elsep = cont(commonType)
-        checker.adapt(body2, elsep.tpe)
+
+        val block = Block(vdef :: body2 :: Nil)(elsep.tpe, caseDef.span)
+        checker.adapt(block, elsep.tpe)
 
       case Ast.TagPat(tag, bindings) =>
         val tagTypesOpt = checker.tagTypes(tag, scrutType, scrutSpan)

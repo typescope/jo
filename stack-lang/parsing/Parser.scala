@@ -866,11 +866,11 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
      case Token.TAG =>
        product_pattern()
 
-     case Token.Ident("_") =>
+     case Token.Ident(name) =>
        val item = next()
-       Wildcard()(item.span)
+       Ident(name)(item.span)
 
      case _ =>
        val item = next()
        error("Expect a pattern, found = " + item.token, item.span.toPos)
-       Wildcard()(item.span)
+       Ident("_")(item.span)

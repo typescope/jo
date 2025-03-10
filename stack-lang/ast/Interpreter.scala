@@ -212,7 +212,7 @@ object Interpreter:
     val VariantVal(tag, values) = value: @unchecked
     def matches(caseDef: Case): Boolean =
       caseDef.pat match
-        case Wildcard()  => true
+        case _: Ident  => true
         case TagPat(tagId, _) => tagId.name == tag
 
     val Some(Case(pat, body)) = cases.find(matches): @unchecked
@@ -224,7 +224,8 @@ object Interpreter:
         for (id, value) <- bindings.zip(values) do
           caseScope.bind(id.name, value)
 
-      case Wildcard()  =>
+      case Ident(name)  =>
+        caseScope.bind(name, value)
 
     exec(body)(using vs, caseScope)
 

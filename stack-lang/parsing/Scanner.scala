@@ -106,7 +106,16 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       case name  => Token.Ident(name)
 
   def stringLit(): Token =
-    stream.eatWhile(c => c != '\n' && (c != '"' || stream.lastEq('\\')))
+    var isLastEscape = false
+    def isValidChar(c: Char) =
+      if isLastEscape then
+        isLastEscape = false
+        true
+      else
+        isLastEscape = c == '\\'
+        c != '"'
+
+    stream.eatWhile(c => c != '\n' && isValidChar(c))
     if stream.curChar() == '\n' then
       error("Missing closing double quote: string cannot span multiple lines", stream.tokenSpan().toPos)
     else
@@ -238,9 +247,6 @@ object Scanner:
 
     def curChar(pred: Char => Boolean): Boolean =
       hasMore() && pred(curChar())
-
-    def lastEq(c: Char): Boolean =
-      index > 0 && code(index - 1) == c
 
     def isComment(): Boolean =
       index < LEN - 1 && curChar() == '/' && code(index + 1) == '/'
