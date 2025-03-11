@@ -90,6 +90,10 @@ class LowerRuntime(runtime: JSRuntime) extends phases.Phase[Unit]:
           val fun2 = Ident(runtime.JS_String_plus)(fun.span)
           Encoded(Apply(fun2, args2)(AnyType, app.span))(app.tpe)
 
+        else if name == "==" then
+          val fun2 = Ident(runtime.JS_String_equals)(fun.span)
+          Apply(fun2, args2)(BoolType, app.span))
+
         else
           throw new Exception("Unexpected method on array: " + name)
 

@@ -40,7 +40,8 @@ class LowerRuntime(runtime: NativeRuntime) extends phases.Phase[Unit]:
   val Predef_String = defn.Predef_String
   val StringType = defn.StringType
 
-  val IntType = defn.IntType
+  val BoolType = defn.BoolType
+  val IntType  = defn.IntType
   val UnitType = defn.UnitType
 
   val rewiring = Map(
@@ -120,6 +121,10 @@ class LowerRuntime(runtime: NativeRuntime) extends phases.Phase[Unit]:
         else if name == "+" then
           val fun2 = Ident(runtime.Core_String_plus)(fun.span)
           Encoded(Apply(fun2, args2)(AnyType, app.span))(app.tpe)
+
+        else if name == "==" then
+          val fun2 = Ident(runtime.Core_String_equals)(fun.span)
+          Apply(fun2, args2)(BoolType, app.span))
 
         else
           throw new Exception("Unexpected method on array: " + name)

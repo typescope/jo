@@ -105,6 +105,9 @@ fun String_length(str: Any) =
 fun String_plus(str: Any, other: Any): Any =
   js "str + other"
 
+fun String_equals(str: Any, other: Any): Any =
+  js "str === other"
+
 //------------------------------------------------------------------------------
 //
 // Context parameter support

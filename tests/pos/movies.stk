@@ -11,16 +11,6 @@ fun foreach[T](movies: List[T], op: T => Unit): Unit =
   end
 end
 
-fun equals(x: String, y: String): Bool =
-  var isEqual = x.length == y.length
-  val n = x.length
-  var i = 0
-  while isEqual and i < n do
-    isEqual <- x(i) == y(i)
-    i <- i + 1
-  end
-  isEqual
-
 param finder: MovieFinder
 
 fun moviesDirectedBy(arg: String): List[Movie] =
@@ -29,7 +19,7 @@ fun moviesDirectedBy(arg: String): List[Movie] =
     match movies
       case #Nil => #Nil
       case #Cons(m, rest) =>
-        if equals m.director arg then #Cons(m, filter rest)
+        if m.director == arg then #Cons(m, filter rest)
         else filter rest
     end
   end

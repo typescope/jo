@@ -216,6 +216,16 @@ fun String_plus(lhs: String, rhs: String): StringRepr =
   val len = lhs.length + rhs.length
   #Concat(len, lhs, rhs)
 
+fun String_equals(lhs: String, rhs: String): Bool =
+  val n = lhs.length
+  var isEqual = n == rhs.length
+  var i = 0
+  while isEqual and i < n do
+    isEqual <- lhs(i) == rhs(i)
+    i <- i + 1
+  end
+  isEqual
+
 fun String_substring(source: String, from: Int, len: Int): StringRepr =
   if from < 0 then abort "from should not be negative"
   if len < 0 then abort "len should not be negative"

@@ -4,27 +4,14 @@ type Expr = enum {
   App(lhs: Expr, arg: Expr)
 }
 
-type Map[K, V] = enum {
+type Env = enum {
   Empty
-  Cons(k: K, v: V, tail: Map[K, V])
+  Cons(k: String, v: Value, outer: Env)
 }
 
-type Option[T] = enum { None, Some(v: T) }
-
-type Env = Map[String, Value]
 type Value = { lambda: Expr, env: Env }
 
 param env: Env = #Empty // environment for variables
-
-fun equals(x: String, y: String): Bool =
-  var isEqual = x.length == y.length
-  val n = x.length
-  var i = 0
-  while isEqual and i < n do
-    isEqual <- x(i) == y(i)
-    i <- i + 1
-  end
-  isEqual
 
 fun show(expr: Expr): String =
   match expr
@@ -39,9 +26,9 @@ fun find(x: String): Option[Value] =
   match env
     case #Empty => #None
 
-    case #Cons(k, v, tail) =>
-      if equals x k then #Some(v)
-      else find x with env = tail
+    case #Cons(k, v, outer) =>
+      if x == k then #Some(v)
+      else find x with env = outer
 
 fun eval(expr: Expr): Value =
   match expr
