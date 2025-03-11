@@ -173,13 +173,12 @@ fun Array_set(arr: Any, i: Int, value: Any): Unit =
 // String support
 //
 
-type StringRepr = <
+type StringRepr = enum {
   // Array[Byte] currently is the same as Array[Int]
   // TODO: unicode support is missing
-  Raw(length: Int, content: Addr),
-
+  Raw(length: Int, content: Addr)
   Concat(length: Int, lhs: String, rhs: String)
->
+}
 
 // This function is called to convert a string literal to a proper string object.
 fun String_fromByteString(byteArray: Any): String =

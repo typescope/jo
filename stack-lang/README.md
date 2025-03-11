@@ -129,11 +129,11 @@ Syntactical Grammar
     type    = qualid | record_typ | union_typ | applied_type | fun_type | object_type | LPAREN type RPAREN.
 
     record_typ = LBRACE [fields]  RBRACE.
-    fields     = field { COMMA field }.
+    fields     = field { [COMMA] field }.
     field      = ident COLON type.
 
-    union_typ  = '<' [branches] '>'.
-    branches   = branch { COMMA branch }.
+    union_typ  = ENUM LBRACE [branches] RBRACE.
+    branches   = branch { [COMMA] branch }.
     branch     = ident [param_section].
 
     fun_type   = [types] RARROW type [receive_params].
@@ -160,7 +160,7 @@ namespace io.net
 
 import system
 
-type List[T] = <Nil, Cons(head: T, tail: List[T])>
+type List[T] = enum { Nil, Cons(head: T, tail: List[T]) }
 
 fun foo(...) { ... }
 ```

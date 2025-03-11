@@ -1,18 +1,18 @@
-type Expr = <
-  Var(x: String),
-  Abs(x: String, body: Expr),
+type Expr = enum {
+  Var(x: String)
+  Abs(x: String, body: Expr)
   App(lhs: Expr, arg: Expr)
->
+}
 
-type Map[K, V] = <
-  Empty,
+type Map[K, V] = enum {
+  Empty
   Cons(k: K, v: V, tail: Map[K, V])
->
+}
 
-type Option[T] = <None, Some(v: T)>
+type Option[T] = enum { None, Some(v: T) }
 
 type Env = Map[String, Value]
-type Value = { lambda: Expr, env: Map[String, Value] }
+type Value = { lambda: Expr, env: Env }
 
 param env: Env = #Empty // environment for variables
 

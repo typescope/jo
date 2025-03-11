@@ -2,7 +2,7 @@ namespace test
 
 type A = Int
 
-type List[T] = <Nil, Cons(head: T, tail: List[T])>
+type List[T] = enum { Nil, Cons(head: T, tail: List[T]) }
 
 fun double(n: A): A = n + n
 

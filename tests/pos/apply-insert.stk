@@ -1,4 +1,4 @@
-type List[T] = <Nil, Cons(head: T, tail: List[T])>
+type List[T] = enum { Nil, Cons(head: T, tail: List[T]) }
 
 fun List = object {
   def apply[T](a: T): List[T] = #Cons(a, #Nil)

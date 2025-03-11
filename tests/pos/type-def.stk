@@ -1,8 +1,8 @@
 type Int32 = Int
 type Unit = {}
-type Option = <None, Some(value: Int)>
-type Sum = <Left(value: Int), Right(value: Int)>
-type Bot = < >
+type Option = enum { None, Some(value: Int) }
+type Sum = enum { Left(value: Int), Right(value: Int) }
+type Bot = enum { }
 
 fun double(n: Int32): Int32 = n + n
 
