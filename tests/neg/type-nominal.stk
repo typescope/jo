@@ -1,8 +1,7 @@
-type StringRepr = <
-  Raw(length: Int, content: Array[Byte]),
-
+type StringRepr = enum {
+  Raw(length: Int, content: Array[Byte])
   Concat(length: Int, lhs: String, rhs: String)
->
+}
 
 
 type String <: object {

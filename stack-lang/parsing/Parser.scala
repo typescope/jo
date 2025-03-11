@@ -111,6 +111,10 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     then
       eat(Token.END)
 
+  /** Eat optional comma */
+  def eatCommaOpt() =
+    if peek() == Token.COMMA then next()
+
   def checkAlign(reference: TokenInfo, item: TokenInfo): Unit =
     if !reference.indent.isSame(item.indent) then
       warn(s"${item.token} is not aligned with ${reference.token}", item.span.toPos)
@@ -567,7 +571,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     peek() match
       case Token.OBJECT   => objectType()
       case Token.LBRACE   => recordType()
-      case Token.Ident("<") => unionType()
+      case Token.ENUM     => unionType()
 
       case Token.LPAREN   =>
         next()
@@ -603,10 +607,11 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     RecordType(fieldDecls)(lbrace.span | rbrace.span)
 
   def unionType(): UnionType =
-    val less = eat(Token.Ident("<"))
+    val startToken = eat(Token.ENUM)
+    eat(Token.LBRACE)
     val branchDecls = branches(mutable.ArrayBuffer.empty)
-    val big = eat(Token.Ident(">"))
-    UnionType(branchDecls)(less.span | big.span)
+    val endToken = eat(Token.RBRACE)
+    UnionType(branchDecls)(startToken.span | endToken.span)
 
   def objectType(): ObjectType =
     val objToken = eat(Token.OBJECT)
@@ -648,7 +653,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     peek() match
       case Token.RBRACE | Token.EOF => acc.toList
       case _ =>
-        if acc.nonEmpty then eat(Token.COMMA)
+        if acc.nonEmpty then eatCommaOpt()
         val id = ident()
         eat(Token.COLON)
         val tp = typ()
@@ -657,9 +662,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   def branches(acc: mutable.ArrayBuffer[Branch]): List[Branch] =
     peek() match
-      case Token.Ident(">") | Token.EOF => acc.toList
+      case Token.RBRACE | Token.EOF => acc.toList
       case _ =>
-        if acc.nonEmpty then eat(Token.COMMA)
+        if acc.nonEmpty then eatCommaOpt()
         val tag = ident()
         val params = paramSection()
         val spanEnd = if params.isEmpty then tag.span else params.last.span

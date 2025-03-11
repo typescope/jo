@@ -1,4 +1,4 @@
-type List[T] = <Nil, Cons(value: {head: T, tail: List[T]})>
+type List[T] = enum { Nil, Cons(value: {head: T, tail: List[T]}) }
 
 
 fun foreach(l: List[Int]): Unit =
