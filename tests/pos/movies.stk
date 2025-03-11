@@ -24,7 +24,7 @@ fun equals(x: String, y: String): Bool =
 param finder: MovieFinder
 
 fun moviesDirectedBy(arg: String): List[Movie] =
-  val allMovies = finder.findAll
+  val allMovies = finder.findAll()
   fun filter(movies: List[Movie]): List[Movie] =
     match movies
       case #Nil => #Nil

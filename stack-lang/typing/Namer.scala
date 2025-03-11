@@ -407,13 +407,8 @@ class Namer(@constructorOnly reporter: Reporter):
   /** Handles explicit postfix call syntax f(arg1, arg2, ...) */
   def transform(apply: Ast.Apply)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
     var fun =
-      given TargetType = TargetType.Unknown
+      given TargetType = TargetType.Fun(apply.args.size)
       transform(apply.fun)
-
-    // auto .apply insertion --- apply can be polymorphic
-    if fun.tpe.hasApplyMethod then
-      val procType = fun.tpe.termMember("apply")
-      fun = Select(fun, "apply")(procType, fun.span)
 
     if fun.tpe.isPolyType then
       fun = exprTyper.instantiatePoly(fun.tpe.asPolyType, fun)

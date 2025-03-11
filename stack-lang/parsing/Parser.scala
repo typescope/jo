@@ -779,8 +779,12 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     NamedArg(id, arg)(id.span | arg.span)
 
   def termArgs(): (List[Word], Span) =
-    val acc: mutable.ArrayBuffer[Word] = mutable.ArrayBuffer.empty
     val startItem = eat(Token.LPAREN)
+    if peek() == Token.RPAREN then
+      val endItem = eat(Token.RPAREN)
+      return (Nil, startItem.span | endItem.span)
+
+    val acc: mutable.ArrayBuffer[Word] = mutable.ArrayBuffer.empty
     acc += expr()
     var token = peek()
     while
