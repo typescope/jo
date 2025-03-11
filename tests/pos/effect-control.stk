@@ -1,0 +1,43 @@
+param readLine: () => Option[String]
+
+fun lineCount =
+  fun recur(acc: Int): Int =
+    match readLine()
+      case #Some(_) => recur (acc + 1)
+      case #None    => acc
+    end
+  end
+
+  recur 0
+
+fun testFile: File = object {
+  var moreAvailable: Bool = true
+  var currentLine: Int = 0
+  def close(): Unit = {}
+
+  def seek(pos: Int): Unit = abort "no seek"
+
+  def hasMore(): Bool = currentLine <= 1
+
+  def readLine(): String =
+    if currentLine == 0 then
+      currentLine <- currentLine + 1
+      "abc"
+    else if currentLine == 1 then
+      currentLine <- currentLine + 1
+      "123"
+    else
+      ???
+
+  def write(content: String): Unit = abort "no write"
+}
+
+fun main =
+  val file = testFile
+
+  val readLineFun: () => Option[String] = () =>
+    if file.hasMore then #Some(file.readLine())
+    else #None
+
+  val res = lineCount() with readLine = readLineFun allow none
+  println (intToStr res)

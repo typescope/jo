@@ -172,7 +172,7 @@ object EffectAnalysis:
             acc ++ this(arg.rhs)
 
           val masked = args.map(_.paramRef.symbol)
-          val unmasked = (effsInner -- masked)
+          val unmasked = effsInner -- masked
           val unmaskedAllowed =
             allow match
               case Some(allowed) =>

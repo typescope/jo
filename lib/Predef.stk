@@ -118,6 +118,14 @@ type String <: object {
 
 //-------------------------------------------------------------
 //
+// Common types
+//
+type Option[T] = enum { None, Some(v: T) }
+
+type List[T] = enum { Nil, Cons(head: T, tail: List[T]) }
+
+//-------------------------------------------------------------
+//
 // I/O support
 //
 

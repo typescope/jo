@@ -81,7 +81,7 @@ class NormalizeParams(using Reporter) extends Phase[NormalizeParams.Context]:
       case Some(ids) =>
         given Source = ctx.owner.sourcePos.source
         val allowed = ids.map(_.symbol).toSet
-        val effs = EffectAnalysis.effects(withExpr.expr)(using ctx.cache)
+        val effs = EffectAnalysis.effects(withExpr)(using ctx.cache)
         for (eff, trace) <- effs if !allowed.contains(eff) do
           Reporter.error("Parameter not allowed: " + eff, withExpr.expr.pos, trace)
       case _ =>

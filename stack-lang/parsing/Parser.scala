@@ -541,6 +541,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
             optWithClause(expr)
 
   def typ(): TypeTree =
+    val startItem = peekItem()
     val tps = simpleTypes()
     val item = peekItem()
     item.token match
@@ -549,7 +550,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         val resType = typ()
         val params = optReceiveParams().getOrElse(Nil)
         val endSpan = if params.isEmpty then resType.span else params.last.span
-        FunctionType(tps, resType, params)(tps.head.span | endSpan)
+        FunctionType(tps, resType, params)(startItem.span | endSpan)
 
       case token =>
         if tps.size > 1 then
@@ -560,11 +561,14 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   def typesInParens(): List[TypeTree] =
     eat(Token.LPAREN)
-    if peek() == Token.RPAREN then
-      eat(Token.RPAREN)
-      Nil
-    else
-      oneOrMore(typ, Token.COMMA)
+    val tps =
+      if peek() == Token.RPAREN then
+        Nil
+      else
+        oneOrMore(typ, Token.COMMA)
+
+    eat(Token.RPAREN)
+    tps
 
   def simpleTypes(): List[TypeTree] =
     if peek() == Token.LPAREN then
