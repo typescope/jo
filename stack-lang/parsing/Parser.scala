@@ -541,6 +541,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
             optWithClause(expr)
 
   def typ(): TypeTree =
+    val startItem = peekItem()
     val tps = simpleTypes()
     val item = peekItem()
     item.token match
@@ -549,7 +550,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         val resType = typ()
         val params = optReceiveParams().getOrElse(Nil)
         val endSpan = if params.isEmpty then resType.span else params.last.span
-        FunctionType(tps, resType, params)(tps.head.span | endSpan)
+        FunctionType(tps, resType, params)(startItem.span | endSpan)
 
       case token =>
         if tps.size > 1 then
@@ -558,14 +559,22 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         else
           tps.head
 
-  def simpleTypes(): List[TypeTree] =
-    val tps = new mutable.ArrayBuffer[TypeTree]
-    tps += simpleType()
-    while peek() == Token.Ident("*") do
-      next()
-      tps += simpleType()
+  def typesInParens(): List[TypeTree] =
+    eat(Token.LPAREN)
+    val tps =
+      if peek() == Token.RPAREN then
+        Nil
+      else
+        oneOrMore(typ, Token.COMMA)
 
-    tps.toList
+    eat(Token.RPAREN)
+    tps
+
+  def simpleTypes(): List[TypeTree] =
+    if peek() == Token.LPAREN then
+      typesInParens()
+    else
+      simpleType() :: Nil
 
   def simpleType(): TypeTree =
     peek() match
@@ -779,8 +788,12 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     NamedArg(id, arg)(id.span | arg.span)
 
   def termArgs(): (List[Word], Span) =
-    val acc: mutable.ArrayBuffer[Word] = mutable.ArrayBuffer.empty
     val startItem = eat(Token.LPAREN)
+    if peek() == Token.RPAREN then
+      val endItem = eat(Token.RPAREN)
+      return (Nil, startItem.span | endItem.span)
+
+    val acc: mutable.ArrayBuffer[Word] = mutable.ArrayBuffer.empty
     acc += expr()
     var token = peek()
     while

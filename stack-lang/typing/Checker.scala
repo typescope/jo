@@ -211,10 +211,20 @@ class Checker:
     val word2 =
       if word.tpe.isProcType then
         val procType = word.tpe.asProcType
-        if procType.paramCount == 0 then
+        val resType = procType.resultType
+        val isParameterlessApply =
+          targetType match
+            case TargetType.Fun(n) =>
+              n != 0 && resType.hasApplyMethod && procType.paramCount == 0
+
+            case _ =>
+              procType.paramCount == 0
+
+        if isParameterlessApply then
           Apply(word, args = Nil)(procType.resultType, word.span)
         else
           word
+
       else
         word
 
@@ -236,6 +246,17 @@ class Checker:
 
       case TargetType.TermMember(name) =>
         checkTermMember(word2, name)
+
+      case TargetType.Fun(n) =>
+        // auto .apply insertion --- apply can be polymorphic
+        if word2.tpe.hasApplyMethod then
+          val memberType = word2.tpe.termMember("apply")
+          Select(word2, "apply")(memberType, word2.span)
+
+        else
+          // Additional checks are performed for Apply node
+          word2
+
 
       case TargetType.NamespaceMember | TargetType.ObjectMember =>
         throw new Exception("No adaptation expected: " + word)

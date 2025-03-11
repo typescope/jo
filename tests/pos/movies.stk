@@ -1,0 +1,47 @@
+type Movie = { name: String, director: String, year: Int }
+type List[T] = enum { Nil, Cons(head: T, tail: List[T]) }
+type MovieFinder = object { def findAll(): List[Movie] }
+
+fun foreach[T](movies: List[T], op: T => Unit): Unit =
+  match movies
+    case #Nil =>
+    case #Cons(m, rest) =>
+      op m
+      foreach rest op
+  end
+end
+
+fun equals(x: String, y: String): Bool =
+  var isEqual = x.length == y.length
+  val n = x.length
+  var i = 0
+  while isEqual and i < n do
+    isEqual <- x(i) == y(i)
+    i <- i + 1
+  end
+  isEqual
+
+param finder: MovieFinder
+
+fun moviesDirectedBy(arg: String): List[Movie] =
+  val allMovies = finder.findAll()
+  fun filter(movies: List[Movie]): List[Movie] =
+    match movies
+      case #Nil => #Nil
+      case #Cons(m, rest) =>
+        if equals m.director arg then #Cons(m, filter rest)
+        else filter rest
+    end
+  end
+  filter allMovies
+
+fun main =
+  val testFinder: MovieFinder = object {
+    def findAll(): List[Movie] =
+      val movie1 = { name = "A", director = "a", year = 2010 }
+      val movie2 = { name = "B", director = "b", year = 2023 }
+      #Cons(movie1, #Cons(movie2, #Nil))
+  }
+
+  val res = moviesDirectedBy "b" with finder = testFinder
+  foreach res (m) => println m.name

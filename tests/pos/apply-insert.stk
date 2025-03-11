@@ -4,7 +4,13 @@ fun List = object {
   def apply[T](a: T): List[T] = #Cons(a, #Nil)
 }
 
+fun foo(): Int = 30
+fun bar: Int = 20
+
 fun main =
+  foo()
+  bar()
+
   match List(4)
    case #Cons(a, _) => a p
    case _ =>

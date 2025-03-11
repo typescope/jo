@@ -80,9 +80,19 @@ class NormalizeParams(using Reporter) extends Phase[NormalizeParams.Context]:
     withExpr.allow match
       case Some(ids) =>
         given Source = ctx.owner.sourcePos.source
+        val zero = Map.empty[Symbol, EffectAnalysis.Trace]
+        val effsInner = EffectAnalysis.effects(withExpr.expr)(using ctx.cache)
+        val effsArgs = withExpr.args.foldLeft(zero): (acc, arg) =>
+          acc ++ EffectAnalysis.effects(arg.rhs)(using ctx.cache)
+
+        val masked = withExpr.args.map(_.paramRef.symbol)
         val allowed = ids.map(_.symbol).toSet
-        val effs = EffectAnalysis.effects(withExpr.expr)(using ctx.cache)
-        for (eff, trace) <- effs if !allowed.contains(eff) do
+
+        // println("effsInner = " + effsInner)
+        // println("effsArgs = " + effsArgs)
+        // println("masked = " + masked)
+
+        for (eff, trace) <- (effsInner -- masked) ++ effsArgs if !allowed.contains(eff) do
           Reporter.error("Parameter not allowed: " + eff, withExpr.expr.pos, trace)
       case _ =>
     end match
