@@ -558,14 +558,19 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         else
           tps.head
 
-  def simpleTypes(): List[TypeTree] =
-    val tps = new mutable.ArrayBuffer[TypeTree]
-    tps += simpleType()
-    while peek() == Token.Ident("*") do
-      next()
-      tps += simpleType()
+  def typesInParens(): List[TypeTree] =
+    eat(Token.LPAREN)
+    if peek() == Token.RPAREN then
+      eat(Token.RPAREN)
+      Nil
+    else
+      oneOrMore(typ, Token.COMMA)
 
-    tps.toList
+  def simpleTypes(): List[TypeTree] =
+    if peek() == Token.LPAREN then
+      typesInParens()
+    else
+      simpleType() :: Nil
 
   def simpleType(): TypeTree =
     peek() match

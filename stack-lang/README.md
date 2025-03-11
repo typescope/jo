@@ -136,7 +136,8 @@ Syntactical Grammar
     branches   = branch { [COMMA] branch }.
     branch     = ident [param_section].
 
-    fun_type   = [types] RARROW type [receive_params].
+    fun_type    = param_types RARROW type [receive_params].
+    param_types = type | LPAREN RPAREN | LPAREN type {COMMA type} RPAREN.
 
     receive_params = RECEIVES qualid {COMMA qualid}.
 
