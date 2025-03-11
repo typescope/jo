@@ -104,7 +104,7 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
         namer.transform(head)
       val tp = wordTyped.tpe
 
-      def isDotlessMethodCallPattern() = tp.isObjectType && rest.head.match
+      val isDotlessMethodCallPattern = tp.isObjectType && rest.head.match
         case Ast.Ident(name) =>
           tp.getTermMember(name) match
             case Some(memType) => memType.isProcType
@@ -112,7 +112,7 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
 
         case _ => false
 
-      if isDotlessMethodCallPattern() then
+      if isDotlessMethodCallPattern then
         // Dotless method call pattern, where the infix operator takes exactly one parameter
         val words = mutable.ListBuffer.from(expr.words)
         val item = parseDotless(words, -1)
@@ -203,7 +203,10 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
           checker.adapt(word, tt)
 
       case Item.InfixCall(obj, meth, arg) =>
-        val objWord = typeItem(obj)
+        val objWord =
+          given TargetType = TargetType.ValueType
+          typeItem(obj)
+
         val objType = objWord.tpe
         val objSpan = obj.span
 
