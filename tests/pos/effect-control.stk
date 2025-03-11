@@ -41,3 +41,19 @@ fun main =
 
   val res = lineCount() with readLine = readLineFun allow none
   println (intToStr res)
+
+fun test() =
+  val readLineFun = object {
+    var line: Int = 0
+    def apply(): Option[String] =
+      if line == 0 then
+        line <- line + 1
+        #Some("abc")
+      else if line == 1 then
+        line <- line + 1
+        #Some("123")
+      else
+        #None
+  }
+
+  lineCount() with readLine = readLineFun allow none
