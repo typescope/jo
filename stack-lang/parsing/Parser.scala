@@ -534,7 +534,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
       case token =>
         word().map: w =>
-          if w.isInstanceOf[RefTree] && peek() == Token.ASSIGN then
+          if w.isInstanceOf[RefTree] && peek() == Token.EQL then
             assign(w.asInstanceOf[RefTree], item.indent)
           else
             val expr = exprRest(mutable.ArrayBuffer(w), item.indent)
@@ -746,7 +746,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     While(cond, body)(whileItem.span | body.span)
 
   def assign(ref: RefTree, limitIndent: Indent): Assign =
-    eat(Token.ASSIGN)
+    eat(Token.EQL)
     val rhs = block(limitIndent)
     Assign(ref, rhs)(ref.span | rhs.span)
 

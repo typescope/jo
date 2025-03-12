@@ -21,10 +21,10 @@ fun testFile: File = object {
 
   def readLine(): String =
     if currentLine == 0 then
-      currentLine <- currentLine + 1
+      currentLine = currentLine + 1
       "abc"
     else if currentLine == 1 then
-      currentLine <- currentLine + 1
+      currentLine = currentLine + 1
       "123"
     else
       ???
@@ -47,10 +47,10 @@ fun test() =
     var line: Int = 0
     def apply(): Option[String] =
       if line == 0 then
-        line <- line + 1
+        line = line + 1
         #Some("abc")
       else if line == 1 then
-        line <- line + 1
+        line = line + 1
         #Some("123")
       else
         #None

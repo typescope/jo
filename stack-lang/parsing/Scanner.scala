@@ -101,7 +101,6 @@ class Scanner(stream: CharStream)(using Reporter, Source):
     stream.tokenEnd() match
       case "="   => Token.EQL
       case ":"   => Token.COLON
-      case "<-"  => Token.ASSIGN
       case "<:"  => Token.SUBTYPE
       case "=>"  => Token.RARROW
       case name  => Token.Ident(name)

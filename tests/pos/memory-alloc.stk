@@ -6,8 +6,8 @@ fun main =
   // allocation of 4096 objects
   var i = 0
   while i < 4096 do
-    pt <- {x = i, y = i * i}
-    i <- i + 1
+    pt = {x = i, y = i * i}
+    i = i + 1
 
   pt.x p
   pt.y p

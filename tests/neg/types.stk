@@ -9,8 +9,8 @@ fun test =
   var a: Int = 4
   val b: Int = false // error
 
-  a <- true     // error
-  a <- even 3   // error
+  a = true     // error
+  a = even 3   // error
   even false   // error
 
   if a then    // error
