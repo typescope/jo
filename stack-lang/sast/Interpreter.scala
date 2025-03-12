@@ -415,6 +415,10 @@ object Interpreter:
                   val (other: StringVal) :: Nil = argVals: @unchecked
                   StringVal(strVal.value + other.value) :: Nil
 
+                else if name == "==" then
+                  val (other: StringVal) :: Nil = argVals: @unchecked
+                  BoolVal(strVal.value == other.value) :: Nil
+
                 else if name == "length" then
                   assert(argVals.isEmpty)
                   IntVal(strVal.value.length) :: Nil

@@ -9,9 +9,9 @@ type Counter = object {
 fun createCounter(init: Int): Counter = object {
   var count = init
   def get() = this.count
-  def inc() = count <- count + 1
-  def add(n: Int) = count <- count + n
-  def reset() = count <- 0
+  def inc() = count = count + 1
+  def add(n: Int) = count = count + n
+  def reset() = count = 0
   def upToEven() =
     if count % 2 == 1 then add 1
 }

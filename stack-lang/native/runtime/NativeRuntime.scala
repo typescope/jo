@@ -44,6 +44,7 @@ extends Linker:
   val Core_String_apply          = Core.termMember("String_apply")
   val Core_String_plus           = Core.termMember("String_plus")
   val Core_String_substring      = Core.termMember("String_substring")
+  val Core_String_equals         = Core.termMember("String_equals")
 
   val Core_abortImpl = Core.termMember("abortImpl")
 

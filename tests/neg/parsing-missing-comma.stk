@@ -2,7 +2,7 @@ fun foo(x: Int y: Int) = x + y  // error
 
 fun bar =
   var x = 4
-  x = 7                         // error
+  x def 7                         // error
 
 fun test(x: Int) = x * x
 

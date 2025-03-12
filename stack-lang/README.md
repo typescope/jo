@@ -22,7 +22,6 @@ Lexical Grammar
     TYPE     = "type".
     EQL      = "=".
     RARROW   = "=>".
-    ASSIGN   = "<-".
     TAG      = "#".
     SUBTYPE  = "<:".
     COMMA    = ",".
@@ -90,7 +89,7 @@ Syntactical Grammar
     with_binding = qualid EQL expr.
 
     fence   = LPAREN phrase RPAREN.
-    assign  = ident ASSIGN block.
+    assign  = ident EQL block.
     if      = IF expr THEN block [ELSE block] [END].
     while   = WHILE expr DO block [END].
 

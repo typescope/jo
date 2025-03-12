@@ -4,7 +4,7 @@ fun line(text: String): Unit =
   var i = 0
   while i < indent do
     printChar ' '
-    i <- i + 1
+    i = i + 1
   println text
 
 fun makeLinePrinter(): String => Unit =

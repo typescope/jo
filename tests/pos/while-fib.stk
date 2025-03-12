@@ -5,9 +5,9 @@ fun fib(n: Int): Unit =
   while i < n do
     val c = a
     a p
-    a <- b
-    b <- b + c
-    i <- 1 + i
+    a = b
+    b = b + c
+    i = 1 + i
   end
 
 fun main = fib 20

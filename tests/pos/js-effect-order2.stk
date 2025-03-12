@@ -3,10 +3,10 @@ fun main =
   val r =
     a +
       if a > 0 then
-        a <- 4
+        a = 4
         a + 1
       else
-        a <- 5
+        a = 5
         a * 2
 
   r p

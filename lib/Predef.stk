@@ -113,6 +113,7 @@ type String <: object {
   def length: Int
   def apply(i: Int): Char
   def +(other: String): String
+  def ==(other: String): Bool
   def substring(from: Int, len: Int): String
 }
 

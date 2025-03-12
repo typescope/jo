@@ -110,13 +110,13 @@ fun intToStr(n: Int): String =
         addAddr buf index
         intToByte (48 + digit) // '0' = 48
 
-      index <- index - 1
-      remains <- remains / 10
+      index = index - 1
+      remains = remains / 10
 
     // sign char
     if negative then
       writeByte (addAddr buf index) 45 // '-' = 45
-      index <- index - 1
+      index = index - 1
 
     val startIndex = index + 1
     val len = 10 - index
@@ -127,7 +127,7 @@ fun intToStr(n: Int): String =
       while copyIndex < len do
         val c = readByte (addAddr buf (startIndex + copyIndex))
         writeByte (addAddr buf copyIndex) c
-        copyIndex <- copyIndex + 1
+        copyIndex = copyIndex + 1
 
     #Raw(len, buf) as StringRepr cast[String]
 
@@ -216,6 +216,16 @@ fun String_plus(lhs: String, rhs: String): StringRepr =
   val len = lhs.length + rhs.length
   #Concat(len, lhs, rhs)
 
+fun String_equals(lhs: String, rhs: String): Bool =
+  val n = lhs.length
+  var isEqual = n == rhs.length
+  var i = 0
+  while isEqual and i < n do
+    isEqual = lhs(i) == rhs(i)
+    i = i + 1
+  end
+  isEqual
+
 fun String_substring(source: String, from: Int, len: Int): StringRepr =
   if from < 0 then abort "from should not be negative"
   if len < 0 then abort "len should not be negative"
@@ -228,7 +238,7 @@ fun String_substring(source: String, from: Int, len: Int): StringRepr =
     writeByte
       addAddr buf index
       charToByte (source (from + index))
-    index <- index + 1
+    index = index + 1
 
   #Raw(len, buf)
 
@@ -247,7 +257,7 @@ fun String_bytes(repr: String): Any =
             readByte
               addAddr content i
 
-          i <- i + 1
+          i = i + 1
 
         from + len
 
@@ -288,12 +298,12 @@ fun openFile = (filePath: String) =>
       // debug ((intToStr i) + " -> " + (intToStr c))
 
       if c == '\n' then
-        if last == '\r' then index <- i - 1
-        else index <- i
-        i <- len
+        if last == '\r' then index = i - 1
+        else index = i
+        i = len
       else
-        last <- c
-        i <- i + 1
+        last = c
+        i = i + 1
     end
 
     index
@@ -338,17 +348,17 @@ fun openFile = (filePath: String) =>
         val buffer = GC.alloc 256
         val bytesRead = Syscall.sys_read fd buffer 256
         if bytesRead <= 0 then
-          continue <- false
+          continue = false
         else
           val lineSeparatorIndex = findLineSeparator buffer bytesRead
 
           var len = bytesRead
           if bytesRead < 256 then
-            continue <- false
+            continue = false
 
           if lineSeparatorIndex >= 0 then
-            continue <- false
-            len <- lineSeparatorIndex
+            continue = false
+            len = lineSeparatorIndex
             if lineSeparatorIndex < bytesRead - 1 then
               // go back to beginning of the next new line
               val offset = lineSeparatorIndex - bytesRead
@@ -356,7 +366,7 @@ fun openFile = (filePath: String) =>
               val ret = Syscall.sys_seek fd offset SEEK_CUR
               assert (ret >= 0) ("sys_seek = " + (intToStr ret))
 
-          res <- res +
+          res = res +
             #Raw(len, buffer) as StringRepr cast[String]
         end
       end
@@ -394,10 +404,10 @@ fun createStdIn() = object {
       val bytesRead = Syscall.sys_read 0 buffer 256
 
       if bytesRead < 256 then
-        continue <- false
+        continue = false
 
       if bytesRead > 0 then
-        res <- res +
+        res = res +
           #Raw(bytesRead, buffer) as StringRepr cast[String]
 
     res

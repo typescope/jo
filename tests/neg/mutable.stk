@@ -1,13 +1,13 @@
 fun foo(): Int =
   val x: Int = 5
   var y: Int = 3
-  x <- y << 1          // error
-  y <- y * 2
+  x = y << 1          // error
+  y = y * 2
   y
 
 fun main =
   val a: Int = 10
   var b: Int = 20
 
-  a <- b * 2             // error
-  b <- a + 3
+  a = b * 2             // error
+  b = a + 3

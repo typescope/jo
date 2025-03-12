@@ -2,11 +2,11 @@ fun foo(x: Int, y: Int) =
   object {
     var id = 0
     def makeCounter(init: Int) =
-      id <- id + 1
+      id = id + 1
       object {
         val cid = id
         var count = init
-        def inc() = count <- count + 1
+        def inc() = count = count + 1
         def get() = count
         def total() = id
       }

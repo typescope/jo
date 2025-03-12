@@ -24,9 +24,9 @@ fun primeUntil(until: Int): Unit =
   while cur < until do
     if isPrime primes cur then
       cur p
-      primes <- #Cons(cur, primes) as List
+      primes = #Cons(cur, primes) as List
     end
-    cur <- cur + 1
+    cur = cur + 1
 
 fun main =
   prime #Cons(2, #Nil) 3 100

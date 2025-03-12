@@ -45,6 +45,7 @@ class JSRuntime(runtimeRootNameTable: NameTable, main: Symbol):
   val JS_String_apply = JS.termMember("String_apply")
   val JS_String_substring = JS.termMember("String_substring")
   val JS_String_plus = JS.termMember("String_plus")
+  val JS_String_equals = JS.termMember("String_equals")
 
   val JS_openFile = JS.termMember("openFile")
   val JS_createStdIn = JS.termMember("createStdIn")
