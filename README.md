@@ -6,7 +6,7 @@ Stk is a statically typed functional programming language with the following fea
 - Context parameters for contextual abstraction, optional parameters and deep implicits
 - Fine-grained effect control and effect parametricity
 - Flexible prefix, infix and postfix functions
-- Support two call syntax `f(x)` and `f x`
+- Support two call/pattern syntax `f(x)` and `f x`
 - Indented syntax to avoid semicolons, parentheses and braces
 
 The language is intended for research in programming languages and teaching

@@ -111,7 +111,7 @@ Abstract Syntax
     pat     = product_pat | ident.
 
     product_pat = TAG ident [product_bindings]
-    product_bindings = LPAREN ident {COMMA ident} RPAREN
+    product_bindings = (LPAREN ident {COMMA ident} RPAREN) | {ident}
 
     valdef  = (VAL | VAR) ident [COLON type] EQL block.
     fundef  = FUN [param_section] ident [tparams] [param_section] [COLON type] [receive_params] EQL block [END].
