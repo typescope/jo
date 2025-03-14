@@ -30,13 +30,13 @@ class PatternMatcher(namer: Namer, checker: Checker):
 
     val allTags = if scrutType.isUnionType then scrutType.asUnionType.tags else Nil
 
-    def subtractPattern(tags: List[String], pat: Ast.Pattern): List[String] =
+    def subtractPattern(tags: List[String], pat: Ast.Word): List[String] =
       if tags.isEmpty then
         Reporter.error("The case is unreachable", pat.pos)
         Nil
-      else pat match
+      else (pat: @unchecked) match
         case Ast.Ident(_) => Nil
-        case Ast.TagPat(Ast.Ident(name), _) =>
+        case Ast.Apply(Ast.Tag(Ast.Ident(name)), _) =>
           if tags.contains(name) then
             tags.filter(_ != name)
           else
@@ -77,7 +77,7 @@ class PatternMatcher(namer: Namer, checker: Checker):
     val scrutSpan = scrut.span
     val scrutType = scrut.tpe
 
-    pat match
+    (pat: @unchecked) match
       case Ast.Ident(name) =>
         val sym = Symbol.createValueSymbol(name, scrutType, sc.owner, pat.pos)
         val vdef = ValDef(sym, scrut)(pat.span)
@@ -90,7 +90,7 @@ class PatternMatcher(namer: Namer, checker: Checker):
         val block = Block(vdef :: body2 :: Nil)(elsep.tpe, caseDef.span)
         checker.adapt(block, elsep.tpe)
 
-      case Ast.TagPat(tag, bindings) =>
+      case Ast.Apply(Ast.Tag(tag), bindings: List[Ast.Ident] @unchecked) =>
         val tagTypesOpt = checker.tagTypes(tag, scrutType, scrutSpan)
         val tagTypes = tagTypesOpt.getOrElse(Nil)
 

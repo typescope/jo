@@ -851,12 +851,21 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     else
       acc.map(_._1).toList
 
-  def product_pattern(): Pattern =
+  def product_pattern(): Word =
     val tagSign = eat(Token.TAG)
-    val tag = ident()
-    val bindings = if peek() == Token.LPAREN then pattern_bindings() else Nil
+    val id = ident()
+    val tag = Tag(id)(tagSign.span | id.span)
+    val bindings =
+      if peek() == Token.LPAREN then
+        pattern_bindings()
+      else
+        val ids = new mutable.ArrayBuffer[Ident]
+        while peek().isInstanceOf[Token.Ident] do
+          ids += ident()
+        ids.toList
+
     val spanEnd = if bindings.isEmpty then tag.span else bindings.last.span
-    TagPat(tag, bindings)(tagSign.span | spanEnd)
+    Apply(tag, bindings)(tagSign.span | spanEnd)
 
   def pattern_bindings(): List[Ident] =
     val bindings = new mutable.ArrayBuffer[Ident]
@@ -873,7 +882,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     eat(Token.RPAREN)
     bindings.toList
 
-  def pattern(): Pattern =
+  def pattern(): Word =
     peek() match
      case Token.TAG =>
        product_pattern()

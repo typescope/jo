@@ -23,12 +23,12 @@ fun main =
 
   match d
     case #None => 0 p
-    case #Some(sum) =>
+    case #Some sum =>
       match sum
-        case #Left(v)  =>
+        case #Left v  =>
           99 p
           v p
 
-        case #Right(v) =>
+        case #Right v =>
           100 p
           v p

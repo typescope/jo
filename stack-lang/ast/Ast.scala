@@ -46,7 +46,7 @@ object Ast:
   case class Ident
     (name: String)
     (val span: Span)
-  extends Word, RefTree, Pattern
+  extends Word, RefTree
 
   case class Apply
     (fun: Word, args: List[Word])
@@ -100,9 +100,17 @@ object Ast:
   extends Word
 
   case class Case
-    (pat: Pattern, body: Word)
+    (pat: Word, body: Word)
     (val span: Span)
-  extends Tree
+  extends Tree:
+    pat match
+      case _: Tag | _: Ident =>
+
+      case Apply(_: Tag, args) =>
+        for arg <- args do assert(arg.isInstanceOf[Ident])
+
+      case _ =>
+        assert(false, "Ill-formed pattern tree: " + pat)
 
   case class Fence
     (phrase: Word)
@@ -152,15 +160,6 @@ object Ast:
     (members: List[ValDef | FunDef])
     (val span: Span)
   extends Word
-
-  //---------------------------- patterns --------------------------------------
-
-  sealed abstract trait Pattern extends Tree
-
-  case class TagPat
-    (tag: Ident, bindings: List[Ident])
-    (val span: Span)
-  extends Pattern
 
   //------------------------------ types ---------------------------------------
 

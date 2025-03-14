@@ -31,8 +31,6 @@ object Printing:
 
   given Text.Maker[TypeParam] = v => v.ident ~ showTypeBound(v.bound)
 
-  given Text.Maker[Pattern] = v => showPattern(v)
-
   given Text.Maker[WithArg] = v => v.paramRef ~ " = " ~ v.rhs
 
   given Text.Maker[Case] = v => "case " ~ v.pat ~ " =>" ~ indent(v.body)
@@ -192,16 +190,6 @@ object Printing:
 
       case defn: Def =>
         showDef(defn)
-
-  def showPattern(pat: Pattern): Text =
-    pat match
-      case Ident(name) => Text(name)
-
-      case TagPat(tag, bindings) =>
-        val params =
-          if bindings.isEmpty then Text.Empty
-          else "(" ~ rep(bindings, Text(", ")) ~ ")"
-        "#" ~ tag ~ params
 
   def showType(tpt: TypeTree): Text =
     tpt match
