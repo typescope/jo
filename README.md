@@ -6,6 +6,7 @@ Stk is a statically typed functional programming language with the following fea
 - Context parameters for contextual abstraction, optional parameters and deep implicits
 - Fine-grained effect control and effect parametricity
 - Flexible prefix, infix and postfix functions
+- Support two call/pattern syntax `f(x)` and `f x`
 - Indented syntax to avoid semicolons, parentheses and braces
 
 The language is intended for research in programming languages and teaching
@@ -39,33 +40,33 @@ param env: Env = #Empty // environment for variables
 
 fun show(expr: Expr): String =
   match expr
-    case #Var(x) => x
+    case #Var x => x
 
-    case #Abs(x, t) => "(\\" + x + "." + (show t) + ")"
+    case #Abs x t => "(\\" + x + "." + (show t) + ")"
 
-    case #App(abs, arg) =>
+    case #App abs arg =>
       (show abs) + " " + (show arg)
 
 fun find(x: String): Option[Value] =
   match env
     case #Empty => #None
 
-    case #Cons(k, v, outer) =>
+    case #Cons k v outer =>
       if x == k then #Some(v)
       else find x with env = outer
 
 fun eval(expr: Expr): Value =
   match expr
-    case #Var(x) =>
+    case #Var x =>
       match find x
         case #None => abort ("Unfound variable: " + x)
-        case #Some(v) => v
+        case #Some v => v
       end
 
-    case #Abs(_, _) =>
+    case #Abs _ _ =>
       { lambda = expr, env = env }
 
-    case #App(abs, arg) =>
+    case #App abs arg =>
       val closure = eval abs
       val argValue = eval arg
       match closure.lambda
@@ -78,7 +79,7 @@ fun eval(expr: Expr): Value =
       end
 
 fun main =
-  val id: Expr = #Abs("x", #Var("x"))
+  val id: Expr = #Abs("x", #Var "x")
   val code: Expr = #App(id, id)
   println
     show (eval code).lambda

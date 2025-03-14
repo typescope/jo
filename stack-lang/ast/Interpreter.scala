@@ -211,15 +211,15 @@ object Interpreter:
   def exec(value: Value, cases: List[Case])(using vs: ValueStack, sc: Scope): Unit =
     val VariantVal(tag, values) = value: @unchecked
     def matches(caseDef: Case): Boolean =
-      caseDef.pat match
+      (caseDef.pat: @unchecked) match
         case _: Ident  => true
-        case TagPat(tagId, _) => tagId.name == tag
+        case Apply(Tag(tagId), _) => tagId.name == tag
 
     val Some(Case(pat, body)) = cases.find(matches): @unchecked
 
     val caseScope = sc.fresh()
-    pat match
-      case TagPat(_, bindings) =>
+    (pat: @unchecked) match
+      case Apply(_, bindings: List[Ident] @unchecked) =>
         assert(bindings.size == values.size)
         for (id, value) <- bindings.zip(values) do
           caseScope.bind(id.name, value)
@@ -252,11 +252,6 @@ object Interpreter:
       case Select(qual, name) =>
         val RecordVal(fieldVals) = eval(qual): @unchecked
         vs.push(fieldVals(name))
-
-      case Variant(tag, words, _) =>
-        val values = mutable.ArrayBuffer.empty[Value]
-        for word <- words do values += eval(word)
-        vs.push(VariantVal(tag.name, values.toList))
 
       case Ident(name) =>
         sc.resolve(name) match

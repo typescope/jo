@@ -88,7 +88,9 @@ fun charToStr(c: Char): String =
   val content = GC.alloc 1
   // TODO: handle unicode
   writeByte content (charToByte c)
-  #Raw(1, content) as StringRepr cast[String]
+  id
+    #Raw(1, content) as StringRepr
+    cast[String]
 
 fun intToStr(n: Int): String =
   // MAX_VALUE =  2147483647
@@ -129,7 +131,9 @@ fun intToStr(n: Int): String =
         writeByte (addAddr buf copyIndex) c
         copyIndex = copyIndex + 1
 
-    #Raw(len, buf) as StringRepr cast[String]
+    id
+      #Raw(len, buf) as StringRepr
+      cast[String]
 
 //------------------------------------------------------------------------------
 //
@@ -185,7 +189,9 @@ fun String_fromByteString(byteArray: Any): String =
   val length = readInt (byteArray cast[Addr])
   val contentAddr = addAddr (byteArray cast[Addr]) 4
 
-  #Raw(length, contentAddr) as StringRepr cast[String]
+  id
+    #Raw(length, contentAddr) as StringRepr
+    cast[String]
 
 fun String_length(repr: String): Int =
   match id repr cast[StringRepr]
@@ -367,7 +373,9 @@ fun openFile = (filePath: String) =>
               assert (ret >= 0) ("sys_seek = " + (intToStr ret))
 
           res = res +
-            #Raw(len, buffer) as StringRepr cast[String]
+            id
+              #Raw(len, buffer) as StringRepr
+              cast[String]
         end
       end
       res
@@ -408,7 +416,9 @@ fun createStdIn() = object {
 
       if bytesRead > 0 then
         res = res +
-          #Raw(bytesRead, buffer) as StringRepr cast[String]
+          id
+            #Raw(bytesRead, buffer) as StringRepr
+            cast[String]
 
     res
 }
