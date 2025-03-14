@@ -6,8 +6,8 @@ type OptionSum = enum { None, Some(value: Sum) }
 
 fun foo(x: Sum): Int =
   match x
-    case #Left(n) =>  n + n
-    case #Right(n) => n * n
+    case #Left n =>  n + n
+    case #Right n => n * n
 
 fun main =
   val a: Sum = #Left 3
@@ -17,7 +17,7 @@ fun main =
 
   match c
     case #None => 0 p
-    case #Some(n) => n p
+    case #Some n => n p
 
   foo a p
 
