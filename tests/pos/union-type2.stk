@@ -1,0 +1,34 @@
+type Option = enum { None, Some(value: Int) }
+type Sum = enum { Left(value: Int), Right(value: Int) }
+type Bot = enum { }
+
+type OptionSum = enum { None, Some(value: Sum) }
+
+fun foo(x: Sum): Int =
+  match x
+    case #Left(n) =>  n + n
+    case #Right(n) => n * n
+
+fun main =
+  val a: Sum = #Left 3
+  val b: Option = #None
+  val c: Option = #Some 5
+  val d: OptionSum = #Some (#Right 2024)
+
+  match c
+    case #None => 0 p
+    case #Some(n) => n p
+
+  foo a p
+
+  match d
+    case #None => 0 p
+    case #Some(sum) =>
+      match sum
+        case #Left(v)  =>
+          99 p
+          v p
+
+        case #Right(v) =>
+          100 p
+          v p

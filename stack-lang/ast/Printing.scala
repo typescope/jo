@@ -126,11 +126,11 @@ object Printing:
             )
         ~ "}"
 
-      case Variant(tag, values, typ) =>
-        val args =
-          if values.isEmpty then Text.Empty
-          else "(" ~ rep(values, Text(", ")) ~ ")"
-        typ ~ "#" ~ tag ~ args
+      case Tag(name) =>
+        "#" ~ name
+
+      case TypeAscribe(expr, tpt) =>
+        expr ~ "as" ~ tpt
 
       case Lambda(params, body) =>
         "(" ~ rep(params, Text(", ")) ~ ") =>" ~ indent(body)

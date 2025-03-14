@@ -253,11 +253,6 @@ object Interpreter:
         val RecordVal(fieldVals) = eval(qual): @unchecked
         vs.push(fieldVals(name))
 
-      case Variant(tag, words, _) =>
-        val values = mutable.ArrayBuffer.empty[Value]
-        for word <- words do values += eval(word)
-        vs.push(VariantVal(tag.name, values.toList))
-
       case Ident(name) =>
         sc.resolve(name) match
           case PrimAction(op) => op(vs)

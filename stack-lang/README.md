@@ -71,9 +71,9 @@ Abstract Syntax
 
     expr    = word {word}.
 
-    word    = integer | boolean | char | string | ident | fence | record | tapply | apply | select | variant | lambda | object.
+    word    = integer | boolean | char | string | ident | fence | record | tapply | apply | select | tag | lambda | object.
 
-    phrase  = expr | with_clause | assign | valdef | fundef | typedef | while | if | match.
+    phrase  = expr | type_ascribe | with_clause | assign | valdef | fundef | typedef | while | if | match.
 
     block   = { phrase }.
 
@@ -96,7 +96,9 @@ Abstract Syntax
     named_args = named_arg { COMMA named_arg }.
     named_arg  = ident EQL expr.
 
-    variant = TAG ident [args] [AS type].
+    tag = TAG ident.
+
+    type_ascribe = expr AS type.
 
     object     = OBJECT LBRACE {member} RBRACE.
     member     = valdef | defdef.

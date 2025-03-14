@@ -384,13 +384,13 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         skipLine(limitIndent)
         blockRest(phrases, limitIndent)
 
-  def optWithClause(expr: Word): Word =
-    if peek() == Token.WITH then
-      eat(Token.WITH)
-      val args = oneOrMore(withArg, Token.COMMA)
-      optAllowClause(expr, args)
+  def withClause(expr: Word): Word =
+    eat(Token.WITH)
+    val args = oneOrMore(withArg, Token.COMMA)
+    if peek() == Token.ALLOW then
+      allowClause(expr, args)
     else
-      optAllowClause(expr, bindings = Nil)
+      With(expr, args, allow = None)(expr.span | args.last.span)
 
   def withArg(): WithArg =
     val id = qualid()
@@ -398,25 +398,21 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val rhs = expr()
     WithArg(id, rhs)(id.span | rhs.span)
 
-  def optAllowClause(expr: Word, bindings: List[WithArg]): Word =
-    if peek() == Token.ALLOW then
-      eat(Token.ALLOW)
-      peek() match
-        case Token.Ident("none") =>
-          val token = next()
-          With(expr, bindings, allow = Some(Nil))(expr.span | token.span)
+  def allowClause(expr: Word, bindings: List[WithArg]): Word =
+    eat(Token.ALLOW)
+    peek() match
+      case Token.Ident("none") =>
+        val token = next()
+        With(expr, bindings, allow = Some(Nil))(expr.span | token.span)
 
-        case _ =>
-          val params = oneOrMore(qualid, Token.COMMA)
-          With(expr, bindings, allow = Some(params))(expr.span | params.last.span)
+      case _ =>
+        val params = oneOrMore(qualid, Token.COMMA)
+        With(expr, bindings, allow = Some(params))(expr.span | params.last.span)
 
-      end match
-
-    else if bindings.nonEmpty then
-      With(expr, bindings, allow = None)(expr.span | bindings.last.span)
-
-    else
-      expr
+  def typeAscribe(expr: Word): Word =
+    eat(Token.AS)
+    val tpt = typ()
+    TypeAscribe(expr, tpt)(expr.span | tpt.span)
 
   def expr(): Word =
     val item = peekItem()
@@ -485,7 +481,11 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     item.token match
       case Token.LBRACE => optSelectAndApply(record())
 
-      case Token.TAG    => optSelectAndApply(variant())
+      case Token.TAG    =>
+        val tok = next()
+        val id = ident()
+        val tag = Tag(id)(tok.span | id.span)
+        optSelectAndApply(tag)
 
       case Token.LPAREN =>
         if isLambda() then Some(lambda()) else optSelectAndApply(fence())
@@ -538,7 +538,14 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
             assign(w.asInstanceOf[RefTree], item.indent)
           else
             val expr = exprRest(mutable.ArrayBuffer(w), item.indent)
-            optWithClause(expr)
+            if peek() == Token.WITH then
+              withClause(expr)
+            else if peek() == Token.ALLOW then
+              allowClause(expr, bindings = Nil)
+            else if peek() == Token.AS then
+              typeAscribe(expr)
+            else
+              expr
 
   def typ(): TypeTree =
     val startItem = peekItem()
@@ -806,19 +813,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val endItem = eat(Token.RPAREN)
     val span = startItem.span | endItem.span
     (acc.toList, span)
-
-  def variant(): Variant =
-    val tagSign = eat(Token.TAG)
-    val tag = ident()
-    val (args, span) = if peek() == Token.LPAREN then termArgs() else (Nil, tag.span)
-    val tp =
-      if peek() == Token.AS then
-        eat(Token.AS)
-        typ()
-      else
-        EmptyTypeTree()(span.endPoint)
-
-    Variant(tag, args, tp)(tagSign.span | tp.span)
 
   def objectLit(): Object =
     val objToken = eat(Token.OBJECT)

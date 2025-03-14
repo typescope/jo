@@ -84,8 +84,13 @@ object Ast:
   extends Tree:
     def name = ident.name
 
-  case class Variant
-    (tag: Ident, values: List[Word], typ: TypeTree)
+  case class Tag
+    (name: Ident)
+    (val span: Span)
+  extends Word
+
+  case class TypeAscribe
+    (expr: Word, tpt: TypeTree)
     (val span: Span)
   extends Word
 

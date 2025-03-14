@@ -97,6 +97,9 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
     case head :: Nil =>
       namer.transform(head)
 
+    case Ast.Tag(name) :: args =>
+      namer.transformVariant(name, args)
+
     case head :: rest =>
       val wordTyped =
         given TargetType = TargetType.Unknown
