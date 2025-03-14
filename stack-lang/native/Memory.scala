@@ -35,8 +35,7 @@ object Memory:
     val ftableType = RecordType(fieldTypes)
     val ftable = RecordLit(fields)(ftableType, obj.span)
 
-    // TODO: merge ProcType and PolyType
-    val methods = obj.args.filter { case (name, rhs) => rhs.tpe.isProcType || rhs.tpe.isPolyType }
+    val methods = obj.args.filter { case (name, rhs) => rhs.tpe.isProcType }
     val methodTypes = methods.map { case (name, rhs) => NamedInfo(name, rhs.tpe) }
 
     val vtableType = RecordType(methodTypes)

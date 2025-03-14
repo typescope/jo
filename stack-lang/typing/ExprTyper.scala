@@ -29,10 +29,9 @@ object ExprTyper:
     * be used.
     */
   def precedence(word: Word): Int =
-    assert(word.tpe.isProcType || word.tpe.isPolyType, word)
+    assert(word.tpe.isProcType, word)
     word match
       case Ident(sym)        => precedence(sym.name)
-      case TypeApply(fun, _) => precedence(fun)
       case _                 => 100
 
 
@@ -126,7 +125,7 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
         var fun: Word = Select(wordTyped, "apply")(memberType, wordTyped.span)
 
         if fun.tpe.isPolyType then
-          fun = instantiatePoly(fun.tpe.asPolyType, fun)
+          fun = instantiatePoly(fun.tpe.asProcType, fun)
 
         val procType = fun.tpe.asProcType
         val preTypes = procType.preParamTypes
@@ -151,11 +150,12 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
         typeItem(values.last)
   end transform
 
-  def instantiatePoly(polyType: PolyType, fun: Word)(using Reporter, Source): Word =
+  def instantiatePoly(polyType: ProcType, fun: Word)(using Reporter, Source): Word =
+    assert(polyType.tparams.nonEmpty, polyType.show)
+
     val tvars = for tparam <- polyType.tparams yield TypeVar(tparam.name, this.inferencer)
     val targs = tvars.map(tvar => TypeTree(tvar)(fun.span))
-    val tpe = TypeOps.substTypeParams(polyType.resultType, tvars)
-
+    val tpe = TypeOps.substTypeParams(polyType.copy(tparams = Nil), tvars)
 
     val bounds = for tparam <- polyType.tparams yield tparam.info
     checker.delayedCheck {
@@ -216,7 +216,7 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
               var fun: Word = Select(objWord, meth.name)(tp, objSpan | meth.span)
 
               if tp.isPolyType then
-                fun = instantiatePoly(tp.asPolyType, fun)
+                fun = instantiatePoly(tp.asProcType, fun)
 
               val funType = fun.tpe
 
@@ -257,7 +257,7 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
     def step(word: Word): Unit =
       var wordTyped = word
       if wordTyped.tpe.isPolyType then
-        val polyType = wordTyped.tpe.asPolyType
+        val polyType = wordTyped.tpe.asProcType
         wordTyped = instantiatePoly(polyType, wordTyped)
 
       val tp = wordTyped.tpe

@@ -42,23 +42,6 @@ object TypeOps:
     val typeMap = new TypeOps.SymbolsTypeMap
     typeMap(tpe)(using substs)
 
-  /** Erase a poly type by replacing type parameters with Any */
-  def erasePolyType(tp: Type): Type =
-    // implementation assumption: no nested poly types
-    dealias(tp) match
-      case PolyType(tparams, resType) =>
-        // cannot subst with bounds as they might be recursive
-        // TODO: do it in a principled way
-        TypeOps.substTypeParams(resType, tparams.map(_ => AnyType))
-
-      case tp => tp
-
-  def finalResultType(tp: Type): Type =
-    tp match
-      case PolyType(_, resType) => finalResultType(resType)
-      case ProcType(_, resType, _, _) => resType
-      case tp => tp
-
   /** Approximate top-level type aliases, applied types and type parameters
     *
     *
@@ -182,17 +165,19 @@ object TypeOps:
         val tparamStr = tparams.map(tparam => tparam.name + " <: " + show(tparam.info)).mkString("[", ", ", "]")
         tparamStr + " => " + show(body)
 
-      case PolyType(tparams, resType) =>
-        val tparamStr = tparams.map(tparam => tparam.name + " <: " + show(tparam.info)).mkString("[", ", ", "]")
-        tparamStr + show(resType)
-
       case TypeParamRef(name, _) =>
         name
 
       case TypeBound(lo, hi) =>
         show(lo) + " .. " + show(hi)
 
-      case ProcType(params, resType, receivesOpt, n) =>
+      case ProcType(tparams, params, resType, receivesOpt, n) =>
+        val tparamStr =
+          if tparams.isEmpty then
+            ""
+          else
+            tparams.map(tparam => tparam.name + " <: " + show(tparam.info)).mkString("[", ", ", "]")
+
         val preStr =
           if n > 0 then
             params.take(n).map(param => param.name + ": " + show(param.info)).mkString("(", ", ", ")")
@@ -202,7 +187,7 @@ object TypeOps:
         val postStr = params.drop(n).map(param => param.name + ": " + show(param.info)).mkString("(", ", ", ")")
         val receivesStr = if receivesOpt.isEmpty then "" else " receives " + receivesOpt.get.map(_.name).mkString(", ")
 
-        preStr + postStr + ": " + show(resType) + receivesStr
+        tparamStr + preStr + postStr + ": " + show(resType) + receivesStr
 
       case _: NameTableInfo => "{ ...nametable }"
   end show
@@ -260,24 +245,20 @@ object TypeOps:
           val resType2 = this(resType)
           TypeLambda(tparams2, resType2)
 
-        case PolyType(tparams, resType) =>
+        case TypeBound(lo, hi) =>
+          TypeBound(this(lo), this(hi))
+
+        case ProcType(tparams, params, resType, receivesOpt, preParamCount) =>
           val tparams2 =
             for tparam <- tparams
             yield tparam.copy(info = this(tparam.info).as[TypeBound])
 
-          val resType2 = this(resType)
-          PolyType(tparams2, resType2)
-
-        case TypeBound(lo, hi) =>
-          TypeBound(this(lo), this(hi))
-
-        case ProcType(params, resType, receivesOpt, preParamCount) =>
           val params2 =
             for param <- params
             yield param.copy(info = this(param.info))
 
           val resType2 = this(resType)
-          ProcType(params2, resType2, receivesOpt, preParamCount)
+          ProcType(tparams2, params2, resType2, receivesOpt, preParamCount)
 
   class SymbolsTypeMap extends TypeMap:
     type Context = Map[Symbol, Type]
@@ -298,8 +279,8 @@ object TypeOps:
         case TypeParamRef(_, index) =>
           ctx(index)
 
-        case _: TypeLambda | _: PolyType =>
-          // nested type lambdas or polymorphic types are not supported
+        case _: TypeLambda =>
+          // nested type lambdas are not supported
           tp
 
         case _ =>

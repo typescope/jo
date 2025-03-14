@@ -257,7 +257,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
   def compile(fdef: FunDef): Text =
     val sym = fdef.symbol
 
-    val funType = TypeOps.erasePolyType(sym.info).asProcType
+    val funType = sym.info.asProcType
     val resCount = funType.resCount
 
     // create the name outside of the new scope to avoid conflicting names
