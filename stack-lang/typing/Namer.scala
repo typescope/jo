@@ -411,7 +411,7 @@ class Namer(@constructorOnly reporter: Reporter):
       transform(apply.fun)
 
     if fun.tpe.isPolyType then
-      fun = exprTyper.instantiatePoly(fun.tpe.asPolyType, fun)
+      fun = exprTyper.instantiatePoly(fun.tpe.asProcType, fun)
 
     val funType = fun.tpe
 
@@ -634,7 +634,7 @@ class Namer(@constructorOnly reporter: Reporter):
      val bodyTyped = transform(body)(using lambdaScope, rp, so, bodyTargetType)
 
      // Provide type info for the function symbol
-     val procType = ProcType(paramSyms.map(_.toNamedInfo), bodyTyped.tpe, ctxParams, preParamCount = 0)
+     val procType = ProcType(tparams = Nil, paramSyms.map(_.toNamedInfo), bodyTyped.tpe, ctxParams, preParamCount = 0)
      this.nonCyclicTypeProvider.addProvider(funSym, () => procType)
 
      for (tvar, param) <- tvars do
@@ -665,7 +665,7 @@ class Namer(@constructorOnly reporter: Reporter):
 
     pdef.default match
       case Some(rhs) =>
-        val funInfoProvider: InfoProvider = sym => ProcType(params = Nil, resultType = paramSym.info, receives = None, preParamCount = 0)
+        val funInfoProvider: InfoProvider = sym => ProcType(tparams = Nil, params = Nil, resultType = paramSym.info, receives = None, preParamCount = 0)
         val defaultFunSym = Symbol.createSymbol(pdef.name + "$default", funInfoProvider, Flags.Fun | Flags.Context, sc.owner, pdef.pos)
 
         val funDefSast = () =>
@@ -781,17 +781,13 @@ class Namer(@constructorOnly reporter: Reporter):
         transformParamRef(param).symbol
 
     def computeInfo(resultType: Type) =
-      val procType = ProcType(paramSyms.map(_.toNamedInfo), resultType, ctxParams, funDef.preParamCount)
-
-      if tparamSyms.isEmpty then
-        procType
-      else
         val tparamRefs = tparamSyms.zipWithIndex.map: (tparamSym, i) =>
           TypeParamRef(tparamSym.name, i)
         val substs = tparamSyms.zip(tparamRefs).toMap
         val tparamInfos = tparamSyms.map(tparam => NamedInfo(tparam.name, tparam.info.as[TypeBound]))
-        val rawType = PolyType(tparamInfos, procType)
-        TypeOps.substSymbols(rawType, substs)
+        val rawType = ProcType(tparamInfos, paramSyms.map(_.toNamedInfo), resultType, ctxParams, funDef.preParamCount)
+        if tparamRefs.isEmpty then rawType
+        else TypeOps.substSymbols(rawType, substs)
 
     this.nonCyclicTypeProvider.addProvider(funSym, () => computeInfo(resultType), () => computeInfo(ErrorType))
 
@@ -903,17 +899,14 @@ class Namer(@constructorOnly reporter: Reporter):
       yield
         transformParamRef(param).symbol
 
-    val methodType = ProcType(paramSyms.map(_.toNamedInfo), resultType, ctxParams, preParamCount = 0)
     val finalType =
-      if tparamSyms.isEmpty then
-        methodType
-      else
-        val tparamRefs = tparamSyms.zipWithIndex.map: (tparamSym, i) =>
-          TypeParamRef(tparamSym.name, i)
-        val substs = tparamSyms.zip(tparamRefs).toMap
-        val tparamInfos = tparamSyms.map(tparam => NamedInfo(tparam.name, tparam.info.as[TypeBound]))
-        val rawType = PolyType(tparamInfos, methodType)
-        TypeOps.substSymbols(rawType, substs)
+      val tparamRefs = tparamSyms.zipWithIndex.map: (tparamSym, i) =>
+        TypeParamRef(tparamSym.name, i)
+      val substs = tparamSyms.zip(tparamRefs).toMap
+      val tparamInfos = tparamSyms.map(tparam => NamedInfo(tparam.name, tparam.info.as[TypeBound]))
+      val rawType = ProcType(tparamInfos, paramSyms.map(_.toNamedInfo), resultType, ctxParams, preParamCount = 0)
+      if tparamRefs.isEmpty then rawType
+      else TypeOps.substSymbols(rawType, substs)
 
     TypeTree(finalType)(ddef.span)
 
@@ -1028,7 +1021,7 @@ class Namer(@constructorOnly reporter: Reporter):
 
         val resType2 = transformType(resType)
         checker.delayedCheck { checker.checkValueType(resType2) }
-        val applyType = ProcType(paramTypes2, resType2.tpe, Some(ctxParams), preParamCount = 0)
+        val applyType = ProcType(tparams = Nil, paramTypes2, resType2.tpe, Some(ctxParams), preParamCount = 0)
         val objType = ObjectType(fields = Nil, methods = NamedInfo("apply", applyType) :: Nil, mutableFields = Nil)
         TypeTree(objType)(tpt.span)
 

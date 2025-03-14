@@ -46,13 +46,9 @@ object ElimCapture:
 
     val tparamInfos = fdef.tparams.map(tparam => NamedInfo(tparam.name, tparam.info.as[TypeBound]))
     val paramInfos = fdef.params.map(_.toNamedInfo)
-    val resType = TypeOps.finalResultType(fdef.symbol.info)
-
+    val resType = fdef.procType.resultType
     val paramInfos2 = prependParams ++ paramInfos ++ appendParams
-
-    var funType: Type = ProcType(paramInfos2, resType, fdef.receives, preParamCount = 0)
-    if tparamInfos.nonEmpty then
-      funType = PolyType(tparamInfos, funType)
+    val funType = ProcType(tparamInfos, paramInfos2, resType, fdef.receives, preParamCount = 0)
 
     val funName = ctx.flatName(fdef.symbol)
     Symbol.createFunSymbol(funName, funType, oldFunSym.enclosingNamespace, oldFunSym.sourcePos)
@@ -283,14 +279,12 @@ object ElimCapture:
           // TODO: after type erasure, the special handling here can be removed
           val qual2 = this(qual)
           val funType = fun.tpe.asProcType
-          val polyType = qual2.tpe.termMember(name).asPolyType
-          val procType = polyType.resultType.asProcType
+          val procType = qual2.tpe.termMember(name).asProcType
           val thisParamType = NamedInfo("this", qual2.tpe)
           val liftedFunType = funType.prepend(thisParamType :: Nil)
           val liftedProcType = procType.prepend(thisParamType :: Nil)
-          val liftedPolyType = polyType.copy(resultType = liftedProcType)
           if qual2.isIdempotent then
-            val meth = Encoded(Select(qual2, name)(polyType, fun.span))(liftedPolyType)
+            val meth = Encoded(Select(qual2, name)(procType, fun.span))(liftedProcType)
             val fun2 = TypeApply(meth, targs)(liftedFunType, fun.span)
             Apply(fun2, qual2 :: args2)(app.tpe, app.span)
           else
@@ -298,7 +292,7 @@ object ElimCapture:
             val receiverSym = Symbol.createValueSymbol("o", qual2.tpe, owner, qual2.pos)
             val receiver = Ident(receiverSym)(qual2.span)
             val assign = Assign(Ident(receiverSym)(qual2.span), qual2)(qual2.span)
-            val meth = Encoded(Select(receiver, name)(polyType, fun.span))(liftedPolyType)
+            val meth = Encoded(Select(receiver, name)(procType, fun.span))(liftedProcType)
             val fun2 = TypeApply(meth, targs)(liftedFunType, fun.span)
             val apply = Apply(fun2, receiver :: args2)(app.tpe, app.span)
             Block(assign :: apply :: Nil)(app.tpe, app.span)

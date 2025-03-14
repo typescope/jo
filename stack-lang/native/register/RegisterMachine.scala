@@ -151,7 +151,7 @@ extends Backend(runtime):
   /** Compile a function */
   def compile(fdef: FunDef)(using ctx: Context): Protocol =
     val sym = fdef.symbol
-    val funType = TypeOps.erasePolyType(sym.info).asProcType
+    val funType = sym.info.asProcType
 
     val proto @ Protocol(inProto, outProto, savedRegs) =
       callConvention.callee(funType.paramTypes, funType.resultType)
@@ -278,7 +278,7 @@ extends Backend(runtime):
   /** Call the funtion */
   def call(fun: Symbol)(using ctx: Context): Unit =
     // TODO: erasure better handled together with boxing/unboxing?
-    val funType = TypeOps.erasePolyType(fun.info).asProcType
+    val funType = fun.info.asProcType
     val target = getFunAddress(fun)
     call(target, funType.paramTypes, funType.resultType)
 

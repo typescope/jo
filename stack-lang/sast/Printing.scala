@@ -62,7 +62,7 @@ object Printing:
         val tparams = fdef.tparams.map(sym => sym.name + " <: " + sym.info.show)
         val tparamStr = if tparams.isEmpty then "" else tparams.mkString("[", ", ", "]")
         val params = fdef.params.map(sym => sym.name + ": " + sym.info.show)
-        val resType = TypeOps.finalResultType(fdef.symbol.info)
+        val resType = fdef.procType.resultType
         val locals = rep(fdef.locals.map(sym => sym ~ ": " ~ sym.info), Text(", "))
         val keyword = if fdef.symbol.isMethod then "def " else "fun "
         "@locals(" ~ locals ~ ")" ~ Text.BreakLine ~

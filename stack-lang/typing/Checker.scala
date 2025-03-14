@@ -56,13 +56,13 @@ class Checker:
       Reporter.error(s"Expect a poly function type, found = ${fun.tpe.show}", fun.pos)
       Block(words = Nil)(ErrorType, fun.span | targs.last.span)
     else
-      val polyType = fun.tpe.asPolyType
-      if polyType.paramCount != targs.size then
-        Reporter.error(s"Expect ${polyType.paramCount} args, found = ${targs.size}", (targs.head.span | targs.last.span).toPos)
+      val polyType = fun.tpe.asProcType
+      if polyType.tparamCount != targs.size then
+        Reporter.error(s"Expect ${polyType.tparamCount} args, found = ${targs.size}", (targs.head.span | targs.last.span).toPos)
         Block(words = Nil)(ErrorType, fun.span | targs.last.span)
       else
         checkBounds(polyType.bounds, targs)
-        val tpe = TypeOps.substTypeParams(polyType.resultType, targs.map(_.tpe))
+        val tpe = TypeOps.substTypeParams(polyType.copy(tparams = Nil), targs.map(_.tpe))
         TypeApply(fun, targs)(tpe, fun.span)
 
   def checkType(tree: Tree, tp: Type)(using Reporter, Source): Unit =

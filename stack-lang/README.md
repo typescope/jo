@@ -1,9 +1,9 @@
 # Stk
 
-Implementation of the stack-oriented language Stk.
+Implementation of the language Stk.
 
 
-## Syntax
+## Abstract Syntax
 
 Lexical Grammar
 
@@ -60,8 +60,7 @@ Lexical Grammar
     comment = "//" {any character} NLINE.
 ~~~
 
-Syntactical Grammar
-
+Abstract Syntax
 
 ~~~
     namespace = [NSPACE qualid] {import} {typedef | fundef | paramdef} EOF.

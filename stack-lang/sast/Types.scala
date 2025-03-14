@@ -39,11 +39,13 @@ object Types:
       TypeOps.approx(this, isUp = true).isInstanceOf[ProcType]
 
     def isPolyType: Boolean =
-      TypeOps.approx(this, isUp = true).isInstanceOf[PolyType]
+      TypeOps.approx(this, isUp = true) match
+        case procType: ProcType => procType.tparams.nonEmpty
+        case _ => false
 
     def isValueType: Boolean =
       TypeOps.approx(this, isUp = true)  match
-        case VoidType | _: ProcType | _: TypeLambda | _: PolyType | _: NameTableInfo => false
+        case VoidType | _: ProcType | _: TypeLambda | _: NameTableInfo => false
         case _ => true
 
     def dealias: Type = TypeOps.dealias(this)
@@ -60,18 +62,12 @@ object Types:
     def asProcType: ProcType =
       TypeOps.approx(this, isUp = true).asInstanceOf[ProcType]
 
-    def asPolyType: PolyType =
-      TypeOps.approx(this, isUp = true).asInstanceOf[PolyType]
-
     def asObjectType: ObjectType =
       TypeOps.approx(this, isUp = true).asInstanceOf[ObjectType]
 
     def hasApplyMethod: Boolean =
       TypeOps.approx(this, isUp = true) match
-        case objType: ObjectType =>
-          val tp = objType.termMember("apply")
-          tp.isProcType || tp.isPolyType
-
+        case objType: ObjectType => objType.termMember("apply").isProcType
         case _ => false
 
     def getFunctionApplyType: Option[ProcType] =
@@ -221,34 +217,30 @@ object Types:
 
     def isMutable(name: String): Boolean = mutableFields.contains(name)
 
-  case class PolyType
-    (tparams: List[NamedInfo[TypeBound]], resultType: Type)
-  extends Type:
-    val names: List[String] = tparams.map(_.name)
-    val bounds: List[TypeBound] = tparams.map(_.info)
-    val paramCount = tparams.size
-
   /** The type of a procedure or method
     *
     * The receive parameters of methods are always explicitly specified. If
     * unspecified, the receive parameters of methods are regarded as empty.
     *
-    * For procedure, if unspecified, it means the receive parameters will be
+    * For procedures, if unspecified, it means the receive parameters will be
     * inferred.
     */
   case class ProcType
-    (params: List[NamedInfo[Type]], resultType: Type, receives: Option[List[Symbol]], preParamCount: Int)
+    (tparams: List[NamedInfo[TypeBound]], params: List[NamedInfo[Type]],
+     resultType: Type, receives: Option[List[Symbol]], preParamCount: Int)
   extends Type:
+    val bounds: List[TypeBound] = tparams.map(_.info)
     val preParamTypes: List[Type] = params.take(preParamCount).map(_.info)
     val postParamTypes: List[Type] = params.drop(preParamCount).map(_.info)
     val paramTypes: List[Type] = params.map(_.info)
     val paramCount: Int = params.size
+    val tparamCount: Int = tparams.size
 
     def prepend(paramsToAdd: List[NamedInfo[Type]]): ProcType =
-      ProcType(paramsToAdd ++ params, resultType, receives, preParamCount)
+      ProcType(tparams, paramsToAdd ++ params, resultType, receives, preParamCount)
 
     def append(paramsToAdd: List[NamedInfo[Type]]): ProcType =
-      ProcType(params ++ paramsToAdd, resultType, receives, preParamCount)
+      ProcType(tparams, params ++ paramsToAdd, resultType, receives, preParamCount)
 
     def postParamCount = params.size - preParamCount
 

@@ -91,7 +91,7 @@ extends Backend(runtime):
   /** Compile a function */
   def compileFunDef(fdef: FunDef)(using cb: CodeBuffer): Unit =
     val sym = fdef.symbol
-    val funType = TypeOps.erasePolyType(sym.info).asProcType
+    val funType = sym.info.asProcType
 
     val label = getFunAddress(sym)
 
@@ -207,7 +207,7 @@ extends Backend(runtime):
     */
   def call(fun: Symbol)(using cb: CodeBuffer): Unit =
     val addr = getFunAddress(fun)
-    val funType = TypeOps.erasePolyType(fun.info).asProcType
+    val funType = fun.info.asProcType
     val argCount = funType.paramCount
     val resCount = funType.resCount
     call(addr, argCount, resCount)
