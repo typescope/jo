@@ -127,6 +127,7 @@ node fact.js
 - [x] Type lambdas
 - [x] Context parameters
 - [ ] Coercion semantics for records and objects
+- [ ] GC for native backend
 - [ ] Exception
 - [ ] Concurrency
 - [ ] Nested pattern match
