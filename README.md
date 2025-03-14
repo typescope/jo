@@ -119,12 +119,14 @@ node fact.js
 - [x] Native Backend based on stack machine
 - [x] Native Backend based on register machine
 - [x] ADT and pattern match
+- [x] Records
 - [x] Basic types: Bool, Byte, Char, Int, String, File
 - [x] Objects and object types
 - [x] First-class functions
 - [x] Polymorphic functions
 - [x] Type lambdas
 - [x] Context parameters
+- [ ] Coercion semantics for records and objects
 - [ ] Exception
 - [ ] Concurrency
 - [ ] Nested pattern match
