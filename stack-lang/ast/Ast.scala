@@ -106,8 +106,9 @@ object Ast:
     pat match
       case _: Tag | _: Ident =>
 
-      case Apply(_: Tag, args) =>
-        for arg <- args do assert(arg.isInstanceOf[Ident])
+      case TypeAscribe(_: Ident, _) =>
+
+      case Apply(_: Tag, args) if args.forall(_.isInstanceOf[Ident]) =>
 
       case _ =>
         assert(false, "Ill-formed pattern tree: " + pat)
@@ -177,14 +178,14 @@ object Ast:
   extends TypeTree
 
   case class UnionType
-    (branches: List[Branch])
+    (branches: List[TypeTree])
     (val span: Span)
   extends TypeTree
 
-  case class Branch
+  case class TagType
     (tag: Ident, params: List[Param])
     (val span: Span)
-  extends Tree:
+  extends TypeTree:
     def name = tag.name
 
   case class AppliedType

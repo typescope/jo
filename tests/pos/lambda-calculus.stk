@@ -1,15 +1,10 @@
-type Expr = enum {
-  Var(x: String)
-  Abs(x: String, body: Expr)
-  App(lhs: Expr, arg: Expr)
-}
+type Lambda = #Abs(x: String, body: Expr)
 
-type Env = enum {
-  Empty
-  Cons(k: String, v: Value, outer: Env)
-}
+type Expr = Lamba | #Var(x: String) | #App(lhs: Expr, arg: Expr)
 
-type Value = { lambda: Expr, env: Env }
+type Env = #Empty | #Cons(k: String, v: Value, outer: Env)
+
+type Value = { lambda: Lambda, env: Env }
 
 param env: Env = #Empty // environment for variables
 
@@ -38,20 +33,16 @@ fun eval(expr: Expr): Value =
         case #Some v => v
       end
 
-    case #Abs _ _ =>
-      { lambda = expr, env = env }
+    case abs: Lambda =>
+      { lambda = abs, env = env }
 
     case #App abs arg =>
       val closure = eval abs
       val argValue = eval arg
-      match closure.lambda
-        case #Abs(x, body) =>
-          val env3: Env = #Cons(x, argValue, closure.env)
-          eval body with env = env3
-
-        case e =>
-          abort ("Expect lambda, found = " + (show e))
-      end
+      val x = closure.lambda.x
+      val body = closure.lambda.body
+      val env2: Env = #Cons(x, argValue, closure.env)
+      eval body with env = env2
 
 fun main =
   val id: Expr = #Abs("x", #Var "x")

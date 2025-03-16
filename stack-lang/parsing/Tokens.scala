@@ -7,8 +7,8 @@ object Tokens:
   enum Token:
     case LPAREN, RPAREN, LBRACKET, RBRACKET, LBRACE, RBRACE
     case AS, CASE, DO, END, ELSE, FUN, IF, IMPORT, MATCH, NSPACE, PARAM, THEN,
-         TYPE, VAL, VAR, WHILE, WITH, ALLOW, OBJECT, DEF, RECEIVES, ENUM
-    case TAG, COMMA, DOT, EOF
+         TYPE, VAL, VAR, WHILE, WITH, ALLOW, OBJECT, DEF, RECEIVES
+    case TAG, COMMA, DOT, BAR, EOF
     case COLON, RARROW, EQL, SUBTYPE
     case IntLit(value: Int)
     case BoolLit(value: Boolean)

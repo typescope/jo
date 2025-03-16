@@ -5,6 +5,7 @@ Stk is a statically typed functional programming language with the following fea
 - No global variables
 - Context parameters for contextual abstraction, optional parameters and deep implicits
 - Fine-grained effect control and effect parametricity
+- Extensible algebric data types based on tagged values
 - Flexible prefix, infix and postfix functions
 - Support two call/pattern syntax `f(x)` and `f x`
 - Indented syntax to avoid semicolons, parentheses and braces
@@ -129,6 +130,7 @@ node fact.js
 - [x] Context parameters
 - [ ] Coercion semantics for records and objects
 - [ ] GC for native backend
+- [ ] Debugger for native backend
 - [ ] Exception
 - [ ] Concurrency
 - [ ] Nested pattern match

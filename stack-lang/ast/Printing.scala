@@ -200,13 +200,14 @@ object Printing:
       case RecordType(fields) =>
         "{" ~ rep(fields, Text(", ")) ~ "}"
 
+      case TagType(tag, params) =>
+        val paramsStr =
+          if params.isEmpty then Text.Empty
+          else "(" ~ rep(params, Text(", ")) ~ ")"
+        "#" ~ tag ~ paramsStr
+
       case UnionType(branches) =>
-         val branchesText = branches.map: b =>
-           val params =
-             if b.params.isEmpty then Text.Empty
-             else "(" ~ rep(b.params, Text(", ")) ~ ")"
-           b.tag ~ params
-         "<" ~ rep(branchesText, Text(", ")) ~ ">"
+        rep(branches, Text(" | "))
 
       case AppliedType(tpeCtor, targs) =>
         tpeCtor ~ "[" ~ rep(targs, Text(", ")) ~ "]"
