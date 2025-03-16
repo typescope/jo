@@ -134,7 +134,7 @@ Abstract Syntax
     fields     = field { [COMMA] field }.
     field      = ident COLON type.
 
-    union_typ  = type {BAR type}.
+    union_typ  = type {"|" type}.
     tag_type   = TAG ident [param_section].
 
     fun_type    = param_types RARROW type [receive_params].

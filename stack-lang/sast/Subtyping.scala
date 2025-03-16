@@ -209,10 +209,8 @@ object Subtyping:
     }
 
   private def checkConformsUnionType(tp1: UnionType, tp2: UnionType)(using Context): Boolean =
-    val tags1 = tp1.tags
-    val tags2 = tp2.tags
-    val tagsOK = tags1.size <= tags2.size && tags1.zip(tags2).forall(_ == _) // tags1 can be smaller, that is OK
-    tagsOK && tags1.forall: tag =>
+    // The ordering of the tags does not matter
+    tp1.tags.forall: tag =>
       val tagType1 = tp1.tagType(tag)
       val tagType2 = tp2.tagType(tag)
       checkConforms(tagType1, tagType2)
@@ -220,9 +218,10 @@ object Subtyping:
   private def checkConformsTagType(tp1: TagType, tp2: TagType)(using Context): Boolean =
     val shapeOK = tp1.tag == tp2.tag && tp1.paramTypes.size >= tp2.paramTypes.size
     shapeOK && tp1.paramTypes.zip(tp2.paramTypes).forall: (paramType1, paramType2) =>
+      // param names do not matter
       checkConforms(paramType1, paramType2)
 
   private def checkConformsTagTypeToUnionType(tp1: TagType, tp2: UnionType)(using Context): Boolean =
     tp2.getTagType(tp1.tag) match
       case Some(tagType2) => checkConforms(tp1, tagType2)
-      case None => None
+      case None => false

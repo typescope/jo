@@ -99,7 +99,6 @@ class Scanner(stream: CharStream)(using Reporter, Source):
 
     stream.tokenEnd() match
       case "="   => Token.EQL
-      case "|"   => Token.BAR
       case ":"   => Token.COLON
       case "<:"  => Token.SUBTYPE
       case "=>"  => Token.RARROW

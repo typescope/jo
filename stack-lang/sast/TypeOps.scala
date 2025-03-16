@@ -155,7 +155,7 @@ object TypeOps:
         (fieldList ++ methodList).mkString("object { ", "; ", " }")
 
       case UnionType(branches) =>
-        branches.map(show _).mkString(" | ")
+        branches.map(show).mkString(" | ")
 
       case TagType(tag, params) =>
         val paramsStr = params.map(param => param.name + ": " + show(param.info)).mkString("(", ", ", ")")

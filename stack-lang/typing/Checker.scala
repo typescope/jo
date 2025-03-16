@@ -1,6 +1,5 @@
 package typing
 
-import ast.Ast
 import ast.Positions.*
 
 import sast.*
@@ -85,7 +84,11 @@ class Checker:
 
   def checkTermMember(word: Word, member: String)(using Reporter, Source): Word =
     val tpe = word.tpe
-    if tpe.hasTermMember(member) || tpe.isError then
+    if
+      tpe.hasTermMember(member)
+      || tpe.isTagType && tpe.asTagType.hasParam(member)
+      || tpe.isError
+    then
       word
     else
       Reporter.error(s"The prefix does not contain the member $member", word.pos)
@@ -108,18 +111,6 @@ class Checker:
       case None =>
         Reporter.error(s"Cannot find common result type, tp1 = ${tp1.show}, tp2 = ${tp2.show}", pos)
         ErrorType
-
-  def tagTypes(tag: Ast.Ident, unionType: Type, typeSpan: Span)(using Reporter, Source): Option[List[Type]] =
-    if !unionType.isUnionType then
-      Reporter.error(s"Expect union type, found = ${unionType.show}", typeSpan.toPos)
-      None
-    else
-      val unionType2 = unionType.asUnionType
-      if !unionType2.hasTag(tag.name) then
-        Reporter.error(s"The tag ${tag.name} does not exist in union type ${unionType2.show}", tag.pos)
-        None
-      else
-        Some(unionType2.tagType(tag.name))
 
   def adaptIntLiteral(n: Int, origType: Type, targetType: Type)(using Reporter, Source): Type =
     val defn = Definitions.instance
@@ -160,6 +151,7 @@ class Checker:
       word
     else
       Reporter.abortInternal("Unexpected numeric type " + origType.show)
+
 
   /** Explicit drop of values in if/match expressions */
   def adapt(word: Word, targetType: Type)(using Reporter, Source): Word =

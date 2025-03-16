@@ -61,7 +61,7 @@ object Types:
       // No polymorphism over union type thus only dealias no approximation
       dealias.asInstanceOf[UnionType]
 
-    def asTagType: Boolean =
+    def asTagType: TagType =
       TypeOps.approx(this, isUp = true).asInstanceOf[TagType]
 
     def asTypeLambda: TypeLambda =
@@ -207,6 +207,10 @@ object Types:
   /** The type for tagged value like `#Some(3)` */
   case class TagType(tag: String, params: List[NamedInfo[Type]]) extends Type:
     val paramTypes: List[Type] = params.map(_.info)
+
+    def hasParam(name: String): Boolean = params.exists(_.name == name)
+
+    def paramIndex(name: String): Int = params.indexWhere(_.name == name)
 
   /** The type of an object */
   case class ObjectType(

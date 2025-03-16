@@ -559,10 +559,10 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         val endSpan = if params.isEmpty then resType.span else params.last.span
         FunctionType(tps, resType, params)(startItem.span | endSpan)
 
-      case Token.BAR if tps.size == 1 =>
+      case Token.Ident("|") if tps.size == 1 =>
         next()
         val head = tps.head
-        val rest = oneOrMore(simpleType, Token.BAR)
+        val rest = oneOrMore(simpleType, Token.Ident("|"))
         UnionType(head :: rest)(head.span | rest.last.span)
 
       case token =>

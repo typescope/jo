@@ -1,6 +1,6 @@
 type Lambda = #Abs(x: String, body: Expr)
 
-type Expr = Lamba | #Var(x: String) | #App(lhs: Expr, arg: Expr)
+type Expr = Lambda | #Var(x: String) | #App(lhs: Expr, arg: Expr)
 
 type Env = #Empty | #Cons(k: String, v: Value, outer: Env)
 

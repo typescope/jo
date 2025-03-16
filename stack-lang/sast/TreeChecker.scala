@@ -32,6 +32,13 @@ class TreeChecker()(using Source) extends SastOps.TreeTraverser:
         if !qual.tpe.isValueType then
           Reporter.error("Qualifier should be a value type, found = " + qual.tpe.show, word.pos)
 
+        else if !qual.tpe.hasTermMember(name) then
+          Reporter.error(s"Qualifier does not have member $name, found = " + qual.tpe.show, word.pos)
+
+        else if !Subtyping.conforms(qual.tpe.termMember(name), word.tpe) then
+          val memberType = qual.tpe.termMember(name)
+          Reporter.error(s"Member type ${memberType.show} is not a subtype of ${word.tpe.show}", word.pos)
+
       case _: RecordLit =>
         if !word.tpe.isRecordType then
           Reporter.error("Expect record type, found = " + word.tpe.show, word.pos)
