@@ -27,7 +27,8 @@ object Types:
       TypeOps.approx(this, isUp = true).isInstanceOf[RecordType]
 
     def isUnionType: Boolean =
-      TypeOps.approx(this, isUp = true).isInstanceOf[UnionType]
+       // No polymorphism over union type thus only dealias no approximation
+      dealias.isInstanceOf[UnionType]
 
     def isObjectType: Boolean =
       TypeOps.approx(this, isUp = true).isInstanceOf[ObjectType]
@@ -43,6 +44,9 @@ object Types:
         case procType: ProcType => procType.tparams.nonEmpty
         case _ => false
 
+    def isTagType: Boolean =
+      TypeOps.approx(this, isUp = true).isInstanceOf[TagType]
+
     def isValueType: Boolean =
       TypeOps.approx(this, isUp = true)  match
         case VoidType | _: ProcType | _: TypeLambda | _: NameTableInfo => false
@@ -54,7 +58,11 @@ object Types:
       TypeOps.approx(this, isUp = true).asInstanceOf[RecordType]
 
     def asUnionType: UnionType =
-      TypeOps.approx(this, isUp = true).asInstanceOf[UnionType]
+      // No polymorphism over union type thus only dealias no approximation
+      dealias.asInstanceOf[UnionType]
+
+    def asTagType: Boolean =
+      TypeOps.approx(this, isUp = true).asInstanceOf[TagType]
 
     def asTypeLambda: TypeLambda =
       TypeOps.approx(this, isUp = true).asInstanceOf[TypeLambda]
@@ -179,22 +187,26 @@ object Types:
     def fieldType(name: String): Type =
       getFieldType(name).get
 
-  case class UnionType(branches: List[NamedInfo[List[NamedInfo[Type]]]]) extends Type:
-    val tags: List[String] = branches.map(_.name)
+  case class UnionType(branches: List[TagType]) extends Type:
+    val tags: List[String] = branches.map(_.tag)
 
-    def getTagType(tag: String): Option[List[Type]] =
+    def getTagType(tag: String): Option[TagType] =
       branches.collectFirst:
-        case NamedInfo(t, tps) if t == tag => tps.map(_.info)
+        case tp: TagType if tp.tag == tag => tp
 
     def hasTag(tag: String): Boolean =
       tags.contains(tag)
 
-    def tagType(tag: String): List[Type] =
+    def tagType(tag: String): TagType =
       getTagType(tag).get
 
     def tagIndex(tag: String): Int =
       branches.indexWhere:
-        case NamedInfo(t, _) => t == tag
+        case TagType(t, _) => t == tag
+
+  /** The type for tagged value like `#Some(3)` */
+  case class TagType(tag: String, params: List[NamedInfo[Type]]) extends Type:
+    val paramTypes: List[Type] = params.map(_.info)
 
   /** The type of an object */
   case class ObjectType(
