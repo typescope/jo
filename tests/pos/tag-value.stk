@@ -1,0 +1,41 @@
+type Sheep = #Sheep(origin: String)
+type Cow   = #Cow(origin: String)
+type Tiger = #Tiger(origin: String)
+type Wolf  = #Wolf(origin: String)
+
+type Herbivore = Sheep | Cow
+type Carnivore = Tiger | Wolf
+type Animal = Herbivore | Carnivore
+
+fun showHerbivore(h: Herbivore): String =
+  match h
+    case s: Sheep => "Sheep: " + s.origin
+    case c: Cow => "Cow: " + c.origin
+
+fun showCarnivore(c: Carnivore): String =
+  match c
+    case t: Tiger => "Tiger: " + t.origin
+    case w: Wolf => "Wolf: " + w.origin
+
+fun showAnimal(a: Animal): String =
+  match a
+    case h: Herbivore => showHerbivore h
+    case c: Carnivore => showCarnivore c
+
+fun main =
+  val c = #Cow "Europe"
+  val t = #Tiger "Asian"
+  val w = #Wolf "Italy"
+  val s = #Sheep "Ireland"
+
+  println (showAnimal c)
+  println (showHerbivore c)
+
+  println (showAnimal t)
+  println (showCarnivore t)
+
+  println (showAnimal w)
+  println (showCarnivore w)
+
+  println (showAnimal s)
+  println (showHerbivore s)

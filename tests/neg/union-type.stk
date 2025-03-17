@@ -1,6 +1,5 @@
-type Option = enum { None, Some(value: Int) }
-type Sum = enum { Left(value: Int), Right(value: Int) }
-type Bot = enum { }
+type Option = #None | #Some(value: Int)
+type Sum = #Left(value: Int) | #Right(value: Int)
 
 fun test =
   val a: Sum = #Left(true)     // error

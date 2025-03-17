@@ -80,7 +80,7 @@ Abstract Syntax
     select  = word DOT ident.
 
     apply  = word args.
-    args   = LPAREN phrase {COMMA expr} RPAREN.
+    args   = LPAREN [expr {COMMA expr}] RPAREN.
 
     with_clause = expr [WITH with_bindings] [ALLOW qualid {COMMA qualid}].
 
@@ -108,10 +108,12 @@ Abstract Syntax
 
     match   = MATCH expr {case} [END].
     case    = CASE pat RARROW block.
-    pat     = product_pat | ident.
+    pat     = product_pat | ident | type_pat.
 
-    product_pat = TAG ident [product_bindings]
-    product_bindings = (LPAREN ident {COMMA ident} RPAREN) | {ident}
+    product_pat = TAG ident [product_bindings].
+    product_bindings = (LPAREN ident {COMMA ident} RPAREN) | {ident}.
+
+    type_pat = ident COLON type.
 
     valdef  = (VAL | VAR) ident [COLON type] EQL block.
     fundef  = FUN [param_section] ident [tparams] [param_section] [COLON type] [receive_params] EQL block [END].
@@ -126,15 +128,14 @@ Abstract Syntax
     applied_type = ident targs.
     targs        = LBRACKET type { COMMA type } RBRACKET.
 
-    type    = qualid | record_typ | union_typ | applied_type | fun_type | object_type | LPAREN type RPAREN.
+    type    = qualid | record_typ | tag_type | union_typ | applied_type | fun_type | object_type | LPAREN type RPAREN.
 
     record_typ = LBRACE [fields]  RBRACE.
     fields     = field { [COMMA] field }.
     field      = ident COLON type.
 
-    union_typ  = ENUM LBRACE [branches] RBRACE.
-    branches   = branch { [COMMA] branch }.
-    branch     = ident [param_section].
+    union_typ  = type {"|" type}.
+    tag_type   = TAG ident [param_section].
 
     fun_type    = param_types RARROW type [receive_params].
     param_types = type | LPAREN RPAREN | LPAREN type {COMMA type} RPAREN.
@@ -161,7 +162,7 @@ namespace io.net
 
 import system
 
-type List[T] = enum { Nil, Cons(head: T, tail: List[T]) }
+type List[T] = #Nil | #Cons(head: T, tail: List[T])
 
 fun foo(...) { ... }
 ```

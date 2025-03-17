@@ -155,8 +155,11 @@ object TypeOps:
         (fieldList ++ methodList).mkString("object { ", "; ", " }")
 
       case UnionType(branches) =>
-        def paramStr(paramInfos: List[NamedInfo[Type]]) = paramInfos.map(param => param.name + ": " + show(param.info)).mkString("(", ", ", ")")
-        branches.map(b => b.name + " " + paramStr(b.info)).mkString("<", ", ", ">")
+        branches.map(show).mkString(" | ")
+
+      case TagType(tag, params) =>
+        val paramsStr = params.map(param => param.name + ": " + show(param.info)).mkString("(", ", ", ")")
+        "#" + tag + paramsStr
 
       case AppliedType(tctor, targs) =>
         show(tctor) + targs.map(show).mkString("[", ", ", "]")
@@ -215,11 +218,17 @@ object TypeOps:
           val branches2 =
             for branch <- branches
             yield branch.copy(
-              info = branch.info.map(
-                param => param.copy(info = this.apply(param.info))
+              params = branch.params.map(
+                param => param.copy(info = this(param.info))
               )
             )
+
           UnionType(branches2)
+
+        case TagType(tag, params) =>
+          val params2 =
+            for param <- params yield param.copy(info = this(param.info))
+          TagType(tag, params2)
 
         case ObjectType(fields, methods, muts) =>
           val fields2 =

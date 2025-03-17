@@ -92,6 +92,10 @@ object Subtyping:
        && checkConformsObjectType(tp1.as[ObjectType], tp2.as[ObjectType])
     || tp1.is[RecordType] && tp2.is[RecordType]
        && checkConformsRecordType(tp1.as[RecordType], tp2.as[RecordType])
+    || tp1.is[TagType] && tp2.is[TagType]
+       && checkConformsTagType(tp1.as[TagType], tp2.as[TagType])
+    || tp1.is[TagType] && tp2.is[UnionType]
+       && checkConformsTagTypeToUnionType(tp1.as[TagType], tp2.as[UnionType])
     || tp1.is[UnionType] && tp2.is[UnionType]
        && checkConformsUnionType(tp1.as[UnionType], tp2.as[UnionType])
     || tp1.is[ProcType] && tp2.is[ProcType]
@@ -205,10 +209,19 @@ object Subtyping:
     }
 
   private def checkConformsUnionType(tp1: UnionType, tp2: UnionType)(using Context): Boolean =
-    val tags1 = tp1.tags
-    val tags2 = tp2.tags
-    tags1 == tags2 && tags1.forall: tag =>
-      val argTypes1 = tp1.tagType(tag)
-      val argTypes2 = tp2.tagType(tag)
-      argTypes1.size == argTypes2.size && argTypes1.zip(argTypes2).forall: (arg1, arg2) =>
-        checkConforms(arg1, arg2)
+    // The ordering of the tags does not matter
+    tp1.tags.forall: tag =>
+      val tagType1 = tp1.tagType(tag)
+      val tagType2 = tp2.tagType(tag)
+      checkConforms(tagType1, tagType2)
+
+  private def checkConformsTagType(tp1: TagType, tp2: TagType)(using Context): Boolean =
+    val shapeOK = tp1.tag == tp2.tag && tp1.paramTypes.size >= tp2.paramTypes.size
+    shapeOK && tp1.paramTypes.zip(tp2.paramTypes).forall: (paramType1, paramType2) =>
+      // param names do not matter
+      checkConforms(paramType1, paramType2)
+
+  private def checkConformsTagTypeToUnionType(tp1: TagType, tp2: UnionType)(using Context): Boolean =
+    tp2.getTagType(tp1.tag) match
+      case Some(tagType2) => checkConforms(tp1, tagType2)
+      case None => false

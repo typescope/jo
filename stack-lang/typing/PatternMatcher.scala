@@ -21,14 +21,19 @@ class PatternMatcher(namer: Namer, checker: Checker):
 
     val Ast.Match(scrutinee, cases) = patmat
     val scrutinee2 = namer.transform(scrutinee)(using sc, rp, so, TargetType.ValueType)
-
     val scrutType = scrutinee2.tpe
+
+    if !scrutType.isUnionType then
+      Reporter.error("Expect a union type, found = " + scrutType.show, scrutinee.pos)
+      return Namer.errorWord(patmat.span)
+
+    val unionType = scrutType.asUnionType
+    val allTags = unionType.tags
+
     val scrutSym = Symbol.createValueSymbol("scrutinee", scrutType, sc.owner, scrutinee2.pos)
     val scrutIdent = Ident(scrutSym)(scrutinee.span)
     val bind = ValDef(scrutSym, scrutinee2)(scrutinee.span)
     sc2.define(scrutSym)
-
-    val allTags = if scrutType.isUnionType then scrutType.asUnionType.tags else Nil
 
     def subtractPattern(tags: List[String], pat: Ast.Word): List[String] =
       if tags.isEmpty then
@@ -36,6 +41,27 @@ class PatternMatcher(namer: Namer, checker: Checker):
         Nil
       else (pat: @unchecked) match
         case Ast.Ident(_) => Nil
+
+        case Ast.TypeAscribe(_, tpt) =>
+          // TODO: avoid re-typing
+          val tpe = namer.transformType(tpt).tpe
+          val matchedTags =
+            if tpe.isTagType then
+              tpe.asTagType.tag :: Nil
+            else if tpe.isUnionType then
+              tpe.asUnionType.tags
+            else
+              Nil
+
+          var res = tags
+          for name <- matchedTags do
+            if res.contains(name) then
+              res = res.filter(_ != name)
+            else if allTags.contains(name) then
+              Reporter.error("The case is unreachable", pat.pos)
+          end for
+          res
+
         case Ast.Apply(Ast.Tag(Ast.Ident(name)), _) =>
           if tags.contains(name) then
             tags.filter(_ != name)
@@ -48,13 +74,14 @@ class PatternMatcher(namer: Namer, checker: Checker):
       cases match
         case caseDef :: rest =>
           val tagsRest2 = subtractPattern(tagsRest, caseDef.pat)
-          transform(scrutIdent, caseDef, resType, tp => transformCases(rest, tp, tagsRest2))(using sc2)
+          transformCase(scrutIdent, unionType, caseDef, resType, tp => transformCases(rest, tp, tagsRest2))(using sc2)
 
         case Nil =>
           if tagsRest.nonEmpty then
             Reporter.error("Unmatched case(s): " + tagsRest.mkString(", "), scrutIdent.pos)
 
-          // abort
+          // No need to abort if we issue error for non-exhaustive cases.
+          // It is needed for code generation.
           val abortSym = Definitions.instance.Predef_abort
           val stringType = Definitions.instance.StringType
           val abort = Ident(abortSym)(scrutIdent.span)
@@ -67,19 +94,19 @@ class PatternMatcher(namer: Namer, checker: Checker):
     val body = transformCases(cases, BottomType, allTags)
     Block(bind :: body :: Nil)(body.tpe, patmat.span)
 
-  private def transform
-      (scrut: Ident, caseDef: Ast.Case, resType: Type, cont: Type => Word)
+  private def transformCase
+      (scrut: Ident, unionType: UnionType, caseDef: Ast.Case, resType: Type, cont: Type => Word)
       (using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
 
     val caseScope = sc.fresh()
 
     val Ast.Case(pat, body) = caseDef
-    val scrutSpan = scrut.span
-    val scrutType = scrut.tpe
+    val encodedScrutType = RecordType(NamedInfo("tag", Definitions.instance.IntType) :: Nil)
+    val encodedScrut = Encoded(scrut)(encodedScrutType)
 
     (pat: @unchecked) match
       case Ast.Ident(name) =>
-        val sym = Symbol.createValueSymbol(name, scrutType, sc.owner, pat.pos)
+        val sym = Symbol.createValueSymbol(name, unionType, sc.owner, pat.pos)
         val vdef = ValDef(sym, scrut)(pat.span)
         caseScope.define(sym)
 
@@ -90,38 +117,80 @@ class PatternMatcher(namer: Namer, checker: Checker):
         val block = Block(vdef :: body2 :: Nil)(elsep.tpe, caseDef.span)
         checker.adapt(block, elsep.tpe)
 
-      case Ast.Apply(Ast.Tag(tag), bindings: List[Ast.Ident] @unchecked) =>
-        val tagTypesOpt = checker.tagTypes(tag, scrutType, scrutSpan)
-        val tagTypes = tagTypesOpt.getOrElse(Nil)
+      case Ast.TypeAscribe(Ast.Ident(name), tpt) =>
+        val tpe = namer.transformType(tpt).tpe
 
-        if tagTypesOpt.isEmpty then
-          cont(BottomType)
+        def transform(tags: List[String]): Word =
+          val sym = Symbol.createValueSymbol(name, tpe, sc.owner, pat.pos)
+          val vdef = ValDef(sym, Encoded(scrut)(tpe))(pat.span)
+          caseScope.define(sym)
 
-        else if tagTypes.size != bindings.size then
-          Reporter.error(s"The tag takes ${tagTypes.size} arguments, found = ${bindings.size}", tag.pos)
-          cont(BottomType)
-
-        else
-          val encodeType = Desugaring.encodeUnionType(tagTypes)
-          val encodedScrut = Encoded(scrut)(encodeType)
-
-          val vals = mutable.ArrayBuffer.empty[ValDef]
-          for (binding, i) <- bindings.zipWithIndex if binding.name != "_" do
-            val arg = Desugaring.selectVariantArg(encodedScrut, i, binding.span)
-            val sym = Symbol.createValueSymbol(binding.name, arg.tpe, sc.owner, arg.pos)
-            vals += ValDef(sym, arg)(binding.span)
-            caseScope.define(sym)
-
-          val tagIndex =
-            if tagTypesOpt.isEmpty then -1
-            else scrutType.asUnionType.tagIndex(tag.name)
-
-          val cond = Desugaring.testVariantTag(encodedScrut, tagIndex, tag.span)
+          val cond = Desugaring.testVariantTags(encodedScrut, tags, pat.span)
           val body2 = namer.transform(body)(using caseScope, rp, so, tt)
           val commonType = checker.commonResultType(body2.tpe, resType, body2.pos)
           val elsep = cont(commonType)
           val commonType2 = checker.commonResultType(body2.tpe, elsep.tpe, body2.pos)
           val adapted = checker.adapt(body2, commonType2)
 
+          val body3 = Block(vdef :: adapted :: Nil)(adapted.tpe, caseDef.span)
+          If(cond, body3, elsep)(body3.tpe, caseDef.span)
+
+        if tpe.isUnionType then
+          if Subtyping.conforms(tpe, unionType) then
+            val tags = tpe.asUnionType.tags
+            transform(tags)
+          else
+            val explain = "Union type must be a prefix of the scrutinee type in type patterns"
+            Reporter.error("The type is not a subtype of the scrutinee. " + explain, tpt.pos)
+            Namer.errorWord(caseDef.span)
+
+        else if tpe.isTagType then
+          val tagType = tpe.asTagType
+          if !unionType.hasTag(tagType.tag) then
+            Reporter.error(s"The scrutinee of the type ${unionType.show} does not contain the tag ${tagType.tag}", tpt.pos)
+            Namer.errorWord(caseDef.span)
+
+          else if !Subtyping.conforms(tpe, unionType) then
+            val tagType2 = unionType.tagType(tagType.tag)
+            Reporter.error(s"The tag type ${tagType} does not match the same tag in scrutinee ${tagType2.show}", tpt.pos)
+            Namer.errorWord(caseDef.span)
+
+          else
+            transform(tagType.tag :: Nil)
+
+        else
+          val explain =
+            if tpe.isUnionType then "Union type must be a prefix of the scrutinee type"
+            else ""
+          Reporter.error("The type is not a subtype of the scrutinee. " + explain, tpt.pos)
+          Namer.errorWord(caseDef.span)
+
+
+      case Ast.Apply(Ast.Tag(tag), bindings: List[Ast.Ident] @unchecked) =>
+        if !unionType.hasTag(tag.name) then
+          Reporter.error(s"The tag ${tag.name} does not exist in union type ${unionType.show}", tag.pos)
+          cont(BottomType)
+
+        else
+          val tagType = unionType.tagType(tag.name)
+          val tagTypes = tagType.paramTypes
+
+          if tagTypes.size != bindings.size then
+            Reporter.error(s"The tag takes ${tagTypes.size} arguments, found = ${bindings.size}", tag.pos)
+            return cont(BottomType)
+
+          val vals = mutable.ArrayBuffer.empty[ValDef]
+          for (binding, i) <- bindings.zipWithIndex if binding.name != "_" do
+            val arg = Desugaring.selectVariantField(scrut, tagType, i, binding.span)
+            val sym = Symbol.createValueSymbol(binding.name, arg.tpe, sc.owner, arg.pos)
+            vals += ValDef(sym, arg)(binding.span)
+            caseScope.define(sym)
+
+          val cond = Desugaring.testVariantTag(encodedScrut, tag.name, tag.span)
+          val body2 = namer.transform(body)(using caseScope, rp, so, tt)
+          val commonType = checker.commonResultType(body2.tpe, resType, body2.pos)
+          val elsep = cont(commonType)
+          val commonType2 = checker.commonResultType(body2.tpe, elsep.tpe, body2.pos)
+          val adapted = checker.adapt(body2, commonType2)
           val body3 = Block(vals.toList :+ adapted)(adapted.tpe, caseDef.span)
           If(cond, body3, elsep)(body3.tpe, caseDef.span)

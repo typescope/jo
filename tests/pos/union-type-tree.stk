@@ -1,7 +1,6 @@
-type Tree = enum {
-  Leaf(value: Int)
-  Node(left: Tree, right: Tree, value: Int)
-}
+type Tree =
+    #Leaf(value: Int)
+  | #Node(left: Tree, right: Tree, value: Int)
 
 fun postOrder(tree: Tree): Unit =
   match tree

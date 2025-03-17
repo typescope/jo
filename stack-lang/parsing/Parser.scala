@@ -559,6 +559,12 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         val endSpan = if params.isEmpty then resType.span else params.last.span
         FunctionType(tps, resType, params)(startItem.span | endSpan)
 
+      case Token.Ident("|") if tps.size == 1 =>
+        next()
+        val head = tps.head
+        val rest = oneOrMore(simpleType, Token.Ident("|"))
+        UnionType(head :: rest)(head.span | rest.last.span)
+
       case token =>
         if tps.size > 1 then
           error("`=>` expected, found = " + token, item.span.toPos)
@@ -587,7 +593,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     peek() match
       case Token.OBJECT   => objectType()
       case Token.LBRACE   => recordType()
-      case Token.ENUM     => unionType()
+      case Token.TAG      => tagType()
 
       case Token.LPAREN   =>
         next()
@@ -616,18 +622,29 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     else
       None
 
+  def tagType(): TypeTree =
+    val item = eat(Token.TAG)
+    val tag = ident()
+    val params = paramSection()
+    val spanEnd = if params.isEmpty then tag.span else params.last.span
+    TagType(tag, params)(item.span | spanEnd)
+
+  def fields(acc: mutable.ArrayBuffer[Param]): List[Param] =
+    peek() match
+      case Token.RBRACE | Token.EOF => acc.toList
+      case _ =>
+        if acc.nonEmpty then eatCommaOpt()
+        val id = ident()
+        eat(Token.COLON)
+        val tp = typ()
+        val field = Param(id, tp)(id.span | tp.span)
+        fields(acc += field)
+
   def recordType(): RecordType =
     val lbrace = eat(Token.LBRACE)
     val fieldDecls = fields(mutable.ArrayBuffer.empty)
     val rbrace = eat(Token.RBRACE)
     RecordType(fieldDecls)(lbrace.span | rbrace.span)
-
-  def unionType(): UnionType =
-    val startToken = eat(Token.ENUM)
-    eat(Token.LBRACE)
-    val branchDecls = branches(mutable.ArrayBuffer.empty)
-    val endToken = eat(Token.RBRACE)
-    UnionType(branchDecls)(startToken.span | endToken.span)
 
   def objectType(): ObjectType =
     val objToken = eat(Token.OBJECT)
@@ -664,28 +681,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       targs += typ()
     eat(Token.RBRACKET)
     targs.toList
-
-  def fields(acc: mutable.ArrayBuffer[Param]): List[Param] =
-    peek() match
-      case Token.RBRACE | Token.EOF => acc.toList
-      case _ =>
-        if acc.nonEmpty then eatCommaOpt()
-        val id = ident()
-        eat(Token.COLON)
-        val tp = typ()
-        val field = Param(id, tp)(id.span | tp.span)
-        fields(acc += field)
-
-  def branches(acc: mutable.ArrayBuffer[Branch]): List[Branch] =
-    peek() match
-      case Token.RBRACE | Token.EOF => acc.toList
-      case _ =>
-        if acc.nonEmpty then eatCommaOpt()
-        val tag = ident()
-        val params = paramSection()
-        val spanEnd = if params.isEmpty then tag.span else params.last.span
-        val branch = Branch(tag, params)(tag.span | spanEnd)
-        branches(acc += branch)
 
   def ident(): Ident =
     val item = next()
@@ -882,6 +877,11 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     eat(Token.RPAREN)
     bindings.toList
 
+  def type_pattern(id: Ident): Word =
+    eat(Token.COLON)
+    val tpt = simpleType()
+    TypeAscribe(id, tpt)(id.span | tpt.span)
+
   def pattern(): Word =
     peek() match
      case Token.TAG =>
@@ -889,7 +889,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
      case Token.Ident(name) =>
        val item = next()
-       Ident(name)(item.span)
+       val id = Ident(name)(item.span)
+       if peek() == Token.COLON then type_pattern(id)
+       else id
 
      case _ =>
        val item = next()

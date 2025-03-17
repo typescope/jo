@@ -268,7 +268,8 @@ class Namer(@constructorOnly reporter: Reporter):
           given TargetType = TargetType.TermMember(name)
           transform(qual)
 
-        qual2.tpe.getTermMember(name) match
+        val qualType = qual2.tpe
+        qualType.getTermMember(name) match
           case Some(tp) =>
             tp match
               case TypeRef(sym) if !sym.isField && !sym.isMethod && !sym.isType =>
@@ -278,9 +279,15 @@ class Namer(@constructorOnly reporter: Reporter):
                 Select(qual2, name)(tp, word.span).adapt
 
           case None =>
-            // Error already reported
-            // Reporter.error(s"The prefix does not contain the member $name", qual.pos)
-            errorWord(word.span)
+            if qualType.isTagType then
+              val tagType = qualType.asTagType
+              if tagType.hasParam(name) then
+                Desugaring.selectVariantField(qual2, tagType, name, word.span)
+              else
+                errorWord(word.span)
+            else
+              // Error already reported
+              errorWord(word.span)
 
       case lambda: Ast.Lambda =>
         transform(lambda).adapt
@@ -579,41 +586,52 @@ class Namer(@constructorOnly reporter: Reporter):
 
     val pos = span.toPos
 
-    val unionType =
-      tt.knownType match
-        case Some(tp) => tp
+    def check(tagType: TagType, resType: Type): Word =
+      val paramTypes = tagType.paramTypes
+      if paramTypes.size != values.size then
+        Reporter.error(s"Expect ${paramTypes.size} args, found = ${values.size}", pos)
 
-        case None =>
-          Reporter.error(s"Unknown target enum type, forget `as ...`?", pos)
-          ErrorType
+      val values2 =
+        for (value, tp) <- values.zip(paramTypes) yield
+          given TargetType = TargetType.Known(tp)
+          transform(value)
 
-    if unionType.isError then
-      errorWord(tag.span)
+      // encode variants as records
+      val encodedValue = Desugaring.encodeVariant(tagType, values2, tag.span, span)
+      Encoded(encodedValue)(resType)
 
-    else if !unionType.isUnionType then
-      Reporter.error(s"Expect union type, found = ${unionType.show}", pos)
-      errorWord(tag.span)
+    tt.knownType match
+      case Some(tp) =>
+        if tp.isUnionType then
+          val unionType = tp.asUnionType
+          if !unionType.hasTag(tag.name) then
+            Reporter.error(s"The tag ${tag.name} does not exist in union type ${unionType.show}", pos)
+            errorWord(tag.span)
+          else
+            check(unionType.tagType(tag.name), unionType)
 
-    else
-      val unionType2 = unionType.asUnionType
-      if !unionType2.hasTag(tag.name) then
-        Reporter.error(s"The tag ${tag.name} does not exist in union type ${unionType2.show}", pos)
-        errorWord(tag.span)
-      else
-        val tagTypes = unionType2.tagType(tag.name)
+        else if tp.isTagType then
+          check(tp.asTagType, tp)
 
-        if tagTypes.size != values.size then
-          Reporter.error(s"Expect ${tagTypes.size} args, found = ${values.size}", pos)
+        else
+          Reporter.error(s"Expect union type or tag type, found = ${tp.show}", pos)
+          errorWord(tag.span)
 
+      case None =>
         val values2 =
-          for (value, tp) <- values.zip(tagTypes) yield
-            given TargetType = TargetType.Known(tp)
+          for value <- values yield
+            given TargetType = TargetType.ValueType
             transform(value)
 
+        val argTypes =
+          for (value, i) <- values2.zipWithIndex
+          yield NamedInfo("_" + (i + 1), value.tpe)
+
+        val tagType = TagType(tag.name, argTypes)
+
         // encode variants as records
-        val tagIndex = unionType.asUnionType.tagIndex(tag.name)
-        val encodedValue = Desugaring.encodeVariant(tagIndex, values2, tagTypes, tag.span, span)
-        Encoded(encodedValue)(unionType)
+        val encodedValue = Desugaring.encodeVariant(tagType, values2, tag.span, span)
+        Encoded(encodedValue)(tagType)
 
   private def transform(lambda: Ast.Lambda)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
      val Ast.Lambda(params, body) = lambda
@@ -940,7 +958,7 @@ class Namer(@constructorOnly reporter: Reporter):
     *
     * Checks must be delayed by using `checker.delayedCheck`.
     */
-  private def transformType(tpt: Ast.TypeTree)(using sc: Scope, rp: Reporter, so: Source): TypeTree =
+  def transformType(tpt: Ast.TypeTree)(using sc: Scope, rp: Reporter, so: Source): TypeTree =
     tpt match
       case Ast.Ident(name) =>
         sc.resolve(name, isType = true) match
@@ -983,6 +1001,18 @@ class Namer(@constructorOnly reporter: Reporter):
         end for
         TypeTree(RecordType(fieldTypes.toList))(tpt.span)
 
+      case Ast.TagType(tag, params) =>
+        val paramInfos = new mutable.ArrayBuffer[NamedInfo[Type]]
+        for param <- params yield
+          if paramInfos.exists(_.name == param.name) then
+            Reporter.error("Parameter " + param.name + " already defined", param.pos)
+
+          val tpt = transformType(param.typ)
+          checker.delayedCheck { checker.checkValueType(tpt) }
+          paramInfos += NamedInfo(param.name, tpt.tpe)
+        end for
+        TypeTree(TagType(tag.name, paramInfos.toList))(tpt.span)
+
       case Ast.ObjectType(members) =>
         val fieldTypes = new mutable.ArrayBuffer[NamedInfo[Type]]
         val mutableFields = new mutable.ArrayBuffer[String]
@@ -1005,23 +1035,27 @@ class Namer(@constructorOnly reporter: Reporter):
         TypeTree(tp)(tpt.span)
 
       case Ast.UnionType(branches) =>
-        val branchTypes = new mutable.ArrayBuffer[NamedInfo[List[NamedInfo[Type]]]]
+        val branchTypes = new mutable.ArrayBuffer[TagType]
         for branch <- branches do
-          if branchTypes.exists(_.name == branch.name) then
-            Reporter.error("Branch " + branch.name + " already defined", branch.pos)
-          else
-            val paramInfos = new mutable.ArrayBuffer[NamedInfo[Type]]
-            for param <- branch.params yield
-              if paramInfos.exists(_.name == param.name) then
-                Reporter.error("Parameter " + param.name + " already defined", param.pos)
+          val branchType = transformType(branch).tpe
+          val expanded =
+            if branchType.isTagType then
+              branchType.asTagType :: Nil
+            else if branchType.isUnionType then
+              branchType.asUnionType.branches
+            else
+              Reporter.error("Only tag type or union type allowed inside a union type, found = " + branchType.show, branch.pos)
+              Nil
 
-              val tpt = transformType(param.typ)
-              checker.delayedCheck { checker.checkValueType(tpt) }
-              paramInfos += NamedInfo(param.name, tpt.tpe)
-
-            branchTypes += NamedInfo(branch.name, paramInfos.toList)
+          for tagType <- expanded do
+            if branchTypes.exists(_.tag == tagType.tag) then
+              Reporter.error("Branch " + tagType.tag + " already defined", branch.pos)
+            else
+              branchTypes += tagType
         end for
-        TypeTree(UnionType(branchTypes.toList))(tpt.span)
+        val unionType = UnionType(branchTypes.toList)
+        Desugaring.checkUnionType(unionType, tpt.pos)
+        TypeTree(unionType)(tpt.span)
 
       case Ast.AppliedType(tctor, targs) =>
         val tctor2 = transformType(tctor)

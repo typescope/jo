@@ -5,6 +5,7 @@ Stk is a statically typed functional programming language with the following fea
 - No global variables
 - Context parameters for contextual abstraction, optional parameters and deep implicits
 - Fine-grained effect control and effect parametricity
+- Extensible algebric data types based on tagged values
 - Flexible prefix, infix and postfix functions
 - Support two call/pattern syntax `f(x)` and `f x`
 - Indented syntax to avoid semicolons, parentheses and braces
@@ -23,18 +24,13 @@ fun main = println "Hello world!"
 ### Lambda Calculus
 
 ```
-type Expr = enum {
-  Var(x: String)
-  Abs(x: String, body: Expr)
-  App(lhs: Expr, arg: Expr)
-}
+type Lambda = #Abs(x: String, body: Expr)
 
-type Env = enum {
-  Empty
-  Cons(k: String, v: Value, outer: Env)
-}
+type Expr = Lambda | #Var(x: String) | #App(lhs: Expr, arg: Expr)
 
-type Value = { lambda: Expr, env: Env }
+type Env = #Empty | #Cons(k: String, v: Value, outer: Env)
+
+type Value = { lambda: Lambda, env: Env }
 
 param env: Env = #Empty // environment for variables
 
@@ -63,26 +59,60 @@ fun eval(expr: Expr): Value =
         case #Some v => v
       end
 
-    case #Abs _ _ =>
-      { lambda = expr, env = env }
+    case abs: Lambda =>
+      { lambda = abs, env = env }
 
     case #App abs arg =>
       val closure = eval abs
       val argValue = eval arg
-      match closure.lambda
-        case #Abs(x, body) =>
-          val env3: Env = #Cons(x, argValue, closure.env)
-          eval body with env = env3
-
-        case e =>
-          abort ("Expect lambda, found = " + (show e))
-      end
+      val x = closure.lambda.x
+      val body = closure.lambda.body
+      val env2: Env = #Cons(x, argValue, closure.env)
+      eval body with env = env2
 
 fun main =
   val id: Expr = #Abs("x", #Var "x")
   val code: Expr = #App(id, id)
   println
     show (eval code).lambda
+```
+
+### [The Expression Problem](https://en.wikipedia.org/wiki/Expression_problem)
+
+```
+type Expr =
+    #Lit(n: Int)
+  | #Add(lhs: Expr, rhs: Expr)
+
+fun eval(expr: Expr): Int =
+  match expr
+    case #Lit n => n
+    case #Add lhs rhs => (eval lhs) + (eval rhs)
+
+type ExprExt = Expr | #Mul(lhs: ExprExt, rhs: Expr)
+
+fun eval2(expr: ExprExt): Int =
+  match expr
+    case expr: Expr => eval expr
+    case #Mul lhs rhs => (eval2 lhs) * (eval2 rhs)
+
+fun main =
+  val lang1: Expr =
+    #Add
+      #Lit 3
+      #Add
+        #Lit 2
+        #Lit 5
+
+  val lang2: ExprExt = #Mul lang1 (#Lit 3)
+
+  println
+    intToStr
+      eval lang1
+
+  println
+    intToStr
+      eval2 lang2
 ```
 
 ## Build
@@ -129,6 +159,7 @@ node fact.js
 - [x] Context parameters
 - [ ] Coercion semantics for records and objects
 - [ ] GC for native backend
+- [ ] Debugger for native backend
 - [ ] Exception
 - [ ] Concurrency
 - [ ] Nested pattern match

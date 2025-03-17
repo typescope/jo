@@ -121,9 +121,9 @@ type String <: object {
 //
 // Common types
 //
-type Option[T] = enum { None, Some(v: T) }
+type Option[T] = #None | #Some(v: T)
 
-type List[T] = enum { Nil, Cons(head: T, tail: List[T]) }
+type List[T] = #Nil | #Cons(head: T, tail: List[T])
 
 //-------------------------------------------------------------
 //
