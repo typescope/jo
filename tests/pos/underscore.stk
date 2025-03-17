@@ -1,7 +1,7 @@
-type StringRepr = enum {
-  Raw(str: String)
-  Concat(length: Int, lhs: StringRepr, rhs: StringRepr)
-}
+type StringRepr =
+    #Raw(str: String)
+  | #Concat(length: Int, lhs: StringRepr, rhs: StringRepr)
+
 
 fun length(s: StringRepr) =
   match s

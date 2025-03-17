@@ -162,7 +162,7 @@ namespace io.net
 
 import system
 
-type List[T] = enum { Nil, Cons(head: T, tail: List[T]) }
+type List[T] = #Nil | #Cons(head: T, tail: List[T])
 
 fun foo(...) { ... }
 ```
