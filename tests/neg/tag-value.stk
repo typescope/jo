@@ -27,6 +27,12 @@ fun showAnimal(a: Animal): String =
     case h: Herbivore => showHerbivore h
     case c: Carnivore => showCarnivore c
 
+fun showRedundant(a: Animal): String =
+  match a
+    case c: Cow => "Cow: " + c.origin
+    case h: Herbivore => showHerbivore h   // error
+    case c: Carnivore => showCarnivore c
+
 fun main =
   val c = #Cow "Europe"
   val t = #Tiger "Asian"

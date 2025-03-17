@@ -1,5 +1,4 @@
 type Movie = { name: String, director: String, year: Int }
-type List[T] = #Nil | #Cons(head: T, tail: List[T])
 type MovieFinder = object { def findAll(): List[Movie] }
 
 fun foreach[T](movies: List[T], op: T => Unit): Unit =

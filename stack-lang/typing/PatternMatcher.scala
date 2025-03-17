@@ -58,7 +58,7 @@ class PatternMatcher(namer: Namer, checker: Checker):
             if res.contains(name) then
               res = res.filter(_ != name)
             else if allTags.contains(name) then
-              Reporter.error("The case is unreachable", pat.pos)
+              Reporter.error(s"The tag $name is already matched in previous cases", pat.pos)
           end for
           res
 
