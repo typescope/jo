@@ -18,11 +18,12 @@ object Desugaring:
   def getTagCode(tag: String): Int =
     // Take the first 2 char and the last 2 chars
     var code = 0
-    if tag.size > 3 then
+    val len = tag.size
+    if len > 3 then
       code += tag(0).toByte << 21
       code += tag(1).toByte << 14
-      code += tag(2).toByte << 7
-      code += tag(3).toByte
+      code += tag(len - 2).toByte << 7
+      code += tag(len - 1).toByte
     else
       for c <- tag do
         code = (code << 7) + c.toByte
@@ -36,6 +37,8 @@ object Desugaring:
       if hashCodes.contains(code) then
         val tag2 = hashCodes(code)
         Reporter.error(s"Conflict between tag $tag and $tag2 in union type. The first 2 and last 2 chars should be different.", pos)
+      else
+        hashCodes(code) = tag
 
   def encodeTagType(tagType: TagType): RecordType =
     val IntType = Definitions.instance.IntType
@@ -85,7 +88,7 @@ object Desugaring:
   def testVariantTags(ref: Word, tags: List[String], span: Span): Word =
     val tag :: rest = tags: @unchecked
     // ASTs are immutable thus can be shared
-    val fun = Ident(Definitions.instance.Predef_band)(span)
+    val fun = Ident(Definitions.instance.Predef_bor)(span)
     val tp = Definitions.instance.BoolType
     val cond = testVariantTag(ref, tag, span)
     rest.foldLeft(cond): (acc, tag) =>
