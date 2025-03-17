@@ -137,6 +137,15 @@ object Subtyping:
                     given Context = reducingCtx(tref)
                     continue(tp1Reduced)
 
+                  case _: TypeBound =>
+                    // Platform opaque type constructors, e.g., Array[T]
+                    tp2 match
+                      case AppliedType(tctor2, targs2) if tctor == tctor2 =>
+                        targs.zip(targs2).forall: (tp1, tp2) =>
+                          checkConforms(tp1, tp2) && checkConforms(tp2, tp1)
+
+                      case _ => false
+
                   case tp1Reduced =>
                     continue(tp1Reduced)
 

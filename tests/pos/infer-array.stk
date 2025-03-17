@@ -1,0 +1,2 @@
+fun main =
+  val arr: Array[Bool] = array 3
