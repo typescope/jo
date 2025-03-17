@@ -107,8 +107,16 @@ object Subtyping:
 
   private def checkConformsProxyType(tp1: ProxyType, tp2: ProxyType)(using ctx: Context): Boolean =
     ctx.isSubtype(tp1, tp2) || {
-      given Context = ctx.withSubtyping(tp1, tp2)
-      checkConformsProxyType(tp1, tp2, lessThan = true)
+      (tp1, tp2) match
+        case (AppliedType(tref1: TypeRef, _), AppliedType(tref2: TypeRef, _)) =>
+          ctx.isSubtype(tref1, tref2) || {
+            given Context = ctx.withSubtyping(tref1, tref2)
+            checkConformsProxyType(tp1, tp2, lessThan = true)
+          }
+
+        case _ =>
+          given Context = ctx.withSubtyping(tp1, tp2)
+          checkConformsProxyType(tp1, tp2, lessThan = true)
     }
 
   private def checkConformsProxyType(tp1: ProxyType, tp2: Type)(using ctx: Context): Boolean =
@@ -131,8 +139,23 @@ object Subtyping:
             val isReducing = if lessThan then ctx.isReducingLeft(tref) else ctx.isReducingRight(tref)
             !isReducing && reduce(tref, maximize = lessThan).match
               case tl: TypeLambda =>
-                given Context = reducingCtx(tref)
-                continue(TypeOps.substTypeParams(tl.body, targs))
+                TypeOps.substTypeParams(tl.body, targs) match
+                  case tp1Reduced: ProxyType =>
+                    // If the reduced type is not grounded, avoid cycles
+                    given Context = reducingCtx(tref)
+                    continue(tp1Reduced)
+
+                  case _: TypeBound =>
+                    // Platform opaque type constructors, e.g., Array[T]
+                    tp2 match
+                      case AppliedType(tctor2, targs2) if tctor == tctor2 =>
+                        targs.zip(targs2).forall: (tp1, tp2) =>
+                          checkConforms(tp1, tp2) && checkConforms(tp2, tp1)
+
+                      case _ => false
+
+                  case tp1Reduced =>
+                    continue(tp1Reduced)
 
               case tctor =>
                 false
@@ -143,8 +166,14 @@ object Subtyping:
             throw new Exception("Unexpected type constructor: " + tctor.show)
 
       case tref: TypeRef =>
-        given Context = reducingCtx(tref)
-        continue(reduce(tref, maximize = lessThan))
+        reduce(tref, maximize = lessThan) match
+        case tp1Reduced: ProxyType =>
+          // If the reduced type is not grounded, avoid cycles
+          given Context = reducingCtx(tref)
+          continue(tp1Reduced)
+
+        case tp1Reduced =>
+          continue(tp1Reduced)
 
       case tvar: TypeVar =>
         given Context = reducingCtx(tvar)

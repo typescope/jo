@@ -11,6 +11,10 @@ type Sanglier = #Sanglier(origin: String)
 
 type ErrorUnion = Int | Tiger // error
 type ErrorUnion2 = #abType | #abEFType // error
+type ErrorUnion3 = ErrorUnion3 | #Foo // error // error
+type A = ErrorUnion4
+type ErrorUnion4 = A | #Foo // error // error
+
 
 fun showHerbivore(h: Herbivore): String =
   match h
@@ -25,6 +29,12 @@ fun showCarnivore(c: Carnivore): String =
 fun showAnimal(a: Animal): String =
   match a
     case h: Herbivore => showHerbivore h
+    case c: Carnivore => showCarnivore c
+
+fun showRedundant(a: Animal): String =
+  match a
+    case c: Cow => "Cow: " + c.origin
+    case h: Herbivore => showHerbivore h   // error
     case c: Carnivore => showCarnivore c
 
 fun main =

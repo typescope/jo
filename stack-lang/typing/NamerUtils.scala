@@ -41,7 +41,11 @@ object NamerUtils:
 
       if completing.contains(sym) then
         val cycle = completing.dropWhile(_ != sym).map(_.name).mkString(", ")
-        Reporter.error("Recursive function needs explicit return type: " + cycle, sym.sourcePos)
+        if sym.isFunction then
+          Reporter.error("Recursive function needs explicit return type: " + cycle, sym.sourcePos)
+        else
+          Reporter.error("Illegal recursive definition: " + cycle, sym.sourcePos)
+
         completing.dropRightInPlace(cycle.size)
         val tp = completer.errorType()
         completer.complete(tp)

@@ -19,7 +19,15 @@ class Scanner(stream: CharStream)(using Reporter, Source):
 
   /** Return the token, its span and the line indentation where the token ends */
   def next(): TokenInfo =
-    nextToken().withInfo(stream.tokenSpan(), stream.lineIndent())
+    val token = nextToken()
+    val span =
+      if token == Token.EOF then
+        val rawSpan = stream.tokenSpan()
+        Span(rawSpan.start - 1, length = 0)
+      else
+        stream.tokenSpan()
+
+    token.withInfo(span, stream.lineIndent())
 
   def nextToken(): Token =
     if !stream.hasMore() then return Token.EOF

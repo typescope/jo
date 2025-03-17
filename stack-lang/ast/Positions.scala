@@ -111,10 +111,11 @@ object Positions:
         case None =>
           val jfile = new java.io.RandomAccessFile(file, "r")
           jfile.seek(lineOffsets(line))
-          val lineStr = jfile.readLine().replaceAll("[\n\r]$", "")
+          val lineStr = jfile.readLine()
+          val trimmed = lineStr.replaceAll("[\n\r]$", "")
           jfile.close()
-          lineCache(line) = lineStr
-          lineStr
+          lineCache(line) = trimmed
+          trimmed
 
   /** A position in a source file */
   case class SourcePosition(source: Source, start: Int, length: Int):

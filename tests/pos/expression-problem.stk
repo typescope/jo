@@ -15,7 +15,7 @@ fun eval2(expr: ExprExt): Int =
     case #Mul lhs rhs => (eval2 lhs) * (eval2 rhs)
 
 fun main =
-  val lang1: Expr =
+  val lang1 =
     #Add
       #Lit 3
       #Add

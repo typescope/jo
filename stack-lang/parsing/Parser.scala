@@ -651,19 +651,19 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     eat(Token.LBRACE)
     val errorSkip = Set(Token.VAL, Token.VAR, Token.DEF)
     val decls: List[ValDef | FunDef] = repeated(errorSkip):
-        if peek() == Token.DEF then
-          Some(defDef(needBody = false))
+      if peek() == Token.DEF then
+        Some(defDef(needBody = false))
 
-        else if peek() == Token.VAL || peek() == Token.VAR then
-          val mod = next()
-          val mutable = mod.token == Token.VAR
-          val id = ident()
-          eat(Token.COLON)
-          val tpt = typ()
-          val body = Block(phrases = Nil)(id.span)
-          Some(ValDef(id, tpt, body, mutable)(mod.span | tpt.span))
+      else if peek() == Token.VAL || peek() == Token.VAR then
+        val mod = next()
+        val mutable = mod.token == Token.VAR
+        val id = ident()
+        eat(Token.COLON)
+        val tpt = typ()
+        val body = Block(phrases = Nil)(id.span)
+        Some(ValDef(id, tpt, body, mutable)(mod.span | tpt.span))
 
-        else None
+      else None
     val endToken = eat(Token.RBRACE)
     ObjectType(decls)(objToken.span | endToken.span)
 
@@ -690,7 +690,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
       case token =>
         error("Expect identifier, found token " + token, item.span.toPos)
-        Ident("error")(item.span)
+        throw new SyntaxError
 
   def lambda(): Word =
     val lparen = peekItem()
