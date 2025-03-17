@@ -107,8 +107,16 @@ object Subtyping:
 
   private def checkConformsProxyType(tp1: ProxyType, tp2: ProxyType)(using ctx: Context): Boolean =
     ctx.isSubtype(tp1, tp2) || {
-      given Context = ctx.withSubtyping(tp1, tp2)
-      checkConformsProxyType(tp1, tp2, lessThan = true)
+      (tp1, tp2) match
+        case (AppliedType(tref1: TypeRef, _), AppliedType(tref2: TypeRef, _)) =>
+          ctx.isSubtype(tref1, tref2) || {
+            given Context = ctx.withSubtyping(tref1, tref2)
+            checkConformsProxyType(tp1, tp2, lessThan = true)
+          }
+
+        case _ =>
+          given Context = ctx.withSubtyping(tp1, tp2)
+          checkConformsProxyType(tp1, tp2, lessThan = true)
     }
 
   private def checkConformsProxyType(tp1: ProxyType, tp2: Type)(using ctx: Context): Boolean =
