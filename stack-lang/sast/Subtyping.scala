@@ -241,8 +241,10 @@ object Subtyping:
     // The ordering of the tags does not matter
     tp1.tags.forall: tag =>
       val tagType1 = tp1.tagType(tag)
-      val tagType2 = tp2.tagType(tag)
-      checkConforms(tagType1, tagType2)
+      tp2.hasTag(tag) && {
+        val tagType2 = tp2.tagType(tag)
+        checkConforms(tagType1, tagType2)
+      }
 
   private def checkConformsTagType(tp1: TagType, tp2: TagType)(using Context): Boolean =
     val shapeOK = tp1.tag == tp2.tag && tp1.paramTypes.size >= tp2.paramTypes.size
