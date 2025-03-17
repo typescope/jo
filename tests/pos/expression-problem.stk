@@ -4,35 +4,40 @@ type Expr[Lang] =
 
 type LangA = Expr[LangA]
 
-fun eval(expr: LangA): Int =
+fun eval[T](expr: Expr[T], eval: T => Int): Int =
   match expr
     case #Lit n => n
     case #Add lhs rhs => (eval lhs) + (eval rhs)
+
+fun evalLangA(expr: LangA): Int =
+  eval expr (e) => evalLangA e
 
 type ExprExt[Lang] = Expr[Lang] | #Mul(lhs: Lang, rhs: Lang)
 
 type LangB = ExprExt[LangB]
 
-fun eval2(expr: LangB): Int =
+fun evalExt[T](expr: ExprExt[T], evalExt: T => Int): Int =
   match expr
-    case #Lit n => n
-    case #Add lhs rhs => (eval2 lhs) + (eval2 rhs)
-    case #Mul lhs rhs => (eval2 lhs) * (eval2 rhs)
+    case e: Expr[T] => eval e evalExt
+    case #Mul lhs rhs => (evalExt lhs) * (evalExt rhs)
+
+fun evalLangB(expr: LangB): Int =
+  evalExt expr (e) => evalLangB e
 
 fun main =
-  val lang1: LangA =
+  val langA: LangA =
     #Add
       #Lit 3
       #Add
         #Lit 2
         #Lit 5
 
-  val lang2: LangB = #Mul lang1 (#Lit 3)
+  val langB: LangB = #Mul langA (#Lit 3)
 
   println
     intToStr
-      eval lang1
+      evalLangA langA
 
   println
     intToStr
-      eval2 lang2
+      evalLangB langB
