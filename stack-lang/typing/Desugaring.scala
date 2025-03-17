@@ -36,7 +36,7 @@ object Desugaring:
       val code = getTagCode(tag)
       if hashCodes.contains(code) then
         val tag2 = hashCodes(code)
-        Reporter.error(s"Conflict between tag $tag and $tag2 in union type. The first 2 and last 2 chars should be different.", pos)
+        Reporter.error(s"Conflict between tag $tag and $tag2 in union type. The first 2 and last 2 chars should not be all the same.", pos)
       else
         hashCodes(code) = tag
 
