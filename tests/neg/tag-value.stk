@@ -11,6 +11,10 @@ type Sanglier = #Sanglier(origin: String)
 
 type ErrorUnion = Int | Tiger // error
 type ErrorUnion2 = #abType | #abEFType // error
+type ErrorUnion3 = ErrorUnion3 | #Foo // error // error
+type A = ErrorUnion4
+type ErrorUnion4 = A | #Foo // error // error
+
 
 fun showHerbivore(h: Herbivore): String =
   match h
