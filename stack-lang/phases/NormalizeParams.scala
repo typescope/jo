@@ -36,28 +36,19 @@ class NormalizeParams(using Reporter) extends Phase[NormalizeParams.Context]:
     */
   override  def transformFunDef(fdef: FunDef)(using ctx: Context): FunDef =
     if !fdef.symbol.isLocal && fdef.name == "main" then
+      val defn = Definitions.instance
+
       val effs = EffectAnalysis.effects(fdef.symbol)(using ctx.cache)
       val fdef2 = super.transformFunDef(fdef)
 
       val pos = fdef.symbol.sourcePos
       for
-        (eff, trace) <- effs if !eff.is(Flags.Default)
+        (eff, trace) <- effs
+        if !eff.is(Flags.Default) && !defn.isRuntimeContextParam(eff)
       do
         Reporter.error("Context parameter not provided: " + eff, pos, trace)
 
-      val defaultEffs = effs.keys.filter(_.is(Flags.Default)).toList
-      if defaultEffs.isEmpty then fdef2
-      else
-        val span = fdef.body.span
-        val args = defaultEffs.map: eff =>
-          val defaultFunSym = eff.defaultFunction
-          val paramRef = Ident(eff)(span)
-          val defaultFunRef = Ident(defaultFunSym)(span)
-          val rhs = Apply(defaultFunRef, args = Nil)(eff.info, span)
-          WithArg(paramRef, rhs)(span)
-
-        val body2 = With(fdef2.body, args, allow = None)(fdef2.body.tpe, span)
-        fdef2.copy(body = body2)(fdef.span)
+      fdef2
 
     else
       if fdef.symbol.isLocal then ctx.cache.code(fdef.symbol) = fdef
@@ -92,7 +83,10 @@ class NormalizeParams(using Reporter) extends Phase[NormalizeParams.Context]:
         // println("effsArgs = " + effsArgs)
         // println("masked = " + masked)
 
-        for (eff, trace) <- (effsInner -- masked) ++ effsArgs if !allowed.contains(eff) do
+        for
+          (eff, trace) <- (effsInner -- masked) ++ effsArgs
+          if !eff.is(Flags.Default) && !allowed.contains(eff)
+        do
           Reporter.error("Parameter not allowed: " + eff, withExpr.expr.pos, trace)
       case _ =>
     end match

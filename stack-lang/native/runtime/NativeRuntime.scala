@@ -57,11 +57,6 @@ extends Linker:
   val Core_intToChar  = Core.termMember("intToChar")
   val Core_intToStr   = Core.termMember("intToStr")
 
-  val Core_openFile = Core.termMember("openFile")
-  val Core_createStdIn = Core.termMember("createStdIn")
-  val Core_createStdOut = Core.termMember("createStdOut")
-  val Core_createStdErr = Core.termMember("createStdErr")
-
   val GC = resolvePath("stk.runtime.native.GC")
   val GC_alloc = GC.termMember("alloc")
 

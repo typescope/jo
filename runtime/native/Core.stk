@@ -50,7 +50,11 @@ fun start(): Unit =
   GC.init
   ParamSupport.init
 
-  mainStub
+  mainStub with
+    open = createFileOpener(),
+    stdin = createStdIn(),
+    stdout = createStdOut(),
+    stderr = createStdErr()
 
   finish
 
@@ -277,7 +281,7 @@ fun String_bytes(repr: String): Any =
 // I/O support
 //
 
-fun openFile = (filePath: String) =>
+fun createFileOpener() = (filePath: String) =>
   val nameBytes = String_bytes filePath
 
   val O_CREAT = 1 << 6

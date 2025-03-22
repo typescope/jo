@@ -229,3 +229,6 @@ object Sast:
 
   def StringLit(s: String)(tp: Type, span: Span) =
     Literal(Constant.String(s))(tp, span)
+
+  def IntLit(n: Int)(tp: Type, span: Span) =
+    Literal(Constant.Int(n))(tp, span)

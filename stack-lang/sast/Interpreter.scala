@@ -365,7 +365,14 @@ object Interpreter:
         if sym.isAllOf(Flags.Param | Flags.Context) then
           params.get(sym) match
             case Some(v) => v :: Nil
-            case None => throw new Exception("Unbound context parameter " + sym)
+            case None =>
+               if sym.is(Flags.Default) then
+                 val defaultFun = Ident(sym.defaultFunction)(word.span)
+                 val defaultCall = Apply(defaultFun, args = Nil)(word.tpe, word.span)
+                 exec(defaultCall)
+               else
+                 throw new Exception("Unbound context parameter " + sym)
+
         else
           env.resolve(sym) :: Nil
 
