@@ -1,0 +1,16 @@
+param newLine: Bool = false
+
+param pageWidth: Int = if newLine then 80 else 120 // error
+
+param maxResult: Int = getDefault 10     // error
+
+fun getDefault(x: Int): Int =
+  pageWidth / 2 + x
+
+fun printOpt(s: String): Unit =
+  print s
+  if newLine then print "\n"
+
+fun main =
+  printOpt "hello "
+  printOpt "world!" with newLine = true

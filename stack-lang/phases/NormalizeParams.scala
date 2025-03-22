@@ -160,18 +160,27 @@ class NormalizeParams(using Reporter) extends Phase[NormalizeParams.Context]:
         fdef2.copy(body = body2)(fdef.span)
 
     else
-      if fdef.symbol.isLocal then ctx.cache.code(fdef.symbol) = fdef
+      val symbol = fdef.symbol
+      if symbol.isLocal then ctx.cache.code(symbol) = fdef
 
-      if fdef.symbol.isFunction then
+      if symbol.isFunction then
         fdef.receives match
           case Some(params) =>
             val allowed = params.toSet
-            val effs = EffectAnalysis.effects(fdef.symbol)(using ctx.cache)
-            val pos = fdef.symbol.sourcePos
+            val effs = EffectAnalysis.effects(symbol)(using ctx.cache)
+            val pos = symbol.sourcePos
             for (eff, trace) <- effs if !allowed.contains(eff) do
               Reporter.error("Parameter not allowed: " + eff, pos, trace)
 
           case None =>
+            if symbol.is(Flags.Default) then
+              val effs = EffectAnalysis.effects(symbol)(using ctx.cache)
+              val pos =
+                given Source = symbol.sourcePos.source
+                fdef.body.pos
+
+              for (eff, trace) <- effs do
+                Reporter.error("Parameter not allowed for default values: " + eff, pos, trace)
 
       super.transformFunDef(fdef)
 
