@@ -43,36 +43,9 @@ class LowerContextParams(runtime: NativeRuntime) extends phases.Phase[Symbol]:
         // At runtime, it's a byte array initialized in the constant area
         val paramName = sym.fullName
         val key = Encoded(StringLit(paramName)(AnyType, word.span))(AddrType)
-
-        if sym.is(Flags.Default) then
-          val getParamIndexFun = Ident(runtime.ParamSupport_getParamIndex)(word.span)
-          val getParamIndexCall = Apply(getParamIndexFun, key :: Nil)(IntType, word.span)
-
-          val indexSym =
-            given Source = ctx.sourcePos.source
-            new Symbol("index_" + paramName, IntType, Flags.Val, owner = ctx, sourcePos = word.pos)
-
-          val indexIdent = Ident(indexSym)(word.span)
-          val indexAssign = Assign(indexIdent, getParamIndexCall)(word.span)
-
-          val readValueAtFun = Ident(runtime.ParamSupport_readValueAt)(word.span)
-          val readValueAtCall = Encoded(Apply(readValueAtFun, indexIdent :: Nil)(AnyType, word.span))(word.tpe)
-
-          val lessThanFun = Ident(Definitions.instance.Predef_lt)(word.span)
-          val zero = IntLit(0)(IntType, word.span)
-          val cond = Apply(lessThanFun, indexIdent :: zero :: Nil)(BoolType, word.span)
-
-          val defaultFun = Ident(sym.defaultFunction)(word.span)
-          val defaultCall = Apply(defaultFun, args = Nil)(word.tpe, word.span)
-
-          val ifExpr = If(cond, defaultCall, readValueAtCall)(word.tpe, word.span)
-
-          Block(indexAssign :: ifExpr  :: Nil)(word.tpe, word.span)
-
-        else
-          // The static analysis ensures that the value is available
-          val getParamFun = Ident(runtime.ParamSupport_getParam)(word.span)
-          Encoded(Apply(getParamFun, key :: Nil)(AnyType, word.span))(word.tpe)
+        // The static analysis ensures that the value is available
+        val getParamFun = Ident(runtime.ParamSupport_getParam)(word.span)
+        Encoded(Apply(getParamFun, key :: Nil)(AnyType, word.span))(word.tpe)
 
       case _ =>
         word

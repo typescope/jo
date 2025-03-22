@@ -94,9 +94,23 @@ object Symbols:
         case nsInfo: NameTableInfo => nsInfo.resolve(name, isType)
         case _ => None
 
-    /** The default value function associated with a context parameter */
+    /** The default function associated with a context parameter */
     def defaultFunction: Symbol =
+      assert(this.isAllOf(Flags.Default | Flags.Context))
       this.owner.termMember(this.name + "$default")
+
+    /** The value function associated with a context parameter */
+    def valueFunction: Symbol =
+      assert(this.isAllOf(Flags.Default | Flags.Context))
+      this.owner.termMember(this.name + "$value")
+
+    /** The param of an option type associated with a default context parameter.
+      *
+      * The option param is bound at top-level to `None` if required.
+      */
+    def optionParam: Symbol =
+      assert(this.isAllOf(Flags.Default | Flags.Context))
+      this.owner.termMember(this.name + "$option")
 
     def fullName: String = this.ownersIterator.foldLeft(this.name):
       (acc, owner) => owner.name + "." + acc

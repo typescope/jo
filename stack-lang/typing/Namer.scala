@@ -709,16 +709,26 @@ class Namer(@constructorOnly reporter: Reporter):
 
     pdef.default match
       case Some(rhs) =>
-        val funInfoProvider: InfoProvider = sym => ProcType(tparams = Nil, params = Nil, resultType = paramSym.info, receives = None, preParamCount = 0)
-        val defaultFunSym = Symbol.createSymbol(pdef.name + "$default", funInfoProvider, Flags.Fun | Flags.Context, sc.owner, pdef.pos)
+        /* Desugaring for an optional context parameter
+         *
+         *    <Context> <Default> param a: T
+         *
+         *    <Default> fun a$default = rhs
+         */
 
-        val funDefSast = () =>
+        val funInfoProvider: InfoProvider = sym =>
+          ProcType(tparams = Nil, params = Nil, resultType = paramSym.info, receives = None, preParamCount = 0)
+
+        val defaultFunSym =
+          Symbol.createSymbol(pdef.name + "$default", funInfoProvider, Flags.Fun | Flags.Default, sc.owner, pdef.pos)
+
+        val defaultFunDefSast = () =>
           given Scope = sc.fresh(defaultFunSym)
           given TargetType = TargetType.Known(paramSym.info)
           val body = transform(rhs)
           FunDef(defaultFunSym, tparams = Nil, params = Nil, body)(rhs.span)
 
-        DelayedDef(defaultFunSym, funDefSast) :: delayedParamDef :: Nil
+        DelayedDef(defaultFunSym, defaultFunDefSast) :: delayedParamDef :: Nil
 
       case None =>
         delayedParamDef :: Nil
