@@ -201,12 +201,7 @@ object Interpreter:
       defn.Predef_charToStr  ->       charToStr,
       defn.Predef_intToByte  ->       intToByte,
       defn.Predef_intToChar  ->       intToChar,
-      defn.Predef_intToStr   ->       intToStr,
-
-      defn.Predef_open$default   ->  open,
-      defn.Predef_stdin$default  ->  stdin,
-      defn.Predef_stdout$default ->  stdout,
-      defn.Predef_stderr$default ->  stderr,
+      defn.Predef_intToStr   ->       intToStr
     )
 
     for (sym, op) <- platformCalls do
@@ -214,29 +209,38 @@ object Interpreter:
 
     rootEnv
 
-  def stdin(args: List[Value]) = new PlatformObj((name: String, args: List[Value]) =>
+  def createRuntimeContextParams(): Map[Symbol, Value] =
+    val defn = Definitions.instance
+    Map(
+      defn.Predef_open   ->  open(),
+      defn.Predef_stdin  ->  stdin(),
+      defn.Predef_stdout ->  stdout(),
+      defn.Predef_stderr ->  stderr(),
+    )
+
+  def stdin() = new PlatformObj((name: String, args: List[Value]) =>
     assert(name == "readLine", name)
     val reader = new java.io.BufferedReader(new java.io.InputStreamReader(System.in))
     val res = reader.readLine()
     reader.close()
     StringVal(res) :: Nil
-  ) :: Nil
+  )
 
-  def stdout(args: List[Value]) = new PlatformObj((name: String, args: List[Value]) =>
+  def stdout() = new PlatformObj((name: String, args: List[Value]) =>
     assert(name == "write", name)
     val StringVal(content) :: Nil = args: @unchecked
     System.out.print(content)
     Nil
-  ) :: Nil
+  )
 
-  def stderr(args: List[Value]) = new PlatformObj((name: String, args: List[Value]) =>
+  def stderr() = new PlatformObj((name: String, args: List[Value]) =>
     assert(name == "write", name)
     val StringVal(content) :: Nil = args: @unchecked
     System.err.print(content)
     Nil
-  ) :: Nil
+  )
 
-  def open(args: List[Value]) = new PlatformObj((name: String, args: List[Value]) =>
+  def open() = new PlatformObj((name: String, args: List[Value]) =>
     assert(name == "apply", name)
     val StringVal(file) :: Nil = args: @unchecked
     val jfile = new java.io.RandomAccessFile(file, "rw")
@@ -264,7 +268,7 @@ object Interpreter:
         jfile.write(content.getBytes("utf-8"))
         Nil
     } :: Nil
-  ) :: Nil
+  )
 
   def exec(nss: List[Namespace], main: Symbol): Unit =
     val rootEnv = createRootEnv()
@@ -278,7 +282,9 @@ object Interpreter:
         rootEnv.bind(fun.symbol, FunVal(fun, rootEnv))
 
     val FunVal(fdef, env2) = rootEnv.resolve(main): @unchecked
-    val params = Map.empty[Symbol, Value]
+
+    val params = createRuntimeContextParams()
+
     call(fdef, args = Nil)(using env2, params)
 
   def exec(block: Block)(using Env, Params): List[Denotation] =

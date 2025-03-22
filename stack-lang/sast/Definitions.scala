@@ -71,12 +71,11 @@ final class Definitions(rootNameTable: NameTable):
   def isNumericType(tp: Type): Boolean =
     tp.refersAny(Predef_Byte :: Predef_Char :: Predef_Int :: Nil)
 
-
   val runtimeContextParams = Set(
-    Predef.termMember("open"),
-    Predef.termMember("stdin"),
-    Predef.termMember("stdout"),
-    Predef.termMember("stderr"),
+    Predef_open,
+    Predef_stdin,
+    Predef_stdout,
+    Predef_stderr,
   )
 
   def isRuntimeContextParam(sym: Symbol): Boolean =
