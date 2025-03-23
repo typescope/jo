@@ -46,15 +46,15 @@ object Tokens:
   class Indent(
     private val line: Int, private val lineIndent: Int, val tokenOffset: Int):
 
-    private def isFirstTokenOfLine: Boolean = lineIndent == tokenOffset
+    def isFirstOfLine: Boolean = lineIndent == tokenOffset
 
     /** Whether the other indentation is a unindentation to the current one */
     def isUnindent(other: Indent): Boolean =
-      other.isFirstTokenOfLine && other.tokenOffset <= this.lineIndent
+      other.isFirstOfLine && other.tokenOffset <= this.lineIndent
 
     /** Whether the other is an indentation to the current one */
     def isIndent(other: Indent): Boolean =
-      other.isFirstTokenOfLine && other.tokenOffset > this.lineIndent
+      other.isFirstOfLine && other.tokenOffset > this.lineIndent
 
     /** Whether the other is an indentation to the current one or both on the same line? */
     def isIndentOrSameLine(other: Indent): Boolean =
@@ -62,7 +62,7 @@ object Tokens:
 
     /** Is the other an indent with the same offset as line indentation of `this` */
     def isSameIndent(other: Indent): Boolean =
-      other.isFirstTokenOfLine && other.tokenOffset == this.lineIndent
+      other.isFirstOfLine && other.tokenOffset == this.lineIndent
       || other.line == this.line && other.tokenOffset == this.tokenOffset // same token
 
     /** Are the two tokens on the same line? */

@@ -29,6 +29,10 @@ fun foo() =
     6 p
       7 p      // expression continues to this line
 
+fun phraseIndent =
+  println "hello" allow stdin
+    if 3 > 5 then println "error"   // error
+
 fun fact2(n: Int) =
   if 0 == n then 1
   else fact2 (n - 1) * n

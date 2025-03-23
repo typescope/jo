@@ -555,7 +555,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
             // Phrase is supposed to consume the whole line and all indented
             val stopItem = peekItem()
-            if item.indent.isIndent(stopItem.indent) then
+            if item.indent.isFirstOfLine && item.indent.isIndent(stopItem.indent) then
               error("Unexpected indented token " + stopItem.token, stopItem.span.toPos)
               skipIndented(item.indent)
 
