@@ -308,16 +308,20 @@ class Namer(@constructorOnly reporter: Reporter):
       case expr: Ast.Expr  =>
         exprTyper.transform(expr)
 
-      case Ast.With(expr, args, allow) =>
+      case Ast.With(expr, args) =>
         val exprSast = transform(expr)
         val argsSast = for arg <- args yield transform(arg)
-        val allowSast = allow.map: ids =>
-          for
-            id <- ids
-          yield
-            transformParamRef(id)
+        With(exprSast, argsSast)(exprSast.tpe, word.span)
 
-        With(exprSast, argsSast, allowSast)(exprSast.tpe, word.span)
+      case Ast.Allow(expr, params) =>
+        val exprSast = transform(expr)
+        val paramRefs =
+          for
+            param <- params
+          yield
+            transformParamRef(param)
+
+        Allow(exprSast, paramRefs)(exprSast.tpe, word.span)
 
       case ifte: Ast.If =>
         transform(ifte).adapt

@@ -385,10 +385,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def withClause(expr: Word): Word =
     eat(Token.WITH)
     val args = oneOrMore(withArg, Token.COMMA)
-    if peek() == Token.ALLOW then
-      allowClause(expr, args)
-    else
-      With(expr, args, allow = None)(expr.span | args.last.span)
+    With(expr, args)(expr.span | args.last.span)
 
   def withArg(): WithArg =
     val id = qualid()
@@ -396,16 +393,16 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val rhs = expr()
     WithArg(id, rhs)(id.span | rhs.span)
 
-  def allowClause(expr: Word, bindings: List[WithArg]): Word =
+  def allowClause(expr: Word): Word =
     eat(Token.ALLOW)
     peek() match
       case Token.Ident("none") =>
         val token = next()
-        With(expr, bindings, allow = Some(Nil))(expr.span | token.span)
+        Allow(expr, params = Nil)(expr.span | token.span)
 
       case _ =>
         val params = oneOrMore(qualid, Token.COMMA)
-        With(expr, bindings, allow = Some(params))(expr.span | params.last.span)
+        Allow(expr, params)(expr.span | params.last.span)
 
   def typeAscribe(expr: Word): Word =
     eat(Token.AS)
@@ -537,11 +534,11 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
             def simplePhrase(word: Word): Word =
               val nextItem = peekItem()
-              if item.indent.isIndentOrSameLine(nextItem.indent) then
+              if !item.indent.isUnindent(nextItem.indent) then
                 if peek() == Token.WITH then
                   simplePhrase(withClause(word))
                 else if peek() == Token.ALLOW then
-                  simplePhrase(allowClause(word, bindings = Nil))
+                  simplePhrase(allowClause(word))
                 else if peek() == Token.AS then
                   simplePhrase(typeAscribe(word))
                 else

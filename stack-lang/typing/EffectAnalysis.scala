@@ -166,22 +166,20 @@ object EffectAnalysis:
         case TypeApply(fun, targs) =>
           this(fun)
 
-        case With(expr, args, allow) =>
+        case With(expr, args) =>
           val effsInner = this(expr)
           val effsArgs = args.foldLeft(zero): (acc, arg) =>
             acc ++ this(arg.rhs)
 
           val masked = args.map(_.paramRef.symbol)
           val unmasked = effsInner -- masked
-          val unmaskedAllowed =
-            allow match
-              case Some(allowed) =>
-                val allowedSet = allowed.map(_.symbol).toSet
-                unmasked.filter((k, _) => allowedSet.contains(k))
-              case _ =>
-                unmasked
 
-          effsArgs ++ unmaskedAllowed
+          unmasked ++ effsArgs
+
+        case Allow(expr, params) =>
+          val effsInner = this(expr)
+          val allowedSet = params.map(_.symbol).toSet
+          effsInner.filter((k, _) => allowedSet.contains(k))
 
         case Assign(ident, rhs) =>
           this(rhs)

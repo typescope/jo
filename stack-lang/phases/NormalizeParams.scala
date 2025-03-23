@@ -156,7 +156,7 @@ class NormalizeParams(using Reporter) extends Phase[NormalizeParams.Context]:
 
       else
         val args = synthesizeNoneBindings(defaultEffs, fdef2.body.span)
-        val body2 = With(fdef2.body, args, allow = None)(fdef2.body.tpe, fdef2.body.span)
+        val body2 = With(fdef2.body, args)(fdef2.body.tpe, fdef2.body.span)
         fdef2.copy(body = body2)(fdef.span)
 
     else
@@ -201,6 +201,28 @@ class NormalizeParams(using Reporter) extends Phase[NormalizeParams.Context]:
       WithArg(paramRef, noneValue)(span)
 
   /** Check `allow`-clause */
+  override  def transformAllow(allowExpr: Allow)(using ctx: Context): Word =
+    val expr2 = transform(allowExpr.expr)
+
+    given Source = ctx.owner.sourcePos.source
+    val effsInner = EffectAnalysis.effects(allowExpr.expr)(using ctx.cache)
+    val allowed = allowExpr.params.map(_.symbol).toSet
+
+    val unprovided = effsInner -- allowed
+
+    for
+      (eff, trace) <- unprovided if !eff.is(Flags.Default)
+    do
+      Reporter.error("Parameter not allowed: " + eff, allowExpr.expr.pos, trace)
+
+    val defaultEffs = unprovided.keys.filter(_.is(Flags.Default)).toList
+    if defaultEffs.isEmpty then
+      expr2
+
+    else
+      val argsAdded = synthesizeNoneBindings(defaultEffs, allowExpr.span)
+      With(expr2, argsAdded)(allowExpr.tpe, allowExpr.span)
+
   override  def transformWith(withExpr: With)(using ctx: Context): Word =
     /** rewrite `with a = rhs` to `with a$option = #Some rhs` */
     def rewireArgs(args: List[WithArg]): List[WithArg] =
@@ -216,44 +238,9 @@ class NormalizeParams(using Reporter) extends Phase[NormalizeParams.Context]:
     val expr2 = transform(withExpr.expr)
     val args2 = withExpr.args.map: arg =>
       arg.copy(arg.paramRef, transform(arg.rhs))(arg.span)
-    val withExpr2 = With(expr2, args2, withExpr.allow)(expr2.tpe, withExpr.span)
 
-    withExpr2.allow match
-      case Some(ids) =>
-        given Source = ctx.owner.sourcePos.source
-        val zero = Map.empty[Symbol, EffectAnalysis.Trace]
-        val effsInner = EffectAnalysis.effects(withExpr.expr)(using ctx.cache)
-        val effsArgs = withExpr.args.foldLeft(zero): (acc, arg) =>
-          acc ++ EffectAnalysis.effects(arg.rhs)(using ctx.cache)
-
-        val masked = withExpr.args.map(_.paramRef.symbol)
-        val allowed = ids.map(_.symbol).toSet
-
-        // println("effsInner = " + effsInner)
-        // println("effsArgs = " + effsArgs)
-        // println("masked = " + masked)
-
-        val unprovided = (effsInner -- masked) ++ effsArgs -- allowed
-
-        for
-          (eff, trace) <- unprovided if !eff.is(Flags.Default)
-        do
-          Reporter.error("Parameter not allowed: " + eff, withExpr.expr.pos, trace)
-
-        val defaultEffs = unprovided.keys.filter(_.is(Flags.Default)).toList
-        if defaultEffs.isEmpty then
-          withExpr2
-
-        else
-          val args2 = rewireArgs(withExpr2.args)
-          val argsAdded = synthesizeNoneBindings(defaultEffs, withExpr2.span)
-
-          withExpr2.copy(args = args2 ++ argsAdded)(withExpr2.tpe, withExpr2.span)
-
-      case _ =>
-        val args2 = rewireArgs(withExpr2.args)
-        withExpr2.copy(args = args2)(withExpr2.tpe, withExpr2.span)
-    end match
+    val args3 = rewireArgs(args2)
+    With(expr2, args3)(expr2.tpe, withExpr.span)
 
   /** Capture all context parameters used in the methods of an object
     *
@@ -308,7 +295,7 @@ class NormalizeParams(using Reporter) extends Phase[NormalizeParams.Context]:
                 WithArg(paramRef, Ident(vdef.symbol)(span))(span)
             end match
           end for
-        val body2 = With(this(ddef.body), args, allow = None)(ddef.body.tpe, ddef.body.span)
+        val body2 = With(this(ddef.body), args)(ddef.body.tpe, ddef.body.span)
         newDefs += ddef.copy(body = body2)(ddef.span)
     end for
 

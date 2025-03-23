@@ -30,6 +30,8 @@ object SastOps:
 
         case withExpr: With => transformWith(withExpr)
 
+        case allowExpr: Allow => transformAllow(allowExpr)
+
         case assign: Assign => transformAssign(assign)
 
         case fieldAssign: FieldAssign => transformFieldAssign(fieldAssign)
@@ -64,6 +66,8 @@ object SastOps:
     def transformTypeApply(tapply: TypeApply)(using Context): Word = recur(tapply)
 
     def transformWith(withExpr: With)(using Context): Word = recur(withExpr)
+
+    def transformAllow(allowExpr: Allow)(using Context): Word = recur(allowExpr)
 
     def transformAssign(assign: Assign)(using Context): Word = recur(assign)
 
@@ -117,12 +121,15 @@ object SastOps:
         case TypeApply(fun, targs) =>
           TypeApply(this(fun), targs)(word.tpe, word.span)
 
-        case With(expr, args, only) =>
+        case With(expr, args) =>
           // Don't map paramRef --- the client code should match this tree
           val args2 = args.map: arg =>
             arg.copy(arg.paramRef, this(arg.rhs))(arg.span)
 
-          With(this(expr), args2, only)(word.tpe, word.span)
+          With(this(expr), args2)(word.tpe, word.span)
+
+        case Allow(expr, params) =>
+          Allow(this(expr), params)(word.tpe, word.span)
 
         case Assign(id, rhs) =>
           // Don't map id --- the client code should match Assign
@@ -194,11 +201,13 @@ object SastOps:
         case TypeApply(fun, targs) =>
           this(fun)
 
-        case With(expr, args, allow) =>
+        case With(expr, args) =>
           args.foreach: arg =>
-            this(arg.paramRef)
             this(arg.rhs)
 
+          this(expr)
+
+        case Allow(expr, params) =>
           this(expr)
 
         case Assign(ident, rhs) =>

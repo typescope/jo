@@ -44,7 +44,7 @@ extends Phase[Symbol]:
         word
 
   override def transformWith(word: With)(using ctx: Context): Word =
-    val With(expr, args, _) = word
+    val With(expr, args) = word
     given Source = ctx.sourcePos.source
 
     val paramRefs = args.map(_.paramRef)

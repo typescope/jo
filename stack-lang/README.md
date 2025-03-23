@@ -82,12 +82,13 @@ Abstract Syntax
     apply  = word args.
     args   = LPAREN [expr {COMMA expr}] RPAREN.
 
-    simple_phrase = expr | type_ascribe | with_clause
+    simple_phrase = expr | type_ascribe | with_clause | allow_clause.
 
-    with_clause = simple_phrase [WITH with_bindings] [ALLOW qualid {COMMA qualid}].
-
+    with_clause = simple_phrase WITH with_bindings
     with_bindings = with_binding {COMMA with_binding}.
     with_binding = qualid EQL expr.
+
+    allow_clause = simple_phrase ALLOW qualid {COMMA qualid}.
 
     fence   = LPAREN phrase RPAREN.
     assign  = ident EQL block.

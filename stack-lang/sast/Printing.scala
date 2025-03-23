@@ -113,21 +113,21 @@ object Printing:
       case TypeApply(fun, targs) =>
         fun ~ "[" ~ rep(targs, Text(", ")) ~ "]"
 
-      case With(expr, args, allow) =>
-        val allowText =
-          allow match
-            case None => Text.Empty
-            case Some(ids) =>
-              if ids.isEmpty then Text(" allow none")
-              else " allow" ~ rep(ids, Text(", "))
-
+      case With(expr, args) =>
         val withText =
           if args.isEmpty then
             Text.Empty
           else
             " with " ~ indent(rep(args, Text.BreakLine))
 
-        "(" ~ expr ~ withText ~ allowText ~ ")"
+        "(" ~ expr ~ withText ~ ")"
+
+      case Allow(expr, params) =>
+        val paramText =
+          if params.isEmpty then Text("none")
+          else rep(params, Text(", "))
+
+        "(" ~ expr ~ " allow " ~ paramText ~ ")"
 
       case Assign(id, rhs) =>
         id ~ " <- " ~ rhs
