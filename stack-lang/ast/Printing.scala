@@ -150,7 +150,7 @@ object Printing:
           else
             " with " ~ indent(rep(args, Text.BreakLine))
 
-        expr ~ withText ~ allowText
+        "(" ~ expr ~ withText ~ allowText ~ ")"
 
       case TypeApply(fun, targs) =>
         fun ~ "[" ~ rep(targs, Text(", ")) ~ "]"

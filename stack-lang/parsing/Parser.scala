@@ -82,7 +82,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       throw new SyntaxError
     next()
 
-  def skipLine(limitIndent: Indent) =
+  def skipIndented(limitIndent: Indent) =
     var item = peekItem()
     while
       !limitIndent.isUnindent(item.indent) && item.token != Token.EOF && {
@@ -107,7 +107,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val peekedItem = peekItem()
     if
       peekedItem.token == Token.END
-      && peekedItem.indent.isSame(indent)
+      && peekedItem.indent.isSameIndent(indent)
     then
       eat(Token.END)
 
@@ -115,9 +115,16 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def eatCommaOpt() =
     if peek() == Token.COMMA then next()
 
-  def checkAlign(reference: TokenInfo, item: TokenInfo): Unit =
-    if !reference.indent.isSame(item.indent) then
-      warn(s"${item.token} is not aligned with ${reference.token}", item.span.toPos)
+  def checkAlign(reference: TokenInfo, item: TokenInfo, allowSameLine: Boolean = false): Unit =
+    val refIndent = reference.indent
+    val itemIndent = item.indent
+
+    if
+      !refIndent.isSameIndent(itemIndent)
+      && !(allowSameLine && refIndent.isSameLine(itemIndent))
+    then
+      val diagnosis = s"expect offset = ${refIndent.tokenOffset}, found = ${itemIndent.tokenOffset}"
+      warn(s"${item.token} is not aligned with ${reference.token}, $diagnosis", item.span.toPos)
 
   def repeated[T](skipToIfError: Set[Token])(parseItem: => Option[T]): List[T] =
     val items = new mutable.ArrayBuffer[T]
@@ -349,22 +356,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   /** Parse a block within the indentation */
   def block(limitIndent: Indent): Block =
-    val blk = blockRest(mutable.ArrayBuffer(), limitIndent)
-    // check alignment of phrases in a block
-    blk.phrases match
-      case first :: rest =>
-        val refPos = first.pos
-        for phrs <- rest do
-          if
-            phrs.pos.startLineColumn != refPos.startLineColumn
-            || phrs.pos.startLine == refPos.startLine
-          then
-            val diagnosis = s"expect offset = ${refPos.startLineColumn}, found = ${phrs.pos.startLineColumn}"
-            error(s"The phrase is not vertically aligned in block, $diagnosis", phrs.pos)
-      case _ =>
-    blk
+    blockRest(mutable.ArrayBuffer(), limitIndent, peekItem())
 
-  def blockRest(phrases: mutable.ArrayBuffer[Word], limitIndent: Indent): Block =
+  def blockRest(phrases: mutable.ArrayBuffer[Word], limitIndent: Indent, refToken: TokenInfo): Block =
     val item = peekItem()
     def finalResult: Block =
       if phrases.isEmpty then
@@ -375,14 +369,18 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     if limitIndent.isUnindent(item.indent) then finalResult
     else
+
       try
         phrase() match
-          case Some(phrs) => blockRest(phrases += phrs, limitIndent)
-          case None       => finalResult
+          case Some(phrase) =>
+            checkAlign(refToken, item)
+            blockRest(phrases += phrase, limitIndent, refToken)
+
+          case None => finalResult
 
       catch case error: SyntaxError =>
-        skipLine(limitIndent)
-        blockRest(phrases, limitIndent)
+        skipIndented(limitIndent)
+        blockRest(phrases, limitIndent, refToken)
 
   def withClause(expr: Word): Word =
     eat(Token.WITH)
@@ -428,8 +426,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def exprRest(words: mutable.ArrayBuffer[Word], lineIndent: Indent): Word =
     val item = peekItem()
 
-    val isFirstTokenInLine = item.span.toPos.startLine != words.last.pos.endLine
-
     def finalResult: Word =
       if words.size == 1 then
         words.head
@@ -437,10 +433,10 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         val span = words.head.span | words.last.span
         Expr(words.toList)(span)
 
-    if item.token == Token.EOF || lineIndent.isUnindent(item.indent) && isFirstTokenInLine then
+    if item.token == Token.EOF || lineIndent.isUnindent(item.indent) then
       finalResult
 
-    else if lineIndent.isIndent(item.indent) && isFirstTokenInLine then
+    else if lineIndent.isIndent(item.indent) then
       val Block(phrases) = block(lineIndent)
       words ++= phrases
       finalResult
@@ -538,14 +534,32 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
             assign(w.asInstanceOf[RefTree], item.indent)
           else
             val expr = exprRest(mutable.ArrayBuffer(w), item.indent)
-            if peek() == Token.WITH then
-              withClause(expr)
-            else if peek() == Token.ALLOW then
-              allowClause(expr, bindings = Nil)
-            else if peek() == Token.AS then
-              typeAscribe(expr)
-            else
-              expr
+
+            def simplePhrase(word: Word): Word =
+              val nextItem = peekItem()
+              if item.indent.isIndentOrSameLine(nextItem.indent) then
+                if peek() == Token.WITH then
+                  simplePhrase(withClause(word))
+                else if peek() == Token.ALLOW then
+                  simplePhrase(allowClause(word, bindings = Nil))
+                else if peek() == Token.AS then
+                  simplePhrase(typeAscribe(word))
+                else
+                  word
+              else
+                word
+              end if
+            end simplePhrase
+
+            val phraseRes = simplePhrase(expr)
+
+            // Phrase is supposed to consume the whole line and all indented
+            val stopItem = peekItem()
+            if item.indent.isIndent(stopItem.indent) then
+              error("Unexpected indented token " + stopItem.token, stopItem.span.toPos)
+              skipIndented(item.indent)
+
+            phraseRes
 
   def typ(): TypeTree =
     val startItem = peekItem()
@@ -721,14 +735,14 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val cond = expr()
     val thenItem = eat(Token.THEN)
     val thenp = block(thenItem.indent)
-    checkAlign(ifItem, thenItem)
+    checkAlign(ifItem, thenItem, allowSameLine = true)
 
     // else is optional
     val nextItem = peekItem()
     val elsep =
       if nextItem.token == Token.ELSE then
         eat(Token.ELSE)
-        checkAlign(ifItem, nextItem)
+        checkAlign(ifItem, nextItem, allowSameLine = true)
         block(nextItem.indent)
       else
         Block(phrases = Nil)(thenp.span)

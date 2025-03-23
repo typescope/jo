@@ -30,7 +30,13 @@ fun main =
 
   println
     intToStr
-      testCounter() allow none with counter = newCounter(4) // 0
+      testCounter() allow none
+        with counter = newCounter(4) // 0
+
+  println
+    intToStr
+      testCounter() allow none with
+        counter = newCounter(4) // 0
 
   makeFun()() p     // 0
 

@@ -41,17 +41,32 @@ object Tokens:
     *
     * - For case definitions, the limit is the line indentaion of `case`.
     *
-    * The indentation info is the same for all tokens of the same line.
+    * The line indentation info is the same for all tokens of the same line.
     */
-  class Indent(private val line: Int, private val indent: Int):
+  class Indent(
+    private val line: Int, private val lineIndent: Int, val tokenOffset: Int):
+
+    private def isFirstTokenOfLine: Boolean = lineIndent == tokenOffset
+
     /** Whether the other indentation is a unindentation to the current one */
     def isUnindent(other: Indent): Boolean =
-      this.line != other.line && other.indent <= this.indent
+      other.isFirstTokenOfLine && other.tokenOffset <= this.lineIndent
 
     /** Whether the other is an indentation to the current one */
     def isIndent(other: Indent): Boolean =
-      this.line != other.line && other.indent > this.indent
+      other.isFirstTokenOfLine && other.tokenOffset > this.lineIndent
 
-    def isSame(other: Indent): Boolean = this.indent == other.indent
+    /** Whether the other is an indentation to the current one or both on the same line? */
+    def isIndentOrSameLine(other: Indent): Boolean =
+      isSameLine(other) || isIndent(other)
 
-    override def toString: String = "line = " + line + ", indent = " + indent
+    /** Is the other an indent with the same offset as line indentation of `this` */
+    def isSameIndent(other: Indent): Boolean =
+      other.isFirstTokenOfLine && other.tokenOffset == this.lineIndent
+      || other.line == this.line && other.tokenOffset == this.tokenOffset // same token
+
+    /** Are the two tokens on the same line? */
+    def isSameLine(other: Indent): Boolean = this.line == other.line
+
+    override def toString: String =
+      "line = " + line + ", lineIndent = " + lineIndent + ", tokenOffset = " + tokenOffset
