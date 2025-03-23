@@ -41,16 +41,17 @@ class LowerContextParams(runtime: NativeRuntime) extends phases.Phase[Symbol]:
       case Ident(sym) if sym.isAllOf(Flags.Context | Flags.Param) =>
         // Use AnyType instead String to avoid creating String and make sure its address is static
         // At runtime, it's a byte array initialized in the constant area
-        val arg = Encoded(StringLit(sym.fullName)(AnyType, word.span))(AddrType)
-        val fun = Ident(runtime.ParamSupport_getParam)(word.span)
-        val app = Encoded(Apply(fun, arg :: Nil)(AnyType, word.span))(word.tpe)
-        app
+        val paramName = sym.fullName
+        val key = Encoded(StringLit(paramName)(AnyType, word.span))(AddrType)
+        // The static analysis ensures that the value is available
+        val getParamFun = Ident(runtime.ParamSupport_getParam)(word.span)
+        Encoded(Apply(getParamFun, key :: Nil)(AnyType, word.span))(word.tpe)
 
       case _ =>
         word
 
   override def transformWith(word: With)(using ctx: Context): Word =
-    val With(expr, args, _) = word
+    val With(expr, args) = word
     given Source = ctx.sourcePos.source
 
     val paramRefs = args.map(_.paramRef)

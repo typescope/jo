@@ -25,7 +25,11 @@ fun js(s: String): Bottom = abort("primitive js")
 //
 
 fun start(): Unit =
-  mainStub
+  mainStub with
+    open   = createFileOpener(),
+    stdin  = createStdIn(),
+    stdout = createStdOut(),
+    stderr = createStdErr()
 
 fun mainStub(): Unit = abort "error mainStub"
 
@@ -161,7 +165,7 @@ type Stat = object {
   val size: Int
 }
 
-fun openFile = (filePath: String) =>
+fun createFileOpener() = (filePath: String) =>
   val mode = if existsSync filePath then "r+" else "w+"
   val fd = openSync filePath mode
   object {

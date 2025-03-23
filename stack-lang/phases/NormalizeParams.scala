@@ -1,9 +1,11 @@
 package phases
 
-import ast.Positions.Source
+import ast.Positions.*
 import sast.*
 import sast.Sast.*
+import sast.Types.*
 import sast.Symbols.*
+import typing.Desugaring
 import typing.EffectAnalysis
 import reporting.Reporter
 
@@ -11,22 +13,122 @@ import scala.collection.mutable
 
 /** This phase normalize the usage of context parameters
   *
-  * - Optional context parameters are bound at program entry
+  * - Optional context parameters are desugared to normal context parameters
   * - All transitive captures of context parameters are made explicit in objects
   * - Checks are performed for `allow`-clauses
+  *
+  * The desugaring for optional context parameters
+  *
+  *    param a: T = rhs
+  *
+  * was desugered in Namer to
+  *
+  *    <Context> <Default> param a: T
+  *
+  *    <Default> a$default: T = rhs
+  *
+  *
+  * and in this phase access to `a` is desugared to `a$value`
+  *
+  *    param a$option: Option[T] // automatically bound to None when a necessary binding is needed
+  *
+  *    fun a$value: T =
+  *      a$option match
+  *        case #None   => a$default
+  *        case #Some v => v
+  *
+  * and binding to `with a = e` is desugared to `with a$option = #Some e`
+  *
+  * The effect check will happen for `a`, the semantics will only use
+  * `a$option`.
   */
 class NormalizeParams(using Reporter) extends Phase[NormalizeParams.Context]:
   val contextObject = NormalizeParams.CacheContext
+
+  val NoneType = TagType("None", params = Nil)
 
   override def transform(nss: List[Namespace]): List[Namespace] =
     given ctx: Context = contextObject.newContext()
     for
       ns <- nss
-      case fdef: FunDef <- ns.defs
+      defn <- ns.defs
     do
-      ctx.cache.code(fdef.symbol) = fdef
+      defn match
+        case fdef: FunDef =>
+          ctx.cache.code(fdef.symbol) = fdef
+
+        case ParamDef(param, _) if param.is(Flags.Default) =>
+          // First synthesize all symbols
+          val optType = UnionType(
+            NoneType
+              :: TagType("#Some", NamedInfo("value", param.info) :: Nil)
+              :: Nil
+          )
+
+          val optionParamSym =
+            Symbol.createSymbol(param.name + "$option", optType, Flags.Context | Flags.Param, param.owner, param.sourcePos)
+
+          val valueFunInfo = param.defaultFunction.info
+          val valueFunSym =
+            Symbol.createSymbol(param.name + "$value", valueFunInfo, Flags.Fun, param.owner, param.sourcePos)
+
+          ns.info.define(optionParamSym)
+          ns.info.define(valueFunSym)
+
+        case _ =>
+      end match
+    end for
 
     for ns <- nss yield transformNamespace(ns)
+
+  /** Synthesize the following function for context parameter `a`:
+    *
+    *    fun a$value: T =
+    *      a$option match
+    *        case #None   => a$default
+    *        case #Some v => v
+    */
+  private def createValueFunction(pdef: ParamDef): FunDef =
+    val param = pdef.symbol
+    val valueFunSym = pdef.symbol.valueFunction
+    val defaultFunSym = pdef.symbol.defaultFunction
+    val optionParamSym = pdef.symbol.optionParam
+
+    val valueSym = Symbol.createValueSymbol(pdef.name + "Value", optionParamSym.info, valueFunSym, param.sourcePos)
+    val vdef = ValDef(valueSym, Ident(optionParamSym)(pdef.span))(pdef.span)
+
+    val noneTypeEncoded = Desugaring.encodeTagType(NoneType)
+    val refOpt = Encoded(Ident(valueSym)(pdef.span))(noneTypeEncoded)
+    val cond = Desugaring.testVariantTag(refOpt, "None", pdef.span)
+    val trueBranch = Apply(Ident(defaultFunSym)(pdef.span), args = Nil)(param.info, pdef.span)
+
+    val someType = TagType("Some", params = NamedInfo("value", param.info) :: Nil)
+    val falseBranch = Desugaring.selectVariantField(refOpt, someType, "value", pdef.span)
+
+    val ifStat = If(cond, trueBranch, falseBranch)(param.info, pdef.span)
+
+    val body = Block(vdef :: ifStat :: Nil)(param.info, pdef.span)
+
+    FunDef(valueFunSym, tparams = Nil, params = Nil, body)(pdef.span)
+
+  override def transformNamespace(ns: Namespace)(using ctx: Context): Namespace =
+    val defs = ns.defs.flatMap:
+      case fdef: FunDef =>
+        given Context = contextObject.newContext(ns.symbol, ctx)
+        transformFunDef(fdef) :: Nil
+
+      case pdef: ParamDef if pdef.symbol.is(Flags.Default) =>
+        val optionParamSym = pdef.symbol.optionParam
+        val tpt = TypeTree(optionParamSym.info)(pdef.span)
+        val optionParamDef = ParamDef(optionParamSym, tpt)(pdef.span)
+        val valueFunDef = createValueFunction(pdef)
+
+        pdef :: optionParamDef :: valueFunDef :: Nil
+
+      case defn => defn :: Nil
+
+
+    Namespace(ns.symbol, ns.imports, defs)(ns.span)
 
   /** Bind optional context parameters at program entry.
     *
@@ -36,67 +138,109 @@ class NormalizeParams(using Reporter) extends Phase[NormalizeParams.Context]:
     */
   override  def transformFunDef(fdef: FunDef)(using ctx: Context): FunDef =
     if !fdef.symbol.isLocal && fdef.name == "main" then
+      val defn = Definitions.instance
+
       val effs = EffectAnalysis.effects(fdef.symbol)(using ctx.cache)
       val fdef2 = super.transformFunDef(fdef)
 
       val pos = fdef.symbol.sourcePos
       for
-        (eff, trace) <- effs if !eff.is(Flags.Default)
+        (eff, trace) <- effs
+        if !eff.is(Flags.Default) && !defn.isRuntimeContextParam(eff)
       do
         Reporter.error("Context parameter not provided: " + eff, pos, trace)
 
       val defaultEffs = effs.keys.filter(_.is(Flags.Default)).toList
-      if defaultEffs.isEmpty then fdef2
-      else
-        val span = fdef.body.span
-        val args = defaultEffs.map: eff =>
-          val defaultFunSym = eff.defaultFunction
-          val paramRef = Ident(eff)(span)
-          val defaultFunRef = Ident(defaultFunSym)(span)
-          val rhs = Apply(defaultFunRef, args = Nil)(eff.info, span)
-          WithArg(paramRef, rhs)(span)
+      if defaultEffs.isEmpty then
+        fdef2
 
-        val body2 = With(fdef2.body, args, allow = None)(fdef2.body.tpe, span)
+      else
+        val args = synthesizeNoneBindings(defaultEffs, fdef2.body.span)
+        val body2 = With(fdef2.body, args)(fdef2.body.tpe, fdef2.body.span)
         fdef2.copy(body = body2)(fdef.span)
 
     else
-      if fdef.symbol.isLocal then ctx.cache.code(fdef.symbol) = fdef
+      val symbol = fdef.symbol
+      if symbol.isLocal then ctx.cache.code(symbol) = fdef
 
-      if fdef.symbol.isFunction then
+      if symbol.isFunction then
         fdef.receives match
           case Some(params) =>
             val allowed = params.toSet
-            val effs = EffectAnalysis.effects(fdef.symbol)(using ctx.cache)
-            val pos = fdef.symbol.sourcePos
+            val effs = EffectAnalysis.effects(symbol)(using ctx.cache)
+            val pos = symbol.sourcePos
             for (eff, trace) <- effs if !allowed.contains(eff) do
               Reporter.error("Parameter not allowed: " + eff, pos, trace)
 
           case None =>
+            if symbol.is(Flags.Default) then
+              val effs = EffectAnalysis.effects(symbol)(using ctx.cache)
+              val pos =
+                given Source = symbol.sourcePos.source
+                fdef.body.pos
+
+              for (eff, trace) <- effs do
+                Reporter.error("Parameter not allowed for default values: " + eff, pos, trace)
 
       super.transformFunDef(fdef)
 
+  override  def transformIdent(ident: Ident)(using ctx: Context): Word =
+    val sym = ident.symbol
+    if sym.isAllOf(Flags.Context | Flags.Default) then
+      Apply(Ident(sym.valueFunction)(ident.span), args = Nil)(sym.info, ident.span)
+
+    else
+      ident
+
+  private def synthesizeNoneBindings(params: List[Symbol], span: Span): List[WithArg] =
+    params.map: param =>
+      val optionParamSym = param.optionParam
+      val paramRef = Ident(optionParamSym)(span)
+      val noneType = TagType("None", params = Nil)
+      val noneValue = Desugaring.encodeVariant(noneType, Nil, span, span)
+      WithArg(paramRef, noneValue)(span)
+
   /** Check `allow`-clause */
+  override  def transformAllow(allowExpr: Allow)(using ctx: Context): Word =
+    val expr2 = transform(allowExpr.expr)
+
+    given Source = ctx.owner.sourcePos.source
+    val effsInner = EffectAnalysis.effects(allowExpr.expr)(using ctx.cache)
+    val allowed = allowExpr.params.map(_.symbol).toSet
+
+    val unprovided = effsInner -- allowed
+
+    for
+      (eff, trace) <- unprovided if !eff.is(Flags.Default)
+    do
+      Reporter.error("Parameter not allowed: " + eff, allowExpr.expr.pos, trace)
+
+    val defaultEffs = unprovided.keys.filter(_.is(Flags.Default)).toList
+    if defaultEffs.isEmpty then
+      expr2
+
+    else
+      val argsAdded = synthesizeNoneBindings(defaultEffs, allowExpr.span)
+      With(expr2, argsAdded)(allowExpr.tpe, allowExpr.span)
+
   override  def transformWith(withExpr: With)(using ctx: Context): Word =
-    withExpr.allow match
-      case Some(ids) =>
-        given Source = ctx.owner.sourcePos.source
-        val zero = Map.empty[Symbol, EffectAnalysis.Trace]
-        val effsInner = EffectAnalysis.effects(withExpr.expr)(using ctx.cache)
-        val effsArgs = withExpr.args.foldLeft(zero): (acc, arg) =>
-          acc ++ EffectAnalysis.effects(arg.rhs)(using ctx.cache)
+    /** rewrite `with a = rhs` to `with a$option = #Some rhs` */
+    def rewireArgs(args: List[WithArg]): List[WithArg] =
+      for arg @ WithArg(paramRef, rhs) <- args yield
+        if paramRef.symbol.is(Flags.Default) then
+          val optionParamRef = Ident(paramRef.symbol.optionParam)(paramRef.span)
+          val someType = TagType("Some", NamedInfo("value", paramRef.symbol.info) :: Nil)
+          val rhs2 = Desugaring.encodeVariant(someType, rhs :: Nil, paramRef.span, rhs.span)
+          WithArg(optionParamRef, rhs2)(arg.span)
+        else
+          arg
 
-        val masked = withExpr.args.map(_.paramRef.symbol)
-        val allowed = ids.map(_.symbol).toSet
+    val expr2 = transform(withExpr.expr)
+    val args2 = withExpr.args.map: arg =>
+      arg.copy(arg.paramRef, transform(arg.rhs))(arg.span)
 
-        // println("effsInner = " + effsInner)
-        // println("effsArgs = " + effsArgs)
-        // println("masked = " + masked)
-
-        for (eff, trace) <- (effsInner -- masked) ++ effsArgs if !allowed.contains(eff) do
-          Reporter.error("Parameter not allowed: " + eff, withExpr.expr.pos, trace)
-      case _ =>
-    end match
-    withExpr
+    val args3 = rewireArgs(args2)
+    With(expr2, args3)(expr2.tpe, withExpr.span)
 
   /** Capture all context parameters used in the methods of an object
     *
@@ -137,7 +281,9 @@ class NormalizeParams(using Reporter) extends Phase[NormalizeParams.Context]:
         newDefs += ddef
       else
         val args =
-          for eff <- effs yield
+          for effRaw <- effs yield
+            val eff = if effRaw.is(Flags.Default) then effRaw.optionParam else effRaw
+
             val paramRef = Ident(eff)(span)
             aliasMap.get(eff) match
               case None =>
@@ -149,7 +295,7 @@ class NormalizeParams(using Reporter) extends Phase[NormalizeParams.Context]:
                 WithArg(paramRef, Ident(vdef.symbol)(span))(span)
             end match
           end for
-        val body2 = With(this(ddef.body), args, allow = None)(ddef.body.tpe, ddef.body.span)
+        val body2 = With(this(ddef.body), args)(ddef.body.tpe, ddef.body.span)
         newDefs += ddef.copy(body = body2)(ddef.span)
     end for
 

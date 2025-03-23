@@ -75,7 +75,11 @@ object Types:
 
     def hasApplyMethod: Boolean =
       TypeOps.approx(this, isUp = true) match
-        case objType: ObjectType => objType.termMember("apply").isProcType
+        case objType: ObjectType =>
+          objType.getMemberType("apply") match
+            case Some(tp) => tp.isProcType
+            case None => false
+
         case _ => false
 
     def getFunctionApplyType: Option[ProcType] =
@@ -134,7 +138,10 @@ object Types:
         case tp =>
           None
 
-    def termMember(name: String): Type = getTermMember(name).get
+    def termMember(name: String): Type =
+      getTermMember(name) match
+        case Some(tp) => tp
+        case None => throw new Exception(s"No member $name in " + this.show)
 
     def hasTermMember(name: String): Boolean = getTermMember(name).nonEmpty
 

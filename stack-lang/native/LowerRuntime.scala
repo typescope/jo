@@ -53,12 +53,7 @@ class LowerRuntime(runtime: NativeRuntime) extends phases.Phase[Unit]:
     defn.Predef_charToStr  -> runtime.Core_charToStr,
     defn.Predef_intToByte  -> runtime.Core_intToByte,
     defn.Predef_intToChar  -> runtime.Core_intToChar,
-    defn.Predef_intToStr   -> runtime.Core_intToStr,
-
-    defn.Predef_open$default   -> runtime.Core_openFile,
-    defn.Predef_stdin$default  -> runtime.Core_createStdIn,
-    defn.Predef_stdout$default -> runtime.Core_createStdOut,
-    defn.Predef_stderr$default -> runtime.Core_createStdErr,
+    defn.Predef_intToStr   -> runtime.Core_intToStr
   )
 
   override def transformApply(app: Apply)(using ctx: Context): Word =

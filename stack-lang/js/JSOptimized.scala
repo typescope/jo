@@ -250,7 +250,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
       case _: TypeDef =>
         cont()
 
-      case _: ValDef | _: FunDef |  _: With | _: Object =>
+      case _: ValDef | _: FunDef |  _: With | _: Allow | _: Object =>
         throw new Exception("Unexpected " + word)
 
   /** Compile a function */

@@ -204,6 +204,9 @@ object Scanner:
     /** Indentation of the current line */
     private var lineIndentation: Int = countStartingSpace()
 
+    /** The offset of the current line */
+    private var curLineOffset: Int = index
+
     /** Starting offset for the current token */
     private var curTokenStart: Int = -1
 
@@ -219,6 +222,7 @@ object Scanner:
       val c = curChar()
       index += 1
       if c == '\n' then
+        curLineOffset = index
         lineNum += 1
         source.addLineOffset(index)
         lineIndentation = countStartingSpace()
@@ -279,4 +283,6 @@ object Scanner:
 
     def lastCharSpan(): Span = Span(index - 1, 1)
 
-    def lineIndent(): Indent = Indent(lineNum, lineIndentation)
+    def lineIndent(): Indent =
+      val tokenIndent = curTokenStart - curLineOffset
+      Indent(lineNum, lineIndentation, tokenIndent)

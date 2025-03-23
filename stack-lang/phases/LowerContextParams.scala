@@ -35,16 +35,16 @@ extends Phase[Symbol]:
   override def transformIdent(word: Ident)(using ctx: Context): Word =
     word match
       case Ident(sym) if sym.isAllOf(Flags.Context | Flags.Param) =>
-        val arg = StringLit(sym.fullName)(StringType, word.span)
-        val fun = Ident(getParamSym)(word.span)
-        val app = Encoded(Apply(fun, arg :: Nil)(AnyType, word.span))(word.tpe)
-        app
+        val key = StringLit(sym.fullName)(StringType, word.span)
+        val getParamFun = Ident(getParamSym)(word.span)
+        val getParamCall = Encoded(Apply(getParamFun, key :: Nil)(AnyType, word.span))(word.tpe)
+        getParamCall
 
       case _ =>
         word
 
   override def transformWith(word: With)(using ctx: Context): Word =
-    val With(expr, args, _) = word
+    val With(expr, args) = word
     given Source = ctx.sourcePos.source
 
     val paramRefs = args.map(_.paramRef)

@@ -27,12 +27,7 @@ class LowerRuntime(runtime: JSRuntime) extends phases.Phase[Unit]:
     defn.Predef_charToStr  -> runtime.JS_charToStr,
     defn.Predef_intToByte  -> runtime.JS_intToByte,
     defn.Predef_intToChar  -> runtime.JS_intToChar,
-    defn.Predef_intToStr   -> runtime.JS_intToStr,
-
-    defn.Predef_open$default   -> runtime.JS_openFile,
-    defn.Predef_stdin$default  -> runtime.JS_createStdIn,
-    defn.Predef_stdout$default -> runtime.JS_createStdOut,
-    defn.Predef_stderr$default -> runtime.JS_createStdErr,
+    defn.Predef_intToStr   -> runtime.JS_intToStr
   )
 
   override def transformApply(app: Apply)(using ctx: Context): Word =

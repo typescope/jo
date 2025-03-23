@@ -47,11 +47,6 @@ class JSRuntime(runtimeRootNameTable: NameTable, main: Symbol):
   val JS_String_plus = JS.termMember("String_plus")
   val JS_String_equals = JS.termMember("String_equals")
 
-  val JS_openFile = JS.termMember("openFile")
-  val JS_createStdIn = JS.termMember("createStdIn")
-  val JS_createStdOut = JS.termMember("createStdOut")
-  val JS_createStdErr = JS.termMember("createStdErr")
-
   val JS_abort = JS.termMember("abort")
 
   def link(sym: Symbol): Option[Symbol] =

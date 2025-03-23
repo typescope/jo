@@ -73,7 +73,7 @@ Abstract Syntax
 
     word    = integer | boolean | char | string | ident | fence | record | tapply | apply | select | tag | lambda | object.
 
-    phrase  = expr | type_ascribe | with_clause | assign | valdef | fundef | typedef | while | if | match.
+    phrase  = simple_phrase | assign | valdef | fundef | typedef | while | if | match.
 
     block   = { phrase }.
 
@@ -82,10 +82,13 @@ Abstract Syntax
     apply  = word args.
     args   = LPAREN [expr {COMMA expr}] RPAREN.
 
-    with_clause = expr [WITH with_bindings] [ALLOW qualid {COMMA qualid}].
+    simple_phrase = expr | type_ascribe | with_clause | allow_clause.
 
+    with_clause = simple_phrase WITH with_bindings
     with_bindings = with_binding {COMMA with_binding}.
     with_binding = qualid EQL expr.
+
+    allow_clause = simple_phrase ALLOW qualid {COMMA qualid}.
 
     fence   = LPAREN phrase RPAREN.
     assign  = ident EQL block.
@@ -98,7 +101,7 @@ Abstract Syntax
 
     tag = TAG ident.
 
-    type_ascribe = expr AS type.
+    type_ascribe = simple_phrase AS type.
 
     object     = OBJECT LBRACE {member} RBRACE.
     member     = valdef | defdef.
