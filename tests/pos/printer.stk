@@ -5,7 +5,8 @@ type Doc = String
 fun pretty(doc: Doc): String receives pageWidth =
   doc + "\n" + "pageWidth = " + (intToStr pageWidth)
 
-fun createPrinter(): (Doc => String receives pageWidth) receives none =
+type Printer = Doc => String receives pageWidth
+fun createPrinter(): Printer receives none =
   (doc: Doc) => pretty(doc)
 
 fun main =
