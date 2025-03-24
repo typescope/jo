@@ -629,7 +629,14 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def optReceiveParams(): Option[List[RefTree]] =
     if peek() == Token.RECEIVES then
       eat(Token.RECEIVES)
-      Some(oneOrMore(() => qualid(), Token.COMMA))
+
+      peek() match
+        case Token.Ident("none") =>
+          next()
+          Some(Nil)
+
+        case _ =>
+          Some(oneOrMore(() => qualid(), Token.COMMA))
     else
       None
 

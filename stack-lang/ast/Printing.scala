@@ -78,8 +78,15 @@ object Printing:
         val resType = showTypeAnnot(fdef.resType)
 
         val receives =
-          if fdef.receives.isEmpty then Text.Empty
-          else " receives " ~ rep(fdef.receives.get, Text(", ")) ~ " "
+          fdef.receives match
+            case Some(Nil) =>
+              Text(" receives none ")
+
+            case Some(params) =>
+              " receives " ~ rep(params, Text(", ")) ~ " "
+
+            case _ =>
+              Text.Empty
 
         val body =
           if fdef.body.isEmptyBlock then Text.Empty

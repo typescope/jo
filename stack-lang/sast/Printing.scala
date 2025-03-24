@@ -65,8 +65,20 @@ object Printing:
         val resType = fdef.procType.resultType
         val locals = rep(fdef.locals.map(sym => sym ~ ": " ~ sym.info), Text(", "))
         val keyword = if fdef.symbol.isMethod then "def " else "fun "
+
+        val receives =
+          fdef.receives match
+            case Some(Nil) =>
+              Text(" receives none ")
+
+            case Some(params) =>
+              " receives " ~ rep(params, Text(", ")) ~ " "
+
+            case _ =>
+              Text.Empty
+
         "@locals(" ~ locals ~ ")" ~ Text.BreakLine ~
-        keyword ~ fdef.name ~ tparamStr ~ params.mkString("(", ", ", "): ") ~ resType.show ~ " =" ~ indent:
+        keyword ~ fdef.name ~ tparamStr ~ params.mkString("(", ", ", "): ") ~ resType.show ~ receives ~ " =" ~ indent:
             fdef.body
 
       case tdef: TypeDef =>

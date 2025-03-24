@@ -1,0 +1,15 @@
+param pageWidth: Int = 78
+
+type Doc = String
+
+fun pretty(doc: Doc): String receives pageWidth =
+  doc + "\n" + "pageWidth = " + (intToStr pageWidth)
+
+type Printer = Doc => String receives pageWidth
+fun createPrinter(): Printer receives none =
+  (doc: Doc) => pretty(doc)
+
+fun main =
+  val printer = createPrinter()
+  println
+    printer("hello, world!") with pageWidth = 100
