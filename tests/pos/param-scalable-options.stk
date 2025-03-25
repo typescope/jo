@@ -8,8 +8,10 @@ fun bar(n: Int): Int = if double then n * 2 else n
 fun baz(n: Int): Int = foo(n) + bar(n)
 
 fun main =
-  val a = baz 10 with flip = true, double = false
-  a p
+  flow
+    baz 10 with flip = true, double = false
+    p
 
-  val b = baz 10 with flip = false, double = true
-  b p
+  flow
+    baz 10 with flip = false, double = true
+    p

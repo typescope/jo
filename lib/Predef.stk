@@ -74,6 +74,18 @@ fun abort(s: String): Bottom = abort("primitive abort")
 fun assert(cond: Bool, message: String): Unit =
   if not cond then abort message
 
+// A utility function to make it easier to supply expression arguments to a
+// postfix function.
+//
+// Example:
+//
+//    flow
+//      1 + 3
+//      p
+//
+//
+fun flow[T](v: T): T = v
+
 //-------------------------------------------------------------
 //
 // Coercion of types

@@ -12,8 +12,6 @@ import stk.runtime.native.ParamSupport
 
 type Addr
 
-fun id[T](x: T): T = x
-
 fun dataAddr(qualid: String): Addr =
   abort "native global"
 
@@ -39,7 +37,7 @@ fun addAddr(arr: Addr, offset: Int): Addr =
 fun (arr: Any) cast[T]: T = abort("runtime cast")
 
 fun debug(s: String): Unit =
-  writeString 0 (id ("[DEBUG] " + s + "\n") cast[StringRepr])
+  writeString 0 (flow ("[DEBUG] " + s + "\n") cast[StringRepr])
 
 //------------------------------------------------------------------------------
 //
@@ -69,7 +67,7 @@ fun mainStub(): Unit = abort("error mainStub")
 //
 
 fun abortImpl(msg: String): Bottom =
-  writeString 0 (id msg cast[StringRepr])
+  writeString 0 (flow msg cast[StringRepr])
   Syscall.sys_exit 1
 
 //------------------------------------------------------------------------------
@@ -92,7 +90,7 @@ fun charToStr(c: Char): String =
   val content = GC.alloc 1
   // TODO: handle unicode
   writeByte content (charToByte c)
-  id
+  flow
     #Raw(1, content) as StringRepr
     cast[String]
 
@@ -135,7 +133,7 @@ fun intToStr(n: Int): String =
         writeByte (addAddr buf copyIndex) c
         copyIndex = copyIndex + 1
 
-    id
+    flow
       #Raw(len, buf) as StringRepr
       cast[String]
 
@@ -191,17 +189,17 @@ fun String_fromByteString(byteArray: Any): String =
   val length = readInt (byteArray cast[Addr])
   val contentAddr = addAddr (byteArray cast[Addr]) 4
 
-  id
+  flow
     #Raw(length, contentAddr) as StringRepr
     cast[String]
 
 fun String_length(repr: String): Int =
-  match id repr cast[StringRepr]
+  match flow repr cast[StringRepr]
     case #Raw(len, _) => len
     case #Concat(len, lhs, rhs) => len
 
 fun String_apply(repr: String, i: Int): Char =
-  match id repr cast[StringRepr]
+  match flow repr cast[StringRepr]
     case #Raw(len, content) =>
       if i >= len or i < 0 then abort "index out of bound"
 
@@ -270,10 +268,10 @@ fun String_bytes(repr: String): Any =
         from + len
 
       case #Concat(len, lhs, rhs) =>
-        val index = recur (id lhs cast[StringRepr]) from
-        recur (id rhs cast[StringRepr]) index
+        val index = recur (flow lhs cast[StringRepr]) from
+        recur (flow rhs cast[StringRepr]) index
 
-  recur (id repr cast[StringRepr]) 0
+  recur (flow repr cast[StringRepr]) 0
   bytes
 
 //------------------------------------------------------------------------------
@@ -341,10 +339,10 @@ fun createFileOpener() = (filePath: String) =>
 
       // writeString
       //   0
-      //   id ("size = " + (intToStr size) + "\n") cast[StringRepr]
+      //   flow ("size = " + (intToStr size) + "\n") cast[StringRepr]
       // writeString
       //   0
-      //   id ("pos = " + (intToStr pos) + "\n") cast[StringRepr]
+      //   flow ("pos = " + (intToStr pos) + "\n") cast[StringRepr]
 
       pos < size
 
@@ -375,7 +373,7 @@ fun createFileOpener() = (filePath: String) =>
               assert (ret >= 0) ("sys_seek = " + (intToStr ret))
 
           res = res +
-            id
+            flow
               #Raw(len, buffer) as StringRepr
               cast[String]
         end
@@ -383,7 +381,7 @@ fun createFileOpener() = (filePath: String) =>
       res
 
     def write(content: String): Unit =
-      writeString fd (id content cast[StringRepr])
+      writeString fd (flow content cast[StringRepr])
   }
 
 fun writeString(fd: Int, repr: StringRepr): Unit =
@@ -397,11 +395,11 @@ fun writeString(fd: Int, repr: StringRepr): Unit =
     case #Concat(len, lhs, rhs) =>
       writeString
         fd
-        id lhs cast[StringRepr]
+        flow lhs cast[StringRepr]
 
       writeString
         fd
-        id rhs cast[StringRepr]
+        flow rhs cast[StringRepr]
 
 
 fun createStdIn() = object {
@@ -418,7 +416,7 @@ fun createStdIn() = object {
 
       if bytesRead > 0 then
         res = res +
-          id
+          flow
             #Raw(bytesRead, buffer) as StringRepr
             cast[String]
 
@@ -426,9 +424,9 @@ fun createStdIn() = object {
 }
 
 fun createStdOut() = object {
-  def write(s: String) = writeString 1 (id s cast[StringRepr])
+  def write(s: String) = writeString 1 (flow s cast[StringRepr])
 }
 
 fun createStdErr() = object {
-  def write(s: String) = writeString 2 (id s cast[StringRepr])
+  def write(s: String) = writeString 2 (flow s cast[StringRepr])
 }
