@@ -127,6 +127,8 @@ fun main =
 
 ## Build
 
+First install [scala-cli](https://scala-cli.virtuslab.org/) and then run:
+
 ```
 ./build
 ```
@@ -170,7 +172,6 @@ node fact.js
 - [ ] Coercion semantics for records and objects
 - [ ] GC for native backend
 - [ ] Debugger for native backend
-- [ ] Exception
 - [ ] Concurrency
 - [ ] Nested pattern match
 - [ ] Classes
