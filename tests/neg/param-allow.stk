@@ -1,0 +1,9 @@
+param newLine: String
+
+fun foo() =
+  print
+    "Hello, world!" + newLine
+
+fun bar() = foo
+
+fun main = bar allow stdout  // error
