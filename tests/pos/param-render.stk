@@ -1,0 +1,46 @@
+param fontSize: Int
+
+type H2Element    = #H2(text: String)
+type LabelElement = #Label(text: String)
+type PElement     = #P(text: String)
+type DivElement   = #Div(elems: List[Element])
+
+type Element = H2Element | LabelElement | PElement | DivElement
+
+fun renderText(text: String) =
+  println
+    text + " [" + "pageWidth = " + (intToStr fontSize) + "]"
+
+fun renderH2(h2: H2Element) =
+  renderText(h2.text) with fontSize = 20  // shadowing, fontSize = 20
+
+fun renderElement(e: Element): Unit =
+  match e
+    case h2: H2Element     => renderH2 h2
+    case #P text           => renderText text
+    case #Label text       => renderText text
+    case div: DivElement   => renderDiv div
+
+fun renderDiv(div: DivElement) =
+  fun recur(elems: List[Element]): Unit =
+    match elems
+      case #Nil =>
+      case #Cons e es =>
+        renderElement e
+        recur es
+    end
+  end
+  recur div.elems
+
+fun main =
+  val div: DivElement =
+    #Div
+      #Cons
+        #H2 "Test render"
+        #Cons
+          #Label "a dummy html rendering engine"
+          #Cons
+            #P "Hello, HTML!"
+            #Nil
+
+  renderDiv div with fontSize = 14
