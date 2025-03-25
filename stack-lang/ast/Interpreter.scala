@@ -298,3 +298,5 @@ object Interpreter:
         sc.bind(fdef.name, FunCall(fdef, sc))
 
       case tdef: TypeDef =>
+
+      case _ => ???

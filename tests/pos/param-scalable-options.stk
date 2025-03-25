@@ -1,0 +1,15 @@
+param flip: Bool = false   // flip the sign
+param double: Bool = false // double the value
+
+fun foo(n: Int): Int = if flip then 0 - n else n
+fun bar(n: Int): Int = if double then n * 2 else n
+
+// The optional context param `flip` and `double` are automatically active.
+fun baz(n: Int): Int = foo(n) + bar(n)
+
+fun main =
+  val a = baz 10 with flip = true, double = false
+  a p
+
+  val b = baz 10 with flip = false, double = true
+  b p
