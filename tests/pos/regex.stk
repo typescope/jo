@@ -39,6 +39,7 @@ fun seq(regs: List[Reg], seg: Seg, cont: Cont, fail: Fail): Unit =
 
 fun char(c: Char, seg: Seg, cont: Cont, fail: Fail): Unit =
   debug (charToStr c)
+  // TODO: short-cut semantics
   if seg.start >= seg.str.size then
     fail()
 
@@ -89,6 +90,7 @@ fun compile(reg: String): Reg =
 
   val parser = object {
     def parseSequence(): List[Reg] =
+      // TODO: short-cut semantics
       if not scanner.hasMore() then
         #Nil
       else if scanner.cur() == ')' then

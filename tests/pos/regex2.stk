@@ -24,6 +24,7 @@ fun plus(reg: Reg, seg: Seg, cont: Cont): Bool =
 
 fun alt(reg1: Reg, reg2: Reg, seg: Seg, cont: Cont): Bool =
   debug "alt"
+  // TODO: short-cut semantics
   if reg1 seg cont then true
   else if reg2 seg cont then true
   else false
@@ -37,6 +38,7 @@ fun seq(regs: List[Reg], seg: Seg, cont: Cont): Bool =
 
 fun char(c: Char, seg: Seg, cont: Cont): Bool =
   debug (charToStr c)
+  // TODO: short-cut semantics
   if seg.start >= seg.str.size then
     false
 
@@ -49,6 +51,7 @@ fun char(c: Char, seg: Seg, cont: Cont): Bool =
 
 fun dot(seg: Seg, cont: Cont): Bool =
   debug "."
+  // TODO: short-cut semantics
   if seg.start < seg.str.size then
     cont
       #Seg (seg.start + 1) seg.str
