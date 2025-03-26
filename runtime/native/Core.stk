@@ -157,7 +157,7 @@ fun Array_create(size: Int): Any =
   // TODO: zero memory
   arr
 
-fun Array_length(arr: Any): Int =
+fun Array_size(arr: Any): Int =
   readInt
     arr cast[Addr]
 
@@ -181,19 +181,19 @@ fun Array_set(arr: Any, i: Int, value: Any): Unit =
 
 // TODO: unicode support is missing
 type StringRepr =
-    #Raw(length: Int, content: Addr)
-  | #Concat(length: Int, lhs: String, rhs: String)
+    #Raw(size: Int, content: Addr)
+  | #Concat(size: Int, lhs: String, rhs: String)
 
 // This function is called to convert a string literal to a proper string object.
 fun String_fromByteString(byteArray: Any): String =
-  val length = readInt (byteArray cast[Addr])
+  val size = readInt (byteArray cast[Addr])
   val contentAddr = addAddr (byteArray cast[Addr]) 4
 
   flow
-    #Raw(length, contentAddr) as StringRepr
+    #Raw(size, contentAddr) as StringRepr
     cast[String]
 
-fun String_length(repr: String): Int =
+fun String_size(repr: String): Int =
   match flow repr cast[StringRepr]
     case #Raw(len, _) => len
     case #Concat(len, lhs, rhs) => len
@@ -213,18 +213,18 @@ fun String_apply(repr: String, i: Int): Char =
     case #Concat(len, lhs, rhs) =>
       if i >= len or i < 0 then abort "index out of bound"
 
-      if i >= lhs.length then
-        rhs (i - lhs.length)
+      if i >= lhs.size then
+        rhs (i - lhs.size)
       else
         lhs i
 
 fun String_plus(lhs: String, rhs: String): StringRepr =
-  val len = lhs.length + rhs.length
+  val len = lhs.size + rhs.size
   #Concat(len, lhs, rhs)
 
 fun String_equals(lhs: String, rhs: String): Bool =
-  val n = lhs.length
-  var isEqual = n == rhs.length
+  val n = lhs.size
+  var isEqual = n == rhs.size
   var i = 0
   while isEqual and i < n do
     isEqual = lhs(i) == rhs(i)
@@ -235,7 +235,7 @@ fun String_equals(lhs: String, rhs: String): Bool =
 fun String_substring(source: String, from: Int, len: Int): StringRepr =
   if from < 0 then abort "from should not be negative"
   if len < 0 then abort "len should not be negative"
-  if from + len > source.length then abort "substring out of range"
+  if from + len > source.size then abort "substring out of range"
 
   val buf = GC.alloc len
   var index = 0
@@ -249,7 +249,7 @@ fun String_substring(source: String, from: Int, len: Int): StringRepr =
   #Raw(len, buf)
 
 fun String_bytes(repr: String): Any =
-  val bytes = GC.alloc repr.length
+  val bytes = GC.alloc repr.size
 
   fun recur(repr: StringRepr, from: Int): Int =
     match repr

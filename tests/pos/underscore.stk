@@ -5,7 +5,7 @@ type StringRepr =
 
 fun length(s: StringRepr) =
   match s
-    case #Raw(str) => str.length
+    case #Raw(str) => str.size
     case #Concat(len, _, _) => len
 
 fun main =

@@ -1,0 +1,160 @@
+param DEBUG: Bool = false
+
+type Seg = #Seg(start: Int, str: String)
+
+type Fail = () => Unit
+type Cont = (Seg, Fail) => Unit
+type Reg  = (Seg, Cont, Fail) => Unit
+
+fun epsilon(seg: Seg, cont: Cont, fail: Fail): Unit =
+  debug "epsilon"
+  cont seg fail
+
+fun star(reg: Reg, seg: Seg, cont: Cont, fail: Fail): Unit =
+  debug "star"
+  alt
+    (seg, cont, fail) => epsilon seg cont fail
+    (seg, cont, fail) => plus reg seg cont fail
+    seg
+    cont
+    fail
+
+fun plus(reg: Reg, seg: Seg, cont: Cont, fail: Fail): Unit =
+  debug "plus"
+  val cont1: Cont = (seg, fail1) => star reg seg cont fail1
+  reg seg cont1 fail
+
+fun alt(reg1: Reg, reg2: Reg, seg: Seg, cont: Cont, fail: Fail): Unit =
+  debug "alt"
+  val fail1 = () => reg2 seg cont fail
+  val cont1: Cont = (seg, fail) => cont seg fail // backtrack
+  reg1 seg cont1 fail1
+
+fun seq(regs: List[Reg], seg: Seg, cont: Cont, fail: Fail): Unit =
+  match regs
+    case #Nil => cont seg fail
+    case #Cons reg rest =>
+      val cont1: Cont = (seg, fail) => seq rest seg cont fail
+      reg seg cont1 fail
+
+fun char(c: Char, seg: Seg, cont: Cont, fail: Fail): Unit =
+  debug (charToStr c)
+  if seg.start < seg.str.size and seg.str(seg.start) == c then
+    cont
+      #Seg (seg.start + 1) seg.str
+      fail
+  else
+    fail()
+
+fun dot(seg: Seg, cont: Cont, fail: Fail): Unit =
+  debug "."
+  if seg.start < seg.str.size then
+    cont
+      #Seg (seg.start + 1) seg.str
+      fail
+  else
+    fail()
+
+fun construct(reg: String): Reg =
+  val scanner = object {
+    var index = 0
+
+    def cur() = reg index
+
+    def hasMore() = index < reg.size
+
+    def peek(): Char = reg(index)
+
+    def eat(c: Char): Unit =
+      val cStr = charToStr c
+      assert
+        hasMore()
+        "expect " + cStr + ", but reached end of pattern"
+
+      assert
+        cur() == c
+        "expect " + cStr + ", found = " + (charToStr cur())
+
+      next()
+
+    def next(): Char =
+      val c = reg(index)
+      index = index + 1
+      c
+  }
+
+  val parser = object {
+    def parseSequence(): List[Reg] =
+      if not scanner.hasMore() or scanner.cur() == ')' then
+        #Nil
+      else
+        #Cons parseComposite() parseSequence()
+
+    def parseComposite(): Reg =
+      val atom = parseAtom()
+      if scanner.hasMore() then
+        val c = scanner.peek()
+        if c == '*' then
+          scanner.next()
+          (seg, cont, fail) => star atom seg cont fail
+
+        else if c == '+' then
+          scanner.next()
+          (seg, cont, fail) => plus atom seg cont fail
+
+        else
+          atom
+        end
+
+      else
+        atom
+
+    def parseAtom(): Reg =
+      if not scanner.hasMore() then
+        (seg, cont, fail) => epsilon seg cont fail
+      else
+        val c = scanner.next()
+        if c == '(' then
+          val regs = parseSequence()
+          val reg = (seg, cont, fail) => seq regs seg cont fail
+          scanner.eat ')'
+          reg
+
+        else if c == '.' then
+          (seg, cont, fail) => dot seg cont fail
+
+        else
+          (seg, cont, fail) => char c seg cont fail
+
+  }
+
+  val regs = parser.parseSequence()
+  (seg, cont, fail) => seq regs seg cont fail
+end
+
+fun matchString(str: String, pat: String): Bool =
+  val result = object { var success = true }
+  val reg : Reg  = construct pat
+  val cont: Cont = (seg, fail) => if seg.start < str.size then fail()
+  val fail: Fail = () => result.success = false
+  reg #Seg(0, str) cont fail
+  result.success
+
+fun debug(msg: String) =
+  if DEBUG then println(msg)
+
+fun main =
+  test "abba" "abba"
+  test "abba" ".b.a"
+  test "abba" ".*ba"
+  test "abxba" ".*x.*"
+  test "abababa" ".*(ba)*"
+  test "abababa" ".*(ba)+"
+
+  test "abba" "ba"
+  test "abababc" ".*(ba)+"
+
+fun test(str: String, pat: String) =
+  val res = matchString str pat
+  println
+    str + "\t ~ \t" + pat + "\t\t" + (if res then "true" else "false")

@@ -77,7 +77,7 @@ fun Array_createObject(size: Int): Any =
 fun Array_wrapContent(arr: Any): Any =
   // Lifting functions might change name of captured variables.
   // The small closed function will ensure the parameter name stay unchanged.
-  fun arrayLength(array: Any): Int =
+  fun arraySize(array: Any): Int =
     js "array.length"
 
   fun arrayGet(array: Any, index: Int): Any =
@@ -87,7 +87,7 @@ fun Array_wrapContent(arr: Any): Any =
     js "array[index] = value"
 
   object {
-    def length = arrayLength arr
+    def size = arraySize arr
     def set(i: Int, value: Any): Unit = arraySet arr i value
     def apply(i: Int): Any = arrayGet arr i
   }
@@ -103,7 +103,7 @@ fun String_apply(str: Any, index: Int): Any =
 fun String_substring(str: Any, index: Int, len: Int): Any =
   js "str.substring(index, index + len)"
 
-fun String_length(str: Any) =
+fun String_size(str: Any) =
   js "str.length"
 
 fun String_plus(str: Any, other: Any): Any =

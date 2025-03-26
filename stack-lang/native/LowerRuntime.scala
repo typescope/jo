@@ -13,11 +13,11 @@ import native.runtime.NativeRuntime
   * runtime/native/Core.stk:
   *
   *     fun Array_create(size: Int): Any =
-  *     fun Array_length(arr: Any): Int = ...
+  *     fun Array_size(arr: Any): Int = ...
   *     fun Array_apply(arr: Any, i: Int): Any = ...
   *     fun Array_set(arr: Any, i: Int, value: Any): void = ...
   *
-  *     fun String_length(repr: StringRepr): Int = ...
+  *     fun String_size(repr: StringRepr): Int = ...
   *     fun String_apply(repr: StringRepr, i: Int): Char = ...
   *     fun String_plus(lhs: String, rhs: String): StringRepr = ..
   *     fun String_substring(source: String, from: Int, len: Int): StringRepr = ...
@@ -82,8 +82,8 @@ class LowerRuntime(runtime: NativeRuntime) extends phases.Phase[Unit]:
         // After lambda lift, `qual` is stable thus can be thrown away
         assert(qual.isIdempotent, fun.show)
 
-        if name == "length" then
-          val fun2 = Ident(runtime.Core_Array_length)(fun.span)
+        if name == "size" then
+          val fun2 = Ident(runtime.Core_Array_size)(fun.span)
           Apply(fun2, args2)(IntType, app.span)
 
         else if name == "apply" then
@@ -101,8 +101,8 @@ class LowerRuntime(runtime: NativeRuntime) extends phases.Phase[Unit]:
         // After lambda lift, `qual` is stable thus can be thrown away
         assert(qual.isIdempotent, fun.show)
 
-        if name == "length" then
-          val fun2 = Ident(runtime.Core_String_length)(fun.span)
+        if name == "size" then
+          val fun2 = Ident(runtime.Core_String_size)(fun.span)
           Apply(fun2, args2)(IntType, app.span)
 
         else if name == "apply" then

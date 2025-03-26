@@ -413,7 +413,7 @@ object Interpreter:
                   arrayVal.content(index) = v
                    Nil
 
-                else if name == "length" then
+                else if name == "size" then
                   assert(argVals.isEmpty)
                   IntVal(arrayVal.content.length) :: Nil
 
@@ -435,7 +435,7 @@ object Interpreter:
                   val (other: StringVal) :: Nil = argVals: @unchecked
                   BoolVal(strVal.value == other.value) :: Nil
 
-                else if name == "length" then
+                else if name == "size" then
                   assert(argVals.isEmpty)
                   IntVal(strVal.value.length) :: Nil
 

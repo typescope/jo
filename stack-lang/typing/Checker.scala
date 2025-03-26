@@ -200,6 +200,7 @@ class Checker:
       word
 
   def adapt(word: Word, targetType: TargetType)(using Reporter, Source): Word = Debug.trace("Adapting " + word.show, (_: Word).show, enable = false):
+
     val word2 =
       if word.tpe.isProcType then
         val procType = word.tpe.asProcType

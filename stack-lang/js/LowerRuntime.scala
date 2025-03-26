@@ -67,8 +67,8 @@ class LowerRuntime(runtime: JSRuntime) extends phases.Phase[Unit]:
         // After lambda lift, `qual` is stable thus can be thrown away
         assert(qual.isIdempotent, fun.show)
 
-        if name == "length" then
-          val fun2 = Ident(runtime.JS_String_length)(fun.span)
+        if name == "size" then
+          val fun2 = Ident(runtime.JS_String_size)(fun.span)
           Apply(fun2, args2)(IntType, app.span)
 
         else if name == "apply" then

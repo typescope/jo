@@ -109,7 +109,7 @@ fun charToStr(c: Char): String = abort "charToStr"
 //
 
 type Array[T] <: object {
-  def length: Int
+  def size: Int
   def set(i: Int, value: T): Unit
   def apply(i: Int): T
 }
@@ -122,7 +122,7 @@ fun array[T](size: Int): Array[T] = abort("primitive array")
 //
 
 type String <: object {
-  def length: Int
+  def size: Int
   def apply(i: Int): Char
   def +(other: String): String
   def ==(other: String): Bool
