@@ -39,10 +39,14 @@ fun seq(regs: List[Reg], seg: Seg, cont: Cont, fail: Fail): Unit =
 
 fun char(c: Char, seg: Seg, cont: Cont, fail: Fail): Unit =
   debug (charToStr c)
-  if seg.start < seg.str.size and seg.str(seg.start) == c then
+  if seg.start >= seg.str.size then
+    fail()
+
+  else if seg.str(seg.start) == c then
     cont
       #Seg (seg.start + 1) seg.str
       fail
+
   else
     fail()
 
@@ -85,7 +89,9 @@ fun construct(reg: String): Reg =
 
   val parser = object {
     def parseSequence(): List[Reg] =
-      if not scanner.hasMore() or scanner.cur() == ')' then
+      if not scanner.hasMore() then
+        #Nil
+      else if scanner.cur() == ')' then
         #Nil
       else
         #Cons parseComposite() parseSequence()

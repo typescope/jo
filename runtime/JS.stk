@@ -81,9 +81,15 @@ fun Array_wrapContent(arr: Any): Any =
     js "array.length"
 
   fun arrayGet(array: Any, index: Int): Any =
+    assert
+      index < (arraySize array)
+      "Array index out of range: " + (intToStr index)
     js "array[index]"
 
   fun arraySet(array: Any, index: Int, value: Any): Unit =
+    assert
+      index < (arraySize array)
+      "Array index out of range: " + (intToStr index)
     js "array[index] = value"
 
   object {
@@ -98,6 +104,10 @@ fun Array_wrapContent(arr: Any): Any =
 //
 
 fun String_apply(str: Any, index: Int): Any =
+  assert
+    index < (String_size str)
+    "String index out of range: " + (intToStr index)
+
   js "str.charCodeAt(index)"
 
 fun String_substring(str: Any, index: Int, len: Int): Any =

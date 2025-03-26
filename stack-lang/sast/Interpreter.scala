@@ -299,7 +299,8 @@ object Interpreter:
     for (param, arg) <- fdef.params.zip(args) do
       funEnv.bind(param, arg)
 
-    exec(fdef.body)(using funEnv)
+    Debug.trace("calling " + fdef.symbol + ", env = " + funEnv.show(recursive = false), enable = false):
+      exec(fdef.body)(using funEnv)
 
   def eval(word: Word)(using env: Env, params: Params): Value =
     Debug.trace(word.show + ", env = " + env.show(recursive = false), (_: Value).show(), enable = false):
