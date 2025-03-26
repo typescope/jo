@@ -59,7 +59,7 @@ fun dot(seg: Seg, cont: Cont, fail: Fail): Unit =
   else
     fail()
 
-fun construct(reg: String): Reg =
+fun compile(reg: String): Reg =
   val scanner = object {
     var index = 0
 
@@ -140,7 +140,7 @@ end
 
 fun matchString(str: String, pat: String): Bool =
   val result = object { var success = true }
-  val reg : Reg  = construct pat
+  val reg : Reg  = compile pat
   val cont: Cont = (seg, fail) => if seg.start < str.size then fail()
   val fail: Fail = () => result.success = false
   reg #Seg(0, str) cont fail
