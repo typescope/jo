@@ -41,7 +41,7 @@ class JSRuntime(runtimeRootNameTable: NameTable, main: Symbol):
   val JS_Array_createInt = JS.termMember("Array_createInt")
   val JS_Array_createObject = JS.termMember("Array_createObject")
 
-  val JS_String_length = JS.termMember("String_length")
+  val JS_String_size = JS.termMember("String_size")
   val JS_String_apply = JS.termMember("String_apply")
   val JS_String_substring = JS.termMember("String_substring")
   val JS_String_plus = JS.termMember("String_plus")

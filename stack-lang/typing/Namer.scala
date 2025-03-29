@@ -282,7 +282,7 @@ class Namer(@constructorOnly reporter: Reporter):
             if qualType.isTagType then
               val tagType = qualType.asTagType
               if tagType.hasParam(name) then
-                Desugaring.selectVariantField(qual2, tagType, name, word.span)
+                Desugaring.selectVariantField(qual2, tagType, name, word.span).adapt
               else
                 errorWord(word.span)
             else
@@ -460,7 +460,7 @@ class Namer(@constructorOnly reporter: Reporter):
         val word = Apply(fun, argsTyped)(procType.resultType, apply.span)
         checker.adapt(word, tt)
     else
-      Reporter.error( s"Not a function", fun.pos)
+      Reporter.error( s"Not a function: " + fun.tpe.show, fun.pos)
       errorWord(apply.span)
 
 

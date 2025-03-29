@@ -10,7 +10,7 @@ fun testIntArray =
   arr.set 1 12
   arr.set 2 14
 
-  arr.length p
+  arr.size p
   (arr 0) p
   (arr 1) p
   (arr 2) p
@@ -25,7 +25,7 @@ fun testBoolArray =
   arr.set 1 false
   arr.set 2 true
 
-  arr.length p
+  arr.size p
   (arr 0) pb
   (arr 1) pb
   (arr 2) pb
@@ -37,7 +37,7 @@ fun testObjectArray =
   arr.set 1 "b"
   arr.set 2 "c"
 
-  arr.length p
+  arr.size p
   println
     arr 0
 
