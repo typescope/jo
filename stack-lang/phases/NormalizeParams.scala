@@ -11,11 +11,12 @@ import reporting.Reporter
 
 import scala.collection.mutable
 
-/** This phase normalize the usage of context parameters
+/** This phase normalize the usage of context parameters and some others
   *
   * - Optional context parameters are desugared to normal context parameters
   * - All transitive captures of context parameters are made explicit in objects
   * - Checks are performed for `allow`-clauses
+  * - Desugar short-cutting || and &&
   *
   * The desugaring for optional context parameters
   *
@@ -129,6 +130,28 @@ class NormalizeParams(using Reporter) extends Phase[NormalizeParams.Context]:
 
 
     Namespace(ns.symbol, ns.imports, defs)(ns.span)
+
+  /** Desguar short-cutting || and &&
+    *
+    *     lhs || rhs    ===>    if lhs then true else rhs
+    *     lhs && rhs    ===>    if lhs then rhs  else false
+    */
+  override def transformApply(apply: Apply)(using ctx: Context): Word =
+    val Apply(fun, args) = apply
+    val defn = Definitions.instance
+
+    if fun.refersTo(defn.Predef_and) then
+      val lhs :: rhs :: Nil = args: @unchecked
+      val falseLit = BoolLit(false)(apply.tpe, rhs.span)
+      If(transform(lhs), transform(rhs), falseLit)(apply.tpe, apply.span)
+
+    else if fun.refersTo(defn.Predef_or) then
+      val lhs :: rhs :: Nil = args: @unchecked
+      val trueLit = BoolLit(true)(apply.tpe, lhs.span)
+      If(transform(lhs), trueLit, transform(rhs))(apply.tpe, apply.span)
+
+    else
+      super.transformApply(apply)
 
   /** Bind optional context parameters at program entry.
     *

@@ -45,15 +45,19 @@ fun (a: Int) & (b: Int): Int = abort("primitive &")
 fun (a: Int) | (b: Int): Int = abort("primitive |")
 fun (a: Int) ^ (b: Int): Int = abort("primitive ^")
 
-
 // Follows short-cut semantics as in Java
 fun (a: Bool) && (b: Bool): Bool = abort("primitive and")
-
 
 // Follows short-cut semantics as in Java
 fun (a: Bool) || (b: Bool): Bool = abort("primitive and")
 
 fun ! (b: Bool): Bool = abort("primitive not")
+
+// No short-cut semantics for performance
+fun both(a: Bool, b: Bool): Bool = abort("primitive both")
+
+// No short-cut semantics for performance
+fun either(a: Bool, b: Bool): Bool = abort("primitive either")
 
 //-------------------------------------------------------------
 //

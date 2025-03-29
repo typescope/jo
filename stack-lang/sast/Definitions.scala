@@ -29,7 +29,10 @@ final class Definitions(rootNameTable: NameTable):
 
   val Predef_and   =  Predef.termMember("&&")
   val Predef_or    =  Predef.termMember("||")
-  val Predef_bnot  =  Predef.termMember("!")
+  val Predef_not  =  Predef.termMember("!")
+
+  val Predef_both   =  Predef.termMember("both")
+  val Predef_either =  Predef.termMember("either")
 
   val Predef_print      =  Predef.termMember("print")
   val Predef_printChar  =  Predef.termMember("printChar")

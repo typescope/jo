@@ -205,21 +205,7 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
               given TargetType = TargetType.Known(paramType)
               typeItem(arg)
 
-          val word =
-            if fun.refersTo(Definitions.instance.Predef_and) then
-              val lhs :: Nil = preArgs2: @unchecked
-              val rhs :: Nil = postArgs2: @unchecked
-              val falseLit = BoolLit(false)(call.resultType, span)
-              If(lhs, rhs, falseLit)(call.resultType, span)
-
-            else if fun.refersTo(Definitions.instance.Predef_or) then
-              val lhs :: Nil = preArgs2: @unchecked
-              val rhs :: Nil = postArgs2: @unchecked
-              val trueLit = BoolLit(true)(call.resultType, span)
-              If(lhs, trueLit, rhs)(call.resultType, span)
-
-            else
-              Apply(fun, preArgs2 ++ postArgs2)(call.resultType, span)
+          val word = Apply(fun, preArgs2 ++ postArgs2)(call.resultType, span)
 
           checker.adapt(word, tt)
 
