@@ -1,4 +1,4 @@
-fun NAND(p: Bool, q: Bool): Bool = not (p and q)
+fun NAND(p: Bool, q: Bool): Bool = !(p && q)
 fun NOT (p: Bool): Bool          = NAND p p
 fun AND (p: Bool, q: Bool): Bool = NOT (NAND p q)
 fun OR  (p: Bool, q: Bool): Bool = NAND (NOT p) (NOT q)

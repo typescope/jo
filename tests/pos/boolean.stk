@@ -17,7 +17,7 @@ fun main =
     20 p
   end
 
-  if false and true then
+  if false && true then
     99 p
   else
    -99 p
