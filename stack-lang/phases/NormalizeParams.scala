@@ -301,7 +301,8 @@ class NormalizeParams(using Reporter) extends Phase[NormalizeParams.Context]:
       val effs = (effsTraced -- ddef.methodReceives).keys.toList
 
       if effs.isEmpty then
-        newDefs += ddef
+        val body2 = this(ddef.body)
+        newDefs += ddef.copy(body = body2)(ddef.span)
       else
         val args =
           for effRaw <- effs yield
