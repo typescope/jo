@@ -125,7 +125,7 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
         assert(words.isEmpty, words)
         typeItem(item)
 
-      else if tp.hasApplyMethod then
+      else if tp.hasOnlyApplyMethod then
         // function apply pattern, all remaing words are arguments
         val memberType = tp.termMember("apply")
         var fun: Word = Select(wordTyped, "apply")(memberType, wordTyped.span)

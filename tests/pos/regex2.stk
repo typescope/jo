@@ -24,7 +24,7 @@ fun plus(reg: Reg, seg: Seg, cont: Cont): Bool =
 
 fun alt(reg1: Reg, reg2: Reg, seg: Seg, cont: Cont): Bool =
   debug "alt"
-  reg1 seg cont || reg2 seg cont
+  (reg1 seg cont) || (reg2 seg cont)
 
 fun seq(regs: List[Reg], seg: Seg, cont: Cont): Bool =
   match regs
