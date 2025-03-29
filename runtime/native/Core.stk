@@ -215,9 +215,9 @@ fun String_apply(repr: String, i: Int): Char =
       if i >= len || i < 0 then abort "index out of bound"
 
       if i >= lhs.size then
-        rhs (i - lhs.size)
+        rhs(i - lhs.size)
       else
-        lhs i
+        lhs(i)
 
 fun String_plus(lhs: String, rhs: String): StringRepr =
   val len = lhs.size + rhs.size
@@ -244,7 +244,7 @@ fun String_substring(source: String, from: Int, len: Int): StringRepr =
     // TODO: unicode support
     writeByte
       addAddr buf index
-      charToByte (source (from + index))
+      charToByte source(from + index)
     index = index + 1
 
   #Raw(len, buf)

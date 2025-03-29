@@ -148,7 +148,7 @@ fun getLastOverwrittenValue(): Any =
   state.lastOverwrittenValue
 
 fun restoreParam(index: Int, value: Any): Unit =
-  if index >= 2048 or index < 0 then
+  if index >= 2048 || index < 0 then
     print "index = "
     index p
     abort "error: invalid Index >= 1024\n"
