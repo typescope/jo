@@ -44,7 +44,10 @@ object ExprTyper:
     */
   def precedence(fun: String): Int =
     fun match
-      case "and" | "or" | "not"                     => 10
+      case "||"  =>  5
+      case "&&" =>  10
+      case "!"  =>  15
+
       case ">"   | "<"  | ">=" | "<=" | "==" | "!=" => 20
       case "+"   | "-"                              => 30
       case "<<"  | ">>" | "|"  | "&"  | "^"         => 40
@@ -202,7 +205,22 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
               given TargetType = TargetType.Known(paramType)
               typeItem(arg)
 
-          val word = Apply(fun, preArgs2 ++ postArgs2)(call.resultType, span)
+          val word =
+            if fun.refersTo(Definitions.instance.Predef_and) then
+              val lhs :: Nil = preArgs2: @unchecked
+              val rhs :: Nil = postArgs2: @unchecked
+              val falseLit = BoolLit(false)(call.resultType, span)
+              If(lhs, rhs, falseLit)(call.resultType, span)
+
+            else if fun.refersTo(Definitions.instance.Predef_or) then
+              val lhs :: Nil = preArgs2: @unchecked
+              val rhs :: Nil = postArgs2: @unchecked
+              val trueLit = BoolLit(true)(call.resultType, span)
+              If(lhs, trueLit, rhs)(call.resultType, span)
+
+            else
+              Apply(fun, preArgs2 ++ postArgs2)(call.resultType, span)
+
           checker.adapt(word, tt)
 
       case Item.InfixCall(obj, meth, arg) =>

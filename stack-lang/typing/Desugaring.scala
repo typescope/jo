@@ -88,7 +88,7 @@ object Desugaring:
   def testVariantTags(ref: Word, tags: List[String], span: Span): Word =
     val tag :: rest = tags: @unchecked
     // ASTs are immutable thus can be shared
-    val fun = Ident(Definitions.instance.Predef_bor)(span)
+    val fun = Ident(Definitions.instance.Predef_or)(span)
     val tp = Definitions.instance.BoolType
     val cond = testVariantTag(ref, tag, span)
     rest.foldLeft(cond): (acc, tag) =>

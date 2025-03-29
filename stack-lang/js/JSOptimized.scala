@@ -337,8 +337,6 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
       case defn.Predef_land   =>   binary("&")
       case defn.Predef_lor    =>   binary("|")
       case defn.Predef_lxor   =>   binary("^")
-      case defn.Predef_band   =>   binary("&&")
-      case defn.Predef_bor    =>   binary("||")
       case defn.Predef_bnot   =>   bnot(args)
       case defn.Predef_eql    =>   binary("===")
 

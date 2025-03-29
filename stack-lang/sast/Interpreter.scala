@@ -137,8 +137,6 @@ object Interpreter:
   def lor (args: List[Value]) = int2(_ |  _)(args)
   def lxor(args: List[Value]) = int2(_ ^  _)(args)
 
-  def band(args: List[Value]) = bool2(_ && _)(args)
-  def bor (args: List[Value]) = bool2(_ || _)(args)
   def bnot(args: List[Value]) = bool1(! _   )(args)
 
   def byteToChar(args: List[Value]) = int1(n => n)(args)
@@ -188,8 +186,6 @@ object Interpreter:
       defn.Predef_land       ->       land,
       defn.Predef_lor        ->       lor,
       defn.Predef_lxor       ->       lxor,
-      defn.Predef_band       ->       band,
-      defn.Predef_bor        ->       bor,
       defn.Predef_bnot       ->       bnot,
       defn.Predef_eql        ->       eql,
       defn.Predef_abort      ->       abort,

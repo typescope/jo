@@ -37,6 +37,7 @@ fun (a: Int) < (b: Int): Bool = abort("primitive <")
 fun (a: Int) >= (b: Int): Bool = abort("primitive >=")
 fun (a: Int) <= (b: Int): Bool = abort("primitive <=")
 fun (a: Int) == (b: Int): Bool = abort("primitive ==")
+fun (a: Int) != (b: Int): Bool = ! (a == b)
 
 fun (a: Int) >> (b: Int): Int = abort("primitive >>")
 fun (a: Int) << (b: Int): Int = abort("primitive <<")
@@ -44,9 +45,15 @@ fun (a: Int) & (b: Int): Int = abort("primitive &")
 fun (a: Int) | (b: Int): Int = abort("primitive |")
 fun (a: Int) ^ (b: Int): Int = abort("primitive ^")
 
-fun (a: Bool) and (b: Bool): Bool = abort("primitive and")
-fun (a: Bool) or (b: Bool): Bool = abort("primitive and")
-fun not (b: Bool): Bool = abort("primitive not")
+
+// Follows short-cut semantics as in Java
+fun (a: Bool) && (b: Bool): Bool = abort("primitive and")
+
+
+// Follows short-cut semantics as in Java
+fun (a: Bool) || (b: Bool): Bool = abort("primitive and")
+
+fun ! (b: Bool): Bool = abort("primitive not")
 
 //-------------------------------------------------------------
 //
@@ -72,7 +79,7 @@ fun ??? : Bottom = abort("not implemented")
 fun abort(s: String): Bottom = abort("primitive abort")
 
 fun assert(cond: Bool, message: String): Unit =
-  if not cond then abort message
+  if !cond then abort message
 
 // A utility function to make it easier to supply expression arguments to a
 // postfix function.
