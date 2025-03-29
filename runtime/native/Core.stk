@@ -227,7 +227,7 @@ fun String_equals(lhs: String, rhs: String): Bool =
   val n = lhs.size
   var isEqual = n == rhs.size
   var i = 0
-  while isEqual && i < n do
+  while both isEqual (i < n) do
     isEqual = lhs(i) == rhs(i)
     i = i + 1
   end

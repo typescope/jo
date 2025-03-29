@@ -81,7 +81,7 @@ fun getParamIndex(key: Core.Addr): Int =
 
   var index = hash
   var continue = true
-  while continue && index < 1024 do
+  while both continue (index < 1024) do
     var foundKey = readKeyAt index
     if foundKey < 0 then
       continue = false
@@ -114,7 +114,7 @@ fun setParam(key: Core.Addr, value: Any): Int =
   var index = hash
   var continue = true
   var foundKey = -1
-  while continue && index < 1024 do
+  while both continue (index < 1024) do
     foundKey = readKeyAt index
     if foundKey < 0 then
       writeKeyAt index (key Core.cast[Int])
