@@ -75,22 +75,28 @@ object Desugaring:
     val fieldType = encodeType.fieldType(fieldName)
     Select(qualEncoded, fieldName)(fieldType, span)
 
-  def testVariantTag(ref: Word, tag: String, span: Span): Word =
-    val tagCode = getTagCode(tag)
+  def testTagValue(tagValue: Word, tag: String, span: Span): Word =
     val IntType = Definitions.instance.IntType
-    val tagSelect = Select(ref, "tag")(IntType, span)
-    val tagValue = Literal(Constant.Int(tagCode))(IntType, span)
-    val args =  tagSelect :: tagValue :: Nil
+    val tagCode = getTagCode(tag)
+    val testTagValue = Literal(Constant.Int(tagCode))(IntType, span)
+    val args =  tagValue :: testTagValue :: Nil
     val fun = Ident(Definitions.instance.Predef_eql)(span)
     val tp = Definitions.instance.BoolType
     Apply(fun, args)(tp, span)
 
-  def testVariantTags(ref: Word, tags: List[String], span: Span): Word =
+  def testVariantTag(ref: Word, tag: String, span: Span): Word =
+    val IntType = Definitions.instance.IntType
+    val tagSelect = Select(ref, "tag")(IntType, span)
+    testTagValue(tagSelect, tag, span)
+
+  def testTagValues(tagValue: Ident, tags: List[String], span: Span): Word =
     val tag :: rest = tags: @unchecked
     // ASTs are immutable thus can be shared
-    val fun = Ident(Definitions.instance.Predef_bor)(span)
+    //
+    // Use non-short-cutting `either` for better CPU performance (no jumps)
+    val fun = Ident(Definitions.instance.Predef_either)(span)
     val tp = Definitions.instance.BoolType
-    val cond = testVariantTag(ref, tag, span)
+    val cond = testTagValue(tagValue, tag, span)
     rest.foldLeft(cond): (acc, tag) =>
-      val cond2 = testVariantTag(ref, tag, span)
+      val cond2 = testTagValue(tagValue, tag, span)
       Apply(fun, acc :: cond2 :: Nil)(tp, span)

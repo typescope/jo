@@ -37,7 +37,8 @@ fun addAddr(arr: Addr, offset: Int): Addr =
 fun (arr: Any) cast[T]: T = abort("runtime cast")
 
 fun debug(s: String): Unit =
-  writeString 0 (flow ("[DEBUG] " + s + "\n") cast[StringRepr])
+  writeString 0
+   ("[DEBUG] " + s + "\n") cast[StringRepr]
 
 //------------------------------------------------------------------------------
 //
@@ -67,7 +68,7 @@ fun mainStub(): Unit = abort("error mainStub")
 //
 
 fun abortImpl(msg: String): Bottom =
-  writeString 0 (flow msg cast[StringRepr])
+  writeString 0 (msg cast[StringRepr])
   Syscall.sys_exit 1
 
 //------------------------------------------------------------------------------
@@ -194,14 +195,14 @@ fun String_fromByteString(byteArray: Any): String =
     cast[String]
 
 fun String_size(repr: String): Int =
-  match flow repr cast[StringRepr]
+  match repr cast[StringRepr]
     case #Raw(len, _) => len
     case #Concat(len, lhs, rhs) => len
 
 fun String_apply(repr: String, i: Int): Char =
-  match flow repr cast[StringRepr]
+  match repr cast[StringRepr]
     case #Raw(len, content) =>
-      if i >= len or i < 0 then abort "index out of bound"
+      if i >= len || i < 0 then abort "index out of bound"
 
       // TODO: unicode support
       val v =
@@ -211,12 +212,12 @@ fun String_apply(repr: String, i: Int): Char =
       v cast[Char]
 
     case #Concat(len, lhs, rhs) =>
-      if i >= len or i < 0 then abort "index out of bound"
+      if i >= len || i < 0 then abort "index out of bound"
 
       if i >= lhs.size then
-        rhs (i - lhs.size)
+        rhs(i - lhs.size)
       else
-        lhs i
+        lhs(i)
 
 fun String_plus(lhs: String, rhs: String): StringRepr =
   val len = lhs.size + rhs.size
@@ -226,7 +227,7 @@ fun String_equals(lhs: String, rhs: String): Bool =
   val n = lhs.size
   var isEqual = n == rhs.size
   var i = 0
-  while isEqual and i < n do
+  while both isEqual (i < n) do
     isEqual = lhs(i) == rhs(i)
     i = i + 1
   end
@@ -243,7 +244,7 @@ fun String_substring(source: String, from: Int, len: Int): StringRepr =
     // TODO: unicode support
     writeByte
       addAddr buf index
-      charToByte (source (from + index))
+      charToByte source(from + index)
     index = index + 1
 
   #Raw(len, buf)
@@ -268,10 +269,10 @@ fun String_bytes(repr: String): Any =
         from + len
 
       case #Concat(len, lhs, rhs) =>
-        val index = recur (flow lhs cast[StringRepr]) from
-        recur (flow rhs cast[StringRepr]) index
+        val index = recur (lhs cast[StringRepr]) from
+        recur (rhs cast[StringRepr]) index
 
-  recur (flow repr cast[StringRepr]) 0
+  recur (repr cast[StringRepr]) 0
   bytes
 
 //------------------------------------------------------------------------------
@@ -339,10 +340,10 @@ fun createFileOpener() = (filePath: String) =>
 
       // writeString
       //   0
-      //   flow ("size = " + (intToStr size) + "\n") cast[StringRepr]
+      //   ("size = " + (intToStr size) + "\n") cast[StringRepr]
       // writeString
       //   0
-      //   flow ("pos = " + (intToStr pos) + "\n") cast[StringRepr]
+      //   ("pos = " + (intToStr pos) + "\n") cast[StringRepr]
 
       pos < size
 

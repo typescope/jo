@@ -22,8 +22,6 @@ object Sast:
         case Block(Nil) => true
         case _ => false
 
-    def isDef: Boolean = this.isInstanceOf[Def]
-
     def dropValue: Word =
       assert(this.tpe.isValueType)
       Encoded(this)(VoidType)
@@ -47,6 +45,13 @@ object Sast:
 
         case Encoded(expr) => expr.isIdempotent
 
+        case _ => false
+
+    def refersTo(symbol: Symbol): Boolean =
+      // selection is never symblic after normalization, thus no need to handle
+      this match
+        case Ident(sym) => sym == symbol
+        case TypeApply(fun, _) => fun.refersTo(symbol)
         case _ => false
 
     /** Strip possible encoding */
@@ -237,3 +242,6 @@ object Sast:
 
   def IntLit(n: Int)(tp: Type, span: Span) =
     Literal(Constant.Int(n))(tp, span)
+
+  def BoolLit(b: Boolean)(tp: Type, span: Span) =
+    Literal(Constant.Bool(b))(tp, span)

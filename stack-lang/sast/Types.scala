@@ -82,6 +82,17 @@ object Types:
 
         case _ => false
 
+    def hasOnlyApplyMethod: Boolean =
+      TypeOps.approx(this, isUp = true) match
+        case objType: ObjectType =>
+          objType.fields.isEmpty && objType.methods.size == 1 && {
+            objType.getMemberType("apply") match
+              case Some(tp) => tp.isProcType
+              case None => false
+          }
+
+        case _ => false
+
     def getFunctionApplyType: Option[ProcType] =
       TypeOps.approx(this, isUp = true) match
         case ObjectType(Nil, NamedInfo("apply", tp) :: Nil, Nil) =>

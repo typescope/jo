@@ -1,29 +1,29 @@
 fun main =
-  if not true then
+  if ! true then
     1 p
   else
     2 p
   end
 
-  if not false then
+  if ! false then
     1 p
   else
     2 p
   end
 
-  if not false then
+  if ! false then
     10 p
   else
     20 p
   end
 
-  if false and true then
+  if false && true then
     99 p
   else
    -99 p
   end
 
-  if false or true then
+  if false || true then
     999 p
   else
     -999 p

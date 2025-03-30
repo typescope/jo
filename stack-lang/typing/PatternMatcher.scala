@@ -32,8 +32,16 @@ class PatternMatcher(namer: Namer, checker: Checker):
 
     val scrutSym = Symbol.createValueSymbol("scrutinee", scrutType, sc.owner, scrutinee2.pos)
     val scrutIdent = Ident(scrutSym)(scrutinee.span)
-    val bind = ValDef(scrutSym, scrutinee2)(scrutinee.span)
-    sc2.define(scrutSym)
+    val vdefScrut = ValDef(scrutSym, scrutinee2)(scrutinee.span)
+
+    val IntType = Definitions.instance.IntType
+
+    val encodedScrutType = RecordType(NamedInfo("tag", IntType) :: Nil)
+    val encodedScrut = Encoded(scrutIdent)(encodedScrutType)
+
+    val tagSym = Symbol.createValueSymbol("tag", IntType, sc.owner, scrutinee2.pos)
+    val tagIdent = Ident(tagSym)(scrutinee.span)
+    val vdefTag = ValDef(tagSym, Select(encodedScrut, "tag")(IntType, scrutinee.span))(scrutinee.span)
 
     def subtractPattern(tags: List[String], pat: Ast.Word): List[String] =
       if tags.isEmpty then
@@ -74,7 +82,7 @@ class PatternMatcher(namer: Namer, checker: Checker):
       cases match
         case caseDef :: rest =>
           val tagsRest2 = subtractPattern(tagsRest, caseDef.pat)
-          transformCase(scrutIdent, unionType, caseDef, resType, tp => transformCases(rest, tp, tagsRest2))(using sc2)
+          transformCase(scrutIdent, tagIdent, unionType, caseDef, resType, tp => transformCases(rest, tp, tagsRest2))(using sc2)
 
         case Nil =>
           if tagsRest.nonEmpty then
@@ -92,17 +100,15 @@ class PatternMatcher(namer: Namer, checker: Checker):
       end match
 
     val body = transformCases(cases, BottomType, allTags)
-    Block(bind :: body :: Nil)(body.tpe, patmat.span)
+    Block(vdefScrut :: vdefTag :: body :: Nil)(body.tpe, patmat.span)
 
   private def transformCase
-      (scrut: Ident, unionType: UnionType, caseDef: Ast.Case, resType: Type, cont: Type => Word)
+      (scrut: Ident, tagIdent: Ident, unionType: UnionType, caseDef: Ast.Case, resType: Type, cont: Type => Word)
       (using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
 
     val caseScope = sc.fresh()
 
     val Ast.Case(pat, body) = caseDef
-    val encodedScrutType = RecordType(NamedInfo("tag", Definitions.instance.IntType) :: Nil)
-    val encodedScrut = Encoded(scrut)(encodedScrutType)
 
     (pat: @unchecked) match
       case Ast.Ident(name) =>
@@ -125,7 +131,7 @@ class PatternMatcher(namer: Namer, checker: Checker):
           val vdef = ValDef(sym, Encoded(scrut)(tpe))(pat.span)
           caseScope.define(sym)
 
-          val cond = Desugaring.testVariantTags(encodedScrut, tags, pat.span)
+          val cond = Desugaring.testTagValues(tagIdent, tags, pat.span)
           val body2 = namer.transform(body)(using caseScope, rp, so, tt)
           val commonType = checker.commonResultType(body2.tpe, resType, body2.pos)
           val elsep = cont(commonType)
@@ -186,7 +192,7 @@ class PatternMatcher(namer: Namer, checker: Checker):
             vals += ValDef(sym, arg)(binding.span)
             caseScope.define(sym)
 
-          val cond = Desugaring.testVariantTag(encodedScrut, tag.name, tag.span)
+          val cond = Desugaring.testTagValue(tagIdent, tag.name, tag.span)
           val body2 = namer.transform(body)(using caseScope, rp, so, tt)
           val commonType = checker.commonResultType(body2.tpe, resType, body2.pos)
           val elsep = cont(commonType)

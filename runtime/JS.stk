@@ -199,7 +199,7 @@ fun createFileOpener() = (filePath: String) =>
         position = position + bytesRead
         val str = js "buffer.toString('utf8', 0, bytesRead)"
         val lines = js "str.split(/\\r?\\n/)"
-        if bytesRead < 256 or js "lines.length > 1" then
+        if bytesRead < 256 || js "lines.length > 1" then
           continue = false
         res = res + (js "lines[0]")
 

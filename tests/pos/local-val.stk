@@ -5,7 +5,7 @@ fun fact(n: Int): Int =
     r * n
 
 fun mul(m: Int, n: Int): Int =
-  if (m == 0) or (n == 0) then 0
+  if either (m == 0) (n == 0) then 0
   else
     if 1 & m == 0 then
       val a = mul m (1 >> n)

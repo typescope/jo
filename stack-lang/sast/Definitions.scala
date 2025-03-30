@@ -26,9 +26,13 @@ final class Definitions(rootNameTable: NameTable):
   val Predef_land   =  Predef.termMember("&")
   val Predef_lor    =  Predef.termMember("|")
   val Predef_lxor   =  Predef.termMember("^")
-  val Predef_band   =  Predef.termMember("and")
-  val Predef_bor    =  Predef.termMember("or")
-  val Predef_bnot   =  Predef.termMember("not")
+
+  val Predef_and   =  Predef.termMember("&&")
+  val Predef_or    =  Predef.termMember("||")
+  val Predef_not  =  Predef.termMember("!")
+
+  val Predef_both   =  Predef.termMember("both")
+  val Predef_either =  Predef.termMember("either")
 
   val Predef_print      =  Predef.termMember("print")
   val Predef_printChar  =  Predef.termMember("printChar")

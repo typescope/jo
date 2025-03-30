@@ -12,7 +12,6 @@ object Ast:
   sealed abstract class Tree extends Positioned with Product
 
   sealed abstract class Word extends Tree:
-    def isDef: Boolean = this.isInstanceOf[Def]
     def show: String = Printing.show(this)
 
     def isEmptyBlock: Boolean =

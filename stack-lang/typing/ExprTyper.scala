@@ -44,7 +44,10 @@ object ExprTyper:
     */
   def precedence(fun: String): Int =
     fun match
-      case "and" | "or" | "not"                     => 10
+      case "||"  =>  5
+      case "&&" =>  10
+      case "!"  =>  15
+
       case ">"   | "<"  | ">=" | "<=" | "==" | "!=" => 20
       case "+"   | "-"                              => 30
       case "<<"  | ">>" | "|"  | "&"  | "^"         => 40
@@ -122,7 +125,7 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
         assert(words.isEmpty, words)
         typeItem(item)
 
-      else if tp.hasApplyMethod then
+      else if tp.hasOnlyApplyMethod then
         // function apply pattern, all remaing words are arguments
         val memberType = tp.termMember("apply")
         var fun: Word = Select(wordTyped, "apply")(memberType, wordTyped.span)
@@ -203,6 +206,7 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
               typeItem(arg)
 
           val word = Apply(fun, preArgs2 ++ postArgs2)(call.resultType, span)
+
           checker.adapt(word, tt)
 
       case Item.InfixCall(obj, meth, arg) =>

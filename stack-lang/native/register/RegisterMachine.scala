@@ -416,9 +416,9 @@ extends Backend(runtime):
       case defn.Predef_land   =>   int2(Instr.And)
       case defn.Predef_lor    =>   int2(Instr.Or)
       case defn.Predef_lxor   =>   int2(Instr.Xor)
-      case defn.Predef_band   =>   int2(Instr.And)
-      case defn.Predef_bor    =>   int2(Instr.Or)
-      case defn.Predef_bnot   =>   bnot()
+      case defn.Predef_both   =>   int2(Instr.And)
+      case defn.Predef_either =>   int2(Instr.Or)
+      case defn.Predef_not    =>   bnot()
       case defn.Predef_eql    =>   eql()
       case _                  =>   call(sym)
   end callPredef

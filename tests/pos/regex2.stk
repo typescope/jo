@@ -24,10 +24,7 @@ fun plus(reg: Reg, seg: Seg, cont: Cont): Bool =
 
 fun alt(reg1: Reg, reg2: Reg, seg: Seg, cont: Cont): Bool =
   debug "alt"
-  // TODO: short-cut semantics
-  if reg1 seg cont then true
-  else if reg2 seg cont then true
-  else false
+  (reg1 seg cont) || (reg2 seg cont)
 
 fun seq(regs: List[Reg], seg: Seg, cont: Cont): Bool =
   match regs
@@ -38,11 +35,7 @@ fun seq(regs: List[Reg], seg: Seg, cont: Cont): Bool =
 
 fun char(c: Char, seg: Seg, cont: Cont): Bool =
   debug (charToStr c)
-  // TODO: short-cut semantics
-  if seg.start >= seg.str.size then
-    false
-
-  else if seg.str(seg.start) == c then
+  if seg.start < seg.str.size && seg.str(seg.start) == c then
     cont
       #Seg (seg.start + 1) seg.str
 
@@ -51,19 +44,16 @@ fun char(c: Char, seg: Seg, cont: Cont): Bool =
 
 fun dot(seg: Seg, cont: Cont): Bool =
   debug "."
-  // TODO: short-cut semantics
-  if seg.start < seg.str.size then
+  seg.start < seg.str.size &&
     cont
       #Seg (seg.start + 1) seg.str
 
-  else
-    false
 
 fun compile(reg: String): Reg =
   val scanner = object {
     var index = 0
 
-    def cur() = reg index
+    def cur() = reg(index)
 
     def hasMore() = index < reg.size
 
@@ -89,9 +79,7 @@ fun compile(reg: String): Reg =
 
   val parser = object {
     def parseSequence(): List[Reg] =
-      if not scanner.hasMore() then
-        #Nil
-      else if scanner.cur() == ')' then
+      if !scanner.hasMore() || scanner.cur() == ')' then
         #Nil
       else
         #Cons parseComposite() parseSequence()
@@ -116,7 +104,7 @@ fun compile(reg: String): Reg =
         atom
 
     def parseAtom(): Reg =
-      if not scanner.hasMore() then
+      if !scanner.hasMore() then
         (seg, cont) => epsilon seg cont
       else
         val c = scanner.next()
