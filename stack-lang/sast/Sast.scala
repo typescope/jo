@@ -70,6 +70,11 @@ object Sast:
     (val tpe: Type, val span: Span)
   extends Word
 
+  case class TaggedLit
+    (tag: Ident, args: List[Word])
+    (val tpe: Type, val span: Span)
+  extends Word
+
   case class Ident
     (symbol: Symbol)
     (val span: Span)
@@ -175,6 +180,46 @@ object Sast:
   extends Tree
 
   //----------------------------------------------------------------------------
+  // patterns
+
+  sealed trait Pattern extends Tree
+
+  case class TypePattern
+    (tpt: TypeTree)
+    (val tpe: Type, val span: Span)
+  extends Pattern
+
+  case class AscribePattern
+    (id: Ident, nested: Pattern)
+    (val tpe: Type, val span: Span)
+  extends Pattern
+
+  case class ApplyPattern
+    (id: Ident, nested: List[Pattern])
+    (val tpe: Type, val span: Span)
+  extends Pattern:
+    for pat <- nested do
+      assert(pat.isInstanceOf[Ident], "expect ident, found = " + pat)
+
+  case class TagPattern
+    (id: Ident, nested: List[Pattern])
+    (val tpe: Type, val span: Span)
+  extends Pattern:
+    for pat <- nested do
+      assert(pat.isInstanceOf[Ident], "expect ident, found = " + pat)
+
+  case class Match
+    (scrutinee: Word, cases: List[Case])
+    (val tpe: Type, val span: Span)
+  extends Word
+
+  case class Case
+    (pat: Pattern, body: Word)
+    (val span: Span)
+  extends Tree:
+    assert(isPattern(pat), "Ill-formed pattern tree: " + pat)
+
+  //----------------------------------------------------------------------------
   // definitions
 
   sealed trait Def extends Tree:
@@ -219,6 +264,12 @@ object Sast:
 
     def methodReceives: List[Symbol] = receives.getOrElse(Nil)
 
+  /** Represents a pattern definition */
+  case class PatDef
+    (symbol: Symbol, tparams: List[Symbol], params: List[Symbol], body: Pattern)
+    (val span: Span)
+  extends Word, Def:
+    def procType: ProcType = symbol.info.asProcType
 
   case class Namespace
     (symbol: Symbol, imports: List[Symbol], defs: List[Def])

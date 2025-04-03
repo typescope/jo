@@ -199,9 +199,9 @@ object Printing:
       case Assign(lhs, rhs) =>
         lhs ~ " <- " ~ rhs
 
-      case patmat: Ast.Match =>
-        "match " ~ patmat.scrutinee ~ indent:
-          rep(patmat.cases, Text.BlankLine)
+      case Match(scrutinee, cases) =>
+        "match " ~ scrutinee ~ indent:
+          rep(cases, Text.BlankLine)
 
       case Object(members) =>
         "object {" ~ indent:

@@ -23,6 +23,10 @@ object Printing:
 
   given Text.Maker[Word] = v => showWord(v)
 
+  given Text.Maker[Pattern] = v => showPattern(v)
+
+  given Text.Maker[Case] = v => "case " ~ v.pat ~ " =>" ~ indent(v.body)
+
   given Text.Maker[Def] = v => showDef(v)
 
   given Text.Maker[ValDef | FunDef] = v => showDef(v)
@@ -116,6 +120,9 @@ object Printing:
             )
         ~ "}"
 
+      case TaggedLit(tag, args) =>
+        "#" ~ tag ~ "(" ~ rep(args, Text(", ")) ~ ")"
+
       case Encoded(repr) =>
         "(" ~ repr ~ ": " ~ word.tpe ~ ")"
 
@@ -157,6 +164,10 @@ object Printing:
         "while " ~ cond ~ " do" ~ indent:
             body
 
+      case Match(scrutinee, cases) =>
+        "match " ~ scrutinee ~ indent:
+          rep(cases, Text.BlankLine)
+
       case Block(words) =>
         if words.size == 1 then
           showWord(words.head)
@@ -177,3 +188,15 @@ object Printing:
       case fdef: FunDef => showDef(fdef)
 
       case tdef: TypeDef => showDef(tdef)
+
+  def showPattern(pat: Pattern): Text =
+    pat match
+      case TypePattern(tpe) => ": " ~ tpe
+
+      case AscribePattern(id, inner) => id ~ " @ " ~ inner
+
+      case ApplyPattern(id, nested) =>
+        id ~ "(" ~ rep(nested, Text(", ")) ~ ")"
+
+      case TagPattern(id, nested) =>
+        "#" ~ id ~ " " ~ rep(nested, Text(" "))

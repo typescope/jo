@@ -282,7 +282,7 @@ object Ast:
 
       case TypeAscribe(_: Ident, _) => true
 
-      case Apply(_: Tag | _: Ident, args) =>
+      case Apply(_: Tag | _: Ident, args) if args.nonEmpty =>
         args.forall(_.isInstanceOf[Ident])
 
       case _ =>

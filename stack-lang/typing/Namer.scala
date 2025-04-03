@@ -27,7 +27,7 @@ import scala.annotation.constructorOnly
   */
 class Namer(@constructorOnly reporter: Reporter):
   val checker = new Checker
-  val patternMatcher = PatternMatcher(this, checker)
+  val patternTyper = PatternTyper(this, checker)
   val inferencer: Inferencer = new UnificationSolver
   val exprTyper = new ExprTyper(this, checker, inferencer)
 
@@ -336,7 +336,7 @@ class Namer(@constructorOnly reporter: Reporter):
         transform(assign).adapt
 
       case patmat: Ast.Match =>
-        patternMatcher.transform(patmat).adapt
+        patternTyper.transform(patmat).adapt
 
       case vdef: Ast.ValDef =>
         val delayedDef = transformValDef(vdef)
