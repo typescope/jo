@@ -254,6 +254,12 @@ object Types:
 
   /** The type for tagged value like `#Some(3)` */
   case class TagType(tag: String, params: List[NamedInfo[Type]]) extends Type:
+    def this(tag: String, paramTypes: List[Type]) =
+      this(
+        tag,
+        params.zipWithIndex.map { case (tp, i) => NamedInfo("p" + i, tp) }
+      )
+
     val paramTypes: List[Type] = params.map(_.info)
 
     def hasParam(name: String): Boolean = params.exists(_.name == name)

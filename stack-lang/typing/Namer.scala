@@ -536,11 +536,9 @@ class Namer(@constructorOnly reporter: Reporter):
     val then2 = transform(thenp)
     val else2 = transform(elsep)
 
-    // adapt result type
+    // result type
     val commonType = checker.commonResultType(then2.tpe, else2.tpe, ifte.pos)
-    val then3 = checker.adapt(then2, commonType)
-    val else3 = checker.adapt(else2, commonType)
-    If(cond2, then3, else3)(commonType, ifte.span)
+    If(cond2, then2, else2)(commonType, ifte.span)
 
   private def transform(record: Ast.RecordLit)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
     val Ast.RecordLit(namedArgs) = record
@@ -619,10 +617,7 @@ class Namer(@constructorOnly reporter: Reporter):
             given TargetType = TargetType.ValueType
             transform(value)
 
-        val argTypes =
-          for (value, i) <- values2.zipWithIndex
-          yield NamedInfo("_" + (i + 1), value.tpe)
-
+        val argTypes = values2.map(_.tpe)
         val tagType = TagType(tag.name, argTypes)
 
         TaggedLit(tagStringLit, values2)
@@ -1220,3 +1215,6 @@ object Namer:
 
     def define(sym: Symbol)(using Reporter): Unit =
       table.define(sym)
+
+    def definePatternAsTerm(sym: Symbol)(using Reporter): Unit =
+      table.definePatternAsTerm(sym)

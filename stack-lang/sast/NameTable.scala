@@ -37,6 +37,9 @@ class NameTable(
 
   def define(sym: Symbol)(using rp: Reporter): Unit =
     val table = getTable(sym)
+    defineInTable(sym, table)
+
+  private def defineInTable(sym: Symbol, table: NameTable)(using rp: Reporter): Unit =
     table.get(sym.name) match
       case None =>
         table(sym.name) = sym
@@ -45,6 +48,10 @@ class NameTable(
         val error = NameTable.DoubleDefinition(symBefore, sym)
         rp.report(error)
   end define
+
+  def definePatternAsTerm(sym: Symbol)(using rp: Reporter): Unit =
+    assert(sym.isPattern, "Expect pattern symbol, found = " + sym)
+    defineInTable(sym, termsTable)
 
   def terms: List[Symbol] = termNames.values.toList
 

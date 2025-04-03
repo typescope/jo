@@ -193,6 +193,8 @@ object Printing:
     pat match
       case TypePattern(tpe) => ": " ~ tpe
 
+      case WildcardPattern() => Text("_")
+
       case AscribePattern(id, inner) => id ~ " @ " ~ inner
 
       case ApplyPattern(id, nested) =>

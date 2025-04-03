@@ -71,10 +71,10 @@ object Sast:
   extends Word
 
   case class TaggedLit
-    (tag: Literal, args: List[Word])
+    (tagTree: Literal, args: List[Word])
     (val tpe: Type, val span: Span)
   extends Word:
-    val name = tag.constant match
+    val tag = tagTree.constant match
       case Constant.String(name) => name
       case c => throw new Exception("Expect string, found = " + c)
 
@@ -185,17 +185,25 @@ object Sast:
   //----------------------------------------------------------------------------
   // patterns
 
-  sealed trait Pattern extends Tree
+  sealed trait Pattern extends Tree:
+    val tpe: Type
 
   case class TypePattern
     (tpt: TypeTree)
+  extends Pattern:
+    val tpe: Type = tpt.tpe
+    val span: Span = tpt.span
+
+  case class WildcardPattern
+    ()
     (val tpe: Type, val span: Span)
   extends Pattern
 
   case class AscribePattern
     (id: Ident, nested: Pattern)
-    (val tpe: Type, val span: Span)
-  extends Pattern
+  extends Pattern:
+    val tpe = nested.tpe
+    val span = id.span | nested.span
 
   case class ApplyPattern
     (id: Ident, nested: List[Pattern])
@@ -205,15 +213,17 @@ object Sast:
       assert(pat.isInstanceOf[Ident], "expect ident, found = " + pat)
 
   case class TagPattern
-    (tag: Literal, nested: List[Pattern])
-    (val tpe: Type, val span: Span)
+    (tagTree: Literal, nested: List[Pattern])
+    (val tpe: Type)
   extends Pattern:
-    val name = tag.constant match
-      case Constant.String(name) => name
-      case c => throw new Exception("Expect string, found = " + c)
-
     for pat <- nested do
       assert(pat.isInstanceOf[Ident], "expect ident, found = " + pat)
+
+    val span = if nested.isEmpty then tagTree.span else tagTree.span | nested.span
+
+    val tag = tagTree.constant match
+      case Constant.String(name) => name
+      case c => throw new Exception("Expect string, found = " + c)
 
   case class Match
     (scrutinee: Word, cases: List[Case])

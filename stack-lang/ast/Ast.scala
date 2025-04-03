@@ -45,7 +45,10 @@ object Ast:
   case class Ident
     (name: String)
     (val span: Span)
-  extends Word, RefTree
+  extends Word, RefTree:
+    assert(name.nonEmpty, "name is empty")
+
+    def isCapitalized: Boolean = Character.isUpperCase(name.charAt(0))
 
   case class Apply
     (fun: Word, args: List[Word])
