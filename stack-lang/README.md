@@ -112,13 +112,12 @@ Abstract Syntax
 
     match   = MATCH expr {case} [END].
     case    = CASE pattern RARROW block.
-    pattern = tag_pat | expr_pattern | type_pat.
+    pattern = apply_pattern | type_pat | ident.
 
-    tag_pat  = TAG ident [pat_bindings].
     type_pat = ident COLON type.
-    expr_pat = ident [pat_bindings].
+    apply_pat = (tag | ident) [pat_bindings].
 
-    pat_bindings = (LPAREN ident {COMMA ident} RPAREN) | {ident}.
+    pat_bindings = (LPAREN ident {COMMA ident} RPAREN) | (ident {ident}).
 
     valdef  = (VAL | VAR) ident [COLON type] EQL block.
     fundef  = FUN [param_section] ident [tparams] [param_section] [COLON type] [receive_params] EQL block [END].

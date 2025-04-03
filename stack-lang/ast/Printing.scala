@@ -105,7 +105,7 @@ object Printing:
 
         val resType = showTypeAnnot(pdef.resType)
 
-        "pattern " ~ pdef.name ~ tparams ~ params ~ resType ~ " =" ~ indent(fdef.body)
+        "pattern " ~ pdef.name ~ tparams ~ params ~ resType ~ " =" ~ indent(pdef.body)
 
       case tdef: TypeDef =>
         val tparams =
