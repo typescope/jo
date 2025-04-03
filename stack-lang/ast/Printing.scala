@@ -94,6 +94,19 @@ object Printing:
 
         "fun " ~ fdef.name ~ tparams ~ params ~ resType ~ receives ~ body
 
+      case pdef: PatDef =>
+        val tparams =
+          if pdef.tparams.isEmpty then Text.Empty
+          else "[" ~ rep(pdef.tparams, Text(", "))  ~ "]"
+
+        val params =
+          if pdef.params.isEmpty then Text.Empty
+          else "(" ~ rep(pdef.params, Text(", "))  ~ ")"
+
+        val resType = showTypeAnnot(pdef.resType)
+
+        "pattern " ~ pdef.name ~ tparams ~ params ~ resType ~ " =" ~ indent(fdef.body)
+
       case tdef: TypeDef =>
         val tparams =
           if tdef.tparams.isEmpty then Text.Empty

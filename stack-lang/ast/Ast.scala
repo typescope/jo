@@ -102,15 +102,7 @@ object Ast:
     (pat: Word, body: Word)
     (val span: Span)
   extends Tree:
-    pat match
-      case _: Tag | _: Ident =>
-
-      case TypeAscribe(_: Ident, _) =>
-
-      case Apply(_: Tag, args) if args.forall(_.isInstanceOf[Ident]) =>
-
-      case _ =>
-        assert(false, "Ill-formed pattern tree: " + pat)
+    assert(isPattern(pat), "Ill-formed pattern tree: " + pat)
 
   case class Fence
     (phrase: Word)
@@ -238,6 +230,13 @@ object Ast:
     do
       assert(isQualid(param), param)
 
+  /** Representation of a pattern definition */
+  case class PatDef
+    (ident: Ident, tparams: List[TypeParam], params: List[Param], resType: TypeTree, body: Word)
+    (val span: Span)
+  extends Word, Def:
+    assert(isPattern(body), "Ill-formed pattern tree: " + body)
+
   case class Param
     (ident: Ident, typ: TypeTree)
     (val span: Span)
@@ -276,3 +275,15 @@ object Ast:
       case Select(qual, name) => isQualid(qual)
 
       case _ => false
+
+  def isPattern(pat: Word): Boolean =
+    pat match
+      case _: Tag | _: Ident => true
+
+      case TypeAscribe(_: Ident, _) => true
+
+      case Apply(_: Tag | _: Ident, args) =>
+        args.forall(_.isInstanceOf[Ident])
+
+      case _ =>
+        false
