@@ -49,6 +49,7 @@ Lexical Grammar
     DEF      = "def".
     OBJECT   = "object".
     RECEIVES = "receives".
+    PATTERN  = "pattern".
     name     = (letter | USCORE) {letter | digit | USCORE}.
     operator = opchar { opchar }.
     ident    = name | operator.
@@ -63,7 +64,7 @@ Lexical Grammar
 Abstract Syntax
 
 ~~~
-    namespace = [NSPACE qualid] {import} {typedef | fundef | paramdef} EOF.
+    namespace = [NSPACE qualid] {import} {typedef | fundef | paramdef | patdef } EOF.
 
     qualid = ident | qualid DOT ident.
 
@@ -110,17 +111,19 @@ Abstract Syntax
     lambda  = param_section RARROW block.
 
     match   = MATCH expr {case} [END].
-    case    = CASE pat RARROW block.
-    pat     = product_pat | ident | type_pat.
+    case    = CASE pattern RARROW block.
+    pattern = tag_pat | expr_pattern | type_pat.
 
-    product_pat = TAG ident [product_bindings].
-    product_bindings = (LPAREN ident {COMMA ident} RPAREN) | {ident}.
-
+    tag_pat  = TAG ident [pat_bindings].
     type_pat = ident COLON type.
+    expr_pat = ident [pat_bindings].
+
+    pat_bindings = (LPAREN ident {COMMA ident} RPAREN) | {ident}.
 
     valdef  = (VAL | VAR) ident [COLON type] EQL block.
     fundef  = FUN [param_section] ident [tparams] [param_section] [COLON type] [receive_params] EQL block [END].
     defdef  = DEF ident [tparams] [param_section] [COLON type] [receive_params] EQL block [END].
+    patdef  = PATTERN ident [tparams] [param_section] [COLON type] EQL pattern [END].
 
     paramdef = PARAM param [EQL block].
 
