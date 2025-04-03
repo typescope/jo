@@ -84,14 +84,13 @@ object Symbols:
             res
 
     def termMember(name: String): Symbol =
-      member(name, isType = false).get
+      info match
+        case nsInfo: NameTableInfo =>nsInfo.resolveTerm(name)
+        case _ => None
 
     def typeMember(name: String): Symbol =
-      member(name, isType = true).get
-
-    def member(name: String, isType: Boolean): Option[Symbol] =
       info match
-        case nsInfo: NameTableInfo => nsInfo.resolve(name, isType)
+        case nsInfo: NameTableInfo =>nsInfo.resolveType(name)
         case _ => None
 
     /** The default function associated with a context parameter */
@@ -137,6 +136,9 @@ object Symbols:
 
     def createParamSymbol(name: String, tp: Type, owner: Symbol, pos: SourcePosition) =
       new Symbol(name, tp, Flags.Param | Flags.Val, owner, pos)
+
+    def createPatternSymbol(name: String, tp: Type, owner: Symbol, pos: SourcePosition) =
+      new Symbol(name, tp, Flags.Pattern, owner, pos)
 
     def createTypeParamSymbol(name: String, tp: Type | InfoProvider, owner: Symbol, pos: SourcePosition) =
       new Symbol(name, tp, Flags.Param | Flags.Type, owner, pos)

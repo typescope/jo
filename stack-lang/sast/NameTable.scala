@@ -10,42 +10,33 @@ import scala.collection.mutable
 
 class NameTable(
   termNames: mutable.Map[String, Symbol],
-  typeNames: mutable.Map[String, Symbol]):
+  typeNames: mutable.Map[String, Symbol],
+  patternNames: mutable.Map[String, Symbol]):
 
-  def this() = this(mutable.Map.empty, mutable.Map.empty)
+  def this() = this(mutable.Map.empty, mutable.Map.empty, mutable.Map.empty)
 
-  private def getTable(isType: Boolean) =
-    if isType then typeNames else termNames
+  private def getTable(sym: Symbol) =
+    if sym.isType then typeNames
+    else if sym.isPattern then patternNames
+    else termNames
 
   def resolveTerm(name: String): Option[Symbol] =
-    val table = getTable(isType = false)
-    table.get(name)
+    termNames.get(name)
 
   def resolveType(name: String): Option[Symbol] =
-    val table = getTable(isType = true)
-    table.get(name)
+    typeNames.get(name)
 
-  def resolve(name: String, isType: Boolean): Option[Symbol] =
-    val table = getTable(isType)
-    table.get(name)
+  def resolvePattern(name: String): Option[Symbol] =
+    patternNames.get(name)
 
   def resolve(name: String): List[Symbol] =
-    resolveTerm(name) match
-      case Some(sym1) =>
-        resolveType(name) match
-          case Some(sym2) => sym1 :: sym2 :: Nil
-          case None => sym1 :: Nil
-
-      case None =>
-        resolveType(name) match
-          case Some(sym2) => sym2 :: Nil
-          case None => Nil
+    List(resolveTerm(name), resolveType(name), resolvePattern(name)).flatMap(_.getOrElse(Nil))
 
   def resolvePath(path: String) =
     NameTable.resolvePath(this, path, isType = false)
 
   def define(sym: Symbol)(using rp: Reporter): Unit =
-    val table = getTable(sym.isType)
+    val table = getTable(sym)
     table.get(sym.name) match
       case None =>
         table(sym.name) = sym
@@ -59,8 +50,10 @@ class NameTable(
 
   def types: List[Symbol] = typeNames.values.toList
 
+  def patterns: List[Symbol] = patternNames.values.toList
+
   def show: String =
-    "terms: { " + termNames + "}" + "\ntypes: { " + typeNames + "}"
+    "terms: { " + termNames + "}" + "\ntypes: { " + typeNames + "}" + "\npatterns: { " + patternNames + "}"
 
 object NameTable:
   def resolvePath(nameTable: NameTable, path: String, isType: Boolean): Symbol =
@@ -70,7 +63,8 @@ object NameTable:
 
   def resolvePath(nameTable: NameTable, parts: List[String], isType: Boolean): Option[Symbol] =
     (parts: @unchecked) match
-      case name :: Nil => nameTable.resolve(name, isType)
+      case name :: Nil =>
+        if isType then nameTable.resolveType(name) else nameTable.resolveTerm(name)
 
       case name :: rest =>
         nameTable.resolveTerm(name).flatMap: sym =>

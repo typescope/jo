@@ -355,4 +355,4 @@ object Types:
   class NameTableInfo(val nameTable: NameTable) extends Type:
     def this() = this(new NameTable)
 
-    export nameTable.{ resolve, resolveType, resolveTerm, define }
+    export nameTable.{ resolveType, resolveTerm, resolvePattern, define }

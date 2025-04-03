@@ -125,7 +125,7 @@ class Namer(@constructorOnly reporter: Reporter):
             sym
 
       case Ast.Ident(name) =>
-        sc.resolve(name, isType = false) match
+        sc.resolveTerm(name) match
           case None =>
             val sym = Symbol.createNamespaceSymbol(name, new NameTableInfo, sc.owner, qualid.pos, isBranch)
             sc.define(sym)
@@ -158,7 +158,7 @@ class Namer(@constructorOnly reporter: Reporter):
             Symbol.createFunSymbol(name, ErrorType, sym, pos = qualid.pos)
 
         case Ast.Ident(name) =>
-          rootNameTable.resolve(name, isType = false) match
+          rootNameTable.resolveTerm(name) match
             case Some(sym) => sym
             case None =>
               rp.error(s"`$name` is not found", qualid.pos)
@@ -242,7 +242,7 @@ class Namer(@constructorOnly reporter: Reporter):
         Literal(Constant.String(v))(tp, word.span).adapt
 
       case Ast.Ident(name) =>
-        val sym = sc.resolve(name, word.pos)
+        val sym = sc.resolveTerm(name, word.pos)
         if sym.isField || sym.isMethod then
           val qual = Ident(sym.owner)(word.span)
           Select(qual, sym.name)(sym.info, word.span).adapt
@@ -469,7 +469,7 @@ class Namer(@constructorOnly reporter: Reporter):
 
     ref match
       case id: Ast.Ident =>
-        val sym = sc.resolve(id.name, id.pos)
+        val sym = sc.resolveTerm(id.name, id.pos)
 
         checker.checkMutable(sym, id.pos)
 
@@ -975,7 +975,7 @@ class Namer(@constructorOnly reporter: Reporter):
   def transformType(tpt: Ast.TypeTree)(using sc: Scope, rp: Reporter, so: Source): TypeTree =
     tpt match
       case Ast.Ident(name) =>
-        sc.resolve(name, isType = true) match
+        sc.resolveType(name) match
           case Some(sym) =>
             TypeTree(TypeRef(sym))(tpt.span)
 
@@ -1180,21 +1180,52 @@ object Namer:
     def fresh(owner: Symbol, nameTable: NameTable): Scope =
       new Scope.NestedScope(this, nameTable, owner)
 
-    def resolve(name: String, isType: Boolean): Option[Symbol] = Debug.trace(s"Resolving $name in scope " + table.show, enable = false):
-      table.resolve(name, isType) match
+    def resolveType(name: String): Option[Symbol] = Debug.trace(s"Resolving type $name in scope " + table.show, enable = false):
+      table.resolveType(name) match
         case None =>
           this match
-            case nsc: NestedScope => nsc.outer.resolve(name, isType)
+            case nsc: NestedScope => nsc.outer.resolveType(name)
             case _ => None
 
         case res  => res
 
-    def resolve(name: String, pos: SourcePosition, isType: Boolean = false)(using Reporter): Symbol =
-      resolve(name, isType) match
+    def resolveTerm(name: String): Option[Symbol] = Debug.trace(s"Resolving term $name in scope " + table.show, enable = false):
+      table.resolveTerm(name) match
+        case None =>
+          this match
+            case nsc: NestedScope => nsc.outer.resolveTerm(name)
+            case _ => None
+
+        case res  => res
+
+    def resolvePattern(name: String): Option[Symbol] = Debug.trace(s"Resolving pattern $name in scope " + table.show, enable = false):
+      table.resolvePattern(name) match
+        case None =>
+          this match
+            case nsc: NestedScope => nsc.outer.resolvePattern(name)
+            case _ => None
+
+        case res  => res
+
+    def resolveTerm(name: String, pos: SourcePosition)(using Reporter): Symbol =
+      resolveTerm(name) match
         case Some(sym) => sym
         case None =>
-          val kind = if isType then "type" else "term"
-          Reporter.error(s"Undefined $kind identifier " + name, pos)
+          Reporter.error(s"Undefined term identifier " + name, pos)
+          Symbol.createFunSymbol(name, ErrorType, owner, pos)
+
+    def resolveType(name: String, pos: SourcePosition)(using Reporter): Symbol =
+      resolveType(name) match
+        case Some(sym) => sym
+        case None =>
+          Reporter.error(s"Undefined type identifier " + name, pos)
+          Symbol.createFunSymbol(name, ErrorType, owner, pos)
+
+    def resolvePattern(name: String, pos: SourcePosition)(using Reporter): Symbol =
+      resolvePattern(name) match
+        case Some(sym) => sym
+        case None =>
+          Reporter.error(s"Undefined pattern identifier " + name, pos)
           Symbol.createFunSymbol(name, ErrorType, owner, pos)
 
     def define(sym: Symbol)(using Reporter): Unit =
