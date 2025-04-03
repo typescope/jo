@@ -888,7 +888,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def apply_pattern(apply: Tag | Ident): Word =
     val bindings =
       if peek() == Token.LPAREN then
-        pattern_bindings()
+        nested_patterns()
       else
         val ids = new mutable.ArrayBuffer[Ident]
         while peek().isInstanceOf[Token.Ident] do
@@ -901,7 +901,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       val spanEnd = bindings.last.span
       Apply(apply, bindings)(apply.span | spanEnd)
 
-  def pattern_bindings(): List[Ident] =
+  def nested_patterns(): List[Ident] =
     val bindings = new mutable.ArrayBuffer[Ident]
     eat(Token.LPAREN)
     bindings += ident()

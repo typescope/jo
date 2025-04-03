@@ -115,9 +115,9 @@ Abstract Syntax
     pattern = apply_pattern | type_pat | ident.
 
     type_pat = ident COLON type.
-    apply_pat = (tag | ident) [pat_bindings].
+    apply_pat = (tag | ident) [nested_pats].
 
-    pat_bindings = (LPAREN ident {COMMA ident} RPAREN) | (ident {ident}).
+    nested_pats = (LPAREN ident {COMMA ident} RPAREN) | (ident {ident}).
 
     valdef  = (VAL | VAR) ident [COLON type] EQL block.
     fundef  = FUN [param_section] ident [tparams] [param_section] [COLON type] [receive_params] EQL block [END].
