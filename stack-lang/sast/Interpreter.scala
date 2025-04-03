@@ -498,10 +498,14 @@ object Interpreter:
     val typeCheck = (nss: List[Ast.Namespace]) => Namer.transform(nss, stdlib, runtime)
 
     val noramlizer = new phases.NormalizeParams
+    val encoder = new EncodeTagged
 
     val namespacesSAST =
       Parser.parse(sourceFiles)     |>
       typeCheck                     |+
+      Printing.peek(enable = false) |>
+      TreeChecker.check             |>
+      encoder.transform             |+
       Printing.peek(enable = false) |>
       TreeChecker.check             |>
       Printing.peek(enable = false) |>

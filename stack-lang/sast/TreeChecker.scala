@@ -43,6 +43,10 @@ class TreeChecker()(using Source) extends SastOps.TreeTraverser:
         if !word.tpe.isRecordType then
           Reporter.error("Expect record type, found = " + word.tpe.show, word.pos)
 
+      case _: TaggedLit =>
+        if !word.tpe.isTagType then
+          Reporter.error("Expect tag type, found = " + word.tpe.show, word.pos)
+
       case _: Object =>
         if !word.tpe.isObjectType then
           Reporter.error("Expect object type, found = " + word.tpe.show, word.pos)

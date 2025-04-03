@@ -131,7 +131,7 @@ class PatternMatcher(namer: Namer, checker: Checker):
           val vdef = ValDef(sym, Encoded(scrut)(tpe))(pat.span)
           caseScope.define(sym)
 
-          val cond = Desugaring.testTagValues(tagIdent, tags, pat.span)
+          val cond = TaggedEncoding.testTagValues(tagIdent, tags, pat.span)
           val body2 = namer.transform(body)(using caseScope, rp, so, tt)
           val commonType = checker.commonResultType(body2.tpe, resType, body2.pos)
           val elsep = cont(commonType)
@@ -187,12 +187,12 @@ class PatternMatcher(namer: Namer, checker: Checker):
 
           val vals = mutable.ArrayBuffer.empty[ValDef]
           for (binding, i) <- bindings.zipWithIndex if binding.name != "_" do
-            val arg = Desugaring.selectVariantField(scrut, tagType, i, binding.span)
+            val arg = TaggedEncoding.selectVariantField(scrut, tagType, i, binding.span)
             val sym = Symbol.createValueSymbol(binding.name, arg.tpe, sc.owner, arg.pos)
             vals += ValDef(sym, arg)(binding.span)
             caseScope.define(sym)
 
-          val cond = Desugaring.testTagValue(tagIdent, tag.name, tag.span)
+          val cond = TaggedEncoding.testTagValue(tagIdent, tag.name, tag.span)
           val body2 = namer.transform(body)(using caseScope, rp, so, tt)
           val commonType = checker.commonResultType(body2.tpe, resType, body2.pos)
           val elsep = cont(commonType)

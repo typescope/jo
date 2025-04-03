@@ -98,13 +98,13 @@ class NormalizeParams(using Reporter) extends Phase[NormalizeParams.Context]:
     val valueSym = Symbol.createValueSymbol(pdef.name + "Value", optionParamSym.info, valueFunSym, param.sourcePos)
     val vdef = ValDef(valueSym, Ident(optionParamSym)(pdef.span))(pdef.span)
 
-    val noneTypeEncoded = Desugaring.encodeTagType(NoneType)
+    val noneTypeEncoded = TaggedEncoding.encodeTagType(NoneType)
     val refOpt = Encoded(Ident(valueSym)(pdef.span))(noneTypeEncoded)
-    val cond = Desugaring.testVariantTag(refOpt, "None", pdef.span)
+    val cond = TaggedEncoding.testVariantTag(refOpt, "None", pdef.span)
     val trueBranch = Apply(Ident(defaultFunSym)(pdef.span), args = Nil)(param.info, pdef.span)
 
     val someType = TagType("Some", params = NamedInfo("value", param.info) :: Nil)
-    val falseBranch = Desugaring.selectVariantField(refOpt, someType, "value", pdef.span)
+    val falseBranch = TaggedEncoding.selectVariantField(refOpt, someType, "value", pdef.span)
 
     val ifStat = If(cond, trueBranch, falseBranch)(param.info, pdef.span)
 
@@ -220,7 +220,7 @@ class NormalizeParams(using Reporter) extends Phase[NormalizeParams.Context]:
       val optionParamSym = param.optionParam
       val paramRef = Ident(optionParamSym)(span)
       val noneType = TagType("None", params = Nil)
-      val noneValue = Desugaring.encodeVariant(noneType, Nil, span, span)
+      val noneValue = TaggedEncoding.encodeVariant(noneType, Nil, span, span)
       WithArg(paramRef, noneValue)(span)
 
   /** Check `allow`-clause */
@@ -253,7 +253,7 @@ class NormalizeParams(using Reporter) extends Phase[NormalizeParams.Context]:
         if paramRef.symbol.is(Flags.Default) then
           val optionParamRef = Ident(paramRef.symbol.optionParam)(paramRef.span)
           val someType = TagType("Some", NamedInfo("value", paramRef.symbol.info) :: Nil)
-          val rhs2 = Desugaring.encodeVariant(someType, rhs :: Nil, paramRef.span, rhs.span)
+          val rhs2 = TaggedEncoding.encodeVariant(someType, rhs :: Nil, paramRef.span, rhs.span)
           WithArg(optionParamRef, rhs2)(arg.span)
         else
           arg

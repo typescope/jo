@@ -19,7 +19,6 @@ files=(
     stack-lang/common/Debug.scala
     stack-lang/common/Dynamic.scala
     stack-lang/typing/Checker.scala
-    stack-lang/typing/Desugaring.scala
     stack-lang/typing/EffectAnalysis.scala
     stack-lang/typing/ExprTyper.scala
     stack-lang/typing/Inference.scala
@@ -38,8 +37,10 @@ files=(
     stack-lang/sast/TreeChecker.scala
     stack-lang/sast/Types.scala
     stack-lang/sast/TypeOps.scala
+    stack-lang/sast/TaggedEncoding.scala
 
     stack-lang/phases/Phase.scala
+    stack-lang/phases/EncodeTagged.scala
     stack-lang/phases/NormalizeParams.scala
 
     # interpreter

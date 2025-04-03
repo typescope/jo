@@ -71,9 +71,12 @@ object Sast:
   extends Word
 
   case class TaggedLit
-    (tag: Ident, args: List[Word])
+    (tag: Literal, args: List[Word])
     (val tpe: Type, val span: Span)
-  extends Word
+  extends Word:
+    val name = tag.constant match
+      case Constant.String(name) => name
+      case c => throw new Exception("Expect string, found = " + c)
 
   case class Ident
     (symbol: Symbol)
@@ -202,9 +205,13 @@ object Sast:
       assert(pat.isInstanceOf[Ident], "expect ident, found = " + pat)
 
   case class TagPattern
-    (id: Ident, nested: List[Pattern])
+    (tag: Literal, nested: List[Pattern])
     (val tpe: Type, val span: Span)
   extends Pattern:
+    val name = tag.constant match
+      case Constant.String(name) => name
+      case c => throw new Exception("Expect string, found = " + c)
+
     for pat <- nested do
       assert(pat.isInstanceOf[Ident], "expect ident, found = " + pat)
 

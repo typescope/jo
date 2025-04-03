@@ -64,12 +64,18 @@ object Compiler:
         Namer.transform(nss, stdlib, runtime, rootNameTable, runtimeNameTable)
 
       val noramlizer = new phases.NormalizeParams
+      val encoder = new EncodeTagged
 
       val namespacesSAST =
         Parser.parse(sourceFiles)     |>
         typeCheck                     |+
+        TreeChecker.check             |>
+        Printing.peek(enable = false) |>
+        encoder.transform             |+
+        TreeChecker.check             |>
         Printing.peek(enable = false) |>
         noramlizer.transform          |+
+        TreeChecker.check             |>
         Printing.peek(enable = false)
 
       val mains = namespacesSAST.collect:

@@ -120,8 +120,8 @@ object Printing:
             )
         ~ "}"
 
-      case TaggedLit(tag, args) =>
-        "#" ~ tag ~ "(" ~ rep(args, Text(", ")) ~ ")"
+      case tagged: TaggedLit =>
+        "#" ~ tagged.name ~ "(" ~ rep(tagged.args, Text(", ")) ~ ")"
 
       case Encoded(repr) =>
         "(" ~ repr ~ ": " ~ word.tpe ~ ")"
@@ -198,5 +198,5 @@ object Printing:
       case ApplyPattern(id, nested) =>
         id ~ "(" ~ rep(nested, Text(", ")) ~ ")"
 
-      case TagPattern(id, nested) =>
-        "#" ~ id ~ " " ~ rep(nested, Text(" "))
+      case tagged @ TagPattern(_, nested) =>
+        "#" ~ tagged.name ~ " " ~ rep(nested, Text(" "))

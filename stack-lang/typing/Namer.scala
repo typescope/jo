@@ -260,8 +260,8 @@ class Namer(@constructorOnly reporter: Reporter):
           transform(expr)
         expr2.adapt
 
-      case Ast.Tag(name) =>
-        transformVariant(name, values = Nil).adapt
+      case tag: Ast.Tag =>
+        transformTagged(tag, values = Nil).adapt
 
       case Ast.Select(qual, name) =>
         val qual2 =
@@ -279,15 +279,6 @@ class Namer(@constructorOnly reporter: Reporter):
                 Select(qual2, name)(tp, word.span).adapt
 
           case None =>
-            if qualType.isTagType then
-              val tagType = qualType.asTagType
-              if tagType.hasParam(name) then
-                Desugaring.selectVariantField(qual2, tagType, name, word.span).adapt
-              else
-                errorWord(word.span)
-            else
-              // Error already reported
-              errorWord(word.span)
 
       case lambda: Ast.Lambda =>
         transform(lambda).adapt
@@ -297,7 +288,7 @@ class Namer(@constructorOnly reporter: Reporter):
 
       case app: Ast.Apply =>
         app.fun match
-          case Ast.Tag(name) => transformVariant(name, app.args)
+          case tag: Ast.Tag => transformTagged(tag, app.args)
           case _ => transformCall(app)
 
       case Ast.TypeApply(fun, targs) =>
@@ -583,12 +574,15 @@ class Namer(@constructorOnly reporter: Reporter):
     val tpe = RecordType(fields.map { case (k, v) => NamedInfo(k, v.tpe) })
     RecordLit(fields)(tpe, record.span)
 
-  def transformVariant(tag: Ast.Ident, values: List[Ast.Word])(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
+  def transformTagged(tag: Ast.Tag, values: List[Ast.Word])(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
+    val tagName = tag.name.name
     val span =
       if values.isEmpty then tag.span
       else tag.span | values.last.span
 
     val pos = span.toPos
+
+    val tagStringLit = StringLit(tagName)(Definitions.instance.StringType, tag.span)
 
     def check(tagType: TagType, resType: Type): Word =
       val paramTypes = tagType.paramTypes
@@ -600,9 +594,7 @@ class Namer(@constructorOnly reporter: Reporter):
           given TargetType = TargetType.Known(tp)
           transform(value)
 
-      // encode variants as records
-      val encodedValue = Desugaring.encodeVariant(tagType, values2, tag.span, span)
-      Encoded(encodedValue)(resType)
+      TaggedLit(tagStringLit, values2)(tagType, span)
 
     tt.knownType match
       case Some(tp) =>
@@ -633,9 +625,7 @@ class Namer(@constructorOnly reporter: Reporter):
 
         val tagType = TagType(tag.name, argTypes)
 
-        // encode variants as records
-        val encodedValue = Desugaring.encodeVariant(tagType, values2, tag.span, span)
-        Encoded(encodedValue)(tagType)
+        TaggedLit(tagStringLit, values2)
 
   private def transform(lambda: Ast.Lambda)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
      val Ast.Lambda(params, body) = lambda
@@ -1068,7 +1058,7 @@ class Namer(@constructorOnly reporter: Reporter):
               branchTypes += tagType
         end for
         val unionType = UnionType(branchTypes.toList)
-        Desugaring.checkUnionType(unionType, tpt.pos)
+        TaggedEncoding.checkUnionType(unionType, tpt.pos)
         TypeTree(unionType)(tpt.span)
 
       case Ast.AppliedType(tctor, targs) =>

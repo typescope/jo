@@ -170,6 +170,9 @@ object Types:
         case recordType: RecordType =>
           recordType.getFieldType(name)
 
+        case tagType: TagType =>
+          tagType.getParamType(name)
+
         case objectType: ObjectType =>
           objectType.getMemberType(name)
 
@@ -254,6 +257,9 @@ object Types:
     val paramTypes: List[Type] = params.map(_.info)
 
     def hasParam(name: String): Boolean = params.exists(_.name == name)
+
+    def getParamType(tag: String): Option[Type] =
+      params.find(_.name == name).map(_.info)
 
     def paramIndex(name: String): Int = params.indexWhere(_.name == name)
 
