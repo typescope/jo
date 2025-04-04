@@ -216,7 +216,7 @@ object Sast:
 
     for pat <- nested do
       pat match
-        case AscribePattern(_, _: TypePattern | _: WildcardPattern) =>
+        case AscribePattern(_, _: TypePattern | _: WildcardPattern) | _: WildcardPattern =>
         case _ => assert(false, "expect ident, found = " + pat)
 
   case class TagPattern
@@ -225,7 +225,7 @@ object Sast:
   extends Pattern:
     for pat <- nested do
       pat match
-        case AscribePattern(_, _: TypePattern | _: WildcardPattern) =>
+        case AscribePattern(_, _: TypePattern | _: WildcardPattern) | _: WildcardPattern =>
         case _ => assert(false, "expect ident, found = " + pat)
 
     val span = if nested.isEmpty then tagTree.span else tagTree.span | nested.last.span

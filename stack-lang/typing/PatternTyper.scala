@@ -139,6 +139,9 @@ class PatternTyper(namer: Namer, checker: Checker):
         if id.isCapitalized then
           transformApplyPattern(id, Nil, scrutType)
 
+        else if name == "_" then
+          WildcardPattern()(scrutType, id.span)
+
         else if sc.owner.isPattern then
           val sym = sc.resolvePattern(name, id.pos)
 
