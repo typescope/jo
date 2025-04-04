@@ -99,7 +99,7 @@ class PatternTyper(namer: Namer, checker: Checker):
     val body2 = namer.transform(body)(using caseScope)
     Case(pat2, body2)(caseDef.span)
 
-  private def transformApplyPattern(id: Ast.Ident, args: List[Ast.Word], scrutType: Type)(using sc: Scope, rp: Reporter, so: Source): Pattern =
+  private def transformApplyPattern(id: Ast.Ident, args: List[Ast.Word], scrutType: Type, patSpan: Span)(using sc: Scope, rp: Reporter, so: Source): Pattern =
     val sym = sc.resolvePattern(id.name, id.pos)
 
     var fun: Word = Ident(sym)(id.span)
@@ -107,7 +107,6 @@ class PatternTyper(namer: Namer, checker: Checker):
     if fun.tpe.isPolyType then
       fun = namer.exprTyper.instantiatePoly(fun.tpe.asProcType, fun)
 
-    val span = if args.isEmpty then id.span else id.span | args.last.span
     val funType = fun.tpe
 
     if funType.isProcType then
@@ -118,120 +117,137 @@ class PatternTyper(namer: Namer, checker: Checker):
       if Subtyping.conforms(resType, scrutType) then
         if args.size != paramSize then
           Reporter.error(s"The pattern predicate expects $paramSize arguments, found = ${args.size}", id.pos)
-          WildcardPattern()(ErrorType, id.span)
+          WildcardPattern()(ErrorType, patSpan)
         else
           val argsTyped =
             for (arg, paramType) <- args.zip(procType.paramTypes) yield
               transformPattern(arg, paramType)
 
-          ApplyPattern(fun, argsTyped)(resType, span)
+          ApplyPattern(fun, argsTyped)(resType, patSpan)
         end if
       else
         Reporter.error(s"The pattern predicate result type ${resType.show} does not conform to scrutinee type ${scrutType.show}", id.pos)
-        WildcardPattern()(ErrorType, span)
+        WildcardPattern()(ErrorType, patSpan)
 
     else
       Reporter.error(s"Not a function: " + fun.tpe.show, id.pos)
-      WildcardPattern()(ErrorType, span)
+      WildcardPattern()(ErrorType, patSpan)
+
+  private def transformTagPattern(tag: Ast.Tag, args: List[Ast.Word], scrutType: Type, patSpan: Span)(using sc: Scope, rp: Reporter, so: Source): Pattern =
+    val id = tag.name
+
+    def checkNested(tagType: TagType): Pattern =
+      val paramTypes = tagType.paramTypes
+      val paramCount = paramTypes.size
+      val argCount = args.size
+
+      if argCount != paramCount then
+        Reporter.error(s"The tag type ${id.name} in scrutinee has $paramCount parameters, supplied = $argCount", tag.pos)
+        WildcardPattern()(ErrorType, patSpan)
+
+      else
+        val args2 =
+          for (pat, paramType) <- args.zip(paramTypes) yield transformPattern(pat, paramType)
+
+        val tagStringLit = StringLit(id.name)(Definitions.instance.StringType, tag.span)
+        val tagTypeActual = TagType.from(id.name, args2.map(_.tpe))
+        TagPattern(tagStringLit, args2)(tagTypeActual)
+
+    if scrutType.isUnionType then
+      val unionType = scrutType.asUnionType
+       if !unionType.hasTag(id.name) then
+         Reporter.error(s"The tag ${id.name} does not exist in union type ${unionType.show}", tag.pos)
+         WildcardPattern()(ErrorType, patSpan)
+
+       else
+         val tagType = unionType.tagType(id.name)
+         checkNested(tagType)
+
+    else if scrutType.isTagType then
+      val tagType = scrutType.asTagType
+      if tagType.tag != id.name then
+        Reporter.error(s"The tag ${id.name} does not match the scrutinee type ${tagType.show}", tag.pos)
+        WildcardPattern()(ErrorType, patSpan)
+      else
+        checkNested(tagType)
+
+    else if scrutType.isAnyType then
+      val tagType = TagType.from(id.name, args.map(_ => AnyType))
+      checkNested(tagType)
+
+    else
+      Reporter.error(s"The tag ${id.name} does not match the scrutinee type ${scrutType.show}", tag.pos)
+      WildcardPattern()(ErrorType, patSpan)
+
+  private def transformAscribePattern(id: Ast.Ident, tpt: Ast.TypeTree, scrutType: Type, patSpan: Span)(using sc: Scope, rp: Reporter, so: Source): Pattern =
+    val name = id.name
+    val tpt2 = namer.transformType(tpt)
+    val tpe = tpt2.tpe
+
+    if Subtyping.conforms(tpe, scrutType) then
+      if sc.owner.isPattern then
+        val sym = sc.resolvePattern(name, id.pos)
+
+        if Subtyping.conforms(tpe, sym.info) then
+          val patVal = Ident(sym)(id.span)
+          AscribePattern(patVal, TypePattern(tpt2))
+
+        else
+          Reporter.error(s"${tpe.show} not a subtype of $sym. The latter has type " + sym.info.show, tpt.pos)
+          WildcardPattern()(ErrorType, patSpan)
+
+      else
+        val sym = Symbol.createPatternSymbol(name, tpe, sc.owner, id.pos)
+        sc.definePatternAsTerm(sym)
+
+        val patVal = Ident(sym)(id.span)
+        AscribePattern(patVal, TypePattern(tpt2))
+
+    else
+      Reporter.error("The type is not a subtype of the scrutinee. ", tpt.pos)
+      WildcardPattern()(ErrorType, patSpan)
+
+  private def transformIdentPattern(id: Ast.Ident, scrutType: Type)(using sc: Scope, rp: Reporter, so: Source): Pattern =
+    val name =id.name
+    if id.isCapitalized then
+      transformApplyPattern(id, Nil, scrutType, id.span)
+
+    else if name == "_" then
+      WildcardPattern()(scrutType, id.span)
+
+    else if sc.owner.isPattern then
+      val sym = sc.resolvePattern(name, id.pos)
+
+      if Subtyping.conforms(sym.info, scrutType) then
+        val patVal = Ident(sym)(id.span)
+        AscribePattern(patVal, TypePattern(TypeTree(sym.info)(id.span)))
+
+      else
+        Reporter.error(s"$sym is not a subtype of the scrutinee type " + scrutType.show, id.pos)
+        WildcardPattern()(ErrorType, id.span)
+
+    else
+      val sym = Symbol.createPatternSymbol(name, scrutType, sc.owner, id.pos)
+      sc.definePatternAsTerm(sym)
+
+      val patVal = Ident(sym)(id.span)
+      val wildcard = WildcardPattern()(scrutType, id.span)
+      AscribePattern(patVal, wildcard)
 
   private def transformPattern(pat: Ast.Word, scrutType: Type)(using sc: Scope, rp: Reporter, so: Source): Pattern =
     (pat: @unchecked) match
-      case id @ Ast.Ident(name) =>
-        if id.isCapitalized then
-          transformApplyPattern(id, Nil, scrutType)
+      case id: Ast.Ident =>
+        transformIdentPattern(id, scrutType)
 
-        else if name == "_" then
-          WildcardPattern()(scrutType, id.span)
-
-        else if sc.owner.isPattern then
-          val sym = sc.resolvePattern(name, id.pos)
-
-          if Subtyping.conforms(sym.info, scrutType) then
-            val patVal = Ident(sym)(id.span)
-            AscribePattern(patVal, TypePattern(TypeTree(sym.info)(id.span)))
-
-          else
-            Reporter.error(s"$sym is not a subtype of the scrutinee type " + scrutType.show, id.pos)
-            WildcardPattern()(ErrorType, pat.span)
-
-        else
-          val sym = Symbol.createPatternSymbol(name, scrutType, sc.owner, pat.pos)
-          sc.definePatternAsTerm(sym)
-
-          val patVal = Ident(sym)(id.span)
-          val wildcard = WildcardPattern()(scrutType, id.span)
-          AscribePattern(patVal, wildcard)
-
-      case Ast.TypeAscribe(id @ Ast.Ident(name), tpt) =>
-        val tpt2 = namer.transformType(tpt)
-        val tpe = tpt2.tpe
-
-        if Subtyping.conforms(tpe, scrutType) then
-          if sc.owner.isPattern then
-            val sym = sc.resolvePattern(name, id.pos)
-
-            if Subtyping.conforms(tpe, sym.info) then
-              val patVal = Ident(sym)(id.span)
-              AscribePattern(patVal, TypePattern(tpt2))
-
-            else
-              Reporter.error(s"${tpe.show} not a subtype of $sym. The latter has type " + sym.info.show, tpt.pos)
-              WildcardPattern()(ErrorType, pat.span)
-
-          else
-            val sym = Symbol.createPatternSymbol(name, tpe, sc.owner, pat.pos)
-            sc.definePatternAsTerm(sym)
-
-            val patVal = Ident(sym)(id.span)
-            AscribePattern(patVal, TypePattern(tpt2))
-
-        else
-          Reporter.error("The type is not a subtype of the scrutinee. ", tpt.pos)
-          WildcardPattern()(ErrorType, pat.span)
+      case Ast.TypeAscribe(id: Ast.Ident, tpt) =>
+        transformAscribePattern(id, tpt, scrutType, pat.span)
 
       case Ast.Apply(id: Ast.Ident, args) =>
-        transformApplyPattern(id, args, scrutType)
+        transformApplyPattern(id, args, scrutType, pat.span)
 
-      case Ast.Apply(tag @ Ast.Tag(id), nested) =>
-        def checkNested(tagType: TagType): Pattern =
-          val paramTypes = tagType.paramTypes
-          val paramCount = paramTypes.size
-          val argCount = nested.size
+      case Ast.Apply(tag: Ast.Tag, nested) =>
+        transformTagPattern(tag, nested, scrutType, pat.span)
+    end match
+  end transformPattern
 
-          if argCount != paramCount then
-            Reporter.error(s"The tag type ${id.name} in scrutinee has $paramCount parameters, supplied = $argCount", tag.pos)
-            WildcardPattern()(ErrorType, pat.span)
-
-          else
-            val nested2 =
-              for (pat, paramType) <- nested.zip(paramTypes) yield transformPattern(pat, paramType)
-
-            val tagStringLit = StringLit(id.name)(Definitions.instance.StringType, tag.span)
-            val tagTypeActual = TagType.from(id.name, nested2.map(_.tpe))
-            TagPattern(tagStringLit, nested2)(tagTypeActual)
-
-        if scrutType.isUnionType then
-          val unionType = scrutType.asUnionType
-           if !unionType.hasTag(id.name) then
-             Reporter.error(s"The tag ${id.name} does not exist in union type ${unionType.show}", tag.pos)
-             WildcardPattern()(ErrorType, pat.span)
-
-           else
-             val tagType = unionType.tagType(id.name)
-             checkNested(tagType)
-
-        else if scrutType.isTagType then
-          val tagType = scrutType.asTagType
-          if tagType.tag != id.name then
-            Reporter.error(s"The tag ${id.name} does not match the scrutinee type ${tagType.show}", tag.pos)
-            WildcardPattern()(ErrorType, pat.span)
-          else
-            checkNested(tagType)
-
-        else if scrutType.isAnyType then
-          val tagType = TagType.from(id.name, nested.map(_ => AnyType))
-          checkNested(tagType)
-
-        else
-          Reporter.error(s"The tag ${id.name} does not match the scrutinee type ${scrutType.show}", tag.pos)
-          WildcardPattern()(ErrorType, pat.span)
+end PatternTyper
