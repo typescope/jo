@@ -11,13 +11,13 @@ class BumpAllocator(runtimeRootNameTable: NameTable)
 extends Linker:
   val allocatorStateLabel = Label("allocatorState")
 
-  import runtimeRootNameTable.resolvePath
+  import runtimeRootNameTable.resolveNamespace
 
-  val GC = resolvePath("stk.runtime.native.GC")
+  val GC = resolveNamespace("stk.runtime.native.GC")
   val GC_alloc = GC.termMember("alloc")
   val GC_init = GC.termMember("init")
 
-  val BumpAllocator = resolvePath("stk.runtime.native.BumpAllocator")
+  val BumpAllocator = resolveNamespace("stk.runtime.native.BumpAllocator")
   val BumpAllocator_init = BumpAllocator.termMember("init")
   val BumpAllocator_alloc = BumpAllocator.termMember("alloc")
 

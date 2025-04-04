@@ -19,7 +19,7 @@ object Flags:
   val Default : Flag = 1 << 12  // context parameters with default value
 
   // namespace flags
-  val Branch  : Flag = 1 << 3  // branch name space
+  val Branch  : Flag = 1 << 5  // branch name space
 
   val empty   : Flags = 0
 

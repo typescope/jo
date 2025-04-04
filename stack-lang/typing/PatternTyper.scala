@@ -37,7 +37,7 @@ class PatternTyper(namer: Namer, checker: Checker):
 
       for param <- patDef.params yield
         val tpt = namer.transformType(param.typ)(using patScope)
-        val paramSym = Symbol.createParamSymbol(param.name, tpt.tpe, patSym, param.pos)
+        val paramSym = Symbol.createPatternSymbol(param.name, tpt.tpe, patSym, param.pos)
         patScope.define(paramSym)
         paramSym
 
