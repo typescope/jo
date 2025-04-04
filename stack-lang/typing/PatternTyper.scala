@@ -7,11 +7,12 @@ import sast.*
 import sast.Sast.*
 import sast.Symbols.*
 import sast.Types.*
+import reporting.Reporter
 
 import Namer.{ Scope, DelayedDef }
 import Inference.TargetType
+import PatternTyper.Occurs
 
-import reporting.Reporter
 
 class PatternTyper(namer: Namer, checker: Checker):
   def transformPatDef(patDef: Ast.PatDef)(using sc: Scope, rp: Reporter, so: Source): DelayedDef[PatDef] =
@@ -57,9 +58,20 @@ class PatternTyper(namer: Namer, checker: Checker):
 
     lazy val typedBody =
       paramSyms
+      val occurs = new Occurs
       given Scope = patScope
+      given Occurs = occurs
+      given rp2: Reporter = rp.fresh(buffer = true)
       val scrutType = if patDef.resultType.isEmpty then AnyType else givenResultType
-      transformPattern(patDef.body, scrutType)
+      val body2 = transformPattern(patDef.body, scrutType)
+
+      if rp2.hasErrors then
+        rp2.commit(rp)
+      else
+        // Suppress occur errors if other errors are present
+        for paramSym <- paramSyms do occurs.checkOccur(paramSym)(using rp)
+
+      body2
 
     def computeInfo(resultType: Type) =
         val tparamRefs = tparamSyms.zipWithIndex.map: (tparamSym, i) =>
@@ -92,14 +104,18 @@ class PatternTyper(namer: Namer, checker: Checker):
     Match(scrutinee2, cases2)(commonType, patmat.span)
 
   private def transformCase(caseDef: Ast.Case, scrutType: Type)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Case =
-    val caseScope = sc.fresh()
+    given Scope = sc.fresh()
+    given Occurs = new Occurs
 
     val Ast.Case(pat, body) = caseDef
-    val pat2 = transformPattern(pat, scrutType)(using caseScope)
-    val body2 = namer.transform(body)(using caseScope)
+    val pat2 = transformPattern(pat, scrutType)
+    val body2 = namer.transform(body)
     Case(pat2, body2)(caseDef.span)
 
-  private def transformApplyPattern(id: Ast.Ident, args: List[Ast.Word], scrutType: Type, patSpan: Span)(using sc: Scope, rp: Reporter, so: Source): Pattern =
+  private def transformApplyPattern(id: Ast.Ident, args: List[Ast.Word], scrutType: Type, patSpan: Span)
+    (using sc: Scope, rp: Reporter, so: Source, oc: Occurs)
+  : Pattern =
+
     val sym = sc.resolvePattern(id.name, id.pos)
 
     var fun: Word = Ident(sym)(id.span)
@@ -133,7 +149,10 @@ class PatternTyper(namer: Namer, checker: Checker):
       Reporter.error(s"Not a function: " + fun.tpe.show, id.pos)
       WildcardPattern()(ErrorType, patSpan)
 
-  private def transformTagPattern(tag: Ast.Tag, args: List[Ast.Word], scrutType: Type, patSpan: Span)(using sc: Scope, rp: Reporter, so: Source): Pattern =
+  private def transformTagPattern(tag: Ast.Tag, args: List[Ast.Word], scrutType: Type, patSpan: Span)
+    (using sc: Scope, rp: Reporter, so: Source, oc: Occurs)
+  : Pattern =
+
     val id = tag.name
 
     def checkNested(tagType: TagType): Pattern =
@@ -179,14 +198,23 @@ class PatternTyper(namer: Namer, checker: Checker):
       Reporter.error(s"The tag ${id.name} does not match the scrutinee type ${scrutType.show}", tag.pos)
       WildcardPattern()(ErrorType, patSpan)
 
-  private def transformAscribePattern(id: Ast.Ident, tpt: Ast.TypeTree, scrutType: Type, patSpan: Span)(using sc: Scope, rp: Reporter, so: Source): Pattern =
+  private def transformTypePattern(id: Ast.Ident, tpt: Ast.TypeTree, scrutType: Type, patSpan: Span)
+    (using sc: Scope, rp: Reporter, so: Source, oc: Occurs)
+  : Pattern =
+
     val name = id.name
     val tpt2 = namer.transformType(tpt)
     val tpe = tpt2.tpe
 
     if Subtyping.conforms(tpe, scrutType) then
-      if sc.owner.isPattern then
+      if name == "_" then
+        TypePattern(tpt2)
+
+      else if sc.owner.isPattern then
         val sym = sc.resolvePattern(name, id.pos)
+
+        if !sym.info.isError then
+          oc.occur(sym, id.pos)
 
         if Subtyping.conforms(tpe, sym.info) then
           val patVal = Ident(sym)(id.span)
@@ -207,7 +235,10 @@ class PatternTyper(namer: Namer, checker: Checker):
       Reporter.error("The type is not a subtype of the scrutinee. ", tpt.pos)
       WildcardPattern()(ErrorType, patSpan)
 
-  private def transformIdentPattern(id: Ast.Ident, scrutType: Type)(using sc: Scope, rp: Reporter, so: Source): Pattern =
+  private def transformIdentPattern(id: Ast.Ident, scrutType: Type)
+   (using sc: Scope, rp: Reporter, so: Source, oc: Occurs)
+  : Pattern =
+
     val name =id.name
     if id.isCapitalized then
       transformApplyPattern(id, Nil, scrutType, id.span)
@@ -217,6 +248,9 @@ class PatternTyper(namer: Namer, checker: Checker):
 
     else if sc.owner.isPattern then
       val sym = sc.resolvePattern(name, id.pos)
+
+      if !sym.info.isError then
+        oc.occur(sym, id.pos)
 
       if Subtyping.conforms(sym.info, scrutType) then
         val patVal = Ident(sym)(id.span)
@@ -234,13 +268,16 @@ class PatternTyper(namer: Namer, checker: Checker):
       val wildcard = WildcardPattern()(scrutType, id.span)
       AscribePattern(patVal, wildcard)
 
-  private def transformPattern(pat: Ast.Word, scrutType: Type)(using sc: Scope, rp: Reporter, so: Source): Pattern =
+  private def transformPattern(pat: Ast.Word, scrutType: Type)
+    (using sc: Scope, rp: Reporter, so: Source, oc: Occurs)
+  : Pattern =
+
     (pat: @unchecked) match
       case id: Ast.Ident =>
         transformIdentPattern(id, scrutType)
 
       case Ast.TypeAscribe(id: Ast.Ident, tpt) =>
-        transformAscribePattern(id, tpt, scrutType, pat.span)
+        transformTypePattern(id, tpt, scrutType, pat.span)
 
       case Ast.Apply(id: Ast.Ident, args) =>
         transformApplyPattern(id, args, scrutType, pat.span)
@@ -251,3 +288,17 @@ class PatternTyper(namer: Namer, checker: Checker):
   end transformPattern
 
 end PatternTyper
+
+object PatternTyper:
+  class Occurs:
+    private var census: Map[Symbol, SourcePosition] = Map.empty
+
+    def occur(symbol: Symbol, pos: SourcePosition)(using rp: Reporter, so: Source) =
+      if census.contains(symbol) then
+        Reporter.error(s"The parameter $symbol occurred more than once in the patterns", pos)
+      else
+        census = census.updated(symbol, pos)
+
+    def checkOccur(symbol: Symbol)(using rp: Reporter) =
+      if !census.contains(symbol) then
+        Reporter.error(s"The parameter $symbol should occur once in the patterns", symbol.sourcePos)

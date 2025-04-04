@@ -47,6 +47,9 @@ class Reporter(
       println(item)
       println
 
+  def commit(toReporter: Reporter): Unit =
+    for diag <- reported do toReporter.report(diag)
+
   def error(message: String, pos: SourcePosition): Unit =
     report(Kind.Error, message, pos)
 
