@@ -206,9 +206,14 @@ object Sast:
     val span = id.span | nested.span
 
   case class ApplyPattern
-    (id: Ident, nested: List[Pattern])
+    (fun: Word, nested: List[Pattern])
     (val tpe: Type, val span: Span)
   extends Pattern:
+    fun match
+      case Ident(sym) if sym.isPattern =>
+      case TypeApply(Ident(sym), _) if sym.isPattern =>
+      case _ => throw new Exception("expect a pattern predicate, found = " + fun)
+
     for pat <- nested do
       assert(pat.isInstanceOf[Ident], "expect ident, found = " + pat)
 

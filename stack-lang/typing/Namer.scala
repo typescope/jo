@@ -451,7 +451,7 @@ class Namer(@constructorOnly reporter: Reporter):
         val word = Apply(fun, argsTyped)(procType.resultType, apply.span)
         checker.adapt(word, tt)
     else
-      Reporter.error( s"Not a function: " + fun.tpe.show, fun.pos)
+      Reporter.error(s"Not a function: " + fun.tpe.show, fun.pos)
       errorWord(apply.span)
 
 

@@ -40,16 +40,57 @@ class PatternTyper(namer: Namer, checker: Checker):
     Case(pat2, body2)(caseDef.span)
 
   private def transformApplyPattern(id: Ast.Ident, args: List[Ast.Word], scrutType: Type)(using sc: Scope, rp: Reporter, so: Source): Pattern =
-    val sym = caseScope.resolvePattern(name, id.pos)
-    // if sym.info.isPro
-    // ApplyPattern(Ident(sym)(id.span), nested = Nil)
-    ???
+    val sym = sc.resolvePattern(id.name, id.pos)
+
+    var fun = Ident(sym)(id.span)
+
+    if fun.tpe.isPolyType then
+      fun = namer.exprTyper.instantiatePoly(fun.tpe.asProcType, fun)
+
+    val span = if args.isEmpty then id.span else id.span | args.last.span
+    val funType = fun.tpe
+
+    if funType.isProcType then
+      val procType = funType.asProcType
+      val paramSize = procType.paramTypes.size
+      val resType = procType.resultType
+
+      if Subtyping.conforms(resType, scrutType) then
+        if args.size != paramSize then
+          Reporter.error(s"The pattern predicate expects $paramSize arguments, found = ${args.size}", id.pos)
+          WildcardPattern()(ErrorType, id.span)
+        else
+          val argsTyped =
+            for (arg, paramType) <- args.zip(procType.paramTypes) yield
+              transformPattern(arg, paramType)
+
+          ApplyPattern(fun, argsTyped)(resType, span)
+        end if
+      else
+        Reporter.error(s"The pattern predicate result type ${resType.show} does not conform to scrutinee type ${scrutTye.show}", id.pos)
+        WildcardPattern()(ErrorType, span)
+
+    else
+      Reporter.error(s"Not a function: " + fun.tpe.show, id.pos)
+      WildcardPattern()(ErrorType, span)
 
   private def transformPattern(pat: Ast.Word, scrutType: Type)(using sc: Scope, rp: Reporter, so: Source): Pattern =
     (pat: @unchecked) match
       case id @ Ast.Ident(name) =>
         if id.isCapitalized then
           transformApplyPattern(id, Nil, scrutType)
+
+        else if sc.owner.isPattern then
+          val sym = sc.resolvePattern(name, id.pos)
+
+          if Subtyping.conforms(sym.info, scrutType) then
+            val patVal = Ident(sym)(id.span)
+            AscribePattern(patVal, TypePattern(TypeTree(sym.info)(id.span)))
+
+          else
+            Reporter.error(s"$sym is not a subtype of the scrutinee type " + scrutType.show, tpt.pos)
+            WildcardPattern()(ErrorType, pat.span)
+
         else
           val sym = Symbol.createPatternSymbol(name, scrutType, sc.owner, pat.pos)
           sc.definePatternAsTerm(sym)
@@ -58,16 +99,29 @@ class PatternTyper(namer: Namer, checker: Checker):
           val wildcard = WildcardPattern()(scrutType, id.span)
           AscribePattern(patVal, wildcard)
 
-      case Ast.TypeAscribe(Ast.Ident(name), tpt) =>
-        val tpt = namer.transformType(tpt)
+      case Ast.TypeAscribe(id @ Ast.Ident(name), tpt) =>
+        val tpt2 = namer.transformType(tpt)
         val tpe = tpt.tpe
 
         if Subtyping.conforms(tpe, scrutType) then
-          val sym = Symbol.createPatternSymbol(name, tpe, sc.owner, pat.pos)
-          sc.definePatternAsTerm(sym)
+          if sc.owner.isPattern then
+            val sym = sc.resolvePattern(name, id.pos)
 
-          val patVal = Ident(sym)(id.span)
-          AscribePattern(patVal, TypePattern(tpt))
+            if Subtyping.conforms(tpe, sym.info) then
+              val patVal = Ident(sym)(id.span)
+              AscribePattern(patVal, TypePattern(tpt2))
+
+            else
+              Reporter.error(s"${tpe.show} not a subtype of $sym. The latter has type " + sym.info.show, tpt.pos)
+              WildcardPattern()(ErrorType, pat.span)
+
+          else
+            val sym = Symbol.createPatternSymbol(name, tpe, sc.owner, pat.pos)
+            sc.definePatternAsTerm(sym)
+
+            val patVal = Ident(sym)(id.span)
+            AscribePattern(patVal, TypePattern(tpt2))
+
         else
           Reporter.error("The type is not a subtype of the scrutinee. ", tpt.pos)
           WildcardPattern()(ErrorType, pat.span)
@@ -81,7 +135,7 @@ class PatternTyper(namer: Namer, checker: Checker):
           val paramCount = paramTypes.size
           val argCount = nested.size
 
-          if argCount > paramCount then
+          if argCount != paramCount then
             Reporter.error(s"The tag type ${id.name} in scrutinee has $paramCount parameters, supplied = $argCount", tag.pos)
             WildcardPattern()(ErrorType, pat.span)
 

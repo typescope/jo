@@ -47,6 +47,7 @@ object Symbols:
     def isMethod   : Boolean = flags.is(Flags.Method)
     def isValue    : Boolean = flags.is(Flags.Val)
     def isType     : Boolean = flags.is(Flags.Type)
+    def isPattern  : Boolean = flags.is(Flags.Pattern)
     def isNamespace: Boolean = flags.is(Flags.NSpace)
     def isParameter: Boolean = flags.isAllOf(Flags.Val | Flags.Param)
     def isMutable  : Boolean = flags.isAllOf(Flags.Val | Flags.Mutable)
