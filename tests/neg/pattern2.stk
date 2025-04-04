@@ -1,0 +1,40 @@
+type Student = #Student(name: String, sex: Bool, birthday: Int)
+type Teacher = #Teacher(name: String, address: String, birthday: Int)
+
+pattern WrongResType(s: String, age: Int): Student =
+  #Teacher s age  // error
+
+pattern UndefinedVar(age: Int): Student =
+  #Teacher s age  // error
+
+pattern DoubleBind(s: Int): Teacher =
+  #Teacher s s _  // error
+
+pattern NoBind(s: Int): Teacher =
+  #Teacher _ _ _  // error
+
+pattern BindTypeMismatch(s: String): Student =
+  #Student _ s _  // error
+
+pattern BindTypeMismatch2(s: Student): Student =
+  s: Teacher  // error
+
+pattern WrongArgNum(name: String): Student =
+  #Student name _  // error
+
+pattern Student(s: String, sex: Bool, age: Int): Student =
+  #Student s sex age
+
+pattern Name(name: String): Student =
+  #Student name _ _
+
+pattern Type(s: Student): Student = s: Student
+
+fun test(s: Student) =
+  match s
+    case Name a b =>  // error
+
+  match s
+    case Student n s => // error
+
+fun main = println "patterns"

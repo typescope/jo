@@ -1,0 +1,6 @@
+type Student = #Student(name: String, sex: Bool, age: Int)
+
+pattern Student(s: String, sex: Bool, age: Int): Student =
+#Student s sex age   // error
+
+fun main = println "patterns"

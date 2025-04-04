@@ -1,0 +1,18 @@
+type Student = #Student(name: String, sex: Bool, age: Int)
+
+pattern Student(s: String, sex: Bool, age: Int): Student =
+  #Student s sex age
+
+pattern Name(name: String): Student =
+  #Student name _ _
+
+pattern Type(s: Student): Student = s: Student
+
+fun test(s: Student) =
+  match s
+    case Name n => n
+
+  match s
+    case Student n s a =>
+
+fun main = println "patterns"
