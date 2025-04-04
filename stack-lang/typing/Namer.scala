@@ -835,7 +835,7 @@ class Namer(@constructorOnly reporter: Reporter):
     this.nonCyclicTypeProvider.addProvider(funSym, () => computeInfo(resultType), () => computeInfo(ErrorType))
 
     val typer = () =>
-      FunDef(funSym, tparamSyms, paramSyms, typedBody) (funDef.span)
+      FunDef(funSym, tparamSyms, paramSyms, typedBody)(funDef.span)
 
     DelayedDef(funSym, typer)
 

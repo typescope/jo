@@ -16,7 +16,67 @@ import reporting.Reporter
 import scala.collection.mutable
 
 class PatternTyper(namer: Namer, checker: Checker):
-  def transformPatDef(patdef: Ast.PatDef)(using sc: Scope, rp: Reporter, so: Source): DelayedDef[FunDef] = ???
+  def transformPatDef(patdef: Ast.PatDef)(using sc: Scope, rp: Reporter, so: Source): DelayedDef[FunDef] =
+    val patSym = Symbol.createPatternSymbol(patDef.name, this.nonCyclicTypeProvider, sc.owner, patDef.ident.pos)
+    val patScope = sc.fresh(patSym)
+
+    lazy val tparamSyms =
+      for tparam <- patDef.tparams yield
+        lazy val bound =
+          if tparam.bound.isEmpty then
+            TypeBound(BottomType, AnyType)
+          else
+            val boundTree = transformType(tparam.bound)(using patScope)
+            TypeBound(BottomType, boundTree.tpe)
+
+        val infoProvider: InfoProvider = (sym: Symbol) => bound
+        val sym = Symbol.createTypeParamSymbol(tparam.name, infoProvider, patSym, tparam.pos)
+        patScope.define(sym)
+        sym
+
+    lazy val paramSyms =
+      tparamSyms
+
+      for param <- patDef.params yield
+        val tpt = transformType(param.typ)(using patScope)
+        val paramSym = Symbol.createParamSymbol(param.name, tpt.tpe, patSym, param.pos)
+        patScope.define(paramSym)
+        paramSym
+
+    lazy val givenResultType =
+      tparamSyms
+
+      assert(!patDef.resType.isEmpty)
+      val resTypeTree = transformType(patDef.resType)(using patScope)
+      resTypeTree.tpe
+
+    lazy val resultType =
+      if !patDef.resType.isEmpty then
+        givenResultType
+      else
+        typedBody.tpe
+      end if
+
+    lazy val typedBody =
+      paramSyms
+      given Scope = patScope
+      transformPattern(patDef.body, AnyType)
+
+    def computeInfo(resultType: Type) =
+        val tparamRefs = tparamSyms.zipWithIndex.map: (tparamSym, i) =>
+          TypeParamRef(tparamSym.name, i)
+        val substs = tparamSyms.zip(tparamRefs).toMap
+        val tparamInfos = tparamSyms.map(tparam => NamedInfo(tparam.name, tparam.info.as[TypeBound]))
+        val rawType = ProcType(tparamInfos, paramSyms.map(_.toNamedInfo), resultType, ctxParams, patDef.preParamCount)
+        if tparamRefs.isEmpty then rawType
+        else TypeOps.substSymbols(rawType, substs)
+
+    this.nonCyclicTypeProvider.addProvider(patSym, () => computeInfo(resultType), () => computeInfo(ErrorType))
+
+    val typer = () =>
+      PatDef(patSym, tparamSyms, paramSyms, typedBody)(patDef.span)
+
+    DelayedDef(patSym, typer)
 
   def transform(patmat: Ast.Match)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
     val Ast.Match(scrutinee, cases) = patmat
@@ -164,6 +224,10 @@ class PatternTyper(namer: Namer, checker: Checker):
             WildcardPattern()(ErrorType, pat.span)
           else
             checkNested(tagType)
+
+        else if scrutType.isAnyType then
+          val tagType = TagType(id.name, nested.map(_ => AnyType))
+          checkNested(tagType)
 
         else
           Reporter.error(s"The tag ${id.name} does not match the scrutinee type ${scrutType.show}", tag.pos)
