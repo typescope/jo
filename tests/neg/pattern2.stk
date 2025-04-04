@@ -4,10 +4,10 @@ type Teacher = #Teacher(name: String, address: String, birthday: Int)
 pattern WrongResType(s: String, age: Int): Student =
   #Teacher s age  // error
 
-pattern UndefinedVar(age: Int): Student =
-  #Teacher s age  // error
+pattern UndefinedVar(age: Int): Teacher =
+  #Teacher s age _  // error
 
-pattern DoubleBind(s: Int): Teacher =
+pattern DoubleBind(s: String): Teacher =
   #Teacher s s _  // error
 
 pattern NoBind(s: Int): Teacher =

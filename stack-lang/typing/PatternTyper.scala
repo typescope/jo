@@ -58,7 +58,8 @@ class PatternTyper(namer: Namer, checker: Checker):
     lazy val typedBody =
       paramSyms
       given Scope = patScope
-      transformPattern(patDef.body, AnyType)
+      val scrutType = if patDef.resultType.isEmpty then AnyType else givenResultType
+      transformPattern(patDef.body, scrutType)
 
     def computeInfo(resultType: Type) =
         val tparamRefs = tparamSyms.zipWithIndex.map: (tparamSym, i) =>
