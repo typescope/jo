@@ -86,13 +86,13 @@ object Symbols:
 
     def termMember(name: String): Symbol =
       info match
-        case nsInfo: NameTableInfo =>nsInfo.resolveTerm(name)
-        case _ => None
+        case nsInfo: NameTableInfo => nsInfo.resolveTerm(name).get
+        case tp => throw new Exception(s"No member for $this of type $tp")
 
     def typeMember(name: String): Symbol =
       info match
-        case nsInfo: NameTableInfo =>nsInfo.resolveType(name)
-        case _ => None
+        case nsInfo: NameTableInfo => nsInfo.resolveType(name).get
+        case tp => throw new Exception(s"No member for $this of type $tp")
 
     /** The default function associated with a context parameter */
     def defaultFunction: Symbol =
@@ -138,7 +138,7 @@ object Symbols:
     def createParamSymbol(name: String, tp: Type, owner: Symbol, pos: SourcePosition) =
       new Symbol(name, tp, Flags.Param | Flags.Val, owner, pos)
 
-    def createPatternSymbol(name: String, tp: Type, owner: Symbol, pos: SourcePosition) =
+    def createPatternSymbol(name: String, tp: Type | InfoProvider, owner: Symbol, pos: SourcePosition) =
       new Symbol(name, tp, Flags.Pattern, owner, pos)
 
     def createTypeParamSymbol(name: String, tp: Type | InfoProvider, owner: Symbol, pos: SourcePosition) =

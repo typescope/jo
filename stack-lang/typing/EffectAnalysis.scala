@@ -155,6 +155,10 @@ object EffectAnalysis:
           fields.foldLeft(zero):
             case (acc, (f, rhs)) => acc ++ this(rhs)
 
+        case TaggedLit(_, args) =>
+          args.foldLeft(zero):
+            case (acc, arg) => acc ++ this(arg)
+
         case Encoded(repr) =>
           this(repr)
 
@@ -196,6 +200,10 @@ object EffectAnalysis:
         case While(cond, body) =>
           this(cond) ++ this(body)
 
+        case Match(scrut, cases) =>
+          this(scrut) ++ cases.foldLeft(zero): (acc, caseDef) =>
+            acc ++ this(caseDef.body)
+
         case Block(words) =>
           words.foldLeft(zero): (acc, word) =>
             acc ++ this(word)
@@ -217,6 +225,8 @@ object EffectAnalysis:
         case fdef: FunDef =>
           cache.code(fdef.symbol) = fdef
           zero
+
+        case pdef: PatDef => zero
 
         case tdef: TypeDef => zero
     end apply

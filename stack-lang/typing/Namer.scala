@@ -218,6 +218,9 @@ class Namer(@constructorOnly reporter: Reporter):
 
       case pdef: Ast.ParamDef =>
         transformParamDef(pdef)
+
+      case pdef: Ast.PatDef =>
+        patternTyper.transformPatDef(pdef) :: Nil
     end match
   end index
 
@@ -279,6 +282,8 @@ class Namer(@constructorOnly reporter: Reporter):
                 Select(qual2, name)(tp, word.span).adapt
 
           case None =>
+            // Error already reported
+            errorWord(word.span)
 
       case lambda: Ast.Lambda =>
         transform(lambda).adapt
@@ -327,7 +332,7 @@ class Namer(@constructorOnly reporter: Reporter):
         transform(assign).adapt
 
       case patmat: Ast.Match =>
-        patternTyper.transform(patmat).adapt
+        patternTyper.transformMatch(patmat).adapt
 
       case vdef: Ast.ValDef =>
         val delayedDef = transformValDef(vdef)
@@ -339,6 +344,12 @@ class Namer(@constructorOnly reporter: Reporter):
       case fdef: Ast.FunDef =>
         val delayedDef = transformFunDef(fdef)
         // A function is available for checking its rhs
+        sc.define(delayedDef.symbol)
+        delayedDef.force().adapt
+
+      case pdef: Ast.PatDef =>
+        val delayedDef = patternTyper.transformPatDef(pdef)
+        // A pattern predicate is available for checking its rhs
         sc.define(delayedDef.symbol)
         delayedDef.force().adapt
 
@@ -598,11 +609,11 @@ class Namer(@constructorOnly reporter: Reporter):
       case Some(tp) =>
         if tp.isUnionType then
           val unionType = tp.asUnionType
-          if !unionType.hasTag(tag.name) then
-            Reporter.error(s"The tag ${tag.name} does not exist in union type ${unionType.show}", pos)
+          if !unionType.hasTag(tagName) then
+            Reporter.error(s"The tag $tagName does not exist in union type ${unionType.show}", pos)
             errorWord(tag.span)
           else
-            check(unionType.tagType(tag.name), unionType)
+            check(unionType.tagType(tagName), unionType)
 
         else if tp.isTagType then
           check(tp.asTagType, tp)
@@ -618,9 +629,9 @@ class Namer(@constructorOnly reporter: Reporter):
             transform(value)
 
         val argTypes = values2.map(_.tpe)
-        val tagType = TagType(tag.name, argTypes)
+        val tagType = TagType.from(tagName, argTypes)
 
-        TaggedLit(tagStringLit, values2)
+        TaggedLit(tagStringLit, values2)(tagType, span)
 
   private def transform(lambda: Ast.Lambda)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
      val Ast.Lambda(params, body) = lambda
@@ -674,7 +685,8 @@ class Namer(@constructorOnly reporter: Reporter):
        checker.checkInstantiated(tvar, param.pos)
 
      val tparamSyms = Nil
-     val funDef = FunDef(funSym, tparamSyms, paramSyms, bodyTyped)(lambda.span)
+     val tpt = TypeTree(bodyTyped.tpe)(body.span)
+     val funDef = FunDef(funSym, tparamSyms, paramSyms, tpt, bodyTyped)(lambda.span)
      val objType = ObjectType(fields = Nil, methods = NamedInfo("apply", procType) :: Nil, mutableFields = Nil)
 
      this.nonCyclicTypeProvider.addProvider(thisSym, () => objType)
@@ -715,7 +727,8 @@ class Namer(@constructorOnly reporter: Reporter):
           given Scope = sc.fresh(defaultFunSym)
           given TargetType = TargetType.Known(paramSym.info)
           val body = transform(rhs)
-          FunDef(defaultFunSym, tparams = Nil, params = Nil, body)(rhs.span)
+          val tpt = TypeTree(paramSym.info)(pdef.typ.span)
+          FunDef(defaultFunSym, tparams = Nil, params = Nil, tpt, body)(rhs.span)
 
         DelayedDef(defaultFunSym, defaultFunDefSast) :: delayedParamDef :: Nil
 
@@ -782,8 +795,8 @@ class Namer(@constructorOnly reporter: Reporter):
     lazy val givenResultType =
       tparamSyms
 
-      assert(!funDef.resType.isEmpty)
-      val resTypeTree = transformType(funDef.resType)(using funScope)
+      assert(!funDef.resultType.isEmpty)
+      val resTypeTree = transformType(funDef.resultType)(using funScope)
       checker.delayedCheck { checker.checkValueType(resTypeTree) }
       resTypeTree.tpe
 
@@ -798,7 +811,7 @@ class Namer(@constructorOnly reporter: Reporter):
     // Generalizing a substitution mechanism is not worth the effort for the
     // moment. Therefore, recursive functions have to be explicitly typed.
     lazy val resultType =
-      if !funDef.resType.isEmpty then
+      if !funDef.resultType.isEmpty then
         givenResultType
       else
         typedBody.tpe
@@ -808,7 +821,7 @@ class Namer(@constructorOnly reporter: Reporter):
       paramSyms
 
       val targetType =
-        if !funDef.resType.isEmpty then
+        if !funDef.resultType.isEmpty then
           TargetType.Known(givenResultType)
         else
           TargetType.ValueType
@@ -835,7 +848,8 @@ class Namer(@constructorOnly reporter: Reporter):
     this.nonCyclicTypeProvider.addProvider(funSym, () => computeInfo(resultType), () => computeInfo(ErrorType))
 
     val typer = () =>
-      FunDef(funSym, tparamSyms, paramSyms, typedBody)(funDef.span)
+      val tpt = TypeTree(resultType)(funDef.resultType.span)
+      FunDef(funSym, tparamSyms, paramSyms, tpt, typedBody)(funDef.span)
 
     DelayedDef(funSym, typer)
 
@@ -931,8 +945,8 @@ class Namer(@constructorOnly reporter: Reporter):
         paramSym
 
     val resultType =
-      assert(!ddef.resType.isEmpty)
-      val resTypeTree = transformType(ddef.resType)(using defScope)
+      assert(!ddef.resultType.isEmpty)
+      val resTypeTree = transformType(ddef.resultType)(using defScope)
       checker.delayedCheck { checker.checkValueType(resTypeTree) }
       resTypeTree.tpe
 
@@ -1138,7 +1152,7 @@ object Namer:
     // `|>` will stop early in the presence of parsing errors
     Parser.parse(files) |> namer
 
-  private class DelayedDef[+T <: Def](val symbol: Symbol, delayed: () => T):
+  class DelayedDef[+T <: Def](val symbol: Symbol, delayed: () => T):
     private lazy val definition: T = delayed()
     def force(): T =
       symbol.info // force symbol

@@ -30,7 +30,9 @@ class NameTable(
     patternNames.get(name)
 
   def resolve(name: String): List[Symbol] =
-    List(resolveTerm(name), resolveType(name), resolvePattern(name)).flatMap(_.getOrElse(Nil))
+    List(resolveTerm(name), resolveType(name), resolvePattern(name)).flatMap:
+      case None => Nil
+      case Some(sym) => sym :: Nil
 
   def resolvePath(path: String) =
     NameTable.resolvePath(this, path, isType = false)
@@ -39,7 +41,7 @@ class NameTable(
     val table = getTable(sym)
     defineInTable(sym, table)
 
-  private def defineInTable(sym: Symbol, table: NameTable)(using rp: Reporter): Unit =
+  private def defineInTable(sym: Symbol, table: mutable.Map[String, Symbol])(using rp: Reporter): Unit =
     table.get(sym.name) match
       case None =>
         table(sym.name) = sym
@@ -47,11 +49,11 @@ class NameTable(
       case Some(symBefore) =>
         val error = NameTable.DoubleDefinition(symBefore, sym)
         rp.report(error)
-  end define
+  end defineInTable
 
   def definePatternAsTerm(sym: Symbol)(using rp: Reporter): Unit =
     assert(sym.isPattern, "Expect pattern symbol, found = " + sym)
-    defineInTable(sym, termsTable)
+    defineInTable(sym, termNames)
 
   def terms: List[Symbol] = termNames.values.toList
 

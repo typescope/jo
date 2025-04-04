@@ -25,7 +25,7 @@ object Printing:
 
   given Text.Maker[Pattern] = v => showPattern(v)
 
-  given Text.Maker[Case] = v => "case " ~ v.pat ~ " =>" ~ indent(v.body)
+  given Text.Maker[Case] = v => "case " ~ v.pattern ~ " =>" ~ indent(v.body)
 
   given Text.Maker[Def] = v => showDef(v)
 
@@ -66,7 +66,7 @@ object Printing:
         val tparams = fdef.tparams.map(sym => sym.name + " <: " + sym.info.show)
         val tparamStr = if tparams.isEmpty then "" else tparams.mkString("[", ", ", "]")
         val params = fdef.params.map(sym => sym.name + ": " + sym.info.show)
-        val resType = fdef.procType.resultType
+        val resType = fdef.resultType
         val locals = rep(fdef.locals.map(sym => sym ~ ": " ~ sym.info), Text(", "))
         val keyword = if fdef.symbol.isMethod then "def " else "fun "
 
@@ -82,8 +82,21 @@ object Printing:
               Text.Empty
 
         "@locals(" ~ locals ~ ")" ~ Text.BreakLine ~
-        keyword ~ fdef.name ~ tparamStr ~ params.mkString("(", ", ", "): ") ~ resType.show ~ receives ~ " =" ~ indent:
+        keyword ~ fdef.name ~ tparamStr ~ params.mkString("(", ", ", "): ") ~ resType ~ receives ~ " =" ~ indent:
             fdef.body
+
+      case pdef: PatDef =>
+        val tparams =
+          if pdef.tparams.isEmpty then Text.Empty
+          else "[" ~ rep(pdef.tparams, Text(", "))  ~ "]"
+
+        val params =
+          if pdef.params.isEmpty then Text.Empty
+          else "(" ~ rep(pdef.params, Text(", "))  ~ ")"
+
+        val resType = ":" ~ pdef.resultType
+
+        "pattern " ~ pdef.name ~ tparams ~ params ~ resType ~ " =" ~ indent(pdef.body)
 
       case tdef: TypeDef =>
         "type " ~ tdef.name ~ " = " ~ tdef.symbol.info.show
@@ -121,7 +134,7 @@ object Printing:
         ~ "}"
 
       case tagged: TaggedLit =>
-        "#" ~ tagged.name ~ "(" ~ rep(tagged.args, Text(", ")) ~ ")"
+        "#" ~ tagged.tag ~ "(" ~ rep(tagged.args, Text(", ")) ~ ")"
 
       case Encoded(repr) =>
         "(" ~ repr ~ ": " ~ word.tpe ~ ")"
@@ -187,6 +200,8 @@ object Printing:
 
       case fdef: FunDef => showDef(fdef)
 
+      case pdef: PatDef => showDef(pdef)
+
       case tdef: TypeDef => showDef(tdef)
 
   def showPattern(pat: Pattern): Text =
@@ -201,4 +216,4 @@ object Printing:
         id ~ "(" ~ rep(nested, Text(", ")) ~ ")"
 
       case tagged @ TagPattern(_, nested) =>
-        "#" ~ tagged.name ~ " " ~ rep(nested, Text(" "))
+        "#" ~ tagged.tag ~ " " ~ rep(nested, Text(" "))

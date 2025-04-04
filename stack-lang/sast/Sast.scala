@@ -224,7 +224,7 @@ object Sast:
     for pat <- nested do
       assert(pat.isInstanceOf[Ident], "expect ident, found = " + pat)
 
-    val span = if nested.isEmpty then tagTree.span else tagTree.span | nested.span
+    val span = if nested.isEmpty then tagTree.span else tagTree.span | nested.last.span
 
     val tag = tagTree.constant match
       case Constant.String(name) => name
@@ -236,10 +236,10 @@ object Sast:
   extends Word
 
   case class Case
-    (pat: Pattern, body: Word)
+    (pattern: Pattern, body: Word)
     (val span: Span)
   extends Tree:
-    assert(isPattern(pat), "Ill-formed pattern tree: " + pat)
+    def tpe = body.tpe
 
   //----------------------------------------------------------------------------
   // definitions
@@ -271,7 +271,7 @@ object Sast:
     * @param locals contains a list of local value symbols (excluding params)
     */
   case class FunDef
-    (symbol: Symbol, tparams: List[Symbol], params: List[Symbol], body: Word)
+    (symbol: Symbol, tparams: List[Symbol], params: List[Symbol], resultType: TypeTree, body: Word)
     (val span: Span)
   extends Word, Def:
     private lazy val census: (List[Symbol], List[Symbol]) =
@@ -288,7 +288,7 @@ object Sast:
 
   /** Represents a pattern definition */
   case class PatDef
-    (symbol: Symbol, tparams: List[Symbol], params: List[Symbol], body: Pattern)
+    (symbol: Symbol, tparams: List[Symbol], params: List[Symbol], resultType: TypeTree, body: Pattern)
     (val span: Span)
   extends Word, Def:
     def procType: ProcType = symbol.info.asProcType

@@ -75,7 +75,7 @@ object Printing:
           if fdef.params.isEmpty then Text.Empty
           else "(" ~ rep(fdef.params, Text(", "))  ~ ")"
 
-        val resType = showTypeAnnot(fdef.resType)
+        val resType = showTypeAnnot(fdef.resultType)
 
         val receives =
           fdef.receives match
@@ -103,7 +103,7 @@ object Printing:
           if pdef.params.isEmpty then Text.Empty
           else "(" ~ rep(pdef.params, Text(", "))  ~ ")"
 
-        val resType = showTypeAnnot(pdef.resType)
+        val resType = showTypeAnnot(pdef.resultType)
 
         "pattern " ~ pdef.name ~ tparams ~ params ~ resType ~ " =" ~ indent(pdef.body)
 

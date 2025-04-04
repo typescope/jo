@@ -1,7 +1,5 @@
 package sast
 
-import sast.Definitions
-import sast.Constant
 import sast.Types.*
 import sast.Sast.*
 import ast.Positions.{ Span, SourcePosition }

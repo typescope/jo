@@ -254,20 +254,20 @@ object Types:
 
   /** The type for tagged value like `#Some(3)` */
   case class TagType(tag: String, params: List[NamedInfo[Type]]) extends Type:
-    def this(tag: String, paramTypes: List[Type]) =
-      this(
-        tag,
-        params.zipWithIndex.map { case (tp, i) => NamedInfo("p" + i, tp) }
-      )
-
     val paramTypes: List[Type] = params.map(_.info)
 
     def hasParam(name: String): Boolean = params.exists(_.name == name)
 
-    def getParamType(tag: String): Option[Type] =
+    def getParamType(name: String): Option[Type] =
       params.find(_.name == name).map(_.info)
 
     def paramIndex(name: String): Int = params.indexWhere(_.name == name)
+
+  object TagType:
+    def from(tag: String, paramTypes: List[Type]) =
+      val params =
+        paramTypes.zipWithIndex.map { case (tp, i) => NamedInfo("p" + i, tp) }
+      this(tag, params)
 
   /** The type of an object */
   case class ObjectType(

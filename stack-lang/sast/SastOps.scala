@@ -42,7 +42,7 @@ object SastOps:
 
         case fdef: FunDef => transformFunDef(fdef)
 
-        case pdef: PatDef => transformPatDef(fdef)
+        case pdef: PatDef => transformPatDef(pdef)
 
         case tdef: TypeDef => transformTypeDef(tdef)
 
@@ -85,7 +85,7 @@ object SastOps:
 
     def transformFunDef(fdef: FunDef)(using Context): Word = recurFunDef(fdef)
 
-    def transformPatDef(pdef: PatDef)(using Context): Word = pdef
+    def transformPatDef(pdef: PatDef)(using Context): Word = recurPatDef(pdef)
 
     def transformTypeDef(tdef: TypeDef)(using Context): TypeDef = recurTypeDef(tdef)
 
@@ -107,6 +107,8 @@ object SastOps:
       fdef.copy(body = body)(fdef.span)
 
     private def recurTypeDef(tdef: TypeDef)(using Context): TypeDef = tdef
+
+    private def recurPatDef(pdef: PatDef)(using Context): PatDef = pdef
 
     final def recur(word: Word)(using Context): Word =
       word match
@@ -158,6 +160,8 @@ object SastOps:
 
         case fdef: FunDef => recurFunDef(fdef)
 
+        case pdef: PatDef => recurPatDef(pdef)
+
         case tdef: TypeDef => recurTypeDef(tdef)
 
         case If(cond, thenp, elsep) =>
@@ -168,10 +172,10 @@ object SastOps:
 
         case Match(scrutinee, cases) =>
           val cases2 =
-            for branch <= cases
+            for branch <- cases
             yield branch.copy(branch.pattern, this(branch.body))(branch.span)
 
-          Match(this(scrutinee), case2)(word.tpe, word.span)
+          Match(this(scrutinee), cases2)(word.tpe, word.span)
 
         case Block(words) =>
           Block(words.map(this.apply))(word.tpe, word.span)
@@ -196,10 +200,13 @@ object SastOps:
 
     def recurParamDef(pdef: ParamDef)(using Context): Unit = ()
 
+    def recurPatDef(pdef: PatDef)(using Context): Unit = ()
+
     def recurDef(defn: Def)(using Context): Unit =
       defn match
         case vdef: ValDef   => recurValDef(vdef)
         case fdef: FunDef   => recurFunDef(fdef)
+        case pdef: PatDef   => recurPatDef(pdef)
         case tdef: TypeDef  => recurTypeDef(tdef)
         case pdef: ParamDef => recurParamDef(pdef)
 
@@ -266,7 +273,7 @@ object SastOps:
 
         case Match(scrutinee, cases) =>
           this(scrutinee)
-          for Case(_, body) <= cases do this(body)
+          for Case(_, body) <- cases do this(body)
 
         case Object(self, vals, defs) =>
           vals.map(recurValDef)

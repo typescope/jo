@@ -223,7 +223,7 @@ object Ast:
     */
   case class FunDef
     (ident: Ident, tparams: List[TypeParam], params: List[Param],
-        resType: TypeTree, receives: Option[List[RefTree]], body: Word,
+        resultType: TypeTree, receives: Option[List[RefTree]], body: Word,
         preParamCount: Int)
     (val span: Span)
   extends Word, Def:
@@ -235,7 +235,7 @@ object Ast:
 
   /** Representation of a pattern definition */
   case class PatDef
-    (ident: Ident, tparams: List[TypeParam], params: List[Param], resType: TypeTree, body: Word)
+    (ident: Ident, tparams: List[TypeParam], params: List[Param], resultType: TypeTree, body: Word)
     (val span: Span)
   extends Word, Def:
     assert(isPattern(body), "Ill-formed pattern tree: " + body)
