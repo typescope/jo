@@ -94,7 +94,7 @@ object Printing:
           if pdef.params.isEmpty then Text.Empty
           else "(" ~ rep(pdef.params, Text(", "))  ~ ")"
 
-        val resType = ":" ~ pdef.resultType
+        val resType = ": " ~ pdef.resultType
 
         "pattern " ~ pdef.name ~ tparams ~ params ~ resType ~ " =" ~ indent(pdef.body)
 
@@ -210,7 +210,7 @@ object Printing:
 
       case WildcardPattern() => Text("_")
 
-      case AscribePattern(id, inner) => id ~ " @ " ~ inner
+      case AscribePattern(id, inner) => "(" ~ id ~ " @ " ~ inner ~ ")"
 
       case ApplyPattern(id, nested) =>
         id ~ "(" ~ rep(nested, Text(", ")) ~ ")"
