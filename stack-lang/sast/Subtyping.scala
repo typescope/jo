@@ -109,15 +109,7 @@ object Subtyping:
 
   /** Either `tp1` or `tp2` is proxy type */
   private def checkConformsProxyType(tp1: Type, tp2: Type)(using ctx: Context): Boolean =
-    if tp1.is[ProxyType] && !tp1.isGrounded then
-      val proxy1 = tp1.as[ProxyType]
-      !ctx.isReducingLeft(proxy1) && doCheckConformsProxyType(proxy1, tp2, lessThan = true)
-
-    else if tp2.is[ProxyType] && !tp2.isGrounded then
-      val proxy2 = tp2.as[ProxyType]
-      !ctx.isReducingRight(proxy2) && doCheckConformsProxyType(proxy2, tp1, lessThan = false)
-
-    else if tp1.is[ProxyType] && tp2.is[ProxyType] then
+    if tp1.is[ProxyType] && tp2.is[ProxyType] then
       val proxy1 = tp1.as[ProxyType]
       val proxy2 = tp2.as[ProxyType]
       ctx.isSubtype(proxy1, proxy2) || {
@@ -126,19 +118,22 @@ object Subtyping:
             ctx.isSubtype(tref1, tref2) || {
               given Context = ctx.withSubtyping(tref1, tref2)
               if !proxy1.isGrounded then
-                doCheckConformsProxyType(proxy1, proxy2, lessThan = true)
+                TypeOps.isGroundedProxy(proxy1) && doCheckConformsProxyType(proxy1, proxy2, lessThan = true)
               else if !proxy2.isGrounded then
-                doCheckConformsProxyType(proxy2, proxy1, lessThan = false)
+                TypeOps.isGroundedProxy(proxy2) && doCheckConformsProxyType(proxy2, proxy1, lessThan = false)
               else
                 checkConformsAppliedGrounded(proxy1.as[AppliedType], proxy2.as[AppliedType])
             }
 
           case _ =>
-            given Context = ctx.withSubtyping(proxy1, proxy2)
             if !proxy1.isGrounded then
-              doCheckConformsProxyType(proxy1, proxy2, lessThan = true)
+              given Context = ctx.withSubtyping(proxy1, proxy2)
+              TypeOps.isGroundedProxy(proxy1) && doCheckConformsProxyType(proxy1, proxy2, lessThan = true)
+
             else if !proxy2.isGrounded then
-              doCheckConformsProxyType(proxy2, proxy1, lessThan = false)
+              given Context = ctx.withSubtyping(proxy1, proxy2)
+              TypeOps.isGroundedProxy(proxy2) && doCheckConformsProxyType(proxy2, proxy1, lessThan = false)
+
             else
               doCheckConformsProxyType(proxy1, proxy2, lessThan = true)
               || doCheckConformsProxyType(proxy2, proxy1, lessThan = false)
