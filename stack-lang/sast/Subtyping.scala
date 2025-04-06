@@ -174,13 +174,7 @@ object Subtyping:
         val tp1Reduced =
           sym.info match
             case bound: TypeBound =>
-              // Type definitions can also be bounded
-              if sym.isTypeParameter then
-                if lessThan then bound.hi else bound.lo
-
-              else
-                // Treat type definition with only bounds as nominal type
-                if lessThan then AnyType else BottomType
+              if lessThan then bound.hi else bound.lo
 
             case tp =>
               // A term reference has the bottom type in T <: TypeRef(a)

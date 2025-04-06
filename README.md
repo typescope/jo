@@ -21,7 +21,7 @@ language implementation.
 fun main = println "Hello world!"
 ```
 
-### Lambda Calculus
+### [Lambda Calculus](https://en.wikipedia.org/wiki/Lambda_calculus)
 
 ```
 type Lambda = #Abs(x: String, body: Expr)
@@ -107,14 +107,14 @@ fun evalLangB(expr: LangB): Int =
   evalExt expr (e) => evalLangB e
 
 fun main =
-  val langA: LangA =
+  val langA =
     #Add
       #Lit 3
       #Add
         #Lit 2
         #Lit 5
 
-  val langB: LangB = #Mul langA (#Lit 3)
+  val langB = #Mul langA (#Lit 3)
 
   println
     intToStr
