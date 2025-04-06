@@ -3,7 +3,6 @@ package phases
 import sast.*
 import sast.Sast.*
 import sast.Symbols.*
-import sast.Types.*
 
 /** This phase encode tagged values as records */
 class EncodeTagged extends Phase[Symbol]:
@@ -11,7 +10,7 @@ class EncodeTagged extends Phase[Symbol]:
 
   override def transformTagged(tagged: TaggedLit)(using ctx: Context): Word =
     val tagType = tagged.tpe.asTagType
-    val encodedValue = TaggedEncoding.encodeVariant(tagType, tagged.args, tagged.tag.span, tagged.span)
+    val encodedValue = TaggedEncoding.encodeVariant(tagType, tagged.args, tagged.tagTree.span, tagged.span)
     Encoded(encodedValue)(tagType)
 
   override def transformSelect(select: Select)(using ctx: Context): Word =

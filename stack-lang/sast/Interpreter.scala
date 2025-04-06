@@ -498,7 +498,7 @@ object Interpreter:
     val typeCheck = (nss: List[Ast.Namespace]) => Namer.transform(nss, stdlib, runtime)
 
     val noramlizer = new phases.NormalizeParams
-    val encoder = new EncodeTagged
+    val encoder = new phases.EncodeTagged
 
     val namespacesSAST =
       Parser.parse(sourceFiles)     |>

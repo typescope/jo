@@ -5,7 +5,6 @@ import sast.*
 import sast.Sast.*
 import sast.Types.*
 import sast.Symbols.*
-import typing.Desugaring
 import typing.EffectAnalysis
 import reporting.Reporter
 
@@ -108,9 +107,10 @@ class NormalizeParams(using Reporter) extends Phase[NormalizeParams.Context]:
 
     val ifStat = If(cond, trueBranch, falseBranch)(param.info, pdef.span)
 
+    val tpt = TypeTree(valueSym.info)(pdef.tpt.span)
     val body = Block(vdef :: ifStat :: Nil)(param.info, pdef.span)
 
-    FunDef(valueFunSym, tparams = Nil, params = Nil, body)(pdef.span)
+    FunDef(valueFunSym, tparams = Nil, params = Nil, tpt, body)(pdef.span)
 
   override def transformNamespace(ns: Namespace)(using ctx: Context): Namespace =
     val defs = ns.defs.flatMap:
