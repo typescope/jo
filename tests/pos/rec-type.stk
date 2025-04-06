@@ -7,14 +7,10 @@ type E = {a: A, c: E, d: D}
 type X = Y
 type Y = X
 
-fun test1(a: A): B = a
-
 fun test2(c: C): {a: A, c: C} = c.c
 
 fun test3(c: C): D = c.c
 
 fun test4(e: E): D = e
-
-fun test5(x: X): Y = x
 
 fun main = 10 p

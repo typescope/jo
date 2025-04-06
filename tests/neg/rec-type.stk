@@ -14,4 +14,9 @@ fun test3(a: A): Int = a  // error
 
 fun test4(a: Int): A = a // error
 
+fun test5(a: A): B = a   // error
+
+fun test6(x: X): Y = x   // error
+
+
 fun main = 10 p
