@@ -1,0 +1,5 @@
+type A = A
+
+fun f(n: Int): A = n // error
+
+fun g(a: A): Int = a // error
