@@ -28,8 +28,8 @@ object TypeOps:
     val tp2Widen = tp2.widen
     if tp1.isError || tp2.isError then Some(ErrorType)
     else if tp1.isVoidType || tp2.isVoidType then Some(VoidType)
-    else if Subtyping.conforms(tp1Widen, tp2Widen) then Some(tp2Widen)
-    else if Subtyping.conforms(tp2Widen, tp2Widen) then Some(tp1Widen)
+    else if Subtyping.conforms(tp1, tp2Widen) then Some(tp2Widen)
+    else if Subtyping.conforms(tp2, tp1Widen) then Some(tp1Widen)
     else None
 
   /** Substitute type params with the given types */
@@ -126,6 +126,29 @@ object TypeOps:
     end recur
     recur(tp)
   end dealias
+
+  /** A grounded type cannot be simplied further at the top-level
+    *
+    * The following proxy types are not grounded:
+    *
+    * - type aliases
+    * - type variables
+    */
+  def isGrounded(tp: Type): Boolean =
+    tp match
+      case TypeRef(sym) => sym.info.isInstanceOf[TypeBound]
+
+      case AppliedType(TypeRef(sym), _) =>
+        sym.info match
+          case TypeLambda(_, _: TypeBound) => true
+          case _ => false
+
+      case _: TypeVar => false
+
+      case _ => true
+
+  /** A grouned proxy type dealiases to a grounded type */
+  def isGroundedProxy(tp: ProxyType): Boolean = isGrounded(tp.dealias)
 
   def show(tp: Type): String =
     tp match

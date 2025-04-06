@@ -73,19 +73,14 @@ object Subtyping:
     * surface in deal with TypeRef, which is handled specially.
     */
   private def checkConforms(tp1: Type, tp2: Type)(using ctx: Context): Boolean = Debug.trace(s"${tp1.show} <: ${tp2.show}", enable = false) {
+    // Each branch should be disjoint to avoid exponential blowup
     tp1.isError
     || tp2.isError
     || tp1.isBottom && tp2.isValueType
     || tp2.isAnyType && tp1.isValueType
     || tp1 == tp2
-    || tp1.is[TypeVar]
-       && checkConformsProxyTypeLeft(tp1.as[ProxyType], tp2)
-    || tp2.is[TypeVar]
-       && checkConformsProxyTypeRight(tp1, tp2.as[ProxyType])
-    || tp1.is[ProxyType]
-       && checkConformsProxyTypeLeft(tp1.as[ProxyType], tp2)
-    || tp2.is[ProxyType]
-       && checkConformsProxyTypeRight(tp1, tp2.as[ProxyType])
+    || (tp1.is[ProxyType] && !tp1.isGrounded || tp2.is[ProxyType] && !tp2.isGrounded)
+       && checkConformsProxyType(tp1, tp2)
     || tp1.is[ObjectType] && tp2.is[ObjectType]
        && checkConformsObjectType(tp1.as[ObjectType], tp2.as[ObjectType])
     || tp1.is[RecordType] && tp2.is[RecordType]
@@ -103,33 +98,48 @@ object Subtyping:
   private def checkConforms(tp1: Type, tp2: Type, lessThan: Boolean)(using ctx: Context): Boolean =
     if lessThan then checkConforms(tp1, tp2) else checkConforms(tp2, tp1)
 
-  private def checkConformsProxyType(tp1: ProxyType, tp2: ProxyType)(using ctx: Context): Boolean =
-    ctx.isSubtype(tp1, tp2) || {
-      (tp1, tp2) match
-        case (AppliedType(tref1: TypeRef, _), AppliedType(tref2: TypeRef, _)) =>
-          ctx.isSubtype(tref1, tref2) || {
-            given Context = ctx.withSubtyping(tref1, tref2)
-            checkConformsProxyType(tp1, tp2, lessThan = true)
-          }
+  /** Either `tp1` or `tp2` is a non-grounded proxy type */
+  private def checkConformsProxyType(tp1: Type, tp2: Type)(using ctx: Context): Boolean =
+    if tp1.is[TypeVar] then
+      val proxy1 = tp1.as[ProxyType]
+      !ctx.isReducingLeft(proxy1) && doCheckConformsProxyType(proxy1, tp2, lessThan = true)
 
-        case _ =>
-          given Context = ctx.withSubtyping(tp1, tp2)
-          checkConformsProxyType(tp1, tp2, lessThan = true)
-    }
+    else if tp2.is[TypeVar] then
+      val proxy2 = tp2.as[ProxyType]
+      !ctx.isReducingRight(proxy2) && doCheckConformsProxyType(proxy2, tp1, lessThan = false)
 
-  private def checkConformsProxyTypeLeft(tp1: ProxyType, tp2: Type)(using ctx: Context): Boolean =
-    if tp1.is[TypeVar] || !tp2.is[ProxyType] then
-      !ctx.isReducingLeft(tp1) && checkConformsProxyType(tp1, tp2, lessThan = true)
+    else if tp1.is[ProxyType] && tp2.is[ProxyType] then
+      val proxy1 = tp1.as[ProxyType]
+      val proxy2 = tp2.as[ProxyType]
+      ctx.isSubtype(proxy1, proxy2) || {
+        (proxy1, proxy2) match
+          case (AppliedType(tref1: TypeRef, _), AppliedType(tref2: TypeRef, _)) =>
+            ctx.isSubtype(tref1, tref2) || {
+              given Context = ctx.withSubtyping(tref1, tref2)
+              if !proxy1.isGrounded then
+                doCheckConformsProxyType(proxy1, proxy2, lessThan = true)
+              else
+                doCheckConformsProxyType(proxy2, proxy1, lessThan = false)
+            }
+
+          case _ =>
+            given Context = ctx.withSubtyping(proxy1, proxy2)
+            if !proxy1.isGrounded then
+              doCheckConformsProxyType(proxy1, proxy2, lessThan = true)
+            else
+              doCheckConformsProxyType(proxy2, proxy1, lessThan = false)
+
+      }
+
+    else if tp1.is[ProxyType] then
+      val proxy1 = tp1.as[ProxyType]
+      !ctx.isReducingLeft(proxy1) && doCheckConformsProxyType(proxy1, tp2, lessThan = true)
+
     else
-      checkConformsProxyType(tp1, tp2.asInstanceOf[ProxyType])
+      val proxy2 = tp2.as[ProxyType]
+      !ctx.isReducingRight(proxy2) && doCheckConformsProxyType(proxy2, tp1, lessThan = false)
 
-  private def checkConformsProxyTypeRight(tp1: Type, tp2: ProxyType)(using ctx: Context): Boolean =
-    if !tp1.is[ProxyType] || tp2.is[TypeVar] then
-      !ctx.isReducingRight(tp2) && checkConformsProxyType(tp2, tp1, lessThan = false)
-    else
-      checkConformsProxyType(tp1.asInstanceOf[ProxyType], tp2)
-
-  private def checkConformsProxyType(tp1: ProxyType, tp2: Type, lessThan: Boolean)(using ctx: Context): Boolean =
+  private def doCheckConformsProxyType(tp1: ProxyType, tp2: Type, lessThan: Boolean)(using ctx: Context): Boolean =
     def reducingCtx(tp: ProxyType): Context =
       if lessThan then ctx.reduceLeft(tp) else ctx.reduceRight(tp)
 

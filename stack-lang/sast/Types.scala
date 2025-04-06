@@ -52,6 +52,15 @@ object Types:
         case VoidType | _: ProcType | _: TypeLambda | _: NameTableInfo => false
         case _ => true
 
+    /** A grounded type cannot be simplied further at the top-level
+      *
+      * The following proxy types are not grounded:
+      *
+      * - type aliases
+      * - type variables
+      */
+    def isGrounded: Boolean = TypeOps.isGrounded(this)
+
     def dealias: Type = TypeOps.dealias(this)
 
     /** Widen a term reference to its underlying type */
