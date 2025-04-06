@@ -101,7 +101,7 @@ object TypeOps:
     def recur(tp: Type): Type = Debug.trace(s"$tp.dealias", enable = false):
       tp match
         case tref: TypeRef =>
-          if encountered.contains(tref) || tref.symbol.isTypeParameter then
+          if encountered.contains(tref) || tref.symbol.isTypeParameter || !tref.symbol.isType then
             tref
           else
             encountered += tref
