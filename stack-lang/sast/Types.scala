@@ -57,7 +57,7 @@ object Types:
       * The following proxy types are not grounded:
       *
       * - type aliases
-      * - type variables
+      * - uninstantiated type variables
       */
     def isGrounded: Boolean = TypeOps.isGrounded(this)
 
@@ -328,10 +328,9 @@ object Types:
   class TypeVar(name: String, inferencer: Inference.Inferencer) extends ProxyType:
     override def toString = "TypeVar(" + name + ")"
 
-    def isInstantiated: Boolean =
-      this.dealias != this
-
     override def dealias: Type = inferencer.dealias(this)
+
+    def isInstantiated: Boolean = inferencer.isInstantiated(this)
 
     def approx(isUp: Boolean): Type = inferencer.approx(this, isUp)
 

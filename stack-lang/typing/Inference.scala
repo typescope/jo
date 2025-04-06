@@ -34,6 +34,8 @@ object Inference:
       */
     def approx(tvar: TypeVar, isUp: Boolean): Type
 
+    def isInstantiated(tvar: TypeVar): Boolean
+
     def isSubtype(tvar: TypeVar, tp: Type): List[Subtyping.Task]
 
     def isSuptype(tvar: TypeVar, tp: Type): List[Subtyping.Task]
@@ -63,6 +65,9 @@ object Inference:
           assert(tvar != tp)
           instantiate(tvar, tp)
           Nil
+
+    def isInstantiated(tvar: TypeVar): Boolean =
+      instantiations.get(tvar).nonEmpty
 
     def dealias(tvar: TypeVar): Type =
       instantiations.get(tvar) match

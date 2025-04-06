@@ -101,20 +101,20 @@ object Subtyping:
           case (AppliedType(tref1: TypeRef, _), AppliedType(tref2: TypeRef, _)) =>
             ctx.isSubtype(tref1, tref2) || {
               given Context = ctx.withSubtyping(tref1, tref2)
-              if !proxy1.isGrounded then
+              if !proxy1.isGrounded || proxy1.dealias.is[TypeVar] then
                 TypeOps.isGroundedProxy(proxy1) && doCheckConformsProxyType(proxy1, proxy2, lessThan = true)
-              else if !proxy2.isGrounded then
+              else if !proxy2.isGrounded || proxy2.dealias.is[TypeVar] then
                 TypeOps.isGroundedProxy(proxy2) && doCheckConformsProxyType(proxy2, proxy1, lessThan = false)
               else
                 checkConformsAppliedGrounded(proxy1.as[AppliedType], proxy2.as[AppliedType])
             }
 
           case _ =>
-            if !proxy1.isGrounded then
+            if !proxy1.isGrounded || proxy1.dealias.is[TypeVar] then
               given Context = ctx.withSubtyping(proxy1, proxy2)
               TypeOps.isGroundedProxy(proxy1) && doCheckConformsProxyType(proxy1, proxy2, lessThan = true)
 
-            else if !proxy2.isGrounded then
+            else if !proxy2.isGrounded || proxy2.dealias.is[TypeVar] then
               given Context = ctx.withSubtyping(proxy1, proxy2)
               TypeOps.isGroundedProxy(proxy2) && doCheckConformsProxyType(proxy2, proxy1, lessThan = false)
 

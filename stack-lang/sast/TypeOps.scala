@@ -132,7 +132,7 @@ object TypeOps:
     * The following proxy types are not grounded:
     *
     * - type aliases
-    * - type variables
+    * - instaniated type variables
     */
   def isGrounded(tp: Type): Boolean =
     tp match
@@ -143,7 +143,7 @@ object TypeOps:
           case TypeLambda(_, _: TypeBound) => true
           case _ => false
 
-      case _: TypeVar => false
+      case tvar: TypeVar => !tvar.isInstantiated
 
       case _ => true
 
