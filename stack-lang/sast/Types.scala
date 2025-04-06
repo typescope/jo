@@ -315,7 +315,10 @@ object Types:
 
   case class AppliedType
     (tctor: Type, targs: List[Type])
-  extends ProxyType
+  extends ProxyType:
+    tctor match
+      case TypeRef(sym) if sym.isType =>
+      case _ => assert(false, tctor)
 
   /** Represents upper and lower bounds of type parameters */
   case class TypeBound

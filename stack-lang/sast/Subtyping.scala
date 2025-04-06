@@ -81,6 +81,8 @@ object Subtyping:
     || tp1 == tp2
     || (tp1.is[ProxyType] && !tp1.isGrounded || tp2.is[ProxyType] && !tp2.isGrounded)
        && checkConformsProxyType(tp1, tp2)
+    || (tp1.is[AppliedType] && tp1.isGrounded && tp2.is[AppliedType] && tp2.isGrounded)
+       && checkConformsAppliedGrounded(tp1.as[AppliedType], tp2.as[AppliedType])
     || tp1.is[ObjectType] && tp2.is[ObjectType]
        && checkConformsObjectType(tp1.as[ObjectType], tp2.as[ObjectType])
     || tp1.is[RecordType] && tp2.is[RecordType]
@@ -97,6 +99,15 @@ object Subtyping:
 
   private def checkConforms(tp1: Type, tp2: Type, lessThan: Boolean)(using ctx: Context): Boolean =
     if lessThan then checkConforms(tp1, tp2) else checkConforms(tp2, tp1)
+
+  private def checkConformsAppliedGrounded(tp1: AppliedType, tp2: AppliedType)(using ctx: Context): Boolean =
+    val AppliedType(tref1: TypeRef, targs1) = tp1: @unchecked
+    val AppliedType(tref2: TypeRef, targs2) = tp2: @unchecked
+    tref1 == tref2 && {
+      // TODO: follow variance spec
+      targs1.zip(targs2).forall: (tp1, tp2) =>
+        checkConforms(tp1, tp2) && checkConforms(tp2, tp1)
+    }
 
   /** Either `tp1` or `tp2` is a non-grounded proxy type */
   private def checkConformsProxyType(tp1: Type, tp2: Type)(using ctx: Context): Boolean =
@@ -160,13 +171,7 @@ object Subtyping:
                     continue(tp1Reduced)
 
                   case _: TypeBound =>
-                    // Platform opaque type constructors, e.g., Array[T]
-                    tp2 match
-                      case AppliedType(tctor2, targs2) if tctor == tctor2 =>
-                        targs.zip(targs2).forall: (tp1, tp2) =>
-                          checkConforms(tp1, tp2) && checkConforms(tp2, tp1)
-
-                      case _ => false
+                    throw new Exception("Unexpected bound type encountered for " + tp1)
 
                   case tp1Reduced =>
                     continue(tp1Reduced)
