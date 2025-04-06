@@ -54,6 +54,12 @@ object Types:
 
     def dealias: Type = TypeOps.dealias(this)
 
+    /** Widen a term reference to its underlying type */
+    def widen: Type =
+      this match
+        case TypeRef(sym) if !sym.isType => sym.info
+        case _ => this
+
     def asRecordType: RecordType =
       TypeOps.approx(this, isUp = true).asInstanceOf[RecordType]
 

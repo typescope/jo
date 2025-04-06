@@ -19,14 +19,17 @@ object TypeOps:
     *
     * - ErrorType always dominates
     * - VoidType dominates anything else
+    * - Reference to terms are widened
     *
     * Also, do not infer Any as common type, which is useless.
     */
   def commonResultType(tp1: Type, tp2: Type): Option[Type] =
+    val tp1Widen = tp1.widen
+    val tp2Widen = tp2.widen
     if tp1.isError || tp2.isError then Some(ErrorType)
     else if tp1.isVoidType || tp2.isVoidType then Some(VoidType)
-    else if Subtyping.conforms(tp1, tp2) then Some(tp2)
-    else if Subtyping.conforms(tp2, tp1) then Some(tp1)
+    else if Subtyping.conforms(tp1Widen, tp2Widen) then Some(tp2Widen)
+    else if Subtyping.conforms(tp2Widen, tp2Widen) then Some(tp1Widen)
     else None
 
   /** Substitute type params with the given types */

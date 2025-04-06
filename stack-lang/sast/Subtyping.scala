@@ -167,13 +167,13 @@ object Subtyping:
 
       case tref: TypeRef =>
         reduce(tref, maximize = lessThan) match
-        case tp1Reduced: ProxyType =>
-          // If the reduced type is not grounded, avoid cycles
-          given Context = reducingCtx(tref)
-          continue(tp1Reduced)
+          case tp1Reduced: ProxyType =>
+            // If the reduced type is not grounded, avoid cycles
+            given Context = reducingCtx(tref)
+            continue(tp1Reduced)
 
-        case tp1Reduced =>
-          continue(tp1Reduced)
+          case tp1Reduced =>
+            continue(tp1Reduced)
 
       case tvar: TypeVar =>
         given Context = reducingCtx(tvar)
@@ -199,7 +199,8 @@ object Subtyping:
           if maximize then AnyType else BottomType
 
       case tp =>
-        tp
+        // A term reference has the bottom type in T <: TypeRef(a)
+        if sym.isType || maximize then tp else BottomType
 
   private def checkConformsProcType(tp1: ProcType, tp2: ProcType)(using Context): Boolean =
     tp1.paramTypes.size == tp2.paramTypes.size
