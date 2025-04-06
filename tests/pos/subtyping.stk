@@ -1,8 +1,12 @@
 type S = {a: Int, b: S, c: Int}
 type T = {a: Int, b: T}
 
+type Seq = object { def size: Int }
+
 fun test1(s: S): T = s
 
 fun test2(v: {a: Int, b: Bool}): {a: Int} = v
+
+fun test3(s: String): Seq = s
 
 fun main = 10 p
