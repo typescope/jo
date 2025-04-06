@@ -38,33 +38,17 @@ object Subtyping:
     * - Paper: Subtyping recursive types, Roberto M. Amadio, Luca Cardelli, 1993
     * - Link: https://dl.acm.org/doi/10.1145/155183.155231
     */
-  class Context(
-    subtypings: Map[ProxyType, List[ProxyType]],
-    reducingLeft: List[ProxyType],
-    reducingRight: List[ProxyType]):
-
-    def this() = this(Map.empty, Nil, Nil)
+  class Context(subtypings: Map[ProxyType, List[ProxyType]]):
+    def this() = this(Map.empty)
 
     def withSubtyping(tp1: ProxyType, tp2: ProxyType): Context =
       val subtypings2 = this.subtypings.updated(tp1, tp2 :: this.subtypings.getOrElse(tp1, Nil))
-      new Context(subtypings2, reducingLeft, reducingRight)
+      new Context(subtypings2)
 
     def isSubtype(tp1: ProxyType, tp2: ProxyType): Boolean =
       this.subtypings.get(tp1) match
         case Some(tps) if tps.contains(tp2) => true
         case _ => false
-
-    def reduceLeft(tp: ProxyType): Context =
-      new Context(subtypings, tp :: reducingLeft, reducingRight)
-
-    def reduceRight(tp: ProxyType): Context =
-      new Context(subtypings, reducingLeft, tp :: reducingRight)
-
-    def isReducingLeft(tp: ProxyType): Boolean =
-      reducingLeft.contains(tp)
-
-    def isReducingRight(tp: ProxyType): Boolean =
-      reducingRight.contains(tp)
 
   /**
     * Check whether one type conforms to the other type
@@ -135,23 +119,20 @@ object Subtyping:
               TypeOps.isGroundedProxy(proxy2) && doCheckConformsProxyType(proxy2, proxy1, lessThan = false)
 
             else
-              doCheckConformsProxyType(proxy1, proxy2, lessThan = true)
-              || doCheckConformsProxyType(proxy2, proxy1, lessThan = false)
+              TypeOps.isGroundedProxy(proxy1) && doCheckConformsProxyType(proxy1, proxy2, lessThan = true)
+              || TypeOps.isGroundedProxy(proxy2) && doCheckConformsProxyType(proxy2, proxy1, lessThan = false)
 
       }
 
     else if tp1.is[ProxyType] then
       val proxy1 = tp1.as[ProxyType]
-      !ctx.isReducingLeft(proxy1) && doCheckConformsProxyType(proxy1, tp2, lessThan = true)
+      TypeOps.isGroundedProxy(proxy1) && doCheckConformsProxyType(proxy1, tp2, lessThan = true)
 
     else
       val proxy2 = tp2.as[ProxyType]
-      !ctx.isReducingRight(proxy2) && doCheckConformsProxyType(proxy2, tp1, lessThan = false)
+      TypeOps.isGroundedProxy(proxy2) && doCheckConformsProxyType(proxy2, tp1, lessThan = false)
 
   private def doCheckConformsProxyType(tp1: ProxyType, tp2: Type, lessThan: Boolean)(using ctx: Context): Boolean =
-    def reducingCtx(tp: ProxyType): Context =
-      if lessThan then ctx.reduceLeft(tp) else ctx.reduceRight(tp)
-
     def continue(tp1b: Type)(using Context): Boolean =
       checkConforms(tp1b, tp2, lessThan)
 
@@ -159,20 +140,13 @@ object Subtyping:
       case AppliedType(tctor, targs) =>
         tctor match
           case tref: TypeRef =>
-            val isReducing = if lessThan then ctx.isReducingLeft(tref) else ctx.isReducingRight(tref)
-            !isReducing && reduce(tref, maximize = lessThan).match
+            reduce(tref, maximize = lessThan).match
               case tl: TypeLambda =>
-                TypeOps.substTypeParams(tl.body, targs) match
-                  case tp1Reduced: ProxyType =>
-                    // If the reduced type is not grounded, avoid cycles
-                    given Context = reducingCtx(tref)
-                    continue(tp1Reduced)
+                val tp1Reduced = TypeOps.substTypeParams(tl.body, targs)
+                continue(tp1Reduced)
 
-                  case _: TypeBound =>
-                    throw new Exception("Unexpected bound type encountered for " + tp1)
-
-                  case tp1Reduced =>
-                    continue(tp1Reduced)
+              case tb: TypeBound =>
+                ???
 
               case tctor =>
                 false
@@ -183,17 +157,10 @@ object Subtyping:
             throw new Exception("Unexpected type constructor: " + tctor.show)
 
       case tref: TypeRef =>
-        reduce(tref, maximize = lessThan) match
-          case tp1Reduced: ProxyType =>
-            // If the reduced type is not grounded, avoid cycles
-            given Context = reducingCtx(tref)
-            continue(tp1Reduced)
-
-          case tp1Reduced =>
-            continue(tp1Reduced)
+        val tp1Reduced = reduce(tref, maximize = lessThan)
+        continue(tp1Reduced)
 
       case tvar: TypeVar =>
-        given Context = reducingCtx(tvar)
         val tasks = if lessThan then tvar.isSubtype(tp2) else tvar.isSuptype(tp2)
         tasks.forall(task => checkConforms(task.left, task.right))
 

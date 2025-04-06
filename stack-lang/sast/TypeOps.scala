@@ -136,7 +136,7 @@ object TypeOps:
     */
   def isGrounded(tp: Type): Boolean =
     tp match
-      case TypeRef(sym) => sym.info.isInstanceOf[TypeBound]
+      case TypeRef(sym) => !sym.isType || sym.info.isInstanceOf[TypeBound]
 
       case AppliedType(TypeRef(sym), _) =>
         sym.info match
