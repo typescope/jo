@@ -79,15 +79,13 @@ object Subtyping:
     || tp2.isAnyType && tp1.isValueType
     || tp1 == tp2
     || tp1.is[TypeVar]
-       && checkConformsProxyType(tp1.as[ProxyType], tp2)
+       && checkConformsProxyTypeLeft(tp1.as[ProxyType], tp2)
     || tp2.is[TypeVar]
-       && checkConformsProxyType(tp1, tp2.as[ProxyType])
-    || tp1.is[ProxyType] && tp2.is[ProxyType]
-       && checkConformsProxyType(tp1.as[ProxyType], tp2.as[ProxyType])
+       && checkConformsProxyTypeRight(tp1, tp2.as[ProxyType])
     || tp1.is[ProxyType]
-       && checkConformsProxyType(tp1.as[ProxyType], tp2)
+       && checkConformsProxyTypeLeft(tp1.as[ProxyType], tp2)
     || tp2.is[ProxyType]
-       && checkConformsProxyType(tp1, tp2.as[ProxyType])
+       && checkConformsProxyTypeRight(tp1, tp2.as[ProxyType])
     || tp1.is[ObjectType] && tp2.is[ObjectType]
        && checkConformsObjectType(tp1.as[ObjectType], tp2.as[ObjectType])
     || tp1.is[RecordType] && tp2.is[RecordType]
@@ -119,11 +117,13 @@ object Subtyping:
           checkConformsProxyType(tp1, tp2, lessThan = true)
     }
 
-  private def checkConformsProxyType(tp1: ProxyType, tp2: Type)(using ctx: Context): Boolean =
-    !ctx.isReducingLeft(tp1) && checkConformsProxyType(tp1, tp2, lessThan = true)
+  private def checkConformsProxyTypeLeft(tp1: ProxyType, tp2: Type)(using ctx: Context): Boolean =
+    if tp2.isInstanceOf[ProxyType] then checkConformsProxyType(tp1, tp2.asInstanceOf[ProxyType])
+    else !ctx.isReducingLeft(tp1) && checkConformsProxyType(tp1, tp2, lessThan = true)
 
-  private def checkConformsProxyType(tp1: Type, tp2: ProxyType)(using ctx: Context): Boolean =
-    !ctx.isReducingRight(tp2) && checkConformsProxyType(tp2, tp1, lessThan = false)
+  private def checkConformsProxyTypeRight(tp1: Type, tp2: ProxyType)(using ctx: Context): Boolean =
+    if tp1.isInstanceOf[ProxyType] then checkConformsProxyType(tp1.asInstanceOf[ProxyType], tp2)
+    else !ctx.isReducingRight(tp2) && checkConformsProxyType(tp2, tp1, lessThan = false)
 
   private def checkConformsProxyType(tp1: ProxyType, tp2: Type, lessThan: Boolean)(using ctx: Context): Boolean =
     def reducingCtx(tp: ProxyType): Context =
