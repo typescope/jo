@@ -118,12 +118,16 @@ object Subtyping:
     }
 
   private def checkConformsProxyTypeLeft(tp1: ProxyType, tp2: Type)(using ctx: Context): Boolean =
-    if tp2.isInstanceOf[ProxyType] then checkConformsProxyType(tp1, tp2.asInstanceOf[ProxyType])
-    else !ctx.isReducingLeft(tp1) && checkConformsProxyType(tp1, tp2, lessThan = true)
+    if tp1.is[TypeVar] || !tp2.is[ProxyType] then
+      !ctx.isReducingLeft(tp1) && checkConformsProxyType(tp1, tp2, lessThan = true)
+    else
+      checkConformsProxyType(tp1, tp2.asInstanceOf[ProxyType])
 
   private def checkConformsProxyTypeRight(tp1: Type, tp2: ProxyType)(using ctx: Context): Boolean =
-    if tp1.isInstanceOf[ProxyType] then checkConformsProxyType(tp1.asInstanceOf[ProxyType], tp2)
-    else !ctx.isReducingRight(tp2) && checkConformsProxyType(tp2, tp1, lessThan = false)
+    if !tp1.is[ProxyType] || tp2.is[TypeVar] then
+      !ctx.isReducingRight(tp2) && checkConformsProxyType(tp2, tp1, lessThan = false)
+    else
+      checkConformsProxyType(tp1.asInstanceOf[ProxyType], tp2)
 
   private def checkConformsProxyType(tp1: ProxyType, tp2: Type, lessThan: Boolean)(using ctx: Context): Boolean =
     def reducingCtx(tp: ProxyType): Context =
