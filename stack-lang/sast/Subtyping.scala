@@ -96,35 +96,7 @@ object Subtyping:
     if tp1.is[ProxyType] && tp2.is[ProxyType] then
       val proxy1 = tp1.as[ProxyType]
       val proxy2 = tp2.as[ProxyType]
-      ctx.isSubtype(proxy1, proxy2) || {
-        (proxy1, proxy2) match
-          case (AppliedType(tref1: TypeRef, _), AppliedType(tref2: TypeRef, _)) =>
-            ctx.isSubtype(tref1, tref2) || {
-              given Context = ctx.withSubtyping(tref1, tref2)
-              if !proxy1.isGrounded || proxy1.is[TypeVar] then
-                TypeOps.isGroundedProxy(proxy1) && reduceProxyType(proxy1, proxy2, lessThan = true)
-
-              else if !proxy2.isGrounded || proxy2.is[TypeVar] then
-                TypeOps.isGroundedProxy(proxy2) && reduceProxyType(proxy2, proxy1, lessThan = false)
-
-              else
-                checkConformsAppliedGrounded(proxy1.as[AppliedType], proxy2.as[AppliedType])
-            }
-
-          case _ =>
-            if !proxy1.isGrounded || proxy1.is[TypeVar] then
-              given Context = ctx.withSubtyping(proxy1, proxy2)
-              TypeOps.isGroundedProxy(proxy1) && reduceProxyType(proxy1, proxy2, lessThan = true)
-
-            else if !proxy2.isGrounded || proxy2.is[TypeVar] then
-              given Context = ctx.withSubtyping(proxy1, proxy2)
-              TypeOps.isGroundedProxy(proxy2) && reduceProxyType(proxy2, proxy1, lessThan = false)
-
-            else
-              TypeOps.isGroundedProxy(proxy1) && reduceProxyType(proxy1, proxy2, lessThan = true)
-              || TypeOps.isGroundedProxy(proxy2) && reduceProxyType(proxy2, proxy1, lessThan = false)
-
-      }
+      checkConformsBothProxyType(proxy1, proxy2)
 
     else if tp1.is[ProxyType] then
       val proxy1 = tp1.as[ProxyType]
@@ -133,6 +105,43 @@ object Subtyping:
     else
       val proxy2 = tp2.as[ProxyType]
       TypeOps.isGroundedProxy(proxy2) && reduceProxyType(proxy2, tp1, lessThan = false)
+
+  private def checkConformsBothProxyType(proxy1: ProxyType, proxy2: ProxyType)(using ctx: Context): Boolean =
+    if ctx.isSubtype(proxy1, proxy2) then
+      true
+
+    else if proxy1.is[AppliedType] && proxy2.is[AppliedType] then
+      val tctor1 = proxy1.as[AppliedType].tctor.as[TypeRef]
+      val tctor2 = proxy2.as[AppliedType].tctor.as[TypeRef]
+
+      if proxy1.isGrounded && proxy2.isGrounded then
+        checkConformsAppliedGrounded(proxy1.as[AppliedType], proxy2.as[AppliedType])
+
+      else
+        ctx.isSubtype(tctor1, tctor2) || {
+          given Context = ctx.withSubtyping(tctor1, tctor2)
+          if !proxy1.isGrounded then
+            TypeOps.isGroundedProxy(proxy1) && reduceProxyType(proxy1, proxy2, lessThan = true)
+
+          else if !proxy2.isGrounded then
+            TypeOps.isGroundedProxy(proxy2) && reduceProxyType(proxy2, proxy1, lessThan = false)
+
+          else
+            throw new Exception(s"Unexpected types tp1 = ${proxy1.show}, tp2 = ${proxy2.show}")
+        }
+
+    else if !proxy1.isGrounded || proxy1.is[TypeVar] || proxy1.isTermRef then
+      given Context = ctx.withSubtyping(proxy1, proxy2)
+      TypeOps.isGroundedProxy(proxy1) && reduceProxyType(proxy1, proxy2, lessThan = true)
+
+    else if !proxy2.isGrounded || proxy2.is[TypeVar] then
+      given Context = ctx.withSubtyping(proxy1, proxy2)
+      TypeOps.isGroundedProxy(proxy2) && reduceProxyType(proxy2, proxy1, lessThan = false)
+
+    else
+      TypeOps.isGroundedProxy(proxy1) && reduceProxyType(proxy1, proxy2, lessThan = true)
+      || TypeOps.isGroundedProxy(proxy2) && reduceProxyType(proxy2, proxy1, lessThan = false)
+    end if
 
   private def reduceProxyType(tp1: ProxyType, tp2: Type, lessThan: Boolean)(using ctx: Context): Boolean =
     def continue(tp1b: Type)(using Context): Boolean =

@@ -30,6 +30,18 @@ object Types:
        // No polymorphism over union type thus only dealias no approximation
       dealias.isInstanceOf[UnionType]
 
+    /** Is the type a reference to a type alias */
+    def isTypeRef: Boolean =
+      this match
+        case TypeRef(sym) => sym.isType
+        case _ => false
+
+    /** Is the type a reference to a term name */
+    def isTermRef: Boolean =
+      this match
+        case TypeRef(sym) => !sym.isType
+        case _ => false
+
     def isObjectType: Boolean =
       TypeOps.approx(this, isUp = true).isInstanceOf[ObjectType]
 
