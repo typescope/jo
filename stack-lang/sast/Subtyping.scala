@@ -79,10 +79,8 @@ object Subtyping:
     || tp1.isBottom && tp2.isValueType
     || tp2.isAnyType && tp1.isValueType
     || tp1 == tp2
-    || (tp1.is[ProxyType] && !tp1.isGrounded || tp2.is[ProxyType] && !tp2.isGrounded)
+    || (tp1.is[ProxyType] || tp2.is[ProxyType])
        && checkConformsProxyType(tp1, tp2)
-    || (tp1.is[AppliedType] && tp1.isGrounded && tp2.is[AppliedType] && tp2.isGrounded)
-       && checkConformsAppliedGrounded(tp1.as[AppliedType], tp2.as[AppliedType])
     || tp1.is[ObjectType] && tp2.is[ObjectType]
        && checkConformsObjectType(tp1.as[ObjectType], tp2.as[ObjectType])
     || tp1.is[RecordType] && tp2.is[RecordType]
@@ -109,13 +107,13 @@ object Subtyping:
         checkConforms(tp1, tp2) && checkConforms(tp2, tp1)
     }
 
-  /** Either `tp1` or `tp2` is a non-grounded proxy type */
+  /** Either `tp1` or `tp2` is proxy type */
   private def checkConformsProxyType(tp1: Type, tp2: Type)(using ctx: Context): Boolean =
-    if tp1.is[TypeVar] then
+    if tp1.is[ProxyType] && !tp1.isGrounded then
       val proxy1 = tp1.as[ProxyType]
       !ctx.isReducingLeft(proxy1) && doCheckConformsProxyType(proxy1, tp2, lessThan = true)
 
-    else if tp2.is[TypeVar] then
+    else if tp2.is[ProxyType] && !tp2.isGrounded then
       val proxy2 = tp2.as[ProxyType]
       !ctx.isReducingRight(proxy2) && doCheckConformsProxyType(proxy2, tp1, lessThan = false)
 
@@ -129,16 +127,21 @@ object Subtyping:
               given Context = ctx.withSubtyping(tref1, tref2)
               if !proxy1.isGrounded then
                 doCheckConformsProxyType(proxy1, proxy2, lessThan = true)
-              else
+              else if !proxy2.isGrounded then
                 doCheckConformsProxyType(proxy2, proxy1, lessThan = false)
+              else
+                checkConformsAppliedGrounded(proxy1.as[AppliedType], proxy2.as[AppliedType])
             }
 
           case _ =>
             given Context = ctx.withSubtyping(proxy1, proxy2)
             if !proxy1.isGrounded then
               doCheckConformsProxyType(proxy1, proxy2, lessThan = true)
-            else
+            else if !proxy2.isGrounded then
               doCheckConformsProxyType(proxy2, proxy1, lessThan = false)
+            else
+              doCheckConformsProxyType(proxy1, proxy2, lessThan = true)
+              || doCheckConformsProxyType(proxy2, proxy1, lessThan = false)
 
       }
 
