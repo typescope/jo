@@ -61,15 +61,21 @@ class PatternTyper(namer: Namer, checker: Checker):
       val occurs = new Occurs
       given Scope = patScope
       given Occurs = occurs
-      given rp2: Reporter = rp.fresh(buffer = true)
+      val reporterDiscard = rp.fresh(buffer = true)
       val scrutType = if patDef.resultType.isEmpty then AnyType else givenResultType
-      val body2 = transformPattern(patDef.body, scrutType)
+      val body2 =
+        given Reporter = reporterDiscard
+        transformPattern(patDef.body, scrutType)
 
-      if rp2.hasErrors then
-        rp2.commit(rp)
+      if reporterDiscard.hasErrors then
+        reporterDiscard.commit(rp)
       else
-        // Suppress occur errors if other errors are present
-        for paramSym <- paramSyms do occurs.checkOccur(paramSym)(using rp)
+        // Elide checks if other errors are present
+        if !patDef.resultType.isEmpty && !Subtyping.conforms(scrutType, body2.tpe) then
+          Reporter.error("Result type not equal to the type of body, found = " + body2.tpe.show, patDef.resultType.pos)
+
+        for paramSym <- paramSyms do occurs.checkOccur(paramSym)
+      end if
 
       body2
 

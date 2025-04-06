@@ -266,7 +266,7 @@ object Types:
   object TagType:
     def from(tag: String, paramTypes: List[Type]) =
       val params =
-        paramTypes.zipWithIndex.map { case (tp, i) => NamedInfo("p" + i, tp) }
+        paramTypes.zipWithIndex.map { case (tp, i) => NamedInfo("_" + (i + 1), tp) }
       this(tag, params)
 
   /** The type of an object */

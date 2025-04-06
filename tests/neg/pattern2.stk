@@ -2,7 +2,10 @@ type Student = #Student(name: String, sex: Bool, birthday: Int)
 type Teacher = #Teacher(name: String, address: String, birthday: Int)
 
 pattern WrongResType(s: String, age: Int): Student =
-  #Teacher s age  // error
+  #Teacher s age _  // error
+
+pattern ResTypeNotEqual(s: String): Student | Teacher =  // error
+  #Teacher s _ _
 
 pattern UndefinedVar(addr: String): Teacher =
   #Teacher s addr _  // error
