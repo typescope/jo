@@ -1,0 +1,4 @@
+type A = A => Any
+type B = B => Int
+
+fun test(a: B): A = a // error

@@ -15,7 +15,7 @@ import scala.collection.mutable
   */
 object Types:
   sealed abstract class Type:
-    def isError: Boolean = TypeOps.dealias(this) == ErrorType
+    def isError: Boolean = TypeOps.approx(this, isUp = true) == ErrorType
 
     def isVoidType: Boolean = TypeOps.dealias(this) == VoidType
 
@@ -29,6 +29,18 @@ object Types:
     def isUnionType: Boolean =
        // No polymorphism over union type thus only dealias no approximation
       dealias.isInstanceOf[UnionType]
+
+    /** Is the type a reference to a type alias */
+    def isTypeRef: Boolean =
+      this match
+        case TypeRef(sym) => sym.isType
+        case _ => false
+
+    /** Is the type a reference to a term name */
+    def isTermRef: Boolean =
+      this match
+        case TypeRef(sym) => !sym.isType
+        case _ => false
 
     def isObjectType: Boolean =
       TypeOps.approx(this, isUp = true).isInstanceOf[ObjectType]
@@ -52,7 +64,22 @@ object Types:
         case VoidType | _: ProcType | _: TypeLambda | _: NameTableInfo => false
         case _ => true
 
+    /** A grounded type cannot be simplied further at the top-level
+      *
+      * The following proxy types are not grounded:
+      *
+      * - type aliases
+      * - uninstantiated type variables
+      */
+    def isGrounded: Boolean = TypeOps.isGrounded(this)
+
     def dealias: Type = TypeOps.dealias(this)
+
+    /** Widen a term reference to its underlying type */
+    def widen: Type =
+      this match
+        case TypeRef(sym) if !sym.isType => sym.info
+        case _ => this
 
     def asRecordType: RecordType =
       TypeOps.approx(this, isUp = true).asInstanceOf[RecordType]
@@ -300,7 +327,10 @@ object Types:
 
   case class AppliedType
     (tctor: Type, targs: List[Type])
-  extends ProxyType
+  extends ProxyType:
+    tctor match
+      case TypeRef(sym) if sym.isType =>
+      case _ => assert(false, tctor)
 
   /** Represents upper and lower bounds of type parameters */
   case class TypeBound
@@ -310,10 +340,9 @@ object Types:
   class TypeVar(name: String, inferencer: Inference.Inferencer) extends ProxyType:
     override def toString = "TypeVar(" + name + ")"
 
-    def isInstantiated: Boolean =
-      this.dealias != this
+    def isInstantiated: Boolean = inferencer.isInstantiated(this)
 
-    override def dealias: Type = inferencer.dealias(this)
+    def instantiated: Type = inferencer.instantiated(this)
 
     def approx(isUp: Boolean): Type = inferencer.approx(this, isUp)
 

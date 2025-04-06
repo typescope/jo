@@ -10,8 +10,13 @@ fun test1(a: A): A = a.x // error
 
 fun test2(x: X): Unit = x.a // error
 
-fun test3(a: A): Int = a
+fun test3(a: A): Int = a  // error
 
 fun test4(a: Int): A = a // error
+
+fun test5(a: A): B = a   // error
+
+fun test6(x: X): Y = x   // error
+
 
 fun main = 10 p

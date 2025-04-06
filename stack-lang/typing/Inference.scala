@@ -22,17 +22,19 @@ object Inference:
         case _ => None
 
   trait Inferencer:
-    /** Dealias the type without approximation.
+    /** The instantiated type associated with the type varialbe
       *
-      * The method should not recursively call `TypeOps.dealias`.
+      * Throws exception is the type var is not yet instantiated.
       */
-    def dealias(tvar: TypeVar): Type
+    def instantiated(tvar: TypeVar): Type
 
     /** Approximate the type of the tvar to its bounds
       *
       * The method shoud not recursively call `TypeOps.approx`.
       */
     def approx(tvar: TypeVar, isUp: Boolean): Type
+
+    def isInstantiated(tvar: TypeVar): Boolean
 
     def isSubtype(tvar: TypeVar, tp: Type): List[Subtyping.Task]
 
@@ -64,10 +66,13 @@ object Inference:
           instantiate(tvar, tp)
           Nil
 
-    def dealias(tvar: TypeVar): Type =
+    def isInstantiated(tvar: TypeVar): Boolean =
+      instantiations.get(tvar).nonEmpty
+
+    def instantiated(tvar: TypeVar): Type =
       instantiations.get(tvar) match
         case Some(inst) => inst
-        case None => tvar
+        case None => throw new Exception("Not instantiated: " + tvar)
 
     def approx(tvar: TypeVar, isUp: Boolean): Type =
       instantiations.get(tvar) match

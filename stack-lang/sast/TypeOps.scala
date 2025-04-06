@@ -19,14 +19,17 @@ object TypeOps:
     *
     * - ErrorType always dominates
     * - VoidType dominates anything else
+    * - Reference to terms are widened
     *
     * Also, do not infer Any as common type, which is useless.
     */
   def commonResultType(tp1: Type, tp2: Type): Option[Type] =
+    val tp1Widen = tp1.widen
+    val tp2Widen = tp2.widen
     if tp1.isError || tp2.isError then Some(ErrorType)
     else if tp1.isVoidType || tp2.isVoidType then Some(VoidType)
-    else if Subtyping.conforms(tp1, tp2) then Some(tp2)
-    else if Subtyping.conforms(tp2, tp1) then Some(tp1)
+    else if Subtyping.conforms(tp1, tp2Widen) then Some(tp2Widen)
+    else if Subtyping.conforms(tp2, tp1Widen) then Some(tp1Widen)
     else None
 
   /** Substitute type params with the given types */
@@ -98,18 +101,18 @@ object TypeOps:
     def recur(tp: Type): Type = Debug.trace(s"$tp.dealias", enable = false):
       tp match
         case tref: TypeRef =>
-          if encountered.contains(tref) || tref.symbol.isTypeParameter then
+          if encountered.contains(tref) || tref.symbol.isTypeParameter || !tref.symbol.isType then
             tref
           else
             encountered += tref
             recur(tref.symbol.info)
 
         case tvar: TypeVar =>
-          if encountered.contains(tvar) then
+          if !tvar.isInstantiated || encountered.contains(tvar) then
             tvar
           else
             encountered += tvar
-            recur(tvar.dealias)
+            recur(tvar.instantiated)
 
         case app @ AppliedType(tctor, targs) =>
           recur(tctor) match
@@ -124,6 +127,29 @@ object TypeOps:
     recur(tp)
   end dealias
 
+  /** A grounded type cannot be simplied further at the top-level
+    *
+    * The following proxy types are not grounded:
+    *
+    * - type aliases
+    * - instaniated type variables
+    */
+  def isGrounded(tp: Type): Boolean =
+    tp match
+      case TypeRef(sym) => !sym.isType || sym.info.isInstanceOf[TypeBound]
+
+      case AppliedType(TypeRef(sym), _) =>
+        sym.info match
+          case TypeLambda(_, _: TypeBound) => true
+          case _ => false
+
+      case tvar: TypeVar => !tvar.isInstantiated
+
+      case _ => true
+
+  /** A grouned proxy type dealiases to a grounded type */
+  def isGroundedProxy(tp: ProxyType): Boolean = isGrounded(tp.dealias)
+
   def show(tp: Type): String =
     tp match
       case VoidType    => "void"
@@ -132,9 +158,8 @@ object TypeOps:
       case ErrorType   => "Error"
 
       case tvar: TypeVar =>
-        val dealias = tvar.dealias
-        if dealias != tvar then
-          dealias.show
+        if tvar.isInstantiated then
+          tvar.instantiated.show
         else
           tvar.toString
 
