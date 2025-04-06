@@ -108,11 +108,11 @@ object TypeOps:
             recur(tref.symbol.info)
 
         case tvar: TypeVar =>
-          if encountered.contains(tvar) then
+          if !tvar.isInstantiated || encountered.contains(tvar) then
             tvar
           else
             encountered += tvar
-            recur(tvar.dealias)
+            recur(tvar.instantiated)
 
         case app @ AppliedType(tctor, targs) =>
           recur(tctor) match
@@ -158,9 +158,8 @@ object TypeOps:
       case ErrorType   => "Error"
 
       case tvar: TypeVar =>
-        val dealias = tvar.dealias
-        if dealias != tvar then
-          dealias.show
+        if tvar.isInstantiated then
+          tvar.instantiated.show
         else
           tvar.toString
 

@@ -102,9 +102,11 @@ object Subtyping:
             ctx.isSubtype(tref1, tref2) || {
               given Context = ctx.withSubtyping(tref1, tref2)
               if !proxy1.isGrounded || proxy1.is[TypeVar] then
-                TypeOps.isGroundedProxy(proxy1) && doCheckConformsProxyType(proxy1, proxy2, lessThan = true)
+                TypeOps.isGroundedProxy(proxy1) && reduceProxyType(proxy1, proxy2, lessThan = true)
+
               else if !proxy2.isGrounded || proxy2.is[TypeVar] then
-                TypeOps.isGroundedProxy(proxy2) && doCheckConformsProxyType(proxy2, proxy1, lessThan = false)
+                TypeOps.isGroundedProxy(proxy2) && reduceProxyType(proxy2, proxy1, lessThan = false)
+
               else
                 checkConformsAppliedGrounded(proxy1.as[AppliedType], proxy2.as[AppliedType])
             }
@@ -112,27 +114,27 @@ object Subtyping:
           case _ =>
             if !proxy1.isGrounded || proxy1.is[TypeVar] then
               given Context = ctx.withSubtyping(proxy1, proxy2)
-              TypeOps.isGroundedProxy(proxy1) && doCheckConformsProxyType(proxy1, proxy2, lessThan = true)
+              TypeOps.isGroundedProxy(proxy1) && reduceProxyType(proxy1, proxy2, lessThan = true)
 
             else if !proxy2.isGrounded || proxy2.is[TypeVar] then
               given Context = ctx.withSubtyping(proxy1, proxy2)
-              TypeOps.isGroundedProxy(proxy2) && doCheckConformsProxyType(proxy2, proxy1, lessThan = false)
+              TypeOps.isGroundedProxy(proxy2) && reduceProxyType(proxy2, proxy1, lessThan = false)
 
             else
-              TypeOps.isGroundedProxy(proxy1) && doCheckConformsProxyType(proxy1, proxy2, lessThan = true)
-              || TypeOps.isGroundedProxy(proxy2) && doCheckConformsProxyType(proxy2, proxy1, lessThan = false)
+              TypeOps.isGroundedProxy(proxy1) && reduceProxyType(proxy1, proxy2, lessThan = true)
+              || TypeOps.isGroundedProxy(proxy2) && reduceProxyType(proxy2, proxy1, lessThan = false)
 
       }
 
     else if tp1.is[ProxyType] then
       val proxy1 = tp1.as[ProxyType]
-      TypeOps.isGroundedProxy(proxy1) && doCheckConformsProxyType(proxy1, tp2, lessThan = true)
+      TypeOps.isGroundedProxy(proxy1) && reduceProxyType(proxy1, tp2, lessThan = true)
 
     else
       val proxy2 = tp2.as[ProxyType]
-      TypeOps.isGroundedProxy(proxy2) && doCheckConformsProxyType(proxy2, tp1, lessThan = false)
+      TypeOps.isGroundedProxy(proxy2) && reduceProxyType(proxy2, tp1, lessThan = false)
 
-  private def doCheckConformsProxyType(tp1: ProxyType, tp2: Type, lessThan: Boolean)(using ctx: Context): Boolean =
+  private def reduceProxyType(tp1: ProxyType, tp2: Type, lessThan: Boolean)(using ctx: Context): Boolean =
     def continue(tp1b: Type)(using Context): Boolean =
       checkConforms(tp1b, tp2, lessThan)
 
@@ -140,13 +142,10 @@ object Subtyping:
       case AppliedType(tctor, targs) =>
         tctor match
           case tref: TypeRef =>
-            reduce(tref, maximize = lessThan).match
+            tref.symbol.info match
               case tl: TypeLambda =>
                 val tp1Reduced = TypeOps.substTypeParams(tl.body, targs)
                 continue(tp1Reduced)
-
-              case tb: TypeBound =>
-                ???
 
               case tctor =>
                 false
@@ -156,35 +155,33 @@ object Subtyping:
           case _ =>
             throw new Exception("Unexpected type constructor: " + tctor.show)
 
-      case tref: TypeRef =>
-        val tp1Reduced = reduce(tref, maximize = lessThan)
+      case TypeRef(sym) =>
+        /* Reduce a type reference
+         *
+         * It's important to not return the original type reference if the type
+         * cannot be reduced. Otherwise, the recursive subtyping can trivially
+         * succeed for two unrelated symbolic types.
+         */
+        val tp1Reduced =
+          sym.info match
+            case bound: TypeBound =>
+              // Type definitions can also be bounded
+              if sym.isTypeParameter then
+                if lessThan then bound.hi else bound.lo
+
+              else
+                // Treat type definition with only bounds as nominal type
+                if lessThan then AnyType else BottomType
+
+            case tp =>
+              // A term reference has the bottom type in T <: TypeRef(a)
+              if sym.isType || lessThan then tp else BottomType
+
         continue(tp1Reduced)
 
       case tvar: TypeVar =>
         val tasks = if lessThan then tvar.isSubtype(tp2) else tvar.isSuptype(tp2)
         tasks.forall(task => checkConforms(task.left, task.right))
-
-  /** Reduce a type reference
-    *
-    * It's important to not return the original type reference if the type
-    * cannot be reduced. Otherwise, the recursive subtyping can trivially
-    * succeed for two unrelated symbolic types.
-    */
-  private def reduce(tp: TypeRef, maximize: Boolean): Type =
-    val sym = tp.symbol
-    sym.info match
-      case bound: TypeBound =>
-        // Type definitions can also be bounded
-        if sym.isTypeParameter then
-          if maximize then bound.hi else bound.lo
-
-        else
-          // Treat type definition with only bounds as nominal type
-          if maximize then AnyType else BottomType
-
-      case tp =>
-        // A term reference has the bottom type in T <: TypeRef(a)
-        if sym.isType || maximize then tp else BottomType
 
   private def checkConformsProcType(tp1: ProcType, tp2: ProcType)(using Context): Boolean =
     tp1.paramTypes.size == tp2.paramTypes.size

@@ -328,9 +328,9 @@ object Types:
   class TypeVar(name: String, inferencer: Inference.Inferencer) extends ProxyType:
     override def toString = "TypeVar(" + name + ")"
 
-    override def dealias: Type = inferencer.dealias(this)
-
     def isInstantiated: Boolean = inferencer.isInstantiated(this)
+
+    def instantiated: Type = inferencer.instantiated(this)
 
     def approx(isUp: Boolean): Type = inferencer.approx(this, isUp)
 
