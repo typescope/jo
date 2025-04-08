@@ -24,7 +24,6 @@ files=(
     stack-lang/typing/PatternTyper.scala
     stack-lang/typing/Namer.scala
     stack-lang/typing/NamerUtils.scala
-    stack-lang/typing/PatternMatcher.scala
     stack-lang/sast/Constant.scala
     stack-lang/sast/Definitions.scala
     stack-lang/sast/Flags.scala

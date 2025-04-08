@@ -23,7 +23,6 @@ files=(
     stack-lang/typing/Inference.scala
     stack-lang/typing/Namer.scala
     stack-lang/typing/NamerUtils.scala
-    stack-lang/typing/PatternMatcher.scala
     stack-lang/typing/PatternTyper.scala
     stack-lang/sast/Constant.scala
     stack-lang/sast/Definitions.scala
@@ -69,6 +68,7 @@ files=(
     stack-lang/phases/ElimCapture.scala
     stack-lang/phases/EncodeTagged.scala
     stack-lang/phases/NormalizeParams.scala
+    stack-lang/phases/PatternMatcher.scala
 )
 
 FILES=${files[*]}

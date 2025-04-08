@@ -136,6 +136,7 @@ class PatternTyper(namer: Namer, checker: Checker):
       val paramSize = procType.paramTypes.size
       val resType = procType.resultType
 
+      // TODO: a tag type in patterns should be a supertype
       if Subtyping.conforms(resType, scrutType) then
         if args.size != paramSize then
           Reporter.error(s"The pattern predicate expects $paramSize arguments, found = ${args.size}", id.pos)
@@ -212,6 +213,7 @@ class PatternTyper(namer: Namer, checker: Checker):
     val tpt2 = namer.transformType(tpt)
     val tpe = tpt2.tpe
 
+    // TODO: a tag type in patterns should be a supertype
     if Subtyping.conforms(tpe, scrutType) then
       if name == "_" then
         TypePattern(tpt2)
@@ -258,6 +260,7 @@ class PatternTyper(namer: Namer, checker: Checker):
       if !sym.info.isError then
         oc.occur(sym, id.pos)
 
+      // TODO: a tag type in patterns should be a supertype
       if Subtyping.conforms(sym.info, scrutType) then
         val patVal = Ident(sym)(id.span)
         AscribePattern(patVal, TypePattern(TypeTree(sym.info)(id.span)))
