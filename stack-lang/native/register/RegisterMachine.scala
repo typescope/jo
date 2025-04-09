@@ -134,13 +134,11 @@ extends Backend(runtime):
     load(loc, paramReg, base)
 
   def compileFunDef(fdef: FunDef)(using cb: CodeBuffer): Unit =
-    // println(fdef.symbol.fullName.toString + ":")
-
     val sym = fdef.symbol
     val ctx = freshFunctionContext(sym)
     val proto = compile(fdef)(using ctx)
 
-    // println(sym.toString + ":")
+    // println(sym.fullName + ":")
     // println(ctx.buffer.show)
 
     // perform register allocation

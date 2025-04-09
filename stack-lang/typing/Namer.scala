@@ -424,8 +424,11 @@ class Namer(@constructorOnly reporter: Reporter):
           else TargetType.Known(VoidType)
         transform(phrase)(using sc2, rp, so, tt2)
 
-    if words.isEmpty then Block(Nil)(VoidType, block.span)
-    else Block(words)(words.last.tpe, block.span)
+    if words.isEmpty then
+      checker.adapt(Block(Nil)(VoidType, block.span), tt)
+
+    else
+      Block(words)(words.last.tpe, block.span)
 
   /** Handles explicit postfix call syntax f(arg1, arg2, ...) */
   def transformCall(apply: Ast.Apply)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
