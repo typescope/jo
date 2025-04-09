@@ -618,7 +618,7 @@ class Namer(@constructorOnly reporter: Reporter):
             Reporter.error(s"The tag $tagName does not exist in union type ${unionType.show}", pos)
             errorWord(tag.span)
           else
-            check(unionType.tagType(tagName), unionType)
+            Encoded(check(unionType.tagType(tagName), unionType))(unionType)
 
         else if tp.isTagType then
           check(tp.asTagType, tp)
