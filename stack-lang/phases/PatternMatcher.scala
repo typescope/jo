@@ -95,7 +95,11 @@ class PatternMatcher(using rp: Reporter) extends Phase[Symbol]:
           Assign(valueIdent, TaggedEncoding.selectVariantField(scrut, scrutTagType, param.name, span))(span)
 
       if tagPattern.nested.isEmpty then
-        condTag
+        if needTagTest(scrut, tag) then
+          condTag
+
+        else
+          BoolLit(true)(BoolType, span)
 
       else
         val nestedConds =
@@ -110,23 +114,34 @@ class PatternMatcher(using rp: Reporter) extends Phase[Symbol]:
 
         val nestedBlock = Block(assigns :+ nestedCond)(BoolType, span)
 
-        Apply(Ident(andSym)(span), condTag :: nestedBlock :: Nil)(BoolType, span)
+        if needTagTest(scrut, tag) then
+          Apply(Ident(andSym)(span), condTag :: nestedBlock :: Nil)(BoolType, span)
+        else
+          nestedBlock
 
-  private def transformTypePattern(scrut: Ident, tpe: Type, span: Span)(using Context, Source): Word =
-    if tpe.isTagType then
-      val assignTag =  scrutineeTagAssign(scrut, span)
-      val cond = transformTagTypePattern(scrut, tpt.tpe.asTagType, assignTag.ident, span)
-      Block(assignTag :: cond :: Nil)(BoolType, span)
+  private def transformTypePattern(scrut: Ident, patternType: Type, span: Span)(using Context, Source): Word =
+    assert(Subtyping.conforms(patternType, scrut.symbol.info), "scrutee type = " + scrut.tpe.show + ", type test = " + patternType.show)
 
-    else if tpt.tpe.isUnionType then
+    if patternType.isTagType then
+      val patternTagType = patternType.asTagType
+
+      if needTagTest(scrut, patternTagType.tag) then
+        val assignTag = scrutineeTagAssign(scrut, span)
+        val cond = transformTagTypePattern(scrut, patternTagType, Some(assignTag.ident), span)
+        Block(assignTag :: cond :: Nil)(BoolType, span)
+
+      else
+        transformTagTypePattern(scrut, patternTagType, None, span)
+
+    else if patternType.isUnionType then
       assert(scrut.tpe.isUnionType, "expect union type, found = " + scrut.tpe.show)
 
-      val unionType = tpt.tpe.asUnionType
+      val unionType = patternType.asUnionType
 
       val assignTag =  scrutineeTagAssign(scrut, span)
       val conds =
         for tagType <- unionType.branches
-        yield transformTagTypePattern(scrut, tagType, assignTag.ident, span)
+        yield transformTagTypePattern(scrut, tagType, Some(assignTag.ident), span)
 
       val cond :: rest = conds: @unchecked
 
@@ -137,11 +152,10 @@ class PatternMatcher(using rp: Reporter) extends Phase[Symbol]:
       Block(assignTag :: condAll :: Nil)(BoolType, span)
 
     else
-      assert(Subtyping.conforms(scrut.tpe, tpt.tpe), "scrutee type = " + scrut.tpe.show + ", type test = " + tpt.tpe.show)
       BoolLit(true)(BoolType, tpt.span)
 
   private def transformTagTypePattern
-    (scrut: Ident, patternType: TagType, scrutTagIdent: Ident, span: Span)
+    (scrut: Ident, patternType: TagType, scrutTagIdent: Option[Ident], span: Span)
     (using owner: Context, source: Source)
   : Word =
 
@@ -154,8 +168,6 @@ class PatternMatcher(using rp: Reporter) extends Phase[Symbol]:
       BoolLit(false)(BoolType, span)
 
     else
-      val condTag = TaggedEncoding.testTagValue(scrutTagIdent, tag, span)
-
       val assigns =
         for param <- scrutTagType.params
         yield
@@ -164,7 +176,12 @@ class PatternMatcher(using rp: Reporter) extends Phase[Symbol]:
           Assign(valueIdent, TaggedEncoding.selectVariantField(scrut, scrutTagType, param.name, span))(span)
 
       if patternType.params.isEmpty then
-        condTag
+        scrutTagIdent match
+          case Some(tagIdent) =>
+            TaggedEncoding.testTagValue(tagIdent, tag, span)
+
+          case _ =>
+            BoolLit(true)(BoolType, span)
 
       else
         val nestedConds =
@@ -179,7 +196,15 @@ class PatternMatcher(using rp: Reporter) extends Phase[Symbol]:
 
         val nestedBlock = Block(assigns :+ nestedCond)(BoolType, span)
 
-        Apply(Ident(andSym)(span), condTag :: nestedBlock :: Nil)(BoolType, span)
+        scrutTagIdent match
+          case Some(tagIdent) =>
+            val condTag = TaggedEncoding.testTagValue(tagIdent, tag, span)
+            Apply(Ident(andSym)(span), condTag :: nestedBlock :: Nil)(BoolType, span)
+
+          case _ => nestedBlock
+
+  private def needTagTest(scrut: Ident, tag: String): Boolean =
+    !scrut.tpe.isTagType || scrut.tpe.asTagType.tag != tag
 
   private def scrutineeTagType(scrutType: Type, tag): TagType =
     if scrutType.isTagType then
