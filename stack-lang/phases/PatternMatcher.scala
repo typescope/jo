@@ -20,6 +20,9 @@ class PatternMatcher(using rp: Reporter) extends Phase[Symbol]:
 
   val abortSym = Definitions.instance.Predef_abort
   val eitherSym = Definitions.instance.Predef_either
+  val bothSym = Definitions.instance.Predef_both
+  val andSym = Definitions.instance.Predef_and
+  val eqlSym = Definitions.instance.Predef_eql
 
   def transform(patmat: Match)(using owner: Context): Word =
     val Match(scrutinee, cases) = patmat
@@ -60,47 +63,12 @@ class PatternMatcher(using rp: Reporter) extends Phase[Symbol]:
         Block(assign :: cond :: Nil)(BoolType, pat.span)
 
       case TypePattern(tpt) =>
-        if tpt.tpe.isTagType then
-          val encodedScrutType = RecordType(NamedInfo("tag", IntType) :: Nil)
-          val encodedScrut = Encoded(scrutIdent)(encodedScrutType)
-
-          val tagSym = Symbol.createValueSymbol("tag", IntType, owner, pat.pos)
-          val tagIdent = Ident(tagSym)(scrut.span)
-          val assignTag = Assign(tagSym, Select(encodedScrut, "tag")(IntType, scrut.span))(pat.span)
-
-          val cond = transformTypePattern(scrut, tpt.tpe.asTagType, tagIdent, pat)
-          Block(assignTag :: cond :: Nil)(BoolType, pat.span)
-
-        else if tpt.tpe.isUnionType then
-          assert(scrut.tpe.isUnionType, "expect union type, found = " + scrut.tpe.show)
-
-          val unionType = tpt.tpe.asUnionType
-
-          val encodedScrutType = RecordType(NamedInfo("tag", IntType) :: Nil)
-          val encodedScrut = Encoded(scrutIdent)(encodedScrutType)
-
-          val tagSym = Symbol.createValueSymbol("tag", IntType, owner, pat.pos)
-          val tagIdent = Ident(tagSym)(scrut.span)
-          val assignTag = Assign(tagSym, Select(encodedScrut, "tag")(IntType, scrut.span))(pat.span)
-
-          val cond :: conds =
-            for tagType <- unionType.branches
-            yield transformTypePattern(scrut, tagType, tagIdent, pat)
-
-          val eitherFun = Ident(eitherSym)(span)
-          val condAll = conds.foldLeft(cond): (acc, cond) =>
-            Apply(eitherFun, cond :: cond2 :: Nil)(BoolType, pat.span)
-
-          Block(assignTag :: condAll :: Nil)(BoolType, pat.span)
-
-        else
-          assert(Subtyping.conforms(scrut.tpe, tpt.tpe), "scrutee type = " + scrut.tpe.show + ", type test = " + tpt.tpe.show)
-          BoolLit(true)(BoolType, pat.span)
+        transformTypePattern(scrut, tpt.tpe, tpt.span)
 
       case tagPat: TagPattern =>
-
         val Case(pat, body) = caseDef
         val cond = transformPattern(pat)
+        ???
 
       case ApplyPattern(pred, nested) =>
         ???
@@ -109,4 +77,91 @@ class PatternMatcher(using rp: Reporter) extends Phase[Symbol]:
         assert(Subtyping.conforms(scrut.tpe, pat.tpe), "scrutee type = " + scrut.tpe.show + ", pattern type = " + pat.tpe.show)
         BoolLit(true)(BoolType, pat.span)
 
-  private def transformTypePattern(scrut: Ident, tpe: TagType, scrutTagIdent: Ident, pat: Pattern)(using Context, Source): Word = ???
+  private def transformTypePattern(scrut: Ident, tpe: Type, span: Span)(using Context, Source): Word =
+    if tpe.isTagType then
+      val encodedScrutType = RecordType(NamedInfo("tag", IntType) :: Nil)
+      val encodedScrut = Encoded(scrutIdent)(encodedScrutType)
+
+      val tagSym = Symbol.createValueSymbol("tag", IntType, owner, span.toPos)
+      val tagIdent = Ident(tagSym)(scrut.span)
+      val assignTag = Assign(tagIdent, Select(encodedScrut, "tag")(IntType, scrut.span))(span)
+
+      val cond = transformTagTypePattern(scrut, tpt.tpe.asTagType, tagIdent, span)
+      Block(assignTag :: cond :: Nil)(BoolType, span)
+
+    else if tpt.tpe.isUnionType then
+      assert(scrut.tpe.isUnionType, "expect union type, found = " + scrut.tpe.show)
+
+      val unionType = tpt.tpe.asUnionType
+
+      val encodedScrutType = RecordType(NamedInfo("tag", IntType) :: Nil)
+      val encodedScrut = Encoded(scrutIdent)(encodedScrutType)
+
+      val tagSym = Symbol.createValueSymbol("tag", IntType, owner, span.toPos)
+      val tagIdent = Ident(tagSym)(scrut.span)
+      val assignTag = Assign(tagIdent, Select(encodedScrut, "tag")(IntType, scrut.span))(span)
+
+      val conds =
+        for tagType <- unionType.branches
+        yield transformTagTypePattern(scrut, tagType, tagIdent, span)
+
+      val cond :: rest = conds: @unchecked
+
+      val eitherFun = Ident(eitherSym)(span)
+      val condAll = rest.foldLeft(cond): (acc, cond) =>
+        Apply(eitherFun, cond :: cond2 :: Nil)(BoolType, span)
+
+      Block(assignTag :: condAll :: Nil)(BoolType, span)
+
+    else
+      assert(Subtyping.conforms(scrut.tpe, tpt.tpe), "scrutee type = " + scrut.tpe.show + ", type test = " + tpt.tpe.show)
+      BoolLit(true)(BoolType, tpt.span)
+
+
+  private def transformTagTypePattern
+    (scrut: Ident, patternType: TagType, scrutTagIdent: Ident, span: Span)
+    (using owner: Context, source: Source)
+  : Word =
+
+    val tag = patternType.tag
+    val scrutType = scrut.tpe
+    val scrutTagType =
+      if scrutType.isTagType then
+        scrutType.asTagType
+      else
+        assert(scrutType.isUnionType, "expect union type, found = " + scrutTye.show)
+        val scrutUnionType = scrutType.asUnionType
+        assert(scrutUnionType.hasTag(tag), s"expect union type with tag $tag, found = " + scrutUnionType.show)
+        scrutUnionType.tagType(tag)
+
+    if patternType.params.size > scrutTagType.params.size then
+      Report.error(s"The tag type ${patternType.show} in the pattern has more params than the scrutinee type ${scrutTagType.show}", span.toPos)
+      BoolLit(true)(BoolType, span)
+
+    else
+      val condTag = TaggedEncoding.testTagValue(scrutTagIdent, tag, span)
+
+      val assigns =
+        for param <- scrutTagType.params
+        yield
+          val valueSym = Symbol.createValueSymbol(param.name, param.info, owner, span.toPos)
+          val valueIdent = Ident(valueSym)(pat.span)
+          Assign(valueIdent, TaggedEncoding.selectVariantField(scrut, scrutTagType, param.name, span))(span)
+
+      if patternType.params.isEmpty then
+        condTag
+
+      else
+        val nestedConds =
+          for (param, Assign(id, _)) <- patternType.params.zip(assigns)
+          yield transformTypePattern(id, param.info, span)
+
+        val head :: rest = nestedConds: @unchecked
+
+        val nestedCond =
+          rest.foldLeft(head): (acc, cond) =>
+            Apply(Ident(bothSym)(span), acc :: cond :: Nil))(span)
+
+        val nestedBlock = Block(assigns :+ nestedCond)(BoolType, span)
+
+        Apply(Ident(andSym)(span), condTag :: nestedBlock :: Nil)(BoolType, span)
