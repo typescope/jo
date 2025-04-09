@@ -13,8 +13,8 @@ pattern UndefinedVar(addr: String): Teacher =
 pattern DoubleBind(s: String): Teacher =
   #Teacher s s _  // error
 
-pattern NoOccur(s: Int): Teacher =
-  #Teacher _ _ _  // error
+pattern NoOccur(s: Int): Teacher = // error
+  #Teacher _ _ _
 
 pattern BindTypeMismatch(s: String): Student =
   #Student _ s _  // error

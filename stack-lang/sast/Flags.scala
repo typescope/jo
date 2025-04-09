@@ -11,6 +11,9 @@ object Flags:
   val NSpace  : Flag = 1 << 4
   val Method  : Flag = 1 << 5
 
+  // namespace flags
+  val Branch  : Flag = 1 << 6  // branch name space
+
   // val flags
   val Param   : Flag = 1 << 8   // a parameter
   val Mutable : Flag = 1 << 9   // a mutable variable
@@ -18,8 +21,6 @@ object Flags:
   val Field   : Flag = 1 << 11  // an object field
   val Default : Flag = 1 << 12  // context parameters with default value
 
-  // namespace flags
-  val Branch  : Flag = 1 << 5  // branch name space
 
   val empty   : Flags = 0
 

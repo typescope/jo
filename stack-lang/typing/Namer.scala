@@ -226,7 +226,8 @@ class Namer(@constructorOnly reporter: Reporter):
   def transform(word: Ast.Word)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
     extension (word: Word) def adapt: Word = checker.adapt(word, tt)
 
-    word match
+    Debug.trace(s"Typing ${word.show}", (_: Word).show, enable = false) {
+      word match
       case Ast.IntLit(v)  =>
         val tp = Definitions.instance.IntType
         Literal(Constant.Int(v.toInt))(tp, word.span).adapt
@@ -363,6 +364,7 @@ class Namer(@constructorOnly reporter: Reporter):
 
       case obj: Ast.Object =>
         transform(obj).adapt
+    }
 
   def transform(obj: Ast.Object)(using sc: Scope, rp: Reporter, so: Source): Word =
     val nameTable = new NameTable

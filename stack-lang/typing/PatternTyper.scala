@@ -285,6 +285,9 @@ class PatternTyper(namer: Namer, checker: Checker):
       case id: Ast.Ident =>
         transformIdentPattern(id, scrutType)
 
+      case tag: Ast.Tag =>
+        transformTagPattern(tag, Nil, scrutType, pat.span)
+
       case Ast.TypeAscribe(id: Ast.Ident, tpt) =>
         transformTypePattern(id, tpt, scrutType, pat.span)
 
