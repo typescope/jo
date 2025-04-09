@@ -3,10 +3,9 @@ package native
 import ast.Ast
 import sast.*
 import sast.Symbols.Symbol
-import parsing.Parser
 import phases.*
+
 import reporting.Reporter
-import typing.Namer
 
 import common.IO
 
@@ -35,7 +34,7 @@ object Compiler:
       println("Expect source file as input")
       return
 
-    val sourceFiles = rest
+    val sources = rest
 
     val outFile =
       options.get("-o") match
@@ -60,23 +59,8 @@ object Compiler:
     )
 
     Reporter.monitor:
-      val typeCheck = (nss: List[Ast.Namespace]) =>
-        Namer.transform(nss, stdlib, runtime, rootNameTable, runtimeNameTable)
-
-      val noramlizer = new phases.NormalizeParams
-      val encoder = new EncodeTagged
-
       val namespacesSAST =
-        Parser.parse(sourceFiles)     |>
-        typeCheck                     |+
-        TreeChecker.check             |>
-        Printing.peek(enable = false) |>
-        encoder.transform             |+
-        TreeChecker.check             |>
-        Printing.peek(enable = false) |>
-        noramlizer.transform          |+
-        TreeChecker.check             |>
-        Printing.peek(enable = false)
+        FrontEnd.run(stdlib, runtime, sources, rootNameTable, runtimeNameTable)
 
       val mains = namespacesSAST.collect:
         case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get
@@ -94,7 +78,6 @@ object Compiler:
             Linux.lower(prog, layout, outFile, X86, backend.runtime)
 
           namespacesSAST                |>
-          Printing.peek(enable = false) |>
           ElimCapture.transform         |+
           TreeChecker.check             |>
           Printing.peek(enable = false) |>

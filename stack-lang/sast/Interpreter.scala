@@ -2,15 +2,13 @@ package sast
 
 import scala.collection.mutable
 
-import ast.Ast
-
 import Sast.*
 import Symbols.*
 
 import common.Debug
-import parsing.Parser
+
+import phases.FrontEnd
 import reporting.Reporter
-import typing.Namer
 
 /** An interpreter for S-AST */
 object Interpreter:
@@ -495,23 +493,8 @@ object Interpreter:
     val sourceFiles = args.toList
     val stdlib = "lib/Predef.stk" :: Nil
     val runtime = Nil
-    val typeCheck = (nss: List[Ast.Namespace]) => Namer.transform(nss, stdlib, runtime)
 
-    val noramlizer = new phases.NormalizeParams
-    val encoder = new phases.EncodeTagged
-
-    val namespacesSAST =
-      Parser.parse(sourceFiles)     |>
-      typeCheck                     |+
-      Printing.peek(enable = false) |>
-      TreeChecker.check             |>
-      encoder.transform             |+
-      Printing.peek(enable = false) |>
-      TreeChecker.check             |>
-      Printing.peek(enable = false) |>
-      noramlizer.transform          |>
-      TreeChecker.check             |>
-      Printing.peek(enable = false)
+    val namespacesSAST = FrontEnd.run(stdlib, runtime, sourceFiles)
 
     val mains = namespacesSAST.collect:
       case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get

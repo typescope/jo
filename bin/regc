@@ -24,6 +24,7 @@ files=(
     stack-lang/typing/Namer.scala
     stack-lang/typing/NamerUtils.scala
     stack-lang/typing/PatternTyper.scala
+    stack-lang/typing/Typer.scala
     stack-lang/sast/Constant.scala
     stack-lang/sast/Definitions.scala
     stack-lang/sast/Flags.scala
@@ -65,6 +66,7 @@ files=(
     stack-lang/native/ExplicitAlloc.scala
 
     stack-lang/phases/Phase.scala
+    stack-lang/phases/FrontEnd.scala
     stack-lang/phases/ElimCapture.scala
     stack-lang/phases/EncodeTagged.scala
     stack-lang/phases/NormalizeParams.scala

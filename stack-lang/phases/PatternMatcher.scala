@@ -9,8 +9,6 @@ import sast.Types.*
 
 import reporting.Reporter
 
-import scala.collection.mutable
-
 class PatternMatcher(using rp: Reporter) extends Phase[Symbol]:
   val contextObject = Phase.OwnerContext
 
@@ -22,7 +20,6 @@ class PatternMatcher(using rp: Reporter) extends Phase[Symbol]:
   val eitherSym = Definitions.instance.Predef_either
   val bothSym = Definitions.instance.Predef_both
   val andSym = Definitions.instance.Predef_and
-  val eqlSym = Definitions.instance.Predef_eql
 
   def transform(patmat: Match)(using owner: Context): Word =
     val Match(scrutinee, cases) = patmat
@@ -32,7 +29,7 @@ class PatternMatcher(using rp: Reporter) extends Phase[Symbol]:
 
     val scrutSym = Symbol.createValueSymbol("scrutinee", scrutType, owner, scrutinee.pos)
     val scrutIdent = Ident(scrutSym)(scrutinee.span)
-    val vdefScrut = ValDef(scrutSym, scrutinee2)(scrutinee.span)
+    val scrutAssign = Assign(scrutIdent, scrutinee)(scrutinee.span)
 
     def transformCases(cases: List[Case]): Word =
       cases match
@@ -49,10 +46,11 @@ class PatternMatcher(using rp: Reporter) extends Phase[Symbol]:
       end match
 
     val body = transformCases(cases)
-    Block(vdefScrut :: body :: Nil)(body.tpe, patmat.span)
+    Block(scrutAssign :: body :: Nil)(body.tpe, patmat.span)
 
   private def transformCase(scrut: Ident, caseDef: Case, cont: () => Word) (using owner: Context, source: Source): Word =
-    If(cond, body, cont())(body.tpe, caseDef.span)
+    val cond = transformPattern(scrut, caseDef.pattern)
+    If(cond, caseDef.body, cont())(caseDef.body.tpe, caseDef.span)
 
   private def transformPattern(scrut: Ident, pat: Pattern)(using Context, Source): Word =
     pat match
@@ -75,12 +73,13 @@ class PatternMatcher(using rp: Reporter) extends Phase[Symbol]:
         assert(Subtyping.conforms(scrut.tpe, pat.tpe), "scrutee type = " + scrut.tpe.show + ", pattern type = " + pat.tpe.show)
         BoolLit(true)(BoolType, pat.span)
 
-  private def transformTagPattern(scrut: Ident, tagPattern: TagPattern)(using Context, Source): Word =
+  private def transformTagPattern(scrut: Ident, tagPattern: TagPattern)(using owner: Context, source: Source): Word =
+    val span = tagPattern.span
     val tag = tagPattern.tag
     val scrutTagType = scrutineeTagType(scrut.tpe, tag)
 
     if tagPattern.nested.size > scrutTagType.params.size then
-      Report.error(s"The tag pattern has more arguments than the scrutinee type ${scrutTagType.show}", tagPattern.pos)
+      Reporter.error(s"The tag pattern has more arguments than the scrutinee type ${scrutTagType.show}", tagPattern.pos)
       BoolLit(false)(BoolType, span)
 
     else
@@ -91,7 +90,7 @@ class PatternMatcher(using rp: Reporter) extends Phase[Symbol]:
         for param <- scrutTagType.params
         yield
           val valueSym = Symbol.createValueSymbol(param.name, param.info, owner, span.toPos)
-          val valueIdent = Ident(valueSym)(pat.span)
+          val valueIdent = Ident(valueSym)(span)
           Assign(valueIdent, TaggedEncoding.selectVariantField(scrut, scrutTagType, param.name, span))(span)
 
       if tagPattern.nested.isEmpty then
@@ -110,7 +109,7 @@ class PatternMatcher(using rp: Reporter) extends Phase[Symbol]:
 
         val nestedCond =
           rest.foldLeft(head): (acc, cond) =>
-            Apply(Ident(bothSym)(span), acc :: cond :: Nil))(span)
+            Apply(Ident(bothSym)(span), acc :: cond :: Nil)(BoolType, span)
 
         val nestedBlock = Block(assigns :+ nestedCond)(BoolType, span)
 
@@ -147,12 +146,12 @@ class PatternMatcher(using rp: Reporter) extends Phase[Symbol]:
 
       val eitherFun = Ident(eitherSym)(span)
       val condAll = rest.foldLeft(cond): (acc, cond) =>
-        Apply(eitherFun, cond :: cond2 :: Nil)(BoolType, span)
+        Apply(eitherFun, acc :: cond :: Nil)(BoolType, span)
 
       Block(assignTag :: condAll :: Nil)(BoolType, span)
 
     else
-      BoolLit(true)(BoolType, tpt.span)
+      BoolLit(true)(BoolType, span)
 
   private def transformTagTypePattern
     (scrut: Ident, patternType: TagType, scrutTagIdent: Option[Ident], span: Span)
@@ -164,7 +163,7 @@ class PatternMatcher(using rp: Reporter) extends Phase[Symbol]:
     val scrutTagType = scrutineeTagType(scrutType, tag)
 
     if patternType.params.size > scrutTagType.params.size then
-      Report.error(s"The tag type ${patternType.show} in the pattern has more params than the scrutinee type ${scrutTagType.show}", span.toPos)
+      Reporter.error(s"The tag type ${patternType.show} in the pattern has more params than the scrutinee type ${scrutTagType.show}", span.toPos)
       BoolLit(false)(BoolType, span)
 
     else
@@ -172,7 +171,7 @@ class PatternMatcher(using rp: Reporter) extends Phase[Symbol]:
         for param <- scrutTagType.params
         yield
           val valueSym = Symbol.createValueSymbol(param.name, param.info, owner, span.toPos)
-          val valueIdent = Ident(valueSym)(pat.span)
+          val valueIdent = Ident(valueSym)(span)
           Assign(valueIdent, TaggedEncoding.selectVariantField(scrut, scrutTagType, param.name, span))(span)
 
       if patternType.params.isEmpty then
@@ -192,7 +191,7 @@ class PatternMatcher(using rp: Reporter) extends Phase[Symbol]:
 
         val nestedCond =
           rest.foldLeft(head): (acc, cond) =>
-            Apply(Ident(bothSym)(span), acc :: cond :: Nil))(span)
+            Apply(Ident(bothSym)(span), acc :: cond :: Nil)(BoolType, span)
 
         val nestedBlock = Block(assigns :+ nestedCond)(BoolType, span)
 
@@ -206,11 +205,11 @@ class PatternMatcher(using rp: Reporter) extends Phase[Symbol]:
   private def needTagTest(scrut: Ident, tag: String): Boolean =
     !scrut.tpe.isTagType || scrut.tpe.asTagType.tag != tag
 
-  private def scrutineeTagType(scrutType: Type, tag): TagType =
+  private def scrutineeTagType(scrutType: Type, tag: String): TagType =
     if scrutType.isTagType then
       scrutType.asTagType
     else
-      assert(scrutType.isUnionType, "expect union type, found = " + scrutTye.show)
+      assert(scrutType.isUnionType, "expect union type, found = " + scrutType.show)
       val scrutUnionType = scrutType.asUnionType
       assert(scrutUnionType.hasTag(tag), s"expect union type with tag $tag, found = " + scrutUnionType.show)
       scrutUnionType.tagType(tag)

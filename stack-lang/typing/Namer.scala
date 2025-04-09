@@ -11,7 +11,6 @@ import sast.Types.*
 
 import common.Debug
 
-import parsing.Parser
 import reporting.Reporter
 
 import Namer.{ Scope, DelayedDef, errorWord }
@@ -1102,55 +1101,7 @@ class Namer(@constructorOnly reporter: Reporter):
         Reporter.abort("Unexpected empty type tree", tpt.pos)
 
 object Namer:
-  def main(args: Array[String]): Unit =
-    Reporter.monitor:
-      val stdLib = "lib/Predef.stk" :: Nil
-      val runtimeFiles = Nil
-      val namer = (nssAst: List[Ast.Namespace]) => transform(nssAst, stdLib, runtimeFiles)
-      val nss = Parser.parse(args.toList) |> namer |> TreeChecker.check
-
-      for ns <- nss do
-        println(ns.symbol.sourcePos.source.file + ":")
-        println(ns.show)
-        println
-
   def errorWord(span: Span) = Block(words = Nil)(ErrorType, span)
-
-  def transform(nssAst: List[Ast.Namespace], stdlib: List[String], runtime: List[String])(using Reporter) : List[Namespace] =
-    val rootNameTable = new NameTable
-    val runtimeNameTable = new NameTable
-    transform(nssAst, stdlib, runtime, rootNameTable, runtimeNameTable)
-
-  /** The stdlib cannot depend on pre-defined symbols */
-  def transform(
-    nssAst: List[Ast.Namespace],
-    stdlib: List[String],
-    runtime: List[String],
-    rootNameTable: NameTable,
-    runtimeNameTable: NameTable)(using rp: Reporter)
-  : List[Namespace] =
-
-    // Install lazy definitions
-    Definitions.initialize(rootNameTable)
-
-    // StdLib is compiled without the Predef
-    val nssStdLib = transform(stdlib, rootNameTable, predef = new NameTable)
-
-    // Must be after type checking the stdlib
-    val predefNameTable = Definitions.instance.Predef_nameTable
-
-    // Runtime definitions are not entered into the root name table thus is
-    // inaccessible in user programs
-    val nssRuntime = transform(runtime, runtimeNameTable, predefNameTable)
-
-    val nss = new Namer(rp).transform(nssAst, rootNameTable, predefNameTable)
-    nssStdLib ++ nssRuntime ++ nss
-
-  def transform(files: List[String], rootNameTable: NameTable, predef: NameTable)(using rp: Reporter): List[Namespace] =
-    val namer = (nss: List[Ast.Namespace]) =>
-      new Namer(rp).transform(nss, rootNameTable, predef)
-    // `|>` will stop early in the presence of parsing errors
-    Parser.parse(files) |> namer
 
   class DelayedDef[+T <: Def](val symbol: Symbol, delayed: () => T):
     private lazy val definition: T = delayed()
