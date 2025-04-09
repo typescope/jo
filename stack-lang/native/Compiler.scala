@@ -1,6 +1,5 @@
 package native
 
-import ast.Ast
 import sast.*
 import sast.Symbols.Symbol
 import phases.*
@@ -40,8 +39,8 @@ object Compiler:
       options.get("-o") match
         case Some(file) => file
         case None =>
-          if sourceFiles.size == 1 then
-            IO.fileNameNoExt(sourceFiles.head)
+          if sources.size == 1 then
+            IO.fileNameNoExt(sources.head)
           else
             "out"
 

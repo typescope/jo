@@ -102,7 +102,9 @@ extends Backend(runtime):
 
       case _: TypeDef =>
 
-      case _: ValDef | _: FunDef | _: With | _: Allow | _: Select | _: FieldAssign | _: RecordLit | _: Object =>
+      case _: ValDef | _: FunDef | _: With | _: Allow | _: Select |
+           _: FieldAssign | _: RecordLit | _: Object | _: Match |
+           _: TaggedLit | _: PatDef =>
         throw new Exception("Unexpected " + word)
 
   def load(loc: Location, dest: Int, base: Rel)(using Context): Unit =
@@ -350,7 +352,7 @@ extends Backend(runtime):
   /** Compile a reference to a name that produces a runtime value */
   def compile(id: Ident)(using ctx: Context): Unit =
     val sym = id.symbol
-    if sym.isValue then
+    if !sym.info.isProcType then
       if sym.isLocal then
         val reg = ctx.getRegForLocal(sym)
         ctx.vs.push(Reg(reg))
@@ -360,7 +362,7 @@ extends Backend(runtime):
         // val addr = getAddress(sym)
         // gen(Instr.Load(addr, reg))
     else
-      assert(sym.is(Flags.Fun))
+      assert(sym.is(Flags.Fun), sym.name + " is not a fun")
       val target = getFunAddress(id.symbol)
       val targetReg = freshVirtualReg()
       gen(Instr.Move(target, targetReg))

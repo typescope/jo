@@ -1,6 +1,8 @@
 package js
 
 import common.IO
+
+import sast.*
 import phases.*
 import reporting.Reporter
 
@@ -27,8 +29,8 @@ def compile(args: String*): Unit =
     options.get("-o") match
       case Some(file) => file
       case None =>
-        if sourceFiles.size == 1 then
-          IO.fileNameNoExt(sourceFiles.head) + ".js"
+        if sources.size == 1 then
+          IO.fileNameNoExt(sources.head) + ".js"
         else
           "out.js"
 

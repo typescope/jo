@@ -128,7 +128,7 @@ object ElimCapture:
       val lifter = new Lifter(funSym)
       val body = lifter(fdef.body)(using ctx.withSubsts(substs.toMap))
       val params = fdef.params ++ paramSymsCaptured
-      ctx.lifted += FunDef(funSym, fdef.tparams, params, body)(fdef.span)
+      ctx.lifted += FunDef(funSym, fdef.tparams, params, fdef.resultType, body)(fdef.span)
 
       Block(words = Nil)(VoidType, fdef.span)
 
@@ -233,7 +233,7 @@ object ElimCapture:
         val body2 = Block(aliases.toList :+ body)(body.tpe, body.span)
         val params = paramThis :: fdef.params
 
-        ctx.lifted += FunDef(liftedSym, fdef.tparams, params, body2)(fdef.span)
+        ctx.lifted += FunDef(liftedSym, fdef.tparams, params, fdef.resultType, body2)(fdef.span)
       end for
 
       val recordType = RecordType(memberTypes.toList)
