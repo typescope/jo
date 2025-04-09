@@ -490,8 +490,11 @@ object Interpreter:
         val objVal = ObjectVal(fieldVals, self, valSyms, defTrees, env)
         objVal :: Nil
 
-      case tdef: TypeDef =>
+      case _: TypeDef | _: PatDef =>
         Nil
+
+      case _: Match | _: TaggedLit =>
+        throw new Exception("Unexpected tree: " + word.show)
 
   def main(args: Array[String]): Unit = Reporter.monitor:
     val sourceFiles = args.toList

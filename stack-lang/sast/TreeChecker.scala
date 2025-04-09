@@ -24,6 +24,8 @@ class TreeChecker()(using Source) extends SastOps.TreeTraverser:
   type Context = Reporter
 
   def apply(word: Word)(using info: Context): Unit =
+    val defn = Definitions.instance
+
     word match
       case Ident(sym) =>
         assert(!sym.isOneOf(Flags.NSpace | Flags.Method | Flags.Field | Flags.Type), sym)
@@ -72,6 +74,9 @@ class TreeChecker()(using Source) extends SastOps.TreeTraverser:
             if !Subtyping.conforms(funType.resultType, word.tpe) then
               Reporter.error("word.tpe = " + word.tpe.show + ", result type = " + funType.resultType + " tree = " + word.show, word.pos)
         end match
+
+        if fun.refersTo(defn.Predef_and) || fun.refersTo(defn.Predef_or) then
+          Reporter.error("Unexpected use of short-cut || and && in S-AST, tree = " + word.show, word.pos)
 
         fun match
           case Select(qual, _) =>

@@ -459,7 +459,8 @@ class Namer(@constructorOnly reporter: Reporter):
             transform(arg)
 
         val word = Apply(fun, argsTyped)(procType.resultType, apply.span)
-        checker.adapt(word, tt)
+        val desugared = Desugaring.desugarShortcutAndOr(word)
+        checker.adapt(desugared, tt)
     else
       Reporter.error(s"Not a function: " + fun.tpe.show, fun.pos)
       errorWord(apply.span)
