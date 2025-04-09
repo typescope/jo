@@ -334,7 +334,11 @@ object Interpreter:
             objVal.values(name) :: Nil
 
       case Assign(ident, rhs) =>
-        env.update(ident.symbol, eval(rhs))
+        if ident.symbol.isMutable then
+          env.update(ident.symbol, eval(rhs))
+        else
+          env.bind(ident.symbol, eval(rhs))
+
         Nil
 
       case FieldAssign(qual, name, rhs) =>

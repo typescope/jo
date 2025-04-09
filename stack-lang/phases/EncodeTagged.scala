@@ -10,7 +10,8 @@ class EncodeTagged extends Phase[Symbol]:
 
   override def transformTagged(tagged: TaggedLit)(using ctx: Context): Word =
     val tagType = tagged.tpe.asTagType
-    val encodedValue = TaggedEncoding.encodeVariant(tagType, tagged.args, tagged.tagTree.span, tagged.span)
+    val args2 = for arg <- tagged.args yield transform(arg)
+    val encodedValue = TaggedEncoding.encodeVariant(tagType, args2, tagged.tagTree.span, tagged.span)
     Encoded(encodedValue)(tagType)
 
   override def transformSelect(select: Select)(using ctx: Context): Word =

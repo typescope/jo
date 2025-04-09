@@ -197,7 +197,7 @@ object Printing:
             body
 
       case Assign(lhs, rhs) =>
-        lhs ~ " <- " ~ rhs
+        lhs ~ " = " ~ rhs
 
       case Match(scrutinee, cases) =>
         "match " ~ scrutinee ~ indent:

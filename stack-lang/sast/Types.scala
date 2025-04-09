@@ -28,7 +28,7 @@ object Types:
 
     def isUnionType: Boolean =
        // No polymorphism over union type thus only dealias no approximation
-      dealias.isInstanceOf[UnionType]
+      widen.dealias.isInstanceOf[UnionType]
 
     /** Is the type a reference to a type alias */
     def isTypeRef: Boolean =
@@ -86,7 +86,7 @@ object Types:
 
     def asUnionType: UnionType =
       // No polymorphism over union type thus only dealias no approximation
-      dealias.asInstanceOf[UnionType]
+      widen.dealias.asInstanceOf[UnionType]
 
     def asTagType: TagType =
       TypeOps.approx(this, isUp = true).asInstanceOf[TagType]

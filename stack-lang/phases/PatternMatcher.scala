@@ -19,9 +19,8 @@ class PatternMatcher(using rp: Reporter) extends Phase[Symbol]:
   val abortSym = Definitions.instance.Predef_abort
   val eitherSym = Definitions.instance.Predef_either
   val bothSym = Definitions.instance.Predef_both
-  val andSym = Definitions.instance.Predef_and
 
-  def transform(patmat: Match)(using owner: Context): Word =
+  override def transformMatch(patmat: Match)(using owner: Context): Word =
     val Match(scrutinee, cases) = patmat
     val scrutType = scrutinee.tpe
 
@@ -84,7 +83,10 @@ class PatternMatcher(using rp: Reporter) extends Phase[Symbol]:
 
     else
       val assignTag =  scrutineeTagAssign(scrut, span)
-      val condTag = TaggedEncoding.testTagValue(assignTag.ident, tag, tagPattern.tagTree.span)
+      val condTag = Block(
+        assignTag
+        :: TaggedEncoding.testTagValue(assignTag.ident, tag, tagPattern.tagTree.span)
+        :: Nil)(BoolType, tagPattern.tagTree.span)
 
       val assigns =
         for param <- scrutTagType.params
@@ -114,7 +116,7 @@ class PatternMatcher(using rp: Reporter) extends Phase[Symbol]:
         val nestedBlock = Block(assigns :+ nestedCond)(BoolType, span)
 
         if needTagTest(scrut, tag) then
-          Apply(Ident(andSym)(span), condTag :: nestedBlock :: Nil)(BoolType, span)
+          If(condTag, nestedBlock, BoolLit(false)(BoolType, span))(BoolType, span)
         else
           nestedBlock
 
@@ -198,7 +200,7 @@ class PatternMatcher(using rp: Reporter) extends Phase[Symbol]:
         scrutTagIdent match
           case Some(tagIdent) =>
             val condTag = TaggedEncoding.testTagValue(tagIdent, tag, span)
-            Apply(Ident(andSym)(span), condTag :: nestedBlock :: Nil)(BoolType, span)
+            If(condTag, nestedBlock, BoolLit(false)(BoolType, span))(BoolType, span)
 
           case _ => nestedBlock
 

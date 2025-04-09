@@ -140,7 +140,8 @@ object Printing:
         "(" ~ repr ~ ": " ~ word.tpe ~ ")"
 
       case Apply(fun, args) =>
-        "(" ~ fun ~ " " ~ rep(args, Text(" ")) ~ ")"
+        fun ~ indent:
+          rep(args, Text.BreakLine)
 
       case TypeApply(fun, targs) =>
         fun ~ "[" ~ rep(targs, Text(", ")) ~ "]"
@@ -162,7 +163,7 @@ object Printing:
         "(" ~ expr ~ " allow " ~ paramText ~ ")"
 
       case Assign(id, rhs) =>
-        id ~ " <- " ~ rhs
+        id ~ " = " ~ rhs
 
       case FieldAssign(qual, name, rhs) =>
         qual ~ "." ~ name ~ " <- " ~ rhs
@@ -185,7 +186,7 @@ object Printing:
         if words.size == 1 then
           showWord(words.head)
         else if words.size > 1 then
-          rep(words, Text.BreakLine)
+          Text.BreakLine ~ rep(words, Text.BreakLine)
         else
           Text.Empty
 
