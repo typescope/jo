@@ -49,7 +49,7 @@ class PatternMatcher(using rp: Reporter) extends Phase[Symbol]:
 
   private def transformCase(scrut: Ident, caseDef: Case, cont: () => Word) (using owner: Context, source: Source): Word =
     val cond = transformPattern(scrut, caseDef.pattern)
-    If(cond, caseDef.body, cont())(caseDef.body.tpe, caseDef.span)
+    If(cond, transform(caseDef.body), cont())(caseDef.body.tpe, caseDef.span)
 
   private def transformPattern(scrut: Ident, pat: Pattern)(using Context, Source): Word =
     pat match
@@ -123,7 +123,10 @@ class PatternMatcher(using rp: Reporter) extends Phase[Symbol]:
   private def transformTypePattern(scrut: Ident, patternType: Type, span: Span)(using Context, Source): Word =
     assert(Subtyping.conforms(patternType, scrut.symbol.info), "scrutee type = " + scrut.tpe.show + ", type test = " + patternType.show)
 
-    if patternType.isTagType then
+    if Subtyping.conforms(scrut.symbol.info, patternType) then
+      BoolLit(true)(BoolType, span)
+
+    else if patternType.isTagType then
       val patternTagType = patternType.asTagType
 
       if needTagTest(scrut, patternTagType.tag) then
@@ -153,7 +156,7 @@ class PatternMatcher(using rp: Reporter) extends Phase[Symbol]:
       Block(assignTag :: condAll :: Nil)(BoolType, span)
 
     else
-      BoolLit(true)(BoolType, span)
+      throw new Exception("Unexpected tag pattern, scrutee type = " + scrut.tpe.show + ", type test = " + patternType.show)
 
   private def transformTagTypePattern
     (scrut: Ident, patternType: TagType, scrutTagIdent: Option[Ident], span: Span)
