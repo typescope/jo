@@ -352,7 +352,12 @@ extends Backend(runtime):
   /** Compile a reference to a name that produces a runtime value */
   def compile(id: Ident)(using ctx: Context): Unit =
     val sym = id.symbol
-    if !sym.info.isProcType then
+    if sym.is(Flags.Fun) then
+      val target = getFunAddress(id.symbol)
+      val targetReg = freshVirtualReg()
+      gen(Instr.Move(target, targetReg))
+      ctx.vs.push(Reg(targetReg))
+    else
       if sym.isLocal then
         val reg = ctx.getRegForLocal(sym)
         ctx.vs.push(Reg(reg))
@@ -361,12 +366,6 @@ extends Backend(runtime):
         // val reg = freshVirtualReg()
         // val addr = getAddress(sym)
         // gen(Instr.Load(addr, reg))
-    else
-      assert(sym.is(Flags.Fun), sym.name + " is not a fun")
-      val target = getFunAddress(id.symbol)
-      val targetReg = freshVirtualReg()
-      gen(Instr.Move(target, targetReg))
-      ctx.vs.push(Reg(targetReg))
 
   /** Compile function call */
   def compile(app: Apply)(using ctx: Context): Unit =

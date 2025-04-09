@@ -260,7 +260,10 @@ extends Backend(runtime):
   /** Compile a reference */
   def compile(ref: Ident)(using addr: LocalAddr, cb: CodeBuffer): Unit =
     val sym = ref.symbol
-    if !sym.info.isProcType then
+    if sym.is(Flags.Fun) then
+      val label = getFunAddress(sym)
+      push(label)
+    else
       val loc =
         if sym.isLocal then
           addr(sym)
@@ -270,10 +273,6 @@ extends Backend(runtime):
       useReg: r =>
         cb.add(Instr.Load(loc, r, Size.B32))
         push(Reg(r))
-    else
-      assert(sym.is(Flags.Fun), sym.name + " is not a fun")
-      val label = getFunAddress(sym)
-      push(label)
 
   /** Compile function call */
   def compile(app: Apply)(using LocalAddr, CodeBuffer): Unit =
