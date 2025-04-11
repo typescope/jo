@@ -6,6 +6,11 @@ pattern Student(s: String, sex: Bool, age: Int): Student =
 pattern Name(name: String): Student =
   #Student name _ _
 
+pattern Some[T](value: T): #Some(v: T) =
+  #Some value
+
+pattern None: #None = #None
+
 pattern InferRes(name: String, sex: Bool, age: Int) =
   #Student name sex age
 
@@ -20,5 +25,10 @@ fun test(s: Student) =
 
   match s
     case Student n s a =>
+
+fun test2(a: Option[String]) =
+  match a
+    case Some s => println s
+    case None => println "none"
 
 fun main = println "patterns"
