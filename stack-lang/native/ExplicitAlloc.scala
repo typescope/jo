@@ -45,7 +45,7 @@ class ExplicitAlloc(runtime: NativeRuntime) extends phases.Phase[Symbol]:
 
     val refSym =
       given Source = ctx.sourcePos.source
-      Symbol.createValueSymbol("ref", addrType, ctx, word.pos)
+      Symbol.createSymbol("ref", addrType, Flags.Synthetic, ctx, word.pos)
     val ref = Ident(refSym)(word.span)
 
     stats += Assign(ref, allocApply)(word.span)

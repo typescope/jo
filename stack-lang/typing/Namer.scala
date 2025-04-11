@@ -105,7 +105,8 @@ class Namer(@constructorOnly reporter: Reporter):
 
       else
         rp.error(s"The $name is already defined as a member at $pos", qualid.pos)
-        Symbol.createNamespaceSymbol(sym.name, new NameTableInfo, sym.owner, qualid.pos, isBranch)
+        val flags = if isBranch then Flags.NSpace | Flags.Branch else Flags.NSpace
+        Symbol.createSymbol(sym.name, new NameTableInfo, flags, sym.owner, qualid.pos)
 
     qualid match
       case Ast.Select(qual, name) =>
@@ -119,14 +120,16 @@ class Namer(@constructorOnly reporter: Reporter):
           case Some(sym) => check(sym)
 
           case None =>
-            val sym = Symbol.createNamespaceSymbol(name, new NameTableInfo, nsSym, qualid.pos, isBranch)
+            val flags = if isBranch then Flags.NSpace | Flags.Branch else Flags.NSpace
+            val sym = Symbol.createSymbol(name, new NameTableInfo, flags, nsSym, qualid.pos)
             nsInfo.define(sym)
             sym
 
       case Ast.Ident(name) =>
         sc.resolveTerm(name) match
           case None =>
-            val sym = Symbol.createNamespaceSymbol(name, new NameTableInfo, sc.owner, qualid.pos, isBranch)
+            val flags = if isBranch then Flags.NSpace | Flags.Branch else Flags.NSpace
+            val sym = Symbol.createSymbol(name, new NameTableInfo, flags, sc.owner, qualid.pos)
             sc.define(sym)
             sym
 
@@ -149,19 +152,19 @@ class Namer(@constructorOnly reporter: Reporter):
 
               case None =>
                 rp.error(s"`$name` not found in the namespace ${sym.name}", qualid.pos)
-                Symbol.createFunSymbol(name, ErrorType, sym, pos = qualid.pos)
+                Symbol.createSymbol(name, ErrorType, Flags.Synthetic, sym, pos = qualid.pos)
 
           else
             if !sym.info.isError then
               rp.error("Not a namespace, only a namespace can be selected", qual.pos)
-            Symbol.createFunSymbol(name, ErrorType, sym, pos = qualid.pos)
+            Symbol.createSymbol(name, ErrorType, Flags.Synthetic, sym, pos = qualid.pos)
 
         case Ast.Ident(name) =>
           rootNameTable.resolveTerm(name) match
             case Some(sym) => sym
             case None =>
               rp.error(s"`$name` is not found", qualid.pos)
-              Symbol.createFunSymbol(name, ErrorType, importScope.owner, pos = qualid.pos)
+              Symbol.createSymbol(name, ErrorType, Flags.Synthetic, importScope.owner, pos = qualid.pos)
 
     def importName(nameTable: NameTable): Unit =
       val name = qualid.name
@@ -377,7 +380,7 @@ class Namer(@constructorOnly reporter: Reporter):
       val mutables = vals.filter(_.isMutable).map(_.name).toList
       ObjectType(fieldTypes, methodTypes, mutables)
 
-    val thisSym = Symbol.createValueSymbol("this", infoProvider, sc.owner, obj.pos)
+    val thisSym = Symbol.createSymbol("this", infoProvider, Flags.Synthetic, sc.owner, obj.pos)
 
     // scope for checking member methods
     val sc2 = sc.fresh(thisSym, nameTable)
@@ -530,7 +533,7 @@ class Namer(@constructorOnly reporter: Reporter):
 
         case tp =>
           Reporter.error("A reference to a contextual parameter expected, found = " + tp.show, paramRef.pos)
-          Symbol.createFunSymbol(ref.name, ErrorType, sc.owner, paramRef.pos)
+          Symbol.createSymbol(ref.name, ErrorType, Flags.Synthetic, sc.owner, paramRef.pos)
 
     Ident(paramSym)(ref.span)
 
@@ -650,9 +653,9 @@ class Namer(@constructorOnly reporter: Reporter):
          return errorWord(lambda.span)
 
      // Each object has a self symbol
-     val thisSym = Symbol.createValueSymbol("this", this.nonCyclicTypeProvider, sc.owner, lambda.pos)
+     val thisSym = Symbol.createSymbol("this", this.nonCyclicTypeProvider, Flags.Synthetic, sc.owner, lambda.pos)
 
-     val funSym = Symbol.createSymbol("apply", this.nonCyclicTypeProvider, Flags.Method, thisSym, lambda.pos)
+     val funSym = Symbol.createSymbol("apply", this.nonCyclicTypeProvider, Flags.Method | Flags.Synthetic, thisSym, lambda.pos)
      val lambdaScope = sc.fresh(funSym)
 
      val tvars = new mutable.ArrayBuffer[(TypeVar, Ast.Param)]
@@ -672,7 +675,7 @@ class Namer(@constructorOnly reporter: Reporter):
      val paramSyms =
       for (param, i) <- params.zipWithIndex yield
         val tp = if param.typ.isEmpty then inferParamType(i) else transformType(param.typ).tpe
-        val paramSym = Symbol.createParamSymbol(param.name, tp, funSym, param.pos)
+        val paramSym = Symbol.createSymbol(param.name, tp, Flags.Param, funSym, param.pos)
         lambdaScope.define(paramSym)
         paramSym
 
@@ -706,7 +709,7 @@ class Namer(@constructorOnly reporter: Reporter):
     if pdef.default.nonEmpty then
       flags = flags | Flags.Default
 
-    val paramSym = Symbol.createValueSymbol(pdef.name, infoProvider, flags, sc.owner, pdef.pos)
+    val paramSym = Symbol.createSymbol(pdef.name, infoProvider, flags, sc.owner, pdef.pos)
     val paramDefSast = () =>
       val tpt = TypeTree(paramSym.info)(pdef.typ.span)
       ParamDef(paramSym, tpt)(pdef.span)
@@ -746,7 +749,7 @@ class Namer(@constructorOnly reporter: Reporter):
     if vdef.mutable then
       flags = flags | Flags.Mutable
 
-    val sym = Symbol.createValueSymbol(vdef.name, this.nonCyclicTypeProvider, flags, sc.owner, vdef.ident.pos)
+    val sym = Symbol.createSymbol(vdef.name, this.nonCyclicTypeProvider, flags, sc.owner, vdef.ident.pos)
 
     lazy val givenType: Type =
       val tpt = transformType(vdef.typ)
@@ -784,7 +787,7 @@ class Namer(@constructorOnly reporter: Reporter):
             TypeBound(BottomType, boundTree.tpe)
 
         val infoProvider: InfoProvider = (sym: Symbol) => bound
-        val sym = Symbol.createTypeParamSymbol(tparam.name, infoProvider, funSym, tparam.pos)
+        val sym = Symbol.createSymbol(tparam.name, infoProvider, Flags.Type | Flags.Param, funSym, tparam.pos)
         funScope.define(sym)
         sym
 
@@ -793,7 +796,7 @@ class Namer(@constructorOnly reporter: Reporter):
 
       for param <- funDef.params yield
         val tpt = transformType(param.typ)(using funScope)
-        val paramSym = Symbol.createParamSymbol(param.name, tpt.tpe, funSym, param.pos)
+        val paramSym = Symbol.createSymbol(param.name, tpt.tpe, Flags.Param, funSym, param.pos)
         funScope.define(paramSym)
         paramSym
 
@@ -859,7 +862,7 @@ class Namer(@constructorOnly reporter: Reporter):
     DelayedDef(funSym, typer)
 
   private def transformTypeDef(tdef: Ast.TypeDef)(using sc: Scope, rp: Reporter, so: Source): DelayedDef[TypeDef] =
-    val typeSym = Symbol.createTypeSymbol(tdef.name, this.nonCyclicTypeProvider, sc.owner, tdef.ident.pos)
+    val typeSym = Symbol.createSymbol(tdef.name, this.nonCyclicTypeProvider, Flags.Type, sc.owner, tdef.ident.pos)
 
     val sc2 = sc.fresh(typeSym)
     val tparamSyms =
@@ -872,7 +875,7 @@ class Namer(@constructorOnly reporter: Reporter):
             TypeBound(BottomType, boundTree.tpe)
 
         val infoProvider: InfoProvider = (sym: Symbol) => bound
-        val sym = Symbol.createTypeParamSymbol(tparam.name, infoProvider, typeSym, tparam.pos)
+        val sym = Symbol.createSymbol(tparam.name, infoProvider, Flags.Type | Flags.Param, typeSym, tparam.pos)
         sc2.define(sym)
         sym
 
@@ -938,14 +941,14 @@ class Namer(@constructorOnly reporter: Reporter):
             TypeBound(BottomType, boundTree.tpe)
 
         val infoProvider: InfoProvider = (sym: Symbol) => bound
-        val sym = Symbol.createTypeParamSymbol(tparam.name, infoProvider, sc.owner, tparam.pos)
+        val sym = Symbol.createSymbol(tparam.name, infoProvider, Flags.Type | Flags.Param, sc.owner, tparam.pos)
         defScope.define(sym)
         sym
 
     val paramSyms =
       for param <- ddef.params yield
         val tpt = transformType(param.typ)(using defScope)
-        val paramSym = Symbol.createParamSymbol(param.name, tpt.tpe, sc.owner, param.pos)
+        val paramSym = Symbol.createSymbol(param.name, tpt.tpe, Flags.Param, sc.owner, param.pos)
         defScope.define(paramSym)
         paramSym
 
@@ -1168,21 +1171,21 @@ object Namer:
         case Some(sym) => sym
         case None =>
           Reporter.error(s"Undefined term identifier " + name, pos)
-          Symbol.createFunSymbol(name, ErrorType, owner, pos)
+          Symbol.createSymbol(name, ErrorType, Flags.Synthetic, owner, pos)
 
     def resolveType(name: String, pos: SourcePosition)(using Reporter): Symbol =
       resolveType(name) match
         case Some(sym) => sym
         case None =>
           Reporter.error(s"Undefined type identifier " + name, pos)
-          Symbol.createFunSymbol(name, ErrorType, owner, pos)
+          Symbol.createSymbol(name, ErrorType, Flags.Synthetic, owner, pos)
 
     def resolvePattern(name: String, pos: SourcePosition)(using Reporter): Symbol =
       resolvePattern(name) match
         case Some(sym) => sym
         case None =>
           Reporter.error(s"Undefined pattern identifier " + name, pos)
-          Symbol.createFunSymbol(name, ErrorType, owner, pos)
+          Symbol.createSymbol(name, ErrorType, Flags.Synthetic, owner, pos)
 
     def define(sym: Symbol)(using Reporter): Unit =
       table.define(sym)

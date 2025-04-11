@@ -16,7 +16,7 @@ import PatternTyper.Occurs
 
 class PatternTyper(namer: Namer, checker: Checker):
   def transformPatDef(patDef: Ast.PatDef)(using sc: Scope, rp: Reporter, so: Source): DelayedDef[PatDef] =
-    val patSym = Symbol.createPatternSymbol(patDef.name, namer.nonCyclicTypeProvider, sc.owner, patDef.ident.pos)
+    val patSym = Symbol.createSymbol(patDef.name, namer.nonCyclicTypeProvider, Flags.Pattern | Flags.Fun, sc.owner, patDef.ident.pos)
     val patScope = sc.fresh(patSym)
 
     lazy val tparamSyms =
@@ -29,7 +29,7 @@ class PatternTyper(namer: Namer, checker: Checker):
             TypeBound(BottomType, boundTree.tpe)
 
         val infoProvider: InfoProvider = (sym: Symbol) => bound
-        val sym = Symbol.createTypeParamSymbol(tparam.name, infoProvider, patSym, tparam.pos)
+        val sym = Symbol.createSymbol(tparam.name, infoProvider, Flags.Type | Flags.Param, patSym, tparam.pos)
         patScope.define(sym)
         sym
 
@@ -38,7 +38,7 @@ class PatternTyper(namer: Namer, checker: Checker):
 
       for param <- patDef.params yield
         val tpt = namer.transformType(param.typ)(using patScope)
-        val paramSym = Symbol.createPatternSymbol(param.name, tpt.tpe, patSym, param.pos)
+        val paramSym = Symbol.createSymbol(param.name, tpt.tpe, Flags.Pattern, patSym, param.pos)
         patScope.define(paramSym)
         paramSym
 
@@ -233,7 +233,7 @@ class PatternTyper(namer: Namer, checker: Checker):
           WildcardPattern()(ErrorType, patSpan)
 
       else
-        val sym = Symbol.createPatternSymbol(name, tpe, sc.owner, id.pos)
+        val sym = Symbol.createSymbol(name, tpe, Flags.Pattern, sc.owner, id.pos)
         sc.definePatternAsTerm(sym)
 
         val patVal = Ident(sym)(id.span)
@@ -270,7 +270,7 @@ class PatternTyper(namer: Namer, checker: Checker):
         WildcardPattern()(ErrorType, id.span)
 
     else
-      val sym = Symbol.createPatternSymbol(name, scrutType, sc.owner, id.pos)
+      val sym = Symbol.createSymbol(name, scrutType, Flags.Pattern, sc.owner, id.pos)
       sc.definePatternAsTerm(sym)
 
       val patVal = Ident(sym)(id.span)

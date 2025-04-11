@@ -26,7 +26,7 @@ class PatternMatcher(using rp: Reporter) extends Phase[Symbol]:
 
     given Source = owner.sourcePos.source
 
-    val scrutSym = Symbol.createValueSymbol("scrutinee", scrutType, owner, scrutinee.pos)
+    val scrutSym = Symbol.createSymbol("scrutinee", scrutType, Flags.Synthetic, owner, scrutinee.pos)
     val scrutIdent = Ident(scrutSym)(scrutinee.span)
     val scrutAssign = Assign(scrutIdent, scrutinee)(scrutinee.span)
 
@@ -91,7 +91,7 @@ class PatternMatcher(using rp: Reporter) extends Phase[Symbol]:
       val assigns =
         for param <- scrutTagType.params
         yield
-          val valueSym = Symbol.createValueSymbol(param.name, param.info, owner, span.toPos)
+          val valueSym = Symbol.createSymbol(param.name, param.info, Flags.Synthetic, owner, span.toPos)
           val valueIdent = Ident(valueSym)(span)
           Assign(valueIdent, TaggedEncoding.selectVariantField(scrut, scrutTagType, param.name, span))(span)
 
@@ -175,7 +175,7 @@ class PatternMatcher(using rp: Reporter) extends Phase[Symbol]:
       val assigns =
         for param <- scrutTagType.params
         yield
-          val valueSym = Symbol.createValueSymbol(param.name, param.info, owner, span.toPos)
+          val valueSym = Symbol.createSymbol(param.name, param.info, Flags.Synthetic, owner, span.toPos)
           val valueIdent = Ident(valueSym)(span)
           Assign(valueIdent, TaggedEncoding.selectVariantField(scrut, scrutTagType, param.name, span))(span)
 
@@ -223,6 +223,6 @@ class PatternMatcher(using rp: Reporter) extends Phase[Symbol]:
     val encodedScrutType = RecordType(NamedInfo("tag", IntType) :: Nil)
     val encodedScrut = Encoded(scrut)(encodedScrutType)
 
-    val tagSym = Symbol.createValueSymbol("tag", IntType, owner, span.toPos)
+    val tagSym = Symbol.createSymbol("tag", IntType, Flags.Synthetic, owner, span.toPos)
     val tagIdent = Ident(tagSym)(span)
     Assign(tagIdent, Select(encodedScrut, "tag")(IntType, span))(span)

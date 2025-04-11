@@ -65,11 +65,11 @@ class NormalizeParams(using Reporter) extends Phase[NormalizeParams.Context]:
           )
 
           val optionParamSym =
-            Symbol.createSymbol(param.name + "$option", optType, Flags.Context | Flags.Param, param.owner, param.sourcePos)
+            Symbol.createSymbol(param.name + "$option", optType, Flags.Context | Flags.Param | Flags.Synthetic, param.owner, param.sourcePos)
 
           val valueFunInfo = param.defaultFunction.info
           val valueFunSym =
-            Symbol.createSymbol(param.name + "$value", valueFunInfo, Flags.Fun, param.owner, param.sourcePos)
+            Symbol.createSymbol(param.name + "$value", valueFunInfo, Flags.Fun | Flags.Synthetic, param.owner, param.sourcePos)
 
           ns.info.define(optionParamSym)
           ns.info.define(valueFunSym)
@@ -93,7 +93,7 @@ class NormalizeParams(using Reporter) extends Phase[NormalizeParams.Context]:
     val defaultFunSym = pdef.symbol.defaultFunction
     val optionParamSym = pdef.symbol.optionParam
 
-    val valueSym = Symbol.createValueSymbol(pdef.name + "Value", optionParamSym.info, valueFunSym, param.sourcePos)
+    val valueSym = Symbol.createSymbol(pdef.name + "Value", optionParamSym.info, Flags.Synthetic, valueFunSym, param.sourcePos)
     val vdef = ValDef(valueSym, Ident(optionParamSym)(pdef.span))(pdef.span)
 
     val noneTypeEncoded = TaggedEncoding.encodeTagType(NoneType)
@@ -288,7 +288,7 @@ class NormalizeParams(using Reporter) extends Phase[NormalizeParams.Context]:
             val paramRef = Ident(eff)(span)
             aliasMap.get(eff) match
               case None =>
-                val alias = new Symbol("alias_" + eff.name, eff.info, Flags.Val, owner = ctx.owner, sourcePos = obj.pos)
+                val alias = Symbol.createSymbol("alias_" + eff.name, eff.info, Flags.Synthetic, owner = ctx.owner, pos = obj.pos)
                 aliasMap(eff) = ValDef(alias, paramRef)(span)
                 WithArg(paramRef, Ident(alias)(span))(span)
 

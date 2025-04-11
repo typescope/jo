@@ -79,7 +79,7 @@ class Checker:
       tp
 
   def checkMutable(sym: Symbol, pos: SourcePosition)(using Reporter): Unit =
-    if !sym.isAllOf(Flags.Val | Flags.Mutable) then
+    if !sym.isMutable then
       Reporter.error(sym.name + " is not a mutable value", pos)
 
   def checkTermMember(word: Word, member: String)(using Reporter, Source): Word =
