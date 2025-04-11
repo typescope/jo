@@ -12,13 +12,14 @@ import reporting.Reporter
 class PatternMatcher(using rp: Reporter) extends Phase[Symbol]:
   val contextObject = Phase.OwnerContext
 
-  val IntType = Definitions.instance.IntType
-  val BoolType = Definitions.instance.BoolType
-  val StringType = Definitions.instance.StringType
+  val defn = Definitions.instance
+  val IntType = defn.IntType
+  val BoolType = defn.BoolType
+  val StringType = defn.StringType
 
-  val abortSym = Definitions.instance.Predef_abort
-  val eitherSym = Definitions.instance.Predef_either
-  val bothSym = Definitions.instance.Predef_both
+  val abortSym = defn.Predef_abort
+  val eitherSym = defn.Predef_either
+  val bothSym = defn.Predef_both
 
   override def transformMatch(patmat: Match)(using owner: Context): Word =
     val Match(scrutinee, cases) = patmat

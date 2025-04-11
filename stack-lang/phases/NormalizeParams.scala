@@ -44,6 +44,8 @@ import scala.collection.mutable
 class NormalizeParams(using Reporter) extends Phase[NormalizeParams.Context]:
   val contextObject = NormalizeParams.CacheContext
 
+  val defn = Definitions.instance
+
   val NoneType = TagType("None", params = Nil)
 
   override def transform(nss: List[Namespace]): List[Namespace] =
@@ -138,8 +140,6 @@ class NormalizeParams(using Reporter) extends Phase[NormalizeParams.Context]:
     */
   override  def transformFunDef(fdef: FunDef)(using ctx: Context): FunDef =
     if !fdef.symbol.isLocal && fdef.name == "main" then
-      val defn = Definitions.instance
-
       val effs = EffectAnalysis.effects(fdef.symbol)(using ctx.cache)
       val fdef2 = super.transformFunDef(fdef)
 

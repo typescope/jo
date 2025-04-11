@@ -32,8 +32,9 @@ import scala.collection.mutable
 class LowerContextParams(runtime: NativeRuntime) extends phases.Phase[Symbol]:
   val contextObject = phases.Phase.OwnerContext
 
-  val BoolType = Definitions.instance.BoolType
-  val IntType = Definitions.instance.IntType
+  val defn = Definitions.instance
+  val BoolType = defn.BoolType
+  val IntType = defn.IntType
   val AddrType = TypeRef(runtime.Core_Addr)
 
   override def transformIdent(word: Ident)(using ctx: Context): Word =
