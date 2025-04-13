@@ -268,7 +268,7 @@ extends Backend(runtime):
         if sym.isLocal then
           addr(sym)
         else
-          throw new Exception("accessing non-local variable " + sym)
+          throw new Exception("accessing non-local variable " + sym + ", owner = " + sym.owner)
 
       useReg: r =>
         cb.add(Instr.Load(loc, r, Size.B32))

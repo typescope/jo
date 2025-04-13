@@ -133,12 +133,12 @@ extends Backend(runtime):
     ctx.setRegForLocal(param, paramReg)
     load(loc, paramReg, base)
 
-  def compileFunDef(fdef: FunDef)(using cb: CodeBuffer): Unit =
+  def compileFunDef(fdef: FunDef)(using cb: CodeBuffer): Unit = try
     val sym = fdef.symbol
     val ctx = freshFunctionContext(sym)
+
     val proto = compile(fdef)(using ctx)
 
-    // println(sym.fullName + ":")
     // println(ctx.buffer.show)
 
     // perform register allocation
@@ -147,6 +147,10 @@ extends Backend(runtime):
     doGraphColoring(
       label, ctx.buffer.getResult(), registerConfig, proto.savedRegs, cb,
       ctx.generator, rules)
+  catch
+    case e: Throwable =>
+      println(fdef.show)
+      throw e
 
   /** Compile a function */
   def compile(fdef: FunDef)(using ctx: Context): Protocol =
@@ -344,7 +348,7 @@ extends Backend(runtime):
     val rhsValue = ctx.vs.pop()
     val instr =
       if sym.isLocal then Instr.Move(rhsValue, ctx.getRegForLocal(sym))
-      else throw new Exception("assigning to non-local " + sym)
+      else throw new Exception("assigning to non-local " + sym + ", owner = " + sym.owner)
     gen(instr)
 
   /** Compile a reference to a name that produces a runtime value */

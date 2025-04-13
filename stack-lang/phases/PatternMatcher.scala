@@ -52,21 +52,23 @@ class PatternMatcher(using rp: Reporter) extends Phase[PatternMatcher.Context]:
     val funType = ProcType(bounds, params, resultType, receives, preParamCount = 0)
     Symbol.createSymbol(predSym.name + "$impl", funType, Flags.Fun | Flags.Synthetic, predSym.owner, predSym.sourcePos)
 
-  private def getImplFunSymbol(predSym: Symbol)(using ctx: Context): Symbol =
-    ctx.implMap.get(predSym) match
+  private def getImplFunSymbol(predSym: Symbol, implMap: mutable.Map[Symbol, Symbol]): Symbol =
+    implMap.get(predSym) match
       case Some(implSym) =>
         implSym
 
       case None =>
         val implSym = createImplFunSymbol(predSym)
-        ctx.implMap(predSym) = implSym
+        implMap(predSym) = implSym
         implSym
 
   private def implementPatDef(pdef: PatDef)(using ctx: Context): List[FunDef | PatDef] =
-    val implSym = getImplFunSymbol(pdef.symbol)
+    val implSym = getImplFunSymbol(pdef.symbol, ctx.implMap)
     val span = pdef.body.span
 
+    given Context = PatternMatcher.CacheContext.newContext(implSym, ctx)
     given Source = pdef.symbol.sourcePos.source
+
     val scrutSym = Symbol.createSymbol("scrutinee", pdef.resultType.tpe, Flags.Param, implSym, implSym.sourcePos)
     val scrutIdent = Ident(scrutSym)(span)
 
@@ -94,9 +96,19 @@ class PatternMatcher(using rp: Reporter) extends Phase[PatternMatcher.Context]:
 
     given Source = ctx.owner.sourcePos.source
 
-    val scrutSym = Symbol.createSymbol("scrutinee", scrutType, Flags.Synthetic, ctx.owner, scrutinee.pos)
-    val scrutIdent = Ident(scrutSym)(scrutinee.span)
-    val scrutAssign = Assign(scrutIdent, scrutinee)(scrutinee.span)
+    var aliased: Boolean = false
+    val scrutIdent: Ident =
+      scrutinee match
+        case id: Ident =>
+          id
+
+        case Encoded(id: Ident) =>
+          id
+
+        case _ =>
+          aliased = true
+          val scrutSym = Symbol.createSymbol("scrutinee", scrutType, Flags.Synthetic, ctx.owner, scrutinee.pos)
+          Ident(scrutSym)(scrutinee.span)
 
     def transformCases(cases: List[Case]): Word =
       cases match
@@ -108,12 +120,17 @@ class PatternMatcher(using rp: Reporter) extends Phase[PatternMatcher.Context]:
           // It is needed for code generation.
           val abort = Ident(abortSym)(scrutIdent.span)
           val arg = StringLit("Unhandled match at " + scrutIdent.pos)(StringType, scrutIdent.span)
-          // TODO: adapt to result type for Void
-          Apply(abort, arg :: Nil)(BottomType, patmat.span)
+          Apply(abort, arg :: Nil)(BottomType, patmat.span).dropIfVoid(patmat.tpe)
       end match
 
     val body = transformCases(cases)
-    Block(scrutAssign :: body :: Nil)(body.tpe, patmat.span)
+
+    if aliased then
+      val scrutAssign = Assign(scrutIdent, scrutinee)(scrutinee.span)
+      Block(scrutAssign :: body :: Nil)(body.tpe, patmat.span)
+
+    else
+      body
 
   private def transformCase(scrut: Ident, caseDef: Case, cont: () => Word) (using ctx: Context, source: Source): Word =
     val cond = transformPattern(scrut, caseDef.pattern)
@@ -156,11 +173,11 @@ class PatternMatcher(using rp: Reporter) extends Phase[PatternMatcher.Context]:
     val implFun =
       (pred: @unchecked) match
         case Ident(sym) =>
-          val impl = getImplFunSymbol(sym)
+          val impl = getImplFunSymbol(sym, ctx.implMap)
           Ident(impl)(pred.span)
 
         case TypeApply(id @ Ident(sym), tpts) =>
-          val impl = getImplFunSymbol(sym)
+          val impl = getImplFunSymbol(sym, ctx.implMap)
           val implProcType = ProcType(Nil, NamedInfo("scrutinee", paramType) :: Nil, resultType, Some(Nil), preParamCount = 0)
           TypeApply(Ident(impl)(id.span), tpts)(implProcType, span)
       end match

@@ -29,6 +29,9 @@ object Sast:
     def ensureDropValue: Word =
       if this.tpe.isValueType then dropValue else this
 
+    def dropIfVoid(target: Type): Word =
+      if target.isVoidType then dropValue else this
+
     def show: String = Printing.show(this)
 
     /** Whether the word can be duplicated as neighbors without affecting program semantics */
