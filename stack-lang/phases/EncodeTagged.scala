@@ -21,4 +21,4 @@ class EncodeTagged extends Phase[Symbol]:
       val tagType = qualType.asTagType
       TaggedEncoding.selectVariantField(qual2, tagType, select.name, select.span)
     else
-      select
+      Select(qual2, select.name)(select.tpe, select.span)
