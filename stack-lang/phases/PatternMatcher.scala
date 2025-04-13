@@ -6,11 +6,12 @@ import sast.*
 import sast.Sast.*
 import sast.Symbols.*
 import sast.Types.*
-
 import reporting.Reporter
 
-class PatternMatcher(using rp: Reporter) extends Phase[Symbol]:
-  val contextObject = Phase.OwnerContext
+import scala.collection.mutable
+
+class PatternMatcher(using rp: Reporter) extends Phase[PatternMatcher.Context]:
+  val contextObject = PatternMatcher.CacheContext
 
   val defn = Definitions.instance
   val IntType = defn.IntType
@@ -21,13 +22,79 @@ class PatternMatcher(using rp: Reporter) extends Phase[Symbol]:
   val eitherSym = defn.Predef_either
   val bothSym = defn.Predef_both
 
-  override def transformMatch(patmat: Match)(using owner: Context): Word =
+  override def transform(nss: List[Namespace]): List[Namespace] =
+    val implMap = mutable.Map.empty[Symbol, Symbol]
+
+    for ns <- nss yield
+      given Context = PatternMatcher.Context(implMap, ns.symbol)
+
+      val defs = ns.defs.flatMap:
+        case fdef: FunDef =>
+          transformFunDef(fdef) :: Nil
+
+        case pdef: PatDef =>
+          implementPatDef(pdef)
+
+        case defn => defn :: Nil
+
+      Namespace(ns.symbol, ns.imports, defs)(ns.span)
+
+  private def createImplFunSymbol(predSym: Symbol): Symbol =
+    val predType = predSym.info.asProcType
+    val bounds = predType.tparams
+    val params = NamedInfo("scrutinee", predType.resultType) :: Nil
+
+    val successType = TagType("Success", predType.params)
+    val failType = TagType("Fail", Nil)
+    val resultType = UnionType(successType :: failType :: Nil)
+    val receives = Some(Nil)
+
+    val funType = ProcType(bounds, params, resultType, receives, preParamCount = 0)
+    Symbol.createSymbol(predSym.name + "$impl", funType, Flags.Fun | Flags.Synthetic, predSym.owner, predSym.sourcePos)
+
+  private def getImplFunSymbol(predSym: Symbol)(using ctx: Context): Symbol =
+    ctx.implMap.get(predSym) match
+      case Some(implSym) =>
+        implSym
+
+      case None =>
+        val implSym = createImplFunSymbol(predSym)
+        ctx.implMap(predSym) = implSym
+        implSym
+
+  private def implementPatDef(pdef: PatDef)(using ctx: Context): List[FunDef | PatDef] =
+    val implSym = getImplFunSymbol(pdef.symbol)
+    val span = pdef.body.span
+
+    given Source = pdef.symbol.sourcePos.source
+    val scrutSym = Symbol.createSymbol("scrutinee", pdef.resultType.tpe, Flags.Param, implSym, implSym.sourcePos)
+    val scrutIdent = Ident(scrutSym)(span)
+
+    // TODO: optimize irrefutable pattern
+    val cond = transformPattern(scrutIdent, pdef.body)
+    val successType = TagType("Success", pdef.params.map(_.toNamedInfo))
+    val failType = TagType("Fail", Nil)
+    val resultType = UnionType(successType :: failType :: Nil)
+
+    val values = pdef.params.map(param => Ident(param)(span))
+    val success = TaggedLit(StringLit("Success")(StringType, span), values)(successType, span)
+    val fail = TaggedLit(StringLit("Fail")(StringType, span), args = Nil)(failType, span)
+    val body = If(cond, success, fail)(resultType, span)
+
+    // TODO: rebind param symbols
+    val tpt = TypeTree(resultType)(pdef.resultType.span)
+    FunDef(implSym, pdef.tparams, pdef.params, tpt, body)(pdef.span) :: pdef :: Nil
+
+  override def transformPatDef(pdef: PatDef)(using ctx: Context): Word =
+    Block(implementPatDef(pdef))(VoidType, pdef.span)
+
+  override def transformMatch(patmat: Match)(using ctx: Context): Word =
     val Match(scrutinee, cases) = patmat
     val scrutType = scrutinee.tpe
 
-    given Source = owner.sourcePos.source
+    given Source = ctx.owner.sourcePos.source
 
-    val scrutSym = Symbol.createSymbol("scrutinee", scrutType, Flags.Synthetic, owner, scrutinee.pos)
+    val scrutSym = Symbol.createSymbol("scrutinee", scrutType, Flags.Synthetic, ctx.owner, scrutinee.pos)
     val scrutIdent = Ident(scrutSym)(scrutinee.span)
     val scrutAssign = Assign(scrutIdent, scrutinee)(scrutinee.span)
 
@@ -48,8 +115,9 @@ class PatternMatcher(using rp: Reporter) extends Phase[Symbol]:
     val body = transformCases(cases)
     Block(scrutAssign :: body :: Nil)(body.tpe, patmat.span)
 
-  private def transformCase(scrut: Ident, caseDef: Case, cont: () => Word) (using owner: Context, source: Source): Word =
+  private def transformCase(scrut: Ident, caseDef: Case, cont: () => Word) (using ctx: Context, source: Source): Word =
     val cond = transformPattern(scrut, caseDef.pattern)
+    // TODO: optimize irrefutable patterns
     If(cond, transform(caseDef.body), cont())(caseDef.body.tpe, caseDef.span)
 
   private def transformPattern(scrut: Ident, pat: Pattern)(using Context, Source): Word =
@@ -73,7 +141,7 @@ class PatternMatcher(using rp: Reporter) extends Phase[Symbol]:
         assert(Subtyping.conforms(scrut.tpe, pat.tpe), "scrutee type = " + scrut.tpe.show + ", pattern type = " + pat.tpe.show)
         BoolLit(true)(BoolType, pat.span)
 
-  private def transformTagPattern(scrut: Ident, tagPattern: TagPattern)(using owner: Context, source: Source): Word =
+  private def transformTagPattern(scrut: Ident, tagPattern: TagPattern)(using ctx: Context, source: Source): Word =
     val span = tagPattern.span
     val tag = tagPattern.tag
     val scrutTagType = scrutineeTagType(scrut.tpe, tag)
@@ -92,7 +160,7 @@ class PatternMatcher(using rp: Reporter) extends Phase[Symbol]:
       val assigns =
         for param <- scrutTagType.params
         yield
-          val valueSym = Symbol.createSymbol(param.name, param.info, Flags.Synthetic, owner, span.toPos)
+          val valueSym = Symbol.createSymbol(param.name, param.info, Flags.Synthetic, ctx.owner, span.toPos)
           val valueIdent = Ident(valueSym)(span)
           Assign(valueIdent, TaggedEncoding.selectVariantField(scrut, scrutTagType, param.name, span))(span)
 
@@ -161,7 +229,7 @@ class PatternMatcher(using rp: Reporter) extends Phase[Symbol]:
 
   private def transformTagTypePattern
     (scrut: Ident, patternType: TagType, scrutTagIdent: Option[Ident], span: Span)
-    (using owner: Context, source: Source)
+    (using ctx: Context, source: Source)
   : Word =
 
     val tag = patternType.tag
@@ -176,7 +244,7 @@ class PatternMatcher(using rp: Reporter) extends Phase[Symbol]:
       val assigns =
         for param <- scrutTagType.params
         yield
-          val valueSym = Symbol.createSymbol(param.name, param.info, Flags.Synthetic, owner, span.toPos)
+          val valueSym = Symbol.createSymbol(param.name, param.info, Flags.Synthetic, ctx.owner, span.toPos)
           val valueIdent = Ident(valueSym)(span)
           Assign(valueIdent, TaggedEncoding.selectVariantField(scrut, scrutTagType, param.name, span))(span)
 
@@ -220,10 +288,16 @@ class PatternMatcher(using rp: Reporter) extends Phase[Symbol]:
       assert(scrutUnionType.hasTag(tag), s"expect union type with tag $tag, found = " + scrutUnionType.show)
       scrutUnionType.tagType(tag)
 
-  private def scrutineeTagAssign(scrut: Ident, span: Span)(using owner: Context, source: Source): Assign =
+  private def scrutineeTagAssign(scrut: Ident, span: Span)(using ctx: Context, source: Source): Assign =
     val encodedScrutType = RecordType(NamedInfo("tag", IntType) :: Nil)
     val encodedScrut = Encoded(scrut)(encodedScrutType)
 
-    val tagSym = Symbol.createSymbol("tag", IntType, Flags.Synthetic, owner, span.toPos)
+    val tagSym = Symbol.createSymbol("tag", IntType, Flags.Synthetic, ctx.owner, span.toPos)
     val tagIdent = Ident(tagSym)(span)
     Assign(tagIdent, Select(encodedScrut, "tag")(IntType, span))(span)
+
+object PatternMatcher:
+  class Context(val implMap: mutable.Map[Symbol, Symbol], val owner: Symbol)
+  object CacheContext extends Phase.ContextObject[Context]:
+    def newContext(owner: Symbol, old: Context) = Context(old.implMap, owner)
+    def newContext(namespace: Symbol) = throw new Exception("Namespace context should use global symbol map")

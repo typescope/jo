@@ -236,17 +236,17 @@ object Types:
       getFieldType(name).get
 
   case class UnionType(branches: List[TagType]) extends Type:
+    private val tagsMap = branches.map(b => b.tag -> b).toMap
+
+    assert(tagsMap.size == branches.size, "Duplicate tags = " + branches)
+
     val tags: List[String] = branches.map(_.tag)
 
-    def getTagType(tag: String): Option[TagType] =
-      branches.collectFirst:
-        case tp: TagType if tp.tag == tag => tp
+    def getTagType(tag: String): Option[TagType] = tagsMap.get(tag)
 
-    def hasTag(tag: String): Boolean =
-      tags.contains(tag)
+    def hasTag(tag: String): Boolean = tagsMap.contains(tag)
 
-    def tagType(tag: String): TagType =
-      getTagType(tag).get
+    def tagType(tag: String): TagType = tagsMap(tag)
 
     def tagIndex(tag: String): Int =
       branches.indexWhere:

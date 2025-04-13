@@ -49,14 +49,15 @@ class NormalizeParams(using Reporter) extends Phase[NormalizeParams.Context]:
   val NoneType = TagType("None", params = Nil)
 
   override def transform(nss: List[Namespace]): List[Namespace] =
-    given ctx: Context = contextObject.newContext()
+    val cache = EffectAnalysis.Cache()
+
     for
       ns <- nss
       defn <- ns.defs
     do
       defn match
         case fdef: FunDef =>
-          ctx.cache.code(fdef.symbol) = fdef
+          cache.code(fdef.symbol) = fdef
 
         case ParamDef(param, _) if param.is(Flags.Default) =>
           // First synthesize all symbols
@@ -80,7 +81,9 @@ class NormalizeParams(using Reporter) extends Phase[NormalizeParams.Context]:
       end match
     end for
 
-    for ns <- nss yield transformNamespace(ns)
+    for ns <- nss yield
+      given Context = NormalizeParams.Context(cache, ns.symbol)
+      transformNamespace(ns)
 
   /** Synthesize the following function for context parameter `a`:
     *
@@ -308,4 +311,4 @@ object NormalizeParams:
   class Context(val cache: EffectAnalysis.Cache, val owner: Symbol)
   object CacheContext extends Phase.ContextObject[Context]:
     def newContext(owner: Symbol, old: Context) = Context(old.cache, owner)
-    def newContext() = Context(EffectAnalysis.Cache(), null)
+    def newContext(namespace: Symbol) = throw new Exception("Namespace context should use global cache")

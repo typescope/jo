@@ -39,13 +39,12 @@ object FrontEnd:
     val patmat = new phases.PatternMatcher
 
     sast                          |>
-    encoder.transform             |+
-    Printing.peek(enable = false) |>
-    TreeChecker.check             |>
-    Printing.peek(enable = false) |>
     noramlizer.transform          |>
     TreeChecker.check             |>
     Printing.peek(enable = false) |>
-    patmat.transform              |+
+    patmat.transform              |>
+    TreeChecker.check             |>
+    Printing.peek(enable = false) |>
+    encoder.transform             |>
     TreeChecker.check             |>
     Printing.peek(enable = false)
