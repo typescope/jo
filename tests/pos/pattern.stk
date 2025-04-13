@@ -18,17 +18,22 @@ pattern Type(s: Student): Student = s: Student
 
 fun test(s: Student) =
   match s
-    case Name n => n
+    case Name n => println n
 
   match s
-    case InferRes n _ _ => n
+    case InferRes n _ _ => println n
 
   match s
-    case Student n s a =>
+    case Student n s a => println n
 
 fun test2(a: Option[String]) =
   match a
     case Some s => println s
     case None => println "none"
 
-fun main = println "patterns"
+fun main =
+  test (#Student "bla" true 23)
+
+  test2 (#Some "abc")
+
+  test2 #None

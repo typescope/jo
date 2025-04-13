@@ -624,7 +624,12 @@ class Namer(@constructorOnly reporter: Reporter):
             Encoded(check(unionType.tagType(tagName), unionType))(unionType)
 
         else if tp.isTagType then
-          check(tp.asTagType, tp)
+          val tagType = tp.asTagType
+          if tagType.tag == tagName then
+            check(tp.asTagType, tp)
+          else
+            Reporter.error(s"Expect tag ${tagType.tag}, found = $tagName", tag.pos)
+            errorWord(tag.span)
 
         else
           Reporter.error(s"Expect union type or tag type, found = ${tp.show}", pos)

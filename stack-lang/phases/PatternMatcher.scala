@@ -83,7 +83,7 @@ class PatternMatcher(using rp: Reporter) extends Phase[PatternMatcher.Context]:
 
     // TODO: rebind param symbols
     val tpt = TypeTree(resultType)(pdef.resultType.span)
-    FunDef(implSym, pdef.tparams, pdef.params, tpt, body)(pdef.span) :: pdef :: Nil
+    FunDef(implSym, pdef.tparams, scrutSym :: Nil, tpt, body)(pdef.span) :: pdef :: Nil
 
   override def transformPatDef(pdef: PatDef)(using ctx: Context): Word =
     Block(implementPatDef(pdef))(VoidType, pdef.span)
@@ -134,12 +134,84 @@ class PatternMatcher(using rp: Reporter) extends Phase[PatternMatcher.Context]:
       case tagPat: TagPattern =>
         transformTagPattern(scrut, tagPat)
 
-      case ApplyPattern(pred, nested) =>
-        ???
+      case appPat: ApplyPattern =>
+        transformApplyPattern(scrut, appPat)
 
       case WildcardPattern() =>
         assert(Subtyping.conforms(scrut.tpe, pat.tpe), "scrutee type = " + scrut.tpe.show + ", pattern type = " + pat.tpe.show)
         BoolLit(true)(BoolType, pat.span)
+
+  private def transformApplyPattern(scrut: Ident, applyPattern: ApplyPattern)(using ctx: Context, source: Source): Word =
+    val ApplyPattern(pred, nested) = applyPattern
+    val procType = pred.tpe.asProcType
+    val span = pred.span
+
+    val paramType = procType.resultType
+    val successType = TagType("Success", procType.params)
+    val failType = TagType("Fail", Nil)
+    val resultType = UnionType(successType :: failType :: Nil)
+
+    val noNeedTypeTest = Subtyping.conforms(scrut.tpe, paramType)
+
+    val implFun =
+      (pred: @unchecked) match
+        case Ident(sym) =>
+          val impl = getImplFunSymbol(sym)
+          Ident(impl)(pred.span)
+
+        case TypeApply(id @ Ident(sym), tpts) =>
+          val impl = getImplFunSymbol(sym)
+          val implProcType = ProcType(Nil, NamedInfo("scrutinee", paramType) :: Nil, resultType, Some(Nil), preParamCount = 0)
+          TypeApply(Ident(impl)(id.span), tpts)(implProcType, span)
+      end match
+
+    val call =
+      if noNeedTypeTest then Apply(implFun, scrut :: Nil)(resultType, span)
+      else Apply(implFun, Encoded(scrut)(paramType) :: Nil)(resultType, span)
+
+    val resSym = Symbol.createSymbol("res", resultType, Flags.Pattern | Flags.Synthetic, ctx.owner, pred.pos)
+    val assignRes = Assign(Ident(resSym)(pred.span), call)(span)
+    val assignTag =  scrutineeTagAssign(assignRes.ident, span)
+
+    // TODO: no test for irrefutable predicate
+    val resCond =
+      Block(
+        assignRes
+          :: assignTag
+          :: TaggedEncoding.testTagValue(assignTag.ident, "Success", span)
+          :: Nil
+      )(BoolType, span)
+
+    val callCond =
+      if noNeedTypeTest then
+        resCond
+
+      else
+        val typeTest = transformTypePattern(scrut, paramType, span)
+        If(typeTest, resCond, BoolLit(false)(BoolType, span))(BoolType, span)
+
+    val assigns =
+      for param <- successType.params
+      yield
+        val valueSym = Symbol.createSymbol(param.name, param.info, Flags.Pattern | Flags.Synthetic, ctx.owner, pred.pos)
+        val valueIdent = Ident(valueSym)(span)
+        Assign(valueIdent, TaggedEncoding.selectVariantField(assignRes.ident, successType, param.name, span))(span)
+
+    if nested.isEmpty then
+      callCond
+    else
+      val nestedConds =
+        for (pattern, Assign(id, _)) <- nested.zip(assigns)
+        yield transformPattern(id, pattern)
+
+      val head :: rest = nestedConds: @unchecked
+
+      val nestedCond =
+        rest.foldLeft(head): (acc, cond) =>
+          Apply(Ident(bothSym)(span), acc :: cond :: Nil)(BoolType, span)
+
+      val nestedBlock = Block(assigns :+ nestedCond)(BoolType, span)
+      If(callCond, nestedBlock, BoolLit(false)(BoolType, span))(BoolType, span)
 
   private def transformTagPattern(scrut: Ident, tagPattern: TagPattern)(using ctx: Context, source: Source): Word =
     val span = tagPattern.span
@@ -160,7 +232,7 @@ class PatternMatcher(using rp: Reporter) extends Phase[PatternMatcher.Context]:
       val assigns =
         for param <- scrutTagType.params
         yield
-          val valueSym = Symbol.createSymbol(param.name, param.info, Flags.Synthetic, ctx.owner, span.toPos)
+          val valueSym = Symbol.createSymbol(param.name, param.info, Flags.Pattern | Flags.Synthetic, ctx.owner, span.toPos)
           val valueIdent = Ident(valueSym)(span)
           Assign(valueIdent, TaggedEncoding.selectVariantField(scrut, scrutTagType, param.name, span))(span)
 
@@ -244,7 +316,7 @@ class PatternMatcher(using rp: Reporter) extends Phase[PatternMatcher.Context]:
       val assigns =
         for param <- scrutTagType.params
         yield
-          val valueSym = Symbol.createSymbol(param.name, param.info, Flags.Synthetic, ctx.owner, span.toPos)
+          val valueSym = Symbol.createSymbol(param.name, param.info, Flags.Pattern | Flags.Synthetic, ctx.owner, span.toPos)
           val valueIdent = Ident(valueSym)(span)
           Assign(valueIdent, TaggedEncoding.selectVariantField(scrut, scrutTagType, param.name, span))(span)
 
@@ -292,7 +364,7 @@ class PatternMatcher(using rp: Reporter) extends Phase[PatternMatcher.Context]:
     val encodedScrutType = RecordType(NamedInfo("tag", IntType) :: Nil)
     val encodedScrut = Encoded(scrut)(encodedScrutType)
 
-    val tagSym = Symbol.createSymbol("tag", IntType, Flags.Synthetic, ctx.owner, span.toPos)
+    val tagSym = Symbol.createSymbol("tag", IntType, Flags.Pattern | Flags.Synthetic, ctx.owner, span.toPos)
     val tagIdent = Ident(tagSym)(span)
     Assign(tagIdent, Select(encodedScrut, "tag")(IntType, span))(span)
 
