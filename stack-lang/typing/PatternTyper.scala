@@ -167,17 +167,15 @@ class PatternTyper(namer: Namer, checker: Checker):
       val paramCount = paramTypes.size
       val argCount = args.size
 
-      if argCount != paramCount then
+      if argCount > paramCount then
         Reporter.error(s"The tag type ${id.name} in scrutinee has $paramCount parameters, supplied = $argCount", tag.pos)
-        WildcardPattern()(ErrorType, patSpan)
 
-      else
-        val args2 =
-          for (pat, paramType) <- args.zip(paramTypes) yield transformPattern(pat, paramType)
+      val args2 =
+        for (pat, paramType) <- args.zip(paramTypes) yield transformPattern(pat, paramType)
 
-        val tagStringLit = StringLit(id.name)(Definitions.instance.StringType, tag.span)
-        val tagTypeActual = TagType.from(id.name, args2.map(_.tpe))
-        TagPattern(tagStringLit, args2)(tagTypeActual)
+      val tagStringLit = StringLit(id.name)(Definitions.instance.StringType, tag.span)
+      val tagTypeActual = TagType.from(id.name, args2.map(_.tpe))
+      TagPattern(tagStringLit, args2)(tagTypeActual)
 
     if scrutType.isUnionType then
       val unionType = scrutType.asUnionType

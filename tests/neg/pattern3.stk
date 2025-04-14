@@ -1,0 +1,8 @@
+type Student = #Student(name: String, year: Int)
+
+type Refined = #Student(name: String, year: Int, sex: Bool)
+
+fun test(s: Student) =
+  match s
+    case s: Refined => // error
+      s.sex

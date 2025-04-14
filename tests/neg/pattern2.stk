@@ -40,4 +40,8 @@ fun test(s: Student) =
   match s
     case Student n s => // error
 
+  match s
+    case #Student name year sex class => // error
+      println name
+
 fun main = println "patterns"
