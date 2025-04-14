@@ -1,4 +1,5 @@
 type Student = #Student(name: String, year: Int)
+type Teacher = #Teacher(name: String, year: Int, subject: String)
 
 type Refined = #Student(name: String, year: Int, sex: Bool)
 
@@ -6,3 +7,11 @@ fun test(s: Student) =
   match s
     case s: Refined => // error
       s.sex
+
+fun test2(s: Student | Teacher) =
+  match s
+    case s: Refined => // error
+      s.sex
+
+    case t: #Teacher(name: String, year: Int, subject: String, sex: Bool) => // error
+      t.sex
