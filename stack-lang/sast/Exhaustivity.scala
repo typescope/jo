@@ -9,10 +9,26 @@ object Exhaustivity:
     case EmptySpace
     case TypeSpace(tpe: Type)
     case TagSpace(tag: String, args: List[Space])
-    case PredSpace(pred: Symbol, fun: Word, args: List[Space])
+    case PredSpace(pred: Symbol, tpe: ProcType, args: List[Space])
     case UnionSpace(spaces: Seq[Space])
 
   import Space.*
+
+  def show(space: Space): String =
+    space match
+      case EmptySpace => "Empty"
+
+      case TypeSpace(tpe) =>
+        "_: " + tpe.show
+
+      case TagSpace(tag, args) =>
+        "#" + tag + args.map(show).mkString("(", ", ", ")")
+
+      case PredSpace(pred, tpe, args) =>
+        pred.name + args.map(show).mkString("(", ", ", ")")
+
+      case UnionSpace(spaces) =>
+        spaces.map(show).mkString(", ")
 
   def project(pattern: Pattern): Space =
     pattern match
@@ -28,34 +44,34 @@ object Exhaustivity:
 
       case app @ ApplyPattern(pred, nested) =>
         val spaces = nested.map(project)
-        PredSpace(app.symbol, pred, nested)
+        PredSpace(app.symbol, pred.tpe.asProcType, spaces)
 
-  def substract(s1: Space, s2: Space): Space =
+  def subtract(s1: Space, s2: Space): Space =
     (s1, s2) match
       case (_, EmptySpace) => s1
       case (EmptySpace, _) => s1
 
       case (_, UnionSpace(spaces)) =>
         spaces.foldLeft(s1): (acc, s2) =>
-          substract(acc, s2)
+          subtract(acc, s2)
 
       case (UnionSpace(spaces), _) =>
-        val spacesRest = spaces.map(s1 => substract(s1, s2))
+        val spacesRest = spaces.map(s1 => subtract(s1, s2))
         UnionSpace(spacesRest)
 
-      case (TypeSpace(tp1), TypeSpace(tpe2)) =>
+      case (TypeSpace(tp1), TypeSpace(tp2)) =>
         if Subtyping.conforms(tp1, tp2) then
           EmptySpace
 
         else if tp1.isUnionType then
           val unionType = tp1.asUnionType
-          val spaces = LazyList(unionType.branches).map(TypeSpace.apply)
-          substract(UnionSpace(spaces), s2)
+          val spaces = LazyList.from(unionType.branches.map(TypeSpace.apply))
+          subtract(UnionSpace(spaces), s2)
 
         else if tp2.isUnionType then
           val unionType = tp2.asUnionType
           val spaces = unionType.branches.map(TypeSpace.apply)
-          substract(UnionSpace(spaces), s2)
+          subtract(UnionSpace(spaces), s2)
 
         else
           s1
@@ -63,27 +79,193 @@ object Exhaustivity:
       case (TagSpace(tag1, args1), TagSpace(tag2, args2)) =>
         if tag1 == tag2 then
           assert(args1.size >= args2.size, s"args1.size = ${args1.size}, args2.size = ${args2.size}")
-          LazyList(args1.zip(args2)).flatMap: (arg1, arg2) =>
-            val res = substract(arg1, arg2)
+
+          val disjoint = args1.zip(args2).exists: (arg1, arg2) =>
+            isDisjoint(arg1, arg2)
+
+          if disjoint then
+            s1
+          else
+            val lazySpaces = LazyList.from(args1.zip(args2)).flatMap: (arg1, arg2) =>
+              val res = subtract(arg1, arg2)
+              if isEmpty(res) then Nil
+              else TagSpace(tag1, args1.map(arg => if arg `eq` arg1 then res else arg)) :: Nil
+            UnionSpace(lazySpaces)
         else
           s1
 
-      case (PredSpace(pred1, fun1, args1), PredSpace(pred2, fun2, args2)) => ???
+      case (PredSpace(pred1, tp1, args1), PredSpace(pred2, tp2, args2)) =>
+        if pred1 == pred2 && Subtyping.isEqualType(tp1, tp2) then
+          assert(args1.size >= args2.size, s"args1.size = ${args1.size}, args2.size = ${args2.size}")
 
-      case (TypeSpace(tp), TagSpace(tag, args)) => ???
+          val disjoint = args1.zip(args2).exists: (arg1, arg2) =>
+            isDisjoint(arg1, arg2)
 
-      case (TagSpace(tag, args), TypeSpace(tp)) => ???
+          if disjoint then
+            s1
+          else
+            val lazySpaces = LazyList.from(args1.zip(args2)).flatMap: (arg1, arg2) =>
+              val res = subtract(arg1, arg2)
+              if isEmpty(res) then Nil
+              else PredSpace(pred1, tp1, args1.map(arg => if arg `eq` arg1 then res else arg)) :: Nil
 
-      case (PredSpace(pred, fun, args1), TagSpace(tag, args2)) => ???
+            UnionSpace(lazySpaces)
 
-      case (TagSpace(tag, args), PredSpace(pred, fun, args1)) => ???
+        else
+          s1
 
-      case (PredSpace(pred, fun, args1), TypeSpace(tp)) => ???
+      case (TypeSpace(tp), TagSpace(tag, _)) =>
+        if tp.isTagType then
+          val tagType = tp.asTagType
+          if tagType.tag == tag then
+            val s1 = TagSpace(tag, tagType.params.map(param => TypeSpace(param.info)))
+            subtract(s1, s2)
+          else
+            s1
 
-      case (TypeSpace(tp), PredSpace(pred, fun, args1)) => ???
+        else if tp.isUnionType then
+          val unionType = tp.asUnionType
+          if unionType.hasTag(tag) then
+            val s1 = UnionSpace(unionType.branches.map(TypeSpace.apply))
+            subtract(s1, s2)
+          else
+            s1
 
-  def intersect(s1: Space, s2: Space): Space = ???
+        else
+          s1
 
-  def isSubspace(s1: Space, s2: Space): Space = ???
+      case (TagSpace(tag, _), TypeSpace(tp)) =>
+        if tp.isTagType then
+          val tagType = tp.asTagType
+          if tagType.tag == tag then
+            val s2 = TagSpace(tag, tagType.params.map(param => TypeSpace(param.info)))
+            subtract(s1, s2)
+          else
+            s1
 
-  def isEmpty(space: Space): Space = ???
+        else if tp.isUnionType then
+          val unionType = tp.asUnionType
+          if unionType.hasTag(tag) then
+            val s2 = UnionSpace(unionType.branches.map(TypeSpace.apply))
+            subtract(s1, s2)
+          else
+            s1
+
+        else
+          s1
+
+      case (PredSpace(pred, procType, args), TypeSpace(tp)) =>
+        if Subtyping.conforms(procType.resultType, tp) then
+          EmptySpace
+
+        else
+          s1
+
+      case (TypeSpace(tp), PredSpace(pred, procType, args1)) =>
+        if Subtyping.isEqualType(tp, procType.resultType) then
+          val s1 = PredSpace(pred, procType, procType.params.map(param => TypeSpace(param.info)))
+          subtract(s1, s2)
+
+        else
+          s1
+
+      case (_: PredSpace, _: TagSpace) => s1
+
+      case (_: TagSpace, _: PredSpace) => s1
+
+  def isDisjoint(s1: Space, s2: Space): Boolean =
+    (s1, s2) match
+      case (_, EmptySpace) => true
+      case (EmptySpace, _) => true
+
+      case (_, UnionSpace(spaces)) =>
+        spaces.forall: s2 =>
+          isDisjoint(s1, s2)
+
+      case (UnionSpace(spaces), _) =>
+        spaces.forall: s1 =>
+          isDisjoint(s1, s2)
+
+      case (TypeSpace(tp1), TypeSpace(tp2)) =>
+        if Subtyping.conforms(tp1, tp2) || Subtyping.conforms(tp2, tp1) then
+          true
+
+        else if tp1.isUnionType then
+          val unionType = tp1.asUnionType
+          unionType.branches.forall: tp1 =>
+            isDisjoint(TypeSpace(tp1), s2)
+
+        else if tp2.isUnionType then
+          val unionType = tp2.asUnionType
+          unionType.branches.forall: tp2 =>
+            isDisjoint(s1, TypeSpace(tp2))
+
+        else
+          true
+
+      case (TagSpace(tag1, args1), TagSpace(tag2, args2)) =>
+        if tag1 == tag2 then
+          args1.zip(args2).exists: (arg1, arg2) =>
+            isDisjoint(arg1, arg2)
+
+        else
+          true
+
+      case (PredSpace(pred1, tp1, args1), PredSpace(pred2, tp2, args2)) =>
+        if pred1 == pred2 && Subtyping.isEqualType(tp1, tp2) then
+          args1.zip(args2).exists: (arg1, arg2) =>
+            isDisjoint(arg1, arg2)
+        else
+          true
+
+      case (TypeSpace(tp), TagSpace(tag, _)) =>
+        if tp.isTagType then
+          val tagType = tp.asTagType
+          tagType.tag != tag
+
+        else if tp.isUnionType then
+          val unionType = tp.asUnionType
+          !unionType.hasTag(tag)
+
+        else
+          true
+
+      case (TagSpace(tag, _), TypeSpace(tp)) =>
+        if tp.isTagType then
+          val tagType = tp.asTagType
+          tagType.tag != tag
+
+        else if tp.isUnionType then
+          val unionType = tp.asUnionType
+          !unionType.hasTag(tag)
+
+        else
+          true
+
+      case (PredSpace(_, procType, _), _: TypeSpace) =>
+        val s1 = TypeSpace(procType.resultType)
+        isDisjoint(s1, s2)
+
+      case (TypeSpace(tp), PredSpace(_, procType, _)) =>
+        val s2 = TypeSpace(procType.resultType)
+        isDisjoint(s1, s2)
+
+      case (PredSpace(_, procType, _), _: TagSpace) =>
+        val s1 = TypeSpace(procType.resultType)
+        isDisjoint(s1, s2)
+
+      case (_: TagSpace, PredSpace(_, procType, _)) =>
+        val s2 = TypeSpace(procType.resultType)
+        isDisjoint(s1, s2)
+
+  def isEmpty(space: Space): Boolean =
+    space match
+      case EmptySpace => true
+
+      case TypeSpace(tpe: Type) => false
+
+      case TagSpace(_, args) => args.exists(isEmpty)
+
+      case PredSpace(_, _, args) => args.exists(isEmpty)
+
+      case UnionSpace(spaces) => spaces.forall(isEmpty)
