@@ -12,6 +12,8 @@ object Exhaustivity:
     case PredSpace(pred: Symbol, tpe: ProcType, args: List[Space])
     case UnionSpace(spaces: Seq[Space])
 
+    def show: String = Exhaustivity.show(this)
+
   import Space.*
 
   def show(space: Space): String =

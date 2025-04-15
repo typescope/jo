@@ -107,7 +107,26 @@ class PatternTyper(namer: Namer, checker: Checker):
         rest.foldLeft(caseDef.body.tpe): (acc, item) =>
           checker.commonResultType(acc, item.body.tpe, item.body.pos)
 
-    Match(scrutinee2, cases2)(commonType, patmat.span)
+    val patmat2 = Match(scrutinee2, cases2)(commonType, patmat.span)
+
+    checkExhaustivity(patmat2)
+
+    patmat2
+
+  private def checkExhaustivity(patmat: Match)(using Reporter, Source): Unit =
+    import Exhaustivity.Space
+    var rest = Space.TypeSpace(patmat.scrutinee.tpe.widen)
+    for Case(pat, _) <- patmat.cases do
+      val space = Exhaustivity.project(pat)
+      if Exhaustivity.isDisjoint(rest, space) then
+        Reporter.error("The case is not reachable", pat.pos)
+      else
+        rest = Exhaustivity.subtract(rest, space)
+    end for
+
+    if !Exhaustivity.isEmpty(rest) then
+      Reporter.error("The match will failure for the cases: " + rest.show, patmat.scrutinee.pos)
+
 
   private def transformCase(caseDef: Ast.Case, scrutType: Type)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Case =
     given Scope = sc.fresh()
