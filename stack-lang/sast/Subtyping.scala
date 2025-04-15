@@ -12,6 +12,9 @@ object Subtyping:
   def conforms(tp1: Type, tp2: Type): Boolean =
     checkConforms(tp1,tp2)(using new Context())
 
+  def isEqualType(tp1: Type, tp2: Type): Boolean =
+    conforms(tp1, tp2) && conforms(tp2, tp1)
+
   /** The assumption that a type A is a subtype of B
     *
     * In essence, the subtyping follows Amber's rule for recursive types.

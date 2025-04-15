@@ -212,10 +212,11 @@ object Sast:
     (fun: Word, nested: List[Pattern])
     (val tpe: Type, val span: Span)
   extends Pattern:
-    fun match
-      case Ident(sym) if sym.isPattern =>
-      case TypeApply(Ident(sym), _) if sym.isPattern =>
-      case _ => throw new Exception("expect a pattern predicate, found = " + fun)
+    val symbol =
+      fun match
+        case Ident(sym) if sym.isPattern => sym
+        case TypeApply(Ident(sym), _) if sym.isPattern => sym
+        case _ => throw new Exception("expect a pattern predicate, found = " + fun)
 
     for pat <- nested do
       pat match
