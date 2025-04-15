@@ -31,6 +31,7 @@ files=(
     stack-lang/sast/Desugaring.scala
     stack-lang/sast/Flags.scala
     stack-lang/sast/NameTable.scala
+    stack-lang/sast/Patterns.scala
     stack-lang/sast/Printing.scala
     stack-lang/sast/Sast.scala
     stack-lang/sast/SastOps.scala

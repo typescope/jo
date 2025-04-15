@@ -6,11 +6,10 @@ import sast.*
 import sast.Sast.*
 import sast.Symbols.*
 import sast.Types.*
-import reporting.Reporter
 
 import scala.collection.mutable
 
-class PatternMatcher(using rp: Reporter) extends Phase[PatternMatcher.Context]:
+class PatternMatcher extends Phase[PatternMatcher.Context]:
   val contextObject = PatternMatcher.CacheContext
 
   val defn = Definitions.instance
@@ -325,45 +324,45 @@ class PatternMatcher(using rp: Reporter) extends Phase[PatternMatcher.Context]:
     val scrutType = scrut.tpe
     val scrutTagType = scrutineeTagType(scrutType, tag)
 
-    if patternType.params.size > scrutTagType.params.size then
-      Reporter.error(s"The tag type ${patternType.show} has more params than the scrutinee type ${scrutTagType.show}", span.toPos)
-      BoolLit(false)(BoolType, span)
+    assert(
+      patternType.params.size <= scrutTagType.params.size,
+      s"The tag type ${patternType.show} has more params than the scrutinee type ${scrutTagType.show}"
+    )
+
+    val assigns =
+      for param <- scrutTagType.params
+      yield
+        val valueSym = Symbol.createSymbol(param.name, param.info, Flags.Pattern | Flags.Synthetic, ctx.owner, span.toPos)
+        val valueIdent = Ident(valueSym)(span)
+        Assign(valueIdent, TaggedEncoding.selectVariantField(scrut, scrutTagType, param.name, span))(span)
+
+    if patternType.params.isEmpty then
+      scrutTagIdent match
+        case Some(tagIdent) =>
+          TaggedEncoding.testTagValue(tagIdent, tag, span)
+
+        case _ =>
+          BoolLit(true)(BoolType, span)
 
     else
-      val assigns =
-        for param <- scrutTagType.params
-        yield
-          val valueSym = Symbol.createSymbol(param.name, param.info, Flags.Pattern | Flags.Synthetic, ctx.owner, span.toPos)
-          val valueIdent = Ident(valueSym)(span)
-          Assign(valueIdent, TaggedEncoding.selectVariantField(scrut, scrutTagType, param.name, span))(span)
+      val nestedConds =
+        for (param, Assign(id, _)) <- patternType.params.zip(assigns)
+        yield transformTypePattern(id, param.info, span)
 
-      if patternType.params.isEmpty then
-        scrutTagIdent match
-          case Some(tagIdent) =>
-            TaggedEncoding.testTagValue(tagIdent, tag, span)
+      val head :: rest = nestedConds: @unchecked
 
-          case _ =>
-            BoolLit(true)(BoolType, span)
+      val nestedCond =
+        rest.foldLeft(head): (acc, cond) =>
+          Apply(Ident(bothSym)(span), acc :: cond :: Nil)(BoolType, span)
 
-      else
-        val nestedConds =
-          for (param, Assign(id, _)) <- patternType.params.zip(assigns)
-          yield transformTypePattern(id, param.info, span)
+      val nestedBlock = Block(assigns :+ nestedCond)(BoolType, span)
 
-        val head :: rest = nestedConds: @unchecked
+      scrutTagIdent match
+        case Some(tagIdent) =>
+          val condTag = TaggedEncoding.testTagValue(tagIdent, tag, span)
+          If(condTag, nestedBlock, BoolLit(false)(BoolType, span))(BoolType, span)
 
-        val nestedCond =
-          rest.foldLeft(head): (acc, cond) =>
-            Apply(Ident(bothSym)(span), acc :: cond :: Nil)(BoolType, span)
-
-        val nestedBlock = Block(assigns :+ nestedCond)(BoolType, span)
-
-        scrutTagIdent match
-          case Some(tagIdent) =>
-            val condTag = TaggedEncoding.testTagValue(tagIdent, tag, span)
-            If(condTag, nestedBlock, BoolLit(false)(BoolType, span))(BoolType, span)
-
-          case _ => nestedBlock
+        case _ => nestedBlock
 
   private def needTagTest(scrut: Ident, tag: String): Boolean =
     !scrut.tpe.isTagType || scrut.tpe.asTagType.tag != tag

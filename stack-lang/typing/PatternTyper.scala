@@ -62,7 +62,7 @@ class PatternTyper(namer: Namer, checker: Checker):
       given Scope = patScope
       given Occurs = occurs
       val reporterDiscard = rp.fresh(buffer = true)
-      val scrutType = if patDef.resultType.isEmpty then AnyType else givenResultType
+      val scrutType = if patDef.resultType.isEmpty then VoidType else givenResultType
       val body2 =
         given Reporter = reporterDiscard
         transformPattern(patDef.body, scrutType)
@@ -136,8 +136,8 @@ class PatternTyper(namer: Namer, checker: Checker):
       val paramSize = procType.paramTypes.size
       val resType = procType.resultType
 
-      // TODO: a tag type in patterns should be a supertype
-      if Subtyping.conforms(resType, scrutType) then
+      val explain = new StringBuilder
+      if Patterns.isValidTypePattern(resType, scrutType)(using explain) then
         if args.size != paramSize then
           Reporter.error(s"The pattern predicate expects $paramSize arguments, found = ${args.size}", id.pos)
           WildcardPattern()(ErrorType, patSpan)
@@ -149,7 +149,7 @@ class PatternTyper(namer: Namer, checker: Checker):
           ApplyPattern(fun, argsTyped)(resType, patSpan)
         end if
       else
-        Reporter.error(s"The pattern predicate result type ${resType.show} does not conform to scrutinee type ${scrutType.show}", id.pos)
+        Reporter.error(s"The pattern result type ${resType.show} is invalid with respect to the scrutinee type ${scrutType.show}. " + explain, id.pos)
         WildcardPattern()(ErrorType, patSpan)
 
     else
@@ -195,8 +195,8 @@ class PatternTyper(namer: Namer, checker: Checker):
       else
         checkNested(tagType)
 
-    else if scrutType.isAnyType then
-      val tagType = TagType.from(id.name, args.map(_ => AnyType))
+    else if scrutType.isVoidType then
+      val tagType = TagType.from(id.name, args.map(_ => VoidType))
       checkNested(tagType)
 
     else
@@ -211,8 +211,7 @@ class PatternTyper(namer: Namer, checker: Checker):
     val tpt2 = namer.transformType(tpt)
     val tpe = tpt2.tpe
 
-    // TODO: a tag type in patterns should be a supertype
-    if Subtyping.conforms(tpe, scrutType) then
+    val pattern =
       if name == "_" then
         TypePattern(tpt2)
 
@@ -237,8 +236,11 @@ class PatternTyper(namer: Namer, checker: Checker):
         val patVal = Ident(sym)(id.span)
         AscribePattern(patVal, TypePattern(tpt2))
 
+    val explain = new StringBuilder
+    if Patterns.isValidTypePattern(tpe, scrutType)(using explain) || scrutType.isVoidType then
+      pattern
     else
-      Reporter.error("The type is not a subtype of the scrutinee. ", tpt.pos)
+      Reporter.error(explain.toString, tpt.pos)
       WildcardPattern()(ErrorType, patSpan)
 
   private def transformIdentPattern(id: Ast.Ident, scrutType: Type)
@@ -258,13 +260,13 @@ class PatternTyper(namer: Namer, checker: Checker):
       if !sym.info.isError then
         oc.occur(sym, id.pos)
 
-      // TODO: a tag type in patterns should be a supertype
-      if Subtyping.conforms(sym.info, scrutType) then
+      val explain = new StringBuilder
+      if Patterns.isEqualType(sym.info, scrutType)(using explain) || scrutType.isVoidType then
         val patVal = Ident(sym)(id.span)
         AscribePattern(patVal, TypePattern(TypeTree(sym.info)(id.span)))
 
       else
-        Reporter.error(s"$sym is not a subtype of the scrutinee type " + scrutType.show, id.pos)
+        Reporter.error(s"$sym has the type ${sym.info.show}, which is not equal to the scrutinee type " + scrutType.show, id.pos)
         WildcardPattern()(ErrorType, id.span)
 
     else
