@@ -20,10 +20,10 @@ pattern BindTypeMismatch(s: String): Student =
   #Student _ s _  // error
 
 pattern BindTypeMismatch2(s: Student): Student =
-  s: Teacher  // error
+  s: Teacher  // error // error
 
-pattern WrongArgNum(name: String): Student =
-  #Student name _  // error
+pattern FewerArgNumOK(name: String): Student =
+  #Student name _
 
 pattern Student(s: String, sex: Bool, age: Int): Student =
   #Student s sex age

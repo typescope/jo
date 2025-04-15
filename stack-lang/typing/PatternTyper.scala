@@ -221,12 +221,13 @@ class PatternTyper(namer: Namer, checker: Checker):
         if !sym.info.isError then
           oc.occur(sym, id.pos)
 
-        if Subtyping.conforms(tpe, sym.info) then
+        val explain = new StringBuilder
+        if Patterns.isEqualType(tpe, sym.info)(using explain) then
           val patVal = Ident(sym)(id.span)
           AscribePattern(patVal, TypePattern(tpt2))
 
         else
-          Reporter.error(s"${tpe.show} not a subtype of $sym. The latter has type " + sym.info.show, tpt.pos)
+          Reporter.error(s"The type ${tpe.show} not a equal to the type of $sym. The latter has type " + sym.info.show, tpt.pos)
           WildcardPattern()(ErrorType, patSpan)
 
       else
