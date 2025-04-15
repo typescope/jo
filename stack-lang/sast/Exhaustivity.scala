@@ -4,6 +4,8 @@ import Sast.*
 import Types.*
 import Symbols.*
 
+import common.Debug
+
 object Exhaustivity:
   enum Space:
     case EmptySpace
@@ -21,16 +23,45 @@ object Exhaustivity:
       case EmptySpace => "Empty"
 
       case TypeSpace(tpe) =>
-        "_: " + tpe.show
+        tpe.show
 
       case TagSpace(tag, args) =>
-        "#" + tag + args.map(show).mkString("(", ", ", ")")
+        val argsText =
+          if args.isEmpty then ""
+          else args.map(show).mkString("(", ", ", ")")
+
+        "#" + tag + argsText
 
       case PredSpace(pred, tpe, args) =>
-        pred.name + args.map(show).mkString("(", ", ", ")")
+        val argsText =
+          if args.isEmpty then ""
+          else args.map(show).mkString("(", ", ", ")")
+
+        pred.name + argsText
 
       case UnionSpace(spaces) =>
         spaces.map(show).mkString(", ")
+
+  def flatten(space: Space): Seq[Space] =
+    space match
+      case EmptySpace => Nil
+
+      case _: TypeSpace => space :: Nil
+
+      case TagSpace(tag, args) =>
+        if args.exists(isEmpty) then
+          Nil
+        else
+          space :: Nil
+
+      case PredSpace(pred, tpe, args) =>
+        if args.exists(isEmpty) then
+          Nil
+        else
+          space :: Nil
+
+      case UnionSpace(spaces) =>
+        spaces.flatMap(flatten)
 
   def project(pattern: Pattern): Space =
     pattern match
@@ -175,7 +206,7 @@ object Exhaustivity:
 
       case (_: TagSpace, _: PredSpace) => s1
 
-  def isDisjoint(s1: Space, s2: Space): Boolean =
+  def isDisjoint(s1: Space, s2: Space): Boolean = Debug.trace(s"isDisjoint(${s1.show}, ${s2.show})", enable = false):
     (s1, s2) match
       case (_, EmptySpace) => true
       case (EmptySpace, _) => true
@@ -190,7 +221,7 @@ object Exhaustivity:
 
       case (TypeSpace(tp1), TypeSpace(tp2)) =>
         if Subtyping.conforms(tp1, tp2) || Subtyping.conforms(tp2, tp1) then
-          true
+          false
 
         else if tp1.isUnionType then
           val unionType = tp1.asUnionType
