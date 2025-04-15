@@ -79,7 +79,7 @@ object Exhaustivity:
         val spaces = nested.map(project)
         PredSpace(app.symbol, pred.tpe.asProcType, spaces)
 
-  def subtract(s1: Space, s2: Space): Space =
+  def subtract(s1: Space, s2: Space): Space = Debug.trace(s"subtract(${s1.show}, ${s2.show})", (_: Space).show, enable = false):
     (s1, s2) match
       case (_, EmptySpace) => s1
       case (EmptySpace, _) => s1
@@ -99,12 +99,14 @@ object Exhaustivity:
         else if tp1.isUnionType then
           val unionType = tp1.asUnionType
           val spaces = LazyList.from(unionType.branches.map(TypeSpace.apply))
-          subtract(UnionSpace(spaces), s2)
+          val s1 = UnionSpace(spaces)
+          subtract(s1, s2)
 
         else if tp2.isUnionType then
           val unionType = tp2.asUnionType
           val spaces = unionType.branches.map(TypeSpace.apply)
-          subtract(UnionSpace(spaces), s2)
+          val s2 = UnionSpace(spaces)
+          subtract(s1, s2)
 
         else
           s1
