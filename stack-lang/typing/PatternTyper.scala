@@ -129,8 +129,7 @@ class PatternTyper(namer: Namer, checker: Checker):
       val five = cases.take(5)
       val examples = five.map(_.show).mkString(", ")
       val word = if five.size > 1 then "cases" else "case"
-      Reporter.error(s"The match will failure for the $word: " + examples, patmat.scrutinee.pos)
-
+      Reporter.error(s"The match will fail for the $word: " + examples, patmat.scrutinee.pos)
 
   private def transformCase(caseDef: Ast.Case, scrutType: Type)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Case =
     given Scope = sc.fresh()

@@ -196,9 +196,14 @@ object Exhaustivity:
         else
           s1
 
-      case (TypeSpace(tp), PredSpace(pred, procType, args1)) =>
+      case (TypeSpace(tp), PredSpace(pred, procType, _)) =>
         if Subtyping.isEqualType(tp, procType.resultType) then
           val s1 = PredSpace(pred, procType, procType.params.map(param => TypeSpace(param.info)))
+          subtract(s1, s2)
+
+        else if tp.isUnionType then
+          val unionType = tp.asUnionType
+          val s1 = UnionSpace(unionType.branches.map(TypeSpace.apply))
           subtract(s1, s2)
 
         else
