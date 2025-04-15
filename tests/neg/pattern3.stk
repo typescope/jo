@@ -14,7 +14,7 @@ fun test2(s: Student | Teacher) =
     case s: Refined => // error
       s.sex
 
-    case t: #Teacher(name: String, year: Int, subject: String, sex: Bool) => // error // error
+    case t: #Teacher(name: String, year: Int, subject: String, sex: Bool) => // error
       t.sex
 
 type Staff = #Teacher(name: String) | #Scientist(name: String, year: Int, superior: #Teacher(name: String))

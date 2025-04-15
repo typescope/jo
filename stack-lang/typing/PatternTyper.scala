@@ -101,7 +101,12 @@ class PatternTyper(namer: Namer, checker: Checker):
     val scrutinee2 = namer.transform(scrutinee)(using sc, rp, so, TargetType.ValueType)
     val scrutType = scrutinee2.tpe
 
-    val cases2 = for caseDef <- cases yield transformCase(caseDef, scrutType)
+    val rp2: Reporter = rp.fresh(buffer = true)
+    val cases2 =
+      for caseDef <- cases yield
+        given Reporter = rp2
+        transformCase(caseDef, scrutType)
+
     val commonType = (cases2: @unchecked) match
       case caseDef :: rest =>
         rest.foldLeft(caseDef.body.tpe): (acc, item) =>
@@ -109,7 +114,11 @@ class PatternTyper(namer: Namer, checker: Checker):
 
     val patmat2 = Match(scrutinee2, cases2)(commonType, patmat.span)
 
-    checkExhaustivity(patmat2)
+    // Skip the check if there are errors in patterns
+    if rp2.hasErrors then
+      rp2.commit(rp)
+    else
+      checkExhaustivity(patmat2)
 
     patmat2
 
@@ -119,7 +128,7 @@ class PatternTyper(namer: Namer, checker: Checker):
     for Case(pat, _) <- patmat.cases do
       val space = Exhaustivity.project(pat)
       if Exhaustivity.isDisjoint(rest, space) then
-        Reporter.error("The case is not reachable", pat.pos)
+        Reporter.warn("The case is not reachable", pat.pos)
       else
         rest = Exhaustivity.subtract(rest, space)
     end for
@@ -129,7 +138,7 @@ class PatternTyper(namer: Namer, checker: Checker):
       val five = cases.take(5)
       val examples = five.map(_.show).mkString(", ")
       val word = if five.size > 1 then "cases" else "case"
-      Reporter.error(s"The match will fail for the $word: " + examples, patmat.scrutinee.pos)
+      Reporter.warn(s"The match will fail for the $word: " + examples, patmat.scrutinee.pos)
 
   private def transformCase(caseDef: Ast.Case, scrutType: Type)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Case =
     given Scope = sc.fresh()

@@ -34,7 +34,7 @@ fun showAnimal(a: Animal): String =
 fun showRedundant(a: Animal): String =
   match a
     case c: Cow => "Cow: " + c.origin
-    case s: Sheep => "Sheep: " + c.origin
+    case s: Sheep => "Sheep: " + s.origin
     case h: Herbivore => showHerbivore h   // error
     case c: Carnivore => showCarnivore c
 
