@@ -218,20 +218,10 @@ object Sast:
         case TypeApply(Ident(sym), _) if sym.isPattern => sym
         case _ => throw new Exception("expect a pattern predicate, found = " + fun)
 
-    for pat <- nested do
-      pat match
-        case AscribePattern(_, _: TypePattern | _: WildcardPattern) | _: WildcardPattern =>
-        case _ => assert(false, "expect ident, found = " + pat)
-
   case class TagPattern
     (tagTree: Literal, nested: List[Pattern])
     (val tpe: Type)
   extends Pattern:
-    for pat <- nested do
-      pat match
-        case AscribePattern(_, _: TypePattern | _: WildcardPattern) | _: WildcardPattern =>
-        case _ => assert(false, "expect ident, found = " + pat)
-
     val span = if nested.isEmpty then tagTree.span else tagTree.span | nested.last.span
 
     val tag = tagTree.constant match

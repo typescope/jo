@@ -286,7 +286,10 @@ object Ast:
       case TypeAscribe(_: Ident, _) => true
 
       case Apply(_: Tag | _: Ident, args) if args.nonEmpty =>
-        args.forall(_.isInstanceOf[Ident])
+        args.forall(isPattern)
+
+      case Expr(words) if words.nonEmpty =>
+        words.forall(isPattern)
 
       case _ =>
         false

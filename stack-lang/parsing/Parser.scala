@@ -292,15 +292,16 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val tparams = typeParams()
     val paramList = paramSection()
 
-    val resType =
-      if peek() == Token.COLON then
-        eat(Token.COLON)
-        typ()
-      else
-        EmptyTypeTree()(id.span)
+    eat(Token.COLON)
+    val resType = typ()
 
     eat(Token.EQL)
-    val body = pattern(pat.indent)
+    val item = peekItem()
+    if pat.indent.isUnindent(item.indent) then
+       error("Expect pattern, found nothing before the unindentation", item.span.toPos)
+       throw new SyntaxError
+
+    val body = pattern()
 
     eatEndOpt(pat.indent)
 
@@ -877,7 +878,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       if acc.nonEmpty then
         checkAlign(acc.head._2, caseItem)
 
-      val pat = pattern(caseItem.indent)
+      val pat = pattern()
       eat(Token.RARROW)
       val body = block(caseItem.indent)
       val caseDecl = Case(pat, body)(caseItem.span | body.span)
@@ -885,66 +886,83 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     else
       acc.map(_._1).toList
 
-  def apply_pattern(apply: Tag | Ident): Word =
-    val bindings =
-      if peek() == Token.LPAREN then
-        nested_patterns()
-      else
-        val ids = new mutable.ArrayBuffer[Ident]
-        while peek().isInstanceOf[Token.Ident] do
-          ids += ident()
-        ids.toList
+  def applyPattern(apply: Tag | Ident): Word =
+    val bindings = patternArgs()
+    val spanEnd = bindings.last.span
+    Apply(apply, bindings)(apply.span | spanEnd)
 
-    if bindings.isEmpty then
-      apply
-    else
-      val spanEnd = bindings.last.span
-      Apply(apply, bindings)(apply.span | spanEnd)
-
-  def nested_patterns(): List[Ident] =
-    val bindings = new mutable.ArrayBuffer[Ident]
+  def patternArgs(): List[Word] =
+    val nested = new mutable.ArrayBuffer[Word]
     eat(Token.LPAREN)
-    bindings += ident()
+    nested += pattern()
     var token = peek()
     while
       token == Token.COMMA
     do
       eat(Token.COMMA)
-      bindings += ident()
+      nested += pattern()
       token = peek()
 
     eat(Token.RPAREN)
-    bindings.toList
+    nested.toList
 
-  def type_pattern(id: Ident): Word =
+  def typePattern(id: Ident): Word =
     eat(Token.COLON)
     val tpt = simpleType()
     TypeAscribe(id, tpt)(id.span | tpt.span)
 
-  def pattern(indent: Indent): Word =
+  def pattern(): Word =
+    val indent = peekItem().indent
+
+    val words = new mutable.ArrayBuffer[Word]
+    words += simplePattern()
+    var item = peekItem()
+    while isSimplePatternStart(item.token) && !indent.isUnindent(item.indent) do
+      words += simplePattern()
+      item = peekItem()
+
+    if words.size == 1 then words(0)
+    else Expr(words.toList)(words.head.span | words.last.span)
+
+  def isSimplePatternStart(token: Token): Boolean =
+    token == Token.TAG || token.isInstanceOf[Token.Ident] || token == Token.LPAREN
+
+  def simplePattern(): Word =
     val item = peekItem()
 
-    if indent.isUnindent(item.indent) then
-       error("Expect pattern, found nothing before the unindentation", item.span.toPos)
-       throw new SyntaxError
-
     item.token match
-     case Token.TAG =>
-       val tagSign = next()
-       val id = ident()
-       val tag = Tag(id)(tagSign.span | id.span)
-       apply_pattern(tag)
+      case Token.TAG =>
+        val tagSign = next()
+        val id = ident()
+        val tag = Tag(id)(tagSign.span | id.span)
 
-     case Token.Ident(name) =>
-       val item = next()
-       val id = Ident(name)(item.span)
+        val item = peekItem()
+        if item.token == Token.LPAREN && item.span.followsImmediate(id.span) then
+          applyPattern(tag)
+        else
+          tag
 
-       peek() match
-         case Token.COLON    => type_pattern(id)
-         case _: Token.Ident => apply_pattern(id)
-         case _ => id
+      case Token.Ident(name) =>
+        val item = next()
+        val id = Ident(name)(item.span)
 
-     case _ =>
-       val item = next()
-       error("Expect a pattern, found = " + item.token, item.span.toPos)
-       Ident("_")(item.span)
+        val itemNext = peekItem()
+        itemNext.token match
+          case Token.COLON => typePattern(id)
+
+          case Token.LPAREN if itemNext.span.followsImmediate(id.span)  =>
+            applyPattern(id)
+
+          case _ => id
+
+
+      case Token.LPAREN =>
+        next()
+        val pat = pattern()
+        eat(Token.RPAREN)
+        pat
+
+      case _ =>
+        val item = next()
+        error("Expect a pattern, found = " + item.token, item.span.toPos)
+        throw new SyntaxError

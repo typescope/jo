@@ -11,7 +11,7 @@ pattern Some[T](value: T): #Some(v: T) =
 
 pattern None: #None = #None
 
-pattern InferRes(name: String, sex: Bool, age: Int) =
+pattern InferRes(name: String, sex: Bool, age: Int): Student =
   #Student name sex age
 
 pattern Type(s: Student): Student = s: Student

@@ -34,7 +34,7 @@ object Tokens:
     * - For a val or fun definition, the limit for rhs is the line indentation
     *   of `val` and `fun` respectively.
     *
-    * - For while/do, limit for the body is the line *   indentation of `do`.
+    * - For while/do, limit for the body is the line indentation of `do`.
     *
     * - For if/then/else, limit for the branches are the line indentations of
     *   `then` and `else` respectively.
