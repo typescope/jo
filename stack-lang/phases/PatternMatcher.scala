@@ -90,7 +90,8 @@ class PatternMatcher extends Phase[PatternMatcher.Context]:
     Block(implementPatDef(pdef))(VoidType, pdef.span)
 
   override def transformMatch(patmat: Match)(using ctx: Context): Word =
-    val Match(scrutinee, cases) = patmat
+    val Match(scrutineeRaw, cases) = patmat
+    val scrutinee = transform(scrutineeRaw)
     val scrutType = scrutinee.tpe
 
     given Source = ctx.owner.sourcePos.source
