@@ -5,7 +5,6 @@ import sast.*
 import sast.Sast.*
 import sast.Types.*
 import sast.Symbols.*
-import typing.Desugaring
 import typing.EffectAnalysis
 import reporting.Reporter
 
@@ -16,7 +15,6 @@ import scala.collection.mutable
   * - Optional context parameters are desugared to normal context parameters
   * - All transitive captures of context parameters are made explicit in objects
   * - Checks are performed for `allow`-clauses
-  * - Desugar short-cutting || and &&
   *
   * The desugaring for optional context parameters
   *
@@ -46,17 +44,20 @@ import scala.collection.mutable
 class NormalizeParams(using Reporter) extends Phase[NormalizeParams.Context]:
   val contextObject = NormalizeParams.CacheContext
 
+  val defn = Definitions.instance
+
   val NoneType = TagType("None", params = Nil)
 
   override def transform(nss: List[Namespace]): List[Namespace] =
-    given ctx: Context = contextObject.newContext()
+    val cache = EffectAnalysis.Cache()
+
     for
       ns <- nss
       defn <- ns.defs
     do
       defn match
         case fdef: FunDef =>
-          ctx.cache.code(fdef.symbol) = fdef
+          cache.code(fdef.symbol) = fdef
 
         case ParamDef(param, _) if param.is(Flags.Default) =>
           // First synthesize all symbols
@@ -67,11 +68,11 @@ class NormalizeParams(using Reporter) extends Phase[NormalizeParams.Context]:
           )
 
           val optionParamSym =
-            Symbol.createSymbol(param.name + "$option", optType, Flags.Context | Flags.Param, param.owner, param.sourcePos)
+            Symbol.createSymbol(param.name + "$option", optType, Flags.Context | Flags.Param | Flags.Synthetic, param.owner, param.sourcePos)
 
           val valueFunInfo = param.defaultFunction.info
           val valueFunSym =
-            Symbol.createSymbol(param.name + "$value", valueFunInfo, Flags.Fun, param.owner, param.sourcePos)
+            Symbol.createSymbol(param.name + "$value", valueFunInfo, Flags.Fun | Flags.Synthetic, param.owner, param.sourcePos)
 
           ns.info.define(optionParamSym)
           ns.info.define(valueFunSym)
@@ -80,7 +81,9 @@ class NormalizeParams(using Reporter) extends Phase[NormalizeParams.Context]:
       end match
     end for
 
-    for ns <- nss yield transformNamespace(ns)
+    for ns <- nss yield
+      given Context = NormalizeParams.Context(cache, ns.symbol)
+      transformNamespace(ns)
 
   /** Synthesize the following function for context parameter `a`:
     *
@@ -95,22 +98,23 @@ class NormalizeParams(using Reporter) extends Phase[NormalizeParams.Context]:
     val defaultFunSym = pdef.symbol.defaultFunction
     val optionParamSym = pdef.symbol.optionParam
 
-    val valueSym = Symbol.createValueSymbol(pdef.name + "Value", optionParamSym.info, valueFunSym, param.sourcePos)
+    val valueSym = Symbol.createSymbol(pdef.name + "Value", optionParamSym.info, Flags.Synthetic, valueFunSym, param.sourcePos)
     val vdef = ValDef(valueSym, Ident(optionParamSym)(pdef.span))(pdef.span)
 
-    val noneTypeEncoded = Desugaring.encodeTagType(NoneType)
+    val noneTypeEncoded = TaggedEncoding.encodeTagType(NoneType)
     val refOpt = Encoded(Ident(valueSym)(pdef.span))(noneTypeEncoded)
-    val cond = Desugaring.testVariantTag(refOpt, "None", pdef.span)
+    val cond = TaggedEncoding.testVariantTag(refOpt, "None", pdef.span)
     val trueBranch = Apply(Ident(defaultFunSym)(pdef.span), args = Nil)(param.info, pdef.span)
 
     val someType = TagType("Some", params = NamedInfo("value", param.info) :: Nil)
-    val falseBranch = Desugaring.selectVariantField(refOpt, someType, "value", pdef.span)
+    val falseBranch = TaggedEncoding.selectVariantField(refOpt, someType, "value", pdef.span)
 
     val ifStat = If(cond, trueBranch, falseBranch)(param.info, pdef.span)
 
+    val tpt = TypeTree(valueSym.info)(pdef.tpt.span)
     val body = Block(vdef :: ifStat :: Nil)(param.info, pdef.span)
 
-    FunDef(valueFunSym, tparams = Nil, params = Nil, body)(pdef.span)
+    FunDef(valueFunSym, tparams = Nil, params = Nil, tpt, body)(pdef.span)
 
   override def transformNamespace(ns: Namespace)(using ctx: Context): Namespace =
     val defs = ns.defs.flatMap:
@@ -131,28 +135,6 @@ class NormalizeParams(using Reporter) extends Phase[NormalizeParams.Context]:
 
     Namespace(ns.symbol, ns.imports, defs)(ns.span)
 
-  /** Desguar short-cutting || and &&
-    *
-    *     lhs || rhs    ===>    if lhs then true else rhs
-    *     lhs && rhs    ===>    if lhs then rhs  else false
-    */
-  override def transformApply(apply: Apply)(using ctx: Context): Word =
-    val Apply(fun, args) = apply
-    val defn = Definitions.instance
-
-    if fun.refersTo(defn.Predef_and) then
-      val lhs :: rhs :: Nil = args: @unchecked
-      val falseLit = BoolLit(false)(apply.tpe, rhs.span)
-      If(transform(lhs), transform(rhs), falseLit)(apply.tpe, apply.span)
-
-    else if fun.refersTo(defn.Predef_or) then
-      val lhs :: rhs :: Nil = args: @unchecked
-      val trueLit = BoolLit(true)(apply.tpe, lhs.span)
-      If(transform(lhs), trueLit, transform(rhs))(apply.tpe, apply.span)
-
-    else
-      super.transformApply(apply)
-
   /** Bind optional context parameters at program entry.
     *
     * Only bind optional context parameters whose default value are needed.
@@ -161,8 +143,6 @@ class NormalizeParams(using Reporter) extends Phase[NormalizeParams.Context]:
     */
   override  def transformFunDef(fdef: FunDef)(using ctx: Context): FunDef =
     if !fdef.symbol.isLocal && fdef.name == "main" then
-      val defn = Definitions.instance
-
       val effs = EffectAnalysis.effects(fdef.symbol)(using ctx.cache)
       val fdef2 = super.transformFunDef(fdef)
 
@@ -220,7 +200,7 @@ class NormalizeParams(using Reporter) extends Phase[NormalizeParams.Context]:
       val optionParamSym = param.optionParam
       val paramRef = Ident(optionParamSym)(span)
       val noneType = TagType("None", params = Nil)
-      val noneValue = Desugaring.encodeVariant(noneType, Nil, span, span)
+      val noneValue = TaggedEncoding.encodeVariant(noneType, Nil, span, span)
       WithArg(paramRef, noneValue)(span)
 
   /** Check `allow`-clause */
@@ -253,7 +233,7 @@ class NormalizeParams(using Reporter) extends Phase[NormalizeParams.Context]:
         if paramRef.symbol.is(Flags.Default) then
           val optionParamRef = Ident(paramRef.symbol.optionParam)(paramRef.span)
           val someType = TagType("Some", NamedInfo("value", paramRef.symbol.info) :: Nil)
-          val rhs2 = Desugaring.encodeVariant(someType, rhs :: Nil, paramRef.span, rhs.span)
+          val rhs2 = TaggedEncoding.encodeVariant(someType, rhs :: Nil, paramRef.span, rhs.span)
           WithArg(optionParamRef, rhs2)(arg.span)
         else
           arg
@@ -311,7 +291,7 @@ class NormalizeParams(using Reporter) extends Phase[NormalizeParams.Context]:
             val paramRef = Ident(eff)(span)
             aliasMap.get(eff) match
               case None =>
-                val alias = new Symbol("alias_" + eff.name, eff.info, Flags.Val, owner = ctx.owner, sourcePos = obj.pos)
+                val alias = Symbol.createSymbol("alias_" + eff.name, eff.info, Flags.Synthetic, owner = ctx.owner, pos = obj.pos)
                 aliasMap(eff) = ValDef(alias, paramRef)(span)
                 WithArg(paramRef, Ident(alias)(span))(span)
 
@@ -331,4 +311,4 @@ object NormalizeParams:
   class Context(val cache: EffectAnalysis.Cache, val owner: Symbol)
   object CacheContext extends Phase.ContextObject[Context]:
     def newContext(owner: Symbol, old: Context) = Context(old.cache, owner)
-    def newContext() = Context(EffectAnalysis.Cache(), null)
+    def newContext(namespace: Symbol) = throw new Exception("Namespace context should use global cache")

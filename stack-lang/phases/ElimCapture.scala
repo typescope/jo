@@ -51,7 +51,7 @@ object ElimCapture:
     val funType = ProcType(tparamInfos, paramInfos2, resType, fdef.receives, preParamCount = 0)
 
     val funName = ctx.flatName(fdef.symbol)
-    Symbol.createFunSymbol(funName, funType, oldFunSym.enclosingNamespace, oldFunSym.sourcePos)
+    Symbol.createSymbol(funName, funType, Flags.Fun | Flags.Synthetic, oldFunSym.enclosingNamespace, oldFunSym.sourcePos)
 
   /** The information for a lifted function
     *
@@ -121,14 +121,14 @@ object ElimCapture:
       val substs = mutable.Map.empty[Symbol, Symbol]
       val paramSymsCaptured =
         for capture <- captures yield
-          val sym = Symbol.createValueSymbol(capture.name, capture.info, funSym, fdef.symbol.sourcePos)
+          val sym = Symbol.createSymbol(capture.name, capture.info, Flags.Synthetic, funSym, fdef.symbol.sourcePos)
           substs(capture) = sym
           sym
 
       val lifter = new Lifter(funSym)
       val body = lifter(fdef.body)(using ctx.withSubsts(substs.toMap))
       val params = fdef.params ++ paramSymsCaptured
-      ctx.lifted += FunDef(funSym, fdef.tparams, params, body)(fdef.span)
+      ctx.lifted += FunDef(funSym, fdef.tparams, params, fdef.resultType, body)(fdef.span)
 
       Block(words = Nil)(VoidType, fdef.span)
 
@@ -184,7 +184,7 @@ object ElimCapture:
          ObjectType(objType.fields ++ capturedMembers.toList, objType.methods, objType.mutableFields)
 
       val thisTypeName = ctx.uniq.freshName("ThisType")
-      val thisTypeAliasSym = Symbol.createTypeSymbol(thisTypeName, infoProvider, owner.enclosingNamespace, obj.self.sourcePos)
+      val thisTypeAliasSym = Symbol.createSymbol(thisTypeName, infoProvider, Flags.Type | Flags.Synthetic, owner.enclosingNamespace, obj.self.sourcePos)
       val thisType = TypeRef(thisTypeAliasSym)
       ctx.lifted += TypeDef(thisTypeAliasSym)(obj.span)
 
@@ -213,14 +213,14 @@ object ElimCapture:
 
         members += fdef.name -> Ident(liftedSym)(fdef.span)
 
-        val paramThis = Symbol.createParamSymbol("this", thisType, liftedSym, fdef.symbol.sourcePos)
+        val paramThis = Symbol.createSymbol("this", thisType, Flags.Param, liftedSym, fdef.symbol.sourcePos)
 
         val substs = mutable.Map.empty[Symbol, Symbol]
         val aliases = new mutable.ArrayBuffer[Assign]
         for capture <- transitiveCapture(fdef) if capture != obj.self do
           // Rewiring is important -- the captured variable might have been rebound
           val capture2 = rewire(capture)
-          val subst = Symbol.createValueSymbol(capture2.name, capture2.info, liftedSym, fdef.symbol.sourcePos)
+          val subst = Symbol.createSymbol(capture2.name, capture2.info, Flags.Synthetic, liftedSym, fdef.symbol.sourcePos)
           val lhs = Ident(subst)(span)
           val rhs = Select(Ident(paramThis)(span), captureToField(capture2))(capture2.info, span)
           aliases += Assign(lhs, rhs)(span)
@@ -233,7 +233,7 @@ object ElimCapture:
         val body2 = Block(aliases.toList :+ body)(body.tpe, body.span)
         val params = paramThis :: fdef.params
 
-        ctx.lifted += FunDef(liftedSym, fdef.tparams, params, body2)(fdef.span)
+        ctx.lifted += FunDef(liftedSym, fdef.tparams, params, fdef.resultType, body2)(fdef.span)
       end for
 
       val recordType = RecordType(memberTypes.toList)
@@ -268,7 +268,7 @@ object ElimCapture:
             Apply(Encoded(proc)(liftedProcType), qual2 :: args2)(app.tpe, app.span)
           else
             given Positions.Source = owner.sourcePos.source
-            val receiverSym = Symbol.createValueSymbol("o", qual2.tpe, owner, qual2.pos)
+            val receiverSym = Symbol.createSymbol("o", qual2.tpe, Flags.Synthetic, owner, qual2.pos)
             val receiver = Ident(receiverSym)(qual2.span)
             val assign = Assign(Ident(receiverSym)(qual2.span), qual2)(qual2.span)
             val proc = Select(receiver, name)(procType, fun.span)
@@ -289,7 +289,7 @@ object ElimCapture:
             Apply(fun2, qual2 :: args2)(app.tpe, app.span)
           else
             given Positions.Source = owner.sourcePos.source
-            val receiverSym = Symbol.createValueSymbol("o", qual2.tpe, owner, qual2.pos)
+            val receiverSym = Symbol.createSymbol("o", qual2.tpe, Flags.Synthetic, owner, qual2.pos)
             val receiver = Ident(receiverSym)(qual2.span)
             val assign = Assign(Ident(receiverSym)(qual2.span), qual2)(qual2.span)
             val meth = Encoded(Select(receiver, name)(procType, fun.span))(liftedProcType)
@@ -364,7 +364,7 @@ object ElimCapture:
             capture <- captures if capture.isLocal
           do
             // Global captures is also in the census, only care about locals.
-            if capture.is(Flags.Val) && !all.contains(capture) then
+            if !capture.is(Flags.Fun) && !all.contains(capture) then
               all += capture
             else if capture.is(Flags.Fun) then
               recur(this.localDefs(capture))

@@ -29,6 +29,9 @@ object Sast:
     def ensureDropValue: Word =
       if this.tpe.isValueType then dropValue else this
 
+    def dropIfVoid(target: Type): Word =
+      if target.isVoidType then dropValue else this
+
     def show: String = Printing.show(this)
 
     /** Whether the word can be duplicated as neighbors without affecting program semantics */
@@ -69,6 +72,14 @@ object Sast:
     (args: List[(String, Word)])
     (val tpe: Type, val span: Span)
   extends Word
+
+  case class TaggedLit
+    (tagTree: Literal, args: List[Word])
+    (val tpe: Type, val span: Span)
+  extends Word:
+    val tag = tagTree.constant match
+      case Constant.String(name) => name
+      case c => throw new Exception("Expect string, found = " + c)
 
   case class Ident
     (symbol: Symbol)
@@ -175,6 +186,70 @@ object Sast:
   extends Tree
 
   //----------------------------------------------------------------------------
+  // patterns
+
+  sealed trait Pattern extends Tree:
+    val tpe: Type
+
+  case class TypePattern
+    (tpt: TypeTree)
+  extends Pattern:
+    val tpe: Type = tpt.tpe
+    val span: Span = tpt.span
+
+  case class WildcardPattern
+    ()
+    (val tpe: Type, val span: Span)
+  extends Pattern
+
+  case class AscribePattern
+    (id: Ident, nested: Pattern)
+  extends Pattern:
+    val tpe = nested.tpe
+    val span = id.span | nested.span
+
+  case class ApplyPattern
+    (fun: Word, nested: List[Pattern])
+    (val tpe: Type, val span: Span)
+  extends Pattern:
+    val symbol =
+      fun match
+        case Ident(sym) if sym.isPattern => sym
+        case TypeApply(Ident(sym), _) if sym.isPattern => sym
+        case _ => throw new Exception("expect a pattern predicate, found = " + fun)
+
+    for pat <- nested do
+      pat match
+        case AscribePattern(_, _: TypePattern | _: WildcardPattern) | _: WildcardPattern =>
+        case _ => assert(false, "expect ident, found = " + pat)
+
+  case class TagPattern
+    (tagTree: Literal, nested: List[Pattern])
+    (val tpe: Type)
+  extends Pattern:
+    for pat <- nested do
+      pat match
+        case AscribePattern(_, _: TypePattern | _: WildcardPattern) | _: WildcardPattern =>
+        case _ => assert(false, "expect ident, found = " + pat)
+
+    val span = if nested.isEmpty then tagTree.span else tagTree.span | nested.last.span
+
+    val tag = tagTree.constant match
+      case Constant.String(name) => name
+      case c => throw new Exception("Expect string, found = " + c)
+
+  case class Match
+    (scrutinee: Word, cases: List[Case])
+    (val tpe: Type, val span: Span)
+  extends Word
+
+  case class Case
+    (pattern: Pattern, body: Word)
+    (val span: Span)
+  extends Tree:
+    def tpe = body.tpe
+
+  //----------------------------------------------------------------------------
   // definitions
 
   sealed trait Def extends Tree:
@@ -204,7 +279,7 @@ object Sast:
     * @param locals contains a list of local value symbols (excluding params)
     */
   case class FunDef
-    (symbol: Symbol, tparams: List[Symbol], params: List[Symbol], body: Word)
+    (symbol: Symbol, tparams: List[Symbol], params: List[Symbol], resultType: TypeTree, body: Word)
     (val span: Span)
   extends Word, Def:
     private lazy val census: (List[Symbol], List[Symbol]) =
@@ -219,6 +294,12 @@ object Sast:
 
     def methodReceives: List[Symbol] = receives.getOrElse(Nil)
 
+  /** Represents a pattern definition */
+  case class PatDef
+    (symbol: Symbol, tparams: List[Symbol], params: List[Symbol], resultType: TypeTree, body: Pattern)
+    (val span: Span)
+  extends Word, Def:
+    def procType: ProcType = symbol.info.asProcType
 
   case class Namespace
     (symbol: Symbol, imports: List[Symbol], defs: List[Def])

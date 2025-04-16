@@ -4,21 +4,23 @@ object Flags:
   opaque type Flag <: Flags = Long
   opaque type Flags = Long
 
-  val Fun     : Flag = 1 << 0
-  val Val     : Flag = 1 << 1
+  val Fun     : Flag = 1 << 1
   val Type    : Flag = 1 << 2
-  val NSpace  : Flag = 1 << 3
-  val Method  : Flag = 1 << 4
-
-  // val flags
-  val Param   : Flag = 1 << 5  // a parameter
-  val Mutable : Flag = 1 << 6  // a mutable variable
-  val Context : Flag = 1 << 7  // context parameter or its default function
-  val Field   : Flag = 1 << 8  // an object field
-  val Default : Flag = 1 << 9  // context parameters with default value
+  val Pattern : Flag = 1 << 3
+  val NSpace  : Flag = 1 << 4
+  val Method  : Flag = 1 << 5
 
   // namespace flags
-  val Branch  : Flag = 1 << 5  // branch name space
+  val Branch  : Flag = 1 << 6  // branch name space
+
+  // val flags
+  val Param   : Flag = 1 << 8   // a parameter
+  val Mutable : Flag = 1 << 9   // a mutable variable
+  val Context : Flag = 1 << 10  // context parameter or its default function
+  val Field   : Flag = 1 << 11  // an object field
+  val Default : Flag = 1 << 12  // context parameters with default value
+
+  val Synthetic: Flag = 1 << 63 // a compiler-synthesized symbol
 
   val empty   : Flags = 0
 

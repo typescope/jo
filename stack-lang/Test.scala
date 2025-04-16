@@ -5,8 +5,7 @@ import scala.io.Source
 
 import common.Dynamic
 import common.IO
-import parsing.Parser
-import typing.Namer
+import phases.FrontEnd
 
 import reporting.Reporter
 import reporting.Reporter.FatalError
@@ -28,8 +27,6 @@ object Test:
 
     Dynamic.reset()
 
-    val noramlizer = new phases.NormalizeParams
-
     val sourceFiles =
       if IO.isFile(test) then test :: Nil
       else IO.list(test).filter(_.endsWith(".stk"))
@@ -37,10 +34,7 @@ object Test:
     try
       val stdLib = "lib/Predef.stk" :: Nil
       val runtimeFiles = Nil
-      val nss = Parser.parse(sourceFiles)
-
-      Namer.transform(nss, stdLib, runtimeFiles) |>
-      noramlizer.transform
+      FrontEnd.run(stdLib, runtimeFiles, sourceFiles)
 
       verifyErrors(sourceFiles, rp.reports)
     catch

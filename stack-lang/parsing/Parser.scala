@@ -170,16 +170,17 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         case _ =>
           Ident("__empty__")(Span(0, 0))
 
-    val errorSkipImport = Set(Token.IMPORT, Token.TYPE, Token.FUN, Token.PARAM)
+    val errorSkipImport = Set(Token.IMPORT, Token.TYPE, Token.FUN, Token.PARAM, Token.PATTERN)
     val imports = repeated(errorSkipImport):
       if peek() == Token.IMPORT then Some(importStat())
       else None
 
-    val errorSkipDef = Set(Token.TYPE, Token.FUN, Token.PARAM)
+    val errorSkipDef = Set(Token.TYPE, Token.FUN, Token.PARAM, Token.PATTERN)
     val defs = repeated(errorSkipDef):
         if peek() == Token.TYPE then Some(typeDef())
         else if peek() == Token.FUN then Some(funDef())
         else if peek() == Token.PARAM then Some(paramDef())
+        else if peek() == Token.PATTERN then Some(patDef())
         else
           val item = peekItem()
           if item.token != Token.EOF then
@@ -284,6 +285,26 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       else
         None
     ParamDef(id, tpt, default)(token.span | tpt.span)
+
+  def patDef(): PatDef =
+    val pat = eat(Token.PATTERN)
+    val id = ident()
+    val tparams = typeParams()
+    val paramList = paramSection()
+
+    val resType =
+      if peek() == Token.COLON then
+        eat(Token.COLON)
+        typ()
+      else
+        EmptyTypeTree()(id.span)
+
+    eat(Token.EQL)
+    val body = pattern(pat.indent)
+
+    eatEndOpt(pat.indent)
+
+    PatDef(id, tparams, paramList, resType, body)(pat.span | body.span)
 
   def paramSection(): List[Param] =
     if peek() == Token.LPAREN then params() else Nil
@@ -856,7 +877,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       if acc.nonEmpty then
         checkAlign(acc.head._2, caseItem)
 
-      val pat = pattern()
+      val pat = pattern(caseItem.indent)
       eat(Token.RARROW)
       val body = block(caseItem.indent)
       val caseDecl = Case(pat, body)(caseItem.span | body.span)
@@ -864,23 +885,23 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     else
       acc.map(_._1).toList
 
-  def product_pattern(): Word =
-    val tagSign = eat(Token.TAG)
-    val id = ident()
-    val tag = Tag(id)(tagSign.span | id.span)
+  def apply_pattern(apply: Tag | Ident): Word =
     val bindings =
       if peek() == Token.LPAREN then
-        pattern_bindings()
+        nested_patterns()
       else
         val ids = new mutable.ArrayBuffer[Ident]
         while peek().isInstanceOf[Token.Ident] do
           ids += ident()
         ids.toList
 
-    val spanEnd = if bindings.isEmpty then tag.span else bindings.last.span
-    Apply(tag, bindings)(tagSign.span | spanEnd)
+    if bindings.isEmpty then
+      apply
+    else
+      val spanEnd = bindings.last.span
+      Apply(apply, bindings)(apply.span | spanEnd)
 
-  def pattern_bindings(): List[Ident] =
+  def nested_patterns(): List[Ident] =
     val bindings = new mutable.ArrayBuffer[Ident]
     eat(Token.LPAREN)
     bindings += ident()
@@ -900,16 +921,28 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val tpt = simpleType()
     TypeAscribe(id, tpt)(id.span | tpt.span)
 
-  def pattern(): Word =
-    peek() match
+  def pattern(indent: Indent): Word =
+    val item = peekItem()
+
+    if indent.isUnindent(item.indent) then
+       error("Expect pattern, found nothing before the unindentation", item.span.toPos)
+       throw new SyntaxError
+
+    item.token match
      case Token.TAG =>
-       product_pattern()
+       val tagSign = next()
+       val id = ident()
+       val tag = Tag(id)(tagSign.span | id.span)
+       apply_pattern(tag)
 
      case Token.Ident(name) =>
        val item = next()
        val id = Ident(name)(item.span)
-       if peek() == Token.COLON then type_pattern(id)
-       else id
+
+       peek() match
+         case Token.COLON    => type_pattern(id)
+         case _: Token.Ident => apply_pattern(id)
+         case _ => id
 
      case _ =>
        val item = next()

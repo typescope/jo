@@ -100,6 +100,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       case "object"    => Token.OBJECT
       case "def"       => Token.DEF
       case "receives"  => Token.RECEIVES
+      case "pattern"   => Token.PATTERN
       case name        => Token.Ident(name)
 
   def operator(): Token =

@@ -5,6 +5,7 @@ Fix #XXX: A short description
 - [ ] specify syntax
 - [ ] token & scanner
 - [ ] ast & parsing syntax
+- [ ] flags & symbols & name table
 - [ ] types & subtyping
 - [ ] sast & type checking
 - [ ] context check & transform

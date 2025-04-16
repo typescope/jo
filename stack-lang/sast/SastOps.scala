@@ -22,6 +22,8 @@ object SastOps:
 
         case rc: RecordLit => transformRecord(rc)
 
+        case tag: TaggedLit => transformTagged(tag)
+
         case encoding: Encoded => transformEncoded(encoding)
 
         case apply: Apply => transformApply(apply)
@@ -40,6 +42,8 @@ object SastOps:
 
         case fdef: FunDef => transformFunDef(fdef)
 
+        case pdef: PatDef => transformPatDef(pdef)
+
         case tdef: TypeDef => transformTypeDef(tdef)
 
         case ifElse: If => transformIf(ifElse)
@@ -47,6 +51,8 @@ object SastOps:
         case whileDo: While => transformWhile(whileDo)
 
         case block: Block => transformBlock(block)
+
+        case patmat: Match => transformMatch(patmat)
 
         case obj: Object => transformObject(obj)
     end transform
@@ -58,6 +64,8 @@ object SastOps:
     def transformSelect(select: Select)(using Context): Word = recur(select)
 
     def transformRecord(rc: RecordLit)(using Context): Word = recur(rc)
+
+    def transformTagged(tagged: TaggedLit)(using Context): Word = recur(tagged)
 
     def transformEncoded(encoding: Encoded)(using Context): Word = recur(encoding)
 
@@ -77,11 +85,15 @@ object SastOps:
 
     def transformFunDef(fdef: FunDef)(using Context): Word = recurFunDef(fdef)
 
+    def transformPatDef(pdef: PatDef)(using Context): Word = recurPatDef(pdef)
+
     def transformTypeDef(tdef: TypeDef)(using Context): TypeDef = recurTypeDef(tdef)
 
     def transformIf(ifElse: If)(using Context): Word = recur(ifElse)
 
     def transformWhile(whileDo: While)(using Context): Word = recur(whileDo)
+
+    def transformMatch(patmat: Match)(using Context): Word = recur(patmat)
 
     def transformBlock(block: Block)(using Context): Word = recur(block)
 
@@ -95,6 +107,8 @@ object SastOps:
       fdef.copy(body = body)(fdef.span)
 
     private def recurTypeDef(tdef: TypeDef)(using Context): TypeDef = tdef
+
+    private def recurPatDef(pdef: PatDef)(using Context): PatDef = pdef
 
     final def recur(word: Word)(using Context): Word =
       word match
@@ -111,6 +125,10 @@ object SastOps:
             case (f, rhs) => f -> this(rhs)
 
           RecordLit(fields2)(word.tpe, word.span)
+
+        case TaggedLit(tag, args) =>
+          val args2 = args.map(this.apply)
+          TaggedLit(tag, args2)(word.tpe, word.span)
 
         case Encoded(repr) =>
           Encoded(this(repr))(word.tpe)
@@ -142,6 +160,8 @@ object SastOps:
 
         case fdef: FunDef => recurFunDef(fdef)
 
+        case pdef: PatDef => recurPatDef(pdef)
+
         case tdef: TypeDef => recurTypeDef(tdef)
 
         case If(cond, thenp, elsep) =>
@@ -149,6 +169,13 @@ object SastOps:
 
         case While(cond, body) =>
           While(this(cond), this(body))(word.span)
+
+        case Match(scrutinee, cases) =>
+          val cases2 =
+            for branch <- cases
+            yield branch.copy(branch.pattern, this(branch.body))(branch.span)
+
+          Match(this(scrutinee), cases2)(word.tpe, word.span)
 
         case Block(words) =>
           Block(words.map(this.apply))(word.tpe, word.span)
@@ -173,10 +200,13 @@ object SastOps:
 
     def recurParamDef(pdef: ParamDef)(using Context): Unit = ()
 
+    def recurPatDef(pdef: PatDef)(using Context): Unit = ()
+
     def recurDef(defn: Def)(using Context): Unit =
       defn match
         case vdef: ValDef   => recurValDef(vdef)
         case fdef: FunDef   => recurFunDef(fdef)
+        case pdef: PatDef   => recurPatDef(pdef)
         case tdef: TypeDef  => recurTypeDef(tdef)
         case pdef: ParamDef => recurParamDef(pdef)
 
@@ -190,6 +220,9 @@ object SastOps:
         case RecordLit(fields) =>
           fields.foreach:
             case (f, rhs) => this(rhs)
+
+        case TaggedLit(tag, args) =>
+          args.foreach(this.apply)
 
         case Encoded(repr) =>
           this(repr)
@@ -224,6 +257,8 @@ object SastOps:
 
         case tdef: TypeDef => recurTypeDef(tdef)
 
+        case pdef: PatDef =>
+
         case If(cond, thenp, elsep) =>
           this(cond)
           this(thenp)
@@ -235,6 +270,10 @@ object SastOps:
 
         case Block(words) =>
           words.foreach(this.apply)
+
+        case Match(scrutinee, cases) =>
+          this(scrutinee)
+          for Case(_, body) <- cases do this(body)
 
         case Object(self, vals, defs) =>
           vals.map(recurValDef)

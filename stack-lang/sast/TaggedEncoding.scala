@@ -1,7 +1,5 @@
-package typing
+package sast
 
-import sast.Definitions
-import sast.Constant
 import sast.Types.*
 import sast.Sast.*
 import ast.Positions.{ Span, SourcePosition }
@@ -10,11 +8,11 @@ import reporting.Reporter
 
 import scala.collection.mutable
 
-/** Desugaring logic
+/** Encoding of tagged values
   *
   * Tagged values are desugared to record types
   */
-object Desugaring:
+object TaggedEncoding:
   def getTagCode(tag: String): Int =
     // Take the first 2 char and the last 2 chars
     var code = 0
@@ -68,7 +66,7 @@ object Desugaring:
     selectVariantField(value, tagType, fieldIndex, span)
 
   def selectVariantField(value: Word, tagType: TagType, argIndex: Int, span: Span): Word =
-    val encodeType = Desugaring.encodeTagType(tagType)
+    val encodeType = TaggedEncoding.encodeTagType(tagType)
     val qualEncoded = Encoded(value)(encodeType)
 
     val fieldName = "v" + argIndex

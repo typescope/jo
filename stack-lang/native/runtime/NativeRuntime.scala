@@ -14,11 +14,11 @@ import native.Assembler.PatchableBuffer
 class NativeRuntime(
   runtimeRootNameTable: NameTable, linkers: List[Linker], userMain: Symbol)
 extends Linker:
-  import runtimeRootNameTable.resolvePath
+  import runtimeRootNameTable.resolveNamespace
 
   val defn = Definitions.instance
 
-  val Core = resolvePath("stk.runtime.native.Core")
+  val Core = resolveNamespace("stk.runtime.native.Core")
 
   val Core_Addr = Core.typeMember("Addr")
 
@@ -57,10 +57,10 @@ extends Linker:
   val Core_intToChar  = Core.termMember("intToChar")
   val Core_intToStr   = Core.termMember("intToStr")
 
-  val GC = resolvePath("stk.runtime.native.GC")
+  val GC = resolveNamespace("stk.runtime.native.GC")
   val GC_alloc = GC.termMember("alloc")
 
-  val ParamSupport = resolvePath("stk.runtime.native.ParamSupport")
+  val ParamSupport = resolveNamespace("stk.runtime.native.ParamSupport")
   val ParamSupport_getParam = ParamSupport.termMember("getParam")
   val ParamSupport_setParam = ParamSupport.termMember("setParam")
   val ParamSupport_getLastOverwrittenValue = ParamSupport.termMember("getLastOverwrittenValue")

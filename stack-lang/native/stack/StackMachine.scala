@@ -85,7 +85,9 @@ extends Backend(runtime):
 
       case _: TypeDef =>
 
-      case _: ValDef | _: FunDef  | _: With | _: Allow | _: Select | _: FieldAssign | _: RecordLit | _: Object =>
+      case _: ValDef | _: FunDef  | _: With | _: Allow | _: Select |
+           _: FieldAssign | _: RecordLit | _: Object | _: Match |
+           _: TaggedLit | _: PatDef =>
         throw new Exception("Unexpected " + word)
 
   /** Compile a function */
@@ -257,20 +259,20 @@ extends Backend(runtime):
 
   /** Compile a reference */
   def compile(ref: Ident)(using addr: LocalAddr, cb: CodeBuffer): Unit =
-    if ref.symbol.isValue then
+    val sym = ref.symbol
+    if sym.is(Flags.Fun) then
+      val label = getFunAddress(sym)
+      push(label)
+    else
       val loc =
-        if ref.symbol.isLocal then
-          addr(ref.symbol)
+        if sym.isLocal then
+          addr(sym)
         else
-          throw new Exception("accessing non-local variable " + ref.symbol)
+          throw new Exception("accessing non-local variable " + sym + ", owner = " + sym.owner)
 
       useReg: r =>
         cb.add(Instr.Load(loc, r, Size.B32))
         push(Reg(r))
-    else
-      assert(ref.symbol.is(Flags.Fun))
-      val label = getFunAddress(ref.symbol)
-      push(label)
 
   /** Compile function call */
   def compile(app: Apply)(using LocalAddr, CodeBuffer): Unit =

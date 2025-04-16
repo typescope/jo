@@ -45,7 +45,10 @@ object Ast:
   case class Ident
     (name: String)
     (val span: Span)
-  extends Word, RefTree
+  extends Word, RefTree:
+    assert(name.nonEmpty, "name is empty")
+
+    def isCapitalized: Boolean = Character.isUpperCase(name.charAt(0))
 
   case class Apply
     (fun: Word, args: List[Word])
@@ -102,15 +105,7 @@ object Ast:
     (pat: Word, body: Word)
     (val span: Span)
   extends Tree:
-    pat match
-      case _: Tag | _: Ident =>
-
-      case TypeAscribe(_: Ident, _) =>
-
-      case Apply(_: Tag, args) if args.forall(_.isInstanceOf[Ident]) =>
-
-      case _ =>
-        assert(false, "Ill-formed pattern tree: " + pat)
+    assert(isPattern(pat), "Ill-formed pattern tree: " + pat)
 
   case class Fence
     (phrase: Word)
@@ -228,7 +223,7 @@ object Ast:
     */
   case class FunDef
     (ident: Ident, tparams: List[TypeParam], params: List[Param],
-        resType: TypeTree, receives: Option[List[RefTree]], body: Word,
+        resultType: TypeTree, receives: Option[List[RefTree]], body: Word,
         preParamCount: Int)
     (val span: Span)
   extends Word, Def:
@@ -237,6 +232,13 @@ object Ast:
       param <- params
     do
       assert(isQualid(param), param)
+
+  /** Representation of a pattern definition */
+  case class PatDef
+    (ident: Ident, tparams: List[TypeParam], params: List[Param], resultType: TypeTree, body: Word)
+    (val span: Span)
+  extends Word, Def:
+    assert(isPattern(body), "Ill-formed pattern tree: " + body)
 
   case class Param
     (ident: Ident, typ: TypeTree)
@@ -276,3 +278,15 @@ object Ast:
       case Select(qual, name) => isQualid(qual)
 
       case _ => false
+
+  def isPattern(pat: Word): Boolean =
+    pat match
+      case _: Tag | _: Ident => true
+
+      case TypeAscribe(_: Ident, _) => true
+
+      case Apply(_: Tag | _: Ident, args) if args.nonEmpty =>
+        args.forall(_.isInstanceOf[Ident])
+
+      case _ =>
+        false

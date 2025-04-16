@@ -44,7 +44,7 @@ extends Backend(runtime):
     *
     * Its type does not matter.
     */
-  val returnAddrSym = Symbol.createParamSymbol("return", AnyType, owner = runtime.Core, pos = runtime.Core.sourcePos)
+  val returnAddrSym = Symbol.createSymbol("return", AnyType, Flags.Synthetic, owner = runtime.Core, pos = runtime.Core.sourcePos)
 
   def freshVirtualReg()(using ctx: Context): Int =
     ctx.generator.fresh()
@@ -102,7 +102,9 @@ extends Backend(runtime):
 
       case _: TypeDef =>
 
-      case _: ValDef | _: FunDef | _: With | _: Allow | _: Select | _: FieldAssign | _: RecordLit | _: Object =>
+      case _: ValDef | _: FunDef | _: With | _: Allow | _: Select |
+           _: FieldAssign | _: RecordLit | _: Object | _: Match |
+           _: TaggedLit | _: PatDef =>
         throw new Exception("Unexpected " + word)
 
   def load(loc: Location, dest: Int, base: Rel)(using Context): Unit =
@@ -131,14 +133,12 @@ extends Backend(runtime):
     ctx.setRegForLocal(param, paramReg)
     load(loc, paramReg, base)
 
-  def compileFunDef(fdef: FunDef)(using cb: CodeBuffer): Unit =
-    // println(fdef.symbol.fullName.toString + ":")
-
+  def compileFunDef(fdef: FunDef)(using cb: CodeBuffer): Unit = try
     val sym = fdef.symbol
     val ctx = freshFunctionContext(sym)
+
     val proto = compile(fdef)(using ctx)
 
-    // println(sym.toString + ":")
     // println(ctx.buffer.show)
 
     // perform register allocation
@@ -147,6 +147,10 @@ extends Backend(runtime):
     doGraphColoring(
       label, ctx.buffer.getResult(), registerConfig, proto.savedRegs, cb,
       ctx.generator, rules)
+  catch
+    case e: Throwable =>
+      println(fdef.show)
+      throw e
 
   /** Compile a function */
   def compile(fdef: FunDef)(using ctx: Context): Protocol =
@@ -344,13 +348,18 @@ extends Backend(runtime):
     val rhsValue = ctx.vs.pop()
     val instr =
       if sym.isLocal then Instr.Move(rhsValue, ctx.getRegForLocal(sym))
-      else throw new Exception("assigning to non-local " + sym)
+      else throw new Exception("assigning to non-local " + sym + ", owner = " + sym.owner)
     gen(instr)
 
   /** Compile a reference to a name that produces a runtime value */
   def compile(id: Ident)(using ctx: Context): Unit =
     val sym = id.symbol
-    if sym.isValue then
+    if sym.is(Flags.Fun) then
+      val target = getFunAddress(id.symbol)
+      val targetReg = freshVirtualReg()
+      gen(Instr.Move(target, targetReg))
+      ctx.vs.push(Reg(targetReg))
+    else
       if sym.isLocal then
         val reg = ctx.getRegForLocal(sym)
         ctx.vs.push(Reg(reg))
@@ -359,12 +368,6 @@ extends Backend(runtime):
         // val reg = freshVirtualReg()
         // val addr = getAddress(sym)
         // gen(Instr.Load(addr, reg))
-    else
-      assert(sym.is(Flags.Fun))
-      val target = getFunAddress(id.symbol)
-      val targetReg = freshVirtualReg()
-      gen(Instr.Move(target, targetReg))
-      ctx.vs.push(Reg(targetReg))
 
   /** Compile function call */
   def compile(app: Apply)(using ctx: Context): Unit =

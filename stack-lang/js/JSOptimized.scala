@@ -205,7 +205,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
 
       case Assign(Ident(sym), rhs) =>
         runLast(rhs): t =>
-          if sym.isMutable then
+          if sym.isMutable || sym.isPattern then
             sym ~ " = " ~ t ~ ";" ~ cont()
           else
             "const " ~ sym ~ " = " ~ t ~ ";" ~ cont()
@@ -250,7 +250,9 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
       case _: TypeDef =>
         cont()
 
-      case _: ValDef | _: FunDef |  _: With | _: Allow | _: Object =>
+      case _: ValDef | _: FunDef |  _: With | _: Allow | _: Object | _: Match |
+           _: TaggedLit | _: PatDef =>
+
         throw new Exception("Unexpected " + word)
 
   /** Compile a function */
@@ -264,7 +266,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
     val jsFunName = jsName(sym)
 
     unique.newScope:
-      val locals = fdef.locals.filter(_.isMutable).map("var " ~ _ ~ ";" ~ Text.BreakLine)
+      val locals = fdef.locals.filter(sym => sym.isMutable || sym.isPattern).map("var " ~ _ ~ ";" ~ Text.BreakLine)
       "function " ~ jsFunName ~ "(" ~ rep(fdef.params, Text(", ")) ~ ")" ~ " {" ~ indent:
           if resCount == 0 then
             rep(locals, Text.Empty) ~ fdef.body

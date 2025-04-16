@@ -28,7 +28,7 @@ object Types:
 
     def isUnionType: Boolean =
        // No polymorphism over union type thus only dealias no approximation
-      dealias.isInstanceOf[UnionType]
+      widen.dealias.isInstanceOf[UnionType]
 
     /** Is the type a reference to a type alias */
     def isTypeRef: Boolean =
@@ -86,7 +86,7 @@ object Types:
 
     def asUnionType: UnionType =
       // No polymorphism over union type thus only dealias no approximation
-      dealias.asInstanceOf[UnionType]
+      widen.dealias.asInstanceOf[UnionType]
 
     def asTagType: TagType =
       TypeOps.approx(this, isUp = true).asInstanceOf[TagType]
@@ -170,6 +170,9 @@ object Types:
         case recordType: RecordType =>
           recordType.getFieldType(name)
 
+        case tagType: TagType =>
+          tagType.getParamType(name)
+
         case objectType: ObjectType =>
           objectType.getMemberType(name)
 
@@ -233,17 +236,17 @@ object Types:
       getFieldType(name).get
 
   case class UnionType(branches: List[TagType]) extends Type:
+    private val tagsMap = branches.map(b => b.tag -> b).toMap
+
+    assert(tagsMap.size == branches.size, "Duplicate tags = " + branches)
+
     val tags: List[String] = branches.map(_.tag)
 
-    def getTagType(tag: String): Option[TagType] =
-      branches.collectFirst:
-        case tp: TagType if tp.tag == tag => tp
+    def getTagType(tag: String): Option[TagType] = tagsMap.get(tag)
 
-    def hasTag(tag: String): Boolean =
-      tags.contains(tag)
+    def hasTag(tag: String): Boolean = tagsMap.contains(tag)
 
-    def tagType(tag: String): TagType =
-      getTagType(tag).get
+    def tagType(tag: String): TagType = tagsMap(tag)
 
     def tagIndex(tag: String): Int =
       branches.indexWhere:
@@ -255,7 +258,16 @@ object Types:
 
     def hasParam(name: String): Boolean = params.exists(_.name == name)
 
+    def getParamType(name: String): Option[Type] =
+      params.find(_.name == name).map(_.info)
+
     def paramIndex(name: String): Int = params.indexWhere(_.name == name)
+
+  object TagType:
+    def from(tag: String, paramTypes: List[Type]) =
+      val params =
+        paramTypes.zipWithIndex.map { case (tp, i) => NamedInfo("_" + (i + 1), tp) }
+      this(tag, params)
 
   /** The type of an object */
   case class ObjectType(
@@ -355,4 +367,4 @@ object Types:
   class NameTableInfo(val nameTable: NameTable) extends Type:
     def this() = this(new NameTable)
 
-    export nameTable.{ resolve, resolveType, resolveTerm, define }
+    export nameTable.{ resolveType, resolveTerm, resolvePattern, define }

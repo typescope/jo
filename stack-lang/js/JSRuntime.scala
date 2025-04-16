@@ -8,7 +8,7 @@ import Symbols.Symbol
   * Run-time symbols are only available to the compiler.
   */
 class JSRuntime(runtimeRootNameTable: NameTable, main: Symbol):
-  import runtimeRootNameTable.resolvePath
+  import runtimeRootNameTable.resolveNamespace
 
   private val paramsName = "__runtime_contextParams"
 
@@ -16,7 +16,7 @@ class JSRuntime(runtimeRootNameTable: NameTable, main: Symbol):
 
   val globalDefCode: String = s"""var $paramsName = {};"""
 
-  val JS = resolvePath("stk.runtime.JS")
+  val JS = resolveNamespace("stk.runtime.JS")
   val JS_getParam = JS.termMember("getParam")
   val JS_setParam = JS.termMember("setParam")
   val JS_hasParam = JS.termMember("hasParam")

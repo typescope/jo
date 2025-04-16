@@ -10,42 +10,38 @@ import scala.collection.mutable
 
 class NameTable(
   termNames: mutable.Map[String, Symbol],
-  typeNames: mutable.Map[String, Symbol]):
+  typeNames: mutable.Map[String, Symbol],
+  patternNames: mutable.Map[String, Symbol]):
 
-  def this() = this(mutable.Map.empty, mutable.Map.empty)
+  def this() = this(mutable.Map.empty, mutable.Map.empty, mutable.Map.empty)
 
-  private def getTable(isType: Boolean) =
-    if isType then typeNames else termNames
+  private def getTable(sym: Symbol) =
+    if sym.isType then typeNames
+    else if sym.isPattern then patternNames
+    else termNames
 
   def resolveTerm(name: String): Option[Symbol] =
-    val table = getTable(isType = false)
-    table.get(name)
+    termNames.get(name)
 
   def resolveType(name: String): Option[Symbol] =
-    val table = getTable(isType = true)
-    table.get(name)
+    typeNames.get(name)
 
-  def resolve(name: String, isType: Boolean): Option[Symbol] =
-    val table = getTable(isType)
-    table.get(name)
+  def resolvePattern(name: String): Option[Symbol] =
+    patternNames.get(name)
 
   def resolve(name: String): List[Symbol] =
-    resolveTerm(name) match
-      case Some(sym1) =>
-        resolveType(name) match
-          case Some(sym2) => sym1 :: sym2 :: Nil
-          case None => sym1 :: Nil
+    List(resolveTerm(name), resolveType(name), resolvePattern(name)).flatMap:
+      case None => Nil
+      case Some(sym) => sym :: Nil
 
-      case None =>
-        resolveType(name) match
-          case Some(sym2) => sym2 :: Nil
-          case None => Nil
-
-  def resolvePath(path: String) =
-    NameTable.resolvePath(this, path, isType = false)
+  def resolveNamespace(path: String) =
+    NameTable.resolveNamespace(this, path)
 
   def define(sym: Symbol)(using rp: Reporter): Unit =
-    val table = getTable(sym.isType)
+    val table = getTable(sym)
+    defineInTable(sym, table)
+
+  private def defineInTable(sym: Symbol, table: mutable.Map[String, Symbol])(using rp: Reporter): Unit =
     table.get(sym.name) match
       case None =>
         table(sym.name) = sym
@@ -53,30 +49,39 @@ class NameTable(
       case Some(symBefore) =>
         val error = NameTable.DoubleDefinition(symBefore, sym)
         rp.report(error)
-  end define
+  end defineInTable
+
+  def definePatternAsTerm(sym: Symbol)(using rp: Reporter): Unit =
+    assert(sym.isPattern, "Expect pattern symbol, found = " + sym)
+    defineInTable(sym, termNames)
 
   def terms: List[Symbol] = termNames.values.toList
 
   def types: List[Symbol] = typeNames.values.toList
 
+  def patterns: List[Symbol] = patternNames.values.toList
+
   def show: String =
-    "terms: { " + termNames + "}" + "\ntypes: { " + typeNames + "}"
+    "terms: { " + termNames + "}" + "\ntypes: { " + typeNames + "}" + "\npatterns: { " + patternNames + "}"
 
 object NameTable:
-  def resolvePath(nameTable: NameTable, path: String, isType: Boolean): Symbol =
-    resolvePath(nameTable, path.split("\\.").toList, isType) match
+  def resolveNamespace(nameTable: NameTable, path: String): Symbol =
+    resolveNamespace(nameTable, path.split("\\.").toList) match
       case Some(sym) => sym
-      case None => throw new Exception("Not found: " + path)
+      case None => throw new Exception("Not found: " + path + ", name table " + nameTable.show)
 
-  def resolvePath(nameTable: NameTable, parts: List[String], isType: Boolean): Option[Symbol] =
+  def resolveNamespace(nameTable: NameTable, parts: List[String]): Option[Symbol] =
     (parts: @unchecked) match
-      case name :: Nil => nameTable.resolve(name, isType)
+      case name :: Nil =>
+        nameTable.resolveTerm(name) match
+          case Some(sym) if sym.isNamespace => Some(sym)
+          case _ => None
 
       case name :: rest =>
         nameTable.resolveTerm(name).flatMap: sym =>
           if sym.isNamespace then
             val nameTable = sym.info.as[NameTableInfo].nameTable
-            resolvePath(nameTable, rest, isType)
+            resolveNamespace(nameTable, rest)
           else
             None
 

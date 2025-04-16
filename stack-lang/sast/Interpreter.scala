@@ -2,15 +2,13 @@ package sast
 
 import scala.collection.mutable
 
-import ast.Ast
-
 import Sast.*
 import Symbols.*
 
 import common.Debug
-import parsing.Parser
+
+import phases.FrontEnd
 import reporting.Reporter
-import typing.Namer
 
 /** An interpreter for S-AST */
 object Interpreter:
@@ -336,7 +334,11 @@ object Interpreter:
             objVal.values(name) :: Nil
 
       case Assign(ident, rhs) =>
-        env.update(ident.symbol, eval(rhs))
+        if ident.symbol.isMutable then
+          env.update(ident.symbol, eval(rhs))
+        else
+          env.bind(ident.symbol, eval(rhs))
+
         Nil
 
       case FieldAssign(qual, name, rhs) =>
@@ -488,26 +490,18 @@ object Interpreter:
         val objVal = ObjectVal(fieldVals, self, valSyms, defTrees, env)
         objVal :: Nil
 
-      case tdef: TypeDef =>
+      case _: TypeDef | _: PatDef =>
         Nil
+
+      case _: Match | _: TaggedLit =>
+        throw new Exception("Unexpected tree: " + word.show)
 
   def main(args: Array[String]): Unit = Reporter.monitor:
     val sourceFiles = args.toList
     val stdlib = "lib/Predef.stk" :: Nil
     val runtime = Nil
-    val typeCheck = (nss: List[Ast.Namespace]) => Namer.transform(nss, stdlib, runtime)
 
-    val noramlizer = new phases.NormalizeParams
-
-    val namespacesSAST =
-      Parser.parse(sourceFiles)     |>
-      typeCheck                     |+
-      Printing.peek(enable = false) |>
-      TreeChecker.check             |>
-      Printing.peek(enable = false) |>
-      noramlizer.transform          |>
-      TreeChecker.check             |>
-      Printing.peek(enable = false)
+    val namespacesSAST = FrontEnd.run(stdlib, runtime, sourceFiles)
 
     val mains = namespacesSAST.collect:
       case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get

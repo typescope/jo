@@ -23,6 +23,10 @@ object Printing:
 
   given Text.Maker[Word] = v => showWord(v)
 
+  given Text.Maker[Pattern] = v => showPattern(v)
+
+  given Text.Maker[Case] = v => "case " ~ v.pattern ~ " =>" ~ indent(v.body)
+
   given Text.Maker[Def] = v => showDef(v)
 
   given Text.Maker[ValDef | FunDef] = v => showDef(v)
@@ -62,7 +66,7 @@ object Printing:
         val tparams = fdef.tparams.map(sym => sym.name + " <: " + sym.info.show)
         val tparamStr = if tparams.isEmpty then "" else tparams.mkString("[", ", ", "]")
         val params = fdef.params.map(sym => sym.name + ": " + sym.info.show)
-        val resType = fdef.procType.resultType
+        val resType = fdef.resultType
         val locals = rep(fdef.locals.map(sym => sym ~ ": " ~ sym.info), Text(", "))
         val keyword = if fdef.symbol.isMethod then "def " else "fun "
 
@@ -78,8 +82,21 @@ object Printing:
               Text.Empty
 
         "@locals(" ~ locals ~ ")" ~ Text.BreakLine ~
-        keyword ~ fdef.name ~ tparamStr ~ params.mkString("(", ", ", "): ") ~ resType.show ~ receives ~ " =" ~ indent:
+        keyword ~ fdef.name ~ tparamStr ~ params.mkString("(", ", ", "): ") ~ resType ~ receives ~ " =" ~ indent:
             fdef.body
+
+      case pdef: PatDef =>
+        val tparams =
+          if pdef.tparams.isEmpty then Text.Empty
+          else "[" ~ rep(pdef.tparams, Text(", "))  ~ "]"
+
+        val params =
+          if pdef.params.isEmpty then Text.Empty
+          else "(" ~ rep(pdef.params, Text(", "))  ~ ")"
+
+        val resType = ": " ~ pdef.resultType
+
+        "pattern " ~ pdef.name ~ tparams ~ params ~ resType ~ " =" ~ indent(pdef.body)
 
       case tdef: TypeDef =>
         "type " ~ tdef.name ~ " = " ~ tdef.symbol.info.show
@@ -116,11 +133,15 @@ object Printing:
             )
         ~ "}"
 
+      case tagged: TaggedLit =>
+        "#" ~ tagged.tag ~ "(" ~ rep(tagged.args, Text(", ")) ~ ")"
+
       case Encoded(repr) =>
         "(" ~ repr ~ ": " ~ word.tpe ~ ")"
 
       case Apply(fun, args) =>
-        "(" ~ fun ~ " " ~ rep(args, Text(" ")) ~ ")"
+        fun ~ indent:
+          rep(args, Text.BreakLine)
 
       case TypeApply(fun, targs) =>
         fun ~ "[" ~ rep(targs, Text(", ")) ~ "]"
@@ -142,7 +163,7 @@ object Printing:
         "(" ~ expr ~ " allow " ~ paramText ~ ")"
 
       case Assign(id, rhs) =>
-        id ~ " <- " ~ rhs
+        id ~ " = " ~ rhs
 
       case FieldAssign(qual, name, rhs) =>
         qual ~ "." ~ name ~ " <- " ~ rhs
@@ -157,11 +178,15 @@ object Printing:
         "while " ~ cond ~ " do" ~ indent:
             body
 
+      case Match(scrutinee, cases) =>
+        "match " ~ scrutinee ~ indent:
+          rep(cases, Text.BlankLine)
+
       case Block(words) =>
         if words.size == 1 then
           showWord(words.head)
         else if words.size > 1 then
-          rep(words, Text.BreakLine)
+          Text.BreakLine ~ rep(words, Text.BreakLine)
         else
           Text.Empty
 
@@ -176,4 +201,20 @@ object Printing:
 
       case fdef: FunDef => showDef(fdef)
 
+      case pdef: PatDef => showDef(pdef)
+
       case tdef: TypeDef => showDef(tdef)
+
+  def showPattern(pat: Pattern): Text =
+    pat match
+      case TypePattern(tpe) => ": " ~ tpe
+
+      case WildcardPattern() => Text("_")
+
+      case AscribePattern(id, inner) => "(" ~ id ~ " @ " ~ inner ~ ")"
+
+      case ApplyPattern(id, nested) =>
+        id ~ "(" ~ rep(nested, Text(", ")) ~ ")"
+
+      case tagged @ TagPattern(_, nested) =>
+        "#" ~ tagged.tag ~ " " ~ rep(nested, Text(" "))

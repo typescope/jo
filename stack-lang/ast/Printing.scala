@@ -75,7 +75,7 @@ object Printing:
           if fdef.params.isEmpty then Text.Empty
           else "(" ~ rep(fdef.params, Text(", "))  ~ ")"
 
-        val resType = showTypeAnnot(fdef.resType)
+        val resType = showTypeAnnot(fdef.resultType)
 
         val receives =
           fdef.receives match
@@ -93,6 +93,19 @@ object Printing:
           else " =" ~ indent(fdef.body)
 
         "fun " ~ fdef.name ~ tparams ~ params ~ resType ~ receives ~ body
+
+      case pdef: PatDef =>
+        val tparams =
+          if pdef.tparams.isEmpty then Text.Empty
+          else "[" ~ rep(pdef.tparams, Text(", "))  ~ "]"
+
+        val params =
+          if pdef.params.isEmpty then Text.Empty
+          else "(" ~ rep(pdef.params, Text(", "))  ~ ")"
+
+        val resType = showTypeAnnot(pdef.resultType)
+
+        "pattern " ~ pdef.name ~ tparams ~ params ~ resType ~ " =" ~ indent(pdef.body)
 
       case tdef: TypeDef =>
         val tparams =
@@ -184,11 +197,11 @@ object Printing:
             body
 
       case Assign(lhs, rhs) =>
-        lhs ~ " <- " ~ rhs
+        lhs ~ " = " ~ rhs
 
-      case patmat: Ast.Match =>
-        "match " ~ patmat.scrutinee ~ indent:
-          rep(patmat.cases, Text.BlankLine)
+      case Match(scrutinee, cases) =>
+        "match " ~ scrutinee ~ indent:
+          rep(cases, Text.BlankLine)
 
       case Object(members) =>
         "object {" ~ indent:

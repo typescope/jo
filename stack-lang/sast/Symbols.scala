@@ -45,12 +45,13 @@ object Symbols:
 
     def isFunction : Boolean = flags.is(Flags.Fun)
     def isMethod   : Boolean = flags.is(Flags.Method)
-    def isValue    : Boolean = flags.is(Flags.Val)
     def isType     : Boolean = flags.is(Flags.Type)
+    def isPattern  : Boolean = flags.is(Flags.Pattern)
     def isNamespace: Boolean = flags.is(Flags.NSpace)
-    def isParameter: Boolean = flags.isAllOf(Flags.Val | Flags.Param)
-    def isMutable  : Boolean = flags.isAllOf(Flags.Val | Flags.Mutable)
-    def isField    : Boolean = flags.isAllOf(Flags.Val | Flags.Field)
+    def isParameter: Boolean = flags.is(Flags.Param)
+    def isMutable  : Boolean = flags.is(Flags.Mutable)
+    def isField    : Boolean = flags.is(Flags.Field)
+    def isSynthetic: Boolean = flags.is(Flags.Synthetic)
 
     def isTypeParameter: Boolean = flags.isAllOf(Flags.Type | Flags.Param)
 
@@ -84,15 +85,14 @@ object Symbols:
             res
 
     def termMember(name: String): Symbol =
-      member(name, isType = false).get
+      info match
+        case nsInfo: NameTableInfo => nsInfo.resolveTerm(name).get
+        case tp => throw new Exception(s"No member for $this of type $tp")
 
     def typeMember(name: String): Symbol =
-      member(name, isType = true).get
-
-    def member(name: String, isType: Boolean): Option[Symbol] =
       info match
-        case nsInfo: NameTableInfo => nsInfo.resolve(name, isType)
-        case _ => None
+        case nsInfo: NameTableInfo => nsInfo.resolveType(name).get
+        case tp => throw new Exception(s"No member for $this of type $tp")
 
     /** The default function associated with a context parameter */
     def defaultFunction: Symbol =
@@ -121,26 +121,4 @@ object Symbols:
 
   object Symbol:
     def createSymbol(name: String, info: Type | InfoProvider, flags: Flags, owner: Symbol, pos: SourcePosition) =
-      new Symbol(name, info, flags, owner, pos)
-
-    def createValueSymbol(name: String, tp: Type | InfoProvider, owner: Symbol, pos: SourcePosition) =
-      new Symbol(name, tp, Flags.Val, owner, pos)
-
-    def createValueSymbol(name: String, tp: Type | InfoProvider, flags: Flags, owner: Symbol, pos: SourcePosition) =
-      new Symbol(name, tp, Flags.Val | flags, owner, pos)
-
-    def createFunSymbol(name: String, info: Type | InfoProvider, owner: Symbol, pos: SourcePosition) =
-      new Symbol(name, info, Flags.Fun, owner, pos)
-
-    def createTypeSymbol(name: String, info: Type | InfoProvider, owner: Symbol, pos: SourcePosition) =
-      new Symbol(name, info, Flags.Type, owner, pos)
-
-    def createParamSymbol(name: String, tp: Type, owner: Symbol, pos: SourcePosition) =
-      new Symbol(name, tp, Flags.Param | Flags.Val, owner, pos)
-
-    def createTypeParamSymbol(name: String, tp: Type | InfoProvider, owner: Symbol, pos: SourcePosition) =
-      new Symbol(name, tp, Flags.Param | Flags.Type, owner, pos)
-
-    def createNamespaceSymbol(name: String, info: NameTableInfo, owner: Symbol, pos: SourcePosition, isBranch: Boolean) =
-      val flags = if isBranch then Flags.NSpace | Flags.Branch else Flags.NSpace
       new Symbol(name, info, flags, owner, pos)

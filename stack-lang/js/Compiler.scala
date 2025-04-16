@@ -1,10 +1,8 @@
 package js
 
 import common.IO
-import parsing.Parser
-import ast.Ast
+
 import sast.*
-import typing.Namer
 import phases.*
 import reporting.Reporter
 
@@ -25,14 +23,14 @@ def compile(args: String*): Unit =
     println("Expect source file as input")
     return
 
-  val sourceFiles = rest
+  val sources = rest
 
   val outFile =
     options.get("-o") match
       case Some(file) => file
       case None =>
-        if sourceFiles.size == 1 then
-          IO.fileNameNoExt(sourceFiles.head) + ".js"
+        if sources.size == 1 then
+          IO.fileNameNoExt(sources.head) + ".js"
         else
           "out.js"
 
@@ -42,17 +40,8 @@ def compile(args: String*): Unit =
     val stdlib = "lib/Predef.stk" :: Nil
     val runtime = "runtime/JS.stk" :: Nil
 
-    val typeCheck = (nss: List[Ast.Namespace]) =>
-      Namer.transform(nss, stdlib, runtime, rootNameTable, runtimeNameTable)
-
-    val noramlizer = new phases.NormalizeParams
-
     val namespacesSAST =
-      Parser.parse(sourceFiles)     |>
-      typeCheck                     |+
-      Printing.peek(enable = false) |>
-      noramlizer.transform          |+
-      Printing.peek(enable = false)
+      FrontEnd.run(stdlib, runtime, sources, rootNameTable, runtimeNameTable)
 
     val mains = namespacesSAST.collect:
       case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get
@@ -70,7 +59,6 @@ def compile(args: String*): Unit =
         val backend = new JSOptimized(outFile, jsRuntime)
 
         namespacesSAST                |>
-        Printing.peek(enable = false) |>
         ElimCapture.transform         |+
         TreeChecker.check             |>
         Printing.peek(enable = false) |>

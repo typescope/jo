@@ -100,8 +100,8 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
     case head :: Nil =>
       namer.transform(head)
 
-    case Ast.Tag(name) :: args =>
-      namer.transformVariant(name, args)
+    case (tag: Ast.Tag) :: args =>
+      namer.transformTagged(tag, args)
 
     case head :: rest =>
       val wordTyped =
@@ -206,8 +206,8 @@ class ExprTyper(namer: Namer, checker: Checker, inferencer: Inferencer):
               typeItem(arg)
 
           val word = Apply(fun, preArgs2 ++ postArgs2)(call.resultType, span)
-
-          checker.adapt(word, tt)
+          val desugared = Desugaring.desugarShortcutAndOr(word)
+          checker.adapt(desugared, tt)
 
       case Item.InfixCall(obj, meth, arg) =>
         val objWord =

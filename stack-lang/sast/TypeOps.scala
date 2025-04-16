@@ -183,7 +183,9 @@ object TypeOps:
         branches.map(show).mkString(" | ")
 
       case TagType(tag, params) =>
-        val paramsStr = params.map(param => param.name + ": " + show(param.info)).mkString("(", ", ", ")")
+        val paramsStr =
+          if params.isEmpty then ""
+          else params.map(param => param.name + ": " + show(param.info)).mkString("(", ", ", ")")
         "#" + tag + paramsStr
 
       case AppliedType(tctor, targs) =>
