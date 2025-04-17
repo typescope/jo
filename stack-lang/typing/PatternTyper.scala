@@ -158,7 +158,7 @@ class PatternTyper(namer: Namer, checker: Checker):
     var fun: Word = Ident(sym)(id.span)
 
     if fun.tpe.isPolyType then
-      fun = namer.exprTyper.instantiatePoly(fun.tpe.asProcType, fun)
+      fun = namer.instantiatePoly(fun.tpe.asProcType, fun)
 
     val funType = fun.tpe
 
@@ -279,7 +279,7 @@ class PatternTyper(namer: Namer, checker: Checker):
    (using sc: Scope, rp: Reporter, so: Source, oc: Occurs)
   : Pattern =
 
-    val name =id.name
+    val name = id.name
     if id.isCapitalized then
       transformApplyPattern(id, Nil, scrutType, id.span)
 
@@ -309,6 +309,19 @@ class PatternTyper(namer: Namer, checker: Checker):
       val wildcard = WildcardPattern()(scrutType, id.span)
       AscribePattern(patVal, wildcard)
 
+  private def transformExprPattern(expr: Ast.Expr, scrutType: Type)
+   (using sc: Scope, rp: Reporter, so: Source, oc: Occurs)
+  : Pattern =
+
+    expr.words: @unchecked match
+      case head :: Nil =>
+        transformPattern(head, scrutType)
+
+      case (tag: Ast.Tag) :: args =>
+        transformTagPattern(tag, args, scrutType, expr.span)
+
+      case words => ???
+
   private def transformPattern(pat: Ast.Word, scrutType: Type)
     (using sc: Scope, rp: Reporter, so: Source, oc: Occurs)
   : Pattern =
@@ -328,6 +341,9 @@ class PatternTyper(namer: Namer, checker: Checker):
 
       case Ast.Apply(tag: Ast.Tag, nested) =>
         transformTagPattern(tag, nested, scrutType, pat.span)
+
+      case expr: Ast.Expr =>
+        transformExprPattern(expr, scrutType)
     end match
   end transformPattern
 

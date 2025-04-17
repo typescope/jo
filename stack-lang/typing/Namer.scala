@@ -28,7 +28,7 @@ class Namer(@constructorOnly reporter: Reporter):
   val checker = new Checker
   val patternTyper = PatternTyper(this, checker)
   val inferencer: Inferencer = new UnificationSolver
-  val exprTyper = new ExprTyper(this, checker, inferencer)
+  val exprTyper = new ExprTyper(this)
 
   /** Handles cyclic definitions */
   val nonCyclicTypeProvider = new NamerUtils.ValueTypeProvider(using reporter)
@@ -299,6 +299,12 @@ class Namer(@constructorOnly reporter: Reporter):
           case tag: Ast.Tag => transformTagged(tag, app.args)
           case _ => transformCall(app)
 
+      case call: Ast.InfixCall =>
+        transformInfixCall(call)
+
+      case call: Ast.DotlessCall =>
+        transformDotlessCall(call)
+
       case Ast.TypeApply(fun, targs) =>
         val fun2 = transform(fun)
         val targs2 = targs.map(transformType)
@@ -433,6 +439,23 @@ class Namer(@constructorOnly reporter: Reporter):
     else
       Block(words)(words.last.tpe, block.span)
 
+
+  def instantiatePoly(polyType: ProcType, fun: Word)(using Reporter, Source): Word =
+    assert(polyType.tparams.nonEmpty, polyType.show)
+
+    val tvars = for tparam <- polyType.tparams yield TypeVar(tparam.name, this.inferencer)
+    val targs = tvars.map(tvar => TypeTree(tvar)(fun.span))
+    val tpe = TypeOps.substTypeParams(polyType.copy(tparams = Nil), tvars)
+
+    val bounds = for tparam <- polyType.tparams yield tparam.info
+    checker.delayedCheck {
+      for tvar <- tvars do checker.checkInstantiated(tvar, fun.pos)
+
+      checker.checkBounds(bounds, targs)
+    }
+
+    TypeApply(fun, targs)(tpe, fun.span)
+
   /** Handles explicit postfix call syntax f(arg1, arg2, ...) */
   def transformCall(apply: Ast.Apply)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
     var fun =
@@ -440,7 +463,7 @@ class Namer(@constructorOnly reporter: Reporter):
       transform(apply.fun)
 
     if fun.tpe.isPolyType then
-      fun = exprTyper.instantiatePoly(fun.tpe.asProcType, fun)
+      fun = instantiatePoly(fun.tpe.asProcType, fun)
 
     val funType = fun.tpe
 
@@ -456,10 +479,11 @@ class Namer(@constructorOnly reporter: Reporter):
         errorWord(apply.span)
 
       else if apply.args.size != paramSize then
-          Reporter.error(
-            s"The function expects $paramSize arguments, found = ${apply.args.size}",
-            apply.pos)
-          errorWord(apply.span)
+        Reporter.error(
+          s"The function expects $paramSize arguments, found = ${apply.args.size}",
+          apply.pos)
+        errorWord(apply.span)
+
       else
         val argsTyped =
           for (arg, paramType) <- apply.args.zip(procType.paramTypes) yield
@@ -473,6 +497,96 @@ class Namer(@constructorOnly reporter: Reporter):
       Reporter.error(s"Not a function: " + fun.tpe.show, fun.pos)
       errorWord(apply.span)
 
+  /** Check a dotless call such as `str1 + str2` */
+  def transformDotlessCall(call: Ast.DotlessCall)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
+    val Ast.DotlessCall(obj, meth, arg) = call
+    val objWord =
+      given TargetType = TargetType.ValueType
+      transform(obj)
+
+    val objType = objWord.tpe
+    val objSpan = obj.span
+
+    if objType.isObjectType then
+      objType.getTermMember(meth.name) match
+        case Some(tp) =>
+          var fun: Word = Select(objWord, meth.name)(tp, objSpan | meth.span)
+
+          if tp.isPolyType then
+            fun = instantiatePoly(tp.asProcType, fun)
+
+          val funType = fun.tpe
+
+          if funType.isProcType then
+            val procType = funType.asProcType
+            val paramSize = procType.paramTypes.size
+            if paramSize != 1 then
+              Reporter.error(
+                s"The method ${meth.name} takes ${paramSize} parameters. The dotless call syntax only supports methods of one parameter",
+                meth.span.toPos)
+              errorWord(meth.span)
+            else
+              val argTyped =
+                given TargetType = TargetType.Known(procType.paramTypes.head)
+                transform(arg)
+
+              val word = Apply(fun, argTyped :: Nil)(procType.resultType, call.span)
+              checker.adapt(word, tt)
+          else
+            Reporter.error( s"The member ${meth.name} is not a method", meth.pos)
+            errorWord(meth.span)
+
+        case None =>
+          Reporter.error( s"Object of the type ${objType.show} does not have member ${meth.name}", objSpan.toPos)
+          errorWord(objSpan)
+    else
+      Reporter.error(s"Object type expected, found = " + objWord.tpe.show, objSpan.toPos)
+      errorWord(objSpan)
+
+  /** Handles infix call formed by expression typer `1 + 2` */
+  def transformInfixCall(call: Ast.InfixCall)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
+    val Ast.InfixCall(preArgs, funAst, postArgs) = call
+
+    // TODO: avoid retyping using attachments
+    var fun =
+      given TargetType = TargetType.Fun(preArgs.size + postArgs.size)
+      transform(funAst)
+
+    if fun.tpe.isPolyType then
+      fun = instantiatePoly(fun.tpe.asProcType, fun)
+
+    assert(fun.tpe.isProcType, "Expect function type, found = " + fun.tpe.show)
+
+    val procType = fun.tpe.asProcType
+    val preParamCount = procType.preParamCount
+    val postParamCount = procType.postParamCount
+
+    if preArgs.size != preParamCount then
+      Reporter.error(
+        s"Function ${fun.show} expects $preParamCount pre arguments, found = ${preArgs.size}",
+        fun.pos)
+      errorWord(call.span)
+
+    else if postArgs.size != postParamCount then
+      Reporter.error(
+        s"Function ${fun.show} expects $postParamCount post arguments, found = ${postArgs.size}",
+        fun.pos)
+      errorWord(call.span)
+
+    else
+      val preArgs2 =
+        for (arg, paramType) <- preArgs.zip(procType.preParamTypes) yield
+          given TargetType = TargetType.Known(paramType)
+          transform(arg)
+
+      val postArgs2 =
+        for (arg, paramType) <- postArgs.zip(procType.postParamTypes) yield
+          given TargetType = TargetType.Known(paramType)
+          transform(arg)
+
+      val word = Apply(fun, preArgs2 ++ postArgs2)(procType.resultType, call.span)
+      val desugared = Desugaring.desugarShortcutAndOr(word)
+      checker.adapt(desugared, tt)
 
   def transform(assign: Ast.Assign)(using sc: Scope, rp: Reporter, so: Source): Word =
     val Ast.Assign(ref, rhs) = assign

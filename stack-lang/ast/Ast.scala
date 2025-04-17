@@ -55,6 +55,24 @@ object Ast:
     (val span: Span)
   extends Word
 
+  /** A dotless infix method call formed by expression typer
+    *
+    * We could use Apply, but a special class produces better error messages.
+    */
+  case class DotlessCall
+    (obj: Word, method: Ident, arg: Word)
+    (val span: Span)
+  extends Word
+
+  /** An infix call formed by expression typer
+    *
+    * We could use Apply, but a special class produces better error messages.
+    */
+  case class InfixCall
+    (preArgs: List[Word], fun: Word, postArgs: List[Word])
+    (val span: Span)
+  extends Word
+
   case class Assign
     (lhs: RefTree, rhs: Word)
     (val span: Span)
