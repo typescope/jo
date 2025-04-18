@@ -141,8 +141,7 @@ class PatternTyper(namer: Namer, checker: Checker):
       val word = if five.size > 1 then "cases" else "case"
       Reporter.warn(s"The match will fail for the $word: " + examples, patmat.scrutinee.pos)
 
-  private def transformCase(
-    caseDef: Ast.Case, scrutType: Type)
+  private def transformCase(caseDef: Ast.Case, scrutType: Type)
     (using sc: Scope, rp: Reporter, so: Source, tt: TargetType)
   : Case =
 

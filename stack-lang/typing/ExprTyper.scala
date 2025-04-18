@@ -105,14 +105,24 @@ class ExprTyper(namer: Namer):
 
         val resolveProc: Ast.Word => Option[ProcType] = (word: Ast.Word) => word match
           case ref: Ast.RefTree =>
-            val refTyped =
+            val typed =
               // TODO: avoid re-typing with attachments
               // ignore errors
               given Reporter = rp.fresh(buffer = true)
               given TargetType = TargetType.Unknown
               namer.transform(ref)
 
-            if refTyped.tpe.isProcType then Some(refTyped.tpe.asProcType) else None
+            if typed.tpe.isProcType then Some(typed.tpe.asProcType) else None
+
+          case tapp: Ast.TypeApply =>
+            val typed =
+              // TODO: avoid re-typing with attachments
+              // ignore errors
+              given Reporter = rp.fresh(buffer = true)
+              given TargetType = TargetType.Unknown
+              namer.transform(tapp)
+
+            if typed.tpe.isProcType then Some(typed.tpe.asProcType) else None
 
           case _ =>
             None
