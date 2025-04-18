@@ -13,6 +13,7 @@ import Namer.{ Scope, DelayedDef }
 import Inference.TargetType
 import PatternTyper.Occurs
 
+import scala.collection.mutable
 
 class PatternTyper(namer: Namer, checker: Checker):
   def transformPatDef(patDef: Ast.PatDef)(using sc: Scope, rp: Reporter, so: Source): DelayedDef[PatDef] =
@@ -140,7 +141,11 @@ class PatternTyper(namer: Namer, checker: Checker):
       val word = if five.size > 1 then "cases" else "case"
       Reporter.warn(s"The match will fail for the $word: " + examples, patmat.scrutinee.pos)
 
-  private def transformCase(caseDef: Ast.Case, scrutType: Type)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Case =
+  private def transformCase(
+    caseDef: Ast.Case, scrutType: Type)
+    (using sc: Scope, rp: Reporter, so: Source, tt: TargetType)
+  : Case =
+
     given Scope = sc.fresh()
     given Occurs = new Occurs
 
@@ -149,7 +154,8 @@ class PatternTyper(namer: Namer, checker: Checker):
     val body2 = namer.transform(body)
     Case(pat2, body2)(caseDef.span)
 
-  private def transformApplyPattern(id: Ast.Ident, args: List[Ast.Word], scrutType: Type, patSpan: Span)
+  private def transformApplyPattern(
+    id: Ast.Ident, args: List[Ast.Word], scrutType: Type, patSpan: Span)
     (using sc: Scope, rp: Reporter, so: Source, oc: Occurs)
   : Pattern =
 
@@ -184,10 +190,65 @@ class PatternTyper(namer: Namer, checker: Checker):
         WildcardPattern()(ErrorType, patSpan)
 
     else
-      Reporter.error(s"Not a function: " + fun.tpe.show, id.pos)
+      Reporter.error(s"Not a pattern predicate: " + fun.tpe.show, id.pos)
       WildcardPattern()(ErrorType, patSpan)
 
-  private def transformTagPattern(tag: Ast.Tag, args: List[Ast.Word], scrutType: Type, patSpan: Span)
+  private def transformInfixCallPattern(
+    preArgs: List[Ast.Word], id: Ast.Ident, postArgs: List[Ast.Word],
+    scrutType: Type, patSpan: Span)
+    (using sc: Scope, rp: Reporter, so: Source, oc: Occurs)
+  : Pattern =
+
+    val sym = sc.resolvePattern(id.name, id.pos)
+
+    var fun: Word = Ident(sym)(id.span)
+
+    if fun.tpe.isPolyType then
+      fun = namer.instantiatePoly(fun.tpe.asProcType, fun)
+
+    val funType = fun.tpe
+
+    if funType.isProcType then
+      val procType = funType.asProcType
+      val preParamCount = procType.preParamCount
+      val postParamCount = procType.postParamCount
+      val resType = procType.resultType
+
+      val explain = new StringBuilder
+      if Patterns.isValidTypePattern(resType, scrutType)(using explain) then
+        if preArgs.size != preParamCount then
+          Reporter.error(
+            s"Function ${fun.show} expects $preParamCount pre arguments, found = ${preArgs.size}",
+            id.pos)
+          WildcardPattern()(ErrorType, patSpan)
+
+        else if postArgs.size != postParamCount then
+          Reporter.error(
+            s"Function ${fun.show} expects $postParamCount post arguments, found = ${postArgs.size}",
+            id.pos)
+          WildcardPattern()(ErrorType, patSpan)
+
+        else
+          val preArgs2 =
+            for (arg, paramType) <- preArgs.zip(procType.preParamTypes) yield
+              transformPattern(arg, paramType)
+
+          val postArgs2 =
+            for (arg, paramType) <- postArgs.zip(procType.postParamTypes) yield
+              transformPattern(arg, paramType)
+
+          ApplyPattern(fun, preArgs2 ++ postArgs2)(resType, patSpan)
+        end if
+      else
+        Reporter.error(s"The pattern result type ${resType.show} is invalid with respect to the scrutinee type ${scrutType.show}. " + explain, id.pos)
+        WildcardPattern()(ErrorType, patSpan)
+
+    else
+      Reporter.error(s"Not a pattern predicate: " + fun.tpe.show, id.pos)
+      WildcardPattern()(ErrorType, patSpan)
+
+  private def transformTagPattern(
+    tag: Ast.Tag, args: List[Ast.Word], scrutType: Type, patSpan: Span)
     (using sc: Scope, rp: Reporter, so: Source, oc: Occurs)
   : Pattern =
 
@@ -234,7 +295,8 @@ class PatternTyper(namer: Namer, checker: Checker):
       Reporter.error(s"The tag ${id.name} does not match the scrutinee type ${scrutType.show}", tag.pos)
       WildcardPattern()(ErrorType, patSpan)
 
-  private def transformTypePattern(id: Ast.Ident, tpt: Ast.TypeTree, scrutType: Type, patSpan: Span)
+  private def transformTypePattern(
+    id: Ast.Ident, tpt: Ast.TypeTree, scrutType: Type, patSpan: Span)
     (using sc: Scope, rp: Reporter, so: Source, oc: Occurs)
   : Pattern =
 
@@ -276,7 +338,7 @@ class PatternTyper(namer: Namer, checker: Checker):
       WildcardPattern()(ErrorType, patSpan)
 
   private def transformIdentPattern(id: Ast.Ident, scrutType: Type)
-   (using sc: Scope, rp: Reporter, so: Source, oc: Occurs)
+    (using sc: Scope, rp: Reporter, so: Source, oc: Occurs)
   : Pattern =
 
     val name = id.name
@@ -310,7 +372,7 @@ class PatternTyper(namer: Namer, checker: Checker):
       AscribePattern(patVal, wildcard)
 
   private def transformExprPattern(expr: Ast.Expr, scrutType: Type)
-   (using sc: Scope, rp: Reporter, so: Source, oc: Occurs)
+    (using sc: Scope, rp: Reporter, so: Source, oc: Occurs)
   : Pattern =
 
     expr.words: @unchecked match
@@ -320,9 +382,32 @@ class PatternTyper(namer: Namer, checker: Checker):
       case (tag: Ast.Tag) :: args =>
         transformTagPattern(tag, args, scrutType, expr.span)
 
-      case words => ???
+      case words =>
+        // mixed prefix/infix/postfix pattern, arity depends on type of the function
+        val wordList: mutable.ListBuffer[Ast.Word] = mutable.ListBuffer.from(words)
 
-  private def transformPattern(pat: Ast.Word, scrutType: Type)
+        val resolveProc: Ast.Word => Option[ProcType] = (word: Ast.Word) => word match
+          case Ast.Ident(name) =>
+            sc.resolvePattern(name) match
+              case Some(sym) if sym.is(Flags.Fun) => Some(sym.info.asProcType)
+
+              case _ => None
+
+          case _ =>
+            None
+
+        val values = namer.exprTyper.parseMixed(wordList, -1, resolveProc)
+
+        assert(wordList.isEmpty, wordList)
+        if values.size > 1 then
+          val rest = values.init
+          val span = rest.head.span | rest.last.span
+          Reporter.error("Found extra pattern, an expression pattern should form a single pattern", span.toPos)
+
+        transformPattern(values.last, scrutType)
+
+  private def transformPattern(
+    pat: Ast.Word, scrutType: Type)
     (using sc: Scope, rp: Reporter, so: Source, oc: Occurs)
   : Pattern =
 
@@ -338,6 +423,9 @@ class PatternTyper(namer: Namer, checker: Checker):
 
       case Ast.Apply(id: Ast.Ident, args) =>
         transformApplyPattern(id, args, scrutType, pat.span)
+
+      case Ast.InfixCall(preArgs, id: Ast.Ident, postArgs) =>
+        transformInfixCallPattern(preArgs, id, postArgs, scrutType, pat.span)
 
       case Ast.Apply(tag: Ast.Tag, nested) =>
         transformTagPattern(tag, nested, scrutType, pat.span)

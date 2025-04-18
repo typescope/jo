@@ -102,7 +102,23 @@ class ExprTyper(namer: Namer):
       else
         // mixed prefix/infix/postfix pattern, arity depends on type of the function
         val words: mutable.ListBuffer[Ast.Word] = mutable.ListBuffer.from(expr.words)
-        val values = parseMixed(words, -1)
+
+        val resolveProc: Ast.Word => Option[ProcType] = (word: Ast.Word) => word match
+          case ref: Ast.RefTree =>
+            val refTyped =
+              // TODO: avoid re-typing with attachments
+              // ignore errors
+              given Reporter = rp.fresh(buffer = true)
+              given TargetType = TargetType.Unknown
+              namer.transform(ref)
+
+            if refTyped.tpe.isProcType then Some(refTyped.tpe.asProcType) else None
+
+          case _ =>
+            None
+
+
+        val values = parseMixed(words, -1, resolveProc)
 
         assert(words.isEmpty, words)
         if values.size > 1 then
@@ -114,7 +130,10 @@ class ExprTyper(namer: Namer):
   end transform
 
   /** Form AST from the words with the limit precedence for mixed prefix/infix/postfix pattern */
-  private def parseMixed(words: mutable.ListBuffer[Ast.Word], precLimit: Int)(using rp: Reporter, sc: Scope, so: Source): List[Ast.Word] =
+  def parseMixed(
+    words: mutable.ListBuffer[Ast.Word], precLimit: Int, resolveProc: Ast.Word => Option[ProcType])
+    (using rp: Reporter, sc: Scope, so: Source)
+  : List[Ast.Word] =
     // println("Parsing " + words + ", precedence = " + precedence)
 
     val values = mutable.ArrayBuffer.empty[Ast.Word]
@@ -122,28 +141,18 @@ class ExprTyper(namer: Namer):
     def step(fun: Ast.Word, procType: ProcType, precedence: Int): Unit =
       val preParamCount = procType.preParamCount
       val postParamCount = procType.postParamCount
+
       val preArgs = values.takeRight(preParamCount).toList
       values.dropRightInPlace(preParamCount)
 
-      val (postArgs, rest) = parseMixed(words, precedence).splitAt(postParamCount)
+      val (postArgs, rest) = parseMixed(words, precedence, resolveProc).splitAt(postParamCount)
 
-      if preArgs.size != preParamCount then
-        Reporter.error(
-          s"Function ${fun.show} expects ${preParamCount} pre arguments, found = ${preArgs.size}",
-          fun.pos)
+      val startSpan = if preArgs.isEmpty then fun.span else preArgs.head.span
+      val endSpan = if postArgs.isEmpty then fun.span else postArgs.last.span
+      val call = Ast.InfixCall(preArgs, fun, postArgs)(startSpan | endSpan)
 
-      else if postArgs.size != postParamCount then
-        Reporter.error(
-          s"Function ${fun.show} expects ${postParamCount} post arguments, found = ${postArgs.size}",
-          fun.pos)
-
-      else
-        val startSpan = if preArgs.isEmpty then fun.span else preArgs.head.span
-        val endSpan = if postArgs.isEmpty then fun.span else postArgs.last.span
-        val call = Ast.InfixCall(preArgs, fun, postArgs)(startSpan | endSpan)
-
-        // continue if current function has higher binding power
-        values += call
+      // continue if current function has higher binding power
+      values += call
 
       // It is important that the rest is added after the inserting `call`
       values ++= rest
@@ -152,30 +161,19 @@ class ExprTyper(namer: Namer):
     var continue = true
     while continue && words.nonEmpty do
       val word = words.remove(0)
-      word match
-        case ref: Ast.RefTree =>
-          val refTyped =
-            // TODO: avoid re-typing with attachments
-            // ignore errors
-            given Reporter = rp.fresh(buffer = true)
-            given TargetType = TargetType.Unknown
-            namer.transform(ref)
-
-          if refTyped.tpe.isProcType then
-            val precedence = ExprTyper.precedence(word)
-            // infix, postfix, prefix
-            if precedence > precLimit then
-              step(ref, refTyped.tpe.asProcType, precedence)
-
-            else
-              // put back word
-              words.insert(0, word)
-              continue = false
+      resolveProc(word) match
+        case Some(procType) =>
+          val precedence = ExprTyper.precedence(word)
+          // infix, postfix, prefix
+          if precedence > precLimit then
+            step(word, procType, precedence)
 
           else
-            values += word
+            // put back word
+            words.insert(0, word)
+            continue = false
 
-        case word: Ast.Word =>
+        case None =>
           values += word
     end while
 
