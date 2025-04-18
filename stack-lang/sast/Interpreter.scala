@@ -45,11 +45,14 @@ object Interpreter:
         case BoolVal(value) => value.toString
         case StringVal(value) => "\"" + value + "\""
         case RecordVal(fields) => fields.map(_ + " = " + _.show(level - 1)).mkString("{", ", ", "}")
-        case ObjectVal(values, self, vals, defs,  env) => values.map(_ + " = " + _.show(level - 1)).mkString("object {", ", ", "}")
         case FunVal(fun, env) => "closue(env = " + env.show(recursive = false) + ")"
         case ArrayVal(content) => "[...]"
         case PlatformCall(op) => "platformCall"
         case PlatformObj(_) => "platformObject"
+        case ObjectVal(values, self, vals, defs,  env) =>
+          val fields = values.map(_ + " = " + _.show(level - 1)).mkString(", ")
+          val methods = defs.map(_ + ": " + _.symbol.info.show).mkString(", ")
+          "object {" + fields + ", " + methods + "}"
 
   type Value = IntVal | BoolVal | StringVal | RecordVal | ObjectVal | FunVal | ArrayVal | PlatformObj
 

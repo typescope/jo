@@ -256,7 +256,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
         throw new Exception("Unexpected " + word)
 
   /** Compile a function */
-  def compile(fdef: FunDef): Text =
+  def compile(fdef: FunDef): Text = try
     val sym = fdef.symbol
 
     val funType = sym.info.asProcType
@@ -275,6 +275,9 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
               "return " ~ v ~ ";" ~  Text.BreakLine
             }
       ~ "}"
+  catch case ex: Exception =>
+    println(fdef.body)
+    throw ex
 
   def div(args: List[Word])(using Context): Text =
     val a :: b :: Nil = args: @unchecked

@@ -78,7 +78,7 @@ class TreeChecker()(using Source) extends SastOps.TreeTraverser:
         if fun.refersTo(defn.Predef_and) || fun.refersTo(defn.Predef_or) then
           Reporter.error("Unexpected use of short-cut || and && in S-AST, tree = " + word.show, word.pos)
 
-        fun match
+        fun.strip match
           case Select(qual, _) =>
             if !qual.tpe.isObjectType then
               Reporter.error("Expect object type, found = " + qual.tpe.show, qual.pos)
@@ -87,6 +87,18 @@ class TreeChecker()(using Source) extends SastOps.TreeTraverser:
             if !qual.tpe.isObjectType then
               Reporter.error("Expect object type, found = " + qual.tpe.show, qual.pos)
 
-          case _ =>
+          case Ident(sym) =>
+            if !sym.isFunction then
+              Reporter.error("Expect function, found = " + sym, fun.pos)
 
-      case _ => recur(word)
+          case TypeApply(Ident(sym), _) =>
+            if !sym.isFunction then
+              Reporter.error("Expect function, found = " + sym, fun.pos)
+
+          case _  =>
+            Reporter.error("Expect function to be select/ident/tapply, found = " + fun, fun.pos)
+
+      case _ =>
+    end match
+
+    recur(word)
