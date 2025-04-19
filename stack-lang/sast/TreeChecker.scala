@@ -78,29 +78,26 @@ class TreeChecker()(using Source) extends SastOps.TreeTraverser:
         if fun.refersTo(defn.Predef_and) || fun.refersTo(defn.Predef_or) then
           Reporter.error("Unexpected use of short-cut || and && in S-AST, tree = " + word.show, word.pos)
 
-        fun.strip match
-          case Ident(sym) =>
-            if !sym.isFunction then
-              Reporter.error("Expect function, found = " + sym, fun.pos)
-
-          case Select(qual, _) =>
-            if !qual.tpe.isObjectType then
-              Reporter.error("Expect object type, found = " + qual.tpe.show, qual.pos)
-
-          case TypeApply(Select(qual, _), targs) =>
-            if !qual.tpe.isObjectType then
-              Reporter.error("Expect object type, found = " + qual.tpe.show, qual.pos)
-
-          case TypeApply(Ident(sym), _) =>
-            if !sym.isFunction then
-              Reporter.error("Expect function, found = " + sym, fun.pos)
-
-          case Apply(Ident(sym), _) if sym.fullName == "stk.runtime.native.Core.readInt" =>
-
-          case _  =>
-            Reporter.error("Expect function to be select/ident/tapply, found = " + fun, fun.pos)
+        checkFunShape(fun)
 
       case _ =>
     end match
 
     recur(word)
+
+  def checkFunShape(fun: Word)(using Reporter): Unit =
+    fun.strip match
+      case Ident(sym) =>
+        if !sym.isFunction then
+          Reporter.error("Expect function, found = " + sym, fun.pos)
+
+      case Select(qual, _) =>
+        if !qual.tpe.isObjectType then
+          Reporter.error("Expect object type, found = " + qual.tpe.show, qual.pos)
+
+      case TypeApply(fun, _) => checkFunShape(fun)
+
+      case Apply(Ident(sym), _) if sym.fullName == "stk.runtime.native.Core.readInt" =>
+
+      case _  =>
+        Reporter.error("Expect function to be select/ident/tapply, found = " + fun, fun.pos)
