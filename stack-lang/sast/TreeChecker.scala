@@ -95,6 +95,8 @@ class TreeChecker()(using Source) extends SastOps.TreeTraverser:
             if !sym.isFunction then
               Reporter.error("Expect function, found = " + sym, fun.pos)
 
+          case Apply(Ident(sym), _) if sym.fullName == "stk.runtime.native.Core.readInt" =>
+
           case _  =>
             Reporter.error("Expect function to be select/ident/tapply, found = " + fun, fun.pos)
 
