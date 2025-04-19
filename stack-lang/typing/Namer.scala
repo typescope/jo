@@ -462,6 +462,14 @@ class Namer(@constructorOnly reporter: Reporter):
       given TargetType = TargetType.Fun(apply.args.size)
       transform(apply.fun)
 
+    // Auto .apply insertion --- apply can be polymorphic
+    //
+    // The `.apply` insertion happens at the transform for `Apply`.
+    // It ensures that in `Apply(fun, args)` the fun is an ident or select.
+    if fun.tpe.hasApplyMethod then
+      val memberType = fun.tpe.termMember("apply")
+      fun = Select(fun, "apply")(memberType, fun.span)
+
     if fun.tpe.isPolyType then
       fun = instantiatePoly(fun.tpe.asProcType, fun)
 
@@ -549,7 +557,8 @@ class Namer(@constructorOnly reporter: Reporter):
 
     // TODO: avoid retyping using attachments
     var fun =
-      given TargetType = TargetType.Fun(preArgs.size + postArgs.size)
+      // infix call should not trigger apply insertion
+      given TargetType = TargetType.Unknown
       transform(funAst)
 
     if fun.tpe.isPolyType then
