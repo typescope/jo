@@ -37,6 +37,8 @@ def compile(args: String*): Unit =
   Reporter.monitor:
     val rootNameTable = new NameTable
     val runtimeNameTable = new NameTable
+    given lazyDefn: Definitions.Lazy: = new Definitions.Lazy(rootNameTable)
+
     val stdlib = "lib/Predef.stk" :: Nil
     val runtime = "runtime/JS.stk" :: Nil
 
@@ -48,6 +50,8 @@ def compile(args: String*): Unit =
 
     mains match
       case main :: Nil =>
+        given Definitions = lazyDefn.value
+
         val jsRuntime = new JSRuntime(runtimeNameTable, main)
         val contextParamsLower = new LowerContextParams(
             jsRuntime.JS_hasParam,

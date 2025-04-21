@@ -24,10 +24,10 @@ import scala.collection.mutable
 class LowerContextParams(
   hasParamSym: Symbol, getParamSym: Symbol,
   setParamSym: Symbol, delParamSym: Symbol)
+  (using defn: Definitions)
 extends Phase[Symbol]:
   val contextObject = Phase.OwnerContext
 
-  val defn = Definitions.instance
   val StringType = defn.StringType
   val BoolType = defn.BoolType
   val UnitType = defn.UnitType

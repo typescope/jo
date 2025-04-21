@@ -112,8 +112,8 @@ class Checker:
         Reporter.error(s"Cannot find common result type, tp1 = ${tp1.show}, tp2 = ${tp2.show}", pos)
         ErrorType
 
-  def adaptIntLiteral(n: Int, origType: Type, targetType: Type)(using Reporter, Source): Type =
-    val defn = Definitions.instance
+  def adaptIntLiteral(n: Int, origType: Type, targetType: Type)(using Definitions, Reporter, Source): Type =
+    val defn = summon[Definitions]
 
     if
       targetType.refersTo(defn.Predef_Byte) && n < 128 && n >= -128
@@ -125,8 +125,8 @@ class Checker:
     else
       origType
 
-  def autoCoerceNumeric(word: Word, targetType: Type)(using Reporter, Source): Word =
-    val defn = Definitions.instance
+  def autoCoerceNumeric(word: Word, targetType: Type)(using Definitions, Reporter, Source): Word =
+    val defn = summon[Definitions]
     val origType = word.tpe
     if origType.refersTo(defn.Predef_Byte) then
       if targetType.refersTo(defn.Predef_Char) then
@@ -154,7 +154,10 @@ class Checker:
 
 
   /** Explicit drop of values in if/match expressions */
-  def adapt(word: Word, targetType: Type)(using Reporter, Source): Word =
+  def adapt(word: Word, targetType: Type)(using Definitions, Reporter, Source): Word =
+    val defn = summon[Definitions]
+    val unitType = defn.UnitType
+
     val curType = word.tpe
     if Subtyping.conforms(curType, targetType) then
       word
@@ -163,11 +166,8 @@ class Checker:
       word.dropValue
 
     else
-      val unitType = Definitions.instance.UnitType
 
-      val isNumeric =
-         Definitions.instance.isNumericType(word.tpe)
-         && Definitions.instance.isNumericType(targetType)
+      val isNumeric = defn.isNumericType(word.tpe) && defn.isNumericType(targetType)
 
       if isNumeric && !Subtyping.conforms(word.tpe, targetType) then
         // Numeric coercion
@@ -199,7 +199,8 @@ class Checker:
     case _ =>
       word
 
-  def adapt(word: Word, targetType: TargetType)(using Reporter, Source): Word = Debug.trace("Adapting " + word.show, (_: Word).show, enable = false):
+  def adapt(word: Word, targetType: TargetType)(using Definitions, Reporter, Source): Word = Debug.trace("Adapting " + word.show, (_: Word).show, enable = false):
+    val defn = summon[Definitions]
 
     val word2 =
       if word.tpe.isProcType then
@@ -229,7 +230,7 @@ class Checker:
       case TargetType.ValueType =>
         if word2.tpe.isVoidType then
           // adapt to Unit type
-          adapt(word2, Definitions.instance.UnitType)
+          adapt(word2, defn.UnitType)
         else
           checkValueType(word2)
           widen(word2)

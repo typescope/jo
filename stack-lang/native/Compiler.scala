@@ -48,6 +48,7 @@ object Compiler:
 
     val rootNameTable = new NameTable
     val runtimeNameTable = new NameTable
+
     val stdlib = "lib/Predef.stk" :: Nil
     val runtime = List(
       "runtime/native/Core.stk",
@@ -58,6 +59,8 @@ object Compiler:
     )
 
     Reporter.monitor:
+      given lazyDefn: Definitions.Lazy: = new Definitions.Lazy(rootNameTable)
+
       val namespacesSAST =
         FrontEnd.run(stdlib, runtime, sources, rootNameTable, runtimeNameTable)
 
@@ -66,6 +69,8 @@ object Compiler:
 
       mains match
         case main :: Nil =>
+          given Definitions = lazyDefn.value
+
           val backend = backendBuilder(runtimeNameTable, main)
 
           val contextParamsLower = new native.LowerContextParams(backend.runtime)

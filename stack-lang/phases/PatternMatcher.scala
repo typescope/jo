@@ -9,10 +9,9 @@ import sast.Types.*
 
 import scala.collection.mutable
 
-class PatternMatcher extends Phase[PatternMatcher.Context]:
+class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Context]:
   val contextObject = PatternMatcher.CacheContext
 
-  val defn = Definitions.instance
   val IntType = defn.IntType
   val BoolType = defn.BoolType
   val StringType = defn.StringType

@@ -18,10 +18,10 @@ import scala.collection.mutable
   *     fun alloc(size: Int): Addr = ...
   *     fun addAddr(arr: Addr, offset: Int): Addr = ...
   */
-class ExplicitAlloc(runtime: NativeRuntime) extends phases.Phase[Symbol]:
+class ExplicitAlloc(runtime: NativeRuntime)(using defn: Definitions) extends phases.Phase[Symbol]:
   val contextObject = phases.Phase.OwnerContext
 
-  val IntType = Definitions.instance.IntType
+  val IntType = defn.IntType
 
   val memory = new Memory(runtime)
 

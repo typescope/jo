@@ -27,6 +27,7 @@ import scala.collection.mutable
   */
 class StackMachine(
   registerConfig: RegisterConfig, runtime: NativeRuntime)
+  (using defn: Definitions)
 extends Backend(runtime):
 
   import registerConfig.{ FP_REG, SP_REG, FREE_REGS }
@@ -278,7 +279,7 @@ extends Backend(runtime):
   def compile(app: Apply)(using LocalAddr, CodeBuffer): Unit =
     app.funSymbol match
       case Some(sym) =>
-        if sym.owner == Definitions.instance.Predef then
+        if sym.owner == defn.Predef then
           for arg <- app.args do compile(arg)
           callPredef(sym)
         else if sym.owner == runtime.Core then
@@ -320,7 +321,6 @@ extends Backend(runtime):
     cb.add(Instr.Store(v, Reg(SP_REG)))
 
   def callPredef(sym: Symbol)(using cb: CodeBuffer): Unit =
-    val defn = Definitions.instance
 
     sym match
       case defn.Predef_add    =>   int2(Instr.Add)

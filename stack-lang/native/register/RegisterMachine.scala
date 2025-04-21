@@ -32,6 +32,7 @@ class RegisterMachine(
   callConvention: CallConvention,
   runtime: NativeRuntime,
   rules: GraphColoring.PlatformRules)
+  (using defn: Definitions)
 extends Backend(runtime):
 
   import registerConfig.{ FP_REG, SP_REG }
@@ -373,7 +374,7 @@ extends Backend(runtime):
   def compile(app: Apply)(using ctx: Context): Unit =
     app.funSymbol match
       case Some(sym) =>
-        if sym.owner == Definitions.instance.Predef then
+        if sym.owner == defn.Predef then
           for arg <- app.args do compile(arg)
           callPredef(sym)
         else if sym.owner == runtime.Core then
@@ -403,7 +404,6 @@ extends Backend(runtime):
         this.call(fun, funType.paramTypes, funType.resultType)
 
   def callPredef(sym: Symbol)(using Context): Unit =
-    val defn = Definitions.instance
     sym match
       case defn.Predef_add    =>   int2(Instr.Add)
       case defn.Predef_sub    =>   int2(Instr.Sub)

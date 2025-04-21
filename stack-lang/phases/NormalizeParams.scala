@@ -41,10 +41,8 @@ import scala.collection.mutable
   * The effect check will happen for `a`, the semantics will only use
   * `a$option`.
   */
-class NormalizeParams(using Reporter) extends Phase[NormalizeParams.Context]:
+class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[NormalizeParams.Context]:
   val contextObject = NormalizeParams.CacheContext
-
-  val defn = Definitions.instance
 
   val NoneType = TagType("None", params = Nil)
 

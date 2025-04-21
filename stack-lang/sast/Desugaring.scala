@@ -9,9 +9,8 @@ object Desugaring:
     *     lhs || rhs    ===>    if lhs then true else rhs
     *     lhs && rhs    ===>    if lhs then rhs  else false
     */
-  def desugarShortcutAndOr(apply: Apply): Word =
+  def desugarShortcutAndOr(apply: Apply)(using defn: Definitions): Word =
     val Apply(fun, args) = apply
-    val defn = Definitions.instance
 
     if fun.refersTo(defn.Predef_and) then
       val lhs :: rhs :: Nil = args: @unchecked

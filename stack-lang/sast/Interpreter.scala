@@ -169,10 +169,8 @@ object Interpreter:
     val StringVal(v) :: Nil = args: @unchecked
     throw new Exception(v)
 
-  def createRootEnv(): Env =
+  def createRootEnv()(using defn: Definitions): Env =
     val rootEnv = new Env.RootEnv()
-
-    val defn = Definitions.instance
 
     val platformCalls: Map[Symbol, List[Value] => List[Value]] = Map(
       defn.Predef_add        ->       add,
@@ -210,8 +208,7 @@ object Interpreter:
 
     rootEnv
 
-  def createRuntimeContextParams(): Map[Symbol, Value] =
-    val defn = Definitions.instance
+  def createRuntimeContextParams()(using defn: Definitions): Map[Symbol, Value] =
     Map(
       defn.Predef_open   ->  open(),
       defn.Predef_stdin  ->  stdin(),
@@ -271,7 +268,7 @@ object Interpreter:
     } :: Nil
   )
 
-  def exec(nss: List[Namespace], main: Symbol): Unit =
+  def exec(nss: List[Namespace], main: Symbol)(using Definitions): Unit =
     val rootEnv = createRootEnv()
 
     for
@@ -504,13 +501,17 @@ object Interpreter:
     val stdlib = "lib/Predef.stk" :: Nil
     val runtime = Nil
 
-    val namespacesSAST = FrontEnd.run(stdlib, runtime, sourceFiles)
+    val rootNameTable = new NameTable
+    val runtimeNameTable = new NameTable
+    given lazyDefn: Definitions.Lazy: = new Definitions.Lazy(rootNameTable)
+    val namespacesSAST = FrontEnd.run(stdlib, runtime, sourceFiles, runtimeNameTable)
 
     val mains = namespacesSAST.collect:
       case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get
 
     mains match
       case main :: _ =>
+        given Definitions = lazyDefn.value
         exec(namespacesSAST, main)
 
       case Nil =>

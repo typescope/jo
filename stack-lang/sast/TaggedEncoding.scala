@@ -38,21 +38,19 @@ object TaggedEncoding:
       else
         hashCodes(code) = tag
 
-  def encodeTagType(tagType: TagType): RecordType =
-    val IntType = Definitions.instance.IntType
+  def encodeTagType(tagType: TagType)(using defn: Definitions)(using defn: Definitions): RecordType =
     val fieldTypes = new mutable.ArrayBuffer[NamedInfo[Type]]
-    fieldTypes += NamedInfo("tag", IntType)
+    fieldTypes += NamedInfo("tag", defn.IntType)
     for (tagType, i) <- tagType.paramTypes.zipWithIndex do
       fieldTypes += NamedInfo(s"v$i", tagType)
     RecordType(fieldTypes.toList)
 
-  def encodeVariant(tagType: TagType, values: List[Word], tagSpan: Span, variantSpan: Span): Word =
+  def encodeVariant(tagType: TagType, values: List[Word], tagSpan: Span, variantSpan: Span)(using defn: Definitions): Word =
     val tag = tagType.tag
-    val IntType = Definitions.instance.IntType
 
     val encodeType = encodeTagType(tagType)
     val tagCode = getTagCode(tag)
-    val tagValue = Literal(Constant.Int(tagCode))(IntType, tagSpan)
+    val tagValue = Literal(Constant.Int(tagCode))(defn.IntType, tagSpan)
 
     val fields = new mutable.ArrayBuffer[(String, Word)]
     fields += "tag" -> tagValue
@@ -61,11 +59,11 @@ object TaggedEncoding:
 
     RecordLit(fields.toList)(encodeType, variantSpan)
 
-  def selectVariantField(value: Word, tagType: TagType, field: String, span: Span): Word =
+  def selectVariantField(value: Word, tagType: TagType, field: String, span: Span)(using defn: Definitions): Word =
     val fieldIndex = tagType.paramIndex(field)
     selectVariantField(value, tagType, fieldIndex, span)
 
-  def selectVariantField(value: Word, tagType: TagType, argIndex: Int, span: Span): Word =
+  def selectVariantField(value: Word, tagType: TagType, argIndex: Int, span: Span)(using defn: Definitions): Word =
     val encodeType = TaggedEncoding.encodeTagType(tagType)
     val qualEncoded = Encoded(value)(encodeType)
 
@@ -73,27 +71,26 @@ object TaggedEncoding:
     val fieldType = encodeType.fieldType(fieldName)
     Select(qualEncoded, fieldName)(fieldType, span)
 
-  def testTagValue(tagValue: Word, tag: String, span: Span): Word =
-    val IntType = Definitions.instance.IntType
+  def testTagValue(tagValue: Word, tag: String, span: Span)(using defn: Definitions): Word =
+    val IntType = defn.IntType
     val tagCode = getTagCode(tag)
     val testTagValue = Literal(Constant.Int(tagCode))(IntType, span)
     val args =  tagValue :: testTagValue :: Nil
-    val fun = Ident(Definitions.instance.Predef_eql)(span)
-    val tp = Definitions.instance.BoolType
-    Apply(fun, args)(tp, span)
+    val fun = Ident(defn.Predef_eql)(span)
+    Apply(fun, args)(defn.BoolType, span)
 
-  def testVariantTag(ref: Word, tag: String, span: Span): Word =
-    val IntType = Definitions.instance.IntType
+  def testVariantTag(ref: Word, tag: String, span: Span)(using defn: Definitions): Word =
+    val IntType = defn.IntType
     val tagSelect = Select(ref, "tag")(IntType, span)
     testTagValue(tagSelect, tag, span)
 
-  def testTagValues(tagValue: Ident, tags: List[String], span: Span): Word =
+  def testTagValues(tagValue: Ident, tags: List[String], span: Span)(using defn: Definitions): Word =
     val tag :: rest = tags: @unchecked
     // ASTs are immutable thus can be shared
     //
     // Use non-short-cutting `either` for better CPU performance (no jumps)
-    val fun = Ident(Definitions.instance.Predef_either)(span)
-    val tp = Definitions.instance.BoolType
+    val fun = Ident(defn.Predef_either)(span)
+    val tp = defn.BoolType
     val cond = testTagValue(tagValue, tag, span)
     rest.foldLeft(cond): (acc, tag) =>
       val cond2 = testTagValue(tagValue, tag, span)

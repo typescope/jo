@@ -29,10 +29,9 @@ import scala.collection.mutable
   * The native backend dedup constant strings and compile them as globals, thus
   * satisfies the constraints above.
   */
-class LowerContextParams(runtime: NativeRuntime) extends phases.Phase[Symbol]:
+class LowerContextParams(runtime: NativeRuntime)(using defn: Definitions) extends phases.Phase[Symbol]:
   val contextObject = phases.Phase.OwnerContext
 
-  val defn = Definitions.instance
   val BoolType = defn.BoolType
   val IntType = defn.IntType
   val AddrType = TypeRef(runtime.Core_Addr)

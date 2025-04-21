@@ -84,3 +84,7 @@ final class Definitions(rootNameTable: NameTable):
 
   def isRuntimeContextParam(sym: Symbol): Boolean =
     runtimeContextParams.contains(sym)
+
+object Definitions:
+  class Lazy(val rootNameTable: NameTable):
+    lazy val value: Definitions = new Definitions(rootNameTable)

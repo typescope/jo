@@ -248,7 +248,7 @@ class PatternTyper(namer: Namer, checker: Checker):
 
   private def transformTagPattern(
     tag: Ast.Tag, args: List[Ast.Word], scrutType: Type, patSpan: Span)
-    (using sc: Scope, rp: Reporter, so: Source, oc: Occurs)
+    (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs)
   : Pattern =
 
     val id = tag.name
@@ -264,7 +264,7 @@ class PatternTyper(namer: Namer, checker: Checker):
       val args2 =
         for (pat, paramType) <- args.zip(paramTypes) yield transformPattern(pat, paramType)
 
-      val tagStringLit = StringLit(id.name)(Definitions.instance.StringType, tag.span)
+      val tagStringLit = StringLit(id.name)(defn.StringType, tag.span)
       val tagTypeActual = TagType.from(id.name, args2.map(_.tpe))
       TagPattern(tagStringLit, args2)(tagTypeActual)
 

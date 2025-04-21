@@ -8,11 +8,11 @@ import sast.Definitions
 import native.runtime.NativeRuntime
 
 /** Code related to runtime memory representation of records and objects */
-class Memory(runtime: NativeRuntime):
+class Memory(runtime: NativeRuntime)(using defn: Definitions):
   private val VTABLE = "vtable"
   private val FTABLE = "ftable"
 
-  val IntType = Definitions.instance.IntType
+  val IntType = defn.IntType
   val AddrType = TypeRef(runtime.Core_Addr)
 
   /** Size of the recrod in bytes */

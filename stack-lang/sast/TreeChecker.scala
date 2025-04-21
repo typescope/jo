@@ -20,11 +20,10 @@ object TreeChecker:
 
     nss
 
-class TreeChecker()(using Source) extends SastOps.TreeTraverser:
+class TreeChecker()(using defn: Definitions, so: Source) extends SastOps.TreeTraverser:
   type Context = Reporter
 
   def apply(word: Word)(using info: Context): Unit =
-    val defn = Definitions.instance
 
     word match
       case Ident(sym) =>
