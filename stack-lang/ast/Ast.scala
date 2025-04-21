@@ -1,7 +1,7 @@
 package ast
 
 import Positions.{ Positioned, Span }
-
+import common.KeyProps
 
 /***********************************************************************
  *
@@ -9,7 +9,7 @@ import Positions.{ Positioned, Span }
  *
  ***********************************************************************/
 object Ast:
-  sealed abstract class Tree extends Positioned with Product
+  sealed abstract class Tree extends Positioned, KeyProps.Container
 
   sealed abstract class Word extends Tree:
     def show: String = Printing.show(this)

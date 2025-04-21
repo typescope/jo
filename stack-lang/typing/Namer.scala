@@ -230,6 +230,9 @@ class Namer(@constructorOnly reporter: Reporter):
     extension (word: Word) def adapt: Word = checker.adapt(word, tt)
 
     Debug.trace(s"Typing ${word.show}", (_: Word).show, enable = false) {
+    word.testKey(Namer.TypedWord) match
+    case Some(typedWord) => typedWord.adapt
+    case None =>
       word match
       case Ast.IntLit(v)  =>
         val tp = Definitions.instance.IntType
@@ -1239,6 +1242,12 @@ class Namer(@constructorOnly reporter: Reporter):
 
 object Namer:
   def errorWord(span: Span) = Block(words = Nil)(ErrorType, span)
+
+  /** The typed word associated with an untyped word
+    *
+    * It is used to avoid re-typing a word.
+    */
+  val TypedWord = new KeyProps.Key[Word]("Namer.TypedWord")
 
   class DelayedDef[+T <: Def](val symbol: Symbol, delayed: () => T):
     private lazy val definition: T = delayed()

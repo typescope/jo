@@ -84,13 +84,3 @@ final class Definitions(rootNameTable: NameTable):
 
   def isRuntimeContextParam(sym: Symbol): Boolean =
     runtimeContextParams.contains(sym)
-
-
-object Definitions:
-  private val key = new Dynamic.Key[Dynamic.Lazy[Definitions]]("definitions")
-
-  def initialize(rootNameTable: NameTable): Unit =
-    val lazyDefinitions = Dynamic.Lazy(new Definitions(rootNameTable))
-    Dynamic.install(Definitions.key, lazyDefinitions)
-
-  def instance: Definitions = Dynamic.get(key).force()

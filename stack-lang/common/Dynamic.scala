@@ -10,9 +10,7 @@ object Dynamic:
     *
     * TODO: Use thread-local store for thread safety.
     */
-  private val map: mutable.Map[Key[?], Any] = mutable.Map.empty
-
-  class Key[+T](val name: String)
+  private val container = new KeyProperties.Container {}
 
   class Lazy[+T](delayed: => T):
     private lazy val value: T = delayed
@@ -22,20 +20,8 @@ object Dynamic:
     *
     * The key must not have been installed.
     */
-  def install[T](key: Key[T], value: T): Unit =
-    assert(!map.contains(key))
-    map(key) = value
-
-  def withBinding[T, S](key: Key[T], value: T)(fn: => S): S =
-    val old = map.get(key)
-    map(key) = value
-    val res = fn
-    old match
-      case None    => map.remove(key)
-      case Some(v) => map(key) = v
-    end match
-    res
+  def install[T](key: Key[T], value: T): Unit = container.addKey(key, value)
 
   def get[T](key: Key[T]): T = map(key).asInstanceOf[T]
 
-  def reset(): Unit = map.clear()
+  def reset(): Unit = container.clear()

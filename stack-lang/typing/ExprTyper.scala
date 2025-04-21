@@ -72,11 +72,11 @@ class ExprTyper(namer: Namer):
 
     case head :: rest =>
       val wordTyped =
-        // TODO: avoid re-typing with attachments
-        // ignore errors
-        given Reporter = rp.fresh(buffer = true)
         given TargetType = TargetType.Unknown
         namer.transform(head)
+
+      head.withKey(Namer.TypedWord, wordTyped)
+
       val tp = wordTyped.tpe
 
       val isDotlessMethodCallPattern = tp.isObjectType && rest.head.match
@@ -104,29 +104,16 @@ class ExprTyper(namer: Namer):
         val words: mutable.ListBuffer[Ast.Word] = mutable.ListBuffer.from(expr.words)
 
         val resolveProc: Ast.Word => Option[ProcType] = (word: Ast.Word) => word match
-          case ref: Ast.RefTree =>
+          case _: Ast.RefTree | _: Ast.TypeApply =>
             val typed =
-              // TODO: avoid re-typing with attachments
-              // ignore errors
-              given Reporter = rp.fresh(buffer = true)
-              given TargetType = TargetType.Unknown
-              namer.transform(ref)
-
-            if typed.tpe.isProcType then Some(typed.tpe.asProcType) else None
-
-          case tapp: Ast.TypeApply =>
-            val typed =
-              // TODO: avoid re-typing with attachments
-              // ignore errors
-              given Reporter = rp.fresh(buffer = true)
-              given TargetType = TargetType.Unknown
-              namer.transform(tapp)
+              word.getKeyOrUpdate(Namer.TypedWord):
+                given TargetType = TargetType.Unknown
+                namer.transform(word)
 
             if typed.tpe.isProcType then Some(typed.tpe.asProcType) else None
 
           case _ =>
             None
-
 
         val values = parseMixed(words, -1, resolveProc)
 
