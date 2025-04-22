@@ -301,7 +301,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
 
       val assignTag =  scrutineeTagAssign(scrut, span)
       val conds =
-        for tagType <- unionType.branches
+        for tagType <- unionType.tagTypes
         yield transformTagTypePattern(scrut, tagType, Some(assignTag.ident), span)
 
       val cond :: rest = conds: @unchecked

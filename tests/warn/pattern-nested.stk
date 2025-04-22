@@ -9,14 +9,18 @@ fun test(a: Option[Option[Int]]): Unit =
   match a                                      // error
    case #Some #None => println "some none"
 
-pattern Cons(x: Int, rest: List[Int]): #Cons(Int, List[Int]) =
+type Nil = #Nil
+type Cons[T] = #Cons(head: T, tail: List[T])
+type List[T] = Nil | Cons[T]
+
+pattern Cons(x: Int, rest: List[Int]): Cons[Int] =
   #Cons x rest
 
 fun Cons(x: Int, rest: List[Int]): List[Int] =
   #Cons x rest
 
-pattern Nil: #Nil = #Nil
-fun Nil: #Nil = #Nil
+pattern Nil: Nil = #Nil
+fun Nil: Nil = #Nil
 
 fun test2(a: List[Int]): Unit =
   match a

@@ -244,11 +244,7 @@ object TypeOps:
         case UnionType(branches) =>
           val branches2 =
             for branch <- branches
-            yield branch.copy(
-              params = branch.params.map(
-                param => param.copy(info = this(param.info))
-              )
-            )
+            yield this(branch)
 
           UnionType(branches2)
 

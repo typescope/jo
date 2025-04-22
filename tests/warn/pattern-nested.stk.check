@@ -13,13 +13,13 @@
 |         ^
 |         The match will fail for the cases: #None, #Some(#Some(v: Int))
 
----------- Warning at ./tests/warn/pattern-nested.stk:22:9 ---------------
-|   match a
-|         ^
-|         The match will fail for the case: Cons(Int, #Nil)
-
 ---------- Warning at ./tests/warn/pattern-nested.stk:26:9 ---------------
 |   match a
 |         ^
-|         The match will fail for the case: #Nil
+|         The match will fail for the case: Cons(Int, Nil)
+
+---------- Warning at ./tests/warn/pattern-nested.stk:30:9 ---------------
+|   match a
+|         ^
+|         The match will fail for the case: Nil
 

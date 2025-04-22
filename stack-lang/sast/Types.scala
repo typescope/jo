@@ -235,22 +235,32 @@ object Types:
     def fieldType(name: String): Type =
       getFieldType(name).get
 
-  case class UnionType(branches: List[TagType]) extends Type:
-    private val tagsMap = branches.map(b => b.tag -> b).toMap
+  case class UnionType(branches: List[Type]) extends Type:
+    private val tagMap: Map[String, TagType] =
+      branches.foldLeft(Map.empty): (acc, branch) =>
+        if branch.isTagType then
+          val tagType = branch.asTagType
+          assert(!acc.contains(tagType.tag), "duplicate tag " + tagType.tag + " in " + this.show)
+          acc.updated(tagType.tag, tagType)
 
-    assert(tagsMap.size == branches.size, "Duplicate tags = " + branches)
+        else if branch.isUnionType then
+          val unionType = branch.asUnionType
+          unionType.tagTypes.foldLeft(acc): (acc, tagType) =>
+            assert(!acc.contains(tagType.tag), "duplicate tag " + tagType.tag + " in " + this.show)
+            acc.updated(tagType.tag, tagType)
 
-    val tags: List[String] = branches.map(_.tag)
+        else
+          throw new Exception("Expect union type or tag type, found = " + branch)
 
-    def getTagType(tag: String): Option[TagType] = tagsMap.get(tag)
+    val tags: List[String] = tagMap.keys.toList
 
-    def hasTag(tag: String): Boolean = tagsMap.contains(tag)
+    val tagTypes: List[TagType] = tagMap.values.toList
 
-    def tagType(tag: String): TagType = tagsMap(tag)
+    def getTagType(tag: String): Option[TagType] = tagMap.get(tag)
 
-    def tagIndex(tag: String): Int =
-      branches.indexWhere:
-        case TagType(t, _) => t == tag
+    def hasTag(tag: String): Boolean = tagMap.contains(tag)
+
+    def tagType(tag: String): TagType = tagMap(tag)
 
   /** The type for tagged value like `#Some(3)` */
   case class TagType(tag: String, params: List[NamedInfo[Type]]) extends Type:

@@ -1224,23 +1224,26 @@ class Namer(@constructorOnly reporter: Reporter):
         TypeTree(tp)(tpt.span)
 
       case Ast.UnionType(branches) =>
-        val branchTypes = new mutable.ArrayBuffer[TagType]
+        val branchTypes = new mutable.ArrayBuffer[Type]
+        val tags = mutable.Set.empty[String]
         for branch <- branches do
           val branchType = transformType(branch).tpe
-          val expanded =
+          val branchTags =
             if branchType.isTagType then
-              branchType.asTagType :: Nil
+              branchType.asTagType.tag :: Nil
             else if branchType.isUnionType then
-              branchType.asUnionType.branches
+              branchType.asUnionType.tags
             else
               Reporter.error("Only tag type or union type allowed inside a union type, found = " + branchType.show, branch.pos)
               Nil
 
-          for tagType <- expanded do
-            if branchTypes.exists(_.tag == tagType.tag) then
-              Reporter.error("Branch " + tagType.tag + " already defined", branch.pos)
+          for tag <- branchTags do
+            if tags.exists(_ == tag) then
+              Reporter.error("Branch " + tag + " already defined", branch.pos)
             else
-              branchTypes += tagType
+              tags += tag
+
+          branchTypes += branchType
         end for
         val unionType = UnionType(branchTypes.toList)
         TaggedEncoding.checkUnionType(unionType, tpt.pos)
