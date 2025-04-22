@@ -16,7 +16,7 @@ object Typer:
   : List[Namespace] =
 
     // StdLib is compiled without the Predef
-    val nssStdLib = runNamer(stdlib, defnLazy, predef = new NameTable)
+    val nssStdLib = runNamer(stdlib, predef = new NameTable)
 
     // Must be after type checking the stdlib
     val predefNameTable = defnLazy.value.Predef_nameTable
@@ -43,12 +43,14 @@ object Typer:
       val stdLib = "lib/Predef.stk" :: Nil
       val runtimeFiles = Nil
 
+      val rootNameTable = new NameTable
+      val runtimeNameTable = new NameTable
+      given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable)
+
       val namer = (nssAst: List[Ast.Namespace]) =>
-        val rootNameTable = new NameTable
-        val runtimeNameTable = new NameTable
-        given new Definitions.Lazy(rootNameTable)
         check(nssAst, stdLib, runtimeFiles, runtimeNameTable)
 
+      given Definitions = lazyDefn.value
       val nss = Parser.parse(args.toList) |> namer |> TreeChecker.check
 
       for ns <- nss do

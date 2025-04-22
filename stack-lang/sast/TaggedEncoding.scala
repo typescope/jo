@@ -38,7 +38,7 @@ object TaggedEncoding:
       else
         hashCodes(code) = tag
 
-  def encodeTagType(tagType: TagType)(using defn: Definitions)(using defn: Definitions): RecordType =
+  def encodeTagType(tagType: TagType)(using defn: Definitions): RecordType =
     val fieldTypes = new mutable.ArrayBuffer[NamedInfo[Type]]
     fieldTypes += NamedInfo("tag", defn.IntType)
     for (tagType, i) <- tagType.paramTypes.zipWithIndex do

@@ -16,6 +16,8 @@ object FrontEnd:
     (using defnLazy: Definitions.Lazy, rp: Reporter)
   : List[Namespace] =
 
+    given Definitions = defnLazy.value
+
     val typeCheck = (nss: List[Ast.Namespace]) =>
       Typer.check(nss, stdlib, runtime, runtimeNameTable)
 
@@ -25,7 +27,6 @@ object FrontEnd:
       Printing.peek(enable = false) |>
       TreeChecker.check
 
-    given Definitions = defnLazy.value
     val noramlizer = new phases.NormalizeParams
     val encoder = new phases.EncodeTagged
     val patmat = new phases.PatternMatcher

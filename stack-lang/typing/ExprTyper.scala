@@ -62,7 +62,7 @@ object ExprTyper:
   */
 class ExprTyper(namer: Namer):
 
-  def transform(expr: Ast.Expr)(using  sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
+  def transform(expr: Ast.Expr)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
     expr.words: @unchecked match
     case head :: Nil =>
       namer.transform(head)
@@ -75,7 +75,7 @@ class ExprTyper(namer: Namer):
         given TargetType = TargetType.Unknown
         namer.transform(head)
 
-      head.withKey(Namer.TypedWord, wordTyped)
+      head.addKey(Namer.TypedWord, wordTyped)
 
       val tp = wordTyped.tpe
 

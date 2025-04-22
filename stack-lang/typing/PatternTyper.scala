@@ -16,7 +16,10 @@ import PatternTyper.Occurs
 import scala.collection.mutable
 
 class PatternTyper(namer: Namer, checker: Checker):
-  def transformPatDef(patDef: Ast.PatDef)(using sc: Scope, rp: Reporter, so: Source): DelayedDef[PatDef] =
+  def transformPatDef(patDef: Ast.PatDef)
+    (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
+  : DelayedDef[PatDef] =
+
     val patSym = Symbol.createSymbol(patDef.name, namer.nonCyclicTypeProvider, Flags.Pattern | Flags.Fun, sc.owner, patDef.ident.pos)
     val patScope = sc.fresh(patSym)
 
@@ -97,9 +100,15 @@ class PatternTyper(namer: Namer, checker: Checker):
 
     DelayedDef(patSym, typer)
 
-  def transformMatch(patmat: Ast.Match)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
+  def transformMatch(patmat: Ast.Match)
+    (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType)
+  : Word =
+
     val Ast.Match(scrutinee, cases) = patmat
-    val scrutinee2 = namer.transform(scrutinee)(using sc, rp, so, TargetType.ValueType)
+    val scrutinee2 =
+      given TargetType = TargetType.ValueType
+      namer.transform(scrutinee)
+
     val scrutType = scrutinee2.tpe
 
     val rp2: Reporter = rp.fresh(buffer = true)
@@ -142,7 +151,7 @@ class PatternTyper(namer: Namer, checker: Checker):
       Reporter.warn(s"The match will fail for the $word: " + examples, patmat.scrutinee.pos)
 
   private def transformCase(caseDef: Ast.Case, scrutType: Type)
-    (using sc: Scope, rp: Reporter, so: Source, tt: TargetType)
+    (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType)
   : Case =
 
     given Scope = sc.fresh()
@@ -155,7 +164,7 @@ class PatternTyper(namer: Namer, checker: Checker):
 
   private def transformApplyPattern(
     id: Ast.Ident, args: List[Ast.Word], scrutType: Type, patSpan: Span)
-    (using sc: Scope, rp: Reporter, so: Source, oc: Occurs)
+    (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs)
   : Pattern =
 
     val sym = sc.resolvePattern(id.name, id.pos)
@@ -195,7 +204,7 @@ class PatternTyper(namer: Namer, checker: Checker):
   private def transformInfixCallPattern(
     preArgs: List[Ast.Word], id: Ast.Ident, postArgs: List[Ast.Word],
     scrutType: Type, patSpan: Span)
-    (using sc: Scope, rp: Reporter, so: Source, oc: Occurs)
+    (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs)
   : Pattern =
 
     val sym = sc.resolvePattern(id.name, id.pos)
@@ -296,7 +305,7 @@ class PatternTyper(namer: Namer, checker: Checker):
 
   private def transformTypePattern(
     id: Ast.Ident, tpt: Ast.TypeTree, scrutType: Type, patSpan: Span)
-    (using sc: Scope, rp: Reporter, so: Source, oc: Occurs)
+    (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs)
   : Pattern =
 
     val name = id.name
@@ -337,7 +346,7 @@ class PatternTyper(namer: Namer, checker: Checker):
       WildcardPattern()(ErrorType, patSpan)
 
   private def transformIdentPattern(id: Ast.Ident, scrutType: Type)
-    (using sc: Scope, rp: Reporter, so: Source, oc: Occurs)
+    (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs)
   : Pattern =
 
     val name = id.name
@@ -371,7 +380,7 @@ class PatternTyper(namer: Namer, checker: Checker):
       AscribePattern(patVal, wildcard)
 
   private def transformExprPattern(expr: Ast.Expr, scrutType: Type)
-    (using sc: Scope, rp: Reporter, so: Source, oc: Occurs)
+    (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs)
   : Pattern =
 
     expr.words: @unchecked match
@@ -407,7 +416,7 @@ class PatternTyper(namer: Namer, checker: Checker):
 
   private def transformPattern(
     pat: Ast.Word, scrutType: Type)
-    (using sc: Scope, rp: Reporter, so: Source, oc: Occurs)
+    (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs)
   : Pattern =
 
     (pat: @unchecked) match

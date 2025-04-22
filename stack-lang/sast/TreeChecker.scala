@@ -9,7 +9,7 @@ import reporting.Reporter
 
 /** Check invariants of SAST */
 object TreeChecker:
-  def check(nss: List[Namespace])(using Reporter): List[Namespace] =
+  def check(nss: List[Namespace])(using Definitions, Reporter): List[Namespace] =
     for
       ns <- nss
       case fdef: FunDef <- ns.defs

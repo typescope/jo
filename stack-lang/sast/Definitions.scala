@@ -3,8 +3,6 @@ package sast
 import Types.*
 import Symbols.Symbol
 
-import common.Dynamic
-
 final class Definitions(rootNameTable: NameTable):
 
   val Predef =  rootNameTable.resolveNamespace("stk.Predef")

@@ -10,6 +10,7 @@ import sast.Symbols.*
 import sast.Types.*
 
 import common.Debug
+import common.KeyProps
 
 import reporting.Reporter
 
@@ -34,10 +35,10 @@ class Namer(@constructorOnly reporter: Reporter):
   val nonCyclicTypeProvider = new NamerUtils.ValueTypeProvider(using reporter)
 
   def transform(
-    nss: List[Ast.Namespace], rootNameTable: NameTable, predef: NameTable)
+    nss: List[Ast.Namespace], predef: NameTable)
     (using defnLazy: Definitions.Lazy, rp: Reporter)
   : List[Namespace] =
-
+    val rootNameTable = defnLazy.rootNameTable
     // All namespace are located in the scope
     val rootNamespaceScope = new Scope.RootScope(rootNameTable, owner = null)
 
