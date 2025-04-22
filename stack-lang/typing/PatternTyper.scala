@@ -399,9 +399,12 @@ class PatternTyper(namer: Namer, checker: Checker):
         val resolveProc: Ast.Word => Option[ProcType] = (word: Ast.Word) => word match
           case Ast.Ident(name) =>
             sc.resolvePattern(name) match
-              case Some(sym) if sym.is(Flags.Fun) => Some(sym.info.asProcType)
+              case Some(sym) if sym.is(Flags.Fun) =>
+                val procType = sym.info.asProcType
+                if procType.params.isEmpty then None else Some(procType)
 
-              case _ => None
+              case _ =>
+                None
 
           case _ =>
             None

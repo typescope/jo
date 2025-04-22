@@ -5,8 +5,27 @@ fun main =
 
   test #None
 
+  test2 (Cons 4 (Cons 3 Nil))
+  test2 (Cons 4 Nil)
+  test2 Nil
+
 fun test(a: Option[Option[Int]]): Unit =
   match a
    case #Some #None => println "some none"
    case #Some (#Some n) => println (intToStr n)
    case #None => println "none"
+
+pattern Cons(x: Int, rest: List[Int]): #Cons(Int, List[Int]) =
+  #Cons x rest
+
+fun Cons(x: Int, rest: List[Int]): List[Int] =
+  #Cons x rest
+
+pattern Nil: #Nil = #Nil
+fun Nil: #Nil = #Nil
+
+fun test2(a: List[Int]): Unit =
+  match a
+    case Cons x (Cons y rest) => println (intToStr (x + y))
+    case Cons x Nil => println (intToStr x)
+    case Nil => println "empty"

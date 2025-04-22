@@ -667,9 +667,31 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def tagType(): TypeTree =
     val item = eat(Token.TAG)
     val tag = ident()
-    val params = paramSection()
+    val params = tagTypeParams()
     val spanEnd = if params.isEmpty then tag.span else params.last.span
     TagType(tag, params)(item.span | spanEnd)
+
+  def tagTypeParams(): List[Param] =
+    if peek() != Token.LPAREN then Nil
+    else
+      next()
+      val params = new mutable.ArrayBuffer[Param]
+      while peek() != Token.RPAREN do
+        if params.nonEmpty then eat(Token.COMMA)
+
+        if peek(1) == Token.COLON then
+          val id = ident()
+          next()
+          val tp = typ()
+          params += Param(id, tp)(id.span | tp.span)
+        else
+          val tp = typ()
+          val id = Ident("_" + (params.size + 1))(tp.span)
+          params += Param(id, tp)(id.span | tp.span)
+      end while
+
+      eat(Token.RPAREN)
+      params.toList
 
   def fields(acc: mutable.ArrayBuffer[Param]): List[Param] =
     peek() match

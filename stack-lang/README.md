@@ -141,7 +141,8 @@ Abstract Syntax
     field      = ident COLON type.
 
     union_typ  = type {"|" type}.
-    tag_type   = TAG ident [param_section].
+    tag_type   = TAG ident [LPAREN tag_param { COMMA tag_param } RPAREN].
+    tag_param  = [ident COLON] type
 
     fun_type    = param_types RARROW type [receive_params].
     param_types = type | LPAREN RPAREN | LPAREN type {COMMA type} RPAREN.
