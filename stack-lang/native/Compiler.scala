@@ -18,7 +18,7 @@ import native.arch.X86
  *
  ***********************************************************************/
 object Compiler:
-  type BackendBuilder = (NameTable, Symbol) => Backend
+  type BackendBuilder = (NameTable, Symbol, Definitions) => Backend
 
   val optionSpec = Map(
     "-o" -> true,
@@ -59,10 +59,10 @@ object Compiler:
     )
 
     Reporter.monitor:
-      given lazyDefn: Definitions.Lazy: = new Definitions.Lazy(rootNameTable)
+      given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable)
 
       val namespacesSAST =
-        FrontEnd.run(stdlib, runtime, sources, rootNameTable, runtimeNameTable)
+        FrontEnd.run(stdlib, runtime, sources, runtimeNameTable)
 
       val mains = namespacesSAST.collect:
         case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get
@@ -71,7 +71,7 @@ object Compiler:
         case main :: Nil =>
           given Definitions = lazyDefn.value
 
-          val backend = backendBuilder(runtimeNameTable, main)
+          val backend = backendBuilder(runtimeNameTable, main, lazyDefn.value)
 
           val contextParamsLower = new native.LowerContextParams(backend.runtime)
           val runtimeLowerer = new native.LowerRuntime(backend.runtime)

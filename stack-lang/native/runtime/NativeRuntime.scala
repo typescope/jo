@@ -13,7 +13,6 @@ import native.Assembler.PatchableBuffer
   */
 class NativeRuntime(
   runtimeRootNameTable: NameTable, linkers: List[Linker], userMain: Symbol)
-  (using defn: Definitions)
 extends Linker:
   import runtimeRootNameTable.resolveNamespace
 

@@ -32,7 +32,7 @@ object Sast:
     def dropIfVoid(target: Type): Word =
       if target.isVoidType then dropValue else this
 
-    def show: String = Printing.show(this)
+    def show(using Definitions): String = Printing.show(this)
 
     /** Whether the word can be duplicated as neighbors without affecting program semantics */
     def isIdempotent: Boolean =
@@ -303,7 +303,7 @@ object Sast:
       val funs = defs.filter(defn => defn.symbol.isFunction && defn.symbol.name == "main")
       funs.map(_.symbol).headOption
 
-    def show: String = Printing.show(this)
+    def show(using Definitions): String = Printing.show(this)
 
   //----------------------------------------------------------------------------
   // helpers

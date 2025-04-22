@@ -554,7 +554,7 @@ object RegisterMachine:
   /**
     * Create a new x86 register machine
     */
-  def createLinux86(runtimeRootNameTable: NameTable, main: Symbol): Backend =
+  def createLinux86(runtimeRootNameTable: NameTable, main: Symbol, defn: Definitions): Backend =
     val bumpAllocator = new BumpAllocator(runtimeRootNameTable)
     val syscalls = Linux.createSyscallRegister(runtimeRootNameTable)
     val linkers = List(bumpAllocator, syscalls)
@@ -573,6 +573,6 @@ object RegisterMachine:
         yield
           reg1 -> reg2
 
-    new RegisterMachine(Linux.x86RegConfig, callConv, runtime, x86rules)
+    new RegisterMachine(Linux.x86RegConfig, callConv, runtime, x86rules)(using defn)
 
   def main(args: Array[String]): Unit = native.Compiler.compile(createLinux86, args)

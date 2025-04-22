@@ -14,27 +14,28 @@ object Typer:
     runtimeNameTable: NameTable)
     (using defnLazy: Definitions.Lazy, rp: Reporter)
   : List[Namespace] =
+    val rootNameTable = defnLazy.rootNameTable
 
     // StdLib is compiled without the Predef
-    val nssStdLib = runNamer(stdlib, predef = new NameTable)
+    val nssStdLib = runNamer(stdlib, rootNameTable, predef = new NameTable)
 
     // Must be after type checking the stdlib
     val predefNameTable = defnLazy.value.Predef_nameTable
 
-    // Runtime definitions are not entered into the root name table thus is
-    // inaccessible in user programs
-    val nssRuntime = runNamer(runtime, predefNameTable)
+    // Runtime definitions are inaccessible in user programs and may only
+    // use predef definitions
+    val nssRuntime = runNamer(runtime, runtimeNameTable, predefNameTable)
 
-    val nss = new Namer(rp).transform(nssAst, predefNameTable)
+    val nss = new Namer(rp).transform(nssAst, rootNameTable, predefNameTable)
     nssStdLib ++ nssRuntime ++ nss
 
   private def runNamer(
-    files: List[String], predef: NameTable)
+    files: List[String], rootNameTable: NameTable, predef: NameTable)
     (using defnLazy: Definitions.Lazy, rp: Reporter)
   : List[Namespace] =
 
     val namer = (nss: List[Ast.Namespace]) =>
-      new Namer(rp).transform(nss, predef)
+      new Namer(rp).transform(nss, rootNameTable, predef)
     // `|>` will stop early in the presence of parsing errors
     Parser.parse(files) |> namer
 

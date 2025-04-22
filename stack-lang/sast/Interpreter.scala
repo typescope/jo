@@ -285,13 +285,13 @@ object Interpreter:
 
     call(fdef, args = Nil)(using env2, params)
 
-  def exec(block: Block)(using Env, Params): List[Denotation] =
+  def exec(block: Block)(using Env, Params, Definitions): List[Denotation] =
     val results = for word <- block.words yield exec(word)
 
     if results.isEmpty then Nil
     else results.last
 
-  def call(fdef: FunDef, args: List[Value])(using env: Env, params: Params): List[Denotation] =
+  def call(fdef: FunDef, args: List[Value])(using env: Env, params: Params, defn: Definitions): List[Denotation] =
     val funEnv = env.fresh()
 
     for (param, arg) <- fdef.params.zip(args) do
@@ -300,12 +300,12 @@ object Interpreter:
     Debug.trace("calling " + fdef.symbol + ", env = " + funEnv.show(recursive = false), enable = false):
       exec(fdef.body)(using funEnv)
 
-  def eval(word: Word)(using env: Env, params: Params): Value =
+  def eval(word: Word)(using env: Env, params: Params, defn: Definitions): Value =
     Debug.trace(word.show + ", env = " + env.show(recursive = false), (_: Value).show(), enable = false):
       val (value: Value) :: Nil = exec(word): @unchecked
       value
 
-  def exec(word: Word)(using env: Env, params: Params): List[Denotation] =
+  def exec(word: Word)(using env: Env, params: Params, defn: Definitions): List[Denotation] =
     word match
       case Literal(c)  =>
         c match
