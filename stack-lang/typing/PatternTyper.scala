@@ -17,11 +17,15 @@ import scala.collection.mutable
 
 class PatternTyper(namer: Namer, checker: Checker):
   def transformPatDef(patDef: Ast.PatDef)
-    (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
+    (using lazyDefn: Definitions.Lazy | Definitions, sc: Scope, rp: Reporter, so: Source)
   : DelayedDef[PatDef] =
 
+    given Definitions = lazyDefn match
+      case lazyDefn: Definitions.Lazy => lazyDefn.value
+      case defn: Definitions => defn
+
     val patSym = Symbol.createSymbol(patDef.name, namer.nonCyclicTypeProvider, Flags.Pattern | Flags.Fun, sc.owner, patDef.ident.pos)
-    val patScope = sc.fresh(patSym)
+    given patScope: Scope = sc.fresh(patSym)
 
     lazy val tparamSyms =
       for tparam <- patDef.tparams yield
@@ -29,7 +33,7 @@ class PatternTyper(namer: Namer, checker: Checker):
           if tparam.bound.isEmpty then
             TypeBound(BottomType, AnyType)
           else
-            val boundTree = namer.transformType(tparam.bound)(using patScope)
+            val boundTree = namer.transformType(tparam.bound)
             TypeBound(BottomType, boundTree.tpe)
 
         val infoProvider: InfoProvider = (sym: Symbol) => bound
@@ -39,9 +43,8 @@ class PatternTyper(namer: Namer, checker: Checker):
 
     lazy val paramSyms =
       tparamSyms
-
       for param <- patDef.params yield
-        val tpt = namer.transformType(param.typ)(using patScope)
+        val tpt = namer.transformType(param.typ)
         val paramSym = Symbol.createSymbol(param.name, tpt.tpe, Flags.Pattern | Flags.Param, patSym, param.pos)
         patScope.define(paramSym)
         paramSym
@@ -50,7 +53,7 @@ class PatternTyper(namer: Namer, checker: Checker):
       tparamSyms
 
       assert(!patDef.resultType.isEmpty)
-      val resTypeTree = namer.transformType(patDef.resultType)(using patScope)
+      val resTypeTree = namer.transformType(patDef.resultType)
       resTypeTree.tpe
 
     lazy val resultType =
@@ -63,7 +66,6 @@ class PatternTyper(namer: Namer, checker: Checker):
     lazy val typedBody =
       paramSyms
       val occurs = new Occurs
-      given Scope = patScope
       given Occurs = occurs
       val reporterDiscard = rp.fresh(buffer = true)
       val scrutType = if patDef.resultType.isEmpty then VoidType else givenResultType

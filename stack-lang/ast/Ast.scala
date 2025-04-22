@@ -9,7 +9,7 @@ import common.KeyProps
  *
  ***********************************************************************/
 object Ast:
-  sealed abstract class Tree extends Positioned, KeyProps.Container
+  sealed abstract class Tree extends Product, Positioned, KeyProps.Container
 
   sealed abstract class Word extends Tree:
     def show: String = Printing.show(this)
