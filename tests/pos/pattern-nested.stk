@@ -1,0 +1,12 @@
+fun main =
+  test (#Some (#Some 5))
+
+  test (#Some #None)
+
+  test #None
+
+fun test(a: Option[Option[Int]]): Unit =
+  match a
+   case #Some #None => println "some none"
+   case #Some (#Some n) => println (intToStr n)
+   case #None => println "none"
