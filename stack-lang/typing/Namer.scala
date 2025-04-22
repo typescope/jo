@@ -1230,8 +1230,10 @@ class Namer(@constructorOnly reporter: Reporter):
           val branchType = transformType(branch).tpe
           val branchTags =
             if branchType.isTagType then
+              branchTypes += branchType
               branchType.asTagType.tag :: Nil
             else if branchType.isUnionType then
+              branchTypes += branchType
               branchType.asUnionType.tags
             else
               Reporter.error("Only tag type or union type allowed inside a union type, found = " + branchType.show, branch.pos)
@@ -1243,7 +1245,6 @@ class Namer(@constructorOnly reporter: Reporter):
             else
               tags += tag
 
-          branchTypes += branchType
         end for
         val unionType = UnionType(branchTypes.toList)
         TaggedEncoding.checkUnionType(unionType, tpt.pos)
