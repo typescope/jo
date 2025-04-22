@@ -3,12 +3,26 @@ fun test(a: Option[Option[Int]]): Unit =
    case #Some #None => println "some none"
    case #Some (#Some n) => println (intToStr n)
 
-fun test2(a: Option[Option[Int]]): Unit =
   match a                                      // error
    case #Some (#Some n) => println (intToStr n)
 
-fun test3(a: Option[Option[Int]]): Unit =
   match a                                      // error
    case #Some #None => println "some none"
 
-fun main = println "test"
+pattern Cons(x: Int, rest: List[Int]): #Cons(Int, List[Int]) =
+  #Cons x rest
+
+fun Cons(x: Int, rest: List[Int]): List[Int] =
+  #Cons x rest
+
+pattern Nil: #Nil = #Nil
+fun Nil: #Nil = #Nil
+
+fun test2(a: List[Int]): Unit =
+  match a
+    case Cons x (Cons y rest) => println (intToStr (x + y))
+    case Nil => println "empty"
+
+  match a
+    case Cons x (Cons y rest) => println (intToStr (x + y))
+    case Cons x Nil => println (intToStr x)

@@ -11,9 +11,9 @@ fun main =
 
 fun test(a: Option[Option[Int]]): Unit =
   match a
-   case #Some #None => println "some none"
-   case #Some (#Some n) => println (intToStr n)
-   case #None => println "none"
+    case #Some #None => println "some none"
+    case #Some (#Some n) => println (intToStr n)
+    case #None => println "none"
 
 pattern Cons(x: Int, rest: List[Int]): #Cons(Int, List[Int]) =
   #Cons x rest

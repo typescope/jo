@@ -3,13 +3,23 @@
 |         ^
 |         The match will fail for the case: #None
 
----------- Warning at ./tests/warn/pattern-nested.stk:7:9 ---------------
+---------- Warning at ./tests/warn/pattern-nested.stk:6:9 ---------------
 |   match a                                      // error
 |         ^
 |         The match will fail for the cases: #None, #Some(#None)
 
----------- Warning at ./tests/warn/pattern-nested.stk:11:9 ---------------
+---------- Warning at ./tests/warn/pattern-nested.stk:9:9 ---------------
 |   match a                                      // error
 |         ^
 |         The match will fail for the cases: #None, #Some(#Some(v: Int))
+
+---------- Warning at ./tests/warn/pattern-nested.stk:22:9 ---------------
+|   match a
+|         ^
+|         The match will fail for the case: Cons(Int, #Nil)
+
+---------- Warning at ./tests/warn/pattern-nested.stk:26:9 ---------------
+|   match a
+|         ^
+|         The match will fail for the case: #Nil
 
