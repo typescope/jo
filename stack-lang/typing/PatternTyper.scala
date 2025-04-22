@@ -381,6 +381,39 @@ class PatternTyper(namer: Namer, checker: Checker):
       val wildcard = WildcardPattern()(scrutType, id.span)
       AscribePattern(patVal, wildcard)
 
+  private def transformAscribePattern(id: Ast.Ident, nested: Ast.Word, scrutType: Type)
+    (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs)
+  : Pattern =
+
+    val name = id.name
+    if name == "_" then
+      WildcardPattern()(scrutType, id.span)
+
+    else if sc.owner.isPattern then
+      val sym = sc.resolvePattern(name, id.pos)
+
+      if !sym.info.isError then
+        oc.occur(sym, id.pos)
+
+      val nestedPattern = transformPattern(nested, scrutType)
+
+      val explain = new StringBuilder
+      if Patterns.isEqualType(sym.info, nestedPattern.tpe)(using explain) || scrutType.isVoidType then
+        val patVal = Ident(sym)(id.span)
+        AscribePattern(patVal, nestedPattern)
+
+      else
+        Reporter.error(s"$sym has the type ${sym.info.show}, which is not equal to the scrutinee type " + scrutType.show, id.pos)
+        WildcardPattern()(ErrorType, id.span)
+
+    else
+      val nestedPattern = transformPattern(nested, scrutType)
+      val sym = Symbol.createSymbol(name, nestedPattern.tpe, Flags.Pattern, sc.owner, id.pos)
+      sc.definePatternAsTerm(sym)
+
+      val patVal = Ident(sym)(id.span)
+      AscribePattern(patVal, nestedPattern)
+
   private def transformExprPattern(expr: Ast.Expr, scrutType: Type)
     (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs)
   : Pattern =
@@ -442,6 +475,9 @@ class PatternTyper(namer: Namer, checker: Checker):
 
       case Ast.Apply(tag: Ast.Tag, nested) =>
         transformTagPattern(tag, nested, scrutType, pat.span)
+
+      case Ast.Assign(id: Ast.Ident, nested) =>
+        transformAscribePattern(id, nested, scrutType)
 
       case expr: Ast.Expr =>
         transformExprPattern(expr, scrutType)

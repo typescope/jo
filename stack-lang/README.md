@@ -113,7 +113,11 @@ Abstract Syntax
     match   = MATCH expr {case} [END].
     case    = CASE pattern RARROW block.
 
-    pattern = simple_pattern {simple_pattern}.
+    pattern = ascribe_pattern.
+
+    ascribe_pattern = expr_pattern AS ident.
+
+    expr_pattern = simple_pattern {simple_pattern}.
 
     simple_pattern = ident | tag | type_pattern | apply_pattern | LPAREN pattern RPAREN.
 

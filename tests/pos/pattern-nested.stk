@@ -15,7 +15,9 @@ fun test(a: Option[Option[Int]]): Unit =
     case #Some (#Some n) => println (intToStr n)
     case #None => println "none"
 
-pattern Cons(x: Int, rest: List[Int]): #Cons(Int, List[Int]) =
+type Cons = #Cons(head: Int, tail: List[Int])
+
+pattern Cons(x: Int, rest: List[Int]): Cons =
   #Cons x rest
 
 fun Cons(x: Int, rest: List[Int]): List[Int] =
@@ -26,6 +28,6 @@ fun Nil: #Nil = #Nil
 
 fun test2(a: List[Int]): Unit =
   match a
-    case Cons x (Cons y rest) => println (intToStr (x + y))
+    case Cons x (Cons y rest as inner) => println (intToStr (x + inner.head))
     case Cons x Nil => println (intToStr x)
     case Nil => println "empty"

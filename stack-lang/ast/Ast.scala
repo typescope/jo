@@ -309,5 +309,7 @@ object Ast:
       case Expr(words) if words.nonEmpty =>
         words.forall(isPattern)
 
+      case Assign(_: Ident, rhs) => isPattern(rhs)
+
       case _ =>
         false
