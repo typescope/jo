@@ -1,0 +1,15 @@
+---------- Warning at ./tests/warn/pattern-nested.stk:2:9 ---------------
+|   match a                                      // error
+|         ^
+|         The match will fail for the case: #None
+
+---------- Warning at ./tests/warn/pattern-nested.stk:7:9 ---------------
+|   match a                                      // error
+|         ^
+|         The match will fail for the cases: #None, #Some(#None)
+
+---------- Warning at ./tests/warn/pattern-nested.stk:11:9 ---------------
+|   match a                                      // error
+|         ^
+|         The match will fail for the cases: #None, #Some(#Some(v: Int))
+

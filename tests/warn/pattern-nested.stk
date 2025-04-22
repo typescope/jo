@@ -1,0 +1,14 @@
+fun test(a: Option[Option[Int]]): Unit =
+  match a                                      // error
+   case #Some #None => println "some none"
+   case #Some (#Some n) => println (intToStr n)
+
+fun test2(a: Option[Option[Int]]): Unit =
+  match a                                      // error
+   case #Some (#Some n) => println (intToStr n)
+
+fun test3(a: Option[Option[Int]]): Unit =
+  match a                                      // error
+   case #Some #None => println "some none"
+
+fun main = println "test"

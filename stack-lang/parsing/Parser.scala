@@ -37,10 +37,12 @@ object Parser:
       Parser.parse(file)
 
   /** Parse the supplied code */
-  def parse(path: String)(using rp: Reporter): Namespace =
+  def parse(path: String)(using rp: Reporter): Namespace = try
     val source = Reporter.source(path)
     val parser = new Parser(source.content)(using rp, source)
     parser.parse()
+  catch case ex: java.nio.file.NoSuchFileException =>
+    Reporter.abortInternal("Source not found: " + path)
 
    /** A scanner that supports peeking tokens ahead. */
   class LookAheadScanner(scanner: Scanner):

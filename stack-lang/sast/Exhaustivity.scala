@@ -16,6 +16,13 @@ object Exhaustivity:
 
     def show: String = Exhaustivity.show(this)
 
+  def UnionSpace(spaces: Seq[Space]): Space =
+    val nonEmpty = spaces.filter(s => !isEmpty(s))
+    val res = nonEmpty.sizeCompare(1)
+    if res < 0 then Space.EmptySpace
+    else if res == 0 then nonEmpty.head
+    else Space.UnionSpace(nonEmpty)
+
   import Space.*
 
   def show(space: Space): String =

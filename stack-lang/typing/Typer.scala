@@ -6,6 +6,7 @@ import sast.Sast.*
 
 import parsing.Parser
 import reporting.Reporter
+import common.IO
 
 object Typer:
   /** The stdlib cannot depend on pre-defined symbols */
@@ -40,6 +41,12 @@ object Typer:
     Parser.parse(files) |> namer
 
   def main(args: Array[String]): Unit =
+    val optionSpec = Map(
+      "-fatal-warnings" -> false,
+    )
+
+    val (options, sources) = IO.parseOptions(args, optionSpec)
+
     Reporter.monitor:
       val stdLib = "lib/Predef.stk" :: Nil
       val runtimeFiles = Nil
@@ -51,10 +58,11 @@ object Typer:
       val namer = (nssAst: List[Ast.Namespace]) =>
         check(nssAst, stdLib, runtimeFiles, runtimeNameTable)
 
-      given Definitions = lazyDefn.value
-      val nss = Parser.parse(args.toList) |> namer |> TreeChecker.check
+      given defn: Definitions = lazyDefn.value
+      val nss = Parser.parse(sources) |> namer |> TreeChecker.check
 
-      for ns <- nss do
-        println(ns.symbol.sourcePos.source.file + ":")
-        println(ns.show)
-        println
+      if !options.contains("-fatal-warnings") || !summon[Reporter].hasWarnings then
+        for ns <- nss if ns.symbol != defn.Predef do
+          println(ns.symbol.sourcePos.source.file + ":")
+          println(ns.show)
+          println
