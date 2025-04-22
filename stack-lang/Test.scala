@@ -3,7 +3,6 @@ import java.io.{ File => JFile }
 import scala.collection.mutable
 import scala.io.Source
 
-import common.Dynamic
 import common.IO
 import phases.FrontEnd
 
@@ -24,8 +23,6 @@ object Test:
 
   def compileAndCheck(test: String): Boolean = Reporter.timeout(100):
     given rp: Reporter = Reporter.createReporter(buffer = true)
-
-    Dynamic.reset()
 
     val sourceFiles =
       if IO.isFile(test) then test :: Nil

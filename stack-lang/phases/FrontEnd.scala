@@ -11,6 +11,16 @@ import reporting.Reporter
 object FrontEnd:
 
   def run(
+    stdlib: List[String], runtime: List[String], sources: List[String])
+    (using rp: Reporter)
+  : List[Namespace] =
+    val rootNameTable = new NameTable
+    val runtimeNameTable = new NameTable
+
+    given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable)
+    run(stdlib, runtime, sources, runtimeNameTable)
+
+  def run(
     stdlib: List[String], runtime: List[String], sources: List[String],
     runtimeNameTable: NameTable)
     (using defnLazy: Definitions.Lazy, rp: Reporter)
