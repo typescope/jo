@@ -82,7 +82,8 @@ object Interpreter:
           case _ => err("Unknown name to update: " + sym.name)
 
     def bind(sym: Symbol, denot: Denotation): Unit =
-      assert(!map.contains(sym), "Double binding " + sym)
+      // Pattern symbol could be bound twice as an optimization in translation
+      assert(!map.contains(sym) || sym.isPattern, "Double binding " + sym)
       map(sym) = denot
 
     def contains(sym: Symbol): Boolean = map.contains(sym)

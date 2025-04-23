@@ -34,12 +34,16 @@ fun test2(a: List[Int]): Unit =
     case Nil => println "empty"
 
   match a
-    case Cons x (Cons y Nil) | Cons _ Nil | Nil => println "size < 2"
+    case Cons _ (Cons _ Nil) | Cons _ Nil | Nil => println "size < 2"
+    case _ => println "size > 2"
+
+  match a
+    case Cons _ l@(Cons _ Nil) | l@(Cons _ Nil) => println (intToStr l.head)
     case _ => println "size > 2"
 
   match a
     case (#Cons x #Nil) | (#Cons x #Cons) =>
       println
-        "binding in or patterns" + (intToStr x)
+        "binding in or patterns: " + (intToStr x)
 
     case #Nil =>

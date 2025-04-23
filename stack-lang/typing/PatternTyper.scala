@@ -189,15 +189,15 @@ class PatternTyper(namer: Namer, checker: Checker):
           Reporter.error(s"The pattern predicate expects $paramSize arguments, found = ${args.size}", id.pos)
           WildcardPattern()(ErrorType, patSpan)
         else
-          val argsTyped =
-            for (arg, paramType) <- args.zip(procType.paramTypes) yield
-              transformPattern(arg, paramType)
-
           if sym == defn.Predef_orPattern then
-            assert(argsTyped.size == 2, "argsTyped.size = " + argsTyped.size)
-            OrPattern(argsTyped(0), argsTyped(1))
+            assert(args.size == 2, "args.size = " + args.size)
+            transformOrPattern(args(0), args(1), scrutType)
 
           else
+            val argsTyped =
+              for (arg, paramType) <- args.zip(procType.paramTypes) yield
+                transformPattern(arg, paramType)
+
             ApplyPattern(fun, argsTyped)(resType, patSpan)
 
         end if
@@ -208,6 +208,37 @@ class PatternTyper(namer: Namer, checker: Checker):
     else
       Reporter.error(s"Not a pattern predicate: " + fun.tpe.show, id.pos)
       WildcardPattern()(ErrorType, patSpan)
+
+
+  private def transformOrPattern(lhs: Ast.Word, rhs: Ast.Word, scrutType: Type)
+    (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs)
+  : Pattern =
+    val occursLHS = new Occurs
+    val occursRHS = new Occurs
+
+    val lhsPat =
+      given Occurs = occursLHS
+      transformPattern(lhs, scrutType)
+
+    val rhsPat =
+      given Occurs = occursRHS
+      transformPattern(rhs, scrutType)
+
+    val resLHS = occursLHS.result()
+    val resRHS = occursRHS.result()
+
+    val setLHS = resLHS.keySet
+    val setRHS = resRHS.keySet
+
+    if setLHS != setRHS then
+      Reporter.error(
+        s"The lhs and rhs bind should bind same set of symbols, found lhs = " + setLHS + ", rhs = " + setRHS,
+        rhs.pos
+      )
+
+    for (sym, pos) <- resLHS do oc.occur(sym, pos)
+
+    OrPattern(lhsPat, rhsPat)
 
   private def transformInfixCallPattern(
     preArgs: List[Ast.Word], id: Ast.Ident, postArgs: List[Ast.Word],
@@ -249,33 +280,7 @@ class PatternTyper(namer: Namer, checker: Checker):
             assert(preArgs.size == 1, "preArgs.size = " + preArgs.size)
             assert(postArgs.size == 1, "postArgs.size = " + postArgs.size)
 
-            val occursLHS = new Occurs
-            val occursRHS = new Occurs
-
-            val lhs =
-              given Occurs = occursLHS
-              transformPattern(preArgs.head, procType.preParamTypes.head)
-
-            val rhs =
-              given Occurs = occursRHS
-              transformPattern(postArgs.head, procType.postParamTypes.head)
-
-            val resLHS = occursLHS.result()
-            val resRHS = occursRHS.result()
-
-            val setLHS = resLHS.keySet
-            val setRHS = resRHS.keySet
-
-            if setLHS != setRHS then
-              Reporter.error(
-                s"The lhs and rhs bind should bind same set of symbols, found lhs = " + setLHS + ", rhs = " + setRHS,
-                patSpan.toPos
-              )
-
-            for (sym, pos) <- resLHS do oc.occur(sym, pos)
-
-            OrPattern(lhs, rhs)
-
+            transformOrPattern(preArgs.head, postArgs.head, scrutType)
           else
             val preArgs2 =
               for (arg, paramType) <- preArgs.zip(procType.preParamTypes) yield
@@ -431,33 +436,32 @@ class PatternTyper(namer: Namer, checker: Checker):
     if name == "_" then
       WildcardPattern()(scrutType, id.span)
 
-    else if sc.owner.isPattern then
-      val sym = sc.resolvePattern(name, id.pos)
-
-      if !sym.info.isError then
-        oc.occur(sym, id.pos)
-
-      val nestedPattern = transformPattern(nested, scrutType)
-
-      val explain = new StringBuilder
-      if Patterns.isEqualType(sym.info, nestedPattern.tpe)(using explain) || scrutType.isVoidType then
-        val patVal = Ident(sym)(id.span)
-        AscribePattern(patVal, nestedPattern)
-
-      else
-        Reporter.error(s"$sym has the type ${sym.info.show}, which is not equal to the scrutinee type " + scrutType.show, id.pos)
-        WildcardPattern()(ErrorType, id.span)
-
     else
-      val nestedPattern = transformPattern(nested, scrutType)
-      val sym = Symbol.createSymbol(name, nestedPattern.tpe, Flags.Pattern, sc.owner, id.pos)
-      sc.definePatternAsTerm(sym)
-      sc.define(sym)
+      sc.resolvePattern(name) match
+        case Some(sym) =>
+          oc.occur(sym, id.pos)
 
-      oc.occur(sym, id.pos)
+          val nestedPattern = transformPattern(nested, scrutType)
 
-      val patVal = Ident(sym)(id.span)
-      AscribePattern(patVal, nestedPattern)
+          val explain = new StringBuilder
+          if Patterns.isEqualType(sym.info, nestedPattern.tpe)(using explain) || scrutType.isVoidType then
+            val patVal = Ident(sym)(id.span)
+            AscribePattern(patVal, nestedPattern)
+
+          else
+            Reporter.error(s"$sym has the type ${sym.info.show}, which is not equal to the scrutinee type " + scrutType.show, id.pos)
+            WildcardPattern()(ErrorType, id.span)
+
+        case None =>
+          val nestedPattern = transformPattern(nested, scrutType)
+          val sym = Symbol.createSymbol(name, nestedPattern.tpe, Flags.Pattern, sc.owner, id.pos)
+          sc.definePatternAsTerm(sym)
+          sc.define(sym)
+
+          oc.occur(sym, id.pos)
+
+          val patVal = Ident(sym)(id.span)
+          AscribePattern(patVal, nestedPattern)
 
   private def transformExprPattern(expr: Ast.Expr, scrutType: Type)
     (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs)
