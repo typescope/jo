@@ -43,14 +43,9 @@
 |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 |          The lhs and rhs bind should bind same set of symbols, found lhs = Set(x), rhs = Set()
 
----------- Error at ./tests/warn/pattern-nested.stk:44:10 ---------------
-|     case Cons x (Cons _ Nil) | Cons _ Nil | Nil => println "unbound x"
-|          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-|          The lhs and rhs bind should bind same set of symbols, found lhs = Set(x), rhs = Set()
-
 ---------- Error at ./tests/warn/pattern-nested.stk:47:43 ---------------
 |     case (#Cons x #Nil) | (#Cons x (#Cons x _)) => println "double binding"
 |                                           ^
 |                                           The parameter x occurred more than once in the patterns
 
-6 error(s), 5 warning(s)
+5 error(s), 5 warning(s)

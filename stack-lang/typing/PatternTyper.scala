@@ -191,7 +191,7 @@ class PatternTyper(namer: Namer, checker: Checker):
         else
           if sym == defn.Predef_orPattern then
             assert(args.size == 2, "args.size = " + args.size)
-            transformOrPattern(args(0), args(1), scrutType)
+            transformOrPattern(args(0), args(1), scrutType, patSpan)
 
           else
             val argsTyped =
@@ -210,9 +210,11 @@ class PatternTyper(namer: Namer, checker: Checker):
       WildcardPattern()(ErrorType, patSpan)
 
 
-  private def transformOrPattern(lhs: Ast.Word, rhs: Ast.Word, scrutType: Type)
+  private def transformOrPattern(lhs: Ast.Word, rhs: Ast.Word, scrutType: Type, patSpan: Span)
     (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs)
   : Pattern =
+    given rp2: Reporter = rp.fresh(buffer = true)
+
     val occursLHS = new Occurs
     val occursRHS = new Occurs
 
@@ -230,11 +232,13 @@ class PatternTyper(namer: Namer, checker: Checker):
     val setLHS = resLHS.keySet
     val setRHS = resRHS.keySet
 
-    if setLHS != setRHS then
+    if !rp2.hasErrors && setLHS != setRHS then
       Reporter.error(
         s"The lhs and rhs bind should bind same set of symbols, found lhs = " + setLHS + ", rhs = " + setRHS,
-        rhs.pos
+        patSpan.toPos
       )
+
+    rp2.commit(rp)
 
     for (sym, pos) <- resLHS do oc.occur(sym, pos)
 
@@ -280,7 +284,7 @@ class PatternTyper(namer: Namer, checker: Checker):
             assert(preArgs.size == 1, "preArgs.size = " + preArgs.size)
             assert(postArgs.size == 1, "postArgs.size = " + postArgs.size)
 
-            transformOrPattern(preArgs.head, postArgs.head, scrutType)
+            transformOrPattern(preArgs.head, postArgs.head, scrutType, patSpan)
           else
             val preArgs2 =
               for (arg, paramType) <- preArgs.zip(procType.preParamTypes) yield
