@@ -13,18 +13,44 @@
 |         ^
 |         The match will fail for the cases: #None, #Some(#Some(v: Int))
 
----------- Warning at ./tests/warn/pattern-nested.stk:26:9 ---------------
+---------- Error at ./tests/warn/pattern-nested.stk:16:48 ---------------
+| pattern Inexhaustive(x: Int, rest: List[Int]): List[Int] =
+|                                                ^^^^^^^^
+|                                                Result type not equal to the type of body, found = #Cons(_1: Int, _2: List[Int])
+
+---------- Error at ./tests/warn/pattern-nested.stk:20:4 ---------------
+|   (#Cons x Nil) | (#Cons _ #Cons)
+|    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|    The lhs and rhs bind should bind same set of symbols, found lhs = Set(x), rhs = Set()
+
+---------- Error at ./tests/warn/pattern-nested.stk:23:35 ---------------
+|   (#Cons x Nil) | (#Cons x (#Cons x _))
+|                                   ^
+|                                   The parameter x occurred more than once in the patterns
+
+---------- Warning at ./tests/warn/pattern-nested.stk:35:9 ---------------
 |   match a
 |         ^
 |         The match will fail for the case: Cons(Int, Nil)
 
----------- Warning at ./tests/warn/pattern-nested.stk:30:9 ---------------
+---------- Warning at ./tests/warn/pattern-nested.stk:39:9 ---------------
 |   match a
 |         ^
 |         The match will fail for the case: Nil
 
----------- Warning at ./tests/warn/pattern-nested.stk:34:9 ---------------
-|   match a
-|         ^
-|         The match will fail for the case: Cons(Int, Cons(Int, Cons[Int]))
+---------- Error at ./tests/warn/pattern-nested.stk:44:10 ---------------
+|     case Cons x (Cons _ Nil) | Cons _ Nil | Nil => println "unbound x"
+|          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|          The lhs and rhs bind should bind same set of symbols, found lhs = Set(x), rhs = Set()
 
+---------- Error at ./tests/warn/pattern-nested.stk:44:10 ---------------
+|     case Cons x (Cons _ Nil) | Cons _ Nil | Nil => println "unbound x"
+|          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|          The lhs and rhs bind should bind same set of symbols, found lhs = Set(x), rhs = Set()
+
+---------- Error at ./tests/warn/pattern-nested.stk:47:43 ---------------
+|     case (#Cons x #Nil) | (#Cons x (#Cons x _)) => println "double binding"
+|                                           ^
+|                                           The parameter x occurred more than once in the patterns
+
+6 error(s), 5 warning(s)

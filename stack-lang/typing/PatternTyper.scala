@@ -245,20 +245,46 @@ class PatternTyper(namer: Namer, checker: Checker):
           WildcardPattern()(ErrorType, patSpan)
 
         else
-          val preArgs2 =
-            for (arg, paramType) <- preArgs.zip(procType.preParamTypes) yield
-              transformPattern(arg, paramType)
-
-          val postArgs2 =
-            for (arg, paramType) <- postArgs.zip(procType.postParamTypes) yield
-              transformPattern(arg, paramType)
-
           if sym == defn.Predef_orPattern then
-            assert(preArgs2.size == 1, "preArgs2.size = " + preArgs2.size)
-            assert(postArgs2.size == 1, "postArgs2.size = " + postArgs2.size)
-            OrPattern(preArgs2.head, postArgs2.head)
+            assert(preArgs.size == 1, "preArgs.size = " + preArgs.size)
+            assert(postArgs.size == 1, "postArgs.size = " + postArgs.size)
+
+            val occursLHS = new Occurs
+            val occursRHS = new Occurs
+
+            val lhs =
+              given Occurs = occursLHS
+              transformPattern(preArgs.head, procType.preParamTypes.head)
+
+            val rhs =
+              given Occurs = occursRHS
+              transformPattern(postArgs.head, procType.postParamTypes.head)
+
+            val resLHS = occursLHS.result()
+            val resRHS = occursRHS.result()
+
+            val setLHS = resLHS.keySet
+            val setRHS = resRHS.keySet
+
+            if setLHS != setRHS then
+              Reporter.error(
+                s"The lhs and rhs bind should bind same set of symbols, found lhs = " + setLHS + ", rhs = " + setRHS,
+                patSpan.toPos
+              )
+
+            for (sym, pos) <- resLHS do oc.occur(sym, pos)
+
+            OrPattern(lhs, rhs)
 
           else
+            val preArgs2 =
+              for (arg, paramType) <- preArgs.zip(procType.preParamTypes) yield
+                transformPattern(arg, paramType)
+
+            val postArgs2 =
+              for (arg, paramType) <- postArgs.zip(procType.postParamTypes) yield
+                transformPattern(arg, paramType)
+
             ApplyPattern(fun, preArgs2 ++ postArgs2)(resType, patSpan)
 
         end if
@@ -331,27 +357,28 @@ class PatternTyper(namer: Namer, checker: Checker):
       if name == "_" then
         TypePattern(tpt2)
 
-      else if sc.owner.isPattern then
-        val sym = sc.resolvePattern(name, id.pos)
-
-        if !sym.info.isError then
-          oc.occur(sym, id.pos)
-
-        val explain = new StringBuilder
-        if Patterns.isEqualType(tpe, sym.info)(using explain) then
-          val patVal = Ident(sym)(id.span)
-          AscribePattern(patVal, TypePattern(tpt2))
-
-        else
-          Reporter.error(s"The type ${tpe.show} not a equal to the type of $sym. The latter has type " + sym.info.show, tpt.pos)
-          WildcardPattern()(ErrorType, patSpan)
-
       else
-        val sym = Symbol.createSymbol(name, tpe, Flags.Pattern, sc.owner, id.pos)
-        sc.definePatternAsTerm(sym)
+        sc.resolvePattern(name) match
+          case Some(sym) =>
+            oc.occur(sym, id.pos)
 
-        val patVal = Ident(sym)(id.span)
-        AscribePattern(patVal, TypePattern(tpt2))
+            val explain = new StringBuilder
+            if Patterns.isEqualType(tpe, sym.info)(using explain) then
+              val patVal = Ident(sym)(id.span)
+              AscribePattern(patVal, TypePattern(tpt2))
+
+            else
+              Reporter.error(s"The type ${tpe.show} not a equal to the type of $sym. The latter has type " + sym.info.show, tpt.pos)
+              WildcardPattern()(ErrorType, patSpan)
+
+          case None =>
+            val sym = Symbol.createSymbol(name, tpe, Flags.Pattern, sc.owner, id.pos)
+            sc.definePatternAsTerm(sym)
+
+            val patVal = Ident(sym)(id.span)
+            AscribePattern(patVal, TypePattern(tpt2))
+        end match
+      end if
 
     val explain = new StringBuilder
     if Patterns.isValidTypePattern(tpe, scrutType)(using explain) || scrutType.isVoidType then
@@ -371,28 +398,30 @@ class PatternTyper(namer: Namer, checker: Checker):
     else if name == "_" then
       WildcardPattern()(scrutType, id.span)
 
-    else if sc.owner.isPattern then
-      val sym = sc.resolvePattern(name, id.pos)
-
-      if !sym.info.isError then
-        oc.occur(sym, id.pos)
-
-      val explain = new StringBuilder
-      if Patterns.isEqualType(sym.info, scrutType)(using explain) || scrutType.isVoidType then
-        val patVal = Ident(sym)(id.span)
-        AscribePattern(patVal, TypePattern(TypeTree(sym.info)(id.span)))
-
-      else
-        Reporter.error(s"$sym has the type ${sym.info.show}, which is not equal to the scrutinee type " + scrutType.show, id.pos)
-        WildcardPattern()(ErrorType, id.span)
-
     else
-      val sym = Symbol.createSymbol(name, scrutType, Flags.Pattern, sc.owner, id.pos)
-      sc.definePatternAsTerm(sym)
+      sc.resolvePattern(name) match
+        case Some(sym) =>
+          oc.occur(sym, id.pos)
 
-      val patVal = Ident(sym)(id.span)
-      val wildcard = WildcardPattern()(scrutType, id.span)
-      AscribePattern(patVal, wildcard)
+          val explain = new StringBuilder
+          if Patterns.isEqualType(sym.info, scrutType)(using explain) || scrutType.isVoidType then
+            val patVal = Ident(sym)(id.span)
+            AscribePattern(patVal, TypePattern(TypeTree(sym.info)(id.span)))
+
+          else
+            Reporter.error(s"$sym has the type ${sym.info.show}, which is not equal to the scrutinee type " + scrutType.show, id.pos)
+            WildcardPattern()(ErrorType, id.span)
+
+        case None =>
+          val sym = Symbol.createSymbol(name, scrutType, Flags.Pattern, sc.owner, id.pos)
+          sc.definePatternAsTerm(sym)
+          sc.define(sym)
+
+          oc.occur(sym, id.pos)
+
+          val patVal = Ident(sym)(id.span)
+          val wildcard = WildcardPattern()(scrutType, id.span)
+          AscribePattern(patVal, wildcard)
 
   private def transformAscribePattern(id: Ast.Ident, nested: Ast.Word, scrutType: Type)
     (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs)
@@ -423,6 +452,9 @@ class PatternTyper(namer: Namer, checker: Checker):
       val nestedPattern = transformPattern(nested, scrutType)
       val sym = Symbol.createSymbol(name, nestedPattern.tpe, Flags.Pattern, sc.owner, id.pos)
       sc.definePatternAsTerm(sym)
+      sc.define(sym)
+
+      oc.occur(sym, id.pos)
 
       val patVal = Ident(sym)(id.span)
       AscribePattern(patVal, nestedPattern)
@@ -500,8 +532,12 @@ class PatternTyper(namer: Namer, checker: Checker):
 end PatternTyper
 
 object PatternTyper:
-  class Occurs:
-    private var census: Map[Symbol, SourcePosition] = Map.empty
+  class Occurs(init: Map[Symbol, SourcePosition]):
+    def this() = this(Map.empty)
+
+    private var census: Map[Symbol, SourcePosition] = init
+
+    def result(): Map[Symbol, SourcePosition] = census
 
     def occur(symbol: Symbol, pos: SourcePosition)(using rp: Reporter, so: Source) =
       if census.contains(symbol) then

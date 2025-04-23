@@ -41,7 +41,7 @@ fun test2(a: List[Int]): Unit =
     case Cons x Nil => println (intToStr x)
 
   match a
-    case Cons x (Cons y Nil) | Cons _ Nil | Nil => println "size < 2"
+    case Cons x (Cons _ Nil) | Cons _ Nil | Nil => println "unbound x"
 
   match a
     case (#Cons x #Nil) | (#Cons x (#Cons x _)) => println "double binding"
