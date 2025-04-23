@@ -13,6 +13,15 @@ type Nil = #Nil
 type Cons[T] = #Cons(head: T, tail: List[T])
 type List[T] = Nil | Cons[T]
 
+pattern Inexhaustive(x: Int, rest: List[Int]): List[Int] =
+  #Cons x rest
+
+pattern NotOccur(x: Int): Cons[Int] =
+  (#Cons x Nil) | (#Cons _ #Cons)
+
+pattern DoubleOccur(x: Int): Cons[Int] =
+  (#Cons x Nil) | (#Cons x (#Cons x _))
+
 pattern Cons(x: Int, rest: List[Int]): Cons[Int] =
   #Cons x rest
 
@@ -33,3 +42,7 @@ fun test2(a: List[Int]): Unit =
 
   match a
     case Cons x (Cons y Nil) | Cons _ Nil | Nil => println "size < 2"
+
+  match a
+    case (#Cons x #Nil) | (#Cons x (#Cons x _)) => println "double binding"
+    case #Nil =>
