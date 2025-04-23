@@ -113,15 +113,14 @@ Abstract Syntax
     match   = MATCH expr {case} [END].
     case    = CASE pattern RARROW block.
 
-    pattern = ascribe_pattern.
-
-    ascribe_pattern = expr_pattern AS ident.
+    pattern = expr_pattern.
 
     expr_pattern = simple_pattern {simple_pattern}.
 
-    simple_pattern = ident | tag | type_pattern | apply_pattern | LPAREN pattern RPAREN.
+    simple_pattern = ident | tag | type_pattern | ascribe_pattern | apply_pattern | LPAREN pattern RPAREN.
 
     type_pattern  = ident COLON type.
+    ascribe_pattern = ident '@' simple_pattern.
     apply_pattern = (tag | ident) LPAREN [pattern {COMMA pattern}] RPAREN.
 
     valdef  = (VAL | VAR) ident [COLON type] EQL block.

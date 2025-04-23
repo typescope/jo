@@ -28,6 +28,6 @@ fun Nil: #Nil = #Nil
 
 fun test2(a: List[Int]): Unit =
   match a
-    case Cons x (Cons y rest as inner) => println (intToStr (x + inner.head))
+    case Cons x inner@(Cons y rest) => println (intToStr (x + inner.head))
     case Cons x Nil => println (intToStr x)
     case Nil => println "empty"

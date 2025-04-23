@@ -182,7 +182,7 @@ object Scanner:
   def isNameRest(c: Char): Boolean =
     isNameStart(c) || isDigit(c)
 
-  val OP_CHAR = Array('+', '-', '*', '/', '%', '|', '&', '^', '>', '<', '=', ':', '?', '!')
+  val OP_CHAR = Array('+', '-', '*', '/', '%', '|', '&', '^', '>', '<', '=', ':', '?', '!', '@')
   def isOperator(c: Char): Boolean =
     OP_CHAR.indexOf(c) >= 0
 
