@@ -13,6 +13,9 @@ object Printing:
   def show(word: Word)(using Definitions): String =
     showWord(word).toString
 
+  def show(pattern: Pattern)(using Definitions): String =
+    showPattern(pattern).toString
+
   def show(ns: Namespace)(using Definitions): String =
     showNamespace(ns).toString
 
@@ -225,10 +228,14 @@ object Printing:
 
       case WildcardPattern() => Text("_")
 
-      case AscribePattern(id, inner) => "(" ~ id ~ " @ " ~ inner ~ ")"
+      case AscribePattern(id, inner) =>
+        "(" ~ id ~ " @ " ~ inner ~ ")"
 
       case ApplyPattern(pred, nested) =>
         pred ~ "(" ~ rep(nested, Text(", ")) ~ ")"
+
+      case OrPattern(lhs, rhs) =>
+        lhs ~ " | " ~ rhs
 
       case tagged @ TagPattern(_, nested) =>
         "#" ~ tagged.tag ~ " " ~ rep(nested, Text(" "))

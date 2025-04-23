@@ -23,6 +23,16 @@ object TreeChecker:
 class TreeChecker()(using defn: Definitions, so: Source) extends SastOps.TreeTraverser:
   type Context = Reporter
 
+  override def apply(pattern: Pattern)(using info: Context): Unit =
+    pattern match
+      case ApplyPattern(fun, nested) =>
+        if fun.refersTo(defn.Predef_orPattern) then
+          Reporter.error("Unexpected use of `|` in S-AST, tree = " + pattern.show, fun.pos)
+
+      case _ =>
+
+    recur(pattern)
+
   def apply(word: Word)(using info: Context): Unit =
 
     word match

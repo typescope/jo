@@ -153,9 +153,18 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
       case appPat: ApplyPattern =>
         transformApplyPattern(scrut, appPat)
 
+      case orPat: OrPattern =>
+        transformOrPattern(scrut, orPat)
+
       case WildcardPattern() =>
         assert(Subtyping.conforms(scrut.tpe, pat.tpe), "scrutee type = " + scrut.tpe.show + ", pattern type = " + pat.tpe.show)
         BoolLit(true)(BoolType, pat.span)
+
+  private def transformOrPattern(scrut: Ident, orPattern: OrPattern)(using ctx: Context, source: Source): Word =
+    val OrPattern(lhs, rhs) = orPattern
+    val lhsCond = transformPattern(scrut, lhs)
+    val rhsCond = transformPattern(scrut, rhs)
+    If(lhsCond, BoolLit(true)(BoolType, lhs.span), rhsCond)(BoolType, orPattern.span)
 
   private def transformApplyPattern(scrut: Ident, applyPattern: ApplyPattern)(using ctx: Context, source: Source): Word =
     val ApplyPattern(pred, nested) = applyPattern

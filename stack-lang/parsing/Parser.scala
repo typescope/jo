@@ -290,9 +290,10 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   def patDef(): PatDef =
     val pat = eat(Token.PATTERN)
+    val preParamList = paramSection()
     val id = ident()
     val tparams = typeParams()
-    val paramList = paramSection()
+    val postParamList = paramSection()
 
     eat(Token.COLON)
     val resType = typ()
@@ -307,7 +308,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     eatEndOpt(pat.indent)
 
-    PatDef(id, tparams, paramList, resType, body)(pat.span | body.span)
+    val paramList = preParamList ++ postParamList
+    PatDef(id, tparams, paramList, resType, body, preParamList.size)(pat.span | body.span)
 
   def paramSection(): List[Param] =
     if peek() == Token.LPAREN then params() else Nil

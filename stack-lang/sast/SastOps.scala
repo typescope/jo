@@ -192,6 +192,8 @@ object SastOps:
 
     def apply(word: Word)(using Context): Unit
 
+    def apply(pattern: Pattern)(using Context): Unit = recur(pattern)
+
     def recurValDef(vdef: ValDef)(using Context): Unit = this(vdef.rhs)
 
     def recurFunDef(fdef: FunDef)(using Context): Unit = this(fdef.body)
@@ -200,7 +202,7 @@ object SastOps:
 
     def recurParamDef(pdef: ParamDef)(using Context): Unit = ()
 
-    def recurPatDef(pdef: PatDef)(using Context): Unit = ()
+    def recurPatDef(pdef: PatDef)(using Context): Unit = this(pdef.body)
 
     def recurDef(defn: Def)(using Context): Unit =
       defn match
@@ -209,6 +211,25 @@ object SastOps:
         case pdef: PatDef   => recurPatDef(pdef)
         case tdef: TypeDef  => recurTypeDef(tdef)
         case pdef: ParamDef => recurParamDef(pdef)
+
+    def recur(pattern: Pattern)(using Context): Unit =
+      pattern match
+        case AscribePattern(id, nested) =>
+          this(nested)
+
+        case TypePattern(tpt) =>
+
+        case TagPattern(_, nested) =>
+          for pat <- nested do this(pat)
+
+        case ApplyPattern(_, nested) =>
+          for pat <- nested do this(pat)
+
+        case OrPattern(lhs, rhs) =>
+          this(lhs)
+          this(rhs)
+
+        case WildcardPattern() =>
 
     def recur(word: Word)(using Context): Unit =
       word match
@@ -257,7 +278,7 @@ object SastOps:
 
         case tdef: TypeDef => recurTypeDef(tdef)
 
-        case pdef: PatDef =>
+        case pdef: PatDef => recurPatDef(pdef)
 
         case If(cond, thenp, elsep) =>
           this(cond)
@@ -273,7 +294,9 @@ object SastOps:
 
         case Match(scrutinee, cases) =>
           this(scrutinee)
-          for Case(_, body) <- cases do this(body)
+          for Case(pat, body) <- cases do
+            this(pat)
+            this(body)
 
         case Object(self, vals, defs) =>
           vals.map(recurValDef)

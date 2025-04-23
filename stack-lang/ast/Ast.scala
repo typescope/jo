@@ -253,7 +253,8 @@ object Ast:
 
   /** Representation of a pattern definition */
   case class PatDef
-    (ident: Ident, tparams: List[TypeParam], params: List[Param], resultType: TypeTree, body: Word)
+    (ident: Ident, tparams: List[TypeParam], params: List[Param],
+      resultType: TypeTree, body: Word, preParamCount: Int)
     (val span: Span)
   extends Word, Def:
     assert(isPattern(body), "Ill-formed pattern tree: " + body)

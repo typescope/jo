@@ -191,6 +191,8 @@ object Sast:
   sealed trait Pattern extends Tree:
     val tpe: Type
 
+    def show(using Definitions): String = Printing.show(this)
+
   case class TypePattern
     (tpt: TypeTree)
   extends Pattern:
@@ -207,6 +209,12 @@ object Sast:
   extends Pattern:
     val tpe = nested.tpe
     val span = id.span | nested.span
+
+  case class OrPattern
+    (lhs: Pattern, rhs: Pattern)
+  extends Pattern:
+    val tpe = lhs.tpe
+    val span = lhs.span | rhs.span
 
   case class ApplyPattern
     (fun: Word, nested: List[Pattern])

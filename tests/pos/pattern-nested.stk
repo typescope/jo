@@ -5,6 +5,7 @@ fun main =
 
   test #None
 
+  test2 (Cons 4 (Cons 1 (Cons 5 Nil)))
   test2 (Cons 4 (Cons 3 Nil))
   test2 (Cons 4 Nil)
   test2 Nil
@@ -31,3 +32,7 @@ fun test2(a: List[Int]): Unit =
     case Cons x inner@(Cons y rest) => println (intToStr (x + inner.head))
     case Cons x Nil => println (intToStr x)
     case Nil => println "empty"
+
+  match a
+    case Cons x (Cons y Nil) | Cons _ Nil | Nil => println "size < 2"
+    case _ => println "size > 2"

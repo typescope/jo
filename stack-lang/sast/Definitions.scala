@@ -63,6 +63,9 @@ final class Definitions(rootNameTable: NameTable):
   val Predef_String =  Predef.typeMember("String")
   val Predef_Array  =  Predef.typeMember("Array")
 
+  // patterns
+  val Predef_orPattern = Predef.patternMember("|")
+
   val IntType     = TypeRef(Predef_Int)
   val BoolType    = TypeRef(Predef_Bool)
   val ByteType    = TypeRef(Predef_Byte)

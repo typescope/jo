@@ -90,7 +90,7 @@ class PatternTyper(namer: Namer, checker: Checker):
           TypeParamRef(tparamSym.name, i)
         val substs = tparamSyms.zip(tparamRefs).toMap
         val tparamInfos = tparamSyms.map(tparam => NamedInfo(tparam.name, tparam.info.as[TypeBound]))
-        val rawType = ProcType(tparamInfos, paramSyms.map(_.toNamedInfo), resultType, receives = None, preParamCount = 0)
+        val rawType = ProcType(tparamInfos, paramSyms.map(_.toNamedInfo), resultType, receives = None, preParamCount = patDef.preParamCount)
         if tparamRefs.isEmpty then rawType
         else TypeOps.substSymbols(rawType, substs)
 
@@ -193,7 +193,13 @@ class PatternTyper(namer: Namer, checker: Checker):
             for (arg, paramType) <- args.zip(procType.paramTypes) yield
               transformPattern(arg, paramType)
 
-          ApplyPattern(fun, argsTyped)(resType, patSpan)
+          if sym == defn.Predef_orPattern then
+            assert(argsTyped.size == 2, "argsTyped.size = " + argsTyped.size)
+            OrPattern(argsTyped(0), argsTyped(1))
+
+          else
+            ApplyPattern(fun, argsTyped)(resType, patSpan)
+
         end if
       else
         Reporter.error(s"The pattern result type ${resType.show} is invalid with respect to the scrutinee type ${scrutType.show}. " + explain, id.pos)
@@ -247,7 +253,14 @@ class PatternTyper(namer: Namer, checker: Checker):
             for (arg, paramType) <- postArgs.zip(procType.postParamTypes) yield
               transformPattern(arg, paramType)
 
-          ApplyPattern(fun, preArgs2 ++ postArgs2)(resType, patSpan)
+          if sym == defn.Predef_orPattern then
+            assert(preArgs2.size == 1, "preArgs2.size = " + preArgs2.size)
+            assert(postArgs2.size == 1, "postArgs2.size = " + postArgs2.size)
+            OrPattern(preArgs2.head, postArgs2.head)
+
+          else
+            ApplyPattern(fun, preArgs2 ++ postArgs2)(resType, patSpan)
+
         end if
       else
         Reporter.error(s"The pattern result type ${resType.show} is invalid with respect to the scrutinee type ${scrutType.show}. " + explain, id.pos)

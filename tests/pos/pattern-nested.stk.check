@@ -1,6 +1,11 @@
 5
 some none
 none
+5
+size > 2
 7
+size < 2
 4
+size < 2
 empty
+size < 2

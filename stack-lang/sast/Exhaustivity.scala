@@ -86,6 +86,9 @@ object Exhaustivity:
         val spaces = nested.map(project)
         PredSpace(app.symbol, pred.tpe.asProcType, spaces)
 
+      case OrPattern(lhs, rhs) =>
+        UnionSpace(project(lhs) :: project(rhs) :: Nil)
+
   def subtract(s1: Space, s2: Space): Space = Debug.trace(s"subtract(${s1.show}, ${s2.show})", (_: Space).show, enable = false):
     (s1, s2) match
       case (_, EmptySpace) => s1
