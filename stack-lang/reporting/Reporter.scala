@@ -110,14 +110,16 @@ object Reporter:
     catch
       case error: FatalError.CodeError =>
         println("[error] " + error.content)
+        System.exit(1)
       case error: FatalError.InternalError =>
         println("[error] " + error.message)
+        System.exit(1)
       case error: FatalError.StopAfterPhase =>
         reporter.printSummary()
+        System.exit(1)
       case error: TimeoutException =>
         println("Operation time out")
-
-      System.exit(1)
+        System.exit(1)
 
   def timeout[T](seconds: Int)(work: => T): T =
     given ExecutionContext = ExecutionContext.global

@@ -47,3 +47,10 @@ fun test2(a: List[Int]): Unit =
         "binding in or patterns: " + (intToStr x)
 
     case #Nil =>
+
+  match a
+    case |(#Cons x #Nil, #Cons x #Cons) =>
+      println
+        "apply or patterns: " + (intToStr x)
+
+    case #Nil =>
