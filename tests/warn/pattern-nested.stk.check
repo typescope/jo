@@ -23,3 +23,8 @@
 |         ^
 |         The match will fail for the case: Nil
 
+---------- Warning at ./tests/warn/pattern-nested.stk:34:9 ---------------
+|   match a
+|         ^
+|         The match will fail for the case: Cons(Int, Cons(Int, Cons[Int]))
+

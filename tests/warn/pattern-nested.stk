@@ -30,3 +30,6 @@ fun test2(a: List[Int]): Unit =
   match a
     case Cons x (Cons y rest) => println (intToStr (x + y))
     case Cons x Nil => println (intToStr x)
+
+  match a
+    case Cons x (Cons y Nil) | Cons _ Nil | Nil => println "size < 2"
