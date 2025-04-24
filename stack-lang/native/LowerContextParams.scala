@@ -29,10 +29,9 @@ import scala.collection.mutable
   * The native backend dedup constant strings and compile them as globals, thus
   * satisfies the constraints above.
   */
-class LowerContextParams(runtime: NativeRuntime) extends phases.Phase[Symbol]:
+class LowerContextParams(runtime: NativeRuntime)(using defn: Definitions) extends phases.Phase[Symbol]:
   val contextObject = phases.Phase.OwnerContext
 
-  val defn = Definitions.instance
   val BoolType = defn.BoolType
   val IntType = defn.IntType
   val AddrType = TypeRef(runtime.Core_Addr)
@@ -43,7 +42,8 @@ class LowerContextParams(runtime: NativeRuntime) extends phases.Phase[Symbol]:
         // Use AnyType instead String to avoid creating String and make sure its address is static
         // At runtime, it's a byte array initialized in the constant area
         val paramName = sym.fullName
-        val key = Encoded(StringLit(paramName)(AnyType, word.span))(AddrType)
+        val lit = Literal(Constant.String(paramName))(AnyType, word.span)
+        val key = lit.encodedAs(AddrType)
         // The static analysis ensures that the value is available
         val getParamFun = Ident(runtime.ParamSupport_getParam)(word.span)
         Encoded(Apply(getParamFun, key :: Nil)(AnyType, word.span))(word.tpe)
@@ -73,7 +73,8 @@ class LowerContextParams(runtime: NativeRuntime) extends phases.Phase[Symbol]:
       val paramName = arg.paramRef.symbol.fullName
       // Use AnyType instead String to avoid creating String and make sure its address is static
       // At runtime, it's a byte array initialized in the constant area
-      val key = Encoded(StringLit(paramName)(AnyType, arg.paramRef.span))(AddrType)
+      val lit = Literal(Constant.String(paramName))(AnyType, arg.paramRef.span)
+      val key = lit.encodedAs(AddrType)
       val value = Ident(argValueSym)(arg.rhs.span)
       val funSetParam = Ident(runtime.ParamSupport_setParam)(arg.span)
       val setParamCall = Apply(funSetParam, key :: value :: Nil)(IntType, arg.span)

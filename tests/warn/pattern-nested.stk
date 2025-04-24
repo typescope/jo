@@ -1,0 +1,55 @@
+fun test(a: Option[Option[Int]]): Unit =
+  match a                                      // error
+   case #Some #None => println "some none"
+   case #Some (#Some n) => println (intToStr n)
+
+  match a                                      // error
+   case #Some (#Some n) => println (intToStr n)
+
+  match a                                      // error
+   case #Some #None => println "some none"
+
+type Nil = #Nil
+type Cons[T] = #Cons(head: T, tail: List[T])
+type List[T] = Nil | Cons[T]
+
+pattern Inexhaustive(x: Int, rest: List[Int]): List[Int] =
+  #Cons x rest
+
+pattern ExhaustiveWithPartial(x: Int, rest: List[Int]): Partial[Cons[Int]] =
+  #Cons x rest
+
+pattern NotOccur(x: Int): Cons[Int] =
+  (#Cons x Nil) | (#Cons _ #Cons)
+
+pattern DoubleOccur(x: Int): Cons[Int] =
+  (#Cons x Nil) | (#Cons x (#Cons x _))
+
+pattern Cons(x: Int, rest: List[Int]): Cons[Int] =
+  #Cons x rest
+
+fun Cons(x: Int, rest: List[Int]): List[Int] =
+  #Cons x rest
+
+pattern Nil: Nil = #Nil
+fun Nil: Nil = #Nil
+
+fun test2(a: List[Int]): Unit =
+  match a
+    case Cons x (Cons y rest) => println (intToStr (x + y))
+    case Nil => println "empty"
+
+  match a
+    case Cons x (Cons y rest) => println (intToStr (x + y))
+    case Cons x Nil => println (intToStr x)
+
+  match a
+    case Cons x (Cons _ Nil) | Cons _ Nil | Nil => println "unbound x"
+
+  // Test skip checking body if pattern has errors
+  match a
+    case NoExist x  => println (intToStr x)
+
+  match a
+    case (#Cons x #Nil) | (#Cons x (#Cons x _)) => println "double binding"
+    case #Nil =>

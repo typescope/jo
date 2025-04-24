@@ -3,8 +3,6 @@ package sast
 import Types.*
 import Symbols.Symbol
 
-import common.Dynamic
-
 final class Definitions(rootNameTable: NameTable):
 
   val Predef =  rootNameTable.resolveNamespace("stk.Predef")
@@ -65,6 +63,10 @@ final class Definitions(rootNameTable: NameTable):
   val Predef_String =  Predef.typeMember("String")
   val Predef_Array  =  Predef.typeMember("Array")
 
+  // patterns
+  val Predef_orPattern = Predef.patternMember("|")
+  val Predef_Partial = Predef.typeMember("Partial")
+
   val IntType     = TypeRef(Predef_Int)
   val BoolType    = TypeRef(Predef_Bool)
   val ByteType    = TypeRef(Predef_Byte)
@@ -85,12 +87,6 @@ final class Definitions(rootNameTable: NameTable):
   def isRuntimeContextParam(sym: Symbol): Boolean =
     runtimeContextParams.contains(sym)
 
-
 object Definitions:
-  private val key = new Dynamic.Key[Dynamic.Lazy[Definitions]]("definitions")
-
-  def initialize(rootNameTable: NameTable): Unit =
-    val lazyDefinitions = Dynamic.Lazy(new Definitions(rootNameTable))
-    Dynamic.install(Definitions.key, lazyDefinitions)
-
-  def instance: Definitions = Dynamic.get(key).force()
+  class Lazy(val rootNameTable: NameTable):
+    lazy val value: Definitions = new Definitions(rootNameTable)

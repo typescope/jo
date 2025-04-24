@@ -87,12 +87,17 @@ object Symbols:
     def termMember(name: String): Symbol =
       info match
         case nsInfo: NameTableInfo => nsInfo.resolveTerm(name).get
-        case tp => throw new Exception(s"No member for $this of type $tp")
+        case tp => throw new Exception(s"No term member $name for $this of type $tp")
 
     def typeMember(name: String): Symbol =
       info match
         case nsInfo: NameTableInfo => nsInfo.resolveType(name).get
-        case tp => throw new Exception(s"No member for $this of type $tp")
+        case tp => throw new Exception(s"No type member $name for $this of type $tp")
+
+    def patternMember(name: String): Symbol =
+      info match
+        case nsInfo: NameTableInfo => nsInfo.resolvePattern(name).get
+        case tp => throw new Exception(s"No pattern member $name for $this of type $tp")
 
     /** The default function associated with a context parameter */
     def defaultFunction: Symbol =

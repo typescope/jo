@@ -19,10 +19,8 @@ import scala.collection.mutable
 /**
   * JavaScript platform with code optimization
   */
-class JSOptimized(outFile: String, runtime: JSRuntime):
+class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
   private val unique = new UniqueName
-
-  val defn = Definitions.instance
 
   val keywords = List(
     "for", "while", "function", "var", "let", "break", "continue", "if",
@@ -256,7 +254,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
         throw new Exception("Unexpected " + word)
 
   /** Compile a function */
-  def compile(fdef: FunDef): Text =
+  def compile(fdef: FunDef): Text = try
     val sym = fdef.symbol
 
     val funType = sym.info.asProcType
@@ -275,6 +273,9 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
               "return " ~ v ~ ";" ~  Text.BreakLine
             }
       ~ "}"
+  catch case ex: Exception =>
+    println(fdef.body.show)
+    throw ex
 
   def div(args: List[Word])(using Context): Text =
     val a :: b :: Nil = args: @unchecked
@@ -289,7 +290,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
 
   def call(fun: Word, args: List[Word])(using Context): Text =
     fun match
-      case Ident(sym) if sym.owner == Definitions.instance.Predef =>
+      case Ident(sym) if sym.owner == defn.Predef =>
         callPredef(sym, args)
 
       case Ident(sym) if sym == runtime.JS_js  =>
@@ -316,7 +317,6 @@ class JSOptimized(outFile: String, runtime: JSRuntime):
 
   /** Compile a primitive */
   def callPredef(sym: Symbol, args: List[Word])(using Context): Text =
-    val defn = Definitions.instance
 
     def binary(op: String): Text =
       val a :: b :: Nil = args: @unchecked
@@ -378,6 +378,7 @@ object JSOptimized:
         case '!' => "not".wrap
         case '$' => "dollar".wrap
         case '?' => "question".wrap
+        case ':' => "colon".wrap
         case '.' => "_"
         case _   => throw new Exception("Not supported, c = " + c)
 

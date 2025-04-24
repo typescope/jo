@@ -1,7 +1,7 @@
 package ast
 
 import Positions.{ Positioned, Span }
-
+import common.KeyProps
 
 /***********************************************************************
  *
@@ -9,7 +9,7 @@ import Positions.{ Positioned, Span }
  *
  ***********************************************************************/
 object Ast:
-  sealed abstract class Tree extends Positioned with Product
+  sealed abstract class Tree extends Product, Positioned, KeyProps.Container
 
   sealed abstract class Word extends Tree:
     def show: String = Printing.show(this)
@@ -52,6 +52,24 @@ object Ast:
 
   case class Apply
     (fun: Word, args: List[Word])
+    (val span: Span)
+  extends Word
+
+  /** A dotless infix method call formed by expression typer
+    *
+    * We could use Apply, but a special class produces better error messages.
+    */
+  case class DotlessCall
+    (obj: Word, method: Ident, arg: Word)
+    (val span: Span)
+  extends Word
+
+  /** An infix call formed by expression typer
+    *
+    * We could use Apply, but a special class produces better error messages.
+    */
+  case class InfixCall
+    (preArgs: List[Word], fun: Word, postArgs: List[Word])
     (val span: Span)
   extends Word
 
@@ -235,7 +253,8 @@ object Ast:
 
   /** Representation of a pattern definition */
   case class PatDef
-    (ident: Ident, tparams: List[TypeParam], params: List[Param], resultType: TypeTree, body: Word)
+    (ident: Ident, tparams: List[TypeParam], params: List[Param],
+      resultType: TypeTree, body: Word, preParamCount: Int)
     (val span: Span)
   extends Word, Def:
     assert(isPattern(body), "Ill-formed pattern tree: " + body)
@@ -281,12 +300,17 @@ object Ast:
 
   def isPattern(pat: Word): Boolean =
     pat match
-      case _: Tag | _: Ident => true
+      case _: Tag | _: Ident | _: StringLit | _: IntLit | _: CharLit | _: BoolLit => true
 
       case TypeAscribe(_: Ident, _) => true
 
       case Apply(_: Tag | _: Ident, args) if args.nonEmpty =>
-        args.forall(_.isInstanceOf[Ident])
+        args.forall(isPattern)
+
+      case Expr(words) if words.nonEmpty =>
+        words.forall(isPattern)
+
+      case Assign(_: Ident, rhs) => isPattern(rhs)
 
       case _ =>
         false

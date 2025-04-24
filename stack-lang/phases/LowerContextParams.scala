@@ -24,10 +24,10 @@ import scala.collection.mutable
 class LowerContextParams(
   hasParamSym: Symbol, getParamSym: Symbol,
   setParamSym: Symbol, delParamSym: Symbol)
+  (using defn: Definitions)
 extends Phase[Symbol]:
   val contextObject = Phase.OwnerContext
 
-  val defn = Definitions.instance
   val StringType = defn.StringType
   val BoolType = defn.BoolType
   val UnitType = defn.UnitType
@@ -35,7 +35,7 @@ extends Phase[Symbol]:
   override def transformIdent(word: Ident)(using ctx: Context): Word =
     word match
       case Ident(sym) if sym.isAllOf(Flags.Context | Flags.Param) =>
-        val key = StringLit(sym.fullName)(StringType, word.span)
+        val key = StringLit(sym.fullName)(word.span)
         val getParamFun = Ident(getParamSym)(word.span)
         val getParamCall = Encoded(Apply(getParamFun, key :: Nil)(AnyType, word.span))(word.tpe)
         getParamCall
@@ -60,7 +60,7 @@ extends Phase[Symbol]:
     // 2. val hasX = hasParam("x")
     val hasXSyms = args.map: arg =>
       val paramName = arg.paramRef.symbol.fullName
-      val key = StringLit(paramName)(StringType, arg.paramRef.span)
+      val key = StringLit(paramName)(arg.paramRef.span)
       val funHasParam = Ident(hasParamSym)(arg.span)
       val hasParamCall = Apply(funHasParam, key :: Nil)(BoolType, arg.paramRef.span)
       val hasXSym = new Symbol("has_" + paramName, BoolType, Flags.Synthetic, owner = ctx, sourcePos = arg.rhs.pos)
@@ -70,7 +70,7 @@ extends Phase[Symbol]:
     // 3. val oldX = setParam("x", v)
     val oldValueSyms = args.zip(argValueSyms).map: (arg, argValueSym) =>
       val paramName = arg.paramRef.symbol.fullName
-      val key = StringLit(paramName)(StringType, arg.paramRef.span)
+      val key = StringLit(paramName)(arg.paramRef.span)
       val value = Ident(argValueSym)(arg.rhs.span)
       val funSetParam = Ident(setParamSym)(arg.span)
       val setParamCall = Apply(funSetParam, key :: value :: Nil)(AnyType, arg.span)
@@ -90,7 +90,7 @@ extends Phase[Symbol]:
       case ((paramRef, hasX), oldValueSym) =>
         val paramName = paramRef.symbol.fullName
 
-        val key = StringLit(paramName)(StringType, paramRef.span)
+        val key = StringLit(paramName)(paramRef.span)
         val value = Ident(oldValueSym)(paramRef.span)
         val funSetParam = Ident(setParamSym)(paramRef.span)
         val setParamCall = Apply(funSetParam, key :: value :: Nil)(AnyType, paramRef.span).dropValue

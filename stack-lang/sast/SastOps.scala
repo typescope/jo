@@ -2,10 +2,106 @@ package sast
 
 import Sast.*
 import Symbols.Symbol
+import Types.*
+
+
+import reporting.Reporter
 
 import scala.collection.mutable
 
 object SastOps:
+  class AdaptionFailure(word: Word, targetType: Type) extends Exception:
+    override def toString(): String =
+      "Unable to adapt " + word + " of type " + word.tpe.show + " to " + targetType.show
+
+  /** Adapt the word to the target type.
+    *
+    * It makes drop of values in if/match expressions explicit.
+    */
+  def adapt(word: Word, targetType: Type)
+    (using defn: Definitions)
+  : Word =
+
+    val unitType = defn.UnitType
+
+    val curType = word.tpe
+    if Subtyping.conforms(curType, targetType) then
+      word
+
+    else if targetType.isVoidType && curType.isValueType then
+      word.dropValue
+
+    else
+
+      val isNumeric = defn.isNumericType(word.tpe) && defn.isNumericType(targetType)
+
+      if isNumeric && !Subtyping.conforms(word.tpe, targetType) then
+        // Numeric coercion
+        word match
+          case Literal(Constant.Int(n)) =>
+            val tp2 = adaptIntLiteral(n, word.tpe, targetType)
+            val word2 = Literal(Constant.Int(n))(tp2, word.span)
+            word2
+
+          case _ =>
+            // TODO: only widening coercion is allowed for non-literals
+            autoCoerceNumeric(word, targetType)
+
+      else if Subtyping.conforms(unitType, targetType) then
+        val unit = RecordLit(args = Nil)(unitType, word.span)
+        Block(word.ensureDropValue :: unit :: Nil)(unitType, word.span)
+
+      else
+        throw new AdaptionFailure(word, targetType)
+
+  private def adaptIntLiteral(n: Int, origType: Type, targetType: Type)
+    (using defn: Definitions)
+  : Type =
+
+    if
+      targetType.refersTo(defn.Predef_Byte) && n < 128 && n >= -128
+      || targetType.refersTo(defn.Predef_Char) && n < 65536 && n >= 0
+      || targetType.refersTo(defn.Predef_Int)
+    then
+      targetType
+
+    else
+      origType
+
+  def autoCoerceNumeric(word: Word, targetType: Type)
+    (using defn: Definitions)
+  : Word =
+
+    val origType = word.tpe
+    if origType.refersTo(defn.Predef_Byte) then
+      if targetType.refersTo(defn.Predef_Char) then
+        val byteToChar = Ident(defn.Predef_byteToChar)(word.span)
+        Apply(byteToChar, word :: Nil)(targetType, word.span)
+
+      else if targetType.refersTo(defn.Predef_Int) then
+        val byteToInt = Ident(defn.Predef_byteToInt)(word.span)
+        Apply(byteToInt, word :: Nil)(targetType, word.span)
+
+      else
+        Reporter.abortInternal("Unexpected numeric type " + targetType.show)
+
+    else if origType.refersTo(defn.Predef_Char) then
+      if targetType.refersTo(defn.Predef_Byte) then
+        word
+
+      else if targetType.refersTo(defn.Predef_Int) then
+        val charToInt = Ident(defn.Predef_charToInt)(word.span)
+        Apply(charToInt, word :: Nil)(targetType, word.span)
+
+      else
+        Reporter.abortInternal("Unexpected numeric type " + targetType.show)
+
+    else if origType.refersTo(defn.Predef_Int) then
+      word
+
+    else
+      Reporter.abortInternal("Unexpected numeric type " + origType.show)
+
   abstract class TreeMap:
     type Context
 
@@ -192,6 +288,8 @@ object SastOps:
 
     def apply(word: Word)(using Context): Unit
 
+    def apply(pattern: Pattern)(using Context): Unit = recur(pattern)
+
     def recurValDef(vdef: ValDef)(using Context): Unit = this(vdef.rhs)
 
     def recurFunDef(fdef: FunDef)(using Context): Unit = this(fdef.body)
@@ -200,7 +298,7 @@ object SastOps:
 
     def recurParamDef(pdef: ParamDef)(using Context): Unit = ()
 
-    def recurPatDef(pdef: PatDef)(using Context): Unit = ()
+    def recurPatDef(pdef: PatDef)(using Context): Unit = this(pdef.body)
 
     def recurDef(defn: Def)(using Context): Unit =
       defn match
@@ -209,6 +307,27 @@ object SastOps:
         case pdef: PatDef   => recurPatDef(pdef)
         case tdef: TypeDef  => recurTypeDef(tdef)
         case pdef: ParamDef => recurParamDef(pdef)
+
+    def recur(pattern: Pattern)(using Context): Unit =
+      pattern match
+        case AscribePattern(id, nested) =>
+          this(nested)
+
+        case TypePattern(tpt) =>
+
+        case TagPattern(_, nested) =>
+          for pat <- nested do this(pat)
+
+        case ApplyPattern(_, nested) =>
+          for pat <- nested do this(pat)
+
+        case OrPattern(lhs, rhs) =>
+          this(lhs)
+          this(rhs)
+
+        case ValuePattern(value) =>
+
+        case WildcardPattern() =>
 
     def recur(word: Word)(using Context): Unit =
       word match
@@ -257,7 +376,7 @@ object SastOps:
 
         case tdef: TypeDef => recurTypeDef(tdef)
 
-        case pdef: PatDef =>
+        case pdef: PatDef => recurPatDef(pdef)
 
         case If(cond, thenp, elsep) =>
           this(cond)
@@ -273,7 +392,9 @@ object SastOps:
 
         case Match(scrutinee, cases) =>
           this(scrutinee)
-          for Case(_, body) <- cases do this(body)
+          for Case(pat, body) <- cases do
+            this(pat)
+            this(body)
 
         case Object(self, vals, defs) =>
           vals.map(recurValDef)

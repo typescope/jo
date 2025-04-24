@@ -64,6 +64,8 @@ class Reporter(
 
   def hasErrors: Boolean = reported.exists(_.kind == Kind.Error)
 
+  def hasWarnings: Boolean = reported.exists(_.kind == Kind.Warning)
+
   def reports: List[Diagnostic] = reported.toList
 
   def printSummary() =
@@ -108,12 +110,16 @@ object Reporter:
     catch
       case error: FatalError.CodeError =>
         println("[error] " + error.content)
+        System.exit(1)
       case error: FatalError.InternalError =>
         println("[error] " + error.message)
+        System.exit(1)
       case error: FatalError.StopAfterPhase =>
         reporter.printSummary()
+        System.exit(1)
       case error: TimeoutException =>
         println("Operation time out")
+        System.exit(1)
 
   def timeout[T](seconds: Int)(work: => T): T =
     given ExecutionContext = ExecutionContext.global

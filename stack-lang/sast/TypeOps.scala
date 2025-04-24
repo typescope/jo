@@ -4,6 +4,7 @@ import Types.*
 import Symbols.*
 
 import common.Debug
+import common.StringUtil
 
 import scala.collection.mutable
 
@@ -23,9 +24,9 @@ object TypeOps:
     *
     * Also, do not infer Any as common type, which is useless.
     */
-  def commonResultType(tp1: Type, tp2: Type): Option[Type] =
-    val tp1Widen = tp1.widen
-    val tp2Widen = tp2.widen
+  def commonResultType(tp1: Type, tp2: Type)(using Definitions): Option[Type] =
+    val tp1Widen = tp1.widenTermRef
+    val tp2Widen = tp2.widenTermRef
     if tp1.isError || tp2.isError then Some(ErrorType)
     else if tp1.isVoidType || tp2.isVoidType then Some(VoidType)
     else if Subtyping.conforms(tp1, tp2Widen) then Some(tp2Widen)
@@ -163,6 +164,12 @@ object TypeOps:
         else
           tvar.toString
 
+      case ConstantType(const) =>
+        const match
+          case Constant.Bool(value)   => value.toString
+          case Constant.Int(value)    => value.toString
+          case Constant.String(value) => "\"" + StringUtil.escape(value) + "\""
+
       case TypeRef(sym) =>
         if sym.isType then sym.name else sym.name + ": " + sym.info.show
 
@@ -232,7 +239,7 @@ object TypeOps:
         case VoidType | ErrorType | AnyType | BottomType =>
           tp
 
-        case _: TypeRef | _: TypeParamRef | _: TypeVar | _: NameTableInfo =>
+        case _: TypeRef | _: TypeParamRef | _: TypeVar | _: NameTableInfo | _: ConstantType =>
           tp
 
         case RecordType(fields) =>
@@ -244,11 +251,7 @@ object TypeOps:
         case UnionType(branches) =>
           val branches2 =
             for branch <- branches
-            yield branch.copy(
-              params = branch.params.map(
-                param => param.copy(info = this(param.info))
-              )
-            )
+            yield this(branch)
 
           UnionType(branches2)
 

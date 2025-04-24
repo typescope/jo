@@ -45,11 +45,14 @@ object Interpreter:
         case BoolVal(value) => value.toString
         case StringVal(value) => "\"" + value + "\""
         case RecordVal(fields) => fields.map(_ + " = " + _.show(level - 1)).mkString("{", ", ", "}")
-        case ObjectVal(values, self, vals, defs,  env) => values.map(_ + " = " + _.show(level - 1)).mkString("object {", ", ", "}")
         case FunVal(fun, env) => "closue(env = " + env.show(recursive = false) + ")"
         case ArrayVal(content) => "[...]"
         case PlatformCall(op) => "platformCall"
         case PlatformObj(_) => "platformObject"
+        case ObjectVal(values, self, vals, defs,  env) =>
+          val fields = values.map(_ + " = " + _.show(level - 1)).mkString(", ")
+          val methods = defs.map(_ + ": " + _.symbol.info.show).mkString(", ")
+          "object {" + fields + ", " + methods + "}"
 
   type Value = IntVal | BoolVal | StringVal | RecordVal | ObjectVal | FunVal | ArrayVal | PlatformObj
 
@@ -79,7 +82,8 @@ object Interpreter:
           case _ => err("Unknown name to update: " + sym.name)
 
     def bind(sym: Symbol, denot: Denotation): Unit =
-      assert(!map.contains(sym), "Double binding " + sym)
+      // Pattern symbol could be bound twice as an optimization in translation
+      assert(!map.contains(sym) || sym.isPattern, "Double binding " + sym)
       map(sym) = denot
 
     def contains(sym: Symbol): Boolean = map.contains(sym)
@@ -166,10 +170,8 @@ object Interpreter:
     val StringVal(v) :: Nil = args: @unchecked
     throw new Exception(v)
 
-  def createRootEnv(): Env =
+  def createRootEnv()(using defn: Definitions): Env =
     val rootEnv = new Env.RootEnv()
-
-    val defn = Definitions.instance
 
     val platformCalls: Map[Symbol, List[Value] => List[Value]] = Map(
       defn.Predef_add        ->       add,
@@ -207,8 +209,7 @@ object Interpreter:
 
     rootEnv
 
-  def createRuntimeContextParams(): Map[Symbol, Value] =
-    val defn = Definitions.instance
+  def createRuntimeContextParams()(using defn: Definitions): Map[Symbol, Value] =
     Map(
       defn.Predef_open   ->  open(),
       defn.Predef_stdin  ->  stdin(),
@@ -268,7 +269,7 @@ object Interpreter:
     } :: Nil
   )
 
-  def exec(nss: List[Namespace], main: Symbol): Unit =
+  def exec(nss: List[Namespace], main: Symbol)(using Definitions): Unit =
     val rootEnv = createRootEnv()
 
     for
@@ -285,13 +286,13 @@ object Interpreter:
 
     call(fdef, args = Nil)(using env2, params)
 
-  def exec(block: Block)(using Env, Params): List[Denotation] =
+  def exec(block: Block)(using Env, Params, Definitions): List[Denotation] =
     val results = for word <- block.words yield exec(word)
 
     if results.isEmpty then Nil
     else results.last
 
-  def call(fdef: FunDef, args: List[Value])(using env: Env, params: Params): List[Denotation] =
+  def call(fdef: FunDef, args: List[Value])(using env: Env, params: Params, defn: Definitions): List[Denotation] =
     val funEnv = env.fresh()
 
     for (param, arg) <- fdef.params.zip(args) do
@@ -300,12 +301,12 @@ object Interpreter:
     Debug.trace("calling " + fdef.symbol + ", env = " + funEnv.show(recursive = false), enable = false):
       exec(fdef.body)(using funEnv)
 
-  def eval(word: Word)(using env: Env, params: Params): Value =
+  def eval(word: Word)(using env: Env, params: Params, defn: Definitions): Value =
     Debug.trace(word.show + ", env = " + env.show(recursive = false), (_: Value).show(), enable = false):
       val (value: Value) :: Nil = exec(word): @unchecked
       value
 
-  def exec(word: Word)(using env: Env, params: Params): List[Denotation] =
+  def exec(word: Word)(using env: Env, params: Params, defn: Definitions): List[Denotation] =
     word match
       case Literal(c)  =>
         c match
@@ -501,13 +502,17 @@ object Interpreter:
     val stdlib = "lib/Predef.stk" :: Nil
     val runtime = Nil
 
-    val namespacesSAST = FrontEnd.run(stdlib, runtime, sourceFiles)
+    val rootNameTable = new NameTable
+    val runtimeNameTable = new NameTable
+    given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable)
+    val namespacesSAST = FrontEnd.run(stdlib, runtime, sourceFiles, runtimeNameTable)
 
     val mains = namespacesSAST.collect:
       case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get
 
     mains match
       case main :: _ =>
+        given Definitions = lazyDefn.value
         exec(namespacesSAST, main)
 
       case Nil =>

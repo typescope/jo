@@ -10,6 +10,7 @@ import sast.Symbols.*
 import sast.Types.*
 
 import common.Debug
+import common.KeyProps
 
 import reporting.Reporter
 
@@ -28,12 +29,15 @@ class Namer(@constructorOnly reporter: Reporter):
   val checker = new Checker
   val patternTyper = PatternTyper(this, checker)
   val inferencer: Inferencer = new UnificationSolver
-  val exprTyper = new ExprTyper(this, checker, inferencer)
+  val exprTyper = new ExprTyper(this)
 
   /** Handles cyclic definitions */
   val nonCyclicTypeProvider = new NamerUtils.ValueTypeProvider(using reporter)
 
-  def transform(nss: List[Ast.Namespace], rootNameTable: NameTable, predef: NameTable)(using rp: Reporter): List[Namespace] =
+  def transform(
+    nss: List[Ast.Namespace], rootNameTable: NameTable, predef: NameTable)
+    (using defnLazy: Definitions.Lazy, rp: Reporter)
+  : List[Namespace] =
     // All namespace are located in the scope
     val rootNamespaceScope = new Scope.RootScope(rootNameTable, owner = null)
 
@@ -55,7 +59,8 @@ class Namer(@constructorOnly reporter: Reporter):
 
       val delayedDefs =
         given TargetType = TargetType.NamespaceMember
-        index(ns.defs)(using defsScope)
+        given Scope = defsScope
+        index(ns.defs)
 
       val imports = new mutable.ArrayBuffer[Symbol]
 
@@ -192,7 +197,7 @@ class Namer(@constructorOnly reporter: Reporter):
       case _ =>
         importName(rootNameTable)
 
-  private def index(defs: List[Ast.Def])(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): List[DelayedDef[Def]] =
+  private def index(defs: List[Ast.Def])(using defnLazy: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, tt: TargetType): List[DelayedDef[Def]] =
     val delayedDefs = new mutable.ArrayBuffer[DelayedDef[Def]]
 
     for
@@ -207,11 +212,8 @@ class Namer(@constructorOnly reporter: Reporter):
 
     delayedDefs.toList
 
-  private def index(defn: Ast.Def)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): List[DelayedDef[Def]] =
+  private def index(defn: Ast.Def)(using defnLazy: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, tt: TargetType): List[DelayedDef[Def]] =
     defn match
-      case vdef: Ast.ValDef =>
-        transformValDef(vdef) :: Nil
-
       case fdef: Ast.FunDef =>
         transformFunDef(fdef) :: Nil
 
@@ -223,29 +225,32 @@ class Namer(@constructorOnly reporter: Reporter):
 
       case pdef: Ast.PatDef =>
         patternTyper.transformPatDef(pdef) :: Nil
+
+      case vdef: Ast.ValDef =>
+        Reporter.error("Unexpected top-level value definitions", vdef.pos)
+        Nil
     end match
   end index
 
-  def transform(word: Ast.Word)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
+  def transform(word: Ast.Word)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
     extension (word: Word) def adapt: Word = checker.adapt(word, tt)
 
     Debug.trace(s"Typing ${word.show}", (_: Word).show, enable = false) {
+    word.testKey(Namer.TypedWord) match
+    case Some(typedWord) => typedWord.adapt
+    case None =>
       word match
       case Ast.IntLit(v)  =>
-        val tp = Definitions.instance.IntType
-        Literal(Constant.Int(v.toInt))(tp, word.span).adapt
+        Literal(Constant.Int(v.toInt))(defn.IntType, word.span).adapt
 
       case Ast.CharLit(v) =>
-        val tp = Definitions.instance.CharType
-        Literal(Constant.Int(v.toInt))(tp, word.span).adapt
+        Literal(Constant.Int(v.toInt))(defn.CharType, word.span).adapt
 
       case Ast.BoolLit(v) =>
-        val tp = Definitions.instance.BoolType
-        Literal(Constant.Bool(v))(tp, word.span).adapt
+        Literal(Constant.Bool(v))(defn.BoolType, word.span).adapt
 
       case Ast.StringLit(v) =>
-        val tp = Definitions.instance.StringType
-        Literal(Constant.String(v))(tp, word.span).adapt
+        Literal(Constant.String(v))(defn.StringType, word.span).adapt
 
       case Ast.Ident(name) =>
         val sym = sc.resolveTerm(name, word.pos)
@@ -299,6 +304,12 @@ class Namer(@constructorOnly reporter: Reporter):
           case tag: Ast.Tag => transformTagged(tag, app.args)
           case _ => transformCall(app)
 
+      case call: Ast.InfixCall =>
+        transformInfixCall(call)
+
+      case call: Ast.DotlessCall =>
+        transformDotlessCall(call)
+
       case Ast.TypeApply(fun, targs) =>
         val fun2 = transform(fun)
         val targs2 = targs.map(transformType)
@@ -326,9 +337,14 @@ class Namer(@constructorOnly reporter: Reporter):
         transform(ifte).adapt
 
       case Ast.While(cond, body) =>
-         val boolType = Definitions.instance.BoolType
-         val cond2 = transform(cond)(using sc, rp, so, TargetType.Known(boolType))
-         val body2 = transform(body)(using sc, rp, so, TargetType.Known(VoidType))
+         val cond2 =
+           given TargetType = TargetType.Known(defn.BoolType)
+           transform(cond)
+
+         val body2 =
+           given TargetType = TargetType.Known(VoidType)
+           transform(body)
+
          While(cond2, body2)(word.span).adapt
 
       case assign: Ast.Assign =>
@@ -369,7 +385,7 @@ class Namer(@constructorOnly reporter: Reporter):
         transform(obj).adapt
     }
 
-  def transform(obj: Ast.Object)(using sc: Scope, rp: Reporter, so: Source): Word =
+  def transform(obj: Ast.Object)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): Word =
     val nameTable = new NameTable
     val vals = new mutable.ArrayBuffer[ValDef]
     val delayedDefs = new mutable.ArrayBuffer[DelayedDef[FunDef]]
@@ -383,10 +399,9 @@ class Namer(@constructorOnly reporter: Reporter):
     val thisSym = Symbol.createSymbol("this", infoProvider, Flags.Synthetic, sc.owner, obj.pos)
 
     // scope for checking member methods
-    val sc2 = sc.fresh(thisSym, nameTable)
+    given sc2: Scope = sc.fresh(thisSym, nameTable)
 
     for case vdef: Ast.ValDef <- obj.members do
-      given Scope = sc2
       given TargetType = TargetType.ObjectMember
       val vdefTyped = transformValDef(vdef).force()
       sc2.define(vdefTyped.symbol)
@@ -399,7 +414,6 @@ class Namer(@constructorOnly reporter: Reporter):
       if fdef.preParamCount != 0 then
         Reporter.error("Methods cannot have pre-arguments", fdef.pos)
 
-      given Scope = sc2
       given TargetType = TargetType.ObjectMember
       val delayedDef = transformFunDef(fdef)
       sc2.define(delayedDef.symbol)
@@ -416,16 +430,19 @@ class Namer(@constructorOnly reporter: Reporter):
 
     Object(thisSym, vals.toList, defs)(objType, obj.span)
 
-  def transform(block: Ast.Block)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
+  def transform(block: Ast.Block)
+    (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType)
+  : Word =
+
     val phrases = block.phrases
-    var sc2 = sc
     val words =
+      given Scope = sc.fresh()
       for (phrase, i) <- phrases.zipWithIndex yield
-        sc2 = sc2.fresh()
-        val tt2 =
+        given TargetType =
           if i == phrases.size - 1 then tt
           else TargetType.Known(VoidType)
-        transform(phrase)(using sc2, rp, so, tt2)
+
+        transform(phrase)
 
     if words.isEmpty then
       checker.adapt(Block(Nil)(VoidType, block.span), tt)
@@ -433,14 +450,39 @@ class Namer(@constructorOnly reporter: Reporter):
     else
       Block(words)(words.last.tpe, block.span)
 
+
+  def instantiatePoly(polyType: ProcType, fun: Word)(using Definitions, Reporter, Source): Word =
+    assert(polyType.tparams.nonEmpty, polyType.show)
+
+    val tvars = for tparam <- polyType.tparams yield TypeVar(tparam.name, this.inferencer)
+    val targs = tvars.map(tvar => TypeTree(tvar)(fun.span))
+    val tpe = TypeOps.substTypeParams(polyType.copy(tparams = Nil), tvars)
+
+    val bounds = for tparam <- polyType.tparams yield tparam.info
+    checker.delayedCheck {
+      for tvar <- tvars do checker.checkInstantiated(tvar, fun.pos)
+
+      checker.checkBounds(bounds, targs)
+    }
+
+    TypeApply(fun, targs)(tpe, fun.span)
+
   /** Handles explicit postfix call syntax f(arg1, arg2, ...) */
-  def transformCall(apply: Ast.Apply)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
+  def transformCall(apply: Ast.Apply)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
     var fun =
       given TargetType = TargetType.Fun(apply.args.size)
       transform(apply.fun)
 
+    // Auto .apply insertion --- apply can be polymorphic
+    //
+    // The `.apply` insertion happens at the transform for `Apply`.
+    // It ensures that in `Apply(fun, args)` the fun is an ident or select.
+    if fun.tpe.hasApplyMethod then
+      val memberType = fun.tpe.termMember("apply")
+      fun = Select(fun, "apply")(memberType, fun.span)
+
     if fun.tpe.isPolyType then
-      fun = exprTyper.instantiatePoly(fun.tpe.asProcType, fun)
+      fun = instantiatePoly(fun.tpe.asProcType, fun)
 
     val funType = fun.tpe
 
@@ -456,10 +498,11 @@ class Namer(@constructorOnly reporter: Reporter):
         errorWord(apply.span)
 
       else if apply.args.size != paramSize then
-          Reporter.error(
-            s"The function expects $paramSize arguments, found = ${apply.args.size}",
-            apply.pos)
-          errorWord(apply.span)
+        Reporter.error(
+          s"The function expects $paramSize arguments, found = ${apply.args.size}",
+          apply.pos)
+        errorWord(apply.span)
+
       else
         val argsTyped =
           for (arg, paramType) <- apply.args.zip(procType.paramTypes) yield
@@ -473,8 +516,98 @@ class Namer(@constructorOnly reporter: Reporter):
       Reporter.error(s"Not a function: " + fun.tpe.show, fun.pos)
       errorWord(apply.span)
 
+  /** Check a dotless call such as `str1 + str2` */
+  def transformDotlessCall(call: Ast.DotlessCall)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
+    val Ast.DotlessCall(obj, meth, arg) = call
+    val objWord =
+      given TargetType = TargetType.ValueType
+      transform(obj)
 
-  def transform(assign: Ast.Assign)(using sc: Scope, rp: Reporter, so: Source): Word =
+    val objType = objWord.tpe
+    val objSpan = obj.span
+
+    if objType.isObjectType then
+      objType.getTermMember(meth.name) match
+        case Some(tp) =>
+          var fun: Word = Select(objWord, meth.name)(tp, objSpan | meth.span)
+
+          if tp.isPolyType then
+            fun = instantiatePoly(tp.asProcType, fun)
+
+          val funType = fun.tpe
+
+          if funType.isProcType then
+            val procType = funType.asProcType
+            val paramSize = procType.paramTypes.size
+            if paramSize != 1 then
+              Reporter.error(
+                s"The method ${meth.name} takes ${paramSize} parameters. The dotless call syntax only supports methods of one parameter",
+                meth.span.toPos)
+              errorWord(meth.span)
+            else
+              val argTyped =
+                given TargetType = TargetType.Known(procType.paramTypes.head)
+                transform(arg)
+
+              val word = Apply(fun, argTyped :: Nil)(procType.resultType, call.span)
+              checker.adapt(word, tt)
+          else
+            Reporter.error( s"The member ${meth.name} is not a method", meth.pos)
+            errorWord(meth.span)
+
+        case None =>
+          Reporter.error( s"Object of the type ${objType.show} does not have member ${meth.name}", objSpan.toPos)
+          errorWord(objSpan)
+    else
+      Reporter.error(s"Object type expected, found = " + objWord.tpe.show, objSpan.toPos)
+      errorWord(objSpan)
+
+  /** Handles infix call formed by expression typer `1 + 2` */
+  def transformInfixCall(call: Ast.InfixCall)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
+    val Ast.InfixCall(preArgs, funAst, postArgs) = call
+
+    var fun =
+      // infix call should not trigger apply insertion
+      given TargetType = TargetType.Unknown
+      transform(funAst)
+
+    if fun.tpe.isPolyType then
+      fun = instantiatePoly(fun.tpe.asProcType, fun)
+
+    assert(fun.tpe.isProcType, "Expect function type, found = " + fun.tpe.show)
+
+    val procType = fun.tpe.asProcType
+    val preParamCount = procType.preParamCount
+    val postParamCount = procType.postParamCount
+
+    if preArgs.size != preParamCount then
+      Reporter.error(
+        s"Function ${fun.show} expects $preParamCount pre arguments, found = ${preArgs.size}",
+        fun.pos)
+      errorWord(call.span)
+
+    else if postArgs.size != postParamCount then
+      Reporter.error(
+        s"Function ${fun.show} expects $postParamCount post arguments, found = ${postArgs.size}",
+        fun.pos)
+      errorWord(call.span)
+
+    else
+      val preArgs2 =
+        for (arg, paramType) <- preArgs.zip(procType.preParamTypes) yield
+          given TargetType = TargetType.Known(paramType)
+          transform(arg)
+
+      val postArgs2 =
+        for (arg, paramType) <- postArgs.zip(procType.postParamTypes) yield
+          given TargetType = TargetType.Known(paramType)
+          transform(arg)
+
+      val word = Apply(fun, preArgs2 ++ postArgs2)(procType.resultType, call.span)
+      val desugared = Desugaring.desugarShortcutAndOr(word)
+      checker.adapt(desugared, tt)
+
+  def transform(assign: Ast.Assign)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): Word =
     val Ast.Assign(ref, rhs) = assign
 
     ref match
@@ -521,7 +654,7 @@ class Namer(@constructorOnly reporter: Reporter):
           Reporter.error("Expect an object, found = " + qual2.tpe.show, qual.pos)
           errorWord(assign.span)
 
-  private def transformParamRef(ref: Ast.RefTree)(using sc: Scope, rp: Reporter, so: Source): Ident =
+  private def transformParamRef(ref: Ast.RefTree)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): Ident =
     val paramRef =
       given TargetType = TargetType.Unknown
       transform(ref)
@@ -537,7 +670,7 @@ class Namer(@constructorOnly reporter: Reporter):
 
     Ident(paramSym)(ref.span)
 
-  private def transform(arg: Ast.WithArg)(using sc: Scope, rp: Reporter, so: Source): WithArg =
+  private def transform(arg: Ast.WithArg)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): WithArg =
     val paramRef = transformParamRef(arg.paramRef)
 
     val rhsSast =
@@ -548,10 +681,13 @@ class Namer(@constructorOnly reporter: Reporter):
 
     WithArg(paramRef, rhsSast)(arg.span)
 
-  private def transform(ifte: Ast.If)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
+  private def transform(ifte: Ast.If)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
     val Ast.If(cond, thenp, elsep) = ifte
-    val boolType = Definitions.instance.BoolType
-    val cond2 = transform(cond)(using sc, rp, so, TargetType.Known(boolType))
+
+    val cond2 =
+      given TargetType = TargetType.Known(defn.BoolType)
+      transform(cond)
+
     val then2 = transform(thenp)
     val else2 = transform(elsep)
 
@@ -559,7 +695,7 @@ class Namer(@constructorOnly reporter: Reporter):
     val commonType = checker.commonResultType(then2.tpe, else2.tpe, ifte.pos)
     If(cond2, then2, else2)(commonType, ifte.span)
 
-  private def transform(record: Ast.RecordLit)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
+  private def transform(record: Ast.RecordLit)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
     val Ast.RecordLit(namedArgs) = record
     val namedArgs2 = new mutable.ArrayBuffer[(String, Word)]
 
@@ -591,7 +727,7 @@ class Namer(@constructorOnly reporter: Reporter):
     val tpe = RecordType(fields.map { case (k, v) => NamedInfo(k, v.tpe) })
     RecordLit(fields)(tpe, record.span)
 
-  def transformTagged(tag: Ast.Tag, values: List[Ast.Word])(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
+  def transformTagged(tag: Ast.Tag, values: List[Ast.Word])(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
     val tagName = tag.name.name
     val span =
       if values.isEmpty then tag.span
@@ -599,7 +735,7 @@ class Namer(@constructorOnly reporter: Reporter):
 
     val pos = span.toPos
 
-    val tagStringLit = StringLit(tagName)(Definitions.instance.StringType, tag.span)
+    val tagStringLit = StringLit(tagName)(tag.span)
 
     def check(tagType: TagType, resType: Type): Word =
       val paramTypes = tagType.paramTypes
@@ -646,7 +782,7 @@ class Namer(@constructorOnly reporter: Reporter):
 
         TaggedLit(tagStringLit, values2)(tagType, span)
 
-  private def transform(lambda: Ast.Lambda)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
+  private def transform(lambda: Ast.Lambda)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
      val Ast.Lambda(params, body) = lambda
 
      val targetFunTypeOpt: Option[ProcType] = tt.knownType.flatMap(_.getFunctionApplyType)
@@ -688,7 +824,10 @@ class Namer(@constructorOnly reporter: Reporter):
        case Some(funType) => TargetType.Known(funType.resultType)
        case None => TargetType.ValueType
 
-     val bodyTyped = transform(body)(using lambdaScope, rp, so, bodyTargetType)
+     val bodyTyped =
+       given Scope = lambdaScope
+       given TargetType = bodyTargetType
+       transform(body)
 
      // Provide type info for the function symbol
      val procType = ProcType(tparams = Nil, paramSyms.map(_.toNamedInfo), bodyTyped.tpe, ctxParams, preParamCount = 0)
@@ -707,8 +846,16 @@ class Namer(@constructorOnly reporter: Reporter):
      Object(thisSym, vals = Nil, defs = funDef :: Nil)(objType, lambda.span)
 
 
-  private def transformParamDef(pdef: Ast.ParamDef)(using sc: Scope, rp: Reporter, so: Source): List[DelayedDef[Def]] =
-    val infoProvider: InfoProvider = sym => transformType(pdef.typ).tpe
+  private def transformParamDef(pdef: Ast.ParamDef)
+    (using lazyDefn: Definitions.Lazy | Definitions, sc: Scope, rp: Reporter, so: Source)
+  : List[DelayedDef[Def]] =
+
+    given Definitions = lazyDefn match
+      case lazyDefn: Definitions.Lazy => lazyDefn.value
+      case defn: Definitions => defn
+
+    val infoProvider: InfoProvider = sym =>
+      transformType(pdef.typ).tpe
 
     var flags = Flags.Param | Flags.Context
     if pdef.default.nonEmpty then
@@ -748,7 +895,7 @@ class Namer(@constructorOnly reporter: Reporter):
       case None =>
         delayedParamDef :: Nil
 
-  private def transformValDef(vdef: Ast.ValDef)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): DelayedDef[ValDef] =
+  private def transformValDef(vdef: Ast.ValDef)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): DelayedDef[ValDef] =
     var flags: Flags = if tt == TargetType.ObjectMember then Flags.Field else Flags.empty
 
     if vdef.mutable then
@@ -776,11 +923,20 @@ class Namer(@constructorOnly reporter: Reporter):
     val typer = () => ValDef(sym, rhs)(vdef.span)
     DelayedDef(sym, typer)
 
-  private def transformFunDef(funDef: Ast.FunDef)(using sc: Scope, rp: Reporter, so: Source, tt: TargetType): DelayedDef[FunDef] =
+  private def transformFunDef(funDef: Ast.FunDef)
+    (using
+      lazyDefn: Definitions.Lazy | Definitions, sc: Scope, rp: Reporter,
+      so: Source, tt: TargetType)
+  : DelayedDef[FunDef] =
+
     val flags = if tt == TargetType.ObjectMember then Flags.Method else Flags.Fun
 
     val funSym = Symbol.createSymbol(funDef.name, this.nonCyclicTypeProvider, flags, sc.owner, funDef.ident.pos)
-    val funScope = sc.fresh(funSym)
+    given funScope: Scope = sc.fresh(funSym)
+
+    given Definitions = lazyDefn match
+      case lazyDefn: Definitions.Lazy => lazyDefn.value
+      case defn: Definitions => defn
 
     lazy val tparamSyms =
       for tparam <- funDef.tparams yield
@@ -788,7 +944,7 @@ class Namer(@constructorOnly reporter: Reporter):
           if tparam.bound.isEmpty then
             TypeBound(BottomType, AnyType)
           else
-            val boundTree = transformType(tparam.bound)(using funScope)
+            val boundTree = transformType(tparam.bound)
             TypeBound(BottomType, boundTree.tpe)
 
         val infoProvider: InfoProvider = (sym: Symbol) => bound
@@ -800,7 +956,7 @@ class Namer(@constructorOnly reporter: Reporter):
       tparamSyms
 
       for param <- funDef.params yield
-        val tpt = transformType(param.typ)(using funScope)
+        val tpt = transformType(param.typ)
         val paramSym = Symbol.createSymbol(param.name, tpt.tpe, Flags.Param, funSym, param.pos)
         funScope.define(paramSym)
         paramSym
@@ -809,7 +965,7 @@ class Namer(@constructorOnly reporter: Reporter):
       tparamSyms
 
       assert(!funDef.resultType.isEmpty)
-      val resTypeTree = transformType(funDef.resultType)(using funScope)
+      val resTypeTree = transformType(funDef.resultType)
       checker.delayedCheck { checker.checkValueType(resTypeTree) }
       resTypeTree.tpe
 
@@ -839,7 +995,6 @@ class Namer(@constructorOnly reporter: Reporter):
         else
           TargetType.ValueType
 
-      given Scope = funScope
       given TargetType = targetType
       transform(funDef.body)
 
@@ -866,17 +1021,24 @@ class Namer(@constructorOnly reporter: Reporter):
 
     DelayedDef(funSym, typer)
 
-  private def transformTypeDef(tdef: Ast.TypeDef)(using sc: Scope, rp: Reporter, so: Source): DelayedDef[TypeDef] =
+  private def transformTypeDef(tdef: Ast.TypeDef)
+    (using lazyDefn: Definitions.Lazy | Definitions, sc: Scope, rp: Reporter, so: Source)
+  : DelayedDef[TypeDef] =
+
     val typeSym = Symbol.createSymbol(tdef.name, this.nonCyclicTypeProvider, Flags.Type, sc.owner, tdef.ident.pos)
 
-    val sc2 = sc.fresh(typeSym)
+    given Definitions = lazyDefn match
+      case lazyDefn: Definitions.Lazy => lazyDefn.value
+      case defn: Definitions => defn
+
+    given sc2: Scope = sc.fresh(typeSym)
     val tparamSyms =
       for tparam <- tdef.tparams yield
         lazy val bound =
           if tparam.bound.isEmpty then
             TypeBound(BottomType, AnyType)
           else
-            val boundTree = transformType(tparam.bound)(using sc2)
+            val boundTree = transformType(tparam.bound)
             TypeBound(BottomType, boundTree.tpe)
 
         val infoProvider: InfoProvider = (sym: Symbol) => bound
@@ -911,7 +1073,7 @@ class Namer(@constructorOnly reporter: Reporter):
           TypeParamRef(tparamSym.name, i)
         val subst = tparamSyms.zip(tparamRefs).toMap
 
-        val rhs = transformType(tdef.rhs)(using sc2)
+        val rhs = transformType(tdef.rhs)
         checker.delayedCheck { checker.checkValueType(rhs) }
         val tparamInfos = tparamSyms.map(tparam => NamedInfo(tparam.name, tparam.info.as[TypeBound]))
 
@@ -930,8 +1092,8 @@ class Namer(@constructorOnly reporter: Reporter):
 
     DelayedDef(typeSym, typer)
 
-  private def transformMethodDecl(ddef: Ast.FunDef)(using sc: Scope, rp: Reporter, so: Source): TypeTree =
-    val defScope = sc.fresh()
+  private def transformMethodDecl(ddef: Ast.FunDef)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): TypeTree =
+    val defScope: Scope = sc.fresh()
 
     if ddef.preParamCount != 0 then
       Reporter.error("Methods cannot have pre-arguments", ddef.pos)
@@ -942,7 +1104,7 @@ class Namer(@constructorOnly reporter: Reporter):
           if tparam.bound.isEmpty then
             TypeBound(BottomType, AnyType)
           else
-            val boundTree = transformType(tparam.bound)(using defScope)
+            val boundTree = transformType(tparam.bound)
             TypeBound(BottomType, boundTree.tpe)
 
         val infoProvider: InfoProvider = (sym: Symbol) => bound
@@ -952,14 +1114,14 @@ class Namer(@constructorOnly reporter: Reporter):
 
     val paramSyms =
       for param <- ddef.params yield
-        val tpt = transformType(param.typ)(using defScope)
+        val tpt = transformType(param.typ)
         val paramSym = Symbol.createSymbol(param.name, tpt.tpe, Flags.Param, sc.owner, param.pos)
         defScope.define(paramSym)
         paramSym
 
     val resultType =
       assert(!ddef.resultType.isEmpty)
-      val resTypeTree = transformType(ddef.resultType)(using defScope)
+      val resTypeTree = transformType(ddef.resultType)
       checker.delayedCheck { checker.checkValueType(resTypeTree) }
       resTypeTree.tpe
 
@@ -984,7 +1146,7 @@ class Namer(@constructorOnly reporter: Reporter):
     *
     * Checks must be delayed by using `checker.delayedCheck`.
     */
-  def transformType(tpt: Ast.TypeTree)(using sc: Scope, rp: Reporter, so: Source): TypeTree =
+  def transformType(tpt: Ast.TypeTree)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): TypeTree =
     tpt match
       case Ast.Ident(name) =>
         sc.resolveType(name) match
@@ -1061,23 +1223,27 @@ class Namer(@constructorOnly reporter: Reporter):
         TypeTree(tp)(tpt.span)
 
       case Ast.UnionType(branches) =>
-        val branchTypes = new mutable.ArrayBuffer[TagType]
+        val branchTypes = new mutable.ArrayBuffer[Type]
+        val tags = mutable.Set.empty[String]
         for branch <- branches do
           val branchType = transformType(branch).tpe
-          val expanded =
+          val branchTags =
             if branchType.isTagType then
-              branchType.asTagType :: Nil
+              branchTypes += branchType
+              branchType.asTagType.tag :: Nil
             else if branchType.isUnionType then
-              branchType.asUnionType.branches
+              branchTypes += branchType
+              branchType.asUnionType.tags
             else
               Reporter.error("Only tag type or union type allowed inside a union type, found = " + branchType.show, branch.pos)
               Nil
 
-          for tagType <- expanded do
-            if branchTypes.exists(_.tag == tagType.tag) then
-              Reporter.error("Branch " + tagType.tag + " already defined", branch.pos)
+          for tag <- branchTags do
+            if tags.exists(_ == tag) then
+              Reporter.error("Branch " + tag + " already defined", branch.pos)
             else
-              branchTypes += tagType
+              tags += tag
+
         end for
         val unionType = UnionType(branchTypes.toList)
         TaggedEncoding.checkUnionType(unionType, tpt.pos)
@@ -1116,6 +1282,12 @@ class Namer(@constructorOnly reporter: Reporter):
 
 object Namer:
   def errorWord(span: Span) = Block(words = Nil)(ErrorType, span)
+
+  /** The typed word associated with an untyped word
+    *
+    * It is used to avoid re-typing a word.
+    */
+  val TypedWord = new KeyProps.Key[Word]("Namer.TypedWord")
 
   class DelayedDef[+T <: Def](val symbol: Symbol, delayed: () => T):
     private lazy val definition: T = delayed()

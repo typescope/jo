@@ -8,7 +8,12 @@ Fix #XXX: A short description
 - [ ] flags & symbols & name table
 - [ ] types & subtyping
 - [ ] sast & type checking
-- [ ] context check & transform
+- [ ] context param check & transform
+- [ ] pattern match
+  - [ ] pattern typer
+  - [ ] occur check
+  - [ ] exhaustivity check
+  - [ ] semantic transform
 - [ ] closure conversion
 - [ ] interpreter
 - backend

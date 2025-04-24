@@ -7,8 +7,11 @@ pattern WrongResType(s: String, age: Int): Student =
 pattern ResTypeNotEqual(s: String): Student | Teacher =  // error
   #Teacher s _ _
 
-pattern UndefinedVar(addr: String): Teacher =
-  #Teacher s addr _  // error
+pattern OnSiteDefinedVar(addr: String): Teacher =
+  #Teacher s addr _
+
+pattern OnSiteDefinedVarDoubleBinding(addr: String): Teacher =
+  #Teacher s s _ // error
 
 pattern DoubleBind(s: String): Teacher =
   #Teacher s s _  // error

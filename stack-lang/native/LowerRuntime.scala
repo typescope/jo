@@ -29,10 +29,8 @@ import native.runtime.NativeRuntime
   * literals do not have the type String. For example, the context parameter
   * runtime expects raw byte string as input.
   */
-class LowerRuntime(runtime: NativeRuntime) extends phases.Phase[Unit]:
+class LowerRuntime(runtime: NativeRuntime)(using defn: Definitions) extends phases.Phase[Unit]:
   val contextObject = phases.Phase.DummyContext
-
-  val defn = Definitions.instance
 
   val Predef_array = defn.Predef_array
   val Predef_Array = defn.Predef_Array

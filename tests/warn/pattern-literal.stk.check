@@ -1,0 +1,46 @@
+---------- Error at ./tests/warn/pattern-literal.stk:3:10 ---------------
+|     case "hello" =>
+|          ^^^^^^^
+|          Expect type Int, found = String
+
+---------- Error at ./tests/warn/pattern-literal.stk:8:10 ---------------
+|     case 4 =>
+|          ^
+|          Expect type String, found = Int
+
+---------- Error at ./tests/warn/pattern-literal.stk:9:10 ---------------
+|     case 'a' =>
+|          ^^^
+|          Expect type String, found = Char
+
+---------- Error at ./tests/warn/pattern-literal.stk:14:10 ---------------
+|     case "hello" =>
+|          ^^^^^^^
+|          Expect type Char, found = String
+
+---------- Error at ./tests/warn/pattern-literal.stk:20:10 ---------------
+|     case 512 =>
+|          ^^^
+|          Expect type Byte, found = Int
+
+---------- Error at ./tests/warn/pattern-literal.stk:21:10 ---------------
+|     case "x" =>
+|          ^^^
+|          Expect type Byte, found = String
+
+---------- Error at ./tests/warn/pattern-literal.stk:26:10 ---------------
+|     case 23 =>
+|          ^^
+|          Expect type Bool, found = Int
+
+---------- Error at ./tests/warn/pattern-literal.stk:27:10 ---------------
+|     case "hello" =>
+|          ^^^^^^^
+|          Expect type Bool, found = String
+
+---------- Error at ./tests/warn/pattern-literal.stk:28:10 ---------------
+|     case 'a' =>
+|          ^^^
+|          Expect type Bool, found = Char
+
+9 error(s), 0 warning(s)

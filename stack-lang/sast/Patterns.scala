@@ -22,16 +22,16 @@ object Patterns:
     * types should be equal while the top-level algebraic types can be
     * different.
     */
-  def isValidTypePattern(patternType: Type, scrutType: Type)(using StringBuilder): Boolean =
+  def isValidTypePattern(patternType: Type, scrutType: Type)(using StringBuilder, Definitions): Boolean =
     if patternType.isTagType then isValidTagTypePattern(patternType.asTagType, scrutType)
     else if patternType.isUnionType then isValidUnionTypePattern(patternType.asUnionType, scrutType)
     else isEqualType(patternType, scrutType)
 
-  def isValidUnionTypePattern(patternType: UnionType, scrutType: Type)(using explain: StringBuilder): Boolean =
-    patternType.branches.forall: tagType =>
-      isValidTagTypePattern(tagType, scrutType)
+  def isValidUnionTypePattern(patternType: UnionType, scrutType: Type)(using explain: StringBuilder, defn: Definitions): Boolean =
+    patternType.branches.forall: branchType =>
+      isValidTypePattern(branchType, scrutType)
 
-  def isValidTagTypePattern(patternType: TagType, scrutType: Type)(using explain: StringBuilder): Boolean =
+  def isValidTagTypePattern(patternType: TagType, scrutType: Type)(using explain: StringBuilder, defn: Definitions): Boolean =
     if scrutType.isTagType then
       val scrutTagType = scrutType.asTagType
       if scrutTagType.tag != patternType.tag then
@@ -59,7 +59,7 @@ object Patterns:
       explain.append("The tag type " + patternType.show + " does not match the scrutinee type " + scrutType.show + ". ")
       false
 
-  def isEqualType(patternType: Type, scrutType: Type)(using explain: StringBuilder): Boolean =
+  def isEqualType(patternType: Type, scrutType: Type)(using explain: StringBuilder, defn: Definitions): Boolean =
     // The non-algebraic types may contain algebraic types as
     // components. Therefore, we need to enforce that the types are equal
     // instead of just being subtypes.

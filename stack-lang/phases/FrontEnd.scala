@@ -12,21 +12,24 @@ object FrontEnd:
 
   def run(
     stdlib: List[String], runtime: List[String], sources: List[String])
-    (using Reporter)
+    (using rp: Reporter)
   : List[Namespace] =
-
     val rootNameTable = new NameTable
     val runtimeNameTable = new NameTable
-    run(stdlib, runtime, sources, rootNameTable, runtimeNameTable)
+
+    given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable)
+    run(stdlib, runtime, sources, runtimeNameTable)
 
   def run(
     stdlib: List[String], runtime: List[String], sources: List[String],
-    rootNameTable: NameTable, runtimeNameTable: NameTable)
-    (using Reporter)
+    runtimeNameTable: NameTable)
+    (using defnLazy: Definitions.Lazy, rp: Reporter)
   : List[Namespace] =
 
+    given Definitions = defnLazy.value
+
     val typeCheck = (nss: List[Ast.Namespace]) =>
-      Typer.check(nss, stdlib, runtime, rootNameTable, runtimeNameTable)
+      Typer.check(nss, stdlib, runtime, runtimeNameTable)
 
     val sast =
       Parser.parse(sources)         |>

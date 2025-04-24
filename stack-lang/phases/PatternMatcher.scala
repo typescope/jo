@@ -9,10 +9,9 @@ import sast.Types.*
 
 import scala.collection.mutable
 
-class PatternMatcher extends Phase[PatternMatcher.Context]:
+class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Context]:
   val contextObject = PatternMatcher.CacheContext
 
-  val defn = Definitions.instance
   val IntType = defn.IntType
   val BoolType = defn.BoolType
   val StringType = defn.StringType
@@ -41,7 +40,7 @@ class PatternMatcher extends Phase[PatternMatcher.Context]:
   private def createImplFunSymbol(predSym: Symbol): Symbol =
     val predType = predSym.info.asProcType
     val bounds = predType.tparams
-    val params = NamedInfo("scrutinee", predType.resultType) :: Nil
+    val params = NamedInfo("scrutinee", predType.resultType.stripPartial) :: Nil
 
     val successType = TagType("Success", predType.params)
     val failType = TagType("Fail", Nil)
@@ -68,7 +67,7 @@ class PatternMatcher extends Phase[PatternMatcher.Context]:
     given Context = PatternMatcher.CacheContext.newContext(implSym, ctx)
     given Source = pdef.symbol.sourcePos.source
 
-    val scrutSym = Symbol.createSymbol("scrutinee", pdef.resultType.tpe, Flags.Param, implSym, implSym.sourcePos)
+    val scrutSym = Symbol.createSymbol("scrutinee", pdef.resultType.tpe.stripPartial, Flags.Param, implSym, implSym.sourcePos)
     val scrutIdent = Ident(scrutSym)(span)
 
     // TODO: optimize irrefutable pattern
@@ -78,8 +77,8 @@ class PatternMatcher extends Phase[PatternMatcher.Context]:
     val resultType = UnionType(successType :: failType :: Nil)
 
     val values = pdef.params.map(param => Ident(param)(span))
-    val success = TaggedLit(StringLit("Success")(StringType, span), values)(successType, span)
-    val fail = TaggedLit(StringLit("Fail")(StringType, span), args = Nil)(failType, span)
+    val success = TaggedLit(StringLit("Success")(span), values)(successType, span)
+    val fail = TaggedLit(StringLit("Fail")(span), args = Nil)(failType, span)
     val body = If(cond, success, fail)(resultType, span)
 
     // TODO: rebind param symbols
@@ -119,7 +118,7 @@ class PatternMatcher extends Phase[PatternMatcher.Context]:
           // No need to abort if we issue error for non-exhaustive cases.
           // It is needed for code generation.
           val abort = Ident(abortSym)(scrutIdent.span)
-          val arg = StringLit("Unhandled match at " + scrutIdent.pos)(StringType, scrutIdent.span)
+          val arg = StringLit("Unhandled match at " + scrutIdent.pos)(scrutIdent.span)
           Apply(abort, arg :: Nil)(BottomType, patmat.span).dropIfVoid(patmat.tpe)
       end match
 
@@ -154,16 +153,57 @@ class PatternMatcher extends Phase[PatternMatcher.Context]:
       case appPat: ApplyPattern =>
         transformApplyPattern(scrut, appPat)
 
+      case orPat: OrPattern =>
+        transformOrPattern(scrut, orPat)
+
+      case valuePattern: ValuePattern =>
+        transformValuePattern(scrut, valuePattern)
+
       case WildcardPattern() =>
         assert(Subtyping.conforms(scrut.tpe, pat.tpe), "scrutee type = " + scrut.tpe.show + ", pattern type = " + pat.tpe.show)
-        BoolLit(true)(BoolType, pat.span)
+        BoolLit(true)(pat.span)
 
-  private def transformApplyPattern(scrut: Ident, applyPattern: ApplyPattern)(using ctx: Context, source: Source): Word =
+  private def transformOrPattern(scrut: Ident, orPattern: OrPattern)
+    (using ctx: Context, source: Source)
+  : Word =
+
+    val OrPattern(lhs, rhs) = orPattern
+    val lhsCond = transformPattern(scrut, lhs)
+    val rhsCond = transformPattern(scrut, rhs)
+    If(lhsCond, BoolLit(true)(lhs.span), rhsCond)(BoolType, orPattern.span)
+
+  private def transformValuePattern(scrut: Ident, pat: ValuePattern): Word =
+    pat.value.tpe match
+      case defn.ByteType   =>
+        Ident(defn.Predef_eql)(pat.span).appliedTo(pat.value, scrut)
+
+      case defn.IntType    =>
+        Ident(defn.Predef_eql)(pat.span).appliedTo(pat.value, scrut)
+
+      case defn.CharType   =>
+        Ident(defn.Predef_eql)(pat.span).appliedTo(pat.value, scrut)
+
+      case defn.BoolType   =>
+        val bothTrue = Ident(defn.Predef_both)(pat.span).appliedTo(pat.value, scrut)
+        val notValue = Ident(defn.Predef_not)(pat.span).appliedTo(pat.value)
+        val notScrut = Ident(defn.Predef_not)(pat.span).appliedTo(scrut)
+        val bothFalse = Ident(defn.Predef_both)(pat.span).appliedTo(notValue, notScrut)
+        Ident(defn.Predef_either)(pat.span).appliedTo(bothTrue, bothFalse)
+
+      case defn.StringType =>
+        scrut.select("==").appliedTo(pat.value)
+
+      case _ => throw new Exception("Unexpected literal type: " + pat.value.tpe.show)
+
+  private def transformApplyPattern(scrut: Ident, applyPattern: ApplyPattern)
+    (using ctx: Context, source: Source)
+  : Word =
+
     val ApplyPattern(pred, nested) = applyPattern
     val procType = pred.tpe.asProcType
     val span = pred.span
 
-    val paramType = procType.resultType
+    val paramType = procType.resultType.stripPartial
     val successType = TagType("Success", procType.params)
     val failType = TagType("Fail", Nil)
     val resultType = UnionType(successType :: failType :: Nil)
@@ -205,7 +245,7 @@ class PatternMatcher extends Phase[PatternMatcher.Context]:
 
       else
         val typeTest = transformTypePattern(scrut, paramType, span)
-        If(typeTest, resCond, BoolLit(false)(BoolType, span))(BoolType, span)
+        If(typeTest, resCond, BoolLit(false)(span))(BoolType, span)
 
     val assigns =
       for param <- successType.params
@@ -228,7 +268,7 @@ class PatternMatcher extends Phase[PatternMatcher.Context]:
           Apply(Ident(bothSym)(span), acc :: cond :: Nil)(BoolType, span)
 
       val nestedBlock = Block(assigns :+ nestedCond)(BoolType, span)
-      If(callCond, nestedBlock, BoolLit(false)(BoolType, span))(BoolType, span)
+      If(callCond, nestedBlock, BoolLit(false)(span))(BoolType, span)
 
   private def transformTagPattern(scrut: Ident, tagPattern: TagPattern)(using ctx: Context, source: Source): Word =
     val span = tagPattern.span
@@ -258,7 +298,7 @@ class PatternMatcher extends Phase[PatternMatcher.Context]:
         condTag
 
       else
-        BoolLit(true)(BoolType, span)
+        BoolLit(true)(span)
 
     else
       val nestedConds =
@@ -274,15 +314,18 @@ class PatternMatcher extends Phase[PatternMatcher.Context]:
       val nestedBlock = Block(assigns :+ nestedCond)(BoolType, span)
 
       if needTagTest(scrut, tag) then
-        If(condTag, nestedBlock, BoolLit(false)(BoolType, span))(BoolType, span)
+        If(condTag, nestedBlock, BoolLit(false)(span))(BoolType, span)
       else
         nestedBlock
 
-  private def transformTypePattern(scrut: Ident, patternType: Type, span: Span)(using Context, Source): Word =
+  private def transformTypePattern(scrut: Ident, patternType: Type, span: Span)
+    (using Context, Source)
+  : Word =
+
     assert(Subtyping.conforms(patternType, scrut.symbol.info), "scrutee type = " + scrut.tpe.show + ", type test = " + patternType.show)
 
     if Subtyping.conforms(scrut.symbol.info, patternType) then
-      BoolLit(true)(BoolType, span)
+      BoolLit(true)(span)
 
     else if patternType.isTagType then
       val patternTagType = patternType.asTagType
@@ -302,7 +345,7 @@ class PatternMatcher extends Phase[PatternMatcher.Context]:
 
       val assignTag =  scrutineeTagAssign(scrut, span)
       val conds =
-        for tagType <- unionType.branches
+        for tagType <- unionType.tagTypes
         yield transformTagTypePattern(scrut, tagType, Some(assignTag.ident), span)
 
       val cond :: rest = conds: @unchecked
@@ -343,7 +386,7 @@ class PatternMatcher extends Phase[PatternMatcher.Context]:
           TaggedEncoding.testTagValue(tagIdent, tag, span)
 
         case _ =>
-          BoolLit(true)(BoolType, span)
+          BoolLit(true)(span)
 
     else
       val nestedConds =
@@ -361,7 +404,7 @@ class PatternMatcher extends Phase[PatternMatcher.Context]:
       scrutTagIdent match
         case Some(tagIdent) =>
           val condTag = TaggedEncoding.testTagValue(tagIdent, tag, span)
-          If(condTag, nestedBlock, BoolLit(false)(BoolType, span))(BoolType, span)
+          If(condTag, nestedBlock, BoolLit(false)(span))(BoolType, span)
 
         case _ => nestedBlock
 

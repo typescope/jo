@@ -16,8 +16,6 @@ class NativeRuntime(
 extends Linker:
   import runtimeRootNameTable.resolveNamespace
 
-  val defn = Definitions.instance
-
   val Core = resolveNamespace("stk.runtime.native.Core")
 
   val Core_Addr = Core.typeMember("Addr")

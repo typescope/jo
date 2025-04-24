@@ -32,7 +32,7 @@ object Sast:
     def dropIfVoid(target: Type): Word =
       if target.isVoidType then dropValue else this
 
-    def show: String = Printing.show(this)
+    def show(using Definitions): String = Printing.show(this)
 
     /** Whether the word can be duplicated as neighbors without affecting program semantics */
     def isIdempotent: Boolean =
@@ -191,6 +191,8 @@ object Sast:
   sealed trait Pattern extends Tree:
     val tpe: Type
 
+    def show(using Definitions): String = Printing.show(this)
+
   case class TypePattern
     (tpt: TypeTree)
   extends Pattern:
@@ -208,6 +210,12 @@ object Sast:
     val tpe = nested.tpe
     val span = id.span | nested.span
 
+  case class OrPattern
+    (lhs: Pattern, rhs: Pattern)
+  extends Pattern:
+    val tpe = lhs.tpe
+    val span = lhs.span | rhs.span
+
   case class ApplyPattern
     (fun: Word, nested: List[Pattern])
     (val tpe: Type, val span: Span)
@@ -218,25 +226,21 @@ object Sast:
         case TypeApply(Ident(sym), _) if sym.isPattern => sym
         case _ => throw new Exception("expect a pattern predicate, found = " + fun)
 
-    for pat <- nested do
-      pat match
-        case AscribePattern(_, _: TypePattern | _: WildcardPattern) | _: WildcardPattern =>
-        case _ => assert(false, "expect ident, found = " + pat)
-
   case class TagPattern
     (tagTree: Literal, nested: List[Pattern])
     (val tpe: Type)
   extends Pattern:
-    for pat <- nested do
-      pat match
-        case AscribePattern(_, _: TypePattern | _: WildcardPattern) | _: WildcardPattern =>
-        case _ => assert(false, "expect ident, found = " + pat)
-
     val span = if nested.isEmpty then tagTree.span else tagTree.span | nested.last.span
 
     val tag = tagTree.constant match
       case Constant.String(name) => name
       case c => throw new Exception("Expect string, found = " + c)
+
+  case class ValuePattern
+    (value: Word)
+  extends Pattern:
+    val tpe = value.tpe
+    val span = value.span
 
   case class Match
     (scrutinee: Word, cases: List[Case])
@@ -313,16 +317,38 @@ object Sast:
       val funs = defs.filter(defn => defn.symbol.isFunction && defn.symbol.name == "main")
       funs.map(_.symbol).headOption
 
-    def show: String = Printing.show(this)
+    def show(using Definitions): String = Printing.show(this)
+
 
   //----------------------------------------------------------------------------
   // helpers
 
-  def StringLit(s: String)(tp: Type, span: Span) =
-    Literal(Constant.String(s))(tp, span)
+  def StringLit(s: String)(span: Span)(using defn: Definitions) =
+    Literal(Constant.String(s))(defn.StringType, span)
 
-  def IntLit(n: Int)(tp: Type, span: Span) =
-    Literal(Constant.Int(n))(tp, span)
+  def IntLit(n: Int)(span: Span)(using defn: Definitions) =
+    Literal(Constant.Int(n))(defn.IntType, span)
 
-  def BoolLit(b: Boolean)(tp: Type, span: Span) =
-    Literal(Constant.Bool(b))(tp, span)
+  def BoolLit(b: Boolean)(span: Span)(using defn: Definitions) =
+    Literal(Constant.Bool(b))(defn.BoolType, span)
+
+  extension (word: Word)
+
+    def select(name: String): Word =
+      val memberType = word.tpe.termMember(name)
+      Select(word, name)(memberType, word.span)
+
+    def appliedTo(args: Word*)(using Definitions): Word =
+      val procType = word.tpe.asProcType
+
+      assert(procType.paramCount == args.size)
+      assert(procType.tparams.isEmpty)
+
+      val args2 =
+        for (arg, paramType) <- args.zip(procType.paramTypes)
+        yield SastOps.adapt(arg, paramType)
+
+      val span = if args.isEmpty then word.span else word.span | args.last.span
+      Apply(word, args2.toList)(procType.resultType, span)
+
+    def encodedAs(tpe: Type): Word = Encoded(word)(tpe)

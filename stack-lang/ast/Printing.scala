@@ -133,6 +133,12 @@ object Printing:
         val argsText = rep(args, Text(", "))
         fun ~ "(" ~ argsText ~ ")"
 
+      case DotlessCall(obj, meth, arg) =>
+        "(" ~ obj ~ " " ~ meth ~ " " ~ arg ~ ")"
+
+      case InfixCall(preArgs, fun, postArgs) =>
+        "(" ~ rep(preArgs, Text(" ")) ~ " " ~ fun ~ " " ~ rep(postArgs, Text(" "))  ~ ")"
+
       case Select(qual, name) =>
         qual ~ "." ~ name
 

@@ -1,0 +1,77 @@
+fun main =
+  test (#Some (#Some 5))
+
+  test (#Some #None)
+
+  test #None
+
+  test2 (Cons 4 (Cons 1 (Cons 5 Nil)))
+  test2 (Cons 4 (Cons 3 Nil))
+  test2 (Cons 4 Nil)
+  test2 Nil
+
+fun test(a: Option[Option[Int]]): Unit =
+  match a
+    case #Some #None => println "some none"
+    case #Some (#Some n) => println (intToStr n)
+    case #None => println "none"
+
+type Cons = #Cons(head: Int, tail: List[Int])
+
+pattern Cons(x: Int, rest: List[Int]): Cons =
+  #Cons x rest
+
+fun Cons(x: Int, rest: List[Int]): List[Int] =
+  #Cons x rest
+
+pattern (x: Int) :: (rest: List[Int]): Cons =
+  #Cons x rest
+
+pattern List2(x: Int, y: Int): Partial[List[Int]] =
+  #Cons x (#Cons y #Nil)
+
+pattern Nil: #Nil = #Nil
+fun Nil: #Nil = #Nil
+
+fun test2(a: List[Int]): Unit =
+  match a
+    case Cons x inner@(Cons y rest) => println (intToStr (x + inner.head))
+    case Cons x Nil => println (intToStr x)
+    case Nil => println "empty"
+
+  match a
+    case Cons _ (Cons _ Nil) | Cons _ Nil | Nil => println "size < 2"
+    case _ => println "size > 2"
+
+  match a
+    case Cons _ l@(Cons _ Nil) | l@(Cons _ Nil) => println (intToStr l.head)
+    case _ => println "size > 2"
+
+  match a
+    case (#Cons x #Nil) | (#Cons x #Cons) =>
+      println
+        "binding in or patterns: " + (intToStr x)
+
+    case #Nil =>
+
+  match a
+    case (x :: Nil) | (x :: #Cons) =>
+      println
+        "Infix pattern predicate: " + (intToStr x)
+
+    case #Nil =>
+
+  match a
+    case |(#Cons x #Nil, #Cons x #Cons) =>
+      println
+        "apply or patterns: " + (intToStr x)
+
+    case #Nil =>
+
+  match a
+    case List2 x y =>
+      println
+        (intToStr x) + ", " + (intToStr y)
+
+    case _ =>
+      println "not list2"

@@ -6,6 +6,7 @@ files=(
     stack-lang/ast/Interpreter.scala
     stack-lang/ast/Positions.scala
     stack-lang/ast/Printing.scala
+    stack-lang/common/KeyProps.scala
     stack-lang/common/IO.scala
     stack-lang/common/StringUtil.scala
     stack-lang/common/Text.scala
@@ -17,7 +18,6 @@ files=(
 
     # typer
     stack-lang/common/Debug.scala
-    stack-lang/common/Dynamic.scala
     stack-lang/typing/Checker.scala
     stack-lang/typing/EffectAnalysis.scala
     stack-lang/typing/ExprTyper.scala

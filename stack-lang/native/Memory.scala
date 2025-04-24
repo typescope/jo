@@ -7,11 +7,13 @@ import sast.Definitions
 
 import native.runtime.NativeRuntime
 
-/** Code related to runtime memory
-  */
-object Memory:
+/** Code related to runtime memory representation of records and objects */
+class Memory(runtime: NativeRuntime)(using defn: Definitions):
   private val VTABLE = "vtable"
   private val FTABLE = "ftable"
+
+  val IntType = defn.IntType
+  val AddrType = TypeRef(runtime.Core_Addr)
 
   /** Size of the recrod in bytes */
   def size(recordType: RecordType): Int =
@@ -46,53 +48,47 @@ object Memory:
 
     RecordLit(List(VTABLE -> vtable, FTABLE -> ftable))(closureType, obj.span)
 
-  def readObjectMember(objType: ObjectType, select: Select, runtime: NativeRuntime): Word =
+  def readObjectMember(objType: ObjectType, select: Select): Word =
     val recordType = toRecordType(objType)
     if select.tpe.isValueType then
       val tableType = recordType.termMember(FTABLE).asRecordType
       val tableSelect = Select(select.qual, FTABLE)(tableType, select.span)
-      val table = readField(recordType, tableSelect, runtime)
+      val table = readField(recordType, tableSelect)
       val fieldSelect = Select(table, select.name)(select.tpe, select.span)
-      readField(tableType, fieldSelect, runtime)
+      readField(tableType, fieldSelect)
     else
       val tableType = recordType.termMember(VTABLE).asRecordType
       val tableSelect = Select(select.qual, VTABLE)(tableType, select.span)
-      val table = readField(recordType, tableSelect, runtime)
+      val table = readField(recordType, tableSelect)
       val methodSelect = Select(table, select.name)(select.tpe, select.span)
-      readField(tableType, methodSelect, runtime)
+      readField(tableType, methodSelect)
 
-  def writeObjectField(objType: ObjectType, field: String, ref: Word, rhs: Word, runtime: NativeRuntime): Word =
+  def writeObjectField(objType: ObjectType, field: String, ref: Word, rhs: Word): Word =
     val recordType = toRecordType(objType)
     val tableType = recordType.termMember(FTABLE).asRecordType
     val tableSelect = Select(ref, FTABLE)(tableType, rhs.span)
-    val table = readField(recordType, tableSelect, runtime)
-    writeField(tableType, field, table, rhs, runtime)
+    val table = readField(recordType, tableSelect)
+    writeField(tableType, field, table, rhs)
 
-  def writeField(recordType: RecordType, field: String, ref: Word, rhs: Word, runtime: NativeRuntime): Word =
-    val IntType = Definitions.instance.IntType
-    val AddrType = TypeRef(runtime.Core_Addr)
-
-    val offset = Memory.fieldOffset(recordType, field)
+  def writeField(recordType: RecordType, field: String, ref: Word, rhs: Word): Word =
+    val offset = fieldOffset(recordType, field)
     var addr: Word = Encoded(ref)(AddrType)
     if offset != 0 then
       val offsetLit = Literal(Constant.Int(offset))(IntType, rhs.span)
       val addAddrFun = Ident(runtime.Core_addAddr)(rhs.span)
-      addr = Apply(addAddrFun, ref :: offsetLit :: Nil)(TypeRef(runtime.Core_Addr), rhs.span)
+      addr = Apply(addAddrFun, Encoded(ref)(AddrType) :: offsetLit :: Nil)(AddrType, rhs.span)
 
     val writeIntFun = Ident(runtime.Core_writeInt)(rhs.span)
     Apply(writeIntFun, addr :: Encoded(rhs)(IntType) :: Nil)(IntType, rhs.span).dropValue
 
-  def readField(recordType: RecordType, select: Select, runtime: NativeRuntime): Word =
-    val IntType = Definitions.instance.IntType
-    val AddrType = TypeRef(runtime.Core_Addr)
-
+  def readField(recordType: RecordType, select: Select): Word =
     val Select(qual, field) = select
-    val offset = Memory.fieldOffset(recordType, field)
+    val offset = fieldOffset(recordType, field)
     var addr: Word = Encoded(qual)(AddrType)
     if offset != 0 then
       val offsetLit = Literal(Constant.Int(offset))(IntType, select.span)
       val addAddrFun = Ident(runtime.Core_addAddr)(select.span)
-      addr = Apply(addAddrFun, qual :: offsetLit :: Nil)(AddrType, select.span)
+      addr = Apply(addAddrFun, Encoded(qual)(AddrType) :: offsetLit :: Nil)(AddrType, select.span)
 
     val readIntFun = Ident(runtime.Core_readInt)(select.span)
     Encoded(Apply(readIntFun, addr :: Nil)(IntType, select.span))(select.tpe)

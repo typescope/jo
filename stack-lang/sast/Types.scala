@@ -28,7 +28,7 @@ object Types:
 
     def isUnionType: Boolean =
        // No polymorphism over union type thus only dealias no approximation
-      widen.dealias.isInstanceOf[UnionType]
+      widenTermRef.dealias.isInstanceOf[UnionType]
 
     /** Is the type a reference to a type alias */
     def isTypeRef: Boolean =
@@ -76,9 +76,15 @@ object Types:
     def dealias: Type = TypeOps.dealias(this)
 
     /** Widen a term reference to its underlying type */
-    def widen: Type =
+    def widenTermRef: Type =
       this match
         case TypeRef(sym) if !sym.isType => sym.info
+        case _ => this
+
+    /** Widen a constant type to its underlying type */
+    def widenConstType(using Definitions): Type =
+      this match
+        case constType: ConstantType => constType.underlying
         case _ => this
 
     def asRecordType: RecordType =
@@ -86,7 +92,7 @@ object Types:
 
     def asUnionType: UnionType =
       // No polymorphism over union type thus only dealias no approximation
-      widen.dealias.asInstanceOf[UnionType]
+      widenTermRef.dealias.asInstanceOf[UnionType]
 
     def asTagType: TagType =
       TypeOps.approx(this, isUp = true).asInstanceOf[TagType]
@@ -128,6 +134,14 @@ object Types:
             case _ => None
 
         case _ => None
+
+    /** Convert Partial[T] to T if possible */
+    def stripPartial(using defn: Definitions): Type =
+      this match
+        case AppliedType(ctor, targs) if ctor.refersTo(defn.Predef_Partial) =>
+          targs(0)
+
+        case _ => this
 
     def refersTo(symbol: Symbol): Boolean =
       val visited = new mutable.ArrayBuffer[Symbol]
@@ -204,6 +218,13 @@ object Types:
 
   case object ErrorType extends Type
 
+  case class ConstantType(const: Constant) extends Type:
+    def underlying(using defn: Definitions): Type =
+      const match
+        case _: Constant.Bool => defn.BoolType
+        case _: Constant.String => defn.StringType
+        case _: Constant.Int => defn.IntType
+
   /** A proxy type may be reduced to other types in subtype and shape checking.
     *
     * In addition, proxy types can lead to loops in types, thus need to be
@@ -235,22 +256,32 @@ object Types:
     def fieldType(name: String): Type =
       getFieldType(name).get
 
-  case class UnionType(branches: List[TagType]) extends Type:
-    private val tagsMap = branches.map(b => b.tag -> b).toMap
+  case class UnionType(branches: List[Type]) extends Type:
+    private val tagMap: Map[String, TagType] =
+      branches.foldLeft(Map.empty): (acc, branch) =>
+        if branch.isTagType then
+          val tagType = branch.asTagType
+          assert(!acc.contains(tagType.tag), "duplicate tag " + tagType.tag + " in " + this.show)
+          acc.updated(tagType.tag, tagType)
 
-    assert(tagsMap.size == branches.size, "Duplicate tags = " + branches)
+        else if branch.isUnionType then
+          val unionType = branch.asUnionType
+          unionType.tagTypes.foldLeft(acc): (acc, tagType) =>
+            assert(!acc.contains(tagType.tag), "duplicate tag " + tagType.tag + " in " + this.show)
+            acc.updated(tagType.tag, tagType)
 
-    val tags: List[String] = branches.map(_.tag)
+        else
+          throw new Exception("Expect union type or tag type, found = " + branch)
 
-    def getTagType(tag: String): Option[TagType] = tagsMap.get(tag)
+    val tags: List[String] = tagMap.keys.toList
 
-    def hasTag(tag: String): Boolean = tagsMap.contains(tag)
+    val tagTypes: List[TagType] = tagMap.values.toList
 
-    def tagType(tag: String): TagType = tagsMap(tag)
+    def getTagType(tag: String): Option[TagType] = tagMap.get(tag)
 
-    def tagIndex(tag: String): Int =
-      branches.indexWhere:
-        case TagType(t, _) => t == tag
+    def hasTag(tag: String): Boolean = tagMap.contains(tag)
+
+    def tagType(tag: String): TagType = tagMap(tag)
 
   /** The type for tagged value like `#Some(3)` */
   case class TagType(tag: String, params: List[NamedInfo[Type]]) extends Type:

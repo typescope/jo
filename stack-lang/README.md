@@ -112,12 +112,17 @@ Abstract Syntax
 
     match   = MATCH expr {case} [END].
     case    = CASE pattern RARROW block.
-    pattern = apply_pattern | type_pat | ident.
 
-    type_pat = ident COLON type.
-    apply_pat = (tag | ident) [nested_pats].
+    pattern = expr_pattern.
 
-    nested_pats = (LPAREN ident {COMMA ident} RPAREN) | (ident {ident}).
+    expr_pattern = simple_pattern {simple_pattern}.
+
+    simple_pattern = literal_pattern | ident | tag | type_pattern | ascribe_pattern | apply_pattern | LPAREN pattern RPAREN.
+
+    literal_pattern = integer | boolean | char | string.
+    type_pattern  = ident COLON type.
+    ascribe_pattern = ident '@' simple_pattern.
+    apply_pattern = (tag | ident) LPAREN [pattern {COMMA pattern}] RPAREN.
 
     valdef  = (VAL | VAR) ident [COLON type] EQL block.
     fundef  = FUN [param_section] ident [tparams] [param_section] [COLON type] [receive_params] EQL block [END].
@@ -140,7 +145,8 @@ Abstract Syntax
     field      = ident COLON type.
 
     union_typ  = type {"|" type}.
-    tag_type   = TAG ident [param_section].
+    tag_type   = TAG ident [LPAREN tag_param { COMMA tag_param } RPAREN].
+    tag_param  = [ident COLON] type
 
     fun_type    = param_types RARROW type [receive_params].
     param_types = type | LPAREN RPAREN | LPAREN type {COMMA type} RPAREN.

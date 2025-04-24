@@ -5,7 +5,7 @@ import sast.Sast.*
 import sast.Symbols.*
 
 /** This phase encode tagged values as records */
-class EncodeTagged extends Phase[Symbol]:
+class EncodeTagged(using Definitions) extends Phase[Symbol]:
   val contextObject = Phase.OwnerContext
 
   override def transformTagged(tagged: TaggedLit)(using ctx: Context): Word =

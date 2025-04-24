@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set -e
-
 DIR=$(dirname "$0")
 
 retcode=0
@@ -16,6 +14,8 @@ check() {
     rm -f test-data*
 }
 
+################################################################################
+
 # check that scripts work
 bin/parse tests/pos/fact.stk > /dev/null
 bin/type  tests/pos/fact.stk > /dev/null
@@ -24,6 +24,13 @@ bin/jsc   tests/pos/fact.stk > /dev/null
 bin/stac  tests/pos/fact.stk > /dev/null
 bin/regc  tests/pos/fact.stk
 
+
+################################################################################
+# Positive tests
+
+
+echo "Running positive tests"
+echo
 
 for item in $DIR/tests/pos/*.stk; do
 
@@ -91,10 +98,48 @@ for item in $DIR/tests/pos/*.stk; do
     check $OUT $CHECK
 done
 
-# neg tests
+################################################################################
+# Error message tests
+
 echo
-echo "Running negative tests"
+echo "Running error message tests"
 echo
+
+for item in $DIR/tests/warn/*.stk; do
+
+    if [[ $item == *.ignore ]]; then
+        echo "ignore $item"
+        continue
+
+    elif [[ -d $item ]]; then
+        # directory
+        file=$(ls $item/*.stk)
+        CHECK=$item/expect.check
+        OUT=$item/actual.out
+
+    elif [[ -f $item ]] && [[ $item == *.stk ]]; then
+        # single source file
+        file=$item
+        CHECK=$file.check
+        OUT=$file.out
+
+    else
+        continue
+    fi
+
+    echo "testing $file"
+
+    bin/type -fatal-warnings $file > $OUT
+    check $OUT $CHECK
+done
+
+################################################################################
+# Negative tests with positional error markers
+
+echo
+echo "Running positional error tests"
+echo
+
 scala-cli project.scala stack-lang -M negTest
 if [[ $? != 0 ]]; then
   retcode=1

@@ -18,15 +18,17 @@ import scala.collection.mutable
   *     fun alloc(size: Int): Addr = ...
   *     fun addAddr(arr: Addr, offset: Int): Addr = ...
   */
-class ExplicitAlloc(runtime: NativeRuntime) extends phases.Phase[Symbol]:
+class ExplicitAlloc(runtime: NativeRuntime)(using defn: Definitions) extends phases.Phase[Symbol]:
   val contextObject = phases.Phase.OwnerContext
 
-  val IntType = Definitions.instance.IntType
+  val IntType = defn.IntType
+
+  val memory = new Memory(runtime)
 
   override def transformEncoded(word: Encoded)(using ctx: Context): Word =
     word match
       case encode @ Encoded(rc: RecordLit) if encode.tpe.isObjectType =>
-        val encoding = this(Memory.encodeObject(rc))
+        val encoding = this(memory.encodeObject(rc))
         Encoded(encoding)(encode.tpe)
 
       case _ =>
@@ -39,7 +41,7 @@ class ExplicitAlloc(runtime: NativeRuntime) extends phases.Phase[Symbol]:
     val addrType = TypeRef(runtime.Core_Addr)
 
     val recordType = word.tpe.asRecordType
-    val size = Memory.size(recordType)
+    val size = memory.size(recordType)
     val sizeLit = Literal(Constant.Int(size))(IntType, word.span)
     val allocApply = Apply(allocFun, sizeLit :: Nil)(addrType, word.span)
 
@@ -51,7 +53,7 @@ class ExplicitAlloc(runtime: NativeRuntime) extends phases.Phase[Symbol]:
     stats += Assign(ref, allocApply)(word.span)
 
     for (name, rhs) <- args do
-      stats += Memory.writeField(recordType, name, ref, this(rhs), runtime)
+      stats += memory.writeField(recordType, name, ref, this(rhs))
 
     stats += ref
     Encoded(Block(stats.toList)(ref.tpe, word.span))(word.tpe)
@@ -62,12 +64,12 @@ class ExplicitAlloc(runtime: NativeRuntime) extends phases.Phase[Symbol]:
 
     if qual.tpe.isRecordType then
       val recordType = qual.tpe.asRecordType
-      Memory.readField(recordType, select2, runtime)
+      memory.readField(recordType, select2)
     else
-      Memory.readObjectMember(qual.tpe.asObjectType, select2, runtime)
+      memory.readObjectMember(qual.tpe.asObjectType, select2)
 
   override def transformFieldAssign(word: FieldAssign)(using ctx: Context): Word =
     val FieldAssign(qual, name, rhs) = word
     // Only object is mutable
     val objectType = qual.tpe.asObjectType
-    Memory.writeObjectField(objectType, name, this(qual), this(rhs), runtime)
+    memory.writeObjectField(objectType, name, this(qual), this(rhs))

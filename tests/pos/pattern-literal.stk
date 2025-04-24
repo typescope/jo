@@ -1,0 +1,83 @@
+fun testInt1(x: Int): Unit =
+  match x
+    case 1 => println "1"
+    case 2 => println "2"
+    case 3 => println "3"
+    case 4 => println "4"
+    case 5 => println "5"
+    case _ => println "not in [1, 5]"
+
+fun testInt2(x: Int): Unit =
+  match x
+    case 'a' => println "a"
+    case 'c' => println "c"
+    case _ => println "not a nor c"
+
+fun testString(x: String): Unit =
+  match x
+    case "hello" => println "bonjour"
+    case "world" => println "monde"
+    case "stk" => println "stk"
+    case _ => println "unknown"
+
+fun testChar1(c: Char): Unit =
+  match c
+    case 'a' => println "a"
+    case 'c' => println "c"
+    case _ => println "not a nor c"
+
+fun testChar2(c: Char): Unit =
+  match c
+    case 97 => println "a"
+    case 99 => println "c"
+    case _ => println "not a nor c"
+
+fun testByte1(x: Byte): Unit =
+  match x
+    case 'a' => println "a"
+    case 'c' => println "c"
+    case _ => println "not a nor c"
+
+fun testByte2(x: Byte): Unit =
+  match x
+    case 97 => println "a"
+    case 99 => println "c"
+    case _ => println "not a nor c"
+
+fun testBool(x: Bool): Unit =
+  match x
+    case true => println "true"
+    case false => println "false"
+
+fun main =
+  testInt1 1
+  testInt1 3
+  testInt1 6
+
+  testInt2 'a'
+  testInt2 'c'
+  testInt2 'd'
+
+  testString "hello"
+  testString "world"
+  testString "stk"
+  testString "bla"
+
+  testChar1 'a'
+  testChar1 'c'
+  testChar1 'd'
+
+  testChar2 'a'
+  testChar2 'c'
+  testChar2 'd'
+
+  testByte1 'a'
+  testByte1 'c'
+  testByte1 'd'
+
+  testByte2 'a'
+  testByte2 'c'
+  testByte2 'd'
+
+  testBool true
+  testBool false

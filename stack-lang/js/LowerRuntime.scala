@@ -8,10 +8,8 @@ import sast.Types.*
 /** Lower String and Array to JS runtime calls.
   *
   */
-class LowerRuntime(runtime: JSRuntime) extends phases.Phase[Unit]:
+class LowerRuntime(runtime: JSRuntime)(using defn: Definitions) extends phases.Phase[Unit]:
   val contextObject = phases.Phase.DummyContext
-
-  val defn = Definitions.instance
 
   val Predef_String = defn.Predef_String
   val StringType = defn.StringType

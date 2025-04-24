@@ -22,6 +22,22 @@ fun showAnimal(a: Animal): String =
     case h: Herbivore => showHerbivore h
     case c: Carnivore => showCarnivore c
 
+fun testOptionParamName: Unit =
+  type Position = #Position(Int, Int)
+  val pos: Position = #Position 5 10
+  pos._1 p
+  pos._2 p
+
+  type Point = #Point(Int, y: Int)
+  val point: Point = #Point 15 20
+  point._1 p
+  point.y p
+
+  type Tuple = #Tuple(x: Int, Int)
+  val tuple: Tuple = #Tuple 30 40
+  tuple.x p
+  tuple._2 p
+
 fun main =
   val c = #Cow "Europe"
   val t = #Tiger "Asian"
@@ -39,3 +55,5 @@ fun main =
 
   println (showAnimal s)
   println (showHerbivore s)
+
+  testOptionParamName

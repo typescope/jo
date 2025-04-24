@@ -10,40 +10,57 @@ import common.Text.*
 
 object Printing:
 
-  def show(word: Word): String = showWord(word).toString
+  def show(word: Word)(using Definitions): String =
+    showWord(word).toString
 
-  def show(ns: Namespace): String = showNamespace(ns).toString
+  def show(pattern: Pattern)(using Definitions): String =
+    showPattern(pattern).toString
 
-  inline def peek(enable: Boolean)(nss: List[Namespace]): List[Namespace] =
+  def show(ns: Namespace)(using Definitions): String =
+    showNamespace(ns).toString
+
+  inline def peek(enable: Boolean)(nss: List[Namespace])
+    (using Definitions)
+  : List[Namespace] =
+
     inline if enable then
       for ns <- nss do println(show(ns))
     nss
 
   //----------------------------------------------------------------------------
 
-  given Text.Maker[Word] = v => showWord(v)
+  given (using Definitions): Text.Maker[Word] =
+    v => showWord(v)
 
-  given Text.Maker[Pattern] = v => showPattern(v)
+  given (using Definitions): Text.Maker[Pattern] =
+    v => showPattern(v)
 
-  given Text.Maker[Case] = v => "case " ~ v.pattern ~ " =>" ~ indent(v.body)
+  given (using Definitions): Text.Maker[Case] =
+    v => "case " ~ v.pattern ~ " =>" ~ indent(v.body)
 
-  given Text.Maker[Def] = v => showDef(v)
+  given (using Definitions): Text.Maker[Def] =
+    v => showDef(v)
 
-  given Text.Maker[ValDef | FunDef] = v => showDef(v)
+  given (using Definitions): Text.Maker[ValDef | FunDef] =
+    v => showDef(v)
 
-  given Text.Maker[Type] = v => Text(v.show)
+  given Text.Maker[Type] =
+    v => Text(v.show)
 
-  given Text.Maker[TypeTree] = v => Text(v.tpe.show)
+  given Text.Maker[TypeTree] =
+    v => Text(v.tpe.show)
 
-  given Text.Maker[Symbol] = v => Text(v.name)
+  given (using Definitions): Text.Maker[Symbol] =
+    v => Text(v.name)
 
-  given Text.Maker[WithArg] = v => v.paramRef ~ " = " ~ v.rhs
+  given (using Definitions): Text.Maker[WithArg] =
+    v => v.paramRef ~ " = " ~ v.rhs
 
   //----------------------------------------------------------------------------
 
   // implementation
 
-  def showNamespace(ns: Namespace): Text =
+  def showNamespace(ns: Namespace)(using Definitions): Text =
     "namespace "  ~ ns.symbol ~ Text.BlankLine ~
     showImports(ns.imports) ~ Text.BlankLine ~
     rep(ns.defs, Text.BlankLine)
@@ -56,7 +73,7 @@ object Printing:
       case Nil =>
         Text.Empty
 
-  def showDef(defn: Def): Text =
+  def showDef(defn: Def)(using Definitions): Text =
     defn match
       case ValDef(sym, rhs) =>
         val mod = if sym.isMutable then "var" else "val"
@@ -104,7 +121,7 @@ object Printing:
       case pdef: ParamDef =>
         "param " ~ pdef.name ~ ": " ~ pdef.tpt
 
-  def showWord(word: Word): Text =
+  def showWord(word: Word)(using defn: Definitions): Text =
     word match
       case Literal(c) =>
         c match
@@ -114,7 +131,7 @@ object Printing:
             "\"" ~ StringUtil.escape(s) ~ "\""
 
           case Constant.Int(n) =>
-            val isChar = word.tpe.refersTo(Definitions.instance.Predef_Char)
+            val isChar = word.tpe.refersTo(defn.Predef_Char)
             if isChar then
               "'" ~ StringUtil.escapeChar(n.toChar) ~ "'"
             else
@@ -205,16 +222,23 @@ object Printing:
 
       case tdef: TypeDef => showDef(tdef)
 
-  def showPattern(pat: Pattern): Text =
+  def showPattern(pat: Pattern)(using Definitions): Text =
     pat match
       case TypePattern(tpe) => ": " ~ tpe
 
       case WildcardPattern() => Text("_")
 
-      case AscribePattern(id, inner) => "(" ~ id ~ " @ " ~ inner ~ ")"
+      case AscribePattern(id, inner) =>
+        "(" ~ id ~ " @ " ~ inner ~ ")"
 
-      case ApplyPattern(id, nested) =>
-        id ~ "(" ~ rep(nested, Text(", ")) ~ ")"
+      case ApplyPattern(pred, nested) =>
+        pred ~ "(" ~ rep(nested, Text(", ")) ~ ")"
+
+      case OrPattern(lhs, rhs) =>
+        lhs ~ " | " ~ rhs
 
       case tagged @ TagPattern(_, nested) =>
         "#" ~ tagged.tag ~ " " ~ rep(nested, Text(" "))
+
+      case ValuePattern(value) =>
+        showWord(value)

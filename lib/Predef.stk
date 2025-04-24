@@ -1,6 +1,6 @@
 namespace stk.Predef
 
-//--------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Basic types
 //
 // `Any` and `Bottom` are handled specially in the namer
@@ -21,7 +21,8 @@ type Any
 
 type Bottom
 
-//--------------------------------------------------------------
+
+//------------------------------------------------------------------------------
 // primitive functions
 //
 // primitive functions are handled specially by the backend compiler
@@ -63,7 +64,21 @@ fun both(a: Bool, b: Bool): Bool = abort("primitive both")
 // No short-cut semantics for CPU performance (no jump instructions)
 fun either(a: Bool, b: Bool): Bool = abort("primitive either")
 
-//-------------------------------------------------------------
+//------------------------------------------------------------------------------
+//
+// Patterns
+//
+
+// A type to indicate that a pattern predicate does not exhaust a type
+type Partial[T] <: T
+
+// An OR pattern
+//
+// Its true semantics is handled in pattern translation.
+pattern (lhs: T) |[T] (rhs: T): T =
+  lhs @ rhs
+
+//------------------------------------------------------------------------------
 //
 // Utility functions
 //
@@ -101,7 +116,7 @@ fun assert(cond: Bool, message: String): Unit =
 //
 fun flow[T](v: T): T = v
 
-//-------------------------------------------------------------
+//------------------------------------------------------------------------------
 //
 // Coercion of types
 //
@@ -118,7 +133,7 @@ fun charToByte(c: Char): Byte = abort "charToByte"
 fun charToInt(c: Char): Int = abort "charToInt"
 fun charToStr(c: Char): String = abort "charToStr"
 
-//-------------------------------------------------------------
+//------------------------------------------------------------------------------
 //
 // Arrays
 //
@@ -131,7 +146,7 @@ type Array[T] <: object {
 
 fun array[T](size: Int): Array[T] = abort("primitive array")
 
-//-------------------------------------------------------------
+//------------------------------------------------------------------------------
 //
 // String type
 //
@@ -144,7 +159,7 @@ type String <: object {
   def substring(from: Int, len: Int): String
 }
 
-//-------------------------------------------------------------
+//------------------------------------------------------------------------------
 //
 // Common types
 //
@@ -152,7 +167,7 @@ type Option[T] = #None | #Some(v: T)
 
 type List[T] = #Nil | #Cons(head: T, tail: List[T])
 
-//-------------------------------------------------------------
+//------------------------------------------------------------------------------
 //
 // I/O support
 //

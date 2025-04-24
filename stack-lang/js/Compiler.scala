@@ -37,17 +37,21 @@ def compile(args: String*): Unit =
   Reporter.monitor:
     val rootNameTable = new NameTable
     val runtimeNameTable = new NameTable
+    given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable)
+
     val stdlib = "lib/Predef.stk" :: Nil
     val runtime = "runtime/JS.stk" :: Nil
 
     val namespacesSAST =
-      FrontEnd.run(stdlib, runtime, sources, rootNameTable, runtimeNameTable)
+      FrontEnd.run(stdlib, runtime, sources, runtimeNameTable)
 
     val mains = namespacesSAST.collect:
       case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get
 
     mains match
       case main :: Nil =>
+        given Definitions = lazyDefn.value
+
         val jsRuntime = new JSRuntime(runtimeNameTable, main)
         val contextParamsLower = new LowerContextParams(
             jsRuntime.JS_hasParam,
