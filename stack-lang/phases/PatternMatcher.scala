@@ -175,20 +175,20 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
   private def transformValuePattern(scrut: Ident, pat: ValuePattern): Word =
     pat.value.tpe match
       case defn.ByteType   =>
-        Ident(defn.Predef_eql)(pat.span).appliedTo(pat.value :: scrut :: Nil)
+        Ident(defn.Predef_eql)(pat.span).appliedTo(pat.value, scrut)
 
       case defn.IntType    =>
-        Ident(defn.Predef_eql)(pat.span).appliedTo(pat.value :: scrut :: Nil)
+        Ident(defn.Predef_eql)(pat.span).appliedTo(pat.value, scrut)
 
       case defn.CharType   =>
-        Ident(defn.Predef_eql)(pat.span).appliedTo(pat.value :: scrut :: Nil)
+        Ident(defn.Predef_eql)(pat.span).appliedTo(pat.value, scrut)
 
       case defn.BoolType   =>
-        val bothTrue = Ident(defn.Predef_both)(pat.span).appliedTo(pat.value :: scrut :: Nil)
-        val notValue = Ident(defn.Predef_not)(pat.span).appliedTo(pat.value :: Nil)
-        val notScrut = Ident(defn.Predef_not)(pat.span).appliedTo(scrut :: Nil)
-        val bothFalse = Ident(defn.Predef_both)(pat.span).appliedTo(notValue :: notScrut :: Nil)
-        Ident(defn.Predef_either)(pat.span).appliedTo(bothTrue :: bothFalse :: Nil)
+        val bothTrue = Ident(defn.Predef_both)(pat.span).appliedTo(pat.value, scrut)
+        val notValue = Ident(defn.Predef_not)(pat.span).appliedTo(pat.value)
+        val notScrut = Ident(defn.Predef_not)(pat.span).appliedTo(scrut)
+        val bothFalse = Ident(defn.Predef_both)(pat.span).appliedTo(notValue, notScrut)
+        Ident(defn.Predef_either)(pat.span).appliedTo(bothTrue, bothFalse)
 
       case defn.StringType =>
         scrut.select("==").appliedTo(pat.value)

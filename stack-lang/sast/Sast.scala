@@ -338,7 +338,7 @@ object Sast:
       val memberType = word.tpe.termMember(name)
       Select(word, name)(memberType, word.span)
 
-    def appliedTo(args: List[Word])(using Definitions): Word =
+    def appliedTo(args: Word*)(using Definitions): Word =
       val procType = word.tpe.asProcType
 
       assert(procType.paramCount == args.size)
@@ -349,7 +349,6 @@ object Sast:
         yield SastOps.adapt(arg, paramType)
 
       val span = if args.isEmpty then word.span else word.span | args.last.span
-      Apply(word, args2)(procType.resultType, span)
+      Apply(word, args2.toList)(procType.resultType, span)
 
-    def appliedTo(arg: Word)(using Definitions): Word =
-      appliedTo(arg :: Nil)
+    def encodedAs(tpe: Type): Word = Encoded(word)(tpe)
