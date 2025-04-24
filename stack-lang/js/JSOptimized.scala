@@ -378,6 +378,7 @@ object JSOptimized:
         case '!' => "not".wrap
         case '$' => "dollar".wrap
         case '?' => "question".wrap
+        case ':' => "colon".wrap
         case '.' => "_"
         case _   => throw new Exception("Not supported, c = " + c)
 
