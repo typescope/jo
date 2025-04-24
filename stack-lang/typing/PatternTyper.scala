@@ -344,7 +344,7 @@ class PatternTyper(namer: Namer, checker: Checker):
       val args2 =
         for (pat, paramType) <- args.zip(paramTypes) yield transformPattern(pat, paramType)
 
-      val tagStringLit = StringLit(id.name)(defn.StringType, tag.span)
+      val tagStringLit = StringLit(id.name)(tag.span)
       val tagTypeActual = TagType.from(id.name, args2.map(_.tpe))
       TagPattern(tagStringLit, args2)(tagTypeActual)
 
@@ -537,6 +537,26 @@ class PatternTyper(namer: Namer, checker: Checker):
 
       case tag: Ast.Tag =>
         transformTagPattern(tag, Nil, scrutType, pat.span)
+
+      case Ast.IntLit(value) =>
+        given TargetType = TargetType.Known(scrutType)
+        val literal = namer.transform(pat)
+        ValuePattern(literal)
+
+      case Ast.BoolLit(value) =>
+        given TargetType = TargetType.Known(scrutType)
+        val literal = namer.transform(pat)
+        ValuePattern(literal)
+
+      case Ast.CharLit(value) =>
+        given TargetType = TargetType.Known(scrutType)
+        val literal = namer.transform(pat)
+        ValuePattern(literal)
+
+      case Ast.StringLit(value) =>
+        given TargetType = TargetType.Known(scrutType)
+        val literal = namer.transform(pat)
+        ValuePattern(literal)
 
       case Ast.TypeAscribe(id: Ast.Ident, tpt) =>
         transformTypePattern(id, tpt, scrutType, pat.span)

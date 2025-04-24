@@ -78,6 +78,8 @@ object Exhaustivity:
 
       case WildcardPattern() => TypeSpace(pattern.tpe)
 
+      case ValuePattern(value) => EmptySpace
+
       case tagPat: TagPattern =>
         val spaces = tagPat.nested.map(project)
         TagSpace(tagPat.tag, spaces)

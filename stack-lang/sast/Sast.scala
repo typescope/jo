@@ -236,6 +236,12 @@ object Sast:
       case Constant.String(name) => name
       case c => throw new Exception("Expect string, found = " + c)
 
+  case class ValuePattern
+    (value: Word)
+  extends Pattern:
+    val tpe = value.tpe
+    val span = value.span
+
   case class Match
     (scrutinee: Word, cases: List[Case])
     (val tpe: Type, val span: Span)
@@ -313,14 +319,37 @@ object Sast:
 
     def show(using Definitions): String = Printing.show(this)
 
+
   //----------------------------------------------------------------------------
   // helpers
 
-  def StringLit(s: String)(tp: Type, span: Span) =
-    Literal(Constant.String(s))(tp, span)
+  def StringLit(s: String)(span: Span)(using defn: Definitions) =
+    Literal(Constant.String(s))(defn.StringType, span)
 
-  def IntLit(n: Int)(tp: Type, span: Span) =
-    Literal(Constant.Int(n))(tp, span)
+  def IntLit(n: Int)(span: Span)(using defn: Definitions) =
+    Literal(Constant.Int(n))(defn.IntType, span)
 
-  def BoolLit(b: Boolean)(tp: Type, span: Span) =
-    Literal(Constant.Bool(b))(tp, span)
+  def BoolLit(b: Boolean)(span: Span)(using defn: Definitions) =
+    Literal(Constant.Bool(b))(defn.BoolType, span)
+
+  extension (word: Word)
+
+    def select(name: String): Word =
+      val memberType = word.tpe.termMember(name)
+      Select(word, name)(memberType, word.span)
+
+    def appliedTo(args: List[Word])(using Definitions): Word =
+      val procType = word.tpe.asProcType
+
+      assert(procType.paramCount == args.size)
+      assert(procType.tparams.isEmpty)
+
+      val args2 =
+        for (arg, paramType) <- args.zip(procType.paramTypes)
+        yield SastOps.adapt(arg, paramType)
+
+      val span = if args.isEmpty then word.span else word.span | args.last.span
+      Apply(word, args2)(procType.resultType, span)
+
+    def appliedTo(arg: Word)(using Definitions): Word =
+      appliedTo(arg :: Nil)

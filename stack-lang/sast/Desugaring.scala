@@ -14,12 +14,12 @@ object Desugaring:
 
     if fun.refersTo(defn.Predef_and) then
       val lhs :: rhs :: Nil = args: @unchecked
-      val falseLit = BoolLit(false)(apply.tpe, rhs.span)
+      val falseLit = BoolLit(false)(rhs.span)
       If(lhs, rhs, falseLit)(apply.tpe, apply.span)
 
     else if fun.refersTo(defn.Predef_or) then
       val lhs :: rhs :: Nil = args: @unchecked
-      val trueLit = BoolLit(true)(apply.tpe, lhs.span)
+      val trueLit = BoolLit(true)(lhs.span)
       If(lhs, trueLit, rhs)(apply.tpe, apply.span)
 
     else

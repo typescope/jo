@@ -117,8 +117,9 @@ Abstract Syntax
 
     expr_pattern = simple_pattern {simple_pattern}.
 
-    simple_pattern = ident | tag | type_pattern | ascribe_pattern | apply_pattern | LPAREN pattern RPAREN.
+    simple_pattern = literal_pattern | ident | tag | type_pattern | ascribe_pattern | apply_pattern | LPAREN pattern RPAREN.
 
+    literal_pattern = integer | boolean | char | string.
     type_pattern  = ident COLON type.
     ascribe_pattern = ident '@' simple_pattern.
     apply_pattern = (tag | ident) LPAREN [pattern {COMMA pattern}] RPAREN.

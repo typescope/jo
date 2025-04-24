@@ -736,7 +736,7 @@ class Namer(@constructorOnly reporter: Reporter):
 
     val pos = span.toPos
 
-    val tagStringLit = StringLit(tagName)(defn.StringType, tag.span)
+    val tagStringLit = StringLit(tagName)(tag.span)
 
     def check(tagType: TagType, resType: Type): Word =
       val paramTypes = tagType.paramTypes

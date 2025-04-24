@@ -984,6 +984,21 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
           case _ => id
 
+      case Token.IntLit(value) =>
+        next()
+        IntLit(value)(item.span)
+
+      case Token.BoolLit(value) =>
+        next()
+        BoolLit(value)(item.span)
+
+      case Token.CharLit(value) =>
+        next()
+        CharLit(value)(item.span)
+
+      case Token.StringLit(value) =>
+        next()
+        StringLit(value)(item.span)
 
       case Token.LPAREN =>
         next()

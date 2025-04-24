@@ -300,7 +300,7 @@ object Ast:
 
   def isPattern(pat: Word): Boolean =
     pat match
-      case _: Tag | _: Ident => true
+      case _: Tag | _: Ident | _: StringLit | _: IntLit | _: CharLit | _: BoolLit => true
 
       case TypeAscribe(_: Ident, _) => true
 

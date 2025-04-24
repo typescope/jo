@@ -239,3 +239,6 @@ object Printing:
 
       case tagged @ TagPattern(_, nested) =>
         "#" ~ tagged.tag ~ " " ~ rep(nested, Text(" "))
+
+      case ValuePattern(value) =>
+        showWord(value)

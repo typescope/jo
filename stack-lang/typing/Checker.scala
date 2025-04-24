@@ -112,86 +112,6 @@ class Checker:
         Reporter.error(s"Cannot find common result type, tp1 = ${tp1.show}, tp2 = ${tp2.show}", pos)
         ErrorType
 
-  def adaptIntLiteral(n: Int, origType: Type, targetType: Type)(using Definitions, Reporter, Source): Type =
-    val defn = summon[Definitions]
-
-    if
-      targetType.refersTo(defn.Predef_Byte) && n < 128 && n >= -128
-      || targetType.refersTo(defn.Predef_Char) && n < 65536 && n >= 0
-      || targetType.refersTo(defn.Predef_Int)
-    then
-      targetType
-
-    else
-      origType
-
-  def autoCoerceNumeric(word: Word, targetType: Type)(using Definitions, Reporter, Source): Word =
-    val defn = summon[Definitions]
-    val origType = word.tpe
-    if origType.refersTo(defn.Predef_Byte) then
-      if targetType.refersTo(defn.Predef_Char) then
-        val byteToChar = Ident(defn.Predef_byteToChar)(word.span)
-        Apply(byteToChar, word :: Nil)(targetType, word.span)
-      else if targetType.refersTo(defn.Predef_Int) then
-        val byteToInt = Ident(defn.Predef_byteToInt)(word.span)
-        Apply(byteToInt, word :: Nil)(targetType, word.span)
-      else
-        Reporter.abortInternal("Unexpected numeric type " + targetType.show)
-
-    else if origType.refersTo(defn.Predef_Char) then
-      if targetType.refersTo(defn.Predef_Byte) then
-        word
-      else if targetType.refersTo(defn.Predef_Int) then
-        val charToInt = Ident(defn.Predef_charToInt)(word.span)
-        Apply(charToInt, word :: Nil)(targetType, word.span)
-      else
-        Reporter.abortInternal("Unexpected numeric type " + targetType.show)
-
-    else if origType.refersTo(defn.Predef_Int) then
-      word
-    else
-      Reporter.abortInternal("Unexpected numeric type " + origType.show)
-
-
-  /** Explicit drop of values in if/match expressions */
-  def adapt(word: Word, targetType: Type)(using Definitions, Reporter, Source): Word =
-    val defn = summon[Definitions]
-    val unitType = defn.UnitType
-
-    val curType = word.tpe
-    if Subtyping.conforms(curType, targetType) then
-      word
-
-    else if targetType.isVoidType && curType.isValueType then
-      word.dropValue
-
-    else
-
-      val isNumeric = defn.isNumericType(word.tpe) && defn.isNumericType(targetType)
-
-      if isNumeric && !Subtyping.conforms(word.tpe, targetType) then
-        // Numeric coercion
-        word match
-          case Literal(Constant.Int(n)) =>
-            val tp2 = adaptIntLiteral(n, word.tpe, targetType)
-            val word2 = Literal(Constant.Int(n))(tp2, word.span)
-            checkType(word2, targetType)
-            word2
-
-          case _ =>
-            // TODO: only widening coercion is allowed for non-literals
-            val word2 = autoCoerceNumeric(word, targetType)
-            checkType(word2, targetType)
-            word2
-
-      else if Subtyping.conforms(unitType, targetType) then
-        val unit = RecordLit(args = Nil)(unitType, word.span)
-        Block(word.ensureDropValue :: unit :: Nil)(unitType, word.span)
-
-      else
-        Reporter.error(s"Expect type ${targetType.show}, found = ${curType.show}", word.pos)
-        word
-
   def widen(word: Word): Word = word.tpe match
     case TypeRef(sym) if !sym.isType =>
       Encoded(word)(sym.info)
@@ -230,13 +150,20 @@ class Checker:
       case TargetType.ValueType =>
         if word2.tpe.isVoidType then
           // adapt to Unit type
-          adapt(word2, defn.UnitType)
+          SastOps.adapt(word2, defn.UnitType)
         else
           checkValueType(word2)
           widen(word2)
 
       case TargetType.Known(tpe) =>
-        adapt(word2, tpe)
+        try
+          val wordAdapted = SastOps.adapt(word2, tpe)
+          checkType(wordAdapted, tpe)
+          wordAdapted
+
+        catch case ex: SastOps.AdaptionFailure =>
+          Reporter.error(s"Expect type ${tpe.show}, found = ${word2.tpe.show}", word2.pos)
+          word2
 
       case TargetType.TermMember(name) =>
         checkTermMember(word2, name)
