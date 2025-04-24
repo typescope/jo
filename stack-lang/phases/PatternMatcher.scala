@@ -159,6 +159,16 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
       case valuePattern: ValuePattern =>
         transformValuePattern(scrut, valuePattern)
 
+      case GuardPattern(pattern, guard) =>
+        val cond = transformPattern(scrut, pattern)
+        val both = Ident(defn.Predef_both)(pat.span)
+        both.appliedTo(cond, guard)
+
+      case TermBindingPattern(pattern, bindings) =>
+        val cond = transformPattern(scrut, pattern)
+        val nestedBlock = Block(bindings :+ BoolLit(true)(pat.span))(BoolType, pat.span)
+        If(cond, nestedBlock, BoolLit(false)(pat.span))(BoolType, pat.span)
+
       case WildcardPattern() =>
         assert(Subtyping.conforms(scrut.tpe, pat.tpe), "scrutee type = " + scrut.tpe.show + ", pattern type = " + pat.tpe.show)
         BoolLit(true)(pat.span)

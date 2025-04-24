@@ -573,6 +573,33 @@ class PatternTyper(namer: Namer, checker: Checker):
       case Ast.Assign(id: Ast.Ident, nested) =>
         transformAscribePattern(id, nested, scrutType)
 
+      case Ast.If(cond, pattern, Ast.Block(Nil)) =>
+        val pattern2 = transformPattern(pattern, scrutType)
+
+        val guard =
+          given TargetType = TargetType.Known(defn.BoolType)
+          namer.transform(cond)
+
+        GuardPattern(pattern2, guard)
+
+      case Ast.With(pattern, bindings) =>
+        val pattern2 = transformPattern(pattern, scrutType)
+        val bindings2 = new mutable.ArrayBuffer[Assign]
+        for Ast.WithArg(id, expr) <- bindings yield
+          val sym = sc.resolvePattern(id.name, id.pos)
+
+          if !sym.info.isError then
+            oc.occur(sym, id.pos)
+
+            val expr2 =
+              given TargetType = TargetType.Known(sym.info)
+              namer.transform(expr)
+
+            bindings2 += Assign(Ident(sym)(id.span), expr2)(id.span | expr.span)
+        end for
+
+        TermBindingPattern(pattern2, bindings2.toList)
+
       case expr: Ast.Expr =>
         transformExprPattern(expr, scrutType)
     end match

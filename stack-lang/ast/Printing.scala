@@ -33,7 +33,7 @@ object Printing:
 
   given Text.Maker[WithArg] = v => v.paramRef ~ " = " ~ v.rhs
 
-  given Text.Maker[Case] = v => "case " ~ v.pat ~ " =>" ~ indent(v.body)
+  given Text.Maker[Case] = v => "case " ~ showPattern(v.pat) ~ " =>" ~ indent(v.body)
 
   given Text.Maker[Import] = v => "import " ~ v.qualid
 
@@ -105,7 +105,8 @@ object Printing:
 
         val resType = showTypeAnnot(pdef.resultType)
 
-        "pattern " ~ pdef.name ~ tparams ~ params ~ resType ~ " =" ~ indent(pdef.body)
+        "pattern " ~ pdef.name ~ tparams ~ params ~ resType ~ " =" ~ indent:
+            showPattern(pdef.body)
 
       case tdef: TypeDef =>
         val tparams =
@@ -163,11 +164,7 @@ object Printing:
         "(" ~ phrase ~ ")"
 
       case With(expr, args) =>
-        val withText =
-          if args.isEmpty then
-            Text.Empty
-          else
-            " with " ~ indent(rep(args, Text.BreakLine))
+        val withText = " with " ~ indent(rep(args, Text.BreakLine))
 
         "(" ~ expr ~ withText ~ ")"
 
@@ -216,6 +213,32 @@ object Printing:
 
       case defn: Def =>
         showDef(defn)
+
+  def showPattern(pat: Word): Text =
+    (pat: @unchecked) match
+      case _: Tag | _: Ident | _: StringLit | _: IntLit | _: CharLit | _: BoolLit =>
+        showWord(pat)
+
+      case Apply(fun, args) if args.nonEmpty =>
+        val argText = rep(args.map(showPattern), Text(", "))
+        showPattern(fun) ~ "(" ~ argText  ~ ")"
+
+      case Expr(words) if words.nonEmpty =>
+        rep(words.map(showPattern), Text(", "))
+
+      case TypeAscribe(id: Ident, tpt) =>
+        id ~ ": " ~ tpt
+
+      case If(cond, thenp, Block(Nil)) =>
+        showPattern(thenp) ~ " if " ~ thenp
+
+      case With(expr, args) =>
+        val withText = " with " ~ rep(args, Text(", "))
+        expr ~ withText
+
+      case Assign(id: Ident, rhs) =>
+        id ~ "@" ~ rhs
+
 
   def showType(tpt: TypeTree): Text =
     tpt match

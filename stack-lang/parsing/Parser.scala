@@ -945,8 +945,31 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       words += simplePattern()
       item = peekItem()
 
-    if words.size == 1 then words(0)
-    else Expr(words.toList)(words.head.span | words.last.span)
+    val exprPat =
+      if words.size == 1 then words(0)
+      else Expr(words.toList)(words.head.span | words.last.span)
+
+    val guard =
+      if peek() == Token.IF then
+        next()
+        val cond = expr()
+        If(cond, exprPat, Block(Nil)(cond.span))(exprPat.span | cond.span)
+      else
+        exprPat
+
+    if peek() == Token.THEN then
+      def binding(): WithArg =
+        val id = ident()
+        eat(Token.EQL)
+        val rhs = expr()
+        WithArg(id, rhs)(id.span | rhs.span)
+
+      next()
+      val args = oneOrMore(binding, Token.COMMA)
+      With(guard, args)(guard.span | args.last.span)
+
+    else
+      guard
 
   def isSimplePatternStart(token: Token): Boolean =
     token == Token.TAG

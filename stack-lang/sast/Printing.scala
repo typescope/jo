@@ -242,3 +242,9 @@ object Printing:
 
       case ValuePattern(value) =>
         showWord(value)
+
+      case GuardPattern(pattern, guard) =>
+        pattern ~ " if " ~ guard
+
+      case TermBindingPattern(pattern, bindings) =>
+        pattern ~ " then " ~ rep(bindings, Text(", "))

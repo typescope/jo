@@ -113,7 +113,10 @@ Abstract Syntax
     match   = MATCH expr {case} [END].
     case    = CASE pattern RARROW block.
 
-    pattern = expr_pattern.
+    pattern = expr_pattern [IF expr] [pattern_bindings]
+
+    pattern_bindings = THEN [pattern_binding {COMMA pattern_binding}].
+    pattern_binding = ident EQL expr.
 
     expr_pattern = simple_pattern {simple_pattern}.
 

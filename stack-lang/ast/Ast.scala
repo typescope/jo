@@ -310,6 +310,12 @@ object Ast:
       case Expr(words) if words.nonEmpty =>
         words.forall(isPattern)
 
+      case With(expr, bindings) =>
+        isPattern(expr) && bindings.forall(_.paramRef.isInstanceOf[Ident])
+
+      case If(cond, thenp, Block(Nil)) =>
+        isPattern(thenp)
+
       case Assign(_: Ident, rhs) => isPattern(rhs)
 
       case _ =>

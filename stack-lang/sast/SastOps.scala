@@ -108,6 +108,9 @@ object SastOps:
     final def apply(word: Word)(using Context): Word =
       transform(word)
 
+    final def apply(pattern: Pattern)(using Context): Pattern =
+      recur(pattern)
+
     final def transform(word: Word)(using Context): Word =
       word match
         case lit: Literal => transformLiteral(lit)
@@ -205,6 +208,37 @@ object SastOps:
     private def recurTypeDef(tdef: TypeDef)(using Context): TypeDef = tdef
 
     private def recurPatDef(pdef: PatDef)(using Context): PatDef = pdef
+
+    final def recur(pattern: Pattern)(using Context): Pattern =
+      pattern match
+        case AscribePattern(id, nested) =>
+          AscribePattern(id, this(nested))
+
+        case _: TypePattern => pattern
+
+        case TagPattern(tag, nested) =>
+          TagPattern(tag, nested.map(this.apply))(pattern.tpe)
+
+        case ApplyPattern(fun, nested) =>
+          ApplyPattern(fun, nested.map(this.apply))(pattern.tpe, pattern.span)
+
+        case OrPattern(lhs, rhs) =>
+          OrPattern(this(lhs), this(rhs))
+
+        case ValuePattern(value) =>
+          ValuePattern(this(value))
+
+        case GuardPattern(pattern, guard) =>
+          GuardPattern(this(pattern), this(guard))
+
+        case TermBindingPattern(pattern, bindings) =>
+          val bindings2 =
+            for ass @ Assign(id, rhs) <- bindings
+            yield Assign(id, this(rhs))(ass.span)
+
+          TermBindingPattern(this(pattern), bindings2)
+
+        case _: WildcardPattern => pattern
 
     final def recur(word: Word)(using Context): Word =
       word match
@@ -326,6 +360,13 @@ object SastOps:
           this(rhs)
 
         case ValuePattern(value) =>
+          this(value)
+
+        case GuardPattern(pattern, guard) =>
+          this(pattern)
+          this(guard)
+
+        case TermBindingPattern(pattern, bindings) =>
 
         case WildcardPattern() =>
 

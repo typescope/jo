@@ -242,6 +242,18 @@ object Sast:
     val tpe = value.tpe
     val span = value.span
 
+  case class GuardPattern
+    (pattern: Pattern, guard: Word)
+  extends Pattern:
+    val tpe = pattern.tpe
+    val span = pattern.span | guard.span
+
+  case class TermBindingPattern
+    (pattern: Pattern, bindings: List[Assign])
+  extends Pattern:
+    val tpe = pattern.tpe
+    val span = pattern.span | bindings.last.span
+
   case class Match
     (scrutinee: Word, cases: List[Case])
     (val tpe: Type, val span: Span)

@@ -1,0 +1,18 @@
+type Cons = #Cons(head: Int, tail: List[Int])
+
+fun (x: Int) :: (rest: List[Int]): Cons = #Cons x rest
+pattern (x: Int) :: (rest: List[Int]): Cons =
+  #Cons x rest
+
+pattern Nil: #Nil = #Nil
+fun Nil: #Nil = #Nil
+
+fun test(a: List[Int]): Unit =
+  match a
+    case x :: xs if x > 4 => println "head > 4"
+    case _ => println "else"
+
+fun main =
+  test (4 :: Nil)
+  test (5 :: Nil)
+  test Nil
