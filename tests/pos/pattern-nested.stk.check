@@ -6,16 +6,20 @@ size > 2
 size > 2
 binding in or patterns: 4
 apply or patterns: 4
+not list2
 7
 size < 2
 3
 binding in or patterns: 4
 apply or patterns: 4
+4, 3
 4
 size < 2
 4
 binding in or patterns: 4
 apply or patterns: 4
+not list2
 empty
 size < 2
 size > 2
+not list2
