@@ -146,7 +146,7 @@ class PatternTyper(namer: Namer, checker: Checker):
 
   private def checkExhaustivity(patmat: Match)(using Definitions, Reporter, Source): Unit =
     import Exhaustivity.Space
-    var rest = Space.TypeSpace(patmat.scrutinee.tpe.widen)
+    var rest = Space.TypeSpace(patmat.scrutinee.tpe.widenTermRef)
     for Case(pat, _) <- patmat.cases do
       val space = Exhaustivity.project(pat)
       if Exhaustivity.isDisjoint(rest, space) then

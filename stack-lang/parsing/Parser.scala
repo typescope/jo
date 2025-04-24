@@ -949,7 +949,13 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     else Expr(words.toList)(words.head.span | words.last.span)
 
   def isSimplePatternStart(token: Token): Boolean =
-    token == Token.TAG || token.isInstanceOf[Token.Ident] || token == Token.LPAREN
+    token == Token.TAG
+    || token == Token.LPAREN
+    || token.isInstanceOf[Token.Ident]
+    || token.isInstanceOf[Token.BoolLit]
+    || token.isInstanceOf[Token.StringLit]
+    || token.isInstanceOf[Token.CharLit]
+    || token.isInstanceOf[Token.IntLit]
 
   def simplePattern(): Word =
     val item = peekItem()

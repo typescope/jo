@@ -70,7 +70,7 @@ object Exhaustivity:
       case UnionSpace(spaces) =>
         spaces.flatMap(flatten)
 
-  def project(pattern: Pattern): Space =
+  def project(pattern: Pattern)(using defn: Definitions): Space =
     pattern match
       case AscribePattern(id, nested) => project(nested)
 
@@ -78,7 +78,14 @@ object Exhaustivity:
 
       case WildcardPattern() => TypeSpace(pattern.tpe)
 
-      case ValuePattern(value) => EmptySpace
+      case ValuePattern(value) =>
+        value match
+          case Literal(b: Constant.Bool) =>
+            TypeSpace(ConstantType(b))
+
+          case _ =>
+            val tp = AppliedType(TypeRef(defn.Predef_Partial), value.tpe :: Nil)
+            TypeSpace(tp)
 
       case tagPat: TagPattern =>
         val spaces = tagPat.nested.map(project)
@@ -91,7 +98,7 @@ object Exhaustivity:
       case OrPattern(lhs, rhs) =>
         UnionSpace(project(lhs) :: project(rhs) :: Nil)
 
-  def subtract(s1: Space, s2: Space)(using Definitions): Space = Debug.trace(s"subtract(${s1.show}, ${s2.show})", (_: Space).show, enable = false):
+  def subtract(s1: Space, s2: Space)(using defn: Definitions): Space = Debug.trace(s"subtract(${s1.show}, ${s2.show})", (_: Space).show, enable = false):
     (s1, s2) match
       case (_, EmptySpace) => s1
       case (EmptySpace, _) => s1
@@ -118,6 +125,12 @@ object Exhaustivity:
           val unionType = tp2.asUnionType
           val spaces = unionType.branches.map(TypeSpace.apply)
           val s2 = UnionSpace(spaces)
+          subtract(s1, s2)
+
+        else if tp1.refersTo(defn.Predef_Bool) then
+          val trueType = ConstantType(Constant.Bool(true))
+          val falseType = ConstantType(Constant.Bool(false))
+          val s1 = UnionSpace(TypeSpace(trueType) :: TypeSpace(falseType) :: Nil)
           subtract(s1, s2)
 
         else

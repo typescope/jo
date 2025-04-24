@@ -28,7 +28,7 @@ object Types:
 
     def isUnionType: Boolean =
        // No polymorphism over union type thus only dealias no approximation
-      widen.dealias.isInstanceOf[UnionType]
+      widenTermRef.dealias.isInstanceOf[UnionType]
 
     /** Is the type a reference to a type alias */
     def isTypeRef: Boolean =
@@ -76,9 +76,15 @@ object Types:
     def dealias: Type = TypeOps.dealias(this)
 
     /** Widen a term reference to its underlying type */
-    def widen: Type =
+    def widenTermRef: Type =
       this match
         case TypeRef(sym) if !sym.isType => sym.info
+        case _ => this
+
+    /** Widen a constant type to its underlying type */
+    def widenConstType(using Definitions): Type =
+      this match
+        case constType: ConstantType => constType.underlying
         case _ => this
 
     def asRecordType: RecordType =
@@ -86,7 +92,7 @@ object Types:
 
     def asUnionType: UnionType =
       // No polymorphism over union type thus only dealias no approximation
-      widen.dealias.asInstanceOf[UnionType]
+      widenTermRef.dealias.asInstanceOf[UnionType]
 
     def asTagType: TagType =
       TypeOps.approx(this, isUp = true).asInstanceOf[TagType]
@@ -211,6 +217,13 @@ object Types:
   case object BottomType extends Type
 
   case object ErrorType extends Type
+
+  case class ConstantType(const: Constant) extends Type:
+    def underlying(using defn: Definitions): Type =
+      const match
+        case _: Constant.Bool => defn.BoolType
+        case _: Constant.String => defn.StringType
+        case _: Constant.Int => defn.IntType
 
   /** A proxy type may be reduced to other types in subtype and shape checking.
     *

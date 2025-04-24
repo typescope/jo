@@ -451,7 +451,7 @@ class Namer(@constructorOnly reporter: Reporter):
       Block(words)(words.last.tpe, block.span)
 
 
-  def instantiatePoly(polyType: ProcType, fun: Word)(using Reporter, Source): Word =
+  def instantiatePoly(polyType: ProcType, fun: Word)(using Definitions, Reporter, Source): Word =
     assert(polyType.tparams.nonEmpty, polyType.show)
 
     val tvars = for tparam <- polyType.tparams yield TypeVar(tparam.name, this.inferencer)

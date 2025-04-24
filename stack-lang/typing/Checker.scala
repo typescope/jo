@@ -29,14 +29,14 @@ class Checker:
     delayedChecks.clear()
     checking = false
 
-  def checkBounds(tctor: TypeTree, targs: List[TypeTree])(using Reporter, Source): Unit =
+  def checkBounds(tctor: TypeTree, targs: List[TypeTree])(using Definitions, Reporter, Source): Unit =
     if !tctor.tpe.isTypeLambda then
       Reporter.error(s"Expect type lambda, found = ${tctor.tpe.show}", tctor.pos)
     else
       val tl = tctor.tpe.asTypeLambda
       checkBounds(tl.bounds, targs)
 
-  def checkBounds(bounds: List[Type], targs: List[TypeTree])(using Reporter, Source): Unit =
+  def checkBounds(bounds: List[Type], targs: List[TypeTree])(using Definitions, Reporter, Source): Unit =
     if bounds.size != targs.size then
       Reporter.error(s"Expect ${bounds.size} args, found = ${targs.size}", (targs.head.span | targs.last.span).toPos)
     else
@@ -50,7 +50,7 @@ class Checker:
         if !Subtyping.conforms(loActual, argType) then
           Reporter.error(s"Arg type ${argType.show} does not conform to bound = ${hi.show}, which expands to ${hiActual.show}", targ.pos)
 
-  def checkTypeApply(fun: Word, targs: List[TypeTree])(using Reporter, Source): Word =
+  def checkTypeApply(fun: Word, targs: List[TypeTree])(using Definitions, Reporter, Source): Word =
     if !fun.tpe.isPolyType then
       Reporter.error(s"Expect a poly function type, found = ${fun.tpe.show}", fun.pos)
       Block(words = Nil)(ErrorType, fun.span | targs.last.span)
@@ -64,14 +64,14 @@ class Checker:
         val tpe = TypeOps.substTypeParams(polyType.copy(tparams = Nil), targs.map(_.tpe))
         TypeApply(fun, targs)(tpe, fun.span)
 
-  def checkType(tree: Tree, tp: Type)(using Reporter, Source): Unit =
+  def checkType(tree: Tree, tp: Type)(using Definitions, Reporter, Source): Unit =
     if !Subtyping.conforms(tree.tpe, tp) then
       Reporter.error(s"Expect type ${tp.show}, found = ${tree.tpe.show}", tree.pos)
 
-  def checkValueType(tree: Tree)(using Reporter, Source): Unit =
+  def checkValueType(tree: Tree)(using Definitions, Reporter, Source): Unit =
     checkValueType(tree.tpe, tree.pos)
 
-  def checkValueType(tp: Type, pos: SourcePosition)(using Reporter): Type =
+  def checkValueType(tp: Type, pos: SourcePosition)(using Definitions, Reporter): Type =
     if !tp.isValueType then
       Reporter.error(s"Expect value type, found = ${tp.show}", pos)
       ErrorType
@@ -104,7 +104,7 @@ class Checker:
       if sc.owner.enclosingFunction != sym.enclosingFunction then
         Reporter.error("Cannot capture local mutable variable " + sym.name, pos)
 
-  def commonResultType(tp1: Type, tp2: Type, pos: SourcePosition)(using Reporter): Type =
+  def commonResultType(tp1: Type, tp2: Type, pos: SourcePosition)(using Definitions, Reporter): Type =
     val commonTypeOpt = TypeOps.commonResultType(tp1, tp2)
     commonTypeOpt match
       case Some(tp) => tp

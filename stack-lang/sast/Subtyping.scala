@@ -9,10 +9,10 @@ object Subtyping:
   case class Task(left: Type, right: Type)
 
   /** Whether `tp1` conforms to `tp2` */
-  def conforms(tp1: Type, tp2: Type): Boolean =
+  def conforms(tp1: Type, tp2: Type)(using Definitions): Boolean =
     checkConforms(tp1,tp2)(using new Context())
 
-  def isEqualType(tp1: Type, tp2: Type): Boolean =
+  def isEqualType(tp1: Type, tp2: Type)(using Definitions): Boolean =
     conforms(tp1, tp2) && conforms(tp2, tp1)
 
   /** The assumption that a type A is a subtype of B
@@ -59,7 +59,7 @@ object Subtyping:
     * We intentionally do not check subtyping of bound type. They may only
     * surface in deal with TypeRef, which is handled specially.
     */
-  private def checkConforms(tp1: Type, tp2: Type)(using ctx: Context): Boolean = Debug.trace(s"${tp1.show} <: ${tp2.show}", enable = false) {
+  private def checkConforms(tp1: Type, tp2: Type)(using ctx: Context, defn: Definitions): Boolean = Debug.trace(s"${tp1.show} <: ${tp2.show}", enable = false) {
     // Each branch should be disjoint to avoid exponential blowup
     tp1.isError
     || tp2.isError
@@ -78,14 +78,20 @@ object Subtyping:
        && checkConformsTagTypeToUnionType(tp1.as[TagType], tp2.as[UnionType])
     || tp1.is[UnionType] && tp2.is[UnionType]
        && checkConformsUnionType(tp1.as[UnionType], tp2.as[UnionType])
+    || tp1.is[ConstantType]
+       && checkConforms(tp1.as[ConstantType].underlying, tp2)
     || tp1.is[ProcType] && tp2.is[ProcType]
        && checkConformsProcType(tp1.as[ProcType], tp2.as[ProcType])
+    || tp1.is[TypeBound]
+       && checkConforms(tp1.as[TypeBound].hi, tp2)
+    || tp2.is[TypeBound]
+       && checkConforms(tp1, tp2.as[TypeBound].lo)
   }
 
-  private def checkConforms(tp1: Type, tp2: Type, lessThan: Boolean)(using ctx: Context): Boolean =
+  private def checkConforms(tp1: Type, tp2: Type, lessThan: Boolean)(using ctx: Context, defn: Definitions): Boolean =
     if lessThan then checkConforms(tp1, tp2) else checkConforms(tp2, tp1)
 
-  private def checkConformsAppliedGrounded(tp1: AppliedType, tp2: AppliedType)(using ctx: Context): Boolean =
+  private def checkConformsAppliedGrounded(tp1: AppliedType, tp2: AppliedType)(using ctx: Context, defn: Definitions): Boolean =
     val AppliedType(tref1: TypeRef, targs1) = tp1: @unchecked
     val AppliedType(tref2: TypeRef, targs2) = tp2: @unchecked
     tref1 == tref2 && {
@@ -95,7 +101,7 @@ object Subtyping:
     }
 
   /** Either `tp1` or `tp2` is proxy type */
-  private def checkConformsProxyType(tp1: Type, tp2: Type)(using ctx: Context): Boolean =
+  private def checkConformsProxyType(tp1: Type, tp2: Type)(using ctx: Context, defn: Definitions): Boolean =
     if tp1.is[ProxyType] && tp2.is[ProxyType] then
       val proxy1 = tp1.as[ProxyType]
       val proxy2 = tp2.as[ProxyType]
@@ -109,7 +115,7 @@ object Subtyping:
       val proxy2 = tp2.as[ProxyType]
       TypeOps.isGroundedProxy(proxy2) && reduceProxyType(proxy2, tp1, lessThan = false)
 
-  private def checkConformsBothProxyType(proxy1: ProxyType, proxy2: ProxyType)(using ctx: Context): Boolean =
+  private def checkConformsBothProxyType(proxy1: ProxyType, proxy2: ProxyType)(using ctx: Context, defn: Definitions): Boolean =
     if ctx.isSubtype(proxy1, proxy2) then
       true
 
@@ -146,7 +152,7 @@ object Subtyping:
       || TypeOps.isGroundedProxy(proxy2) && reduceProxyType(proxy2, proxy1, lessThan = false)
     end if
 
-  private def reduceProxyType(tp1: ProxyType, tp2: Type, lessThan: Boolean)(using ctx: Context): Boolean =
+  private def reduceProxyType(tp1: ProxyType, tp2: Type, lessThan: Boolean)(using ctx: Context, defn: Definitions): Boolean =
     def continue(tp1b: Type)(using Context): Boolean =
       checkConforms(tp1b, tp2, lessThan)
 
@@ -189,7 +195,7 @@ object Subtyping:
         val tasks = if lessThan then tvar.isSubtype(tp2) else tvar.isSuptype(tp2)
         tasks.forall(task => checkConforms(task.left, task.right))
 
-  private def checkConformsProcType(tp1: ProcType, tp2: ProcType)(using Context): Boolean =
+  private def checkConformsProcType(tp1: ProcType, tp2: ProcType)(using Context, Definitions): Boolean =
     tp1.paramTypes.size == tp2.paramTypes.size
     && tp1.paramTypes.zip(tp2.paramTypes).forall: (paramType1, paramType2) =>
        checkConforms(paramType2, paramType1)
@@ -202,13 +208,13 @@ object Subtyping:
     }
 
   // TODO: loosen record typing and use coersion semantics
-  private def checkConformsRecordType(tp1: RecordType, tp2: RecordType)(using Context): Boolean =
+  private def checkConformsRecordType(tp1: RecordType, tp2: RecordType)(using Context, Definitions): Boolean =
     val names1 = tp1.fieldNames
     val names2 = tp2.fieldNames
     names1.size >= names2.size && names1.zip(names2).forall: (a, b) =>
       a == b && checkConforms(tp1.fieldType(a), tp2.fieldType(b))
 
-  private def checkConformsObjectType(tp1: ObjectType, tp2: ObjectType)(using Context): Boolean =
+  private def checkConformsObjectType(tp1: ObjectType, tp2: ObjectType)(using Context, Definitions): Boolean =
     val fieldsConform =
       val names1 = tp1.fieldNames
       val names2 = tp2.fieldNames
@@ -225,7 +231,7 @@ object Subtyping:
         && checkConforms(tp1.termMember(a), tp2.termMember(b))
     }
 
-  private def checkConformsUnionType(tp1: UnionType, tp2: UnionType)(using Context): Boolean =
+  private def checkConformsUnionType(tp1: UnionType, tp2: UnionType)(using Context, Definitions): Boolean =
     // The ordering of the tags does not matter
     tp1.tags.forall: tag =>
       val tagType1 = tp1.tagType(tag)
@@ -234,13 +240,13 @@ object Subtyping:
         checkConforms(tagType1, tagType2)
       }
 
-  private def checkConformsTagType(tp1: TagType, tp2: TagType)(using Context): Boolean =
+  private def checkConformsTagType(tp1: TagType, tp2: TagType)(using Context, Definitions): Boolean =
     val shapeOK = tp1.tag == tp2.tag && tp1.paramTypes.size >= tp2.paramTypes.size
     shapeOK && tp1.paramTypes.zip(tp2.paramTypes).forall: (paramType1, paramType2) =>
       // param names do not matter
       checkConforms(paramType1, paramType2)
 
-  private def checkConformsTagTypeToUnionType(tp1: TagType, tp2: UnionType)(using Context): Boolean =
+  private def checkConformsTagTypeToUnionType(tp1: TagType, tp2: UnionType)(using Context, Definitions): Boolean =
     tp2.getTagType(tp1.tag) match
       case Some(tagType2) => checkConforms(tp1, tagType2)
       case None => false
