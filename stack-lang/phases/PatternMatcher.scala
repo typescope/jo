@@ -183,6 +183,13 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
       case defn.CharType   =>
         Ident(defn.Predef_eql)(pat.span).appliedTo(pat.value :: scrut :: Nil)
 
+      case defn.BoolType   =>
+        val bothTrue = Ident(defn.Predef_both)(pat.span).appliedTo(pat.value :: scrut :: Nil)
+        val notValue = Ident(defn.Predef_not)(pat.span).appliedTo(pat.value :: Nil)
+        val notScrut = Ident(defn.Predef_not)(pat.span).appliedTo(scrut :: Nil)
+        val bothFalse = Ident(defn.Predef_both)(pat.span).appliedTo(notValue :: notScrut :: Nil)
+        Ident(defn.Predef_either)(pat.span).appliedTo(bothTrue :: bothFalse :: Nil)
+
       case defn.StringType =>
         scrut.select("==").appliedTo(pat.value)
 

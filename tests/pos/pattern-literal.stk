@@ -44,6 +44,11 @@ fun testByte2(x: Byte): Unit =
     case 99 => println "c"
     case _ => println "not a nor c"
 
+fun testBool(x: Bool): Unit =
+  match x
+    case true => println "true"
+    case false => println "false"
+
 fun main =
   testInt1 1
   testInt1 3
@@ -73,3 +78,6 @@ fun main =
   testByte2 'a'
   testByte2 'c'
   testByte2 'd'
+
+  testBool true
+  testBool false
