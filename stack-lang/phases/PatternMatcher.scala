@@ -40,7 +40,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
   private def createImplFunSymbol(predSym: Symbol): Symbol =
     val predType = predSym.info.asProcType
     val bounds = predType.tparams
-    val params = NamedInfo("scrutinee", predType.resultType) :: Nil
+    val params = NamedInfo("scrutinee", predType.resultType.stripPartial) :: Nil
 
     val successType = TagType("Success", predType.params)
     val failType = TagType("Fail", Nil)
@@ -67,7 +67,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
     given Context = PatternMatcher.CacheContext.newContext(implSym, ctx)
     given Source = pdef.symbol.sourcePos.source
 
-    val scrutSym = Symbol.createSymbol("scrutinee", pdef.resultType.tpe, Flags.Param, implSym, implSym.sourcePos)
+    val scrutSym = Symbol.createSymbol("scrutinee", pdef.resultType.tpe.stripPartial, Flags.Param, implSym, implSym.sourcePos)
     val scrutIdent = Ident(scrutSym)(span)
 
     // TODO: optimize irrefutable pattern
@@ -171,7 +171,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
     val procType = pred.tpe.asProcType
     val span = pred.span
 
-    val paramType = procType.resultType
+    val paramType = procType.resultType.stripPartial
     val successType = TagType("Success", procType.params)
     val failType = TagType("Fail", Nil)
     val resultType = UnionType(successType :: failType :: Nil)

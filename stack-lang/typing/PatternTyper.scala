@@ -49,58 +49,68 @@ class PatternTyper(namer: Namer, checker: Checker):
         patScope.define(paramSym)
         paramSym
 
-    lazy val givenResultType =
+    lazy val resultTypeTree =
+      assert(!patDef.resultType.isEmpty, "result type of pattern predicates is mandatory")
+
       tparamSyms
-
-      assert(!patDef.resultType.isEmpty)
-      val resTypeTree = namer.transformType(patDef.resultType)
-      resTypeTree.tpe
-
-    lazy val resultType =
-      if !patDef.resultType.isEmpty then
-        givenResultType
-      else
-        typedBody.tpe
-      end if
+      namer.transformType(patDef.resultType)
 
     lazy val typedBody =
       paramSyms
       val occurs = new Occurs
       given Occurs = occurs
       val reporterDiscard = rp.fresh(buffer = true)
-      val scrutType = if patDef.resultType.isEmpty then VoidType else givenResultType
+      val scrutType = resultTypeTree.tpe.stripPartial
       val body2 =
         given Reporter = reporterDiscard
         transformPattern(patDef.body, scrutType)
 
+      // Elide checks if other errors are present
       if reporterDiscard.hasErrors then
         reporterDiscard.commit(rp)
-      else
-        // Elide checks if other errors are present
-        if !patDef.resultType.isEmpty && !Subtyping.conforms(scrutType, body2.tpe) then
-          Reporter.error("Result type not equal to the type of body, found = " + body2.tpe.show, patDef.resultType.pos)
 
+      else
+        checkExhaustivity(body2, resultTypeTree)
         for paramSym <- paramSyms do occurs.checkOccur(paramSym)
+
       end if
 
       body2
 
     def computeInfo(resultType: Type) =
-        val tparamRefs = tparamSyms.zipWithIndex.map: (tparamSym, i) =>
-          TypeParamRef(tparamSym.name, i)
-        val substs = tparamSyms.zip(tparamRefs).toMap
-        val tparamInfos = tparamSyms.map(tparam => NamedInfo(tparam.name, tparam.info.as[TypeBound]))
-        val rawType = ProcType(tparamInfos, paramSyms.map(_.toNamedInfo), resultType, receives = None, preParamCount = patDef.preParamCount)
-        if tparamRefs.isEmpty then rawType
-        else TypeOps.substSymbols(rawType, substs)
+      val tparamRefs = tparamSyms.zipWithIndex.map: (tparamSym, i) =>
+        TypeParamRef(tparamSym.name, i)
+      val substs = tparamSyms.zip(tparamRefs).toMap
+      val tparamInfos = tparamSyms.map(tparam => NamedInfo(tparam.name, tparam.info.as[TypeBound]))
+      val rawType = ProcType(tparamInfos, paramSyms.map(_.toNamedInfo), resultType, receives = None, preParamCount = patDef.preParamCount)
+      if tparamRefs.isEmpty then rawType
+      else TypeOps.substSymbols(rawType, substs)
 
-    namer.nonCyclicTypeProvider.addProvider(patSym, () => computeInfo(resultType), () => computeInfo(ErrorType))
+    namer.nonCyclicTypeProvider.addProvider(patSym, () => computeInfo(resultTypeTree.tpe), () => computeInfo(ErrorType))
 
     val typer = () =>
-      val tpt = TypeTree(resultType)(patDef.resultType.span)
-      PatDef(patSym, tparamSyms, paramSyms, tpt, typedBody)(patDef.span)
+      PatDef(patSym, tparamSyms, paramSyms, resultTypeTree, typedBody)(patDef.span)
 
     DelayedDef(patSym, typer)
+
+  private def checkExhaustivity(pattern: Pattern, coveredTypeTree: TypeTree)(using defn: Definitions, rp: Reporter, so: Source): Unit =
+    import Exhaustivity.Space
+    val coveredType = coveredTypeTree.tpe
+    val isPartial = coveredType.refersTo(defn.Predef_Partial)
+    val scrutSpace = Space.TypeSpace(coveredType.stripPartial)
+    val patSpace = Exhaustivity.project(pattern)
+    val rest = Exhaustivity.subtract(scrutSpace, patSpace)
+
+    val cases = Exhaustivity.flatten(rest)
+    if !cases.isEmpty && !isPartial then
+      val five = cases.take(5)
+      val examples = five.map(_.show).mkString(", ")
+      val explain = "An inexhaustive pattern can be specified by Partial[" + coveredType.show + "]."
+      val word = if five.size > 1 then "cases" else "case"
+      Reporter.warn(s"The match will fail for the $word: " + examples + ". " + explain, coveredTypeTree.pos)
+
+    else if cases.isEmpty && isPartial then
+      Reporter.warn(s"The match is exhaustive. There is no need to mark the type with `Partial`.", coveredTypeTree.pos)
 
   def transformMatch(patmat: Ast.Match)
     (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType)
@@ -155,13 +165,24 @@ class PatternTyper(namer: Namer, checker: Checker):
   private def transformCase(caseDef: Ast.Case, scrutType: Type)
     (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType)
   : Case =
+    val Ast.Case(pat, body) = caseDef
 
     given Scope = sc.fresh()
     given Occurs = new Occurs
 
-    val Ast.Case(pat, body) = caseDef
-    val pat2 = transformPattern(pat, scrutType)
-    val body2 = namer.transform(body)
+    val rp2 = rp.fresh(buffer = true)
+    val pat2 =
+      given Reporter = rp2
+      transformPattern(pat, scrutType)
+
+    val body2 =
+      if rp2.hasErrors then
+        rp2.commit(rp)
+        Block(Nil)(BottomType, body.span)
+
+      else
+        namer.transform(body)
+
     Case(pat2, body2)(caseDef.span)
 
   private def transformApplyPattern(
@@ -181,7 +202,7 @@ class PatternTyper(namer: Namer, checker: Checker):
     if funType.isProcType then
       val procType = funType.asProcType
       val paramSize = procType.paramTypes.size
-      val resType = procType.resultType
+      val resType = procType.resultType.stripPartial
 
       val explain = new StringBuilder
       if Patterns.isValidTypePattern(resType, scrutType)(using explain) then
@@ -263,7 +284,7 @@ class PatternTyper(namer: Namer, checker: Checker):
       val procType = funType.asProcType
       val preParamCount = procType.preParamCount
       val postParamCount = procType.postParamCount
-      val resType = procType.resultType
+      val resType = procType.resultType.stripPartial
 
       val explain = new StringBuilder
       if Patterns.isValidTypePattern(resType, scrutType)(using explain) then

@@ -24,6 +24,9 @@ pattern Cons(x: Int, rest: List[Int]): Cons =
 fun Cons(x: Int, rest: List[Int]): List[Int] =
   #Cons x rest
 
+pattern List2(x: Int, y: Int): Partial[List[Int]] =
+  #Cons x (#Cons y #Nil)
+
 pattern Nil: #Nil = #Nil
 fun Nil: #Nil = #Nil
 
@@ -54,3 +57,11 @@ fun test2(a: List[Int]): Unit =
         "apply or patterns: " + (intToStr x)
 
     case #Nil =>
+
+  match a
+    case List2 x y =>
+      println
+        (intToStr x) + ", " + (intToStr y)
+
+    case _ =>
+      println "not list2"

@@ -734,19 +734,18 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     ObjectType(decls)(objToken.span | endToken.span)
 
   def appliedType(tctor: RefTree): AppliedType =
-    val targs = typeArgs()
-    val last = targs.last
-    AppliedType(tctor, targs.toList)(tctor.span | last.span)
+    val (targs, endSpan) = typeArgs()
+    AppliedType(tctor, targs.toList)(tctor.span | endSpan)
 
-  def typeArgs(): List[TypeTree] =
-    eat(Token.LBRACKET)
+  def typeArgs(): (List[TypeTree], Span) =
+    val startToken = eat(Token.LBRACKET)
     val targs = new mutable.ArrayBuffer[TypeTree]
     targs += typ()
     while peek() != Token.RBRACKET && peek() != Token.EOF do
       eat(Token.COMMA)
       targs += typ()
-    eat(Token.RBRACKET)
-    targs.toList
+    val endToken = eat(Token.RBRACKET)
+    (targs.toList, startToken.span | endToken.span)
 
   def ident(): Ident =
     val item = next()
@@ -827,9 +826,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case _ => sel
 
   def typeApply(fun: Word): TypeApply =
-    val targs = typeArgs()
-    val last = targs.last
-    TypeApply(fun, targs)(fun.span | last.span)
+    val (targs, endSpan) = typeArgs()
+    TypeApply(fun, targs)(fun.span | endSpan)
 
   def apply(fun: Word): Apply =
     val (args, span) = termArgs()

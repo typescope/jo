@@ -129,6 +129,14 @@ object Types:
 
         case _ => None
 
+    /** Convert Partial[T] to T if possible */
+    def stripPartial(using defn: Definitions): Type =
+      this match
+        case AppliedType(ctor, targs) if ctor.refersTo(defn.Predef_Partial) =>
+          targs(0)
+
+        case _ => this
+
     def refersTo(symbol: Symbol): Boolean =
       val visited = new mutable.ArrayBuffer[Symbol]
 

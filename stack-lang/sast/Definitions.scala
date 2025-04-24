@@ -65,6 +65,7 @@ final class Definitions(rootNameTable: NameTable):
 
   // patterns
   val Predef_orPattern = Predef.patternMember("|")
+  val Predef_Partial = Predef.typeMember("Partial")
 
   val IntType     = TypeRef(Predef_Int)
   val BoolType    = TypeRef(Predef_Bool)

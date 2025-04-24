@@ -16,6 +16,9 @@ type List[T] = Nil | Cons[T]
 pattern Inexhaustive(x: Int, rest: List[Int]): List[Int] =
   #Cons x rest
 
+pattern ExhaustiveWithPartial(x: Int, rest: List[Int]): Partial[Cons[Int]] =
+  #Cons x rest
+
 pattern NotOccur(x: Int): Cons[Int] =
   (#Cons x Nil) | (#Cons _ #Cons)
 
@@ -42,6 +45,10 @@ fun test2(a: List[Int]): Unit =
 
   match a
     case Cons x (Cons _ Nil) | Cons _ Nil | Nil => println "unbound x"
+
+  // Test skip checking body if pattern has errors
+  match a
+    case NoExist x  => println (intToStr x)
 
   match a
     case (#Cons x #Nil) | (#Cons x (#Cons x _)) => println "double binding"

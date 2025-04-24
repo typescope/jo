@@ -69,6 +69,9 @@ fun either(a: Bool, b: Bool): Bool = abort("primitive either")
 // Patterns
 //
 
+// A type to indicate that a pattern predicate does not exhaust a type
+type Partial[T] <: T
+
 // An OR pattern
 //
 // Its true semantics is handled in pattern translation.
