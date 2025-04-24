@@ -89,7 +89,7 @@ object Exhaustivity:
       case OrPattern(lhs, rhs) =>
         UnionSpace(project(lhs) :: project(rhs) :: Nil)
 
-  def subtract(s1: Space, s2: Space): Space = Debug.trace(s"subtract(${s1.show}, ${s2.show})", (_: Space).show, enable = false):
+  def subtract(s1: Space, s2: Space)(using Definitions): Space = Debug.trace(s"subtract(${s1.show}, ${s2.show})", (_: Space).show, enable = false):
     (s1, s2) match
       case (_, EmptySpace) => s1
       case (EmptySpace, _) => s1
@@ -223,7 +223,7 @@ object Exhaustivity:
 
       case (_: TagSpace, _: PredSpace) => s1
 
-  def isDisjoint(s1: Space, s2: Space): Boolean = Debug.trace(s"isDisjoint(${s1.show}, ${s2.show})", enable = false):
+  def isDisjoint(s1: Space, s2: Space)(using Definitions): Boolean = Debug.trace(s"isDisjoint(${s1.show}, ${s2.show})", enable = false):
     (s1, s2) match
       case (_, EmptySpace) => true
       case (EmptySpace, _) => true
@@ -293,19 +293,19 @@ object Exhaustivity:
           true
 
       case (PredSpace(_, procType, _), _: TypeSpace) =>
-        val s1 = TypeSpace(procType.resultType)
+        val s1 = TypeSpace(procType.resultType.stripPartial)
         isDisjoint(s1, s2)
 
       case (TypeSpace(tp), PredSpace(_, procType, _)) =>
-        val s2 = TypeSpace(procType.resultType)
+        val s2 = TypeSpace(procType.resultType.stripPartial)
         isDisjoint(s1, s2)
 
       case (PredSpace(_, procType, _), _: TagSpace) =>
-        val s1 = TypeSpace(procType.resultType)
+        val s1 = TypeSpace(procType.resultType.stripPartial)
         isDisjoint(s1, s2)
 
       case (_: TagSpace, PredSpace(_, procType, _)) =>
-        val s2 = TypeSpace(procType.resultType)
+        val s2 = TypeSpace(procType.resultType.stripPartial)
         isDisjoint(s1, s2)
 
   def isEmpty(space: Space): Boolean =

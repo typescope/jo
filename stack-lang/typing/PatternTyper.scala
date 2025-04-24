@@ -144,7 +144,7 @@ class PatternTyper(namer: Namer, checker: Checker):
 
     patmat2
 
-  private def checkExhaustivity(patmat: Match)(using Reporter, Source): Unit =
+  private def checkExhaustivity(patmat: Match)(using Definitions, Reporter, Source): Unit =
     import Exhaustivity.Space
     var rest = Space.TypeSpace(patmat.scrutinee.tpe.widen)
     for Case(pat, _) <- patmat.cases do
