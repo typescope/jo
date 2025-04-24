@@ -274,7 +274,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
             }
       ~ "}"
   catch case ex: Exception =>
-    println(fdef.body)
+    println(fdef.body.show)
     throw ex
 
   def div(args: List[Word])(using Context): Text =

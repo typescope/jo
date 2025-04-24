@@ -566,7 +566,6 @@ class Namer(@constructorOnly reporter: Reporter):
   def transformInfixCall(call: Ast.InfixCall)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
     val Ast.InfixCall(preArgs, funAst, postArgs) = call
 
-    // TODO: avoid retyping using attachments
     var fun =
       // infix call should not trigger apply insertion
       given TargetType = TargetType.Unknown
