@@ -14,24 +14,24 @@ type Cons[T] = #Cons(head: T, tail: List[T])
 type List[T] = Nil | Cons[T]
 
 pattern Inexhaustive(x: Int, rest: List[Int]): List[Int] =
-  #Cons x rest
+  case #Cons x rest
 
 pattern ExhaustiveWithPartial(x: Int, rest: List[Int]): Partial[Cons[Int]] =
-  #Cons x rest
+  case #Cons x rest
 
 pattern NotOccur(x: Int): Cons[Int] =
-  (#Cons x Nil) | (#Cons _ #Cons)
+  case (#Cons x Nil) | (#Cons _ #Cons)
 
 pattern DoubleOccur(x: Int): Cons[Int] =
-  (#Cons x Nil) | (#Cons x (#Cons x _))
+  case (#Cons x Nil) | (#Cons x (#Cons x _))
 
 pattern Cons(x: Int, rest: List[Int]): Cons[Int] =
-  #Cons x rest
+  case #Cons x rest
 
 fun Cons(x: Int, rest: List[Int]): List[Int] =
   #Cons x rest
 
-pattern Nil: Nil = #Nil
+pattern Nil: Nil = case #Nil
 fun Nil: Nil = #Nil
 
 fun test2(a: List[Int]): Unit =

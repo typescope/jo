@@ -128,21 +128,23 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       val diagnosis = s"expect offset = ${refIndent.tokenOffset}, found = ${itemIndent.tokenOffset}"
       warn(s"${item.token} is not aligned with ${reference.token}, $diagnosis", item.span.toPos)
 
+  /** The caller must consume at least one token if syntax error is thrown */
   def repeated[T](parseItem: => Option[T]): List[T] =
     val items = new mutable.ArrayBuffer[T]
     var continue = true
-    var firstTokenItem = peekItem()
     while continue do
+      val firstToken = peekItem()
       try
-        firstTokenItem = peekItem()
         parseItem match
           case Some(item) =>
             items += item
 
           case None =>
             continue = false
-      catch case _: SyntaxError =>
-        skipIndented(firstTokenItem.indent)
+
+      catch case ex: SyntaxError =>
+        skipIndented(firstToken.indent)
+        None
     end while
     items.toList
 
@@ -179,17 +181,18 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       else None
 
     val defs = repeated:
-        if peek() == Token.TYPE then Some(typeDef())
-        else if peek() == Token.FUN then Some(funDef())
-        else if peek() == Token.PARAM then Some(paramDef())
-        else if peek() == Token.PATTERN then Some(patDef())
+      val item = peekItem()
+      if item.token == Token.TYPE then Some(typeDef())
+      else if item.token == Token.FUN then Some(funDef())
+      else if item.token == Token.PARAM then Some(paramDef())
+      else if item.token == Token.PATTERN then Some(patDef())
+      else
+        if item.token != Token.EOF then
+          error("Expect a definition, found = " + item.token, item.span.toPos)
+          next()
+          throw new SyntaxError
         else
-          val item = peekItem()
-          if item.token != Token.EOF then
-            error("Expect a definition, found = " + item.token, item.span.toPos)
-            throw new SyntaxError
-          else
-            None
+          None
 
     val endSpan = if defs.isEmpty then id.span else defs.last.span
 
@@ -301,12 +304,13 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     eat(Token.EQL)
     val item = peekItem()
     if pat.indent.isUnindent(item.indent) then
-       error("Expect pattern, found nothing before the unindentation", item.span.toPos)
+       error("Expect cases, found nothing before the unindentation", item.span.toPos)
        throw new SyntaxError
 
     val cases: List[Case] =
       if item.token != Token.CASE then
         error("expect CASE, found = " + item.token, item.span.toPos)
+        skipIndented(pat.indent)
         Nil
       else
         repeated:
