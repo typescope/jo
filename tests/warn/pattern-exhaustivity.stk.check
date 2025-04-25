@@ -1,0 +1,21 @@
+---------- Error at tests/warn/pattern-exhaustivity.stk:7:10 ---------------
+|     case #Random _ =>
+|          ^^^^^^^
+|          The tag Random does not match the scrutinee type #Post(author: String, content: String)
+
+---------- Warning at tests/warn/pattern-exhaustivity.stk:10:10 ---------------
+|     case b: #Article(Int, String) =>
+|          ^^^^^^^^^^^^^^^^^^^^^^^
+|          The case is not reachable
+
+---------- Warning at tests/warn/pattern-exhaustivity.stk:9:9 ---------------
+|   match post
+|         ^^^^
+|         The match will fail for the case: Post
+
+---------- Error at tests/warn/pattern-exhaustivity.stk:15:13 ---------------
+|     case p: #Project(#Article(String, String)) =>
+|             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|             The pattern type #Article(_1: String, _2: String) is not equal to the scrutinee type Post. Non-algebraic or nested type need to be equal to the scrutinee type. 
+
+2 error(s), 2 warning(s)
