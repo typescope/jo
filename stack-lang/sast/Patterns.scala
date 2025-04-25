@@ -28,15 +28,16 @@ object Patterns:
     else isEqualType(patternType, scrutType)
 
   def isValidUnionTypePattern(patternType: UnionType, scrutType: Type)(using explain: StringBuilder, defn: Definitions): Boolean =
-    patternType.branches.exists: branchType =>
+    patternType.branches.forall: branchType =>
       isValidTypePattern(branchType, scrutType)
 
   def isValidTagTypePattern(patternType: TagType, scrutType: Type)(using explain: StringBuilder, defn: Definitions): Boolean =
     if scrutType.isTagType then
       val scrutTagType = scrutType.asTagType
       if scrutTagType.tag != patternType.tag then
-        explain.append("The pattern type " + patternType.show + " does not match scrutinee type " + scrutTagType.show + ". ")
-        false
+        // If tag does not match, the semantics can be implemented correctly
+        // without problem. Exhaustivity check will produce warnings
+        true
 
       else if patternType.params.size > scrutTagType.params.size then
         explain.append("The pattern type " + patternType.show + " should not have more parameters than the scrutinee type " + scrutTagType.show + ". ")
