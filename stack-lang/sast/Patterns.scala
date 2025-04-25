@@ -28,7 +28,7 @@ object Patterns:
     else isEqualType(patternType, scrutType)
 
   def isValidUnionTypePattern(patternType: UnionType, scrutType: Type)(using explain: StringBuilder, defn: Definitions): Boolean =
-    patternType.branches.forall: branchType =>
+    patternType.branches.exists: branchType =>
       isValidTypePattern(branchType, scrutType)
 
   def isValidTagTypePattern(patternType: TagType, scrutType: Type)(using explain: StringBuilder, defn: Definitions): Boolean =

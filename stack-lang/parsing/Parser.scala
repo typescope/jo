@@ -128,11 +128,13 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       val diagnosis = s"expect offset = ${refIndent.tokenOffset}, found = ${itemIndent.tokenOffset}"
       warn(s"${item.token} is not aligned with ${reference.token}, $diagnosis", item.span.toPos)
 
-  def repeated[T](skipToIfError: Set[Token])(parseItem: => Option[T]): List[T] =
+  def repeated[T](parseItem: => Option[T]): List[T] =
     val items = new mutable.ArrayBuffer[T]
     var continue = true
+    var firstTokenItem = peekItem()
     while continue do
       try
+        firstTokenItem = peekItem()
         parseItem match
           case Some(item) =>
             items += item
@@ -140,7 +142,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           case None =>
             continue = false
       catch case _: SyntaxError =>
-        skipUntil(skipToIfError)
+        skipIndented(firstTokenItem.indent)
     end while
     items.toList
 
@@ -172,13 +174,11 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         case _ =>
           Ident("__empty__")(Span(0, 0))
 
-    val errorSkipImport = Set(Token.IMPORT, Token.TYPE, Token.FUN, Token.PARAM, Token.PATTERN)
-    val imports = repeated(errorSkipImport):
+    val imports = repeated:
       if peek() == Token.IMPORT then Some(importStat())
       else None
 
-    val errorSkipDef = Set(Token.TYPE, Token.FUN, Token.PARAM, Token.PATTERN)
-    val defs = repeated(errorSkipDef):
+    val defs = repeated:
         if peek() == Token.TYPE then Some(typeDef())
         else if peek() == Token.FUN then Some(funDef())
         else if peek() == Token.PARAM then Some(paramDef())
@@ -304,12 +304,31 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
        error("Expect pattern, found nothing before the unindentation", item.span.toPos)
        throw new SyntaxError
 
-    val body = pattern()
+    val cases: List[Case] =
+      if item.token != Token.CASE then
+        error("expect CASE, found = " + item.token, item.span.toPos)
+        Nil
+      else
+        repeated:
+          if peek() == Token.CASE then
+            val caseToken = next()
+            val pat = pattern()
+            val caseDef = Case(pat, Block(Nil)(pat.span))(caseToken.span | pat.span)
+
+            checkAlign(item, caseToken, allowSameLine = false)
+
+            Some(caseDef)
+
+          else
+            None
+      end if
+
+    val bodySpan = if cases.isEmpty then resType.span else cases.last.span
 
     eatEndOpt(pat.indent)
 
     val paramList = preParamList ++ postParamList
-    PatDef(id, tparams, paramList, resType, body, preParamList.size)(pat.span | body.span)
+    PatDef(id, tparams, paramList, resType, cases, preParamList.size)(pat.span | bodySpan)
 
   def paramSection(): List[Param] =
     if peek() == Token.LPAREN then params() else Nil
@@ -715,8 +734,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def objectType(): ObjectType =
     val objToken = eat(Token.OBJECT)
     eat(Token.LBRACE)
-    val errorSkip = Set(Token.VAL, Token.VAR, Token.DEF)
-    val decls: List[ValDef | FunDef] = repeated(errorSkip):
+    val decls: List[ValDef | FunDef] = repeated:
       if peek() == Token.DEF then
         Some(defDef(needBody = false))
 
@@ -876,8 +894,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def objectLit(): Object =
     val objToken = eat(Token.OBJECT)
     eat(Token.LBRACE)
-    val errorSkip = Set(Token.DEF, Token.VAL, Token.VAR)
-    val members: List[ValDef | FunDef] = repeated(errorSkip):
+
+    val members: List[ValDef | FunDef] = repeated:
         if peek() == Token.DEF then Some(defDef(needBody = true))
         else if peek() == Token.VAL then Some(valDef(Token.VAL))
         else if peek() == Token.VAR then Some(valDef(Token.VAR))

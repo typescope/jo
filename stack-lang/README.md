@@ -130,7 +130,9 @@ Abstract Syntax
     valdef  = (VAL | VAR) ident [COLON type] EQL block.
     fundef  = FUN [param_section] ident [tparams] [param_section] [COLON type] [receive_params] EQL block [END].
     defdef  = DEF ident [tparams] [param_section] [COLON type] [receive_params] EQL block [END].
-    patdef  = PATTERN ident [tparams] [param_section] [COLON type] EQL pattern [END].
+    patdef  = PATTERN ident [tparams] [param_section] [COLON type] EQL cases [END].
+
+    cases   = case Pattern {CASE pattern}.
 
     paramdef = PARAM param [EQL block].
 

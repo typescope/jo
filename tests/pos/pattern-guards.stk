@@ -2,10 +2,14 @@ type Cons = #Cons(head: Int, tail: List[Int])
 
 fun (x: Int) :: (rest: List[Int]): Cons = #Cons x rest
 pattern (x: Int) :: (rest: List[Int]): Cons =
-  #Cons x rest
+  case #Cons x rest
 
-pattern Nil: #Nil = #Nil
+pattern Nil: #Nil = case #Nil
 fun Nil: #Nil = #Nil
+
+pattern Len(x: Int): List[Int] =
+  case Nil then x = 0
+  case _ :: (Len y) then x = y + 1
 
 fun test(a: List[Int]): Unit =
   match a
@@ -16,3 +20,9 @@ fun main =
   test (4 :: Nil)
   test (5 :: Nil)
   test Nil
+
+  match 4 :: (5 :: Nil) case Len n => println (intToStr n)
+
+  match 5 :: Nil case Len n => println (intToStr n)
+
+  match Nil case Len n => println (intToStr n)
