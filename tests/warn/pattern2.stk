@@ -23,7 +23,7 @@ pattern BindTypeMismatch(s: String): Student =
   case #Student _ s _  // error
 
 pattern BindTypeMismatch2(s: Student): Student =
-  case s: Teacher  // error // error
+  case s: Teacher  // error
 
 pattern FewerArgNumOK(name: String): Student =
   case #Student name _
