@@ -236,7 +236,7 @@ object Exhaustivity:
           s1
 
       case (TypeSpace(tp), PredSpace(pred, procType, _)) =>
-        if Subtyping.isEqualType(tp, procType.resultType) then
+        if Subtyping.conforms(tp, procType.resultType) then
           val s1 = PredSpace(pred, procType, procType.params.map(param => TypeSpace(param.info)))
           subtract(s1, s2)
 
