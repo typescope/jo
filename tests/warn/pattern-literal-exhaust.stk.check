@@ -28,3 +28,4 @@
 |         ^
 |         The match will fail for the cases: #P(false, true), #P(true, false)
 
+0 error(s), 6 warning(s)
