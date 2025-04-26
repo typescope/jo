@@ -15,6 +15,7 @@ import reporting.Reporter
 def compile(args: String*): Unit =
   val optionSpec = Map(
     "-o" -> true,
+    "-fatal-warnings" -> false,
   )
 
   val (options, rest) = IO.parseOptions(args, optionSpec)
@@ -35,6 +36,8 @@ def compile(args: String*): Unit =
           "out.js"
 
   Reporter.monitor:
+    given Reporter.Config = Reporter.Config(options.contains("-fatal-warnings"))
+
     val rootNameTable = new NameTable
     val runtimeNameTable = new NameTable
     given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable)

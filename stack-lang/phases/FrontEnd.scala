@@ -12,7 +12,7 @@ object FrontEnd:
 
   def run(
     stdlib: List[String], runtime: List[String], sources: List[String])
-    (using rp: Reporter)
+    (using Reporter, Reporter.Config)
   : List[Namespace] =
     val rootNameTable = new NameTable
     val runtimeNameTable = new NameTable
@@ -23,7 +23,7 @@ object FrontEnd:
   def run(
     stdlib: List[String], runtime: List[String], sources: List[String],
     runtimeNameTable: NameTable)
-    (using defnLazy: Definitions.Lazy, rp: Reporter)
+    (using defnLazy: Definitions.Lazy, rp: Reporter, cf: Reporter.Config)
   : List[Namespace] =
 
     given Definitions = defnLazy.value

@@ -13,7 +13,7 @@ object Typer:
   def check(
     nssAst: List[Ast.Namespace], stdlib: List[String], runtime: List[String],
     runtimeNameTable: NameTable)
-    (using defnLazy: Definitions.Lazy, rp: Reporter)
+    (using defnLazy: Definitions.Lazy, rp: Reporter, cf: Reporter.Config)
   : List[Namespace] =
     val rootNameTable = defnLazy.rootNameTable
 
@@ -32,7 +32,7 @@ object Typer:
 
   private def runNamer(
     files: List[String], rootNameTable: NameTable, predef: NameTable)
-    (using defnLazy: Definitions.Lazy, rp: Reporter)
+    (using defnLazy: Definitions.Lazy, rp: Reporter, cf: Reporter.Config)
   : List[Namespace] =
 
     val namer = (nss: List[Ast.Namespace]) =>
@@ -48,6 +48,8 @@ object Typer:
     val (options, sources) = IO.parseOptions(args, optionSpec)
 
     Reporter.monitor:
+      given Reporter.Config = Reporter.Config(options.contains("-fatal-warnings"))
+
       val stdLib = "lib/Predef.stk" :: Nil
       val runtimeFiles = Nil
 
@@ -61,8 +63,7 @@ object Typer:
       given defn: Definitions = lazyDefn.value
       val nss = Parser.parse(sources) |> namer |> TreeChecker.check
 
-      if !options.contains("-fatal-warnings") || !summon[Reporter].hasWarnings then
-        for ns <- nss if ns.symbol != defn.Predef do
-          println(ns.symbol.sourcePos.source.file + ":")
-          println(ns.show)
-          println
+      for ns <- nss if ns.symbol != defn.Predef do
+        println(ns.symbol.sourcePos.source.file + ":")
+        println(ns.show)
+        println
