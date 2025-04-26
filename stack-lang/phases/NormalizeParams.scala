@@ -318,7 +318,6 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
     do
       Reporter.error("External context parameters not allowed in patterns: " + eff, word.pos, trace)
 
-
     // The code might still bind and use default parameters
     this(word)
 
