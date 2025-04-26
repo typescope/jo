@@ -57,25 +57,38 @@ class PatternTyper(namer: Namer, checker: Checker):
 
     lazy val typedBody =
       paramSyms
-      val occurs = new Occurs
-      given Occurs = occurs
-      val reporterDiscard = rp.fresh(buffer = true)
       val scrutType = resultTypeTree.tpe.stripPartial
-      val body2 =
-        given Reporter = reporterDiscard
-        transformPattern(patDef.body, scrutType)
+
+      val reporterTemp = rp.fresh(buffer = true)
+
+      val patterns =
+        given Reporter = reporterTemp
+        for Ast.Case(pattern, _) <- patDef.cases yield
+          val occurs = new Occurs
+          given Occurs = occurs
+
+          val patternTyped = transformPattern(pattern, scrutType)
+
+          if !reporterTemp.hasErrors then
+            for paramSym <- paramSyms do occurs.checkOccur(paramSym)
+
+          patternTyped
 
       // Elide checks if other errors are present
-      if reporterDiscard.hasErrors then
-        reporterDiscard.commit(rp)
+      if reporterTemp.hasErrors then
+        reporterTemp.commit(rp)
 
       else
-        checkExhaustivity(body2, resultTypeTree)
-        for paramSym <- paramSyms do occurs.checkOccur(paramSym)
+        checkExhaustivity(patterns, resultTypeTree)
 
       end if
 
-      body2
+      if patterns.isEmpty then
+        Reporter.error("Expect case patterns, found none", patDef.pos)
+        WildcardPattern()(ErrorType, patDef.span)
+
+      else
+        patterns.tail.foldLeft(patterns.head)(OrPattern.apply)
 
     def computeInfo(resultType: Type) =
       val tparamRefs = tparamSyms.zipWithIndex.map: (tparamSym, i) =>
@@ -93,13 +106,20 @@ class PatternTyper(namer: Namer, checker: Checker):
 
     DelayedDef(patSym, typer)
 
-  private def checkExhaustivity(pattern: Pattern, coveredTypeTree: TypeTree)(using defn: Definitions, rp: Reporter, so: Source): Unit =
+  private def checkExhaustivity(patterns: List[Pattern], coveredTypeTree: TypeTree)(using defn: Definitions, rp: Reporter, so: Source): Unit =
     import Exhaustivity.Space
     val coveredType = coveredTypeTree.tpe
     val isPartial = coveredType.refersTo(defn.Predef_Partial)
     val scrutSpace = Space.TypeSpace(coveredType.stripPartial)
-    val patSpace = Exhaustivity.project(pattern)
-    val rest = Exhaustivity.subtract(scrutSpace, patSpace)
+
+    var rest = scrutSpace
+    for pattern <- patterns do
+      val space = Exhaustivity.project(pattern)
+      if Exhaustivity.isDisjoint(rest, space) then
+        Reporter.warn("The case is not reachable", pattern.pos)
+      else
+        rest = Exhaustivity.subtract(rest, space)
+    end for
 
     val cases = Exhaustivity.flatten(rest)
     if !cases.isEmpty && !isPartial then
@@ -572,6 +592,33 @@ class PatternTyper(namer: Namer, checker: Checker):
 
       case Ast.Assign(id: Ast.Ident, nested) =>
         transformAscribePattern(id, nested, scrutType)
+
+      case Ast.If(cond, pattern, Ast.Block(Nil)) =>
+        val pattern2 = transformPattern(pattern, scrutType)
+
+        val guard =
+          given TargetType = TargetType.Known(defn.BoolType)
+          namer.transform(cond)
+
+        GuardPattern(pattern2, guard)
+
+      case Ast.With(pattern, bindings) =>
+        val pattern2 = transformPattern(pattern, scrutType)
+        val bindings2 = new mutable.ArrayBuffer[Assign]
+        for Ast.WithArg(id, expr) <- bindings yield
+          val sym = sc.resolvePattern(id.name, id.pos)
+
+          if !sym.info.isError then
+            oc.occur(sym, id.pos)
+
+            val expr2 =
+              given TargetType = TargetType.Known(sym.info)
+              namer.transform(expr)
+
+            bindings2 += Assign(Ident(sym)(id.span), expr2)(id.span | expr.span)
+        end for
+
+        TermBindingPattern(pattern2, bindings2.toList)
 
       case expr: Ast.Expr =>
         transformExprPattern(expr, scrutType)

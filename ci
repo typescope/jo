@@ -129,7 +129,7 @@ for item in $DIR/tests/warn/*.stk; do
 
     echo "testing $file"
 
-    bin/type -fatal-warnings $file > $OUT
+    bin/jsc.native -fatal-warnings $file > $OUT
     check $OUT $CHECK
 done
 

@@ -254,10 +254,10 @@ object Ast:
   /** Representation of a pattern definition */
   case class PatDef
     (ident: Ident, tparams: List[TypeParam], params: List[Param],
-      resultType: TypeTree, body: Word, preParamCount: Int)
+      resultType: TypeTree, cases: List[Case], preParamCount: Int)
     (val span: Span)
   extends Word, Def:
-    assert(isPattern(body), "Ill-formed pattern tree: " + body)
+    assert(cases.forall(c => isPattern(c.pat)), "Ill-formed pattern tree: " + cases)
 
   case class Param
     (ident: Ident, typ: TypeTree)
@@ -309,6 +309,12 @@ object Ast:
 
       case Expr(words) if words.nonEmpty =>
         words.forall(isPattern)
+
+      case With(expr, bindings) =>
+        isPattern(expr) && bindings.forall(_.paramRef.isInstanceOf[Ident])
+
+      case If(cond, thenp, Block(Nil)) =>
+        isPattern(thenp)
 
       case Assign(_: Ident, rhs) => isPattern(rhs)
 

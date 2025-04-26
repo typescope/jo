@@ -23,6 +23,7 @@ object Test:
 
   def compileAndCheck(test: String): Boolean = Reporter.timeout(100):
     given rp: Reporter = Reporter.createReporter(buffer = true)
+    given Reporter.Config = Reporter.Config(fatalWarnings = true)
 
     val sourceFiles =
       if IO.isFile(test) then test :: Nil

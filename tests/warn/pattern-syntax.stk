@@ -1,0 +1,2 @@
+pattern Len(x: Int): Int =
+  x @ y

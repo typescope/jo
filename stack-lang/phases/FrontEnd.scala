@@ -12,7 +12,7 @@ object FrontEnd:
 
   def run(
     stdlib: List[String], runtime: List[String], sources: List[String])
-    (using rp: Reporter)
+    (using Reporter, Reporter.Config)
   : List[Namespace] =
     val rootNameTable = new NameTable
     val runtimeNameTable = new NameTable
@@ -23,7 +23,7 @@ object FrontEnd:
   def run(
     stdlib: List[String], runtime: List[String], sources: List[String],
     runtimeNameTable: NameTable)
-    (using defnLazy: Definitions.Lazy, rp: Reporter)
+    (using defnLazy: Definitions.Lazy, rp: Reporter, cf: Reporter.Config)
   : List[Namespace] =
 
     given Definitions = defnLazy.value
@@ -37,6 +37,7 @@ object FrontEnd:
       Printing.peek(enable = false) |>
       TreeChecker.check
 
+    // normalizer must run before patmat to check effects of guard patterns
     val noramlizer = new phases.NormalizeParams
     val encoder = new phases.EncodeTagged
     val patmat = new phases.PatternMatcher

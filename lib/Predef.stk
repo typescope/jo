@@ -76,7 +76,7 @@ type Partial[T] <: T
 //
 // Its true semantics is handled in pattern translation.
 pattern (lhs: T) |[T] (rhs: T): T =
-  lhs @ rhs
+  case lhs @ rhs
 
 //------------------------------------------------------------------------------
 //

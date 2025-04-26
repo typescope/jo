@@ -1,0 +1,27 @@
+type Cons = #Cons(head: Int, tail: List[Int])
+
+fun (x: Int) :: (rest: List[Int]): Cons = #Cons x rest
+pattern (x: Int) :: (rest: List[Int]): Cons =
+  case #Cons x rest
+
+pattern Nil: #Nil = case #Nil
+fun Nil: #Nil = #Nil
+
+param delta: Int
+fun foo(x: Int): Int =
+  x + delta
+
+pattern Len(x: Int): List[Int] =
+  case Nil              then x = (foo 0 with delta = 1)
+  case _ :: (Len y)     then x = (foo y with delta = 2)
+
+fun test(l: List[Int]): Unit =
+  match l case Len n => println ("len = " + (intToStr n))
+
+  match l
+    case Len n if (foo n > 2 with delta = 1) => println "len > 1"
+    case _ => println "size <= 1"
+
+fun main =
+  test Nil
+  test (5 :: Nil)

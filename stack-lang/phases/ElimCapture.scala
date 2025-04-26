@@ -113,7 +113,7 @@ object ElimCapture:
       *
       * - capture of type parameters (closure conversion after erasure?)
       */
-    override def transformFunDef(fdef: FunDef)(using ctx: Context): Word =
+    override def transformNestedFunDef(fdef: FunDef)(using ctx: Context): Word =
       localDefs(fdef.symbol) = fdef
 
       val LiftInfo(funSym, captures) = ctx.liftInfos(fdef.symbol)

@@ -20,7 +20,10 @@ object Tokens:
       TokenInfo(this, span, indent)
 
   /** The indent info is the same for all tokens of the same line */
-  case class TokenInfo(token: Token, span: Span, indent: Indent)
+  case class TokenInfo(token: Token, span: Span, indent: Indent):
+    /** Whether the other indentation is a unindentation to the current one */
+    def isUnindent(that: TokenInfo): Boolean =
+      that.token == Token.EOF || this.indent.isUnindent(that.indent)
 
   /** Support for indentation syntax
     *

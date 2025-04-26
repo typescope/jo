@@ -23,10 +23,10 @@ object Compiler:
   val optionSpec = Map(
     "-o" -> true,
     "-layout" -> true,
+    "-fatal-warnings" -> false,
   )
 
   def compile(backendBuilder: BackendBuilder, args: Array[String]): Unit =
-
     val (options, rest) = IO.parseOptions(args, optionSpec)
 
     if rest.isEmpty then
@@ -59,6 +59,8 @@ object Compiler:
     )
 
     Reporter.monitor:
+      given Reporter.Config = Reporter.Config(options.contains("-fatal-warnings"))
+
       given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable)
 
       val namespacesSAST =

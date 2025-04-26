@@ -82,8 +82,8 @@ class Reporter(
 
   // TODO: change fn to phase: Phase[T, U] <: T => U to get phase name
   extension [T](v: T)
-    inline def |> [U](inline fn: T => U): U =
-      if this.hasErrors then
+    inline def |> [U](inline fn: T => U)(using config: Config): U =
+      if this.hasErrors || config.fatalWarnings && this.hasWarnings then
         throw FatalError.StopAfterPhase()
       else
         fn(v)
@@ -92,6 +92,8 @@ class Reporter(
   end extension
 
 object Reporter:
+  case class Config(fatalWarnings: Boolean)
+
   /** A fatal error that aborts the compilation */
   enum FatalError extends Exception:
     case CodeError(content: Diagnostic)

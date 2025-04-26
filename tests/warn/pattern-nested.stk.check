@@ -23,15 +23,15 @@
 |                                                         ^^^^^^^^^^^^^^^^^^
 |                                                         The match is exhaustive. There is no need to mark the type with `Partial`.
 
----------- Error at ./tests/warn/pattern-nested.stk:23:4 ---------------
-|   (#Cons x Nil) | (#Cons _ #Cons)
-|    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-|    The lhs and rhs bind should bind same set of symbols, found lhs = Set(x), rhs = Set()
+---------- Error at ./tests/warn/pattern-nested.stk:23:9 ---------------
+|   case (#Cons x Nil) | (#Cons _ #Cons)
+|         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|         The lhs and rhs bind should bind same set of symbols, found lhs = Set(x), rhs = Set()
 
----------- Error at ./tests/warn/pattern-nested.stk:26:35 ---------------
-|   (#Cons x Nil) | (#Cons x (#Cons x _))
-|                                   ^
-|                                   The parameter x occurred more than once in the patterns
+---------- Error at ./tests/warn/pattern-nested.stk:26:40 ---------------
+|   case (#Cons x Nil) | (#Cons x (#Cons x _))
+|                                        ^
+|                                        The parameter x occurred more than once in the patterns
 
 ---------- Warning at ./tests/warn/pattern-nested.stk:38:9 ---------------
 |   match a

@@ -115,10 +115,13 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
     FunDef(valueFunSym, tparams = Nil, params = Nil, tpt, body)(pdef.span)
 
   override def transformNamespace(ns: Namespace)(using ctx: Context): Namespace =
+    given Context = contextObject.newContext(ns.symbol, ctx)
     val defs = ns.defs.flatMap:
       case fdef: FunDef =>
-        given Context = contextObject.newContext(ns.symbol, ctx)
         transformFunDef(fdef) :: Nil
+
+      case pdef: PatDef =>
+        transformPatDef(pdef) :: Nil
 
       case pdef: ParamDef if pdef.symbol.is(Flags.Default) =>
         val optionParamSym = pdef.symbol.optionParam
@@ -185,7 +188,7 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
 
       super.transformFunDef(fdef)
 
-  override  def transformIdent(ident: Ident)(using ctx: Context): Word =
+  override def transformIdent(ident: Ident)(using ctx: Context): Word =
     val sym = ident.symbol
     if sym.isAllOf(Flags.Context | Flags.Default) then
       Apply(Ident(sym.valueFunction)(ident.span), args = Nil)(sym.info, ident.span)
@@ -304,6 +307,32 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
     val aliases = aliasMap.values.toSeq
     val obj2 = obj.copy(defs = newDefs.toList)(obj.tpe, obj.span)
     Block((aliases :+ obj2).toList)(obj.tpe, obj.span)
+
+
+  private def checkTermInPattern(word: Word)(using ctx: Context): Word =
+    given Source = ctx.owner.sourcePos.source
+    val effs = EffectAnalysis.effects(word)(using ctx.cache)
+
+    for
+      (eff, trace) <- effs
+    do
+      Reporter.error("External context parameters not allowed in patterns: " + eff, word.pos, trace)
+
+    // The code might still bind and use default parameters
+    this(word)
+
+  override def transformGuardPattern(pat: GuardPattern)(using ctx: Context): Pattern =
+    pat.copy(pattern = this(pat.pattern), guard = checkTermInPattern(pat.guard))
+
+  override def transformTermBindingPattern(pat: TermBindingPattern)(using ctx: Context): Pattern =
+    val assigns =
+      for ass <- pat.bindings
+      yield ass.copy(rhs = checkTermInPattern(ass.rhs))(ass.span)
+
+    pat.copy(pattern = this(pat.pattern), bindings = assigns)
+
+  override def transformValuePattern(pat: ValuePattern)(using ctx: Context): Pattern =
+    pat.copy(value = checkTermInPattern(pat.value))
 
 object NormalizeParams:
   class Context(val cache: EffectAnalysis.Cache, val owner: Symbol)

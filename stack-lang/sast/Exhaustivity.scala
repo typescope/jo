@@ -12,6 +12,7 @@ object Exhaustivity:
     case TypeSpace(tpe: Type)
     case TagSpace(tag: String, args: List[Space])
     case PredSpace(pred: Symbol, tpe: ProcType, args: List[Space])
+    case PartialSpace(space: Space)
     case UnionSpace(spaces: Seq[Space])
 
     def show: String = Exhaustivity.show(this)
@@ -31,6 +32,9 @@ object Exhaustivity:
 
       case TypeSpace(tpe) =>
         tpe.show
+
+      case PartialSpace(space) =>
+        show(space)
 
       case TagSpace(tag, args) =>
         val argsText =
@@ -54,6 +58,8 @@ object Exhaustivity:
       case EmptySpace => Nil
 
       case _: TypeSpace => space :: Nil
+
+      case PartialSpace(space) => space :: Nil
 
       case TagSpace(tag, args) =>
         if args.exists(isEmpty) then
@@ -98,10 +104,18 @@ object Exhaustivity:
       case OrPattern(lhs, rhs) =>
         UnionSpace(project(lhs) :: project(rhs) :: Nil)
 
+      case GuardPattern(pattern, _) =>
+        PartialSpace(project(pattern))
+
+      case TermBindingPattern(pattern, bindings) =>
+        project(pattern)
+
   def subtract(s1: Space, s2: Space)(using defn: Definitions): Space = Debug.trace(s"subtract(${s1.show}, ${s2.show})", (_: Space).show, enable = false):
     (s1, s2) match
-      case (_, EmptySpace) => s1
+      case (_, EmptySpace | _: PartialSpace) => s1
       case (EmptySpace, _) => s1
+
+      case (_: PartialSpace, _) => s1
 
       case (_, UnionSpace(spaces)) =>
         spaces.foldLeft(s1): (acc, s2) =>
@@ -222,7 +236,7 @@ object Exhaustivity:
           s1
 
       case (TypeSpace(tp), PredSpace(pred, procType, _)) =>
-        if Subtyping.isEqualType(tp, procType.resultType) then
+        if Subtyping.conforms(tp, procType.resultType) then
           val s1 = PredSpace(pred, procType, procType.params.map(param => TypeSpace(param.info)))
           subtract(s1, s2)
 
@@ -242,6 +256,9 @@ object Exhaustivity:
     (s1, s2) match
       case (_, EmptySpace) => true
       case (EmptySpace, _) => true
+
+      case (_, PartialSpace(s2)) => isDisjoint(s1, s2)
+      case (PartialSpace(s1), _) => isDisjoint(s1, s2)
 
       case (_, UnionSpace(spaces)) =>
         spaces.forall: s2 =>
@@ -334,3 +351,5 @@ object Exhaustivity:
       case PredSpace(_, _, args) => args.exists(isEmpty)
 
       case UnionSpace(spaces) => spaces.forall(isEmpty)
+
+      case PartialSpace(space) => isEmpty(space)

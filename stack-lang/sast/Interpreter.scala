@@ -504,6 +504,8 @@ object Interpreter:
 
     val rootNameTable = new NameTable
     val runtimeNameTable = new NameTable
+
+    given Reporter.Config = Reporter.Config(fatalWarnings = true)
     given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable)
     val namespacesSAST = FrontEnd.run(stdlib, runtime, sourceFiles, runtimeNameTable)
 

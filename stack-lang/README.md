@@ -113,7 +113,10 @@ Abstract Syntax
     match   = MATCH expr {case} [END].
     case    = CASE pattern RARROW block.
 
-    pattern = expr_pattern.
+    pattern = expr_pattern [IF expr] [THEN pattern_bindings]
+
+    pattern_bindings = pattern_binding {COMMA pattern_binding}.
+    pattern_binding = ident EQL expr.
 
     expr_pattern = simple_pattern {simple_pattern}.
 
@@ -127,7 +130,9 @@ Abstract Syntax
     valdef  = (VAL | VAR) ident [COLON type] EQL block.
     fundef  = FUN [param_section] ident [tparams] [param_section] [COLON type] [receive_params] EQL block [END].
     defdef  = DEF ident [tparams] [param_section] [COLON type] [receive_params] EQL block [END].
-    patdef  = PATTERN ident [tparams] [param_section] [COLON type] EQL pattern [END].
+    patdef  = PATTERN ident [tparams] [param_section] [COLON type] EQL cases [END].
+
+    cases   = case Pattern {CASE pattern}.
 
     paramdef = PARAM param [EQL block].
 

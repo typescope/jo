@@ -1,20 +1,20 @@
 type Student = #Student(name: String, sex: Bool, age: Int)
 
 pattern Student(s: String, sex: Bool, age: Int): Student =
-  #Student s sex age
+  case #Student s sex age
 
 pattern Name(name: String): Student =
-  #Student name _ _
+  case #Student name _ _
 
 pattern Some[T](value: T): #Some(v: T) =
-  #Some value
+  case #Some value
 
-pattern None: #None = #None
+pattern None: #None = case #None
 
 pattern InferRes(name: String, sex: Bool, age: Int): Student =
-  #Student name sex age
+  case #Student name sex age
 
-pattern Type(s: Student): Student = s: Student
+pattern Type(s: Student): Student = case s: Student
 
 fun test(s: Student) =
   match s

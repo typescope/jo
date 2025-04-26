@@ -2,39 +2,39 @@ type Student = #Student(name: String, sex: Bool, birthday: Int)
 type Teacher = #Teacher(name: String, address: String, birthday: Int)
 
 pattern WrongResType(s: String, age: Int): Student =
-  #Teacher s age _  // error
+  case #Teacher s age _  // error
 
 pattern ResTypeNotEqual(s: String): Student | Teacher =  // error
-  #Teacher s _ _
+  case #Teacher s _ _
 
 pattern OnSiteDefinedVar(addr: String): Teacher =
-  #Teacher s addr _
+  case #Teacher s addr _
 
 pattern OnSiteDefinedVarDoubleBinding(addr: String): Teacher =
-  #Teacher s s _ // error
+  case #Teacher s s _ // error
 
 pattern DoubleBind(s: String): Teacher =
-  #Teacher s s _  // error
+  case #Teacher s s _  // error
 
 pattern NoOccur(s: Int): Teacher = // error
-  #Teacher _ _ _
+  case #Teacher _ _ _
 
 pattern BindTypeMismatch(s: String): Student =
-  #Student _ s _  // error
+  case #Student _ s _  // error
 
 pattern BindTypeMismatch2(s: Student): Student =
-  s: Teacher  // error // error
+  case s: Teacher  // error
 
 pattern FewerArgNumOK(name: String): Student =
-  #Student name _
+  case #Student name _
 
 pattern Student(s: String, sex: Bool, age: Int): Student =
-  #Student s sex age
+  case #Student s sex age
 
 pattern Name(name: String): Student =
-  #Student name _ _
+  case #Student name _ _
 
-pattern Type(s: Student): Student = s: Student
+pattern Type(s: Student): Student = case s: Student
 
 fun test(s: Student) =
   match s

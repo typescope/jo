@@ -19,18 +19,18 @@ fun test(a: Option[Option[Int]]): Unit =
 type Cons = #Cons(head: Int, tail: List[Int])
 
 pattern Cons(x: Int, rest: List[Int]): Cons =
-  #Cons x rest
+  case #Cons x rest
 
 fun Cons(x: Int, rest: List[Int]): List[Int] =
   #Cons x rest
 
 pattern (x: Int) :: (rest: List[Int]): Cons =
-  #Cons x rest
+  case #Cons x rest
 
 pattern List2(x: Int, y: Int): Partial[List[Int]] =
-  #Cons x (#Cons y #Nil)
+  case #Cons x (#Cons y #Nil)
 
-pattern Nil: #Nil = #Nil
+pattern Nil: #Nil = case #Nil
 fun Nil: #Nil = #Nil
 
 fun test2(a: List[Int]): Unit =

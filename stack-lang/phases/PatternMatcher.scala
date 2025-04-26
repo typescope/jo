@@ -85,7 +85,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
     val tpt = TypeTree(resultType)(pdef.resultType.span)
     FunDef(implSym, pdef.tparams, scrutSym :: Nil, tpt, body)(pdef.span) :: pdef :: Nil
 
-  override def transformPatDef(pdef: PatDef)(using ctx: Context): Word =
+  override def transformNestedPatDef(pdef: PatDef)(using ctx: Context): Word =
     Block(implementPatDef(pdef))(VoidType, pdef.span)
 
   override def transformMatch(patmat: Match)(using ctx: Context): Word =
@@ -158,6 +158,15 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
 
       case valuePattern: ValuePattern =>
         transformValuePattern(scrut, valuePattern)
+
+      case GuardPattern(pattern, guard) =>
+        val cond = transformPattern(scrut, pattern)
+        If(cond, guard, BoolLit(false)(pat.span))(BoolType, pat.span)
+
+      case TermBindingPattern(pattern, bindings) =>
+        val cond = transformPattern(scrut, pattern)
+        val nestedBlock = Block(bindings :+ BoolLit(true)(pat.span))(BoolType, pat.span)
+        If(cond, nestedBlock, BoolLit(false)(pat.span))(BoolType, pat.span)
 
       case WildcardPattern() =>
         assert(Subtyping.conforms(scrut.tpe, pat.tpe), "scrutee type = " + scrut.tpe.show + ", pattern type = " + pat.tpe.show)
