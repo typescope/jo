@@ -39,13 +39,13 @@ object SastOps:
         // Numeric coercion
         word match
           case Literal(Constant.Int(n)) =>
-            val tp2 = adaptIntLiteral(n, word.tpe, targetType)
+            val tp2 = coerceIntLiteral(n, word.tpe, targetType)
             val word2 = Literal(Constant.Int(n))(tp2, word.span)
             word2
 
           case _ =>
-            // TODO: only widening coercion is allowed for non-literals
-            autoCoerceNumeric(word, targetType)
+            // Only widening coercion is allowed for non-literals
+            coerceNumeric(word, targetType)
 
       else if Subtyping.conforms(unitType, targetType) then
         val unit = RecordLit(args = Nil)(unitType, word.span)
@@ -54,7 +54,7 @@ object SastOps:
       else
         throw new AdaptionFailure(word, targetType)
 
-  private def adaptIntLiteral(n: Int, origType: Type, targetType: Type)
+  private def coerceIntLiteral(n: Int, origType: Type, targetType: Type)
     (using defn: Definitions)
   : Type =
 
@@ -68,10 +68,7 @@ object SastOps:
     else
       origType
 
-  def autoCoerceNumeric(word: Word, targetType: Type)
-    (using defn: Definitions)
-  : Word =
-
+  def coerceNumeric(word: Word, targetType: Type)(using defn: Definitions): Word =
     val origType = word.tpe
     if origType.refersTo(defn.Predef_Byte) then
       if targetType.refersTo(defn.Predef_Char) then
@@ -109,7 +106,7 @@ object SastOps:
       transform(word)
 
     final def apply(pattern: Pattern)(using Context): Pattern =
-      recur(pattern)
+      transform(pattern)
 
     final def transform(word: Word)(using Context): Word =
       word match
@@ -139,11 +136,11 @@ object SastOps:
 
         case vdef: ValDef => transformValDef(vdef)
 
-        case fdef: FunDef => transformFunDef(fdef)
+        case fdef: FunDef => transformNestedFunDef(fdef)
 
-        case pdef: PatDef => transformPatDef(pdef)
+        case pdef: PatDef => transformNestedPatDef(pdef)
 
-        case tdef: TypeDef => transformTypeDef(tdef)
+        case tdef: TypeDef => transformNestedTypeDef(tdef)
 
         case ifElse: If => transformIf(ifElse)
 
@@ -155,6 +152,26 @@ object SastOps:
 
         case obj: Object => transformObject(obj)
     end transform
+
+    final def transform(pattern: Pattern)(using Context): Pattern =
+      pattern match
+        case pat: AscribePattern => transformAscribePattern(pat)
+
+        case pat: TypePattern => transformTypePattern(pat)
+
+        case pat: TagPattern => transformTagPattern(pat)
+
+        case pat: ApplyPattern => transformApplyPattern(pat)
+
+        case pat: OrPattern => transformOrPattern(pat)
+
+        case pat: ValuePattern => transformValuePattern(pat)
+
+        case pat: GuardPattern => transformGuardPattern(pat)
+
+        case pat: TermBindingPattern => transformTermBindingPattern(pat)
+
+        case pat: WildcardPattern => transformWildcardPattern(pat)
 
     def transformLiteral(lit: Literal)(using Context): Word = recur(lit)
 
@@ -182,11 +199,11 @@ object SastOps:
 
     def transformValDef(vdef: ValDef)(using Context): Word = recurValDef(vdef)
 
-    def transformFunDef(fdef: FunDef)(using Context): Word = recurFunDef(fdef)
+    def transformNestedFunDef(fdef: FunDef)(using Context): Word = recurFunDef(fdef)
 
-    def transformPatDef(pdef: PatDef)(using Context): Word = recurPatDef(pdef)
+    def transformNestedPatDef(pdef: PatDef)(using Context): Word = recurPatDef(pdef)
 
-    def transformTypeDef(tdef: TypeDef)(using Context): TypeDef = recurTypeDef(tdef)
+    def transformNestedTypeDef(tdef: TypeDef)(using Context): TypeDef = recurTypeDef(tdef)
 
     def transformIf(ifElse: If)(using Context): Word = recur(ifElse)
 
@@ -198,6 +215,26 @@ object SastOps:
 
     def transformObject(obj: Object)(using Context): Word = recur(obj)
 
+
+    def transformAscribePattern(pat: AscribePattern)(using Context) = recur(pat)
+
+    def transformTypePattern(pat: TypePattern)(using Context) = recur(pat)
+
+    def transformTagPattern(pat: TagPattern)(using Context) = recur(pat)
+
+    def transformApplyPattern(pat: ApplyPattern)(using Context) = recur(pat)
+
+    def transformOrPattern(pat: OrPattern)(using Context) = recur(pat)
+
+    def transformValuePattern(pat: ValuePattern)(using Context) = recur(pat)
+
+    def transformGuardPattern(pat: GuardPattern)(using Context) = recur(pat)
+
+    def transformTermBindingPattern(pat: TermBindingPattern)(using Context) = recur(pat)
+
+    def transformWildcardPattern(pat: WildcardPattern)(using Context) = recur(pat)
+
+
     private def recurValDef(vdef: ValDef)(using Context): ValDef =
       ValDef(vdef.symbol, this(vdef.rhs))(vdef.span)
 
@@ -207,7 +244,8 @@ object SastOps:
 
     private def recurTypeDef(tdef: TypeDef)(using Context): TypeDef = tdef
 
-    private def recurPatDef(pdef: PatDef)(using Context): PatDef = pdef
+    private def recurPatDef(pdef: PatDef)(using Context): PatDef =
+      pdef.copy(body = this(pdef.body))(pdef.span)
 
     final def recur(pattern: Pattern)(using Context): Pattern =
       pattern match
@@ -303,7 +341,7 @@ object SastOps:
         case Match(scrutinee, cases) =>
           val cases2 =
             for branch <- cases
-            yield branch.copy(branch.pattern, this(branch.body))(branch.span)
+            yield branch.copy(this(branch.pattern), this(branch.body))(branch.span)
 
           Match(this(scrutinee), cases2)(word.tpe, word.span)
 

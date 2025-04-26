@@ -85,7 +85,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
     val tpt = TypeTree(resultType)(pdef.resultType.span)
     FunDef(implSym, pdef.tparams, scrutSym :: Nil, tpt, body)(pdef.span) :: pdef :: Nil
 
-  override def transformPatDef(pdef: PatDef)(using ctx: Context): Word =
+  override def transformNestedPatDef(pdef: PatDef)(using ctx: Context): Word =
     Block(implementPatDef(pdef))(VoidType, pdef.span)
 
   override def transformMatch(patmat: Match)(using ctx: Context): Word =

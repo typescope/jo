@@ -37,6 +37,7 @@ object FrontEnd:
       Printing.peek(enable = false) |>
       TreeChecker.check
 
+    // normalizer must run before patmat to check effects of guard patterns
     val noramlizer = new phases.NormalizeParams
     val encoder = new phases.EncodeTagged
     val patmat = new phases.PatternMatcher

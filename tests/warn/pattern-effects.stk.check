@@ -1,0 +1,91 @@
+---------- Error at ./tests/warn/pattern-effects.stk:15:15 ---------------
+|   case Nil if foo 3 > 0 then x = 0
+|               ^^^^^^^^^
+|               External context parameters not allowed in patterns: stdout
+
+The following is the trace that leads to the problem: 
+├──   case Nil if foo 3 > 0 then x = 0	[ ./tests/warn/pattern-effects.stk:15:15 ]
+│                 ^^^
+├──   println (intToStr x)	[ ./tests/warn/pattern-effects.stk:11:3 ]
+│     ^^^^^^^
+├──   printChar '\n'	[ lib/Predef.stk:98:3 ]
+│     ^^^^^^^^^
+├──   print	[ lib/Predef.stk:93:3 ]
+│     ^^^^^
+└── fun print(s: String): Unit = stdout.write s	[ lib/Predef.stk:90:30 ]
+                                 ^^^^^^
+
+
+---------- Error at ./tests/warn/pattern-effects.stk:16:34 ---------------
+|   case _ :: (Len y)     then x = foo y
+|                                  ^^^^^
+|                                  External context parameters not allowed in patterns: stdout
+
+The following is the trace that leads to the problem: 
+├──   case _ :: (Len y)     then x = foo y	[ ./tests/warn/pattern-effects.stk:16:34 ]
+│                                    ^^^
+├──   println (intToStr x)	[ ./tests/warn/pattern-effects.stk:11:3 ]
+│     ^^^^^^^
+├──   printChar '\n'	[ lib/Predef.stk:98:3 ]
+│     ^^^^^^^^^
+├──   print	[ lib/Predef.stk:93:3 ]
+│     ^^^^^
+└── fun print(s: String): Unit = stdout.write s	[ lib/Predef.stk:90:30 ]
+                                 ^^^^^^
+
+
+---------- Error at ./tests/warn/pattern-effects.stk:21:17 ---------------
+|     case Nil if foo 4 < 0 =>
+|                 ^^^^^^^^^
+|                 External context parameters not allowed in patterns: stdout
+
+The following is the trace that leads to the problem: 
+├──     case Nil if foo 4 < 0 =>	[ ./tests/warn/pattern-effects.stk:21:17 ]
+│                   ^^^
+├──   println (intToStr x)	[ ./tests/warn/pattern-effects.stk:11:3 ]
+│     ^^^^^^^
+├──   printChar '\n'	[ lib/Predef.stk:98:3 ]
+│     ^^^^^^^^^
+├──   print	[ lib/Predef.stk:93:3 ]
+│     ^^^^^
+└── fun print(s: String): Unit = stdout.write s	[ lib/Predef.stk:90:30 ]
+                                 ^^^^^^
+
+
+---------- Error at ./tests/warn/pattern-effects.stk:22:16 ---------------
+|     case (x if foo x > 3) :: (Len y) =>
+|                ^^^^^^^^^
+|                External context parameters not allowed in patterns: stdout
+
+The following is the trace that leads to the problem: 
+├──     case (x if foo x > 3) :: (Len y) =>	[ ./tests/warn/pattern-effects.stk:22:16 ]
+│                  ^^^
+├──   println (intToStr x)	[ ./tests/warn/pattern-effects.stk:11:3 ]
+│     ^^^^^^^
+├──   printChar '\n'	[ lib/Predef.stk:98:3 ]
+│     ^^^^^^^^^
+├──   print	[ lib/Predef.stk:93:3 ]
+│     ^^^^^
+└── fun print(s: String): Unit = stdout.write s	[ lib/Predef.stk:90:30 ]
+                                 ^^^^^^
+
+
+---------- Error at ./tests/warn/pattern-effects.stk:23:38 ---------------
+|     case ((x if x > 5) | (_ then x = foo 3)) :: (Len y) =>
+|                                      ^^^^^
+|                                      External context parameters not allowed in patterns: stdout
+
+The following is the trace that leads to the problem: 
+├──     case ((x if x > 5) | (_ then x = foo 3)) :: (Len y) =>	[ ./tests/warn/pattern-effects.stk:23:38 ]
+│                                        ^^^
+├──   println (intToStr x)	[ ./tests/warn/pattern-effects.stk:11:3 ]
+│     ^^^^^^^
+├──   printChar '\n'	[ lib/Predef.stk:98:3 ]
+│     ^^^^^^^^^
+├──   print	[ lib/Predef.stk:93:3 ]
+│     ^^^^^
+└── fun print(s: String): Unit = stdout.write s	[ lib/Predef.stk:90:30 ]
+                                 ^^^^^^
+
+
+5 error(s), 0 warning(s)
