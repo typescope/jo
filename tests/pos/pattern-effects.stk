@@ -8,20 +8,20 @@ pattern Nil: #Nil = case #Nil
 fun Nil: #Nil = #Nil
 
 param delta: Int
-fun bar(x: Int): Int = x + delta
-
 fun foo(x: Int): Int =
-  println (intToStr x)
-  x + 1
+  x + delta
 
 pattern Len(x: Int): List[Int] =
-  case Nil if foo 3 > 0 then x = 0
-  case _ :: (Len y)     then x = bar y
-  case _                then x = 4
+  case Nil              then x = (foo 0 with delta = 1)
+  case _ :: (Len y)     then x = (foo y with delta = 2)
 
 fun test(l: List[Int]): Unit =
+  match l case Len n => println ("len = " + (intToStr n))
+
   match l
-    case Nil if foo 4 < 0 =>
-    case (x if foo x > 3) :: (Len y) =>
-    case ((x if x > 5) | (_ then x = foo 3)) :: (Len y) =>
-    case _ =>
+    case Len n if (foo n > 2 with delta = 1) => println "len > 1"
+    case _ => println "size <= 1"
+
+fun main =
+  test Nil
+  test (5 :: Nil)
