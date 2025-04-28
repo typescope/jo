@@ -112,7 +112,7 @@ Abstract Syntax
     member     = valdef | defdef.
 
     tapply  = word targs.
-    lambda  = param_section RARROW block.
+    lambda  = (param_section | ident) RARROW block.
 
     match   = MATCH expr {case} [END].
     case    = CASE pattern RARROW block.

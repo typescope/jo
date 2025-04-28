@@ -1,10 +1,11 @@
-fun foo[A,B,C](f: A => B, g: B => C): A => C = (a) => g (f a)
+fun foo[A,B,C](f: A => B, g: B => C): A => C =
+  a => g (f a)
 
 fun main =
   foo
     (a: Int) => a + 4
-    (b) => b > 3
+    b => b > 3
 
   foo
-    (a) => a + 4
-    (b) => b > 3
+    a => a + 4
+    b => b > 3

@@ -33,4 +33,4 @@ fun main =
   }
 
   val res = moviesDirectedBy "b" with finder = testFinder
-  foreach res (m) => println m.name
+  foreach res (m => println m.name)

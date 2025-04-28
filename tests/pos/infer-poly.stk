@@ -7,9 +7,9 @@ fun app2[X, Y](f: X => Y, x: X): Y = f x
 fun main =
   test1 5 p
 
-  app 5 ((x) => x * x) p
+  app 5 (x => x * x) p
 
   // Scala cannot do this
-  app2 ((x) => x + x) 5 p
+  app2 (x => x + x) 5 p
 
-  val f = (x) => x + x
+  val f = (x => x + x)
