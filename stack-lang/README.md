@@ -78,7 +78,7 @@ Abstract Syntax
 
     word    = integer | boolean | char | string | ident | fence | record | tapply | apply | select | tag | lambda | object.
 
-    phrase  = simple_phrase | assign | valdef | fundef | typedef | while | if | match.
+    phrase  = simple_phrase | assign | valdef | fundef | patdef | typedef | while | if | match.
 
     block   = { phrase }.
 

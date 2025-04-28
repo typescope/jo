@@ -237,7 +237,7 @@ object Printing:
         showPattern(thenp) ~ " if " ~ thenp
 
       case With(expr, args) =>
-        val withText = " with " ~ rep(args, Text(", "))
+        val withText = " then " ~ rep(args, Text(", "))
         expr ~ withText
 
       case Assign(id: Ident, rhs) =>
