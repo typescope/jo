@@ -19,7 +19,7 @@ import scala.collection.mutable
 class ElimCapture extends Phase[Symbol]:
   val contextObject = Phase.OwnerContext
 
-  def transformDefs(defs: List[Def]): List[Def] =
+  override def transformTopLevelDefs(defs: List[Def])(using Context): List[Def] =
     val uniq = new UniqueName
     defs.flatMap:
       case fdef: FunDef => ElimCapture.transformFunDef(fdef, uniq)

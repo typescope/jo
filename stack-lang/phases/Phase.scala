@@ -18,7 +18,7 @@ abstract class Phase[T] extends SastOps.TreeMap:
       transformNamespace(ns)
 
   def transformNamespace(ns: Namespace)(using ctx: Context): Namespace =
-    val defs = transformDefs(ns.defs)
+    val defs = transformTopLevelDefs(ns.defs)
     Namespace(ns.symbol, ns.imports, defs)(ns.span)
 
   /** Transform top-level definitions */
@@ -38,9 +38,9 @@ abstract class Phase[T] extends SastOps.TreeMap:
 
       case defn => defn
 
-  def transformSection(section: Section)(using ctx: Context): Namespace =
-    given Context = contextObject.newContext(section.symbol)
-    val defs = transformDefs(ns.defs)
+  def transformSection(section: Section)(using ctx: Context): Section =
+    given Context = contextObject.newContext(section.symbol, ctx)
+    val defs = transformTopLevelDefs(section.defs)
     Section(section.symbol, defs)(section.span)
 
   /** Transform top-level function definitions */

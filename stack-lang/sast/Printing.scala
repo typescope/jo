@@ -113,7 +113,18 @@ object Printing:
 
         val resType = ": " ~ pdef.resultType
 
-        "pattern " ~ pdef.name ~ tparams ~ params ~ resType ~ " =" ~ indent(pdef.body)
+        // Print top-level or patterns as cases
+        def printBody(pattern: Pattern): Text =
+          pattern match
+            case OrPattern(lhs, rhs) =>
+              "case " ~ lhs ~ Text.BreakLine ~ printBody(rhs)
+
+            case _ =>
+              "case " ~ showPattern(pattern)
+
+        "pattern " ~ pdef.name ~ tparams ~ params ~ resType ~ " =" ~ indent:
+            printBody(pdef.body)
+
 
       case tdef: TypeDef =>
         "type " ~ tdef.name ~ " = " ~ tdef.symbol.info.show
