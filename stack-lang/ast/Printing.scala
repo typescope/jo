@@ -118,6 +118,9 @@ object Printing:
 
         "type " ~ tdef.ident ~ tparams ~ token ~ tdef.rhs
 
+      case Section(name, defs) =>
+        "section " ~ name ~ indent:
+            rep(defs, Text.BlankLine)
 
   def showWord(word: Word): Text =
     word match

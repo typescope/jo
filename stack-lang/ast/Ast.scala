@@ -234,6 +234,11 @@ object Ast:
     (val span: Span)
   extends Def
 
+  case class Section
+    (ident: Ident, defs: List[Def])
+    (val span: Span)
+  extends Def
+
   /** Representation of functions and methods
     *
     * TODO: a keyword `capture` can be introduced for methods to make capture

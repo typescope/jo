@@ -64,7 +64,11 @@ Lexical Grammar
 Abstract Syntax
 
 ~~~
-    namespace = [NSPACE qualid] {import} {typedef | fundef | paramdef | patdef } EOF.
+    namespace = [NSPACE qualid] {import} {toplevel_def} EOF.
+
+    section = SECTION ident {toplevel_def} [END].
+
+    toplevel_def = typedef | fundef | paramdef | patdef | section.
 
     qualid = ident | qualid DOT ident.
 
