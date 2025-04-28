@@ -173,5 +173,5 @@ class Checker:
         // It ensures that in `Apply(fun, args)` the fun is an ident or select.
         word2
 
-      case TargetType.NamespaceMember | TargetType.ObjectMember =>
+      case TargetType.ObjectMember =>
         throw new Exception("No adaptation expected: " + word)

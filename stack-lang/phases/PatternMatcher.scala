@@ -27,18 +27,12 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
       given Context = PatternMatcher.Context(implMap, ns.symbol)
       super.transformNamespace(ns)
 
-  def transformTopLevelDefs(defs: List[Def])(using ctx: Context): List[Def] =
+  override def transformTopLevelDefs(defs: List[Def])(using ctx: Context): List[Def] =
     ns.defs.flatMap:
-      case fdef: FunDef =>
-        transformFunDef(fdef) :: Nil
-
       case pdef: PatDef =>
         implementPatDef(pdef)
 
-      case sec: Section =>
-        transformSection(sec) :: Nil
-
-      case defn => defn :: Nil
+      case defn => super.transformTopLevelDef(defn) :: Nil
 
   private def createImplFunSymbol(predSym: Symbol): Symbol =
     val predType = predSym.info.asProcType

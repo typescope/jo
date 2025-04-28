@@ -10,9 +10,9 @@ import native.Linker
 import scala.collection.mutable
 
 abstract class LinuxSyscall(runtimeRootNameTable: NameTable) extends Linker:
-  import runtimeRootNameTable.resolveNamespace
+  import runtimeRootNameTable.resolveContainer
 
-  val Syscall = resolveNamespace("stk.runtime.native.Syscall")
+  val Syscall = resolveContainer("stk.runtime.native.Syscall")
 
   val syscallSymbols = Set(
     Syscall.termMember("__sys_brk"),

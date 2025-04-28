@@ -34,8 +34,8 @@ class NameTable(
       case None => Nil
       case Some(sym) => sym :: Nil
 
-  def resolveNamespace(path: String) =
-    NameTable.resolveNamespace(this, path)
+  def resolveContainer(path: String) =
+    NameTable.resolveContainer(this, path)
 
   def define(sym: Symbol)(using rp: Reporter): Unit =
     val table = getTable(sym)
@@ -65,23 +65,23 @@ class NameTable(
     "terms: { " + termNames + "}" + "\ntypes: { " + typeNames + "}" + "\npatterns: { " + patternNames + "}"
 
 object NameTable:
-  def resolveNamespace(nameTable: NameTable, path: String): Symbol =
-    resolveNamespace(nameTable, path.split("\\.").toList) match
+  def resolveContainer(nameTable: NameTable, path: String): Symbol =
+    resolveContainer(nameTable, path.split("\\.").toList) match
       case Some(sym) => sym
       case None => throw new Exception("Not found: " + path + ", name table " + nameTable.show)
 
-  def resolveNamespace(nameTable: NameTable, parts: List[String]): Option[Symbol] =
+  def resolveContainer(nameTable: NameTable, parts: List[String]): Option[Symbol] =
     (parts: @unchecked) match
       case name :: Nil =>
         nameTable.resolveTerm(name) match
-          case Some(sym) if sym.isNamespace => Some(sym)
+          case Some(sym) if sym.isContainer => Some(sym)
           case _ => None
 
       case name :: rest =>
         nameTable.resolveTerm(name).flatMap: sym =>
-          if sym.isNamespace then
+          if sym.isContainer then
             val nameTable = sym.info.as[NameTableInfo].nameTable
-            resolveNamespace(nameTable, rest)
+            resolveContainer(nameTable, rest)
           else
             None
 

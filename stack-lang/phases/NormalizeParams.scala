@@ -134,10 +134,10 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
     *
     * TODO: Need to do the same for each thread.
     */
-  override  def transformFunDef(fdef: FunDef)(using ctx: Context): FunDef =
+  override  def transformTopLevelFunDef(fdef: FunDef)(using ctx: Context): FunDef =
     if !fdef.symbol.isLocal && fdef.name == "main" then
       val effs = EffectAnalysis.effects(fdef.symbol)(using ctx.cache)
-      val fdef2 = super.transformFunDef(fdef)
+      val fdef2 = super.transformTopLevelFunDef(fdef)
 
       val pos = fdef.symbol.sourcePos
       for
@@ -178,7 +178,7 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
               for (eff, trace) <- effs do
                 Reporter.error("Parameter not allowed for default values: " + eff, pos, trace)
 
-      super.transformFunDef(fdef)
+      super.transformTopLevelFunDef(fdef)
 
   override def transformIdent(ident: Ident)(using ctx: Context): Word =
     val sym = ident.symbol
