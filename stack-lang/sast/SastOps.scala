@@ -501,11 +501,11 @@ object SastOps:
 
         case ValDef(sym, rhs) =>
           if !sym.isField then locals += sym
-          recur(rhs)
+          this(rhs)
 
         case Assign(Ident(sym), rhs) =>
           locals += sym
-          recur(rhs)
+          this(rhs)
 
         case obj: Object =>
           locals += obj.self
