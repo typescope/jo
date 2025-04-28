@@ -317,6 +317,12 @@ object Sast:
   extends Word, Def:
     def procType: ProcType = symbol.info.asProcType
 
+  case class Section
+    (symbol: Symbol, defs: List[Def])
+    (val span: Span)
+  extends Def:
+    def info: NameTableInfo = symbol.info.as[NameTableInfo]
+
   case class Namespace
     (symbol: Symbol, imports: List[Symbol], defs: List[Def])
     (val span: Span)

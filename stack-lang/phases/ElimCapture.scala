@@ -16,19 +16,16 @@ import scala.collection.mutable
   *
   * Top-level functions are not transformed --- they do not capture locals.
   */
-object ElimCapture:
-  def transform(nss: List[Namespace]): List[Namespace] =
-    for ns <- nss yield transformNamespace(ns)
+class ElimCapture extends Phase[Symbol]:
+  val contextObject = Phase.OwnerContext
 
-  def transformNamespace(ns: Namespace): Namespace =
+  def transformDefs(defs: List[Def]): List[Def] =
     val uniq = new UniqueName
-    val defs =
-      ns.defs.flatMap:
-        case fdef: FunDef => transformFunDef(fdef, uniq)
-        case defn => defn :: Nil
+    defs.flatMap:
+      case fdef: FunDef => ElimCapture.transformFunDef(fdef, uniq)
+      case defn => super.transformTopLevelDef(defn) :: Nil
 
-    Namespace(ns.symbol, ns.imports, defs)(ns.span)
-
+object ElimCapture:
   def transformFunDef(fdef: FunDef, uniq: UniqueName): List[Def] =
     given ctx: Context = new Context(uniq)
     val lifter = new Lifter(fdef.symbol)

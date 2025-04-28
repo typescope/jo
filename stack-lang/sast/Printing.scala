@@ -121,6 +121,10 @@ object Printing:
       case pdef: ParamDef =>
         "param " ~ pdef.name ~ ": " ~ pdef.tpt
 
+      case Section(sym, defs) =>
+        "section " ~ sym ~ indent:
+            rep(defs, Text.BlankLine)
+
   def showWord(word: Word)(using defn: Definitions): Text =
     word match
       case Literal(c) =>

@@ -25,17 +25,20 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
 
     for ns <- nss yield
       given Context = PatternMatcher.Context(implMap, ns.symbol)
+      super.transformNamespace(ns)
 
-      val defs = ns.defs.flatMap:
-        case fdef: FunDef =>
-          transformFunDef(fdef) :: Nil
+  def transformTopLevelDefs(defs: List[Def])(using ctx: Context): List[Def] =
+    ns.defs.flatMap:
+      case fdef: FunDef =>
+        transformFunDef(fdef) :: Nil
 
-        case pdef: PatDef =>
-          implementPatDef(pdef)
+      case pdef: PatDef =>
+        implementPatDef(pdef)
 
-        case defn => defn :: Nil
+      case sec: Section =>
+        transformSection(sec) :: Nil
 
-      Namespace(ns.symbol, ns.imports, defs)(ns.span)
+      case defn => defn :: Nil
 
   private def createImplFunSymbol(predSym: Symbol): Symbol =
     val predType = predSym.info.asProcType
