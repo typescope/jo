@@ -6,7 +6,7 @@ fun main =
   val box = Box(5)
   val post = Post("Hello, World", "Turing", "Bla bla...")
 
-  val c: Box[Int] | Post = box
+  val c: Box[Int] | Post = Box 3
 
   match c
     case Box(value) => println (intToStr value)
