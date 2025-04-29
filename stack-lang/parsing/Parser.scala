@@ -182,7 +182,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       else None
 
     val defs = repeated:
-      Some(parseTopLevelDef())
+      if peek() == Token.EOF then None
+      else Some(parseTopLevelDef())
 
     val endSpan = if defs.isEmpty then id.span else defs.last.span
 
