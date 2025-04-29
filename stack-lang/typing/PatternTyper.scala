@@ -532,7 +532,8 @@ class PatternTyper(namer: Namer, checker: Checker):
             resolvePatternPredicateOpt(id) match
               case Some(sym) =>
                 val procType = sym.info.asProcType
-                Some(procType)
+                // parameterless predicates should not interfere with expression typing
+                if procType.params.isEmpty then None else Some(procType)
 
               case _ =>
                 None
