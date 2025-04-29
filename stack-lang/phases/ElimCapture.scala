@@ -48,7 +48,7 @@ object ElimCapture:
     val funType = ProcType(tparamInfos, paramInfos2, resType, fdef.receives, preParamCount = 0)
 
     val funName = ctx.flatName(fdef.symbol)
-    Symbol.createSymbol(funName, funType, Flags.Fun | Flags.Synthetic, oldFunSym.enclosingNamespace, oldFunSym.sourcePos)
+    Symbol.createSymbol(funName, funType, Flags.Fun | Flags.Synthetic, oldFunSym.enclosingContainer, oldFunSym.sourcePos)
 
   /** The information for a lifted function
     *
@@ -181,7 +181,7 @@ object ElimCapture:
          ObjectType(objType.fields ++ capturedMembers.toList, objType.methods, objType.mutableFields)
 
       val thisTypeName = ctx.uniq.freshName("ThisType")
-      val thisTypeAliasSym = Symbol.createSymbol(thisTypeName, infoProvider, Flags.Type | Flags.Synthetic, owner.enclosingNamespace, obj.self.sourcePos)
+      val thisTypeAliasSym = Symbol.createSymbol(thisTypeName, infoProvider, Flags.Type | Flags.Synthetic, owner.enclosingContainer, obj.self.sourcePos)
       val thisType = TypeRef(thisTypeAliasSym)
       ctx.lifted += TypeDef(thisTypeAliasSym)(obj.span)
 

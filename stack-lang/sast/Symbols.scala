@@ -63,12 +63,12 @@ object Symbols:
     def isOneOf(testFlags: Flags) = this.flags.isOneOf(testFlags)
     def isAllOf(testFlags: Flags) = this.flags.isAllOf(testFlags)
 
-    def enclosingNamespace: Symbol =
-      if this.isNamespace then
+    def enclosingContainer: Symbol =
+      if this.isContainer then
         this
       else
         // The assertion in the constructor ensures `owner` cannot be null
-        owner.enclosingNamespace
+        owner.enclosingContainer
 
     def enclosingFunction: Symbol =
       if this.isFunction || this.isMethod then
