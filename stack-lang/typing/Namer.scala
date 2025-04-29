@@ -512,7 +512,7 @@ class Namer(@constructorOnly reporter: Reporter):
             transform(arg)
 
         val word = Apply(fun, argsTyped)(procType.resultType, apply.span)
-        val desugared = Desugaring.desugarShortcutAndOr(word)
+        val desugared = Rewriting.rewriteShortcutAndOr(word)
         checker.adapt(desugared, tt)
     else
       Reporter.error(s"Not a function: " + fun.tpe.show, fun.pos)
@@ -606,8 +606,8 @@ class Namer(@constructorOnly reporter: Reporter):
           transform(arg)
 
       val word = Apply(fun, preArgs2 ++ postArgs2)(procType.resultType, call.span)
-      val desugared = Desugaring.desugarShortcutAndOr(word)
-      checker.adapt(desugared, tt)
+      val rewrite = Rewriting.rewriteShortcutAndOr(word)
+      checker.adapt(rewrite, tt)
 
   def transform(assign: Ast.Assign)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): Word =
     val Ast.Assign(ref, rhs) = assign
