@@ -129,6 +129,20 @@ object Printing:
 
         "data " ~ ddef.ident ~ tparams ~ params
 
+      case edef: EnumDef =>
+        val tparams =
+          if edef.tparams.isEmpty then Text.Empty
+          else "[" ~ rep(edef.tparams, Text(", "))  ~ "]"
+
+        val branches =
+          edef.branches.map: branch =>
+            val params =
+              if branch.params.isEmpty then Text.Empty
+              else "(" ~ rep(branch.params, Text(", "))  ~ ")"
+            branch.tag ~ params
+
+        "data " ~ edef.ident ~ tparams ~ " = " ~ rep(branches, Text(" | "))
+
       case Section(name, defs) =>
         "section " ~ name ~ indent:
             rep(defs, Text.BlankLine)

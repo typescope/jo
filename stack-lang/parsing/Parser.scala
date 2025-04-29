@@ -373,13 +373,26 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         EmptyTypeTree()(id.span)
     TypeDef(id, tparams, rhs, isBound)(typeItem.span | rhs.span)
 
-  def dataDef(): DataDef =
+  def dataDef(): Def =
     val data = eat(Token.DATA)
     val id = ident()
     val tparams = typeParams()
-    val paramList = paramSection()
 
-    DataDef(id, tparams, paramList)(data.span | id.span)
+    if peek() == Token.EQL then
+      next()
+
+      def branch(): TagType =
+        val id = ident()
+        val paramList = paramSection()
+        val endSpan = if paramList.isEmpty then id.span else paramList.last.span
+        TagType(id, paramList)(id.span | endSpan)
+
+      val branches = oneOrMore(branch, Token.Ident("|"))
+      EnumDef(id, tparams, branches)(data.span | branches.last.span)
+
+    else
+      val paramList = paramSection()
+      DataDef(id, tparams, paramList)(data.span | id.span)
 
   def typeParams(): List[TypeParam] =
     if peek() != Token.LBRACKET then Nil

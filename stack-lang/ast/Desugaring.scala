@@ -104,3 +104,21 @@ object Desugaring:
 
       else
         Section(secDef.ident, (syntheticMembers ++ secDef.defs).toList)(secDef.span)
+
+  /** An enum definition
+    *
+    *     data F[X, ...] = A(a: T1, ...) | B(b: S1, ...) | C
+    *
+    * desugars to
+    *
+    *     type F[X, ...] = A[U, ...] | B[V, ...] | C
+    *
+    *     data A[U, ...](a: T1, ...)
+    *     data B[V, ...](b: S1, ...)
+    *     data C
+    *
+    * where `U, ...` is a subset of `X, ...` that appear in the branch
+    * `A`. Similarly for `V, ...`.
+    *
+    */
+  def synthesizeEnumDef(enumDef: EnumDef, secDef: Section | Null): List[Def] = ???

@@ -140,7 +140,8 @@ Abstract Syntax
     patdef  = PATTERN ident [tparams] [param_section] [COLON type] EQL cases [END].
     cases   = case Pattern {CASE pattern}.
 
-    datadef = DATA [tparams] [param_section].
+    datadef = DATA ident [tparams] ([param_section] | EQL branch { "|" branch }).
+    branch  = ident [param_section].
 
     paramdef = PARAM param [EQL block].
 

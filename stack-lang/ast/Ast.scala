@@ -269,6 +269,11 @@ object Ast:
     (val span: Span)
   extends Def
 
+  case class EnumDef
+    (ident: Ident, tparams: List[TypeParam], branches: List[TagType])
+    (val span: Span)
+  extends Def
+
   case class Param
     (ident: Ident, typ: TypeTree)
     (val span: Span)
