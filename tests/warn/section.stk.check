@@ -1,9 +1,9 @@
----------- Error at tests/warn/section.stk:7:9 ---------------
+---------- Error at ./tests/warn/section.stk:7:9 ---------------
 | section A
 |         ^
 |         Redefinition of A
 |
-| The name `A` is already defined at tests/warn/section.stk:1:9:
+| The name `A` is already defined at ./tests/warn/section.stk:1:9:
 | section A
 |         ^
 
