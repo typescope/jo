@@ -1,6 +1,7 @@
 package typing
 
 import ast.Ast
+import ast.Desugaring
 import ast.Positions.*
 
 import sast.*
@@ -198,8 +199,11 @@ class Namer(@constructorOnly reporter: Reporter):
   private def index(defs: List[Ast.Def])(using defnLazy: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source): List[DelayedDef[Def]] =
     val delayedDefs = new mutable.ArrayBuffer[DelayedDef[Def]]
 
+    // Synthesize definitions
+    val desugaredDefs = Desugaring.synthesize(defs)
+
     for
-      defn <- defs
+      defn <- desugaredDefs
       delayedDef <- index(defn)
     do
       // The name table is shared between NameTableInfo and current scope. This
@@ -227,6 +231,10 @@ class Namer(@constructorOnly reporter: Reporter):
 
       case section: Ast.Section =>
         transformSection(section) :: Nil
+
+      case ddef: Ast.DataDef =>
+        Reporter.error("[Internal Error] Data definition should have be desugared", ddef.pos)
+        Nil
 
       case vdef: Ast.ValDef =>
         Reporter.error("Unexpected top-level value definitions", vdef.pos)
@@ -515,7 +523,8 @@ class Namer(@constructorOnly reporter: Reporter):
         val desugared = Rewriting.rewriteShortcutAndOr(word)
         checker.adapt(desugared, tt)
     else
-      Reporter.error(s"Not a function: " + fun.tpe.show, fun.pos)
+      if !fun.tpe.isError then
+        Reporter.error(s"Not a function: " + fun.tpe.show, fun.pos)
       errorWord(apply.span)
 
   /** Check a dotless call such as `str1 + str2` */
@@ -1027,7 +1036,8 @@ class Namer(@constructorOnly reporter: Reporter):
     (using lazyDefn: Definitions.Lazy | Definitions, sc: Scope, rp: Reporter, so: Source)
   : DelayedDef[TypeDef] =
 
-    val typeSym = Symbol.createSymbol(tdef.name, this.nonCyclicTypeProvider, Flags.Type, sc.owner, tdef.ident.pos)
+    val flags = Flags.Type
+    val typeSym = Symbol.createSymbol(tdef.name, this.nonCyclicTypeProvider, flags, sc.owner, tdef.ident.pos)
 
     given Definitions = lazyDefn match
       case lazyDefn: Definitions.Lazy => lazyDefn.value

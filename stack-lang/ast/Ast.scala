@@ -281,6 +281,10 @@ object Ast:
   extends Tree:
     def name = ident.name
 
+  /** A type definition
+    *
+    * @param isBound whether the rhs is a type bound
+    */
   case class TypeDef
     (ident: Ident, tparams: List[TypeParam], rhs: TypeTree, isBound: Boolean)
     (val span: Span)

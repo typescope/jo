@@ -247,7 +247,9 @@ class PatternTyper(namer: Namer, checker: Checker):
         WildcardPattern()(ErrorType, patSpan)
 
     else
-      Reporter.error(s"Not a pattern predicate: " + fun.tpe.show, id.pos)
+      if !fun.tpe.isError then
+        Reporter.error(s"Not a pattern predicate: " + fun.tpe.show, id.pos)
+
       WildcardPattern()(ErrorType, patSpan)
 
 
@@ -343,7 +345,9 @@ class PatternTyper(namer: Namer, checker: Checker):
         WildcardPattern()(ErrorType, patSpan)
 
     else
-      Reporter.error(s"Not a pattern predicate: " + fun.tpe.show, id.pos)
+      if !fun.tpe.isError then
+        Reporter.error(s"Not a pattern predicate: " + fun.tpe.show, id.pos)
+
       WildcardPattern()(ErrorType, patSpan)
 
   private def transformTagPattern(
