@@ -139,6 +139,19 @@ class Checker:
         else
           word
 
+      else if word.tpe.isTermRef then
+        val ref = word.tpe.as[TypeRef]
+        val sym = ref.symbol
+        if
+          sym.is(Flags.Section)
+          && ref.hasTermMember(sym.name)
+          && !targetType.isInstanceOf[TargetType.TermMember]
+        then
+          val memSym = sym.termMember(sym.name)
+          Ident(memSym)(word.span)
+        else
+          word
+
       else
         word
 

@@ -6,11 +6,16 @@ fun main =
   val box = Box(5)
   val post = Post("Hello, World", "Turing", "Bla bla...")
 
-  val c: Box[Int] | Post = Box 3
+  val c1: Box[Int] | Post = Box 3
+  val c2: Box[Int] | Post = post
 
-  match c
+  match c1
     case Box(value) => println (intToStr value)
     case p: Post => println p.title
+
+  match c2
+    case Box value      => println (intToStr value)
+    case Post title _ _ => println title
 
   println post.title
   println (intToStr box.value)

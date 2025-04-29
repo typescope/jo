@@ -210,7 +210,7 @@ class PatternTyper(namer: Namer, checker: Checker):
     (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs)
   : Pattern =
 
-    val sym = sc.resolvePattern(id.name, id.pos)
+    val sym = resolvePatternPredicate(id)
 
     var fun: Word = Ident(sym)(id.span)
 
@@ -293,7 +293,7 @@ class PatternTyper(namer: Namer, checker: Checker):
     (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs)
   : Pattern =
 
-    val sym = sc.resolvePattern(id.name, id.pos)
+    val sym = resolvePatternPredicate(id)
 
     var fun: Word = Ident(sym)(id.span)
 
@@ -528,11 +528,11 @@ class PatternTyper(namer: Namer, checker: Checker):
         val wordList: mutable.ListBuffer[Ast.Word] = mutable.ListBuffer.from(words)
 
         val resolveProc: Ast.Word => Option[ProcType] = (word: Ast.Word) => word match
-          case Ast.Ident(name) =>
-            sc.resolvePattern(name) match
-              case Some(sym) if sym.is(Flags.Fun) =>
+          case id: Ast.Ident =>
+            resolvePatternPredicateOpt(id) match
+              case Some(sym) =>
                 val procType = sym.info.asProcType
-                if procType.params.isEmpty then None else Some(procType)
+                Some(procType)
 
               case _ =>
                 None
@@ -549,6 +549,28 @@ class PatternTyper(namer: Namer, checker: Checker):
           Reporter.error("Found extra pattern, an expression pattern should form a single pattern", span.toPos)
 
         transformPattern(values.last, scrutType)
+
+  private def resolvePatternPredicate(id: Ast.Ident)(using sc: Scope, rp: Reporter, so: Source): Symbol =
+    resolvePatternPredicateOpt(id) match
+      case Some(sym) => sym
+      case None =>
+        Reporter.error(s"Undefined pattern identifier " + id.name, id.pos)
+        Symbol.createSymbol(id.name, ErrorType, Flags.Synthetic, sc.owner, id.pos)
+
+  private def resolvePatternPredicateOpt(id: Ast.Ident)(using sc: Scope): Option[Symbol] =
+    sc.resolvePattern(id.name) match
+      case None =>
+        sc.resolveTerm(id.name) match
+          case Some(sym) if sym.is(Flags.Section) =>
+            val nameTable = sym.info.as[NameTableInfo]
+            nameTable.resolvePattern(sym.name)
+
+          case _ =>
+            None
+
+      case Some(sym) =>
+        if sym.is(Flags.Fun) then Some(sym) else None
+
 
   private def transformPattern(
     pat: Ast.Word, scrutType: Type)
