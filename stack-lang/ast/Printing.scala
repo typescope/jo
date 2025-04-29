@@ -118,6 +118,17 @@ object Printing:
 
         "type " ~ tdef.ident ~ tparams ~ token ~ tdef.rhs
 
+      case ddef: DataDef =>
+        val tparams =
+          if ddef.tparams.isEmpty then Text.Empty
+          else "[" ~ rep(ddef.tparams, Text(", "))  ~ "]"
+
+        val params =
+          if ddef.params.isEmpty then Text.Empty
+          else "(" ~ rep(ddef.params, Text(", "))  ~ ")"
+
+        "data " ~ ddef.ident ~ tparams ~ params
+
       case Section(name, defs) =>
         "section " ~ name ~ indent:
             rep(defs, Text.BlankLine)

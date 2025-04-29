@@ -264,6 +264,11 @@ object Ast:
   extends Word, Def:
     assert(cases.forall(c => isPattern(c.pat)), "Ill-formed pattern tree: " + cases)
 
+  case class DataDef
+    (ident: Ident, tparams: List[TypeParam], params: List[Param])
+    (val span: Span)
+  extends Def
+
   case class Param
     (ident: Ident, typ: TypeTree)
     (val span: Span)

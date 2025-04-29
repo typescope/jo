@@ -131,13 +131,14 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   /** The caller must consume at least one token if syntax error is thrown */
   def repeated[T](parseItem: => Option[T]): List[T] =
     val items = new mutable.ArrayBuffer[T]
-    var continue = true
+    var continue = peek() != Token.EOF
     while continue do
       val firstToken = peekItem()
       try
         parseItem match
           case Some(item) =>
             items += item
+            continue = peek() != Token.EOF
 
           case None =>
             continue = false
@@ -181,19 +182,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       else None
 
     val defs = repeated:
-      val item = peekItem()
-      if item.token == Token.TYPE then Some(typeDef())
-      else if item.token == Token.FUN then Some(funDef())
-      else if item.token == Token.PARAM then Some(paramDef())
-      else if item.token == Token.PATTERN then Some(patDef())
-      else if item.token == Token.SECTION then Some(section())
-      else
-        if item.token != Token.EOF then
-          error("Expect a definition, found = " + item.token, item.span.toPos)
-          next()
-          throw new SyntaxError
-        else
-          None
+      Some(parseTopLevelDef())
 
     val endSpan = if defs.isEmpty then id.span else defs.last.span
 
@@ -213,21 +202,26 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val id = qualid()
     Import(id)(info.span | id.span)
 
+  def parseTopLevelDef(): Def =
+    val item = peekItem()
+    if item.token == Token.TYPE then typeDef()
+    else if item.token == Token.FUN then funDef()
+    else if item.token == Token.PARAM then paramDef()
+    else if item.token == Token.PATTERN then patDef()
+    else if item.token == Token.DATA then dataDef()
+    else if item.token == Token.SECTION then section()
+    else
+      error("Expect a definition, found = " + item.token, item.span.toPos)
+      next()
+      throw new SyntaxError
+
   def section(): Section =
     val secToken = eat(Token.SECTION)
     val id = ident()
     val defs = repeated:
       val item = peekItem()
       if secToken.isUnindent(item) then None
-      else if item.token == Token.TYPE then Some(typeDef())
-      else if item.token == Token.FUN then Some(funDef())
-      else if item.token == Token.PARAM then Some(paramDef())
-      else if item.token == Token.PATTERN then Some(patDef())
-      else if item.token == Token.SECTION then Some(section())
-      else
-        error("Expect a definition, found = " + item.token, item.span.toPos)
-        next()
-        throw new SyntaxError
+      else Some(parseTopLevelDef())
 
     eatEndOpt(secToken.indent)
 
@@ -377,6 +371,14 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         isBound = true
         EmptyTypeTree()(id.span)
     TypeDef(id, tparams, rhs, isBound)(typeItem.span | rhs.span)
+
+  def dataDef(): DataDef =
+    val data = eat(Token.DATA)
+    val id = ident()
+    val tparams = typeParams()
+    val paramList = paramSection()
+
+    DataDef(id, tparams, paramList)(data.span | id.span)
 
   def typeParams(): List[TypeParam] =
     if peek() != Token.LBRACKET then Nil
