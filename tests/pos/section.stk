@@ -18,8 +18,15 @@ section List
     match l case Fold(res) => res
 end
 
+section A
+  section List
+    fun double(x: Int): Int = x + x
+  end
+end
+
 fun main =
   val l = #Cons 4 (#Cons 6 #Nil)
   val l2 = List l map (x) => x * 2
   val sum = List l2 fold 0 (acc, i) => acc + i
   println (intToStr sum)
+  println (intToStr (A.List.double 5))

@@ -1,0 +1,7 @@
+section A
+
+section B
+  section A
+end
+
+section A
