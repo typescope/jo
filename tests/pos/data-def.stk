@@ -1,0 +1,16 @@
+data Box[T](value: T)
+
+data Post(title: String, author: String, content: String)
+
+fun main =
+  val box = Box(5)
+  val post = Post("Hello, World", "Turing", "Bla bla...")
+
+  val c: Box[Int] | Post = box
+
+  match c
+    case Box(value) => println (intToStr value)
+    case p: Post => println p.title
+
+  println post.title
+  println (intToStr box.value)
