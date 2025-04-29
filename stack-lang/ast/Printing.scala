@@ -27,7 +27,7 @@ object Printing:
 
   given Text.Maker[TypeTree] = v => showType(v)
 
-  given Text.Maker[Param] = v => v.ident ~ showTypeAnnot(v.typ)
+  given Text.Maker[Param] = v => v.ident ~ showTypeAnnot(v.tpt)
 
   given Text.Maker[TypeParam] = v => v.ident ~ showTypeBound(v.bound)
 

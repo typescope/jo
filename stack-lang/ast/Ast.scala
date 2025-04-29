@@ -224,13 +224,13 @@ object Ast:
     val name: String = ident.name
 
   case class ValDef
-    (ident: Ident, typ: TypeTree, rhs: Word, mutable: Boolean)
+    (ident: Ident, tpt: TypeTree, rhs: Word, mutable: Boolean)
     (val span: Span)
   extends Word, Def
 
   /** Context parameter definition */
   case class ParamDef
-    (ident: Ident, typ: TypeTree, default: Option[Word])
+    (ident: Ident, tpt: TypeTree, default: Option[Word])
     (val span: Span)
   extends Def
 
@@ -275,7 +275,7 @@ object Ast:
   extends Def
 
   case class Param
-    (ident: Ident, typ: TypeTree)
+    (ident: Ident, tpt: TypeTree)
     (val span: Span)
   extends Tree:
     def name = ident.name

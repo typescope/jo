@@ -44,7 +44,7 @@ class PatternTyper(namer: Namer, checker: Checker):
     lazy val paramSyms =
       tparamSyms
       for param <- patDef.params yield
-        val tpt = namer.transformType(param.typ)
+        val tpt = namer.transformType(param.tpt)
         val paramSym = Symbol.createSymbol(param.name, tpt.tpe, Flags.Pattern | Flags.Param, patSym, param.pos)
         patScope.define(paramSym)
         paramSym

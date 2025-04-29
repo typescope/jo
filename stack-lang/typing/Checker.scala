@@ -148,7 +148,8 @@ class Checker:
           && !targetType.isInstanceOf[TargetType.TermMember]
         then
           val memSym = sym.termMember(sym.name)
-          Ident(memSym)(word.span)
+          // The selection might need parameterless call adaption
+          return adapt(Ident(memSym)(word.span), targetType)
         else
           word
 
