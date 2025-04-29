@@ -47,26 +47,28 @@ object Symbols:
     def isMethod   : Boolean = flags.is(Flags.Method)
     def isType     : Boolean = flags.is(Flags.Type)
     def isPattern  : Boolean = flags.is(Flags.Pattern)
-    def isNamespace: Boolean = flags.is(Flags.NSpace)
     def isParameter: Boolean = flags.is(Flags.Param)
     def isMutable  : Boolean = flags.is(Flags.Mutable)
     def isField    : Boolean = flags.is(Flags.Field)
     def isSynthetic: Boolean = flags.is(Flags.Synthetic)
 
+    def isNamespace: Boolean = flags.is(Flags.NSpace)
+    def isContainer: Boolean = flags.isOneOf(Flags.NSpace | Flags.Section)
+
     def isTypeParameter: Boolean = flags.isAllOf(Flags.Type | Flags.Param)
 
-    def isLocal: Boolean = owner != null & !owner.isNamespace
+    def isLocal: Boolean = owner != null & !owner.isContainer
 
     def is(testFlag: Flag) = this.flags.isOneOf(testFlag)
     def isOneOf(testFlags: Flags) = this.flags.isOneOf(testFlags)
     def isAllOf(testFlags: Flags) = this.flags.isAllOf(testFlags)
 
-    def enclosingNamespace: Symbol =
-      if this.isNamespace then
+    def enclosingContainer: Symbol =
+      if this.isContainer then
         this
       else
         // The assertion in the constructor ensures `owner` cannot be null
-        owner.enclosingNamespace
+        owner.enclosingContainer
 
     def enclosingFunction: Symbol =
       if this.isFunction || this.isMethod then

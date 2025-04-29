@@ -92,7 +92,7 @@ fun eval[T](expr: Expr[T], eval: T => Int): Int =
     case #Add lhs rhs => (eval lhs) + (eval rhs)
 
 fun evalLangA(expr: LangA): Int =
-  eval expr (e) => evalLangA e
+  eval expr (e => evalLangA e)
 
 type ExprExt[Lang] = Expr[Lang] | #Mul(lhs: Lang, rhs: Lang)
 
@@ -104,7 +104,7 @@ fun evalExt[T](expr: ExprExt[T], evalExt: T => Int): Int =
     case #Mul lhs rhs => (evalExt lhs) * (evalExt rhs)
 
 fun evalLangB(expr: LangB): Int =
-  evalExt expr (e) => evalLangB e
+  evalExt expr (e => evalLangB e)
 
 fun main =
   val langA =

@@ -131,7 +131,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
     val symbolDefMap = mutable.Map.empty[Symbol, FunDef]
     for
       ns <- nss
-      case fdef: FunDef <- ns.defs
+      fdef <- ns.allFuns
     do
       symbolDefMap(fdef.symbol) = fdef
 

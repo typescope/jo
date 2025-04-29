@@ -4,7 +4,6 @@ import ast.Ast
 import ast.Positions.*
 
 import sast.*
-import sast.Flags.*
 import sast.Sast.*
 import sast.Symbols.*
 import sast.Types.*
@@ -58,7 +57,6 @@ class Namer(@constructorOnly reporter: Reporter):
       val defsScope: Scope = importScope.fresh(nsSym, nsInfo.nameTable)
 
       val delayedDefs =
-        given TargetType = TargetType.NamespaceMember
         given Scope = defsScope
         index(ns.defs)
 
@@ -144,24 +142,24 @@ class Namer(@constructorOnly reporter: Reporter):
   def doImport(qualid: Ast.RefTree, importScope: Scope, rootNameTable: NameTable, imports: mutable.ArrayBuffer[Symbol])
       (using rp: Reporter, so: Source): Unit =
 
-    def resolveNamespace(qualid: Ast.RefTree): Symbol =
+    def resolveContainer(qualid: Ast.RefTree): Symbol =
       qualid match
         case Ast.Select(qual, name) =>
-          val sym = resolveNamespace(qual.asInstanceOf[Ast.RefTree])
+          val sym = resolveContainer(qual.asInstanceOf[Ast.RefTree])
 
-          if sym.isNamespace then
+          if sym.isContainer then
             val nsInfo = sym.info.as[NameTableInfo]
 
             nsInfo.resolveTerm(name) match
               case Some(sym) => sym
 
               case None =>
-                rp.error(s"`$name` not found in the namespace ${sym.name}", qualid.pos)
+                rp.error(s"`$name` not found in ${sym.name}", qualid.pos)
                 Symbol.createSymbol(name, ErrorType, Flags.Synthetic, sym, pos = qualid.pos)
 
           else
             if !sym.info.isError then
-              rp.error("Not a namespace, only a namespace can be selected", qual.pos)
+              rp.error("Not a container, only a namespace or section can be selected", qual.pos)
             Symbol.createSymbol(name, ErrorType, Flags.Synthetic, sym, pos = qualid.pos)
 
         case Ast.Ident(name) =>
@@ -176,7 +174,7 @@ class Namer(@constructorOnly reporter: Reporter):
       val syms = nameTable.resolve(name)
       for sym <- syms do
         if sym.isAllOf(Flags.NSpace | Flags.Branch) then
-          rp.error("Only concrete namespaces can be imported", qualid.pos)
+          rp.error("Only concrete namespaces or sections can be imported", qualid.pos)
 
         imports += sym
         // TODO: abstract scope and better error position for duplicate imports
@@ -187,17 +185,17 @@ class Namer(@constructorOnly reporter: Reporter):
 
     qualid match
       case Ast.Select(qual, _) =>
-        val sym = resolveNamespace(qual.asInstanceOf[Ast.RefTree])
-        if sym.isNamespace then
+        val sym = resolveContainer(qual.asInstanceOf[Ast.RefTree])
+        if sym.isContainer then
           importName(sym.info.as[NameTableInfo].nameTable)
 
         else if !sym.info.isError then
-          rp.error("Expect namespace, found = " + sym.info.show, qual.pos)
+          rp.error("Expect a namespace or section, found = " + sym.info.show, qual.pos)
 
       case _ =>
         importName(rootNameTable)
 
-  private def index(defs: List[Ast.Def])(using defnLazy: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, tt: TargetType): List[DelayedDef[Def]] =
+  private def index(defs: List[Ast.Def])(using defnLazy: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source): List[DelayedDef[Def]] =
     val delayedDefs = new mutable.ArrayBuffer[DelayedDef[Def]]
 
     for
@@ -212,9 +210,10 @@ class Namer(@constructorOnly reporter: Reporter):
 
     delayedDefs.toList
 
-  private def index(defn: Ast.Def)(using defnLazy: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, tt: TargetType): List[DelayedDef[Def]] =
+  private def index(defn: Ast.Def)(using defnLazy: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source): List[DelayedDef[Def]] =
     defn match
       case fdef: Ast.FunDef =>
+        given TargetType = TargetType.Unknown
         transformFunDef(fdef) :: Nil
 
       case tdef: Ast.TypeDef =>
@@ -225,6 +224,9 @@ class Namer(@constructorOnly reporter: Reporter):
 
       case pdef: Ast.PatDef =>
         patternTyper.transformPatDef(pdef) :: Nil
+
+      case section: Ast.Section =>
+        transformSection(section) :: Nil
 
       case vdef: Ast.ValDef =>
         Reporter.error("Unexpected top-level value definitions", vdef.pos)
@@ -896,7 +898,7 @@ class Namer(@constructorOnly reporter: Reporter):
         delayedParamDef :: Nil
 
   private def transformValDef(vdef: Ast.ValDef)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): DelayedDef[ValDef] =
-    var flags: Flags = if tt == TargetType.ObjectMember then Flags.Field else Flags.empty
+    var flags = if tt == TargetType.ObjectMember then Flags.Field else Flags.empty
 
     if vdef.mutable then
       flags = flags | Flags.Mutable
@@ -1092,6 +1094,22 @@ class Namer(@constructorOnly reporter: Reporter):
 
     DelayedDef(typeSym, typer)
 
+  private def transformSection(section: Ast.Section)
+    (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source)
+  : DelayedDef[Section] =
+
+    val nameTable = new NameTable
+    val sym = Symbol.createSymbol(section.name, NameTableInfo(nameTable), Flags.Section, sc.owner, section.ident.pos)
+
+    // check type symbols after completion to allow cycles, type A = A
+    val typer = () =>
+      given Scope = sc.fresh(sym, nameTable)
+      val delayedDefs = index(section.defs)
+      val defs = for delayed <- delayedDefs.toList yield delayed.force()
+      Section(sym, defs)(section.span)
+
+    DelayedDef(sym, typer)
+
   private def transformMethodDecl(ddef: Ast.FunDef)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): TypeTree =
     val defScope: Scope = sc.fresh()
 
@@ -1163,7 +1181,7 @@ class Namer(@constructorOnly reporter: Reporter):
           transform(qual)
 
         qual2.tpe match
-          case TypeRef(sym) if sym.isNamespace =>
+          case TypeRef(sym) if sym.isContainer =>
             val nsInfo = sym.info.as[NameTableInfo]
             nsInfo.resolveType(name) match
               case Some(sym) =>

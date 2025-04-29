@@ -63,7 +63,7 @@ abstract class Backend(val runtime: NativeRuntime):
     val symbolDefMap = mutable.Map.empty[Symbol, FunDef]
     for
       ns <- nss
-      case fdef: FunDef <- ns.defs
+      fdef <- ns.allFuns
     do
       symbolDefMap(fdef.symbol) = fdef
 

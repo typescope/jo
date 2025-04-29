@@ -16,19 +16,16 @@ import scala.collection.mutable
   *
   * Top-level functions are not transformed --- they do not capture locals.
   */
-object ElimCapture:
-  def transform(nss: List[Namespace]): List[Namespace] =
-    for ns <- nss yield transformNamespace(ns)
+class ElimCapture extends Phase[Symbol]:
+  val contextObject = Phase.OwnerContext
 
-  def transformNamespace(ns: Namespace): Namespace =
+  override def transformTopLevelDefs(defs: List[Def])(using Context): List[Def] =
     val uniq = new UniqueName
-    val defs =
-      ns.defs.flatMap:
-        case fdef: FunDef => transformFunDef(fdef, uniq)
-        case defn => defn :: Nil
+    defs.flatMap:
+      case fdef: FunDef => ElimCapture.transformFunDef(fdef, uniq)
+      case defn => super.transformTopLevelDef(defn) :: Nil
 
-    Namespace(ns.symbol, ns.imports, defs)(ns.span)
-
+object ElimCapture:
   def transformFunDef(fdef: FunDef, uniq: UniqueName): List[Def] =
     given ctx: Context = new Context(uniq)
     val lifter = new Lifter(fdef.symbol)
@@ -51,7 +48,7 @@ object ElimCapture:
     val funType = ProcType(tparamInfos, paramInfos2, resType, fdef.receives, preParamCount = 0)
 
     val funName = ctx.flatName(fdef.symbol)
-    Symbol.createSymbol(funName, funType, Flags.Fun | Flags.Synthetic, oldFunSym.enclosingNamespace, oldFunSym.sourcePos)
+    Symbol.createSymbol(funName, funType, Flags.Fun | Flags.Synthetic, oldFunSym.enclosingContainer, oldFunSym.sourcePos)
 
   /** The information for a lifted function
     *
@@ -184,7 +181,7 @@ object ElimCapture:
          ObjectType(objType.fields ++ capturedMembers.toList, objType.methods, objType.mutableFields)
 
       val thisTypeName = ctx.uniq.freshName("ThisType")
-      val thisTypeAliasSym = Symbol.createSymbol(thisTypeName, infoProvider, Flags.Type | Flags.Synthetic, owner.enclosingNamespace, obj.self.sourcePos)
+      val thisTypeAliasSym = Symbol.createSymbol(thisTypeName, infoProvider, Flags.Type | Flags.Synthetic, owner.enclosingContainer, obj.self.sourcePos)
       val thisType = TypeRef(thisTypeAliasSym)
       ctx.lifted += TypeDef(thisTypeAliasSym)(obj.span)
 

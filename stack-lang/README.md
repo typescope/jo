@@ -64,7 +64,11 @@ Lexical Grammar
 Abstract Syntax
 
 ~~~
-    namespace = [NSPACE qualid] {import} {typedef | fundef | paramdef | patdef } EOF.
+    namespace = [NSPACE qualid] {import} {toplevel_def} EOF.
+
+    section = SECTION ident {toplevel_def} [END].
+
+    toplevel_def = typedef | fundef | paramdef | patdef | section.
 
     qualid = ident | qualid DOT ident.
 
@@ -74,7 +78,7 @@ Abstract Syntax
 
     word    = integer | boolean | char | string | ident | fence | record | tapply | apply | select | tag | lambda | object.
 
-    phrase  = simple_phrase | assign | valdef | fundef | typedef | while | if | match.
+    phrase  = simple_phrase | assign | valdef | fundef | patdef | typedef | while | if | match.
 
     block   = { phrase }.
 
@@ -108,7 +112,7 @@ Abstract Syntax
     member     = valdef | defdef.
 
     tapply  = word targs.
-    lambda  = param_section RARROW block.
+    lambda  = (param_section | ident) RARROW block.
 
     match   = MATCH expr {case} [END].
     case    = CASE pattern RARROW block.

@@ -1,0 +1,32 @@
+type List[T] = #Nil | #Cons(head: T, tail: List[T])
+
+section List
+  fun (l: List[T]) map[T, S](f: T => S): List[S] =
+    pattern Map(res: List[S]): List[T] =
+      case #Nil then res = #Nil
+      case #Cons head Map(t) then res = #Cons (f head) t
+    end
+
+    match l case Map(res) => res
+
+  fun (l: List[T]) fold[T, S](zero: S, f: (S, T) => S): S =
+    pattern Fold(acc: S): List[T] =
+      case #Nil then acc = zero
+      case #Cons head Fold(acc1) then acc = f acc1 head
+    end
+
+    match l case Fold(res) => res
+end
+
+section A
+  section List
+    fun double(x: Int): Int = x + x
+  end
+end
+
+fun main =
+  val l = #Cons 4 (#Cons 6 #Nil)
+  val l2 = List l map (x) => x * 2
+  val sum = List l2 fold 0 (acc, i) => acc + i
+  println (intToStr sum)
+  println (intToStr (A.List.double 5))

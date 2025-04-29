@@ -18,34 +18,48 @@ abstract class Phase[T] extends SastOps.TreeMap:
       transformNamespace(ns)
 
   def transformNamespace(ns: Namespace)(using ctx: Context): Namespace =
-    val defs = ns.defs.map:
+    val defs = transformTopLevelDefs(ns.defs)
+    Namespace(ns.symbol, ns.imports, defs)(ns.span)
+
+  /** Transform top-level definitions */
+  def transformTopLevelDefs(defs: List[Def])(using ctx: Context): List[Def] =
+    for defn <- defs yield transformTopLevelDef(defn)
+
+  def transformTopLevelDef(defn: Def)(using ctx: Context): Def =
+    defn match
       case fdef: FunDef =>
-        transformFunDef(fdef)
+        transformTopLevelFunDef(fdef)
 
       case pdef: PatDef =>
-        transformPatDef(pdef)
+        transformTopLevelPatDef(pdef)
+
+      case sec: Section =>
+        transformSection(sec)
 
       case defn => defn
 
-    Namespace(ns.symbol, ns.imports, defs)(ns.span)
+  def transformSection(section: Section)(using ctx: Context): Section =
+    given Context = contextObject.newContext(section.symbol, ctx)
+    val defs = transformTopLevelDefs(section.defs)
+    Section(section.symbol, defs)(section.span)
 
   /** Transform top-level function definitions */
-  def transformFunDef(fdef: FunDef)(using ctx: Context): FunDef =
+  def transformTopLevelFunDef(fdef: FunDef)(using ctx: Context): FunDef =
     given Context = contextObject.newContext(fdef.symbol, ctx)
     val body = this(fdef.body)
     fdef.copy(body = body)(fdef.span)
 
   /** Transform top-level function definitions */
-  def transformPatDef(pdef: PatDef)(using ctx: Context): PatDef =
+  def transformTopLevelPatDef(pdef: PatDef)(using ctx: Context): PatDef =
     given Context = contextObject.newContext(pdef.symbol, ctx)
     val body = this(pdef.body)
     pdef.copy(body = body)(pdef.span)
 
   override def transformNestedFunDef(fdef: FunDef)(using ctx: Context): Word =
-    transformFunDef(fdef)
+    transformTopLevelFunDef(fdef)
 
   override def transformNestedPatDef(pdef: PatDef)(using ctx: Context): Word =
-    transformPatDef(pdef)
+    transformTopLevelPatDef(pdef)
 
 object Phase:
   trait ContextObject[T]:

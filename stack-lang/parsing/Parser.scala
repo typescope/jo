@@ -186,6 +186,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       else if item.token == Token.FUN then Some(funDef())
       else if item.token == Token.PARAM then Some(paramDef())
       else if item.token == Token.PATTERN then Some(patDef())
+      else if item.token == Token.SECTION then Some(section())
       else
         if item.token != Token.EOF then
           error("Expect a definition, found = " + item.token, item.span.toPos)
@@ -211,6 +212,28 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val info = eat(Token.IMPORT)
     val id = qualid()
     Import(id)(info.span | id.span)
+
+  def section(): Section =
+    val secToken = eat(Token.SECTION)
+    val id = ident()
+    val defs = repeated:
+      val item = peekItem()
+      if secToken.isUnindent(item) then None
+      else if item.token == Token.TYPE then Some(typeDef())
+      else if item.token == Token.FUN then Some(funDef())
+      else if item.token == Token.PARAM then Some(paramDef())
+      else if item.token == Token.PATTERN then Some(patDef())
+      else if item.token == Token.SECTION then Some(section())
+      else
+        error("Expect a definition, found = " + item.token, item.span.toPos)
+        next()
+        throw new SyntaxError
+
+    eatEndOpt(secToken.indent)
+
+    val endSpan = if defs.isEmpty then id.span else defs.last.span
+
+    Section(id, defs)(id.span | endSpan)
 
   def valDef(modifier: Token): ValDef =
     val mutable = modifier == Token.VAR
@@ -534,7 +557,13 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
       case _: Token.Ident =>
         val id = ident()
-        optSelectAndApply(id)
+        if peek() == Token.RARROW then
+          val arrow = eat(Token.RARROW)
+          val body = block(arrow.indent)
+          val params = Param(id, EmptyTypeTree()(id.span))(id.span) :: Nil
+          Some(Lambda(params, body)(id.span | body.span))
+        else
+          optSelectAndApply(id)
 
       case lit: Token.IntLit  =>
         next()
@@ -568,8 +597,11 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case Token.VAL | Token.VAR   =>
         Some(valDef(item.token))
 
-      case Token.FUN   =>
+      case Token.FUN =>
         Some(funDef())
+
+      case Token.PATTERN =>
+        Some(patDef())
 
       case Token.TYPE =>
         Some(typeDef())

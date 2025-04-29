@@ -269,16 +269,21 @@ object Interpreter:
     } :: Nil
   )
 
+  def index(defs: List[Def])(using env: Env, defn: Definitions): Unit =
+    defs.foreach:
+      case fun: FunDef =>
+        // Predef symbols without an implementation should be ignored
+        if !env.contains(fun.symbol) then
+          env.bind(fun.symbol, FunVal(fun, env))
+
+      case Section(_, defs) =>
+        index(defs)
+
+      case _ =>
+
   def exec(nss: List[Namespace], main: Symbol)(using Definitions): Unit =
     val rootEnv = createRootEnv()
-
-    for
-      ns <- nss
-      case fun: FunDef <- ns.defs
-    do
-      // Predef symbols without an implementation should be ignored
-      if !rootEnv.contains(fun.symbol) then
-        rootEnv.bind(fun.symbol, FunVal(fun, rootEnv))
+    for ns <- nss do index(ns.defs)(using rootEnv)
 
     val FunVal(fdef, env2) = rootEnv.resolve(main): @unchecked
 

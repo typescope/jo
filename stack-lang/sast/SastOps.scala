@@ -355,6 +355,7 @@ object SastOps:
     end recur
   end TreeMap
 
+  /** A tree traversal for non-toplevel code */
   trait TreeTraverser:
     type Context
 
@@ -371,14 +372,6 @@ object SastOps:
     def recurParamDef(pdef: ParamDef)(using Context): Unit = ()
 
     def recurPatDef(pdef: PatDef)(using Context): Unit = this(pdef.body)
-
-    def recurDef(defn: Def)(using Context): Unit =
-      defn match
-        case vdef: ValDef   => recurValDef(vdef)
-        case fdef: FunDef   => recurFunDef(fdef)
-        case pdef: PatDef   => recurPatDef(pdef)
-        case tdef: TypeDef  => recurTypeDef(tdef)
-        case pdef: ParamDef => recurParamDef(pdef)
 
     def recur(pattern: Pattern)(using Context): Unit =
       pattern match
@@ -508,11 +501,11 @@ object SastOps:
 
         case ValDef(sym, rhs) =>
           if !sym.isField then locals += sym
-          recur(rhs)
+          this(rhs)
 
         case Assign(Ident(sym), rhs) =>
           locals += sym
-          recur(rhs)
+          this(rhs)
 
         case obj: Object =>
           locals += obj.self

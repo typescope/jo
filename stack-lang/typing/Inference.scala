@@ -10,7 +10,6 @@ object Inference:
   enum TargetType:
     case Unknown
     case ValueType
-    case NamespaceMember
     case ObjectMember
     case Fun(args: Int)
     case TermMember(name: String)

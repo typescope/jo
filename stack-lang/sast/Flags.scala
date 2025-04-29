@@ -8,10 +8,11 @@ object Flags:
   val Type    : Flag = 1 << 2
   val Pattern : Flag = 1 << 3
   val NSpace  : Flag = 1 << 4
-  val Method  : Flag = 1 << 5
+  val Section : Flag = 1 << 5
+  val Method  : Flag = 1 << 6
 
   // namespace flags
-  val Branch  : Flag = 1 << 6  // branch name space
+  val Branch  : Flag = 1 << 7  // branch name space
 
   // val flags
   val Param   : Flag = 1 << 8   // a parameter

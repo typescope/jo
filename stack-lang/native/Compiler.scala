@@ -75,6 +75,7 @@ object Compiler:
 
           val backend = backendBuilder(runtimeNameTable, main, lazyDefn.value)
 
+          val closureConvert = new ElimCapture
           val contextParamsLower = new native.LowerContextParams(backend.runtime)
           val runtimeLowerer = new native.LowerRuntime(backend.runtime)
           val explicitAlloc = new native.ExplicitAlloc(backend.runtime)
@@ -84,7 +85,7 @@ object Compiler:
             Linux.lower(prog, layout, outFile, X86, backend.runtime)
 
           namespacesSAST                |>
-          ElimCapture.transform         |+
+          closureConvert.transform      |+
           TreeChecker.check             |>
           Printing.peek(enable = false) |>
           contextParamsLower.transform  |+

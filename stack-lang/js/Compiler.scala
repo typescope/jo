@@ -62,11 +62,12 @@ def compile(args: String*): Unit =
             jsRuntime.JS_setParam,
             jsRuntime.JS_delParam)
 
+        val closureConvert = new ElimCapture
         val runtimeLowerer = new LowerRuntime(jsRuntime)
         val backend = new JSOptimized(outFile, jsRuntime)
 
         namespacesSAST                |>
-        ElimCapture.transform         |+
+        closureConvert.transform      |+
         TreeChecker.check             |>
         Printing.peek(enable = false) |>
         runtimeLowerer.transform      |+

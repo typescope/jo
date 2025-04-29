@@ -118,6 +118,9 @@ object Printing:
 
         "type " ~ tdef.ident ~ tparams ~ token ~ tdef.rhs
 
+      case Section(name, defs) =>
+        "section " ~ name ~ indent:
+            rep(defs, Text.BlankLine)
 
   def showWord(word: Word): Text =
     word match
@@ -234,7 +237,7 @@ object Printing:
         showPattern(thenp) ~ " if " ~ thenp
 
       case With(expr, args) =>
-        val withText = " with " ~ rep(args, Text(", "))
+        val withText = " then " ~ rep(args, Text(", "))
         expr ~ withText
 
       case Assign(id: Ident, rhs) =>

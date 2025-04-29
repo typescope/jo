@@ -317,6 +317,18 @@ object Sast:
   extends Word, Def:
     def procType: ProcType = symbol.info.asProcType
 
+  case class Section
+    (symbol: Symbol, defs: List[Def])
+    (val span: Span)
+  extends Def:
+    def info: NameTableInfo = symbol.info.as[NameTableInfo]
+
+    def allFuns: List[FunDef] =
+      defs.flatMap:
+        case fdef: FunDef => fdef :: Nil
+        case sec: Section => sec.allFuns
+        case _ => Nil
+
   case class Namespace
     (symbol: Symbol, imports: List[Symbol], defs: List[Def])
     (val span: Span)
@@ -324,6 +336,12 @@ object Sast:
     def info: NameTableInfo = symbol.info.as[NameTableInfo]
 
     val fullName: String = symbol.fullName
+
+    def allFuns: List[FunDef] =
+      defs.flatMap:
+        case fdef: FunDef => fdef :: Nil
+        case sec: Section => sec.allFuns
+        case _ => Nil
 
     def mainSymbol: Option[Symbol] =
       val funs = defs.filter(defn => defn.symbol.isFunction && defn.symbol.name == "main")

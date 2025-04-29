@@ -25,17 +25,15 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
 
     for ns <- nss yield
       given Context = PatternMatcher.Context(implMap, ns.symbol)
+      super.transformNamespace(ns)
 
-      val defs = ns.defs.flatMap:
-        case fdef: FunDef =>
-          transformFunDef(fdef) :: Nil
+  override def transformTopLevelDefs(defs: List[Def])(using ctx: Context): List[Def] =
+    defs.map:
+      case pdef: PatDef =>
+        implementPatDef(pdef)
 
-        case pdef: PatDef =>
-          implementPatDef(pdef)
-
-        case defn => defn :: Nil
-
-      Namespace(ns.symbol, ns.imports, defs)(ns.span)
+      case defn =>
+        super.transformTopLevelDef(defn)
 
   private def createImplFunSymbol(predSym: Symbol): Symbol =
     val predType = predSym.info.asProcType
@@ -60,7 +58,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
         implMap(predSym) = implSym
         implSym
 
-  private def implementPatDef(pdef: PatDef)(using ctx: Context): List[FunDef | PatDef] =
+  private def implementPatDef(pdef: PatDef)(using ctx: Context): FunDef =
     val implSym = getImplFunSymbol(pdef.symbol, ctx.implMap)
     val span = pdef.body.span
 
@@ -83,10 +81,10 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
 
     // TODO: rebind param symbols
     val tpt = TypeTree(resultType)(pdef.resultType.span)
-    FunDef(implSym, pdef.tparams, scrutSym :: Nil, tpt, body)(pdef.span) :: pdef :: Nil
+    FunDef(implSym, pdef.tparams, scrutSym :: Nil, tpt, body)(pdef.span)
 
   override def transformNestedPatDef(pdef: PatDef)(using ctx: Context): Word =
-    Block(implementPatDef(pdef))(VoidType, pdef.span)
+    implementPatDef(pdef)
 
   override def transformMatch(patmat: Match)(using ctx: Context): Word =
     val Match(scrutineeRaw, cases) = patmat

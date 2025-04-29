@@ -87,7 +87,15 @@ class ExprTyper(namer: Namer):
 
         case _ => false
 
-      if isDotlessMethodCallPattern then
+      if tp.is[TypeRef] && tp.as[TypeRef].symbol.isContainer then
+        // if the first word is a section or namespace reference, inject the
+        // names of the container in typing the expression
+        val tref = tp.as[TypeRef]
+        val injected = sc.fresh(tref.symbol, tref.symbol.info.as[NameTableInfo].nameTable)
+        given Scope = injected.fresh()
+        transform(Ast.Expr(rest)(expr.span))
+
+      else if isDotlessMethodCallPattern then
         // Dotless method call pattern, where the infix operator takes exactly one parameter
         val words = mutable.ListBuffer.from(expr.words)
         val word = parseDotless(words, -1)
