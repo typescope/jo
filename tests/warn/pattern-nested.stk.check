@@ -1,17 +1,17 @@
 ---------- Warning at ./tests/warn/pattern-nested.stk:2:9 ---------------
 |   match a                                      // error
 |         ^
-|         The match will fail for the case: #None
+|         The match will fail for the case: None
 
 ---------- Warning at ./tests/warn/pattern-nested.stk:6:9 ---------------
 |   match a                                      // error
 |         ^
-|         The match will fail for the cases: #None, #Some(#None)
+|         The match will fail for the cases: None, #Some(None)
 
 ---------- Warning at ./tests/warn/pattern-nested.stk:9:9 ---------------
 |   match a                                      // error
 |         ^
-|         The match will fail for the cases: #None, #Some(#Some(v: Int))
+|         The match will fail for the cases: None, #Some(Some[Int])
 
 ---------- Warning at ./tests/warn/pattern-nested.stk:16:48 ---------------
 | pattern Inexhaustive(x: Int, rest: List[Int]): List[Int] =
