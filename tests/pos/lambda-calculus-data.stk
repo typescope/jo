@@ -3,9 +3,9 @@ data Expr =
   | Var(x: String)
   | App(lhs: Expr, arg: Expr)
 
- data Env = Empty | Cons(k: String, v: Value, outer: Env)
+data Env = Empty | Cons(k: String, v: Value, outer: Env)
 
-type Value = { lambda: Abs, env: Env }
+data Value(lambda: Abs, env: Env)
 
 param env: Env = Empty // environment for variables
 
@@ -35,7 +35,7 @@ fun eval(expr: Expr): Value =
       end
 
     case abs: Abs =>
-      { lambda = abs, env = env }
+      Value abs env
 
     case App abs arg =>
       val closure = eval abs
