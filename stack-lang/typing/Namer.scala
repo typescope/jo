@@ -279,7 +279,7 @@ class Namer(@constructorOnly reporter: Reporter):
         val expr2 =
           given TargetType = TargetType.Known(tpt2.tpe)
           transform(expr)
-        expr2.encodedAs(tpt2.tpe).adapt
+        Encoded(expr2)(tpt2.tpe, word.span).adapt
 
       case tag: Ast.Tag =>
         transformTagged(tag, values = Nil).adapt

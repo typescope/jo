@@ -174,11 +174,12 @@ object Sast:
     */
   case class Encoded
     (repr: Word)
-    (val tpe: Type)
+    (val tpe: Type, val span: Span)
   extends Word:
-    def span = repr.span
-
     def isValueDrop = repr.tpe.isValueType && tpe.isVoidType
+
+  object Encoded:
+    def apply(repr: Word)(tpe: Type): Encoded = apply(repr)(tpe, repr.span)
 
   case class TypeTree
     (tpe: Type)
