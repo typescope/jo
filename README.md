@@ -24,55 +24,56 @@ fun main = println "Hello world!"
 ### [Lambda Calculus](https://en.wikipedia.org/wiki/Lambda_calculus)
 
 ```
-type Lambda = #Abs(x: String, body: Expr)
+data Expr =
+    Abs(x: String, body: Expr)
+  | Var(x: String)
+  | App(lhs: Expr, arg: Expr)
 
-type Expr = Lambda | #Var(x: String) | #App(lhs: Expr, arg: Expr)
+ data Env = Empty | Cons(k: String, v: Value, outer: Env)
 
-type Env = #Empty | #Cons(k: String, v: Value, outer: Env)
+type Value = { lambda: Abs, env: Env }
 
-type Value = { lambda: Lambda, env: Env }
-
-param env: Env = #Empty // environment for variables
+param env: Env = Empty // environment for variables
 
 fun show(expr: Expr): String =
   match expr
-    case #Var x => x
+    case Var x => x
 
-    case #Abs x t => "(\\" + x + "." + (show t) + ")"
+    case Abs x t => "(\\" + x + "." + (show t) + ")"
 
-    case #App abs arg =>
+    case App abs arg =>
       (show abs) + " " + (show arg)
 
 fun find(x: String): Option[Value] =
   match env
-    case #Empty => #None
+    case Empty => None
 
-    case #Cons k v outer =>
-      if x == k then #Some(v)
+    case Cons k v outer =>
+      if x == k then Some(v)
       else find x with env = outer
 
 fun eval(expr: Expr): Value =
   match expr
-    case #Var x =>
+    case Var x =>
       match find x
-        case #None => abort ("Unfound variable: " + x)
-        case #Some v => v
+        case None => abort ("Unfound variable: " + x)
+        case Some v => v
       end
 
-    case abs: Lambda =>
+    case abs: Abs =>
       { lambda = abs, env = env }
 
-    case #App abs arg =>
+    case App abs arg =>
       val closure = eval abs
       val argValue = eval arg
       val x = closure.lambda.x
       val body = closure.lambda.body
-      val env2: Env = #Cons(x, argValue, closure.env)
+      val env2: Env = Cons(x, argValue, closure.env)
       eval body with env = env2
 
 fun main =
-  val id: Expr = #Abs("x", #Var "x")
-  val code: Expr = #App(id, id)
+  val id: Expr = Abs("x", Var "x")
+  val code: Expr = App(id, id)
   println
     show (eval code).lambda
 ```
@@ -80,41 +81,42 @@ fun main =
 ### [The Expression Problem](https://en.wikipedia.org/wiki/Expression_problem)
 
 ```
-type Expr[Lang] =
-    #Lit(n: Int)
-  | #Add(lhs: Lang, rhs: Lang)
+data Expr[Lang] =
+    Lit(n: Int)
+  | Add(lhs: Lang, rhs: Lang)
 
 type LangA = Expr[LangA]
 
 fun eval[T](expr: Expr[T], eval: T => Int): Int =
   match expr
-    case #Lit n => n
-    case #Add lhs rhs => (eval lhs) + (eval rhs)
+    case Lit n => n
+    case Add lhs rhs => (eval lhs) + (eval rhs)
 
 fun evalLangA(expr: LangA): Int =
   eval expr (e => evalLangA e)
 
-type ExprExt[Lang] = Expr[Lang] | #Mul(lhs: Lang, rhs: Lang)
+data Mul[Lang](lhs: Lang, rhs: Lang)
+type ExprExt[Lang] = Expr[Lang] | Mul[Lang]
 
 type LangB = ExprExt[LangB]
 
 fun evalExt[T](expr: ExprExt[T], evalExt: T => Int): Int =
   match expr
     case e: Expr[T] => eval e evalExt
-    case #Mul lhs rhs => (evalExt lhs) * (evalExt rhs)
+    case Mul lhs rhs => (evalExt lhs) * (evalExt rhs)
 
 fun evalLangB(expr: LangB): Int =
   evalExt expr (e => evalLangB e)
 
 fun main =
-  val langA =
-    #Add
-      #Lit 3
-      #Add
-        #Lit 2
-        #Lit 5
+  val langA: LangA =
+    Add
+      Lit 3
+      Add
+        Lit 2
+        Lit 5
 
-  val langB = #Mul langA (#Lit 3)
+  val langB: LangB = Mul langA (Lit 3)
 
   println
     intToStr

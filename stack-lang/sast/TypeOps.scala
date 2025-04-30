@@ -11,29 +11,6 @@ import scala.collection.mutable
 /** Operations on types */
 object TypeOps:
 
-  /** The common result type of two different types.
-    *
-    * This method is used to compute the result type of if- and match-
-    * expressions.
-    *
-    * The logic is different from computing join in the subtype lattice:
-    *
-    * - ErrorType always dominates
-    * - VoidType dominates anything else
-    * - Reference to terms are widened
-    *
-    * Also, do not infer Any as common type, which is useless.
-    */
-  def commonResultType(tp1: Type, tp2: Type)(using Definitions): Option[Type] =
-    val tp1Widen = tp1.widenTermRef
-    val tp2Widen = tp2.widenTermRef
-    if tp1.isError || tp2.isError then Some(ErrorType)
-    else if tp1.isVoidType || tp2.isVoidType then Some(VoidType)
-    else if Subtyping.conforms(tp1, tp2Widen) then Some(tp2Widen)
-    else if Subtyping.conforms(tp2, tp1Widen) then Some(tp1Widen)
-    else if tp1.isTagType && tp2.isTagType then Some(UnionType(tp1 :: tp2 :: Nil))
-    else None
-
   /** Substitute type params with the given types */
   def substTypeParams(tpe: Type, to: List[Type]): Type =
     val typeMap = new TypeOps.TypeParamTypeMap

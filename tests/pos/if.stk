@@ -1,3 +1,9 @@
+data M = A | B
+data C
+type N = M | C
+
 fun main =
+  val c: N = if 5 > 6 then A as M else C
+
   if 5 < 6 then
     4 p

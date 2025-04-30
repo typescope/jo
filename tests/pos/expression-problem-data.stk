@@ -1,0 +1,44 @@
+data Expr[Lang] =
+    Lit(n: Int)
+  | Add(lhs: Lang, rhs: Lang)
+
+type LangA = Expr[LangA]
+
+fun eval[T](expr: Expr[T], eval: T => Int): Int =
+  match expr
+    case Lit n => n
+    case Add lhs rhs => (eval lhs) + (eval rhs)
+
+fun evalLangA(expr: LangA): Int =
+  eval expr (e => evalLangA e)
+
+data Mul[Lang](lhs: Lang, rhs: Lang)
+type ExprExt[Lang] = Expr[Lang] | Mul[Lang]
+
+type LangB = ExprExt[LangB]
+
+fun evalExt[T](expr: ExprExt[T], evalExt: T => Int): Int =
+  match expr
+    case e: Expr[T] => eval e evalExt
+    case Mul lhs rhs => (evalExt lhs) * (evalExt rhs)
+
+fun evalLangB(expr: LangB): Int =
+  evalExt expr (e => evalLangB e)
+
+fun main =
+  val langA: LangA =
+    Add
+      Lit 3
+      Add
+        Lit 2
+        Lit 5
+
+  val langB: LangB = Mul langA (Lit 3)
+
+  println
+    intToStr
+      evalLangA langA
+
+  println
+    intToStr
+      evalLangB langB

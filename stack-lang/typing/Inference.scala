@@ -2,6 +2,7 @@ package typing
 
 import sast.Types.*
 import sast.Subtyping
+import sast.Definitions
 
 import scala.collection.mutable
 
@@ -19,6 +20,43 @@ object Inference:
       this match
         case Known(tpe) => Some(tpe)
         case _ => None
+
+  /** The common result type of two different types.
+    *
+    * This method is used to compute the result type of if- and match-
+    * expressions.
+    *
+    * The logic is different from computing join in the subtype lattice:
+    *
+    * - ErrorType always dominates
+    * - VoidType dominates anything else
+    * - Reference to terms are widened
+    *
+    * Also, do not infer Any as common type, which is useless.
+    */
+  def commonResultType(tp1: Type, tp2: Type)
+      (using defn: Definitions, tt: TargetType): Option[Type] =
+
+    val tp1Widen = tp1.widenTermRef
+    val tp2Widen = tp2.widenTermRef
+    if tp1.isError || tp2.isError then Some(ErrorType)
+    else if tp1.isVoidType || tp2.isVoidType then Some(VoidType)
+    else if Subtyping.conforms(tp1, tp2Widen) then Some(tp2Widen)
+    else if Subtyping.conforms(tp2, tp1Widen) then Some(tp1Widen)
+    else
+      tt match
+        case TargetType.Known(tp) =>
+          if Subtyping.conforms(tp1, tp) && Subtyping.conforms(tp2, tp) then
+            Some(tp)
+          else
+            None
+
+        case _ =>
+          if tp1.isTagType && tp2.isTagType then
+            Some(UnionType(tp1 :: tp2 :: Nil))
+
+          else
+            None
 
   trait Inferencer:
     /** The instantiated type associated with the type varialbe
