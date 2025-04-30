@@ -136,8 +136,11 @@ object Desugaring:
     * where `U, ...` is a subset of `X, ...` that appear in the branch
     * `A`. Similarly for `V, ...`.
     *
-    * TODO: what if `X, ...` have dependencies among them via bounds?
+    * For future: what if `X, ...` have dependencies among them via bounds?
     *
+    * It's not useful for type params of type definitions to have bounds even if
+    * it might make sense for functions and patterns. They do not improve
+    * expressiveness.
     */
   def synthesizeEnumDef(enumDef: EnumDef, secDef: Section | Null)
       (using Reporter, Source)

@@ -145,9 +145,9 @@ Abstract Syntax
 
     paramdef = PARAM param [EQL block].
 
-    typedef = TYPE ident[tparams] [EQL type].
+    typedef = TYPE ident[tparams] [EQL type | SUBTYPE type].
     tparams = LBRACKET tparam {COMMA tparam} RBRACKET.
-    tparam  = ident [SUBTYPE type].
+    tparam  = ident.
 
     applied_type = ident targs.
     targs        = LBRACKET type { COMMA type } RBRACKET.

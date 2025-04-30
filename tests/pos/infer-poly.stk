@@ -1,12 +1,8 @@
-fun test1[X, Y <: X](y: Y): X = y
-
 fun app[X, Y](x: X, f: X => Y): Y = f x
 
 fun app2[X, Y](f: X => Y, x: X): Y = f x
 
 fun main =
-  test1 5 p
-
   app 5 (x => x * x) p
 
   // Scala cannot do this

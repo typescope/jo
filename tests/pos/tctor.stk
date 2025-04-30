@@ -12,12 +12,6 @@ fun foreach(l: List[Int]): Unit =
 
 type Pair[T] = {a: T, b: T}
 
-type Tuple2[S <: {a: Int}, T <: S] = {x: S, y: T}
-
-type F[X] = {a: X}
-type M = {a: M}
-type G[T <: F[T]] = {x: T}
-fun test1(o: G[M]): G[M] = o
 
 type A[T] = {a: Int, b: A[T]}
 type B[T] = {a: Int, b: B[T]}
@@ -30,11 +24,6 @@ fun main =
   val c: List[Int] = #Cons({head = 20, tail = b})
 
   val x: Pair[Int] = {a = 36, b = 49}
-
-  val t: Tuple2[{a: Int, b: Int}, {a: Int, b: Int, c: Int}] = {
-      x = {a = 13, b = 14},
-      y = {a = 15, b = 16, c = 17}
-  }
 
   x.a p
   x.b p

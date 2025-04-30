@@ -1,0 +1,22 @@
+type Tuple2[S <: {a: Int}, T <: S] = {x: S, y: T}
+
+type F[X] = {a: X}
+type M = {a: M}
+type G[T <: F[T]] = {x: T}
+fun test(o: G[M]): G[M] = o
+
+
+fun foo[T <: {a: Int}](x: T): Int = x.a
+fun test1[X, Y <: X](y: Y): X = y
+fun test2[X <: Int](x: X): Int = x
+
+fun main =
+  val t: Tuple2[{a: Int, b: Int}, {a: Int, b: Int, c: Int}] = {
+      x = {a = 13, b = 14},
+      y = {a = 15, b = 16, c = 17}
+  }
+
+  test1 5 p
+
+  val x = { a = 4, b = false }
+  foo[{a: Int}] x p
