@@ -1,0 +1,21 @@
+---------- Error at ./tests/warn/type-param-bounds.stk:1:10 ---------------
+| type A[T <: Int] = T
+|          ^^^^^^
+|          Type bounds are not supported
+
+---------- Error at ./tests/warn/type-param-bounds.stk:3:11 ---------------
+| fun foo[T <: Int](x: T): T = x
+|           ^^^^^^
+|           Type bounds are not supported
+
+---------- Error at ./tests/warn/type-param-bounds.stk:5:12 ---------------
+| data Box[T <: Int](x: T)
+|            ^^^^^^
+|            Type bounds are not supported
+
+---------- Error at ./tests/warn/type-param-bounds.stk:7:18 ---------------
+| data Either[T, S <: T] = Left(value: T) | Right(value: S)
+|                  ^^^^
+|                  Type bounds are not supported
+
+4 error(s), 0 warning(s)

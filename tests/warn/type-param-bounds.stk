@@ -1,0 +1,7 @@
+type A[T <: Int] = T
+
+fun foo[T <: Int](x: T): T = x
+
+data Box[T <: Int](x: T)
+
+data Either[T, S <: T] = Left(value: T) | Right(value: S)

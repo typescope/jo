@@ -27,7 +27,7 @@ object Printing:
 
   given Text.Maker[TypeTree] = v => showType(v)
 
-  given Text.Maker[Param] = v => v.ident ~ showTypeAnnot(v.typ)
+  given Text.Maker[Param] = v => v.ident ~ showTypeAnnot(v.tpt)
 
   given Text.Maker[TypeParam] = v => v.ident ~ showTypeBound(v.bound)
 
@@ -117,6 +117,31 @@ object Printing:
         val token = if tdef.isBound then " <: " else " = "
 
         "type " ~ tdef.ident ~ tparams ~ token ~ tdef.rhs
+
+      case ddef: DataDef =>
+        val tparams =
+          if ddef.tparams.isEmpty then Text.Empty
+          else "[" ~ rep(ddef.tparams, Text(", "))  ~ "]"
+
+        val params =
+          if ddef.params.isEmpty then Text.Empty
+          else "(" ~ rep(ddef.params, Text(", "))  ~ ")"
+
+        "data " ~ ddef.ident ~ tparams ~ params
+
+      case edef: EnumDef =>
+        val tparams =
+          if edef.tparams.isEmpty then Text.Empty
+          else "[" ~ rep(edef.tparams, Text(", "))  ~ "]"
+
+        val branches =
+          edef.branches.map: branch =>
+            val params =
+              if branch.params.isEmpty then Text.Empty
+              else "(" ~ rep(branch.params, Text(", "))  ~ ")"
+            branch.tag ~ params
+
+        "data " ~ edef.ident ~ tparams ~ " = " ~ rep(branches, Text(" | "))
 
       case Section(name, defs) =>
         "section " ~ name ~ indent:

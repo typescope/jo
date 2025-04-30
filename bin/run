@@ -3,6 +3,8 @@
 files=(
     # parser
     stack-lang/ast/Ast.scala
+    stack-lang/ast/AstOps.scala
+    stack-lang/ast/Desugaring.scala
     stack-lang/ast/Interpreter.scala
     stack-lang/ast/Positions.scala
     stack-lang/ast/Printing.scala
@@ -28,12 +30,12 @@ files=(
     stack-lang/typing/Typer.scala
     stack-lang/sast/Constant.scala
     stack-lang/sast/Definitions.scala
-    stack-lang/sast/Desugaring.scala
     stack-lang/sast/Exhaustivity.scala
     stack-lang/sast/Flags.scala
     stack-lang/sast/NameTable.scala
     stack-lang/sast/Patterns.scala
     stack-lang/sast/Printing.scala
+    stack-lang/sast/Rewriting.scala
     stack-lang/sast/Sast.scala
     stack-lang/sast/SastOps.scala
     stack-lang/sast/Symbols.scala

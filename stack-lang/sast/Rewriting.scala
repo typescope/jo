@@ -2,14 +2,14 @@ package sast
 
 import Sast.*
 
-object Desugaring:
+object Rewriting:
 
   /** Desguar short-cutting || and &&
     *
     *     lhs || rhs    ===>    if lhs then true else rhs
     *     lhs && rhs    ===>    if lhs then rhs  else false
     */
-  def desugarShortcutAndOr(apply: Apply)(using defn: Definitions): Word =
+  def rewriteShortcutAndOr(apply: Apply)(using defn: Definitions): Word =
     val Apply(fun, args) = apply
 
     if fun.refersTo(defn.Predef_and) then

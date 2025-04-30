@@ -68,7 +68,7 @@ Abstract Syntax
 
     section = SECTION ident {toplevel_def} [END].
 
-    toplevel_def = typedef | fundef | paramdef | patdef | section.
+    toplevel_def = typedef | fundef | paramdef | patdef | datadef | section.
 
     qualid = ident | qualid DOT ident.
 
@@ -132,17 +132,22 @@ Abstract Syntax
     apply_pattern = (tag | ident) LPAREN [pattern {COMMA pattern}] RPAREN.
 
     valdef  = (VAL | VAR) ident [COLON type] EQL block.
-    fundef  = FUN [param_section] ident [tparams] [param_section] [COLON type] [receive_params] EQL block [END].
-    defdef  = DEF ident [tparams] [param_section] [COLON type] [receive_params] EQL block [END].
-    patdef  = PATTERN ident [tparams] [param_section] [COLON type] EQL cases [END].
 
+    fundef  = FUN [param_section] ident [tparams] [param_section] [COLON type] [receive_params] EQL block [END].
+
+    defdef  = DEF ident [tparams] [param_section] [COLON type] [receive_params] EQL block [END].
+
+    patdef  = PATTERN ident [tparams] [param_section] [COLON type] EQL cases [END].
     cases   = case Pattern {CASE pattern}.
+
+    datadef = DATA ident [tparams] ([param_section] | EQL branch { "|" branch }).
+    branch  = ident [param_section].
 
     paramdef = PARAM param [EQL block].
 
-    typedef = TYPE ident[tparams] [EQL type].
+    typedef = TYPE ident[tparams] [EQL type | SUBTYPE type].
     tparams = LBRACKET tparam {COMMA tparam} RBRACKET.
-    tparam  = ident [SUBTYPE type].
+    tparam  = ident.
 
     applied_type = ident targs.
     targs        = LBRACKET type { COMMA type } RBRACKET.

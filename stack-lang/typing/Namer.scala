@@ -1,6 +1,7 @@
 package typing
 
 import ast.Ast
+import ast.Desugaring
 import ast.Positions.*
 
 import sast.*
@@ -198,8 +199,11 @@ class Namer(@constructorOnly reporter: Reporter):
   private def index(defs: List[Ast.Def])(using defnLazy: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source): List[DelayedDef[Def]] =
     val delayedDefs = new mutable.ArrayBuffer[DelayedDef[Def]]
 
+    // Synthesize definitions
+    val desugaredDefs = Desugaring.synthesize(defs)
+
     for
-      defn <- defs
+      defn <- desugaredDefs
       delayedDef <- index(defn)
     do
       // The name table is shared between NameTableInfo and current scope. This
@@ -227,6 +231,10 @@ class Namer(@constructorOnly reporter: Reporter):
 
       case section: Ast.Section =>
         transformSection(section) :: Nil
+
+      case _: Ast.DataDef | _: Ast.EnumDef  =>
+        Reporter.error("[Internal Error] Data definition should have be desugared", defn.pos)
+        Nil
 
       case vdef: Ast.ValDef =>
         Reporter.error("Unexpected top-level value definitions", vdef.pos)
@@ -512,10 +520,11 @@ class Namer(@constructorOnly reporter: Reporter):
             transform(arg)
 
         val word = Apply(fun, argsTyped)(procType.resultType, apply.span)
-        val desugared = Desugaring.desugarShortcutAndOr(word)
+        val desugared = Rewriting.rewriteShortcutAndOr(word)
         checker.adapt(desugared, tt)
     else
-      Reporter.error(s"Not a function: " + fun.tpe.show, fun.pos)
+      if !fun.tpe.isError then
+        Reporter.error(s"Not a function: " + fun.tpe.show, fun.pos)
       errorWord(apply.span)
 
   /** Check a dotless call such as `str1 + str2` */
@@ -576,7 +585,7 @@ class Namer(@constructorOnly reporter: Reporter):
     if fun.tpe.isPolyType then
       fun = instantiatePoly(fun.tpe.asProcType, fun)
 
-    assert(fun.tpe.isProcType, "Expect function type, found = " + fun.tpe.show)
+    assert(fun.tpe.isProcType, "Expect function type, found = " + fun.tpe)
 
     val procType = fun.tpe.asProcType
     val preParamCount = procType.preParamCount
@@ -606,8 +615,8 @@ class Namer(@constructorOnly reporter: Reporter):
           transform(arg)
 
       val word = Apply(fun, preArgs2 ++ postArgs2)(procType.resultType, call.span)
-      val desugared = Desugaring.desugarShortcutAndOr(word)
-      checker.adapt(desugared, tt)
+      val rewrite = Rewriting.rewriteShortcutAndOr(word)
+      checker.adapt(rewrite, tt)
 
   def transform(assign: Ast.Assign)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): Word =
     val Ast.Assign(ref, rhs) = assign
@@ -817,7 +826,7 @@ class Namer(@constructorOnly reporter: Reporter):
 
      val paramSyms =
       for (param, i) <- params.zipWithIndex yield
-        val tp = if param.typ.isEmpty then inferParamType(i) else transformType(param.typ).tpe
+        val tp = if param.tpt.isEmpty then inferParamType(i) else transformType(param.tpt).tpe
         val paramSym = Symbol.createSymbol(param.name, tp, Flags.Param, funSym, param.pos)
         lambdaScope.define(paramSym)
         paramSym
@@ -857,7 +866,7 @@ class Namer(@constructorOnly reporter: Reporter):
       case defn: Definitions => defn
 
     val infoProvider: InfoProvider = sym =>
-      transformType(pdef.typ).tpe
+      transformType(pdef.tpt).tpe
 
     var flags = Flags.Param | Flags.Context
     if pdef.default.nonEmpty then
@@ -865,7 +874,7 @@ class Namer(@constructorOnly reporter: Reporter):
 
     val paramSym = Symbol.createSymbol(pdef.name, infoProvider, flags, sc.owner, pdef.pos)
     val paramDefSast = () =>
-      val tpt = TypeTree(paramSym.info)(pdef.typ.span)
+      val tpt = TypeTree(paramSym.info)(pdef.tpt.span)
       ParamDef(paramSym, tpt)(pdef.span)
 
     val delayedParamDef = DelayedDef(paramSym, paramDefSast)
@@ -889,7 +898,7 @@ class Namer(@constructorOnly reporter: Reporter):
           given Scope = sc.fresh(defaultFunSym)
           given TargetType = TargetType.Known(paramSym.info)
           val body = transform(rhs)
-          val tpt = TypeTree(paramSym.info)(pdef.typ.span)
+          val tpt = TypeTree(paramSym.info)(pdef.tpt.span)
           FunDef(defaultFunSym, tparams = Nil, params = Nil, tpt, body)(rhs.span)
 
         DelayedDef(defaultFunSym, defaultFunDefSast) :: delayedParamDef :: Nil
@@ -906,19 +915,19 @@ class Namer(@constructorOnly reporter: Reporter):
     val sym = Symbol.createSymbol(vdef.name, this.nonCyclicTypeProvider, flags, sc.owner, vdef.ident.pos)
 
     lazy val givenType: Type =
-      val tpt = transformType(vdef.typ)
+      val tpt = transformType(vdef.tpt)
       val tp2 = checker.checkValueType(tpt.tpe, tpt.pos)
       tp2
 
     val rhs: Word =
       given Scope = sc.fresh(sym)
       given TargetType =
-        if vdef.typ.isEmpty then TargetType.ValueType
+        if vdef.tpt.isEmpty then TargetType.ValueType
         else TargetType.Known(givenType)
       transform(vdef.rhs)
 
     def computeType(): Type =
-      if vdef.typ.isEmpty then rhs.tpe else givenType
+      if vdef.tpt.isEmpty then rhs.tpe else givenType
 
     this.nonCyclicTypeProvider.addProvider(sym, computeType)
 
@@ -958,7 +967,7 @@ class Namer(@constructorOnly reporter: Reporter):
       tparamSyms
 
       for param <- funDef.params yield
-        val tpt = transformType(param.typ)
+        val tpt = transformType(param.tpt)
         val paramSym = Symbol.createSymbol(param.name, tpt.tpe, Flags.Param, funSym, param.pos)
         funScope.define(paramSym)
         paramSym
@@ -1027,7 +1036,8 @@ class Namer(@constructorOnly reporter: Reporter):
     (using lazyDefn: Definitions.Lazy | Definitions, sc: Scope, rp: Reporter, so: Source)
   : DelayedDef[TypeDef] =
 
-    val typeSym = Symbol.createSymbol(tdef.name, this.nonCyclicTypeProvider, Flags.Type, sc.owner, tdef.ident.pos)
+    val flags = Flags.Type
+    val typeSym = Symbol.createSymbol(tdef.name, this.nonCyclicTypeProvider, flags, sc.owner, tdef.ident.pos)
 
     given Definitions = lazyDefn match
       case lazyDefn: Definitions.Lazy => lazyDefn.value
@@ -1132,7 +1142,7 @@ class Namer(@constructorOnly reporter: Reporter):
 
     val paramSyms =
       for param <- ddef.params yield
-        val tpt = transformType(param.typ)
+        val tpt = transformType(param.tpt)
         val paramSym = Symbol.createSymbol(param.name, tpt.tpe, Flags.Param, sc.owner, param.pos)
         defScope.define(paramSym)
         paramSym
@@ -1201,7 +1211,7 @@ class Namer(@constructorOnly reporter: Reporter):
           if fieldTypes.exists(_.name == field.name) then
             Reporter.error("Field " + field.name + " already defined", field.pos)
           else
-            val tpt = transformType(field.typ)
+            val tpt = transformType(field.tpt)
             checker.delayedCheck { checker.checkValueType(tpt) }
             fieldTypes += NamedInfo(field.name, tpt.tpe)
         end for
@@ -1213,7 +1223,7 @@ class Namer(@constructorOnly reporter: Reporter):
           if paramInfos.exists(_.name == param.name) then
             Reporter.error("Parameter " + param.name + " already defined", param.pos)
 
-          val tpt = transformType(param.typ)
+          val tpt = transformType(param.tpt)
           checker.delayedCheck { checker.checkValueType(tpt) }
           paramInfos += NamedInfo(param.name, tpt.tpe)
         end for
@@ -1234,7 +1244,7 @@ class Namer(@constructorOnly reporter: Reporter):
                 methodTypes += NamedInfo(member.name, memberTypeTree.tpe)
               case vdef: Ast.ValDef =>
                 if vdef.mutable then mutableFields += vdef.name
-                val fieldTypeTree = transformType(vdef.typ)
+                val fieldTypeTree = transformType(vdef.tpt)
                 fieldTypes += NamedInfo(vdef.name, fieldTypeTree.tpe)
 
         val tp = ObjectType(fieldTypes.toList, methodTypes.toList, mutableFields.toList)

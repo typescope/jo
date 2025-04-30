@@ -1,0 +1,59 @@
+data Box[T](value: T)
+
+data Post(title: String, author: String, content: String)
+
+data Option[T] = Some(value: T) | None
+
+data List[T] = Cons(head: T, tail: List[T]) | Nil
+
+data Tree[T] = Node(value: T, left: Tree[T], right: Tree[T]) | Leaf(value: T)
+
+data Either[S, T] = Left(value: S) | Right(value: T)
+
+section Left
+  pattern Left(value: Int): Left[Int] = case #Left value
+end
+
+section Right
+  pattern Right(value: Int): Right[Int] = case #Right value
+  fun Right(value: Int): Right[Int] = #Right value
+end
+
+
+fun testData =
+  val box = Box(5)
+  val post = Post("Hello, World", "Turing", "Bla bla...")
+
+  val c1: Box[Int] | Post = Box 3
+  val c2: Box[Int] | Post = post
+
+  match c1
+    case Box(value) => println (intToStr value)
+    case p: Post => println p.title
+
+  match c2
+    case Box value      => println (intToStr value)
+    case Post title _ _ => println title
+
+  println post.title
+  println (intToStr box.value)
+
+fun testEnum =
+  val a: Option[Int] = Some 20
+  match a
+    case Some v => println (intToStr v)
+    case None =>
+
+  val l: List[Int] = Cons 4 (Cons 5 Nil)
+  match l
+    case Cons x (Cons y Nil) => println (intToStr (x + y))
+    case _ =>
+
+  val e: Either[Int, String] = Left 9
+  match e
+    case Left v => println (intToStr v)
+    case _ =>
+
+fun main =
+  testData
+  testEnum

@@ -31,6 +31,7 @@ object TypeOps:
     else if tp1.isVoidType || tp2.isVoidType then Some(VoidType)
     else if Subtyping.conforms(tp1, tp2Widen) then Some(tp2Widen)
     else if Subtyping.conforms(tp2, tp1Widen) then Some(tp1Widen)
+    else if tp1.isTagType && tp2.isTagType then Some(UnionType(tp1 :: tp2 :: Nil))
     else None
 
   /** Substitute type params with the given types */

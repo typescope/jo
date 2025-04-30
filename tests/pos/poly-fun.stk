@@ -1,11 +1,5 @@
 fun ident[T](x: T): T = x
 
-fun foo[T <: {a: Int}](x: T): Int = x.a
-
-fun test1[X, Y <: X](y: Y): X = y
-
-fun test2[X <: Int](x: X): Int = x
-
 fun swap[S, T](x: {a: S, b: T}): {a: T, b: S} =
   { a = x.b, b = x.a }
 
@@ -16,5 +10,3 @@ fun main =
   val y = swap[Int, Bool] x
 
   y.b p
-
-  foo[{a: Int}] x p

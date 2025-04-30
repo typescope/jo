@@ -224,13 +224,13 @@ object Ast:
     val name: String = ident.name
 
   case class ValDef
-    (ident: Ident, typ: TypeTree, rhs: Word, mutable: Boolean)
+    (ident: Ident, tpt: TypeTree, rhs: Word, mutable: Boolean)
     (val span: Span)
   extends Word, Def
 
   /** Context parameter definition */
   case class ParamDef
-    (ident: Ident, typ: TypeTree, default: Option[Word])
+    (ident: Ident, tpt: TypeTree, default: Option[Word])
     (val span: Span)
   extends Def
 
@@ -264,8 +264,18 @@ object Ast:
   extends Word, Def:
     assert(cases.forall(c => isPattern(c.pat)), "Ill-formed pattern tree: " + cases)
 
+  case class DataDef
+    (ident: Ident, tparams: List[TypeParam], params: List[Param])
+    (val span: Span)
+  extends Def
+
+  case class EnumDef
+    (ident: Ident, tparams: List[TypeParam], branches: List[TagType])
+    (val span: Span)
+  extends Def
+
   case class Param
-    (ident: Ident, typ: TypeTree)
+    (ident: Ident, tpt: TypeTree)
     (val span: Span)
   extends Tree:
     def name = ident.name
@@ -276,6 +286,10 @@ object Ast:
   extends Tree:
     def name = ident.name
 
+  /** A type definition
+    *
+    * @param isBound whether the rhs is a type bound
+    */
   case class TypeDef
     (ident: Ident, tparams: List[TypeParam], rhs: TypeTree, isBound: Boolean)
     (val span: Span)

@@ -94,7 +94,7 @@ object Sast:
     (qual: Word, name: String)
     (val tpe: Type, val span: Span)
   extends Word:
-    assert(qual.tpe.isValueType)
+    assert(qual.tpe.isValueType, "Select node must have value prefix, found = " + qual.tpe.show)
 
   /** Assignment to local vars */
   case class Assign
