@@ -104,8 +104,8 @@ class Checker:
       if sc.owner.enclosingFunction != sym.enclosingFunction then
         Reporter.error("Cannot capture local mutable variable " + sym.name, pos)
 
-  def commonResultType(tp1: Type, tp2: Type, pos: SourcePosition)(using Definitions, Reporter): Type =
-    val commonTypeOpt = TypeOps.commonResultType(tp1, tp2)
+  def commonResultType(tp1: Type, tp2: Type, pos: SourcePosition)(using Definitions, Reporter, TargetType): Type =
+    val commonTypeOpt = Inference.commonResultType(tp1, tp2)
     commonTypeOpt match
       case Some(tp) => tp
       case None =>

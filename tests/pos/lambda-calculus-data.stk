@@ -1,0 +1,52 @@
+data Expr =
+    Abs(x: String, body: Expr)
+  | Var(x: String)
+  | App(lhs: Expr, arg: Expr)
+
+ data Env = Empty | Cons(k: String, v: Value, outer: Env)
+
+type Value = { lambda: Abs, env: Env }
+
+param env: Env = Empty // environment for variables
+
+fun show(expr: Expr): String =
+  match expr
+    case Var x => x
+
+    case Abs x t => "(\\" + x + "." + (show t) + ")"
+
+    case App abs arg =>
+      (show abs) + " " + (show arg)
+
+fun find(x: String): Option[Value] =
+  match env
+    case Empty => None
+
+    case Cons k v outer =>
+      if x == k then Some(v)
+      else find x with env = outer
+
+fun eval(expr: Expr): Value =
+  match expr
+    case Var x =>
+      match find x
+        case None => abort ("Unfound variable: " + x)
+        case Some v => v
+      end
+
+    case abs: Abs =>
+      { lambda = abs, env = env }
+
+    case App abs arg =>
+      val closure = eval abs
+      val argValue = eval arg
+      val x = closure.lambda.x
+      val body = closure.lambda.body
+      val env2: Env = Cons(x, argValue, closure.env)
+      eval body with env = env2
+
+fun main =
+  val id: Expr = Abs("x", Var "x")
+  val code: Expr = App(id, id)
+  println
+    show (eval code).lambda

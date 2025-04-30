@@ -279,7 +279,7 @@ class Namer(@constructorOnly reporter: Reporter):
         val expr2 =
           given TargetType = TargetType.Known(tpt2.tpe)
           transform(expr)
-        expr2.adapt
+        Encoded(expr2)(tpt2.tpe, word.span).adapt
 
       case tag: Ast.Tag =>
         transformTagged(tag, values = Nil).adapt
@@ -500,6 +500,13 @@ class Namer(@constructorOnly reporter: Reporter):
       val procType = funType.asProcType
       val paramSize = procType.paramTypes.size
 
+      // Always prefer type constraints from outer scope
+      tt match
+        case TargetType.Known(tp) =>
+           Subtyping.conforms(procType.resultType, tp)
+
+        case _ =>
+
       val preArgTypes = procType.preParamTypes
       if preArgTypes.size != 0 then
         Reporter.error(
@@ -590,6 +597,13 @@ class Namer(@constructorOnly reporter: Reporter):
     val procType = fun.tpe.asProcType
     val preParamCount = procType.preParamCount
     val postParamCount = procType.postParamCount
+
+    // Always prefer type constraints from outer scope
+    tt match
+      case TargetType.Known(tp) =>
+         Subtyping.conforms(procType.resultType, tp)
+
+      case _ =>
 
     if preArgs.size != preParamCount then
       Reporter.error(
