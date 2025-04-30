@@ -409,10 +409,10 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def typeParam(): TypeParam =
     val id = ident()
 
-   if peek() == Token.SUBTYPE then
-     val sub = eat(Token.SUBTYPE)
-     val tpt = typ()
-     error("Type bounds are not supported", (sub.span | tpt.span).toPos)
+    if peek() == Token.SUBTYPE then
+      val sub = eat(Token.SUBTYPE)
+      val tpt = typ()
+      error("Type bounds are not supported", (sub.span | tpt.span).toPos)
 
     val bound = EmptyTypeTree()(id.span)
     TypeParam(id, bound)(id.span | bound.span)
