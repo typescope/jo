@@ -12,6 +12,7 @@ Fix #XXX: A short description
 - [ ] pattern match
   - [ ] pattern typer
   - [ ] occur check
+  - [ ] determinism check
   - [ ] exhaustivity check
   - [ ] semantic transform
 - [ ] closure conversion
