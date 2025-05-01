@@ -124,12 +124,14 @@ Abstract Syntax
 
     expr_pattern = simple_pattern {simple_pattern}.
 
-    simple_pattern = literal_pattern | ident | tag | type_pattern | ascribe_pattern | apply_pattern | LPAREN pattern RPAREN.
+    simple_pattern = literal_pattern | ident | tag | type_pattern | ascribe_pattern | apply_pattern | LPAREN pattern RPAREN | sequence_pattern.
 
     literal_pattern = integer | boolean | char | string.
     type_pattern  = ident COLON type.
     ascribe_pattern = ident '@' simple_pattern.
     apply_pattern = (tag | ident) LPAREN [pattern {COMMA pattern}] RPAREN.
+
+    sequence_pattern = LBRACK [pattern {, pattern}] RBRACK.
 
     valdef  = (VAL | VAR) ident [COLON type] EQL block.
 
@@ -171,7 +173,7 @@ Abstract Syntax
     method_decl = DEF ident param_section COLON type [receive_params].
     val_decl    = (VAL | VAR) ident COLON type.
 
-    param_section = LPAREN [params] RPAREN
+    param_section = LPAREN [params] RPAREN.
     params        = param {COMMA param}.
     param         = ident COLON type.
 

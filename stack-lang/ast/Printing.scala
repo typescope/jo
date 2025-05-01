@@ -157,6 +157,8 @@ object Printing:
 
       case StringLit(s) => "\"" ~ StringUtil.escape(s) ~ "\""
 
+      case SeqLit(words) => "[" ~ rep(words, Text(", ")) ~ "]"
+
       case Ident(name) => Text(name)
 
       case Apply(fun, args) =>
@@ -268,6 +270,7 @@ object Printing:
       case Assign(id: Ident, rhs) =>
         id ~ "@" ~ rhs
 
+      case SeqLit(words) => "[" ~ rep(words.map(showPattern), Text(", ")) ~ "]"
 
   def showType(tpt: TypeTree): Text =
     tpt match

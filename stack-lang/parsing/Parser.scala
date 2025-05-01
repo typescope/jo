@@ -1044,6 +1044,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def isSimplePatternStart(token: Token): Boolean =
     token == Token.TAG
     || token == Token.LPAREN
+    || token == Token.LBRACKET
     || token.isInstanceOf[Token.Ident]
     || token.isInstanceOf[Token.BoolLit]
     || token.isInstanceOf[Token.StringLit]
@@ -1104,6 +1105,14 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         val pat = pattern()
         eat(Token.RPAREN)
         pat
+
+      case Token.LBRACKET =>
+        val lbracket = next()
+        val pats =
+          if peek() == Token.BRACKET then Nil
+          else oneOrMore(pattern, Token.COMMA)
+        val rbracket = eat(Token.RBRACKET)
+        SeqLit(pats)(lbracket.span | rbracket.span)
 
       case _ =>
         val item = next()

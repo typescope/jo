@@ -72,11 +72,37 @@ fun either(a: Bool, b: Bool): Bool = abort("primitive either")
 // A type to indicate that a pattern predicate does not exhaust a type
 type Partial[T] <: T
 
-// An OR pattern
+// "|" pattern
 //
 // Its true semantics is handled in pattern translation.
 pattern (lhs: T) |[T] (rhs: T): T =
   case lhs @ rhs
+
+type Seq[T] = object {
+  def size: Int
+  def apply(i: Int): T
+}
+
+// "*" pattern
+//
+// A * pattern matches multiple items accepted by the nested pattern.
+//
+// The * pattern is only valid inside a sequence pattern.
+//
+// Its true semantics is handled in pattern translation.
+pattern (item: T) *[T]: Seq[T] =
+  case seq then item = seq(0)
+
+// ">" pattern
+//
+// A > pattern will ignore all current items until an item is accepted by the
+// nested pattern.
+//
+// The > pattern is only valid inside a sequence pattern.
+//
+// Its true semantics is handled in pattern translation.
+pattern >[T](item: T): Seq[T] =
+  case seq then item = seq(0)
 
 //------------------------------------------------------------------------------
 //
