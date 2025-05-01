@@ -255,7 +255,7 @@ object Printing:
         showPattern(fun) ~ "(" ~ argText  ~ ")"
 
       case Expr(words) if words.nonEmpty =>
-        rep(words.map(showPattern), Text(", "))
+        rep(words.map(showPattern), Text(" "))
 
       case TypeAscribe(id: Ident, tpt) =>
         id ~ ": " ~ tpt

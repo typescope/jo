@@ -1109,7 +1109,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case Token.LBRACKET =>
         val lbracket = next()
         val pats =
-          if peek() == Token.BRACKET then Nil
+          if peek() == Token.RBRACKET then Nil
           else oneOrMore(pattern, Token.COMMA)
         val rbracket = eat(Token.RBRACKET)
         SeqLit(pats)(lbracket.span | rbracket.span)
