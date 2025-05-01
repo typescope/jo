@@ -417,4 +417,14 @@ object Sast:
       val span = if args.isEmpty then word.span else word.span | args.last.span
       Apply(word, args2.toList)(procType.resultType, span)
 
+    def appliedToTypes(targs: Type*)(using Definitions): Word =
+      val procType = word.tpe.asProcType
+
+      val targList = targs.toList
+      assert(procType.tparamCount == targs.size)
+
+      // TODO: check bounds once they are supported
+      val tpe = TypeOps.substTypeParams(procType.copy(tparams = Nil), targList)
+      TypeApply(word, targList.map(targ => TypeTree(targ)(word.span)))(tpe, word.span)
+
     def encodedAs(tpe: Type): Word = Encoded(word)(tpe)

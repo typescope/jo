@@ -1121,16 +1121,21 @@ class Namer(@constructorOnly reporter: Reporter):
   private def transformSection(section: Ast.Section)
     (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source)
   : DelayedDef[Section] =
+    val sym = Symbol.createSymbol(section.name, this.nonCyclicTypeProvider, Flags.Section, sc.owner, section.ident.pos)
 
     val nameTable = new NameTable
-    val sym = Symbol.createSymbol(section.name, NameTableInfo(nameTable), Flags.Section, sc.owner, section.ident.pos)
+    given Scope = sc.fresh(sym, nameTable)
 
+    lazy val delayedDefs = index(section.defs)
     // check type symbols after completion to allow cycles, type A = A
     val typer = () =>
-      given Scope = sc.fresh(sym, nameTable)
-      val delayedDefs = index(section.defs)
       val defs = for delayed <- delayedDefs.toList yield delayed.force()
       Section(sym, defs)(section.span)
+
+    this.nonCyclicTypeProvider.addProvider(sym, () => {
+      delayedDefs
+      new NameTableInfo(nameTable)
+    })
 
     DelayedDef(sym, typer)
 

@@ -63,6 +63,11 @@ final class Definitions(rootNameTable: NameTable):
   val Predef_String =  Predef.typeMember("String")
   val Predef_Array  =  Predef.typeMember("Array")
 
+  // Lists
+  val Predef_List      =  Predef.typeMember("List")
+  val Predef_Nil_fun   =  Predef.termMember("Nil").termMember("Nil")
+  val Predef_Cons_fun  =  Predef.termMember("Cons").termMember("Cons")
+
   // patterns
   val Predef_orPattern = Predef.patternMember("|")
   val Predef_Partial = Predef.typeMember("Partial")

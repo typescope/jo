@@ -86,7 +86,7 @@ object Exhaustivity:
 
       case _: SeqPattern =>
         // TODO: fix exhaustivity check for sequence patterns
-        EmptySpace
+        TypeSpace(pattern.tpe)
 
       case ValuePattern(value) =>
         value match

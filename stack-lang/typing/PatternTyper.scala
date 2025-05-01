@@ -615,7 +615,7 @@ class PatternTyper(namer: Namer, checker: Checker):
 
     val bindings = new mutable.ArrayBuffer[(Symbol, Symbol)]
     occursInner.result().foreach: (innerSym, pos) =>
-      val expectedType = AppliedType(TypeRef(defn.Predef_Seq), innerSym.info :: Nil)
+      val expectedType = AppliedType(TypeRef(defn.Predef_List), innerSym.info :: Nil)
 
       // first check if there is a pattern variable of the same name exists
       sc.resolvePattern(innerSym.name) match
