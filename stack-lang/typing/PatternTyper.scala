@@ -66,7 +66,7 @@ class PatternTyper(namer: Namer, checker: Checker):
         for Ast.Case(pattern, _) <- patDef.cases yield
           val occurs = new Occurs
           given Occurs = occurs
-
+          given Scope = patScope.fresh()
           val patternTyped = transformPattern(pattern, scrutType)
 
           if !reporterTemp.hasErrors then
@@ -419,6 +419,7 @@ class PatternTyper(namer: Namer, checker: Checker):
             oc.occur(sym, id.pos)
 
             val explain = new StringBuilder
+            // TODO: conform should be same, no need to be equal
             if Patterns.isEqualType(tpe, sym.info)(using explain) then
               val patVal = Ident(sym)(id.span)
               AscribePattern(patVal, TypePattern(tpt2))
@@ -460,6 +461,7 @@ class PatternTyper(namer: Namer, checker: Checker):
           oc.occur(sym, id.pos)
 
           val explain = new StringBuilder
+          // TODO: conform should be same, no need to be equal
           if Patterns.isEqualType(sym.info, scrutType)(using explain) || scrutType.isVoidType then
             val patVal = Ident(sym)(id.span)
             AscribePattern(patVal, TypePattern(TypeTree(sym.info)(id.span)))
@@ -495,6 +497,7 @@ class PatternTyper(namer: Namer, checker: Checker):
           val nestedPattern = transformPattern(nested, scrutType)
 
           val explain = new StringBuilder
+          // TODO: conform should be same, no need to be equal
           if Patterns.isEqualType(sym.info, nestedPattern.tpe)(using explain) || scrutType.isVoidType then
             val patVal = Ident(sym)(id.span)
             AscribePattern(patVal, nestedPattern)
@@ -552,6 +555,89 @@ class PatternTyper(namer: Namer, checker: Checker):
           Reporter.error("Found extra pattern, an expression pattern should form a single pattern", span.toPos)
 
         transformPattern(values.last, scrutType)
+
+  private def transformSeqPattern(seq: Ast.SeqLit, scrutType: Type)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs)
+  : Pattern =
+
+    val tvar = TypeVar("T", this.namer.inferencer)
+    val seqType = AppliedType(TypeRef(defn.Predef_Seq), tvar :: Nil)
+
+    if Subtyping.conforms(scrutType, seqType) then
+      if !tvar.isInstantiated then
+        Reporter.error("Tvar is not instantiated", seq.pos)
+        WildcardPattern()(ErrorType, seq.span)
+
+      else
+        val regexPatterns = new mutable.ArrayBuffer[RegexPattern]
+        val itemType = tvar.instantiated
+
+        for pat <- seq.words do
+          pat match
+            case Ast.Expr(Ast.Ident(">") :: pat :: Nil) =>
+              val inner = transformPattern(pat, itemType)
+              regexPatterns += SkipToPattern(inner)(scrutType, pat.span)
+
+            case Ast.Expr(nested :: Ast.Ident("*") :: Nil) =>
+              regexPatterns += transformStarPattern(nested, itemType, scrutType, pat)
+
+            case expr: Ast.Expr =>
+              Reporter.error("Unrecognized sequence pattern. Do you forget parenthesis for the nested item pattern?", expr.pos)
+
+            case Ast.Apply(Ast.Ident(">"), pat :: Nil) =>
+              val inner = transformPattern(pat, itemType)
+              regexPatterns += SkipToPattern(inner)(scrutType, pat.span)
+
+            case pat =>
+              val pattern = transformPattern(pat, itemType)
+              regexPatterns += AtomPattern(pattern)
+          end match
+        end for
+
+        SeqPattern(regexPatterns.toList)(scrutType, seq.span)
+
+    else
+      Reporter.error(s"The scrutinee type ${scrutType.show}, does not conform to Seq[T] expected by a sequence pattern", seq.pos)
+      WildcardPattern()(ErrorType, seq.span)
+
+
+  private def transformStarPattern(nested: Ast.Word, itemType: Type, scrutType: Type, pat: Ast.Word)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs)
+  : RegexPattern =
+
+    // inner pattern has no access to outer locally introduced pattern variables
+    val occursInner: Occurs = new Occurs
+
+    val inner =
+      given Occurs = occursInner
+      given Scope = sc.freshFlatPatternScope()
+      transformPattern(nested, itemType)
+
+    val bindings = new mutable.ArrayBuffer[(Symbol, Symbol)]
+    occursInner.result().foreach: (innerSym, pos) =>
+      val expectedType = AppliedType(TypeRef(defn.Predef_Seq), innerSym.info :: Nil)
+
+      // first check if there is a pattern variable of the same name exists
+      sc.resolvePattern(innerSym.name) match
+        case Some(outerSym) =>
+          oc.occur(outerSym, pos)
+
+          if Subtyping.conforms(outerSym.info, expectedType) then
+            bindings += outerSym -> innerSym
+
+          else
+            Reporter.error(s"$outerSym has the type ${outerSym.info.show}, which does not conform to the type " + expectedType.show, pos)
+
+        case None =>
+          val outerSym = Symbol.createSymbol(innerSym.name, expectedType, Flags.Pattern, sc.owner, pos)
+          sc.definePatternAsTerm(outerSym)
+          sc.define(outerSym)
+          oc.occur(outerSym, pos)
+          bindings += outerSym -> innerSym
+      end match
+
+
+    StarPattern(inner)(scrutType, pat.span, bindings.toList)
 
   private def resolvePatternPredicate(id: Ast.Ident)(using sc: Scope, rp: Reporter, so: Source): Symbol =
     resolvePatternPredicateOpt(id) match
@@ -651,6 +737,10 @@ class PatternTyper(namer: Namer, checker: Checker):
 
       case expr: Ast.Expr =>
         transformExprPattern(expr, scrutType)
+
+      case seq: Ast.SeqLit =>
+        transformSeqPattern(seq, scrutType)
+
     end match
   end transformPattern
 

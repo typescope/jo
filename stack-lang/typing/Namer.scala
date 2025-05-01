@@ -1339,7 +1339,12 @@ object Namer:
 
   enum Scope:
     case RootScope(table: NameTable, owner: Symbol)
+
+    /** A nested scope will go from inner to outer scopes in resolving names  */
     case NestedScope(outer: Scope, table: NameTable, owner: Symbol)
+
+    /** In a flatten pattern scope, resolving pattern names will not go to outer scopes */
+    case FlatPatternScope(outer: Scope, table: NameTable, owner: Symbol)
 
     protected val table: NameTable
 
@@ -1352,6 +1357,9 @@ object Namer:
     def fresh(): Scope =
       new Scope.NestedScope(this, new NameTable, owner)
 
+    def freshFlatPatternScope(): Scope =
+      new Scope.FlatPatternScope(this, new NameTable, owner)
+
     def fresh(owner: Symbol): Scope =
       new Scope.NestedScope(this, new NameTable, owner)
 
@@ -1363,6 +1371,7 @@ object Namer:
         case None =>
           this match
             case nsc: NestedScope => nsc.outer.resolveType(name)
+            case nsc: FlatPatternScope => nsc.outer.resolveType(name)
             case _ => None
 
         case res  => res
@@ -1372,6 +1381,7 @@ object Namer:
         case None =>
           this match
             case nsc: NestedScope => nsc.outer.resolveTerm(name)
+            case nsc: FlatPatternScope => nsc.outer.resolveType(name)
             case _ => None
 
         case res  => res

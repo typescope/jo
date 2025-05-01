@@ -16,6 +16,9 @@ object Printing:
   def show(pattern: Pattern)(using Definitions): String =
     showPattern(pattern).toString
 
+  def show(pattern: RegexPattern)(using Definitions): String =
+    showRegexPattern(pattern).toString
+
   def show(ns: Namespace)(using Definitions): String =
     showNamespace(ns).toString
 
@@ -34,6 +37,9 @@ object Printing:
 
   given (using Definitions): Text.Maker[Pattern] =
     v => showPattern(v)
+
+  given (using Definitions): Text.Maker[RegexPattern] =
+    v => showRegexPattern(v)
 
   given (using Definitions): Text.Maker[Case] =
     v => "case " ~ v.pattern ~ " =>" ~ indent(v.body)
@@ -263,3 +269,14 @@ object Printing:
 
       case TermBindingPattern(pattern, bindings) =>
         pattern ~ " then " ~ rep(bindings, Text(", "))
+
+      case SeqPattern(patterns) =>
+        "[" ~ rep(patterns, Text(", ")) ~ "]"
+
+  def showRegexPattern(pat: RegexPattern)(using Definitions): Text =
+    pat match
+      case AtomPattern(pattern) => showPattern(pattern)
+
+      case SkipToPattern(pattern) => ">" ~ pattern
+
+      case StarPattern(pattern) => pattern ~ "*"

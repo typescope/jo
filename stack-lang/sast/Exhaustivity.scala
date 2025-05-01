@@ -84,6 +84,10 @@ object Exhaustivity:
 
       case WildcardPattern() => TypeSpace(pattern.tpe)
 
+      case _: SeqPattern =>
+        // TODO: fix exhaustivity check for sequence patterns
+        EmptySpace
+
       case ValuePattern(value) =>
         value match
           case Literal(b: Constant.Bool) =>

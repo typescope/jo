@@ -131,7 +131,7 @@ Abstract Syntax
     ascribe_pattern = ident '@' simple_pattern.
     apply_pattern = (tag | ident) LPAREN [pattern {COMMA pattern}] RPAREN.
 
-    sequence_pattern = LBRACK [pattern {, pattern}] RBRACK.
+    sequence_pattern = LBRACK [expr_pattern {, expr_pattern}] RBRACK.
 
     valdef  = (VAL | VAR) ident [COLON type] EQL block.
 

@@ -255,6 +255,41 @@ object Sast:
     val tpe = pattern.tpe
     val span = pattern.span | bindings.last.span
 
+  case class SeqPattern
+    (patterns: List[RegexPattern])
+    (val tpe: Type, val span: Span)
+  extends Pattern
+
+  sealed trait RegexPattern extends Tree:
+    val tpe: Type
+
+    def show(using Definitions): String = Printing.show(this)
+
+  case class AtomPattern
+    (pattern: Pattern)
+  extends RegexPattern:
+    val tpe: Type = pattern.tpe
+    val span: Span = pattern.span
+
+  case class SkipToPattern
+    (pattern: Pattern)
+    (val tpe: Type, val span: Span)
+  extends RegexPattern
+
+  /** Represent a * pattern
+    *
+    * For each variable bound in the inner pattern, a variable is introduced to
+    * accumulate the inner-bound results.
+    *
+    * @param bindings Pairs of (outerX, innerX)
+    */
+  case class StarPattern
+    (pattern: Pattern)
+    (val tpe: Type, val span: Span, val bindings: List[(Symbol, Symbol)])
+  extends RegexPattern:
+    for (outer, inner) <- bindings do
+      assert(outer.name == inner.name, s"outer = $outer, inner = inner")
+
   case class Match
     (scrutinee: Word, cases: List[Case])
     (val tpe: Type, val span: Span)

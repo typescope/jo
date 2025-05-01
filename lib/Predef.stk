@@ -166,8 +166,8 @@ fun charToStr(c: Char): String = abort "charToStr"
 
 type Array[T] <: object {
   def size: Int
-  def set(i: Int, value: T): Unit
   def apply(i: Int): T
+  def set(i: Int, value: T): Unit
 }
 
 fun array[T](size: Int): Array[T] = abort("primitive array")

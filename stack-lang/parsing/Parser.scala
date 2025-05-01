@@ -1005,7 +1005,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val tpt = simpleType()
     TypeAscribe(id, tpt)(id.span | tpt.span)
 
-  def pattern(): Word =
+  def exprPattern(): Word =
     val indent = peekItem().indent
 
     val words = new mutable.ArrayBuffer[Word]
@@ -1015,9 +1015,11 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       words += simplePattern()
       item = peekItem()
 
-    val exprPat =
-      if words.size == 1 then words(0)
-      else Expr(words.toList)(words.head.span | words.last.span)
+    if words.size == 1 then words(0)
+    else Expr(words.toList)(words.head.span | words.last.span)
+
+  def pattern(): Word =
+    val exprPat = exprPattern()
 
     val guard =
       if peek() == Token.IF then
@@ -1110,7 +1112,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         val lbracket = next()
         val pats =
           if peek() == Token.RBRACKET then Nil
-          else oneOrMore(pattern, Token.COMMA)
+          else oneOrMore(exprPattern, Token.COMMA)
         val rbracket = eat(Token.RBRACKET)
         SeqLit(pats)(lbracket.span | rbracket.span)
 

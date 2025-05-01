@@ -153,6 +153,7 @@ object SastOps:
         case obj: Object => transformObject(obj)
     end transform
 
+    // TODO: remove patterns from TreeMap and introduce a pattern traverser
     final def transform(pattern: Pattern)(using Context): Pattern =
       pattern match
         case pat: AscribePattern => transformAscribePattern(pat)
@@ -172,6 +173,8 @@ object SastOps:
         case pat: TermBindingPattern => transformTermBindingPattern(pat)
 
         case pat: WildcardPattern => transformWildcardPattern(pat)
+
+        case pat: SeqPattern => transformSeqPattern(pat)
 
     def transformLiteral(lit: Literal)(using Context): Word = recur(lit)
 
@@ -230,6 +233,8 @@ object SastOps:
 
     def transformGuardPattern(pat: GuardPattern)(using Context) = recur(pat)
 
+    def transformSeqPattern(pat: SeqPattern)(using Context) = recur(pat)
+
     def transformTermBindingPattern(pat: TermBindingPattern)(using Context) = recur(pat)
 
     def transformWildcardPattern(pat: WildcardPattern)(using Context) = recur(pat)
@@ -275,6 +280,23 @@ object SastOps:
             yield Assign(id, this(rhs))(ass.span)
 
           TermBindingPattern(this(pattern), bindings2)
+
+        case SeqPattern(patterns) =>
+          val patterns2 =
+            for regPat <- patterns yield
+              regPat match
+                case AtomPattern(pattern) =>
+                  AtomPattern(this(pattern))
+
+                case SkipToPattern(pattern) =>
+                  SkipToPattern(this(pattern))(regPat.tpe, regPat.span)
+
+                case starPat @ StarPattern(pattern) =>
+                  StarPattern(this(pattern))(regPat.tpe, regPat.span, starPat.bindings)
+              end match
+            end for
+
+          SeqPattern(patterns2)(pattern.tpe, pattern.span)
 
         case _: WildcardPattern => pattern
 
@@ -398,6 +420,14 @@ object SastOps:
           this(guard)
 
         case TermBindingPattern(pattern, bindings) =>
+
+        case SeqPattern(pats) =>
+          pats.foreach:
+            case AtomPattern(pattern) => this(pattern)
+
+            case SkipToPattern(pattern) => this(pattern)
+
+            case StarPattern(pattern) => this(pattern)
 
         case WildcardPattern() =>
 

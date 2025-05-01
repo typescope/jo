@@ -94,8 +94,8 @@ fun Array_wrapContent(arr: Any): Any =
 
   object {
     def size = arraySize arr
-    def set(i: Int, value: Any): Unit = arraySet arr i value
     def apply(i: Int): Any = arrayGet arr i
+    def set(i: Int, value: Any): Unit = arraySet arr i value
   }
 
 //------------------------------------------------------------------------------
