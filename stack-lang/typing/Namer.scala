@@ -1348,8 +1348,8 @@ object Namer:
     /** A nested scope will go from inner to outer scopes in resolving names  */
     case NestedScope(outer: Scope, table: NameTable, owner: Symbol)
 
-    /** In a flatten pattern scope, resolving pattern names will not go to outer scopes */
-    case FlatPatternScope(outer: Scope, table: NameTable, owner: Symbol)
+    /** In a local pattern scope, resolving pattern names will ignore pattern value symbols from outer scopes */
+    case LocalPatternScope(outer: Scope, table: NameTable, owner: Symbol)
 
     protected val table: NameTable
 
@@ -1362,8 +1362,8 @@ object Namer:
     def fresh(): Scope =
       new Scope.NestedScope(this, new NameTable, owner)
 
-    def freshFlatPatternScope(): Scope =
-      new Scope.FlatPatternScope(this, new NameTable, owner)
+    def freshLocalPatternScope(): Scope =
+      new Scope.LocalPatternScope(this, new NameTable, owner)
 
     def fresh(owner: Symbol): Scope =
       new Scope.NestedScope(this, new NameTable, owner)
@@ -1376,7 +1376,7 @@ object Namer:
         case None =>
           this match
             case nsc: NestedScope => nsc.outer.resolveType(name)
-            case nsc: FlatPatternScope => nsc.outer.resolveType(name)
+            case nsc: LocalPatternScope => nsc.outer.resolveType(name)
             case _ => None
 
         case res  => res
@@ -1386,7 +1386,7 @@ object Namer:
         case None =>
           this match
             case nsc: NestedScope => nsc.outer.resolveTerm(name)
-            case nsc: FlatPatternScope => nsc.outer.resolveType(name)
+            case nsc: LocalPatternScope => nsc.outer.resolveTerm(name)
             case _ => None
 
         case res  => res
@@ -1396,6 +1396,21 @@ object Namer:
         case None =>
           this match
             case nsc: NestedScope => nsc.outer.resolvePattern(name)
+            case nsc: LocalPatternScope =>
+              // The condition should be refined to only allow pattern
+              // predicates that do not capture pattern variables once we enable
+              // nesting a pattern predicate inside another predicate.
+              //
+              // The only reason to access an outer pattern variable is to
+              // create binding --- use of them in terms is always allowed.
+              //
+              // Therefore, whenever we do not perform occur checks for a
+              // pattern variable, the binding of the variable should be
+              // disallowed. It means the pattern variable should not be visible
+              // in the scope.
+              nsc.outer.resolvePattern(name) match
+                case res @ Some(sym) if sym.isFunction => res
+                case _ => None
             case _ => None
 
         case res  => res

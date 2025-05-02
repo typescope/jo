@@ -189,7 +189,7 @@ class PatternTyper(namer: Namer, checker: Checker):
   : Case =
     val Ast.Case(pat, body) = caseDef
 
-    given Scope = sc.fresh()
+    given Scope = sc.freshLocalPatternScope()
     given Occurs = new Occurs
 
     val rp2 = rp.fresh(buffer = true)
@@ -610,7 +610,7 @@ class PatternTyper(namer: Namer, checker: Checker):
 
     val inner =
       given Occurs = occursInner
-      given Scope = sc.freshFlatPatternScope()
+      given Scope = sc.freshLocalPatternScope()
       transformPattern(nested, itemType)
 
     val bindings = new mutable.ArrayBuffer[(Symbol, Symbol)]
