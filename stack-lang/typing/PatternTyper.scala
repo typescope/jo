@@ -7,11 +7,13 @@ import sast.*
 import sast.Sast.*
 import sast.Symbols.*
 import sast.Types.*
+
 import reporting.Reporter
+import reporting.Diagnostics.*
 
 import Namer.{ Scope, DelayedDef }
 import Inference.TargetType
-import PatternTyper.Occurs
+import PatternTyper.{ Occurs, NonDeterministicPattern }
 
 import scala.collection.mutable
 
@@ -75,13 +77,11 @@ class PatternTyper(namer: Namer, checker: Checker):
           patternTyped
 
       // Elide checks if other errors are present
-      if reporterTemp.hasErrors then
-        reporterTemp.commit(rp)
-
-      else
+      if !reporterTemp.hasErrors then
         checkExhaustivity(patterns, resultTypeTree)
 
-      end if
+      reporterTemp.commit(rp)
+
 
       if patterns.isEmpty then
         Reporter.error("Expect case patterns, found none", patDef.pos)
@@ -159,10 +159,11 @@ class PatternTyper(namer: Namer, checker: Checker):
     val patmat2 = Match(scrutinee2, cases2)(commonType, patmat.span)
 
     // Skip the check if there are errors in patterns
-    if rp2.hasErrors then
-      rp2.commit(rp)
-    else
+    if !rp2.hasErrors then
       checkExhaustivity(patmat2)
+
+    // may contain warnings
+    rp2.commit(rp)
 
     patmat2
 
@@ -199,11 +200,13 @@ class PatternTyper(namer: Namer, checker: Checker):
 
     val body2 =
       if rp2.hasErrors then
-        rp2.commit(rp)
         Block(Nil)(BottomType, body.span)
 
       else
         namer.transform(body)
+
+    // may contain warnings
+    rp2.commit(rp)
 
     Case(pat2, body2)(caseDef.span)
 
@@ -283,6 +286,7 @@ class PatternTyper(namer: Namer, checker: Checker):
         patSpan.toPos
       )
 
+    // may contain warnings
     rp2.commit(rp)
 
     for (sym, pos) <- resLHS do oc.occur(sym, pos)
@@ -419,7 +423,7 @@ class PatternTyper(namer: Namer, checker: Checker):
             oc.occur(sym, id.pos)
 
             val explain = new StringBuilder
-            // TODO: conform should be same, no need to be equal
+            // TODO: conform should be safe, no need to be equal
             if Patterns.isEqualType(tpe, sym.info)(using explain) then
               val patVal = Ident(sym)(id.span)
               AscribePattern(patVal, TypePattern(tpt2))
@@ -461,7 +465,7 @@ class PatternTyper(namer: Namer, checker: Checker):
           oc.occur(sym, id.pos)
 
           val explain = new StringBuilder
-          // TODO: conform should be same, no need to be equal
+          // TODO: conform should be safe, no need to be equal
           if Patterns.isEqualType(sym.info, scrutType)(using explain) || scrutType.isVoidType then
             val patVal = Ident(sym)(id.span)
             AscribePattern(patVal, TypePattern(TypeTree(sym.info)(id.span)))
@@ -497,7 +501,7 @@ class PatternTyper(namer: Namer, checker: Checker):
           val nestedPattern = transformPattern(nested, scrutType)
 
           val explain = new StringBuilder
-          // TODO: conform should be same, no need to be equal
+          // TODO: conform should be safe, no need to be equal
           if Patterns.isEqualType(sym.info, nestedPattern.tpe)(using explain) || scrutType.isVoidType then
             val patVal = Ident(sym)(id.span)
             AscribePattern(patVal, nestedPattern)
@@ -572,7 +576,10 @@ class PatternTyper(namer: Namer, checker: Checker):
         val regexPatterns = new mutable.ArrayBuffer[RegexPattern]
         val itemType = tvar.instantiated
 
+        val tempReporter = rp.fresh(buffer = true)
+
         for pat <- seq.words do
+          given Reporter = tempReporter
           pat match
             case Ast.Expr(Ast.Ident(">") :: pat :: Nil) =>
               val inner = transformPattern(pat, itemType)
@@ -593,6 +600,31 @@ class PatternTyper(namer: Namer, checker: Checker):
               regexPatterns += AtomPattern(pattern)
           end match
         end for
+
+        if !tempReporter.hasErrors then
+          // check determinism of patterns
+          var i = 0
+          val size = regexPatterns.size
+          // the last one is always deterministic
+          while i < size - 1 do
+            val pat = regexPatterns(i)
+            pat match
+              case StarPattern(itemPat) =>
+                val next = regexPatterns(i + 1) // i never points to the last
+                val headPattern = next.headPattern
+
+                val space1 = Exhaustivity.project(itemPat)
+                val space2 = Exhaustivity.project(headPattern)
+
+                if !Exhaustivity.isDisjoint(space1, space2) then
+                  rp.report(NonDeterministicPattern(itemPat, headPattern))
+
+              case _ =>
+            end match
+            i = i + 1
+
+        // may contain warnings
+        tempReporter.commit(rp)
 
         SeqPattern(regexPatterns.toList)(scrutType, seq.span)
 
@@ -767,3 +799,13 @@ object PatternTyper:
     def checkOccur(symbol: Symbol)(using rp: Reporter) =
       if !census.contains(symbol) then
         Reporter.error(s"The parameter $symbol should occur once in the patterns", symbol.sourcePos)
+
+  class NonDeterministicPattern(pat1: Pattern, pat2: Pattern)(using Source)
+  extends DoublePositionedReport:
+    val kind = Kind.Error
+
+    val pos1 = pat1.pos
+    val pos2 = pat2.pos
+
+    val message1 = "* pattern should be followed by a disjoined head pattern to be deterministic."
+    val message2 = s"It overlaps with the head pattern of the next pattern:"

@@ -265,6 +265,12 @@ object Sast:
 
     def show(using Definitions): String = Printing.show(this)
 
+    def headPattern: Pattern =
+      this match
+        case AtomPattern(pat) => pat
+        case SkipToPattern(pat) => pat
+        case StarPattern(pat) => pat
+
   case class AtomPattern
     (pattern: Pattern)
   extends RegexPattern:
