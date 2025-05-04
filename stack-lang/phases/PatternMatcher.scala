@@ -7,6 +7,8 @@ import sast.Sast.*
 import sast.Symbols.*
 import sast.Types.*
 
+import Sast.RegexPattern.Size
+
 import scala.collection.mutable
 
 class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Context]:
@@ -421,6 +423,9 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
   private def transformSeqPattern(scrut: Ident, seqPattern: SeqPattern)
     (using ctx: Context, source: Source)
   : Word =
+
+    val distanceToEnd = RegexPattern.computeDistanceToEnd(seqPattern.patterns)
+
     val conds = new mutable.ArrayBuffer[Word]
 
     // var index = 0
@@ -453,58 +458,81 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
       val itemIdent = Ident(itemSym)(span)
       Assign(itemIdent, itemValue)(span)
 
+    def distanceToEndCheck(dist: Size, span: Span): Word =
+      dist match
+        case Size.GreatEq(m) =>
+          if m == 0 then
+            BoolLit(true)(span)
+          else
+            // index + m <= size
+            val le = Ident(defn.Predef_le)(span)
+            val distLit = IntLit(m)(span)
+            val lhs = Ident(defn.Predef_add)(span).appliedTo(indexIdent, distLit)
+            le.appliedTo(lhs, sizeIdent)
+
+        case Size.Exact(m) =>
+          // index + m == size
+          val eql = Ident(defn.Predef_eql)(span)
+          val distLit = IntLit(m)(span)
+          val lhs = Ident(defn.Predef_add)(span).appliedTo(indexIdent, distLit)
+          eql.appliedTo(lhs, sizeIdent)
+
     // TODO: optimize last irrefutable star pattern with no bindings
-    for pat <- seqPattern.patterns do
+    for (pat, i) <- seqPattern.patterns.zipWithIndex do
       val sizeOK = hasItemAtIndex(pat.span)
       val itemAssign = itemAtIndexAssign(pat.span)
       val increment = indexIncrement(pat.span)
+      val distanceOK = distanceToEndCheck(distanceToEnd(i), pat.span)
+      val distanceAllowMore = distanceToEndCheck(distanceToEnd(i) + Size.GreatEq(1), pat.span)
 
       pat match
         case AtomPattern(pattern) =>
           // if size > index then
           //   x = scrutinee(index)
           //   index = index + 1
-          //   x ~ pattern
+          //   x ~ pattern && distanceOK
           // else
           //   false
           val nestedCond = transformPattern(itemAssign.ident, pattern)
-          val block = Block(itemAssign :: increment :: nestedCond :: Nil)(BoolType, pattern.span)
+          val finalCond = all(nestedCond, distanceOK)
+          val block = Block(itemAssign :: increment :: finalCond :: Nil)(BoolType, pattern.span)
 
           conds += If(sizeOK, block, BoolLit(false)(pattern.span))(BoolType, pattern.span)
 
         case SkipToPattern(pattern) =>
           // var found = false
-          // while both (size > index) !found do
+          // while (size > index) && !found && distanceAllowMore do
           //   x = scrutinee(index)
           //   index = index + 1
           //   found = x ~ pattern
           //
-          // found
+          // found && distanceOK
 
           val foundSym = Symbol.createSymbol("found", BoolType, Flags.Mutable | Flags.Synthetic, ctx.owner, pat.pos)
           val foundIdent = Ident(foundSym)(pat.span)
           val foundInit = Assign(foundIdent, BoolLit(false)(pat.span))(pat.span)
 
           val notFound = Ident(defn.Predef_not)(pat.span).appliedTo(foundIdent)
-          val cond = Ident(defn.Predef_both)(pat.span).appliedTo(sizeOK, notFound)
+          val cond = all(sizeOK, notFound, distanceAllowMore)
 
           val nestedCond = transformPattern(itemAssign.ident, pattern)
           val foundUpdate = Assign(foundIdent, nestedCond)(pat.span)
           val body = Block(itemAssign :: increment :: foundUpdate :: Nil)(VoidType, pat.span)
           val whileLoop = While(cond, body)(pat.span)
 
-          conds += Block(foundInit :: whileLoop :: foundIdent :: Nil)(BoolType, pat.span)
+          val finalCond = all(foundIdent, distanceOK)
+          conds += Block(foundInit :: whileLoop :: finalCond :: Nil)(BoolType, pat.span)
 
         case starPat @ StarPattern(pattern) =>
           //  var continue = true
           //  ys = []   -- outer pattern bound symbol corresponding to inner symbol y
-          //  while both (size > index) continue do
+          //  while (size > index) && continue && distanceAllowMore do
           //    x = scrutinee(index)
           //    continue = x ~ pattern
           //    if continue then
           //      index = index + 1
           //      ys = ys + y
-          //  true
+          //  distanceOK
 
           val continueSym = Symbol.createSymbol("continue", BoolType, Flags.Mutable | Flags.Synthetic, ctx.owner, pat.pos)
           val continueIdent = Ident(continueSym)(pat.span)
@@ -524,24 +552,24 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
               val append = tapp.appliedTo(inner, outer)
               Assign(Ident(outerSym)(pat.span), append)(pat.span)
 
-          val cond = Ident(defn.Predef_both)(pat.span).appliedTo(sizeOK, continueIdent)
+          val cond = all(sizeOK, continueIdent, distanceAllowMore)
           val nestedCond = transformPattern(itemAssign.ident, pattern)
           val continueUpdate = Assign(continueIdent, nestedCond)(pat.span)
           val nestedIf = If(continueIdent, Block(increment :: updates)(VoidType, pat.span), Block(Nil)(VoidType, pat.span))(VoidType, pat.span)
           val body = Block(itemAssign :: continueUpdate :: nestedIf :: Nil)(VoidType, pat.span)
           val whileLoop = While(cond, body)(pat.span)
 
-          conds += Block((continueInit :: inits) :+ whileLoop :+ BoolLit(true)(pat.span))(BoolType, pat.span)
+          val finalCond = distanceOK
+          conds += Block((continueInit :: inits) :+ whileLoop :+ finalCond)(BoolType, pat.span)
       end match
     end for
 
-    // size == index
-    val eql = Ident(defn.Predef_eql)(seqPattern.span)
-    val sizeMatch: Word = Apply(eql, sizeIdent :: indexIdent :: Nil)(defn.BoolType, seqPattern.span)
-
     val allCond =
-      conds.foldRight(sizeMatch): (cond, acc) =>
-        If(cond, acc, BoolLit(false)(cond.span))(BoolType, cond.span | acc.span)
+      if conds.isEmpty then
+        indexIdent.isEqualTo(sizeIdent)
+      else
+        conds.reduceRight: (cond, acc) =>
+          If(cond, acc, BoolLit(false)(cond.span))(BoolType, cond.span | acc.span)
 
     Block(indexInit :: sizeInit :: allCond :: Nil)(BoolType, seqPattern.span)
 

@@ -271,6 +271,45 @@ object Sast:
         case SkipToPattern(pat) => pat
         case StarPattern(pat) => pat
 
+    /** The number of items the pattern consumes when the match is successful */
+    def size: RegexPattern.Size =
+      this match
+        case AtomPattern(pat)   => RegexPattern.Size.Exact(1)
+        case SkipToPattern(pat) => RegexPattern.Size.GreatEq(1)
+        case StarPattern(pat)   => RegexPattern.Size.GreatEq(0)
+
+  object RegexPattern:
+    enum Size:
+      case GreatEq(n: Int)
+      case Exact(n: Int)
+
+      def isExact: Boolean = this.isInstanceOf[Exact]
+
+      def +(that: Size): Size =
+        this match
+          case GreatEq(m) =>
+            that match
+              case GreatEq(n) => GreatEq(m + n)
+              case Exact(n)   => GreatEq(m + n)
+
+          case Exact(m) =>
+            that match
+              case GreatEq(n) => GreatEq(m + n)
+              case Exact(n)   => Exact(m + n)
+
+    def computeDistanceToEnd(patterns: Seq[RegexPattern]): Seq[Size] =
+      val distanceToEnd = new Array[Size](patterns.size)
+      if patterns.nonEmpty then
+        var i = patterns.size - 1
+        distanceToEnd(i) = Size.Exact(0)
+
+        while i > 0 do
+          i = i - 1
+          distanceToEnd(i) = distanceToEnd(i + 1) + patterns(i + 1).size
+        end while
+      end if
+      distanceToEnd
+
   case class AtomPattern
     (pattern: Pattern)
   extends RegexPattern:
@@ -404,6 +443,10 @@ object Sast:
   def BoolLit(b: Boolean)(span: Span)(using defn: Definitions) =
     Literal(Constant.Bool(b))(defn.BoolType, span)
 
+  def all(cond: Word, conds: Word*)(using defn: Definitions): Word =
+    conds.foldLeft(cond): (acc, cond) =>
+      Ident(defn.Predef_both)(cond.span).appliedTo(acc, cond)
+
   extension (word: Word)
 
     def select(name: String): Word =
@@ -434,3 +477,6 @@ object Sast:
       TypeApply(word, targList.map(targ => TypeTree(targ)(word.span)))(tpe, word.span)
 
     def encodedAs(tpe: Type): Word = Encoded(word)(tpe)
+
+    def isEqualTo(rhs: Word)(using defn: Definitions): Word =
+      Ident(defn.Predef_eql)(word.span).appliedTo(word, rhs)

@@ -601,12 +601,14 @@ class PatternTyper(namer: Namer, checker: Checker):
           end match
         end for
 
+        val distanceToEnd = RegexPattern.computeDistanceToEnd(regexPatterns.toSeq)
+
         if !tempReporter.hasErrors then
           // check determinism of patterns
           var i = 0
           val size = regexPatterns.size
           // the last one is always deterministic
-          while i < size - 1 do
+          while i < size - 1 && !distanceToEnd(i).isExact do
             val pat = regexPatterns(i)
             pat match
               case StarPattern(itemPat) =>
@@ -807,5 +809,5 @@ object PatternTyper:
     val pos1 = pat1.pos
     val pos2 = pat2.pos
 
-    val message1 = "* pattern should be followed by a disjoined head pattern to be deterministic."
+    val message1 = "* pattern should be followed by a disjoint head pattern to be deterministic."
     val message2 = s"It overlaps with the head pattern of the next pattern:"
