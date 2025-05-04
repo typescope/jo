@@ -7,7 +7,7 @@ import sast.Sast.*
 import sast.Symbols.*
 import sast.Types.*
 
-import Sast.RegexPattern.Size
+import Sast.SeqPattern.Size
 
 import scala.collection.mutable
 
@@ -421,10 +421,8 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
         case _ => nestedBlock
 
   private def transformSeqPattern(scrut: Ident, seqPattern: SeqPattern)
-    (using ctx: Context, source: Source)
+      (using ctx: Context, source: Source)
   : Word =
-
-    val distanceToEnd = RegexPattern.computeDistanceToEnd(seqPattern.patterns)
 
     val conds = new mutable.ArrayBuffer[Word]
 
@@ -443,11 +441,6 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
       val addOne = Apply(Ident(defn.Predef_add)(span), indexIdent :: IntLit(1)(span) :: Nil)(defn.IntType, span)
       Assign(indexIdent, addOne)(span)
 
-    // size > index
-    def hasItemAtIndex(span: Span): Word =
-      val gt = Ident(defn.Predef_gt)(span)
-      Apply(gt, sizeIdent :: indexIdent :: Nil)(defn.BoolType, span)
-
     // x = scrutine(index)
     def itemAtIndexAssign(span: Span): Assign =
       val appType = scrut.tpe.termMember("apply").asProcType
@@ -461,14 +454,11 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
     def distanceToEndCheck(dist: Size, span: Span): Word =
       dist match
         case Size.GreatEq(m) =>
-          if m == 0 then
-            BoolLit(true)(span)
-          else
-            // index + m <= size
-            val le = Ident(defn.Predef_le)(span)
-            val distLit = IntLit(m)(span)
-            val lhs = Ident(defn.Predef_add)(span).appliedTo(indexIdent, distLit)
-            le.appliedTo(lhs, sizeIdent)
+          // index + m <= size
+          val le = Ident(defn.Predef_le)(span)
+          val distLit = IntLit(m)(span)
+          val lhs = Ident(defn.Predef_add)(span).appliedTo(indexIdent, distLit)
+          le.appliedTo(lhs, sizeIdent)
 
         case Size.Exact(m) =>
           // index + m == size
@@ -477,17 +467,32 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
           val lhs = Ident(defn.Predef_add)(span).appliedTo(indexIdent, distLit)
           eql.appliedTo(lhs, sizeIdent)
 
+    def totalSizeCheck(): Word =
+      val span = seqPattern.span
+
+      seqPattern.totalSize match
+        case Size.GreatEq(m) =>
+          // m <= size
+          val le = Ident(defn.Predef_le)(span)
+          val distLit = IntLit(m)(span)
+          le.appliedTo(distLit, sizeIdent)
+
+        case Size.Exact(m) =>
+          // index == size
+          val eql = Ident(defn.Predef_eql)(span)
+          val distLit = IntLit(m)(span)
+          eql.appliedTo(distLit, sizeIdent)
+
     // TODO: optimize last irrefutable star pattern with no bindings
     for (pat, i) <- seqPattern.patterns.zipWithIndex do
-      val sizeOK = hasItemAtIndex(pat.span)
       val itemAssign = itemAtIndexAssign(pat.span)
       val increment = indexIncrement(pat.span)
-      val distanceOK = distanceToEndCheck(distanceToEnd(i), pat.span)
-      val distanceAllowMore = distanceToEndCheck(distanceToEnd(i) + Size.GreatEq(1), pat.span)
+      val distanceOK = distanceToEndCheck(seqPattern.distanceToEnd(i), pat.span)
+      val distanceAllowMore = distanceToEndCheck(seqPattern.distanceToEnd(i) + Size.GreatEq(1), pat.span)
 
       pat match
         case AtomPattern(pattern) =>
-          // if size > index then
+          // if distanceAllowMore then
           //   x = scrutinee(index)
           //   index = index + 1
           //   x ~ pattern && distanceOK
@@ -497,11 +502,11 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
           val finalCond = all(nestedCond, distanceOK)
           val block = Block(itemAssign :: increment :: finalCond :: Nil)(BoolType, pattern.span)
 
-          conds += If(sizeOK, block, BoolLit(false)(pattern.span))(BoolType, pattern.span)
+          conds += If(distanceAllowMore, block, BoolLit(false)(pattern.span))(BoolType, pattern.span)
 
         case SkipToPattern(pattern) =>
           // var found = false
-          // while (size > index) && !found && distanceAllowMore do
+          // while !found && distanceAllowMore do
           //   x = scrutinee(index)
           //   index = index + 1
           //   found = x ~ pattern
@@ -513,7 +518,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
           val foundInit = Assign(foundIdent, BoolLit(false)(pat.span))(pat.span)
 
           val notFound = Ident(defn.Predef_not)(pat.span).appliedTo(foundIdent)
-          val cond = all(sizeOK, notFound, distanceAllowMore)
+          val cond = all(notFound, distanceAllowMore)
 
           val nestedCond = transformPattern(itemAssign.ident, pattern)
           val foundUpdate = Assign(foundIdent, nestedCond)(pat.span)
@@ -526,7 +531,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
         case starPat @ StarPattern(pattern) =>
           //  var continue = true
           //  ys = []   -- outer pattern bound symbol corresponding to inner symbol y
-          //  while (size > index) && continue && distanceAllowMore do
+          //  while continue && distanceAllowMore do
           //    x = scrutinee(index)
           //    continue = x ~ pattern
           //    if continue then
@@ -552,7 +557,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
               val append = tapp.appliedTo(inner, outer)
               Assign(Ident(outerSym)(pat.span), append)(pat.span)
 
-          val cond = all(sizeOK, continueIdent, distanceAllowMore)
+          val cond = all(continueIdent, distanceAllowMore)
           val nestedCond = transformPattern(itemAssign.ident, pattern)
           val continueUpdate = Assign(continueIdent, nestedCond)(pat.span)
           val nestedIf = If(continueIdent, Block(increment :: updates)(VoidType, pat.span), Block(Nil)(VoidType, pat.span))(VoidType, pat.span)
@@ -566,10 +571,13 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
 
     val allCond =
       if conds.isEmpty then
-        indexIdent.isEqualTo(sizeIdent)
+        totalSizeCheck()
       else
-        conds.reduceRight: (cond, acc) =>
-          If(cond, acc, BoolLit(false)(cond.span))(BoolType, cond.span | acc.span)
+        val patternConds =
+          conds.reduceRight: (cond, acc) =>
+            If(cond, acc, BoolLit(false)(cond.span))(BoolType, cond.span | acc.span)
+
+        If(totalSizeCheck(), patternConds, BoolLit(false)(seqPattern.span))(BoolType, seqPattern.span)
 
     Block(indexInit :: sizeInit :: allCond :: Nil)(BoolType, seqPattern.span)
 

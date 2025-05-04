@@ -601,18 +601,18 @@ class PatternTyper(namer: Namer, checker: Checker):
           end match
         end for
 
-        val distanceToEnd = RegexPattern.computeDistanceToEnd(regexPatterns.toSeq)
+        val seqPattern = SeqPattern(regexPatterns.toList)(scrutType, seq.span)
 
         if !tempReporter.hasErrors then
           // check determinism of patterns
           var i = 0
-          val size = regexPatterns.size
+          val size = seqPattern.patternCount
           // the last one is always deterministic
-          while i < size - 1 && !distanceToEnd(i).isExact do
-            val pat = regexPatterns(i)
+          while i < size - 1 && !seqPattern.distanceToEnd(i).isExact do
+            val pat = seqPattern(i)
             pat match
               case StarPattern(itemPat) =>
-                val next = regexPatterns(i + 1) // i never points to the last
+                val next = seqPattern(i + 1) // i never points to the last
                 val headPattern = next.headPattern
 
                 val space1 = Exhaustivity.project(itemPat)
@@ -624,11 +624,12 @@ class PatternTyper(namer: Namer, checker: Checker):
               case _ =>
             end match
             i = i + 1
+          end while
+        end if
 
         // may contain warnings
         tempReporter.commit(rp)
-
-        SeqPattern(regexPatterns.toList)(scrutType, seq.span)
+        seqPattern
 
     else
       Reporter.error(s"The scrutinee type ${scrutType.show}, does not conform to Seq[T] expected by a sequence pattern", seq.pos)

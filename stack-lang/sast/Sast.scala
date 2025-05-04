@@ -258,27 +258,19 @@ object Sast:
   case class SeqPattern
     (patterns: List[RegexPattern])
     (val tpe: Type, val span: Span)
-  extends Pattern
+  extends Pattern:
+    /** The distance from the end of a pattern to the end of sequence */
+    val distanceToEnd: Seq[SeqPattern.Size] = SeqPattern.computeDistanceToEnd(patterns)
 
-  sealed trait RegexPattern extends Tree:
-    val tpe: Type
+    val totalSize: SeqPattern.Size =
+      if patterns.isEmpty then SeqPattern.Size.Exact(0)
+      else distanceToEnd(0) + patterns(0).size
 
-    def show(using Definitions): String = Printing.show(this)
+    def apply(i: Int): RegexPattern = patterns(i)
 
-    def headPattern: Pattern =
-      this match
-        case AtomPattern(pat) => pat
-        case SkipToPattern(pat) => pat
-        case StarPattern(pat) => pat
+    def patternCount: Int = patterns.size
 
-    /** The number of items the pattern consumes when the match is successful */
-    def size: RegexPattern.Size =
-      this match
-        case AtomPattern(pat)   => RegexPattern.Size.Exact(1)
-        case SkipToPattern(pat) => RegexPattern.Size.GreatEq(1)
-        case StarPattern(pat)   => RegexPattern.Size.GreatEq(0)
-
-  object RegexPattern:
+  object SeqPattern:
     enum Size:
       case GreatEq(n: Int)
       case Exact(n: Int)
@@ -309,6 +301,24 @@ object Sast:
         end while
       end if
       distanceToEnd
+
+  sealed trait RegexPattern extends Tree:
+    val tpe: Type
+
+    def show(using Definitions): String = Printing.show(this)
+
+    def headPattern: Pattern =
+      this match
+        case AtomPattern(pat) => pat
+        case SkipToPattern(pat) => pat
+        case StarPattern(pat) => pat
+
+    /** The number of items the pattern consumes when the match is successful */
+    def size: SeqPattern.Size =
+      this match
+        case AtomPattern(pat)   => SeqPattern.Size.Exact(1)
+        case SkipToPattern(pat) => SeqPattern.Size.GreatEq(1)
+        case StarPattern(pat)   => SeqPattern.Size.GreatEq(0)
 
   case class AtomPattern
     (pattern: Pattern)
