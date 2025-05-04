@@ -83,27 +83,6 @@ type Seq[T] = object {
   def apply(i: Int): T
 }
 
-// "*" pattern
-//
-// A * pattern matches multiple items accepted by the nested pattern.
-//
-// The * pattern is only valid inside a sequence pattern.
-//
-// Its true semantics is handled in pattern translation.
-pattern (item: T) *[T]: Seq[T] =
-  case seq then item = seq(0)
-
-// ">" pattern
-//
-// A > pattern will ignore all current items until an item is accepted by the
-// nested pattern.
-//
-// The > pattern is only valid inside a sequence pattern.
-//
-// Its true semantics is handled in pattern translation.
-pattern >[T](item: T): Seq[T] =
-  case seq then item = seq(0)
-
 //------------------------------------------------------------------------------
 //
 // Utility functions
