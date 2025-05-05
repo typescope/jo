@@ -194,6 +194,12 @@ object Sast:
 
     def show(using Definitions): String = Printing.show(this)
 
+    def isWildcard: Boolean =
+      this match
+        case _: WildcardPattern => true
+        case AscribePattern(_, nested) => nested.isWildcard
+        case _ => false
+
   case class TypePattern
     (tpt: TypeTree)
   extends Pattern:
@@ -277,6 +283,18 @@ object Sast:
 
       def isExact: Boolean = this.isInstanceOf[Exact]
 
+      def isDisjoint(that: Size): Boolean =
+        this match
+          case GreatEq(m) =>
+            that match
+              case GreatEq(n) => false
+              case Exact(n)   => n < m
+
+          case Exact(m) =>
+            that match
+              case GreatEq(n) => m < n
+              case Exact(n)   => m != n
+
       def +(that: Size): Size =
         this match
           case GreatEq(m) =>
@@ -288,6 +306,32 @@ object Sast:
             that match
               case GreatEq(n) => GreatEq(m + n)
               case Exact(n)   => Exact(m + n)
+
+      def -(that: Size): List[Size] =
+        this match
+          case GreatEq(m) =>
+            that match
+              case GreatEq(n) =>
+                if n <= m then Nil
+                else (m until n).toList.map(Exact.apply)
+
+              case Exact(n) =>
+                if n < m then this :: Nil
+                else if n == m then GreatEq(m + 1) :: Nil
+                else GreatEq(n + 1) :: (m until n).toList.map(Exact.apply)
+
+          case Exact(m) =>
+            that match
+              case GreatEq(n) =>
+                if n <= m then Nil else this :: Nil
+
+              case Exact(n) =>
+                if m == n then Nil else this :: Nil
+
+      override def toString: String =
+        this match
+          case GreatEq(n) => "size >= " + n
+          case Exact(n)   => "size = " + n
 
     def computeDistanceToEnd(patterns: Seq[RegexPattern]): Seq[Size] =
       val distanceToEnd = new Array[Size](patterns.size)

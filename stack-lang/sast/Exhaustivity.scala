@@ -4,6 +4,8 @@ import Sast.*
 import Types.*
 import Symbols.*
 
+import SeqPattern.Size
+
 import common.Debug
 
 object Exhaustivity:
@@ -13,6 +15,7 @@ object Exhaustivity:
     case TagSpace(tag: String, args: List[Space])
     case PredSpace(pred: Symbol, tpe: ProcType, args: List[Space])
     case PartialSpace(space: Space)
+    case SeqSpace(tpe: Type, size: Size)
     case UnionSpace(spaces: Seq[Space])
 
     def show: String = Exhaustivity.show(this)
@@ -32,6 +35,9 @@ object Exhaustivity:
 
       case TypeSpace(tpe) =>
         tpe.show
+
+      case SeqSpace(tp, size) =>
+        tp.show + " of " + size.toString
 
       case PartialSpace(space) =>
         show(space)
@@ -61,6 +67,8 @@ object Exhaustivity:
 
       case PartialSpace(space) => space :: Nil
 
+      case _: SeqSpace => space :: Nil
+
       case TagSpace(tag, args) =>
         if args.exists(isEmpty) then
           Nil
@@ -84,9 +92,17 @@ object Exhaustivity:
 
       case WildcardPattern() => TypeSpace(pattern.tpe)
 
-      case _: SeqPattern =>
+      case seqPat @ SeqPattern(patterns) =>
         // TODO: fix exhaustivity check for sequence patterns
-        TypeSpace(pattern.tpe)
+        val isIrrefutable = patterns.forall:
+          case AtomPattern(pat)   => pat.isWildcard
+          case SkipToPattern(pat) => pat.isWildcard
+          case StarPattern(pat)   => pat.isWildcard
+
+        if isIrrefutable then
+          SeqSpace(seqPat.tpe, seqPat.totalSize)
+        else
+          PartialSpace(SeqSpace(seqPat.tpe, seqPat.totalSize))
 
       case ValuePattern(value) =>
         value match
@@ -252,9 +268,26 @@ object Exhaustivity:
         else
           s1
 
-      case (_: PredSpace, _: TagSpace) => s1
+      case (SeqSpace(tp1, size1), SeqSpace(tp2, size2)) =>
+        if Subtyping.conforms(tp1, tp2) then
+          val rest = size1 - size2
+          UnionSpace(rest.map(size => SeqSpace(tp1, size)))
 
-      case (_: TagSpace, _: PredSpace) => s1
+        else
+          s1
+
+      case (TypeSpace(tp1), SeqSpace(tp2, size)) =>
+        if Subtyping.conforms(tp1, tp2) then
+          val s1 = SeqSpace(tp2, Size.GreatEq(0))
+          subtract(s1, s2)
+
+        else
+          s1
+
+      case (SeqSpace(tp1, size), TypeSpace(tp2)) =>
+        if Subtyping.conforms(tp1, tp2) then EmptySpace else s1
+
+      case _ => s1
 
   def isDisjoint(s1: Space, s2: Space)(using Definitions): Boolean = Debug.trace(s"isDisjoint(${s1.show}, ${s2.show})", enable = false):
     (s1, s2) match
@@ -297,12 +330,14 @@ object Exhaustivity:
         else
           true
 
-      case (PredSpace(pred1, tp1, args1), PredSpace(pred2, tp2, args2)) =>
-        if pred1 == pred2 && Subtyping.isEqualType(tp1, tp2) then
+      case (PredSpace(pred1, procType1, args1), PredSpace(pred2, procType2, args2)) =>
+        if pred1 == pred2 && Subtyping.isEqualType(procType1, procType2) then
           args1.zip(args2).exists: (arg1, arg2) =>
             isDisjoint(arg1, arg2)
         else
-          true
+          val s1 = TypeSpace(procType1.resultType.stripPartial)
+          val s2 = TypeSpace(procType2.resultType.stripPartial)
+          isDisjoint(s1, s2)
 
       case (TypeSpace(tp), TagSpace(tag, _)) =>
         if tp.isTagType then
@@ -328,19 +363,26 @@ object Exhaustivity:
         else
           true
 
-      case (PredSpace(_, procType, _), _: TypeSpace) =>
+      case (SeqSpace(tp1, size1), SeqSpace(tp2, size2)) =>
+        if Subtyping.conforms(tp1, tp2) || Subtyping.conforms(tp2, tp1) then
+          size1.isDisjoint(size2)
+
+        else
+          true
+
+      case (_, SeqSpace(tp2, size)) =>
+        val s2 = TypeSpace(tp2)
+        isDisjoint(s1, s2)
+
+      case (SeqSpace(tp1, size), _) =>
+        val s1 = TypeSpace(tp1)
+        isDisjoint(s1, s2)
+
+      case (PredSpace(_, procType, _), _) =>
         val s1 = TypeSpace(procType.resultType.stripPartial)
         isDisjoint(s1, s2)
 
-      case (TypeSpace(tp), PredSpace(_, procType, _)) =>
-        val s2 = TypeSpace(procType.resultType.stripPartial)
-        isDisjoint(s1, s2)
-
-      case (PredSpace(_, procType, _), _: TagSpace) =>
-        val s1 = TypeSpace(procType.resultType.stripPartial)
-        isDisjoint(s1, s2)
-
-      case (_: TagSpace, PredSpace(_, procType, _)) =>
+      case (_, PredSpace(_, procType, _)) =>
         val s2 = TypeSpace(procType.resultType.stripPartial)
         isDisjoint(s1, s2)
 
@@ -349,6 +391,8 @@ object Exhaustivity:
       case EmptySpace => true
 
       case TypeSpace(tpe: Type) => false
+
+      case _: SeqSpace => false
 
       case TagSpace(_, args) => args.exists(isEmpty)
 

@@ -468,7 +468,7 @@ class PatternTyper(namer: Namer, checker: Checker):
           // TODO: conform should be safe, no need to be equal
           if Patterns.isEqualType(sym.info, scrutType)(using explain) || scrutType.isVoidType then
             val patVal = Ident(sym)(id.span)
-            AscribePattern(patVal, TypePattern(TypeTree(sym.info)(id.span)))
+            AscribePattern(patVal, WildcardPattern()(sym.info, id.span))
 
           else
             Reporter.error(s"$sym has the type ${sym.info.show}, which is not equal to the scrutinee type " + scrutType.show, id.pos)
