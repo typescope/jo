@@ -93,7 +93,6 @@ object Exhaustivity:
       case WildcardPattern() => TypeSpace(pattern.tpe)
 
       case seqPat @ SeqPattern(patterns) =>
-        // TODO: fix exhaustivity check for sequence patterns
         val isIrrefutable = patterns.forall:
           case AtomPattern(pat)   => pat.isWildcard
           case SkipToPattern(pat) => pat.isWildcard

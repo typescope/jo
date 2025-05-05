@@ -811,4 +811,4 @@ object PatternTyper:
     val pos2 = pat2.pos
 
     val message1 = "* pattern shadows the following head pattern, potentially makes the next pattern unreachable."
-    val message2 = s"It covers entirely the head pattern of the next pattern:"
+    val message2 = s"The star pattern covers the head pattern of the next pattern:"

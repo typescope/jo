@@ -21,7 +21,7 @@ object Flags:
   val Field   : Flag = 1 << 11  // an object field
   val Default : Flag = 1 << 12  // context parameters with default value
 
-  val Synthetic: Flag = 1 << 63 // a compiler-synthesized symbol
+  val Synthetic: Flag = 1 << 62 // a compiler-synthesized symbol
 
   val empty   : Flags = 0
 

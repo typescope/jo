@@ -18,7 +18,7 @@
 |              ^
 |              * pattern shadows the following head pattern, potentially makes the next pattern unreachable.
 |
-| It covers entirely the head pattern of the next pattern:
+| The star pattern covers the head pattern of the next pattern:
 |     case [x, y*, Pos*] =>
 |                  ^^^
 

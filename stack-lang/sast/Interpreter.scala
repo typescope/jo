@@ -74,7 +74,7 @@ object Interpreter:
         case Some(res)  => res
 
     def update(sym: Symbol, denot: Denotation): Unit =
-      if map.contains(sym) then
+      if map.contains(sym) || sym.is(Flags.Synthetic) then
         map(sym) = denot
       else
         this match
