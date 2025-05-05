@@ -1,0 +1,25 @@
+---------- Error at ./tests/warn/pattern-seq.stk:12:12 ---------------
+|       List ys foreach (x => println (intToStr x))
+|            ^^
+|            Undefined term identifier ys
+
+---------- Warning at ./tests/warn/pattern-seq.stk:17:9 ---------------
+|   match a
+|         ^
+|         The match will fail for the case: List[Int]
+
+---------- Warning at ./tests/warn/pattern-seq.stk:20:9 ---------------
+|   match a
+|         ^
+|         The match will fail for the case: List[Int] of size = 0
+
+---------- Warning at ./tests/warn/pattern-seq.stk:24:14 ---------------
+|     case [x, y*, Pos*] =>
+|              ^
+|              * pattern shadows the following head pattern, potentially makes the next pattern unreachable.
+|
+| It covers entirely the head pattern of the next pattern:
+|     case [x, y*, Pos*] =>
+|                  ^^^
+
+1 error(s), 3 warning(s)
