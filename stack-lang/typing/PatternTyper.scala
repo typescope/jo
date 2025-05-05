@@ -13,7 +13,7 @@ import reporting.Diagnostics.*
 
 import Namer.{ Scope, DelayedDef }
 import Inference.TargetType
-import PatternTyper.{ Occurs, NonDeterministicPattern }
+import PatternTyper.{ Occurs, ShadowedPattern }
 
 import scala.collection.mutable
 
@@ -617,9 +617,9 @@ class PatternTyper(namer: Namer, checker: Checker):
 
                 val space1 = Exhaustivity.project(itemPat)
                 val space2 = Exhaustivity.project(headPattern)
-
-                if !Exhaustivity.isDisjoint(space1, space2) then
-                  rp.report(NonDeterministicPattern(itemPat, headPattern))
+                val reachableSpace = Exhaustivity.subtract(space2, space1)
+                if Exhaustivity.isEmpty(reachableSpace) then
+                  rp.report(ShadowedPattern(itemPat, headPattern))
 
               case _ =>
             end match
@@ -803,12 +803,12 @@ object PatternTyper:
       if !census.contains(symbol) then
         Reporter.error(s"The parameter $symbol should occur once in the patterns", symbol.sourcePos)
 
-  class NonDeterministicPattern(pat1: Pattern, pat2: Pattern)(using Source)
+  class ShadowedPattern(pat1: Pattern, pat2: Pattern)(using Source)
   extends DoublePositionedReport:
-    val kind = Kind.Error
+    val kind = Kind.Warning
 
     val pos1 = pat1.pos
     val pos2 = pat2.pos
 
-    val message1 = "* pattern should be followed by a disjoint head pattern to be deterministic."
-    val message2 = s"It overlaps with the head pattern of the next pattern:"
+    val message1 = "* pattern shadows the following head pattern, potentially makes the next pattern unreachable."
+    val message2 = s"It covers entirely the head pattern of the next pattern:"
