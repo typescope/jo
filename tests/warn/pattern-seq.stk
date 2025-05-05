@@ -9,7 +9,7 @@ fun test(a: List[Int]) =
   match a
     case [> (x if x > 2), _ys*] =>
       println (intToStr x)
-      List ys foreach (x => println (intToStr x))
+      List _ys foreach (x => println (intToStr x))
 
     // case _ =>
 

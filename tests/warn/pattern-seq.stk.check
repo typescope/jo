@@ -1,7 +1,7 @@
 ---------- Error at ./tests/warn/pattern-seq.stk:12:12 ---------------
-|       List ys foreach (x => println (intToStr x))
-|            ^^
-|            Undefined term identifier ys
+|       List _ys foreach (x => println (intToStr x))
+|            ^^^
+|            Undefined term identifier _ys
 
 ---------- Warning at ./tests/warn/pattern-seq.stk:17:9 ---------------
 |   match a
