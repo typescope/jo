@@ -2,6 +2,7 @@ package typing
 
 import ast.Ast
 import ast.Desugaring
+import ast.Name
 import ast.Positions.*
 
 import sast.*
@@ -396,7 +397,6 @@ class Namer(@constructorOnly reporter: Reporter):
     }
 
   def transform(obj: Ast.Object)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): Word =
-    val nameTable = new NameTable
     val vals = new mutable.ArrayBuffer[ValDef]
     val delayedDefs = new mutable.ArrayBuffer[DelayedDef[FunDef]]
 
@@ -409,7 +409,7 @@ class Namer(@constructorOnly reporter: Reporter):
     val thisSym = Symbol.createSymbol("this", infoProvider, Flags.Synthetic, sc.owner, obj.pos)
 
     // scope for checking member methods
-    given sc2: Scope = sc.fresh(thisSym, nameTable)
+    given sc2: Scope = sc.fresh(thisSym)
 
     for case vdef: Ast.ValDef <- obj.members do
       given TargetType = TargetType.ObjectMember
@@ -426,7 +426,11 @@ class Namer(@constructorOnly reporter: Reporter):
 
       given TargetType = TargetType.ObjectMember
       val delayedDef = transformFunDef(fdef)
-      sc2.define(delayedDef.symbol)
+
+      // Operator name should not be called directly without a prefix
+      if !Name.isOperator(delayedDef.symbol.name) then
+        sc2.define(delayedDef.symbol)
+
       delayedDefs += delayedDef
 
     val defs: List[FunDef] =

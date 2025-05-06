@@ -5,6 +5,7 @@ import Scanner.*
 
 import common.StringUtil
 import ast.Positions.*
+import ast.Name.*
 import reporting.Reporter
 import reporting.Reporter.{ error, abortInternal }
 
@@ -178,25 +179,6 @@ class Scanner(stream: CharStream)(using Reporter, Source):
   end str2Int
 
 object Scanner:
-  def isNameStart(c: Char): Boolean =
-    isLetter(c) || c == '_'
-
-  def isNameRest(c: Char): Boolean =
-    isNameStart(c) || isDigit(c)
-
-  val OP_CHAR = Array('+', '-', '*', '/', '%', '|', '&', '^', '>', '<', '=', ':', '?', '!', '@')
-  def isOperator(c: Char): Boolean =
-    OP_CHAR.indexOf(c) >= 0
-
-  def isSpace(c: Char): Boolean =
-    c == ' ' || c == '\n' || c == '\t'
-
-  def isDigit(c: Char): Boolean =
-    c >= '0' && c <= '9'
-
-  def isLetter(c: Char): Boolean =
-    c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
-
   class CharStream(code: String)(using source: Source):
     private val LEN = code.length
     private var index: Int = 0

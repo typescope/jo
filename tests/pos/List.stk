@@ -83,7 +83,7 @@ section List
 
     def map[S](f: T => S): List[S] =
       match repr
-        case Nil => Nil
+        case Nil => makeObject Nil
 
         case Cons(v, tail) =>
           makeObject (Cons (f v) (tail.map f))
