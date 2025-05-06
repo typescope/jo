@@ -195,12 +195,28 @@ object Subtyping:
         val tasks = if lessThan then tvar.isSubtype(tp2) else tvar.isSuptype(tp2)
         tasks.forall(task => checkConforms(task.left, task.right))
 
-  private def checkConformsProcType(tp1: ProcType, tp2: ProcType)(using Context, Definitions): Boolean =
-    tp1.paramTypes.size == tp2.paramTypes.size
-    && tp1.paramTypes.zip(tp2.paramTypes).forall: (paramType1, paramType2) =>
-       checkConforms(paramType2, paramType1)
-    && checkConforms(tp1.resultType, tp2.resultType)
+  private def checkConformsProcType(tp1: ProcType, tp2: ProcType)
+      (using ctx: Context, defn: Definitions)
+  : Boolean =
+
+    tp1.tparams.size == tp2.tparams.size
+    && tp1.paramTypes.size == tp2.paramTypes.size
     && {
+      // TODO: once type bounds are enabled, check type bounds
+      given Context =
+        if tp1.tparams.isEmpty then
+          ctx
+        else
+          tp1.tparams.zip(tp2.tparams).foldLeft(ctx):
+            case (ctx, (tparam1, tparam2)) =>
+              val tref1 = TypeRef(tparam1)
+              val tref2 = TypeRef(tparam2)
+              ctx.withSubtyping(tref1, tref2).withSubtyping(tref2, tref1)
+
+      tp1.paramTypes.zip(tp2.paramTypes).forall: (paramType1, paramType2) =>
+        checkConforms(paramType2, paramType1)
+      && checkConforms(tp1.resultType, tp2.resultType)
+    } && {
       tp1.receives.isEmpty ||
       tp2.receives.nonEmpty && tp1.receives.get.forall { param =>
         tp2.receives.get.contains(param)
