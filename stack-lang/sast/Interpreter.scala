@@ -57,9 +57,7 @@ object Interpreter:
   type Value = IntVal | BoolVal | StringVal | RecordVal | ObjectVal | FunVal | ArrayVal | PlatformObj
 
   enum Env:
-    val owner: Symbol
-
-    case RootEnv(owner: Symbol)
+    case RootEnv()
     case NestedEnv(outer: Env, owner: Symbol)
 
     private val map: mutable.Map[Symbol, Denotation] = mutable.Map.empty
@@ -67,14 +65,14 @@ object Interpreter:
     def fresh(owner: Symbol): Env = new Env.NestedEnv(this, owner)
 
     def findEnv(sym: Symbol): Env =
-      if sym.owner == owner || !sym.isLocal && this.isInstanceOf[RootEnv] then
-        this
+      this match
+        case NestedEnv(outer, owner) =>
+          if sym.owner == owner then this
+          else outer.findEnv(sym)
 
-      else
-        this match
-          case NestedEnv(outer, _) => outer.findEnv(sym)
-
-          case _ => throw new Exception("Not found " + sym)
+        case _: RootEnv =>
+          if !sym.isLocal then this
+          else throw new Exception("Not found " + sym)
 
     def resolve(sym: Symbol): Denotation =
       val env = findEnv(sym)
@@ -176,7 +174,7 @@ object Interpreter:
     throw new Exception(v)
 
   def createRootEnv()(using defn: Definitions): Env =
-    val rootEnv = new Env.RootEnv(owner = null)
+    val rootEnv = new Env.RootEnv()
 
     val platformCalls: Map[Symbol, List[Value] => List[Value]] = Map(
       defn.Predef_add        ->       add,
