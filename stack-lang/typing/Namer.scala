@@ -466,13 +466,12 @@ class Namer(@constructorOnly reporter: Reporter):
 
     val tvars = for tparam <- polyType.tparams yield TypeVar(tparam.name, this.inferencer)
     val targs = tvars.map(tvar => TypeTree(tvar)(fun.span))
-    val tpe = TypeOps.substTypeParams(polyType.copy(tparams = Nil), tvars)
+    val tpe = polyType.instantiate(tvars)
 
-    val bounds = for tparam <- polyType.tparams yield tparam.info
     checker.delayedCheck {
       for tvar <- tvars do checker.checkInstantiated(tvar, fun.pos)
 
-      checker.checkBounds(bounds, targs)
+      checker.checkBounds(polyType.tparams, targs)
     }
 
     TypeApply(fun, targs)(tpe, fun.span)
@@ -1030,13 +1029,7 @@ class Namer(@constructorOnly reporter: Reporter):
         transformParamRef(param).symbol
 
     def computeInfo(resultType: Type) =
-        val tparamRefs = tparamSyms.zipWithIndex.map: (tparamSym, i) =>
-          TypeParamRef(tparamSym.name, i)
-        val substs = tparamSyms.zip(tparamRefs).toMap
-        val tparamInfos = tparamSyms.map(tparam => NamedInfo(tparam.name, tparam.info.as[TypeBound]))
-        val rawType = ProcType(tparamInfos, paramSyms.map(_.toNamedInfo), resultType, ctxParams, funDef.preParamCount)
-        if tparamRefs.isEmpty then rawType
-        else TypeOps.substSymbols(rawType, substs)
+        ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), resultType, ctxParams, funDef.preParamCount)
 
     this.nonCyclicTypeProvider.addProvider(funSym, () => computeInfo(resultType), () => computeInfo(ErrorType))
 
@@ -1095,20 +1088,15 @@ class Namer(@constructorOnly reporter: Reporter):
             rhs.tpe
 
       else
-        val tparamRefs = tparamSyms.zipWithIndex.map: (tparamSym, i) =>
-          TypeParamRef(tparamSym.name, i)
-        val subst = tparamSyms.zip(tparamRefs).toMap
-
         val rhs = transformType(tdef.rhs)
         checker.delayedCheck { checker.checkValueType(rhs) }
-        val tparamInfos = tparamSyms.map(tparam => NamedInfo(tparam.name, tparam.info.as[TypeBound]))
 
         val rhsType =
           if tdef.isBound then TypeBound(BottomType, rhs.tpe)
           else rhs.tpe
 
-        val rawType = TypeLambda(tparamInfos, rhsType)
-        TypeOps.substSymbols(rawType, subst)
+        TypeLambda(tparamSyms, rhsType)
+
     end computeInfo
 
     this.nonCyclicTypeProvider.addProvider(typeSym, computeInfo)
@@ -1140,7 +1128,7 @@ class Namer(@constructorOnly reporter: Reporter):
     DelayedDef(sym, typer)
 
   private def transformMethodDecl(ddef: Ast.FunDef)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): TypeTree =
-    val defScope: Scope = sc.fresh()
+    given defScope: Scope = sc.fresh()
 
     if ddef.preParamCount != 0 then
       Reporter.error("Methods cannot have pre-arguments", ddef.pos)
@@ -1179,13 +1167,8 @@ class Namer(@constructorOnly reporter: Reporter):
         transformParamRef(param).symbol
 
     val finalType =
-      val tparamRefs = tparamSyms.zipWithIndex.map: (tparamSym, i) =>
-        TypeParamRef(tparamSym.name, i)
-      val substs = tparamSyms.zip(tparamRefs).toMap
-      val tparamInfos = tparamSyms.map(tparam => NamedInfo(tparam.name, tparam.info.as[TypeBound]))
-      val rawType = ProcType(tparamInfos, paramSyms.map(_.toNamedInfo), resultType, ctxParams, preParamCount = 0)
-      if tparamRefs.isEmpty then rawType
-      else TypeOps.substSymbols(rawType, substs)
+      ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), resultType, ctxParams, preParamCount = 0)
+
 
     TypeTree(finalType)(ddef.span)
 

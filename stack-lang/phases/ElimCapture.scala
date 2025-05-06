@@ -41,11 +41,10 @@ object ElimCapture:
 
     val oldFunSym = fdef.symbol
 
-    val tparamInfos = fdef.tparams.map(tparam => NamedInfo(tparam.name, tparam.info.as[TypeBound]))
     val paramInfos = fdef.params.map(_.toNamedInfo)
     val resType = fdef.procType.resultType
     val paramInfos2 = prependParams ++ paramInfos ++ appendParams
-    val funType = ProcType(tparamInfos, paramInfos2, resType, fdef.receives, preParamCount = 0)
+    val funType = ProcType(fdef.tparams, paramInfos2, resType, fdef.receives, preParamCount = 0)
 
     val funName = ctx.flatName(fdef.symbol)
     Symbol.createSymbol(funName, funType, Flags.Fun | Flags.Synthetic, oldFunSym.enclosingContainer, oldFunSym.sourcePos)

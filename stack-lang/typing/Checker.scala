@@ -34,19 +34,22 @@ class Checker:
       Reporter.error(s"Expect type lambda, found = ${tctor.tpe.show}", tctor.pos)
     else
       val tl = tctor.tpe.asTypeLambda
-      checkBounds(tl.bounds, targs)
+      checkBounds(tl.tparams, targs)
 
-  def checkBounds(bounds: List[Type], targs: List[TypeTree])(using Definitions, Reporter, Source): Unit =
-    if bounds.size != targs.size then
-      Reporter.error(s"Expect ${bounds.size} args, found = ${targs.size}", (targs.head.span | targs.last.span).toPos)
+  def checkBounds(tparams: List[Symbol], targs: List[TypeTree])(using Definitions, Reporter, Source): Unit =
+    if tparams.size != targs.size then
+      Reporter.error(s"Expect ${tparams.size} type args, found = ${targs.size}", (targs.head.span | targs.last.span).toPos)
     else
-      for (targ, bound) <- targs.zip(bounds) do
+      val subst = tparams.zip(targs.map(_.tpe)).toMap
+      for (targ, tparam) <- targs.zip(tparams) do
         val argType = targ.tpe
-        val TypeBound(lo, hi) = bound.as[TypeBound]
-        val loActual = TypeOps.substTypeParams(lo, targs.map(_.tpe))
-        val hiActual = TypeOps.substTypeParams(hi, targs.map(_.tpe))
+        val TypeBound(lo, hi) = tparam.info.as[TypeBound]
+        val loActual = TypeOps.substSymbols(lo, subst)
+        val hiActual = TypeOps.substSymbols(hi, subst)
+
         if !Subtyping.conforms(argType, hiActual) then
           Reporter.error(s"Arg type ${argType.show} does not conform to bound = ${hi.show}, which expands to ${hiActual.show}", targ.pos)
+
         if !Subtyping.conforms(loActual, argType) then
           Reporter.error(s"Arg type ${argType.show} does not conform to bound = ${hi.show}, which expands to ${hiActual.show}", targ.pos)
 
@@ -60,8 +63,8 @@ class Checker:
         Reporter.error(s"Expect ${polyType.tparamCount} args, found = ${targs.size}", (targs.head.span | targs.last.span).toPos)
         Block(words = Nil)(ErrorType, fun.span | targs.last.span)
       else
-        checkBounds(polyType.bounds, targs)
-        val tpe = TypeOps.substTypeParams(polyType.copy(tparams = Nil), targs.map(_.tpe))
+        checkBounds(polyType.tparams, targs)
+        val tpe = polyType.instantiate(targs.map(_.tpe))
         TypeApply(fun, targs)(tpe, fun.span)
 
   def checkType(tree: Tree, tp: Type)(using Definitions, Reporter, Source): Unit =

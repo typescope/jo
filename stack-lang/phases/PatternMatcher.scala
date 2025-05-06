@@ -39,7 +39,6 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
 
   private def createImplFunSymbol(predSym: Symbol): Symbol =
     val predType = predSym.info.asProcType
-    val bounds = predType.tparams
     val params = NamedInfo("scrutinee", predType.resultType.stripPartial) :: Nil
 
     val successType = TagType("Success", predType.params)
@@ -47,7 +46,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
     val resultType = UnionType(successType :: failType :: Nil)
     val receives = Some(Nil)
 
-    val funType = ProcType(bounds, params, resultType, receives, preParamCount = 0)
+    val funType = ProcType(predType.tparams, params, resultType, receives, preParamCount = 0)
     Symbol.createSymbol(predSym.name + "$impl", funType, Flags.Fun | Flags.Synthetic, predSym.owner, predSym.sourcePos)
 
   private def getImplFunSymbol(predSym: Symbol, implMap: mutable.Map[Symbol, Symbol]): Symbol =

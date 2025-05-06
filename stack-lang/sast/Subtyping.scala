@@ -162,7 +162,7 @@ object Subtyping:
           case tref: TypeRef =>
             tref.symbol.info match
               case tl: TypeLambda =>
-                val tp1Reduced = TypeOps.substTypeParams(tl.body, targs)
+                val tp1Reduced = tl.instantiate(targs)
                 continue(tp1Reduced)
 
               case tctor =>

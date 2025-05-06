@@ -91,13 +91,7 @@ class PatternTyper(namer: Namer, checker: Checker):
         patterns.tail.foldLeft(patterns.head)(OrPattern.apply)
 
     def computeInfo(resultType: Type) =
-      val tparamRefs = tparamSyms.zipWithIndex.map: (tparamSym, i) =>
-        TypeParamRef(tparamSym.name, i)
-      val substs = tparamSyms.zip(tparamRefs).toMap
-      val tparamInfos = tparamSyms.map(tparam => NamedInfo(tparam.name, tparam.info.as[TypeBound]))
-      val rawType = ProcType(tparamInfos, paramSyms.map(_.toNamedInfo), resultType, receives = None, preParamCount = patDef.preParamCount)
-      if tparamRefs.isEmpty then rawType
-      else TypeOps.substSymbols(rawType, substs)
+      ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), resultType, receives = None, preParamCount = patDef.preParamCount)
 
     namer.nonCyclicTypeProvider.addProvider(patSym, () => computeInfo(resultTypeTree.tpe), () => computeInfo(ErrorType))
 

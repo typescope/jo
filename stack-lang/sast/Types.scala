@@ -330,15 +330,21 @@ object Types:
     * inferred.
     */
   case class ProcType
-    (tparams: List[NamedInfo[TypeBound]], params: List[NamedInfo[Type]],
+    (tparams: List[Symbol], params: List[NamedInfo[Type]],
      resultType: Type, receives: Option[List[Symbol]], preParamCount: Int)
   extends Type:
-    val bounds: List[TypeBound] = tparams.map(_.info)
+    val bounds: List[TypeBound] = tparams.map(_.info.as[TypeBound])
     val preParamTypes: List[Type] = params.take(preParamCount).map(_.info)
     val postParamTypes: List[Type] = params.drop(preParamCount).map(_.info)
     val paramTypes: List[Type] = params.map(_.info)
     val paramCount: Int = params.size
     val tparamCount: Int = tparams.size
+
+    def instantiate(targs: List[Type]): ProcType =
+      assert(tparamCount == targs.size, "expect " + tparamCount + ", found = " + targs.size)
+      val subst = tparams.zip(targs).toMap
+      // TODO: check bounds once they are supported
+      TypeOps.substSymbols(this.copy(tparams = Nil), subst).as[ProcType]
 
     def prepend(paramsToAdd: List[NamedInfo[Type]]): ProcType =
       ProcType(tparams, paramsToAdd ++ params, resultType, receives, preParamCount)
@@ -352,21 +358,17 @@ object Types:
 
   /** A type lambda */
   case class TypeLambda
-    (tparams: List[NamedInfo[TypeBound]], body: Type)
+    (tparams: List[Symbol], body: Type)
   extends Type:
     val names: List[String] = tparams.map(_.name)
     val bounds: List[Type] = tparams.map(_.info)
     val paramCount: Int = tparams.size
 
-  /** An index reference to type parameter
-    *
-    * There is no support for nested type parameters. Therefore, there is no
-    * need to distinguish the holders that the type parameters are attached
-    * to.
-    */
-  case class TypeParamRef
-    (name: String, index: Int)
-  extends Type
+    def instantiate(targs: List[Type]): Type =
+      assert(tparams.size == targs.size, "expect " + tparams.size + ", found = " + targs.size)
+      val subst = tparams.zip(targs).toMap
+      // TODO: check bounds once they are supported
+      TypeOps.substSymbols(body, subst)
 
   case class AppliedType
     (tctor: Type, targs: List[Type])
