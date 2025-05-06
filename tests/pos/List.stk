@@ -115,7 +115,23 @@ section List
   }
 end
 
+fun toList(s: String): List[Char] =
+  var l: List[Char] = List.empty
+  var i = 0
+  while i < s.size do
+    l = l + s(i)
+    i = i + 1
+  end
+  l
 
 fun main =
-  val list = List.empty + "a" + "b" + "c"
+  val list = List.empty + "apple" + "orange" + "banana"
   list.foreach (s => println s)
+
+  val email = toList "hello@stk-lang.org"
+  match email
+    case [(a if a != '@')*, '@', b*] =>
+      println "valid email"
+
+    case _ =>
+      println "invalid email"

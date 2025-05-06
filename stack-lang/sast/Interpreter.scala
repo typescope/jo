@@ -57,29 +57,34 @@ object Interpreter:
   type Value = IntVal | BoolVal | StringVal | RecordVal | ObjectVal | FunVal | ArrayVal | PlatformObj
 
   enum Env:
-    case RootEnv()
-    case NestedEnv(outer: Env)
+    val owner: Symbol
+
+    case RootEnv(owner: Symbol)
+    case NestedEnv(outer: Env, owner: Symbol)
 
     private val map: mutable.Map[Symbol, Denotation] = mutable.Map.empty
 
-    def fresh(): Env = new Env.NestedEnv(this)
+    def fresh(owner: Symbol): Env = new Env.NestedEnv(this, owner)
+
+    def findEnv(sym: Symbol): Env =
+      if sym.owner == owner || !sym.isLocal && this.isInstanceOf[RootEnv] then
+        this
+
+      else
+        this match
+          case NestedEnv(outer, _) => outer.findEnv(sym)
+
+          case _ => throw new Exception("Not found " + sym)
 
     def resolve(sym: Symbol): Denotation =
-      map.get(sym) match
-        case None =>
-          this match
-            case NestedEnv(outer) => outer.resolve(sym)
-            case _ => throw new Exception("Not found " + sym)
-
+      val env = findEnv(sym)
+      env.map.get(sym) match
+        case None => throw new Exception("Not found " + sym)
         case Some(res)  => res
 
     def update(sym: Symbol, denot: Denotation): Unit =
-      if map.contains(sym) || sym.is(Flags.Synthetic) then
-        map(sym) = denot
-      else
-        this match
-          case NestedEnv(outer) => outer.update(sym, denot)
-          case _ => err("Unknown name to update: " + sym.name)
+      val env = findEnv(sym)
+      env.map(sym) = denot
 
     def bind(sym: Symbol, denot: Denotation): Unit =
       // Pattern symbol could be bound twice as an optimization in translation
@@ -93,7 +98,7 @@ object Interpreter:
 
       if recursive then
         this match
-          case NestedEnv(outer) =>
+          case NestedEnv(outer, _) =>
             bindings = ("outer -> " + outer.show) :: bindings
           case _ =>
 
@@ -171,7 +176,7 @@ object Interpreter:
     throw new Exception(v)
 
   def createRootEnv()(using defn: Definitions): Env =
-    val rootEnv = new Env.RootEnv()
+    val rootEnv = new Env.RootEnv(owner = null)
 
     val platformCalls: Map[Symbol, List[Value] => List[Value]] = Map(
       defn.Predef_add        ->       add,
@@ -298,12 +303,12 @@ object Interpreter:
     else results.last
 
   def call(fdef: FunDef, args: List[Value])(using env: Env, params: Params, defn: Definitions): List[Denotation] =
-    val funEnv = env.fresh()
+    val funEnv = env.fresh(fdef.symbol)
 
     for (param, arg) <- fdef.params.zip(args) do
       funEnv.bind(param, arg)
 
-    Debug.trace("calling " + fdef.symbol + ", env = " + funEnv.show(recursive = false), enable = false):
+    Debug.trace("calling " + fdef.symbol + ", env = " + funEnv.show(recursive = false), (ds: List[Denotation]) => ds.map(_.show()).mkString(", "),  enable = false):
       exec(fdef.body)(using funEnv)
 
   def eval(word: Word)(using env: Env, params: Params, defn: Definitions): Value =
@@ -370,7 +375,6 @@ object Interpreter:
         def loop(): Unit =
           val BoolVal(b) = eval(cond): @unchecked
           if b then
-            given Env = env.fresh()
             exec(body)
             loop()
         loop()
@@ -406,7 +410,7 @@ object Interpreter:
               case objVal: ObjectVal =>
                 val argVals = args.map(eval)
                 val fdef = objVal.defs(name)
-                val env2 = objVal.env.fresh()
+                val env2 = objVal.env.fresh(fdef.symbol)
                 env2.bind(objVal.self, objVal)
                 call(fdef, argVals)(using env2)
 
@@ -465,7 +469,7 @@ object Interpreter:
               case objVal: ObjectVal =>
                 val argVals = args.map(eval)
                 val fdef = objVal.defs(name)
-                val env2 = objVal.env.fresh()
+                val env2 = objVal.env.fresh(fdef.symbol)
                 env2.bind(objVal.self, objVal)
                 call(fdef, argVals)(using env2)
 
