@@ -9,21 +9,47 @@ import reporting.Reporter
 
 /** Check invariants of SAST */
 object TreeChecker:
-  def check(nss: List[Namespace])(using Definitions, Reporter): List[Namespace] =
-    for
-      ns <- nss
-      case fdef: FunDef <- ns.defs
-    do
-      given Source = fdef.symbol.sourcePos.source
-      new TreeChecker().recurFunDef(fdef)
-    end for
+  case class CheckerContext(enclosingFun: Symbol)
 
+  def check(nss: List[Namespace])(using Definitions, Reporter): List[Namespace] =
+    for ns <- nss do
+      given Source = ns.symbol.sourcePos.source
+      checkDefs(ns.defs)
+    end for
     nss
 
-class TreeChecker()(using defn: Definitions, so: Source) extends SastOps.TreeTraverser:
-  type Context = Reporter
+  def checkDefs(defs: List[Def])(using Definitions, Reporter, Source): Unit =
+    for
+      defn <- defs
+    do
+      defn match
+        case fdef: FunDef =>
+          given CheckerContext = new CheckerContext(fdef.symbol)
+          new TreeChecker().recur(fdef.body)
 
-  override def apply(pattern: Pattern)(using info: Context): Unit =
+        case pdef: PatDef =>
+          given CheckerContext = new CheckerContext(pdef.symbol)
+          new TreeChecker().recur(pdef.body)
+
+        case section: Section =>
+          checkDefs(section.defs)
+
+        case _ =>
+    end for
+
+
+class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends SastOps.TreeTraverser:
+  type Context = TreeChecker.CheckerContext
+
+  override def recurNestedFunDef(fdef: FunDef)(using Context): Unit =
+    given Context = new TreeChecker.CheckerContext(fdef.symbol)
+    this(fdef.body)
+
+  override def recurNestedPatDef(pdef: PatDef)(using Context): Unit =
+    given Context = new TreeChecker.CheckerContext(pdef.symbol)
+    this(pdef.body)
+
+  override def apply(pattern: Pattern)(using ctx: Context): Unit =
     pattern match
       case ApplyPattern(fun, nested) =>
         if fun.refersTo(defn.Predef_orPattern) then
@@ -33,11 +59,18 @@ class TreeChecker()(using defn: Definitions, so: Source) extends SastOps.TreeTra
 
     recur(pattern)
 
-  def apply(word: Word)(using info: Context): Unit =
+  def apply(word: Word)(using ctx: Context): Unit =
 
     word match
       case Ident(sym) =>
-        assert(!sym.isOneOf(Flags.NSpace | Flags.Method | Flags.Field | Flags.Type), sym)
+        if sym.isOneOf(Flags.NSpace | Flags.Method | Flags.Field | Flags.Type) then
+          Reporter.error("A term Ident tree should not be namespace, method, field or type", word.pos)
+
+        if !sym.owner.isFunction && !sym.owner.isContainer then
+          Reporter.error("The owner of an ident should be either a function or an identifier", word.pos)
+
+        if sym.isLocal && sym.owner != ctx.enclosingFun && !ctx.enclosingFun.ownersIterator.exists(_ == sym.owner) then
+          Reporter.error("The owner of a local ident should be in the nested owner chain", word.pos)
 
       case Select(qual, name) =>
         if !qual.tpe.isValueType then

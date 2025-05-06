@@ -937,7 +937,7 @@ class Namer(@constructorOnly reporter: Reporter):
       tp2
 
     val rhs: Word =
-      given Scope = sc.fresh(sym)
+      given Scope = sc.fresh()
       given TargetType =
         if vdef.tpt.isEmpty then TargetType.ValueType
         else TargetType.Known(givenType)

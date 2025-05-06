@@ -72,7 +72,7 @@ object Interpreter:
 
         case _: RootEnv =>
           if !sym.isLocal then this
-          else throw new Exception("Not found " + sym)
+          else throw new Exception("Env not found for " + sym + ", owner = " + sym.owner)
 
     def resolve(sym: Symbol): Denotation =
       val env = findEnv(sym)
@@ -85,9 +85,10 @@ object Interpreter:
       env.map(sym) = denot
 
     def bind(sym: Symbol, denot: Denotation): Unit =
+      val env = findEnv(sym)
       // Pattern symbol could be bound twice as an optimization in translation
-      assert(!map.contains(sym) || sym.isPattern, "Double binding " + sym)
-      map(sym) = denot
+      assert(!env.map.contains(sym) || sym.isPattern, "Double binding " + sym)
+      env.map(sym) = denot
 
     def contains(sym: Symbol): Boolean = map.contains(sym)
 

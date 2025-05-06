@@ -153,7 +153,6 @@ object SastOps:
         case obj: Object => transformObject(obj)
     end transform
 
-    // TODO: remove patterns from TreeMap and introduce a pattern traverser
     final def transform(pattern: Pattern)(using Context): Pattern =
       pattern match
         case pat: AscribePattern => transformAscribePattern(pat)
@@ -202,11 +201,11 @@ object SastOps:
 
     def transformValDef(vdef: ValDef)(using Context): Word = recurValDef(vdef)
 
-    def transformNestedFunDef(fdef: FunDef)(using Context): Word = recurFunDef(fdef)
+    def transformNestedFunDef(fdef: FunDef)(using Context): Word = recurNestedFunDef(fdef)
 
-    def transformNestedPatDef(pdef: PatDef)(using Context): Word = recurPatDef(pdef)
+    def transformNestedPatDef(pdef: PatDef)(using Context): Word = recurNestedPatDef(pdef)
 
-    def transformNestedTypeDef(tdef: TypeDef)(using Context): TypeDef = recurTypeDef(tdef)
+    def transformNestedTypeDef(tdef: TypeDef)(using Context): TypeDef = recurNestedTypeDef(tdef)
 
     def transformIf(ifElse: If)(using Context): Word = recur(ifElse)
 
@@ -243,13 +242,13 @@ object SastOps:
     private def recurValDef(vdef: ValDef)(using Context): ValDef =
       ValDef(vdef.symbol, this(vdef.rhs))(vdef.span)
 
-    private def recurFunDef(fdef: FunDef)(using ctx: Context): FunDef =
+    private def recurNestedFunDef(fdef: FunDef)(using ctx: Context): FunDef =
       val body = this(fdef.body)
       fdef.copy(body = body)(fdef.span)
 
-    private def recurTypeDef(tdef: TypeDef)(using Context): TypeDef = tdef
+    private def recurNestedTypeDef(tdef: TypeDef)(using Context): TypeDef = tdef
 
-    private def recurPatDef(pdef: PatDef)(using Context): PatDef =
+    private def recurNestedPatDef(pdef: PatDef)(using Context): PatDef =
       pdef.copy(body = this(pdef.body))(pdef.span)
 
     final def recur(pattern: Pattern)(using Context): Pattern =
@@ -348,11 +347,11 @@ object SastOps:
 
         case vdef: ValDef => recurValDef(vdef)
 
-        case fdef: FunDef => recurFunDef(fdef)
+        case fdef: FunDef => recurNestedFunDef(fdef)
 
-        case pdef: PatDef => recurPatDef(pdef)
+        case pdef: PatDef => recurNestedPatDef(pdef)
 
-        case tdef: TypeDef => recurTypeDef(tdef)
+        case tdef: TypeDef => recurNestedTypeDef(tdef)
 
         case If(cond, thenp, elsep) =>
           If(this(cond), this(thenp), this(elsep))(word.tpe, word.span)
@@ -372,7 +371,7 @@ object SastOps:
 
         case Object(self, vals, defs) =>
           val vals2: List[ValDef] = vals.map(recurValDef)
-          val defs2: List[FunDef] = defs.map(recurFunDef)
+          val defs2: List[FunDef] = defs.map(recurNestedFunDef)
           Object(self, vals2, defs2)(word.tpe, word.span)
     end recur
   end TreeMap
@@ -387,13 +386,11 @@ object SastOps:
 
     def recurValDef(vdef: ValDef)(using Context): Unit = this(vdef.rhs)
 
-    def recurFunDef(fdef: FunDef)(using Context): Unit = this(fdef.body)
+    def recurNestedFunDef(fdef: FunDef)(using Context): Unit = this(fdef.body)
 
-    def recurTypeDef(tdef: TypeDef)(using Context): Unit = ()
+    def recurNestedTypeDef(tdef: TypeDef)(using Context): Unit = ()
 
-    def recurParamDef(pdef: ParamDef)(using Context): Unit = ()
-
-    def recurPatDef(pdef: PatDef)(using Context): Unit = this(pdef.body)
+    def recurNestedPatDef(pdef: PatDef)(using Context): Unit = this(pdef.body)
 
     def recur(pattern: Pattern)(using Context): Unit =
       pattern match
@@ -474,11 +471,11 @@ object SastOps:
 
         case vdef: ValDef => recurValDef(vdef)
 
-        case fdef: FunDef => recurFunDef(fdef)
+        case fdef: FunDef => recurNestedFunDef(fdef)
 
-        case tdef: TypeDef => recurTypeDef(tdef)
+        case tdef: TypeDef => recurNestedTypeDef(tdef)
 
-        case pdef: PatDef => recurPatDef(pdef)
+        case pdef: PatDef => recurNestedPatDef(pdef)
 
         case If(cond, thenp, elsep) =>
           this(cond)
@@ -500,7 +497,7 @@ object SastOps:
 
         case Object(self, vals, defs) =>
           vals.map(recurValDef)
-          defs.map(recurFunDef)
+          defs.map(recurNestedFunDef)
     end recur
   end TreeTraverser
 
@@ -519,10 +516,6 @@ object SastOps:
 
     type Context = Unit
 
-    override def recurFunDef(fdef: FunDef)(using Context): Unit =
-      locals += fdef.symbol
-      free ++= variableCensus(fdef)._2
-
     def apply(word: Word)(using Context): Unit =
       word match
         case Ident(sym) =>
@@ -540,5 +533,9 @@ object SastOps:
         case obj: Object =>
           locals += obj.self
           recur(obj)
+
+        case fdef: FunDef =>
+          locals += fdef.symbol
+          free ++= variableCensus(fdef)._2
 
         case _ => recur(word)
