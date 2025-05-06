@@ -82,7 +82,7 @@ object Inference:
 
     private def instantiate(tvar: TypeVar, tp: Type) =
       assert(!instantiations.contains(tvar), "double instantiation: " + tvar)
-      // println("Instantiating " + tvar + " to " + tp.show)
+      // println("Instantiating " + tvar + " to " + tp)
 
       // We do not
       //

@@ -26,7 +26,7 @@ import scala.annotation.constructorOnly
   * It converts ASTs to Semantic ASTs.
   */
 class Namer(@constructorOnly reporter: Reporter):
-  val checker = new Checker
+  val checker = new Checker(this)
   val patternTyper = PatternTyper(this, checker)
   val inferencer: Inferencer = new UnificationSolver
   val exprTyper = new ExprTyper(this)

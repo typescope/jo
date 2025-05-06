@@ -15,7 +15,7 @@ import common.Debug
 import scala.collection.mutable
 
 /** Perform checks related to types  */
-class Checker:
+class Checker(namer: Namer):
   private val delayedChecks = new mutable.ArrayBuffer[() => Unit]
   var checking = false
 
@@ -138,7 +138,11 @@ class Checker:
               procType.paramCount == 0
 
         if isParameterlessCall then
-          Apply(word, args = Nil)(procType.resultType, word.span)
+          val fun =
+            if procType.tparams.isEmpty then word
+            else namer.instantiatePoly(procType, word)
+          val resType = fun.tpe.asProcType.resultType
+          Apply(fun, args = Nil)(resType, word.span)
         else
           word
 
