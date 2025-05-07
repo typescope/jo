@@ -34,20 +34,20 @@ class NameTable(
       case None => Nil
       case Some(sym) => sym :: Nil
 
-  def resolveByPath(path: String): List[Symbol] =
+  def resolveByPath(path: String)(using Definitions): List[Symbol] =
     val syms = NameTable.resolveStatic(this, path.split("\\.").toList)
     if syms.isEmpty then
       throw new Exception("Not found: " + path + ", name table " + this.show)
     else
       syms
 
-  def resolveTermByPath(path: String): Symbol =
+  def resolveTermByPath(path: String)(using Definitions): Symbol =
     resolveByPath(path).filter(!_.isOneOf(Flags.Pattern | Flags.Type)).head
 
-  def resolvePatternByPath(path: String): Symbol =
+  def resolvePatternByPath(path: String)(using Definitions): Symbol =
     resolveByPath(path).filter(_.is(Flags.Pattern)).head
 
-  def resolveTypeByPath(path: String): Symbol =
+  def resolveTypeByPath(path: String)(using Definitions): Symbol =
     resolveByPath(path).filter(_.is(Flags.Type)).head
 
   def define(sym: Symbol)(using rp: Reporter): Unit =
@@ -78,7 +78,7 @@ class NameTable(
     "terms: { " + termNames + "}" + "\ntypes: { " + typeNames + "}" + "\npatterns: { " + patternNames + "}"
 
 object NameTable:
-  def resolveStatic(nameTable: NameTable, parts: List[String]): List[Symbol] =
+  def resolveStatic(nameTable: NameTable, parts: List[String])(using Definitions): List[Symbol] =
     (parts: @unchecked) match
       case name :: Nil =>
         nameTable.resolve(name)

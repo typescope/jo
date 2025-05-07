@@ -24,7 +24,7 @@ object EffectAnalysis:
     * It should only be called from outside. Internally, `getEffects` should be
     * called.
     */
-  def effects(fun: Symbol)(using cache: Cache): TracedEffects =
+  def effects(fun: Symbol)(using cache: Cache, defn: Definitions): TracedEffects =
     fixpoint(getEffects(fun))
 
   /** Compute effects of the given word
@@ -32,7 +32,7 @@ object EffectAnalysis:
     * It should only be called from outside. Internally, `EffectAnalyzer.apply`
     * should be called.
     */
-  def effects(word: Word)(using cache: Cache, source: Source): TracedEffects =
+  def effects(word: Word)(using cache: Cache, source: Source, defn: Definitions): TracedEffects =
     fixpoint(EffectAnalyzer.apply(word))
 
   /** The fixed point computation stops if the in cache is equal to out cache.
@@ -108,7 +108,7 @@ object EffectAnalysis:
         cache.effects(sym) = effs
 
   /** Produce a list of transitively reachabe param symbols for the function */
-  private def getEffects(fun: Symbol)(using cache: Cache, temp: TempCache): TracedEffects =
+  private def getEffects(fun: Symbol)(using cache: Cache, temp: TempCache, defn: Definitions): TracedEffects =
     // Usage of stable cache has to be part of the computation for speed
     cache.effects.get(fun) match
       case Some(res) => res
@@ -126,7 +126,7 @@ object EffectAnalysis:
   private object EffectAnalyzer:
     val zero = Map.empty[Symbol, Trace]
 
-    def apply(word: Word)(using cache: Cache, temp: TempCache, source: Source): TracedEffects =
+    def apply(word: Word)(using cache: Cache, temp: TempCache, source: Source, defn: Definitions): TracedEffects =
       word match
         case _: Literal => zero
 

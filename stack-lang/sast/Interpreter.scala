@@ -36,7 +36,7 @@ object Interpreter:
 
     case PlatformObj(call: (String, List[Value]) => List[Value])
 
-    def show(level: Int = 2): String =
+    def show(level: Int = 2)(using Definitions): String =
       if level == 0 then
         "..."
       else
@@ -64,7 +64,7 @@ object Interpreter:
 
     def fresh(owner: Symbol): Env = new Env.NestedEnv(this, owner)
 
-    def findEnv(sym: Symbol): Env =
+    def findEnv(sym: Symbol)(using Definitions): Env =
       this match
         case NestedEnv(outer, owner) =>
           if sym.owner == owner then this
@@ -74,17 +74,17 @@ object Interpreter:
           if !sym.isLocal then this
           else throw new Exception("Env not found for " + sym + ", owner = " + sym.owner)
 
-    def resolve(sym: Symbol): Denotation =
+    def resolve(sym: Symbol)(using Definitions): Denotation =
       val env = findEnv(sym)
       env.map.get(sym) match
         case None => throw new Exception("Not found " + sym)
         case Some(res)  => res
 
-    def update(sym: Symbol, denot: Denotation): Unit =
+    def update(sym: Symbol, denot: Denotation)(using Definitions): Unit =
       val env = findEnv(sym)
       env.map(sym) = denot
 
-    def bind(sym: Symbol, denot: Denotation): Unit =
+    def bind(sym: Symbol, denot: Denotation)(using Definitions): Unit =
       val env = findEnv(sym)
       // Pattern symbol could be bound twice as an optimization in translation
       assert(!env.map.contains(sym) || sym.isPattern, "Double binding " + sym)
@@ -92,7 +92,7 @@ object Interpreter:
 
     def contains(sym: Symbol): Boolean = map.contains(sym)
 
-    def show(recursive: Boolean): String =
+    def show(recursive: Boolean)(using Definitions): String =
       var bindings = map.map(_.name + " -> " + _.show).toList
 
       if recursive then
@@ -514,7 +514,10 @@ object Interpreter:
     val runtimeNameTable = new NameTable
 
     given Reporter.Config = Reporter.Config(fatalWarnings = true)
-    given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable)
+
+    val infoProvider = new SymInfoProvider
+    given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable, infoProvider)
+
     val namespacesSAST = FrontEnd.run(stdlib, runtime, sourceFiles, runtimeNameTable)
 
     val mains = namespacesSAST.collect:

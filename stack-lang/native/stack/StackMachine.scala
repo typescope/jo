@@ -466,10 +466,10 @@ object StackMachine:
   end RegisterAllocator
 
   def createLinux86(runtimeRootNameTable: NameTable, main: Symbol, defn: Definitions): Backend =
-    val bumpAllocator = new BumpAllocator(runtimeRootNameTable)
-    val syscalls = Linux.createSyscallStack(runtimeRootNameTable)
+    val bumpAllocator = new BumpAllocator(runtimeRootNameTable)(using defn)
+    val syscalls = Linux.createSyscallStack(runtimeRootNameTable)(using defn)
     val linkers = List(bumpAllocator, syscalls)
-    val runtime = new NativeRuntime(runtimeRootNameTable, linkers, main)
+    val runtime = new NativeRuntime(runtimeRootNameTable, linkers, main)(using defn)
 
     new StackMachine(Linux.x86RegConfig, runtime)(using defn)
 

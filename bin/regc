@@ -25,7 +25,6 @@ files=(
     stack-lang/typing/ExprTyper.scala
     stack-lang/typing/Inference.scala
     stack-lang/typing/Namer.scala
-    stack-lang/typing/NamerUtils.scala
     stack-lang/typing/PatternTyper.scala
     stack-lang/typing/Typer.scala
     stack-lang/sast/Constant.scala
@@ -39,6 +38,7 @@ files=(
     stack-lang/sast/Sast.scala
     stack-lang/sast/SastOps.scala
     stack-lang/sast/Symbols.scala
+    stack-lang/sast/SymInfoProvider.scala
     stack-lang/sast/Subtyping.scala
     stack-lang/sast/TreeChecker.scala
     stack-lang/sast/Types.scala

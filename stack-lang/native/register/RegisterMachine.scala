@@ -555,10 +555,10 @@ object RegisterMachine:
     * Create a new x86 register machine
     */
   def createLinux86(runtimeRootNameTable: NameTable, main: Symbol, defn: Definitions): Backend =
-    val bumpAllocator = new BumpAllocator(runtimeRootNameTable)
-    val syscalls = Linux.createSyscallRegister(runtimeRootNameTable)
+    val bumpAllocator = new BumpAllocator(runtimeRootNameTable)(using defn)
+    val syscalls = Linux.createSyscallRegister(runtimeRootNameTable)(using defn)
     val linkers = List(bumpAllocator, syscalls)
-    val runtime = new NativeRuntime(runtimeRootNameTable, linkers, main)
+    val runtime = new NativeRuntime(runtimeRootNameTable, linkers, main)(using defn)
 
     val paramRegs: List[Int] = List(X86.EAX, X86.EBX, X86.ECX, X86.EDX)
     val callConv =

@@ -7,7 +7,7 @@ import sast.Symbols.Symbol
 import Phase.ContextObject
 
 /** Shared code for phases */
-abstract class Phase[T] extends SastOps.TreeMap:
+abstract class Phase[T](using Definitions) extends SastOps.TreeMap:
   val contextObject: ContextObject[T]
   type Context = T
 

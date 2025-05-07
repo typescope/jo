@@ -50,10 +50,10 @@ object Printing:
   given (using Definitions): Text.Maker[ValDef | FunDef] =
     v => showDef(v)
 
-  given Text.Maker[Type] =
+  given (using Definitions): Text.Maker[Type] =
     v => Text(v.show)
 
-  given Text.Maker[TypeTree] =
+  given (using Definitions): Text.Maker[TypeTree] =
     v => Text(v.tpe.show)
 
   given (using Definitions): Text.Maker[Symbol] =
@@ -71,7 +71,7 @@ object Printing:
     showImports(ns.imports) ~ Text.BlankLine ~
     rep(ns.defs, Text.BlankLine)
 
-  def showImports(imports: List[Symbol]): Text =
+  def showImports(imports: List[Symbol])(using Definitions): Text =
     imports match
       case item :: items =>
         "import " ~ item.fullName ~ Text.BreakLine ~ showImports(items)

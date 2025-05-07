@@ -22,14 +22,14 @@ object Sast:
         case Block(Nil) => true
         case _ => false
 
-    def dropValue: Word =
+    def dropValue(using Definitions): Word =
       assert(this.tpe.isValueType)
       Encoded(this)(VoidType)
 
-    def ensureDropValue: Word =
+    def ensureDropValue(using Definitions): Word =
       if this.tpe.isValueType then dropValue else this
 
-    def dropIfVoid(target: Type): Word =
+    def dropIfVoid(target: Type)(using Definitions): Word =
       if target.isVoidType then dropValue else this
 
     def show(using Definitions): String = Printing.show(this)
@@ -93,6 +93,7 @@ object Sast:
   case class Select
     (qual: Word, name: String)
     (val tpe: Type, val span: Span)
+    (using Definitions)
   extends Word:
     assert(qual.tpe.isValueType, "Select node must have value prefix, found = " + qual.tpe.show)
 
@@ -152,6 +153,7 @@ object Sast:
   case class Apply
     (fun: Word, args: List[Word])
     (val tpe: Type, val span: Span)
+    (using Definitions)
   extends Word:
     fun.tpe.asProcType match
       case procType =>
@@ -176,7 +178,7 @@ object Sast:
     (repr: Word)
     (val tpe: Type, val span: Span)
   extends Word:
-    def isValueDrop = repr.tpe.isValueType && tpe.isVoidType
+    def isValueDrop(using Definitions) = repr.tpe.isValueType && tpe.isVoidType
 
   object Encoded:
     def apply(repr: Word)(tpe: Type): Encoded = apply(repr)(tpe, repr.span)
@@ -425,38 +427,42 @@ object Sast:
     (val span: Span)
   extends Word, Def
 
-  /** Represents a named function or method definition
-    *
-    * @param locals contains a list of local value symbols (excluding params)
-    */
+  /** Represents a named function or method definition */
   case class FunDef
     (symbol: Symbol, tparams: List[Symbol], params: List[Symbol], resultType: TypeTree, body: Word)
     (val span: Span)
   extends Word, Def:
-    private lazy val census: (List[Symbol], List[Symbol]) =
-      SastOps.variableCensus(this)
+    private var censusCache: (List[Symbol], List[Symbol]) | Null = null
 
-    lazy val locals: List[Symbol] = census._1
-    lazy val freeVariables: List[Symbol] = census._2
+    def census(using Definitions): (List[Symbol], List[Symbol]) =
+      if censusCache == null then
+        censusCache = SastOps.variableCensus(this)
+        censusCache.nn
+      else
+        censusCache.nn
 
-    def procType: ProcType = symbol.info.asProcType
+    /** contains a list of local value symbols (excluding params) */
+    def locals(using Definitions): List[Symbol] = census._1
+    def freeVariables(using Definitions): List[Symbol] = census._2
 
-    def receives: Option[List[Symbol]] = procType.receives
+    def procType(using Definitions): ProcType = symbol.info.asProcType
 
-    def methodReceives: List[Symbol] = receives.getOrElse(Nil)
+    def receives(using Definitions): Option[List[Symbol]] = procType.receives
+
+    def methodReceives(using Definitions): List[Symbol] = receives.getOrElse(Nil)
 
   /** Represents a pattern definition */
   case class PatDef
     (symbol: Symbol, tparams: List[Symbol], params: List[Symbol], resultType: TypeTree, body: Pattern)
     (val span: Span)
   extends Word, Def:
-    def procType: ProcType = symbol.info.asProcType
+    def procType(using Definitions): ProcType = symbol.info.asProcType
 
   case class Section
     (symbol: Symbol, defs: List[Def])
     (val span: Span)
   extends Def:
-    def info: NameTableInfo = symbol.info.as[NameTableInfo]
+    def info(using Definitions): NameTableInfo = symbol.info.as[NameTableInfo]
 
     def allFuns: List[FunDef] =
       defs.flatMap:
@@ -468,9 +474,9 @@ object Sast:
     (symbol: Symbol, imports: List[Symbol], defs: List[Def])
     (val span: Span)
   extends Positioned:
-    def info: NameTableInfo = symbol.info.as[NameTableInfo]
+    def info(using Definitions): NameTableInfo = symbol.info.as[NameTableInfo]
 
-    val fullName: String = symbol.fullName
+    def fullName(using Definitions): String = symbol.fullName
 
     def allFuns: List[FunDef] =
       defs.flatMap:
@@ -503,7 +509,7 @@ object Sast:
 
   extension (word: Word)
 
-    def select(name: String): Word =
+    def select(name: String)(using Definitions): Word =
       val memberType = word.tpe.termMember(name)
       Select(word, name)(memberType, word.span)
 

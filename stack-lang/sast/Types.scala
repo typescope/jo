@@ -15,18 +15,18 @@ import scala.collection.mutable
   */
 object Types:
   sealed abstract class Type:
-    def isError: Boolean = TypeOps.approx(this, isUp = true) == ErrorType
+    def isError(using Definitions): Boolean = TypeOps.approx(this, isUp = true) == ErrorType
 
-    def isVoidType: Boolean = TypeOps.dealias(this) == VoidType
+    def isVoidType(using Definitions): Boolean = TypeOps.dealias(this) == VoidType
 
-    def isAnyType: Boolean = TypeOps.dealias(this) == AnyType
+    def isAnyType(using Definitions): Boolean = TypeOps.dealias(this) == AnyType
 
-    def isBottom: Boolean = TypeOps.approx(this, isUp = true) == BottomType
+    def isBottom(using Definitions): Boolean = TypeOps.approx(this, isUp = true) == BottomType
 
-    def isRecordType: Boolean =
+    def isRecordType(using Definitions): Boolean =
       TypeOps.approx(this, isUp = true).isInstanceOf[RecordType]
 
-    def isUnionType: Boolean =
+    def isUnionType(using Definitions): Boolean =
        // No polymorphism over union type thus only dealias no approximation
       widenTermRef.dealias.isInstanceOf[UnionType]
 
@@ -42,24 +42,24 @@ object Types:
         case TypeRef(sym) => !sym.isType
         case _ => false
 
-    def isObjectType: Boolean =
+    def isObjectType(using Definitions): Boolean =
       TypeOps.approx(this, isUp = true).isInstanceOf[ObjectType]
 
-    def isTypeLambda: Boolean =
+    def isTypeLambda(using Definitions): Boolean =
       TypeOps.approx(this, isUp = true).isInstanceOf[TypeLambda]
 
-    def isProcType: Boolean =
+    def isProcType(using Definitions): Boolean =
       TypeOps.approx(this, isUp = true).isInstanceOf[ProcType]
 
-    def isPolyType: Boolean =
+    def isPolyType(using Definitions): Boolean =
       TypeOps.approx(this, isUp = true) match
         case procType: ProcType => procType.tparams.nonEmpty
         case _ => false
 
-    def isTagType: Boolean =
+    def isTagType(using Definitions): Boolean =
       TypeOps.approx(this, isUp = true).isInstanceOf[TagType]
 
-    def isValueType: Boolean =
+    def isValueType(using Definitions): Boolean =
       TypeOps.approx(this, isUp = true)  match
         case VoidType | _: ProcType | _: TypeLambda | _: NameTableInfo => false
         case _ => true
@@ -71,12 +71,12 @@ object Types:
       * - type aliases
       * - uninstantiated type variables
       */
-    def isGrounded: Boolean = TypeOps.isGrounded(this)
+    def isGrounded(using Definitions): Boolean = TypeOps.isGrounded(this)
 
-    def dealias: Type = TypeOps.dealias(this)
+    def dealias(using Definitions): Type = TypeOps.dealias(this)
 
     /** Widen a term reference to its underlying type */
-    def widenTermRef: Type =
+    def widenTermRef(using Definitions): Type =
       this match
         case TypeRef(sym) if !sym.isType => sym.info
         case _ => this
@@ -87,26 +87,26 @@ object Types:
         case constType: ConstantType => constType.underlying
         case _ => this
 
-    def asRecordType: RecordType =
+    def asRecordType(using Definitions): RecordType =
       TypeOps.approx(this, isUp = true).asInstanceOf[RecordType]
 
-    def asUnionType: UnionType =
+    def asUnionType(using Definitions): UnionType =
       // No polymorphism over union type thus only dealias no approximation
       widenTermRef.dealias.asInstanceOf[UnionType]
 
-    def asTagType: TagType =
+    def asTagType(using Definitions): TagType =
       TypeOps.approx(this, isUp = true).asInstanceOf[TagType]
 
-    def asTypeLambda: TypeLambda =
+    def asTypeLambda(using Definitions): TypeLambda =
       TypeOps.approx(this, isUp = true).asInstanceOf[TypeLambda]
 
-    def asProcType: ProcType =
+    def asProcType(using Definitions): ProcType =
       TypeOps.approx(this, isUp = true).asInstanceOf[ProcType]
 
-    def asObjectType: ObjectType =
+    def asObjectType(using Definitions): ObjectType =
       TypeOps.approx(this, isUp = true).asInstanceOf[ObjectType]
 
-    def hasApplyMethod: Boolean =
+    def hasApplyMethod(using Definitions): Boolean =
       TypeOps.approx(this, isUp = true) match
         case objType: ObjectType =>
           objType.getMemberType("apply") match
@@ -115,7 +115,7 @@ object Types:
 
         case _ => false
 
-    def hasOnlyApplyMethod: Boolean =
+    def hasOnlyApplyMethod(using Definitions): Boolean =
       TypeOps.approx(this, isUp = true) match
         case objType: ObjectType =>
           objType.fields.isEmpty && objType.methods.size == 1 && {
@@ -126,7 +126,7 @@ object Types:
 
         case _ => false
 
-    def getFunctionApplyType: Option[ProcType] =
+    def getFunctionApplyType(using Definitions): Option[ProcType] =
       TypeOps.approx(this, isUp = true) match
         case ObjectType(Nil, NamedInfo("apply", tp) :: Nil, Nil) =>
          TypeOps.approx(tp, isUp = true) match
@@ -143,7 +143,7 @@ object Types:
 
         case _ => this
 
-    def refersTo(symbol: Symbol): Boolean =
+    def refersTo(symbol: Symbol)(using Definitions): Boolean =
       val visited = new mutable.ArrayBuffer[Symbol]
 
       def recur(tp: Type): Boolean =
@@ -160,7 +160,7 @@ object Types:
       end recur
       recur(this)
 
-    def refersAny(symbols: List[Symbol]): Boolean =
+    def refersAny(symbols: List[Symbol])(using Definitions): Boolean =
       val visited = new mutable.ArrayBuffer[Symbol]
       def recur(tp: Type): Boolean =
         tp match
@@ -176,7 +176,7 @@ object Types:
       end recur
       recur(this)
 
-    def getTermMember(name: String): Option[Type] =
+    def getTermMember(name: String)(using Definitions): Option[Type] =
       TypeOps.approx(this, isUp = true) match
         case info: NameTableInfo =>
           info.resolveTerm(name).map(sym => TypeRef(sym))
@@ -193,12 +193,12 @@ object Types:
         case tp =>
           None
 
-    def termMember(name: String): Type =
+    def termMember(name: String)(using Definitions): Type =
       getTermMember(name) match
         case Some(tp) => tp
         case None => throw new Exception(s"No member $name in " + this.show)
 
-    def hasTermMember(name: String): Boolean = getTermMember(name).nonEmpty
+    def hasTermMember(name: String)(using Definitions): Boolean = getTermMember(name).nonEmpty
 
     def is[T <: Type : ClassTag]: Boolean =
       this match
@@ -207,7 +207,7 @@ object Types:
 
     def as[T <: Type]: T = this.asInstanceOf[T]
 
-    def show: String = TypeOps.show(this)
+    def show(using Definitions): String = TypeOps.show(this)
   end Type
 
   case object VoidType extends Type
@@ -256,7 +256,7 @@ object Types:
     def fieldType(name: String): Type =
       getFieldType(name).get
 
-  case class UnionType(branches: List[Type]) extends Type:
+  case class UnionType(branches: List[Type])(using Definitions) extends Type:
     private val tagMap: Map[String, TagType] =
       branches.foldLeft(Map.empty): (acc, branch) =>
         if branch.isTagType then
@@ -331,16 +331,17 @@ object Types:
     */
   case class ProcType
     (tparams: List[Symbol], params: List[NamedInfo[Type]],
-     resultType: Type, receives: Option[List[Symbol]], preParamCount: Int)
+      resultType: Type, receives: Option[List[Symbol]], preParamCount: Int)
   extends Type:
-    val bounds: List[TypeBound] = tparams.map(_.info.as[TypeBound])
     val preParamTypes: List[Type] = params.take(preParamCount).map(_.info)
     val postParamTypes: List[Type] = params.drop(preParamCount).map(_.info)
     val paramTypes: List[Type] = params.map(_.info)
     val paramCount: Int = params.size
     val tparamCount: Int = tparams.size
 
-    def instantiate(targs: List[Type]): ProcType =
+    def bounds(using Definitions): List[TypeBound] = tparams.map(_.info.as[TypeBound])
+
+    def instantiate(targs: List[Type])(using Definitions): ProcType =
       assert(tparamCount == targs.size, "expect " + tparamCount + ", found = " + targs.size)
       val subst = tparams.zip(targs).toMap
       // TODO: check bounds once they are supported
@@ -354,17 +355,18 @@ object Types:
 
     def postParamCount = params.size - preParamCount
 
-    def resCount = if resultType.isValueType then 1 else 0
+    def resCount(using Definitions) = if resultType.isValueType then 1 else 0
 
   /** A type lambda */
   case class TypeLambda
     (tparams: List[Symbol], body: Type)
   extends Type:
     val names: List[String] = tparams.map(_.name)
-    val bounds: List[Type] = tparams.map(_.info)
     val paramCount: Int = tparams.size
 
-    def instantiate(targs: List[Type]): Type =
+    def bounds(using Definitions): List[Type] = tparams.map(_.info)
+
+    def instantiate(targs: List[Type])(using Definitions): Type =
       assert(tparams.size == targs.size, "expect " + tparams.size + ", found = " + targs.size)
       val subst = tparams.zip(targs).toMap
       // TODO: check bounds once they are supported

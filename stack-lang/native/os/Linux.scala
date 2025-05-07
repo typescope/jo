@@ -9,6 +9,7 @@
 package native.os
 
 import sast.NameTable
+import sast.Definitions
 import sast.Symbols.Symbol
 
 import native.Assembler
@@ -34,7 +35,7 @@ object Linux:
     // println(prog.show)
     Assembler.lower(elf, prog, assembler, linker)
 
-  def createSyscallRegister(runtimeRootNameTable: NameTable): LinuxSyscall =
+  def createSyscallRegister(runtimeRootNameTable: NameTable)(using Definitions): LinuxSyscall =
     new LinuxSyscall(runtimeRootNameTable):
       /**
         * Implement syscalls in machine code.
@@ -55,7 +56,7 @@ object Linux:
         X86.load(Reg(X86.ESP), X86.ESP, Size.B32)
         X86.jump(Reg(X86.ESP))
 
-  def createSyscallStack(runtimeRootNameTable: NameTable): LinuxSyscall =
+  def createSyscallStack(runtimeRootNameTable: NameTable)(using Definitions): LinuxSyscall =
     new LinuxSyscall(runtimeRootNameTable):
       /**
         * Implement syscalls in machine code.

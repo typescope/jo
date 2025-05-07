@@ -27,7 +27,7 @@ object Typer:
     // use predef definitions
     val nssRuntime = runNamer(runtime, runtimeNameTable, predefNameTable)
 
-    val nss = new Namer(rp).transform(nssAst, rootNameTable, predefNameTable)
+    val nss = new Namer().transform(nssAst, rootNameTable, predefNameTable)
     nssStdLib ++ nssRuntime ++ nss
 
   private def runNamer(
@@ -36,7 +36,7 @@ object Typer:
   : List[Namespace] =
 
     val namer = (nss: List[Ast.Namespace]) =>
-      new Namer(rp).transform(nss, rootNameTable, predef)
+      new Namer().transform(nss, rootNameTable, predef)
     // `|>` will stop early in the presence of parsing errors
     Parser.parse(files) |> namer
 
@@ -55,7 +55,8 @@ object Typer:
 
       val rootNameTable = new NameTable
       val runtimeNameTable = new NameTable
-      given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable)
+      val infoProvider = new SymInfoProvider
+      given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable, infoProvider)
 
       val namer = (nssAst: List[Ast.Namespace]) =>
         check(nssAst, stdLib, runtimeFiles, runtimeNameTable)

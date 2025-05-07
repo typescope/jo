@@ -85,7 +85,7 @@ class Checker(namer: Namer):
     if !sym.isMutable then
       Reporter.error(sym.name + " is not a mutable value", pos)
 
-  def checkTermMember(word: Word, member: String)(using Reporter, Source): Word =
+  def checkTermMember(word: Word, member: String)(using Reporter, Source, Definitions): Word =
     val tpe = word.tpe
     if
       tpe.hasTermMember(member)
@@ -101,7 +101,7 @@ class Checker(namer: Namer):
     if !tvar.isInstantiated then
       Reporter.error("Cannot infer a type for type variable " + tvar, pos)
 
-  def checkCapture(sym: Symbol, pos: SourcePosition)(using sc: Namer.Scope, rp: Reporter): Unit =
+  def checkCapture(sym: Symbol, pos: SourcePosition)(using sc: Namer.Scope, rp: Reporter, defn: Definitions): Unit =
     if sym.isMutable && !sym.isField then
       // check no capture of mutable local vars
       if sc.owner.enclosingFunction != sym.enclosingFunction then
@@ -115,7 +115,7 @@ class Checker(namer: Namer):
         Reporter.error(s"Cannot find common result type, tp1 = ${tp1.show}, tp2 = ${tp2.show}", pos)
         ErrorType
 
-  def widen(word: Word): Word = word.tpe match
+  def widen(word: Word)(using Definitions): Word = word.tpe match
     case TypeRef(sym) if !sym.isType =>
       Encoded(word)(sym.info)
 

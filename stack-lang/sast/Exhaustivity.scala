@@ -18,7 +18,7 @@ object Exhaustivity:
     case SeqSpace(tpe: Type, size: Size)
     case UnionSpace(spaces: Seq[Space])
 
-    def show: String = Exhaustivity.show(this)
+    def show(using Definitions): String = Exhaustivity.show(this)
 
   def UnionSpace(spaces: Seq[Space]): Space =
     val nonEmpty = spaces.filter(s => !isEmpty(s))
@@ -29,7 +29,7 @@ object Exhaustivity:
 
   import Space.*
 
-  def show(space: Space): String =
+  def show(space: Space)(using Definitions): String =
     space match
       case EmptySpace => "Empty"
 

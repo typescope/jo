@@ -16,7 +16,7 @@ import scala.collection.mutable
   *
   * Top-level functions are not transformed --- they do not capture locals.
   */
-class ElimCapture extends Phase[Symbol]:
+class ElimCapture(using Definitions) extends Phase[Symbol]:
   val contextObject = Phase.OwnerContext
 
   override def transformTopLevelDefs(defs: List[Def])(using Context): List[Def] =
@@ -26,7 +26,7 @@ class ElimCapture extends Phase[Symbol]:
       case defn => super.transformTopLevelDef(defn) :: Nil
 
 object ElimCapture:
-  def transformFunDef(fdef: FunDef, uniq: UniqueName): List[Def] =
+  def transformFunDef(fdef: FunDef, uniq: UniqueName)(using Definitions): List[Def] =
     given ctx: Context = new Context(uniq)
     val lifter = new Lifter(fdef.symbol)
     val body = lifter.apply(fdef.body)
@@ -37,7 +37,7 @@ object ElimCapture:
     fdef: FunDef,
     prependParams: List[NamedInfo[Type]],
     appendParams: List[NamedInfo[Type]])(
-    using ctx: Context): Symbol =
+    using ctx: Context, defn: Definitions): Symbol =
 
     val oldFunSym = fdef.symbol
 
@@ -71,7 +71,7 @@ object ElimCapture:
     def withLiftInfo(fun: Symbol, info: LiftInfo): Context =
       new Context(liftInfos.updated(fun, info), rewiring, lifted, uniq)
 
-    def flatName(fun: Symbol): String =
+    def flatName(fun: Symbol)(using Definitions): String =
       val name = fun.ownersIterator.foldLeft(fun.name): (acc, owner) =>
         if owner.isFunction then acc + "$" + owner.name else acc
       uniq.freshName(name)
@@ -81,7 +81,7 @@ object ElimCapture:
   end Context
 
   /** A new instance is created for each top-level function */
-  class Lifter(owner: Symbol) extends SastOps.TreeMap:
+  class Lifter(owner: Symbol)(using defn: Definitions) extends SastOps.TreeMap:
     /** Local function definitions */
     val localDefs = mutable.Map.empty[Symbol, FunDef]
 
@@ -172,7 +172,7 @@ object ElimCapture:
       val captureToField = mutable.Map.empty[Symbol, String]
 
       // The type of the desugared record is delayed
-      val infoProvider: InfoProvider = sym =>
+      val lazyInfo = () =>
          val capturedMembers =
            for capture <- allCaptures
            yield NamedInfo(captureToField(capture), capture.info)
@@ -180,9 +180,11 @@ object ElimCapture:
          ObjectType(objType.fields ++ capturedMembers.toList, objType.methods, objType.mutableFields)
 
       val thisTypeName = ctx.uniq.freshName("ThisType")
-      val thisTypeAliasSym = Symbol.createSymbol(thisTypeName, infoProvider, Flags.Type | Flags.Synthetic, owner.enclosingContainer, obj.self.sourcePos)
+      val thisTypeAliasSym = Symbol.createSymbol(thisTypeName, Flags.Type | Flags.Synthetic, obj.self.sourcePos)
       val thisType = TypeRef(thisTypeAliasSym)
       ctx.lifted += TypeDef(thisTypeAliasSym)(obj.span)
+
+      defn.addLazy(thisTypeAliasSym, owner.enclosingContainer, lazyInfo)
 
       for vdef <- obj.vals do
         uniq.freshName(vdef.name)

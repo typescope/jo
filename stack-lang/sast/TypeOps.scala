@@ -14,7 +14,7 @@ object TypeOps:
     *
     * This method is used in type checking definitions with type parameters.
     */
-  def substSymbols(tpe: Type, substs: Map[Symbol, Type]): Type =
+  def substSymbols(tpe: Type, substs: Map[Symbol, Type])(using Definitions): Type =
     val typeMap = new TypeOps.SymbolsTypeMap
     typeMap(tpe)(using substs)
 
@@ -27,7 +27,7 @@ object TypeOps:
     * It approximates a type to its upper bound or lower bound according to
     * the spec.
     */
-  def approx(tp: Type, isUp: Boolean): Type =
+  def approx(tp: Type, isUp: Boolean)(using Definitions): Type =
     // detect cycles in symbol definitions, e.g., type A = A
     val encountered = new mutable.ArrayBuffer[ProxyType]
     def recur(tp: Type, isUp: Boolean): Type = Debug.trace(s"$tp.approx", enable = false):
@@ -68,7 +68,7 @@ object TypeOps:
     *
     * In particular, type parameters are not reduced to their bounds.
     */
-  def dealias(tp: Type): Type =
+  def dealias(tp: Type)(using Definitions): Type =
     // detect cycles in symbol definitions, e.g., type A = A
     val encountered = new mutable.ArrayBuffer[ProxyType]
     def recur(tp: Type): Type = Debug.trace(s"$tp.dealias", enable = false):
@@ -107,7 +107,7 @@ object TypeOps:
     * - type aliases
     * - instaniated type variables
     */
-  def isGrounded(tp: Type): Boolean =
+  def isGrounded(tp: Type)(using Definitions): Boolean =
     tp match
       case TypeRef(sym) => !sym.isType || sym.info.isInstanceOf[TypeBound]
 
@@ -121,9 +121,10 @@ object TypeOps:
       case _ => true
 
   /** A grouned proxy type dealiases to a grounded type */
-  def isGroundedProxy(tp: ProxyType): Boolean = isGrounded(tp.dealias)
+  def isGroundedProxy(tp: ProxyType)(using Definitions): Boolean = isGrounded(tp.dealias)
 
-  def show(tp: Type): String =
+  // TODO: move to Printing
+  def show(tp: Type)(using Definitions): String =
     tp match
       case VoidType    => "void"
       case AnyType     => "Any"
@@ -198,7 +199,7 @@ object TypeOps:
       case _: NameTableInfo => "{ ...nametable }"
   end show
 
-  trait TypeMap:
+  abstract class TypeMap(using Definitions):
     type Context
 
     def apply(tp: Type)(using Context): Type
@@ -261,7 +262,7 @@ object TypeOps:
           val resType2 = this(resType)
           ProcType(tparams, params2, resType2, receivesOpt, preParamCount)
 
-  class SymbolsTypeMap extends TypeMap:
+  class SymbolsTypeMap(using Definitions) extends TypeMap:
     type Context = Map[Symbol, Type]
 
     def apply(tp: Type)(using ctx: Context): Type =

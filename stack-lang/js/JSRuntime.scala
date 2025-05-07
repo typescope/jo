@@ -7,7 +7,7 @@ import Symbols.Symbol
   *
   * Run-time symbols are only available to the compiler.
   */
-class JSRuntime(runtimeRootNameTable: NameTable, main: Symbol):
+class JSRuntime(runtimeRootNameTable: NameTable, main: Symbol)(using Definitions):
   import runtimeRootNameTable.resolveTermByPath
 
   private val paramsName = "__runtime_contextParams"

@@ -10,20 +10,21 @@ import reporting.Reporter
 
 object FrontEnd:
 
-  def run(
-    stdlib: List[String], runtime: List[String], sources: List[String])
-    (using Reporter, Reporter.Config)
+  def run
+      (stdlib: List[String], runtime: List[String], sources: List[String])
+      (using Reporter, Reporter.Config)
   : List[Namespace] =
     val rootNameTable = new NameTable
     val runtimeNameTable = new NameTable
 
-    given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable)
+    val infoProvider = new SymInfoProvider
+    given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable, infoProvider)
     run(stdlib, runtime, sources, runtimeNameTable)
 
-  def run(
-    stdlib: List[String], runtime: List[String], sources: List[String],
-    runtimeNameTable: NameTable)
-    (using defnLazy: Definitions.Lazy, rp: Reporter, cf: Reporter.Config)
+  def run
+      (stdlib: List[String], runtime: List[String], sources: List[String],
+        runtimeNameTable: NameTable)
+      (using defnLazy: Definitions.Lazy, rp: Reporter, cf: Reporter.Config)
   : List[Namespace] =
 
     given Definitions = defnLazy.value

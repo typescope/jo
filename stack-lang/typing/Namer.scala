@@ -9,6 +9,7 @@ import sast.*
 import sast.Sast.*
 import sast.Symbols.*
 import sast.Types.*
+import sast.Definitions.InfoProvider
 
 import common.Debug
 import common.KeyProps
@@ -19,26 +20,25 @@ import Namer.{ Scope, DelayedDef, errorWord }
 import Inference.*
 
 import scala.collection.mutable
-import scala.annotation.constructorOnly
 
 /**
   * The namer handles name resolution and desugaring.
   *
   * It converts ASTs to Semantic ASTs.
   */
-class Namer(@constructorOnly reporter: Reporter):
+class Namer:
   val checker = new Checker(this)
   val patternTyper = PatternTyper(this, checker)
   val inferencer: Inferencer = new UnificationSolver
   val exprTyper = new ExprTyper(this)
 
-  /** Handles cyclic definitions */
-  val nonCyclicTypeProvider = new NamerUtils.ValueTypeProvider(using reporter)
-
-  def transform(
-    nss: List[Ast.Namespace], rootNameTable: NameTable, predef: NameTable)
-    (using defnLazy: Definitions.Lazy, rp: Reporter)
+  def transform
+      (nss: List[Ast.Namespace], rootNameTable: NameTable, predef: NameTable)
+      (using defnLazy: Definitions.Lazy, rp: Reporter)
   : List[Namespace] =
+
+    given ip: InfoProvider = defnLazy.infoProvider
+
     // All namespace are located in the scope
     val rootNamespaceScope = new Scope.RootScope(rootNameTable, owner = null)
 
@@ -53,7 +53,7 @@ class Namer(@constructorOnly reporter: Reporter):
       given source: Source = Reporter.source(ns.source)
 
       val nsSym = resolveNamespace(ns.qualid, isBranch = false)(using rootNamespaceScope)
-      val nsInfo = nsSym.info.as[NameTableInfo]
+      val nsInfo = ip.info(nsSym).as[NameTableInfo]
 
       val importScope: Scope = predefScope.fresh(nsSym)
       val defsScope: Scope = importScope.fresh(nsSym, nsInfo.nameTable)
@@ -73,6 +73,7 @@ class Namer(@constructorOnly reporter: Reporter):
       }
 
       delayedNamespaces += { () =>
+        given Definitions = defnLazy.value
         val defs = for delayed <- delayedDefs.toList yield delayed.force()
         Namespace(nsSym, imports.toList, defs)(ns.span)
       }
@@ -87,7 +88,11 @@ class Namer(@constructorOnly reporter: Reporter):
     *
     * It also checks redefinition of namespace.
     */
-  def resolveNamespace(qualid: Ast.RefTree, isBranch: Boolean)(using sc: Scope, rp: Reporter, so: Source): Symbol =
+  def resolveNamespace
+      (qualid: Ast.RefTree, isBranch: Boolean)
+      (using sc: Scope, rp: Reporter, so: Source, ip: InfoProvider)
+  : Symbol =
+
     def check(sym: Symbol): Symbol =
       val name = sym.name
       val pos = sym.sourcePos
@@ -111,7 +116,7 @@ class Namer(@constructorOnly reporter: Reporter):
       else
         rp.error(s"The $name is already defined as a member at $pos", qualid.pos)
         val flags = if isBranch then Flags.NSpace | Flags.Branch else Flags.NSpace
-        Symbol.createSymbol(sym.name, new NameTableInfo, flags, sym.owner, qualid.pos)
+        Symbol.create(sym.name, new NameTableInfo, flags, ip(sym).owner, qualid.pos)
 
     qualid match
       case Ast.Select(qual, name) =>
@@ -119,14 +124,14 @@ class Namer(@constructorOnly reporter: Reporter):
         val nsSym = resolveNamespace(qual.asInstanceOf[Ast.RefTree], isBranch = true)
 
         assert(nsSym.isNamespace, "Not a namespace " + nsSym)
-        val nsInfo = nsSym.info.as[NameTableInfo]
+        val nsInfo = ip.info(nsSym).as[NameTableInfo]
 
         nsInfo.resolveTerm(name) match
           case Some(sym) => check(sym)
 
           case None =>
             val flags = if isBranch then Flags.NSpace | Flags.Branch else Flags.NSpace
-            val sym = Symbol.createSymbol(name, new NameTableInfo, flags, nsSym, qualid.pos)
+            val sym = Symbol.create(name, new NameTableInfo, flags, nsSym, qualid.pos)
             nsInfo.define(sym)
             sym
 
@@ -134,15 +139,16 @@ class Namer(@constructorOnly reporter: Reporter):
         sc.resolveTerm(name) match
           case None =>
             val flags = if isBranch then Flags.NSpace | Flags.Branch else Flags.NSpace
-            val sym = Symbol.createSymbol(name, new NameTableInfo, flags, sc.owner, qualid.pos)
+            val sym = Symbol.create(name, new NameTableInfo, flags, sc.owner, qualid.pos)
             sc.define(sym)
             sym
 
           case Some(sym) => check(sym)
 
 
-  def doImport(qualid: Ast.RefTree, importScope: Scope, rootNameTable: NameTable, imports: mutable.ArrayBuffer[Symbol])
-      (using rp: Reporter, so: Source): Unit =
+  def doImport
+      (qualid: Ast.RefTree, importScope: Scope, rootNameTable: NameTable, imports: mutable.ArrayBuffer[Symbol])
+      (using rp: Reporter, so: Source, ip: InfoProvider): Unit =
 
     def resolveContainer(qualid: Ast.RefTree): Symbol =
       qualid match
@@ -150,26 +156,26 @@ class Namer(@constructorOnly reporter: Reporter):
           val sym = resolveContainer(qual.asInstanceOf[Ast.RefTree])
 
           if sym.isContainer then
-            val nsInfo = sym.info.as[NameTableInfo]
+            val nsInfo = ip.info(sym).as[NameTableInfo]
 
             nsInfo.resolveTerm(name) match
               case Some(sym) => sym
 
               case None =>
                 rp.error(s"`$name` not found in ${sym.name}", qualid.pos)
-                Symbol.createSymbol(name, ErrorType, Flags.Synthetic, sym, pos = qualid.pos)
+                Symbol.create(name, ErrorType, Flags.Synthetic, sym, pos = qualid.pos)
 
           else
-            if !sym.info.isError then
-              rp.error("Not a container, only a namespace or section can be selected", qual.pos)
-            Symbol.createSymbol(name, ErrorType, Flags.Synthetic, sym, pos = qualid.pos)
+            if ip.info(sym) != ErrorType then
+              rp.error("Only a namespace or section can be selected", qual.pos)
+            Symbol.create(name, ErrorType, Flags.Synthetic, sym, pos = qualid.pos)
 
         case Ast.Ident(name) =>
           rootNameTable.resolveTerm(name) match
             case Some(sym) => sym
             case None =>
               rp.error(s"`$name` is not found", qualid.pos)
-              Symbol.createSymbol(name, ErrorType, Flags.Synthetic, importScope.owner, pos = qualid.pos)
+              Symbol.create(name, ErrorType, Flags.Synthetic, importScope.owner, pos = qualid.pos)
 
     def importName(nameTable: NameTable): Unit =
       val name = qualid.name
@@ -179,7 +185,7 @@ class Namer(@constructorOnly reporter: Reporter):
           rp.error("Only concrete namespaces or sections can be imported", qualid.pos)
 
         imports += sym
-        // TODO: abstract scope and better error position for duplicate imports
+        // TODO: better error position for duplicate imports by introducing alias symbols
         importScope.define(sym)
 
       if syms.isEmpty then
@@ -189,15 +195,19 @@ class Namer(@constructorOnly reporter: Reporter):
       case Ast.Select(qual, _) =>
         val sym = resolveContainer(qual.asInstanceOf[Ast.RefTree])
         if sym.isContainer then
-          importName(sym.info.as[NameTableInfo].nameTable)
+          importName(ip.info(sym).as[NameTableInfo].nameTable)
 
-        else if !sym.info.isError then
-          rp.error("Expect a namespace or section, found = " + sym.info.show, qual.pos)
+        else if ip.info(sym) != ErrorType then
+          rp.error("Expect a namespace or section, found = " + sym, qual.pos)
 
       case _ =>
         importName(rootNameTable)
 
-  private def index(defs: List[Ast.Def])(using defnLazy: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source): List[DelayedDef[Def]] =
+  private def index
+      (defs: List[Ast.Def])
+      (using defnLazy: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source)
+  : List[DelayedDef[Def]] =
+
     val delayedDefs = new mutable.ArrayBuffer[DelayedDef[Def]]
 
     // Synthesize definitions
@@ -215,7 +225,11 @@ class Namer(@constructorOnly reporter: Reporter):
 
     delayedDefs.toList
 
-  private def index(defn: Ast.Def)(using defnLazy: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source): List[DelayedDef[Def]] =
+  private def index
+      (defn: Ast.Def)
+      (using defnLazy: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source)
+  : List[DelayedDef[Def]] =
+
     defn match
       case fdef: Ast.FunDef =>
         given TargetType = TargetType.Unknown
@@ -365,10 +379,10 @@ class Namer(@constructorOnly reporter: Reporter):
         patternTyper.transformMatch(patmat).adapt
 
       case vdef: Ast.ValDef =>
-        val delayedDef = transformValDef(vdef)
-        val vdef2 = delayedDef.force()
-        // a val is not available for checking its rhs
-        sc.define(delayedDef.symbol)
+        val flags = if vdef.mutable then Flags.Mutable else Flags.empty
+        val sym = Symbol.createSymbol(vdef.name, flags, vdef.ident.pos)
+        val vdef2 = transformValDef(vdef, sym, sc.owner)
+        sc.define(sym)
         vdef2.adapt
 
       case fdef: Ast.FunDef =>
@@ -400,21 +414,19 @@ class Namer(@constructorOnly reporter: Reporter):
     val vals = new mutable.ArrayBuffer[ValDef]
     val delayedDefs = new mutable.ArrayBuffer[DelayedDef[FunDef]]
 
-    val infoProvider: InfoProvider = sym =>
-      val fieldTypes = vals.map(vdef => NamedInfo(vdef.name, vdef.symbol.info)).toList
-      val methodTypes = delayedDefs.map(d => NamedInfo(d.symbol.name, TypeRef(d.symbol))).toList
-      val mutables = vals.filter(_.isMutable).map(_.name).toList
-      ObjectType(fieldTypes, methodTypes, mutables)
-
-    val thisSym = Symbol.createSymbol("this", infoProvider, Flags.Synthetic, sc.owner, obj.pos)
+    val thisSym = Symbol.createSymbol("this", Flags.Synthetic, obj.pos)
 
     // scope for checking member methods
     given sc2: Scope = sc.fresh(thisSym)
 
     for case vdef: Ast.ValDef <- obj.members do
-      given TargetType = TargetType.ObjectMember
-      val vdefTyped = transformValDef(vdef).force()
-      sc2.define(vdefTyped.symbol)
+      val flags = if vdef.mutable then Flags.Field | Flags.Mutable else Flags.Field
+      val sym = Symbol.createSymbol(vdef.name, flags, vdef.ident.pos)
+      sc2.define(sym)
+
+      // Using the outer scope to check field bodys
+      given Scope = sc
+      val vdefTyped = transformValDef(vdef, sym, owner = thisSym)
       vals += vdefTyped
 
     // `this` should not be available in field initialization
@@ -433,14 +445,16 @@ class Namer(@constructorOnly reporter: Reporter):
 
       delayedDefs += delayedDef
 
-    val defs: List[FunDef] =
-      for delayedDef <- delayedDefs.toList yield delayedDef.force()
-
     // external object type
     val fieldTypes = vals.map(vdef => NamedInfo(vdef.name, vdef.symbol.info)).toList
     val methodTypes = delayedDefs.map(d => NamedInfo(d.symbol.name, TypeRef(d.symbol))).toList
     val mutables = vals.filter(_.isMutable).map(_.name).toList
     val objType = ObjectType(fieldTypes, methodTypes, mutables)
+
+    defn.add(thisSym, sc.owner, objType)
+
+    val defs: List[FunDef] =
+      for delayedDef <- delayedDefs.toList yield delayedDef.force()
 
     Object(thisSym, vals.toList, defs)(objType, obj.span)
 
@@ -822,9 +836,9 @@ class Namer(@constructorOnly reporter: Reporter):
          return errorWord(lambda.span)
 
      // Each object has a self symbol
-     val thisSym = Symbol.createSymbol("this", this.nonCyclicTypeProvider, Flags.Synthetic, sc.owner, lambda.pos)
+     val thisSym = Symbol.createSymbol("this", Flags.Synthetic, lambda.pos)
 
-     val funSym = Symbol.createSymbol("apply", this.nonCyclicTypeProvider, Flags.Method | Flags.Synthetic, thisSym, lambda.pos)
+     val funSym = Symbol.createSymbol("apply", Flags.Method | Flags.Synthetic, lambda.pos)
      val lambdaScope = sc.fresh(funSym)
 
      val tvars = new mutable.ArrayBuffer[(TypeVar, Ast.Param)]
@@ -859,7 +873,7 @@ class Namer(@constructorOnly reporter: Reporter):
 
      // Provide type info for the function symbol
      val procType = ProcType(tparams = Nil, paramSyms.map(_.toNamedInfo), bodyTyped.tpe, ctxParams, preParamCount = 0)
-     this.nonCyclicTypeProvider.addProvider(funSym, () => procType)
+     defn.add(funSym, thisSym, procType)
 
      for (tvar, param) <- tvars do
        checker.checkInstantiated(tvar, param.pos)
@@ -869,27 +883,27 @@ class Namer(@constructorOnly reporter: Reporter):
      val funDef = FunDef(funSym, tparamSyms, paramSyms, tpt, bodyTyped)(lambda.span)
      val objType = ObjectType(fields = Nil, methods = NamedInfo("apply", procType) :: Nil, mutableFields = Nil)
 
-     this.nonCyclicTypeProvider.addProvider(thisSym, () => objType)
+     defn.add(thisSym, sc.owner, objType)
 
      Object(thisSym, vals = Nil, defs = funDef :: Nil)(objType, lambda.span)
 
 
   private def transformParamDef(pdef: Ast.ParamDef)
-    (using lazyDefn: Definitions.Lazy | Definitions, sc: Scope, rp: Reporter, so: Source)
+      (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source)
   : List[DelayedDef[Def]] =
 
-    given Definitions = lazyDefn match
-      case lazyDefn: Definitions.Lazy => lazyDefn.value
-      case defn: Definitions => defn
+    val ip = lazyDefn.infoProvider
 
-    val infoProvider: InfoProvider = sym =>
-      transformType(pdef.tpt).tpe
+    // given definitions are lazy
+    given Definitions = lazyDefn.value
 
     var flags = Flags.Param | Flags.Context
     if pdef.default.nonEmpty then
       flags = flags | Flags.Default
 
-    val paramSym = Symbol.createSymbol(pdef.name, infoProvider, flags, sc.owner, pdef.pos)
+    val paramSym = Symbol.createSymbol(pdef.name, flags, pdef.pos)
+    ip.addLazy(paramSym, sc.owner, () => transformType(pdef.tpt).tpe)
+
     val paramDefSast = () =>
       val tpt = TypeTree(paramSym.info)(pdef.tpt.span)
       ParamDef(paramSym, tpt)(pdef.span)
@@ -905,11 +919,14 @@ class Namer(@constructorOnly reporter: Reporter):
          *    <Default> fun a$default = rhs
          */
 
-        val funInfoProvider: InfoProvider = sym =>
-          ProcType(tparams = Nil, params = Nil, resultType = paramSym.info, receives = None, preParamCount = 0)
+        val defaultFunSym = Symbol.createSymbol(pdef.name + "$default", Flags.Fun | Flags.Default, pdef.pos)
 
-        val defaultFunSym =
-          Symbol.createSymbol(pdef.name + "$default", funInfoProvider, Flags.Fun | Flags.Default, sc.owner, pdef.pos)
+        val funInfo = () =>
+          ProcType(
+            tparams = Nil, params = Nil, resultType = paramSym.info,
+            receives = None, preParamCount = 0)
+
+        ip.addLazy(defaultFunSym, sc.owner, funInfo)
 
         val defaultFunDefSast = () =>
           given Scope = sc.fresh(defaultFunSym)
@@ -923,14 +940,7 @@ class Namer(@constructorOnly reporter: Reporter):
       case None =>
         delayedParamDef :: Nil
 
-  private def transformValDef(vdef: Ast.ValDef)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): DelayedDef[ValDef] =
-    var flags = if tt == TargetType.ObjectMember then Flags.Field else Flags.empty
-
-    if vdef.mutable then
-      flags = flags | Flags.Mutable
-
-    val sym = Symbol.createSymbol(vdef.name, this.nonCyclicTypeProvider, flags, sc.owner, vdef.ident.pos)
-
+  private def transformValDef(vdef: Ast.ValDef, sym: Symbol, owner: Symbol)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): ValDef =
     lazy val givenType: Type =
       val tpt = transformType(vdef.tpt)
       val tp2 = checker.checkValueType(tpt.tpe, tpt.pos)
@@ -943,13 +953,12 @@ class Namer(@constructorOnly reporter: Reporter):
         else TargetType.Known(givenType)
       transform(vdef.rhs)
 
-    def computeType(): Type =
+    val tp: Type =
       if vdef.tpt.isEmpty then rhs.tpe else givenType
 
-    this.nonCyclicTypeProvider.addProvider(sym, computeType)
+    defn.add(sym, owner, tp)
 
-    val typer = () => ValDef(sym, rhs)(vdef.span)
-    DelayedDef(sym, typer)
+    ValDef(sym, rhs)(vdef.span)
 
   private def transformFunDef(funDef: Ast.FunDef)
     (using
@@ -959,7 +968,7 @@ class Namer(@constructorOnly reporter: Reporter):
 
     val flags = if tt == TargetType.ObjectMember then Flags.Method else Flags.Fun
 
-    val funSym = Symbol.createSymbol(funDef.name, this.nonCyclicTypeProvider, flags, sc.owner, funDef.ident.pos)
+    val funSym = Symbol.createSymbol(funDef.name, flags, funDef.ident.pos)
     given funScope: Scope = sc.fresh(funSym)
 
     given Definitions = lazyDefn match
@@ -968,15 +977,14 @@ class Namer(@constructorOnly reporter: Reporter):
 
     lazy val tparamSyms =
       for tparam <- funDef.tparams yield
-        lazy val bound =
+        val bound =
           if tparam.bound.isEmpty then
             TypeBound(BottomType, AnyType)
           else
             val boundTree = transformType(tparam.bound)
             TypeBound(BottomType, boundTree.tpe)
 
-        val infoProvider: InfoProvider = (sym: Symbol) => bound
-        val sym = Symbol.createSymbol(tparam.name, infoProvider, Flags.Type | Flags.Param, funSym, tparam.pos)
+        val sym = Symbol.createSymbol(tparam.name, bound, Flags.Type | Flags.Param, funSym, tparam.pos)
         funScope.define(sym)
         sym
 
@@ -1035,7 +1043,13 @@ class Namer(@constructorOnly reporter: Reporter):
     def computeInfo(resultType: Type) =
         ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), resultType, ctxParams, funDef.preParamCount)
 
-    this.nonCyclicTypeProvider.addProvider(funSym, () => computeInfo(resultType), () => computeInfo(ErrorType))
+    lazyDefn match
+      case lazyDefn: Definitions.Lazy =>
+        val ip = lazyDefn.infoProvider
+        ip.addLazy(funSym, sc.owner,  () => computeInfo(resultType), () => computeInfo(ErrorType))
+
+      case defn: Definitions =>
+        defn.addLazy(funSym, sc.owner,  () => computeInfo(resultType), () => computeInfo(ErrorType))
 
     val typer = () =>
       val tpt = TypeTree(resultType)(funDef.resultType.span)
@@ -1044,32 +1058,34 @@ class Namer(@constructorOnly reporter: Reporter):
     DelayedDef(funSym, typer)
 
   private def transformTypeDef(tdef: Ast.TypeDef)
-    (using lazyDefn: Definitions.Lazy | Definitions, sc: Scope, rp: Reporter, so: Source)
+      (using lazyDefn: Definitions.Lazy | Definitions, sc: Scope, rp: Reporter, so: Source)
   : DelayedDef[TypeDef] =
 
     val flags = Flags.Type
-    val typeSym = Symbol.createSymbol(tdef.name, this.nonCyclicTypeProvider, flags, sc.owner, tdef.ident.pos)
+    val typeSym = Symbol.createSymbol(tdef.name, flags, tdef.ident.pos)
 
     given Definitions = lazyDefn match
       case lazyDefn: Definitions.Lazy => lazyDefn.value
       case defn: Definitions => defn
 
     given sc2: Scope = sc.fresh(typeSym)
-    val tparamSyms =
+    lazy val tparamSyms =
       for tparam <- tdef.tparams yield
-        lazy val bound =
+        val bound =
           if tparam.bound.isEmpty then
             TypeBound(BottomType, AnyType)
           else
             val boundTree = transformType(tparam.bound)
             TypeBound(BottomType, boundTree.tpe)
 
-        val infoProvider: InfoProvider = (sym: Symbol) => bound
-        val sym = Symbol.createSymbol(tparam.name, infoProvider, Flags.Type | Flags.Param, typeSym, tparam.pos)
+        val sym = Symbol.createSymbol(tparam.name, bound, Flags.Type | Flags.Param, typeSym, tparam.pos)
         sc2.define(sym)
         sym
 
     def computeInfo(): Type =
+      // force creation of symbols for type parameters
+      tparamSyms
+
       if tdef.tparams.isEmpty then
         if tdef.rhs.isEmpty then
           if sc.owner.fullName == "stk.Predef" then
@@ -1103,7 +1119,13 @@ class Namer(@constructorOnly reporter: Reporter):
 
     end computeInfo
 
-    this.nonCyclicTypeProvider.addProvider(typeSym, computeInfo)
+    lazyDefn match
+      case lazyDefn: Definitions.Lazy =>
+        val ip = lazyDefn.infoProvider
+        ip.addLazy(typeSym, sc.owner, computeInfo)
+
+      case defn: Definitions =>
+        defn.addLazy(typeSym, sc.owner, computeInfo)
 
     // check type symbols after completion to allow cycles, type A = A
     val typer = () => TypeDef(typeSym)(tdef.span)
@@ -1111,9 +1133,12 @@ class Namer(@constructorOnly reporter: Reporter):
     DelayedDef(typeSym, typer)
 
   private def transformSection(section: Ast.Section)
-    (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source)
+      (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source)
   : DelayedDef[Section] =
-    val sym = Symbol.createSymbol(section.name, this.nonCyclicTypeProvider, Flags.Section, sc.owner, section.ident.pos)
+
+    given Definitions = lazyDefn.value
+
+    val sym = Symbol.createSymbol(section.name, Flags.Section, section.ident.pos)
 
     val nameTable = new NameTable
     given Scope = sc.fresh(sym, nameTable)
@@ -1124,7 +1149,8 @@ class Namer(@constructorOnly reporter: Reporter):
       val defs = for delayed <- delayedDefs.toList yield delayed.force()
       Section(sym, defs)(section.span)
 
-    this.nonCyclicTypeProvider.addProvider(sym, () => {
+    val ip = lazyDefn.infoProvider
+    ip.addLazy(sym, sc.owner, () => {
       delayedDefs
       new NameTableInfo(nameTable)
     })
@@ -1146,8 +1172,7 @@ class Namer(@constructorOnly reporter: Reporter):
             val boundTree = transformType(tparam.bound)
             TypeBound(BottomType, boundTree.tpe)
 
-        val infoProvider: InfoProvider = (sym: Symbol) => bound
-        val sym = Symbol.createSymbol(tparam.name, infoProvider, Flags.Type | Flags.Param, sc.owner, tparam.pos)
+        val sym = Symbol.createSymbol(tparam.name, bound, Flags.Type | Flags.Param, sc.owner, tparam.pos)
         defScope.define(sym)
         sym
 
@@ -1325,7 +1350,7 @@ object Namer:
 
   class DelayedDef[+T <: Def](val symbol: Symbol, delayed: () => T):
     private lazy val definition: T = delayed()
-    def force(): T =
+    def force()(using Definitions): T =
       symbol.info // force symbol
       definition
 
@@ -1402,21 +1427,21 @@ object Namer:
 
         case res  => res
 
-    def resolveTerm(name: String, pos: SourcePosition)(using Reporter): Symbol =
+    def resolveTerm(name: String, pos: SourcePosition)(using Reporter, Definitions): Symbol =
       resolveTerm(name) match
         case Some(sym) => sym
         case None =>
           Reporter.error(s"Undefined term identifier " + name, pos)
           Symbol.createSymbol(name, ErrorType, Flags.Synthetic, owner, pos)
 
-    def resolveType(name: String, pos: SourcePosition)(using Reporter): Symbol =
+    def resolveType(name: String, pos: SourcePosition)(using Reporter, Definitions): Symbol =
       resolveType(name) match
         case Some(sym) => sym
         case None =>
           Reporter.error(s"Undefined type identifier " + name, pos)
           Symbol.createSymbol(name, ErrorType, Flags.Synthetic, owner, pos)
 
-    def resolvePattern(name: String, pos: SourcePosition)(using Reporter): Symbol =
+    def resolvePattern(name: String, pos: SourcePosition)(using Reporter, Definitions): Symbol =
       resolvePattern(name) match
         case Some(sym) => sym
         case None =>

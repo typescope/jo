@@ -26,20 +26,19 @@ class PatternTyper(namer: Namer, checker: Checker):
       case lazyDefn: Definitions.Lazy => lazyDefn.value
       case defn: Definitions => defn
 
-    val patSym = Symbol.createSymbol(patDef.name, namer.nonCyclicTypeProvider, Flags.Pattern | Flags.Fun, sc.owner, patDef.ident.pos)
+    val patSym = Symbol.createSymbol(patDef.name, Flags.Pattern | Flags.Fun, patDef.ident.pos)
     given patScope: Scope = sc.fresh(patSym)
 
     lazy val tparamSyms =
       for tparam <- patDef.tparams yield
-        lazy val bound =
+        val bound =
           if tparam.bound.isEmpty then
             TypeBound(BottomType, AnyType)
           else
             val boundTree = namer.transformType(tparam.bound)
             TypeBound(BottomType, boundTree.tpe)
 
-        val infoProvider: InfoProvider = (sym: Symbol) => bound
-        val sym = Symbol.createSymbol(tparam.name, infoProvider, Flags.Type | Flags.Param, patSym, tparam.pos)
+        val sym = Symbol.createSymbol(tparam.name, bound, Flags.Type | Flags.Param, patSym, tparam.pos)
         patScope.define(sym)
         sym
 
@@ -93,7 +92,13 @@ class PatternTyper(namer: Namer, checker: Checker):
     def computeInfo(resultType: Type) =
       ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), resultType, receives = None, preParamCount = patDef.preParamCount)
 
-    namer.nonCyclicTypeProvider.addProvider(patSym, () => computeInfo(resultTypeTree.tpe), () => computeInfo(ErrorType))
+    lazyDefn match
+      case lazyDefn: Definitions.Lazy =>
+        val ip = lazyDefn.infoProvider
+        ip.addLazy(patSym, sc.owner,  () => computeInfo(resultTypeTree.tpe), () => computeInfo(ErrorType))
+
+      case defn: Definitions =>
+        defn.addLazy(patSym, sc.owner,  () => computeInfo(resultTypeTree.tpe), () => computeInfo(ErrorType))
 
     val typer = () =>
       PatDef(patSym, tparamSyms, paramSyms, resultTypeTree, typedBody)(patDef.span)
@@ -672,14 +677,14 @@ class PatternTyper(namer: Namer, checker: Checker):
 
     StarPattern(inner)(scrutType, pat.span, bindings.toList)
 
-  private def resolvePatternPredicate(id: Ast.Ident)(using sc: Scope, rp: Reporter, so: Source): Symbol =
+  private def resolvePatternPredicate(id: Ast.Ident)(using sc: Scope, rp: Reporter, so: Source, defn: Definitions): Symbol =
     resolvePatternPredicateOpt(id) match
       case Some(sym) => sym
       case None =>
         Reporter.error(s"Undefined pattern identifier " + id.name, id.pos)
         Symbol.createSymbol(id.name, ErrorType, Flags.Synthetic, sc.owner, id.pos)
 
-  private def resolvePatternPredicateOpt(id: Ast.Ident)(using sc: Scope): Option[Symbol] =
+  private def resolvePatternPredicateOpt(id: Ast.Ident)(using sc: Scope, defn: Definitions): Option[Symbol] =
     sc.resolvePattern(id.name) match
       case None =>
         sc.resolveTerm(id.name) match

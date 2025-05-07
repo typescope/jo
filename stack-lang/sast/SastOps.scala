@@ -12,7 +12,7 @@ import scala.collection.mutable
 object SastOps:
   class AdaptionFailure(word: Word, targetType: Type) extends Exception:
     override def toString(): String =
-      "Unable to adapt " + word + " of type " + word.tpe.show + " to " + targetType.show
+      "Unable to adapt " + word + " of type " + word.tpe + " to " + targetType
 
   /** Adapt the word to the target type.
     *
@@ -99,7 +99,7 @@ object SastOps:
     else
       Reporter.abortInternal("Unexpected numeric type " + origType.show)
 
-  abstract class TreeMap:
+  abstract class TreeMap(using Definitions):
     type Context
 
     final def apply(word: Word)(using Context): Word =
@@ -502,7 +502,7 @@ object SastOps:
   end TreeTraverser
 
   /** Returns (locals, free) */
-  def variableCensus(fdef: FunDef): (List[Symbol], List[Symbol]) =
+  def variableCensus(fdef: FunDef)(using Definitions): (List[Symbol], List[Symbol]) =
     val census = new VariableCensus
     census(fdef.body)(using ())
     val locals = census.locals.distinct.toList
@@ -510,7 +510,7 @@ object SastOps:
     val free = census.free.filter(sym => !masked.contains(sym)).distinct.toList
     (locals.filter(_.info.isValueType), free)
 
-  class VariableCensus extends TreeTraverser:
+  class VariableCensus(using Definitions) extends TreeTraverser:
     val locals = new mutable.ArrayBuffer[Symbol]
     val free = new mutable.ArrayBuffer[Symbol]
 

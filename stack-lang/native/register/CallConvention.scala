@@ -2,6 +2,7 @@ package native
 package register
 
 import sast.Types.*
+import sast.Definitions
 import CallConvention.*
 import Assembly.{ RegisterConfig, Rel }
 
@@ -17,8 +18,8 @@ import scala.collection.mutable
   * algorithms.
   */
 trait CallConvention:
-  def caller(paramTypes: List[Type], resType: Type): Protocol
-  def callee(paramTypes: List[Type], resType: Type): Protocol
+  def caller(paramTypes: List[Type], resType: Type)(using Definitions): Protocol
+  def callee(paramTypes: List[Type], resType: Type)(using Definitions): Protocol
 
 object CallConvention:
   enum Location:
@@ -139,14 +140,14 @@ object CallConvention:
       val callerHandled = if resCount > argCount then resCount else argCount
       FREE_REGS.diff(PARAM_REGS.take(callerHandled))
 
-    def caller(paramTypes: List[Type], resType: Type): Protocol =
+    def caller(paramTypes: List[Type], resType: Type)(using Definitions): Protocol =
       val argCount = paramTypes.size
       val resCount = if resType.isVoidType then 0 else 1
 
       val savedRegs = FP_REG :: callerSaved(argCount, resCount)
       Protocol(inProtocol(argCount), outProtocol(resCount), savedRegs)
 
-    def callee(paramTypes: List[Type], resType: Type): Protocol =
+    def callee(paramTypes: List[Type], resType: Type)(using Definitions): Protocol =
       val argCount = paramTypes.size
       val resCount = if resType.isVoidType then 0 else 1
 

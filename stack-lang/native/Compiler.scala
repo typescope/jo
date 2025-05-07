@@ -61,7 +61,8 @@ object Compiler:
     Reporter.monitor:
       given Reporter.Config = Reporter.Config(options.contains("-fatal-warnings"))
 
-      given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable)
+      val infoProvider = new SymInfoProvider
+      given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable, infoProvider)
 
       val namespacesSAST =
         FrontEnd.run(stdlib, runtime, sources, runtimeNameTable)

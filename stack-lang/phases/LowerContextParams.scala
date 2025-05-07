@@ -53,7 +53,7 @@ extends Phase[Symbol]:
     // 1. args are evaluated with the outer context
     val argValueSyms = args.map: arg =>
       val paramName = arg.paramRef.symbol.fullName
-      val argValueSym = new Symbol("arg_" + paramName, arg.rhs.tpe, Flags.Synthetic, owner = ctx, sourcePos = arg.rhs.pos)
+      val argValueSym = Symbol.createSymbol("arg_" + paramName, arg.rhs.tpe, Flags.Synthetic, owner = ctx, pos = arg.rhs.pos)
       stats += Assign(Ident(argValueSym)(arg.rhs.span), this(arg.rhs))(arg.rhs.span)
       argValueSym
 
@@ -63,7 +63,7 @@ extends Phase[Symbol]:
       val key = StringLit(paramName)(arg.paramRef.span)
       val funHasParam = Ident(hasParamSym)(arg.span)
       val hasParamCall = Apply(funHasParam, key :: Nil)(BoolType, arg.paramRef.span)
-      val hasXSym = new Symbol("has_" + paramName, BoolType, Flags.Synthetic, owner = ctx, sourcePos = arg.rhs.pos)
+      val hasXSym = Symbol.createSymbol("has_" + paramName, BoolType, Flags.Synthetic, owner = ctx, pos = arg.rhs.pos)
       stats += Assign(Ident(hasXSym)(arg.paramRef.span), hasParamCall)(arg.span)
       hasXSym
 
@@ -74,12 +74,12 @@ extends Phase[Symbol]:
       val value = Ident(argValueSym)(arg.rhs.span)
       val funSetParam = Ident(setParamSym)(arg.span)
       val setParamCall = Apply(funSetParam, key :: value :: Nil)(AnyType, arg.span)
-      val oldValueSym = new Symbol("old_" + paramName, arg.rhs.tpe, Flags.Synthetic, owner = ctx, sourcePos = arg.rhs.pos)
+      val oldValueSym = Symbol.createSymbol("old_" + paramName, arg.rhs.tpe, Flags.Synthetic, owner = ctx, pos = arg.rhs.pos)
       stats += Assign(Ident(oldValueSym)(arg.paramRef.span), setParamCall)(arg.span)
       oldValueSym
 
     // 4. val res = expr only if expr is not void
-    val resSym = new Symbol("res", expr.tpe, Flags.Synthetic, owner = ctx, sourcePos = expr.pos)
+    val resSym = Symbol.createSymbol("res", expr.tpe, Flags.Synthetic, owner = ctx, pos = expr.pos)
     if expr.tpe.isVoidType then
       stats += this(expr)
     else
