@@ -1,10 +1,14 @@
 namespace B
 
-type Message = String
+import A.Message
+
 
 section Inner
+  type Message = String
   data Option[T] = Some(v: T) | None
 end
+
+alias Inner.Message
 
 param prefix: String = "[info]"
 fun foo(s: Message) =

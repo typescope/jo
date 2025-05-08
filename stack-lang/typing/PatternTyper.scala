@@ -689,7 +689,7 @@ class PatternTyper(namer: Namer, checker: Checker):
       case None =>
         sc.resolveTerm(id.name) match
           case Some(sym) if sym.is(Flags.Section) =>
-            val nameTable = sym.info.as[NameTableInfo]
+            val nameTable = sym.dealiasedInfo.as[NameTableInfo]
             nameTable.resolvePattern(sym.name)
 
           case _ =>

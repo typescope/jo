@@ -181,7 +181,7 @@ object Subtyping:
          * succeed for two unrelated symbolic types.
          */
         val tp1Reduced =
-          sym.info match
+          sym.dealiasedInfo match
             case bound: TypeBound =>
               if lessThan then bound.hi else bound.lo
 

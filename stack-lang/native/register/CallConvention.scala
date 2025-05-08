@@ -2,7 +2,6 @@ package native
 package register
 
 import sast.Types.*
-import sast.Definitions
 import CallConvention.*
 import Assembly.{ RegisterConfig, Rel }
 

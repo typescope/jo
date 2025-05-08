@@ -170,7 +170,7 @@ class Namer:
           val sym = resolveContainer(qual.asInstanceOf[Ast.RefTree])
 
           if sym.isContainer then
-            val nsInfo = sym.info.as[NameTableInfo]
+            val nsInfo = sym.dealiasedInfo.as[NameTableInfo]
 
             nsInfo.resolveTerm(name) match
               case Some(sym) => sym
@@ -185,11 +185,23 @@ class Namer:
             Symbol.createSymbol(name, ErrorType, Flags.Synthetic, sym, pos = qualid.pos)
 
         case Ast.Ident(name) =>
-          rootNameTable.resolveTerm(name) match
-            case Some(sym) => sym
-            case None =>
-              rp.error(s"`$name` is not found", qualid.pos)
-              Symbol.createSymbol(name, ErrorType, Flags.Synthetic, importScope.owner, pos = qualid.pos)
+          def tryRootNameTable(): Symbol =
+            rootNameTable.resolveTerm(name) match
+              case Some(sym) => sym
+              case None =>
+                rp.error(s"`$name` is not found", qualid.pos)
+                Symbol.createSymbol(name, ErrorType, Flags.Synthetic, importScope.owner, pos = qualid.pos)
+            end match
+
+          if isAlias then
+            // aliases can be not fully qualified and it prefers local defined symbols over global symbols
+            importScope.resolveTerm(name) match
+              case Some(sym) => sym
+              case None => tryRootNameTable()
+            end match
+          else
+           // Imports needs to be fully qualified
+           tryRootNameTable()
 
     val imports = new mutable.ArrayBuffer[Symbol]
 
@@ -242,7 +254,7 @@ class Namer:
       case Ast.Select(qual, name) =>
         val sym = resolveContainer(qual.asInstanceOf[Ast.RefTree])
         if sym.isContainer then
-          val nameTable = sym.info.as[NameTableInfo].nameTable
+          val nameTable = sym.dealiasedInfo.as[NameTableInfo].nameTable
           if name == "*" then
             if sym.isAllOf(Flags.NSpace | Flags.Branch) then
               rp.error("Only concrete namespaces or sections can be imported by *", qual.pos)
@@ -1204,9 +1216,9 @@ class Namer:
     val nameTable = new NameTable
     given secScope: Scope = sc.fresh(sym, nameTable)
 
-    lazy val delayedDefs = index(section.defs)
+    val delayedDefs = index(section.defs)
     // check type symbols after completion to allow cycles, type A = A
-    val typer = () =>
+    lazy val sast =
       val defs = for delayed <- delayedDefs.toList yield delayed.force()
 
       for case alias: Ast.AliasDef <- section.defs do
@@ -1216,11 +1228,11 @@ class Namer:
 
     val ip = lazyDefn.infoProvider
     ip.addLazy(sym, sc.owner, () => {
-      delayedDefs
+      sast
       new NameTableInfo(nameTable)
     })
 
-    DelayedDef(sym, typer)
+    DelayedDef(sym, () => sast)
 
   private def transformMethodDecl(ddef: Ast.FunDef)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): TypeTree =
     given defScope: Scope = sc.fresh()
@@ -1288,7 +1300,7 @@ class Namer:
 
         qual2.tpe match
           case TypeRef(sym) if sym.isContainer =>
-            val nsInfo = sym.info.as[NameTableInfo]
+            val nsInfo = sym.dealiasedInfo.as[NameTableInfo]
             nsInfo.resolveType(name) match
               case Some(sym) =>
                 val tp = TypeRef(sym)

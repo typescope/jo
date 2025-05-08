@@ -31,6 +31,8 @@ object Symbols:
       */
     def info(using Definitions): Type = symInfo.tpe
 
+    def dealiasedInfo(using Definitions): Type = dealias.symInfo.tpe
+
     def owner(using Definitions): Symbol = symInfo.owner
 
     def isFunction : Boolean = flags.is(Flags.Fun)
