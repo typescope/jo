@@ -76,7 +76,7 @@ object TaggedEncoding:
     val tagCode = getTagCode(tag)
     val testTagValue = Literal(Constant.Int(tagCode))(IntType, span)
     val args =  tagValue :: testTagValue :: Nil
-    val fun = Ident(defn.Predef_eql)(span)
+    val fun = Ident(defn.Int_eql)(span)
     Apply(fun, args)(defn.BoolType, span)
 
   def testVariantTag(ref: Word, tag: String, span: Span)(using defn: Definitions): Word =
@@ -89,7 +89,7 @@ object TaggedEncoding:
     // ASTs are immutable thus can be shared
     //
     // Use non-short-cutting `either` for better CPU performance (no jumps)
-    val fun = Ident(defn.Predef_either)(span)
+    val fun = Ident(defn.Bool_either)(span)
     val tp = defn.BoolType
     val cond = testTagValue(tagValue, tag, span)
     rest.foldLeft(cond): (acc, tag) =>

@@ -1,5 +1,7 @@
 namespace stk.runtime.native.Core
 
+import stk.IO.*
+
 import stk.runtime.native.Syscall
 import stk.runtime.native.GC
 import stk.runtime.native.ParamSupport

@@ -20,32 +20,35 @@ final class Definitions(rootNameTable: NameTable, provider: InfoProvider):
   // Predefined symbols
   //
 
-  val Predef =  rootNameTable.resolveTermByPath("stk.Predef")
+  val Predef = rootNameTable.resolveTermByPath("stk.Predef")
   val Predef_nameTable = Predef.info.as[NameTableInfo].nameTable
 
   // primitive terms without implementation in source code
-  val Predef_add    =  Predef.termMember("+")
-  val Predef_sub    =  Predef.termMember("-")
-  val Predef_mul    =  Predef.termMember("*")
-  val Predef_div    =  Predef.termMember("/")
-  val Predef_mod    =  Predef.termMember("%")
-  val Predef_gt     =  Predef.termMember(">")
-  val Predef_lt     =  Predef.termMember("<")
-  val Predef_ge     =  Predef.termMember(">=")
-  val Predef_le     =  Predef.termMember("<=")
-  val Predef_eql    =  Predef.termMember("==")
-  val Predef_srl    =  Predef.termMember(">>")
-  val Predef_sll    =  Predef.termMember("<<")
-  val Predef_land   =  Predef.termMember("&")
-  val Predef_lor    =  Predef.termMember("|")
-  val Predef_lxor   =  Predef.termMember("^")
+  val Int        =  rootNameTable.resolveTermByPath("stk.Int")
+  val Int_Int    =  Int.typeMember("Int")
+  val Int_add    =  Int.termMember("+")
+  val Int_sub    =  Int.termMember("-")
+  val Int_mul    =  Int.termMember("*")
+  val Int_div    =  Int.termMember("/")
+  val Int_mod    =  Int.termMember("%")
+  val Int_gt     =  Int.termMember(">")
+  val Int_lt     =  Int.termMember("<")
+  val Int_ge     =  Int.termMember(">=")
+  val Int_le     =  Int.termMember("<=")
+  val Int_eql    =  Int.termMember("==")
+  val Int_srl    =  Int.termMember(">>")
+  val Int_sll    =  Int.termMember("<<")
+  val Int_land   =  Int.termMember("&")
+  val Int_lor    =  Int.termMember("|")
+  val Int_lxor   =  Int.termMember("^")
 
-  val Predef_and   =  Predef.termMember("&&")
-  val Predef_or    =  Predef.termMember("||")
-  val Predef_not  =  Predef.termMember("!")
-
-  val Predef_both   =  Predef.termMember("both")
-  val Predef_either =  Predef.termMember("either")
+  val Bool        =  rootNameTable.resolveTermByPath("stk.Bool")
+  val Bool_Bool   =  Bool.typeMember("Bool")
+  val Bool_and    =  Bool.termMember("&&")
+  val Bool_or     =  Bool.termMember("||")
+  val Bool_not    =  Bool.termMember("!")
+  val Bool_both   =  Bool.termMember("both")
+  val Bool_either =  Bool.termMember("either")
 
   val Predef_print      =  Predef.termMember("print")
   val Predef_printChar  =  Predef.termMember("printChar")
@@ -71,10 +74,8 @@ final class Definitions(rootNameTable: NameTable, provider: InfoProvider):
   val IO_stderr = IO.termMember("stderr")
 
   // types
-  val Predef_Bool   =  Predef.typeMember("Bool")
   val Predef_Byte   =  Predef.typeMember("Byte")
   val Predef_Char   =  Predef.typeMember("Char")
-  val Predef_Int    =  Predef.typeMember("Int")
   val Predef_Unit   =  Predef.typeMember("Unit")
   val Predef_String =  Predef.typeMember("String")
   val Predef_Array  =  Predef.typeMember("Array")
@@ -89,15 +90,15 @@ final class Definitions(rootNameTable: NameTable, provider: InfoProvider):
   val Predef_Partial = Predef.typeMember("Partial")
   val Predef_Seq    =  Predef.typeMember("Seq")
 
-  val IntType     = TypeRef(Predef_Int)
-  val BoolType    = TypeRef(Predef_Bool)
+  val IntType     = TypeRef(Int_Int)
+  val BoolType    = TypeRef(Bool_Bool)
   val ByteType    = TypeRef(Predef_Byte)
   val CharType    = TypeRef(Predef_Char)
   val UnitType    = TypeRef(Predef_Unit)
   val StringType  = TypeRef(Predef_String)
 
   def isNumericType(tp: Type): Boolean =
-    tp.refersAny(Predef_Byte :: Predef_Char :: Predef_Int :: Nil)
+    tp.refersAny(Predef_Byte :: Predef_Char :: Int_Int :: Nil)
 
   val runtimeContextParams = Set(
     IO_open,

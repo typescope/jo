@@ -505,7 +505,7 @@ object Sast:
 
   def all(cond: Word, conds: Word*)(using defn: Definitions): Word =
     conds.foldLeft(cond): (acc, cond) =>
-      Ident(defn.Predef_both)(cond.span).appliedTo(acc, cond)
+      Ident(defn.Bool_both)(cond.span).appliedTo(acc, cond)
 
   extension (word: Word)
 
@@ -535,4 +535,4 @@ object Sast:
     def encodedAs(tpe: Type): Word = Encoded(word)(tpe)
 
     def isEqualTo(rhs: Word)(using defn: Definitions): Word =
-      Ident(defn.Predef_eql)(word.span).appliedTo(word, rhs)
+      Ident(defn.Int_eql)(word.span).appliedTo(word, rhs)

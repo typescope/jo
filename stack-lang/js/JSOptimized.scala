@@ -33,7 +33,9 @@ class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
   private val symbol2UniqueName: mutable.Map[Symbol, String] = mutable.Map.empty
 
   def jsName(sym: Symbol): String =
-    symbol2UniqueName.get(sym.dealias) match
+    val target = sym.dealias
+
+    symbol2UniqueName.get(target) match
       case Some(name) => name
 
       case None =>
@@ -41,13 +43,13 @@ class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
           case Some(sym) => jsName(sym)
 
           case None =>
-            val rawName = if sym.isFunction then sym.fullName else sym.name
+            val rawName = if target.isFunction then sym.fullName else sym.name
             val uniqueName = unique.freshName(encodeSymbolic(rawName))
-            symbol2UniqueName(sym) = uniqueName
+            symbol2UniqueName(target) = uniqueName
 
             // Add function to work list
             if sym.isFunction then
-              workList.add(sym)
+              workList.add(target)
 
             uniqueName
 
@@ -290,12 +292,17 @@ class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
 
   def call(fun: Word, args: List[Word])(using Context): Text =
     fun match
-      case Ident(sym) if sym.owner == defn.Predef =>
-        callPredef(sym, args)
+      case Ident(sym) =>
+        val target = sym.dealias
+        if target.owner == defn.Int || target.owner == defn.Bool then
+          callPrimitive(sym, args)
 
-      case Ident(sym) if sym == runtime.JS_js  =>
-        val Literal(Constant.String(code)) :: Nil = args : @unchecked
-        cont(Text(code))
+        else if target == runtime.JS_js then
+          val Literal(Constant.String(code)) :: Nil = args : @unchecked
+          cont(Text(code))
+
+        else
+          call(target, args)
 
       case _ =>
         run(fun): v =>
@@ -316,7 +323,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
         call ~ ";" ~ cont()
 
   /** Compile a primitive */
-  def callPredef(sym: Symbol, args: List[Word])(using Context): Text =
+  def callPrimitive(sym: Symbol, args: List[Word])(using Context): Text =
 
     def binary(op: String): Text =
       val a :: b :: Nil = args: @unchecked
@@ -325,28 +332,29 @@ class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
           cont("(" ~ v1 ~ " " ~ op ~ " " ~ v2 ~ ")")
 
     sym match
-      case defn.Predef_add    =>   binary("+")
-      case defn.Predef_sub    =>   binary("-")
-      case defn.Predef_mul    =>   binary("*")
-      case defn.Predef_div    =>   div(args)
-      case defn.Predef_mod    =>   binary("%")
-      case defn.Predef_gt     =>   binary(">")
-      case defn.Predef_lt     =>   binary("<")
-      case defn.Predef_ge     =>   binary(">=")
-      case defn.Predef_le     =>   binary("<=")
-      case defn.Predef_srl    =>   binary(">>")
-      case defn.Predef_sll    =>   binary("<<")
-      case defn.Predef_land   =>   binary("&")
-      case defn.Predef_lor    =>   binary("|")
-      case defn.Predef_lxor   =>   binary("^")
-      case defn.Predef_both   =>   binary("&&")
-      case defn.Predef_either =>   binary("||")
-      case defn.Predef_not    =>   bnot(args)
-      case defn.Predef_eql    =>   binary("===")
+      case defn.Int_add    =>   binary("+")
+      case defn.Int_sub    =>   binary("-")
+      case defn.Int_mul    =>   binary("*")
+      case defn.Int_div    =>   div(args)
+      case defn.Int_mod    =>   binary("%")
+      case defn.Int_eql    =>   binary("===")
+      case defn.Int_gt     =>   binary(">")
+      case defn.Int_lt     =>   binary("<")
+      case defn.Int_ge     =>   binary(">=")
+      case defn.Int_le     =>   binary("<=")
+      case defn.Int_srl    =>   binary(">>")
+      case defn.Int_sll    =>   binary("<<")
+      case defn.Int_land   =>   binary("&")
+      case defn.Int_lor    =>   binary("|")
+      case defn.Int_lxor   =>   binary("^")
+
+      case defn.Bool_both   =>   binary("&&")
+      case defn.Bool_either =>   binary("||")
+      case defn.Bool_not    =>   bnot(args)
 
       case _ => call(sym, args)
     end match
-  end callPredef
+  end callPrimitive
 
 
 end JSOptimized

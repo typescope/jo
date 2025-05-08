@@ -19,8 +19,8 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
   val StringType = defn.StringType
 
   val abortSym = defn.Predef_abort
-  val eitherSym = defn.Predef_either
-  val bothSym = defn.Predef_both
+  val eitherSym = defn.Bool_either
+  val bothSym = defn.Bool_both
 
   override def transform(nss: List[Namespace]): List[Namespace] =
     val implMap = mutable.Map.empty[Symbol, Symbol]
@@ -186,20 +186,20 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
   private def transformValuePattern(scrut: Ident, pat: ValuePattern): Word =
     pat.value.tpe match
       case defn.ByteType   =>
-        Ident(defn.Predef_eql)(pat.span).appliedTo(pat.value, scrut)
+        Ident(defn.Int_eql)(pat.span).appliedTo(pat.value, scrut)
 
       case defn.IntType    =>
-        Ident(defn.Predef_eql)(pat.span).appliedTo(pat.value, scrut)
+        Ident(defn.Int_eql)(pat.span).appliedTo(pat.value, scrut)
 
       case defn.CharType   =>
-        Ident(defn.Predef_eql)(pat.span).appliedTo(pat.value, scrut)
+        Ident(defn.Int_eql)(pat.span).appliedTo(pat.value, scrut)
 
       case defn.BoolType   =>
-        val bothTrue = Ident(defn.Predef_both)(pat.span).appliedTo(pat.value, scrut)
-        val notValue = Ident(defn.Predef_not)(pat.span).appliedTo(pat.value)
-        val notScrut = Ident(defn.Predef_not)(pat.span).appliedTo(scrut)
-        val bothFalse = Ident(defn.Predef_both)(pat.span).appliedTo(notValue, notScrut)
-        Ident(defn.Predef_either)(pat.span).appliedTo(bothTrue, bothFalse)
+        val bothTrue = Ident(defn.Bool_both)(pat.span).appliedTo(pat.value, scrut)
+        val notValue = Ident(defn.Bool_not)(pat.span).appliedTo(pat.value)
+        val notScrut = Ident(defn.Bool_not)(pat.span).appliedTo(scrut)
+        val bothFalse = Ident(defn.Bool_both)(pat.span).appliedTo(notValue, notScrut)
+        Ident(defn.Bool_either)(pat.span).appliedTo(bothTrue, bothFalse)
 
       case defn.StringType =>
         scrut.select("==").appliedTo(pat.value)
@@ -437,7 +437,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
 
     // index = index + 1
     def indexIncrement(span: Span): Word =
-      val addOne = Apply(Ident(defn.Predef_add)(span), indexIdent :: IntLit(1)(span) :: Nil)(defn.IntType, span)
+      val addOne = Apply(Ident(defn.Int_add)(span), indexIdent :: IntLit(1)(span) :: Nil)(defn.IntType, span)
       Assign(indexIdent, addOne)(span)
 
     // x = scrutine(index)
@@ -454,16 +454,16 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
       dist match
         case Size.GreatEq(m) =>
           // index + m <= size
-          val le = Ident(defn.Predef_le)(span)
+          val le = Ident(defn.Int_le)(span)
           val distLit = IntLit(m)(span)
-          val lhs = Ident(defn.Predef_add)(span).appliedTo(indexIdent, distLit)
+          val lhs = Ident(defn.Int_add)(span).appliedTo(indexIdent, distLit)
           le.appliedTo(lhs, sizeIdent)
 
         case Size.Exact(m) =>
           // index + m == size
-          val eql = Ident(defn.Predef_eql)(span)
+          val eql = Ident(defn.Int_eql)(span)
           val distLit = IntLit(m)(span)
-          val lhs = Ident(defn.Predef_add)(span).appliedTo(indexIdent, distLit)
+          val lhs = Ident(defn.Int_add)(span).appliedTo(indexIdent, distLit)
           eql.appliedTo(lhs, sizeIdent)
 
     def totalSizeCheck(): Word =
@@ -472,13 +472,13 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
       seqPattern.totalSize match
         case Size.GreatEq(m) =>
           // m <= size
-          val le = Ident(defn.Predef_le)(span)
+          val le = Ident(defn.Int_le)(span)
           val distLit = IntLit(m)(span)
           le.appliedTo(distLit, sizeIdent)
 
         case Size.Exact(m) =>
           // index == size
-          val eql = Ident(defn.Predef_eql)(span)
+          val eql = Ident(defn.Int_eql)(span)
           val distLit = IntLit(m)(span)
           eql.appliedTo(distLit, sizeIdent)
 
@@ -516,7 +516,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
           val foundIdent = Ident(foundSym)(pat.span)
           val foundInit = Assign(foundIdent, BoolLit(false)(pat.span))(pat.span)
 
-          val notFound = Ident(defn.Predef_not)(pat.span).appliedTo(foundIdent)
+          val notFound = Ident(defn.Bool_not)(pat.span).appliedTo(foundIdent)
           val cond = all(notFound, distanceAllowMore)
 
           val nestedCond = transformPattern(itemAssign.ident, pattern)

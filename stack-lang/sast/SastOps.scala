@@ -61,7 +61,7 @@ object SastOps:
     if
       targetType.refersTo(defn.Predef_Byte) && n < 128 && n >= -128
       || targetType.refersTo(defn.Predef_Char) && n < 65536 && n >= 0
-      || targetType.refersTo(defn.Predef_Int)
+      || targetType.refersTo(defn.Int_Int)
     then
       targetType
 
@@ -75,7 +75,7 @@ object SastOps:
         val byteToChar = Ident(defn.Predef_byteToChar)(word.span)
         Apply(byteToChar, word :: Nil)(targetType, word.span)
 
-      else if targetType.refersTo(defn.Predef_Int) then
+      else if targetType.refersTo(defn.Int_Int) then
         val byteToInt = Ident(defn.Predef_byteToInt)(word.span)
         Apply(byteToInt, word :: Nil)(targetType, word.span)
 
@@ -86,14 +86,14 @@ object SastOps:
       if targetType.refersTo(defn.Predef_Byte) then
         word
 
-      else if targetType.refersTo(defn.Predef_Int) then
+      else if targetType.refersTo(defn.Int_Int) then
         val charToInt = Ident(defn.Predef_charToInt)(word.span)
         Apply(charToInt, word :: Nil)(targetType, word.span)
 
       else
         Reporter.abortInternal("Unexpected numeric type " + targetType.show)
 
-    else if origType.refersTo(defn.Predef_Int) then
+    else if origType.refersTo(defn.Int_Int) then
       word
 
     else

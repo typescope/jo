@@ -129,7 +129,7 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends S
               Reporter.error("word.tpe = " + word.tpe.show + ", result type = " + funType.resultType + " tree = " + word.show, word.pos)
         end match
 
-        if fun.refersTo(defn.Predef_and) || fun.refersTo(defn.Predef_or) then
+        if fun.refersTo(defn.Bool_and) || fun.refersTo(defn.Bool_or) then
           Reporter.error("Unexpected use of short-cut || and && in S-AST, tree = " + word.show, word.pos)
 
         checkFunShape(fun)

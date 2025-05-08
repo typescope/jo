@@ -26,16 +26,17 @@ abstract class Backend(val runtime: NativeRuntime)(using Definitions):
   def getFunAddress(sym: Symbol): Label =
     assert(sym.isFunction, "Not a function, sym = " + sym)
 
-    funLabelMap.get(sym.dealias) match
+    val targetSym = sym.dealias
+    funLabelMap.get(targetSym) match
       case Some(addr) => addr
 
       case None =>
-        runtime.locate(sym) match
+        runtime.locate(targetSym) match
           case Some(addrOrSymbol) =>
             addrOrSymbol match
               case label: Label =>
                 // cache result
-                funLabelMap(sym) = label
+                funLabelMap(targetSym) = label
                 label
 
               case redirectSym: Symbol =>
@@ -43,10 +44,10 @@ abstract class Backend(val runtime: NativeRuntime)(using Definitions):
 
           case None =>
             val label = Label(sym.name)
-            funLabelMap(sym) = label
+            funLabelMap(targetSym) = label
 
             // Add function to work list
-            workList.add(sym)
+            workList.add(targetSym)
 
             label
 
