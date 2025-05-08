@@ -67,7 +67,7 @@ class Namer:
         given Definitions = defnLazy.value
         // handle aliases after indexing members
         for case alias: Ast.AliasDef <- ns.defs do
-          doImport(alias.qualid, defsScope, rootNameTable, isAlias = false)
+          doImport(alias.qualid, defsScope, rootNameTable, isAlias = true)
       }
 
       val imports = new mutable.ArrayBuffer[Symbol]
@@ -78,7 +78,7 @@ class Namer:
         importScope.define(nsSym)
         // handle imports after indexing members
         for imp <- ns.imports do
-          imports ++= doImport(imp.qualid, importScope, rootNameTable, isAlias = true)
+          imports ++= doImport(imp.qualid, importScope, rootNameTable, isAlias = false)
       }
 
       delayedNamespaces += { () =>
@@ -200,8 +200,8 @@ class Namer:
               case None => tryRootNameTable()
             end match
           else
-           // Imports needs to be fully qualified
-           tryRootNameTable()
+            // Imports needs to be fully qualified
+            tryRootNameTable()
 
     val imports = new mutable.ArrayBuffer[Symbol]
 
@@ -211,44 +211,37 @@ class Namer:
       importScope.define(alias)
 
     def importName(name: String, nameTable: NameTable): Unit =
-      val alisedMember = new mutable.ArrayBuffer[Symbol]
+      val alisedMembers = new mutable.ArrayBuffer[Symbol]
       val syms = nameTable.resolve(name)
       for sym <- syms do
         if sym.isAllOf(Flags.NSpace | Flags.Branch) then
           rp.error("Only concrete namespaces or sections can be imported", qualid.pos)
 
         if sym.isAlias && isAlias then
-          alisedMember += sym
+          alisedMembers += sym
         else
           createAlias(name, sym)
 
       if imports.isEmpty then
-        if alisedMember.nonEmpty then
+        if alisedMembers.nonEmpty then
           rp.error(s"Aliasing an alias is disallowed: `$name`", qualid.pos)
 
         else
           rp.error(s"`$name` cannot be found", qualid.pos)
 
       else
-        if alisedMember.nonEmpty then
+        if alisedMembers.nonEmpty then
           rp.warn(s"Some target(s) are ignored as aliasing aliases is forbidden: `$name`", qualid.pos)
 
     /** For aliasing, aliased members are ignored */
     def importAll(nameTable: NameTable): Unit =
-      for
-        sym <- nameTable.terms if !sym.isSynthetic && (!sym.isAlias || !isAlias)
-      do
-        createAlias(sym.name, sym)
+      def qualify(sym: Symbol) = !sym.isSynthetic && (!sym.isAlias || !isAlias)
 
-      for
-        sym <- nameTable.patterns if !sym.isSynthetic && (!sym.isAlias || !isAlias)
-      do
-        createAlias(sym.name, sym)
+      for sym <- nameTable.terms if qualify(sym) do createAlias(sym.name, sym)
 
-      for
-        sym <- nameTable.types if !sym.isSynthetic && (!sym.isAlias || !isAlias)
-      do
-        createAlias(sym.name, sym)
+      for sym <- nameTable.patterns if qualify(sym) do createAlias(sym.name, sym)
+
+      for sym <- nameTable.types if qualify(sym) do createAlias(sym.name, sym)
 
     qualid match
       case Ast.Select(qual, name) =>
@@ -1217,18 +1210,17 @@ class Namer:
     given secScope: Scope = sc.fresh(sym, nameTable)
 
     val delayedDefs = index(section.defs)
-    // check type symbols after completion to allow cycles, type A = A
+
     lazy val sast =
       val defs = for delayed <- delayedDefs.toList yield delayed.force()
-
-      for case alias: Ast.AliasDef <- section.defs do
-        doImport(alias.qualid, secScope, lazyDefn.rootNameTable, isAlias = true)
 
       Section(sym, defs)(section.span)
 
     val ip = lazyDefn.infoProvider
     ip.addLazy(sym, sc.owner, () => {
-      sast
+      for case alias: Ast.AliasDef <- section.defs do
+        doImport(alias.qualid, secScope, lazyDefn.rootNameTable, isAlias = true)
+
       new NameTableInfo(nameTable)
     })
 

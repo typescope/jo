@@ -1,10 +1,10 @@
 namespace A
 
-alias B.Message
+alias B.Inner.Message
 alias B.foo
 alias B.prefix
 
-section Inner
+section Nested
   alias B.Inner.*
 
   alias B.foo
@@ -15,9 +15,15 @@ section Inner
       case None => println "none"
 end
 
+alias B.Inner
+
 fun main =
-  Inner.foo "alias foo"
+  Nested.foo "alias foo"
 
-  Inner.foo "alias foo" with prefix = "[warn]"
+  Nested.foo "alias foo" with prefix = "[warn]"
 
-  Inner.bar (Inner.Some "alias some")
+  Nested.bar (Nested.Some "alias some")
+
+  Inner.foo "alias B.inner"
+
+  Inner.foo "alias B.inner" with prefix = "[warn]"

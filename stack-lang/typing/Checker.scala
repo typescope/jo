@@ -87,13 +87,10 @@ class Checker(namer: Namer):
 
   def checkTermMember(word: Word, member: String)(using Reporter, Source, Definitions): Word =
     val tpe = word.tpe
-    if
-      tpe.hasTermMember(member)
-      || tpe.isTagType && tpe.asTagType.hasParam(member)
-      || tpe.isError
-    then
+    if tpe.hasTermMember(member) || tpe.isError then
       word
     else
+      // println(TypeOps.approx(tpe, isUp = true).as[NameTableInfo].nameTable.show)
       Reporter.error(s"The prefix does not contain the member $member", word.pos)
       Block(Nil)(ErrorType, word.span)
 

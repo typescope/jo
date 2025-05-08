@@ -160,7 +160,7 @@ object Subtyping:
       case AppliedType(tctor, targs) =>
         tctor match
           case tref: TypeRef =>
-            tref.symbol.info match
+            tref.symbol.dealiasedInfo match
               case tl: TypeLambda =>
                 val tp1Reduced = tl.instantiate(targs)
                 continue(tp1Reduced)

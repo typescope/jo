@@ -196,6 +196,7 @@ object Types:
           objectType.getMemberType(name)
 
         case tp =>
+          // println("No member " + name + " on " + tp)
           None
 
     def termMember(name: String)(using Definitions): Type =
@@ -203,7 +204,8 @@ object Types:
         case Some(tp) => tp
         case None => throw new Exception(s"No member $name in " + this.show)
 
-    def hasTermMember(name: String)(using Definitions): Boolean = getTermMember(name).nonEmpty
+    def hasTermMember(name: String)(using Definitions): Boolean =
+      getTermMember(name).nonEmpty
 
     def is[T <: Type : ClassTag]: Boolean =
       this match

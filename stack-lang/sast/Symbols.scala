@@ -96,7 +96,7 @@ object Symbols:
         case nsInfo: NameTableInfo => nsInfo.resolvePattern(name).get
         case tp => throw new Exception(s"No pattern member $name for $this of type $tp")
 
-    /** Return the source symbol of an alias */
+    /** Return the source symbol of an alias created by import or aliasing */
     def dealias(using Definitions): Symbol =
       if this.isAlias then this.info.as[TypeRef].symbol.dealias else this
 

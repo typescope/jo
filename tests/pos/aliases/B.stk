@@ -6,6 +6,8 @@ import A.Message
 section Inner
   type Message = String
   data Option[T] = Some(v: T) | None
+
+  alias B.foo
 end
 
 alias Inner.Message
