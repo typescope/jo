@@ -140,7 +140,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
       case AscribePattern(id, nested) =>
         val cond = transformPattern(scrut, nested)
         // It is more performant to always assign
-        val assign = Assign(id, scrut)(pat.span)
+        val assign = Assign(id, scrut.encodedAs(id.symbol.info))(pat.span)
         Block(assign :: cond :: Nil)(BoolType, pat.span)
 
       case TypePattern(tpt) =>

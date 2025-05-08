@@ -343,6 +343,11 @@ object Interpreter:
         env.update(ident.symbol, eval(rhs))
         Nil
 
+      case ValDef(sym, rhs) =>
+        // Immutable initialization in a while loop will update old value.
+        env.update(sym, eval(rhs))
+        Nil
+
       case FieldAssign(qual, name, rhs) =>
         val (objVal: ObjectVal) = eval(qual): @unchecked
         val rhsValue = eval(rhs)
@@ -474,10 +479,6 @@ object Interpreter:
 
       case TypeApply(fun, _) =>
         exec(fun)
-
-      case ValDef(sym, rhs) =>
-        env.bind(sym, eval(rhs))
-        Nil
 
       case fdef: FunDef =>
         env.bind(fdef.symbol, FunVal(fdef, env))
