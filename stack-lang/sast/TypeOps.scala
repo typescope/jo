@@ -73,8 +73,8 @@ object TypeOps:
     val encountered = new mutable.ArrayBuffer[ProxyType]
     def recur(tp: Type): Type = Debug.trace(s"$tp.dealias", enable = false):
       tp match
-        case tref: TypeRef =>
-          if encountered.contains(tref) || tref.symbol.isTypeParameter || !tref.symbol.isType then
+        case tref @ TypeRef(sym) =>
+          if encountered.contains(tref) || sym.isTypeParameter || !sym.isType && !sym.isAlias then
             tref
           else
             encountered += tref
@@ -106,10 +106,11 @@ object TypeOps:
     *
     * - type aliases
     * - instaniated type variables
+    * - constant
     */
   def isGrounded(tp: Type)(using Definitions): Boolean =
     tp match
-      case TypeRef(sym) => !sym.isType || sym.info.isInstanceOf[TypeBound]
+      case TypeRef(sym) => (!sym.isType && !sym.isAlias) || sym.info.isInstanceOf[TypeBound]
 
       case AppliedType(TypeRef(sym), _) =>
         sym.info match
@@ -118,9 +119,15 @@ object TypeOps:
 
       case tvar: TypeVar => !tvar.isInstantiated
 
+      case _: ConstantType => false
+
       case _ => true
 
-  /** A grouned proxy type dealiases to a grounded type */
+  /** A grouned proxy type dealiases to a grounded type
+    *
+    * It is used as a guard in subtype checking to defend against simple cycles
+    * such as A = A.
+    */
   def isGroundedProxy(tp: ProxyType)(using Definitions): Boolean = isGrounded(tp.dealias)
 
   // TODO: move to Printing

@@ -143,11 +143,12 @@ object Subtyping:
       given Context = ctx.withSubtyping(proxy1, proxy2)
       TypeOps.isGroundedProxy(proxy1) && reduceProxyType(proxy1, proxy2, lessThan = true)
 
-    else if !proxy2.isGrounded || proxy2.is[TypeVar] then
+    else if !proxy2.isGrounded || proxy2.is[TypeVar] || proxy2.isTermRef then
       given Context = ctx.withSubtyping(proxy1, proxy2)
       TypeOps.isGroundedProxy(proxy2) && reduceProxyType(proxy2, proxy1, lessThan = false)
 
     else
+      // Give the bounds a try --- this can blow up
       TypeOps.isGroundedProxy(proxy1) && reduceProxyType(proxy1, proxy2, lessThan = true)
       || TypeOps.isGroundedProxy(proxy2) && reduceProxyType(proxy2, proxy1, lessThan = false)
     end if
@@ -181,7 +182,7 @@ object Subtyping:
          * succeed for two unrelated symbolic types.
          */
         val tp1Reduced =
-          sym.dealiasedInfo match
+          sym.info match
             case bound: TypeBound =>
               if lessThan then bound.hi else bound.lo
 

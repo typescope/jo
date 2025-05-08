@@ -1,7 +1,7 @@
 namespace B
 
 import A.Message
-
+import A.Flags
 
 section Inner
   type Message = String
@@ -10,7 +10,11 @@ section Inner
   alias B.foo
 end
 
-alias Inner.Message
+section Nested
+  alias Inner.Message
+
+  fun bar(x: Flags) = println (intToStr x)
+end
 
 param prefix: String = "[info]"
 fun foo(s: Message) =
