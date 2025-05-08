@@ -4,6 +4,8 @@ import Types.*
 import Symbols.*
 import Definitions.InfoProvider
 
+import reporting.Reporter
+
 final class Definitions(rootNameTable: NameTable, provider: InfoProvider):
   //----------------------------------------------------------------------------
   // Info provider for symbols
@@ -125,6 +127,6 @@ object Definitions:
         case Some(info) => info
         case _ => throw new Exception("Not found info for " + sym)
 
-
-  class Lazy(val rootNameTable: NameTable, val infoProvider: InfoProvider):
+  class Lazy(val rootNameTable: NameTable)(using Reporter):
+    val infoProvider: InfoProvider = new SymInfoProvider
     lazy val value: Definitions = new Definitions(rootNameTable, infoProvider)

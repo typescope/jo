@@ -55,8 +55,7 @@ object Typer:
 
       val rootNameTable = new NameTable
       val runtimeNameTable = new NameTable
-      val infoProvider = new SymInfoProvider
-      given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable, infoProvider)
+      given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable)
 
       val namer = (nssAst: List[Ast.Namespace]) =>
         check(nssAst, stdLib, runtimeFiles, runtimeNameTable)

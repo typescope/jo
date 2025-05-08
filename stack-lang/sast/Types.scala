@@ -17,7 +17,12 @@ object Types:
   sealed abstract class Type:
     def isError(using Definitions): Boolean = TypeOps.approx(this, isUp = true) == ErrorType
 
-    def isVoidType(using Definitions): Boolean = TypeOps.dealias(this) == VoidType
+    /** Whether the type is Void
+      *
+      * There is no way to write this type in the program. It is the type given
+      * to while-loops, assignments and definitions.
+      */
+    def isVoidType: Boolean = this == VoidType
 
     def isAnyType(using Definitions): Boolean = TypeOps.dealias(this) == AnyType
 

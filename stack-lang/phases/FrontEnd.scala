@@ -17,8 +17,7 @@ object FrontEnd:
     val rootNameTable = new NameTable
     val runtimeNameTable = new NameTable
 
-    val infoProvider = new SymInfoProvider
-    given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable, infoProvider)
+    given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable)
     run(stdlib, runtime, sources, runtimeNameTable)
 
   def run

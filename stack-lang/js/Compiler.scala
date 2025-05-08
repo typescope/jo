@@ -41,8 +41,7 @@ def compile(args: String*): Unit =
     val rootNameTable = new NameTable
     val runtimeNameTable = new NameTable
 
-    val infoProvider = new SymInfoProvider
-    given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable, infoProvider)
+    given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable)
 
     val stdlib = "lib/Predef.stk" :: Nil
     val runtime = "runtime/JS.stk" :: Nil

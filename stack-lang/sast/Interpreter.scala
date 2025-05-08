@@ -507,9 +507,7 @@ object Interpreter:
     val runtimeNameTable = new NameTable
 
     given Reporter.Config = Reporter.Config(fatalWarnings = true)
-
-    val infoProvider = new SymInfoProvider
-    given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable, infoProvider)
+    given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable)
 
     val namespacesSAST = FrontEnd.run(stdlib, runtime, sourceFiles, runtimeNameTable)
 
