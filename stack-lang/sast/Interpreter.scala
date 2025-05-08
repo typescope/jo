@@ -506,12 +506,11 @@ object Interpreter:
     val runtime = Nil
 
     val rootNameTable = new NameTable
-    val runtimeNameTable = new NameTable
 
     given Reporter.Config = Reporter.Config(fatalWarnings = true)
     given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable)
 
-    val namespacesSAST = FrontEnd.run(runtime, sourceFiles, runtimeNameTable)
+    val namespacesSAST = FrontEnd.run(runtime, sourceFiles)
 
     val mains = namespacesSAST.collect:
       case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get

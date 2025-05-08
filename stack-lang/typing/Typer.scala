@@ -19,7 +19,7 @@ object Typer:
 
   /** The stdlib cannot depend on pre-defined symbols */
   def check
-      (nssAst: List[Ast.Namespace], runtime: List[String], runtimeNameTable: NameTable)
+      (nssAst: List[Ast.Namespace], runtime: List[String])
       (using defnLazy: Definitions.Lazy, rp: Reporter, cf: Reporter.Config)
   : List[Namespace] =
 
@@ -31,11 +31,13 @@ object Typer:
     // Must be after type checking the stdlib
     val predefNameTable = defnLazy.value.Predef_nameTable
 
+    // Should be before checking runtime code such that they are not available
+    val nss = new Namer().transform(nssAst, rootNameTable, predefNameTable)
+
     // Runtime definitions are inaccessible in user programs and may only
     // use predef definitions
-    val nssRuntime = runNamer(runtime, runtimeNameTable, predefNameTable)
+    val nssRuntime = runNamer(runtime, rootNameTable, predefNameTable)
 
-    val nss = new Namer().transform(nssAst, rootNameTable, predefNameTable)
     nssStdLib ++ nssRuntime ++ nss
 
   private def runNamer(
@@ -61,11 +63,9 @@ object Typer:
       val runtimeFiles = Nil
 
       val rootNameTable = new NameTable
-      val runtimeNameTable = new NameTable
       given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable)
 
-      val namer = (nssAst: List[Ast.Namespace]) =>
-        check(nssAst, runtimeFiles, runtimeNameTable)
+      val namer = (nssAst: List[Ast.Namespace]) => check(nssAst, runtimeFiles)
 
       given defn: Definitions = lazyDefn.value
       val nss = Parser.parse(sources) |> namer |> TreeChecker.check

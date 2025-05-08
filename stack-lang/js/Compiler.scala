@@ -39,13 +39,11 @@ def compile(args: String*): Unit =
     given Reporter.Config = Reporter.Config(options.contains("-fatal-warnings"))
 
     val rootNameTable = new NameTable
-    val runtimeNameTable = new NameTable
 
     given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable)
 
     val runtime = "runtime/JS.stk" :: Nil
-
-    val namespacesSAST = FrontEnd.run(runtime, sources, runtimeNameTable)
+    val namespacesSAST = FrontEnd.run(runtime, sources)
 
     val mains = namespacesSAST.collect:
       case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get
@@ -54,7 +52,7 @@ def compile(args: String*): Unit =
       case main :: Nil =>
         given Definitions = lazyDefn.value
 
-        val jsRuntime = new JSRuntime(runtimeNameTable, main)
+        val jsRuntime = new JSRuntime(rootNameTable, main)
         val contextParamsLower = new LowerContextParams(
             jsRuntime.JS_hasParam,
             jsRuntime.JS_getParam,

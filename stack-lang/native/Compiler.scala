@@ -47,7 +47,6 @@ object Compiler:
     val layout = options.getOrElse("-layout", "c1")
 
     val rootNameTable = new NameTable
-    val runtimeNameTable = new NameTable
 
     val runtime = List(
       "runtime/native/Core.stk",
@@ -62,7 +61,7 @@ object Compiler:
 
       given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable)
 
-      val namespacesSAST = FrontEnd.run(runtime, sources, runtimeNameTable)
+      val namespacesSAST = FrontEnd.run(runtime, sources)
 
       val mains = namespacesSAST.collect:
         case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get
@@ -71,7 +70,7 @@ object Compiler:
         case main :: Nil =>
           given Definitions = lazyDefn.value
 
-          val backend = backendBuilder(runtimeNameTable, main, lazyDefn.value)
+          val backend = backendBuilder(rootNameTable, main, lazyDefn.value)
 
           val closureConvert = new ElimCapture
           val contextParamsLower = new native.LowerContextParams(backend.runtime)

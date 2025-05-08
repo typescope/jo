@@ -1,5 +1,7 @@
 namespace stk.runtime.JS
 
+import stk.IO
+
 //------------------------------------------------------------------------------
 //
 // Utility functions
@@ -26,10 +28,10 @@ fun js(s: String): Bottom = abort("primitive js")
 
 fun start(): Unit =
   mainStub with
-    open   = createFileOpener(),
-    stdin  = createStdIn(),
-    stdout = createStdOut(),
-    stderr = createStdErr()
+    IO.open   = createFileOpener(),
+    IO.stdin  = createStdIn(),
+    IO.stdout = createStdOut(),
+    IO.stderr = createStdErr()
 
 fun mainStub(): Unit = abort "error mainStub"
 
