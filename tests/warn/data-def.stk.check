@@ -17,24 +17,6 @@
 | data Box[T, T](a: T)
 |          ^
 
----------- Error at ./tests/warn/data-def.stk:3:14 ---------------
-| data List[T, T] = Cons(v: T, tail: List[T, T]) | Nil
-|              ^
-|              Redefinition of T
-|
-| The name `T` is already defined at ./tests/warn/data-def.stk:3:11
-| data List[T, T] = Cons(v: T, tail: List[T, T]) | Nil
-|           ^
-
----------- Error at ./tests/warn/data-def.stk:3:14 ---------------
-| data List[T, T] = Cons(v: T, tail: List[T, T]) | Nil
-|              ^
-|              Redefinition of T
-|
-| The name `T` is already defined at ./tests/warn/data-def.stk:3:11
-| data List[T, T] = Cons(v: T, tail: List[T, T]) | Nil
-|           ^
-
 ---------- Error at ./tests/warn/data-def.stk:1:13 ---------------
 | data Box[T, T](a: T)
 |             ^
@@ -52,6 +34,24 @@
 | The name `T` is already defined at ./tests/warn/data-def.stk:1:10
 | data Box[T, T](a: T)
 |          ^
+
+---------- Error at ./tests/warn/data-def.stk:3:14 ---------------
+| data List[T, T] = Cons(v: T, tail: List[T, T]) | Nil
+|              ^
+|              Redefinition of T
+|
+| The name `T` is already defined at ./tests/warn/data-def.stk:3:11
+| data List[T, T] = Cons(v: T, tail: List[T, T]) | Nil
+|           ^
+
+---------- Error at ./tests/warn/data-def.stk:3:14 ---------------
+| data List[T, T] = Cons(v: T, tail: List[T, T]) | Nil
+|              ^
+|              Redefinition of T
+|
+| The name `T` is already defined at ./tests/warn/data-def.stk:3:11
+| data List[T, T] = Cons(v: T, tail: List[T, T]) | Nil
+|           ^
 
 ---------- Error at ./tests/warn/data-def.stk:3:14 ---------------
 | data List[T, T] = Cons(v: T, tail: List[T, T]) | Nil
