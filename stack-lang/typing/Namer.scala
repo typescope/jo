@@ -47,6 +47,7 @@ class Namer:
     val predefScope: Scope = new Scope.RootScope(predef, owner = null)
 
     val delayedImports = new mutable.ArrayBuffer[() => Unit]
+    val delayedAliases = new mutable.ArrayBuffer[() => Unit]
     val delayedNamespaces = new mutable.ArrayBuffer[() => Namespace]
 
     for ns <- nss do
@@ -62,14 +63,22 @@ class Namer:
         given Scope = defsScope
         index(ns.defs)
 
+      delayedAliases += { () =>
+        given Definitions = defnLazy.value
+        // handle aliases after indexing members
+        for case alias: Ast.AliasDef <- ns.defs do
+          doImport(alias.qualid, defsScope, rootNameTable, isAlias = false)
+      }
+
       val imports = new mutable.ArrayBuffer[Symbol]
 
       delayedImports += { () =>
+        given Definitions = defnLazy.value
         // Make current namespace name available
         importScope.define(nsSym)
         // handle imports after indexing members
         for imp <- ns.imports do
-          doImport(imp.qualid, importScope, rootNameTable, imports)
+          imports ++= doImport(imp.qualid, importScope, rootNameTable, isAlias = true)
       }
 
       delayedNamespaces += { () =>
@@ -79,6 +88,10 @@ class Namer:
       }
     end for
 
+    // Aliasing will ignore members that are alised
+    //
+    // Explicit aliasing another alised definition is an error.
+    delayedAliases.foreach(_.apply())
     delayedImports.foreach(_.apply())
     val namespaces = delayedNamespaces.map(_.apply())
     checker.performDelayedChecks()
@@ -147,8 +160,9 @@ class Namer:
 
 
   def doImport
-      (qualid: Ast.RefTree, importScope: Scope, rootNameTable: NameTable, imports: mutable.ArrayBuffer[Symbol])
-      (using rp: Reporter, so: Source, ip: InfoProvider): Unit =
+      (qualid: Ast.RefTree, importScope: Scope, rootNameTable: NameTable, isAlias: Boolean)
+      (using rp: Reporter, so: Source, defn: Definitions)
+  : List[Symbol] =
 
     def resolveContainer(qualid: Ast.RefTree): Symbol =
       qualid match
@@ -156,52 +170,95 @@ class Namer:
           val sym = resolveContainer(qual.asInstanceOf[Ast.RefTree])
 
           if sym.isContainer then
-            val nsInfo = ip.info(sym).as[NameTableInfo]
+            val nsInfo = sym.info.as[NameTableInfo]
 
             nsInfo.resolveTerm(name) match
               case Some(sym) => sym
 
               case None =>
-                rp.error(s"`$name` not found in ${sym.name}", qualid.pos)
-                Symbol.create(name, ErrorType, Flags.Synthetic, sym, pos = qualid.pos)
+                rp.error(s"`$name` is not a member of ${sym.name}", qualid.pos)
+                Symbol.createSymbol(name, ErrorType, Flags.Synthetic, sym, pos = qualid.pos)
 
           else
-            if ip.info(sym) != ErrorType then
+            if !sym.info.isError then
               rp.error("Only a namespace or section can be selected", qual.pos)
-            Symbol.create(name, ErrorType, Flags.Synthetic, sym, pos = qualid.pos)
+            Symbol.createSymbol(name, ErrorType, Flags.Synthetic, sym, pos = qualid.pos)
 
         case Ast.Ident(name) =>
           rootNameTable.resolveTerm(name) match
             case Some(sym) => sym
             case None =>
               rp.error(s"`$name` is not found", qualid.pos)
-              Symbol.create(name, ErrorType, Flags.Synthetic, importScope.owner, pos = qualid.pos)
+              Symbol.createSymbol(name, ErrorType, Flags.Synthetic, importScope.owner, pos = qualid.pos)
 
-    def importName(nameTable: NameTable): Unit =
-      val name = qualid.name
+    val imports = new mutable.ArrayBuffer[Symbol]
+
+    def createAlias(name: String, sym: Symbol): Unit =
+      val alias = Symbol.createSymbol(name, TypeRef(sym), sym.flags | Flags.Alias, importScope.owner, qualid.pos)
+      imports += alias
+      importScope.define(alias)
+
+    def importName(name: String, nameTable: NameTable): Unit =
+      val alisedMember = new mutable.ArrayBuffer[Symbol]
       val syms = nameTable.resolve(name)
       for sym <- syms do
         if sym.isAllOf(Flags.NSpace | Flags.Branch) then
           rp.error("Only concrete namespaces or sections can be imported", qualid.pos)
 
-        imports += sym
-        // TODO: better error position for duplicate imports by introducing alias symbols
-        importScope.define(sym)
+        if sym.isAlias && isAlias then
+          alisedMember += sym
+        else
+          createAlias(name, sym)
 
-      if syms.isEmpty then
-        rp.error(s"`$name` cannot be found", qualid.pos)
+      if imports.isEmpty then
+        if alisedMember.nonEmpty then
+          rp.error(s"Aliasing an alias is disallowed: `$name`", qualid.pos)
+
+        else
+          rp.error(s"`$name` cannot be found", qualid.pos)
+
+      else
+        if alisedMember.nonEmpty then
+          rp.warn(s"Some target(s) are ignored as aliasing aliases is forbidden: `$name`", qualid.pos)
+
+    /** For aliasing, aliased members are ignored */
+    def importAll(nameTable: NameTable): Unit =
+      for
+        sym <- nameTable.terms if !sym.isAlias || !isAlias
+      do
+        createAlias(sym.name, sym)
+
+      for
+        sym <- nameTable.patterns if !sym.isAlias || !isAlias
+      do
+        createAlias(sym.name, sym)
+
+      for
+        sym <- nameTable.types if !sym.isAlias || !isAlias
+      do
+        createAlias(sym.name, sym)
 
     qualid match
-      case Ast.Select(qual, _) =>
+      case Ast.Select(qual, name) =>
         val sym = resolveContainer(qual.asInstanceOf[Ast.RefTree])
         if sym.isContainer then
-          importName(ip.info(sym).as[NameTableInfo].nameTable)
+          val nameTable = sym.info.as[NameTableInfo].nameTable
+          if name == "*" then
+            if sym.isAllOf(Flags.NSpace | Flags.Branch) then
+              rp.error("Only concrete namespaces or sections can be imported by *", qual.pos)
 
-        else if ip.info(sym) != ErrorType then
+            importAll(nameTable)
+
+          else
+            importName(name, nameTable)
+
+        else if !sym.info.isError then
           rp.error("Expect a namespace or section, found = " + sym, qual.pos)
 
       case _ =>
-        importName(rootNameTable)
+        importName(qualid.name, rootNameTable)
+    end match
+    imports.toList
 
   private def index
       (defs: List[Ast.Def])
@@ -243,6 +300,10 @@ class Namer:
 
       case pdef: Ast.PatDef =>
         patternTyper.transformPatDef(pdef) :: Nil
+
+      case adef: Ast.AliasDef =>
+        // Handled in namespace and sections specially
+        Nil
 
       case section: Ast.Section =>
         transformSection(section) :: Nil
@@ -1141,12 +1202,16 @@ class Namer:
     val sym = Symbol.createSymbol(section.name, Flags.Section, section.ident.pos)
 
     val nameTable = new NameTable
-    given Scope = sc.fresh(sym, nameTable)
+    given secScope: Scope = sc.fresh(sym, nameTable)
 
     lazy val delayedDefs = index(section.defs)
     // check type symbols after completion to allow cycles, type A = A
     val typer = () =>
       val defs = for delayed <- delayedDefs.toList yield delayed.force()
+
+      for case alias: Ast.AliasDef <- section.defs do
+        doImport(alias.qualid, secScope, lazyDefn.rootNameTable, isAlias = true)
+
       Section(sym, defs)(section.span)
 
     val ip = lazyDefn.infoProvider

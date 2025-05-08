@@ -33,7 +33,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
   private val symbol2UniqueName: mutable.Map[Symbol, String] = mutable.Map.empty
 
   def jsName(sym: Symbol): String =
-    symbol2UniqueName.get(sym) match
+    symbol2UniqueName.get(sym.dealias) match
       case Some(name) => name
 
       case None =>

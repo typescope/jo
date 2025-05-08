@@ -68,7 +68,7 @@ Abstract Syntax
 
     section = SECTION ident {toplevel_def} [END].
 
-    toplevel_def = typedef | fundef | paramdef | patdef | datadef | section.
+    toplevel_def = typedef | fundef | paramdef | alias | patdef | datadef | section.
 
     qualid = ident | qualid DOT ident.
 
@@ -146,6 +146,8 @@ Abstract Syntax
     branch  = ident [param_section].
 
     paramdef = PARAM param [EQL block].
+
+    alias = ALIAS qualid.
 
     typedef = TYPE ident[tparams] [EQL type | SUBTYPE type].
     tparams = LBRACKET tparam {COMMA tparam} RBRACKET.

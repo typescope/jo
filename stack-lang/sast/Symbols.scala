@@ -41,6 +41,7 @@ object Symbols:
     def isMutable  : Boolean = flags.is(Flags.Mutable)
     def isField    : Boolean = flags.is(Flags.Field)
     def isSynthetic: Boolean = flags.is(Flags.Synthetic)
+    def isAlias    : Boolean = flags.is(Flags.Alias)
 
     def isNamespace: Boolean = flags.is(Flags.NSpace)
 
@@ -92,6 +93,10 @@ object Symbols:
       info match
         case nsInfo: NameTableInfo => nsInfo.resolvePattern(name).get
         case tp => throw new Exception(s"No pattern member $name for $this of type $tp")
+
+    /** Return the source symbol of an alias */
+    def dealias(using Definitions): Symbol =
+      if this.isAlias then this.info.as[TypeRef].symbol.dealias else this
 
     /** The default function associated with a context parameter */
     def defaultFunction(using Definitions): Symbol =

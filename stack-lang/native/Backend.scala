@@ -26,7 +26,7 @@ abstract class Backend(val runtime: NativeRuntime):
   def getFunAddress(sym: Symbol): Label =
     assert(sym.isFunction, "Not a function, sym = " + sym)
 
-    funLabelMap.get(sym) match
+    funLabelMap.get(sym.dealias) match
       case Some(addr) => addr
 
       case None =>

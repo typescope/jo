@@ -225,24 +225,27 @@ object Ast:
   //-------------------------- definitions -------------------------------------
 
   sealed trait Def extends Tree:
-    val ident: Ident
-    val name: String = ident.name
+    def name: String
 
   case class ValDef
     (ident: Ident, tpt: TypeTree, rhs: Word, mutable: Boolean)
     (val span: Span)
-  extends Word, Def
+  extends Word, Def:
+    def name: String = ident.name
 
   /** Context parameter definition */
   case class ParamDef
     (ident: Ident, tpt: TypeTree, default: Option[Word])
     (val span: Span)
-  extends Def
+  extends Def:
+    def name: String = ident.name
+
 
   case class Section
     (ident: Ident, defs: List[Def])
     (val span: Span)
-  extends Def
+  extends Def:
+    def name: String = ident.name
 
   /** Representation of functions and methods
     *
@@ -261,6 +264,8 @@ object Ast:
     do
       assert(isQualid(param), param)
 
+    def name: String = ident.name
+
   /** Representation of a pattern definition */
   case class PatDef
     (ident: Ident, tparams: List[TypeParam], params: List[Param],
@@ -269,15 +274,19 @@ object Ast:
   extends Word, Def:
     assert(cases.forall(c => isPattern(c.pat)), "Ill-formed pattern tree: " + cases)
 
+    def name: String = ident.name
+
   case class DataDef
     (ident: Ident, tparams: List[TypeParam], params: List[Param])
     (val span: Span)
-  extends Def
+  extends Def:
+    def name: String = ident.name
 
   case class EnumDef
     (ident: Ident, tparams: List[TypeParam], branches: List[TagType])
     (val span: Span)
-  extends Def
+  extends Def:
+    def name: String = ident.name
 
   case class Param
     (ident: Ident, tpt: TypeTree)
@@ -298,13 +307,22 @@ object Ast:
   case class TypeDef
     (ident: Ident, tparams: List[TypeParam], rhs: TypeTree, isBound: Boolean)
     (val span: Span)
-  extends Word, Def
+  extends Word, Def:
+    def name: String = ident.name
 
   case class Import
     (qualid: RefTree)
     (val span: Span)
   extends Tree:
     assert(isQualid(qualid), "malformed qualid: " + qualid)
+
+  case class AliasDef
+    (qualid: RefTree)
+    (val span: Span)
+  extends Def:
+    assert(isQualid(qualid), "malformed qualid: " + qualid)
+
+    def name = qualid.name
 
   case class Namespace
     (qualid: RefTree, imports: List[Import], defs: List[Def], source: String)

@@ -65,13 +65,16 @@ object Interpreter:
     def fresh(): Env = new Env.NestedEnv(this)
 
     def resolve(sym: Symbol)(using Definitions): Denotation =
+      resolveRecusrive(sym.dealias)
+
+    private def resolveRecursive(sym: Symbol)(using Definitions): Denotation =
       map.get(sym) match
         case Some(res)  => res
 
         case None =>
           this match
             case NestedEnv(outer) =>
-              outer.resolve(sym)
+              outer.resolveRecursive(sym)
 
             case _ =>
               throw new Exception("Not found " + sym)

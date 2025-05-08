@@ -20,6 +20,7 @@ object Flags:
   val Context : Flag = 1 << 10  // context parameter or its default function
   val Field   : Flag = 1 << 11  // an object field
   val Default : Flag = 1 << 12  // context parameters with default value
+  val Alias   : Flag = 1 << 13  // an alias symbol created by import/export
 
   val Synthetic: Flag = 1 << 62 // a compiler-synthesized symbol
 

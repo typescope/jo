@@ -210,11 +210,17 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     else if item.token == Token.PARAM then paramDef()
     else if item.token == Token.PATTERN then patDef()
     else if item.token == Token.DATA then dataDef()
+    else if item.token == Token.ALIAS then aliasDef()
     else if item.token == Token.SECTION then section()
     else
       error("Expect a definition, found = " + item.token, item.span.toPos)
       next()
       throw new SyntaxError
+
+  def aliasDef(): AliasDef =
+    val info = eat(Token.ALIAS)
+    val id = qualid()
+    AliasDef(id)(info.span | id.span)
 
   def section(): Section =
     val secToken = eat(Token.SECTION)

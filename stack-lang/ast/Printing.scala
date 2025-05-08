@@ -147,6 +147,9 @@ object Printing:
         "section " ~ name ~ indent:
             rep(defs, Text.BlankLine)
 
+      case AliasDef(qualid) =>
+        "alias " ~ qualid
+
   def showWord(word: Word): Text =
     word match
       case IntLit(n) => Text(n.toString)
