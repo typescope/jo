@@ -82,19 +82,25 @@ object Symbols:
             res
 
     def termMember(name: String)(using Definitions): Symbol =
+      def error() = throw new Exception(s"No term member $name for $this")
+
       this.dealias.info match
-        case nsInfo: NameTableInfo => nsInfo.resolveTerm(name).get
-        case tp => throw new Exception(s"No term member $name for $this of type $tp")
+        case nsInfo: NameTableInfo => nsInfo.resolveTerm(name).getOrElse(error())
+        case _ => error()
 
     def typeMember(name: String)(using Definitions): Symbol =
+      def error() = throw new Exception(s"No type member $name for $this")
+
       this.dealias.info match
-        case nsInfo: NameTableInfo => nsInfo.resolveType(name).get
-        case tp => throw new Exception(s"No type member $name for $this of type $tp")
+        case nsInfo: NameTableInfo => nsInfo.resolveType(name).getOrElse(error())
+        case _ => error()
 
     def patternMember(name: String)(using Definitions): Symbol =
+      def error() = throw new Exception(s"No pattern member $name for $this")
+
       this.dealias.info match
-        case nsInfo: NameTableInfo => nsInfo.resolvePattern(name).get
-        case tp => throw new Exception(s"No pattern member $name for $this of type $tp")
+        case nsInfo: NameTableInfo => nsInfo.resolvePattern(name).getOrElse(error())
+        case _ => error()
 
     /** Return the source symbol of an alias created by import or aliasing */
     def dealias(using Definitions): Symbol =

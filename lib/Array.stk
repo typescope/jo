@@ -1,0 +1,18 @@
+namespace stk.Array
+
+import stk.Predef.Int
+import stk.Predef.Unit
+import stk.Predef.abort
+
+//------------------------------------------------------------------------------
+//
+// Arrays
+//
+
+type Array[T] <: object {
+  def size: Int
+  def apply(i: Int): T
+  def set(i: Int, value: T): Unit
+}
+
+fun array[T](size: Int): Array[T] = abort("primitive array")

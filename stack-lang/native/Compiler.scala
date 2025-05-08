@@ -49,7 +49,6 @@ object Compiler:
     val rootNameTable = new NameTable
     val runtimeNameTable = new NameTable
 
-    val stdlib = "lib/Predef.stk" :: Nil
     val runtime = List(
       "runtime/native/Core.stk",
       "runtime/native/GC.stk",
@@ -63,8 +62,7 @@ object Compiler:
 
       given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable)
 
-      val namespacesSAST =
-        FrontEnd.run(stdlib, runtime, sources, runtimeNameTable)
+      val namespacesSAST = FrontEnd.run(runtime, sources, runtimeNameTable)
 
       val mains = namespacesSAST.collect:
         case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get

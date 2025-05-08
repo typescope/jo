@@ -30,9 +30,8 @@ object Test:
       else IO.list(test).filter(_.endsWith(".stk"))
 
     try
-      val stdLib = "lib/Predef.stk" :: Nil
       val runtimeFiles = Nil
-      FrontEnd.run(stdLib, runtimeFiles, sourceFiles)
+      FrontEnd.run(runtimeFiles, sourceFiles)
 
       verifyErrors(sourceFiles, rp.reports)
     catch

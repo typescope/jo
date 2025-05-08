@@ -64,10 +64,11 @@ final class Definitions(rootNameTable: NameTable, provider: InfoProvider):
   val Predef_intToStr   = Predef.termMember("intToStr")
 
   // I/O
-  val Predef_open   = Predef.termMember("open")
-  val Predef_stdin  = Predef.termMember("stdin")
-  val Predef_stdout = Predef.termMember("stdout")
-  val Predef_stderr = Predef.termMember("stderr")
+  val IO        = rootNameTable.resolveTermByPath("stk.IO")
+  val IO_open   = IO.termMember("open")
+  val IO_stdin  = IO.termMember("stdin")
+  val IO_stdout = IO.termMember("stdout")
+  val IO_stderr = IO.termMember("stderr")
 
   // types
   val Predef_Bool   =  Predef.typeMember("Bool")
@@ -99,10 +100,10 @@ final class Definitions(rootNameTable: NameTable, provider: InfoProvider):
     tp.refersAny(Predef_Byte :: Predef_Char :: Predef_Int :: Nil)
 
   val runtimeContextParams = Set(
-    Predef_open,
-    Predef_stdin,
-    Predef_stdout,
-    Predef_stderr,
+    IO_open,
+    IO_stdin,
+    IO_stdout,
+    IO_stderr,
   )
 
   def isRuntimeContextParam(sym: Symbol): Boolean =
@@ -121,6 +122,11 @@ object Definitions:
     def get(sym: Symbol): Option[SymInfo]
 
     def info(sym: Symbol): Type = apply(sym).tpe
+
+    def dealiasedInfo(sym: Symbol): Type =
+      apply(sym).tpe match
+        case TypeRef(sym) if sym.isAlias => dealiasedInfo(sym)
+        case tp => tp
 
     def apply(sym: Symbol): SymInfo =
       get(sym) match

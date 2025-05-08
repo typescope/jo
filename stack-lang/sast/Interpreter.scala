@@ -213,10 +213,10 @@ object Interpreter:
 
   def createRuntimeContextParams()(using defn: Definitions): Map[Symbol, Value] =
     Map(
-      defn.Predef_open   ->  open(),
-      defn.Predef_stdin  ->  stdin(),
-      defn.Predef_stdout ->  stdout(),
-      defn.Predef_stderr ->  stderr(),
+      defn.IO_open   ->  open(),
+      defn.IO_stdin  ->  stdin(),
+      defn.IO_stdout ->  stdout(),
+      defn.IO_stderr ->  stderr(),
     )
 
   def stdin() = new PlatformObj((name: String, args: List[Value]) =>
@@ -503,7 +503,6 @@ object Interpreter:
 
   def main(args: Array[String]): Unit = Reporter.monitor:
     val sourceFiles = args.toList
-    val stdlib = "lib/Predef.stk" :: Nil
     val runtime = Nil
 
     val rootNameTable = new NameTable
@@ -512,7 +511,7 @@ object Interpreter:
     given Reporter.Config = Reporter.Config(fatalWarnings = true)
     given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable)
 
-    val namespacesSAST = FrontEnd.run(stdlib, runtime, sourceFiles, runtimeNameTable)
+    val namespacesSAST = FrontEnd.run(runtime, sourceFiles, runtimeNameTable)
 
     val mains = namespacesSAST.collect:
       case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get

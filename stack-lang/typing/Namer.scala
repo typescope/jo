@@ -64,7 +64,6 @@ class Namer:
         index(ns.defs)
 
       delayedAliases += { () =>
-        given Definitions = defnLazy.value
         // handle aliases after indexing members
         for case alias: Ast.AliasDef <- ns.defs do
           doImport(alias.qualid, defsScope, rootNameTable, isAlias = true)
@@ -73,7 +72,6 @@ class Namer:
       val imports = new mutable.ArrayBuffer[Symbol]
 
       delayedImports += { () =>
-        given Definitions = defnLazy.value
         // Make current namespace name available
         importScope.define(nsSym)
         // handle imports after indexing members
@@ -109,7 +107,7 @@ class Namer:
     def check(sym: Symbol): Symbol =
       val name = sym.name
       val pos = sym.sourcePos
-      if sym.isNamespace then
+      if sym.isNamespace && !sym.isAlias then
         if isBranch && !sym.is(Flags.Branch) then
           rp.error(s"The $name is already defined as a namespace at $pos", qualid.pos)
           sym
@@ -161,7 +159,7 @@ class Namer:
 
   def doImport
       (qualid: Ast.RefTree, importScope: Scope, rootNameTable: NameTable, isAlias: Boolean)
-      (using rp: Reporter, so: Source, defn: Definitions)
+      (using rp: Reporter, so: Source, ip: InfoProvider)
   : List[Symbol] =
 
     def resolveContainer(qualid: Ast.RefTree): Symbol =
@@ -170,19 +168,19 @@ class Namer:
           val sym = resolveContainer(qual.asInstanceOf[Ast.RefTree])
 
           if sym.isContainer then
-            val nsInfo = sym.dealiasedInfo.as[NameTableInfo]
+            val nsInfo = ip.dealiasedInfo(sym).as[NameTableInfo]
 
             nsInfo.resolveTerm(name) match
               case Some(sym) => sym
 
               case None =>
                 rp.error(s"`$name` is not a member of ${sym.name}", qualid.pos)
-                Symbol.createSymbol(name, ErrorType, Flags.Synthetic, sym, pos = qualid.pos)
+                Symbol.create(name, ErrorType, Flags.Synthetic, sym, pos = qualid.pos)
 
           else
-            if !sym.info.isError then
+            if ip.info(sym) != ErrorType then
               rp.error("Only a namespace or section can be selected", qual.pos)
-            Symbol.createSymbol(name, ErrorType, Flags.Synthetic, sym, pos = qualid.pos)
+            Symbol.create(name, ErrorType, Flags.Synthetic, sym, pos = qualid.pos)
 
         case Ast.Ident(name) =>
           def tryRootNameTable(): Symbol =
@@ -190,7 +188,7 @@ class Namer:
               case Some(sym) => sym
               case None =>
                 rp.error(s"`$name` is not found", qualid.pos)
-                Symbol.createSymbol(name, ErrorType, Flags.Synthetic, importScope.owner, pos = qualid.pos)
+                Symbol.create(name, ErrorType, Flags.Synthetic, importScope.owner, pos = qualid.pos)
             end match
 
           if isAlias then
@@ -206,7 +204,7 @@ class Namer:
     val imports = new mutable.ArrayBuffer[Symbol]
 
     def createAlias(name: String, sym: Symbol): Unit =
-      val alias = Symbol.createSymbol(name, TypeRef(sym), sym.flags | Flags.Alias, importScope.owner, qualid.pos)
+      val alias = Symbol.create(name, TypeRef(sym), sym.flags | Flags.Alias, importScope.owner, qualid.pos)
       imports += alias
       importScope.define(alias)
 
@@ -247,7 +245,7 @@ class Namer:
       case Ast.Select(qual, name) =>
         val sym = resolveContainer(qual.asInstanceOf[Ast.RefTree])
         if sym.isContainer then
-          val nameTable = sym.dealiasedInfo.as[NameTableInfo].nameTable
+          val nameTable = ip.dealiasedInfo(sym).as[NameTableInfo].nameTable
           if name == "*" then
             if sym.isAllOf(Flags.NSpace | Flags.Branch) then
               rp.error("Only concrete namespaces or sections can be imported by *", qual.pos)
@@ -257,7 +255,7 @@ class Namer:
           else
             importName(name, nameTable)
 
-        else if !sym.info.isError then
+        else if ip.info(sym) != ErrorType then
           rp.error("Expect a namespace or section, found = " + sym, qual.pos)
 
       case _ =>
@@ -1218,6 +1216,7 @@ class Namer:
 
     val ip = lazyDefn.infoProvider
     ip.addLazy(sym, sc.owner, () => {
+      given InfoProvider = ip
       for case alias: Ast.AliasDef <- section.defs do
         doImport(alias.qualid, secScope, lazyDefn.rootNameTable, isAlias = true)
 

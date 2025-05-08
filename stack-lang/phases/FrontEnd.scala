@@ -11,25 +11,25 @@ import reporting.Reporter
 object FrontEnd:
 
   def run
-      (stdlib: List[String], runtime: List[String], sources: List[String])
+      (runtime: List[String], sources: List[String])
       (using Reporter, Reporter.Config)
   : List[Namespace] =
+
     val rootNameTable = new NameTable
     val runtimeNameTable = new NameTable
 
     given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable)
-    run(stdlib, runtime, sources, runtimeNameTable)
+    run(runtime, sources, runtimeNameTable)
 
   def run
-      (stdlib: List[String], runtime: List[String], sources: List[String],
-        runtimeNameTable: NameTable)
+      (runtime: List[String], sources: List[String], runtimeNameTable: NameTable)
       (using defnLazy: Definitions.Lazy, rp: Reporter, cf: Reporter.Config)
   : List[Namespace] =
 
     given Definitions = defnLazy.value
 
     val typeCheck = (nss: List[Ast.Namespace]) =>
-      Typer.check(nss, stdlib, runtime, runtimeNameTable)
+      Typer.check(nss, runtime, runtimeNameTable)
 
     val sast =
       Parser.parse(sources)         |>

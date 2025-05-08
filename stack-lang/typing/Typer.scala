@@ -9,16 +9,24 @@ import reporting.Reporter
 import common.IO
 
 object Typer:
+  val stdLib = List(
+    "lib/Array.stk",
+    "lib/Bool.stk",
+    "lib/IO.stk",
+    "lib/Int.stk",
+    "lib/Predef.stk",
+  )
+
   /** The stdlib cannot depend on pre-defined symbols */
-  def check(
-    nssAst: List[Ast.Namespace], stdlib: List[String], runtime: List[String],
-    runtimeNameTable: NameTable)
-    (using defnLazy: Definitions.Lazy, rp: Reporter, cf: Reporter.Config)
+  def check
+      (nssAst: List[Ast.Namespace], runtime: List[String], runtimeNameTable: NameTable)
+      (using defnLazy: Definitions.Lazy, rp: Reporter, cf: Reporter.Config)
   : List[Namespace] =
+
     val rootNameTable = defnLazy.rootNameTable
 
     // StdLib is compiled without the Predef
-    val nssStdLib = runNamer(stdlib, rootNameTable, predef = new NameTable)
+    val nssStdLib = runNamer(stdLib, rootNameTable, predef = new NameTable)
 
     // Must be after type checking the stdlib
     val predefNameTable = defnLazy.value.Predef_nameTable
@@ -50,7 +58,6 @@ object Typer:
     Reporter.monitor:
       given Reporter.Config = Reporter.Config(options.contains("-fatal-warnings"))
 
-      val stdLib = "lib/Predef.stk" :: Nil
       val runtimeFiles = Nil
 
       val rootNameTable = new NameTable
@@ -58,7 +65,7 @@ object Typer:
       given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable)
 
       val namer = (nssAst: List[Ast.Namespace]) =>
-        check(nssAst, stdLib, runtimeFiles, runtimeNameTable)
+        check(nssAst, runtimeFiles, runtimeNameTable)
 
       given defn: Definitions = lazyDefn.value
       val nss = Parser.parse(sources) |> namer |> TreeChecker.check
