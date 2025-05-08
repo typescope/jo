@@ -65,7 +65,7 @@ object Interpreter:
     def fresh(): Env = new Env.NestedEnv(this)
 
     def resolve(sym: Symbol)(using Definitions): Denotation =
-      resolveRecusrive(sym.dealias)
+      resolveRecursive(sym.dealias)
 
     private def resolveRecursive(sym: Symbol)(using Definitions): Denotation =
       map.get(sym) match

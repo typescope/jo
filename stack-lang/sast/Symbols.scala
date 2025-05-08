@@ -80,17 +80,17 @@ object Symbols:
             res
 
     def termMember(name: String)(using Definitions): Symbol =
-      info match
+      this.dealias.info match
         case nsInfo: NameTableInfo => nsInfo.resolveTerm(name).get
         case tp => throw new Exception(s"No term member $name for $this of type $tp")
 
     def typeMember(name: String)(using Definitions): Symbol =
-      info match
+      this.dealias.info match
         case nsInfo: NameTableInfo => nsInfo.resolveType(name).get
         case tp => throw new Exception(s"No type member $name for $this of type $tp")
 
     def patternMember(name: String)(using Definitions): Symbol =
-      info match
+      this.dealias.info match
         case nsInfo: NameTableInfo => nsInfo.resolvePattern(name).get
         case tp => throw new Exception(s"No pattern member $name for $this of type $tp")
 
@@ -101,12 +101,12 @@ object Symbols:
     /** The default function associated with a context parameter */
     def defaultFunction(using Definitions): Symbol =
       assert(this.isAllOf(Flags.Default | Flags.Context))
-      this.owner.termMember(this.name + "$default")
+      this.dealias.owner.termMember(this.name + "$default")
 
     /** The value function associated with a context parameter */
     def valueFunction(using Definitions): Symbol =
       assert(this.isAllOf(Flags.Default | Flags.Context))
-      this.owner.termMember(this.name + "$value")
+      this.dealias.owner.termMember(this.name + "$value")
 
     /** The param of an option type associated with a default context parameter.
       *
@@ -114,7 +114,7 @@ object Symbols:
       */
     def optionParam(using Definitions): Symbol =
       assert(this.isAllOf(Flags.Default | Flags.Context))
-      this.owner.termMember(this.name + "$option")
+      this.dealias.owner.termMember(this.name + "$option")
 
     def fullName(using Definitions): String = this.ownersIterator.foldLeft(this.name):
       (acc, owner) => owner.name + "." + acc

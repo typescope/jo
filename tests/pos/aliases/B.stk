@@ -1,0 +1,10 @@
+namespace B
+
+type Message = String
+
+section Inner
+  data Option[T] = Some(v: T) | None
+end
+
+fun foo(s: Message) =
+  println s

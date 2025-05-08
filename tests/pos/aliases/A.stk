@@ -1,0 +1,21 @@
+namespace A
+
+alias B.Message
+alias B.foo
+
+section Inner
+  alias B.Inner.*
+
+  alias B.foo
+
+  fun bar(x: Option[Message]) =
+    match x
+      case Some s => println s
+      case None => println "none"
+end
+
+
+fun main =
+  Inner.foo "alias foo"
+
+  Inner.bar (Inner.Some "alias some")

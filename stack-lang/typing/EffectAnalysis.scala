@@ -110,17 +110,18 @@ object EffectAnalysis:
   /** Produce a list of transitively reachabe param symbols for the function */
   private def getEffects(fun: Symbol)(using cache: Cache, temp: TempCache, defn: Definitions): TracedEffects =
     // Usage of stable cache has to be part of the computation for speed
-    cache.effects.get(fun) match
+    val funSym = fun.dealias
+    cache.effects.get(funSym) match
       case Some(res) => res
 
       case None =>
         // Read from out cache to make sure the computation is performed once.
-        temp.getOrElse(fun):
-          given Source = fun.sourcePos.source
-          temp.init(fun)
-          val body = cache.code(fun).body
+        temp.getOrElse(funSym):
+          given Source = funSym.sourcePos.source
+          temp.init(funSym)
+          val body = cache.code(funSym).body
           val effects = EffectAnalyzer.apply(body)
-          temp.update(fun, effects)
+          temp.update(funSym, effects)
           effects
 
   private object EffectAnalyzer:
