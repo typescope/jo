@@ -58,37 +58,32 @@ object Interpreter:
 
   enum Env:
     case RootEnv()
-    case NestedEnv(outer: Env, owner: Symbol)
+    case NestedEnv(outer: Env)
 
     private val map: mutable.Map[Symbol, Denotation] = mutable.Map.empty
 
-    def fresh(owner: Symbol): Env = new Env.NestedEnv(this, owner)
-
-    def findEnv(sym: Symbol)(using Definitions): Env =
-      this match
-        case NestedEnv(outer, owner) =>
-          if sym.owner == owner then this
-          else outer.findEnv(sym)
-
-        case _: RootEnv =>
-          if !sym.isLocal then this
-          else throw new Exception("Env not found for " + sym + ", owner = " + sym.owner)
+    def fresh(): Env = new Env.NestedEnv(this)
 
     def resolve(sym: Symbol)(using Definitions): Denotation =
-      val env = findEnv(sym)
-      env.map.get(sym) match
-        case None => throw new Exception("Not found " + sym)
+      map.get(sym) match
         case Some(res)  => res
 
+        case None =>
+          this match
+            case NestedEnv(outer) =>
+              outer.resolve(sym)
+
+            case _ =>
+              throw new Exception("Not found " + sym)
+
     def update(sym: Symbol, denot: Denotation)(using Definitions): Unit =
-      val env = findEnv(sym)
-      env.map(sym) = denot
+      // Is only possible to update sym of the current scope
+      map(sym) = denot
 
     def bind(sym: Symbol, denot: Denotation)(using Definitions): Unit =
-      val env = findEnv(sym)
       // Pattern symbol could be bound twice as an optimization in translation
-      assert(!env.map.contains(sym) || sym.isPattern, "Double binding " + sym)
-      env.map(sym) = denot
+      assert(!map.contains(sym) || sym.isPattern, "Double binding " + sym)
+      map(sym) = denot
 
     def contains(sym: Symbol): Boolean = map.contains(sym)
 
@@ -97,7 +92,7 @@ object Interpreter:
 
       if recursive then
         this match
-          case NestedEnv(outer, _) =>
+          case NestedEnv(outer) =>
             bindings = ("outer -> " + outer.show) :: bindings
           case _ =>
 
@@ -302,7 +297,7 @@ object Interpreter:
     else results.last
 
   def call(fdef: FunDef, args: List[Value])(using env: Env, params: Params, defn: Definitions): List[Denotation] =
-    val funEnv = env.fresh(fdef.symbol)
+    val funEnv = env.fresh()
 
     for (param, arg) <- fdef.params.zip(args) do
       funEnv.bind(param, arg)
@@ -344,11 +339,8 @@ object Interpreter:
             objVal.values(name) :: Nil
 
       case Assign(ident, rhs) =>
-        if ident.symbol.isMutable then
-          env.update(ident.symbol, eval(rhs))
-        else
-          env.bind(ident.symbol, eval(rhs))
-
+        // Immutable initialization in a while loop will update old value.
+        env.update(ident.symbol, eval(rhs))
         Nil
 
       case FieldAssign(qual, name, rhs) =>
@@ -409,7 +401,7 @@ object Interpreter:
               case objVal: ObjectVal =>
                 val argVals = args.map(eval)
                 val fdef = objVal.defs(name)
-                val env2 = objVal.env.fresh(fdef.symbol)
+                val env2 = objVal.env.fresh()
                 env2.bind(objVal.self, objVal)
                 call(fdef, argVals)(using env2)
 
@@ -468,7 +460,7 @@ object Interpreter:
               case objVal: ObjectVal =>
                 val argVals = args.map(eval)
                 val fdef = objVal.defs(name)
-                val env2 = objVal.env.fresh(fdef.symbol)
+                val env2 = objVal.env.fresh()
                 env2.bind(objVal.self, objVal)
                 call(fdef, argVals)(using env2)
 

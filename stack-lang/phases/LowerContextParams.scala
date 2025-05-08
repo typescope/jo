@@ -75,7 +75,7 @@ extends Phase[Symbol]:
       val funSetParam = Ident(setParamSym)(arg.span)
       val setParamCall = Apply(funSetParam, key :: value :: Nil)(AnyType, arg.span)
       val oldValueSym = Symbol.createSymbol("old_" + paramName, arg.rhs.tpe, Flags.Synthetic, owner = ctx, pos = arg.rhs.pos)
-      stats += Assign(Ident(oldValueSym)(arg.paramRef.span), setParamCall)(arg.span)
+      stats += Assign(Ident(oldValueSym)(arg.paramRef.span), setParamCall.encodedAs(arg.rhs.tpe))(arg.span)
       oldValueSym
 
     // 4. val res = expr only if expr is not void

@@ -496,8 +496,8 @@ object SastOps:
             this(body)
 
         case Object(self, vals, defs) =>
-          vals.map(recurValDef)
-          defs.map(recurNestedFunDef)
+          vals.map(this.apply)
+          defs.map(this.apply)
     end recur
   end TreeTraverser
 
@@ -536,6 +536,6 @@ object SastOps:
 
         case fdef: FunDef =>
           locals += fdef.symbol
-          free ++= variableCensus(fdef)._2
+          free ++= fdef.freeVariables
 
         case _ => recur(word)

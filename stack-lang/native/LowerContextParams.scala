@@ -84,7 +84,7 @@ class LowerContextParams(runtime: NativeRuntime)(using defn: Definitions) extend
       val funGetLastOverwrittenValue = Ident(runtime.ParamSupport_getLastOverwrittenValue)(arg.span)
       val getLastOverwrittenValueCall = Apply(funGetLastOverwrittenValue, Nil)(AnyType, arg.paramRef.span)
       val oldValueSym = Symbol.createSymbol("old_value_" + paramName, arg.rhs.tpe, Flags.Synthetic, owner = ctx, pos = arg.rhs.pos)
-      stats += Assign(Ident(oldValueSym)(arg.paramRef.span), getLastOverwrittenValueCall)(arg.span)
+      stats += Assign(Ident(oldValueSym)(arg.paramRef.span), getLastOverwrittenValueCall.encodedAs(arg.rhs.tpe))(arg.span)
 
       (hashIndexSym, oldValueSym)
 
