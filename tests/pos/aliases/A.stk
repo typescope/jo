@@ -2,6 +2,7 @@ namespace A
 
 alias B.Message
 alias B.foo
+alias B.prefix
 
 section Inner
   alias B.Inner.*
@@ -14,8 +15,9 @@ section Inner
       case None => println "none"
 end
 
-
 fun main =
   Inner.foo "alias foo"
+
+  Inner.foo "alias foo" with prefix = "[warn]"
 
   Inner.bar (Inner.Some "alias some")

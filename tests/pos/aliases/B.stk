@@ -6,5 +6,6 @@ section Inner
   data Option[T] = Some(v: T) | None
 end
 
+param prefix: String = "[info]"
 fun foo(s: Message) =
-  println s
+  println (prefix + s)

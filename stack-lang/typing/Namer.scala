@@ -224,17 +224,17 @@ class Namer:
     /** For aliasing, aliased members are ignored */
     def importAll(nameTable: NameTable): Unit =
       for
-        sym <- nameTable.terms if !sym.isAlias || !isAlias
+        sym <- nameTable.terms if !sym.isSynthetic && (!sym.isAlias || !isAlias)
       do
         createAlias(sym.name, sym)
 
       for
-        sym <- nameTable.patterns if !sym.isAlias || !isAlias
+        sym <- nameTable.patterns if !sym.isSynthetic && (!sym.isAlias || !isAlias)
       do
         createAlias(sym.name, sym)
 
       for
-        sym <- nameTable.types if !sym.isAlias || !isAlias
+        sym <- nameTable.types if !sym.isSynthetic && (!sym.isAlias || !isAlias)
       do
         createAlias(sym.name, sym)
 
@@ -779,7 +779,7 @@ class Namer:
     val rhsSast =
       given TargetType =
         if paramRef.tpe.isError then TargetType.ValueType
-        else TargetType.Known(paramRef.symbol.info)
+        else TargetType.Known(paramRef.symbol.dealias.info)
       transform(arg.rhs)
 
     WithArg(paramRef, rhsSast)(arg.span)
@@ -980,7 +980,7 @@ class Namer:
          *    <Default> fun a$default = rhs
          */
 
-        val defaultFunSym = Symbol.createSymbol(pdef.name + "$default", Flags.Fun | Flags.Default, pdef.pos)
+        val defaultFunSym = Symbol.createSymbol(pdef.name + "$default", Flags.Fun | Flags.Default | Flags.Synthetic, pdef.pos)
 
         val funInfo = () =>
           ProcType(
