@@ -1,0 +1,4 @@
+pattern Len(x: Int): List[Int] =
+  case _ :: (Len y) then x = (match 4 case y => y)
+  case (z if z == x) :: _
+  case _ then x = 4
