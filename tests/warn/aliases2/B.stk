@@ -1,0 +1,9 @@
+namespace B
+
+section Inner
+  type Flags = Int
+end
+
+section Nested
+  alias Inner.Flags
+end

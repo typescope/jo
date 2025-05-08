@@ -1,0 +1,6 @@
+---------- Error at ./tests/warn/aliases2/A.stk:3:7 ---------------
+| alias B.Nested.Flags
+|       ^^^^^^^^^^^^^^
+|       Aliasing an alias is disallowed: `Flags`
+
+1 error(s), 0 warning(s)
