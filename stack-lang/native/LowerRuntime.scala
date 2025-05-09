@@ -32,8 +32,8 @@ import native.runtime.NativeRuntime
 class LowerRuntime(runtime: NativeRuntime)(using defn: Definitions) extends phases.Phase[Unit]:
   val contextObject = phases.Phase.DummyContext
 
-  val Predef_array = defn.Predef_array
-  val Predef_Array = defn.Predef_Array
+  val Array_array = defn.Array_array
+  val Array_Array = defn.Array_Array
 
   val Predef_String = defn.Predef_String
   val StringType = defn.StringType
@@ -59,7 +59,7 @@ class LowerRuntime(runtime: NativeRuntime)(using defn: Definitions) extends phas
      val args2 = args.map(this.apply)
 
     fun.strip match
-      case TypeApply(fun @ Ident(sym), tpt :: Nil) if sym == Predef_array  =>
+      case TypeApply(fun @ Ident(sym), tpt :: Nil) if sym == Array_array  =>
         val fun2 = Ident(runtime.Core_Array_create)(fun.span)
         Encoded(Apply(fun2, args2)(AnyType, app.span))(app.tpe)
 
@@ -76,7 +76,7 @@ class LowerRuntime(runtime: NativeRuntime)(using defn: Definitions) extends phas
         // TODO: need encoding if result type does not agree
         Apply(fun2, args2)(app.tpe, app.span)
 
-      case Select(qual, name) if qual.tpe.refersTo(Predef_Array) =>
+      case Select(qual, name) if qual.tpe.refersTo(Array_Array) =>
         // After lambda lift, `qual` is stable thus can be thrown away
         assert(qual.isIdempotent, fun.show)
 

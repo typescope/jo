@@ -7,6 +7,8 @@ import Definitions.InfoProvider
 import reporting.Reporter
 
 final class Definitions(rootNameTable: NameTable, provider: InfoProvider):
+  import rootNameTable.resolveTermByPath
+
   //----------------------------------------------------------------------------
   // Info provider for symbols
   //
@@ -24,7 +26,7 @@ final class Definitions(rootNameTable: NameTable, provider: InfoProvider):
   val Predef_nameTable = Predef.info.as[NameTableInfo].nameTable
 
   // primitive terms without implementation in source code
-  val Int        =  rootNameTable.resolveTermByPath("stk.Int")
+  val Int        =  resolveTermByPath("stk.Int")
   val Int_Int    =  Int.typeMember("Int")
   val Int_add    =  Int.termMember("+")
   val Int_sub    =  Int.termMember("-")
@@ -42,7 +44,7 @@ final class Definitions(rootNameTable: NameTable, provider: InfoProvider):
   val Int_lor    =  Int.termMember("|")
   val Int_lxor   =  Int.termMember("^")
 
-  val Bool        =  rootNameTable.resolveTermByPath("stk.Bool")
+  val Bool        =  resolveTermByPath("stk.Bool")
   val Bool_Bool   =  Bool.typeMember("Bool")
   val Bool_and    =  Bool.termMember("&&")
   val Bool_or     =  Bool.termMember("||")
@@ -53,8 +55,6 @@ final class Definitions(rootNameTable: NameTable, provider: InfoProvider):
   val Predef_print      =  Predef.termMember("print")
   val Predef_printChar  =  Predef.termMember("printChar")
   val Predef_abort      =  Predef.termMember("abort")
-
-  val Predef_array  =  Predef.termMember("array")
 
   // numeric coercion
   val Predef_byteToChar = Predef.termMember("byteToChar")
@@ -67,7 +67,7 @@ final class Definitions(rootNameTable: NameTable, provider: InfoProvider):
   val Predef_intToStr   = Predef.termMember("intToStr")
 
   // I/O
-  val IO        = rootNameTable.resolveTermByPath("stk.IO")
+  val IO        = resolveTermByPath("stk.IO")
   val IO_open   = IO.termMember("open")
   val IO_stdin  = IO.termMember("stdin")
   val IO_stdout = IO.termMember("stdout")
@@ -78,7 +78,10 @@ final class Definitions(rootNameTable: NameTable, provider: InfoProvider):
   val Predef_Char   =  Predef.typeMember("Char")
   val Predef_Unit   =  Predef.typeMember("Unit")
   val Predef_String =  Predef.typeMember("String")
-  val Predef_Array  =  Predef.typeMember("Array")
+
+  val Array         =  resolveTermByPath("stk.Array")
+  val Array_Array   =  Array.typeMember("Array")
+  val Array_array   =  Array.termMember("array")
 
   // Lists
   val Predef_List      =  Predef.typeMember("List")

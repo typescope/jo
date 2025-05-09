@@ -9,6 +9,7 @@ import stk.Predef.abort
 // Arrays
 //
 
+// TODO: arrays are not objects for flexible backend support
 type Array[T] <: object {
   def size: Int
   def apply(i: Int): T

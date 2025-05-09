@@ -196,8 +196,9 @@ object Interpreter:
       defn.Bool_either     ->       either,
       defn.Bool_not        ->       not,
 
+      defn.Array_array       ->       newArray,
+
       defn.Predef_abort      ->       abort,
-      defn.Predef_array      ->       newArray,
       defn.Predef_byteToChar ->       byteToChar,
       defn.Predef_byteToInt  ->       byteToInt,
       defn.Predef_charToByte ->       charToByte,

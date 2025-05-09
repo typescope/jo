@@ -35,7 +35,7 @@ class LowerRuntime(runtime: JSRuntime)(using defn: Definitions) extends phases.P
     val fun2 = this(fun)
 
     fun2.strip match
-      case TypeApply(Ident(sym), tpt :: Nil) if sym == defn.Predef_array =>
+      case TypeApply(Ident(sym), tpt :: Nil) if sym == defn.Array_array =>
         val fun2 =
           if Subtyping.conforms(tpt.tpe, IntType) then
             Ident(runtime.JS_Array_createInt)(fun.span)
