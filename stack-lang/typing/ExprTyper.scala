@@ -10,7 +10,6 @@ import sast.Types.*
 import ast.Positions.*
 import reporting.Reporter
 
-import Namer.Scope
 import Inference.TargetType
 
 object ExprTyper:

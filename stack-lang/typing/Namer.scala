@@ -16,7 +16,7 @@ import common.KeyProps
 
 import reporting.Reporter
 
-import Namer.{ Scope, DelayedDef, errorWord }
+import Namer.{ DelayedDef, errorWord }
 import Inference.*
 
 import scala.collection.mutable
@@ -66,7 +66,7 @@ class Namer:
       delayedAliases += { () =>
         // handle aliases after indexing members
         for case alias: Ast.AliasDef <- ns.defs do
-          doImport(alias.qualid, defsScope, rootNameTable, isAlias = true)
+          Imports.doImport(alias.qualid, defsScope, rootNameTable, isAlias = true)
       }
 
       val imports = new mutable.ArrayBuffer[Symbol]
@@ -76,7 +76,7 @@ class Namer:
         importScope.define(nsSym)
         // handle imports after indexing members
         for imp <- ns.imports do
-          imports ++= doImport(imp.qualid, importScope, rootNameTable, isAlias = false)
+          imports ++= Imports.doImport(imp.qualid, importScope, rootNameTable, isAlias = false)
       }
 
       delayedNamespaces += { () =>
@@ -156,119 +156,6 @@ class Namer:
 
           case Some(sym) => check(sym)
 
-
-  def doImport
-      (qualid: Ast.RefTree, importScope: Scope, rootNameTable: NameTable, isAlias: Boolean)
-      (using rp: Reporter, so: Source, ip: InfoProvider)
-  : List[Symbol] =
-
-    def checkValidContainer(sym: Symbol, path: Ast.Word): Option[NameTable] =
-      val valid = sym.isContainer && (!sym.isAlias || !isAlias)
-      if valid then
-        Some(ip.dealiasedInfo(sym).as[NameTableInfo].nameTable)
-
-      else
-        if sym.isContainer then
-          rp.error("Aliasing an alias is forbidden", path.pos)
-
-        else if ip.info(sym) != ErrorType then
-          rp.error("Only a namespace or section can be selected", path.pos)
-
-        None
-
-
-    def resolveContainer(qualid: Ast.RefTree): Option[NameTable] =
-      qualid match
-        case Ast.Select(qual, name) =>
-          val prefix = qual.asInstanceOf[Ast.RefTree]
-          val nameTableOpt = resolveContainer(prefix)
-
-          nameTableOpt match
-            case Some(nameTable) =>
-              nameTable.resolveTerm(name) match
-                case Some(sym) => checkValidContainer(sym, qualid)
-
-                case _ =>
-                  rp.error(s"`$name` is not a member of ${prefix.name}", qualid.pos)
-                  None
-
-            case _ => None
-          end match
-
-        case Ast.Ident(name) =>
-
-          def tryRootNameTable(): Option[NameTable] =
-            rootNameTable.resolveTerm(name) match
-              case Some(sym) => checkValidContainer(sym, qualid)
-              case None =>
-                rp.error(s"`$name` is not found", qualid.pos)
-                None
-            end match
-
-          if isAlias then
-            // aliases can be not fully qualified and it prefers local defined symbols over global symbols
-            importScope.resolveTerm(name) match
-              case Some(sym) => checkValidContainer(sym, qualid)
-              case None => tryRootNameTable()
-            end match
-          else
-            // Imports needs to be fully qualified
-            tryRootNameTable()
-
-    val imports = new mutable.ArrayBuffer[Symbol]
-    val alisedMembers = new mutable.ArrayBuffer[Symbol]
-
-    def createAlias(name: String, sym: Symbol): Unit =
-      val alias = Symbol.create(name, TypeRef(sym), sym.flags | Flags.Alias, importScope.owner, qualid.pos)
-      imports += alias
-      importScope.define(alias)
-
-    def importSymbol(name: String, sym: Symbol): Unit =
-        if sym.isAllOf(Flags.NSpace | Flags.Branch) then
-          // Do the import anyway to avoid cascading errors
-          rp.error("Only concrete namespaces or sections can be imported/aliased", qualid.pos)
-
-        if sym.isAlias && isAlias then
-          rp.error(s"Aliasing an alias is disallowed: `$name`", qualid.pos)
-          alisedMembers += sym
-
-        else
-          createAlias(name, sym)
-
-    def importName(name: String, nameTable: NameTable): Unit =
-      val syms = nameTable.resolve(name)
-      for sym <- syms do importSymbol(name, sym)
-
-      if imports.isEmpty && alisedMembers.isEmpty then
-          rp.error(s"`$name` cannot be found", qualid.pos)
-
-    /** For aliasing, aliased members are ignored */
-    def importAll(nameTable: NameTable): Unit =
-      def qualify(sym: Symbol) = !sym.isSynthetic && (!sym.isAlias || !isAlias)
-
-      for sym <- nameTable.terms if qualify(sym) do importSymbol(sym.name, sym)
-
-      for sym <- nameTable.patterns if qualify(sym) do importSymbol(sym.name, sym)
-
-      for sym <- nameTable.types if qualify(sym) do importSymbol(sym.name, sym)
-
-    qualid match
-      case Ast.Select(qual, name) =>
-        resolveContainer(qual.asInstanceOf[Ast.RefTree]) match
-          case Some(nameTable) =>
-            if name == "*" then
-              importAll(nameTable)
-
-            else
-              importName(name, nameTable)
-
-          case None =>
-        end match
-
-      case _ =>
-        importName(qualid.name, rootNameTable)
-    end match
-    imports.toList
 
   private def index
       (defs: List[Ast.Def])
@@ -1225,7 +1112,7 @@ class Namer:
     ip.addLazy(sym, sc.owner, () => {
       given InfoProvider = ip
       for case alias: Ast.AliasDef <- section.defs do
-        doImport(alias.qualid, secScope, lazyDefn.rootNameTable, isAlias = true)
+        Imports.doImport(alias.qualid, secScope, lazyDefn.rootNameTable, isAlias = true)
 
       new NameTableInfo(nameTable)
     })
@@ -1428,103 +1315,3 @@ object Namer:
     def force()(using Definitions): T =
       symbol.info // force symbol
       definition
-
-  enum Scope:
-    case RootScope(table: NameTable, owner: Symbol)
-
-    /** A nested scope will go from inner to outer scopes in resolving names  */
-    case NestedScope(outer: Scope, table: NameTable, owner: Symbol)
-
-    /** In a local pattern scope, resolving pattern names will ignore pattern value symbols from outer scopes */
-    case LocalPatternScope(outer: Scope, table: NameTable, owner: Symbol)
-
-    protected val table: NameTable
-
-    /** The owner symbol of the current scope
-      *
-      * It can be null for top-level scopes
-      */
-    val owner: Symbol
-
-    def fresh(): Scope =
-      new Scope.NestedScope(this, new NameTable, owner)
-
-    def freshLocalPatternScope(): Scope =
-      new Scope.LocalPatternScope(this, new NameTable, owner)
-
-    def fresh(owner: Symbol): Scope =
-      new Scope.NestedScope(this, new NameTable, owner)
-
-    def fresh(owner: Symbol, nameTable: NameTable): Scope =
-      new Scope.NestedScope(this, nameTable, owner)
-
-    def resolveType(name: String): Option[Symbol] = Debug.trace(s"Resolving type $name in scope " + table.show, enable = false):
-      table.resolveType(name) match
-        case None =>
-          this match
-            case nsc: NestedScope => nsc.outer.resolveType(name)
-            case nsc: LocalPatternScope => nsc.outer.resolveType(name)
-            case _ => None
-
-        case res  => res
-
-    def resolveTerm(name: String): Option[Symbol] = Debug.trace(s"Resolving term $name in scope " + table.show, enable = false):
-      table.resolveTerm(name) match
-        case None =>
-          this match
-            case nsc: NestedScope => nsc.outer.resolveTerm(name)
-            case nsc: LocalPatternScope => nsc.outer.resolveTerm(name)
-            case _ => None
-
-        case res  => res
-
-    def resolvePattern(name: String): Option[Symbol] = Debug.trace(s"Resolving pattern $name in scope " + table.show, enable = false):
-      table.resolvePattern(name) match
-        case None =>
-          this match
-            case nsc: NestedScope => nsc.outer.resolvePattern(name)
-            case nsc: LocalPatternScope =>
-              // The condition should be refined to only allow pattern
-              // predicates that do not capture pattern variables once we enable
-              // nesting a pattern predicate inside another predicate.
-              //
-              // The only reason to access an outer pattern variable is to
-              // create binding --- use of them in terms is always allowed.
-              //
-              // Therefore, whenever we do not perform occur checks for a
-              // pattern variable, the binding of the variable should be
-              // disallowed. It means the pattern variable should not be visible
-              // in the scope.
-              nsc.outer.resolvePattern(name) match
-                case res @ Some(sym) if sym.isFunction => res
-                case _ => None
-            case _ => None
-
-        case res  => res
-
-    def resolveTerm(name: String, pos: SourcePosition)(using Reporter, Definitions): Symbol =
-      resolveTerm(name) match
-        case Some(sym) => sym
-        case None =>
-          Reporter.error(s"Undefined term identifier " + name, pos)
-          Symbol.createSymbol(name, ErrorType, Flags.Synthetic, owner, pos)
-
-    def resolveType(name: String, pos: SourcePosition)(using Reporter, Definitions): Symbol =
-      resolveType(name) match
-        case Some(sym) => sym
-        case None =>
-          Reporter.error(s"Undefined type identifier " + name, pos)
-          Symbol.createSymbol(name, ErrorType, Flags.Synthetic, owner, pos)
-
-    def resolvePattern(name: String, pos: SourcePosition)(using Reporter, Definitions): Symbol =
-      resolvePattern(name) match
-        case Some(sym) => sym
-        case None =>
-          Reporter.error(s"Undefined pattern identifier " + name, pos)
-          Symbol.createSymbol(name, ErrorType, Flags.Synthetic, owner, pos)
-
-    def define(sym: Symbol)(using Reporter): Unit =
-      table.define(sym)
-
-    def definePatternAsTerm(sym: Symbol)(using Reporter): Unit =
-      table.definePatternAsTerm(sym)

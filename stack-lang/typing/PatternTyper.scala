@@ -11,7 +11,7 @@ import sast.Types.*
 import reporting.Reporter
 import reporting.Diagnostics.*
 
-import Namer.{ Scope, DelayedDef }
+import Namer.DelayedDef
 import Inference.TargetType
 import PatternTyper.{ Occurs, ShadowedPattern }
 

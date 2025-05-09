@@ -23,9 +23,11 @@ files=(
     stack-lang/typing/Checker.scala
     stack-lang/typing/EffectAnalysis.scala
     stack-lang/typing/ExprTyper.scala
+    stack-lang/typing/Imports.scala
     stack-lang/typing/Inference.scala
     stack-lang/typing/Namer.scala
     stack-lang/typing/PatternTyper.scala
+    stack-lang/typing/Scope.scala
     stack-lang/typing/Typer.scala
     stack-lang/sast/Constant.scala
     stack-lang/sast/Definitions.scala
