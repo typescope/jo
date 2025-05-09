@@ -94,7 +94,7 @@ object Subtyping:
   private def checkConformsAppliedGrounded(tp1: AppliedType, tp2: AppliedType)(using ctx: Context, defn: Definitions): Boolean =
     val AppliedType(tref1: TypeRef, targs1) = tp1: @unchecked
     val AppliedType(tref2: TypeRef, targs2) = tp2: @unchecked
-    tref1 == tref2 && {
+    tref1.refers(tref2.symbol.dealias) && {
       // TODO: follow variance spec
       targs1.zip(targs2).forall: (tp1, tp2) =>
         checkConforms(tp1, tp2) && checkConforms(tp2, tp1)
@@ -161,10 +161,14 @@ object Subtyping:
       case AppliedType(tctor, targs) =>
         tctor match
           case tref: TypeRef =>
-            tref.symbol.dealiasedInfo match
+            tref.symbol.info match
               case tl: TypeLambda =>
                 val tp1Reduced = tl.instantiate(targs)
                 continue(tp1Reduced)
+
+              case tref: TypeRef =>
+                // alias
+                continue(AppliedType(tref, targs))
 
               case tctor =>
                 false
