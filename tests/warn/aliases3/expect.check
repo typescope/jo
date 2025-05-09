@@ -1,0 +1,16 @@
+---------- Error at ./tests/warn/aliases3/B.stk:7:7 ---------------
+| alias io.*  // error
+|       ^^^^
+|       Only concrete namespaces or sections can be imported/aliased
+
+---------- Error at ./tests/warn/aliases3/B.stk:14:7 ---------------
+| alias A.Inner.Flags
+|       ^^^^^^^
+|       Aliasing an alias is forbidden
+
+---------- Error at ./tests/warn/aliases3/B.stk:4:8 ---------------
+| import io.*
+|        ^^^^
+|        Only concrete namespaces or sections can be imported/aliased
+
+3 error(s), 0 warning(s)

@@ -162,39 +162,53 @@ class Namer:
       (using rp: Reporter, so: Source, ip: InfoProvider)
   : List[Symbol] =
 
-    def resolveContainer(qualid: Ast.RefTree): Symbol =
+    def checkValidContainer(sym: Symbol, path: Ast.Word): Option[NameTable] =
+      val valid = sym.isContainer && (!sym.isAlias || !isAlias)
+      if valid then
+        Some(ip.dealiasedInfo(sym).as[NameTableInfo].nameTable)
+
+      else
+        if sym.isContainer then
+          rp.error("Aliasing an alias is forbidden", path.pos)
+
+        else if ip.info(sym) != ErrorType then
+          rp.error("Only a namespace or section can be selected", path.pos)
+
+        None
+
+
+    def resolveContainer(qualid: Ast.RefTree): Option[NameTable] =
       qualid match
         case Ast.Select(qual, name) =>
-          val sym = resolveContainer(qual.asInstanceOf[Ast.RefTree])
+          val prefix = qual.asInstanceOf[Ast.RefTree]
+          val nameTableOpt = resolveContainer(prefix)
 
-          if sym.isContainer then
-            val nsInfo = ip.dealiasedInfo(sym).as[NameTableInfo]
+          nameTableOpt match
+            case Some(nameTable) =>
+              nameTable.resolveTerm(name) match
+                case Some(sym) => checkValidContainer(sym, qualid)
 
-            nsInfo.resolveTerm(name) match
-              case Some(sym) => sym
+                case _ =>
+                  rp.error(s"`$name` is not a member of ${prefix.name}", qualid.pos)
+                  None
 
-              case None =>
-                rp.error(s"`$name` is not a member of ${sym.name}", qualid.pos)
-                Symbol.create(name, ErrorType, Flags.Synthetic, sym, pos = qualid.pos)
-
-          else
-            if ip.info(sym) != ErrorType then
-              rp.error("Only a namespace or section can be selected", qual.pos)
-            Symbol.create(name, ErrorType, Flags.Synthetic, sym, pos = qualid.pos)
+            case _ => None
+          end match
 
         case Ast.Ident(name) =>
-          def tryRootNameTable(): Symbol =
+
+          def tryRootNameTable(): Option[NameTable] =
             rootNameTable.resolveTerm(name) match
-              case Some(sym) => sym
+              case Some(sym) => checkValidContainer(sym, qualid)
               case None =>
                 rp.error(s"`$name` is not found", qualid.pos)
-                Symbol.create(name, ErrorType, Flags.Synthetic, importScope.owner, pos = qualid.pos)
+                None
             end match
 
           if isAlias then
             // aliases can be not fully qualified and it prefers local defined symbols over global symbols
             importScope.resolveTerm(name) match
-              case Some(sym) => sym
+              case Some(sym) => checkValidContainer(sym, qualid)
               case None => tryRootNameTable()
             end match
           else
@@ -202,61 +216,54 @@ class Namer:
             tryRootNameTable()
 
     val imports = new mutable.ArrayBuffer[Symbol]
+    val alisedMembers = new mutable.ArrayBuffer[Symbol]
 
     def createAlias(name: String, sym: Symbol): Unit =
       val alias = Symbol.create(name, TypeRef(sym), sym.flags | Flags.Alias, importScope.owner, qualid.pos)
       imports += alias
       importScope.define(alias)
 
-    def importName(name: String, nameTable: NameTable): Unit =
-      val alisedMembers = new mutable.ArrayBuffer[Symbol]
-      val syms = nameTable.resolve(name)
-      for sym <- syms do
+    def importSymbol(name: String, sym: Symbol): Unit =
         if sym.isAllOf(Flags.NSpace | Flags.Branch) then
-          rp.error("Only concrete namespaces or sections can be imported", qualid.pos)
+          // Do the import anyway to avoid cascading errors
+          rp.error("Only concrete namespaces or sections can be imported/aliased", qualid.pos)
 
         if sym.isAlias && isAlias then
+          rp.error(s"Aliasing an alias is disallowed: `$name`", qualid.pos)
           alisedMembers += sym
+
         else
           createAlias(name, sym)
 
-      if imports.isEmpty then
-        if alisedMembers.nonEmpty then
-          rp.error(s"Aliasing an alias is disallowed: `$name`", qualid.pos)
+    def importName(name: String, nameTable: NameTable): Unit =
+      val syms = nameTable.resolve(name)
+      for sym <- syms do importSymbol(name, sym)
 
-        else
+      if imports.isEmpty && alisedMembers.isEmpty then
           rp.error(s"`$name` cannot be found", qualid.pos)
-
-      else
-        if alisedMembers.nonEmpty then
-          rp.warn(s"Some target(s) are ignored as aliasing aliases is forbidden: `$name`", qualid.pos)
 
     /** For aliasing, aliased members are ignored */
     def importAll(nameTable: NameTable): Unit =
       def qualify(sym: Symbol) = !sym.isSynthetic && (!sym.isAlias || !isAlias)
 
-      for sym <- nameTable.terms if qualify(sym) do createAlias(sym.name, sym)
+      for sym <- nameTable.terms if qualify(sym) do importSymbol(sym.name, sym)
 
-      for sym <- nameTable.patterns if qualify(sym) do createAlias(sym.name, sym)
+      for sym <- nameTable.patterns if qualify(sym) do importSymbol(sym.name, sym)
 
-      for sym <- nameTable.types if qualify(sym) do createAlias(sym.name, sym)
+      for sym <- nameTable.types if qualify(sym) do importSymbol(sym.name, sym)
 
     qualid match
       case Ast.Select(qual, name) =>
-        val sym = resolveContainer(qual.asInstanceOf[Ast.RefTree])
-        if sym.isContainer then
-          val nameTable = ip.dealiasedInfo(sym).as[NameTableInfo].nameTable
-          if name == "*" then
-            if sym.isAllOf(Flags.NSpace | Flags.Branch) then
-              rp.error("Only concrete namespaces or sections can be imported by *", qual.pos)
+        resolveContainer(qual.asInstanceOf[Ast.RefTree]) match
+          case Some(nameTable) =>
+            if name == "*" then
+              importAll(nameTable)
 
-            importAll(nameTable)
+            else
+              importName(name, nameTable)
 
-          else
-            importName(name, nameTable)
-
-        else if ip.info(sym) != ErrorType then
-          rp.error("Expect a namespace or section, found = " + sym, qual.pos)
+          case None =>
+        end match
 
       case _ =>
         importName(qualid.name, rootNameTable)
