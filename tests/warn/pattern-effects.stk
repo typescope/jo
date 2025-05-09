@@ -1,3 +1,5 @@
+type List[T] = #Nil | #Cons(v: T, tail: List[T])
+
 type Cons = #Cons(head: Int, tail: List[Int])
 
 fun (x: Int) :: (rest: List[Int]): Cons = #Cons x rest

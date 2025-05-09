@@ -1,4 +1,4 @@
----------- Error at ./tests/warn/pattern-scope.stk:3:19 ---------------
+---------- Error at ./tests/warn/pattern-scope.stk:6:19 ---------------
 |   case (z if z == x) :: _
 |                   ^
 |                   Undefined term identifier x
