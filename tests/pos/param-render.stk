@@ -33,8 +33,7 @@ fun renderDiv(div: DivElement) =
   recur div.elems
 
 fun main =
-  val div: DivElement =
-    #Div
-      List.empty + (#H2 "Test render") + (#Label "a dummy html rendering engine") + (#P "Hello, HTML!")
+  val div: DivElement = #Div
+    List.empty + (#H2 "Test render") + (#Label "a dummy html rendering engine") + (#P "Hello, HTML!")
 
   renderDiv div with fontSize = 14

@@ -750,7 +750,7 @@ class Namer:
       TaggedLit(tagStringLit, values2)(tagType, span)
 
     tt.knownType match
-      case Some(tp) =>
+      case Some(tp) if !tp.is[TypeVar] =>
         if tp.isUnionType then
           val unionType = tp.asUnionType
           if !unionType.hasTag(tagName) then
@@ -771,7 +771,7 @@ class Namer:
           Reporter.error(s"Expect union type or tag type, found = ${tp.show}", pos)
           errorWord(tag.span)
 
-      case None =>
+      case _ =>
         val values2 =
           for value <- values yield
             given TargetType = TargetType.ValueType
