@@ -1,3 +1,5 @@
+type List[T] = #Nil | #Cons(head: T, tail: List[T])
+
 fun main =
   test (#Some (#Some 5))
 

@@ -1,8 +1,8 @@
 // test predef
 
 fun main =
-  val l = 3 :: (4 :: Nil)
-  List l map (x => x * 2) foreach (x => println (intToStr x))
+  val l = List.empty + 3 + 4
+  l.map(x => x * 2).foreach (x => println (intToStr x))
   println
     intToStr
-      List l fold 0 (acc, i) => acc + i
+      l.fold 0 (acc, i) => acc + i

@@ -24,8 +24,8 @@ fun renderElement(e: Element): Unit =
 fun renderDiv(div: DivElement) =
   fun recur(elems: List[Element]): Unit =
     match elems
-      case #Nil =>
-      case #Cons e es =>
+      case [] =>
+      case [e, es*] =>
         renderElement e
         recur es
     end
@@ -35,12 +35,6 @@ fun renderDiv(div: DivElement) =
 fun main =
   val div: DivElement =
     #Div
-      #Cons
-        #H2 "Test render"
-        #Cons
-          #Label "a dummy html rendering engine"
-          #Cons
-            #P "Hello, HTML!"
-            #Nil
+      List.empty + (#H2 "Test render") + (#Label "a dummy html rendering engine") + (#P "Hello, HTML!")
 
   renderDiv div with fontSize = 14

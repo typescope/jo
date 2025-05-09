@@ -1,24 +1,15 @@
 type Movie = { name: String, director: String, year: Int }
 type MovieFinder = object { def findAll(): List[Movie] }
 
-fun foreach[T](movies: List[T], op: T => Unit): Unit =
-  match movies
-    case #Nil =>
-    case #Cons(m, rest) =>
-      op m
-      foreach rest op
-  end
-end
-
 param finder: MovieFinder
 
 fun moviesDirectedBy(arg: String): List[Movie] =
   val allMovies = finder.findAll()
   fun filter(movies: List[Movie]): List[Movie] =
     match movies
-      case #Nil => #Nil
-      case #Cons(m, rest) =>
-        if m.director == arg then #Cons(m, filter rest)
+      case [] => List.empty
+      case [m, rest*] =>
+        if m.director == arg then (filter rest).prepend(m)
         else filter rest
     end
   end
@@ -29,8 +20,8 @@ fun main =
     def findAll(): List[Movie] =
       val movie1 = { name = "A", director = "a", year = 2010 }
       val movie2 = { name = "B", director = "b", year = 2023 }
-      #Cons(movie1, #Cons(movie2, #Nil))
+      List.empty + movie1 + movie2
   }
 
   val res = moviesDirectedBy "b" with finder = testFinder
-  foreach res (m => println m.name)
+  res.foreach (m => println m.name)
