@@ -1,5 +1,6 @@
 package native.os
 
+import sast.Definitions
 import sast.NameTable
 import sast.Symbols.*
 
@@ -9,7 +10,7 @@ import native.Linker
 
 import scala.collection.mutable
 
-abstract class LinuxSyscall(runtimeRootNameTable: NameTable) extends Linker:
+abstract class LinuxSyscall(runtimeRootNameTable: NameTable)(using Definitions) extends Linker:
   import runtimeRootNameTable.resolveTermByPath
 
   val Syscall = resolveTermByPath("stk.runtime.native.Syscall")

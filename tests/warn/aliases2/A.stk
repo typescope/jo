@@ -1,0 +1,5 @@
+namespace A
+
+alias B.Nested.Flags
+
+alias B.Nested

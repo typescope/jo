@@ -68,7 +68,7 @@ Abstract Syntax
 
     section = SECTION ident {toplevel_def} [END].
 
-    toplevel_def = typedef | fundef | paramdef | patdef | datadef | section.
+    toplevel_def = typedef | fundef | paramdef | alias | patdef | datadef | section.
 
     qualid = ident | qualid DOT ident.
 
@@ -124,12 +124,14 @@ Abstract Syntax
 
     expr_pattern = simple_pattern {simple_pattern}.
 
-    simple_pattern = literal_pattern | ident | tag | type_pattern | ascribe_pattern | apply_pattern | LPAREN pattern RPAREN.
+    simple_pattern = literal_pattern | ident | tag | type_pattern | ascribe_pattern | apply_pattern | LPAREN pattern RPAREN | sequence_pattern.
 
     literal_pattern = integer | boolean | char | string.
     type_pattern  = ident COLON type.
     ascribe_pattern = ident '@' simple_pattern.
     apply_pattern = (tag | ident) LPAREN [pattern {COMMA pattern}] RPAREN.
+
+    sequence_pattern = LBRACK [expr_pattern {, expr_pattern}] RBRACK.
 
     valdef  = (VAL | VAR) ident [COLON type] EQL block.
 
@@ -144,6 +146,8 @@ Abstract Syntax
     branch  = ident [param_section].
 
     paramdef = PARAM param [EQL block].
+
+    alias = ALIAS qualid.
 
     typedef = TYPE ident[tparams] [EQL type | SUBTYPE type].
     tparams = LBRACKET tparam {COMMA tparam} RBRACKET.
@@ -171,7 +175,7 @@ Abstract Syntax
     method_decl = DEF ident param_section COLON type [receive_params].
     val_decl    = (VAL | VAR) ident COLON type.
 
-    param_section = LPAREN [params] RPAREN
+    param_section = LPAREN [params] RPAREN.
     params        = param {COMMA param}.
     param         = ident COLON type.
 

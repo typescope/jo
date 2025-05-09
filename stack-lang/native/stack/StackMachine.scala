@@ -279,21 +279,26 @@ extends Backend(runtime):
   def compile(app: Apply)(using LocalAddr, CodeBuffer): Unit =
     app.funSymbol match
       case Some(sym) =>
-        if sym.owner == defn.Predef then
+        val target = sym.dealias
+
+        if target.owner == defn.Int || target.owner == defn.Bool then
           for arg <- app.args do compile(arg)
-          callPredef(sym)
-        else if sym.owner == runtime.Core then
-          if sym == runtime.Core_data then
+          callPrimitive(target)
+
+        else if target.owner == runtime.Core then
+          if target == runtime.Core_data then
             // TODO: error instead of crash -- in early phases
             val Literal(Constant.String(qualid)) :: Nil = app.args: @unchecked
             val Some(label) = runtime.locate(qualid): @unchecked
             push(label)
+
           else
             for arg <- app.args do compile(arg)
-            callCore(sym)
+            callCore(target)
+
         else
           for arg <- app.args do compile(arg)
-          call(sym)
+          call(target)
 
       case _ =>
         compile(app.fun)
@@ -320,29 +325,31 @@ extends Backend(runtime):
     cb.add(Instr.Sub(Reg(SP_REG), Int32(4), SP_REG))
     cb.add(Instr.Store(v, Reg(SP_REG)))
 
-  def callPredef(sym: Symbol)(using cb: CodeBuffer): Unit =
+  def callPrimitive(sym: Symbol)(using cb: CodeBuffer): Unit =
 
     sym match
-      case defn.Predef_add    =>   int2(Instr.Add)
-      case defn.Predef_sub    =>   int2(Instr.Sub)
-      case defn.Predef_mul    =>   int2(Instr.Mul)
-      case defn.Predef_div    =>   int2(Instr.Div)
-      case defn.Predef_mod    =>   int2(Instr.Mod)
-      case defn.Predef_gt     =>   int2(Instr.Gt)
-      case defn.Predef_lt     =>   int2(Instr.Lt)
-      case defn.Predef_ge     =>   int2(Instr.Ge)
-      case defn.Predef_le     =>   int2(Instr.Le)
-      case defn.Predef_srl    =>   int2(Instr.Srl)
-      case defn.Predef_sll    =>   int2(Instr.Sll)
-      case defn.Predef_land   =>   int2(Instr.And)
-      case defn.Predef_lor    =>   int2(Instr.Or)
-      case defn.Predef_lxor   =>   int2(Instr.Xor)
-      case defn.Predef_both   =>   int2(Instr.And)
-      case defn.Predef_either =>   int2(Instr.Or)
-      case defn.Predef_not    =>   bnot()
-      case defn.Predef_eql    =>   eql()
-      case _                  =>   call(sym)
-  end callPredef
+      case defn.Int_add    =>   int2(Instr.Add)
+      case defn.Int_sub    =>   int2(Instr.Sub)
+      case defn.Int_mul    =>   int2(Instr.Mul)
+      case defn.Int_div    =>   int2(Instr.Div)
+      case defn.Int_mod    =>   int2(Instr.Mod)
+      case defn.Int_gt     =>   int2(Instr.Gt)
+      case defn.Int_lt     =>   int2(Instr.Lt)
+      case defn.Int_ge     =>   int2(Instr.Ge)
+      case defn.Int_le     =>   int2(Instr.Le)
+      case defn.Int_srl    =>   int2(Instr.Srl)
+      case defn.Int_sll    =>   int2(Instr.Sll)
+      case defn.Int_land   =>   int2(Instr.And)
+      case defn.Int_lor    =>   int2(Instr.Or)
+      case defn.Int_lxor   =>   int2(Instr.Xor)
+      case defn.Int_eql    =>   eql()
+
+      case defn.Bool_both   =>   int2(Instr.And)
+      case defn.Bool_either =>   int2(Instr.Or)
+      case defn.Bool_not    =>   bnot()
+
+      case _                 =>   call(sym)
+  end callPrimitive
 
   def callCore(sym: Symbol)(using cb: CodeBuffer): Unit =
     sym match
@@ -466,10 +473,10 @@ object StackMachine:
   end RegisterAllocator
 
   def createLinux86(runtimeRootNameTable: NameTable, main: Symbol, defn: Definitions): Backend =
-    val bumpAllocator = new BumpAllocator(runtimeRootNameTable)
-    val syscalls = Linux.createSyscallStack(runtimeRootNameTable)
+    val bumpAllocator = new BumpAllocator(runtimeRootNameTable)(using defn)
+    val syscalls = Linux.createSyscallStack(runtimeRootNameTable)(using defn)
     val linkers = List(bumpAllocator, syscalls)
-    val runtime = new NativeRuntime(runtimeRootNameTable, linkers, main)
+    val runtime = new NativeRuntime(runtimeRootNameTable, linkers, main)(using defn)
 
     new StackMachine(Linux.x86RegConfig, runtime)(using defn)
 

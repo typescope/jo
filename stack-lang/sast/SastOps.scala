@@ -12,7 +12,7 @@ import scala.collection.mutable
 object SastOps:
   class AdaptionFailure(word: Word, targetType: Type) extends Exception:
     override def toString(): String =
-      "Unable to adapt " + word + " of type " + word.tpe.show + " to " + targetType.show
+      "Unable to adapt " + word + " of type " + word.tpe + " to " + targetType
 
   /** Adapt the word to the target type.
     *
@@ -59,9 +59,9 @@ object SastOps:
   : Type =
 
     if
-      targetType.refersTo(defn.Predef_Byte) && n < 128 && n >= -128
-      || targetType.refersTo(defn.Predef_Char) && n < 65536 && n >= 0
-      || targetType.refersTo(defn.Predef_Int)
+      targetType.refers(defn.Predef_Byte) && n < 128 && n >= -128
+      || targetType.refers(defn.Predef_Char) && n < 65536 && n >= 0
+      || targetType.refers(defn.Int_Int)
     then
       targetType
 
@@ -70,36 +70,36 @@ object SastOps:
 
   def coerceNumeric(word: Word, targetType: Type)(using defn: Definitions): Word =
     val origType = word.tpe
-    if origType.refersTo(defn.Predef_Byte) then
-      if targetType.refersTo(defn.Predef_Char) then
+    if origType.refers(defn.Predef_Byte) then
+      if targetType.refers(defn.Predef_Char) then
         val byteToChar = Ident(defn.Predef_byteToChar)(word.span)
         Apply(byteToChar, word :: Nil)(targetType, word.span)
 
-      else if targetType.refersTo(defn.Predef_Int) then
+      else if targetType.refers(defn.Int_Int) then
         val byteToInt = Ident(defn.Predef_byteToInt)(word.span)
         Apply(byteToInt, word :: Nil)(targetType, word.span)
 
       else
         Reporter.abortInternal("Unexpected numeric type " + targetType.show)
 
-    else if origType.refersTo(defn.Predef_Char) then
-      if targetType.refersTo(defn.Predef_Byte) then
+    else if origType.refers(defn.Predef_Char) then
+      if targetType.refers(defn.Predef_Byte) then
         word
 
-      else if targetType.refersTo(defn.Predef_Int) then
+      else if targetType.refers(defn.Int_Int) then
         val charToInt = Ident(defn.Predef_charToInt)(word.span)
         Apply(charToInt, word :: Nil)(targetType, word.span)
 
       else
         Reporter.abortInternal("Unexpected numeric type " + targetType.show)
 
-    else if origType.refersTo(defn.Predef_Int) then
+    else if origType.refers(defn.Int_Int) then
       word
 
     else
       Reporter.abortInternal("Unexpected numeric type " + origType.show)
 
-  abstract class TreeMap:
+  abstract class TreeMap(using Definitions):
     type Context
 
     final def apply(word: Word)(using Context): Word =
@@ -173,6 +173,8 @@ object SastOps:
 
         case pat: WildcardPattern => transformWildcardPattern(pat)
 
+        case pat: SeqPattern => transformSeqPattern(pat)
+
     def transformLiteral(lit: Literal)(using Context): Word = recur(lit)
 
     def transformIdent(ident: Ident)(using Context): Word = recur(ident)
@@ -199,11 +201,11 @@ object SastOps:
 
     def transformValDef(vdef: ValDef)(using Context): Word = recurValDef(vdef)
 
-    def transformNestedFunDef(fdef: FunDef)(using Context): Word = recurFunDef(fdef)
+    def transformNestedFunDef(fdef: FunDef)(using Context): Word = recurNestedFunDef(fdef)
 
-    def transformNestedPatDef(pdef: PatDef)(using Context): Word = recurPatDef(pdef)
+    def transformNestedPatDef(pdef: PatDef)(using Context): Word = recurNestedPatDef(pdef)
 
-    def transformNestedTypeDef(tdef: TypeDef)(using Context): TypeDef = recurTypeDef(tdef)
+    def transformNestedTypeDef(tdef: TypeDef)(using Context): TypeDef = recurNestedTypeDef(tdef)
 
     def transformIf(ifElse: If)(using Context): Word = recur(ifElse)
 
@@ -230,6 +232,8 @@ object SastOps:
 
     def transformGuardPattern(pat: GuardPattern)(using Context) = recur(pat)
 
+    def transformSeqPattern(pat: SeqPattern)(using Context) = recur(pat)
+
     def transformTermBindingPattern(pat: TermBindingPattern)(using Context) = recur(pat)
 
     def transformWildcardPattern(pat: WildcardPattern)(using Context) = recur(pat)
@@ -238,13 +242,13 @@ object SastOps:
     private def recurValDef(vdef: ValDef)(using Context): ValDef =
       ValDef(vdef.symbol, this(vdef.rhs))(vdef.span)
 
-    private def recurFunDef(fdef: FunDef)(using ctx: Context): FunDef =
+    private def recurNestedFunDef(fdef: FunDef)(using ctx: Context): FunDef =
       val body = this(fdef.body)
       fdef.copy(body = body)(fdef.span)
 
-    private def recurTypeDef(tdef: TypeDef)(using Context): TypeDef = tdef
+    private def recurNestedTypeDef(tdef: TypeDef)(using Context): TypeDef = tdef
 
-    private def recurPatDef(pdef: PatDef)(using Context): PatDef =
+    private def recurNestedPatDef(pdef: PatDef)(using Context): PatDef =
       pdef.copy(body = this(pdef.body))(pdef.span)
 
     final def recur(pattern: Pattern)(using Context): Pattern =
@@ -275,6 +279,23 @@ object SastOps:
             yield Assign(id, this(rhs))(ass.span)
 
           TermBindingPattern(this(pattern), bindings2)
+
+        case SeqPattern(patterns) =>
+          val patterns2 =
+            for regPat <- patterns yield
+              regPat match
+                case AtomPattern(pattern) =>
+                  AtomPattern(this(pattern))
+
+                case SkipToPattern(pattern) =>
+                  SkipToPattern(this(pattern))(regPat.tpe, regPat.span)
+
+                case starPat @ StarPattern(pattern) =>
+                  StarPattern(this(pattern))(regPat.tpe, regPat.span, starPat.bindings)
+              end match
+            end for
+
+          SeqPattern(patterns2)(pattern.tpe, pattern.span)
 
         case _: WildcardPattern => pattern
 
@@ -326,11 +347,11 @@ object SastOps:
 
         case vdef: ValDef => recurValDef(vdef)
 
-        case fdef: FunDef => recurFunDef(fdef)
+        case fdef: FunDef => recurNestedFunDef(fdef)
 
-        case pdef: PatDef => recurPatDef(pdef)
+        case pdef: PatDef => recurNestedPatDef(pdef)
 
-        case tdef: TypeDef => recurTypeDef(tdef)
+        case tdef: TypeDef => recurNestedTypeDef(tdef)
 
         case If(cond, thenp, elsep) =>
           If(this(cond), this(thenp), this(elsep))(word.tpe, word.span)
@@ -350,7 +371,7 @@ object SastOps:
 
         case Object(self, vals, defs) =>
           val vals2: List[ValDef] = vals.map(recurValDef)
-          val defs2: List[FunDef] = defs.map(recurFunDef)
+          val defs2: List[FunDef] = defs.map(recurNestedFunDef)
           Object(self, vals2, defs2)(word.tpe, word.span)
     end recur
   end TreeMap
@@ -365,13 +386,11 @@ object SastOps:
 
     def recurValDef(vdef: ValDef)(using Context): Unit = this(vdef.rhs)
 
-    def recurFunDef(fdef: FunDef)(using Context): Unit = this(fdef.body)
+    def recurNestedFunDef(fdef: FunDef)(using Context): Unit = this(fdef.body)
 
-    def recurTypeDef(tdef: TypeDef)(using Context): Unit = ()
+    def recurNestedTypeDef(tdef: TypeDef)(using Context): Unit = ()
 
-    def recurParamDef(pdef: ParamDef)(using Context): Unit = ()
-
-    def recurPatDef(pdef: PatDef)(using Context): Unit = this(pdef.body)
+    def recurNestedPatDef(pdef: PatDef)(using Context): Unit = this(pdef.body)
 
     def recur(pattern: Pattern)(using Context): Unit =
       pattern match
@@ -398,6 +417,14 @@ object SastOps:
           this(guard)
 
         case TermBindingPattern(pattern, bindings) =>
+
+        case SeqPattern(pats) =>
+          pats.foreach:
+            case AtomPattern(pattern) => this(pattern)
+
+            case SkipToPattern(pattern) => this(pattern)
+
+            case StarPattern(pattern) => this(pattern)
 
         case WildcardPattern() =>
 
@@ -444,11 +471,11 @@ object SastOps:
 
         case vdef: ValDef => recurValDef(vdef)
 
-        case fdef: FunDef => recurFunDef(fdef)
+        case fdef: FunDef => recurNestedFunDef(fdef)
 
-        case tdef: TypeDef => recurTypeDef(tdef)
+        case tdef: TypeDef => recurNestedTypeDef(tdef)
 
-        case pdef: PatDef => recurPatDef(pdef)
+        case pdef: PatDef => recurNestedPatDef(pdef)
 
         case If(cond, thenp, elsep) =>
           this(cond)
@@ -469,13 +496,13 @@ object SastOps:
             this(body)
 
         case Object(self, vals, defs) =>
-          vals.map(recurValDef)
-          defs.map(recurFunDef)
+          vals.map(this.apply)
+          defs.map(this.apply)
     end recur
   end TreeTraverser
 
   /** Returns (locals, free) */
-  def variableCensus(fdef: FunDef): (List[Symbol], List[Symbol]) =
+  def variableCensus(fdef: FunDef)(using Definitions): (List[Symbol], List[Symbol]) =
     val census = new VariableCensus
     census(fdef.body)(using ())
     val locals = census.locals.distinct.toList
@@ -483,15 +510,11 @@ object SastOps:
     val free = census.free.filter(sym => !masked.contains(sym)).distinct.toList
     (locals.filter(_.info.isValueType), free)
 
-  class VariableCensus extends TreeTraverser:
+  class VariableCensus(using Definitions) extends TreeTraverser:
     val locals = new mutable.ArrayBuffer[Symbol]
     val free = new mutable.ArrayBuffer[Symbol]
 
     type Context = Unit
-
-    override def recurFunDef(fdef: FunDef)(using Context): Unit =
-      locals += fdef.symbol
-      free ++= variableCensus(fdef)._2
 
     def apply(word: Word)(using Context): Unit =
       word match
@@ -510,5 +533,9 @@ object SastOps:
         case obj: Object =>
           locals += obj.self
           recur(obj)
+
+        case fdef: FunDef =>
+          locals += fdef.symbol
+          free ++= fdef.freeVariables
 
         case _ => recur(word)

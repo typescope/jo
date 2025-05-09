@@ -10,17 +10,11 @@ import scala.collection.mutable
 
 /** Operations on types */
 object TypeOps:
-
-  /** Substitute type params with the given types */
-  def substTypeParams(tpe: Type, to: List[Type]): Type =
-    val typeMap = new TypeOps.TypeParamTypeMap
-    typeMap(tpe)(using to)
-
   /** Substitute type symbols with the supplied types.
     *
     * This method is used in type checking definitions with type parameters.
     */
-  def substSymbols(tpe: Type, substs: Map[Symbol, Type]): Type =
+  def substSymbols(tpe: Type, substs: Map[Symbol, Type])(using Definitions): Type =
     val typeMap = new TypeOps.SymbolsTypeMap
     typeMap(tpe)(using substs)
 
@@ -33,7 +27,7 @@ object TypeOps:
     * It approximates a type to its upper bound or lower bound according to
     * the spec.
     */
-  def approx(tp: Type, isUp: Boolean): Type =
+  def approx(tp: Type, isUp: Boolean)(using Definitions): Type =
     // detect cycles in symbol definitions, e.g., type A = A
     val encountered = new mutable.ArrayBuffer[ProxyType]
     def recur(tp: Type, isUp: Boolean): Type = Debug.trace(s"$tp.approx", enable = false):
@@ -59,7 +53,7 @@ object TypeOps:
         case app @ AppliedType(tctor, targs) =>
           recur(tctor, isUp) match
             case tl: TypeLambda =>
-              recur(TypeOps.substTypeParams(tl.body, targs), isUp)
+              recur(tl.instantiate(targs), isUp)
 
             case _ =>
               app
@@ -74,13 +68,13 @@ object TypeOps:
     *
     * In particular, type parameters are not reduced to their bounds.
     */
-  def dealias(tp: Type): Type =
+  def dealias(tp: Type)(using Definitions): Type =
     // detect cycles in symbol definitions, e.g., type A = A
     val encountered = new mutable.ArrayBuffer[ProxyType]
     def recur(tp: Type): Type = Debug.trace(s"$tp.dealias", enable = false):
       tp match
-        case tref: TypeRef =>
-          if encountered.contains(tref) || tref.symbol.isTypeParameter || !tref.symbol.isType then
+        case tref @ TypeRef(sym) =>
+          if encountered.contains(tref) || sym.isTypeParameter || !sym.isType && !sym.isAlias then
             tref
           else
             encountered += tref
@@ -96,7 +90,7 @@ object TypeOps:
         case app @ AppliedType(tctor, targs) =>
           recur(tctor) match
             case tl: TypeLambda =>
-              recur(TypeOps.substTypeParams(tl.body, targs))
+              recur(tl.instantiate(targs))
 
             case _ =>
               app
@@ -112,10 +106,11 @@ object TypeOps:
     *
     * - type aliases
     * - instaniated type variables
+    * - constant
     */
-  def isGrounded(tp: Type): Boolean =
+  def isGrounded(tp: Type)(using Definitions): Boolean =
     tp match
-      case TypeRef(sym) => !sym.isType || sym.info.isInstanceOf[TypeBound]
+      case TypeRef(sym) => (!sym.isType && !sym.isAlias) || sym.info.isInstanceOf[TypeBound]
 
       case AppliedType(TypeRef(sym), _) =>
         sym.info match
@@ -124,12 +119,19 @@ object TypeOps:
 
       case tvar: TypeVar => !tvar.isInstantiated
 
+      case _: ConstantType => false
+
       case _ => true
 
-  /** A grouned proxy type dealiases to a grounded type */
-  def isGroundedProxy(tp: ProxyType): Boolean = isGrounded(tp.dealias)
+  /** A grouned proxy type dealiases to a grounded type
+    *
+    * It is used as a guard in subtype checking to defend against simple cycles
+    * such as A = A.
+    */
+  def isGroundedProxy(tp: ProxyType)(using Definitions): Boolean = isGrounded(tp.dealias)
 
-  def show(tp: Type): String =
+  // TODO: move to Printing
+  def show(tp: Type)(using Definitions): String =
     tp match
       case VoidType    => "void"
       case AnyType     => "Any"
@@ -160,7 +162,7 @@ object TypeOps:
           mod + f.name + ": " + show(f.info)
 
         val methodList = methods.map: m =>
-          "def " + m.name + show(m.info.dealias)
+          "def " + m.name + show(m.info.widenTermRef)
 
         (fieldList ++ methodList).mkString("object { ", "; ", " }")
 
@@ -179,9 +181,6 @@ object TypeOps:
       case TypeLambda(tparams, body) =>
         val tparamStr = tparams.map(tparam => tparam.name + " <: " + show(tparam.info)).mkString("[", ", ", "]")
         tparamStr + " => " + show(body)
-
-      case TypeParamRef(name, _) =>
-        name
 
       case TypeBound(lo, hi) =>
         show(lo) + " .. " + show(hi)
@@ -207,7 +206,7 @@ object TypeOps:
       case _: NameTableInfo => "{ ...nametable }"
   end show
 
-  trait TypeMap:
+  abstract class TypeMap(using Definitions):
     type Context
 
     def apply(tp: Type)(using Context): Type
@@ -217,7 +216,7 @@ object TypeOps:
         case VoidType | ErrorType | AnyType | BottomType =>
           tp
 
-        case _: TypeRef | _: TypeParamRef | _: TypeVar | _: NameTableInfo | _: ConstantType =>
+        case _: TypeRef | _: TypeVar | _: NameTableInfo | _: ConstantType =>
           tp
 
         case RecordType(fields) =>
@@ -255,50 +254,28 @@ object TypeOps:
           AppliedType(tctor2, targs2)
 
         case TypeLambda(tparams, resType) =>
-          val tparams2 =
-            for tparam <- tparams
-            yield tparam.copy(info = this(tparam.info).as[TypeBound])
-
-          val resType2 = this(resType)
-          TypeLambda(tparams2, resType2)
+          // TODO: Once type bounds are supported, we need to transform bounds
+          TypeLambda(tparams, this(resType))
 
         case TypeBound(lo, hi) =>
           TypeBound(this(lo), this(hi))
 
         case ProcType(tparams, params, resType, receivesOpt, preParamCount) =>
-          val tparams2 =
-            for tparam <- tparams
-            yield tparam.copy(info = this(tparam.info).as[TypeBound])
-
+          // TODO: Once type bounds are supported, we need to transform bounds
           val params2 =
             for param <- params
             yield param.copy(info = this(param.info))
 
           val resType2 = this(resType)
-          ProcType(tparams2, params2, resType2, receivesOpt, preParamCount)
+          ProcType(tparams, params2, resType2, receivesOpt, preParamCount)
 
-  class SymbolsTypeMap extends TypeMap:
+  class SymbolsTypeMap(using Definitions) extends TypeMap:
     type Context = Map[Symbol, Type]
 
     def apply(tp: Type)(using ctx: Context): Type =
       tp match
         case TypeRef(sym) =>
           ctx.getOrElse(sym, tp)
-
-        case _ =>
-          recur(tp)
-
-  class TypeParamTypeMap extends TypeMap:
-    type Context = List[Type]
-
-    def apply(tp: Type)(using ctx: Context): Type =
-      tp match
-        case TypeParamRef(_, index) =>
-          ctx(index)
-
-        case _: TypeLambda =>
-          // nested type lambdas are not supported
-          tp
 
         case _ =>
           recur(tp)

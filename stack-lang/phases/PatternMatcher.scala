@@ -7,6 +7,8 @@ import sast.Sast.*
 import sast.Symbols.*
 import sast.Types.*
 
+import Sast.SeqPattern.Size
+
 import scala.collection.mutable
 
 class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Context]:
@@ -17,8 +19,8 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
   val StringType = defn.StringType
 
   val abortSym = defn.Predef_abort
-  val eitherSym = defn.Predef_either
-  val bothSym = defn.Predef_both
+  val eitherSym = defn.Bool_either
+  val bothSym = defn.Bool_both
 
   override def transform(nss: List[Namespace]): List[Namespace] =
     val implMap = mutable.Map.empty[Symbol, Symbol]
@@ -37,7 +39,6 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
 
   private def createImplFunSymbol(predSym: Symbol): Symbol =
     val predType = predSym.info.asProcType
-    val bounds = predType.tparams
     val params = NamedInfo("scrutinee", predType.resultType.stripPartial) :: Nil
 
     val successType = TagType("Success", predType.params)
@@ -45,7 +46,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
     val resultType = UnionType(successType :: failType :: Nil)
     val receives = Some(Nil)
 
-    val funType = ProcType(bounds, params, resultType, receives, preParamCount = 0)
+    val funType = ProcType(predType.tparams, params, resultType, receives, preParamCount = 0)
     Symbol.createSymbol(predSym.name + "$impl", funType, Flags.Fun | Flags.Synthetic, predSym.owner, predSym.sourcePos)
 
   private def getImplFunSymbol(predSym: Symbol, implMap: mutable.Map[Symbol, Symbol]): Symbol =
@@ -139,7 +140,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
       case AscribePattern(id, nested) =>
         val cond = transformPattern(scrut, nested)
         // It is more performant to always assign
-        val assign = Assign(id, scrut)(pat.span)
+        val assign = Assign(id, scrut.encodedAs(id.symbol.info))(pat.span)
         Block(assign :: cond :: Nil)(BoolType, pat.span)
 
       case TypePattern(tpt) =>
@@ -156,6 +157,9 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
 
       case valuePattern: ValuePattern =>
         transformValuePattern(scrut, valuePattern)
+
+      case seqPat: SeqPattern =>
+        transformSeqPattern(scrut, seqPat)
 
       case GuardPattern(pattern, guard) =>
         val cond = transformPattern(scrut, pattern)
@@ -180,27 +184,27 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
     If(lhsCond, BoolLit(true)(lhs.span), rhsCond)(BoolType, orPattern.span)
 
   private def transformValuePattern(scrut: Ident, pat: ValuePattern): Word =
-    pat.value.tpe match
-      case defn.ByteType   =>
-        Ident(defn.Predef_eql)(pat.span).appliedTo(pat.value, scrut)
+    val tp = pat.value.tpe
+    if tp.refers(defn.Predef_Byte) then
+      Ident(defn.Int_eql)(pat.span).appliedTo(pat.value, scrut)
 
-      case defn.IntType    =>
-        Ident(defn.Predef_eql)(pat.span).appliedTo(pat.value, scrut)
+    else if tp.refers(defn.Int_Int) then
+      Ident(defn.Int_eql)(pat.span).appliedTo(pat.value, scrut)
 
-      case defn.CharType   =>
-        Ident(defn.Predef_eql)(pat.span).appliedTo(pat.value, scrut)
+    else if tp.refers(defn.Predef_Char) then
+      Ident(defn.Int_eql)(pat.span).appliedTo(pat.value, scrut)
 
-      case defn.BoolType   =>
-        val bothTrue = Ident(defn.Predef_both)(pat.span).appliedTo(pat.value, scrut)
-        val notValue = Ident(defn.Predef_not)(pat.span).appliedTo(pat.value)
-        val notScrut = Ident(defn.Predef_not)(pat.span).appliedTo(scrut)
-        val bothFalse = Ident(defn.Predef_both)(pat.span).appliedTo(notValue, notScrut)
-        Ident(defn.Predef_either)(pat.span).appliedTo(bothTrue, bothFalse)
+    else if tp.refers(defn.Bool_Bool) then
+      val bothTrue = Ident(defn.Bool_both)(pat.span).appliedTo(pat.value, scrut)
+      val notValue = Ident(defn.Bool_not)(pat.span).appliedTo(pat.value)
+      val notScrut = Ident(defn.Bool_not)(pat.span).appliedTo(scrut)
+      val bothFalse = Ident(defn.Bool_both)(pat.span).appliedTo(notValue, notScrut)
+      Ident(defn.Bool_either)(pat.span).appliedTo(bothTrue, bothFalse)
 
-      case defn.StringType =>
-        scrut.select("==").appliedTo(pat.value)
+    else if tp.refers(defn.Predef_String) then
+      scrut.select("==").appliedTo(pat.value)
 
-      case _ => throw new Exception("Unexpected literal type: " + pat.value.tpe.show)
+    else throw new Exception("Unexpected literal type: " + pat.value.tpe.show)
 
   private def transformApplyPattern(scrut: Ident, applyPattern: ApplyPattern)
     (using ctx: Context, source: Source)
@@ -414,6 +418,165 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
           If(condTag, nestedBlock, BoolLit(false)(span))(BoolType, span)
 
         case _ => nestedBlock
+
+  private def transformSeqPattern(scrut: Ident, seqPattern: SeqPattern)
+      (using ctx: Context, source: Source)
+  : Word =
+
+    val conds = new mutable.ArrayBuffer[Word]
+
+    // var index = 0
+    val indexSym = Symbol.createSymbol("index", IntType, Flags.Mutable | Flags.Synthetic, ctx.owner, seqPattern.pos)
+    val indexIdent = Ident(indexSym)(seqPattern.span)
+    val indexInit = Assign(indexIdent, IntLit(0)(seqPattern.span))(seqPattern.span)
+
+    // val size = scrut.size()
+    val sizeSym = Symbol.createSymbol("size", IntType, Flags.Synthetic, ctx.owner, seqPattern.pos)
+    val sizeIdent = Ident(sizeSym)(seqPattern.span)
+    val sizeInit = Assign(sizeIdent, scrut.select("size").appliedTo())(seqPattern.span)
+
+    // index = index + 1
+    def indexIncrement(span: Span): Word =
+      val addOne = Apply(Ident(defn.Int_add)(span), indexIdent :: IntLit(1)(span) :: Nil)(defn.IntType, span)
+      Assign(indexIdent, addOne)(span)
+
+    // x = scrutine(index)
+    def itemAtIndexAssign(span: Span): Assign =
+      val appType = scrut.tpe.termMember("apply").asProcType
+      val itemType = appType.resultType
+      val itemValue = Apply(Select(scrut, "apply")(appType, span), indexIdent :: Nil)(itemType, span)
+
+      val itemSym = Symbol.createSymbol("item", itemType, Flags.Synthetic, ctx.owner, span.toPos)
+      val itemIdent = Ident(itemSym)(span)
+      Assign(itemIdent, itemValue)(span)
+
+    def distanceToEndCheck(dist: Size, span: Span): Word =
+      dist match
+        case Size.GreatEq(m) =>
+          // index + m <= size
+          val le = Ident(defn.Int_le)(span)
+          val distLit = IntLit(m)(span)
+          val lhs = Ident(defn.Int_add)(span).appliedTo(indexIdent, distLit)
+          le.appliedTo(lhs, sizeIdent)
+
+        case Size.Exact(m) =>
+          // index + m == size
+          val eql = Ident(defn.Int_eql)(span)
+          val distLit = IntLit(m)(span)
+          val lhs = Ident(defn.Int_add)(span).appliedTo(indexIdent, distLit)
+          eql.appliedTo(lhs, sizeIdent)
+
+    def totalSizeCheck(): Word =
+      val span = seqPattern.span
+
+      seqPattern.totalSize match
+        case Size.GreatEq(m) =>
+          // m <= size
+          val le = Ident(defn.Int_le)(span)
+          val distLit = IntLit(m)(span)
+          le.appliedTo(distLit, sizeIdent)
+
+        case Size.Exact(m) =>
+          // index == size
+          val eql = Ident(defn.Int_eql)(span)
+          val distLit = IntLit(m)(span)
+          eql.appliedTo(distLit, sizeIdent)
+
+    // TODO: optimize last irrefutable star pattern with no bindings
+    for (pat, i) <- seqPattern.patterns.zipWithIndex do
+      val itemAssign = itemAtIndexAssign(pat.span)
+      val increment = indexIncrement(pat.span)
+      val distanceOK = distanceToEndCheck(seqPattern.distanceToEnd(i), pat.span)
+      val distanceAllowMore = distanceToEndCheck(seqPattern.distanceToEnd(i) + Size.GreatEq(1), pat.span)
+
+      pat match
+        case AtomPattern(pattern) =>
+          // if distanceAllowMore then
+          //   x = scrutinee(index)
+          //   index = index + 1
+          //   x ~ pattern && distanceOK
+          // else
+          //   false
+          val nestedCond = transformPattern(itemAssign.ident, pattern)
+          val finalCond = all(nestedCond, distanceOK)
+          val block = Block(itemAssign :: increment :: finalCond :: Nil)(BoolType, pattern.span)
+
+          conds += If(distanceAllowMore, block, BoolLit(false)(pattern.span))(BoolType, pattern.span)
+
+        case SkipToPattern(pattern) =>
+          // var found = false
+          // while !found && distanceAllowMore do
+          //   x = scrutinee(index)
+          //   index = index + 1
+          //   found = x ~ pattern
+          //
+          // found && distanceOK
+
+          val foundSym = Symbol.createSymbol("found", BoolType, Flags.Mutable | Flags.Synthetic, ctx.owner, pat.pos)
+          val foundIdent = Ident(foundSym)(pat.span)
+          val foundInit = Assign(foundIdent, BoolLit(false)(pat.span))(pat.span)
+
+          val notFound = Ident(defn.Bool_not)(pat.span).appliedTo(foundIdent)
+          val cond = all(notFound, distanceAllowMore)
+
+          val nestedCond = transformPattern(itemAssign.ident, pattern)
+          val foundUpdate = Assign(foundIdent, nestedCond)(pat.span)
+          val body = Block(itemAssign :: increment :: foundUpdate :: Nil)(VoidType, pat.span)
+          val whileLoop = While(cond, body)(pat.span)
+
+          val finalCond = all(foundIdent, distanceOK)
+          conds += Block(foundInit :: whileLoop :: finalCond :: Nil)(BoolType, pat.span)
+
+        case starPat @ StarPattern(pattern) =>
+          //  var continue = true
+          //  ys = []   -- outer pattern bound symbol corresponding to inner symbol y
+          //  while continue && distanceAllowMore do
+          //    x = scrutinee(index)
+          //    continue = x ~ pattern
+          //    if continue then
+          //      index = index + 1
+          //      ys = ys + y
+          //  distanceOK
+
+          val continueSym = Symbol.createSymbol("continue", BoolType, Flags.Mutable | Flags.Synthetic, ctx.owner, pat.pos)
+          val continueIdent = Ident(continueSym)(pat.span)
+          val continueInit = Assign(continueIdent, BoolLit(true)(pat.span))(pat.span)
+
+          val inits =
+            for (outerSym, innerSym) <- starPat.bindings yield
+              val emptyList = Ident(defn.List_empty)(pat.span).appliedToTypes(innerSym.info).appliedTo()
+              Assign(Ident(outerSym)(pat.span), emptyList)(pat.span)
+
+          val updates =
+            for (outerSym, innerSym) <- starPat.bindings yield
+              val outer = Ident(outerSym)(pat.span)
+              val inner = Ident(innerSym)(pat.span)
+              val append = outer.select("+").appliedTo(inner)
+              Assign(Ident(outerSym)(pat.span), append)(pat.span)
+
+          val cond = all(continueIdent, distanceAllowMore)
+          val nestedCond = transformPattern(itemAssign.ident, pattern)
+          val continueUpdate = Assign(continueIdent, nestedCond)(pat.span)
+          val nestedIf = If(continueIdent, Block(increment :: updates)(VoidType, pat.span), Block(Nil)(VoidType, pat.span))(VoidType, pat.span)
+          val body = Block(itemAssign :: continueUpdate :: nestedIf :: Nil)(VoidType, pat.span)
+          val whileLoop = While(cond, body)(pat.span)
+
+          val finalCond = distanceOK
+          conds += Block((continueInit :: inits) :+ whileLoop :+ finalCond)(BoolType, pat.span)
+      end match
+    end for
+
+    val allCond =
+      if conds.isEmpty then
+        totalSizeCheck()
+      else
+        val patternConds =
+          conds.reduceRight: (cond, acc) =>
+            If(cond, acc, BoolLit(false)(cond.span))(BoolType, cond.span | acc.span)
+
+        If(totalSizeCheck(), patternConds, BoolLit(false)(seqPattern.span))(BoolType, seqPattern.span)
+
+    Block(indexInit :: sizeInit :: allCond :: Nil)(BoolType, seqPattern.span)
 
   private def needTagTest(scrut: Ident, tag: String): Boolean =
     !scrut.tpe.isTagType || scrut.tpe.asTagType.tag != tag

@@ -1,0 +1,35 @@
+namespace A
+
+import B
+
+alias B.Inner.Message
+alias B.foo
+alias B.prefix
+
+type Flags = Int
+
+section Nested
+  alias B.Inner.*
+
+  alias B.foo
+
+  fun bar(x: Option[Message]) =
+    match x
+      case Some s => println s
+      case None => println "none"
+end
+
+alias B.Inner
+
+fun main =
+  Nested.foo "alias foo"
+
+  Nested.foo "alias foo" with prefix = "[warn]"
+
+  Nested.bar (Nested.Some "alias some")
+
+  Inner.foo "alias B.inner"
+
+  Inner.foo "alias B.inner" with prefix = "[warn]"
+
+  B.Nested.bar 5

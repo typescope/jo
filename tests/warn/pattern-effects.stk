@@ -1,3 +1,5 @@
+type List[T] = #Nil | #Cons(v: T, tail: List[T])
+
 type Cons = #Cons(head: Int, tail: List[Int])
 
 fun (x: Int) :: (rest: List[Int]): Cons = #Cons x rest
@@ -11,8 +13,7 @@ param delta: Int
 fun bar(x: Int): Int = x + delta
 
 fun foo(x: Int): Int =
-  println (intToStr x)
-  x + 1
+  x + 1 + delta
 
 pattern Len(x: Int): List[Int] =
   case Nil if foo 3 > 0 then x = 0

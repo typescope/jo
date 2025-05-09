@@ -1,5 +1,6 @@
 package native.runtime
 
+import sast.Definitions
 import sast.NameTable
 import sast.Symbols.*
 
@@ -7,7 +8,7 @@ import native.Assembly.Label
 import native.Assembler.PatchableBuffer
 import native.Linker
 
-class BumpAllocator(runtimeRootNameTable: NameTable)
+class BumpAllocator(runtimeRootNameTable: NameTable)(using Definitions)
 extends Linker:
   val allocatorStateLabel = Label("allocatorState")
 
@@ -32,8 +33,10 @@ extends Linker:
   def locate(sym: Symbol): Option[Symbol] =
     if sym == GC_alloc then
       Some(BumpAllocator_alloc)
+
     else if sym == GC_init then
       Some(BumpAllocator_init)
+
     else
       None
 

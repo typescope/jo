@@ -1,3 +1,5 @@
+import stk.IO.stdout
+
 param pageWidth: Int
 param newLine: Bool
 

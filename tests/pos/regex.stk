@@ -32,8 +32,8 @@ fun alt(reg1: Reg, reg2: Reg, seg: Seg, cont: Cont, fail: Fail): Unit =
 
 fun seq(regs: List[Reg], seg: Seg, cont: Cont, fail: Fail): Unit =
   match regs
-    case #Nil => cont seg fail
-    case #Cons reg rest =>
+    case [] => cont seg fail
+    case [reg, rest*] =>
       val cont1: Cont = (seg, fail) => seq rest seg cont fail
       reg seg cont1 fail
 
@@ -87,9 +87,10 @@ fun compile(reg: String): Reg =
   val parser = object {
     def parseSequence(): List[Reg] =
       if !scanner.hasMore() || scanner.cur() == ')' then
-        #Nil
+        List.empty
       else
-        #Cons parseComposite() parseSequence()
+        val head = parseComposite()
+        parseSequence().prepend(head)
 
     def parseComposite(): Reg =
       val atom = parseAtom()

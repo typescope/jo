@@ -210,11 +210,17 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     else if item.token == Token.PARAM then paramDef()
     else if item.token == Token.PATTERN then patDef()
     else if item.token == Token.DATA then dataDef()
+    else if item.token == Token.ALIAS then aliasDef()
     else if item.token == Token.SECTION then section()
     else
       error("Expect a definition, found = " + item.token, item.span.toPos)
       next()
       throw new SyntaxError
+
+  def aliasDef(): AliasDef =
+    val info = eat(Token.ALIAS)
+    val id = qualid()
+    AliasDef(id)(info.span | id.span)
 
   def section(): Section =
     val secToken = eat(Token.SECTION)
@@ -1005,7 +1011,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val tpt = simpleType()
     TypeAscribe(id, tpt)(id.span | tpt.span)
 
-  def pattern(): Word =
+  def exprPattern(): Word =
     val indent = peekItem().indent
 
     val words = new mutable.ArrayBuffer[Word]
@@ -1015,9 +1021,11 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       words += simplePattern()
       item = peekItem()
 
-    val exprPat =
-      if words.size == 1 then words(0)
-      else Expr(words.toList)(words.head.span | words.last.span)
+    if words.size == 1 then words(0)
+    else Expr(words.toList)(words.head.span | words.last.span)
+
+  def pattern(): Word =
+    val exprPat = exprPattern()
 
     val guard =
       if peek() == Token.IF then
@@ -1044,6 +1052,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def isSimplePatternStart(token: Token): Boolean =
     token == Token.TAG
     || token == Token.LPAREN
+    || token == Token.LBRACKET
     || token.isInstanceOf[Token.Ident]
     || token.isInstanceOf[Token.BoolLit]
     || token.isInstanceOf[Token.StringLit]
@@ -1104,6 +1113,14 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         val pat = pattern()
         eat(Token.RPAREN)
         pat
+
+      case Token.LBRACKET =>
+        val lbracket = next()
+        val pats =
+          if peek() == Token.RBRACKET then Nil
+          else oneOrMore(exprPattern, Token.COMMA)
+        val rbracket = eat(Token.RBRACKET)
+        SeqLit(pats)(lbracket.span | rbracket.span)
 
       case _ =>
         val item = next()

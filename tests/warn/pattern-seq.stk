@@ -1,0 +1,20 @@
+pattern Pos: Partial[Int] = case x if x > 0
+
+fun test(a: List[Int]) =
+  match a
+    case [> (x if x > 2), _ys*] =>
+      println (intToStr x)
+      val c = _ys
+
+    // case _ =>
+
+fun test2(a: List[Int]) =
+  match a
+    case [> (x if x > 2), (ys @ Pos)*, z*] =>
+
+  match a
+    case [x, y*] =>
+
+  match a
+    case [x, y*, Pos*] =>
+    case _ =>

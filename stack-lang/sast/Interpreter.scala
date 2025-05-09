@@ -36,7 +36,7 @@ object Interpreter:
 
     case PlatformObj(call: (String, List[Value]) => List[Value])
 
-    def show(level: Int = 2): String =
+    def show(level: Int = 2)(using Definitions): String =
       if level == 0 then
         "..."
       else
@@ -64,31 +64,33 @@ object Interpreter:
 
     def fresh(): Env = new Env.NestedEnv(this)
 
-    def resolve(sym: Symbol): Denotation =
-      map.get(sym) match
-        case None =>
-          this match
-            case NestedEnv(outer) => outer.resolve(sym)
-            case _ => throw new Exception("Not found " + sym)
+    def resolve(sym: Symbol)(using Definitions): Denotation =
+      resolveRecursive(sym.dealias)
 
+    private def resolveRecursive(sym: Symbol)(using Definitions): Denotation =
+      map.get(sym) match
         case Some(res)  => res
 
-    def update(sym: Symbol, denot: Denotation): Unit =
-      if map.contains(sym) then
-        map(sym) = denot
-      else
-        this match
-          case NestedEnv(outer) => outer.update(sym, denot)
-          case _ => err("Unknown name to update: " + sym.name)
+        case None =>
+          this match
+            case NestedEnv(outer) =>
+              outer.resolveRecursive(sym)
 
-    def bind(sym: Symbol, denot: Denotation): Unit =
+            case _ =>
+              throw new Exception("Not found " + sym)
+
+    def update(sym: Symbol, denot: Denotation)(using Definitions): Unit =
+      // Is only possible to update sym of the current scope
+      map(sym) = denot
+
+    def bind(sym: Symbol, denot: Denotation)(using Definitions): Unit =
       // Pattern symbol could be bound twice as an optimization in translation
       assert(!map.contains(sym) || sym.isPattern, "Double binding " + sym)
       map(sym) = denot
 
     def contains(sym: Symbol): Boolean = map.contains(sym)
 
-    def show(recursive: Boolean): String =
+    def show(recursive: Boolean)(using Definitions): String =
       var bindings = map.map(_.name + " -> " + _.show).toList
 
       if recursive then
@@ -174,26 +176,29 @@ object Interpreter:
     val rootEnv = new Env.RootEnv()
 
     val platformCalls: Map[Symbol, List[Value] => List[Value]] = Map(
-      defn.Predef_add        ->       add,
-      defn.Predef_sub        ->       sub,
-      defn.Predef_mul        ->       mul,
-      defn.Predef_div        ->       div,
-      defn.Predef_mod        ->       mod,
-      defn.Predef_gt         ->       gt,
-      defn.Predef_lt         ->       lt,
-      defn.Predef_ge         ->       ge,
-      defn.Predef_le         ->       le,
-      defn.Predef_srl        ->       srl,
-      defn.Predef_sll        ->       sll,
-      defn.Predef_land       ->       land,
-      defn.Predef_lor        ->       lor,
-      defn.Predef_lxor       ->       lxor,
-      defn.Predef_both       ->       both,
-      defn.Predef_either     ->       either,
-      defn.Predef_not        ->       not,
-      defn.Predef_eql        ->       eql,
+      defn.Int_add        ->       add,
+      defn.Int_sub        ->       sub,
+      defn.Int_mul        ->       mul,
+      defn.Int_div        ->       div,
+      defn.Int_mod        ->       mod,
+      defn.Int_gt         ->       gt,
+      defn.Int_lt         ->       lt,
+      defn.Int_ge         ->       ge,
+      defn.Int_le         ->       le,
+      defn.Int_srl        ->       srl,
+      defn.Int_sll        ->       sll,
+      defn.Int_land       ->       land,
+      defn.Int_lor        ->       lor,
+      defn.Int_lxor       ->       lxor,
+      defn.Int_eql        ->       eql,
+
+      defn.Bool_both       ->       both,
+      defn.Bool_either     ->       either,
+      defn.Bool_not        ->       not,
+
+      defn.Array_array       ->       newArray,
+
       defn.Predef_abort      ->       abort,
-      defn.Predef_array      ->       newArray,
       defn.Predef_byteToChar ->       byteToChar,
       defn.Predef_byteToInt  ->       byteToInt,
       defn.Predef_charToByte ->       charToByte,
@@ -211,10 +216,10 @@ object Interpreter:
 
   def createRuntimeContextParams()(using defn: Definitions): Map[Symbol, Value] =
     Map(
-      defn.Predef_open   ->  open(),
-      defn.Predef_stdin  ->  stdin(),
-      defn.Predef_stdout ->  stdout(),
-      defn.Predef_stderr ->  stderr(),
+      defn.IO_open   ->  open(),
+      defn.IO_stdin  ->  stdin(),
+      defn.IO_stdout ->  stdout(),
+      defn.IO_stderr ->  stderr(),
     )
 
   def stdin() = new PlatformObj((name: String, args: List[Value]) =>
@@ -303,7 +308,7 @@ object Interpreter:
     for (param, arg) <- fdef.params.zip(args) do
       funEnv.bind(param, arg)
 
-    Debug.trace("calling " + fdef.symbol + ", env = " + funEnv.show(recursive = false), enable = false):
+    Debug.trace("calling " + fdef.symbol + ", env = " + funEnv.show(recursive = false), (ds: List[Denotation]) => ds.map(_.show()).mkString(", "),  enable = false):
       exec(fdef.body)(using funEnv)
 
   def eval(word: Word)(using env: Env, params: Params, defn: Definitions): Value =
@@ -340,11 +345,13 @@ object Interpreter:
             objVal.values(name) :: Nil
 
       case Assign(ident, rhs) =>
-        if ident.symbol.isMutable then
-          env.update(ident.symbol, eval(rhs))
-        else
-          env.bind(ident.symbol, eval(rhs))
+        // Immutable initialization in a while loop will update old value.
+        env.update(ident.symbol, eval(rhs))
+        Nil
 
+      case ValDef(sym, rhs) =>
+        // Immutable initialization in a while loop will update old value.
+        env.update(sym, eval(rhs))
         Nil
 
       case FieldAssign(qual, name, rhs) =>
@@ -359,7 +366,7 @@ object Interpreter:
 
       case With(expr, args) =>
         val params2 = args.foldLeft(params): (params, arg) =>
-          params.updated(arg.paramRef.symbol, eval(arg.rhs))
+          params.updated(arg.paramRef.symbol.dealias, eval(arg.rhs))
         exec(expr)(using env, params2)
 
       case Allow(expr, _) =>
@@ -370,7 +377,6 @@ object Interpreter:
         def loop(): Unit =
           val BoolVal(b) = eval(cond): @unchecked
           if b then
-            given Env = env.fresh()
             exec(body)
             loop()
         loop()
@@ -381,7 +387,7 @@ object Interpreter:
 
       case Ident(sym) =>
         if sym.isAllOf(Flags.Param | Flags.Context) then
-          params.get(sym) match
+          params.get(sym.dealias) match
             case Some(v) => v :: Nil
             case None =>
                if sym.is(Flags.Default) then
@@ -480,10 +486,6 @@ object Interpreter:
       case TypeApply(fun, _) =>
         exec(fun)
 
-      case ValDef(sym, rhs) =>
-        env.bind(sym, eval(rhs))
-        Nil
-
       case fdef: FunDef =>
         env.bind(fdef.symbol, FunVal(fdef, env))
         Nil
@@ -504,15 +506,14 @@ object Interpreter:
 
   def main(args: Array[String]): Unit = Reporter.monitor:
     val sourceFiles = args.toList
-    val stdlib = "lib/Predef.stk" :: Nil
     val runtime = Nil
 
     val rootNameTable = new NameTable
-    val runtimeNameTable = new NameTable
 
     given Reporter.Config = Reporter.Config(fatalWarnings = true)
     given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable)
-    val namespacesSAST = FrontEnd.run(stdlib, runtime, sourceFiles, runtimeNameTable)
+
+    val namespacesSAST = FrontEnd.run(runtime, sourceFiles)
 
     val mains = namespacesSAST.collect:
       case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get

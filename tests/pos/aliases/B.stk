@@ -1,0 +1,21 @@
+namespace B
+
+import A.Message
+import A.Flags
+
+section Inner
+  type Message = String
+  data Option[T] = Some(v: T) | None
+
+  alias B.foo
+end
+
+section Nested
+  alias Inner.Message
+
+  fun bar(x: Flags) = println (intToStr x)
+end
+
+param prefix: String = "[info]"
+fun foo(s: Message) =
+  println (prefix + s)

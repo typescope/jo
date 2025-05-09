@@ -94,7 +94,7 @@ object Subtyping:
   private def checkConformsAppliedGrounded(tp1: AppliedType, tp2: AppliedType)(using ctx: Context, defn: Definitions): Boolean =
     val AppliedType(tref1: TypeRef, targs1) = tp1: @unchecked
     val AppliedType(tref2: TypeRef, targs2) = tp2: @unchecked
-    tref1 == tref2 && {
+    tref1.refers(tref2.symbol.dealias) && {
       // TODO: follow variance spec
       targs1.zip(targs2).forall: (tp1, tp2) =>
         checkConforms(tp1, tp2) && checkConforms(tp2, tp1)
@@ -143,11 +143,12 @@ object Subtyping:
       given Context = ctx.withSubtyping(proxy1, proxy2)
       TypeOps.isGroundedProxy(proxy1) && reduceProxyType(proxy1, proxy2, lessThan = true)
 
-    else if !proxy2.isGrounded || proxy2.is[TypeVar] then
+    else if !proxy2.isGrounded || proxy2.is[TypeVar] || proxy2.isTermRef then
       given Context = ctx.withSubtyping(proxy1, proxy2)
       TypeOps.isGroundedProxy(proxy2) && reduceProxyType(proxy2, proxy1, lessThan = false)
 
     else
+      // Give the bounds a try --- this can blow up
       TypeOps.isGroundedProxy(proxy1) && reduceProxyType(proxy1, proxy2, lessThan = true)
       || TypeOps.isGroundedProxy(proxy2) && reduceProxyType(proxy2, proxy1, lessThan = false)
     end if
@@ -162,8 +163,12 @@ object Subtyping:
           case tref: TypeRef =>
             tref.symbol.info match
               case tl: TypeLambda =>
-                val tp1Reduced = TypeOps.substTypeParams(tl.body, targs)
+                val tp1Reduced = tl.instantiate(targs)
                 continue(tp1Reduced)
+
+              case tref: TypeRef =>
+                // alias
+                continue(AppliedType(tref, targs))
 
               case tctor =>
                 false
@@ -195,12 +200,28 @@ object Subtyping:
         val tasks = if lessThan then tvar.isSubtype(tp2) else tvar.isSuptype(tp2)
         tasks.forall(task => checkConforms(task.left, task.right))
 
-  private def checkConformsProcType(tp1: ProcType, tp2: ProcType)(using Context, Definitions): Boolean =
-    tp1.paramTypes.size == tp2.paramTypes.size
-    && tp1.paramTypes.zip(tp2.paramTypes).forall: (paramType1, paramType2) =>
-       checkConforms(paramType2, paramType1)
-    && checkConforms(tp1.resultType, tp2.resultType)
+  private def checkConformsProcType(tp1: ProcType, tp2: ProcType)
+      (using ctx: Context, defn: Definitions)
+  : Boolean =
+
+    tp1.tparams.size == tp2.tparams.size
+    && tp1.paramTypes.size == tp2.paramTypes.size
     && {
+      // TODO: once type bounds are enabled, check type bounds
+      given Context =
+        if tp1.tparams.isEmpty then
+          ctx
+        else
+          tp1.tparams.zip(tp2.tparams).foldLeft(ctx):
+            case (ctx, (tparam1, tparam2)) =>
+              val tref1 = TypeRef(tparam1)
+              val tref2 = TypeRef(tparam2)
+              ctx.withSubtyping(tref1, tref2).withSubtyping(tref2, tref1)
+
+      tp1.paramTypes.zip(tp2.paramTypes).forall: (paramType1, paramType2) =>
+        checkConforms(paramType2, paramType1)
+      && checkConforms(tp1.resultType, tp2.resultType)
+    } && {
       tp1.receives.isEmpty ||
       tp2.receives.nonEmpty && tp1.receives.get.forall { param =>
         tp2.receives.get.contains(param)

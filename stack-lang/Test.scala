@@ -5,6 +5,8 @@ import scala.io.Source
 
 import common.IO
 import phases.FrontEnd
+import sast.NameTable
+import sast.Definitions
 
 import reporting.Reporter
 import reporting.Reporter.FatalError
@@ -30,9 +32,10 @@ object Test:
       else IO.list(test).filter(_.endsWith(".stk"))
 
     try
-      val stdLib = "lib/Predef.stk" :: Nil
       val runtimeFiles = Nil
-      FrontEnd.run(stdLib, runtimeFiles, sourceFiles)
+      val rootNameTable = new NameTable
+      given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable)
+      FrontEnd.run(runtimeFiles, sourceFiles)
 
       verifyErrors(sourceFiles, rp.reports)
     catch

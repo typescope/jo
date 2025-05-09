@@ -41,7 +41,7 @@ class LowerContextParams(runtime: NativeRuntime)(using defn: Definitions) extend
       case Ident(sym) if sym.isAllOf(Flags.Context | Flags.Param) =>
         // Use AnyType instead String to avoid creating String and make sure its address is static
         // At runtime, it's a byte array initialized in the constant area
-        val paramName = sym.fullName
+        val paramName = sym.dealias.fullName
         val lit = Literal(Constant.String(paramName))(AnyType, word.span)
         val key = lit.encodedAs(AddrType)
         // The static analysis ensures that the value is available
@@ -61,8 +61,8 @@ class LowerContextParams(runtime: NativeRuntime)(using defn: Definitions) extend
 
     // 1. args are evaluated with the outer context
     val argValueSyms = args.map: arg =>
-      val paramName = arg.paramRef.symbol.fullName
-      val argValueSym = new Symbol("arg_" + paramName, arg.rhs.tpe, Flags.Synthetic, owner = ctx, sourcePos = arg.rhs.pos)
+      val paramName = arg.paramRef.symbol.dealias.fullName
+      val argValueSym = Symbol.createSymbol("arg_" + paramName, arg.rhs.tpe, Flags.Synthetic, owner = ctx, pos = arg.rhs.pos)
       stats += Assign(Ident(argValueSym)(arg.paramRef.span), this(arg.rhs))(arg.rhs.span)
       argValueSym
 
@@ -70,7 +70,7 @@ class LowerContextParams(runtime: NativeRuntime)(using defn: Definitions) extend
     //    val oldValueX = getLastOverwrittenValue()
     //    (hashIndex, oldX)
     val restorePairSyms = args.zip(argValueSyms).map: (arg, argValueSym) =>
-      val paramName = arg.paramRef.symbol.fullName
+      val paramName = arg.paramRef.symbol.dealias.fullName
       // Use AnyType instead String to avoid creating String and make sure its address is static
       // At runtime, it's a byte array initialized in the constant area
       val lit = Literal(Constant.String(paramName))(AnyType, arg.paramRef.span)
@@ -78,18 +78,18 @@ class LowerContextParams(runtime: NativeRuntime)(using defn: Definitions) extend
       val value = Ident(argValueSym)(arg.rhs.span)
       val funSetParam = Ident(runtime.ParamSupport_setParam)(arg.span)
       val setParamCall = Apply(funSetParam, key :: value :: Nil)(IntType, arg.span)
-      val hashIndexSym = new Symbol("hash_index_" + paramName, IntType, Flags.Synthetic, owner = ctx, sourcePos = arg.rhs.pos)
+      val hashIndexSym = Symbol.createSymbol("hash_index_" + paramName, IntType, Flags.Synthetic, owner = ctx, pos = arg.rhs.pos)
       stats += Assign(Ident(hashIndexSym)(arg.paramRef.span), setParamCall)(arg.span)
 
       val funGetLastOverwrittenValue = Ident(runtime.ParamSupport_getLastOverwrittenValue)(arg.span)
       val getLastOverwrittenValueCall = Apply(funGetLastOverwrittenValue, Nil)(AnyType, arg.paramRef.span)
-      val oldValueSym = new Symbol("old_value_" + paramName, arg.rhs.tpe, Flags.Synthetic, owner = ctx, sourcePos = arg.rhs.pos)
-      stats += Assign(Ident(oldValueSym)(arg.paramRef.span), getLastOverwrittenValueCall)(arg.span)
+      val oldValueSym = Symbol.createSymbol("old_value_" + paramName, arg.rhs.tpe, Flags.Synthetic, owner = ctx, pos = arg.rhs.pos)
+      stats += Assign(Ident(oldValueSym)(arg.paramRef.span), getLastOverwrittenValueCall.encodedAs(arg.rhs.tpe))(arg.span)
 
       (hashIndexSym, oldValueSym)
 
     // 3. val res = expr only if expr is not void
-    val resSym = new Symbol("res", expr.tpe, Flags.Synthetic, owner = ctx, sourcePos = null)
+    val resSym = Symbol.createSymbol("res", expr.tpe, Flags.Synthetic, owner = ctx, pos = null)
     if expr.tpe.isVoidType then
       stats += this(expr)
     else

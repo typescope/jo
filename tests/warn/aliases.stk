@@ -1,0 +1,19 @@
+namespace M
+
+section A
+  param delta: Int = 10
+  alias M.B.*
+end
+
+section B
+  param delta: Int = 10
+end
+
+
+section C
+  alias M.A.delta
+end
+
+section D
+  alias M.C.delta
+end

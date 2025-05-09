@@ -36,6 +36,40 @@ object Diagnostics:
 
   //----------------------------------------------------------------------------
   //
+  // Positioned report
+  //
+  trait DoublePositionedReport extends Diagnostic:
+    val message1: String
+    val message2: String
+    val pos1: SourcePosition
+    val pos2: SourcePosition
+
+    val positioned = true
+
+    def pos = pos1
+
+    override def toString() =
+      val lineContent = pos1.source.lineContent(pos1.startLine)
+      val padding = " " * pos1.startLineColumn
+      val num = if pos1.length == 0 then 1 else pos1.length
+      val pointer = if pos1.isOneLine then "^" * num else "^"
+
+      val lineContent2 = pos2.source.lineContent(pos2.startLine)
+      val num2 = if pos2.length == 0 then 1 else pos2.length
+      val padding2 = " " * pos2.startLineColumn
+      val pointer2 = if pos2.isOneLine then "^" * num2 else "^"
+
+      s"""|---------- $kind at $pos ---------------
+          || $lineContent
+          || $padding$pointer
+          || $padding$message1
+          ||
+          || $message2
+          || $lineContent2
+          || $padding2$pointer2""".stripMargin
+
+  //----------------------------------------------------------------------------
+  //
   // Traced error report
   //
 

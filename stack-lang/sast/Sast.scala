@@ -22,14 +22,14 @@ object Sast:
         case Block(Nil) => true
         case _ => false
 
-    def dropValue: Word =
+    def dropValue(using Definitions): Word =
       assert(this.tpe.isValueType)
       Encoded(this)(VoidType)
 
-    def ensureDropValue: Word =
+    def ensureDropValue(using Definitions): Word =
       if this.tpe.isValueType then dropValue else this
 
-    def dropIfVoid(target: Type): Word =
+    def dropIfVoid(target: Type)(using Definitions): Word =
       if target.isVoidType then dropValue else this
 
     def show(using Definitions): String = Printing.show(this)
@@ -50,11 +50,11 @@ object Sast:
 
         case _ => false
 
-    def refersTo(symbol: Symbol): Boolean =
+    def refers(symbol: Symbol)(using Definitions): Boolean =
       // selection is never symblic after normalization, thus no need to handle
       this match
-        case Ident(sym) => sym == symbol
-        case TypeApply(fun, _) => fun.refersTo(symbol)
+        case Ident(sym) => sym.refers(symbol)
+        case TypeApply(fun, _) => fun.refers(symbol)
         case _ => false
 
     /** Strip possible encoding */
@@ -93,6 +93,7 @@ object Sast:
   case class Select
     (qual: Word, name: String)
     (val tpe: Type, val span: Span)
+    (using Definitions)
   extends Word:
     assert(qual.tpe.isValueType, "Select node must have value prefix, found = " + qual.tpe.show)
 
@@ -152,6 +153,7 @@ object Sast:
   case class Apply
     (fun: Word, args: List[Word])
     (val tpe: Type, val span: Span)
+    (using Definitions)
   extends Word:
     fun.tpe.asProcType match
       case procType =>
@@ -176,7 +178,7 @@ object Sast:
     (repr: Word)
     (val tpe: Type, val span: Span)
   extends Word:
-    def isValueDrop = repr.tpe.isValueType && tpe.isVoidType
+    def isValueDrop(using Definitions) = repr.tpe.isValueType && tpe.isVoidType
 
   object Encoded:
     def apply(repr: Word)(tpe: Type): Encoded = apply(repr)(tpe, repr.span)
@@ -193,6 +195,12 @@ object Sast:
     val tpe: Type
 
     def show(using Definitions): String = Printing.show(this)
+
+    def isWildcard: Boolean =
+      this match
+        case _: WildcardPattern => true
+        case AscribePattern(_, nested) => nested.isWildcard
+        case _ => false
 
   case class TypePattern
     (tpt: TypeTree)
@@ -253,7 +261,135 @@ object Sast:
     (pattern: Pattern, bindings: List[Assign])
   extends Pattern:
     val tpe = pattern.tpe
-    val span = pattern.span | bindings.last.span
+    val span = pattern.span | (if bindings.nonEmpty then bindings.last.span else pattern.span)
+
+  case class SeqPattern
+    (patterns: List[RegexPattern])
+    (val tpe: Type, val span: Span)
+  extends Pattern:
+    /** The distance from the end of a pattern to the end of sequence */
+    val distanceToEnd: Seq[SeqPattern.Size] = SeqPattern.computeDistanceToEnd(patterns)
+
+    val totalSize: SeqPattern.Size =
+      if patterns.isEmpty then SeqPattern.Size.Exact(0)
+      else distanceToEnd(0) + patterns(0).size
+
+    def apply(i: Int): RegexPattern = patterns(i)
+
+    def patternCount: Int = patterns.size
+
+  object SeqPattern:
+    enum Size:
+      case GreatEq(n: Int)
+      case Exact(n: Int)
+
+      def isExact: Boolean = this.isInstanceOf[Exact]
+
+      def isDisjoint(that: Size): Boolean =
+        this match
+          case GreatEq(m) =>
+            that match
+              case GreatEq(n) => false
+              case Exact(n)   => n < m
+
+          case Exact(m) =>
+            that match
+              case GreatEq(n) => m < n
+              case Exact(n)   => m != n
+
+      def +(that: Size): Size =
+        this match
+          case GreatEq(m) =>
+            that match
+              case GreatEq(n) => GreatEq(m + n)
+              case Exact(n)   => GreatEq(m + n)
+
+          case Exact(m) =>
+            that match
+              case GreatEq(n) => GreatEq(m + n)
+              case Exact(n)   => Exact(m + n)
+
+      def -(that: Size): List[Size] =
+        this match
+          case GreatEq(m) =>
+            that match
+              case GreatEq(n) =>
+                if n <= m then Nil
+                else (m until n).toList.map(Exact.apply)
+
+              case Exact(n) =>
+                if n < m then this :: Nil
+                else if n == m then GreatEq(m + 1) :: Nil
+                else GreatEq(n + 1) :: (m until n).toList.map(Exact.apply)
+
+          case Exact(m) =>
+            that match
+              case GreatEq(n) =>
+                if n <= m then Nil else this :: Nil
+
+              case Exact(n) =>
+                if m == n then Nil else this :: Nil
+
+      override def toString: String =
+        this match
+          case GreatEq(n) => "size >= " + n
+          case Exact(n)   => "size = " + n
+
+    def computeDistanceToEnd(patterns: Seq[RegexPattern]): Seq[Size] =
+      val distanceToEnd = new Array[Size](patterns.size)
+      if patterns.nonEmpty then
+        var i = patterns.size - 1
+        distanceToEnd(i) = Size.Exact(0)
+
+        while i > 0 do
+          i = i - 1
+          distanceToEnd(i) = distanceToEnd(i + 1) + patterns(i + 1).size
+        end while
+      end if
+      distanceToEnd
+
+  sealed trait RegexPattern extends Tree:
+    val tpe: Type
+
+    def show(using Definitions): String = Printing.show(this)
+
+    def headPattern: Pattern =
+      this match
+        case AtomPattern(pat) => pat
+        case SkipToPattern(pat) => pat
+        case StarPattern(pat) => pat
+
+    /** The number of items the pattern consumes when the match is successful */
+    def size: SeqPattern.Size =
+      this match
+        case AtomPattern(pat)   => SeqPattern.Size.Exact(1)
+        case SkipToPattern(pat) => SeqPattern.Size.GreatEq(1)
+        case StarPattern(pat)   => SeqPattern.Size.GreatEq(0)
+
+  case class AtomPattern
+    (pattern: Pattern)
+  extends RegexPattern:
+    val tpe: Type = pattern.tpe
+    val span: Span = pattern.span
+
+  case class SkipToPattern
+    (pattern: Pattern)
+    (val tpe: Type, val span: Span)
+  extends RegexPattern
+
+  /** Represent a * pattern
+    *
+    * For each variable bound in the inner pattern, a variable is introduced to
+    * accumulate the inner-bound results.
+    *
+    * @param bindings Pairs of (outerX, innerX)
+    */
+  case class StarPattern
+    (pattern: Pattern)
+    (val tpe: Type, val span: Span, val bindings: List[(Symbol, Symbol)])
+  extends RegexPattern:
+    for (outer, inner) <- bindings do
+      assert(outer.name == inner.name, s"outer = $outer, inner = inner")
 
   case class Match
     (scrutinee: Word, cases: List[Case])
@@ -291,38 +427,42 @@ object Sast:
     (val span: Span)
   extends Word, Def
 
-  /** Represents a named function or method definition
-    *
-    * @param locals contains a list of local value symbols (excluding params)
-    */
+  /** Represents a named function or method definition */
   case class FunDef
     (symbol: Symbol, tparams: List[Symbol], params: List[Symbol], resultType: TypeTree, body: Word)
     (val span: Span)
   extends Word, Def:
-    private lazy val census: (List[Symbol], List[Symbol]) =
-      SastOps.variableCensus(this)
+    private var censusCache: (List[Symbol], List[Symbol]) | Null = null
 
-    lazy val locals: List[Symbol] = census._1
-    lazy val freeVariables: List[Symbol] = census._2
+    def census(using Definitions): (List[Symbol], List[Symbol]) =
+      if censusCache == null then
+        censusCache = SastOps.variableCensus(this)
+        censusCache.nn
+      else
+        censusCache.nn
 
-    def procType: ProcType = symbol.info.asProcType
+    /** contains a list of local value symbols (excluding params) */
+    def locals(using Definitions): List[Symbol] = census._1
+    def freeVariables(using Definitions): List[Symbol] = census._2
 
-    def receives: Option[List[Symbol]] = procType.receives
+    def procType(using Definitions): ProcType = symbol.info.asProcType
 
-    def methodReceives: List[Symbol] = receives.getOrElse(Nil)
+    def receives(using Definitions): Option[List[Symbol]] = procType.receives
+
+    def methodReceives(using Definitions): List[Symbol] = receives.getOrElse(Nil)
 
   /** Represents a pattern definition */
   case class PatDef
     (symbol: Symbol, tparams: List[Symbol], params: List[Symbol], resultType: TypeTree, body: Pattern)
     (val span: Span)
   extends Word, Def:
-    def procType: ProcType = symbol.info.asProcType
+    def procType(using Definitions): ProcType = symbol.info.asProcType
 
   case class Section
     (symbol: Symbol, defs: List[Def])
     (val span: Span)
   extends Def:
-    def info: NameTableInfo = symbol.info.as[NameTableInfo]
+    def info(using Definitions): NameTableInfo = symbol.info.as[NameTableInfo]
 
     def allFuns: List[FunDef] =
       defs.flatMap:
@@ -334,9 +474,9 @@ object Sast:
     (symbol: Symbol, imports: List[Symbol], defs: List[Def])
     (val span: Span)
   extends Positioned:
-    def info: NameTableInfo = symbol.info.as[NameTableInfo]
+    def info(using Definitions): NameTableInfo = symbol.info.as[NameTableInfo]
 
-    val fullName: String = symbol.fullName
+    def fullName(using Definitions): String = symbol.fullName
 
     def allFuns: List[FunDef] =
       defs.flatMap:
@@ -363,9 +503,13 @@ object Sast:
   def BoolLit(b: Boolean)(span: Span)(using defn: Definitions) =
     Literal(Constant.Bool(b))(defn.BoolType, span)
 
+  def all(cond: Word, conds: Word*)(using defn: Definitions): Word =
+    conds.foldLeft(cond): (acc, cond) =>
+      Ident(defn.Bool_both)(cond.span).appliedTo(acc, cond)
+
   extension (word: Word)
 
-    def select(name: String): Word =
+    def select(name: String)(using Definitions): Word =
       val memberType = word.tpe.termMember(name)
       Select(word, name)(memberType, word.span)
 
@@ -382,4 +526,13 @@ object Sast:
       val span = if args.isEmpty then word.span else word.span | args.last.span
       Apply(word, args2.toList)(procType.resultType, span)
 
+    def appliedToTypes(targs: Type*)(using Definitions): Word =
+      val procType = word.tpe.asProcType
+      val targList = targs.toList
+      val tpe = procType.instantiate(targList)
+      TypeApply(word, targList.map(targ => TypeTree(targ)(word.span)))(tpe, word.span)
+
     def encodedAs(tpe: Type): Word = Encoded(word)(tpe)
+
+    def isEqualTo(rhs: Word)(using defn: Definitions): Word =
+      Ident(defn.Int_eql)(word.span).appliedTo(word, rhs)

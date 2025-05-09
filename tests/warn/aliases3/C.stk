@@ -1,0 +1,3 @@
+namespace io.a.b.c
+
+fun id(x: Int): Int = x

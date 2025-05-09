@@ -1,0 +1,30 @@
+namespace stk.Int
+
+import stk.Predef.abort
+import stk.Predef.Bool
+import stk.Bool.!
+
+type Int
+
+//------------------------------------------------------------------------------
+// primitive functions for integers
+//
+
+fun (a: Int) + (b: Int): Int = abort("primitive +")
+fun (a: Int) - (b: Int): Int = abort("primitive -")
+fun (a: Int) * (b: Int): Int = abort("primitive *")
+fun (a: Int) / (b: Int): Int = abort("primitive /")
+fun (a: Int) % (b: Int): Int = abort("primitive %")
+
+fun (a: Int) > (b: Int): Bool = abort("primitive >")
+fun (a: Int) < (b: Int): Bool = abort("primitive <")
+fun (a: Int) >= (b: Int): Bool = abort("primitive >=")
+fun (a: Int) <= (b: Int): Bool = abort("primitive <=")
+fun (a: Int) == (b: Int): Bool = abort("primitive ==")
+fun (a: Int) != (b: Int): Bool = ! (a == b)
+
+fun (a: Int) >> (b: Int): Int = abort("primitive >>")
+fun (a: Int) << (b: Int): Int = abort("primitive <<")
+fun (a: Int) & (b: Int): Int = abort("primitive &")
+fun (a: Int) | (b: Int): Int = abort("primitive |")
+fun (a: Int) ^ (b: Int): Int = abort("primitive ^")

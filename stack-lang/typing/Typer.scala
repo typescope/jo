@@ -9,25 +9,36 @@ import reporting.Reporter
 import common.IO
 
 object Typer:
+  val stdLib = List(
+    "lib/Array.stk",
+    "lib/Bool.stk",
+    "lib/Int.stk",
+    "lib/IO.stk",
+    "lib/List.stk",
+    "lib/Predef.stk",
+  )
+
   /** The stdlib cannot depend on pre-defined symbols */
-  def check(
-    nssAst: List[Ast.Namespace], stdlib: List[String], runtime: List[String],
-    runtimeNameTable: NameTable)
-    (using defnLazy: Definitions.Lazy, rp: Reporter, cf: Reporter.Config)
+  def check
+      (nssAst: List[Ast.Namespace], runtime: List[String])
+      (using defnLazy: Definitions.Lazy, rp: Reporter, cf: Reporter.Config)
   : List[Namespace] =
+
     val rootNameTable = defnLazy.rootNameTable
 
     // StdLib is compiled without the Predef
-    val nssStdLib = runNamer(stdlib, rootNameTable, predef = new NameTable)
+    val nssStdLib = runNamer(stdLib, rootNameTable, predef = new NameTable)
 
     // Must be after type checking the stdlib
     val predefNameTable = defnLazy.value.Predef_nameTable
 
+    // Should be before checking runtime code such that they are not available
+    val nss = new Namer().transform(nssAst, rootNameTable, predefNameTable)
+
     // Runtime definitions are inaccessible in user programs and may only
     // use predef definitions
-    val nssRuntime = runNamer(runtime, runtimeNameTable, predefNameTable)
+    val nssRuntime = runNamer(runtime, rootNameTable, predefNameTable)
 
-    val nss = new Namer(rp).transform(nssAst, rootNameTable, predefNameTable)
     nssStdLib ++ nssRuntime ++ nss
 
   private def runNamer(
@@ -36,7 +47,7 @@ object Typer:
   : List[Namespace] =
 
     val namer = (nss: List[Ast.Namespace]) =>
-      new Namer(rp).transform(nss, rootNameTable, predef)
+      new Namer().transform(nss, rootNameTable, predef)
     // `|>` will stop early in the presence of parsing errors
     Parser.parse(files) |> namer
 
@@ -50,15 +61,12 @@ object Typer:
     Reporter.monitor:
       given Reporter.Config = Reporter.Config(options.contains("-fatal-warnings"))
 
-      val stdLib = "lib/Predef.stk" :: Nil
       val runtimeFiles = Nil
 
       val rootNameTable = new NameTable
-      val runtimeNameTable = new NameTable
       given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable)
 
-      val namer = (nssAst: List[Ast.Namespace]) =>
-        check(nssAst, stdLib, runtimeFiles, runtimeNameTable)
+      val namer = (nssAst: List[Ast.Namespace]) => check(nssAst, runtimeFiles)
 
       given defn: Definitions = lazyDefn.value
       val nss = Parser.parse(sources) |> namer |> TreeChecker.check

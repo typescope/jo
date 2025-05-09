@@ -1,3 +1,5 @@
+import stk.IO.*
+
 fun main =
   ioTest with stdin = object { def readLine = "stk" }
 

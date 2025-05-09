@@ -9,35 +9,69 @@ import reporting.Reporter
 
 /** Check invariants of SAST */
 object TreeChecker:
-  def check(nss: List[Namespace])(using Definitions, Reporter): List[Namespace] =
-    for
-      ns <- nss
-      case fdef: FunDef <- ns.defs
-    do
-      given Source = fdef.symbol.sourcePos.source
-      new TreeChecker().recurFunDef(fdef)
-    end for
+  case class CheckerContext(enclosingFun: Symbol)
 
+  def check(nss: List[Namespace])(using Definitions, Reporter): List[Namespace] =
+    for ns <- nss do
+      given Source = ns.symbol.sourcePos.source
+      checkDefs(ns.defs)
+    end for
     nss
 
-class TreeChecker()(using defn: Definitions, so: Source) extends SastOps.TreeTraverser:
-  type Context = Reporter
+  def checkDefs(defs: List[Def])(using Definitions, Reporter, Source): Unit =
+    for
+      defn <- defs
+    do
+      defn match
+        case fdef: FunDef =>
+          given CheckerContext = new CheckerContext(fdef.symbol)
+          new TreeChecker().recur(fdef.body)
 
-  override def apply(pattern: Pattern)(using info: Context): Unit =
+        case pdef: PatDef =>
+          given CheckerContext = new CheckerContext(pdef.symbol)
+          new TreeChecker().recur(pdef.body)
+
+        case section: Section =>
+          checkDefs(section.defs)
+
+        case _ =>
+    end for
+
+
+class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends SastOps.TreeTraverser:
+  type Context = TreeChecker.CheckerContext
+
+  override def recurNestedFunDef(fdef: FunDef)(using Context): Unit =
+    given Context = new TreeChecker.CheckerContext(fdef.symbol)
+    this(fdef.body)
+
+  override def recurNestedPatDef(pdef: PatDef)(using Context): Unit =
+    given Context = new TreeChecker.CheckerContext(pdef.symbol)
+    this(pdef.body)
+
+  override def apply(pattern: Pattern)(using ctx: Context): Unit =
     pattern match
       case ApplyPattern(fun, nested) =>
-        if fun.refersTo(defn.Predef_orPattern) then
+        if fun.refers(defn.Predef_orPattern) then
           Reporter.error("Unexpected use of `|` in S-AST, tree = " + pattern.show, fun.pos)
 
       case _ =>
 
     recur(pattern)
 
-  def apply(word: Word)(using info: Context): Unit =
+  def apply(word: Word)(using ctx: Context): Unit =
 
     word match
       case Ident(sym) =>
-        assert(!sym.isOneOf(Flags.NSpace | Flags.Method | Flags.Field | Flags.Type), sym)
+        if sym.isOneOf(Flags.NSpace | Flags.Method | Flags.Field | Flags.Type) then
+          Reporter.error("A term Ident tree should not be namespace, method, field or type", word.pos)
+
+        if !sym.owner.isFunction && !sym.owner.isContainer && !sym.owner.isMethod then
+          Reporter.error("The owner of an ident should be either a function or an container, found = " + sym.owner, word.pos)
+
+        // TODO: enable after fixing owners of pattern translation & lifting
+        // if sym.isLocal && sym.owner != ctx.enclosingFun && !ctx.enclosingFun.ownersIterator.exists(_ == sym.owner) then
+        //   Reporter.error("The owner of a local ident should be in the nested owner chain", word.pos)
 
       case Select(qual, name) =>
         if !qual.tpe.isValueType then
@@ -66,8 +100,19 @@ class TreeChecker()(using defn: Definitions, so: Source) extends SastOps.TreeTra
         if !qual.tpe.isObjectType then
           Reporter.error("Object type expected, found = " + qual.tpe.show, word.pos)
 
-        if !qual.tpe.asObjectType.isMutable(name) then
+        else if !qual.tpe.asObjectType.isMutable(name) then
           Reporter.error(s"Field $name is not mutable", word.pos)
+
+        else
+          val memberType = qual.tpe.termMember(name).widenTermRef
+          if !Subtyping.conforms(rhs.tpe, memberType) then
+            Reporter.error(s"Rhs has the type ${rhs.tpe.show}, which is not a subtype of ${memberType.show}", word.pos)
+
+      case Assign(ident, rhs) =>
+        // After type checking, a ValDef may become Assign.
+        // Pattern translation uses Assign directly for pattern bound variables.
+        if !Subtyping.conforms(rhs.tpe, ident.symbol.info) then
+          Reporter.error(s"Rhs has the type ${rhs.tpe.show}, which is not a subtype of ${ident.symbol.info.show}", word.pos)
 
       case Apply(fun, args) =>
         fun.tpe.asProcType match
@@ -84,7 +129,7 @@ class TreeChecker()(using defn: Definitions, so: Source) extends SastOps.TreeTra
               Reporter.error("word.tpe = " + word.tpe.show + ", result type = " + funType.resultType + " tree = " + word.show, word.pos)
         end match
 
-        if fun.refersTo(defn.Predef_and) || fun.refersTo(defn.Predef_or) then
+        if fun.refers(defn.Bool_and) || fun.refers(defn.Bool_or) then
           Reporter.error("Unexpected use of short-cut || and && in S-AST, tree = " + word.show, word.pos)
 
         checkFunShape(fun)

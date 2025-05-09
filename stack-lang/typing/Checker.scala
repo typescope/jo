@@ -15,7 +15,7 @@ import common.Debug
 import scala.collection.mutable
 
 /** Perform checks related to types  */
-class Checker:
+class Checker(namer: Namer):
   private val delayedChecks = new mutable.ArrayBuffer[() => Unit]
   var checking = false
 
@@ -34,19 +34,22 @@ class Checker:
       Reporter.error(s"Expect type lambda, found = ${tctor.tpe.show}", tctor.pos)
     else
       val tl = tctor.tpe.asTypeLambda
-      checkBounds(tl.bounds, targs)
+      checkBounds(tl.tparams, targs)
 
-  def checkBounds(bounds: List[Type], targs: List[TypeTree])(using Definitions, Reporter, Source): Unit =
-    if bounds.size != targs.size then
-      Reporter.error(s"Expect ${bounds.size} args, found = ${targs.size}", (targs.head.span | targs.last.span).toPos)
+  def checkBounds(tparams: List[Symbol], targs: List[TypeTree])(using Definitions, Reporter, Source): Unit =
+    if tparams.size != targs.size then
+      Reporter.error(s"Expect ${tparams.size} type args, found = ${targs.size}", (targs.head.span | targs.last.span).toPos)
     else
-      for (targ, bound) <- targs.zip(bounds) do
+      val subst = tparams.zip(targs.map(_.tpe)).toMap
+      for (targ, tparam) <- targs.zip(tparams) do
         val argType = targ.tpe
-        val TypeBound(lo, hi) = bound.as[TypeBound]
-        val loActual = TypeOps.substTypeParams(lo, targs.map(_.tpe))
-        val hiActual = TypeOps.substTypeParams(hi, targs.map(_.tpe))
+        val TypeBound(lo, hi) = tparam.info.as[TypeBound]
+        val loActual = TypeOps.substSymbols(lo, subst)
+        val hiActual = TypeOps.substSymbols(hi, subst)
+
         if !Subtyping.conforms(argType, hiActual) then
           Reporter.error(s"Arg type ${argType.show} does not conform to bound = ${hi.show}, which expands to ${hiActual.show}", targ.pos)
+
         if !Subtyping.conforms(loActual, argType) then
           Reporter.error(s"Arg type ${argType.show} does not conform to bound = ${hi.show}, which expands to ${hiActual.show}", targ.pos)
 
@@ -60,8 +63,8 @@ class Checker:
         Reporter.error(s"Expect ${polyType.tparamCount} args, found = ${targs.size}", (targs.head.span | targs.last.span).toPos)
         Block(words = Nil)(ErrorType, fun.span | targs.last.span)
       else
-        checkBounds(polyType.bounds, targs)
-        val tpe = TypeOps.substTypeParams(polyType.copy(tparams = Nil), targs.map(_.tpe))
+        checkBounds(polyType.tparams, targs)
+        val tpe = polyType.instantiate(targs.map(_.tpe))
         TypeApply(fun, targs)(tpe, fun.span)
 
   def checkType(tree: Tree, tp: Type)(using Definitions, Reporter, Source): Unit =
@@ -82,15 +85,12 @@ class Checker:
     if !sym.isMutable then
       Reporter.error(sym.name + " is not a mutable value", pos)
 
-  def checkTermMember(word: Word, member: String)(using Reporter, Source): Word =
+  def checkTermMember(word: Word, member: String)(using Reporter, Source, Definitions): Word =
     val tpe = word.tpe
-    if
-      tpe.hasTermMember(member)
-      || tpe.isTagType && tpe.asTagType.hasParam(member)
-      || tpe.isError
-    then
+    if tpe.hasTermMember(member) || tpe.isError then
       word
     else
+      // println(TypeOps.approx(tpe, isUp = true).as[NameTableInfo].nameTable.show)
       Reporter.error(s"The prefix does not contain the member $member", word.pos)
       Block(Nil)(ErrorType, word.span)
 
@@ -98,7 +98,7 @@ class Checker:
     if !tvar.isInstantiated then
       Reporter.error("Cannot infer a type for type variable " + tvar, pos)
 
-  def checkCapture(sym: Symbol, pos: SourcePosition)(using sc: Namer.Scope, rp: Reporter): Unit =
+  def checkCapture(sym: Symbol, pos: SourcePosition)(using sc: Scope, rp: Reporter, defn: Definitions): Unit =
     if sym.isMutable && !sym.isField then
       // check no capture of mutable local vars
       if sc.owner.enclosingFunction != sym.enclosingFunction then
@@ -112,7 +112,7 @@ class Checker:
         Reporter.error(s"Cannot find common result type, tp1 = ${tp1.show}, tp2 = ${tp2.show}", pos)
         ErrorType
 
-  def widen(word: Word): Word = word.tpe match
+  def widen(word: Word)(using Definitions): Word = word.tpe match
     case TypeRef(sym) if !sym.isType =>
       Encoded(word)(sym.info)
 
@@ -135,7 +135,11 @@ class Checker:
               procType.paramCount == 0
 
         if isParameterlessCall then
-          Apply(word, args = Nil)(procType.resultType, word.span)
+          val fun =
+            if procType.tparams.isEmpty then word
+            else namer.instantiatePoly(procType, word)
+          val resType = fun.tpe.asProcType.resultType
+          Apply(fun, args = Nil)(resType, word.span)
         else
           word
 

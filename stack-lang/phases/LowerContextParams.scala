@@ -35,7 +35,7 @@ extends Phase[Symbol]:
   override def transformIdent(word: Ident)(using ctx: Context): Word =
     word match
       case Ident(sym) if sym.isAllOf(Flags.Context | Flags.Param) =>
-        val key = StringLit(sym.fullName)(word.span)
+        val key = StringLit(sym.dealias.fullName)(word.span)
         val getParamFun = Ident(getParamSym)(word.span)
         val getParamCall = Encoded(Apply(getParamFun, key :: Nil)(AnyType, word.span))(word.tpe)
         getParamCall
@@ -52,34 +52,34 @@ extends Phase[Symbol]:
 
     // 1. args are evaluated with the outer context
     val argValueSyms = args.map: arg =>
-      val paramName = arg.paramRef.symbol.fullName
-      val argValueSym = new Symbol("arg_" + paramName, arg.rhs.tpe, Flags.Synthetic, owner = ctx, sourcePos = arg.rhs.pos)
+      val paramName = arg.paramRef.symbol.dealias.fullName
+      val argValueSym = Symbol.createSymbol("arg_" + paramName, arg.rhs.tpe, Flags.Synthetic, owner = ctx, pos = arg.rhs.pos)
       stats += Assign(Ident(argValueSym)(arg.rhs.span), this(arg.rhs))(arg.rhs.span)
       argValueSym
 
     // 2. val hasX = hasParam("x")
     val hasXSyms = args.map: arg =>
-      val paramName = arg.paramRef.symbol.fullName
+      val paramName = arg.paramRef.symbol.dealias.fullName
       val key = StringLit(paramName)(arg.paramRef.span)
       val funHasParam = Ident(hasParamSym)(arg.span)
       val hasParamCall = Apply(funHasParam, key :: Nil)(BoolType, arg.paramRef.span)
-      val hasXSym = new Symbol("has_" + paramName, BoolType, Flags.Synthetic, owner = ctx, sourcePos = arg.rhs.pos)
+      val hasXSym = Symbol.createSymbol("has_" + paramName, BoolType, Flags.Synthetic, owner = ctx, pos = arg.rhs.pos)
       stats += Assign(Ident(hasXSym)(arg.paramRef.span), hasParamCall)(arg.span)
       hasXSym
 
     // 3. val oldX = setParam("x", v)
     val oldValueSyms = args.zip(argValueSyms).map: (arg, argValueSym) =>
-      val paramName = arg.paramRef.symbol.fullName
+      val paramName = arg.paramRef.symbol.dealias.fullName
       val key = StringLit(paramName)(arg.paramRef.span)
       val value = Ident(argValueSym)(arg.rhs.span)
       val funSetParam = Ident(setParamSym)(arg.span)
       val setParamCall = Apply(funSetParam, key :: value :: Nil)(AnyType, arg.span)
-      val oldValueSym = new Symbol("old_" + paramName, arg.rhs.tpe, Flags.Synthetic, owner = ctx, sourcePos = arg.rhs.pos)
-      stats += Assign(Ident(oldValueSym)(arg.paramRef.span), setParamCall)(arg.span)
+      val oldValueSym = Symbol.createSymbol("old_" + paramName, arg.rhs.tpe, Flags.Synthetic, owner = ctx, pos = arg.rhs.pos)
+      stats += Assign(Ident(oldValueSym)(arg.paramRef.span), setParamCall.encodedAs(arg.rhs.tpe))(arg.span)
       oldValueSym
 
     // 4. val res = expr only if expr is not void
-    val resSym = new Symbol("res", expr.tpe, Flags.Synthetic, owner = ctx, sourcePos = expr.pos)
+    val resSym = Symbol.createSymbol("res", expr.tpe, Flags.Synthetic, owner = ctx, pos = expr.pos)
     if expr.tpe.isVoidType then
       stats += this(expr)
     else
@@ -88,7 +88,7 @@ extends Phase[Symbol]:
     // 5. if hasX then setParam("x", oldX) else delParam("x")
     paramRefs.zip(hasXSyms).zip(oldValueSyms).foreach:
       case ((paramRef, hasX), oldValueSym) =>
-        val paramName = paramRef.symbol.fullName
+        val paramName = paramRef.symbol.dealias.fullName
 
         val key = StringLit(paramName)(paramRef.span)
         val value = Ident(oldValueSym)(paramRef.span)

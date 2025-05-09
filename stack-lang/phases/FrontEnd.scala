@@ -9,27 +9,15 @@ import typing.Typer
 import reporting.Reporter
 
 object FrontEnd:
-
-  def run(
-    stdlib: List[String], runtime: List[String], sources: List[String])
-    (using Reporter, Reporter.Config)
-  : List[Namespace] =
-    val rootNameTable = new NameTable
-    val runtimeNameTable = new NameTable
-
-    given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable)
-    run(stdlib, runtime, sources, runtimeNameTable)
-
-  def run(
-    stdlib: List[String], runtime: List[String], sources: List[String],
-    runtimeNameTable: NameTable)
-    (using defnLazy: Definitions.Lazy, rp: Reporter, cf: Reporter.Config)
+  def run
+      (runtime: List[String], sources: List[String])
+      (using defnLazy: Definitions.Lazy, rp: Reporter, cf: Reporter.Config)
   : List[Namespace] =
 
     given Definitions = defnLazy.value
 
     val typeCheck = (nss: List[Ast.Namespace]) =>
-      Typer.check(nss, stdlib, runtime, runtimeNameTable)
+      Typer.check(nss, runtime)
 
     val sast =
       Parser.parse(sources)         |>

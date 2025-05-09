@@ -1,0 +1,16 @@
+namespace B
+
+import A.Inner  // OK
+import io.*
+import io.a.b.*
+import io.a.b.c.*
+
+alias io.*  // error
+alias io.a.b.*  // error
+alias io.a.b.c.*
+
+section Inner
+  type Flags = Int
+end
+
+alias A.Inner.Flags

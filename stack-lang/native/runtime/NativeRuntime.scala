@@ -11,8 +11,9 @@ import native.Assembler.PatchableBuffer
   *
   * Run-time symbols are not visible to user programs.
   */
-class NativeRuntime(
-  runtimeRootNameTable: NameTable, linkers: List[Linker], userMain: Symbol)
+class NativeRuntime
+    (runtimeRootNameTable: NameTable, linkers: List[Linker], userMain: Symbol)
+    (using Definitions)
 extends Linker:
   import runtimeRootNameTable.resolveTermByPath
 

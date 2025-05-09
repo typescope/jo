@@ -24,7 +24,7 @@ object EffectAnalysis:
     * It should only be called from outside. Internally, `getEffects` should be
     * called.
     */
-  def effects(fun: Symbol)(using cache: Cache): TracedEffects =
+  def effects(fun: Symbol)(using cache: Cache, defn: Definitions): TracedEffects =
     fixpoint(getEffects(fun))
 
   /** Compute effects of the given word
@@ -32,7 +32,7 @@ object EffectAnalysis:
     * It should only be called from outside. Internally, `EffectAnalyzer.apply`
     * should be called.
     */
-  def effects(word: Word)(using cache: Cache, source: Source): TracedEffects =
+  def effects(word: Word)(using cache: Cache, source: Source, defn: Definitions): TracedEffects =
     fixpoint(EffectAnalyzer.apply(word))
 
   /** The fixed point computation stops if the in cache is equal to out cache.
@@ -108,25 +108,26 @@ object EffectAnalysis:
         cache.effects(sym) = effs
 
   /** Produce a list of transitively reachabe param symbols for the function */
-  private def getEffects(fun: Symbol)(using cache: Cache, temp: TempCache): TracedEffects =
+  private def getEffects(fun: Symbol)(using cache: Cache, temp: TempCache, defn: Definitions): TracedEffects =
     // Usage of stable cache has to be part of the computation for speed
-    cache.effects.get(fun) match
+    val funSym = fun.dealias
+    cache.effects.get(funSym) match
       case Some(res) => res
 
       case None =>
         // Read from out cache to make sure the computation is performed once.
-        temp.getOrElse(fun):
-          given Source = fun.sourcePos.source
-          temp.init(fun)
-          val body = cache.code(fun).body
+        temp.getOrElse(funSym):
+          given Source = funSym.sourcePos.source
+          temp.init(funSym)
+          val body = cache.code(funSym).body
           val effects = EffectAnalyzer.apply(body)
-          temp.update(fun, effects)
+          temp.update(funSym, effects)
           effects
 
   private object EffectAnalyzer:
     val zero = Map.empty[Symbol, Trace]
 
-    def apply(word: Word)(using cache: Cache, temp: TempCache, source: Source): TracedEffects =
+    def apply(word: Word)(using cache: Cache, temp: TempCache, source: Source, defn: Definitions): TracedEffects =
       word match
         case _: Literal => zero
 

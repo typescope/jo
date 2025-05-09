@@ -16,6 +16,9 @@ object Printing:
   def show(pattern: Pattern)(using Definitions): String =
     showPattern(pattern).toString
 
+  def show(pattern: RegexPattern)(using Definitions): String =
+    showRegexPattern(pattern).toString
+
   def show(ns: Namespace)(using Definitions): String =
     showNamespace(ns).toString
 
@@ -35,6 +38,9 @@ object Printing:
   given (using Definitions): Text.Maker[Pattern] =
     v => showPattern(v)
 
+  given (using Definitions): Text.Maker[RegexPattern] =
+    v => showRegexPattern(v)
+
   given (using Definitions): Text.Maker[Case] =
     v => "case " ~ v.pattern ~ " =>" ~ indent(v.body)
 
@@ -44,10 +50,10 @@ object Printing:
   given (using Definitions): Text.Maker[ValDef | FunDef] =
     v => showDef(v)
 
-  given Text.Maker[Type] =
+  given (using Definitions): Text.Maker[Type] =
     v => Text(v.show)
 
-  given Text.Maker[TypeTree] =
+  given (using Definitions): Text.Maker[TypeTree] =
     v => Text(v.tpe.show)
 
   given (using Definitions): Text.Maker[Symbol] =
@@ -65,7 +71,7 @@ object Printing:
     showImports(ns.imports) ~ Text.BlankLine ~
     rep(ns.defs, Text.BlankLine)
 
-  def showImports(imports: List[Symbol]): Text =
+  def showImports(imports: List[Symbol])(using Definitions): Text =
     imports match
       case item :: items =>
         "import " ~ item.fullName ~ Text.BreakLine ~ showImports(items)
@@ -146,7 +152,7 @@ object Printing:
             "\"" ~ StringUtil.escape(s) ~ "\""
 
           case Constant.Int(n) =>
-            val isChar = word.tpe.refersTo(defn.Predef_Char)
+            val isChar = word.tpe.refers(defn.Predef_Char)
             if isChar then
               "'" ~ StringUtil.escapeChar(n.toChar) ~ "'"
             else
@@ -263,3 +269,14 @@ object Printing:
 
       case TermBindingPattern(pattern, bindings) =>
         pattern ~ " then " ~ rep(bindings, Text(", "))
+
+      case SeqPattern(patterns) =>
+        "[" ~ rep(patterns, Text(", ")) ~ "]"
+
+  def showRegexPattern(pat: RegexPattern)(using Definitions): Text =
+    pat match
+      case AtomPattern(pattern) => showPattern(pattern)
+
+      case SkipToPattern(pattern) => ">" ~ pattern
+
+      case StarPattern(pattern) => pattern ~ "*"

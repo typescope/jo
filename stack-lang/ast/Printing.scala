@@ -147,6 +147,9 @@ object Printing:
         "section " ~ name ~ indent:
             rep(defs, Text.BlankLine)
 
+      case AliasDef(qualid) =>
+        "alias " ~ qualid
+
   def showWord(word: Word): Text =
     word match
       case IntLit(n) => Text(n.toString)
@@ -156,6 +159,8 @@ object Printing:
       case BoolLit(b) => Text(b.toString)
 
       case StringLit(s) => "\"" ~ StringUtil.escape(s) ~ "\""
+
+      case SeqLit(words) => "[" ~ rep(words, Text(", ")) ~ "]"
 
       case Ident(name) => Text(name)
 
@@ -253,7 +258,7 @@ object Printing:
         showPattern(fun) ~ "(" ~ argText  ~ ")"
 
       case Expr(words) if words.nonEmpty =>
-        rep(words.map(showPattern), Text(", "))
+        rep(words.map(showPattern), Text(" "))
 
       case TypeAscribe(id: Ident, tpt) =>
         id ~ ": " ~ tpt
@@ -268,6 +273,7 @@ object Printing:
       case Assign(id: Ident, rhs) =>
         id ~ "@" ~ rhs
 
+      case SeqLit(words) => "[" ~ rep(words.map(showPattern), Text(", ")) ~ "]"
 
   def showType(tpt: TypeTree): Text =
     tpt match
