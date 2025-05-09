@@ -162,10 +162,10 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
       if symbol.isFunction then
         fdef.receives match
           case Some(params) =>
-            val allowed = params.toSet
+            val allowed = params.map(_.dealias).toSet
             val effs = EffectAnalysis.effects(symbol)(using ctx.cache)
             val pos = symbol.sourcePos
-            for (eff, trace) <- effs if !allowed.contains(eff) do
+            for (eff, trace) <- effs if !allowed.exists(param => eff.refers(param)) do
               Reporter.error("Parameter not allowed: " + eff, pos, trace)
 
           case None =>
@@ -202,9 +202,9 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
 
     given Source = ctx.owner.sourcePos.source
     val effsInner = EffectAnalysis.effects(allowExpr.expr)(using ctx.cache)
-    val allowed = allowExpr.params.map(_.symbol).toSet
+    val allowed = allowExpr.params.map(_.symbol.dealias).toSet
 
-    val unprovided = effsInner -- allowed
+    val unprovided = effsInner.filter((k, _) => !allowed.exists(param => k.refers(param)))
 
     for
       (eff, trace) <- unprovided if !eff.is(Flags.Default)

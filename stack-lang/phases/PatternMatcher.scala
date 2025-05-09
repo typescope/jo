@@ -184,27 +184,27 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
     If(lhsCond, BoolLit(true)(lhs.span), rhsCond)(BoolType, orPattern.span)
 
   private def transformValuePattern(scrut: Ident, pat: ValuePattern): Word =
-    pat.value.tpe match
-      case defn.ByteType   =>
-        Ident(defn.Int_eql)(pat.span).appliedTo(pat.value, scrut)
+    val tp = pat.value.tpe
+    if tp.refers(defn.Predef_Byte) then
+      Ident(defn.Int_eql)(pat.span).appliedTo(pat.value, scrut)
 
-      case defn.IntType    =>
-        Ident(defn.Int_eql)(pat.span).appliedTo(pat.value, scrut)
+    else if tp.refers(defn.Int_Int) then
+      Ident(defn.Int_eql)(pat.span).appliedTo(pat.value, scrut)
 
-      case defn.CharType   =>
-        Ident(defn.Int_eql)(pat.span).appliedTo(pat.value, scrut)
+    else if tp.refers(defn.Predef_Char) then
+      Ident(defn.Int_eql)(pat.span).appliedTo(pat.value, scrut)
 
-      case defn.BoolType   =>
-        val bothTrue = Ident(defn.Bool_both)(pat.span).appliedTo(pat.value, scrut)
-        val notValue = Ident(defn.Bool_not)(pat.span).appliedTo(pat.value)
-        val notScrut = Ident(defn.Bool_not)(pat.span).appliedTo(scrut)
-        val bothFalse = Ident(defn.Bool_both)(pat.span).appliedTo(notValue, notScrut)
-        Ident(defn.Bool_either)(pat.span).appliedTo(bothTrue, bothFalse)
+    else if tp.refers(defn.Bool_Bool) then
+      val bothTrue = Ident(defn.Bool_both)(pat.span).appliedTo(pat.value, scrut)
+      val notValue = Ident(defn.Bool_not)(pat.span).appliedTo(pat.value)
+      val notScrut = Ident(defn.Bool_not)(pat.span).appliedTo(scrut)
+      val bothFalse = Ident(defn.Bool_both)(pat.span).appliedTo(notValue, notScrut)
+      Ident(defn.Bool_either)(pat.span).appliedTo(bothTrue, bothFalse)
 
-      case defn.StringType =>
-        scrut.select("==").appliedTo(pat.value)
+    else if tp.refers(defn.Predef_String) then
+      scrut.select("==").appliedTo(pat.value)
 
-      case _ => throw new Exception("Unexpected literal type: " + pat.value.tpe.show)
+    else throw new Exception("Unexpected literal type: " + pat.value.tpe.show)
 
   private def transformApplyPattern(scrut: Ident, applyPattern: ApplyPattern)
     (using ctx: Context, source: Source)

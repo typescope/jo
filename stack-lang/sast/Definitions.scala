@@ -111,7 +111,7 @@ final class Definitions(rootNameTable: NameTable, provider: InfoProvider):
   )
 
   def isRuntimeContextParam(sym: Symbol): Boolean =
-    runtimeContextParams.contains(sym)
+    runtimeContextParams.exists(param => sym.refers(param))
 
 
 object Definitions:

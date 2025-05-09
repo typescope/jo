@@ -366,7 +366,7 @@ object Interpreter:
 
       case With(expr, args) =>
         val params2 = args.foldLeft(params): (params, arg) =>
-          params.updated(arg.paramRef.symbol, eval(arg.rhs))
+          params.updated(arg.paramRef.symbol.dealias, eval(arg.rhs))
         exec(expr)(using env, params2)
 
       case Allow(expr, _) =>
@@ -387,7 +387,7 @@ object Interpreter:
 
       case Ident(sym) =>
         if sym.isAllOf(Flags.Param | Flags.Context) then
-          params.get(sym) match
+          params.get(sym.dealias) match
             case Some(v) => v :: Nil
             case None =>
                if sym.is(Flags.Default) then
