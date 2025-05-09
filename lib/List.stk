@@ -1,0 +1,148 @@
+namespace stk.List
+
+import stk.Predef.Unit
+import stk.Predef.Bottom
+import stk.Predef.intToStr
+import stk.Predef.abort
+
+import stk.Int.*
+import stk.Bool.*
+
+type List[T] = object {
+  def size: Int
+
+  def apply(i: Int): T
+
+  def updated(i: Int, v: T): List[T]
+
+  def +(v: T): List[T]
+
+  def prepend(v: T): List[T]
+
+  def ++(l: List[T]): List[T]
+
+  def map[S](f: T => S): List[S]
+
+  def foreach(f: T => Unit): Unit
+
+  def fold[S](zero: S, f: (S, T) => S): S
+}
+
+fun empty[T]: List[T] = ListImpl.makeObject ListImpl.Nil
+
+section ListImpl
+  data Repr[T] =
+      Nil
+    | Cons(head: T, tail: List[T])
+    | Append(prefix: List[T], last: T)
+    | Concat(lhs: List[T], rhs: List[T])
+
+
+  pattern Size[T](n: Int): Repr[T] =
+    case Nil then n = 0
+    case Cons(_, tail) then n = 1 + tail.size
+    case Append(prefix, _) then n = prefix.size + 1
+    case Concat(lhs, rhs) then n = lhs.size + rhs.size
+
+  fun errorIndex(i: Int): Bottom = abort ("invalid index for list " + (intToStr i))
+
+  fun makeObject[T](repr: Repr[T]): List[T] = object {
+    val _size: Int = match repr case Size(n) => n
+
+    def size: Int = _size
+
+    def apply(i: Int): T =
+      if either (i < 0) (i > size) then errorIndex i
+
+      match repr
+        case Nil => errorIndex i
+
+        case Cons(v, tail) =>
+          if i == 0 then v else tail(i - 1)
+
+        case Append(prefix, v) =>
+          if i == size - 1 then v else prefix(i)
+
+        case Concat(lhs, rhs) =>
+          if i < lhs.size then lhs(i) else rhs(i - lhs.size)
+      end
+
+    def updated(i: Int, value: T): List[T] =
+      if either (i < 0) (i > size) then errorIndex i
+
+      match repr
+        case Nil => errorIndex i
+
+        case Cons(v, tail) =>
+          if i == 0 then
+            makeObject (Cons value tail)
+          else
+            makeObject (Cons value tail.updated(i + 1, value))
+
+        case Append(prefix, v) =>
+          if i == size - 1 then
+            makeObject (Append prefix value)
+          else
+            makeObject (Append prefix.updated(i, value) v)
+
+        case Concat(lhs, rhs) =>
+          if i < lhs.size then
+            makeObject (Concat lhs.updated(i, value) rhs)
+          else
+            makeObject (Concat lhs rhs.updated(i - lhs.size, value))
+      end
+
+
+    def +(v: T): List[T] = makeObject (Append this v)
+
+    def prepend(v: T): List[T] = makeObject (Cons v this)
+
+    def ++(l: List[T]): List[T] = makeObject (Concat this l)
+
+    def map[S](f: T => S): List[S] =
+      match repr
+        case Nil => makeObject Nil
+
+        case Cons(v, tail) =>
+          makeObject (Cons (f v) (tail.map f))
+
+        case Append(prefix, v) =>
+          makeObject (Append (prefix.map f) (f v))
+
+        case Concat(lhs, rhs) =>
+          makeObject (Concat (lhs.map f) (rhs.map f))
+      end
+
+    def foreach(op: T => Unit): Unit =
+      match repr
+        case Nil =>
+
+        case Cons(v, tail) =>
+          op v
+          tail.foreach op
+
+
+        case Append(prefix, v) =>
+          prefix.foreach op
+          op v
+
+        case Concat(lhs, rhs) =>
+          lhs.foreach op
+          rhs.foreach op
+      end
+
+    def fold[S](zero: S, f: (S, T) => S): S =
+      match repr
+        case Nil => zero
+
+        case Cons(v, tail) =>
+          f (tail.fold zero f) v
+
+        case Append(prefix, v) =>
+          f (prefix.fold zero f) v
+
+        case Concat(lhs, rhs) =>
+          lhs.fold (rhs.fold zero f) f
+      end
+  }
+end

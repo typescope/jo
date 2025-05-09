@@ -261,7 +261,7 @@ object Sast:
     (pattern: Pattern, bindings: List[Assign])
   extends Pattern:
     val tpe = pattern.tpe
-    val span = pattern.span | bindings.last.span
+    val span = pattern.span | (if bindings.nonEmpty then bindings.last.span else pattern.span)
 
   case class SeqPattern
     (patterns: List[RegexPattern])

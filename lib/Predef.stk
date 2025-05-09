@@ -20,7 +20,7 @@ type Any
 type Bottom
 
 //------------------------------------------------------------------------------
-// Expert Int and Bool by default
+// Export common types
 //
 
 alias stk.Int
@@ -30,6 +30,9 @@ alias stk.Bool
 alias stk.Bool.*
 
 alias stk.Array.*
+
+alias stk.List
+alias stk.List.List
 
 //------------------------------------------------------------------------------
 //
@@ -123,34 +126,3 @@ type String <: object {
 // Common types
 //
 data Option[T] = None | Some(v: T)
-
-data List[T] = Nil | Cons(head: T, tail: List[T])
-
-pattern (head: T) ::[T] (tail: List[T]): Cons[T] =
-  case Cons head tail
-
-fun (head: T) ::[T] (tail: List[T]): Cons[T] =
-  Cons head tail
-
-section List
-  fun (l: List[T]) map[T, S](f: T => S): List[S] =
-    match l
-      case Nil => Nil
-      case x :: xs => (f x) :: (xs map f)
-
-  fun (l: List[T]) fold[T, S](zero: S, f: (S, T) => S): S =
-    pattern Fold(acc: S): List[T] =
-      case Nil then acc = zero
-      case head :: Fold(acc1) then acc = f acc1 head
-    end
-
-    match l case Fold(res) => res
-
-  fun (l: List[T]) foreach[T](f: T => Unit): Unit =
-    match l
-      case Nil =>
-
-      case x :: xs =>
-        f x
-        xs foreach f
-end

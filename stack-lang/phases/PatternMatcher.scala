@@ -543,17 +543,15 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
           val continueInit = Assign(continueIdent, BoolLit(true)(pat.span))(pat.span)
 
           val inits =
-            for (outerSym, _) <- starPat.bindings yield
-              val nil = Ident(defn.Predef_Nil_fun)(pat.span).appliedTo()
-              Assign(Ident(outerSym)(pat.span), nil)(pat.span)
+            for (outerSym, innerSym) <- starPat.bindings yield
+              val emptyList = Ident(defn.List_empty)(pat.span).appliedToTypes(innerSym.info).appliedTo()
+              Assign(Ident(outerSym)(pat.span), emptyList)(pat.span)
 
           val updates =
             for (outerSym, innerSym) <- starPat.bindings yield
               val outer = Ident(outerSym)(pat.span)
               val inner = Ident(innerSym)(pat.span)
-              val tapp = Ident(defn.Predef_Cons_fun)(pat.span).appliedToTypes(innerSym.info)
-              // TODO: fix ordering of items by using a flexible data structure
-              val append = tapp.appliedTo(inner, outer)
+              val append = outer.select("+").appliedTo(inner)
               Assign(Ident(outerSym)(pat.span), append)(pat.span)
 
           val cond = all(continueIdent, distanceAllowMore)

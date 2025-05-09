@@ -84,9 +84,9 @@ final class Definitions(rootNameTable: NameTable, provider: InfoProvider):
   val Array_array   =  Array.termMember("array")
 
   // Lists
-  val Predef_List      =  Predef.typeMember("List")
-  val Predef_Nil_fun   =  Predef.termMember("Nil").termMember("Nil")
-  val Predef_Cons_fun  =  Predef.termMember("Cons").termMember("Cons")
+  val List         =  resolveTermByPath("stk.List")
+  val List_List    =  List.typeMember("List")
+  val List_empty   =  List.termMember("empty")
 
   // patterns
   val Predef_orPattern = Predef.patternMember("|")
