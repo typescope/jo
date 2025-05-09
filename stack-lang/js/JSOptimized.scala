@@ -43,7 +43,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
           case Some(sym) => jsName(sym)
 
           case None =>
-            val rawName = if target.isFunction then sym.fullName else sym.name
+            val rawName = if target.isFunction then target.fullName else target.name
             val uniqueName = unique.freshName(encodeSymbolic(rawName))
             symbol2UniqueName(target) = uniqueName
 

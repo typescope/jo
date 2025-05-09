@@ -143,12 +143,13 @@ object Types:
     /** Convert Partial[T] to T if possible */
     def stripPartial(using defn: Definitions): Type =
       this match
-        case AppliedType(ctor, targs) if ctor.refersTo(defn.Predef_Partial) =>
+        case AppliedType(ctor, targs) if ctor.refers(defn.Predef_Partial) =>
           targs(0)
 
         case _ => this
 
-    def refersTo(symbol: Symbol)(using Definitions): Boolean =
+    /** Is the current type equivalent to a TypeRef or AppliedType to the given symbol  */
+    def refers(symbol: Symbol)(using Definitions): Boolean =
       val visited = new mutable.ArrayBuffer[Symbol]
 
       def recur(tp: Type): Boolean =

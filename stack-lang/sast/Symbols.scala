@@ -106,6 +106,10 @@ object Symbols:
     def dealias(using Definitions): Symbol =
       if this.isAlias then this.info.as[TypeRef].symbol.dealias else this
 
+    /** Is the current symbol equivalent to a TypeRef or AppliedType to the given symbol  */
+    def refers(that: Symbol)(using Definitions): Boolean =
+      this == that || this.info.refers(that)
+
     /** The default function associated with a context parameter */
     def defaultFunction(using Definitions): Symbol =
       assert(this.isAllOf(Flags.Default | Flags.Context))

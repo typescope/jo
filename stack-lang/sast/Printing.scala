@@ -152,7 +152,7 @@ object Printing:
             "\"" ~ StringUtil.escape(s) ~ "\""
 
           case Constant.Int(n) =>
-            val isChar = word.tpe.refersTo(defn.Predef_Char)
+            val isChar = word.tpe.refers(defn.Predef_Char)
             if isChar then
               "'" ~ StringUtil.escapeChar(n.toChar) ~ "'"
             else

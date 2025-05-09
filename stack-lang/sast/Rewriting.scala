@@ -12,12 +12,12 @@ object Rewriting:
   def rewriteShortcutAndOr(apply: Apply)(using defn: Definitions): Word =
     val Apply(fun, args) = apply
 
-    if fun.refersTo(defn.Bool_and) then
+    if fun.refers(defn.Bool_and) then
       val lhs :: rhs :: Nil = args: @unchecked
       val falseLit = BoolLit(false)(rhs.span)
       If(lhs, rhs, falseLit)(apply.tpe, apply.span)
 
-    else if fun.refersTo(defn.Bool_or) then
+    else if fun.refers(defn.Bool_or) then
       val lhs :: rhs :: Nil = args: @unchecked
       val trueLit = BoolLit(true)(lhs.span)
       If(lhs, trueLit, rhs)(apply.tpe, apply.span)

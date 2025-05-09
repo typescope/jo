@@ -35,7 +35,7 @@ class LowerRuntime(runtime: JSRuntime)(using defn: Definitions) extends phases.P
     val fun2 = this(fun)
 
     fun2.strip match
-      case TypeApply(Ident(sym), tpt :: Nil) if sym == defn.Array_array =>
+      case TypeApply(Ident(sym), tpt :: Nil) if sym.refers(defn.Array_array) =>
         val fun2 =
           if Subtyping.conforms(tpt.tpe, IntType) then
             Ident(runtime.JS_Array_createInt)(fun.span)
@@ -48,20 +48,20 @@ class LowerRuntime(runtime: JSRuntime)(using defn: Definitions) extends phases.P
 
         Encoded(Apply(fun2, args2)(AnyType, app.span))(app.tpe)
 
-      case TypeApply(Ident(sym), tpt :: Nil) if sym == runtime.JS_cast =>
+      case TypeApply(Ident(sym), tpt :: Nil) if sym.refers(runtime.JS_cast) =>
         assert(args2.size == 1, args2)
         Encoded(args2.head)(tpt.tpe)
 
       case ref @ Ident(sym) =>
         // global function call
-        val fun2 = rewiring.get(sym) match
+        val fun2 = rewiring.get(sym.dealias) match
             case Some(subst) => Ident(subst)(fun.span)
             case _ => ref
 
         // TODO: need encoding if result type does not agree
         Apply(fun2, args2)(app.tpe, app.span)
 
-      case Select(qual, name) if qual.tpe.refersTo(Predef_String) =>
+      case Select(qual, name) if qual.tpe.refers(Predef_String) =>
         // After lambda lift, `qual` is stable thus can be thrown away
         assert(qual.isIdempotent, fun.show)
 

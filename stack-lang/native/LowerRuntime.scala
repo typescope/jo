@@ -43,7 +43,7 @@ class LowerRuntime(runtime: NativeRuntime)(using defn: Definitions) extends phas
   val UnitType = defn.UnitType
 
   val rewiring = Map(
-    defn.Predef_abort -> runtime.Core_abortImpl,
+    defn.Predef_abort      -> runtime.Core_abortImpl,
     defn.Predef_byteToChar -> runtime.Core_byteToChar,
     defn.Predef_byteToInt  -> runtime.Core_byteToInt,
     defn.Predef_charToByte -> runtime.Core_charToByte,
@@ -59,24 +59,24 @@ class LowerRuntime(runtime: NativeRuntime)(using defn: Definitions) extends phas
      val args2 = args.map(this.apply)
 
     fun.strip match
-      case TypeApply(fun @ Ident(sym), tpt :: Nil) if sym == Array_array  =>
+      case TypeApply(fun @ Ident(sym), tpt :: Nil) if sym.refers(Array_array)  =>
         val fun2 = Ident(runtime.Core_Array_create)(fun.span)
         Encoded(Apply(fun2, args2)(AnyType, app.span))(app.tpe)
 
-      case TypeApply(Ident(sym), tpt :: Nil) if sym == runtime.Core_cast =>
+      case TypeApply(Ident(sym), tpt :: Nil) if sym.refers(runtime.Core_cast) =>
         assert(args2.size == 1, args2)
         Encoded(args2.head)(tpt.tpe)
 
       case ref @ Ident(sym) =>
         // global function call
-        val fun2 = rewiring.get(sym) match
+        val fun2 = rewiring.get(sym.dealias) match
             case Some(subst) => Ident(subst)(fun.span)
             case _ => ref
 
         // TODO: need encoding if result type does not agree
         Apply(fun2, args2)(app.tpe, app.span)
 
-      case Select(qual, name) if qual.tpe.refersTo(Array_Array) =>
+      case Select(qual, name) if qual.tpe.refers(Array_Array) =>
         // After lambda lift, `qual` is stable thus can be thrown away
         assert(qual.isIdempotent, fun.show)
 
@@ -95,7 +95,7 @@ class LowerRuntime(runtime: NativeRuntime)(using defn: Definitions) extends phas
         else
           throw new Exception("Unexpected method on array: " + name)
 
-      case Select(qual, name) if qual.tpe.refersTo(Predef_String) =>
+      case Select(qual, name) if qual.tpe.refers(Predef_String) =>
         // After lambda lift, `qual` is stable thus can be thrown away
         assert(qual.isIdempotent, fun.show)
 

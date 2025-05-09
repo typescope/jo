@@ -110,7 +110,7 @@ class PatternTyper(namer: Namer, checker: Checker):
 
     import Exhaustivity.Space
     val coveredType = coveredTypeTree.tpe
-    val isPartial = coveredType.refersTo(defn.Predef_Partial)
+    val isPartial = coveredType.refers(defn.Predef_Partial)
     val scrutSpace = Space.TypeSpace(coveredType.stripPartial)
 
     var rest = scrutSpace

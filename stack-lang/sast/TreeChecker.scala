@@ -52,7 +52,7 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends S
   override def apply(pattern: Pattern)(using ctx: Context): Unit =
     pattern match
       case ApplyPattern(fun, nested) =>
-        if fun.refersTo(defn.Predef_orPattern) then
+        if fun.refers(defn.Predef_orPattern) then
           Reporter.error("Unexpected use of `|` in S-AST, tree = " + pattern.show, fun.pos)
 
       case _ =>
@@ -129,7 +129,7 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends S
               Reporter.error("word.tpe = " + word.tpe.show + ", result type = " + funType.resultType + " tree = " + word.show, word.pos)
         end match
 
-        if fun.refersTo(defn.Bool_and) || fun.refersTo(defn.Bool_or) then
+        if fun.refers(defn.Bool_and) || fun.refers(defn.Bool_or) then
           Reporter.error("Unexpected use of short-cut || and && in S-AST, tree = " + word.show, word.pos)
 
         checkFunShape(fun)

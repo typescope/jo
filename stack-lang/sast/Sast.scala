@@ -50,11 +50,11 @@ object Sast:
 
         case _ => false
 
-    def refersTo(symbol: Symbol): Boolean =
+    def refers(symbol: Symbol)(using Definitions): Boolean =
       // selection is never symblic after normalization, thus no need to handle
       this match
-        case Ident(sym) => sym == symbol
-        case TypeApply(fun, _) => fun.refersTo(symbol)
+        case Ident(sym) => sym.refers(symbol)
+        case TypeApply(fun, _) => fun.refers(symbol)
         case _ => false
 
     /** Strip possible encoding */

@@ -33,8 +33,10 @@ extends Linker:
   def locate(sym: Symbol): Option[Symbol] =
     if sym == GC_alloc then
       Some(BumpAllocator_alloc)
+
     else if sym == GC_init then
       Some(BumpAllocator_init)
+
     else
       None
 

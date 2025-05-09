@@ -59,9 +59,9 @@ object SastOps:
   : Type =
 
     if
-      targetType.refersTo(defn.Predef_Byte) && n < 128 && n >= -128
-      || targetType.refersTo(defn.Predef_Char) && n < 65536 && n >= 0
-      || targetType.refersTo(defn.Int_Int)
+      targetType.refers(defn.Predef_Byte) && n < 128 && n >= -128
+      || targetType.refers(defn.Predef_Char) && n < 65536 && n >= 0
+      || targetType.refers(defn.Int_Int)
     then
       targetType
 
@@ -70,30 +70,30 @@ object SastOps:
 
   def coerceNumeric(word: Word, targetType: Type)(using defn: Definitions): Word =
     val origType = word.tpe
-    if origType.refersTo(defn.Predef_Byte) then
-      if targetType.refersTo(defn.Predef_Char) then
+    if origType.refers(defn.Predef_Byte) then
+      if targetType.refers(defn.Predef_Char) then
         val byteToChar = Ident(defn.Predef_byteToChar)(word.span)
         Apply(byteToChar, word :: Nil)(targetType, word.span)
 
-      else if targetType.refersTo(defn.Int_Int) then
+      else if targetType.refers(defn.Int_Int) then
         val byteToInt = Ident(defn.Predef_byteToInt)(word.span)
         Apply(byteToInt, word :: Nil)(targetType, word.span)
 
       else
         Reporter.abortInternal("Unexpected numeric type " + targetType.show)
 
-    else if origType.refersTo(defn.Predef_Char) then
-      if targetType.refersTo(defn.Predef_Byte) then
+    else if origType.refers(defn.Predef_Char) then
+      if targetType.refers(defn.Predef_Byte) then
         word
 
-      else if targetType.refersTo(defn.Int_Int) then
+      else if targetType.refers(defn.Int_Int) then
         val charToInt = Ident(defn.Predef_charToInt)(word.span)
         Apply(charToInt, word :: Nil)(targetType, word.span)
 
       else
         Reporter.abortInternal("Unexpected numeric type " + targetType.show)
 
-    else if origType.refersTo(defn.Int_Int) then
+    else if origType.refers(defn.Int_Int) then
       word
 
     else

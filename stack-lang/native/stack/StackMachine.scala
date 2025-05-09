@@ -286,7 +286,7 @@ extends Backend(runtime):
           callPrimitive(target)
 
         else if target.owner == runtime.Core then
-          if sym == runtime.Core_data then
+          if target == runtime.Core_data then
             // TODO: error instead of crash -- in early phases
             val Literal(Constant.String(qualid)) :: Nil = app.args: @unchecked
             val Some(label) = runtime.locate(qualid): @unchecked
