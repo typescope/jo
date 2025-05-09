@@ -5,6 +5,8 @@ import scala.io.Source
 
 import common.IO
 import phases.FrontEnd
+import sast.NameTable
+import sast.Definitions
 
 import reporting.Reporter
 import reporting.Reporter.FatalError
