@@ -9,10 +9,6 @@ type Complex = object {
   def show: String
 }
 
-fun add(a: Int, b: Int): Int = a + b
-fun sub(a: Int, b: Int): Int = a - b
-fun mul(a: Int, b: Int): Int = a * b
-
 fun Complex(x: Int, y: Int): Complex =
   object {
     def real = x
@@ -20,22 +16,18 @@ fun Complex(x: Int, y: Int): Complex =
 
     def +(c: Complex): Complex =
       Complex
-        add x c.real
-        add y c.image
+        Int x + c.real
+        Int y + c.image
 
     def -(c: Complex): Complex =
       Complex
-        sub x c.real
-        sub y c.image
+        Int x - c.real
+        Int y - c.image
 
     def *(c: Complex): Complex =
       Complex
-        sub
-          mul x c.real
-          mul y c.image
-        add
-          mul x c.image
-          mul y c.real
+        Int x * c.real - y * c.image
+        Int x * c.image + y * c.real
 
     def show: String =
       (intToStr x) + " + " + (intToStr y) + "i"
