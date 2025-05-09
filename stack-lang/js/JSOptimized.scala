@@ -295,7 +295,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
       case Ident(sym) =>
         val target = sym.dealias
         if target.owner == defn.Int || target.owner == defn.Bool then
-          callPrimitive(sym, args)
+          callPrimitive(target, args)
 
         else if target == runtime.JS_js then
           val Literal(Constant.String(code)) :: Nil = args : @unchecked

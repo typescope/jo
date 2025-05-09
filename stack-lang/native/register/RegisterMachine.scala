@@ -374,11 +374,13 @@ extends Backend(runtime):
   def compile(app: Apply)(using ctx: Context): Unit =
     app.funSymbol match
       case Some(sym) =>
-        if sym.owner == defn.Int || sym.owner == defn.Bool then
+        val target = sym.dealias
+        if target.owner == defn.Int || target.owner == defn.Bool then
           for arg <- app.args do compile(arg)
-          callPrimitive(sym)
-        else if sym.owner == runtime.Core then
-          if sym == runtime.Core_data then
+          callPrimitive(target)
+
+        else if target.owner == runtime.Core then
+          if target == runtime.Core_data then
             // TODO: error instead of crash -- in early phases
             val Literal(Constant.String(qualid)) :: Nil = app.args: @unchecked
             val label = runtime.locate(qualid) match
@@ -388,12 +390,14 @@ extends Backend(runtime):
             val targetReg = freshVirtualReg()
             gen(Instr.Move(label, targetReg))
             ctx.vs.push(Reg(targetReg))
+
           else
             for arg <- app.args do compile(arg)
-            callCore(sym)
+            callCore(target)
+
         else
           for arg <- app.args do compile(arg)
-          call(sym)
+          call(target)
 
       case _ =>
         compile(app.fun)
@@ -404,7 +408,7 @@ extends Backend(runtime):
         this.call(fun, funType.paramTypes, funType.resultType)
 
   def callPrimitive(sym: Symbol)(using Context): Unit =
-    sym.dealias match
+    sym match
       case defn.Int_add    =>   int2(Instr.Add)
       case defn.Int_sub    =>   int2(Instr.Sub)
       case defn.Int_mul    =>   int2(Instr.Mul)
