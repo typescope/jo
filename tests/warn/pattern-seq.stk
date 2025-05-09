@@ -1,15 +1,10 @@
-type List[T] = object {
-  def size: Int
-  def apply(i: Int): T
-}
-
 pattern Pos: Partial[Int] = case x if x > 0
 
 fun test(a: List[Int]) =
   match a
     case [> (x if x > 2), _ys*] =>
       println (intToStr x)
-      List _ys foreach (x => println (intToStr x))
+      val c = _ys
 
     // case _ =>
 

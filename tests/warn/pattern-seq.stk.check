@@ -1,19 +1,19 @@
----------- Error at ./tests/warn/pattern-seq.stk:12:12 ---------------
-|       List _ys foreach (x => println (intToStr x))
-|            ^^^
-|            Undefined term identifier _ys
+---------- Error at tests/warn/pattern-seq.stk:7:15 ---------------
+|       val c = _ys
+|               ^^^
+|               Undefined term identifier _ys
 
----------- Warning at ./tests/warn/pattern-seq.stk:17:9 ---------------
+---------- Warning at tests/warn/pattern-seq.stk:12:9 ---------------
 |   match a
 |         ^
 |         The match will fail for the case: List[Int]
 
----------- Warning at ./tests/warn/pattern-seq.stk:20:9 ---------------
+---------- Warning at tests/warn/pattern-seq.stk:15:9 ---------------
 |   match a
 |         ^
 |         The match will fail for the case: List[Int] of size = 0
 
----------- Warning at ./tests/warn/pattern-seq.stk:24:14 ---------------
+---------- Warning at tests/warn/pattern-seq.stk:19:14 ---------------
 |     case [x, y*, Pos*] =>
 |              ^
 |              * pattern shadows the following head pattern, potentially makes the next pattern unreachable.

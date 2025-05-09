@@ -90,7 +90,7 @@ class ExprTyper(namer: Namer):
         // if the first word is a section or namespace reference, inject the
         // names of the container in typing the expression
         val tref = tp.as[TypeRef]
-        val injected = sc.fresh(tref.symbol, tref.symbol.info.as[NameTableInfo].nameTable)
+        val injected = sc.fresh(tref.symbol, tref.symbol.dealiasedInfo.as[NameTableInfo].nameTable)
         given Scope = injected.fresh()
         transform(Ast.Expr(rest)(expr.span))
 
