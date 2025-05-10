@@ -3,7 +3,7 @@ package reporting
 class Config(options: Map[String, String]):
   val printAfter: List[String] = options.getOrElse("-printAfter", "").split(",").map(_.trim).toList
 
-  val fatalWarnings: Boolean = options.contains("-fata-warnings")
+  val fatalWarnings: Boolean = options.contains("-fatal-warnings")
 
   val checkTree: Boolean = options.contains("-checkTree")
 
