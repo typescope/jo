@@ -5,6 +5,8 @@ import common.IO
 import sast.*
 import phases.*
 import reporting.Reporter
+import reporting.Reporter.Step
+import reporting.Config
 
 /***********************************************************************
  *
@@ -13,10 +15,7 @@ import reporting.Reporter
  ***********************************************************************/
 @main
 def compile(args: String*): Unit =
-  val optionSpec = Map(
-    "-o" -> true,
-    "-fatal-warnings" -> false,
-  )
+  val optionSpec = Config.commonOptionsSpec + ("-o" -> true)
 
   val (options, rest) = IO.parseOptions(args, optionSpec)
 
@@ -35,8 +34,9 @@ def compile(args: String*): Unit =
         else
           "out.js"
 
+  given Config = Config(options)
+
   Reporter.monitor:
-    given Reporter.Config = Reporter.Config(options.contains("-fatal-warnings"))
 
     val rootNameTable = new NameTable
 
@@ -61,19 +61,14 @@ def compile(args: String*): Unit =
 
         val closureConvert = new ElimCapture
         val runtimeLowerer = new LowerRuntime(jsRuntime)
-        val backend = new JSOptimized(outFile, jsRuntime)
+        val backend: Step[List[Sast.Namespace], Unit] =
+          Step("backend", new JSOptimized(outFile, jsRuntime).compile)
 
-        namespacesSAST                |>
-        closureConvert.transform      |+
-        TreeChecker.check             |>
-        Printing.peek(enable = false) |>
-        runtimeLowerer.transform      |+
-        TreeChecker.check             |>
-        Printing.peek(enable = false) |>
-        contextParamsLower.transform  |+
-        TreeChecker.check             |>
-        Printing.peek(enable = false) |>
-        backend.compile
+        namespacesSAST      |>
+        closureConvert      |>
+        runtimeLowerer      |>
+        contextParamsLower  |>
+        backend
       } <| ("backend")
 
       case _ =>

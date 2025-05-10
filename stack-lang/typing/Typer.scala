@@ -6,7 +6,8 @@ import sast.Sast.*
 
 import parsing.Parser
 import reporting.Reporter
-import reporting.Timer
+import reporting.Reporter.Step
+import reporting.Config
 import common.IO
 
 object Typer:
@@ -22,7 +23,7 @@ object Typer:
   /** The stdlib cannot depend on pre-defined symbols */
   def check
       (nssAst: List[Ast.Namespace], runtime: List[String])
-      (using defnLazy: Definitions.Lazy, rp: Reporter, cf: Reporter.Config)
+      (using defnLazy: Definitions.Lazy, rp: Reporter, cf: Config)
   : List[Namespace] =
 
     val rootNameTable = defnLazy.rootNameTable
@@ -44,35 +45,27 @@ object Typer:
 
   private def runNamer(
     files: List[String], rootNameTable: NameTable, predef: NameTable)
-    (using defnLazy: Definitions.Lazy, rp: Reporter, cf: Reporter.Config)
+    (using defnLazy: Definitions.Lazy, rp: Reporter, cf: Config)
   : List[Namespace] =
 
-    val namer = (nss: List[Ast.Namespace]) =>
-      new Namer().transform(nss, rootNameTable, predef) <| ("namer")
+    val namer = Step("namer", (nss: List[Ast.Namespace]) => {
+      new Namer().transform(nss, rootNameTable, predef)
+    })
+
     // `|>` will stop early in the presence of parsing errors
-    Timer("parsing") { Parser.parse(files) } |> namer
+    Parser.parse(files) |> namer
 
   def main(args: Array[String]): Unit =
-    val optionSpec = Map(
-      "-fatal-warnings" -> false,
-    )
+    val (options, sources) = IO.parseOptions(args, Config.commonOptionsSpec)
 
-    val (options, sources) = IO.parseOptions(args, optionSpec)
+    given Config = Config(options)
 
     Reporter.monitor:
-      given Reporter.Config = Reporter.Config(options.contains("-fatal-warnings"))
-
       val runtimeFiles = Nil
 
       val rootNameTable = new NameTable
       given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable)
 
-      val namer = (nssAst: List[Ast.Namespace]) => check(nssAst, runtimeFiles)
+      val namer = Step("namer", (nssAst: List[Ast.Namespace]) => check(nssAst, runtimeFiles))
 
-      given defn: Definitions = lazyDefn.value
-      val nss = Parser.parse(sources) |> namer |> TreeChecker.check
-
-      for ns <- nss if ns.symbol != defn.Predef do
-        println(ns.symbol.sourcePos.source.file + ":")
-        println(ns.show)
-        println
+      Parser.parse(sources) |> namer

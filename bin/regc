@@ -15,8 +15,9 @@ files=(
     stack-lang/parsing/Parser.scala
     stack-lang/parsing/Scanner.scala
     stack-lang/parsing/Tokens.scala
-    stack-lang/reporting/Reporter.scala
+    stack-lang/reporting/Config.scala
     stack-lang/reporting/Diagnostics.scala
+    stack-lang/reporting/Reporter.scala
     stack-lang/reporting/Timer.scala
 
     # typer
@@ -84,4 +85,4 @@ files=(
 
 FILES=${files[*]}
 
-scala-cli project.scala $FILES --main-class native.register.RegisterMachine -- $@
+scala-cli -J -XX:StartFlightRecording:filename=recording.jfr,duration=30s project.scala $FILES --main-class native.register.RegisterMachine -- $@

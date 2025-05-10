@@ -6,9 +6,11 @@ import Sast.*
 import Symbols.*
 
 import common.Debug
+import common.IO
 
 import phases.FrontEnd
 import reporting.Reporter
+import reporting.Config
 
 /** An interpreter for S-AST */
 object Interpreter:
@@ -504,24 +506,24 @@ object Interpreter:
       case _: Match | _: TaggedLit =>
         throw new Exception("Unexpected tree: " + word.show)
 
-  def main(args: Array[String]): Unit = Reporter.monitor:
-    val sourceFiles = args.toList
-    val runtime = Nil
+  def main(args: Array[String]): Unit =
+    val (options, sources) = IO.parseOptions(args, Config.commonOptionsSpec)
+    given Config = Config(options)
 
+    val runtime = Nil
     val rootNameTable = new NameTable
 
-    given Reporter.Config = Reporter.Config(fatalWarnings = true)
-    given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable)
+    Reporter.monitor:
+      given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable)
+      val namespacesSAST = FrontEnd.run(runtime, sources) <| ("frontend")
 
-    val namespacesSAST = FrontEnd.run(runtime, sourceFiles) <| ("frontend")
+      val mains = namespacesSAST.collect:
+        case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get
 
-    val mains = namespacesSAST.collect:
-      case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get
+      mains match
+        case main :: _ =>
+          given Definitions = lazyDefn.value
+          exec(namespacesSAST, main) <| ("interpreter")
 
-    mains match
-      case main :: _ =>
-        given Definitions = lazyDefn.value
-        exec(namespacesSAST, main) <| ("interpreter")
-
-      case Nil =>
-        Reporter.abortInternal("No main function found")
+        case Nil =>
+          Reporter.abortInternal("No main function found")

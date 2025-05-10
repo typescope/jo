@@ -22,13 +22,8 @@ object Printing:
   def show(ns: Namespace)(using Definitions): String =
     showNamespace(ns).toString
 
-  inline def peek(enable: Boolean)(nss: List[Namespace])
-    (using Definitions)
-  : List[Namespace] =
-
-    inline if enable then
-      for ns <- nss do println(show(ns))
-    nss
+  def print(nss: List[Namespace])(using Definitions): Unit =
+    for ns <- nss do println(show(ns))
 
   //----------------------------------------------------------------------------
 

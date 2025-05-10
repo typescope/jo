@@ -9,6 +9,7 @@ import sast.NameTable
 import sast.Definitions
 
 import reporting.Reporter
+import reporting.Config
 import reporting.Reporter.FatalError
 import reporting.Diagnostics.*
 
@@ -25,7 +26,7 @@ object Test:
 
   def compileAndCheck(test: String): Boolean = Reporter.timeout(100):
     given rp: Reporter = Reporter.createReporter(buffer = true)
-    given Reporter.Config = Reporter.Config(fatalWarnings = true)
+    given Config = Config(Map("-fatal-warnings" -> ""))
 
     val sourceFiles =
       if IO.isFile(test) then test :: Nil

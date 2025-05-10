@@ -82,23 +82,20 @@ class Reporter(
 
     println(s"$errorCount error(s), $warningCount warning(s)")
 
-  // TODO: change fn to phase: Phase[T, U] <: T => U to get phase name
   extension [T](v: T)
-    inline def |> [U](inline fn: T => U)(using config: Config): U =
+    inline def |> [U](step: Step[T, U])(using config: Config): U =
       if this.hasErrors || config.fatalWarnings && this.hasWarnings then
         throw FatalError.StopAfterPhase()
       else
-        fn(v)
-
-    inline def |+ [U](inline fn: T => U): U = fn(v)
+        step.run(v) <| (step.name)
   end extension
 
   extension [T](inline op: T)
-    inline def <|(key: String)(using Reporter): T =
-      Timer.measure(key, enable = true)(op)
+    inline def <|(key: String): T =
+      Timer.measure(key, enable = true)(op)(using this)
 
 object Reporter:
-  case class Config(fatalWarnings: Boolean)
+  class Step[S, T](val name: String, val run: S => T)
 
   /** A fatal error that aborts the compilation */
   enum FatalError extends Exception:
@@ -111,11 +108,11 @@ object Reporter:
     val reported = new mutable.ArrayBuffer[Diagnostic]
     new Reporter(reported, buffer, sources)
 
-  def monitor[T](fn: Reporter ?=> Unit): Unit =
+  def monitor[T](fn: Reporter ?=> Unit)(using cf: Config): Unit =
     given reporter: Reporter = createReporter()
     try
       timeout(100) { fn }  <| ("total")
-      // Timer.report()
+      if cf.reportTime then Timer.report()
     catch
       case error: FatalError.CodeError =>
         println("[error] " + error.content)

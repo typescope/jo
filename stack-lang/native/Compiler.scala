@@ -5,6 +5,8 @@ import sast.Symbols.Symbol
 import phases.*
 
 import reporting.Reporter
+import reporting.Reporter.Step
+import reporting.Config
 
 import common.IO
 
@@ -20,10 +22,9 @@ import native.arch.X86
 object Compiler:
   type BackendBuilder = (NameTable, Symbol, Definitions) => Backend
 
-  val optionSpec = Map(
+  val optionSpec = Config.commonOptionsSpec ++ Map(
     "-o" -> true,
     "-layout" -> true,
-    "-fatal-warnings" -> false,
   )
 
   def compile(backendBuilder: BackendBuilder, args: Array[String]): Unit =
@@ -56,9 +57,9 @@ object Compiler:
       "runtime/native/BumpAllocator.stk",
     )
 
-    Reporter.monitor:
-      given Reporter.Config = Reporter.Config(options.contains("-fatal-warnings"))
+    given Config = Config(options)
 
+    Reporter.monitor:
       given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable)
 
       val namespacesSAST = FrontEnd.run(runtime, sources) <| ("frontend")
@@ -71,30 +72,24 @@ object Compiler:
           given Definitions = lazyDefn.value
 
           val backend = backendBuilder(rootNameTable, main, lazyDefn.value)
+          val backendStep = Step("backend", backend.compile)
 
           val closureConvert = new ElimCapture
           val contextParamsLower = new native.LowerContextParams(backend.runtime)
           val runtimeLowerer = new native.LowerRuntime(backend.runtime)
           val explicitAlloc = new native.ExplicitAlloc(backend.runtime)
 
-          val assembler = (prog: Prog) =>
+          val assembler = Step("assembler", (prog: Prog) =>
             // println(prog.show)
             Linux.lower(prog, layout, outFile, X86, backend.runtime)
+          )
 
-          namespacesSAST                |>
-          closureConvert.transform      |+
-          TreeChecker.check             |>
-          Printing.peek(enable = false) |>
-          contextParamsLower.transform  |+
-          TreeChecker.check             |>
-          Printing.peek(enable = false) |>
-          runtimeLowerer.transform      |+
-          TreeChecker.check             |>
-          Printing.peek(enable = false) |>
-          explicitAlloc.transform       |+
-          TreeChecker.check             |>
-          Printing.peek(enable = false) |>
-          backend.compile               |>
+          namespacesSAST     |>
+          closureConvert     |>
+          contextParamsLower |>
+          runtimeLowerer     |>
+          explicitAlloc      |>
+          backendStep        |>
           assembler
 
         } <| ("backend")
