@@ -93,9 +93,8 @@ class Namer:
     delayedImports.foreach(_.apply())
 
     val namespaces =
-      given Definitions = defnLazy.value
       for delayedDef <- delayedNamespaces
-      yield delayedDef.delayed() <| (delayedDef.symbol.fullName)
+      yield delayedDef.delayed() <| (delayedDef.symbol.sourcePos.source.file)
 
     checker.performDelayedChecks() <| ("checker")
     namespaces.toList
