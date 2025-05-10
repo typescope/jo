@@ -48,7 +48,7 @@ class Namer:
 
     val delayedImports = new mutable.ArrayBuffer[() => Unit]
     val delayedAliases = new mutable.ArrayBuffer[() => Unit]
-    val delayedNamespaces = new mutable.ArrayBuffer[() => Namespace]
+    val delayedNamespaces = new mutable.ArrayBuffer[DelayedDef[Namespace]]
 
     for ns <- nss do
       given source: Source = Reporter.source(ns.source)
@@ -79,11 +79,11 @@ class Namer:
           imports ++= Imports.doImport(imp.qualid, importScope, rootNameTable, isAlias = false)
       }
 
-      delayedNamespaces += { () =>
+      delayedNamespaces += DelayedDef(nsSym, { () =>
         given Definitions = defnLazy.value
         val defs = for delayed <- delayedDefs.toList yield delayed.force()
         Namespace(nsSym, imports.toList, defs)(ns.span)
-      }
+      })
     end for
 
     // Aliasing will ignore members that are alised
@@ -91,8 +91,13 @@ class Namer:
     // Explicit aliasing another alised definition is an error.
     delayedAliases.foreach(_.apply())
     delayedImports.foreach(_.apply())
-    val namespaces = delayedNamespaces.map(_.apply())
-    checker.performDelayedChecks()
+
+    val namespaces =
+      given Definitions = defnLazy.value
+      for delayedDef <- delayedNamespaces
+      yield delayedDef.delayed() <| (delayedDef.symbol.fullName)
+
+    checker.performDelayedChecks() <| ("checker")
     namespaces.toList
 
   /** Resolve namespace and create intermediate namespace on demand
@@ -1310,7 +1315,7 @@ object Namer:
     */
   val TypedWord = new KeyProps.Key[Word]("Namer.TypedWord")
 
-  class DelayedDef[+T <: Def](val symbol: Symbol, delayed: () => T):
+  class DelayedDef[+T](val symbol: Symbol, val delayed: () => T):
     private lazy val definition: T = delayed()
     def force()(using Definitions): T =
       symbol.info // force symbol

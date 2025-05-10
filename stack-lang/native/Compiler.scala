@@ -61,13 +61,13 @@ object Compiler:
 
       given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable)
 
-      val namespacesSAST = FrontEnd.run(runtime, sources)
+      val namespacesSAST = FrontEnd.run(runtime, sources) <| ("frontend")
 
       val mains = namespacesSAST.collect:
         case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get
 
       mains match
-        case main :: Nil =>
+        case main :: Nil => {
           given Definitions = lazyDefn.value
 
           val backend = backendBuilder(rootNameTable, main, lazyDefn.value)
@@ -96,6 +96,8 @@ object Compiler:
           Printing.peek(enable = false) |>
           backend.compile               |>
           assembler
+
+        } <| ("backend")
 
         case _ =>
           if mains.isEmpty then

@@ -5,6 +5,8 @@ import ast.Positions.*
 import Reporter.*
 import Diagnostics.*
 
+import common.KeyProps
+
 import scala.collection.mutable
 import scala.concurrent.{ ExecutionContext, Future, Await }
 import scala.concurrent.duration.*
@@ -18,7 +20,7 @@ class Reporter(
   reported: mutable.ArrayBuffer[Diagnostic],     // reported items
   buffer: Boolean,                               // whether buffer reports
   sources: mutable.Map[String, Source]           // all sources
-):
+) extends KeyProps.Container:
 
   def getSource(file: String): Source =
     sources.get(file) match
@@ -29,7 +31,7 @@ class Reporter(
         source
 
   def fresh(buffer: Boolean = true): Reporter =
-    new Reporter(mutable.ArrayBuffer.empty, buffer, sources)
+    new Reporter(mutable.ArrayBuffer.empty, buffer, sources).copyProps(this)
 
   def abort(message: String, pos: SourcePosition): Nothing =
     val error = new ReportItem(Kind.Error, message, pos)
@@ -91,6 +93,10 @@ class Reporter(
     inline def |+ [U](inline fn: T => U): U = fn(v)
   end extension
 
+  extension [T](inline op: T)
+    inline def <|(key: String)(using Reporter): T =
+      Timer.measure(key, enable = true)(op)
+
 object Reporter:
   case class Config(fatalWarnings: Boolean)
 
@@ -106,9 +112,10 @@ object Reporter:
     new Reporter(reported, buffer, sources)
 
   def monitor[T](fn: Reporter ?=> Unit): Unit =
-    val reporter = createReporter()
+    given reporter: Reporter = createReporter()
     try
-      timeout(100) { fn(using reporter) }
+      timeout(100) { fn }  <| ("total")
+      // Timer.report()
     catch
       case error: FatalError.CodeError =>
         println("[error] " + error.content)

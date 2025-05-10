@@ -14,6 +14,7 @@ files=(
     stack-lang/parsing/Tokens.scala
     stack-lang/reporting/Reporter.scala
     stack-lang/reporting/Diagnostics.scala
+    stack-lang/reporting/Timer.scala
 )
 
 FILES=${files[*]}

@@ -6,12 +6,21 @@ import scala.collection.immutable.ListMap
 object KeyProps:
   class Key[+T](val name: String)
 
+  class UpdatableKey[+T](name: String) extends Key[T](name)
+
   trait Container:
     /** A map from keys to values */
     private var map: ListMap[Key[?], Any] = ListMap()
 
+    def copyProps(that: Container): this.type =
+      this.map = that.map
+      this
+
     def addKey[T](key: Key[T], value: T): Unit =
       assert(!map.contains(key))
+      map = map.updated(key, value)
+
+    def updateKey[T](key: UpdatableKey[T], value: T): Unit =
       map = map.updated(key, value)
 
     def getKey[T](key: Key[T]): T = map(key).asInstanceOf[T]

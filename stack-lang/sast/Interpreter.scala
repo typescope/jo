@@ -513,7 +513,7 @@ object Interpreter:
     given Reporter.Config = Reporter.Config(fatalWarnings = true)
     given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable)
 
-    val namespacesSAST = FrontEnd.run(runtime, sourceFiles)
+    val namespacesSAST = FrontEnd.run(runtime, sourceFiles) <| ("frontend")
 
     val mains = namespacesSAST.collect:
       case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get
@@ -521,7 +521,7 @@ object Interpreter:
     mains match
       case main :: _ =>
         given Definitions = lazyDefn.value
-        exec(namespacesSAST, main)
+        exec(namespacesSAST, main) <| ("interpreter")
 
       case Nil =>
         Reporter.abortInternal("No main function found")
