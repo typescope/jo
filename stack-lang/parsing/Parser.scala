@@ -28,7 +28,7 @@ import scala.collection.mutable
 
 object Parser:
   def main(args: Array[String]): Unit =
-    val (options, sources) = IO.parseOptions(args, Map.empty)
+    val (options, sources) = IO.parseOptions(args, Config.commonOptionsSpec)
     given Config = Config(options)
 
     Reporter.monitor:
