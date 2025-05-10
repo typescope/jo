@@ -85,4 +85,4 @@ files=(
 
 FILES=${files[*]}
 
-scala-cli -J -XX:StartFlightRecording:filename=recording.jfr,duration=30s project.scala $FILES --main-class native.register.RegisterMachine -- $@
+scala-cli project.scala $FILES --main-class native.register.RegisterMachine -- $@
