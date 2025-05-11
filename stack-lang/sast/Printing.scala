@@ -202,13 +202,17 @@ object Printing:
         qual ~ "." ~ name ~ " <- " ~ rhs
 
       case If(cond, thenp, elsep) =>
-        "if " ~ cond ~ " then" ~ indent:
+        "if" ~ indent:
+            cond
+        ~ "then" ~ indent:
             thenp
         ~ "else" ~ indent:
            elsep
 
       case While(cond, body) =>
-        "while " ~ cond ~ " do" ~ indent:
+        "while" ~ indent:
+            cond
+        ~ "do" ~ indent:
             body
 
       case Match(scrutinee, cases) =>
