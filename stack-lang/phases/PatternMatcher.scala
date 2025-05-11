@@ -484,7 +484,6 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
 
     // TODO: optimize last irrefutable star pattern with no bindings
     for (pat, i) <- seqPattern.patterns.zipWithIndex do
-      val itemAssign = itemAtIndexAssign(pat.span)
       val increment = indexIncrement(pat.span)
       val distanceOK = distanceToEndCheck(seqPattern.distanceToEnd(i), pat.span)
       val distanceAllowMore = distanceToEndCheck(seqPattern.distanceToEnd(i) + Size.GreatEq(1), pat.span)
@@ -497,6 +496,10 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
           //   x ~ pattern && distanceOK
           // else
           //   false
+
+          // Make sure new symbol created
+          val itemAssign = itemAtIndexAssign(pat.span)
+
           val nestedCond = transformPattern(itemAssign.ident, pattern)
           val finalCond = all(nestedCond, distanceOK)
           val block = Block(itemAssign :: increment :: finalCond :: Nil)(BoolType, pattern.span)
@@ -511,6 +514,9 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
           //   found = x ~ pattern
           //
           // found && distanceOK
+
+          // Make sure new symbol created
+          val itemAssign = itemAtIndexAssign(pat.span)
 
           val foundSym = Symbol.createSymbol("found", BoolType, Flags.Mutable | Flags.Synthetic, ctx.owner, pat.pos)
           val foundIdent = Ident(foundSym)(pat.span)
@@ -537,6 +543,9 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
           //      index = index + 1
           //      ys = ys + y
           //  distanceOK
+
+          // Make sure new symbol created
+          val itemAssign = itemAtIndexAssign(pat.span)
 
           val continueSym = Symbol.createSymbol("continue", BoolType, Flags.Mutable | Flags.Synthetic, ctx.owner, pat.pos)
           val continueIdent = Ident(continueSym)(pat.span)

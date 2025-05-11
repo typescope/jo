@@ -667,6 +667,7 @@ class PatternTyper(namer: Namer, checker: Checker):
             Reporter.error(s"$outerSym has the type ${outerSym.info.show}, which does not conform to the type " + expectedType.show, pos)
 
         case None =>
+          // It is OK to not set Flags.Mutable because after initialization it cannot be changed.
           val outerSym = Symbol.createSymbol(innerSym.name, expectedType, Flags.Pattern, sc.owner, pos)
           sc.definePatternAsTerm(outerSym)
           sc.define(outerSym)
