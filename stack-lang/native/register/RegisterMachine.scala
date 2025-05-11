@@ -363,7 +363,14 @@ extends Backend(runtime):
     else
       if sym.isLocal then
         val reg = ctx.getRegForLocal(sym)
-        ctx.vs.push(Reg(reg))
+        if sym.isMutable then
+          val targetReg = freshVirtualReg()
+          gen(Instr.Move(Reg(reg), targetReg))
+          ctx.vs.push(Reg(targetReg))
+
+        else
+          ctx.vs.push(Reg(reg))
+
       else
         throw new Exception("accessing non-local variable " + sym)
         // val reg = freshVirtualReg()

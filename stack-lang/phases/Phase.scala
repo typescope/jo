@@ -4,6 +4,10 @@ import sast.*
 import sast.Sast.*
 import sast.Symbols.Symbol
 
+import reporting.Reporter
+import reporting.Reporter.Step
+import reporting.Config
+
 import Phase.ContextObject
 
 /** Shared code for phases */
@@ -73,3 +77,13 @@ object Phase:
   object DummyContext extends ContextObject[Unit]:
     def newContext(owner: Symbol, old: Unit): Unit = ()
     def newContext(namespace: Symbol): Unit = ()
+
+  type PhaseStep = Step[List[Namespace], List[Namespace]]
+  given (using defn: Definitions, rp: Reporter, config: Config): Conversion[Phase[?], PhaseStep] = phase =>
+    val name = phase.getClass.getSimpleName()
+    Step(name, code => {
+      if config.checkTree then TreeChecker.check(code)
+      val output = phase.transform(code)
+      if config.printAfter.contains(name) then Printing.print(output)
+      output
+    })

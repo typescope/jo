@@ -22,13 +22,8 @@ object Printing:
   def show(ns: Namespace)(using Definitions): String =
     showNamespace(ns).toString
 
-  inline def peek(enable: Boolean)(nss: List[Namespace])
-    (using Definitions)
-  : List[Namespace] =
-
-    inline if enable then
-      for ns <- nss do println(show(ns))
-    nss
+  def print(nss: List[Namespace])(using Definitions): Unit =
+    for ns <- nss do println(show(ns))
 
   //----------------------------------------------------------------------------
 
@@ -207,13 +202,17 @@ object Printing:
         qual ~ "." ~ name ~ " <- " ~ rhs
 
       case If(cond, thenp, elsep) =>
-        "if " ~ cond ~ " then" ~ indent:
+        "if" ~ indent:
+            cond
+        ~ "then" ~ indent:
             thenp
         ~ "else" ~ indent:
            elsep
 
       case While(cond, body) =>
-        "while " ~ cond ~ " do" ~ indent:
+        "while" ~ indent:
+            cond
+        ~ "do" ~ indent:
             body
 
       case Match(scrutinee, cases) =>

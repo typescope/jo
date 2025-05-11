@@ -15,4 +15,4 @@ echo "Generating stack compiler"
 scala-cli --power package -f $OPT project.scala stack-lang -M native.stack.StackMachine -o bin/stac.native
 
 echo "Generating register compiler"
-scala-cli --power package -f $OPT project.scala stack-lang -M native.stack.StackMachine -o bin/regc.native
+scala-cli --power package -f $OPT project.scala stack-lang -M native.register.RegisterMachine -o bin/regc.native

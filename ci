@@ -17,13 +17,17 @@ check() {
 ################################################################################
 
 # check that scripts work
-bin/parse tests/pos/fact.stk > /dev/null
-bin/type  tests/pos/fact.stk > /dev/null
-bin/run   tests/pos/fact.stk > /dev/null
-bin/jsc   tests/pos/fact.stk > /dev/null
-bin/stac  tests/pos/fact.stk > /dev/null
-bin/regc  tests/pos/fact.stk
+bin/parse -reportTime tests/pos/fact.stk
+bin/type -reportTime tests/pos/fact.stk
+bin/run  -reportTime tests/pos/fact.stk
+bin/jsc  -reportTime  tests/pos/fact.stk
+bin/stac -reportTime  tests/pos/fact.stk
+bin/regc -reportTime  tests/pos/fact.stk
 
+bin/run.native -reportTime tests/pos/fact.stk
+bin/jsc.native -reportTime tests/pos/fact.stk
+bin/stac.native -reportTime tests/pos/fact.stk
+bin/regc.native -reportTime tests/pos/fact.stk
 
 ################################################################################
 # Positive tests
@@ -37,7 +41,6 @@ for item in $DIR/tests/pos/*.stk; do
     if [[ $item == *.ignore ]]; then
         echo "ignore $item"
         continue
-
     elif [[ -d $item ]]; then
         # directory
         file=$(ls $item/*.stk)
@@ -75,25 +78,25 @@ for item in $DIR/tests/pos/*.stk; do
 
     # # layout 1
     echo "  - stac layout c1"
-    bin/stac.native $file -o $exe -layout c1
+    bin/stac.native $file -checkTree -o $exe -layout c1
     $exe > $OUT 2>&1
     check $OUT $CHECK
 
     # layout 2
     echo "  - stac layout c2"
-    bin/stac.native $file -o $exe -layout c2
+    bin/stac.native $file -checkTree -o $exe -layout c2
     $exe > $OUT 2>&1
     check $OUT $CHECK
 
     # fast linux
     echo "  - regc"
-    bin/regc.native $file -o $exe
+    bin/regc.native $file -checkTree -o $exe
     $exe > $OUT 2>&1
     check $OUT $CHECK
 
     # JavaScript
     echo "  - jsc"
-    bin/jsc.native $file -o $js
+    bin/jsc.native $file -checkTree -o $js
     node $js > $OUT 2>&1
     check $OUT $CHECK
 done

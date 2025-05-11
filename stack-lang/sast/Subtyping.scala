@@ -9,8 +9,9 @@ object Subtyping:
   case class Task(left: Type, right: Type)
 
   /** Whether `tp1` conforms to `tp2` */
-  def conforms(tp1: Type, tp2: Type)(using Definitions): Boolean =
-    checkConforms(tp1,tp2)(using new Context())
+  def conforms(tp1: Type, tp2: Type)(using defn: Definitions): Boolean =
+    defn.cachedConforms(tp1, tp2):
+      checkConforms(tp1,tp2)(using new Context())
 
   def isEqualType(tp1: Type, tp2: Type)(using Definitions): Boolean =
     conforms(tp1, tp2) && conforms(tp2, tp1)
@@ -65,7 +66,7 @@ object Subtyping:
     || tp2.isError
     || tp1.isBottom && tp2.isValueType
     || tp2.isAnyType && tp1.isValueType
-    || tp1 == tp2
+    || ((tp1 `eq` tp2) || tp1.hashCode == tp2.hashCode && tp1 == tp2)
     || (tp1.is[ProxyType] || tp2.is[ProxyType])
        && checkConformsProxyType(tp1, tp2)
     || tp1.is[ObjectType] && tp2.is[ObjectType]

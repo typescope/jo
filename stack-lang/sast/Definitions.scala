@@ -6,6 +6,8 @@ import Definitions.InfoProvider
 
 import reporting.Reporter
 
+import scala.collection.mutable
+
 final class Definitions(rootNameTable: NameTable, provider: InfoProvider):
   import rootNameTable.resolveTermByPath
 
@@ -113,6 +115,27 @@ final class Definitions(rootNameTable: NameTable, provider: InfoProvider):
   def isRuntimeContextParam(sym: Symbol): Boolean =
     runtimeContextParams.exists(param => sym.refers(param))
 
+  private val subtypingCache: mutable.Map[Type, mutable.Map[Type, Boolean]] =
+    mutable.Map.empty
+
+  def cachedConforms(tp1: Type, tp2: Type)(work: => Boolean): Boolean =
+    subtypingCache.get(tp1) match
+      case Some(innerMap) =>
+        innerMap.get(tp2) match
+          case Some(res) => res
+          case None =>
+            val res = work
+            innerMap(tp2) = res
+            res
+
+      case None =>
+        val innerMap: mutable.Map[Type, Boolean] = mutable.Map.empty
+        subtypingCache(tp1) = innerMap
+        val res = work
+        innerMap(tp2) = res
+        res
+
+end Definitions
 
 object Definitions:
   abstract class InfoProvider:

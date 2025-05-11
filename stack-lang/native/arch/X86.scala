@@ -163,15 +163,19 @@ object X86 extends Assembler:
 
             case Ord.Gt  =>
               binaryOperation(Ord.Le, r.index, v)
+              not(r.index)
 
             case Ord.Lt  =>
               binaryOperation(Ord.Ge, r.index, v)
+              not(r.index)
 
             case Ord.Ge  =>
               binaryOperation(Ord.Lt, r.index, v)
+              not(r.index)
 
             case Ord.Le  =>
               binaryOperation(Ord.Gt, r.index, v)
+              not(r.index)
 
         else
           move(v, destReg)

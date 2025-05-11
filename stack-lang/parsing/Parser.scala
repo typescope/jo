@@ -11,6 +11,9 @@ import ast.Positions.*
 
 import reporting.Reporter
 import reporting.Reporter.{ error, warn }
+import reporting.Config
+
+import common.IO
 
 import Tokens.*
 import Parser.SyntaxError
@@ -25,16 +28,20 @@ import scala.collection.mutable
 
 object Parser:
   def main(args: Array[String]): Unit =
+    val (options, sources) = IO.parseOptions(args, Config.commonOptionsSpec)
+    given Config = Config(options)
+
     Reporter.monitor:
-      val nss = Parser.parse(args.toList)
+      val nss = Parser.parse(sources)
       for ns <- nss do
         println(ns.source + ":")
         println(ns.show)
         println
 
-  def parse(sourceFiles: List[String])(using Reporter): List[Namespace] =
+  def parse(sourceFiles: List[String])(using Reporter): List[Namespace] = {
     for file <- sourceFiles.sorted yield
-      Parser.parse(file)
+      Parser.parse(file)  <| (file)
+  } <| ("parsing")
 
   /** Parse the supplied code */
   def parse(path: String)(using rp: Reporter): Namespace = try
