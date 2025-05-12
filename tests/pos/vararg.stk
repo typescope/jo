@@ -4,3 +4,6 @@ fun main =
 
   val l2 = List(1, 2, unpack l, 9, 10)
   l2.foreach (i => println (intToStr i))
+
+  val l3 = List "hello" "world"
+  l3.foreach (s => println s)

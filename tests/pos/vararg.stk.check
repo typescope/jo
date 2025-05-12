@@ -1,12 +1,6 @@
-3
-5
-6
-8
-1
-2
-3
-5
-6
-8
-9
-10
+---------- Error at tests/pos/vararg.stk:5:23 ---------------
+|   val l2 = List(1, 2, ..l, 9, 10)
+|                       ^
+|                       Expect an expression, found DOT
+
+1 error(s), 0 warning(s)

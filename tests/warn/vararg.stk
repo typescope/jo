@@ -12,7 +12,11 @@ pattern Pat(a: Pack[Int]): List[Int] =
 
 type A = #Res(x: Pack[Int])
 
-type B = Predef.Pack[Int]
+type B = Predef.Pack[Int]  // check prefix selection
+
+fun mix(x: Int, l: List[Int]): Unit = ???
 
 fun main =
   val l: Pack[Int] = List.empty
+
+  mix 6 List 8 9
