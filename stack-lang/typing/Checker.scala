@@ -147,7 +147,7 @@ class Checker(namer: Namer):
         val ref = word.tpe.as[TypeRef]
         val sym = ref.symbol
         if
-          sym.is(Flags.Section)
+          sym.isContainer
           && ref.hasTermMember(sym.name)
           && !targetType.isInstanceOf[TargetType.TermMember]
         then

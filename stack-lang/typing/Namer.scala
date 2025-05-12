@@ -219,9 +219,11 @@ class Namer:
     end match
   end index
 
-  def transform(word: Ast.Word)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
-    extension (word: Word) def adapt: Word = checker.adapt(word, tt)
+  extension (word: Word)
+    def adapt(using tt: TargetType, defn: Definitions, rp: Reporter, so: Source): Word =
+      checker.adapt(word, tt)
 
+  def transform(word: Ast.Word)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
     Debug.trace(s"Typing ${word.show}", (_: Word).show, enable = false) {
     word.testKey(Namer.TypedWord) match
     case Some(typedWord) => typedWord.adapt
@@ -239,14 +241,8 @@ class Namer:
       case Ast.StringLit(v) =>
         Literal(Constant.String(v))(defn.StringType, word.span).adapt
 
-      case Ast.Ident(name) =>
-        val sym = sc.resolveTerm(name, word.pos)
-        if sym.isField || sym.isMethod then
-          val qual = Ident(sym.owner)(word.span)
-          Select(qual, sym.name)(sym.info, word.span).adapt
-        else
-          checker.checkCapture(sym, word.pos)
-          Ident(sym)(word.span).adapt
+      case ref: Ast.RefTree =>
+        transformRefTree(ref).adapt
 
       case record: Ast.RecordLit =>
         transform(record).adapt
@@ -260,25 +256,6 @@ class Namer:
 
       case tag: Ast.Tag =>
         transformTagged(tag, values = Nil).adapt
-
-      case Ast.Select(qual, name) =>
-        val qual2 =
-          given TargetType = TargetType.TermMember(name)
-          transform(qual)
-
-        val qualType = qual2.tpe
-        qualType.getTermMember(name) match
-          case Some(tp) =>
-            tp match
-              case TypeRef(sym) if !sym.isField && !sym.isMethod && !sym.isType =>
-                Ident(sym)(word.span).adapt
-
-              case _ =>
-                Select(qual2, name)(tp, word.span).adapt
-
-          case None =>
-            // Error already reported
-            errorWord(word.span)
 
       case lambda: Ast.Lambda =>
         transform(lambda).adapt
@@ -371,6 +348,37 @@ class Namer:
       case obj: Ast.Object =>
         transform(obj).adapt
     }
+
+
+  def transformRefTree(word: Ast.RefTree)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): Word =
+    word match
+      case Ast.Ident(name) =>
+        val sym = sc.resolveTerm(name, word.pos)
+        if sym.isField || sym.isMethod then
+          val qual = Ident(sym.owner)(word.span)
+          Select(qual, sym.name)(sym.info, word.span)
+        else
+          checker.checkCapture(sym, word.pos)
+          Ident(sym)(word.span)
+
+      case Ast.Select(qual, name) =>
+        val qual2 =
+          given TargetType = TargetType.TermMember(name)
+          transform(qual)
+
+        val qualType = qual2.tpe
+        qualType.getTermMember(name) match
+          case Some(tp) =>
+            tp match
+              case TypeRef(sym) if !sym.isField && !sym.isMethod && !sym.isType =>
+                Ident(sym)(word.span)
+
+              case _ =>
+                Select(qual2, name)(tp, word.span)
+
+          case None =>
+            // Error already reported
+            errorWord(word.span)
 
   def transform(obj: Ast.Object)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): Word =
     val vals = new mutable.ArrayBuffer[ValDef]
