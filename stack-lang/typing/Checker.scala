@@ -98,6 +98,14 @@ class Checker(namer: Namer):
     if !tvar.isInstantiated then
       Reporter.error("Cannot infer a type for type variable " + tvar, pos)
 
+  def checkUnpackUsage(app: Apply, tt: TargetType)(using rp: Reporter, defn: Definitions, so: Source): Unit =
+    if app.fun.refers(defn.Predef_dotdot) then
+      tt match
+        case TargetType.Known(tp) if tp.refers(defn.Internal_PackElemType) =>
+
+        case _ =>
+          Reporter.error(".. may only be used in unpacking an argument to a vararg function", app.pos)
+
   def checkCapture(sym: Symbol, pos: SourcePosition)(using sc: Scope, rp: Reporter, defn: Definitions): Unit =
     if sym.isMutable && !sym.isField then
       // check no capture of mutable local vars
@@ -150,6 +158,7 @@ class Checker(namer: Namer):
           sym.isContainer
           && ref.hasTermMember(sym.name)
           && !targetType.isInstanceOf[TargetType.TermMember]
+          && !targetType.isInstanceOf[TargetType.TypeMember]
         then
           val memSym = sym.termMember(sym.name)
           // The selection might need parameterless call adaption
@@ -164,6 +173,15 @@ class Checker(namer: Namer):
       case TargetType.Unknown =>
         // Don't widen if the target type is unknown
         word2
+
+      case TargetType.VoidType =>
+        if word2.tpe.isVoidType then
+          word2
+        else if word2.tpe.isValueType then
+          word2.dropValue
+        else
+          checkValueType(word2)
+          word2
 
       case TargetType.ValueType =>
         if word2.tpe.isVoidType then
@@ -185,6 +203,10 @@ class Checker(namer: Namer):
 
       case TargetType.TermMember(name) =>
         checkTermMember(word2, name)
+
+      case TargetType.TypeMember(name) =>
+        // checked in namer
+        word2
 
       case TargetType.Fun(n) =>
         // The `.apply` insertion happens at the transform for `Apply`.

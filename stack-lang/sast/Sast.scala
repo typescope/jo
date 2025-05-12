@@ -23,7 +23,7 @@ object Sast:
         case _ => false
 
     def dropValue(using Definitions): Word =
-      assert(this.tpe.isValueType)
+      assert(this.tpe.isValueType, this.tpe)
       Encoded(this)(VoidType)
 
     def ensureDropValue(using Definitions): Word =

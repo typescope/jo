@@ -1,0 +1,51 @@
+---------- Error at ./tests/warn/vararg.stk:6:14 ---------------
+| fun test1(a: Pack[Int], b: Int) = b
+|              ^^^^
+|              Pack type not allowed here. It can only be used as the type of the last varargs parameter.
+
+---------- Error at ./tests/warn/vararg.stk:8:19 ---------------
+| fun test2(l: List[Pack[Int]]) = ???
+|                   ^^^^
+|                   Pack type not allowed here. It can only be used as the type of the last varargs parameter.
+
+---------- Error at ./tests/warn/vararg.stk:10:16 ---------------
+| pattern Pat(a: Pack[Int]): List[Int] =
+|                ^^^^
+|                Pack type not allowed here. It can only be used as the type of the last varargs parameter.
+
+---------- Error at ./tests/warn/vararg.stk:13:18 ---------------
+| type A = #Res(x: Pack[Int])
+|                  ^^^^
+|                  Pack type not allowed here. It can only be used as the type of the last varargs parameter.
+
+---------- Error at ./tests/warn/vararg.stk:15:10 ---------------
+| type B = Predef.Pack[Int]  // check prefix selection
+|          ^^^^^^^^^^^
+|          Pack type not allowed here. It can only be used as the type of the last varargs parameter.
+
+---------- Error at ./tests/warn/vararg.stk:20:10 ---------------
+|   val l: Pack[Int] = List.empty
+|          ^^^^
+|          Pack type not allowed here. It can only be used as the type of the last varargs parameter.
+
+---------- Error at ./tests/warn/vararg.stk:22:9 ---------------
+|   mix 6 List 8 9
+|         ^^^^
+|         Vararg functions not allowed in expression syntax except being the first item.
+
+---------- Error at ./tests/warn/vararg.stk:22:3 ---------------
+|   mix 6 List 8 9
+|   ^^^^^^^^^^^^
+|   Found extra value, an expression should produce at most one value
+
+---------- Error at ./tests/warn/vararg.stk:24:3 ---------------
+|   .. l
+|   ^^^^
+|   .. may only be used in unpacking an argument to a vararg function
+
+---------- Error at ./tests/warn/vararg.stk:26:12 ---------------
+|   println (.. List("hello"))
+|            ^^^^^^^^^^^^^^^^
+|            .. may only be used in unpacking an argument to a vararg function
+
+10 error(s), 0 warning(s)

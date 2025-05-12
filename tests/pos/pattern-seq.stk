@@ -1,6 +1,13 @@
+// Test that only member signature matters
+type MySeq[T] = object {
+  def isEmpty: Bool
+  def size: Int
+  def apply(i: Int): T
+}
+
 pattern Pos: Partial[Int] = case x if x > 0
 
-fun test(a: Seq[Int]) =
+fun test(a: MySeq[Int]) =
   match a
     case [> (x if x > 2), (ys @ Pos)*, z*] =>
       println (intToStr x)
@@ -11,5 +18,12 @@ fun test(a: Seq[Int]) =
     case _ =>
 
 fun main =
-  val a: Seq[Int] = List.empty + 1 + 8 + 5 + 7 + 9 + (-3) + 10 + 20
-  test a
+  val a: List[Int] = List.empty + 1 + 8 + 5 + 7 + 9 + (-3) + 10 + 20
+
+  val b = object {
+    def isEmpty: Bool = a.size == 0
+    def size: Int = a.size
+    def apply(i: Int): Int = a(i)
+  }
+
+  test b

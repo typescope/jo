@@ -54,6 +54,7 @@ final class SymInfoProvider(using rp: Reporter) extends InfoProvider:
       val cycle = completing.dropWhile(_ != sym).map(_.name).mkString(", ")
       if sym.isFunction then
         Reporter.error("Recursive function needs explicit return type: " + cycle, sym.sourcePos)
+
       else
         Reporter.error("Illegal recursive definition: " + cycle, sym.sourcePos)
 

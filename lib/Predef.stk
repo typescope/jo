@@ -32,7 +32,7 @@ alias stk.Bool.*
 alias stk.Array.*
 
 alias stk.List
-alias stk.List.List
+type List[T] = List.List[T]
 
 //------------------------------------------------------------------------------
 //
@@ -48,10 +48,16 @@ type Partial[T] <: T
 pattern (lhs: T) |[T] (rhs: T): T =
   case lhs @ rhs
 
-type Seq[T] = object {
-  def size: Int
-  def apply(i: Int): T
-}
+//------------------------------------------------------------------------------
+//
+// Varargs support
+//
+
+// Used to indicate the last parameter is a vararg
+type Pack[T] = List[T]
+
+// Splice a list as flat arguments
+fun ..[T](l: List[T]): T = abort "Only support unpacking in argument positions"
 
 //------------------------------------------------------------------------------
 //

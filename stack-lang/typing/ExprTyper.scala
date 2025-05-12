@@ -86,6 +86,9 @@ class ExprTyper(namer: Namer):
 
         case _ => false
 
+
+      val isVarargApply = tp.isProcType && tp.asProcType.hasVararg
+
       val containerSymbolOpt =
         rest match
           case Ast.Ident(">") :: _ =>
@@ -119,7 +122,7 @@ class ExprTyper(namer: Namer):
         assert(words.isEmpty, words)
         namer.transform(word)
 
-      else if tp.hasOnlyApplyMethod then
+      else if tp.hasOnlyApplyMethod || isVarargApply then
         val app = Ast.Apply(head, rest)(head.span | rest.last.span)
         namer.transform(app)
 
@@ -134,7 +137,15 @@ class ExprTyper(namer: Namer):
                 given TargetType = TargetType.Unknown
                 namer.transform(word)
 
-            if typed.tpe.isProcType then Some(typed.tpe.asProcType) else None
+            if typed.tpe.isProcType then
+              val procType = typed.tpe.asProcType
+              if procType.hasVararg then
+                Reporter.error("Vararg functions not allowed in expression syntax except being the first item.", word.pos)
+                None
+              else
+                Some(procType)
+            else
+              None
 
           case _ =>
             None

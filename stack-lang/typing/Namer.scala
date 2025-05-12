@@ -276,7 +276,7 @@ class Namer:
 
       case Ast.TypeApply(fun, targs) =>
         val fun2 = transform(fun)
-        val targs2 = targs.map(transformType)
+        val targs2 = targs.map(targ => transformType(targ))
         checker.checkTypeApply(fun2, targs2).adapt
 
       case expr: Ast.Expr  =>
@@ -306,7 +306,7 @@ class Namer:
            transform(cond)
 
          val body2 =
-           given TargetType = TargetType.Known(VoidType)
+           given TargetType = TargetType.VoidType
            transform(body)
 
          While(cond2, body2)(word.span).adapt
@@ -438,7 +438,7 @@ class Namer:
       for (phrase, i) <- phrases.zipWithIndex yield
         given TargetType =
           if i == phrases.size - 1 then tt
-          else TargetType.Known(VoidType)
+          else TargetType.VoidType
 
         transform(phrase)
 
@@ -501,19 +501,22 @@ class Namer:
           fun.pos)
         errorWord(apply.span)
 
-      else if apply.args.size != paramSize then
+      else if apply.args.size < procType.minimumArgs then
+        val mod = if procType.hasVararg then " at least " else ""
         Reporter.error(
-          s"The function expects $paramSize arguments, found = ${apply.args.size}",
+          s"The function expects $mod $paramSize arguments, found = ${apply.args.size}",
           apply.pos)
         errorWord(apply.span)
 
       else
         val argsTyped =
-          for (arg, paramType) <- apply.args.zip(procType.paramTypes) yield
-            given TargetType = TargetType.Known(paramType)
-            transform(arg)
+          if procType.hasVararg then
+            transformVarargs(apply.args, procType.paramTypes, apply.span)
+          else
+            transformArgs(apply.args, procType.paramTypes)
 
         val word = Apply(fun, argsTyped)(procType.resultType, apply.span)
+        checker.checkUnpackUsage(word, tt)
         val desugared = Rewriting.rewriteShortcutAndOr(word)
         checker.adapt(desugared, tt)
     else
@@ -598,26 +601,77 @@ class Namer:
         fun.pos)
       errorWord(call.span)
 
-    else if postArgs.size != postParamCount then
+    else if postArgs.size != procType.minimumPostArgs then
+      val mod = if procType.hasVararg then " at least " else ""
+
       Reporter.error(
-        s"Function ${fun.show} expects $postParamCount post arguments, found = ${postArgs.size}",
+        s"Function ${fun.show} expects $mod $postParamCount post arguments, found = ${postArgs.size}",
         fun.pos)
       errorWord(call.span)
 
     else
-      val preArgs2 =
-        for (arg, paramType) <- preArgs.zip(procType.preParamTypes) yield
-          given TargetType = TargetType.Known(paramType)
-          transform(arg)
-
+      val preArgs2 = transformArgs(preArgs, procType.preParamTypes)
       val postArgs2 =
-        for (arg, paramType) <- postArgs.zip(procType.postParamTypes) yield
-          given TargetType = TargetType.Known(paramType)
-          transform(arg)
+        if procType.hasVararg then
+          transformVarargs(postArgs, procType.postParamTypes, call.span)
+
+        else
+          transformArgs(postArgs, procType.postParamTypes)
 
       val word = Apply(fun, preArgs2 ++ postArgs2)(procType.resultType, call.span)
+      checker.checkUnpackUsage(word, tt)
       val rewrite = Rewriting.rewriteShortcutAndOr(word)
       checker.adapt(rewrite, tt)
+
+  /** Assumes that the argument count requirement is satisfied */
+  def transformArgs
+      (args: List[Ast.Word], params: List[Type])
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
+  : List[Word] =
+
+    for (arg, paramType) <- args.zip(params) yield
+      given TargetType = TargetType.Known(paramType)
+      transform(arg)
+
+  /** Assumes that the argument count requirement is satisfied */
+  def transformVarargs
+      (args: List[Ast.Word], paramTypes: List[Type], span: Span)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
+  : List[Word] =
+
+    val paramTypesFix :+ paramTypeFlex = paramTypes: @unchecked
+    val (argsFix, argsFlex) = args.splitAt(paramTypesFix.size)
+
+    val argsFixTyped = transformArgs(argsFix, paramTypesFix)
+
+    val elementType = paramTypeFlex match
+      case AppliedType(tctor, tp :: Nil) if tctor.refers(defn.Predef_Pack) =>
+        tp
+
+      case tp =>
+        Reporter.error("[internal error] Invalid vararg type: " + tp.show, span.toPos)
+        AnyType
+
+    val argsFlexTyped =
+      for arg <- argsFlex yield
+        val tref = TypeRef(defn.Internal_PackElemType)
+        given TargetType = TargetType.Known(AppliedType(tref, elementType :: Nil))
+        transform(arg)
+
+    val emptyList =
+      val tt = TargetType.Known(paramTypeFlex)
+      checker.adapt(Ident(defn.List_empty)(span), tt)
+
+    val lastFlexArg = argsFlexTyped.foldLeft(emptyList): (acc, arg) =>
+      arg match
+        case Apply(fun, arg :: Nil) if fun.refers(defn.Predef_dotdot) =>
+          acc.select("++").appliedTo(arg)
+
+        case _ =>
+          acc.select("+").appliedTo(arg)
+      end match
+
+    argsFixTyped :+ lastFlexArg
 
   def transform(assign: Ast.Assign)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): Word =
     val Ast.Assign(ref, rhs) = assign
@@ -961,8 +1015,8 @@ class Namer:
     lazy val paramSyms =
       tparamSyms
 
-      for param <- funDef.params yield
-        val tpt = transformType(param.tpt)
+      for (param, i) <- funDef.params.zipWithIndex yield
+        val tpt = transformType(param.tpt, allowPackType = i == funDef.params.size - 1)
         val paramSym = Symbol.createSymbol(param.name, tpt.tpe, Flags.Param, funSym, param.pos)
         funScope.define(paramSym)
         paramSym
@@ -1179,11 +1233,16 @@ class Namer:
     *
     * Checks must be delayed by using `checker.delayedCheck`.
     */
-  def transformType(tpt: Ast.TypeTree)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): TypeTree =
+  def transformType(tpt: Ast.TypeTree, allowPackType: Boolean = false)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): TypeTree =
+    def check(sym: Symbol) =
+      if sym == defn.Predef_Pack && !allowPackType then
+        Reporter.error("Pack type not allowed here. It can only be used as the type of the last varargs parameter.", tpt.pos)
+
     tpt match
       case Ast.Ident(name) =>
         sc.resolveType(name) match
           case Some(sym) =>
+            check(sym)
             TypeTree(TypeRef(sym))(tpt.span)
 
           case None =>
@@ -1192,7 +1251,7 @@ class Namer:
 
       case Ast.Select(qual, name) =>
         val qual2 =
-          given TargetType = TargetType.Unknown
+          given TargetType = TargetType.TypeMember(name)
           transform(qual)
 
         qual2.tpe match
@@ -1200,6 +1259,7 @@ class Namer:
             val nsInfo = sym.dealiasedInfo.as[NameTableInfo]
             nsInfo.resolveType(name) match
               case Some(sym) =>
+               check(sym)
                 val tp = TypeRef(sym)
                 TypeTree(tp)(tpt.span)
 
@@ -1283,10 +1343,11 @@ class Namer:
         TypeTree(unionType)(tpt.span)
 
       case Ast.AppliedType(tctor, targs) =>
-        val tctor2 = transformType(tctor)
-        val targs2 = for targ <- targs yield transformType(targ)
+        val tctor2 = transformType(tctor, allowPackType)
+        val targs2 = for targ <- targs yield transformType(targ, allowPackType = false)
         checker.delayedCheck { checker.checkBounds(tctor2, targs2) }
-        TypeTree(AppliedType(tctor2.tpe, targs2.map(_.tpe)))(tpt.span)
+        if tctor2.tpe == ErrorType then TypeTree(ErrorType)(tpt.span)
+        else TypeTree(AppliedType(tctor2.tpe, targs2.map(_.tpe)))(tpt.span)
 
       case Ast.FunctionType(paramTypes, resType, receives) =>
         var i = 0

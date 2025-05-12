@@ -57,6 +57,7 @@ final class Definitions(rootNameTable: NameTable, provider: InfoProvider):
   val Predef_print      =  Predef.termMember("print")
   val Predef_printChar  =  Predef.termMember("printChar")
   val Predef_abort      =  Predef.termMember("abort")
+  val Predef_dotdot     =  Predef.termMember("..")
 
   // numeric coercion
   val Predef_byteToChar = Predef.termMember("byteToChar")
@@ -80,6 +81,7 @@ final class Definitions(rootNameTable: NameTable, provider: InfoProvider):
   val Predef_Char   =  Predef.typeMember("Char")
   val Predef_Unit   =  Predef.typeMember("Unit")
   val Predef_String =  Predef.typeMember("String")
+  val Predef_Pack   =  Predef.typeMember("Pack")
 
   val Array         =  resolveTermByPath("stk.Array")
   val Array_Array   =  Array.typeMember("Array")
@@ -93,7 +95,12 @@ final class Definitions(rootNameTable: NameTable, provider: InfoProvider):
   // patterns
   val Predef_orPattern = Predef.patternMember("|")
   val Predef_Partial = Predef.typeMember("Partial")
-  val Predef_Seq    =  Predef.typeMember("Seq")
+
+
+  // Internal
+  val Internal              =  resolveTermByPath("stk.Internal")
+  val Internal_Seq          =  Internal.typeMember("Seq")
+  val Internal_PackElemType =  Internal.typeMember("PackElemType")
 
   val IntType     = TypeRef(Int_Int)
   val BoolType    = TypeRef(Bool_Bool)

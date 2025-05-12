@@ -1,0 +1,13 @@
+namespace stk.Internal
+
+import stk.Predef.Int
+
+// The signature of scrutinee required by sequence patterns
+type Seq[T] = object {
+  def size: Int
+  def apply(i: Int): T
+}
+
+
+// Used by the compiler as expected type to check varargs
+type PackElemType[T] = T

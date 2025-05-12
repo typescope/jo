@@ -20,4 +20,4 @@ object Name:
   def isLetter(c: Char): Boolean =
     c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
 
-  def isOperator(name: String): Boolean = isOperator(name(0))
+  def isOperator(name: String): Boolean = !isNameStart(name(0))
