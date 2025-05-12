@@ -9,7 +9,7 @@ import reporting.Reporter
 import scala.collection.mutable
 
 final class Definitions(rootNameTable: NameTable, provider: InfoProvider):
-  import rootNameTable.resolveTermByPath
+  export rootNameTable.resolveTermByPath
 
   //----------------------------------------------------------------------------
   // Info provider for symbols
@@ -118,21 +118,23 @@ final class Definitions(rootNameTable: NameTable, provider: InfoProvider):
   private val subtypingCache: mutable.Map[Type, mutable.Map[Type, Boolean]] =
     mutable.Map.empty
 
-  def cachedConforms(tp1: Type, tp2: Type)(work: => Boolean): Boolean =
-    subtypingCache.get(tp1) match
+  def cachedConforms(tp1: Type, tp2: Type, cache: Boolean)(work: => Boolean): Boolean =
+    val tp1norm = TypeOps.normalize(tp1)
+    val tp2norm = TypeOps.normalize(tp2)
+    subtypingCache.get(tp1norm) match
       case Some(innerMap) =>
-        innerMap.get(tp2) match
+        innerMap.get(tp2norm) match
           case Some(res) => res
           case None =>
             val res = work
-            innerMap(tp2) = res
+            if cache then innerMap(tp2norm) = res
             res
 
       case None =>
         val innerMap: mutable.Map[Type, Boolean] = mutable.Map.empty
-        subtypingCache(tp1) = innerMap
+        subtypingCache(tp1norm) = innerMap
         val res = work
-        innerMap(tp2) = res
+        if cache then innerMap(tp2norm) = res
         res
 
 end Definitions

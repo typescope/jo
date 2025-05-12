@@ -63,6 +63,23 @@ object TypeOps:
     recur(tp, isUp)
   end approx
 
+  /** Normalize the type
+    *
+    * - Strip instantiated tvars from the type
+    *
+    * It is used in performance optimization thus it is best effort and needs to
+    * be fast.
+    */
+  def normalize(tp: Type)(using Definitions): Type =
+    tp match
+      case tvar: TypeVar =>
+        if tvar.isInstantiated then tvar.instantiated else tvar
+
+      case AppliedType(tctor, args) if args.exists(_.is[TypeVar]) =>
+        AppliedType(tctor, args.map(normalize))
+
+      case _ => tp
+
   /** Transitively eliminate top-level type aliases and applied types without
     * any approximation but with widening.
     *
@@ -140,7 +157,7 @@ object TypeOps:
 
       case tvar: TypeVar =>
         if tvar.isInstantiated then
-          tvar.instantiated.show
+          tvar.instantiated.show + "(tvar)"
         else
           tvar.toString
 

@@ -1,6 +1,7 @@
 package native.stack
 
 import common.Debug
+import reporting.Reporter
 
 import sast.*
 import sast.Sast.*
@@ -27,8 +28,11 @@ import scala.collection.mutable
   */
 class StackMachine(
   registerConfig: RegisterConfig, runtime: NativeRuntime)
-  (using defn: Definitions)
+  (using defn: Definitions, rp: Reporter)
 extends Backend(runtime):
+
+  // suppress not used warning
+  val _ = rp.hasErrors
 
   import registerConfig.{ FP_REG, SP_REG, FREE_REGS }
 
@@ -434,7 +438,7 @@ extends Backend(runtime):
 
 end StackMachine
 
-object StackMachine:
+object StackMachine extends native.Compiler.BackendBuilder:
   /**
     * A simple register allocator.
     *
@@ -472,12 +476,13 @@ object StackMachine:
           fn(r1, r2)
   end RegisterAllocator
 
-  def createLinux86(runtimeRootNameTable: NameTable, main: Symbol, defn: Definitions): Backend =
-    val bumpAllocator = new BumpAllocator(runtimeRootNameTable)(using defn)
-    val syscalls = Linux.createSyscallStack(runtimeRootNameTable)(using defn)
+  def createLinux86(main: Symbol)(using Reporter, Definitions): Backend =
+    val bumpAllocator = new BumpAllocator()
+    val syscalls = Linux.createSyscallStack()
     val linkers = List(bumpAllocator, syscalls)
-    val runtime = new NativeRuntime(runtimeRootNameTable, linkers, main)(using defn)
+    val runtime = new NativeRuntime(linkers, main)
 
-    new StackMachine(Linux.x86RegConfig, runtime)(using defn)
+    new StackMachine(Linux.x86RegConfig, runtime)
 
-  def main(args: Array[String]): Unit = native.Compiler.compile(createLinux86, args)
+  def main(args: Array[String]): Unit =
+    native.Compiler.compile(this, args)

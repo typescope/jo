@@ -147,7 +147,7 @@ class Checker(namer: Namer):
         val ref = word.tpe.as[TypeRef]
         val sym = ref.symbol
         if
-          sym.is(Flags.Section)
+          sym.isContainer
           && ref.hasTermMember(sym.name)
           && !targetType.isInstanceOf[TargetType.TermMember]
         then
@@ -175,7 +175,7 @@ class Checker(namer: Namer):
 
       case TargetType.Known(tpe) =>
         try
-          val wordAdapted = SastOps.adapt(word2, tpe)
+          val wordAdapted = widen(SastOps.adapt(word2, tpe))
           checkType(wordAdapted, tpe)
           wordAdapted
 

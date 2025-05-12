@@ -19,8 +19,8 @@ import java.util.concurrent.TimeoutException
 class Reporter(
   reported: mutable.ArrayBuffer[Diagnostic],     // reported items
   buffer: Boolean,                               // whether buffer reports
-  sources: mutable.Map[String, Source]           // all sources
-) extends KeyProps.Container:
+  sources: mutable.Map[String, Source])          // all sources
+extends KeyProps.Container:
 
   def getSource(file: String): Source =
     sources.get(file) match
@@ -87,7 +87,7 @@ class Reporter(
       if this.hasErrors || config.fatalWarnings && this.hasWarnings then
         throw FatalError.StopAfterPhase()
       else
-        step.run(v) <| (step.name)
+        step.run(v) <| step.name
   end extension
 
   extension [T](inline op: T)
@@ -111,7 +111,7 @@ object Reporter:
   def monitor[T](fn: Reporter ?=> Unit)(using cf: Config): Unit =
     given reporter: Reporter = createReporter()
     try
-      timeout(100) { fn }  <| ("total")
+      timeout(100) { fn }  <| "total"
       if cf.reportTime then Timer.report()
     catch
       case error: FatalError.CodeError =>

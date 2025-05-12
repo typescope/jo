@@ -1,24 +1,21 @@
 package native.runtime
 
 import sast.Definitions
-import sast.NameTable
 import sast.Symbols.*
 
 import native.Assembly.Label
 import native.Assembler.PatchableBuffer
 import native.Linker
 
-class BumpAllocator(runtimeRootNameTable: NameTable)(using Definitions)
+class BumpAllocator()(using defn: Definitions)
 extends Linker:
   val allocatorStateLabel = Label("allocatorState")
 
-  import runtimeRootNameTable.resolveTermByPath
-
-  val GC = resolveTermByPath("stk.runtime.native.GC")
+  val GC = defn.resolveTermByPath("stk.runtime.native.GC")
   val GC_alloc = GC.termMember("alloc")
   val GC_init = GC.termMember("init")
 
-  val BumpAllocator = resolveTermByPath("stk.runtime.native.BumpAllocator")
+  val BumpAllocator = defn.resolveTermByPath("stk.runtime.native.BumpAllocator")
   val BumpAllocator_init = BumpAllocator.termMember("init")
   val BumpAllocator_alloc = BumpAllocator.termMember("alloc")
 

@@ -29,17 +29,17 @@ object Typer:
     val rootNameTable = defnLazy.rootNameTable
 
     // StdLib is compiled without the Predef
-    val nssStdLib = runNamer(stdLib, rootNameTable, predef = new NameTable) <| ("stdlib")
+    val nssStdLib = runNamer(stdLib, rootNameTable, predef = new NameTable) <| "stdlib"
 
     // Must be after type checking the stdlib
     val predefNameTable = defnLazy.value.Predef_nameTable
 
     // Should be before checking runtime code such that they are not available
-    val nss = new Namer().transform(nssAst, rootNameTable, predefNameTable) <| ("namer.source")
+    val nss = new Namer().transform(nssAst, rootNameTable, predefNameTable) <| "namer.source"
 
     // Runtime definitions are inaccessible in user programs and may only
     // use predef definitions
-    val nssRuntime = runNamer(runtime, rootNameTable, predefNameTable) <| ("runtime")
+    val nssRuntime = runNamer(runtime, rootNameTable, predefNameTable) <| "runtime"
 
     nssStdLib ++ nssRuntime ++ nss
 

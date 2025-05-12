@@ -5,12 +5,14 @@ import Types.*
 import common.Debug
 
 object Subtyping:
+  var debug = false
+
   /** A subtyping task `left <: right` */
   case class Task(left: Type, right: Type)
 
   /** Whether `tp1` conforms to `tp2` */
   def conforms(tp1: Type, tp2: Type)(using defn: Definitions): Boolean =
-    defn.cachedConforms(tp1, tp2):
+    defn.cachedConforms(tp1, tp2, cache = true):
       checkConforms(tp1,tp2)(using new Context())
 
   def isEqualType(tp1: Type, tp2: Type)(using Definitions): Boolean =
@@ -54,6 +56,8 @@ object Subtyping:
         case Some(tps) if tps.contains(tp2) => true
         case _ => false
 
+    def hasAssumptions: Boolean = subtypings.nonEmpty
+
   /**
     * Check whether one type conforms to the other type
     *
@@ -80,17 +84,23 @@ object Subtyping:
     || tp1.is[UnionType] && tp2.is[UnionType]
        && checkConformsUnionType(tp1.as[UnionType], tp2.as[UnionType])
     || tp1.is[ConstantType]
-       && checkConforms(tp1.as[ConstantType].underlying, tp2)
+       && recur(tp1.as[ConstantType].underlying, tp2)
     || tp1.is[ProcType] && tp2.is[ProcType]
        && checkConformsProcType(tp1.as[ProcType], tp2.as[ProcType])
     || tp1.is[TypeBound]
-       && checkConforms(tp1.as[TypeBound].hi, tp2)
+       && recur(tp1.as[TypeBound].hi, tp2)
     || tp2.is[TypeBound]
-       && checkConforms(tp1, tp2.as[TypeBound].lo)
+       && recur(tp1, tp2.as[TypeBound].lo)
   }
 
-  private def checkConforms(tp1: Type, tp2: Type, lessThan: Boolean)(using ctx: Context, defn: Definitions): Boolean =
-    if lessThan then checkConforms(tp1, tp2) else checkConforms(tp2, tp1)
+  private def recur(tp1: Type, tp2: Type)(using ctx: Context, defn: Definitions): Boolean =
+    Debug.trace(s"${tp1.show} <: ${tp2.show}", enable = false) {
+      defn.cachedConforms(tp1, tp2, cache = ctx.hasAssumptions):
+        Subtyping.checkConforms(tp1, tp2)
+    }
+
+  private def recur(tp1: Type, tp2: Type, lessThan: Boolean)(using ctx: Context, defn: Definitions): Boolean =
+    if lessThan then recur(tp1, tp2) else recur(tp2, tp1)
 
   private def checkConformsAppliedGrounded(tp1: AppliedType, tp2: AppliedType)(using ctx: Context, defn: Definitions): Boolean =
     val AppliedType(tref1: TypeRef, targs1) = tp1: @unchecked
@@ -98,7 +108,7 @@ object Subtyping:
     tref1.refers(tref2.symbol.dealias) && {
       // TODO: follow variance spec
       targs1.zip(targs2).forall: (tp1, tp2) =>
-        checkConforms(tp1, tp2) && checkConforms(tp2, tp1)
+        recur(tp1, tp2) && recur(tp2, tp1)
     }
 
   /** Either `tp1` or `tp2` is proxy type */
@@ -156,7 +166,7 @@ object Subtyping:
 
   private def reduceProxyType(tp1: ProxyType, tp2: Type, lessThan: Boolean)(using ctx: Context, defn: Definitions): Boolean =
     def continue(tp1b: Type)(using Context): Boolean =
-      checkConforms(tp1b, tp2, lessThan)
+      recur(tp1b, tp2, lessThan)
 
     tp1 match
       case AppliedType(tctor, targs) =>
@@ -199,7 +209,7 @@ object Subtyping:
 
       case tvar: TypeVar =>
         val tasks = if lessThan then tvar.isSubtype(tp2) else tvar.isSuptype(tp2)
-        tasks.forall(task => checkConforms(task.left, task.right))
+        tasks.forall(task => recur(task.left, task.right))
 
   private def checkConformsProcType(tp1: ProcType, tp2: ProcType)
       (using ctx: Context, defn: Definitions)
@@ -220,8 +230,8 @@ object Subtyping:
               ctx.withSubtyping(tref1, tref2).withSubtyping(tref2, tref1)
 
       tp1.paramTypes.zip(tp2.paramTypes).forall: (paramType1, paramType2) =>
-        checkConforms(paramType2, paramType1)
-      && checkConforms(tp1.resultType, tp2.resultType)
+        recur(paramType2, paramType1)
+      && recur(tp1.resultType, tp2.resultType)
     } && {
       tp1.receives.isEmpty ||
       tp2.receives.nonEmpty && tp1.receives.get.forall { param =>
@@ -234,7 +244,7 @@ object Subtyping:
     val names1 = tp1.fieldNames
     val names2 = tp2.fieldNames
     names1.size >= names2.size && names1.zip(names2).forall: (a, b) =>
-      a == b && checkConforms(tp1.fieldType(a), tp2.fieldType(b))
+      a == b && recur(tp1.fieldType(a), tp2.fieldType(b))
 
   private def checkConformsObjectType(tp1: ObjectType, tp2: ObjectType)(using Context, Definitions): Boolean =
     val fieldsConform =
@@ -243,14 +253,14 @@ object Subtyping:
       names1.size >= names2.size && names1.zip(names2).forall: (a, b) =>
         a == b
         && tp1.isMutable(a) == tp2.isMutable(b)
-        && checkConforms(tp1.termMember(a), tp2.termMember(b))
+        && recur(tp1.termMember(a), tp2.termMember(b))
 
     fieldsConform && {
       val names1 = tp1.methodNames
       val names2 = tp2.methodNames
       names1.size >= names2.size && names1.zip(names2).forall: (a, b) =>
         a == b
-        && checkConforms(tp1.termMember(a), tp2.termMember(b))
+        && recur(tp1.termMember(a), tp2.termMember(b))
     }
 
   private def checkConformsUnionType(tp1: UnionType, tp2: UnionType)(using Context, Definitions): Boolean =
@@ -259,16 +269,16 @@ object Subtyping:
       val tagType1 = tp1.tagType(tag)
       tp2.hasTag(tag) && {
         val tagType2 = tp2.tagType(tag)
-        checkConforms(tagType1, tagType2)
+        recur(tagType1, tagType2)
       }
 
   private def checkConformsTagType(tp1: TagType, tp2: TagType)(using Context, Definitions): Boolean =
     val shapeOK = tp1.tag == tp2.tag && tp1.paramTypes.size >= tp2.paramTypes.size
     shapeOK && tp1.paramTypes.zip(tp2.paramTypes).forall: (paramType1, paramType2) =>
       // param names do not matter
-      checkConforms(paramType1, paramType2)
+      recur(paramType1, paramType2)
 
   private def checkConformsTagTypeToUnionType(tp1: TagType, tp2: UnionType)(using Context, Definitions): Boolean =
     tp2.getTagType(tp1.tag) match
-      case Some(tagType2) => checkConforms(tp1, tagType2)
+      case Some(tagType2) => recur(tp1, tagType2)
       case None => false

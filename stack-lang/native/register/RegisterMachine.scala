@@ -1,6 +1,7 @@
 package native.register
 
 import common.Debug
+import reporting.Reporter
 
 import sast.*
 import sast.Sast.*
@@ -32,8 +33,11 @@ class RegisterMachine(
   callConvention: CallConvention,
   runtime: NativeRuntime,
   rules: GraphColoring.PlatformRules)
-  (using defn: Definitions)
+  (using defn: Definitions, rp: Reporter)
 extends Backend(runtime):
+
+  // suppress not used warning
+  val _ = rp.hasErrors
 
   import registerConfig.{ FP_REG, SP_REG }
 
@@ -138,7 +142,7 @@ extends Backend(runtime):
     val sym = fdef.symbol
     val ctx = freshFunctionContext(sym)
 
-    val proto = compile(fdef)(using ctx)
+    val proto = compile(fdef)(using ctx) // <| (sym.name + " preassembly")
 
     // println(ctx.buffer.show)
 
@@ -147,7 +151,7 @@ extends Backend(runtime):
     val label = getFunAddress(sym)
     doGraphColoring(
       label, ctx.buffer.getResult(), registerConfig, proto.savedRegs, cb,
-      ctx.generator, rules)
+      ctx.generator, rules)  // <| (sym.name + " register alloc")
   catch
     case e: Throwable =>
       println(fdef.show)
@@ -522,7 +526,7 @@ extends Backend(runtime):
 
 end RegisterMachine
 
-object RegisterMachine:
+object RegisterMachine extends native.Compiler.BackendBuilder:
   /** The abstract value stack for compilation */
   class ValueStack:
     val stack: mutable.ArrayBuffer[Operand] = new mutable.ArrayBuffer
@@ -567,11 +571,11 @@ object RegisterMachine:
   /**
     * Create a new x86 register machine
     */
-  def createLinux86(runtimeRootNameTable: NameTable, main: Symbol, defn: Definitions): Backend =
-    val bumpAllocator = new BumpAllocator(runtimeRootNameTable)(using defn)
-    val syscalls = Linux.createSyscallRegister(runtimeRootNameTable)(using defn)
+  def createLinux86(main: Symbol)(using Reporter, Definitions): Backend =
+    val bumpAllocator = new BumpAllocator()
+    val syscalls = Linux.createSyscallRegister()
     val linkers = List(bumpAllocator, syscalls)
-    val runtime = new NativeRuntime(runtimeRootNameTable, linkers, main)(using defn)
+    val runtime = new NativeRuntime(linkers, main)
 
     val paramRegs: List[Int] = List(X86.EAX, X86.EBX, X86.ECX, X86.EDX)
     val callConv =
@@ -586,6 +590,7 @@ object RegisterMachine:
         yield
           reg1 -> reg2
 
-    new RegisterMachine(Linux.x86RegConfig, callConv, runtime, x86rules)(using defn)
+    new RegisterMachine(Linux.x86RegConfig, callConv, runtime, x86rules)
 
-  def main(args: Array[String]): Unit = native.Compiler.compile(createLinux86, args)
+  def main(args: Array[String]): Unit =
+    native.Compiler.compile(this, args)

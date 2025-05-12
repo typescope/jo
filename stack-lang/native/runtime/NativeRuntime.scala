@@ -12,12 +12,10 @@ import native.Assembler.PatchableBuffer
   * Run-time symbols are not visible to user programs.
   */
 class NativeRuntime
-    (runtimeRootNameTable: NameTable, linkers: List[Linker], userMain: Symbol)
-    (using Definitions)
+    (linkers: List[Linker], userMain: Symbol)
+    (using defn: Definitions)
 extends Linker:
-  import runtimeRootNameTable.resolveTermByPath
-
-  val Core = resolveTermByPath("stk.runtime.native.Core")
+  val Core = defn.resolveTermByPath("stk.runtime.native.Core")
 
   val Core_Addr = Core.typeMember("Addr")
 
@@ -56,10 +54,10 @@ extends Linker:
   val Core_intToChar  = Core.termMember("intToChar")
   val Core_intToStr   = Core.termMember("intToStr")
 
-  val GC = resolveTermByPath("stk.runtime.native.GC")
+  val GC = defn.resolveTermByPath("stk.runtime.native.GC")
   val GC_alloc = GC.termMember("alloc")
 
-  val ParamSupport = resolveTermByPath("stk.runtime.native.ParamSupport")
+  val ParamSupport = defn.resolveTermByPath("stk.runtime.native.ParamSupport")
   val ParamSupport_getParam = ParamSupport.termMember("getParam")
   val ParamSupport_setParam = ParamSupport.termMember("setParam")
   val ParamSupport_getLastOverwrittenValue = ParamSupport.termMember("getLastOverwrittenValue")

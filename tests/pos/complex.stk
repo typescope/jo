@@ -16,18 +16,18 @@ fun Complex(x: Int, y: Int): Complex =
 
     def +(c: Complex): Complex =
       Complex
-        Int x + c.real
-        Int y + c.image
+        Int> x + c.real
+        Int> y + c.image
 
     def -(c: Complex): Complex =
       Complex
-        Int x - c.real
-        Int y - c.image
+        Int> x - c.real
+        Int> y - c.image
 
     def *(c: Complex): Complex =
       Complex
-        Int x * c.real - y * c.image
-        Int x * c.image + y * c.real
+        Int> x * c.real - y * c.image
+        Int> x * c.image + y * c.real
 
     def show: String =
       (intToStr x) + " + " + (intToStr y) + "i"
