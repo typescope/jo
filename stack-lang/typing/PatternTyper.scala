@@ -566,7 +566,18 @@ class PatternTyper(namer: Namer, checker: Checker):
     val tvar = TypeVar("T", this.namer.inferencer)
     val seqType = AppliedType(TypeRef(defn.Predef_Seq), tvar :: Nil)
 
-    if Subtyping.conforms(scrutType, seqType) then
+    def memberConforms(name: String) =
+      scrutType.getTermMember(name) match
+        case Some(tp1) =>
+          val tp2 = seqType.termMember(name)
+          Subtyping.conforms(tp1, tp2)
+
+        case _ => false
+
+    val signatureConforms =
+      memberConforms("apply") && memberConforms("size")
+
+    if signatureConforms then
       if !tvar.isInstantiated then
         Reporter.error("Tvar is not instantiated", seq.pos)
         WildcardPattern()(ErrorType, seq.span)
