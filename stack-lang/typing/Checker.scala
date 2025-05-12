@@ -175,7 +175,7 @@ class Checker(namer: Namer):
 
       case TargetType.Known(tpe) =>
         try
-          val wordAdapted = SastOps.adapt(word2, tpe)
+          val wordAdapted = widen(SastOps.adapt(word2, tpe))
           checkType(wordAdapted, tpe)
           wordAdapted
 
