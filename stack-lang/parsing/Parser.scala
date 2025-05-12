@@ -40,8 +40,8 @@ object Parser:
 
   def parse(sourceFiles: List[String])(using Reporter): List[Namespace] = {
     for file <- sourceFiles.sorted yield
-      Parser.parse(file)  <| (file)
-  } <| ("parsing")
+      Parser.parse(file)  <| file
+  } <| "parsing"
 
   /** Parse the supplied code */
   def parse(path: String)(using rp: Reporter): Namespace = try

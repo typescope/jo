@@ -94,9 +94,9 @@ class Namer:
 
     val namespaces =
       for delayedDef <- delayedNamespaces
-      yield delayedDef.delayed() <| (delayedDef.symbol.sourcePos.source.file)
+      yield delayedDef.delayed() <| delayedDef.symbol.sourcePos.source.file
 
-    checker.performDelayedChecks() <| ("checker")
+    checker.performDelayedChecks() <| "checker"
     namespaces.toList
 
   /** Resolve namespace and create intermediate namespace on demand

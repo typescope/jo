@@ -20,7 +20,8 @@ import native.arch.X86
  *
  ***********************************************************************/
 object Compiler:
-  type BackendBuilder = (NameTable, Symbol, Definitions) => Backend
+  trait BackendBuilder:
+    def apply(main: Symbol)(using Reporter, Definitions): Backend
 
   val optionSpec = Config.commonOptionsSpec ++ Map(
     "-o" -> true,
@@ -62,7 +63,7 @@ object Compiler:
     Reporter.monitor:
       given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable)
 
-      val namespacesSAST = FrontEnd.run(runtime, sources) <| ("frontend")
+      val namespacesSAST = FrontEnd.run(runtime, sources) <| "frontend"
 
       val mains = namespacesSAST.collect:
         case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get
@@ -71,7 +72,7 @@ object Compiler:
         case main :: Nil => {
           given Definitions = lazyDefn.value
 
-          val backend = backendBuilder(rootNameTable, main, lazyDefn.value)
+          val backend = backendBuilder(main)
           val backendStep = Step("backend", backend.compile)
 
           val closureConvert = new ElimCapture
@@ -92,7 +93,7 @@ object Compiler:
           backendStep        |>
           assembler
 
-        } <| ("backend")
+        } <| "backend"
 
         case _ =>
           if mains.isEmpty then

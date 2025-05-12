@@ -9,7 +9,7 @@ import reporting.Reporter
 import scala.collection.mutable
 
 final class Definitions(rootNameTable: NameTable, provider: InfoProvider):
-  import rootNameTable.resolveTermByPath
+  export rootNameTable.resolveTermByPath
 
   //----------------------------------------------------------------------------
   // Info provider for symbols

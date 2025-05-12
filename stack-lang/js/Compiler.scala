@@ -43,7 +43,7 @@ def compile(args: String*): Unit =
     given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable)
 
     val runtime = "runtime/JS.stk" :: Nil
-    val namespacesSAST = FrontEnd.run(runtime, sources) <| ("frontend")
+    val namespacesSAST = FrontEnd.run(runtime, sources) <| "frontend"
 
     val mains = namespacesSAST.collect:
       case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get
@@ -69,7 +69,7 @@ def compile(args: String*): Unit =
         runtimeLowerer      |>
         contextParamsLower  |>
         backend
-      } <| ("backend")
+      } <| "backend"
 
       case _ =>
         if mains.isEmpty then

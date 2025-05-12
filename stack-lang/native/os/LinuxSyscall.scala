@@ -1,7 +1,6 @@
 package native.os
 
 import sast.Definitions
-import sast.NameTable
 import sast.Symbols.*
 
 import native.Assembly.Label
@@ -10,10 +9,9 @@ import native.Linker
 
 import scala.collection.mutable
 
-abstract class LinuxSyscall(runtimeRootNameTable: NameTable)(using Definitions) extends Linker:
-  import runtimeRootNameTable.resolveTermByPath
+abstract class LinuxSyscall()(using defn: Definitions) extends Linker:
 
-  val Syscall = resolveTermByPath("stk.runtime.native.Syscall")
+  val Syscall = defn.resolveTermByPath("stk.runtime.native.Syscall")
 
   val syscallSymbols = Set(
     Syscall.termMember("__sys_brk"),
