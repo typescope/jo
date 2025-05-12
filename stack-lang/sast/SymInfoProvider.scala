@@ -56,7 +56,6 @@ final class SymInfoProvider(using rp: Reporter) extends InfoProvider:
         Reporter.error("Recursive function needs explicit return type: " + cycle, sym.sourcePos)
 
       else
-        Debug.displayPrompt()
         Reporter.error("Illegal recursive definition: " + cycle, sym.sourcePos)
 
       completing.dropRightInPlace(cycle.size)
