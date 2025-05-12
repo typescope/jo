@@ -32,7 +32,7 @@ alias stk.Bool.*
 alias stk.Array.*
 
 alias stk.List
-alias stk.List.List
+type List[T] = List.List[T]
 
 //------------------------------------------------------------------------------
 //

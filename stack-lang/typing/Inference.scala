@@ -14,6 +14,7 @@ object Inference:
     case ObjectMember
     case Fun(args: Int)
     case TermMember(name: String)
+    case TypeMember(name: String)
     case Known(tpe: Type)
 
     def knownType: Option[Type] =

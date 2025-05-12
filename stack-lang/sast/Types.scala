@@ -354,7 +354,7 @@ object Types:
       if hasVararg then postParamTypes.size - 1 else postParamTypes.size
 
     def hasVararg(using defn: Definitions): Boolean =
-      resultType.refers(defn.Predef_Pack)
+      paramCount > 0 && paramTypes.last.refers(defn.Predef_Pack)
 
     def bounds(using Definitions): List[TypeBound] =
       tparams.map(_.info.as[TypeBound])

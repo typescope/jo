@@ -510,9 +510,10 @@ class Namer:
 
       else
         val argsTyped =
-          for (arg, paramType) <- apply.args.zip(procType.paramTypes) yield
-            given TargetType = TargetType.Known(paramType)
-            transform(arg)
+          if procType.hasVararg then
+            transformVarargs(apply.args, procType.paramTypes, apply.span)
+          else
+            transformArgs(apply.args, procType.paramTypes)
 
         val word = Apply(fun, argsTyped)(procType.resultType, apply.span)
         val desugared = Rewriting.rewriteShortcutAndOr(word)
@@ -632,17 +633,42 @@ class Namer:
 
   /** Assumes that the argument count requirement is satisfied */
   def transformVarargs
-      (args: List[Ast.Word], params: List[Type], span: Span)
+      (args: List[Ast.Word], paramTypes: List[Type], span: Span)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
   : List[Word] =
 
-    if args.isEmpty then
-      val tt = TargetType.Known(params.last)
+    val paramTypesFix :+ paramTypeFlex = paramTypes: @unchecked
+    val (argsFix, argsFlex) = args.splitAt(paramTypesFix.size)
+
+    val argsFixTyped = transformArgs(argsFix, paramTypesFix)
+
+    val elementType = paramTypeFlex match
+      case AppliedType(tctor, tp :: Nil) if tctor.refers(defn.Predef_Pack) =>
+        tp
+
+      case tp =>
+        Reporter.error("[internal error] Invalid vararg type: " + tp.show, span.toPos)
+        AnyType
+
+    val argsFlexTyped =
+      for arg <- argsFlex yield
+        given TargetType = TargetType.Known(elementType)
+        transform(arg)
+
+    val emptyList =
+      val tt = TargetType.Known(paramTypeFlex)
       checker.adapt(Ident(defn.List_empty)(span), tt)
 
-    else
-      ???
+    val lastFlexArg = argsFlexTyped.foldLeft(emptyList): (acc, arg) =>
+      arg match
+        case Apply(fun, arg :: Nil) if fun.refers(defn.Predef_unpack) =>
+          acc.select("++").appliedTo(arg)
 
+        case _ =>
+          acc.select("+").appliedTo(arg)
+      end match
+
+    argsFixTyped :+ lastFlexArg
 
   def transform(assign: Ast.Assign)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): Word =
     val Ast.Assign(ref, rhs) = assign
@@ -1222,7 +1248,7 @@ class Namer:
 
       case Ast.Select(qual, name) =>
         val qual2 =
-          given TargetType = TargetType.Unknown
+          given TargetType = TargetType.TypeMember(name)
           transform(qual)
 
         qual2.tpe match
@@ -1317,7 +1343,8 @@ class Namer:
         val tctor2 = transformType(tctor, allowPackType)
         val targs2 = for targ <- targs yield transformType(targ, allowPackType = false)
         checker.delayedCheck { checker.checkBounds(tctor2, targs2) }
-        TypeTree(AppliedType(tctor2.tpe, targs2.map(_.tpe)))(tpt.span)
+        if tctor2.tpe == ErrorType then TypeTree(ErrorType)(tpt.span)
+        else TypeTree(AppliedType(tctor2.tpe, targs2.map(_.tpe)))(tpt.span)
 
       case Ast.FunctionType(paramTypes, resType, receives) =>
         var i = 0

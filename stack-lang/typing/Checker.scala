@@ -150,6 +150,7 @@ class Checker(namer: Namer):
           sym.isContainer
           && ref.hasTermMember(sym.name)
           && !targetType.isInstanceOf[TargetType.TermMember]
+          && !targetType.isInstanceOf[TargetType.TypeMember]
         then
           val memSym = sym.termMember(sym.name)
           // The selection might need parameterless call adaption
@@ -185,6 +186,10 @@ class Checker(namer: Namer):
 
       case TargetType.TermMember(name) =>
         checkTermMember(word2, name)
+
+      case TargetType.TypeMember(name) =>
+        // checked in namer
+        word2
 
       case TargetType.Fun(n) =>
         // The `.apply` insertion happens at the transform for `Apply`.
