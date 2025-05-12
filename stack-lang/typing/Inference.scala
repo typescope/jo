@@ -11,6 +11,7 @@ object Inference:
   enum TargetType:
     case Unknown
     case ValueType
+    case VoidType
     case ObjectMember
     case Fun(args: Int)
     case TermMember(name: String)

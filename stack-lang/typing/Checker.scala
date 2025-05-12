@@ -98,6 +98,14 @@ class Checker(namer: Namer):
     if !tvar.isInstantiated then
       Reporter.error("Cannot infer a type for type variable " + tvar, pos)
 
+  def checkUnpackUsage(app: Apply, tt: TargetType)(using rp: Reporter, defn: Definitions, so: Source): Unit =
+    if app.fun.refers(defn.Predef_unpack) then
+      tt match
+        case TargetType.Known(tp) if tp.refers(defn.Internal_PackElemType) =>
+
+        case _ =>
+          Reporter.error("Unpack may only be used in unpacking an argument to a vararg function", app.pos)
+
   def checkCapture(sym: Symbol, pos: SourcePosition)(using sc: Scope, rp: Reporter, defn: Definitions): Unit =
     if sym.isMutable && !sym.isField then
       // check no capture of mutable local vars
@@ -165,6 +173,12 @@ class Checker(namer: Namer):
       case TargetType.Unknown =>
         // Don't widen if the target type is unknown
         word2
+
+      case TargetType.VoidType =>
+        if word2.tpe.isVoidType then
+          word2
+        else
+          word2.dropValue
 
       case TargetType.ValueType =>
         if word2.tpe.isVoidType then

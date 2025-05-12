@@ -38,4 +38,14 @@
 |   ^^^^^^^^^^^^
 |   Found extra value, an expression should produce at most one value
 
-8 error(s), 0 warning(s)
+---------- Error at ./tests/warn/vararg.stk:24:3 ---------------
+|   unpack l
+|   ^^^^^^^^
+|   Unpack may only be used in unpacking an argument to a vararg function
+
+---------- Error at ./tests/warn/vararg.stk:26:12 ---------------
+|   println (unpack List("hello"))
+|            ^^^^^^^^^^^^^^^^^^^^
+|            Unpack may only be used in unpacking an argument to a vararg function
+
+10 error(s), 0 warning(s)

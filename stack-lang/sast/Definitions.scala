@@ -95,7 +95,12 @@ final class Definitions(rootNameTable: NameTable, provider: InfoProvider):
   // patterns
   val Predef_orPattern = Predef.patternMember("|")
   val Predef_Partial = Predef.typeMember("Partial")
-  val Predef_Seq    =  Predef.typeMember("Seq")
+
+
+  // Internal
+  val Internal              =  resolveTermByPath("stk.Internal")
+  val Internal_Seq          =  Internal.typeMember("Seq")
+  val Internal_PackElemType =  Internal.typeMember("PackElemType")
 
   val IntType     = TypeRef(Int_Int)
   val BoolType    = TypeRef(Bool_Bool)

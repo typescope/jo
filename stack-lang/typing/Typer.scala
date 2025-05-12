@@ -15,6 +15,7 @@ object Typer:
     "lib/Array.stk",
     "lib/Bool.stk",
     "lib/Int.stk",
+    "lib/Internal.stk",
     "lib/IO.stk",
     "lib/List.stk",
     "lib/Predef.stk",

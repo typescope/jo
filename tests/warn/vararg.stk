@@ -20,3 +20,7 @@ fun main =
   val l: Pack[Int] = List.empty
 
   mix 6 List 8 9
+
+  unpack l
+
+  println (unpack List("hello"))

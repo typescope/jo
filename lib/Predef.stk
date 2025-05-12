@@ -48,11 +48,6 @@ type Partial[T] <: T
 pattern (lhs: T) |[T] (rhs: T): T =
   case lhs @ rhs
 
-type Seq[T] = object {
-  def size: Int
-  def apply(i: Int): T
-}
-
 //------------------------------------------------------------------------------
 //
 // Varargs support

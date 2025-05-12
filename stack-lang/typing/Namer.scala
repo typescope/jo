@@ -306,7 +306,7 @@ class Namer:
            transform(cond)
 
          val body2 =
-           given TargetType = TargetType.Known(VoidType)
+           given TargetType = TargetType.VoidType
            transform(body)
 
          While(cond2, body2)(word.span).adapt
@@ -438,7 +438,7 @@ class Namer:
       for (phrase, i) <- phrases.zipWithIndex yield
         given TargetType =
           if i == phrases.size - 1 then tt
-          else TargetType.Known(VoidType)
+          else TargetType.VoidType
 
         transform(phrase)
 
@@ -516,6 +516,7 @@ class Namer:
             transformArgs(apply.args, procType.paramTypes)
 
         val word = Apply(fun, argsTyped)(procType.resultType, apply.span)
+        checker.checkUnpackUsage(word, tt)
         val desugared = Rewriting.rewriteShortcutAndOr(word)
         checker.adapt(desugared, tt)
     else
@@ -618,6 +619,7 @@ class Namer:
           transformArgs(postArgs, procType.postParamTypes)
 
       val word = Apply(fun, preArgs2 ++ postArgs2)(procType.resultType, call.span)
+      checker.checkUnpackUsage(word, tt)
       val rewrite = Rewriting.rewriteShortcutAndOr(word)
       checker.adapt(rewrite, tt)
 
@@ -652,7 +654,8 @@ class Namer:
 
     val argsFlexTyped =
       for arg <- argsFlex yield
-        given TargetType = TargetType.Known(elementType)
+        val tref = TypeRef(defn.Internal_PackElemType)
+        given TargetType = TargetType.Known(AppliedType(tref, elementType :: Nil))
         transform(arg)
 
     val emptyList =

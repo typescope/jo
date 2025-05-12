@@ -564,7 +564,7 @@ class PatternTyper(namer: Namer, checker: Checker):
   : Pattern =
 
     val tvar = TypeVar("T", this.namer.inferencer)
-    val seqType = AppliedType(TypeRef(defn.Predef_Seq), tvar :: Nil)
+    val seqType = AppliedType(TypeRef(defn.Internal_Seq), tvar :: Nil)
 
     def memberConforms(name: String) =
       scrutType.getTermMember(name) match
