@@ -1,0 +1,24 @@
+namespace stk.Set
+
+import stk.Predef.Int
+import stk.Predef.List
+import stk.Predef.Bool
+import stk.Eq.Eq
+
+import stk.Predef.???
+
+type Set[T] = object {
+  def size: Int
+  def contains(x: T): Bool
+  def +(x: T): Set[T]
+  def -(x: T): Set[T]
+  def ++(xs: List[T]): Set[T]
+  def --(xs: List[T]): Set[T]
+  def diff(other: Set[T]): Set[T]
+  def union(other: Set[T]): Set[T]
+  def &(other: Set[T]): Set[T]
+}
+
+// fun empty[T](using eq: Eq[T]): Set[T] = ???
+
+// fun Set[T](elems: Pack[T])(using eq: Eq[T]): Set[T] = ???

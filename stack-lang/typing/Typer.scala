@@ -14,11 +14,13 @@ object Typer:
   val stdLib = List(
     "lib/Array.stk",
     "lib/Bool.stk",
+    "lib/Eq.stk",
     "lib/Int.stk",
     "lib/Internal.stk",
     "lib/IO.stk",
     "lib/List.stk",
     "lib/Predef.stk",
+    "lib/Set.stk",
   )
 
   /** The stdlib cannot depend on pre-defined symbols */

@@ -1,0 +1,7 @@
+namespace stk.Eq
+
+import stk.Predef.Bool
+
+type Eq[T] = object {
+  def eq(this: T, that: T): Bool
+}
