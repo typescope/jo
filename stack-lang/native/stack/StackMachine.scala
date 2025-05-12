@@ -31,6 +31,9 @@ class StackMachine(
   (using defn: Definitions, rp: Reporter)
 extends Backend(runtime):
 
+  // suppress not used warning
+  val _ = rp.hasErrors
+
   import registerConfig.{ FP_REG, SP_REG, FREE_REGS }
 
   type LocalAddr = Map[Symbol, Addr]
