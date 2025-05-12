@@ -526,7 +526,7 @@ extends Backend(runtime):
 
 end RegisterMachine
 
-object RegisterMachine:
+object RegisterMachine extends native.Compiler.BackendBuilder:
   /** The abstract value stack for compilation */
   class ValueStack:
     val stack: mutable.ArrayBuffer[Operand] = new mutable.ArrayBuffer
@@ -593,8 +593,4 @@ object RegisterMachine:
     new RegisterMachine(Linux.x86RegConfig, callConv, runtime, x86rules)
 
   def main(args: Array[String]): Unit =
-    val backendBuilder = new native.Compiler.BackendBuilder:
-      def apply(main: Symbol)(using Reporter, Definitions) =
-        createLinux86(main)
-
-    native.Compiler.compile(backendBuilder, args)
+    native.Compiler.compile(this, args)

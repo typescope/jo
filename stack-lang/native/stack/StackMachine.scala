@@ -435,7 +435,7 @@ extends Backend(runtime):
 
 end StackMachine
 
-object StackMachine:
+object StackMachine extends native.Compiler.BackendBuilder:
   /**
     * A simple register allocator.
     *
@@ -482,8 +482,4 @@ object StackMachine:
     new StackMachine(Linux.x86RegConfig, runtime)
 
   def main(args: Array[String]): Unit =
-    val backendBuilder = new native.Compiler.BackendBuilder:
-      def apply(main: Symbol)(using Reporter, Definitions) =
-        createLinux86(main)
-
-    native.Compiler.compile(backendBuilder, args)
+    native.Compiler.compile(this, args)

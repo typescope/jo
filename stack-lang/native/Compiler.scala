@@ -21,7 +21,7 @@ import native.arch.X86
  ***********************************************************************/
 object Compiler:
   trait BackendBuilder:
-    def apply(main: Symbol)(using Reporter, Definitions): Backend
+    def createLinux86(main: Symbol)(using Reporter, Definitions): Backend
 
   val optionSpec = Config.commonOptionsSpec ++ Map(
     "-o" -> true,
@@ -72,7 +72,7 @@ object Compiler:
         case main :: Nil => {
           given Definitions = lazyDefn.value
 
-          val backend = backendBuilder(main)
+          val backend = backendBuilder.createLinux86(main)
           val backendStep = Step("backend", backend.compile)
 
           val closureConvert = new ElimCapture
