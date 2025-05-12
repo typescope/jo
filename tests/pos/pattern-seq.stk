@@ -26,4 +26,4 @@ fun main =
     def apply(i: Int): Int = a(i)
   }
 
-  test2 b
+  test b

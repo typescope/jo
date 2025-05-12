@@ -1,11 +1,8 @@
----------- Error at tests/pos/pattern-seq.stk:29:3 ---------------
-|   test2 b
-|   ^^^^^
-|   Undefined term identifier test2
-
----------- Error at tests/pos/pattern-seq.stk:29:3 ---------------
-|   test2 b
-|   ^^^^^
-|   Found extra value, an expression should produce at most one value
-
-2 error(s), 0 warning(s)
+8
+5
+7
+9
+after pos: 
+-3
+10
+20
