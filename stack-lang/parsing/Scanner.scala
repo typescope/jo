@@ -44,7 +44,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       case '{'    => Token.LBRACE
       case '}'    => Token.RBRACE
       case '#'    => Token.TAG
-      case '.'    => Token.DOT
+      case '.'    => dots()
       case ','    => Token.COMMA
 
       case '-'    =>
@@ -116,6 +116,13 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       case "<:"  => Token.SUBTYPE
       case "=>"  => Token.RARROW
       case name  => Token.Ident(name)
+
+  def dots(): Token =
+    stream.eatWhile(_ == '.')
+
+    stream.tokenEnd() match
+      case "."    => Token.DOT
+      case name   => Token.Ident(name)
 
   def stringLit(): Token =
     var isLastEscape = false

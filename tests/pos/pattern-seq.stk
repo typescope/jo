@@ -7,17 +7,7 @@ type MySeq[T] = object {
 
 pattern Pos: Partial[Int] = case x if x > 0
 
-fun test(a: Seq[Int]) =
-  match a
-    case [> (x if x > 2), (ys @ Pos)*, z*] =>
-      println (intToStr x)
-      ys.foreach (x => println (intToStr x))
-      println "after pos: "
-      z.foreach (x => println (intToStr x))
-
-    case _ =>
-
-fun test2(a: MySeq[Int]) =
+fun test(a: MySeq[Int]) =
   match a
     case [> (x if x > 2), (ys @ Pos)*, z*] =>
       println (intToStr x)
@@ -30,9 +20,6 @@ fun test2(a: MySeq[Int]) =
 fun main =
   val a: List[Int] = List.empty + 1 + 8 + 5 + 7 + 9 + (-3) + 10 + 20
 
-  test a
-
-  println ""
   val b = object {
     def isEmpty: Bool = a.size == 0
     def size: Int = a.size

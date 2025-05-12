@@ -21,6 +21,6 @@ fun main =
 
   mix 6 List 8 9
 
-  unpack l
+  .. l
 
-  println (unpack List("hello"))
+  println (.. List("hello"))

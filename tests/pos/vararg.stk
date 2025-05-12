@@ -2,7 +2,7 @@ fun main =
   val l = List(3, 5, 6, 8)
   l.foreach (i => println (intToStr i))
 
-  val l2 = List(1, 2, unpack l, 9, 10)
+  val l2 = List(1, 2, ..l, 9, 10)
   l2.foreach (i => println (intToStr i))
 
   val l3 = List "hello" "world"

@@ -57,7 +57,7 @@ final class Definitions(rootNameTable: NameTable, provider: InfoProvider):
   val Predef_print      =  Predef.termMember("print")
   val Predef_printChar  =  Predef.termMember("printChar")
   val Predef_abort      =  Predef.termMember("abort")
-  val Predef_unpack     =  Predef.termMember("unpack")
+  val Predef_dotdot     =  Predef.termMember("..")
 
   // numeric coercion
   val Predef_byteToChar = Predef.termMember("byteToChar")

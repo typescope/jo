@@ -664,7 +664,7 @@ class Namer:
 
     val lastFlexArg = argsFlexTyped.foldLeft(emptyList): (acc, arg) =>
       arg match
-        case Apply(fun, arg :: Nil) if fun.refers(defn.Predef_unpack) =>
+        case Apply(fun, arg :: Nil) if fun.refers(defn.Predef_dotdot) =>
           acc.select("++").appliedTo(arg)
 
         case _ =>
