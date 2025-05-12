@@ -1,0 +1,18 @@
+import stk.Predef
+
+
+fun ok(a: Pack[Int]) = a
+
+fun test1(a: Pack[Int], b: Int) = b
+
+fun test2(l: List[Pack[Int]]) = ???
+
+pattern Pat(a: Pack[Int]): List[Int] =
+  case a
+
+type A = #Res(x: Pack[Int])
+
+type B = Predef.Pack[Int]
+
+fun main =
+  val l: Pack[Int] = List.empty

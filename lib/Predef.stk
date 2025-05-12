@@ -55,6 +55,17 @@ type Seq[T] = object {
 
 //------------------------------------------------------------------------------
 //
+// Varargs support
+//
+
+// Used to indicate the last parameter is a vararg
+type Pack[T] = List[T]
+
+// Splice a list as flat arguments
+fun unpack[T](l: List[T]): T = abort "Only support unpacking in argument positions"
+
+//------------------------------------------------------------------------------
+//
 // Utility functions
 //
 

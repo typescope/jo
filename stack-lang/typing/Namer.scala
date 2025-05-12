@@ -276,7 +276,7 @@ class Namer:
 
       case Ast.TypeApply(fun, targs) =>
         val fun2 = transform(fun)
-        val targs2 = targs.map(transformType)
+        val targs2 = targs.map(targ => transformType(targ))
         checker.checkTypeApply(fun2, targs2).adapt
 
       case expr: Ast.Expr  =>
@@ -961,8 +961,8 @@ class Namer:
     lazy val paramSyms =
       tparamSyms
 
-      for param <- funDef.params yield
-        val tpt = transformType(param.tpt)
+      for (param, i) <- funDef.params.zipWithIndex yield
+        val tpt = transformType(param.tpt, allowPackType = i == funDef.params.size - 1)
         val paramSym = Symbol.createSymbol(param.name, tpt.tpe, Flags.Param, funSym, param.pos)
         funScope.define(paramSym)
         paramSym
@@ -1179,11 +1179,16 @@ class Namer:
     *
     * Checks must be delayed by using `checker.delayedCheck`.
     */
-  def transformType(tpt: Ast.TypeTree)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): TypeTree =
+  def transformType(tpt: Ast.TypeTree, allowPackType: Boolean = false)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): TypeTree =
+    def check(sym: Symbol) =
+      if sym == defn.Predef_Pack && !allowPackType then
+        Reporter.error("Pack type not allowed here. It can only be used as the type of the last varargs parameter.", tpt.pos)
+
     tpt match
       case Ast.Ident(name) =>
         sc.resolveType(name) match
           case Some(sym) =>
+            check(sym)
             TypeTree(TypeRef(sym))(tpt.span)
 
           case None =>
@@ -1200,6 +1205,7 @@ class Namer:
             val nsInfo = sym.dealiasedInfo.as[NameTableInfo]
             nsInfo.resolveType(name) match
               case Some(sym) =>
+               check(sym)
                 val tp = TypeRef(sym)
                 TypeTree(tp)(tpt.span)
 
@@ -1283,8 +1289,8 @@ class Namer:
         TypeTree(unionType)(tpt.span)
 
       case Ast.AppliedType(tctor, targs) =>
-        val tctor2 = transformType(tctor)
-        val targs2 = for targ <- targs yield transformType(targ)
+        val tctor2 = transformType(tctor, allowPackType)
+        val targs2 = for targ <- targs yield transformType(targ, allowPackType = false)
         checker.delayedCheck { checker.checkBounds(tctor2, targs2) }
         TypeTree(AppliedType(tctor2.tpe, targs2.map(_.tpe)))(tpt.span)
 
