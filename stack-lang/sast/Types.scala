@@ -347,7 +347,17 @@ object Types:
     val paramCount: Int = params.size
     val tparamCount: Int = tparams.size
 
-    def bounds(using Definitions): List[TypeBound] = tparams.map(_.info.as[TypeBound])
+    def minimumArgs(using Definitions): Int =
+      if hasVararg then paramCount - 1 else paramCount
+
+    def minimumPostArgs(using Definitions): Int =
+      if hasVararg then postParamTypes.size - 1 else postParamTypes.size
+
+    def hasVararg(using defn: Definitions): Boolean =
+      resultType.refers(defn.Predef_Pack)
+
+    def bounds(using Definitions): List[TypeBound] =
+      tparams.map(_.info.as[TypeBound])
 
     def instantiate(targs: List[Type])(using Definitions): ProcType =
       assert(tparamCount == targs.size, "expect " + tparamCount + ", found = " + targs.size)

@@ -501,9 +501,10 @@ class Namer:
           fun.pos)
         errorWord(apply.span)
 
-      else if apply.args.size != paramSize then
+      else if apply.args.size < procType.minimumArgs then
+        val mod = if procType.hasVararg then " at least " else ""
         Reporter.error(
-          s"The function expects $paramSize arguments, found = ${apply.args.size}",
+          s"The function expects $mod $paramSize arguments, found = ${apply.args.size}",
           apply.pos)
         errorWord(apply.span)
 
@@ -598,26 +599,50 @@ class Namer:
         fun.pos)
       errorWord(call.span)
 
-    else if postArgs.size != postParamCount then
+    else if postArgs.size != procType.minimumPostArgs then
+      val mod = if procType.hasVararg then " at least " else ""
+
       Reporter.error(
-        s"Function ${fun.show} expects $postParamCount post arguments, found = ${postArgs.size}",
+        s"Function ${fun.show} expects $mod $postParamCount post arguments, found = ${postArgs.size}",
         fun.pos)
       errorWord(call.span)
 
     else
-      val preArgs2 =
-        for (arg, paramType) <- preArgs.zip(procType.preParamTypes) yield
-          given TargetType = TargetType.Known(paramType)
-          transform(arg)
-
+      val preArgs2 = transformArgs(preArgs, procType.preParamTypes)
       val postArgs2 =
-        for (arg, paramType) <- postArgs.zip(procType.postParamTypes) yield
-          given TargetType = TargetType.Known(paramType)
-          transform(arg)
+        if procType.hasVararg then
+          transformVarargs(postArgs, procType.postParamTypes, call.span)
+
+        else
+          transformArgs(postArgs, procType.postParamTypes)
 
       val word = Apply(fun, preArgs2 ++ postArgs2)(procType.resultType, call.span)
       val rewrite = Rewriting.rewriteShortcutAndOr(word)
       checker.adapt(rewrite, tt)
+
+  /** Assumes that the argument count requirement is satisfied */
+  def transformArgs
+      (args: List[Ast.Word], params: List[Type])
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
+  : List[Word] =
+
+    for (arg, paramType) <- args.zip(params) yield
+      given TargetType = TargetType.Known(paramType)
+      transform(arg)
+
+  /** Assumes that the argument count requirement is satisfied */
+  def transformVarargs
+      (args: List[Ast.Word], params: List[Type], span: Span)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
+  : List[Word] =
+
+    if args.isEmpty then
+      val tt = TargetType.Known(params.last)
+      checker.adapt(Ident(defn.List_empty)(span), tt)
+
+    else
+      ???
+
 
   def transform(assign: Ast.Assign)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): Word =
     val Ast.Assign(ref, rhs) = assign
