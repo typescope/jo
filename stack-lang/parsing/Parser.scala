@@ -541,31 +541,28 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       finalResult
 
     else if item.indent.isFirstOfLine then
-      // println(s"isOperatorOrDot($item) = " + isOperatorOrDot(item))
       if isOperator(item) then
-        // continue if the next line is an operator or dot
-        val buf = new mutable.ArrayBuffer[Word]
-        buf += finalResult
-        buf += word().match
-          case Some(w) => w
+        // continue if the next line is an operator
+        word() match
+          case Some(w) =>
+            val res = exprRest(words += w, item.indent)
+
+            // Check no more nested lines
+            val nextItem = peekItem()
+            if lineIndent.isIndent(nextItem.indent) then
+              error("Unexpected indented line", nextItem.span.toPos)
+              throw new SyntaxError
+
+            else if !lineIndent.isOutdent(nextItem.indent) && isOperator(nextItem) then
+              error("Unaligned operator", nextItem.span.toPos)
+              throw new SyntaxError
+
+            else
+              res
+
           case None =>
-            error("A word expected, found = " + peek(), item.span.toPos)
+            error("A word expected, found = " + item.token, item.span.toPos)
             throw new SyntaxError
-
-        val res = exprRest(buf, item.indent)
-
-        // Check no more nested lines
-        val nextItem = peekItem()
-        if lineIndent.isIndent(nextItem.indent) then
-          error("Unexpected indented line", nextItem.span.toPos)
-          throw new SyntaxError
-
-        else if !lineIndent.isOutdent(nextItem.indent) && isOperator(nextItem) then
-          error("Unaligned operator", nextItem.span.toPos)
-          throw new SyntaxError
-
-        else
-          res
 
       else if lineIndent.isIndent(item.indent) then
         val Block(phrases) = block(lineIndent)
