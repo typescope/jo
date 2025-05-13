@@ -532,9 +532,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         val span = words.head.span | words.last.span
         Expr(words.toList)(span)
 
-    def isOperatorOrDot(item: TokenInfo): Boolean =
+    def isOperator(item: TokenInfo): Boolean =
       item.token match
-        case Token.DOT => true
         case Token.Ident(name) => Name.isOperator(name)
         case _ => false
 
@@ -543,11 +542,17 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     else if item.indent.isFirstOfLine then
       // println(s"isOperatorOrDot($item) = " + isOperatorOrDot(item))
-      if isOperatorOrDot(item) then
+      if isOperator(item) then
         // continue if the next line is an operator or dot
         val buf = new mutable.ArrayBuffer[Word]
         buf += finalResult
-        val word = exprRest(buf, item.indent)
+        buf += word().match
+          case Some(w) => w
+          case None =>
+            error("A word expected, found = " + peek(), item.span.toPos)
+            throw new SyntaxError
+
+        val res = exprRest(buf, item.indent)
 
         // Check no more nested lines
         val nextItem = peekItem()
@@ -555,12 +560,12 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           error("Unexpected indented line", nextItem.span.toPos)
           throw new SyntaxError
 
-        else if !lineIndent.isOutdent(nextItem.indent) && isOperatorOrDot(nextItem) then
+        else if !lineIndent.isOutdent(nextItem.indent) && isOperator(nextItem) then
           error("Unaligned operator", nextItem.span.toPos)
           throw new SyntaxError
 
         else
-          word
+          res
 
       else if lineIndent.isIndent(item.indent) then
         val Block(phrases) = block(lineIndent)
