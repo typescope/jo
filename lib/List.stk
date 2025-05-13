@@ -23,6 +23,10 @@ type List[T] = object {
 
   def ++(l: List[T]): List[T]
 
+  def select(pred: T => Bool): List[T]
+
+  def exclude(pred: T => Bool): List[T]
+
   def map[S](f: T => S): List[S]
 
   def foreach(f: T => Unit): Unit
@@ -102,6 +106,48 @@ section ListImpl
     def prepend(v: T): List[T] = makeObject (Cons v this)
 
     def ++(l: List[T]): List[T] = makeObject (Concat this l)
+
+    def select(pred: T => Bool): List[T] =
+      match repr
+        case Nil => makeObject Nil
+
+        case Cons(v, tail) =>
+          if pred v then
+            makeObject (Cons v (tail.select pred))
+
+          else
+            tail.select pred
+
+        case Append(prefix, v) =>
+          if pred v then
+            makeObject (Append (prefix.select pred) v)
+          else
+            prefix.select pred
+
+        case Concat(lhs, rhs) =>
+          makeObject (Concat (lhs.select pred) (rhs.select pred))
+      end
+
+    def exclude(pred: T => Bool): List[T] =
+      match repr
+        case Nil => makeObject Nil
+
+        case Cons(v, tail) =>
+          if pred v then
+            tail.exclude pred
+
+          else
+            makeObject (Cons v (tail.exclude pred))
+
+        case Append(prefix, v) =>
+          if pred v then
+            prefix.exclude pred
+          else
+            makeObject (Append (prefix.exclude pred) v)
+
+        case Concat(lhs, rhs) =>
+          makeObject (Concat (lhs.exclude pred) (rhs.exclude pred))
+      end
 
     def map[S](f: T => S): List[S] =
       match repr
