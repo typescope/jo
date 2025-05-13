@@ -38,6 +38,11 @@
 |   ^^^^^^^^^^^^
 |   Found extra value, an expression should produce at most one value
 
+---------- Error at ./tests/warn/vararg.stk:22:3 ---------------
+|   mix 6 List 8 9
+|   ^^^^^^^^^^^^^^
+|   Found extra value, an expression should produce at most one value
+
 ---------- Error at ./tests/warn/vararg.stk:24:3 ---------------
 |   .. l
 |   ^^^^
@@ -48,4 +53,4 @@
 |            ^^^^^^^^^^^^^^^^
 |            .. may only be used in unpacking an argument to a vararg function
 
-10 error(s), 0 warning(s)
+11 error(s), 0 warning(s)
