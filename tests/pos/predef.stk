@@ -9,8 +9,8 @@ fun main =
 
 
   val l2 = List 3 6 8 9 10
-  l2.select(i => i % 2 == 0).foreach
-    i => println (intToStr i)
+  l2.select(i => i % 2 == 0)
+    .foreach (i => println (intToStr i))
 
-  l2.select(i => i % 2  == 1).foreach
-    i => println (intToStr i)
+  l2.select(i => i % 2  == 1)
+    .foreach (i => println (intToStr i))

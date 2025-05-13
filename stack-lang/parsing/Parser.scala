@@ -6,6 +6,7 @@
 package parsing
 
 import ast.Ast.*
+import ast.Name
 import ast.Positions
 import ast.Positions.*
 
@@ -531,13 +532,43 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         val span = words.head.span | words.last.span
         Expr(words.toList)(span)
 
-    if item.token == Token.EOF || lineIndent.isUnindent(item.indent) then
+    def isOperatorOrDot(item: TokenInfo): Boolean =
+      item.token match
+        case Token.DOT => true
+        case Token.Ident(name) => Name.isOperator(name)
+        case _ => false
+
+    if item.token == Token.EOF || lineIndent.isOutdent(item.indent) then
       finalResult
 
-    else if lineIndent.isIndent(item.indent) then
-      val Block(phrases) = block(lineIndent)
-      words ++= phrases
-      finalResult
+    else if item.indent.isFirstOfLine then
+      // println(s"isOperatorOrDot($item) = " + isOperatorOrDot(item))
+      if isOperatorOrDot(item) then
+        // continue if the next line is an operator or dot
+        val buf = new mutable.ArrayBuffer[Word]
+        buf += finalResult
+        val word = exprRest(buf, item.indent)
+
+        // Check no more nested lines
+        val nextItem = peekItem()
+        if lineIndent.isIndent(nextItem.indent) then
+          error("Unexpected indented line", nextItem.span.toPos)
+          throw new SyntaxError
+
+        else if !lineIndent.isOutdent(nextItem.indent) && isOperatorOrDot(nextItem) then
+          error("Unaligned operator", nextItem.span.toPos)
+          throw new SyntaxError
+
+        else
+          word
+
+      else if lineIndent.isIndent(item.indent) then
+        val Block(phrases) = block(lineIndent)
+        words ++= phrases
+        finalResult
+
+      else
+        finalResult
 
     else word() match
       case Some(w) =>

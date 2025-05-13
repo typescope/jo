@@ -56,6 +56,10 @@ object Tokens:
     def isUnindent(other: Indent): Boolean =
       other.isFirstOfLine && other.tokenOffset <= this.lineIndent
 
+    /** Whether the other indentation is a unindentation to the current one */
+    def isOutdent(other: Indent): Boolean =
+      other.isFirstOfLine && other.tokenOffset < this.lineIndent
+
     /** Whether the other is an indentation to the current one */
     def isIndent(other: Indent): Boolean =
       other.isFirstOfLine && other.tokenOffset > this.lineIndent
