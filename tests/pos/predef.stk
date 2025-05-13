@@ -3,7 +3,11 @@
 import stk.Set
 
 fun main =
-  val l = List.empty + 3 + 4
+  val l =
+    List.empty
+      + 3
+      + 4
+
   l.map(x => x * 2).foreach (x => println (intToStr x))
   println
     intToStr
