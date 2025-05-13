@@ -111,32 +111,14 @@ object Types:
     def asObjectType(using Definitions): ObjectType =
       TypeOps.approx(this, isUp = true).asInstanceOf[ObjectType]
 
-    def hasApplyMethod(using Definitions): Boolean =
+    def isSingleMethodObjectType(using Definitions): Boolean = getSingleMethodType.nonEmpty
+
+    def getSingleMethodType(using Definitions): Option[NamedInfo[ProcType]] =
       TypeOps.approx(this, isUp = true) match
-        case objType: ObjectType =>
-          objType.getMemberType("apply") match
-            case Some(tp) => tp.isProcType
-            case None => false
-
-        case _ => false
-
-    def hasOnlyApplyMethod(using Definitions): Boolean =
-      TypeOps.approx(this, isUp = true) match
-        case objType: ObjectType =>
-          objType.fields.isEmpty && objType.methods.size == 1 && {
-            objType.getMemberType("apply") match
-              case Some(tp) => tp.isProcType
-              case None => false
-          }
-
-        case _ => false
-
-    def getFunctionApplyType(using Definitions): Option[ProcType] =
-      TypeOps.approx(this, isUp = true) match
-        case ObjectType(Nil, NamedInfo("apply", tp) :: Nil, Nil) =>
-         TypeOps.approx(tp, isUp = true) match
-            case procType: ProcType => Some(procType)
-            case _ => None
+        case ObjectType(Nil, NamedInfo(name, tp) :: Nil, Nil) =>
+          TypeOps.approx(tp, isUp = true) match
+             case procType: ProcType => Some(NamedInfo(name, procType))
+             case _ => None
 
         case _ => None
 

@@ -121,7 +121,7 @@ class ExprTyper(namer: Namer):
         assert(words.isEmpty, words)
         namer.transform(word)
 
-      else if tp.hasOnlyApplyMethod || isVarargApply then
+      else if tp.isSingleMethodObjectType || isVarargApply then
         val app = Ast.Apply(head, rest)(head.span | rest.last.span)
         namer.transform(app)
 

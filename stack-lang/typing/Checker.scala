@@ -137,7 +137,7 @@ class Checker(namer: Namer):
         val isParameterlessCall =
           targetType match
             case TargetType.Fun(n) =>
-              n != 0 && resType.hasApplyMethod && procType.paramCount == 0
+              n != 0 && resType.isSingleMethodObjectType && procType.paramCount == 0
 
             case _ =>
               procType.paramCount == 0

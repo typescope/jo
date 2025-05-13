@@ -474,9 +474,15 @@ class Namer:
     //
     // The `.apply` insertion happens at the transform for `Apply`.
     // It ensures that in `Apply(fun, args)` the fun is an ident or select.
-    if fun.tpe.hasApplyMethod then
-      val memberType = fun.tpe.termMember("apply")
-      fun = Select(fun, "apply")(memberType, fun.span)
+    fun.tpe.getSingleMethodType match
+      case Some(NamedInfo(name, procType)) =>
+        fun = Select(fun, name)(procType, fun.span)
+
+      case _ =>
+        fun.tpe.getTermMember("apply") match
+          case Some(tp) if tp.isProcType => fun = fun.select("apply")
+
+          case _ =>
 
     if fun.tpe.isPolyType then
       fun = instantiatePoly(fun.tpe.asProcType, fun)
@@ -851,33 +857,36 @@ class Namer:
   private def transform(lambda: Ast.Lambda)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
      val Ast.Lambda(params, body) = lambda
 
-     val targetFunTypeOpt: Option[ProcType] = tt.knownType.flatMap(_.getFunctionApplyType)
+     val targetFunTypeOpt: Option[NamedInfo[ProcType]] = tt.knownType.flatMap(_.getSingleMethodType)
 
      if targetFunTypeOpt.nonEmpty then
-       val expect = targetFunTypeOpt.get.paramCount
+       val expect = targetFunTypeOpt.get.info.paramCount
        if expect != params.size then
          Reporter.error(s"Expect a function with $expect parameters, found = ${params.size}", lambda.pos)
          return errorWord(lambda.span)
 
+     val funName = targetFunTypeOpt match
+       case Some(NamedInfo(name, _)) => name
+       case _ => "apply"
+
      // Each object has a self symbol
      val thisSym = Symbol.createSymbol("this", Flags.Synthetic, lambda.pos)
 
-     val funSym = Symbol.createSymbol("apply", Flags.Method | Flags.Synthetic, lambda.pos)
+     val funSym = Symbol.createSymbol(funName, Flags.Method | Flags.Synthetic, lambda.pos)
      val lambdaScope = sc.fresh(funSym)
 
      val tvars = new mutable.ArrayBuffer[(TypeVar, Ast.Param)]
 
      def inferParamType(i: Int): Type =
        targetFunTypeOpt match
-         case Some(funType) => funType.paramTypes(i)
+         case Some(NamedInfo(_, funType)) => funType.paramTypes(i)
          case None =>
            val tvar = TypeVar(params(i).name, this.inferencer)
            tvars += tvar -> params(i)
            tvar
 
-     val ctxParams =
-       for funType <- targetFunTypeOpt yield funType.receives.getOrElse(Nil)
-
+     val ctxParams = targetFunTypeOpt.flatMap:
+       case NamedInfo(_, funType) => funType.receives
 
      val paramSyms =
       for (param, i) <- params.zipWithIndex yield
@@ -887,7 +896,7 @@ class Namer:
         paramSym
 
      val bodyTargetType = targetFunTypeOpt match
-       case Some(funType) => TargetType.Known(funType.resultType)
+       case Some(NamedInfo(_, funType)) => TargetType.Known(funType.resultType)
        case None => TargetType.ValueType
 
      val bodyTyped =
@@ -905,7 +914,7 @@ class Namer:
      val tparamSyms = Nil
      val tpt = TypeTree(bodyTyped.tpe)(body.span)
      val funDef = FunDef(funSym, tparamSyms, paramSyms, tpt, bodyTyped)(lambda.span)
-     val objType = ObjectType(fields = Nil, methods = NamedInfo("apply", procType) :: Nil, mutableFields = Nil)
+     val objType = ObjectType(fields = Nil, methods = NamedInfo(funName, procType) :: Nil, mutableFields = Nil)
 
      defn.add(thisSym, sc.owner, objType)
 

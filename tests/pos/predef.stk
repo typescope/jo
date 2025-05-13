@@ -1,6 +1,7 @@
 // test predef
 
 import stk.Set
+import stk.Eq.Eq
 
 fun main =
   val l =
@@ -21,10 +22,10 @@ fun main =
   l2.select(i => i % 2  == 1)
     .foreach (i => println (intToStr i))
 
-  val eq = object { def eq(a: Int, b: Int) = a == b }
+  val eq: Eq[Int] = (a, b) => a == b
   val s = Set eq 2 3 4 7 8
   (s + 3 - 2).foreach i => println (intToStr i)
 
-  val eqStr = object { def eq(a: String, b: String) = a == b }
+  val eqStr: Eq[String] = (a, b) => a == b
   val s2 = Set eqStr "Apple" "Orange" "Banana"
   (s2 + "Grape" - "Orange" - "Banana").foreach fruit => println fruit

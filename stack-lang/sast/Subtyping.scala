@@ -234,8 +234,8 @@ object Subtyping:
       && recur(tp1.resultType, tp2.resultType)
     } && {
       tp1.receives.isEmpty ||
-      tp2.receives.nonEmpty && tp1.receives.get.forall { param =>
-        tp2.receives.get.contains(param)
+      tp1.receives.get.forall { param =>
+        tp2.receives.nonEmpty && tp2.receives.get.contains(param)
       }
     }
 
