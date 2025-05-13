@@ -4,7 +4,8 @@ import scala.collection.immutable.ListMap
 
 /** Support static key-value properties associated with an object */
 object KeyProps:
-  class Key[+T](val name: String)
+  class Key[+T](val name: String):
+    override def toString() = name
 
   class UpdatableKey[+T](name: String) extends Key[T](name)
 
@@ -17,7 +18,7 @@ object KeyProps:
       this
 
     def addKey[T](key: Key[T], value: T): Unit =
-      assert(!map.contains(key))
+      assert(!map.contains(key), "key = " + key + ", value = " + value)
       map = map.updated(key, value)
 
     def updateKey[T](key: UpdatableKey[T], value: T): Unit =

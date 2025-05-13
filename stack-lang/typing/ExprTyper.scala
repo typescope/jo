@@ -71,10 +71,9 @@ class ExprTyper(namer: Namer):
 
     case head :: rest =>
       val wordTyped =
-        given TargetType = TargetType.Unknown
-        namer.transform(head)
-
-      head.addKey(Namer.TypedWord, wordTyped)
+        head.getKeyOrUpdate(Namer.TypedWord):
+          given TargetType = TargetType.Unknown
+          namer.transform(head)
 
       val tp = wordTyped.tpe
 
