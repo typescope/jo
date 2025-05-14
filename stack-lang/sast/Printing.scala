@@ -28,7 +28,9 @@ object Printing:
     showType(tp).toString
 
   def print(nss: List[Namespace])(using Definitions): Unit =
-    for ns <- nss do println(show(ns))
+    for ns <- nss do
+      println(show(ns))
+      println
 
   //----------------------------------------------------------------------------
 

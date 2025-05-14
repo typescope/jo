@@ -12,6 +12,11 @@ object Printing:
 
   def show(ns: Namespace): String = showNamespace(ns).toString
 
+  def print(nss: List[Namespace]): Unit =
+    for ns <- nss do
+      println(show(ns))
+      println
+
   //----------------------------------------------------------------------------
 
   // Use most-specific instance to break ambiguity between Word and TypeTree

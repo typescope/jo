@@ -1,7 +1,7 @@
 package reporting
 
 class Config(options: Map[String, String]):
-  val printAfter: List[String] = options.getOrElse("-printAfter", "").split(",").map(_.trim).toList
+  val printAfter: List[String] = options.getOrElse("-print", "").split(",").map(_.trim).toList
 
   val fatalWarnings: Boolean = options.contains("-fatal-warnings")
 
@@ -12,7 +12,7 @@ class Config(options: Map[String, String]):
 object Config:
   // The flag tells whether the option needs an argument
   val commonOptionsSpec = Map(
-    "-printAfter"     -> true,
+    "-print"     -> true,
     "-fatal-warnings" -> false,
     "-reportTime"     -> false,
     "-checkTree"      -> false,
