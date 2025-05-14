@@ -9,7 +9,8 @@ import reporting.Reporter
 
 object Autos:
   def derive
-      (target: Type, base: Word)
+      (procType: ProcType, base: Word)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
   : Word =
-    ???
+
+    base

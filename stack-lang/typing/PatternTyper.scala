@@ -92,7 +92,8 @@ class PatternTyper(namer: Namer, checker: Checker):
         patterns.tail.foldLeft(patterns.head)(OrPattern.apply)
 
     def computeInfo(resultType: Type) =
-      ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), resultType, receives = None, preParamCount = patDef.preParamCount)
+      val autoTypes = Nil
+      ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), autoTypes, resultType, receives = None, preParamCount = patDef.preParamCount)
 
     lazyDefn match
       case lazyDefn: Definitions.Lazy =>

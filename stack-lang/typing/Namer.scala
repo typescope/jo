@@ -526,10 +526,11 @@ class Namer:
           else
             transformArgs(apply.args, procType.paramTypes)
 
-        val word = Apply(fun, argsTyped)(procType.resultType, apply.span)
-        checker.checkUnpackUsage(word, tt)
-        val desugared = Rewriting.rewriteShortcutAndOr(word)
-        checker.adapt(desugared, tt)
+        val base = Apply(fun, argsTyped)(procType.resultType, apply.span)
+        checker.checkUnpackUsage(base, tt)
+        val desugared = Rewriting.rewriteShortcutAndOr(base)
+        val word = Autos.derive(procType, desugared)
+        checker.adapt(word, tt)
     else
       if !fun.tpe.isError then
         Reporter.error(s"Not a function: " + fun.tpe.show, fun.pos)
@@ -568,7 +569,8 @@ class Namer:
                 given TargetType = TargetType.Known(procType.paramTypes.head)
                 transform(arg)
 
-              val word = Apply(fun, argTyped :: Nil)(procType.resultType, call.span)
+              val base = Apply(fun, argTyped :: Nil)(procType.resultType, call.span)
+              val word = Autos.derive(procType, base)
               checker.adapt(word, tt)
           else
             Reporter.error( s"The member ${meth.name} is not a method", meth.pos)
@@ -629,10 +631,11 @@ class Namer:
         else
           transformArgs(postArgs, procType.postParamTypes)
 
-      val word = Apply(fun, preArgs2 ++ postArgs2)(procType.resultType, call.span)
-      checker.checkUnpackUsage(word, tt)
-      val rewrite = Rewriting.rewriteShortcutAndOr(word)
-      checker.adapt(rewrite, tt)
+      val base = Apply(fun, preArgs2 ++ postArgs2)(procType.resultType, call.span)
+      checker.checkUnpackUsage(base, tt)
+      val rewrite = Rewriting.rewriteShortcutAndOr(base)
+      val word = Autos.derive(procType, rewrite)
+      checker.adapt(word, tt)
 
   /** Assumes that the argument count requirement is satisfied */
   def transformArgs
@@ -910,15 +913,16 @@ class Namer:
        transform(body)
 
      // Provide type info for the function symbol
-     val procType = ProcType(tparams = Nil, paramSyms.map(_.toNamedInfo), bodyTyped.tpe, ctxParams, preParamCount = 0)
+     val procType = ProcType(tparams = Nil, paramSyms.map(_.toNamedInfo), autos = Nil, bodyTyped.tpe, ctxParams, preParamCount = 0)
      defn.add(funSym, thisSym, procType)
 
      for (tvar, param) <- tvars do
        checker.checkInstantiated(tvar, param.pos)
 
      val tparamSyms = Nil
+     val autoSyms = Nil
      val tpt = TypeTree(bodyTyped.tpe)(body.span)
-     val funDef = FunDef(funSym, tparamSyms, paramSyms, tpt, bodyTyped)(lambda.span)
+     val funDef = FunDef(funSym, tparamSyms, paramSyms, autoSyms, tpt, bodyTyped)(lambda.span)
      val objType = ObjectType(fields = Nil, methods = NamedInfo(funName, procType) :: Nil, mutableFields = Nil)
 
      defn.add(thisSym, sc.owner, objType)
@@ -961,7 +965,7 @@ class Namer:
 
         val funInfo = () =>
           ProcType(
-            tparams = Nil, params = Nil, resultType = paramSym.info,
+            tparams = Nil, params = Nil, autos = Nil, resultType = paramSym.info,
             receives = None, preParamCount = 0)
 
         ip.addLazy(defaultFunSym, sc.owner, funInfo)
@@ -971,7 +975,7 @@ class Namer:
           given TargetType = TargetType.Known(paramSym.info)
           val body = transform(rhs)
           val tpt = TypeTree(paramSym.info)(pdef.tpt.span)
-          FunDef(defaultFunSym, tparams = Nil, params = Nil, tpt, body)(rhs.span)
+          FunDef(defaultFunSym, tparams = Nil, params = Nil, autos = Nil, tpt, body)(rhs.span)
 
         DelayedDef(defaultFunSym, defaultFunDefSast) :: delayedParamDef :: Nil
 
@@ -1037,6 +1041,15 @@ class Namer:
         funScope.define(paramSym)
         paramSym
 
+    lazy val autoSyms =
+      tparamSyms
+
+      for auto <- funDef.autos yield
+        val tpt = transformType(auto.tpt, allowPackType = false)
+        val autoSym = Symbol.createSymbol(auto.name, tpt.tpe, Flags.Param, funSym, auto.pos)
+        funScope.define(autoSym)
+        autoSym
+
     lazy val givenResultType =
       tparamSyms
 
@@ -1081,7 +1094,7 @@ class Namer:
         transformParamRef(param).symbol
 
     def computeInfo(resultType: Type) =
-        ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), resultType, ctxParams, funDef.preParamCount)
+        ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), autoSyms.map(_.toNamedInfo), resultType, ctxParams, funDef.preParamCount)
 
     lazyDefn match
       case lazyDefn: Definitions.Lazy =>
@@ -1093,7 +1106,7 @@ class Namer:
 
     val typer = () =>
       val tpt = TypeTree(resultType)(funDef.resultType.span)
-      FunDef(funSym, tparamSyms, paramSyms, tpt, typedBody)(funDef.span)
+      FunDef(funSym, tparamSyms, paramSyms, autoSyms, tpt, typedBody)(funDef.span)
 
     DelayedDef(funSym, typer)
 
@@ -1232,6 +1245,13 @@ class Namer:
         defScope.define(paramSym)
         paramSym
 
+    val autoSyms =
+      for auto <- ddef.autos yield
+        val tpt = transformType(auto.tpt)
+        val autoSym = Symbol.createSymbol(auto.name, tpt.tpe, Flags.Param, sc.owner, auto.pos)
+        defScope.define(autoSym)
+        autoSym
+
     val resultType =
       assert(!ddef.resultType.isEmpty)
       val resTypeTree = transformType(ddef.resultType)
@@ -1245,7 +1265,7 @@ class Namer:
         transformParamRef(param).symbol
 
     val finalType =
-      ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), resultType, ctxParams, preParamCount = 0)
+      ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), autoSyms.map(_.toNamedInfo), resultType, ctxParams, preParamCount = 0)
 
 
     TypeTree(finalType)(ddef.span)
@@ -1395,7 +1415,9 @@ class Namer:
 
         val resType2 = transformType(resType)
         checker.delayedCheck { checker.checkValueType(resType2) }
-        val applyType = ProcType(tparams = Nil, paramTypes2, resType2.tpe, Some(ctxParams), preParamCount = 0)
+
+        val autoTypes = Nil
+        val applyType = ProcType(tparams = Nil, paramTypes2, autoTypes, resType2.tpe, Some(ctxParams), preParamCount = 0)
         val objType = ObjectType(fields = Nil, methods = NamedInfo("apply", applyType) :: Nil, mutableFields = Nil)
         TypeTree(objType)(tpt.span)
 

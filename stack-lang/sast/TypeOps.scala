@@ -212,7 +212,7 @@ object TypeOps:
             yield auto.copy(info = this(auto.info))
 
           val resType2 = this(resType)
-          ProcType(tparams, params2, resType2, receivesOpt, preParamCount)
+          ProcType(tparams, params2, autos2, resType2, receivesOpt, preParamCount)
 
   class SymbolsTypeMap(using Definitions) extends TypeMap:
     type Context = Map[Symbol, Type]
