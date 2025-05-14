@@ -145,7 +145,9 @@ class Checker(namer: Namer):
 
       case pdef: Ast.ParamDef =>
           mods.foreach:
-            case _: Ast.Modifier.Auto =>
+            // TODO: Disable auto context params for now.
+            //
+            // It's powerful, but also scaring --- remote binding may easily break assumptions.
             case mod =>
               Reporter.error("The modifier " + mod.show + " is not allowed for context parameter definition", mod.pos)
 

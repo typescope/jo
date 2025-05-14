@@ -5,7 +5,7 @@ auto fun foo(x: Int): Int = x
 
 auto fun bar(x: Int)(auto y: String): Int = x
 
-auto param x: Int  // ok
+auto param x: Int  // disallow for now
 
 auto type A = Int
 

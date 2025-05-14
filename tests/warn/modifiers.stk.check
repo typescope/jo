@@ -13,9 +13,14 @@
 |              ^^^^^^
 |              The function will be ignored in auto derivation as it requires non-auto arguments.
 
+---------- Error at ./tests/warn/modifiers.stk:8:1 ---------------
+| auto param x: Int  // disallow for now
+| ^^^^
+| The modifier auto is not allowed for context parameter definition
+
 ---------- Error at ./tests/warn/modifiers.stk:10:1 ---------------
 | auto type A = Int
 | ^^^^
 | The modifier auto is not allowed for type definition
 
-2 error(s), 2 warning(s)
+3 error(s), 2 warning(s)
