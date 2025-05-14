@@ -73,6 +73,13 @@ object Text:
     def ~[S](s: S)(using Maker[S]): Text =
       Text(t).join(Text(s))
 
+  extension [T](list: List[T])
+    def join(sep: String)(using Maker[T]): Text =
+      rep(list, sep)
+
+    def join(sep: Text)(using Maker[T]): Text =
+      rep(list, sep)
+
   def indent[T](v: T)(using Maker[T]): Text = Text.Indent(Text(v))
 
   def rep[T](list: List[T], separator: String)(using Maker[T]): Text =

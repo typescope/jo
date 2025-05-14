@@ -197,7 +197,7 @@ object Types:
 
     def as[T <: Type]: T = this.asInstanceOf[T]
 
-    def show(using Definitions): String = TypeOps.show(this)
+    def show(using Definitions): String = Printing.show(this)
   end Type
 
   case object VoidType extends Type
@@ -320,7 +320,7 @@ object Types:
     * inferred.
     */
   case class ProcType
-    (tparams: List[Symbol], params: List[NamedInfo[Type]],
+    (tparams: List[Symbol], params: List[NamedInfo[Type]], // autos: List[NamedInfo[Type]],
       resultType: Type, receives: Option[List[Symbol]], preParamCount: Int)
   extends Type:
     val preParamTypes: List[Type] = params.take(preParamCount).map(_.info)
@@ -328,6 +328,8 @@ object Types:
     val paramTypes: List[Type] = params.map(_.info)
     val paramCount: Int = params.size
     val tparamCount: Int = tparams.size
+
+    // val autoTypes: List[Type] = autos.map(_.info)
 
     def minimumArgs(using Definitions): Int =
       if hasVararg then paramCount - 1 else paramCount

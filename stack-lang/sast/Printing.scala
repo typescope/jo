@@ -22,6 +22,9 @@ object Printing:
   def show(ns: Namespace)(using Definitions): String =
     showNamespace(ns).toString
 
+  def show(tp: Type)(using Definitions): String =
+    showType(tp).toString
+
   def print(nss: List[Namespace])(using Definitions): Unit =
     for ns <- nss do println(show(ns))
 
@@ -45,14 +48,14 @@ object Printing:
   given (using Definitions): Text.Maker[ValDef | FunDef] =
     v => showDef(v)
 
-  given (using Definitions): Text.Maker[Type] =
-    v => Text(v.show)
-
   given (using Definitions): Text.Maker[TypeTree] =
     v => Text(v.tpe.show)
 
   given (using Definitions): Text.Maker[Symbol] =
     v => Text(v.name)
+
+  given (using Definitions): Text.Maker[Type] =
+    v => showType(v)
 
   given (using Definitions): Text.Maker[WithArg] =
     v => v.paramRef ~ " = " ~ v.rhs
@@ -279,3 +282,93 @@ object Printing:
       case SkipToPattern(pattern) => ">" ~ pattern
 
       case StarPattern(pattern) => pattern ~ "*"
+
+  def showType(tp: Type)(using Definitions): Text =
+    tp match
+      case VoidType    => Text("void")
+      case AnyType     => Text("Any")
+      case BottomType  => Text("Bottom")
+      case ErrorType   => Text("Error")
+
+      case tvar: TypeVar =>
+        if tvar.isInstantiated then
+          Text(tvar.instantiated)
+        else
+          Text(tvar.toString)
+
+      case ConstantType(const) =>
+        const match
+          case Constant.Bool(value)   => Text(value.toString)
+          case Constant.Int(value)    => Text(value.toString)
+          case Constant.String(value) => "\"" ~ StringUtil.escape(value) ~ "\""
+
+      case TypeRef(sym) =>
+        if sym.isType then Text(sym.name)
+        else sym.name ~ ": " ~ sym.info
+
+      case RecordType(fields) =>
+        val members = fields.map(f => f.name ~ ": " ~ f.info)
+        "{ " ~ members.join(", ") ~ " }"
+
+      case ObjectType(fields, methods, muts) =>
+        val fieldList = fields.map: f =>
+          val mod = if muts.contains(f.name) then "var " else " val "
+          mod ~ f.name ~ ": " ~ f.info
+
+        val methodList = methods.map: m =>
+          "def " ~ m.name ~ m.info.widenTermRef
+
+        "object { " ~ indent:
+            fieldList.join(Text.BreakLine) ~ Text.BlankLine ~ methodList.join(Text.BreakLine)
+        ~ " }"
+
+      case UnionType(branches) =>
+        rep(branches, Text(" | "))
+
+      case TagType(tag, params) =>
+        val paramText =
+          if params.isEmpty then
+            Text.Empty
+          else
+            "(" ~ params.map(param => param.name ~ ": " ~ param.info).join(", ") ~ ")"
+
+        "#" ~ tag ~ paramText
+
+      case AppliedType(tctor, targs) =>
+        tctor ~ "[" ~ targs.join(Text(", ")) ~ "]"
+
+      case TypeLambda(tparams, body) =>
+        "[" ~ tparams.join(", ") ~ "]" ~ " => " ~ body
+
+      case TypeBound(lo, hi) =>
+        lo ~ " .. " ~ hi
+
+      case ProcType(tparams, params, resType, receivesOpt, n) =>
+        val tparamText =
+          if tparams.isEmpty then
+            Text.Empty
+
+          else
+            "[" ~ tparams.join(Text(", ")) ~ "]"
+
+        val preText =
+          if n > 0 then
+            "(" ~ params.take(n).map(param => param.name ~ ": " ~ param.info).join(", ") ~ ")"
+          else
+            Text.Empty
+
+        val postText =
+          "(" ~ params.drop(n).map(param => param.name ~ ": " ~ param.info).join(", ") ~ ")"
+
+        val autoText = Text.Empty
+          // if autos.isEmpty then Text.Empty
+          // else "(" ~ autos.map(param => param.name ~ ": " ~ param.info).join(", ") ~ ")"
+
+        val receivesText =
+          if receivesOpt.isEmpty then Text.Empty
+          else " receives " ~ receivesOpt.get.join(", ")
+
+        tparamText ~ preText ~ postText ~ autoText ~ ": " ~ resType ~ receivesText
+
+      case _: NameTableInfo => Text("{ ...nametable }")
+  end showType

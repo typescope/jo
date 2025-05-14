@@ -4,7 +4,6 @@ import Types.*
 import Symbols.*
 
 import common.Debug
-import common.StringUtil
 
 import scala.collection.mutable
 
@@ -147,81 +146,6 @@ object TypeOps:
     */
   def isGroundedProxy(tp: ProxyType)(using Definitions): Boolean = isGrounded(tp.dealias)
 
-  // TODO: move to Printing
-  def show(tp: Type)(using Definitions): String =
-    tp match
-      case VoidType    => "void"
-      case AnyType     => "Any"
-      case BottomType  => "Bottom"
-      case ErrorType   => "Error"
-
-      case tvar: TypeVar =>
-        if tvar.isInstantiated then
-          tvar.instantiated.show + "(tvar)"
-        else
-          tvar.toString
-
-      case ConstantType(const) =>
-        const match
-          case Constant.Bool(value)   => value.toString
-          case Constant.Int(value)    => value.toString
-          case Constant.String(value) => "\"" + StringUtil.escape(value) + "\""
-
-      case TypeRef(sym) =>
-        if sym.isType then sym.name else sym.name + ": " + sym.info.show
-
-      case RecordType(fields) =>
-        fields.map(f => f.name + ": " + show(f.info)).mkString("{ ", ", ", " }")
-
-      case ObjectType(fields, methods, muts) =>
-        val fieldList = fields.map: f =>
-          val mod = if muts.contains(f.name) then "var " else " val "
-          mod + f.name + ": " + show(f.info)
-
-        val methodList = methods.map: m =>
-          "def " + m.name + show(m.info.widenTermRef)
-
-        (fieldList ++ methodList).mkString("object { ", "; ", " }")
-
-      case UnionType(branches) =>
-        branches.map(show).mkString(" | ")
-
-      case TagType(tag, params) =>
-        val paramsStr =
-          if params.isEmpty then ""
-          else params.map(param => param.name + ": " + show(param.info)).mkString("(", ", ", ")")
-        "#" + tag + paramsStr
-
-      case AppliedType(tctor, targs) =>
-        show(tctor) + targs.map(show).mkString("[", ", ", "]")
-
-      case TypeLambda(tparams, body) =>
-        val tparamStr = tparams.map(tparam => tparam.name + " <: " + show(tparam.info)).mkString("[", ", ", "]")
-        tparamStr + " => " + show(body)
-
-      case TypeBound(lo, hi) =>
-        show(lo) + " .. " + show(hi)
-
-      case ProcType(tparams, params, resType, receivesOpt, n) =>
-        val tparamStr =
-          if tparams.isEmpty then
-            ""
-          else
-            tparams.map(tparam => tparam.name + " <: " + show(tparam.info)).mkString("[", ", ", "]")
-
-        val preStr =
-          if n > 0 then
-            params.take(n).map(param => param.name + ": " + show(param.info)).mkString("(", ", ", ")")
-          else
-            ""
-
-        val postStr = params.drop(n).map(param => param.name + ": " + show(param.info)).mkString("(", ", ", ")")
-        val receivesStr = if receivesOpt.isEmpty then "" else " receives " + receivesOpt.get.map(_.name).mkString(", ")
-
-        tparamStr + preStr + postStr + ": " + show(resType) + receivesStr
-
-      case _: NameTableInfo => "{ ...nametable }"
-  end show
 
   abstract class TypeMap(using Definitions):
     type Context
