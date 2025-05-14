@@ -1,5 +1,7 @@
 package sast
 
+type Flags = Flags.Flags
+
 object Flags:
   opaque type Flag <: Flags = Long
   opaque type Flags = Long
@@ -21,6 +23,7 @@ object Flags:
   val Field   : Flag = 1 << 11  // an object field
   val Default : Flag = 1 << 12  // context parameters with default value
   val Alias   : Flag = 1 << 13  // an alias symbol created by import/export
+  val Auto    : Flag = 1 << 14  // auto function or auto value
 
   val Synthetic: Flag = 1 << 62 // a compiler-synthesized symbol
 

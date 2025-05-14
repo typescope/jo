@@ -26,7 +26,9 @@ class PatternTyper(namer: Namer, checker: Checker):
       case lazyDefn: Definitions.Lazy => lazyDefn.value
       case defn: Definitions => defn
 
-    val patSym = Symbol.createSymbol(patDef.name, Flags.Pattern | Flags.Fun, patDef.ident.pos)
+    val flags = checker.checkModifiers(patDef) | Flags.Pattern | Flags.Fun
+
+    val patSym = Symbol.createSymbol(patDef.name, flags, patDef.ident.pos)
     given patScope: Scope = sc.fresh(patSym)
 
     lazy val tparamSyms =

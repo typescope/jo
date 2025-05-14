@@ -318,7 +318,9 @@ class Namer:
         patternTyper.transformMatch(patmat).adapt
 
       case vdef: Ast.ValDef =>
-        val flags = if vdef.mutable then Flags.Mutable else Flags.empty
+        var flags = checker.checkModifiers(vdef)
+        if vdef.mutable then flags = flags | Flags.Mutable
+
         val sym = Symbol.createSymbol(vdef.name, flags, vdef.ident.pos)
         val vdef2 = transformValDef(vdef, sym, sc.owner)
         sc.define(sym)
@@ -390,7 +392,10 @@ class Namer:
     given sc2: Scope = sc.fresh(thisSym)
 
     for case vdef: Ast.ValDef <- obj.members do
-      val flags = if vdef.mutable then Flags.Field | Flags.Mutable else Flags.Field
+      var flags = checker.checkModifiers(vdef)
+      if vdef.mutable then flags = flags | Flags.Field | Flags.Mutable
+      else flags = flags | Flags.Field
+
       val sym = Symbol.createSymbol(vdef.name, flags, vdef.ident.pos)
       sc2.define(sym)
 
@@ -930,7 +935,7 @@ class Namer:
     // given definitions are lazy
     given Definitions = lazyDefn.value
 
-    var flags = Flags.Param | Flags.Context
+    var flags = checker.checkModifiers(pdef) | Flags.Param | Flags.Context
     if pdef.default.nonEmpty then
       flags = flags | Flags.Default
 
@@ -999,7 +1004,9 @@ class Namer:
       so: Source, tt: TargetType)
   : DelayedDef[FunDef] =
 
-    val flags = if tt == TargetType.ObjectMember then Flags.Method else Flags.Fun
+    var flags = checker.checkModifiers(funDef)
+    if tt == TargetType.ObjectMember then flags = flags | Flags.Method
+    else flags = flags | Flags.Fun
 
     val funSym = Symbol.createSymbol(funDef.name, flags, funDef.ident.pos)
     given funScope: Scope = sc.fresh(funSym)
@@ -1094,7 +1101,7 @@ class Namer:
       (using lazyDefn: Definitions.Lazy | Definitions, sc: Scope, rp: Reporter, so: Source)
   : DelayedDef[TypeDef] =
 
-    val flags = Flags.Type
+    val flags = checker.checkModifiers(tdef) | Flags.Type
     val typeSym = Symbol.createSymbol(tdef.name, flags, tdef.ident.pos)
 
     given Definitions = lazyDefn match
@@ -1175,7 +1182,8 @@ class Namer:
 
     given Definitions = lazyDefn.value
 
-    val sym = Symbol.createSymbol(section.name, Flags.Section, section.ident.pos)
+    val flags = checker.checkModifiers(section) | Flags.Section
+    val sym = Symbol.createSymbol(section.name, flags, section.ident.pos)
 
     val nameTable = new NameTable
     given secScope: Scope = sc.fresh(sym, nameTable)
@@ -1318,9 +1326,16 @@ class Namer:
           else
             member match
               case methodDecl: Ast.FunDef =>
+                // TODO: specialize the check
+                checker.checkModifiers(methodDecl)
+
                 val memberTypeTree = transformMethodDecl(methodDecl)
                 methodTypes += NamedInfo(member.name, memberTypeTree.tpe)
+
               case vdef: Ast.ValDef =>
+                // TODO: specialize the check
+                checker.checkModifiers(vdef)
+
                 if vdef.mutable then mutableFields += vdef.name
                 val fieldTypeTree = transformType(vdef.tpt)
                 fieldTypes += NamedInfo(vdef.name, fieldTypeTree.tpe)

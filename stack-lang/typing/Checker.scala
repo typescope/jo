@@ -1,6 +1,7 @@
 package typing
 
 import ast.Positions.*
+import ast.Ast
 
 import sast.*
 import sast.Sast.*
@@ -105,6 +106,67 @@ class Checker(namer: Namer):
 
         case _ =>
           Reporter.error(".. may only be used in unpacking an argument to a vararg function", app.pos)
+
+  def checkModifiers(defn: Ast.Def)(using rp: Reporter, so: Source): Flags =
+    val mods = defn.modifiers
+    if mods.isEmpty then return Flags.empty
+
+    var flags = Flags.empty
+    mods.foreach:
+      case _: Ast.Modifier.Auto =>
+        flags = flags | Flags.Auto
+
+      case mod =>
+        Reporter.error("Not support the modifier " + mod.show, mod.pos)
+
+    defn match
+      case fdef: Ast.FunDef =>
+        mods.foreach:
+          case _: Ast.Modifier.Auto =>
+          case mod =>
+            Reporter.error("The modifier " + mod.show + " is not allowed for function definition", mod.pos)
+
+        if flags.is(Flags.Auto) && fdef.params.nonEmpty then
+          val tip =
+            if fdef.autos.isEmpty then " Do you forget the modifier auto?"
+            else ""
+
+          Reporter.warn("The function will be ignored in auto derivation as it requires non-auto arguments." + tip, fdef.params.head.pos)
+
+      case vdef: Ast.ValDef =>
+        mods.foreach:
+          case _: Ast.Modifier.Auto =>
+          case mod =>
+            Reporter.error("The modifier " + mod.show + " is not allowed for value definition", mod.pos)
+
+      case pdef: Ast.PatDef =>
+        mods.foreach: mod =>
+          Reporter.error("The modifier " + mod.show + " is not allowed for pattern definition", mod.pos)
+
+      case pdef: Ast.ParamDef =>
+          mods.foreach:
+            case _: Ast.Modifier.Auto =>
+            case mod =>
+              Reporter.error("The modifier " + mod.show + " is not allowed for context parameter definition", mod.pos)
+
+      case tdef: Ast.TypeDef =>
+        mods.foreach: mod =>
+          Reporter.error("The modifier " + mod.show + " is not allowed for type definition", mod.pos)
+
+      case _: Ast.DataDef | _: Ast.EnumDef =>
+        mods.foreach: mod =>
+          Reporter.error("The modifier " + mod.show + " is not allowed for data definition", mod.pos)
+
+      case sec: Ast.Section =>
+        mods.foreach: mod =>
+          Reporter.error("The modifier " + mod.show + " is not allowed for section definition", mod.pos)
+
+      case adef: Ast.AliasDef =>
+        mods.foreach: mod =>
+          Reporter.error("The modifier " + mod.show + " is not allowed for alias definition", mod.pos)
+    end match
+
+    flags
 
   def checkCapture(sym: Symbol, pos: SourcePosition)(using sc: Scope, rp: Reporter, defn: Definitions): Unit =
     if sym.isMutable && !sym.isField then

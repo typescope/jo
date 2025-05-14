@@ -291,6 +291,8 @@ object Printing:
     mod match
      case Modifier.Auto() => Text("auto")
 
+     case Modifier.Private() => Text("private")
+
   def showType(tpt: TypeTree): Text =
     tpt match
       case _: EmptyTypeTree => Text.Empty
