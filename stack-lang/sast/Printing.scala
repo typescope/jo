@@ -94,6 +94,10 @@ object Printing:
         val paramText =
           "(" ~ fdef.params.map(sym => sym.name ~ ": " ~ sym.info).join(", ") ~ ")"
 
+        val autoText =
+          if fdef.autos.isEmpty then Text.Empty
+          else "(auto " ~ fdef.autos.map(sym => sym.name ~ ": " ~ sym.info).join(", ")  ~ ")"
+
         val resType = fdef.resultType
 
         val locals = fdef.locals.map(sym => sym ~ ": " ~ sym.info).join(", ")
@@ -113,8 +117,8 @@ object Printing:
               Text.Empty
 
         "@locals(" ~ locals ~ ")" ~ Text.BreakLine ~
-        modifiers ~ kind ~ fdef.name ~ tparamText ~ paramText ~ ":" ~ resType ~ receives ~ " =" ~ indent:
-            fdef.body
+        modifiers ~ kind ~ fdef.name ~ tparamText ~ paramText ~ autoText ~ ":" ~ resType ~ receives ~ " =" ~ indent:
+          fdef.body
 
       case pdef: PatDef =>
         val tparams =
@@ -360,7 +364,7 @@ object Printing:
       case TypeBound(lo, hi) =>
         lo ~ " .. " ~ hi
 
-      case ProcType(tparams, params, resType, receivesOpt, n) =>
+      case ProcType(tparams, params, autos, resType, receivesOpt, n) =>
         val tparamText =
           if tparams.isEmpty then
             Text.Empty
@@ -377,9 +381,9 @@ object Printing:
         val postText =
           "(" ~ params.drop(n).map(param => param.name ~ ": " ~ param.info).join(", ") ~ ")"
 
-        val autoText = Text.Empty
-          // if autos.isEmpty then Text.Empty
-          // else "(" ~ autos.map(param => param.name ~ ": " ~ param.info).join(", ") ~ ")"
+        val autoText =
+          if autos.isEmpty then Text.Empty
+          else "(" ~ autos.map(param => param.name ~ ": " ~ param.info).join(", ") ~ ")"
 
         val receivesText =
           if receivesOpt.isEmpty then Text.Empty

@@ -429,7 +429,7 @@ object Sast:
 
   /** Represents a named function or method definition */
   case class FunDef
-    (symbol: Symbol, tparams: List[Symbol], params: List[Symbol], resultType: TypeTree, body: Word)
+    (symbol: Symbol, tparams: List[Symbol], params: List[Symbol], autos: List[Symbol], resultType: TypeTree, body: Word)
     (val span: Span)
   extends Word, Def:
     private var censusCache: (List[Symbol], List[Symbol]) | Null = null

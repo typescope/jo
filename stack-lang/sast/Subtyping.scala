@@ -216,7 +216,8 @@ object Subtyping:
   : Boolean =
 
     tp1.tparams.size == tp2.tparams.size
-    && tp1.paramTypes.size == tp2.paramTypes.size
+    && tp1.params.size == tp2.params.size
+    && tp1.autos.size == tp2.autos.size
     && {
       // TODO: once type bounds are enabled, check type bounds
       given Context =
@@ -231,6 +232,8 @@ object Subtyping:
 
       tp1.paramTypes.zip(tp2.paramTypes).forall: (paramType1, paramType2) =>
         recur(paramType2, paramType1)
+      && tp1.autoTypes.zip(tp2.autoTypes).forall: (autoType1, autoType2) =>
+        recur(autoType2, autoType1)
       && recur(tp1.resultType, tp2.resultType)
     } && {
       tp1.receives.isEmpty ||

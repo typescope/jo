@@ -331,16 +331,18 @@ object Types:
     * inferred.
     */
   case class ProcType
-    (tparams: List[Symbol], params: List[NamedInfo[Type]], // autos: List[NamedInfo[Type]],
+    (tparams: List[Symbol], params: List[NamedInfo[Type]], autos: List[NamedInfo[Type]],
       resultType: Type, receives: Option[List[Symbol]], preParamCount: Int)
   extends Type:
     val preParamTypes: List[Type] = params.take(preParamCount).map(_.info)
     val postParamTypes: List[Type] = params.drop(preParamCount).map(_.info)
+
     val paramTypes: List[Type] = params.map(_.info)
+
     val paramCount: Int = params.size
     val tparamCount: Int = tparams.size
 
-    // val autoTypes: List[Type] = autos.map(_.info)
+    val autoTypes: List[Type] = autos.map(_.info)
 
     def minimumArgs(using Definitions): Int =
       if hasVararg then paramCount - 1 else paramCount

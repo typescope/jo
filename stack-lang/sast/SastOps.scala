@@ -506,7 +506,7 @@ object SastOps:
     val census = new VariableCensus
     census(fdef.body)(using ())
     val locals = census.locals.distinct.toList
-    val masked = fdef.params ++ locals
+    val masked = fdef.params ++ fdef.autos ++ locals
     val free = census.free.filter(sym => !masked.contains(sym)).distinct.toList
     (locals.filter(_.info.isValueType), free)
 

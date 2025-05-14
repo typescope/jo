@@ -201,11 +201,15 @@ object TypeOps:
         case TypeBound(lo, hi) =>
           TypeBound(this(lo), this(hi))
 
-        case ProcType(tparams, params, resType, receivesOpt, preParamCount) =>
+        case ProcType(tparams, params, autos, resType, receivesOpt, preParamCount) =>
           // TODO: Once type bounds are supported, we need to transform bounds
           val params2 =
             for param <- params
             yield param.copy(info = this(param.info))
+
+          val autos2 =
+            for auto <- autos
+            yield auto.copy(info = this(auto.info))
 
           val resType2 = this(resType)
           ProcType(tparams, params2, resType2, receivesOpt, preParamCount)
