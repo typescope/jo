@@ -51,6 +51,7 @@ Lexical Grammar
     OBJECT   = "begin".
     RECEIVES = "receives".
     PATTERN  = "pattern".
+    AUTO     = "auto".
     name     = (letter | USCORE) {letter | digit | USCORE}.
     operator = opchar { opchar }.
     ident    = name | operator.
@@ -136,9 +137,11 @@ Abstract Syntax
 
     sequence_pattern = LBRACK [expr_pattern {, expr_pattern}] RBRACK.
 
-    valdef  = (VAL | VAR) ident [COLON type] EQL block.
+    modifier = AUTO.
 
-    fundef  = FUN [param_section] ident [tparams] [param_section] [COLON type] [receive_params] EQL block [END].
+    valdef  = {modifier} (VAL | VAR) ident [COLON type] EQL block.
+
+    fundef  = {modifier} FUN [param_section] ident [tparams] [param_section] [auto_section] [COLON type] [receive_params] EQL block [END].
 
     defdef  = DEF ident [tparams] [param_section] [COLON type] [receive_params] EQL block [END].
 
@@ -182,7 +185,7 @@ Abstract Syntax
     params        = param {COMMA param}.
     param         = ident COLON type.
 
-
+    auto_section = LPAREN AUTO params RPAREN.
 ~~~
 
 ## Namespaces

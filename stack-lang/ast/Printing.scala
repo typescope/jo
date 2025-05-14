@@ -37,6 +37,8 @@ object Printing:
 
   given Text.Maker[Import] = v => "import " ~ v.qualid
 
+  given Text.Maker[Modifier] = v => showModifier(v)
+
 
   //----------------------------------------------------------------------------
 
@@ -63,10 +65,18 @@ object Printing:
         "param " ~ id ~ ": " ~ tpt ~ rhs
 
       case ValDef(id, tpt, rhs, mutable) =>
+        val mods =
+          if defn.modifiers.isEmpty then Text.Empty
+          else defn.modifiers.join(" ") ~ " "
+
         val kind = if mutable then "var" else "val"
-        kind ~ " " ~ id ~ showTypeAnnot(tpt) ~ " = " ~ rhs
+        mods ~ kind ~ " " ~ id ~ showTypeAnnot(tpt) ~ " = " ~ rhs
 
       case fdef: FunDef =>
+        val mods =
+          if fdef.modifiers.isEmpty then Text.Empty
+          else fdef.modifiers.join(" ") ~ " "
+
         val tparams =
           if fdef.tparams.isEmpty then Text.Empty
           else "[" ~ fdef.tparams.join(", ")  ~ "]"
@@ -74,6 +84,10 @@ object Printing:
         val params =
           if fdef.params.isEmpty then Text.Empty
           else "(" ~ fdef.params.join(", ")  ~ ")"
+
+        val autos =
+          if fdef.autos.isEmpty then Text.Empty
+          else "(auto " ~ fdef.autos.join(", ")  ~ ")"
 
         val resType = showTypeAnnot(fdef.resultType)
 
@@ -92,7 +106,7 @@ object Printing:
           if fdef.body.isEmptyBlock then Text.Empty
           else " =" ~ indent(fdef.body)
 
-        "fun " ~ fdef.name ~ tparams ~ params ~ resType ~ receives ~ body
+        mods ~ "fun " ~ fdef.name ~ tparams ~ params ~ autos ~ resType ~ receives ~ body
 
       case pdef: PatDef =>
         val tparams =
@@ -272,6 +286,10 @@ object Printing:
         id ~ "@" ~ rhs
 
       case SeqLit(words) => "[" ~ words.map(showPattern).join(", ") ~ "]"
+
+  def showModifier(mod: Modifier): Text =
+    mod match
+     case Modifier.Auto() => Text("auto")
 
   def showType(tpt: TypeTree): Text =
     tpt match

@@ -11,6 +11,9 @@ import common.KeyProps
 object Ast:
   sealed abstract class Tree extends Product, Positioned, KeyProps.Container
 
+  enum Modifier extends Tree:
+    case Auto()(val span: Span)
+
   sealed abstract class Word extends Tree:
     def show: String = Printing.show(this)
 
@@ -225,7 +228,17 @@ object Ast:
   //-------------------------- definitions -------------------------------------
 
   sealed trait Def extends Tree:
+    private var _modifiers: List[Modifier] | Null = null
+
     def name: String
+
+    def modifiers: List[Modifier] =
+      if _modifiers == null then Nil else _modifiers
+
+    def withMods(mods: List[Modifier]): this.type =
+      assert(_modifiers == null, "already set, modifiers = " + _modifiers + ", mods = " + mods)
+      _modifiers = mods
+      this
 
   case class ValDef
     (ident: Ident, tpt: TypeTree, rhs: Word, mutable: Boolean)
@@ -253,7 +266,7 @@ object Ast:
     * explicit.
     */
   case class FunDef
-    (ident: Ident, tparams: List[TypeParam], params: List[Param],
+    (ident: Ident, tparams: List[TypeParam], params: List[Param], autos: List[Param],
         resultType: TypeTree, receives: Option[List[RefTree]], body: Word,
         preParamCount: Int)
     (val span: Span)
@@ -265,6 +278,7 @@ object Ast:
       assert(isQualid(param), param)
 
     def name: String = ident.name
+
 
   /** Representation of a pattern definition */
   case class PatDef

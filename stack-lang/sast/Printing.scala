@@ -293,6 +293,7 @@ object Printing:
 
   def showModifiers(sym: Symbol)(using Definitions): Text =
     val buf = new mutable.ArrayBuffer[Text]
+    if sym.is(Flags.Auto) then buf += Text("<auto>")
     if sym.is(Flags.Synthetic) then buf += Text("<synthetic>")
     if sym.is(Flags.Context) then buf += Text("<context>")
     if sym.is(Flags.Default) then buf += Text("<default>")

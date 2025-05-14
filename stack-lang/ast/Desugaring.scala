@@ -111,8 +111,9 @@ object Desugaring:
 
       if !hasFunMember then
         val body = Apply(Tag(id)(id.span), ddef.params.map(_.ident))(ddef.span)
+        val autos = Nil
         val receiveParams = Some(Nil)
-        val fdef = FunDef(id, ddef.tparams, ddef.params, tp, receiveParams, body, preParamCount = 0)(ddef.span)
+        val fdef = FunDef(id, ddef.tparams, ddef.params, autos, tp, receiveParams, body, preParamCount = 0)(ddef.span)
         syntheticMembers += fdef
 
       if syntheticMembers.isEmpty then
