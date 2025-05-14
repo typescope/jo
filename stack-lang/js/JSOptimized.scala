@@ -170,7 +170,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
       case RecordLit(fields) =>
         run(fields.map(_._2)): vs =>
           val fields2 = fields.map(_._1).zip(vs).map(encodeSymbolic(_) ~ ": " ~ _)
-          cont("{" ~ rep(fields2, Text(", ")) ~ "}")
+          cont("{" ~ fields2.join(", ") ~ "}")
 
       case Select(qual, name) =>
         run(qual): v =>
@@ -185,10 +185,10 @@ class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
             if word.tpe.isValueType then
               val stats :+ expr = words: @unchecked
               val sep = if stats.isEmpty then Text.Empty else Text.BreakLine
-              rep(stats, Text.BreakLine) ~ sep ~ compile(expr)
+              stats.join(Text.BreakLine) ~ sep ~ compile(expr)
 
             else
-              rep(words, Text.BreakLine) ~ cont()
+              words.join(Text.BreakLine) ~ cont()
 
       case encoded @ Encoded(repr) =>
         if encoded.isValueDrop then
@@ -267,11 +267,11 @@ class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
 
     unique.newScope:
       val locals = fdef.locals.filter(sym => sym.isMutable || sym.isPattern).map("var " ~ _ ~ ";" ~ Text.BreakLine)
-      "function " ~ jsFunName ~ "(" ~ rep(fdef.params, Text(", ")) ~ ")" ~ " {" ~ indent:
+      "function " ~ jsFunName ~ "(" ~ fdef.params.join(", ") ~ ")" ~ " {" ~ indent:
           if resCount == 0 then
-            rep(locals, Text.Empty) ~ fdef.body
+            locals.join(Text.Empty) ~ fdef.body
           else
-            rep(locals, Text.Empty) ~ runLast(fdef.body) { v =>
+            locals.join(Text.Empty) ~ runLast(fdef.body) { v =>
               "return " ~ v ~ ";" ~  Text.BreakLine
             }
       ~ "}"
@@ -307,7 +307,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
       case _ =>
         run(fun): v =>
           run(args): vs =>
-            val call = v ~ "(" ~ rep(vs, Text(", ")) ~ ")"
+            val call = v ~ "(" ~ vs.join(", ") ~ ")"
             if fun.tpe.asProcType.resCount == 1 then
               cont(call, sideEffect = true)
             else
@@ -316,7 +316,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
   /** Compile a primitive */
   def call(sym: Symbol, args: List[Word])(using Context): Text =
     run(args): vs =>
-      val call = sym ~ "(" ~ rep(vs, Text(", ")) ~ ")"
+      val call = sym ~ "(" ~ vs.join(", ") ~ ")"
       if sym.info.asProcType.resCount == 1 then
         cont(call, sideEffect = true)
       else
