@@ -16,7 +16,7 @@ fun main =
   l2.select(i => i % 2 == 0)
     .foreach (i => println (intToStr i))
 
-  l2.select(i => i % 2  == 1)
+  l2.exclude(i => i % 2  == 0)
     .foreach (i => println (intToStr i))
 
   val s = Set Eq.Int 2 3 4 7 8
