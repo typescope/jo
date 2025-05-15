@@ -40,6 +40,9 @@ type List[T] = List.List[T]
 alias stk.Set
 type Set[T] = Set.Set[T]
 
+alias stk.Map
+type Map[K, V] = Map.Map[K, V]
+
 //------------------------------------------------------------------------------
 //
 // Patterns
@@ -138,3 +141,7 @@ type String <: object {
 // Common types
 //
 data Option[T] = None | Some(v: T)
+
+type Pair[S, T] = #Pair(a: S, b: T)
+
+fun (a: S) -> [S, T] (b: T): Pair[S, T] = #Pair a b

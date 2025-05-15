@@ -18,8 +18,9 @@ object Typer:
     "lib/Int.stk",
     "lib/Internal.stk",
     "lib/IO.stk",
-    "lib/List.stk",
     "lib/Predef.stk",
+    "lib/List.stk",
+    "lib/Map.stk",
     "lib/Set.stk",
   )
 

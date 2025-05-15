@@ -1,14 +1,12 @@
 namespace stk.Set
 
-import stk.Predef.Int
 import stk.Predef.List
-import stk.Predef.Bool
 import stk.Predef.Unit
 import stk.Predef.Pack
-import stk.Eq.Eq
+import stk.Predef.Eq
 
-import stk.Predef.???
-import stk.Predef.>
+import stk.Int.*
+import stk.Bool.*
 
 type Set[T] = object {
   def size: Int
@@ -23,6 +21,8 @@ type Set[T] = object {
   def &(other: Set[T]): Set[T]
   def foreach(f: T => Unit): Unit
   def fold[S](zero: S, f: (S, T) => S): S
+  def exists(pred: T => Bool): Bool
+  def all(pred: T => Bool): Bool
 }
 
 fun empty[T](eq: Eq[T]): Set[T] = SetImpl.makeObject eq List.empty
@@ -34,7 +34,13 @@ section SetImpl
   fun makeObject[T](eq: Eq[T], l: List[T]): Set[T] = object {
     def size: Int = l.size
 
-    def contains(x: T): Bool = l.select(e => eq x e).size > 0
+    def contains(x: T): Bool =
+      var found = false
+      var i = 0
+      while both !found (i < size) do
+        found = eq l(i) x
+        i = i + 1
+      found
 
     def +(x: T): Set[T] =
       if contains x then this
@@ -57,5 +63,9 @@ section SetImpl
     def foreach(f: T => Unit): Unit = l.foreach f
 
     def fold[S](zero: S, f: (S, T) => S): S = l.fold zero f
+
+    def exists(pred: T => Bool): Bool = l.exists pred
+
+    def all(pred: T => Bool): Bool = l.all pred
   }
 end

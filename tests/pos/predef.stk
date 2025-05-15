@@ -24,3 +24,11 @@ fun main =
 
   val s2 = Set Eq.String "Apple" "Orange" "Banana"
   (s2 + "Grape" - "Orange" - "Banana").foreach fruit => println fruit
+
+  val m = Map Eq.Int
+            1 -> "one"
+            2 -> "two"
+
+  m.foreach (k, v) =>
+    println
+      (intToStr k) + " -> " + v

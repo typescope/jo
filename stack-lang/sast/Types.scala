@@ -15,7 +15,14 @@ import scala.collection.mutable
   */
 object Types:
   sealed abstract class Type:
-    def isError(using Definitions): Boolean = TypeOps.approx(this, isUp = true) == ErrorType
+    /** Whether the type is an error type
+      *
+      * Avoid type reduction as the types might not be well-formed.
+      */
+    def isError(using Definitions): Boolean =
+      this == ErrorType || this.match
+        case TypeRef(sym) => sym.info.isError
+        case _ => false
 
     /** Whether the type is Void
       *

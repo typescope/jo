@@ -42,8 +42,8 @@ object ExprTyper:
   def precedence(fun: String): Int =
     fun match
       case "||"  =>  5
-      case "&&" =>  10
-      case "!"  =>  15
+      case "&&"  =>  10
+      case "!"   =>  150
 
       case ">"   | "<"  | ">=" | "<=" | "==" | "!=" => 20
       case "+"   | "-"                              => 30
