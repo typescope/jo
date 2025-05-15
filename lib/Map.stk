@@ -1,0 +1,83 @@
+namespace stk.Map
+
+import stk.Predef.List
+import stk.Predef.Unit
+import stk.Predef.Pack
+import stk.Predef.Eq
+import stk.Predef.Option
+import stk.Predef.Some
+import stk.Predef.None
+
+import stk.Predef.Pair
+import stk.Predef.->
+
+import stk.Int.*
+import stk.Bool.*
+
+type Map[K, V] = object {
+  def size: Int
+  def contains(k: K): Bool
+  def get(k: K): Option[V]
+  def add(k: K, v: V): Map[K, V]
+  def update(k: K, v: V): Map[K, V]
+  def remove(k: K): Map[K, V]
+  def ++(xs: Map[K, V]): Map[K, V]
+  def select(pred: (K, V) => Bool): Map[K, V]
+  def exclude(pred: (K, V) => Bool): Map[K, V]
+  def foreach(f: (K, V) => Unit): Unit
+  def fold[S](zero: S, f: (S, K, V) => S): S
+}
+
+fun empty[K, V](eq: Eq[K]): Map[K, V] = MapImpl.makeObject eq List.empty
+
+fun Map[K, V](eq: Eq[K], elems: Pack[Pair[K, V]]): Map[K, V] = MapImpl.makeObject eq elems
+
+// A strawman implementation of Map based on List
+section MapImpl
+  fun makeObject[K, V](eq: Eq[K], l: List[Pair[K, V]]): Map[K, V] = object {
+    def size: Int = l.size
+
+    def contains(k: K): Bool =
+      var found = false
+      var i = 0
+      while both !found (i < size) do
+        found = eq l(i).a k
+        i = i + 1
+      end
+      found
+
+    def get(k: K): Option[V] =
+      var found = false
+      var res: Option[V] = None
+      var i = 0
+      while both !found (i < size) do
+        val item = l(i)
+        found = eq item.a k
+        if found then res = Some item.b
+        i = i + 1
+      end
+      res
+
+    def add(k: K, v: V): Map[K, V] = update k v
+
+    def update(k: K, v: V): Map[K, V] =
+      val l2 = l.exclude p => eq k p.a
+      makeObject eq (l2 + (k -> v))
+
+    def remove(k: K): Map[K, V] = exclude (k1, _) => eq k k1
+
+    def ++(xs: Map[K, V]): Map[K, V] =
+      xs.fold this (acc, k, v) => acc.add(k, v)
+
+    def select(pred: (K, V) => Bool): Map[K, V] =
+      makeObject eq (l.select p => pred p.a p.b)
+
+    def exclude(pred: (K, V) => Bool): Map[K, V] =
+      makeObject eq (l.exclude p => pred p.a p.b)
+
+    def foreach(f: (K, V) => Unit): Unit = l.foreach p => f p.a p.b
+
+    def fold[S](zero: S, f: (S, K, V) => S): S =
+      l.fold zero (acc, p) => f acc p.a p.b
+  }
+end

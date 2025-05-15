@@ -32,3 +32,7 @@ fun main =
   m.foreach (k, v) =>
     println
       (intToStr k) + " -> " + v
+
+  m.remove(1).add(3, "three").foreach (k, v) =>
+    println
+      (intToStr k) + " -> " + v
