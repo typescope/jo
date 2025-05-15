@@ -21,13 +21,14 @@ type C =
   }
 
 fun main =
-  val arr: Array[Int] = array[Int] 3
+  val arr: Array[Int] = Array.new[Int] 3
 
   val f: IntArray = arr // error
   val a: A = arr // error
   val b: B = arr // error
   val c: C = arr // error
 
-  arr.set 0 10
-  arr.set 1 12
-  arr.set 2 14
+  Array > begin
+    set arr 0 10
+    set arr 1 12
+    set arr 2 14
