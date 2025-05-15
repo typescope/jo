@@ -201,6 +201,16 @@ object Types:
     def hasTermMember(name: String)(using Definitions): Boolean =
       getTermMember(name).nonEmpty
 
+    def exists(pred: Type => Boolean)(using Definitions): Boolean =
+      var exists = false
+      val traverser = new TypeOps.TypeTraverser:
+        def apply(tp: Type)(using Context) =
+          exists = exists || pred(tp)
+          if !exists then recur(tp)
+      traverser.apply(this)
+      exists
+
+
     def is[T <: Type : ClassTag]: Boolean =
       this match
         case tp: T => true

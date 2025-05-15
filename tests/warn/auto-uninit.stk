@@ -1,0 +1,5 @@
+auto fun eqInt: Eq[Int] = ???
+
+fun foo[T](auto a: Eq[T]): Int = 3
+
+fun main = foo

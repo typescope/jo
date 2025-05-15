@@ -210,8 +210,13 @@ class Checker(namer: Namer):
           val fun =
             if procType.tparams.isEmpty then word
             else namer.instantiatePoly(procType, word)
-          val resType = fun.tpe.asProcType.resultType
-          val autos = namer.autoResolver.derive(procType, word.span)
+          val procType2 = fun.tpe.asProcType
+          val resType = procType2.resultType
+
+          // Always prefer type constraints from outer scope if present
+          for tp <- targetType.knownType do Subtyping.conforms(resType, tp)
+
+          val autos = namer.autoResolver.derive(procType2, word.span)
           Apply(fun, args = Nil, autos)(resType, word.span)
         else
           word

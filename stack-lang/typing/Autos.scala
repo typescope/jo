@@ -17,7 +17,15 @@ class Autos(namer: Namer):
       search(autoInfo, Vector.empty, sc, span)
 
   private def search(target: Type, trace: Vector[Symbol], sc: Scope, span: Span)(using Definitions, Reporter, Source): Word =
-    // TODO: check that target type is initialized
+    def history: String =
+      if trace.isEmpty then ""
+      else " Resolution trace: " + trace.map(_.name).mkString(" -> ")
+
+    // Check that target type is initialized
+    if target.exists(tp => tp.is[TypeVar] && !tp.as[TypeVar].isInstantiated) then
+      val tpText = target.show
+      Reporter.error(s"Not fully instantiated auto type $tpText." + history, span.toPos)
+      return Block(Nil)(ErrorType, span)
 
     val candidates = sc.getAutos.flatMap: sym =>
       // testing should not change inference state
@@ -39,17 +47,12 @@ class Autos(namer: Namer):
         else
           if Subtyping.conforms(tp, target) then sym :: Nil else Nil
 
-
-    def history: String =
-      if trace.isEmpty then ""
-      else " Resolution trace: " + trace.map(_.name).mkString(" -> ")
-
     candidates match
       case Nil =>
         sc match
           case _: Scope.RootScope =>
             val tpText = target.show
-            Reporter.error(s"No autos are found for the target type $tpText." + history, span.toPos)
+            Reporter.error(s"No autos are found for the auto type $tpText." + history, span.toPos)
             Block(Nil)(ErrorType, span)
 
           case Scope.NestedScope(outer, _, _) => search(target, trace, outer, span)
@@ -93,5 +96,5 @@ class Autos(namer: Namer):
       case _ =>
         val tpText = target.show
         val names  = candidates.map(_.fullName).mkString(", ")
-        Reporter.error(s"Ambiguous autos, multiple candidates satisfy the target type $tpText: " + names + "." + history, span.toPos)
+        Reporter.error(s"Ambiguous autos, multiple candidates satisfy the auto type $tpText: " + names + "." + history, span.toPos)
         Block(Nil)(ErrorType, span)
