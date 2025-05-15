@@ -31,6 +31,7 @@ class Namer:
   val patternTyper = PatternTyper(this, checker)
   val inferencer: Inferencer = new UnificationSolver
   val exprTyper = new ExprTyper(this)
+  val autoResolver = new Autos(this)
 
   def transform
       (nss: List[Ast.Namespace], rootNameTable: NameTable, predef: NameTable)
@@ -220,7 +221,7 @@ class Namer:
   end index
 
   extension (word: Word)
-    def adapt(using tt: TargetType, defn: Definitions, rp: Reporter, so: Source): Word =
+    def adapt(using tt: TargetType, defn: Definitions, sc: Scope, rp: Reporter, so: Source): Word =
       checker.adapt(word, tt)
 
   def transform(word: Ast.Word)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
@@ -526,11 +527,11 @@ class Namer:
           else
             transformArgs(apply.args, procType.paramTypes)
 
-        val base = Apply(fun, argsTyped)(procType.resultType, apply.span)
-        checker.checkUnpackUsage(base, tt)
-        val desugared = Rewriting.rewriteShortcutAndOr(base)
-        val word = Autos.derive(procType, desugared)
-        checker.adapt(word, tt)
+        val autos = autoResolver.derive(procType, apply.span)
+        val word = Apply(fun, argsTyped, autos)(procType.resultType, apply.span)
+        checker.checkUnpackUsage(word, tt)
+        val desugared = Rewriting.rewriteShortcutAndOr(word)
+        checker.adapt(desugared, tt)
     else
       if !fun.tpe.isError then
         Reporter.error(s"Not a function: " + fun.tpe.show, fun.pos)
@@ -569,8 +570,8 @@ class Namer:
                 given TargetType = TargetType.Known(procType.paramTypes.head)
                 transform(arg)
 
-              val base = Apply(fun, argTyped :: Nil)(procType.resultType, call.span)
-              val word = Autos.derive(procType, base)
+              val autos = autoResolver.derive(procType, call.span)
+              val word = Apply(fun, argTyped :: Nil, autos)(procType.resultType, call.span)
               checker.adapt(word, tt)
           else
             Reporter.error( s"The member ${meth.name} is not a method", meth.pos)
@@ -631,11 +632,11 @@ class Namer:
         else
           transformArgs(postArgs, procType.postParamTypes)
 
-      val base = Apply(fun, preArgs2 ++ postArgs2)(procType.resultType, call.span)
-      checker.checkUnpackUsage(base, tt)
-      val rewrite = Rewriting.rewriteShortcutAndOr(base)
-      val word = Autos.derive(procType, rewrite)
-      checker.adapt(word, tt)
+      val autos = autoResolver.derive(procType, call.span)
+      val word = Apply(fun, preArgs2 ++ postArgs2, autos)(procType.resultType, call.span)
+      checker.checkUnpackUsage(word, tt)
+      val rewrite = Rewriting.rewriteShortcutAndOr(word)
+      checker.adapt(rewrite, tt)
 
   /** Assumes that the argument count requirement is satisfied */
   def transformArgs
@@ -678,7 +679,7 @@ class Namer:
 
     val lastFlexArg = argsFlexTyped.foldLeft(emptyList): (acc, arg) =>
       arg match
-        case Apply(fun, arg :: Nil) if fun.refers(defn.Predef_dotdot) =>
+        case Apply(fun, arg :: Nil, _) if fun.refers(defn.Predef_dotdot) =>
           acc.select("++").appliedTo(arg)
 
         case _ =>
@@ -1117,7 +1118,7 @@ class Namer:
     val flags = checker.checkModifiers(tdef) | Flags.Type
     val typeSym = Symbol.createSymbol(tdef.name, flags, tdef.ident.pos)
 
-    given Definitions = lazyDefn match
+    given defn: Definitions = lazyDefn match
       case lazyDefn: Definitions.Lazy => lazyDefn.value
       case defn: Definitions => defn
 
@@ -1141,7 +1142,7 @@ class Namer:
 
       if tdef.tparams.isEmpty then
         if tdef.rhs.isEmpty then
-          if sc.owner.fullName == "stk.Predef" then
+          if sc.owner == defn.Predef then
             val typeName = tdef.name
             if typeName == "Any" then AnyType
             else if typeName == "Bottom" then BottomType

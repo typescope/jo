@@ -188,9 +188,10 @@ object Printing:
       case Encoded(repr) =>
         "(" ~ repr ~ ": " ~ word.tpe ~ ")"
 
-      case Apply(fun, args) =>
+      case Apply(fun, args, autos) =>
         fun ~ indent:
-          args.join(Text.BreakLine)
+          args.join(Text.BreakLine) ~ Text.BreakLine ~ "auto" ~ indent:
+            autos.join(Text.BreakLine)
 
       case TypeApply(fun, targs) =>
         fun ~ "[" ~ targs.join(", ") ~ "]"

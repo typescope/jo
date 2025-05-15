@@ -1,0 +1,18 @@
+type A
+type B
+type C
+
+auto fun diverge(auto a: A): A = ???
+
+fun foo(auto a: A): Int = 3
+
+
+auto fun fly(auto b: B): C = ???
+auto fun bla(auto c: C): B = ???
+
+fun bar(auto b: B): Int = 3
+
+
+fun main =
+  foo
+  bar

@@ -128,8 +128,12 @@ object Symbols:
       assert(this.isAllOf(Flags.Default | Flags.Context))
       this.dealias.owner.termMember(this.name + "$option")
 
-    def fullName(using Definitions): String = this.ownersIterator.foldLeft(this.name):
-      (acc, owner) => owner.name + "." + acc
+    def fullName(using Definitions): String =
+      if isLocal then
+        this.name
+      else
+        this.ownersIterator.foldLeft(this.name):
+          (acc, owner) => owner.name + "." + acc
 
     def toNamedInfo(using Definitions): NamedInfo[Type] = NamedInfo(name, info)
 

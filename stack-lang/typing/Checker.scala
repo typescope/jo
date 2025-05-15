@@ -191,7 +191,7 @@ class Checker(namer: Namer):
     case _ =>
       word
 
-  def adapt(word: Word, targetType: TargetType)(using Definitions, Reporter, Source): Word = Debug.trace("Adapting " + word.show, (_: Word).show, enable = false):
+  def adapt(word: Word, targetType: TargetType)(using Definitions, Scope, Reporter, Source): Word = Debug.trace("Adapting " + word.show, (_: Word).show, enable = false):
     val defn = summon[Definitions]
 
     val word2 =
@@ -211,7 +211,8 @@ class Checker(namer: Namer):
             if procType.tparams.isEmpty then word
             else namer.instantiatePoly(procType, word)
           val resType = fun.tpe.asProcType.resultType
-          Apply(fun, args = Nil)(resType, word.span)
+          val autos = namer.autoResolver.derive(procType, word.span)
+          Apply(fun, args = Nil, autos)(resType, word.span)
         else
           word
 

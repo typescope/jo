@@ -1,0 +1,9 @@
+type A
+
+auto fun diverge(auto a: A): A = ???
+
+auto fun A: A = ???
+
+fun foo(auto a: A): Int = 3
+
+fun main = foo

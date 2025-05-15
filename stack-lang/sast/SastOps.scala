@@ -73,11 +73,11 @@ object SastOps:
     if origType.refers(defn.Predef_Byte) then
       if targetType.refers(defn.Predef_Char) then
         val byteToChar = Ident(defn.Predef_byteToChar)(word.span)
-        Apply(byteToChar, word :: Nil)(targetType, word.span)
+        Apply(byteToChar, word :: Nil, autos = Nil)(targetType, word.span)
 
       else if targetType.refers(defn.Int_Int) then
         val byteToInt = Ident(defn.Predef_byteToInt)(word.span)
-        Apply(byteToInt, word :: Nil)(targetType, word.span)
+        Apply(byteToInt, word :: Nil, autos = Nil)(targetType, word.span)
 
       else
         Reporter.abortInternal("Unexpected numeric type " + targetType.show)
@@ -88,7 +88,7 @@ object SastOps:
 
       else if targetType.refers(defn.Int_Int) then
         val charToInt = Ident(defn.Predef_charToInt)(word.span)
-        Apply(charToInt, word :: Nil)(targetType, word.span)
+        Apply(charToInt, word :: Nil, autos = Nil)(targetType, word.span)
 
       else
         Reporter.abortInternal("Unexpected numeric type " + targetType.show)
@@ -322,8 +322,8 @@ object SastOps:
         case Encoded(repr) =>
           Encoded(this(repr))(word.tpe)
 
-        case Apply(fun, args) =>
-          Apply(this(fun), args.map(this.apply))(word.tpe, word.span)
+        case Apply(fun, args, autos) =>
+          Apply(this(fun), args.map(this.apply), autos.map(this.apply))(word.tpe, word.span)
 
         case TypeApply(fun, targs) =>
           TypeApply(this(fun), targs)(word.tpe, word.span)
@@ -445,9 +445,10 @@ object SastOps:
         case Encoded(repr) =>
           this(repr)
 
-        case Apply(fun, args) =>
+        case Apply(fun, args, autos) =>
           this(fun)
           args.foreach(this.apply)
+          autos.foreach(this.apply)
 
         case TypeApply(fun, targs) =>
           this(fun)

@@ -108,3 +108,5 @@ enum Scope:
 
   def definePatternAsTerm(sym: Symbol)(using Reporter): Unit =
     table.definePatternAsTerm(sym)
+
+  def getAutos: Seq[Symbol] = table.getAutos

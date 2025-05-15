@@ -54,7 +54,11 @@ class NameTable(
   def define(sym: Symbol)(using rp: Reporter): Unit =
     val table = getTable(sym)
     defineInTable(sym, table)
-    if sym.is(Flags.Auto) then defineAuto(sym)
+
+    if sym.is(Flags.Auto) then
+      defineAuto(sym)
+
+  def getAutos: Seq[Symbol] = autos.toSeq
 
   private def defineAuto(sym: Symbol): Unit =
     autos += sym

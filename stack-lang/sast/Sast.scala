@@ -151,13 +151,14 @@ object Sast:
   extends Word
 
   case class Apply
-    (fun: Word, args: List[Word])
+    (fun: Word, args: List[Word], autos: List[Word])
     (val tpe: Type, val span: Span)
     (using Definitions)
   extends Word:
     fun.tpe.asProcType match
       case procType =>
         assert(procType.paramTypes.size == args.size, procType.show + ", " + args)
+        assert(procType.autos.size == autos.size, procType.show + ", " + autos)
 
     def funSymbol: Option[Symbol] =
       fun match
@@ -516,15 +517,16 @@ object Sast:
     def appliedTo(args: Word*)(using Definitions): Word =
       val procType = word.tpe.asProcType
 
-      assert(procType.paramCount == args.size)
-      assert(procType.tparams.isEmpty)
+      assert(procType.paramCount == args.size, "args mismatch")
+      assert(procType.tparams.isEmpty, "type params not supplied")
+      assert(procType.autos.isEmpty, "autos not supplied")
 
       val args2 =
         for (arg, paramType) <- args.zip(procType.paramTypes)
         yield SastOps.adapt(arg, paramType)
 
       val span = if args.isEmpty then word.span else word.span | args.last.span
-      Apply(word, args2.toList)(procType.resultType, span)
+      Apply(word, args2.toList, autos = Nil)(procType.resultType, span)
 
     def appliedToTypes(targs: Type*)(using Definitions): Word =
       val procType = word.tpe.asProcType

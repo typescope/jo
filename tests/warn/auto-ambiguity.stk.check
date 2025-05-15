@@ -1,0 +1,6 @@
+---------- Error at ./tests/warn/auto-ambiguity.stk:9:12 ---------------
+| fun main = foo
+|            ^^^
+|            Ambiguous autos, multiple candidates satisfy the target type A: __empty__.diverge, __empty__.A.
+
+1 error(s), 0 warning(s)
