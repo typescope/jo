@@ -34,13 +34,7 @@ section SetImpl
   fun makeObject[T](eq: Eq[T], l: List[T]): Set[T] = object {
     def size: Int = l.size
 
-    def contains(x: T): Bool =
-      var found = false
-      var i = 0
-      while both !found (i < size) do
-        found = eq l(i) x
-        i = i + 1
-      found
+    def contains(x: T): Bool = exists e => eq e x
 
     def +(x: T): Set[T] =
       if contains x then this
