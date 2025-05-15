@@ -20,9 +20,7 @@ object Types:
       * Avoid type reduction as the types might not be well-formed.
       */
     def isError(using Definitions): Boolean =
-      this == ErrorType || this.match
-        case TypeRef(sym) => sym.info.isError
-        case _ => false
+      this == ErrorType
 
     /** Whether the type is Void
       *
