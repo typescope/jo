@@ -160,6 +160,8 @@ object Sast:
         assert(procType.paramTypes.size == args.size, procType.show + ", " + args)
         assert(procType.autos.size == autos.size, procType.show + ", " + autos)
 
+    def allArgs: List[Word] = args ++ autos
+
     def funSymbol: Option[Symbol] =
       fun match
         case Ident(sym)               => Some(sym)
