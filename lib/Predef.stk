@@ -31,8 +31,14 @@ alias stk.Bool.*
 
 alias stk.Array.*
 
+alias stk.Eq
+type Eq[T] = Eq.Eq[T]
+
 alias stk.List
 type List[T] = List.List[T]
+
+alias stk.Set
+type Set[T] = Set.Set[T]
 
 //------------------------------------------------------------------------------
 //

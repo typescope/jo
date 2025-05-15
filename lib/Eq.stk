@@ -1,7 +1,17 @@
 namespace stk.Eq
 
 import stk.Predef.Bool
+import stk.Predef.Byte
+import stk.Predef.Char
+import stk.Predef.Int
+import stk.Predef.String
+import stk.Int.==
 
 type Eq[T] = object {
   def eq(this: T, that: T): Bool
 }
+
+fun Byte: Eq[Byte] = (a, b) => a == b
+fun Char: Eq[Char] = (a, b) => a == b
+fun Int: Eq[Int] = (a, b) => a == b
+fun String: Eq[String] = (a, b) => a == b
