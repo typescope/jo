@@ -930,7 +930,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val lparen = eat(Token.LPAREN)
     val nested = phrase() match
       case Some(p) =>
-        Block(p :: Nil)(p.span)
+        p
 
       case None =>
         error("Phrase expected within parentheses", lparen.span.toPos)

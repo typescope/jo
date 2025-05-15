@@ -166,6 +166,10 @@ object Sast:
         case TypeApply(Ident(sym), _) => Some(sym)
         case _                        => None
 
+  object Apply:
+    def apply(fun: Word, args: List[Word])(tpe: Type, span: Span)(using Definitions): Apply =
+      apply(fun, args, autos = Nil)(tpe, span)
+
   case class Object
     (self: Symbol, vals: List[ValDef], defs: List[FunDef])
     (val tpe: Type, val span: Span)
@@ -434,6 +438,8 @@ object Sast:
     (val span: Span)
   extends Word, Def:
     private var censusCache: (List[Symbol], List[Symbol]) | Null = null
+
+    val allParams: List[Symbol] = params ++ autos
 
     def census(using Definitions): (List[Symbol], List[Symbol]) =
       if censusCache == null then

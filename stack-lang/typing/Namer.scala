@@ -262,6 +262,7 @@ class Namer:
         transform(lambda).adapt
 
       case Ast.Fence(phrase) =>
+        given Scope = sc.fresh()
         transform(phrase)
 
       case app: Ast.Apply =>
@@ -673,14 +674,18 @@ class Namer:
       val tt = TargetType.Known(paramTypeFlex)
       checker.adapt(Ident(defn.List_empty)(span), tt)
 
-    val lastFlexArg = argsFlexTyped.foldLeft(emptyList): (acc, arg) =>
-      arg match
-        case Apply(fun, arg :: Nil, _) if fun.refers(defn.Predef_dotdot) =>
-          acc.select("++").appliedTo(arg)
+    val lastFlexArg =
+      if rp.hasErrors then
+        emptyList
+      else
+        argsFlexTyped.foldLeft(emptyList): (acc, arg) =>
+          arg match
+            case Apply(fun, arg :: Nil, _) if fun.refers(defn.Predef_dotdot) =>
+              acc.select("++").appliedTo(arg)
 
-        case _ =>
-          acc.select("+").appliedTo(arg)
-      end match
+            case _ =>
+              acc.select("+").appliedTo(arg)
+          end match
 
     argsFixTyped :+ lastFlexArg
 
@@ -1043,7 +1048,7 @@ class Namer:
 
       for auto <- funDef.autos yield
         val tpt = transformType(auto.tpt, allowPackType = false)
-        val autoSym = Symbol.createSymbol(auto.name, tpt.tpe, Flags.Param, funSym, auto.pos)
+        val autoSym = Symbol.createSymbol(auto.name, tpt.tpe, Flags.Param | Flags.Auto, funSym, auto.pos)
         funScope.define(autoSym)
         autoSym
 
@@ -1074,6 +1079,7 @@ class Namer:
 
     lazy val typedBody =
       paramSyms
+      autoSyms
 
       val targetType =
         if !funDef.resultType.isEmpty then
@@ -1245,7 +1251,7 @@ class Namer:
     val autoSyms =
       for auto <- ddef.autos yield
         val tpt = transformType(auto.tpt)
-        val autoSym = Symbol.createSymbol(auto.name, tpt.tpe, Flags.Param, sc.owner, auto.pos)
+        val autoSym = Symbol.createSymbol(auto.name, tpt.tpe, Flags.Param | Flags.Auto, sc.owner, auto.pos)
         defScope.define(autoSym)
         autoSym
 

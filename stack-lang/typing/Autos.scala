@@ -14,9 +14,11 @@ class Autos(namer: Namer):
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
   : List[Word] =
     for NamedInfo(name, autoInfo) <- procType.autos yield
-      search(autoInfo, Vector.empty, sc, span)
+      search(autoInfo, Vector.empty, sc, sc, span)
 
-  private def search(target: Type, trace: Vector[Symbol], sc: Scope, span: Span)(using Definitions, Reporter, Source): Word =
+  private def search(target: Type, trace: Vector[Symbol], origin: Scope, sc: Scope, span: Span)(using Definitions, Reporter, Source): Word =
+    // println("searching scope owner = " + sc.owner + ", autos = " + sc.getAutos)
+
     def history: String =
       if trace.isEmpty then ""
       else " Resolution trace: " + trace.map(_.name).mkString(" -> ")
@@ -28,6 +30,7 @@ class Autos(namer: Namer):
       return Block(Nil)(ErrorType, span)
 
     val candidates = sc.getAutos.flatMap: sym =>
+      // println("test " + sym.name + " for " + target.show)
       // testing should not change inference state
       namer.inferencer.test:
         val tp = sym.info
@@ -45,19 +48,23 @@ class Autos(namer: Namer):
             Nil
 
         else
-          if Subtyping.conforms(tp, target) then sym :: Nil else Nil
+          if Subtyping.conforms(tp, target) then
+            sym :: Nil
+          else
+            // println(sym.name + " not qualify for " + target.show)
+            Nil
 
     candidates match
       case Nil =>
         sc match
           case _: Scope.RootScope =>
             val tpText = target.show
-            Reporter.error(s"No autos are found for the auto type $tpText." + history, span.toPos)
+            Reporter.error(s"No autos are found for the type $tpText." + history, span.toPos)
             Block(Nil)(ErrorType, span)
 
-          case Scope.NestedScope(outer, _, _) => search(target, trace, outer, span)
+          case Scope.NestedScope(outer, _, _) => search(target, trace, origin, outer, span)
 
-          case Scope.LocalPatternScope(outer, _, _) => search(target, trace, outer, span)
+          case Scope.LocalPatternScope(outer, _, _) => search(target, trace, origin, outer, span)
 
       case sym :: Nil if trace.contains(sym) =>
         val tpText = target.show
@@ -87,7 +94,8 @@ class Autos(namer: Namer):
             else
               val autos =
                 for NamedInfo(name, autoInfo) <- procType.autos yield
-                  search(autoInfo, trace :+ sym, sc, span)
+                  // Nested resolution should start from origin
+                  search(autoInfo, trace :+ sym, origin, origin, span)
 
               Apply(fun, Nil, autos)(procType.resultType, span)
         else

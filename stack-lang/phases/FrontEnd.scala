@@ -1,14 +1,11 @@
 package phases
 
-import ast.Ast
 import sast.*
 import sast.Sast.*
 
-import parsing.Parser
 import typing.Typer
 import reporting.Config
 import reporting.Reporter
-import reporting.Reporter.Step
 
 object FrontEnd:
   def run

@@ -189,9 +189,13 @@ object Printing:
         "(" ~ repr ~ ": " ~ word.tpe ~ ")"
 
       case Apply(fun, args, autos) =>
-        fun ~ indent:
-          args.join(Text.BreakLine) ~ Text.BreakLine ~ "auto" ~ indent:
+        val autoText =
+          if autos.isEmpty then Text.Empty
+          else Text.BreakLine ~ "auto" ~ indent:
             autos.join(Text.BreakLine)
+
+        fun ~ indent:
+          args.join(Text.BreakLine) ~ autoText
 
       case TypeApply(fun, targs) =>
         fun ~ "[" ~ targs.join(", ") ~ "]"

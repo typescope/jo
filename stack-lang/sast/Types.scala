@@ -354,6 +354,8 @@ object Types:
 
     val autoTypes: List[Type] = autos.map(_.info)
 
+    val allParams: List[NamedInfo[Type]] = params ++ autos
+
     def minimumArgs(using Definitions): Int =
       if hasVararg then paramCount - 1 else paramCount
 
