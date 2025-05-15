@@ -42,9 +42,10 @@ object ElimCapture:
     val oldFunSym = fdef.symbol
 
     val paramInfos = fdef.params.map(_.toNamedInfo)
+    val autoInfos = fdef.autos.map(_.toNamedInfo)
     val resType = fdef.procType.resultType
     val paramInfos2 = prependParams ++ paramInfos ++ appendParams
-    val funType = ProcType(fdef.tparams, paramInfos2, resType, fdef.receives, preParamCount = 0)
+    val funType = ProcType(fdef.tparams, paramInfos2, autoInfos, resType, fdef.receives, preParamCount = 0)
 
     val funName = ctx.flatName(fdef.symbol)
     Symbol.createSymbol(funName, funType, Flags.Fun | Flags.Synthetic, oldFunSym.enclosingContainer, oldFunSym.sourcePos)
@@ -124,7 +125,7 @@ object ElimCapture:
       val lifter = new Lifter(funSym)
       val body = lifter(fdef.body)(using ctx.withSubsts(substs.toMap))
       val params = fdef.params ++ paramSymsCaptured
-      ctx.lifted += FunDef(funSym, fdef.tparams, params, fdef.resultType, body)(fdef.span)
+      ctx.lifted += FunDef(funSym, fdef.tparams, params, fdef.autos, fdef.resultType, body)(fdef.span)
 
       Block(words = Nil)(VoidType, fdef.span)
 
@@ -231,7 +232,7 @@ object ElimCapture:
         val body2 = Block(aliases.toList :+ body)(body.tpe, body.span)
         val params = paramThis :: fdef.params
 
-        ctx.lifted += FunDef(liftedSym, fdef.tparams, params, fdef.resultType, body2)(fdef.span)
+        ctx.lifted += FunDef(liftedSym, fdef.tparams, params, fdef.autos, fdef.resultType, body2)(fdef.span)
       end for
 
       val recordType = RecordType(memberTypes.toList)

@@ -197,8 +197,8 @@ class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
           run(repr): v =>
             cont(v)
 
-      case app @ Apply(fun, args) =>
-        call(fun, args)
+      case app @ Apply(fun, args, autos) =>
+        call(fun, args ++ autos)
 
       case TypeApply(fun, _) =>
         compile(fun)
@@ -267,7 +267,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
 
     unique.newScope:
       val locals = fdef.locals.filter(sym => sym.isMutable || sym.isPattern).map("var " ~ _ ~ ";" ~ Text.BreakLine)
-      "function " ~ jsFunName ~ "(" ~ fdef.params.join(", ") ~ ")" ~ " {" ~ indent:
+      "function " ~ jsFunName ~ "(" ~ fdef.allParams.join(", ") ~ ")" ~ " {" ~ indent:
           if resCount == 0 then
             locals.join(Text.Empty) ~ fdef.body
           else
