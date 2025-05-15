@@ -102,7 +102,7 @@ extends Backend(runtime):
 
     val label = getFunAddress(sym)
 
-    val paramCount = funType.paramCount
+    val paramCount = funType.allParamCount
     val resCount = funType.resCount
 
     cb.mark(label)
@@ -110,7 +110,7 @@ extends Backend(runtime):
     val symAddrMap = mutable.Map.empty[Symbol, Addr]
 
     // bind param address relative to FP_REG
-    for (param, index) <- fdef.params.zipWithIndex do
+    for (param, index) <- fdef.allParams.zipWithIndex do
       val offset = (paramCount + 1 - index) << 2
       symAddrMap(param) = Rel(FP_REG, offset)
 
@@ -215,7 +215,7 @@ extends Backend(runtime):
   def call(fun: Symbol)(using cb: CodeBuffer): Unit =
     val addr = getFunAddress(fun)
     val funType = fun.info.asProcType
-    val argCount = funType.paramCount
+    val argCount = funType.allParamCount
     val resCount = funType.resCount
     call(addr, argCount, resCount)
 
@@ -286,7 +286,7 @@ extends Backend(runtime):
         val target = sym.dealias
 
         if target.owner == defn.Int || target.owner == defn.Bool then
-          for arg <- app.args do compile(arg)
+          for arg <- app.allArgs do compile(arg)
           callPrimitive(target)
 
         else if target.owner == runtime.Core then
@@ -297,20 +297,20 @@ extends Backend(runtime):
             push(label)
 
           else
-            for arg <- app.args do compile(arg)
+            for arg <- app.allArgs do compile(arg)
             callCore(target)
 
         else
-          for arg <- app.args do compile(arg)
+          for arg <- app.allArgs do compile(arg)
           call(target)
 
       case _ =>
         compile(app.fun)
-        for arg <- app.args do compile(arg)
+        for arg <- app.allArgs do compile(arg)
 
         useReg: r =>
           val resCount = if app.tpe.isValueType then 1 else 0
-          loadValue(r, app.args.size.toByte, Size.B32)
+          loadValue(r, app.allArgs.size.toByte, Size.B32)
           this.call(Reg(r), app.args.size, resCount, funAddrOnStack = true)
 
   /** Pop the value on the top of the stack to the given register */
