@@ -17,28 +17,27 @@ class Autos(namer: Namer):
       search(autoInfo, Vector.empty, sc, span)
 
   private def search(target: Type, trace: Vector[Symbol], sc: Scope, span: Span)(using Definitions, Reporter, Source): Word =
+    // TODO: check that target type is initialized
+
     val candidates = sc.getAutos.flatMap: sym =>
-      val base = Ident(sym)(span)
-      val tp = sym.info
-      if tp.isProcType then
-        var procType = tp.asProcType
+      // testing should not change inference state
+      namer.inferencer.test:
+        val tp = sym.info
+        if tp.isProcType then
+          var procType = tp.asProcType
 
-        val fun =
           if procType.tparams.nonEmpty then
-            val tapply = namer.instantiatePoly(procType, base)
-            procType = tapply.tpe.asProcType
-            tapply
-          else
-            base
+            val tvars = for tparam <- procType.tparams yield TypeVar(tparam.name, namer.inferencer)
+            procType = procType.instantiate(tvars)
 
-        if Subtyping.conforms(procType.resultType, target) then
-          (sym, fun) :: Nil
+          if Subtyping.conforms(procType.resultType, target) then
+            sym :: Nil
+
+          else
+            Nil
 
         else
-          Nil
-
-      else
-        if Subtyping.conforms(tp, target) then (sym, base) :: Nil else Nil
+          if Subtyping.conforms(tp, target) then sym :: Nil else Nil
 
 
     def history: String =
@@ -57,33 +56,42 @@ class Autos(namer: Namer):
 
           case Scope.LocalPatternScope(outer, _, _) => search(target, trace, outer, span)
 
-      case (sym, base) :: Nil if trace.contains(sym) =>
+      case sym :: Nil if trace.contains(sym) =>
         val tpText = target.show
         val loop = (trace :+ sym).map(_.fullName).mkString(" -> ")
         Reporter.error(s"Divergence in resolving auto of the type $tpText: " + loop + ".", span.toPos)
         Block(Nil)(ErrorType, span)
 
-      case (sym, base) :: Nil =>
-        if base.tpe.isProcType then
-          val procType = base.tpe.asProcType
+      case sym :: Nil =>
+        if sym.info.isProcType then
+          var procType = sym.info.asProcType
           if procType.params.nonEmpty then
             Reporter.error(s"The auto ${sym.fullName} require non-auto params." + history, span.toPos)
             Block(Nil)(ErrorType, span)
 
-          else if procType.autos.isEmpty then
-            base.appliedTo()
-
           else
-            val autos =
-              for NamedInfo(name, autoInfo) <- procType.autos yield
-                search(autoInfo, trace :+ sym, sc, base.span)
+            var fun: Word = Ident(sym)(span)
+            if procType.tparams.nonEmpty then
+              fun = namer.instantiatePoly(procType, fun)
+              procType = fun.tpe.asProcType
 
-            Apply(base, Nil, autos)(procType.resultType, span)
+            // This step cannot revert, thus the inference state is persisted
+            Subtyping.conforms(procType.resultType, target)
+
+            if procType.autos.isEmpty then
+              Ident(sym)(span).appliedTo()
+
+            else
+              val autos =
+                for NamedInfo(name, autoInfo) <- procType.autos yield
+                  search(autoInfo, trace :+ sym, sc, span)
+
+              Apply(fun, Nil, autos)(procType.resultType, span)
         else
-          base
+          Ident(sym)(span)
 
       case _ =>
         val tpText = target.show
-        val names  = candidates.map(_._1.fullName).mkString(", ")
+        val names  = candidates.map(_.fullName).mkString(", ")
         Reporter.error(s"Ambiguous autos, multiple candidates satisfy the target type $tpText: " + names + "." + history, span.toPos)
         Block(Nil)(ErrorType, span)
