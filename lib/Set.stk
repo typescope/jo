@@ -1,0 +1,65 @@
+namespace stk.Set
+
+import stk.Predef.List
+import stk.Predef.Unit
+import stk.Predef.Pack
+import stk.Predef.Eq
+
+import stk.Int.*
+import stk.Bool.*
+
+type Set[T] = object {
+  def size: Int
+  def contains(x: T): Bool
+  def +(x: T): Set[T]
+  def -(x: T): Set[T]
+  def ++(xs: List[T]): Set[T]
+  def select(pred: T => Bool): Set[T]
+  def exclude(pred: T => Bool): Set[T]
+  def diff(other: Set[T]): Set[T]
+  def union(other: Set[T]): Set[T]
+  def &(other: Set[T]): Set[T]
+  def foreach(f: T => Unit): Unit
+  def fold[S](zero: S, f: (S, T) => S): S
+  def exists(pred: T => Bool): Bool
+  def all(pred: T => Bool): Bool
+}
+
+fun empty[T](eq: Eq[T]): Set[T] = SetImpl.makeObject eq List.empty
+
+fun Set[T](eq: Eq[T], elems: Pack[T]): Set[T] = SetImpl.makeObject eq elems
+
+// A strawman implementation of Set based on List
+section SetImpl
+  fun makeObject[T](eq: Eq[T], l: List[T]): Set[T] = object {
+    def size: Int = l.size
+
+    def contains(x: T): Bool = exists e => eq e x
+
+    def +(x: T): Set[T] =
+      if contains x then this
+      else makeObject eq (l + x)
+
+    def -(x: T): Set[T] = exclude e => eq x e
+
+    def ++(xs: List[T]): Set[T] = xs.fold this (acc, e) => acc + e
+
+    def select(pred: T => Bool): Set[T] = makeObject eq (l.select pred)
+
+    def exclude(pred: T => Bool): Set[T] = makeObject eq (l.exclude pred)
+
+    def diff(other: Set[T]): Set[T] = exclude e => other.contains e
+
+    def union(other: Set[T]): Set[T] = other.fold this (acc, e) => acc + e
+
+    def &(other: Set[T]): Set[T] = select e => other.contains e
+
+    def foreach(f: T => Unit): Unit = l.foreach f
+
+    def fold[S](zero: S, f: (S, T) => S): S = l.fold zero f
+
+    def exists(pred: T => Bool): Bool = l.exists pred
+
+    def all(pred: T => Bool): Bool = l.all pred
+  }
+end

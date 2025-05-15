@@ -2,5 +2,5 @@ fun main =
   val a: Int = 2 + 6
   a
     *// comment
-      4
+    4
   a p

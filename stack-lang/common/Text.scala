@@ -73,12 +73,16 @@ object Text:
     def ~[S](s: S)(using Maker[S]): Text =
       Text(t).join(Text(s))
 
+  extension [T](list: List[T])
+    def join(sep: String)(using Maker[T]): Text =
+      rep(list, Text(sep))
+
+    def join(sep: Text)(using Maker[T]): Text =
+      rep(list, sep)
+
   def indent[T](v: T)(using Maker[T]): Text = Text.Indent(Text(v))
 
-  def rep[T](list: List[T], separator: String)(using Maker[T]): Text =
-    rep(list, Text(separator), acc = Text.Empty)
-
-  def rep[T](list: List[T], separator: Text, acc: Text = Text.Empty)(using maker: Maker[T]): Text =
+  private def rep[T](list: List[T], separator: Text, acc: Text = Text.Empty)(using maker: Maker[T]): Text =
     list match
     case x :: xs => rep(xs, separator, if acc == Text.Empty then maker(x) else acc ~ separator ~ maker(x))
     case Nil     => acc

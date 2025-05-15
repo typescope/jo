@@ -44,8 +44,8 @@ object Printing:
 
   def showNamespace(ns: Namespace): Text =
     "namespace "  ~ ns.qualid ~ Text.BlankLine ~
-    rep(ns.imports, Text.BreakLine) ~ Text.BlankLine ~
-    rep(ns.defs, Text.BlankLine)
+    ns.imports.join(Text.BreakLine) ~ Text.BlankLine ~
+    ns.defs.join(Text.BlankLine)
 
   def showTypeAnnot(typ: TypeTree): Text =
     if typ.isEmpty then Text.Empty else ": " ~ typ
@@ -63,17 +63,17 @@ object Printing:
         "param " ~ id ~ ": " ~ tpt ~ rhs
 
       case ValDef(id, tpt, rhs, mutable) =>
-        val mod = if mutable then "var" else "val"
-        mod ~ " " ~ id ~ showTypeAnnot(tpt) ~ " = " ~ rhs
+        val kind = if mutable then "var" else "val"
+        kind ~ " " ~ id ~ showTypeAnnot(tpt) ~ " = " ~ rhs
 
       case fdef: FunDef =>
         val tparams =
           if fdef.tparams.isEmpty then Text.Empty
-          else "[" ~ rep(fdef.tparams, Text(", "))  ~ "]"
+          else "[" ~ fdef.tparams.join(", ")  ~ "]"
 
         val params =
           if fdef.params.isEmpty then Text.Empty
-          else "(" ~ rep(fdef.params, Text(", "))  ~ ")"
+          else "(" ~ fdef.params.join(", ")  ~ ")"
 
         val resType = showTypeAnnot(fdef.resultType)
 
@@ -83,7 +83,7 @@ object Printing:
               Text(" receives none ")
 
             case Some(params) =>
-              " receives " ~ rep(params, Text(", ")) ~ " "
+              " receives " ~ params.join(", ") ~ " "
 
             case _ =>
               Text.Empty
@@ -97,22 +97,22 @@ object Printing:
       case pdef: PatDef =>
         val tparams =
           if pdef.tparams.isEmpty then Text.Empty
-          else "[" ~ rep(pdef.tparams, Text(", "))  ~ "]"
+          else "[" ~ pdef.tparams.join(", ")  ~ "]"
 
         val params =
           if pdef.params.isEmpty then Text.Empty
-          else "(" ~ rep(pdef.params, Text(", "))  ~ ")"
+          else "(" ~ pdef.params.join(", ")  ~ ")"
 
         val resType = showTypeAnnot(pdef.resultType)
 
         "pattern " ~ pdef.name ~ tparams ~ params ~ resType ~ " =" ~ indent:
           val caseText = pdef.cases.map(caseDef => "case " ~ showPattern(caseDef.pat))
-          rep(caseText, Text.BreakLine)
+          caseText.join(Text.BreakLine)
 
       case tdef: TypeDef =>
         val tparams =
           if tdef.tparams.isEmpty then Text.Empty
-          else "[" ~ rep(tdef.tparams, Text(", "))  ~ "]"
+          else "[" ~ tdef.tparams.join(", ")  ~ "]"
 
         val token = if tdef.isBound then " <: " else " = "
 
@@ -121,31 +121,31 @@ object Printing:
       case ddef: DataDef =>
         val tparams =
           if ddef.tparams.isEmpty then Text.Empty
-          else "[" ~ rep(ddef.tparams, Text(", "))  ~ "]"
+          else "[" ~ ddef.tparams.join(", ")  ~ "]"
 
         val params =
           if ddef.params.isEmpty then Text.Empty
-          else "(" ~ rep(ddef.params, Text(", "))  ~ ")"
+          else "(" ~ ddef.params.join(", ")  ~ ")"
 
         "data " ~ ddef.ident ~ tparams ~ params
 
       case edef: EnumDef =>
         val tparams =
           if edef.tparams.isEmpty then Text.Empty
-          else "[" ~ rep(edef.tparams, Text(", "))  ~ "]"
+          else "[" ~ edef.tparams.join(", ") ~ "]"
 
         val branches =
           edef.branches.map: branch =>
             val params =
               if branch.params.isEmpty then Text.Empty
-              else "(" ~ rep(branch.params, Text(", "))  ~ ")"
+              else "(" ~ branch.params.join(", ") ~ ")"
             branch.tag ~ params
 
-        "data " ~ edef.ident ~ tparams ~ " = " ~ rep(branches, Text(" | "))
+        "data " ~ edef.ident ~ tparams ~ " = " ~ branches.join(" | ")
 
       case Section(name, defs) =>
         "section " ~ name ~ indent:
-            rep(defs, Text.BlankLine)
+            defs.join(Text.BlankLine)
 
       case AliasDef(qualid) =>
         "alias " ~ qualid
@@ -160,29 +160,26 @@ object Printing:
 
       case StringLit(s) => "\"" ~ StringUtil.escape(s) ~ "\""
 
-      case SeqLit(words) => "[" ~ rep(words, Text(", ")) ~ "]"
+      case SeqLit(words) => "[" ~ words.join(", ") ~ "]"
 
       case Ident(name) => Text(name)
 
       case Apply(fun, args) =>
-        val argsText = rep(args, Text(", "))
+        val argsText = args.join(", ")
         fun ~ "(" ~ argsText ~ ")"
 
       case DotlessCall(obj, meth, arg) =>
         "(" ~ obj ~ " " ~ meth ~ " " ~ arg ~ ")"
 
       case InfixCall(preArgs, fun, postArgs) =>
-        "(" ~ rep(preArgs, Text(" ")) ~ " " ~ fun ~ " " ~ rep(postArgs, Text(" "))  ~ ")"
+        "(" ~ preArgs.join(" ") ~ " " ~ fun ~ " " ~ postArgs.join(" ") ~ ")"
 
       case Select(qual, name) =>
         qual ~ "." ~ name
 
       case RecordLit(fields) =>
         "{" ~ indent:
-            rep(
-              fields.map { f => f.name ~ " = " ~ f.arg },
-              Text(", ")
-            )
+              fields.map { f => f.name ~ " = " ~ f.arg }.join(", ")
         ~ "}"
 
       case Tag(name) =>
@@ -192,36 +189,37 @@ object Printing:
         expr ~ "as" ~ tpt
 
       case Lambda(params, body) =>
-        "(" ~ rep(params, Text(", ")) ~ ") =>" ~ indent(body)
+        "(" ~ params.join(", ") ~ ") =>" ~ indent(body)
 
       case Fence(phrase) =>
         "(" ~ phrase ~ ")"
 
       case With(expr, args) =>
-        val withText = " with " ~ indent(rep(args, Text.BreakLine))
+        val withText = " with " ~ indent:
+            args.join(Text.BreakLine)
 
         "(" ~ expr ~ withText ~ ")"
 
       case Allow(expr, params) =>
         val paramText =
           if params.isEmpty then Text("none")
-          else rep(params, Text(", "))
+          else params.join(", ")
 
         "(" ~ expr ~ " allow " ~ paramText ~ ")"
 
       case TypeApply(fun, targs) =>
-        fun ~ "[" ~ rep(targs, Text(", ")) ~ "]"
+        fun ~ "[" ~ targs.join(", ") ~ "]"
 
       case Expr(words) =>
         if words.size == 1 then
           showWord(words.head)
         else if words.size > 1 then
-          "(" ~ rep(words, Text(" ")) ~ ")"
+          "(" ~ words.join(" ") ~ ")"
         else
           Text.Empty
 
       case Block(phrases) =>
-        rep(phrases, Text.BreakLine)
+        phrases.join(Text.BreakLine)
 
       case If(cond, thenp, elsep) =>
         "if " ~ cond ~ " then" ~ indent:
@@ -238,11 +236,11 @@ object Printing:
 
       case Match(scrutinee, cases) =>
         "match " ~ scrutinee ~ indent:
-          rep(cases, Text.BlankLine)
+          cases.join(Text.BlankLine)
 
       case Object(members) =>
         "object {" ~ indent:
-           rep(members, Text.BreakLine)
+           members.join(Text.BreakLine)
         ~ "}"
 
       case defn: Def =>
@@ -254,11 +252,11 @@ object Printing:
         showWord(pat)
 
       case Apply(fun, args) if args.nonEmpty =>
-        val argText = rep(args.map(showPattern), Text(", "))
+        val argText = args.map(showPattern).join(", ")
         showPattern(fun) ~ "(" ~ argText  ~ ")"
 
       case Expr(words) if words.nonEmpty =>
-        rep(words.map(showPattern), Text(" "))
+        words.map(showPattern).join(" ")
 
       case TypeAscribe(id: Ident, tpt) =>
         id ~ ": " ~ tpt
@@ -267,13 +265,13 @@ object Printing:
         showPattern(thenp) ~ " if " ~ thenp
 
       case With(expr, args) =>
-        val withText = " then " ~ rep(args, Text(", "))
+        val withText = " then " ~ args.join(", ")
         expr ~ withText
 
       case Assign(id: Ident, rhs) =>
         id ~ "@" ~ rhs
 
-      case SeqLit(words) => "[" ~ rep(words.map(showPattern), Text(", ")) ~ "]"
+      case SeqLit(words) => "[" ~ words.map(showPattern).join(", ") ~ "]"
 
   def showType(tpt: TypeTree): Text =
     tpt match
@@ -282,28 +280,28 @@ object Printing:
       case ref: RefTree => showWord(ref)
 
       case RecordType(fields) =>
-        "{" ~ rep(fields, Text(", ")) ~ "}"
+        "{" ~ fields.join(", ") ~ "}"
 
       case TagType(tag, params) =>
         val paramsStr =
           if params.isEmpty then Text.Empty
-          else "(" ~ rep(params, Text(", ")) ~ ")"
+          else "(" ~ params.join(", ") ~ ")"
         "#" ~ tag ~ paramsStr
 
       case UnionType(branches) =>
-        rep(branches, Text(" | "))
+        branches.join(" | ")
 
       case AppliedType(tpeCtor, targs) =>
-        tpeCtor ~ "[" ~ rep(targs, Text(", ")) ~ "]"
+        tpeCtor ~ "[" ~ targs.join(", ") ~ "]"
 
       case FunctionType(paramTypes, resultType, receives) =>
-        val tp = rep(paramTypes, Text(", ")) ~ " => " ~ resultType
+        val tp = paramTypes.join(", ") ~ " => " ~ resultType
         if receives.isEmpty then
           tp
         else
-          tp ~ " receives " ~ rep(receives, Text(", "))
+          tp ~ " receives " ~ receives.join(", ")
 
       case ObjectType(members) =>
         "object {" ~ indent:
-           rep(members, Text.BreakLine)
+           members.join(Text.BreakLine)
         ~ "}"

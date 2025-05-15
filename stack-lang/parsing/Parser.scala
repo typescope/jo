@@ -6,6 +6,7 @@
 package parsing
 
 import ast.Ast.*
+import ast.Name
 import ast.Positions
 import ast.Positions.*
 
@@ -116,7 +117,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val peekedItem = peekItem()
     if
       peekedItem.token == Token.END
-      && peekedItem.indent.isSameIndent(indent)
+      && indent.isSameIndent(peekedItem.indent)
     then
       eat(Token.END)
 
@@ -129,7 +130,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val itemIndent = item.indent
 
     if
-      !refIndent.isSameIndent(itemIndent)
+      !refIndent.isAligned(itemIndent)
       && !(allowSameLine && refIndent.isSameLine(itemIndent))
     then
       val diagnosis = s"expect offset = ${refIndent.tokenOffset}, found = ${itemIndent.tokenOffset}"
@@ -344,14 +345,16 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         skipIndented(pat.indent)
         Nil
       else
+        var count = 0
         repeated:
           if peek() == Token.CASE then
             val caseToken = next()
             val pat = pattern()
             val caseDef = Case(pat, Block(Nil)(pat.span))(caseToken.span | pat.span)
 
-            checkAlign(item, caseToken, allowSameLine = false)
+            if count > 0 then checkAlign(item, caseToken)
 
+            count += 1
             Some(caseDef)
 
           else
@@ -474,7 +477,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       try
         phrase() match
           case Some(phrase) =>
-            checkAlign(refToken, item)
+            if phrases.nonEmpty then checkAlign(refToken, item)
             blockRest(phrases += phrase, limitIndent, refToken)
 
           case None => finalResult
@@ -531,13 +534,45 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         val span = words.head.span | words.last.span
         Expr(words.toList)(span)
 
-    if item.token == Token.EOF || lineIndent.isUnindent(item.indent) then
+    def isOperator(item: TokenInfo): Boolean =
+      item.token match
+        case Token.Ident(name) => Name.isOperator(name)
+        case _ => false
+
+    if item.token == Token.EOF || lineIndent.isOutdent(item.indent) then
       finalResult
 
-    else if lineIndent.isIndent(item.indent) then
-      val Block(phrases) = block(lineIndent)
-      words ++= phrases
-      finalResult
+    else if item.indent.isFirstOfLine then
+      if isOperator(item) then
+        // continue if the next line is an operator
+        word() match
+          case Some(w) =>
+            val res = exprRest(words += w, item.indent)
+
+            // Check no more nested lines
+            val nextItem = peekItem()
+            if lineIndent.isIndent(nextItem.indent) then
+              error("Unexpected indented line", nextItem.span.toPos)
+              throw new SyntaxError
+
+            else if !lineIndent.isOutdent(nextItem.indent) && isOperator(nextItem) then
+              error("Unaligned operator", nextItem.span.toPos)
+              throw new SyntaxError
+
+            else
+              res
+
+          case None =>
+            error("A word expected, found = " + item.token, item.span.toPos)
+            throw new SyntaxError
+
+      else if lineIndent.isIndent(item.indent) then
+        val Block(phrases) = block(lineIndent)
+        words ++= phrases
+        finalResult
+
+      else
+        finalResult
 
     else word() match
       case Some(w) =>
@@ -612,6 +647,13 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
       case Token.OBJECT =>
         optSelectAndApply(objectLit())
+
+      case Token.BEGIN =>
+        next()
+        val blk = block(item.indent)
+        eatEndOpt(item.indent)
+        // No selection or type/term apply on do-block
+        Some(blk)
 
       case token =>
         None
@@ -875,13 +917,19 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val nextItem = peekItem()
     val elsep =
       if nextItem.token == Token.ELSE then
-        eat(Token.ELSE)
-        checkAlign(ifItem, nextItem, allowSameLine = true)
-        block(nextItem.indent)
+        val elseItem = eat(Token.ELSE)
+        // if cond then
+        // else if cond then
+        // else
+        val tokenInfo = ifItem.copy(indent = ifItem.indent.lineStart)
+        checkAlign(tokenInfo, nextItem, allowSameLine = true)
+        val blk = block(nextItem.indent)
+        eatEndOpt(elseItem.indent)
+        blk
       else
-        Block(phrases = Nil)(thenp.span)
-
-    eatEndOpt(ifItem.indent)
+        val blk = Block(phrases = Nil)(thenp.span)
+        eatEndOpt(ifItem.indent)
+        blk
 
     If(cond, thenp, elsep)(ifItem.span | elsep.span)
 

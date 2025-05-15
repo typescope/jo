@@ -1,2 +1,2 @@
 fun main =
-  val arr: Array[Bool] = array 3
+  val arr: Array[Bool] = Array.new 3

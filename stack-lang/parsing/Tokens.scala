@@ -8,7 +8,7 @@ object Tokens:
     case LPAREN, RPAREN, LBRACKET, RBRACKET, LBRACE, RBRACE
     case AS, CASE, DO, END, ELSE, FUN, IF, IMPORT, MATCH, NSPACE, PARAM, THEN,
          TYPE, VAL, VAR, WHILE, WITH, ALLOW, OBJECT, DEF, RECEIVES, PATTERN,
-         SECTION, DATA, ALIAS
+         SECTION, DATA, ALIAS, BEGIN
     case TAG, COMMA, DOT, EOF
     case COLON, RARROW, EQL, SUBTYPE
     case IntLit(value: Int)
@@ -56,6 +56,10 @@ object Tokens:
     def isUnindent(other: Indent): Boolean =
       other.isFirstOfLine && other.tokenOffset <= this.lineIndent
 
+    /** Whether the other indentation is a unindentation to the current one */
+    def isOutdent(other: Indent): Boolean =
+      other.isFirstOfLine && other.tokenOffset < this.lineIndent
+
     /** Whether the other is an indentation to the current one */
     def isIndent(other: Indent): Boolean =
       other.isFirstOfLine && other.tokenOffset > this.lineIndent
@@ -64,13 +68,23 @@ object Tokens:
     def isIndentOrSameLine(other: Indent): Boolean =
       isSameLine(other) || isIndent(other)
 
-    /** Is the other an indent with the same offset as line indentation of `this` */
+    /** Either of the following is true:
+      * - `this` is first of line and has the same offset as line indentation of `this`
+      * - `other` and `this` are on the same line
+      */
     def isSameIndent(other: Indent): Boolean =
       other.isFirstOfLine && other.tokenOffset == this.lineIndent
-      || other.line == this.line && other.tokenOffset == this.tokenOffset // same token
+      || other.line == this.line
+
+    /** Is the other vertically aigned with `this` and both are first of line */
+    def isAligned(other: Indent): Boolean =
+      this.isFirstOfLine && other.isFirstOfLine
+      && other.tokenOffset == this.tokenOffset
 
     /** Are the two tokens on the same line? */
     def isSameLine(other: Indent): Boolean = this.line == other.line
+
+    def lineStart: Indent = Indent(line, lineIndent, lineIndent)
 
     override def toString: String =
       "line = " + line + ", lineIndent = " + lineIndent + ", tokenOffset = " + tokenOffset

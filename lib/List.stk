@@ -23,11 +23,19 @@ type List[T] = object {
 
   def ++(l: List[T]): List[T]
 
+  def select(pred: T => Bool): List[T]
+
+  def exclude(pred: T => Bool): List[T]
+
   def map[S](f: T => S): List[S]
 
   def foreach(f: T => Unit): Unit
 
   def fold[S](zero: S, f: (S, T) => S): S
+
+  def exists(pred: T => Bool): Bool
+
+  def all(pred: T => Bool): Bool
 }
 
 fun empty[T]: List[T] = ListImpl.makeObject ListImpl.Nil
@@ -103,6 +111,48 @@ section ListImpl
 
     def ++(l: List[T]): List[T] = makeObject (Concat this l)
 
+    def select(pred: T => Bool): List[T] =
+      match repr
+        case Nil => makeObject Nil
+
+        case Cons(v, tail) =>
+          if pred v then
+            makeObject (Cons v (tail.select pred))
+
+          else
+            tail.select pred
+
+        case Append(prefix, v) =>
+          if pred v then
+            makeObject (Append (prefix.select pred) v)
+          else
+            prefix.select pred
+
+        case Concat(lhs, rhs) =>
+          makeObject (Concat (lhs.select pred) (rhs.select pred))
+      end
+
+    def exclude(pred: T => Bool): List[T] =
+      match repr
+        case Nil => makeObject Nil
+
+        case Cons(v, tail) =>
+          if pred v then
+            tail.exclude pred
+
+          else
+            makeObject (Cons v (tail.exclude pred))
+
+        case Append(prefix, v) =>
+          if pred v then
+            prefix.exclude pred
+          else
+            makeObject (Append (prefix.exclude pred) v)
+
+        case Concat(lhs, rhs) =>
+          makeObject (Concat (lhs.exclude pred) (rhs.exclude pred))
+      end
+
     def map[S](f: T => S): List[S] =
       match repr
         case Nil => makeObject Nil
@@ -148,5 +198,27 @@ section ListImpl
         case Concat(lhs, rhs) =>
           lhs.fold (rhs.fold zero f) f
       end
+
+    def exists(pred: T => Bool): Bool =
+      var found = false
+      var i = 0
+
+      while both !found (i < size) do
+        found = pred this(i)
+        i = i + 1
+      end
+
+      found
+
+    def all(pred: T => Bool): Bool =
+      var qualify = true
+      var i = 0
+
+      while both qualify (i < size) do
+        qualify = pred this(i)
+        i = i + 1
+      end
+
+      qualify
   }
 end

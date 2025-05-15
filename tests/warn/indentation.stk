@@ -3,8 +3,7 @@ fun test =
     3 * (5 +                  // error
          6
         )
-        -
-        4
+        - 4
 
 
   val b =

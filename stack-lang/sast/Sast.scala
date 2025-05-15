@@ -532,6 +532,12 @@ object Sast:
       val tpe = procType.instantiate(targList)
       TypeApply(word, targList.map(targ => TypeTree(targ)(word.span)))(tpe, word.span)
 
+    def appliedToTypeTrees(targs: TypeTree*)(using Definitions): Word =
+      val procType = word.tpe.asProcType
+      val targList = targs.toList
+      val tpe = procType.instantiate(targList.map(_.tpe))
+      TypeApply(word, targList)(tpe, word.span)
+
     def encodedAs(tpe: Type): Word = Encoded(word)(tpe)
 
     def isEqualTo(rhs: Word)(using defn: Definitions): Word =

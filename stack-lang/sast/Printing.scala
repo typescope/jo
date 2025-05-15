@@ -8,6 +8,8 @@ import common.StringUtil
 import common.Text
 import common.Text.*
 
+import scala.collection.mutable
+
 object Printing:
 
   def show(word: Word)(using Definitions): String =
@@ -21,6 +23,9 @@ object Printing:
 
   def show(ns: Namespace)(using Definitions): String =
     showNamespace(ns).toString
+
+  def show(tp: Type)(using Definitions): String =
+    showType(tp).toString
 
   def print(nss: List[Namespace])(using Definitions): Unit =
     for ns <- nss do println(show(ns))
@@ -45,14 +50,14 @@ object Printing:
   given (using Definitions): Text.Maker[ValDef | FunDef] =
     v => showDef(v)
 
-  given (using Definitions): Text.Maker[Type] =
-    v => Text(v.show)
-
   given (using Definitions): Text.Maker[TypeTree] =
     v => Text(v.tpe.show)
 
   given (using Definitions): Text.Maker[Symbol] =
     v => Text(v.name)
+
+  given (using Definitions): Text.Maker[Type] =
+    v => showType(v)
 
   given (using Definitions): Text.Maker[WithArg] =
     v => v.paramRef ~ " = " ~ v.rhs
@@ -64,7 +69,7 @@ object Printing:
   def showNamespace(ns: Namespace)(using Definitions): Text =
     "namespace "  ~ ns.symbol ~ Text.BlankLine ~
     showImports(ns.imports) ~ Text.BlankLine ~
-    rep(ns.defs, Text.BlankLine)
+    ns.defs.join(Text.BlankLine)
 
   def showImports(imports: List[Symbol])(using Definitions): Text =
     imports match
@@ -77,16 +82,24 @@ object Printing:
   def showDef(defn: Def)(using Definitions): Text =
     defn match
       case ValDef(sym, rhs) =>
-        val mod = if sym.isMutable then "var" else "val"
-        mod ~ " " ~ sym.name ~ ": " ~ sym.info ~ " = " ~ rhs ~ Text.BreakLine
+        val modifiers = showModifiers(sym)
+        val kind = if sym.isMutable then "var" else "val"
+        modifiers ~ kind ~ " " ~ sym.name ~ ": " ~ sym.info ~ " = " ~ rhs
 
       case fdef: FunDef =>
-        val tparams = fdef.tparams.map(sym => sym.name + " <: " + sym.info.show)
-        val tparamStr = if tparams.isEmpty then "" else tparams.mkString("[", ", ", "]")
-        val params = fdef.params.map(sym => sym.name + ": " + sym.info.show)
+        val tparamText =
+          if fdef.tparams.isEmpty then Text.Empty
+          else "[" ~ fdef.tparams.join(", ") ~ "]"
+
+        val paramText =
+          "(" ~ fdef.params.map(sym => sym.name ~ ": " ~ sym.info).join(", ") ~ ")"
+
         val resType = fdef.resultType
-        val locals = rep(fdef.locals.map(sym => sym ~ ": " ~ sym.info), Text(", "))
-        val keyword = if fdef.symbol.isMethod then "def " else "fun "
+
+        val locals = fdef.locals.map(sym => sym ~ ": " ~ sym.info).join(", ")
+
+        val modifiers = showModifiers(fdef.symbol)
+        val kind = if fdef.symbol.isMethod then Text("def ") else Text("fun ")
 
         val receives =
           fdef.receives match
@@ -94,23 +107,23 @@ object Printing:
               Text(" receives none ")
 
             case Some(params) =>
-              " receives " ~ rep(params, Text(", ")) ~ " "
+              " receives " ~ params.join(", ") ~ " "
 
             case _ =>
               Text.Empty
 
         "@locals(" ~ locals ~ ")" ~ Text.BreakLine ~
-        keyword ~ fdef.name ~ tparamStr ~ params.mkString("(", ", ", "): ") ~ resType ~ receives ~ " =" ~ indent:
+        modifiers ~ kind ~ fdef.name ~ tparamText ~ paramText ~ ":" ~ resType ~ receives ~ " =" ~ indent:
             fdef.body
 
       case pdef: PatDef =>
         val tparams =
           if pdef.tparams.isEmpty then Text.Empty
-          else "[" ~ rep(pdef.tparams, Text(", "))  ~ "]"
+          else "[" ~ pdef.tparams.join(", ")  ~ "]"
 
         val params =
           if pdef.params.isEmpty then Text.Empty
-          else "(" ~ rep(pdef.params, Text(", "))  ~ ")"
+          else "(" ~ pdef.params.join(", ")  ~ ")"
 
         val resType = ": " ~ pdef.resultType
 
@@ -135,7 +148,7 @@ object Printing:
 
       case Section(sym, defs) =>
         "section " ~ sym ~ indent:
-            rep(defs, Text.BlankLine)
+            defs.join(Text.BlankLine)
 
   def showWord(word: Word)(using defn: Definitions): Text =
     word match
@@ -160,38 +173,36 @@ object Printing:
 
       case RecordLit(fields) =>
         "{" ~ indent:
-            rep(
-              fields.map { (f, rhs) => f ~ " = " ~ rhs },
-              Text(", ")
-            )
+              fields.map { (f, rhs) => f ~ " = " ~ rhs }.join(", ")
         ~ "}"
 
       case tagged: TaggedLit =>
-        "#" ~ tagged.tag ~ "(" ~ rep(tagged.args, Text(", ")) ~ ")"
+        "#" ~ tagged.tag ~ "(" ~ tagged.args.join(", ") ~ ")"
 
       case Encoded(repr) =>
         "(" ~ repr ~ ": " ~ word.tpe ~ ")"
 
       case Apply(fun, args) =>
         fun ~ indent:
-          rep(args, Text.BreakLine)
+          args.join(Text.BreakLine)
 
       case TypeApply(fun, targs) =>
-        fun ~ "[" ~ rep(targs, Text(", ")) ~ "]"
+        fun ~ "[" ~ targs.join(", ") ~ "]"
 
       case With(expr, args) =>
         val withText =
           if args.isEmpty then
             Text.Empty
           else
-            " with " ~ indent(rep(args, Text.BreakLine))
+            " with " ~ indent:
+              args.join(Text.BreakLine)
 
         "(" ~ expr ~ withText ~ ")"
 
       case Allow(expr, params) =>
         val paramText =
           if params.isEmpty then Text("none")
-          else rep(params, Text(", "))
+          else params.join(", ")
 
         "(" ~ expr ~ " allow " ~ paramText ~ ")"
 
@@ -217,21 +228,21 @@ object Printing:
 
       case Match(scrutinee, cases) =>
         "match " ~ scrutinee ~ indent:
-          rep(cases, Text.BlankLine)
+          cases.join(Text.BlankLine)
 
       case Block(words) =>
         if words.size == 1 then
           showWord(words.head)
         else if words.size > 1 then
-          Text.BreakLine ~ rep(words, Text.BreakLine)
+          Text.BreakLine ~ words.join(Text.BreakLine)
         else
           Text.Empty
 
       case Object(self, vals, defs) =>
         "object {" ~ indent:
-           rep(vals, Text.BreakLine)
+           vals.join(Text.BreakLine)
            ~ Text.BlankLine
-           ~ rep(defs, Text.BreakLine)
+           ~ defs.join(Text.BreakLine)
         ~ "}"
 
       case vdef: ValDef => showDef(vdef)
@@ -252,13 +263,13 @@ object Printing:
         "(" ~ id ~ " @ " ~ inner ~ ")"
 
       case ApplyPattern(pred, nested) =>
-        pred ~ "(" ~ rep(nested, Text(", ")) ~ ")"
+        pred ~ "(" ~ nested.join(", ") ~ ")"
 
       case OrPattern(lhs, rhs) =>
         lhs ~ " | " ~ rhs
 
       case tagged @ TagPattern(_, nested) =>
-        "#" ~ tagged.tag ~ " " ~ rep(nested, Text(" "))
+        "#" ~ tagged.tag ~ " " ~ nested.join(" ")
 
       case ValuePattern(value) =>
         showWord(value)
@@ -267,10 +278,10 @@ object Printing:
         pattern ~ " if " ~ guard
 
       case TermBindingPattern(pattern, bindings) =>
-        pattern ~ " then " ~ rep(bindings, Text(", "))
+        pattern ~ " then " ~ bindings.join(", ")
 
       case SeqPattern(patterns) =>
-        "[" ~ rep(patterns, Text(", ")) ~ "]"
+        "[" ~ patterns.join(", ") ~ "]"
 
   def showRegexPattern(pat: RegexPattern)(using Definitions): Text =
     pat match
@@ -279,3 +290,101 @@ object Printing:
       case SkipToPattern(pattern) => ">" ~ pattern
 
       case StarPattern(pattern) => pattern ~ "*"
+
+  def showModifiers(sym: Symbol)(using Definitions): Text =
+    val buf = new mutable.ArrayBuffer[Text]
+    if sym.is(Flags.Synthetic) then buf += Text("<synthetic>")
+    if sym.is(Flags.Context) then buf += Text("<context>")
+    if sym.is(Flags.Default) then buf += Text("<default>")
+    if sym.is(Flags.Alias) then buf += Text("<alias>")
+    buf.toList.join(" ")
+
+  def showType(tp: Type)(using Definitions): Text =
+    tp match
+      case VoidType    => Text("void")
+      case AnyType     => Text("Any")
+      case BottomType  => Text("Bottom")
+      case ErrorType   => Text("Error")
+
+      case tvar: TypeVar =>
+        if tvar.isInstantiated then
+          Text(tvar.instantiated)
+        else
+          Text(tvar.toString)
+
+      case ConstantType(const) =>
+        const match
+          case Constant.Bool(value)   => Text(value.toString)
+          case Constant.Int(value)    => Text(value.toString)
+          case Constant.String(value) => "\"" ~ StringUtil.escape(value) ~ "\""
+
+      case TypeRef(sym) =>
+        if sym.isType then Text(sym.name)
+        else sym.name ~ ": " ~ sym.info
+
+      case RecordType(fields) =>
+        val members = fields.map(f => f.name ~ ": " ~ f.info)
+        "{ " ~ members.join(", ") ~ " }"
+
+      case ObjectType(fields, methods, muts) =>
+        val fieldList = fields.map: f =>
+          val mod = if muts.contains(f.name) then "var " else " val "
+          mod ~ f.name ~ ": " ~ f.info
+
+        val methodList = methods.map: m =>
+          "def " ~ m.name ~ m.info.widenTermRef
+
+        "object { " ~ indent:
+            fieldList.join(Text.BreakLine) ~ Text.BlankLine ~ methodList.join(Text.BreakLine)
+        ~ " }"
+
+      case UnionType(branches) =>
+        branches.join(" | ")
+
+      case TagType(tag, params) =>
+        val paramText =
+          if params.isEmpty then
+            Text.Empty
+          else
+            "(" ~ params.map(param => param.name ~ ": " ~ param.info).join(", ") ~ ")"
+
+        "#" ~ tag ~ paramText
+
+      case AppliedType(tctor, targs) =>
+        tctor ~ "[" ~ targs.join(Text(", ")) ~ "]"
+
+      case TypeLambda(tparams, body) =>
+        "[" ~ tparams.join(", ") ~ "]" ~ " => " ~ body
+
+      case TypeBound(lo, hi) =>
+        lo ~ " .. " ~ hi
+
+      case ProcType(tparams, params, resType, receivesOpt, n) =>
+        val tparamText =
+          if tparams.isEmpty then
+            Text.Empty
+
+          else
+            "[" ~ tparams.join(Text(", ")) ~ "]"
+
+        val preText =
+          if n > 0 then
+            "(" ~ params.take(n).map(param => param.name ~ ": " ~ param.info).join(", ") ~ ")"
+          else
+            Text.Empty
+
+        val postText =
+          "(" ~ params.drop(n).map(param => param.name ~ ": " ~ param.info).join(", ") ~ ")"
+
+        val autoText = Text.Empty
+          // if autos.isEmpty then Text.Empty
+          // else "(" ~ autos.map(param => param.name ~ ": " ~ param.info).join(", ") ~ ")"
+
+        val receivesText =
+          if receivesOpt.isEmpty then Text.Empty
+          else " receives " ~ receivesOpt.get.join(", ")
+
+        tparamText ~ preText ~ postText ~ autoText ~ ": " ~ resType ~ receivesText
+
+      case _: NameTableInfo => Text("{ ...nametable }")
+  end showType

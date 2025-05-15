@@ -14,8 +14,6 @@ fun isDefined(o: Any): Bool = js "o != undefined"
 
 fun concat(a: String, b: String): String = js "a + b"
 
-fun (arr: Any) cast[T]: T = abort "runtime cast"
-
 // A piece of JS code
 //
 // It is only safe to reference a local variable name in the JS code.
@@ -51,15 +49,15 @@ fun abort(msg: String): Bottom =
 //
 // For numeric types, widening coercion is automatically inserted.
 
-fun byteToInt(b: Byte): Int = b cast[Int]
-fun byteToChar(b: Byte): Char = b cast[Char]
+fun byteToInt(b: Byte): Int = js "b"
+fun byteToChar(b: Byte): Char = js "b"
 
-fun intToChar(n: Int): Char = (n & 65535) cast[Char]
-fun intToByte(n: Int): Byte = (n & 255) cast[Byte]
+fun intToChar(n: Int): Char = js "n & 65535"
+fun intToByte(n: Int): Byte = js "n & 255"
 fun intToStr(n: Int): String = js "n.toString()"
 
-fun charToByte(c: Char): Byte = ((c cast[Int]) & 255) cast[Byte]
-fun charToInt(c: Char): Int = c cast[Int]
+fun charToByte(c: Char): Byte = js "c & 255"
+fun charToInt(c: Char): Int = js "c"
 fun charToStr(c: Char): String = js "String.fromCharCode(c)"
 
 //------------------------------------------------------------------------------
@@ -67,61 +65,54 @@ fun charToStr(c: Char): String = js "String.fromCharCode(c)"
 // Array support
 //
 
-fun Array_createBool(size: Int): Any =
-  Array_wrapContent (js "new Int8Array(size)")
+fun Array_createBool(size: Int): Array[Bool] =
+  js "new Int8Array(size)"
 
-fun Array_createInt(size: Int): Any =
-  Array_wrapContent (js "new Int32Array(size)")
+fun Array_createInt(size: Int): Array[Int] =
+  js "new Int32Array(size)"
 
-fun Array_createObject(size: Int): Any =
-  Array_wrapContent (js "new Array(size)")
+fun Array_createObject[T](size: Int): Array[T] =
+  js "new Array(size)"
 
-fun Array_wrapContent(arr: Any): Any =
-  // Lifting functions might change name of captured variables.
-  // The small closed function will ensure the parameter name stay unchanged.
-  fun arraySize(array: Any): Int =
-    js "array.length"
+// Lifting functions might change name of captured variables.
+// The small closed function will ensure the parameter name stay unchanged.
+fun Array_size[T](array: Array[T]): Int =
+  js "array.length"
 
-  fun arrayGet(array: Any, index: Int): Any =
-    assert
-      index < (arraySize array)
-      "Array index out of range: " + (intToStr index)
-    js "array[index]"
+fun Array_get[T](array: Array[T], index: Int): T =
+  assert
+    index < (Array_size array)
+    "Array index out of range: " + (intToStr index)
+  js "array[index]"
 
-  fun arraySet(array: Any, index: Int, value: Any): Unit =
-    assert
-      index < (arraySize array)
-      "Array index out of range: " + (intToStr index)
-    js "array[index] = value"
-
-  object {
-    def size = arraySize arr
-    def apply(i: Int): Any = arrayGet arr i
-    def set(i: Int, value: Any): Unit = arraySet arr i value
-  }
+fun Array_set[T](array: Array[T], index: Int, value: T): Unit =
+  assert
+    index < (Array_size array)
+    "Array index out of range: " + (intToStr index)
+  js "array[index] = value"
 
 //------------------------------------------------------------------------------
 //
 // String support
 //
 
-fun String_apply(str: Any, index: Int): Any =
+fun String_apply(str: String, index: Int): String =
   assert
     index < (String_size str)
     "String index out of range: " + (intToStr index)
 
   js "str.charCodeAt(index)"
 
-fun String_substring(str: Any, index: Int, len: Int): Any =
+fun String_substring(str: String, index: Int, len: Int): String =
   js "str.substring(index, index + len)"
 
-fun String_size(str: Any) =
+fun String_size(str: String): Int =
   js "str.length"
 
-fun String_plus(str: Any, other: Any): Any =
+fun String_plus(str: String, other: String): String =
   js "str + other"
 
-fun String_equals(str: Any, other: Any): Bool =
+fun String_equals(str: String, other: String): Bool =
   js "str === other"
 
 //------------------------------------------------------------------------------

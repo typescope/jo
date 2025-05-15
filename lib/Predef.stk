@@ -29,10 +29,20 @@ alias stk.Int.*
 alias stk.Bool
 alias stk.Bool.*
 
-alias stk.Array.*
+alias stk.Array
+type Array[T] = Array.Array[T]
+
+alias stk.Eq
+type Eq[T] = Eq.Eq[T]
 
 alias stk.List
 type List[T] = List.List[T]
+
+alias stk.Set
+type Set[T] = Set.Set[T]
+
+alias stk.Map
+type Map[K, V] = Map.Map[K, V]
 
 //------------------------------------------------------------------------------
 //
@@ -132,3 +142,7 @@ type String <: object {
 // Common types
 //
 data Option[T] = None | Some(v: T)
+
+type Pair[S, T] = #Pair(a: S, b: T)
+
+fun (a: S) -> [S, T] (b: T): Pair[S, T] = #Pair a b

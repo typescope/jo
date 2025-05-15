@@ -35,7 +35,7 @@
 
 ---------- Error at ./tests/warn/vararg.stk:22:3 ---------------
 |   mix 6 List 8 9
-|   ^^^^^^^^^^^^
+|   ^^^^^^^^^^^^^^
 |   Found extra value, an expression should produce at most one value
 
 ---------- Error at ./tests/warn/vararg.stk:24:3 ---------------

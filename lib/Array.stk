@@ -9,11 +9,12 @@ import stk.Predef.abort
 // Arrays
 //
 
-// TODO: arrays are not objects for flexible backend support
-type Array[T] <: object {
-  def size: Int
-  def apply(i: Int): T
-  def set(i: Int, value: T): Unit
-}
+type Array[T]
 
-fun array[T](size: Int): Array[T] = abort("primitive array")
+fun new[T](size: Int): Array[T] = abort("primitive Array.new")
+
+fun get[T](arr: Array[T], i: Int): T = abort("primitive Array.get")
+
+fun size[T](arr: Array[T]): Int = abort("primitive Array.size")
+
+fun set[T](arr: Array[T], i: Int, value: T): Unit = abort("primitive Array.set")

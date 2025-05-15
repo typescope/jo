@@ -15,7 +15,18 @@ import scala.collection.mutable
   */
 object Types:
   sealed abstract class Type:
-    def isError(using Definitions): Boolean = TypeOps.approx(this, isUp = true) == ErrorType
+    /** Whether the type is an error type
+      *
+      * Avoid type reduction as the types might not be well-formed.
+      */
+    def isError(using Definitions): Boolean =
+      this == ErrorType || this.match
+        case TypeRef(sym) =>
+          // Don't recur to avoid loops
+          sym.info == ErrorType
+
+        case _ =>
+          false
 
     /** Whether the type is Void
       *
@@ -111,32 +122,14 @@ object Types:
     def asObjectType(using Definitions): ObjectType =
       TypeOps.approx(this, isUp = true).asInstanceOf[ObjectType]
 
-    def hasApplyMethod(using Definitions): Boolean =
+    def isSingleMethodObjectType(using Definitions): Boolean = getSingleMethodType.nonEmpty
+
+    def getSingleMethodType(using Definitions): Option[NamedInfo[ProcType]] =
       TypeOps.approx(this, isUp = true) match
-        case objType: ObjectType =>
-          objType.getMemberType("apply") match
-            case Some(tp) => tp.isProcType
-            case None => false
-
-        case _ => false
-
-    def hasOnlyApplyMethod(using Definitions): Boolean =
-      TypeOps.approx(this, isUp = true) match
-        case objType: ObjectType =>
-          objType.fields.isEmpty && objType.methods.size == 1 && {
-            objType.getMemberType("apply") match
-              case Some(tp) => tp.isProcType
-              case None => false
-          }
-
-        case _ => false
-
-    def getFunctionApplyType(using Definitions): Option[ProcType] =
-      TypeOps.approx(this, isUp = true) match
-        case ObjectType(Nil, NamedInfo("apply", tp) :: Nil, Nil) =>
-         TypeOps.approx(tp, isUp = true) match
-            case procType: ProcType => Some(procType)
-            case _ => None
+        case ObjectType(Nil, NamedInfo(name, tp) :: Nil, Nil) =>
+          TypeOps.approx(tp, isUp = true) match
+             case procType: ProcType => Some(NamedInfo(name, procType))
+             case _ => None
 
         case _ => None
 
@@ -215,7 +208,7 @@ object Types:
 
     def as[T <: Type]: T = this.asInstanceOf[T]
 
-    def show(using Definitions): String = TypeOps.show(this)
+    def show(using Definitions): String = Printing.show(this)
   end Type
 
   case object VoidType extends Type
@@ -338,7 +331,7 @@ object Types:
     * inferred.
     */
   case class ProcType
-    (tparams: List[Symbol], params: List[NamedInfo[Type]],
+    (tparams: List[Symbol], params: List[NamedInfo[Type]], // autos: List[NamedInfo[Type]],
       resultType: Type, receives: Option[List[Symbol]], preParamCount: Int)
   extends Type:
     val preParamTypes: List[Type] = params.take(preParamCount).map(_.info)
@@ -346,6 +339,8 @@ object Types:
     val paramTypes: List[Type] = params.map(_.info)
     val paramCount: Int = params.size
     val tparamCount: Int = tparams.size
+
+    // val autoTypes: List[Type] = autos.map(_.info)
 
     def minimumArgs(using Definitions): Int =
       if hasVararg then paramCount - 1 else paramCount

@@ -1,0 +1,31 @@
+---------- Warning at ./tests/warn/indentation.stk:3:9 ---------------
+|     3 * (5 +                  // error
+|         ^
+|         Use indented syntax when parentheses span multiple lines
+
+---------- Warning at ./tests/warn/indentation.stk:10:10 ---------------
+|     20 - (                   // error
+|          ^
+|          Use indented syntax when parentheses span multiple lines
+
+---------- Warning at ./tests/warn/indentation.stk:14:12 ---------------
+|       20 - (                 // error
+|            ^
+|            Use indented syntax when parentheses span multiple lines
+
+---------- Warning at ./tests/warn/indentation.stk:23:5 ---------------
+|     else fact1 (n - 1) * n   // error
+|     ^^^^
+|     ELSE is not aligned with IF, expect offset = 2, found = 4
+
+---------- Warning at ./tests/warn/indentation.stk:27:3 ---------------
+|   5 p          // error
+|   ^
+|   IntLit(5) is not aligned with IntLit(4), expect offset = 4, found = 2
+
+---------- Error at ./tests/warn/indentation.stk:34:6 ---------------
+|      end                    // error
+|      ^^^
+|      Expect a definition, found = END
+
+1 error(s), 5 warning(s)

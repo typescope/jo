@@ -42,8 +42,8 @@ object ExprTyper:
   def precedence(fun: String): Int =
     fun match
       case "||"  =>  5
-      case "&&" =>  10
-      case "!"  =>  15
+      case "&&"  =>  10
+      case "!"   =>  150
 
       case ">"   | "<"  | ">=" | "<=" | "==" | "!=" => 20
       case "+"   | "-"                              => 30
@@ -71,10 +71,9 @@ class ExprTyper(namer: Namer):
 
     case head :: rest =>
       val wordTyped =
-        given TargetType = TargetType.Unknown
-        namer.transform(head)
-
-      head.addKey(Namer.TypedWord, wordTyped)
+        head.getKeyOrUpdate(Namer.TypedWord):
+          given TargetType = TargetType.Unknown
+          namer.transform(head)
 
       val tp = wordTyped.tpe
 
@@ -122,7 +121,7 @@ class ExprTyper(namer: Namer):
         assert(words.isEmpty, words)
         namer.transform(word)
 
-      else if tp.hasOnlyApplyMethod || isVarargApply then
+      else if tp.isSingleMethodObjectType || isVarargApply then
         val app = Ast.Apply(head, rest)(head.span | rest.last.span)
         namer.transform(app)
 

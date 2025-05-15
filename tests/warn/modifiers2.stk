@@ -1,0 +1,5 @@
+type B = object {
+  auto val x: Int = 3
+
+  auto def foo(x: Int) = x
+}

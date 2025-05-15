@@ -154,23 +154,26 @@ fun intToStr(n: Int): String =
 // TODO: Represent arrays of different primitive types differently.
 //
 
-fun Array_create(size: Int): Any =
+fun Array_new[T](size: Int): Array[T] =
   val arr = GC.alloc (size * 4 + 4)
   writeInt arr size
   // TODO: zero memory
-  arr
+  arr cast[Array[T]]
 
 fun Array_size(arr: Any): Int =
   readInt
     arr cast[Addr]
 
-fun Array_apply(arr: Any, i: Int): Any =
-  readInt
-    addAddr
-      arr cast[Addr]
-      i * 4 + 4
+fun Array_get[T](arr: Array[T], i: Int): T =
+  flow
+    readInt
+      addAddr
+        arr cast[Addr]
+        i * 4 + 4
 
-fun Array_set(arr: Any, i: Int, value: Any): Unit =
+    cast[T]
+
+fun Array_set[T](arr: Array[T], i: Int, value: T): Unit =
   writeInt
     addAddr
       arr cast[Addr]
@@ -221,9 +224,9 @@ fun String_apply(repr: String, i: Int): Char =
       else
         lhs(i)
 
-fun String_plus(lhs: String, rhs: String): StringRepr =
+fun String_plus(lhs: String, rhs: String): String =
   val len = lhs.size + rhs.size
-  #Concat(len, lhs, rhs)
+  #Concat(len, lhs, rhs) cast[String]
 
 fun String_equals(lhs: String, rhs: String): Bool =
   val n = lhs.size
@@ -235,7 +238,7 @@ fun String_equals(lhs: String, rhs: String): Bool =
   end
   isEqual
 
-fun String_substring(source: String, from: Int, len: Int): StringRepr =
+fun String_substring(source: String, from: Int, len: Int): String =
   if from < 0 then abort "from should not be negative"
   if len < 0 then abort "len should not be negative"
   if from + len > source.size then abort "substring out of range"
@@ -249,7 +252,7 @@ fun String_substring(source: String, from: Int, len: Int): StringRepr =
       charToByte source(from + index)
     index = index + 1
 
-  #Raw(len, buf)
+  #Raw(len, buf) cast[String]
 
 fun String_bytes(repr: String): Any =
   val bytes = GC.alloc repr.size

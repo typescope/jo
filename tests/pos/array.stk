@@ -4,42 +4,46 @@ fun main =
   testObjectArray
 
 fun testIntArray =
-  val arr: Array[Int] = array[Int] 3
+  val arr: Array[Int] = Array.new[Int] 3
 
-  arr.set 0 10
-  arr.set 1 12
-  arr.set 2 14
+  Array > begin
+    set arr 0 10
+    set arr 1 12
+    set arr 2 14
 
-  arr.size p
-  arr(0) p
-  arr(1) p
-  arr(2) p
+    size arr p
+    get arr 0 p
+    get arr 1 p
+    get arr 2 p
+  end
 
 fun testBoolArray =
-  val arr = array[Bool] 3
+  val arr = Array.new[Bool] 3
 
   fun (b: Bool) pb: Unit =
     if b then println "true" else println "false"
 
-  arr.set 0 true
-  arr.set 1 false
-  arr.set 2 true
+  Array > begin
+    set arr 0 true
+    set arr 1 false
+    set arr 2 true
 
-  arr.size p
-  arr(0) pb
-  arr(1) pb
-  arr(2) pb
+    size arr p
+    get arr 0 pb
+    get arr 1 pb
+    get arr 2 pb
 
 fun testObjectArray =
-  val arr = array[String] 3
+  val arr = Array.new[String] 3
 
-  arr.set 0 "a"
-  arr.set 1 "b"
-  arr.set 2 "c"
+  Array > begin
+    set arr 0 "a"
+    set arr 1 "b"
+    set arr 2 "c"
 
-  arr.size p
-  println arr(0)
+    size arr p
+    println (get arr 0)
 
-  println arr(1)
+    println (get arr 1)
 
-  println arr(2)
+    println (get arr 2)
