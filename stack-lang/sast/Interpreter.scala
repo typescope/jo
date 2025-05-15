@@ -170,6 +170,19 @@ object Interpreter:
     val IntVal(size) :: Nil = args: @unchecked
     ArrayVal(new Array[Value](size)) :: Nil
 
+  def getArray(args: List[Value]): List[Value] =
+    val (arrayVal: ArrayVal) :: IntVal(index) :: Nil = args: @unchecked
+    arrayVal.content(index) :: Nil
+
+  def setArray(args: List[Value]): List[Value] =
+    val (arrayVal: ArrayVal) :: IntVal(index) :: v :: Nil = args: @unchecked
+    arrayVal.content(index) = v
+    Nil
+
+  def sizeArray(args: List[Value]): List[Value] =
+    val (arrayVal: ArrayVal) :: Nil = args: @unchecked
+    IntVal(arrayVal.content.length) :: Nil
+
   def abort(args: List[Value]): List[Value] =
     val StringVal(v) :: Nil = args: @unchecked
     throw new Exception(v)
@@ -198,7 +211,10 @@ object Interpreter:
       defn.Bool_either     ->       either,
       defn.Bool_not        ->       not,
 
-      defn.Array_array       ->       newArray,
+      defn.Array_new       ->       newArray,
+      defn.Array_get       ->       getArray,
+      defn.Array_set       ->       setArray,
+      defn.Array_size      ->       sizeArray,
 
       defn.Predef_abort      ->       abort,
       defn.Predef_byteToChar ->       byteToChar,
@@ -417,25 +433,6 @@ object Interpreter:
                 val env2 = objVal.env.fresh()
                 env2.bind(objVal.self, objVal)
                 call(fdef, argVals)(using env2)
-
-              case arrayVal: ArrayVal =>
-                val argVals = args.map(eval)
-
-                if name == "apply" then
-                  val IntVal(index) :: Nil = argVals: @unchecked
-                  arrayVal.content(index) :: Nil
-
-                else if name == "set" then
-                  val IntVal(index) :: v :: Nil = argVals: @unchecked
-                  arrayVal.content(index) = v
-                   Nil
-
-                else if name == "size" then
-                  assert(argVals.isEmpty)
-                  IntVal(arrayVal.content.length) :: Nil
-
-                else
-                   throw new Exception(s"Unexpect method $name on array")
 
               case strVal: StringVal =>
                 val argVals = args.map(eval)

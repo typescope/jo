@@ -48,6 +48,7 @@ Lexical Grammar
     IMPORT   = "import".
     DEF      = "def".
     OBJECT   = "object".
+    OBJECT   = "begin".
     RECEIVES = "receives".
     PATTERN  = "pattern".
     name     = (letter | USCORE) {letter | digit | USCORE}.
@@ -76,11 +77,13 @@ Abstract Syntax
 
     expr    = word {word}.
 
-    word    = integer | boolean | char | string | ident | fence | record | tapply | apply | select | tag | lambda | object.
+    word    = integer | boolean | char | string | ident | fence | record | tapply | apply | select | tag | lambda | object | begin_block.
 
     phrase  = simple_phrase | assign | valdef | fundef | patdef | typedef | while | if | match.
 
     block   = { phrase }.
+
+    begin_block = BEGIN block [END].
 
     select  = word DOT ident.
 

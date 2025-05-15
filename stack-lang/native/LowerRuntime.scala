@@ -3,7 +3,6 @@ package native
 import sast.*
 import sast.Sast.*
 import sast.Symbols.*
-import sast.Types.*
 
 import native.runtime.NativeRuntime
 
@@ -32,7 +31,6 @@ import native.runtime.NativeRuntime
 class LowerRuntime(runtime: NativeRuntime)(using defn: Definitions) extends phases.Phase[Unit]:
   val contextObject = phases.Phase.DummyContext
 
-  val Array_array = defn.Array_array
   val Array_Array = defn.Array_Array
 
   val Predef_String = defn.Predef_String
@@ -51,76 +49,59 @@ class LowerRuntime(runtime: NativeRuntime)(using defn: Definitions) extends phas
     defn.Predef_charToStr  -> runtime.Core_charToStr,
     defn.Predef_intToByte  -> runtime.Core_intToByte,
     defn.Predef_intToChar  -> runtime.Core_intToChar,
-    defn.Predef_intToStr   -> runtime.Core_intToStr
+    defn.Predef_intToStr   -> runtime.Core_intToStr,
+    defn.Array_new         -> runtime.Core_Array_new,
+    defn.Array_get         -> runtime.Core_Array_get,
+    defn.Array_set         -> runtime.Core_Array_set,
+    defn.Array_size        -> runtime.Core_Array_size,
   )
+
+  override def transformIdent(ref: Ident)(using ctx: Context): Word =
+    val sym = ref.symbol
+    if sym.isFunction then
+      // global function call
+      rewiring.get(sym.dealias) match
+        case Some(subst) => Ident(subst)(ref.span)
+        case _ => ref
+
+    else
+      ref
 
   override def transformApply(app: Apply)(using ctx: Context): Word =
     val Apply(fun, args) = app
      val args2 = args.map(this.apply)
 
     fun.strip match
-      case TypeApply(fun @ Ident(sym), tpt :: Nil) if sym.refers(Array_array)  =>
-        val fun2 = Ident(runtime.Core_Array_create)(fun.span)
-        Encoded(Apply(fun2, args2)(AnyType, app.span))(app.tpe)
-
       case TypeApply(Ident(sym), tpt :: Nil) if sym.refers(runtime.Core_cast) =>
         assert(args2.size == 1, args2)
         Encoded(args2.head)(tpt.tpe)
 
-      case ref @ Ident(sym) =>
-        // global function call
-        val fun2 = rewiring.get(sym.dealias) match
-            case Some(subst) => Ident(subst)(fun.span)
-            case _ => ref
-
-        // TODO: need encoding if result type does not agree
-        Apply(fun2, args2)(app.tpe, app.span)
-
-      case Select(qual, name) if qual.tpe.refers(Array_Array) =>
-        // After lambda lift, `qual` is stable thus can be thrown away
-        assert(qual.isIdempotent, fun.show)
-
-        if name == "size" then
-          val fun2 = Ident(runtime.Core_Array_size)(fun.span)
-          Apply(fun2, args2)(IntType, app.span)
-
-        else if name == "apply" then
-          val fun2 = Ident(runtime.Core_Array_apply)(fun.span)
-          Encoded(Apply(fun2, args2)(AnyType, app.span))(app.tpe)
-
-        else if name == "set" then
-          val fun2 = Ident(runtime.Core_Array_set)(fun.span)
-          Apply(fun2, args2)(UnitType, app.span)
-
-        else
-          throw new Exception("Unexpected method on array: " + name)
-
-      case Select(qual, name) if qual.tpe.refers(Predef_String) =>
-        // After lambda lift, `qual` is stable thus can be thrown away
-        assert(qual.isIdempotent, fun.show)
-
-        if name == "size" then
-          val fun2 = Ident(runtime.Core_String_size)(fun.span)
-          Apply(fun2, args2)(IntType, app.span)
-
-        else if name == "apply" then
-          val fun2 = Ident(runtime.Core_String_apply)(fun.span)
-          Encoded(Apply(fun2, args2)(AnyType, app.span))(app.tpe)
-
-        else if name == "substring" then
-          val fun2 = Ident(runtime.Core_String_substring)(fun.span)
-          Encoded(Apply(fun2, args2)(AnyType, app.span))(app.tpe)
-
-        else if name == "+" then
-          val fun2 = Ident(runtime.Core_String_plus)(fun.span)
-          Encoded(Apply(fun2, args2)(AnyType, app.span))(app.tpe)
-
-        else if name == "==" then
-          val fun2 = Ident(runtime.Core_String_equals)(fun.span)
-          Apply(fun2, args2)(BoolType, app.span)
-
-        else
-          throw new Exception("Unexpected method on array: " + name)
-
       case _ =>
         Apply(this(fun), args2)(app.tpe, app.span)
+
+  override def transformSelect(select: Select)(using ctx: Context): Word =
+    val Select(qual, name) = select
+    if qual.tpe.refers(Predef_String) then
+      // After lambda lift, `qual` is stable thus can be thrown away
+      assert(qual.isIdempotent, select.show)
+
+      if name == "size" then
+        Ident(runtime.Core_String_size)(select.span)
+
+      else if name == "apply" then
+        Ident(runtime.Core_String_apply)(select.span)
+
+      else if name == "substring" then
+        Ident(runtime.Core_String_substring)(select.span)
+
+      else if name == "+" then
+        Ident(runtime.Core_String_plus)(select.span)
+
+      else if name == "==" then
+        Ident(runtime.Core_String_equals)(select.span)
+
+      else
+        throw new Exception("Unexpected method on String: " + name)
+
+    else
+      recur(select)

@@ -29,7 +29,8 @@ alias stk.Int.*
 alias stk.Bool
 alias stk.Bool.*
 
-alias stk.Array.*
+alias stk.Array
+type Array[T] = Array.Array[T]
 
 alias stk.Eq
 type Eq[T] = Eq.Eq[T]

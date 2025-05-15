@@ -3,7 +3,6 @@ package js
 import sast.*
 import sast.Sast.*
 import sast.Symbols.*
-import sast.Types.*
 
 /** Lower String and Array to JS runtime calls.
   *
@@ -25,70 +24,67 @@ class LowerRuntime(runtime: JSRuntime)(using defn: Definitions) extends phases.P
     defn.Predef_charToStr  -> runtime.JS_charToStr,
     defn.Predef_intToByte  -> runtime.JS_intToByte,
     defn.Predef_intToChar  -> runtime.JS_intToChar,
-    defn.Predef_intToStr   -> runtime.JS_intToStr
+    defn.Predef_intToStr   -> runtime.JS_intToStr,
+    defn.Array_get         -> runtime.JS_Array_get,
+    defn.Array_set         -> runtime.JS_Array_set,
+    defn.Array_size         -> runtime.JS_Array_size,
   )
 
-  override def transformApply(app: Apply)(using ctx: Context): Word =
-    val Apply(fun, args) = app
-
-    val args2 = args.map(this.apply)
-    val fun2 = this(fun)
-
-    fun2.strip match
-      case TypeApply(Ident(sym), tpt :: Nil) if sym.refers(defn.Array_array) =>
-        val fun2 =
+  override def transformTypeApply(tapp: TypeApply)(using ctx: Context): Word =
+    tapp match
+      case TypeApply(ref @ Ident(sym), tpt :: Nil) =>
+        if sym.refers(defn.Array_new) then
           if Subtyping.conforms(tpt.tpe, IntType) then
-            Ident(runtime.JS_Array_createInt)(fun.span)
+            Ident(runtime.JS_Array_createInt)(tapp.span)
 
           else if Subtyping.conforms(tpt.tpe, BoolType) then
-            Ident(runtime.JS_Array_createBool)(fun.span)
+            Ident(runtime.JS_Array_createBool)(tapp.span)
 
           else
-            Ident(runtime.JS_Array_createObject)(fun.span)
-
-        Encoded(Apply(fun2, args2)(AnyType, app.span))(app.tpe)
-
-      case TypeApply(Ident(sym), tpt :: Nil) if sym.refers(runtime.JS_cast) =>
-        assert(args2.size == 1, args2)
-        Encoded(args2.head)(tpt.tpe)
-
-      case ref @ Ident(sym) =>
-        // global function call
-        val fun2 = rewiring.get(sym.dealias) match
-            case Some(subst) => Ident(subst)(fun.span)
-            case _ => ref
-
-        // TODO: need encoding if result type does not agree
-        Apply(fun2, args2)(app.tpe, app.span)
-
-      case Select(qual, name) if qual.tpe.refers(Predef_String) =>
-        // After lambda lift, `qual` is stable thus can be thrown away
-        assert(qual.isIdempotent, fun.show)
-
-        if name == "size" then
-          val fun2 = Ident(runtime.JS_String_size)(fun.span)
-          Apply(fun2, args2)(IntType, app.span)
-
-        else if name == "apply" then
-          val fun2 = Ident(runtime.JS_String_apply)(fun.span)
-          Encoded(Apply(fun2, args2)(AnyType, app.span))(app.tpe)
-
-        else if name == "substring" then
-          // 'substring' semantics change, need rewire
-          val fun2 = Ident(runtime.JS_String_substring)(fun.span)
-          Encoded(Apply(fun2, args2)(AnyType, app.span))(app.tpe)
-
-        else if name == "+" then
-          // '+' is supported directly by JavaScript, but backend will rewrite `+` to `_plus_`
-          val fun2 = Ident(runtime.JS_String_plus)(fun.span)
-          Encoded(Apply(fun2, args2)(AnyType, app.span))(app.tpe)
-
-        else if name == "==" then
-          val fun2 = Ident(runtime.JS_String_equals)(fun.span)
-          Apply(fun2, args2)(BoolType, app.span)
+            Ident(runtime.JS_Array_createObject)(tapp.span).appliedToTypeTrees(tpt)
 
         else
-          throw new Exception("Unexpected method on array: " + name)
+          recur(tapp)
 
       case _ =>
-        Apply(fun2, args2)(app.tpe, app.span)
+        recur(tapp)
+
+  override def transformIdent(ref: Ident)(using ctx: Context): Word =
+    val sym = ref.symbol
+    if sym.isFunction then
+      // global function call
+      rewiring.get(sym.dealias) match
+        case Some(subst) => Ident(subst)(ref.span)
+        case _ => ref
+
+    else
+      ref
+
+  override def transformSelect(select: Select)(using ctx: Context): Word =
+    val Select(qual, name) = select
+    if qual.tpe.refers(Predef_String) then
+      // After lambda lift, `qual` is stable thus can be thrown away
+      assert(qual.isIdempotent, select.show)
+
+      if name == "size" then
+        Ident(runtime.JS_String_size)(select.span)
+
+      else if name == "apply" then
+        Ident(runtime.JS_String_apply)(select.span)
+
+      else if name == "substring" then
+        // 'substring' semantics change, need rewire
+        Ident(runtime.JS_String_substring)(select.span)
+
+      else if name == "+" then
+        // '+' is supported directly by JavaScript, but backend will rewrite `+` to `_plus_`
+        Ident(runtime.JS_String_plus)(select.span)
+
+      else if name == "==" then
+        Ident(runtime.JS_String_equals)(select.span)
+
+      else
+        throw new Exception("Unexpected method on String: " + name)
+
+    else
+      recur(select)

@@ -1141,14 +1141,18 @@ class Namer:
             rhs.tpe
 
       else
-        val rhs = transformType(tdef.rhs)
-        checker.delayedCheck { checker.checkValueType(rhs) }
+        if tdef.rhs.isEmpty then
+          TypeLambda(tparamSyms, TypeBound(BottomType, AnyType))
 
-        val rhsType =
-          if tdef.isBound then TypeBound(BottomType, rhs.tpe)
-          else rhs.tpe
+        else
+          val rhs = transformType(tdef.rhs)
+          checker.delayedCheck { checker.checkValueType(rhs) }
 
-        TypeLambda(tparamSyms, rhsType)
+          val rhsType =
+            if tdef.isBound then TypeBound(BottomType, rhs.tpe)
+            else rhs.tpe
+
+          TypeLambda(tparamSyms, rhsType)
 
     end computeInfo
 

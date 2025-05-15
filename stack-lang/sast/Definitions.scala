@@ -85,7 +85,10 @@ final class Definitions(rootNameTable: NameTable, provider: InfoProvider):
 
   val Array         =  resolveTermByPath("stk.Array")
   val Array_Array   =  Array.typeMember("Array")
-  val Array_array   =  Array.termMember("array")
+  val Array_new     =  Array.termMember("new")
+  val Array_get     =  Array.termMember("get")
+  val Array_set     =  Array.termMember("set")
+  val Array_size     =  Array.termMember("size")
 
   // Lists
   val List         =  resolveTermByPath("stk.List")
