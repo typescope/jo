@@ -191,35 +191,42 @@ class Checker(namer: Namer):
     case _ =>
       word
 
+  def adaptNoArgs(word: Word, procType: ProcType, targetType: TargetType)(using Definitions, Scope, Reporter, Source): Word =
+    val isParameterlessCall =
+      procType.paramCount == 0 && targetType.match
+        case TargetType.Fun(n) =>
+          n != 0
+
+        case TargetType.TypeApply =>
+          false
+
+        case _ =>
+          true
+
+    if isParameterlessCall then
+      val fun =
+        if procType.tparams.isEmpty then word
+        else namer.instantiatePoly(procType, word)
+      val procType2 = fun.tpe.asProcType
+      val resType = procType2.resultType
+
+      // Always prefer type constraints from outer scope if present
+      for tp <- targetType.knownType do Subtyping.conforms(resType, tp)
+
+      val autos = namer.autoResolver.derive(procType2, word.span)
+      Apply(fun, args = Nil, autos)(resType, word.span)
+
+    else
+      word
+
+
   def adapt(word: Word, targetType: TargetType)(using Definitions, Scope, Reporter, Source): Word = Debug.trace("Adapting " + word.show, (_: Word).show, enable = false):
     val defn = summon[Definitions]
 
     val word2 =
       if word.tpe.isProcType then
         val procType = word.tpe.asProcType
-        val resType = procType.resultType
-        val isParameterlessCall =
-          targetType match
-            case TargetType.Fun(n) =>
-              n != 0 && resType.isSingleMethodObjectType && procType.paramCount == 0
-
-            case _ =>
-              procType.paramCount == 0
-
-        if isParameterlessCall then
-          val fun =
-            if procType.tparams.isEmpty then word
-            else namer.instantiatePoly(procType, word)
-          val procType2 = fun.tpe.asProcType
-          val resType = procType2.resultType
-
-          // Always prefer type constraints from outer scope if present
-          for tp <- targetType.knownType do Subtyping.conforms(resType, tp)
-
-          val autos = namer.autoResolver.derive(procType2, word.span)
-          Apply(fun, args = Nil, autos)(resType, word.span)
-        else
-          word
+        adaptNoArgs(word, procType, targetType)
 
       else if word.tpe.isTermRef then
         val ref = word.tpe.as[TypeRef]
@@ -281,6 +288,10 @@ class Checker(namer: Namer):
       case TargetType.Fun(n) =>
         // The `.apply` insertion happens at the transform for `Apply`.
         // It ensures that in `Apply(fun, args)` the fun is an ident or select.
+        word2
+
+      case TargetType.TypeApply =>
+        // Used to prevent no args adapation
         word2
 
       case TargetType.ObjectMember =>

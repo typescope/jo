@@ -277,7 +277,9 @@ class Namer:
         transformDotlessCall(call)
 
       case Ast.TypeApply(fun, targs) =>
-        val fun2 = transform(fun)
+        val fun2 =
+          given TargetType = TargetType.TypeApply
+          transform(fun)
         val targs2 = targs.map(targ => transformType(targ))
         checker.checkTypeApply(fun2, targs2).adapt
 

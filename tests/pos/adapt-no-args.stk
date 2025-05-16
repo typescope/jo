@@ -1,0 +1,5 @@
+fun empty[T]: List[T] = List.empty[T]
+
+fun main =
+  val a = empty[Int] + 3 + 5
+  a.foreach i => println (intToStr i)
