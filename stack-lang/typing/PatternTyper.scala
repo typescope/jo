@@ -9,7 +9,7 @@ import sast.Symbols.*
 import sast.Types.*
 
 import reporting.Reporter
-import reporting.Diagnostics.*
+import reporting.Diagnostics
 
 import Namer.DelayedDef
 import Inference.TargetType
@@ -40,7 +40,8 @@ class PatternTyper(namer: Namer, checker: Checker):
             val boundTree = namer.transformType(tparam.bound)
             TypeBound(BottomType, boundTree.tpe)
 
-        val sym = Symbol.createSymbol(tparam.name, bound, Flags.Type | Flags.Param, patSym, tparam.pos)
+        // Only support simple kinded type parameters
+        val sym = TypeSymbol.createSymbol(Kind.Simple, tparam.name, bound, Flags.Param, patSym, tparam.pos)
         patScope.define(sym)
         sym
 
@@ -830,8 +831,8 @@ object PatternTyper:
         Reporter.error(s"The parameter $symbol should occur once in the patterns", symbol.sourcePos)
 
   class ShadowedPattern(pat1: Pattern, pat2: Pattern)(using Source)
-  extends DoublePositionedReport:
-    val kind = Kind.Warning
+  extends Diagnostics.DoublePositionedReport:
+    val kind = Diagnostics.Kind.Warning
 
     val pos1 = pat1.pos
     val pos2 = pat2.pos

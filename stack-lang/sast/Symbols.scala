@@ -21,7 +21,7 @@ object Symbols:
   case class SymInfo(symbol: Symbol, owner: Symbol, tpe: Type):
     assert(owner != null || symbol.flags.is(Flags.NSpace))
 
-  final class Symbol(val name: String, val flags: Flags, val sourcePos: SourcePosition):
+  sealed class Symbol(val name: String, val flags: Flags, val sourcePos: SourcePosition):
     /** TODO: Cache could be introduced to improve performance based on timestamps */
     private def symInfo(using defn: Definitions): SymInfo = defn.info(this)
 
@@ -139,23 +139,54 @@ object Symbols:
 
     override def toString() = name
 
+    def asTypeSymbol: TypeSymbol = this.asInstanceOf[TypeSymbol]
+  end Symbol
+
+  final class TypeSymbol(
+    val kind: Kind, name: String, flags: Flags, sourcePos: SourcePosition)
+  extends Symbol(name, flags | Flags.Type, sourcePos)
+
+  object TypeSymbol:
+    def create
+        (kind: Kind, name: String, info: Type, flags: Flags, owner: Symbol, pos: SourcePosition)
+        (using ip: InfoProvider)
+    : TypeSymbol =
+      val sym = new TypeSymbol(kind, name, flags, pos)
+      ip.add(sym, owner, info)
+      sym
+
+    def createSymbol
+        (kind: Kind, name: String, info: Type, flags: Flags, owner: Symbol, pos: SourcePosition)
+        (using defn: Definitions)
+    : Symbol =
+      val sym = new TypeSymbol(kind, name, flags, pos)
+      defn.add(sym, owner, info)
+      sym
+
+
   object Symbol:
+    /** Create a term or pattern symbol */
     def createSymbol(name: String, flags: Flags, pos: SourcePosition) =
+      assert(!flags.is(Flags.Type), "type symbols should be created by `new TypeSymbol`")
       new Symbol(name, flags, pos)
 
+    /** Create a term or pattern symbol */
     def createSymbol
         (name: String, info: Type, flags: Flags, owner: Symbol, pos: SourcePosition)
         (using defn: Definitions)
     : Symbol =
+      assert(!flags.is(Flags.Type), "type symbols should be created by `TypeSymbol.createSymbol`")
 
       val sym = new Symbol(name, flags, pos)
       defn.add(sym, owner, info)
       sym
 
+    /** Create a term or pattern symbol */
     def create
         (name: String, info: Type, flags: Flags, owner: Symbol, pos: SourcePosition)
         (using ip: InfoProvider)
     : Symbol =
+      assert(!flags.is(Flags.Type), "type symbols should be created by `TypeSymbol.create`")
 
       val sym = new Symbol(name, flags, pos)
       ip.add(sym, owner, info)

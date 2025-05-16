@@ -30,29 +30,45 @@ class Checker(namer: Namer):
     delayedChecks.clear()
     checking = false
 
-  def checkBounds(tctor: TypeTree, targs: List[TypeTree])(using Definitions, Reporter, Source): Unit =
-    if !tctor.tpe.isTypeLambda then
-      Reporter.error(s"Expect type lambda, found = ${tctor.tpe.show}", tctor.pos)
-    else
-      val tl = tctor.tpe.asTypeLambda
-      checkBounds(tl.tparams, targs)
+  /** Check kind of a type
+    *
+    * Note: Do not access info of type symbols.
+    */
+  def checkKind(tctor: TypeTree, targs: List[TypeTree])(using Reporter, Source): Boolean =
+    tctor.tpe.kind match
+      case None =>
+        Reporter.error(s"Invalid type constructor", tctor.pos)
+        false
+
+      case Some(kind) =>
+        kind match
+          case Kind.Arrow(args, to) if args.size == targs.size =>
+            // only simple kinded type parameters are supported
+            true
+
+          case Kind.Arrow(args, to) =>
+            val size = args.size
+            Reporter.error(s"The type constructor specifies $size parameter(s), found = ${targs.size}", tctor.pos)
+            false
+
+          case Kind.Simple =>
+            Reporter.error(s"The type does not take parameters", tctor.pos)
+            false
+
 
   def checkBounds(tparams: List[Symbol], targs: List[TypeTree])(using Definitions, Reporter, Source): Unit =
-    if tparams.size != targs.size then
-      Reporter.error(s"Expect ${tparams.size} type args, found = ${targs.size}", (targs.head.span | targs.last.span).toPos)
-    else
-      val subst = tparams.zip(targs.map(_.tpe)).toMap
-      for (targ, tparam) <- targs.zip(tparams) do
-        val argType = targ.tpe
-        val TypeBound(lo, hi) = tparam.info.as[TypeBound]
-        val loActual = TypeOps.substSymbols(lo, subst)
-        val hiActual = TypeOps.substSymbols(hi, subst)
+    val subst = tparams.zip(targs.map(_.tpe)).toMap
+    for (targ, tparam) <- targs.zip(tparams) do
+      val argType = targ.tpe
+      val TypeBound(lo, hi) = tparam.info.as[TypeBound]
+      val loActual = TypeOps.substSymbols(lo, subst)
+      val hiActual = TypeOps.substSymbols(hi, subst)
 
-        if !Subtyping.conforms(argType, hiActual) then
-          Reporter.error(s"Arg type ${argType.show} does not conform to bound = ${hi.show}, which expands to ${hiActual.show}", targ.pos)
+      if !Subtyping.conforms(argType, hiActual) then
+        Reporter.error(s"Arg type ${argType.show} does not conform to bound = ${hi.show}, which expands to ${hiActual.show}", targ.pos)
 
-        if !Subtyping.conforms(loActual, argType) then
-          Reporter.error(s"Arg type ${argType.show} does not conform to bound = ${hi.show}, which expands to ${hiActual.show}", targ.pos)
+      if !Subtyping.conforms(loActual, argType) then
+        Reporter.error(s"Arg type ${argType.show} does not conform to bound = ${hi.show}, which expands to ${hiActual.show}", targ.pos)
 
   def checkTypeApply(fun: Word, targs: List[TypeTree])(using Definitions, Reporter, Source): Word =
     if !fun.tpe.isPolyType then
@@ -72,12 +88,19 @@ class Checker(namer: Namer):
     if !Subtyping.conforms(tree.tpe, tp) then
       Reporter.error(s"Expect type ${tp.show}, found = ${tree.tpe.show}", tree.pos)
 
-  def checkValueType(tree: Tree)(using Definitions, Reporter, Source): Unit =
-    checkValueType(tree.tpe, tree.pos)
+  def checkValueType(word: Word)(using Reporter, Source): Unit =
+    checkValueType(word.tpe, word.pos)
 
-  def checkValueType(tp: Type, pos: SourcePosition)(using Definitions, Reporter): Type =
+  def checkValueType(tpt: TypeTree)(using Reporter, Source): Type =
+    checkValueType(tpt.tpe, tpt.pos)
+
+  def checkValueType(tp: Type, pos: SourcePosition)(using Reporter): Type =
     if !tp.isValueType then
-      Reporter.error(s"Expect value type, found = ${tp.show}", pos)
+      val explain = tp.kind match
+        case Some(kind) => ", but found a type of kind " + kind.show
+        case None => ", but a non-value type"
+
+      Reporter.error(s"Expect value type" + explain, pos)
       ErrorType
     else
       tp

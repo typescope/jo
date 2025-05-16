@@ -75,10 +75,27 @@ object Types:
     def isTagType(using Definitions): Boolean =
       TypeOps.approx(this, isUp = true).isInstanceOf[TagType]
 
-    def isValueType(using Definitions): Boolean =
-      TypeOps.approx(this, isUp = true)  match
+    def isValueType: Boolean =
+      this match
         case VoidType | _: ProcType | _: TypeLambda | _: NameTableInfo => false
+
+        case TypeRef(sym) =>
+          !sym.isType && !sym.isFunction
+          || sym.isType && sym.asTypeSymbol.kind == Kind.Simple
+
         case _ => true
+
+    /** Return the kind of a value type and return None for non-value type. */
+    def kind: Option[Kind] =
+      this match
+        case VoidType | _: ProcType | _: TypeLambda | _: NameTableInfo =>
+          None
+
+        case TypeRef(sym) if sym.isType =>
+          Some(sym.asTypeSymbol.kind)
+
+        case _ =>
+          Some(Kind.Simple)
 
     /** A grounded type cannot be simplied further at the top-level
       *

@@ -1034,7 +1034,8 @@ class Namer:
             val boundTree = transformType(tparam.bound)
             TypeBound(BottomType, boundTree.tpe)
 
-        val sym = Symbol.createSymbol(tparam.name, bound, Flags.Type | Flags.Param, funSym, tparam.pos)
+        // Only support simple-kinded type parameters
+        val sym = TypeSymbol.createSymbol(Kind.Simple, tparam.name, bound, Flags.Param, funSym, tparam.pos)
         funScope.define(sym)
         sym
 
@@ -1061,8 +1062,7 @@ class Namer:
 
       assert(!funDef.resultType.isEmpty)
       val resTypeTree = transformType(funDef.resultType)
-      checker.delayedCheck { checker.checkValueType(resTypeTree) }
-      resTypeTree.tpe
+      checker.checkValueType(resTypeTree)
 
     // Inferring result type would need fixed point computation for recursive
     // functions. That complicates the machinery in the namer (in particular
@@ -1122,7 +1122,8 @@ class Namer:
   : DelayedDef[TypeDef] =
 
     val flags = checker.checkModifiers(tdef) | Flags.Type
-    val typeSym = Symbol.createSymbol(tdef.name, flags, tdef.ident.pos)
+    val kind = Kind.simpleKinded(tdef.tparams.size)
+    val typeSym = new TypeSymbol(kind, tdef.name, flags, tdef.ident.pos)
 
     given defn: Definitions = lazyDefn match
       case lazyDefn: Definitions.Lazy => lazyDefn.value
@@ -1138,7 +1139,8 @@ class Namer:
             val boundTree = transformType(tparam.bound)
             TypeBound(BottomType, boundTree.tpe)
 
-        val sym = Symbol.createSymbol(tparam.name, bound, Flags.Type | Flags.Param, typeSym, tparam.pos)
+        // Only support simple kinded type parameters
+        val sym = TypeSymbol.createSymbol(Kind.Simple, tparam.name, bound, Flags.Param, typeSym, tparam.pos)
         sc2.define(sym)
         sym
 
@@ -1159,25 +1161,25 @@ class Namer:
           else
             TypeBound(BottomType, AnyType)
         else
-          val rhs = transformType(tdef.rhs)
-          checker.delayedCheck { checker.checkValueType(rhs) }
+          val rhsTree = transformType(tdef.rhs)
+          val rhs = checker.checkValueType(rhsTree)
 
           if tdef.isBound then
-            TypeBound(BottomType, rhs.tpe)
+            TypeBound(BottomType, rhs)
           else
-            rhs.tpe
+            rhs
 
       else
         if tdef.rhs.isEmpty then
           TypeLambda(tparamSyms, TypeBound(BottomType, AnyType), tdef.preParamCount)
 
         else
-          val rhs = transformType(tdef.rhs)
-          checker.delayedCheck { checker.checkValueType(rhs) }
+          val rhsTree = transformType(tdef.rhs)
+          val rhs = checker.checkValueType(rhsTree)
 
           val rhsType =
-            if tdef.isBound then TypeBound(BottomType, rhs.tpe)
-            else rhs.tpe
+            if tdef.isBound then TypeBound(BottomType, rhs)
+            else rhs
 
           TypeLambda(tparamSyms, rhsType, tdef.preParamCount)
 
@@ -1241,7 +1243,8 @@ class Namer:
             val boundTree = transformType(tparam.bound)
             TypeBound(BottomType, boundTree.tpe)
 
-        val sym = Symbol.createSymbol(tparam.name, bound, Flags.Type | Flags.Param, sc.owner, tparam.pos)
+        // Only support simple kinded type parameters
+        val sym = TypeSymbol.createSymbol(Kind.Simple, tparam.name, bound, Flags.Param, sc.owner, tparam.pos)
         defScope.define(sym)
         sym
 
@@ -1262,8 +1265,7 @@ class Namer:
     val resultType =
       assert(!ddef.resultType.isEmpty)
       val resTypeTree = transformType(ddef.resultType)
-      checker.delayedCheck { checker.checkValueType(resTypeTree) }
-      resTypeTree.tpe
+      checker.checkValueType(resTypeTree)
 
     val ctxParams = ddef.receives.map: params =>
       for
@@ -1331,8 +1333,8 @@ class Namer:
             Reporter.error("Field " + field.name + " already defined", field.pos)
           else
             val tpt = transformType(field.tpt)
-            checker.delayedCheck { checker.checkValueType(tpt) }
-            fieldTypes += NamedInfo(field.name, tpt.tpe)
+            val tp = checker.checkValueType(tpt)
+            fieldTypes += NamedInfo(field.name, tp)
         end for
         TypeTree(RecordType(fieldTypes.toList))(tpt.span)
 
@@ -1343,8 +1345,8 @@ class Namer:
             Reporter.error("Parameter " + param.name + " already defined", param.pos)
 
           val tpt = transformType(param.tpt)
-          checker.delayedCheck { checker.checkValueType(tpt) }
-          paramInfos += NamedInfo(param.name, tpt.tpe)
+          val tp = checker.checkValueType(tpt)
+          paramInfos += NamedInfo(param.name, tp)
         end for
         TypeTree(TagType(tag.name, paramInfos.toList))(tpt.span)
 
@@ -1406,18 +1408,24 @@ class Namer:
       case Ast.AppliedType(tctor, targs) =>
         val tctor2 = transformType(tctor, allowPackType)
         val targs2 = for targ <- targs yield transformType(targ, allowPackType = false)
-        checker.delayedCheck { checker.checkBounds(tctor2, targs2) }
-        if tctor2.tpe == ErrorType then TypeTree(ErrorType)(tpt.span)
-        else TypeTree(AppliedType(tctor2.tpe, targs2.map(_.tpe)))(tpt.span)
+        if tctor2.tpe == ErrorType || !checker.checkKind(tctor2, targs2) then
+          TypeTree(ErrorType)(tpt.span)
+        else
+          val tp = AppliedType(tctor2.tpe, targs2.map(_.tpe))
+          checker.delayedCheck {
+            val tl = tctor2.tpe.asTypeLambda
+            checker.checkBounds(tl.tparams, targs2)
+          }
+          TypeTree(tp)(tpt.span)
 
       case Ast.FunctionType(paramTypes, resType, receives) =>
         var i = 0
         val paramTypes2 =
           for paramType <- paramTypes yield
             val tpt = transformType(paramType)
-            checker.delayedCheck { checker.checkValueType(tpt) }
-            val namedInfo = NamedInfo("param" + i, tpt.tpe)
-            i = i+1
+            val tp = checker.checkValueType(tpt)
+            val namedInfo = NamedInfo("param" + i, tp)
+            i = i + 1
             namedInfo
 
         val ctxParams =
@@ -1427,10 +1435,10 @@ class Namer:
             transformParamRef(param).symbol
 
         val resType2 = transformType(resType)
-        checker.delayedCheck { checker.checkValueType(resType2) }
+        val resTypeChecked = checker.checkValueType(resType2)
 
         val autoTypes = Nil
-        val applyType = ProcType(tparams = Nil, paramTypes2, autoTypes, resType2.tpe, Some(ctxParams), preParamCount = 0)
+        val applyType = ProcType(tparams = Nil, paramTypes2, autoTypes, resTypeChecked, Some(ctxParams), preParamCount = 0)
         val objType = ObjectType(fields = Nil, methods = NamedInfo("apply", applyType) :: Nil, mutableFields = Nil)
         TypeTree(objType)(tpt.span)
 

@@ -181,7 +181,7 @@ object ElimCapture:
          ObjectType(objType.fields ++ capturedMembers.toList, objType.methods, objType.mutableFields)
 
       val thisTypeName = ctx.uniq.freshName("ThisType")
-      val thisTypeAliasSym = Symbol.createSymbol(thisTypeName, Flags.Type | Flags.Synthetic, obj.self.sourcePos)
+      val thisTypeAliasSym = new TypeSymbol(Kind.Simple, thisTypeName, Flags.Synthetic, obj.self.sourcePos)
       val thisType = TypeRef(thisTypeAliasSym)
       ctx.lifted += TypeDef(thisTypeAliasSym)(obj.span)
 

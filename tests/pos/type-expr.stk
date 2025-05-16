@@ -10,5 +10,7 @@ fun main =
   print
     List "hello" "world!"
 
+  val list: List Int = List 3 5 8
+
   val a = 1 ~ "one"
   println a.rhs

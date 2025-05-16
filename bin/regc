@@ -36,6 +36,7 @@ files=(
     stack-lang/sast/Definitions.scala
     stack-lang/sast/Exhaustivity.scala
     stack-lang/sast/Flags.scala
+    stack-lang/sast/Kind.scala
     stack-lang/sast/NameTable.scala
     stack-lang/sast/Patterns.scala
     stack-lang/sast/Printing.scala
