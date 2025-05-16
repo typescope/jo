@@ -75,10 +75,27 @@ object Types:
     def isTagType(using Definitions): Boolean =
       TypeOps.approx(this, isUp = true).isInstanceOf[TagType]
 
-    def isValueType(using Definitions): Boolean =
-      TypeOps.approx(this, isUp = true)  match
+    def isValueType: Boolean =
+      this match
         case VoidType | _: ProcType | _: TypeLambda | _: NameTableInfo => false
+
+        case TypeRef(sym) =>
+          !sym.isType && !sym.isFunction
+          || sym.isType && sym.asTypeSymbol.kind == Kind.Simple
+
         case _ => true
+
+    /** Return the kind of a value type and return None for non-value type. */
+    def kind: Option[Kind] =
+      this match
+        case VoidType | _: ProcType | _: TypeLambda | _: NameTableInfo =>
+          None
+
+        case TypeRef(sym) if sym.isType =>
+          Some(sym.asTypeSymbol.kind)
+
+        case _ =>
+          Some(Kind.Simple)
 
     /** A grounded type cannot be simplied further at the top-level
       *
@@ -200,6 +217,16 @@ object Types:
 
     def hasTermMember(name: String)(using Definitions): Boolean =
       getTermMember(name).nonEmpty
+
+    def exists(pred: Type => Boolean)(using Definitions): Boolean =
+      var exists = false
+      val traverser = new TypeOps.TypeTraverser:
+        def apply(tp: Type)(using Context) =
+          exists = exists || pred(tp)
+          if !exists then recur(tp)
+      traverser.apply(this)
+      exists
+
 
     def is[T <: Type : ClassTag]: Boolean =
       this match
@@ -331,16 +358,21 @@ object Types:
     * inferred.
     */
   case class ProcType
-    (tparams: List[Symbol], params: List[NamedInfo[Type]], // autos: List[NamedInfo[Type]],
+    (tparams: List[Symbol], params: List[NamedInfo[Type]], autos: List[NamedInfo[Type]],
       resultType: Type, receives: Option[List[Symbol]], preParamCount: Int)
   extends Type:
     val preParamTypes: List[Type] = params.take(preParamCount).map(_.info)
     val postParamTypes: List[Type] = params.drop(preParamCount).map(_.info)
+
     val paramTypes: List[Type] = params.map(_.info)
+
     val paramCount: Int = params.size
     val tparamCount: Int = tparams.size
 
-    // val autoTypes: List[Type] = autos.map(_.info)
+    val autoTypes: List[Type] = autos.map(_.info)
+
+    val allParamTypes: List[Type] = paramTypes ++ autoTypes
+    val allParamCount: Int = allParamTypes.size
 
     def minimumArgs(using Definitions): Int =
       if hasVararg then paramCount - 1 else paramCount
@@ -361,10 +393,10 @@ object Types:
       TypeOps.substSymbols(this.copy(tparams = Nil), subst).as[ProcType]
 
     def prepend(paramsToAdd: List[NamedInfo[Type]]): ProcType =
-      ProcType(tparams, paramsToAdd ++ params, resultType, receives, preParamCount)
+      ProcType(tparams, paramsToAdd ++ params, autos, resultType, receives, preParamCount)
 
     def append(paramsToAdd: List[NamedInfo[Type]]): ProcType =
-      ProcType(tparams, params ++ paramsToAdd, resultType, receives, preParamCount)
+      ProcType(tparams, params ++ paramsToAdd, autos, resultType, receives, preParamCount)
 
     def postParamCount = params.size - preParamCount
 
@@ -372,10 +404,12 @@ object Types:
 
   /** A type lambda */
   case class TypeLambda
-    (tparams: List[Symbol], body: Type)
+    (tparams: List[Symbol], body: Type, preParamCount: Int)
   extends Type:
     val names: List[String] = tparams.map(_.name)
     val paramCount: Int = tparams.size
+
+    def postParamCount = paramCount - preParamCount
 
     def bounds(using Definitions): List[Type] = tparams.map(_.info)
 

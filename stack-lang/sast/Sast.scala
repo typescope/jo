@@ -151,19 +151,26 @@ object Sast:
   extends Word
 
   case class Apply
-    (fun: Word, args: List[Word])
+    (fun: Word, args: List[Word], autos: List[Word])
     (val tpe: Type, val span: Span)
     (using Definitions)
   extends Word:
     fun.tpe.asProcType match
       case procType =>
         assert(procType.paramTypes.size == args.size, procType.show + ", " + args)
+        assert(procType.autos.size == autos.size, procType.show + ", " + autos)
+
+    def allArgs: List[Word] = args ++ autos
 
     def funSymbol: Option[Symbol] =
       fun match
         case Ident(sym)               => Some(sym)
         case TypeApply(Ident(sym), _) => Some(sym)
         case _                        => None
+
+  object Apply:
+    def apply(fun: Word, args: List[Word])(tpe: Type, span: Span)(using Definitions): Apply =
+      apply(fun, args, autos = Nil)(tpe, span)
 
   case class Object
     (self: Symbol, vals: List[ValDef], defs: List[FunDef])
@@ -429,10 +436,12 @@ object Sast:
 
   /** Represents a named function or method definition */
   case class FunDef
-    (symbol: Symbol, tparams: List[Symbol], params: List[Symbol], resultType: TypeTree, body: Word)
+    (symbol: Symbol, tparams: List[Symbol], params: List[Symbol], autos: List[Symbol], resultType: TypeTree, body: Word)
     (val span: Span)
   extends Word, Def:
     private var censusCache: (List[Symbol], List[Symbol]) | Null = null
+
+    val allParams: List[Symbol] = params ++ autos
 
     def census(using Definitions): (List[Symbol], List[Symbol]) =
       if censusCache == null then
@@ -516,15 +525,16 @@ object Sast:
     def appliedTo(args: Word*)(using Definitions): Word =
       val procType = word.tpe.asProcType
 
-      assert(procType.paramCount == args.size)
-      assert(procType.tparams.isEmpty)
+      assert(procType.paramCount == args.size, "args mismatch")
+      assert(procType.tparams.isEmpty, "type params not supplied")
+      assert(procType.autos.isEmpty, "autos not supplied")
 
       val args2 =
         for (arg, paramType) <- args.zip(procType.paramTypes)
         yield SastOps.adapt(arg, paramType)
 
       val span = if args.isEmpty then word.span else word.span | args.last.span
-      Apply(word, args2.toList)(procType.resultType, span)
+      Apply(word, args2.toList, autos = Nil)(procType.resultType, span)
 
     def appliedToTypes(targs: Type*)(using Definitions): Word =
       val procType = word.tpe.asProcType

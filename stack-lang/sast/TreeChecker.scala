@@ -66,7 +66,7 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends S
         if sym.isOneOf(Flags.NSpace | Flags.Method | Flags.Field | Flags.Type) then
           Reporter.error("A term Ident tree should not be namespace, method, field or type", word.pos)
 
-        if !sym.owner.isFunction && !sym.owner.isContainer && !sym.owner.isMethod then
+        if !sym.owner.isFunction && !sym.owner.isContainer then
           Reporter.error("The owner of an ident should be either a function or an container, found = " + sym.owner, word.pos)
 
         // TODO: enable after fixing owners of pattern translation & lifting
@@ -114,7 +114,7 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends S
         if !Subtyping.conforms(rhs.tpe, ident.symbol.info) then
           Reporter.error(s"Rhs has the type ${rhs.tpe.show}, which is not a subtype of ${ident.symbol.info.show}", word.pos)
 
-      case Apply(fun, args) =>
+      case Apply(fun, args, autos) =>
         fun.tpe.asProcType match
           case funType =>
             val expectArgSize = funType.paramTypes.size
@@ -124,6 +124,10 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends S
             for (paramType, arg) <- funType.paramTypes.zip(args) do
               if !Subtyping.conforms(arg.tpe, paramType) then
                 Reporter.error("Found arg type = " + arg.tpe.show + ", paramType = " + paramType.show + ", tree = " + word.show, word.pos)
+
+            for (autoType, auto) <- funType.autoTypes.zip(autos) do
+              if !Subtyping.conforms(auto.tpe, autoType) then
+                Reporter.error("Found auto type = " + auto.tpe.show + ", autoType = " + autoType.show + ", tree = " + word.show, word.pos)
 
             if !Subtyping.conforms(funType.resultType, word.tpe) then
               Reporter.error("word.tpe = " + word.tpe.show + ", result type = " + funType.resultType + " tree = " + word.show, word.pos)
@@ -151,7 +155,7 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends S
 
       case TypeApply(fun, _) => checkFunShape(fun)
 
-      case Apply(Ident(sym), _) if sym.fullName == "stk.runtime.native.Core.readInt" =>
+      case Apply(Ident(sym), _, _) if sym.fullName == "stk.runtime.native.Core.readInt" =>
 
       case _  =>
         Reporter.error("Expect function to be select/ident/tapply, found = " + fun, fun.pos)

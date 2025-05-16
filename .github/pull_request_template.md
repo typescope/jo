@@ -6,8 +6,9 @@ Fix #XXX: A short description
 - [ ] token & scanner
 - [ ] ast & parsing syntax
 - [ ] flags & symbols & name table
-- [ ] types & subtyping
-- [ ] sast & type checking
+- [ ] types & type operations & subtyping
+- [ ] sast & sast operations
+- [ ] type checking
 - [ ] context param check & transform
 - [ ] pattern match
   - [ ] pattern typer
@@ -16,8 +17,8 @@ Fix #XXX: A short description
   - [ ] exhaustivity check
   - [ ] semantic transform
 - [ ] closure conversion
-- [ ] interpreter
-- backend
+- platforms
+    - [ ] interpreter
     - [ ] js backend
     - [ ] stack machine
     - [ ] register machine

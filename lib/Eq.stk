@@ -11,7 +11,9 @@ type Eq[T] = object {
   def eq(this: T, that: T): Bool
 }
 
-fun Byte: Eq[Byte] = (a, b) => a == b
-fun Char: Eq[Char] = (a, b) => a == b
-fun Int: Eq[Int] = (a, b) => a == b
-fun String: Eq[String] = (a, b) => a == b
+section Defaults
+  auto fun byteEq: Eq[Byte] = (a, b) => a == b
+  auto fun charEq: Eq[Char] = (a, b) => a == b
+  auto fun intEq: Eq[Int] = (a, b) => a == b
+  auto fun stringEq: Eq[String] = (a, b) => a == b
+end

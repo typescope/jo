@@ -425,6 +425,8 @@ fun createStdIn() = object {
           flow
             #Raw(bytesRead, buffer) as StringRepr
             cast[String]
+      end
+    end
 
     res
 }

@@ -12,7 +12,16 @@ import reporting.Reporter
 
 import Inference.TargetType
 
+import ExprTyper.{ Shape, Handler }
+
 object ExprTyper:
+  /** The shape of a function or type constructor */
+  case class Shape(preParams: Int, postParams: Int, precedence: Int)
+
+  trait Handler[T]:
+    def resolveShape(item: T): Option[Shape]
+    def bundle(preItems: List[T], binder: T, postItems: List[T]): T
+
   /** The precedence of a function word
     *
     * We fix the precedence of names in the compiler according to established
@@ -62,142 +71,191 @@ object ExprTyper:
 class ExprTyper(namer: Namer):
 
   def transform(expr: Ast.Expr)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
-    expr.words: @unchecked match
-    case head :: Nil =>
-      namer.transform(head)
+    expr.words match
+       case word :: Nil =>
+         return namer.transform(word)
 
-    case (tag: Ast.Tag) :: args =>
-      namer.transformTagged(tag, args)
+       case (tag: Ast.Tag) :: args =>
+         return namer.transformTagged(tag, args)
 
-    case head :: rest =>
-      val wordTyped =
-        head.getKeyOrUpdate(Namer.TypedWord):
-          given TargetType = TargetType.Unknown
-          namer.transform(head)
+       case _ =>
 
-      val tp = wordTyped.tpe
+    val head :: rest = expr.words: @unchecked
 
-      val isDotlessMethodCallPattern = tp.isObjectType && rest.head.match
-        case Ast.Ident(name) =>
-          tp.getTermMember(name) match
-            case Some(memType) => memType.isProcType
-            case None => false
+    val wordTyped =
+      head.getKeyOrUpdate(Namer.TypedWord):
+        given TargetType = TargetType.Unknown
+        namer.transform(head)
 
-        case _ => false
+    val tp = wordTyped.tpe
 
+    val isDotlessMethodCallPattern = tp.isObjectType && rest.head.match
+      case Ast.Ident(name) =>
+        tp.getTermMember(name) match
+          case Some(memType) => memType.isProcType
+          case None => false
 
-      val isVarargApply = tp.isProcType && tp.asProcType.hasVararg
-
-      val containerSymbolOpt =
-        rest match
-          case Ast.Ident(">") :: _ =>
-            head match
-              case ref: Ast.RefTree =>
-                // typed without adaptation and ignore errors
-                given Reporter = rp.fresh(buffer = true)
-                val wordTyped = namer.transformRefTree(ref)
-                wordTyped.tpe match
-                  case TypeRef(sym) if sym.isContainer => Some(sym)
-                  case _ => None
-
-              case _ => None
-
-          case _ => None
+      case _ => false
 
 
-      if containerSymbolOpt.nonEmpty then
-        // If the first word is a section or namespace reference followed by >, inject the
-        // names of the container in typing the expression
-        val sym = containerSymbolOpt.get
-        val injected = sc.fresh(sym, sym.dealiasedInfo.as[NameTableInfo].nameTable)
-        given Scope = injected.fresh()
-        transform(Ast.Expr(rest.tail)(expr.span))
+    val isVarargApply = tp.isProcType && tp.asProcType.hasVararg
 
-      else if isDotlessMethodCallPattern then
-        // Dotless method call pattern, where the infix operator takes exactly one parameter
-        val words = mutable.ListBuffer.from(expr.words)
-        val word = parseDotless(words, -1)
+    val containerSymbolOpt =
+      rest match
+        case Ast.Ident(">") :: _ =>
+          head match
+            case ref: Ast.RefTree =>
+              // typed without adaptation and ignore errors
+              given Reporter = rp.fresh(buffer = true)
+              val wordTyped = namer.transformRefTree(ref)
+              wordTyped.tpe match
+                case TypeRef(sym) if sym.isContainer => Some(sym)
+                case _ => None
 
-        assert(words.isEmpty, words)
-        namer.transform(word)
+            case _ => None
 
-      else if tp.isSingleMethodObjectType || isVarargApply then
-        val app = Ast.Apply(head, rest)(head.span | rest.last.span)
-        namer.transform(app)
+        case _ => None
 
-      else
-        // mixed prefix/infix/postfix pattern, arity depends on type of the function
-        val words: mutable.ListBuffer[Ast.Word] = mutable.ListBuffer.from(expr.words)
 
-        val resolveProc: Ast.Word => Option[ProcType] = (word: Ast.Word) => word match
-          case _: Ast.RefTree | _: Ast.TypeApply =>
-            val typed =
-              word.getKeyOrUpdate(Namer.TypedWord):
-                given TargetType = TargetType.Unknown
-                namer.transform(word)
+    if containerSymbolOpt.nonEmpty then
+      // If the first word is a section or namespace reference followed by >, inject the
+      // names of the container in typing the expression
+      val sym = containerSymbolOpt.get
+      val injected = sc.fresh(sym, sym.dealiasedInfo.as[NameTableInfo].nameTable)
+      given Scope = injected.fresh()
+      transform(Ast.Expr(rest.tail)(expr.span))
 
-            if typed.tpe.isProcType then
-              val procType = typed.tpe.asProcType
-              if procType.hasVararg then
-                Reporter.error("Vararg functions not allowed in expression syntax except being the first item.", word.pos)
-                None
+    else if isDotlessMethodCallPattern then
+      // Dotless method call pattern, where the infix operator takes exactly one parameter
+      val words = mutable.ListBuffer.from(expr.words)
+      val word = parseDotless(words, -1)
+
+      assert(words.isEmpty, words)
+      namer.transform(word)
+
+    else if tp.isSingleMethodObjectType || isVarargApply then
+      val app = Ast.Apply(head, rest)(head.span | rest.last.span)
+      namer.transform(app)
+
+    else
+      // mixed prefix/infix/postfix pattern, arity depends on type of the function
+
+      val procTypeHandler = new Handler[Ast.Word]:
+        def bundle(preArgs: List[Ast.Word], binder: Ast.Word, postArgs: List[Ast.Word]): Ast.Word =
+          val startSpan = if preArgs.isEmpty then binder.span else preArgs.head.span
+          val endSpan = if postArgs.isEmpty then binder.span else postArgs.last.span
+          Ast.InfixCall(preArgs, binder, postArgs)(startSpan | endSpan)
+
+        def resolveShape(word: Ast.Word): Option[Shape] =
+          word match
+            case _: Ast.RefTree | _: Ast.TypeApply =>
+              val typed =
+                word.getKeyOrUpdate(Namer.TypedWord):
+                  given TargetType = TargetType.Unknown
+                  namer.transform(word)
+
+              if typed.tpe.isProcType then
+                val procType = typed.tpe.asProcType
+                if procType.hasVararg then
+                  Reporter.error("Vararg functions not allowed in expression syntax except being the first item.", word.pos)
+                  None
+                else
+                  val prec = ExprTyper.precedence(word)
+                  val shape = Shape(procType.preParamCount, procType.postParamCount, prec)
+                  Some(shape)
               else
-                Some(procType)
+                None
+
+            case _ =>
+              None
+
+      val words: mutable.ListBuffer[Ast.Word] = mutable.ListBuffer.from(expr.words)
+      val values = parseMixed(words, -1, procTypeHandler)
+
+      assert(words.isEmpty, words)
+      if values.size > 1 then
+        val rest = values.init
+        val span = rest.head.span | rest.last.span
+        Reporter.error("Found extra value, an expression should produce a single value", span.toPos)
+
+      namer.transform(values.last)
+    end if
+  end transform
+
+  def transformType(tpt: Ast.ExprType, allowPackType: Boolean)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): TypeTree =
+    val lambdaTypeHandler = new Handler[Ast.TypeTree]:
+      var count = 0
+      def bundle(preArgs: List[Ast.TypeTree], binder: Ast.TypeTree, postArgs: List[Ast.TypeTree]): Ast.TypeTree =
+        val startSpan = if preArgs.isEmpty then binder.span else preArgs.head.span
+        val endSpan = if postArgs.isEmpty then binder.span else postArgs.last.span
+        Ast.AppliedType(binder, preArgs ++ postArgs)(startSpan | endSpan)
+
+      def resolveShape(tpt: Ast.TypeTree): Option[Shape] =
+        count += 1
+        tpt match
+          case ref: Ast.RefTree =>
+            val typed =
+              tpt.getKeyOrUpdate(Namer.TypedTypeTree):
+                namer.transformType(tpt, allowPackType && count <= 1)
+
+            if typed.tpe.isTypeLambda then
+              val lambdaType = typed.tpe.asTypeLambda
+              val prec = ExprTyper.precedence(ref)
+              val shape = Shape(lambdaType.preParamCount, lambdaType.postParamCount, prec)
+              Some(shape)
             else
               None
 
           case _ =>
             None
 
-        val values = parseMixed(words, -1, resolveProc)
+    val types: mutable.ListBuffer[Ast.TypeTree] = mutable.ListBuffer.from(tpt.types)
+    val typeTrees = parseMixed(types, -1, lambdaTypeHandler)
 
-        assert(words.isEmpty, words)
-        if values.size > 1 then
-          val rest = values.init
-          val span = rest.head.span | rest.last.span
-          Reporter.error("Found extra value, an expression should produce at most one value", span.toPos)
+    assert(types.isEmpty, types)
+    if typeTrees.size > 1 then
+      val rest = typeTrees.init
+      val span = rest.head.span | rest.last.span
+      Reporter.error("Found extra type, a type expression should produce a single type", span.toPos)
 
-        namer.transform(values.last)
-  end transform
+    namer.transformType(typeTrees.last, allowPackType)
+  end transformType
+
 
   /** Form AST from the words with the limit precedence for mixed prefix/infix/postfix pattern */
-  def parseMixed(
-    words: mutable.ListBuffer[Ast.Word], precLimit: Int, resolveProc: Ast.Word => Option[ProcType])
-    (using rp: Reporter, sc: Scope, so: Source)
-  : List[Ast.Word] =
+  def parseMixed[T]
+      (words: mutable.ListBuffer[T], precLimit: Int, handler: Handler[T])
+  : List[T] =
+
     // println("Parsing " + words + ", precedence = " + precedence)
 
-    val values = mutable.ArrayBuffer.empty[Ast.Word]
+    val values = mutable.ArrayBuffer.empty[T]
 
-    def step(fun: Ast.Word, procType: ProcType, precedence: Int): Unit =
-      val preParamCount = procType.preParamCount
-      val postParamCount = procType.postParamCount
+    def step(binder: T, shape: Shape): Unit =
+      val preParamCount = shape.preParams
+      val postParamCount = shape.postParams
 
       val preArgs = values.takeRight(preParamCount).toList
       values.dropRightInPlace(preParamCount)
 
-      val (postArgs, rest) = parseMixed(words, precedence, resolveProc).splitAt(postParamCount)
+      val (postArgs, rest) = parseMixed(words, shape.precedence, handler).splitAt(postParamCount)
 
-      val startSpan = if preArgs.isEmpty then fun.span else preArgs.head.span
-      val endSpan = if postArgs.isEmpty then fun.span else postArgs.last.span
-      val call = Ast.InfixCall(preArgs, fun, postArgs)(startSpan | endSpan)
+      val binding = handler.bundle(preArgs, binder, postArgs)
 
-      // continue if current function has higher binding power
-      values += call
+      // continue if current binder has higher binding power
+      values += binding
 
       // It is important that the rest is added after the inserting `call`
       values ++= rest
 
-
     var continue = true
     while continue && words.nonEmpty do
       val word = words.remove(0)
-      resolveProc(word) match
-        case Some(procType) =>
-          val precedence = ExprTyper.precedence(word)
+      handler.resolveShape(word) match
+        case Some(shape) =>
           // infix, postfix, prefix
-          if precedence > precLimit then
-            step(word, procType, precedence)
+          if shape.precedence > precLimit then
+            step(word, shape)
 
           else
             // put back word

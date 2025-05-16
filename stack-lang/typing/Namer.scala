@@ -31,6 +31,7 @@ class Namer:
   val patternTyper = PatternTyper(this, checker)
   val inferencer: Inferencer = new UnificationSolver
   val exprTyper = new ExprTyper(this)
+  val autoResolver = new Autos(this)
 
   def transform
       (nss: List[Ast.Namespace], rootNameTable: NameTable, predef: NameTable)
@@ -56,7 +57,11 @@ class Namer:
       val nsSym = resolveNamespace(ns.qualid, isBranch = false)(using rootNamespaceScope)
       val nsInfo = ip.info(nsSym).as[NameTableInfo]
 
-      val importScope: Scope = predefScope.fresh(nsSym)
+      val topScope = predefScope.fresh(nsSym)
+      // Make current namespace name available
+      topScope.define(nsSym)
+
+      val importScope: Scope = topScope.fresh()
       val defsScope: Scope = importScope.fresh(nsSym, nsInfo.nameTable)
 
       val delayedDefs =
@@ -72,8 +77,6 @@ class Namer:
       val imports = new mutable.ArrayBuffer[Symbol]
 
       delayedImports += { () =>
-        // Make current namespace name available
-        importScope.define(nsSym)
         // handle imports after indexing members
         for imp <- ns.imports do
           imports ++= Imports.doImport(imp.qualid, importScope, rootNameTable, isAlias = false)
@@ -220,7 +223,7 @@ class Namer:
   end index
 
   extension (word: Word)
-    def adapt(using tt: TargetType, defn: Definitions, rp: Reporter, so: Source): Word =
+    def adapt(using tt: TargetType, defn: Definitions, sc: Scope, rp: Reporter, so: Source): Word =
       checker.adapt(word, tt)
 
   def transform(word: Ast.Word)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
@@ -261,6 +264,7 @@ class Namer:
         transform(lambda).adapt
 
       case Ast.Fence(phrase) =>
+        given Scope = sc.fresh()
         transform(phrase)
 
       case app: Ast.Apply =>
@@ -275,7 +279,9 @@ class Namer:
         transformDotlessCall(call)
 
       case Ast.TypeApply(fun, targs) =>
-        val fun2 = transform(fun)
+        val fun2 =
+          given TargetType = TargetType.TypeApply
+          transform(fun)
         val targs2 = targs.map(targ => transformType(targ))
         checker.checkTypeApply(fun2, targs2).adapt
 
@@ -318,7 +324,9 @@ class Namer:
         patternTyper.transformMatch(patmat).adapt
 
       case vdef: Ast.ValDef =>
-        val flags = if vdef.mutable then Flags.Mutable else Flags.empty
+        var flags = checker.checkModifiers(vdef)
+        if vdef.mutable then flags = flags | Flags.Mutable
+
         val sym = Symbol.createSymbol(vdef.name, flags, vdef.ident.pos)
         val vdef2 = transformValDef(vdef, sym, sc.owner)
         sc.define(sym)
@@ -390,7 +398,10 @@ class Namer:
     given sc2: Scope = sc.fresh(thisSym)
 
     for case vdef: Ast.ValDef <- obj.members do
-      val flags = if vdef.mutable then Flags.Field | Flags.Mutable else Flags.Field
+      var flags = checker.checkModifiers(vdef)
+      if vdef.mutable then flags = flags | Flags.Field | Flags.Mutable
+      else flags = flags | Flags.Field
+
       val sym = Symbol.createSymbol(vdef.name, flags, vdef.ident.pos)
       sc2.define(sym)
 
@@ -493,12 +504,8 @@ class Namer:
       val procType = funType.asProcType
       val paramSize = procType.paramTypes.size
 
-      // Always prefer type constraints from outer scope
-      tt match
-        case TargetType.Known(tp) =>
-           Subtyping.conforms(procType.resultType, tp)
-
-        case _ =>
+      // Always prefer type constraints from outer scope if present
+      for tp <- tt.knownType do Subtyping.conforms(procType.resultType, tp)
 
       val preArgTypes = procType.preParamTypes
       if preArgTypes.size != 0 then
@@ -521,7 +528,8 @@ class Namer:
           else
             transformArgs(apply.args, procType.paramTypes)
 
-        val word = Apply(fun, argsTyped)(procType.resultType, apply.span)
+        val autos = autoResolver.derive(procType, apply.span)
+        val word = Apply(fun, argsTyped, autos)(procType.resultType, apply.span)
         checker.checkUnpackUsage(word, tt)
         val desugared = Rewriting.rewriteShortcutAndOr(word)
         checker.adapt(desugared, tt)
@@ -559,11 +567,16 @@ class Namer:
                 meth.span.toPos)
               errorWord(meth.span)
             else
+
+              // Always prefer type constraints from outer scope if present
+              for tp <- tt.knownType do Subtyping.conforms(procType.resultType, tp)
+
               val argTyped =
                 given TargetType = TargetType.Known(procType.paramTypes.head)
                 transform(arg)
 
-              val word = Apply(fun, argTyped :: Nil)(procType.resultType, call.span)
+              val autos = autoResolver.derive(procType, call.span)
+              val word = Apply(fun, argTyped :: Nil, autos)(procType.resultType, call.span)
               checker.adapt(word, tt)
           else
             Reporter.error( s"The member ${meth.name} is not a method", meth.pos)
@@ -594,12 +607,8 @@ class Namer:
     val preParamCount = procType.preParamCount
     val postParamCount = procType.postParamCount
 
-    // Always prefer type constraints from outer scope
-    tt match
-      case TargetType.Known(tp) =>
-         Subtyping.conforms(procType.resultType, tp)
-
-      case _ =>
+    // Always prefer type constraints from outer scope if present
+    for tp <- tt.knownType do Subtyping.conforms(procType.resultType, tp)
 
     if preArgs.size != preParamCount then
       Reporter.error(
@@ -624,7 +633,8 @@ class Namer:
         else
           transformArgs(postArgs, procType.postParamTypes)
 
-      val word = Apply(fun, preArgs2 ++ postArgs2)(procType.resultType, call.span)
+      val autos = autoResolver.derive(procType, call.span)
+      val word = Apply(fun, preArgs2 ++ postArgs2, autos)(procType.resultType, call.span)
       checker.checkUnpackUsage(word, tt)
       val rewrite = Rewriting.rewriteShortcutAndOr(word)
       checker.adapt(rewrite, tt)
@@ -668,14 +678,18 @@ class Namer:
       val tt = TargetType.Known(paramTypeFlex)
       checker.adapt(Ident(defn.List_empty)(span), tt)
 
-    val lastFlexArg = argsFlexTyped.foldLeft(emptyList): (acc, arg) =>
-      arg match
-        case Apply(fun, arg :: Nil) if fun.refers(defn.Predef_dotdot) =>
-          acc.select("++").appliedTo(arg)
+    val lastFlexArg =
+      if rp.hasErrors then
+        emptyList
+      else
+        argsFlexTyped.foldLeft(emptyList): (acc, arg) =>
+          arg match
+            case Apply(fun, arg :: Nil, _) if fun.refers(defn.Predef_dotdot) =>
+              acc.select("++").appliedTo(arg)
 
-        case _ =>
-          acc.select("+").appliedTo(arg)
-      end match
+            case _ =>
+              acc.select("+").appliedTo(arg)
+          end match
 
     argsFixTyped :+ lastFlexArg
 
@@ -872,7 +886,7 @@ class Namer:
      // Each object has a self symbol
      val thisSym = Symbol.createSymbol("this", Flags.Synthetic, lambda.pos)
 
-     val funSym = Symbol.createSymbol(funName, Flags.Method | Flags.Synthetic, lambda.pos)
+     val funSym = Symbol.createSymbol(funName, Flags.Fun | Flags.Method | Flags.Synthetic, lambda.pos)
      val lambdaScope = sc.fresh(funSym)
 
      val tvars = new mutable.ArrayBuffer[(TypeVar, Ast.Param)]
@@ -905,15 +919,16 @@ class Namer:
        transform(body)
 
      // Provide type info for the function symbol
-     val procType = ProcType(tparams = Nil, paramSyms.map(_.toNamedInfo), bodyTyped.tpe, ctxParams, preParamCount = 0)
+     val procType = ProcType(tparams = Nil, paramSyms.map(_.toNamedInfo), autos = Nil, bodyTyped.tpe, ctxParams, preParamCount = 0)
      defn.add(funSym, thisSym, procType)
 
      for (tvar, param) <- tvars do
        checker.checkInstantiated(tvar, param.pos)
 
      val tparamSyms = Nil
+     val autoSyms = Nil
      val tpt = TypeTree(bodyTyped.tpe)(body.span)
-     val funDef = FunDef(funSym, tparamSyms, paramSyms, tpt, bodyTyped)(lambda.span)
+     val funDef = FunDef(funSym, tparamSyms, paramSyms, autoSyms, tpt, bodyTyped)(lambda.span)
      val objType = ObjectType(fields = Nil, methods = NamedInfo(funName, procType) :: Nil, mutableFields = Nil)
 
      defn.add(thisSym, sc.owner, objType)
@@ -930,7 +945,7 @@ class Namer:
     // given definitions are lazy
     given Definitions = lazyDefn.value
 
-    var flags = Flags.Param | Flags.Context
+    var flags = checker.checkModifiers(pdef) | Flags.Param | Flags.Context
     if pdef.default.nonEmpty then
       flags = flags | Flags.Default
 
@@ -956,7 +971,7 @@ class Namer:
 
         val funInfo = () =>
           ProcType(
-            tparams = Nil, params = Nil, resultType = paramSym.info,
+            tparams = Nil, params = Nil, autos = Nil, resultType = paramSym.info,
             receives = None, preParamCount = 0)
 
         ip.addLazy(defaultFunSym, sc.owner, funInfo)
@@ -966,7 +981,7 @@ class Namer:
           given TargetType = TargetType.Known(paramSym.info)
           val body = transform(rhs)
           val tpt = TypeTree(paramSym.info)(pdef.tpt.span)
-          FunDef(defaultFunSym, tparams = Nil, params = Nil, tpt, body)(rhs.span)
+          FunDef(defaultFunSym, tparams = Nil, params = Nil, autos = Nil, tpt, body)(rhs.span)
 
         DelayedDef(defaultFunSym, defaultFunDefSast) :: delayedParamDef :: Nil
 
@@ -999,7 +1014,9 @@ class Namer:
       so: Source, tt: TargetType)
   : DelayedDef[FunDef] =
 
-    val flags = if tt == TargetType.ObjectMember then Flags.Method else Flags.Fun
+    var flags = checker.checkModifiers(funDef)
+    if tt == TargetType.ObjectMember then flags = flags | Flags.Fun | Flags.Method
+    else flags = flags | Flags.Fun
 
     val funSym = Symbol.createSymbol(funDef.name, flags, funDef.ident.pos)
     given funScope: Scope = sc.fresh(funSym)
@@ -1017,7 +1034,8 @@ class Namer:
             val boundTree = transformType(tparam.bound)
             TypeBound(BottomType, boundTree.tpe)
 
-        val sym = Symbol.createSymbol(tparam.name, bound, Flags.Type | Flags.Param, funSym, tparam.pos)
+        // Only support simple-kinded type parameters
+        val sym = TypeSymbol.createSymbol(Kind.Simple, tparam.name, bound, Flags.Param, funSym, tparam.pos)
         funScope.define(sym)
         sym
 
@@ -1030,13 +1048,21 @@ class Namer:
         funScope.define(paramSym)
         paramSym
 
+    lazy val autoSyms =
+      tparamSyms
+
+      for auto <- funDef.autos yield
+        val tpt = transformType(auto.tpt, allowPackType = false)
+        val autoSym = Symbol.createSymbol(auto.name, tpt.tpe, Flags.Param | Flags.Auto, funSym, auto.pos)
+        funScope.define(autoSym)
+        autoSym
+
     lazy val givenResultType =
       tparamSyms
 
       assert(!funDef.resultType.isEmpty)
       val resTypeTree = transformType(funDef.resultType)
-      checker.delayedCheck { checker.checkValueType(resTypeTree) }
-      resTypeTree.tpe
+      checker.checkValueType(resTypeTree)
 
     // Inferring result type would need fixed point computation for recursive
     // functions. That complicates the machinery in the namer (in particular
@@ -1057,6 +1083,7 @@ class Namer:
 
     lazy val typedBody =
       paramSyms
+      autoSyms
 
       val targetType =
         if !funDef.resultType.isEmpty then
@@ -1074,7 +1101,7 @@ class Namer:
         transformParamRef(param).symbol
 
     def computeInfo(resultType: Type) =
-        ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), resultType, ctxParams, funDef.preParamCount)
+        ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), autoSyms.map(_.toNamedInfo), resultType, ctxParams, funDef.preParamCount)
 
     lazyDefn match
       case lazyDefn: Definitions.Lazy =>
@@ -1086,7 +1113,7 @@ class Namer:
 
     val typer = () =>
       val tpt = TypeTree(resultType)(funDef.resultType.span)
-      FunDef(funSym, tparamSyms, paramSyms, tpt, typedBody)(funDef.span)
+      FunDef(funSym, tparamSyms, paramSyms, autoSyms, tpt, typedBody)(funDef.span)
 
     DelayedDef(funSym, typer)
 
@@ -1094,10 +1121,11 @@ class Namer:
       (using lazyDefn: Definitions.Lazy | Definitions, sc: Scope, rp: Reporter, so: Source)
   : DelayedDef[TypeDef] =
 
-    val flags = Flags.Type
-    val typeSym = Symbol.createSymbol(tdef.name, flags, tdef.ident.pos)
+    val flags = checker.checkModifiers(tdef) | Flags.Type
+    val kind = Kind.simpleKinded(tdef.tparams.size)
+    val typeSym = new TypeSymbol(kind, tdef.name, flags, tdef.ident.pos)
 
-    given Definitions = lazyDefn match
+    given defn: Definitions = lazyDefn match
       case lazyDefn: Definitions.Lazy => lazyDefn.value
       case defn: Definitions => defn
 
@@ -1111,7 +1139,8 @@ class Namer:
             val boundTree = transformType(tparam.bound)
             TypeBound(BottomType, boundTree.tpe)
 
-        val sym = Symbol.createSymbol(tparam.name, bound, Flags.Type | Flags.Param, typeSym, tparam.pos)
+        // Only support simple kinded type parameters
+        val sym = TypeSymbol.createSymbol(Kind.Simple, tparam.name, bound, Flags.Param, typeSym, tparam.pos)
         sc2.define(sym)
         sym
 
@@ -1121,7 +1150,7 @@ class Namer:
 
       if tdef.tparams.isEmpty then
         if tdef.rhs.isEmpty then
-          if sc.owner.fullName == "stk.Predef" then
+          if sc.owner == defn.Predef then
             val typeName = tdef.name
             if typeName == "Any" then AnyType
             else if typeName == "Bottom" then BottomType
@@ -1132,27 +1161,27 @@ class Namer:
           else
             TypeBound(BottomType, AnyType)
         else
-          val rhs = transformType(tdef.rhs)
-          checker.delayedCheck { checker.checkValueType(rhs) }
+          val rhsTree = transformType(tdef.rhs)
+          val rhs = checker.checkValueType(rhsTree)
 
           if tdef.isBound then
-            TypeBound(BottomType, rhs.tpe)
+            TypeBound(BottomType, rhs)
           else
-            rhs.tpe
+            rhs
 
       else
         if tdef.rhs.isEmpty then
-          TypeLambda(tparamSyms, TypeBound(BottomType, AnyType))
+          TypeLambda(tparamSyms, TypeBound(BottomType, AnyType), tdef.preParamCount)
 
         else
-          val rhs = transformType(tdef.rhs)
-          checker.delayedCheck { checker.checkValueType(rhs) }
+          val rhsTree = transformType(tdef.rhs)
+          val rhs = checker.checkValueType(rhsTree)
 
           val rhsType =
-            if tdef.isBound then TypeBound(BottomType, rhs.tpe)
-            else rhs.tpe
+            if tdef.isBound then TypeBound(BottomType, rhs)
+            else rhs
 
-          TypeLambda(tparamSyms, rhsType)
+          TypeLambda(tparamSyms, rhsType, tdef.preParamCount)
 
     end computeInfo
 
@@ -1175,7 +1204,8 @@ class Namer:
 
     given Definitions = lazyDefn.value
 
-    val sym = Symbol.createSymbol(section.name, Flags.Section, section.ident.pos)
+    val flags = checker.checkModifiers(section) | Flags.Section
+    val sym = Symbol.createSymbol(section.name, flags, section.ident.pos)
 
     val nameTable = new NameTable
     given secScope: Scope = sc.fresh(sym, nameTable)
@@ -1213,7 +1243,8 @@ class Namer:
             val boundTree = transformType(tparam.bound)
             TypeBound(BottomType, boundTree.tpe)
 
-        val sym = Symbol.createSymbol(tparam.name, bound, Flags.Type | Flags.Param, sc.owner, tparam.pos)
+        // Only support simple kinded type parameters
+        val sym = TypeSymbol.createSymbol(Kind.Simple, tparam.name, bound, Flags.Param, sc.owner, tparam.pos)
         defScope.define(sym)
         sym
 
@@ -1224,11 +1255,17 @@ class Namer:
         defScope.define(paramSym)
         paramSym
 
+    val autoSyms =
+      for auto <- ddef.autos yield
+        val tpt = transformType(auto.tpt)
+        val autoSym = Symbol.createSymbol(auto.name, tpt.tpe, Flags.Param | Flags.Auto, sc.owner, auto.pos)
+        defScope.define(autoSym)
+        autoSym
+
     val resultType =
       assert(!ddef.resultType.isEmpty)
       val resTypeTree = transformType(ddef.resultType)
-      checker.delayedCheck { checker.checkValueType(resTypeTree) }
-      resTypeTree.tpe
+      checker.checkValueType(resTypeTree)
 
     val ctxParams = ddef.receives.map: params =>
       for
@@ -1237,7 +1274,7 @@ class Namer:
         transformParamRef(param).symbol
 
     val finalType =
-      ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), resultType, ctxParams, preParamCount = 0)
+      ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), autoSyms.map(_.toNamedInfo), resultType, ctxParams, preParamCount = 0)
 
 
     TypeTree(finalType)(ddef.span)
@@ -1249,9 +1286,12 @@ class Namer:
   def transformType(tpt: Ast.TypeTree, allowPackType: Boolean = false)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): TypeTree =
     def check(sym: Symbol) =
       if sym == defn.Predef_Pack && !allowPackType then
-        Reporter.error("Pack type not allowed here. It can only be used as the type of the last varargs parameter.", tpt.pos)
+        Reporter.error(".. not allowed here. It can only be used as the type of the last varargs parameter.", tpt.pos)
 
-    tpt match
+    tpt.testKey(Namer.TypedTypeTree) match
+    case Some(typed) => typed
+    case None =>
+      tpt match
       case Ast.Ident(name) =>
         sc.resolveType(name) match
           case Some(sym) =>
@@ -1283,6 +1323,9 @@ class Namer:
           case tp =>
             TypeTree(ErrorType)(tpt.span)
 
+      case tpt: Ast.ExprType  =>
+        exprTyper.transformType(tpt, allowPackType)
+
       case Ast.RecordType(fields) =>
         val fieldTypes = new mutable.ArrayBuffer[NamedInfo[Type]]
         for field <- fields do
@@ -1290,8 +1333,8 @@ class Namer:
             Reporter.error("Field " + field.name + " already defined", field.pos)
           else
             val tpt = transformType(field.tpt)
-            checker.delayedCheck { checker.checkValueType(tpt) }
-            fieldTypes += NamedInfo(field.name, tpt.tpe)
+            val tp = checker.checkValueType(tpt)
+            fieldTypes += NamedInfo(field.name, tp)
         end for
         TypeTree(RecordType(fieldTypes.toList))(tpt.span)
 
@@ -1302,8 +1345,8 @@ class Namer:
             Reporter.error("Parameter " + param.name + " already defined", param.pos)
 
           val tpt = transformType(param.tpt)
-          checker.delayedCheck { checker.checkValueType(tpt) }
-          paramInfos += NamedInfo(param.name, tpt.tpe)
+          val tp = checker.checkValueType(tpt)
+          paramInfos += NamedInfo(param.name, tp)
         end for
         TypeTree(TagType(tag.name, paramInfos.toList))(tpt.span)
 
@@ -1318,9 +1361,16 @@ class Namer:
           else
             member match
               case methodDecl: Ast.FunDef =>
+                // TODO: specialize the check
+                checker.checkModifiers(methodDecl)
+
                 val memberTypeTree = transformMethodDecl(methodDecl)
                 methodTypes += NamedInfo(member.name, memberTypeTree.tpe)
+
               case vdef: Ast.ValDef =>
+                // TODO: specialize the check
+                checker.checkModifiers(vdef)
+
                 if vdef.mutable then mutableFields += vdef.name
                 val fieldTypeTree = transformType(vdef.tpt)
                 fieldTypes += NamedInfo(vdef.name, fieldTypeTree.tpe)
@@ -1358,18 +1408,24 @@ class Namer:
       case Ast.AppliedType(tctor, targs) =>
         val tctor2 = transformType(tctor, allowPackType)
         val targs2 = for targ <- targs yield transformType(targ, allowPackType = false)
-        checker.delayedCheck { checker.checkBounds(tctor2, targs2) }
-        if tctor2.tpe == ErrorType then TypeTree(ErrorType)(tpt.span)
-        else TypeTree(AppliedType(tctor2.tpe, targs2.map(_.tpe)))(tpt.span)
+        if tctor2.tpe == ErrorType || !checker.checkKind(tctor2, targs2) then
+          TypeTree(ErrorType)(tpt.span)
+        else
+          val tp = AppliedType(tctor2.tpe, targs2.map(_.tpe))
+          checker.delayedCheck {
+            val tl = tctor2.tpe.asTypeLambda
+            checker.checkBounds(tl.tparams, targs2)
+          }
+          TypeTree(tp)(tpt.span)
 
       case Ast.FunctionType(paramTypes, resType, receives) =>
         var i = 0
         val paramTypes2 =
           for paramType <- paramTypes yield
             val tpt = transformType(paramType)
-            checker.delayedCheck { checker.checkValueType(tpt) }
-            val namedInfo = NamedInfo("param" + i, tpt.tpe)
-            i = i+1
+            val tp = checker.checkValueType(tpt)
+            val namedInfo = NamedInfo("param" + i, tp)
+            i = i + 1
             namedInfo
 
         val ctxParams =
@@ -1379,8 +1435,10 @@ class Namer:
             transformParamRef(param).symbol
 
         val resType2 = transformType(resType)
-        checker.delayedCheck { checker.checkValueType(resType2) }
-        val applyType = ProcType(tparams = Nil, paramTypes2, resType2.tpe, Some(ctxParams), preParamCount = 0)
+        val resTypeChecked = checker.checkValueType(resType2)
+
+        val autoTypes = Nil
+        val applyType = ProcType(tparams = Nil, paramTypes2, autoTypes, resTypeChecked, Some(ctxParams), preParamCount = 0)
         val objType = ObjectType(fields = Nil, methods = NamedInfo("apply", applyType) :: Nil, mutableFields = Nil)
         TypeTree(objType)(tpt.span)
 
@@ -1395,6 +1453,8 @@ object Namer:
     * It is used to avoid re-typing a word.
     */
   val TypedWord = new KeyProps.Key[Word]("Namer.TypedWord")
+
+  val TypedTypeTree = new KeyProps.Key[TypeTree]("Namer.TypedTypeTree")
 
   class DelayedDef[+T](val symbol: Symbol, val delayed: () => T):
     private lazy val definition: T = delayed()

@@ -163,10 +163,14 @@ object EffectAnalysis:
         case Encoded(repr) =>
           this(repr)
 
-        case Apply(fun, args) =>
+        case Apply(fun, args, autos) =>
           // Method calls are handled in `Select`, procedure in `Ident`
-          args.foldLeft(this(fun)): (acc, arg) =>
+          val acc1 = this(fun)
+          val acc2 = args.foldLeft(acc1): (acc, arg) =>
             acc ++ this(arg)
+
+          autos.foldLeft(acc2): (acc, auto) =>
+            acc ++ this(auto)
 
         case TypeApply(fun, targs) =>
           this(fun)

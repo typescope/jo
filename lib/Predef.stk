@@ -33,6 +33,7 @@ alias stk.Array
 type Array[T] = Array.Array[T]
 
 alias stk.Eq
+alias stk.Eq.Defaults.*
 type Eq[T] = Eq.Eq[T]
 
 alias stk.List
@@ -64,7 +65,7 @@ pattern (lhs: T) |[T] (rhs: T): T =
 //
 
 // Used to indicate the last parameter is a vararg
-type Pack[T] = List[T]
+type ..[T] = List[T]
 
 // Splice a list as flat arguments
 fun ..[T](l: List[T]): T = abort "Only support unpacking in argument positions"

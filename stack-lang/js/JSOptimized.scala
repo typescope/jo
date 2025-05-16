@@ -43,7 +43,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
           case Some(sym) => jsName(sym)
 
           case None =>
-            val rawName = if target.isFunction then target.fullName else target.name
+            val rawName = target.fullName
             val uniqueName = unique.freshName(encodeSymbolic(rawName))
             symbol2UniqueName(target) = uniqueName
 
@@ -197,8 +197,8 @@ class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
           run(repr): v =>
             cont(v)
 
-      case app @ Apply(fun, args) =>
-        call(fun, args)
+      case app @ Apply(fun, args, autos) =>
+        call(fun, args ++ autos)
 
       case TypeApply(fun, _) =>
         compile(fun)
@@ -267,7 +267,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
 
     unique.newScope:
       val locals = fdef.locals.filter(sym => sym.isMutable || sym.isPattern).map("var " ~ _ ~ ";" ~ Text.BreakLine)
-      "function " ~ jsFunName ~ "(" ~ fdef.params.join(", ") ~ ")" ~ " {" ~ indent:
+      "function " ~ jsFunName ~ "(" ~ fdef.allParams.join(", ") ~ ")" ~ " {" ~ indent:
           if resCount == 0 then
             locals.join(Text.Empty) ~ fdef.body
           else
@@ -387,6 +387,7 @@ object JSOptimized:
         case '$' => "dollar".wrap
         case '?' => "question".wrap
         case ':' => "colon".wrap
+        case '~' => "tilde".wrap
         case '.' => "_"
         case _   => throw new Exception("Not supported, c = " + c)
 

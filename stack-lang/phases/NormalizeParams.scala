@@ -113,7 +113,7 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
     val tpt = TypeTree(valueSym.info)(pdef.tpt.span)
     val body = Block(vdef :: ifStat :: Nil)(param.info, pdef.span)
 
-    FunDef(valueFunSym, tparams = Nil, params = Nil, tpt, body)(pdef.span)
+    FunDef(valueFunSym, tparams = Nil, params = Nil, autos = Nil, tpt, body)(pdef.span)
 
   override def transformTopLevelDefs(defs: List[Def])(using ctx: Context): List[Def] =
     defs.flatMap:

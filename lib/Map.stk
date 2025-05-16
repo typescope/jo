@@ -1,18 +1,6 @@
 namespace stk.Map
 
-import stk.Predef.List
-import stk.Predef.Unit
-import stk.Predef.Pack
-import stk.Predef.Eq
-import stk.Predef.Option
-import stk.Predef.Some
-import stk.Predef.None
-
-import stk.Predef.Pair
-import stk.Predef.->
-
-import stk.Int.*
-import stk.Bool.*
+import stk.Predef.*
 
 type Map[K, V] = object {
   def size: Int
@@ -28,13 +16,13 @@ type Map[K, V] = object {
   def fold[S](zero: S, f: (S, K, V) => S): S
 }
 
-fun empty[K, V](eq: Eq[K]): Map[K, V] = MapImpl.makeObject eq List.empty
+fun empty[K, V](auto eq: Eq[K]): Map[K, V] = MapImpl.makeObject List.empty
 
-fun Map[K, V](eq: Eq[K], elems: Pack[Pair[K, V]]): Map[K, V] = MapImpl.makeObject eq elems
+fun Map[K, V](elems: ..Pair[K, V])(auto eq: Eq[K]): Map[K, V] = MapImpl.makeObject elems
 
 // A strawman implementation of Map based on List
 section MapImpl
-  fun makeObject[K, V](eq: Eq[K], l: List[Pair[K, V]]): Map[K, V] = object {
+  fun makeObject[K, V](l: List[Pair[K, V]])(auto eq: Eq[K]): Map[K, V] = object {
     def size: Int = l.size
 
     def contains(k: K): Bool =
@@ -62,7 +50,7 @@ section MapImpl
 
     def update(k: K, v: V): Map[K, V] =
       val l2 = l.exclude p => eq k p.a
-      makeObject eq (l2 + (k -> v))
+      makeObject (l2 + (k -> v))
 
     def remove(k: K): Map[K, V] = exclude (k1, _) => eq k k1
 
@@ -70,10 +58,10 @@ section MapImpl
       xs.fold this (acc, k, v) => acc.add(k, v)
 
     def select(pred: (K, V) => Bool): Map[K, V] =
-      makeObject eq (l.select p => pred p.a p.b)
+      makeObject (l.select p => pred p.a p.b)
 
     def exclude(pred: (K, V) => Bool): Map[K, V] =
-      makeObject eq (l.exclude p => pred p.a p.b)
+      makeObject (l.exclude p => pred p.a p.b)
 
     def foreach(f: (K, V) => Unit): Unit = l.foreach p => f p.a p.b
 

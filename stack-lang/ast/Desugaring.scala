@@ -53,7 +53,7 @@ object Desugaring:
   : List[Def] =
 
     val tagType = TagType(ddef.ident, ddef.params)(ddef.span)
-    val tdef = TypeDef(ddef.ident, ddef.tparams, tagType, isBound = false)(ddef.span)
+    val tdef = TypeDef(ddef.ident, ddef.tparams, tagType, isBound = false, preParamCount = 0)(ddef.span)
     if secDef != null then
       // section defitions have a chance to do its own desugaring with current
       // data defintion
@@ -111,8 +111,9 @@ object Desugaring:
 
       if !hasFunMember then
         val body = Apply(Tag(id)(id.span), ddef.params.map(_.ident))(ddef.span)
+        val autos = Nil
         val receiveParams = Some(Nil)
-        val fdef = FunDef(id, ddef.tparams, ddef.params, tp, receiveParams, body, preParamCount = 0)(ddef.span)
+        val fdef = FunDef(id, ddef.tparams, ddef.params, autos, tp, receiveParams, body, preParamCount = 0)(ddef.span)
         syntheticMembers += fdef
 
       if syntheticMembers.isEmpty then
@@ -194,5 +195,5 @@ object Desugaring:
     end for
 
     val unionType = UnionType(branchTypes.toList)(enumDef.span)
-    val tdef = TypeDef(enumDef.ident, enumDef.tparams, unionType, isBound = false)(enumDef.span)
+    val tdef = TypeDef(enumDef.ident, enumDef.tparams, unionType, isBound = false, preParamCount = 0)(enumDef.span)
     tdef :: dataDefs.toList

@@ -19,6 +19,10 @@ object AstOps:
           for branch <- branches do
             this(branch)
 
+        case ExprType(types) =>
+          for tp <- types do
+            this(tp)
+
         case TagType(_, params) =>
           for param <- params do
             this(param.tpt)

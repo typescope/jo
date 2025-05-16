@@ -78,7 +78,12 @@ object Imports:
     val alisedMembers = new mutable.ArrayBuffer[Symbol]
 
     def createAlias(name: String, sym: Symbol): Unit =
-      val alias = Symbol.create(name, TypeRef(sym), sym.flags | Flags.Alias, importScope.owner, qualid.pos)
+      val alias =
+        if sym.isType then
+          TypeSymbol.create(sym.asTypeSymbol.kind, name, TypeRef(sym), sym.flags | Flags.Alias, importScope.owner, qualid.pos)
+        else
+          Symbol.create(name, TypeRef(sym), sym.flags | Flags.Alias, importScope.owner, qualid.pos)
+
       imports += alias
       importScope.define(alias)
 

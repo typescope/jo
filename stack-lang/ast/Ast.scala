@@ -11,6 +11,14 @@ import common.KeyProps
 object Ast:
   sealed abstract class Tree extends Product, Positioned, KeyProps.Container
 
+  enum Modifier extends Tree:
+    case Auto()(val span: Span)
+    case Private()(val span: Span)
+
+    def show: String = this match
+      case Auto()    => "auto"
+      case Private() => "private"
+
   sealed abstract class Word extends Tree:
     def show: String = Printing.show(this)
 
@@ -199,6 +207,11 @@ object Ast:
     (val span: Span)
   extends TypeTree
 
+  case class ExprType
+    (types: List[TypeTree])
+    (val span: Span)
+  extends TypeTree
+
   case class TagType
     (tag: Ident, params: List[Param])
     (val span: Span)
@@ -206,7 +219,7 @@ object Ast:
     def name = tag.name
 
   case class AppliedType
-    (tpeCtor: RefTree, targs: List[TypeTree])
+    (tpeCtor: TypeTree, targs: List[TypeTree])
     (val span: Span)
   extends TypeTree:
     assert(targs.nonEmpty)
@@ -225,7 +238,17 @@ object Ast:
   //-------------------------- definitions -------------------------------------
 
   sealed trait Def extends Tree:
+    private var _modifiers: List[Modifier] | Null = null
+
     def name: String
+
+    def modifiers: List[Modifier] =
+      if _modifiers == null then Nil else _modifiers
+
+    def withMods(mods: List[Modifier]): this.type =
+      assert(_modifiers == null, "already set, modifiers = " + _modifiers + ", mods = " + mods)
+      _modifiers = mods
+      this
 
   case class ValDef
     (ident: Ident, tpt: TypeTree, rhs: Word, mutable: Boolean)
@@ -253,7 +276,7 @@ object Ast:
     * explicit.
     */
   case class FunDef
-    (ident: Ident, tparams: List[TypeParam], params: List[Param],
+    (ident: Ident, tparams: List[TypeParam], params: List[Param], autos: List[Param],
         resultType: TypeTree, receives: Option[List[RefTree]], body: Word,
         preParamCount: Int)
     (val span: Span)
@@ -265,6 +288,7 @@ object Ast:
       assert(isQualid(param), param)
 
     def name: String = ident.name
+
 
   /** Representation of a pattern definition */
   case class PatDef
@@ -305,7 +329,7 @@ object Ast:
     * @param isBound whether the rhs is a type bound
     */
   case class TypeDef
-    (ident: Ident, tparams: List[TypeParam], rhs: TypeTree, isBound: Boolean)
+    (ident: Ident, tparams: List[TypeParam], rhs: TypeTree, isBound: Boolean, preParamCount: Int)
     (val span: Span)
   extends Word, Def:
     def name: String = ident.name

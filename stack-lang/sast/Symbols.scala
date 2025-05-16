@@ -21,7 +21,7 @@ object Symbols:
   case class SymInfo(symbol: Symbol, owner: Symbol, tpe: Type):
     assert(owner != null || symbol.flags.is(Flags.NSpace))
 
-  final class Symbol(val name: String, val flags: Flags, val sourcePos: SourcePosition):
+  sealed class Symbol(val name: String, val flags: Flags, val sourcePos: SourcePosition):
     /** TODO: Cache could be introduced to improve performance based on timestamps */
     private def symInfo(using defn: Definitions): SymInfo = defn.info(this)
 
@@ -35,7 +35,11 @@ object Symbols:
 
     def owner(using Definitions): Symbol = symInfo.owner
 
+    /** All symbols that have a ProcType are functions, including top-level
+      * functions, methods and pattern predicates
+      */
     def isFunction : Boolean = flags.is(Flags.Fun)
+
     def isMethod   : Boolean = flags.is(Flags.Method)
     def isType     : Boolean = flags.is(Flags.Type)
     def isPattern  : Boolean = flags.is(Flags.Pattern)
@@ -66,7 +70,7 @@ object Symbols:
         owner.enclosingContainer
 
     def enclosingFunction(using Definitions): Symbol =
-      if this.isFunction || this.isMethod then
+      if this.isFunction then
         this
       else
         // owner can be null, let exception be thrown
@@ -128,30 +132,65 @@ object Symbols:
       assert(this.isAllOf(Flags.Default | Flags.Context))
       this.dealias.owner.termMember(this.name + "$option")
 
-    def fullName(using Definitions): String = this.ownersIterator.foldLeft(this.name):
-      (acc, owner) => owner.name + "." + acc
+    def fullName(using Definitions): String =
+      if isLocal then
+        this.name
+      else
+        this.ownersIterator.foldLeft(this.name):
+          (acc, owner) => owner.name + "." + acc
 
     def toNamedInfo(using Definitions): NamedInfo[Type] = NamedInfo(name, info)
 
     override def toString() = name
 
+    def asTypeSymbol: TypeSymbol = this.asInstanceOf[TypeSymbol]
+  end Symbol
+
+  final class TypeSymbol(
+    val kind: Kind, name: String, flags: Flags, sourcePos: SourcePosition)
+  extends Symbol(name, flags | Flags.Type, sourcePos)
+
+  object TypeSymbol:
+    def create
+        (kind: Kind, name: String, info: Type, flags: Flags, owner: Symbol, pos: SourcePosition)
+        (using ip: InfoProvider)
+    : TypeSymbol =
+      val sym = new TypeSymbol(kind, name, flags, pos)
+      ip.add(sym, owner, info)
+      sym
+
+    def createSymbol
+        (kind: Kind, name: String, info: Type, flags: Flags, owner: Symbol, pos: SourcePosition)
+        (using defn: Definitions)
+    : Symbol =
+      val sym = new TypeSymbol(kind, name, flags, pos)
+      defn.add(sym, owner, info)
+      sym
+
+
   object Symbol:
+    /** Create a term or pattern symbol */
     def createSymbol(name: String, flags: Flags, pos: SourcePosition) =
+      assert(!flags.is(Flags.Type), "type symbols should be created by `new TypeSymbol`")
       new Symbol(name, flags, pos)
 
+    /** Create a term or pattern symbol */
     def createSymbol
         (name: String, info: Type, flags: Flags, owner: Symbol, pos: SourcePosition)
         (using defn: Definitions)
     : Symbol =
+      assert(!flags.is(Flags.Type), "type symbols should be created by `TypeSymbol.createSymbol`")
 
       val sym = new Symbol(name, flags, pos)
       defn.add(sym, owner, info)
       sym
 
+    /** Create a term or pattern symbol */
     def create
         (name: String, info: Type, flags: Flags, owner: Symbol, pos: SourcePosition)
         (using ip: InfoProvider)
     : Symbol =
+      assert(!flags.is(Flags.Type), "type symbols should be created by `TypeSymbol.create`")
 
       val sym = new Symbol(name, flags, pos)
       ip.add(sym, owner, info)

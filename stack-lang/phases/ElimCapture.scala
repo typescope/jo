@@ -42,9 +42,10 @@ object ElimCapture:
     val oldFunSym = fdef.symbol
 
     val paramInfos = fdef.params.map(_.toNamedInfo)
+    val autoInfos = fdef.autos.map(_.toNamedInfo)
     val resType = fdef.procType.resultType
     val paramInfos2 = prependParams ++ paramInfos ++ appendParams
-    val funType = ProcType(fdef.tparams, paramInfos2, resType, fdef.receives, preParamCount = 0)
+    val funType = ProcType(fdef.tparams, paramInfos2, autoInfos, resType, fdef.receives, preParamCount = 0)
 
     val funName = ctx.flatName(fdef.symbol)
     Symbol.createSymbol(funName, funType, Flags.Fun | Flags.Synthetic, oldFunSym.enclosingContainer, oldFunSym.sourcePos)
@@ -124,7 +125,7 @@ object ElimCapture:
       val lifter = new Lifter(funSym)
       val body = lifter(fdef.body)(using ctx.withSubsts(substs.toMap))
       val params = fdef.params ++ paramSymsCaptured
-      ctx.lifted += FunDef(funSym, fdef.tparams, params, fdef.resultType, body)(fdef.span)
+      ctx.lifted += FunDef(funSym, fdef.tparams, params, fdef.autos, fdef.resultType, body)(fdef.span)
 
       Block(words = Nil)(VoidType, fdef.span)
 
@@ -180,7 +181,7 @@ object ElimCapture:
          ObjectType(objType.fields ++ capturedMembers.toList, objType.methods, objType.mutableFields)
 
       val thisTypeName = ctx.uniq.freshName("ThisType")
-      val thisTypeAliasSym = Symbol.createSymbol(thisTypeName, Flags.Type | Flags.Synthetic, obj.self.sourcePos)
+      val thisTypeAliasSym = new TypeSymbol(Kind.Simple, thisTypeName, Flags.Synthetic, obj.self.sourcePos)
       val thisType = TypeRef(thisTypeAliasSym)
       ctx.lifted += TypeDef(thisTypeAliasSym)(obj.span)
 
@@ -231,16 +232,17 @@ object ElimCapture:
         val body2 = Block(aliases.toList :+ body)(body.tpe, body.span)
         val params = paramThis :: fdef.params
 
-        ctx.lifted += FunDef(liftedSym, fdef.tparams, params, fdef.resultType, body2)(fdef.span)
+        ctx.lifted += FunDef(liftedSym, fdef.tparams, params, fdef.autos, fdef.resultType, body2)(fdef.span)
       end for
 
       val recordType = RecordType(memberTypes.toList)
       Encoded(RecordLit(members.toList)(recordType, obj.span))(objType)
 
     override def transformApply(app: Apply)(using ctx: Context): Word =
-      val Apply(fun, args) = app
+      val Apply(fun, args, autos) = app
 
       val args2 = args.map(this.apply)
+      val autos2 = autos.map(this.apply)
 
       fun match
         case Ident(sym) if sym.is(Flags.Fun) && sym.isLocal =>
@@ -255,7 +257,7 @@ object ElimCapture:
               val sym = rewire(capture)
               Ident(sym)(app.span)
 
-          Apply(funSubst, args2 ++ extraArgs)(app.tpe, app.span)
+          Apply(funSubst, args2 ++ extraArgs, autos2)(app.tpe, app.span)
 
         case Select(qual, name) =>
           val qual2 = this(qual)
@@ -263,14 +265,14 @@ object ElimCapture:
           val liftedProcType = procType.prepend(NamedInfo("this", qual2.tpe) :: Nil)
           if qual2.isIdempotent then
             val proc = Select(qual2, name)(procType, fun.span)
-            Apply(Encoded(proc)(liftedProcType), qual2 :: args2)(app.tpe, app.span)
+            Apply(Encoded(proc)(liftedProcType), qual2 :: args2, autos2)(app.tpe, app.span)
           else
             given Positions.Source = owner.sourcePos.source
             val receiverSym = Symbol.createSymbol("o", qual2.tpe, Flags.Synthetic, owner, qual2.pos)
             val receiver = Ident(receiverSym)(qual2.span)
             val assign = Assign(Ident(receiverSym)(qual2.span), qual2)(qual2.span)
             val proc = Select(receiver, name)(procType, fun.span)
-            val apply = Apply(Encoded(proc)(liftedProcType), receiver :: args2)(app.tpe, app.span)
+            val apply = Apply(Encoded(proc)(liftedProcType), receiver :: args2, autos2)(app.tpe, app.span)
             Block(assign :: apply :: Nil)(app.tpe, app.span)
 
         case TypeApply(Select(qual, name), targs) =>
@@ -284,7 +286,7 @@ object ElimCapture:
           if qual2.isIdempotent then
             val meth = Encoded(Select(qual2, name)(procType, fun.span))(liftedProcType)
             val fun2 = TypeApply(meth, targs)(liftedFunType, fun.span)
-            Apply(fun2, qual2 :: args2)(app.tpe, app.span)
+            Apply(fun2, qual2 :: args2, autos2)(app.tpe, app.span)
           else
             given Positions.Source = owner.sourcePos.source
             val receiverSym = Symbol.createSymbol("o", qual2.tpe, Flags.Synthetic, owner, qual2.pos)
@@ -292,12 +294,12 @@ object ElimCapture:
             val assign = Assign(Ident(receiverSym)(qual2.span), qual2)(qual2.span)
             val meth = Encoded(Select(receiver, name)(procType, fun.span))(liftedProcType)
             val fun2 = TypeApply(meth, targs)(liftedFunType, fun.span)
-            val apply = Apply(fun2, receiver :: args2)(app.tpe, app.span)
+            val apply = Apply(fun2, receiver :: args2, autos2)(app.tpe, app.span)
             Block(assign :: apply :: Nil)(app.tpe, app.span)
 
         case _ =>
          // global function call
-         Apply(fun, args2)(app.tpe, app.span)
+         Apply(fun, args2, autos2)(app.tpe, app.span)
 
 
     override def transformValDef(vdef: ValDef)(using ctx: Context): Word =

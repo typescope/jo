@@ -1,0 +1,7 @@
+type [S] ~ [T] = #Pair(lhs: S, rhs: T)
+
+fun test1(a: Int): Int ~ = ???
+
+fun test2(a: Int): ~ = ???
+
+fun test3(a: Int): Int ~ Int Int = ???

@@ -28,7 +28,9 @@ object Printing:
     showType(tp).toString
 
   def print(nss: List[Namespace])(using Definitions): Unit =
-    for ns <- nss do println(show(ns))
+    for ns <- nss do
+      println(show(ns))
+      println
 
   //----------------------------------------------------------------------------
 
@@ -94,6 +96,10 @@ object Printing:
         val paramText =
           "(" ~ fdef.params.map(sym => sym.name ~ ": " ~ sym.info).join(", ") ~ ")"
 
+        val autoText =
+          if fdef.autos.isEmpty then Text.Empty
+          else "(auto " ~ fdef.autos.map(sym => sym.name ~ ": " ~ sym.info).join(", ")  ~ ")"
+
         val resType = fdef.resultType
 
         val locals = fdef.locals.map(sym => sym ~ ": " ~ sym.info).join(", ")
@@ -113,8 +119,8 @@ object Printing:
               Text.Empty
 
         "@locals(" ~ locals ~ ")" ~ Text.BreakLine ~
-        modifiers ~ kind ~ fdef.name ~ tparamText ~ paramText ~ ":" ~ resType ~ receives ~ " =" ~ indent:
-            fdef.body
+        modifiers ~ kind ~ fdef.name ~ tparamText ~ paramText ~ autoText ~ ":" ~ resType ~ receives ~ " =" ~ indent:
+          fdef.body
 
       case pdef: PatDef =>
         val tparams =
@@ -182,9 +188,14 @@ object Printing:
       case Encoded(repr) =>
         "(" ~ repr ~ ": " ~ word.tpe ~ ")"
 
-      case Apply(fun, args) =>
+      case Apply(fun, args, autos) =>
+        val autoText =
+          if autos.isEmpty then Text.Empty
+          else Text.BreakLine ~ "auto" ~ indent:
+            autos.join(Text.BreakLine)
+
         fun ~ indent:
-          args.join(Text.BreakLine)
+          args.join(Text.BreakLine) ~ autoText
 
       case TypeApply(fun, targs) =>
         fun ~ "[" ~ targs.join(", ") ~ "]"
@@ -293,6 +304,7 @@ object Printing:
 
   def showModifiers(sym: Symbol)(using Definitions): Text =
     val buf = new mutable.ArrayBuffer[Text]
+    if sym.is(Flags.Auto) then buf += Text("<auto>")
     if sym.is(Flags.Synthetic) then buf += Text("<synthetic>")
     if sym.is(Flags.Context) then buf += Text("<context>")
     if sym.is(Flags.Default) then buf += Text("<default>")
@@ -353,13 +365,13 @@ object Printing:
       case AppliedType(tctor, targs) =>
         tctor ~ "[" ~ targs.join(Text(", ")) ~ "]"
 
-      case TypeLambda(tparams, body) =>
+      case TypeLambda(tparams, body, _) =>
         "[" ~ tparams.join(", ") ~ "]" ~ " => " ~ body
 
       case TypeBound(lo, hi) =>
         lo ~ " .. " ~ hi
 
-      case ProcType(tparams, params, resType, receivesOpt, n) =>
+      case ProcType(tparams, params, autos, resType, receivesOpt, n) =>
         val tparamText =
           if tparams.isEmpty then
             Text.Empty
@@ -376,9 +388,9 @@ object Printing:
         val postText =
           "(" ~ params.drop(n).map(param => param.name ~ ": " ~ param.info).join(", ") ~ ")"
 
-        val autoText = Text.Empty
-          // if autos.isEmpty then Text.Empty
-          // else "(" ~ autos.map(param => param.name ~ ": " ~ param.info).join(", ") ~ ")"
+        val autoText =
+          if autos.isEmpty then Text.Empty
+          else "(" ~ autos.map(param => param.name ~ ": " ~ param.info).join(", ") ~ ")"
 
         val receivesText =
           if receivesOpt.isEmpty then Text.Empty

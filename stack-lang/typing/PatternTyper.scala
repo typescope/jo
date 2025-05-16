@@ -9,7 +9,7 @@ import sast.Symbols.*
 import sast.Types.*
 
 import reporting.Reporter
-import reporting.Diagnostics.*
+import reporting.Diagnostics
 
 import Namer.DelayedDef
 import Inference.TargetType
@@ -26,7 +26,9 @@ class PatternTyper(namer: Namer, checker: Checker):
       case lazyDefn: Definitions.Lazy => lazyDefn.value
       case defn: Definitions => defn
 
-    val patSym = Symbol.createSymbol(patDef.name, Flags.Pattern | Flags.Fun, patDef.ident.pos)
+    val flags = checker.checkModifiers(patDef) | Flags.Pattern | Flags.Fun
+
+    val patSym = Symbol.createSymbol(patDef.name, flags, patDef.ident.pos)
     given patScope: Scope = sc.fresh(patSym)
 
     lazy val tparamSyms =
@@ -38,7 +40,8 @@ class PatternTyper(namer: Namer, checker: Checker):
             val boundTree = namer.transformType(tparam.bound)
             TypeBound(BottomType, boundTree.tpe)
 
-        val sym = Symbol.createSymbol(tparam.name, bound, Flags.Type | Flags.Param, patSym, tparam.pos)
+        // Only support simple kinded type parameters
+        val sym = TypeSymbol.createSymbol(Kind.Simple, tparam.name, bound, Flags.Param, patSym, tparam.pos)
         patScope.define(sym)
         sym
 
@@ -90,7 +93,8 @@ class PatternTyper(namer: Namer, checker: Checker):
         patterns.tail.foldLeft(patterns.head)(OrPattern.apply)
 
     def computeInfo(resultType: Type) =
-      ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), resultType, receives = None, preParamCount = patDef.preParamCount)
+      val autoTypes = Nil
+      ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), autoTypes, resultType, receives = None, preParamCount = patDef.preParamCount)
 
     lazyDefn match
       case lazyDefn: Definitions.Lazy =>
@@ -535,19 +539,31 @@ class PatternTyper(namer: Namer, checker: Checker):
         // mixed prefix/infix/postfix pattern, arity depends on type of the function
         val wordList: mutable.ListBuffer[Ast.Word] = mutable.ListBuffer.from(words)
 
-        val resolveProc: Ast.Word => Option[ProcType] = (word: Ast.Word) => word match
-          case id: Ast.Ident =>
-            resolvePatternPredicateOpt(id) match
-              case Some(sym) =>
-                val procType = sym.info.asProcType
-                // parameterless predicates should not interfere with expression typing
-                if procType.params.isEmpty then None else Some(procType)
+        val resolveProc = new ExprTyper.Handler[Ast.Word]:
+          def bundle(preArgs: List[Ast.Word], binder: Ast.Word, postArgs: List[Ast.Word]): Ast.Word =
+            val startSpan = if preArgs.isEmpty then binder.span else preArgs.head.span
+            val endSpan = if postArgs.isEmpty then binder.span else postArgs.last.span
+            Ast.InfixCall(preArgs, binder, postArgs)(startSpan | endSpan)
+
+          def resolveShape(tpt: Ast.Word): Option[ExprTyper.Shape] =
+            tpt match
+              case id: Ast.Ident =>
+                resolvePatternPredicateOpt(id) match
+                  case Some(sym) =>
+                    val procType = sym.info.asProcType
+                    // parameterless predicates should not interfere with expression typing
+                    if procType.params.isEmpty then
+                      None
+                    else
+                      val prec = ExprTyper.precedence(id)
+                      val shape = ExprTyper.Shape(procType.preParamCount, procType.postParamCount, prec)
+                      Some(shape)
+
+                  case _ =>
+                    None
 
               case _ =>
                 None
-
-          case _ =>
-            None
 
         val values = namer.exprTyper.parseMixed(wordList, -1, resolveProc)
 
@@ -815,8 +831,8 @@ object PatternTyper:
         Reporter.error(s"The parameter $symbol should occur once in the patterns", symbol.sourcePos)
 
   class ShadowedPattern(pat1: Pattern, pat2: Pattern)(using Source)
-  extends DoublePositionedReport:
-    val kind = Kind.Warning
+  extends Diagnostics.DoublePositionedReport:
+    val kind = Diagnostics.Kind.Warning
 
     val pos1 = pat1.pos
     val pos2 = pat2.pos

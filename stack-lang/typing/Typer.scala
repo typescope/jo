@@ -57,12 +57,36 @@ object Typer:
     })
 
     // `|>` will stop early in the presence of parsing errors
-    Parser.parse(files) |> namer
+    files |> parseStep |> namer
+
+  def parseStep(using config: Config, rp: Reporter)
+  : Step[List[String], List[Ast.Namespace]] =
+
+    Step("parser", sources => {
+      val res = Parser.parse(sources)
+
+      if config.printAfter.contains("parser") then
+        ast.Printing.print(res)
+
+      res
+    })
+
+  def typeStep(runtime: List[String])
+      (using config: Config, lazyDefn: Definitions.Lazy, rp: Reporter)
+  : Step[List[Ast.Namespace], List[Namespace]] =
+
+    Step("namer", (nssAst: List[Ast.Namespace]) => {
+        val res = check(nssAst, runtime)
+        if config.printAfter.contains("namer") then
+          given Definitions = lazyDefn.value
+          Printing.print(res)
+        res
+      })
 
   def main(args: Array[String]): Unit =
     val (options, sources) = IO.parseOptions(args, Config.commonOptionsSpec)
 
-    given Config = Config(options)
+    given config: Config = Config(options)
 
     Reporter.monitor:
       val runtimeFiles = Nil
@@ -70,6 +94,4 @@ object Typer:
       val rootNameTable = new NameTable
       given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable)
 
-      val namer = Step("namer", (nssAst: List[Ast.Namespace]) => check(nssAst, runtimeFiles))
-
-      Parser.parse(sources) |> namer
+      sources |> parseStep |> typeStep(runtimeFiles)

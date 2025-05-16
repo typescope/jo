@@ -11,9 +11,10 @@ import scala.collection.mutable
 class NameTable(
   termNames: mutable.Map[String, Symbol],
   typeNames: mutable.Map[String, Symbol],
-  patternNames: mutable.Map[String, Symbol]):
+  patternNames: mutable.Map[String, Symbol],
+  autos: mutable.ArrayBuffer[Symbol]):
 
-  def this() = this(mutable.Map.empty, mutable.Map.empty, mutable.Map.empty)
+  def this() = this(mutable.Map.empty, mutable.Map.empty, mutable.Map.empty, new mutable.ArrayBuffer)
 
   private def getTable(sym: Symbol) =
     if sym.isType then typeNames
@@ -53,6 +54,14 @@ class NameTable(
   def define(sym: Symbol)(using rp: Reporter): Unit =
     val table = getTable(sym)
     defineInTable(sym, table)
+
+    if sym.is(Flags.Auto) then
+      defineAuto(sym)
+
+  def getAutos: Seq[Symbol] = autos.toSeq
+
+  private def defineAuto(sym: Symbol): Unit =
+    autos += sym
 
   private def defineInTable(sym: Symbol, table: mutable.Map[String, Symbol])(using rp: Reporter): Unit =
     table.get(sym.name) match

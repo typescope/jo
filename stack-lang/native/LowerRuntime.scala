@@ -68,8 +68,9 @@ class LowerRuntime(runtime: NativeRuntime)(using defn: Definitions) extends phas
       ref
 
   override def transformApply(app: Apply)(using ctx: Context): Word =
-    val Apply(fun, args) = app
+    val Apply(fun, args, autos) = app
      val args2 = args.map(this.apply)
+     val autos2 = autos.map(this.apply)
 
     fun.strip match
       case TypeApply(Ident(sym), tpt :: Nil) if sym.refers(runtime.Core_cast) =>
@@ -77,7 +78,7 @@ class LowerRuntime(runtime: NativeRuntime)(using defn: Definitions) extends phas
         Encoded(args2.head)(tpt.tpe)
 
       case _ =>
-        Apply(this(fun), args2)(app.tpe, app.span)
+        Apply(this(fun), args2, autos2)(app.tpe, app.span)
 
   override def transformSelect(select: Select)(using ctx: Context): Word =
     val Select(qual, name) = select

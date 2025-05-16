@@ -9,6 +9,7 @@ files=(
     stack-lang/ast/Name.scala
     stack-lang/ast/Positions.scala
     stack-lang/ast/Printing.scala
+    stack-lang/common/Debug.scala
     stack-lang/common/KeyProps.scala
     stack-lang/common/IO.scala
     stack-lang/common/StringUtil.scala
@@ -22,7 +23,7 @@ files=(
     stack-lang/reporting/Timer.scala
 
     # typer
-    stack-lang/common/Debug.scala
+    stack-lang/typing/Autos.scala
     stack-lang/typing/Checker.scala
     stack-lang/typing/EffectAnalysis.scala
     stack-lang/typing/ExprTyper.scala
@@ -36,6 +37,7 @@ files=(
     stack-lang/sast/Definitions.scala
     stack-lang/sast/Exhaustivity.scala
     stack-lang/sast/Flags.scala
+    stack-lang/sast/Kind.scala
     stack-lang/sast/NameTable.scala
     stack-lang/sast/Patterns.scala
     stack-lang/sast/Printing.scala

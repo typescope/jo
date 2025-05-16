@@ -4,8 +4,6 @@ import sast.Types.*
 import sast.Subtyping
 import sast.Definitions
 
-import scala.collection.mutable
-
 /** Type inference logic */
 object Inference:
   enum TargetType:
@@ -13,6 +11,7 @@ object Inference:
     case ValueType
     case VoidType
     case ObjectMember
+    case TypeApply
     case Fun(args: Int)
     case TermMember(name: String)
     case TypeMember(name: String)
@@ -79,8 +78,11 @@ object Inference:
 
     def isSuptype(tvar: TypeVar, tp: Type): List[Subtyping.Task]
 
+    /** The state of inference will be reverted back after test */
+    def test[T](op: => T): T
+
   class UnificationSolver extends Inferencer:
-    private val instantiations: mutable.Map[TypeVar, Type] = mutable.Map.empty
+    private var instantiations: Map[TypeVar, Type] = Map.empty
 
     private def instantiate(tvar: TypeVar, tp: Type) =
       assert(!instantiations.contains(tvar), "double instantiation: " + tvar)
@@ -92,7 +94,7 @@ object Inference:
       // - check that tvar does not occur in tp
       //
       // They are handled by subtype checking implicitly.
-      instantiations(tvar) = tp
+      instantiations = instantiations.updated(tvar, tp)
 
     private def constrain(tvar: TypeVar, tp: Type, tvarLeft: Boolean): List[Subtyping.Task] =
       instantiations.get(tvar) match
@@ -125,3 +127,9 @@ object Inference:
 
     def isSuptype(tvar: TypeVar, tp: Type): List[Subtyping.Task] =
       constrain(tvar, tp, tvarLeft = false)
+
+    def test[T](op: => T): T =
+      val stateBefore = instantiations
+      val res = op
+      instantiations = stateBefore
+      res

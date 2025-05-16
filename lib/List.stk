@@ -1,14 +1,6 @@
 namespace stk.List
 
-import stk.Predef.Unit
-import stk.Predef.Bottom
-import stk.Predef.Pack
-
-import stk.Predef.intToStr
-import stk.Predef.abort
-
-import stk.Int.*
-import stk.Bool.*
+import stk.Predef.*
 
 type List[T] = object {
   def size: Int
@@ -40,7 +32,7 @@ type List[T] = object {
 
 fun empty[T]: List[T] = ListImpl.makeObject ListImpl.Nil
 
-fun List[T](elems: Pack[T]): List[T] = elems
+fun List[T](elems: ..T): List[T] = elems
 
 section ListImpl
   data Repr[T] =

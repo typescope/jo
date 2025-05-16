@@ -10,7 +10,7 @@ object Rewriting:
     *     lhs && rhs    ===>    if lhs then rhs  else false
     */
   def rewriteShortcutAndOr(apply: Apply)(using defn: Definitions): Word =
-    val Apply(fun, args) = apply
+    val Apply(fun, args, autos) = apply
 
     if fun.refers(defn.Bool_and) then
       val lhs :: rhs :: Nil = args: @unchecked

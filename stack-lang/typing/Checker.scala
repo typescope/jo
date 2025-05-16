@@ -1,6 +1,7 @@
 package typing
 
 import ast.Positions.*
+import ast.Ast
 
 import sast.*
 import sast.Sast.*
@@ -29,29 +30,45 @@ class Checker(namer: Namer):
     delayedChecks.clear()
     checking = false
 
-  def checkBounds(tctor: TypeTree, targs: List[TypeTree])(using Definitions, Reporter, Source): Unit =
-    if !tctor.tpe.isTypeLambda then
-      Reporter.error(s"Expect type lambda, found = ${tctor.tpe.show}", tctor.pos)
-    else
-      val tl = tctor.tpe.asTypeLambda
-      checkBounds(tl.tparams, targs)
+  /** Check kind of a type
+    *
+    * Note: Do not access info of type symbols.
+    */
+  def checkKind(tctor: TypeTree, targs: List[TypeTree])(using Reporter, Source): Boolean =
+    tctor.tpe.kind match
+      case None =>
+        Reporter.error(s"Invalid type constructor", tctor.pos)
+        false
+
+      case Some(kind) =>
+        kind match
+          case Kind.Arrow(args, to) if args.size == targs.size =>
+            // only simple kinded type parameters are supported
+            true
+
+          case Kind.Arrow(args, to) =>
+            val size = args.size
+            Reporter.error(s"The type constructor specifies $size parameter(s), found = ${targs.size}", tctor.pos)
+            false
+
+          case Kind.Simple =>
+            Reporter.error(s"The type does not take parameters", tctor.pos)
+            false
+
 
   def checkBounds(tparams: List[Symbol], targs: List[TypeTree])(using Definitions, Reporter, Source): Unit =
-    if tparams.size != targs.size then
-      Reporter.error(s"Expect ${tparams.size} type args, found = ${targs.size}", (targs.head.span | targs.last.span).toPos)
-    else
-      val subst = tparams.zip(targs.map(_.tpe)).toMap
-      for (targ, tparam) <- targs.zip(tparams) do
-        val argType = targ.tpe
-        val TypeBound(lo, hi) = tparam.info.as[TypeBound]
-        val loActual = TypeOps.substSymbols(lo, subst)
-        val hiActual = TypeOps.substSymbols(hi, subst)
+    val subst = tparams.zip(targs.map(_.tpe)).toMap
+    for (targ, tparam) <- targs.zip(tparams) do
+      val argType = targ.tpe
+      val TypeBound(lo, hi) = tparam.info.as[TypeBound]
+      val loActual = TypeOps.substSymbols(lo, subst)
+      val hiActual = TypeOps.substSymbols(hi, subst)
 
-        if !Subtyping.conforms(argType, hiActual) then
-          Reporter.error(s"Arg type ${argType.show} does not conform to bound = ${hi.show}, which expands to ${hiActual.show}", targ.pos)
+      if !Subtyping.conforms(argType, hiActual) then
+        Reporter.error(s"Arg type ${argType.show} does not conform to bound = ${hi.show}, which expands to ${hiActual.show}", targ.pos)
 
-        if !Subtyping.conforms(loActual, argType) then
-          Reporter.error(s"Arg type ${argType.show} does not conform to bound = ${hi.show}, which expands to ${hiActual.show}", targ.pos)
+      if !Subtyping.conforms(loActual, argType) then
+        Reporter.error(s"Arg type ${argType.show} does not conform to bound = ${hi.show}, which expands to ${hiActual.show}", targ.pos)
 
   def checkTypeApply(fun: Word, targs: List[TypeTree])(using Definitions, Reporter, Source): Word =
     if !fun.tpe.isPolyType then
@@ -71,12 +88,19 @@ class Checker(namer: Namer):
     if !Subtyping.conforms(tree.tpe, tp) then
       Reporter.error(s"Expect type ${tp.show}, found = ${tree.tpe.show}", tree.pos)
 
-  def checkValueType(tree: Tree)(using Definitions, Reporter, Source): Unit =
-    checkValueType(tree.tpe, tree.pos)
+  def checkValueType(word: Word)(using Reporter, Source): Unit =
+    checkValueType(word.tpe, word.pos)
 
-  def checkValueType(tp: Type, pos: SourcePosition)(using Definitions, Reporter): Type =
+  def checkValueType(tpt: TypeTree)(using Reporter, Source): Type =
+    checkValueType(tpt.tpe, tpt.pos)
+
+  def checkValueType(tp: Type, pos: SourcePosition)(using Reporter): Type =
     if !tp.isValueType then
-      Reporter.error(s"Expect value type, found = ${tp.show}", pos)
+      val explain = tp.kind match
+        case Some(kind) => ", but found a type of kind " + kind.show
+        case None => ", but a non-value type"
+
+      Reporter.error(s"Expect value type" + explain, pos)
       ErrorType
     else
       tp
@@ -106,6 +130,69 @@ class Checker(namer: Namer):
         case _ =>
           Reporter.error(".. may only be used in unpacking an argument to a vararg function", app.pos)
 
+  def checkModifiers(defn: Ast.Def)(using rp: Reporter, so: Source): Flags =
+    val mods = defn.modifiers
+    if mods.isEmpty then return Flags.empty
+
+    var flags = Flags.empty
+    mods.foreach:
+      case _: Ast.Modifier.Auto =>
+        flags = flags | Flags.Auto
+
+      case mod =>
+        Reporter.error("Not support the modifier " + mod.show, mod.pos)
+
+    defn match
+      case fdef: Ast.FunDef =>
+        mods.foreach:
+          case _: Ast.Modifier.Auto =>
+          case mod =>
+            Reporter.error("The modifier " + mod.show + " is not allowed for function definition", mod.pos)
+
+        if flags.is(Flags.Auto) && fdef.params.nonEmpty then
+          val tip =
+            if fdef.autos.isEmpty then " Do you forget the modifier auto?"
+            else ""
+
+          Reporter.warn("The function will be ignored in auto derivation as it requires non-auto arguments." + tip, fdef.params.head.pos)
+
+      case vdef: Ast.ValDef =>
+        mods.foreach:
+          case _: Ast.Modifier.Auto =>
+          case mod =>
+            Reporter.error("The modifier " + mod.show + " is not allowed for value definition", mod.pos)
+
+      case pdef: Ast.PatDef =>
+        mods.foreach: mod =>
+          Reporter.error("The modifier " + mod.show + " is not allowed for pattern definition", mod.pos)
+
+      case pdef: Ast.ParamDef =>
+          mods.foreach:
+            // TODO: Disable auto context params for now.
+            //
+            // It's powerful, but also scaring --- remote binding may easily break assumptions.
+            case mod =>
+              Reporter.error("The modifier " + mod.show + " is not allowed for context parameter definition", mod.pos)
+
+      case tdef: Ast.TypeDef =>
+        mods.foreach: mod =>
+          Reporter.error("The modifier " + mod.show + " is not allowed for type definition", mod.pos)
+
+      case _: Ast.DataDef | _: Ast.EnumDef =>
+        mods.foreach: mod =>
+          Reporter.error("The modifier " + mod.show + " is not allowed for data definition", mod.pos)
+
+      case sec: Ast.Section =>
+        mods.foreach: mod =>
+          Reporter.error("The modifier " + mod.show + " is not allowed for section definition", mod.pos)
+
+      case adef: Ast.AliasDef =>
+        mods.foreach: mod =>
+          Reporter.error("The modifier " + mod.show + " is not allowed for alias definition", mod.pos)
+    end match
+
+    flags
+
   def checkCapture(sym: Symbol, pos: SourcePosition)(using sc: Scope, rp: Reporter, defn: Definitions): Unit =
     if sym.isMutable && !sym.isField then
       // check no capture of mutable local vars
@@ -127,29 +214,42 @@ class Checker(namer: Namer):
     case _ =>
       word
 
-  def adapt(word: Word, targetType: TargetType)(using Definitions, Reporter, Source): Word = Debug.trace("Adapting " + word.show, (_: Word).show, enable = false):
+  def adaptNoArgs(word: Word, procType: ProcType, targetType: TargetType)(using Definitions, Scope, Reporter, Source): Word =
+    val isParameterlessCall =
+      procType.paramCount == 0 && targetType.match
+        case TargetType.Fun(n) =>
+          n != 0
+
+        case TargetType.TypeApply =>
+          false
+
+        case _ =>
+          true
+
+    if isParameterlessCall then
+      val fun =
+        if procType.tparams.isEmpty then word
+        else namer.instantiatePoly(procType, word)
+      val procType2 = fun.tpe.asProcType
+      val resType = procType2.resultType
+
+      // Always prefer type constraints from outer scope if present
+      for tp <- targetType.knownType do Subtyping.conforms(resType, tp)
+
+      val autos = namer.autoResolver.derive(procType2, word.span)
+      Apply(fun, args = Nil, autos)(resType, word.span)
+
+    else
+      word
+
+
+  def adapt(word: Word, targetType: TargetType)(using Definitions, Scope, Reporter, Source): Word = Debug.trace("Adapting " + word.show, (_: Word).show, enable = false):
     val defn = summon[Definitions]
 
     val word2 =
       if word.tpe.isProcType then
         val procType = word.tpe.asProcType
-        val resType = procType.resultType
-        val isParameterlessCall =
-          targetType match
-            case TargetType.Fun(n) =>
-              n != 0 && resType.isSingleMethodObjectType && procType.paramCount == 0
-
-            case _ =>
-              procType.paramCount == 0
-
-        if isParameterlessCall then
-          val fun =
-            if procType.tparams.isEmpty then word
-            else namer.instantiatePoly(procType, word)
-          val resType = fun.tpe.asProcType.resultType
-          Apply(fun, args = Nil)(resType, word.span)
-        else
-          word
+        adaptNoArgs(word, procType, targetType)
 
       else if word.tpe.isTermRef then
         val ref = word.tpe.as[TypeRef]
@@ -211,6 +311,10 @@ class Checker(namer: Namer):
       case TargetType.Fun(n) =>
         // The `.apply` insertion happens at the transform for `Apply`.
         // It ensures that in `Apply(fun, args)` the fun is an ident or select.
+        word2
+
+      case TargetType.TypeApply =>
+        // Used to prevent no args adapation
         word2
 
       case TargetType.ObjectMember =>

@@ -323,7 +323,7 @@ object Interpreter:
   def call(fdef: FunDef, args: List[Value])(using env: Env, params: Params, defn: Definitions): List[Denotation] =
     val funEnv = env.fresh()
 
-    for (param, arg) <- fdef.params.zip(args) do
+    for (param, arg) <- fdef.allParams.zip(args) do
       funEnv.bind(param, arg)
 
     Debug.trace("calling " + fdef.symbol + ", env = " + funEnv.show(recursive = false), (ds: List[Denotation]) => ds.map(_.show()).mkString(", "),  enable = false):
@@ -418,23 +418,25 @@ object Interpreter:
         else
           env.resolve(sym) :: Nil
 
-      case Apply(fun, args) =>
+      case Apply(fun, args, autos) =>
         fun match
           case Select(qual, name) =>
             // invariant: selection must be a method call
 
             eval(qual): @unchecked match
               case objNative: PlatformObj =>
+                assert(autos.isEmpty, "autos non empty")
                 objNative.call(name, args.map(eval))
 
               case objVal: ObjectVal =>
-                val argVals = args.map(eval)
+                val argVals = args.map(eval) ++ autos.map(eval)
                 val fdef = objVal.defs(name)
                 val env2 = objVal.env.fresh()
                 env2.bind(objVal.self, objVal)
                 call(fdef, argVals)(using env2)
 
               case strVal: StringVal =>
+                assert(autos.isEmpty, "autos non empty")
                 val argVals = args.map(eval)
 
                 if name == "apply" then
@@ -465,10 +467,11 @@ object Interpreter:
 
             eval(qual): @unchecked match
               case objNative: PlatformObj =>
+                assert(autos.isEmpty, "autos non empty")
                 objNative.call(name, args.map(eval))
 
               case objVal: ObjectVal =>
-                val argVals = args.map(eval)
+                val argVals = args.map(eval) ++ autos.map(eval)
                 val fdef = objVal.defs(name)
                 val env2 = objVal.env.fresh()
                 env2.bind(objVal.self, objVal)
@@ -476,7 +479,7 @@ object Interpreter:
 
           case _ =>
             val funDenot :: Nil = exec(fun): @unchecked
-            val argVals = args.map(eval)
+            val argVals = args.map(eval) ++ autos.map(eval)
 
             (funDenot: @unchecked) match
               case FunVal(fdef, env) => call(fdef, argVals)(using env)

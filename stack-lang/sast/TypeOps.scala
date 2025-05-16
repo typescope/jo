@@ -130,7 +130,7 @@ object TypeOps:
 
       case AppliedType(TypeRef(sym), _) =>
         sym.info match
-          case TypeLambda(_, _: TypeBound) => true
+          case TypeLambda(_, _: TypeBound, _) => true
           case _ => false
 
       case tvar: TypeVar => !tvar.isInstantiated
@@ -194,21 +194,25 @@ object TypeOps:
           val targs2 = for targ <- targs yield this(targ)
           AppliedType(tctor2, targs2)
 
-        case TypeLambda(tparams, resType) =>
+        case TypeLambda(tparams, resType, preParamCount) =>
           // TODO: Once type bounds are supported, we need to transform bounds
-          TypeLambda(tparams, this(resType))
+          TypeLambda(tparams, this(resType), preParamCount)
 
         case TypeBound(lo, hi) =>
           TypeBound(this(lo), this(hi))
 
-        case ProcType(tparams, params, resType, receivesOpt, preParamCount) =>
+        case ProcType(tparams, params, autos, resType, receivesOpt, preParamCount) =>
           // TODO: Once type bounds are supported, we need to transform bounds
           val params2 =
             for param <- params
             yield param.copy(info = this(param.info))
 
+          val autos2 =
+            for auto <- autos
+            yield auto.copy(info = this(auto.info))
+
           val resType2 = this(resType)
-          ProcType(tparams, params2, resType2, receivesOpt, preParamCount)
+          ProcType(tparams, params2, autos2, resType2, receivesOpt, preParamCount)
 
   class SymbolsTypeMap(using Definitions) extends TypeMap:
     type Context = Map[Symbol, Type]
@@ -220,3 +224,47 @@ object TypeOps:
 
         case _ =>
           recur(tp)
+
+  abstract class TypeTraverser:
+    type Context = Definitions
+
+    def apply(tp: Type)(using Context): Unit
+
+    def recur(tp: Type)(using Context): Unit =
+      tp match
+        case VoidType | ErrorType | AnyType | BottomType =>
+
+        case _: TypeRef | _: TypeVar | _: NameTableInfo | _: ConstantType =>
+
+        case RecordType(fields) =>
+          for field <- fields do this(field.info)
+
+        case UnionType(branches) =>
+          for branch <- branches do this(branch)
+
+        case TagType(tag, params) =>
+          for param <- params do this(param.info)
+
+        case ObjectType(fields, methods, muts) =>
+          for field <- fields do this(field.info)
+          for method <- methods do this(method.info)
+
+        case AppliedType(tctor, targs) =>
+          apply(tctor)
+          for targ <- targs do this(targ)
+
+        case TypeLambda(tparams, resType, _) =>
+          // TODO: Once type bounds are supported, we need to transform bounds
+          this(resType)
+
+        case TypeBound(lo, hi) =>
+          this(lo)
+          this(hi)
+
+        case ProcType(tparams, params, autos, resType, receivesOpt, preParamCount) =>
+          // TODO: Once type bounds are supported, we need to transform bounds
+          for param <- params do this(param.info)
+
+          for auto <- autos do this(auto.info)
+
+          this(resType)

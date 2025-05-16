@@ -212,14 +212,16 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     Import(id)(info.span | id.span)
 
   def parseTopLevelDef(): Def =
+    val mods = modifiers()
     val item = peekItem()
-    if item.token == Token.TYPE then typeDef()
-    else if item.token == Token.FUN then funDef()
-    else if item.token == Token.PARAM then paramDef()
-    else if item.token == Token.PATTERN then patDef()
-    else if item.token == Token.DATA then dataDef()
-    else if item.token == Token.ALIAS then aliasDef()
-    else if item.token == Token.SECTION then section()
+
+    if item.token == Token.TYPE then typeDef().withMods(mods)
+    else if item.token == Token.FUN then funDef().withMods(mods)
+    else if item.token == Token.PARAM then paramDef().withMods(mods)
+    else if item.token == Token.PATTERN then patDef().withMods(mods)
+    else if item.token == Token.DATA then dataDef().withMods(mods)
+    else if item.token == Token.ALIAS then aliasDef().withMods(mods)
+    else if item.token == Token.SECTION then section().withMods(mods)
     else
       error("Expect a definition, found = " + item.token, item.span.toPos)
       next()
@@ -244,6 +246,15 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     Section(id, defs)(id.span | endSpan)
 
+  def modifiers(): List[Modifier] =
+    peek() match
+      case Token.AUTO =>
+        val item = next()
+        Modifier.Auto()(item.span) :: modifiers()
+
+      case _ =>
+        Nil
+
   def valDef(modifier: Token): ValDef =
     val mutable = modifier == Token.VAR
     val mod = eat(modifier)
@@ -266,6 +277,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val id = ident()
     val tparams = typeParams()
     val postParamList = paramSection()
+    val autos = autoSection()
 
     val resType =
       if peek() == Token.COLON then
@@ -282,13 +294,14 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     eatEndOpt(fun.indent)
 
     val paramList = preParamList ++ postParamList
-    FunDef(id, tparams, paramList, resType, receiveParams, body, preParamList.size)(fun.span | body.span)
+    FunDef(id, tparams, paramList, autos, resType, receiveParams, body, preParamList.size)(fun.span | body.span)
 
   def defDef(needBody: Boolean): FunDef =
     val defToken = eat(Token.DEF)
     val id = ident()
     val tparams = typeParams()
     val paramList = paramSection()
+    val autos = autoSection()
     val resType =
       if peek() == Token.COLON then
         eat(Token.COLON)
@@ -308,7 +321,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     eatEndOpt(defToken.indent)
 
     val preParamCount = 0
-    FunDef(id, tparams, paramList, resType, receiveParams, body, preParamCount)(defToken.span | body.span)
+    FunDef(id, tparams, paramList, autos, resType, receiveParams, body, preParamCount)(defToken.span | body.span)
 
   def paramDef(): ParamDef =
     val token = eat(Token.PARAM)
@@ -369,12 +382,24 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     PatDef(id, tparams, paramList, resType, cases, preParamList.size)(pat.span | bodySpan)
 
   def paramSection(): List[Param] =
-    if peek() == Token.LPAREN then params() else Nil
+    if peek() == Token.LPAREN && peek(1) != Token.AUTO then params() else Nil
+
+  def autoSection(): List[Param] =
+    if peek() == Token.LPAREN then
+      next()
+      eat(Token.AUTO)
+      val list = paramsRest(mutable.ArrayBuffer(param(typeOptional = false)), typeOptional = false)
+      eat(Token.RPAREN)
+      list
+
+    else
+      Nil
 
   def typeDef(): TypeDef =
     val typeItem = eat(Token.TYPE)
+    val preTypeParams = typeParams()
     val id = ident()
-    val tparams = typeParams()
+    val postTypeParams = typeParams()
     var isBound = false
     val rhs =
       if peek() == Token.EQL then
@@ -387,7 +412,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       else
         isBound = true
         EmptyTypeTree()(id.span)
-    TypeDef(id, tparams, rhs, isBound)(typeItem.span | rhs.span)
+    val tparams = preTypeParams ++ postTypeParams
+    TypeDef(id, tparams, rhs, isBound, preTypeParams.size)(typeItem.span | rhs.span)
 
   def dataDef(): Def =
     val data = eat(Token.DATA)
@@ -510,7 +536,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   def typeAscribe(expr: Word): Word =
     eat(Token.AS)
-    val tpt = typ()
+    val tpt = simpleType()
     TypeAscribe(expr, tpt)(expr.span | tpt.span)
 
   def expr(): Word =
@@ -677,6 +703,19 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case Token.TYPE =>
         Some(typeDef())
 
+      case Token.AUTO =>
+        val mods = modifiers()
+        peek() match
+          case Token.VAL | Token.VAR   =>
+            Some(valDef(item.token).withMods(mods))
+
+          case Token.FUN =>
+            Some(funDef().withMods(mods))
+
+          case token =>
+            error("Expect start of value or function definitions, found = " + token, peekItem().span.toPos)
+            throw new SyntaxError
+
       case token =>
         word().map: w =>
           if w.isInstanceOf[RefTree] && peek() == Token.EQL then
@@ -733,7 +772,12 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           error("`=>` expected, found = " + token, item.span.toPos)
           tps.head
         else
-          tps.head
+          val simpleTypes =
+            tps.head :: repeated:
+              simpleTypeOpt()
+
+          if simpleTypes.size == 1 then simpleTypes.head
+          else ExprType(simpleTypes)(simpleTypes.head.span | simpleTypes.last.span)
 
   def typesInParens(): List[TypeTree] =
     eat(Token.LPAREN)
@@ -753,30 +797,41 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       simpleType() :: Nil
 
   def simpleType(): TypeTree =
+    simpleTypeOpt() match
+      case Some(tpt) => tpt
+      case None =>
+        error("Expect a type, found = " + peek(), peekItem().span.toPos)
+        throw new SyntaxError
+
+  def simpleTypeOpt(): Option[TypeTree] =
     peek() match
-      case Token.OBJECT   => objectType()
-      case Token.LBRACE   => recordType()
-      case Token.TAG      => tagType()
+      case Token.OBJECT   => Some(objectType())
+      case Token.LBRACE   => Some(recordType())
+      case Token.TAG      => Some(tagType())
 
       case Token.LPAREN   =>
         next()
         val tp = typ()
         eat(Token.RPAREN)
-        tp
+        Some(tp)
 
       case Token.RARROW   =>
         val arrow = next()
         val resType = typ()
         val params = optReceiveParams().getOrElse(Nil)
         val endSpan = if params.isEmpty then resType.span else params.last.span
-        FunctionType(paramTypes = Nil, resType, params)(arrow.span | endSpan)
+        val funType = FunctionType(paramTypes = Nil, resType, params)(arrow.span | endSpan)
+        Some(funType)
 
-      case _ =>
+      case _: Token.Ident =>
         val id = qualid()
         if peek() == Token.LBRACKET then
-          appliedType(id)
+          Some(appliedType(id))
         else
-          id
+          Some(id)
+
+      case _ =>
+        None
 
   def optReceiveParams(): Option[List[RefTree]] =
     if peek() == Token.RECEIVES then
@@ -893,7 +948,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val lparen = eat(Token.LPAREN)
     val nested = phrase() match
       case Some(p) =>
-        Block(p :: Nil)(p.span)
+        p
 
       case None =>
         error("Phrase expected within parentheses", lparen.span.toPos)

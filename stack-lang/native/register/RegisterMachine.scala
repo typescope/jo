@@ -163,7 +163,7 @@ extends Backend(runtime):
     val funType = sym.info.asProcType
 
     val proto @ Protocol(inProto, outProto, savedRegs) =
-      callConvention.callee(funType.paramTypes, funType.resultType)
+      callConvention.callee(funType.allParamTypes, funType.resultType)
 
     // Compile function to a temporary buffer for register allocation
     gen(PlaceHolder.InitStackPointer)
@@ -174,7 +174,7 @@ extends Backend(runtime):
     val base = Rel(FP_REG, (inProto.stackItemCount - 1) << 2)
 
     // bind param to virtual registers and load data
-    for (param, loc) <- fdef.params.zip(inProto.paramLocs) do
+    for (param, loc) <- fdef.allParams.zip(inProto.paramLocs) do
       bindParam(param, loc, base)
 
     bindParam(returnAddrSym, inProto.retLoc, base)
@@ -289,7 +289,7 @@ extends Backend(runtime):
     // TODO: erasure better handled together with boxing/unboxing?
     val funType = fun.info.asProcType
     val target = getFunAddress(fun)
-    call(target, funType.paramTypes, funType.resultType)
+    call(target, funType.allParamTypes, funType.resultType)
 
   def call(target: Addr, paramTypes: List[Type], resType: Type)(using ctx: Context): Unit =
     val proto @ Protocol(inProto, outProto, savedRegs) =
@@ -387,7 +387,7 @@ extends Backend(runtime):
       case Some(sym) =>
         val target = sym.dealias
         if target.owner == defn.Int || target.owner == defn.Bool then
-          for arg <- app.args do compile(arg)
+          for arg <- app.allArgs do compile(arg)
           callPrimitive(target)
 
         else if target.owner == runtime.Core then
@@ -403,11 +403,11 @@ extends Backend(runtime):
             ctx.vs.push(Reg(targetReg))
 
           else
-            for arg <- app.args do compile(arg)
+            for arg <- app.allArgs do compile(arg)
             callCore(target)
 
         else
-          for arg <- app.args do compile(arg)
+          for arg <- app.allArgs do compile(arg)
           call(target)
 
       case _ =>
@@ -415,8 +415,8 @@ extends Backend(runtime):
         val fun = ctx.vs.pop().asInstanceOf[Reg]
         val funType = app.fun.tpe.asProcType
 
-        for arg <- app.args do compile(arg)
-        this.call(fun, funType.paramTypes, funType.resultType)
+        for arg <- app.allArgs do compile(arg)
+        this.call(fun, funType.allParamTypes, funType.resultType)
 
   def callPrimitive(sym: Symbol)(using Context): Unit =
     sym match
