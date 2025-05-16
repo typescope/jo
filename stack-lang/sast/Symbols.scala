@@ -35,7 +35,11 @@ object Symbols:
 
     def owner(using Definitions): Symbol = symInfo.owner
 
+    /** All symbols that have a ProcType are functions, including top-level
+      * functions, methods and pattern predicates
+      */
     def isFunction : Boolean = flags.is(Flags.Fun)
+
     def isMethod   : Boolean = flags.is(Flags.Method)
     def isType     : Boolean = flags.is(Flags.Type)
     def isPattern  : Boolean = flags.is(Flags.Pattern)
@@ -66,7 +70,7 @@ object Symbols:
         owner.enclosingContainer
 
     def enclosingFunction(using Definitions): Symbol =
-      if this.isFunction || this.isMethod then
+      if this.isFunction then
         this
       else
         // owner can be null, let exception be thrown

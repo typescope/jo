@@ -886,7 +886,7 @@ class Namer:
      // Each object has a self symbol
      val thisSym = Symbol.createSymbol("this", Flags.Synthetic, lambda.pos)
 
-     val funSym = Symbol.createSymbol(funName, Flags.Method | Flags.Synthetic, lambda.pos)
+     val funSym = Symbol.createSymbol(funName, Flags.Fun | Flags.Method | Flags.Synthetic, lambda.pos)
      val lambdaScope = sc.fresh(funSym)
 
      val tvars = new mutable.ArrayBuffer[(TypeVar, Ast.Param)]
@@ -1015,7 +1015,7 @@ class Namer:
   : DelayedDef[FunDef] =
 
     var flags = checker.checkModifiers(funDef)
-    if tt == TargetType.ObjectMember then flags = flags | Flags.Method
+    if tt == TargetType.ObjectMember then flags = flags | Flags.Fun | Flags.Method
     else flags = flags | Flags.Fun
 
     val funSym = Symbol.createSymbol(funDef.name, flags, funDef.ident.pos)

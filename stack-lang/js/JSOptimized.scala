@@ -43,7 +43,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
           case Some(sym) => jsName(sym)
 
           case None =>
-            val rawName = if target.isFunction then target.fullName else target.name
+            val rawName = target.fullName
             val uniqueName = unique.freshName(encodeSymbolic(rawName))
             symbol2UniqueName(target) = uniqueName
 
@@ -387,6 +387,7 @@ object JSOptimized:
         case '$' => "dollar".wrap
         case '?' => "question".wrap
         case ':' => "colon".wrap
+        case '~' => "tilde".wrap
         case '.' => "_"
         case _   => throw new Exception("Not supported, c = " + c)
 

@@ -66,7 +66,7 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends S
         if sym.isOneOf(Flags.NSpace | Flags.Method | Flags.Field | Flags.Type) then
           Reporter.error("A term Ident tree should not be namespace, method, field or type", word.pos)
 
-        if !sym.owner.isFunction && !sym.owner.isContainer && !sym.owner.isMethod then
+        if !sym.owner.isFunction && !sym.owner.isContainer then
           Reporter.error("The owner of an ident should be either a function or an container, found = " + sym.owner, word.pos)
 
         // TODO: enable after fixing owners of pattern translation & lifting
