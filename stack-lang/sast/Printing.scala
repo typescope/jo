@@ -365,7 +365,7 @@ object Printing:
       case AppliedType(tctor, targs) =>
         tctor ~ "[" ~ targs.join(Text(", ")) ~ "]"
 
-      case TypeLambda(tparams, body) =>
+      case TypeLambda(tparams, body, _) =>
         "[" ~ tparams.join(", ") ~ "]" ~ " => " ~ body
 
       case TypeBound(lo, hi) =>

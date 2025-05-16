@@ -1,0 +1,14 @@
+type ..[T] = List[T]
+
+fun print(l: ..String): Unit =
+  l.foreach s => println s
+
+type [A] ~ [B] = #Pair(lhs: A, rhs: B)
+fun (lhs: A) ~[A, B](rhs: B): A ~ B = #Pair lhs rhs
+
+fun main =
+  print
+    List "hello" "world!"
+
+  val a = 1 ~ "one"
+  println a.rhs

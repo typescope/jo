@@ -316,6 +316,9 @@ object Printing:
       case UnionType(branches) =>
         branches.join(" | ")
 
+      case ExprType(types) =>
+        types.join(" ")
+
       case AppliedType(tpeCtor, targs) =>
         tpeCtor ~ "[" ~ targs.join(", ") ~ "]"
 

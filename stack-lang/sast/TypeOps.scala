@@ -130,7 +130,7 @@ object TypeOps:
 
       case AppliedType(TypeRef(sym), _) =>
         sym.info match
-          case TypeLambda(_, _: TypeBound) => true
+          case TypeLambda(_, _: TypeBound, _) => true
           case _ => false
 
       case tvar: TypeVar => !tvar.isInstantiated
@@ -194,9 +194,9 @@ object TypeOps:
           val targs2 = for targ <- targs yield this(targ)
           AppliedType(tctor2, targs2)
 
-        case TypeLambda(tparams, resType) =>
+        case TypeLambda(tparams, resType, preParamCount) =>
           // TODO: Once type bounds are supported, we need to transform bounds
-          TypeLambda(tparams, this(resType))
+          TypeLambda(tparams, this(resType), preParamCount)
 
         case TypeBound(lo, hi) =>
           TypeBound(this(lo), this(hi))
@@ -253,7 +253,7 @@ object TypeOps:
           apply(tctor)
           for targ <- targs do this(targ)
 
-        case TypeLambda(tparams, resType) =>
+        case TypeLambda(tparams, resType, _) =>
           // TODO: Once type bounds are supported, we need to transform bounds
           this(resType)
 

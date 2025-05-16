@@ -207,6 +207,11 @@ object Ast:
     (val span: Span)
   extends TypeTree
 
+  case class ExprType
+    (types: List[TypeTree])
+    (val span: Span)
+  extends TypeTree
+
   case class TagType
     (tag: Ident, params: List[Param])
     (val span: Span)
@@ -214,7 +219,7 @@ object Ast:
     def name = tag.name
 
   case class AppliedType
-    (tpeCtor: RefTree, targs: List[TypeTree])
+    (tpeCtor: TypeTree, targs: List[TypeTree])
     (val span: Span)
   extends TypeTree:
     assert(targs.nonEmpty)
@@ -324,7 +329,7 @@ object Ast:
     * @param isBound whether the rhs is a type bound
     */
   case class TypeDef
-    (ident: Ident, tparams: List[TypeParam], rhs: TypeTree, isBound: Boolean)
+    (ident: Ident, tparams: List[TypeParam], rhs: TypeTree, isBound: Boolean, preParamCount: Int)
     (val span: Span)
   extends Word, Def:
     def name: String = ident.name

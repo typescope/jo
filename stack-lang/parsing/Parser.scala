@@ -397,8 +397,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   def typeDef(): TypeDef =
     val typeItem = eat(Token.TYPE)
+    val preTypeParams = typeParams()
     val id = ident()
-    val tparams = typeParams()
+    val postTypeParams = typeParams()
     var isBound = false
     val rhs =
       if peek() == Token.EQL then
@@ -411,7 +412,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       else
         isBound = true
         EmptyTypeTree()(id.span)
-    TypeDef(id, tparams, rhs, isBound)(typeItem.span | rhs.span)
+    val tparams = preTypeParams ++ postTypeParams
+    TypeDef(id, tparams, rhs, isBound, preTypeParams.size)(typeItem.span | rhs.span)
 
   def dataDef(): Def =
     val data = eat(Token.DATA)
@@ -770,7 +772,12 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           error("`=>` expected, found = " + token, item.span.toPos)
           tps.head
         else
-          tps.head
+          val simpleTypes =
+            tps.head :: repeated:
+              simpleTypeOpt()
+
+          if simpleTypes.size == 1 then simpleTypes.head
+          else ExprType(simpleTypes)(simpleTypes.head.span | simpleTypes.last.span)
 
   def typesInParens(): List[TypeTree] =
     eat(Token.LPAREN)
@@ -790,30 +797,41 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       simpleType() :: Nil
 
   def simpleType(): TypeTree =
+    simpleTypeOpt() match
+      case Some(tpt) => tpt
+      case None =>
+        error("Expect a type, found = " + peek(), peekItem().span.toPos)
+        throw new SyntaxError
+
+  def simpleTypeOpt(): Option[TypeTree] =
     peek() match
-      case Token.OBJECT   => objectType()
-      case Token.LBRACE   => recordType()
-      case Token.TAG      => tagType()
+      case Token.OBJECT   => Some(objectType())
+      case Token.LBRACE   => Some(recordType())
+      case Token.TAG      => Some(tagType())
 
       case Token.LPAREN   =>
         next()
         val tp = typ()
         eat(Token.RPAREN)
-        tp
+        Some(tp)
 
       case Token.RARROW   =>
         val arrow = next()
         val resType = typ()
         val params = optReceiveParams().getOrElse(Nil)
         val endSpan = if params.isEmpty then resType.span else params.last.span
-        FunctionType(paramTypes = Nil, resType, params)(arrow.span | endSpan)
+        val funType = FunctionType(paramTypes = Nil, resType, params)(arrow.span | endSpan)
+        Some(funType)
 
-      case _ =>
+      case _: Token.Ident =>
         val id = qualid()
         if peek() == Token.LBRACKET then
-          appliedType(id)
+          Some(appliedType(id))
         else
-          id
+          Some(id)
+
+      case _ =>
+        None
 
   def optReceiveParams(): Option[List[RefTree]] =
     if peek() == Token.RECEIVES then

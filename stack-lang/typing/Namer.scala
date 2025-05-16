@@ -1167,7 +1167,7 @@ class Namer:
 
       else
         if tdef.rhs.isEmpty then
-          TypeLambda(tparamSyms, TypeBound(BottomType, AnyType))
+          TypeLambda(tparamSyms, TypeBound(BottomType, AnyType), tdef.preParamCount)
 
         else
           val rhs = transformType(tdef.rhs)
@@ -1177,7 +1177,7 @@ class Namer:
             if tdef.isBound then TypeBound(BottomType, rhs.tpe)
             else rhs.tpe
 
-          TypeLambda(tparamSyms, rhsType)
+          TypeLambda(tparamSyms, rhsType, tdef.preParamCount)
 
     end computeInfo
 
@@ -1284,7 +1284,10 @@ class Namer:
       if sym == defn.Predef_Pack && !allowPackType then
         Reporter.error("Pack type not allowed here. It can only be used as the type of the last varargs parameter.", tpt.pos)
 
-    tpt match
+    tpt.testKey(Namer.TypedTypeTree) match
+    case Some(typed) => typed
+    case None =>
+      tpt match
       case Ast.Ident(name) =>
         sc.resolveType(name) match
           case Some(sym) =>
@@ -1315,6 +1318,9 @@ class Namer:
 
           case tp =>
             TypeTree(ErrorType)(tpt.span)
+
+      case tpt: Ast.ExprType  =>
+        exprTyper.transformType(tpt)
 
       case Ast.RecordType(fields) =>
         val fieldTypes = new mutable.ArrayBuffer[NamedInfo[Type]]
@@ -1437,6 +1443,8 @@ object Namer:
     * It is used to avoid re-typing a word.
     */
   val TypedWord = new KeyProps.Key[Word]("Namer.TypedWord")
+
+  val TypedTypeTree = new KeyProps.Key[TypeTree]("Namer.TypedTypeTree")
 
   class DelayedDef[+T](val symbol: Symbol, val delayed: () => T):
     private lazy val definition: T = delayed()

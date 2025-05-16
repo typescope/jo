@@ -538,19 +538,31 @@ class PatternTyper(namer: Namer, checker: Checker):
         // mixed prefix/infix/postfix pattern, arity depends on type of the function
         val wordList: mutable.ListBuffer[Ast.Word] = mutable.ListBuffer.from(words)
 
-        val resolveProc: Ast.Word => Option[ProcType] = (word: Ast.Word) => word match
-          case id: Ast.Ident =>
-            resolvePatternPredicateOpt(id) match
-              case Some(sym) =>
-                val procType = sym.info.asProcType
-                // parameterless predicates should not interfere with expression typing
-                if procType.params.isEmpty then None else Some(procType)
+        val resolveProc = new ExprTyper.Handler[Ast.Word]:
+          def bundle(preArgs: List[Ast.Word], binder: Ast.Word, postArgs: List[Ast.Word]): Ast.Word =
+            val startSpan = if preArgs.isEmpty then binder.span else preArgs.head.span
+            val endSpan = if postArgs.isEmpty then binder.span else postArgs.last.span
+            Ast.InfixCall(preArgs, binder, postArgs)(startSpan | endSpan)
+
+          def resolveShape(tpt: Ast.Word): Option[ExprTyper.Shape] =
+            tpt match
+              case id: Ast.Ident =>
+                resolvePatternPredicateOpt(id) match
+                  case Some(sym) =>
+                    val procType = sym.info.asProcType
+                    // parameterless predicates should not interfere with expression typing
+                    if procType.params.isEmpty then
+                      None
+                    else
+                      val prec = ExprTyper.precedence(id)
+                      val shape = ExprTyper.Shape(procType.preParamCount, procType.postParamCount, prec)
+                      Some(shape)
+
+                  case _ =>
+                    None
 
               case _ =>
                 None
-
-          case _ =>
-            None
 
         val values = namer.exprTyper.parseMixed(wordList, -1, resolveProc)
 

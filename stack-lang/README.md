@@ -155,25 +155,30 @@ Abstract Syntax
 
     alias = ALIAS qualid.
 
-    typedef = TYPE ident[tparams] [EQL type | SUBTYPE type].
+    typedef = TYPE [tparams] ident [tparams] [EQL type | SUBTYPE type].
     tparams = LBRACKET tparam {COMMA tparam} RBRACKET.
     tparam  = ident.
 
     applied_type = ident targs.
     targs        = LBRACKET type { COMMA type } RBRACKET.
 
-    type    = qualid | record_typ | tag_type | union_typ | applied_type | fun_type | object_type | LPAREN type RPAREN.
+    type = union_typ | expr_typ | fun_type.
 
-    record_typ = LBRACE [fields]  RBRACE.
-    fields     = field { [COMMA] field }.
-    field      = ident COLON type.
+    union_type  = simple_type {"|" simple_type}.
 
-    union_typ  = type {"|" type}.
+    expr_type = simple_type { simple_type }.
+
+    simple_type = qualid | record_type | tag_type | applied_type | fun_type | object_type | LPAREN type RPAREN.
+
+    record_type = LBRACE [fields]  RBRACE.
+    fields      = field { [COMMA] field }.
+    field       = ident COLON type.
+
     tag_type   = TAG ident [LPAREN tag_param { COMMA tag_param } RPAREN].
     tag_param  = [ident COLON] type
 
     fun_type    = param_types RARROW type [receive_params].
-    param_types = type | LPAREN RPAREN | LPAREN type {COMMA type} RPAREN.
+    param_types = simple_type | LPAREN RPAREN | LPAREN type {COMMA type} RPAREN.
 
     receive_params = RECEIVES qualid {COMMA qualid}.
 

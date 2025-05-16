@@ -387,10 +387,12 @@ object Types:
 
   /** A type lambda */
   case class TypeLambda
-    (tparams: List[Symbol], body: Type)
+    (tparams: List[Symbol], body: Type, preParamCount: Int)
   extends Type:
     val names: List[String] = tparams.map(_.name)
     val paramCount: Int = tparams.size
+
+    def postParamCount = paramCount - preParamCount
 
     def bounds(using Definitions): List[Type] = tparams.map(_.info)
 
