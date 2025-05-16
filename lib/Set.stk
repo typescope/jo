@@ -25,28 +25,28 @@ type Set[T] = object {
   def all(pred: T => Bool): Bool
 }
 
-fun empty[T](eq: Eq[T]): Set[T] = SetImpl.makeObject eq List.empty
+fun empty[T](auto eq: Eq[T]): Set[T] = SetImpl.makeObject List.empty
 
-fun Set[T](eq: Eq[T], elems: Pack[T]): Set[T] = SetImpl.makeObject eq elems
+fun Set[T](elems: Pack[T])(auto eq: Eq[T]): Set[T] = SetImpl.makeObject elems
 
 // A strawman implementation of Set based on List
 section SetImpl
-  fun makeObject[T](eq: Eq[T], l: List[T]): Set[T] = object {
+  fun makeObject[T](l: List[T])(auto eq: Eq[T]): Set[T] = object {
     def size: Int = l.size
 
     def contains(x: T): Bool = exists e => eq e x
 
     def +(x: T): Set[T] =
       if contains x then this
-      else makeObject eq (l + x)
+      else makeObject (l + x)
 
     def -(x: T): Set[T] = exclude e => eq x e
 
     def ++(xs: List[T]): Set[T] = xs.fold this (acc, e) => acc + e
 
-    def select(pred: T => Bool): Set[T] = makeObject eq (l.select pred)
+    def select(pred: T => Bool): Set[T] = makeObject (l.select pred)
 
-    def exclude(pred: T => Bool): Set[T] = makeObject eq (l.exclude pred)
+    def exclude(pred: T => Bool): Set[T] = makeObject (l.exclude pred)
 
     def diff(other: Set[T]): Set[T] = exclude e => other.contains e
 

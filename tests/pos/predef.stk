@@ -19,13 +19,13 @@ fun main =
   l2.exclude(i => i % 2  == 0)
     .foreach (i => println (intToStr i))
 
-  val s = Set Eq.Int 2 3 4 7 8
+  val s = Set 2 3 4 7 8
   (s + 3 - 2).foreach i => println (intToStr i)
 
-  val s2 = Set Eq.String "Apple" "Orange" "Banana"
+  val s2 = Set "Apple" "Orange" "Banana"
   (s2 + "Grape" - "Orange" - "Banana").foreach fruit => println fruit
 
-  val m = Map Eq.Int
+  val m = Map
             1 -> "one"
             2 -> "two"
 

@@ -33,6 +33,7 @@ alias stk.Array
 type Array[T] = Array.Array[T]
 
 alias stk.Eq
+alias stk.Eq.Defaults.*
 type Eq[T] = Eq.Eq[T]
 
 alias stk.List
