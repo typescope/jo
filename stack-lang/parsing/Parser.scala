@@ -536,7 +536,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   def typeAscribe(expr: Word): Word =
     eat(Token.AS)
-    val tpt = typ()
+    val tpt = simpleType()
     TypeAscribe(expr, tpt)(expr.span | tpt.span)
 
   def expr(): Word =

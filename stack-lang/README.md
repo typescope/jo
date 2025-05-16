@@ -110,7 +110,7 @@ Abstract Syntax
 
     tag = TAG ident.
 
-    type_ascribe = simple_phrase AS type.
+    type_ascribe = simple_phrase AS simple_type.
 
     object     = OBJECT LBRACE {member} RBRACE.
     member     = valdef | defdef.
