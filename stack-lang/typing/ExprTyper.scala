@@ -182,19 +182,21 @@ class ExprTyper(namer: Namer):
     end if
   end transform
 
-  def transformType(tpt: Ast.ExprType)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): TypeTree =
+  def transformType(tpt: Ast.ExprType, allowPackType: Boolean)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): TypeTree =
     val lambdaTypeHandler = new Handler[Ast.TypeTree]:
+      var count = 0
       def bundle(preArgs: List[Ast.TypeTree], binder: Ast.TypeTree, postArgs: List[Ast.TypeTree]): Ast.TypeTree =
         val startSpan = if preArgs.isEmpty then binder.span else preArgs.head.span
         val endSpan = if postArgs.isEmpty then binder.span else postArgs.last.span
         Ast.AppliedType(binder, preArgs ++ postArgs)(startSpan | endSpan)
 
       def resolveShape(tpt: Ast.TypeTree): Option[Shape] =
+        count += 1
         tpt match
           case ref: Ast.RefTree =>
             val typed =
               tpt.getKeyOrUpdate(Namer.TypedTypeTree):
-                namer.transformType(tpt)
+                namer.transformType(tpt, allowPackType && count <= 1)
 
             if typed.tpe.isTypeLambda then
               val lambdaType = typed.tpe.asTypeLambda
@@ -216,7 +218,7 @@ class ExprTyper(namer: Namer):
       val span = rest.head.span | rest.last.span
       Reporter.error("Found extra type, a type expression should produce a single type", span.toPos)
 
-    namer.transformType(typeTrees.last)
+    namer.transformType(typeTrees.last, allowPackType)
   end transformType
 
 

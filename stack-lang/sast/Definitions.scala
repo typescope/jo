@@ -81,7 +81,7 @@ final class Definitions(rootNameTable: NameTable, provider: InfoProvider):
   val Predef_Char   =  Predef.typeMember("Char")
   val Predef_Unit   =  Predef.typeMember("Unit")
   val Predef_String =  Predef.typeMember("String")
-  val Predef_Pack   =  Predef.typeMember("Pack")
+  val Predef_Pack   =  Predef.typeMember("..")
 
   val Array         =  resolveTermByPath("stk.Array")
   val Array_Array   =  Array.typeMember("Array")

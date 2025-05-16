@@ -65,7 +65,7 @@ pattern (lhs: T) |[T] (rhs: T): T =
 //
 
 // Used to indicate the last parameter is a vararg
-type Pack[T] = List[T]
+type ..[T] = List[T]
 
 // Splice a list as flat arguments
 fun ..[T](l: List[T]): T = abort "Only support unpacking in argument positions"

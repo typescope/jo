@@ -57,7 +57,11 @@ class Namer:
       val nsSym = resolveNamespace(ns.qualid, isBranch = false)(using rootNamespaceScope)
       val nsInfo = ip.info(nsSym).as[NameTableInfo]
 
-      val importScope: Scope = predefScope.fresh(nsSym)
+      val topScope = predefScope.fresh(nsSym)
+      // Make current namespace name available
+      topScope.define(nsSym)
+
+      val importScope: Scope = topScope.fresh()
       val defsScope: Scope = importScope.fresh(nsSym, nsInfo.nameTable)
 
       val delayedDefs =
@@ -73,8 +77,6 @@ class Namer:
       val imports = new mutable.ArrayBuffer[Symbol]
 
       delayedImports += { () =>
-        // Make current namespace name available
-        importScope.define(nsSym)
         // handle imports after indexing members
         for imp <- ns.imports do
           imports ++= Imports.doImport(imp.qualid, importScope, rootNameTable, isAlias = false)
@@ -1282,7 +1284,7 @@ class Namer:
   def transformType(tpt: Ast.TypeTree, allowPackType: Boolean = false)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): TypeTree =
     def check(sym: Symbol) =
       if sym == defn.Predef_Pack && !allowPackType then
-        Reporter.error("Pack type not allowed here. It can only be used as the type of the last varargs parameter.", tpt.pos)
+        Reporter.error(".. not allowed here. It can only be used as the type of the last varargs parameter.", tpt.pos)
 
     tpt.testKey(Namer.TypedTypeTree) match
     case Some(typed) => typed
@@ -1320,7 +1322,7 @@ class Namer:
             TypeTree(ErrorType)(tpt.span)
 
       case tpt: Ast.ExprType  =>
-        exprTyper.transformType(tpt)
+        exprTyper.transformType(tpt, allowPackType)
 
       case Ast.RecordType(fields) =>
         val fieldTypes = new mutable.ArrayBuffer[NamedInfo[Type]]
