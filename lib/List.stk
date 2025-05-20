@@ -15,6 +15,8 @@ type List[T] = object {
 
   def ++(l: List[T]): List[T]
 
+  def slice(from: Int, to: Int): List[T]
+
   def select(pred: T => Bool): List[T]
 
   def exclude(pred: T => Bool): List[T]
@@ -40,6 +42,7 @@ section ListImpl
     | Cons(head: T, tail: List[T])
     | Append(prefix: List[T], last: T)
     | Concat(lhs: List[T], rhs: List[T])
+    | Slice(raw: List[T], from: Int, to: Int)
 
 
   pattern Size[T](n: Int): Repr[T] =
@@ -47,6 +50,7 @@ section ListImpl
     case Cons(_, tail) then n = 1 + tail.size
     case Append(prefix, _) then n = prefix.size + 1
     case Concat(lhs, rhs) then n = lhs.size + rhs.size
+    case Slice(_, from, to) then n = to - from + 1
 
   fun errorIndex(i: Int): Bottom = abort ("invalid index for list " + (intToStr i))
 
@@ -69,6 +73,9 @@ section ListImpl
 
         case Concat(lhs, rhs) =>
           if i < lhs.size then lhs(i) else rhs(i - lhs.size)
+
+        case Slice(raw, from, _) =>
+          raw(from + i)
       end
 
     def updated(i: Int, value: T): List[T] =
@@ -94,6 +101,10 @@ section ListImpl
             makeObject (Concat lhs.updated(i, value) rhs)
           else
             makeObject (Concat lhs rhs.updated(i - lhs.size, value))
+
+        case Slice(raw, from, to) =>
+          val raw2 = raw.updated (from + i) value
+          makeObject (Slice raw2 from to)
       end
 
 
@@ -103,93 +114,68 @@ section ListImpl
 
     def ++(l: List[T]): List[T] = makeObject (Concat this l)
 
+    def slice(from: Int, to: Int): List[T] =
+      assert (from >= 0 && from < size)  ("invalid from for List.slice " + (intToStr from))
+      assert (to >= from && to < size) ("invalid to for List.slice " + (intToStr to))
+
+      makeObject (Slice this from to)
+
     def select(pred: T => Bool): List[T] =
-      match repr
-        case Nil => makeObject Nil
+      var i = 0
+      var res = empty[T]
 
-        case Cons(v, tail) =>
-          if pred v then
-            makeObject (Cons v (tail.select pred))
-
-          else
-            tail.select pred
-
-        case Append(prefix, v) =>
-          if pred v then
-            makeObject (Append (prefix.select pred) v)
-          else
-            prefix.select pred
-
-        case Concat(lhs, rhs) =>
-          makeObject (Concat (lhs.select pred) (rhs.select pred))
+      while i < size do
+        val item = this(i)
+        if pred item then
+          res = res + item
+        i = i + 1
       end
+
+      res
 
     def exclude(pred: T => Bool): List[T] =
-      match repr
-        case Nil => makeObject Nil
+      var i = 0
+      var res = empty[T]
 
-        case Cons(v, tail) =>
-          if pred v then
-            tail.exclude pred
-
-          else
-            makeObject (Cons v (tail.exclude pred))
-
-        case Append(prefix, v) =>
-          if pred v then
-            prefix.exclude pred
-          else
-            makeObject (Append (prefix.exclude pred) v)
-
-        case Concat(lhs, rhs) =>
-          makeObject (Concat (lhs.exclude pred) (rhs.exclude pred))
+      while i < size do
+        val item = this(i)
+        if !(pred item) then
+          res = res + item
+        i = i + 1
       end
+
+      res
 
     def map[S](f: T => S): List[S] =
-      match repr
-        case Nil => makeObject Nil
+      // TODO: can use an array for better cache locality
+      var i = 0
+      var res = empty[S]
 
-        case Cons(v, tail) =>
-          makeObject (Cons (f v) (tail.map f))
-
-        case Append(prefix, v) =>
-          makeObject (Append (prefix.map f) (f v))
-
-        case Concat(lhs, rhs) =>
-          makeObject (Concat (lhs.map f) (rhs.map f))
+      while i < size do
+        res = res + (f this(i))
+        i = i + 1
       end
 
+      res
+
     def foreach(op: T => Unit): Unit =
-      match repr
-        case Nil =>
+      var i = 0
 
-        case Cons(v, tail) =>
-          op v
-          tail.foreach op
-
-
-        case Append(prefix, v) =>
-          prefix.foreach op
-          op v
-
-        case Concat(lhs, rhs) =>
-          lhs.foreach op
-          rhs.foreach op
+      while i < size do
+        op this(i)
+        i = i + 1
       end
 
     def fold[S](zero: S, f: (S, T) => S): S =
-      match repr
-        case Nil => zero
+      var acc = zero
+      var i = 0
 
-        case Cons(v, tail) =>
-          f (tail.fold zero f) v
-
-        case Append(prefix, v) =>
-          f (prefix.fold zero f) v
-
-        case Concat(lhs, rhs) =>
-          lhs.fold (rhs.fold zero f) f
+      while i < size do
+        acc = f acc this(i)
+        i = i + 1
       end
+
+      acc
 
     def exists(pred: T => Bool): Bool =
       var found = false

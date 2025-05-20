@@ -268,7 +268,7 @@ object SastOps:
           OrPattern(this(lhs), this(rhs))
 
         case ValuePattern(value) =>
-          ValuePattern(this(value))
+          ValuePattern(this(value))(pattern.scrutineeType)
 
         case GuardPattern(pattern, guard) =>
           GuardPattern(this(pattern), this(guard))
@@ -288,10 +288,13 @@ object SastOps:
                   AtomPattern(this(pattern))
 
                 case SkipToPattern(pattern) =>
-                  SkipToPattern(this(pattern))(regPat.tpe, regPat.span)
+                  SkipToPattern(this(pattern))(regPat.span)
+
+                case RemainingSlicePattern(pattern) =>
+                  RemainingSlicePattern(this(pattern))(regPat.span)
 
                 case starPat @ StarPattern(pattern) =>
-                  StarPattern(this(pattern))(regPat.tpe, regPat.span, starPat.bindings)
+                  StarPattern(this(pattern))(regPat.span, starPat.bindings)
               end match
             end for
 
@@ -425,6 +428,8 @@ object SastOps:
             case SkipToPattern(pattern) => this(pattern)
 
             case StarPattern(pattern) => this(pattern)
+
+            case RemainingSlicePattern(pattern) => this(pattern)
 
         case WildcardPattern() =>
 

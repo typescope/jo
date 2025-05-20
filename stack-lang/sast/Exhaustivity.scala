@@ -84,6 +84,42 @@ object Exhaustivity:
       case UnionSpace(spaces) =>
         spaces.flatMap(flatten)
 
+  def isIrrefutable(pat: Pattern)(using defn: Definitions): Boolean =
+    pat match
+      case AscribePattern(_, nested) => isIrrefutable(nested)
+
+      case TypePattern(tpt) => Subtyping.isEqualType(tpt.tpe, pat.scrutineeType)
+
+      case WildcardPattern() => true
+
+      case seqPat: SeqPattern => isIrrefutable(seqPat)
+
+      case ValuePattern(value) => false
+
+      case tagPat: TagPattern =>
+        val scrutType = tagPat.scrutineeType
+
+        scrutType.isTagType
+        && scrutType.asTagType.tag == tagPat.tag
+        && tagPat.nested.forall(isIrrefutable)
+
+      case app @ ApplyPattern(pred, nested) =>
+        assert(pred.tpe.isProcType, pred.tpe)
+        !pred.tpe.asProcType.resultType.refers(defn.Predef_Partial)
+
+      case _: OrPattern => false
+
+      case _: GuardPattern => false
+
+      case TermBindingPattern(pattern, _) => isIrrefutable(pattern)
+
+  def isIrrefutable(pat: SeqPattern)(using Definitions): Boolean =
+    pat.patterns.forall:
+      case AtomPattern(pat)           => isIrrefutable(pat)
+      case SkipToPattern(pat)         => isIrrefutable(pat)
+      case StarPattern(pat)           => isIrrefutable(pat)
+      case RemainingSlicePattern(pat) => isIrrefutable(pat)
+
   def project(pattern: Pattern)(using defn: Definitions): Space =
     pattern match
       case AscribePattern(id, nested) => project(nested)
@@ -92,13 +128,9 @@ object Exhaustivity:
 
       case WildcardPattern() => TypeSpace(pattern.tpe)
 
-      case seqPat @ SeqPattern(patterns) =>
-        val isIrrefutable = patterns.forall:
-          case AtomPattern(pat)   => pat.isWildcard
-          case SkipToPattern(pat) => pat.isWildcard
-          case StarPattern(pat)   => pat.isWildcard
+      case seqPat: SeqPattern =>
 
-        if isIrrefutable then
+        if isIrrefutable(seqPat) then
           SeqSpace(seqPat.tpe, seqPat.totalSize)
         else
           PartialSpace(SeqSpace(seqPat.tpe, seqPat.totalSize))

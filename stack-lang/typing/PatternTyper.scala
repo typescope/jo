@@ -13,7 +13,7 @@ import reporting.Diagnostics
 
 import Namer.DelayedDef
 import Inference.TargetType
-import PatternTyper.{ Occurs, ShadowedPattern }
+import PatternTyper.{ Occurs, ShadowedPatternError, RemainingSlice, SkipTo }
 
 import scala.collection.mutable
 
@@ -418,7 +418,7 @@ class PatternTyper(namer: Namer, checker: Checker):
 
     val pattern =
       if name == "_" then
-        TypePattern(tpt2)
+        TypePattern(tpt2)(scrutType)
 
       else
         sc.resolvePattern(name) match
@@ -429,7 +429,7 @@ class PatternTyper(namer: Namer, checker: Checker):
             // TODO: conform should be safe, no need to be equal
             if Patterns.isEqualType(tpe, sym.info)(using explain) then
               val patVal = Ident(sym)(id.span)
-              AscribePattern(patVal, TypePattern(tpt2))
+              AscribePattern(patVal, TypePattern(tpt2)(scrutType))
 
             else
               Reporter.error(s"The type ${tpe.show} not a equal to the type of $sym. The latter has type " + sym.info.show, tpt.pos)
@@ -440,7 +440,7 @@ class PatternTyper(namer: Namer, checker: Checker):
             sc.definePatternAsTerm(sym)
 
             val patVal = Ident(sym)(id.span)
-            AscribePattern(patVal, TypePattern(tpt2))
+            AscribePattern(patVal, TypePattern(tpt2)(scrutType))
         end match
       end if
 
@@ -582,6 +582,23 @@ class PatternTyper(namer: Namer, checker: Checker):
     val tvar = TypeVar("T", this.namer.inferencer)
     val seqType = AppliedType(TypeRef(defn.Internal_Seq), tvar :: Nil)
 
+    val sliceMethodType =
+      ProcType(
+        tparams = Nil,
+        params = NamedInfo("from", defn.IntType) :: NamedInfo("to", defn.IntType)  :: Nil,
+        autos = Nil,
+        receives = Some(Nil),
+        resultType = scrutType.widenTermRef,
+        preParamCount = 0
+      )
+
+    lazy val sliceMethodConforms: Boolean =
+      scrutType.getTermMember("slice") match
+        case Some(tp1) =>
+          Subtyping.conforms(tp1, sliceMethodType)
+
+        case _ => false
+
     def memberConforms(name: String) =
       scrutType.getTermMember(name) match
         case Some(tp1) =>
@@ -599,7 +616,7 @@ class PatternTyper(namer: Namer, checker: Checker):
         WildcardPattern()(ErrorType, seq.span)
 
       else
-        val regexPatterns = new mutable.ArrayBuffer[RegexPattern]
+        val partPatterns = new mutable.ArrayBuffer[SeqPartPattern]
         val itemType = tvar.instantiated
 
         val tempReporter = rp.fresh(buffer = true)
@@ -607,27 +624,34 @@ class PatternTyper(namer: Namer, checker: Checker):
         for pat <- seq.words do
           given Reporter = tempReporter
           pat match
-            case Ast.Expr(Ast.Ident(">") :: pat :: Nil) =>
-              val inner = transformPattern(pat, itemType)
-              regexPatterns += SkipToPattern(inner)(scrutType, pat.span)
+            case SkipTo(nested) =>
+              val inner = transformPattern(nested, itemType)
+              partPatterns += SkipToPattern(inner)(pat.span)
 
             case Ast.Expr(nested :: Ast.Ident("*") :: Nil) =>
-              regexPatterns += transformStarPattern(nested, itemType, scrutType, pat)
+              partPatterns += transformStarPattern(nested, itemType, pat)
+
+            case RemainingSlice(nested) =>
+              if pat `ne` seq.words.last then
+                Reporter.error(".. may only used in the last position of a sequence pattern", pat.pos)
+
+              else if !sliceMethodConforms then
+                Reporter.error("The scrutinee does not have a `slice(from: Int, to: Int)` method to support the pattern `..`", pat.pos)
+
+              else
+                val inner = transformPattern(nested, scrutType)
+                partPatterns += RemainingSlicePattern(inner)(pat.span)
 
             case expr: Ast.Expr =>
               Reporter.error("Unrecognized sequence pattern. Do you forget parenthesis for the nested item pattern?", expr.pos)
 
-            case Ast.Apply(Ast.Ident(">"), pat :: Nil) =>
-              val inner = transformPattern(pat, itemType)
-              regexPatterns += SkipToPattern(inner)(scrutType, pat.span)
-
             case pat =>
               val pattern = transformPattern(pat, itemType)
-              regexPatterns += AtomPattern(pattern)
+              partPatterns += AtomPattern(pattern)
           end match
         end for
 
-        val seqPattern = SeqPattern(regexPatterns.toList)(scrutType, seq.span)
+        val seqPattern = SeqPattern(partPatterns.toList)(scrutType, seq.span)
 
         if !tempReporter.hasErrors then
           // check determinism of patterns
@@ -645,7 +669,7 @@ class PatternTyper(namer: Namer, checker: Checker):
                 val space2 = Exhaustivity.project(headPattern)
                 val reachableSpace = Exhaustivity.subtract(space2, space1)
                 if Exhaustivity.isEmpty(reachableSpace) then
-                  rp.report(ShadowedPattern(itemPat, headPattern))
+                  rp.report(ShadowedPatternError(itemPat, headPattern))
 
               case _ =>
             end match
@@ -662,9 +686,9 @@ class PatternTyper(namer: Namer, checker: Checker):
       WildcardPattern()(ErrorType, seq.span)
 
 
-  private def transformStarPattern(nested: Ast.Word, itemType: Type, scrutType: Type, pat: Ast.Word)
+  private def transformStarPattern(nested: Ast.Word, itemType: Type, pat: Ast.Word)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs)
-  : RegexPattern =
+  : SeqPartPattern =
 
     // inner pattern has no access to outer locally introduced pattern variables
     val occursInner: Occurs = new Occurs
@@ -703,7 +727,7 @@ class PatternTyper(namer: Namer, checker: Checker):
       end match
 
 
-    StarPattern(inner)(scrutType, pat.span, bindings.toList)
+    StarPattern(inner)(pat.span, bindings.toList)
 
   private def resolvePatternPredicate(id: Ast.Ident)(using sc: Scope, rp: Reporter, so: Source, defn: Definitions): Symbol =
     resolvePatternPredicateOpt(id) match
@@ -742,22 +766,22 @@ class PatternTyper(namer: Namer, checker: Checker):
       case Ast.IntLit(value) =>
         given TargetType = TargetType.Known(scrutType)
         val literal = namer.transform(pat)
-        ValuePattern(literal)
+        ValuePattern(literal)(scrutType)
 
       case Ast.BoolLit(value) =>
         given TargetType = TargetType.Known(scrutType)
         val literal = namer.transform(pat)
-        ValuePattern(literal)
+        ValuePattern(literal)(scrutType)
 
       case Ast.CharLit(value) =>
         given TargetType = TargetType.Known(scrutType)
         val literal = namer.transform(pat)
-        ValuePattern(literal)
+        ValuePattern(literal)(scrutType)
 
       case Ast.StringLit(value) =>
         given TargetType = TargetType.Known(scrutType)
         val literal = namer.transform(pat)
-        ValuePattern(literal)
+        ValuePattern(literal)(scrutType)
 
       case Ast.TypeAscribe(id: Ast.Ident, tpt) =>
         transformTypePattern(id, tpt, scrutType, pat.span)
@@ -830,7 +854,21 @@ object PatternTyper:
       if !census.contains(symbol) then
         Reporter.error(s"The parameter $symbol should occur once in the patterns", symbol.sourcePos)
 
-  class ShadowedPattern(pat1: Pattern, pat2: Pattern)(using Source)
+  object RemainingSlice:
+    def unapply(word: Ast.Word): Option[Ast.Word] =
+      word match
+        case Ast.Expr(Ast.Ident("..") :: nested :: Nil) => Some(nested)
+        case Ast.Apply(Ast.Ident(".."), nested :: Nil) => Some(nested)
+        case _ => None
+
+  object SkipTo:
+    def unapply(word: Ast.Word): Option[Ast.Word] =
+      word match
+        case Ast.Expr(Ast.Ident(">") :: nested :: Nil) => Some(nested)
+        case Ast.Apply(Ast.Ident(">"), nested :: Nil) => Some(nested)
+        case _ => None
+
+  class ShadowedPatternError(pat1: Pattern, pat2: Pattern)(using Source)
   extends Diagnostics.DoublePositionedReport:
     val kind = Diagnostics.Kind.Warning
 
