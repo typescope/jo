@@ -633,7 +633,7 @@ class PatternTyper(namer: Namer, checker: Checker):
 
             case RemainingSlice(nested) =>
               if pat `ne` seq.words.last then
-                Reporter.error(".. may only used in the last position of a sequence pattern", pat.pos)
+                Reporter.error(".. may only be used in the last position of a sequence pattern", pat.pos)
 
               else if !sliceMethodConforms then
                 Reporter.error("The scrutinee does not have a `slice(from: Int, to: Int)` method to support the pattern `..`", pat.pos)

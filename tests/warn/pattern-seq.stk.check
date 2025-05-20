@@ -25,6 +25,6 @@
 ---------- Error at ./tests/warn/pattern-seq.stk:23:14 ---------------
 |     case [x, ..y, Pos] =>
 |              ^^^
-|              .. may only used in the last position of a sequence pattern
+|              .. may only be used in the last position of a sequence pattern
 
 2 error(s), 3 warning(s)
