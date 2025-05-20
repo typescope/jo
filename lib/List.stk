@@ -115,10 +115,11 @@ section ListImpl
     def ++(l: List[T]): List[T] = makeObject (Concat this l)
 
     def slice(from: Int, to: Int): List[T] =
-      assert (from >= 0 && from < size)  ("invalid from for List.slice " + (intToStr from))
-      assert (to >= from && to < size) ("invalid to for List.slice " + (intToStr to))
+      assert (from >= 0 && from <= size)  ("invalid from for List.slice " + (intToStr from) + ", size = " + (intToStr size))
+      assert (to >= from && to <= size) ("invalid to for List.slice " + (intToStr to) + ", size = " + (intToStr size))
 
-      makeObject (Slice this from to)
+      if from == size then empty[T]
+      else makeObject (Slice this from to)
 
     def select(pred: T => Bool): List[T] =
       var i = 0
