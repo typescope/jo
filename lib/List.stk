@@ -132,8 +132,14 @@ section ListImpl
     def ++(l: List[T]): List[T] = makeObject[T] (Concat this l)
 
     def slice(from: Int, to: Int): List[T] =
-      assert (from >= 0 && from <= size)  ("invalid from for List.slice " + (intToStr from) + ", size = " + (intToStr size))
-      assert (to >= from && to <= size) ("invalid to for List.slice " + (intToStr to) + ", size = " + (intToStr size))
+      val msg =
+        "invalid arg for List.slice"
+          + ", from = " + (intToStr from)
+          + ", to = " + (intToStr to)
+          + ", size = " + (intToStr size)
+
+      assert (from >= 0 && from <= size) msg
+      assert (to >= from && to <= size) msg
 
       if from == size then empty[T]
       else makeObject[T] (Slice this from to)
@@ -214,8 +220,14 @@ section ListImpl
 
     // The Bool value tells whether to continue the traversal
     def _traverse(from: Int, to: Int, op: T => Bool, rest: List[T]): Unit =
-      assert (from >= 0 && from < size)  ("invalid from for List.traverse " + (intToStr from) + ", size = " + (intToStr size))
-      assert (to >= from && to < size) ("invalid to for List.traverse " + (intToStr to) + ", size = " + (intToStr size))
+      val msg =
+        "invalid arg for List._traverse"
+          + ", from = " + (intToStr from)
+          + ", to = " + (intToStr to)
+          + ", size = " + (intToStr size)
+
+      assert (from >= 0 && from < size) msg
+      assert (to >= from && to < size) msg
 
       match repr
         case Nil =>
@@ -252,7 +264,7 @@ section ListImpl
             rhs._traverse (from - lhs.size) (to - lhs.size) op rest
 
           else
-            val rhs2 = rhs.slice lhs.size (to - lhs.size)
+            val rhs2 = rhs.slice 0 (to - lhs.size)
             lhs._traverse from (lhs.size - 1) op (rhs2 ++ rest)
 
         case Slice base from2 to2 =>
