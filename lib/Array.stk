@@ -1,8 +1,6 @@
 namespace stk.Array
 
-import stk.Predef.Int
-import stk.Predef.Unit
-import stk.Predef.abort
+import stk.Predef.*
 
 //------------------------------------------------------------------------------
 //
@@ -18,3 +16,13 @@ fun get[T](arr: Array[T], i: Int): T = abort("primitive Array.get")
 fun size[T](arr: Array[T]): Int = abort("primitive Array.size")
 
 fun set[T](arr: Array[T], i: Int, value: T): Unit = abort("primitive Array.set")
+
+fun clone[T](arr: Array[T]): Array[T] =
+  val arr2 = new[T] (size arr)
+  var i = 0
+  var len = size arr
+  while i < len do
+    set arr2 i (get arr i)
+    i = i + 1
+  end
+  arr2

@@ -11,8 +11,11 @@ class UniqueName:
     usedNames.get(prefix) match
       case Some(count) =>
         val updatedCount = count + 1
+        val name = prefix + updatedCount
         usedNames = usedNames.updated(prefix, updatedCount)
-        prefix + updatedCount
+        // x
+        // x1 might be used as well
+        freshName(name)
 
       case None =>
         usedNames = usedNames.updated(prefix, 0)

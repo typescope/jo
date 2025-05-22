@@ -18,8 +18,8 @@ object Printing:
   def show(pattern: Pattern)(using Definitions): String =
     showPattern(pattern).toString
 
-  def show(pattern: RegexPattern)(using Definitions): String =
-    showRegexPattern(pattern).toString
+  def show(pattern: SeqPartPattern)(using Definitions): String =
+    showSeqPartPattern(pattern).toString
 
   def show(ns: Namespace)(using Definitions): String =
     showNamespace(ns).toString
@@ -40,8 +40,8 @@ object Printing:
   given (using Definitions): Text.Maker[Pattern] =
     v => showPattern(v)
 
-  given (using Definitions): Text.Maker[RegexPattern] =
-    v => showRegexPattern(v)
+  given (using Definitions): Text.Maker[SeqPartPattern] =
+    v => showSeqPartPattern(v)
 
   given (using Definitions): Text.Maker[Case] =
     v => "case " ~ v.pattern ~ " =>" ~ indent(v.body)
@@ -294,13 +294,15 @@ object Printing:
       case SeqPattern(patterns) =>
         "[" ~ patterns.join(", ") ~ "]"
 
-  def showRegexPattern(pat: RegexPattern)(using Definitions): Text =
+  def showSeqPartPattern(pat: SeqPartPattern)(using Definitions): Text =
     pat match
       case AtomPattern(pattern) => showPattern(pattern)
 
       case SkipToPattern(pattern) => ">" ~ pattern
 
       case StarPattern(pattern) => pattern ~ "*"
+
+      case RemainingSlicePattern(pattern) => ".." ~ pattern
 
   def showModifiers(sym: Symbol)(using Definitions): Text =
     val buf = new mutable.ArrayBuffer[Text]

@@ -18,3 +18,7 @@ fun test2(a: List[Int]) =
   match a
     case [x, y*, Pos*] =>
     case _ =>
+
+  match a
+    case [x, ..y, Pos] =>
+    case _ =>

@@ -21,3 +21,5 @@ object Name:
     c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
 
   def isOperator(name: String): Boolean = !isNameStart(name(0))
+
+  def isBinaryOperator(name: String): Boolean = isOperator(name) && name != "!"

@@ -52,8 +52,8 @@ object Interpreter:
         case PlatformCall(op) => "platformCall"
         case PlatformObj(_) => "platformObject"
         case ObjectVal(values, self, vals, defs,  env) =>
-          val fields = values.map(_ + " = " + _.show(level - 1)).mkString(", ")
-          val methods = defs.map(_ + ": " + _.symbol.info.show).mkString(", ")
+          val fields = values.take(1).map(_ + " = " + _.show(level - 1)).mkString(", ")
+          val methods = defs.take(1).map(_ + ": " + _.symbol.info.show).mkString(", ")
           "object {" + fields + ", " + methods + "}"
 
   type Value = IntVal | BoolVal | StringVal | RecordVal | ObjectVal | FunVal | ArrayVal | PlatformObj
@@ -93,7 +93,7 @@ object Interpreter:
     def contains(sym: Symbol): Boolean = map.contains(sym)
 
     def show(recursive: Boolean)(using Definitions): String =
-      var bindings = map.map(_.name + " -> " + _.show).toList
+      var bindings = map.map(_.name + " -> " + _.show()).toList
 
       if recursive then
         this match

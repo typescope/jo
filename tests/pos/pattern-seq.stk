@@ -17,8 +17,12 @@ fun test(a: MySeq[Int]) =
 
     case _ =>
 
+pattern Size[T](n: Int): List[T] =
+  case [] then n = 0
+  case [x, ..Size(acc)] then n = 1 + acc
+
 fun main =
-  val a: List[Int] = List.empty + 1 + 8 + 5 + 7 + 9 + (-3) + 10 + 20
+  val a: List[Int] = List 1 8 5 7 9 -3 10 20
 
   val b = object {
     def isEmpty: Bool = a.size == 0
@@ -27,3 +31,13 @@ fun main =
   }
 
   test b
+
+  println "test .."
+  match a
+    case [] =>
+    case [x] =>
+    case [x, y, ..xs] =>
+      println (intToStr y)
+      xs.foreach i => println (intToStr i)
+
+  match a case Size v => println ("Size = " + (intToStr v))

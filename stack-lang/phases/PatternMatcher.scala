@@ -535,6 +535,27 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
           val finalCond = all(foundIdent, distanceOK)
           conds += Block(foundInit :: whileLoop :: finalCond :: Nil)(BoolType, pat.span)
 
+        case RemainingSlicePattern(pattern) =>
+          assert(i == seqPattern.patterns.size - 1, ".. should be the last pattern")
+          // val rest = scrutinee.slice(index, if index == size then index else size - 1)
+          // items ~ pattern
+
+          val restSym = Symbol.createSymbol("rest", pattern.scrutineeType, Flags.Synthetic, ctx.owner, pat.pos)
+          val restIdent = Ident(restSym)(pat.span)
+          val to =
+            val sub = Ident(defn.Int_sub)(pat.span)
+            val cond = Ident(defn.Int_eql)(pat.span).appliedTo(indexIdent, sizeIdent)
+            If(
+              cond,
+              indexIdent,
+              sub.appliedTo(sizeIdent, IntLit(1)(pat.span))
+            )(defn.IntType, pat.span)
+
+          val slice = scrut.select("slice").appliedTo(indexIdent, to)
+          val restAssign = Assign(restIdent, slice)(pat.span)
+          val nestedCond = transformPattern(restIdent, pattern)
+          conds += Block(restAssign :: nestedCond :: Nil)(BoolType, pat.span)
+
         case starPat @ StarPattern(pattern) =>
           //  var continue = true
           //  ys = []   -- outer pattern bound symbol corresponding to inner symbol y

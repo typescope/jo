@@ -324,7 +324,7 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
     pat.copy(pattern = this(pat.pattern), bindings = assigns)
 
   override def transformValuePattern(pat: ValuePattern)(using ctx: Context): Pattern =
-    pat.copy(value = checkTermInPattern(pat.value))
+    pat.copy(value = checkTermInPattern(pat.value))(pat.scrutineeType)
 
 object NormalizeParams:
   class Context(val cache: EffectAnalysis.Cache, val owner: Symbol)

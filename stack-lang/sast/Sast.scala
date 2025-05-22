@@ -199,7 +199,9 @@ object Sast:
   // patterns
 
   sealed trait Pattern extends Tree:
-    val tpe: Type
+    val scrutineeType: Type
+
+    def tpe: Type = scrutineeType
 
     def show(using Definitions): String = Printing.show(this)
 
@@ -210,31 +212,30 @@ object Sast:
         case _ => false
 
   case class TypePattern
-    (tpt: TypeTree)
+    (tpt: TypeTree)(val scrutineeType: Type)
   extends Pattern:
-    val tpe: Type = tpt.tpe
     val span: Span = tpt.span
 
   case class WildcardPattern
     ()
-    (val tpe: Type, val span: Span)
+    (val scrutineeType: Type, val span: Span)
   extends Pattern
 
   case class AscribePattern
     (id: Ident, nested: Pattern)
   extends Pattern:
-    val tpe = nested.tpe
+    val scrutineeType = nested.scrutineeType
     val span = id.span | nested.span
 
   case class OrPattern
     (lhs: Pattern, rhs: Pattern)
   extends Pattern:
-    val tpe = lhs.tpe
+    val scrutineeType = lhs.scrutineeType
     val span = lhs.span | rhs.span
 
   case class ApplyPattern
     (fun: Word, nested: List[Pattern])
-    (val tpe: Type, val span: Span)
+    (val scrutineeType: Type, val span: Span)
   extends Pattern:
     val symbol =
       fun match
@@ -244,7 +245,7 @@ object Sast:
 
   case class TagPattern
     (tagTree: Literal, nested: List[Pattern])
-    (val tpe: Type)
+    (val scrutineeType: Type)
   extends Pattern:
     val span = if nested.isEmpty then tagTree.span else tagTree.span | nested.last.span
 
@@ -253,26 +254,25 @@ object Sast:
       case c => throw new Exception("Expect string, found = " + c)
 
   case class ValuePattern
-    (value: Word)
+    (value: Word)(val scrutineeType: Type)
   extends Pattern:
-    val tpe = value.tpe
     val span = value.span
 
   case class GuardPattern
     (pattern: Pattern, guard: Word)
   extends Pattern:
-    val tpe = pattern.tpe
+    val scrutineeType = pattern.scrutineeType
     val span = pattern.span | guard.span
 
   case class TermBindingPattern
     (pattern: Pattern, bindings: List[Assign])
   extends Pattern:
-    val tpe = pattern.tpe
+    val scrutineeType = pattern.scrutineeType
     val span = pattern.span | (if bindings.nonEmpty then bindings.last.span else pattern.span)
 
   case class SeqPattern
-    (patterns: List[RegexPattern])
-    (val tpe: Type, val span: Span)
+    (patterns: List[SeqPartPattern])
+    (val scrutineeType: Type, val span: Span)
   extends Pattern:
     /** The distance from the end of a pattern to the end of sequence */
     val distanceToEnd: Seq[SeqPattern.Size] = SeqPattern.computeDistanceToEnd(patterns)
@@ -281,7 +281,7 @@ object Sast:
       if patterns.isEmpty then SeqPattern.Size.Exact(0)
       else distanceToEnd(0) + patterns(0).size
 
-    def apply(i: Int): RegexPattern = patterns(i)
+    def apply(i: Int): SeqPartPattern = patterns(i)
 
     def patternCount: Int = patterns.size
 
@@ -342,7 +342,7 @@ object Sast:
           case GreatEq(n) => "size >= " + n
           case Exact(n)   => "size = " + n
 
-    def computeDistanceToEnd(patterns: Seq[RegexPattern]): Seq[Size] =
+    def computeDistanceToEnd(patterns: Seq[SeqPartPattern]): Seq[Size] =
       val distanceToEnd = new Array[Size](patterns.size)
       if patterns.nonEmpty then
         var i = patterns.size - 1
@@ -355,8 +355,9 @@ object Sast:
       end if
       distanceToEnd
 
-  sealed trait RegexPattern extends Tree:
-    val tpe: Type
+  /** A subpattern that appears inside a sequence pattern */
+  sealed trait SeqPartPattern extends Tree:
+    def tpe: Type = throw new Exception("No type associated with seq part pattern")
 
     def show(using Definitions): String = Printing.show(this)
 
@@ -365,24 +366,30 @@ object Sast:
         case AtomPattern(pat) => pat
         case SkipToPattern(pat) => pat
         case StarPattern(pat) => pat
+        case RemainingSlicePattern(pat) => WildcardPattern()(AnyType, pat.span)
 
     /** The number of items the pattern consumes when the match is successful */
     def size: SeqPattern.Size =
       this match
-        case AtomPattern(pat)   => SeqPattern.Size.Exact(1)
-        case SkipToPattern(pat) => SeqPattern.Size.GreatEq(1)
-        case StarPattern(pat)   => SeqPattern.Size.GreatEq(0)
+        case AtomPattern(pat)          => SeqPattern.Size.Exact(1)
+        case SkipToPattern(pat)        => SeqPattern.Size.GreatEq(1)
+        case StarPattern(pat)          => SeqPattern.Size.GreatEq(0)
+        case RemainingSlicePattern(pat) => SeqPattern.Size.GreatEq(0)
 
   case class AtomPattern
     (pattern: Pattern)
-  extends RegexPattern:
-    val tpe: Type = pattern.tpe
+  extends SeqPartPattern:
     val span: Span = pattern.span
 
   case class SkipToPattern
     (pattern: Pattern)
-    (val tpe: Type, val span: Span)
-  extends RegexPattern
+    (val span: Span)
+  extends SeqPartPattern
+
+  case class RemainingSlicePattern
+    (pattern: Pattern)
+    (val span: Span)
+  extends SeqPartPattern
 
   /** Represent a * pattern
     *
@@ -393,8 +400,8 @@ object Sast:
     */
   case class StarPattern
     (pattern: Pattern)
-    (val tpe: Type, val span: Span, val bindings: List[(Symbol, Symbol)])
-  extends RegexPattern:
+    (val span: Span, val bindings: List[(Symbol, Symbol)])
+  extends SeqPartPattern:
     for (outer, inner) <- bindings do
       assert(outer.name == inner.name, s"outer = $outer, inner = inner")
 
