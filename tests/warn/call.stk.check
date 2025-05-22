@@ -1,0 +1,11 @@
+---------- Error at ./tests/warn/call.stk:2:12 ---------------
+|   (f 3) && println "hello"
+|            ^^^^^^^^^^^^^^^
+|            Expect type Bool, found = Unit
+
+---------- Error at ./tests/warn/call.stk:5:3 ---------------
+|   f 3 && println "hello"
+|   ^^^^^^^^^^^^^^^^^^^^^^
+|   The function expects  1 arguments, found = 4
+
+2 error(s), 0 warning(s)

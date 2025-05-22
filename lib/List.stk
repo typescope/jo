@@ -31,6 +31,8 @@ type List[T] = object {
 
   def all(pred: T => Bool): Bool
 
+  def materialize: List[T]
+
   def traverse(op: T => Bool): Unit
 
   def _traverse(from: Int, to: Int, op: T => Bool, rest: List[T]): Unit
@@ -48,6 +50,7 @@ section ListImpl
     | Append(prefix: List[T], last: T)
     | Concat(lhs: List[T], rhs: List[T])
     | Slice(raw: List[T], from: Int, to: Int)
+    | Flat(elems: Array[T])
 
 
   pattern Size[T](n: Int): Repr[T] =
@@ -56,6 +59,7 @@ section ListImpl
     case Append(prefix, _) then n = prefix.size + 1
     case Concat(lhs, rhs) then n = lhs.size + rhs.size
     case Slice(_, from, to) then n = to - from + 1
+    case Flat(elems) then n = Array.size elems
 
   fun errorIndex(i: Int): Bottom = abort ("invalid index for list " + (intToStr i))
 
@@ -70,17 +74,20 @@ section ListImpl
       match repr
         case Nil => errorIndex i
 
-        case Cons(v, tail) =>
+        case Cons v tail =>
           if i == 0 then v else tail(i - 1)
 
-        case Append(prefix, v) =>
+        case Append prefix v =>
           if i == size - 1 then v else prefix(i)
 
-        case Concat(lhs, rhs) =>
+        case Concat lhs rhs =>
           if i < lhs.size then lhs(i) else rhs(i - lhs.size)
 
-        case Slice(raw, from, _) =>
+        case Slice raw from _ =>
           raw(from + i)
+
+        case Flat elems =>
+          Array.get elems i
       end
 
     def updated(i: Int, value: T): List[T] =
@@ -110,6 +117,11 @@ section ListImpl
         case Slice(raw, from, to) =>
           val raw2 = raw.updated (from + i) value
           makeObject[T] (Slice raw2 from to)
+
+        case Flat elems =>
+          val elems2 = Array.clone elems
+          Array.set elems2 i value
+          makeObject[T] (Flat elems2)
       end
 
 
@@ -147,14 +159,16 @@ section ListImpl
       res.acc
 
     def map[S](f: T => S): List[S] =
-      // TODO: can use an array for better cache locality
-      val res = object { var acc = empty[S] }
+      // Use an array for better cache locality
+      val array = Array.new[S] size
+      val state = object { var index = 0 }
 
       traverse v =>
-        res.acc = res.acc + (f v)
+        Array.set array state.index (f v)
+        state.index = state.index + 1
         true
 
-      res.acc
+      makeObject[S] (Flat array)
 
     def foreach(op: T => Unit): Unit =
       traverse v =>
@@ -188,6 +202,9 @@ section ListImpl
 
       res.qualify
 
+    def materialize: List[T] =
+      map v => v
+
     def traverse(op: T => Bool): Unit =
       match repr
         case Nil => // stop recursion from _traverse
@@ -206,7 +223,7 @@ section ListImpl
 
         case Cons v tail =>
           if to == 0 then
-            op v
+            if op v then rest.traverse op
 
           else if from == 0 then
             if op v then tail._traverse from (to - 1) op rest
@@ -220,7 +237,7 @@ section ListImpl
             prefix._traverse from to op rest
 
           else if from == prefix.size then
-            op v && rest.traverse op
+            if op v then rest.traverse op
 
           else
             val rest2 = makeObject[T] (Cons v rest)
@@ -235,11 +252,21 @@ section ListImpl
             rhs._traverse (from - lhs.size) (to - lhs.size) op rest
 
           else
-            lhs._traverse from (lhs.size - 1)  op (rhs ++ rest)
+            val rhs2 = rhs.slice lhs.size (to - lhs.size)
+            lhs._traverse from (lhs.size - 1) op (rhs2 ++ rest)
 
         case Slice base from2 to2 =>
           base._traverse (from2 + from) (from2 + to) op rest
 
+        case Flat elems =>
+          var continue = true
+          var i = from
+
+          while both continue (i <= to) do
+            continue = op (Array.get elems i)
+            i = i + 1
+
+          if continue then rest.traverse op
       end
   }
 end

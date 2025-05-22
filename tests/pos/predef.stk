@@ -17,6 +17,7 @@ fun main =
     .foreach (i => println (intToStr i))
 
   l2.exclude(i => i % 2  == 0)
+    .materialize
     .foreach (i => println (intToStr i))
 
   val s = Set 2 3 4 7 8

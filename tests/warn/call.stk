@@ -1,0 +1,5 @@
+fun test1(f: Int => Bool) =
+  (f 3) && println "hello"
+
+fun test2(f: Int => Bool) =
+  f 3 && println "hello"

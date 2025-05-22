@@ -514,7 +514,7 @@ class Namer:
           fun.pos)
         errorWord(apply.span)
 
-      else if apply.args.size < procType.minimumArgs then
+      else if apply.args.size != procType.paramCount && !procType.hasVararg || apply.args.size < procType.minimumArgs  then
         val mod = if procType.hasVararg then " at least " else ""
         Reporter.error(
           s"The function expects $mod $paramSize arguments, found = ${apply.args.size}",
