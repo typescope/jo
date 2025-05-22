@@ -70,7 +70,7 @@ Abstract Syntax
 
     section = SECTION ident {toplevel_def} [END].
 
-    toplevel_def = typedef | fundef | paramdef | alias | patdef | datadef | section.
+    toplevel_def = typedef | fundef | paramdef | alias | patdef | datadef | classdef | section.
 
     qualid = ident | qualid DOT ident.
 
@@ -78,7 +78,7 @@ Abstract Syntax
 
     expr    = word {word}.
 
-    word    = integer | boolean | char | string | ident | fence | record | tapply | apply | select | tag | lambda | object | begin_block.
+    word    = integer | boolean | char | string | ident | fence | record | tapply | apply | select | tag | lambda | object | begin_block | new_expr.
 
     phrase  = simple_phrase | assign | valdef | fundef | patdef | typedef | while | if | match.
 
@@ -90,6 +90,8 @@ Abstract Syntax
 
     apply  = word args.
     args   = LPAREN [expr {COMMA expr}] RPAREN.
+
+    new_expr = NEW qualid [targs] [args].
 
     simple_phrase = expr | type_ascribe | with_clause | allow_clause.
 
@@ -142,6 +144,8 @@ Abstract Syntax
     valdef  = {modifier} (VAL | VAR) ident [COLON type] EQL block.
 
     fundef  = {modifier} FUN [param_section] ident [tparams] [param_section] [auto_section] [COLON type] [receive_params] EQL block [END].
+
+    classdef = {modifier} class ident [tparams] [param_section] {member} [END].
 
     defdef  = DEF ident [tparams] [param_section] [COLON type] [receive_params] EQL block [END].
 
