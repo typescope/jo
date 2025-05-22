@@ -68,6 +68,11 @@ object Ast:
     (val span: Span)
   extends Word
 
+  case class New
+    (classRef: RefTree, targs: List[TypeTree], args: List[Word])
+    (val span: Span)
+  extends Word
+
   /** A dotless infix method call formed by expression typer
     *
     * We could use Apply, but a special class produces better error messages.

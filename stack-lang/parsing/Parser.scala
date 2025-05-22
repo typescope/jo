@@ -699,6 +699,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case Token.OBJECT =>
         optSelectAndApply(objectLit())
 
+      case Token.NEW =>
+        optSelectAndApply(newExpr())
+
       case Token.BEGIN =>
         next()
         val blk = block(item.indent)
@@ -1044,6 +1047,19 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def apply(fun: Word): Apply =
     val (args, span) = termArgs()
     Apply(fun, args)(fun.span | span)
+
+  def newExpr(): New =
+    val startItem = eat(Token.NEW)
+    val ref = qualid()
+    val targs =
+      if peek() == Token.LBRACKET then typeArgs()._1
+      else Nil
+
+    val (args, span) =
+      if peek() == Token.LBRACE then termArgs()
+      else (Nil, ref.span)
+
+    New(ref, targs, args)(startItem.span | span)
 
   def record(): RecordLit =
     val lbrace = eat(Token.LBRACE)
