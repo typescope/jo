@@ -38,7 +38,7 @@ type List[T] = object {
   def _traverse(from: Int, to: Int, op: T => Bool, rest: List[T]): Unit
 }
 
-fun empty[T]: List[T] = ListImpl.makeObject ListImpl.Nil
+fun empty[T]: List[T] = ListImpl.makeObject[T] ListImpl.Nil
 
 fun List[T](elems: ..T): List[T] = elems
 
@@ -214,8 +214,8 @@ section ListImpl
 
     // The Bool value tells whether to continue the traversal
     def _traverse(from: Int, to: Int, op: T => Bool, rest: List[T]): Unit =
-      assert (from >= 0 && from < size)  ("invalid from for List.slice " + (intToStr from) + ", size = " + (intToStr size))
-      assert (to >= from && to < size) ("invalid to for List.slice " + (intToStr to) + ", size = " + (intToStr size))
+      assert (from >= 0 && from < size)  ("invalid from for List.traverse " + (intToStr from) + ", size = " + (intToStr size))
+      assert (to >= from && to < size) ("invalid to for List.traverse " + (intToStr to) + ", size = " + (intToStr size))
 
       match repr
         case Nil =>

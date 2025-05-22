@@ -3,3 +3,24 @@ fun test1(f: Int => Bool) =
 
 fun test2(f: Int => Bool) =
   f 3 && println "hello"
+
+fun foo(x: Int, y: Int) = x + y
+
+fun (n: Int) bar(x: Int, y: Int, z: ..Int) = x + y
+
+fun qux(x: Int, y: Int, z: ..Int) = x + y
+
+fun main =
+  foo 3
+
+  foo 3 4 5
+
+  foo(3, 4, 5)
+
+  foo(2)
+
+  2 bar(3)
+  4 bar 3
+
+  qux 4
+  qux(3)

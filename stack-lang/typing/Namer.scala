@@ -514,10 +514,11 @@ class Namer:
           fun.pos)
         errorWord(apply.span)
 
-      else if apply.args.size != procType.paramCount && !procType.hasVararg || apply.args.size < procType.minimumArgs  then
-        val mod = if procType.hasVararg then " at least " else ""
+      else if apply.args.size != paramSize && !procType.hasVararg || apply.args.size < procType.minimumArgs then
+        val mod = if procType.hasVararg then "at least " else ""
+        val size = if procType.hasVararg then procType.minimumArgs else paramSize
         Reporter.error(
-          s"The function expects $mod $paramSize arguments, found = ${apply.args.size}",
+          s"The function expects $mod$size argument(s), found = ${apply.args.size}",
           apply.pos)
         errorWord(apply.span)
 
@@ -607,6 +608,8 @@ class Namer:
     val preParamCount = procType.preParamCount
     val postParamCount = procType.postParamCount
 
+    assert(!procType.hasVararg, "Infix call cannot have varargs")
+
     // Always prefer type constraints from outer scope if present
     for tp <- tt.knownType do Subtyping.conforms(procType.resultType, tp)
 
@@ -616,11 +619,9 @@ class Namer:
         fun.pos)
       errorWord(call.span)
 
-    else if postArgs.size != procType.minimumPostArgs then
-      val mod = if procType.hasVararg then " at least " else ""
-
+    else if postArgs.size != procType.postParamCount then
       Reporter.error(
-        s"Function ${fun.show} expects $mod $postParamCount post arguments, found = ${postArgs.size}",
+        s"Function ${fun.show} expects $postParamCount post argument(s), found = ${postArgs.size}",
         fun.pos)
       errorWord(call.span)
 
