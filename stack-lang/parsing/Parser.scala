@@ -560,16 +560,16 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         val span = words.head.span | words.last.span
         Expr(words.toList)(span)
 
-    def isOperator(item: TokenInfo): Boolean =
+    def isBinaryOperator(item: TokenInfo): Boolean =
       item.token match
-        case Token.Ident(name) => Name.isOperator(name)
+        case Token.Ident(name) => Name.isBinaryOperator(name)
         case _ => false
 
     if item.token == Token.EOF || lineIndent.isOutdent(item.indent) then
       finalResult
 
     else if item.indent.isFirstOfLine then
-      if isOperator(item) then
+      if isBinaryOperator(item) then
         // continue if the next line is an operator
         word() match
           case Some(w) =>
@@ -581,7 +581,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
               error("Unexpected indented line", nextItem.span.toPos)
               throw new SyntaxError
 
-            else if !lineIndent.isOutdent(nextItem.indent) && isOperator(nextItem) then
+            else if !lineIndent.isOutdent(nextItem.indent) && isBinaryOperator(nextItem) then
               error("Unaligned operator", nextItem.span.toPos)
               throw new SyntaxError
 
@@ -971,7 +971,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     // else is optional
     val nextItem = peekItem()
     val elsep =
-      if nextItem.token == Token.ELSE then
+      // outdent else belongs to outer if/else
+      if nextItem.token == Token.ELSE && !ifItem.indent.isOutdent(nextItem.indent) then
         val elseItem = eat(Token.ELSE)
         // if cond then
         // else if cond then

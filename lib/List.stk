@@ -30,6 +30,10 @@ type List[T] = object {
   def exists(pred: T => Bool): Bool
 
   def all(pred: T => Bool): Bool
+
+  def traverse(op: T => Bool): Unit
+
+  def _traverse(from: Int, to: Int, op: T => Bool, rest: List[T]): Unit
 }
 
 fun empty[T]: List[T] = ListImpl.makeObject ListImpl.Nil
@@ -37,6 +41,7 @@ fun empty[T]: List[T] = ListImpl.makeObject ListImpl.Nil
 fun List[T](elems: ..T): List[T] = elems
 
 section ListImpl
+  // Add .materialize and Array for performance
   data Repr[T] =
       Nil
     | Cons(head: T, tail: List[T])
@@ -86,118 +91,155 @@ section ListImpl
 
         case Cons(v, tail) =>
           if i == 0 then
-            makeObject (Cons value tail)
+            makeObject[T] (Cons value tail)
           else
-            makeObject (Cons value tail.updated(i + 1, value))
+            makeObject[T] (Cons value tail.updated(i + 1, value))
 
         case Append(prefix, v) =>
           if i == size - 1 then
-            makeObject (Append prefix value)
+            makeObject[T] (Append prefix value)
           else
-            makeObject (Append prefix.updated(i, value) v)
+            makeObject[T] (Append prefix.updated(i, value) v)
 
         case Concat(lhs, rhs) =>
           if i < lhs.size then
-            makeObject (Concat lhs.updated(i, value) rhs)
+            makeObject[T] (Concat lhs.updated(i, value) rhs)
           else
-            makeObject (Concat lhs rhs.updated(i - lhs.size, value))
+            makeObject[T] (Concat lhs rhs.updated(i - lhs.size, value))
 
         case Slice(raw, from, to) =>
           val raw2 = raw.updated (from + i) value
-          makeObject (Slice raw2 from to)
+          makeObject[T] (Slice raw2 from to)
       end
 
 
-    def +(v: T): List[T] = makeObject (Append this v)
+    def +(v: T): List[T] = makeObject[T] (Append this v)
 
-    def prepend(v: T): List[T] = makeObject (Cons v this)
+    def prepend(v: T): List[T] = makeObject[T] (Cons v this)
 
-    def ++(l: List[T]): List[T] = makeObject (Concat this l)
+    def ++(l: List[T]): List[T] = makeObject[T] (Concat this l)
 
     def slice(from: Int, to: Int): List[T] =
       assert (from >= 0 && from <= size)  ("invalid from for List.slice " + (intToStr from) + ", size = " + (intToStr size))
       assert (to >= from && to <= size) ("invalid to for List.slice " + (intToStr to) + ", size = " + (intToStr size))
 
       if from == size then empty[T]
-      else makeObject (Slice this from to)
+      else makeObject[T] (Slice this from to)
 
     def select(pred: T => Bool): List[T] =
-      var i = 0
-      var res = empty[T]
+      val res = object { var acc = empty[T] }
 
-      while i < size do
-        val item = this(i)
-        if pred item then
-          res = res + item
-        i = i + 1
-      end
+      traverse v =>
+        if pred v then
+          res.acc = res.acc + v
+        true
 
-      res
+      res.acc
 
     def exclude(pred: T => Bool): List[T] =
-      var i = 0
-      var res = empty[T]
+      val res = object { var acc = empty[T] }
 
-      while i < size do
-        val item = this(i)
-        if !(pred item) then
-          res = res + item
-        i = i + 1
-      end
+      traverse v =>
+        if !(pred v) then
+          res.acc = res.acc + v
+        true
 
-      res
+      res.acc
 
     def map[S](f: T => S): List[S] =
       // TODO: can use an array for better cache locality
-      var i = 0
-      var res = empty[S]
+      val res = object { var acc = empty[S] }
 
-      while i < size do
-        res = res + (f this(i))
-        i = i + 1
-      end
+      traverse v =>
+        res.acc = res.acc + (f v)
+        true
 
-      res
+      res.acc
 
     def foreach(op: T => Unit): Unit =
-      var i = 0
-
-      while i < size do
-        op this(i)
-        i = i + 1
-      end
+      traverse v =>
+        op v
+        true
 
     def fold[S](zero: S, f: (S, T) => S): S =
-      var acc = zero
-      var i = 0
+      val res = object { var acc = zero }
 
-      while i < size do
-        acc = f acc this(i)
-        i = i + 1
-      end
+      traverse v =>
+        res.acc = f res.acc v
+        true
 
-      acc
+      res.acc
 
     def exists(pred: T => Bool): Bool =
-      var found = false
-      var i = 0
+      val res = object { var qualify = false }
 
-      while both !found (i < size) do
-        found = pred this(i)
-        i = i + 1
-      end
+      traverse v =>
+        res.qualify = pred v
+        !res.qualify
 
-      found
+      res.qualify
 
     def all(pred: T => Bool): Bool =
-      var qualify = true
-      var i = 0
+      val res = object { var qualify = true }
 
-      while both qualify (i < size) do
-        qualify = pred this(i)
-        i = i + 1
+      traverse v =>
+        res.qualify = pred v
+        res.qualify
+
+      res.qualify
+
+    def traverse(op: T => Bool): Unit =
+      match repr
+        case Nil => // stop recursion from _traverse
+
+        case _ => _traverse 0 (size - 1) op empty[T]
       end
 
-      qualify
+    // The Bool value tells whether to continue the traversal
+    def _traverse(from: Int, to: Int, op: T => Bool, rest: List[T]): Unit =
+      assert (from >= 0 && from < size)  ("invalid from for List.slice " + (intToStr from) + ", size = " + (intToStr size))
+      assert (to >= from && to < size) ("invalid to for List.slice " + (intToStr to) + ", size = " + (intToStr size))
+
+      match repr
+        case Nil =>
+          rest.traverse op
+
+        case Cons v tail =>
+          if to == 0 then
+            op v
+
+          else if from == 0 then
+            if op v then tail._traverse from (to - 1) op rest
+
+          else
+            tail._traverse (from - 1) (to - 1) op rest
+
+
+        case Append prefix v =>
+          if to < prefix.size then
+            prefix._traverse from to op rest
+
+          else if from == prefix.size then
+            op v && rest.traverse op
+
+          else
+            val rest2 = makeObject[T] (Cons v rest)
+            prefix._traverse from (to - 1) op rest2
+
+
+        case Concat lhs rhs =>
+          if to < lhs.size then
+            lhs._traverse from to op rest
+
+          else if from >= lhs.size then
+            rhs._traverse (from - lhs.size) (to - lhs.size) op rest
+
+          else
+            lhs._traverse from (lhs.size - 1)  op (rhs ++ rest)
+
+        case Slice base from2 to2 =>
+          base._traverse (from2 + from) (from2 + to) op rest
+
+      end
   }
 end

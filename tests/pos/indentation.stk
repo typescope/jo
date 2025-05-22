@@ -22,6 +22,10 @@ fun fact5(n: Int): Int =
   if 0 == n then 1
   else fact5 (n - 1) * n end
 
+fun testExprEnd(a: Int): Bool =
+  val x = a * 2 > 3
+  !x
+
 fun main =
   var a = 10
   while a > 10 do
