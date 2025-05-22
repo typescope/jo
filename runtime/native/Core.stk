@@ -154,7 +154,7 @@ fun intToStr(n: Int): String =
 // TODO: Represent arrays of different primitive types differently.
 //
 
-fun Array_new[T](size: Int): Array[T] =
+fun Array_create[T](size: Int): Array[T] =
   val arr = GC.alloc (size * 4 + 4)
   writeInt arr size
   // TODO: zero memory

@@ -166,7 +166,7 @@ object Interpreter:
     val a :: b :: Nil = args: @unchecked
     BoolVal(a == b) :: Nil
 
-  def newArray(args: List[Value]): List[Value] =
+  def createArray(args: List[Value]): List[Value] =
     val IntVal(size) :: Nil = args: @unchecked
     ArrayVal(new Array[Value](size)) :: Nil
 
@@ -211,7 +211,7 @@ object Interpreter:
       defn.Bool_either     ->       either,
       defn.Bool_not        ->       not,
 
-      defn.Array_new       ->       newArray,
+      defn.Array_create    ->       createArray,
       defn.Array_get       ->       getArray,
       defn.Array_set       ->       setArray,
       defn.Array_size      ->       sizeArray,

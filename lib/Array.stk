@@ -9,7 +9,7 @@ import stk.Predef.*
 
 type Array[T]
 
-fun new[T](size: Int): Array[T] = abort("primitive Array.new")
+fun create[T](size: Int): Array[T] = abort("primitive Array.create")
 
 fun get[T](arr: Array[T], i: Int): T = abort("primitive Array.get")
 
@@ -18,7 +18,7 @@ fun size[T](arr: Array[T]): Int = abort("primitive Array.size")
 fun set[T](arr: Array[T], i: Int, value: T): Unit = abort("primitive Array.set")
 
 fun clone[T](arr: Array[T]): Array[T] =
-  val arr2 = new[T] (size arr)
+  val arr2 = create[T] (size arr)
   var i = 0
   var len = size arr
   while i < len do

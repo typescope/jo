@@ -166,7 +166,7 @@ section ListImpl
 
     def map[S](f: T => S): List[S] =
       // Use an array for better cache locality
-      val array = Array.new[S] size
+      val array = Array.create[S] size
       val state = object { var index = 0 }
 
       traverse v =>

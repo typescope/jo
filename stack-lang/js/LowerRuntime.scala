@@ -33,7 +33,7 @@ class LowerRuntime(runtime: JSRuntime)(using defn: Definitions) extends phases.P
   override def transformTypeApply(tapp: TypeApply)(using ctx: Context): Word =
     tapp match
       case TypeApply(ref @ Ident(sym), tpt :: Nil) =>
-        if sym.refers(defn.Array_new) then
+        if sym.refers(defn.Array_create) then
           if Subtyping.conforms(tpt.tpe, IntType) then
             Ident(runtime.JS_Array_createInt)(tapp.span)
 

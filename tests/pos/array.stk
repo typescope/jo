@@ -4,7 +4,7 @@ fun main =
   testObjectArray
 
 fun testIntArray =
-  val arr: Array[Int] = Array.new[Int] 3
+  val arr: Array[Int] = Array.create[Int] 3
 
   Array > begin
     set arr 0 10
@@ -18,7 +18,7 @@ fun testIntArray =
   end
 
 fun testBoolArray =
-  val arr = Array.new[Bool] 3
+  val arr = Array.create[Bool] 3
 
   fun (b: Bool) pb: Unit =
     if b then println "true" else println "false"
@@ -34,7 +34,7 @@ fun testBoolArray =
     get arr 2 pb
 
 fun testObjectArray =
-  val arr = Array.new[String] 3
+  val arr = Array.create[String] 3
 
   Array > begin
     set arr 0 "a"
