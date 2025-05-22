@@ -44,7 +44,7 @@ fun test(s: Student) =
     case Student n s => // error
 
   match s
-    case #Student name year sex class => // error
+    case #Student name year sex classNo => // error
       println name
 
 fun main = println "patterns"
