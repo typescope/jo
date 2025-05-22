@@ -222,6 +222,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     else if item.token == Token.DATA then dataDef().withMods(mods)
     else if item.token == Token.ALIAS then aliasDef().withMods(mods)
     else if item.token == Token.SECTION then section().withMods(mods)
+    else if item.token == Token.CLASS then classDef().withMods(mods)
     else
       error("Expect a definition, found = " + item.token, item.span.toPos)
       next()
@@ -394,6 +395,30 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     else
       Nil
+
+  def classDef(): ClassDef =
+    val klass = eat(Token.CLASS)
+    val id = ident()
+    val tparams = typeParams()
+    val params = paramSection()
+
+    val members: List[ValDef | FunDef] = repeated:
+      val item = peekItem()
+      if klass.indent.isUnindent(item.indent) then None
+      else if item.token == Token.DEF then Some(defDef(needBody = true))
+      else if item.token == Token.VAL then Some(valDef(Token.VAL))
+      else if item.token == Token.VAR then Some(valDef(Token.VAR))
+      else None
+
+    eatEndOpt(klass.indent)
+
+    val lastSpan =
+      if members.nonEmpty then members.last.span
+      else if params.nonEmpty then params.last.span
+      else if tparams.nonEmpty then tparams.last.span
+      else id.span
+
+    ClassDef(id, tparams, params, members)(klass.span | lastSpan)
 
   def typeDef(): TypeDef =
     val typeItem = eat(Token.TYPE)

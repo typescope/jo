@@ -289,6 +289,11 @@ object Ast:
 
     def name: String = ident.name
 
+  case class ClassDef
+    (ident: Ident, tparams: List[TypeParam], params: List[Param], members: List[ValDef | FunDef])
+    (val span: Span)
+  extends Def:
+    def name: String = ident.name
 
   /** Representation of a pattern definition */
   case class PatDef

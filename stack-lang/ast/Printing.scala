@@ -113,6 +113,22 @@ object Printing:
 
         mods ~ "fun " ~ fdef.name ~ tparams ~ params ~ autos ~ resType ~ receives ~ body
 
+      case cdef: ClassDef =>
+        val mods =
+          if cdef.modifiers.isEmpty then Text.Empty
+          else cdef.modifiers.join(" ") ~ " "
+
+        val tparams =
+          if cdef.tparams.isEmpty then Text.Empty
+          else "[" ~ cdef.tparams.join(", ")  ~ "]"
+
+        val params =
+          if cdef.params.isEmpty then Text.Empty
+          else "(" ~ cdef.params.join(", ")  ~ ")"
+
+        mods ~ "class " ~ cdef.name ~ tparams ~ params ~ indent:
+          cdef.members.join(Text.BlankLine)
+
       case pdef: PatDef =>
         val tparams =
           if pdef.tparams.isEmpty then Text.Empty
