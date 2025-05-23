@@ -1228,7 +1228,7 @@ class Namer:
       for case alias: Ast.AliasDef <- section.defs do
         Imports.doImport(alias.qualid, secScope, lazyDefn.rootNameTable, isAlias = true)
 
-      new NameTableInfo(sym, nameTable)
+      new NameTableInfo(sym, nameTable, targs = Nil)
     })
 
     DelayedDef(sym, () => sast)

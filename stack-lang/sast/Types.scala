@@ -202,11 +202,7 @@ object Types:
     def getTermMember(name: String)(using Definitions): Option[Type] =
       TypeOps.approx(this, isUp = true) match
         case info: NameTableInfo =>
-          if info.owner.isClass then
-            // compute the type with respect to the prefix
-            ???
-          else
-            info.resolveTerm(name).map(sym => StaticRef(sym))
+          info.getTermMember(this, name)
 
         case recordType: RecordType =>
           recordType.getFieldType(name)
@@ -461,7 +457,23 @@ object Types:
     def isSuptype(tp: Type): List[Subtyping.Task] =
       inferencer.isSuptype(this, tp)
 
-  class NameTableInfo(val owner: Symbol, val nameTable: NameTable) extends Type:
-    def this(owner: Symbol) = this(owner, new NameTable)
+  class NameTableInfo(val owner: Symbol, val nameTable: NameTable, val targs: List[Type]) extends Type:
+    def this(owner: Symbol) = this(owner, new NameTable, targs = Nil)
 
     export nameTable.{ resolveType, resolveTerm, resolvePattern, define }
+
+    def getTermMember(prefix: Type, name: String)(using Definitions): Option[RefType] =
+      resolveTerm(name).map: sym =>
+        // compute the type with respect to the instantiated targs
+        owner.info match
+          case TypeLambda(tparams, _, _) =>
+            assert(tparams.size == targs.size, "Mismatch, tparams = " + tparams + ", targs = " + targs)
+
+            val subst = tparams.zip(targs).toMap
+            val info = TypeOps.substSymbols(sym.info, subst)
+            MemberRef(prefix, sym, info)
+
+          case _ =>
+            assert(targs.isEmpty, "Mismatch, tparams = 0" + ", targs = " + targs)
+
+            StaticRef(sym)

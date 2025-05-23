@@ -162,7 +162,7 @@ object TypeOps:
         case VoidType | ErrorType | AnyType | BottomType =>
           tp
 
-        case _: StaticRef | _: MemberRef | _: TypeVar | _: NameTableInfo | _: ConstantType =>
+        case _: StaticRef | _: MemberRef | _: TypeVar | _: ConstantType =>
           tp
 
         case RecordType(fields) =>
@@ -205,6 +205,10 @@ object TypeOps:
 
         case TypeBound(lo, hi) =>
           TypeBound(this(lo), this(hi))
+
+        case ntInfo: NameTableInfo =>
+          val targs2 = ntInfo.targs.map(this.apply)
+          new NameTableInfo(ntInfo.owner, ntInfo.nameTable, targs2)
 
         case ProcType(tparams, params, autos, resType, receivesOpt, preParamCount) =>
           // TODO: Once type bounds are supported, we need to transform bounds
