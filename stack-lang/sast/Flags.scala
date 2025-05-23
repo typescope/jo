@@ -8,22 +8,23 @@ object Flags:
 
   val Fun     : Flag = 1 << 1
   val Type    : Flag = 1 << 2
-  val Pattern : Flag = 1 << 3
-  val NSpace  : Flag = 1 << 4
-  val Section : Flag = 1 << 5
-  val Method  : Flag = 1 << 6
+  val Class   : Flag = 1 << 3
+  val Pattern : Flag = 1 << 4
+  val NSpace  : Flag = 1 << 5
+  val Section : Flag = 1 << 6
+  val Method  : Flag = 1 << 7
 
   // namespace flags
-  val Branch  : Flag = 1 << 7  // branch name space
+  val Branch  : Flag = 1 << 8  // branch name space
 
   // val flags
-  val Param   : Flag = 1 << 8   // a parameter
-  val Mutable : Flag = 1 << 9   // a mutable variable
-  val Context : Flag = 1 << 10  // context parameter or its default function
-  val Field   : Flag = 1 << 11  // an object field
-  val Default : Flag = 1 << 12  // context parameters with default value
-  val Alias   : Flag = 1 << 13  // an alias symbol created by import/export
-  val Auto    : Flag = 1 << 14  // auto function or auto value
+  val Param   : Flag = 1 << 20  // a parameter
+  val Mutable : Flag = 1 << 21  // a mutable variable
+  val Context : Flag = 1 << 22  // context parameter or its default function
+  val Field   : Flag = 1 << 23  // an object field
+  val Default : Flag = 1 << 24  // context parameters with default value
+  val Alias   : Flag = 1 << 25  // an alias symbol created by import/export
+  val Auto    : Flag = 1 << 26  // auto function or auto value
 
   val Synthetic: Flag = 1 << 62 // a compiler-synthesized symbol
 
