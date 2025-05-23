@@ -50,12 +50,14 @@ object Types:
     def isTypeRef: Boolean =
       this match
         case StaticRef(sym) => sym.isType
+        case MemberRef(_, sym, _) => sym.isType
         case _ => false
 
     /** Is the type a reference to a term name */
     def isTermRef: Boolean =
       this match
         case StaticRef(sym) => !sym.isType
+        case MemberRef(_, sym, _) => !sym.isType
         case _ => false
 
     def isObjectType(using Definitions): Boolean =
@@ -83,6 +85,8 @@ object Types:
           !sym.isType && !sym.isFunction
           || sym.isType && sym.asTypeSymbol.kind == Kind.Simple
 
+        case MemberRef(_, _, info) => info.isValueType
+
         case _ => true
 
     /** Return the kind of a value type and return None for non-value type. */
@@ -90,6 +94,8 @@ object Types:
       this match
         case VoidType | _: ProcType | _: TypeLambda | _: NameTableInfo =>
           None
+
+        case MemberRef(_, _, info) => info.kind
 
         case StaticRef(sym) if sym.isType =>
           Some(sym.asTypeSymbol.kind)
@@ -112,6 +118,7 @@ object Types:
     def widenTermRef(using Definitions): Type =
       this match
         case StaticRef(sym) if !sym.isType => sym.info
+        case MemberRef(_, sym, info) if !sym.isType => info
         case _ => this
 
     /** Widen a constant type to its underlying type */
@@ -195,7 +202,11 @@ object Types:
     def getTermMember(name: String)(using Definitions): Option[Type] =
       TypeOps.approx(this, isUp = true) match
         case info: NameTableInfo =>
-          info.resolveTerm(name).map(sym => StaticRef(sym))
+          if info.owner.isClass then
+            // compute the type with respect to the prefix
+            ???
+          else
+            info.resolveTerm(name).map(sym => StaticRef(sym))
 
         case recordType: RecordType =>
           recordType.getFieldType(name)
@@ -260,8 +271,15 @@ object Types:
     */
   sealed abstract class ProxyType extends Type
 
+  sealed abstract class RefType extends ProxyType:
+    val symbol: Symbol
+
   /** A reference to a symbol who type is does not depend on any prefix */
-  case class StaticRef(symbol: Symbol) extends ProxyType
+  case class StaticRef(symbol: Symbol) extends RefType
+
+  /** A reference to member symbol whose type depends on that of its parent */
+  case class MemberRef(prefix: Type, symbol: Symbol, info: Type) extends RefType:
+    assert(!symbol.isType, "No support for member types: " + symbol)
 
   /** A part of a type with a specific name */
   case class NamedInfo[+T](name: String, info: T)
@@ -443,7 +461,7 @@ object Types:
     def isSuptype(tp: Type): List[Subtyping.Task] =
       inferencer.isSuptype(this, tp)
 
-  class NameTableInfo(val nameTable: NameTable) extends Type:
-    def this() = this(new NameTable)
+  class NameTableInfo(val owner: Symbol, val nameTable: NameTable) extends Type:
+    def this(owner: Symbol) = this(owner, new NameTable)
 
     export nameTable.{ resolveType, resolveTerm, resolvePattern, define }

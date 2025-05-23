@@ -82,7 +82,9 @@ object Imports:
         if sym.isType then
           TypeSymbol.create(sym.asTypeSymbol.kind, name, StaticRef(sym), sym.flags | Flags.Alias, importScope.owner, qualid.pos)
         else
-          Symbol.create(name, StaticRef(sym), sym.flags | Flags.Alias, importScope.owner, qualid.pos)
+          val link = Symbol.createSymbol(name, sym.flags | Flags.Alias, qualid.pos)
+          ip.add(link, importScope.owner, StaticRef(sym))
+          link
 
       imports += alias
       importScope.define(alias)

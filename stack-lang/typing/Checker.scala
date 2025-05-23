@@ -252,7 +252,7 @@ class Checker(namer: Namer):
         adaptNoArgs(word, procType, targetType)
 
       else if word.tpe.isTermRef then
-        val ref = word.tpe.as[StaticRef]
+        val ref = word.tpe.as[RefType]
         val sym = ref.symbol
         if
           sym.isContainer

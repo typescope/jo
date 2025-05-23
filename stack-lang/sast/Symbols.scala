@@ -21,7 +21,7 @@ object Symbols:
   case class SymInfo(symbol: Symbol, owner: Symbol, tpe: Type):
     assert(owner != null || symbol.flags.is(Flags.NSpace))
 
-  sealed class Symbol(val name: String, val flags: Flags, val sourcePos: SourcePosition):
+  sealed class Symbol private[Symbols](val name: String, val flags: Flags, val sourcePos: SourcePosition):
     /** TODO: Cache could be introduced to improve performance based on timestamps */
     private def symInfo(using defn: Definitions): SymInfo = defn.info(this)
 
@@ -42,6 +42,7 @@ object Symbols:
 
     def isMethod   : Boolean = flags.is(Flags.Method)
     def isType     : Boolean = flags.is(Flags.Type)
+    def isClass    : Boolean = flags.is(Flags.Class)
     def isPattern  : Boolean = flags.is(Flags.Pattern)
     def isParameter: Boolean = flags.is(Flags.Param)
     def isMutable  : Boolean = flags.is(Flags.Mutable)
@@ -183,15 +184,4 @@ object Symbols:
 
       val sym = new Symbol(name, flags, pos)
       defn.add(sym, owner, info)
-      sym
-
-    /** Create a term or pattern symbol */
-    def create
-        (name: String, info: Type, flags: Flags, owner: Symbol, pos: SourcePosition)
-        (using ip: InfoProvider)
-    : Symbol =
-      assert(!flags.is(Flags.Type), "type symbols should be created by `TypeSymbol.create`")
-
-      val sym = new Symbol(name, flags, pos)
-      ip.add(sym, owner, info)
       sym

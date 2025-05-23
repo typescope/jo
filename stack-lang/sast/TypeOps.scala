@@ -39,6 +39,14 @@ object TypeOps:
             recur(sym.info, isUp)
           end if
 
+        case tref @ MemberRef(_, sym, info) =>
+          if encountered.contains(tref) then
+            tref
+          else
+            encountered += tref
+            recur(info, isUp)
+          end if
+
         case tvar: TypeVar =>
           if encountered.contains(tvar) then
             tvar
@@ -122,7 +130,6 @@ object TypeOps:
     *
     * - type aliases
     * - instaniated type variables
-    * - constant
     */
   def isGrounded(tp: Type)(using Definitions): Boolean =
     tp match
@@ -130,12 +137,10 @@ object TypeOps:
 
       case AppliedType(StaticRef(sym), _) =>
         sym.info match
-          case TypeLambda(_, _: TypeBound, _) => true
+          case TypeLambda(_, _: TypeBound | _: NameTableInfo, _) => true
           case _ => false
 
       case tvar: TypeVar => !tvar.isInstantiated
-
-      case _: ConstantType => false
 
       case _ => true
 
@@ -157,7 +162,7 @@ object TypeOps:
         case VoidType | ErrorType | AnyType | BottomType =>
           tp
 
-        case _: StaticRef | _: TypeVar | _: NameTableInfo | _: ConstantType =>
+        case _: StaticRef | _: MemberRef | _: TypeVar | _: NameTableInfo | _: ConstantType =>
           tp
 
         case RecordType(fields) =>
@@ -234,7 +239,7 @@ object TypeOps:
       tp match
         case VoidType | ErrorType | AnyType | BottomType =>
 
-        case _: StaticRef | _: TypeVar | _: NameTableInfo | _: ConstantType =>
+        case _: StaticRef | _: MemberRef | _: TypeVar | _: NameTableInfo | _: ConstantType =>
 
         case RecordType(fields) =>
           for field <- fields do this(field.info)

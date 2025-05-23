@@ -207,6 +207,10 @@ object Subtyping:
 
         continue(tp1Reduced)
 
+      case MemberRef(_, sym, info) =>
+        val tp1Reduced = if sym.isType || lessThan then info else BottomType
+        continue(tp1Reduced)
+
       case tvar: TypeVar =>
         val tasks = if lessThan then tvar.isSubtype(tp2) else tvar.isSuptype(tp2)
         tasks.forall(task => recur(task.left, task.right))

@@ -134,7 +134,9 @@ class Namer:
       else
         rp.error(s"The $name is already defined as a member at $pos", qualid.pos)
         val flags = if isBranch then Flags.NSpace | Flags.Branch else Flags.NSpace
-        Symbol.create(sym.name, new NameTableInfo, flags, ip(sym).owner, qualid.pos)
+        val dummyNamespace = Symbol.createSymbol(sym.name, flags, qualid.pos)
+        ip.add(dummyNamespace, ip(sym).owner, new NameTableInfo(dummyNamespace))
+        dummyNamespace
 
     qualid match
       case Ast.Select(qual, name) =>
@@ -149,7 +151,8 @@ class Namer:
 
           case None =>
             val flags = if isBranch then Flags.NSpace | Flags.Branch else Flags.NSpace
-            val sym = Symbol.create(name, new NameTableInfo, flags, nsSym, qualid.pos)
+            val sym = Symbol.createSymbol(name, flags, qualid.pos)
+            ip.add(sym, nsSym, new NameTableInfo(sym))
             nsInfo.define(sym)
             sym
 
@@ -157,7 +160,8 @@ class Namer:
         sc.resolveTerm(name) match
           case None =>
             val flags = if isBranch then Flags.NSpace | Flags.Branch else Flags.NSpace
-            val sym = Symbol.create(name, new NameTableInfo, flags, sc.owner, qualid.pos)
+            val sym = Symbol.createSymbol(name, flags, qualid.pos)
+            ip.add(sym, sc.owner, new NameTableInfo(sym))
             sc.define(sym)
             sym
 
@@ -1224,7 +1228,7 @@ class Namer:
       for case alias: Ast.AliasDef <- section.defs do
         Imports.doImport(alias.qualid, secScope, lazyDefn.rootNameTable, isAlias = true)
 
-      new NameTableInfo(nameTable)
+      new NameTableInfo(sym, nameTable)
     })
 
     DelayedDef(sym, () => sast)
