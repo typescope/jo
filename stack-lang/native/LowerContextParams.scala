@@ -34,7 +34,7 @@ class LowerContextParams(runtime: NativeRuntime)(using defn: Definitions) extend
 
   val BoolType = defn.BoolType
   val IntType = defn.IntType
-  val AddrType = TypeRef(runtime.Core_Addr)
+  val AddrType = StaticRef(runtime.Core_Addr)
 
   override def transformIdent(word: Ident)(using ctx: Context): Word =
     word match

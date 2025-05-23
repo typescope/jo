@@ -208,7 +208,7 @@ class Checker(namer: Namer):
         ErrorType
 
   def widen(word: Word)(using Definitions): Word = word.tpe match
-    case TypeRef(sym) if !sym.isType =>
+    case StaticRef(sym) if !sym.isType =>
       Encoded(word)(sym.info)
 
     case _ =>
@@ -252,7 +252,7 @@ class Checker(namer: Namer):
         adaptNoArgs(word, procType, targetType)
 
       else if word.tpe.isTermRef then
-        val ref = word.tpe.as[TypeRef]
+        val ref = word.tpe.as[StaticRef]
         val sym = ref.symbol
         if
           sym.isContainer

@@ -109,7 +109,7 @@ class ExprTyper(namer: Namer):
               given Reporter = rp.fresh(buffer = true)
               val wordTyped = namer.transformRefTree(ref)
               wordTyped.tpe match
-                case TypeRef(sym) if sym.isContainer => Some(sym)
+                case StaticRef(sym) if sym.isContainer => Some(sym)
                 case _ => None
 
             case _ => None

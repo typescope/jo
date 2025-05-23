@@ -38,7 +38,7 @@ class ExplicitAlloc(runtime: NativeRuntime)(using defn: Definitions) extends pha
     val RecordLit(args) = word
     val stats = new mutable.ArrayBuffer[Word]
     val allocFun = Ident(runtime.GC_alloc)(word.span)
-    val addrType = TypeRef(runtime.Core_Addr)
+    val addrType = StaticRef(runtime.Core_Addr)
 
     val recordType = word.tpe.asRecordType
     val size = memory.size(recordType)

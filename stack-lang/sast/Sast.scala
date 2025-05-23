@@ -88,7 +88,7 @@ object Sast:
     assert(!symbol.isType)
 
     def name: String = symbol.name
-    val tpe: Type = TypeRef(symbol)
+    val tpe: Type = StaticRef(symbol)
 
   case class Select
     (qual: Word, name: String)

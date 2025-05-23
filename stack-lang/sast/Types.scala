@@ -21,7 +21,7 @@ object Types:
       */
     def isError(using Definitions): Boolean =
       this == ErrorType || this.match
-        case TypeRef(sym) =>
+        case StaticRef(sym) =>
           // Don't recur to avoid loops
           sym.info == ErrorType
 
@@ -49,13 +49,13 @@ object Types:
     /** Is the type a reference to a type alias */
     def isTypeRef: Boolean =
       this match
-        case TypeRef(sym) => sym.isType
+        case StaticRef(sym) => sym.isType
         case _ => false
 
     /** Is the type a reference to a term name */
     def isTermRef: Boolean =
       this match
-        case TypeRef(sym) => !sym.isType
+        case StaticRef(sym) => !sym.isType
         case _ => false
 
     def isObjectType(using Definitions): Boolean =
@@ -79,7 +79,7 @@ object Types:
       this match
         case VoidType | _: ProcType | _: TypeLambda | _: NameTableInfo => false
 
-        case TypeRef(sym) =>
+        case StaticRef(sym) =>
           !sym.isType && !sym.isFunction
           || sym.isType && sym.asTypeSymbol.kind == Kind.Simple
 
@@ -91,7 +91,7 @@ object Types:
         case VoidType | _: ProcType | _: TypeLambda | _: NameTableInfo =>
           None
 
-        case TypeRef(sym) if sym.isType =>
+        case StaticRef(sym) if sym.isType =>
           Some(sym.asTypeSymbol.kind)
 
         case _ =>
@@ -111,7 +111,7 @@ object Types:
     /** Widen a term reference to its underlying type */
     def widenTermRef(using Definitions): Type =
       this match
-        case TypeRef(sym) if !sym.isType => sym.info
+        case StaticRef(sym) if !sym.isType => sym.info
         case _ => this
 
     /** Widen a constant type to its underlying type */
@@ -158,13 +158,13 @@ object Types:
 
         case _ => this
 
-    /** Is the current type equivalent to a TypeRef or AppliedType to the given symbol  */
+    /** Is the current type equivalent to a StaticRef or AppliedType to the given symbol  */
     def refers(symbol: Symbol)(using Definitions): Boolean =
       val visited = new mutable.ArrayBuffer[Symbol]
 
       def recur(tp: Type): Boolean =
         tp match
-          case TypeRef(sym) =>
+          case StaticRef(sym) =>
             sym == symbol || !visited.contains(sym) && {
               visited += sym
               recur(sym.info)
@@ -180,7 +180,7 @@ object Types:
       val visited = new mutable.ArrayBuffer[Symbol]
       def recur(tp: Type): Boolean =
         tp match
-          case TypeRef(sym) =>
+          case StaticRef(sym) =>
             symbols.contains(sym) || !visited.contains(sym) && {
               visited += sym
               recur(sym.info)
@@ -195,7 +195,7 @@ object Types:
     def getTermMember(name: String)(using Definitions): Option[Type] =
       TypeOps.approx(this, isUp = true) match
         case info: NameTableInfo =>
-          info.resolveTerm(name).map(sym => TypeRef(sym))
+          info.resolveTerm(name).map(sym => StaticRef(sym))
 
         case recordType: RecordType =>
           recordType.getFieldType(name)
@@ -260,11 +260,8 @@ object Types:
     */
   sealed abstract class ProxyType extends Type
 
-  /** A reference to either a type symbol or a term symbol
-    *
-    * TODO: rename to RefType
-    */
-  case class TypeRef(symbol: Symbol) extends ProxyType
+  /** A reference to a symbol who type is does not depend on any prefix */
+  case class StaticRef(symbol: Symbol) extends ProxyType
 
   /** A part of a type with a specific name */
   case class NamedInfo[+T](name: String, info: T)
@@ -423,7 +420,7 @@ object Types:
     (tctor: Type, targs: List[Type])
   extends ProxyType:
     tctor match
-      case TypeRef(sym) if sym.isType =>
+      case StaticRef(sym) if sym.isType =>
       case _ => assert(false, tctor)
 
   /** Represents upper and lower bounds of type parameters */

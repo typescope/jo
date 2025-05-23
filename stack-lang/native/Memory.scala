@@ -13,7 +13,7 @@ class Memory(runtime: NativeRuntime)(using defn: Definitions):
   private val FTABLE = "ftable"
 
   val IntType = defn.IntType
-  val AddrType = TypeRef(runtime.Core_Addr)
+  val AddrType = StaticRef(runtime.Core_Addr)
 
   /** Size of the recrod in bytes */
   def size(recordType: RecordType): Int =

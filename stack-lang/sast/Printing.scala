@@ -332,7 +332,7 @@ object Printing:
           case Constant.Int(value)    => Text(value.toString)
           case Constant.String(value) => "\"" ~ StringUtil.escape(value) ~ "\""
 
-      case TypeRef(sym) =>
+      case StaticRef(sym) =>
         if sym.isType then Text(sym.name)
         else sym.name ~ ": " ~ sym.info
 

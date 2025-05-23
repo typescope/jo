@@ -108,9 +108,9 @@ object Symbols:
 
     /** Return the source symbol of an alias created by import or aliasing */
     def dealias(using Definitions): Symbol =
-      if this.isAlias then this.info.as[TypeRef].symbol.dealias else this
+      if this.isAlias then this.info.as[StaticRef].symbol.dealias else this
 
-    /** Is the current symbol equivalent to a TypeRef or AppliedType to the given symbol  */
+    /** Is the current symbol equivalent to a StaticRef or AppliedType to the given symbol  */
     def refers(that: Symbol)(using Definitions): Boolean =
       this == that || this.info.refers(that)
 

@@ -62,7 +62,7 @@ object Subtyping:
     * Check whether one type conforms to the other type
     *
     * We intentionally do not check subtyping of bound type. They may only
-    * surface in deal with TypeRef, which is handled specially.
+    * surface in deal with StaticRef, which is handled specially.
     */
   private def checkConforms(tp1: Type, tp2: Type)(using ctx: Context, defn: Definitions): Boolean = Debug.trace(s"${tp1.show} <: ${tp2.show}", enable = false) {
     // Each branch should be disjoint to avoid exponential blowup
@@ -103,8 +103,8 @@ object Subtyping:
     if lessThan then recur(tp1, tp2) else recur(tp2, tp1)
 
   private def checkConformsAppliedGrounded(tp1: AppliedType, tp2: AppliedType)(using ctx: Context, defn: Definitions): Boolean =
-    val AppliedType(tref1: TypeRef, targs1) = tp1: @unchecked
-    val AppliedType(tref2: TypeRef, targs2) = tp2: @unchecked
+    val AppliedType(tref1: StaticRef, targs1) = tp1: @unchecked
+    val AppliedType(tref2: StaticRef, targs2) = tp2: @unchecked
     tref1.refers(tref2.symbol.dealias) && {
       // TODO: follow variance spec
       targs1.zip(targs2).forall: (tp1, tp2) =>
@@ -131,8 +131,8 @@ object Subtyping:
       true
 
     else if proxy1.is[AppliedType] && proxy2.is[AppliedType] then
-      val tctor1 = proxy1.as[AppliedType].tctor.as[TypeRef]
-      val tctor2 = proxy2.as[AppliedType].tctor.as[TypeRef]
+      val tctor1 = proxy1.as[AppliedType].tctor.as[StaticRef]
+      val tctor2 = proxy2.as[AppliedType].tctor.as[StaticRef]
 
       if proxy1.isGrounded && proxy2.isGrounded then
         checkConformsAppliedGrounded(proxy1.as[AppliedType], proxy2.as[AppliedType])
@@ -171,13 +171,13 @@ object Subtyping:
     tp1 match
       case AppliedType(tctor, targs) =>
         tctor match
-          case tref: TypeRef =>
+          case tref: StaticRef =>
             tref.symbol.info match
               case tl: TypeLambda =>
                 val tp1Reduced = tl.instantiate(targs)
                 continue(tp1Reduced)
 
-              case tref: TypeRef =>
+              case tref: StaticRef =>
                 // alias
                 continue(AppliedType(tref, targs))
 
@@ -189,7 +189,7 @@ object Subtyping:
           case _ =>
             throw new Exception("Unexpected type constructor: " + tctor.show)
 
-      case TypeRef(sym) =>
+      case StaticRef(sym) =>
         /* Reduce a type reference
          *
          * It's important to not return the original type reference if the type
@@ -202,7 +202,7 @@ object Subtyping:
               if lessThan then bound.hi else bound.lo
 
             case tp =>
-              // A term reference has the bottom type in T <: TypeRef(a)
+              // A term reference has the bottom type in T <: StaticRef(a)
               if sym.isType || lessThan then tp else BottomType
 
         continue(tp1Reduced)
@@ -226,8 +226,8 @@ object Subtyping:
         else
           tp1.tparams.zip(tp2.tparams).foldLeft(ctx):
             case (ctx, (tparam1, tparam2)) =>
-              val tref1 = TypeRef(tparam1)
-              val tref2 = TypeRef(tparam2)
+              val tref1 = StaticRef(tparam1)
+              val tref2 = StaticRef(tparam2)
               ctx.withSubtyping(tref1, tref2).withSubtyping(tref2, tref1)
 
       tp1.paramTypes.zip(tp2.paramTypes).forall: (paramType1, paramType2) =>

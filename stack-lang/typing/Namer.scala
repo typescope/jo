@@ -378,7 +378,7 @@ class Namer:
         qualType.getTermMember(name) match
           case Some(tp) =>
             tp match
-              case TypeRef(sym) if !sym.isField && !sym.isMethod && !sym.isType =>
+              case StaticRef(sym) if !sym.isField && !sym.isMethod && !sym.isType =>
                 Ident(sym)(word.span)
 
               case _ =>
@@ -428,7 +428,7 @@ class Namer:
 
     // external object type
     val fieldTypes = vals.map(vdef => NamedInfo(vdef.name, vdef.symbol.info)).toList
-    val methodTypes = delayedDefs.map(d => NamedInfo(d.symbol.name, TypeRef(d.symbol))).toList
+    val methodTypes = delayedDefs.map(d => NamedInfo(d.symbol.name, StaticRef(d.symbol))).toList
     val mutables = vals.filter(_.isMutable).map(_.name).toList
     val objType = ObjectType(fieldTypes, methodTypes, mutables)
 
@@ -671,7 +671,7 @@ class Namer:
 
     val argsFlexTyped =
       for arg <- argsFlex yield
-        val tref = TypeRef(defn.Internal_PackElemType)
+        val tref = StaticRef(defn.Internal_PackElemType)
         given TargetType = TargetType.Known(AppliedType(tref, elementType :: Nil))
         transform(arg)
 
@@ -748,7 +748,7 @@ class Namer:
 
     val paramSym =
       paramRef.tpe match
-        case TypeRef(sym) if sym.isAllOf(Flags.Param | Flags.Context) =>
+        case StaticRef(sym) if sym.isAllOf(Flags.Param | Flags.Context) =>
           sym
 
         case tp =>
@@ -1297,7 +1297,7 @@ class Namer:
         sc.resolveType(name) match
           case Some(sym) =>
             check(sym)
-            TypeTree(TypeRef(sym))(tpt.span)
+            TypeTree(StaticRef(sym))(tpt.span)
 
           case None =>
             Reporter.error("Unknown type " + tpt, tpt.pos)
@@ -1309,12 +1309,12 @@ class Namer:
           transform(qual)
 
         qual2.tpe match
-          case TypeRef(sym) if sym.isContainer =>
+          case StaticRef(sym) if sym.isContainer =>
             val nsInfo = sym.dealiasedInfo.as[NameTableInfo]
             nsInfo.resolveType(name) match
               case Some(sym) =>
                check(sym)
-                val tp = TypeRef(sym)
+                val tp = StaticRef(sym)
                 TypeTree(tp)(tpt.span)
 
               case None =>

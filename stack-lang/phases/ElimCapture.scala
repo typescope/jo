@@ -182,7 +182,7 @@ object ElimCapture:
 
       val thisTypeName = ctx.uniq.freshName("ThisType")
       val thisTypeAliasSym = new TypeSymbol(Kind.Simple, thisTypeName, Flags.Synthetic, obj.self.sourcePos)
-      val thisType = TypeRef(thisTypeAliasSym)
+      val thisType = StaticRef(thisTypeAliasSym)
       ctx.lifted += TypeDef(thisTypeAliasSym)(obj.span)
 
       defn.addLazy(thisTypeAliasSym, owner.enclosingContainer, lazyInfo)
@@ -198,7 +198,7 @@ object ElimCapture:
         val liftedSym = createLiftedFunSym(fdef, prependParams = NamedInfo("this", thisType) :: Nil, appendParams = Nil)
         funToLifted(fdef.symbol) = liftedSym
 
-        memberTypes += NamedInfo(fdef.name, TypeRef(liftedSym))
+        memberTypes += NamedInfo(fdef.name, StaticRef(liftedSym))
 
       for capture <- allCaptures yield
         val field = uniq.freshName(capture.name)

@@ -105,12 +105,12 @@ final class Definitions(rootNameTable: NameTable, provider: InfoProvider):
   val Internal_Seq          =  Internal.typeMember("Seq")
   val Internal_PackElemType =  Internal.typeMember("PackElemType")
 
-  val IntType     = TypeRef(Int_Int)
-  val BoolType    = TypeRef(Bool_Bool)
-  val ByteType    = TypeRef(Predef_Byte)
-  val CharType    = TypeRef(Predef_Char)
-  val UnitType    = TypeRef(Predef_Unit)
-  val StringType  = TypeRef(Predef_String)
+  val IntType     = StaticRef(Int_Int)
+  val BoolType    = StaticRef(Bool_Bool)
+  val ByteType    = StaticRef(Predef_Byte)
+  val CharType    = StaticRef(Predef_Char)
+  val UnitType    = StaticRef(Predef_Unit)
+  val StringType  = StaticRef(Predef_String)
 
   def isNumericType(tp: Type): Boolean =
     tp.refersAny(Predef_Byte :: Predef_Char :: Int_Int :: Nil)
@@ -164,7 +164,7 @@ object Definitions:
 
     def dealiasedInfo(sym: Symbol): Type =
       apply(sym).tpe match
-        case TypeRef(sym) if sym.isAlias => dealiasedInfo(sym)
+        case StaticRef(sym) if sym.isAlias => dealiasedInfo(sym)
         case tp => tp
 
     def apply(sym: Symbol): SymInfo =

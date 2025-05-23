@@ -80,9 +80,9 @@ object Imports:
     def createAlias(name: String, sym: Symbol): Unit =
       val alias =
         if sym.isType then
-          TypeSymbol.create(sym.asTypeSymbol.kind, name, TypeRef(sym), sym.flags | Flags.Alias, importScope.owner, qualid.pos)
+          TypeSymbol.create(sym.asTypeSymbol.kind, name, StaticRef(sym), sym.flags | Flags.Alias, importScope.owner, qualid.pos)
         else
-          Symbol.create(name, TypeRef(sym), sym.flags | Flags.Alias, importScope.owner, qualid.pos)
+          Symbol.create(name, StaticRef(sym), sym.flags | Flags.Alias, importScope.owner, qualid.pos)
 
       imports += alias
       importScope.define(alias)

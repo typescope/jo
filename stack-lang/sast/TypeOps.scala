@@ -31,7 +31,7 @@ object TypeOps:
     val encountered = new mutable.ArrayBuffer[ProxyType]
     def recur(tp: Type, isUp: Boolean): Type = Debug.trace(s"$tp.approx", enable = false):
       tp match
-        case tref @ TypeRef(sym) =>
+        case tref @ StaticRef(sym) =>
           if encountered.contains(tref) then
             tref
           else
@@ -89,7 +89,7 @@ object TypeOps:
     val encountered = new mutable.ArrayBuffer[ProxyType]
     def recur(tp: Type): Type = Debug.trace(s"$tp.dealias", enable = false):
       tp match
-        case tref @ TypeRef(sym) =>
+        case tref @ StaticRef(sym) =>
           if encountered.contains(tref) || sym.isTypeParameter || !sym.isType && !sym.isAlias then
             tref
           else
@@ -126,9 +126,9 @@ object TypeOps:
     */
   def isGrounded(tp: Type)(using Definitions): Boolean =
     tp match
-      case TypeRef(sym) => (!sym.isType && !sym.isAlias) || sym.info.isInstanceOf[TypeBound]
+      case StaticRef(sym) => (!sym.isType && !sym.isAlias) || sym.info.isInstanceOf[TypeBound]
 
-      case AppliedType(TypeRef(sym), _) =>
+      case AppliedType(StaticRef(sym), _) =>
         sym.info match
           case TypeLambda(_, _: TypeBound, _) => true
           case _ => false
@@ -157,7 +157,7 @@ object TypeOps:
         case VoidType | ErrorType | AnyType | BottomType =>
           tp
 
-        case _: TypeRef | _: TypeVar | _: NameTableInfo | _: ConstantType =>
+        case _: StaticRef | _: TypeVar | _: NameTableInfo | _: ConstantType =>
           tp
 
         case RecordType(fields) =>
@@ -219,7 +219,7 @@ object TypeOps:
 
     def apply(tp: Type)(using ctx: Context): Type =
       tp match
-        case TypeRef(sym) =>
+        case StaticRef(sym) =>
           ctx.getOrElse(sym, tp)
 
         case _ =>
@@ -234,7 +234,7 @@ object TypeOps:
       tp match
         case VoidType | ErrorType | AnyType | BottomType =>
 
-        case _: TypeRef | _: TypeVar | _: NameTableInfo | _: ConstantType =>
+        case _: StaticRef | _: TypeVar | _: NameTableInfo | _: ConstantType =>
 
         case RecordType(fields) =>
           for field <- fields do this(field.info)
