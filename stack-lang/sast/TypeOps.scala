@@ -13,9 +13,13 @@ object TypeOps:
     *
     * This method is used in type checking definitions with type parameters.
     */
-  def substSymbols(tpe: Type, substs: Map[Symbol, Type])(using Definitions): Type =
+  def substSymbols(tpe: Type, tparams: List[Symbol], targs: List[Type])(using Definitions): Type =
+    val subst = tparams.zip(targs).toMap
+    substSymbols(tpe, subst)
+
+  def substSymbols(tpe: Type, subst: Map[Symbol, Type])(using Definitions): Type =
     val typeMap = new TypeOps.SymbolsTypeMap
-    typeMap(tpe)(using substs)
+    typeMap(tpe)(using subst)
 
   /** Approximate top-level type aliases, applied types and type parameters
     *

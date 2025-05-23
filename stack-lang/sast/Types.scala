@@ -399,9 +399,8 @@ object Types:
 
     def instantiate(targs: List[Type])(using Definitions): ProcType =
       assert(tparamCount == targs.size, "expect " + tparamCount + ", found = " + targs.size)
-      val subst = tparams.zip(targs).toMap
       // TODO: check bounds once they are supported
-      TypeOps.substSymbols(this.copy(tparams = Nil), subst).as[ProcType]
+      TypeOps.substSymbols(this.copy(tparams = Nil), tparams, targs).as[ProcType]
 
     def prepend(paramsToAdd: List[NamedInfo[Type]]): ProcType =
       ProcType(tparams, paramsToAdd ++ params, autos, resultType, receives, preParamCount)
@@ -426,9 +425,8 @@ object Types:
 
     def instantiate(targs: List[Type])(using Definitions): Type =
       assert(tparams.size == targs.size, "expect " + tparams.size + ", found = " + targs.size)
-      val subst = tparams.zip(targs).toMap
       // TODO: check bounds once they are supported
-      TypeOps.substSymbols(body, subst)
+      TypeOps.substSymbols(body, tparams, targs)
 
   case class AppliedType
     (tctor: Type, targs: List[Type])
@@ -469,8 +467,7 @@ object Types:
           case TypeLambda(tparams, _, _) =>
             assert(tparams.size == targs.size, "Mismatch, tparams = " + tparams + ", targs = " + targs)
 
-            val subst = tparams.zip(targs).toMap
-            val info = TypeOps.substSymbols(sym.info, subst)
+            val info = TypeOps.substSymbols(sym.info, tparams, targs)
             MemberRef(prefix, sym, info)
 
           case _ =>
