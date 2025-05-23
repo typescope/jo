@@ -147,6 +147,27 @@ final class Definitions(rootNameTable: NameTable, provider: InfoProvider):
         if cache then innerMap(tp2norm) = res
         res
 
+  private val substitutionCache: mutable.Map[Type, mutable.Map[List[Type], Type]] =
+    mutable.Map.empty
+
+  def cachedSubst(tp: Type, targs: List[Type])(work: => Type): Type =
+    val targs2 = targs.map(TypeOps.normalize)
+    substitutionCache.get(tp) match
+      case Some(innerMap) =>
+        innerMap.get(targs2) match
+          case Some(res) => res
+          case None =>
+            val res = work
+            innerMap(targs2) = res
+            res
+
+      case None =>
+        val innerMap: mutable.Map[List[Type], Type] = mutable.Map.empty
+        substitutionCache(tp) = innerMap
+        val res = work
+        innerMap(targs2) = res
+        res
+
 end Definitions
 
 object Definitions:
