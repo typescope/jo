@@ -209,6 +209,9 @@ class Namer:
       case pdef: Ast.PatDef =>
         patternTyper.transformPatDef(pdef) :: Nil
 
+      case cdef: Ast.ClassDef =>
+        transformClassDef(cdef) :: Nil
+
       case adef: Ast.AliasDef =>
         // Handled in namespace and sections specially
         Nil
@@ -1202,6 +1205,109 @@ class Namer:
     val typer = () => TypeDef(typeSym)(tdef.span)
 
     DelayedDef(typeSym, typer)
+
+
+  private def transformClassDef(cdef: Ast.ClassDef)
+      (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source)
+      : DelayedDef[ClassDef] =
+
+    val flags = checker.checkModifiers(cdef) | Flags.Type | Flags.Class
+    val kind = Kind.simpleKinded(cdef.tparams.size)
+    val classSym = new TypeSymbol(kind, cdef.name, flags, cdef.ident.pos)
+
+    val memberTable = new NameTable
+
+    given defn: Definitions = lazyDefn.value
+
+    given paramScope: Scope = sc.fresh(classSym)
+    lazy val tparamSyms =
+      for tparam <- cdef.tparams yield
+        val bound =
+          if tparam.bound.isEmpty then
+            TypeBound(BottomType, AnyType)
+          else
+            val boundTree = transformType(tparam.bound)
+            TypeBound(BottomType, boundTree.tpe)
+
+        // Only support simple kinded type parameters
+        val sym = TypeSymbol.createSymbol(Kind.Simple, tparam.name, bound, Flags.Param, classSym, tparam.pos)
+        paramScope.define(sym)
+        sym
+
+    def thisInfo(): Type =
+      val classRef = StaticRef(classSym)
+      if cdef.tparams.isEmpty then classRef
+      else AppliedType(classRef, tparamSyms.map(StaticRef.apply))
+
+    def classInfo(): Type =
+      val base = new NameTableInfo(classSym, memberTable, tparamSyms.map(StaticRef.apply))
+
+      if cdef.tparams.isEmpty then base
+      else TypeLambda(tparamSyms, base, preParamCount = 0)
+
+    val ip = lazyDefn.infoProvider
+    ip.addLazy(classSym, sc.owner, classInfo)
+
+    val typer = () =>
+      // Some symbols are entered into memberTable but not methodScope, vice versa
+      val methodScope = paramScope.fresh(classSym, new NameTable)
+
+      val thisSym = Symbol.createSymbol("this", Flags.Synthetic, cdef.ident.pos)
+      defn.add(thisSym, classSym, thisInfo())
+
+      val vals = new mutable.ArrayBuffer[ValDef]
+      val delayedDefs = new mutable.ArrayBuffer[DelayedDef[FunDef]]
+
+      val paramSyms =
+        tparamSyms
+
+        for (param, i) <- cdef.params.zipWithIndex yield
+          val tpt = transformType(param.tpt, allowPackType = false)
+          val paramSym = Symbol.createSymbol(param.name, tpt.tpe, Flags.Param, classSym, param.pos)
+          paramScope.define(paramSym)
+          paramSym
+
+      for case vdef: Ast.ValDef <- cdef.members do
+        var flags = checker.checkModifiers(vdef)
+        if vdef.mutable then flags = flags | Flags.Field | Flags.Mutable
+        else flags = flags | Flags.Field
+
+        val sym = Symbol.createSymbol(vdef.name, flags, vdef.ident.pos)
+        memberTable.define(sym)
+        methodScope.define(sym)
+
+        // Using the outer scope to check field bodys
+        val vdefTyped =
+          given Scope = paramScope
+          transformValDef(vdef, sym, owner = classSym)
+        vals += vdefTyped
+
+      // `this` should not be available in field initialization
+      methodScope.define(thisSym)
+
+      for case fdef: Ast.FunDef <- cdef.members do
+        given Scope = methodScope
+
+        if fdef.preParamCount != 0 then
+          Reporter.error("Methods cannot have pre-arguments", fdef.pos)
+
+        given TargetType = TargetType.ObjectMember // TODO: rename or remove
+        val delayedDef = transformFunDef(fdef)
+
+        memberTable.define(delayedDef.symbol)
+        // Operator name should not be called directly without a prefix
+        if !Name.isOperator(delayedDef.symbol.name) then
+          methodScope.define(delayedDef.symbol)
+
+        delayedDefs += delayedDef
+
+
+      val funs: List[FunDef] =
+        for delayedDef <- delayedDefs.toList yield delayedDef.force()
+
+      ClassDef(classSym, thisSym, tparamSyms, paramSyms, vals.toList, funs)(cdef.span)
+
+    DelayedDef(classSym, typer)
 
   private def transformSection(section: Ast.Section)
       (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source)

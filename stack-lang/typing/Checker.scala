@@ -174,6 +174,10 @@ class Checker(namer: Namer):
             case mod =>
               Reporter.error("The modifier " + mod.show + " is not allowed for context parameter definition", mod.pos)
 
+      case cdef: Ast.ClassDef =>
+        mods.foreach: mod =>
+          Reporter.error("The modifier " + mod.show + " is not allowed for pattern definition", mod.pos)
+
       case tdef: Ast.TypeDef =>
         mods.foreach: mod =>
           Reporter.error("The modifier " + mod.show + " is not allowed for type definition", mod.pos)
