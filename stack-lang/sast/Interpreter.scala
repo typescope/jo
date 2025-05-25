@@ -29,7 +29,7 @@ object Interpreter:
       values: mutable.Map[String, Value],
       self: Symbol,
       vals: Map[String, Symbol],
-      defs: Map[String, FunDef],
+      funs: Map[String, FunDef],
       env: Env)
 
     case ArrayVal(content: Array[Value])
@@ -430,7 +430,7 @@ object Interpreter:
 
               case objVal: ObjectVal =>
                 val argVals = args.map(eval) ++ autos.map(eval)
-                val fdef = objVal.defs(name)
+                val fdef = objVal.funs(name)
                 val env2 = objVal.env.fresh()
                 env2.bind(objVal.self, objVal)
                 call(fdef, argVals)(using env2)
@@ -472,7 +472,7 @@ object Interpreter:
 
               case objVal: ObjectVal =>
                 val argVals = args.map(eval) ++ autos.map(eval)
-                val fdef = objVal.defs(name)
+                val fdef = objVal.funs(name)
                 val env2 = objVal.env.fresh()
                 env2.bind(objVal.self, objVal)
                 call(fdef, argVals)(using env2)

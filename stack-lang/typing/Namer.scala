@@ -938,7 +938,7 @@ class Namer:
 
      defn.add(thisSym, sc.owner, objType)
 
-     Object(thisSym, vals = Nil, defs = funDef :: Nil)(objType, lambda.span)
+     Object(thisSym, vals = Nil, funs = funDef :: Nil)(objType, lambda.span)
 
 
   private def transformParamDef(pdef: Ast.ParamDef)

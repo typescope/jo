@@ -37,6 +37,9 @@ abstract class Phase[T](using Definitions) extends SastOps.TreeMap:
       case pdef: PatDef =>
         transformTopLevelPatDef(pdef)
 
+      case cdef: ClassDef =>
+        transformTopLevelClassDef(cdef)
+
       case sec: Section =>
         transformSection(sec)
 
@@ -46,6 +49,20 @@ abstract class Phase[T](using Definitions) extends SastOps.TreeMap:
     given Context = contextObject.newContext(section.symbol, ctx)
     val defs = transformTopLevelDefs(section.defs)
     Section(section.symbol, defs)(section.span)
+
+  /** Transform top-level function definitions */
+  def transformTopLevelClassDef(cdef: ClassDef)(using ctx: Context): ClassDef =
+    given Context = contextObject.newContext(cdef.symbol, ctx)
+
+    val vals = cdef.vals.map: vdef =>
+      ValDef(vdef.symbol, transform(vdef.rhs))(vdef.span)
+
+    val funs = cdef.funs.map: fdef =>
+      given Context = contextObject.newContext(fdef.symbol, ctx)
+      val body = this(fdef.body)
+      fdef.copy(body = body)(fdef.span)
+
+    cdef.copy(vals = vals, funs = funs)(cdef.span)
 
   /** Transform top-level function definitions */
   def transformTopLevelFunDef(fdef: FunDef)(using ctx: Context): FunDef =

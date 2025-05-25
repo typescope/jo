@@ -172,8 +172,12 @@ object Sast:
     def apply(fun: Word, args: List[Word])(tpe: Type, span: Span)(using Definitions): Apply =
       apply(fun, args, autos = Nil)(tpe, span)
 
-  case class Object
-    (self: Symbol, vals: List[ValDef], defs: List[FunDef])
+  case class New
+    (classRef: Ident, targs: List[TypeTree], args: List[Word])
+    (val tpe: Type, val span: Span)
+  extends Word
+
+  case class Object (self: Symbol, vals: List[ValDef], funs: List[FunDef])
     (val tpe: Type, val span: Span)
   extends Word
 
@@ -473,6 +477,11 @@ object Sast:
     (val span: Span)
   extends Word, Def:
     def procType(using Definitions): ProcType = symbol.info.asProcType
+
+  case class ClassDef
+    (symbol: Symbol, self: Symbol, tparams: List[Symbol], params: List[Symbol], vals: List[ValDef], funs: List[FunDef])
+    (val span: Span)
+  extends Def
 
   case class Section
     (symbol: Symbol, defs: List[Def])

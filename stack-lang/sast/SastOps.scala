@@ -124,6 +124,8 @@ object SastOps:
 
         case apply: Apply => transformApply(apply)
 
+        case newExpr: New => transformNew(newExpr)
+
         case tapply: TypeApply => transformTypeApply(tapply)
 
         case withExpr: With => transformWith(withExpr)
@@ -188,6 +190,8 @@ object SastOps:
     def transformEncoded(encoding: Encoded)(using Context): Word = recur(encoding)
 
     def transformApply(apply: Apply)(using Context): Word = recur(apply)
+
+    def transformNew(newExpr: New)(using Context): Word = recur(newExpr)
 
     def transformTypeApply(tapply: TypeApply)(using Context): Word = recur(tapply)
 
@@ -331,6 +335,9 @@ object SastOps:
         case TypeApply(fun, targs) =>
           TypeApply(this(fun), targs)(word.tpe, word.span)
 
+        case New(classRef, targs, args) =>
+          New(classRef, targs, args.map(this.apply))(word.tpe, word.span)
+
         case With(expr, args) =>
           // Don't map paramRef --- the client code should match this tree
           val args2 = args.map: arg =>
@@ -372,10 +379,10 @@ object SastOps:
         case Block(words) =>
           Block(words.map(this.apply))(word.tpe, word.span)
 
-        case Object(self, vals, defs) =>
+        case Object(self, vals, funs) =>
           val vals2: List[ValDef] = vals.map(recurValDef)
-          val defs2: List[FunDef] = defs.map(recurNestedFunDef)
-          Object(self, vals2, defs2)(word.tpe, word.span)
+          val funs2: List[FunDef] = funs.map(recurNestedFunDef)
+          Object(self, vals2, funs2)(word.tpe, word.span)
     end recur
   end TreeMap
 
@@ -457,6 +464,9 @@ object SastOps:
 
         case TypeApply(fun, targs) =>
           this(fun)
+
+        case New(classRef, targs, args) =>
+          args.foreach(this.apply)
 
         case With(expr, args) =>
           args.foreach: arg =>

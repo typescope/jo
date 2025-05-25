@@ -152,6 +152,22 @@ object Printing:
       case pdef: ParamDef =>
         "param " ~ pdef.name ~ ": " ~ pdef.tpt
 
+      case cdef: ClassDef =>
+        val modifiers = showModifiers(cdef.symbol)
+
+        val tparams =
+          if cdef.tparams.isEmpty then Text.Empty
+          else "[" ~ cdef.tparams.join(", ")  ~ "]"
+
+        val params =
+          if cdef.params.isEmpty then Text.Empty
+          else "(" ~ cdef.params.join(", ")  ~ ")"
+
+        modifiers ~ "class " ~ cdef.name ~ tparams ~ params ~ indent:
+          cdef.vals.join(Text.BlankLine)
+          ~ Text.BlankLine
+          cdef.funs.join(Text.BlankLine)
+
       case Section(sym, defs) =>
         "section " ~ sym ~ indent:
             defs.join(Text.BlankLine)
@@ -199,6 +215,13 @@ object Printing:
 
       case TypeApply(fun, targs) =>
         fun ~ "[" ~ targs.join(", ") ~ "]"
+
+      case New(classRef, targs, args) =>
+        val targsText =
+          if targs.isEmpty then Text.Empty
+          else "[" ~ targs.join(", ")  ~ "]"
+
+        "new " ~ classRef ~ targsText ~ "(" ~ args.join(", ") ~ ")"
 
       case With(expr, args) =>
         val withText =

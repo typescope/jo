@@ -208,8 +208,7 @@ object Printing:
           if targs.isEmpty then Text.Empty
           else "[" ~ targs.join(", ")  ~ "]"
 
-        val argsText = args.join(", ")
-        "new " ~ classRef ~ targsText ~ "(" ~ argsText ~ ")"
+        "new " ~ classRef ~ targsText ~ "(" ~ args.join(", ") ~ ")"
 
       case DotlessCall(obj, meth, arg) =>
         "(" ~ obj ~ " " ~ meth ~ " " ~ arg ~ ")"

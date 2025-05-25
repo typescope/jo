@@ -268,7 +268,7 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
     given Source = ctx.owner.sourcePos.source
     val span = obj.span
 
-    for ddef <- obj.defs do
+    for ddef <- obj.funs do
       ctx.cache.code(ddef.symbol) = ddef
       val effsTraced = EffectAnalysis.effects(ddef.symbol)(using ctx.cache)
       val effs = (effsTraced -- ddef.methodReceives).keys.toList
@@ -297,7 +297,7 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
     end for
 
     val aliases = aliasMap.values.toSeq
-    val obj2 = obj.copy(defs = newDefs.toList)(obj.tpe, obj.span)
+    val obj2 = obj.copy(funs = newDefs.toList)(obj.tpe, obj.span)
     Block((aliases :+ obj2).toList)(obj.tpe, obj.span)
 
 

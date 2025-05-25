@@ -132,8 +132,6 @@ object EffectAnalysis:
         case _: Literal => zero
 
         case Ident(sym) =>
-          // Method calls will not contribute effects as each method is
-          // self-sufficient after deep capture.
           if sym.isAllOf(Flags.Context | Flags.Param) then
             Map(sym -> Vector(word.pos))
 
@@ -148,6 +146,7 @@ object EffectAnalysis:
           if word.tpe.isProcType then
             // a select with a ProcType must be a method call
             val procType = word.tpe.asProcType
+            // TODO: Handle effects of methods
             effs ++ procType.receives.getOrElse(Nil).map(_ -> Vector(word.pos))
           else
             effs
@@ -174,6 +173,10 @@ object EffectAnalysis:
 
         case TypeApply(fun, targs) =>
           this(fun)
+
+        case New(classRef, targs, args) =>
+          args.foldLeft(zero): (acc, arg) =>
+            acc ++ this(arg)
 
         case With(expr, args) =>
           val effsInner = this(expr)

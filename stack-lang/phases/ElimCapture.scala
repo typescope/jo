@@ -157,7 +157,7 @@ object ElimCapture:
     override def transformObject(obj: Object)(using ctx: Context): Word =
       val objType = obj.tpe.asObjectType
       val allCaptures: List[Symbol] =
-        obj.defs.foldLeft(List.empty[Symbol]): (acc, fdef) =>
+        obj.funs.foldLeft(List.empty[Symbol]): (acc, fdef) =>
           transitiveCapture(fdef).foldLeft(acc): (acc, sym) =>
             // rewiring is important -- the captured variable might have been rebound
             val sym1 = rewire(sym)
@@ -192,7 +192,7 @@ object ElimCapture:
         members += vdef.name -> this(vdef.rhs)
         memberTypes += NamedInfo(vdef.name, vdef.rhs.tpe)
 
-      for fdef <- obj.defs do
+      for fdef <- obj.funs do
         uniq.freshName(fdef.name)
 
         val liftedSym = createLiftedFunSym(fdef, prependParams = NamedInfo("this", thisType) :: Nil, appendParams = Nil)
@@ -206,7 +206,7 @@ object ElimCapture:
         members += field -> Ident(capture)(obj.span)
         memberTypes += NamedInfo(field, capture.info)
 
-      for fdef <- obj.defs do
+      for fdef <- obj.funs do
         val span = fdef.symbol.sourcePos.span
         val liftedSym = funToLifted(fdef.symbol)
 
