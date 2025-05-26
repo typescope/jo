@@ -1210,6 +1210,8 @@ class Namer:
     val flags = checker.checkModifiers(cdef) | Flags.Type | Flags.Class
     val kind = Kind.simpleKinded(cdef.tparams.size)
     val classSym = new TypeSymbol(kind, cdef.name, flags, cdef.ident.pos)
+    val thisSym = Symbol.createSymbol("this", Flags.Synthetic, cdef.ident.pos)
+    val ctorSym = Symbol.createSymbol("<init>", Flags.Synthetic, cdef.ident.pos)
 
     val memberTable = new NameTable
 
@@ -1230,26 +1232,18 @@ class Namer:
         paramScope.define(sym)
         sym
 
-    def thisInfo(): Type =
-      val classRef = StaticRef(classSym)
-      if cdef.tparams.isEmpty then classRef
-      else AppliedType(classRef, tparamSyms.map(StaticRef.apply))
-
-    def classInfo(): Type =
-      val base = new NameTableInfo(classSym, memberTable, tparamSyms.map(StaticRef.apply))
+    lazy val classInfo: Type =
+      val base = new ClassInfo(classSym, tparamSyms.map(StaticRef.apply), ctorSym, memberTable)
 
       if cdef.tparams.isEmpty then base
       else TypeLambda(tparamSyms, base, preParamCount = 0)
 
     val ip = lazyDefn.infoProvider
-    ip.addLazy(classSym, sc.owner, classInfo)
+    ip.addLazy(classSym, sc.owner, () => classInfo)
 
     val typer = () =>
       // Some symbols are entered into memberTable but not methodScope, vice versa
       val methodScope = paramScope.fresh(classSym, new NameTable)
-
-      val thisSym = Symbol.createSymbol("this", Flags.Synthetic, cdef.ident.pos)
-      defn.add(thisSym, classSym, thisInfo())
 
       val vals = new mutable.ArrayBuffer[ValDef]
       val delayedDefs = new mutable.ArrayBuffer[DelayedDef[FunDef]]
@@ -1272,11 +1266,24 @@ class Namer:
         memberTable.define(sym)
         methodScope.define(sym)
 
-        // Using the outer scope to check field bodys
+        // Using the outer scope to check field initializers
         val vdefTyped =
           given Scope = paramScope
           transformValDef(vdef, sym, owner = classSym)
         vals += vdefTyped
+
+      val thisInfo: Type =
+        val classRef = StaticRef(classSym)
+        if tparamSyms.isEmpty then classRef
+        else AppliedType(classRef, tparamSyms.map(StaticRef.apply))
+
+      val ctorInfo: Type =
+        ProcType(
+          tparamSyms, paramSyms.map(_.toNamedInfo), autos = Nil,
+          resultType = classInfo, receives = None, preParamCount = 0)
+
+      defn.add(thisSym, classSym, thisInfo)
+      defn.add(ctorSym, classSym, ctorInfo)
 
       // `this` should not be available in field initialization
       methodScope.define(thisSym)
@@ -1329,7 +1336,7 @@ class Namer:
       for case alias: Ast.AliasDef <- section.defs do
         Imports.doImport(alias.qualid, secScope, lazyDefn.rootNameTable, isAlias = true)
 
-      new NameTableInfo(sym, nameTable, targs = Nil)
+      new NameTableInfo(sym, nameTable)
     })
 
     DelayedDef(sym, () => sast)

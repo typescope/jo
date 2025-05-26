@@ -142,7 +142,7 @@ object TypeOps:
 
       case AppliedType(StaticRef(sym), _) =>
         sym.info match
-          case TypeLambda(_, _: TypeBound | _: NameTableInfo, _) => true
+          case TypeLambda(_, _: TypeBound | _: ClassInfo, _) => true
           case _ => false
 
       case tvar: TypeVar => !tvar.isInstantiated
@@ -167,7 +167,7 @@ object TypeOps:
         case VoidType | ErrorType | AnyType | BottomType =>
           tp
 
-        case _: StaticRef | _: MemberRef | _: TypeVar | _: ConstantType =>
+        case _: StaticRef | _: MemberRef | _: TypeVar | _: ConstantType | _: NameTableInfo =>
           tp
 
         case RecordType(fields) =>
@@ -211,9 +211,9 @@ object TypeOps:
         case TypeBound(lo, hi) =>
           TypeBound(this(lo), this(hi))
 
-        case ntInfo: NameTableInfo =>
-          val targs2 = ntInfo.targs.map(this.apply)
-          new NameTableInfo(ntInfo.owner, ntInfo.nameTable, targs2)
+        case classInfo: ClassInfo =>
+          val targs2 = classInfo.targs.map(this.apply)
+          new ClassInfo(classInfo.classSymbol, targs2, classInfo.ctorSymbol, classInfo.nameTable)
 
         case ProcType(tparams, params, autos, resType, receivesOpt, preParamCount) =>
           // TODO: Once type bounds are supported, we need to transform bounds
@@ -248,7 +248,7 @@ object TypeOps:
       tp match
         case VoidType | ErrorType | AnyType | BottomType =>
 
-        case _: StaticRef | _: MemberRef | _: TypeVar | _: NameTableInfo | _: ConstantType =>
+        case _: StaticRef | _: MemberRef | _: TypeVar | _: NameTableInfo | _: ClassInfo  | _: ConstantType =>
 
         case RecordType(fields) =>
           for field <- fields do this(field.info)

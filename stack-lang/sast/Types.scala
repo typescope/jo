@@ -79,7 +79,7 @@ object Types:
 
     def isValueType: Boolean =
       this match
-        case VoidType | _: ProcType | _: TypeLambda | _: NameTableInfo => false
+        case VoidType | _: ProcType | _: TypeLambda | _: NameTableInfo | _: ClassInfo => false
 
         case StaticRef(sym) =>
           !sym.isType && !sym.isFunction
@@ -92,7 +92,7 @@ object Types:
     /** Return the kind of a value type and return None for non-value type. */
     def kind: Option[Kind] =
       this match
-        case VoidType | _: ProcType | _: TypeLambda | _: NameTableInfo =>
+        case VoidType | _: ProcType | _: TypeLambda | _: NameTableInfo | _: ClassInfo =>
           None
 
         case MemberRef(_, _, info) => info.kind
@@ -202,6 +202,9 @@ object Types:
     def getTermMember(name: String)(using Definitions): Option[Type] =
       TypeOps.approx(this, isUp = true) match
         case info: NameTableInfo =>
+          info.resolveTerm(name).map(sym => StaticRef(sym))
+
+        case info: ClassInfo =>
           info.getTermMember(this, name)
 
         case recordType: RecordType =>
@@ -455,15 +458,18 @@ object Types:
     def isSuptype(tp: Type): List[Subtyping.Task] =
       inferencer.isSuptype(this, tp)
 
-  class NameTableInfo(val owner: Symbol, val nameTable: NameTable, val targs: List[Type]) extends Type:
-    def this(owner: Symbol) = this(owner, new NameTable, targs = Nil)
+  class NameTableInfo(val owner: Symbol, val nameTable: NameTable) extends Type:
+    def this(owner: Symbol) = this(owner, new NameTable)
 
     export nameTable.{ resolveType, resolveTerm, resolvePattern, define }
 
+  class ClassInfo
+    (val classSymbol: Symbol, val targs: List[Type], val ctorSymbol: Symbol, val nameTable: NameTable)
+  extends Type:
     def getTermMember(prefix: Type, name: String)(using Definitions): Option[RefType] =
-      resolveTerm(name).map: sym =>
+      nameTable.resolveTerm(name).map: sym =>
         // compute the type with respect to the instantiated targs
-        owner.info match
+        classSymbol.info match
           case TypeLambda(tparams, _, _) =>
             assert(tparams.size == targs.size, "Mismatch, tparams = " + tparams + ", targs = " + targs)
 
