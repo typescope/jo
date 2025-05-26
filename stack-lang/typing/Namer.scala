@@ -197,7 +197,7 @@ class Namer:
 
     defn match
       case fdef: Ast.FunDef =>
-        transformFunDef(fdef, Flags.Fun) :: Nil
+        transformFunDef(fdef, Flags.Fun, captureEffects = false) :: Nil
 
       case tdef: Ast.TypeDef =>
         transformTypeDef(tdef) :: Nil
@@ -267,7 +267,7 @@ class Namer:
         transformTagged(tag, values = Nil).adapt
 
       case lambda: Ast.Lambda =>
-        transform(lambda).adapt
+        transformLambda(lambda).adapt
 
       case Ast.Fence(phrase) =>
         given Scope = sc.fresh()
@@ -342,7 +342,7 @@ class Namer:
         vdef2.adapt
 
       case fdef: Ast.FunDef =>
-        val delayedDef = transformFunDef(fdef, Flags.Fun)
+        val delayedDef = transformFunDef(fdef, Flags.Fun, captureEffects = false)
         // A function is available for checking its rhs
         sc.define(delayedDef.symbol)
         delayedDef.force().adapt
@@ -360,10 +360,10 @@ class Namer:
         delayedDef.force().adapt
 
       case block: Ast.Block =>
-        transform(block)
+        transformBlock(block)
 
       case obj: Ast.Object =>
-        transform(obj).adapt
+        transformObject(obj).adapt
     }
 
 
@@ -397,7 +397,7 @@ class Namer:
             // Error already reported
             errorWord(word.span)
 
-  def transform(obj: Ast.Object)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): Word =
+  def transformObject(obj: Ast.Object)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
     val vals = new mutable.ArrayBuffer[ValDef]
     val delayedDefs = new mutable.ArrayBuffer[DelayedDef[FunDef]]
 
@@ -426,7 +426,7 @@ class Namer:
       if fdef.preParamCount != 0 then
         Reporter.error("Methods cannot have pre-arguments", fdef.pos)
 
-      val delayedDef = transformFunDef(fdef, Flags.Method | Flags.Fun)
+      val delayedDef = transformFunDef(fdef, Flags.Method | Flags.Fun, captureEffects = true)
 
       // Operator name should not be called directly without a prefix
       if !Name.isOperator(delayedDef.symbol.name) then
@@ -447,8 +447,8 @@ class Namer:
 
     Object(thisSym, vals.toList, defs)(objType, obj.span)
 
-  def transform(block: Ast.Block)
-    (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType)
+  def transformBlock(block: Ast.Block)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType)
   : Word =
 
     val phrases = block.phrases
@@ -924,7 +924,7 @@ class Namer:
 
         TaggedLit(tagStringLit, values2)(tagType, span)
 
-  private def transform(lambda: Ast.Lambda)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
+  private def transformLambda(lambda: Ast.Lambda)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
      val Ast.Lambda(params, body) = lambda
 
      val targetFunTypeOpt: Option[NamedInfo[ProcType]] = tt.knownType.flatMap(_.getSingleMethodType)
@@ -1065,7 +1065,7 @@ class Namer:
 
     ValDef(sym, rhs)(vdef.span)
 
-  private def transformFunDef(funDef: Ast.FunDef, initialFlags: Flags)
+  private def transformFunDef(funDef: Ast.FunDef, initialFlags: Flags, captureEffects: Boolean)
       (using lazyDefn: Definitions.Lazy | Definitions, sc: Scope, rp: Reporter, so: Source)
   : DelayedDef[FunDef] =
 
@@ -1155,10 +1155,12 @@ class Namer:
           yield
             transformParamRef(param).symbol
 
-        Effects.Policy.CheckBound(effs)
+        if captureEffects then Effects.Policy.Capture(except = effs)
+        else Effects.Policy.CheckBound(effs)
 
       case None =>
-        Effects.Policy.Infer
+        if captureEffects then Effects.Policy.Capture(except = Nil)
+        else Effects.Policy.Infer
 
     def computeInfo(resultType: Type) =
       ProcType(
@@ -1352,7 +1354,7 @@ class Namer:
         if fdef.preParamCount != 0 then
           Reporter.error("Methods cannot have pre-arguments", fdef.pos)
 
-        val delayedDef = transformFunDef(fdef, Flags.Fun | Flags.Method)
+        val delayedDef = transformFunDef(fdef, Flags.Fun | Flags.Method, captureEffects = false)
 
         memberTable.define(delayedDef.symbol)
         // Operator name should not be called directly without a prefix
