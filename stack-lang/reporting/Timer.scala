@@ -13,7 +13,7 @@ object Timer:
 
   inline def measure[T](key: String, inline enable: Boolean)(inline op: T)(using rp: Reporter): T =
     inline if enable then {
-      val itemsBefore = rp.getKeyOrElse(PerfReportKey, Vector.empty)
+      val itemsBefore = rp.getKeyOrElse(PerfReportKey)(Vector.empty)
 
       // collect nested items
       rp.updateKey(PerfReportKey, Vector.empty)
@@ -44,5 +44,5 @@ object Timer:
 
 
     println("=========================== Time Report =============================")
-    val items = rp.getKeyOrElse(PerfReportKey, Vector.empty)
+    val items = rp.getKeyOrElse(PerfReportKey)(Vector.empty)
     for item <- items do printItem(item, indent = 0)

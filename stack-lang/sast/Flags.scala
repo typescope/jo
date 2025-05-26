@@ -6,16 +6,18 @@ object Flags:
   opaque type Flag <: Flags = Long
   opaque type Flags = Long
 
-  val Fun     : Flag = 1 << 1
+  val Fun     : Flag = 1 << 1  // Symbols that have a ProcType as info
   val Type    : Flag = 1 << 2
   val Class   : Flag = 1 << 3
   val Pattern : Flag = 1 << 4
   val NSpace  : Flag = 1 << 5
   val Section : Flag = 1 << 6
-  val Method  : Flag = 1 << 7
+
+  val Method       : Flag = 1 << 7
+  val Constructor  : Flag = 1 << 8
 
   // namespace flags
-  val Branch  : Flag = 1 << 8  // branch name space
+  val Branch  : Flag = 1 << 9  // branch name space
 
   // val flags
   val Param   : Flag = 1 << 20  // a parameter

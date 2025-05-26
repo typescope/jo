@@ -467,16 +467,22 @@ object Types:
     (val classSymbol: Symbol, val targs: List[Type], val ctorSymbol: Symbol, val nameTable: NameTable)
   extends Type:
     def getTermMember(prefix: Type, name: String)(using Definitions): Option[RefType] =
-      nameTable.resolveTerm(name).map: sym =>
-        // compute the type with respect to the instantiated targs
-        classSymbol.info match
-          case TypeLambda(tparams, _, _) =>
-            assert(tparams.size == targs.size, "Mismatch, tparams = " + tparams + ", targs = " + targs)
+      nameTable.resolveTerm(name) match
+        case Some(sym) => Some(rebase(prefix, sym))
 
-            val info = TypeOps.substSymbols(sym.info, tparams, targs)
-            MemberRef(prefix, sym, info)
+        case None =>
+          if name == "<init>" then Some(rebase(prefix, ctorSymbol)) else None
 
-          case _ =>
-            assert(targs.isEmpty, "Mismatch, tparams = 0" + ", targs = " + targs)
+    private def rebase(prefix: Type, member: Symbol)(using Definitions): RefType =
+      // compute the type with respect to the instantiated targs
+      classSymbol.info match
+        case TypeLambda(tparams, _, _) =>
+          assert(tparams.size == targs.size, "Mismatch, tparams = " + tparams + ", targs = " + targs)
 
-            StaticRef(sym)
+          val info = TypeOps.substSymbols(member.info, tparams, targs)
+          MemberRef(prefix, member, info)
+
+        case _ =>
+          assert(targs.isEmpty, "Mismatch, tparams = 0" + ", targs = " + targs)
+
+          StaticRef(member)

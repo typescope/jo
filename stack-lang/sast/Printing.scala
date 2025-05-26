@@ -216,12 +216,12 @@ object Printing:
       case TypeApply(fun, targs) =>
         fun ~ "[" ~ targs.join(", ") ~ "]"
 
-      case New(classRef, targs, args) =>
+      case New(classRef, targs) =>
         val targsText =
           if targs.isEmpty then Text.Empty
           else "[" ~ targs.join(", ")  ~ "]"
 
-        "new " ~ classRef ~ targsText ~ "(" ~ args.join(", ") ~ ")"
+        "new " ~ classRef ~ targsText
 
       case With(expr, args) =>
         val withText =

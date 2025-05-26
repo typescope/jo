@@ -50,6 +50,8 @@ object Symbols:
     def isSynthetic: Boolean = flags.is(Flags.Synthetic)
     def isAlias    : Boolean = flags.is(Flags.Alias)
 
+    def isConstructor: Boolean = flags.is(Flags.Constructor)
+
     def isNamespace: Boolean = flags.is(Flags.NSpace)
 
     def isContainer: Boolean = flags.isOneOf(Flags.NSpace | Flags.Section)

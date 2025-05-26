@@ -174,9 +174,8 @@ object EffectAnalysis:
         case TypeApply(fun, targs) =>
           this(fun)
 
-        case New(classRef, targs, args) =>
-          args.foldLeft(zero): (acc, arg) =>
-            acc ++ this(arg)
+        case New(classRef, targs) =>
+          zero
 
         case With(expr, args) =>
           val effsInner = this(expr)

@@ -278,6 +278,9 @@ class Namer:
           case tag: Ast.Tag => transformTagged(tag, app.args)
           case _ => transformCall(app)
 
+      case newExpr: Ast.New =>
+        transformNew(newExpr)
+
       case call: Ast.InfixCall =>
         transformInfixCall(call)
 
@@ -479,6 +482,51 @@ class Namer:
     }
 
     TypeApply(fun, targs)(tpe, fun.span)
+
+  /** Handles new Foo[T](arg1, arg2, ...) */
+  def transformNew(newExpr: Ast.New)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
+    val classTree = transformType(newExpr.classRef)
+    val targsTree = for targ <- newExpr.targs yield transformType(targ)
+
+    def instantiateTypeLambda(tlambdaRef: Type, tparams: List[Symbol])(using Definitions, Reporter): Type  =
+      val tvars = for tparam <- tparams yield TypeVar(tparam.name, this.inferencer)
+
+      checker.delayedCheck {
+        val span = newExpr.classRef.span
+        for tvar <- tvars do checker.checkInstantiated(tvar, span.toPos)
+
+        val targs = tvars.map(tvar => TypeTree(tvar)(span))
+        checker.checkBounds(tparams, targs)
+      }
+
+      AppliedType(tlambdaRef, tvars)
+
+    if !classTree.tpe.isTypeRef then
+      Reporter.error("A class name expected, found = " + newExpr.classRef.name, newExpr.classRef.pos)
+      errorWord(newExpr.span)
+
+    else if targsTree.nonEmpty && !checker.checkKind(classTree, targsTree) then
+      errorWord(newExpr.span)
+
+    else
+      val classRef = classTree.tpe.as[RefType]
+      val classSym = classRef.symbol
+      val instanceType =
+        if targsTree.nonEmpty then
+          AppliedType(classRef, targsTree.map(_.tpe))
+
+        else if classSym.info.isTypeLambda then
+          instantiateTypeLambda(classRef, classSym.info.asTypeLambda.tparams)
+
+        else
+          classRef
+
+      val newInstance = New(Ident(classSym)(classTree.span), targsTree)(instanceType, newExpr.span)
+
+      newExpr.addKey(Namer.TypedWord, newInstance)
+      val ctorSelect = Ast.Select(newExpr, "<init>")(newExpr.span)
+      val ctorCall = Ast.Apply(ctorSelect, newExpr.args)(newExpr.span)
+      transform(ctorCall)
 
   /** Handles explicit postfix call syntax f(arg1, arg2, ...) */
   def transformCall(apply: Ast.Apply)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
@@ -1211,7 +1259,7 @@ class Namer:
     val kind = Kind.simpleKinded(cdef.tparams.size)
     val classSym = new TypeSymbol(kind, cdef.name, flags, cdef.ident.pos)
     val thisSym = Symbol.createSymbol("this", Flags.Synthetic, cdef.ident.pos)
-    val ctorSym = Symbol.createSymbol("<init>", Flags.Synthetic, cdef.ident.pos)
+    val ctorSym = Symbol.createSymbol("<init>", Flags.Fun | Flags.Constructor | Flags.Synthetic, cdef.ident.pos)
 
     val memberTable = new NameTable
 
@@ -1279,8 +1327,8 @@ class Namer:
 
       val ctorInfo: Type =
         ProcType(
-          tparamSyms, paramSyms.map(_.toNamedInfo), autos = Nil,
-          resultType = classInfo, receives = None, preParamCount = 0)
+          tparams = Nil, params = paramSyms.map(_.toNamedInfo), autos = Nil,
+          resultType = thisInfo, receives = None, preParamCount = 0)
 
       defn.add(thisSym, classSym, thisInfo)
       defn.add(ctorSym, classSym, ctorInfo)
@@ -1401,9 +1449,7 @@ class Namer:
       if sym == defn.Predef_Pack && !allowPackType then
         Reporter.error(".. not allowed here. It can only be used as the type of the last varargs parameter.", tpt.pos)
 
-    tpt.testKey(Namer.TypedTypeTree) match
-    case Some(typed) => typed
-    case None =>
+    tpt.getKeyOrElse(Namer.TypedTypeTree):
       tpt match
       case Ast.Ident(name) =>
         sc.resolveType(name) match

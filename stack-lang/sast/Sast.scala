@@ -85,7 +85,6 @@ object Sast:
     (symbol: Symbol)
     (val span: Span)
   extends Word:
-    assert(!symbol.isType)
 
     def name: String = symbol.name
     val tpe: Type = StaticRef(symbol)
@@ -173,11 +172,11 @@ object Sast:
       apply(fun, args, autos = Nil)(tpe, span)
 
   case class New
-    (classRef: Ident, targs: List[TypeTree], args: List[Word])
+    (classRef: Ident, targs: List[TypeTree])
     (val tpe: Type, val span: Span)
   extends Word
 
-  case class Object (self: Symbol, vals: List[ValDef], funs: List[FunDef])
+  case class Object(self: Symbol, vals: List[ValDef], funs: List[FunDef])
     (val tpe: Type, val span: Span)
   extends Word
 

@@ -26,9 +26,7 @@ object KeyProps:
 
     def getKey[T](key: Key[T]): T = map(key).asInstanceOf[T]
 
-    def testKey[T](key: Key[T]): Option[T] = map.get(key).asInstanceOf[Option[T]]
-
-    def getKeyOrElse[T](key: Key[T], default: => T): T =
+    def getKeyOrElse[T](key: Key[T])(default: => T): T =
       map.get(key) match
         case Some(v) => v.asInstanceOf[T]
         case None => default
@@ -40,3 +38,6 @@ object KeyProps:
           val value = compute
           map = map.updated(key, value)
           value
+
+    def testKey[T](key: Key[T]): Option[T] =
+      map.get(key).asInstanceOf[Option[T]]

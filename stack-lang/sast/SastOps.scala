@@ -308,7 +308,7 @@ object SastOps:
 
     final def recur(word: Word)(using Context): Word =
       word match
-        case _: Literal | _: Ident =>
+        case _: Literal | _: Ident | _: New =>
           word
 
         case Select(qual, name) =>
@@ -334,9 +334,6 @@ object SastOps:
 
         case TypeApply(fun, targs) =>
           TypeApply(this(fun), targs)(word.tpe, word.span)
-
-        case New(classRef, targs, args) =>
-          New(classRef, targs, args.map(this.apply))(word.tpe, word.span)
 
         case With(expr, args) =>
           // Don't map paramRef --- the client code should match this tree
@@ -442,7 +439,7 @@ object SastOps:
 
     def recur(word: Word)(using Context): Unit =
       word match
-        case _: Literal | _: Ident =>
+        case _: Literal | _: Ident | _: New =>
 
         case Select(qual, name) =>
           this(qual)
@@ -464,9 +461,6 @@ object SastOps:
 
         case TypeApply(fun, targs) =>
           this(fun)
-
-        case New(classRef, targs, args) =>
-          args.foreach(this.apply)
 
         case With(expr, args) =>
           args.foreach: arg =>
