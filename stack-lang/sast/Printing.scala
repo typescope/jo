@@ -119,7 +119,7 @@ object Printing:
               Text.Empty
 
         "@locals(" ~ locals ~ ")" ~ Text.BreakLine ~
-        modifiers ~ kind ~ fdef.name ~ tparamText ~ paramText ~ autoText ~ ":" ~ resType ~ receives ~ " =" ~ indent:
+        modifiers ~ kind ~ fdef.name ~ tparamText ~ paramText ~ autoText ~ ": " ~ resType ~ receives ~ " =" ~ indent:
           fdef.body
 
       case pdef: PatDef =>

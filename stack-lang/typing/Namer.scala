@@ -486,9 +486,9 @@ class Namer:
   /** Handles new Foo[T](arg1, arg2, ...) */
   def transformNew(newExpr: Ast.New)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
     val classTree = transformType(newExpr.classRef)
-    val targsTree = for targ <- newExpr.targs yield transformType(targ)
+    var targsTree = for targ <- newExpr.targs yield transformType(targ)
 
-    def instantiateTypeLambda(tlambdaRef: Type, tparams: List[Symbol])(using Definitions, Reporter): Type  =
+    def instantiateTypeLambda(tparams: List[Symbol])(using Definitions, Reporter): List[TypeVar]  =
       val tvars = for tparam <- tparams yield TypeVar(tparam.name, this.inferencer)
 
       checker.delayedCheck {
@@ -499,7 +499,7 @@ class Namer:
         checker.checkBounds(tparams, targs)
       }
 
-      AppliedType(tlambdaRef, tvars)
+      tvars
 
     if !classTree.tpe.isTypeRef then
       Reporter.error("A class name expected, found = " + newExpr.classRef.name, newExpr.classRef.pos)
@@ -516,7 +516,9 @@ class Namer:
           AppliedType(classRef, targsTree.map(_.tpe))
 
         else if classSym.info.isTypeLambda then
-          instantiateTypeLambda(classRef, classSym.info.asTypeLambda.tparams)
+          val tvars = instantiateTypeLambda(classSym.info.asTypeLambda.tparams)
+          targsTree = tvars.map(tvar => TypeTree(tvar)(classTree.span))
+          AppliedType(classRef, tvars)
 
         else
           classRef
