@@ -6,9 +6,21 @@ type Runnable = object {
   def run(): Unit receives retry
 }
 
+type Fun = object {
+  def apply(): Unit
+}
+
 fun main =
   val work: Runnable = object {
     def run() receives out, in, retry = out "run"
   }
 
   work.run()
+
+  val f: Fun = object {
+    def apply() receives out = out "run"
+  }
+
+  val g: Fun = object {
+    def apply() = out "run"
+  }

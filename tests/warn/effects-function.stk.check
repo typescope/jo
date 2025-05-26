@@ -1,11 +1,16 @@
----------- Error at ./tests/warn/effects-function.stk:11:24 ---------------
+---------- Error at ./tests/warn/effects-function.stk:15:24 ---------------
 |     def run() receives out, in, retry = out "run"
 |                        ^^^
 |                        Parameter not allowed from expected type: out
 
----------- Error at ./tests/warn/effects-function.stk:11:29 ---------------
+---------- Error at ./tests/warn/effects-function.stk:15:29 ---------------
 |     def run() receives out, in, retry = out "run"
 |                             ^^
 |                             Parameter not allowed from expected type: in
 
-2 error(s), 0 warning(s)
+---------- Error at ./tests/warn/effects-function.stk:21:26 ---------------
+|     def apply() receives out = out "run"
+|                          ^^^
+|                          Parameter not allowed from expected type: out
+
+3 error(s), 0 warning(s)
