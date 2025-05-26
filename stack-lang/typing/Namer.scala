@@ -1178,6 +1178,9 @@ class Namer:
           case Effects.Policy.Infer =>
              Effects.Policy.CheckBound(effs.map(_.symbol))
 
+          case Effects.Policy.InferCapture =>
+            Effects.Policy.Capture(effs.map(_.symbol))
+
           case _ =>
              Effects.checkEffectsConform(effs, policy)
              policy
