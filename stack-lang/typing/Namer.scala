@@ -254,7 +254,7 @@ class Namer:
         transformRefTree(ref).adapt
 
       case record: Ast.RecordLit =>
-        transform(record).adapt
+        transformRecord(record).adapt
 
       case Ast.TypeAscribe(expr, tpt) =>
         val tpt2 = transformType(tpt)
@@ -299,7 +299,7 @@ class Namer:
 
       case Ast.With(expr, args) =>
         val exprSast = transform(expr)
-        val argsSast = for arg <- args yield transform(arg)
+        val argsSast = for arg <- args yield transformWithArg(arg)
         With(exprSast, argsSast)(exprSast.tpe, word.span)
 
       case Ast.Allow(expr, params) =>
@@ -313,7 +313,7 @@ class Namer:
         Allow(exprSast, paramRefs)(exprSast.tpe, word.span)
 
       case ifte: Ast.If =>
-        transform(ifte).adapt
+        transformIf(ifte).adapt
 
       case Ast.While(cond, body) =>
          val cond2 =
@@ -327,7 +327,7 @@ class Namer:
          While(cond2, body2)(word.span).adapt
 
       case assign: Ast.Assign =>
-        transform(assign).adapt
+        transformAssign(assign).adapt
 
       case patmat: Ast.Match =>
         patternTyper.transformMatch(patmat).adapt
@@ -422,7 +422,7 @@ class Namer:
     // `this` should not be available in field initialization
     sc2.define(thisSym)
 
-    val defaultPolicy = Effects.Policy.Capture(except = Nil)
+    val defaultPolicy = Effects.Policy.InferCapture
 
     for case fdef: Ast.FunDef <- obj.members do
       if fdef.preParamCount != 0 then
@@ -768,7 +768,7 @@ class Namer:
 
     argsFixTyped :+ lastFlexArg
 
-  def transform(assign: Ast.Assign)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): Word =
+  def transformAssign(assign: Ast.Assign)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): Word =
     val Ast.Assign(ref, rhs) = assign
 
     ref match
@@ -831,7 +831,7 @@ class Namer:
 
     Ident(paramSym)(ref.span)
 
-  private def transform(arg: Ast.WithArg)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): WithArg =
+  private def transformWithArg(arg: Ast.WithArg)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): WithArg =
     val paramRef = transformParamRef(arg.paramRef)
 
     val rhsSast =
@@ -842,7 +842,7 @@ class Namer:
 
     WithArg(paramRef, rhsSast)(arg.span)
 
-  private def transform(ifte: Ast.If)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
+  private def transformIf(ifte: Ast.If)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
     val Ast.If(cond, thenp, elsep) = ifte
 
     val cond2 =
@@ -856,7 +856,7 @@ class Namer:
     val commonType = checker.commonResultType(then2.tpe, else2.tpe, ifte.pos)
     If(cond2, then2, else2)(commonType, ifte.span)
 
-  private def transform(record: Ast.RecordLit)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
+  private def transformRecord(record: Ast.RecordLit)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
     val Ast.RecordLit(namedArgs) = record
     val namedArgs2 = new mutable.ArrayBuffer[(String, Word)]
 
