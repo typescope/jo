@@ -197,7 +197,7 @@ class Namer:
 
     defn match
       case fdef: Ast.FunDef =>
-        transformFunDef(fdef, Flags.Fun, captureEffects = false) :: Nil
+        transformFunDef(fdef, Flags.Fun, Effects.Policy.Infer) :: Nil
 
       case tdef: Ast.TypeDef =>
         transformTypeDef(tdef) :: Nil
@@ -342,7 +342,7 @@ class Namer:
         vdef2.adapt
 
       case fdef: Ast.FunDef =>
-        val delayedDef = transformFunDef(fdef, Flags.Fun, captureEffects = false)
+        val delayedDef = transformFunDef(fdef, Flags.Fun, Effects.Policy.Infer)
         // A function is available for checking its rhs
         sc.define(delayedDef.symbol)
         delayedDef.force().adapt
@@ -422,11 +422,30 @@ class Namer:
     // `this` should not be available in field initialization
     sc2.define(thisSym)
 
+    val defaultPolicy = Effects.Policy.Capture(except = Nil)
+
     for case fdef: Ast.FunDef <- obj.members do
       if fdef.preParamCount != 0 then
         Reporter.error("Methods cannot have pre-arguments", fdef.pos)
 
-      val delayedDef = transformFunDef(fdef, Flags.Method | Flags.Fun, captureEffects = true)
+      val effectPolicy =
+        tt.knownType match
+          case Some(tp) if tp.isObjectType =>
+            tp.getTermMember(fdef.name) match
+              case Some(tp) =>
+                if tp.isProcType then
+                  tp.asProcType.receives
+                else
+                  Reporter.error("Expect type " + tp.show + ", found a method", fdef.pos)
+                  defaultPolicy
+
+              case _ =>
+                defaultPolicy
+
+          case _ =>
+            defaultPolicy
+
+      val delayedDef = transformFunDef(fdef, Flags.Method | Flags.Fun, effectPolicy)
 
       // Operator name should not be called directly without a prefix
       if !Name.isOperator(delayedDef.symbol.name) then
@@ -1065,7 +1084,7 @@ class Namer:
 
     ValDef(sym, rhs)(vdef.span)
 
-  private def transformFunDef(funDef: Ast.FunDef, initialFlags: Flags, captureEffects: Boolean)
+  private def transformFunDef(funDef: Ast.FunDef, initialFlags: Flags, policy: Effects.Policy)
       (using lazyDefn: Definitions.Lazy | Definitions, sc: Scope, rp: Reporter, so: Source)
   : DelayedDef[FunDef] =
 
@@ -1153,14 +1172,18 @@ class Namer:
           for
             param <- params
           yield
-            transformParamRef(param).symbol
+            transformParamRef(param)
 
-        if captureEffects then Effects.Policy.Capture(except = effs)
-        else Effects.Policy.CheckBound(effs)
+        policy match
+          case Effects.Policy.Infer =>
+             Effects.Policy.CheckBound(effs.map(_.symbol))
+
+          case _ =>
+             Effects.checkEffectsConform(effs, policy)
+             policy
 
       case None =>
-        if captureEffects then Effects.Policy.Capture(except = Nil)
-        else Effects.Policy.Infer
+        policy
 
     def computeInfo(resultType: Type) =
       ProcType(
@@ -1354,7 +1377,7 @@ class Namer:
         if fdef.preParamCount != 0 then
           Reporter.error("Methods cannot have pre-arguments", fdef.pos)
 
-        val delayedDef = transformFunDef(fdef, Flags.Fun | Flags.Method, captureEffects = false)
+        val delayedDef = transformFunDef(fdef, Flags.Fun | Flags.Method, Effects.Policy.Infer)
 
         memberTable.define(delayedDef.symbol)
         // Operator name should not be called directly without a prefix

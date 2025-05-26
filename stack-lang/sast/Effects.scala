@@ -1,6 +1,10 @@
 package sast
 
+import Sast.*
 import Symbols.Symbol
+
+import ast.Positions.Source
+import reporting.Reporter
 
 object Effects:
   import Policy.*
@@ -46,3 +50,11 @@ object Effects:
 
           case CheckBound(bound2) =>
             bound1.forall(bound2.contains)
+
+  def checkEffectsConform(effs: List[Ident], policy: Policy)(using Reporter, Source) =
+    policy.bound match
+      case Some(allowed)  =>
+          for eff <- effs if !allowed.contains(eff.symbol) do
+            Reporter.error("Parameter not allowed from expected type: " + eff.symbol, eff.pos)
+
+      case None =>

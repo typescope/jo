@@ -1,0 +1,14 @@
+param out: String => Unit
+param in: () => String
+param retry: Int
+
+type Runnable = object {
+  def run(): Unit receives retry
+}
+
+fun main =
+  val work: Runnable = object {
+    def run() receives out, in, retry = out "run"
+  }
+
+  work.run()
