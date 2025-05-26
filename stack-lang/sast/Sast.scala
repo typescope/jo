@@ -464,11 +464,11 @@ object Sast:
     def locals(using Definitions): List[Symbol] = census._1
     def freeVariables(using Definitions): List[Symbol] = census._2
 
-    def procType(using Definitions): ProcType = symbol.info.asProcType
+    def procType(using Definitions): ProcType = symbol.info.as[ProcType]
 
-    def receives(using Definitions): Option[List[Symbol]] = procType.receives
+    def effectsBound(using Definitions): Option[List[Symbol]] = procType.effectsBound
 
-    def methodReceives(using Definitions): List[Symbol] = receives.getOrElse(Nil)
+    def effectPolicy(using Definitions): Effects.Policy = procType.receives
 
   /** Represents a pattern definition */
   case class PatDef

@@ -160,23 +160,15 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
       if symbol.isLocal then ctx.cache.code(symbol) = fdef
 
       if symbol.isFunction then
-        fdef.receives match
-          case Some(params) =>
+        fdef.effectPolicy match
+          case Effects.Policy.CheckBound(params) =>
             val allowed = params.map(_.dealias).toSet
             val effs = EffectAnalysis.effects(symbol)(using ctx.cache)
             val pos = symbol.sourcePos
             for (eff, trace) <- effs if !allowed.exists(param => eff.refers(param)) do
               Reporter.error("Parameter not allowed: " + eff, pos, trace)
 
-          case None =>
-            if symbol.is(Flags.Default) then
-              val effs = EffectAnalysis.effects(symbol)(using ctx.cache)
-              val pos =
-                given Source = symbol.sourcePos.source
-                fdef.body.pos
-
-              for (eff, trace) <- effs do
-                Reporter.error("Parameter not allowed for default values: " + eff, pos, trace)
+          case _ =>
 
       super.transformTopLevelFunDef(fdef)
 
@@ -271,7 +263,7 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
     for ddef <- obj.funs do
       ctx.cache.code(ddef.symbol) = ddef
       val effsTraced = EffectAnalysis.effects(ddef.symbol)(using ctx.cache)
-      val effs = (effsTraced -- ddef.methodReceives).keys.toList
+      val effs = (effsTraced -- ddef.effectsBound.getOrElse(Nil)).keys.toList
 
       if effs.isEmpty then
         val body2 = this(ddef.body)

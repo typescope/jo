@@ -239,12 +239,8 @@ object Subtyping:
       && tp1.autoTypes.zip(tp2.autoTypes).forall: (autoType1, autoType2) =>
         recur(autoType2, autoType1)
       && recur(tp1.resultType, tp2.resultType)
-    } && {
-      tp1.receives.isEmpty ||
-      tp1.receives.get.forall { param =>
-        tp2.receives.nonEmpty && tp2.receives.get.contains(param)
-      }
     }
+    && Effects.conforms(tp1.receives, tp2.receives)
 
   // TODO: loosen record typing and use coersion semantics
   private def checkConformsRecordType(tp1: RecordType, tp2: RecordType)(using Context, Definitions): Boolean =

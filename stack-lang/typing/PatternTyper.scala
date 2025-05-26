@@ -94,7 +94,8 @@ class PatternTyper(namer: Namer, checker: Checker):
 
     def computeInfo(resultType: Type) =
       val autoTypes = Nil
-      ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), autoTypes, resultType, receives = None, preParamCount = patDef.preParamCount)
+      val effectPolicy = Effects.Policy.CheckBound(effects = Nil)
+      ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), autoTypes, resultType, effectPolicy, patDef.preParamCount)
 
     lazyDefn match
       case lazyDefn: Definitions.Lazy =>
@@ -587,7 +588,7 @@ class PatternTyper(namer: Namer, checker: Checker):
         tparams = Nil,
         params = NamedInfo("from", defn.IntType) :: NamedInfo("to", defn.IntType)  :: Nil,
         autos = Nil,
-        receives = Some(Nil),
+        receives = Effects.Policy.CheckBound(effects = Nil),
         resultType = scrutType.widenTermRef,
         preParamCount = 0
       )

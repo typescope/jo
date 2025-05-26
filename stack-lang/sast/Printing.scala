@@ -108,7 +108,7 @@ object Printing:
         val kind = if fdef.symbol.isMethod then Text("def ") else Text("fun ")
 
         val receives =
-          fdef.receives match
+          fdef.effectsBound match
             case Some(Nil) =>
               Text(" receives none ")
 
@@ -400,7 +400,7 @@ object Printing:
       case TypeBound(lo, hi) =>
         lo ~ " .. " ~ hi
 
-      case ProcType(tparams, params, autos, resType, receivesOpt, n) =>
+      case procType @ ProcType(tparams, params, autos, resType, _, n) =>
         val tparamText =
           if tparams.isEmpty then
             Text.Empty
@@ -422,8 +422,9 @@ object Printing:
           else "(" ~ autos.map(param => param.name ~ ": " ~ param.info).join(", ") ~ ")"
 
         val receivesText =
-          if receivesOpt.isEmpty then Text.Empty
-          else " receives " ~ receivesOpt.get.join(", ")
+          procType.effectsBound match
+            case None => Text.Empty
+            case Some(syms) => " receives " ~ syms.join(", ")
 
         tparamText ~ preText ~ postText ~ autoText ~ ": " ~ resType ~ receivesText
 

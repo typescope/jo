@@ -5,6 +5,7 @@ import ast.Positions.*
 import sast.*
 import sast.Sast.*
 import sast.Symbols.Symbol
+import sast.Effects.*
 
 import scala.collection.mutable
 
@@ -146,8 +147,13 @@ object EffectAnalysis:
           if word.tpe.isProcType then
             // a select with a ProcType must be a method call
             val procType = word.tpe.asProcType
-            // TODO: Handle effects of methods
-            effs ++ procType.receives.getOrElse(Nil).map(_ -> Vector(word.pos))
+            effs ++ {
+              procType.effectsBound match
+                case Some(effs) => effs.map(_ -> Vector(word.pos))
+                case _ =>
+                  // TODO: Handle effects of methods
+                  Nil
+            }
           else
             effs
 
@@ -222,12 +228,16 @@ object EffectAnalysis:
           defs.foldLeft(effs): (acc, ddef) =>
             // Cache the effects for method such that it can be used for the
             // deep capture transform.
-            //
-            // Method calls will not contribute effects as each method is
-            // self-sufficient after deep capture.
             cache.code(ddef.symbol) = ddef
-            val rawEffects = getEffects(ddef.symbol)
-            acc ++ (rawEffects -- ddef.methodReceives)
+            ddef.effectPolicy match
+              case Policy.Infer => acc
+
+              case Policy.Capture(except) =>
+                val rawEffects = getEffects(ddef.symbol)
+                acc ++ (rawEffects -- except)
+
+              case Policy.CheckBound(bound) =>
+                acc ++ bound.map(_ -> Vector(word.pos))
 
         case fdef: FunDef =>
           cache.code(fdef.symbol) = fdef

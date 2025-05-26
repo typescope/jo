@@ -955,8 +955,9 @@ class Namer:
            tvars += tvar -> params(i)
            tvar
 
-     val ctxParams = targetFunTypeOpt.flatMap:
-       case NamedInfo(_, funType) => funType.receives
+     val effectsPolicy = targetFunTypeOpt match
+       case Some(NamedInfo(_, funType)) => funType.receives
+       case None => Effects.Policy.Capture(except = Nil)
 
      val paramSyms =
       for (param, i) <- params.zipWithIndex yield
@@ -975,7 +976,7 @@ class Namer:
        transform(body)
 
      // Provide type info for the function symbol
-     val procType = ProcType(tparams = Nil, paramSyms.map(_.toNamedInfo), autos = Nil, bodyTyped.tpe, ctxParams, preParamCount = 0)
+     val procType = ProcType(tparams = Nil, paramSyms.map(_.toNamedInfo), autos = Nil, bodyTyped.tpe, effectsPolicy, preParamCount = 0)
      defn.add(funSym, thisSym, procType)
 
      for (tvar, param) <- tvars do
@@ -1028,7 +1029,7 @@ class Namer:
         val funInfo = () =>
           ProcType(
             tparams = Nil, params = Nil, autos = Nil, resultType = paramSym.info,
-            receives = None, preParamCount = 0)
+            receives = Effects.Policy.CheckBound(effects = Nil), preParamCount = 0)
 
         ip.addLazy(defaultFunSym, sc.owner, funInfo)
 
@@ -1065,9 +1066,7 @@ class Namer:
     ValDef(sym, rhs)(vdef.span)
 
   private def transformFunDef(funDef: Ast.FunDef, initialFlags: Flags)
-    (using
-      lazyDefn: Definitions.Lazy | Definitions, sc: Scope, rp: Reporter,
-      so: Source)
+      (using lazyDefn: Definitions.Lazy | Definitions, sc: Scope, rp: Reporter, so: Source)
   : DelayedDef[FunDef] =
 
     val flags = checker.checkModifiers(funDef) | initialFlags
@@ -1148,14 +1147,23 @@ class Namer:
       given TargetType = targetType
       transform(funDef.body)
 
-    lazy val ctxParams = funDef.receives.map: params =>
-      for
-        param <- params
-      yield
-        transformParamRef(param).symbol
+    lazy val effectPolicy = funDef.receives match
+      case Some(params) =>
+        val effs =
+          for
+            param <- params
+          yield
+            transformParamRef(param).symbol
+
+        Effects.Policy.CheckBound(effs)
+
+      case None =>
+        Effects.Policy.Infer
 
     def computeInfo(resultType: Type) =
-        ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), autoSyms.map(_.toNamedInfo), resultType, ctxParams, funDef.preParamCount)
+      ProcType(
+        tparamSyms, paramSyms.map(_.toNamedInfo), autoSyms.map(_.toNamedInfo),
+        resultType, effectPolicy, funDef.preParamCount)
 
     lazyDefn match
       case lazyDefn: Definitions.Lazy =>
@@ -1330,7 +1338,7 @@ class Namer:
       val ctorInfo: Type =
         ProcType(
           tparams = Nil, params = paramSyms.map(_.toNamedInfo), autos = Nil,
-          resultType = thisInfo, receives = None, preParamCount = 0)
+          resultType = thisInfo, receives = Effects.Policy.Infer, preParamCount = 0)
 
       defn.add(thisSym, classSym, thisInfo)
       defn.add(ctorSym, classSym, ctorInfo)
@@ -1430,14 +1438,17 @@ class Namer:
       val resTypeTree = transformType(ddef.resultType)
       checker.checkValueType(resTypeTree)
 
-    val ctxParams = ddef.receives.map: params =>
-      for
-        param <- params
-      yield
-        transformParamRef(param).symbol
+    val effectPolicy =
+      val params = ddef.receives.getOrElse(Nil)
+      val effs =
+        for
+          param <- params
+        yield
+          transformParamRef(param).symbol
+      Effects.Policy.CheckBound(effs)
 
     val finalType =
-      ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), autoSyms.map(_.toNamedInfo), resultType, ctxParams, preParamCount = 0)
+      ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), autoSyms.map(_.toNamedInfo), resultType, effectPolicy, preParamCount = 0)
 
 
     TypeTree(finalType)(ddef.span)
@@ -1589,17 +1600,19 @@ class Namer:
             i = i + 1
             namedInfo
 
-        val ctxParams =
+        val effs =
           for
             param <- receives
           yield
             transformParamRef(param).symbol
 
+        val effectPolicy = Effects.Policy.Capture(except = effs)
+
         val resType2 = transformType(resType)
         val resTypeChecked = checker.checkValueType(resType2)
 
         val autoTypes = Nil
-        val applyType = ProcType(tparams = Nil, paramTypes2, autoTypes, resTypeChecked, Some(ctxParams), preParamCount = 0)
+        val applyType = ProcType(tparams = Nil, paramTypes2, autoTypes, resTypeChecked, effectPolicy, preParamCount = 0)
         val objType = ObjectType(fields = Nil, methods = NamedInfo("apply", applyType) :: Nil, mutableFields = Nil)
         TypeTree(objType)(tpt.span)
 

@@ -363,17 +363,10 @@ object Types:
 
     def isMutable(name: String): Boolean = mutableFields.contains(name)
 
-  /** The type of a procedure or method
-    *
-    * The receive parameters of methods are always explicitly specified. If
-    * unspecified, the receive parameters of methods are regarded as empty.
-    *
-    * For procedures, if unspecified, it means the receive parameters will be
-    * inferred.
-    */
+  /** The type of a function, method or pattern predicates */
   case class ProcType
     (tparams: List[Symbol], params: List[NamedInfo[Type]], autos: List[NamedInfo[Type]],
-      resultType: Type, receives: Option[List[Symbol]], preParamCount: Int)
+      resultType: Type, receives: Effects.Policy, preParamCount: Int)
   extends Type:
     val preParamTypes: List[Type] = params.take(preParamCount).map(_.info)
     val postParamTypes: List[Type] = params.drop(preParamCount).map(_.info)
@@ -387,6 +380,8 @@ object Types:
 
     val allParamTypes: List[Type] = paramTypes ++ autoTypes
     val allParamCount: Int = allParamTypes.size
+
+    val effectsBound: Option[List[Symbol]] = receives.bound
 
     def minimumArgs(using Definitions): Int =
       if hasVararg then paramCount - 1 else paramCount
@@ -414,6 +409,7 @@ object Types:
     def postParamCount = params.size - preParamCount
 
     def resCount(using Definitions) = if resultType.isValueType then 1 else 0
+
 
   /** A type lambda */
   case class TypeLambda
