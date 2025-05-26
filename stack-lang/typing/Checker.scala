@@ -320,6 +320,3 @@ class Checker(namer: Namer):
       case TargetType.TypeApply =>
         // Used to prevent no args adapation
         word2
-
-      case TargetType.ObjectMember =>
-        throw new Exception("No adaptation expected: " + word)

@@ -197,8 +197,7 @@ class Namer:
 
     defn match
       case fdef: Ast.FunDef =>
-        given TargetType = TargetType.Unknown
-        transformFunDef(fdef) :: Nil
+        transformFunDef(fdef, Flags.Fun) :: Nil
 
       case tdef: Ast.TypeDef =>
         transformTypeDef(tdef) :: Nil
@@ -340,7 +339,7 @@ class Namer:
         vdef2.adapt
 
       case fdef: Ast.FunDef =>
-        val delayedDef = transformFunDef(fdef)
+        val delayedDef = transformFunDef(fdef, Flags.Fun)
         // A function is available for checking its rhs
         sc.define(delayedDef.symbol)
         delayedDef.force().adapt
@@ -424,8 +423,7 @@ class Namer:
       if fdef.preParamCount != 0 then
         Reporter.error("Methods cannot have pre-arguments", fdef.pos)
 
-      given TargetType = TargetType.ObjectMember
-      val delayedDef = transformFunDef(fdef)
+      val delayedDef = transformFunDef(fdef, Flags.Method | Flags.Fun)
 
       // Operator name should not be called directly without a prefix
       if !Name.isOperator(delayedDef.symbol.name) then
@@ -1016,15 +1014,13 @@ class Namer:
 
     ValDef(sym, rhs)(vdef.span)
 
-  private def transformFunDef(funDef: Ast.FunDef)
+  private def transformFunDef(funDef: Ast.FunDef, initialFlags: Flags)
     (using
       lazyDefn: Definitions.Lazy | Definitions, sc: Scope, rp: Reporter,
-      so: Source, tt: TargetType)
+      so: Source)
   : DelayedDef[FunDef] =
 
-    var flags = checker.checkModifiers(funDef)
-    if tt == TargetType.ObjectMember then flags = flags | Flags.Fun | Flags.Method
-    else flags = flags | Flags.Fun
+    val flags = checker.checkModifiers(funDef) | initialFlags
 
     val funSym = Symbol.createSymbol(funDef.name, flags, funDef.ident.pos)
     given funScope: Scope = sc.fresh(funSym)
@@ -1209,7 +1205,7 @@ class Namer:
 
   private def transformClassDef(cdef: Ast.ClassDef)
       (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source)
-      : DelayedDef[ClassDef] =
+  : DelayedDef[ClassDef] =
 
     val flags = checker.checkModifiers(cdef) | Flags.Type | Flags.Class
     val kind = Kind.simpleKinded(cdef.tparams.size)
@@ -1291,8 +1287,7 @@ class Namer:
         if fdef.preParamCount != 0 then
           Reporter.error("Methods cannot have pre-arguments", fdef.pos)
 
-        given TargetType = TargetType.ObjectMember // TODO: rename or remove
-        val delayedDef = transformFunDef(fdef)
+        val delayedDef = transformFunDef(fdef, Flags.Fun | Flags.Method)
 
         memberTable.define(delayedDef.symbol)
         // Operator name should not be called directly without a prefix
@@ -1311,7 +1306,7 @@ class Namer:
 
   private def transformSection(section: Ast.Section)
       (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source)
-  : DelayedDef[Section] =
+      : DelayedDef[Section] =
 
     given Definitions = lazyDefn.value
 

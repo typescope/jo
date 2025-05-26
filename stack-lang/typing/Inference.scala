@@ -10,7 +10,6 @@ object Inference:
     case Unknown
     case ValueType
     case VoidType
-    case ObjectMember
     case TypeApply
     case Fun(args: Int)
     case TermMember(name: String)
