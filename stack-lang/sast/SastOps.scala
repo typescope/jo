@@ -138,11 +138,11 @@ object SastOps:
 
         case vdef: ValDef => transformValDef(vdef)
 
-        case fdef: FunDef => transformNestedFunDef(fdef)
+        case fdef: FunDef => transformLocalFunDef(fdef)
 
-        case pdef: PatDef => transformNestedPatDef(pdef)
+        case pdef: PatDef => transformLocalPatDef(pdef)
 
-        case tdef: TypeDef => transformNestedTypeDef(tdef)
+        case tdef: TypeDef => transformLocalTypeDef(tdef)
 
         case ifElse: If => transformIf(ifElse)
 
@@ -177,210 +177,250 @@ object SastOps:
 
         case pat: SeqPattern => transformSeqPattern(pat)
 
-    def transformLiteral(lit: Literal)(using Context): Word = recur(lit)
+    def transformLiteral(lit: Literal)(using Context): Word = recurLiteral(lit)
 
-    def transformIdent(ident: Ident)(using Context): Word = recur(ident)
+    private def recurLiteral(lit: Literal)(using Context): Word = lit
 
-    def transformSelect(select: Select)(using Context): Word = recur(select)
+    def transformIdent(ident: Ident)(using Context): Word =
+      recurIdent(ident)
 
-    def transformRecord(rc: RecordLit)(using Context): Word = recur(rc)
+    private def recurIdent(ident: Ident)(using Context): Word = ident
 
-    def transformTagged(tagged: TaggedLit)(using Context): Word = recur(tagged)
+    def transformSelect(select: Select)(using Context): Word =
+      recurSelect(select)
 
-    def transformEncoded(encoding: Encoded)(using Context): Word = recur(encoding)
+    private def recurSelect(select: Select)(using Context): Word =
+      val Select(qual, name) = select
+      val qual2 = this(qual)
+      val memberType = qual2.tpe.termMember(name)
+      Select(qual2, name)(memberType, select.span)
 
-    def transformApply(apply: Apply)(using Context): Word = recur(apply)
+    def transformRecord(rc: RecordLit)(using Context): Word =
+      recurRecord(rc)
 
-    def transformNew(newExpr: New)(using Context): Word = recur(newExpr)
+    private def recurRecord(rc: RecordLit)(using Context): Word =
+      val RecordLit(fields) = rc
+      val fields2 = fields.map:
+        case (f, rhs) => f -> this(rhs)
 
-    def transformTypeApply(tapply: TypeApply)(using Context): Word = recur(tapply)
+      RecordLit(fields2)(rc.tpe, rc.span)
 
-    def transformWith(withExpr: With)(using Context): Word = recur(withExpr)
+    def transformTagged(tagged: TaggedLit)(using Context): Word =
+      recurTagged(tagged)
 
-    def transformAllow(allowExpr: Allow)(using Context): Word = recur(allowExpr)
+    private def recurTagged(tagged: TaggedLit)(using Context): Word =
+      val TaggedLit(tag, args) = tagged
+      val args2 = args.map(this.apply)
+      TaggedLit(tag, args2)(tagged.tpe, tagged.span)
 
-    def transformAssign(assign: Assign)(using Context): Word = recur(assign)
+    def transformEncoded(encoding: Encoded)(using Context): Word =
+      recurEncoded(encoding)
 
-    def transformFieldAssign(fieldAssign: FieldAssign)(using Context): Word = recur(fieldAssign)
+    private def recurEncoded(encoding: Encoded)(using Context): Word =
+      Encoded(this(encoding.repr))(encoding.tpe)
 
-    def transformValDef(vdef: ValDef)(using Context): Word = recurValDef(vdef)
+    def transformApply(apply: Apply)(using Context): Word =
+      recurApply(apply)
 
-    def transformNestedFunDef(fdef: FunDef)(using Context): Word = recurNestedFunDef(fdef)
+    private def recurApply(apply: Apply)(using Context): Word =
+      val Apply(fun, args, autos) = apply
+      Apply(this(fun), args.map(this.apply), autos.map(this.apply))(apply.tpe, apply.span)
 
-    def transformNestedPatDef(pdef: PatDef)(using Context): Word = recurNestedPatDef(pdef)
+    def transformTypeApply(tapply: TypeApply)(using Context): Word =
+      recurTypeApply(tapply)
 
-    def transformNestedTypeDef(tdef: TypeDef)(using Context): TypeDef = recurNestedTypeDef(tdef)
+    private def recurTypeApply(tapply: TypeApply)(using Context): Word =
+      val TypeApply(fun, targs) = tapply
+      TypeApply(this(fun), targs)(tapply.tpe, tapply.span)
 
-    def transformIf(ifElse: If)(using Context): Word = recur(ifElse)
+    def transformNew(newExpr: New)(using Context): Word =
+      recurNew(newExpr)
 
-    def transformWhile(whileDo: While)(using Context): Word = recur(whileDo)
+    private def recurNew(newExpr: New)(using Context): Word = newExpr
 
-    def transformMatch(patmat: Match)(using Context): Word = recur(patmat)
+    def transformWith(withExpr: With)(using Context): Word =
+      recurWith(withExpr)
 
-    def transformBlock(block: Block)(using Context): Word = recur(block)
+    private def recurWith(withExpr: With)(using Context): Word =
+      val With(expr, args) = withExpr
+      // Don't map paramRef --- the client code should match this tree
+      val args2 = args.map: arg =>
+        arg.copy(arg.paramRef, this(arg.rhs))(arg.span)
 
-    def transformObject(obj: Object)(using Context): Word = recur(obj)
+      With(this(expr), args2)(withExpr.tpe, withExpr.span)
 
+    def transformAllow(allowExpr: Allow)(using Context): Word =
+      recurAllow(allowExpr)
 
-    def transformAscribePattern(pat: AscribePattern)(using Context) = recur(pat)
+    private def recurAllow(allowExpr: Allow)(using Context): Word =
+      val Allow(expr, params) = allowExpr
+      Allow(this(expr), params)(allowExpr.tpe, allowExpr.span)
 
-    def transformTypePattern(pat: TypePattern)(using Context) = recur(pat)
+    def transformAssign(assign: Assign)(using Context): Word =
+      recurAssign(assign)
 
-    def transformTagPattern(pat: TagPattern)(using Context) = recur(pat)
+    private def recurAssign(assign: Assign)(using Context): Word =
+      val Assign(id, rhs) = assign
+      // Don't map id --- the client code should match Assign
+      Assign(id, this(rhs))(assign.span)
 
-    def transformApplyPattern(pat: ApplyPattern)(using Context) = recur(pat)
+    def transformFieldAssign(fieldAssign: FieldAssign)(using Context): Word =
+      recurFieldAssign(fieldAssign)
 
-    def transformOrPattern(pat: OrPattern)(using Context) = recur(pat)
+    private def recurFieldAssign(fieldAssign: FieldAssign)(using Context): Word =
+      val FieldAssign(qual, name, rhs) = fieldAssign
+      FieldAssign(this(qual), name, this(rhs))(fieldAssign.span)
 
-    def transformValuePattern(pat: ValuePattern)(using Context) = recur(pat)
-
-    def transformGuardPattern(pat: GuardPattern)(using Context) = recur(pat)
-
-    def transformSeqPattern(pat: SeqPattern)(using Context) = recur(pat)
-
-    def transformTermBindingPattern(pat: TermBindingPattern)(using Context) = recur(pat)
-
-    def transformWildcardPattern(pat: WildcardPattern)(using Context) = recur(pat)
-
+    def transformValDef(vdef: ValDef)(using Context): Word =
+      recurValDef(vdef)
 
     private def recurValDef(vdef: ValDef)(using Context): ValDef =
       ValDef(vdef.symbol, this(vdef.rhs))(vdef.span)
 
-    private def recurNestedFunDef(fdef: FunDef)(using ctx: Context): FunDef =
+    def transformLocalFunDef(fdef: FunDef)(using Context): Word =
+      recurFunDef(fdef)
+
+    private def recurFunDef(fdef: FunDef)(using ctx: Context): FunDef =
       val body = this(fdef.body)
       fdef.copy(body = body)(fdef.span)
 
-    private def recurNestedTypeDef(tdef: TypeDef)(using Context): TypeDef = tdef
+    def transformLocalPatDef(pdef: PatDef)(using Context): Word =
+      recurPatDef(pdef)
 
-    private def recurNestedPatDef(pdef: PatDef)(using Context): PatDef =
+    private def recurPatDef(pdef: PatDef)(using Context): PatDef =
       pdef.copy(body = this(pdef.body))(pdef.span)
 
-    final def recur(pattern: Pattern)(using Context): Pattern =
-      pattern match
-        case AscribePattern(id, nested) =>
-          AscribePattern(id, this(nested))
+    def transformLocalTypeDef(tdef: TypeDef)(using Context): TypeDef =
+      recurTypeDef(tdef)
 
-        case _: TypePattern => pattern
+    private def recurTypeDef(tdef: TypeDef)(using Context): TypeDef = tdef
 
-        case TagPattern(tag, nested) =>
-          TagPattern(tag, nested.map(this.apply))(pattern.tpe)
+    def transformIf(ifElse: If)(using Context): Word =
+      recurIf(ifElse)
 
-        case ApplyPattern(fun, nested) =>
-          ApplyPattern(fun, nested.map(this.apply))(pattern.tpe, pattern.span)
+    private def recurIf(ifElse: If)(using Context): Word =
+      val If(cond, thenp, elsep) = ifElse
+      If(this(cond), this(thenp), this(elsep))(ifElse.tpe, ifElse.span)
 
-        case OrPattern(lhs, rhs) =>
-          OrPattern(this(lhs), this(rhs))
+    def transformWhile(whileDo: While)(using Context): Word =
+      recurWhile(whileDo)
 
-        case ValuePattern(value) =>
-          ValuePattern(this(value))(pattern.scrutineeType)
+    private def recurWhile(whileDo: While)(using Context): Word =
+      val While(cond, body) = whileDo
+      While(this(cond), this(body))(whileDo.span)
 
-        case GuardPattern(pattern, guard) =>
-          GuardPattern(this(pattern), this(guard))
+    def transformMatch(patmat: Match)(using Context): Word =
+      recurMatch(patmat)
 
-        case TermBindingPattern(pattern, bindings) =>
-          val bindings2 =
-            for ass @ Assign(id, rhs) <- bindings
-            yield Assign(id, this(rhs))(ass.span)
+    private def recurMatch(patmat: Match)(using Context): Word =
+      val Match(scrutinee, cases) = patmat
+      val cases2 =
+        for branch <- cases
+        yield branch.copy(this(branch.pattern), this(branch.body))(branch.span)
 
-          TermBindingPattern(this(pattern), bindings2)
+      Match(this(scrutinee), cases2)(patmat.tpe, patmat.span)
 
-        case SeqPattern(patterns) =>
-          val patterns2 =
-            for regPat <- patterns yield
-              regPat match
-                case AtomPattern(pattern) =>
-                  AtomPattern(this(pattern))
+    def transformBlock(block: Block)(using Context): Word =
+      recurBlock(block)
 
-                case SkipToPattern(pattern) =>
-                  SkipToPattern(this(pattern))(regPat.span)
+    private def recurBlock(block: Block)(using Context): Word =
+      val Block(words) = block
+      Block(words.map(this.apply))(block.tpe, block.span)
 
-                case RemainingSlicePattern(pattern) =>
-                  RemainingSlicePattern(this(pattern))(regPat.span)
+    def transformObject(obj: Object)(using Context): Word =
+      recurObject(obj)
 
-                case starPat @ StarPattern(pattern) =>
-                  StarPattern(this(pattern))(regPat.span, starPat.bindings)
-              end match
-            end for
+    private def recurObject(obj: Object)(using Context): Word =
+      val Object(self, vals, funs) = obj
+      val vals2: List[ValDef] = vals.map(recurValDef)
+      val funs2: List[FunDef] = funs.map(recurFunDef)
+      Object(self, vals2, funs2)(obj.tpe, obj.span)
 
-          SeqPattern(patterns2)(pattern.tpe, pattern.span)
+    def transformAscribePattern(pat: AscribePattern)(using Context): Pattern =
+      recurAscribePattern(pat)
 
-        case _: WildcardPattern => pattern
+    private def recurAscribePattern(pat: AscribePattern)(using Context): Pattern =
+      val AscribePattern(id, nested) = pat
+      AscribePattern(id, this(nested))
 
-    final def recur(word: Word)(using Context): Word =
-      word match
-        case _: Literal | _: Ident | _: New =>
-          word
+    def transformTypePattern(pat: TypePattern)(using Context): Pattern =
+      recurTypePattern(pat)
 
-        case Select(qual, name) =>
-          val qual2 = this(qual)
-          val memberType = qual2.tpe.termMember(name)
-          Select(qual2, name)(memberType, word.span)
+    private def recurTypePattern(pat: TypePattern)(using Context): Pattern = pat
 
-        case RecordLit(fields) =>
-          val fields2 = fields.map:
-            case (f, rhs) => f -> this(rhs)
+    def transformTagPattern(pat: TagPattern)(using Context): Pattern =
+      recurTagPattern(pat)
 
-          RecordLit(fields2)(word.tpe, word.span)
+    private def recurTagPattern(pat: TagPattern)(using Context): Pattern =
+      val TagPattern(tag, nested) = pat
+      TagPattern(tag, nested.map(this.apply))(pat.tpe)
 
-        case TaggedLit(tag, args) =>
-          val args2 = args.map(this.apply)
-          TaggedLit(tag, args2)(word.tpe, word.span)
+    def transformApplyPattern(pat: ApplyPattern)(using Context): Pattern =
+      recurApplyPattern(pat)
 
-        case Encoded(repr) =>
-          Encoded(this(repr))(word.tpe)
+    private def recurApplyPattern(pat: ApplyPattern)(using Context): Pattern =
+      val ApplyPattern(fun, nested) = pat
+      ApplyPattern(fun, nested.map(this.apply))(pat.tpe, pat.span)
 
-        case Apply(fun, args, autos) =>
-          Apply(this(fun), args.map(this.apply), autos.map(this.apply))(word.tpe, word.span)
+    def transformOrPattern(pat: OrPattern)(using Context): Pattern =
+      recurOrPattern(pat)
 
-        case TypeApply(fun, targs) =>
-          TypeApply(this(fun), targs)(word.tpe, word.span)
+    private def recurOrPattern(pat: OrPattern)(using Context): Pattern =
+      val OrPattern(lhs, rhs) = pat
+      OrPattern(this(lhs), this(rhs))
 
-        case With(expr, args) =>
-          // Don't map paramRef --- the client code should match this tree
-          val args2 = args.map: arg =>
-            arg.copy(arg.paramRef, this(arg.rhs))(arg.span)
+    def transformValuePattern(pat: ValuePattern)(using Context): Pattern =
+      recurValuePattern(pat)
 
-          With(this(expr), args2)(word.tpe, word.span)
+    private def recurValuePattern(pat: ValuePattern)(using Context): Pattern =
+      ValuePattern(this(pat.value))(pat.scrutineeType)
 
-        case Allow(expr, params) =>
-          Allow(this(expr), params)(word.tpe, word.span)
+    def transformGuardPattern(pat: GuardPattern)(using Context): Pattern =
+      recurGuardPattern(pat)
 
-        case Assign(id, rhs) =>
-          // Don't map id --- the client code should match Assign
-          Assign(id, this(rhs))(word.span)
+    private def recurGuardPattern(pat: GuardPattern)(using Context): Pattern =
+      val GuardPattern(pattern, guard) = pat
+      GuardPattern(this(pattern), this(guard))
 
-        case FieldAssign(qual, name, rhs) =>
-          FieldAssign(this(qual), name, this(rhs))(word.span)
+    def transformSeqPattern(pat: SeqPattern)(using Context): Pattern =
+      recurSeqPattern(pat)
 
-        case vdef: ValDef => recurValDef(vdef)
+    private def recurSeqPattern(pat: SeqPattern)(using Context): Pattern =
+      val SeqPattern(patterns) = pat
+      val patterns2 =
+        for regPat <- patterns yield
+          regPat match
+            case AtomPattern(pattern) =>
+              AtomPattern(this(pattern))
 
-        case fdef: FunDef => recurNestedFunDef(fdef)
+            case SkipToPattern(pattern) =>
+              SkipToPattern(this(pattern))(regPat.span)
 
-        case pdef: PatDef => recurNestedPatDef(pdef)
+            case RemainingSlicePattern(pattern) =>
+              RemainingSlicePattern(this(pattern))(regPat.span)
 
-        case tdef: TypeDef => recurNestedTypeDef(tdef)
+            case starPat @ StarPattern(pattern) =>
+              StarPattern(this(pattern))(regPat.span, starPat.bindings)
+          end match
+        end for
 
-        case If(cond, thenp, elsep) =>
-          If(this(cond), this(thenp), this(elsep))(word.tpe, word.span)
+      SeqPattern(patterns2)(pat.tpe, pat.span)
 
-        case While(cond, body) =>
-          While(this(cond), this(body))(word.span)
+    def transformTermBindingPattern(pat: TermBindingPattern)(using Context): Pattern =
+      recurTermBindingPattern(pat)
 
-        case Match(scrutinee, cases) =>
-          val cases2 =
-            for branch <- cases
-            yield branch.copy(this(branch.pattern), this(branch.body))(branch.span)
+    private def recurTermBindingPattern(pat: TermBindingPattern)(using Context): Pattern =
+      val TermBindingPattern(pattern, bindings) = pat
+      val bindings2 =
+        for ass @ Assign(id, rhs) <- bindings
+        yield Assign(id, this(rhs))(ass.span)
 
-          Match(this(scrutinee), cases2)(word.tpe, word.span)
+      TermBindingPattern(this(pattern), bindings2)
 
-        case Block(words) =>
-          Block(words.map(this.apply))(word.tpe, word.span)
+    def transformWildcardPattern(pat: WildcardPattern)(using Context): Pattern =
+      recurWildcardPattern(pat)
 
-        case Object(self, vals, funs) =>
-          val vals2: List[ValDef] = vals.map(recurValDef)
-          val funs2: List[FunDef] = funs.map(recurNestedFunDef)
-          Object(self, vals2, funs2)(word.tpe, word.span)
-    end recur
+    private def recurWildcardPattern(pat: WildcardPattern)(using Context) = pat
   end TreeMap
 
   /** A tree traversal for non-toplevel code */
@@ -393,11 +433,11 @@ object SastOps:
 
     def recurValDef(vdef: ValDef)(using Context): Unit = this(vdef.rhs)
 
-    def recurNestedFunDef(fdef: FunDef)(using Context): Unit = this(fdef.body)
+    def recurLocalFunDef(fdef: FunDef)(using Context): Unit = this(fdef.body)
 
-    def recurNestedTypeDef(tdef: TypeDef)(using Context): Unit = ()
+    def recurLocalTypeDef(tdef: TypeDef)(using Context): Unit = ()
 
-    def recurNestedPatDef(pdef: PatDef)(using Context): Unit = this(pdef.body)
+    def recurLocalPatDef(pdef: PatDef)(using Context): Unit = this(pdef.body)
 
     def recur(pattern: Pattern)(using Context): Unit =
       pattern match
@@ -481,11 +521,11 @@ object SastOps:
 
         case vdef: ValDef => recurValDef(vdef)
 
-        case fdef: FunDef => recurNestedFunDef(fdef)
+        case fdef: FunDef => recurLocalFunDef(fdef)
 
-        case tdef: TypeDef => recurNestedTypeDef(tdef)
+        case tdef: TypeDef => recurLocalTypeDef(tdef)
 
-        case pdef: PatDef => recurNestedPatDef(pdef)
+        case pdef: PatDef => recurLocalPatDef(pdef)
 
         case If(cond, thenp, elsep) =>
           this(cond)

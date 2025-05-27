@@ -19,11 +19,11 @@ import scala.collection.mutable
 class ElimCapture(using Definitions) extends Phase[Symbol]:
   val contextObject = Phase.OwnerContext
 
-  override def transformTopLevelDefs(defs: List[Def])(using Context): List[Def] =
+  override def transformDefs(defs: List[Def])(using Context): List[Def] =
     val uniq = new UniqueName
     defs.flatMap:
       case fdef: FunDef => ElimCapture.transformFunDef(fdef, uniq)
-      case defn => super.transformTopLevelDef(defn) :: Nil
+      case defn => super.transformDef(defn) :: Nil
 
 object ElimCapture:
   def transformFunDef(fdef: FunDef, uniq: UniqueName)(using Definitions): List[Def] =
@@ -110,7 +110,7 @@ object ElimCapture:
       *
       * - capture of type parameters (closure conversion after erasure?)
       */
-    override def transformNestedFunDef(fdef: FunDef)(using ctx: Context): Word =
+    override def transformLocalFunDef(fdef: FunDef)(using ctx: Context): Word =
       localDefs(fdef.symbol) = fdef
 
       val LiftInfo(funSym, captures) = ctx.liftInfos(fdef.symbol)

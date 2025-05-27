@@ -44,10 +44,10 @@ class LowerRuntime(runtime: JSRuntime)(using defn: Definitions) extends phases.P
             Ident(runtime.JS_Array_createObject)(tapp.span).appliedToTypeTrees(tpt)
 
         else
-          recur(tapp)
+          super.transformTypeApply(tapp)
 
       case _ =>
-        recur(tapp)
+        super.transformTypeApply(tapp)
 
   override def transformIdent(ref: Ident)(using ctx: Context): Word =
     val sym = ref.symbol
@@ -87,4 +87,4 @@ class LowerRuntime(runtime: JSRuntime)(using defn: Definitions) extends phases.P
         throw new Exception("Unexpected method on String: " + name)
 
     else
-      recur(select)
+      super.transformSelect(select)

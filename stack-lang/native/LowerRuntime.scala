@@ -105,4 +105,4 @@ class LowerRuntime(runtime: NativeRuntime)(using defn: Definitions) extends phas
         throw new Exception("Unexpected method on String: " + name)
 
     else
-      recur(select)
+      super.transformSelect(select)

@@ -41,11 +41,11 @@ object TreeChecker:
 class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends SastOps.TreeTraverser:
   type Context = TreeChecker.CheckerContext
 
-  override def recurNestedFunDef(fdef: FunDef)(using Context): Unit =
+  override def recurLocalFunDef(fdef: FunDef)(using Context): Unit =
     given Context = new TreeChecker.CheckerContext(fdef.symbol)
     this(fdef.body)
 
-  override def recurNestedPatDef(pdef: PatDef)(using Context): Unit =
+  override def recurLocalPatDef(pdef: PatDef)(using Context): Unit =
     given Context = new TreeChecker.CheckerContext(pdef.symbol)
     this(pdef.body)
 

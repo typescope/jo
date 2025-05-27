@@ -115,7 +115,7 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
 
     FunDef(valueFunSym, tparams = Nil, params = Nil, autos = Nil, tpt, body)(pdef.span)
 
-  override def transformTopLevelDefs(defs: List[Def])(using ctx: Context): List[Def] =
+  override def transformDefs(defs: List[Def])(using ctx: Context): List[Def] =
     defs.flatMap:
       case pdef: ParamDef if pdef.symbol.is(Flags.Default) =>
         val optionParamSym = pdef.symbol.optionParam
@@ -125,7 +125,7 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
 
         pdef :: optionParamDef :: valueFunDef :: Nil
 
-      case defn => super.transformTopLevelDef(defn) :: Nil
+      case defn => super.transformDef(defn) :: Nil
 
 
   /** Bind optional context parameters at program entry.
@@ -134,10 +134,10 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
     *
     * TODO: Need to do the same for each thread.
     */
-  override  def transformTopLevelFunDef(fdef: FunDef)(using ctx: Context): FunDef =
+  override  def transformFunDef(fdef: FunDef)(using ctx: Context): FunDef =
     if !fdef.symbol.isLocal && fdef.name == "main" then
       val effs = EffectAnalysis.effects(fdef.symbol)(using ctx.cache)
-      val fdef2 = super.transformTopLevelFunDef(fdef)
+      val fdef2 = super.transformFunDef(fdef)
 
       val pos = fdef.symbol.sourcePos
       for
@@ -170,7 +170,7 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
 
           case _ =>
 
-      super.transformTopLevelFunDef(fdef)
+      super.transformFunDef(fdef)
 
   override def transformIdent(ident: Ident)(using ctx: Context): Word =
     val sym = ident.symbol

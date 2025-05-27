@@ -22,23 +22,23 @@ abstract class Phase[T](using Definitions) extends SastOps.TreeMap:
       transformNamespace(ns)
 
   def transformNamespace(ns: Namespace)(using ctx: Context): Namespace =
-    val defs = transformTopLevelDefs(ns.defs)
+    val defs = transformDefs(ns.defs)
     Namespace(ns.symbol, ns.imports, defs)(ns.span)
 
   /** Transform top-level definitions */
-  def transformTopLevelDefs(defs: List[Def])(using ctx: Context): List[Def] =
-    for defn <- defs yield transformTopLevelDef(defn)
+  def transformDefs(defs: List[Def])(using ctx: Context): List[Def] =
+    for defn <- defs yield transformDef(defn)
 
-  def transformTopLevelDef(defn: Def)(using ctx: Context): Def =
+  def transformDef(defn: Def)(using ctx: Context): Def =
     defn match
       case fdef: FunDef =>
-        transformTopLevelFunDef(fdef)
+        transformFunDef(fdef)
 
       case pdef: PatDef =>
-        transformTopLevelPatDef(pdef)
+        transformPatDef(pdef)
 
       case cdef: ClassDef =>
-        transformTopLevelClassDef(cdef)
+        transformClassDef(cdef)
 
       case sec: Section =>
         transformSection(sec)
@@ -47,40 +47,36 @@ abstract class Phase[T](using Definitions) extends SastOps.TreeMap:
 
   def transformSection(section: Section)(using ctx: Context): Section =
     given Context = contextObject.newContext(section.symbol, ctx)
-    val defs = transformTopLevelDefs(section.defs)
+    val defs = transformDefs(section.defs)
     Section(section.symbol, defs)(section.span)
 
   /** Transform top-level function definitions */
-  def transformTopLevelClassDef(cdef: ClassDef)(using ctx: Context): ClassDef =
+  def transformClassDef(cdef: ClassDef)(using ctx: Context): ClassDef =
     given Context = contextObject.newContext(cdef.symbol, ctx)
 
     val vals = cdef.vals.map: vdef =>
       ValDef(vdef.symbol, transform(vdef.rhs))(vdef.span)
 
-    val funs = cdef.funs.map: fdef =>
-      given Context = contextObject.newContext(fdef.symbol, ctx)
-      val body = this(fdef.body)
-      fdef.copy(body = body)(fdef.span)
-
+    val funs = cdef.funs.map(transformFunDef)
     cdef.copy(vals = vals, funs = funs)(cdef.span)
 
-  /** Transform top-level function definitions */
-  def transformTopLevelFunDef(fdef: FunDef)(using ctx: Context): FunDef =
+  /** Transform function definitions */
+  def transformFunDef(fdef: FunDef)(using ctx: Context): FunDef =
     given Context = contextObject.newContext(fdef.symbol, ctx)
     val body = this(fdef.body)
     fdef.copy(body = body)(fdef.span)
 
-  /** Transform top-level function definitions */
-  def transformTopLevelPatDef(pdef: PatDef)(using ctx: Context): PatDef =
+  /** Transform function definitions */
+  def transformPatDef(pdef: PatDef)(using ctx: Context): PatDef =
     given Context = contextObject.newContext(pdef.symbol, ctx)
     val body = this(pdef.body)
     pdef.copy(body = body)(pdef.span)
 
-  override def transformNestedFunDef(fdef: FunDef)(using ctx: Context): Word =
-    transformTopLevelFunDef(fdef)
+  override def transformLocalFunDef(fdef: FunDef)(using ctx: Context): Word =
+    transformFunDef(fdef)
 
-  override def transformNestedPatDef(pdef: PatDef)(using ctx: Context): Word =
-    transformTopLevelPatDef(pdef)
+  override def transformLocalPatDef(pdef: PatDef)(using ctx: Context): Word =
+    transformPatDef(pdef)
 
 object Phase:
   trait ContextObject[T]:
