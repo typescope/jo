@@ -1,0 +1,52 @@
+---------- Error at ./tests/warn/class.stk:3:7 ---------------
+|   val x: Int
+|       ^
+|       Redefinition of x
+|
+| The name `x` is already defined at ./tests/warn/class.stk:2:7
+|   val x: Int
+|       ^
+
+---------- Error at ./tests/warn/class.stk:3:7 ---------------
+|   val x: Int
+|       ^
+|       Redefinition of x
+|
+| The name `x` is already defined at ./tests/warn/class.stk:2:7
+|   val x: Int
+|       ^
+
+---------- Error at ./tests/warn/class.stk:7:7 ---------------
+|   def foo(y: String): String = y
+|       ^^^
+|       Redefinition of foo
+|
+| The name `foo` is already defined at ./tests/warn/class.stk:6:7
+|   def foo(x: Int): Int = x
+|       ^^^
+
+---------- Error at ./tests/warn/class.stk:7:7 ---------------
+|   def foo(y: String): String = y
+|       ^^^
+|       Redefinition of foo
+|
+| The name `foo` is already defined at ./tests/warn/class.stk:6:7
+|   def foo(x: Int): Int = x
+|       ^^^
+
+---------- Error at ./tests/warn/class.stk:13:3 ---------------
+|   new C {}
+|   ^^^^^^^^
+|   Uninitialized field(s): x
+
+---------- Error at ./tests/warn/class.stk:15:15 ---------------
+|   new C { x = "hello" }
+|               ^^^^^^^
+|               Expect type Int, found = String
+
+---------- Error at ./tests/warn/class.stk:17:19 ---------------
+|   new C { x = 10, x = 20 }
+|                   ^
+|                   The field x already initialized
+
+7 error(s), 0 warning(s)

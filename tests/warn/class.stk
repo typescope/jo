@@ -1,0 +1,17 @@
+class A
+  val x: Int
+  val x: Int
+
+class B
+  def foo(x: Int): Int = x
+  def foo(y: String): String = y
+
+class C
+  val x: Int
+
+fun test =
+  new C {}
+
+  new C { x = "hello" }
+
+  new C { x = 10, x = 20 }
