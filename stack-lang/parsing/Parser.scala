@@ -1056,7 +1056,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       else Nil
 
     val (args, span) =
-      if peek() == Token.LBRACE then termArgs()
+      if peek() == Token.LPAREN then termArgs()
       else (Nil, ref.span)
 
     New(ref, targs, args)(startItem.span | span)
