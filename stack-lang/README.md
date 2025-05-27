@@ -145,7 +145,7 @@ Abstract Syntax
 
     fundef  = {modifier} FUN [param_section] ident [tparams] [param_section] [auto_section] [COLON type] [receive_params] EQL block [END].
 
-    classdef = {modifier} class ident [tparams] [param_section] {member} [END].
+    classdef = {modifier} class ident [tparams] {defdef | val_decl} [END].
 
     defdef  = DEF ident [tparams] [param_section] [COLON type] [receive_params] EQL block [END].
 

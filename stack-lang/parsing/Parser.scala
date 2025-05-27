@@ -400,25 +400,34 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val klass = eat(Token.CLASS)
     val id = ident()
     val tparams = typeParams()
-    val params = paramSection()
 
     val members: List[ValDef | FunDef] = repeated:
       val item = peekItem()
-      if klass.indent.isUnindent(item.indent) then None
-      else if item.token == Token.DEF then Some(defDef(needBody = true))
-      else if item.token == Token.VAL then Some(valDef(Token.VAL))
-      else if item.token == Token.VAR then Some(valDef(Token.VAR))
+      if klass.indent.isUnindent(item.indent) then
+        None
+
+      else if item.token == Token.DEF then
+        Some(defDef(needBody = true))
+
+      else if peek() == Token.VAL || peek() == Token.VAR then
+        val mod = next()
+        val mutable = mod.token == Token.VAR
+        val id = ident()
+        eat(Token.COLON)
+        val tpt = typ()
+        val body = Block(phrases = Nil)(id.span)
+        Some(ValDef(id, tpt, body, mutable)(mod.span | tpt.span))
+
       else None
 
     eatEndOpt(klass.indent)
 
     val lastSpan =
       if members.nonEmpty then members.last.span
-      else if params.nonEmpty then params.last.span
       else if tparams.nonEmpty then tparams.last.span
       else id.span
 
-    ClassDef(id, tparams, params, members)(klass.span | lastSpan)
+    ClassDef(id, tparams, members)(klass.span | lastSpan)
 
   def typeDef(): TypeDef =
     val typeItem = eat(Token.TYPE)

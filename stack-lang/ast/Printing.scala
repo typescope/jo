@@ -122,11 +122,7 @@ object Printing:
           if cdef.tparams.isEmpty then Text.Empty
           else "[" ~ cdef.tparams.join(", ")  ~ "]"
 
-        val params =
-          if cdef.params.isEmpty then Text.Empty
-          else "(" ~ cdef.params.join(", ")  ~ ")"
-
-        mods ~ "class " ~ cdef.name ~ tparams ~ params ~ indent:
+        mods ~ "class " ~ cdef.name ~ tparams ~ indent:
           cdef.members.join(Text.BlankLine)
 
       case pdef: PatDef =>

@@ -478,7 +478,7 @@ object Sast:
     def procType(using Definitions): ProcType = symbol.info.asProcType
 
   case class ClassDef
-    (symbol: Symbol, self: Symbol, tparams: List[Symbol], params: List[Symbol], vals: List[ValDef], funs: List[FunDef])
+    (symbol: Symbol, self: Symbol, tparams: List[Symbol], vals: List[Symbol], funs: List[FunDef])
     (val span: Span)
   extends Def
 

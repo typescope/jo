@@ -460,14 +460,11 @@ object Types:
     export nameTable.{ resolveType, resolveTerm, resolvePattern, define }
 
   class ClassInfo
-    (val classSymbol: Symbol, val targs: List[Type], val ctorSymbol: Symbol, val nameTable: NameTable)
+    (val classSymbol: Symbol, val targs: List[Type], val nameTable: NameTable)
   extends Type:
     def getTermMember(prefix: Type, name: String)(using Definitions): Option[RefType] =
-      nameTable.resolveTerm(name) match
-        case Some(sym) => Some(rebase(prefix, sym))
-
-        case None =>
-          if name == "<init>" then Some(rebase(prefix, ctorSymbol)) else None
+      nameTable.resolveTerm(name).map: sym =>
+        rebase(prefix, sym)
 
     private def rebase(prefix: Type, member: Symbol)(using Definitions): RefType =
       // compute the type with respect to the instantiated targs

@@ -1305,7 +1305,6 @@ class Namer:
     val kind = Kind.simpleKinded(cdef.tparams.size)
     val classSym = new TypeSymbol(kind, cdef.name, flags, cdef.ident.pos)
     val thisSym = Symbol.createSymbol("this", Flags.Synthetic, cdef.ident.pos)
-    val ctorSym = Symbol.createSymbol("<init>", Flags.Fun | Flags.Constructor | Flags.Synthetic, cdef.ident.pos)
 
     val memberTable = new NameTable
 
@@ -1327,7 +1326,7 @@ class Namer:
         sym
 
     lazy val classInfo: Type =
-      val base = new ClassInfo(classSym, tparamSyms.map(StaticRef.apply), ctorSym, memberTable)
+      val base = new ClassInfo(classSym, tparamSyms.map(StaticRef.apply), memberTable)
 
       if cdef.tparams.isEmpty then base
       else TypeLambda(tparamSyms, base, preParamCount = 0)
@@ -1336,20 +1335,10 @@ class Namer:
     ip.addLazy(classSym, sc.owner, () => classInfo)
 
     val typer = () =>
-      // Some symbols are entered into memberTable but not methodScope, vice versa
       val methodScope = paramScope.fresh(classSym, new NameTable)
 
-      val vals = new mutable.ArrayBuffer[ValDef]
+      val vals = new mutable.ArrayBuffer[Symbol]
       val delayedDefs = new mutable.ArrayBuffer[DelayedDef[FunDef]]
-
-      val paramSyms =
-        tparamSyms
-
-        for (param, i) <- cdef.params.zipWithIndex yield
-          val tpt = transformType(param.tpt, allowPackType = false)
-          val paramSym = Symbol.createSymbol(param.name, tpt.tpe, Flags.Param, classSym, param.pos)
-          paramScope.define(paramSym)
-          paramSym
 
       for case vdef: Ast.ValDef <- cdef.members do
         var flags = checker.checkModifiers(vdef)
@@ -1360,26 +1349,22 @@ class Namer:
         memberTable.define(sym)
         methodScope.define(sym)
 
-        // Using the outer scope to check field initializers
-        val vdefTyped =
-          given Scope = paramScope
-          transformValDef(vdef, sym, owner = classSym)
-        vals += vdefTyped
+        val tp =
+          val tpt = transformType(vdef.tpt)
+          val tp2 = checker.checkValueType(tpt.tpe, tpt.pos)
+          tp2
+
+        defn.add(sym, classSym, tp)
+
+        vals += sym
 
       val thisInfo: Type =
         val classRef = StaticRef(classSym)
         if tparamSyms.isEmpty then classRef
         else AppliedType(classRef, tparamSyms.map(StaticRef.apply))
 
-      val ctorInfo: Type =
-        ProcType(
-          tparams = Nil, params = paramSyms.map(_.toNamedInfo), autos = Nil,
-          resultType = thisInfo, receives = Effects.Policy.Infer, preParamCount = 0)
-
       defn.add(thisSym, classSym, thisInfo)
-      defn.add(ctorSym, classSym, ctorInfo)
 
-      // `this` should not be available in field initialization
       methodScope.define(thisSym)
 
       for case fdef: Ast.FunDef <- cdef.members do
@@ -1401,7 +1386,7 @@ class Namer:
       val funs: List[FunDef] =
         for delayedDef <- delayedDefs.toList yield delayedDef.force()
 
-      ClassDef(classSym, thisSym, tparamSyms, paramSyms, vals.toList, funs)(cdef.span)
+      ClassDef(classSym, thisSym, tparamSyms, vals.toList, funs)(cdef.span)
 
     DelayedDef(classSym, typer)
 

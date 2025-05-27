@@ -159,18 +159,18 @@ object Printing:
           if cdef.tparams.isEmpty then Text.Empty
           else "[" ~ cdef.tparams.join(", ")  ~ "]"
 
-        val params =
-          if cdef.params.isEmpty then Text.Empty
-          else "(" ~ cdef.params.join(", ")  ~ ")"
-
-        modifiers ~ "class " ~ cdef.name ~ tparams ~ params ~ indent:
-          cdef.vals.join(Text.BlankLine)
+        modifiers ~ "class " ~ cdef.name ~ tparams ~ indent:
+          cdef.vals.map(showField).join(Text.BlankLine)
           ~ Text.BlankLine
           cdef.funs.join(Text.BlankLine)
 
       case Section(sym, defs) =>
         "section " ~ sym ~ indent:
             defs.join(Text.BlankLine)
+
+  def showField(sym: Symbol)(using Definitions): Text =
+    if sym.isMutable then "var " ~ sym.name ~ ": " ~ sym.info
+    else "val " ~ sym.name ~ ": " ~ sym.info
 
   def showWord(word: Word)(using defn: Definitions): Text =
     word match

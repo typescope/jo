@@ -53,12 +53,8 @@ abstract class Phase[T](using Definitions) extends SastOps.TreeMap:
   /** Transform top-level function definitions */
   def transformClassDef(cdef: ClassDef)(using ctx: Context): ClassDef =
     given Context = contextObject.newContext(cdef.symbol, ctx)
-
-    val vals = cdef.vals.map: vdef =>
-      ValDef(vdef.symbol, transform(vdef.rhs))(vdef.span)
-
     val funs = cdef.funs.map(transformFunDef)
-    cdef.copy(vals = vals, funs = funs)(cdef.span)
+    cdef.copy(funs = funs)(cdef.span)
 
   /** Transform function definitions */
   def transformFunDef(fdef: FunDef)(using ctx: Context): FunDef =
