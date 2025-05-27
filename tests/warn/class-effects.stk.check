@@ -1,0 +1,13 @@
+---------- Error at ./tests/warn/class-effects.stk:6:7 ---------------
+|   def foo(x: Int) receives none = bar (intToStr x)
+|       ^^^
+|       Parameter not allowed: out
+
+The following is the trace that leads to the problem: 
+├──   def foo(x: Int) receives none = bar (intToStr x)	[ ./tests/warn/class-effects.stk:6:35 ]
+│                                     ^^^
+└── fun bar(s: String) = out s	[ ./tests/warn/class-effects.stk:3:22 ]
+                         ^^^
+
+
+1 error(s), 0 warning(s)

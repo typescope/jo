@@ -1,0 +1,7 @@
+param out: String => Unit
+
+fun bar(s: String) = out s
+
+class Foo
+  def foo(x: Int) receives none = bar (intToStr x)
+end
