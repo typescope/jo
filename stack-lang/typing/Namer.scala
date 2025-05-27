@@ -422,7 +422,7 @@ class Namer:
     // `this` should not be available in field initialization
     sc2.define(thisSym)
 
-    val defaultPolicy = Effects.Policy.InferCapture
+    val defaultPolicy = Effects.Policy.Infer
 
     for case fdef: Ast.FunDef <- obj.members do
       if fdef.preParamCount != 0 then
@@ -445,7 +445,7 @@ class Namer:
           case _ =>
             defaultPolicy
 
-      val delayedDef = transformFunDef(fdef, Flags.Method | Flags.Fun, effectPolicy)
+      val delayedDef = transformFunDef(fdef, Flags.Method | Flags.Fun, effectPolicy, captureInfer = true)
 
       // Operator name should not be called directly without a prefix
       if !Name.isOperator(delayedDef.symbol.name) then
@@ -1084,7 +1084,7 @@ class Namer:
 
     ValDef(sym, rhs)(vdef.span)
 
-  private def transformFunDef(funDef: Ast.FunDef, initialFlags: Flags, policy: Effects.Policy)
+  private def transformFunDef(funDef: Ast.FunDef, initialFlags: Flags, policy: Effects.Policy, captureInfer: Boolean = false)
       (using lazyDefn: Definitions.Lazy | Definitions, sc: Scope, rp: Reporter, so: Source)
   : DelayedDef[FunDef] =
 
@@ -1176,17 +1176,25 @@ class Namer:
 
         policy match
           case Effects.Policy.Infer =>
-             Effects.Policy.CheckBound(effs.map(_.symbol))
+            val effSyms = effs.map(_.symbol)
+            if captureInfer then
+              Effects.Policy.Capture(effSyms)
 
-          case Effects.Policy.InferCapture =>
-            Effects.Policy.Capture(effs.map(_.symbol))
+            else
+              Effects.Policy.CheckBound(effSyms)
 
           case _ =>
-             Effects.checkEffectsConform(effs, policy)
-             policy
+            Effects.checkEffectsConform(effs, policy)
+            policy
 
       case None =>
-        policy
+        policy match
+          case Effects.Policy.Infer if captureInfer =>
+            Effects.Policy.Capture(except = Nil)
+
+          case _ =>
+            policy
+
 
     def computeInfo(resultType: Type) =
       ProcType(

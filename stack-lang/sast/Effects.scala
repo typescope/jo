@@ -17,15 +17,12 @@ object Effects:
     /** Effects will be inferred and captured except for the exceptions */
     case Capture(except: List[Symbol])
 
-    /** Effects will be inferred and captured */
-    case InferCapture
-
     /** Infer effects and check against the given bound */
     case CheckBound(effects: List[Symbol])
 
     def bound: Option[List[Symbol]] =
       this match
-        case Infer | InferCapture => None
+        case Infer => None
         case Capture(except) => Some(except)
         case CheckBound(effects) => Some(effects)
 
@@ -33,11 +30,9 @@ object Effects:
     policy1 match
       case Infer => false
 
-      case InferCapture => true
-
       case Capture(except1) =>
         policy2 match
-          case Infer | InferCapture => except1.isEmpty
+          case Infer => except1.isEmpty
 
           case Capture(except2) =>
             except1.forall(except2.contains)
@@ -47,7 +42,7 @@ object Effects:
 
       case CheckBound(bound1) =>
         policy2 match
-          case Infer | InferCapture => bound1.isEmpty
+          case Infer => bound1.isEmpty
 
           case Capture(except2) =>
             bound1.forall(except2.contains)

@@ -236,10 +236,6 @@ object EffectAnalysis:
                 val rawEffects = getEffects(ddef.symbol)
                 acc ++ (rawEffects -- except)
 
-              case Policy.InferCapture =>
-                val rawEffects = getEffects(ddef.symbol)
-                acc ++ rawEffects
-
               case Policy.CheckBound(bound) =>
                 acc ++ bound.map(_ -> Vector(word.pos))
 
