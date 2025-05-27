@@ -1064,11 +1064,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       if peek() == Token.LBRACKET then typeArgs()._1
       else Nil
 
-    val (args, span) =
-      if peek() == Token.LPAREN then termArgs()
-      else (Nil, ref.span)
+    val values = record()
 
-    New(ref, targs, args)(startItem.span | span)
+    New(ref, targs, values)(startItem.span | values.span)
 
   def record(): RecordLit =
     val lbrace = eat(Token.LBRACE)
