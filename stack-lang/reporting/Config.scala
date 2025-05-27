@@ -7,13 +7,13 @@ class Config(options: Map[String, String]):
 
   val checkTree: Boolean = options.contains("-checkTree")
 
-  val reportTime: Boolean = options.contains("-reportTime")
+  val reportTime: Boolean = options.contains("-time")
 
 object Config:
   // The flag tells whether the option needs an argument
   val commonOptionsSpec = Map(
-    "-print"     -> true,
+    "-print"          -> true,
     "-fatal-warnings" -> false,
-    "-reportTime"     -> false,
+    "-time"           -> false,
     "-checkTree"      -> false,
   )
