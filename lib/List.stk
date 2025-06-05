@@ -43,7 +43,6 @@ fun empty[T]: List[T] = ListImpl.makeObject[T] ListImpl.Nil
 fun List[T](elems: ..T): List[T] = elems
 
 section ListImpl
-  // Add .materialize and Array for performance
   data Repr[T] =
       Nil
     | Cons(head: T, tail: List[T])

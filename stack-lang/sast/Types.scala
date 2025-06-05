@@ -272,11 +272,15 @@ object Types:
 
   sealed abstract class RefType extends ProxyType:
     val symbol: Symbol
+    def widen(using Definitions): Type =
+      this match
+        case StaticRef(sym)        => sym.info
+        case MemberRef(_, _, info) => info
 
   /** A reference to a symbol who type is does not depend on any prefix */
   case class StaticRef(symbol: Symbol) extends RefType
 
-  /** A reference to member symbol whose type depends on that of its parent */
+  /** A reference to member symbol whose type depends on that of its prefix */
   case class MemberRef(prefix: Type, symbol: Symbol, info: Type) extends RefType:
     assert(!symbol.isType, "No support for member types: " + symbol)
 
@@ -462,6 +466,8 @@ object Types:
   class ClassInfo
     (val classSymbol: Symbol, val targs: List[Type], val nameTable: NameTable)
   extends Type:
+    def fields: List[Symbol] = nameTable.terms.filterNot(_.isMethod)
+
     def getTermMember(prefix: Type, name: String)(using Definitions): Option[RefType] =
       nameTable.resolveTerm(name).map: sym =>
         rebase(prefix, sym)

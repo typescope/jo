@@ -62,6 +62,14 @@ object Symbols:
     def isOneOf(testFlags: Flags) = this.flags.isOneOf(testFlags)
     def isAllOf(testFlags: Flags) = this.flags.isAllOf(testFlags)
 
+    def classInfo(using Definitions): ClassInfo =
+      assert(this.isClass, "Not a class")
+
+      this.dealiasedInfo match
+        case info: ClassInfo => info
+        case TypeLambda(_, info: ClassInfo, _) => info
+        case tp => throw new Exception("Unexpected type " + tp.show)
+
     def isLocal(using Definitions): Boolean =
       owner != null & !owner.isContainer
 

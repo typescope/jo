@@ -542,12 +542,42 @@ class Namer:
         else
           classRef
 
-      val newInstance = New(Ident(classSym)(classTree.span), targsTree)(instanceType, newExpr.span)
+      instanceType.getTermMember(classSym.name) match
+        case None =>
+          Reporter.error("The class cannot be instantiated as it does not have a constructor.", newExpr.pos)
+          errorWord(newExpr.span)
 
-      newExpr.addKey(Namer.TypedWord, newInstance)
-      val ctorSelect = Ast.Select(newExpr, "<init>")(newExpr.span)
-      val ctorCall = Ast.Apply(ctorSelect, newExpr.args)(newExpr.span)
-      transform(ctorCall)
+        case Some(tp) =>
+          assert(tp.is[RefType], "TermRef expected for class member, found = " + tp)
+          val refType = tp.as[RefType]
+
+          assert(refType.widen.isProcType, "ProcType expected for constructor, found = " + refType.widen)
+          val procType = refType.widen.asProcType
+
+          assert(procType.tparams.isEmpty, "Constructor should not take type parameters, found = " + procType)
+
+          val args = newExpr.args
+          val paramSize = procType.paramCount
+
+          if args.size != paramSize && !procType.hasVararg || args.size < procType.minimumArgs then
+            val mod = if procType.hasVararg then "at least " else ""
+            val size = if procType.hasVararg then procType.minimumArgs else paramSize
+            Reporter.error(
+              s"The function expects $mod$size argument(s), found = ${args.size}",
+              newExpr.pos)
+            errorWord(newExpr.span)
+
+          else
+            val argsTyped =
+              if procType.hasVararg then
+                transformVarargs(args, procType.paramTypes, newExpr.span)
+              else
+                transformArgs(args, procType.paramTypes)
+
+            val autos = autoResolver.derive(procType, newExpr.span)
+
+            New(Ident(classSym)(classTree.span), targsTree, argsTyped, autos)(instanceType, newExpr.span)
+
 
   /** Handles explicit postfix call syntax f(arg1, arg2, ...) */
   def transformCall(apply: Ast.Apply)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =

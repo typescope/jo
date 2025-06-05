@@ -172,7 +172,7 @@ object Sast:
       apply(fun, args, autos = Nil)(tpe, span)
 
   case class New
-    (classRef: Ident, targs: List[TypeTree])
+    (classRef: Ident, targs: List[TypeTree], args: List[Word], autos: List[Word])
     (val tpe: Type, val span: Span)
   extends Word
 

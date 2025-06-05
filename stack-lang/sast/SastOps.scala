@@ -236,7 +236,10 @@ object SastOps:
     def transformNew(newExpr: New)(using Context): Word =
       recurNew(newExpr)
 
-    private def recurNew(newExpr: New)(using Context): Word = newExpr
+    private def recurNew(newExpr: New)(using Context): Word =
+      val args2 = for arg <- newExpr.args yield this(arg)
+      val autos2 = for auto <- newExpr.autos yield this(auto)
+      newExpr.copy(args = args2, autos = autos2)(newExpr.tpe, newExpr.span)
 
     def transformWith(withExpr: With)(using Context): Word =
       recurWith(withExpr)
@@ -479,7 +482,7 @@ object SastOps:
 
     def recur(word: Word)(using Context): Unit =
       word match
-        case _: Literal | _: Ident | _: New =>
+        case _: Literal | _: Ident =>
 
         case Select(qual, name) =>
           this(qual)
@@ -501,6 +504,10 @@ object SastOps:
 
         case TypeApply(fun, targs) =>
           this(fun)
+
+        case New(_, _, args, autos) =>
+          for arg <- args do this(arg)
+          for auto <- autos do this(auto)
 
         case With(expr, args) =>
           args.foreach: arg =>
