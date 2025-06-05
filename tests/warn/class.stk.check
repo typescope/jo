@@ -34,19 +34,19 @@
 |   def foo(x: Int): Int = x
 |       ^^^
 
----------- Error at ./tests/warn/class.stk:13:3 ---------------
-|   new C {}
-|   ^^^^^^^^
-|   Uninitialized field(s): x
+---------- Error at ./tests/warn/class.stk:15:3 ---------------
+|   new C
+|   ^^^^^
+|   The function expects 1 argument(s), found = 0
 
----------- Error at ./tests/warn/class.stk:15:15 ---------------
-|   new C { x = "hello" }
-|               ^^^^^^^
-|               Expect type Int, found = String
+---------- Error at ./tests/warn/class.stk:17:9 ---------------
+|   new C("hello")
+|         ^^^^^^^
+|         Expect type Int, found = String
 
----------- Error at ./tests/warn/class.stk:17:19 ---------------
-|   new C { x = 10, x = 20 }
-|                   ^
-|                   The field x already initialized
+---------- Error at ./tests/warn/class.stk:19:3 ---------------
+|   new C(10, 20)
+|   ^^^^^^^^^^^^^
+|   The function expects 1 argument(s), found = 2
 
 7 error(s), 0 warning(s)

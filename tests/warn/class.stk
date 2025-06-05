@@ -9,9 +9,11 @@ class B
 class C
   val x: Int
 
+  def C(x: Int) = { x = x }
+
 fun test =
-  new C {}
+  new C
 
-  new C { x = "hello" }
+  new C("hello")
 
-  new C { x = 10, x = 20 }
+  new C(10, 20)
