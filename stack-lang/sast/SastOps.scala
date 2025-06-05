@@ -236,9 +236,7 @@ object SastOps:
     def transformNew(newExpr: New)(using Context): Word =
       recurNew(newExpr)
 
-    private def recurNew(newExpr: New)(using Context): Word =
-       val values2 = for (sym, rhs) <- newExpr.values yield (sym, this(rhs))
-       newExpr.copy(values = values2)(newExpr.tpe, newExpr.span)
+    private def recurNew(newExpr: New)(using Context): Word = newExpr
 
     def transformWith(withExpr: With)(using Context): Word =
       recurWith(withExpr)
@@ -481,7 +479,7 @@ object SastOps:
 
     def recur(word: Word)(using Context): Unit =
       word match
-        case _: Literal | _: Ident =>
+        case _: Literal | _: Ident | _: New =>
 
         case Select(qual, name) =>
           this(qual)
@@ -492,9 +490,6 @@ object SastOps:
 
         case TaggedLit(tag, args) =>
           args.foreach(this.apply)
-
-        case New(_, _, values) =>
-          for (sym, rhs) <- values do this(rhs)
 
         case Encoded(repr) =>
           this(repr)

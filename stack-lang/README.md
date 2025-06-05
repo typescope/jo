@@ -91,7 +91,7 @@ Abstract Syntax
     apply  = word args.
     args   = LPAREN [expr {COMMA expr}] RPAREN.
 
-    new_expr = NEW qualid [targs] record.
+    new_expr = NEW qualid [targs] [args].
 
     simple_phrase = expr | type_ascribe | with_clause | allow_clause.
 

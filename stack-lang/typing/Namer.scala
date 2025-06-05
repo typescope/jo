@@ -505,13 +505,22 @@ class Namer:
   /** Handles new Foo[T](arg1, arg2, ...) */
   def transformNew(newExpr: Ast.New)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
     val classTree = transformType(newExpr.classRef)
-    val targsTree = for targ <- newExpr.targs yield transformType(targ)
+    var targsTree = for targ <- newExpr.targs yield transformType(targ)
 
-    val isClass = classTree.tpe match
-      case refType: RefType => refType.symbol.isClass
-      case _ => false
+    def instantiateTypeLambda(tparams: List[Symbol])(using Definitions, Reporter): List[TypeVar]  =
+      val tvars = for tparam <- tparams yield TypeVar(tparam.name, this.inferencer)
 
-    if !isClass then
+      checker.delayedCheck {
+        val span = newExpr.classRef.span
+        for tvar <- tvars do checker.checkInstantiated(tvar, span.toPos)
+
+        val targs = tvars.map(tvar => TypeTree(tvar)(span))
+        checker.checkBounds(tparams, targs)
+      }
+
+      tvars
+
+    if !classTree.tpe.isTypeRef then
       Reporter.error("A class name expected, found = " + newExpr.classRef.name, newExpr.classRef.pos)
       errorWord(newExpr.span)
 
@@ -521,50 +530,24 @@ class Namer:
     else
       val classRef = classTree.tpe.as[RefType]
       val classSym = classRef.symbol
+      val instanceType =
+        if targsTree.nonEmpty then
+          AppliedType(classRef, targsTree.map(_.tpe))
 
-      if classSym.info.isTypeLambda && targsTree.isEmpty then
-        Reporter.error("The class " + classSym + " needs type parameters", newExpr.classRef.pos)
-        errorWord(newExpr.span)
+        else if classSym.info.isTypeLambda then
+          val tvars = instantiateTypeLambda(classSym.info.asTypeLambda.tparams)
+          targsTree = tvars.map(tvar => TypeTree(tvar)(classTree.span))
+          AppliedType(classRef, tvars)
 
-      else
-        val classInfo = classSym.classInfo
-        val initialized = new mutable.ArrayBuffer[Symbol]
-        val values = new mutable.ArrayBuffer[(Symbol, Word)]
+        else
+          classRef
 
-        val instanceType =
-          if targsTree.nonEmpty then
-            // aleady checked the kind
-            AppliedType(classRef, targsTree.map(_.tpe))
-          else
-            classRef
+      val newInstance = New(Ident(classSym)(classTree.span), targsTree)(instanceType, newExpr.span)
 
-        for Ast.NamedArg(id, rhs) <- newExpr.values.args yield
-          instanceType.getTermMember(id.name) match
-            case Some(tp) =>
-              assert(tp.is[RefType], "class member should be RefType, found = " + tp)
-
-              given TargetType = TargetType.Known(tp.widenTermRef)
-              val sym = tp.as[RefType].symbol
-              values += sym -> transform(rhs)
-              if initialized.contains(sym) then
-                Reporter.error("The field " + id.name + " already initialized", id.pos)
-
-              else
-                initialized += sym
-
-            case None =>
-              Reporter.error("The field " + id.name + " does not exist in class " + classSym, id.pos)
-        end for
-
-        val uninit = classInfo.fields.toSet -- initialized.toSeq
-        if uninit.nonEmpty then
-          val names = uninit.map(_.name).mkString(", ")
-          Reporter.error("Uninitialized field(s): " + names, newExpr.pos)
-
-        New(Ident(classSym)(classTree.span), targsTree, values.toList)(instanceType, newExpr.span)
-      end if
-
-
+      newExpr.addKey(Namer.TypedWord, newInstance)
+      val ctorSelect = Ast.Select(newExpr, "<init>")(newExpr.span)
+      val ctorCall = Ast.Apply(ctorSelect, newExpr.args)(newExpr.span)
+      transform(ctorCall)
 
   /** Handles explicit postfix call syntax f(arg1, arg2, ...) */
   def transformCall(apply: Ast.Apply)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =

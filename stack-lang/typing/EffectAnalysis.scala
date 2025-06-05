@@ -180,9 +180,8 @@ object EffectAnalysis:
         case TypeApply(fun, targs) =>
           this(fun)
 
-        case New(classRef, targs, values) =>
-          values.foldLeft(zero):
-            case (acc, (sym, rhs)) => acc ++ this(rhs)
+        case New(classRef, targs) =>
+          zero
 
         case With(expr, args) =>
           val effsInner = this(expr)

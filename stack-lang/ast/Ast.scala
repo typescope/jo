@@ -69,7 +69,7 @@ object Ast:
   extends Word
 
   case class New
-    (classRef: RefTree, targs: List[TypeTree], values: RecordLit)
+    (classRef: RefTree, targs: List[TypeTree], args: List[Word])
     (val span: Span)
   extends Word
 
