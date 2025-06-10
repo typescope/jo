@@ -148,11 +148,19 @@ object EffectAnalysis:
             // a select with a ProcType must be a method call
             val procType = word.tpe.asProcType
             effs ++ {
-              procType.effectsBound match
-                case Some(effs) => effs.map(_ -> Vector(word.pos))
-                case _ =>
-                  // TODO: Handle effects of methods
-                  Nil
+              procType.receives match
+                case Effects.Policy.Capture(except) =>
+                  except.map(_ -> Vector(word.pos))
+
+                case Effects.Policy.CheckBound(effs) =>
+                  effs.map(_ -> Vector(word.pos))
+
+                case Effects.Policy.Infer =>
+                  assert(word.tpe.is[Types.RefType], "Ref type expected, found = " + word.tpe)
+                  val sym = word.tpe.as[Types.RefType].symbol
+
+                  for (eff, trace) <- getEffects(sym) yield
+                     eff -> (word.pos +: trace)
             }
           else
             effs

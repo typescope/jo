@@ -8,6 +8,10 @@ class Foo
     {}
 
   def foo(x: Int) receives none = bar (intToStr x)
+
+  def work() = bar "work"
 end
 
 fun instantiate receives none = new Foo
+
+fun test(o: Foo) receives none = o.work()
