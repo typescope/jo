@@ -204,19 +204,7 @@ object Printing:
       case Encoded(repr) =>
         "(" ~ repr ~ ": " ~ word.tpe ~ ")"
 
-      case Apply(fun, args, autos) =>
-        val autoText =
-          if autos.isEmpty then Text.Empty
-          else Text.BreakLine ~ "auto" ~ indent:
-            autos.join(Text.BreakLine)
-
-        fun ~ indent:
-          args.join(Text.BreakLine) ~ autoText
-
-      case TypeApply(fun, targs) =>
-        fun ~ "[" ~ targs.join(", ") ~ "]"
-
-      case New(classRef, targs, args, autos) =>
+      case Apply(New(classRef, targs), args, autos) =>
         val targsText =
           if targs.isEmpty then Text.Empty
           else "[" ~ targs.join(", ")  ~ "]"
@@ -226,6 +214,21 @@ object Printing:
           else "(" ~ "auto " ~ autos.join(", ") ~ ")"
 
         "new " ~ classRef ~ targsText ~ "(" ~ args.join(", ") ~ ")" ~ autoText
+
+      case Apply(fun, args, autos) =>
+        val autoText =
+          if autos.isEmpty then Text.Empty
+          else Text.BreakLine ~ "auto" ~ indent:
+            autos.join(Text.BreakLine)
+
+        fun ~ indent:
+          args.join(Text.BreakLine) ~ autoText
+
+      case _: New =>
+        throw new Exception("Unexpected new expression: " + word)
+
+      case TypeApply(fun, targs) =>
+        fun ~ "[" ~ targs.join(", ") ~ "]"
 
       case With(expr, args) =>
         val withText =
