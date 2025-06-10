@@ -22,16 +22,29 @@ class ElimCapture(using Definitions) extends Phase[Symbol]:
   override def transformDefs(defs: List[Def])(using Context): List[Def] =
     val uniq = new UniqueName
     defs.flatMap:
-      case fdef: FunDef => ElimCapture.transformFunDef(fdef, uniq)
+      case fdef: FunDef =>
+        val (fdef2, defs) = ElimCapture.transformFunDef(fdef, uniq)
+        fdef2 :: defs
+
+      case cdef: ClassDef =>
+        val lifted = new mutable.ArrayBuffer[Def]
+        val funs = new mutable.ArrayBuffer[FunDef]
+        for fdef <- cdef.funs do
+          val (fdef2, defs) = ElimCapture.transformFunDef(fdef, uniq)
+          lifted ++= defs
+          funs += fdef2
+
+        cdef.copy(funs = funs.toList)(cdef.span) :: lifted.toList
+
       case defn => super.transformDef(defn) :: Nil
 
 object ElimCapture:
-  def transformFunDef(fdef: FunDef, uniq: UniqueName)(using Definitions): List[Def] =
+  def transformFunDef(fdef: FunDef, uniq: UniqueName)(using Definitions): (FunDef, List[Def]) =
     given ctx: Context = new Context(uniq)
     val lifter = new Lifter(fdef.symbol)
     val body = lifter.apply(fdef.body)
     val lifted = ctx.lifted.toList
-    fdef.copy(body = body)(fdef.span) :: lifted
+    (fdef.copy(body = body)(fdef.span), lifted)
 
   private def createLiftedFunSym(
     fdef: FunDef,

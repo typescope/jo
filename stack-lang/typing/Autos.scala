@@ -64,6 +64,8 @@ class Autos(namer: Namer):
 
           case Scope.NestedScope(outer, _, _) => search(target, trace, origin, outer, span)
 
+          case Scope.PrefixedScope(outer, _, _) => search(target, trace, origin, outer, span)
+
           case Scope.LocalPatternScope(outer, _, _) => search(target, trace, origin, outer, span)
 
       case sym :: Nil if trace.contains(sym) =>

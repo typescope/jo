@@ -8,6 +8,7 @@ files=(
     stack-lang/common/Debug.scala
     stack-lang/common/KeyProps.scala
     stack-lang/common/IO.scala
+    stack-lang/common/OutOfBand.scala
     stack-lang/common/StringUtil.scala
     stack-lang/common/Text.scala
     stack-lang/parsing/Parser.scala

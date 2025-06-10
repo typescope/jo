@@ -8,6 +8,7 @@ import sast.Sast.*
 import sast.Symbols.*
 import sast.Types.*
 
+import common.OutOfBand
 import reporting.Reporter
 import reporting.Diagnostics
 
@@ -728,6 +729,7 @@ class PatternTyper(namer: Namer, checker: Checker):
   private def resolvePatternPredicateOpt(id: Ast.Ident)(using sc: Scope, defn: Definitions): Option[Symbol] =
     sc.resolvePattern(id.name) match
       case None =>
+        given OutOfBand = new OutOfBand
         sc.resolveTerm(id.name) match
           case Some(sym) if sym.is(Flags.Section) =>
             val nameTable = sym.dealiasedInfo.as[NameTableInfo]

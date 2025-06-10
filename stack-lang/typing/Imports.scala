@@ -8,6 +8,7 @@ import sast.Symbols.*
 import sast.Types.*
 import sast.Definitions.InfoProvider
 
+import common.OutOfBand
 import reporting.Reporter
 
 import scala.collection.mutable
@@ -65,6 +66,7 @@ object Imports:
             end match
 
           if isAlias then
+            given OutOfBand = new OutOfBand
             // aliases can be not fully qualified and it prefers local defined symbols over global symbols
             importScope.resolveTerm(name) match
               case Some(sym) => checkValidContainer(sym, qualid, allowBranch)

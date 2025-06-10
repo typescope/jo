@@ -13,6 +13,7 @@ import sast.Definitions.InfoProvider
 
 import common.Debug
 import common.KeyProps
+import common.OutOfBand
 
 import reporting.Reporter
 
@@ -157,6 +158,7 @@ class Namer:
             sym
 
       case Ast.Ident(name) =>
+        given OutOfBand = new OutOfBand
         sc.resolveTerm(name) match
           case None =>
             val flags = if isBranch then Flags.NSpace | Flags.Branch else Flags.NSpace
@@ -370,10 +372,13 @@ class Namer:
   def transformRefTree(word: Ast.RefTree)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): Word =
     word match
       case Ast.Ident(name) =>
+        given oob: OutOfBand = new OutOfBand
         val sym = sc.resolveTerm(name, word.pos)
         if sym.isField || sym.isMethod then
-          val qual = Ident(sym.owner)(word.span)
+          // Normalize SAST
+          val qual = Ident(oob.getKey(Scope.PrefixKey))(word.span)
           Select(qual, sym.name)(sym.info, word.span)
+
         else
           checker.checkCapture(sym, word.pos)
           Ident(sym)(word.span)
@@ -404,7 +409,7 @@ class Namer:
     val thisSym = Symbol.createSymbol("this", Flags.Synthetic, obj.pos)
 
     // scope for checking member methods
-    given sc2: Scope = sc.fresh(thisSym)
+    given sc2: Scope = sc.freshPrefixedScope(prefix = thisSym)
 
     for case vdef: Ast.ValDef <- obj.members do
       var flags = checker.checkModifiers(vdef)
@@ -787,6 +792,7 @@ class Namer:
 
     ref match
       case id: Ast.Ident =>
+        given oob: OutOfBand = new OutOfBand
         val sym = sc.resolveTerm(id.name, id.pos)
 
         checker.checkMutable(sym, id.pos)
@@ -795,7 +801,8 @@ class Namer:
         val rhs2 = transform(rhs)
 
         if sym.isField then
-          val qual = Ident(sym.owner)(id.span)
+          // Normalize SAST
+          val qual = Ident(oob.getKey(Scope.PrefixKey))(id.span)
           FieldAssign(qual, sym.name, rhs2)(assign.span)
 
         else
@@ -1428,6 +1435,7 @@ class Namer:
     given defn: Definitions = lazyDefn.value
 
     given paramScope: Scope = sc.fresh(classSym)
+
     lazy val tparamSyms = transformTypeParams(cdef.tparams)
 
     lazy val classInfo: Type =
@@ -1440,7 +1448,17 @@ class Namer:
     ip.addLazy(classSym, sc.owner, () => classInfo)
 
     val typer = () =>
-      val methodScope = paramScope.fresh(classSym, new NameTable)
+      // Add this to scope
+      val thisScope = paramScope.fresh()
+      thisScope.define(thisSym)
+      val shortCutScope = thisScope.freshPrefixedScope(prefix = thisSym)
+
+      val thisInfo: Type =
+        val classRef = StaticRef(classSym)
+        if tparamSyms.isEmpty then classRef
+        else AppliedType(classRef, tparamSyms.map(StaticRef.apply))
+
+      defn.add(thisSym, classSym, thisInfo)
 
       val vals = new mutable.ArrayBuffer[Symbol]
       val delayedDefs = new mutable.ArrayBuffer[DelayedDef[FunDef]]
@@ -1452,7 +1470,7 @@ class Namer:
 
         val sym = Symbol.createSymbol(vdef.name, flags, vdef.ident.pos)
         memberTable.define(sym)
-        methodScope.define(sym)
+        shortCutScope.define(sym)
 
         val tp =
           val tpt = transformType(vdef.tpt)
@@ -1466,16 +1484,8 @@ class Namer:
           defn.add(sym, classSym, tp)
           vals += sym
 
-      val thisInfo: Type =
-        val classRef = StaticRef(classSym)
-        if tparamSyms.isEmpty then classRef
-        else AppliedType(classRef, tparamSyms.map(StaticRef.apply))
-
-      defn.add(thisSym, classSym, thisInfo)
-      methodScope.define(thisSym)
-
       for case fdef: Ast.FunDef <- cdef.members do
-        given Scope = methodScope
+        given Scope = shortCutScope
 
         if fdef.preParamCount != 0 then
           Reporter.error("Methods cannot have pre-arguments", fdef.pos)
@@ -1483,7 +1493,7 @@ class Namer:
         val delayedDef =
           if fdef.name == cdef.name then
             // Constructor is checked with outer scope
-            given Scope = sc
+            given Scope = paramScope
             transformConstructor(fdef, thisSym, classSym)
 
           else
@@ -1492,7 +1502,7 @@ class Namer:
         memberTable.define(delayedDef.symbol)
         // Operator name should not be called directly without a prefix
         if !Name.isOperator(delayedDef.symbol.name) then
-          methodScope.define(delayedDef.symbol)
+          shortCutScope.define(delayedDef.symbol)
 
         delayedDefs += delayedDef
 
