@@ -466,7 +466,7 @@ object Types:
   class ClassInfo
     (val classSymbol: Symbol, val targs: List[Type], val nameTable: NameTable)
   extends Type:
-    def fields: List[Symbol] = nameTable.terms.filterNot(_.isMethod)
+    def fields: List[Symbol] = nameTable.terms.filter(_.isField)
 
     def getTermMember(prefix: Type, name: String)(using Definitions): Option[RefType] =
       nameTable.resolveTerm(name).map: sym =>

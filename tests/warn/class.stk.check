@@ -39,19 +39,54 @@
 |   ^^^^^^^^^^
 |   Class name cannot be used as field name
 
----------- Error at ./tests/warn/class.stk:18:3 ---------------
+---------- Error at ./tests/warn/class.stk:20:3 ---------------
+|   def E() = {}
+|   ^^^^^^^^^^^^
+|   Uninitialized field(s): n
+
+---------- Error at ./tests/warn/class.stk:26:3 ---------------
+|   def F(x: Int) = { n = x }
+|   ^^^^^^^^^^^^^^^^^^^^^^^^^
+|   Uninitialized field(s): m
+
+---------- Error at ./tests/warn/class.stk:31:25 ---------------
+|   def G(x: Int) = { n = "hello" }
+|                         ^^^^^^^
+|                         Expect type Int, found = String
+
+---------- Error at ./tests/warn/class.stk:37:28 ---------------
+|   def H(x: Int) = { n = x, n = x }
+|                            ^
+|                            The field n already initialized
+
+---------- Error at ./tests/warn/class.stk:37:3 ---------------
+|   def H(x: Int) = { n = x, n = x }
+|   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   Uninitialized field(s): m
+
+---------- Error at ./tests/warn/class.stk:43:32 ---------------
+|   def I(x: Int) = { n = x, m = this.x }
+|                                ^^^^
+|                                Undefined term identifier this
+
+---------- Error at ./tests/warn/class.stk:50:5 ---------------
+|     this.m
+|     ^^^^
+|     Undefined term identifier this
+
+---------- Error at ./tests/warn/class.stk:54:3 ---------------
 |   new C
 |   ^^^^^
 |   The function expects 1 argument(s), found = 0
 
----------- Error at ./tests/warn/class.stk:20:9 ---------------
+---------- Error at ./tests/warn/class.stk:56:9 ---------------
 |   new C("hello")
 |         ^^^^^^^
 |         Expect type Int, found = String
 
----------- Error at ./tests/warn/class.stk:22:3 ---------------
+---------- Error at ./tests/warn/class.stk:58:3 ---------------
 |   new C(10, 20)
 |   ^^^^^^^^^^^^^
 |   The function expects 1 argument(s), found = 2
 
-8 error(s), 0 warning(s)
+15 error(s), 0 warning(s)

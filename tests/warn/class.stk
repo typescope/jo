@@ -14,6 +14,42 @@ class C
 class D
   val D: Int
 
+class E
+  val n: Int
+
+  def E() = {}
+
+class F
+  val n: Int
+  val m: Int
+
+  def F(x: Int) = { n = x }
+
+class G
+  val n: Int
+
+  def G(x: Int) = { n = "hello" }
+
+class H
+  val n: Int
+  val m: Int
+
+  def H(x: Int) = { n = x, n = x }
+
+class I
+  val n: Int
+  val m: Int
+
+  def I(x: Int) = { n = x, m = this.x }
+
+class J
+  val n: Int
+  val m: Int
+
+  def J(x: Int) =
+    this.m
+    { n = x, m = x }
+
 fun test =
   new C
 

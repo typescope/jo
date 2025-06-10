@@ -1181,16 +1181,13 @@ class Namer:
       case defn: Definitions => defn
 
     lazy val tparamSyms =
-      given Scope = funScope
       transformTypeParams(funDef.tparams)
 
     lazy val paramSyms =
-      given Scope = funScope
       tparamSyms
       transformParams(funDef.params)
 
     lazy val autoSyms =
-      given Scope = funScope
       tparamSyms
       transformAutos(funDef.autos)
 
@@ -1245,6 +1242,101 @@ class Namer:
 
       case defn: Definitions =>
         defn.addLazy(funSym, sc.owner,  () => computeInfo(resultType), () => computeInfo(ErrorType))
+
+    val typer = () =>
+      val tpt = TypeTree(resultType)(funDef.resultType.span)
+      FunDef(funSym, tparamSyms, paramSyms, autoSyms, tpt, typedBody)(funDef.span)
+
+    DelayedDef(funSym, typer)
+
+  private def transformConstructor(funDef: Ast.FunDef, thisSym: Symbol, classSym: Symbol)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
+  : DelayedDef[FunDef] =
+
+    val flags = Flags.Fun | Flags.Constructor
+
+    val funSym = Symbol.createSymbol(funDef.name, flags, funDef.ident.pos)
+    given funScope: Scope = sc.fresh(funSym)
+
+    if funDef.tparams.nonEmpty then
+      Reporter.error("Constructor may not take type parameters", funDef.tparams.head.pos)
+
+    lazy val paramSyms =
+      transformParams(funDef.params)
+
+    lazy val autoSyms =
+      transformAutos(funDef.autos)
+
+    lazy val resultType =
+      if !funDef.resultType.isEmpty then
+        val resTypeTree = transformType(funDef.resultType)
+        val res = resTypeTree.tpe
+
+        if !Subtyping.isEqualType(res, thisSym.info) then
+          Reporter.error("The result type of constructor should be the same as class type", funDef.resultType.pos)
+
+      thisSym.info
+
+    def checkBody(stats: List[Ast.Word], record: Ast.RecordLit): Word =
+      val classInfo = classSym.classInfo
+      val initialized = new mutable.ArrayBuffer[Symbol]
+      val words = new mutable.ArrayBuffer[Word]
+
+      for stat <- stats do
+        given TargetType = TargetType.VoidType
+        words += transform(stat)
+
+      for arg @ Ast.NamedArg(id, rhs) <- record.args yield
+        StaticRef(thisSym).getTermMember(id.name) match
+          case Some(tp) =>
+            assert(tp.is[RefType], "class member should be RefType, found = " + tp)
+
+            given TargetType = TargetType.Known(tp.widenTermRef)
+            val sym = tp.as[RefType].symbol
+            if initialized.contains(sym) then
+              Reporter.error("The field " + id.name + " already initialized", id.pos)
+
+            else
+              words += FieldAssign(Ident(thisSym)(id.span), id.name, transform(rhs))(arg.span)
+              initialized += sym
+
+          case None =>
+            Reporter.error("The field " + id.name + " does not exist in class " + classSym, id.pos)
+      end for
+
+      val uninit = classInfo.fields.toSet -- initialized.toSeq
+      if uninit.nonEmpty then
+        val names = uninit.map(_.name).mkString(", ")
+        Reporter.error("Uninitialized field(s): " + names, funDef.pos)
+
+      val thisIdent = Ident(thisSym)(funDef.body.span)
+      val body = (words :+ thisIdent).toList
+      Block(body)(thisSym.info, funDef.body.span)
+
+    lazy val typedBody =
+      paramSyms
+      autoSyms
+
+      funDef.body match
+        case rec: Ast.RecordLit =>
+          checkBody(Nil, rec)
+
+        case Ast.Block(stats :+ (rec: Ast.RecordLit)) =>
+          checkBody(stats, rec)
+
+        case _ =>
+          Reporter.error("The last phrase of a constructor should be a record literal", funDef.body.pos)
+          errorWord(funDef.body.span)
+
+    lazy val effectPolicy = transformReceives(funDef.receives, Effects.Policy.Infer, captureInfer = false)
+
+    val tparamSyms = Nil
+    def computeInfo(resultType: Type) =
+      ProcType(
+        tparamSyms, paramSyms.map(_.toNamedInfo), autoSyms.map(_.toNamedInfo),
+        resultType, effectPolicy, funDef.preParamCount)
+
+    defn.addLazy(funSym, sc.owner,  () => computeInfo(resultType), () => computeInfo(ErrorType))
 
     val typer = () =>
       val tpt = TypeTree(resultType)(funDef.resultType.span)
@@ -1380,7 +1472,6 @@ class Namer:
         else AppliedType(classRef, tparamSyms.map(StaticRef.apply))
 
       defn.add(thisSym, classSym, thisInfo)
-
       methodScope.define(thisSym)
 
       for case fdef: Ast.FunDef <- cdef.members do
@@ -1391,8 +1482,9 @@ class Namer:
 
         val delayedDef =
           if fdef.name == cdef.name then
-            // transformConstructor(fdef, Flags.Fun | Flags.Constructor, Effects.Policy.Infer)
-            transformFunDef(fdef, Flags.Fun | Flags.Method, Effects.Policy.Infer)
+            // Constructor is checked with outer scope
+            given Scope = sc
+            transformConstructor(fdef, thisSym, classSym)
 
           else
             transformFunDef(fdef, Flags.Fun | Flags.Method, Effects.Policy.Infer)
