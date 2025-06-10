@@ -1273,7 +1273,7 @@ class Namer:
         val res = resTypeTree.tpe
 
         if !Subtyping.isEqualType(res, thisSym.info) then
-          Reporter.error("The result type of constructor should be the same as class type", funDef.resultType.pos)
+          Reporter.error("The result type of constructor should be the same as the class", funDef.resultType.pos)
 
       thisSym.info
 

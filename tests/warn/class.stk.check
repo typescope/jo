@@ -79,19 +79,24 @@
 |              ^
 |              The field m does not exist in class K
 
----------- Error at ./tests/warn/class.stk:60:3 ---------------
+---------- Error at ./tests/warn/class.stk:62:18 ---------------
+|   def L(x: Int): K =
+|                  ^
+|                  The result type of constructor should be the same as the class
+
+---------- Error at ./tests/warn/class.stk:66:3 ---------------
 |   new C
 |   ^^^^^
 |   The function expects 1 argument(s), found = 0
 
----------- Error at ./tests/warn/class.stk:62:9 ---------------
+---------- Error at ./tests/warn/class.stk:68:9 ---------------
 |   new C("hello")
 |         ^^^^^^^
 |         Expect type Int, found = String
 
----------- Error at ./tests/warn/class.stk:64:3 ---------------
+---------- Error at ./tests/warn/class.stk:70:3 ---------------
 |   new C(10, 20)
 |   ^^^^^^^^^^^^^
 |   The function expects 1 argument(s), found = 2
 
-16 error(s), 0 warning(s)
+17 error(s), 0 warning(s)
