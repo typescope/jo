@@ -1098,6 +1098,75 @@ class Namer:
 
     ValDef(sym, rhs)(vdef.span)
 
+  def transformTypeParams(tparams: List[Ast.TypeParam])
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
+  : List[TypeSymbol] =
+    for tparam <- tparams yield
+      val bound =
+        if tparam.bound.isEmpty then
+          TypeBound(BottomType, AnyType)
+        else
+          val boundTree = transformType(tparam.bound)
+          TypeBound(BottomType, boundTree.tpe)
+
+      // Only support simple-kinded type parameters
+      val sym = TypeSymbol.createSymbol(Kind.Simple, tparam.name, bound, Flags.Param, sc.owner, tparam.pos)
+      sc.define(sym)
+      sym
+
+  def transformParams(params: List[Ast.Param])
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
+  : List[Symbol] =
+
+    for (param, i) <- params.zipWithIndex yield
+      val tpt = transformType(param.tpt, allowPackType = i == params.size - 1)
+      val paramSym = Symbol.createSymbol(param.name, tpt.tpe, Flags.Param, sc.owner, param.pos)
+      sc.define(paramSym)
+      paramSym
+
+  def transformAutos(autos: List[Ast.Param])
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
+  : List[Symbol] =
+
+    for auto <- autos yield
+      val tpt = transformType(auto.tpt, allowPackType = false)
+      val autoSym = Symbol.createSymbol(auto.name, tpt.tpe, Flags.Param | Flags.Auto, sc.owner, auto.pos)
+      sc.define(autoSym)
+      autoSym
+
+  def transformReceives(receives: Option[List[Ast.RefTree]], policy: Effects.Policy, captureInfer: Boolean = false)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
+  : Effects.Policy =
+
+    receives match
+      case Some(params) =>
+        val effs =
+          for
+            param <- params
+          yield
+            transformParamRef(param)
+
+        policy match
+          case Effects.Policy.Infer =>
+            val effSyms = effs.map(_.symbol)
+            if captureInfer then
+              Effects.Policy.Capture(effSyms)
+
+            else
+              Effects.Policy.CheckBound(effSyms)
+
+          case _ =>
+            Effects.checkEffectsConform(effs, policy)
+            policy
+
+      case None =>
+        policy match
+          case Effects.Policy.Infer if captureInfer =>
+            Effects.Policy.Capture(except = Nil)
+
+          case _ =>
+            policy
+
   private def transformFunDef(funDef: Ast.FunDef, initialFlags: Flags, policy: Effects.Policy, captureInfer: Boolean = false)
       (using lazyDefn: Definitions.Lazy | Definitions, sc: Scope, rp: Reporter, so: Source)
   : DelayedDef[FunDef] =
@@ -1112,36 +1181,18 @@ class Namer:
       case defn: Definitions => defn
 
     lazy val tparamSyms =
-      for tparam <- funDef.tparams yield
-        val bound =
-          if tparam.bound.isEmpty then
-            TypeBound(BottomType, AnyType)
-          else
-            val boundTree = transformType(tparam.bound)
-            TypeBound(BottomType, boundTree.tpe)
-
-        // Only support simple-kinded type parameters
-        val sym = TypeSymbol.createSymbol(Kind.Simple, tparam.name, bound, Flags.Param, funSym, tparam.pos)
-        funScope.define(sym)
-        sym
+      given Scope = funScope
+      transformTypeParams(funDef.tparams)
 
     lazy val paramSyms =
+      given Scope = funScope
       tparamSyms
-
-      for (param, i) <- funDef.params.zipWithIndex yield
-        val tpt = transformType(param.tpt, allowPackType = i == funDef.params.size - 1)
-        val paramSym = Symbol.createSymbol(param.name, tpt.tpe, Flags.Param, funSym, param.pos)
-        funScope.define(paramSym)
-        paramSym
+      transformParams(funDef.params)
 
     lazy val autoSyms =
+      given Scope = funScope
       tparamSyms
-
-      for auto <- funDef.autos yield
-        val tpt = transformType(auto.tpt, allowPackType = false)
-        val autoSym = Symbol.createSymbol(auto.name, tpt.tpe, Flags.Param | Flags.Auto, funSym, auto.pos)
-        funScope.define(autoSym)
-        autoSym
+      transformAutos(funDef.autos)
 
     lazy val givenResultType =
       tparamSyms
@@ -1180,35 +1231,7 @@ class Namer:
       given TargetType = targetType
       transform(funDef.body)
 
-    lazy val effectPolicy = funDef.receives match
-      case Some(params) =>
-        val effs =
-          for
-            param <- params
-          yield
-            transformParamRef(param)
-
-        policy match
-          case Effects.Policy.Infer =>
-            val effSyms = effs.map(_.symbol)
-            if captureInfer then
-              Effects.Policy.Capture(effSyms)
-
-            else
-              Effects.Policy.CheckBound(effSyms)
-
-          case _ =>
-            Effects.checkEffectsConform(effs, policy)
-            policy
-
-      case None =>
-        policy match
-          case Effects.Policy.Infer if captureInfer =>
-            Effects.Policy.Capture(except = Nil)
-
-          case _ =>
-            policy
-
+    lazy val effectPolicy = transformReceives(funDef.receives, policy, captureInfer)
 
     def computeInfo(resultType: Type) =
       ProcType(
@@ -1242,19 +1265,7 @@ class Namer:
       case defn: Definitions => defn
 
     given sc2: Scope = sc.fresh(typeSym)
-    lazy val tparamSyms =
-      for tparam <- tdef.tparams yield
-        val bound =
-          if tparam.bound.isEmpty then
-            TypeBound(BottomType, AnyType)
-          else
-            val boundTree = transformType(tparam.bound)
-            TypeBound(BottomType, boundTree.tpe)
-
-        // Only support simple kinded type parameters
-        val sym = TypeSymbol.createSymbol(Kind.Simple, tparam.name, bound, Flags.Param, typeSym, tparam.pos)
-        sc2.define(sym)
-        sym
+    lazy val tparamSyms = transformTypeParams(tdef.tparams)
 
     def computeInfo(): Type =
       // force creation of symbols for type parameters
@@ -1325,19 +1336,7 @@ class Namer:
     given defn: Definitions = lazyDefn.value
 
     given paramScope: Scope = sc.fresh(classSym)
-    lazy val tparamSyms =
-      for tparam <- cdef.tparams yield
-        val bound =
-          if tparam.bound.isEmpty then
-            TypeBound(BottomType, AnyType)
-          else
-            val boundTree = transformType(tparam.bound)
-            TypeBound(BottomType, boundTree.tpe)
-
-        // Only support simple kinded type parameters
-        val sym = TypeSymbol.createSymbol(Kind.Simple, tparam.name, bound, Flags.Param, classSym, tparam.pos)
-        paramScope.define(sym)
-        sym
+    lazy val tparamSyms = transformTypeParams(cdef.tparams)
 
     lazy val classInfo: Type =
       val base = new ClassInfo(classSym, tparamSyms.map(StaticRef.apply), memberTable)
@@ -1390,7 +1389,13 @@ class Namer:
         if fdef.preParamCount != 0 then
           Reporter.error("Methods cannot have pre-arguments", fdef.pos)
 
-        val delayedDef = transformFunDef(fdef, Flags.Fun | Flags.Method, Effects.Policy.Infer)
+        val delayedDef =
+          if fdef.name == cdef.name then
+            // transformConstructor(fdef, Flags.Fun | Flags.Constructor, Effects.Policy.Infer)
+            transformFunDef(fdef, Flags.Fun | Flags.Method, Effects.Policy.Infer)
+
+          else
+            transformFunDef(fdef, Flags.Fun | Flags.Method, Effects.Policy.Infer)
 
         memberTable.define(delayedDef.symbol)
         // Operator name should not be called directly without a prefix

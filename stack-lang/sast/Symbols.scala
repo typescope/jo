@@ -173,7 +173,7 @@ object Symbols:
     def createSymbol
         (kind: Kind, name: String, info: Type, flags: Flags, owner: Symbol, pos: SourcePosition)
         (using defn: Definitions)
-    : Symbol =
+    : TypeSymbol =
       val sym = new TypeSymbol(kind, name, flags, pos)
       defn.add(sym, owner, info)
       sym

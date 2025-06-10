@@ -31,19 +31,7 @@ class PatternTyper(namer: Namer, checker: Checker):
     val patSym = Symbol.createSymbol(patDef.name, flags, patDef.ident.pos)
     given patScope: Scope = sc.fresh(patSym)
 
-    lazy val tparamSyms =
-      for tparam <- patDef.tparams yield
-        val bound =
-          if tparam.bound.isEmpty then
-            TypeBound(BottomType, AnyType)
-          else
-            val boundTree = namer.transformType(tparam.bound)
-            TypeBound(BottomType, boundTree.tpe)
-
-        // Only support simple kinded type parameters
-        val sym = TypeSymbol.createSymbol(Kind.Simple, tparam.name, bound, Flags.Param, patSym, tparam.pos)
-        patScope.define(sym)
-        sym
+    lazy val tparamSyms = namer.transformTypeParams(patDef.tparams)
 
     lazy val paramSyms =
       tparamSyms
