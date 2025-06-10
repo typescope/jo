@@ -50,6 +50,12 @@ class J
     this.m
     { n = x, m = x }
 
+class K
+  val n: Int
+
+  def K(x: Int) =
+    { n = x, m = x }
+
 fun test =
   new C
 

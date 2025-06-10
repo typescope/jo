@@ -74,19 +74,24 @@
 |     ^^^^
 |     Undefined term identifier this
 
----------- Error at ./tests/warn/class.stk:54:3 ---------------
+---------- Error at ./tests/warn/class.stk:57:14 ---------------
+|     { n = x, m = x }
+|              ^
+|              The field m does not exist in class K
+
+---------- Error at ./tests/warn/class.stk:60:3 ---------------
 |   new C
 |   ^^^^^
 |   The function expects 1 argument(s), found = 0
 
----------- Error at ./tests/warn/class.stk:56:9 ---------------
+---------- Error at ./tests/warn/class.stk:62:9 ---------------
 |   new C("hello")
 |         ^^^^^^^
 |         Expect type Int, found = String
 
----------- Error at ./tests/warn/class.stk:58:3 ---------------
+---------- Error at ./tests/warn/class.stk:64:3 ---------------
 |   new C(10, 20)
 |   ^^^^^^^^^^^^^
 |   The function expects 1 argument(s), found = 2
 
-15 error(s), 0 warning(s)
+16 error(s), 0 warning(s)
