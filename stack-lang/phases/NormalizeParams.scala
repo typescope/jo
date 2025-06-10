@@ -60,6 +60,10 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
       case fdef: FunDef =>
         cache.code(fdef.symbol) = fdef
 
+      case cdef: ClassDef =>
+        for fdef <- cdef.funs do
+          cache.code(fdef.symbol) = fdef
+
       case ParamDef(param, _) if param.is(Flags.Default) =>
         // First synthesize all symbols
         val optType = UnionType(
