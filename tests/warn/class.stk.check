@@ -35,18 +35,23 @@
 |       ^^^
 
 ---------- Error at ./tests/warn/class.stk:15:3 ---------------
+|   val D: Int
+|   ^^^^^^^^^^
+|   Class name cannot be used as field name
+
+---------- Error at ./tests/warn/class.stk:18:3 ---------------
 |   new C
 |   ^^^^^
 |   The function expects 1 argument(s), found = 0
 
----------- Error at ./tests/warn/class.stk:17:9 ---------------
+---------- Error at ./tests/warn/class.stk:20:9 ---------------
 |   new C("hello")
 |         ^^^^^^^
 |         Expect type Int, found = String
 
----------- Error at ./tests/warn/class.stk:19:3 ---------------
+---------- Error at ./tests/warn/class.stk:22:3 ---------------
 |   new C(10, 20)
 |   ^^^^^^^^^^^^^
 |   The function expects 1 argument(s), found = 2
 
-7 error(s), 0 warning(s)
+8 error(s), 0 warning(s)

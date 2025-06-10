@@ -11,6 +11,9 @@ class C
 
   def C(x: Int) = { x = x }
 
+class D
+  val D: Int
+
 fun test =
   new C
 

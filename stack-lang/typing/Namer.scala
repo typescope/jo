@@ -1368,9 +1368,12 @@ class Namer:
           val tp2 = checker.checkValueType(tpt.tpe, tpt.pos)
           tp2
 
-        defn.add(sym, classSym, tp)
+        if vdef.name == cdef.name then
+          Reporter.error("Class name cannot be used as field name", vdef.pos)
 
-        vals += sym
+        else
+          defn.add(sym, classSym, tp)
+          vals += sym
 
       val thisInfo: Type =
         val classRef = StaticRef(classSym)
