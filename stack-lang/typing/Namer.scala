@@ -825,7 +825,7 @@ class Namer:
                 || qualType.isClassType && tp.is[RefType] && tp.as[RefType].symbol.isMutable
 
               if !isMutable then
-                Reporter.error(s"The field $name is immutable", ref.pos)
+                Reporter.error(s"The member $name is immutable", ref.pos)
 
               val rhs2 =
                 given TargetType = TargetType.Known(tp.widenTermRef)
