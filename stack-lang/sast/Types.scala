@@ -7,14 +7,18 @@ import typing.Inference
 import scala.reflect.ClassTag
 import scala.collection.mutable
 
-/** The type system of Stk.
-  *
-  * Stk has a structural type system, which means that the names of types
-  * usually do not matter. Two types are equivalent if they refer to types that
-  * are structurally the same.
-  */
+/** The type system of Stk  */
 object Types:
   sealed abstract class Type:
+    private var approxType: Type | Null = null
+
+    private def approx(using Definitions): Type =
+      if approxType == null || approxType.is[TypeVar] then
+        approxType = TypeOps.approx(this, isUp = true)
+
+      approxType.nn
+
+
     /** Whether the type is an error type
       *
       * Avoid type reduction as the types might not be well-formed.
@@ -37,10 +41,10 @@ object Types:
 
     def isAnyType(using Definitions): Boolean = TypeOps.dealias(this) == AnyType
 
-    def isBottom(using Definitions): Boolean = TypeOps.approx(this, isUp = true) == BottomType
+    def isBottom(using Definitions): Boolean = this.approx == BottomType
 
     def isRecordType(using Definitions): Boolean =
-      TypeOps.approx(this, isUp = true).isInstanceOf[RecordType]
+      this.approx.isInstanceOf[RecordType]
 
     def isUnionType(using Definitions): Boolean =
        // No polymorphism over union type thus only dealias no approximation
@@ -61,21 +65,24 @@ object Types:
         case _ => false
 
     def isObjectType(using Definitions): Boolean =
-      TypeOps.approx(this, isUp = true).isInstanceOf[ObjectType]
+      this.approx.isInstanceOf[ObjectType]
 
     def isTypeLambda(using Definitions): Boolean =
-      TypeOps.approx(this, isUp = true).isInstanceOf[TypeLambda]
+      this.approx.isInstanceOf[TypeLambda]
 
     def isProcType(using Definitions): Boolean =
-      TypeOps.approx(this, isUp = true).isInstanceOf[ProcType]
+      this.approx.isInstanceOf[ProcType]
+
+    def isClassType(using Definitions): Boolean =
+      this.approx.isInstanceOf[ClassInfo]
 
     def isPolyType(using Definitions): Boolean =
-      TypeOps.approx(this, isUp = true) match
+      this.approx match
         case procType: ProcType => procType.tparams.nonEmpty
         case _ => false
 
     def isTagType(using Definitions): Boolean =
-      TypeOps.approx(this, isUp = true).isInstanceOf[TagType]
+      this.approx.isInstanceOf[TagType]
 
     def isValueType: Boolean =
       this match
@@ -128,30 +135,30 @@ object Types:
         case _ => this
 
     def asRecordType(using Definitions): RecordType =
-      TypeOps.approx(this, isUp = true).asInstanceOf[RecordType]
+      this.approx.asInstanceOf[RecordType]
 
     def asUnionType(using Definitions): UnionType =
       // No polymorphism over union type thus only dealias no approximation
       widenTermRef.dealias.asInstanceOf[UnionType]
 
     def asTagType(using Definitions): TagType =
-      TypeOps.approx(this, isUp = true).asInstanceOf[TagType]
+      this.approx.asInstanceOf[TagType]
 
     def asTypeLambda(using Definitions): TypeLambda =
-      TypeOps.approx(this, isUp = true).asInstanceOf[TypeLambda]
+      this.approx.asInstanceOf[TypeLambda]
 
     def asProcType(using Definitions): ProcType =
-      TypeOps.approx(this, isUp = true).asInstanceOf[ProcType]
+      this.approx.asInstanceOf[ProcType]
 
     def asObjectType(using Definitions): ObjectType =
-      TypeOps.approx(this, isUp = true).asInstanceOf[ObjectType]
+      this.approx.asInstanceOf[ObjectType]
 
     def isSingleMethodObjectType(using Definitions): Boolean = getSingleMethodType.nonEmpty
 
     def getSingleMethodType(using Definitions): Option[NamedInfo[ProcType]] =
-      TypeOps.approx(this, isUp = true) match
+      this.approx match
         case ObjectType(Nil, NamedInfo(name, tp) :: Nil, Nil) =>
-          TypeOps.approx(tp, isUp = true) match
+          tp.approx match
              case procType: ProcType => Some(NamedInfo(name, procType))
              case _ => None
 
@@ -200,7 +207,7 @@ object Types:
       recur(this)
 
     def getTermMember(name: String)(using Definitions): Option[Type] =
-      TypeOps.approx(this, isUp = true) match
+      this.approx match
         case info: NameTableInfo =>
           info.resolveTerm(name).map(sym => StaticRef(sym))
 

@@ -814,15 +814,21 @@ class Namer:
           given TargetType = TargetType.TermMember(name)
           transform(qual)
 
-        if qual2.tpe.isObjectType then
-          val objType = qual2.tpe.asObjectType
-          objType.getMemberType(name) match
+        val qualType = qual2.tpe
+        val isObject = qualType.isObjectType || qualType.isClassType
+
+        if isObject then
+          qualType.getTermMember(name) match
             case Some(tp) =>
-              if !objType.isMutable(name) then
+              val isMutable =
+                qualType.isObjectType && qualType.asObjectType.isMutable(name)
+                || qualType.isClassType && tp.is[RefType] && tp.as[RefType].symbol.isMutable
+
+              if !isMutable then
                 Reporter.error(s"The field $name is immutable", ref.pos)
 
               val rhs2 =
-                given TargetType = TargetType.Known(tp)
+                given TargetType = TargetType.Known(tp.widenTermRef)
                 transform(rhs)
 
               FieldAssign(qual2, name, rhs2)(assign.span)
