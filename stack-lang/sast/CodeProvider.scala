@@ -10,6 +10,8 @@ class CodeProvider:
 
   def get(sym: Symbol): Def = codebase(sym)
 
+  def contains(sym: Symbol): Boolean = codebase.contains(sym)
+
   def add(sym: Symbol, code: Def): Unit =
     assert(!codebase.contains(sym), "Duplicate addition to code base, sym = " + sym)
     codebase(sym) = code

@@ -515,8 +515,9 @@ object Interpreter:
         exec(fun)
 
       case fdef: FunDef =>
-        env.bind(fdef.symbol, FunVal(fdef.symbol, env))
-        cp.add(fdef.symbol, fdef)
+        val sym = fdef.symbol
+        env.bind(sym, FunVal(sym, env))
+        if !cp.contains(sym) then cp.add(sym, fdef)
         Nil
 
       case Object(self, vals, defs) =>
@@ -525,7 +526,7 @@ object Interpreter:
         val valSyms = vals.map(vdef => vdef.name -> vdef.symbol).toMap
         val defTrees = defs.map(mdef => mdef.name -> mdef.symbol).toMap
 
-        for fdef <- defs do cp.add(fdef.symbol, fdef)
+        for fdef <- defs if !cp.contains(fdef.symbol) do cp.add(fdef.symbol, fdef)
 
         val objVal = ObjectVal(fieldVals, self, valSyms, defTrees, env)
         objVal :: Nil
