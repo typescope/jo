@@ -2,7 +2,6 @@ package sast
 
 import Types.*
 import Flags.*
-import Definitions.InfoProvider
 
 import ast.Positions.SourcePosition
 

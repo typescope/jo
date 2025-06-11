@@ -34,11 +34,13 @@ files=(
     stack-lang/typing/PatternTyper.scala
     stack-lang/typing/Scope.scala
     stack-lang/typing/Typer.scala
+    stack-lang/sast/CodeProvider.scala
     stack-lang/sast/Constant.scala
     stack-lang/sast/Definitions.scala
     stack-lang/sast/Effects.scala
     stack-lang/sast/Exhaustivity.scala
     stack-lang/sast/Flags.scala
+    stack-lang/sast/InfoProvider.scala
     stack-lang/sast/Kind.scala
     stack-lang/sast/NameTable.scala
     stack-lang/sast/Patterns.scala

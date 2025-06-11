@@ -6,7 +6,6 @@ import ast.Positions.*
 import sast.*
 import sast.Symbols.*
 import sast.Types.*
-import sast.Definitions.InfoProvider
 
 import common.OutOfBand
 import reporting.Reporter

@@ -9,7 +9,6 @@ import sast.*
 import sast.Sast.*
 import sast.Symbols.*
 import sast.Types.*
-import sast.Definitions.InfoProvider
 
 import common.Debug
 import common.KeyProps
