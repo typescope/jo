@@ -1438,7 +1438,7 @@ class Namer:
     lazy val tparamSyms = transformTypeParams(cdef.tparams)
 
     lazy val classInfo: Type =
-      val base = new ClassInfo(classSym, tparamSyms.map(StaticRef.apply), memberTable)
+      val base = new ClassInfo(classSym, tparamSyms.map(StaticRef.apply), thisSym, memberTable)
 
       if cdef.tparams.isEmpty then base
       else TypeLambda(tparamSyms, base, preParamCount = 0)

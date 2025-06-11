@@ -464,9 +464,12 @@ object Types:
     export nameTable.{ resolveType, resolveTerm, resolvePattern, define }
 
   class ClassInfo
-    (val classSymbol: Symbol, val targs: List[Type], val nameTable: NameTable)
+    (val classSymbol: Symbol, val targs: List[Type], val self: Symbol, val nameTable: NameTable)
   extends Type:
     def fields: List[Symbol] = nameTable.terms.filter(_.isField)
+
+    /** Return methods (including contructor) */
+    def methods: List[Symbol] = nameTable.terms.filter(!_.isField)
 
     def getTermMember(prefix: Type, name: String)(using Definitions): Option[RefType] =
       nameTable.resolveTerm(name).map: sym =>

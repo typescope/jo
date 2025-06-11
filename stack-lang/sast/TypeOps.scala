@@ -213,7 +213,7 @@ object TypeOps:
 
         case classInfo: ClassInfo =>
           val targs2 = classInfo.targs.map(this.apply)
-          new ClassInfo(classInfo.classSymbol, targs2, classInfo.nameTable)
+          new ClassInfo(classInfo.classSymbol, targs2, classInfo.self, classInfo.nameTable)
 
         case ProcType(tparams, params, autos, resType, receivesOpt, preParamCount) =>
           // TODO: Once type bounds are supported, we need to transform bounds

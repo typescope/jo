@@ -28,13 +28,8 @@ object Interpreter:
     case ObjectVal(
       values: mutable.Map[String, Value],
       self: Symbol,
-      vals: Map[String, Symbol],
       funs: Map[String, Symbol],
       env: Env)
-
-    case Instance(
-      values: mutable.Map[String, Value],
-      classSymbol: Symbol)
 
     case ArrayVal(content: Array[Value])
 
@@ -62,16 +57,12 @@ object Interpreter:
 
         case PlatformObj(_) => "platformObject"
 
-        case Instance(values, classSymbol) =>
-          val fields = values.take(1).map(_ + " = " + _.show(level - 1)).mkString(", ")
-          classSymbol.toString + "{ " + fields + " }"
-
-        case ObjectVal(values, self, vals, defs,  env) =>
+        case ObjectVal(values, self, defs,  env) =>
           val fields = values.take(1).map(_ + " = " + _.show(level - 1)).mkString(", ")
           val methods = defs.take(5).keys.mkString(", ")
           "object {" + fields + ", " + methods + "}"
 
-  type Value = IntVal | BoolVal | StringVal | RecordVal | ObjectVal | Instance | ArrayVal | PlatformObj
+  type Value = IntVal | BoolVal | StringVal | RecordVal | ObjectVal | ArrayVal | PlatformObj
 
   enum Env:
     case RootEnv()
@@ -319,7 +310,7 @@ object Interpreter:
         index(defs)
 
       case cdef: ClassDef =>
-        cp.add(cdef.symbol, cdef)
+        for fdef <- cdef.funs do cp.add(fdef.symbol, fdef)
 
       case _ =>
 
@@ -391,10 +382,11 @@ object Interpreter:
         Nil
 
       case FieldAssign(qual, name, rhs) =>
-        val (objVal: ObjectVal) = eval(qual): @unchecked
-        val rhsValue = eval(rhs)
-        objVal.values(name) = rhsValue
-        Nil
+        eval(qual): @unchecked match
+          case objVal: ObjectVal =>
+            val rhsValue = eval(rhs)
+            objVal.values(name) = rhsValue
+            Nil
 
       case If(cond, thenp, elsep) =>
         val BoolVal(b) = eval(cond): @unchecked
@@ -499,6 +491,7 @@ object Interpreter:
                 env2.bind(objVal.self, objVal)
                 call(fdef, argVals)(using env2)
 
+
           case _ =>
             val funDenot :: Nil = exec(fun): @unchecked
             val argVals = args.map(eval) ++ autos.map(eval)
@@ -523,12 +516,20 @@ object Interpreter:
       case Object(self, vals, defs) =>
         val fieldInits = vals.map(vdef => vdef.name -> eval(vdef.rhs))
         val fieldVals = mutable.Map.from(fieldInits)
-        val valSyms = vals.map(vdef => vdef.name -> vdef.symbol).toMap
-        val defTrees = defs.map(mdef => mdef.name -> mdef.symbol).toMap
+        val defSymbols = defs.map(mdef => mdef.name -> mdef.symbol).toMap
 
         for fdef <- defs if !cp.contains(fdef.symbol) do cp.add(fdef.symbol, fdef)
 
-        val objVal = ObjectVal(fieldVals, self, valSyms, defTrees, env)
+        val objVal = ObjectVal(fieldVals, self, defSymbols, env)
+        objVal :: Nil
+
+      case New(classRef, _) =>
+        val classSym = classRef.symbol
+        val classInfo = classSym.classInfo
+
+        val fields = mutable.Map.empty[String, Value]
+        val methods = classInfo.methods.map(sym => sym.name -> sym).toMap
+        val objVal = ObjectVal(fields, classInfo.self, methods, Env.RootEnv())
         objVal :: Nil
 
       case _: TypeDef | _: PatDef =>
