@@ -7,7 +7,15 @@ import sast.Definitions
 
 import native.runtime.NativeRuntime
 
-/** Code related to runtime memory representation of records and objects */
+/** Runtime memory representation of records and objects
+  *
+  * An object is encoded as follows:
+  *
+  *     {
+  *         vtable = { foo = ..., bar = ... },
+  *         ftable = { a = ..., b = ... }
+  *     }
+  */
 class Memory(runtime: NativeRuntime)(using defn: Definitions):
   private val VTABLE = "vtable"
   private val FTABLE = "ftable"

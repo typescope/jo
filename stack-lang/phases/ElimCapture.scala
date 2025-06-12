@@ -345,7 +345,7 @@ object ElimCapture:
       // TODO: This is possible via transitive capture.
       assert(
         captures.size == captures.map(_.name).toSet.size,
-        "[Internal error] captured different variables with same name")
+        "[Internal error] captured different variables with same name in " + fdef.symbol)
 
       val paramCaptures = captures.map(_.toNamedInfo)
 

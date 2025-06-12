@@ -10,7 +10,7 @@ import native.runtime.NativeRuntime
 
 import scala.collection.mutable
 
-/** The compiler phase translate context parameters to runtime calls
+/** The compiler phase makes allocation of records and objects explicit
   *
   * This phase assumes the following support functions defined in
   * runtime/native/Core.stk:
