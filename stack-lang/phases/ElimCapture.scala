@@ -20,17 +20,16 @@ class ElimCapture(using Definitions) extends Phase[Symbol]:
   val contextObject = Phase.OwnerContext
 
   override def transformDefs(defs: List[Def])(using Context): List[Def] =
-    val uniq = new UniqueName
     defs.flatMap:
       case fdef: FunDef =>
-        val (fdef2, defs) = ElimCapture.transformFunDef(fdef, uniq)
+        val (fdef2, defs) = ElimCapture.transformFunDef(fdef)
         fdef2 :: defs
 
       case cdef: ClassDef =>
         val lifted = new mutable.ArrayBuffer[Def]
         val funs = new mutable.ArrayBuffer[FunDef]
         for fdef <- cdef.funs do
-          val (fdef2, defs) = ElimCapture.transformFunDef(fdef, uniq)
+          val (fdef2, defs) = ElimCapture.transformFunDef(fdef)
           lifted ++= defs
           funs += fdef2
 
@@ -39,18 +38,22 @@ class ElimCapture(using Definitions) extends Phase[Symbol]:
       case defn => super.transformDef(defn) :: Nil
 
 object ElimCapture:
-  def transformFunDef(fdef: FunDef, uniq: UniqueName)(using Definitions): (FunDef, List[Def]) =
-    given ctx: Context = new Context(uniq)
+  def transformFunDef(fdef: FunDef)(using Definitions): (FunDef, List[Def]) =
+    given ctx: Context = new Context()
     val lifter = new Lifter(fdef.symbol)
     val body = lifter.apply(fdef.body)
     val lifted = ctx.lifted.toList
     (fdef.copy(body = body)(fdef.span), lifted)
 
-  private def createLiftedFunSym(
+  def flatName(fun: Symbol)(using Definitions): String =
+    fun.ownersIterator.foldLeft(fun.name): (acc, owner) =>
+      if !owner.isContainer then acc + "$" + owner.name else acc
+
+  def createLiftedFunSym(
     fdef: FunDef,
     prependParams: List[NamedInfo[Type]],
     appendParams: List[NamedInfo[Type]])(
-    using ctx: Context, defn: Definitions): Symbol =
+    using defn: Definitions): Symbol =
 
     val oldFunSym = fdef.symbol
 
@@ -60,7 +63,7 @@ object ElimCapture:
     val paramInfos2 = prependParams ++ paramInfos ++ appendParams
     val funType = ProcType(fdef.tparams, paramInfos2, autoInfos, resType, fdef.effectPolicy, preParamCount = 0)
 
-    val funName = ctx.flatName(fdef.symbol)
+    val funName = flatName(fdef.symbol)
     Symbol.createSymbol(funName, funType, Flags.Fun | Flags.Synthetic, oldFunSym.enclosingContainer, oldFunSym.sourcePos)
 
   /** The information for a lifted function
@@ -74,21 +77,16 @@ object ElimCapture:
     val liftInfos: Map[Symbol, LiftInfo],     // info for lifted functions
     val rewiring: Map[Symbol, Symbol],        // rewiring of locals
     val lifted: mutable.ArrayBuffer[Def],     // lifted definitions
-    val uniq: UniqueName):
+  ):
 
-    def this(uniq: UniqueName) =
-      this(Map.empty, Map.empty, new mutable.ArrayBuffer, uniq)
+    def this() =
+      this(Map.empty, Map.empty, new mutable.ArrayBuffer)
 
     def withSubsts(substs: Map[Symbol, Symbol]): Context =
-      new Context(liftInfos, rewiring ++ substs, lifted, uniq)
+      new Context(liftInfos, rewiring ++ substs, lifted)
 
     def withLiftInfo(fun: Symbol, info: LiftInfo): Context =
-      new Context(liftInfos.updated(fun, info), rewiring, lifted, uniq)
-
-    def flatName(fun: Symbol)(using Definitions): String =
-      val name = fun.ownersIterator.foldLeft(fun.name): (acc, owner) =>
-        if owner.isFunction then acc + "$" + owner.name else acc
-      uniq.freshName(name)
+      new Context(liftInfos.updated(fun, info), rewiring, lifted)
 
     def show: String =
       "{ rewires: " + rewiring.toString + "}"
@@ -193,8 +191,7 @@ object ElimCapture:
 
          ObjectType(objType.fields ++ capturedMembers.toList, objType.methods, objType.mutableFields)
 
-      val thisTypeName = ctx.uniq.freshName("ThisType")
-      val thisTypeAliasSym = new TypeSymbol(Kind.Simple, thisTypeName, Flags.Synthetic, obj.self.sourcePos)
+      val thisTypeAliasSym = new TypeSymbol(Kind.Simple, "ThisType", Flags.Synthetic, obj.self.sourcePos)
       val thisType = StaticRef(thisTypeAliasSym)
       ctx.lifted += TypeDef(thisTypeAliasSym)(obj.span)
 
