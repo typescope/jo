@@ -412,10 +412,10 @@ object Types:
       TypeOps.substSymbols(this.copy(tparams = Nil), tparams, targs).as[ProcType]
 
     def prepend(paramsToAdd: List[NamedInfo[Type]]): ProcType =
-      ProcType(tparams, paramsToAdd ++ params, autos, resultType, receives, preParamCount)
+      this.copy(params = paramsToAdd ++ params)
 
     def append(paramsToAdd: List[NamedInfo[Type]]): ProcType =
-      ProcType(tparams, params ++ paramsToAdd, autos, resultType, receives, preParamCount)
+      this.copy(params = params ++ paramsToAdd)
 
     def postParamCount = params.size - preParamCount
 

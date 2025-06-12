@@ -7,7 +7,7 @@ import reporting.Reporter
 
 import scala.collection.mutable
 
-final class Definitions(rootNameTable: NameTable, provider: InfoProvider):
+final class Definitions(rootNameTable: NameTable, initProvider: InfoProvider):
 
   export rootNameTable.resolveTermByPath
 
@@ -16,9 +16,21 @@ final class Definitions(rootNameTable: NameTable, provider: InfoProvider):
   //
   given Definitions = this
 
+  private var provider: InfoProvider = initProvider
+
   def info(sym: Symbol): SymInfo = provider(sym)
 
-  export provider.{ add, addLazy }
+  def add(sym: Symbol, owner: Symbol, tp: Type): Unit =
+    provider.add(sym, owner, tp)
+
+  def addLazy(sym: Symbol, owner: Symbol, infoLazy: () => Type, errorType: () => Type): Unit =
+    provider.addLazy(sym, owner, infoLazy, errorType)
+
+  def addLazy(sym: Symbol, owner: Symbol, infoLazy: () => Type): Unit =
+    provider.addLazy(sym, owner, infoLazy, () => ErrorType)
+
+  def installTransform(transform: SymInfo => SymInfo): Unit =
+    provider = new InfoProvider.InfoTransformer(provider, transform)
 
   //----------------------------------------------------------------------------
   // Predefined symbols
