@@ -1631,7 +1631,7 @@ class Namer:
 
         qual2.tpe match
           case StaticRef(sym) if sym.isContainer =>
-            val nsInfo = sym.dealiasedInfo.as[NameTableInfo]
+            val nsInfo = sym.dealias.info.as[NameTableInfo]
             nsInfo.resolveType(name) match
               case Some(sym) =>
                check(sym)

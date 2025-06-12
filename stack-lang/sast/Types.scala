@@ -153,6 +153,9 @@ object Types:
     def asObjectType(using Definitions): ObjectType =
       this.approx.asInstanceOf[ObjectType]
 
+    def asClassInfo(using Definitions): ClassInfo =
+      this.approx.asInstanceOf[ClassInfo]
+
     def isSingleMethodObjectType(using Definitions): Boolean = getSingleMethodType.nonEmpty
 
     def getSingleMethodType(using Definitions): Option[NamedInfo[ProcType]] =

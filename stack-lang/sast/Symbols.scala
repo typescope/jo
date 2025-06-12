@@ -30,8 +30,6 @@ object Symbols:
       */
     def info(using Definitions): Type = symInfo.tpe
 
-    def dealiasedInfo(using Definitions): Type = dealias.symInfo.tpe
-
     def owner(using Definitions): Symbol = symInfo.owner
 
     /** All symbols that have a ProcType are functions, including top-level
@@ -64,7 +62,7 @@ object Symbols:
     def classInfo(using Definitions): ClassInfo =
       assert(this.isClass, "Not a class")
 
-      this.dealiasedInfo match
+      this.dealias.info match
         case info: ClassInfo => info
         case TypeLambda(_, info: ClassInfo, _) => info
         case tp => throw new Exception("Unexpected type " + tp.show)
@@ -116,7 +114,11 @@ object Symbols:
         case nsInfo: NameTableInfo => nsInfo.resolvePattern(name).getOrElse(error())
         case _ => error()
 
-    /** Return the source symbol of an alias created by import or aliasing */
+    /** Return the source symbol of an alias created by import or aliasing
+      *
+      * Invariant: It is important that we do not have cycles in aliases, which
+      * is guaranteed by disallowing creating an alias of another alias.
+      */
     def dealias(using Definitions): Symbol =
       if this.isAlias then this.info.as[StaticRef].symbol.dealias else this
 

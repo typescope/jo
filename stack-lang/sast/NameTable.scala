@@ -96,7 +96,7 @@ object NameTable:
         nameTable.resolveTerm(name) match
           case Some(sym) =>
             if sym.isContainer then
-              val nameTable = sym.dealiasedInfo.as[NameTableInfo].nameTable
+              val nameTable = sym.dealias.info.as[NameTableInfo].nameTable
               resolveStatic(nameTable, rest)
             else
               Nil
