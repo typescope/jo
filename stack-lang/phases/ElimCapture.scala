@@ -196,6 +196,7 @@ object ElimCapture:
 
       for vdef <- obj.vals do
         uniq.freshName(vdef.name)
+
         members += vdef.name -> this(vdef.rhs)
         memberTypes += NamedInfo(vdef.name, vdef.rhs.tpe)
 
@@ -205,19 +206,19 @@ object ElimCapture:
         val liftedSym = createLiftedFunSym(fdef, prependParams = NamedInfo("this", thisType) :: Nil, appendParams = Nil)
         funToLifted(fdef.symbol) = liftedSym
 
+        members += fdef.name -> Ident(liftedSym)(fdef.span)
         memberTypes += NamedInfo(fdef.name, StaticRef(liftedSym))
 
       for capture <- allCaptures yield
         val field = uniq.freshName(capture.name)
         captureToField(capture) = field
+
         members += field -> Ident(capture)(obj.span)
         memberTypes += NamedInfo(field, capture.info)
 
       for fdef <- obj.funs do
         val span = fdef.symbol.sourcePos.span
         val liftedSym = funToLifted(fdef.symbol)
-
-        members += fdef.name -> Ident(liftedSym)(fdef.span)
 
         val paramThis = Symbol.createSymbol("this", thisType, Flags.Param, liftedSym, fdef.symbol.sourcePos)
 

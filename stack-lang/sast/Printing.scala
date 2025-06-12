@@ -248,7 +248,7 @@ object Printing:
         "(" ~ expr ~ " allow " ~ paramText ~ ")"
 
       case Assign(id, rhs) =>
-        id ~ " = " ~ rhs
+        id ~ " = " ~ indent(rhs)
 
       case FieldAssign(qual, name, rhs) =>
         qual ~ "." ~ name ~ " <- " ~ rhs
@@ -431,7 +431,9 @@ object Printing:
         val receivesText =
           procType.effectsBound match
             case None => Text.Empty
-            case Some(syms) => " receives " ~ syms.join(", ")
+            case Some(syms) =>
+              if syms.isEmpty then Text(" receives none")
+              else " receives " ~ syms.join(", ")
 
         tparamText ~ preText ~ postText ~ autoText ~ ": " ~ resType ~ receivesText
 

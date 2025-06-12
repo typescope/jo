@@ -10,7 +10,7 @@ import native.runtime.NativeRuntime
 
 import scala.collection.mutable
 
-/** The compiler phase makes allocation of records and objects explicit
+/** The compiler phase makes allocation of records explicit
   *
   * This phase assumes the following support functions defined in
   * runtime/native/Core.stk:
@@ -21,14 +21,12 @@ import scala.collection.mutable
 class ExplicitAlloc(runtime: NativeRuntime)(using defn: Definitions) extends phases.Phase[Symbol]:
   val contextObject = phases.Phase.OwnerContext
 
-  val IntType = defn.IntType
-
   val memory = new Memory(runtime)
 
   override def transformEncoded(word: Encoded)(using ctx: Context): Word =
     word match
       case encode @ Encoded(rc: RecordLit) if encode.tpe.isObjectType =>
-        val encoding = this(memory.encodeObject(rc))
+        val encoding = this(ObjectEncoding.encodeObject(rc))
         Encoded(encoding)(encode.tpe)
 
       case _ =>
@@ -42,7 +40,7 @@ class ExplicitAlloc(runtime: NativeRuntime)(using defn: Definitions) extends pha
 
     val recordType = word.tpe.asRecordType
     val size = memory.size(recordType)
-    val sizeLit = Literal(Constant.Int(size))(IntType, word.span)
+    val sizeLit = Literal(Constant.Int(size))(defn.IntType, word.span)
     val allocApply = Apply(allocFun, sizeLit :: Nil)(addrType, word.span)
 
     val refSym =
@@ -58,18 +56,35 @@ class ExplicitAlloc(runtime: NativeRuntime)(using defn: Definitions) extends pha
     stats += ref
     Encoded(Block(stats.toList)(ref.tpe, word.span))(word.tpe)
 
+  private def getEncodedRecordType(qual: Word): RecordType =
+    if qual.tpe.isRecordType then
+      qual.tpe.asRecordType
+
+    else if qual.tpe.isClassType then
+      ObjectEncoding.encodeClassType(qual.tpe.asClassInfo)
+
+    else
+      throw new Exception("Unexpect qualifier type in selection: " + qual.tpe)
+
+
   override def transformSelect(select: Select)(using ctx: Context): Word =
     val qual = select.qual
     val select2 = select.copy(qual = this(qual))(select.tpe, select.span)
 
-    if qual.tpe.isRecordType then
-      val recordType = qual.tpe.asRecordType
-      memory.readField(recordType, select2)
-    else
+    if qual.tpe.isObjectType then
       memory.readObjectMember(qual.tpe.asObjectType, select2)
+
+    else
+      val recordType = getEncodedRecordType(qual)
+      memory.readField(recordType, select2)
 
   override def transformFieldAssign(word: FieldAssign)(using ctx: Context): Word =
     val FieldAssign(qual, name, rhs) = word
-    // Only object is mutable
-    val objectType = qual.tpe.asObjectType
-    memory.writeObjectField(objectType, name, this(qual), this(rhs))
+
+    if qual.tpe.isObjectType then
+      val objectType = qual.tpe.asObjectType
+      memory.writeObjectField(objectType, name, this(qual), this(rhs))
+
+    else
+      val recordType = getEncodedRecordType(qual)
+      memory.writeField(recordType, name, this(qual), this(rhs))
