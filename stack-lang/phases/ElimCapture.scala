@@ -272,7 +272,7 @@ object ElimCapture:
 
           Apply(funSubst, args2 ++ extraArgs, autos2)(app.tpe, app.span)
 
-        case Select(qual, name) =>
+        case Select(qual, name) if qual.tpe.isObjectType =>
           val qual2 = this(qual)
           val procType = qual2.tpe.termMember(name).asProcType
           val liftedProcType = procType.prepend(NamedInfo("this", qual2.tpe) :: Nil)
@@ -288,7 +288,7 @@ object ElimCapture:
             val apply = Apply(Encoded(proc)(liftedProcType), receiver :: args2, autos2)(app.tpe, app.span)
             Block(assign :: apply :: Nil)(app.tpe, app.span)
 
-        case TypeApply(Select(qual, name), targs) =>
+        case TypeApply(Select(qual, name), targs) if qual.tpe.isObjectType =>
           // TODO: after type erasure, the special handling here can be removed
           val qual2 = this(qual)
           val funType = fun.tpe.asProcType

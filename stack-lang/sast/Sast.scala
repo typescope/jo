@@ -488,11 +488,10 @@ object Sast:
   extends Def:
     def info(using Definitions): NameTableInfo = symbol.info.as[NameTableInfo]
 
-    def allFuns: List[FunDef] =
-      defs.flatMap:
-        case fdef: FunDef => fdef :: Nil
-        case sec: Section => sec.allFuns
-        case _ => Nil
+    def foreach(f: Def => Unit): Unit =
+      defs.foreach:
+        case sec: Section => sec.foreach(f)
+        case defn => f(defn)
 
   case class Namespace
     (symbol: Symbol, imports: List[Symbol], defs: List[Def])
@@ -502,11 +501,10 @@ object Sast:
 
     def fullName(using Definitions): String = symbol.fullName
 
-    def allFuns: List[FunDef] =
-      defs.flatMap:
-        case fdef: FunDef => fdef :: Nil
-        case sec: Section => sec.allFuns
-        case _ => Nil
+    def foreach(f: Def => Unit): Unit =
+      defs.foreach:
+        case sec: Section => sec.foreach(f)
+        case defn => f(defn)
 
     def mainSymbol: Option[Symbol] =
       val funs = defs.filter(defn => defn.symbol.isFunction && defn.symbol.name == "main")

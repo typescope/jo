@@ -47,8 +47,8 @@ class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
             val uniqueName = unique.freshName(encodeSymbolic(rawName))
             symbol2UniqueName(target) = uniqueName
 
-            // Add function to work list
-            if sym.isFunction then
+            // Add function or class to work list
+            if (sym.isFunction && !sym.isMethod) || sym.isClass then
               workList.add(target)
 
             uniqueName
@@ -130,12 +130,20 @@ class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
 
     workList.add(runtime.JS_start)
 
-    val symbolDefMap = mutable.Map.empty[Symbol, FunDef]
+    val funDefMap = mutable.Map.empty[Symbol, FunDef]
+    val classDefMap = mutable.Map.empty[Symbol, ClassDef]
     for
       ns <- nss
-      fdef <- ns.allFuns
+      defn <- ns
     do
-      symbolDefMap(fdef.symbol) = fdef
+      defn match
+        case fdef: FunDef =>
+          funDefMap(fdef.symbol) = fdef
+
+        case cdef: ClassDef =>
+          classDefMap(cdef.symbol) = cdef
+
+        case _ =>
 
     pw.append("(function() {")
 
@@ -143,9 +151,19 @@ class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
     pw.append(indent(runtime.globalDefCode).toString)
 
     // user code
-    workList.run: funSym =>
-      val funText = indent(Text.BreakLine ~ compile(symbolDefMap(funSym)))
-      pw.append(funText.toString)
+    workList.run: sym =>
+      val code =
+         if sym.isFunction then
+           compileFunction(funDefMap(sym))
+
+         else if sym.isClass then
+           compileClass(classDefMap(sym))
+
+         else
+           throw new Exception("Symbol is neither a function nor class: " + sym)
+
+      val text = indent(Text.BreakLine ~ code)
+      pw.append(text.toString)
 
     val mainCall = indent(Text.BreakLine ~ runtime.JS_start ~ "();")
     pw.append(mainCall.toString)
@@ -197,7 +215,12 @@ class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
           run(repr): v =>
             cont(v)
 
-      case app @ Apply(fun, args, autos) =>
+      case Apply(Select(New(classRef, _), _), args, autos) =>
+        run(args ++ autos): vs =>
+          val newExpr = "new " ~ jsName(classRef.symbol) ~ "(" ~ vs.join(", ") ~ ")"
+          cont(newExpr, sideEffect = true)
+
+      case Apply(fun, args, autos) =>
         call(fun, args ++ autos)
 
       case TypeApply(fun, _) =>
@@ -251,23 +274,29 @@ class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
         cont()
 
       case _: ValDef | _: FunDef |  _: With | _: Allow | _: Object | _: Match |
-           _: TaggedLit | _: PatDef =>
+           _: TaggedLit | _: PatDef | _: New =>
 
         throw new Exception("Unexpected " + word)
 
   /** Compile a function */
-  def compile(fdef: FunDef): Text = try
+  def compileFunction(fdef: FunDef): Text = try
     val sym = fdef.symbol
 
     val funType = sym.info.asProcType
     val resCount = funType.resCount
 
-    // create the name outside of the new scope to avoid conflicting names
-    val jsFunName = jsName(sym)
+    val prefix =
+      if sym.isConstructor then
+        Text("constructor")
+
+      else
+        // create the name outside of the new scope to avoid conflicting names
+        val jsFunName = jsName(sym)
+        if sym.isMethod then Text(jsFunName) else "function " ~ jsFunName
 
     unique.newScope:
       val locals = fdef.locals.filter(sym => sym.isMutable || sym.isPattern).map("var " ~ _ ~ ";" ~ Text.BreakLine)
-      "function " ~ jsFunName ~ "(" ~ fdef.allParams.join(", ") ~ ")" ~ " {" ~ indent:
+      prefix ~ "(" ~ fdef.allParams.join(", ") ~ ")" ~ " {" ~ indent:
           if resCount == 0 then
             locals.join(Text.Empty) ~ fdef.body
           else
@@ -278,6 +307,19 @@ class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
   catch case ex: Exception =>
     println(fdef.body.show)
     throw ex
+
+  /** Compile a class */
+  def compileClass(cdef: ClassDef): Text =
+    val classSym = cdef.symbol
+    val jsClassName = jsName(classSym)
+
+    symbol2UniqueName(cdef.self) = "this"
+
+    unique.newScope:
+      "class " ~ jsClassName ~ " {" ~ indent:
+        cdef.funs.map(fdef => compileFunction(fdef)).join(Text.BlankLine)
+      ~ "}"
+
 
   def div(args: List[Word])(using Context): Text =
     val a :: b :: Nil = args: @unchecked

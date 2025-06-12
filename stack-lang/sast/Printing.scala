@@ -204,7 +204,7 @@ object Printing:
       case Encoded(repr) =>
         "(" ~ repr ~ ": " ~ word.tpe ~ ")"
 
-      case Apply(New(classRef, targs), args, autos) =>
+      case Apply(Select(New(classRef, targs), _), args, autos) =>
         val targsText =
           if targs.isEmpty then Text.Empty
           else "[" ~ targs.join(", ")  ~ "]"
@@ -224,7 +224,7 @@ object Printing:
         fun ~ indent:
           args.join(Text.BreakLine) ~ autoText
 
-      case _: New =>
+      case New(classRef, _) =>
         throw new Exception("Unexpected new expression: " + word)
 
       case TypeApply(fun, targs) =>
