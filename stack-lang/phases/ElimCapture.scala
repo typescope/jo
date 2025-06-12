@@ -50,18 +50,15 @@ object ElimCapture:
       if !owner.isContainer then acc + "$" + owner.name else acc
 
   def createLiftedFunSym(
-    fdef: FunDef,
-    prependParams: List[NamedInfo[Type]],
-    appendParams: List[NamedInfo[Type]])(
-    using defn: Definitions): Symbol =
+      fdef: FunDef, prependParams: List[NamedInfo[Type]], appendParams: List[NamedInfo[Type]])(
+      using defn: Definitions)
+  : Symbol =
 
     val oldFunSym = fdef.symbol
 
-    val paramInfos = fdef.params.map(_.toNamedInfo)
-    val autoInfos = fdef.autos.map(_.toNamedInfo)
-    val resType = fdef.procType.resultType
-    val paramInfos2 = prependParams ++ paramInfos ++ appendParams
-    val funType = ProcType(fdef.tparams, paramInfos2, autoInfos, resType, fdef.effectPolicy, preParamCount = 0)
+    val oldProcType = oldFunSym.info.as[ProcType]
+    val paramInfos = prependParams ++ oldProcType.params ++ appendParams
+    val funType = oldProcType.copy(params = paramInfos)
 
     val funName = flatName(fdef.symbol)
     Symbol.createSymbol(funName, funType, Flags.Fun | Flags.Synthetic, oldFunSym.enclosingContainer, oldFunSym.sourcePos)
@@ -242,6 +239,7 @@ object ElimCapture:
         val body2 = Block(aliases.toList :+ body)(body.tpe, body.span)
         val params = paramThis :: fdef.params
 
+        // TODO: owners of params and locals are broken ---- do we need them?
         ctx.lifted += FunDef(liftedSym, fdef.tparams, params, fdef.autos, fdef.resultType, body2)(fdef.span)
       end for
 
