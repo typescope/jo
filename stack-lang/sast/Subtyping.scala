@@ -12,7 +12,7 @@ object Subtyping:
 
   /** Whether `tp1` conforms to `tp2` */
   def conforms(tp1: Type, tp2: Type)(using defn: Definitions): Boolean =
-    defn.cachedConforms(tp1, tp2, cache = true):
+    defn.cache.conforms(tp1, tp2, cache = true):
       checkConforms(tp1,tp2)(using new Context())
 
   def isEqualType(tp1: Type, tp2: Type)(using Definitions): Boolean =
@@ -95,7 +95,7 @@ object Subtyping:
 
   private def recur(tp1: Type, tp2: Type)(using ctx: Context, defn: Definitions): Boolean =
     Debug.trace(s"${tp1.show} <: ${tp2.show}", enable = false) {
-      defn.cachedConforms(tp1, tp2, cache = ctx.hasAssumptions):
+      defn.cache.conforms(tp1, tp2, cache = ctx.hasAssumptions):
         Subtyping.checkConforms(tp1, tp2)
     }
 

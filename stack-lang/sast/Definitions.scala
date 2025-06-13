@@ -5,8 +5,6 @@ import Symbols.*
 
 import reporting.Reporter
 
-import scala.collection.mutable
-
 final class Definitions(rootNameTable: NameTable, initProvider: InfoProvider):
 
   export rootNameTable.resolveTermByPath
@@ -17,6 +15,10 @@ final class Definitions(rootNameTable: NameTable, initProvider: InfoProvider):
   given Definitions = this
 
   private var provider: InfoProvider = initProvider
+
+  private var cacheForInfoProvider: Cache = new Cache
+
+  def cache: Cache = cacheForInfoProvider
 
   def info(sym: Symbol): SymInfo = provider(sym)
 
@@ -31,6 +33,9 @@ final class Definitions(rootNameTable: NameTable, initProvider: InfoProvider):
 
   def installTransform(transform: SymInfo => SymInfo): Unit =
     provider = new InfoProvider.InfoTransformer(provider, transform)
+
+    // Invalidate old cache
+    cacheForInfoProvider = new Cache
 
   //----------------------------------------------------------------------------
   // Predefined symbols
@@ -136,49 +141,6 @@ final class Definitions(rootNameTable: NameTable, initProvider: InfoProvider):
 
   def isRuntimeContextParam(sym: Symbol): Boolean =
     runtimeContextParams.exists(param => sym.refers(param))
-
-  private val subtypingCache: mutable.Map[Type, mutable.Map[Type, Boolean]] =
-    mutable.Map.empty
-
-  def cachedConforms(tp1: Type, tp2: Type, cache: Boolean)(work: => Boolean): Boolean =
-    val tp1norm = TypeOps.normalize(tp1)
-    val tp2norm = TypeOps.normalize(tp2)
-    subtypingCache.get(tp1norm) match
-      case Some(innerMap) =>
-        innerMap.get(tp2norm) match
-          case Some(res) => res
-          case None =>
-            val res = work
-            if cache then innerMap(tp2norm) = res
-            res
-
-      case None =>
-        val innerMap: mutable.Map[Type, Boolean] = mutable.Map.empty
-        subtypingCache(tp1norm) = innerMap
-        val res = work
-        if cache then innerMap(tp2norm) = res
-        res
-
-  private val substitutionCache: mutable.Map[Type, mutable.Map[List[Type], Type]] =
-    mutable.Map.empty
-
-  def cachedSubst(tp: Type, targs: List[Type])(work: => Type): Type =
-    val targs2 = targs.map(TypeOps.normalize)
-    substitutionCache.get(tp) match
-      case Some(innerMap) =>
-        innerMap.get(targs2) match
-          case Some(res) => res
-          case None =>
-            val res = work
-            innerMap(targs2) = res
-            res
-
-      case None =>
-        val innerMap: mutable.Map[List[Type], Type] = mutable.Map.empty
-        substitutionCache(tp) = innerMap
-        val res = work
-        innerMap(targs2) = res
-        res
 
 end Definitions
 

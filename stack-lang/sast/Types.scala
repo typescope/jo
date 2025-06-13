@@ -10,14 +10,10 @@ import scala.collection.mutable
 /** The type system of Stk  */
 object Types:
   sealed abstract class Type:
-    private var approxType: Type | Null = null
 
-    private def approx(using Definitions): Type =
-      if approxType == null || approxType.is[TypeVar] then
-        approxType = TypeOps.approx(this, isUp = true)
-
-      approxType.nn
-
+    private def approx(using defn: Definitions): Type =
+      defn.cache.approximate(this):
+        TypeOps.approx(this, isUp = true)
 
     /** Whether the type is an error type
       *
