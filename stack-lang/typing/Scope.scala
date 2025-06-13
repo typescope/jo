@@ -24,7 +24,7 @@ enum Scope:
     *
     * The scope is used for auto-importing members of `this`.
     */
-  case PrefixedScope(outer: Scope, table: NameTable, owner: Symbol)
+  case PrefixedScope(outer: Scope, table: NameTable, prefix: Symbol, owner: Symbol)
 
   protected val table: NameTable
 
@@ -40,8 +40,8 @@ enum Scope:
   def freshLocalPatternScope(): Scope =
     new Scope.LocalPatternScope(this, new NameTable, owner)
 
-  def freshPrefixedScope(prefix: Symbol): Scope =
-    new Scope.PrefixedScope(this, new NameTable, prefix)
+  def freshPrefixedScope(prefix: Symbol, owner: Symbol): Scope =
+    new Scope.PrefixedScope(this, new NameTable, prefix, owner)
 
   def fresh(owner: Symbol): Scope =
     new Scope.NestedScope(this, new NameTable, owner)
@@ -71,7 +71,7 @@ enum Scope:
 
       case res  =>
         this match
-          case sc: PrefixedScope => oob.addKey(Scope.PrefixKey, sc.owner)
+          case sc: PrefixedScope => oob.addKey(Scope.PrefixKey, sc.prefix)
           case _ =>
 
         res

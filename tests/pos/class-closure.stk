@@ -1,0 +1,15 @@
+class Box[T]
+  var value: T
+
+  def Box(x: T) = { value = x }
+
+  def map[S](f: T => S): Box[S] = new Box(f value)
+
+fun main =
+  val a = new Box(4)
+  println
+    intToStr a.map(i => i + 3).value
+
+  a.value = 5
+  println
+    intToStr a.map(i => i * 2).value

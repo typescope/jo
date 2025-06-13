@@ -408,7 +408,7 @@ class Namer:
     val thisSym = Symbol.createSymbol("this", Flags.Synthetic, obj.pos)
 
     // scope for checking member methods
-    given sc2: Scope = sc.freshPrefixedScope(prefix = thisSym)
+    given sc2: Scope = sc.freshPrefixedScope(prefix = thisSym, owner = thisSym)
 
     for case vdef: Ast.ValDef <- obj.members do
       var flags = checker.checkModifiers(vdef)
@@ -1456,7 +1456,7 @@ class Namer:
       // Add this to scope
       val thisScope = paramScope.fresh()
       thisScope.define(thisSym)
-      val shortCutScope = thisScope.freshPrefixedScope(prefix = thisSym)
+      val shortCutScope = thisScope.freshPrefixedScope(prefix = thisSym, owner = classSym)
 
       val thisInfo: Type =
         val classRef = StaticRef(classSym)

@@ -33,14 +33,14 @@ class EncodeClass(using defn: Definitions) extends phases.Phase[Symbol]:
 
   override def transform(nss: List[Namespace]): List[Namespace] =
     defn.installTransform { symInfo =>
-      val sym = symInfo.symbol
-      if sym.isMethod && sym.owner.isClass then
-        val oldProcType = symInfo.tpe.as[ProcType]
-        val thisInfo = sym.owner.info.asClassInfo.self.info
+      val SymInfo(sym, owner, info) = symInfo
+      if sym.isMethod && owner.isClass || sym.isConstructor then
+        val oldProcType = info.as[ProcType]
+        val thisInfo = owner.classInfo.self.info
 
         val paramInfos = NamedInfo("this", thisInfo)
         val funType = oldProcType.prepend(paramInfos :: Nil)
-        SymInfo(sym, sym.enclosingContainer, funType)
+        SymInfo(sym, owner.enclosingContainer, funType)
       else
         symInfo
     }
@@ -56,6 +56,7 @@ class EncodeClass(using defn: Definitions) extends phases.Phase[Symbol]:
     val self = cdef.self
     for fdef <- cdef.funs yield
       // TODO: type erasure to properly handle type parameters
+      given Context = fdef.symbol
       val body2 = this.transform(fdef.body)
       FunDef(fdef.symbol, fdef.tparams, self :: fdef.params, fdef.autos, fdef.resultType, body2)(fdef.span)
 

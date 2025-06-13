@@ -31,6 +31,11 @@ final class Definitions(rootNameTable: NameTable, initProvider: InfoProvider):
   def addLazy(sym: Symbol, owner: Symbol, infoLazy: () => Type): Unit =
     provider.addLazy(sym, owner, infoLazy, () => ErrorType)
 
+  /** Install a transformer for symbols
+    *
+    * Warning: Accessing `sym.info` or `sym.owner` will loop. Use the provided
+    * data in `SymInfo` instead.
+    */
   def installTransform(transform: SymInfo => SymInfo): Unit =
     provider = new InfoProvider.InfoTransformer(provider, transform)
 
