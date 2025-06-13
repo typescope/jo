@@ -7,24 +7,6 @@
 |   val x: Int
 |       ^
 
----------- Error at ./tests/warn/class.stk:3:7 ---------------
-|   val x: Int
-|       ^
-|       Redefinition of x
-|
-| The name `x` is already defined at ./tests/warn/class.stk:2:7
-|   val x: Int
-|       ^
-
----------- Error at ./tests/warn/class.stk:7:7 ---------------
-|   def foo(y: String): String = y
-|       ^^^
-|       Redefinition of foo
-|
-| The name `foo` is already defined at ./tests/warn/class.stk:6:7
-|   def foo(x: Int): Int = x
-|       ^^^
-
 ---------- Error at ./tests/warn/class.stk:7:7 ---------------
 |   def foo(y: String): String = y
 |       ^^^
@@ -99,4 +81,4 @@
 |   ^^^^^^^^^^^^^
 |   The function expects 1 argument(s), found = 2
 
-17 error(s), 0 warning(s)
+15 error(s), 0 warning(s)

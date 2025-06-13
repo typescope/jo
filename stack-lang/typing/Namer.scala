@@ -1443,12 +1443,9 @@ class Namer:
 
     val fields = new mutable.ArrayBuffer[Symbol]
     val methods = new mutable.ArrayBuffer[Symbol]
-    var constructor: Symbol | Null = null
 
     lazy val classInfo: Type =
-      val base = new ClassInfo(
-        classSym, tparamSyms.map(StaticRef.apply), thisSym, constructor.nn,
-        fields.toList, methods.toList)
+      val base = new ClassInfo(classSym, tparamSyms.map(StaticRef.apply), thisSym, fields.toList, methods.toList)
 
       if cdef.tparams.isEmpty then base
       else TypeLambda(tparamSyms, base, preParamCount = 0)
@@ -1500,14 +1497,13 @@ class Namer:
         if fdef.name == cdef.name then
           // Constructor is checked with outer scope
           given Scope = paramScope
-          val res = transformConstructor(fdef, thisSym, classSym)
-          constructor = res.symbol
-          res
+          transformConstructor(fdef, thisSym, classSym)
 
         else
-          val res = transformFunDef(fdef, Flags.Fun | Flags.Method, Effects.Policy.Infer)
-          methods += res.symbol
-          res
+          transformFunDef(fdef, Flags.Fun | Flags.Method, Effects.Policy.Infer)
+
+
+      methods += delayedDef.symbol
 
       // Operator name should not be called directly without a prefix
       if !Name.isOperator(delayedDef.symbol.name) then

@@ -469,12 +469,16 @@ object Types:
 
     export nameTable.{ resolveType, resolveTerm, resolvePattern, define }
 
+  /** Represents the information of a class type
+    *
+    * @param methods all methods (including contructor)
+    */
   case class ClassInfo(
     val classSymbol: Symbol, val targs: List[Type], val self: Symbol,
-    val constructor: Symbol, val fields: List[Symbol], val methods: List[Symbol])
+    val fields: List[Symbol], val methods: List[Symbol])
   extends Type:
-    /** Return all methods (including contructor) */
-    def allMethods: List[Symbol] = constructor :: methods
+    /** Return all methods including the constructor */
+    def allMethods: List[Symbol] = methods
 
     def field(name: String): Symbol =
       fields.find(_.name == name) match
@@ -483,16 +487,7 @@ object Types:
 
     def getMemberSymbol(name: String): Option[Symbol] =
       fields.find(_.name == name) match
-        case None =>
-
-          methods.find(_.name == name) match
-            case None =>
-              if name == classSymbol.name then Some(constructor)
-              else throw new Exception("No member " + name + " in class " + classSymbol)
-
-            case res => res
-
-
+        case None => methods.find(_.name == name)
         case res => res
 
     def getTermMember(prefix: Type, name: String)(using Definitions): Option[RefType] =
