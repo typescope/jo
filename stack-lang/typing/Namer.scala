@@ -375,8 +375,9 @@ class Namer:
         val sym = sc.resolveTerm(name, word.pos)
         if sym.isField || sym.isMethod then
           // Normalize SAST
-          val qual = Ident(oob.getKey(Scope.PrefixKey))(word.span)
-          Select(qual, sym.name)(sym.info, word.span)
+          val prefix = oob.getKey(Scope.PrefixKey)
+          val qual = Ident(prefix)(word.span)
+          Select(qual, sym.name)(qual.tpe.termMember(sym.name), word.span)
 
         else
           checker.checkCapture(sym, word.pos)
@@ -546,6 +547,9 @@ class Namer:
         else
           classRef
 
+      // Always prefer type constraints from outer scope if present
+      for tp <- tt.knownType do Subtyping.conforms(instanceType, tp)
+
       instanceType.getTermMember(classSym.name) match
         case None =>
           Reporter.error("The class cannot be instantiated as it does not have a constructor.", newExpr.pos)
@@ -641,7 +645,7 @@ class Namer:
     val objType = objWord.tpe
     val objSpan = obj.span
 
-    if objType.isObjectType then
+    if objType.isObjectType || objType.isClassType then
       objType.getTermMember(meth.name) match
         case Some(tp) =>
           var fun: Word = Select(objWord, meth.name)(tp, objSpan | meth.span)
@@ -1475,7 +1479,7 @@ class Namer:
       val sym = Symbol.createSymbol(vdef.name, flags, vdef.ident.pos)
       shortCutScope.define(sym)
 
-      val tp =
+      def checkType() =
         val tpt = transformType(vdef.tpt)
         val tp2 = checker.checkValueType(tpt.tpe, tpt.pos)
         tp2
@@ -1484,7 +1488,7 @@ class Namer:
         Reporter.error("Class name cannot be used as field name", vdef.pos)
 
       else
-        defn.add(sym, classSym, tp)
+        defn.addLazy(sym, classSym, () => checkType())
         fields += sym
 
     for case fdef: Ast.FunDef <- cdef.members do

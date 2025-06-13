@@ -156,7 +156,7 @@ object EffectAnalysis:
                   effs.map(_ -> Vector(word.pos))
 
                 case Effects.Policy.Infer =>
-                  assert(word.tpe.is[Types.RefType], "Ref type expected, found = " + word.tpe)
+                  assert(word.tpe.is[Types.RefType], "Ref type expected, found = " + word.tpe + ", word = " + word.show)
                   val sym = word.tpe.as[Types.RefType].symbol
 
                   for (eff, trace) <- getEffects(sym) yield
