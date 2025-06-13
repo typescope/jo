@@ -67,7 +67,7 @@ class EncodeClass(using defn: Definitions) extends phases.Phase[Symbol]:
     for field <- classInfo.fields yield
       members += field.name -> Encoded(IntLit(0)(newExpr.span))(field.info)
 
-    for fun <- classInfo.methods do
+    for fun <- classInfo.allMethods do
       members += fun.name -> Ident(fun)(newExpr.span)
 
     val recordType = ObjectEncoding.encodeClassType(classInfo)

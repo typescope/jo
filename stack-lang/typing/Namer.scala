@@ -1435,16 +1435,20 @@ class Namer:
     val classSym = new TypeSymbol(kind, cdef.name, flags, cdef.ident.pos)
     val thisSym = Symbol.createSymbol("this", Flags.Synthetic, cdef.ident.pos)
 
-    val memberTable = new NameTable
-
     given defn: Definitions = lazyDefn.value
 
     given paramScope: Scope = sc.fresh(classSym)
 
     lazy val tparamSyms = transformTypeParams(cdef.tparams)
 
+    val fields = new mutable.ArrayBuffer[Symbol]
+    val methods = new mutable.ArrayBuffer[Symbol]
+    var constructor: Symbol | Null = null
+
     lazy val classInfo: Type =
-      val base = new ClassInfo(classSym, tparamSyms.map(StaticRef.apply), thisSym, memberTable)
+      val base = new ClassInfo(
+        classSym, tparamSyms.map(StaticRef.apply), thisSym, constructor.nn,
+        fields.toList, methods.toList)
 
       if cdef.tparams.isEmpty then base
       else TypeLambda(tparamSyms, base, preParamCount = 0)
@@ -1452,70 +1456,70 @@ class Namer:
     val ip = lazyDefn.infoProvider
     ip.addLazy(classSym, sc.owner, () => classInfo)
 
-    val typer = () =>
-      // Add this to scope
-      val thisScope = paramScope.fresh()
-      thisScope.define(thisSym)
-      val shortCutScope = thisScope.freshPrefixedScope(prefix = thisSym, owner = classSym)
+    // Add this to scope
+    val thisScope = paramScope.fresh()
+    thisScope.define(thisSym)
+    val shortCutScope = thisScope.freshPrefixedScope(prefix = thisSym, owner = classSym)
 
-      val thisInfo: Type =
-        val classRef = StaticRef(classSym)
-        if tparamSyms.isEmpty then classRef
-        else AppliedType(classRef, tparamSyms.map(StaticRef.apply))
+    val thisInfo: Type =
+      val classRef = StaticRef(classSym)
+      if tparamSyms.isEmpty then classRef
+      else AppliedType(classRef, tparamSyms.map(StaticRef.apply))
 
-      defn.add(thisSym, classSym, thisInfo)
+    defn.add(thisSym, classSym, thisInfo)
 
-      val vals = new mutable.ArrayBuffer[Symbol]
-      val delayedDefs = new mutable.ArrayBuffer[DelayedDef[FunDef]]
+    val delayedDefs = new mutable.ArrayBuffer[DelayedDef[FunDef]]
 
-      for case vdef: Ast.ValDef <- cdef.members do
-        var flags = checker.checkModifiers(vdef)
-        if vdef.mutable then flags = flags | Flags.Field | Flags.Mutable
-        else flags = flags | Flags.Field
+    for case vdef: Ast.ValDef <- cdef.members do
+      var flags = checker.checkModifiers(vdef)
+      if vdef.mutable then flags = flags | Flags.Field | Flags.Mutable
+      else flags = flags | Flags.Field
 
-        val sym = Symbol.createSymbol(vdef.name, flags, vdef.ident.pos)
-        memberTable.define(sym)
-        shortCutScope.define(sym)
+      val sym = Symbol.createSymbol(vdef.name, flags, vdef.ident.pos)
+      shortCutScope.define(sym)
 
-        val tp =
-          val tpt = transformType(vdef.tpt)
-          val tp2 = checker.checkValueType(tpt.tpe, tpt.pos)
-          tp2
+      val tp =
+        val tpt = transformType(vdef.tpt)
+        val tp2 = checker.checkValueType(tpt.tpe, tpt.pos)
+        tp2
 
-        if vdef.name == cdef.name then
-          Reporter.error("Class name cannot be used as field name", vdef.pos)
+      if vdef.name == cdef.name then
+        Reporter.error("Class name cannot be used as field name", vdef.pos)
+
+      else
+        defn.add(sym, classSym, tp)
+        fields += sym
+
+    for case fdef: Ast.FunDef <- cdef.members do
+      given Scope = shortCutScope
+
+      if fdef.preParamCount != 0 then
+        Reporter.error("Methods cannot have pre-arguments", fdef.pos)
+
+      val delayedDef =
+        if fdef.name == cdef.name then
+          // Constructor is checked with outer scope
+          given Scope = paramScope
+          val res = transformConstructor(fdef, thisSym, classSym)
+          constructor = res.symbol
+          res
 
         else
-          defn.add(sym, classSym, tp)
-          vals += sym
+          val res = transformFunDef(fdef, Flags.Fun | Flags.Method, Effects.Policy.Infer)
+          methods += res.symbol
+          res
 
-      for case fdef: Ast.FunDef <- cdef.members do
-        given Scope = shortCutScope
+      // Operator name should not be called directly without a prefix
+      if !Name.isOperator(delayedDef.symbol.name) then
+        shortCutScope.define(delayedDef.symbol)
 
-        if fdef.preParamCount != 0 then
-          Reporter.error("Methods cannot have pre-arguments", fdef.pos)
+      delayedDefs += delayedDef
 
-        val delayedDef =
-          if fdef.name == cdef.name then
-            // Constructor is checked with outer scope
-            given Scope = paramScope
-            transformConstructor(fdef, thisSym, classSym)
-
-          else
-            transformFunDef(fdef, Flags.Fun | Flags.Method, Effects.Policy.Infer)
-
-        memberTable.define(delayedDef.symbol)
-        // Operator name should not be called directly without a prefix
-        if !Name.isOperator(delayedDef.symbol.name) then
-          shortCutScope.define(delayedDef.symbol)
-
-        delayedDefs += delayedDef
-
-
+    val typer = () =>
       val funs: List[FunDef] =
         for delayedDef <- delayedDefs.toList yield delayedDef.force()
 
-      ClassDef(classSym, thisSym, tparamSyms, vals.toList, funs)(cdef.span)
+      ClassDef(classSym, thisSym, tparamSyms, fields.toList, funs)(cdef.span)
 
     DelayedDef(classSym, typer)
 

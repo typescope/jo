@@ -41,7 +41,7 @@ object ObjectEncoding:
     for field <- classInfo.fields do
       memberTypes += field.toNamedInfo
 
-    for fun <- classInfo.methods do
+    for fun <- classInfo.allMethods do
       memberTypes += fun.toNamedInfo
 
     RecordType(memberTypes.toList)

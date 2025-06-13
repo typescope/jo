@@ -528,7 +528,7 @@ object Interpreter:
         val classInfo = classSym.classInfo
 
         val fields = mutable.Map.empty[String, Value]
-        val methods = classInfo.methods.map(sym => sym.name -> sym).toMap
+        val methods = classInfo.allMethods.map(sym => sym.name -> sym).toMap
         val objVal = ObjectVal(fields, classInfo.self, methods, Env.RootEnv())
         objVal :: Nil
 

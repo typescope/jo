@@ -63,11 +63,12 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends S
 
     word match
       case Ident(sym) =>
-        if sym.isOneOf(Flags.NSpace | Flags.Method | Flags.Field | Flags.Type) then
-          Reporter.error("A term Ident tree should not be namespace, method, field or type", word.pos)
+        // TODO: change flags of lifted methods
+        if sym.isOneOf(Flags.NSpace | Flags.Method | Flags.Field | Flags.Type) && !sym.owner.isContainer then
+          Reporter.error("A term Ident tree should not be namespace, method, field or type, id = " + word, word.pos)
 
-        if !sym.owner.isFunction && !sym.owner.isContainer then
-          Reporter.error("The owner of an ident should be either a function or an container, found = " + sym.owner, word.pos)
+        if !sym.owner.isFunction && !sym.owner.isClass && !sym.owner.isContainer then
+          Reporter.error("The owner of an ident should be either a function, a class or an container, found = " + sym.owner, word.pos)
 
         // TODO: enable after fixing owners of pattern translation & lifting
         // if sym.isLocal && sym.owner != ctx.enclosingFun && !ctx.enclosingFun.ownersIterator.exists(_ == sym.owner) then
@@ -97,16 +98,20 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends S
           Reporter.error("Expect object type, found = " + word.tpe.show, word.pos)
 
       case FieldAssign(qual, name, rhs) =>
-        if !qual.tpe.isObjectType then
+        if !qual.tpe.isObjectType && !qual.tpe.isClassType then
           Reporter.error("Object type expected, found = " + qual.tpe.show, word.pos)
 
-        else if !qual.tpe.asObjectType.isMutable(name) then
-          Reporter.error(s"Field $name is not mutable", word.pos)
-
         else
-          val memberType = qual.tpe.termMember(name).widenTermRef
-          if !Subtyping.conforms(rhs.tpe, memberType) then
-            Reporter.error(s"Rhs has the type ${rhs.tpe.show}, which is not a subtype of ${memberType.show}", word.pos)
+          if
+            qual.tpe.isObjectType && !qual.tpe.asObjectType.isMutable(name)
+            || qual.tpe.isClassType && !qual.tpe.asClassInfo.field(name).isMutable
+          then
+            Reporter.error(s"Field $name is not mutable", word.pos)
+
+          else
+            val memberType = qual.tpe.termMember(name).widenTermRef
+            if !Subtyping.conforms(rhs.tpe, memberType) then
+              Reporter.error(s"Rhs has the type ${rhs.tpe.show}, which is not a subtype of ${memberType.show}", word.pos)
 
       case Assign(ident, rhs) =>
         // After type checking, a ValDef may become Assign.
@@ -150,7 +155,7 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends S
           Reporter.error("Expect function, found = " + sym, fun.pos)
 
       case Select(qual, _) =>
-        if !qual.tpe.isObjectType then
+        if !qual.tpe.isObjectType && !qual.tpe.isClassType then
           Reporter.error("Expect object type, found = " + qual.tpe.show, qual.pos)
 
       case TypeApply(fun, _) => checkFunShape(fun)
