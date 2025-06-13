@@ -66,19 +66,24 @@
 |                  ^
 |                  The result type of constructor should be the same as the class
 
----------- Error at ./tests/warn/class.stk:66:3 ---------------
+---------- Error at ./tests/warn/class.stk:72:5 ---------------
+|     n = y
+|     ^
+|     n is not a mutable value
+
+---------- Error at ./tests/warn/class.stk:75:3 ---------------
 |   new C
 |   ^^^^^
 |   The function expects 1 argument(s), found = 0
 
----------- Error at ./tests/warn/class.stk:68:9 ---------------
+---------- Error at ./tests/warn/class.stk:77:9 ---------------
 |   new C("hello")
 |         ^^^^^^^
 |         Expect type Int, found = String
 
----------- Error at ./tests/warn/class.stk:70:3 ---------------
+---------- Error at ./tests/warn/class.stk:79:3 ---------------
 |   new C(10, 20)
 |   ^^^^^^^^^^^^^
 |   The function expects 1 argument(s), found = 2
 
-15 error(s), 0 warning(s)
+16 error(s), 0 warning(s)

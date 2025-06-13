@@ -62,6 +62,15 @@ class L
   def L(x: Int): K =
     { n = x }
 
+class M
+  val n: Int
+
+  def M(x: Int): M =
+    { n = x }
+
+  def foo(y: Int) =
+    n = y
+
 fun test =
   new C
 

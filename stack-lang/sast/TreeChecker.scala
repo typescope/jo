@@ -102,16 +102,17 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends S
           Reporter.error("Object type expected, found = " + qual.tpe.show, word.pos)
 
         else
-          if
-            qual.tpe.isObjectType && !qual.tpe.asObjectType.isMutable(name)
-            || qual.tpe.isClassType && !qual.tpe.asClassInfo.field(name).isMutable
-          then
-            Reporter.error(s"Field $name is not mutable", word.pos)
+          // The constructor initializes immutable fields
+          //
+          // if
+          //   qual.tpe.isObjectType && !qual.tpe.asObjectType.isMutable(name)
+          //   || qual.tpe.isClassType && !qual.tpe.asClassInfo.field(name).isMutable
+          // then
+          //   Reporter.error(s"Field $name is not mutable", word.pos)
 
-          else
-            val memberType = qual.tpe.termMember(name).widenTermRef
-            if !Subtyping.conforms(rhs.tpe, memberType) then
-              Reporter.error(s"Rhs has the type ${rhs.tpe.show}, which is not a subtype of ${memberType.show}", word.pos)
+          val memberType = qual.tpe.termMember(name).widenTermRef
+          if !Subtyping.conforms(rhs.tpe, memberType) then
+            Reporter.error(s"Rhs has the type ${rhs.tpe.show}, which is not a subtype of ${memberType.show}", word.pos)
 
       case Assign(ident, rhs) =>
         // After type checking, a ValDef may become Assign.
