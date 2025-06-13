@@ -27,8 +27,7 @@ class UniqueName:
     * Names allocated in a nested scope are invisible to outer scopes, thus the
     * name resouces can be reclaimed at the end of the scope.
     */
-  def newScope[T](fn: => T): T =
-    val current = usedNames
-    val res = fn
-    usedNames = current
-    res
+  def newScope: UniqueName =
+    val uniq = new UniqueName
+    uniq.usedNames = this.usedNames
+    uniq

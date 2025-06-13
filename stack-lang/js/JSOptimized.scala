@@ -20,7 +20,7 @@ import scala.collection.mutable
   * JavaScript platform with code optimization
   */
 class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
-  private val unique = new UniqueName
+  private val reservedNames = new UniqueName
 
   val keywords = List(
     "for", "while", "function", "var", "let", "break", "continue", "if",
@@ -28,7 +28,13 @@ class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
   )
 
   // Make keywords unavailable
-  for word <- keywords do unique.freshName(word)
+  for word <- keywords do reservedNames.freshName(word)
+
+  // Make runtime symbols unavailable
+  for name <- runtime.runtimeNames do reservedNames.freshName(name)
+
+  val globalScope = reservedNames.newScope
+  var localScope = reservedNames.newScope // reset to `reservedNames.newScope` for each function
 
   private val symbol2UniqueName: mutable.Map[Symbol, String] = mutable.Map.empty
 
@@ -44,7 +50,12 @@ class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
 
           case None =>
             val rawName = target.fullName
-            val uniqueName = unique.freshName(encodeSymbolic(rawName))
+            val uniqueName =
+              if sym.isLocal then
+                localScope.freshName(encodeSymbolic(rawName))
+              else
+                globalScope.freshName(encodeSymbolic(rawName))
+
             symbol2UniqueName(target) = uniqueName
 
             // Add function or class to work list
@@ -93,7 +104,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
         if isLast || !sideEffect then
           cont2(text)
         else
-          val resName = unique.freshName("res")
+          val resName = localScope.freshName("res")
           "const " ~ resName ~ " = " ~ text ~ ";" ~ Text.BreakLine
           ~ cont2(Text(resName))
 
@@ -124,9 +135,6 @@ class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
 
   def compile(nss: List[Namespace]): Unit =
     val pw =  new PrintWriter(outFile)
-
-    // Make runtime symbols unavailable
-    for name <- runtime.runtimeNames do unique.freshName(name)
 
     workList.add(runtime.JS_start)
 
@@ -240,7 +248,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
       case If(cond, thenp, elsep) =>
         run(cond): v =>
           if word.tpe.isValueType then
-            val resName = unique.freshName("res")
+            val resName = localScope.freshName("res")
             "var " ~ resName ~ ";" ~ Text.BreakLine ~
             "if (" ~ v ~ ")" ~ " {" ~ indent:
                 run(thenp): v =>
@@ -294,16 +302,17 @@ class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
         val jsFunName = jsName(sym)
         if sym.isMethod then Text(jsFunName) else "function " ~ jsFunName
 
-    unique.newScope:
-      val locals = fdef.locals.filter(sym => sym.isMutable || sym.isPattern).map("var " ~ _ ~ ";" ~ Text.BreakLine)
-      prefix ~ "(" ~ fdef.allParams.join(", ") ~ ")" ~ " {" ~ indent:
-          if resCount == 0 then
-            locals.join(Text.Empty) ~ fdef.body
-          else
-            locals.join(Text.Empty) ~ runLast(fdef.body) { v =>
-              "return " ~ v ~ ";" ~  Text.BreakLine
-            }
-      ~ "}"
+    localScope = reservedNames.newScope
+
+    val locals = fdef.locals.filter(sym => sym.isMutable || sym.isPattern).map("var " ~ _ ~ ";" ~ Text.BreakLine)
+    prefix ~ "(" ~ fdef.allParams.join(", ") ~ ")" ~ " {" ~ indent:
+        if resCount == 0 then
+          locals.join(Text.Empty) ~ fdef.body
+        else
+          locals.join(Text.Empty) ~ runLast(fdef.body) { v =>
+            "return " ~ v ~ ";" ~  Text.BreakLine
+          }
+    ~ "}"
   catch case ex: Exception =>
     println(fdef.body.show)
     throw ex
@@ -315,10 +324,16 @@ class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
 
     symbol2UniqueName(cdef.self) = "this"
 
-    unique.newScope:
-      "class " ~ jsClassName ~ " {" ~ indent:
-        cdef.funs.map(fdef => compileFunction(fdef)).join(Text.BlankLine)
-      ~ "}"
+    val classScope = reservedNames.newScope
+
+    "class " ~ jsClassName ~ " {" ~ indent:
+      cdef.funs
+        .map: fdef =>
+          localScope = classScope
+          compileFunction(fdef)
+
+        .join(Text.BlankLine)
+    ~ "}"
 
 
   def div(args: List[Word])(using Context): Text =
