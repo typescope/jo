@@ -32,6 +32,8 @@ object Printing:
       println(show(ns))
       println
 
+  private final val showSymbolID = false
+
   //----------------------------------------------------------------------------
 
   given (using Definitions): Text.Maker[Word] =
@@ -56,7 +58,11 @@ object Printing:
     v => Text(v.tpe.show)
 
   given (using Definitions): Text.Maker[Symbol] =
-    v => Text(v.name)
+    v =>
+      if showSymbolID then
+        Text(v.name ~ "#" ~ System.identityHashCode(v))
+      else
+        Text(v.name)
 
   given (using Definitions): Text.Maker[Type] =
     v => showType(v)
@@ -188,7 +194,7 @@ object Printing:
             else
               Text(n.toString)
 
-      case Ident(sym) => Text(sym.name)
+      case Ident(sym) => Text(sym)
 
       case Select(qual, name) =>
         qual ~ "." ~ name
@@ -248,7 +254,7 @@ object Printing:
         "(" ~ expr ~ " allow " ~ paramText ~ ")"
 
       case Assign(id, rhs) =>
-        id ~ " = " ~ indent(rhs)
+        id.symbol ~ " = " ~ indent(rhs)
 
       case FieldAssign(qual, name, rhs) =>
         qual ~ "." ~ name ~ " <- " ~ rhs

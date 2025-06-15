@@ -43,6 +43,7 @@ object ElimCapture:
     val lifter = new Lifter(fdef.symbol)
     val body = lifter.apply(fdef.body)
     val lifted = ctx.lifted.toList
+
     (fdef.copy(body = body)(fdef.span), lifted)
 
   def flatName(fun: Symbol)(using Definitions): String =
@@ -307,8 +308,8 @@ object ElimCapture:
             Block(assign :: apply :: Nil)(app.tpe, app.span)
 
         case _ =>
-          // global function call
-          Apply(fun, args2, autos2)(app.tpe, app.span)
+          // global function call or class method call
+          Apply(this(fun), args2, autos2)(app.tpe, app.span)
 
 
     override def transformValDef(vdef: ValDef)(using ctx: Context): Word =
