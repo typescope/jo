@@ -566,6 +566,27 @@ object SastOps:
 
     type Context = Unit
 
+    override def apply(pat: Pattern)(using Context): Unit =
+      pat match
+        case AscribePattern(id, nested) =>
+          locals += id.symbol
+          this(nested)
+
+        case SeqPattern(pats) =>
+          pats.foreach:
+            case AtomPattern(pattern) => this(pattern)
+
+            case SkipToPattern(pattern) => this(pattern)
+
+            case RemainingSlicePattern(pattern) => this(pattern)
+
+            case star @ StarPattern(pattern) =>
+              locals ++= star.bindings.map(_._1)
+              this(pattern)
+
+        case _ =>
+          recur(pat)
+
     def apply(word: Word)(using Context): Unit =
       word match
         case Ident(sym) =>

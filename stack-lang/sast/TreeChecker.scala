@@ -27,6 +27,10 @@ object TreeChecker:
           given CheckerContext = new CheckerContext(fdef.symbol)
           new TreeChecker().recur(fdef.body)
 
+          val undefined = fdef.freeVariables.filter(_.isLocal)
+          if undefined.nonEmpty then
+            Reporter.error("Undefined local variable(s) = " + undefined, fdef.pos)
+
         case pdef: PatDef =>
           given CheckerContext = new CheckerContext(pdef.symbol)
           new TreeChecker().recur(pdef.body)
