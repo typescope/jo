@@ -11,6 +11,8 @@ import ast.Positions.SourcePosition
   * might change, e.g., due to erasure or encoding of types.
   */
 object Symbols:
+  final val debugSymbol = false
+
   /** The information about a symbol
     *
     * During transformation, the type and owner of a symbol may change.
@@ -154,6 +156,10 @@ object Symbols:
     def toNamedInfo(using Definitions): NamedInfo[Type] = NamedInfo(name, info)
 
     override def toString() = name
+      if Symbols.debugSymbol then
+        name + "#" + System.identityHashCode(this)
+      else
+        name
 
     def asTypeSymbol: TypeSymbol = this.asInstanceOf[TypeSymbol]
   end Symbol

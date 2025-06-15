@@ -32,8 +32,6 @@ object Printing:
       println(show(ns))
       println
 
-  private final val showSymbolID = false
-
   //----------------------------------------------------------------------------
 
   given (using Definitions): Text.Maker[Word] =
@@ -58,11 +56,7 @@ object Printing:
     v => Text(v.tpe.show)
 
   given (using Definitions): Text.Maker[Symbol] =
-    v =>
-      if showSymbolID then
-        Text(v.name ~ "#" ~ System.identityHashCode(v))
-      else
-        Text(v.name)
+    v => Text(v.toString)
 
   given (using Definitions): Text.Maker[Type] =
     v => showType(v)

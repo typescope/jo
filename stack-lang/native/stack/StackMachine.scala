@@ -278,7 +278,7 @@ extends Backend(runtime):
         if sym.isLocal then
           addr.get(sym) match
             case Some(loc) => loc
-            case None => throw new Exception("Not found local symbol: " + sym + "#" + System.identityHashCode(sym))
+            case None => throw new Exception("Not found local symbol: " + sym)
         else
           throw new Exception("accessing non-local variable " + sym + ", owner = " + sym.owner)
 
