@@ -409,8 +409,11 @@ class Namer:
 
     val thisSym = Symbol.createSymbol("this", Flags.Synthetic, obj.pos)
 
+    // The scope only contains `this`
+    val thisScope = sc.fresh()
+
     // scope for checking member methods
-    given sc2: Scope = sc.freshPrefixedScope(prefix = thisSym, owner = thisSym)
+    given sc2: Scope = thisScope.freshPrefixedScope(prefix = thisSym, owner = thisSym)
 
     for case vdef: Ast.ValDef <- obj.members do
       var flags = checker.checkModifiers(vdef)
@@ -426,7 +429,7 @@ class Namer:
       vals += vdefTyped
 
     // `this` should not be available in field initialization
-    sc2.define(thisSym)
+    thisScope.define(thisSym)
 
     val defaultPolicy = Effects.Policy.Infer
 
