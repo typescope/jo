@@ -584,16 +584,20 @@ class PatternTyper(namer: Namer, checker: Checker):
 
     lazy val sliceMethodConforms: Boolean =
       scrutType.getTermMember("slice") match
-        case Some(tp1) =>
-          Subtyping.conforms(tp1, sliceMethodType)
+        case Some(tp) if tp.isProcType =>
+          val tp1 = tp.asProcType
+          // ignore effects
+          Subtyping.conforms(tp1.copy(receives = sliceMethodType.receives), sliceMethodType)
 
         case _ => false
 
     def memberConforms(name: String) =
       scrutType.getTermMember(name) match
-        case Some(tp1) =>
-          val tp2 = seqType.termMember(name)
-          Subtyping.conforms(tp1, tp2)
+        case Some(tp) if tp.isProcType =>
+          val tp1 = tp.asProcType
+          val tp2 = seqType.termMember(name).asProcType
+          // ignore effects
+          Subtyping.conforms(tp1.copy(receives = tp2.receives), tp2)
 
         case _ => false
 
