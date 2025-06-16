@@ -392,7 +392,7 @@ class Namer:
         qualType.getTermMember(name) match
           case Some(tp) =>
             tp match
-              case StaticRef(sym) if !sym.isField && !sym.isMethod && !sym.isType =>
+              case StaticRef(sym) =>
                 Ident(sym)(word.span)
 
               case _ =>
