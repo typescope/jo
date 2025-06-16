@@ -79,6 +79,11 @@ object Typer:
 
     Step("namer", (nssAst: List[Ast.Namespace]) => {
         val res = check(nssAst, runtime)
+
+        if config.checkTree then
+          given Definitions = lazyDefn.value
+          TreeChecker.check(res)
+
         if config.printAfter.contains("namer") then
           given Definitions = lazyDefn.value
           Printing.print(res)

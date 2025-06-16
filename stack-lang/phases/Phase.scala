@@ -91,8 +91,8 @@ object Phase:
   given (using defn: Definitions, rp: Reporter, config: Config): Conversion[Phase[?], PhaseStep] = phase =>
     val name = phase.getClass.getSimpleName()
     Step(name, code => {
-      if config.checkTree then TreeChecker.check(code)
       val output = phase.transform(code)
+      if config.checkTree then TreeChecker.check(output)
       if config.printAfter.contains(name) then Printing.print(output)
       output
     })

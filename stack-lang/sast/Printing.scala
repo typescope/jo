@@ -370,9 +370,9 @@ object Printing:
         if sym.isType then Text(sym.name)
         else sym.name ~ ": " ~ sym.info
 
-      case MemberRef(prefix, sym, info) =>
+      case ref @ MemberRef(prefix, sym) =>
         if sym.isType then Text(sym.name)
-        else sym.name ~ ": " ~ info
+        else sym.name ~ ": " ~ ref.info
 
       case RecordType(fields) =>
         val members = fields.map(f => f.name ~ ": " ~ f.info)

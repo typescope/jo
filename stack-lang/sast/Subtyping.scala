@@ -207,8 +207,8 @@ object Subtyping:
 
         continue(tp1Reduced)
 
-      case MemberRef(_, sym, info) =>
-        val tp1Reduced = if sym.isType || lessThan then info else BottomType
+      case mref: MemberRef =>
+        val tp1Reduced = if mref.symbol.isType || lessThan then mref.info else BottomType
         continue(tp1Reduced)
 
       case tvar: TypeVar =>

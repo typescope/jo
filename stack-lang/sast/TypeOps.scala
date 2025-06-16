@@ -36,20 +36,12 @@ object TypeOps:
     val encountered = new mutable.ArrayBuffer[ProxyType]
     def recur(tp: Type, isUp: Boolean): Type = Debug.trace(s"$tp.approx", enable = false):
       tp match
-        case tref @ StaticRef(sym) =>
+        case tref: RefType =>
           if encountered.contains(tref) then
             tref
           else
             encountered += tref
-            recur(sym.info, isUp)
-          end if
-
-        case tref @ MemberRef(_, sym, info) =>
-          if encountered.contains(tref) then
-            tref
-          else
-            encountered += tref
-            recur(info, isUp)
+            recur(tref.info, isUp)
           end if
 
         case tvar: TypeVar =>

@@ -10,8 +10,8 @@ import scala.collection.mutable
 /** The type system of Stk  */
 object Types:
   sealed abstract class Type:
-
-    private def approx(using defn: Definitions): Type =
+    /** Approximate this type to its supertype by dealiasing and widening */
+    def approx(using defn: Definitions): Type =
       defn.cache.approximate(this):
         TypeOps.approx(this, isUp = true)
 
@@ -50,14 +50,14 @@ object Types:
     def isTypeRef: Boolean =
       this match
         case StaticRef(sym) => sym.isType
-        case MemberRef(_, sym, _) => sym.isType
+        case MemberRef(_, sym) => sym.isType
         case _ => false
 
     /** Is the type a reference to a term name */
     def isTermRef: Boolean =
       this match
         case StaticRef(sym) => !sym.isType
-        case MemberRef(_, sym, _) => !sym.isType
+        case MemberRef(_, sym) => !sym.isType
         case _ => false
 
     def isObjectType(using Definitions): Boolean =
@@ -84,11 +84,11 @@ object Types:
       this match
         case VoidType | _: ProcType | _: TypeLambda | _: NameTableInfo | _: ClassInfo => false
 
-        case StaticRef(sym) =>
+        case refType: RefType =>
+          val sym = refType.symbol
+
           !sym.isType && !sym.isFunction
           || sym.isType && sym.asTypeSymbol.kind == Kind.Simple
-
-        case MemberRef(_, _, info) => info.isValueType
 
         case _ => true
 
@@ -98,10 +98,8 @@ object Types:
         case VoidType | _: ProcType | _: TypeLambda | _: NameTableInfo | _: ClassInfo =>
           None
 
-        case MemberRef(_, _, info) => info.kind
-
-        case StaticRef(sym) if sym.isType =>
-          Some(sym.asTypeSymbol.kind)
+        case refType: RefType if refType.symbol.isType =>
+          Some(refType.symbol.asTypeSymbol.kind)
 
         case _ =>
           Some(Kind.Simple)
@@ -120,8 +118,7 @@ object Types:
     /** Widen a term reference to its underlying type */
     def widenTermRef(using Definitions): Type =
       this match
-        case StaticRef(sym) if !sym.isType => sym.info
-        case MemberRef(_, sym, info) if !sym.isType => info
+        case refType: RefType if !refType.symbol.isType => refType.info
         case _ => this
 
     /** Widen a constant type to its underlying type */
@@ -278,17 +275,34 @@ object Types:
 
   sealed abstract class RefType extends ProxyType:
     val symbol: Symbol
-    def widen(using Definitions): Type =
-      this match
-        case StaticRef(sym)        => sym.info
-        case MemberRef(_, _, info) => info
+
+    def info(using Definitions): Type
 
   /** A reference to a symbol who type is does not depend on any prefix */
-  case class StaticRef(symbol: Symbol) extends RefType
+  case class StaticRef(symbol: Symbol) extends RefType:
+    def info(using Definitions): Type = symbol.info
 
   /** A reference to member symbol whose type depends on that of its prefix */
-  case class MemberRef(prefix: Type, symbol: Symbol, info: Type) extends RefType:
+  case class MemberRef(prefix: Type, symbol: Symbol) extends RefType:
     assert(!symbol.isType, "No support for member types: " + symbol)
+
+    def info(using Definitions): Type =
+      // compute the type with respect to the instantiated targs
+      prefix.approx match
+        case classInfo: ClassInfo =>
+          classInfo.classSymbol.info match
+            case TypeLambda(tparams, _, _) =>
+              assert(tparams.size == classInfo.targs.size, "Mismatch, tparams = " + tparams + ", targs = " + classInfo.targs)
+
+              TypeOps.substSymbols(symbol.info, tparams, classInfo.targs)
+
+            case _ =>
+              assert(classInfo.targs.isEmpty, "Mismatch, tparams = 0" + ", targs = " + classInfo.targs)
+
+              symbol.info
+
+        case _ =>
+          symbol.info
 
   /** A part of a type with a specific name */
   case class NamedInfo[+T](name: String, info: T)
@@ -492,18 +506,4 @@ object Types:
 
     def getTermMember(prefix: Type, name: String)(using Definitions): Option[RefType] =
       getMemberSymbol(name).map: sym =>
-        rebase(prefix, sym)
-
-    private def rebase(prefix: Type, member: Symbol)(using Definitions): RefType =
-      // compute the type with respect to the instantiated targs
-      classSymbol.info match
-        case TypeLambda(tparams, _, _) =>
-          assert(tparams.size == targs.size, "Mismatch, tparams = " + tparams + ", targs = " + targs)
-
-          val info = TypeOps.substSymbols(member.info, tparams, targs)
-          MemberRef(prefix, member, info)
-
-        case _ =>
-          assert(targs.isEmpty, "Mismatch, tparams = 0" + ", targs = " + targs)
-
-          MemberRef(prefix, member, member.info)
+        MemberRef(prefix, sym)

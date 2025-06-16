@@ -462,18 +462,17 @@ class Namer:
 
       delayedDefs += delayedDef
 
-    // external object type
     val fieldTypes = vals.map(vdef => NamedInfo(vdef.name, vdef.symbol.info)).toList
-    val methodTypes = delayedDefs.map(d => NamedInfo(d.symbol.name, StaticRef(d.symbol))).toList
+    val methodTypes = delayedDefs.map(d => NamedInfo(d.symbol.name, MemberRef(StaticRef(thisSym), d.symbol))).toList
     val mutables = vals.filter(_.isMutable).map(_.name).toList
-    val objType = ObjectType(fieldTypes, methodTypes, mutables)
+    val objectType = ObjectType(fieldTypes, methodTypes, mutables)
 
-    defn.add(thisSym, sc.owner, objType)
+    defn.add(thisSym, sc.owner, objectType)
 
     val defs: List[FunDef] =
       for delayedDef <- delayedDefs.toList yield delayedDef.force()
 
-    Object(thisSym, vals.toList, defs)(objType, obj.span)
+    Object(thisSym, vals.toList, defs)(objectType, obj.span)
 
   def transformBlock(block: Ast.Block)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType)
@@ -563,8 +562,8 @@ class Namer:
           assert(tp.is[RefType], "TermRef expected for class member, found = " + tp)
           val refType = tp.as[RefType]
 
-          assert(refType.widen.isProcType, "ProcType expected for constructor, found = " + refType.widen)
-          val procType = refType.widen.asProcType
+          assert(refType.isProcType, "ProcType expected for constructor, found = " + refType.info)
+          val procType = refType.asProcType
 
           assert(procType.tparams.isEmpty, "Constructor should not take type parameters, found = " + procType)
 
