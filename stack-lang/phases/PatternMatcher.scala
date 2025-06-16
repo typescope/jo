@@ -92,7 +92,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
   override def transformMatch(patmat: Match)(using ctx: Context): Word =
     val Match(scrutineeRaw, cases) = patmat
     val scrutinee = transform(scrutineeRaw)
-    val scrutType = scrutinee.tpe
+    val scrutType = scrutinee.tpe.widenTermRef
 
     given Source = ctx.owner.sourcePos.source
 
@@ -173,7 +173,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
         If(cond, nestedBlock, BoolLit(false)(pat.span))(BoolType, pat.span)
 
       case WildcardPattern() =>
-        assert(Subtyping.conforms(scrut.tpe, pat.tpe), "scrutee type = " + scrut.tpe.show + ", pattern type = " + pat.tpe.show)
+        assert(Subtyping.conforms(scrut.tpe.widenTermRef, pat.tpe), "scrutee type = " + scrut.tpe.show + ", pattern type = " + pat.tpe.show)
         BoolLit(true)(pat.span)
 
   private def transformOrPattern(scrut: Ident, orPattern: OrPattern)

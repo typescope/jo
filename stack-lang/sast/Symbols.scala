@@ -155,7 +155,7 @@ object Symbols:
 
     def toNamedInfo(using Definitions): NamedInfo[Type] = NamedInfo(name, info)
 
-    override def toString() = name
+    override def toString() =
       if Symbols.debugSymbol then
         name + "#" + System.identityHashCode(this)
       else

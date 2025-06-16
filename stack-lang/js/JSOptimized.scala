@@ -324,15 +324,12 @@ class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
 
     symbol2UniqueName(cdef.self) = "this"
 
-    val classScope = reservedNames.newScope
+    // Generate class member names in a fresh scope
+    localScope = reservedNames.newScope
+    for fdef <- cdef.funs do jsName(fdef.symbol)
 
     "class " ~ jsClassName ~ " {" ~ indent:
-      cdef.funs
-        .map: fdef =>
-          localScope = classScope
-          compileFunction(fdef)
-
-        .join(Text.BlankLine)
+      cdef.funs.map(compileFunction).join(Text.BlankLine)
     ~ "}"
 
 

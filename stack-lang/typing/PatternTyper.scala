@@ -136,7 +136,7 @@ class PatternTyper(namer: Namer, checker: Checker):
       given TargetType = TargetType.ValueType
       namer.transform(scrutinee)
 
-    val scrutType = scrutinee2.tpe
+    val scrutType = scrutinee2.tpe.widenTermRef
 
     val rp2: Reporter = rp.fresh(buffer = true)
     val cases2 =
