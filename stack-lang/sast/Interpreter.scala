@@ -75,6 +75,11 @@ object Interpreter:
     def resolve(sym: Symbol)(using Definitions): Denotation =
       resolveRecursive(sym.dealias)
 
+    def root: Env =
+      this match
+        case _: RootEnv => this
+        case NestedEnv(outer) => outer.root
+
     private def resolveRecursive(sym: Symbol)(using Definitions): Denotation =
       map.get(sym) match
         case Some(res)  => res
@@ -85,7 +90,7 @@ object Interpreter:
               outer.resolveRecursive(sym)
 
             case _ =>
-              throw new Exception("Not found " + sym)
+              throw new Exception("Not found " + sym + ", sym.info = " + sym.info.show + ", sym.owner = " + sym.owner + "sym.isAlias = " + sym.isAlias)
 
     def update(sym: Symbol, denot: Denotation)(using Definitions): Unit =
       // Is only possible to update sym of the current scope
@@ -529,7 +534,7 @@ object Interpreter:
 
         val fields = mutable.Map.empty[String, Value]
         val methods = classInfo.allMethods.map(sym => sym.name -> sym).toMap
-        val objVal = ObjectVal(fields, classInfo.self, methods, Env.RootEnv())
+        val objVal = ObjectVal(fields, classInfo.self, methods, env.root)
         objVal :: Nil
 
       case _: TypeDef | _: PatDef =>
