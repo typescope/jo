@@ -373,15 +373,15 @@ class Namer:
       case Ast.Ident(name) =>
         given oob: OutOfBand = new OutOfBand
         val sym = sc.resolveTerm(name, word.pos)
-        if sym.isField || sym.isMethod then
-          // Normalize SAST
-          val prefix = oob.getKey(Scope.PrefixKey)
-          val qual = Ident(prefix)(word.span)
-          Select(qual, sym.name)(qual.tpe.termMember(sym.name), word.span)
+        oob.testKey(Scope.PrefixKey) match
+          case Some(prefix) =>
+            // Normalize SAST
+            val qual = Ident(prefix)(word.span)
+            Select(qual, sym.name)(qual.tpe.termMember(sym.name), word.span)
 
-        else
-          checker.checkCapture(sym, word.pos)
-          Ident(sym)(word.span)
+          case _ =>
+            checker.checkCapture(sym, word.pos)
+            Ident(sym)(word.span)
 
       case Ast.Select(qual, name) =>
         val qual2 =
@@ -392,7 +392,8 @@ class Namer:
         qualType.getTermMember(name) match
           case Some(tp) =>
             tp match
-              case StaticRef(sym) =>
+              case StaticRef(sym) if !sym.isType =>
+                // record field type could be Int
                 Ident(sym)(word.span)
 
               case _ =>
