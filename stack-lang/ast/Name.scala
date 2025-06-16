@@ -23,3 +23,5 @@ object Name:
   def isOperator(name: String): Boolean = !isNameStart(name(0))
 
   def isBinaryOperator(name: String): Boolean = isOperator(name) && name != "!"
+
+  val Constructor = "<init>"

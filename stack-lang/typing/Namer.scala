@@ -550,7 +550,7 @@ class Namer:
       // Always prefer type constraints from outer scope if present
       for tp <- tt.knownType do Subtyping.conforms(instanceType, tp)
 
-      instanceType.getTermMember(classSym.name) match
+      instanceType.getTermMember(Name.Constructor) match
         case None =>
           Reporter.error("The class cannot be instantiated as it does not have a constructor.", newExpr.pos)
           errorWord(newExpr.span)
@@ -567,9 +567,9 @@ class Namer:
           val newInstance = New(Ident(classSym)(classTree.span), targsTree)(instanceType, newExpr.span)
 
           newExpr.addKey(Namer.TypedWord, newInstance)
-          val ctorSelect = Ast.Select(newExpr, classSym.name)(newExpr.span)
+          val ctorSelect = Ast.Select(newExpr, Name.Constructor)(newExpr.span)
           val ctorCall = Ast.Apply(ctorSelect, newExpr.args)(newExpr.span)
-          transform(ctorCall)
+          transformCall(ctorCall)
 
   /** Handles explicit postfix call syntax f(arg1, arg2, ...) */
   def transformCall(apply: Ast.Apply)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
@@ -1271,7 +1271,7 @@ class Namer:
 
     val flags = Flags.Fun | Flags.Constructor
 
-    val funSym = Symbol.createSymbol(funDef.name, flags, funDef.ident.pos)
+    val funSym = Symbol.createSymbol(Name.Constructor, flags, funDef.ident.pos)
     given funScope: Scope = sc.fresh(funSym)
 
     if funDef.tparams.nonEmpty then

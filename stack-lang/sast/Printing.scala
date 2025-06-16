@@ -224,8 +224,12 @@ object Printing:
         fun ~ indent:
           args.join(Text.BreakLine) ~ autoText
 
-      case New(classRef, _) =>
-        throw new Exception("Unexpected new expression: " + word)
+      case New(classRef, targs) =>
+        val targsText =
+          if targs.isEmpty then Text.Empty
+          else "[" ~ targs.join(", ")  ~ "]"
+
+        "new " ~ classRef ~ targsText
 
       case TypeApply(fun, targs) =>
         fun ~ "[" ~ targs.join(", ") ~ "]"

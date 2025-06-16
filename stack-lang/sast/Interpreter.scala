@@ -90,7 +90,7 @@ object Interpreter:
               outer.resolveRecursive(sym)
 
             case _ =>
-              throw new Exception("Not found " + sym + ", sym.info = " + sym.info.show + ", sym.owner = " + sym.owner + "sym.isAlias = " + sym.isAlias)
+              throw new Exception("Not found " + sym + ", sym.info = " + sym.info.show + ", sym.owner = " + sym.owner + ", sym.isAlias = " + sym.isAlias)
 
     def update(sym: Symbol, denot: Denotation)(using Definitions): Unit =
       // Is only possible to update sym of the current scope

@@ -506,4 +506,4 @@ object Types:
         case _ =>
           assert(targs.isEmpty, "Mismatch, tparams = 0" + ", targs = " + targs)
 
-          StaticRef(member)
+          MemberRef(prefix, member, member.info)
