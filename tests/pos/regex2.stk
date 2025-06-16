@@ -29,7 +29,7 @@ fun alt(reg1: Reg, reg2: Reg, seg: Seg, cont: Cont): Bool =
 fun seq(regs: List[Reg], seg: Seg, cont: Cont): Bool =
   match regs
     case [] => cont seg
-    case [reg, rest*] =>
+    case [reg, ..rest] =>
       val cont1 = (seg) => seq rest seg cont
       reg seg cont1
 

@@ -53,7 +53,9 @@ object Typer:
   : List[Namespace] =
 
     val namer = Step("namer", (nss: List[Ast.Namespace]) => {
-      new Namer().transform(nss, rootNameTable, predef)
+      val code = new Namer().transform(nss, rootNameTable, predef)
+      if cf.checkTree then TreeChecker.check(code)(using defnLazy.value)
+      code
     })
 
     // `|>` will stop early in the presence of parsing errors
@@ -77,6 +79,11 @@ object Typer:
 
     Step("namer", (nssAst: List[Ast.Namespace]) => {
         val res = check(nssAst, runtime)
+
+        if config.checkTree then
+          given Definitions = lazyDefn.value
+          TreeChecker.check(res)
+
         if config.printAfter.contains("namer") then
           given Definitions = lazyDefn.value
           Printing.print(res)

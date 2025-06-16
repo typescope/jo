@@ -19,35 +19,49 @@ import scala.collection.mutable
 class ElimCapture(using Definitions) extends Phase[Symbol]:
   val contextObject = Phase.OwnerContext
 
-  override def transformTopLevelDefs(defs: List[Def])(using Context): List[Def] =
-    val uniq = new UniqueName
+  override def transformDefs(defs: List[Def])(using Context): List[Def] =
     defs.flatMap:
-      case fdef: FunDef => ElimCapture.transformFunDef(fdef, uniq)
-      case defn => super.transformTopLevelDef(defn) :: Nil
+      case fdef: FunDef =>
+        val (fdef2, defs) = ElimCapture.transformFunDef(fdef)
+        fdef2 :: defs
+
+      case cdef: ClassDef =>
+        val lifted = new mutable.ArrayBuffer[Def]
+        val funs = new mutable.ArrayBuffer[FunDef]
+        for fdef <- cdef.funs do
+          val (fdef2, defs) = ElimCapture.transformFunDef(fdef)
+          lifted ++= defs
+          funs += fdef2
+
+        cdef.copy(funs = funs.toList)(cdef.span) :: lifted.toList
+
+      case defn => super.transformDef(defn) :: Nil
 
 object ElimCapture:
-  def transformFunDef(fdef: FunDef, uniq: UniqueName)(using Definitions): List[Def] =
-    given ctx: Context = new Context(uniq)
+  def transformFunDef(fdef: FunDef)(using Definitions): (FunDef, List[Def]) =
+    given ctx: Context = new Context()
     val lifter = new Lifter(fdef.symbol)
     val body = lifter.apply(fdef.body)
     val lifted = ctx.lifted.toList
-    fdef.copy(body = body)(fdef.span) :: lifted
 
-  private def createLiftedFunSym(
-    fdef: FunDef,
-    prependParams: List[NamedInfo[Type]],
-    appendParams: List[NamedInfo[Type]])(
-    using ctx: Context, defn: Definitions): Symbol =
+    (fdef.copy(body = body)(fdef.span), lifted)
+
+  def flatName(fun: Symbol)(using Definitions): String =
+    fun.ownersIterator.foldLeft(fun.name): (acc, owner) =>
+      if !owner.isContainer then acc + "$" + owner.name else acc
+
+  def createLiftedFunSym(
+      fdef: FunDef, prependParams: List[NamedInfo[Type]], appendParams: List[NamedInfo[Type]])(
+      using defn: Definitions)
+  : Symbol =
 
     val oldFunSym = fdef.symbol
 
-    val paramInfos = fdef.params.map(_.toNamedInfo)
-    val autoInfos = fdef.autos.map(_.toNamedInfo)
-    val resType = fdef.procType.resultType
-    val paramInfos2 = prependParams ++ paramInfos ++ appendParams
-    val funType = ProcType(fdef.tparams, paramInfos2, autoInfos, resType, fdef.receives, preParamCount = 0)
+    val oldProcType = oldFunSym.info.as[ProcType]
+    val paramInfos = prependParams ++ oldProcType.params ++ appendParams
+    val funType = oldProcType.copy(params = paramInfos)
 
-    val funName = ctx.flatName(fdef.symbol)
+    val funName = flatName(fdef.symbol)
     Symbol.createSymbol(funName, funType, Flags.Fun | Flags.Synthetic, oldFunSym.enclosingContainer, oldFunSym.sourcePos)
 
   /** The information for a lifted function
@@ -61,21 +75,16 @@ object ElimCapture:
     val liftInfos: Map[Symbol, LiftInfo],     // info for lifted functions
     val rewiring: Map[Symbol, Symbol],        // rewiring of locals
     val lifted: mutable.ArrayBuffer[Def],     // lifted definitions
-    val uniq: UniqueName):
+  ):
 
-    def this(uniq: UniqueName) =
-      this(Map.empty, Map.empty, new mutable.ArrayBuffer, uniq)
+    def this() =
+      this(Map.empty, Map.empty, new mutable.ArrayBuffer)
 
     def withSubsts(substs: Map[Symbol, Symbol]): Context =
-      new Context(liftInfos, rewiring ++ substs, lifted, uniq)
+      new Context(liftInfos, rewiring ++ substs, lifted)
 
     def withLiftInfo(fun: Symbol, info: LiftInfo): Context =
-      new Context(liftInfos.updated(fun, info), rewiring, lifted, uniq)
-
-    def flatName(fun: Symbol)(using Definitions): String =
-      val name = fun.ownersIterator.foldLeft(fun.name): (acc, owner) =>
-        if owner.isFunction then acc + "$" + owner.name else acc
-      uniq.freshName(name)
+      new Context(liftInfos.updated(fun, info), rewiring, lifted)
 
     def show: String =
       "{ rewires: " + rewiring.toString + "}"
@@ -110,7 +119,7 @@ object ElimCapture:
       *
       * - capture of type parameters (closure conversion after erasure?)
       */
-    override def transformNestedFunDef(fdef: FunDef)(using ctx: Context): Word =
+    override def transformLocalFunDef(fdef: FunDef)(using ctx: Context): Word =
       localDefs(fdef.symbol) = fdef
 
       val LiftInfo(funSym, captures) = ctx.liftInfos(fdef.symbol)
@@ -157,7 +166,7 @@ object ElimCapture:
     override def transformObject(obj: Object)(using ctx: Context): Word =
       val objType = obj.tpe.asObjectType
       val allCaptures: List[Symbol] =
-        obj.defs.foldLeft(List.empty[Symbol]): (acc, fdef) =>
+        obj.funs.foldLeft(List.empty[Symbol]): (acc, fdef) =>
           transitiveCapture(fdef).foldLeft(acc): (acc, sym) =>
             // rewiring is important -- the captured variable might have been rebound
             val sym1 = rewire(sym)
@@ -180,37 +189,37 @@ object ElimCapture:
 
          ObjectType(objType.fields ++ capturedMembers.toList, objType.methods, objType.mutableFields)
 
-      val thisTypeName = ctx.uniq.freshName("ThisType")
-      val thisTypeAliasSym = new TypeSymbol(Kind.Simple, thisTypeName, Flags.Synthetic, obj.self.sourcePos)
-      val thisType = TypeRef(thisTypeAliasSym)
+      val thisTypeAliasSym = new TypeSymbol(Kind.Simple, "ThisType", Flags.Synthetic, obj.self.sourcePos)
+      val thisType = StaticRef(thisTypeAliasSym)
       ctx.lifted += TypeDef(thisTypeAliasSym)(obj.span)
 
       defn.addLazy(thisTypeAliasSym, owner.enclosingContainer, lazyInfo)
 
       for vdef <- obj.vals do
         uniq.freshName(vdef.name)
+
         members += vdef.name -> this(vdef.rhs)
         memberTypes += NamedInfo(vdef.name, vdef.rhs.tpe)
 
-      for fdef <- obj.defs do
+      for fdef <- obj.funs do
         uniq.freshName(fdef.name)
 
         val liftedSym = createLiftedFunSym(fdef, prependParams = NamedInfo("this", thisType) :: Nil, appendParams = Nil)
         funToLifted(fdef.symbol) = liftedSym
 
-        memberTypes += NamedInfo(fdef.name, TypeRef(liftedSym))
+        members += fdef.name -> Ident(liftedSym)(fdef.span)
+        memberTypes += NamedInfo(fdef.name, StaticRef(liftedSym))
 
       for capture <- allCaptures yield
         val field = uniq.freshName(capture.name)
         captureToField(capture) = field
+
         members += field -> Ident(capture)(obj.span)
         memberTypes += NamedInfo(field, capture.info)
 
-      for fdef <- obj.defs do
+      for fdef <- obj.funs do
         val span = fdef.symbol.sourcePos.span
         val liftedSym = funToLifted(fdef.symbol)
-
-        members += fdef.name -> Ident(liftedSym)(fdef.span)
 
         val paramThis = Symbol.createSymbol("this", thisType, Flags.Param, liftedSym, fdef.symbol.sourcePos)
 
@@ -232,6 +241,7 @@ object ElimCapture:
         val body2 = Block(aliases.toList :+ body)(body.tpe, body.span)
         val params = paramThis :: fdef.params
 
+        // TODO: owners of params and locals are broken ---- do we need them?
         ctx.lifted += FunDef(liftedSym, fdef.tparams, params, fdef.autos, fdef.resultType, body2)(fdef.span)
       end for
 
@@ -259,7 +269,7 @@ object ElimCapture:
 
           Apply(funSubst, args2 ++ extraArgs, autos2)(app.tpe, app.span)
 
-        case Select(qual, name) =>
+        case Select(qual, name) if qual.tpe.isObjectType =>
           val qual2 = this(qual)
           val procType = qual2.tpe.termMember(name).asProcType
           val liftedProcType = procType.prepend(NamedInfo("this", qual2.tpe) :: Nil)
@@ -275,7 +285,7 @@ object ElimCapture:
             val apply = Apply(Encoded(proc)(liftedProcType), receiver :: args2, autos2)(app.tpe, app.span)
             Block(assign :: apply :: Nil)(app.tpe, app.span)
 
-        case TypeApply(Select(qual, name), targs) =>
+        case TypeApply(Select(qual, name), targs) if qual.tpe.isObjectType =>
           // TODO: after type erasure, the special handling here can be removed
           val qual2 = this(qual)
           val funType = fun.tpe.asProcType
@@ -298,8 +308,8 @@ object ElimCapture:
             Block(assign :: apply :: Nil)(app.tpe, app.span)
 
         case _ =>
-         // global function call
-         Apply(fun, args2, autos2)(app.tpe, app.span)
+          // global function call or class method call
+          Apply(this(fun), args2, autos2)(app.tpe, app.span)
 
 
     override def transformValDef(vdef: ValDef)(using ctx: Context): Word =
@@ -332,7 +342,7 @@ object ElimCapture:
       // TODO: This is possible via transitive capture.
       assert(
         captures.size == captures.map(_.name).toSet.size,
-        "[Internal error] captured different variables with same name")
+        "[Internal error] captured different variables with same name in " + fdef.symbol)
 
       val paramCaptures = captures.map(_.toNamedInfo)
 

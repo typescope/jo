@@ -17,17 +17,17 @@ check() {
 ################################################################################
 
 # check that scripts work
-bin/parse -reportTime tests/pos/fact.stk
-bin/type -reportTime tests/pos/fact.stk
-bin/run  -reportTime tests/pos/fact.stk
-bin/jsc  -reportTime  tests/pos/fact.stk
-bin/stac -reportTime  tests/pos/fact.stk
-bin/regc -reportTime  tests/pos/fact.stk
+bin/parse -time tests/pos/fact.stk
+bin/type -time tests/pos/fact.stk
+bin/run  -time tests/pos/fact.stk
+bin/jsc  -time  tests/pos/fact.stk
+bin/stac -time  tests/pos/fact.stk
+bin/regc -time  tests/pos/fact.stk
 
-bin/run.native -reportTime tests/pos/fact.stk
-bin/jsc.native -reportTime tests/pos/fact.stk
-bin/stac.native -reportTime tests/pos/fact.stk
-bin/regc.native -reportTime tests/pos/fact.stk
+bin/run.native -time tests/pos/fact.stk
+bin/jsc.native -time tests/pos/fact.stk
+bin/stac.native -time tests/pos/fact.stk
+bin/regc.native -time tests/pos/fact.stk
 
 ################################################################################
 # Positive tests

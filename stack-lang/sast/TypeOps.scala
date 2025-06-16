@@ -13,9 +13,14 @@ object TypeOps:
     *
     * This method is used in type checking definitions with type parameters.
     */
-  def substSymbols(tpe: Type, substs: Map[Symbol, Type])(using Definitions): Type =
+  def substSymbols(tpe: Type, tparams: List[Symbol], targs: List[Type])(using defn: Definitions): Type =
+    defn.cache.substitute(tpe, targs):
+      val subst = tparams.zip(targs).toMap
+      substSymbols(tpe, subst)
+
+  def substSymbols(tpe: Type, subst: Map[Symbol, Type])(using Definitions): Type =
     val typeMap = new TypeOps.SymbolsTypeMap
-    typeMap(tpe)(using substs)
+    typeMap(tpe)(using subst)
 
   /** Approximate top-level type aliases, applied types and type parameters
     *
@@ -31,12 +36,12 @@ object TypeOps:
     val encountered = new mutable.ArrayBuffer[ProxyType]
     def recur(tp: Type, isUp: Boolean): Type = Debug.trace(s"$tp.approx", enable = false):
       tp match
-        case tref @ TypeRef(sym) =>
+        case tref: RefType =>
           if encountered.contains(tref) then
             tref
           else
             encountered += tref
-            recur(sym.info, isUp)
+            recur(tref.info, isUp)
           end if
 
         case tvar: TypeVar =>
@@ -89,7 +94,7 @@ object TypeOps:
     val encountered = new mutable.ArrayBuffer[ProxyType]
     def recur(tp: Type): Type = Debug.trace(s"$tp.dealias", enable = false):
       tp match
-        case tref @ TypeRef(sym) =>
+        case tref @ StaticRef(sym) =>
           if encountered.contains(tref) || sym.isTypeParameter || !sym.isType && !sym.isAlias then
             tref
           else
@@ -122,20 +127,17 @@ object TypeOps:
     *
     * - type aliases
     * - instaniated type variables
-    * - constant
     */
   def isGrounded(tp: Type)(using Definitions): Boolean =
     tp match
-      case TypeRef(sym) => (!sym.isType && !sym.isAlias) || sym.info.isInstanceOf[TypeBound]
+      case StaticRef(sym) => (!sym.isType && !sym.isAlias) || sym.info.isInstanceOf[TypeBound]
 
-      case AppliedType(TypeRef(sym), _) =>
+      case AppliedType(StaticRef(sym), _) =>
         sym.info match
-          case TypeLambda(_, _: TypeBound, _) => true
+          case TypeLambda(_, _: TypeBound | _: ClassInfo, _) => true
           case _ => false
 
       case tvar: TypeVar => !tvar.isInstantiated
-
-      case _: ConstantType => false
 
       case _ => true
 
@@ -157,7 +159,7 @@ object TypeOps:
         case VoidType | ErrorType | AnyType | BottomType =>
           tp
 
-        case _: TypeRef | _: TypeVar | _: NameTableInfo | _: ConstantType =>
+        case _: StaticRef | _: MemberRef | _: TypeVar | _: ConstantType | _: NameTableInfo =>
           tp
 
         case RecordType(fields) =>
@@ -201,6 +203,10 @@ object TypeOps:
         case TypeBound(lo, hi) =>
           TypeBound(this(lo), this(hi))
 
+        case classInfo: ClassInfo =>
+          val targs2 = classInfo.targs.map(this.apply)
+          classInfo.copy(targs = targs2)
+
         case ProcType(tparams, params, autos, resType, receivesOpt, preParamCount) =>
           // TODO: Once type bounds are supported, we need to transform bounds
           val params2 =
@@ -219,7 +225,7 @@ object TypeOps:
 
     def apply(tp: Type)(using ctx: Context): Type =
       tp match
-        case TypeRef(sym) =>
+        case StaticRef(sym) =>
           ctx.getOrElse(sym, tp)
 
         case _ =>
@@ -234,7 +240,7 @@ object TypeOps:
       tp match
         case VoidType | ErrorType | AnyType | BottomType =>
 
-        case _: TypeRef | _: TypeVar | _: NameTableInfo | _: ConstantType =>
+        case _: StaticRef | _: MemberRef | _: TypeVar | _: NameTableInfo | _: ClassInfo  | _: ConstantType =>
 
         case RecordType(fields) =>
           for field <- fields do this(field.info)

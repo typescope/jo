@@ -107,6 +107,8 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       case "alias"     => Token.ALIAS
       case "begin"     => Token.BEGIN
       case "auto"      => Token.AUTO
+      case "class"     => Token.CLASS
+      case "new"       => Token.NEW
       case name        => Token.Ident(name)
 
   def operator(): Token =

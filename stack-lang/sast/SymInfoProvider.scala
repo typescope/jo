@@ -2,7 +2,6 @@ package sast
 
 import Types.Type
 import Symbols.{ Symbol, SymInfo }
-import Definitions.InfoProvider
 
 import common.Debug
 import reporting.Reporter

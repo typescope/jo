@@ -6,6 +6,8 @@ import sast.Types.*
 
 import ast.Positions.*
 import common.Debug
+import common.KeyProps
+import common.OutOfBand
 import reporting.Reporter
 
 
@@ -17,6 +19,12 @@ enum Scope:
 
   /** In a local pattern scope, resolving pattern names will ignore pattern value symbols from outer scopes */
   case LocalPatternScope(outer: Scope, table: NameTable, owner: Symbol)
+
+  /** A scope where the symbols are non-static members of the owner
+    *
+    * The scope is used for auto-importing members of `this`.
+    */
+  case PrefixedScope(outer: Scope, table: NameTable, prefix: Symbol, owner: Symbol)
 
   protected val table: NameTable
 
@@ -32,6 +40,9 @@ enum Scope:
   def freshLocalPatternScope(): Scope =
     new Scope.LocalPatternScope(this, new NameTable, owner)
 
+  def freshPrefixedScope(prefix: Symbol, owner: Symbol): Scope =
+    new Scope.PrefixedScope(this, new NameTable, prefix, owner)
+
   def fresh(owner: Symbol): Scope =
     new Scope.NestedScope(this, new NameTable, owner)
 
@@ -43,26 +54,34 @@ enum Scope:
       case None =>
         this match
           case nsc: NestedScope => nsc.outer.resolveType(name)
+          case nsc: PrefixedScope => nsc.outer.resolveType(name)
           case nsc: LocalPatternScope => nsc.outer.resolveType(name)
           case _ => None
 
       case res  => res
 
-  def resolveTerm(name: String): Option[Symbol] = Debug.trace(s"Resolving term $name in scope " + table.show, enable = false):
+  def resolveTerm(name: String)(using oob: OutOfBand): Option[Symbol] = Debug.trace(s"Resolving term $name in scope " + table.show, enable = false):
     table.resolveTerm(name) match
       case None =>
         this match
           case nsc: NestedScope => nsc.outer.resolveTerm(name)
+          case nsc: PrefixedScope => nsc.outer.resolveTerm(name)
           case nsc: LocalPatternScope => nsc.outer.resolveTerm(name)
           case _ => None
 
-      case res  => res
+      case res  =>
+        this match
+          case sc: PrefixedScope => oob.addKey(Scope.PrefixKey, sc.prefix)
+          case _ =>
+
+        res
 
   def resolvePattern(name: String): Option[Symbol] = Debug.trace(s"Resolving pattern $name in scope " + table.show, enable = false):
     table.resolvePattern(name) match
       case None =>
         this match
           case nsc: NestedScope => nsc.outer.resolvePattern(name)
+          case nsc: PrefixedScope => nsc.outer.resolvePattern(name)
           case nsc: LocalPatternScope =>
             // The condition should be refined to only allow pattern
             // predicates that do not capture pattern variables once we enable
@@ -82,7 +101,7 @@ enum Scope:
 
       case res  => res
 
-  def resolveTerm(name: String, pos: SourcePosition)(using Reporter, Definitions): Symbol =
+  def resolveTerm(name: String, pos: SourcePosition)(using Reporter, Definitions, OutOfBand): Symbol =
     resolveTerm(name) match
       case Some(sym) => sym
       case None =>
@@ -110,3 +129,6 @@ enum Scope:
     table.definePatternAsTerm(sym)
 
   def getAutos: Seq[Symbol] = table.getAutos
+
+object Scope:
+  val PrefixKey = new KeyProps.Key[Symbol]("Prefix")

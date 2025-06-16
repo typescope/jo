@@ -1,0 +1,79 @@
+class A
+  val x: Int
+  val x: Int
+
+class B
+  def foo(x: Int): Int = x
+  def foo(y: String): String = y
+
+class C
+  val x: Int
+
+  def C(x: Int) = { x = x }
+
+class D
+  val D: Int
+
+class E
+  val n: Int
+
+  def E() = {}
+
+class F
+  val n: Int
+  val m: Int
+
+  def F(x: Int) = { n = x }
+
+class G
+  val n: Int
+
+  def G(x: Int) = { n = "hello" }
+
+class H
+  val n: Int
+  val m: Int
+
+  def H(x: Int) = { n = x, n = x }
+
+class I
+  val n: Int
+  val m: Int
+
+  def I(x: Int) = { n = x, m = this.x }
+
+class J
+  val n: Int
+  val m: Int
+
+  def J(x: Int) =
+    this.m
+    { n = x, m = x }
+
+class K
+  val n: Int
+
+  def K(x: Int) =
+    { n = x, m = x }
+
+class L
+  val n: Int
+
+  def L(x: Int): K =
+    { n = x }
+
+class M
+  val n: Int
+
+  def M(x: Int): M =
+    { n = x }
+
+  def foo(y: Int) =
+    n = y
+
+fun test =
+  new C
+
+  new C("hello")
+
+  new C(10, 20)

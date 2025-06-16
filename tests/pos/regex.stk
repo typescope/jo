@@ -33,7 +33,7 @@ fun alt(reg1: Reg, reg2: Reg, seg: Seg, cont: Cont, fail: Fail): Unit =
 fun seq(regs: List[Reg], seg: Seg, cont: Cont, fail: Fail): Unit =
   match regs
     case [] => cont seg fail
-    case [reg, rest*] =>
+    case [reg, ..rest] =>
       val cont1: Cont = (seg, fail) => seq rest seg cont fail
       reg seg cont1 fail
 

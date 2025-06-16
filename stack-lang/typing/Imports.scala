@@ -6,8 +6,8 @@ import ast.Positions.*
 import sast.*
 import sast.Symbols.*
 import sast.Types.*
-import sast.Definitions.InfoProvider
 
+import common.OutOfBand
 import reporting.Reporter
 
 import scala.collection.mutable
@@ -65,6 +65,7 @@ object Imports:
             end match
 
           if isAlias then
+            given OutOfBand = new OutOfBand
             // aliases can be not fully qualified and it prefers local defined symbols over global symbols
             importScope.resolveTerm(name) match
               case Some(sym) => checkValidContainer(sym, qualid, allowBranch)
@@ -80,9 +81,11 @@ object Imports:
     def createAlias(name: String, sym: Symbol): Unit =
       val alias =
         if sym.isType then
-          TypeSymbol.create(sym.asTypeSymbol.kind, name, TypeRef(sym), sym.flags | Flags.Alias, importScope.owner, qualid.pos)
+          TypeSymbol.create(sym.asTypeSymbol.kind, name, StaticRef(sym), sym.flags | Flags.Alias, importScope.owner, qualid.pos)
         else
-          Symbol.create(name, TypeRef(sym), sym.flags | Flags.Alias, importScope.owner, qualid.pos)
+          val link = Symbol.createSymbol(name, sym.flags | Flags.Alias, qualid.pos)
+          ip.add(link, importScope.owner, StaticRef(sym))
+          link
 
       imports += alias
       importScope.define(alias)

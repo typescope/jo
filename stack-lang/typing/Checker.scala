@@ -174,6 +174,10 @@ class Checker(namer: Namer):
             case mod =>
               Reporter.error("The modifier " + mod.show + " is not allowed for context parameter definition", mod.pos)
 
+      case cdef: Ast.ClassDef =>
+        mods.foreach: mod =>
+          Reporter.error("The modifier " + mod.show + " is not allowed for pattern definition", mod.pos)
+
       case tdef: Ast.TypeDef =>
         mods.foreach: mod =>
           Reporter.error("The modifier " + mod.show + " is not allowed for type definition", mod.pos)
@@ -208,7 +212,7 @@ class Checker(namer: Namer):
         ErrorType
 
   def widen(word: Word)(using Definitions): Word = word.tpe match
-    case TypeRef(sym) if !sym.isType =>
+    case StaticRef(sym) if !sym.isType =>
       Encoded(word)(sym.info)
 
     case _ =>
@@ -252,7 +256,7 @@ class Checker(namer: Namer):
         adaptNoArgs(word, procType, targetType)
 
       else if word.tpe.isTermRef then
-        val ref = word.tpe.as[TypeRef]
+        val ref = word.tpe.as[RefType]
         val sym = ref.symbol
         if
           sym.isContainer
@@ -316,6 +320,3 @@ class Checker(namer: Namer):
       case TargetType.TypeApply =>
         // Used to prevent no args adapation
         word2
-
-      case TargetType.ObjectMember =>
-        throw new Exception("No adaptation expected: " + word)

@@ -11,6 +11,7 @@ files=(
     stack-lang/common/Debug.scala
     stack-lang/common/KeyProps.scala
     stack-lang/common/IO.scala
+    stack-lang/common/OutOfBand.scala
     stack-lang/common/StringUtil.scala
     stack-lang/common/Text.scala
     stack-lang/parsing/Parser.scala
@@ -32,10 +33,14 @@ files=(
     stack-lang/typing/Namer.scala
     stack-lang/typing/Scope.scala
     stack-lang/typing/Typer.scala
+    stack-lang/sast/Cache.scala
+    stack-lang/sast/CodeProvider.scala
     stack-lang/sast/Constant.scala
     stack-lang/sast/Definitions.scala
+    stack-lang/sast/Effects.scala
     stack-lang/sast/Exhaustivity.scala
     stack-lang/sast/Flags.scala
+    stack-lang/sast/InfoProvider.scala
     stack-lang/sast/Kind.scala
     stack-lang/sast/NameTable.scala
     stack-lang/sast/Patterns.scala

@@ -87,6 +87,7 @@ extends KeyProps.Container:
       if this.hasErrors || config.fatalWarnings && this.hasWarnings then
         throw FatalError.StopAfterPhase()
       else
+        if config.showSteps then println("Running " + step.name)
         step.run(v) <| step.name
   end extension
 

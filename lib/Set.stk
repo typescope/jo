@@ -2,58 +2,44 @@ namespace stk.Set
 
 import stk.Predef.*
 
-type Set[T] = object {
-  def size: Int
-  def contains(x: T): Bool
-  def +(x: T): Set[T]
-  def -(x: T): Set[T]
-  def ++(xs: List[T]): Set[T]
-  def select(pred: T => Bool): Set[T]
-  def exclude(pred: T => Bool): Set[T]
-  def diff(other: Set[T]): Set[T]
-  def union(other: Set[T]): Set[T]
-  def &(other: Set[T]): Set[T]
-  def foreach(f: T => Unit): Unit
-  def fold[S](zero: S, f: (S, T) => S): S
-  def exists(pred: T => Bool): Bool
-  def all(pred: T => Bool): Bool
-}
+fun empty[T](auto eq: Eq[T]): Set[T] = new Set(List.empty, eq)
 
-fun empty[T](auto eq: Eq[T]): Set[T] = SetImpl.makeObject List.empty
-
-fun Set[T](elems: ..T)(auto eq: Eq[T]): Set[T] = SetImpl.makeObject elems
+fun Set[T](elems: ..T)(auto eq: Eq[T]): Set[T] = new Set(elems, eq)
 
 // A strawman implementation of Set based on List
-section SetImpl
-  fun makeObject[T](l: List[T])(auto eq: Eq[T]): Set[T] = object {
-    def size: Int = l.size
+class Set[T]
+  val l: List[T]
+  val eq: Eq[T]
 
-    def contains(x: T): Bool = exists e => eq e x
+  def Set(l: List[T], eq: Eq[T]) = { l = l, eq = eq }
 
-    def +(x: T): Set[T] =
-      if contains x then this
-      else makeObject (l + x)
+  def size: Int = l.size
 
-    def -(x: T): Set[T] = exclude e => eq x e
+  def contains(x: T): Bool = exists e => eq e x
 
-    def ++(xs: List[T]): Set[T] = xs.fold this (acc, e) => acc + e
+  def +(x: T): Set[T] =
+    if contains x then this
+    else new Set(l + x, eq)
 
-    def select(pred: T => Bool): Set[T] = makeObject (l.select pred)
+  def -(x: T): Set[T] = exclude e => eq x e
 
-    def exclude(pred: T => Bool): Set[T] = makeObject (l.exclude pred)
+  def ++(xs: List[T]): Set[T] = xs.fold this (acc, e) => acc + e
 
-    def diff(other: Set[T]): Set[T] = exclude e => other.contains e
+  def select(pred: T => Bool): Set[T] = new Set(l.select pred, eq)
 
-    def union(other: Set[T]): Set[T] = other.fold this (acc, e) => acc + e
+  def exclude(pred: T => Bool): Set[T] = new Set(l.exclude pred, eq)
 
-    def &(other: Set[T]): Set[T] = select e => other.contains e
+  def diff(other: Set[T]): Set[T] = exclude e => other.contains e
 
-    def foreach(f: T => Unit): Unit = l.foreach f
+  def union(other: Set[T]): Set[T] = other.fold this (acc, e) => acc + e
 
-    def fold[S](zero: S, f: (S, T) => S): S = l.fold zero f
+  def &(other: Set[T]): Set[T] = select e => other.contains e
 
-    def exists(pred: T => Bool): Bool = l.exists pred
+  def foreach(f: T => Unit): Unit = l.foreach f
 
-    def all(pred: T => Bool): Bool = l.all pred
-  }
+  def fold[S](zero: S, f: (S, T) => S): S = l.fold zero f
+
+  def exists(pred: T => Bool): Bool = l.exists pred
+
+  def all(pred: T => Bool): Bool = l.all pred
 end

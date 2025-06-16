@@ -29,13 +29,13 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
       given Context = PatternMatcher.Context(implMap, ns.symbol)
       super.transformNamespace(ns)
 
-  override def transformTopLevelDefs(defs: List[Def])(using ctx: Context): List[Def] =
+  override def transformDefs(defs: List[Def])(using ctx: Context): List[Def] =
     defs.map:
       case pdef: PatDef =>
         implementPatDef(pdef)
 
       case defn =>
-        super.transformTopLevelDef(defn)
+        super.transformDef(defn)
 
   private def createImplFunSymbol(predSym: Symbol): Symbol =
     val predType = predSym.info.asProcType
@@ -45,19 +45,20 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
     val successType = TagType("Success", predType.params)
     val failType = TagType("Fail", Nil)
     val resultType = UnionType(successType :: failType :: Nil)
-    val receives = Some(Nil)
+    val effectPolicy = Effects.Policy.CheckBound(effects = Nil)
 
-    val funType = ProcType(predType.tparams, params, autos, resultType, receives, preParamCount = 0)
+    val funType = ProcType(predType.tparams, params, autos, resultType, effectPolicy, preParamCount = 0)
     Symbol.createSymbol(predSym.name + "$impl", funType, Flags.Fun | Flags.Synthetic, predSym.owner, predSym.sourcePos)
 
   private def getImplFunSymbol(predSym: Symbol, implMap: mutable.Map[Symbol, Symbol]): Symbol =
-    implMap.get(predSym) match
+    val target = predSym.dealias
+    implMap.get(target) match
       case Some(implSym) =>
         implSym
 
       case None =>
-        val implSym = createImplFunSymbol(predSym)
-        implMap(predSym) = implSym
+        val implSym = createImplFunSymbol(target)
+        implMap(target) = implSym
         implSym
 
   private def implementPatDef(pdef: PatDef)(using ctx: Context): FunDef =
@@ -86,13 +87,13 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
     val autos = Nil
     FunDef(implSym, pdef.tparams, scrutSym :: Nil, autos, tpt, body)(pdef.span)
 
-  override def transformNestedPatDef(pdef: PatDef)(using ctx: Context): Word =
+  override def transformLocalPatDef(pdef: PatDef)(using ctx: Context): Word =
     implementPatDef(pdef)
 
   override def transformMatch(patmat: Match)(using ctx: Context): Word =
     val Match(scrutineeRaw, cases) = patmat
     val scrutinee = transform(scrutineeRaw)
-    val scrutType = scrutinee.tpe
+    val scrutType = scrutinee.tpe.widenTermRef
 
     given Source = ctx.owner.sourcePos.source
 
@@ -173,7 +174,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
         If(cond, nestedBlock, BoolLit(false)(pat.span))(BoolType, pat.span)
 
       case WildcardPattern() =>
-        assert(Subtyping.conforms(scrut.tpe, pat.tpe), "scrutee type = " + scrut.tpe.show + ", pattern type = " + pat.tpe.show)
+        assert(Subtyping.conforms(scrut.tpe.widenTermRef, pat.tpe), "scrutee type = " + scrut.tpe.show + ", pattern type = " + pat.tpe.show)
         BoolLit(true)(pat.span)
 
   private def transformOrPattern(scrut: Ident, orPattern: OrPattern)

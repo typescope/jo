@@ -85,17 +85,16 @@ object Sast:
     (symbol: Symbol)
     (val span: Span)
   extends Word:
-    assert(!symbol.isType)
 
     def name: String = symbol.name
-    val tpe: Type = TypeRef(symbol)
+    val tpe: Type = StaticRef(symbol)
 
   case class Select
     (qual: Word, name: String)
     (val tpe: Type, val span: Span)
     (using Definitions)
   extends Word:
-    assert(qual.tpe.isValueType, "Select node must have value prefix, found = " + qual.tpe.show)
+    assert(qual.tpe.isValueType, "Select node must have value prefix, qual.tpe = " + qual.tpe + ", select = " + this.show)
 
   /** Assignment to local vars */
   case class Assign
@@ -172,8 +171,12 @@ object Sast:
     def apply(fun: Word, args: List[Word])(tpe: Type, span: Span)(using Definitions): Apply =
       apply(fun, args, autos = Nil)(tpe, span)
 
-  case class Object
-    (self: Symbol, vals: List[ValDef], defs: List[FunDef])
+  case class New
+    (classRef: Ident, targs: List[TypeTree])
+    (val tpe: Type, val span: Span)
+  extends Word
+
+  case class Object(self: Symbol, vals: List[ValDef], funs: List[FunDef])
     (val tpe: Type, val span: Span)
   extends Word
 
@@ -461,11 +464,11 @@ object Sast:
     def locals(using Definitions): List[Symbol] = census._1
     def freeVariables(using Definitions): List[Symbol] = census._2
 
-    def procType(using Definitions): ProcType = symbol.info.asProcType
+    def procType(using Definitions): ProcType = symbol.info.as[ProcType]
 
-    def receives(using Definitions): Option[List[Symbol]] = procType.receives
+    def effectsBound(using Definitions): Option[List[Symbol]] = procType.effectsBound
 
-    def methodReceives(using Definitions): List[Symbol] = receives.getOrElse(Nil)
+    def effectPolicy(using Definitions): Effects.Policy = procType.receives
 
   /** Represents a pattern definition */
   case class PatDef
@@ -474,17 +477,21 @@ object Sast:
   extends Word, Def:
     def procType(using Definitions): ProcType = symbol.info.asProcType
 
+  case class ClassDef
+    (symbol: Symbol, self: Symbol, tparams: List[Symbol], vals: List[Symbol], funs: List[FunDef])
+    (val span: Span)
+  extends Def
+
   case class Section
     (symbol: Symbol, defs: List[Def])
     (val span: Span)
   extends Def:
     def info(using Definitions): NameTableInfo = symbol.info.as[NameTableInfo]
 
-    def allFuns: List[FunDef] =
-      defs.flatMap:
-        case fdef: FunDef => fdef :: Nil
-        case sec: Section => sec.allFuns
-        case _ => Nil
+    def foreach(f: Def => Unit): Unit =
+      defs.foreach:
+        case sec: Section => sec.foreach(f)
+        case defn => f(defn)
 
   case class Namespace
     (symbol: Symbol, imports: List[Symbol], defs: List[Def])
@@ -494,11 +501,10 @@ object Sast:
 
     def fullName(using Definitions): String = symbol.fullName
 
-    def allFuns: List[FunDef] =
-      defs.flatMap:
-        case fdef: FunDef => fdef :: Nil
-        case sec: Section => sec.allFuns
-        case _ => Nil
+    def foreach(f: Def => Unit): Unit =
+      defs.foreach:
+        case sec: Section => sec.foreach(f)
+        case defn => f(defn)
 
     def mainSymbol: Option[Symbol] =
       val funs = defs.filter(defn => defn.symbol.isFunction && defn.symbol.name == "main")

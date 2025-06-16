@@ -60,6 +60,10 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
       case fdef: FunDef =>
         cache.code(fdef.symbol) = fdef
 
+      case cdef: ClassDef =>
+        for fdef <- cdef.funs do
+          cache.code(fdef.symbol) = fdef
+
       case ParamDef(param, _) if param.is(Flags.Default) =>
         // First synthesize all symbols
         val optType = UnionType(
@@ -115,7 +119,7 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
 
     FunDef(valueFunSym, tparams = Nil, params = Nil, autos = Nil, tpt, body)(pdef.span)
 
-  override def transformTopLevelDefs(defs: List[Def])(using ctx: Context): List[Def] =
+  override def transformDefs(defs: List[Def])(using ctx: Context): List[Def] =
     defs.flatMap:
       case pdef: ParamDef if pdef.symbol.is(Flags.Default) =>
         val optionParamSym = pdef.symbol.optionParam
@@ -125,7 +129,7 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
 
         pdef :: optionParamDef :: valueFunDef :: Nil
 
-      case defn => super.transformTopLevelDef(defn) :: Nil
+      case defn => super.transformDef(defn) :: Nil
 
 
   /** Bind optional context parameters at program entry.
@@ -134,10 +138,10 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
     *
     * TODO: Need to do the same for each thread.
     */
-  override  def transformTopLevelFunDef(fdef: FunDef)(using ctx: Context): FunDef =
+  override  def transformFunDef(fdef: FunDef)(using ctx: Context): FunDef =
     if !fdef.symbol.isLocal && fdef.name == "main" then
       val effs = EffectAnalysis.effects(fdef.symbol)(using ctx.cache)
-      val fdef2 = super.transformTopLevelFunDef(fdef)
+      val fdef2 = super.transformFunDef(fdef)
 
       val pos = fdef.symbol.sourcePos
       for
@@ -160,25 +164,17 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
       if symbol.isLocal then ctx.cache.code(symbol) = fdef
 
       if symbol.isFunction then
-        fdef.receives match
-          case Some(params) =>
+        fdef.effectPolicy match
+          case Effects.Policy.CheckBound(params) =>
             val allowed = params.map(_.dealias).toSet
             val effs = EffectAnalysis.effects(symbol)(using ctx.cache)
             val pos = symbol.sourcePos
             for (eff, trace) <- effs if !allowed.exists(param => eff.refers(param)) do
               Reporter.error("Parameter not allowed: " + eff, pos, trace)
 
-          case None =>
-            if symbol.is(Flags.Default) then
-              val effs = EffectAnalysis.effects(symbol)(using ctx.cache)
-              val pos =
-                given Source = symbol.sourcePos.source
-                fdef.body.pos
+          case _ =>
 
-              for (eff, trace) <- effs do
-                Reporter.error("Parameter not allowed for default values: " + eff, pos, trace)
-
-      super.transformTopLevelFunDef(fdef)
+      super.transformFunDef(fdef)
 
   override def transformIdent(ident: Ident)(using ctx: Context): Word =
     val sym = ident.symbol
@@ -268,10 +264,10 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
     given Source = ctx.owner.sourcePos.source
     val span = obj.span
 
-    for ddef <- obj.defs do
+    for ddef <- obj.funs do
       ctx.cache.code(ddef.symbol) = ddef
       val effsTraced = EffectAnalysis.effects(ddef.symbol)(using ctx.cache)
-      val effs = (effsTraced -- ddef.methodReceives).keys.toList
+      val effs = (effsTraced -- ddef.effectsBound.getOrElse(Nil)).keys.toList
 
       if effs.isEmpty then
         val body2 = this(ddef.body)
@@ -297,7 +293,7 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
     end for
 
     val aliases = aliasMap.values.toSeq
-    val obj2 = obj.copy(defs = newDefs.toList)(obj.tpe, obj.span)
+    val obj2 = obj.copy(funs = newDefs.toList)(obj.tpe, obj.span)
     Block((aliases :+ obj2).toList)(obj.tpe, obj.span)
 
 

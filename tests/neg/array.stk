@@ -21,7 +21,7 @@ type C =
   }
 
 fun main =
-  val arr: Array[Int] = Array.new[Int] 3
+  val arr: Array[Int] = Array.create[Int] 3
 
   val f: IntArray = arr // error
   val a: A = arr // error

@@ -44,7 +44,7 @@
 |          Function Student expects 3 post arguments, found = 2
 
 ---------- Error at ./tests/warn/pattern2.stk:47:10 ---------------
-|     case #Student name year sex class => // error
+|     case #Student name year sex classNo => // error
 |          ^^^^^^^^
 |          The tag type Student in scrutinee has 3 parameters, supplied = 4
 

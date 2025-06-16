@@ -2,13 +2,11 @@ package sast
 
 import Types.*
 import Symbols.*
-import Definitions.InfoProvider
 
 import reporting.Reporter
 
-import scala.collection.mutable
+final class Definitions(rootNameTable: NameTable, initProvider: InfoProvider):
 
-final class Definitions(rootNameTable: NameTable, provider: InfoProvider):
   export rootNameTable.resolveTermByPath
 
   //----------------------------------------------------------------------------
@@ -16,9 +14,33 @@ final class Definitions(rootNameTable: NameTable, provider: InfoProvider):
   //
   given Definitions = this
 
+  private var provider: InfoProvider = initProvider
+
+  private var cacheForInfoProvider: Cache = new Cache
+
+  def cache: Cache = cacheForInfoProvider
+
   def info(sym: Symbol): SymInfo = provider(sym)
 
-  export provider.{ add, addLazy }
+  def add(sym: Symbol, owner: Symbol, tp: Type): Unit =
+    provider.add(sym, owner, tp)
+
+  def addLazy(sym: Symbol, owner: Symbol, infoLazy: () => Type, errorType: () => Type): Unit =
+    provider.addLazy(sym, owner, infoLazy, errorType)
+
+  def addLazy(sym: Symbol, owner: Symbol, infoLazy: () => Type): Unit =
+    provider.addLazy(sym, owner, infoLazy, () => ErrorType)
+
+  /** Install a transformer for symbols
+    *
+    * Warning: Accessing `sym.info` or `sym.owner` will loop. Use the provided
+    * data in `SymInfo` instead.
+    */
+  def installTransform(transform: SymInfo => SymInfo): Unit =
+    provider = new InfoProvider.InfoTransformer(provider, transform)
+
+    // Invalidate old cache
+    cacheForInfoProvider = new Cache
 
   //----------------------------------------------------------------------------
   // Predefined symbols
@@ -85,7 +107,7 @@ final class Definitions(rootNameTable: NameTable, provider: InfoProvider):
 
   val Array         =  resolveTermByPath("stk.Array")
   val Array_Array   =  Array.typeMember("Array")
-  val Array_new     =  Array.termMember("new")
+  val Array_create  =  Array.termMember("create")
   val Array_get     =  Array.termMember("get")
   val Array_set     =  Array.termMember("set")
   val Array_size     =  Array.termMember("size")
@@ -105,12 +127,12 @@ final class Definitions(rootNameTable: NameTable, provider: InfoProvider):
   val Internal_Seq          =  Internal.typeMember("Seq")
   val Internal_PackElemType =  Internal.typeMember("PackElemType")
 
-  val IntType     = TypeRef(Int_Int)
-  val BoolType    = TypeRef(Bool_Bool)
-  val ByteType    = TypeRef(Predef_Byte)
-  val CharType    = TypeRef(Predef_Char)
-  val UnitType    = TypeRef(Predef_Unit)
-  val StringType  = TypeRef(Predef_String)
+  val IntType     = StaticRef(Int_Int)
+  val BoolType    = StaticRef(Bool_Bool)
+  val ByteType    = StaticRef(Predef_Byte)
+  val CharType    = StaticRef(Predef_Char)
+  val UnitType    = StaticRef(Predef_Unit)
+  val StringType  = StaticRef(Predef_String)
 
   def isNumericType(tp: Type): Boolean =
     tp.refersAny(Predef_Byte :: Predef_Char :: Int_Int :: Nil)
@@ -125,53 +147,9 @@ final class Definitions(rootNameTable: NameTable, provider: InfoProvider):
   def isRuntimeContextParam(sym: Symbol): Boolean =
     runtimeContextParams.exists(param => sym.refers(param))
 
-  private val subtypingCache: mutable.Map[Type, mutable.Map[Type, Boolean]] =
-    mutable.Map.empty
-
-  def cachedConforms(tp1: Type, tp2: Type, cache: Boolean)(work: => Boolean): Boolean =
-    val tp1norm = TypeOps.normalize(tp1)
-    val tp2norm = TypeOps.normalize(tp2)
-    subtypingCache.get(tp1norm) match
-      case Some(innerMap) =>
-        innerMap.get(tp2norm) match
-          case Some(res) => res
-          case None =>
-            val res = work
-            if cache then innerMap(tp2norm) = res
-            res
-
-      case None =>
-        val innerMap: mutable.Map[Type, Boolean] = mutable.Map.empty
-        subtypingCache(tp1norm) = innerMap
-        val res = work
-        if cache then innerMap(tp2norm) = res
-        res
-
 end Definitions
 
 object Definitions:
-  abstract class InfoProvider:
-    def add(sym: Symbol, owner: Symbol, tp: Type): Unit
-
-    def addLazy(sym: Symbol, owner: Symbol, infoLazy: () => Type, errorType: () => Type): Unit
-
-    def addLazy(sym: Symbol, owner: Symbol, infoLazy: () => Type): Unit =
-      addLazy(sym, owner, infoLazy, () => ErrorType)
-
-    def get(sym: Symbol): Option[SymInfo]
-
-    def info(sym: Symbol): Type = apply(sym).tpe
-
-    def dealiasedInfo(sym: Symbol): Type =
-      apply(sym).tpe match
-        case TypeRef(sym) if sym.isAlias => dealiasedInfo(sym)
-        case tp => tp
-
-    def apply(sym: Symbol): SymInfo =
-      get(sym) match
-        case Some(info) => info
-        case _ => throw new Exception("Not found info for " + sym)
-
   class Lazy(val rootNameTable: NameTable)(using Reporter):
     val infoProvider: InfoProvider = new SymInfoProvider
     lazy val value: Definitions = new Definitions(rootNameTable, infoProvider)

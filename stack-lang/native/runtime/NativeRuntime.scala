@@ -31,7 +31,7 @@ extends Linker:
   val Core_writeByte = Core.termMember("writeByte")
   val Core_readByte  = Core.termMember("readByte")
 
-  val Core_Array_new  = Core.termMember("Array_new")
+  val Core_Array_create  = Core.termMember("Array_create")
   val Core_Array_size = Core.termMember("Array_size")
   val Core_Array_get  = Core.termMember("Array_get")
   val Core_Array_set  = Core.termMember("Array_set")

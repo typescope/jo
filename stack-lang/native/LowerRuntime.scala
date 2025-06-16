@@ -50,7 +50,7 @@ class LowerRuntime(runtime: NativeRuntime)(using defn: Definitions) extends phas
     defn.Predef_intToByte  -> runtime.Core_intToByte,
     defn.Predef_intToChar  -> runtime.Core_intToChar,
     defn.Predef_intToStr   -> runtime.Core_intToStr,
-    defn.Array_new         -> runtime.Core_Array_new,
+    defn.Array_create      -> runtime.Core_Array_create,
     defn.Array_get         -> runtime.Core_Array_get,
     defn.Array_set         -> runtime.Core_Array_set,
     defn.Array_size        -> runtime.Core_Array_size,
@@ -105,4 +105,4 @@ class LowerRuntime(runtime: NativeRuntime)(using defn: Definitions) extends phas
         throw new Exception("Unexpected method on String: " + name)
 
     else
-      recur(select)
+      super.transformSelect(select)

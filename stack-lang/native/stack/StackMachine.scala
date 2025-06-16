@@ -90,13 +90,13 @@ extends Backend(runtime):
 
       case _: TypeDef =>
 
-      case _: ValDef | _: FunDef  | _: With | _: Allow | _: Select |
+      case _: ValDef      | _: FunDef    | _: With   | _: Allow | _: Select |
            _: FieldAssign | _: RecordLit | _: Object | _: Match |
-           _: TaggedLit | _: PatDef =>
+           _: TaggedLit   | _: PatDef    | _: New =>
         throw new Exception("Unexpected " + word)
 
   /** Compile a function */
-  def compileFunDef(fdef: FunDef)(using cb: CodeBuffer): Unit =
+  def compileFunDef(fdef: FunDef)(using cb: CodeBuffer): Unit = try
     val sym = fdef.symbol
     val funType = sym.info.asProcType
 
@@ -126,6 +126,11 @@ extends Backend(runtime):
 
     compile(fdef.body)(using symAddrMap.toMap, cb)
     ret(resCount)
+  catch
+    case e: Throwable =>
+      println("locals = " + fdef.locals)
+      println(fdef.show)
+      throw e
 
   def compile(ifword: If)(using addr: LocalAddr, cb: CodeBuffer): Unit =
     val labelFalse = Label("_false")
@@ -271,7 +276,9 @@ extends Backend(runtime):
     else
       val loc =
         if sym.isLocal then
-          addr(sym)
+          addr.get(sym) match
+            case Some(loc) => loc
+            case None => throw new Exception("Not found local symbol: " + sym)
         else
           throw new Exception("accessing non-local variable " + sym + ", owner = " + sym.owner)
 

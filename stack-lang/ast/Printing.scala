@@ -113,6 +113,18 @@ object Printing:
 
         mods ~ "fun " ~ fdef.name ~ tparams ~ params ~ autos ~ resType ~ receives ~ body
 
+      case cdef: ClassDef =>
+        val mods =
+          if cdef.modifiers.isEmpty then Text.Empty
+          else cdef.modifiers.join(" ") ~ " "
+
+        val tparams =
+          if cdef.tparams.isEmpty then Text.Empty
+          else "[" ~ cdef.tparams.join(", ")  ~ "]"
+
+        mods ~ "class " ~ cdef.name ~ tparams ~ indent:
+          cdef.members.join(Text.BlankLine)
+
       case pdef: PatDef =>
         val tparams =
           if pdef.tparams.isEmpty then Text.Empty
@@ -186,6 +198,13 @@ object Printing:
       case Apply(fun, args) =>
         val argsText = args.join(", ")
         fun ~ "(" ~ argsText ~ ")"
+
+      case New(classRef, targs, args) =>
+        val targsText =
+          if targs.isEmpty then Text.Empty
+          else "[" ~ targs.join(", ")  ~ "]"
+
+        "new " ~ classRef ~ targsText ~ "(" ~ args.join(", ") ~ ")"
 
       case DotlessCall(obj, meth, arg) =>
         "(" ~ obj ~ " " ~ meth ~ " " ~ arg ~ ")"

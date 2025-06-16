@@ -5,6 +5,7 @@ import ast.Positions.*
 import sast.*
 import sast.Sast.*
 import sast.Symbols.Symbol
+import sast.Effects.*
 
 import scala.collection.mutable
 
@@ -132,8 +133,6 @@ object EffectAnalysis:
         case _: Literal => zero
 
         case Ident(sym) =>
-          // Method calls will not contribute effects as each method is
-          // self-sufficient after deep capture.
           if sym.isAllOf(Flags.Context | Flags.Param) then
             Map(sym -> Vector(word.pos))
 
@@ -148,7 +147,21 @@ object EffectAnalysis:
           if word.tpe.isProcType then
             // a select with a ProcType must be a method call
             val procType = word.tpe.asProcType
-            effs ++ procType.receives.getOrElse(Nil).map(_ -> Vector(word.pos))
+            effs ++ {
+              procType.receives match
+                case Effects.Policy.Capture(except) =>
+                  except.map(_ -> Vector(word.pos))
+
+                case Effects.Policy.CheckBound(effs) =>
+                  effs.map(_ -> Vector(word.pos))
+
+                case Effects.Policy.Infer =>
+                  assert(word.tpe.is[Types.RefType], "Ref type expected, found = " + word.tpe + ", word = " + word.show)
+                  val sym = word.tpe.as[Types.RefType].symbol
+
+                  for (eff, trace) <- getEffects(sym) yield
+                     eff -> (word.pos +: trace)
+            }
           else
             effs
 
@@ -174,6 +187,9 @@ object EffectAnalysis:
 
         case TypeApply(fun, targs) =>
           this(fun)
+
+        case New(classRef, targs) =>
+          zero
 
         case With(expr, args) =>
           val effsInner = this(expr)
@@ -220,12 +236,16 @@ object EffectAnalysis:
           defs.foldLeft(effs): (acc, ddef) =>
             // Cache the effects for method such that it can be used for the
             // deep capture transform.
-            //
-            // Method calls will not contribute effects as each method is
-            // self-sufficient after deep capture.
             cache.code(ddef.symbol) = ddef
-            val rawEffects = getEffects(ddef.symbol)
-            acc ++ (rawEffects -- ddef.methodReceives)
+            ddef.effectPolicy match
+              case Policy.Infer => acc
+
+              case Policy.Capture(except) =>
+                val rawEffects = getEffects(ddef.symbol)
+                acc ++ (rawEffects -- except)
+
+              case Policy.CheckBound(bound) =>
+                acc ++ bound.map(_ -> Vector(word.pos))
 
         case fdef: FunDef =>
           cache.code(fdef.symbol) = fdef

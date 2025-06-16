@@ -222,6 +222,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     else if item.token == Token.DATA then dataDef().withMods(mods)
     else if item.token == Token.ALIAS then aliasDef().withMods(mods)
     else if item.token == Token.SECTION then section().withMods(mods)
+    else if item.token == Token.CLASS then classDef().withMods(mods)
     else
       error("Expect a definition, found = " + item.token, item.span.toPos)
       next()
@@ -394,6 +395,39 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     else
       Nil
+
+  def classDef(): ClassDef =
+    val klass = eat(Token.CLASS)
+    val id = ident()
+    val tparams = typeParams()
+
+    val members: List[ValDef | FunDef] = repeated:
+      val item = peekItem()
+      if klass.indent.isUnindent(item.indent) then
+        None
+
+      else if item.token == Token.DEF then
+        Some(defDef(needBody = true))
+
+      else if peek() == Token.VAL || peek() == Token.VAR then
+        val mod = next()
+        val mutable = mod.token == Token.VAR
+        val id = ident()
+        eat(Token.COLON)
+        val tpt = typ()
+        val body = Block(phrases = Nil)(id.span)
+        Some(ValDef(id, tpt, body, mutable)(mod.span | tpt.span))
+
+      else None
+
+    eatEndOpt(klass.indent)
+
+    val lastSpan =
+      if members.nonEmpty then members.last.span
+      else if tparams.nonEmpty then tparams.last.span
+      else id.span
+
+    ClassDef(id, tparams, members)(klass.span | lastSpan)
 
   def typeDef(): TypeDef =
     val typeItem = eat(Token.TYPE)
@@ -673,6 +707,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
       case Token.OBJECT =>
         optSelectAndApply(objectLit())
+
+      case Token.NEW =>
+        optSelectAndApply(newExpr())
 
       case Token.BEGIN =>
         next()
@@ -1019,6 +1056,19 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def apply(fun: Word): Apply =
     val (args, span) = termArgs()
     Apply(fun, args)(fun.span | span)
+
+  def newExpr(): New =
+    val startItem = eat(Token.NEW)
+    val ref = qualid()
+    val targs =
+      if peek() == Token.LBRACKET then typeArgs()._1
+      else Nil
+
+    val (args, span) =
+      if peek() == Token.LPAREN then termArgs()
+      else (Nil, ref.span)
+
+    New(ref, targs, args)(startItem.span | span)
 
   def record(): RecordLit =
     val lbrace = eat(Token.LBRACE)

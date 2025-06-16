@@ -6,7 +6,7 @@ fun fact(x: Int) =       // error
   if 0 == x then 1
   else fact (x - 1) * x
 
-fun b: Bool = fact 10 // error
+fun b: Bool = fact 10
 
 fun f(x: Int) =       // error
   val a = g x

@@ -8,6 +8,7 @@ import sast.Sast.*
 import sast.Symbols.*
 import sast.Types.*
 
+import common.OutOfBand
 import reporting.Reporter
 import reporting.Diagnostics
 
@@ -31,19 +32,7 @@ class PatternTyper(namer: Namer, checker: Checker):
     val patSym = Symbol.createSymbol(patDef.name, flags, patDef.ident.pos)
     given patScope: Scope = sc.fresh(patSym)
 
-    lazy val tparamSyms =
-      for tparam <- patDef.tparams yield
-        val bound =
-          if tparam.bound.isEmpty then
-            TypeBound(BottomType, AnyType)
-          else
-            val boundTree = namer.transformType(tparam.bound)
-            TypeBound(BottomType, boundTree.tpe)
-
-        // Only support simple kinded type parameters
-        val sym = TypeSymbol.createSymbol(Kind.Simple, tparam.name, bound, Flags.Param, patSym, tparam.pos)
-        patScope.define(sym)
-        sym
+    lazy val tparamSyms = namer.transformTypeParams(patDef.tparams)
 
     lazy val paramSyms =
       tparamSyms
@@ -94,7 +83,8 @@ class PatternTyper(namer: Namer, checker: Checker):
 
     def computeInfo(resultType: Type) =
       val autoTypes = Nil
-      ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), autoTypes, resultType, receives = None, preParamCount = patDef.preParamCount)
+      val effectPolicy = Effects.Policy.CheckBound(effects = Nil)
+      ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), autoTypes, resultType, effectPolicy, patDef.preParamCount)
 
     lazyDefn match
       case lazyDefn: Definitions.Lazy =>
@@ -146,7 +136,7 @@ class PatternTyper(namer: Namer, checker: Checker):
       given TargetType = TargetType.ValueType
       namer.transform(scrutinee)
 
-    val scrutType = scrutinee2.tpe
+    val scrutType = scrutinee2.tpe.widenTermRef
 
     val rp2: Reporter = rp.fresh(buffer = true)
     val cases2 =
@@ -580,30 +570,34 @@ class PatternTyper(namer: Namer, checker: Checker):
   : Pattern =
 
     val tvar = TypeVar("T", this.namer.inferencer)
-    val seqType = AppliedType(TypeRef(defn.Internal_Seq), tvar :: Nil)
+    val seqType = AppliedType(StaticRef(defn.Internal_Seq), tvar :: Nil)
 
     val sliceMethodType =
       ProcType(
         tparams = Nil,
         params = NamedInfo("from", defn.IntType) :: NamedInfo("to", defn.IntType)  :: Nil,
         autos = Nil,
-        receives = Some(Nil),
+        receives = Effects.Policy.CheckBound(effects = Nil),
         resultType = scrutType.widenTermRef,
         preParamCount = 0
       )
 
     lazy val sliceMethodConforms: Boolean =
       scrutType.getTermMember("slice") match
-        case Some(tp1) =>
-          Subtyping.conforms(tp1, sliceMethodType)
+        case Some(tp) if tp.isProcType =>
+          val tp1 = tp.asProcType
+          // ignore effects
+          Subtyping.conforms(tp1.copy(receives = sliceMethodType.receives), sliceMethodType)
 
         case _ => false
 
     def memberConforms(name: String) =
       scrutType.getTermMember(name) match
-        case Some(tp1) =>
-          val tp2 = seqType.termMember(name)
-          Subtyping.conforms(tp1, tp2)
+        case Some(tp) if tp.isProcType =>
+          val tp1 = tp.asProcType
+          val tp2 = seqType.termMember(name).asProcType
+          // ignore effects
+          Subtyping.conforms(tp1.copy(receives = tp2.receives), tp2)
 
         case _ => false
 
@@ -704,7 +698,7 @@ class PatternTyper(namer: Namer, checker: Checker):
       if !innerSym.name.startsWith("_")
     do
 
-      val expectedType = AppliedType(TypeRef(defn.List_List), innerSym.info :: Nil)
+      val expectedType = AppliedType(StaticRef(defn.List_List), innerSym.info :: Nil)
 
       // first check if there is a pattern variable of the same name exists
       sc.resolvePattern(innerSym.name) match
@@ -739,9 +733,10 @@ class PatternTyper(namer: Namer, checker: Checker):
   private def resolvePatternPredicateOpt(id: Ast.Ident)(using sc: Scope, defn: Definitions): Option[Symbol] =
     sc.resolvePattern(id.name) match
       case None =>
+        given OutOfBand = new OutOfBand
         sc.resolveTerm(id.name) match
           case Some(sym) if sym.is(Flags.Section) =>
-            val nameTable = sym.dealiasedInfo.as[NameTableInfo]
+            val nameTable = sym.dealias.info.as[NameTableInfo]
             nameTable.resolvePattern(sym.name)
 
           case _ =>

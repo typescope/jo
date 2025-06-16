@@ -2,7 +2,6 @@ package sast
 
 import Types.*
 import Flags.*
-import Definitions.InfoProvider
 
 import ast.Positions.SourcePosition
 
@@ -12,6 +11,8 @@ import ast.Positions.SourcePosition
   * might change, e.g., due to erasure or encoding of types.
   */
 object Symbols:
+  final val debugSymbol = false
+
   /** The information about a symbol
     *
     * During transformation, the type and owner of a symbol may change.
@@ -21,7 +22,7 @@ object Symbols:
   case class SymInfo(symbol: Symbol, owner: Symbol, tpe: Type):
     assert(owner != null || symbol.flags.is(Flags.NSpace))
 
-  sealed class Symbol(val name: String, val flags: Flags, val sourcePos: SourcePosition):
+  sealed class Symbol private[Symbols](val name: String, val flags: Flags, val sourcePos: SourcePosition):
     /** TODO: Cache could be introduced to improve performance based on timestamps */
     private def symInfo(using defn: Definitions): SymInfo = defn.info(this)
 
@@ -30,8 +31,6 @@ object Symbols:
       * The result may change. The cache is done by the provider.
       */
     def info(using Definitions): Type = symInfo.tpe
-
-    def dealiasedInfo(using Definitions): Type = dealias.symInfo.tpe
 
     def owner(using Definitions): Symbol = symInfo.owner
 
@@ -42,12 +41,15 @@ object Symbols:
 
     def isMethod   : Boolean = flags.is(Flags.Method)
     def isType     : Boolean = flags.is(Flags.Type)
+    def isClass    : Boolean = flags.is(Flags.Class)
     def isPattern  : Boolean = flags.is(Flags.Pattern)
     def isParameter: Boolean = flags.is(Flags.Param)
     def isMutable  : Boolean = flags.is(Flags.Mutable)
     def isField    : Boolean = flags.is(Flags.Field)
     def isSynthetic: Boolean = flags.is(Flags.Synthetic)
     def isAlias    : Boolean = flags.is(Flags.Alias)
+
+    def isConstructor: Boolean = flags.is(Flags.Constructor)
 
     def isNamespace: Boolean = flags.is(Flags.NSpace)
 
@@ -58,6 +60,14 @@ object Symbols:
     def is(testFlag: Flag) = this.flags.isOneOf(testFlag)
     def isOneOf(testFlags: Flags) = this.flags.isOneOf(testFlags)
     def isAllOf(testFlags: Flags) = this.flags.isAllOf(testFlags)
+
+    def classInfo(using Definitions): ClassInfo =
+      assert(this.isClass, "Not a class")
+
+      this.dealias.info match
+        case info: ClassInfo => info
+        case TypeLambda(_, info: ClassInfo, _) => info
+        case tp => throw new Exception("Unexpected type " + tp.show)
 
     def isLocal(using Definitions): Boolean =
       owner != null & !owner.isContainer
@@ -106,11 +116,15 @@ object Symbols:
         case nsInfo: NameTableInfo => nsInfo.resolvePattern(name).getOrElse(error())
         case _ => error()
 
-    /** Return the source symbol of an alias created by import or aliasing */
+    /** Return the source symbol of an alias created by import or aliasing
+      *
+      * Invariant: It is important that we do not have cycles in aliases, which
+      * is guaranteed by disallowing creating an alias of another alias.
+      */
     def dealias(using Definitions): Symbol =
-      if this.isAlias then this.info.as[TypeRef].symbol.dealias else this
+      if this.isAlias then this.info.as[StaticRef].symbol.dealias else this
 
-    /** Is the current symbol equivalent to a TypeRef or AppliedType to the given symbol  */
+    /** Is the current symbol equivalent to a StaticRef or AppliedType to the given symbol  */
     def refers(that: Symbol)(using Definitions): Boolean =
       this == that || this.info.refers(that)
 
@@ -141,7 +155,11 @@ object Symbols:
 
     def toNamedInfo(using Definitions): NamedInfo[Type] = NamedInfo(name, info)
 
-    override def toString() = name
+    override def toString() =
+      if Symbols.debugSymbol then
+        name + "#" + System.identityHashCode(this)
+      else
+        name
 
     def asTypeSymbol: TypeSymbol = this.asInstanceOf[TypeSymbol]
   end Symbol
@@ -162,7 +180,7 @@ object Symbols:
     def createSymbol
         (kind: Kind, name: String, info: Type, flags: Flags, owner: Symbol, pos: SourcePosition)
         (using defn: Definitions)
-    : Symbol =
+    : TypeSymbol =
       val sym = new TypeSymbol(kind, name, flags, pos)
       defn.add(sym, owner, info)
       sym
@@ -183,15 +201,4 @@ object Symbols:
 
       val sym = new Symbol(name, flags, pos)
       defn.add(sym, owner, info)
-      sym
-
-    /** Create a term or pattern symbol */
-    def create
-        (name: String, info: Type, flags: Flags, owner: Symbol, pos: SourcePosition)
-        (using ip: InfoProvider)
-    : Symbol =
-      assert(!flags.is(Flags.Type), "type symbols should be created by `TypeSymbol.create`")
-
-      val sym = new Symbol(name, flags, pos)
-      ip.add(sym, owner, info)
       sym

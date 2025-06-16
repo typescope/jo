@@ -89,7 +89,7 @@ class ExprTyper(namer: Namer):
 
     val tp = wordTyped.tpe
 
-    val isDotlessMethodCallPattern = tp.isObjectType && rest.head.match
+    val isDotlessMethodCallPattern = (tp.isObjectType || tp.isClassType) && rest.head.match
       case Ast.Ident(name) =>
         tp.getTermMember(name) match
           case Some(memType) => memType.isProcType
@@ -109,7 +109,7 @@ class ExprTyper(namer: Namer):
               given Reporter = rp.fresh(buffer = true)
               val wordTyped = namer.transformRefTree(ref)
               wordTyped.tpe match
-                case TypeRef(sym) if sym.isContainer => Some(sym)
+                case StaticRef(sym) if sym.isContainer => Some(sym)
                 case _ => None
 
             case _ => None
@@ -121,7 +121,7 @@ class ExprTyper(namer: Namer):
       // If the first word is a section or namespace reference followed by >, inject the
       // names of the container in typing the expression
       val sym = containerSymbolOpt.get
-      val injected = sc.fresh(sym, sym.dealiasedInfo.as[NameTableInfo].nameTable)
+      val injected = sc.fresh(sym, sym.dealias.info.as[NameTableInfo].nameTable)
       given Scope = injected.fresh()
       transform(Ast.Expr(rest.tail)(expr.span))
 

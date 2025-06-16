@@ -11,6 +11,7 @@ files=(
     stack-lang/common/Debug.scala
     stack-lang/common/KeyProps.scala
     stack-lang/common/IO.scala
+    stack-lang/common/OutOfBand.scala
     stack-lang/common/StringUtil.scala
     stack-lang/common/Text.scala
     stack-lang/parsing/Parser.scala
@@ -32,10 +33,14 @@ files=(
     stack-lang/typing/PatternTyper.scala
     stack-lang/typing/Scope.scala
     stack-lang/typing/Typer.scala
+    stack-lang/sast/Cache.scala
+    stack-lang/sast/CodeProvider.scala
     stack-lang/sast/Constant.scala
     stack-lang/sast/Definitions.scala
+    stack-lang/sast/Effects.scala
     stack-lang/sast/Exhaustivity.scala
     stack-lang/sast/Flags.scala
+    stack-lang/sast/InfoProvider.scala
     stack-lang/sast/Kind.scala
     stack-lang/sast/NameTable.scala
     stack-lang/sast/Patterns.scala
@@ -63,6 +68,7 @@ files=(
     stack-lang/native/arch/X86.scala
     stack-lang/native/ELF32.scala
     stack-lang/native/Memory.scala
+    stack-lang/native/ObjectEncoding.scala
     stack-lang/native/os/Linux.scala
     stack-lang/native/os/LinuxSyscall.scala
     stack-lang/native/register/CallConvention.scala
@@ -73,6 +79,7 @@ files=(
 
     stack-lang/native/runtime/NativeRuntime.scala
     stack-lang/native/runtime/BumpAllocator.scala
+    stack-lang/native/EncodeClass.scala
     stack-lang/native/LowerContextParams.scala
     stack-lang/native/LowerRuntime.scala
     stack-lang/native/ExplicitAlloc.scala

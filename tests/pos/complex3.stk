@@ -1,0 +1,33 @@
+class Complex
+  val real: Int
+  val image: Int
+
+  def Complex(x: Int, y: Int) = { real = x, image = y }
+
+  def +(c: Complex): Complex =
+    Complex
+      this.real + c.real
+      this.image + c.image
+
+  def -(c: Complex): Complex =
+    Complex
+      this.real - c.real
+      this.image - c.image
+
+  def *(c: Complex): Complex =
+    Complex
+      this.real * c.real - this.image * c.image
+      this.real * c.image + this.image * c.real
+
+  def show: String =
+    (intToStr this.real) + " + " + (intToStr this.image) + "i"
+
+fun Complex(x: Int, y: Int): Complex = new Complex(x, y)
+
+fun main =
+  val c1 = Complex 1 3
+  val c2 = Complex 2 4
+  val c3 = Complex 1 5
+  val c4 = c1 + c2 * c3
+
+  println c4.show
