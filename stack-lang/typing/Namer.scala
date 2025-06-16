@@ -1266,7 +1266,7 @@ class Namer:
     DelayedDef(funSym, typer)
 
   private def transformConstructor(funDef: Ast.FunDef, thisSym: Symbol, classSym: Symbol)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
+      (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source)
   : DelayedDef[FunDef] =
 
     val flags = Flags.Fun | Flags.Constructor
@@ -1276,6 +1276,8 @@ class Namer:
 
     if funDef.tparams.nonEmpty then
       Reporter.error("Constructor may not take type parameters", funDef.tparams.head.pos)
+
+    given Definitions = lazyDefn.value
 
     lazy val paramSyms =
       transformParams(funDef.params)
@@ -1352,7 +1354,8 @@ class Namer:
         tparamSyms, paramSyms.map(_.toNamedInfo), autoSyms.map(_.toNamedInfo),
         resultType, effectPolicy, funDef.preParamCount)
 
-    defn.addLazy(funSym, sc.owner,  () => computeInfo(resultType), () => computeInfo(ErrorType))
+    val ip = lazyDefn.infoProvider
+    ip.addLazy(funSym, sc.owner,  () => computeInfo(resultType), () => computeInfo(ErrorType))
 
     val typer = () =>
       val tpt = TypeTree(resultType)(funDef.resultType.span)
@@ -1462,12 +1465,12 @@ class Namer:
     thisScope.define(thisSym)
     val shortCutScope = thisScope.freshPrefixedScope(prefix = thisSym, owner = classSym)
 
-    val thisInfo: Type =
+    lazy val thisInfo: Type =
       val classRef = StaticRef(classSym)
       if tparamSyms.isEmpty then classRef
       else AppliedType(classRef, tparamSyms.map(StaticRef.apply))
 
-    defn.add(thisSym, classSym, thisInfo)
+    ip.addLazy(thisSym, classSym, () => thisInfo)
 
     val delayedDefs = new mutable.ArrayBuffer[DelayedDef[FunDef]]
 
@@ -1488,7 +1491,7 @@ class Namer:
         Reporter.error("Class name cannot be used as field name", vdef.pos)
 
       else
-        defn.addLazy(sym, classSym, () => checkType())
+        ip.addLazy(sym, classSym, () => checkType())
         fields += sym
 
     for case fdef: Ast.FunDef <- cdef.members do
@@ -1504,6 +1507,8 @@ class Namer:
           transformConstructor(fdef, thisSym, classSym)
 
         else
+          // Prefer the lazy version to avoid forcing
+          given Definitions.Lazy = lazyDefn
           transformFunDef(fdef, Flags.Fun | Flags.Method, Effects.Policy.Infer)
 
 

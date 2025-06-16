@@ -2,70 +2,60 @@ namespace stk.Map
 
 import stk.Predef.*
 
-type Map[K, V] = object {
-  def size: Int
-  def contains(k: K): Bool
-  def get(k: K): Option[V]
-  def add(k: K, v: V): Map[K, V]
-  def update(k: K, v: V): Map[K, V]
-  def remove(k: K): Map[K, V]
-  def ++(xs: Map[K, V]): Map[K, V]
-  def select(pred: (K, V) => Bool): Map[K, V]
-  def exclude(pred: (K, V) => Bool): Map[K, V]
-  def foreach(f: (K, V) => Unit): Unit
-  def fold[S](zero: S, f: (S, K, V) => S): S
-}
+fun empty[K, V](auto eq: Eq[K]): Map[K, V] = new Map(List.empty, eq)
 
-fun empty[K, V](auto eq: Eq[K]): Map[K, V] = MapImpl.makeObject List.empty
-
-fun Map[K, V](elems: ..Pair[K, V])(auto eq: Eq[K]): Map[K, V] = MapImpl.makeObject elems
+fun Map[K, V](elems: ..Pair[K, V])(auto eq: Eq[K]): Map[K, V] = new Map(elems, eq)
 
 // A strawman implementation of Map based on List
-section MapImpl
-  fun makeObject[K, V](l: List[Pair[K, V]])(auto eq: Eq[K]): Map[K, V] = object {
-    def size: Int = l.size
+class Map[K, V]
+  val eq: Eq[K]
+  val l: List[Pair[K, V]]
 
-    def contains(k: K): Bool =
-      var found = false
-      var i = 0
-      while both !found (i < size) do
-        found = eq l(i).a k
-        i = i + 1
-      end
-      found
+  def Map(elems: List[Pair[K, V]], eq: Eq[K]) = { l = elems, eq = eq }
 
-    def get(k: K): Option[V] =
-      var found = false
-      var res: Option[V] = None
-      var i = 0
-      while both !found (i < size) do
-        val item = l(i)
-        found = eq item.a k
-        if found then res = Some item.b
-        i = i + 1
-      end
-      res
+  def size: Int = l.size
 
-    def add(k: K, v: V): Map[K, V] = update k v
+  def contains(k: K): Bool =
+    var found = false
+    var i = 0
+    while both !found (i < size) do
+      found = eq l(i).a k
+      i = i + 1
+    end
+    found
 
-    def update(k: K, v: V): Map[K, V] =
-      val l2 = l.exclude p => eq k p.a
-      makeObject (l2 + (k -> v))
+  def get(k: K): Option[V] =
+    var found = false
+    var res: Option[V] = None
+    var i = 0
+    while both !found (i < size) do
+      val item = l(i)
+      found = eq item.a k
+      if found then res = Some item.b
+      i = i + 1
+    end
+    res
 
-    def remove(k: K): Map[K, V] = exclude (k1, _) => eq k k1
+  def add(k: K, v: V): Map[K, V] = update k v
 
-    def ++(xs: Map[K, V]): Map[K, V] =
-      xs.fold this (acc, k, v) => acc.add(k, v)
+  def update(k: K, v: V): Map[K, V] =
+    val l2 = l.exclude p => eq k p.a
+    new Map(l2 + (k -> v), eq)
 
-    def select(pred: (K, V) => Bool): Map[K, V] =
-      makeObject (l.select p => pred p.a p.b)
+  def remove(k: K): Map[K, V] = exclude (k1, _) => eq k k1
 
-    def exclude(pred: (K, V) => Bool): Map[K, V] =
-      makeObject (l.exclude p => pred p.a p.b)
+  def ++(xs: Map[K, V]): Map[K, V] =
+    xs.fold this (acc, k, v) => acc.add(k, v)
 
-    def foreach(f: (K, V) => Unit): Unit = l.foreach p => f p.a p.b
+  def select(pred: (K, V) => Bool): Map[K, V] =
+    new Map(l.select p => pred p.a p.b, eq)
 
-    def fold[S](zero: S, f: (S, K, V) => S): S =
-      l.fold zero (acc, p) => f acc p.a p.b
-  }
+  def exclude(pred: (K, V) => Bool): Map[K, V] =
+    new Map(l.exclude p => pred p.a p.b, eq)
+
+  def foreach(f: (K, V) => Unit): Unit = l.foreach p => f p.a p.b
+
+  def fold[S](zero: S, f: (S, K, V) => S): S =
+    l.fold zero (acc, p) => f acc p.a p.b
+
 end
