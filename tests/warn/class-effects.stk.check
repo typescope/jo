@@ -15,13 +15,6 @@ The following is the trace that leads to the problem:
 |     ^^^^^^^^^^^
 |     Parameter not allowed: out
 
-The following is the trace that leads to the problem: 
-├── fun instantiate receives none = new Foo	[ ./tests/warn/class-effects.stk:15:33 ]
-│                                   ^^^^^^^
-└──     out "hello"	[ ./tests/warn/class-effects.stk:7:5 ]
-        ^^^
-
-
 ---------- Error at ./tests/warn/class-effects.stk:17:5 ---------------
 | fun test(o: Foo) receives none = o.work()
 |     ^^^^
