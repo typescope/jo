@@ -59,7 +59,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
             symbol2UniqueName(target) = uniqueName
 
             // Add function or class to work list
-            if (sym.isFunction && !sym.isMethod) || sym.isClass then
+            if (sym.isFunction && !sym.owner.isClass) || sym.isClass then
               workList.add(target)
 
             uniqueName
