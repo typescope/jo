@@ -105,7 +105,6 @@ object Printing:
         val locals = fdef.locals.map(sym => sym ~ ": " ~ sym.info).join(", ")
 
         val modifiers = showModifiers(fdef.symbol)
-        val kind = if fdef.symbol.isMethod then Text("def ") else Text("fun ")
 
         val receives =
           fdef.effectsBound match
@@ -119,7 +118,7 @@ object Printing:
               Text.Empty
 
         "@locals(" ~ locals ~ ")" ~ Text.BreakLine ~
-        modifiers ~ kind ~ fdef.name ~ tparamText ~ paramText ~ autoText ~ ": " ~ resType ~ receives ~ " =" ~ indent:
+        modifiers ~ "def " ~ fdef.name ~ tparamText ~ paramText ~ autoText ~ ": " ~ resType ~ receives ~ " =" ~ indent:
           fdef.body
 
       case pdef: PatDef =>

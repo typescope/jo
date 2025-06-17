@@ -7,38 +7,38 @@ import stk.IO
 // Utility functions
 //
 
-fun getProp(o: Any, prop: String): Any = js "o[prop]"
-fun setProp(o: Any, prop: String, v: Any): Unit = js "o[prop] = v"
+def getProp(o: Any, prop: String): Any = js "o[prop]"
+def setProp(o: Any, prop: String, v: Any): Unit = js "o[prop] = v"
 
-fun isDefined(o: Any): Bool = js "o != undefined"
+def isDefined(o: Any): Bool = js "o != undefined"
 
-fun concat(a: String, b: String): String = js "a + b"
+def concat(a: String, b: String): String = js "a + b"
 
 // A piece of JS code
 //
 // It is only safe to reference a local variable name in the JS code.
-fun js(s: String): Bottom = abort("primitive js")
+def js(s: String): Bottom = abort("primitive js")
 
 //------------------------------------------------------------------------------
 //
 // program life time
 //
 
-fun start(): Unit =
+def start(): Unit =
   mainStub with
     IO.open   = createFileOpener(),
     IO.stdin  = createStdIn(),
     IO.stdout = createStdOut(),
     IO.stderr = createStdErr()
 
-fun mainStub(): Unit = abort "error mainStub"
+def mainStub(): Unit = abort "error mainStub"
 
 //------------------------------------------------------------------------------
 //
 // Predef functions
 //
 
-fun abort(msg: String): Bottom =
+def abort(msg: String): Bottom =
   js "throw msg"
   js "null"
 
@@ -49,43 +49,43 @@ fun abort(msg: String): Bottom =
 //
 // For numeric types, widening coercion is automatically inserted.
 
-fun byteToInt(b: Byte): Int = js "b"
-fun byteToChar(b: Byte): Char = js "b"
+def byteToInt(b: Byte): Int = js "b"
+def byteToChar(b: Byte): Char = js "b"
 
-fun intToChar(n: Int): Char = js "n & 65535"
-fun intToByte(n: Int): Byte = js "n & 255"
-fun intToStr(n: Int): String = js "n.toString()"
+def intToChar(n: Int): Char = js "n & 65535"
+def intToByte(n: Int): Byte = js "n & 255"
+def intToStr(n: Int): String = js "n.toString()"
 
-fun charToByte(c: Char): Byte = js "c & 255"
-fun charToInt(c: Char): Int = js "c"
-fun charToStr(c: Char): String = js "String.fromCharCode(c)"
+def charToByte(c: Char): Byte = js "c & 255"
+def charToInt(c: Char): Int = js "c"
+def charToStr(c: Char): String = js "String.fromCharCode(c)"
 
 //------------------------------------------------------------------------------
 //
 // Array support
 //
 
-fun Array_createBool(size: Int): Array[Bool] =
+def Array_createBool(size: Int): Array[Bool] =
   js "new Int8Array(size)"
 
-fun Array_createInt(size: Int): Array[Int] =
+def Array_createInt(size: Int): Array[Int] =
   js "new Int32Array(size)"
 
-fun Array_createObject[T](size: Int): Array[T] =
+def Array_createObject[T](size: Int): Array[T] =
   js "new Array(size)"
 
 // Lifting functions might change name of captured variables.
 // The small closed function will ensure the parameter name stay unchanged.
-fun Array_size[T](array: Array[T]): Int =
+def Array_size[T](array: Array[T]): Int =
   js "array.length"
 
-fun Array_get[T](array: Array[T], index: Int): T =
+def Array_get[T](array: Array[T], index: Int): T =
   assert
     index < (Array_size array)
     "Array index out of range: " + (intToStr index)
   js "array[index]"
 
-fun Array_set[T](array: Array[T], index: Int, value: T): Unit =
+def Array_set[T](array: Array[T], index: Int, value: T): Unit =
   assert
     index < (Array_size array)
     "Array index out of range: " + (intToStr index)
@@ -96,23 +96,23 @@ fun Array_set[T](array: Array[T], index: Int, value: T): Unit =
 // String support
 //
 
-fun String_apply(str: String, index: Int): String =
+def String_apply(str: String, index: Int): String =
   assert
     index < (String_size str)
     "String index out of range: " + (intToStr index)
 
   js "str.charCodeAt(index)"
 
-fun String_substring(str: String, index: Int, len: Int): String =
+def String_substring(str: String, index: Int, len: Int): String =
   js "str.substring(index, index + len)"
 
-fun String_size(str: String): Int =
+def String_size(str: String): Int =
   js "str.length"
 
-fun String_plus(str: String, other: String): String =
+def String_plus(str: String, other: String): String =
   js "str + other"
 
-fun String_equals(str: String, other: String): Bool =
+def String_equals(str: String, other: String): Bool =
   js "str === other"
 
 //------------------------------------------------------------------------------
@@ -120,21 +120,21 @@ fun String_equals(str: String, other: String): Bool =
 // Context parameter support
 //
 
-fun hasParam(key: String): Bool =
+def hasParam(key: String): Bool =
   val v = getProp (js "__runtime_contextParams") key
   isDefined v
 
-fun getParam(key: String): Any =
+def getParam(key: String): Any =
   val v = getProp (js "__runtime_contextParams") key
   if isDefined v then v
   else abort (concat "Unbound parameter " key)
 
-fun setParam(key: String, value: Any): Any =
+def setParam(key: String, value: Any): Any =
   val old = getProp (js "__runtime_contextParams") key
   setProp (js "__runtime_contextParams") key value
   old
 
-fun delParam(key: String): Unit =
+def delParam(key: String): Unit =
   setProp (js "__runtime_contextParams") key (js "undefined")
 
 //------------------------------------------------------------------------------
@@ -143,32 +143,32 @@ fun delParam(key: String): Unit =
 //
 
 // APIs exposed by required("fs")
-fun openSync(filePath: String, mode: String): Int =
+def openSync(filePath: String, mode: String): Int =
   js "require(\"fs\").openSync(filePath, mode)"
 
-fun closeSync(fd: Int): Unit =
+def closeSync(fd: Int): Unit =
   js "require(\"fs\").closeSync(fd)"
 
-fun writeSync(fd: Int, buffer: Any, offset: Int, len: Int, position: Int): Int =
+def writeSync(fd: Int, buffer: Any, offset: Int, len: Int, position: Int): Int =
   js "require(\"fs\").writeSync(fd, buffer, offset, len, position)"
 
-fun readSync(fd: Int, buffer: Any, offset: Int, len: Int, position: Int): Int =
+def readSync(fd: Int, buffer: Any, offset: Int, len: Int, position: Int): Int =
   js "require(\"fs\").readSync(fd, buffer, offset, len, position)"
 
-fun readFileSync(fd: Int): object { def toString(): String } =
+def readFileSync(fd: Int): object { def toString(): String } =
   js "require(\"fs\").readFileSync(fd)"
 
-fun fstatSync(fd: Int): Stat =
+def fstatSync(fd: Int): Stat =
   js "require(\"fs\").fstatSync(fd)"
 
-fun existsSync(filePath: String): Bool =
+def existsSync(filePath: String): Bool =
   js "require(\"fs\").existsSync(filePath)"
 
 type Stat = object {
   val size: Int
 }
 
-fun createFileOpener() = (filePath: String) =>
+def createFileOpener() = (filePath: String) =>
   val mode = if existsSync filePath then "r+" else "w+"
   val fd = openSync filePath mode
   object {
@@ -207,14 +207,14 @@ fun createFileOpener() = (filePath: String) =>
         "write file failed"
   }
 
-fun createStdIn() = object {
+def createStdIn() = object {
   def readLine() = (readFileSync 0).toString
 }
 
-fun createStdOut() = object {
+def createStdOut() = object {
   def write(s: String) = js "process.stdout.write(s)"
 }
 
-fun createStdErr() = object {
+def createStdErr() = object {
   def write(s: String) = js "process.stderr.write(s)"
 }

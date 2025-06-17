@@ -14,31 +14,31 @@ import stk.runtime.native.ParamSupport
 
 type Addr
 
-fun dataAddr(qualid: String): Addr =
+def dataAddr(qualid: String): Addr =
   abort "native global"
 
 // return a dummy Int value which is simpler than Unit
-fun writeInt(arr: Addr, value: Int): Int =
+def writeInt(arr: Addr, value: Int): Int =
   abort "native writeInt"
 
-fun readInt(arr: Addr): Int =
+def readInt(arr: Addr): Int =
   abort "native readInt"
 
 // The caller needs to make sure the value fit into one byte
 //
 // return a dummy Int value which is simpler than Unit
-fun writeByte(arr: Addr, value: Byte): Int =
+def writeByte(arr: Addr, value: Byte): Int =
   abort "native writeInt"
 
-fun readByte(arr: Addr): Byte =
+def readByte(arr: Addr): Byte =
   abort "native readByte"
 
-fun addAddr(arr: Addr, offset: Int): Addr =
+def addAddr(arr: Addr, offset: Int): Addr =
   abort "native addAddr"
 
-fun (arr: Any) cast[T]: T = abort("runtime cast")
+def (arr: Any) cast[T]: T = abort("runtime cast")
 
-fun debug(s: String): Unit =
+def debug(s: String): Unit =
   writeString 0
    ("[DEBUG] " + s + "\n") cast[StringRepr]
 
@@ -47,7 +47,7 @@ fun debug(s: String): Unit =
 // program life time
 //
 
-fun start(): Unit =
+def start(): Unit =
   GC.init
   ParamSupport.init
 
@@ -59,17 +59,17 @@ fun start(): Unit =
 
   finish
 
-fun finish: Unit =
+def finish: Unit =
   Syscall.sys_exit 0
 
-fun mainStub(): Unit = abort("error mainStub")
+def mainStub(): Unit = abort("error mainStub")
 
 //------------------------------------------------------------------------------
 //
 // Predef implementation
 //
 
-fun abortImpl(msg: String): Bottom =
+def abortImpl(msg: String): Bottom =
   writeString 0 (msg cast[StringRepr])
   Syscall.sys_exit 1
 
@@ -79,16 +79,16 @@ fun abortImpl(msg: String): Bottom =
 //
 // For numeric types, widening coercion is automatically inserted.
 
-fun byteToInt(b: Byte): Int = b cast[Int]
-fun byteToChar(b: Byte): Char = b cast[Char]
+def byteToInt(b: Byte): Int = b cast[Int]
+def byteToChar(b: Byte): Char = b cast[Char]
 
-fun intToChar(n: Int): Char = (n & 65535) cast[Char]
-fun intToByte(n: Int): Byte = (n & 255) cast[Byte]
+def intToChar(n: Int): Char = (n & 65535) cast[Char]
+def intToByte(n: Int): Byte = (n & 255) cast[Byte]
 
-fun charToByte(c: Char): Byte = ((c cast[Int]) & 255) cast[Byte]
-fun charToInt(c: Char): Int = c cast[Int]
+def charToByte(c: Char): Byte = ((c cast[Int]) & 255) cast[Byte]
+def charToInt(c: Char): Int = c cast[Int]
 
-fun charToStr(c: Char): String =
+def charToStr(c: Char): String =
   // TODO: remove allocation
   val content = GC.alloc 1
   // TODO: handle unicode
@@ -97,7 +97,7 @@ fun charToStr(c: Char): String =
     #Raw(1, content) as StringRepr
     cast[String]
 
-fun intToStr(n: Int): String =
+def intToStr(n: Int): String =
   // MAX_VALUE =  2147483647
   // MIN_VALUE = -2147483648
   if n == 0 then "0"
@@ -154,17 +154,17 @@ fun intToStr(n: Int): String =
 // TODO: Represent arrays of different primitive types differently.
 //
 
-fun Array_create[T](size: Int): Array[T] =
+def Array_create[T](size: Int): Array[T] =
   val arr = GC.alloc (size * 4 + 4)
   writeInt arr size
   // TODO: zero memory
   arr cast[Array[T]]
 
-fun Array_size(arr: Any): Int =
+def Array_size(arr: Any): Int =
   readInt
     arr cast[Addr]
 
-fun Array_get[T](arr: Array[T], i: Int): T =
+def Array_get[T](arr: Array[T], i: Int): T =
   flow
     readInt
       addAddr
@@ -173,7 +173,7 @@ fun Array_get[T](arr: Array[T], i: Int): T =
 
     cast[T]
 
-fun Array_set[T](arr: Array[T], i: Int, value: T): Unit =
+def Array_set[T](arr: Array[T], i: Int, value: T): Unit =
   writeInt
     addAddr
       arr cast[Addr]
@@ -191,7 +191,7 @@ type StringRepr =
   | #Concat(size: Int, lhs: String, rhs: String)
 
 // This function is called to convert a string literal to a proper string object.
-fun String_fromByteString(byteArray: Any): String =
+def String_fromByteString(byteArray: Any): String =
   val size = readInt (byteArray cast[Addr])
   val contentAddr = addAddr (byteArray cast[Addr]) 4
 
@@ -199,12 +199,12 @@ fun String_fromByteString(byteArray: Any): String =
     #Raw(size, contentAddr) as StringRepr
     cast[String]
 
-fun String_size(repr: String): Int =
+def String_size(repr: String): Int =
   match repr cast[StringRepr]
     case #Raw(len, _) => len
     case #Concat(len, lhs, rhs) => len
 
-fun String_apply(repr: String, i: Int): Char =
+def String_apply(repr: String, i: Int): Char =
   match repr cast[StringRepr]
     case #Raw(len, content) =>
       if i >= len || i < 0 then abort "index out of bound"
@@ -224,11 +224,11 @@ fun String_apply(repr: String, i: Int): Char =
       else
         lhs(i)
 
-fun String_plus(lhs: String, rhs: String): String =
+def String_plus(lhs: String, rhs: String): String =
   val len = lhs.size + rhs.size
   #Concat(len, lhs, rhs) cast[String]
 
-fun String_equals(lhs: String, rhs: String): Bool =
+def String_equals(lhs: String, rhs: String): Bool =
   val n = lhs.size
   var isEqual = n == rhs.size
   var i = 0
@@ -238,7 +238,7 @@ fun String_equals(lhs: String, rhs: String): Bool =
   end
   isEqual
 
-fun String_substring(source: String, from: Int, len: Int): String =
+def String_substring(source: String, from: Int, len: Int): String =
   if from < 0 then abort "from should not be negative"
   if len < 0 then abort "len should not be negative"
   if from + len > source.size then abort "substring out of range"
@@ -254,10 +254,10 @@ fun String_substring(source: String, from: Int, len: Int): String =
 
   #Raw(len, buf) cast[String]
 
-fun String_bytes(repr: String): Any =
+def String_bytes(repr: String): Any =
   val bytes = GC.alloc repr.size
 
-  fun recur(repr: StringRepr, from: Int): Int =
+  def recur(repr: StringRepr, from: Int): Int =
     match repr
       case #Raw(len, content) =>
         var i = 0
@@ -285,7 +285,7 @@ fun String_bytes(repr: String): Any =
 // I/O support
 //
 
-fun createFileOpener() = (filePath: String) =>
+def createFileOpener() = (filePath: String) =>
   val nameBytes = String_bytes filePath
 
   val O_CREAT = 1 << 6
@@ -299,7 +299,7 @@ fun createFileOpener() = (filePath: String) =>
   val mode: Int = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH
 
   // return starting index of '\n' or '\r\n' or -1.
-  fun findLineSeparator(buffer: Addr, len: Int): Int =
+  def findLineSeparator(buffer: Addr, len: Int): Int =
     var i = 0
     var last = -1
     var index = -1
@@ -390,7 +390,7 @@ fun createFileOpener() = (filePath: String) =>
       writeString fd (flow content cast[StringRepr])
   }
 
-fun writeString(fd: Int, repr: StringRepr): Unit =
+def writeString(fd: Int, repr: StringRepr): Unit =
   match repr
     case #Raw(len, content) =>
       val bytesWritten = Syscall.sys_write fd content len
@@ -408,7 +408,7 @@ fun writeString(fd: Int, repr: StringRepr): Unit =
         flow rhs cast[StringRepr]
 
 
-fun createStdIn() = object {
+def createStdIn() = object {
   def readLine() =
     var continue = true
     var res = ""
@@ -431,10 +431,10 @@ fun createStdIn() = object {
     res
 }
 
-fun createStdOut() = object {
+def createStdOut() = object {
   def write(s: String) = writeString 1 (flow s cast[StringRepr])
 }
 
-fun createStdErr() = object {
+def createStdErr() = object {
   def write(s: String) = writeString 2 (flow s cast[StringRepr])
 }

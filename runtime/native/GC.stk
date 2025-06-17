@@ -6,6 +6,6 @@ import stk.runtime.native.Core
 // implementation
 
 // Init GC -- called from Core.init
-fun init(): Unit = abort "error GC.init"
+def init(): Unit = abort "error GC.init"
 
-fun alloc(size: Int): Core.Addr = abort "error Gc.alloc"
+def alloc(size: Int): Core.Addr = abort "error Gc.alloc"

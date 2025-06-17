@@ -5,7 +5,7 @@ import stk.runtime.native.Syscall
 
 type State = { freeFrom: Int, freeUntil: Int }
 
-fun init(): Unit =
+def init(): Unit =
   val start = Syscall.sys_brk 0
   val dataAddr = Core.dataAddr "stk.runtime.native.BumpAllocator.state"
 
@@ -13,7 +13,7 @@ fun init(): Unit =
   Core.writeInt dataAddr start
   Core.writeInt (Core.addAddr dataAddr 4) start
 
-fun alloc(size: Int): Any =
+def alloc(size: Int): Any =
   val dataAddr = Core.dataAddr "stk.runtime.native.BumpAllocator.state"
 
   // TODO: use stk syntax once record can be mutable

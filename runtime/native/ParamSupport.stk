@@ -5,12 +5,12 @@ import stk.runtime.native.GC
 
 type State = { keys: Core.Addr, values: Core.Addr, lastOverwrittenValue: Any }
 
-fun init(): Unit =
+def init(): Unit =
   val statePointerAddr = Core.dataAddr "stk.runtime.native.ParamSupport.state"
   val page = createPage
   Core.writeInt statePointerAddr (page Core.cast[Int])
 
-fun createPage(): State =
+def createPage(): State =
   // TODO: make the size configurable
   val keysArr = GC.alloc 4096
   val valsArr = GC.alloc 4096
@@ -30,12 +30,12 @@ fun createPage(): State =
 // Assumption:
 // (1) The keys for manipulating the same param share the same physical address.
 // (2) The underlying physical address do not change.
-fun computeHash(key: Any): Int =
+def computeHash(key: Any): Int =
   // 1021 is the largest prime < 4096/4
   // key addresses are 4-byte aligned
   ((key Core.cast[Int]) << 2) % 1021
 
-fun readKeyAt(index: Int): Int =
+def readKeyAt(index: Int): Int =
   val statePointerAddr = Core.dataAddr "stk.runtime.native.ParamSupport.state"
   val state = Core.readInt statePointerAddr Core.cast[State]
 
@@ -44,7 +44,7 @@ fun readKeyAt(index: Int): Int =
       state.keys Core.cast[Core.Addr]
       index * 4
 
-fun writeKeyAt(index: Int, key: Int): Unit =
+def writeKeyAt(index: Int, key: Int): Unit =
   val statePointerAddr = Core.dataAddr "stk.runtime.native.ParamSupport.state"
   val state = Core.readInt statePointerAddr Core.cast[State]
 
@@ -54,7 +54,7 @@ fun writeKeyAt(index: Int, key: Int): Unit =
       index * 4
     key
 
-fun readValueAt(index: Int): Any =
+def readValueAt(index: Int): Any =
   val statePointerAddr = Core.dataAddr "stk.runtime.native.ParamSupport.state"
   val state = Core.readInt statePointerAddr Core.cast[State]
 
@@ -63,7 +63,7 @@ fun readValueAt(index: Int): Any =
       state.values Core.cast[Core.Addr]
       index * 4
 
-fun writeValueAt(index: Int, value: Any): Unit =
+def writeValueAt(index: Int, value: Any): Unit =
   val statePointerAddr = Core.dataAddr "stk.runtime.native.ParamSupport.state"
   val state = Core.readInt statePointerAddr Core.cast[State]
 
@@ -76,7 +76,7 @@ fun writeValueAt(index: Int, value: Any): Unit =
 // Return index of the param
 //
 // return -1 if absent
-fun getParamIndex(key: Core.Addr): Int =
+def getParamIndex(key: Core.Addr): Int =
   val hash = computeHash key
 
   var index = hash
@@ -93,7 +93,7 @@ fun getParamIndex(key: Core.Addr): Int =
 
   if index >= 1024 then -1 else index
 
-fun getParam(key: Core.Addr): Any =
+def getParam(key: Core.Addr): Any =
   val index = getParamIndex key
 
   if index < 0 then
@@ -108,7 +108,7 @@ fun getParam(key: Core.Addr): Any =
 //
 // If existing binding is associated with the key, return the index of
 // the new binding + 1024.
-fun setParam(key: Core.Addr, value: Any): Int =
+def setParam(key: Core.Addr, value: Any): Int =
   val hash = computeHash key
 
   var index = hash
@@ -134,7 +134,7 @@ fun setParam(key: Core.Addr, value: Any): Int =
     writeValueAt index value
     if foundKey > 0 then index else index + 1024
 
-fun backupValueAt(index: Int): Unit =
+def backupValueAt(index: Int): Unit =
   val statePointerAddr = Core.dataAddr "stk.runtime.native.ParamSupport.state"
   val state = Core.readInt statePointerAddr Core.cast[Core.Addr]
 
@@ -142,12 +142,12 @@ fun backupValueAt(index: Int): Unit =
     Core.addAddr state 8
     (readValueAt index) Core.cast[Int]
 
-fun getLastOverwrittenValue(): Any =
+def getLastOverwrittenValue(): Any =
   val statePointerAddr = Core.dataAddr "stk.runtime.native.ParamSupport.state"
   val state = Core.readInt statePointerAddr Core.cast[State]
   state.lastOverwrittenValue
 
-fun restoreParam(index: Int, value: Any): Unit =
+def restoreParam(index: Int, value: Any): Unit =
   if index >= 2048 || index < 0 then
     print "index = "
     index p
