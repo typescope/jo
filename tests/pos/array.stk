@@ -1,9 +1,9 @@
-fun main =
+def main =
   testIntArray
   testBoolArray
   testObjectArray
 
-fun testIntArray =
+def testIntArray =
   val arr: Array[Int] = Array.create[Int] 3
 
   Array > begin
@@ -17,10 +17,10 @@ fun testIntArray =
     get arr 2 p
   end
 
-fun testBoolArray =
+def testBoolArray =
   val arr = Array.create[Bool] 3
 
-  fun (b: Bool) pb: Unit =
+  def (b: Bool) pb: Unit =
     if b then println "true" else println "false"
 
   Array > begin
@@ -33,7 +33,7 @@ fun testBoolArray =
     get arr 1 pb
     get arr 2 pb
 
-fun testObjectArray =
+def testObjectArray =
   val arr = Array.create[String] 3
 
   Array > begin

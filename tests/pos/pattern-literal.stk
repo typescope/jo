@@ -1,4 +1,4 @@
-fun testInt1(x: Int): Unit =
+def testInt1(x: Int): Unit =
   match x
     case 1 => println "1"
     case 2 => println "2"
@@ -7,49 +7,49 @@ fun testInt1(x: Int): Unit =
     case 5 => println "5"
     case _ => println "not in [1, 5]"
 
-fun testInt2(x: Int): Unit =
+def testInt2(x: Int): Unit =
   match x
     case 'a' => println "a"
     case 'c' => println "c"
     case _ => println "not a nor c"
 
-fun testString(x: String): Unit =
+def testString(x: String): Unit =
   match x
     case "hello" => println "bonjour"
     case "world" => println "monde"
     case "stk" => println "stk"
     case _ => println "unknown"
 
-fun testChar1(c: Char): Unit =
+def testChar1(c: Char): Unit =
   match c
     case 'a' => println "a"
     case 'c' => println "c"
     case _ => println "not a nor c"
 
-fun testChar2(c: Char): Unit =
+def testChar2(c: Char): Unit =
   match c
     case 97 => println "a"
     case 99 => println "c"
     case _ => println "not a nor c"
 
-fun testByte1(x: Byte): Unit =
+def testByte1(x: Byte): Unit =
   match x
     case 'a' => println "a"
     case 'c' => println "c"
     case _ => println "not a nor c"
 
-fun testByte2(x: Byte): Unit =
+def testByte2(x: Byte): Unit =
   match x
     case 97 => println "a"
     case 99 => println "c"
     case _ => println "not a nor c"
 
-fun testBool(x: Bool): Unit =
+def testBool(x: Bool): Unit =
   match x
     case true => println "true"
     case false => println "false"
 
-fun main =
+def main =
   testInt1 1
   testInt1 3
   testInt1 6

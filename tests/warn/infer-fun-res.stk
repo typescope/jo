@@ -1,33 +1,33 @@
-fun foo(x: Int) = x + x
+def foo(x: Int) = x + x
 
-fun a: Bool = foo 5 // error
+def a: Bool = foo 5 // error
 
-fun fact(x: Int) =       // error
+def fact(x: Int) =       // error
   if 0 == x then 1
   else fact (x - 1) * x
 
-fun b: Bool = fact 10
+def b: Bool = fact 10
 
-fun f(x: Int) =       // error
+def f(x: Int) =       // error
   val a = g x
   val b = a.field
   a
 
-fun g(x: Int) =
+def g(x: Int) =
   val a = f x
   val b = a.field
   a
 
-fun h(x: Int): Int =
+def h(x: Int): Int =
   val a = f x
   a.field
 
-fun f0(x: Int) = g0 x   // error
-fun g0(x: Int) = f0 x
+def f0(x: Int) = g0 x   // error
+def g0(x: Int) = f0 x
 
-fun m(x: Int) =                   // error
+def m(x: Int) =                   // error
   if 0 == x then { a = 1 }
   else { a = m (x - 1) , b = x }
 
-fun test1(x: Int): { a: Int } =
+def test1(x: Int): { a: Int } =
   m 10

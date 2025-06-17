@@ -1,4 +1,4 @@
-fun main =
+def main =
   val c1 = 'a'
   val c2: Char = 4
 
@@ -9,7 +9,7 @@ fun main =
 
   test
 
-fun test =
+def test =
   val a = "hello"
   val b = "world"
 
@@ -35,7 +35,7 @@ fun test =
   coercion
   coercion_truncate
 
-fun coercion =
+def coercion =
   // byte
   val b: Byte = 45
   b p
@@ -55,7 +55,7 @@ fun coercion =
   b_i p
   c_i p
 
-fun coercion_truncate =
+def coercion_truncate =
   // char
   val c: Char = intToChar (1024 + 56)
   val b_c: Byte = charToByte c

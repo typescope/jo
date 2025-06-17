@@ -1,4 +1,4 @@
-fun foo(n: Int): Int =
+def foo(n: Int): Int =
   var a: Int = 3
 
   if n > 5 then
@@ -20,8 +20,8 @@ fun foo(n: Int): Int =
 
   4
 
-fun bar(): Int = a     // error
+def bar(): Int = a     // error
 
-fun main =
+def main =
   a p                    // error
   foo 10 p

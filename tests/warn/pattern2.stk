@@ -36,7 +36,7 @@ pattern Name(name: String): Student =
 
 pattern Type(s: Student): Student = case s: Student
 
-fun test(s: Student) =
+def test(s: Student) =
   match s
     case Name a b =>  // error
 
@@ -47,4 +47,4 @@ fun test(s: Student) =
     case #Student name year sex classNo => // error
       println name
 
-fun main = println "patterns"
+def main = println "patterns"

@@ -1,8 +1,8 @@
-fun app[X, Y](x: X, f: X => Y): Y = f x
+def app[X, Y](x: X, f: X => Y): Y = f x
 
-fun app2[X, Y](f: X => Y, x: X): Y = f x
+def app2[X, Y](f: X => Y, x: X): Y = f x
 
-fun main =
+def main =
   app 5 (x => x * x) p
 
   // Scala cannot do this

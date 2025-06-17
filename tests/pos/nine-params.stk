@@ -1,4 +1,4 @@
-fun foo(a: Int, b: Int, c: Int, d: Int, e: Int, f: Int, g: Int, h: Int, i: Int): Unit =
+def foo(a: Int, b: Int, c: Int, d: Int, e: Int, f: Int, g: Int, h: Int, i: Int): Unit =
   a p
   b p
   c p
@@ -9,4 +9,4 @@ fun foo(a: Int, b: Int, c: Int, d: Int, e: Int, f: Int, g: Int, h: Int, i: Int):
   h p
   i p
 
-fun main = foo 1 2 3 4 5 6 7 8 9
+def main = foo 1 2 3 4 5 6 7 8 9

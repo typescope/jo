@@ -13,7 +13,7 @@ section Nested
 
   alias B.foo
 
-  fun bar(x: Option[Message]) =
+  def bar(x: Option[Message]) =
     match x
       case Some s => println s
       case None => println "none"
@@ -21,7 +21,7 @@ end
 
 alias B.Inner
 
-fun main =
+def main =
   Nested.foo "alias foo"
 
   Nested.foo "alias foo" with prefix = "[warn]"

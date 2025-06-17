@@ -1,32 +1,32 @@
-fun fact0(n: Int): Int =
+def fact0(n: Int): Int =
   if 0 == n then 1
   else fact0 (n - 1) * n
   end
 end
 
-fun fact1(n: Int): Int =
+def fact1(n: Int): Int =
   if 0 == n then 1
   else fact1 (n - 1) * n
 end
 
-fun fact2(n: Int): Int =
+def fact2(n: Int): Int =
   if 0 == n then 1
   else fact2 (n - 1) * n
   end
 
-fun fact3(n: Int): Int = if 0 == n then 1 else fact3 (n - 1) * n
+def fact3(n: Int): Int = if 0 == n then 1 else fact3 (n - 1) * n
 
-fun fact4(n: Int): Int = if 0 == n then 1 else fact4 (n - 1) * n end
+def fact4(n: Int): Int = if 0 == n then 1 else fact4 (n - 1) * n end
 
-fun fact5(n: Int): Int =
+def fact5(n: Int): Int =
   if 0 == n then 1
   else fact5 (n - 1) * n end
 
-fun testExprEnd(a: Int): Bool =
+def testExprEnd(a: Int): Bool =
   val x = a * 2 > 3
   !x
 
-fun main =
+def main =
   var a = 10
   while a > 10 do
     a = a - 1

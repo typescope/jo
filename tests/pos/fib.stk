@@ -1,9 +1,9 @@
-fun fib(n: Int): Int = fibComp 1 1 1 n
+def fib(n: Int): Int = fibComp 1 1 1 n
 
-fun fibComp(a: Int, b: Int, i: Int, n: Int): Int =
+def fibComp(a: Int, b: Int, i: Int, n: Int): Int =
   if i == n then a
   else
     a p
     fibComp b (b + a) (1 + i) n
 
-fun main = fib 20 p
+def main = fib 20 p

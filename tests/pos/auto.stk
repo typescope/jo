@@ -2,11 +2,11 @@ type Eq[T] = object {
   def eq(a: T, b: T): Bool
 }
 
-auto fun intEq: Eq[Int] = (a, b) => a == b
+auto def intEq: Eq[Int] = (a, b) => a == b
 
-auto fun intString: Eq[String] = (a, b) => a == b
+auto def intString: Eq[String] = (a, b) => a == b
 
-auto fun listEq[T](auto eqItem: Eq[T]): Eq[List[T]] = (a, b) =>
+auto def listEq[T](auto eqItem: Eq[T]): Eq[List[T]] = (a, b) =>
   var equal = a.size == b.size
   var i = 0
   while equal && i < a.size do
@@ -28,7 +28,7 @@ type Set[T] = object {
   def exists(pred: T => Bool): Bool
 }
 
-fun Set[T](l: ..T)(auto eq: Eq[T]): Set[T] = object {
+def Set[T](l: ..T)(auto eq: Eq[T]): Set[T] = object {
     def size: Int = l.size
 
     def contains(x: T): Bool = exists e => eq e x
@@ -53,6 +53,6 @@ fun Set[T](l: ..T)(auto eq: Eq[T]): Set[T] = object {
     def exists(pred: T => Bool): Bool = l.exists pred
 }
 
-fun main =
+def main =
   val s = Set 4 5 8 9
   (s - 5 + 4 + 10).foreach i => println (intToStr i)

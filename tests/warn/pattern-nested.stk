@@ -1,4 +1,4 @@
-fun test(a: Option[Option[Int]]): Unit =
+def test(a: Option[Option[Int]]): Unit =
   match a                                      // error
    case #Some #None => println "some none"
    case #Some (#Some n) => println (intToStr n)
@@ -28,13 +28,13 @@ pattern DoubleOccur(x: Int): Cons[Int] =
 pattern Cons(x: Int, rest: List[Int]): Cons[Int] =
   case #Cons x rest
 
-fun Cons(x: Int, rest: List[Int]): List[Int] =
+def Cons(x: Int, rest: List[Int]): List[Int] =
   #Cons x rest
 
 pattern Nil: Nil = case #Nil
-fun Nil: Nil = #Nil
+def Nil: Nil = #Nil
 
-fun test2(a: List[Int]): Unit =
+def test2(a: List[Int]): Unit =
   match a
     case Cons x (Cons y rest) => println (intToStr (x + y))
     case Nil => println "empty"

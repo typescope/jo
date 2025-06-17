@@ -1,4 +1,4 @@
-fun fact(n: Int): Int =
+def fact(n: Int): Int =
   var a = 1
   var s = 1
   while a <= n do
@@ -7,6 +7,6 @@ fun fact(n: Int): Int =
   end
   s
 
-fun main =
+def main =
   fact 3 p
   fact 5 p

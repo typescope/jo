@@ -1,16 +1,16 @@
-fun test1(f: Int => Bool) =
+def test1(f: Int => Bool) =
   (f 3) && println "hello"
 
-fun test2(f: Int => Bool) =
+def test2(f: Int => Bool) =
   f 3 && println "hello"
 
-fun foo(x: Int, y: Int) = x + y
+def foo(x: Int, y: Int) = x + y
 
-fun (n: Int) bar(x: Int, y: Int, z: ..Int) = x + y
+def (n: Int) bar(x: Int, y: Int, z: ..Int) = x + y
 
-fun qux(x: Int, y: Int, z: ..Int) = x + y
+def qux(x: Int, y: Int, z: ..Int) = x + y
 
-fun main =
+def main =
   foo 3
 
   foo 3 4 5

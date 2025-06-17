@@ -1,5 +1,5 @@
-auto fun eqInt: Eq[Int] = ???
+auto def eqInt: Eq[Int] = ???
 
-fun foo[T](auto a: Eq[T]): Int = 3
+def foo[T](auto a: Eq[T]): Int = 3
 
-fun main = foo
+def main = foo

@@ -1,4 +1,4 @@
 namespace app
 
-fun main =
+def main =
   test.double 10 p    // error // error

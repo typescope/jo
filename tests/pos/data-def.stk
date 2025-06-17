@@ -16,11 +16,11 @@ end
 
 section Right
   pattern Right(value: Int): Right[Int] = case #Right value
-  fun Right(value: Int): Right[Int] = #Right value
+  def Right(value: Int): Right[Int] = #Right value
 end
 
 
-fun testData =
+def testData =
   val box = Box(5)
   val post = Post("Hello, World", "Turing", "Bla bla...")
 
@@ -38,7 +38,7 @@ fun testData =
   println post.title
   println (intToStr box.value)
 
-fun testEnum =
+def testEnum =
   val a: Option[Int] = Some 20
   match a
     case Some v => println (intToStr v)
@@ -54,6 +54,6 @@ fun testEnum =
     case Left v => println (intToStr v)
     case _ =>
 
-fun main =
+def main =
   testData
   testEnum

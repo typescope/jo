@@ -1,6 +1,6 @@
 type Point = {x: Int, y: Int}
 
-fun main =
+def main =
   var pt: Point = {x = 0, y = 0}
 
   // allocation of 4096 objects

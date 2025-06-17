@@ -1,21 +1,21 @@
-fun foo(x: Int) = x + x
+def foo(x: Int) = x + x
 
 
-fun fact(x: Int): Int =
+def fact(x: Int): Int =
   if 0 == x then 1
   else fact (x - 1) * x
 
 
-fun q(x: Int): { a: Int } =
+def q(x: Int): { a: Int } =
   if 0 == x then { a = 1 }
   else
     val r = q (x - 1)
     { a = x, b = 1 + r.a }
 
-fun test2(x: Int): { a: Int } =
+def test2(x: Int): { a: Int } =
   q 10
 
-fun main =
+def main =
   val a: Int = foo 5
   val b: Int = fact 10
 

@@ -1,6 +1,6 @@
 type List[T] = #Nil | #Cons(head: T, tail: List[T])
 
-fun main =
+def main =
   test (#Some (#Some 5))
 
   test (#Some #None)
@@ -12,7 +12,7 @@ fun main =
   test2 (Cons 4 Nil)
   test2 Nil
 
-fun test(a: Option[Option[Int]]): Unit =
+def test(a: Option[Option[Int]]): Unit =
   match a
     case #Some #None => println "some none"
     case #Some (#Some n) => println (intToStr n)
@@ -23,7 +23,7 @@ type Cons = #Cons(head: Int, tail: List[Int])
 pattern Cons(x: Int, rest: List[Int]): Cons =
   case #Cons x rest
 
-fun Cons(x: Int, rest: List[Int]): List[Int] =
+def Cons(x: Int, rest: List[Int]): List[Int] =
   #Cons x rest
 
 pattern (x: Int) :: (rest: List[Int]): Cons =
@@ -33,9 +33,9 @@ pattern List2(x: Int, y: Int): Partial[List[Int]] =
   case #Cons x (#Cons y #Nil)
 
 pattern Nil: #Nil = case #Nil
-fun Nil: #Nil = #Nil
+def Nil: #Nil = #Nil
 
-fun test2(a: List[Int]): Unit =
+def test2(a: List[Int]): Unit =
   match a
     case Cons x inner@(Cons y rest) => println (intToStr (x + inner.head))
     case Cons x Nil => println (intToStr x)

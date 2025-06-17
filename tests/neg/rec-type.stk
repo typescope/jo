@@ -6,17 +6,17 @@ type D = {a: A, c: D}
 type X = Y
 type Y = X
 
-fun test1(a: A): A = a.x // error
+def test1(a: A): A = a.x // error
 
-fun test2(x: X): Unit = x.a // error
+def test2(x: X): Unit = x.a // error
 
-fun test3(a: A): Int = a  // error
+def test3(a: A): Int = a  // error
 
-fun test4(a: Int): A = a // error
+def test4(a: Int): A = a // error
 
-fun test5(a: A): B = a   // error
+def test5(a: A): B = a   // error
 
-fun test6(x: X): Y = x   // error
+def test6(x: X): Y = x   // error
 
 
-fun main = 10 p
+def main = 10 p

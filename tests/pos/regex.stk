@@ -6,11 +6,11 @@ type Fail = () => Unit
 type Cont = (Seg, Fail) => Unit
 type Reg  = (Seg, Cont, Fail) => Unit
 
-fun epsilon(seg: Seg, cont: Cont, fail: Fail): Unit =
+def epsilon(seg: Seg, cont: Cont, fail: Fail): Unit =
   debug "epsilon"
   cont seg fail
 
-fun star(reg: Reg, seg: Seg, cont: Cont, fail: Fail): Unit =
+def star(reg: Reg, seg: Seg, cont: Cont, fail: Fail): Unit =
   debug "star"
   alt
     (seg, cont, fail) => epsilon seg cont fail
@@ -19,25 +19,25 @@ fun star(reg: Reg, seg: Seg, cont: Cont, fail: Fail): Unit =
     cont
     fail
 
-fun plus(reg: Reg, seg: Seg, cont: Cont, fail: Fail): Unit =
+def plus(reg: Reg, seg: Seg, cont: Cont, fail: Fail): Unit =
   debug "plus"
   val cont1: Cont = (seg, fail1) => star reg seg cont fail1
   reg seg cont1 fail
 
-fun alt(reg1: Reg, reg2: Reg, seg: Seg, cont: Cont, fail: Fail): Unit =
+def alt(reg1: Reg, reg2: Reg, seg: Seg, cont: Cont, fail: Fail): Unit =
   debug "alt"
   val fail1 = () => reg2 seg cont fail
   val cont1: Cont = (seg, fail) => cont seg fail // backtrack
   reg1 seg cont1 fail1
 
-fun seq(regs: List[Reg], seg: Seg, cont: Cont, fail: Fail): Unit =
+def seq(regs: List[Reg], seg: Seg, cont: Cont, fail: Fail): Unit =
   match regs
     case [] => cont seg fail
     case [reg, ..rest] =>
       val cont1: Cont = (seg, fail) => seq rest seg cont fail
       reg seg cont1 fail
 
-fun char(c: Char, seg: Seg, cont: Cont, fail: Fail): Unit =
+def char(c: Char, seg: Seg, cont: Cont, fail: Fail): Unit =
   debug (charToStr c)
   if seg.start < seg.str.size && seg.str(seg.start) == c then
     cont
@@ -47,7 +47,7 @@ fun char(c: Char, seg: Seg, cont: Cont, fail: Fail): Unit =
   else
     fail()
 
-fun dot(seg: Seg, cont: Cont, fail: Fail): Unit =
+def dot(seg: Seg, cont: Cont, fail: Fail): Unit =
   debug "."
   if seg.start < seg.str.size then
     cont
@@ -56,7 +56,7 @@ fun dot(seg: Seg, cont: Cont, fail: Fail): Unit =
   else
     fail()
 
-fun compile(reg: String): Reg =
+def compile(reg: String): Reg =
   val scanner = object {
     var index = 0
 
@@ -134,7 +134,7 @@ fun compile(reg: String): Reg =
   (seg, cont, fail) => seq regs seg cont fail
 end
 
-fun matchString(str: String, pat: String): Bool =
+def matchString(str: String, pat: String): Bool =
   val result = object { var success = true }
   val reg : Reg  = compile pat
   val cont: Cont = (seg, fail) => if seg.start < str.size then fail()
@@ -142,10 +142,10 @@ fun matchString(str: String, pat: String): Bool =
   reg #Seg(0, str) cont fail
   result.success
 
-fun debug(msg: String) =
+def debug(msg: String) =
   if DEBUG then println(msg)
 
-fun main =
+def main =
   test "abba" "abba"
   test "abba" ".b.a"
   test "abba" ".*ba"
@@ -156,7 +156,7 @@ fun main =
   test "abba" "ba"
   test "abababc" ".*(ba)+"
 
-fun test(str: String, pat: String) =
+def test(str: String, pat: String) =
   val res = matchString str pat
   println
     str + "\t ~ \t" + pat + "\t\t" + (if res then "true" else "false")

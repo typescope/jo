@@ -5,11 +5,11 @@ type Seg = #Seg(start: Int, str: String)
 type Cont = Seg => Bool
 type Reg  = (Seg, Cont) => Bool
 
-fun epsilon(seg: Seg, cont: Cont): Bool =
+def epsilon(seg: Seg, cont: Cont): Bool =
   debug "epsilon"
   cont seg
 
-fun star(reg: Reg, seg: Seg, cont: Cont): Bool =
+def star(reg: Reg, seg: Seg, cont: Cont): Bool =
   debug "star"
   alt
     (seg, cont) => epsilon seg cont
@@ -17,23 +17,23 @@ fun star(reg: Reg, seg: Seg, cont: Cont): Bool =
     seg
     cont
 
-fun plus(reg: Reg, seg: Seg, cont: Cont): Bool =
+def plus(reg: Reg, seg: Seg, cont: Cont): Bool =
   debug "plus"
   val cont1 = (seg) => star reg seg cont
   reg seg cont1
 
-fun alt(reg1: Reg, reg2: Reg, seg: Seg, cont: Cont): Bool =
+def alt(reg1: Reg, reg2: Reg, seg: Seg, cont: Cont): Bool =
   debug "alt"
   (reg1 seg cont) || (reg2 seg cont)
 
-fun seq(regs: List[Reg], seg: Seg, cont: Cont): Bool =
+def seq(regs: List[Reg], seg: Seg, cont: Cont): Bool =
   match regs
     case [] => cont seg
     case [reg, ..rest] =>
       val cont1 = (seg) => seq rest seg cont
       reg seg cont1
 
-fun char(c: Char, seg: Seg, cont: Cont): Bool =
+def char(c: Char, seg: Seg, cont: Cont): Bool =
   debug (charToStr c)
   if seg.start < seg.str.size && seg.str(seg.start) == c then
     cont
@@ -42,14 +42,14 @@ fun char(c: Char, seg: Seg, cont: Cont): Bool =
   else
     false
 
-fun dot(seg: Seg, cont: Cont): Bool =
+def dot(seg: Seg, cont: Cont): Bool =
   debug "."
   seg.start < seg.str.size &&
     cont
       #Seg (seg.start + 1) seg.str
 
 
-fun compile(reg: String): Reg =
+def compile(reg: String): Reg =
   val scanner = object {
     var index = 0
 
@@ -127,15 +127,15 @@ fun compile(reg: String): Reg =
   (seg, cont) => seq regs seg cont
 end
 
-fun matchString(str: String, pat: String): Bool =
+def matchString(str: String, pat: String): Bool =
   val reg : Reg  = compile pat
   val cont: Cont = (seg) => seg.start == str.size
   reg #Seg(0, str) cont
 
-fun debug(msg: String) =
+def debug(msg: String) =
   if DEBUG then println(msg)
 
-fun main =
+def main =
   test "abba" "abba"
   test "abba" ".b.a"
   test "abba" ".*ba"
@@ -146,7 +146,7 @@ fun main =
   test "abba" "ba"
   test "abababc" ".*(ba)+"
 
-fun test(str: String, pat: String) =
+def test(str: String, pat: String) =
   val res = matchString str pat
   println
     str + "\t ~ \t" + pat + "\t\t" + (if res then "true" else "false")

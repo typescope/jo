@@ -2,5 +2,5 @@ namespace app
 
 import test    // error
 
-fun main =
+def main =
   test.lib.double 10 p

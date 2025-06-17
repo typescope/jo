@@ -1,4 +1,4 @@
-fun main =
+def main =
   val l = List(3, 5, 6, 8)
   l.foreach (i => println (intToStr i))
 

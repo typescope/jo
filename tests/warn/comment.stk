@@ -1,4 +1,4 @@
-fun main =
+def main =
   val a: Int = 2 + 6
   a
     *// comment

@@ -1,7 +1,7 @@
 type List[T] = #Nil | #Cons(value: {head: T, tail: List[T]})
 
 
-fun foreach(l: List[Int]): Unit =
+def foreach(l: List[Int]): Unit =
   match l
     case #Nil =>
 
@@ -16,9 +16,9 @@ type Pair[T] = {a: T, b: T}
 type A[T] = {a: Int, b: A[T]}
 type B[T] = {a: Int, b: B[T]}
 
-fun test2[T](o: A[T]): B[T] = o
+def test2[T](o: A[T]): B[T] = o
 
-fun main =
+def main =
   val a: List[Int] = #Nil
   val b: List[Int] = #Cons({head = 5, tail = a})
   val c: List[Int] = #Cons({head = 20, tail = b})

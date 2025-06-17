@@ -2,9 +2,9 @@ namespace stk.Set
 
 import stk.Predef.*
 
-fun empty[T](auto eq: Eq[T]): Set[T] = new Set(List.empty, eq)
+def empty[T](auto eq: Eq[T]): Set[T] = new Set(List.empty, eq)
 
-fun Set[T](elems: ..T)(auto eq: Eq[T]): Set[T] = new Set(elems, eq)
+def Set[T](elems: ..T)(auto eq: Eq[T]): Set[T] = new Set(elems, eq)
 
 // A strawman implementation of Set based on List
 class Set[T]

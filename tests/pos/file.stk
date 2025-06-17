@@ -1,9 +1,9 @@
 import stk.IO.*
 
-fun main =
+def main =
   ioTest with stdin = object { def readLine = "stk" }
 
-fun ioTest =
+def ioTest =
   stdout.write("name: ")
   val name = stdin.readLine
   println

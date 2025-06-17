@@ -2,7 +2,7 @@ namespace foo
 
 import bar
 
-fun triple(x: Int): Int = bar.double x + x
+def triple(x: Int): Int = bar.double x + x
 
-fun main =
+def main =
   bar.quadruple 10 p

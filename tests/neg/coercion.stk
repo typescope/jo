@@ -1,4 +1,4 @@
-fun coercion =
+def coercion =
   // byte
   val b: Byte = 45
   b p

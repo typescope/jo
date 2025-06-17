@@ -22,9 +22,9 @@ class Complex
   def show: String =
     (intToStr this.real) + " + " + (intToStr this.image) + "i"
 
-fun Complex(x: Int, y: Int): Complex = new Complex(x, y)
+def Complex(x: Int, y: Int): Complex = new Complex(x, y)
 
-fun main =
+def main =
   val c1 = Complex 1 3
   val c2 = Complex 2 4
   val c3 = Complex 1 5

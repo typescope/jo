@@ -2,7 +2,7 @@ type Tree =
     #Leaf(value: Int)
   | #Node(left: Tree, right: Tree, value: Int)
 
-fun postOrder(tree: Tree): Unit =
+def postOrder(tree: Tree): Unit =
   match tree
     case #Leaf(n) => n p
     case #Node(left, right, value) =>
@@ -10,7 +10,7 @@ fun postOrder(tree: Tree): Unit =
       postOrder right
       value p
 
-fun preOrder(tree: Tree): Unit =
+def preOrder(tree: Tree): Unit =
   match tree
     case #Leaf(n) => n p
     case #Node(left, right, value) =>
@@ -18,7 +18,7 @@ fun preOrder(tree: Tree): Unit =
       preOrder left
       preOrder right
 
-fun main =
+def main =
   val a: Tree = #Leaf(3)
   val b: Tree = #Node(#Leaf(5), #Leaf(6), 10)
   val tree: Tree = #Node(a, b, 20)

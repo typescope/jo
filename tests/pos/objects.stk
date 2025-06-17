@@ -6,7 +6,7 @@ type Counter = object {
   def upToEven(): Unit
 }
 
-fun createCounter(init: Int): Counter = object {
+def createCounter(init: Int): Counter = object {
   var count = init
   def get() = this.count
   def inc() = count = count + 1
@@ -16,7 +16,7 @@ fun createCounter(init: Int): Counter = object {
     if count % 2 == 1 then add 1
 }
 
-fun main =
+def main =
   val c = createCounter 10
   c.inc
   c.add 10

@@ -1,8 +1,8 @@
-fun fact(n: Int): Int =
+def fact(n: Int): Int =
   if n == 0 then 1
   else fact (n - 1) * n
 
-fun main =
+def main =
   fact 0 p
   fact 4 p        // 24
   fact 5 p        // 120

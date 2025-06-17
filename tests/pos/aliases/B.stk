@@ -13,9 +13,9 @@ end
 section Nested
   alias Inner.Message
 
-  fun bar(x: Flags) = println (intToStr x)
+  def bar(x: Flags) = println (intToStr x)
 end
 
 param prefix: String = "[info]"
-fun foo(s: Message) =
+def foo(s: Message) =
   println (prefix + s)

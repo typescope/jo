@@ -1,4 +1,4 @@
-fun test =
+def test =
   val a =
     3 * (5 +                  // error
          6
@@ -14,21 +14,21 @@ fun test =
       20 - (                 // error
     4 + 6) * 5
 
-fun fact(n: Int) =
+def fact(n: Int) =
   if 0 == n then 1
   else fact (n - 1) * n
 
-fun fact1(n: Int) =
+def fact1(n: Int) =
   if 0 == n then 1
     else fact1 (n - 1) * n   // error
 
-fun foo() =
+def foo() =
     4 p
   5 p          // error
     6 p
       7 p      // expression continues to this line
 
-fun fact2(n: Int) =
+def fact2(n: Int) =
   if 0 == n then 1
   else fact2 (n - 1) * n
      end                    // error

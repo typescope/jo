@@ -1,10 +1,10 @@
 // https://en.wikipedia.org/wiki/McCarthy_91_function
 
-fun mc(n: Int): Int =
+def mc(n: Int): Int =
   if n > 100 then n - 10
   else mc (mc (n + 11))
 
-fun main =
+def main =
   mc -3 p
   mc 10 p
   mc 15 p

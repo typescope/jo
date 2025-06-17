@@ -20,7 +20,7 @@ type C =
     def apply(i: Int): Int
   }
 
-fun main =
+def main =
   val arr: Array[Int] = Array.create[Int] 3
 
   val f: IntArray = arr // error

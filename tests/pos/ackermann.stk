@@ -1,10 +1,10 @@
-fun A(m: Int, n: Int): Int =
+def A(m: Int, n: Int): Int =
   if m == 0 then n + 1
   else
     if n == 0 then A (m - 1) 1
     else A (m - 1) (A m (n - 1)) end
 
-fun main =
+def main =
   A 0 3 p
   A 4 0 p
   // A 5 0 p

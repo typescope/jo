@@ -1,14 +1,14 @@
-fun foo(a: Int, b: Int) =
+def foo(a: Int, b: Int) =
   a p
   b p
 
-fun println(a: Int) = a p
+def println(a: Int) = a p
 
-fun add(x: Int, y: Int) = x + y
-fun mul(x: Int, y: Int) = x * y
-fun indent(x: Int): Int = x
+def add(x: Int, y: Int) = x + y
+def mul(x: Int, y: Int) = x * y
+def indent(x: Int): Int = x
 
-fun main =
+def main =
   indent
     3 *
       5 +

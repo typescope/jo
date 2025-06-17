@@ -5,7 +5,7 @@ class Box[T]
 
   def map[S](f: T => S): Box[S] = new Box(f value)
 
-fun main =
+def main =
   val a = new Box(4)
   println
     intToStr a.map(i => i + 3).value

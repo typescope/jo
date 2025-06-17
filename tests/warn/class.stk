@@ -71,7 +71,7 @@ class M
   def foo(y: Int) =
     n = y
 
-fun test =
+def test =
   new C
 
   new C("hello")

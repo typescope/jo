@@ -1,4 +1,4 @@
-fun foo =
+def foo =
   val a = "hello   // error
 
   val b = 3 + 5
@@ -9,4 +9,4 @@ fun foo =
 
   defd"            // error
 
-fun bar(x: Int) = x * x
+def bar(x: Int) = x * x

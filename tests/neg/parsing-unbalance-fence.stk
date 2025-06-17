@@ -1,4 +1,4 @@
-fun test =
+def test =
   (1 + 3 * 5 p
 
-fun bar = 7 + 9  // error
+def bar = 7 + 9  // error

@@ -1,6 +1,6 @@
 type Alg = {+ : Int, - : Int}
 
-fun main =
+def main =
   val alg: Alg = {+ = 5, - = 10}
 
   alg.+ p

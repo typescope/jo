@@ -1,4 +1,4 @@
-fun main =
+def main =
   if ! true then
     1 p
   else

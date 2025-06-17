@@ -1,7 +1,7 @@
 type Option = #None | #Some(value: Int)
 type Sum = #Left(value: Int) | #Right(value: Int)
 
-fun test =
+def test =
   val a: Sum = #Left(true)     // error
   val b: Option = #None as Sum       // error
   val c: Option = #Some(5)

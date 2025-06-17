@@ -143,7 +143,7 @@ Abstract Syntax
 
     valdef  = {modifier} (VAL | VAR) ident [COLON type] EQL block.
 
-    fundef  = {modifier} FUN [param_section] ident [tparams] [param_section] [auto_section] [COLON type] [receive_params] EQL block [END].
+    fundef  = {modifier} DEF [param_section] ident [tparams] [param_section] [auto_section] [COLON type] [receive_params] EQL block [END].
 
     classdef = {modifier} class ident [tparams] {defdef | val_decl} [END].
 

@@ -1,12 +1,12 @@
 // https://en.wikipedia.org/wiki/Pell_number
 
-fun pell(n: Int): Int = pellComp 0 1 0 n
+def pell(n: Int): Int = pellComp 0 1 0 n
 
-fun pellComp(a: Int, b: Int, i: Int, n: Int): Int =
+def pellComp(a: Int, b: Int, i: Int, n: Int): Int =
   if i == n then
     a
   else
     a p
     pellComp b (a + (b * 2)) (i + 1) n
 
-fun main = pell 20 p
+def main = pell 20 p

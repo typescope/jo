@@ -1,4 +1,4 @@
-fun main =
+def main =
   (4 / 5)  p
 
   (10 / 3) p

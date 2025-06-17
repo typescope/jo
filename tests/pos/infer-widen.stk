@@ -1,6 +1,6 @@
-fun id[T](x: T) = x
+def id[T](x: T) = x
 
-fun main =
+def main =
   id
     3
       *

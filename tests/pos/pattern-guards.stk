@@ -2,23 +2,23 @@ type List[T] = #Nil | #Cons(head: T, tail: List[T])
 
 type Cons = #Cons(head: Int, tail: List[Int])
 
-fun (x: Int) :: (rest: List[Int]): Cons = #Cons x rest
+def (x: Int) :: (rest: List[Int]): Cons = #Cons x rest
 pattern (x: Int) :: (rest: List[Int]): Cons =
   case #Cons x rest
 
 pattern Nil: #Nil = case #Nil
-fun Nil: #Nil = #Nil
+def Nil: #Nil = #Nil
 
 pattern Len(x: Int): List[Int] =
   case Nil then x = 0
   case _ :: (Len y) then x = y + 1
 
-fun test(a: List[Int]): Unit =
+def test(a: List[Int]): Unit =
   match a
     case x :: xs if x > 4 => println "head > 4"
     case _ => println "else"
 
-fun main =
+def main =
   test (4 :: Nil)
   test (5 :: Nil)
   test Nil

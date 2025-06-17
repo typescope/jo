@@ -1,4 +1,4 @@
-fun main =
+def main =
   var a = 3
   val r =
     a +

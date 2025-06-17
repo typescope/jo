@@ -1,33 +1,33 @@
 param pageWidth: Int
 
-fun phraseIndent =
+def phraseIndent =
   println "hello" allow stdin
     if 3 > 5 then println "error"   // error
 
-fun phraseIndent1 =
+def phraseIndent1 =
   println "world"
     with pageWidth = 10
       allow stdin
 
-fun phraseIndent2 =
+def phraseIndent2 =
   println "world"
     allow stdin with pageWidth = 10
 
-fun phraseIndent3 =
+def phraseIndent3 =
   println "world"
     with pageWidth = 10 allow stdin
 
-fun phraseIndent4 =
+def phraseIndent4 =
   println "world"
     with
        pageWidth = 10 allow stdin
 
-fun phraseIndent5 =
+def phraseIndent5 =
   println "world"
     allow stdin
     with pageWidth = 10
 
-fun phraseIndent6 =
+def phraseIndent6 =
   println "world"
     with pageWidth = 10
     allow stdin

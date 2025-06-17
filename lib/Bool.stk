@@ -11,17 +11,17 @@ type Bool
 // Follows short-cut semantics as in Java
 //
 // Note: it is desugared during type checking should not be used in S-AST
-fun (a: Bool) && (b: Bool): Bool = abort("primitive &&")
+def (a: Bool) && (b: Bool): Bool = abort("primitive &&")
 
 // Follows short-cut semantics as in Java
 //
 // Note: it is desugared during type checking should not be used in S-AST
-fun (a: Bool) || (b: Bool): Bool = abort("primitive ||")
+def (a: Bool) || (b: Bool): Bool = abort("primitive ||")
 
-fun ! (b: Bool): Bool = abort("primitive not")
+def ! (b: Bool): Bool = abort("primitive not")
 
 // No short-cut semantics for better CPU performance (no jump instructions)
-fun both(a: Bool, b: Bool): Bool = abort("primitive both")
+def both(a: Bool, b: Bool): Bool = abort("primitive both")
 
 // No short-cut semantics for CPU performance (no jump instructions)
-fun either(a: Bool, b: Bool): Bool = abort("primitive either")
+def either(a: Bool, b: Bool): Bool = abort("primitive either")

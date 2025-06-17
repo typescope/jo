@@ -3,14 +3,14 @@ type Unit = {}
 type Option = #None | #Some(value: Int)
 type Sum = #Left(value: Int) | #Right(value: Int)
 
-fun double(n: Int32): Int32 = n + n
+def double(n: Int32): Int32 = n + n
 
-fun foo(n: Int): Int =
+def foo(n: Int): Int =
   type Weight = Int32
   val a: Weight = double 10
   double a
 
-fun main =
+def main =
   val a: Int32 = 4
   val b: Int = a * a
 

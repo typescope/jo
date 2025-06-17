@@ -1,10 +1,10 @@
-fun fact(n: Int): Int =
+def fact(n: Int): Int =
   if n == 0 then 1
   else
     val r = fact (n - 1)
     r * n
 
-fun mul(m: Int, n: Int): Int =
+def mul(m: Int, n: Int): Int =
   if either (m == 0) (n == 0) then 0
   else
     if 1 & m == 0 then
@@ -14,7 +14,7 @@ fun mul(m: Int, n: Int): Int =
       val b = mul m (1 >> n)
       b + b + n
 
-fun test1(): Unit =
+def test1(): Unit =
   val a = fact 0
   val b = fact 4
   val c = fact 5
@@ -22,7 +22,7 @@ fun test1(): Unit =
   b p
   c p
 
-fun main =
+def main =
   test1
   mul 2 3 p
   mul 0 3 p

@@ -1,1 +1,1 @@
-fun bar[T](x: T): T = 3 // error
+def bar[T](x: T): T = 3 // error

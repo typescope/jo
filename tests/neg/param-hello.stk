@@ -1,9 +1,9 @@
 param newLine: String
 
-fun foo() =
+def foo() =
   print
     "Hello, world!" + newLine
 
-fun bar() = foo
+def bar() = foo
 
-fun main = bar    // error
+def main = bar    // error

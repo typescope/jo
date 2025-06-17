@@ -1,7 +1,7 @@
-fun foo(x: Int, y: Int): Int =
-  fun bar(n: Int) = n * 2 + y
-  fun qux(n: Int) = bar n + x
+def foo(x: Int, y: Int): Int =
+  def bar(n: Int) = n * 2 + y
+  def qux(n: Int) = bar n + x
   qux x + 10
 
-fun main =
+def main =
   foo 5 10 p

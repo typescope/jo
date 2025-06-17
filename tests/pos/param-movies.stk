@@ -3,9 +3,9 @@ type MovieFinder = object { def findAll(): List[Movie] }
 
 param finder: MovieFinder
 
-fun moviesDirectedBy(arg: String): List[Movie] =
+def moviesDirectedBy(arg: String): List[Movie] =
   val allMovies = finder.findAll()
-  fun filter(movies: List[Movie]): List[Movie] =
+  def filter(movies: List[Movie]): List[Movie] =
     match movies
       case [] => List.empty
       case [m, rest*] =>
@@ -15,7 +15,7 @@ fun moviesDirectedBy(arg: String): List[Movie] =
   end
   filter allMovies
 
-fun main =
+def main =
   val testFinder: MovieFinder = object {
     def findAll(): List[Movie] =
       val movie1 = { name = "A", director = "a", year = 2010 }

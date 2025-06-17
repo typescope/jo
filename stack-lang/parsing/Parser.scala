@@ -216,7 +216,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val item = peekItem()
 
     if item.token == Token.TYPE then typeDef().withMods(mods)
-    else if item.token == Token.FUN then funDef().withMods(mods)
+    else if item.token == Token.DEF then funDef().withMods(mods)
     else if item.token == Token.PARAM then paramDef().withMods(mods)
     else if item.token == Token.PATTERN then patDef().withMods(mods)
     else if item.token == Token.DATA then dataDef().withMods(mods)
@@ -273,7 +273,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     ValDef(id, tpt, rhs, mutable)(mod.span | rhs.span)
 
   def funDef(): FunDef =
-    val fun = eat(Token.FUN)
+    val fun = eat(Token.DEF)
     val preParamList = paramSection()
     val id = ident()
     val tparams = typeParams()
@@ -728,10 +728,10 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case Token.MATCH     => Some(patmat())
       case Token.WHILE     => Some(whileDo())
 
-      case Token.VAL | Token.VAR   =>
+      case Token.VAL | Token.VAR  =>
         Some(valDef(item.token))
 
-      case Token.FUN =>
+      case Token.DEF =>
         Some(funDef())
 
       case Token.PATTERN =>
@@ -746,7 +746,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           case Token.VAL | Token.VAR   =>
             Some(valDef(item.token).withMods(mods))
 
-          case Token.FUN =>
+          case Token.DEF =>
             Some(funDef().withMods(mods))
 
           case token =>

@@ -1,9 +1,9 @@
 auto pattern Pos(x: Int): Partial[Int] =
   case x if x > 0
 
-auto fun foo(x: Int): Int = x
+auto def foo(x: Int): Int = x
 
-auto fun bar(x: Int)(auto y: String): Int = x
+auto def bar(x: Int)(auto y: String): Int = x
 
 auto param x: Int  // disallow for now
 

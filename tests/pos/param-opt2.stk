@@ -5,7 +5,7 @@ type Counter = object {
 
 param counter: Counter = newCounter(0)
 
-fun newCounter(from: Int): Counter = object {
+def newCounter(from: Int): Counter = object {
   var count = from
   def inc() =
     count = count + 1
@@ -13,15 +13,15 @@ fun newCounter(from: Int): Counter = object {
   def get() = count
 }
 
-fun testCounter(): Int =
+def testCounter(): Int =
   counter.inc()
   counter.inc()
   counter.get()
 
-fun makeFun(): () => Int = () =>
+def makeFun(): () => Int = () =>
   testCounter()
 
-fun main =
+def main =
   testCounter() p   // 0
 
   println

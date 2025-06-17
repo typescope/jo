@@ -1,5 +1,5 @@
-fun foo = 10 p
+def foo = 10 p
 
-fun bar = foo
+def bar = foo
 
-fun main = bar
+def main = bar

@@ -1,4 +1,4 @@
-fun main =
+def main =
   var i = 0
   while i < 4096 do
     val sum = i * i + i

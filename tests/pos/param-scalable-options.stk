@@ -1,13 +1,13 @@
 param flip: Bool = false   // flip the sign
 param double: Bool = false // double the value
 
-fun foo(n: Int): Int = if flip then 0 - n else n
-fun bar(n: Int): Int = if double then n * 2 else n
+def foo(n: Int): Int = if flip then 0 - n else n
+def bar(n: Int): Int = if double then n * 2 else n
 
 // The optional context param `flip` and `double` are automatically active.
-fun baz(n: Int): Int = foo(n) + bar(n)
+def baz(n: Int): Int = foo(n) + bar(n)
 
-fun main =
+def main =
   flow
     baz 10 with flip = true, double = false
     p

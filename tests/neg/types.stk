@@ -1,10 +1,10 @@
-fun even(x: Int): Bool = x % 2 == 0
+def even(x: Int): Bool = x % 2 == 0
 
-fun double(n: Int): Bool = n + n // error
+def double(n: Int): Bool = n + n // error
 
-fun paramDuplicate(a: Int, a: Int): Int = a // error
+def paramDuplicate(a: Int, a: Int): Int = a // error
 
-fun test =
+def test =
 
   var a: Int = 4
   val b: Int = false // error

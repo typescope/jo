@@ -16,29 +16,29 @@ type A = ErrorUnion4
 type ErrorUnion4 = A | #Foo // error // error
 
 
-fun showHerbivore(h: Herbivore): String =
+def showHerbivore(h: Herbivore): String =
   match h
     case s: Sheep => "Sheep: " + s.origin
     case s: Sanglier => "Sanglier: " + s.origin // error
     case c: Cow => "Cow: " + c.origin
 
-fun showCarnivore(c: Carnivore): String =
+def showCarnivore(c: Carnivore): String =
   match c                                      // error
     case t: Tiger => "Tiger: " + t.origin
 
-fun showAnimal(a: Animal): String =
+def showAnimal(a: Animal): String =
   match a
     case h: Herbivore => showHerbivore h
     case c: Carnivore => showCarnivore c
 
-fun showRedundant(a: Animal): String =
+def showRedundant(a: Animal): String =
   match a
     case c: Cow => "Cow: " + c.origin
     case s: Sheep => "Sheep: " + s.origin
     case h: Herbivore => showHerbivore h   // error
     case c: Carnivore => showCarnivore c
 
-fun main =
+def main =
   val c = #Cow "Europe"
   val t = #Tiger "Asian"
   val w = #Wolf "Italy"
