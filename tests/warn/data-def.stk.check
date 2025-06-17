@@ -72,7 +72,7 @@
 |           ^
 
 ---------- Error at ./tests/warn/data-def.stk:15:46 ---------------
-|   fun Right(value: Int): Right[Int] = #Right x
+|   def Right(value: Int): Right[Int] = #Right x
 |                                              ^
 |                                              Undefined term identifier x
 
