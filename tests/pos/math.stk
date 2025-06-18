@@ -1,4 +1,4 @@
-fun main =
+def main =
   -5 p              // -5
 
   (3 - 5) p         // -2

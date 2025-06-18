@@ -3,9 +3,9 @@ namespace stk.List
 import stk.Predef.*
 import stk.List.ListImpl.*
 
-fun empty[T]: List[T] = new List(ListImpl.Nil)
+def empty[T]: List[T] = new List(ListImpl.Nil)
 
-fun List[T](elems: ..T): List[T] = elems
+def List[T](elems: ..T): List[T] = elems
 
 class List[T]
   val repr: Repr[T]
@@ -187,10 +187,10 @@ section ListImpl
     case Slice(_, from, to) then n = to - from + 1
     case Flat(elems) then n = Array.size elems
 
-  fun errorIndex(i: Int): Bottom = abort ("invalid index for list " + (intToStr i))
+  def errorIndex(i: Int): Bottom = abort ("invalid index for list " + (intToStr i))
 
   // The Bool value tells whether to continue the traversal
-  fun traverse[T](this: List[T], from: Int, to: Int, op: T => Bool, rest: List[T]): Unit =
+  def traverse[T](this: List[T], from: Int, to: Int, op: T => Bool, rest: List[T]): Unit =
     val msg =
       "invalid arg for ListImpl.traverse"
         + ", from = " + (intToStr from)

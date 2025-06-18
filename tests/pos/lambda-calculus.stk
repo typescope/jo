@@ -8,7 +8,7 @@ type Value = { lambda: Lambda, env: Env }
 
 param env: Env = #Empty // environment for variables
 
-fun show(expr: Expr): String =
+def show(expr: Expr): String =
   match expr
     case #Var x => x
 
@@ -17,7 +17,7 @@ fun show(expr: Expr): String =
     case #App abs arg =>
       (show abs) + " " + (show arg)
 
-fun find(x: String): Option[Value] =
+def find(x: String): Option[Value] =
   match env
     case #Empty => #None
 
@@ -25,7 +25,7 @@ fun find(x: String): Option[Value] =
       if x == k then #Some(v)
       else find x with env = outer
 
-fun eval(expr: Expr): Value =
+def eval(expr: Expr): Value =
   match expr
     case #Var x =>
       match find x
@@ -44,7 +44,7 @@ fun eval(expr: Expr): Value =
       val env2: Env = #Cons(x, argValue, closure.env)
       eval body with env = env2
 
-fun main =
+def main =
   val id: Expr = #Abs("x", #Var "x")
   val code: Expr = #App(id, id)
   println

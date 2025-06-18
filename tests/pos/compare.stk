@@ -1,4 +1,4 @@
-fun main =
+def main =
   if 2 * 3 > 5 then
     200 p
   else

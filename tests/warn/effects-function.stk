@@ -10,7 +10,7 @@ type Fun = object {
   def apply(): Unit
 }
 
-fun main =
+def main =
   val work: Runnable = object {
     def run() receives out, in, retry = out "run"
   }

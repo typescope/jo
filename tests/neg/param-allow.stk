@@ -2,10 +2,10 @@ import stk.IO.stdout
 
 param newLine: String
 
-fun foo() =
+def foo() =
   print
     "Hello, world!" + newLine
 
-fun bar() = foo
+def bar() = foo
 
-fun main = bar allow stdout  // error
+def main = bar allow stdout  // error

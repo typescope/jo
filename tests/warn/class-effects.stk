@@ -1,6 +1,6 @@
 param out: String => Unit
 
-fun bar(s: String) = out s
+def bar(s: String) = out s
 
 class Foo
   def Foo() receives out =
@@ -12,6 +12,6 @@ class Foo
   def work() = bar "work"
 end
 
-fun instantiate receives none = new Foo
+def instantiate receives none = new Foo
 
-fun test(o: Foo) receives none = o.work()
+def test(o: Foo) receives none = o.work()

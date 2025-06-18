@@ -1,6 +1,6 @@
 type List = #Nil | #Cons(head: Int, tail: List)
 
-fun isPrime(primes: List, n: Int): Bool =
+def isPrime(primes: List, n: Int): Bool =
   match primes
     case #Nil => true
     case #Cons(x, xs) =>
@@ -9,7 +9,7 @@ fun isPrime(primes: List, n: Int): Bool =
       else
         isPrime xs n
 
-fun prime(primes: List, cur: Int, until: Int): Unit =
+def prime(primes: List, cur: Int, until: Int): Unit =
   if cur < until then
     if isPrime primes cur then
       cur p
@@ -18,7 +18,7 @@ fun prime(primes: List, cur: Int, until: Int): Unit =
     else
       prime primes (1 + cur) until
 
-fun primeUntil(until: Int): Unit =
+def primeUntil(until: Int): Unit =
   var primes: List = #Cons(2, #Nil)
   var cur = 3
   while cur < until do
@@ -28,7 +28,7 @@ fun primeUntil(until: Int): Unit =
     end
     cur = cur + 1
 
-fun main =
+def main =
   prime #Cons(2, #Nil) 3 100
 
   primeUntil 100

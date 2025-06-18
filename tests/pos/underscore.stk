@@ -3,11 +3,11 @@ type StringRepr =
   | #Concat(length: Int, lhs: StringRepr, rhs: StringRepr)
 
 
-fun length(s: StringRepr) =
+def length(s: StringRepr) =
   match s
     case #Raw(str) => str.size
     case #Concat(len, _, _) => len
 
-fun main =
+def main =
   val len = length #Raw("hello")
   len p

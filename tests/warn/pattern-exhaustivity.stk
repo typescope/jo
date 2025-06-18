@@ -2,14 +2,14 @@ type Post = #Post(author: String, content: String)
 
 type Project = #Project(intro: Post, plan: Post, test: Post)
 
-fun test(post: Post): Unit =
+def test(post: Post): Unit =
   match post
     case #Random _ =>
 
   match post
     case b: #Article(Int, String) =>
 
-fun test2(project: Project): Unit =
+def test2(project: Project): Unit =
 
   match project
     case p: #Project(#Article(String, String)) =>

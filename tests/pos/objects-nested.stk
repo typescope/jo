@@ -1,4 +1,4 @@
-fun foo(x: Int, y: Int) =
+def foo(x: Int, y: Int) =
   object {
     var id = 0
     def makeCounter(init: Int) =
@@ -14,7 +14,7 @@ fun foo(x: Int, y: Int) =
     def makeMul() = (n: Int) => y * n
   }
 
-fun main =
+def main =
   val metaMaker = foo 4 10
 
   println "counter 1"

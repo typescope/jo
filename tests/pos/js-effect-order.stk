@@ -1,8 +1,8 @@
-fun effect(n: Int): Int =
+def effect(n: Int): Int =
   n p
   n
 
-fun main =
+def main =
   val r =
     (effect 1) +
       if effect 2 > 0 then

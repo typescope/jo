@@ -1,12 +1,12 @@
 type ..[T] = List[T]
 
-fun print(l: ..String): Unit =
+def print(l: ..String): Unit =
   l.foreach s => println s
 
 type [A] ~ [B] = #Pair(lhs: A, rhs: B)
-fun (lhs: A) ~[A, B](rhs: B): A ~ B = #Pair lhs rhs
+def (lhs: A) ~[A, B](rhs: B): A ~ B = #Pair lhs rhs
 
-fun main =
+def main =
   print
     List "hello" "world!"
 

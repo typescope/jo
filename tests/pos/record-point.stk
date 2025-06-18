@@ -1,9 +1,9 @@
 type Point = {x: Int, y: Int}
 
-fun prod(p1: Point, p2: Point): Point =
+def prod(p1: Point, p2: Point): Point =
   {x = p1.x * p2.x, y = p1.y * p2.y}
 
-fun main =
+def main =
   val p1: Point = {x = 3, y = 5}
   val p2: Point = {x = 6, y = 8}
   val p3: Point = prod p1 p2

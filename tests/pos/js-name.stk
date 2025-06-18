@@ -1,4 +1,4 @@
-fun main =
+def main =
   val console = { log = "hello\n", a = 10 }
   print console.log
   console.a p

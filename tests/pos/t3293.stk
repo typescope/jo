@@ -1,7 +1,7 @@
-fun foo[A,B,C](f: A => B, g: B => C): A => C =
+def foo[A,B,C](f: A => B, g: B => C): A => C =
   a => g (f a)
 
-fun main =
+def main =
   foo
     (a: Int) => a + 4
     b => b > 3

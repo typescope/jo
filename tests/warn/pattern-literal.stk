@@ -1,27 +1,27 @@
-fun testInt1(x: Int): Unit =
+def testInt1(x: Int): Unit =
   match x
     case "hello" =>
     case _ =>
 
-fun testString(x: String): Unit =
+def testString(x: String): Unit =
   match x
     case 4 =>
     case 'a' =>
     case _ =>
 
-fun testChar1(c: Char): Unit =
+def testChar1(c: Char): Unit =
   match c
     case "hello" =>
     case 1024   =>
     case _ =>
 
-fun testByte1(x: Byte): Unit =
+def testByte1(x: Byte): Unit =
   match x
     case 512 =>
     case "x" =>
     case _ =>
 
-fun testBool(x: Bool): Unit =
+def testBool(x: Bool): Unit =
   match x
     case 23 =>
     case "hello" =>

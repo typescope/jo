@@ -1,5 +1,5 @@
 ---------- Error at ./tests/warn/auto-ambiguity.stk:9:12 ---------------
-| fun main = foo
+| def main = foo
 |            ^^^
 |            Ambiguous autos, multiple candidates satisfy the auto type A: __empty__.diverge, __empty__.A.
 

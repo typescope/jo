@@ -1,8 +1,8 @@
-fun ok(a: ..Int) = a
+def ok(a: ..Int) = a
 
-fun test1(a: ..Int, b: Int) = b
+def test1(a: ..Int, b: Int) = b
 
-fun test2(l: List[..Int]) = ???
+def test2(l: List[..Int]) = ???
 
 pattern Pat(a: ..Int): List[Int] =
   case a
@@ -11,9 +11,9 @@ type A = #Res(x: ..Int)
 
 // type B = Predef...[Int]  // check prefix selection
 
-fun mix(x: Int, l: List[Int]): Unit = ???
+def mix(x: Int, l: List[Int]): Unit = ???
 
-fun main =
+def main =
   val l: ..Int = List.empty
 
   mix 6 List 8 9

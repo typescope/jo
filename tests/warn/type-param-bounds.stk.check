@@ -4,7 +4,7 @@
 |          Type bounds are not supported
 
 ---------- Error at ./tests/warn/type-param-bounds.stk:3:11 ---------------
-| fun foo[T <: Int](x: T): T = x
+| def foo[T <: Int](x: T): T = x
 |           ^^^^^^
 |           Type bounds are not supported
 

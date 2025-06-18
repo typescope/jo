@@ -1,8 +1,8 @@
-fun effect(n: Int): Int =
+def effect(n: Int): Int =
   n p
   n
 
-fun main =
+def main =
   var i = 0
   while effect i < 3 do
     println

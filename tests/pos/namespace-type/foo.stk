@@ -4,7 +4,7 @@ import bar
 
 type B = Int
 
-fun triple(x: bar.A): bar.A = bar.double x + x
+def triple(x: bar.A): bar.A = bar.double x + x
 
-fun main =
+def main =
   bar.quadruple 10 p

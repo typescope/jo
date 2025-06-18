@@ -4,12 +4,12 @@
 | The modifier auto is not allowed for pattern definition
 
 ---------- Warning at ./tests/warn/modifiers.stk:4:14 ---------------
-| auto fun foo(x: Int): Int = x
+| auto def foo(x: Int): Int = x
 |              ^^^^^^
 |              The function will be ignored in auto derivation as it requires non-auto arguments. Do you forget the modifier auto?
 
 ---------- Warning at ./tests/warn/modifiers.stk:6:14 ---------------
-| auto fun bar(x: Int)(auto y: String): Int = x
+| auto def bar(x: Int)(auto y: String): Int = x
 |              ^^^^^^
 |              The function will be ignored in auto derivation as it requires non-auto arguments.
 

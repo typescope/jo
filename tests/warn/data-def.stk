@@ -12,11 +12,11 @@ end
 
 section Right
   pattern Right(value: Int): Right[Int] = case #Right value
-  fun Right(value: Int): Right[Int] = #Right x
+  def Right(value: Int): Right[Int] = #Right x
 end
 
 
-fun test(item: Either[String, Int]): Unit =
+def test(item: Either[String, Int]): Unit =
   match item
     case Left v =>  println v
     case Right v => println (intToStr v)

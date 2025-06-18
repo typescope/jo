@@ -1,9 +1,9 @@
-fun NAND(p: Bool, q: Bool): Bool = !(p && q)
-fun NOT (p: Bool): Bool          = NAND p p
-fun AND (p: Bool, q: Bool): Bool = NOT (NAND p q)
-fun OR  (p: Bool, q: Bool): Bool = NAND (NOT p) (NOT q)
+def NAND(p: Bool, q: Bool): Bool = !(p && q)
+def NOT (p: Bool): Bool          = NAND p p
+def AND (p: Bool, q: Bool): Bool = NOT (NAND p q)
+def OR  (p: Bool, q: Bool): Bool = NAND (NOT p) (NOT q)
 
-fun main =
+def main =
   if NOT true then
     10 p
   else

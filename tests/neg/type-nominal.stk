@@ -18,6 +18,6 @@ type StringImpl = object {
   def substring(from: Int, len: Int): String
 }
 
-fun test(a: String): StringImpl = a  // error
+def test(a: String): StringImpl = a  // error
 
-fun test2(a: String): StringRepr = a // error
+def test2(a: String): StringRepr = a // error

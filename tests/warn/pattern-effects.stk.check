@@ -18,7 +18,7 @@ The following is the trace that leads to the problem:
 The following is the trace that leads to the problem: 
 ├──   case _ :: (Len y)     then x = bar y	[ ./tests/warn/pattern-effects.stk:20:34 ]
 │                                    ^^^
-└── fun bar(x: Int): Int = x + delta	[ ./tests/warn/pattern-effects.stk:13:28 ]
+└── def bar(x: Int): Int = x + delta	[ ./tests/warn/pattern-effects.stk:13:28 ]
                                ^^^^^
 
 

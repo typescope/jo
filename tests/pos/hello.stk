@@ -1,1 +1,1 @@
-fun main = println "Hello, world!"
+def main = println "Hello, world!"

@@ -1,4 +1,4 @@
-fun main =
+def main =
   (1 << 0) p
   (1 << 4) p
 

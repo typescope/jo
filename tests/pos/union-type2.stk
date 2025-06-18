@@ -3,12 +3,12 @@ type Sum = # Left(value: Int) | #Right(value: Int)
 
 type OptionSum = #None | #Some(value: Sum)
 
-fun foo(x: Sum): Int =
+def foo(x: Sum): Int =
   match x
     case #Left n =>  n + n
     case #Right n => n * n
 
-fun main =
+def main =
   val a: Sum = #Left 3
   val b: Option = #None
   val c: Option = #Some 5

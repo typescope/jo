@@ -7,7 +7,7 @@ type MySeq[T] = object {
 
 pattern Pos: Partial[Int] = case x if x > 0
 
-fun test(a: MySeq[Int]) =
+def test(a: MySeq[Int]) =
   match a
     case [> (x if x > 2), (ys @ Pos)*, z*] =>
       println (intToStr x)
@@ -21,7 +21,7 @@ pattern Size[T](n: Int): List[T] =
   case [] then n = 0
   case [x, ..Size(acc)] then n = 1 + acc
 
-fun main =
+def main =
   val a: List[Int] = List 1 8 5 7 9 -3 10 20
 
   val b = object {

@@ -111,7 +111,7 @@ object Printing:
           if fdef.body.isEmptyBlock then Text.Empty
           else " =" ~ indent(fdef.body)
 
-        mods ~ "fun " ~ fdef.name ~ tparams ~ params ~ autos ~ resType ~ receives ~ body
+        mods ~ "def " ~ fdef.name ~ tparams ~ params ~ autos ~ resType ~ receives ~ body
 
       case cdef: ClassDef =>
         val mods =

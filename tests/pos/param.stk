@@ -1,15 +1,15 @@
 param indent: Int
 
-fun padding(unit: Int): Int = indent * unit
+def padding(unit: Int): Int = indent * unit
 
 param alpha: Int
 param beta: Int
 
-fun foo(n: Int): Int = alpha + beta * n
+def foo(n: Int): Int = alpha + beta * n
 
-fun printInt(x: Int): Unit = x p
+def printInt(x: Int): Unit = x p
 
-fun main =
+def main =
   println "test context parameters"
 
   val a = padding 2 with indent = 2

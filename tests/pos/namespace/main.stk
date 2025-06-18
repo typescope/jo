@@ -1,7 +1,7 @@
 import test
 
-fun concat(a: Int, l: test.List[Int]): test.List[Int] = #Cons(a, l)
+def concat(a: Int, l: test.List[Int]): test.List[Int] = #Cons(a, l)
 
-fun main =
+def main =
   test.id[Int] 20
   test.double 10 p

@@ -1,6 +1,6 @@
 // test predef
 
-fun main =
+def main =
   val l =
     List.empty
       + 3

@@ -1,9 +1,9 @@
 type A
 
-auto fun diverge(auto a: A): A = ???
+auto def diverge(auto a: A): A = ???
 
-auto fun A: A = ???
+auto def A: A = ???
 
-fun foo(auto a: A): Int = 3
+def foo(auto a: A): Int = 3
 
-fun main = foo
+def main = foo

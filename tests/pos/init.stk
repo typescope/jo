@@ -1,6 +1,6 @@
 
-fun double(n: Int): Int = n + n
+def double(n: Int): Int = n + n
 
-fun main =
+def main =
   val c = double 3
   (2 * c) p         // 12

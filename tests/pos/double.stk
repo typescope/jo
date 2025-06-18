@@ -1,3 +1,3 @@
-fun double(n: Int): Int = n + n // some comment
+def double(n: Int): Int = n + n // some comment
 
-fun main = (double 3 + 5) p  // 11
+def main = (double 3 + 5) p  // 11

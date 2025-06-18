@@ -1,6 +1,6 @@
 type A[T <: Int] = T
 
-fun foo[T <: Int](x: T): T = x
+def foo[T <: Int](x: T): T = x
 
 data Box[T <: Int](x: T)
 

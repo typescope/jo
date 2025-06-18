@@ -3,11 +3,11 @@ type B[T] = A[T]
 
 type S[T] = S[{a: T, b: T}]
 
-fun test1(a: A[Int]): B[Int] = a                   // error
+def test1(a: A[Int]): B[Int] = a                   // error
 
-fun test2(a: S[Int]): S[{a: Int, b: Int}] = a      // error
+def test2(a: S[Int]): S[{a: Int, b: Int}] = a      // error
 
 type C[T] = {a: Int, b: C[{x: T}]}
 type D[T] = {a: Int, b: D[{x: T}]}
 
-fun test4[T](o: C[T]): D[T] = o
+def test4[T](o: C[T]): D[T] = o

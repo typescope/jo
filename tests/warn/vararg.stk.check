@@ -1,10 +1,10 @@
 ---------- Error at ./tests/warn/vararg.stk:3:14 ---------------
-| fun test1(a: ..Int, b: Int) = b
+| def test1(a: ..Int, b: Int) = b
 |              ^^
 |              .. not allowed here. It can only be used as the type of the last varargs parameter.
 
 ---------- Error at ./tests/warn/vararg.stk:5:19 ---------------
-| fun test2(l: List[..Int]) = ???
+| def test2(l: List[..Int]) = ???
 |                   ^^
 |                   .. not allowed here. It can only be used as the type of the last varargs parameter.
 

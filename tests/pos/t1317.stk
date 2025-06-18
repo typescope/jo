@@ -4,13 +4,13 @@ type C = { c: Int }
 type Either[S, T] = #Left(value: S) | #Right(value: T)
 type List[T] = #Cons(head: T, tail: List[T]) | #Nil
 
-fun list[T](a: T, b: T): List[T] =
+def list[T](a: T, b: T): List[T] =
   #Cons(a, #Cons(b, #Nil))
 
-fun left[U, V](a: U): Either[U, V] = #Left(a)
-fun right[X, Y](a: Y): Either[X, Y] = #Right(a)
+def left[U, V](a: U): Either[U, V] = #Left(a)
+def right[X, Y](a: Y): Either[X, Y] = #Right(a)
 
-fun main =
+def main =
   list
     left  { b = 3 }
     right { c = 3 }

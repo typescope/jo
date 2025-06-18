@@ -3,21 +3,21 @@ import stk.IO.stdout
 param pageWidth: Int
 param newLine: String
 
-fun pretty(s: String): Unit =
+def pretty(s: String): Unit =
   pageWidth p
 
-fun normalize(s: String): Unit =
+def normalize(s: String): Unit =
   print s
   print newLine
 
-fun foo() =
+def foo() =
   pretty "hello, world!" allow stdout  // error
   normalize "hello, world!" allow stdout, newLine
 
-fun bar() =
+def bar() =
   print
     "Bonjour!" + newLine
 
-fun main =  // error
+def main =  // error
   foo with pageWidth = 100, newLine = "\n"
   bar

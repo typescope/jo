@@ -18,7 +18,7 @@ section List
     | Append(prefix: List[T], last: T)
     | Concat(lhs: List[T], rhs: List[T])
 
-  fun empty[T]: List[T] = makeObject Nil
+  def empty[T]: List[T] = makeObject Nil
 
   pattern Size[T](n: Int): Repr[T] =
     case Nil then n = 0
@@ -26,9 +26,9 @@ section List
     case Append(prefix, _) then n = prefix.size + 1
     case Concat(lhs, rhs) then n = lhs.size + rhs.size
 
-  fun errorIndex(i: Int): Bottom = abort ("invalid index for list " + (intToStr i))
+  def errorIndex(i: Int): Bottom = abort ("invalid index for list " + (intToStr i))
 
-  fun makeObject[T](repr: Repr[T]): List[T] = object {
+  def makeObject[T](repr: Repr[T]): List[T] = object {
     val _size: Int = match repr case Size(n) => n
 
     def size: Int = _size
@@ -115,7 +115,7 @@ section List
   }
 end
 
-fun toList(s: String): List[Char] =
+def toList(s: String): List[Char] =
   var l: List[Char] = List.empty
   var i = 0
   while i < s.size do
@@ -124,7 +124,7 @@ fun toList(s: String): List[Char] =
   end
   l
 
-fun main =
+def main =
   val list = List.empty + "apple" + "orange" + "banana"
   list.foreach (s => println s)
 

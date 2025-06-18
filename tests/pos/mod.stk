@@ -1,4 +1,4 @@
-fun main =
+def main =
   (26 % 5) p
 
   (30 % 10) p

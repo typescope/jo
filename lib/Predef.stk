@@ -68,32 +68,32 @@ pattern (lhs: T) |[T] (rhs: T): T =
 type ..[T] = List[T]
 
 // Splice a list as flat arguments
-fun ..[T](l: List[T]): T = abort "Only support unpacking in argument positions"
+def ..[T](l: List[T]): T = abort "Only support unpacking in argument positions"
 
 //------------------------------------------------------------------------------
 //
 // Utility functions
 //
 
-fun (n: Int) p: Unit =
+def (n: Int) p: Unit =
   println
     intToStr n
 
-fun print(s: String): Unit = IO.stdout.write s
+def print(s: String): Unit = IO.stdout.write s
 
-fun printChar(c: Char): Unit =
+def printChar(c: Char): Unit =
   print
     charToStr c
 
-fun println(s: String): Unit =
+def println(s: String): Unit =
   print s
   printChar '\n'
 
-fun ??? : Bottom = abort("not implemented")
+def ??? : Bottom = abort("not implemented")
 
-fun abort(s: String): Bottom = abort("primitive abort")
+def abort(s: String): Bottom = abort("primitive abort")
 
-fun assert(cond: Bool, message: String): Unit =
+def assert(cond: Bool, message: String): Unit =
   if !cond then abort message
 
 // A utility function to make it easier to supply expression arguments to a
@@ -106,7 +106,7 @@ fun assert(cond: Bool, message: String): Unit =
 //      p
 //
 //
-fun flow[T](v: T): T = v
+def flow[T](v: T): T = v
 
 //------------------------------------------------------------------------------
 //
@@ -114,16 +114,16 @@ fun flow[T](v: T): T = v
 //
 // For numeric types, widening coercion is automatically inserted.
 
-fun byteToInt(b: Byte): Int = abort "byteToInt"
-fun byteToChar(b: Byte): Char = abort "byteToChar"
+def byteToInt(b: Byte): Int = abort "byteToInt"
+def byteToChar(b: Byte): Char = abort "byteToChar"
 
-fun intToChar(n: Int): Char = abort "intToChar"
-fun intToByte(n: Int): Byte = abort "intToByte"
-fun intToStr(n: Int): String = abort "intToStr"
+def intToChar(n: Int): Char = abort "intToChar"
+def intToByte(n: Int): Byte = abort "intToByte"
+def intToStr(n: Int): String = abort "intToStr"
 
-fun charToByte(c: Char): Byte = abort "charToByte"
-fun charToInt(c: Char): Int = abort "charToInt"
-fun charToStr(c: Char): String = abort "charToStr"
+def charToByte(c: Char): Byte = abort "charToByte"
+def charToInt(c: Char): Int = abort "charToInt"
+def charToStr(c: Char): String = abort "charToStr"
 
 //------------------------------------------------------------------------------
 //
@@ -146,4 +146,4 @@ data Option[T] = None | Some(v: T)
 
 type Pair[S, T] = #Pair(a: S, b: T)
 
-fun (a: S) -> [S, T] (b: T): Pair[S, T] = #Pair a b
+def (a: S) -> [S, T] (b: T): Pair[S, T] = #Pair a b

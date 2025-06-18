@@ -1,4 +1,4 @@
-fun main =
+def main =
   val a = 10
 
   1345 p

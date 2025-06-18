@@ -1,11 +1,11 @@
 param a: Int
 param b: Int
 
-fun makeFun(x: Int): Int => Int = (n: Int) => n + a * bar(x)
+def makeFun(x: Int): Int => Int = (n: Int) => n + a * bar(x)
 
-fun bar(x: Int): Int = x * b
+def bar(x: Int): Int = x * b
 
-fun main =
+def main =
   val f = makeFun(3) with a = 5, b = 10
   println
     intToStr f(20)

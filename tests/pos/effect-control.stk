@@ -2,8 +2,8 @@ import stk.IO.*
 
 param readLine: () => Option[String]
 
-fun lineCount =
-  fun recur(acc: Int): Int =
+def lineCount =
+  def recur(acc: Int): Int =
     match readLine()
       case #Some(_) => recur (acc + 1)
       case #None    => acc
@@ -12,7 +12,7 @@ fun lineCount =
 
   recur 0
 
-fun testFile: File = object {
+def testFile: File = object {
   var moreAvailable: Bool = true
   var currentLine: Int = 0
   def close(): Unit = {}
@@ -34,7 +34,7 @@ fun testFile: File = object {
   def write(content: String): Unit = abort "no write"
 }
 
-fun main =
+def main =
   val file = testFile
 
   val readLineFun: () => Option[String] = () =>
@@ -44,7 +44,7 @@ fun main =
   val res = lineCount() with readLine = readLineFun allow none
   println (intToStr res)
 
-fun test() =
+def test() =
   val readLineFun = object {
     var line: Int = 0
     def apply(): Option[String] =

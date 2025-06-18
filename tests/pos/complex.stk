@@ -9,7 +9,7 @@ type Complex = object {
   def show: String
 }
 
-fun Complex(x: Int, y: Int): Complex =
+def Complex(x: Int, y: Int): Complex =
   object {
     def real = x
     def image = y
@@ -33,7 +33,7 @@ fun Complex(x: Int, y: Int): Complex =
       (intToStr x) + " + " + (intToStr y) + "i"
   }
 
-fun main =
+def main =
   val c1 = Complex 1 3
   val c2 = Complex 2 4
   val c3 = Complex 1 5

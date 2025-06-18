@@ -1,27 +1,27 @@
-fun g(x: Int) =                             // error
+def g(x: Int) =                             // error
   if x == 0 then 1 else (f1 x) + ( g (x - 1))
 
-fun f1(x: Int) = f2 x
+def f1(x: Int) = f2 x
 
-fun f2(x: Int) = f3 x
+def f2(x: Int) = f3 x
 
-fun f3(x: Int) = g x
+def f3(x: Int) = g x
 
-fun check1(x: Int): Bool = f1 x
-fun check2(x: Int): Bool = f2 x
-fun check3(x: Int): Bool = f3 x
+def check1(x: Int): Bool = f1 x
+def check2(x: Int): Bool = f2 x
+def check3(x: Int): Bool = f3 x
 
-fun q(x: Int) =                 // error
+def q(x: Int) =                 // error
   if 0 == x then { a = 1 }
   else {
     a = x,
     b = 1 + (q (x - 1)).c
   }
 
-fun test2(x: Int): { a: Int } =
+def test2(x: Int): { a: Int } =
   q 10
 
-fun h1(x: Int) =                 // error
+def h1(x: Int) =                 // error
   if 0 == x then
     { a = 1 + (h1 (x - 1)).c }
   else {
@@ -29,7 +29,7 @@ fun h1(x: Int) =                 // error
     b = x + x
   }
 
-fun h2(x: Int) =        // error
+def h2(x: Int) =        // error
   if 0 == x then        // error
     false
   else

@@ -4,42 +4,42 @@ import stk.runtime.native.Core.Addr
 
 // Linux system calls interface
 
-fun sys_brk(size: Int): Int = __sys_brk 45 size
+def sys_brk(size: Int): Int = __sys_brk 45 size
 
-fun sys_exit(code: Int): Bottom = __sys_exit 1 code
+def sys_exit(code: Int): Bottom = __sys_exit 1 code
 
-fun sys_open(name: Any, flags: Int, mode: Int): Int =
+def sys_open(name: Any, flags: Int, mode: Int): Int =
   __sys_open 5 name flags mode
 
-fun sys_close(fd: Int): Int =
+def sys_close(fd: Int): Int =
   __sys_close 6 fd
 
-fun sys_seek(fd: Int, offset: Int, whence: Int): Int =
+def sys_seek(fd: Int, offset: Int, whence: Int): Int =
   __sys_seek 19 fd offset whence
 
-fun sys_read(fd: Int, addr: Addr, len: Int): Int =
+def sys_read(fd: Int, addr: Addr, len: Int): Int =
   __sys_read 3 fd addr len
 
-fun sys_write(fd: Int, addr: Addr, len: Int): Int =
+def sys_write(fd: Int, addr: Addr, len: Int): Int =
   __sys_write 4 fd addr len
 
-fun sys_newfstat(fd: Int, stat: Addr): Int =
+def sys_newfstat(fd: Int, stat: Addr): Int =
   __sys_newfstat 108 fd stat
 
 // Linux system calls
 
-fun __sys_brk(no: Int, size: Int): Int = abort "sys_brk"
+def __sys_brk(no: Int, size: Int): Int = abort "sys_brk"
 
-fun __sys_exit(no: Int, code: Int): Bottom = abort "sys_exit"
+def __sys_exit(no: Int, code: Int): Bottom = abort "sys_exit"
 
-fun __sys_open(no: Int, name: Any, flags: Int, mode: Int): Int = abort "sys_open"
+def __sys_open(no: Int, name: Any, flags: Int, mode: Int): Int = abort "sys_open"
 
-fun __sys_close(no: Int, fd: Int): Int = abort "sys_close"
+def __sys_close(no: Int, fd: Int): Int = abort "sys_close"
 
-fun __sys_seek(no: Int, fd: Int, offset: Int, whence: Int): Int = abort "sys_seek"
+def __sys_seek(no: Int, fd: Int, offset: Int, whence: Int): Int = abort "sys_seek"
 
-fun __sys_read(no: Int, fd: Int, addr: Addr, len: Int): Int = abort "sys_read"
+def __sys_read(no: Int, fd: Int, addr: Addr, len: Int): Int = abort "sys_read"
 
-fun __sys_write(no: Int, fd: Int, addr: Addr, len: Int): Int = abort "sys_write"
+def __sys_write(no: Int, fd: Int, addr: Addr, len: Int): Int = abort "sys_write"
 
-fun __sys_newfstat(no: Int, fd: Int, stat: Addr): Int = abort "sys_newfstat"
+def __sys_newfstat(no: Int, fd: Int, stat: Addr): Int = abort "sys_newfstat"

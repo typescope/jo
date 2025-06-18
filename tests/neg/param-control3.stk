@@ -3,7 +3,7 @@ import stk.IO.stdout
 param pageWidth: Int
 param newLine: Bool
 
-fun pretty(s: String): Unit =
+def pretty(s: String): Unit =
   println
     "pageWidth = " + (intToStr pageWidth)
 
@@ -11,14 +11,14 @@ fun pretty(s: String): Unit =
     "newLine = " +
       if newLine then "true" else "false"
 
-fun g(): Unit =
+def g(): Unit =
   pretty "hello, word"
   h
 
-fun h(): Unit receives newLine, stdout = i  // error
+def h(): Unit receives newLine, stdout = i  // error
 
-fun i(): Unit =
+def i(): Unit =
   g
 
-fun main =
+def main =
   g with pageWidth = 30, newLine = true

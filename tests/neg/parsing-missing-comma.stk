@@ -1,15 +1,15 @@
-fun foo(x: Int y: Int) = x + y  // error
+def foo(x: Int y: Int) = x + y  // error
 
-fun bar =
+def bar =
   var x = 4
   x def 7                         // error
 
-fun test(x: Int) = x * x
+def test(x: Int) = x * x
 
-fun double(x = x * x           // error
+def double(x = x * x           // error
 
-fun test =
+def test =
   foo x with a, b = e x = 8    // error
 
-fun qux(x)
+def qux(x)
   { x * x }          // error
