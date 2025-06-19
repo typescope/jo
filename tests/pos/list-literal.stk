@@ -1,8 +1,14 @@
 def inspect(l: List[Int]) =
-  l.foreach i => println (intToStr i)
+  if l.size == 0 then
+    println "empty"
+  else
+    print "["
+    l.foreach i => print ((intToStr i) + ", ")
+    println "]"
 
 def main =
   val l1 = [1, 2, 5, 8]
   val l2 = [4, 9, ..l1, 10]
+  inspect []
   inspect l2
   inspect [100, 200]
