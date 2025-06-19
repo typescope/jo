@@ -6,9 +6,31 @@ def inspect(l: List[Int]) =
     l.foreach i => print ((intToStr i) + ", ")
     println "]"
 
+class IntArray
+  val array: Array[Int]
+
+  def IntArray(size: Int) = { array = Array.create(size) }
+
+  def get(i: Int) =
+    Array.get array i
+
+  def set(i: Int, value: Int) =
+    Array.set array i value
+end
+
 def main =
   val l1 = [1, 2, 5, 8]
   val l2 = [4, 9, ..l1, 10]
+  println (intToStr l1[0])
+  println (intToStr l2[1])
+
   inspect []
   inspect l2
   inspect [100, 200]
+
+  val arr = new IntArray(3)
+  arr[0] = 10
+  arr[1] = 20
+  arr[2] = 30
+
+  inspect [arr[0], arr[1], arr[2]]

@@ -78,9 +78,9 @@ Abstract Syntax
 
     expr    = word {word}.
 
-    word    = integer  | boolean | char   | string | ident  | fence  | record      |
-              tapply   | apply   | select | tag    | lambda | object | begin_block |
-              new_expr | list.
+    word    = integer  | boolean | char  | string | ident  | fence | record   |
+              apply    | select  | tag   | lambda | object | list  | new_expr |
+              begin_block |  type_apply | bracket_apply.
 
     phrase  = simple_phrase | assign | valdef | fundef | patdef | typedef | while | if | match.
 
@@ -93,6 +93,9 @@ Abstract Syntax
     apply  = word args.
     args   = LPAREN [expr {COMMA expr}] RPAREN.
 
+    bracket_apply = word LBRACKET expr {COMMA, expr} RBRACKET.
+    type_apply    = word targs.
+
     new_expr = NEW qualid [targs] [args].
 
     simple_phrase = expr | type_ascribe | with_clause | allow_clause.
@@ -104,7 +107,7 @@ Abstract Syntax
     allow_clause = simple_phrase ALLOW qualid {COMMA qualid}.
 
     fence   = LPAREN phrase RPAREN.
-    assign  = (ident | select) EQL block.
+    assign  = (ident | select | bracket_apply) EQL block.
     if      = IF expr THEN block [ELSE block] [END].
     while   = WHILE expr DO block [END].
 
@@ -121,7 +124,6 @@ Abstract Syntax
     object     = OBJECT LBRACE {member} RBRACE.
     member     = valdef | defdef.
 
-    tapply  = word targs.
     lambda  = (param_section | ident) RARROW block.
 
     match   = MATCH expr {case} [END].

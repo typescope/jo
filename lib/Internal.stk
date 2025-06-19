@@ -5,7 +5,7 @@ import stk.Predef.Int
 // The signature of scrutinee required by sequence patterns
 type Seq[T] = object {
   def size: Int
-  def apply(i: Int): T
+  def get(i: Int): T
 }
 
 

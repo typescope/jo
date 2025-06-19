@@ -602,7 +602,7 @@ class PatternTyper(namer: Namer, checker: Checker):
         case _ => false
 
     val signatureConforms =
-      memberConforms("apply") && memberConforms("size")
+      memberConforms("get") && memberConforms("size")
 
     if signatureConforms then
       if !tvar.isInstantiated then

@@ -24,4 +24,7 @@ object Name:
 
   def isBinaryOperator(name: String): Boolean = isOperator(name) && name != "!"
 
+  def isCapitalized(name: String): Boolean =
+    Character.isUpperCase(name.charAt(0))
+
   val Constructor = "<init>"

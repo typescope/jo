@@ -199,6 +199,9 @@ object Printing:
         val argsText = args.join(", ")
         fun ~ "(" ~ argsText ~ ")"
 
+      case BracketApply(subject, args) =>
+        subject ~ "[" ~ args.join(", ") ~ "]"
+
       case New(classRef, targs, args) =>
         val targsText =
           if targs.isEmpty then Text.Empty

@@ -300,6 +300,10 @@ class Namer:
         list.addKey(Namer.TypedWord, ref)
         transform(Ast.Apply(list, list.words)(list.span))
 
+      case Ast.BracketApply(subject, args) =>
+        val fun = Ast.Select(subject, "get")(subject.span)
+        transform(Ast.Apply(fun, args)(word.span))
+
       case expr: Ast.Expr  =>
         exprTyper.transform(expr)
 
@@ -799,9 +803,9 @@ class Namer:
     argsFixTyped :+ lastFlexArg
 
   def transformAssign(assign: Ast.Assign)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): Word =
-    val Ast.Assign(ref, rhs) = assign
+    val Ast.Assign(lhs, rhs) = assign
 
-    ref match
+    (lhs: @unchecked) match
       case id: Ast.Ident =>
         given oob: OutOfBand = new OutOfBand
         val sym = sc.resolveTerm(id.name, id.pos)
@@ -817,7 +821,7 @@ class Namer:
           FieldAssign(qual, sym.name, rhs2)(assign.span)
 
         else
-          val id = Ident(sym)(ref.span)
+          val id = Ident(sym)(lhs.span)
           checker.checkCapture(sym, id.pos)
           Assign(id, rhs2)(assign.span)
 
@@ -837,7 +841,7 @@ class Namer:
                 || qualType.isClassType && tp.is[RefType] && tp.as[RefType].symbol.isMutable
 
               if !isMutable then
-                Reporter.error(s"The member $name is immutable", ref.pos)
+                Reporter.error(s"The member $name is immutable", lhs.pos)
 
               val rhs2 =
                 given TargetType = TargetType.Known(tp.widenTermRef)
@@ -852,6 +856,11 @@ class Namer:
         else
           Reporter.error("Expect an object, found = " + qual2.tpe.show, qual.pos)
           errorWord(assign.span)
+
+      case Ast.BracketApply(subject, args) =>
+        val fun = Ast.Select(subject, "set")(subject.span)
+        given TargetType = TargetType.VoidType
+        transform(Ast.Apply(fun, args :+ rhs)(assign.span))
 
   private def transformParamRef(ref: Ast.RefTree)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): Ident =
     val paramRef =

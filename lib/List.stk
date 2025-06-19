@@ -17,23 +17,23 @@ class List[T]
 
   def size: Int = _size
 
-  def apply(i: Int): T =
+  def get(i: Int): T =
     if either (i < 0) (i > size) then errorIndex i
 
     match repr
       case Nil => errorIndex i
 
       case Cons v tail =>
-        if i == 0 then v else tail(i - 1)
+        if i == 0 then v else tail[i - 1]
 
       case Append prefix v =>
-        if i == size - 1 then v else prefix(i)
+        if i == size - 1 then v else prefix[i]
 
       case Concat lhs rhs =>
-        if i < lhs.size then lhs(i) else rhs(i - lhs.size)
+        if i < lhs.size then lhs[i] else rhs[i - lhs.size]
 
       case Slice raw from _ =>
-        raw(from + i)
+        raw[from + i]
 
       case Flat elems =>
         Array.get elems i
