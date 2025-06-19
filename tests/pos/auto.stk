@@ -10,7 +10,7 @@ auto def listEq[T](auto eqItem: Eq[T]): Eq[List[T]] = (a, b) =>
   var equal = a.size == b.size
   var i = 0
   while equal && i < a.size do
-    equal = equal && (eqItem a(i) b(i))
+    equal = equal && (eqItem a[i] b[i])
   equal
 
 type A = object {
