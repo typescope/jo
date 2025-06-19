@@ -78,7 +78,9 @@ Abstract Syntax
 
     expr    = word {word}.
 
-    word    = integer | boolean | char | string | ident | fence | record | tapply | apply | select | tag | lambda | object | begin_block | new_expr.
+    word    = integer  | boolean | char   | string | ident  | fence  | record      |
+              tapply   | apply   | select | tag    | lambda | object | begin_block |
+              new_expr | list.
 
     phrase  = simple_phrase | assign | valdef | fundef | patdef | typedef | while | if | match.
 
@@ -102,9 +104,11 @@ Abstract Syntax
     allow_clause = simple_phrase ALLOW qualid {COMMA qualid}.
 
     fence   = LPAREN phrase RPAREN.
-    assign  = ident EQL block.
+    assign  = (ident | select) EQL block.
     if      = IF expr THEN block [ELSE block] [END].
     while   = WHILE expr DO block [END].
+
+    list    = LBRACKET [expr {COMMA expr}] RBRACKET.
 
     record     = LBRACE [named_args] RBRACE.
     named_args = named_arg { COMMA named_arg }.

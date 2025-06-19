@@ -50,7 +50,7 @@ object Ast:
     (val span: Span)
   extends Word
 
-  case class SeqLit
+  case class ListLit
     (words: List[Word])
     (val span: Span)
   extends Word
@@ -394,7 +394,7 @@ object Ast:
 
       case Assign(_: Ident, rhs) => isPattern(rhs)
 
-      case SeqLit(words) => words.forall(isPattern)
+      case ListLit(words) => words.forall(isPattern)
 
       case _ =>
         false

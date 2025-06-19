@@ -295,6 +295,11 @@ class Namer:
         val targs2 = targs.map(targ => transformType(targ))
         checker.checkTypeApply(fun2, targs2).adapt
 
+      case list: Ast.ListLit =>
+        val ref = Ident(defn.List_List)(list.span)
+        list.addKey(Namer.TypedWord, ref)
+        transform(Ast.Apply(list, list.words)(list.span))
+
       case expr: Ast.Expr  =>
         exprTyper.transform(expr)
 

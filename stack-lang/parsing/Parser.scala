@@ -660,7 +660,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
       item.token match
         case Token.DOT      => optSelectAndApply(select(word))
-        case Token.LBRACKET => optSelectAndApply(typeApply(word))
+
+        case Token.LBRACKET if item.span.followsImmediate(word.span) =>
+          optSelectAndApply(typeApply(word))
 
         case Token.LPAREN if item.span.followsImmediate(word.span) =>
           optSelectAndApply(apply(word))
@@ -669,6 +671,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     item.token match
       case Token.LBRACE => optSelectAndApply(record())
+
+      case Token.LBRACKET => optSelectAndApply(list())
 
       case Token.TAG    =>
         val tok = next()
@@ -1070,6 +1074,15 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     New(ref, targs, args)(startItem.span | span)
 
+  def list(): ListLit =
+    val lbrace = eat(Token.LBRACKET)
+    val args =
+      if peek() == Token.RBRACKET then Nil
+      else oneOrMore(() => expr(), Token.COMMA)
+
+    val rbrace = eat(Token.RBRACKET)
+    ListLit(args)(lbrace.span | rbrace.span)
+
   def record(): RecordLit =
     val lbrace = eat(Token.LBRACE)
     val args = namedArgs(mutable.ArrayBuffer.empty)
@@ -1281,7 +1294,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           if peek() == Token.RBRACKET then Nil
           else oneOrMore(exprPattern, Token.COMMA)
         val rbracket = eat(Token.RBRACKET)
-        SeqLit(pats)(lbracket.span | rbracket.span)
+        ListLit(pats)(lbracket.span | rbracket.span)
 
       case _ =>
         val item = next()
