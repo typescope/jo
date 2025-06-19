@@ -1,0 +1,8 @@
+def inspect(l: List[Int]) =
+  l.foreach i => println (intToStr i)
+
+def main =
+  val l1 = [1, 2, 5, 8]
+  val l2 = [4, 9, ..l1, 10]
+  inspect l2
+  inspect [100, 200]
