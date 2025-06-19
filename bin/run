@@ -5,7 +5,6 @@ files=(
     stack-lang/ast/Ast.scala
     stack-lang/ast/AstOps.scala
     stack-lang/ast/Desugaring.scala
-    stack-lang/ast/Interpreter.scala
     stack-lang/ast/Name.scala
     stack-lang/ast/Positions.scala
     stack-lang/ast/Printing.scala
