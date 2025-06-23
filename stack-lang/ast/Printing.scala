@@ -191,13 +191,16 @@ object Printing:
 
       case StringLit(s) => "\"" ~ StringUtil.escape(s) ~ "\""
 
-      case SeqLit(words) => "[" ~ words.join(", ") ~ "]"
+      case ListLit(words) => "[" ~ words.join(", ") ~ "]"
 
       case Ident(name) => Text(name)
 
       case Apply(fun, args) =>
         val argsText = args.join(", ")
         fun ~ "(" ~ argsText ~ ")"
+
+      case BracketApply(subject, args) =>
+        subject ~ "[" ~ args.join(", ") ~ "]"
 
       case New(classRef, targs, args) =>
         val targsText =
@@ -309,7 +312,7 @@ object Printing:
       case Assign(id: Ident, rhs) =>
         id ~ "@" ~ rhs
 
-      case SeqLit(words) => "[" ~ words.map(showPattern).join(", ") ~ "]"
+      case ListLit(words) => "[" ~ words.map(showPattern).join(", ") ~ "]"
 
   def showModifier(mod: Modifier): Text =
     mod match

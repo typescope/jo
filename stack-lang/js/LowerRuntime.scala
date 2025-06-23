@@ -69,7 +69,7 @@ class LowerRuntime(runtime: JSRuntime)(using defn: Definitions) extends phases.P
       if name == "size" then
         Ident(runtime.JS_String_size)(select.span)
 
-      else if name == "apply" then
+      else if name == "get" then
         Ident(runtime.JS_String_apply)(select.span)
 
       else if name == "substring" then

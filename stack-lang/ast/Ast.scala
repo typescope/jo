@@ -50,7 +50,7 @@ object Ast:
     (val span: Span)
   extends Word
 
-  case class SeqLit
+  case class ListLit
     (words: List[Word])
     (val span: Span)
   extends Word
@@ -61,7 +61,7 @@ object Ast:
   extends Word, RefTree:
     assert(name.nonEmpty, "name is empty")
 
-    def isCapitalized: Boolean = Character.isUpperCase(name.charAt(0))
+    def isCapitalized: Boolean = Name.isCapitalized(name)
 
   case class Apply
     (fun: Word, args: List[Word])
@@ -70,6 +70,12 @@ object Ast:
 
   case class New
     (classRef: RefTree, targs: List[TypeTree], args: List[Word])
+    (val span: Span)
+  extends Word
+
+  /** Represents the expression e[i, j, ..] */
+  case class BracketApply
+    (subject: Word, args: List[Word])
     (val span: Span)
   extends Word
 
@@ -92,9 +98,10 @@ object Ast:
   extends Word
 
   case class Assign
-    (lhs: RefTree, rhs: Word)
+    (lhs: Word, rhs: Word)
     (val span: Span)
-  extends Word
+  extends Word:
+    assert(lhs.isInstanceOf[RefTree] || lhs.isInstanceOf[BracketApply], "Invalid lhs for assign, lhs = " + lhs)
 
   case class If
     (cond: Word, thenp: Word, elsep: Word)
@@ -394,7 +401,7 @@ object Ast:
 
       case Assign(_: Ident, rhs) => isPattern(rhs)
 
-      case SeqLit(words) => words.forall(isPattern)
+      case ListLit(words) => words.forall(isPattern)
 
       case _ =>
         false

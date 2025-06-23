@@ -565,7 +565,7 @@ class PatternTyper(namer: Namer, checker: Checker):
 
         transformPattern(values.last, scrutType)
 
-  private def transformSeqPattern(seq: Ast.SeqLit, scrutType: Type)
+  private def transformSeqPattern(seq: Ast.ListLit, scrutType: Type)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs)
   : Pattern =
 
@@ -602,7 +602,7 @@ class PatternTyper(namer: Namer, checker: Checker):
         case _ => false
 
     val signatureConforms =
-      memberConforms("apply") && memberConforms("size")
+      memberConforms("get") && memberConforms("size")
 
     if signatureConforms then
       if !tvar.isInstantiated then
@@ -698,7 +698,7 @@ class PatternTyper(namer: Namer, checker: Checker):
       if !innerSym.name.startsWith("_")
     do
 
-      val expectedType = AppliedType(StaticRef(defn.List_List), innerSym.info :: Nil)
+      val expectedType = AppliedType(StaticRef(defn.List_type), innerSym.info :: Nil)
 
       // first check if there is a pattern variable of the same name exists
       sc.resolvePattern(innerSym.name) match
@@ -823,7 +823,7 @@ class PatternTyper(namer: Namer, checker: Checker):
       case expr: Ast.Expr =>
         transformExprPattern(expr, scrutType)
 
-      case seq: Ast.SeqLit =>
+      case seq: Ast.ListLit =>
         transformSeqPattern(seq, scrutType)
 
     end match

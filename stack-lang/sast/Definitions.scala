@@ -114,7 +114,8 @@ final class Definitions(rootNameTable: NameTable, initProvider: InfoProvider):
 
   // Lists
   val List         =  resolveTermByPath("stk.List")
-  val List_List    =  List.typeMember("List")
+  val List_type    =  List.typeMember("List")
+  val List_List   =  List.termMember("List")
   val List_empty   =  List.termMember("empty")
 
   // patterns

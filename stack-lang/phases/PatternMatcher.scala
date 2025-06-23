@@ -445,9 +445,9 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
 
     // x = scrutine(index)
     def itemAtIndexAssign(span: Span): Assign =
-      val appType = scrut.tpe.termMember("apply").asProcType
+      val appType = scrut.tpe.termMember("get").asProcType
       val itemType = appType.resultType
-      val itemValue = Apply(Select(scrut, "apply")(appType, span), indexIdent :: Nil)(itemType, span)
+      val itemValue = Apply(Select(scrut, "get")(appType, span), indexIdent :: Nil)(itemType, span)
 
       val itemSym = Symbol.createSymbol("item", itemType, Flags.Synthetic, ctx.owner, span.toPos)
       val itemIdent = Ident(itemSym)(span)

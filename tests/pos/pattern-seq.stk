@@ -2,7 +2,7 @@
 type MySeq[T] = object {
   def isEmpty: Bool
   def size: Int
-  def apply(i: Int): T
+  def get(i: Int): T
 }
 
 pattern Pos: Partial[Int] = case x if x > 0
@@ -27,7 +27,7 @@ def main =
   val b = object {
     def isEmpty: Bool = a.size == 0
     def size: Int = a.size
-    def apply(i: Int): Int = a(i)
+    def get(i: Int): Int = a[i]
   }
 
   test b

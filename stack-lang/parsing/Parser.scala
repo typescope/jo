@@ -660,7 +660,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
       item.token match
         case Token.DOT      => optSelectAndApply(select(word))
-        case Token.LBRACKET => optSelectAndApply(typeApply(word))
+
+        case Token.LBRACKET if item.span.followsImmediate(word.span) =>
+          optSelectAndApply(bracketApply(word))
 
         case Token.LPAREN if item.span.followsImmediate(word.span) =>
           optSelectAndApply(apply(word))
@@ -669,6 +671,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     item.token match
       case Token.LBRACE => optSelectAndApply(record())
+
+      case Token.LBRACKET => optSelectAndApply(list())
 
       case Token.TAG    =>
         val tok = next()
@@ -755,8 +759,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
       case token =>
         word().map: w =>
-          if w.isInstanceOf[RefTree] && peek() == Token.EQL then
-            assign(w.asInstanceOf[RefTree], item.indent)
+          if (w.isInstanceOf[RefTree] || w.isInstanceOf[BracketApply]) && peek() == Token.EQL then
+            assign(w, item.indent)
+
           else
             val expr = exprRest(mutable.ArrayBuffer(w), item.indent)
 
@@ -1036,10 +1041,10 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     While(cond, body)(whileItem.span | body.span)
 
-  def assign(ref: RefTree, limitIndent: Indent): Assign =
+  def assign(lhs: Word, limitIndent: Indent): Assign =
     eat(Token.EQL)
     val rhs = block(limitIndent)
-    Assign(ref, rhs)(ref.span | rhs.span)
+    Assign(lhs, rhs)(lhs.span | rhs.span)
 
   def select(qual: Word): Select =
     eat(Token.DOT)
@@ -1049,9 +1054,19 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case Token.DOT => select(sel)
       case _ => sel
 
-  def typeApply(fun: Word): TypeApply =
-    val (targs, endSpan) = typeArgs()
-    TypeApply(fun, targs)(fun.span | endSpan)
+  def bracketApply(fun: Word): Word =
+    peek(1) match
+      case Token.Ident(name) if Name.isCapitalized(name) =>
+        eat(Token.LBRACKET)
+        val targs = oneOrMore(() => typ(), Token.COMMA)
+        val endToken = eat(Token.RBRACKET)
+        TypeApply(fun, targs)(fun.span | endToken.span)
+
+      case _ =>
+        eat(Token.LBRACKET)
+        val args = oneOrMore(() => expr(), Token.COMMA)
+        val endToken = eat(Token.RBRACKET)
+        BracketApply(fun, args)(fun.span | endToken.span)
 
   def apply(fun: Word): Apply =
     val (args, span) = termArgs()
@@ -1069,6 +1084,15 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       else (Nil, ref.span)
 
     New(ref, targs, args)(startItem.span | span)
+
+  def list(): ListLit =
+    val lbrace = eat(Token.LBRACKET)
+    val args =
+      if peek() == Token.RBRACKET then Nil
+      else oneOrMore(() => expr(), Token.COMMA)
+
+    val rbrace = eat(Token.RBRACKET)
+    ListLit(args)(lbrace.span | rbrace.span)
 
   def record(): RecordLit =
     val lbrace = eat(Token.LBRACE)
@@ -1281,7 +1305,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           if peek() == Token.RBRACKET then Nil
           else oneOrMore(exprPattern, Token.COMMA)
         val rbracket = eat(Token.RBRACKET)
-        SeqLit(pats)(lbracket.span | rbracket.span)
+        ListLit(pats)(lbracket.span | rbracket.span)
 
       case _ =>
         val item = next()

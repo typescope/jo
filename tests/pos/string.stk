@@ -23,7 +23,7 @@ def test =
   c.size p
   println c
 
-  printChar c(3)
+  printChar c[3]
   printChar '\n'
 
   val d =
