@@ -119,7 +119,7 @@ def toList(s: String): List[Char] =
   var l: List[Char] = List.empty
   var i = 0
   while i < s.size do
-    l = l + s(i)
+    l = l + s[i]
     i = i + 1
   end
   l

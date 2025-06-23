@@ -220,9 +220,9 @@ def String_apply(repr: String, i: Int): Char =
       if i >= len || i < 0 then abort "index out of bound"
 
       if i >= lhs.size then
-        rhs(i - lhs.size)
+        rhs[i - lhs.size]
       else
-        lhs(i)
+        lhs[i]
 
 def String_plus(lhs: String, rhs: String): String =
   val len = lhs.size + rhs.size
@@ -233,7 +233,7 @@ def String_equals(lhs: String, rhs: String): Bool =
   var isEqual = n == rhs.size
   var i = 0
   while both isEqual (i < n) do
-    isEqual = lhs(i) == rhs(i)
+    isEqual = lhs[i] == rhs[i]
     i = i + 1
   end
   isEqual
@@ -249,7 +249,7 @@ def String_substring(source: String, from: Int, len: Int): String =
     // TODO: unicode support
     writeByte
       addAddr buf index
-      charToByte source(from + index)
+      charToByte source[from + index]
     index = index + 1
 
   #Raw(len, buf) cast[String]

@@ -132,7 +132,7 @@ def charToStr(c: Char): String = abort "charToStr"
 
 type String <: object {
   def size: Int
-  def apply(i: Int): Char
+  def get(i: Int): Char
   def +(other: String): String
   def ==(other: String): Bool
   def substring(from: Int, len: Int): String

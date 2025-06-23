@@ -456,7 +456,7 @@ object Interpreter:
                 assert(autos.isEmpty, "autos non empty")
                 val argVals = args.map(eval)
 
-                if name == "apply" then
+                if name == "get" then
                   val IntVal(index) :: Nil = argVals: @unchecked
                   IntVal(strVal.value(index)) :: Nil
 
