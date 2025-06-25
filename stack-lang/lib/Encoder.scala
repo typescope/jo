@@ -1,9 +1,14 @@
 package lib
 
+import ast.Positions.*
+
 import sast.*
 import sast.Sast.*
+import sast.Types.*
+import sast.Symbols.*
 
 import common.Text
+import common.Text.*
 
 import scala.collection.mutable
 
@@ -81,7 +86,7 @@ class Encoder(using Definitions):
   def write(ns: Namespace): Text =
     val Namespace(symbol, imports, defs) = ns
 
-    val symbolData = defineSymbol(symbol)
+    val symbolData = encodeSymbol(symbol)
 
     val importsData = "Imports [" ~ imports.map(refSymbol).join(", ") ~ "]"
     val defsData = "Defs [" ~ indent:
@@ -98,7 +103,7 @@ class Encoder(using Definitions):
     "]"
 
   /** Definition of a symbol */
-  def defineSymbol(symbol: Symbol): Text =
+  def encodeSymbol(symbol: Symbol): Text =
     // TODO: attributes, comments
 
     val id = getInternalSymbolId(symbol)
@@ -134,7 +139,15 @@ class Encoder(using Definitions):
   def encodeFlags(flags: Flags): Text =
     flags.toStrings.join(", ")
 
-  def encodeKind(kind: Kind): Text = ???
+  def encodeKind(kind: Kind): Text =
+    kind match
+      case Kind.Simple =>
+        Text("*")
+
+      case Kind.Arrow(args, to) =>
+        // right-associative
+        "[" ~ args.map(encodeKind).join(", ") ~ "] -> " ~ encodeKind(to)
+
 
   /** Reference to a symbol
     *
@@ -148,4 +161,9 @@ class Encoder(using Definitions):
 
   def encodeType(tpe: Type): Text = ???
 
-  def encodePosition(tpe: Type): Text = ???
+  def encodePosition(pos: SourcePos): Text =
+    "SourcePosition [" ~ indent:
+        pos.source.file ~ "," ~
+        "Start [" ~ pos.startLine ~ ", " ~ pos.startLineColumn ~ "]," ~
+        "End [" ~ pos.endLine ~ ", " ~ pos.endLineColumn ~ "]," ~
+    ~ "]"

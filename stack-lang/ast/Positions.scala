@@ -118,11 +118,14 @@ object Positions:
           trimmed
 
   /** A position in a source file */
-  case class SourcePosition(source: Source, start: Int, length: Int):
-    lazy val startPos = source.offsetToLineColumn(start)
-    lazy val endPos = source.offsetToLineColumn(start + length)
+  case class SourcePosition(source: Source, startPos: LineColumn, endPos: LineColumn):
 
-    def span: Span = Span(start, length)
+    def SourcePosition(source: Source, start: Int, length: Int) =
+      this(
+        source,
+        startPos = source.offsetToLineColumn(start),
+        endPos = source.offsetToLineColumn(start + length)
+      )
 
     def startLine: Int = startPos.line
     def endLine: Int = endPos.line
