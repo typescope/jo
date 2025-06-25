@@ -478,8 +478,8 @@ object Types:
     def isSuptype(tp: Type): List[Subtyping.Task] =
       inferencer.isSuptype(this, tp)
 
-  class NameTableInfo(val owner: Symbol, val nameTable: NameTable) extends Type:
-    def this(owner: Symbol) = this(owner, new NameTable)
+  class NameTableInfo(val nameTable: NameTable) extends Type:
+    def this() = this(new NameTable)
 
     export nameTable.{ resolveType, resolveTerm, resolvePattern, define }
 

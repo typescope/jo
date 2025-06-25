@@ -119,13 +119,18 @@ object Positions:
 
   /** A position in a source file */
   case class SourcePosition(source: Source, startPos: LineColumn, endPos: LineColumn):
-
-    def SourcePosition(source: Source, start: Int, length: Int) =
+    def this(source: Source, start: Int, length: Int) =
       this(
         source,
         startPos = source.offsetToLineColumn(start),
         endPos = source.offsetToLineColumn(start + length)
       )
+
+    /** Return length of the textual element in source
+      *
+      * It only makes sense if the element is located in the same line.
+      */
+    def length: Int = endPos.column - startPos.column
 
     def startLine: Int = startPos.line
     def endLine: Int = endPos.line

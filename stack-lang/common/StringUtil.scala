@@ -74,7 +74,7 @@ object StringUtil:
     var len = 0
     var i = 0
     while i < str.length do
-      int codePoint = str.codePointAt(i)
+      val codePoint = str.codePointAt(i)
 
       if codePoint <= 0x7F then
         len += 1
@@ -82,12 +82,12 @@ object StringUtil:
       else if codePoint <= 0x7FF then
         len += 2
 
-      else if (codePoint <= 0xFFFF then
+      else if codePoint <= 0xFFFF then
         len += 3
 
       else
         len += 4
 
       i += Character.charCount(codePoint)
-    end
+    end while
     len
