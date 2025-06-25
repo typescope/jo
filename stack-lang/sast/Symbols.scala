@@ -86,6 +86,9 @@ object Symbols:
         // owner can be null, let exception be thrown
         owner.enclosingFunction
 
+    def containedIn(other: Symbol)(using Definitions): Boolean =
+      this == other || (this.owner != null && this.owner.containedIn(other))
+
     def ownersIterator(using Definitions): Iterator[Symbol] =
       var current = this
       new Iterator[Symbol]:

@@ -58,33 +58,48 @@ import scala.collection.mutable
   *           ]
   *       ]
   */
-class Encoder(using Definitions):
-  /** Name reference to externally defined symbols */
-  private val externalSymbols = new mutable.ArrayBuffer[Symbol]
+object Encoder:
+  private class State(val root: Symbol):
+    /** Name reference to externally defined symbols */
+    private val externalSymbols = new mutable.ArrayBuffer[Symbol]
 
-  /** Map a symbol to a unique ID
-    *
-    * The mapping is defined for all internally defined symbols (top-level and
-    * local).
-    *
-    * The unique ID is only valid within the scope of the namespace for
-    * writing/reading.
-    */
-  private val internalSymIds = new mutable.Map[Symbol, Int]
+    /** Map a symbol to a unique ID
+      *
+      * The mapping is defined for all internally defined symbols (top-level and
+      * local).
+      *
+      * The unique ID is only valid within the scope of the namespace for
+      * writing/reading.
+      */
+    private val internalSymIds = new mutable.Map[Symbol, Int]
 
-  private var internalSymbolCount = 0
+    private var internalSymbolCount = 0
 
-  def getInternalSymbolId(sym: Symbol): Int =
-    internalSymIds.get(sym) match
-      case Some(id) => id
-      case None =>
-        val id = internalSymbolCount
-        internalSymIds(sym) = id
-        internalSymbolCount += 1
-        id
+    def getExternalSymbolIndex(sym: Symbol): Int =
+      val index = externalSymbols.indexOf(sym)
+      if index < 0 then
+        val index = externalSymbols.size
+        externalSymbols += sym
+        index
 
-  def write(ns: Namespace): Text =
+      else
+        index
+
+    def getInternalSymbolId(sym: Symbol): Int =
+      internalSymIds.get(sym) match
+        case Some(id) => id
+        case None =>
+          val id = internalSymbolCount
+          internalSymIds(sym) = id
+          internalSymbolCount += 1
+          id
+      end match
+  end State
+
+  def encode(ns: Namespace)(using Definitions): Text =
     val Namespace(symbol, imports, defs) = ns
+
+    given state: State = new State(symbol)
 
     val symbolData = encodeSymbol(symbol)
 
@@ -103,7 +118,7 @@ class Encoder(using Definitions):
     "]"
 
   /** Definition of a symbol */
-  def encodeSymbol(symbol: Symbol): Text =
+  private def encodeSymbol(symbol: Symbol)(using Definitions, State): Text =
     // TODO: attributes, comments
 
     val id = getInternalSymbolId(symbol)
@@ -136,10 +151,23 @@ class Encoder(using Definitions):
         ~ "]"
 
 
-  def encodeFlags(flags: Flags): Text =
+  /** Reference to a symbol
+    *
+    *     InternalRef [3]
+    *
+    *     ExternalRef [5]
+    */
+  def refSymbol(symbol: Symbol)(using defn: Definitions, state: State): Text =
+    if symbol.containedIn(state.root) then
+      "InternalRef [" ~ state.getInternalSymbolId(symbol) ~ "]"
+
+    else
+      "ExternalRef [" ~ state.getExternalSymbolIndex(symbol) ~ "]"
+
+  def encodeFlags(flags: Flags)(using Definitions, State): Text =
     flags.toStrings.join(", ")
 
-  def encodeKind(kind: Kind): Text =
+  def encodeKind(kind: Kind)(using Definitions, State): Text =
     kind match
       case Kind.Simple =>
         Text("*")
@@ -149,19 +177,11 @@ class Encoder(using Definitions):
         "[" ~ args.map(encodeKind).join(", ") ~ "] -> " ~ encodeKind(to)
 
 
-  /** Reference to a symbol
-    *
-    *     InternalRef [3]
-    *
-    *     ExternalRef [5]
-    */
-  def refSymbol(symbol: Symbol): Text = ???
+  def encodeDef(defn: Def)(using Definitions, State): Text = ???
 
-  def encodeDef(defn: Def): Text = ???
+  def encodeType(tpe: Type)(using Definitions, State): Text = ???
 
-  def encodeType(tpe: Type): Text = ???
-
-  def encodePosition(pos: SourcePos): Text =
+  def encodePosition(pos: SourcePos)(using Definitions, State): Text =
     "SourcePosition [" ~ indent:
         pos.source.file ~ "," ~
         "Start [" ~ pos.startLine ~ ", " ~ pos.startLineColumn ~ "]," ~
