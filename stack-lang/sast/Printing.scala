@@ -8,8 +8,6 @@ import common.StringUtil
 import common.Text
 import common.Text.*
 
-import scala.collection.mutable
-
 object Printing:
 
   def show(word: Word)(using Definitions): String =
@@ -338,13 +336,8 @@ object Printing:
       case RemainingSlicePattern(pattern) => ".." ~ pattern
 
   def showModifiers(sym: Symbol)(using Definitions): Text =
-    val buf = new mutable.ArrayBuffer[Text]
-    if sym.is(Flags.Auto) then buf += Text("<auto>")
-    if sym.is(Flags.Synthetic) then buf += Text("<synthetic>")
-    if sym.is(Flags.Context) then buf += Text("<context>")
-    if sym.is(Flags.Default) then buf += Text("<default>")
-    if sym.is(Flags.Alias) then buf += Text("<alias>")
-    buf.toList.join(" ")
+    val mask = Flags.Auto | Flags.Synthetic | Flags.Context | Flags.Default | Flags.Alias
+    (sym.flags & mask).toStrings.map("<" + _ + ">").join(" ")
 
   def showType(tp: Type)(using Definitions): Text =
     tp match

@@ -3,6 +3,8 @@ package lib
 import sast.*
 import sast.Sast.*
 
+import common.Text
+
 import scala.collection.mutable
 
 /** Encode trees, symbols and types
@@ -129,7 +131,8 @@ class Encoder(using Definitions):
         ~ "]"
 
 
-  def encodeFlags(flags: Flags): Text = ???
+  def encodeFlags(flags: Flags): Text =
+    flags.toStrings.join(", ")
 
   def encodeKind(kind: Kind): Text = ???
 
