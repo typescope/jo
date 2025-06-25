@@ -69,3 +69,25 @@ object StringUtil:
       case '"'   =>  "\\\""
       case '\\'  =>  "\\\\"
       case _     =>  c.toString
+
+  def utf8Length(str: String): Int =
+    var len = 0
+    var i = 0
+    while i < str.length do
+      int codePoint = str.codePointAt(i)
+
+      if codePoint <= 0x7F then
+        len += 1
+
+      else if codePoint <= 0x7FF then
+        len += 2
+
+      else if (codePoint <= 0xFFFF then
+        len += 3
+
+      else
+        len += 4
+
+      i += Character.charCount(codePoint)
+    end
+    len
