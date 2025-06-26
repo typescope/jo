@@ -72,7 +72,7 @@ object Encoder:
       * The unique ID is only valid within the scope of the namespace for
       * writing/reading.
       */
-    private val internalSymIds = new mutable.Map[Symbol, Int]
+    private val internalSymIds = mutable.Map.empty[Symbol, Int]
 
     private var internalSymbolCount = 0
 
@@ -95,6 +95,8 @@ object Encoder:
           internalSymbolCount += 1
           id
       end match
+
+    def externalNameTable(using Definitions): List[String] = externalSymbols.map(_.fullName).toList
   end State
 
   //----------------------------------------------------------------------------
@@ -104,13 +106,13 @@ object Encoder:
   // We do not want too many implicits here --- it is better to be explicit
   // except for the most common and obvious usage.
 
-  given (using Definitions): Text.Maker[Word] =
+  private given (using Definitions, State): Text.Maker[Word] =
     v => encodeWord(v)
 
-  given (using Definitions): Text.Maker[Pattern] =
+  private given (using Definitions, State): Text.Maker[Pattern] =
     v => encodePattern(v)
 
-  given (using Definitions): Text.Maker[Type] =
+  private given (using Definitions, State): Text.Maker[Type] =
     v => encodeType(v)
 
   //----------------------------------------------------------------------------
@@ -124,28 +126,28 @@ object Encoder:
 
     val importsData = "Imports [" ~ imports.map(encodeSymbol).join(", ") ~ "]"
     val defsData = "Defs [" ~ indent:
-        defs.map(writeDef).join(", ")
+        defs.map(encodeDef).join(", ")
       ~ "]"
 
     // must comes after imports and defs
     val refsData = "Refs [" ~ indent:
-        externalSymbols.map(_.fullName).join(", ")
+        state.externalNameTable.join(", ")
       ~ "]"
 
     "Namespace [" ~ indent:
         List(refsData, symbolData, importsData, defsData).join("," ~ Text.BreakLine)
-    "]"
+    ~ "]"
 
   //----------------------------------------------------------------------------
 
   /** Definition of a symbol */
-  private def encodeSymbol(symbol: Symbol)(using Definitions, State): Text =
+  private def encodeSymbol(symbol: Symbol)(using defn: Definitions, state: State): Text =
     // TODO: attributes, comments
 
-    val id = getInternalSymbolId(symbol)
+    val id = state.getInternalSymbolId(symbol)
 
     val ownerText =
-      if symbol.owner == null then "NoOwner" else encodeSymbolRef(symbol.owner)
+      if symbol.owner == null then Text("NoOwner") else encodeSymbolRef(symbol.owner)
 
     symbol match
       case tsym: TypeSymbol =>
@@ -157,7 +159,7 @@ object Encoder:
             encodeKind(tsym.kind) ~ ", " ~
             ownerText ~ ", " ~
             encodePosition(tsym.sourcePos) ~ ", " ~
-            encodeSymbolInfo(sym)
+            encodeSymbolInfo(tsym)
         ~ "]"
 
       case _ =>
@@ -167,8 +169,8 @@ object Encoder:
             symbol.name ~ ", " ~
             encodeFlags(symbol.flags) ~ ", " ~
             ownerText ~ ", " ~
-            encodePosition(tsym.sourcePos) ~ ", " ~
-            encodeSymbolInfo(sym)
+            encodePosition(symbol.sourcePos) ~ ", " ~
+            encodeSymbolInfo(symbol)
         ~ "]"
 
 
@@ -178,7 +180,7 @@ object Encoder:
     *
     *     ExternalRef [5]
     */
-  def encodeSymbolRef(symbol: Symbol)(using defn: Definitions, state: State): Text =
+  private def encodeSymbolRef(symbol: Symbol)(using defn: Definitions, state: State): Text =
     if symbol.containedIn(state.root) then
       "InternalRef [" ~ state.getInternalSymbolId(symbol) ~ "]"
 
@@ -186,7 +188,7 @@ object Encoder:
       assert(!symbol.isLocal, "Cannot reference external local symbol: " + symbol)
       "ExternalRef [" ~ state.getExternalSymbolIndex(symbol) ~ "]"
 
-  def encodeSymbolInfo(symbol: Symbol)(using defn: Definitions, state: State): Text =
+  private def encodeSymbolInfo(symbol: Symbol)(using defn: Definitions, state: State): Text =
     symbol.info match
       case procType: ProcType =>
         // TODO: add effects
@@ -195,10 +197,10 @@ object Encoder:
       case info =>
         encodeType(info)
 
-  def encodeFlags(flags: Flags)(using Definitions, State): Text =
+  private def encodeFlags(flags: Flags)(using Definitions, State): Text =
     flags.toStrings.join(", ")
 
-  def encodeKind(kind: Kind)(using Definitions, State): Text =
+  private def encodeKind(kind: Kind)(using Definitions, State): Text =
     kind match
       case Kind.Simple =>
         Text("*")
@@ -208,9 +210,9 @@ object Encoder:
         "[" ~ args.map(encodeKind).join(", ") ~ "] -> " ~ encodeKind(to)
 
 
-  def encodeDef(defn: Def)(using Definitions, State): Text = ???
+  private def encodeDef(defn: Def)(using Definitions, State): Text = ???
 
-  def encodeType(tpe: Type)(using Definitions, State): Text =
+  private def encodeType(tpe: Type)(using Definitions, State): Text =
     tpe match
       case VoidType => Text("Void")
 
@@ -232,8 +234,6 @@ object Encoder:
 
       case ConstantType(const) =>
         "ConstantType [" ~ encodeConstant(const) ~ "]"
-
-      case cinfo: ContainerInfo => ???
 
       case RecordType(fields) =>
         "RecordType [" ~ indent:
@@ -258,20 +258,14 @@ object Encoder:
         "AppliedType [" ~ tctor ~ ", [" ~ targs.join(", ") ~ "]]"
 
       case ProcType(tparams, params, autos, resType, receivesOpt, preParamCount) =>
-        val params2 =
-          for param <- params
-          yield param.copy(info = this(param.info))
-
-        val autos2 =
-          for auto <- autos
-          yield auto.copy(info = this(auto.info))
-
-        val resType2 = this(resType)
-        ProcType(tparams, params2, autos2, resType2, receivesOpt, preParamCount)
+        ???
 
       case TypeLambda(tparams, resType, preParamCount) =>
         val tparamText = "[" ~ tparams.map(encodeSymbolRef).join(", ") ~ "]"
         "TypeLambda [" ~ tparamText ~ ", " ~ resType ~ ", " ~ preParamCount ~ "]"
+
+      case cinfo: ContainerInfo =>
+        ???
 
       case classInfo: ClassInfo =>
         ???
@@ -279,7 +273,11 @@ object Encoder:
       case TypeBound(lo, hi) =>
         "TypeBound [" ~ lo ~ ", " ~ hi ~ "]"
 
-  def encodeConstant(const: Constant): Text =
+  private def encodeWord(word: Word)(using Definitions, State): Text = ???
+
+  private def encodePattern(pat: Pattern)(using Definitions, State): Text = ???
+
+  private def encodeConstant(const: Constant): Text =
     const match
       case Constant.Bool(value) =>
         "Bool [" ~ value.toString ~ "]"
@@ -291,9 +289,9 @@ object Encoder:
         val byteSize = StringUtil.utf8Length(value)
         "String [" ~ byteSize.toString ~ ":"  ~ value ~ "]"
 
-  def encodePosition(pos: SourcePos)(using Definitions, State): Text =
+  private def encodePosition(pos: SourcePosition)(using Definitions, State): Text =
     "SourcePosition [" ~ indent:
         pos.source.file ~ "," ~
         "Start [" ~ pos.startLine ~ ", " ~ pos.startLineColumn ~ "]," ~
-        "End [" ~ pos.endLine ~ ", " ~ pos.endLineColumn ~ "]," ~
+        "End [" ~ pos.endLine ~ ", " ~ pos.endLineColumn ~ "],"
     ~ "]"
