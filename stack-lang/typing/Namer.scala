@@ -68,12 +68,13 @@ class Namer:
         given Scope = defsScope
         index(ns.defs)
 
-      memberTable.freeze()
-
       delayedAliases += { () =>
         // handle aliases after indexing members
         for case alias: Ast.AliasDef <- ns.defs do
           Imports.doImport(alias.qualid, defsScope, rootNameTable, isAlias = true)
+
+        // No more members allowed after handling aliasing
+        memberTable.freeze()
       }
 
       val imports = new mutable.ArrayBuffer[Symbol]
