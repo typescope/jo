@@ -47,7 +47,7 @@ final class Definitions(rootNameTable: NameTable, initProvider: InfoProvider):
   //
 
   val Predef = rootNameTable.resolveTermByPath("stk.Predef")
-  val Predef_nameTable = Predef.info.as[NameTableInfo].nameTable
+  val Predef_nameTable = Predef.info.as[ContainerInfo].nameTable
 
   // primitive terms without implementation in source code
   val Int        =  resolveTermByPath("stk.Int")

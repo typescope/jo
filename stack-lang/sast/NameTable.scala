@@ -12,7 +12,13 @@ class NameTable(
   termNames: mutable.Map[String, Symbol],
   typeNames: mutable.Map[String, Symbol],
   patternNames: mutable.Map[String, Symbol],
-  autos: mutable.ArrayBuffer[Symbol]):
+  autoSymbols: mutable.ArrayBuffer[Symbol]):
+
+  private var frozen: Boolean = false
+
+  def freeze(): this.type =
+    frozen = true
+    this
 
   def this() = this(mutable.Map.empty, mutable.Map.empty, mutable.Map.empty, new mutable.ArrayBuffer)
 
@@ -52,16 +58,18 @@ class NameTable(
     resolveByPath(path).filter(_.is(Flags.Type)).head
 
   def define(sym: Symbol)(using rp: Reporter): Unit =
+    assert(!frozen, "Name table is frozen")
+
     val table = getTable(sym)
     defineInTable(sym, table)
 
     if sym.is(Flags.Auto) then
       defineAuto(sym)
 
-  def getAutos: Seq[Symbol] = autos.toSeq
+  def autos: Seq[Symbol] = autoSymbols.toList
 
   private def defineAuto(sym: Symbol): Unit =
-    autos += sym
+    autoSymbols += sym
 
   private def defineInTable(sym: Symbol, table: mutable.Map[String, Symbol])(using rp: Reporter): Unit =
     table.get(sym.name) match
@@ -74,7 +82,9 @@ class NameTable(
   end defineInTable
 
   def definePatternAsTerm(sym: Symbol)(using rp: Reporter): Unit =
+    assert(!frozen, "Name table is frozen")
     assert(sym.isPattern, "Expect pattern symbol, found = " + sym)
+
     defineInTable(sym, termNames)
 
   def terms: List[Symbol] = termNames.values.toList
@@ -96,7 +106,7 @@ object NameTable:
         nameTable.resolveTerm(name) match
           case Some(sym) =>
             if sym.isContainer then
-              val nameTable = sym.dealias.info.as[NameTableInfo].nameTable
+              val nameTable = sym.dealias.info.as[ContainerInfo].nameTable
               resolveStatic(nameTable, rest)
             else
               Nil

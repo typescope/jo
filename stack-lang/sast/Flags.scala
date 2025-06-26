@@ -51,7 +51,8 @@ object Flags:
   val Mutable    : Flag = defineFlag("mutable")  // a mutable variable
   val Context    : Flag = defineFlag("context")  // context parameter or its default function
   val Field      : Flag = defineFlag("field")    // an object field
-  val Default    : Flag = defineFlag("default")  // context parameters with default value
+  val Option     : Flag = defineFlag("option")   // context parameters that defaults to None
+  val Default    : Flag = defineFlag("default")  // context parameter with default value
   val Alias      : Flag = defineFlag("alias")    // an alias symbol created by import/export
   val Auto       : Flag = defineFlag("auto")     // auto function or auto value
   val Synthetic  : Flag = defineFlag("synthetic") // a compiler-synthesized symbol

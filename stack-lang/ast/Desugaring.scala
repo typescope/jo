@@ -3,11 +3,16 @@ package ast
 import Ast.*
 import Positions.Source
 
+import common.KeyProps
 import reporting.Reporter
 
 import scala.collection.mutable
 
 object Desugaring:
+  // Use key props to avoid using sast.Flags in ast package
+  val DefaultContextParam = new KeyProps.Key[Unit]("Desugaring.DefaultContextParam")
+  val OptionContextParam = new KeyProps.Key[Unit]("Desugaring.OptionContextParam")
+
   def synthesize(defs: List[Def])(using Reporter, Source): List[Def] =
     val dataDefs = mutable.Map.empty[String, DataDef]
     val sectionDefs = mutable.Map.empty[String, Section]
@@ -19,9 +24,10 @@ object Desugaring:
 
     val defs2 =
       defs.flatMap:
-        case ddef: DataDef => synthesizeDataDef(ddef, sectionDefs.getOrElse(ddef.name, null))
+        case ddef: DataDef  => synthesizeDataDef(ddef, sectionDefs.getOrElse(ddef.name, null))
         case edef: EnumDef  => synthesizeEnumDef(edef, sectionDefs.getOrElse(edef.name, null))
-        case sec: Section  => synthesizeSection(sec, dataDefs.getOrElse(sec.name, null)) :: Nil
+        case sec:  Section  => synthesizeSection(sec, dataDefs.getOrElse(sec.name, null)) :: Nil
+        case pdef: ParamDef => desugarParamDef(pdef)
         case defn => defn :: Nil
 
     if defs2.size != defs.size then synthesize(defs2) else defs2
@@ -197,3 +203,72 @@ object Desugaring:
     val unionType = UnionType(branchTypes.toList)(enumDef.span)
     val tdef = TypeDef(enumDef.ident, enumDef.tparams, unionType, isBound = false, preParamCount = 0)(enumDef.span)
     tdef :: dataDefs.toList
+
+
+  /* Desugaring for an optional context parameter
+   *
+   *    <Context> <Default> param a: T
+   *
+   *    <Default> fun a$default = rhs
+   *
+   *    param a$option: Option[T]
+   *
+   *    fun a$value: T =
+   *      a$option match
+   *        case #None   => a$default
+   *        case #Some v => v
+   *
+   */
+  def desugarParamDef(pdef: ParamDef): List[Def] =
+    val paramId = pdef.ident
+    val paramType = pdef.tpt
+
+    lazy val defaultId = Ident(pdef.name + "$default")(paramId.span)
+    lazy val optionId = Ident(pdef.name + "$option")(paramId.span)
+
+    def createDefaultFun(rhs: Word): FunDef =
+      val tparams = Nil
+      val params = Nil
+      val autos = Nil
+      val receives = Some(Nil) // no context params allowed for default
+
+      FunDef(defaultId, tparams, params, autos, paramType, receives, rhs, preParamCount = 0)(pdef.span)
+
+    def createOptionParam(): ParamDef =
+      val noneType = TagType(Ident("None")(paramType.span), params = Nil)(paramType.span)
+      val param = Param(Ident("value")(paramType.span), paramType)(paramType.span)
+      val someType = TagType(Ident("Some")(paramType.span), param :: Nil)(paramType.span)
+      val unionType = UnionType(someType :: noneType :: Nil)(paramType.span)
+      val optionParamDef = ParamDef(optionId, unionType, default = None)(pdef.span)
+      optionParamDef.addKey(OptionContextParam, ())
+      optionParamDef
+
+    def createValueFun(): FunDef =
+      val id = Ident(pdef.name + "$option")(paramId.span)
+
+      val noneCase =
+        val pat = Tag(Ident("None")(paramId.span))(paramId.span)
+        Case(pat, defaultId)(paramId.span)
+
+      val someCase =
+        val value = Ident("value")(paramId.span)
+        val tag = Tag(Ident("None")(paramId.span))(paramId.span)
+        val pat = Apply(tag, value :: Nil)(paramId.span)
+        Case(pat, value)(paramId.span)
+
+      val rhs = Match(optionId, noneCase :: someCase :: Nil)(pdef.span)
+
+      val tparams = Nil
+      val params = Nil
+      val autos = Nil
+      val receives = None // Infer usage -- it uses `a$default`, which is a context param
+
+      FunDef(id, tparams, params, autos, paramType, receives, rhs, preParamCount = 0)(pdef.span)
+
+    pdef.default match
+      case None => pdef :: Nil
+
+      case Some(rhs) =>
+        val pdef2 = pdef.copy(default = None)(pdef.span)
+        pdef2.addKey(DefaultContextParam, ())
+        pdef2 :: createDefaultFun(rhs) :: createOptionParam() :: createValueFun() :: Nil

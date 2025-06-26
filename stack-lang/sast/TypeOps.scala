@@ -159,7 +159,7 @@ object TypeOps:
         case VoidType | ErrorType | AnyType | BottomType =>
           tp
 
-        case _: StaticRef | _: MemberRef | _: TypeVar | _: ConstantType | _: NameTableInfo =>
+        case _: StaticRef | _: MemberRef | _: TypeVar | _: ConstantType | _: ContainerInfo =>
           tp
 
         case RecordType(fields) =>
@@ -240,7 +240,7 @@ object TypeOps:
       tp match
         case VoidType | ErrorType | AnyType | BottomType =>
 
-        case _: StaticRef | _: MemberRef | _: TypeVar | _: NameTableInfo | _: ClassInfo  | _: ConstantType =>
+        case _: StaticRef | _: MemberRef | _: TypeVar | _: ContainerInfo | _: ClassInfo  | _: ConstantType =>
 
         case RecordType(fields) =>
           for field <- fields do this(field.info)

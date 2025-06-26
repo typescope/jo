@@ -55,18 +55,20 @@ class Namer:
       given source: Source = Reporter.source(ns.source)
 
       val nsSym = resolveNamespace(ns.qualid, isBranch = false)(using rootNamespaceScope)
-      val nsInfo = ip.info(nsSym).as[NameTableInfo]
+      val memberTable = ip.info(nsSym).as[ContainerInfo].nameTable
 
       val topScope = predefScope.fresh(nsSym)
       // Make current namespace name available
       topScope.define(nsSym)
 
       val importScope: Scope = topScope.fresh()
-      val defsScope: Scope = importScope.fresh(nsSym, nsInfo.nameTable)
+      val defsScope: Scope = importScope.fresh(nsSym, memberTable)
 
       val delayedDefs =
         given Scope = defsScope
         index(ns.defs)
+
+      memberTable.freeze()
 
       delayedAliases += { () =>
         // handle aliases after indexing members
@@ -135,7 +137,7 @@ class Namer:
         rp.error(s"The $name is already defined as a member at $pos", qualid.pos)
         val flags = if isBranch then Flags.NSpace | Flags.Branch else Flags.NSpace
         val dummyNamespace = Symbol.createSymbol(sym.name, flags, qualid.pos)
-        ip.add(dummyNamespace, ip(sym).owner, new NameTableInfo)
+        ip.add(dummyNamespace, ip(sym).owner, new ContainerInfo(new NameTable))
         dummyNamespace
 
     qualid match
@@ -144,26 +146,29 @@ class Namer:
         val nsSym = resolveNamespace(qual.asInstanceOf[Ast.RefTree], isBranch = true)
 
         assert(nsSym.isNamespace, "Not a namespace " + nsSym)
-        val nsInfo = ip.info(nsSym).as[NameTableInfo]
+        val nameTable = ip.info(nsSym).as[ContainerInfo].nameTable
 
-        nsInfo.resolveTerm(name) match
+        nameTable.resolveTerm(name) match
           case Some(sym) => check(sym)
 
           case None =>
             val flags = if isBranch then Flags.NSpace | Flags.Branch else Flags.NSpace
             val sym = Symbol.createSymbol(name, flags, qualid.pos)
-            ip.add(sym, nsSym, new NameTableInfo)
-            nsInfo.define(sym)
+            ip.add(sym, nsSym, new ContainerInfo(new NameTable))
+            nameTable.define(sym)
             sym
 
       case Ast.Ident(name) =>
+        // Namespace resolution will never encounter prefix scope, therefore we
+        // can simplify ignore the out-of-band data which is used to return
+        // the prefix if present.
         given OutOfBand = new OutOfBand
         sc.resolveTerm(name) match
           case None =>
             val flags = if isBranch then Flags.NSpace | Flags.Branch else Flags.NSpace
             val sym = Symbol.createSymbol(name, flags, qualid.pos)
-            ip.add(sym, sc.owner, new NameTableInfo)
             sc.define(sym)
+            ip.add(sym, sc.owner, new ContainerInfo(new NameTable))
             sym
 
           case Some(sym) => check(sym)
@@ -183,7 +188,7 @@ class Namer:
       defn <- desugaredDefs
       delayedDef <- index(defn)
     do
-      // The name table is shared between NameTableInfo and current scope. This
+      // The ContainerInfo is built from the NameTable of current scope. This
       // way, by entering once the name can be access in two different ways in
       // the current context.
       sc.define(delayedDef.symbol)
@@ -389,8 +394,13 @@ class Namer:
             Select(qual, sym.name)(qual.tpe.termMember(sym.name), word.span)
 
           case _ =>
-            checker.checkCapture(sym, word.pos)
-            Ident(sym)(word.span)
+            // Desugar access of optional context params
+            if sym.isAllOf(Flags.Context | Flags.Default) then
+              Apply(Ident(sym.valueFunction)(word.span), args = Nil)(sym.info, word.span)
+
+            else
+              checker.checkCapture(sym, word.pos)
+              Ident(sym)(word.span)
 
       case Ast.Select(qual, name) =>
         val qual2 =
@@ -403,7 +413,13 @@ class Namer:
             tp match
               case StaticRef(sym) if !sym.isType =>
                 // record field type could be Int
-                Ident(sym)(word.span)
+
+                // Desugar access of optional context params
+                if sym.isAllOf(Flags.Context | Flags.Default) then
+                  Apply(Ident(sym.valueFunction)(word.span), args = Nil)(sym.info, word.span)
+
+                else
+                  Ident(sym)(word.span)
 
               case _ =>
                 Select(qual2, name)(tp, word.span)
@@ -881,13 +897,27 @@ class Namer:
   private def transformWithArg(arg: Ast.WithArg)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): WithArg =
     val paramRef = transformParamRef(arg.paramRef)
 
-    val rhsSast =
+    val rhs =
       given TargetType =
         if paramRef.tpe.isError then TargetType.ValueType
         else TargetType.Known(paramRef.symbol.dealias.info)
+
       transform(arg.rhs)
 
-    WithArg(paramRef, rhsSast)(arg.span)
+    if paramRef.symbol.is(Flags.Default) then
+      val optionParamRef = Ident(paramRef.symbol.optionParam)(paramRef.span)
+      arg.paramRef.addKey(Namer.TypedWord, optionParamRef)
+      arg.rhs.addKey(Namer.TypedWord, rhs)
+
+      val tag = Ast.Tag(Ast.Ident("Some")(rhs.span))(rhs.span)
+      val rhs2 = Ast.Apply(tag, arg.rhs :: Nil)(rhs.span)
+      val arg2 = arg.copy(rhs = rhs2)(arg.span)
+
+      transformWithArg(arg2)
+
+    else
+      WithArg(paramRef, rhs)(arg.span)
+
 
   private def transformIf(ifte: Ast.If)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
     val Ast.If(cond, thenp, elsep) = ifte
@@ -1062,6 +1092,7 @@ class Namer:
   private def transformParamDef(pdef: Ast.ParamDef)
       (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source)
   : List[DelayedDef[Def]] =
+    assert(pdef.default.isEmpty, "optional context param not desugared: " + pdef)
 
     val ip = lazyDefn.infoProvider
 
@@ -1069,8 +1100,12 @@ class Namer:
     given Definitions = lazyDefn.value
 
     var flags = checker.checkModifiers(pdef) | Flags.Param | Flags.Context
-    if pdef.default.nonEmpty then
-      flags = flags | Flags.Default
+
+    if pdef.hasKey(Desugaring.DefaultContextParam) then
+      flags |= Flags.Default
+
+    if pdef.hasKey(Desugaring.OptionContextParam) then
+      flags |= Flags.Option
 
     val paramSym = Symbol.createSymbol(pdef.name, flags, pdef.pos)
     ip.addLazy(paramSym, sc.owner, () => transformType(pdef.tpt).tpe)
@@ -1079,37 +1114,7 @@ class Namer:
       val tpt = TypeTree(paramSym.info)(pdef.tpt.span)
       ParamDef(paramSym, tpt)(pdef.span)
 
-    val delayedParamDef = DelayedDef(paramSym, paramDefSast)
-
-    pdef.default match
-      case Some(rhs) =>
-        /* Desugaring for an optional context parameter
-         *
-         *    <Context> <Default> param a: T
-         *
-         *    <Default> fun a$default = rhs
-         */
-
-        val defaultFunSym = Symbol.createSymbol(pdef.name + "$default", Flags.Fun | Flags.Default | Flags.Synthetic, pdef.pos)
-
-        val funInfo = () =>
-          ProcType(
-            tparams = Nil, params = Nil, autos = Nil, resultType = paramSym.info,
-            receives = Effects.Policy.CheckBound(effects = Nil), preParamCount = 0)
-
-        ip.addLazy(defaultFunSym, sc.owner, funInfo)
-
-        val defaultFunDefSast = () =>
-          given Scope = sc.fresh(defaultFunSym)
-          given TargetType = TargetType.Known(paramSym.info)
-          val body = transform(rhs)
-          val tpt = TypeTree(paramSym.info)(pdef.tpt.span)
-          FunDef(defaultFunSym, tparams = Nil, params = Nil, autos = Nil, tpt, body)(rhs.span)
-
-        DelayedDef(defaultFunSym, defaultFunDefSast) :: delayedParamDef :: Nil
-
-      case None =>
-        delayedParamDef :: Nil
+    DelayedDef(paramSym, paramDefSast) :: Nil
 
   private def transformValDef(vdef: Ast.ValDef, sym: Symbol, owner: Symbol)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): ValDef =
     lazy val givenType: Type =
@@ -1570,7 +1575,7 @@ class Namer:
       for case alias: Ast.AliasDef <- section.defs do
         Imports.doImport(alias.qualid, secScope, lazyDefn.rootNameTable, isAlias = true)
 
-      new NameTableInfo(nameTable)
+      new ContainerInfo(nameTable.freeze())
     })
 
     DelayedDef(sym, () => sast)
@@ -1657,7 +1662,7 @@ class Namer:
 
         qual2.tpe match
           case StaticRef(sym) if sym.isContainer =>
-            val nsInfo = sym.dealias.info.as[NameTableInfo]
+            val nsInfo = sym.dealias.info.as[ContainerInfo]
             nsInfo.resolveType(name) match
               case Some(sym) =>
                check(sym)

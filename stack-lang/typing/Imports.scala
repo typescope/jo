@@ -24,7 +24,7 @@ object Imports:
           rp.error("Only concrete namespaces or sections allowed", path.pos)
           None
         else
-          Some(ip.dealiasedInfo(sym).as[NameTableInfo].nameTable)
+          Some(ip.dealiasedInfo(sym).as[ContainerInfo].nameTable)
 
       else
         if sym.isContainer then

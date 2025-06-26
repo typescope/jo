@@ -128,7 +128,7 @@ enum Scope:
   def definePatternAsTerm(sym: Symbol)(using Reporter): Unit =
     table.definePatternAsTerm(sym)
 
-  def getAutos: Seq[Symbol] = table.getAutos
+  def autos: Seq[Symbol] = table.autos
 
 object Scope:
   val PrefixKey = new KeyProps.Key[Symbol]("Prefix")

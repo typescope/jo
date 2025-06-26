@@ -736,8 +736,8 @@ class PatternTyper(namer: Namer, checker: Checker):
         given OutOfBand = new OutOfBand
         sc.resolveTerm(id.name) match
           case Some(sym) if sym.is(Flags.Section) =>
-            val nameTable = sym.dealias.info.as[NameTableInfo]
-            nameTable.resolvePattern(sym.name)
+            val container = sym.dealias.info.as[ContainerInfo]
+            container.resolvePattern(sym.name)
 
           case _ =>
             None

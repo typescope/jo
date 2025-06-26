@@ -12,34 +12,9 @@ import scala.collection.mutable
 
 /** This phase normalize the usage of context parameters and some others
   *
-  * - Optional context parameters are desugared to normal context parameters
   * - All transitive captures of context parameters are made explicit in objects
   * - Checks are performed for `allow`-clauses
-  *
-  * The desugaring for optional context parameters
-  *
-  *    param a: T = rhs
-  *
-  * was desugered in Namer to
-  *
-  *    <Context> <Default> param a: T
-  *
-  *    <Default> a$default: T = rhs
-  *
-  *
-  * and in this phase access to `a` is desugared to `a$value`
-  *
-  *    param a$option: Option[T] // automatically bound to None when a necessary binding is needed
-  *
-  *    fun a$value: T =
-  *      a$option match
-  *        case #None   => a$default
-  *        case #Some v => v
-  *
-  * and binding to `with a = e` is desugared to `with a$option = #Some e`
-  *
-  * The effect check will happen for `a`, the semantics will only use
-  * `a$option`.
+  * - Synthesize `None` for optional parameters if needed
   */
 class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[NormalizeParams.Context]:
   val contextObject = NormalizeParams.CacheContext
@@ -49,13 +24,13 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
   override def transform(nss: List[Namespace]): List[Namespace] =
     val cache = EffectAnalysis.Cache()
 
-    for ns <- nss do index(cache, ns.defs, ns.info)
+    for ns <- nss do index(cache, ns.defs)
 
     for ns <- nss yield
       given Context = NormalizeParams.Context(cache, ns.symbol)
       transformNamespace(ns)
 
-  private def index(cache: EffectAnalysis.Cache, defs: List[Def], ownerInfo: NameTableInfo): Unit =
+  private def index(cache: EffectAnalysis.Cache, defs: List[Def]): Unit =
     defs.map:
       case fdef: FunDef =>
         cache.code(fdef.symbol) = fdef
@@ -64,72 +39,10 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
         for fdef <- cdef.funs do
           cache.code(fdef.symbol) = fdef
 
-      case ParamDef(param, _) if param.is(Flags.Default) =>
-        // First synthesize all symbols
-        val optType = UnionType(
-          NoneType
-            :: TagType("#Some", NamedInfo("value", param.info) :: Nil)
-            :: Nil
-        )
-
-        val optionParamSym =
-          Symbol.createSymbol(param.name + "$option", optType, Flags.Context | Flags.Param | Flags.Synthetic, param.owner, param.sourcePos)
-
-        val valueFunInfo = param.defaultFunction.info
-        val valueFunSym =
-          Symbol.createSymbol(param.name + "$value", valueFunInfo, Flags.Fun | Flags.Synthetic, param.owner, param.sourcePos)
-
-        ownerInfo.define(optionParamSym)
-        ownerInfo.define(valueFunSym)
-
       case Section(symbol, defs) =>
-        index(cache, defs, symbol.info.as[NameTableInfo])
+        index(cache, defs)
 
       case _ =>
-
-
-  /** Synthesize the following function for context parameter `a`:
-    *
-    *    fun a$value: T =
-    *      a$option match
-    *        case #None   => a$default
-    *        case #Some v => v
-    */
-  private def createValueFunction(pdef: ParamDef): FunDef =
-    val param = pdef.symbol
-    val valueFunSym = pdef.symbol.valueFunction
-    val defaultFunSym = pdef.symbol.defaultFunction
-    val optionParamSym = pdef.symbol.optionParam
-
-    val valueSym = Symbol.createSymbol(pdef.name + "Value", optionParamSym.info, Flags.Synthetic, valueFunSym, param.sourcePos)
-    val vdef = ValDef(valueSym, Ident(optionParamSym)(pdef.span))(pdef.span)
-
-    val noneTypeEncoded = TaggedEncoding.encodeTagType(NoneType)
-    val refOpt = Encoded(Ident(valueSym)(pdef.span))(noneTypeEncoded)
-    val cond = TaggedEncoding.testVariantTag(refOpt, "None", pdef.span)
-    val trueBranch = Apply(Ident(defaultFunSym)(pdef.span), args = Nil)(param.info, pdef.span)
-
-    val someType = TagType("Some", params = NamedInfo("value", param.info) :: Nil)
-    val falseBranch = TaggedEncoding.selectVariantField(refOpt, someType, "value", pdef.span)
-
-    val ifStat = If(cond, trueBranch, falseBranch)(param.info, pdef.span)
-
-    val tpt = TypeTree(valueSym.info)(pdef.tpt.span)
-    val body = Block(vdef :: ifStat :: Nil)(param.info, pdef.span)
-
-    FunDef(valueFunSym, tparams = Nil, params = Nil, autos = Nil, tpt, body)(pdef.span)
-
-  override def transformDefs(defs: List[Def])(using ctx: Context): List[Def] =
-    defs.flatMap:
-      case pdef: ParamDef if pdef.symbol.is(Flags.Default) =>
-        val optionParamSym = pdef.symbol.optionParam
-        val tpt = TypeTree(optionParamSym.info)(pdef.span)
-        val optionParamDef = ParamDef(optionParamSym, tpt)(pdef.span)
-        val valueFunDef = createValueFunction(pdef)
-
-        pdef :: optionParamDef :: valueFunDef :: Nil
-
-      case defn => super.transformDef(defn) :: Nil
 
 
   /** Bind optional context parameters at program entry.
@@ -146,11 +59,11 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
       val pos = fdef.symbol.sourcePos
       for
         (eff, trace) <- effs
-        if !eff.is(Flags.Default) && !defn.isRuntimeContextParam(eff)
+        if !eff.is(Flags.Option) && !defn.isRuntimeContextParam(eff)
       do
         Reporter.error("Context parameter not provided: " + eff, pos, trace)
 
-      val defaultEffs = effs.keys.filter(_.is(Flags.Default)).toList
+      val defaultEffs = effs.keys.filter(_.is(Flags.Option)).toList
       if defaultEffs.isEmpty then
         fdef2
 
@@ -176,14 +89,6 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
 
       super.transformFunDef(fdef)
 
-  override def transformIdent(ident: Ident)(using ctx: Context): Word =
-    val sym = ident.symbol
-    if sym.isAllOf(Flags.Context | Flags.Default) then
-      Apply(Ident(sym.valueFunction)(ident.span), args = Nil)(sym.info, ident.span)
-
-    else
-      ident
-
   private def synthesizeNoneBindings(params: List[Symbol], span: Span): List[WithArg] =
     params.map: param =>
       val optionParamSym = param.optionParam
@@ -203,36 +108,17 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
     val unprovided = effsInner.filter((k, _) => !allowed.exists(param => k.refers(param)))
 
     for
-      (eff, trace) <- unprovided if !eff.is(Flags.Default)
+      (eff, trace) <- unprovided if !eff.is(Flags.Option)
     do
       Reporter.error("Parameter not allowed: " + eff, allowExpr.expr.pos, trace)
 
-    val defaultEffs = unprovided.keys.filter(_.is(Flags.Default)).toList
+    val defaultEffs = unprovided.keys.filter(_.is(Flags.Option)).toList
     if defaultEffs.isEmpty then
       expr2
 
     else
       val argsAdded = synthesizeNoneBindings(defaultEffs, allowExpr.span)
       With(expr2, argsAdded)(allowExpr.tpe, allowExpr.span)
-
-  override  def transformWith(withExpr: With)(using ctx: Context): Word =
-    /** rewrite `with a = rhs` to `with a$option = #Some rhs` */
-    def rewireArgs(args: List[WithArg]): List[WithArg] =
-      for arg @ WithArg(paramRef, rhs) <- args yield
-        if paramRef.symbol.is(Flags.Default) then
-          val optionParamRef = Ident(paramRef.symbol.optionParam)(paramRef.span)
-          val someType = TagType("Some", NamedInfo("value", paramRef.symbol.info) :: Nil)
-          val rhs2 = TaggedEncoding.encodeVariant(someType, rhs :: Nil, paramRef.span, rhs.span)
-          WithArg(optionParamRef, rhs2)(arg.span)
-        else
-          arg
-
-    val expr2 = transform(withExpr.expr)
-    val args2 = withExpr.args.map: arg =>
-      arg.copy(arg.paramRef, transform(arg.rhs))(arg.span)
-
-    val args3 = rewireArgs(args2)
-    With(expr2, args3)(expr2.tpe, withExpr.span)
 
   /** Capture all context parameters used in the methods of an object
     *
@@ -274,9 +160,7 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
         newDefs += ddef.copy(body = body2)(ddef.span)
       else
         val args =
-          for effRaw <- effs yield
-            val eff = if effRaw.is(Flags.Default) then effRaw.optionParam else effRaw
-
+          for eff <- effs yield
             val paramRef = Ident(eff)(span)
             aliasMap.get(eff) match
               case None =>

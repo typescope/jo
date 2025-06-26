@@ -233,7 +233,7 @@ object Encoder:
       case ConstantType(const) =>
         "ConstantType [" ~ encodeConstant(const) ~ "]"
 
-      case nt: NameTableInfo => ???
+      case cinfo: ContainerInfo => ???
 
       case RecordType(fields) =>
         "RecordType [" ~ indent:

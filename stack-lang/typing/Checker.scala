@@ -114,7 +114,6 @@ class Checker(namer: Namer):
     if tpe.hasTermMember(member) || tpe.isError then
       word
     else
-      // println(TypeOps.approx(tpe, isUp = true).as[NameTableInfo].nameTable.show)
       Reporter.error(s"The prefix does not contain the member $member", word.pos)
       Block(Nil)(ErrorType, word.span)
 
@@ -167,12 +166,12 @@ class Checker(namer: Namer):
           Reporter.error("The modifier " + mod.show + " is not allowed for pattern definition", mod.pos)
 
       case pdef: Ast.ParamDef =>
-          mods.foreach:
-            // TODO: Disable auto context params for now.
-            //
-            // It's powerful, but also scaring --- remote binding may easily break assumptions.
-            case mod =>
-              Reporter.error("The modifier " + mod.show + " is not allowed for context parameter definition", mod.pos)
+        // TODO: Disable auto context params for now.
+        //
+        // It's powerful, but also scaring --- remote binding may easily break assumptions.
+        mods.foreach:
+          case mod =>
+            Reporter.error("The modifier " + mod.show + " is not allowed for context parameter definition", mod.pos)
 
       case cdef: Ast.ClassDef =>
         mods.foreach: mod =>

@@ -17,7 +17,7 @@ class Autos(namer: Namer):
       search(autoInfo, Vector.empty, sc, sc, span)
 
   private def search(target: Type, trace: Vector[Symbol], origin: Scope, sc: Scope, span: Span)(using Definitions, Reporter, Source): Word =
-    // println("searching scope owner = " + sc.owner + ", autos = " + sc.getAutos)
+    // println("searching scope owner = " + sc.owner + ", autos = " + sc.autos)
 
     def history: String =
       if trace.isEmpty then ""
@@ -29,7 +29,7 @@ class Autos(namer: Namer):
       Reporter.error(s"Not fully instantiated auto type $tpText." + history, span.toPos)
       return Block(Nil)(ErrorType, span)
 
-    val candidates = sc.getAutos.flatMap: sym =>
+    val candidates = sc.autos.flatMap: sym =>
       // println("test " + sym.name + " for " + target.show)
       // testing should not change inference state
       namer.inferencer.test:

@@ -82,7 +82,7 @@ object Types:
 
     def isValueType: Boolean =
       this match
-        case VoidType | _: ProcType | _: TypeLambda | _: NameTableInfo | _: ClassInfo => false
+        case VoidType | _: ProcType | _: TypeLambda | _: ContainerInfo | _: ClassInfo => false
 
         case refType: RefType =>
           val sym = refType.symbol
@@ -95,7 +95,7 @@ object Types:
     /** Return the kind of a value type and return None for non-value type. */
     def kind: Option[Kind] =
       this match
-        case VoidType | _: ProcType | _: TypeLambda | _: NameTableInfo | _: ClassInfo =>
+        case VoidType | _: ProcType | _: TypeLambda | _: ContainerInfo | _: ClassInfo =>
           None
 
         case refType: RefType if refType.symbol.isType =>
@@ -204,7 +204,7 @@ object Types:
 
     def getTermMember(name: String)(using Definitions): Option[Type] =
       this.approx match
-        case info: NameTableInfo =>
+        case info: ContainerInfo =>
           info.resolveTerm(name).map(sym => StaticRef(sym))
 
         case info: ClassInfo =>
@@ -478,10 +478,9 @@ object Types:
     def isSuptype(tp: Type): List[Subtyping.Task] =
       inferencer.isSuptype(this, tp)
 
-  class NameTableInfo(val nameTable: NameTable) extends Type:
-    def this() = this(new NameTable)
-
-    export nameTable.{ resolveType, resolveTerm, resolvePattern, define }
+  /** Represents the information of a namespace or section */
+  class ContainerInfo(val nameTable: NameTable) extends Type:
+    export nameTable.{ resolveType, resolveTerm, resolvePattern }
 
   /** Represents the information of a class type
     *
