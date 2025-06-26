@@ -47,7 +47,7 @@ object Printing:
   given (using Definitions): Text.Maker[Def] =
     v => showDef(v)
 
-  given (using Definitions): Text.Maker[ValDef | FunDef] =
+  given (using Definitions): Text.Maker[FunDef] =
     v => showDef(v)
 
   given (using Definitions): Text.Maker[TypeTree] =
@@ -81,11 +81,6 @@ object Printing:
 
   def showDef(defn: Def)(using Definitions): Text =
     defn match
-      case ValDef(sym, rhs) =>
-        val modifiers = showModifiers(sym)
-        val kind = if sym.isMutable then "var" else "val"
-        modifiers ~ kind ~ " " ~ sym.name ~ ": " ~ sym.info ~ " = " ~ rhs
-
       case fdef: FunDef =>
         val tparamText =
           if fdef.tparams.isEmpty then Text.Empty
@@ -251,7 +246,7 @@ object Printing:
       case Assign(id, rhs) =>
         id.symbol ~ " = " ~ indent(rhs)
 
-      case FieldAssign(qual, name, rhs) =>
+      case FieldAssign(Select(qual, name), rhs) =>
         qual ~ "." ~ name ~ " <- " ~ rhs
 
       case If(cond, thenp, elsep) =>
@@ -286,8 +281,6 @@ object Printing:
            ~ Text.BlankLine
            ~ defs.join(Text.BreakLine)
         ~ "}"
-
-      case vdef: ValDef => showDef(vdef)
 
       case fdef: FunDef => showDef(fdef)
 

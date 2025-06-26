@@ -275,7 +275,6 @@ object Ast:
   extends Def:
     def name: String = ident.name
 
-
   case class Section
     (ident: Ident, defs: List[Def])
     (val span: Span)

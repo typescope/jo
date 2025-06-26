@@ -145,7 +145,7 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
     */
   override def transformObject(obj: Object)(using ctx: Context): Word =
     val newDefs = new mutable.ArrayBuffer[FunDef]
-    val aliasMap = mutable.Map.empty[Symbol, ValDef]
+    val aliasMap = mutable.Map.empty[Symbol, Assign]
 
     given Source = ctx.owner.sourcePos.source
     val span = obj.span
@@ -165,7 +165,7 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
             aliasMap.get(eff) match
               case None =>
                 val alias = Symbol.createSymbol("alias_" + eff.name, eff.info, Flags.Synthetic, owner = ctx.owner, pos = obj.pos)
-                aliasMap(eff) = ValDef(alias, paramRef)(span)
+                aliasMap(eff) = Assign(Ident(alias)(span), paramRef)(span)
                 WithArg(paramRef, Ident(alias)(span))(span)
 
               case Some(vdef) =>

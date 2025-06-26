@@ -241,7 +241,7 @@ object Encoder:
         ~ "]"
 
       case UnionType(branches) =>
-        "UnionType [" ~ branches.map(encodeType).join(
+        "UnionType [" ~ branches.map(encodeType).join(", ") ~ "]"
 
       case TagType(tag, params) =>
         val paramText =  params.map(f => f.name ~ ": " ~ f.info).join(", ")

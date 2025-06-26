@@ -349,13 +349,9 @@ class Namer:
         patternTyper.transformMatch(patmat).adapt
 
       case vdef: Ast.ValDef =>
-        var flags = checker.checkModifiers(vdef)
-        if vdef.mutable then flags = flags | Flags.Mutable
-
-        val sym = Symbol.createSymbol(vdef.name, flags, vdef.ident.pos)
-        val vdef2 = transformValDef(vdef, sym, sc.owner)
-        sc.define(sym)
-        vdef2.adapt
+        val assign = transformLocalValDef(vdef)
+        sc.define(assign.ident.symbol)
+        assign.adapt
 
       case fdef: Ast.FunDef =>
         val delayedDef = transformFunDef(fdef, Flags.Fun, Effects.Policy.Infer)
@@ -430,7 +426,8 @@ class Namer:
             errorWord(word.span)
 
   def transformObject(obj: Ast.Object)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
-    val vals = new mutable.ArrayBuffer[ValDef]
+    val vals = new mutable.ArrayBuffer[Symbol]
+    val inits = new mutable.ArrayBuffer[FieldAssign]
     val delayedDefs = new mutable.ArrayBuffer[DelayedDef[FunDef]]
 
     val thisSym = Symbol.createSymbol("this", Flags.Synthetic, obj.pos)
@@ -446,13 +443,30 @@ class Namer:
       if vdef.mutable then flags = flags | Flags.Field | Flags.Mutable
       else flags = flags | Flags.Field
 
-      val sym = Symbol.createSymbol(vdef.name, flags, vdef.ident.pos)
+      // Using the outer scope to check field bodies
+      given Scope = sc
+
+      def givenType: Type =
+        val tpt = transformType(vdef.tpt)
+        val tp2 = checker.checkValueType(tpt.tpe, tpt.pos)
+        tp2
+
+      val rhs: Word =
+        given Scope = sc.fresh()
+        given TargetType =
+          if vdef.tpt.isEmpty then TargetType.ValueType
+          else TargetType.Known(givenType)
+        transform(vdef.rhs)
+
+      val tp: Type =
+        if vdef.tpt.isEmpty then rhs.tpe else givenType
+
+      val sym = Symbol.createSymbol(vdef.name, tp, flags, thisSym, vdef.ident.pos)
       sc2.define(sym)
 
-      // Using the outer scope to check field bodys
-      given Scope = sc
-      val vdefTyped = transformValDef(vdef, sym, owner = thisSym)
-      vals += vdefTyped
+      vals += sym
+      val lhs = Select(Ident(thisSym)(vdef.ident.span), sym.name)(tp, vdef.ident.span)
+      inits += FieldAssign(lhs, rhs)(vdef.span)
 
     // `this` should not be available in field initialization
     thisScope.define(thisSym)
@@ -488,7 +502,7 @@ class Namer:
 
       delayedDefs += delayedDef
 
-    val fieldTypes = vals.map(vdef => NamedInfo(vdef.name, vdef.symbol.info)).toList
+    val fieldTypes = vals.map(_.toNamedInfo).toList
     val methodTypes = delayedDefs.map(d => NamedInfo(d.symbol.name, MemberRef(StaticRef(thisSym), d.symbol))).toList
     val mutables = vals.filter(_.isMutable).map(_.name).toList
     val objectType = ObjectType(fieldTypes, methodTypes, mutables)
@@ -498,7 +512,7 @@ class Namer:
     val defs: List[FunDef] =
       for delayedDef <- delayedDefs.toList yield delayedDef.force()
 
-    Object(thisSym, vals.toList, defs)(objectType, obj.span)
+    Object(thisSym, inits.toList, defs)(objectType, obj.span)
 
   def transformBlock(block: Ast.Block)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType)
@@ -835,7 +849,8 @@ class Namer:
         if sym.isField then
           // Normalize SAST
           val qual = Ident(oob.getKey(Scope.PrefixKey))(id.span)
-          FieldAssign(qual, sym.name, rhs2)(assign.span)
+          val lhs2 = Select(qual, sym.name)(MemberRef(qual.tpe, sym), lhs.span)
+          FieldAssign(lhs2, rhs2)(assign.span)
 
         else
           val id = Ident(sym)(lhs.span)
@@ -860,11 +875,13 @@ class Namer:
               if !isMutable then
                 Reporter.error(s"The member $name is immutable", lhs.pos)
 
+              val lhs2 = Select(qual2, name)(tp, lhs.span)
+
               val rhs2 =
                 given TargetType = TargetType.Known(tp.widenTermRef)
                 transform(rhs)
 
-              FieldAssign(qual2, name, rhs2)(assign.span)
+              FieldAssign(lhs2, rhs2)(assign.span)
 
             case None =>
               // error already reported
@@ -1087,7 +1104,7 @@ class Namer:
 
      defn.add(thisSym, sc.owner, objType)
 
-     Object(thisSym, vals = Nil, funs = funDef :: Nil)(objType, lambda.span)
+     Object(thisSym, inits = Nil, funs = funDef :: Nil)(objType, lambda.span)
 
 
   private def transformParamDef(pdef: Ast.ParamDef)
@@ -1117,7 +1134,12 @@ class Namer:
 
     DelayedDef(paramSym, paramDefSast) :: Nil
 
-  private def transformValDef(vdef: Ast.ValDef, sym: Symbol, owner: Symbol)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): ValDef =
+  private def transformLocalValDef(vdef: Ast.ValDef)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): Assign =
+    var flags = checker.checkModifiers(vdef)
+    if vdef.mutable then flags = flags | Flags.Mutable
+
+    val sym = Symbol.createSymbol(vdef.name, flags, vdef.ident.pos)
+
     lazy val givenType: Type =
       val tpt = transformType(vdef.tpt)
       val tp2 = checker.checkValueType(tpt.tpe, tpt.pos)
@@ -1133,9 +1155,9 @@ class Namer:
     val tp: Type =
       if vdef.tpt.isEmpty then rhs.tpe else givenType
 
-    defn.add(sym, owner, tp)
+    defn.add(sym, sc.owner, tp)
 
-    ValDef(sym, rhs)(vdef.span)
+    Assign(Ident(sym)(vdef.ident.span), rhs)(vdef.span)
 
   def transformTypeParams(tparams: List[Ast.TypeParam])
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
@@ -1338,7 +1360,8 @@ class Namer:
               Reporter.error("The field " + id.name + " already initialized", id.pos)
 
             else
-              words += FieldAssign(Ident(thisSym)(id.span), id.name, transform(rhs))(arg.span)
+              val lhs = Select(Ident(thisSym)(id.span), id.name)(tp, id.span)
+              words += FieldAssign(lhs, transform(rhs))(arg.span)
               initialized += sym
 
           case None =>

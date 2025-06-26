@@ -101,7 +101,7 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends S
         if !word.tpe.isObjectType then
           Reporter.error("Expect object type, found = " + word.tpe.show, word.pos)
 
-      case FieldAssign(qual, name, rhs) =>
+      case FieldAssign(lhs @ Select(qual, name), rhs) =>
         if !qual.tpe.isObjectType && !qual.tpe.isClassType then
           Reporter.error("Object type expected, found = " + qual.tpe.show, word.pos)
 
@@ -114,12 +114,11 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends S
           // then
           //   Reporter.error(s"Field $name is not mutable", word.pos)
 
-          val memberType = qual.tpe.termMember(name).widenTermRef
-          if !Subtyping.conforms(rhs.tpe, memberType) then
-            Reporter.error(s"Rhs has the type ${rhs.tpe.show}, which is not a subtype of ${memberType.show}", word.pos)
+          if !Subtyping.conforms(rhs.tpe, lhs.tpe.widenTermRef) then
+            Reporter.error(s"Rhs has the type ${rhs.tpe.show}, which is not a subtype of ${lhs.show}", word.pos)
 
       case Assign(ident, rhs) =>
-        // After type checking, a ValDef may become Assign.
+        // After type checking, a ValDef becomes Assign.
         // Pattern translation uses Assign directly for pattern bound variables.
         if !Subtyping.conforms(rhs.tpe, ident.symbol.info) then
           Reporter.error(s"Rhs has the type ${rhs.tpe.show}, which is not a subtype of ${ident.symbol.info.show}", word.pos)

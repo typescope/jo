@@ -96,7 +96,10 @@ object Sast:
   extends Word:
     assert(qual.tpe.isValueType, "Select node must have value prefix, qual.tpe = " + qual.tpe + ", select = " + this.show)
 
-  /** Assignment to local vars */
+  /** Assignment to local vars
+    *
+    * It also represents local val/var definitions.
+    */
   case class Assign
     (ident: Ident, rhs: Word)
     (val span: Span)
@@ -104,9 +107,9 @@ object Sast:
     val symbol = ident.symbol
     def tpe: Type = VoidType
 
-  /** Assignment to object fields */
+  /** Assignment to fields */
   case class FieldAssign
-    (qual: Word, name: String, rhs: Word)
+    (lhs: Select, rhs: Word)
     (val span: Span)
   extends Word:
     def tpe: Type = VoidType
@@ -176,7 +179,7 @@ object Sast:
     (val tpe: Type, val span: Span)
   extends Word
 
-  case class Object(self: Symbol, vals: List[ValDef], funs: List[FunDef])
+  case class Object(self: Symbol, inits: List[FieldAssign], funs: List[FunDef])
     (val tpe: Type, val span: Span)
   extends Word
 
@@ -432,12 +435,6 @@ object Sast:
     (symbol: Symbol, tpt: TypeTree)
     (val span: Span)
   extends Def
-
-  case class ValDef
-    (symbol: Symbol, rhs: Word)
-    (val span: Span)
-  extends Word, Def:
-    val isMutable = symbol.isMutable
 
   case class TypeDef
     (symbol: Symbol)

@@ -381,12 +381,7 @@ object Interpreter:
         env.update(ident.symbol, eval(rhs))
         Nil
 
-      case ValDef(sym, rhs) =>
-        // Immutable initialization in a while loop will update old value.
-        env.update(sym, eval(rhs))
-        Nil
-
-      case FieldAssign(qual, name, rhs) =>
+      case FieldAssign(Select(qual, name), rhs) =>
         eval(qual): @unchecked match
           case objVal: ObjectVal =>
             val rhsValue = eval(rhs)
@@ -518,8 +513,8 @@ object Interpreter:
         if !cp.contains(sym) then cp.add(sym, fdef)
         Nil
 
-      case Object(self, vals, defs) =>
-        val fieldInits = vals.map(vdef => vdef.name -> eval(vdef.rhs))
+      case Object(self, inits, defs) =>
+        val fieldInits = inits.map(init => init.lhs.name -> eval(init.rhs))
         val fieldVals = mutable.Map.from(fieldInits)
         val defSymbols = defs.map(mdef => mdef.name -> mdef.symbol).toMap
 

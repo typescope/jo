@@ -241,7 +241,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
           else
             "const " ~ sym ~ " = " ~ t ~ ";" ~ cont()
 
-      case FieldAssign(qual, name, rhs) =>
+      case FieldAssign(Select(qual, name), rhs) =>
         runLast(qual): v =>
           v ~ "." ~ encodeSymbolic(name) ~ " = " ~ rhs ~ cont()
 
@@ -281,7 +281,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
       case _: TypeDef =>
         cont()
 
-      case _: ValDef | _: FunDef |  _: With | _: Allow | _: Object | _: Match |
+      case _: FunDef |  _: With | _: Allow | _: Object | _: Match |
            _: TaggedLit | _: PatDef | _: New =>
 
         throw new Exception("Unexpected " + word)

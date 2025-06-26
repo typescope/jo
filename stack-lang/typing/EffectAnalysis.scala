@@ -209,11 +209,9 @@ object EffectAnalysis:
         case Assign(ident, rhs) =>
           this(rhs)
 
-        case FieldAssign(qual, name, rhs) =>
+        case FieldAssign(Select(qual, _), rhs) =>
           this(qual)
           this(rhs)
-
-        case vdef: ValDef => this(vdef.rhs)
 
         case If(cond, thenp, elsep) =>
           this(cond) ++ this(thenp) ++ this(elsep)

@@ -79,7 +79,7 @@ class ExplicitAlloc(runtime: NativeRuntime)(using defn: Definitions) extends pha
       memory.readField(recordType, select2)
 
   override def transformFieldAssign(word: FieldAssign)(using ctx: Context): Word =
-    val FieldAssign(qual, name, rhs) = word
+    val FieldAssign(Select(qual, name), rhs) = word
 
     if qual.tpe.isObjectType then
       val objectType = qual.tpe.asObjectType
