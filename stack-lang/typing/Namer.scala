@@ -391,13 +391,8 @@ class Namer:
             Select(qual, sym.name)(qual.tpe.termMember(sym.name), word.span)
 
           case _ =>
-            // Desugar access of optional context params
-            if sym.isAllOf(Flags.Context | Flags.Default) then
-              Apply(Ident(sym.valueFunction)(word.span), args = Nil)(sym.info, word.span)
-
-            else
-              checker.checkCapture(sym, word.pos)
-              Ident(sym)(word.span)
+            checker.checkCapture(sym, word.pos)
+            Ident(sym)(word.span)
 
       case Ast.Select(qual, name) =>
         val qual2 =
@@ -410,13 +405,7 @@ class Namer:
             tp match
               case StaticRef(sym) if !sym.isType =>
                 // record field type could be Int
-
-                // Desugar access of optional context params
-                if sym.isAllOf(Flags.Context | Flags.Default) then
-                  Apply(Ident(sym.valueFunction)(word.span), args = Nil)(sym.info, word.span)
-
-                else
-                  Ident(sym)(word.span)
+                Ident(sym)(word.span)
 
               case _ =>
                 Select(qual2, name)(tp, word.span)
@@ -922,19 +911,7 @@ class Namer:
 
       transform(arg.rhs)
 
-    if paramRef.symbol.is(Flags.Default) then
-      val optionParamRef = Ident(paramRef.symbol.optionParam)(paramRef.span)
-      arg.paramRef.addKey(Namer.TypedWord, optionParamRef)
-      arg.rhs.addKey(Namer.TypedWord, rhs)
-
-      val tag = Ast.Tag(Ast.Ident("Some")(rhs.span))(rhs.span)
-      val rhs2 = Ast.Apply(tag, arg.rhs :: Nil)(rhs.span)
-      val arg2 = arg.copy(rhs = rhs2)(arg.span)
-
-      transformWithArg(arg2)
-
-    else
-      WithArg(paramRef, rhs)(arg.span)
+    WithArg(paramRef, rhs)(arg.span)
 
 
   private def transformIf(ifte: Ast.If)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
@@ -1121,9 +1098,6 @@ class Namer:
 
     if pdef.hasKey(Desugaring.DefaultContextParam) then
       flags |= Flags.Default
-
-    if pdef.hasKey(Desugaring.OptionContextParam) then
-      flags |= Flags.Option
 
     val paramSym = Symbol.createSymbol(pdef.name, flags, pdef.pos)
     ip.addLazy(paramSym, sc.owner, () => transformType(pdef.tpt).tpe)

@@ -11,7 +11,6 @@ import scala.collection.mutable
 object Desugaring:
   // Use key props to avoid using sast.Flags in ast package
   val DefaultContextParam = new KeyProps.Key[Unit]("Desugaring.DefaultContextParam")
-  val OptionContextParam = new KeyProps.Key[Unit]("Desugaring.OptionContextParam")
 
   def synthesize(defs: List[Def])(using Reporter, Source): List[Def] =
     val dataDefs = mutable.Map.empty[String, DataDef]
@@ -239,12 +238,10 @@ object Desugaring:
       val param = Param(Ident("value")(paramType.span), paramType)(paramType.span)
       val someType = TagType(Ident("Some")(paramType.span), param :: Nil)(paramType.span)
       val unionType = UnionType(someType :: noneType :: Nil)(paramType.span)
-      val optionParamDef = ParamDef(optionId, unionType, default = None)(pdef.span)
-      optionParamDef.addKey(OptionContextParam, ())
-      optionParamDef
+      ParamDef(optionId, unionType, default = None)(pdef.span)
 
     def createValueFun(): FunDef =
-      val id = Ident(pdef.name + "$option")(paramId.span)
+      val id = Ident(pdef.name + "$value")(paramId.span)
 
       val noneCase =
         val pat = Tag(Ident("None")(paramId.span))(paramId.span)
@@ -252,7 +249,7 @@ object Desugaring:
 
       val someCase =
         val value = Ident("value")(paramId.span)
-        val tag = Tag(Ident("None")(paramId.span))(paramId.span)
+        val tag = Tag(Ident("Some")(paramId.span))(paramId.span)
         val pat = Apply(tag, value :: Nil)(paramId.span)
         Case(pat, value)(paramId.span)
 
