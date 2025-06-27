@@ -278,7 +278,20 @@ object Encoder:
       case cinfo: ContainerInfo =>
         "Container [" ~ cinfo.members.map(encodeSymbol).join("," ~ Text.BreakLine) ~ "]"
 
-      case classInfo: ClassInfo => ???
+      case ClassInfo(classSymbol, tparams, targs, self, fields, methods) =>
+        targs.zip(tparams).map: (targ, tparam) =>
+          targ match
+            case StaticRef(sym) => assert(sym == tparam, "Unexpected class info")
+            case tp => throw new Exception("Unexpected targ for classInfo: " + tp)
+
+        "ClassInfo [" ~ indent:
+            encodeSymbolRef(classSymbol) ~ "," ~
+            "[" ~ tparams.map(encodeSymbolRef).join(", ") ~ "]," ~
+            encodeSymbolRef(self) ~ "," ~
+            "[" ~ fields.map(encodeSymbolRef).join(", ") ~ "]," ~
+            "[" ~ methods.map(encodeSymbolRef).join(", ") ~ "],"
+        ~ "]"
+
 
       case TypeBound(lo, hi) =>
         "TypeBound [" ~ lo ~ ", " ~ hi ~ "]"

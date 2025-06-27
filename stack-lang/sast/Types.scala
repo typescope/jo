@@ -480,8 +480,8 @@ object Types:
     * @param methods all methods (including contructor)
     */
   case class ClassInfo(
-    val classSymbol: Symbol, val tparams: List[Symbol], val targs: List[Type], val self: Symbol,
-    val fields: List[Symbol], val methods: List[Symbol])
+    val classSymbol: Symbol, val tparams: List[Symbol], val targs: List[Type],
+    val self: Symbol, val fields: List[Symbol], val methods: List[Symbol])
   extends Type:
     assert(tparams.size == targs.size, "Mismatch, tparams = " + tparams + ", targs = " + targs)
 
