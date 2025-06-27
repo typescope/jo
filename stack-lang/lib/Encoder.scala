@@ -34,8 +34,8 @@ import scala.collection.mutable
   *           ],
   *
   *           imports [
-  *             Symbol [...],
-  *             Symbol [...],
+  *             ExternalRef [...],
+  *             ExternalRef [...],
   *             ...
   *           ],
   *
@@ -278,8 +278,7 @@ object Encoder:
       case cinfo: ContainerInfo =>
         "Container [" ~ cinfo.members.map(encodeSymbol).join("," ~ Text.BreakLine) ~ "]"
 
-      case classInfo: ClassInfo =>
-        ???
+      case classInfo: ClassInfo => ???
 
       case TypeBound(lo, hi) =>
         "TypeBound [" ~ lo ~ ", " ~ hi ~ "]"

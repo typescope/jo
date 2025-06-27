@@ -290,16 +290,7 @@ object Types:
       // compute the type with respect to the instantiated targs
       prefix.approx match
         case classInfo: ClassInfo =>
-          classInfo.classSymbol.info match
-            case TypeLambda(tparams, _, _) =>
-              assert(tparams.size == classInfo.targs.size, "Mismatch, tparams = " + tparams + ", targs = " + classInfo.targs)
-
-              TypeOps.substSymbols(symbol.info, tparams, classInfo.targs)
-
-            case _ =>
-              assert(classInfo.targs.isEmpty, "Mismatch, tparams = 0" + ", targs = " + classInfo.targs)
-
-              symbol.info
+          TypeOps.substSymbols(symbol.info, classInfo.tparams, classInfo.targs)
 
         case _ =>
           symbol.info
@@ -489,9 +480,11 @@ object Types:
     * @param methods all methods (including contructor)
     */
   case class ClassInfo(
-    val classSymbol: Symbol, val targs: List[Type], val self: Symbol,
+    val classSymbol: Symbol, val tparams: List[Symbol], val targs: List[Type], val self: Symbol,
     val fields: List[Symbol], val methods: List[Symbol])
   extends Type:
+    assert(tparams.size == targs.size, "Mismatch, tparams = " + tparams + ", targs = " + targs)
+
     /** Return all methods including the constructor */
     def allMethods: List[Symbol] = methods
 

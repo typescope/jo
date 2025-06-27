@@ -1472,7 +1472,7 @@ class Namer:
     val methods = new mutable.ArrayBuffer[Symbol]
 
     lazy val classInfo: Type =
-      val base = new ClassInfo(classSym, tparamSyms.map(StaticRef.apply), thisSym, fields.toList, methods.toList)
+      val base = new ClassInfo(classSym, tparamSyms, tparamSyms.map(StaticRef.apply), thisSym, fields.toList, methods.toList)
 
       if cdef.tparams.isEmpty then base
       else TypeLambda(tparamSyms, base, preParamCount = 0)
