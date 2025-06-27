@@ -482,6 +482,8 @@ object Types:
   class ContainerInfo(val nameTable: NameTable) extends Type:
     export nameTable.{ resolveType, resolveTerm, resolvePattern }
 
+    def members: List[Symbol] = nameTable.members
+
   /** Represents the information of a class type
     *
     * @param methods all methods (including contructor)

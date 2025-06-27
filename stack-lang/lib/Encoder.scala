@@ -268,7 +268,7 @@ object Encoder:
         val receiveText = "receives [" ~ effects.map(eff => encodeSymbolRef(eff)).join(", ") ~ "]"
 
         "ProcType [" ~ indent:
-            List(tparamText, paramText, autoText, encodeType(resType), receiveText, Text(preParamCount)).join(Text.BreakLine ~ ",")
+            List(tparamText, paramText, autoText, encodeType(resType), receiveText, Text(preParamCount)).join("," ~ Text.BreakLine)
         ~ "]"
 
       case TypeLambda(tparams, resType, preParamCount) =>
@@ -276,7 +276,7 @@ object Encoder:
         "TypeLambda [" ~ tparamText ~ ", " ~ resType ~ ", " ~ preParamCount ~ "]"
 
       case cinfo: ContainerInfo =>
-        ???
+        "Container [" ~ cinfo.members.map(encodeSymbol).join("," ~ Text.BreakLine) ~ "]"
 
       case classInfo: ClassInfo =>
         ???

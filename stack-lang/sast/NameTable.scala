@@ -93,6 +93,8 @@ class NameTable(
 
   def patterns: List[Symbol] = patternNames.values.toList
 
+  def members: List[Symbol] = terms ++ types ++ patterns
+
   def show: String =
     "terms: { " + termNames + "}" + "\ntypes: { " + typeNames + "}" + "\npatterns: { " + patternNames + "}"
 
