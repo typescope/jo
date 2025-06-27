@@ -25,28 +25,28 @@ import scala.collection.mutable
   * A sample encoding looks like the following:
   *
   *       Namespace [
-  *           Refs [stk.Predef.+, stk.Predef.assert],
+  *           refs [stk.Predef.+, stk.Predef.assert],
   *
   *           Symbol [
-  *              4, List, Flags [NSpace], NoOwner,
+  *              4, List, [NSpace], NoOwner,
   *              SourcePos [List.stk, 23, 43],
   *              NameTable [...]
   *           ],
   *
-  *           Imports [
+  *           imports [
   *             Symbol [...],
   *             Symbol [...],
   *             ...
   *           ],
   *
-  *           Defs [
+  *           defs [
   *             FunDef [
   *               InternalRef [...],
-  *               TypeParams [...],
-  *               Params [...],
-  *               Autos [...],
-  *               Receives [...],
-  *               Locals [...],
+  *               tparams [...],
+  *               params [...],
+  *               autos [...],
+  *               receives [...],
+  *               locals [...],
   *               If [
   *                   Apply [...],
   *                   Block [...],
@@ -124,13 +124,13 @@ object Encoder:
 
     val symbolData = encodeSymbol(symbol)
 
-    val importsData = "Imports [" ~ imports.map(encodeSymbol).join(", ") ~ "]"
-    val defsData = "Defs [" ~ indent:
+    val importsData = "imports [" ~ imports.map(encodeSymbol).join(", ") ~ "]"
+    val defsData = "defs [" ~ indent:
         defs.map(encodeDef).join(", ")
       ~ "]"
 
     // must comes after imports and defs
-    val refsData = "Refs [" ~ indent:
+    val refsData = "refs [" ~ indent:
         state.externalNameTable.join(", ")
       ~ "]"
 
@@ -257,8 +257,19 @@ object Encoder:
       case AppliedType(tctor, targs) =>
         "AppliedType [" ~ tctor ~ ", [" ~ targs.join(", ") ~ "]]"
 
-      case ProcType(tparams, params, autos, resType, receivesOpt, preParamCount) =>
-        ???
+      case ProcType(tparams, params, autos, resType, receives, preParamCount) =>
+        assert(receives.isInstanceOf[Effects.Policy.CheckBound], "Expect Policy.CheckBounds, found = " + receives)
+
+        val effects = receives.asInstanceOf[Effects.Policy.CheckBound].effects
+
+        val tparamText = "tparams [" ~ tparams.map(encodeSymbolRef).join(", ") ~ "]"
+        val paramText = "params [" ~ params.map(param => "[" ~ param.name ~ ", " ~ param.info ~ "]").join(", ") ~ "]"
+        val autoText = "autos [" ~ autos.map(auto => "[" ~ auto.name ~ ", " ~ auto.info ~ "]").join(", ") ~ "]"
+        val receiveText = "receives [" ~ effects.map(eff => encodeSymbolRef(eff)).join(", ") ~ "]"
+
+        "ProcType [" ~ indent:
+            List(tparamText, paramText, autoText, encodeType(resType), receiveText, Text(preParamCount)).join(Text.BreakLine ~ ",")
+        ~ "]"
 
       case TypeLambda(tparams, resType, preParamCount) =>
         val tparamText = "[" ~ tparams.map(encodeSymbolRef).join(", ") ~ "]"
