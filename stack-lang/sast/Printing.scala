@@ -59,9 +59,6 @@ object Printing:
   given (using Definitions): Text.Maker[Type] =
     v => showType(v)
 
-  given (using Definitions): Text.Maker[WithArg] =
-    v => v.paramRef ~ " = " ~ v.rhs
-
   //----------------------------------------------------------------------------
 
   // implementation
@@ -227,12 +224,8 @@ object Printing:
         fun ~ "[" ~ targs.join(", ") ~ "]"
 
       case With(expr, args) =>
-        val withText =
-          if args.isEmpty then
-            Text.Empty
-          else
-            " with " ~ indent:
-              args.join(Text.BreakLine)
+        val withText = " with " ~ indent:
+          args.join(Text.BreakLine)
 
         "(" ~ expr ~ withText ~ ")"
 

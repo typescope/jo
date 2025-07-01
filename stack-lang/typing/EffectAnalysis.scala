@@ -196,7 +196,7 @@ object EffectAnalysis:
           val effsArgs = args.foldLeft(zero): (acc, arg) =>
             acc ++ this(arg.rhs)
 
-          val masked = args.map(_.paramRef.symbol)
+          val masked = args.map(_.symbol)
           val unmasked = effsInner -- masked
 
           unmasked ++ effsArgs

@@ -243,7 +243,7 @@ object SastOps:
       val With(expr, args) = withExpr
       // Don't map paramRef --- the client code should match this tree
       val args2 = args.map: arg =>
-        arg.copy(arg.paramRef, this(arg.rhs))(arg.span)
+        arg.copy(rhs = this(arg.rhs))(arg.span)
 
       With(this(expr), args2)(withExpr.tpe, withExpr.span)
 

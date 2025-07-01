@@ -131,7 +131,7 @@ object Sast:
   extends Word
 
   case class With
-    (expr: Word, args: List[WithArg])
+    (expr: Word, args: List[Assign])
     (val tpe: Type, val span: Span)
   extends Word:
     assert(args.nonEmpty)
@@ -140,12 +140,6 @@ object Sast:
     (expr: Word, params: List[Ident])
     (val tpe: Type, val span: Span)
   extends Word
-
-  case class WithArg
-    (paramRef: Ident, rhs: Word)
-    (val span: Span)
-  extends Tree:
-    def tpe: Type = VoidType
 
   case class TypeApply
     (fun: Word, targs: List[TypeTree])

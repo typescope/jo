@@ -55,36 +55,36 @@ class LowerContextParams(runtime: NativeRuntime)(using defn: Definitions) extend
     val With(expr, args) = word
     given Source = ctx.sourcePos.source
 
-    val paramRefs = args.map(_.paramRef)
+    val paramRefs = args.map(_.ident)
 
     val stats = new mutable.ArrayBuffer[Word]
 
     // 1. args are evaluated with the outer context
     val argValueSyms = args.map: arg =>
-      val paramName = arg.paramRef.symbol.dealias.fullName
+      val paramName = arg.symbol.dealias.fullName
       val argValueSym = Symbol.createSymbol("arg_" + paramName, arg.rhs.tpe, Flags.Synthetic, owner = ctx, pos = arg.rhs.pos)
-      stats += Assign(Ident(argValueSym)(arg.paramRef.span), this(arg.rhs))(arg.rhs.span)
+      stats += Assign(Ident(argValueSym)(arg.ident.span), this(arg.rhs))(arg.rhs.span)
       argValueSym
 
     // 2. val hashIndex = setParam("x", v)
     //    val oldValueX = getLastOverwrittenValue()
     //    (hashIndex, oldX)
     val restorePairSyms = args.zip(argValueSyms).map: (arg, argValueSym) =>
-      val paramName = arg.paramRef.symbol.dealias.fullName
+      val paramName = arg.symbol.dealias.fullName
       // Use AnyType instead String to avoid creating String and make sure its address is static
       // At runtime, it's a byte array initialized in the constant area
-      val lit = Literal(Constant.String(paramName))(AnyType, arg.paramRef.span)
+      val lit = Literal(Constant.String(paramName))(AnyType, arg.ident.span)
       val key = lit.encodedAs(AddrType)
       val value = Ident(argValueSym)(arg.rhs.span)
       val funSetParam = Ident(runtime.ParamSupport_setParam)(arg.span)
       val setParamCall = Apply(funSetParam, key :: value :: Nil)(IntType, arg.span)
       val hashIndexSym = Symbol.createSymbol("hash_index_" + paramName, IntType, Flags.Synthetic, owner = ctx, pos = arg.rhs.pos)
-      stats += Assign(Ident(hashIndexSym)(arg.paramRef.span), setParamCall)(arg.span)
+      stats += Assign(Ident(hashIndexSym)(arg.ident.span), setParamCall)(arg.span)
 
       val funGetLastOverwrittenValue = Ident(runtime.ParamSupport_getLastOverwrittenValue)(arg.span)
-      val getLastOverwrittenValueCall = Apply(funGetLastOverwrittenValue, Nil)(AnyType, arg.paramRef.span)
+      val getLastOverwrittenValueCall = Apply(funGetLastOverwrittenValue, Nil)(AnyType, arg.ident.span)
       val oldValueSym = Symbol.createSymbol("old_value_" + paramName, arg.rhs.tpe, Flags.Synthetic, owner = ctx, pos = arg.rhs.pos)
-      stats += Assign(Ident(oldValueSym)(arg.paramRef.span), getLastOverwrittenValueCall.encodedAs(arg.rhs.tpe))(arg.span)
+      stats += Assign(Ident(oldValueSym)(arg.ident.span), getLastOverwrittenValueCall.encodedAs(arg.rhs.tpe))(arg.span)
 
       (hashIndexSym, oldValueSym)
 

@@ -394,7 +394,7 @@ object Interpreter:
 
       case With(expr, args) =>
         val params2 = args.foldLeft(params): (params, arg) =>
-          params.updated(arg.paramRef.symbol.dealias, eval(arg.rhs))
+          params.updated(arg.symbol.dealias, eval(arg.rhs))
         exec(expr)(using env, params2)
 
       case Allow(expr, _) =>

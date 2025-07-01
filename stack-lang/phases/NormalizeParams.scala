@@ -120,13 +120,13 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
     else
       ident
 
-  private def synthesizeNoneBindings(params: List[Symbol], span: Span): List[WithArg] =
+  private def synthesizeNoneBindings(params: List[Symbol], span: Span): List[Assign] =
     params.map: param =>
       val optionParamSym = param.optionParam
       val paramRef = Ident(optionParamSym)(span)
       val noneType = TagType("None", params = Nil)
       val noneValue = TaggedEncoding.encodeVariant(noneType, Nil, span, span)
-      WithArg(paramRef, noneValue)(span)
+      Assign(paramRef, noneValue)(span)
 
   /** Check `allow`-clause */
   override  def transformAllow(allowExpr: Allow)(using ctx: Context): Word =
@@ -198,10 +198,10 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
               case None =>
                 val alias = Symbol.createSymbol("alias_" + eff.name, eff.info, Flags.Synthetic, owner = ctx.owner, pos = obj.pos)
                 aliasMap(eff) = Assign(Ident(alias)(span), paramRef)(span)
-                WithArg(paramRef, Ident(alias)(span))(span)
+                Assign(paramRef, Ident(alias)(span))(span)
 
               case Some(vdef) =>
-                WithArg(paramRef, Ident(vdef.symbol)(span))(span)
+                Assign(paramRef, Ident(vdef.symbol)(span))(span)
             end match
           end for
         val body2 = With(this(ddef.body), args)(ddef.body.tpe, ddef.body.span)
@@ -214,19 +214,19 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
 
   override  def transformWith(withExpr: With)(using ctx: Context): Word =
     /** rewrite `with a = rhs` to `with a$option = #Some rhs` */
-    def rewireArgs(args: List[WithArg]): List[WithArg] =
-      for arg @ WithArg(paramRef, rhs) <- args yield
+    def rewireArgs(args: List[Assign]): List[Assign] =
+      for arg @ Assign(paramRef, rhs) <- args yield
         if paramRef.symbol.is(Flags.Default) then
           val optionParamRef = Ident(paramRef.symbol.optionParam)(paramRef.span)
           val someType = TagType("Some", NamedInfo("value", paramRef.symbol.info) :: Nil)
           val rhs2 = TaggedEncoding.encodeVariant(someType, rhs :: Nil, paramRef.span, rhs.span)
-          WithArg(optionParamRef, rhs2)(arg.span)
+          Assign(optionParamRef, rhs2)(arg.span)
         else
           arg
 
     val expr2 = transform(withExpr.expr)
     val args2 = withExpr.args.map: arg =>
-      arg.copy(arg.paramRef, transform(arg.rhs))(arg.span)
+      arg.copy(arg.ident, transform(arg.rhs))(arg.span)
 
     val args3 = rewireArgs(args2)
     With(expr2, args3)(expr2.tpe, withExpr.span)

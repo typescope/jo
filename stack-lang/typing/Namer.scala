@@ -901,7 +901,7 @@ class Namer:
 
     Ident(paramSym)(ref.span)
 
-  private def transformWithArg(arg: Ast.WithArg)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): WithArg =
+  private def transformWithArg(arg: Ast.WithArg)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): Assign =
     val paramRef = transformParamRef(arg.paramRef)
 
     val rhs =
@@ -911,7 +911,7 @@ class Namer:
 
       transform(arg.rhs)
 
-    WithArg(paramRef, rhs)(arg.span)
+    Assign(paramRef, rhs)(arg.span)
 
 
   private def transformIf(ifte: Ast.If)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =

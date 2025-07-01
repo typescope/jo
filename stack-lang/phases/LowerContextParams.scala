@@ -47,35 +47,35 @@ extends Phase[Symbol]:
     val With(expr, args) = word
     given Source = ctx.sourcePos.source
 
-    val paramRefs = args.map(_.paramRef)
+    val paramRefs = args.map(_.ident)
     val stats = new mutable.ArrayBuffer[Word]
 
     // 1. args are evaluated with the outer context
     val argValueSyms = args.map: arg =>
-      val paramName = arg.paramRef.symbol.dealias.fullName
+      val paramName = arg.ident.symbol.dealias.fullName
       val argValueSym = Symbol.createSymbol("arg_" + paramName, arg.rhs.tpe, Flags.Synthetic, owner = ctx, pos = arg.rhs.pos)
       stats += Assign(Ident(argValueSym)(arg.rhs.span), this(arg.rhs))(arg.rhs.span)
       argValueSym
 
     // 2. val hasX = hasParam("x")
     val hasXSyms = args.map: arg =>
-      val paramName = arg.paramRef.symbol.dealias.fullName
-      val key = StringLit(paramName)(arg.paramRef.span)
+      val paramName = arg.symbol.dealias.fullName
+      val key = StringLit(paramName)(arg.ident.span)
       val funHasParam = Ident(hasParamSym)(arg.span)
-      val hasParamCall = Apply(funHasParam, key :: Nil)(BoolType, arg.paramRef.span)
+      val hasParamCall = Apply(funHasParam, key :: Nil)(BoolType, arg.ident.span)
       val hasXSym = Symbol.createSymbol("has_" + paramName, BoolType, Flags.Synthetic, owner = ctx, pos = arg.rhs.pos)
-      stats += Assign(Ident(hasXSym)(arg.paramRef.span), hasParamCall)(arg.span)
+      stats += Assign(Ident(hasXSym)(arg.ident.span), hasParamCall)(arg.span)
       hasXSym
 
     // 3. val oldX = setParam("x", v)
     val oldValueSyms = args.zip(argValueSyms).map: (arg, argValueSym) =>
-      val paramName = arg.paramRef.symbol.dealias.fullName
-      val key = StringLit(paramName)(arg.paramRef.span)
+      val paramName = arg.symbol.dealias.fullName
+      val key = StringLit(paramName)(arg.ident.span)
       val value = Ident(argValueSym)(arg.rhs.span)
       val funSetParam = Ident(setParamSym)(arg.span)
       val setParamCall = Apply(funSetParam, key :: value :: Nil)(AnyType, arg.span)
       val oldValueSym = Symbol.createSymbol("old_" + paramName, arg.rhs.tpe, Flags.Synthetic, owner = ctx, pos = arg.rhs.pos)
-      stats += Assign(Ident(oldValueSym)(arg.paramRef.span), setParamCall.encodedAs(arg.rhs.tpe))(arg.span)
+      stats += Assign(Ident(oldValueSym)(arg.ident.span), setParamCall.encodedAs(arg.rhs.tpe))(arg.span)
       oldValueSym
 
     // 4. val res = expr only if expr is not void
