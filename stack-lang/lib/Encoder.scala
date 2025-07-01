@@ -115,6 +115,9 @@ object Encoder:
   private given (using Definitions, State): Text.Maker[Type] =
     v => encodeType(v)
 
+  private given (using Definitions, State): Text.Maker[TypeTree] =
+    v => encodeTypeTree(v)
+
   //----------------------------------------------------------------------------
 
   def encode(ns: Namespace)(using Definitions): Text =
@@ -210,7 +213,31 @@ object Encoder:
         "[" ~ args.map(encodeKind).join(", ") ~ "] -> " ~ encodeKind(to)
 
 
-  private def encodeDef(defn: Def)(using Definitions, State): Text = ???
+  private def encodeDef(defn: Def)(using Definitions, State): Text =
+    defn match
+      case pdef: ParamDef =>
+        // TODO: span
+        "ParamDef [" ~ encodeSymbolRef(pdef.symbol) ~ ", " ~ pdef.tpt ~ "]"
+
+      case cdef: ClassDef =>
+        ???
+
+      case fdef: FunDef =>
+        ???
+
+      case pdef: PatDef =>
+        ???
+
+      case tdef: TypeDef =>
+        ???
+
+      case sec: Section =>
+        ???
+
+  private def encodeTypeTree(tpt: TypeTree)(using Definitions, State): Text =
+    // TODO: span
+    "TypeTree [" ~ tpt.tpe ~ "]"
+
 
   private def encodeType(tpe: Type)(using Definitions, State): Text =
     tpe match
