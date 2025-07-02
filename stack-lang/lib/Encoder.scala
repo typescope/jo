@@ -34,14 +34,14 @@ import scala.collection.mutable
   *           ],
   *
   *           imports [
-  *             ExternalRef [...],
-  *             ExternalRef [...],
+  *             NameRef [...],
+  *             NameRef [...],
   *             ...
   *           ],
   *
   *           defs [
   *             FunDef [
-  *               InternalRef [...],
+  *               SymRef [...],
   *               tparams [...],
   *               params [...],
   *               autos [...],
@@ -60,6 +60,8 @@ import scala.collection.mutable
   *       ]
   */
 object Encoder:
+  val LINE_SEP = ", " ~ Text.BreakLine
+
   private class State(val root: Symbol):
     /** Name reference to externally defined symbols */
     private val externalSymbols = new mutable.ArrayBuffer[Symbol]
@@ -96,7 +98,9 @@ object Encoder:
           id
       end match
 
-    def externalNameTable(using Definitions): List[String] = externalSymbols.map(_.fullName).toList
+    def externalNameTable(using Definitions): Text =
+      // TODO: store type for checking contracts
+      "refs [" ~ externalSymbols.toSeq.map(_.fullName).join(LINE_SEP) ~ "]"
   end State
 
   //----------------------------------------------------------------------------
@@ -133,9 +137,7 @@ object Encoder:
       ~ "]"
 
     // must comes after imports and defs
-    val refsData = "refs [" ~ indent:
-        state.externalNameTable.join(", ")
-      ~ "]"
+    val refsData = state.externalNameTable
 
     "Namespace [" ~ indent:
         List(refsData, symbolData, importsData, defsData).join("," ~ Text.BreakLine)
@@ -179,17 +181,17 @@ object Encoder:
 
   /** Reference to a symbol
     *
-    *     InternalRef [3]
+    *     SymRef [3]
     *
-    *     ExternalRef [5]
+    *     NameRef [5]
     */
   private def encodeSymbolRef(symbol: Symbol)(using defn: Definitions, state: State): Text =
     if symbol.containedIn(state.root) then
-      "InternalRef [" ~ state.getInternalSymbolId(symbol) ~ "]"
+      "NameRef [" ~ state.getInternalSymbolId(symbol) ~ "]"
 
     else
       assert(!symbol.isLocal, "Cannot reference external local symbol: " + symbol)
-      "ExternalRef [" ~ state.getExternalSymbolIndex(symbol) ~ "]"
+      "SymRef [" ~ state.getExternalSymbolIndex(symbol) ~ "]"
 
   private def encodeSymbolInfo(symbol: Symbol)(using defn: Definitions, state: State): Text =
     symbol.info match
@@ -214,25 +216,67 @@ object Encoder:
 
 
   private def encodeDef(defn: Def)(using Definitions, State): Text =
+    // TODO: span
     defn match
       case pdef: ParamDef =>
-        // TODO: span
         "ParamDef [" ~ encodeSymbolRef(pdef.symbol) ~ ", " ~ pdef.tpt ~ "]"
 
       case cdef: ClassDef =>
-        ???
+        // TODO: where to encode method symbol?
+        "ClassDef [" ~ indent:
+            encodeSymbolRef(cdef.symbol) ~ LINE_SEP ~
+            encodeSymbol(cdef.self) ~ LINE_SEP ~
+            "[" ~ indent:
+                cdef.tparams.map(encodeSymbol).join(LINE_SEP)
+            "]" ~ LINE_SEP ~
+            "[" ~ indent:
+                cdef.vals.map(encodeSymbol).join(LINE_SEP)
+            "]" ~ LINE_SEP ~
+            "[" ~ indent:
+                cdef.funs.map(encodeDef).join(LINE_SEP)
+            "]" ~ Text.BreakLine
+        ~ "]"
 
       case fdef: FunDef =>
-        ???
+        "FunDef [" ~ indent:
+            encodeSymbolRef(fdef.symbol) ~ LINE_SEP ~
+            "[" ~ indent:
+                fdef.tparams.map(encodeSymbol).join(LINE_SEP)
+            "]" ~ LINE_SEP ~
+            "[" ~ indent:
+                fdef.params.map(encodeSymbol).join(LINE_SEP)
+            "]" ~ LINE_SEP ~
+            "[" ~ indent:
+                fdef.autos.map(encodeSymbol).join(LINE_SEP)
+            "]" ~ LINE_SEP ~
+            fdef.resultType ~ LINE_SEP ~
+            fdef.body ~ Text.BreakLine
+        ~ "]"
+
 
       case pdef: PatDef =>
-        ???
+        "PatDef [" ~ indent:
+            encodeSymbolRef(pdef.symbol) ~ LINE_SEP ~
+            "[" ~ indent:
+                pdef.tparams.map(encodeSymbol).join(LINE_SEP)
+            "]" ~ LINE_SEP ~
+            "[" ~ indent:
+                pdef.params.map(encodeSymbol).join(LINE_SEP)
+            "]" ~ LINE_SEP ~
+            pdef.resultType ~ LINE_SEP ~
+            pdef.body ~ Text.BreakLine
+        ~ "]"
 
       case tdef: TypeDef =>
-        ???
+        "TypeDef [" ~ encodeSymbol(tdef.symbol) ~ "]"
 
       case sec: Section =>
-        ???
+        "Section [" ~ indent:
+            encodeSymbolRef(sec.symbol) ~ LINE_SEP ~
+            "[" ~ indent:
+                sec.defs.map(encodeDef).join(LINE_SEP)
+            ~ "]"
+        ~ "]"
 
   private def encodeTypeTree(tpt: TypeTree)(using Definitions, State): Text =
     // TODO: span

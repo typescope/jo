@@ -73,7 +73,7 @@ object Text:
     def ~[S](s: S)(using Maker[S]): Text =
       Text(t).join(Text(s))
 
-  extension [T](list: List[T])
+  extension [T](list: Seq[T])
     def join(sep: String)(using Maker[T]): Text =
       rep(list, Text(sep))
 
@@ -82,7 +82,7 @@ object Text:
 
   def indent[T](v: T)(using Maker[T]): Text = Text.Indent(Text(v))
 
-  private def rep[T](list: List[T], separator: Text, acc: Text = Text.Empty)(using maker: Maker[T]): Text =
+  private def rep[T](list: Seq[T], separator: Text, acc: Text = Text.Empty)(using maker: Maker[T]): Text =
     list match
     case x :: xs => rep(xs, separator, if acc == Text.Empty then maker(x) else acc ~ separator ~ maker(x))
     case Nil     => acc
