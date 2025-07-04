@@ -56,6 +56,8 @@ files=(
     stack-lang/sast/TypeOps.scala
     stack-lang/sast/TaggedEncoding.scala
 
+    stack-lang/pickle/Encoder.scala
+
     # native compiler
     stack-lang/common/UniqueName.scala
     stack-lang/common/WorkList.scala
@@ -86,6 +88,7 @@ files=(
     stack-lang/phases/EncodeTagged.scala
     stack-lang/phases/NormalizeParams.scala
     stack-lang/phases/PatternMatcher.scala
+    stack-lang/phases/Pickler.scala
 )
 
 FILES=${files[*]}

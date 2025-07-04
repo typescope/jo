@@ -56,11 +56,14 @@ files=(
     stack-lang/sast/TypeOps.scala
     stack-lang/sast/TaggedEncoding.scala
 
+    stack-lang/pickle/Encoder.scala
+
     stack-lang/phases/Phase.scala
     stack-lang/phases/FrontEnd.scala
     stack-lang/phases/EncodeTagged.scala
     stack-lang/phases/NormalizeParams.scala
     stack-lang/phases/PatternMatcher.scala
+    stack-lang/phases/Pickler.scala
 
     # interpreter
     stack-lang/sast/Interpreter.scala

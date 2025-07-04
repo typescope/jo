@@ -70,7 +70,7 @@ object Symbols:
         case tp => throw new Exception("Unexpected type " + tp.show)
 
     def isLocal(using Definitions): Boolean =
-      owner != null & !owner.isContainer
+      owner != null && !owner.isContainer
 
     def enclosingContainer(using Definitions): Symbol =
       if this.isContainer then

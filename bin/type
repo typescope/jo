@@ -55,6 +55,8 @@ files=(
     stack-lang/sast/Types.scala
     stack-lang/sast/TypeOps.scala
     stack-lang/sast/TaggedEncoding.scala
+
+    stack-lang/pickle/Encoder.scala
 )
 
 FILES=${files[*]}

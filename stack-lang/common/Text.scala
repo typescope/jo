@@ -19,7 +19,12 @@ enum Text:
       case _ => Group(Vector(this, that))
 
   override def toString() =
-    val sb = new StringBuilder
+    val sw = new java.io.StringWriter()
+    val pw = new java.io.PrintWriter(sw)
+    write(pw)
+    sw.toString
+
+  def write(pw: java.io.PrintWriter): Unit =
     var indent = 0
     var isNewLine = false
 
@@ -27,17 +32,18 @@ enum Text:
       text match
       case Empty =>
       case BlankLine =>
-        sb.append("\n\n")
+        pw.println()
+        pw.println()
         isNewLine = true
       case BreakLine =>
-        sb.append("\n")
+        pw.println()
         isNewLine = true
       case Indent(text) =>
         indent += 1
-        sb.append("\n")
+        pw.println()
         isNewLine = true
         convert(text)
-        sb.append("\n")
+        pw.println()
         isNewLine = true
         indent -= 1
       case Group(parts) =>
@@ -45,13 +51,12 @@ enum Text:
         do convert(part)
       case Atom(content) =>
         for line <- content.linesWithSeparators do
-          if isNewLine then sb.append("  " * indent)
-          sb.append(line)
+          if isNewLine then pw.print("  " * indent)
+          pw.print(line)
           isNewLine = line.endsWith("\n")
     end convert
     convert(this)
-    sb.toString
-  end toString
+
 end Text
 
 object Text:

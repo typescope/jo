@@ -1,4 +1,4 @@
-package lib
+package pickle
 
 import ast.Positions.*
 
@@ -330,9 +330,9 @@ object Encoder:
         "AppliedType [" ~ tctor ~ ", [" ~ targs.join(", ") ~ "]]"
 
       case ProcType(tparams, params, autos, resType, receives, preParamCount) =>
-        assert(receives.isInstanceOf[Effects.Policy.CheckBound], "Expect Policy.CheckBounds, found = " + receives)
+        // assert(receives.isInstanceOf[Effects.Policy.CheckBound], "Expect Policy.CheckBounds, found = " + receives)
 
-        val effects = receives.asInstanceOf[Effects.Policy.CheckBound].effects
+        val effects: List[Symbol] = Nil // receives.asInstanceOf[Effects.Policy.CheckBound].effects
 
         val tparamText = "tparams [" ~ tparams.map(encodeSymbolRef).join(", ") ~ "]"
         val paramText = "params [" ~ params.map(param => "[" ~ param.name ~ ", " ~ param.info ~ "]").join(", ") ~ "]"

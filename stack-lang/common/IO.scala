@@ -40,8 +40,8 @@ object IO:
     end while
     (res.toMap, rest.toList)
 
-  def withFile(name: String)(fn: ByteBuffer => Unit): Unit =
-    val file = new java.io.File(name)
+  def withFile(path: String)(fn: ByteBuffer => Unit): Unit =
+    val file = new java.io.File(path)
     file.createNewFile()
     withFile(file)(fn)
 
@@ -52,6 +52,14 @@ object IO:
       fn(byteBuffer)
     catch case e: Throwable =>
       fs.close()
+      throw e
+
+  def withPrintWriter(path: String)(fn: java.io.PrintWriter => Unit): Unit =
+    val pw = new java.io.PrintWriter(path)
+    try
+      fn(pw)
+    catch case e: Throwable =>
+      pw.close()
       throw e
 
   def withExeFile(name: String)(fn: ByteBuffer => Unit): Unit =
