@@ -471,7 +471,53 @@ object Encoder:
         ~ "]"
 
 
-  private def encodePattern(pat: Pattern)(using Definitions, State): Text = ???
+  private def encodePattern(pattern: Pattern)(using Definitions, State): Text =
+    // TODO: span
+    pattern match
+      case AliasPattern(id, nested) =>
+        // TODO: bound symbol
+        "AliasPattern [" ~ id ~ ", " ~ nested ~ "]"
+
+      case TypePattern(tpt) =>
+        "TypePattern [" ~ tpt ~ "]"
+
+      case TagPattern(tagLit, nested) =>
+        "TagPattern [" ~ tagLit ~ ", [" ~ nested.join(", ") ~ "]]"
+
+      case ApplyPattern(fun, nested) =>
+        "ApplyPattern [" ~ fun ~ ", [" ~ nested.join(", ") ~ "]]"
+
+      case OrPattern(lhs, rhs) =>
+        "OrPattern [" ~ lhs ~ ", " ~ rhs ~ "]"
+
+      case ValuePattern(value) =>
+        "ValuePattern [" ~ value ~ "]"
+
+      case GuardPattern(pattern, guard) =>
+        "GuardPattern [" ~ pattern ~ ", " ~ guard ~ "]"
+
+      case BindPattern(pattern, bindings) =>
+        "BindPattern [" ~ pattern ~ ", [" ~ indent:
+          bindings.join(LINE_SEP)
+        ~ "]"
+
+      case SeqPattern(pats) =>
+        val nested =
+          pats.map:
+            case AtomPattern(pattern) => "AtomPattern [" ~ pattern ~ "]"
+
+            case SkipToPattern(pattern) => "SkipToPattern [" ~ pattern ~ "]"
+
+            case StarPattern(pattern) =>
+              // TODO: bindings
+              "StarPattern [" ~ pattern ~ "]"
+
+            case RestPattern(pattern) => "RestPattern [" ~ pattern ~ "]"
+
+        "SeqPattern [" ~ nested.join(", ") ~ "]"
+
+      case WildcardPattern() =>
+        Text("Wildcard")
 
   private def encodeConstant(const: Constant): Text =
     const match
