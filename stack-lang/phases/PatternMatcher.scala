@@ -536,7 +536,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
           val finalCond = all(foundIdent, distanceOK)
           conds += Block(foundInit :: whileLoop :: finalCond :: Nil)(BoolType, pat.span)
 
-        case RemainingSlicePattern(pattern) =>
+        case RestPattern(pattern) =>
           assert(i == seqPattern.patterns.size - 1, ".. should be the last pattern")
           // val rest = scrutinee.slice(index, if index == size then index else size - 1)
           // items ~ pattern

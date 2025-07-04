@@ -115,10 +115,10 @@ object Exhaustivity:
 
   def isIrrefutable(pat: SeqPattern)(using Definitions): Boolean =
     pat.patterns.forall:
-      case AtomPattern(pat)           => isIrrefutable(pat)
-      case SkipToPattern(pat)         => isIrrefutable(pat)
-      case StarPattern(pat)           => isIrrefutable(pat)
-      case RemainingSlicePattern(pat) => isIrrefutable(pat)
+      case AtomPattern(pat)    => isIrrefutable(pat)
+      case SkipToPattern(pat)  => isIrrefutable(pat)
+      case StarPattern(pat)    => isIrrefutable(pat)
+      case RestPattern(pat)    => isIrrefutable(pat)
 
   def project(pattern: Pattern)(using defn: Definitions): Space =
     pattern match

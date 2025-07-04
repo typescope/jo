@@ -366,15 +366,15 @@ object Sast:
         case AtomPattern(pat) => pat
         case SkipToPattern(pat) => pat
         case StarPattern(pat) => pat
-        case RemainingSlicePattern(pat) => WildcardPattern()(AnyType, pat.span)
+        case RestPattern(pat) => WildcardPattern()(AnyType, pat.span)
 
     /** The number of items the pattern consumes when the match is successful */
     def size: SeqPattern.Size =
       this match
-        case AtomPattern(pat)          => SeqPattern.Size.Exact(1)
-        case SkipToPattern(pat)        => SeqPattern.Size.GreatEq(1)
-        case StarPattern(pat)          => SeqPattern.Size.GreatEq(0)
-        case RemainingSlicePattern(pat) => SeqPattern.Size.GreatEq(0)
+        case AtomPattern(pat)    => SeqPattern.Size.Exact(1)
+        case SkipToPattern(pat)  => SeqPattern.Size.GreatEq(1)
+        case StarPattern(pat)    => SeqPattern.Size.GreatEq(0)
+        case RestPattern(pat)    => SeqPattern.Size.GreatEq(0)
 
   case class AtomPattern
     (pattern: Pattern)
@@ -386,7 +386,11 @@ object Sast:
     (val span: Span)
   extends SeqPartPattern
 
-  case class RemainingSlicePattern
+  /** Takes the rest of a sequence
+    *
+    * May only be the last of a sequence pattern
+    */
+  case class RestPattern
     (pattern: Pattern)
     (val span: Span)
   extends SeqPartPattern

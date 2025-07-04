@@ -634,7 +634,7 @@ class PatternTyper(namer: Namer, checker: Checker):
 
               else
                 val inner = transformPattern(nested, scrutType)
-                partPatterns += RemainingSlicePattern(inner)(pat.span)
+                partPatterns += RestPattern(inner)(pat.span)
 
             case expr: Ast.Expr =>
               Reporter.error("Unrecognized sequence pattern. Do you forget parenthesis for the nested item pattern?", expr.pos)

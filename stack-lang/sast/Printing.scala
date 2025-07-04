@@ -319,7 +319,7 @@ object Printing:
 
       case StarPattern(pattern) => pattern ~ "*"
 
-      case RemainingSlicePattern(pattern) => ".." ~ pattern
+      case RestPattern(pattern) => ".." ~ pattern
 
   def showModifiers(sym: Symbol)(using Definitions): Text =
     val mask = Flags.Auto | Flags.Synthetic | Flags.Context | Flags.Default | Flags.Alias

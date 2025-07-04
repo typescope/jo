@@ -390,8 +390,8 @@ object SastOps:
             case SkipToPattern(pattern) =>
               SkipToPattern(this(pattern))(regPat.span)
 
-            case RemainingSlicePattern(pattern) =>
-              RemainingSlicePattern(this(pattern))(regPat.span)
+            case RestPattern(pattern) =>
+              RestPattern(this(pattern))(regPat.span)
 
             case starPat @ StarPattern(pattern) =>
               StarPattern(this(pattern))(regPat.span, starPat.bindings)
@@ -467,7 +467,7 @@ object SastOps:
 
             case StarPattern(pattern) => this(pattern)
 
-            case RemainingSlicePattern(pattern) => this(pattern)
+            case RestPattern(pattern) => this(pattern)
 
         case WildcardPattern() =>
 
@@ -570,7 +570,7 @@ object SastOps:
 
             case SkipToPattern(pattern) => this(pattern)
 
-            case RemainingSlicePattern(pattern) => this(pattern)
+            case RestPattern(pattern) => this(pattern)
 
             case star @ StarPattern(pattern) =>
               locals ++= star.bindings.map(_._1)
