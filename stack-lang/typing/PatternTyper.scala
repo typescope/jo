@@ -419,7 +419,7 @@ class PatternTyper(namer: Namer, checker: Checker):
             // TODO: conform should be safe, no need to be equal
             if Patterns.isEqualType(tpe, sym.info)(using explain) then
               val patVal = Ident(sym)(id.span)
-              AscribePattern(patVal, TypePattern(tpt2)(scrutType))
+              AliasPattern(patVal, TypePattern(tpt2)(scrutType))
 
             else
               Reporter.error(s"The type ${tpe.show} not a equal to the type of $sym. The latter has type " + sym.info.show, tpt.pos)
@@ -430,7 +430,7 @@ class PatternTyper(namer: Namer, checker: Checker):
             sc.definePatternAsTerm(sym)
 
             val patVal = Ident(sym)(id.span)
-            AscribePattern(patVal, TypePattern(tpt2)(scrutType))
+            AliasPattern(patVal, TypePattern(tpt2)(scrutType))
         end match
       end if
 
@@ -461,7 +461,7 @@ class PatternTyper(namer: Namer, checker: Checker):
           // TODO: conform should be safe, no need to be equal
           if Patterns.isEqualType(sym.info, scrutType)(using explain) || scrutType.isVoidType then
             val patVal = Ident(sym)(id.span)
-            AscribePattern(patVal, WildcardPattern()(sym.info, id.span))
+            AliasPattern(patVal, WildcardPattern()(sym.info, id.span))
 
           else
             Reporter.error(s"$sym has the type ${sym.info.show}, which is not equal to the scrutinee type " + scrutType.show, id.pos)
@@ -476,9 +476,9 @@ class PatternTyper(namer: Namer, checker: Checker):
 
           val patVal = Ident(sym)(id.span)
           val wildcard = WildcardPattern()(scrutType, id.span)
-          AscribePattern(patVal, wildcard)
+          AliasPattern(patVal, wildcard)
 
-  private def transformAscribePattern(id: Ast.Ident, nested: Ast.Word, scrutType: Type)
+  private def transformAliasPattern(id: Ast.Ident, nested: Ast.Word, scrutType: Type)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs)
   : Pattern =
 
@@ -497,7 +497,7 @@ class PatternTyper(namer: Namer, checker: Checker):
           // TODO: conform should be safe, no need to be equal
           if Patterns.isEqualType(sym.info, nestedPattern.tpe)(using explain) || scrutType.isVoidType then
             val patVal = Ident(sym)(id.span)
-            AscribePattern(patVal, nestedPattern)
+            AliasPattern(patVal, nestedPattern)
 
           else
             Reporter.error(s"$sym has the type ${sym.info.show}, which is not equal to the scrutinee type " + scrutType.show, id.pos)
@@ -512,7 +512,7 @@ class PatternTyper(namer: Namer, checker: Checker):
           oc.occur(sym, id.pos)
 
           val patVal = Ident(sym)(id.span)
-          AscribePattern(patVal, nestedPattern)
+          AliasPattern(patVal, nestedPattern)
 
   private def transformExprPattern(expr: Ast.Expr, scrutType: Type)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs)
@@ -791,7 +791,7 @@ class PatternTyper(namer: Namer, checker: Checker):
         transformTagPattern(tag, nested, scrutType, pat.span)
 
       case Ast.Assign(id: Ast.Ident, nested) =>
-        transformAscribePattern(id, nested, scrutType)
+        transformAliasPattern(id, nested, scrutType)
 
       case Ast.If(cond, pattern, Ast.Block(Nil)) =>
         val pattern2 = transformPattern(pattern, scrutType)

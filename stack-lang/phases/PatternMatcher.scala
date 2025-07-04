@@ -140,7 +140,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
 
   private def transformPattern(scrut: Ident, pat: Pattern)(using Context, Source): Word =
     pat match
-      case AscribePattern(id, nested) =>
+      case AliasPattern(id, nested) =>
         val cond = transformPattern(scrut, nested)
         // It is more performant to always assign
         val assign = Assign(id, scrut.encodedAs(id.symbol.info))(pat.span)

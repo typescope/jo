@@ -86,7 +86,7 @@ object Exhaustivity:
 
   def isIrrefutable(pat: Pattern)(using defn: Definitions): Boolean =
     pat match
-      case AscribePattern(_, nested) => isIrrefutable(nested)
+      case AliasPattern(_, nested) => isIrrefutable(nested)
 
       case TypePattern(tpt) => Subtyping.isEqualType(tpt.tpe, pat.scrutineeType)
 
@@ -122,7 +122,7 @@ object Exhaustivity:
 
   def project(pattern: Pattern)(using defn: Definitions): Space =
     pattern match
-      case AscribePattern(id, nested) => project(nested)
+      case AliasPattern(id, nested) => project(nested)
 
       case TypePattern(tpt) => TypeSpace(tpt.tpe)
 

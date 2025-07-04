@@ -287,7 +287,7 @@ object Printing:
 
       case WildcardPattern() => Text("_")
 
-      case AscribePattern(id, inner) =>
+      case AliasPattern(id, inner) =>
         "(" ~ id ~ " @ " ~ inner ~ ")"
 
       case ApplyPattern(pred, nested) =>

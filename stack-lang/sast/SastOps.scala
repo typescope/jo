@@ -155,7 +155,7 @@ object SastOps:
 
     final def transform(pattern: Pattern)(using Context): Pattern =
       pattern match
-        case pat: AscribePattern => transformAscribePattern(pat)
+        case pat: AliasPattern => transformAliasPattern(pat)
 
         case pat: TypePattern => transformTypePattern(pat)
 
@@ -330,12 +330,12 @@ object SastOps:
       val funs2: List[FunDef] = funs.map(recurFunDef)
       Object(self, inits2, funs2)(obj.tpe, obj.span)
 
-    def transformAscribePattern(pat: AscribePattern)(using Context): Pattern =
-      recurAscribePattern(pat)
+    def transformAliasPattern(pat: AliasPattern)(using Context): Pattern =
+      recurAliasPattern(pat)
 
-    private def recurAscribePattern(pat: AscribePattern)(using Context): Pattern =
-      val AscribePattern(id, nested) = pat
-      AscribePattern(id, this(nested))
+    private def recurAliasPattern(pat: AliasPattern)(using Context): Pattern =
+      val AliasPattern(id, nested) = pat
+      AliasPattern(id, this(nested))
 
     def transformTypePattern(pat: TypePattern)(using Context): Pattern =
       recurTypePattern(pat)
@@ -433,7 +433,7 @@ object SastOps:
 
     def recur(pattern: Pattern)(using Context): Unit =
       pattern match
-        case AscribePattern(id, nested) =>
+        case AliasPattern(id, nested) =>
           this(nested)
 
         case TypePattern(tpt) =>
@@ -560,7 +560,7 @@ object SastOps:
 
     override def apply(pat: Pattern)(using Context): Unit =
       pat match
-        case AscribePattern(id, nested) =>
+        case AliasPattern(id, nested) =>
           locals += id.symbol
           this(nested)
 

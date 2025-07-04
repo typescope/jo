@@ -208,7 +208,7 @@ object Sast:
     def isWildcard: Boolean =
       this match
         case _: WildcardPattern => true
-        case AscribePattern(_, nested) => nested.isWildcard
+        case AliasPattern(_, nested) => nested.isWildcard
         case _ => false
 
   case class TypePattern
@@ -221,7 +221,7 @@ object Sast:
     (val scrutineeType: Type, val span: Span)
   extends Pattern
 
-  case class AscribePattern
+  case class AliasPattern
     (id: Ident, nested: Pattern)
   extends Pattern:
     val scrutineeType = nested.scrutineeType

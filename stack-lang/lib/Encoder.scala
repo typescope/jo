@@ -238,6 +238,7 @@ object Encoder:
         ~ "]"
 
       case fdef: FunDef =>
+        // TODO: local symbol definitions
         "FunDef [" ~ indent:
             encodeSymbolRef(fdef.symbol) ~ LINE_SEP ~
             "[" ~ indent:
