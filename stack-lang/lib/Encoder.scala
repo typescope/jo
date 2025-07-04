@@ -234,7 +234,7 @@ object Encoder:
             "]" ~ LINE_SEP ~
             "[" ~ indent:
                 cdef.funs.map(encodeDef).join(LINE_SEP)
-            "]" ~ Text.BreakLine
+            "]"
         ~ "]"
 
       case fdef: FunDef =>
@@ -250,7 +250,7 @@ object Encoder:
                 fdef.autos.map(encodeSymbol).join(LINE_SEP)
             "]" ~ LINE_SEP ~
             fdef.resultType ~ LINE_SEP ~
-            fdef.body ~ Text.BreakLine
+            fdef.body
         ~ "]"
 
 
@@ -264,7 +264,7 @@ object Encoder:
                 pdef.params.map(encodeSymbol).join(LINE_SEP)
             "]" ~ LINE_SEP ~
             pdef.resultType ~ LINE_SEP ~
-            pdef.body ~ Text.BreakLine
+            pdef.body
         ~ "]"
 
       case tdef: TypeDef =>
@@ -367,7 +367,108 @@ object Encoder:
       case TypeBound(lo, hi) =>
         "TypeBound [" ~ lo ~ ", " ~ hi ~ "]"
 
-  private def encodeWord(word: Word)(using Definitions, State): Text = ???
+  private def encodeWord(word: Word)(using Definitions, State): Text =
+    // TODO: span and types
+    word match
+      case Literal(const) =>
+        "Lit [" ~ encodeConstant(const) ~ "]"
+
+      case Ident(sym) =>
+        "Ident [" ~ encodeSymbolRef(sym) ~ "]"
+
+      case New(classRef, targs) =>
+        "New [" ~ classRef ~ ", [" ~ targs.join(", ") ~ "]]"
+
+      case Select(qual, name) =>
+        "Select [" ~ qual ~ ", " ~ name ~ "]"
+
+      case RecordLit(fields) =>
+        val content = fields.map:
+          case (f, rhs) => "[" ~ f ~ ", " ~ rhs ~ "]"
+
+        "Record [" ~ content.join(", ") ~ "]"
+
+      case TaggedLit(tag, args) =>
+        "Tag [" ~ tag ~ ", [" ~ args.join(", ") ~ "]]"
+
+      case Encoded(repr) =>
+        "Encoded [" ~ repr ~ ", " ~ word.tpe ~ "]"
+
+      case Apply(fun, args, autos) =>
+        "Apply [" ~ indent:
+          fun ~ LINE_SEP ~
+          "[" ~ args.join(", ") ~ "]" ~ LINE_SEP ~
+          "[" ~ autos.join(", ") ~ "]"
+        ~ "]"
+
+      case TypeApply(fun, targs) =>
+        "TypeApply [" ~ indent:
+          fun ~ LINE_SEP ~
+          "[" ~ targs.join(", ") ~ "]"
+        ~ "]"
+
+      case With(expr, args) =>
+        val bindings = args.map:
+          case Assign(ident, rhs) =>
+            "[" ~ ident ~ ", " ~ rhs ~ "]"
+
+        "With [" ~ expr ~ ", [" ~ indent:
+           bindings.join(LINE_SEP)
+        ~ "]]"
+
+      case Allow(expr, params) =>
+        "Allow [" ~ expr ~ ", [" ~ params.join(", ") ~ "]]"
+
+      case Assign(ident, rhs) =>
+        "Assign [" ~ ident ~ ", " ~ rhs ~ "]"
+
+      case FieldAssign(lhs, rhs) =>
+        "FieldAssign [" ~ lhs ~ ", " ~ rhs ~ "]"
+
+      case fdef: FunDef => encodeDef(fdef)
+
+      case tdef: TypeDef => encodeDef(tdef)
+
+      case pdef: PatDef => encodeDef(pdef)
+
+      case If(cond, thenp, elsep) =>
+        "If [" ~ indent:
+          cond ~ LINE_SEP ~
+          thenp ~ LINE_SEP ~
+          elsep
+        ~ "]"
+
+      case While(cond, body) =>
+        "While [" ~ indent:
+          cond ~ LINE_SEP ~
+          body
+        ~ "]"
+
+      case Block(words) =>
+        "Block [" ~ indent:
+          words.join(LINE_SEP)
+        ~ "]"
+
+      case Match(scrutinee, cases) =>
+        val pairs = cases.map:
+          case Case(pat, body) => "[" ~ pat ~ ", " ~ body ~ "]"
+
+        "Match [" ~ scrutinee ~ ", [" ~ indent:
+           pairs.join(LINE_SEP)
+        ~ "]]"
+
+      case Object(self, inits, defs) =>
+        // TODO: symbols for vals and defs
+        "Object [" ~ indent:
+            encodeSymbol(self) ~ LINE_SEP ~
+            "[" ~ indent:
+                inits.join(LINE_SEP)
+            ~ "]" ~ LINE_SEP ~
+            "[" ~ indent:
+                defs.map(encodeDef).join(LINE_SEP)
+            ~ "]"
+        ~ "]"
+
 
   private def encodePattern(pat: Pattern)(using Definitions, State): Text = ???
 
