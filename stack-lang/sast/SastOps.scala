@@ -169,7 +169,7 @@ object SastOps:
 
         case pat: GuardPattern => transformGuardPattern(pat)
 
-        case pat: TermBindingPattern => transformTermBindingPattern(pat)
+        case pat: BindPattern => transformBindPattern(pat)
 
         case pat: WildcardPattern => transformWildcardPattern(pat)
 
@@ -400,16 +400,16 @@ object SastOps:
 
       SeqPattern(patterns2)(pat.tpe, pat.span)
 
-    def transformTermBindingPattern(pat: TermBindingPattern)(using Context): Pattern =
-      recurTermBindingPattern(pat)
+    def transformBindPattern(pat: BindPattern)(using Context): Pattern =
+      recurBindPattern(pat)
 
-    private def recurTermBindingPattern(pat: TermBindingPattern)(using Context): Pattern =
-      val TermBindingPattern(pattern, bindings) = pat
+    private def recurBindPattern(pat: BindPattern)(using Context): Pattern =
+      val BindPattern(pattern, bindings) = pat
       val bindings2 =
         for ass @ Assign(id, rhs) <- bindings
         yield Assign(id, this(rhs))(ass.span)
 
-      TermBindingPattern(this(pattern), bindings2)
+      BindPattern(this(pattern), bindings2)
 
     def transformWildcardPattern(pat: WildcardPattern)(using Context): Pattern =
       recurWildcardPattern(pat)
@@ -455,7 +455,7 @@ object SastOps:
           this(pattern)
           this(guard)
 
-        case TermBindingPattern(pattern, bindings) =>
+        case BindPattern(pattern, bindings) =>
           this(pattern)
           for Assign(id, rhs) <- bindings do this(rhs)
 

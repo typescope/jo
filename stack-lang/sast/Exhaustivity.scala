@@ -111,7 +111,7 @@ object Exhaustivity:
 
       case _: GuardPattern => false
 
-      case TermBindingPattern(pattern, _) => isIrrefutable(pattern)
+      case BindPattern(pattern, _) => isIrrefutable(pattern)
 
   def isIrrefutable(pat: SeqPattern)(using Definitions): Boolean =
     pat.patterns.forall:
@@ -158,7 +158,7 @@ object Exhaustivity:
       case GuardPattern(pattern, _) =>
         PartialSpace(project(pattern))
 
-      case TermBindingPattern(pattern, bindings) =>
+      case BindPattern(pattern, bindings) =>
         project(pattern)
 
   def subtract(s1: Space, s2: Space)(using defn: Definitions): Space = Debug.trace(s"subtract(${s1.show}, ${s2.show})", (_: Space).show, enable = false):

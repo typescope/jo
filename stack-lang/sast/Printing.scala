@@ -305,7 +305,7 @@ object Printing:
       case GuardPattern(pattern, guard) =>
         pattern ~ " if " ~ guard
 
-      case TermBindingPattern(pattern, bindings) =>
+      case BindPattern(pattern, bindings) =>
         pattern ~ " then " ~ bindings.join(", ")
 
       case SeqPattern(patterns) =>

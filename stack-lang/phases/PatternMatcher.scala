@@ -168,7 +168,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
         val cond = transformPattern(scrut, pattern)
         If(cond, guard, BoolLit(false)(pat.span))(BoolType, pat.span)
 
-      case TermBindingPattern(pattern, bindings) =>
+      case BindPattern(pattern, bindings) =>
         val cond = transformPattern(scrut, pattern)
         val nestedBlock = Block(bindings :+ BoolLit(true)(pat.span))(BoolType, pat.span)
         If(cond, nestedBlock, BoolLit(false)(pat.span))(BoolType, pat.span)

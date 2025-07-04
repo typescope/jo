@@ -246,7 +246,7 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
   override def transformGuardPattern(pat: GuardPattern)(using ctx: Context): Pattern =
     pat.copy(pattern = this(pat.pattern), guard = checkTermInPattern(pat.guard))
 
-  override def transformTermBindingPattern(pat: TermBindingPattern)(using ctx: Context): Pattern =
+  override def transformBindPattern(pat: BindPattern)(using ctx: Context): Pattern =
     val assigns =
       for ass <- pat.bindings
       yield ass.copy(rhs = checkTermInPattern(ass.rhs))(ass.span)

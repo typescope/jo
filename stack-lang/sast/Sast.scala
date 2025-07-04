@@ -264,7 +264,7 @@ object Sast:
     val scrutineeType = pattern.scrutineeType
     val span = pattern.span | guard.span
 
-  case class TermBindingPattern
+  case class BindPattern
     (pattern: Pattern, bindings: List[Assign])
   extends Pattern:
     val scrutineeType = pattern.scrutineeType

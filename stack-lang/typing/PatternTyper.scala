@@ -818,7 +818,7 @@ class PatternTyper(namer: Namer, checker: Checker):
             bindings2 += Assign(Ident(sym)(id.span), expr2)(id.span | expr.span)
         end for
 
-        TermBindingPattern(pattern2, bindings2.toList)
+        BindPattern(pattern2, bindings2.toList)
 
       case expr: Ast.Expr =>
         transformExprPattern(expr, scrutType)
