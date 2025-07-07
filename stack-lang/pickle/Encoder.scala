@@ -129,6 +129,9 @@ object Encoder:
   private given (using Definitions, State): Text.Maker[TypeTree] =
     v => encodeTypeTree(v)
 
+  private given (using Definitions, State): Text.Maker[Symbol] =
+    v => encodeSymbolRef(v)
+
   //----------------------------------------------------------------------------
 
   def encode(ns: Namespace)(using Definitions): Text =
@@ -136,9 +139,9 @@ object Encoder:
 
     given state: State = new State(symbol)
 
-    val symbolRef = encodeSymbolRef(symbol)
+    val symbolRef = Text(symbol)
 
-    val importsData = "imports [" ~ imports.map(encodeSymbolRef).join(", ") ~ "]"
+    val importsData = "imports [" ~ imports.join(", ") ~ "]"
 
     val defsData = "defs [" ~ indent:
         defs.map(encodeDef).join(", ")
@@ -230,17 +233,17 @@ object Encoder:
     // TODO: span
     defn match
       case pdef: ParamDef =>
-        "ParamDef [" ~ encodeSymbolRef(pdef.symbol) ~ ", " ~ pdef.tpt ~ "]"
+        "ParamDef [" ~ pdef.symbol ~ ", " ~ pdef.tpt ~ "]"
 
       case cdef: ClassDef =>
         "ClassDef [" ~ indent:
-            encodeSymbolRef(cdef.symbol) ~ LINE_SEP ~
-            encodeSymbolRef(cdef.self) ~ LINE_SEP ~
+            cdef.symbol ~ LINE_SEP ~
+            cdef.self ~ LINE_SEP ~
             "[" ~ indent:
-                cdef.tparams.map(encodeSymbolRef).join(LINE_SEP)
+                cdef.tparams.join(LINE_SEP)
             ~ "]" ~ LINE_SEP ~
             "[" ~ indent:
-                cdef.vals.map(encodeSymbolRef).join(LINE_SEP)
+                cdef.vals.join(LINE_SEP)
             ~ "]" ~ LINE_SEP ~
             "[" ~ indent:
                 cdef.funs.map(encodeDef).join(LINE_SEP)
@@ -250,15 +253,15 @@ object Encoder:
       case fdef: FunDef =>
         // TODO: store local symbol definitions locally?
         "FunDef [" ~ indent:
-            encodeSymbolRef(fdef.symbol) ~ LINE_SEP ~
+            fdef.symbol ~ LINE_SEP ~
             "[" ~ indent:
-                fdef.tparams.map(encodeSymbolRef).join(LINE_SEP)
+                fdef.tparams.join(LINE_SEP)
             ~ "]" ~ LINE_SEP ~
             "[" ~ indent:
-                fdef.params.map(encodeSymbolRef).join(LINE_SEP)
+                fdef.params.join(LINE_SEP)
             ~ "]" ~ LINE_SEP ~
             "[" ~ indent:
-                fdef.autos.map(encodeSymbolRef).join(LINE_SEP)
+                fdef.autos.join(LINE_SEP)
             ~ "]" ~ LINE_SEP ~
             fdef.resultType ~ LINE_SEP ~
             fdef.body
@@ -267,23 +270,23 @@ object Encoder:
 
       case pdef: PatDef =>
         "PatDef [" ~ indent:
-            encodeSymbolRef(pdef.symbol) ~ LINE_SEP ~
+            pdef.symbol ~ LINE_SEP ~
             "[" ~ indent:
-                pdef.tparams.map(encodeSymbolRef).join(LINE_SEP)
+                pdef.tparams.join(LINE_SEP)
             ~ "]" ~ LINE_SEP ~
             "[" ~ indent:
-                pdef.params.map(encodeSymbolRef).join(LINE_SEP)
+                pdef.params.join(LINE_SEP)
             ~ "]" ~ LINE_SEP ~
             pdef.resultType ~ LINE_SEP ~
             pdef.body
         ~ "]"
 
       case tdef: TypeDef =>
-        "TypeDef [" ~ encodeSymbolRef(tdef.symbol) ~ "]"
+        "TypeDef [" ~ tdef.symbol ~ "]"
 
       case sec: Section =>
         "Section [" ~ indent:
-            encodeSymbolRef(sec.symbol) ~ LINE_SEP ~
+            sec.symbol ~ LINE_SEP ~
             "[" ~ indent:
                 sec.defs.map(encodeDef).join(LINE_SEP)
             ~ "]"
@@ -305,10 +308,10 @@ object Encoder:
       case BottomType => Text("Bottom")
 
       case StaticRef(sym) =>
-        "StaticRef [" ~ encodeSymbolRef(sym) ~ "]"
+        "StaticRef [" ~ sym ~ "]"
 
       case MemberRef(prefix, sym) =>
-        "MemberRef [" ~ prefix ~ ", " ~ encodeSymbolRef(sym) ~ "]"
+        "MemberRef [" ~ prefix ~ ", " ~ sym ~ "]"
 
       case tvar: TypeVar =>
         assert(tvar.isInstantiated, "uninstantiated type variable: " + tvar)
@@ -344,21 +347,21 @@ object Encoder:
 
         val effects: List[Symbol] = Nil // receives.asInstanceOf[Effects.Policy.CheckBound].effects
 
-        val tparamText = "tparams [" ~ tparams.map(encodeSymbolRef).join(", ") ~ "]"
+        val tparamText = "tparams [" ~ tparams.join(", ") ~ "]"
         val paramText = "params [" ~ params.map(param => "[" ~ param.name ~ ", " ~ param.info ~ "]").join(", ") ~ "]"
         val autoText = "autos [" ~ autos.map(auto => "[" ~ auto.name ~ ", " ~ auto.info ~ "]").join(", ") ~ "]"
-        val receiveText = "receives [" ~ effects.map(eff => encodeSymbolRef(eff)).join(", ") ~ "]"
+        val receiveText = "receives [" ~ effects.join(", ") ~ "]"
 
         "ProcType [" ~ indent:
           List(tparamText, paramText, autoText, encodeType(resType), receiveText, Text(preParamCount)).join("," ~ Text.BreakLine)
         ~ "]"
 
       case TypeLambda(tparams, resType, preParamCount) =>
-        val tparamText = "[" ~ tparams.map(encodeSymbolRef).join(", ") ~ "]"
+        val tparamText = "[" ~ tparams.join(", ") ~ "]"
         "TypeLambda [" ~ tparamText ~ ", " ~ resType ~ ", " ~ preParamCount ~ "]"
 
       case cinfo: ContainerInfo =>
-        "Container [" ~ cinfo.members.map(encodeSymbolRef).join("," ~ Text.BreakLine) ~ "]"
+        "Container [" ~ cinfo.members.join("," ~ Text.BreakLine) ~ "]"
 
       case ClassInfo(classSymbol, tparams, targs, self, fields, methods) =>
         targs.zip(tparams).map: (targ, tparam) =>
@@ -367,11 +370,11 @@ object Encoder:
             case tp => throw new Exception("Unexpected targ for classInfo: " + tp)
 
         "ClassInfo [" ~ indent:
-            encodeSymbolRef(classSymbol) ~ "," ~
-            "[" ~ tparams.map(encodeSymbolRef).join(", ") ~ "]," ~
-            encodeSymbolRef(self) ~ "," ~
-            "[" ~ fields.map(encodeSymbolRef).join(", ") ~ "]," ~
-            "[" ~ methods.map(encodeSymbolRef).join(", ") ~ "],"
+            classSymbol ~ "," ~
+            "[" ~ tparams.join(", ") ~ "]," ~
+            self ~ "," ~
+            "[" ~ fields.join(", ") ~ "]," ~
+            "[" ~ methods.join(", ") ~ "],"
         ~ "]"
 
 
@@ -385,7 +388,7 @@ object Encoder:
         "Lit [" ~ encodeConstant(const) ~ "]"
 
       case Ident(sym) =>
-        "Ident [" ~ encodeSymbolRef(sym) ~ "]"
+        "Ident [" ~ sym ~ "]"
 
       case New(classRef, targs) =>
         "New [" ~ classRef ~ ", [" ~ targs.join(", ") ~ "]]"
@@ -470,7 +473,7 @@ object Encoder:
 
       case Object(self, inits, defs) =>
         "Object [" ~ indent:
-            encodeSymbolRef(self) ~ LINE_SEP ~
+            self ~ LINE_SEP ~
             "[" ~ indent:
                 inits.join(LINE_SEP)
             ~ "]" ~ LINE_SEP ~
@@ -518,7 +521,7 @@ object Encoder:
 
             case star @ StarPattern(pattern) =>
               val bindings = star.bindings.map: (sym1, sym2) =>
-                "[" ~ encodeSymbolRef(sym1) ~ ", " ~ encodeSymbolRef(sym2) ~ "]"
+                "[" ~ sym1 ~ ", " ~ sym2 ~ "]"
               "StarPattern [" ~ pattern ~ ", [" ~ bindings.join(", ")  ~ "]]"
 
             case RestPattern(pattern) => "RestPattern [" ~ pattern ~ "]"
