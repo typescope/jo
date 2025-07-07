@@ -469,7 +469,6 @@ object Encoder:
         ~ "]]"
 
       case Object(self, inits, defs) =>
-        // TODO: symbols for vals and defs
         "Object [" ~ indent:
             encodeSymbolRef(self) ~ LINE_SEP ~
             "[" ~ indent:
@@ -485,7 +484,6 @@ object Encoder:
     // TODO: span
     pattern match
       case AliasPattern(id, nested) =>
-        // TODO: bound symbol
         "AliasPattern [" ~ id ~ ", " ~ nested ~ "]"
 
       case TypePattern(tpt) =>
@@ -518,9 +516,10 @@ object Encoder:
 
             case SkipToPattern(pattern) => "SkipToPattern [" ~ pattern ~ "]"
 
-            case StarPattern(pattern) =>
-              // TODO: bindings
-              "StarPattern [" ~ pattern ~ "]"
+            case star @ StarPattern(pattern) =>
+              val bindings = star.bindings.map: (sym1, sym2) =>
+                "[" ~ encodeSymbolRef(sym1) ~ ", " ~ encodeSymbolRef(sym2) ~ "]"
+              "StarPattern [" ~ pattern ~ ", [" ~ bindings.join(", ")  ~ "]]"
 
             case RestPattern(pattern) => "RestPattern [" ~ pattern ~ "]"
 
