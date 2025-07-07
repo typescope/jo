@@ -25,23 +25,28 @@ import scala.collection.mutable
   * A sample encoding looks like the following:
   *
   *       Namespace [
-  *           refs [stk.Predef.+, stk.Predef.assert],
+  *           [stk.Predef.+, stk.Predef.assert],
   *
-  *           Symbol [
-  *              4, List, [NSpace], NoOwner,
-  *              SourcePos [List.stk, 23, 43],
-  *              NameTable [...]
+  *           [
+  *             Symbol [
+  *               4, List, [NSpace], NoOwner,
+  *               SourcePos [List.stk, 23, 43],
+  *               NameTable [...]
+  *             ],
+  *             ...
   *           ],
   *
+  *           #0,
+  *
   *           imports [
-  *             NameRef [...],
-  *             NameRef [...],
+  *             Name#5,
+  *             Name#N,
   *             ...
   *           ],
   *
   *           defs [
   *             FunDef [
-  *               SymRef [...],
+  *               #N,
   *               tparams [...],
   *               params [...],
   *               autos [...],
@@ -100,7 +105,10 @@ object Encoder:
 
     def externalNameTable(using Definitions): Text =
       // TODO: store type for checking contracts
-      "refs [" ~ externalSymbols.toSeq.map(_.fullName).join(LINE_SEP) ~ "]"
+      "[" ~ externalSymbols.toSeq.map(_.fullName).join(LINE_SEP) ~ "]"
+
+    def internalSymbolTable(using State, Definitions): Text =
+      "[" ~ internalSymIds.keys.toSeq.map(Encoder.encodeSymbol).join(LINE_SEP) ~ "]"
   end State
 
   //----------------------------------------------------------------------------
@@ -129,18 +137,21 @@ object Encoder:
 
     given state: State = new State(symbol)
 
-    val symbolData = encodeSymbol(symbol)
+    val symbolRef = encodeSymbolRef(symbol)
 
     val importsData = "imports [" ~ imports.map(encodeSymbol).join(", ") ~ "]"
     val defsData = "defs [" ~ indent:
         defs.map(encodeDef).join(", ")
       ~ "]"
 
-    // must comes after imports and defs
+    // must comes after defs
+    val symsData = state.internalSymbolTable
+
+    // must comes after symbols
     val refsData = state.externalNameTable
 
     "Namespace [" ~ indent:
-        List(refsData, symbolData, importsData, defsData).join("," ~ Text.BreakLine)
+        List(refsData, symsData, symbolRef, importsData, defsData).join("," ~ Text.BreakLine)
     ~ "]"
 
   //----------------------------------------------------------------------------
@@ -181,17 +192,17 @@ object Encoder:
 
   /** Reference to a symbol
     *
-    *     SymRef [3]
+    *     #3  ==> refers the symbol whose id is 3
     *
-    *     NameRef [5]
+    *     @5  ==> refers the name table entry whose index is 5
     */
   private def encodeSymbolRef(symbol: Symbol)(using defn: Definitions, state: State): Text =
     if symbol.containedIn(state.root) then
-      "NameRef [" ~ state.getInternalSymbolId(symbol) ~ "]"
+      "#" ~ state.getInternalSymbolId(symbol)
 
     else
       assert(!symbol.isLocal, "Cannot reference external local symbol: " + symbol)
-      "SymRef [" ~ state.getExternalSymbolIndex(symbol) ~ "]"
+      "@" ~ state.getExternalSymbolIndex(symbol)
 
   private def encodeSymbolInfo(symbol: Symbol)(using defn: Definitions, state: State): Text =
     symbol.info match
@@ -222,15 +233,14 @@ object Encoder:
         "ParamDef [" ~ encodeSymbolRef(pdef.symbol) ~ ", " ~ pdef.tpt ~ "]"
 
       case cdef: ClassDef =>
-        // TODO: where to encode method symbol?
         "ClassDef [" ~ indent:
             encodeSymbolRef(cdef.symbol) ~ LINE_SEP ~
-            encodeSymbol(cdef.self) ~ LINE_SEP ~
+            encodeSymbolRef(cdef.self) ~ LINE_SEP ~
             "[" ~ indent:
-                cdef.tparams.map(encodeSymbol).join(LINE_SEP)
+                cdef.tparams.map(encodeSymbolRef).join(LINE_SEP)
             ~ "]" ~ LINE_SEP ~
             "[" ~ indent:
-                cdef.vals.map(encodeSymbol).join(LINE_SEP)
+                cdef.vals.map(encodeSymbolRef).join(LINE_SEP)
             ~ "]" ~ LINE_SEP ~
             "[" ~ indent:
                 cdef.funs.map(encodeDef).join(LINE_SEP)
@@ -238,17 +248,17 @@ object Encoder:
         ~ "]"
 
       case fdef: FunDef =>
-        // TODO: local symbol definitions
+        // TODO: store local symbol definitions locally?
         "FunDef [" ~ indent:
             encodeSymbolRef(fdef.symbol) ~ LINE_SEP ~
             "[" ~ indent:
-                fdef.tparams.map(encodeSymbol).join(LINE_SEP)
+                fdef.tparams.map(encodeSymbolRef).join(LINE_SEP)
             ~ "]" ~ LINE_SEP ~
             "[" ~ indent:
-                fdef.params.map(encodeSymbol).join(LINE_SEP)
+                fdef.params.map(encodeSymbolRef).join(LINE_SEP)
             ~ "]" ~ LINE_SEP ~
             "[" ~ indent:
-                fdef.autos.map(encodeSymbol).join(LINE_SEP)
+                fdef.autos.map(encodeSymbolRef).join(LINE_SEP)
             ~ "]" ~ LINE_SEP ~
             fdef.resultType ~ LINE_SEP ~
             fdef.body
@@ -259,17 +269,17 @@ object Encoder:
         "PatDef [" ~ indent:
             encodeSymbolRef(pdef.symbol) ~ LINE_SEP ~
             "[" ~ indent:
-                pdef.tparams.map(encodeSymbol).join(LINE_SEP)
+                pdef.tparams.map(encodeSymbolRef).join(LINE_SEP)
             ~ "]" ~ LINE_SEP ~
             "[" ~ indent:
-                pdef.params.map(encodeSymbol).join(LINE_SEP)
+                pdef.params.map(encodeSymbolRef).join(LINE_SEP)
             ~ "]" ~ LINE_SEP ~
             pdef.resultType ~ LINE_SEP ~
             pdef.body
         ~ "]"
 
       case tdef: TypeDef =>
-        "TypeDef [" ~ encodeSymbol(tdef.symbol) ~ "]"
+        "TypeDef [" ~ encodeSymbolRef(tdef.symbol) ~ "]"
 
       case sec: Section =>
         "Section [" ~ indent:
@@ -348,7 +358,7 @@ object Encoder:
         "TypeLambda [" ~ tparamText ~ ", " ~ resType ~ ", " ~ preParamCount ~ "]"
 
       case cinfo: ContainerInfo =>
-        "Container [" ~ cinfo.members.map(encodeSymbol).join("," ~ Text.BreakLine) ~ "]"
+        "Container [" ~ cinfo.members.map(encodeSymbolRef).join("," ~ Text.BreakLine) ~ "]"
 
       case ClassInfo(classSymbol, tparams, targs, self, fields, methods) =>
         targs.zip(tparams).map: (targ, tparam) =>
@@ -461,7 +471,7 @@ object Encoder:
       case Object(self, inits, defs) =>
         // TODO: symbols for vals and defs
         "Object [" ~ indent:
-            encodeSymbol(self) ~ LINE_SEP ~
+            encodeSymbolRef(self) ~ LINE_SEP ~
             "[" ~ indent:
                 inits.join(LINE_SEP)
             ~ "]" ~ LINE_SEP ~
