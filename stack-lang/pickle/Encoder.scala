@@ -39,8 +39,7 @@ import scala.collection.mutable
   *           #0,
   *
   *           imports [
-  *             Name#5,
-  *             Name#N,
+  *             #5,
   *             ...
   *           ],
   *
@@ -139,7 +138,8 @@ object Encoder:
 
     val symbolRef = encodeSymbolRef(symbol)
 
-    val importsData = "imports [" ~ imports.map(encodeSymbol).join(", ") ~ "]"
+    val importsData = "imports [" ~ imports.map(encodeSymbolRef).join(", ") ~ "]"
+
     val defsData = "defs [" ~ indent:
         defs.map(encodeDef).join(", ")
       ~ "]"
