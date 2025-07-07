@@ -203,7 +203,7 @@ object Encoder:
         encodeType(info)
 
   private def encodeFlags(flags: Flags)(using Definitions, State): Text =
-    flags.toStrings.join(", ")
+    "[" ~ flags.toStrings.join(", ") ~ "]"
 
   private def encodeKind(kind: Kind)(using Definitions, State): Text =
     kind match

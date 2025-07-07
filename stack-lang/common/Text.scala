@@ -55,7 +55,9 @@ enum Text:
           pw.print(line)
           isNewLine = line.endsWith("\n")
     end convert
+
     convert(this)
+    pw.flush()
 
 end Text
 
