@@ -228,13 +228,13 @@ object Encoder:
             encodeSymbol(cdef.self) ~ LINE_SEP ~
             "[" ~ indent:
                 cdef.tparams.map(encodeSymbol).join(LINE_SEP)
-            "]" ~ LINE_SEP ~
+            ~ "]" ~ LINE_SEP ~
             "[" ~ indent:
                 cdef.vals.map(encodeSymbol).join(LINE_SEP)
-            "]" ~ LINE_SEP ~
+            ~ "]" ~ LINE_SEP ~
             "[" ~ indent:
                 cdef.funs.map(encodeDef).join(LINE_SEP)
-            "]"
+            ~ "]"
         ~ "]"
 
       case fdef: FunDef =>
@@ -243,13 +243,13 @@ object Encoder:
             encodeSymbolRef(fdef.symbol) ~ LINE_SEP ~
             "[" ~ indent:
                 fdef.tparams.map(encodeSymbol).join(LINE_SEP)
-            "]" ~ LINE_SEP ~
+            ~ "]" ~ LINE_SEP ~
             "[" ~ indent:
                 fdef.params.map(encodeSymbol).join(LINE_SEP)
-            "]" ~ LINE_SEP ~
+            ~ "]" ~ LINE_SEP ~
             "[" ~ indent:
                 fdef.autos.map(encodeSymbol).join(LINE_SEP)
-            "]" ~ LINE_SEP ~
+            ~ "]" ~ LINE_SEP ~
             fdef.resultType ~ LINE_SEP ~
             fdef.body
         ~ "]"
@@ -260,10 +260,10 @@ object Encoder:
             encodeSymbolRef(pdef.symbol) ~ LINE_SEP ~
             "[" ~ indent:
                 pdef.tparams.map(encodeSymbol).join(LINE_SEP)
-            "]" ~ LINE_SEP ~
+            ~ "]" ~ LINE_SEP ~
             "[" ~ indent:
                 pdef.params.map(encodeSymbol).join(LINE_SEP)
-            "]" ~ LINE_SEP ~
+            ~ "]" ~ LINE_SEP ~
             pdef.resultType ~ LINE_SEP ~
             pdef.body
         ~ "]"
@@ -309,7 +309,7 @@ object Encoder:
 
       case RecordType(fields) =>
         "RecordType [" ~ indent:
-            fields.map(f => f.name ~ ": " ~ f.info).join(", " ~ Text.BreakLine)
+          fields.map(f => f.name ~ ": " ~ f.info).join(", " ~ Text.BreakLine)
         ~ "]"
 
       case UnionType(branches) =>
@@ -340,7 +340,7 @@ object Encoder:
         val receiveText = "receives [" ~ effects.map(eff => encodeSymbolRef(eff)).join(", ") ~ "]"
 
         "ProcType [" ~ indent:
-            List(tparamText, paramText, autoText, encodeType(resType), receiveText, Text(preParamCount)).join("," ~ Text.BreakLine)
+          List(tparamText, paramText, autoText, encodeType(resType), receiveText, Text(preParamCount)).join("," ~ Text.BreakLine)
         ~ "]"
 
       case TypeLambda(tparams, resType, preParamCount) =>
