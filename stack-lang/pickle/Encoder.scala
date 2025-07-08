@@ -15,12 +15,55 @@ import scala.collection.mutable
 
 /** Encode trees, symbols and types
   *
+  * The format is based on the following design:
   *
-  * Internal symbols (local/top-level symbols) are uniquely identified by IDs
-  * between definition site and usage site. The IDs are only valid within the
-  * namespace during encoding and decoding.
+  * == Internal Symbols
   *
-  * External symbols are uniquely identified by the full path to the symbols.
+  *   Internal symbols (local/top-level symbols) are uniquely identified by IDs
+  *   between definition sites and usage sites. The IDs are only valid within
+  *   the namespace during encoding and decoding.
+  *
+  *   A global symbol table is used for all internal symbols.
+  *
+  *   An alternative design is to use the address of the definition as the ID
+  *   of the symbol. That would require backpatch forward symbols which are
+  *   referred in the code parts before they are serialized. This design could
+  *   reduce file size and remove the need for a global table. This approach
+  *   might be pursued in the final design.
+  *
+  * == External symbols
+  *
+  *   Extenral symbols are identified by full paths to the symbols. A global
+  *   name table is used for all external references.
+  *
+  *   For linking safety, an external name reference should also store its type.
+  *   However, that may bloat file sizes.
+  *
+  * == Information of Symbols
+  *
+  *   Symbol infos (owner and type) are reconstructed from trees. Flags and
+  *   kinds are stored directly.
+  *
+  *   Duplicated copies are envisioned for doc/IDE tools in the future.
+  *
+  * == Types of trees
+  *
+  *   Types of trees are reconstructed from leaf nodes. The type is represented
+  *   explicitly if reconstruction is not possible.
+  *
+  * == Positions of trees
+  *
+  *    Positions of trees are represented by an absolute offset to the beginning
+  *    of the source file and its length. The representation can be mapped to
+  *    line numbers and column numbers based on a lines table.
+  *
+  *    A lines table store the length of each line for the source file.
+  *
+  *    Positions may take a lot of spaces in the file. Optimizations are
+  *    possible given that
+  *
+  *    - line numbers are not useful for tree nodes that span multiple lines
+  *    - positions can be reconstructed from child nodes in many cases
   *
   * A sample encoding looks like the following:
   *
@@ -30,8 +73,7 @@ import scala.collection.mutable
   *           [
   *             Symbol [
   *               4, List, [NSpace], NoOwner,
-  *               SourcePos [List.stk, 23, 43],
-  *               NameTable [...]
+  *               SourcePos [List.stk, 23, 43]
   *             ],
   *             ...
   *           ],
