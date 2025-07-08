@@ -428,9 +428,8 @@ class Namer:
     given sc2: Scope = thisScope.freshPrefixedScope(prefix = thisSym, owner = thisSym)
 
     for case vdef: Ast.ValDef <- obj.members do
-      var flags = checker.checkModifiers(vdef)
-      if vdef.mutable then flags = flags | Flags.Field | Flags.Mutable
-      else flags = flags | Flags.Field
+      var flags = checker.checkModifiers(vdef) | Flags.Field
+      if vdef.mutable then flags = flags | Flags.Mutable
 
       // Using the outer scope to check field bodies
       given Scope = sc
@@ -448,7 +447,7 @@ class Namer:
         transform(vdef.rhs)
 
       val tp: Type =
-        if vdef.tpt.isEmpty then rhs.tpe else givenType
+        if vdef.tpt.isEmpty then rhs.tpe.widen else givenType
 
       val sym = Symbol.createSymbol(vdef.name, tp, flags, thisSym, vdef.ident.pos)
       sc2.define(sym)
@@ -1067,8 +1066,10 @@ class Namer:
        given TargetType = bodyTargetType
        transform(body)
 
+     val resultType = bodyTyped.tpe.widen
+
      // Provide type info for the function symbol
-     val procType = ProcType(tparams = Nil, paramSyms.map(_.toNamedInfo), autos = Nil, bodyTyped.tpe, effectsPolicy, preParamCount = 0)
+     val procType = ProcType(tparams = Nil, paramSyms.map(_.toNamedInfo), autos = Nil, resultType, effectsPolicy, preParamCount = 0)
      defn.add(funSym, thisSym, procType)
 
      for (tvar, param) <- tvars do
@@ -1249,7 +1250,7 @@ class Namer:
       if !funDef.resultType.isEmpty then
         givenResultType
       else
-        typedBody.tpe
+        typedBody.tpe.widen
       end if
 
     lazy val typedBody =
