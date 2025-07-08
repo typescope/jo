@@ -10,7 +10,9 @@ import stk.IO
 // [-128, 127]
 type Byte
 
-// [0, 65535]
+// Represents a Unicode point.
+//
+// The type is supposed to be abstract and its implementation is platform-dependent.
 type Char
 
 type Unit = {}

@@ -5,8 +5,6 @@ import Symbols.Symbol
 import Types.*
 
 
-import reporting.Reporter
-
 import scala.collection.mutable
 
 object SastOps:
@@ -68,36 +66,35 @@ object SastOps:
     else
       origType
 
-  def coerceNumeric(word: Word, targetType: Type)(using defn: Definitions): Word =
+  /** Adapt the word to the target type
+    *
+    *     Byte ==> Int
+    *     Char ==> Int
+    *
+    * Assumption: The tye of the word does not conform to the target type.
+    */
+  private def coerceNumeric(word: Word, targetType: Type)(using defn: Definitions): Word =
+    def fail() = throw new AdaptionFailure(word, targetType)
+
     val origType = word.tpe
     if origType.refers(defn.Predef_Byte) then
-      if targetType.refers(defn.Predef_Char) then
-        val byteToChar = Ident(defn.Predef_byteToChar)(word.span)
-        Apply(byteToChar, word :: Nil, autos = Nil)(targetType, word.span)
-
-      else if targetType.refers(defn.Int_Int) then
+      if targetType.refers(defn.Int_Int) then
         val byteToInt = Ident(defn.Predef_byteToInt)(word.span)
         Apply(byteToInt, word :: Nil, autos = Nil)(targetType, word.span)
 
       else
-        Reporter.abortInternal("Unexpected numeric type " + targetType.show)
+        fail()
 
     else if origType.refers(defn.Predef_Char) then
-      if targetType.refers(defn.Predef_Byte) then
-        word
-
-      else if targetType.refers(defn.Int_Int) then
+      if targetType.refers(defn.Int_Int) then
         val charToInt = Ident(defn.Predef_charToInt)(word.span)
         Apply(charToInt, word :: Nil, autos = Nil)(targetType, word.span)
 
       else
-        Reporter.abortInternal("Unexpected numeric type " + targetType.show)
-
-    else if origType.refers(defn.Int_Int) then
-      word
+        fail()
 
     else
-      Reporter.abortInternal("Unexpected numeric type " + origType.show)
+      fail()
 
   abstract class TreeMap(using Definitions):
     type Context
