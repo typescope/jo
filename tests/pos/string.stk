@@ -39,7 +39,7 @@ def coercion =
   // byte
   val b: Byte = 45
   b p
-  printChar b
+  printChar (byteToChar b)
   printChar '\n'
 
   // char
