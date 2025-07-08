@@ -210,13 +210,6 @@ class Checker(namer: Namer):
         Reporter.error(s"Cannot find common result type, tp1 = ${tp1.show}, tp2 = ${tp2.show}", pos)
         ErrorType
 
-  def widen(word: Word)(using Definitions): Word = word.tpe match
-    case StaticRef(sym) if !sym.isType =>
-      Encoded(word)(sym.info)
-
-    case _ =>
-      word
-
   def adaptNoArgs(word: Word, procType: ProcType, targetType: TargetType)(using Definitions, Scope, Reporter, Source): Word =
     val isParameterlessCall =
       procType.paramCount == 0 && targetType.match
@@ -292,11 +285,11 @@ class Checker(namer: Namer):
           SastOps.adapt(word2, defn.UnitType)
         else
           checkValueType(word2)
-          widen(word2)
+          word2
 
       case TargetType.Known(tpe) =>
         try
-          val wordAdapted = widen(SastOps.adapt(word2, tpe))
+          val wordAdapted = SastOps.adapt(word2, tpe)
           checkType(wordAdapted, tpe)
           wordAdapted
 

@@ -832,8 +832,9 @@ class Namer:
 
         checker.checkMutable(sym, id.pos)
 
-        given TargetType = TargetType.Known(sym.info)
-        val rhs2 = transform(rhs)
+        val rhs2 =
+          given TargetType = TargetType.Known(sym.info)
+          transform(rhs)
 
         if sym.isField then
           // Normalize SAST
@@ -1127,7 +1128,8 @@ class Namer:
       transform(vdef.rhs)
 
     val tp: Type =
-      if vdef.tpt.isEmpty then rhs.tpe else givenType
+      if vdef.tpt.isEmpty then rhs.tpe.widen
+      else givenType
 
     defn.add(sym, sc.owner, tp)
 

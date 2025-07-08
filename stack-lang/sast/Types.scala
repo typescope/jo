@@ -127,6 +127,8 @@ object Types:
         case constType: ConstantType => constType.underlying
         case _ => this
 
+    def widen(using Definitions): Type = widenTermRef.widenConstType
+
     def asRecordType(using Definitions): RecordType =
       this.approx.asInstanceOf[RecordType]
 
