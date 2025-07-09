@@ -192,7 +192,7 @@ object Encoder:
 
     val symbolRef = Text(symbol)
 
-    val importsData = "imports [" ~ imports.join(",") ~ "]"
+    val importsData = "imports [" ~ internalRefs(imports) ~ "]"
 
     val defsData = "defs [" ~ indent:
         defs.map(encodeDef).join(",")
@@ -263,6 +263,12 @@ object Encoder:
       assert(!symbol.isLocal, "Cannot reference external local symbol: " + symbol)
       "@" ~ state.getExternalSymbolIndex(symbol)
 
+  private def internalRefs(symbols: List[Symbol])(using state: State): Text =
+    symbols.map(state.getInternalSymbolId).join(",")
+
+  private def internalRef(symbol: Symbol)(using state: State): Text =
+    Text(state.getInternalSymbolId(symbol))
+
   private def encodeSymbolInfo(symbol: Symbol)(using defn: Definitions, state: State): Text =
     symbol.info match
       case procType: ProcType =>
@@ -289,18 +295,14 @@ object Encoder:
     // TODO: span
     defn match
       case pdef: ParamDef =>
-        "ParamDef [" ~ pdef.symbol ~ "," ~ pdef.tpt ~ "]"
+        "ParamDef [" ~ internalRef(pdef.symbol) ~ "," ~ pdef.tpt ~ "]"
 
       case cdef: ClassDef =>
         "ClassDef [" ~ indent:
-            cdef.symbol ~ LINE_SEP ~
-            cdef.self ~ LINE_SEP ~
-            "[" ~ indent:
-                cdef.tparams.join(LINE_SEP)
-            ~ "]" ~ LINE_SEP ~
-            "[" ~ indent:
-                cdef.vals.join(LINE_SEP)
-            ~ "]" ~ LINE_SEP ~
+            internalRef(cdef.symbol) ~ LINE_SEP ~
+            internalRef(cdef.self) ~ LINE_SEP ~
+            "[" ~ internalRefs(cdef.tparams) ~ "]" ~ LINE_SEP ~
+            "[" ~ internalRefs(cdef.vals) ~ "]" ~ LINE_SEP ~
             "[" ~ indent:
                 cdef.funs.map(encodeDef).join(LINE_SEP)
             ~ "]"
@@ -309,16 +311,10 @@ object Encoder:
       case fdef: FunDef =>
         // TODO: store local symbol definitions locally?
         "FunDef [" ~ indent:
-            fdef.symbol ~ LINE_SEP ~
-            "[" ~ indent:
-                fdef.tparams.join(LINE_SEP)
-            ~ "]" ~ LINE_SEP ~
-            "[" ~ indent:
-                fdef.params.join(LINE_SEP)
-            ~ "]" ~ LINE_SEP ~
-            "[" ~ indent:
-                fdef.autos.join(LINE_SEP)
-            ~ "]" ~ LINE_SEP ~
+            internalRef(fdef.symbol) ~ LINE_SEP ~
+            "[" ~ internalRefs(fdef.tparams) ~ "]" ~ LINE_SEP ~
+            "[" ~ internalRefs(fdef.params) ~ "]" ~ LINE_SEP ~
+            "[" ~ internalRefs(fdef.autos) ~ "]" ~ LINE_SEP ~
             fdef.resultType ~ LINE_SEP ~
             fdef.body
         ~ "]"
@@ -326,23 +322,19 @@ object Encoder:
 
       case pdef: PatDef =>
         "PatDef [" ~ indent:
-            pdef.symbol ~ LINE_SEP ~
-            "[" ~ indent:
-                pdef.tparams.join(LINE_SEP)
-            ~ "]" ~ LINE_SEP ~
-            "[" ~ indent:
-                pdef.params.join(LINE_SEP)
-            ~ "]" ~ LINE_SEP ~
+            internalRef(pdef.symbol) ~ LINE_SEP ~
+            "[" ~ internalRefs(pdef.tparams) ~ "]" ~ LINE_SEP ~
+            "[" ~ internalRefs(pdef.params) ~ "]" ~ LINE_SEP ~
             pdef.resultType ~ LINE_SEP ~
             pdef.body
         ~ "]"
 
       case tdef: TypeDef =>
-        "TypeDef [" ~ tdef.symbol ~ "]"
+        "TypeDef [" ~ internalRef(tdef.symbol) ~ "]"
 
       case sec: Section =>
         "Section [" ~ indent:
-            sec.symbol ~ LINE_SEP ~
+            internalRef(sec.symbol) ~ LINE_SEP ~
             "[" ~ indent:
                 sec.defs.map(encodeDef).join(LINE_SEP)
             ~ "]"
@@ -417,7 +409,7 @@ object Encoder:
         "TypeLambda [" ~ tparamText ~ "," ~ resType ~ "," ~ preParamCount ~ "]"
 
       case cinfo: ContainerInfo =>
-        "Container [" ~ cinfo.members.join("," ~ Text.BreakLine) ~ "]"
+        "Container [" ~ internalRefs(cinfo.members) ~ "]"
 
       case ClassInfo(classSymbol, tparams, targs, self, fields, methods) =>
         targs.zip(tparams).map: (targ, tparam) =>
@@ -427,10 +419,10 @@ object Encoder:
 
         "ClassInfo [" ~ indent:
             classSymbol ~ "," ~
-            "[" ~ tparams.join(",") ~ "]," ~
+            "[" ~ internalRefs(tparams) ~ "]," ~
             self ~ "," ~
-            "[" ~ fields.join(",") ~ "]," ~
-            "[" ~ methods.join(",") ~ "],"
+            "[" ~ internalRefs(fields) ~ "]," ~
+            "[" ~ internalRefs(methods) ~ "],"
         ~ "]"
 
 
@@ -529,10 +521,8 @@ object Encoder:
 
       case Object(self, inits, defs) =>
         "Object [" ~ indent:
-            self ~ LINE_SEP ~
-            "[" ~ indent:
-                inits.join(LINE_SEP)
-            ~ "]" ~ LINE_SEP ~
+            internalRef(self) ~ LINE_SEP ~
+            "[" ~ inits.join(",") ~ "]" ~ LINE_SEP ~
             "[" ~ indent:
                 defs.map(encodeDef).join(LINE_SEP)
             ~ "]"
