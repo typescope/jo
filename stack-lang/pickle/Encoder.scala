@@ -10,6 +10,7 @@ import sast.Symbols.*
 import common.Text
 import common.Text.*
 import common.StringUtil
+import common.Base64
 
 import scala.collection.mutable
 
@@ -174,6 +175,8 @@ object Encoder:
 
   private given (using Definitions, State): Text.Maker[Symbol] =
     v => encodeSymbolRef(v)
+
+  private given Maker[Int] = (v) => Text.Atom(Base64.intToBase64(v))
 
   //----------------------------------------------------------------------------
 

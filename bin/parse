@@ -5,6 +5,7 @@ files=(
     stack-lang/ast/Name.scala
     stack-lang/ast/Positions.scala
     stack-lang/ast/Printing.scala
+    stack-lang/common/Base64.scala
     stack-lang/common/Debug.scala
     stack-lang/common/KeyProps.scala
     stack-lang/common/IO.scala
