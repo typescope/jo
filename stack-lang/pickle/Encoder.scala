@@ -39,12 +39,13 @@ import scala.collection.mutable
   *   For linking safety, an external name reference should also store its type.
   *   However, that may bloat file sizes.
   *
-  * == Information of Symbols
+  * == Information of symbols
   *
   *   Symbol infos (owner and type) are reconstructed from trees. Flags and
   *   kinds are stored directly.
   *
-  *   Duplicated copies are envisioned for doc/IDE tools in the future.
+  *   Duplicated copies are envisioned for language tools (e.g. doc/IDE) in the
+  *   future.
   *
   * == Types of trees
   *
@@ -57,7 +58,7 @@ import scala.collection.mutable
   *    of the source file and its length. The representation can be mapped to
   *    line numbers and column numbers based on a lines table.
   *
-  *    A lines table store the length of each line for the source file.
+  *    A lines table stores the length of lines in the source file.
   *
   *    Positions may take a lot of spaces in the file. Optimizations are
   *    possible given that
@@ -73,7 +74,7 @@ import scala.collection.mutable
   *           [
   *             Symbol [
   *               4, List, [NSpace], NoOwner,
-  *               SourcePos [List.stk, 23, 43]
+  *               [23, 43]
   *             ],
   *             ...
   *           ],
@@ -189,6 +190,8 @@ object Encoder:
         defs.map(encodeDef).join(", ")
       ~ "]"
 
+    val source = Text(symbol.sourcePos.source.file)
+
     // must comes after defs
     val symsData = state.internalSymbolTable
 
@@ -196,7 +199,7 @@ object Encoder:
     val refsData = state.externalNameTable
 
     "Namespace [" ~ indent:
-        List(refsData, symsData, symbolRef, importsData, defsData).join("," ~ Text.BreakLine)
+        List(source, refsData, symsData, symbolRef, importsData, defsData).join("," ~ Text.BreakLine)
     ~ "]"
 
   //----------------------------------------------------------------------------
@@ -210,27 +213,30 @@ object Encoder:
     val ownerText =
       if symbol.owner == null then Text("NoOwner") else encodeSymbolRef(symbol.owner)
 
+    val flags = encodeFlags(symbol.flags)
+    val pos = "[" ~ symbol.sourcePos.start ~ ", " ~ symbol.sourcePos.length ~ "]"
+
     symbol match
       case tsym: TypeSymbol =>
         // TypeSymbol [id, name, flags, kind, owner ref, source pos, info]
         "TypeSymbol [" ~ indent:
             id ~ ", " ~
             tsym.name ~ ", " ~
-            encodeFlags(tsym.flags) ~ ", " ~
+            flags ~ ", " ~
             encodeKind(tsym.kind) ~ ", " ~
             ownerText ~ ", " ~
-            encodePosition(tsym.sourcePos) ~ ", " ~
+            pos ~ ", " ~
             encodeSymbolInfo(tsym)
         ~ "]"
 
       case _ =>
         // Symbol [id, name, flags, owner ref, source pos, info]
         "Symbol [" ~ indent:
-            id ~ ", " ~
-            symbol.name ~ ", " ~
-            encodeFlags(symbol.flags) ~ ", " ~
-            ownerText ~ ", " ~
-            encodePosition(symbol.sourcePos) ~ ", " ~
+            id ~ LINE_SEP ~
+            symbol.name ~ LINE_SEP ~
+            flags ~ LINE_SEP ~
+            ownerText ~ LINE_SEP ~
+            pos ~ LINE_SEP ~
             encodeSymbolInfo(symbol)
         ~ "]"
 
@@ -584,10 +590,3 @@ object Encoder:
       case Constant.String(value) =>
         val byteSize = StringUtil.utf8Length(value)
         "String [" ~ byteSize.toString ~ ":"  ~ value ~ "]"
-
-  private def encodePosition(pos: SourcePosition)(using Definitions, State): Text =
-    "SourcePosition [" ~ indent:
-        pos.source.file ~ "," ~
-        "Start [" ~ pos.startLine ~ ", " ~ pos.startLineColumn ~ "]," ~
-        "End [" ~ pos.endLine ~ ", " ~ pos.endLineColumn ~ "],"
-    ~ "]"
