@@ -190,7 +190,7 @@ object Encoder:
         defs.map(encodeDef).join(", ")
       ~ "]"
 
-    val source = Text(symbol.sourcePos.source.file)
+    val source = encodeSource(symbol.sourcePos.source)
 
     // must comes after defs
     val symsData = state.internalSymbolTable
@@ -590,3 +590,7 @@ object Encoder:
       case Constant.String(value) =>
         val byteSize = StringUtil.utf8Length(value)
         "String [" ~ byteSize.toString ~ ":"  ~ value ~ "]"
+
+  /** Encode line lengths as comma-separated hexadecimal */
+  private def encodeSource(source: Source): Text =
+    "[" ~ source.file ~ ", " ~ source.lineLengths.join("|") ~ "]"

@@ -71,6 +71,20 @@ object Positions:
 
     def content: String = IO.fileContent(file)
 
+    lazy val lineLengths: Iterable[Int] =
+      val lens = new mutable.ArrayBuffer[Int]
+      var i = 1
+      var lastOffset = 0
+
+      while i < lineOffsets.size do
+        val offset = lineOffsets(i)
+        val len = offset - lastOffset
+        lens += len
+        i += 1
+        lastOffset = offset
+
+      lens
+
     def addLineOffset(offset: Int): Unit =
       assert(lineOffsets.isEmpty || offset > lineOffsets.last, "offset = " + offset + ", " + lineOffsets.last)
       lineOffsets += offset
