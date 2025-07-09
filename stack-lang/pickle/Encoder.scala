@@ -228,12 +228,12 @@ object Encoder:
       case tsym: TypeSymbol =>
         // TypeSymbol [id, name, flags, kind, owner ref, source pos, info]
         "TypeSymbol [" ~ indent:
-            id ~ "," ~
-            tsym.name ~ "," ~
-            flags ~ "," ~
-            encodeKind(tsym.kind) ~ "," ~
-            ownerText ~ "," ~
-            pos ~ "," ~
+            id ~ LINE_SEP ~
+            tsym.name ~ LINE_SEP ~
+            flags ~ LINE_SEP ~
+            encodeKind(tsym.kind) ~ LINE_SEP ~
+            ownerText ~ LINE_SEP ~
+            pos ~ LINE_SEP ~
             encodeSymbolInfo(tsym)
         ~ "]"
 
@@ -601,4 +601,4 @@ object Encoder:
 
   /** Encode line lengths as comma-separated hexadecimal */
   private def encodeSource(source: Source): Text =
-    "[" ~ source.file ~ "," ~ source.lineLengths.join("|") ~ "]"
+    "[" ~ source.file ~ "," ~ source.lineLengths.map(Base64.intToBase64).join("|") ~ "]"
