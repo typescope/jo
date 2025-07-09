@@ -40,6 +40,11 @@ import scala.collection.mutable
   *   For linking safety, an external name reference should also store its type.
   *   However, that may bloat file sizes.
   *
+  *   ZIP is very good at reducing duplicate strings, so no effort is made in
+  *   reducing duplication in names.
+  *
+  *   See https://en.wikipedia.org/wiki/Deflate
+  *
   * == Information of symbols
   *
   *   Symbol infos (owner and type) are reconstructed from trees. Flags and
