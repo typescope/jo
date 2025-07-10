@@ -205,8 +205,6 @@ object Encoder:
 
     val symbolRef = Text(symbol)
 
-    val importsData = "imports [" ~ internalRefs(imports) ~ "]"
-
     val defsData = "defs [" ~ indent:
         defs.map(encodeDef).join(",")
       ~ "]"
@@ -220,7 +218,7 @@ object Encoder:
     val refsData = state.externalNameTable
 
     "Namespace [" ~ indent:
-        List(source, refsData, symsData, symbolRef, importsData, defsData).join("," ~ Text.BreakLine)
+        List(source, refsData, symsData, symbolRef, defsData).join("," ~ Text.BreakLine)
     ~ "]"
 
   //----------------------------------------------------------------------------
