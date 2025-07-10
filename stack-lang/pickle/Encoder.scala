@@ -60,17 +60,30 @@ import scala.collection.mutable
   *
   * == Positions of trees
   *
-  *    Positions of trees are represented by an absolute offset to the beginning
-  *    of the source file and its length. The representation can be mapped to
-  *    line numbers and column numbers based on a lines table.
+  *    Positions of trees in the compiler are represented by an absolute offset
+  *    to the beginning of the source file and its length. The representation
+  *    can be mapped to line numbers and column numbers based on a lines table.
   *
-  *    A lines table stores the length of lines in the source file.
+  *    A lines table stores the length of lines in the source file. The line
+  *    table is stored compactly based on basee64 encoding of each individual
+  *    line length. As most lines are less than 64 columns, a single character
+  *    suffices for most lines. Taking the obligatory 1 byte separator into
+  *    consideration, 2 bytes per line is still cheaper than binary encoding
+  *    which takes 4 bytes per line.
   *
-  *    Positions may take a lot of spaces in the file. Optimizations are
-  *    possible given that
+  *    Positions of trees take a lot of spaces in the file. Given that
   *
-  *    - line numbers are not useful for tree nodes that span multiple lines
-  *    - positions can be reconstructed from child nodes in many cases
+  *    - the offset of a tree is usually within a small delta compared to that
+  *      of its previous tree (starting offset of parent for the first children,
+  *      ending offset of the preceding sibling tree otherwise), and
+
+  *    - the length of a tree is usually within a small delta compared to the
+  *      total length of its children,
+  *
+  *    we can represent the starting offset and length of trees as deltas, where
+  *    1 byte representation based base64 encoding for each delta suffices. With
+  *    the separator, it is 3 bytes per tree, which is much cheaper than binary
+  *    encoding which takes usually 8 bytes per tree.
   *
   * A sample encoding looks like the following:
   *
