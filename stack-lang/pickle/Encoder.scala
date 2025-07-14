@@ -65,25 +65,25 @@ import scala.collection.mutable
   *    can be mapped to line numbers and column numbers based on a lines table.
   *
   *    A lines table stores the length of lines in the source file. The line
-  *    table is stored compactly based on basee64 encoding of each individual
-  *    line length. As most lines are less than 64 columns, a single character
+  *    table is encoded compactly based on base64 encoding of each individual
+  *    line length. As lines are mostly less than 64 columns, a single character
   *    suffices for most lines. Taking the obligatory 1 byte separator into
   *    consideration, 2 bytes per line is still cheaper than binary encoding
   *    which takes 4 bytes per line.
   *
-  *    Positions of trees take a lot of spaces in the file. Given that
+  *    Positions of trees can take a lot of spaces in the file. Given that
   *
   *    - the offset of a tree is usually within a small delta compared to that
   *      of its previous tree (starting offset of parent for the first children,
   *      ending offset of the preceding sibling tree otherwise), and
-
+  *
   *    - the length of a tree is usually within a small delta compared to the
   *      total length of its children,
   *
-  *    we can represent the starting offset and length of trees as deltas, where
-  *    1 byte representation based base64 encoding for each delta suffices. With
-  *    the separator, it is 3 bytes per tree, which is much cheaper than binary
-  *    encoding which takes usually 8 bytes per tree.
+  *    we represent the offset and length of a tree as two deltas, where 1 byte
+  *    suffices for each delta based on base64 encoding. With the separator, it
+  *    is 4 bytes per tree, which is cheaper than binary encoding which takes
+  *    usually 8 bytes per tree.
   *
   * A sample encoding looks like the following:
   *
@@ -99,11 +99,6 @@ import scala.collection.mutable
   *           ],
   *
   *           #0,
-  *
-  *           imports [
-  *             #5,
-  *             ...
-  *           ],
   *
   *           defs [
   *             FunDef [
@@ -143,6 +138,29 @@ object Encoder:
     private val internalSymIds = mutable.Map.empty[Symbol, Int]
 
     private var internalSymbolCount = 0
+
+    /** Ending offset of the last sast node */
+    private var lastEndingOffset = 0
+
+    /** The length of direct children of a sast node */
+    private var childrenLength = 0
+
+    def getLastEndingOffset = lastEndingOffset
+
+    def getChildrenLength = childrenLength
+
+    /** Maintaining last ending offset and children length
+      *
+      * The method should be called for each positioned node and the actual
+      * encoding should happen in the supplied function `fn`.
+      */
+    def withPositioned[T](node: Positioned)(fn: => T): T =
+      val oldLength = childrenLength
+      childrenLength = 0
+      val res = fn
+      lastEndingOffset = node.span.endOffset
+      childrenLength = oldLength + node.span.length
+      res
 
     def getExternalSymbolIndex(sym: Symbol): Int =
       val index = externalSymbols.indexOf(sym)
@@ -203,7 +221,7 @@ object Encoder:
 
     given state: State = new State(symbol)
 
-    val symbolRef = Text(symbol)
+    val symbolRef = internalRef(symbol)
 
     val defsData = "defs [" ~ indent:
         defs.map(encodeDef).join(",")
@@ -233,7 +251,7 @@ object Encoder:
       if symbol.owner == null then Text("NoOwner") else encodeSymbolRef(symbol.owner)
 
     val flags = encodeFlags(symbol.flags)
-    val pos = "[" ~ symbol.sourcePos.start ~ "," ~ symbol.sourcePos.length ~ "]"
+    val pos = symbol.sourcePos.start ~ "," ~ symbol.sourcePos.length
 
     symbol match
       case tsym: TypeSymbol =>
@@ -302,9 +320,10 @@ object Encoder:
         "[" ~ args.map(encodeKind).join(",") ~ "] -> " ~ encodeKind(to)
 
 
-  private def encodeDef(defn: Def)(using Definitions, State): Text =
-    // TODO: span
-    defn match
+  private def encodeDef(defn: Def)(using definitions: Definitions, state: State): Text = state.withPositioned(defn):
+    val startDelta = defn.span.start - state.getLastEndingOffset
+
+    val res = defn match
       case pdef: ParamDef =>
         "ParamDef [" ~ internalRef(pdef.symbol) ~ "," ~ pdef.tpt ~ "]"
 
@@ -351,10 +370,14 @@ object Encoder:
             ~ "]"
         ~ "]"
 
-  private def encodeTypeTree(tpt: TypeTree)(using Definitions, State): Text =
-    // TODO: span
-    "TypeTree [" ~ tpt.tpe ~ "]"
+    val lengthDelta = defn.span.length - state.getChildrenLength
+    val pos = startDelta ~ "," ~ lengthDelta
+    res ~ "@" ~ pos
 
+  private def encodeTypeTree(tpt: TypeTree)(using defn: Definitions, state: State): Text = state.withPositioned(tpt):
+    val startDelta = tpt.span.start - state.getLastEndingOffset
+    val pos = startDelta ~ "," ~ tpt.span.length
+    "TypeTree [" ~ tpt.tpe ~ "]@" ~ pos
 
   private def encodeType(tpe: Type)(using Definitions, State): Text =
     tpe match
@@ -440,9 +463,11 @@ object Encoder:
       case TypeBound(lo, hi) =>
         "TypeBound [" ~ lo ~ "," ~ hi ~ "]"
 
-  private def encodeWord(word: Word)(using Definitions, State): Text =
-    // TODO: span and types
-    word match
+  private def encodeWord(word: Word)(using defn: Definitions, state: State): Text = state.withPositioned(word):
+    val startDelta = word.span.start - state.getLastEndingOffset
+
+    // TODO: types
+    val res = word match
       case Literal(const) =>
         "Lit [" ~ encodeConstant(const) ~ "]"
 
@@ -539,10 +564,14 @@ object Encoder:
             ~ "]"
         ~ "]"
 
+    val lengthDelta = word.span.length - state.getChildrenLength
+    val pos = startDelta ~ "," ~ lengthDelta
+    res ~ "@" ~ pos
 
-  private def encodePattern(pattern: Pattern)(using Definitions, State): Text =
-    // TODO: span
-    pattern match
+  private def encodePattern(pattern: Pattern)(using defn: Definitions, state: State): Text = state.withPositioned(pattern):
+    val startDelta = pattern.span.start - state.getLastEndingOffset
+
+    val res = pattern match
       case AliasPattern(id, nested) =>
         "AliasPattern [" ~ id ~ "," ~ nested ~ "]"
 
@@ -587,6 +616,11 @@ object Encoder:
 
       case WildcardPattern() =>
         Text("Wildcard")
+
+
+    val lengthDelta = pattern.span.length - state.getChildrenLength
+    val pos = startDelta ~ "," ~ lengthDelta
+    res ~ "@" ~ pos
 
   private def encodeConstant(const: Constant): Text =
     const match

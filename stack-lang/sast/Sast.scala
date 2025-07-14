@@ -85,9 +85,9 @@ object Sast:
     (symbol: Symbol)
     (val span: Span)
   extends Word:
+    val tpe: Type = StaticRef(symbol)
 
     def name: String = symbol.name
-    val tpe: Type = StaticRef(symbol)
 
   case class Select
     (qual: Word, name: String)
