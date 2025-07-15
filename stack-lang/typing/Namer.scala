@@ -1081,7 +1081,7 @@ class Namer:
 
      val tparamSyms = Nil
      val autoSyms = Nil
-     val tpt = TypeTree(bodyTyped.tpe)(body.span)
+     val tpt = TypeTree(bodyTyped.tpe)(body.span.point)
      val funDef = FunDef(funSym, tparamSyms, paramSyms, autoSyms, tpt, bodyTyped)(lambda.span)
      val objType = ObjectType(fields = Nil, methods = NamedInfo(funName, procType) :: Nil, mutableFields = Nil)
 
