@@ -46,7 +46,7 @@ object SastOps:
             coerceNumeric(word, targetType)
 
       else if Subtyping.conforms(unitType, targetType) then
-        val unit = RecordLit(args = Nil)(unitType, word.span)
+        val unit = RecordLit(args = Nil)(unitType, word.span.endPoint)
         Block(word.ensureDropValue :: unit :: Nil)(unitType, word.span)
 
       else
