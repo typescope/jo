@@ -1025,9 +1025,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         eatEndOpt(elseItem.indent)
         blk
       else
-        val blk = Block(phrases = Nil)(thenp.span)
+        val unit = RecordLit(args = Nil)(thenp.span.endPoint)
         eatEndOpt(ifItem.indent)
-        blk
+        unit
 
     If(cond, thenp, elsep)(ifItem.span | elsep.span)
 
