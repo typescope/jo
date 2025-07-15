@@ -145,8 +145,6 @@ object Encoder:
     /** The length of direct children of a sast node */
     private var childrenLength = 0
 
-    def getLastEndingOffset = lastEndingOffset
-
     def getChildrenLength = childrenLength
 
     /** Maintaining last ending offset and children length
@@ -154,10 +152,15 @@ object Encoder:
       * The method should be called for each positioned node and the actual
       * encoding should happen in the supplied function `fn`.
       */
-    def withPositioned[T](node: Positioned)(fn: => T): T =
+    def withPositioned[T](node: Positioned)(fn: Int => T): T =
+      val startDelta = node.span.start - lastEndingOffset
+      // For the first child
+      lastEndingOffset = node.span.start
+
       val oldLength = childrenLength
       childrenLength = 0
-      val res = fn
+
+      val res = fn(startDelta)
       lastEndingOffset = node.span.endOffset
       childrenLength = oldLength + node.span.length
       res
@@ -320,9 +323,7 @@ object Encoder:
         "[" ~ args.map(encodeKind).join(",") ~ "] -> " ~ encodeKind(to)
 
 
-  private def encodeDef(defn: Def)(using definitions: Definitions, state: State): Text = state.withPositioned(defn):
-    val startDelta = defn.span.start - state.getLastEndingOffset
-
+  private def encodeDef(defn: Def)(using definitions: Definitions, state: State): Text = state.withPositioned(defn): startDelta =>
     val res = defn match
       case pdef: ParamDef =>
         "ParamDef [" ~ internalRef(pdef.symbol) ~ "," ~ pdef.tpt ~ "]"
@@ -374,8 +375,7 @@ object Encoder:
     val pos = startDelta ~ "," ~ lengthDelta
     res ~ "@" ~ pos
 
-  private def encodeTypeTree(tpt: TypeTree)(using defn: Definitions, state: State): Text = state.withPositioned(tpt):
-    val startDelta = tpt.span.start - state.getLastEndingOffset
+  private def encodeTypeTree(tpt: TypeTree)(using defn: Definitions, state: State): Text = state.withPositioned(tpt): startDelta =>
     val pos = startDelta ~ "," ~ tpt.span.length
     "TypeTree [" ~ tpt.tpe ~ "]@" ~ pos
 
@@ -463,9 +463,7 @@ object Encoder:
       case TypeBound(lo, hi) =>
         "TypeBound [" ~ lo ~ "," ~ hi ~ "]"
 
-  private def encodeWord(word: Word)(using defn: Definitions, state: State): Text = state.withPositioned(word):
-    val startDelta = word.span.start - state.getLastEndingOffset
-
+  private def encodeWord(word: Word)(using defn: Definitions, state: State): Text = state.withPositioned(word): startDelta =>
     // TODO: types
     val res = word match
       case Literal(const) =>
@@ -568,9 +566,7 @@ object Encoder:
     val pos = startDelta ~ "," ~ lengthDelta
     res ~ "@" ~ pos
 
-  private def encodePattern(pattern: Pattern)(using defn: Definitions, state: State): Text = state.withPositioned(pattern):
-    val startDelta = pattern.span.start - state.getLastEndingOffset
-
+  private def encodePattern(pattern: Pattern)(using defn: Definitions, state: State): Text = state.withPositioned(pattern): startDelta =>
     val res = pattern match
       case AliasPattern(id, nested) =>
         "AliasPattern [" ~ id ~ "," ~ nested ~ "]"

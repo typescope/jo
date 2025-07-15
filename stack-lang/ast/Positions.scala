@@ -33,7 +33,7 @@ object Positions:
     def point: Span = Span(start, 0)
 
     /** A zero length span at the end point */
-    def endPoint: Span = Span(start + length, 0)
+    def endPoint: Span = Span(endOffset, 0)
 
     def endOffset: Int = start + length
 

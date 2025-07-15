@@ -526,8 +526,9 @@ class Namer:
   def instantiatePoly(polyType: ProcType, fun: Word)(using Definitions, Reporter, Source): Word =
     assert(polyType.tparams.nonEmpty, polyType.show)
 
+    val span = fun.span.endPoint
     val tvars = for tparam <- polyType.tparams yield TypeVar(tparam.name, this.inferencer)
-    val targs = tvars.map(tvar => TypeTree(tvar)(fun.span))
+    val targs = tvars.map(tvar => TypeTree(tvar)(span))
     val tpe = polyType.instantiate(tvars)
 
     checker.delayedCheck {
@@ -547,7 +548,8 @@ class Namer:
       val tvars = for tparam <- tparams yield TypeVar(tparam.name, this.inferencer)
 
       checker.delayedCheck {
-        val span = newExpr.classRef.span
+        val span = newExpr.classRef.span.endPoint
+
         for tvar <- tvars do checker.checkInstantiated(tvar, span.toPos)
 
         val targs = tvars.map(tvar => TypeTree(tvar)(span))
@@ -572,7 +574,8 @@ class Namer:
 
         else if classSym.info.isTypeLambda then
           val tvars = instantiateTypeLambda(classSym.info.asTypeLambda.tparams)
-          targsTree = tvars.map(tvar => TypeTree(tvar)(classTree.span))
+          val span = classTree.span.endPoint
+          targsTree = tvars.map(tvar => TypeTree(tvar)(span))
           AppliedType(classRef, tvars)
 
         else
