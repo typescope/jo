@@ -598,10 +598,11 @@ class Namer:
 
           assert(procType.tparams.isEmpty, "Constructor should not take type parameters, found = " + procType)
 
-          val newInstance = New(Ident(classSym)(classTree.span), targsTree)(instanceType, newExpr.span)
+          val span = if targsTree.isEmpty then classTree.span else classTree.span | targsTree.last.span
+          val newInstance = New(Ident(classSym)(classTree.span), targsTree)(instanceType, span)
 
           newExpr.addKey(Namer.TypedWord, newInstance)
-          val ctorSelect = Ast.Select(newExpr, Name.Constructor)(newExpr.span)
+          val ctorSelect = Ast.Select(newExpr, Name.Constructor)(span)
           val ctorCall = Ast.Apply(ctorSelect, newExpr.args)(newExpr.span)
           transformCall(ctorCall)
 
