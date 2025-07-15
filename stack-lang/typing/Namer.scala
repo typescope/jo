@@ -1354,7 +1354,7 @@ class Namer:
         val names = uninit.map(_.name).mkString(", ")
         Reporter.error("Uninitialized field(s): " + names, funDef.pos)
 
-      val thisIdent = Ident(thisSym)(funDef.body.span)
+      val thisIdent = Ident(thisSym)(record.span.endPoint)
       val body = (words :+ thisIdent).toList
       Block(body)(thisSym.info, funDef.body.span)
 
