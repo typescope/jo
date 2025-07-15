@@ -387,7 +387,7 @@ class Namer:
         oob.testKey(Scope.PrefixKey) match
           case Some(prefix) =>
             // Normalize SAST
-            val qual = Ident(prefix)(word.span)
+            val qual = Ident(prefix)(word.span.point)
             Select(qual, sym.name)(qual.tpe.termMember(sym.name), word.span)
 
           case _ =>

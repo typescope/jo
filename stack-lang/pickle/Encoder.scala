@@ -546,10 +546,10 @@ object Encoder:
         ~ "]"
 
       case Match(scrutinee, cases) =>
-        val pairs = cases.map:
-          case Case(pat, body) => "[" ~ pat ~ "," ~ body ~ "]"
-
         "Match [" ~ scrutinee ~ ", [" ~ indent:
+           val pairs = cases.map:
+             case Case(pat, body) => "[" ~ pat ~ "," ~ body ~ "]"
+
            pairs.join(LINE_SEP)
         ~ "]]"
 
