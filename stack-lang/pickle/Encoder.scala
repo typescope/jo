@@ -378,7 +378,7 @@ object Encoder:
       case BottomType => Text("Bottom")
 
       case StaticRef(sym) =>
-        "StaticRef [" ~ sym ~ "]"
+        encodeSymbolRef(sym)
 
       case MemberRef(prefix, sym) =>
         "MemberRef [" ~ prefix ~ "," ~ sym ~ "]"
