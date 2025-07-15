@@ -14,12 +14,12 @@ object Rewriting:
 
     if fun.refers(defn.Bool_and) then
       val lhs :: rhs :: Nil = args: @unchecked
-      val falseLit = BoolLit(false)(rhs.span)
+      val falseLit = BoolLit(false)(rhs.span.endPoint)
       If(lhs, rhs, falseLit)(apply.tpe, apply.span)
 
     else if fun.refers(defn.Bool_or) then
       val lhs :: rhs :: Nil = args: @unchecked
-      val trueLit = BoolLit(true)(lhs.span)
+      val trueLit = BoolLit(true)(lhs.span.endPoint)
       If(lhs, trueLit, rhs)(apply.tpe, apply.span)
 
     else
