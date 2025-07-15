@@ -251,35 +251,23 @@ object Encoder:
     val id = state.getInternalSymbolId(symbol)
 
     val ownerText =
-      if symbol.owner == null then Text("NoOwner") else encodeSymbolRef(symbol.owner)
+      if symbol.owner == null then Text("NoOwner") else internalRef(symbol.owner)
 
     val flags = encodeFlags(symbol.flags)
     val pos = symbol.sourcePos.start ~ "," ~ symbol.sourcePos.length
 
     symbol match
       case tsym: TypeSymbol =>
-        // TypeSymbol [id, name, flags, kind, owner ref, source pos, info]
-        "TypeSymbol [" ~ indent:
-            id ~ LINE_SEP ~
-            tsym.name ~ LINE_SEP ~
-            flags ~ LINE_SEP ~
-            encodeKind(tsym.kind) ~ LINE_SEP ~
-            ownerText ~ LINE_SEP ~
-            pos ~ LINE_SEP ~
-            encodeSymbolInfo(tsym)
+        // [id, name, flags, kind, owner ref, source pos, info]
+        "[" ~ id ~ "," ~ tsym.name ~ "," ~ flags ~ "," ~ encodeKind(tsym.kind)
+           ~ "," ~ ownerText ~ "," ~ pos ~ "," ~ encodeSymbolInfo(tsym)
         ~ "]"
 
       case _ =>
-        // Symbol [id, name, flags, owner ref, source pos, info]
-        "Symbol [" ~ indent:
-            id ~ LINE_SEP ~
-            symbol.name ~ LINE_SEP ~
-            flags ~ LINE_SEP ~
-            ownerText ~ LINE_SEP ~
-            pos ~ LINE_SEP ~
-            encodeSymbolInfo(symbol)
+        // [id, name, flags, owner ref, source pos, info]
+        "[" ~ id ~ "," ~ symbol.name ~ "," ~ flags ~ "," ~ ownerText ~ "," ~
+            pos ~ "," ~ encodeSymbolInfo(symbol)
         ~ "]"
-
 
   /** Reference to a symbol
     *
