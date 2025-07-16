@@ -174,7 +174,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
         If(cond, nestedBlock, BoolLit(false)(pat.span))(BoolType, pat.span)
 
       case WildcardPattern() =>
-        assert(Subtyping.conforms(scrut.tpe.widenTermRef, pat.tpe), "scrutee type = " + scrut.tpe.show + ", pattern type = " + pat.tpe.show)
+        assert(Subtyping.conforms(scrut.tpe.widen, pat.tpe.widen), "scrutee type = " + scrut.tpe.widen.show + ", pattern type = " + pat.tpe.widen.show)
         BoolLit(true)(pat.span)
 
   private def transformOrPattern(scrut: Ident, orPattern: OrPattern)
@@ -336,7 +336,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
     (using Context, Source)
   : Word =
 
-    assert(Subtyping.conforms(patternType, scrut.symbol.info), "scrutee type = " + scrut.tpe.show + ", type test = " + patternType.show)
+    assert(Subtyping.conforms(patternType, scrut.tpe.widen), "scrutee type = " + scrut.tpe.widen.show + ", type test = " + patternType.show)
 
     if Subtyping.conforms(scrut.symbol.info, patternType) then
       BoolLit(true)(span)

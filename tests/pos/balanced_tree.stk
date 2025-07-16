@@ -1,0 +1,248 @@
+// Balanced Binary Tree implementation using AVL tree algorithm in Stk
+// This implementation maintains balance through height-based rotations
+
+data Tree[T] =
+    Empty
+  | Node(value: T, left: Tree[T], right: Tree[T], height: Int)
+
+// Helper function to get height of a tree
+def height[T](tree: Tree[T]): Int =
+  match tree
+    case Empty => 0
+    case Node(_, _, _, h) => h
+
+// Helper function to calculate balance factor
+def balanceFactor[T](tree: Tree[T]): Int =
+  match tree
+    case Empty => 0
+    case Node(_, left, right, _) => height(left) - height(right)
+
+// Helper function to create a new node with correct height
+def makeNode[T](value: T, left: Tree[T], right: Tree[T]): Tree[T] =
+  val leftHeight = height(left)
+  val rightHeight = height(right)
+  val maxHeight = if leftHeight > rightHeight then leftHeight else rightHeight
+  Node(value, left, right, maxHeight + 1)
+
+// Right rotation for AVL balancing
+def rotateRight[T](tree: Tree[T]): Tree[T] =
+  match tree
+    case Node(y, Node(x, a, b, _), c, _) =>
+      makeNode(x, a, makeNode(y, b, c))
+    case _ => tree
+
+// Left rotation for AVL balancing
+def rotateLeft[T](tree: Tree[T]): Tree[T] =
+  match tree
+    case Node(x, a, Node(y, b, c, _), _) =>
+      makeNode(y, makeNode(x, a, b), c)
+    case _ => tree
+
+// Balance the tree after insertion/deletion
+def balance[T](tree: Tree[T]): Tree[T] =
+  match tree
+    case Empty => Empty
+    case Node(value, left, right, _) =>
+      val bf = balanceFactor(tree)
+
+      if bf > 1 then
+        // Left heavy
+        val leftBf = balanceFactor(left)
+        if leftBf < 0 then
+          // Left-Right case
+          val newLeft = rotateLeft(left)
+          rotateRight(makeNode(value, newLeft, right))
+        else
+          // Left-Left case
+          rotateRight(tree)
+      else if bf < -1 then
+        // Right heavy
+        val rightBf = balanceFactor(right)
+        if rightBf > 0 then
+          // Right-Left case
+          val newRight = rotateRight(right)
+          rotateLeft(makeNode(value, left, newRight))
+        else
+          // Right-Right case
+          rotateLeft(tree)
+      else
+        // Already balanced
+        makeNode(value, left, right)
+
+// Insert a value into the tree
+def insert[T](tree: Tree[T], value: T, compare: (T, T) => Int): Tree[T] =
+  match tree
+    case Empty => makeNode(value, Empty, Empty)
+    case Node(v, left, right, _) =>
+      val cmp = compare(value, v)
+      if cmp < 0 then
+        val newLeft = insert(left, value, compare)
+        balance(makeNode(v, newLeft, right))
+      else if cmp > 0 then
+        val newRight = insert(right, value, compare)
+        balance(makeNode(v, left, newRight))
+      else
+        // Value already exists, no change
+        tree
+
+// Find minimum value in a tree
+def findMin[T](tree: Tree[T]): Option[T] =
+  match tree
+    case Empty => None
+    case Node(value, Empty, _, _) => Some(value)
+    case Node(_, left, _, _) => findMin(left)
+
+// Remove a value from the tree
+def remove[T](tree: Tree[T], value: T, compare: (T, T) => Int): Tree[T] =
+  match tree
+    case Empty => Empty
+    case Node(v, left, right, _) =>
+      val cmp = compare(value, v)
+      if cmp < 0 then
+        val newLeft = remove(left, value, compare)
+        balance(makeNode(v, newLeft, right))
+      else if cmp > 0 then
+        val newRight = remove(right, value, compare)
+        balance(makeNode(v, left, newRight))
+      else
+        // Found the node to remove
+        match #Pair(left, right)
+          case #Pair(Empty, Empty) => Empty
+          case #Pair(Empty, _) => right
+          case #Pair(_, Empty) => left
+          case #Pair(_, _) =>
+            // Two children: find inorder successor
+            match findMin(right)
+              case None => left // Should not happen
+              case Some(minVal) =>
+                val newRight = remove(right, minVal, compare)
+                balance(makeNode(minVal, left, newRight))
+
+// Search for a value in the tree
+def search[T](tree: Tree[T], value: T, compare: (T, T) => Int): Bool =
+  match tree
+    case Empty => false
+    case Node(v, left, right, _) =>
+      val cmp = compare(value, v)
+      if cmp < 0 then
+        search(left, value, compare)
+      else if cmp > 0 then
+        search(right, value, compare)
+      else
+        true
+
+// In-order traversal (returns sorted sequence)
+def inorder[T](tree: Tree[T], visit: T => Unit): Unit =
+  match tree
+    case Empty =>
+    case Node(value, left, right, _) =>
+      inorder(left, visit)
+      visit(value)
+      inorder(right, visit)
+
+// Pre-order traversal
+def preorder[T](tree: Tree[T], visit: T => Unit): Unit =
+  match tree
+    case Empty =>
+    case Node(value, left, right, _) =>
+      visit(value)
+      preorder(left, visit)
+      preorder(right, visit)
+
+// Post-order traversal
+def postorder[T](tree: Tree[T], visit: T => Unit): Unit =
+  match tree
+    case Empty =>
+    case Node(value, left, right, _) =>
+      postorder(left, visit)
+      postorder(right, visit)
+      visit(value)
+
+// Check if tree is balanced (for testing)
+def isBalanced[T](tree: Tree[T]): Bool =
+  match tree
+    case Empty => true
+    case Node(_, left, right, _) =>
+      val bf = balanceFactor(tree)
+      val balanced = bf >= -1 && bf <= 1
+      balanced && isBalanced(left) && isBalanced(right)
+
+// Count total nodes in the tree
+def size[T](tree: Tree[T]): Int =
+  match tree
+    case Empty => 0
+    case Node(_, left, right, _) => 1 + size(left) + size(right)
+
+// Integer comparison function
+def intCompare(a: Int, b: Int): Int =
+  if a < b then -1
+  else if a > b then 1
+  else 0
+
+// Demo and test functions
+def printTree(tree: Tree[Int], prefix: String, isLast: Bool): Unit =
+  match tree
+    case Empty =>
+    case Node(value, left, right, h) =>
+      val connector = if isLast then "└── " else "├── "
+      println (prefix + connector + (intToStr value) + " (h=" + (intToStr h) + ")")
+
+      val newPrefix = prefix + (if isLast then "    " else "│   ")
+      match #Pair(left, right)
+        case #Pair(Empty, Empty) =>
+        case #Pair(Empty, _) =>
+          printTree(right, newPrefix, true)
+        case #Pair(_, Empty) =>
+          printTree(left, newPrefix, true)
+        case #Pair(_, _) =>
+          printTree(left, newPrefix, false)
+          printTree(right, newPrefix, true)
+
+def main =
+  // Create an empty tree
+  var tree: Tree[Int] = Empty
+
+  val compareFun = (a, b) => intCompare a b
+
+  // Insert some values
+  val values = [15, 10, 20, 8, 12, 25, 6, 11, 13, 27]
+  var i = 0
+  while i < 10 do
+    val value = values[i]
+    tree = insert(tree, value, compareFun)
+    println ("Inserted: " + (intToStr value))
+    i = i + 1
+  end
+
+  println "\nFinal tree structure:"
+  printTree(tree, "", true)
+
+  println ("\nTree height: " + (intToStr (height tree)))
+  println ("Tree size: " + (intToStr (size tree)))
+  println ("Is balanced: " + (if isBalanced(tree) then "true" else "false"))
+
+  // Test search
+  println "\nSearching for values:"
+  println ("Search 12: " + (if search(tree, 12, compareFun) then "found" else "not found"))
+  println ("Search 99: " + (if search(tree, 99, compareFun) then "found" else "not found"))
+
+  // Print in-order traversal
+  println "\nIn-order traversal (sorted):"
+  inorder(tree, (x => print ((intToStr x) + " ")))
+  println ""
+
+  // Remove some values
+  println "\nRemoving 10 and 25:"
+  tree = remove(tree, 10, compareFun)
+  tree = remove(tree, 25, compareFun)
+
+  println "Tree after removal:"
+  printTree(tree, "", true)
+
+  println ("Tree height: " + (intToStr (height tree)))
+  println ("Tree size: " + (intToStr (size tree)))
+  println ("Is balanced: " + (if isBalanced(tree) then "true" else "false"))
+
+  println "\nFinal in-order traversal:"
+  inorder(tree, (x => print ((intToStr x) + " ")))
+  println ""
