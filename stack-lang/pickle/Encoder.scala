@@ -226,7 +226,7 @@ object Encoder:
 
     val symbolRef = internalRef(symbol)
 
-    val defsData = "defs [" ~ indent:
+    val defsData = "[" ~ indent:
         defs.map(encodeDef).join(",")
       ~ "]"
 
@@ -238,7 +238,7 @@ object Encoder:
     // must comes after symbols
     val refsData = state.externalNameTable
 
-    "Namespace [" ~ indent:
+    "[" ~ indent:
         List(source, refsData, symsData, symbolRef, defsData).join("," ~ Text.BreakLine)
     ~ "]"
 
@@ -314,10 +314,10 @@ object Encoder:
   private def encodeDef(defn: Def)(using definitions: Definitions, state: State): Text = state.withPositioned(defn): startDelta =>
     val res = defn match
       case pdef: ParamDef =>
-        "ParamDef [" ~ internalRef(pdef.symbol) ~ "," ~ pdef.tpt ~ "]"
+        Format.ParamDef ~ "[" ~ internalRef(pdef.symbol) ~ "," ~ pdef.tpt ~ "]"
 
       case cdef: ClassDef =>
-        "ClassDef [" ~ indent:
+        Format.ClassDef ~ "[" ~ indent:
             internalRef(cdef.symbol) ~ LINE_SEP ~
             internalRef(cdef.self) ~ LINE_SEP ~
             "[" ~ internalRefs(cdef.tparams) ~ "]" ~ LINE_SEP ~
@@ -329,7 +329,7 @@ object Encoder:
 
       case fdef: FunDef =>
         // TODO: store local symbol definitions locally?
-        "FunDef [" ~ indent:
+        Format.FunDef ~ "[" ~ indent:
             internalRef(fdef.symbol) ~ LINE_SEP ~
             "[" ~ internalRefs(fdef.tparams) ~ "]" ~ LINE_SEP ~
             "[" ~ internalRefs(fdef.params) ~ "]" ~ LINE_SEP ~
@@ -340,7 +340,7 @@ object Encoder:
 
 
       case pdef: PatDef =>
-        "PatDef [" ~ indent:
+        Format.PatDef ~ "[" ~ indent:
             internalRef(pdef.symbol) ~ LINE_SEP ~
             "[" ~ internalRefs(pdef.tparams) ~ "]" ~ LINE_SEP ~
             "[" ~ internalRefs(pdef.params) ~ "]" ~ LINE_SEP ~
@@ -349,10 +349,10 @@ object Encoder:
         ~ "]"
 
       case tdef: TypeDef =>
-        "TypeDef [" ~ internalRef(tdef.symbol) ~ "]"
+        Format.TypeDef ~ "[" ~ internalRef(tdef.symbol) ~ "]"
 
       case sec: Section =>
-        "Section [" ~ indent:
+        Format.Section ~ "[" ~ indent:
             internalRef(sec.symbol) ~ LINE_SEP ~
             "[" ~ indent:
                 sec.defs.map(encodeDef).join(LINE_SEP)
@@ -365,52 +365,52 @@ object Encoder:
 
   private def encodeTypeTree(tpt: TypeTree)(using defn: Definitions, state: State): Text = state.withPositioned(tpt): startDelta =>
     val pos = startDelta ~ "," ~ tpt.span.length
-    "TypeTree [" ~ tpt.tpe ~ "]@" ~ pos
+    "[" ~ tpt.tpe ~ "]@" ~ pos
 
   private def encodeType(tpe: Type)(using Definitions, State): Text =
     tpe match
-      case VoidType => Text("Void")
+      case VoidType => Text(Format.VoidType)
 
-      case ErrorType => Text("Error")
+      case ErrorType => Text(Format.ErrorType)
 
-      case AnyType => Text("Any")
+      case AnyType => Text(Format.AnyType)
 
-      case BottomType => Text("Bottom")
+      case BottomType => Text(Format.BottomType)
 
       case StaticRef(sym) =>
         encodeSymbolRef(sym)
 
       case MemberRef(prefix, sym) =>
-        "MemberRef [" ~ prefix ~ "," ~ sym ~ "]"
+        Format.MemberRef ~ "[" ~ prefix ~ "," ~ sym ~ "]"
 
       case tvar: TypeVar =>
         assert(tvar.isInstantiated, "uninstantiated type variable: " + tvar)
         encodeType(tvar.instantiated)
 
       case ConstantType(const) =>
-        "ConstantType [" ~ encodeConstant(const) ~ "]"
+        Format.ConstantType ~ "[" ~ encodeConstant(const) ~ "]"
 
       case RecordType(fields) =>
-        "RecordType [" ~ indent:
+        Format.RecordType ~ "[" ~ indent:
           fields.map(f => f.name ~ ": " ~ f.info).join("," ~ Text.BreakLine)
         ~ "]"
 
       case UnionType(branches) =>
-        "UnionType [" ~ branches.map(encodeType).join(",") ~ "]"
+        Format.UnionType ~ "[" ~ branches.map(encodeType).join(",") ~ "]"
 
       case TagType(tag, params) =>
         val paramText =  params.map(f => f.name ~ ": " ~ f.info).join(",")
-        "TagType [" ~ tag ~ "," ~ paramText ~ "]"
+        Format.TagType ~ "[" ~ tag ~ "," ~ paramText ~ "]"
 
       case ObjectType(fields, methods, muts) =>
         val fieldText = "[" ~ fields.map(f => f.name ~ ": " ~ f.info).join(",") ~ "]"
         val methodText = "[" ~ methods.map(m => m.name ~ ": " ~ m.info).join(",") ~ "]"
         val mutableText = "[" ~ muts.join(",") ~ "]"
 
-        "ObjectType [" ~ fieldText ~ "," ~ methodText ~ "," ~ mutableText ~ "]"
+        Format.ObjectType ~ "[" ~ fieldText ~ "," ~ methodText ~ "," ~ mutableText ~ "]"
 
       case AppliedType(tctor, targs) =>
-        "AppliedType [" ~ tctor ~ ",[" ~ targs.join(",") ~ "]]"
+        Format.AppliedType ~ "[" ~ tctor ~ ",[" ~ targs.join(",") ~ "]]"
 
       case ProcType(tparams, params, autos, resType, receives, preParamCount) =>
         // assert(receives.isInstanceOf[Effects.Policy.CheckBound], "Expect Policy.CheckBounds, found = " + receives)
@@ -422,16 +422,16 @@ object Encoder:
         val autoText = "autos [" ~ autos.map(auto => "[" ~ auto.name ~ "," ~ auto.info ~ "]").join(",") ~ "]"
         val receiveText = "receives [" ~ effects.join(",") ~ "]"
 
-        "ProcType [" ~ indent:
+        Format.ProcType ~ "[" ~ indent:
           List(tparamText, paramText, autoText, encodeType(resType), receiveText, Text(preParamCount)).join("," ~ Text.BreakLine)
         ~ "]"
 
       case TypeLambda(tparams, resType, preParamCount) =>
         val tparamText = "[" ~ tparams.join(",") ~ "]"
-        "TypeLambda [" ~ tparamText ~ "," ~ resType ~ "," ~ preParamCount ~ "]"
+        Format.TypeLambda ~ "[" ~ tparamText ~ "," ~ resType ~ "," ~ preParamCount ~ "]"
 
       case cinfo: ContainerInfo =>
-        "Container [" ~ internalRefs(cinfo.members) ~ "]"
+        Format.ContainerInfo ~ "[" ~ internalRefs(cinfo.members) ~ "]"
 
       case ClassInfo(classSymbol, tparams, targs, self, fields, methods) =>
         targs.zip(tparams).map: (targ, tparam) =>
@@ -439,7 +439,7 @@ object Encoder:
             case StaticRef(sym) => assert(sym == tparam, "Unexpected class info")
             case tp => throw new Exception("Unexpected targ for classInfo: " + tp)
 
-        "ClassInfo [" ~ indent:
+        Format.ClassInfo ~ "[" ~ indent:
             classSymbol ~ "," ~
             "[" ~ internalRefs(tparams) ~ "]," ~
             self ~ "," ~
@@ -449,44 +449,44 @@ object Encoder:
 
 
       case TypeBound(lo, hi) =>
-        "TypeBound [" ~ lo ~ "," ~ hi ~ "]"
+        Format.TypeBound ~ "[" ~ lo ~ "," ~ hi ~ "]"
 
   private def encodeWord(word: Word)(using defn: Definitions, state: State): Text = state.withPositioned(word): startDelta =>
     // TODO: types
     val res = word match
       case Literal(const) =>
-        "Lit [" ~ encodeConstant(const) ~ "]"
+        Format.Literal ~ "[" ~ encodeConstant(const) ~ "]"
 
       case Ident(sym) =>
-        "Ident [" ~ sym ~ "]"
+        Format.Ident ~ "[" ~ sym ~ "]"
 
       case New(classRef, targs) =>
-        "New [" ~ classRef ~ ",[" ~ targs.join(",") ~ "]]"
+        Format.New ~ "[" ~ classRef ~ ",[" ~ targs.join(",") ~ "]]"
 
       case Select(qual, name) =>
-        "Select [" ~ qual ~ "," ~ name ~ "]"
+        Format.Select ~ "[" ~ qual ~ "," ~ name ~ "]"
 
       case RecordLit(fields) =>
         val content = fields.map:
           case (f, rhs) => "[" ~ f ~ "," ~ rhs ~ "]"
 
-        "Record [" ~ content.join(",") ~ "]"
+        Format.RecordLit ~ "[" ~ content.join(",") ~ "]"
 
       case TaggedLit(tag, args) =>
-        "Tag [" ~ tag ~ ", [" ~ args.join(",") ~ "]]"
+        Format.TaggedLit ~ "[" ~ tag ~ ", [" ~ args.join(",") ~ "]]"
 
       case Encoded(repr) =>
-        "Encoded [" ~ repr ~ "," ~ word.tpe ~ "]"
+        Format.Encoded ~ "[" ~ repr ~ "," ~ word.tpe ~ "]"
 
       case Apply(fun, args, autos) =>
-        "Apply [" ~ indent:
+        Format.Apply ~ "[" ~ indent:
           fun ~ LINE_SEP ~
           "[" ~ args.join(",") ~ "]" ~ LINE_SEP ~
           "[" ~ autos.join(",") ~ "]"
         ~ "]"
 
       case TypeApply(fun, targs) =>
-        "TypeApply [" ~ indent:
+        Format.TypeApply ~ "[" ~ indent:
           fun ~ LINE_SEP ~
           "[" ~ targs.join(",") ~ "]"
         ~ "]"
@@ -496,18 +496,18 @@ object Encoder:
           case Assign(ident, rhs) =>
             "[" ~ ident ~ "," ~ rhs ~ "]"
 
-        "With [" ~ expr ~ ",[" ~ indent:
+        Format.With ~ "[" ~ expr ~ ",[" ~ indent:
            bindings.join(LINE_SEP)
         ~ "]]"
 
       case Allow(expr, params) =>
-        "Allow [" ~ expr ~ ",[" ~ params.join(",") ~ "]]"
+        Format.Allow ~ "[" ~ expr ~ ",[" ~ params.join(",") ~ "]]"
 
       case Assign(ident, rhs) =>
-        "Assign [" ~ ident ~ "," ~ rhs ~ "]"
+        Format.Assign ~ "[" ~ ident ~ "," ~ rhs ~ "]"
 
       case FieldAssign(lhs, rhs) =>
-        "FieldAssign [" ~ lhs ~ "," ~ rhs ~ "]"
+        Format.FieldAssign ~ "[" ~ lhs ~ "," ~ rhs ~ "]"
 
       case fdef: FunDef => encodeDef(fdef)
 
@@ -516,25 +516,25 @@ object Encoder:
       case pdef: PatDef => encodeDef(pdef)
 
       case If(cond, thenp, elsep) =>
-        "If [" ~ indent:
+        Format.If ~ "[" ~ indent:
           cond ~ LINE_SEP ~
           thenp ~ LINE_SEP ~
           elsep
         ~ "]"
 
       case While(cond, body) =>
-        "While [" ~ indent:
+        Format.While ~ "[" ~ indent:
           cond ~ LINE_SEP ~
           body
         ~ "]"
 
       case Block(words) =>
-        "Block [" ~ indent:
+        Format.Block ~ "[" ~ indent:
           words.join(LINE_SEP)
         ~ "]"
 
       case Match(scrutinee, cases) =>
-        "Match [" ~ scrutinee ~ ", [" ~ indent:
+        Format.Match ~ "[" ~ scrutinee ~ ", [" ~ indent:
            val pairs = cases.map:
              case Case(pat, body) => "[" ~ pat ~ "," ~ body ~ "]"
 
@@ -542,7 +542,7 @@ object Encoder:
         ~ "]]"
 
       case Object(self, inits, defs) =>
-        "Object [" ~ indent:
+        Format.Object ~ "[" ~ indent:
             internalRef(self) ~ LINE_SEP ~
             "[" ~ inits.join(",") ~ "]" ~ LINE_SEP ~
             "[" ~ indent:
@@ -557,49 +557,52 @@ object Encoder:
   private def encodePattern(pattern: Pattern)(using defn: Definitions, state: State): Text = state.withPositioned(pattern): startDelta =>
     val res = pattern match
       case AliasPattern(id, nested) =>
-        "AliasPattern [" ~ id ~ "," ~ nested ~ "]"
+        Format.AliasPattern ~ "[" ~ id ~ "," ~ nested ~ "]"
 
       case TypePattern(tpt) =>
-        "TypePattern [" ~ tpt ~ "]"
+        Format.TypePattern ~ "[" ~ tpt ~ "]"
 
       case TagPattern(tagLit, nested) =>
-        "TagPattern [" ~ tagLit ~ ",[" ~ nested.join(",") ~ "]]"
+        Format.TagPattern ~ "[" ~ tagLit ~ ",[" ~ nested.join(",") ~ "]]"
 
       case ApplyPattern(fun, nested) =>
-        "ApplyPattern [" ~ fun ~ ",[" ~ nested.join(",") ~ "]]"
+        Format.ApplyPattern ~ "[" ~ fun ~ ",[" ~ nested.join(",") ~ "]]"
 
       case OrPattern(lhs, rhs) =>
-        "OrPattern [" ~ lhs ~ "," ~ rhs ~ "]"
+        Format.OrPattern ~ "[" ~ lhs ~ "," ~ rhs ~ "]"
 
       case ValuePattern(value) =>
-        "ValuePattern [" ~ value ~ "]"
+        Format.ValuePattern ~ "[" ~ value ~ "]"
 
       case GuardPattern(pattern, guard) =>
-        "GuardPattern [" ~ pattern ~ "," ~ guard ~ "]"
+        Format.GuardPattern ~ "[" ~ pattern ~ "," ~ guard ~ "]"
 
       case BindPattern(pattern, bindings) =>
-        "BindPattern [" ~ pattern ~ ", [" ~ indent:
+        Format.BindPattern ~ "[" ~ pattern ~ ", [" ~ indent:
           bindings.join(LINE_SEP)
         ~ "]"
 
       case SeqPattern(pats) =>
         val nested =
           pats.map:
-            case AtomPattern(pattern) => "AtomPattern [" ~ pattern ~ "]"
+            case AtomPattern(pattern) =>
+              Format.AtomPattern ~ "[" ~ pattern ~ "]"
 
-            case SkipToPattern(pattern) => "SkipToPattern [" ~ pattern ~ "]"
+            case SkipToPattern(pattern) =>
+              Format.SkipToPattern ~ "[" ~ pattern ~ "]"
 
             case star @ StarPattern(pattern) =>
               val bindings = star.bindings.map: (sym1, sym2) =>
                 "[" ~ sym1 ~ "," ~ sym2 ~ "]"
-              "StarPattern [" ~ pattern ~ ", [" ~ bindings.join(",")  ~ "]]"
+              Format.StarPattern ~ "[" ~ pattern ~ ", [" ~ bindings.join(",")  ~ "]]"
 
-            case RestPattern(pattern) => "RestPattern [" ~ pattern ~ "]"
+            case RestPattern(pattern) =>
+              Format.RestPattern ~ "[" ~ pattern ~ "]"
 
-        "SeqPattern [" ~ nested.join(",") ~ "]"
+        Format.SeqPattern ~ "[" ~ nested.join(",") ~ "]"
 
       case WildcardPattern() =>
-        Text("Wildcard")
+        Text(Format.WildcardPattern)
 
 
     val lengthDelta = pattern.span.length - state.getChildrenLength

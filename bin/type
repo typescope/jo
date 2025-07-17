@@ -58,6 +58,7 @@ files=(
     stack-lang/sast/TaggedEncoding.scala
 
     stack-lang/pickle/Encoder.scala
+    stack-lang/pickle/Format.scala
 )
 
 FILES=${files[*]}
