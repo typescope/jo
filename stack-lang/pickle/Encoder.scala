@@ -299,7 +299,7 @@ object Encoder:
         encodeType(info)
 
   private def encodeFlags(flags: Flags)(using Definitions, State): Text =
-    "[" ~ flags.toStrings.join(",") ~ "]"
+    Flags.flagIndices(flags).join(Text.Empty)
 
   private def encodeKind(kind: Kind)(using Definitions, State): Text =
     kind match
@@ -417,10 +417,10 @@ object Encoder:
 
         val effects: List[Symbol] = Nil // receives.asInstanceOf[Effects.Policy.CheckBound].effects
 
-        val tparamText = "tparams [" ~ tparams.join(",") ~ "]"
-        val paramText = "params [" ~ params.map(param => "[" ~ param.name ~ "," ~ param.info ~ "]").join(",") ~ "]"
-        val autoText = "autos [" ~ autos.map(auto => "[" ~ auto.name ~ "," ~ auto.info ~ "]").join(",") ~ "]"
-        val receiveText = "receives [" ~ effects.join(",") ~ "]"
+        val tparamText = "[" ~ tparams.join(",") ~ "]"
+        val paramText = "[" ~ params.map(param => "[" ~ param.name ~ "," ~ param.info ~ "]").join(",") ~ "]"
+        val autoText = "[" ~ autos.map(auto => "[" ~ auto.name ~ "," ~ auto.info ~ "]").join(",") ~ "]"
+        val receiveText = "[" ~ effects.join(",") ~ "]"
 
         Format.ProcType ~ "[" ~ indent:
           List(tparamText, paramText, autoText, encodeType(resType), receiveText, Text(preParamCount)).join("," ~ Text.BreakLine)

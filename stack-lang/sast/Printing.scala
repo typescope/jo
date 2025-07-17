@@ -323,7 +323,7 @@ object Printing:
 
   def showModifiers(sym: Symbol)(using Definitions): Text =
     val mask = Flags.Auto | Flags.Synthetic | Flags.Context | Flags.Default | Flags.Alias
-    (sym.flags & mask).toStrings.map("<" + _ + ">").join(" ")
+    Flags.flagStrings(sym.flags & mask).map("<" + _ + ">").join(" ")
 
   def showType(tp: Type)(using Definitions): Text =
     tp match

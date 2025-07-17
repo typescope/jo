@@ -7,7 +7,7 @@ import scala.collection.mutable
   * The encoding can change in different compiler runs, therefore no assumptions
   * should be made about the encoding.
   *
-  * In contrast, flag names are stable.
+  * In contrast, flag names and indices are stable.
   */
 type Flags = Flags.Flags
 
@@ -16,45 +16,52 @@ object Flags:
   opaque type Flags = Long
 
   private val flagNames: Array[String] = Array.fill(64)("")
-  private var flagCount: Int = 0
+  private val MAX_INDEX = 17
 
-  private[Flags] def defineFlag(name: String): Flag =
-    assert(flagCount < 64, "Maximum flags reached: at most 64 flags")
+  private[Flags] def defineFlag(index: Int, name: String): Flag =
+    assert(index <= MAX_INDEX, s"Maximum flags reached: at most $MAX_INDEX flags")
     assert(!name.isEmpty, "Flag name cannot be empty")
 
-    val index = flagCount
     assert(flagNames(index).isEmpty, "the index " + index + " is already used")
 
     flagNames(index) = name
-    flagCount += 1
     1 << index
+
+  def flagIndices(fs: Flags): List[Int] =
+    val buf = new mutable.ArrayBuffer[Int]
+    for i <- 0 to MAX_INDEX do
+      if (fs & (1 << i)) > 0 then
+        assert(!flagNames(i).isEmpty, s"flag index $i is empty")
+        buf += i
+    end for
+    buf.toList
 
   def flagStrings(fs: Flags): List[String] =
     val buf = new mutable.ArrayBuffer[String]
-    for i <- 0 to flagCount do
+    for i <- 0 to MAX_INDEX do
       if (fs & (1 << i)) > 0 then
         assert(!flagNames(i).isEmpty, s"flag index $i is empty")
         buf += flagNames(i)
     end for
     buf.toList
 
-  val Fun        : Flag = defineFlag("fun")      // symbol.info is ProcType
-  val Type       : Flag = defineFlag("type")
-  val Class      : Flag = defineFlag("class")
-  val Pattern    : Flag = defineFlag("pattern")
-  val NSpace     : Flag = defineFlag("namespace")
-  val Section    : Flag = defineFlag("section")
-  val Method     : Flag = defineFlag("method")
-  val Constructor: Flag = defineFlag("constructor")
-  val Branch     : Flag = defineFlag("branch")   // branch name space
-  val Param      : Flag = defineFlag("param")    // a parameter
-  val Mutable    : Flag = defineFlag("mutable")  // a mutable variable
-  val Context    : Flag = defineFlag("context")  // context parameter or its default function
-  val Field      : Flag = defineFlag("field")    // an object field
-  val Default    : Flag = defineFlag("default")  // context parameter with default value
-  val Alias      : Flag = defineFlag("alias")    // an alias symbol created by import/export
-  val Auto       : Flag = defineFlag("auto")     // auto function or auto value
-  val Synthetic  : Flag = defineFlag("synthetic") // a compiler-synthesized symbol
+  val Fun        : Flag = defineFlag(1,  "fun")      // symbol.info is ProcType
+  val Type       : Flag = defineFlag(2,  "type")
+  val Class      : Flag = defineFlag(3,  "class")
+  val Pattern    : Flag = defineFlag(4,  "pattern")
+  val NSpace     : Flag = defineFlag(5,  "namespace")
+  val Section    : Flag = defineFlag(6,  "section")
+  val Method     : Flag = defineFlag(7,  "method")
+  val Constructor: Flag = defineFlag(8,  "constructor")
+  val Branch     : Flag = defineFlag(9,  "branch")   // branch name space
+  val Param      : Flag = defineFlag(10, "param")    // a parameter
+  val Mutable    : Flag = defineFlag(11, "mutable")  // a mutable variable
+  val Context    : Flag = defineFlag(12, "context")  // context parameter or its default function
+  val Field      : Flag = defineFlag(13, "field")    // an object field
+  val Default    : Flag = defineFlag(14, "default")  // context parameter with default value
+  val Alias      : Flag = defineFlag(15, "alias")    // an alias symbol created by import/export
+  val Auto       : Flag = defineFlag(16, "auto")     // auto function or auto value
+  val Synthetic  : Flag = defineFlag(17, "synthetic") // a compiler-synthesized symbol
 
   val empty   : Flags = 0
 
@@ -70,5 +77,3 @@ object Flags:
     def |(fs2: Flags): Flags = fs | fs2
 
     def &(fs2: Flags): Flags = fs & fs2
-
-    def toStrings: List[String] = flagStrings(fs)
