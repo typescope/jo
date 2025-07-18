@@ -189,8 +189,9 @@ object Encoder:
       // TODO: store type for checking contracts
       "[" ~ externalSymbols.toSeq.map(_.fullName).join(LINE_SEP) ~ "]"
 
-    def internalSymbolTable(using State, Definitions): Text =
-      "[" ~ internalSymIds.keys.toSeq.map(Encoder.encodeSymbol).join(LINE_SEP) ~ "]"
+    def topLevelSymbolTable(using State, Definitions): Text =
+      val topLevelSyms = internalSymIds.keys.filter(!_.isLocal)
+      "[" ~ topLevelSyms.map(Encoder.encodeSymbol).join(LINE_SEP) ~ "]"
   end State
 
   //----------------------------------------------------------------------------
@@ -233,7 +234,7 @@ object Encoder:
     val source = encodeSource(symbol.sourcePos.source)
 
     // must comes after defs
-    val symsData = state.internalSymbolTable
+    val symsData = state.topLevelSymbolTable
 
     // must comes after symbols
     val refsData = state.externalNameTable
