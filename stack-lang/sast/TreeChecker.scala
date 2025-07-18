@@ -101,6 +101,13 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends S
         if !word.tpe.isObjectType then
           Reporter.error("Expect object type, found = " + word.tpe.show, word.pos)
 
+      case If(cond, thenp, elsep) =>
+        if !Subtyping.conforms(thenp.tpe, word.tpe) then
+          Reporter.error(s"Branch type ${thenp.tpe.show} is not a subtype of ${word.tpe.show}", thenp.pos)
+
+        if !Subtyping.conforms(elsep.tpe, word.tpe) then
+          Reporter.error(s"Branch type ${elsep.tpe.show} is not a subtype of ${word.tpe.show}", elsep.pos)
+
       case FieldAssign(lhs @ Select(qual, name), rhs) =>
         if !qual.tpe.isObjectType && !qual.tpe.isClassType then
           Reporter.error("Object type expected, found = " + qual.tpe.show, word.pos)

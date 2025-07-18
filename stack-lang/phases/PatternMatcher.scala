@@ -114,7 +114,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
     def transformCases(cases: List[Case]): Word =
       cases match
         case caseDef :: rest =>
-          transformCase(scrutIdent, caseDef, () => transformCases(rest))
+          transformCase(scrutIdent, patmat.tpe, caseDef, () => transformCases(rest))
 
         case Nil =>
           // No need to abort if we issue error for non-exhaustive cases.
@@ -133,10 +133,10 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
     else
       body
 
-  private def transformCase(scrut: Ident, caseDef: Case, cont: () => Word) (using ctx: Context, source: Source): Word =
+  private def transformCase(scrut: Ident, resultType: Type, caseDef: Case, cont: () => Word) (using ctx: Context, source: Source): Word =
     val cond = transformPattern(scrut, caseDef.pattern)
     // TODO: optimize irrefutable patterns
-    If(cond, transform(caseDef.body), cont())(caseDef.body.tpe, caseDef.span)
+    If(cond, transform(caseDef.body), cont())(resultType, caseDef.span)
 
   private def transformPattern(scrut: Ident, pat: Pattern)(using Context, Source): Word =
     pat match
