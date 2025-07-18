@@ -1025,9 +1025,10 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         eatEndOpt(elseItem.indent)
         blk
       else
-        val unit = RecordLit(args = Nil)(thenp.span.endPoint)
+        // TODO: change to {} causes crash for native backends
+        val blk = Block(phrases = Nil)(thenp.span.endPoint)
         eatEndOpt(ifItem.indent)
-        unit
+        blk
 
     If(cond, thenp, elsep)(ifItem.span | elsep.span)
 
