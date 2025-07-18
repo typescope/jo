@@ -349,9 +349,9 @@ class Namer:
         patternTyper.transformMatch(patmat).adapt
 
       case vdef: Ast.ValDef =>
-        val assign = transformLocalValDef(vdef)
-        sc.define(assign.ident.symbol)
-        assign.adapt
+        val vdef2 = transformLocalValDef(vdef)
+        sc.define(vdef2.symbol)
+        vdef2.adapt
 
       case fdef: Ast.FunDef =>
         val delayedDef = transformFunDef(fdef, Flags.Fun, Effects.Policy.Infer)
@@ -415,8 +415,7 @@ class Namer:
             errorWord(word.span)
 
   def transformObject(obj: Ast.Object)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
-    val vals = new mutable.ArrayBuffer[Symbol]
-    val inits = new mutable.ArrayBuffer[FieldAssign]
+    val vals = new mutable.ArrayBuffer[ValDef]
     val delayedDefs = new mutable.ArrayBuffer[DelayedDef[FunDef]]
 
     val thisSym = Symbol.createSymbol("this", Flags.Synthetic, obj.pos)
@@ -452,9 +451,7 @@ class Namer:
       val sym = Symbol.createSymbol(vdef.name, tp, flags, thisSym, vdef.ident.pos)
       sc2.define(sym)
 
-      vals += sym
-      val lhs = Select(Ident(thisSym)(vdef.ident.span), sym.name)(tp, vdef.ident.span)
-      inits += FieldAssign(lhs, rhs)(vdef.span)
+      vals += ValDef(sym, rhs)(vdef.span)
 
     // `this` should not be available in field initialization
     thisScope.define(thisSym)
@@ -490,7 +487,7 @@ class Namer:
 
       delayedDefs += delayedDef
 
-    val fieldTypes = vals.map(_.toNamedInfo).toList
+    val fieldTypes = vals.map(_.symbol.toNamedInfo).toList
     val methodTypes = delayedDefs.map(d => NamedInfo(d.symbol.name, MemberRef(StaticRef(thisSym), d.symbol))).toList
     val mutables = vals.filter(_.isMutable).map(_.name).toList
     val objectType = ObjectType(fieldTypes, methodTypes, mutables)
@@ -500,7 +497,7 @@ class Namer:
     val defs: List[FunDef] =
       for delayedDef <- delayedDefs.toList yield delayedDef.force()
 
-    Object(thisSym, inits.toList, defs)(objectType, obj.span)
+    Object(thisSym, vals.toList, defs)(objectType, obj.span)
 
   def transformBlock(block: Ast.Block)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType)
@@ -1087,7 +1084,7 @@ class Namer:
 
      defn.add(thisSym, sc.owner, objType)
 
-     Object(thisSym, inits = Nil, funs = funDef :: Nil)(objType, lambda.span)
+     Object(thisSym, vals = Nil, funs = funDef :: Nil)(objType, lambda.span)
 
 
   private def transformParamDef(pdef: Ast.ParamDef)
@@ -1114,7 +1111,7 @@ class Namer:
 
     DelayedDef(paramSym, paramDefSast) :: Nil
 
-  private def transformLocalValDef(vdef: Ast.ValDef)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): Assign =
+  private def transformLocalValDef(vdef: Ast.ValDef)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): ValDef =
     var flags = checker.checkModifiers(vdef)
     if vdef.mutable then flags = flags | Flags.Mutable
 
@@ -1138,7 +1135,7 @@ class Namer:
 
     defn.add(sym, sc.owner, tp)
 
-    Assign(Ident(sym)(vdef.ident.span), rhs)(vdef.span)
+    ValDef(sym, rhs)(vdef.span)
 
   def transformTypeParams(tparams: List[Ast.TypeParam])
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)

@@ -213,6 +213,8 @@ object EffectAnalysis:
           this(qual)
           this(rhs)
 
+        case vdef: ValDef => this(vdef.rhs)
+
         case If(cond, thenp, elsep) =>
           this(cond) ++ this(thenp) ++ this(elsep)
 

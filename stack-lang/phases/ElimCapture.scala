@@ -195,11 +195,11 @@ object ElimCapture:
 
       defn.addLazy(thisTypeAliasSym, owner.enclosingContainer, lazyInfo)
 
-      for FieldAssign(Select(_, name), rhs) <- obj.inits do
-        uniq.freshName(name)
+      for vdef <- obj.vals do
+        uniq.freshName(vdef.name)
 
-        members += name -> this(rhs)
-        memberTypes += NamedInfo(name, rhs.tpe)
+        members += vdef.name -> this(vdef.rhs)
+        memberTypes += NamedInfo(vdef.name, vdef.rhs.tpe)
 
       for fdef <- obj.funs do
         uniq.freshName(fdef.name)
@@ -310,6 +310,10 @@ object ElimCapture:
         case _ =>
           // global function call or class method call
           Apply(this(fun), args2, autos2)(app.tpe, app.span)
+
+    override def transformValDef(vdef: ValDef)(using ctx: Context): Word =
+      val ValDef(sym, rhs) = vdef
+      Assign(Ident(sym)(sym.sourcePos.span), this(rhs))(vdef.span)
 
     override def transformBlock(block: Block)(using ctx: Context): Word =
       var ctx2 = ctx

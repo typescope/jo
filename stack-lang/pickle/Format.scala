@@ -21,11 +21,12 @@ object Format:
   final val Match       = 18
 
   final val ParamDef    = 19
-  final val ClassDef    = 20
-  final val TypeDef     = 21
-  final val FunDef      = 22
-  final val PatDef      = 23
-  final val Section     = 24
+  final val ValDef      = 20
+  final val FunDef      = 21
+  final val PatDef      = 22
+  final val ClassDef    = 23
+  final val TypeDef     = 24
+  final val Section     = 25
 
   final val TypePattern     = 1
   final val WildcardPattern = 2

@@ -98,7 +98,8 @@ object Sast:
 
   /** Assignment to local vars
     *
-    * It also represents local val/var definitions.
+    * It also represents local val/var definitions in later phases after
+    * destruction of ValDef.
     */
   case class Assign
     (ident: Ident, rhs: Word)
@@ -173,7 +174,7 @@ object Sast:
     (val tpe: Type, val span: Span)
   extends Word
 
-  case class Object(self: Symbol, inits: List[FieldAssign], funs: List[FunDef])
+  case class Object(self: Symbol, vals: List[ValDef], funs: List[FunDef])
     (val tpe: Type, val span: Span)
   extends Word
 
@@ -433,6 +434,12 @@ object Sast:
     (symbol: Symbol, tpt: TypeTree)
     (val span: Span)
   extends Def
+
+  case class ValDef
+    (symbol: Symbol, rhs: Word)
+    (val span: Span)
+  extends Word, Def:
+    val isMutable = symbol.isMutable
 
   case class TypeDef
     (symbol: Symbol)

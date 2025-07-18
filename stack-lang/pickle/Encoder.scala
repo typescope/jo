@@ -316,6 +316,9 @@ object Encoder:
       case pdef: ParamDef =>
         Format.ParamDef ~ "[" ~ internalRef(pdef.symbol) ~ "," ~ pdef.tpt ~ "]"
 
+      case vdef: ValDef =>
+        Format.ValDef ~ "[" ~ internalRef(vdef.symbol) ~ "," ~ vdef.rhs ~ "]"
+
       case cdef: ClassDef =>
         Format.ClassDef ~ "[" ~ indent:
             internalRef(cdef.symbol) ~ LINE_SEP ~
@@ -508,6 +511,8 @@ object Encoder:
 
       case FieldAssign(lhs, rhs) =>
         Format.FieldAssign ~ "[" ~ lhs ~ "," ~ rhs ~ "]"
+
+      case vdef: ValDef => encodeDef(vdef)
 
       case fdef: FunDef => encodeDef(fdef)
 

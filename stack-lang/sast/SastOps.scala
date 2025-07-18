@@ -133,6 +133,8 @@ object SastOps:
 
         case fieldAssign: FieldAssign => transformFieldAssign(fieldAssign)
 
+        case vdef: ValDef => transformValDef(vdef)
+
         case fdef: FunDef => transformLocalFunDef(fdef)
 
         case pdef: PatDef => transformLocalPatDef(pdef)
@@ -267,6 +269,12 @@ object SastOps:
       val lhs2 = lhs.copy(this(lhs.qual))(lhs.tpe, lhs.span)
       FieldAssign(lhs2, this(rhs))(fieldAssign.span)
 
+    def transformValDef(vdef: ValDef)(using Context): Word =
+      recurValDef(vdef)
+
+    private def recurValDef(vdef: ValDef)(using Context): ValDef =
+      ValDef(vdef.symbol, this(vdef.rhs))(vdef.span)
+
     def transformLocalFunDef(fdef: FunDef)(using Context): Word =
       recurFunDef(fdef)
 
@@ -321,11 +329,10 @@ object SastOps:
       recurObject(obj)
 
     private def recurObject(obj: Object)(using Context): Word =
-      val Object(self, inits, funs) = obj
-      val inits2: List[FieldAssign] =
-        for init <- inits yield init.copy(rhs = this(init.rhs))(init.span)
+      val Object(self, vals, funs) = obj
+      val vals2: List[ValDef] = vals.map(recurValDef)
       val funs2: List[FunDef] = funs.map(recurFunDef)
-      Object(self, inits2, funs2)(obj.tpe, obj.span)
+      Object(self, vals2, funs2)(obj.tpe, obj.span)
 
     def transformAliasPattern(pat: AliasPattern)(using Context): Pattern =
       recurAliasPattern(pat)
@@ -422,6 +429,8 @@ object SastOps:
 
     def apply(pattern: Pattern)(using Context): Unit = recur(pattern)
 
+    def recurValDef(vdef: ValDef)(using Context): Unit = this(vdef.rhs)
+
     def recurLocalFunDef(fdef: FunDef)(using Context): Unit = this(fdef.body)
 
     def recurLocalTypeDef(tdef: TypeDef)(using Context): Unit = ()
@@ -510,6 +519,8 @@ object SastOps:
           this(lhs.qual)
           this(rhs)
 
+        case vdef: ValDef => recurValDef(vdef)
+
         case fdef: FunDef => recurLocalFunDef(fdef)
 
         case tdef: TypeDef => recurLocalTypeDef(tdef)
@@ -534,8 +545,8 @@ object SastOps:
             this(pat)
             this(body)
 
-        case Object(self, inits, defs) =>
-          inits.map(this.apply)
+        case Object(self, vals, defs) =>
+          vals.map(this.apply)
           defs.map(this.apply)
     end recur
   end TreeTraverser
@@ -581,6 +592,10 @@ object SastOps:
         case Ident(sym) =>
           // can be a global name
           free += sym
+
+        case ValDef(sym, rhs) =>
+          if !sym.isField then locals += sym
+          this(rhs)
 
         case Assign(Ident(sym), rhs) =>
           locals += sym

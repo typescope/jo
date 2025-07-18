@@ -281,8 +281,8 @@ class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
       case _: TypeDef =>
         cont()
 
-      case _: FunDef |  _: With | _: Allow | _: Object | _: Match |
-           _: TaggedLit | _: PatDef | _: New =>
+      case _: Def       |  _: With | _: Allow | _: Object | _: Match |
+           _: TaggedLit |  _: New =>
 
         throw new Exception("Unexpected " + word)
 
