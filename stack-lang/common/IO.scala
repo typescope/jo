@@ -59,16 +59,16 @@ object IO:
 
     try
       fos.write(data, offset, len)
-    catch case e: java.io.IOException =>
-      throw e
+      fos.flush()
+    finally
+      fos.close()
 
   def withPrintWriter(path: String)(fn: java.io.PrintWriter => Unit): Unit =
     val pw = new java.io.PrintWriter(path)
     try
       fn(pw)
-    catch case e: Throwable =>
+    finally
       pw.close()
-      throw e
 
   def withExeFile(name: String)(fn: ByteBuffer => Unit): Unit =
     val file = new java.io.File(name)
