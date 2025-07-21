@@ -13,7 +13,7 @@ package native
 import Assembler.PatchableBuffer
 
 import common.IO
-import common.IO.ByteBuffer
+import common.ByteBuffer
 
 import ELF32.*
 
