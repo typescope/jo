@@ -14,7 +14,7 @@ package common
   * encoding.
   *
   * During decoding, the base-128 bytes are first assembled to the signed-bit
-  * representation. The latter then is converted to 2's complement
+  * representation. The latter is then converted to 2's complement
   * representation:
   *
   *    if (y & 1) == 0 then y >>> 1 else -(y >>> 1)

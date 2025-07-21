@@ -62,6 +62,7 @@ files=(
 
     stack-lang/pickle/Encoder.scala
     stack-lang/pickle/Format.scala
+    stack-lang/pickle/WriteBuffer.scala
 
     # js compiler
     stack-lang/common/UniqueName.scala
