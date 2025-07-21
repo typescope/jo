@@ -18,7 +18,7 @@ object Flags:
   private val flagNames: Array[String] = Array.fill(64)("")
   private val MAX_INDEX = 17
 
-  private[Flags] def defineFlag(index: Int, name: String): Flag =
+  private[Flags] def defineFlag(index: Byte, name: String): Flag =
     assert(index <= MAX_INDEX, s"Maximum flags reached: at most $MAX_INDEX flags")
     assert(!name.isEmpty, "Flag name cannot be empty")
 
@@ -27,12 +27,12 @@ object Flags:
     flagNames(index) = name
     1 << index
 
-  def flagIndices(fs: Flags): List[Int] =
-    val buf = new mutable.ArrayBuffer[Int]
+  def flagIndices(fs: Flags): List[Byte] =
+    val buf = new mutable.ArrayBuffer[Byte]
     for i <- 0 to MAX_INDEX do
       if (fs & (1 << i)) > 0 then
         assert(!flagNames(i).isEmpty, s"flag index $i is empty")
-        buf += i
+        buf += i.toByte
     end for
     buf.toList
 

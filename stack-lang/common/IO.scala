@@ -54,6 +54,14 @@ object IO:
       fs.close()
       throw e
 
+  def writeFile(path: String, data: Array[Byte], offset: Int, len: Int): Unit =
+    val fos = new java.io.FileOutputStream(path)
+
+    try
+      fos.write(data, offset, len)
+    catch case e: java.io.IOException =>
+      throw e
+
   def withPrintWriter(path: String)(fn: java.io.PrintWriter => Unit): Unit =
     val pw = new java.io.PrintWriter(path)
     try

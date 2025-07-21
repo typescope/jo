@@ -11,8 +11,6 @@ class Pickler(using defn: Definitions) extends phases.Phase[Unit]:
 
   override def transformNamespace(ns: Namespace)(using ctx: Context): Namespace =
     val path = ns.symbol.fullName + ".sast"
-    IO.withPrintWriter(path): pw =>
-      val text = Encoder.encode(ns)
-      text.write(pw)
-
+    val buf = Encoder.encode(ns)
+    IO.writeFile(path, buf.getBytes, 0, buf.length)
     ns

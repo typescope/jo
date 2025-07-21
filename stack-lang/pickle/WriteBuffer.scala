@@ -15,6 +15,8 @@ class WriteBuffer(initialSize: Int) extends (Byte => Unit):
     bytes(size) = b.toByte
     size += 1
 
+  def addBool(x: Boolean): Unit = Base128.writeLong(if x then 1 else 0, this)
+
   def addInt(x: Int): Unit = Base128.writeInt(x, this)
 
   def addLong(x: Long): Unit = Base128.writeLong(x, this)
@@ -29,6 +31,10 @@ class WriteBuffer(initialSize: Int) extends (Byte => Unit):
     while (bytes.length < size + n) bytes = WriteBuffer.doubleSize(bytes)
     System.arraycopy(data, 0, bytes, size, n)
     size += n
+
+  def length: Int = size
+
+  def getBytes: Array[Byte] = bytes
 
 object WriteBuffer:
   def doubleSize(arr: Array[Byte]): Array[Byte] =
