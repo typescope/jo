@@ -23,10 +23,10 @@ package common
   */
 object Base128:
 
-  def writeInt(x: Int, addByte: Byte => Unit) =
-    writeLong(x, addByte)
+  def fromInt(x: Int, addByte: Byte => Unit) =
+    fromLong(x, addByte)
 
-  def writeLong(x: Long, addByte: Byte => Unit) =
+  def fromLong(x: Long, addByte: Byte => Unit) =
     val MASK: Long = 0x7F
 
     // Use signed representation to better handle small negative values
@@ -41,12 +41,12 @@ object Base128:
     addPrefix(y >>> 7)
     addByte(((y & MASK) | 0x80).toByte)
 
-  def readInt(readByte: () => Byte): Int =
-    val x = readLong(readByte)
+  def toInt(readByte: () => Byte): Int =
+    val x = toLong(readByte)
     assert(x >= Int.MinValue && x <= Int.MaxValue, x)
     x.toInt
 
-  def readLong(readByte: () => Byte): Long =
+  def toLong(readByte: () => Byte): Long =
     val MASK: Long = 0x7F
 
     var y: Long = 0

@@ -15,11 +15,11 @@ class WriteBuffer(initialSize: Int) extends (Byte => Unit):
     bytes(size) = b.toByte
     size += 1
 
-  def addBool(x: Boolean): Unit = Base128.writeLong(if x then 1 else 0, this)
+  def addBool(x: Boolean): Unit = Base128.fromLong(if x then 1 else 0, this)
 
-  def addInt(x: Int): Unit = Base128.writeInt(x, this)
+  def addInt(x: Int): Unit = Base128.fromInt(x, this)
 
-  def addLong(x: Long): Unit = Base128.writeLong(x, this)
+  def addLong(x: Long): Unit = Base128.fromLong(x, this)
 
   def addUtf8(s: String): Unit =
     val bytes = s.getBytes(java.nio.charset.StandardCharsets.UTF_8)
