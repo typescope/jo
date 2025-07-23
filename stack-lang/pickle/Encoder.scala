@@ -60,7 +60,7 @@ import scala.collection.mutable
   *    can be mapped to line numbers and column numbers based on a lines table.
   *
   *    A lines table stores the length of lines in the source file. The line
-  *    table is encoded compactly based on base64 encoding of each individual
+  *    table is encoded compactly based on base128 encoding of each individual
   *    line length. As lines are mostly less than 128 columns, a single byte
   *    suffices for most lines.
   *
@@ -141,7 +141,7 @@ object Encoder:
       end match
 
     def encodeExternalNameTable()(using defn: Definitions, buf: WriteBuffer) =
-      Encoder.encodeInt(externalSymbols.size)
+      Encoder.encodeNat(externalSymbols.size)
       for sym <- externalSymbols do encodeString(sym.fullName)
 
     def encodeSymbolTable()(using state: State, defn: Definitions, buf: WriteBuffer) =
@@ -187,7 +187,7 @@ object Encoder:
     // TODO: attributes, comments
 
     val id = state.internalId(symbol)
-    encodeInt(id)
+    encodeNat(id)
     encodeString(symbol.name)
     encodeFlags(symbol.flags)
 
@@ -197,8 +197,8 @@ object Encoder:
 
     if symbol.owner == null then encodeInt(-1)
 
-    encodeInt(symbol.sourcePos.start)
-    encodeInt(symbol.sourcePos.length)
+    encodeNat(symbol.sourcePos.start)
+    encodeNat(symbol.sourcePos.length)
     encodeSymbolInfo(symbol)
 
   /** Reference to a symbol
@@ -215,14 +215,14 @@ object Encoder:
     else
       assert(!symbol.isLocal, "Cannot reference external local symbol: " + symbol)
       encodeByte(1)
-      encodeInt(state.getExternalSymbolIndex(symbol))
+      encodeNat(state.getExternalSymbolIndex(symbol))
 
   private def encodeInternalRefs(symbols: List[Symbol])(using state: State, buf: WriteBuffer): Unit =
-    encodeInt(symbols.size)
+    encodeNat(symbols.size)
     for symbol <- symbols do encodeInternalRef(symbol)
 
   private def encodeInternalRef(symbol: Symbol)(using state: State, buf: WriteBuffer): Unit =
-    encodeInt(state.internalId(symbol))
+    encodeNat(state.internalId(symbol))
 
   private def encodeSymbolInfo(symbol: Symbol)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
     symbol.info match
@@ -422,7 +422,7 @@ object Encoder:
 
         encodeType(resType)
 
-        encodeInt(preParamCount)
+        encodeNat(preParamCount)
 
       case TypeLambda(tparams, resType, preParamCount) =>
         encodeByte(Format.TypeLambda)
@@ -431,7 +431,7 @@ object Encoder:
         repeated(tparams) { tparam => encodeSymbolRef(tparam) }
 
         encodeType(resType)
-        encodeInt(preParamCount)
+        encodeNat(preParamCount)
 
       case cinfo: ContainerInfo =>
         encodeByte(Format.ContainerInfo)
@@ -651,6 +651,9 @@ object Encoder:
   private def encodeInt(n: Int)(using buf: WriteBuffer): Unit =
     buf.addInt(n)
 
+  private def encodeNat(n: Int)(using buf: WriteBuffer): Unit =
+    buf.addNat(n)
+
   private def encodeString(s: String)(using buf: WriteBuffer): Unit =
     buf.addUtf8(s)
 
@@ -672,8 +675,8 @@ object Encoder:
   private def encodeSource(source: Source)(using buf: WriteBuffer): Unit =
     encodeString(source.file)
     val lineLengths = source.lineLengths
-    repeated(lineLengths) { len => encodeInt(len) }
+    repeated(lineLengths) { len => encodeNat(len) }
 
   private def repeated[T](items: Iterable[T])(encode: T => Unit)(using buf: WriteBuffer): Unit =
-    encodeInt(items.size)
+    encodeNat(items.size)
     for item <- items do encode(item)

@@ -19,12 +19,14 @@ class WriteBuffer(initialSize: Int) extends (Byte => Unit):
 
   def addInt(x: Int): Unit = Base128.fromInt(x, this)
 
+  def addNat(x: Int): Unit = Base128.fromNat(x, this)
+
   def addLong(x: Long): Unit = Base128.fromLong(x, this)
 
   def addUtf8(s: String): Unit =
     val bytes = s.getBytes(java.nio.charset.StandardCharsets.UTF_8)
     val length = bytes.length
-    addInt(length)
+    addNat(length)
     addBytes(bytes, length)
 
   def addBytes(data: Array[Byte], n: Int): Unit =
