@@ -303,38 +303,34 @@ object Interpreter:
     } :: Nil
   )
 
-  def index(defs: List[Def])(using defn: Definitions, env: Env, cp: CodeProvider): Unit =
+  def index(defs: List[Def])(using defn: Definitions, env: Env): Unit =
     defs.foreach:
       case fun: FunDef =>
         // Predef symbols without an implementation should be ignored
         if !env.contains(fun.symbol) then
           env.bind(fun.symbol, FunVal(fun.symbol, env))
-          cp.add(fun.symbol, fun)
 
       case Section(_, defs) =>
         index(defs)
 
-      case cdef: ClassDef =>
-        for fdef <- cdef.funs do cp.add(fdef.symbol, fdef)
-
       case _ =>
 
-  def exec(nss: List[Namespace], main: Symbol)(using defn: Definitions, cp: CodeProvider): Unit =
+  def exec(nss: List[Namespace], main: Symbol)(using defn: Definitions): Unit =
     given Env = createRootEnv()
     given Params = createRuntimeContextParams()
 
     for ns <- nss do index(ns.defs)
 
-    val fdef: FunDef = cp.get(main).asInstanceOf[FunDef]
+    val fdef: FunDef = defn.getCode(main)
     call(fdef, args = Nil)
 
-  def exec(block: Block)(using Env, Params, Definitions, CodeProvider): List[Denotation] =
+  def exec(block: Block)(using Env, Params, Definitions): List[Denotation] =
     val results = for word <- block.words yield exec(word)
 
     if results.isEmpty then Nil
     else results.last
 
-  def call(fdef: FunDef, args: List[Value])(using env: Env, params: Params, defn: Definitions, cp: CodeProvider): List[Denotation] =
+  def call(fdef: FunDef, args: List[Value])(using env: Env, params: Params, defn: Definitions): List[Denotation] =
     val funEnv = env.fresh()
 
     for (param, arg) <- fdef.allParams.zip(args) do
@@ -343,12 +339,12 @@ object Interpreter:
     Debug.trace("calling " + fdef.symbol + ", env = " + funEnv.show(recursive = false), (ds: List[Denotation]) => ds.map(_.show()).mkString(", "),  enable = false):
       exec(fdef.body)(using funEnv)
 
-  def eval(word: Word)(using env: Env, params: Params, defn: Definitions, cp: CodeProvider): Value =
+  def eval(word: Word)(using env: Env, params: Params, defn: Definitions): Value =
     Debug.trace(word.show + ", env = " + env.show(recursive = false), (_: Value).show(), enable = false):
       val (value: Value) :: Nil = exec(word): @unchecked
       value
 
-  def exec(word: Word)(using env: Env, params: Params, defn: Definitions, cp: CodeProvider): List[Denotation] =
+  def exec(word: Word)(using env: Env, params: Params, defn: Definitions): List[Denotation] =
     word match
       case Literal(c)  =>
         c match
@@ -446,7 +442,7 @@ object Interpreter:
                 val argVals = args.map(eval) ++ autos.map(eval)
                 val sym = objVal.funs(name)
                 val env2 = objVal.env.fresh()
-                val fdef = cp.get(sym).asInstanceOf[FunDef]
+                val fdef = defn.getCode(sym).asInstanceOf[FunDef]
 
                 env2.bind(objVal.self, objVal)
                 call(fdef, argVals)(using env2)
@@ -490,7 +486,7 @@ object Interpreter:
                 val argVals = args.map(eval) ++ autos.map(eval)
                 val sym = objVal.funs(name)
                 val env2 = objVal.env.fresh()
-                val fdef = cp.get(sym).asInstanceOf[FunDef]
+                val fdef = defn.getCode(sym)
 
                 env2.bind(objVal.self, objVal)
                 call(fdef, argVals)(using env2)
@@ -502,7 +498,7 @@ object Interpreter:
 
             (funDenot: @unchecked) match
               case FunVal(sym, env) =>
-                val fdef = cp.get(sym).asInstanceOf[FunDef]
+                val fdef = defn.getCode(sym)
                 call(fdef, argVals)(using env)
 
               case PlatformCall(op) =>
@@ -514,15 +510,12 @@ object Interpreter:
       case fdef: FunDef =>
         val sym = fdef.symbol
         env.bind(sym, FunVal(sym, env))
-        if !cp.contains(sym) then cp.add(sym, fdef)
         Nil
 
       case Object(self, vals, defs) =>
         val fieldInits = vals.map(vdef => vdef.name -> eval(vdef.rhs))
         val fieldVals = mutable.Map.from(fieldInits)
         val defSymbols = defs.map(mdef => mdef.name -> mdef.symbol).toMap
-
-        for fdef <- defs if !cp.contains(fdef.symbol) do cp.add(fdef.symbol, fdef)
 
         val objVal = ObjectVal(fieldVals, self, defSymbols, env)
         objVal :: Nil
@@ -559,7 +552,6 @@ object Interpreter:
       mains match
         case main :: _ =>
           given Definitions = lazyDefn.value
-          given CodeProvider = new CodeProvider
           exec(namespacesSAST, main) <| "interpreter"
 
         case Nil =>

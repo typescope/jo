@@ -2,6 +2,7 @@ package sast
 
 import Types.*
 import Symbols.*
+import Sast.FunDef
 
 import reporting.Reporter
 
@@ -41,6 +42,24 @@ final class Definitions(rootNameTable: NameTable, initProvider: InfoProvider):
 
     // Invalidate old cache
     cacheForInfoProvider = new Cache
+
+
+  //----------------------------------------------------------------------------
+  // Effects provider
+  //
+  val effectEngine: EffectAnalysis = new EffectAnalysis
+
+  //----------------------------------------------------------------------------
+  // Code provider
+  //
+
+  private val codeProvider = new CodeProvider
+
+  def getCode(sym: Symbol): FunDef = codeProvider.get(sym)
+
+  def containsCode(sym: Symbol): Boolean = codeProvider.contains(sym)
+
+  def setCode(sym: Symbol, code: FunDef): Unit = codeProvider.set(sym, code)
 
   //----------------------------------------------------------------------------
   // Predefined symbols

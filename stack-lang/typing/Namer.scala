@@ -1215,7 +1215,7 @@ class Namer:
     val funSym = Symbol.createSymbol(funDef.name, flags, funDef.ident.pos)
     given funScope: Scope = sc.fresh(funSym)
 
-    given Definitions = lazyDefn match
+    given defn: Definitions = lazyDefn match
       case lazyDefn: Definitions.Lazy => lazyDefn.value
       case defn: Definitions => defn
 
@@ -1300,7 +1300,7 @@ class Namer:
     if funDef.tparams.nonEmpty then
       Reporter.error("Constructor may not take type parameters", funDef.tparams.head.pos)
 
-    given Definitions = lazyDefn.value
+    given defn: Definitions = lazyDefn.value
 
     lazy val paramSyms =
       transformParams(funDef.params)

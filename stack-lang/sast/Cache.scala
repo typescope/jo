@@ -4,7 +4,11 @@ import Types.*
 
 import scala.collection.mutable
 
-/** Cache for expensive operations */
+/** Cache for expensive type operations
+  *
+  * The cache will be invalidated for after the install of each symbol
+  * transformer.
+  */
 class Cache:
   private val subtypingCache: mutable.Map[Type, mutable.Map[Type, Boolean]] =
     mutable.Map.empty

@@ -1,40 +1,51 @@
-package typing
+package sast
 
 import ast.Positions.*
 
-import sast.*
-import sast.Sast.*
-import sast.Symbols.Symbol
-import sast.Effects.*
+import Sast.*
+import Symbols.Symbol
+import Effects.*
 
 import scala.collection.mutable
 
-object EffectAnalysis:
-  type Trace = Vector[SourcePosition]
-  type TracedEffects = Map[Symbol, Trace]
+import EffectAnalysis.*
 
-  /** The stable cache for effects of functions */
-  class Cache(
-    val effects: mutable.Map[Symbol, TracedEffects],
-    val code: mutable.Map[Symbol, FunDef]):
-
-    def this() = this(mutable.Map.empty, mutable.Map.empty)
+class EffectAnalysis:
+  /** Computed stable effects for functions */
+  private val stableEffects: mutable.Map[Symbol, TracedEffects] = mutable.Map.empty
 
   /** Compute effects of the given function
     *
     * It should only be called from outside. Internally, `getEffects` should be
     * called.
     */
-  def effects(fun: Symbol)(using cache: Cache, defn: Definitions): TracedEffects =
-    fixpoint(getEffects(fun))
+  def effects(fun: Symbol)(using defn: Definitions): TracedEffects =
+    getStable(fun) match
+      case Some(effs) =>
+        effs
+
+      case None =>
+        fixpoint(this)(getEffects(fun))
 
   /** Compute effects of the given word
     *
     * It should only be called from outside. Internally, `EffectAnalyzer.apply`
     * should be called.
     */
-  def effects(word: Word)(using cache: Cache, source: Source, defn: Definitions): TracedEffects =
-    fixpoint(EffectAnalyzer.apply(word))
+  def effects(word: Word)(using defn: Definitions, source: Source): TracedEffects =
+    fixpoint(this)(EffectAnalyzer.apply(word))
+
+  def getStable(fun: Symbol): Option[TracedEffects] = stableEffects.get(fun)
+
+  /** Commit fixed point result to stable cache */
+  private def commit(stableEffs: Map[Symbol, TracedEffects]): Unit =
+    for (sym, effs) <- stableEffs do
+       assert(!stableEffects.contains(sym), sym)
+       stableEffects(sym) = effs
+
+object EffectAnalysis:
+  type Trace = Vector[SourcePosition]
+  type TracedEffects = Map[Symbol, Trace]
 
   /** The fixed point computation stops if the in cache is equal to out cache.
     *
@@ -42,7 +53,7 @@ object EffectAnalysis:
     *
     * See https://en.wikipedia.org/wiki/Knaster%E2%80%93Tarski_theorem
     */
-  private def fixpoint(doTask: TempCache ?=> TracedEffects)(using cache: Cache): TracedEffects =
+  private def fixpoint(engine: EffectAnalysis)(doTask: TempCache ?=> TracedEffects): TracedEffects =
     given temp: TempCache = TempCache()
     var effs = doTask
     while temp.isUsed && temp.hasChanged do
@@ -51,7 +62,7 @@ object EffectAnalysis:
     end while
 
     // move temp to global stable cache
-    temp.commit(cache)
+    engine.commit(temp.stable)
 
     effs
 
@@ -93,6 +104,8 @@ object EffectAnalysis:
     def update(fun: Symbol, effs: TracedEffects): Unit =
       out = out.updated(fun, effs)
 
+    def stable: Map[Symbol, TracedEffects] = out
+
     def getOrElse(fun: Symbol)(otherwise: => TracedEffects): TracedEffects =
       out.get(fun) match
         case Some(res) =>
@@ -101,18 +114,15 @@ object EffectAnalysis:
 
         case _ =>
           otherwise
+    end getOrElse
 
-    /** Commit fixed point result to stable cache */
-    def commit(cache: Cache): Unit =
-      for (sym, effs) <- this.out do
-        assert(!cache.effects.contains(sym), sym)
-        cache.effects(sym) = effs
+  end TempCache
 
   /** Produce a list of transitively reachabe param symbols for the function */
-  private def getEffects(fun: Symbol)(using cache: Cache, temp: TempCache, defn: Definitions): TracedEffects =
+  private def getEffects(fun: Symbol)(using temp: TempCache, defn: Definitions): TracedEffects =
     // Usage of stable cache has to be part of the computation for speed
     val funSym = fun.dealias
-    cache.effects.get(funSym) match
+    defn.effectEngine.getStable(funSym) match
       case Some(res) => res
 
       case None =>
@@ -120,7 +130,7 @@ object EffectAnalysis:
         temp.getOrElse(funSym):
           given Source = funSym.sourcePos.source
           temp.init(funSym)
-          val body = cache.code(funSym).body
+          val body = defn.getCode(funSym).body
           val effects = EffectAnalyzer.apply(body)
           temp.update(funSym, effects)
           effects
@@ -128,7 +138,7 @@ object EffectAnalysis:
   private object EffectAnalyzer:
     val zero = Map.empty[Symbol, Trace]
 
-    def apply(word: Word)(using cache: Cache, temp: TempCache, source: Source, defn: Definitions): TracedEffects =
+    def apply(word: Word)(using temp: TempCache, source: Source, defn: Definitions): TracedEffects =
       word match
         case _: Literal => zero
 
@@ -236,7 +246,7 @@ object EffectAnalysis:
           defs.foldLeft(effs): (acc, ddef) =>
             // Cache the effects for method such that it can be used for the
             // deep capture transform.
-            cache.code(ddef.symbol) = ddef
+
             ddef.effectPolicy match
               case Policy.Infer => acc
 
@@ -247,12 +257,5 @@ object EffectAnalysis:
               case Policy.CheckBound(bound) =>
                 acc ++ bound.map(_ -> Vector(word.pos))
 
-        case fdef: FunDef =>
-          cache.code(fdef.symbol) = fdef
-          zero
-
-        case pdef: PatDef => zero
-
-        case tdef: TypeDef => zero
+        case _: Def => zero
     end apply
-  end EffectAnalyzer

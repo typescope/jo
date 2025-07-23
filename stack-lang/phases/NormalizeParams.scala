@@ -5,7 +5,6 @@ import sast.*
 import sast.Sast.*
 import sast.Types.*
 import sast.Symbols.*
-import typing.EffectAnalysis
 import reporting.Reporter
 
 import scala.collection.mutable
@@ -39,34 +38,10 @@ import scala.collection.mutable
   * The effect check will happen for `a`, the semantics will only use
   * `a$option`.
   */
-class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[NormalizeParams.Context]:
-  val contextObject = NormalizeParams.CacheContext
+class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Symbol]:
+  val contextObject = Phase.OwnerContext
 
   val NoneType = TagType("None", params = Nil)
-
-  override def transform(nss: List[Namespace]): List[Namespace] =
-    val cache = EffectAnalysis.Cache()
-
-    for ns <- nss do index(cache, ns.defs)
-
-    for ns <- nss yield
-      given Context = NormalizeParams.Context(cache, ns.symbol)
-      transformNamespace(ns)
-
-  private def index(cache: EffectAnalysis.Cache, defs: List[Def]): Unit =
-    defs.map:
-      case fdef: FunDef =>
-        cache.code(fdef.symbol) = fdef
-
-      case cdef: ClassDef =>
-        for fdef <- cdef.funs do
-          cache.code(fdef.symbol) = fdef
-
-      case Section(symbol, defs) =>
-        index(cache, defs)
-
-      case _ =>
-
 
   /** Bind optional context parameters at program entry.
     *
@@ -76,7 +51,7 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
     */
   override  def transformFunDef(fdef: FunDef)(using ctx: Context): FunDef =
     if !fdef.symbol.isLocal && fdef.name == "main" then
-      val effs = EffectAnalysis.effects(fdef.symbol)(using ctx.cache)
+      val effs = defn.effectEngine.effects(fdef.symbol)
       val fdef2 = super.transformFunDef(fdef)
 
       val pos = fdef.symbol.sourcePos
@@ -97,13 +72,12 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
 
     else
       val symbol = fdef.symbol
-      if symbol.isLocal then ctx.cache.code(symbol) = fdef
 
       if symbol.isFunction then
         fdef.effectPolicy match
           case Effects.Policy.CheckBound(params) =>
             val allowed = params.map(_.dealias).toSet
-            val effs = EffectAnalysis.effects(symbol)(using ctx.cache)
+            val effs = defn.effectEngine.effects(symbol)
             val pos = symbol.sourcePos
             for (eff, trace) <- effs if !allowed.exists(param => eff.refers(param)) do
               Reporter.error("Parameter not allowed: " + eff, pos, trace)
@@ -133,7 +107,7 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
     val expr2 = transform(allowExpr.expr)
 
     given Source = ctx.owner.sourcePos.source
-    val effsInner = EffectAnalysis.effects(allowExpr.expr)(using ctx.cache)
+    val effsInner = defn.effectEngine.effects(allowExpr.expr)
     val allowed = allowExpr.params.map(_.symbol.dealias).toSet
 
     val unprovided = effsInner.filter((k, _) => !allowed.exists(param => k.refers(param)))
@@ -178,12 +152,11 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
     val newDefs = new mutable.ArrayBuffer[FunDef]
     val aliasMap = mutable.Map.empty[Symbol, Assign]
 
-    given Source = ctx.owner.sourcePos.source
+    given Source = ctx.sourcePos.source
     val span = obj.span
 
     for ddef <- obj.funs do
-      ctx.cache.code(ddef.symbol) = ddef
-      val effsTraced = EffectAnalysis.effects(ddef.symbol)(using ctx.cache)
+      val effsTraced = defn.effectEngine.effects(ddef.symbol)
       val effs = (effsTraced -- ddef.effectsBound.getOrElse(Nil)).keys.toList
 
       if effs.isEmpty then
@@ -233,7 +206,7 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
 
   private def checkTermInPattern(word: Word)(using ctx: Context): Word =
     given Source = ctx.owner.sourcePos.source
-    val effs = EffectAnalysis.effects(word)(using ctx.cache)
+    val effs = defn.effectEngine.effects(word)
 
     for
       (eff, trace) <- effs
@@ -255,9 +228,3 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
 
   override def transformValuePattern(pat: ValuePattern)(using ctx: Context): Pattern =
     pat.copy(value = checkTermInPattern(pat.value))(pat.scrutineeType)
-
-object NormalizeParams:
-  class Context(val cache: EffectAnalysis.Cache, val owner: Symbol)
-  object CacheContext extends Phase.ContextObject[Context]:
-    def newContext(owner: Symbol, old: Context) = Context(old.cache, owner)
-    def newContext(namespace: Symbol) = throw new Exception("Namespace context should use global cache")

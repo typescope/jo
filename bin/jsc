@@ -28,7 +28,6 @@ files=(
     # typer
     stack-lang/typing/Autos.scala
     stack-lang/typing/Checker.scala
-    stack-lang/typing/EffectAnalysis.scala
     stack-lang/typing/ExprTyper.scala
     stack-lang/typing/Imports.scala
     stack-lang/typing/Inference.scala
@@ -41,6 +40,7 @@ files=(
     stack-lang/sast/Constant.scala
     stack-lang/sast/Definitions.scala
     stack-lang/sast/Effects.scala
+    stack-lang/sast/EffectAnalysis.scala
     stack-lang/sast/Exhaustivity.scala
     stack-lang/sast/Flags.scala
     stack-lang/sast/InfoProvider.scala

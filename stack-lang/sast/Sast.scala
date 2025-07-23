@@ -457,7 +457,10 @@ object Sast:
   case class FunDef
     (symbol: Symbol, tparams: List[Symbol], params: List[Symbol], autos: List[Symbol], resultType: TypeTree, body: Word)
     (val span: Span)
+    (using defn: Definitions)
   extends Word, Def:
+    defn.setCode(symbol, this)
+
     private var censusCache: (List[Symbol], List[Symbol]) | Null = null
 
     val allParams: List[Symbol] = params ++ autos
