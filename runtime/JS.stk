@@ -24,7 +24,7 @@ def js(s: String): Bottom = abort("primitive js")
 // program life time
 //
 
-def start(): Unit =
+def start(): Unit receives none =
   mainStub with
     IO.open   = createFileOpener(),
     IO.stdin  = createStdIn(),
@@ -96,23 +96,23 @@ def Array_set[T](array: Array[T], index: Int, value: T): Unit =
 // String support
 //
 
-def String_apply(str: String, index: Int): String =
+def String_apply(str: String, index: Int): String receives none =
   assert
     index < (String_size str)
     "String index out of range: " + (intToStr index)
 
   js "str.charCodeAt(index)"
 
-def String_substring(str: String, index: Int, len: Int): String =
+def String_substring(str: String, index: Int, len: Int): String receives none =
   js "str.substring(index, index + len)"
 
-def String_size(str: String): Int =
+def String_size(str: String): Int receives none =
   js "str.length"
 
-def String_plus(str: String, other: String): String =
+def String_plus(str: String, other: String): String receives none =
   js "str + other"
 
-def String_equals(str: String, other: String): Bool =
+def String_equals(str: String, other: String): Bool receives none =
   js "str === other"
 
 //------------------------------------------------------------------------------
@@ -120,21 +120,21 @@ def String_equals(str: String, other: String): Bool =
 // Context parameter support
 //
 
-def hasParam(key: String): Bool =
+def hasParam(key: String): Bool receives none =
   val v = getProp (js "__runtime_contextParams") key
   isDefined v
 
-def getParam(key: String): Any =
+def getParam(key: String): Any receives none =
   val v = getProp (js "__runtime_contextParams") key
   if isDefined v then v
   else abort (concat "Unbound parameter " key)
 
-def setParam(key: String, value: Any): Any =
+def setParam(key: String, value: Any): Any receives none =
   val old = getProp (js "__runtime_contextParams") key
   setProp (js "__runtime_contextParams") key value
   old
 
-def delParam(key: String): Unit =
+def delParam(key: String): Unit receives none =
   setProp (js "__runtime_contextParams") key (js "undefined")
 
 //------------------------------------------------------------------------------
@@ -168,7 +168,7 @@ type Stat = object {
   val size: Int
 }
 
-def createFileOpener() = (filePath: String) =>
+def createFileOpener() receives none = (filePath: String) =>
   val mode = if existsSync filePath then "r+" else "w+"
   val fd = openSync filePath mode
   object {

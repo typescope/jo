@@ -14,11 +14,11 @@ import stk.runtime.native.ParamSupport
 
 type Addr
 
-def dataAddr(qualid: String): Addr =
+def dataAddr(qualid: String): Addr receives none =
   abort "native global"
 
 // return a dummy Int value which is simpler than Unit
-def writeInt(arr: Addr, value: Int): Int =
+def writeInt(arr: Addr, value: Int): Int receives none =
   abort "native writeInt"
 
 def readInt(arr: Addr): Int =
@@ -27,18 +27,18 @@ def readInt(arr: Addr): Int =
 // The caller needs to make sure the value fit into one byte
 //
 // return a dummy Int value which is simpler than Unit
-def writeByte(arr: Addr, value: Byte): Int =
+def writeByte(arr: Addr, value: Byte): Int receives none =
   abort "native writeInt"
 
-def readByte(arr: Addr): Byte =
+def readByte(arr: Addr): Byte receives none =
   abort "native readByte"
 
-def addAddr(arr: Addr, offset: Int): Addr =
+def addAddr(arr: Addr, offset: Int): Addr receives none =
   abort "native addAddr"
 
-def (arr: Any) cast[T]: T = abort("runtime cast")
+def (arr: Any) cast[T]: T receives none = abort("runtime cast")
 
-def debug(s: String): Unit =
+def debug(s: String): Unit receives none =
   writeString 0
    ("[DEBUG] " + s + "\n") cast[StringRepr]
 
@@ -47,7 +47,7 @@ def debug(s: String): Unit =
 // program life time
 //
 
-def start(): Unit =
+def start(): Unit receives none =
   GC.init
   ParamSupport.init
 
