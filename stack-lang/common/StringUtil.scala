@@ -30,7 +30,10 @@ object StringUtil:
     end while
     sb.toString
 
-  /** Escape a string -- the opposite of unescape */
+  /** Escape a string -- the opposite of unescape
+    *
+    * TODO: handle Unicode and surrogate pair
+    */
   def escape(s: String): String =
     val sb = new StringBuilder
 
@@ -70,24 +73,25 @@ object StringUtil:
       case '\\'  =>  "\\\\"
       case _     =>  c.toString
 
+  def utf8CodePointLength(codePoint: Int): Int =
+    if codePoint <= 0x7F then
+      1
+
+    else if codePoint <= 0x7FF then
+      2
+
+    else if codePoint <= 0xFFFF then
+      3
+
+    else
+      4
+
   def utf8Length(str: String): Int =
     var len = 0
     var i = 0
     while i < str.length do
       val codePoint = str.codePointAt(i)
-
-      if codePoint <= 0x7F then
-        len += 1
-
-      else if codePoint <= 0x7FF then
-        len += 2
-
-      else if codePoint <= 0xFFFF then
-        len += 3
-
-      else
-        len += 4
-
+      len += utf8CodePointLength(codePoint)
       i += Character.charCount(codePoint)
     end while
     len
