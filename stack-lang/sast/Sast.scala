@@ -143,7 +143,7 @@ object Sast:
     (expr: Word, params: List[Ident])
     (val tpe: Type)
   extends Word:
-    def span = expr.span | params.last.span
+    def span = params.foldLeft(expr.span)(_ | _.span)
 
   case class TypeApply
     (fun: Word, targs: List[TypeTree])
@@ -276,7 +276,7 @@ object Sast:
     (pattern: Pattern, bindings: List[Assign])
   extends Pattern:
     val scrutineeType = pattern.scrutineeType
-    val span = pattern.span | (if bindings.nonEmpty then bindings.last.span else pattern.span)
+    val span = bindings.foldLeft(pattern.span)(_ | _.span)
 
   case class SeqPattern
     (patterns: List[SeqPartPattern])
