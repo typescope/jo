@@ -237,7 +237,7 @@ class PatternTyper(namer: Namer, checker: Checker):
               for (arg, paramType) <- args.zip(procType.paramTypes) yield
                 transformPattern(arg, paramType)
 
-            ApplyPattern(fun, argsTyped)(resType, patSpan)
+            ApplyPattern(fun, argsTyped)(resType)
 
         end if
       else
@@ -336,7 +336,7 @@ class PatternTyper(namer: Namer, checker: Checker):
               for (arg, paramType) <- postArgs.zip(procType.postParamTypes) yield
                 transformPattern(arg, paramType)
 
-            ApplyPattern(fun, preArgs2 ++ postArgs2)(resType, patSpan)
+            ApplyPattern(fun, preArgs2 ++ postArgs2)(resType)
 
         end if
       else
@@ -816,7 +816,7 @@ class PatternTyper(namer: Namer, checker: Checker):
               given TargetType = TargetType.Known(sym.info)
               namer.transform(expr)
 
-            bindings2 += Assign(Ident(sym)(id.span), expr2)(id.span | expr.span)
+            bindings2 += Assign(Ident(sym)(id.span), expr2)
         end for
 
         BindPattern(pattern2, bindings2.toList)

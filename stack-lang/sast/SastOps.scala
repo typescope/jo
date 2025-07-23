@@ -80,7 +80,7 @@ object SastOps:
     if origType.refers(defn.Predef_Byte) then
       if targetType.refers(defn.Int_Int) then
         val byteToInt = Ident(defn.Predef_byteToInt)(word.span)
-        Apply(byteToInt, word :: Nil, autos = Nil)(targetType, word.span)
+        Apply(byteToInt, word :: Nil, autos = Nil)(targetType)
 
       else
         fail()
@@ -88,7 +88,7 @@ object SastOps:
     else if origType.refers(defn.Predef_Char) then
       if targetType.refers(defn.Int_Int) then
         val charToInt = Ident(defn.Predef_charToInt)(word.span)
-        Apply(charToInt, word :: Nil, autos = Nil)(targetType, word.span)
+        Apply(charToInt, word :: Nil, autos = Nil)(targetType)
 
       else
         fail()
@@ -221,14 +221,14 @@ object SastOps:
 
     private def recurApply(apply: Apply)(using Context): Word =
       val Apply(fun, args, autos) = apply
-      Apply(this(fun), args.map(this.apply), autos.map(this.apply))(apply.tpe, apply.span)
+      Apply(this(fun), args.map(this.apply), autos.map(this.apply))(apply.tpe)
 
     def transformTypeApply(tapply: TypeApply)(using Context): Word =
       recurTypeApply(tapply)
 
     private def recurTypeApply(tapply: TypeApply)(using Context): Word =
       val TypeApply(fun, targs) = tapply
-      TypeApply(this(fun), targs)(tapply.tpe, tapply.span)
+      TypeApply(this(fun), targs)(tapply.tpe)
 
     def transformNew(newExpr: New)(using Context): Word =
       recurNew(newExpr)
@@ -242,16 +242,16 @@ object SastOps:
       val With(expr, args) = withExpr
       // Don't map paramRef --- the client code should match this tree
       val args2 = args.map: arg =>
-        arg.copy(rhs = this(arg.rhs))(arg.span)
+        arg.copy(rhs = this(arg.rhs))
 
-      With(this(expr), args2)(withExpr.tpe, withExpr.span)
+      With(this(expr), args2)(withExpr.tpe)
 
     def transformAllow(allowExpr: Allow)(using Context): Word =
       recurAllow(allowExpr)
 
     private def recurAllow(allowExpr: Allow)(using Context): Word =
       val Allow(expr, params) = allowExpr
-      Allow(this(expr), params)(allowExpr.tpe, allowExpr.span)
+      Allow(this(expr), params)(allowExpr.tpe)
 
     def transformAssign(assign: Assign)(using Context): Word =
       recurAssign(assign)
@@ -259,7 +259,7 @@ object SastOps:
     private def recurAssign(assign: Assign)(using Context): Word =
       val Assign(id, rhs) = assign
       // Don't map id --- the client code should match Assign
-      Assign(id, this(rhs))(assign.span)
+      Assign(id, this(rhs))
 
     def transformFieldAssign(fieldAssign: FieldAssign)(using Context): Word =
       recurFieldAssign(fieldAssign)
@@ -267,7 +267,7 @@ object SastOps:
     private def recurFieldAssign(fieldAssign: FieldAssign)(using Context): Word =
       val FieldAssign(lhs, rhs) = fieldAssign
       val lhs2 = lhs.copy(this(lhs.qual))(lhs.tpe, lhs.span)
-      FieldAssign(lhs2, this(rhs))(fieldAssign.span)
+      FieldAssign(lhs2, this(rhs))
 
     def transformValDef(vdef: ValDef)(using Context): Word =
       recurValDef(vdef)
@@ -358,7 +358,7 @@ object SastOps:
 
     private def recurApplyPattern(pat: ApplyPattern)(using Context): Pattern =
       val ApplyPattern(fun, nested) = pat
-      ApplyPattern(fun, nested.map(this.apply))(pat.tpe, pat.span)
+      ApplyPattern(fun, nested.map(this.apply))(pat.tpe)
 
     def transformOrPattern(pat: OrPattern)(using Context): Pattern =
       recurOrPattern(pat)
@@ -411,7 +411,7 @@ object SastOps:
       val BindPattern(pattern, bindings) = pat
       val bindings2 =
         for ass @ Assign(id, rhs) <- bindings
-        yield Assign(id, this(rhs))(ass.span)
+        yield Assign(id, this(rhs))
 
       BindPattern(this(pattern), bindings2)
 

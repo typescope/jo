@@ -268,7 +268,7 @@ class Namer:
         val expr2 =
           given TargetType = TargetType.Known(tpt2.tpe)
           transform(expr)
-        Encoded(expr2)(tpt2.tpe, word.span).adapt
+        Encoded(expr2)(tpt2.tpe).adapt
 
       case tag: Ast.Tag =>
         transformTagged(tag, values = Nil).adapt
@@ -316,7 +316,7 @@ class Namer:
       case Ast.With(expr, args) =>
         val exprSast = transform(expr)
         val argsSast = for arg <- args yield transformWithArg(arg)
-        With(exprSast, argsSast)(exprSast.tpe, word.span)
+        With(exprSast, argsSast)(exprSast.tpe)
 
       case Ast.Allow(expr, params) =>
         val exprSast = transform(expr)
@@ -326,7 +326,7 @@ class Namer:
           yield
             transformParamRef(param)
 
-        Allow(exprSast, paramRefs)(exprSast.tpe, word.span)
+        Allow(exprSast, paramRefs)(exprSast.tpe)
 
       case ifte: Ast.If =>
         transformIf(ifte).adapt
@@ -534,7 +534,7 @@ class Namer:
       checker.checkBounds(polyType.tparams, targs)
     }
 
-    TypeApply(fun, targs)(tpe, fun.span)
+    TypeApply(fun, targs)(tpe)
 
   /** Handles new Foo[T](arg1, arg2, ...) */
   def transformNew(newExpr: Ast.New)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
@@ -596,7 +596,7 @@ class Namer:
           assert(procType.tparams.isEmpty, "Constructor should not take type parameters, found = " + procType)
 
           val span = if targsTree.isEmpty then classTree.span else classTree.span | targsTree.last.span
-          val newInstance = New(Ident(classSym)(classTree.span), targsTree)(instanceType, span)
+          val newInstance = New(Ident(classSym)(classTree.span), targsTree)(instanceType)
 
           newExpr.addKey(Namer.TypedWord, newInstance)
           val ctorSelect = Ast.Select(newExpr, Name.Constructor)(span)
@@ -658,7 +658,7 @@ class Namer:
             transformArgs(apply.args, procType.paramTypes)
 
         val autos = autoResolver.derive(procType, apply.span)
-        val word = Apply(fun, argsTyped, autos)(procType.resultType, apply.span)
+        val word = Apply(fun, argsTyped, autos)(procType.resultType)
         checker.checkUnpackUsage(word, tt)
         val desugared = Rewriting.rewriteShortcutAndOr(word)
         checker.adapt(desugared, tt)
@@ -705,7 +705,7 @@ class Namer:
                 transform(arg)
 
               val autos = autoResolver.derive(procType, call.span)
-              val word = Apply(fun, argTyped :: Nil, autos)(procType.resultType, call.span)
+              val word = Apply(fun, argTyped :: Nil, autos)(procType.resultType)
               checker.adapt(word, tt)
           else
             Reporter.error( s"The member ${meth.name} is not a method", meth.pos)
@@ -763,7 +763,7 @@ class Namer:
           transformArgs(postArgs, procType.postParamTypes)
 
       val autos = autoResolver.derive(procType, call.span)
-      val word = Apply(fun, preArgs2 ++ postArgs2, autos)(procType.resultType, call.span)
+      val word = Apply(fun, preArgs2 ++ postArgs2, autos)(procType.resultType)
       checker.checkUnpackUsage(word, tt)
       val rewrite = Rewriting.rewriteShortcutAndOr(word)
       checker.adapt(rewrite, tt)
@@ -840,12 +840,12 @@ class Namer:
           // Normalize SAST
           val qual = Ident(oob.getKey(Scope.PrefixKey))(id.span)
           val lhs2 = Select(qual, sym.name)(MemberRef(qual.tpe, sym), lhs.span)
-          FieldAssign(lhs2, rhs2)(assign.span)
+          FieldAssign(lhs2, rhs2)
 
         else
           val id = Ident(sym)(lhs.span)
           checker.checkCapture(sym, id.pos)
-          Assign(id, rhs2)(assign.span)
+          Assign(id, rhs2)
 
       case Ast.Select(qual, name) =>
         val qual2 =
@@ -871,7 +871,7 @@ class Namer:
                 given TargetType = TargetType.Known(tp.widenTermRef)
                 transform(rhs)
 
-              FieldAssign(lhs2, rhs2)(assign.span)
+              FieldAssign(lhs2, rhs2)
 
             case None =>
               // error already reported
@@ -912,7 +912,7 @@ class Namer:
 
       transform(arg.rhs)
 
-    Assign(paramRef, rhs)(arg.span)
+    Assign(paramRef, rhs)
 
 
   private def transformIf(ifte: Ast.If)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
@@ -1339,7 +1339,7 @@ class Namer:
 
             else
               val lhs = Select(Ident(thisSym)(id.span), id.name)(tp, id.span)
-              words += FieldAssign(lhs, transform(rhs))(arg.span)
+              words += FieldAssign(lhs, transform(rhs))
               initialized += sym
 
           case None =>

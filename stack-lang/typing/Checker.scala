@@ -82,7 +82,7 @@ class Checker(namer: Namer):
       else
         checkBounds(polyType.tparams, targs)
         val tpe = polyType.instantiate(targs.map(_.tpe))
-        TypeApply(fun, targs)(tpe, fun.span)
+        TypeApply(fun, targs)(tpe)
 
   def checkType(tree: Tree, tp: Type)(using Definitions, Reporter, Source): Unit =
     if !Subtyping.conforms(tree.tpe, tp) then
@@ -233,7 +233,7 @@ class Checker(namer: Namer):
       for tp <- targetType.knownType do Subtyping.conforms(resType, tp)
 
       val autos = namer.autoResolver.derive(procType2, word.span)
-      Apply(fun, args = Nil, autos)(resType, word.span)
+      Apply(fun, args = Nil, autos)(resType)
 
     else
       word

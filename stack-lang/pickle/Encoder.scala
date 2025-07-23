@@ -74,7 +74,7 @@ import scala.collection.mutable
   *      total length of its children,
   *
   *    we represent the offset and length of a tree as two deltas, where 1 byte
-  *    suffices for each delta based on base64 encoding.
+  *    suffices for each delta based on base128 encoding.
   *
   */
 object Encoder:
@@ -169,6 +169,16 @@ object Encoder:
     state.encodeExternalNameTable()
 
     buf
+
+  def needPosition(word: Word): Boolean =
+    word match
+      case _: Assign | _: FieldAssign | _: With | _: Allow | _: TypeApply |
+           _: Apply  | _: New         | _: Encoded
+      =>
+        false
+
+      case _ => true
+
 
   //----------------------------------------------------------------------------
 
@@ -557,9 +567,10 @@ object Encoder:
         repeated(inits) { init => encodeDef(init) }
         repeated(defs) { defn => encodeDef(defn) }
 
-    val lengthDelta = word.span.length - state.getChildrenLength
-    buf.addInt(startDelta)
-    buf.addInt(lengthDelta)
+    if needPosition(word) then
+      val lengthDelta = word.span.length - state.getChildrenLength
+      buf.addInt(startDelta)
+      buf.addInt(lengthDelta)
 
   private def encodePattern(pattern: Pattern)(using defn: Definitions, state: State, buf: WriteBuffer): Unit = state.withPositioned(pattern): startDelta =>
     pattern match

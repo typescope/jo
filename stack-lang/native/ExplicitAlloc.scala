@@ -41,14 +41,14 @@ class ExplicitAlloc(runtime: NativeRuntime)(using defn: Definitions) extends pha
     val recordType = word.tpe.asRecordType
     val size = memory.size(recordType)
     val sizeLit = Literal(Constant.Int(size))(defn.IntType, word.span)
-    val allocApply = Apply(allocFun, sizeLit :: Nil)(addrType, word.span)
+    val allocApply = Apply(allocFun, sizeLit :: Nil)(addrType)
 
     val refSym =
       given Source = ctx.sourcePos.source
       Symbol.createSymbol("ref", addrType, Flags.Synthetic, ctx, word.pos)
     val ref = Ident(refSym)(word.span)
 
-    stats += Assign(ref, allocApply)(word.span)
+    stats += Assign(ref, allocApply)
 
     for (name, rhs) <- args do
       stats += memory.writeField(recordType, name, ref, this(rhs))

@@ -92,7 +92,7 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
 
       else
         val args = synthesizeNoneBindings(defaultEffs, fdef2.body.span)
-        val body2 = With(fdef2.body, args)(fdef2.body.tpe, fdef2.body.span)
+        val body2 = With(fdef2.body, args)(fdef2.body.tpe)
         fdef2.copy(body = body2)(fdef.span)
 
     else
@@ -115,7 +115,7 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
   override def transformIdent(ident: Ident)(using ctx: Context): Word =
     val sym = ident.symbol
     if sym.isAllOf(Flags.Context | Flags.Default) then
-      Apply(Ident(sym.valueFunction)(ident.span), args = Nil)(sym.info, ident.span)
+      Apply(Ident(sym.valueFunction)(ident.span), args = Nil)(sym.info)
 
     else
       ident
@@ -126,7 +126,7 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
       val paramRef = Ident(optionParamSym)(span)
       val noneType = TagType("None", params = Nil)
       val noneValue = TaggedEncoding.encodeVariant(noneType, Nil, span, span)
-      Assign(paramRef, noneValue)(span)
+      Assign(paramRef, noneValue)
 
   /** Check `allow`-clause */
   override  def transformAllow(allowExpr: Allow)(using ctx: Context): Word =
@@ -149,7 +149,7 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
 
     else
       val argsAdded = synthesizeNoneBindings(defaultEffs, allowExpr.span)
-      With(expr2, argsAdded)(allowExpr.tpe, allowExpr.span)
+      With(expr2, argsAdded)(allowExpr.tpe)
 
   /** Capture all context parameters used in the methods of an object
     *
@@ -197,14 +197,14 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
             aliasMap.get(eff) match
               case None =>
                 val alias = Symbol.createSymbol("alias_" + eff.name, eff.info, Flags.Synthetic, owner = ctx.owner, pos = obj.pos)
-                aliasMap(eff) = Assign(Ident(alias)(span), paramRef)(span)
-                Assign(paramRef, Ident(alias)(span))(span)
+                aliasMap(eff) = Assign(Ident(alias)(span), paramRef)
+                Assign(paramRef, Ident(alias)(span))
 
               case Some(vdef) =>
-                Assign(paramRef, Ident(vdef.symbol)(span))(span)
+                Assign(paramRef, Ident(vdef.symbol)(span))
             end match
           end for
-        val body2 = With(this(ddef.body), args)(ddef.body.tpe, ddef.body.span)
+        val body2 = With(this(ddef.body), args)(ddef.body.tpe)
         newDefs += ddef.copy(body = body2)(ddef.span)
     end for
 
@@ -220,16 +220,16 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
           val optionParamRef = Ident(paramRef.symbol.optionParam)(paramRef.span)
           val someType = TagType("Some", NamedInfo("value", paramRef.symbol.info) :: Nil)
           val rhs2 = TaggedEncoding.encodeVariant(someType, rhs :: Nil, paramRef.span, rhs.span)
-          Assign(optionParamRef, rhs2)(arg.span)
+          Assign(optionParamRef, rhs2)
         else
           arg
 
     val expr2 = transform(withExpr.expr)
     val args2 = withExpr.args.map: arg =>
-      arg.copy(arg.ident, transform(arg.rhs))(arg.span)
+      arg.copy(arg.ident, transform(arg.rhs))
 
     val args3 = rewireArgs(args2)
-    With(expr2, args3)(expr2.tpe, withExpr.span)
+    With(expr2, args3)(expr2.tpe)
 
   private def checkTermInPattern(word: Word)(using ctx: Context): Word =
     given Source = ctx.owner.sourcePos.source
@@ -249,7 +249,7 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Norma
   override def transformBindPattern(pat: BindPattern)(using ctx: Context): Pattern =
     val assigns =
       for ass <- pat.bindings
-      yield ass.copy(rhs = checkTermInPattern(ass.rhs))(ass.span)
+      yield ass.copy(rhs = checkTermInPattern(ass.rhs))
 
     pat.copy(pattern = this(pat.pattern), bindings = assigns)
 

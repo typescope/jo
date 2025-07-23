@@ -103,16 +103,16 @@ object Sast:
     */
   case class Assign
     (ident: Ident, rhs: Word)
-    (val span: Span)
   extends Word:
+    def span = ident.span | rhs.span
     val symbol = ident.symbol
     def tpe: Type = VoidType
 
   /** Assignment to fields */
   case class FieldAssign
     (lhs: Select, rhs: Word)
-    (val span: Span)
   extends Word:
+    def span = lhs.span | rhs.span
     def tpe: Type = VoidType
 
   case class If
@@ -133,29 +133,37 @@ object Sast:
 
   case class With
     (expr: Word, args: List[Assign])
-    (val tpe: Type, val span: Span)
+    (val tpe: Type)
   extends Word:
     assert(args.nonEmpty)
 
+    def span = expr.span | args.last.span
+
   case class Allow
     (expr: Word, params: List[Ident])
-    (val tpe: Type, val span: Span)
-  extends Word
+    (val tpe: Type)
+  extends Word:
+    def span = expr.span | params.last.span
 
   case class TypeApply
     (fun: Word, targs: List[TypeTree])
-    (val tpe: Type, val span: Span)
-  extends Word
+    (val tpe: Type)
+  extends Word:
+    assert(targs.nonEmpty)
+
+    def span = fun.span | targs.last.span
 
   case class Apply
     (fun: Word, args: List[Word], autos: List[Word])
-    (val tpe: Type, val span: Span)
+    (val tpe: Type)
     (using Definitions)
   extends Word:
     fun.tpe.asProcType match
       case procType =>
         assert(procType.paramTypes.size == args.size, procType.show + ", " + args)
         assert(procType.autos.size == autos.size, procType.show + ", " + autos)
+
+    def span = args.foldLeft(fun.span)(_ | _.span)
 
     def allArgs: List[Word] = args ++ autos
 
@@ -166,13 +174,14 @@ object Sast:
         case _                        => None
 
   object Apply:
-    def apply(fun: Word, args: List[Word])(tpe: Type, span: Span)(using Definitions): Apply =
-      apply(fun, args, autos = Nil)(tpe, span)
+    def apply(fun: Word, args: List[Word])(tpe: Type)(using Definitions): Apply =
+      apply(fun, args, autos = Nil)(tpe)
 
   case class New
     (classRef: Ident, targs: List[TypeTree])
-    (val tpe: Type, val span: Span)
-  extends Word
+    (val tpe: Type)
+  extends Word:
+    def span = targs.foldLeft(classRef.span)(_ | _.span)
 
   case class Object(self: Symbol, vals: List[ValDef], funs: List[FunDef])
     (val tpe: Type, val span: Span)
@@ -183,13 +192,10 @@ object Sast:
     * It is also used to explicitly represent dropped values.
     */
   case class Encoded
-    (repr: Word)
-    (val tpe: Type, val span: Span)
+    (repr: Word)(val tpe: Type)
   extends Word:
+    def span = repr.span
     def isValueDrop(using Definitions) = repr.tpe.isValueType && tpe.isVoidType
-
-  object Encoded:
-    def apply(repr: Word)(tpe: Type): Encoded = apply(repr)(tpe, repr.span)
 
   case class TypeTree
     (tpe: Type)
@@ -236,8 +242,9 @@ object Sast:
 
   case class ApplyPattern
     (fun: Word, nested: List[Pattern])
-    (val scrutineeType: Type, val span: Span)
+    (val scrutineeType: Type)
   extends Pattern:
+    def span = nested.foldLeft(fun.span)(_ | _.span)
     val symbol =
       fun match
         case Ident(sym) if sym.isPattern => sym
@@ -548,20 +555,19 @@ object Sast:
         for (arg, paramType) <- args.zip(procType.paramTypes)
         yield SastOps.adapt(arg, paramType)
 
-      val span = if args.isEmpty then word.span else word.span | args.last.span
-      Apply(word, args2.toList, autos = Nil)(procType.resultType, span)
+      Apply(word, args2.toList, autos = Nil)(procType.resultType)
 
     def appliedToTypes(targs: Type*)(using Definitions): Word =
       val procType = word.tpe.asProcType
       val targList = targs.toList
       val tpe = procType.instantiate(targList)
-      TypeApply(word, targList.map(targ => TypeTree(targ)(word.span)))(tpe, word.span)
+      TypeApply(word, targList.map(targ => TypeTree(targ)(word.span.endPoint)))(tpe)
 
     def appliedToTypeTrees(targs: TypeTree*)(using Definitions): Word =
       val procType = word.tpe.asProcType
       val targList = targs.toList
       val tpe = procType.instantiate(targList.map(_.tpe))
-      TypeApply(word, targList)(tpe, word.span)
+      TypeApply(word, targList)(tpe)
 
     def encodedAs(tpe: Type): Word = Encoded(word)(tpe)
 

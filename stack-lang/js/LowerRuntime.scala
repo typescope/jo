@@ -27,7 +27,7 @@ class LowerRuntime(runtime: JSRuntime)(using defn: Definitions) extends phases.P
     defn.Predef_intToStr   -> runtime.JS_intToStr,
     defn.Array_get         -> runtime.JS_Array_get,
     defn.Array_set         -> runtime.JS_Array_set,
-    defn.Array_size         -> runtime.JS_Array_size,
+    defn.Array_size        -> runtime.JS_Array_size,
   )
 
   override def transformTypeApply(tapp: TypeApply)(using ctx: Context): Word =
