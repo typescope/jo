@@ -268,7 +268,7 @@ class Namer:
         val expr2 =
           given TargetType = TargetType.Known(tpt2.tpe)
           transform(expr)
-        Encoded(expr2)(tpt2.tpe).adapt
+        Encoded(Block(expr2 :: Nil)(expr2.tpe, word.span))(tpt2.tpe).adapt
 
       case tag: Ast.Tag =>
         transformTagged(tag, values = Nil).adapt
