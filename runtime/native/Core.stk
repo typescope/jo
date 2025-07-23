@@ -39,8 +39,8 @@ def addAddr(arr: Addr, offset: Int): Addr receives none =
 def (arr: Any) cast[T]: T receives none = abort("runtime cast")
 
 def debug(s: String): Unit receives none =
-  writeString 0
-   ("[DEBUG] " + s + "\n") cast[StringRepr]
+  writeString 0 (s cast[StringRepr])
+  writeString 0 ("\n" cast[StringRepr])
 
 //------------------------------------------------------------------------------
 //
@@ -69,7 +69,7 @@ def mainStub(): Unit = abort("error mainStub")
 // Predef implementation
 //
 
-def abortImpl(msg: String): Bottom =
+def abortImpl(msg: String): Bottom receives none =
   writeString 0 (msg cast[StringRepr])
   Syscall.sys_exit 1
 

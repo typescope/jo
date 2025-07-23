@@ -23,7 +23,7 @@ def alloc(size: Int): Any receives none =
   if freeFrom + size > lastFreeUntil then
      val newFreeUntil = Syscall.sys_brk (lastFreeUntil + 4096)
      if newFreeUntil == -1 then
-       abort("Unable to alloc memory from system")
+       abort "Unable to alloc memory from system"
 
      // avoid allocating at page boundary
      freeFrom = lastFreeUntil
