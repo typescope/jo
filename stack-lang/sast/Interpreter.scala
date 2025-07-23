@@ -424,7 +424,7 @@ object Interpreter:
             case None =>
                if sym.is(Flags.Default) then
                  val defaultFun = Ident(sym.defaultFunction)(word.span)
-                 val defaultCall = Apply(defaultFun, args = Nil)(word.tpe, word.span)
+                 val defaultCall = Apply(defaultFun, args = Nil)(word.tpe)
                  exec(defaultCall)
                else
                  throw new Exception("Unbound context parameter " + sym)
