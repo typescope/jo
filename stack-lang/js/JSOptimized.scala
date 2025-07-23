@@ -217,8 +217,12 @@ class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
               words.join(Text.BreakLine) ~ cont()
 
       case encoded @ Encoded(repr) =>
-        if encoded.isValueDrop then
+        if encoded.isEmpty then
+          cont()
+
+        else if encoded.isValueDrop then
           repr ~ ";" ~ cont()
+
         else
           run(repr): v =>
             cont(v)

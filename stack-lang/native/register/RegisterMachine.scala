@@ -222,7 +222,7 @@ extends Backend(runtime):
           gen(labelEnd)
 
         else
-          assert(!ifword.elsep.isEmpty)
+          assert(!ifword.elsep.isEmpty, "else empty")
           val resReg = freshVirtualReg()
 
           // finish true branch

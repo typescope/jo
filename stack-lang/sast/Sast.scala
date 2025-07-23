@@ -538,6 +538,9 @@ object Sast:
     conds.foldLeft(cond): (acc, cond) =>
       Ident(defn.Bool_both)(cond.span).appliedTo(acc, cond)
 
+  def unitValue(span: Span)(using defn: Definitions): Word =
+    RecordLit(args = Nil)(defn.UnitType, span)
+
   extension (word: Word)
 
     def select(name: String)(using Definitions): Word =
