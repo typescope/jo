@@ -456,7 +456,7 @@ class Namer:
     // `this` should not be available in field initialization
     thisScope.define(thisSym)
 
-    val defaultPolicy = Effects.Policy.Infer
+    val defaultPolicy = Effects.Policy.Capture(except = Nil)
 
     for case fdef: Ast.FunDef <- obj.members do
       if fdef.preParamCount != 0 then
@@ -468,7 +468,7 @@ class Namer:
             tp.getTermMember(fdef.name) match
               case Some(tp) =>
                 if tp.isProcType then
-                  tp.asProcType.receives
+                  Effects.Policy.Capture(except = tp.asProcType.receives)
                 else
                   Reporter.error("Expect type " + tp.show + ", found a method", fdef.pos)
                   defaultPolicy
@@ -479,7 +479,7 @@ class Namer:
           case _ =>
             defaultPolicy
 
-      val delayedDef = transformFunDef(fdef, Flags.Method | Flags.Fun, effectPolicy, captureInfer = true)
+      val delayedDef = transformFunDef(fdef, Flags.Method | Flags.Fun, effectPolicy)
 
       // Operator name should not be called directly without a prefix
       if !Name.isOperator(delayedDef.symbol.name) then
@@ -1047,8 +1047,8 @@ class Namer:
            tvars += tvar -> params(i)
            tvar
 
-     val effectsPolicy = targetFunTypeOpt match
-       case Some(NamedInfo(_, funType)) => funType.receives
+     val effectPolicy = targetFunTypeOpt match
+       case Some(NamedInfo(_, funType)) => Effects.Policy.Capture(except = funType.receives)
        case None => Effects.Policy.Capture(except = Nil)
 
      val paramSyms =
@@ -1069,8 +1069,20 @@ class Namer:
 
      val resultType = bodyTyped.tpe.widen
 
+     /* For closures, the effects of a method symbol stored in the type is
+      * different from those raw effects computed from the code due to the
+      * capture behavior.
+      */
+     val receivesInfo = () =>
+       effectPolicy.bound match
+         case Some(effs) => effs
+         case None => defn.receives(funSym)
+
      // Provide type info for the function symbol
-     val procType = ProcType(tparams = Nil, paramSyms.map(_.toNamedInfo), autos = Nil, resultType, effectsPolicy, preParamCount = 0)
+     val procType = ProcType(
+       tparams = Nil, paramSyms.map(_.toNamedInfo), autos = Nil, resultType,
+       receivesInfo, preParamCount = 0)
+
      defn.add(funSym, thisSym, procType)
 
      for (tvar, param) <- tvars do
@@ -1079,7 +1091,7 @@ class Namer:
      val tparamSyms = Nil
      val autoSyms = Nil
      val tpt = TypeTree(bodyTyped.tpe)(body.span.point)
-     val funDef = FunDef(funSym, tparamSyms, paramSyms, autoSyms, tpt, bodyTyped)(lambda.span)
+     val funDef = FunDef(funSym, tparamSyms, paramSyms, autoSyms, tpt, effectPolicy, bodyTyped)(lambda.span)
      val objType = ObjectType(fields = Nil, methods = NamedInfo(funName, procType) :: Nil, mutableFields = Nil)
 
      defn.add(thisSym, sc.owner, objType)
@@ -1173,7 +1185,7 @@ class Namer:
       sc.define(autoSym)
       autoSym
 
-  def transformReceives(receives: Option[List[Ast.RefTree]], policy: Effects.Policy, captureInfer: Boolean = false)
+  def transformReceives(receives: Option[List[Ast.RefTree]], policy: Effects.Policy)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
   : Effects.Policy =
 
@@ -1188,25 +1200,16 @@ class Namer:
         policy match
           case Effects.Policy.Infer =>
             val effSyms = effs.map(_.symbol)
-            if captureInfer then
-              Effects.Policy.Capture(effSyms)
-
-            else
-              Effects.Policy.CheckBound(effSyms)
+            Effects.Policy.CheckBound(effSyms)
 
           case _ =>
             Effects.checkEffectsConform(effs, policy)
             policy
 
       case None =>
-        policy match
-          case Effects.Policy.Infer if captureInfer =>
-            Effects.Policy.Capture(except = Nil)
+        policy
 
-          case _ =>
-            policy
-
-  private def transformFunDef(funDef: Ast.FunDef, initialFlags: Flags, policy: Effects.Policy, captureInfer: Boolean = false)
+  private def transformFunDef(funDef: Ast.FunDef, initialFlags: Flags, policy: Effects.Policy)
       (using lazyDefn: Definitions.Lazy | Definitions, sc: Scope, rp: Reporter, so: Source)
   : DelayedDef[FunDef] =
 
@@ -1267,12 +1270,21 @@ class Namer:
       given TargetType = targetType
       transform(funDef.body)
 
-    lazy val effectPolicy = transformReceives(funDef.receives, policy, captureInfer)
+    lazy val effectPolicy = transformReceives(funDef.receives, policy)
+
+    /* For object closures, the effects of a method symbol stored in the type is
+     * different from those raw effects computed from the code due to the
+     * capture behavior.
+     */
+    val receivesInfo = () =>
+      effectPolicy.bound match
+        case Some(effs) => effs
+        case None => defn.receives(funSym)
 
     def computeInfo(resultType: Type) =
       ProcType(
         tparamSyms, paramSyms.map(_.toNamedInfo), autoSyms.map(_.toNamedInfo),
-        resultType, effectPolicy, funDef.preParamCount)
+        resultType, receivesInfo, funDef.preParamCount)
 
     lazyDefn match
       case lazyDefn: Definitions.Lazy =>
@@ -1284,7 +1296,7 @@ class Namer:
 
     val typer = () =>
       val tpt = TypeTree(resultType)(funDef.resultType.span)
-      FunDef(funSym, tparamSyms, paramSyms, autoSyms, tpt, typedBody)(funDef.span)
+      FunDef(funSym, tparamSyms, paramSyms, autoSyms, tpt, effectPolicy, typedBody)(funDef.span)
 
     DelayedDef(funSym, typer)
 
@@ -1370,20 +1382,20 @@ class Namer:
           Reporter.error("The last phrase of a constructor should be a record literal", funDef.body.pos)
           errorWord(funDef.body.span)
 
-    lazy val effectPolicy = transformReceives(funDef.receives, Effects.Policy.Infer, captureInfer = false)
+    lazy val effectPolicy = transformReceives(funDef.receives, Effects.Policy.Infer)
 
     val tparamSyms = Nil
     def computeInfo(resultType: Type) =
       ProcType(
         tparamSyms, paramSyms.map(_.toNamedInfo), autoSyms.map(_.toNamedInfo),
-        resultType, effectPolicy, funDef.preParamCount)
+        resultType, () => defn.receives(funSym), funDef.preParamCount)
 
     val ip = lazyDefn.infoProvider
     ip.addLazy(funSym, sc.owner,  () => computeInfo(resultType), () => computeInfo(ErrorType))
 
     val typer = () =>
       val tpt = TypeTree(resultType)(funDef.resultType.span)
-      FunDef(funSym, tparamSyms, paramSyms, autoSyms, tpt, typedBody)(funDef.span)
+      FunDef(funSym, tparamSyms, paramSyms, autoSyms, tpt, effectPolicy, typedBody)(funDef.span)
 
     DelayedDef(funSym, typer)
 
@@ -1621,17 +1633,14 @@ class Namer:
       val resTypeTree = transformType(ddef.resultType)
       checker.checkValueType(resTypeTree)
 
-    val effectPolicy =
-      val params = ddef.receives.getOrElse(Nil)
-      val effs =
-        for
-          param <- params
-        yield
-          transformParamRef(param).symbol
-      Effects.Policy.CheckBound(effs)
+    val effs =
+      for
+        param <- ddef.receives.getOrElse(Nil)
+      yield
+        transformParamRef(param).symbol
 
     val finalType =
-      ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), autoSyms.map(_.toNamedInfo), resultType, effectPolicy, preParamCount = 0)
+      ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), autoSyms.map(_.toNamedInfo), resultType, () => effs, preParamCount = 0)
 
 
     TypeTree(finalType)(ddef.span)
@@ -1789,13 +1798,11 @@ class Namer:
           yield
             transformParamRef(param).symbol
 
-        val effectPolicy = Effects.Policy.Capture(except = effs)
-
         val resType2 = transformType(resType)
         val resTypeChecked = checker.checkValueType(resType2)
 
         val autoTypes = Nil
-        val applyType = ProcType(tparams = Nil, paramTypes2, autoTypes, resTypeChecked, effectPolicy, preParamCount = 0)
+        val applyType = ProcType(tparams = Nil, paramTypes2, autoTypes, resTypeChecked, () => effs, preParamCount = 0)
         val objType = ObjectType(fields = Nil, methods = NamedInfo("apply", applyType) :: Nil, mutableFields = Nil)
         TypeTree(objType)(tpt.span)
 

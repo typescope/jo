@@ -207,7 +207,7 @@ object TypeOps:
           val targs2 = classInfo.targs.map(this.apply)
           classInfo.copy(targs = targs2)
 
-        case ProcType(tparams, params, autos, resType, receivesOpt, preParamCount) =>
+        case ProcType(tparams, params, autos, resType, receives, preParamCount) =>
           // TODO: Once type bounds are supported, we need to transform bounds
           val params2 =
             for param <- params
@@ -218,7 +218,7 @@ object TypeOps:
             yield auto.copy(info = this(auto.info))
 
           val resType2 = this(resType)
-          ProcType(tparams, params2, autos2, resType2, receivesOpt, preParamCount)
+          ProcType(tparams, params2, autos2, resType2, receives, preParamCount)
 
   class SymbolsTypeMap(using Definitions) extends TypeMap:
     type Context = Map[Symbol, Type]
@@ -267,7 +267,7 @@ object TypeOps:
           this(lo)
           this(hi)
 
-        case ProcType(tparams, params, autos, resType, receivesOpt, preParamCount) =>
+        case ProcType(tparams, params, autos, resType, receives, preParamCount) =>
           // TODO: Once type bounds are supported, we need to transform bounds
           for param <- params do this(param.info)
 

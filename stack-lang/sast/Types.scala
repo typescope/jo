@@ -383,7 +383,7 @@ object Types:
   /** The type of a function, method or pattern predicates */
   case class ProcType
     (tparams: List[Symbol], params: List[NamedInfo[Type]], autos: List[NamedInfo[Type]],
-      resultType: Type, receives: Effects.Policy, preParamCount: Int)
+      resultType: Type, receivesInfo: () => List[Symbol], preParamCount: Int)
   extends Type:
     val preParamTypes: List[Type] = params.take(preParamCount).map(_.info)
     val postParamTypes: List[Type] = params.drop(preParamCount).map(_.info)
@@ -398,7 +398,11 @@ object Types:
     val allParamTypes: List[Type] = paramTypes ++ autoTypes
     val allParamCount: Int = allParamTypes.size
 
-    val effectsBound: Option[List[Symbol]] = receives.bound
+    /** Unlike types, context parameter inference supports cycles thus its
+      * computation must be delayed and be handled indirectly via the effect
+      * engine.
+      */
+    lazy val receives: List[Symbol] = receivesInfo()
 
     def minimumArgs(using Definitions): Int =
       if hasVararg then paramCount - 1 else paramCount

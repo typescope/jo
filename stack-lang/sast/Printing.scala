@@ -102,7 +102,7 @@ object Printing:
         val modifiers = showModifiers(fdef.symbol)
 
         val receives =
-          fdef.effectsBound match
+          fdef.effectPolicy.bound match
             case Some(Nil) =>
               Text(" receives none ")
 
@@ -418,11 +418,8 @@ object Printing:
           else "(" ~ autos.map(param => param.name ~ ": " ~ param.info).join(", ") ~ ")"
 
         val receivesText =
-          procType.effectsBound match
-            case None => Text.Empty
-            case Some(syms) =>
-              if syms.isEmpty then Text(" receives none")
-              else " receives " ~ syms.join(", ")
+          if procType.receives.isEmpty then Text(" receives none")
+          else " receives " ~ procType.receives.join(", ")
 
         tparamText ~ preText ~ postText ~ autoText ~ ": " ~ resType ~ receivesText
 

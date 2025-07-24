@@ -157,7 +157,7 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Symbo
 
     for ddef <- obj.funs do
       val effsTraced = defn.effectEngine.effects(ddef.symbol)
-      val effs = (effsTraced -- ddef.effectsBound.getOrElse(Nil)).keys.toList
+      val effs = (effsTraced -- ddef.effectPolicy.bound.getOrElse(Nil)).keys.toList
 
       if effs.isEmpty then
         val body2 = this(ddef.body)

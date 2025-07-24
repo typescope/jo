@@ -455,7 +455,9 @@ object Sast:
 
   /** Represents a named function or method definition */
   case class FunDef
-    (symbol: Symbol, tparams: List[Symbol], params: List[Symbol], autos: List[Symbol], resultType: TypeTree, body: Word)
+    (symbol: Symbol, tparams: List[Symbol], params: List[Symbol],
+      autos: List[Symbol], resultType: TypeTree, effectPolicy: Effects.Policy,
+      body: Word)
     (val span: Span)
     (using defn: Definitions)
   extends Word, Def:
@@ -477,10 +479,6 @@ object Sast:
     def freeVariables(using Definitions): List[Symbol] = census._2
 
     def procType(using Definitions): ProcType = symbol.info.as[ProcType]
-
-    def effectsBound(using Definitions): Option[List[Symbol]] = procType.effectsBound
-
-    def effectPolicy(using Definitions): Effects.Policy = procType.receives
 
   /** Represents a pattern definition */
   case class PatDef

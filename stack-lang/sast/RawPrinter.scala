@@ -258,15 +258,11 @@ object RawPrinter:
       case AppliedType(tctor, targs) =>
         "AppliedType [" ~ tctor ~ ",[" ~ targs.join(",") ~ "]]"
 
-      case ProcType(tparams, params, autos, resType, receives, preParamCount) =>
-        // assert(receives.isInstanceOf[Effects.Policy.CheckBound], "Expect Policy.CheckBounds, found = " + receives)
-
-        val effects: List[Symbol] = Nil // receives.asInstanceOf[Effects.Policy.CheckBound].effects
-
+      case procType @ ProcType(tparams, params, autos, resType, _, preParamCount) =>
         val tparamText = "[" ~ tparams.join(",") ~ "]"
         val paramText = "[" ~ params.map(param => "[" ~ param.name ~ "," ~ param.info ~ "]").join(",") ~ "]"
         val autoText = "[" ~ autos.map(auto => "[" ~ auto.name ~ "," ~ auto.info ~ "]").join(",") ~ "]"
-        val receiveText = "[" ~ effects.join(",") ~ "]"
+        val receiveText = "[" ~ procType.receives.join(",") ~ "]"
 
         "ProcType [" ~ indent:
           List(tparamText, paramText, autoText, printType(resType), receiveText, Text(preParamCount)).join("," ~ Text.BreakLine)

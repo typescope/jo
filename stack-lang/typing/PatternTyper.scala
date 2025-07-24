@@ -83,8 +83,7 @@ class PatternTyper(namer: Namer, checker: Checker):
 
     def computeInfo(resultType: Type) =
       val autoTypes = Nil
-      val effectPolicy = Effects.Policy.CheckBound(effects = Nil)
-      ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), autoTypes, resultType, effectPolicy, patDef.preParamCount)
+      ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), autoTypes, resultType, () => Nil, patDef.preParamCount)
 
     lazyDefn match
       case lazyDefn: Definitions.Lazy =>
@@ -578,7 +577,7 @@ class PatternTyper(namer: Namer, checker: Checker):
         tparams = Nil,
         params = NamedInfo("from", defn.IntType) :: NamedInfo("to", defn.IntType)  :: Nil,
         autos = Nil,
-        receives = Effects.Policy.CheckBound(effects = Nil),
+        receivesInfo = () => Nil,
         resultType = scrutType.widenTermRef,
         preParamCount = 0
       )
@@ -588,7 +587,7 @@ class PatternTyper(namer: Namer, checker: Checker):
         case Some(tp) if tp.isProcType =>
           val tp1 = tp.asProcType
           // ignore effects
-          Subtyping.conforms(tp1.copy(receives = sliceMethodType.receives), sliceMethodType)
+          Subtyping.conforms(tp1.copy(receivesInfo = sliceMethodType.receivesInfo), sliceMethodType)
 
         case _ => false
 
@@ -598,7 +597,7 @@ class PatternTyper(namer: Namer, checker: Checker):
           val tp1 = tp.asProcType
           val tp2 = seqType.termMember(name).asProcType
           // ignore effects
-          Subtyping.conforms(tp1.copy(receives = tp2.receives), tp2)
+          Subtyping.conforms(tp1.copy(receivesInfo = tp2.receivesInfo), tp2)
 
         case _ => false
 

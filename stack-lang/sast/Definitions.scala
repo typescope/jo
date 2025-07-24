@@ -49,6 +49,9 @@ final class Definitions(rootNameTable: NameTable, initProvider: InfoProvider):
   //
   val effectEngine: EffectAnalysis = new EffectAnalysis
 
+  def receives(sym: Symbol): List[Symbol] =
+    effectEngine.effects(sym).keys.toList
+
   //----------------------------------------------------------------------------
   // Code provider
   //

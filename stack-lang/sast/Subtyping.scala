@@ -240,7 +240,7 @@ object Subtyping:
         recur(autoType2, autoType1)
       && recur(tp1.resultType, tp2.resultType)
     }
-    && Effects.conforms(tp1.receives, tp2.receives)
+    && tp1.receives.forall(tp2.receives.contains)
 
   // TODO: loosen record typing and use coersion semantics
   private def checkConformsRecordType(tp1: RecordType, tp2: RecordType)(using Context, Definitions): Boolean =

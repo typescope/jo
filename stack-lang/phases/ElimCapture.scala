@@ -134,7 +134,7 @@ object ElimCapture:
       val lifter = new Lifter(funSym)
       val body = lifter(fdef.body)(using ctx.withSubsts(substs.toMap))
       val params = fdef.params ++ paramSymsCaptured
-      ctx.lifted += FunDef(funSym, fdef.tparams, params, fdef.autos, fdef.resultType, body)(fdef.span)
+      ctx.lifted += FunDef(funSym, fdef.tparams, params, fdef.autos, fdef.resultType, fdef.effectPolicy, body)(fdef.span)
 
       Block(words = Nil)(VoidType, fdef.span)
 
@@ -242,7 +242,7 @@ object ElimCapture:
         val params = paramThis :: fdef.params
 
         // TODO: owners of params and locals are broken ---- do we need them?
-        ctx.lifted += FunDef(liftedSym, fdef.tparams, params, fdef.autos, fdef.resultType, body2)(fdef.span)
+        ctx.lifted += FunDef(liftedSym, fdef.tparams, params, fdef.autos, fdef.resultType, fdef.effectPolicy, body2)(fdef.span)
       end for
 
       val recordType = RecordType(memberTypes.toList)

@@ -157,21 +157,17 @@ object EffectAnalysis:
           if word.tpe.isProcType then
             // a select with a ProcType must be a method call
             val procType = word.tpe.asProcType
-            effs ++ {
-              procType.receives match
-                case Effects.Policy.Capture(except) =>
-                  except.map(_ -> Vector(word.pos))
+            val callEffs =
+              if qual.tpe.isClassType then
+                assert(word.tpe.is[Types.RefType], "Ref type expected, found = " + word.tpe + ", word = " + word.show)
+                val sym = word.tpe.as[Types.RefType].symbol
 
-                case Effects.Policy.CheckBound(effs) =>
-                  effs.map(_ -> Vector(word.pos))
+                for (eff, trace) <- getEffects(sym) yield
+                   eff -> (word.pos +: trace)
+              else
+                procType.receives.map(_ -> Vector(word.pos))
 
-                case Effects.Policy.Infer =>
-                  assert(word.tpe.is[Types.RefType], "Ref type expected, found = " + word.tpe + ", word = " + word.show)
-                  val sym = word.tpe.as[Types.RefType].symbol
-
-                  for (eff, trace) <- getEffects(sym) yield
-                     eff -> (word.pos +: trace)
-            }
+            effs ++ callEffs
           else
             effs
 
@@ -248,14 +244,12 @@ object EffectAnalysis:
             // deep capture transform.
 
             ddef.effectPolicy match
-              case Policy.Infer => acc
+              case Policy.Infer | _: Policy.CheckBound =>
+                throw new Exception("Method should only have Policy.Capture")
 
               case Policy.Capture(except) =>
                 val rawEffects = getEffects(ddef.symbol)
                 acc ++ (rawEffects -- except)
-
-              case Policy.CheckBound(bound) =>
-                acc ++ bound.map(_ -> Vector(word.pos))
 
         case _: Def => zero
     end apply

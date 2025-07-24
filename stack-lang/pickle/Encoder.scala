@@ -199,7 +199,7 @@ object Encoder:
 
     encodeNat(symbol.sourcePos.start)
     encodeNat(symbol.sourcePos.length)
-    encodeSymbolInfo(symbol)
+    encodeType(symbol.info)
 
   /** Reference to a symbol
     *
@@ -223,15 +223,6 @@ object Encoder:
 
   private def encodeInternalRef(symbol: Symbol)(using state: State, buf: WriteBuffer): Unit =
     encodeNat(state.internalId(symbol))
-
-  private def encodeSymbolInfo(symbol: Symbol)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
-    symbol.info match
-      case procType: ProcType =>
-        // TODO: add effects
-        encodeType(procType)
-
-      case info =>
-        encodeType(info)
 
   private def encodeFlags(flags: Flags)(using buf: WriteBuffer): Unit =
     val indices = Flags.flagIndices(flags)
@@ -290,8 +281,6 @@ object Encoder:
           encodeSymbol(auto)
 
         encodeTypeTree(fdef.resultType)
-
-        // TODO: effects
 
         encodeWord(fdef.body)
 
@@ -399,11 +388,7 @@ object Encoder:
         repeated(targs): targ =>
           encodeType(targ)
 
-      case ProcType(tparams, params, autos, resType, receives, preParamCount) =>
-        // assert(receives.isInstanceOf[Effects.Policy.CheckBound], "Expect Policy.CheckBounds, found = " + receives)
-
-        val effects: List[Symbol] = Nil // receives.asInstanceOf[Effects.Policy.CheckBound].effects
-
+      case procType @ ProcType(tparams, params, autos, resType, _, preParamCount) =>
         encodeByte(Format.ProcType)
 
         // TODO: remove type params in ProcType
@@ -417,10 +402,10 @@ object Encoder:
           encodeString(auto.name)
           encodeType(auto.info)
 
-        repeated(effects): eff =>
-          encodeSymbolRef(eff)
-
         encodeType(resType)
+
+        repeated(procType.receives): eff =>
+          encodeSymbolRef(eff)
 
         encodeNat(preParamCount)
 
