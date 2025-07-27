@@ -59,7 +59,9 @@ files=(
     stack-lang/sast/TreeMap.scala
     stack-lang/sast/TreeTraverser.scala
     stack-lang/sast/Types.scala
+    stack-lang/sast/TypeMap.scala
     stack-lang/sast/TypeOps.scala
+    stack-lang/sast/TypeTraverser.scala
     stack-lang/sast/TaggedEncoding.scala
 
     stack-lang/pickle/Encoder.scala
