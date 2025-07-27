@@ -25,7 +25,7 @@ class EffectAnalysis:
         effs
 
       case None =>
-        fixpoint(this)(getEffects(fun))
+        fixpoint(this)(getEffects(fun, ignoreSpec = true))
 
   /** Compute effects of the given word
     *
@@ -119,7 +119,7 @@ object EffectAnalysis:
   end TempCache
 
   /** Produce a list of transitively reachabe param symbols for the function */
-  private def getEffects(fun: Symbol)(using temp: TempCache, defn: Definitions): TracedEffects =
+  private def getEffects(fun: Symbol, ignoreSpec: Boolean)(using temp: TempCache, defn: Definitions): TracedEffects =
     // Usage of stable cache has to be part of the computation for speed
     val funSym = fun.dealias
     defn.effectEngine.getStable(funSym) match
@@ -128,12 +128,20 @@ object EffectAnalysis:
       case None =>
         // Read from out cache to make sure the computation is performed once.
         temp.getOrElse(funSym):
-          given Source = funSym.sourcePos.source
-          temp.init(funSym)
-          val body = defn.getCode(funSym).body
-          val effects = EffectAnalyzer.apply(body)
-          temp.update(funSym, effects)
-          effects
+          val fdef = defn.getCode(funSym)
+
+          // Respect effect policy boundary -- only compute effects for Policy.Infer
+          fdef.effectPolicy.bound match
+            case Some(effs) if !ignoreSpec =>
+              effs.map(_ -> Vector.empty).toMap
+
+            case _ =>
+              given Source = funSym.sourcePos.source
+              temp.init(funSym)
+              val body = fdef.body
+              val effects = EffectAnalyzer.apply(body)
+              temp.update(funSym, effects)
+              effects
 
   private object EffectAnalyzer:
     val zero = Map.empty[Symbol, Trace]
@@ -147,7 +155,7 @@ object EffectAnalysis:
             Map(sym -> Vector(word.pos))
 
           else if sym.isFunction then
-            for (eff, trace) <- getEffects(sym) yield
+            for (eff, trace) <- getEffects(sym, ignoreSpec = false) yield
               eff -> (word.pos +: trace)
 
           else zero
@@ -162,7 +170,7 @@ object EffectAnalysis:
                 assert(word.tpe.is[Types.RefType], "Ref type expected, found = " + word.tpe + ", word = " + word.show)
                 val sym = word.tpe.as[Types.RefType].symbol
 
-                for (eff, trace) <- getEffects(sym) yield
+                for (eff, trace) <- getEffects(sym, ignoreSpec = false) yield
                    eff -> (word.pos +: trace)
               else
                 procType.receives.map(_ -> Vector(word.pos))
@@ -240,15 +248,12 @@ object EffectAnalysis:
             acc ++ this(vdef.rhs)
 
           defs.foldLeft(effs): (acc, ddef) =>
-            // Cache the effects for method such that it can be used for the
-            // deep capture transform.
-
             ddef.effectPolicy match
               case Policy.Infer | _: Policy.CheckBound =>
                 throw new Exception("Method should only have Policy.Capture")
 
               case Policy.Capture(except) =>
-                val rawEffects = getEffects(ddef.symbol)
+                val rawEffects = getEffects(ddef.symbol, ignoreSpec = true)
                 acc ++ (rawEffects -- except)
 
         case _: Def => zero
