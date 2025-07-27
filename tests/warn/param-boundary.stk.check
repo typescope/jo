@@ -1,0 +1,15 @@
+---------- Error at ./tests/warn/param-boundary.stk:18:5 ---------------
+| def h(): Unit receives newLine, stdout = i  // error
+|     ^
+|     Parameter not allowed: pageWidth
+
+The following is the trace that leads to the problem: 
+├── def h(): Unit receives newLine, stdout = i  // error	[ ./tests/warn/param-boundary.stk:18:42 ]
+│                                            ^
+├──   g	[ ./tests/warn/param-boundary.stk:21:3 ]
+│     ^
+└──   pretty "hello, word"	[ ./tests/warn/param-boundary.stk:15:3 ]
+      ^^^^^^
+
+
+1 error(s), 0 warning(s)
