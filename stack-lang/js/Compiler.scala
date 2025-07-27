@@ -43,7 +43,7 @@ def compile(args: String*): Unit =
     given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable)
 
     val runtime = "runtime/JS.stk" :: Nil
-    val namespacesSAST = FrontEnd.run(runtime, sources) <| "frontend"
+    val namespacesSAST = FrontEnd.run(runtime, sources) <| "Frontend"
 
     val mains = namespacesSAST.collect:
       case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get
@@ -62,14 +62,14 @@ def compile(args: String*): Unit =
         val closureConvert = new ElimCapture
         val runtimeLowerer = new LowerRuntime(jsRuntime)
         val backend: Step[List[Sast.Namespace], Unit] =
-          Step("backend", new JSOptimized(outFile, jsRuntime).compile)
+          Step("Backend", new JSOptimized(outFile, jsRuntime).compile)
 
         namespacesSAST      |>
         closureConvert      |>
         runtimeLowerer      |>
         contextParamsLower  |>
         backend
-      } <| "backend"
+      } <| "Backend"
 
       case _ =>
         if mains.isEmpty then

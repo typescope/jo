@@ -11,7 +11,7 @@ class Config(options: Map[String, String]):
 
   val reportTime: Boolean = options.contains("-time")
 
-  val showSteps: Boolean = options.contains("-showSteps")
+  val showSteps: Boolean = options.contains("-steps")
 
 object Config:
   // The flag tells whether the option needs an argument
@@ -21,5 +21,5 @@ object Config:
     "-fatal-warnings" -> false,
     "-time"           -> false,
     "-checkTree"      -> false,
-    "-showSteps"      -> false,
+    "-steps"          -> false,
   )
