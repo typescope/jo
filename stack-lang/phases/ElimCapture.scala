@@ -92,9 +92,6 @@ object ElimCapture:
 
   /** A new instance is created for each top-level function */
   class Lifter(owner: Symbol)(using defn: Definitions) extends TreeMap:
-    /** Local function definitions */
-    val localDefs = mutable.Map.empty[Symbol, FunDef]
-
     /** Transitively captured locals in a function */
     val captures = mutable.Map.empty[Symbol, List[Symbol]]
 
@@ -120,8 +117,6 @@ object ElimCapture:
       * - capture of type parameters (closure conversion after erasure?)
       */
     override def transformLocalFunDef(fdef: FunDef)(using ctx: Context): Word =
-      localDefs(fdef.symbol) = fdef
-
       val LiftInfo(funSym, captures) = ctx.liftInfos(fdef.symbol)
 
       val substs = mutable.Map.empty[Symbol, Symbol]
@@ -322,8 +317,6 @@ object ElimCapture:
       for
         case fdef: FunDef <- block.words
       do
-        // Local functions are not mutually recursive
-        localDefs(fdef.symbol) = fdef
         val liftInfo = makeLiftInfo(fdef)
         ctx2 = ctx2.withLiftInfo(fdef.symbol, liftInfo)
 
@@ -376,7 +369,7 @@ object ElimCapture:
             if !capture.is(Flags.Fun) && !all.contains(capture) then
               all += capture
             else if capture.is(Flags.Fun) then
-              recur(this.localDefs(capture))
+              recur(defn.getCode(capture))
       end recur
 
       recur(fdef)
