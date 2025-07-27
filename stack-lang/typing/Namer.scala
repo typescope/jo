@@ -25,6 +25,12 @@ import scala.collection.mutable
   * The namer handles name resolution and desugaring.
   *
   * It converts ASTs to Semantic ASTs.
+  *
+  * This phase only deals with type checking. Effect inference are only hooked
+  * but not performed.
+  *
+  * It is important to NOT trigger effect inference and effect check during type
+  * checking.
   */
 class Namer:
   val checker = new Checker(this)
