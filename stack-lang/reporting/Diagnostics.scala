@@ -90,7 +90,7 @@ object Diagnostics:
       val traceText =
         if trace.size > 1 then
           System.lineSeparator() * 2
-          + "The following is the trace that leads to the problem: "
+          + "The following is the trace that leads to the problem:"
           + System.lineSeparator() + buildStacktrace(trace)
         else
           ""
