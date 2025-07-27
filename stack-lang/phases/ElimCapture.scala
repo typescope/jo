@@ -91,7 +91,7 @@ object ElimCapture:
   end Context
 
   /** A new instance is created for each top-level function */
-  class Lifter(owner: Symbol)(using defn: Definitions) extends SastOps.TreeMap:
+  class Lifter(owner: Symbol)(using defn: Definitions) extends TreeMap:
     /** Local function definitions */
     val localDefs = mutable.Map.empty[Symbol, FunDef]
 

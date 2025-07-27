@@ -56,6 +56,8 @@ files=(
     stack-lang/sast/SymInfoProvider.scala
     stack-lang/sast/Subtyping.scala
     stack-lang/sast/TreeChecker.scala
+    stack-lang/sast/TreeMap.scala
+    stack-lang/sast/TreeTraverser.scala
     stack-lang/sast/Types.scala
     stack-lang/sast/TypeOps.scala
     stack-lang/sast/TaggedEncoding.scala

@@ -11,7 +11,7 @@ import reporting.Config
 import Phase.ContextObject
 
 /** Shared code for phases */
-abstract class Phase[T](using Definitions) extends SastOps.TreeMap:
+abstract class Phase[T](using Definitions) extends TreeMap:
   val contextObject: ContextObject[T]
   type Context = T
 

@@ -42,7 +42,7 @@ object TreeChecker:
     end for
 
 
-class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends SastOps.TreeTraverser:
+class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends TreeTraverser:
   type Context = TreeChecker.CheckerContext
 
   override def recurLocalFunDef(fdef: FunDef)(using Context): Unit =

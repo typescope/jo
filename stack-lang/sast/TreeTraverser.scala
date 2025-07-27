@@ -1,0 +1,133 @@
+package sast
+
+import Sast.*
+
+/** A tree traversal for non-toplevel code */
+abstract class TreeTraverser:
+  type Context
+
+  def apply(word: Word)(using Context): Unit
+
+  def apply(pattern: Pattern)(using Context): Unit = recur(pattern)
+
+  def recurValDef(vdef: ValDef)(using Context): Unit = this(vdef.rhs)
+
+  def recurLocalFunDef(fdef: FunDef)(using Context): Unit = this(fdef.body)
+
+  def recurLocalTypeDef(tdef: TypeDef)(using Context): Unit = ()
+
+  def recurLocalPatDef(pdef: PatDef)(using Context): Unit = this(pdef.body)
+
+  def recur(pattern: Pattern)(using Context): Unit =
+    pattern match
+      case AliasPattern(id, nested) =>
+        this(nested)
+
+      case TypePattern(tpt) =>
+
+      case TagPattern(_, nested) =>
+        for pat <- nested do this(pat)
+
+      case ApplyPattern(_, nested) =>
+        for pat <- nested do this(pat)
+
+      case OrPattern(lhs, rhs) =>
+        this(lhs)
+        this(rhs)
+
+      case ValuePattern(value) =>
+        this(value)
+
+      case GuardPattern(pattern, guard) =>
+        this(pattern)
+        this(guard)
+
+      case BindPattern(pattern, bindings) =>
+        this(pattern)
+        for Assign(id, rhs) <- bindings do this(rhs)
+
+      case SeqPattern(pats) =>
+        pats.foreach:
+          case AtomPattern(pattern) => this(pattern)
+
+          case SkipToPattern(pattern) => this(pattern)
+
+          case StarPattern(pattern) => this(pattern)
+
+          case RestPattern(pattern) => this(pattern)
+
+      case WildcardPattern() =>
+
+  def recur(word: Word)(using Context): Unit =
+    word match
+      case _: Literal | _: Ident | _: New =>
+
+      case Select(qual, name) =>
+        this(qual)
+
+      case RecordLit(fields) =>
+        fields.foreach:
+          case (f, rhs) => this(rhs)
+
+      case TaggedLit(tag, args) =>
+        args.foreach(this.apply)
+
+      case Encoded(repr) =>
+        this(repr)
+
+      case Apply(fun, args, autos) =>
+        this(fun)
+        args.foreach(this.apply)
+        autos.foreach(this.apply)
+
+      case TypeApply(fun, targs) =>
+        this(fun)
+
+      case With(expr, args) =>
+        args.foreach: arg =>
+          this(arg.rhs)
+
+        this(expr)
+
+      case Allow(expr, params) =>
+        this(expr)
+
+      case Assign(ident, rhs) =>
+        this(ident)
+        this(rhs)
+
+      case FieldAssign(lhs, rhs) =>
+        this(lhs.qual)
+        this(rhs)
+
+      case vdef: ValDef => recurValDef(vdef)
+
+      case fdef: FunDef => recurLocalFunDef(fdef)
+
+      case tdef: TypeDef => recurLocalTypeDef(tdef)
+
+      case pdef: PatDef => recurLocalPatDef(pdef)
+
+      case If(cond, thenp, elsep) =>
+        this(cond)
+        this(thenp)
+        this(elsep)
+
+      case While(cond, body) =>
+        this(cond)
+        this(body)
+
+      case Block(words) =>
+        words.foreach(this.apply)
+
+      case Match(scrutinee, cases) =>
+        this(scrutinee)
+        for Case(pat, body) <- cases do
+          this(pat)
+          this(body)
+
+      case Object(self, vals, defs) =>
+        vals.map(this.apply)
+        defs.map(this.apply)
+  end recur
+end TreeTraverser
