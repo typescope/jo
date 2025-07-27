@@ -20,7 +20,7 @@ jobs:
             ~/.ivy2/cache
             ~/.m2/repository
             ~/.cache/coursier
-            ~/.cache/scalacli
+            ~/.cache/scalacli/local-repo
             ~/.cache/bloop
           key: build-cache-${{ hashFiles('project.scala') }}
 
