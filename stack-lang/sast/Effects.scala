@@ -14,6 +14,9 @@ object Effects:
     /** Effects will be inferred and nothing is captured */
     case Infer
 
+    /** Effects will be inferred and captured */
+    case InferCapture
+
     /** Effects will be inferred and captured except for the exceptions */
     case Capture(except: List[Symbol])
 
@@ -22,9 +25,10 @@ object Effects:
 
     def bound: Option[List[Symbol]] =
       this match
-        case Infer => None
         case Capture(except) => Some(except)
         case CheckBound(effects) => Some(effects)
+        case InferCapture => Some(Nil)
+        case _ => None
 
   def checkEffectsConform(effs: List[Ident], policy: Policy)(using Reporter, Source) =
     policy.bound match

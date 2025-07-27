@@ -456,7 +456,7 @@ class Namer:
     // `this` should not be available in field initialization
     thisScope.define(thisSym)
 
-    val defaultPolicy = Effects.Policy.Capture(except = Nil)
+    val defaultPolicy = Effects.Policy.InferCapture
 
     for case fdef: Ast.FunDef <- obj.members do
       if fdef.preParamCount != 0 then
@@ -1198,7 +1198,7 @@ class Namer:
             transformParamRef(param)
 
         policy match
-          case Effects.Policy.Infer =>
+          case Effects.Policy.Infer | Effects.Policy.InferCapture =>
             val effSyms = effs.map(_.symbol)
             Effects.Policy.CheckBound(effSyms)
 

@@ -4,7 +4,6 @@ import ast.Positions.*
 
 import Sast.*
 import Symbols.Symbol
-import Effects.*
 
 import scala.collection.mutable
 
@@ -248,13 +247,13 @@ object EffectAnalysis:
             acc ++ this(vdef.rhs)
 
           defs.foldLeft(effs): (acc, ddef) =>
-            ddef.effectPolicy match
-              case Policy.Infer | _: Policy.CheckBound =>
-                throw new Exception("Method should only have Policy.Capture")
-
-              case Policy.Capture(except) =>
-                val rawEffects = getEffects(ddef.symbol, ignoreSpec = true)
+            val rawEffects = getEffects(ddef.symbol, ignoreSpec = true)
+            ddef.effectPolicy.bound match
+              case Some(except) =>
                 acc ++ (rawEffects -- except)
+
+              case None =>
+                acc ++ rawEffects
 
         case _: Def => zero
     end apply
