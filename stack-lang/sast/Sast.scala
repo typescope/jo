@@ -522,6 +522,7 @@ object Sast:
 
     def show(using Definitions): String = Printing.show(this)
 
+    def source: String = symbol.sourcePos.source.file
 
   //----------------------------------------------------------------------------
   // helpers

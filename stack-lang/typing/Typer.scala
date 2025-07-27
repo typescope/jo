@@ -61,14 +61,20 @@ object Typer:
     // `|>` will stop early in the presence of parsing errors
     files |> parseStep |> namer
 
+  private def shouldPrint(ns: Namespace)(using config: Config): Boolean =
+    config.printOnly.isEmpty || config.printOnly.exists(ns.source.contains)
+
+  def shouldPrint(ns: Ast.Namespace)(using config: Config): Boolean =
+    config.printOnly.isEmpty || config.printOnly.exists(ns.source.contains)
+
   def parseStep(using config: Config, rp: Reporter)
   : Step[List[String], List[Ast.Namespace]] =
 
-    Step("parser", sources => {
+    Step("Parser", sources => {
       val res = Parser.parse(sources)
 
-      if config.printAfter.contains("parser") then
-        ast.Printing.print(res)
+      if config.printAfter.contains("Parser") then
+        ast.Printing.print(res.filter(shouldPrint))
 
       res
     })
@@ -77,16 +83,16 @@ object Typer:
       (using config: Config, lazyDefn: Definitions.Lazy, rp: Reporter)
   : Step[List[Ast.Namespace], List[Namespace]] =
 
-    Step("namer", (nssAst: List[Ast.Namespace]) => {
+    Step("Namer", (nssAst: List[Ast.Namespace]) => {
         val res = check(nssAst, runtime)
 
         if config.checkTree then
           given Definitions = lazyDefn.value
           TreeChecker.check(res)
 
-        if config.printAfter.contains("namer") then
+        if config.printAfter.contains("Namer") then
           given Definitions = lazyDefn.value
-          Printing.print(res)
+          Printing.print(res.filter(shouldPrint))
         res
       })
 
