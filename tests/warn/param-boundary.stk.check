@@ -3,7 +3,7 @@
 |     ^
 |     Parameter not allowed: pageWidth
 
-The following is the trace that leads to the problem: 
+The following is the trace that leads to the problem:
 ├── def h(): Unit receives newLine, stdout = i  // error	[ ./tests/warn/param-boundary.stk:18:42 ]
 │                                            ^
 ├──   g	[ ./tests/warn/param-boundary.stk:21:3 ]
