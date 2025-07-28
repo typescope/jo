@@ -46,13 +46,6 @@ class Namer:
 
     given ip: InfoProvider = defnLazy.infoProvider
 
-    // All namespace are located in the scope
-    val rootNamespaceScope = new Scope.RootScope(rootNameTable, owner = null)
-
-    // Predef names are by-default accessible. However, other namespaces are not
-    // accessible unless explicitly imported.
-    val predefScope: Scope = new Scope.RootScope(predef, owner = null)
-
     val delayedImports = new mutable.ArrayBuffer[() => Unit]
     val delayedAliases = new mutable.ArrayBuffer[() => Unit]
     val delayedNamespaces = new mutable.ArrayBuffer[DelayedDef[Namespace]]
@@ -60,14 +53,18 @@ class Namer:
     for ns <- nss do
       given source: Source = Reporter.source(ns.source)
 
-      val nsSym = resolveNamespace(ns.qualid, isBranch = false)(using rootNamespaceScope)
+      val nsSym = resolveNamespace(ns.qualid, rootNameTable, isBranch = false)
       val memberTable = ip.info(nsSym).as[ContainerInfo].nameTable
 
-      val topScope = predefScope.fresh(nsSym)
+      val topScope = new Scope.RootScope(new NameTable, nsSym)
       // Make current namespace name available
       topScope.define(nsSym)
 
-      val importScope: Scope = topScope.fresh()
+      // Predef names are by-default accessible. However, other namespaces are
+      // not accessible unless explicitly imported.
+      val predefScope = topScope.fresh(nsSym, predef)
+
+      val importScope: Scope = predefScope.fresh()
       val defsScope: Scope = importScope.fresh(nsSym, memberTable)
 
       val delayedDefs =
@@ -116,8 +113,8 @@ class Namer:
     * It also checks redefinition of namespace.
     */
   def resolveNamespace
-      (qualid: Ast.RefTree, isBranch: Boolean)
-      (using sc: Scope, rp: Reporter, so: Source, ip: InfoProvider)
+      (qualid: Ast.RefTree, rootNameTable: NameTable, isBranch: Boolean)
+      (using rp: Reporter, so: Source, ip: InfoProvider)
   : Symbol =
 
     def check(sym: Symbol): Symbol =
@@ -150,7 +147,7 @@ class Namer:
     qualid match
       case Ast.Select(qual, name) =>
         assert(qual.isInstanceOf[Ast.RefTree], "Unexpected qualid = " + qualid)
-        val nsSym = resolveNamespace(qual.asInstanceOf[Ast.RefTree], isBranch = true)
+        val nsSym = resolveNamespace(qual.asInstanceOf[Ast.RefTree], rootNameTable, isBranch = true)
 
         assert(nsSym.isNamespace, "Not a namespace " + nsSym)
         val nameTable = ip.info(nsSym).as[ContainerInfo].nameTable
@@ -166,16 +163,12 @@ class Namer:
             sym
 
       case Ast.Ident(name) =>
-        // Namespace resolution will never encounter prefix scope, therefore we
-        // can simplify ignore the out-of-band data which is used to return
-        // the prefix if present.
-        given OutOfBand = new OutOfBand
-        sc.resolveTerm(name) match
+        rootNameTable.resolveTerm(name) match
           case None =>
             val flags = if isBranch then Flags.NSpace | Flags.Branch else Flags.NSpace
             val sym = Symbol.createSymbol(name, flags, qualid.pos)
-            sc.define(sym)
-            ip.add(sym, sc.owner, new ContainerInfo(new NameTable))
+            rootNameTable.define(sym)
+            ip.add(sym, owner = null, new ContainerInfo(new NameTable))
             sym
 
           case Some(sym) => check(sym)
