@@ -95,3 +95,28 @@ object StringUtil:
       i += Character.charCount(codePoint)
     end while
     len
+
+  /** Convert a name to Pascal-case
+    *
+    * some_cat   ->    SomeCat
+    * some-cat   ->    SomeCat
+    */
+  def toPascalCase(input: String): String =
+    val sb = new java.lang.StringBuilder
+    var capitalizeNext = true
+
+    val it = input.codePoints().iterator()
+    while it.hasNext do
+      val codePoint = it.next()
+      if codePoint == '_' || codePoint == '-' then
+        capitalizeNext = true
+      else
+        val adjusted =
+          if capitalizeNext then
+            capitalizeNext = false
+            Character.toUpperCase(codePoint)
+          else
+            Character.toLowerCase(codePoint)
+        sb.appendCodePoint(adjusted)
+
+    sb.toString()

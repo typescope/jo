@@ -15,6 +15,7 @@ import reporting.Reporter.{ error, warn }
 import reporting.Config
 
 import common.IO
+import common.StringUtil
 
 import Tokens.*
 import Parser.SyntaxError
@@ -47,8 +48,9 @@ object Parser:
   /** Parse the supplied code */
   def parse(path: String)(using rp: Reporter): Namespace = try
     val source = Reporter.source(path)
+    val defaultModuleName = StringUtil.toPascalCase(IO.fileNameNoExt(path))
     val parser = new Parser(source.content)(using rp, source)
-    parser.parse()
+    parser.parse(defaultModuleName)
   catch case ex: java.nio.file.NoSuchFileException =>
     Reporter.abortInternal("Source not found: " + path)
 
@@ -168,13 +170,13 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     items.toList
 
-  def parse(): Namespace =
-    val nspace = namespace()
+  def parse(defaultModuleName: String): Namespace =
+    val nspace = namespace(defaultModuleName)
     // With parsing errors, ensure finish scanning
     skipUntil(Set(Token.EOF))
     nspace
 
-  def namespace(): Namespace =
+  def namespace(defaultModuleName: String): Namespace =
     val item = peek()
     val id =
       item match
@@ -183,7 +185,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           qualid()
 
         case _ =>
-          Ident("__empty__")(Span(0, 0))
+          Ident(defaultModuleName)(Span(0, 0))
 
     val imports = repeated:
       if peek() == Token.IMPORT then Some(importStat())
