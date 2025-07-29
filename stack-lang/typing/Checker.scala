@@ -1,10 +1,10 @@
 package typing
 
 import ast.Positions.*
-import ast.Ast
+import ast.{ Trees => Ast }
 
 import sast.*
-import sast.Sast.*
+import sast.Trees.*
 import sast.Symbols.*
 import sast.Types.*
 
@@ -282,18 +282,18 @@ class Checker(namer: Namer):
       case TargetType.ValueType =>
         if word2.tpe.isVoidType then
           // adapt to Unit type
-          SastOps.adapt(word2, defn.UnitType)
+          TreeOps.adapt(word2, defn.UnitType)
         else
           checkValueType(word2)
           word2
 
       case TargetType.Known(tpe) =>
         try
-          val wordAdapted = SastOps.adapt(word2, tpe)
+          val wordAdapted = TreeOps.adapt(word2, tpe)
           checkType(wordAdapted, tpe)
           wordAdapted
 
-        catch case ex: SastOps.AdaptionFailure =>
+        catch case ex: TreeOps.AdaptionFailure =>
           Reporter.error(s"Expect type ${tpe.show}, found = ${word2.tpe.show}", word2.pos)
           word2
 

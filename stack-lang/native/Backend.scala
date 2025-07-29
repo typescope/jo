@@ -4,7 +4,7 @@ import native.Assembly.*
 import native.runtime.NativeRuntime
 
 import sast.*
-import sast.Sast.*
+import sast.Trees.*
 import sast.Symbols.*
 
 import common.WorkList

@@ -3,7 +3,7 @@ package pickle
 import ast.Positions.*
 
 import sast.*
-import sast.Sast.*
+import sast.Trees.*
 import sast.Types.*
 import sast.Symbols.*
 
@@ -59,7 +59,7 @@ import scala.collection.mutable
   *    to the beginning of the source file and its length. The representation
   *    can be mapped to line numbers and column numbers based on a lines table.
   *
-  *    A lines table stores the length of lines in the source file. The line
+  *    A lines table stores the length of lines in the source file. The lines
   *    table is encoded compactly based on base128 encoding of each individual
   *    line length. As lines are mostly less than 128 columns, a single byte
   *    suffices for most lines.

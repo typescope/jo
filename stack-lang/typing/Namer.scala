@@ -1,12 +1,12 @@
 package typing
 
-import ast.Ast
+import ast.{ Trees => Ast }
 import ast.Desugaring
 import ast.Name
 import ast.Positions.*
 
 import sast.*
-import sast.Sast.*
+import sast.Trees.*
 import sast.Symbols.*
 import sast.Types.*
 

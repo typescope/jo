@@ -2,7 +2,7 @@ package sast
 
 import ast.Positions.*
 
-import Sast.*
+import Trees.*
 import Symbols.Symbol
 
 import scala.collection.mutable

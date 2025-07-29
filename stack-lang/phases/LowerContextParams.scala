@@ -2,7 +2,7 @@ package phases
 
 import ast.Positions.Source
 import sast.*
-import sast.Sast.*
+import sast.Trees.*
 import sast.Symbols.*
 import sast.Types.*
 

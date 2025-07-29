@@ -1,7 +1,7 @@
 package native
 
 import sast.Types.*
-import sast.Sast.*
+import sast.Trees.*
 import sast.Definitions
 
 import scala.collection.mutable

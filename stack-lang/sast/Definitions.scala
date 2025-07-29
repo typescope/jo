@@ -2,7 +2,7 @@ package sast
 
 import Types.*
 import Symbols.*
-import Sast.FunDef
+import Trees.FunDef
 
 import reporting.Reporter
 

@@ -2,8 +2,7 @@ package sast
 
 import ast.Positions.*
 
-import sast.*
-import sast.Sast.*
+import sast.Trees.*
 import sast.Types.*
 import sast.Symbols.*
 

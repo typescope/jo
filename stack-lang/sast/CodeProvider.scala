@@ -1,6 +1,6 @@
 package sast
 
-import Sast.FunDef
+import Trees.FunDef
 import Symbols.Symbol
 
 import scala.collection.mutable

@@ -1,6 +1,6 @@
 package sast
 
-import Sast.*
+import Trees.*
 
 /** A tree traversal for non-toplevel code */
 abstract class TreeTraverser:

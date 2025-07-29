@@ -1,6 +1,6 @@
 package sast
 
-import Sast.*
+import Trees.*
 
 abstract class TreeMap(using Definitions):
   type Context

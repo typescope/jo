@@ -4,7 +4,7 @@ import common.Debug
 import reporting.Reporter
 
 import sast.*
-import sast.Sast.*
+import sast.Trees.*
 import sast.Symbols.*
 
 import native.Backend

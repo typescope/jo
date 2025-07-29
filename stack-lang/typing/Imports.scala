@@ -1,6 +1,6 @@
 package typing
 
-import ast.Ast
+import ast.{ Trees => Ast }
 import ast.Positions.*
 
 import sast.*

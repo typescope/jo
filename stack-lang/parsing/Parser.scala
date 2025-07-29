@@ -5,7 +5,7 @@
  ************************************************************************/
 package parsing
 
-import ast.Ast.*
+import ast.Trees.*
 import ast.Name
 import ast.Positions
 import ast.Positions.*

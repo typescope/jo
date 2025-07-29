@@ -1,7 +1,7 @@
 package phases
 
 import sast.*
-import sast.Sast.*
+import sast.Trees.*
 
 import typing.Typer
 import reporting.Config

@@ -1,8 +1,8 @@
 package typing
 
-import ast.Ast
+import ast.{ Trees => Ast }
 import sast.*
-import sast.Sast.*
+import sast.Trees.*
 
 import parsing.Parser
 import reporting.Reporter

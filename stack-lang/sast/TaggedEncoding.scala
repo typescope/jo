@@ -1,7 +1,7 @@
 package sast
 
 import sast.Types.*
-import sast.Sast.*
+import sast.Trees.*
 import ast.Positions.{ Span, SourcePosition }
 
 import reporting.Reporter

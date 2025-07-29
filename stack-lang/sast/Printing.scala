@@ -1,6 +1,6 @@
 package sast
 
-import Sast.*
+import Trees.*
 import Types.*
 import Symbols.Symbol
 

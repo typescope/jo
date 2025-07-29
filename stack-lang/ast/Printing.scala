@@ -1,6 +1,6 @@
 package ast
 
-import Ast.*
+import Trees.*
 
 import common.StringUtil
 import common.Text

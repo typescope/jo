@@ -2,9 +2,9 @@ package typing
 
 import scala.collection.mutable
 
-import ast.Ast
+import ast.{ Trees => Ast }
 import sast.*
-import sast.Sast.*
+import sast.Trees.*
 import sast.Types.*
 
 import ast.Positions.*

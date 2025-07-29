@@ -8,7 +8,7 @@ import common.KeyProps
  * Abstract Syntax Tree
  *
  ***********************************************************************/
-object Ast:
+object Trees:
   sealed abstract class Tree extends Product, Positioned, KeyProps.Container
 
   enum Modifier extends Tree:

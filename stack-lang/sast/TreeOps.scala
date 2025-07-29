@@ -1,13 +1,13 @@
 package sast
 
-import Sast.*
+import Trees.*
 import Symbols.Symbol
 import Types.*
 
 
 import scala.collection.mutable
 
-object SastOps:
+object TreeOps:
   class AdaptionFailure(word: Word, targetType: Type) extends Exception:
     override def toString(): String =
       "Unable to adapt " + word + " of type " + word.tpe + " to " + targetType

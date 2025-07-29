@@ -2,7 +2,7 @@ package sast
 
 import scala.collection.mutable
 
-import Sast.*
+import Trees.*
 import Symbols.*
 
 import common.Debug

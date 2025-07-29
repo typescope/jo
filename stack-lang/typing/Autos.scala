@@ -1,7 +1,7 @@
 package typing
 
 import sast.*
-import sast.Sast.*
+import sast.Trees.*
 import sast.Types.*
 import sast.Symbols.*
 

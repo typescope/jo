@@ -1,7 +1,7 @@
 package js
 
 import sast.*
-import sast.Sast.*
+import sast.Trees.*
 import sast.Symbols.*
 
 /** Lower String and Array to JS runtime calls.

@@ -3,11 +3,11 @@ package phases
 import ast.Positions.*
 
 import sast.*
-import sast.Sast.*
+import sast.Trees.*
 import sast.Symbols.*
 import sast.Types.*
 
-import Sast.SeqPattern.Size
+import Trees.SeqPattern.Size
 
 import scala.collection.mutable
 

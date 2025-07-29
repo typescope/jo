@@ -61,7 +61,7 @@ def compile(args: String*): Unit =
 
         val closureConvert = new ElimCapture
         val runtimeLowerer = new LowerRuntime(jsRuntime)
-        val backend: Step[List[Sast.Namespace], Unit] =
+        val backend: Step[List[Trees.Namespace], Unit] =
           Step("Backend", new JSOptimized(outFile, jsRuntime).compile)
 
         namespacesSAST      |>

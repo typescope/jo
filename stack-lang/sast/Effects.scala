@@ -1,6 +1,6 @@
 package sast
 
-import Sast.*
+import Trees.*
 import Symbols.Symbol
 
 import ast.Positions.Source

@@ -12,7 +12,7 @@ import ast.Positions.{ Positioned, Span }
  * All names are resolved to symbols according to scoping rules.
  *
  ***********************************************************************/
-object Sast:
+object Trees:
   sealed abstract class Tree extends Positioned with Product:
     def tpe: Type
 
@@ -469,7 +469,7 @@ object Sast:
 
     def census(using Definitions): (List[Symbol], List[Symbol]) =
       if censusCache == null then
-        censusCache = SastOps.variableCensus(this)
+        censusCache = TreeOps.variableCensus(this)
         censusCache.nn
       else
         censusCache.nn
@@ -558,7 +558,7 @@ object Sast:
 
       val args2 =
         for (arg, paramType) <- args.zip(procType.paramTypes)
-        yield SastOps.adapt(arg, paramType)
+        yield TreeOps.adapt(arg, paramType)
 
       Apply(word, args2.toList, autos = Nil)(procType.resultType)
 
