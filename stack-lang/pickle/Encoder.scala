@@ -391,7 +391,11 @@ object Encoder:
       case procType @ ProcType(tparams, params, autos, resType, _, preParamCount) =>
         encodeByte(Format.ProcType)
 
-        // TODO: remove type params in ProcType
+        // Local type symbols in types only need to store id, bound and name.
+        //
+        // The position information is irrelevant.
+        //
+        // TODO: implement properly
         repeated(tparams) { tparam => encodeSymbolRef(tparam) }
 
         repeated(params): param =>
@@ -412,7 +416,11 @@ object Encoder:
       case TypeLambda(tparams, resType, preParamCount) =>
         encodeByte(Format.TypeLambda)
 
-        // TODO: remove type params in TypeLambda
+        // Local type symbols in types only need to store id, bound and name.
+        //
+        // The position information is irrelevant.
+        //
+        // TODO: implement properly
         repeated(tparams) { tparam => encodeSymbolRef(tparam) }
 
         encodeType(resType)
