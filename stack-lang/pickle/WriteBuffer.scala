@@ -34,6 +34,25 @@ class WriteBuffer(initialSize: Int) extends (Byte => Unit):
     System.arraycopy(data, 0, bytes, size, n)
     size += n
 
+  /** Reserve 4-byte slot for big-endian 2's complement integer
+    *
+    * Returns an index to the byte array which can be used to write the actual
+    * value.
+    */
+  def reserveInt(): Int =
+    val addr = size
+    addByte(0)
+    addByte(0)
+    addByte(0)
+    addByte(0)
+    addr
+
+  def patchInt(addr: Int, value: Int) =
+    bytes(addr) = (value >>> 24).toByte
+    bytes(addr + 1) = (value >>> 16).toByte
+    bytes(addr + 2) = (value >>> 8).toByte
+    bytes(addr + 3) = value.toByte
+
   def length: Int = size
 
   def getBytes: Array[Byte] = bytes

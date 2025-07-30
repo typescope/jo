@@ -158,14 +158,20 @@ object Encoder:
     given state: State = new State(symbol)
     given buf: WriteBuffer = new WriteBuffer(1 << 12)
 
-    encodeInternalRef(symbol)
+    encodeString(symbol.fullName)
+
+    val addrSymTable = buf.reserveInt()
+    val addrNameTable = buf.reserveInt()
+
     encodeSource(symbol.sourcePos.source)
 
     repeated(defs) { defn => encodeDef(defn) }
 
+    buf.patchInt(addrSymTable, buf.length)
     state.encodeSymbolTable()
 
     // must comes after symbols
+    buf.patchInt(addrNameTable, buf.length)
     state.encodeExternalNameTable()
 
     buf
