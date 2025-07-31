@@ -144,10 +144,6 @@ object Encoder:
       Encoder.encodeNat(externalSymbols.size)
       for sym <- externalSymbols do encodeString(sym.fullName)
 
-    def encodeSymbolTable()(using state: State, defn: Definitions, buf: WriteBuffer) =
-      val topLevelSyms = internalSymIds.keys.filter(!_.isLocal)
-      Encoder.encodeInt(topLevelSyms.size)
-      for sym <- topLevelSyms do Encoder.encodeSymbol(sym)
   end State
 
   //----------------------------------------------------------------------------
@@ -160,17 +156,13 @@ object Encoder:
 
     encodeString(symbol.fullName)
 
-    val addrSymTable = buf.reserveInt()
     val addrNameTable = buf.reserveInt()
 
     encodeSource(symbol.sourcePos.source)
 
     repeated(defs) { defn => encodeDef(defn) }
 
-    buf.patchInt(addrSymTable, buf.length)
-    state.encodeSymbolTable()
-
-    // must comes after symbols
+    // must comes after last
     buf.patchInt(addrNameTable, buf.length)
     state.encodeExternalNameTable()
 
@@ -207,32 +199,26 @@ object Encoder:
     encodeNat(symbol.sourcePos.length)
     encodeType(symbol.info)
 
-  /** Reference to a symbol
+  /** Reference to an internal or external symbol
     *
-    *     #3  ==> refers the symbol whose id is 3
-    *
-    *     @5  ==> refers the name table entry whose index is 5
+    * - Internal symbols are identified by unique ids
+    * - External symbols are identified by full name and kind
     */
   private def encodeSymbolRef(symbol: Symbol)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
     if symbol.containedIn(state.root) then
-      encodeByte(1)
-      encodeInternalRef(symbol)
+      encodeByte(0)
+      encodeNat(state.internalId(symbol))
 
     else
       assert(!symbol.isLocal, "Cannot reference external local symbol: " + symbol)
       encodeByte(1)
       encodeNat(state.getExternalSymbolIndex(symbol))
 
-  private def encodeInternalRefs(symbols: List[Symbol])(using state: State, buf: WriteBuffer): Unit =
-    encodeNat(symbols.size)
-    for symbol <- symbols do encodeInternalRef(symbol)
-
-  private def encodeInternalRef(symbol: Symbol)(using state: State, buf: WriteBuffer): Unit =
-    encodeNat(state.internalId(symbol))
-
   private def encodeFlags(flags: Flags)(using buf: WriteBuffer): Unit =
+    // Not all flags need serialization, handled by caller
     val indices = Flags.flagIndices(flags)
     assert(indices.size < 128)
+    // TODO: use negative value to signify end of flags
     encodeByte(indices.size.toByte)
     for i <- indices do encodeByte(i)
 
@@ -246,75 +232,112 @@ object Encoder:
         encodeByte(1)
         repeated(args) { arg => encodeKind(arg) }
 
+  private def encodeTypeParams(tparams: List[Symbol])(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
+    repeated(tparams): tparam =>
+      encodeNat(state.internalId(tparam))
+      encodeString(tparam.name)
+      encodeType(tparam.info)
+      // TODO: positions
+
   private def encodeDef(defn: Def)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit = state.withPositioned(defn): startDelta =>
     defn match
       case pdef: ParamDef =>
         encodeByte(Format.ParamDef)
-        encodeInternalRef(pdef.symbol)
+        encodeFlags(pdef.symbol.flags & Flags.Default)
+        encodeString(pdef.symbol.name)
+        encodeNat(state.internalId(pdef.symbol))
         encodeTypeTree(pdef.tpt)
 
       case vdef: ValDef =>
         encodeByte(Format.ValDef)
-        encodeInternalRef(vdef.symbol)
+        encodeNat(state.internalId(vdef.symbol))
+        encodeFlags(vdef.symbol.flags & (Flags.Auto | Flags.Mutable))
+        encodeString(vdef.symbol.name)
+        encodeType(vdef.symbol.info)
         encodeWord(vdef.rhs)
 
       case cdef: ClassDef =>
         encodeByte(Format.ClassDef)
-        encodeInternalRef(cdef.symbol)
-        encodeSymbol(cdef.self)
 
-        repeated(cdef.tparams): tparam =>
-          encodeSymbol(tparam)
+        encodeNat(state.internalId(cdef.symbol))
+        encodeString(cdef.symbol.name)
+
+        encodeTypeParams(cdef.tparams)
+
+        encodeNat(state.internalId(cdef.self))
+        encodeFlags(cdef.self.flags & Flags.Auto)
+        encodeString(cdef.self.name)
 
         repeated(cdef.vals): sym =>
-          encodeSymbol(sym)
+          encodeNat(state.internalId(sym))
+          encodeFlags(sym.flags & (Flags.Auto | Flags.Mutable))
+          encodeString(sym.name)
+          encodeType(sym.info)
+          // TODO: positions
 
         repeated(cdef.funs): fdef =>
           encodeDef(fdef)
 
       case fdef: FunDef =>
         encodeByte(Format.FunDef)
-        // TODO: local or top-level
-        encodeSymbolRef(fdef.symbol)
 
-        repeated(fdef.tparams): tparam =>
-          encodeSymbol(tparam)
+        encodeNat(state.internalId(fdef.symbol))
+        encodeFlags(fdef.symbol.flags & (Flags.Auto))
+        encodeString(fdef.symbol.name)
+
+        encodeTypeParams(fdef.tparams)
 
         repeated(fdef.params): param =>
-          encodeSymbol(param)
+          encodeNat(state.internalId(param))
+          encodeString(param.name)
+          encodeType(param.info)
+          // TODO: positions
 
         repeated(fdef.autos): auto =>
-          encodeSymbol(auto)
+          encodeNat(state.internalId(auto))
+          encodeString(auto.name)
+          encodeType(auto.info)
+          // TODO: positions
 
         encodeTypeTree(fdef.resultType)
+
+        repeated(fdef.procType.receives): eff =>
+          encodeSymbolRef(eff)
 
         encodeWord(fdef.body)
 
       case pdef: PatDef =>
         encodeByte(Format.PatDef)
-        // TODO: local or top-level
-        encodeSymbolRef(pdef.symbol)
 
-        repeated(pdef.tparams): tparam =>
-          encodeSymbol(tparam)
+        encodeNat(state.internalId(pdef.symbol))
+        encodeFlags(pdef.symbol.flags)
+        encodeString(pdef.symbol.name)
+
+        encodeTypeParams(pdef.tparams)
 
         repeated(pdef.params): param =>
-          encodeSymbol(param)
+          encodeNat(state.internalId(param))
+          encodeString(param.name)
+          encodeType(param.info)
+          // TODO: positions
 
         encodeTypeTree(pdef.resultType)
 
-        // TODO: effects
+
+        repeated(pdef.procType.receives): eff =>
+          encodeSymbolRef(eff)
 
         encodePattern(pdef.body)
 
       case tdef: TypeDef =>
         encodeByte(Format.TypeDef)
-        // TODO: local or top-level
-        encodeSymbolRef(tdef.symbol)
+        encodeNat(state.internalId(tdef.symbol))
+        encodeString(tdef.symbol.name)
+        encodeType(tdef.symbol.info)
 
       case sec: Section =>
         encodeByte(Format.Section)
-        encodeSymbolRef(sec.symbol)
+        encodeString(sec.symbol.name)
 
         repeated(sec.defs): defn =>
           encodeDef(defn)
@@ -400,9 +423,12 @@ object Encoder:
         // Local type symbols in types only need to store id, bound and name.
         //
         // The position information is irrelevant.
-        //
-        // TODO: implement properly
-        repeated(tparams) { tparam => encodeSymbolRef(tparam) }
+        repeated(tparams): tparam =>
+          // TODO: the type param can be external
+          encodeNat(state.internalId(tparam))
+          encodeString(tparam.name)
+          encodeType(tparam.info)
+          // TODO: positions?
 
         repeated(params): param =>
           encodeString(param.name)
@@ -432,29 +458,13 @@ object Encoder:
         encodeType(resType)
         encodeNat(preParamCount)
 
-      case cinfo: ContainerInfo =>
-        encodeByte(Format.ContainerInfo)
-        encodeInternalRefs(cinfo.members)
-
-      case ClassInfo(classSymbol, tparams, targs, self, fields, methods) =>
-        assert(classSymbol.containedIn(state.root), "External class info " + tpe)
-        encodeByte(Format.ClassInfo)
-
-        for  (targ, tparam) <- targs.zip(tparams) do
-          targ match
-            case StaticRef(sym) => assert(sym == tparam, "Unexpected class info")
-            case tp => throw new Exception("Unexpected targ for classInfo: " + tp)
-        end for
-
-        encodeInternalRef(classSymbol)
-        encodeInternalRefs(tparams)
-        encodeInternalRefs(fields)
-        encodeInternalRefs(methods)
-
       case TypeBound(lo, hi) =>
         encodeByte(Format.TypeBound)
         encodeType(lo)
         encodeType(hi)
+
+      case _: ContainerInfo | _: ClassInfo =>
+        throw new Exception("Unexpected type " + tpe)
 
   private def encodeWord(word: Word)(using defn: Definitions, state: State, buf: WriteBuffer): Unit = state.withPositioned(word): startDelta =>
     // TODO: types
@@ -562,7 +572,10 @@ object Encoder:
 
       case Object(self, inits, defs) =>
         encodeByte(Format.Object)
-        encodeSymbol(self)
+
+        encodeNat(state.internalId(self))
+        encodeString(self.name)
+
         repeated(inits) { init => encodeDef(init) }
         repeated(defs) { defn => encodeDef(defn) }
 
