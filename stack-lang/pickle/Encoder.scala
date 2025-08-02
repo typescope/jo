@@ -130,7 +130,8 @@ object Encoder:
       else
         index
 
-    def internalId(sym: Symbol): Int =
+    def internalId(sym: Symbol)(using Definitions): Int =
+      assert(sym.containedIn(root) || sym.isTypeParameter, sym.fullName)
       internalSymIds.get(sym) match
         case Some(id) => id
         case None =>
@@ -424,7 +425,7 @@ object Encoder:
         //
         // The position information is irrelevant.
         repeated(tparams): tparam =>
-          // TODO: the type param can be external
+          // The type param can be external
           encodeNat(state.internalId(tparam))
           encodeString(tparam.name)
           encodeType(tparam.info)
@@ -433,10 +434,12 @@ object Encoder:
         repeated(params): param =>
           encodeString(param.name)
           encodeType(param.info)
+          // TODO: positions?
 
         repeated(autos): auto =>
           encodeString(auto.name)
           encodeType(auto.info)
+          // TODO: positions?
 
         encodeType(resType)
 
@@ -451,9 +454,12 @@ object Encoder:
         // Local type symbols in types only need to store id, bound and name.
         //
         // The position information is irrelevant.
-        //
-        // TODO: implement properly
-        repeated(tparams) { tparam => encodeSymbolRef(tparam) }
+        repeated(tparams): tparam =>
+          // The type param can be external
+          encodeNat(state.internalId(tparam))
+          encodeString(tparam.name)
+          encodeType(tparam.info)
+          // TODO: positions?
 
         encodeType(resType)
         encodeNat(preParamCount)
