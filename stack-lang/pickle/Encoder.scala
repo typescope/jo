@@ -194,7 +194,12 @@ object Encoder:
       case tsym: TypeSymbol => encodeKind(tsym.kind)
       case _ =>
 
-    if symbol.owner == null then encodeInt(-1)
+    if symbol.owner == null then
+      encodeInt(-1)
+
+    else
+      val ownerId = state.internalId(symbol.owner)
+      encodeNat(ownerId)
 
     encodeNat(symbol.sourcePos.start)
     encodeNat(symbol.sourcePos.length)
@@ -232,6 +237,7 @@ object Encoder:
         assert(args.size < 128, args.size)
         encodeByte(1)
         repeated(args) { arg => encodeKind(arg) }
+        encodeKind(to)
 
   private def encodeTypeParams(tparams: List[Symbol])(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
     repeated(tparams): tparam =>
@@ -434,12 +440,10 @@ object Encoder:
         repeated(params): param =>
           encodeString(param.name)
           encodeType(param.info)
-          // TODO: positions?
 
         repeated(autos): auto =>
           encodeString(auto.name)
           encodeType(auto.info)
-          // TODO: positions?
 
         encodeType(resType)
 
