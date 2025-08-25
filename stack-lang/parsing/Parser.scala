@@ -942,7 +942,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     eat(Token.LBRACE)
     val decls: List[ValDef | FunDef] = repeated:
       if peek() == Token.DEF then
-        Some(defDef(needBody = false))
+        val methodDecl = defDef(needBody = false)
+        eatCommaOpt()
+        Some(methodDecl)
 
       else if peek() == Token.VAL || peek() == Token.VAR then
         val mod = next()
@@ -950,6 +952,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         val id = ident()
         eat(Token.COLON)
         val tpt = typ()
+        eatCommaOpt()
         val body = Block(phrases = Nil)(id.span)
         Some(ValDef(id, tpt, body, mutable)(mod.span | tpt.span))
 
@@ -1142,10 +1145,21 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     eat(Token.LBRACE)
 
     val members: List[ValDef | FunDef] = repeated:
-        if peek() == Token.DEF then Some(defDef(needBody = true))
-        else if peek() == Token.VAL then Some(valDef(Token.VAL))
-        else if peek() == Token.VAR then Some(valDef(Token.VAR))
+      val res =
+        if peek() == Token.DEF then
+          Some(defDef(needBody = true))
+
+        else if peek() == Token.VAL then
+          Some(valDef(Token.VAL))
+
+        else if peek() == Token.VAR then
+          Some(valDef(Token.VAR))
+
         else None
+
+      if res.nonEmpty then eatCommaOpt()
+      res
+
     val endToken = eat(Token.RBRACE)
     Object(members)(objToken.span | endToken.span)
 

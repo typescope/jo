@@ -255,8 +255,16 @@ object Subtyping:
       val names2 = tp2.fieldNames
       names1.size >= names2.size && names1.zip(names2).forall: (a, b) =>
         a == b
-        && tp1.isMutable(a) == tp2.isMutable(b)
-        && recur(tp1.termMember(a), tp2.termMember(b))
+        && ({
+         tp1.isMutable(a)
+         && tp2.isMutable(b)
+         && recur(tp1.termMember(a), tp2.termMember(b))
+         && recur(tp2.termMember(a), tp1.termMember(b))
+        } || {
+         !tp1.isMutable(a)
+         && !tp2.isMutable(b)
+         && recur(tp1.termMember(a), tp2.termMember(b))
+        })
 
     fieldsConform && {
       val names1 = tp1.methodNames

@@ -71,7 +71,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
         else if isOperator(c)   then operator()
         else if isSpace(c)      then nextToken()
         else
-          error("Unexpected character: " + c, stream.tokenSpan().toPos)
+          error("Unexpected character: " + Character.toString(c), stream.tokenSpan().toPos)
           nextToken()
 
   def name(): Token =
