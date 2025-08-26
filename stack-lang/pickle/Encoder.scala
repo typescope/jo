@@ -489,6 +489,7 @@ object Encoder:
       case Literal(const) =>
         encodeByte(Format.Literal)
         encodeConstant(const)
+        encodeType(word.tpe)
 
       case Ident(sym) =>
         encodeByte(Format.Ident)
@@ -569,6 +570,7 @@ object Encoder:
         encodeWord(cond)
         encodeWord(thenp)
         encodeWord(elsep)
+        encodeType(word.tpe)
 
       case While(cond, body) =>
         encodeByte(Format.While)
@@ -586,6 +588,8 @@ object Encoder:
           case Case(pat, body) =>
             encodePattern(pat)
             encodeWord(body)
+
+        encodeType(word.tpe)
 
       case Object(self, inits, defs) =>
         encodeByte(Format.Object)
@@ -609,6 +613,7 @@ object Encoder:
 
       case TypePattern(tpt) =>
         encodeByte(Format.TypePattern)
+        encodeType(pattern.scrutineeType)
         encodeTypeTree(tpt)
 
       case TagPattern(tagLit, nested) =>
@@ -618,6 +623,7 @@ object Encoder:
 
       case ApplyPattern(fun, nested) =>
         encodeByte(Format.ApplyPattern)
+        encodeType(pattern.scrutineeType)
         encodeWord(fun)
         repeated(nested) { pat => encodePattern(pat) }
 
@@ -628,6 +634,7 @@ object Encoder:
 
       case ValuePattern(value) =>
         encodeByte(Format.ValuePattern)
+        encodeType(pattern.scrutineeType)
         encodeWord(value)
 
       case GuardPattern(pattern, guard) =>
@@ -642,6 +649,7 @@ object Encoder:
 
       case SeqPattern(pats) =>
         encodeByte(Format.SeqPattern)
+        encodeType(pattern.scrutineeType)
 
         repeated(pats):
           case AtomPattern(pattern) =>
@@ -665,6 +673,7 @@ object Encoder:
 
       case WildcardPattern() =>
         encodeByte(Format.WildcardPattern)
+        encodeType(pattern.scrutineeType)
 
     val lengthDelta = pattern.span.length - state.getChildrenLength
     encodeInt(startDelta)
