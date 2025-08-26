@@ -27,39 +27,39 @@
 |   Uninitialized field(s): n
 
 ---------- Error at ./tests/warn/class.stk:26:3 ---------------
-|   def F(x: Int) = { n = x }
-|   ^^^^^^^^^^^^^^^^^^^^^^^^^
+|   def F(x: Int) = { n: x }
+|   ^^^^^^^^^^^^^^^^^^^^^^^^
 |   Uninitialized field(s): m
 
----------- Error at ./tests/warn/class.stk:31:25 ---------------
-|   def G(x: Int) = { n = "hello" }
-|                         ^^^^^^^
-|                         Expect type Int, found = String
+---------- Error at ./tests/warn/class.stk:31:24 ---------------
+|   def G(x: Int) = { n: "hello" }
+|                        ^^^^^^^
+|                        Expect type Int, found = String
 
----------- Error at ./tests/warn/class.stk:37:28 ---------------
-|   def H(x: Int) = { n = x, n = x }
-|                            ^
-|                            The field n already initialized
+---------- Error at ./tests/warn/class.stk:37:27 ---------------
+|   def H(x: Int) = { n: x, n: x }
+|                           ^
+|                           The field n already initialized
 
 ---------- Error at ./tests/warn/class.stk:37:3 ---------------
-|   def H(x: Int) = { n = x, n = x }
-|   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   def H(x: Int) = { n: x, n: x }
+|   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 |   Uninitialized field(s): m
 
----------- Error at ./tests/warn/class.stk:43:32 ---------------
-|   def I(x: Int) = { n = x, m = this.x }
-|                                ^^^^
-|                                Undefined term identifier this
+---------- Error at ./tests/warn/class.stk:43:30 ---------------
+|   def I(x: Int) = { n: x, m: this.x }
+|                              ^^^^
+|                              Undefined term identifier this
 
 ---------- Error at ./tests/warn/class.stk:50:5 ---------------
 |     this.m
 |     ^^^^
 |     Undefined term identifier this
 
----------- Error at ./tests/warn/class.stk:57:14 ---------------
-|     { n = x, m = x }
-|              ^
-|              The field m does not exist in class K
+---------- Error at ./tests/warn/class.stk:57:13 ---------------
+|     { n: x, m: x }
+|             ^
+|             The field m does not exist in class K
 
 ---------- Error at ./tests/warn/class.stk:62:18 ---------------
 |   def L(x: Int): K =

@@ -12,5 +12,5 @@ def right[X, Y](a: Y): Either[X, Y] = #Right(a)
 
 def main =
   list
-    left  { b = 3 }
-    right { c = 3 }
+    left  { b: 3 }
+    right { c: 3 }

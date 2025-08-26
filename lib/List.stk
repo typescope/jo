@@ -13,7 +13,7 @@ class List[T]
 
   def List(repr: Repr[T]) =
     val len = match repr case Size(n) => n
-    { repr = repr, _size = len }
+    { repr: repr, _size: len }
 
   def size: Int = _size
 

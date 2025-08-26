@@ -25,7 +25,7 @@ def createPage(): State receives none =
       -1
     i = i + 1
 
-  { keys = keysArr, values = valsArr, lastOverwrittenValue = 0 }
+  { keys: keysArr, values: valsArr, lastOverwrittenValue: 0 }
 
 // Assumption:
 // (1) The keys for manipulating the same param share the same physical address.

@@ -34,7 +34,7 @@ def eval(expr: Expr): Value =
       end
 
     case abs: Lambda =>
-      { lambda = abs, env = env }
+      { lambda: abs, env: env }
 
     case #App abs arg =>
       val closure = eval abs

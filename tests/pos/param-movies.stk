@@ -18,8 +18,8 @@ def moviesDirectedBy(arg: String): List[Movie] =
 def main =
   val testFinder: MovieFinder = object {
     def findAll(): List[Movie] =
-      val movie1 = { name = "A", director = "a", year = 2010 }
-      val movie2 = { name = "B", director = "b", year = 2023 }
+      val movie1 = { name: "A", director: "a", year: 2010 }
+      val movie2 = { name: "B", director: "b", year: 2023 }
       List.empty + movie1 + movie2
   }
 

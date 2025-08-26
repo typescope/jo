@@ -11,7 +11,7 @@ class Set[T]
   val l: List[T]
   val eq: Eq[T]
 
-  def Set(l: List[T], eq: Eq[T]) = { l = l, eq = eq }
+  def Set(l: List[T], eq: Eq[T]) = { l: l, eq: eq }
 
   def size: Int = l.size
 
