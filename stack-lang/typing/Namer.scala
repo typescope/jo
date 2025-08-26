@@ -490,9 +490,18 @@ class Namer:
       end match
     end for
 
-    val memberTypes = delayedDefs.map(d => NamedInfo(d.symbol.name, MemberRef(StaticRef(thisSym), d.symbol))).toList
+    val memberTypes = delayedDefs.map: d =>
+      val sym = d.symbol
+      val tp =
+        if sym.isMethod then
+          MemberRef(StaticRef(thisSym), d.symbol)
+        else
+          sym.info
+
+      NamedInfo(d.symbol.name, tp)
+
     val mutables = delayedDefs.filter(_.symbol.isMutable).map(_.symbol.name).toList
-    val objectType = ObjectType(memberTypes, mutables)
+    val objectType = ObjectType(memberTypes.toList, mutables)
 
     defn.add(thisSym, sc.owner, objectType)
 
