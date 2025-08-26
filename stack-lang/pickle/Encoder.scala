@@ -239,12 +239,16 @@ object Encoder:
         repeated(args) { arg => encodeKind(arg) }
         encodeKind(to)
 
-  private def encodeTypeParams(tparams: List[Symbol])(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
+  private def encodeTypeParams(defn: Def, tparams: List[Symbol])(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
     repeated(tparams): tparam =>
       encodeNat(state.internalId(tparam))
       encodeString(tparam.name)
       encodeType(tparam.info)
-      // TODO: positions
+
+      val symSpan = tparam.sourcePos.span
+      val startDelta = symSpan.start - defn.span.start
+      encodeInt(startDelta)
+      encodeInt(symSpan.length)
 
   private def encodeDef(defn: Def)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit = state.withPositioned(defn): startDelta =>
     defn match
@@ -269,7 +273,7 @@ object Encoder:
         encodeNat(state.internalId(cdef.symbol))
         encodeString(cdef.symbol.name)
 
-        encodeTypeParams(cdef.tparams)
+        encodeTypeParams(cdef, cdef.tparams)
 
         encodeNat(state.internalId(cdef.self))
         encodeFlags(cdef.self.flags & Flags.Auto)
@@ -280,7 +284,11 @@ object Encoder:
           encodeFlags(sym.flags & (Flags.Auto | Flags.Mutable))
           encodeString(sym.name)
           encodeType(sym.info)
-          // TODO: positions
+
+          val symSpan = sym.sourcePos.span
+          val startDelta = symSpan.start - cdef.span.start
+          encodeInt(startDelta)
+          encodeInt(symSpan.length)
 
         repeated(cdef.funs): fdef =>
           encodeDef(fdef)
@@ -292,19 +300,27 @@ object Encoder:
         encodeFlags(fdef.symbol.flags & (Flags.Auto))
         encodeString(fdef.symbol.name)
 
-        encodeTypeParams(fdef.tparams)
+        encodeTypeParams(fdef, fdef.tparams)
 
         repeated(fdef.params): param =>
           encodeNat(state.internalId(param))
           encodeString(param.name)
           encodeType(param.info)
-          // TODO: positions
+
+          val symSpan = param.sourcePos.span
+          val startDelta = symSpan.start - fdef.span.start
+          encodeInt(startDelta)
+          encodeInt(symSpan.length)
 
         repeated(fdef.autos): auto =>
           encodeNat(state.internalId(auto))
           encodeString(auto.name)
           encodeType(auto.info)
-          // TODO: positions
+
+          val symSpan = auto.sourcePos.span
+          val startDelta = symSpan.start - fdef.span.start
+          encodeInt(startDelta)
+          encodeInt(symSpan.length)
 
         encodeTypeTree(fdef.resultType)
 
@@ -320,16 +336,19 @@ object Encoder:
         encodeFlags(pdef.symbol.flags)
         encodeString(pdef.symbol.name)
 
-        encodeTypeParams(pdef.tparams)
+        encodeTypeParams(pdef, pdef.tparams)
 
         repeated(pdef.params): param =>
           encodeNat(state.internalId(param))
           encodeString(param.name)
           encodeType(param.info)
-          // TODO: positions
+
+          val symSpan = param.sourcePos.span
+          val startDelta = symSpan.start - pdef.span.start
+          encodeInt(startDelta)
+          encodeInt(symSpan.length)
 
         encodeTypeTree(pdef.resultType)
-
 
         repeated(pdef.procType.receives): eff =>
           encodeSymbolRef(eff)
@@ -350,8 +369,8 @@ object Encoder:
           encodeDef(defn)
 
     val lengthDelta = defn.span.length - state.getChildrenLength
-    buf.addInt(startDelta)
-    buf.addInt(lengthDelta)
+    encodeInt(startDelta)
+    encodeInt(lengthDelta)
 
   private def encodeTypeTree(tpt: TypeTree)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
     state.withPositioned(tpt): startDelta =>
@@ -591,8 +610,8 @@ object Encoder:
 
     if needPosition(word) then
       val lengthDelta = word.span.length - state.getChildrenLength
-      buf.addInt(startDelta)
-      buf.addInt(lengthDelta)
+      encodeInt(startDelta)
+      encodeInt(lengthDelta)
 
   private def encodePattern(pattern: Pattern)(using defn: Definitions, state: State, buf: WriteBuffer): Unit = state.withPositioned(pattern): startDelta =>
     pattern match
@@ -661,8 +680,8 @@ object Encoder:
         encodeByte(Format.WildcardPattern)
 
     val lengthDelta = pattern.span.length - state.getChildrenLength
-    buf.addInt(startDelta)
-    buf.addInt(lengthDelta)
+    encodeInt(startDelta)
+    encodeInt(lengthDelta)
 
   private def encodeBool(b: Boolean)(using buf: WriteBuffer): Unit =
     buf.addBool(b)
