@@ -121,7 +121,8 @@ Abstract Syntax
 
     type_ascribe = simple_phrase AS simple_type.
 
-    object     = OBJECT LBRACE {member [COMMA]} RBRACE.
+    object     = LBRACE [members] RBRACE.
+    members    = member { [COMMA] member }
     member     = valdef | defdef.
 
     lambda  = (param_section | ident) RARROW block.
@@ -192,9 +193,11 @@ Abstract Syntax
 
     receive_params = RECEIVES qualid {COMMA qualid}.
 
-    object_type = OBJECT LBRACE {(method_decl | val_decl) [COMMA]} RBRACE.
-    method_decl = DEF ident param_section COLON type [receive_params].
-    val_decl    = (VAL | VAR) ident COLON type.
+    object_type  = LBRACE [member_decls] RBRACE.
+    member_decls = member_decl {[COMMA] member_decl}.
+    member_decl  = method_decl | val_decl.
+    method_decl  = DEF ident param_section COLON type [receive_params].
+    val_decl     = (VAL | VAR) ident COLON type.
 
     param_section = LPAREN [params] RPAREN.
     params        = param {COMMA param}.

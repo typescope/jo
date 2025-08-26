@@ -940,19 +940,22 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def objectType(): ObjectType =
     val objToken = eat(Token.OBJECT)
     eat(Token.LBRACE)
+    var count = 0
     val decls: List[ValDef | FunDef] = repeated:
+      if count > 0 then eatCommaOpt()
+
       if peek() == Token.DEF then
+        count += 1
         val methodDecl = defDef(needBody = false)
-        eatCommaOpt()
         Some(methodDecl)
 
       else if peek() == Token.VAL || peek() == Token.VAR then
+        count += 1
         val mod = next()
         val mutable = mod.token == Token.VAR
         val id = ident()
         eat(Token.COLON)
         val tpt = typ()
-        eatCommaOpt()
         val body = Block(phrases = Nil)(id.span)
         Some(ValDef(id, tpt, body, mutable)(mod.span | tpt.span))
 
@@ -1144,7 +1147,10 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val objToken = eat(Token.OBJECT)
     eat(Token.LBRACE)
 
+    var count = 0
     val members: List[ValDef | FunDef] = repeated:
+      if count > 0 then eatCommaOpt()
+
       val res =
         if peek() == Token.DEF then
           Some(defDef(needBody = true))
@@ -1157,7 +1163,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
         else None
 
-      if res.nonEmpty then eatCommaOpt()
+      if res.nonEmpty then count += 1
+
       res
 
     val endToken = eat(Token.RBRACE)
