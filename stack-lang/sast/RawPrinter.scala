@@ -119,10 +119,10 @@ object RawPrinter:
 
     symbol match
       case tsym: TypeSymbol =>
-        "[" ~ id ~ "," ~ tsym.name ~ "," ~ symbol.flags ~ "," ~ printKind(tsym.kind) ~ "," ~ ownerText ~ "," ~ printSymbolInfo(tsym) ~ "]@" ~ pos
+        "[" ~ id ~ "," ~ tsym.name ~ "," ~ symbol.flags ~ "," ~ printKind(tsym.kind) ~ "," ~ ownerText ~ "," ~ printType(tsym.info) ~ "]@" ~ pos
 
       case _ =>
-        "[" ~ id ~ "," ~ symbol.name ~ "," ~ symbol.flags ~ "," ~ ownerText ~ "," ~ printSymbolInfo(symbol) ~ "]@" ~ pos
+        "[" ~ id ~ "," ~ symbol.name ~ "," ~ symbol.flags ~ "," ~ ownerText ~ "," ~ printType(symbol.info) ~ "]@" ~ pos
 
   /** Reference to a symbol
     *
@@ -137,15 +137,6 @@ object RawPrinter:
     else
       assert(!symbol.isLocal, "Cannot reference external local symbol: " + symbol)
       symbol.name ~ "@" ~ state.getExternalSymbolIndex(symbol)
-
-  private def printSymbolInfo(symbol: Symbol)(using defn: Definitions, state: State, src: Source): Text =
-    symbol.info match
-      case procType: ProcType =>
-        // TODO: add effects
-        printType(procType)
-
-      case info =>
-        printType(info)
 
   private def printFlags(flags: Flags): Text =
     "[" ~ Flags.flagStrings(flags).join(Text.Empty) ~ "]"
