@@ -149,40 +149,41 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Symbo
     * Closure conversion will later turn `a` and `b` to fields of the object.
     */
   override def transformObject(obj: Object)(using ctx: Context): Word =
-    val newDefs = new mutable.ArrayBuffer[FunDef]
     val aliasMap = mutable.Map.empty[Symbol, Assign]
 
     given Source = ctx.sourcePos.source
     val span = obj.span
 
-    for ddef <- obj.funs do
-      val effsTraced = defn.effectEngine.effects(ddef.symbol)
-      val effs = (effsTraced -- ddef.effectPolicy.bound.getOrElse(Nil)).keys.toList
+    val members2 = obj.members.map:
+      case ddef: FunDef =>
+        val effsTraced = defn.effectEngine.effects(ddef.symbol)
+        val effs = (effsTraced -- ddef.effectPolicy.bound.getOrElse(Nil)).keys.toList
 
-      if effs.isEmpty then
-        val body2 = this(ddef.body)
-        newDefs += ddef.copy(body = body2)(ddef.span)
-      else
-        val args =
-          for effRaw <- effs yield
-            val eff = if effRaw.is(Flags.Default) then effRaw.optionParam else effRaw
-            val paramRef = Ident(eff)(span)
-            aliasMap.get(eff) match
-              case None =>
-                val alias = Symbol.createSymbol("alias_" + eff.name, eff.info, Flags.Synthetic, owner = ctx, pos = obj.pos)
-                aliasMap(eff) = Assign(Ident(alias)(span), paramRef)
-                Assign(paramRef, Ident(alias)(span))
+        if effs.isEmpty then
+          val body2 = this(ddef.body)
+          ddef.copy(body = body2)(ddef.span)
+        else
+          val args =
+            for effRaw <- effs yield
+              val eff = if effRaw.is(Flags.Default) then effRaw.optionParam else effRaw
+              val paramRef = Ident(eff)(span)
+              aliasMap.get(eff) match
+                case None =>
+                  val alias = Symbol.createSymbol("alias_" + eff.name, eff.info, Flags.Synthetic, owner = ctx, pos = obj.pos)
+                  aliasMap(eff) = Assign(Ident(alias)(span), paramRef)
+                  Assign(paramRef, Ident(alias)(span))
 
-              case Some(vdef) =>
-                Assign(paramRef, Ident(vdef.symbol)(span))
-            end match
-          end for
-        val body2 = With(this(ddef.body), args)(ddef.body.tpe)
-        newDefs += ddef.copy(body = body2)(ddef.span)
-    end for
+                case Some(vdef) =>
+                  Assign(paramRef, Ident(vdef.symbol)(span))
+              end match
+            end for
+          val body2 = With(this(ddef.body), args)(ddef.body.tpe)
+          ddef.copy(body = body2)(ddef.span)
+      case vdef => vdef
+
 
     val aliases = aliasMap.values.toSeq
-    val obj2 = obj.copy(funs = newDefs.toList)(obj.tpe, obj.span)
+    val obj2 = obj.copy(members = members2)(obj.tpe, obj.span)
     Block((aliases :+ obj2).toList)(obj.tpe, obj.span)
 
   override  def transformWith(withExpr: With)(using ctx: Context): Word =

@@ -22,9 +22,8 @@ abstract class TypeTraverser:
       case TagType(tag, params) =>
         for param <- params do this(param.info)
 
-      case ObjectType(fields, methods, muts) =>
-        for field <- fields do this(field.info)
-        for method <- methods do this(method.info)
+      case ObjectType(members, _) =>
+        for member <- members do this(member.info)
 
       case AppliedType(tctor, targs) =>
         apply(tctor)

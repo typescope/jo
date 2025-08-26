@@ -238,12 +238,11 @@ object RawPrinter:
         val paramText =  params.map(f => f.name ~ ": " ~ f.info).join(",")
         "TagType [" ~ tag ~ "," ~ paramText ~ "]"
 
-      case ObjectType(fields, methods, muts) =>
-        val fieldText = "[" ~ fields.map(f => f.name ~ ": " ~ f.info).join(",") ~ "]"
-        val methodText = "[" ~ methods.map(m => m.name ~ ": " ~ m.info).join(",") ~ "]"
+      case ObjectType(members, muts) =>
+        val membersText = "[" ~ members.map(n => n.name ~ ": " ~ n.info).join(",") ~ "]"
         val mutableText = "[" ~ muts.join(",") ~ "]"
 
-        "ObjectType [" ~ fieldText ~ "," ~ methodText ~ "," ~ mutableText ~ "]"
+        "ObjectType [" ~ membersText ~ "," ~ mutableText ~ "]"
 
       case AppliedType(tctor, targs) =>
         "AppliedType [" ~ tctor ~ ",[" ~ targs.join(",") ~ "]]"
@@ -375,13 +374,10 @@ object RawPrinter:
            pairs.join(LINE_SEP)
         ~ "]]"
 
-      case Object(self, inits, defs) =>
+      case Object(self, members) =>
         "Object [" ~ indent:
             printSymbol(self) ~ LINE_SEP ~
-            "[" ~ inits.join(",") ~ "]" ~ LINE_SEP ~
-            "[" ~ indent:
-                defs.map(printDef).join(LINE_SEP)
-            ~ "]"
+            "[" ~ members.join(",") ~ "]" ~ LINE_SEP
         ~ "]"
 
     res ~ "@" ~ word.pos

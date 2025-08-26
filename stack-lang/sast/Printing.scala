@@ -273,11 +273,9 @@ object Printing:
         else
           Text.Empty
 
-      case Object(self, vals, defs) =>
+      case Object(self, members) =>
         "object {" ~ indent:
-           vals.join(Text.BreakLine)
-           ~ Text.BlankLine
-           ~ defs.join(Text.BreakLine)
+           members.join(Text.BreakLine)
         ~ "}"
 
       case vdef: ValDef => showDef(vdef)
@@ -363,16 +361,17 @@ object Printing:
         val members = fields.map(f => f.name ~ ": " ~ f.info)
         "{ " ~ members.join(", ") ~ " }"
 
-      case ObjectType(fields, methods, muts) =>
-        val fieldList = fields.map: f =>
-          val mod = if muts.contains(f.name) then "var " else " val "
-          mod ~ f.name ~ ": " ~ f.info
-
-        val methodList = methods.map: m =>
-          "def " ~ m.name ~ m.info.widenTermRef
+      case ObjectType(members, muts) =>
+        val memberList = members.map: n =>
+          val NamedInfo(name, info) = n
+          if info.isProcType then
+            "def " ~ name ~ info.widenTermRef
+          else
+            val mod = if muts.contains(name) then "var " else " val "
+            mod ~ name ~ ": " ~ info
 
         "object { " ~ indent:
-            fieldList.join(Text.BreakLine) ~ Text.BlankLine ~ methodList.join(Text.BreakLine)
+            memberList.join(Text.BreakLine)
         ~ " }"
 
       case UnionType(branches) =>

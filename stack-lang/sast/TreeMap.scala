@@ -369,22 +369,23 @@ abstract class TreeMap(using Definitions):
     recurObject(obj)
 
   private def recurObject(obj: Object)(using Context): Word =
-    val Object(self, vals, funs) = obj
+    val Object(self, members) = obj
 
     var changed = false
 
-    val vals2: List[ValDef] = vals.map: vdef =>
-      val vdef2 = recurValDef(vdef)
-      changed ||= vdef2 `ne` vdef
-      vdef2
+    val members2: List[ValDef | FunDef] = members.map:
+      case vdef: ValDef =>
+        val vdef2 = recurValDef(vdef)
+        changed ||= vdef2 `ne` vdef
+        vdef2
 
-    val funs2: List[FunDef] = funs.map: fdef =>
-      val fdef2 = recurFunDef(fdef)
-      changed ||= fdef2 `ne` fdef
-      fdef2
+      case fdef: FunDef =>
+        val fdef2 = recurFunDef(fdef)
+        changed ||= fdef2 `ne` fdef
+        fdef2
 
     if changed then
-      Object(self, vals2, funs2)(obj.tpe, obj.span)
+      Object(self, members2)(obj.tpe, obj.span)
     else
       obj
 

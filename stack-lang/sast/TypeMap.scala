@@ -33,16 +33,11 @@ abstract class TypeMap(using Definitions):
           for param <- params yield param.copy(info = this(param.info))
         TagType(tag, params2)
 
-      case ObjectType(fields, methods, muts) =>
-        val fields2 =
-          for field <- fields
-          yield field.copy(info = this(field.info))
+      case ObjectType(members, muts) =>
+        val members2 = members.map: ninfo =>
+          ninfo.copy(info = this(ninfo.info))
 
-        val methods2 =
-          for method <- methods
-          yield method.copy(info = this(method.info))
-
-        ObjectType(fields2, methods2, muts)
+        ObjectType(members2, muts)
 
       case AppliedType(tctor, targs) =>
         val tctor2 = apply(tctor)

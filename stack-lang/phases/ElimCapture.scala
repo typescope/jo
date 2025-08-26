@@ -161,12 +161,17 @@ object ElimCapture:
     override def transformObject(obj: Object)(using ctx: Context): Word =
       val objType = obj.tpe.asObjectType
       val allCaptures: List[Symbol] =
-        obj.funs.foldLeft(List.empty[Symbol]): (acc, fdef) =>
-          transitiveCapture(fdef).foldLeft(acc): (acc, sym) =>
-            // rewiring is important -- the captured variable might have been rebound
-            val sym1 = rewire(sym)
-            if acc.contains(sym1) || sym1 == obj.self then acc
-            else sym1 :: acc
+        obj.members.foldLeft(List.empty[Symbol]): (acc, member) =>
+          member match
+            case fdef: FunDef =>
+              transitiveCapture(fdef).foldLeft(acc): (acc, sym) =>
+                // rewiring is important -- the captured variable might have been rebound
+                val sym1 = rewire(sym)
+                if acc.contains(sym1) || sym1 == obj.self then acc
+                else sym1 :: acc
+
+            case _ =>
+              acc
 
       // Avoid duplicate names in records/objects
       val uniq = new UniqueName
@@ -182,7 +187,7 @@ object ElimCapture:
            for capture <- allCaptures
            yield NamedInfo(captureToField(capture), capture.info)
 
-         ObjectType(objType.fields ++ capturedMembers.toList, objType.methods, objType.mutableFields)
+         ObjectType(objType.members ++ capturedMembers.toList, objType.mutableFields)
 
       val thisTypeAliasSym = new TypeSymbol(Kind.Simple, "ThisType", Flags.Synthetic, obj.self.sourcePos)
       val thisType = StaticRef(thisTypeAliasSym)
@@ -190,20 +195,20 @@ object ElimCapture:
 
       defn.addLazy(thisTypeAliasSym, owner.enclosingContainer, lazyInfo)
 
-      for vdef <- obj.vals do
-        uniq.freshName(vdef.name)
+      for member <- obj.members do
+        uniq.freshName(member.name)
 
-        members += vdef.name -> this(vdef.rhs)
-        memberTypes += NamedInfo(vdef.name, vdef.rhs.tpe)
+        member match
+          case vdef: ValDef =>
+            members += vdef.name -> this(vdef.rhs)
+            memberTypes += NamedInfo(vdef.name, vdef.rhs.tpe)
 
-      for fdef <- obj.funs do
-        uniq.freshName(fdef.name)
+          case fdef: FunDef =>
+            val liftedSym = createLiftedFunSym(fdef, prependParams = NamedInfo("this", thisType) :: Nil, appendParams = Nil)
+            funToLifted(fdef.symbol) = liftedSym
 
-        val liftedSym = createLiftedFunSym(fdef, prependParams = NamedInfo("this", thisType) :: Nil, appendParams = Nil)
-        funToLifted(fdef.symbol) = liftedSym
-
-        members += fdef.name -> Ident(liftedSym)(fdef.span)
-        memberTypes += NamedInfo(fdef.name, StaticRef(liftedSym))
+            members += fdef.name -> Ident(liftedSym)(fdef.span)
+            memberTypes += NamedInfo(fdef.name, StaticRef(liftedSym))
 
       for capture <- allCaptures yield
         val field = uniq.freshName(capture.name)
@@ -212,7 +217,7 @@ object ElimCapture:
         members += field -> Ident(capture)(obj.span)
         memberTypes += NamedInfo(field, capture.info)
 
-      for fdef <- obj.funs do
+      for case fdef: FunDef <- obj.members do
         val span = fdef.body.span
         val liftedSym = funToLifted(fdef.symbol)
 

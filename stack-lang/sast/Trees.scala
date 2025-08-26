@@ -183,7 +183,7 @@ object Trees:
   extends Word:
     def span = targs.foldLeft(classRef.span)(_ | _.span)
 
-  case class Object(self: Symbol, vals: List[ValDef], funs: List[FunDef])
+  case class Object(self: Symbol, members: List[ValDef | FunDef])
     (val tpe: Type, val span: Span)
   extends Word
 

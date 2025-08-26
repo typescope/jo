@@ -414,18 +414,15 @@ object Encoder:
           encodeString(f.name)
           encodeType(f.info)
 
-      case ObjectType(fields, methods, muts) =>
+      case ObjectType(members, muts) =>
         encodeByte(Format.ObjectType)
 
-        repeated(fields): f =>
-          // TODO: optimize mutable representation
-          encodeBool(muts.contains(f.name))
-          encodeString(f.name)
-          encodeType(f.info)
-
-        repeated(methods): m =>
-          encodeString(m.name)
-          encodeType(m.info)
+        encodeNat(members.size)
+        for NamedInfo(name, info) <- members do
+          encodeString(name)
+          encodeType(info)
+          if info.isValueType then
+            encodeBool(muts.contains(name))
 
       case AppliedType(tctor, targs) =>
         encodeByte(Format.AppliedType)
@@ -484,7 +481,6 @@ object Encoder:
         throw new Exception("Unexpected type " + tpe)
 
   private def encodeWord(word: Word)(using defn: Definitions, state: State, buf: WriteBuffer): Unit = state.withPositioned(word): startDelta =>
-    // TODO: types
     word match
       case Literal(const) =>
         encodeByte(Format.Literal)
@@ -591,14 +587,13 @@ object Encoder:
 
         encodeType(word.tpe)
 
-      case Object(self, inits, defs) =>
+      case Object(self, members) =>
         encodeByte(Format.Object)
 
         encodeNat(state.internalId(self))
         encodeString(self.name)
 
-        repeated(inits) { init => encodeDef(init) }
-        repeated(defs) { defn => encodeDef(defn) }
+        repeated(members) { m => encodeDef(m) }
 
     val lengthDelta = word.span.length - state.getChildrenLength
     encodeInt(startDelta)

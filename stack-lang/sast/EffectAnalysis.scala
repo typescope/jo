@@ -242,18 +242,20 @@ object EffectAnalysis:
           words.foldLeft(zero): (acc, word) =>
             acc ++ this(word)
 
-        case Object(self, vals, defs) =>
-          val effs = vals.foldLeft(zero): (acc, vdef) =>
-            acc ++ this(vdef.rhs)
+        case Object(self, members) =>
+          members.foldLeft(zero): (acc, member) =>
+            member match
+              case vdef: ValDef =>
+                acc ++ this(vdef.rhs)
 
-          defs.foldLeft(effs): (acc, ddef) =>
-            val rawEffects = getEffects(ddef.symbol, ignoreSpec = true)
-            ddef.effectPolicy.bound match
-              case Some(except) =>
-                acc ++ (rawEffects -- except)
+              case fdef: FunDef =>
+                val rawEffects = getEffects(fdef.symbol, ignoreSpec = true)
+                fdef.effectPolicy.bound match
+                  case Some(except) =>
+                    acc ++ (rawEffects -- except)
 
-              case None =>
-                acc ++ rawEffects
+                  case None =>
+                    acc ++ rawEffects
 
         case _: Def => zero
     end apply

@@ -512,12 +512,18 @@ object Interpreter:
         env.bind(sym, FunVal(sym, env))
         Nil
 
-      case Object(self, vals, defs) =>
-        val fieldInits = vals.map(vdef => vdef.name -> eval(vdef.rhs))
-        val fieldVals = mutable.Map.from(fieldInits)
-        val defSymbols = defs.map(mdef => mdef.name -> mdef.symbol).toMap
+      case Object(self, members) =>
+        val defSymbols = mutable.Map.empty[String, Symbol]
+        val fieldVals = mutable.Map.empty[String, Value]
 
-        val objVal = ObjectVal(fieldVals, self, defSymbols, env)
+        members.map:
+          case vdef: ValDef =>
+            fieldVals(vdef.name) = eval(vdef.rhs)
+
+          case fdef: FunDef =>
+            defSymbols(fdef.name) = fdef.symbol
+
+        val objVal = ObjectVal(fieldVals, self, defSymbols.toMap, env)
         objVal :: Nil
 
       case New(classRef, _) =>

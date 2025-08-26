@@ -155,7 +155,7 @@ object Types:
 
     def getSingleMethodType(using Definitions): Option[NamedInfo[ProcType]] =
       this.approx match
-        case ObjectType(Nil, NamedInfo(name, tp) :: Nil, Nil) =>
+        case ObjectType(NamedInfo(name, tp) :: Nil, Nil) =>
           tp.approx match
              case procType: ProcType => Some(NamedInfo(name, procType))
              case _ => None
@@ -361,22 +361,25 @@ object Types:
 
   /** The type of an object */
   case class ObjectType(
-    fields: List[NamedInfo[Type]],
-    methods: List[NamedInfo[Type]],
+    members: List[NamedInfo[Type]],
     mutableFields: List[String])
   extends Type:
-    def fieldNames = fields.map(_.name)
-    def methodNames = methods.map(_.name)
+    lazy val fields = members.filter(_.info.isValueType)
+    lazy val methods = members.filter(!_.info.isValueType)
+
+    lazy val fieldNames = fields.map(_.name)
+    lazy val methodNames = methods.map(_.name)
+
+    private val memberTypeMap: Map[String, Type] =
+      val mutMap = mutable.Map.empty[String, Type]
+      members.foreach:
+        case NamedInfo(name, info) =>
+          assert(!mutMap.contains(name), "duplicate member " + name + " in " + this)
+          mutMap(name) = info
+      mutMap.toMap
 
     def getMemberType(name: String): Option[Type] =
-      val fieldOpt = fields.collectFirst:
-        case NamedInfo(m, tp) if m == name => tp
-
-      if fieldOpt.isEmpty then
-        methods.collectFirst:
-          case NamedInfo(m, tp) if m == name => tp
-      else
-        fieldOpt
+      memberTypeMap.get(name)
 
     def isMutable(name: String): Boolean = mutableFields.contains(name)
 
