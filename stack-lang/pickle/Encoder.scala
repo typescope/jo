@@ -169,16 +169,6 @@ object Encoder:
 
     buf
 
-  def needPosition(word: Word): Boolean =
-    word match
-      case _: Assign | _: FieldAssign | _: With | _: Allow | _: TypeApply |
-           _: Apply  | _: New         | _: Encoded
-      =>
-        false
-
-      case _ => true
-
-
   //----------------------------------------------------------------------------
 
   /** Definition of a symbol */
@@ -454,7 +444,6 @@ object Encoder:
           encodeNat(state.internalId(tparam))
           encodeString(tparam.name)
           encodeType(tparam.info)
-          // TODO: positions?
 
         repeated(params): param =>
           encodeString(param.name)
@@ -482,7 +471,6 @@ object Encoder:
           encodeNat(state.internalId(tparam))
           encodeString(tparam.name)
           encodeType(tparam.info)
-          // TODO: positions?
 
         encodeType(resType)
         encodeNat(preParamCount)
@@ -608,10 +596,9 @@ object Encoder:
         repeated(inits) { init => encodeDef(init) }
         repeated(defs) { defn => encodeDef(defn) }
 
-    if needPosition(word) then
-      val lengthDelta = word.span.length - state.getChildrenLength
-      encodeInt(startDelta)
-      encodeInt(lengthDelta)
+    val lengthDelta = word.span.length - state.getChildrenLength
+    encodeInt(startDelta)
+    encodeInt(lengthDelta)
 
   private def encodePattern(pattern: Pattern)(using defn: Definitions, state: State, buf: WriteBuffer): Unit = state.withPositioned(pattern): startDelta =>
     pattern match
