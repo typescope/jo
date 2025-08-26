@@ -1119,7 +1119,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   def namedArg(): NamedArg =
     val id = ident()
-    eat(Token.EQL)
+    eat(Token.COLON)
     val arg = expr()
     NamedArg(id, arg)(id.span | arg.span)
 

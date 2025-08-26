@@ -115,7 +115,7 @@ Abstract Syntax
 
     record     = LBRACE [named_args] RBRACE.
     named_args = named_arg { COMMA named_arg }.
-    named_arg  = ident EQL expr.
+    named_arg  = ident COLON expr.
 
     tag = TAG ident.
 

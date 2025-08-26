@@ -1,7 +1,7 @@
 type Alg = {+ : Int, - : Int}
 
 def main =
-  val alg: Alg = {+ = 5, - = 10}
+  val alg: Alg = {+ : 5, - : 10}
 
   alg.+ p
   alg.- p

@@ -1,7 +1,7 @@
 class A
   val a: Int
 
-  def A(x: Int) = { a = x }
+  def A(x: Int) = { a: x }
 
   def update(y: Int) =
     this.a = y
