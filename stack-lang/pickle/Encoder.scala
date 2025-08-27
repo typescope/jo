@@ -143,7 +143,11 @@ object Encoder:
 
     def encodeExternalNameTable()(using defn: Definitions, buf: WriteBuffer) =
       Encoder.encodeNat(externalSymbols.size)
-      for sym <- externalSymbols do encodeString(sym.fullName)
+      for sym <- externalSymbols do
+        encodeString(sym.fullName)
+        if sym.isType then encodeByte(0)
+        else if sym.isPattern then encodeByte(1)
+        else encodeByte(2)
 
   end State
 
