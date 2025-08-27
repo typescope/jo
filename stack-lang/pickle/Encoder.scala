@@ -19,14 +19,6 @@ import scala.collection.mutable
   *   between definition sites and usage sites. The IDs are only valid within
   *   the namespace during encoding and decoding.
   *
-  *   A global symbol table is used for top-level internal symbols.
-  *
-  *   An alternative design is to use the address of the definition as the ID
-  *   of the symbol. That would require backpatch forward symbols which are
-  *   referred in the code parts before they are serialized. This design could
-  *   reduce file size and remove the need for a global table. This approach
-  *   might be pursued in the final design.
-  *
   * == External symbols
   *
   *   Extenral symbols are identified by full paths to the symbols and its
@@ -74,7 +66,7 @@ import scala.collection.mutable
   *      total length of its children,
   *
   *    we represent the offset and length of a tree as two deltas, where 1 byte
-  *    suffices for each delta based on base128 encoding.
+  *    suffices for most trees based on base128 encoding.
   *
   */
 object Encoder:
