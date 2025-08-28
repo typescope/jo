@@ -8,20 +8,27 @@ class ReadBuffer(private val bytes: Array[Byte]) extends (() => Byte):
   final def apply(): Byte = readByte()
 
   def readByte(): Byte =
-    if pos >= bytes.length then
+    if isEnded then
       throw new Exception(s"ReadBuffer overflow: pos=$pos, length=${bytes.length}")
 
     val b = bytes(pos)
     pos += 1
     b
 
-  def readBool(): Boolean = Base128.toLong(this) != 0
+  def readBool(): Boolean = readByte() != 0
 
+  /** Read base-128 encoding of integer */
   def readInt(): Int = Base128.toInt(this)
 
+  /** Read base-128 encoding of non-negative integer */
   def readNat(): Int = Base128.toNat(this)
 
+  /** Read base-128 encoding of long */
   def readLong(): Long = Base128.toLong(this)
+
+  /** Read 4-byte big-endian 2's complement integer */
+  def readInt2Complement(): Int =
+    (readByte() << 24) | (readByte() << 16) | (readByte() << 8) | readByte()
 
   def readUtf8(): String =
     val length = readNat()
@@ -29,20 +36,23 @@ class ReadBuffer(private val bytes: Array[Byte]) extends (() => Byte):
     readBytes(strBytes, length)
     new String(strBytes, java.nio.charset.StandardCharsets.UTF_8)
 
-  def readBytes(data: Array[Byte], n: Int): Unit =
+  private def readBytes(data: Array[Byte], n: Int): Unit =
     if pos + n > bytes.length then
       throw new Exception(s"ReadBuffer overflow: pos=$pos, n=$n, length=${bytes.length}")
 
     System.arraycopy(bytes, pos, data, 0, n)
     pos += n
 
-  def position: Int = pos
+  def withPosition[T](newPos: Int)(work: => T): T =
+    val savedPos = pos
+    setPosition(newPos)
+    val res = work
+    pos = savedPos
+    res
 
-  def setPosition(newPos: Int): Unit =
+  private def setPosition(newPos: Int): Unit =
     if newPos < 0 || newPos > bytes.length then
       throw new Exception(s"Invalid position: $newPos (length=${bytes.length})")
     pos = newPos
 
-  def remaining: Int = bytes.length - pos
-
-  def isEnd: Boolean = pos >= bytes.length
+  def isEnded: Boolean = pos >= bytes.length

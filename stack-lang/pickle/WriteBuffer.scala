@@ -15,12 +15,15 @@ class WriteBuffer(initialSize: Int) extends (Byte => Unit):
     bytes(size) = b.toByte
     size += 1
 
-  def addBool(x: Boolean): Unit = Base128.fromLong(if x then 1 else 0, this)
+  def addBool(x: Boolean): Unit = addByte(if x then 1 else 0)
 
+  /** Write base-128 encoding of integer */
   def addInt(x: Int): Unit = Base128.fromInt(x, this)
 
+  /** Write base-128 encoding of non-negative integer */
   def addNat(x: Int): Unit = Base128.fromNat(x, this)
 
+  /** Write base-128 encoding of long */
   def addLong(x: Long): Unit = Base128.fromLong(x, this)
 
   def addUtf8(s: String): Unit =
