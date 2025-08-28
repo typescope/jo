@@ -57,20 +57,16 @@ object Decoder:
     val rootSymbol = defn.lookupStaticName(rootName).getOrElse:
       throw new Exception(s"Cannot find root symbol: $rootName")
 
-    given state: State = new State(rootSymbol)
+    // Read external name table
+    val nameTableAddr = buf.readInt2Complement()
+    val externalSymbols = buf.withPosition(nameTableAddr):
+      decodeExternalNameTable(buf)
 
-    val nameTableAddr = buf.readReservedInt()
+    given state: State = new State(rootSymbol)
 
     val source = decodeSource(buf)
 
     val defs = decodeRepeated(buf)(decodeDef)
-
-    // Read external name table
-    val savedPos = buf.position
-    buf.setPosition(nameTableAddr)
-    val externalSymbols = decodeExternalNameTable(buf)
-    state.setExternalSymbols(externalSymbols)
-    buf.setPosition(savedPos)
 
     val span = Span(0, source.content.length)
     Namespace(rootSymbol, List.empty, defs)(span)
