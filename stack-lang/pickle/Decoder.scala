@@ -52,9 +52,9 @@ object Decoder:
 
   //----------------------------------------------------------------------------
 
-  def decode(buf: ReadBuffer)(using definitions: Definitions): Namespace =
+  def decode(buf: ReadBuffer)(using defn: Definitions): Namespace =
     val rootName = decodeString(buf)
-    val rootSymbol = definitions.lookupStaticName(rootName).getOrElse:
+    val rootSymbol = defn.lookupStaticName(rootName).getOrElse:
       throw new Exception(s"Cannot find root symbol: $rootName")
 
     given state: State = new State(rootSymbol)
@@ -162,7 +162,7 @@ object Decoder:
 
       case _ => throw new Exception(s"Invalid kind type: $kindType")
 
-  private def decodeDef(buf: ReadBuffer)(using definitions: Definitions, state: State): Def =
+  private def decodeDef(buf: ReadBuffer)(using defn: Definitions, state: State): Def =
     val defType = decodeByte(buf)
     val startDelta = decodeInt(buf)
     val lengthDelta = decodeInt(buf)
@@ -348,7 +348,7 @@ object Decoder:
 
         case _ => throw new Exception(s"Unknown definition type: $defType")
 
-  private def decodeTypeTree(buf: ReadBuffer)(using definitions: Definitions, state: State): TypeTree =
+  private def decodeTypeTree(buf: ReadBuffer)(using defn: Definitions, state: State): TypeTree =
     val startDelta = decodeInt(buf)
     val length = decodeInt(buf)
     val tpe = decodeType(buf)
@@ -463,7 +463,7 @@ object Decoder:
 
       case _ => throw new Exception(s"Unknown type tag: $typeTag")
 
-  private def decodeWord(buf: ReadBuffer)(using definitions: Definitions, state: State): Word =
+  private def decodeWord(buf: ReadBuffer)(using defn: Definitions, state: State): Word =
     val wordTag = decodeByte(buf)
     val startDelta = decodeInt(buf)
     val lengthDelta = decodeInt(buf)
@@ -601,7 +601,7 @@ object Decoder:
 
         case _ => throw new Exception(s"Unknown word tag: $wordTag")
 
-  private def decodePattern(buf: ReadBuffer)(using definitions: Definitions, state: State): Pattern =
+  private def decodePattern(buf: ReadBuffer)(using defn: Definitions, state: State): Pattern =
     val patternTag = decodeByte(buf)
     val startDelta = decodeInt(buf)
     val lengthDelta = decodeInt(buf)
