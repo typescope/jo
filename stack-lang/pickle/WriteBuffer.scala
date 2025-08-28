@@ -29,7 +29,7 @@ class WriteBuffer(initialSize: Int) extends (Byte => Unit):
     addNat(length)
     addBytes(bytes, length)
 
-  def addBytes(data: Array[Byte], n: Int): Unit =
+  private def addBytes(data: Array[Byte], n: Int): Unit =
     while (bytes.length < size + n) bytes = WriteBuffer.doubleSize(bytes)
     System.arraycopy(data, 0, bytes, size, n)
     size += n
