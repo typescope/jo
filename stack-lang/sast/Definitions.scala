@@ -8,7 +8,7 @@ import reporting.Reporter
 
 final class Definitions(rootNameTable: NameTable, initProvider: InfoProvider):
 
-  export rootNameTable.resolveTermByPath
+  export rootNameTable.{ resolveTermByPath, resolveTypeByPath, resolvePatternByPath }
 
   //----------------------------------------------------------------------------
   // Info provider for symbols

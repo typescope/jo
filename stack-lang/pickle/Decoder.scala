@@ -68,7 +68,8 @@ object Decoder:
     // Read external name table
     val savedPos = buf.position
     buf.setPosition(nameTableAddr)
-    decodeExternalNameTable(buf)
+    val externalSymbols = decodeExternalNameTable(buf)
+    state.setExternalSymbols(externalSymbols)
     buf.setPosition(savedPos)
 
     val span = Span(0, source.content.length)
@@ -76,29 +77,27 @@ object Decoder:
 
   //----------------------------------------------------------------------------
 
-  private def decodeExternalNameTable(buf: ReadBuffer)(using defn: Definitions, state: State): Unit =
+  private def decodeExternalNameTable(buf: ReadBuffer)(using defn: Definitions): Array[Symbol] =
     val count = decodeNat(buf)
     val symbols = new Array[Symbol](count)
 
-    for i <- 0 until count do
+    var i = 0
+    while i < count do
       val fullName = decodeString(buf)
       val kind = decodeByte(buf)
 
       val symbol = defn.lookupStaticName(fullName).getOrElse:
         throw new Exception(s"Cannot find external symbol: $fullName")
 
-      // Verify symbol kind matches
-      val expectedKind =
-        if symbol.isType then 0
-        else if symbol.isPattern then 1
-        else 2
-
-      if kind != expectedKind then
-        throw new Exception(s"Symbol kind mismatch for $fullName: expected $expectedKind, got $kind")
+      val symbol =
+        if kind == 0 then defn.resolveTypeByPath(fullName)
+        else kind == 1 then defn.resolvePatternByPath(fullName)
+        else defn.resolveTermByPath(fullName)
 
       symbols(i) = symbol
+      i += 1
 
-    state.setExternalSymbols(symbols)
+    symbols
 
   private def decodeSymbol(buf: ReadBuffer)(using defn: Definitions, state: State): Symbol =
     val id = decodeNat(buf)
