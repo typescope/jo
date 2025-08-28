@@ -167,30 +167,6 @@ object Encoder:
 
   //----------------------------------------------------------------------------
 
-  /** Definition of a symbol */
-  private def encodeSymbol(symbol: Symbol)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
-    // TODO: attributes, comments
-
-    val id = state.internalId(symbol)
-    encodeNat(id)
-    encodeString(symbol.name)
-    encodeFlags(symbol.flags)
-
-    symbol match
-      case tsym: TypeSymbol => encodeKind(tsym.kind)
-      case _ =>
-
-    if symbol.owner == null then
-      encodeInt(-1)
-
-    else
-      val ownerId = state.internalId(symbol.owner)
-      encodeNat(ownerId)
-
-    encodeNat(symbol.sourcePos.start)
-    encodeNat(symbol.sourcePos.length)
-    encodeType(symbol.info)
-
   /** Reference to an internal or external symbol
     *
     * - Internal symbols are identified by unique ids
@@ -229,12 +205,30 @@ object Encoder:
     repeated(tparams): tparam =>
       encodeNat(state.internalId(tparam))
       encodeString(tparam.name)
+      encodeKind(tparam.asTypeSymbol.kind)
       encodeType(tparam.info)
 
       val symSpan = tparam.sourcePos.span
       val startDelta = symSpan.start - defn.span.start
       encodeInt(startDelta)
       encodeInt(symSpan.length)
+
+  private def encodeParams(defn: Def, params: List[Symbol])(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
+    repeated(params): param =>
+      encodeNat(state.internalId(param))
+      encodeString(param.name)
+      encodeType(param.info)
+
+      val symSpan = param.sourcePos.span
+      val startDelta = symSpan.start - defn.span.start
+      encodeInt(startDelta)
+      encodeInt(symSpan.length)
+
+  private def encodeDefSymPos(defnDelta: Int, defn: Def, symbol: Symbol)(using buf: WriteBuffer) =
+    val symSpan = symbol.sourcePos.span
+    val startDelta = symSpan.start - defn.span.start + defnDelta
+    encodeInt(startDelta)
+    encodeInt(symSpan.length)
 
   private def encodeDef(defn: Def)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit = state.withPositioned(defn): startDelta =>
     defn match
@@ -244,6 +238,7 @@ object Encoder:
         encodeString(pdef.symbol.name)
         encodeNat(state.internalId(pdef.symbol))
         encodeTypeTree(pdef.tpt)
+        encodeDefSymPos(startDelta, defn, pdef.symbol)
 
       case vdef: ValDef =>
         encodeByte(Format.ValDef)
@@ -251,6 +246,7 @@ object Encoder:
         encodeFlags(vdef.symbol.flags & (Flags.Auto | Flags.Mutable))
         encodeString(vdef.symbol.name)
         encodeType(vdef.symbol.info)
+        encodeDefSymPos(startDelta, defn, vdef.symbol)
         encodeWord(vdef.rhs)
 
       case cdef: ClassDef =>
@@ -258,6 +254,7 @@ object Encoder:
 
         encodeNat(state.internalId(cdef.symbol))
         encodeString(cdef.symbol.name)
+        encodeDefSymPos(startDelta, defn, cdef.symbol)
 
         encodeTypeParams(cdef, cdef.tparams)
 
@@ -285,28 +282,12 @@ object Encoder:
         encodeNat(state.internalId(fdef.symbol))
         encodeFlags(fdef.symbol.flags & (Flags.Auto))
         encodeString(fdef.symbol.name)
+        encodeDefSymPos(startDelta, defn, fdef.symbol)
 
         encodeTypeParams(fdef, fdef.tparams)
 
-        repeated(fdef.params): param =>
-          encodeNat(state.internalId(param))
-          encodeString(param.name)
-          encodeType(param.info)
-
-          val symSpan = param.sourcePos.span
-          val startDelta = symSpan.start - fdef.span.start
-          encodeInt(startDelta)
-          encodeInt(symSpan.length)
-
-        repeated(fdef.autos): auto =>
-          encodeNat(state.internalId(auto))
-          encodeString(auto.name)
-          encodeType(auto.info)
-
-          val symSpan = auto.sourcePos.span
-          val startDelta = symSpan.start - fdef.span.start
-          encodeInt(startDelta)
-          encodeInt(symSpan.length)
+        encodeParams(fdef, fdef.params)
+        encodeParams(fdef, fdef.autos)
 
         encodeTypeTree(fdef.resultType)
 
@@ -321,18 +302,11 @@ object Encoder:
         encodeNat(state.internalId(pdef.symbol))
         encodeFlags(pdef.symbol.flags)
         encodeString(pdef.symbol.name)
+        encodeDefSymPos(startDelta, defn, pdef.symbol)
 
         encodeTypeParams(pdef, pdef.tparams)
 
-        repeated(pdef.params): param =>
-          encodeNat(state.internalId(param))
-          encodeString(param.name)
-          encodeType(param.info)
-
-          val symSpan = param.sourcePos.span
-          val startDelta = symSpan.start - pdef.span.start
-          encodeInt(startDelta)
-          encodeInt(symSpan.length)
+        encodeParams(pdef, pdef.params)
 
         encodeTypeTree(pdef.resultType)
 
@@ -346,10 +320,12 @@ object Encoder:
         encodeNat(state.internalId(tdef.symbol))
         encodeString(tdef.symbol.name)
         encodeType(tdef.symbol.info)
+        encodeDefSymPos(startDelta, defn, tdef.symbol)
 
       case sec: Section =>
         encodeByte(Format.Section)
         encodeString(sec.symbol.name)
+        encodeDefSymPos(startDelta, defn, sec.symbol)
 
         repeated(sec.defs): defn =>
           encodeDef(defn)
@@ -655,7 +631,11 @@ object Encoder:
             encodeByte(Format.StarPattern)
             encodePattern(pattern)
             repeated(star.bindings): (sym1, sym2) =>
-              encodeSymbol(sym1)
+              val id = state.internalId(sym1)
+              encodeNat(id)
+              encodeString(sym1.name)
+              encodeType(sym1.info)
+
               encodeSymbolRef(sym2)
 
           case RestPattern(pattern) =>
