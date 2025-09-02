@@ -75,7 +75,7 @@ object Decoder:
       decodeExternalNameTable()
 
     // TODO: root symbol and info
-    val rootSymbol = new Symbol(rootName, Flags.Empty)
+    val rootSymbol: Symbol = ???
 
     given state: State = new State(rootSymbol, nameRefs)
 
@@ -87,7 +87,107 @@ object Decoder:
       val members = for d <- delayedMembers yield d.force()
       Namespace(rootSymbol, List.empty, members)(span)
 
-    DelayedInfo(rootSymbol, delayed)
+    DelayedDef(rootSymbol, delayed)
+
+  /** Index method that lazily loads definitions from the buffer.
+    * Similar to the index method in Namer, this creates DelayedDef instances
+    * that defer actual decoding until the definitions are needed.
+    */
+  private def index()(using buf: ReadBuffer, defn: Definitions, state: State): Array[DelayedDef[Def]] =
+    val count = decodeNat()
+    val delayedDefs = new Array[DelayedDef[Def]](count)
+
+    var i = 0
+    while i < count do
+      // Store the current buffer position for this definition
+      val defPosition = buf.position
+
+      // Peek at the definition to get its symbol information
+      val defType = decodeByte()
+      val startDelta = decodeInt()
+      val lengthDelta = decodeInt()
+
+      // Create symbol based on definition type without fully decoding
+      val symbol = defType match
+        case Format.ValDef =>
+          val id = decodeNat()
+          val flags = decodeFlags()
+          val name = decodeString()
+          val symbolType = decodeType()
+          // Skip the rhs without decoding it
+          skipWord()
+
+          val sym = new Symbol(name, flags)
+          sym.setInfo(symbolType)
+          state.registerInternalSymbol(id, sym)
+          sym
+
+        case Format.FunDef =>
+          val id = decodeNat()
+          val flags = decodeFlags()
+          val name = decodeString()
+
+          val sym = new Symbol(name, flags)
+          state.registerInternalSymbol(id, sym)
+          // Skip the rest of the function definition
+          skipFunDefBody()
+          sym
+
+        case Format.ClassDef =>
+          val id = decodeNat()
+          val name = decodeString()
+
+          val sym = new Symbol(name, Flags.Class)
+          state.registerInternalSymbol(id, sym)
+          // Skip the rest of the class definition
+          skipClassDefBody()
+          sym
+
+        case Format.TypeDef =>
+          val id = decodeNat()
+          val name = decodeString()
+          val symbolType = decodeType()
+
+          val sym = new TypeSymbol(name, Kind.Simple)
+          sym.setInfo(symbolType)
+          state.registerInternalSymbol(id, sym)
+          sym
+
+        case Format.PatDef =>
+          val id = decodeNat()
+          val flags = decodeFlags()
+          val name = decodeString()
+
+          val sym = new Symbol(name, flags)
+          state.registerInternalSymbol(id, sym)
+          // Skip the rest of the pattern definition
+          skipPatDefBody()
+          sym
+
+        case Format.Section =>
+          val name = decodeString()
+          val sym = new Symbol(name, Flags.Empty)
+          // Skip the section body
+          skipSectionBody()
+          sym
+
+        case _ =>
+          throw new Exception(s"Unknown definition type in index: $defType")
+
+      // Create delayed definition that will decode the full definition when forced
+      val delayed = () => {
+        val savedPosition = buf.position
+        buf.setPosition(defPosition)
+        val fullDef = decodeDef()
+        buf.setPosition(savedPosition)
+        fullDef
+      }
+
+      delayedDefs(i) = DelayedDef(symbol, delayed)
+      i += 1
+    end while
+
+    delayedDefs
 
   //----------------------------------------------------------------------------
 
@@ -708,3 +808,199 @@ object Decoder:
       i = i + 1
     end while
     arr
+
+  // Helper methods for skipping parts of definitions during indexing
+  private def skipWord()(using buf: ReadBuffer): Unit =
+    val wordTag = decodeByte()
+    val startDelta = decodeInt()
+    val lengthDelta = decodeInt()
+
+    // Skip the word content based on its type
+    wordTag match
+      case Format.Literal =>
+        skipConstant()
+        skipType()
+      case Format.Ident =>
+        skipSymbolRef()
+      case Format.Select =>
+        skipWord()
+        decodeString() // field name
+      case Format.Apply =>
+        skipWord() // function
+        skipRepeated(skipWord) // args
+        skipRepeated(skipWord) // autos
+      case Format.Block =>
+        skipRepeated(skipWord)
+      case _ =>
+        // For other word types, we'd need to implement specific skipping
+        // For now, throw an exception to indicate incomplete implementation
+        throw new Exception(s"Skip not implemented for word tag: $wordTag")
+
+  private def skipFunDefBody()(using buf: ReadBuffer): Unit =
+    // Skip type parameters
+    skipRepeated(() => {
+      decodeNat() // id
+      decodeString() // name
+      skipType() // info
+      decodeInt() // start delta
+      decodeInt() // length
+    })
+
+    // Skip regular parameters
+    skipRepeated(() => {
+      decodeNat() // id
+      decodeString() // name
+      skipType() // info
+      decodeInt() // start delta
+      decodeInt() // length
+    })
+
+    // Skip auto parameters
+    skipRepeated(() => {
+      decodeNat() // id
+      decodeString() // name
+      skipType() // info
+      decodeInt() // start delta
+      decodeInt() // length
+    })
+
+    skipTypeTree() // result type
+    skipRepeated(skipSymbolRef) // receives
+    skipWord() // body
+
+  private def skipClassDefBody()(using buf: ReadBuffer): Unit =
+    // Skip type parameters
+    skipRepeated(() => {
+      decodeNat() // id
+      decodeString() // name
+      skipType() // info
+      decodeInt() // start delta
+      decodeInt() // length
+    })
+
+    // Skip self
+    decodeNat() // self id
+    skipFlags()
+    decodeString() // self name
+
+    // Skip vals
+    skipRepeated(() => {
+      decodeNat() // id
+      skipFlags()
+      decodeString() // name
+      skipType() // type
+      decodeInt() // start delta
+      decodeInt() // length
+    })
+
+    // Skip funs
+    skipRepeated(() => skipDef())
+
+  private def skipPatDefBody()(using buf: ReadBuffer): Unit =
+    // Skip type parameters
+    skipRepeated(() => {
+      decodeNat() // id
+      decodeString() // name
+      skipType() // info
+      decodeInt() // start delta
+      decodeInt() // length
+    })
+
+    // Skip parameters
+    skipRepeated(() => {
+      decodeNat() // id
+      decodeString() // name
+      skipType() // info
+      decodeInt() // start delta
+      decodeInt() // length
+    })
+
+    skipTypeTree() // result type
+    skipRepeated(skipSymbolRef) // receives
+    skipPattern() // body
+
+  private def skipSectionBody()(using buf: ReadBuffer): Unit =
+    skipRepeated(() => skipDef())
+
+  private def skipDef()(using buf: ReadBuffer): Unit =
+    val defType = decodeByte()
+    decodeInt() // start delta
+    decodeInt() // length delta
+
+    defType match
+      case Format.ValDef =>
+        decodeNat() // id
+        skipFlags()
+        decodeString() // name
+        skipType() // type
+        skipWord() // rhs
+      case Format.FunDef =>
+        decodeNat() // id
+        skipFlags()
+        decodeString() // name
+        skipFunDefBody()
+      case _ =>
+        throw new Exception(s"Skip not implemented for def type: $defType")
+
+  private def skipType()(using buf: ReadBuffer): Unit =
+    val typeTag = decodeByte()
+    typeTag match
+      case Format.VoidType | Format.ErrorType | Format.AnyType | Format.BottomType =>
+        // No additional data
+      case Format.StaticRef | Format.MemberRef =>
+        skipSymbolRef()
+        if typeTag == Format.MemberRef then skipType() // prefix
+      case Format.ConstantType =>
+        skipConstant()
+      case Format.RecordType =>
+        skipRepeated(() => {
+          decodeString() // field name
+          skipType() // field type
+        })
+      case _ =>
+        throw new Exception(s"Skip not implemented for type tag: $typeTag")
+
+  private def skipTypeTree()(using buf: ReadBuffer): Unit =
+    decodeInt() // start delta
+    decodeInt() // length
+    skipType()
+
+  private def skipPattern()(using buf: ReadBuffer): Unit =
+    val patternTag = decodeByte()
+    decodeInt() // start delta
+    decodeInt() // length delta
+
+    patternTag match
+      case Format.WildcardPattern =>
+        skipType() // scrutinee type
+      case Format.ValuePattern =>
+        skipType() // scrutinee type
+        skipWord() // value
+      case _ =>
+        throw new Exception(s"Skip not implemented for pattern tag: $patternTag")
+
+  private def skipSymbolRef()(using buf: ReadBuffer): Unit =
+    val refType = decodeByte()
+    refType match
+      case 0 | 1 => decodeNat() // internal or external symbol index
+      case _ => throw new Exception(s"Invalid symbol reference type: $refType")
+
+  private def skipConstant()(using buf: ReadBuffer): Unit =
+    val constType = decodeByte()
+    constType match
+      case Format.BoolConst => decodeBool()
+      case Format.IntConst => decodeInt()
+      case Format.StringConst => decodeString()
+      case _ => throw new Exception(s"Unknown constant type: $constType")
+
+  private def skipFlags()(using buf: ReadBuffer): Unit =
+    val count = decodeByte()
+    for _ <- 0 until count do
+      decodeByte() // flag index
+
+  private def skipRepeated(skip: () => Unit)(using buf: ReadBuffer): Unit =
+    val count = decodeNat()
+    for _ <- 0 until count do
+      skip()
+
+end Decoder
