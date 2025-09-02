@@ -3,7 +3,7 @@ package sast
 import Types.*
 import Flags.*
 
-import ast.Positions.SourcePosition
+import ast.Positions.{ Source, Span, SourcePosition }
 
 /** Symbols refer to definitions (names) in the program.
   *
@@ -157,6 +157,10 @@ object Symbols:
           (acc, owner) => owner.name + "." + acc
 
     def toNamedInfo(using Definitions): NamedInfo[Type] = NamedInfo(name, info)
+
+    def span: Span = sourcePos.span
+
+    def source: Source = sourcePos.source
 
     override def toString() =
       if Symbols.debugSymbol then

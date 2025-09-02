@@ -242,21 +242,22 @@ object Encoder:
 
     defn match
       case pdef: ParamDef =>
+        val sym = pdef.symbol
         encodeByte(Format.ParamDef)
-        encodeFlags(pdef.symbol.flags & Flags.Default)
-        encodeString(pdef.symbol.name)
-        encodeNat(state.internalId(pdef.symbol))
+        encodeNat(state.internalId(sym))
+        encodeString(sym.name)
+        encodeFlags(sym.flags & Flags.Default)
+        encodeSpan(sym.span)
         encodeTypeTree(pdef.tpt)
-        encodeDefSymPos(startDelta, defn, pdef.symbol)
         encodePosition()
 
       case vdef: ValDef =>
         encodeByte(Format.ValDef)
         encodeNat(state.internalId(vdef.symbol))
-        encodeFlags(vdef.symbol.flags & (Flags.Auto | Flags.Mutable))
         encodeString(vdef.symbol.name)
-        encodeType(vdef.symbol.info)
+        encodeFlags(vdef.symbol.flags & (Flags.Auto | Flags.Mutable))
         encodeDefSymPos(startDelta, defn, vdef.symbol)
+        encodeType(vdef.symbol.info)
         encodeWord(vdef.rhs)
         encodePosition()
 
@@ -292,10 +293,11 @@ object Encoder:
       case fdef: FunDef => buf.withLength:
         encodeByte(Format.FunDef)
 
-        encodeNat(state.internalId(fdef.symbol))
-        encodeFlags(fdef.symbol.flags & (Flags.Auto))
-        encodeString(fdef.symbol.name)
-        encodeDefSymPos(startDelta, defn, fdef.symbol)
+        val sym = fef.symbol
+        encodeNat(state.internalId(sym))
+        encodeString(sym.name)
+        encodeFlags(sym.flags & (Flags.Auto))
+        encodeSpan(sym.span)
 
         encodeTypeParams(fdef, fdef.tparams)
 
@@ -315,8 +317,8 @@ object Encoder:
         encodeByte(Format.PatDef)
 
         encodeNat(state.internalId(pdef.symbol))
-        encodeFlags(pdef.symbol.flags)
         encodeString(pdef.symbol.name)
+        encodeFlags(pdef.symbol.flags)
         encodeDefSymPos(startDelta, defn, pdef.symbol)
 
         encodeTypeParams(pdef, pdef.tparams)
@@ -341,6 +343,7 @@ object Encoder:
 
       case sec: Section => buf.withLength:
         encodeByte(Format.Section)
+        encodeNat(state.internalId(sec.symbol))
         encodeString(sec.symbol.name)
         encodeDefSymPos(startDelta, defn, sec.symbol)
 

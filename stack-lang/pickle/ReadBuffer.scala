@@ -27,7 +27,7 @@ class ReadBuffer(private val bytes: Array[Byte]) extends (() => Byte):
   def readLong(): Long = Base128.toLong(this)
 
   /** Read 4-byte big-endian 2's complement integer */
-  def readInt2Complement(): Int =
+  def readIntRaw(): Int =
     (readByte() << 24) | (readByte() << 16) | (readByte() << 8) | readByte()
 
   def readUtf8(): String =
@@ -43,6 +43,8 @@ class ReadBuffer(private val bytes: Array[Byte]) extends (() => Byte):
     System.arraycopy(bytes, pos, data, 0, n)
     pos += n
 
+  def position: Int = pos
+
   def withPosition[T](newPos: Int)(work: => T): T =
     val savedPos = pos
     setPosition(newPos)
@@ -50,9 +52,14 @@ class ReadBuffer(private val bytes: Array[Byte]) extends (() => Byte):
     pos = savedPos
     res
 
-  private def setPosition(newPos: Int): Unit =
+  def setPosition(newPos: Int): Unit =
     if newPos < 0 || newPos > bytes.length then
       throw new Exception(s"Invalid position: $newPos (length=${bytes.length})")
     pos = newPos
+
+  def fresh(newPos: Int): ReadBuffer =
+    val buf = new ReadBuffer(this.bytes)
+    buf.setPosition(newPos)
+    buf
 
   def isEnded: Boolean = pos >= bytes.length

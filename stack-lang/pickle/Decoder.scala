@@ -66,11 +66,10 @@ object Decoder:
   def decode()(using buf: ReadBuffer, defn: Definitions): DelayedDef[Namespace] =
     val rootName: String = decodeString()
     val source: Source = decodeSource()
-    val start: Int = decodeNat()
-    val len: Int = decodeNat()
+    val symSpan = decodeSpan()
 
     // Read external name table
-    val nameTableAddr: Int = buf.readInt2Complement()
+    val nameTableAddr: Int = decodeIntRaw()
     val nameRefs: Array[NameRef] = buf.withPosition(nameTableAddr):
       decodeExternalNameTable()
 
@@ -89,54 +88,59 @@ object Decoder:
 
     DelayedDef(rootSymbol, delayed)
 
-  /** Index method that lazily loads definitions from the buffer.
-    * Similar to the index method in Namer, this creates DelayedDef instances
-    * that defer actual decoding until the definitions are needed.
-    */
-  private def index()(using buf: ReadBuffer, defn: Definitions, state: State): Array[DelayedDef[Def]] =
+  /** Index definitions without loading trees and symbol infos */
+  private def index(owner: Symbol)(using buf: ReadBuffer, defn: Definitions, state: State): Array[DelayedDef[Def]] =
     val count = decodeNat()
     val delayedDefs = new Array[DelayedDef[Def]](count)
+
+    given Source = owner.sourcePos.source
 
     var i = 0
     while i < count do
       // Store the current buffer position for this definition
       val defPosition = buf.position
-
-      // Peek at the definition to get its symbol information
       val defType = decodeByte()
-      val startDelta = decodeInt()
-      val lengthDelta = decodeInt()
 
-      // Create symbol based on definition type without fully decoding
-      val symbol = defType match
+      defType match
         case Format.ParamDef =>
-          val flags = decodeFlags()
-          val name = decodeString()
           val id = decodeNat()
-          // Skip the type tree - no need to skip as ParamDef has no length encoding
-          val tpt = decodeTypeTree()
+          val name = decodeString()
+          val flags = decodeFlags()
+          val span = decodeSpan()
 
-          val sym = new Symbol(name, flags)
+          val tptPosition = buf.position
+
+          val sym = Symbol.createSymbol(name, flags, span.toPos)
+
+          val paramDefTree = () =>
+            given ReadBufer = buf.fresh(tptPosition)
+            val tpt = decodeTypeTree()
+            // TODO: synchronize encoder
+            val span = decodeSpan()
+            ParamDef(sym, tpt)(span)
+
+          val delayedParamDef = DelayedInfo(sym, paramDefTree)
+          delayedDefs(i) = delayedParamDef
+
+          defn.addLazy(sym, owner, () => delayedParamDef.force().tpt.tpe)
           state.registerInternalSymbol(id, sym)
-          sym
 
         case Format.FunDef =>
-          // FunDef has length encoding, read the length and skip
-          val length = buf.readInt()
+          val length = decodeIntRaw()
+
           val id = decodeNat()
-          val flags = decodeFlags()
           val name = decodeString()
+          val flags = decodeFlags()
+          val span = decodeSpan()
 
           val sym = new Symbol(name, flags)
           state.registerInternalSymbol(id, sym)
           // Skip to the end of this definition using the encoded length
-          val currentPos = buf.position
           buf.setPosition(defPosition + length)
-          sym
 
         case Format.ClassDef =>
           // ClassDef has length encoding, read the length and skip
-          val length = buf.readInt()
+          val length = decodeIntRaw()
           val id = decodeNat()
           val name = decodeString()
 
@@ -159,7 +163,7 @@ object Decoder:
 
         case Format.PatDef =>
           // PatDef has length encoding, read the length and skip
-          val length = buf.readInt()
+          val length = decodeIntRaw()
           val id = decodeNat()
           val flags = decodeFlags()
           val name = decodeString()
@@ -172,7 +176,7 @@ object Decoder:
 
         case Format.Section =>
           // Section has length encoding, read the length and skip
-          val length = buf.readInt()
+          val length = decodeIntRaw()
           val name = decodeString()
           val sym = new Symbol(name, Flags.Empty)
           // Skip to the end of this definition using the encoded length
@@ -180,18 +184,8 @@ object Decoder:
           sym
 
         case _ =>
-          throw new Exception(s"Unknown definition type in index: $defType")
+          throw new Exception(s"Unknown definition type: $defType")
 
-      // Create delayed definition that will decode the full definition when forced
-      val delayed = () => {
-        val savedPosition = buf.position
-        buf.setPosition(defPosition)
-        val fullDef = decodeDef()
-        buf.setPosition(savedPosition)
-        fullDef
-      }
-
-      delayedDefs(i) = DelayedDef(symbol, delayed)
       i += 1
     end while
 
@@ -777,11 +771,17 @@ object Decoder:
   private def decodeInt()(using buf: ReadBuffer): Int =
     buf.readInt()
 
+  private def decodeIntRaw()(using buf: ReadBuffer): Int =
+    buf.readIntRaw()
+
   private def decodeNat()(using buf: ReadBuffer): Int =
     buf.readNat()
 
   private def decodeString()(using buf: ReadBuffer): String =
     buf.readUtf8()
+
+  private def decodeSpan(using ReadBuffer): Span =
+    Span(decodeNat(), decodeNat())
 
   private def decodeConstant()(using buf: ReadBuffer): Constant =
     val constType = decodeByte()
