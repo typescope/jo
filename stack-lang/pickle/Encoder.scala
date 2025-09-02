@@ -152,12 +152,16 @@ object Encoder:
     given buf: WriteBuffer = new WriteBuffer(1 << 12)
 
     encodeString(symbol.fullName)
+    encodeSource(symbol.sourcePos.source)
+    encodeNat(symbol.span.start)
+    encodeNat(symbol.span.length)
 
     val addrNameTable = buf.reserveInt()
 
-    encodeSource(symbol.sourcePos.source)
-
     repeated(defs) { defn => encodeDef(defn) }
+
+    encodeNat(ns.start)
+    encodeNat(ns.length)
 
     // must comes after last
     buf.patchInt(addrNameTable, buf.length)

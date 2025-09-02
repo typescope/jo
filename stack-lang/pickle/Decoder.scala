@@ -6,6 +6,8 @@ import sast.Trees.*
 import sast.Types.*
 import sast.Symbols.*
 
+import typing.Namer.DelayedDef
+
 import scala.collection.mutable
 
 /** Decode trees, symbols and types
@@ -14,9 +16,11 @@ import scala.collection.mutable
   * to reconstruct SAST trees.
   */
 object Decoder:
-  private class State(val root: Symbol):
+  class NameRef(fullName: String, kind: Int)
+
+  private class State(val root: Symbol, nameRefs: Array[NameRef]):
     /** External symbols loaded from the name table */
-    private var externalSymbols: Array[Symbol] = _
+    private var externalSymbols: Array[Symbol] = new Array(nameRefs.size)
 
     /** Map from internal symbol IDs to symbols */
     private val internalSymbols = mutable.Map.empty[Int, Symbol]
@@ -24,13 +28,20 @@ object Decoder:
     /** Current position tracking for rebuilding spans */
     private var currentOffset = 0
 
-    def setExternalSymbols(symbols: Array[Symbol]): Unit =
-      externalSymbols = symbols
-
-    def getExternalSymbol(index: Int): Symbol =
+    def getExternalSymbol(index: Int)(using defn: Definitions): Symbol =
       if index < 0 || index >= externalSymbols.length then
         throw new Exception(s"Invalid external symbol index: $index")
-      externalSymbols(index)
+      var sym = externalSymbols(index)
+      if sym == null then
+        val nameRef = nameRefs(index)
+        sym = nameRef.kind match
+          case 2 => defn.resolveTermByPath(nameRef.fullName)
+          case 1 => defn.resolvePatternByPath(nameRef.fullName)
+          case 0 => defn.resolveTypeByPath(nameRef.fullName)
+
+        externalSymbols(index) = sym
+      end
+      sym
 
     def registerInternalSymbol(id: Int, symbol: Symbol): Unit =
       internalSymbols(id) = symbol
@@ -52,134 +63,104 @@ object Decoder:
 
   //----------------------------------------------------------------------------
 
-  def decode(buf: ReadBuffer)(using defn: Definitions): Namespace =
-    val rootName = decodeString(buf)
-    val rootSymbol = defn.lookupStaticName(rootName).getOrElse:
-      throw new Exception(s"Cannot find root symbol: $rootName")
+  def decode()(using buf: ReadBuffer, defn: Definitions): DelayedDef[Namespace] =
+    val rootName: String = decodeString()
+    val source: Source = decodeSource()
+    val start: Int = decodeNat()
+    val len: Int = decodeNat()
 
     // Read external name table
-    val nameTableAddr = buf.readInt2Complement()
-    val externalSymbols = buf.withPosition(nameTableAddr):
-      decodeExternalNameTable(buf)
+    val nameTableAddr: Int = buf.readInt2Complement()
+    val nameRefs: Array[NameRef] = buf.withPosition(nameTableAddr):
+      decodeExternalNameTable()
 
-    given state: State = new State(rootSymbol)
+    // TODO: root symbol and info
+    val rootSymbol = new Symbol(rootName, Flags.Empty)
 
-    val source = decodeSource(buf)
+    given state: State = new State(rootSymbol, nameRefs)
 
-    val defs = decodeRepeated(buf)(decodeDef)
+    val delayedMembers: Array[DelayedDef[Def]] = index()
 
-    val span = Span(0, source.content.length)
-    Namespace(rootSymbol, List.empty, defs)(span)
+    val span = Span(eecodeNat(), decodeNat())
+
+    val delayd = () =>
+      val members = for d <- delayedMembers yield d.force()
+      Namespace(rootSymbol, List.empty, members)(span)
+
+    DelayedInfo(rootSymbol, delayed)
 
   //----------------------------------------------------------------------------
 
-  private def decodeExternalNameTable(buf: ReadBuffer)(using defn: Definitions): Array[Symbol] =
-    val count = decodeNat(buf)
-    val symbols = new Array[Symbol](count)
+  private def decodeExternalNameTable()(using buf: ReadBuffer, defn: Definitions): Array[NameRef] =
+    val count = decodeNat()
+    val nameRefs = new Array[NameRef](count)
 
     var i = 0
     while i < count do
-      val fullName = decodeString(buf)
-      val kind = decodeByte(buf)
+      val fullName = decodeString()
+      val kind = decodeByte()
 
-      val symbol = defn.lookupStaticName(fullName).getOrElse:
-        throw new Exception(s"Cannot find external symbol: $fullName")
-
-      val symbol =
-        if kind == 0 then defn.resolveTypeByPath(fullName)
-        else kind == 1 then defn.resolvePatternByPath(fullName)
-        else defn.resolveTermByPath(fullName)
-
-      symbols(i) = symbol
+      nameRefs(i) = new NameRef(fullName, kind)
       i += 1
 
-    symbols
+    nameRefs
 
-  private def decodeSymbol(buf: ReadBuffer)(using defn: Definitions, state: State): Symbol =
-    val id = decodeNat(buf)
-    val name = decodeString(buf)
-    val flags = decodeFlags(buf)
-
-    // Create symbol - this is a simplified version
-    // In practice, you'd need to create the appropriate symbol type
-    val symbol = new Symbol(name, flags)
-
-    // Decode kind if type symbol
-    if symbol.isType then
-      val kind = decodeKind(buf)
-      // Set kind on type symbol
-
-    // Decode owner
-    val ownerId = decodeInt(buf)
-    val owner = if ownerId == -1 then null else state.getInternalSymbol(ownerId)
-
-    val sourceStart = decodeNat(buf)
-    val sourceLength = decodeNat(buf)
-    val symbolType = decodeType(buf)
-
-    // Set symbol properties
-    symbol.setOwner(owner)
-    symbol.setInfo(symbolType)
-
-    state.registerInternalSymbol(id, symbol)
-    symbol
-
-  private def decodeSymbolRef(buf: ReadBuffer)(using defn: Definitions, state: State): Symbol =
-    val refType = decodeByte(buf)
+  private def decodeSymbolRef()(using buf: ReadBuffer, defn: Definitions, state: State): Symbol =
+    val refType = decodeByte()
     refType match
       case 0 => // Internal symbol
-        val id = decodeNat(buf)
+        val id = decodeNat()
         state.getInternalSymbol(id)
 
       case 1 => // External symbol
-        val index = decodeNat(buf)
+        val index = decodeNat()
         state.getExternalSymbol(index)
 
       case _ => throw new Exception(s"Invalid symbol reference type: $refType")
 
-  private def decodeFlags(buf: ReadBuffer): Flags =
-    val count = decodeByte(buf)
+  private def decodeFlags()(using buf: ReadBuffer): Flags =
+    val count = decodeByte()
     var flags = Flags.Empty
     for _ <- 0 until count do
-      val flagIndex = decodeByte(buf)
+      val flagIndex = decodeByte()
       flags |= Flags.fromIndex(flagIndex)
     flags
 
-  private def decodeKind(buf: ReadBuffer)(using defn: Definitions, state: State): Kind =
-    val kindType = decodeByte(buf)
+  private def decodeKind()(using buf: ReadBuffer, defn: Definitions, state: State): Kind =
+    val kindType = decodeByte()
     kindType match
       case 0 => Kind.Simple
 
       case 1 => // Arrow kind
-        val args = decodeRepeated(buf)(decodeKind)
-        val to = decodeKind(buf)
+        val args = decodeRepeated(decodeKind)
+        val to = decodeKind()
         Kind.Arrow(args, to)
 
       case _ => throw new Exception(s"Invalid kind type: $kindType")
 
-  private def decodeDef(buf: ReadBuffer)(using defn: Definitions, state: State): Def =
-    val defType = decodeByte(buf)
-    val startDelta = decodeInt(buf)
-    val lengthDelta = decodeInt(buf)
+  private def decodeDef()(using buf: ReadBuffer, defn: Definitions, state: State): Def =
+    val defType = decodeByte()
+    val startDelta = decodeInt()
+    val lengthDelta = decodeInt()
 
     state.withPosition(startDelta, lengthDelta): span =>
       defType match
         case Format.ParamDef =>
-          val flags = decodeFlags(buf)
-          val name = decodeString(buf)
-          val id = decodeNat(buf)
-          val tpt = decodeTypeTree(buf)
+          val flags = decodeFlags()
+          val name = decodeString()
+          val id = decodeNat()
+          val tpt = decodeTypeTree
 
           val symbol = new Symbol(name, flags)
           state.registerInternalSymbol(id, symbol)
           ParamDef(symbol, tpt)(span)
 
         case Format.ValDef =>
-          val id = decodeNat(buf)
-          val flags = decodeFlags(buf)
-          val name = decodeString(buf)
-          val symbolType = decodeType(buf)
-          val rhs = decodeWord(buf)
+          val id = decodeNat()
+          val flags = decodeFlags()
+          val name = decodeString()
+          val symbolType = decodeType()
+          val rhs = decodeWord()
 
           val symbol = new Symbol(name, flags)
           symbol.setInfo(symbolType)
@@ -187,61 +168,61 @@ object Decoder:
           ValDef(symbol, rhs)(span)
 
         case Format.ClassDef =>
-          val id = decodeNat(buf)
-          val name = decodeString(buf)
+          val id = decodeNat()
+          val name = decodeString()
 
           val symbol = new Symbol(name, Flags.Empty)
           state.registerInternalSymbol(id, symbol)
 
           val tparams = decodeRepeated(buf): _ =>
-            val tparamId = decodeNat(buf)
-            val tparamName = decodeString(buf)
-            val tparamInfo = decodeType(buf)
-            val tparamStartDelta = decodeInt(buf)
-            val tparamLength = decodeInt(buf)
+            val tparamId = decodeNat()
+            val tparamName = decodeString()
+            val tparamInfo = decodeType()
+            val tparamStartDelta = decodeInt()
+            val tparamLength = decodeInt()
 
             val tparam = new TypeSymbol(tparamName, Kind.Simple)
             tparam.setInfo(tparamInfo)
             state.registerInternalSymbol(tparamId, tparam)
             tparam
 
-          val selfId = decodeNat(buf)
-          val selfFlags = decodeFlags(buf)
-          val selfName = decodeString(buf)
+          val selfId = decodeNat()
+          val selfFlags = decodeFlags()
+          val selfName = decodeString()
           val self = new Symbol(selfName, selfFlags)
           state.registerInternalSymbol(selfId, self)
 
           val vals = decodeRepeated(buf): _ =>
-            val valId = decodeNat(buf)
-            val valFlags = decodeFlags(buf)
-            val valName = decodeString(buf)
-            val valType = decodeType(buf)
-            val valStartDelta = decodeInt(buf)
-            val valLength = decodeInt(buf)
+            val valId = decodeNat()
+            val valFlags = decodeFlags()
+            val valName = decodeString()
+            val valType = decodeType()
+            val valStartDelta = decodeInt()
+            val valLength = decodeInt()
 
             val valSym = new Symbol(valName, valFlags)
             valSym.setInfo(valType)
             state.registerInternalSymbol(valId, valSym)
             valSym
 
-          val funs = decodeRepeated(buf)(decodeDef).map(_.asInstanceOf[FunDef])
+          val funs = decodeRepeated(decodeDef).map(_.asInstanceOf[FunDef])
 
           ClassDef(symbol, tparams, self, vals, funs)(span)
 
         case Format.FunDef =>
-          val id = decodeNat(buf)
-          val flags = decodeFlags(buf)
-          val name = decodeString(buf)
+          val id = decodeNat()
+          val flags = decodeFlags()
+          val name = decodeString()
 
           val symbol = new Symbol(name, flags)
           state.registerInternalSymbol(id, symbol)
 
           val tparams = decodeRepeated(buf): _ =>
-            val tparamId = decodeNat(buf)
-            val tparamName = decodeString(buf)
-            val tparamInfo = decodeType(buf)
-            val tparamStartDelta = decodeInt(buf)
-            val tparamLength = decodeInt(buf)
+            val tparamId = decodeNat()
+            val tparamName = decodeString()
+            val tparamInfo = decodeType()
+            val tparamStartDelta = decodeInt()
+            val tparamLength = decodeInt()
 
             val tparam = new TypeSymbol(tparamName, Kind.Simple)
             tparam.setInfo(tparamInfo)
@@ -249,11 +230,11 @@ object Decoder:
             tparam
 
           val params = decodeRepeated(buf): _ =>
-            val paramId = decodeNat(buf)
-            val paramName = decodeString(buf)
-            val paramInfo = decodeType(buf)
-            val paramStartDelta = decodeInt(buf)
-            val paramLength = decodeInt(buf)
+            val paramId = decodeNat()
+            val paramName = decodeString()
+            val paramInfo = decodeType()
+            val paramStartDelta = decodeInt()
+            val paramLength = decodeInt()
 
             val param = new Symbol(paramName, Flags.Empty)
             param.setInfo(paramInfo)
@@ -261,20 +242,20 @@ object Decoder:
             param
 
           val autos = decodeRepeated(buf): _ =>
-            val autoId = decodeNat(buf)
-            val autoName = decodeString(buf)
-            val autoInfo = decodeType(buf)
-            val autoStartDelta = decodeInt(buf)
-            val autoLength = decodeInt(buf)
+            val autoId = decodeNat()
+            val autoName = decodeString()
+            val autoInfo = decodeType()
+            val autoStartDelta = decodeInt()
+            val autoLength = decodeInt()
 
             val auto = new Symbol(autoName, Flags.Auto)
             auto.setInfo(autoInfo)
             state.registerInternalSymbol(autoId, auto)
             auto
 
-          val resultType = decodeTypeTree(buf)
-          val receives = decodeRepeated(buf)(decodeSymbolRef)
-          val body = decodeWord(buf)
+          val resultType = decodeTypeTree
+          val receives = decodeRepeated(decodeSymbolRef)
+          val body = decodeWord()
 
           // Create proper ProcType
           val procType = ProcType(tparams, params.map(p => NamedInfo(p.name, p.info)),
@@ -284,19 +265,19 @@ object Decoder:
           FunDef(symbol, tparams, params, autos, resultType, body)(span)
 
         case Format.PatDef =>
-          val id = decodeNat(buf)
-          val flags = decodeFlags(buf)
-          val name = decodeString(buf)
+          val id = decodeNat()
+          val flags = decodeFlags()
+          val name = decodeString()
 
           val symbol = new Symbol(name, flags)
           state.registerInternalSymbol(id, symbol)
 
           val tparams = decodeRepeated(buf): _ =>
-            val tparamId = decodeNat(buf)
-            val tparamName = decodeString(buf)
-            val tparamInfo = decodeType(buf)
-            val tparamStartDelta = decodeInt(buf)
-            val tparamLength = decodeInt(buf)
+            val tparamId = decodeNat()
+            val tparamName = decodeString()
+            val tparamInfo = decodeType()
+            val tparamStartDelta = decodeInt()
+            val tparamLength = decodeInt()
 
             val tparam = new TypeSymbol(tparamName, Kind.Simple)
             tparam.setInfo(tparamInfo)
@@ -304,20 +285,20 @@ object Decoder:
             tparam
 
           val params = decodeRepeated(buf): _ =>
-            val paramId = decodeNat(buf)
-            val paramName = decodeString(buf)
-            val paramInfo = decodeType(buf)
-            val paramStartDelta = decodeInt(buf)
-            val paramLength = decodeInt(buf)
+            val paramId = decodeNat()
+            val paramName = decodeString()
+            val paramInfo = decodeType()
+            val paramStartDelta = decodeInt()
+            val paramLength = decodeInt()
 
             val param = new Symbol(paramName, Flags.Empty)
             param.setInfo(paramInfo)
             state.registerInternalSymbol(paramId, param)
             param
 
-          val resultType = decodeTypeTree(buf)
-          val receives = decodeRepeated(buf)(decodeSymbolRef)
-          val body = decodePattern(buf)
+          val resultType = decodeTypeTree
+          val receives = decodeRepeated(decodeSymbolRef)
+          val body = decodePattern()
 
           val procType = ProcType(tparams, params.map(p => NamedInfo(p.name, p.info)),
                                  List.empty, resultType.tpe, receives, 0)
@@ -326,9 +307,9 @@ object Decoder:
           PatDef(symbol, tparams, params, resultType, body)(span)
 
         case Format.TypeDef =>
-          val id = decodeNat(buf)
-          val name = decodeString(buf)
-          val symbolType = decodeType(buf)
+          val id = decodeNat()
+          val name = decodeString()
+          val symbolType = decodeType()
 
           val symbol = new TypeSymbol(name, Kind.Simple)
           symbol.setInfo(symbolType)
@@ -336,23 +317,23 @@ object Decoder:
           TypeDef(symbol)(span)
 
         case Format.Section =>
-          val name = decodeString(buf)
+          val name = decodeString()
           val symbol = new Symbol(name, Flags.Empty)
-          val defs = decodeRepeated(buf)(decodeDef)
+          val defs = decodeRepeated(decodeDef)
           Section(symbol, defs)(span)
 
         case _ => throw new Exception(s"Unknown definition type: $defType")
 
-  private def decodeTypeTree(buf: ReadBuffer)(using defn: Definitions, state: State): TypeTree =
-    val startDelta = decodeInt(buf)
-    val length = decodeInt(buf)
-    val tpe = decodeType(buf)
+  private def decodeTypeTree()(using buf: ReadBuffer, defn: Definitions, state: State): TypeTree =
+    val startDelta = decodeInt()
+    val length = decodeInt()
+    val tpe = decodeType()
 
     state.withPosition(startDelta, length): span =>
       TypeTree(tpe)(span)
 
-  private def decodeType(buf: ReadBuffer)(using defn: Definitions, state: State): Type =
-    val typeTag = decodeByte(buf)
+  private def decodeType()(using buf: ReadBuffer, defn: Definitions, state: State): Type =
+    val typeTag = decodeByte()
     typeTag match
       case Format.VoidType => VoidType
       case Format.ErrorType => ErrorType
@@ -360,142 +341,142 @@ object Decoder:
       case Format.BottomType => BottomType
 
       case Format.StaticRef =>
-        val sym = decodeSymbolRef(buf)
+        val sym = decodeSymbolRef
         StaticRef(sym)
 
       case Format.MemberRef =>
-        val prefix = decodeType(buf)
-        val sym = decodeSymbolRef(buf)
+        val prefix = decodeType()
+        val sym = decodeSymbolRef
         MemberRef(prefix, sym)
 
       case Format.ConstantType =>
-        val const = decodeConstant(buf)
+        val const = decodeConstant()
         ConstantType(const)
 
       case Format.RecordType =>
         val fields = decodeRepeated(buf): _ =>
-          val name = decodeString(buf)
-          val info = decodeType(buf)
+          val name = decodeString()
+          val info = decodeType()
           NamedInfo(name, info)
         RecordType(fields)
 
       case Format.UnionType =>
-        val branches = decodeRepeated(buf)(decodeType)
+        val branches = decodeRepeated(decodeType)
         UnionType(branches)
 
       case Format.TagType =>
-        val tag = decodeString(buf)
+        val tag = decodeString()
         val params = decodeRepeated(buf): _ =>
-          val name = decodeString(buf)
-          val info = decodeType(buf)
+          val name = decodeString()
+          val info = decodeType()
           NamedInfo(name, info)
         TagType(tag, params)
 
       case Format.ObjectType =>
-        val memberCount = decodeNat(buf)
+        val memberCount = decodeNat()
         val members = mutable.ListBuffer.empty[NamedInfo[Type]]
         val muts = mutable.Set.empty[String]
 
         for _ <- 0 until memberCount do
-          val name = decodeString(buf)
-          val info = decodeType(buf)
+          val name = decodeString()
+          val info = decodeType()
           members += NamedInfo(name, info)
           if info.isValueType then
-            val isMutable = decodeBool(buf)
+            val isMutable = decodeBool()
             if isMutable then muts += name
 
         ObjectType(members.toList, muts.toSet)
 
       case Format.AppliedType =>
-        val tctor = decodeType(buf)
-        val targs = decodeRepeated(buf)(decodeType)
+        val tctor = decodeType()
+        val targs = decodeRepeated(decodeType)
         AppliedType(tctor, targs)
 
       case Format.ProcType =>
         val tparams = decodeRepeated(buf): _ =>
-          val id = decodeNat(buf)
-          val name = decodeString(buf)
-          val info = decodeType(buf)
+          val id = decodeNat()
+          val name = decodeString()
+          val info = decodeType()
           val tparam = new TypeSymbol(name, Kind.Simple)
           tparam.setInfo(info)
           state.registerInternalSymbol(id, tparam)
           tparam
 
         val params = decodeRepeated(buf): _ =>
-          val name = decodeString(buf)
-          val info = decodeType(buf)
+          val name = decodeString()
+          val info = decodeType()
           NamedInfo(name, info)
 
         val autos = decodeRepeated(buf): _ =>
-          val name = decodeString(buf)
-          val info = decodeType(buf)
+          val name = decodeString()
+          val info = decodeType()
           NamedInfo(name, info)
 
-        val resType = decodeType(buf)
-        val receives = decodeRepeated(buf)(decodeSymbolRef)
-        val preParamCount = decodeNat(buf)
+        val resType = decodeType()
+        val receives = decodeRepeated(decodeSymbolRef)
+        val preParamCount = decodeNat()
 
         ProcType(tparams, params, autos, resType, receives, preParamCount)
 
       case Format.TypeLambda =>
         val tparams = decodeRepeated(buf): _ =>
-          val id = decodeNat(buf)
-          val name = decodeString(buf)
-          val info = decodeType(buf)
+          val id = decodeNat()
+          val name = decodeString()
+          val info = decodeType()
           val tparam = new TypeSymbol(name, Kind.Simple)
           tparam.setInfo(info)
           state.registerInternalSymbol(id, tparam)
           tparam
 
-        val resType = decodeType(buf)
-        val preParamCount = decodeNat(buf)
+        val resType = decodeType()
+        val preParamCount = decodeNat()
         TypeLambda(tparams, resType, preParamCount)
 
       case Format.TypeBound =>
-        val lo = decodeType(buf)
-        val hi = decodeType(buf)
+        val lo = decodeType()
+        val hi = decodeType()
         TypeBound(lo, hi)
 
       case _ => throw new Exception(s"Unknown type tag: $typeTag")
 
-  private def decodeWord(buf: ReadBuffer)(using defn: Definitions, state: State): Word =
-    val wordTag = decodeByte(buf)
-    val startDelta = decodeInt(buf)
-    val lengthDelta = decodeInt(buf)
+  private def decodeWord()(using buf: ReadBuffer, defn: Definitions, state: State): Word =
+    val wordTag = decodeByte()
+    val startDelta = decodeInt()
+    val lengthDelta = decodeInt()
 
     state.withPosition(startDelta, lengthDelta): span =>
       wordTag match
         case Format.Literal =>
-          val const = decodeConstant(buf)
-          val tpe = decodeType(buf)
+          val const = decodeConstant()
+          val tpe = decodeType()
           Literal(const)(tpe, span)
 
         case Format.Ident =>
-          val sym = decodeSymbolRef(buf)
+          val sym = decodeSymbolRef
           Ident(sym)(span)
 
         case Format.New =>
-          val classRef = decodeWord(buf)
-          val targs = decodeRepeated(buf)(decodeTypeTree)
+          val classRef = decodeWord()
+          val targs = decodeRepeated(decodeTypeTree)
           New(classRef, targs)(span)
 
         case Format.Select =>
-          val qual = decodeWord(buf)
-          val name = decodeString(buf)
+          val qual = decodeWord()
+          val name = decodeString()
           val tpe = qual.tpe // This would need proper type reconstruction
           Select(qual, name)(tpe, span)
 
         case Format.RecordLit =>
           val fields = decodeRepeated(buf): _ =>
-            val fieldName = decodeString(buf)
-            val rhs = decodeWord(buf)
+            val fieldName = decodeString()
+            val rhs = decodeWord()
             (fieldName, rhs)
           val tpe = RecordType(fields.map((n, w) => NamedInfo(n, w.tpe)))
           RecordLit(fields)(tpe, span)
 
         case Format.TaggedLit =>
-          val tag = decodeWord(buf)
-          val args = decodeRepeated(buf)(decodeWord)
+          val tag = decodeWord()
+          val args = decodeRepeated(decodeWord)
           val tagName = tag match
             case Literal(Constant.String(name)) => name
             case _ => throw new Exception("Expected string literal for tag")
@@ -503,91 +484,91 @@ object Decoder:
           TaggedLit(tag.asInstanceOf[Literal], args)(tpe, span)
 
         case Format.Encoded =>
-          val repr = decodeWord(buf)
-          val tpe = decodeType(buf)
+          val repr = decodeWord()
+          val tpe = decodeType()
           Encoded(repr)(tpe, span)
 
         case Format.Apply =>
-          val fun = decodeWord(buf)
-          val args = decodeRepeated(buf)(decodeWord)
-          val autos = decodeRepeated(buf)(decodeWord)
+          val fun = decodeWord()
+          val args = decodeRepeated(decodeWord)
+          val autos = decodeRepeated(decodeWord)
           // Type would need to be computed from function type
           val tpe = VoidType // Placeholder
           Apply(fun, args, autos)(tpe, span)
 
         case Format.TypeApply =>
-          val fun = decodeWord(buf)
-          val targs = decodeRepeated(buf)(decodeTypeTree)
+          val fun = decodeWord()
+          val targs = decodeRepeated(decodeTypeTree)
           TypeApply(fun, targs)(span)
 
         case Format.With =>
-          val expr = decodeWord(buf)
+          val expr = decodeWord()
           val args = decodeRepeated(buf): _ =>
-            val ident = decodeWord(buf)
-            val rhs = decodeWord(buf)
+            val ident = decodeWord()
+            val rhs = decodeWord()
             Assign(ident, rhs)(VoidType, span)
           With(expr, args)(expr.tpe, span)
 
         case Format.Allow =>
-          val expr = decodeWord(buf)
-          val params = decodeRepeated(buf)(decodeWord)
+          val expr = decodeWord()
+          val params = decodeRepeated(decodeWord)
           Allow(expr, params)(expr.tpe, span)
 
         case Format.Assign =>
-          val ident = decodeWord(buf)
-          val rhs = decodeWord(buf)
+          val ident = decodeWord()
+          val rhs = decodeWord()
           Assign(ident, rhs)(VoidType, span)
 
         case Format.FieldAssign =>
-          val lhs = decodeWord(buf)
-          val rhs = decodeWord(buf)
+          val lhs = decodeWord()
+          val rhs = decodeWord()
           FieldAssign(lhs, rhs)(VoidType, span)
 
         case Format.ValDef =>
-          decodeDef(buf).asInstanceOf[ValDef]
+          decodeDef().asInstanceOf[ValDef]
 
         case Format.FunDef =>
-          decodeDef(buf).asInstanceOf[FunDef]
+          decodeDef().asInstanceOf[FunDef]
 
         case Format.TypeDef =>
-          decodeDef(buf).asInstanceOf[TypeDef]
+          decodeDef().asInstanceOf[TypeDef]
 
         case Format.PatDef =>
-          decodeDef(buf).asInstanceOf[PatDef]
+          decodeDef().asInstanceOf[PatDef]
 
         case Format.If =>
-          val cond = decodeWord(buf)
-          val thenp = decodeWord(buf)
-          val elsep = decodeWord(buf)
-          val tpe = decodeType(buf)
+          val cond = decodeWord()
+          val thenp = decodeWord()
+          val elsep = decodeWord()
+          val tpe = decodeType()
           If(cond, thenp, elsep)(tpe, span)
 
         case Format.While =>
-          val cond = decodeWord(buf)
-          val body = decodeWord(buf)
+          val cond = decodeWord()
+          val body = decodeWord()
           While(cond, body)(VoidType, span)
 
         case Format.Block =>
-          val words = decodeRepeated(buf)(decodeWord)
+          val words = decodeRepeated(decodeWord)
           val tpe = if words.nonEmpty then words.last.tpe else VoidType
           Block(words)(tpe, span)
 
         case Format.Match =>
-          val scrutinee = decodeWord(buf)
+          val scrutinee = decodeWord()
           val cases = decodeRepeated(buf): _ =>
-            val pat = decodePattern(buf)
-            val body = decodeWord(buf)
+            val pat = decodePattern()
+            val body = decodeWord()
             Case(pat, body)
-          val tpe = decodeType(buf)
+          val tpe = decodeType()
           Match(scrutinee, cases)(tpe, span)
 
         case Format.Object =>
-          val selfId = decodeNat(buf)
-          val selfName = decodeString(buf)
+          val selfId = decodeNat()
+          val selfName = decodeString()
           val self = new Symbol(selfName, Flags.Empty)
           state.registerInternalSymbol(selfId, self)
 
-          val members = decodeRepeated(buf)(decodeDef).map:
+          val members = decodeRepeated(decodeDef).map:
             case v: ValDef => v
             case f: FunDef => f
             case _ => throw new Exception("Object can only contain val and fun definitions")
@@ -596,77 +577,77 @@ object Decoder:
 
         case _ => throw new Exception(s"Unknown word tag: $wordTag")
 
-  private def decodePattern(buf: ReadBuffer)(using defn: Definitions, state: State): Pattern =
-    val patternTag = decodeByte(buf)
-    val startDelta = decodeInt(buf)
-    val lengthDelta = decodeInt(buf)
+  private def decodePattern()(using buf: ReadBuffer, defn: Definitions, state: State): Pattern =
+    val patternTag = decodeByte()
+    val startDelta = decodeInt()
+    val lengthDelta = decodeInt()
 
     state.withPosition(startDelta, lengthDelta): span =>
       patternTag match
         case Format.AliasPattern =>
-          val id = decodeWord(buf)
-          val nested = decodePattern(buf)
+          val id = decodeWord()
+          val nested = decodePattern()
           AliasPattern(id, nested)(span)
 
         case Format.TypePattern =>
-          val scrutineeType = decodeType(buf)
-          val tpt = decodeTypeTree(buf)
+          val scrutineeType = decodeType()
+          val tpt = decodeTypeTree
           TypePattern(tpt)(scrutineeType, span)
 
         case Format.TagPattern =>
-          val tagLit = decodeWord(buf)
-          val nested = decodeRepeated(buf)(decodePattern)
+          val tagLit = decodeWord()
+          val nested = decodeRepeated(decodePattern)
           TagPattern(tagLit, nested)(span)
 
         case Format.ApplyPattern =>
-          val scrutineeType = decodeType(buf)
-          val fun = decodeWord(buf)
-          val nested = decodeRepeated(buf)(decodePattern)
+          val scrutineeType = decodeType()
+          val fun = decodeWord()
+          val nested = decodeRepeated(decodePattern)
           ApplyPattern(fun, nested)(scrutineeType, span)
 
         case Format.OrPattern =>
-          val lhs = decodePattern(buf)
-          val rhs = decodePattern(buf)
+          val lhs = decodePattern()
+          val rhs = decodePattern()
           OrPattern(lhs, rhs)(span)
 
         case Format.ValuePattern =>
-          val scrutineeType = decodeType(buf)
-          val value = decodeWord(buf)
+          val scrutineeType = decodeType()
+          val value = decodeWord()
           ValuePattern(value)(scrutineeType, span)
 
         case Format.GuardPattern =>
-          val pattern = decodePattern(buf)
-          val guard = decodeWord(buf)
+          val pattern = decodePattern()
+          val guard = decodeWord()
           GuardPattern(pattern, guard)(span)
 
         case Format.BindPattern =>
-          val pattern = decodePattern(buf)
-          val bindings = decodeRepeated(buf)(decodeWord)
+          val pattern = decodePattern()
+          val bindings = decodeRepeated(decodeWord)
           BindPattern(pattern, bindings)(span)
 
         case Format.SeqPattern =>
-          val scrutineeType = decodeType(buf)
+          val scrutineeType = decodeType()
           val pats = decodeRepeated(buf): _ =>
-            val seqPatTag = decodeByte(buf)
+            val seqPatTag = decodeByte()
             seqPatTag match
               case Format.AtomPattern =>
-                val pattern = decodePattern(buf)
+                val pattern = decodePattern()
                 AtomPattern(pattern)
 
               case Format.SkipToPattern =>
-                val pattern = decodePattern(buf)
+                val pattern = decodePattern()
                 SkipToPattern(pattern)
 
               case Format.StarPattern =>
-                val pattern = decodePattern(buf)
+                val pattern = decodePattern()
                 val bindings = decodeRepeated(buf): _ =>
-                  val sym1 = decodeSymbol(buf)
-                  val sym2 = decodeSymbolRef(buf)
+                  val sym1 = decodeSymbol()
+                  val sym2 = decodeSymbolRef
                   (sym1, sym2)
                 StarPattern(pattern, bindings)
 
               case Format.RestPattern =>
-                val pattern = decodePattern(buf)
+                val pattern = decodePattern()
                 RestPattern(pattern)
 
               case _ => throw new Exception(s"Unknown sequence pattern tag: $seqPatTag")
@@ -674,48 +655,56 @@ object Decoder:
           SeqPattern(pats)(scrutineeType, span)
 
         case Format.WildcardPattern =>
-          val scrutineeType = decodeType(buf)
+          val scrutineeType = decodeType()
           WildcardPattern()(scrutineeType, span)
 
         case _ => throw new Exception(s"Unknown pattern tag: $patternTag")
 
-  private def decodeBool(buf: ReadBuffer): Boolean =
+  private def decodeBool()(using buf: ReadBuffer): Boolean =
     buf.readBool()
 
-  private def decodeByte(buf: ReadBuffer): Byte =
+  private def decodeByte()(using buf: ReadBuffer): Byte =
     buf.readByte()
 
-  private def decodeInt(buf: ReadBuffer): Int =
+  private def decodeInt()(using buf: ReadBuffer): Int =
     buf.readInt()
 
-  private def decodeNat(buf: ReadBuffer): Int =
+  private def decodeNat()(using buf: ReadBuffer): Int =
     buf.readNat()
 
-  private def decodeString(buf: ReadBuffer): String =
+  private def decodeString()(using buf: ReadBuffer): String =
     buf.readUtf8()
 
-  private def decodeConstant(buf: ReadBuffer): Constant =
-    val constType = decodeByte(buf)
+  private def decodeConstant()(using buf: ReadBuffer): Constant =
+    val constType = decodeByte()
     constType match
       case Format.BoolConst =>
-        val value = decodeBool(buf)
+        val value = decodeBool()
         Constant.Bool(value)
 
       case Format.IntConst =>
-        val value = decodeInt(buf)
+        val value = decodeInt()
         Constant.Int(value)
 
       case Format.StringConst =>
-        val value = decodeString(buf)
+        val value = decodeString()
         Constant.String(value)
 
       case _ => throw new Exception(s"Unknown constant type: $constType")
 
-  private def decodeSource(buf: ReadBuffer): Source =
-    val file = decodeString(buf)
-    val lineLengths = decodeRepeated(buf)(decodeNat)
-    Source.fromLineLengths(file, lineLengths.toArray)
+  private def decodeSource()(using buf: ReadBuffer): Source =
+    val file = decodeString()
+    val source = new Source(file)
+    for lineLen <- decodeRepeated(decodeNat) do
+      source.addLineOffset(lineLen)
+    source
 
-  private def decodeRepeated[T](buf: ReadBuffer)(decode: ReadBuffer => T): List[T] =
-    val count = decodeNat(buf)
-    (0 until count).map(_ => decode(buf)).toList
+  private def decodeRepeated[T](decode: => T)(using buf: ReadBuffer): Array[T] =
+    val count = decodeNat()
+    val arr = new Array[T](count)
+    var i = 0
+    while i < count do
+      arr(i) = decode
+      i = i + 1
+    end while
+    arr
