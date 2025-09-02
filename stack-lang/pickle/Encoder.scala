@@ -231,6 +231,11 @@ object Encoder:
     encodeInt(symSpan.length)
 
   private def encodeDef(defn: Def)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit = state.withPositioned(defn): startDelta =>
+    def encodePosition() =
+      val lengthDelta = defn.span.length - state.getChildrenLength
+      encodeInt(startDelta)
+      encodeInt(lengthDelta)
+
     defn match
       case pdef: ParamDef =>
         encodeByte(Format.ParamDef)
@@ -239,6 +244,7 @@ object Encoder:
         encodeNat(state.internalId(pdef.symbol))
         encodeTypeTree(pdef.tpt)
         encodeDefSymPos(startDelta, defn, pdef.symbol)
+        encodePosition()
 
       case vdef: ValDef =>
         encodeByte(Format.ValDef)
@@ -248,8 +254,9 @@ object Encoder:
         encodeType(vdef.symbol.info)
         encodeDefSymPos(startDelta, defn, vdef.symbol)
         encodeWord(vdef.rhs)
+        encodePosition()
 
-      case cdef: ClassDef =>
+      case cdef: ClassDef => buf.withLength:
         encodeByte(Format.ClassDef)
 
         encodeNat(state.internalId(cdef.symbol))
@@ -276,7 +283,9 @@ object Encoder:
         repeated(cdef.funs): fdef =>
           encodeDef(fdef)
 
-      case fdef: FunDef =>
+        encodePosition()
+
+      case fdef: FunDef => buf.withLength:
         encodeByte(Format.FunDef)
 
         encodeNat(state.internalId(fdef.symbol))
@@ -296,7 +305,9 @@ object Encoder:
 
         encodeWord(fdef.body)
 
-      case pdef: PatDef =>
+        encodePosition()
+
+      case pdef: PatDef => buf.withLength:
         encodeByte(Format.PatDef)
 
         encodeNat(state.internalId(pdef.symbol))
@@ -314,6 +325,7 @@ object Encoder:
           encodeSymbolRef(eff)
 
         encodePattern(pdef.body)
+        encodePosition()
 
       case tdef: TypeDef =>
         encodeByte(Format.TypeDef)
@@ -321,8 +333,9 @@ object Encoder:
         encodeString(tdef.symbol.name)
         encodeType(tdef.symbol.info)
         encodeDefSymPos(startDelta, defn, tdef.symbol)
+        encodePosition()
 
-      case sec: Section =>
+      case sec: Section => buf.withLength:
         encodeByte(Format.Section)
         encodeString(sec.symbol.name)
         encodeDefSymPos(startDelta, defn, sec.symbol)
@@ -330,9 +343,9 @@ object Encoder:
         repeated(sec.defs): defn =>
           encodeDef(defn)
 
-    val lengthDelta = defn.span.length - state.getChildrenLength
-    encodeInt(startDelta)
-    encodeInt(lengthDelta)
+        encodePosition()
+      end match
+
 
   private def encodeTypeTree(tpt: TypeTree)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
     state.withPositioned(tpt): startDelta =>

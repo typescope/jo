@@ -56,6 +56,13 @@ class WriteBuffer(initialSize: Int) extends (Byte => Unit):
     bytes(addr + 2) = (value >>> 8).toByte
     bytes(addr + 3) = value.toByte
 
+  /** Prepend the length of the serialized content in the callback */
+  def withLength(work: => Unit): Unit =
+    val addr = reserveInt()
+    work
+    val len = size - addr
+    patchInt(addr, len)
+
   def length: Int = size
 
   def getBytes: Array[Byte] = bytes
