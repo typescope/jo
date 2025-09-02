@@ -276,8 +276,8 @@ object Encoder:
           encodeType(sym.info)
 
           val symSpan = sym.sourcePos.span
-          val startDelta = symSpan.start - cdef.span.start
-          encodeInt(startDelta)
+          val symStartDelta = startDelta + symSpan.start - cdef.span.start
+          encodeInt(symStartDelta)
           encodeInt(symSpan.length)
 
         repeated(cdef.funs): fdef =>
