@@ -65,3 +65,7 @@ object Format:
   final val TypeBound     : Byte = 14
   final val ContainerInfo : Byte = 15
   final val ClassInfo     : Byte = 16
+
+  final val Type: Byte = 0
+  final val Pattern: Byte = 1
+  final val Term: Byte = 2

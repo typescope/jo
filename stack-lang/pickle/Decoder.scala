@@ -35,9 +35,9 @@ object Decoder:
       if sym == null then
         val nameRef = nameRefs(index)
         sym = nameRef.kind match
-          case 2 => defn.resolveTermByPath(nameRef.fullName)
-          case 1 => defn.resolvePatternByPath(nameRef.fullName)
-          case 0 => defn.resolveTypeByPath(nameRef.fullName)
+          case Format.Term => defn.resolveTermByPath(nameRef.fullName)
+          case Format.Pattern => defn.resolvePatternByPath(nameRef.fullName)
+          case Format.Type => defn.resolveTypeByPath(nameRef.fullName)
 
         externalSymbols(index) = sym
       end

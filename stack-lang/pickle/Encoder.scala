@@ -137,9 +137,9 @@ object Encoder:
       Encoder.encodeNat(externalSymbols.size)
       for sym <- externalSymbols do
         encodeString(sym.fullName)
-        if sym.isType then encodeByte(0)
-        else if sym.isPattern then encodeByte(1)
-        else encodeByte(2)
+        if sym.isType then encodeByte(Format.Type)
+        else if sym.isPattern then encodeByte(Format.Pattern)
+        else encodeByte(Format.Term)
 
   end State
 
