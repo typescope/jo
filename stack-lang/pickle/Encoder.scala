@@ -466,15 +466,22 @@ object Encoder:
         throw new Exception("Unexpected type " + tpe)
 
   private def encodeWord(word: Word)(using defn: Definitions, state: State, buf: WriteBuffer): Unit = state.withPositioned(word): startDelta =>
+    def encodePosition() =
+      val lengthDelta = word.span.length - state.getChildrenLength
+      encodeInt(startDelta)
+      encodeInt(lengthDelta)
+
     word match
       case Literal(const) =>
         encodeByte(Format.Literal)
         encodeConstant(const)
         encodeType(word.tpe)
+        encodePosition()
 
       case Ident(sym) =>
         encodeByte(Format.Ident)
         encodeSymbolRef(sym)
+        encodePosition()
 
       case New(classRef, targs) =>
         encodeByte(Format.New)
@@ -482,10 +489,13 @@ object Encoder:
         repeated(targs): targ =>
           encodeTypeTree(targ)
 
+        encodePosition()
+
       case Select(qual, name) =>
         encodeByte(Format.Select)
         encodeWord(qual)
         encodeString(name)
+        encodePosition()
 
       case RecordLit(fields) =>
         encodeByte(Format.RecordLit)
@@ -494,26 +504,32 @@ object Encoder:
             encodeString(f)
             encodeWord(rhs)
 
+        encodePosition()
+
       case TaggedLit(tag, args) =>
         encodeByte(Format.TaggedLit)
         encodeWord(tag)
         repeated(args) { arg => encodeWord(arg) }
+        encodePosition()
 
       case Encoded(repr) =>
         encodeByte(Format.Encoded)
         encodeWord(repr)
         encodeType(word.tpe)
+        encodePosition()
 
       case Apply(fun, args, autos) =>
         encodeByte(Format.Apply)
         encodeWord(fun)
         repeated(args) { arg => encodeWord(arg) }
         repeated(autos) { auto => encodeWord(auto) }
+        encodePosition()
 
       case TypeApply(fun, targs) =>
         encodeByte(Format.TypeApply)
         encodeWord(fun)
         repeated(targs) { targ => encodeTypeTree(targ) }
+        encodePosition()
 
       case With(expr, args) =>
         encodeByte(Format.With)
@@ -523,20 +539,25 @@ object Encoder:
             encodeWord(ident)
             encodeWord(rhs)
 
+        encodePosition()
+
       case Allow(expr, params) =>
         encodeByte(Format.Allow)
         encodeWord(expr)
         repeated(params) { param => encodeWord(param) }
+        encodePosition()
 
       case Assign(ident, rhs) =>
         encodeByte(Format.Assign)
         encodeWord(ident)
         encodeWord(rhs)
+        encodePosition()
 
       case FieldAssign(lhs, rhs) =>
         encodeByte(Format.FieldAssign)
         encodeWord(lhs)
         encodeWord(rhs)
+        encodePosition()
 
       case vdef: ValDef => encodeDef(vdef)
 
@@ -552,15 +573,18 @@ object Encoder:
         encodeWord(thenp)
         encodeWord(elsep)
         encodeType(word.tpe)
+        encodePosition()
 
       case While(cond, body) =>
         encodeByte(Format.While)
         encodeWord(cond)
         encodeWord(body)
+        encodePosition()
 
       case Block(words) =>
         encodeByte(Format.Block)
         repeated(words) { word => encodeWord(word) }
+        encodePosition()
 
       case Match(scrutinee, cases) =>
         encodeByte(Format.Match)
@@ -571,6 +595,7 @@ object Encoder:
             encodeWord(body)
 
         encodeType(word.tpe)
+        encodePosition()
 
       case Object(self, members) =>
         encodeByte(Format.Object)
@@ -579,53 +604,63 @@ object Encoder:
         encodeString(self.name)
 
         repeated(members) { m => encodeDef(m) }
-
-    val lengthDelta = word.span.length - state.getChildrenLength
-    encodeInt(startDelta)
-    encodeInt(lengthDelta)
+        encodePosition()
 
   private def encodePattern(pattern: Pattern)(using defn: Definitions, state: State, buf: WriteBuffer): Unit = state.withPositioned(pattern): startDelta =>
+    def encodePosition() =
+      val lengthDelta = pattern.span.length - state.getChildrenLength
+      encodeInt(startDelta)
+      encodeInt(lengthDelta)
+
     pattern match
       case AliasPattern(id, nested) =>
         encodeByte(Format.AliasPattern)
         encodeWord(id)
         encodePattern(nested)
+        encodePosition()
 
       case TypePattern(tpt) =>
         encodeByte(Format.TypePattern)
         encodeType(pattern.scrutineeType)
         encodeTypeTree(tpt)
+        encodePosition()
 
       case TagPattern(tagLit, nested) =>
         encodeByte(Format.TagPattern)
         encodeWord(tagLit)
         repeated(nested) { pat => encodePattern(pat) }
+        encodePosition()
 
       case ApplyPattern(fun, nested) =>
         encodeByte(Format.ApplyPattern)
         encodeType(pattern.scrutineeType)
         encodeWord(fun)
         repeated(nested) { pat => encodePattern(pat) }
+        encodePosition()
 
       case OrPattern(lhs, rhs) =>
         encodeByte(Format.OrPattern)
         encodePattern(lhs)
         encodePattern(rhs)
+        encodePosition()
 
       case ValuePattern(value) =>
         encodeByte(Format.ValuePattern)
         encodeType(pattern.scrutineeType)
         encodeWord(value)
+        encodePosition()
 
       case GuardPattern(pattern, guard) =>
         encodeByte(Format.GuardPattern)
         encodePattern(pattern)
         encodeWord(guard)
+        encodePosition()
 
       case BindPattern(pattern, bindings) =>
         encodeByte(Format.BindPattern)
         encodePattern(pattern)
         repeated(bindings) { binding => encodeWord(binding) }
+        encodePosition()
 
       case SeqPattern(pats) =>
         encodeByte(Format.SeqPattern)
@@ -635,10 +670,12 @@ object Encoder:
           case AtomPattern(pattern) =>
             encodeByte(Format.AtomPattern)
             encodePattern(pattern)
+            encodePosition()
 
           case SkipToPattern(pattern) =>
             encodeByte(Format.SkipToPattern)
             encodePattern(pattern)
+            encodePosition()
 
           case star @ StarPattern(pattern) =>
             encodeByte(Format.StarPattern)
@@ -651,17 +688,19 @@ object Encoder:
 
               encodeSymbolRef(sym2)
 
+            encodePosition()
+
           case RestPattern(pattern) =>
             encodeByte(Format.RestPattern)
             encodePattern(pattern)
+            encodePosition()
+
+        encodePosition()
 
       case WildcardPattern() =>
         encodeByte(Format.WildcardPattern)
         encodeType(pattern.scrutineeType)
-
-    val lengthDelta = pattern.span.length - state.getChildrenLength
-    encodeInt(startDelta)
-    encodeInt(lengthDelta)
+        encodePosition()
 
   private def encodeBool(b: Boolean)(using buf: WriteBuffer): Unit =
     buf.addBool(b)
