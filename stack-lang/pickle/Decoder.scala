@@ -7,6 +7,7 @@ import sast.Types.*
 import sast.Symbols.*
 
 import typing.Namer.DelayedDef
+import reporting.Reporter
 
 import scala.collection.mutable
 
@@ -61,11 +62,15 @@ object Decoder:
 
   end State
 
+  def error(message: String): Nothing = Reporter.abortInternal(message)
+
+  def error(message: String, pos: SourcePosition): Nothing = Reporter.abort(message, pos)
+
   //----------------------------------------------------------------------------
 
-  def decode()(using buf: ReadBuffer, defn: Definitions): DelayedDef[Namespace] =
-    val rootName: String = decodeString()
-    val source: Source = decodeSource()
+  def decode()(using buf: ReadBuffer, defnLazy: Definitions.Lazy): DelayedDef[Namespace] =
+    val rootName = decodeString()
+    val source = decodeSource()
     val symSpan = decodeSpan()
 
     // Read external name table
@@ -73,20 +78,93 @@ object Decoder:
     val nameRefs: Array[NameRef] = buf.withPosition(nameTableAddr):
       decodeExternalNameTable()
 
-    // TODO: root symbol and info
-    val rootSymbol: Symbol = ???
+    given Source = source
+
+    val rootSymbol: Symbol = resolveNamespace(
+      rootName.split('.'),
+      symSpan.toPos,
+      isBranch = false
+    )
 
     given state: State = new State(rootSymbol, nameRefs)
 
-    val delayedMembers: Array[DelayedDef[Def]] = index()
+    val delayedMembers: Array[DelayedDef[Def]] = index(rootSymbol)
 
     val span = Span(eecodeNat(), decodeNat())
+
+    // Add members
+    val nameTable = infoProvider.info(nsSym).as[ContainerInfo].nameTable
+    for d <- delayedMembers do nameTable.define(d.symbol)
 
     val delayd = () =>
       val members = for d <- delayedMembers yield d.force()
       Namespace(rootSymbol, List.empty, members)(span)
 
     DelayedDef(rootSymbol, delayed)
+
+
+  /** Resolve namespace and create intermediate namespace on demand
+    *
+    * It also checks redefinition of namespace.
+    */
+  def resolveNamespace
+      (parts: List[String], pos: SourcePosition, isBranch: Boolean)
+      (using defnLazy: Definitions.Lazy)
+  : Symbol =
+
+    def check(sym: Symbol): Symbol =
+      val name = sym.name
+      val pos = sym.sourcePos
+      val context = s"Context: loading ${pos.source.file}"
+
+      if sym.isNamespace && !sym.isAlias then
+        if isBranch && !sym.is(Flags.Branch) then
+          error(s"The $name is already defined as a namespace at $pos. $context")
+
+        else if !isBranch then
+          // leaf namespace should not exist
+          if sym.is(Flags.Branch) then
+            error(s"The namespace $name is already defined as a branch name at $pos. $context")
+
+          else
+            error(s"The namespace $name is already defined at $pos. $context")
+
+        else
+          sym
+
+      else
+        error(s"The $name is already defined as a member at $pos. $context")
+
+    val rootNameTable = defnLazy.rootNameTable
+    val infoProvider = defnLazy.infoProvider
+
+    parts match
+      case name :: Nil =>
+        rootNameTable.resolveTerm(name) match
+          case None =>
+            val flags = if isBranch then Flags.NSpace | Flags.Branch else Flags.NSpace
+            val sym = Symbol.createSymbol(name, flags, pos)
+            rootNameTable.define(sym)
+            infoProvider.add(sym, owner = null, new ContainerInfo(new NameTable))
+            sym
+
+          case Some(sym) => check(sym)
+
+      case prefix :+ name =>
+        val nsSym = resolveNamespace(prefix, pos, isBranch = true)
+
+        assert(nsSym.isNamespace, "Not a namespace " + nsSym)
+        val nameTable = infoProvider.info(nsSym).as[ContainerInfo].nameTable
+
+        nameTable.resolveTerm(name) match
+          case Some(sym) => check(sym)
+
+          case None =>
+            val flags = if isBranch then Flags.NSpace | Flags.Branch else Flags.NSpace
+            val sym = Symbol.createSymbol(name, flags, pos)
+            infoProvider.add(sym, nsSym, new ContainerInfo(new NameTable))
+            nameTable.define(sym)
+            sym
 
   /** Index definitions without loading trees and symbol infos */
   private def index(owner: Symbol)(using buf: ReadBuffer, defn: Definitions, state: State): Array[DelayedDef[Def]] =
