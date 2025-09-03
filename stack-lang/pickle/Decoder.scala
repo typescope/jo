@@ -107,9 +107,9 @@ object Decoder:
     *
     * It also checks redefinition of namespace.
     */
-  def resolveNamespace
-      (parts: List[String], pos: SourcePosition, isBranch: Boolean)
-      (using defnLazy: Definitions.Lazy)
+  def resolveNamespace(
+      parts: List[String], pos: SourcePosition, rootNameTable: NameTable,
+      infoProvider: InfoProvider, isBranch: Boolean)
   : Symbol =
 
     def check(sym: Symbol): Symbol =
@@ -135,9 +135,6 @@ object Decoder:
       else
         error(s"The $name is already defined as a member at $pos. $context")
 
-    val rootNameTable = defnLazy.rootNameTable
-    val infoProvider = defnLazy.infoProvider
-
     parts match
       case name :: Nil =>
         rootNameTable.resolveTerm(name) match
@@ -151,7 +148,7 @@ object Decoder:
           case Some(sym) => check(sym)
 
       case prefix :+ name =>
-        val nsSym = resolveNamespace(prefix, pos, isBranch = true)
+        val nsSym = resolveNamespace(prefix, pos, rootNameTable, infoProvider, isBranch = true)
 
         assert(nsSym.isNamespace, "Not a namespace " + nsSym)
         val nameTable = infoProvider.info(nsSym).as[ContainerInfo].nameTable
@@ -167,14 +164,10 @@ object Decoder:
             sym
 
   /** Index definitions without loading trees and symbol infos */
-  private def index(owner: Symbol)(using buf: ReadBuffer, defn: Definitions, state: State): Array[DelayedDef[Def]] =
-    val count = decodeNat()
-    val delayedDefs = new Array[DelayedDef[Def]](count)
-
+  private def index(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): Array[DelayedDef[Def]] =
     given Source = owner.sourcePos.source
 
-    var i = 0
-    while i < count do
+    decodeRepeated:
       // Store the current buffer position for this definition
       val defPosition = buf.position
       val defType = decodeByte()
@@ -264,10 +257,7 @@ object Decoder:
         case _ =>
           throw new Exception(s"Unknown definition type: $defType")
 
-      i += 1
-    end while
-
-    delayedDefs
+  end index
 
   //----------------------------------------------------------------------------
 
