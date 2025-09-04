@@ -137,9 +137,6 @@ object Encoder:
       encodeDef(defn, lastOffset)
       lastOffset = defn.span.endOffset
 
-    encodeNat(ns.start)
-    encodeNat(ns.length)
-
     // must comes after last
     buf.patchInt(addrNameTable, buf.length)
     state.encodeExternalNameTable()
@@ -227,7 +224,7 @@ object Encoder:
         encodeFlags(defSym.flags & (Flags.Auto | Flags.Mutable))
         encodeDefSymPos()
         encodeType(defSym.info)
-        encodeWord(vdef.rhs)
+        encodeWord(vdef.rhs, prevOffset)
 
       case pdef: ParamDef =>
         encodeByte(Format.ParamDef)
@@ -236,7 +233,7 @@ object Encoder:
         encodeString(defSym.name)
         encodeFlags(defSym.flags & Flags.Default)
         encodeDefSymPos()
-        encodeTypeTree(pdef.tpt)
+        encodeTypeTree(pdef.tpt, prevOffset)
 
       case cdef: ClassDef => buf.withLength:
         encodeByte(Format.ClassDef)
@@ -245,7 +242,7 @@ object Encoder:
         encodeString(defSym.name)
         encodeDefSymPos()
 
-        encodeTypeParams(prevOffset, cdef.tparams)
+        encodeTypeParams(cdef.tparams, prevOffset)
 
         encodeNat(state.internalId(cdef.self))
         encodeFlags(cdef.self.flags & Flags.Auto)
@@ -318,7 +315,7 @@ object Encoder:
       case sec: Section => buf.withLength:
         encodeByte(Format.Section)
         encodeNat(state.internalId(defSym))
-        encodeString(defSym.name
+        encodeString(defSym.name)
         encodeDefSymPos()
 
         var lastOffset = prevOffset
@@ -448,7 +445,7 @@ object Encoder:
         throw new Exception("Unexpected type " + tpe)
 
   private def encodeWord(word: Word, prevOffset: Int)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
-    val startDelta = tpt.span.start - prevOffset
+    val startDelta = word.span.start - prevOffset
 
     word match
       case Literal(const) =>
@@ -506,7 +503,7 @@ object Encoder:
         encodeByte(Format.Apply)
         encodeWord(fun, prevOffset)
 
-        var lastOffset = expr.span.endOffset
+        var lastOffset = fun.span.endOffset
         repeated(args): arg =>
           encodeWord(arg, lastOffset)
           lastOffset = arg.span.endOffset
@@ -605,7 +602,7 @@ object Encoder:
           lastOffset = m.span.endOffset
 
   private def encodePattern(pattern: Pattern, prevOffset: Int)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
-    val startDelta = tpt.span.start - prevOffset
+    val startDelta = pattern.span.start - prevOffset
 
     pattern match
       case AliasPattern(id, nested) =>
@@ -633,9 +630,9 @@ object Encoder:
         encodeType(pattern.scrutineeType)
         encodeWord(fun, prevOffset)
 
-        var lastOffset = tagLit.span.endOffset
+        var lastOffset = fun.span.endOffset
         repeated(nested): pat =>
-          encodePattern(pat)
+          encodePattern(pat, lastOffset)
           lastOffset = pat.span.endOffset
 
       case OrPattern(lhs, rhs) =>
