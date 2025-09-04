@@ -28,7 +28,7 @@ import scala.collection.mutable
   *   However, that may bloat file sizes.
   *
   *   ZIP is very good at reducing duplicate strings, so no effort is made in
-  *   reducing duplication in names.
+  *   reducing duplication in names except for shared owners in the prefix.
   *
   *   See https://en.wikipedia.org/wiki/Deflate
   *
