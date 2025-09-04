@@ -44,12 +44,12 @@ class NameTable(
   def resolveByPathParts(parts: List[String])(using Definitions): List[Symbol] =
     val syms = NameTable.resolveStatic(this, parts)
     if syms.isEmpty then
-      throw new Exception("Not found: " + path + ", name table " + this.show)
+      throw new Exception("Not found: " + parts + ", name table " + this.show)
     else
       syms
 
   def resolveByPath(path: String)(using Definitions): List[Symbol] =
-    resolveByPathParts(path.split('.'))
+    resolveByPathParts(path.split('.').toList)
 
   def resolveTermByPath(path: String)(using Definitions): Symbol =
     resolveByPath(path).filter(!_.isOneOf(Flags.Pattern | Flags.Type)).head

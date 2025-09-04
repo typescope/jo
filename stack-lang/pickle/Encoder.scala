@@ -70,48 +70,26 @@ import scala.collection.mutable
   *
   */
 object Encoder:
-  private class State(val root: Symbol):
+  /** A name table maps external symbols to full name and its kind */
+  private class NameTable:
     /** Name reference to externally defined symbols */
     private val externalSymbols = new mutable.ArrayBuffer[Symbol]
 
-    /** Map a symbol to a unique ID
-      *
-      * The mapping is defined for all internally defined symbols (top-level and
-      * local).
-      *
-      * The unique ID is only valid within the scope of the namespace for
-      * writing/reading.
-      */
-    private val internalSymIds = mutable.Map.empty[Symbol, Int]
-
-    private var internalSymbolCount = 0
-
-    def getExternalSymbolIndex(sym: Symbol)(using Definitions): Int =
+    def getIndex(sym: Symbol)(using Definitions): Int =
       val index = externalSymbols.indexOf(sym)
       if index < 0 then
         val index = externalSymbols.size
         externalSymbols += sym
 
         // Ensure owners are in the table
-        if sym.owner != null then getExternalSymbolIndex(sym.owner)
+        if sym.owner != null then getIndex(sym.owner)
 
         index
 
       else
         index
 
-    def internalId(sym: Symbol)(using Definitions): Int =
-      assert(sym.containedIn(root) || sym.isTypeParameter, sym.fullName)
-      internalSymIds.get(sym) match
-        case Some(id) => id
-        case None =>
-          val id = internalSymbolCount
-          internalSymIds(sym) = id
-          internalSymbolCount += 1
-          id
-      end match
-
-    def encodeExternalNameTable()(using defn: Definitions, buf: WriteBuffer) =
+    def encode()(using defn: Definitions, buf: WriteBuffer) =
       Encoder.encodeNat(externalSymbols.size)
 
       for sym <- externalSymbols do
@@ -130,6 +108,42 @@ object Encoder:
         else if sym.isPattern then encodeByte(Format.Pattern)
         else encodeByte(Format.Term)
 
+  /** Symbol table map internal symbols to unique ids */
+  private class SymbolTable(root: Symbol):
+    /** Map a symbol to a unique ID
+      *
+      * The mapping is defined for all internally defined symbols (top-level and
+      * local).
+      *
+      * The unique ID is only valid within the scope of the namespace for
+      * writing/reading.
+      */
+    private val symIds = mutable.Map.empty[Symbol, Int]
+
+    private var symbolCount = 0
+
+    def getId(sym: Symbol)(using Definitions): Int =
+      // Type parameter in ProcType and TypeLambda can be external symbols
+      //
+      // However, the source of those symbols are irrelevant as in essense they
+      // are bound names in types.
+      assert(sym.containedIn(root) || sym.isTypeParameter, sym.fullName)
+      symIds.get(sym) match
+        case Some(id) => id
+
+        case None =>
+          val id = symbolCount
+          symIds(sym) = id
+          symbolCount += 1
+          id
+      end match
+
+  private class State(val root: Symbol):
+    val nameTable = new NameTable
+    val symbolTable = new SymbolTable(root)
+
+    def getId(sym: Symbol)(using Definitions): Int =
+      symbolTable.getId(sym)
   end State
 
   extension (inline work: Unit)
@@ -150,7 +164,7 @@ object Encoder:
     given state: State = new State(symbol)
     given buf: WriteBuffer = new WriteBuffer(1 << 12)
 
-    encodeString(symbol.fullName)
+    state.nameTable.getIndex(symbol)
     encodeSource(symbol.sourcePos.source)
     encodeNat(symbol.span.start)
     encodeNat(symbol.span.length)
@@ -162,7 +176,7 @@ object Encoder:
 
     // must comes after last
     buf.patchInt(addrNameTable, buf.length)
-    state.encodeExternalNameTable() < ("Nametable for " + symbol.fullName, enable = true)
+    state.nameTable.encode() < ("Nametable for " + symbol.fullName, enable = true)
 
     buf
 
@@ -176,12 +190,12 @@ object Encoder:
   private def encodeSymbolRef(symbol: Symbol)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
     if symbol.containedIn(state.root) then
       encodeByte(0)
-      encodeNat(state.internalId(symbol))
+      encodeNat(state.getId(symbol))
 
     else
       assert(!symbol.isLocal, "Cannot reference external local symbol: " + symbol)
       encodeByte(1)
-      encodeNat(state.getExternalSymbolIndex(symbol))
+      encodeNat(state.nameTable.getIndex(symbol))
 
   private def encodeFlags(flags: Flags)(using buf: WriteBuffer): Unit =
     // Not all flags need serialization, handled by caller
@@ -205,7 +219,7 @@ object Encoder:
   private def encodeTypeParams(tparams: List[Symbol], prevOffset: Int)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
     // Assume type param section is small such that the delta is small even for the same base offset
     repeated(tparams): tparam =>
-      encodeNat(state.internalId(tparam))
+      encodeNat(state.getId(tparam))
       encodeString(tparam.name)
       encodeKind(tparam.asTypeSymbol.kind)
       encodeType(tparam.info)
@@ -218,7 +232,7 @@ object Encoder:
   private def encodeParams(params: List[Symbol], prevOffset: Int)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
     // Assume param section is small such that the delta is small even for the same base offset
     repeated(params): param =>
-      encodeNat(state.internalId(param))
+      encodeNat(state.getId(param))
       encodeString(param.name)
       encodeType(param.info)
 
@@ -242,7 +256,7 @@ object Encoder:
       case vdef: ValDef =>
         encodeByte(Format.ValDef)
 
-        encodeNat(state.internalId(defSym))
+        encodeNat(state.getId(defSym))
         encodeString(defSym.name)
         encodeFlags(defSym.flags & (Flags.Auto | Flags.Mutable))
         encodeDefSymPos()
@@ -252,7 +266,7 @@ object Encoder:
       case pdef: ParamDef =>
         encodeByte(Format.ParamDef)
 
-        encodeNat(state.internalId(defSym))
+        encodeNat(state.getId(defSym))
         encodeString(defSym.name)
         encodeFlags(defSym.flags & Flags.Default)
         encodeDefSymPos()
@@ -261,19 +275,19 @@ object Encoder:
       case cdef: ClassDef => buf.withLength:
         encodeByte(Format.ClassDef)
 
-        encodeNat(state.internalId(defSym))
+        encodeNat(state.getId(defSym))
         encodeString(defSym.name)
         encodeDefSymPos()
 
         encodeTypeParams(cdef.tparams, absoluteStart)
 
-        encodeNat(state.internalId(cdef.self))
+        encodeNat(state.getId(cdef.self))
         encodeFlags(cdef.self.flags & Flags.Auto)
         encodeString(cdef.self.name)
 
         // TODO: maintain members in original order
         repeated(cdef.vals): sym =>
-          encodeNat(state.internalId(sym))
+          encodeNat(state.getId(sym))
           encodeFlags(sym.flags & (Flags.Auto | Flags.Mutable))
           encodeString(sym.name)
           encodeType(sym.info)
@@ -289,7 +303,7 @@ object Encoder:
       case fdef: FunDef => buf.withLength:
         encodeByte(Format.FunDef)
 
-        encodeNat(state.internalId(defSym))
+        encodeNat(state.getId(defSym))
         encodeString(defSym.name)
         encodeFlags(defSym.flags & (Flags.Auto))
         encodeDefSymPos()
@@ -309,7 +323,7 @@ object Encoder:
       case pdef: PatDef => buf.withLength:
         encodeByte(Format.PatDef)
 
-        encodeNat(state.internalId(defSym))
+        encodeNat(state.getId(defSym))
         encodeString(defSym.name)
         encodeDefSymPos()
 
@@ -327,7 +341,7 @@ object Encoder:
       case tdef: TypeDef =>
         encodeByte(Format.TypeDef)
 
-        encodeNat(state.internalId(defSym))
+        encodeNat(state.getId(defSym))
         encodeString(defSym.name)
         encodeType(defSym.info)
         encodeDefSymPos()
@@ -335,7 +349,7 @@ object Encoder:
 
       case sec: Section => buf.withLength:
         encodeByte(Format.Section)
-        encodeNat(state.internalId(defSym))
+        encodeNat(state.getId(defSym))
         encodeString(defSym.name)
         encodeDefSymPos()
 
@@ -421,7 +435,7 @@ object Encoder:
         // The position information is irrelevant.
         repeated(tparams): tparam =>
           // The type param can be external
-          encodeNat(state.internalId(tparam))
+          encodeNat(state.getId(tparam))
           encodeString(tparam.name)
           encodeType(tparam.info)
 
@@ -448,7 +462,7 @@ object Encoder:
         // The position information is irrelevant.
         repeated(tparams): tparam =>
           // The type param can be external
-          encodeNat(state.internalId(tparam))
+          encodeNat(state.getId(tparam))
           encodeString(tparam.name)
           encodeType(tparam.info)
 
@@ -612,7 +626,7 @@ object Encoder:
         encodeByte(Format.Object)
 
         encodeInt(startDelta)
-        encodeNat(state.internalId(self))
+        encodeNat(state.getId(self))
         encodeString(self.name)
 
         repeated(members): m =>
@@ -698,7 +712,7 @@ object Encoder:
             encodeByte(Format.StarPattern)
             encodePattern(pattern, lastOffset)
             repeated(star.bindings): (sym1, sym2) =>
-              val id = state.internalId(sym1)
+              val id = state.getId(sym1)
               encodeNat(id)
               encodeString(sym1.name)
               encodeType(sym1.info)
