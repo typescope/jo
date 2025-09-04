@@ -117,10 +117,10 @@ object Encoder:
       *
       * The unique ID is only valid within the scope of the namespace for
       * writing/reading.
+      *
+      * An array is faster than a map.
       */
-    private val symIds = mutable.Map.empty[Symbol, Int]
-
-    private var symbolCount = 0
+    private val internalSymbols  = new mutable.ArrayBuffer[Symbol]
 
     def getId(sym: Symbol)(using Definitions): Int =
       // Type parameter in ProcType and TypeLambda can be external symbols
@@ -128,15 +128,16 @@ object Encoder:
       // However, the source of those symbols are irrelevant as in essense they
       // are bound names in types.
       assert(sym.containedIn(root) || sym.isTypeParameter, sym.fullName)
-      symIds.get(sym) match
-        case Some(id) => id
 
-        case None =>
-          val id = symbolCount
-          symIds(sym) = id
-          symbolCount += 1
-          id
-      end match
+      val index = internalSymbols.indexOf(sym)
+
+      if index < 0 then
+        val index = internalSymbols.size
+        internalSymbols += sym
+        index
+
+      else
+        index
 
   private class State(val root: Symbol):
     val nameTable = new NameTable
