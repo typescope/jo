@@ -209,9 +209,10 @@ object Decoder:
 
   private def decodeParamDef(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): DelayedDef[ParamDef] =
     given Source = owner.sourcePos.source
-    val absoluteStart = decodeInt()
     val length = decodeIntRaw()
     val pos = buf.position
+
+    val absoluteStart = decodeInt()
 
     val id = decodeNat()
     val name = decodeString()
@@ -241,9 +242,12 @@ object Decoder:
 
     paramDef
 
-  private def decodeFunDef()(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): Def =
-    val absoluteStart = decodeInt()
+  private def decodeFunDef(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): Def =
+    given Source = owner.sourcePos.source
     val length = decodeIntRaw()
+    val pos = buf.position
+
+    val absoluteStart = decodeInt()
 
     val id = decodeNat()
     val symbol = state.getInternalSymbol(id)
@@ -288,9 +292,12 @@ object Decoder:
 
     FunDef(symbol, tparams, params, autos, resultType, body)(Span(absoluteStart, symSpanLength))
 
-  private def decodeClassDef()(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): Def =
-    val absoluteStart = decodeInt()
+  private def decodeClassDef(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): Def =
+    given Source = owner.sourcePos.source
     val length = decodeIntRaw()
+    val pos = buf.position
+
+    val absoluteStart = decodeInt()
     val id = decodeNat()
     val symbol = state.getInternalSymbol(id)
     skipString() // name - already in symbol
@@ -338,6 +345,9 @@ object Decoder:
 
   private def decodeTypeDef(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): DelayedDef[TypeDef] =
     given Source = owner.sourcePos.source
+    val length = decodeIntRaw()
+    val pos = buf.position
+
     val absoluteStart = decodeInt()
     val id = decodeNat()
     val name = decodeString()
@@ -360,14 +370,19 @@ object Decoder:
     DelayedDef(symbol, delayed)
 
   private def decodePatDef()(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): Def =
-    val absoluteStart = decodeInt()
+    given Source = owner.sourcePos.source
     val length = decodeIntRaw()
+    val pos = buf.position
+
+    val absoluteStart = decodeInt()
     // Implementation similar to FunDef but for PatDef structure
     throw new Exception("PatDef decoding not yet implemented")
 
   private def decodeSection()(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): Def =
-    val absoluteStart = decodeInt()
+    given Source = owner.sourcePos.source
     val length = decodeIntRaw()
+    val pos = buf.position
+
     val id = decodeNat()
     val symbol = state.getInternalSymbol(id)
     skipString() // name - already in symbol
