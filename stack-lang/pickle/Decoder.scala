@@ -87,7 +87,7 @@ object Decoder:
 
     given state: State = new State(rootSymbol, nameRefs)
 
-    val delayedDefs: Array[DelayedDef[Def]] = index(rootSymbol)
+    val delayedDefs: Array[DelayedDef[Def]] = decodeRepeated(decodeDef(rootSymbol))
 
     val span = Span(decodeNat(), decodeNat())
 
@@ -170,35 +170,24 @@ object Decoder:
             nameTable.define(sym)
             sym
 
-  /** Index definitions by creating delayed definitions */
-  private def index(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): Array[DelayedDef[Def]] =
-    decodeRepeated:
-      val defType = decodeByte()
-
-      defType match
-        case Format.ParamDef => decodeParamDef(owner)
-        case Format.FunDef => decodeFunDef(owner)
-        case Format.ClassDef => decodeClassDef(owner)
-        case Format.TypeDef => decodeTypeDef(owner)
-        case Format.PatDef => decodePatDef(owner)
-        case Format.Section => decodeSection(owner)
-        case _ => throw new Exception(s"Unknown definition type in index: $defType")
-
-  /** Decode a single definition tree - must be called after index() has been called */
-  private def decodeDef()(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): Def =
+  /** Decode a definition and return delayed definition
+    *
+    * Invariant:
+    *
+    * The buffer position for decodeXXX should be at the end of its definition
+    * after the call.
+    */
+  private def decodeDef(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): DelayedDef[Def] =
     val defType = decodeByte()
 
     defType match
-      case Format.ValDef => decodeValDef()
-      case Format.ParamDef => decodeParamDef()
-      case Format.FunDef => decodeFunDef()
-      case Format.ClassDef => decodeClassDef()
-      case Format.TypeDef => decodeTypeDef()
-      case Format.PatDef => decodePatDef()
-      case Format.Section => decodeSection()
+      case Format.ParamDef => decodeParamDef(owner)
+      case Format.FunDef => decodeFunDef(owner)
+      case Format.ClassDef => decodeClassDef(owner)
+      case Format.TypeDef => decodeTypeDef(owner)
+      case Format.PatDef => decodePatDef(owner)
+      case Format.Section => decodeSection(owner)
       case _ => throw new Exception(s"Unknown definition type in decodeDef: $defType")
-
-  end decodeDef
 
   private def decodeValDef(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): DelayedDef[ValDef] =
     given Source = owner.sourcePos.source
@@ -335,7 +324,7 @@ object Decoder:
 
     // Decode function definitions
     val funs = decodeRepeated: _ =>
-      decodeDef()
+      decodeDef(symbol)
 
     ClassDef(symbol, tparams, self, vals, funs)(Span(absoluteStart, symSpanLength))
 
@@ -715,7 +704,7 @@ object Decoder:
           val self = new Symbol(selfName, Flags.Empty)
           state.registerInternalSymbol(selfId, self)
 
-          val members = decodeRepeated(decodeDef()).map:
+          val members = decodeRepeated(decodeDef(self)).map:
             case v: ValDef => v
             case f: FunDef => f
             case _ => throw new Exception("Object can only contain val and fun definitions")
