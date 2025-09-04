@@ -117,6 +117,16 @@ object Encoder:
 
   end State
 
+  extension (inline work: Unit)
+    inline def <[T](message: => String, enable: Boolean)(using buf: WriteBuffer) =
+      inline if enable then
+        val start = buf.length
+        work
+        val delta = buf.length - start
+        println(message + ": " + delta)
+      else
+        work
+
   //----------------------------------------------------------------------------
 
   def encode(ns: Namespace)(using Definitions): WriteBuffer =
@@ -139,7 +149,7 @@ object Encoder:
 
     // must comes after last
     buf.patchInt(addrNameTable, buf.length)
-    state.encodeExternalNameTable()
+    state.encodeExternalNameTable() < ("Nametable for " + symbol.fullName, enable = false)
 
     buf
 
