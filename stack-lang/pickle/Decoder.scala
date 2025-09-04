@@ -26,10 +26,10 @@ object Decoder:
     /** Map from internal symbol IDs to symbols */
     private val internalSymbols = mutable.Map.empty[Int, Symbol]
 
-
     def getExternalSymbol(index: Int)(using defn: Definitions): Symbol =
       if index < 0 || index >= externalSymbols.length then
         throw new Exception(s"Invalid external symbol index: $index")
+
       var sym = externalSymbols(index)
       if sym == null then
         val nameRef = nameRefs(index)
@@ -57,7 +57,6 @@ object Decoder:
       internalSymbols.get(id) match
         case Some(sym) => sym
         case None => throw new Exception(s"Unknown internal symbol id: $id")
-
 
   end State
 
@@ -189,28 +188,24 @@ object Decoder:
       case Format.Section => decodeSection(owner)
       case _ => throw new Exception(s"Unknown definition type in decodeDef: $defType")
 
-  private def decodeValDef(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): DelayedDef[ValDef] =
+  private def decodeValDef(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions, state: State): ValDef =
     given Source = owner.sourcePos.source
+
     val absoluteStart = decodeInt()
     val id = decodeNat()
     val name = decodeString()
     val flags = decodeFlags()
     val symStartDelta = decodeInt()
     val symSpanLength = decodeNat()
-    val symbolType = decodeType()
+    val info = decodeType()
 
-    // Create and register symbol immediately
-    val actualSpan = Span(absoluteStart, symSpanLength)
-    val symbol = Symbol.createSymbol(name, flags, actualSpan.toPos)
-    symbol.setInfo(symbolType)
+    val symSpan = Span(absoluteStart + symStartDelta, symSpanLength)
+    val symbol = Symbol.createSymbol(name, info, flags, owner, symSpan.toPos)
     state.registerInternalSymbol(id, symbol)
 
-    // Return delayed definition
-    val delayed = () =>
-      val rhs = decodeWord(symbol, absoluteStart)
-      ValDef(symbol, rhs)(actualSpan)
-
-    DelayedDef(symbol, delayed)
+    val rhs = decodeWord(owner, absoluteStart)
+    val span = Span(absoluteStart, rhs.span.endOffset - absoluteStart)
+    ValDef(symbol, rhs)(span)
 
   private def decodeParamDef(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): DelayedDef[ParamDef] =
     given Source = owner.sourcePos.source
@@ -655,7 +650,7 @@ object Decoder:
           FieldAssign(lhs, rhs)(VoidType, span)
 
         case Format.ValDef =>
-          decodeValDef(owner).force()
+          decodeValDef(owner)
 
         case Format.FunDef =>
           decodeFunDef(owner).force()
