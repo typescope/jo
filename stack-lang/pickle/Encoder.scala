@@ -252,11 +252,10 @@ object Encoder:
       encodeInt(startDelta)
       encodeNat(defSym.span.length)
 
-    encodeNat(absoluteStart)
-
     defn match
       case vdef: ValDef =>
         encodeByte(Format.ValDef)
+        encodeNat(absoluteStart)
 
         encodeNat(state.getId(defSym))
         encodeString(defSym.name)
@@ -267,6 +266,7 @@ object Encoder:
 
       case pdef: ParamDef =>
         encodeByte(Format.ParamDef)
+        encodeNat(absoluteStart)
 
         encodeNat(state.getId(defSym))
         encodeString(defSym.name)
@@ -276,6 +276,7 @@ object Encoder:
 
       case cdef: ClassDef => buf.withLength:
         encodeByte(Format.ClassDef)
+        encodeNat(absoluteStart)
 
         encodeNat(state.getId(defSym))
         encodeString(defSym.name)
@@ -304,6 +305,7 @@ object Encoder:
 
       case fdef: FunDef => buf.withLength:
         encodeByte(Format.FunDef)
+        encodeNat(absoluteStart)
 
         encodeNat(state.getId(defSym))
         encodeString(defSym.name)
@@ -324,6 +326,7 @@ object Encoder:
 
       case pdef: PatDef => buf.withLength:
         encodeByte(Format.PatDef)
+        encodeNat(absoluteStart)
 
         encodeNat(state.getId(defSym))
         encodeString(defSym.name)
@@ -342,6 +345,7 @@ object Encoder:
 
       case tdef: TypeDef =>
         encodeByte(Format.TypeDef)
+        encodeNat(absoluteStart)
 
         encodeNat(state.getId(defSym))
         encodeString(defSym.name)
@@ -351,6 +355,7 @@ object Encoder:
 
       case sec: Section => buf.withLength:
         encodeByte(Format.Section)
+        encodeNat(absoluteStart)
         encodeNat(state.getId(defSym))
         encodeString(defSym.name)
         encodeDefSymPos()

@@ -70,7 +70,7 @@ object Decoder:
   def decode()(using buf: ReadBuffer, defnLazy: Definitions.Lazy): DelayedDef[Namespace] =
     val nameIndex = decodeNat()
     val source = decodeSource()
-    val symSpan = decodeSpan()
+    val symSpan = Span(decodeNat(), decodeNat())
 
     // Read external name table
     val nameTableAddr: Int = decodeIntRaw()
@@ -185,16 +185,33 @@ object Decoder:
         case Format.Section => decodeSectionSymbol(owner)
         case _ => throw new Exception(s"Unknown definition type in index: $defType")
 
+  private def decodeValDefSymbol(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): Symbol =
+    given Source = owner.sourcePos.source
+    val absoluteStart = decodeInt()
+    val id = decodeNat()
+    val name = decodeString()
+    val flags = decodeFlags()
+    val startDelta = decodeInt()
+    val spanLength = decodeNat()
+    val symbolType = decodeType()
+
+    val actualSpan = Span(absoluteStart, spanLength)
+    val sym = Symbol.createSymbol(name, flags, actualSpan.toPos)
+    sym.setInfo(symbolType)
+    state.registerInternalSymbol(id, sym)
+    sym
+
   private def decodeParamDefSymbol(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): Symbol =
     given Source = owner.sourcePos.source
     val absoluteStart = decodeInt()
     val id = decodeNat()
     val name = decodeString()
     val flags = decodeFlags()
-    val span = decodeSpan()
+    val startDelta = decodeInt()
+    val spanLength = decodeNat()
     val tpt = decodeTypeTree(absoluteStart)
 
-    val actualSpan = Span(absoluteStart, span.length)
+    val actualSpan = Span(absoluteStart, spanLength)
     val sym = Symbol.createSymbol(name, flags, actualSpan.toPos)
     sym.setInfo(tpt.tpe)
     state.registerInternalSymbol(id, sym)
@@ -208,11 +225,12 @@ object Decoder:
     val id = decodeNat()
     val name = decodeString()
     val flags = decodeFlags()
-    val span = decodeSpan()
+    val startDelta = decodeInt()
+    val spanLength = decodeNat()
     // Skip to the end of this definition
     buf.setPosition(startPos + length)
 
-    val actualSpan = Span(absoluteStart, span.length)
+    val actualSpan = Span(absoluteStart, spanLength)
     val sym = Symbol.createSymbol(name, flags, actualSpan.toPos)
     state.registerInternalSymbol(id, sym)
     sym
@@ -224,11 +242,12 @@ object Decoder:
     val startPos = buf.position
     val id = decodeNat()
     val name = decodeString()
-    val span = decodeSpan()
+    val startDelta = decodeInt()
+    val spanLength = decodeNat()
     // Skip to the end of this definition
     buf.setPosition(startPos + length)
 
-    val actualSpan = Span(absoluteStart, span.length)
+    val actualSpan = Span(absoluteStart, spanLength)
     val sym = Symbol.createSymbol(name, Flags.Class, actualSpan.toPos)
     state.registerInternalSymbol(id, sym)
     sym
@@ -239,9 +258,10 @@ object Decoder:
     val id = decodeNat()
     val name = decodeString()
     val symbolType = decodeType()
-    val span = decodeSpan()
+    val startDelta = decodeInt()
+    val spanLength = decodeNat()
 
-    val actualSpan = Span(absoluteStart, span.length)
+    val actualSpan = Span(absoluteStart, spanLength)
     val sym = new TypeSymbol(name, Kind.Simple)
     sym.sourcePos = actualSpan.toPos
     sym.setInfo(symbolType)
@@ -255,11 +275,12 @@ object Decoder:
     val startPos = buf.position
     val id = decodeNat()
     val name = decodeString()
-    val span = decodeSpan()
+    val startDelta = decodeInt()
+    val spanLength = decodeNat()
     // Skip to the end of this definition
     buf.setPosition(startPos + length)
 
-    val actualSpan = Span(absoluteStart, span.length)
+    val actualSpan = Span(absoluteStart, spanLength)
     val sym = Symbol.createSymbol(name, Flags.Empty, actualSpan.toPos)
     state.registerInternalSymbol(id, sym)
     sym
@@ -270,120 +291,180 @@ object Decoder:
     val length = decodeIntRaw()
     val startPos = buf.position
     val name = decodeString()
-    val span = decodeSpan()
+    val startDelta = decodeInt()
+    val spanLength = decodeNat()
     // Skip to the end of this definition
     buf.setPosition(startPos + length)
 
-    val actualSpan = Span(absoluteStart, span.length)
+    val actualSpan = Span(absoluteStart, spanLength)
     Symbol.createSymbol(name, Flags.Empty, actualSpan.toPos)
 
   /** Decode a single definition tree - must be called after index() has been called */
   private def decodeDef()(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): Def =
-    val absoluteStart = decodeInt()
     val defType = decodeByte()
 
     defType match
-      case Format.ValDef =>
-        val id = decodeNat()
-        val symbol = state.getInternalSymbol(id)
-        val name = decodeString()
-        val flags = decodeFlags()
-        val symSpan = decodeSpan()
-        val symbolType = decodeType()
-        val rhs = decodeWord(symbol, absoluteStart)(using buf, defnLazy.value, state)
-
-        ValDef(symbol, rhs)(Span(absoluteStart, symSpan.length))
-
-      case Format.ParamDef =>
-        val id = decodeNat()
-        val symbol = state.getInternalSymbol(id)
-        val name = decodeString()
-        val flags = decodeFlags()
-        val symSpan = decodeSpan()
-        val tpt = decodeTypeTree(absoluteStart)(using buf, defnLazy.value, state)
-
-        ParamDef(symbol, tpt)(Span(absoluteStart, symSpan.length))
-
-      case Format.FunDef =>
-        val length = decodeIntRaw()
-        val id = decodeNat()
-        val symbol = state.getInternalSymbol(id)
-        val name = decodeString()
-        val flags = decodeFlags()
-        val symSpan = decodeSpan()
-
-        // Decode type parameters
-        val tparams = decodeRepeated: _ =>
-          val tparamId = decodeNat()
-          val tparamName = decodeString()
-          val tparamInfo = decodeType()(using buf, defnLazy.value, state)
-          val tparam = new TypeSymbol(tparamName, Kind.Simple)
-          tparam.setInfo(tparamInfo)
-          state.registerInternalSymbol(tparamId, tparam)
-          tparam
-
-        // Decode regular parameters
-        val params = decodeRepeated: _ =>
-          val paramId = decodeNat()
-          val paramName = decodeString()
-          val paramInfo = decodeType()(using buf, defnLazy.value, state)
-          val param = new Symbol(paramName, Flags.Empty)
-          param.setInfo(paramInfo)
-          state.registerInternalSymbol(paramId, param)
-          param
-
-        // Decode auto parameters
-        val autos = decodeRepeated: _ =>
-          val autoId = decodeNat()
-          val autoName = decodeString()
-          val autoInfo = decodeType()(using buf, defnLazy.value, state)
-          val auto = new Symbol(autoName, Flags.Auto)
-          auto.setInfo(autoInfo)
-          state.registerInternalSymbol(autoId, auto)
-          auto
-
-        val resultType = decodeTypeTree(absoluteStart)(using buf, defnLazy.value, state)
-        val receives = decodeRepeated(decodeSymbolRef()(using buf, defnLazy.value, state))
-        val body = decodeWord(symbol, absoluteStart)(using buf, defnLazy.value, state)
-
-        FunDef(symbol, tparams, params, autos, resultType, body)(Span(absoluteStart, symSpan.length))
-
-      case Format.ClassDef =>
-        val length = decodeIntRaw()
-        // Implementation similar to FunDef but for ClassDef structure
-        throw new Exception("ClassDef decoding not yet implemented")
-
-      case Format.TypeDef =>
-        val id = decodeNat()
-        val symbol = state.getInternalSymbol(id)
-        val name = decodeString()
-        val symbolType = decodeType()
-        val symSpan = decodeSpan()
-        val defLength = decodeNat()
-
-        TypeDef(symbol)(Span(absoluteStart, defLength))
-
-      case Format.PatDef =>
-        val length = decodeIntRaw()
-        // Implementation similar to FunDef but for PatDef structure
-        throw new Exception("PatDef decoding not yet implemented")
-
-      case Format.Section =>
-        val length = decodeIntRaw()
-        val id = decodeNat()
-        val symbol = state.getInternalSymbol(id)
-        val name = decodeString()
-        val symSpan = decodeSpan()
-        // For Section, we need to decode nested definitions differently
-        // This is a placeholder - actual implementation would need proper handling
-        val nestedDefs = Array.empty[Def]
-
-        Section(symbol, nestedDefs)(Span(absoluteStart, symSpan.length))
-
-      case _ =>
-        throw new Exception(s"Unknown definition type in decodeDef: $defType")
+      case Format.ValDef => decodeValDef()
+      case Format.ParamDef => decodeParamDef()
+      case Format.FunDef => decodeFunDef()
+      case Format.ClassDef => decodeClassDef()
+      case Format.TypeDef => decodeTypeDef()
+      case Format.PatDef => decodePatDef()
+      case Format.Section => decodeSection()
+      case _ => throw new Exception(s"Unknown definition type in decodeDef: $defType")
 
   end decodeDef
+
+  private def decodeValDef()(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): Def =
+    val absoluteStart = decodeInt()
+    val id = decodeNat()
+    val symbol = state.getInternalSymbol(id)
+    skipString() // name - already in symbol
+    decodeFlags() // flags - already in symbol
+    val symStartDelta = decodeInt()
+    val symSpanLength = decodeNat()
+    decodeType() // symbolType - already in symbol
+    val rhs = decodeWord(symbol, absoluteStart)
+
+    ValDef(symbol, rhs)(Span(absoluteStart, symSpanLength))
+
+  private def decodeParamDef()(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): Def =
+    val absoluteStart = decodeInt()
+    val id = decodeNat()
+    val symbol = state.getInternalSymbol(id)
+    skipString() // name - already in symbol
+    decodeFlags() // flags - already in symbol
+    val symStartDelta = decodeInt()
+    val symSpanLength = decodeNat()
+    val tpt = decodeTypeTree(absoluteStart)
+
+    ParamDef(symbol, tpt)(Span(absoluteStart, symSpanLength))
+
+  private def decodeFunDef()(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): Def =
+    val absoluteStart = decodeInt()
+    val length = decodeIntRaw()
+    val id = decodeNat()
+    val symbol = state.getInternalSymbol(id)
+    skipString() // name - already in symbol
+    decodeFlags() // flags - already in symbol
+    val symStartDelta = decodeInt()
+    val symSpanLength = decodeNat()
+
+    // Decode type parameters
+    val tparams = decodeRepeated: _ =>
+      val tparamId = decodeNat()
+      val tparamName = decodeString()
+      val tparamInfo = decodeType()
+      val tparam = new TypeSymbol(tparamName, Kind.Simple)
+      tparam.setInfo(tparamInfo)
+      state.registerInternalSymbol(tparamId, tparam)
+      tparam
+
+    // Decode regular parameters
+    val params = decodeRepeated: _ =>
+      val paramId = decodeNat()
+      val paramName = decodeString()
+      val paramInfo = decodeType()
+      val param = new Symbol(paramName, Flags.Empty)
+      param.setInfo(paramInfo)
+      state.registerInternalSymbol(paramId, param)
+      param
+
+    // Decode auto parameters
+    val autos = decodeRepeated: _ =>
+      val autoId = decodeNat()
+      val autoName = decodeString()
+      val autoInfo = decodeType()
+      val auto = new Symbol(autoName, Flags.Auto)
+      auto.setInfo(autoInfo)
+      state.registerInternalSymbol(autoId, auto)
+      auto
+
+    val resultType = decodeTypeTree(absoluteStart)
+    val receives = decodeRepeated(decodeSymbolRef())
+    val body = decodeWord(symbol, absoluteStart)
+
+    FunDef(symbol, tparams, params, autos, resultType, body)(Span(absoluteStart, symSpanLength))
+
+  private def decodeClassDef()(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): Def =
+    val absoluteStart = decodeInt()
+    val length = decodeIntRaw()
+    val id = decodeNat()
+    val symbol = state.getInternalSymbol(id)
+    skipString() // name - already in symbol
+    val symStartDelta = decodeInt()
+    val symSpanLength = decodeNat()
+
+    // Decode type parameters
+    val tparams = decodeRepeated: _ =>
+      val tparamId = decodeNat()
+      val tparamName = decodeString()
+      val tparamKind = decodeKind()
+      val tparamInfo = decodeType()
+      val tparamStartDelta = decodeInt()
+      val tparamLength = decodeInt()
+      val tparam = new TypeSymbol(tparamName, tparamKind)
+      tparam.setInfo(tparamInfo)
+      state.registerInternalSymbol(tparamId, tparam)
+      tparam
+
+    // Decode self symbol
+    val selfId = decodeNat()
+    val selfFlags = decodeFlags()
+    val selfName = decodeString()
+    val self = new Symbol(selfName, selfFlags)
+    state.registerInternalSymbol(selfId, self)
+
+    // Decode val members
+    val vals = decodeRepeated: _ =>
+      val valId = decodeNat()
+      val valFlags = decodeFlags()
+      val valName = decodeString()
+      val valType = decodeType()
+      val valStartDelta = decodeInt()
+      val valLength = decodeInt()
+      val valSym = Symbol.createSymbol(valName, valFlags, symbol.sourcePos)
+      valSym.setInfo(valType)
+      state.registerInternalSymbol(valId, valSym)
+      valSym
+
+    // Decode function definitions
+    val funs = decodeRepeated: _ =>
+      decodeDef()
+
+    ClassDef(symbol, tparams, self, vals, funs)(Span(absoluteStart, symSpanLength))
+
+  private def decodeTypeDef()(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): Def =
+    val absoluteStart = decodeInt()
+    val id = decodeNat()
+    val symbol = state.getInternalSymbol(id)
+    skipString() // name - already in symbol
+    decodeType() // symbolType - already in symbol
+    val symStartDelta = decodeInt()
+    val symSpanLength = decodeNat()
+    val defLength = decodeNat()
+
+    TypeDef(symbol)(Span(absoluteStart, defLength))
+
+  private def decodePatDef()(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): Def =
+    val absoluteStart = decodeInt()
+    val length = decodeIntRaw()
+    // Implementation similar to FunDef but for PatDef structure
+    throw new Exception("PatDef decoding not yet implemented")
+
+  private def decodeSection()(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): Def =
+    val absoluteStart = decodeInt()
+    val length = decodeIntRaw()
+    val id = decodeNat()
+    val symbol = state.getInternalSymbol(id)
+    skipString() // name - already in symbol
+    val symStartDelta = decodeInt()
+    val symSpanLength = decodeNat()
+    // For Section, we need to decode nested definitions differently
+    // This is a placeholder - actual implementation would need proper handling
+    val nestedDefs = Array.empty[Def]
+
+    Section(symbol, nestedDefs)(Span(absoluteStart, symSpanLength))
 
   //----------------------------------------------------------------------------
 
@@ -669,16 +750,28 @@ object Decoder:
           FieldAssign(lhs, rhs)(VoidType, span)
 
         case Format.ValDef =>
-          throw new Exception("Local ValDef decoding not yet implemented")
+          val currentPos = buf.position
+          decodeValDefSymbol(owner)
+          buf.setPosition(currentPos) // Reset to after the format byte
+          decodeValDef()
 
         case Format.FunDef =>
-          throw new Exception("Local FunDef decoding not yet implemented")
+          val currentPos = buf.position
+          decodeFunDefSymbol(owner)
+          buf.setPosition(currentPos) // Reset to after the format byte
+          decodeFunDef()
 
         case Format.TypeDef =>
-          throw new Exception("Local TypeDef decoding not yet implemented")
+          val currentPos = buf.position
+          decodeTypeDefSymbol(owner)
+          buf.setPosition(currentPos) // Reset to after the format byte
+          decodeTypeDef()
 
         case Format.PatDef =>
-          throw new Exception("Local PatDef decoding not yet implemented")
+          val currentPos = buf.position
+          decodePatDefSymbol(owner)
+          buf.setPosition(currentPos) // Reset to after the format byte
+          decodePatDef()
 
         case Format.If =>
           val startDelta = decodeInt()
@@ -867,8 +960,8 @@ object Decoder:
   private def decodeString()(using buf: ReadBuffer): String =
     buf.readUtf8()
 
-  private def decodeSpan(using ReadBuffer): Span =
-    Span(decodeNat(), decodeNat())
+  private def skipString()(using buf: ReadBuffer): Unit =
+    buf.skipUtf8()
 
   private def decodeConstant()(using buf: ReadBuffer): Constant =
     val constType = decodeByte()

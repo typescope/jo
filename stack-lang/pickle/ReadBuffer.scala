@@ -36,6 +36,10 @@ class ReadBuffer(private val bytes: Array[Byte]) extends (() => Byte):
     readBytes(strBytes, length)
     new String(strBytes, java.nio.charset.StandardCharsets.UTF_8)
 
+  def skipUtf8(): Unit =
+    val length = readNat()
+    pos += length
+
   private def readBytes(data: Array[Byte], n: Int): Unit =
     if pos + n > bytes.length then
       throw new Exception(s"ReadBuffer overflow: pos=$pos, n=$n, length=${bytes.length}")
