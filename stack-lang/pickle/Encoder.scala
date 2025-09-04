@@ -132,7 +132,10 @@ object Encoder:
 
     val addrNameTable = buf.reserveInt()
 
-    repeated(defs) { defn => encodeTopLevelDef(defn) }
+    var lastOffset = 0
+    repeated(defs): defn =>
+      encodeDef(defn, lastOffset)
+      lastOffset = defn.span.endOffset
 
     encodeNat(ns.start)
     encodeNat(ns.length)
@@ -179,7 +182,8 @@ object Encoder:
         repeated(args) { arg => encodeKind(arg) }
         encodeKind(to)
 
-  private def encodeTypeParams(defnSym: Symbol, tparams: List[Symbol])(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
+  private def encodeTypeParams(tparams: List[Symbol], prevOffset: Int)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
+    // Assume type param section is small such that the delta is small even for the same base offset
     repeated(tparams): tparam =>
       encodeNat(state.internalId(tparam))
       encodeString(tparam.name)
@@ -187,53 +191,67 @@ object Encoder:
       encodeType(tparam.info)
 
       val symSpan = tparam.sourcePos.span
-      val startDelta = symSpan.start - defnSym.span.start
+      val startDelta = symSpan.start - prevOffset
       encodeInt(startDelta)
       encodeInt(symSpan.length)
 
-  private def encodeParams(defnSym: Symbol, params: List[Symbol])(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
+  private def encodeParams(params: List[Symbol], prevOffset: Int)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
+    // Assume param section is small such that the delta is small even for the same base offset
     repeated(params): param =>
       encodeNat(state.internalId(param))
       encodeString(param.name)
       encodeType(param.info)
 
       val symSpan = param.sourcePos.span
-      val startDelta = symSpan.start - defnSym.span.start
+      val startDelta = symSpan.start - prevOffset
       encodeInt(startDelta)
       encodeInt(symSpan.length)
 
-  private def encodeTopLevelDef(defn: Def)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
+  private def encodeDef(defn: Def, prevOffset: Int)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
     val defSym = defn.symbol
 
-    // Encoding the start position is enough for definitions -- the length can
-    // be reconstructed from the end position of the last subtree
-    def encodePosition() =
+    def encodeDefSymPos() =
       val startDelta = defSym.span.start - defn.span.start
       encodeInt(startDelta)
+      encodeNat(defSym.span.length)
+
+    val startDelta = defn.span.start - prevOffset
+    encodeInt(startDelta)
 
     defn match
+      case vdef: ValDef =>
+        encodeByte(Format.ValDef)
+
+        encodeNat(state.internalId(defSym))
+        encodeString(defSym.name)
+        encodeFlags(defSym.flags & (Flags.Auto | Flags.Mutable))
+        encodeDefSymPos()
+        encodeType(defSym.info)
+        encodeWord(vdef.rhs)
+
       case pdef: ParamDef =>
         encodeByte(Format.ParamDef)
+
         encodeNat(state.internalId(defSym))
         encodeString(defSym.name)
         encodeFlags(defSym.flags & Flags.Default)
-        encodeSpan(defSym.span)
+        encodeDefSymPos()
         encodeTypeTree(pdef.tpt)
-        encodePosition()
 
       case cdef: ClassDef => buf.withLength:
         encodeByte(Format.ClassDef)
 
         encodeNat(state.internalId(defSym))
         encodeString(defSym.name)
-        encodeSpan(defSym.span)
+        encodeDefSymPos()
 
-        encodeTypeParams(defSym, cdef.tparams)
+        encodeTypeParams(prevOffset, cdef.tparams)
 
         encodeNat(state.internalId(cdef.self))
         encodeFlags(cdef.self.flags & Flags.Auto)
         encodeString(cdef.self.name)
 
+        // TODO: maintain members in original order
         repeated(cdef.vals): sym =>
           encodeNat(state.internalId(sym))
           encodeFlags(sym.flags & (Flags.Auto | Flags.Mutable))
@@ -245,10 +263,10 @@ object Encoder:
           encodeInt(symStartDelta)
           encodeInt(symSpan.length)
 
+        var lastOffset = prevOffset
         repeated(cdef.funs): fdef =>
-          encodeTopLevelDef(fdef)
-
-        encodePosition()
+          encodeDef(fdef, lastOffset)
+          lastOffset = fdef.span.endOffset
 
       case fdef: FunDef => buf.withLength:
         encodeByte(Format.FunDef)
@@ -256,132 +274,59 @@ object Encoder:
         encodeNat(state.internalId(defSym))
         encodeString(defSym.name)
         encodeFlags(defSym.flags & (Flags.Auto))
-        encodeSpan(defSym.span)
+        encodeDefSymPos()
 
-        encodeTypeParams(fdef, fdef.tparams)
+        encodeTypeParams(fdef.tparams, prevOffset)
 
-        encodeParams(defSym, fdef.params)
-        encodeParams(defSym, fdef.autos)
+        encodeParams(fdef.params, prevOffset)
+        encodeParams(fdef.autos, prevOffset)
 
-        encodeTypeTree(fdef.resultType)
+        encodeTypeTree(fdef.resultType, prevOffset)
 
         repeated(fdef.procType.receives): eff =>
           encodeSymbolRef(eff)
 
-        encodeWord(fdef.body)
-
-        encodePosition()
+        encodeWord(fdef.body, fdef.resultType.span.endOffset)
 
       case pdef: PatDef => buf.withLength:
         encodeByte(Format.PatDef)
 
         encodeNat(state.internalId(defSym))
         encodeString(defSym.name)
-        encodeSpan(defSym.span)
+        encodeDefSymPos()
 
-        encodeTypeParams(defSym, pdef.tparams)
+        encodeTypeParams(pdef.tparams, prevOffset)
 
-        encodeParams(defSym, pdef.params)
+        encodeParams(pdef.params, prevOffset)
 
-        encodeTypeTree(pdef.resultType)
+        encodeTypeTree(pdef.resultType, prevOffset)
 
         repeated(pdef.procType.receives): eff =>
           encodeSymbolRef(eff)
 
-        encodePattern(pdef.body)
-        encodePosition()
+        encodePattern(pdef.body, pdef.resultType.span.endOffset)
 
       case tdef: TypeDef =>
         encodeByte(Format.TypeDef)
+
         encodeNat(state.internalId(defSym))
         encodeString(defSym.name)
         encodeType(defSym.info)
-        encodeSpan(defSym.span)
-        encodePosition()
+        encodeDefSymPos()
+        encodeNat(tdef.span.length)
 
       case sec: Section => buf.withLength:
         encodeByte(Format.Section)
         encodeNat(state.internalId(defSym))
-        encodeString(defSym.name)
-        encodeSpan(defSym.span)
+        encodeString(defSym.name
+        encodeDefSymPos()
 
+        var lastOffset = prevOffset
         repeated(sec.defs): defn =>
-          encodeTopLevelDef(defn)
-
-        encodePosition()
-      end match
-
-  private def encodeLocalDef(defn: Def, prevOffset: Int)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
-    val defSym = defn.symbol
-
-    def encodeDefSymPos() =
-      val startDelta = defSym.span.start - defn.span.start
-      encodeInt(startDelta)
-      encodeNat(defSym.span.length)
-
-    // Encoding the start position is enough for definitions -- the length can
-    // be reconstructed from the end position of the last subtree
-    val startDelta = defn.span.start - prevOffset
-    encodeInt(startDelta)
-
-    defn match
-      case vdef: ValDef =>
-        encodeByte(Format.ValDef)
-        encodeNat(state.internalId(defSym))
-        encodeString(defSym.name)
-        encodeFlags(defSym.flags & (Flags.Auto | Flags.Mutable))
-        encodeDefSymPos()
-        encodeType(defSym.info)
-        encodeWord(vdef.rhs)
-
-      case fdef: FunDef => buf.withLength:
-        encodeByte(Format.FunDef)
-
-        encodeNat(state.internalId(defSym))
-        encodeString(defSym.name)
-        encodeFlags(defSym.flags & (Flags.Auto))
-        encodeDefSymPos()
-
-        encodeTypeParams(defSym, fdef.tparams)
-
-        encodeParams(defSym, fdef.params)
-        encodeParams(defSym, fdef.autos)
-
-        encodeTypeTree(fdef.resultType)
-
-        repeated(fdef.procType.receives): eff =>
-          encodeSymbolRef(eff)
-
-        encodeWord(fdef.body)
-
-      case pdef: PatDef => buf.withLength:
-        encodeByte(Format.PatDef)
-
-        encodeNat(state.internalId(defSym))
-        encodeString(defSym.name)
-        encodeFlags(defSym.flags)
-        encodeDefSymPos()
-
-        encodeTypeParams(defSym, pdef.tparams)
-
-        encodeParams(defSym, pdef.params)
-
-        encodeTypeTree(pdef.resultType)
-
-        repeated(pdef.procType.receives): eff =>
-          encodeSymbolRef(eff)
-
-        encodePattern(pdef.body)
-
-      case tdef: TypeDef =>
-        encodeByte(Format.TypeDef)
-        encodeNat(state.internalId(defSym))
-        encodeString(defSym.name)
-        encodeType(defSym.info)
-        encodeDefSymPos()
+          encodeDef(defn, lastOffset)
+          lastOffset = defn.span.endOffset
 
       end match
-
 
   private def encodeTypeTree(tpt: TypeTree, prevOffset: Int)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
     val startDelta = tpt.span.start - prevOffset
@@ -604,13 +549,13 @@ object Encoder:
         encodeWord(lhs, prevOffset)
         encodeWord(rhs, lhs.span.endOffset)
 
-      case vdef: ValDef => encodeLocalDef(vdef, prevOffset)
+      case vdef: ValDef => encodeDef(vdef, prevOffset)
 
-      case fdef: FunDef => encodeLocalDef(fdef, prevOffset)
+      case fdef: FunDef => encodeDef(fdef, prevOffset)
 
-      case tdef: TypeDef => encodeLocalDef(tdef, prevOffset)
+      case tdef: TypeDef => encodeDef(tdef, prevOffset)
 
-      case pdef: PatDef => encodeLocalDef(pdef, prevOffset)
+      case pdef: PatDef => encodeDef(pdef, prevOffset)
 
       case If(cond, thenp, elsep) =>
         encodeByte(Format.If)
@@ -656,7 +601,7 @@ object Encoder:
 
         var lastOffset = prevOffset
         repeated(members): m =>
-          encodeLocalDef(m, lastOffset)
+          encodeDef(m, lastOffset)
           lastOffset = m.span.endOffset
 
   private def encodePattern(pattern: Pattern, prevOffset: Int)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
