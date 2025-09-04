@@ -250,7 +250,7 @@ object Encoder:
       encodeInt(startDelta)
       encodeNat(defSym.span.length)
 
-    encodeInt(absoluteStart)
+    encodeNat(absoluteStart)
 
     defn match
       case vdef: ValDef =>
