@@ -210,6 +210,9 @@ object Decoder:
   private def decodeParamDef(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): DelayedDef[ParamDef] =
     given Source = owner.sourcePos.source
     val absoluteStart = decodeInt()
+    val length = decodeIntRaw()
+    val pos = buf.position
+
     val id = decodeNat()
     val name = decodeString()
     val flags = decodeFlags()
@@ -217,21 +220,31 @@ object Decoder:
     val symSpanLength = decodeNat()
 
     // Create and register symbol immediately
-    val actualSpan = Span(absoluteStart, symSpanLength)
-    val symbol = Symbol.createSymbol(name, flags, actualSpan.toPos)
+    val symSpan = Span(absoluteStart + symStartDelta, symSpanLength)
+    val symbol = Symbol.createSymbol(name, flags, symSpan.toPos)
     state.registerInternalSymbol(id, symbol)
 
-    // Return delayed definition
+    val newBuf: ReadBuffer = buf.fresh()
     val delayed = () =>
+      given ReadBuffer = newBuf
       val tpt = decodeTypeTree(absoluteStart)
-      symbol.setInfo(tpt.tpe) // Set info when tree is loaded
-      ParamDef(symbol, tpt)(actualSpan)
+      val span = Span(absoluteStart, tpt.span.endOffset - absoluteStart)
+      ParamDef(symbol, tpt)(span)
 
-    DelayedDef(symbol, delayed)
+    val paramDef = DelayedDef(symbol, delayed)
+
+    // Supply type for symbol
+    defnLazy.infoProvider.addLazy(symbol, owner, () => paramDef.force().tpt.tpe)
+
+    // Set buffer position at end
+    buf.setPosition(pos + length)
+
+    paramDef
 
   private def decodeFunDef()(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): Def =
     val absoluteStart = decodeInt()
     val length = decodeIntRaw()
+
     val id = decodeNat()
     val symbol = state.getInternalSymbol(id)
     skipString() // name - already in symbol

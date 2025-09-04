@@ -66,4 +66,9 @@ class ReadBuffer(private val bytes: Array[Byte]) extends (() => Byte):
     buf.setPosition(newPos)
     buf
 
+  def fresh(): ReadBuffer =
+    val buf = new ReadBuffer(this.bytes)
+    buf.setPosition(this.pos)
+    buf
+
   def isEnded: Boolean = pos >= bytes.length
