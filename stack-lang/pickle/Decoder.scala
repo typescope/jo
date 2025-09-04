@@ -17,7 +17,7 @@ import scala.collection.mutable
   * to reconstruct SAST trees.
   */
 object Decoder:
-  class NameRef(fullName: String, kind: Int)
+  class NameRef(val ownerIndex: Int, val name: String, val kind: Int)
 
   private class State(val root: Symbol, nameRefs: Array[NameRef]):
     /** External symbols loaded from the name table */
@@ -35,14 +35,23 @@ object Decoder:
       var sym = externalSymbols(index)
       if sym == null then
         val nameRef = nameRefs(index)
+        val fullName = getFullName(index)
         sym = nameRef.kind match
-          case Format.Term => defn.resolveTermByPath(nameRef.fullName)
-          case Format.Pattern => defn.resolvePatternByPath(nameRef.fullName)
-          case Format.Type => defn.resolveTypeByPath(nameRef.fullName)
+          case Format.Term => defn.resolveTermByPath(fullName)
+          case Format.Pattern => defn.resolvePatternByPath(fullName)
+          case Format.Type => defn.resolveTypeByPath(fullName)
 
         externalSymbols(index) = sym
       end
       sym
+
+    private def getFullName(index: Int): String =
+      val nameRef = nameRefs(index)
+      if nameRef.ownerIndex == -1 then
+        nameRef.name
+      else
+        val ownerFullName = getFullName(nameRef.ownerIndex)
+        s"$ownerFullName.${nameRef.name}"
 
     def registerInternalSymbol(id: Int, symbol: Symbol): Unit =
       internalSymbols(id) = symbol
@@ -267,10 +276,11 @@ object Decoder:
 
     var i = 0
     while i < count do
-      val fullName = decodeString()
+      val ownerIndex = decodeInt()
+      val name = decodeString()
       val kind = decodeByte()
 
-      nameRefs(i) = new NameRef(fullName, kind)
+      nameRefs(i) = new NameRef(ownerIndex, name, kind)
       i += 1
 
     nameRefs
