@@ -43,7 +43,7 @@ object Decoder:
       end
       sym
 
-    private def getFullNameParts(index: Int): List[String] =
+    def getFullNameParts(index: Int): List[String] =
       val nameRef = nameRefs(index)
       if nameRef.ownerIndex == -1 then
         nameRef.name :: Nil
@@ -68,7 +68,7 @@ object Decoder:
   //----------------------------------------------------------------------------
 
   def decode()(using buf: ReadBuffer, defnLazy: Definitions.Lazy): DelayedDef[Namespace] =
-    val rootName = decodeString()
+    val nameIndex = decodeNat()
     val source = decodeSource()
     val symSpan = decodeSpan()
 
@@ -80,7 +80,7 @@ object Decoder:
     given Source = source
 
     val rootSymbol: Symbol = resolveNamespace(
-      rootName.split('.'),
+      state.getFullNameParts(nameIndex),
       symSpan.toPos,
       isBranch = false
     )

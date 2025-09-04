@@ -164,7 +164,8 @@ object Encoder:
     given state: State = new State(symbol)
     given buf: WriteBuffer = new WriteBuffer(1 << 12)
 
-    state.nameTable.getIndex(symbol)
+    val nameIndex = state.nameTable.getIndex(symbol)
+    encodeNat(nameIndex)
     encodeSource(symbol.sourcePos.source)
     encodeNat(symbol.span.start)
     encodeNat(symbol.span.length)
