@@ -86,11 +86,15 @@ object Encoder:
 
     private var internalSymbolCount = 0
 
-    def getExternalSymbolIndex(sym: Symbol): Int =
+    def getExternalSymbolIndex(sym: Symbol)(using Definitions): Int =
       val index = externalSymbols.indexOf(sym)
       if index < 0 then
         val index = externalSymbols.size
         externalSymbols += sym
+
+        // Ensure owners are in the table
+        if sym.owner != null then getExternalSymbolIndex(sym.owner)
+
         index
 
       else
@@ -109,8 +113,19 @@ object Encoder:
 
     def encodeExternalNameTable()(using defn: Definitions, buf: WriteBuffer) =
       Encoder.encodeNat(externalSymbols.size)
+
       for sym <- externalSymbols do
-        encodeString(sym.fullName)
+        val index =
+          if sym.owner == null then
+            -1
+          else
+            val index = externalSymbols.indexOf(sym.owner)
+            assert(index >= 0, "owner not in table: " + sym.fullName)
+            index
+
+        encodeInt(index)
+        encodeString(sym.name)
+
         if sym.isType then encodeByte(Format.Type)
         else if sym.isPattern then encodeByte(Format.Pattern)
         else encodeByte(Format.Term)
@@ -149,7 +164,7 @@ object Encoder:
 
     // must comes after last
     buf.patchInt(addrNameTable, buf.length)
-    state.encodeExternalNameTable() < ("Nametable for " + symbol.fullName, enable = false)
+    state.encodeExternalNameTable() < ("Nametable for " + symbol.fullName, enable = true)
 
     buf
 
