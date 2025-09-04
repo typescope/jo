@@ -244,126 +244,165 @@ object Encoder:
       encodeInt(symSpan.length)
 
   private def encodeDef(defn: Def)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
-    val defSym = defn.symbol
-    val absoluteStart = defn.span.start
+    defn match
+      case vdef: ValDef => encodeValDef(vdef)
+      case pdef: ParamDef => encodeParamDef(pdef)
+      case cdef: ClassDef => encodeClassDef(cdef)
+      case fdef: FunDef => encodeFunDef(fdef)
+      case pdef: PatDef => encodePatDef(pdef)
+      case tdef: TypeDef => encodeTypeDef(tdef)
+      case sec: Section => encodeSection(sec)
 
-    def encodeDefSymPos() =
-      val startDelta = defSym.span.start - absoluteStart
-      encodeInt(startDelta)
+  private def encodeValDef(vdef: ValDef)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
+    val defSym = vdef.symbol
+    val absoluteStart = vdef.span.start
+
+    encodeByte(Format.ValDef)
+    encodeNat(absoluteStart)
+
+    encodeNat(state.getId(defSym))
+    encodeString(defSym.name)
+    encodeFlags(defSym.flags & (Flags.Auto | Flags.Mutable))
+    encodeInt(defSym.span.start - absoluteStart)
+    encodeNat(defSym.span.length)
+    encodeType(defSym.info)
+    encodeWord(vdef.rhs, absoluteStart)
+
+  private def encodeParamDef(pdef: ParamDef)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
+    val defSym = pdef.symbol
+    val absoluteStart = pdef.span.start
+
+    encodeByte(Format.ParamDef)
+
+    buf.withLength:
+      encodeNat(absoluteStart)
+
+      encodeNat(state.getId(defSym))
+      encodeString(defSym.name)
+      encodeFlags(defSym.flags & Flags.Default)
+      encodeInt(defSym.span.start - absoluteStart)
+      encodeNat(defSym.span.length)
+      encodeTypeTree(pdef.tpt, absoluteStart)
+
+  private def encodeClassDef(cdef: ClassDef)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
+    val defSym = cdef.symbol
+    val absoluteStart = cdef.span.start
+
+    encodeByte(Format.ClassDef)
+
+    buf.withLength:
+      encodeNat(absoluteStart)
+
+      encodeNat(state.getId(defSym))
+      encodeString(defSym.name)
+      encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
 
-    defn match
-      case vdef: ValDef =>
-        encodeByte(Format.ValDef)
-        encodeNat(absoluteStart)
+      encodeTypeParams(cdef.tparams, absoluteStart)
 
-        encodeNat(state.getId(defSym))
-        encodeString(defSym.name)
-        encodeFlags(defSym.flags & (Flags.Auto | Flags.Mutable))
-        encodeDefSymPos()
-        encodeType(defSym.info)
-        encodeWord(vdef.rhs, absoluteStart)
+      encodeNat(state.getId(cdef.self))
+      encodeFlags(cdef.self.flags & Flags.Auto)
+      encodeString(cdef.self.name)
 
-      case pdef: ParamDef =>
-        encodeByte(Format.ParamDef)
-        encodeNat(absoluteStart)
+      // TODO: maintain members in original order
+      repeated(cdef.vals): sym =>
+        encodeNat(state.getId(sym))
+        encodeFlags(sym.flags & (Flags.Auto | Flags.Mutable))
+        encodeString(sym.name)
+        encodeType(sym.info)
 
-        encodeNat(state.getId(defSym))
-        encodeString(defSym.name)
-        encodeFlags(defSym.flags & Flags.Default)
-        encodeDefSymPos()
-        encodeTypeTree(pdef.tpt, absoluteStart)
+        val symSpan = sym.sourcePos.span
+        val symStartDelta = symSpan.start - defSym.span.start
+        encodeInt(symStartDelta)
+        encodeInt(symSpan.length)
 
-      case cdef: ClassDef => buf.withLength:
-        encodeByte(Format.ClassDef)
-        encodeNat(absoluteStart)
+      repeated(cdef.funs): fdef =>
+        encodeDef(fdef)
 
-        encodeNat(state.getId(defSym))
-        encodeString(defSym.name)
-        encodeDefSymPos()
+  private def encodeFunDef(fdef: FunDef)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
+    val defSym = fdef.symbol
+    val absoluteStart = fdef.span.start
 
-        encodeTypeParams(cdef.tparams, absoluteStart)
+    encodeByte(Format.FunDef)
 
-        encodeNat(state.getId(cdef.self))
-        encodeFlags(cdef.self.flags & Flags.Auto)
-        encodeString(cdef.self.name)
+    buf.withLength:
+      encodeNat(absoluteStart)
 
-        // TODO: maintain members in original order
-        repeated(cdef.vals): sym =>
-          encodeNat(state.getId(sym))
-          encodeFlags(sym.flags & (Flags.Auto | Flags.Mutable))
-          encodeString(sym.name)
-          encodeType(sym.info)
+      encodeNat(state.getId(defSym))
+      encodeString(defSym.name)
+      encodeFlags(defSym.flags & (Flags.Auto))
+      encodeInt(defSym.span.start - absoluteStart)
+      encodeNat(defSym.span.length)
 
-          val symSpan = sym.sourcePos.span
-          val symStartDelta = symSpan.start - defSym.span.start
-          encodeInt(symStartDelta)
-          encodeInt(symSpan.length)
+      encodeTypeParams(fdef.tparams, absoluteStart)
 
-        repeated(cdef.funs): fdef =>
-          encodeDef(fdef)
+      encodeParams(fdef.params, absoluteStart)
+      encodeParams(fdef.autos, absoluteStart)
 
-      case fdef: FunDef => buf.withLength:
-        encodeByte(Format.FunDef)
-        encodeNat(absoluteStart)
+      encodeTypeTree(fdef.resultType, absoluteStart)
 
-        encodeNat(state.getId(defSym))
-        encodeString(defSym.name)
-        encodeFlags(defSym.flags & (Flags.Auto))
-        encodeDefSymPos()
+      repeated(fdef.procType.receives): eff =>
+        encodeSymbolRef(eff)
 
-        encodeTypeParams(fdef.tparams, absoluteStart)
+      encodeWord(fdef.body, fdef.resultType.span.endOffset)
 
-        encodeParams(fdef.params, absoluteStart)
-        encodeParams(fdef.autos, absoluteStart)
+  private def encodePatDef(pdef: PatDef)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
+    val defSym = pdef.symbol
+    val absoluteStart = pdef.span.start
 
-        encodeTypeTree(fdef.resultType, absoluteStart)
+    encodeByte(Format.PatDef)
 
-        repeated(fdef.procType.receives): eff =>
-          encodeSymbolRef(eff)
+    buf.withLength:
+      encodeNat(absoluteStart)
 
-        encodeWord(fdef.body, fdef.resultType.span.endOffset)
+      encodeNat(state.getId(defSym))
+      encodeString(defSym.name)
+      encodeInt(defSym.span.start - absoluteStart)
+      encodeNat(defSym.span.length)
 
-      case pdef: PatDef => buf.withLength:
-        encodeByte(Format.PatDef)
-        encodeNat(absoluteStart)
+      encodeTypeParams(pdef.tparams, absoluteStart)
 
-        encodeNat(state.getId(defSym))
-        encodeString(defSym.name)
-        encodeDefSymPos()
+      encodeParams(pdef.params, absoluteStart)
 
-        encodeTypeParams(pdef.tparams, absoluteStart)
+      encodeTypeTree(pdef.resultType, absoluteStart)
 
-        encodeParams(pdef.params, absoluteStart)
+      repeated(pdef.procType.receives): eff =>
+        encodeSymbolRef(eff)
 
-        encodeTypeTree(pdef.resultType, absoluteStart)
+      encodePattern(pdef.body, pdef.resultType.span.endOffset)
 
-        repeated(pdef.procType.receives): eff =>
-          encodeSymbolRef(eff)
+  private def encodeTypeDef(tdef: TypeDef)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
+    val defSym = tdef.symbol
+    val absoluteStart = tdef.span.start
 
-        encodePattern(pdef.body, pdef.resultType.span.endOffset)
+    encodeByte(Format.TypeDef)
 
-      case tdef: TypeDef =>
-        encodeByte(Format.TypeDef)
-        encodeNat(absoluteStart)
+    buf.withLength:
+      encodeNat(absoluteStart)
 
-        encodeNat(state.getId(defSym))
-        encodeString(defSym.name)
-        encodeType(defSym.info)
-        encodeDefSymPos()
-        encodeNat(tdef.span.length)
+      encodeNat(state.getId(defSym))
+      encodeString(defSym.name)
+      encodeType(defSym.info)
+      encodeInt(defSym.span.start - absoluteStart)
+      encodeNat(defSym.span.length)
+      encodeNat(tdef.span.length)
 
-      case sec: Section => buf.withLength:
-        encodeByte(Format.Section)
-        encodeNat(absoluteStart)
-        encodeNat(state.getId(defSym))
-        encodeString(defSym.name)
-        encodeDefSymPos()
+  private def encodeSection(sec: Section)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
+    val defSym = sec.symbol
+    val absoluteStart = sec.span.start
 
-        repeated(sec.defs): defn =>
-          encodeDef(defn)
+    encodeByte(Format.Section)
 
-      end match
+    buf.withLength:
+      encodeNat(absoluteStart)
+
+      encodeNat(state.getId(defSym))
+      encodeString(defSym.name)
+      encodeInt(defSym.span.start - absoluteStart)
+      encodeNat(defSym.span.length)
+
+      repeated(sec.defs): defn =>
+        encodeDef(defn)
 
   private def encodeTypeTree(tpt: TypeTree, prevOffset: Int)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
     val startDelta = tpt.span.start - prevOffset
