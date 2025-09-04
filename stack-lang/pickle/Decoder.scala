@@ -101,7 +101,7 @@ object Decoder:
 
       while i < symbols.length do
         val sym = symbols(i)
-        val member = decodeDef(sym, 0)
+        val member = decodeDef()
         members(i) = member
         i += 1
       end while
@@ -177,22 +177,22 @@ object Decoder:
       val defType = decodeByte()
 
       defType match
-        case Format.ParamDef => indexParamDef(owner)
-        case Format.FunDef => indexFunDef(owner)
-        case Format.ClassDef => indexClassDef(owner)
-        case Format.TypeDef => indexTypeDef(owner)
-        case Format.PatDef => indexPatDef(owner)
-        case Format.Section => indexSection(owner)
+        case Format.ParamDef => decodeParamDefSymbol(owner)
+        case Format.FunDef => decodeFunDefSymbol(owner)
+        case Format.ClassDef => decodeClassDefSymbol(owner)
+        case Format.TypeDef => decodeTypeDefSymbol(owner)
+        case Format.PatDef => decodePatDefSymbol(owner)
+        case Format.Section => decodeSectionSymbol(owner)
         case _ => throw new Exception(s"Unknown definition type in index: $defType")
 
-  private def indexParamDef(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): Symbol =
+  private def decodeParamDefSymbol(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): Symbol =
     given Source = owner.sourcePos.source
     val absoluteStart = decodeInt()
     val id = decodeNat()
     val name = decodeString()
     val flags = decodeFlags()
     val span = decodeSpan()
-    val tpt = decodeTypeTree()
+    val tpt = decodeTypeTree(absoluteStart)
 
     val actualSpan = Span(absoluteStart, span.length)
     val sym = Symbol.createSymbol(name, flags, actualSpan.toPos)
@@ -200,7 +200,7 @@ object Decoder:
     state.registerInternalSymbol(id, sym)
     sym
 
-  private def indexFunDef(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): Symbol =
+  private def decodeFunDefSymbol(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): Symbol =
     given Source = owner.sourcePos.source
     val absoluteStart = decodeInt()
     val length = decodeIntRaw()
@@ -217,7 +217,7 @@ object Decoder:
     state.registerInternalSymbol(id, sym)
     sym
 
-  private def indexClassDef(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): Symbol =
+  private def decodeClassDefSymbol(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): Symbol =
     given Source = owner.sourcePos.source
     val absoluteStart = decodeInt()
     val length = decodeIntRaw()
@@ -233,7 +233,7 @@ object Decoder:
     state.registerInternalSymbol(id, sym)
     sym
 
-  private def indexTypeDef(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): Symbol =
+  private def decodeTypeDefSymbol(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): Symbol =
     given Source = owner.sourcePos.source
     val absoluteStart = decodeInt()
     val id = decodeNat()
@@ -248,7 +248,7 @@ object Decoder:
     state.registerInternalSymbol(id, sym)
     sym
 
-  private def indexPatDef(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): Symbol =
+  private def decodePatDefSymbol(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): Symbol =
     given Source = owner.sourcePos.source
     val absoluteStart = decodeInt()
     val length = decodeIntRaw()
@@ -264,7 +264,7 @@ object Decoder:
     state.registerInternalSymbol(id, sym)
     sym
 
-  private def indexSection(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): Symbol =
+  private def decodeSectionSymbol(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): Symbol =
     given Source = owner.sourcePos.source
     val absoluteStart = decodeInt()
     val length = decodeIntRaw()
@@ -278,13 +278,14 @@ object Decoder:
     Symbol.createSymbol(name, Flags.Empty, actualSpan.toPos)
 
   /** Decode a single definition tree - must be called after index() has been called */
-  private def decodeDef(symbol: Symbol, prevOffset: Int)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): Def =
+  private def decodeDef()(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): Def =
     val absoluteStart = decodeInt()
     val defType = decodeByte()
 
     defType match
       case Format.ValDef =>
         val id = decodeNat()
+        val symbol = state.getInternalSymbol(id)
         val name = decodeString()
         val flags = decodeFlags()
         val symSpan = decodeSpan()
@@ -295,16 +296,18 @@ object Decoder:
 
       case Format.ParamDef =>
         val id = decodeNat()
+        val symbol = state.getInternalSymbol(id)
         val name = decodeString()
         val flags = decodeFlags()
         val symSpan = decodeSpan()
-        val tpt = decodeTypeTree()(using buf, defnLazy.value, state)
+        val tpt = decodeTypeTree(absoluteStart)(using buf, defnLazy.value, state)
 
         ParamDef(symbol, tpt)(Span(absoluteStart, symSpan.length))
 
       case Format.FunDef =>
         val length = decodeIntRaw()
         val id = decodeNat()
+        val symbol = state.getInternalSymbol(id)
         val name = decodeString()
         val flags = decodeFlags()
         val symSpan = decodeSpan()
@@ -339,7 +342,7 @@ object Decoder:
           state.registerInternalSymbol(autoId, auto)
           auto
 
-        val resultType = decodeTypeTree()(using buf, defnLazy.value, state)
+        val resultType = decodeTypeTree(absoluteStart)(using buf, defnLazy.value, state)
         val receives = decodeRepeated(decodeSymbolRef()(using buf, defnLazy.value, state))
         val body = decodeWord(symbol, absoluteStart)(using buf, defnLazy.value, state)
 
@@ -352,6 +355,7 @@ object Decoder:
 
       case Format.TypeDef =>
         val id = decodeNat()
+        val symbol = state.getInternalSymbol(id)
         val name = decodeString()
         val symbolType = decodeType()
         val symSpan = decodeSpan()
@@ -366,6 +370,8 @@ object Decoder:
 
       case Format.Section =>
         val length = decodeIntRaw()
+        val id = decodeNat()
+        val symbol = state.getInternalSymbol(id)
         val name = decodeString()
         val symSpan = decodeSpan()
         // For Section, we need to decode nested definitions differently
@@ -430,11 +436,12 @@ object Decoder:
       case _ => throw new Exception(s"Invalid kind type: $kindType")
 
 
-  private def decodeTypeTree()(using buf: ReadBuffer, defn: Definitions, state: State): TypeTree =
-    val startDelta = decodeInt()
-    val length = decodeInt()
+  private def decodeTypeTree(prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): TypeTree =
     val tpe = decodeType()
-    val span = Span(startDelta, length)
+    val startDelta = decodeInt()
+    val length = decodeNat()
+    val currentOffset = prevOffset + startDelta
+    val span = Span(currentOffset, length)
 
     TypeTree(tpe)(span)
 
@@ -569,7 +576,7 @@ object Decoder:
 
         case Format.New =>
           val classRef = decodeWord(owner, prevOffset)
-          val targs = decodeRepeated(decodeTypeTree(owner, prevOffset))
+          val targs = decodeRepeated(decodeTypeTree(prevOffset))
           // Use classRef span as approximation - encoder doesn't store position for New
           New(classRef, targs)(classRef.span)
 
@@ -634,7 +641,7 @@ object Decoder:
 
         case Format.TypeApply =>
           val fun = decodeWord(owner, prevOffset)
-          val targs = decodeRepeated(decodeTypeTree(owner, prevOffset))
+          val targs = decodeRepeated(decodeTypeTree(prevOffset))
           // Use fun span as approximation - encoder doesn't store position for TypeApply
           TypeApply(fun, targs)(fun.span)
 
@@ -711,7 +718,7 @@ object Decoder:
           val self = new Symbol(selfName, Flags.Empty)
           state.registerInternalSymbol(selfId, self)
 
-          val members = decodeRepeated(decodeDef).map:
+          val members = decodeRepeated(decodeDef()).map:
             case v: ValDef => v
             case f: FunDef => f
             case _ => throw new Exception("Object can only contain val and fun definitions")
@@ -723,83 +730,121 @@ object Decoder:
   private def decodePattern(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): Pattern =
     given Source = owner.sourcePos.source
     val patternTag = decodeByte()
-    val absoluteStart = decodeInt()
-    val lengthDelta = decodeInt()
-    val span = Span(absoluteStart, lengthDelta)
 
     patternTag match
         case Format.AliasPattern =>
-          val id = decodeWord(owner, absoluteStart)
-          val nested = decodePattern(owner, absoluteStart)
+          val id = decodeWord(owner, prevOffset)
+          val nested = decodePattern(owner, id.span.endOffset)
+          val span = Span(id.span.start, nested.span.endOffset - id.span.start)
           AliasPattern(id, nested)(span)
 
         case Format.TypePattern =>
           val scrutineeType = decodeType()
-          val tpt = decodeTypeTree
+          val startDelta = decodeInt()
+          val currentOffset = prevOffset + startDelta
+          val tpt = decodeTypeTree(prevOffset)
+          val span = Span(currentOffset, tpt.span.endOffset - currentOffset)
           TypePattern(tpt)(scrutineeType, span)
 
         case Format.TagPattern =>
-          val tagLit = decodeWord(owner, absoluteStart)
-          val nested = decodeRepeated(decodePattern)
+          val tagLit = decodeWord(owner, prevOffset)
+          var lastOffset = tagLit.span.endOffset
+          val nested = decodeRepeated: _ =>
+            val pat = decodePattern(owner, lastOffset)
+            lastOffset = pat.span.endOffset
+            pat
+          val span = Span(tagLit.span.start, lastOffset - tagLit.span.start)
           TagPattern(tagLit, nested)(span)
 
         case Format.ApplyPattern =>
           val scrutineeType = decodeType()
-          val fun = decodeWord(owner, absoluteStart)
-          val nested = decodeRepeated(decodePattern)
+          val fun = decodeWord(owner, prevOffset)
+          var lastOffset = fun.span.endOffset
+          val nested = decodeRepeated: _ =>
+            val pat = decodePattern(owner, lastOffset)
+            lastOffset = pat.span.endOffset
+            pat
+          val span = Span(fun.span.start, lastOffset - fun.span.start)
           ApplyPattern(fun, nested)(scrutineeType, span)
 
         case Format.OrPattern =>
-          val lhs = decodePattern(owner, absoluteStart)
-          val rhs = decodePattern(owner, absoluteStart)
+          val lhs = decodePattern(owner, prevOffset)
+          val rhs = decodePattern(owner, lhs.span.endOffset)
+          val span = Span(lhs.span.start, rhs.span.endOffset - lhs.span.start)
           OrPattern(lhs, rhs)(span)
 
         case Format.ValuePattern =>
           val scrutineeType = decodeType()
-          val value = decodeWord(owner, absoluteStart)
+          val startDelta = decodeInt()
+          val currentOffset = prevOffset + startDelta
+          val value = decodeWord(owner, prevOffset)
+          val span = Span(currentOffset, value.span.endOffset - currentOffset)
           ValuePattern(value)(scrutineeType, span)
 
         case Format.GuardPattern =>
-          val pattern = decodePattern(owner, absoluteStart)
-          val guard = decodeWord(owner, absoluteStart)
+          val pattern = decodePattern(owner, prevOffset)
+          val guard = decodeWord(owner, pattern.span.endOffset)
+          val span = Span(pattern.span.start, guard.span.endOffset - pattern.span.start)
           GuardPattern(pattern, guard)(span)
 
         case Format.BindPattern =>
-          val pattern = decodePattern(owner, absoluteStart)
-          val bindings = decodeRepeated(decodeWord)
+          val pattern = decodePattern(owner, prevOffset)
+          var lastOffset = pattern.span.endOffset
+          val bindings = decodeRepeated: _ =>
+            val binding = decodeWord(owner, lastOffset)
+            lastOffset = binding.span.endOffset
+            binding
+          val span = Span(pattern.span.start, lastOffset - pattern.span.start)
           BindPattern(pattern, bindings)(span)
 
         case Format.SeqPattern =>
           val scrutineeType = decodeType()
+          val startDelta = decodeInt()
+          val currentOffset = prevOffset + startDelta
+          var lastOffset = prevOffset
           val pats = decodeRepeated(buf): _ =>
             val seqPatTag = decodeByte()
             seqPatTag match
               case Format.AtomPattern =>
-                val pattern = decodePattern(owner, absoluteStart)
+                val pattern = decodePattern(owner, lastOffset)
+                lastOffset = pattern.span.endOffset
                 AtomPattern(pattern)
 
               case Format.SkipToPattern =>
-                val pattern = decodePattern(owner, absoluteStart)
+                val pattern = decodePattern(owner, lastOffset)
+                lastOffset = pattern.span.endOffset
                 SkipToPattern(pattern)
 
               case Format.StarPattern =>
-                val pattern = decodePattern(owner, absoluteStart)
+                val pattern = decodePattern(owner, lastOffset)
                 val bindings = decodeRepeated(buf): _ =>
-                  val sym1 = decodeSymbol()
+                  val id = decodeNat()
+                  val name = decodeString()
+                  val info = decodeType()
+                  val sym1 = Symbol.createSymbol(name, Flags.Empty, owner.sourcePos)
+                  sym1.setInfo(info)
+                  state.registerInternalSymbol(id, sym1)
                   val sym2 = decodeSymbolRef
                   (sym1, sym2)
+                lastOffset = pattern.span.endOffset
                 StarPattern(pattern, bindings)
 
               case Format.RestPattern =>
-                val pattern = decodePattern(owner, absoluteStart)
+                val pattern = decodePattern(owner, lastOffset)
+                lastOffset = pattern.span.endOffset
                 RestPattern(pattern)
 
               case _ => throw new Exception(s"Unknown sequence pattern tag: $seqPatTag")
 
+          val span = Span(currentOffset, lastOffset - currentOffset)
           SeqPattern(pats)(scrutineeType, span)
 
         case Format.WildcardPattern =>
           val scrutineeType = decodeType()
+          val startDelta = decodeInt()
+          val length = decodeNat()
+          val currentOffset = prevOffset + startDelta
+          val span = Span(currentOffset, length)
           WildcardPattern()(scrutineeType, span)
 
         case _ => throw new Exception(s"Unknown pattern tag: $patternTag")
