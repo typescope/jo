@@ -41,12 +41,15 @@ class NameTable(
       case None => Nil
       case Some(sym) => sym :: Nil
 
-  def resolveByPath(path: String)(using Definitions): List[Symbol] =
-    val syms = NameTable.resolveStatic(this, path.split("\\.").toList)
+  def resolveByPathParts(parts: List[String])(using Definitions): List[Symbol] =
+    val syms = NameTable.resolveStatic(this, parts)
     if syms.isEmpty then
       throw new Exception("Not found: " + path + ", name table " + this.show)
     else
       syms
+
+  def resolveByPath(path: String)(using Definitions): List[Symbol] =
+    resolveByPathParts(path.split('.'))
 
   def resolveTermByPath(path: String)(using Definitions): Symbol =
     resolveByPath(path).filter(!_.isOneOf(Flags.Pattern | Flags.Type)).head
@@ -56,6 +59,15 @@ class NameTable(
 
   def resolveTypeByPath(path: String)(using Definitions): Symbol =
     resolveByPath(path).filter(_.is(Flags.Type)).head
+
+  def resolveTermByPathParts(parts: List[String])(using Definitions): Symbol =
+    resolveByPathParts(parts).filter(!_.isOneOf(Flags.Pattern | Flags.Type)).head
+
+  def resolvePatternByPathParts(parts: List[String])(using Definitions): Symbol =
+    resolveByPathParts(parts).filter(_.is(Flags.Pattern)).head
+
+  def resolveTypeByPathParts(parts: List[String])(using Definitions): Symbol =
+    resolveByPathParts(parts).filter(_.is(Flags.Type)).head
 
   def define(sym: Symbol)(using rp: Reporter): Unit =
     assert(!frozen, "Name table is frozen")

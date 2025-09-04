@@ -10,6 +10,8 @@ final class Definitions(rootNameTable: NameTable, initProvider: InfoProvider):
 
   export rootNameTable.{ resolveTermByPath, resolveTypeByPath, resolvePatternByPath }
 
+  export rootNameTable.{ resolveTermByPathParts, resolveTypeByPathParts, resolvePatternByPathParts }
+
   //----------------------------------------------------------------------------
   // Info provider for symbols
   //

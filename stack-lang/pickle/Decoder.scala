@@ -33,23 +33,22 @@ object Decoder:
       var sym = externalSymbols(index)
       if sym == null then
         val nameRef = nameRefs(index)
-        val fullName = getFullName(index)
+        val fullNameParts = getFullNameParts(index)
         sym = nameRef.kind match
-          case Format.Term => defn.resolveTermByPath(fullName)
-          case Format.Pattern => defn.resolvePatternByPath(fullName)
-          case Format.Type => defn.resolveTypeByPath(fullName)
+          case Format.Term => defn.resolveTermByPathParts(fullNameParts)
+          case Format.Pattern => defn.resolvePatternByPathParts(fullNameParts)
+          case Format.Type => defn.resolveTypeByPathParts(fullNameParts)
 
         externalSymbols(index) = sym
       end
       sym
 
-    private def getFullName(index: Int): String =
+    private def getFullNameParts(index: Int): List[String] =
       val nameRef = nameRefs(index)
       if nameRef.ownerIndex == -1 then
-        nameRef.name
+        nameRef.name :: Nil
       else
-        val ownerFullName = getFullName(nameRef.ownerIndex)
-        s"$ownerFullName.${nameRef.name}"
+        getFullNameParts(nameRef.ownerIndex) :: nameRef.name
 
     def registerInternalSymbol(id: Int, symbol: Symbol): Unit =
       internalSymbols(id) = symbol
@@ -176,7 +175,7 @@ object Decoder:
   private def index(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): Array[Symbol] =
     decodeRepeated:
       val defType = decodeByte()
-      
+
       defType match
         case Format.ParamDef => indexParamDef(owner)
         case Format.FunDef => indexFunDef(owner)
