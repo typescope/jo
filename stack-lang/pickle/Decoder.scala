@@ -191,7 +191,7 @@ object Decoder:
   private def decodeValDef(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions, state: State): ValDef =
     given Source = owner.sourcePos.source
 
-    val absoluteStart = decodeInt()
+    val absoluteStart = decodeNat()
     val id = decodeNat()
     val name = decodeString()
     val flags = decodeFlags()
@@ -213,7 +213,7 @@ object Decoder:
     val length = decodeIntRaw()
     val pos = buf.position
 
-    val absoluteStart = decodeInt()
+    val absoluteStart = decodeNat()
 
     val id = decodeNat()
     val name = decodeString()
@@ -248,7 +248,7 @@ object Decoder:
     val length = decodeIntRaw()
     val pos = buf.position
 
-    val absoluteStart = decodeInt()
+    val absoluteStart = decodeNat()
 
     val id = decodeNat()
     val name = decodeString()
@@ -441,7 +441,7 @@ object Decoder:
     val length = decodeIntRaw()
     val pos = buf.position
 
-    val absoluteStart = decodeInt()
+    val absoluteStart = decodeNat()
     val treeLength = decodeNat()
     val id = decodeNat()
     val name = decodeString()
@@ -479,7 +479,7 @@ object Decoder:
     val length = decodeIntRaw()
     val pos = buf.position
 
-    val absoluteStart = decodeInt()
+    val absoluteStart = decodeNat()
 
     val id = decodeNat()
     val name = decodeString()
@@ -552,7 +552,7 @@ object Decoder:
     val length = decodeIntRaw()
     val pos = buf.position
 
-    val absoluteStart = decodeInt()
+    val absoluteStart = decodeNat()
     val treeLength = decodeNat()
 
     val id = decodeNat()
