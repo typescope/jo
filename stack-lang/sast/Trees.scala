@@ -448,6 +448,7 @@ object Trees:
   extends Word, Def:
     val isMutable = symbol.isMutable
 
+  // TODO: add tparam and rhs
   case class TypeDef
     (symbol: Symbol)
     (val span: Span)
