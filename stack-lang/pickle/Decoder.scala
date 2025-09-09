@@ -86,7 +86,7 @@ object Decoder:
 
     given state: State = new State(rootSymbol, nameRefs)
 
-    val delayedDefs: Array[DelayedDef[Def]] = decodeRepeated(decodeDef(rootSymbol))
+    val delayedDefs: Array[DelayedDef[Def]] = repeated(decodeDef(rootSymbol))
 
     val span = Span(decodeNat(), decodeNat())
 
@@ -181,7 +181,7 @@ object Decoder:
 
     defType match
       case Format.ParamDef => decodeParamDef(owner)
-      case Format.FunDef => decodeFunDef(owner)
+      case Format.FunDef => decodeFunDef(owner, Flags.Empty)
       case Format.ClassDef => decodeClassDef(owner)
       case Format.TypeDef => decodeTypeDef(owner)
       case Format.PatDef => decodePatDef(owner)
@@ -195,11 +195,12 @@ object Decoder:
     val id = decodeNat()
     val name = decodeString()
     val flags = decodeFlags()
+
     val symStartDelta = decodeInt()
     val symSpanLength = decodeNat()
-    val info = decodeType()
-
     val symSpan = Span(absoluteStart + symStartDelta, symSpanLength)
+
+    val info = decodeType()
     val symbol = Symbol.createSymbol(name, info, flags, owner, symSpan.toPos)
     state.registerInternalSymbol(id, symbol)
 
@@ -217,10 +218,11 @@ object Decoder:
     val id = decodeNat()
     val name = decodeString()
     val flags = decodeFlags() | Flags.Context
+
     val symStartDelta = decodeInt()
     val symSpanLength = decodeNat()
-
     val symSpan = Span(absoluteStart + symStartDelta, symSpanLength)
+
     val symbol = Symbol.createSymbol(name, flags, symSpan.toPos)
     state.registerInternalSymbol(id, symbol)
 
@@ -241,7 +243,7 @@ object Decoder:
 
     paramDef
 
-  private def decodeFunDef(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): DelayedDef[FunDef] =
+  private def decodeFunDef(owner: Symbol, initFlags: Flags)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): DelayedDef[FunDef] =
     given Source = owner.sourcePos.source
     val length = decodeIntRaw()
     val pos = buf.position
@@ -250,8 +252,11 @@ object Decoder:
 
     val id = decodeNat()
     val name = decodeString()
-    val flags = decodeFlags() | Flags.Fun
-    val symSpan = Span(absoluteStart + decodeInt(), decodeNat())
+    val flags = decodeFlags() | initFlags | Flags.Fun
+
+    val symStartDelta = decodeInt()
+    val symSpanLength = decodeNat()
+    val symSpan = Span(absoluteStart + symStartDelta, symSpanLength)
 
     val symbol = Symbol.createSymbol(name, flags, symSpan.toPos)
     state.registerInternalSymbol(id, symbol)
@@ -264,7 +269,7 @@ object Decoder:
       given ReadBuffer = buf.fresh(tparamStartPos)
 
       // Decode type parameters
-      val tparams = decodeRepeated:
+      val tparams = repeated:
         val tparamId = decodeNat()
         val tparamName = decodeString()
         val kind = decodeKind()
@@ -279,7 +284,7 @@ object Decoder:
         tparam
 
       // Decode regular term parameters
-      val params = decodeRepeated:
+      val params = repeated:
         val paramId = decodeNat()
         val paramName = decodeString()
         val paramInfo = decodeType()
@@ -291,7 +296,7 @@ object Decoder:
         param
 
       // Decode auto parameters
-      val autos = decodeRepeated:
+      val autos = repeated:
         val autoId = decodeNat()
         val autoName = decodeString()
         val autoInfo = decodeType()
@@ -305,7 +310,7 @@ object Decoder:
 
       val resultType = decodeTypeTree(absoluteStart)
 
-      val receives = decodeRepeated(decodeSymbolRef())
+      val receives = repeated(decodeSymbolRef())
 
       val preParamCount = decodeNat()
 
@@ -339,51 +344,97 @@ object Decoder:
     val length = decodeIntRaw()
     val pos = buf.position
 
-    val absoluteStart = decodeInt()
+    val absoluteStart = decodeNat()
+    val treeLength = decodeNat()
+
     val id = decodeNat()
-    val symbol = state.getInternalSymbol(id)
-    skipString() // name - already in symbol
+    val name = decodeString()
+
     val symStartDelta = decodeInt()
     val symSpanLength = decodeNat()
+    val symSpan = Span(absoluteStart + symStartDelta, symSpanLength)
 
-    // Decode type parameters
-    val tparams = decodeRepeated: _ =>
-      val tparamId = decodeNat()
-      val tparamName = decodeString()
-      val tparamKind = decodeKind()
-      val tparamInfo = decodeType()
-      val tparamStartDelta = decodeInt()
-      val tparamLength = decodeInt()
-      val tparam = new TypeSymbol(tparamName, tparamKind)
-      tparam.setInfo(tparamInfo)
-      state.registerInternalSymbol(tparamId, tparam)
-      tparam
+    // Create and register symbol immediately
+    val symbol = Symbol.createSymbol(name, Flags.Class, symSpan.toPos)
+    state.registerInternalSymbol(id, symbol)
 
-    // Decode self symbol
-    val selfId = decodeNat()
-    val selfFlags = decodeFlags()
-    val selfName = decodeString()
-    val self = new Symbol(selfName, selfFlags)
-    state.registerInternalSymbol(selfId, self)
+    given Definitions = defnLazy.value
 
-    // Decode val members
-    val vals = decodeRepeated: _ =>
-      val valId = decodeNat()
-      val valFlags = decodeFlags()
-      val valName = decodeString()
-      val valType = decodeType()
-      val valStartDelta = decodeInt()
-      val valLength = decodeInt()
-      val valSym = Symbol.createSymbol(valName, valFlags, symbol.sourcePos)
-      valSym.setInfo(valType)
-      state.registerInternalSymbol(valId, valSym)
-      valSym
+    // Read class content lazily
+    val contentStartPos = buf.position
+    object content:
+      given ReadBuffer = buf.fresh(contentStartPos)
 
-    // Decode function definitions
-    val funs = decodeRepeated: _ =>
-      decodeDef(symbol)
+      // Decode type parameters
+      val tparams = repeated:
+        val tparamId = decodeNat()
+        val tparamName = decodeString()
 
-    ClassDef(symbol, tparams, self, vals, funs)(Span(absoluteStart, symSpanLength))
+        // TODO: eager reading info excludes F-bounds
+        val tparamKind = decodeKind()
+        val tparamInfo = decodeType()
+
+        val tparamStartDelta = decodeInt()
+        val tparamLength = decodeNat()
+        val tparamSpan = Span(absoluteStart + tparamStartDelta, tparamLength)
+
+        val tparam = TypeSymbol.createSymbol(tparamKind, tparamName, tparamInfo, Flags.Param, symbol, tparamSpan.toPos)
+        state.registerInternalSymbol(tparamId, tparam)
+        tparam
+
+      // Decode self symbol
+      val selfId = decodeNat()
+      val selfName = decodeString()
+      val selfFlags = decodeFlags()
+      val self = Symbol.createSymbol(selfName, selfFlags, owner.sourcePos)
+      state.registerInternalSymbol(selfId, self)
+
+      // Decode val members
+      val vals = repeated:
+        val valId = decodeNat()
+        val valName = decodeString()
+        val valFlags = decodeFlags() | Flags.Field
+        val valType = decodeType()
+
+        val valStartDelta = decodeInt()
+        val valLength = decodeNat()
+        val valSpan = Span(absoluteStart + valStartDelta, valLength)
+
+        val valSym = Symbol.createSymbol(valName, valType, valFlags, symbol, valSpan.toPos)
+        state.registerInternalSymbol(valId, valSym)
+        valSym
+
+      // Decode function definitions as DelayedDef
+      val delayedFuns = repeated(decodeFunDef(symbol, Flags.Method))
+
+      // Add type for self
+      val selfInfo =
+        val classRef = StaticRef(symbol)
+        if tparams.isEmpty then classRef
+        else AppliedType(classRef, tparamSyms.map(StaticRef.apply))
+
+      ip.add(self, symbol, selfInfo)
+
+      val classInfo = ClassInfo(
+        symbol,
+        tparams,
+        tparams.map(StaticRef.apply),
+        self,
+        vals,
+        delayedFuns.map(_.symbol)
+      )
+    end content
+
+    defnLazy.infoProvider.addLazy(symbol, owner, () => content.classInfo)
+
+    val delayed = () =>
+      val forcedFuns = content.funs.map(_.force())
+      val span = Span(absoluteStart, treeLength)
+      ClassDef(symbol, content.tparams, content.self, content.vals, forcedFuns)(span)
+
+    // Set buffer position at end
+    buf.setPosition(pos + length)
+    DelayedDef(symbol, delayed)
 
   private def decodeTypeDef(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): DelayedDef[TypeDef] =
     given Source = owner.sourcePos.source
@@ -394,7 +445,10 @@ object Decoder:
     val treeLength = decodeNat()
     val id = decodeNat()
     val name = decodeString()
-    val symSpan = Span(absoluteStart + decodeInt(), decodeNat())
+
+    val symStartDelta = decodeInt()
+    val symSpanLength = decodeNat()
+    val symSpan = Span(absoluteStart + symStartDelta, symSpanLength)
 
     // Create symbol immediately but delay type reading
     val symbol = new TypeSymbol(Kind.Simple, name, Flags.Type, symSpan.toPos)
@@ -429,7 +483,10 @@ object Decoder:
 
     val id = decodeNat()
     val name = decodeString()
-    val symSpan = Span(absoluteStart + decodeInt(), decodeNat())
+
+    val symStartDelta = decodeInt()
+    val symSpanLength = decodeNat()
+    val symSpan = Span(absoluteStart + symStartDelta, symSpanLength)
 
     val symbol = Symbol.createSymbol(name, Flags.Pattern, symSpan.toPos)
     state.registerInternalSymbol(id, symbol)
@@ -442,7 +499,7 @@ object Decoder:
       given ReadBuffer = buf.fresh(tparamsStartPos)
 
       // Decode type parameters
-      val tparams = decodeRepeated:
+      val tparams = repeated:
         val tparamId = decodeNat()
         val tparamName = decodeString()
         val kind = decodeKind()
@@ -453,7 +510,7 @@ object Decoder:
         tparam
 
       // Decode regular term parameters
-      val params = decodeRepeated:
+      val params = repeated:
         val paramId = decodeNat()
         val paramName = decodeString()
         val paramInfo = decodeType()
@@ -463,7 +520,7 @@ object Decoder:
         param
 
       val resultType = decodeTypeTree(absoluteStart)
-      val receives = decodeRepeated(decodeSymbolRef())
+      val receives = repeated(decodeSymbolRef())
       val preParamCount = decodeNat()
       val signatureEndPos = buf.position
     end sig
@@ -510,7 +567,7 @@ object Decoder:
     state.registerInternalSymbol(id, symbol)
 
     // Decode nested definitions as DelayedDef
-    val nestedDelayedDefs = decodeRepeated(decodeDef(symbol))
+    val nestedDelayedDefs = repeated(decodeDef(symbol))
 
     // Provide symbol info
     val nameTable = new NameTable()
@@ -568,7 +625,7 @@ object Decoder:
       case Format.SimpleKind => Kind.Simple
 
       case Format.ArrowKind => // Arrow kind
-        val args = decodeRepeated(decodeKind())
+        val args = repeated(decodeKind())
         val to = decodeKind()
         Kind.Arrow(args, to)
 
@@ -606,19 +663,19 @@ object Decoder:
         ConstantType(const)
 
       case Format.RecordType =>
-        val fields = decodeRepeated(buf): _ =>
+        val fields = repeated(buf): _ =>
           val name = decodeString()
           val info = decodeType()
           NamedInfo(name, info)
         RecordType(fields)
 
       case Format.UnionType =>
-        val branches = decodeRepeated(decodeType)
+        val branches = repeated(decodeType)
         UnionType(branches)
 
       case Format.TagType =>
         val tag = decodeString()
-        val params = decodeRepeated(buf): _ =>
+        val params = repeated(buf): _ =>
           val name = decodeString()
           val info = decodeType()
           NamedInfo(name, info)
@@ -641,11 +698,11 @@ object Decoder:
 
       case Format.AppliedType =>
         val tctor = decodeType()
-        val targs = decodeRepeated(decodeType)
+        val targs = repeated(decodeType)
         AppliedType(tctor, targs)
 
       case Format.ProcType =>
-        val tparams = decodeRepeated(buf): _ =>
+        val tparams = repeated(buf): _ =>
           val id = decodeNat()
           val name = decodeString()
           val info = decodeType()
@@ -654,24 +711,24 @@ object Decoder:
           state.registerInternalSymbol(id, tparam)
           tparam
 
-        val params = decodeRepeated(buf): _ =>
+        val params = repeated(buf): _ =>
           val name = decodeString()
           val info = decodeType()
           NamedInfo(name, info)
 
-        val autos = decodeRepeated(buf): _ =>
+        val autos = repeated(buf): _ =>
           val name = decodeString()
           val info = decodeType()
           NamedInfo(name, info)
 
         val resType = decodeType()
-        val receives = decodeRepeated(decodeSymbolRef)
+        val receives = repeated(decodeSymbolRef)
         val preParamCount = decodeNat()
 
         ProcType(tparams, params, autos, resType, receives, preParamCount)
 
       case Format.TypeLambda =>
-        val tparams = decodeRepeated(buf): _ =>
+        val tparams = repeated(buf): _ =>
           val id = decodeNat()
           val name = decodeString()
           val info = decodeType()
@@ -715,7 +772,7 @@ object Decoder:
 
         case Format.New =>
           val classRef = decodeWord(owner, prevOffset)
-          val targs = decodeRepeated(decodeTypeTree(prevOffset))
+          val targs = repeated(decodeTypeTree(prevOffset))
           // Use classRef span as approximation - encoder doesn't store position for New
           New(classRef, targs)(classRef.span)
 
@@ -731,7 +788,7 @@ object Decoder:
           val startDelta = decodeInt()
           val currentOffset = prevOffset + startDelta
           var lastOffset = prevOffset
-          val fields = decodeRepeated(buf): _ =>
+          val fields = repeated(buf): _ =>
             val fieldName = decodeString()
             val rhs = decodeWord(owner, lastOffset)
             lastOffset = rhs.span.endOffset
@@ -745,7 +802,7 @@ object Decoder:
           val currentOffset = prevOffset + startDelta
           val tag = decodeWord(owner, prevOffset)
           var lastOffset = tag.span.endOffset
-          val args = decodeRepeated: _ =>
+          val args = repeated: _ =>
             val arg = decodeWord(owner, lastOffset)
             lastOffset = arg.span.endOffset
             arg
@@ -765,11 +822,11 @@ object Decoder:
         case Format.Apply =>
           val fun = decodeWord(owner, prevOffset)
           var lastOffset = fun.span.endOffset
-          val args = decodeRepeated: _ =>
+          val args = repeated: _ =>
             val arg = decodeWord(owner, lastOffset)
             lastOffset = arg.span.endOffset
             arg
-          val autos = decodeRepeated: _ =>
+          val autos = repeated: _ =>
             val auto = decodeWord(owner, lastOffset)
             lastOffset = auto.span.endOffset
             auto
@@ -780,13 +837,13 @@ object Decoder:
 
         case Format.TypeApply =>
           val fun = decodeWord(owner, prevOffset)
-          val targs = decodeRepeated(decodeTypeTree(prevOffset))
+          val targs = repeated(decodeTypeTree(prevOffset))
           // Use fun span as approximation - encoder doesn't store position for TypeApply
           TypeApply(fun, targs)(fun.span)
 
         case Format.With =>
           val expr = decodeWord(owner, absoluteStart)
-          val args = decodeRepeated(buf): _ =>
+          val args = repeated(buf): _ =>
             val ident = decodeWord(owner, absoluteStart)
             val rhs = decodeWord(owner, absoluteStart)
             Assign(ident, rhs)(VoidType, span)
@@ -794,7 +851,7 @@ object Decoder:
 
         case Format.Allow =>
           val expr = decodeWord(owner, absoluteStart)
-          val params = decodeRepeated(decodeWord(owner, absoluteStart))
+          val params = repeated(decodeWord(owner, absoluteStart))
           Allow(expr, params)(expr.tpe, span)
 
         case Format.Assign =>
@@ -811,7 +868,7 @@ object Decoder:
           decodeValDef(owner)
 
         case Format.FunDef =>
-          decodeFunDef(owner).force()
+          decodeFunDef(owner, Flags.Empty).force()
 
         case Format.TypeDef =>
           decodeTypeDef(owner).force()
@@ -838,13 +895,13 @@ object Decoder:
           While(cond, body)(VoidType, span)
 
         case Format.Block =>
-          val words = decodeRepeated(decodeWord)
+          val words = repeated(decodeWord)
           val tpe = if words.nonEmpty then words.last.tpe else VoidType
           Block(words)(tpe, span)
 
         case Format.Match =>
           val scrutinee = decodeWord(owner, absoluteStart)
-          val cases = decodeRepeated(buf): _ =>
+          val cases = repeated(buf): _ =>
             val pat = decodePattern(owner, absoluteStart)
             val body = decodeWord(owner, absoluteStart)
             Case(pat, body)
@@ -857,7 +914,7 @@ object Decoder:
           val self = new Symbol(selfName, Flags.Empty)
           state.registerInternalSymbol(selfId, self)
 
-          val members = decodeRepeated(decodeDef(self)).map:
+          val members = repeated(decodeDef(self)).map:
             case v: ValDef => v
             case f: FunDef => f
             case _ => throw new Exception("Object can only contain val and fun definitions")
@@ -888,7 +945,7 @@ object Decoder:
         case Format.TagPattern =>
           val tagLit = decodeWord(owner, prevOffset)
           var lastOffset = tagLit.span.endOffset
-          val nested = decodeRepeated: _ =>
+          val nested = repeated: _ =>
             val pat = decodePattern(owner, lastOffset)
             lastOffset = pat.span.endOffset
             pat
@@ -899,7 +956,7 @@ object Decoder:
           val scrutineeType = decodeType()
           val fun = decodeWord(owner, prevOffset)
           var lastOffset = fun.span.endOffset
-          val nested = decodeRepeated: _ =>
+          val nested = repeated: _ =>
             val pat = decodePattern(owner, lastOffset)
             lastOffset = pat.span.endOffset
             pat
@@ -929,7 +986,7 @@ object Decoder:
         case Format.BindPattern =>
           val pattern = decodePattern(owner, prevOffset)
           var lastOffset = pattern.span.endOffset
-          val bindings = decodeRepeated: _ =>
+          val bindings = repeated: _ =>
             val binding = decodeWord(owner, lastOffset)
             lastOffset = binding.span.endOffset
             binding
@@ -941,7 +998,7 @@ object Decoder:
           val startDelta = decodeInt()
           val currentOffset = prevOffset + startDelta
           var lastOffset = prevOffset
-          val pats = decodeRepeated(buf): _ =>
+          val pats = repeated(buf): _ =>
             val seqPatTag = decodeByte()
             seqPatTag match
               case Format.AtomPattern =>
@@ -956,7 +1013,7 @@ object Decoder:
 
               case Format.StarPattern =>
                 val pattern = decodePattern(owner, lastOffset)
-                val bindings = decodeRepeated(buf): _ =>
+                val bindings = repeated(buf): _ =>
                   val id = decodeNat()
                   val name = decodeString()
                   val info = decodeType()
@@ -1032,11 +1089,11 @@ object Decoder:
   private def decodeSource()(using buf: ReadBuffer): Source =
     val file = decodeString()
     val source = new Source(file)
-    for lineLen <- decodeRepeated(decodeNat) do
+    for lineLen <- repeated(decodeNat) do
       source.addLineOffset(lineLen)
     source
 
-  private def decodeRepeated[T](decode: => T)(using buf: ReadBuffer): Array[T] =
+  private def repeated[T](decode: => T)(using buf: ReadBuffer): Array[T] =
     val count = decodeNat()
     val arr = new Array[T](count)
     var i = 0

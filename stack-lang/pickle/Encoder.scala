@@ -259,8 +259,10 @@ object Encoder:
     encodeNat(state.getId(defSym))
     encodeString(defSym.name)
     encodeFlags(defSym.flags & (Flags.Auto | Flags.Mutable))
+
     encodeInt(defSym.span.start - absoluteStart)
     encodeNat(defSym.span.length)
+
     encodeType(defSym.info)
     encodeWord(vdef.rhs, absoluteStart)
 
@@ -288,6 +290,7 @@ object Encoder:
 
     buf.withLength:
       encodeNat(absoluteStart)
+      encodeNat(cdef.span.length)
 
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
@@ -297,20 +300,20 @@ object Encoder:
       encodeTypeParams(cdef.tparams, absoluteStart)
 
       encodeNat(state.getId(cdef.self))
-      encodeFlags(cdef.self.flags & Flags.Auto)
       encodeString(cdef.self.name)
+      encodeFlags(cdef.self.flags & Flags.Auto)
 
       // TODO: maintain members in original order
       repeated(cdef.vals): sym =>
         encodeNat(state.getId(sym))
-        encodeFlags(sym.flags & (Flags.Auto | Flags.Mutable))
         encodeString(sym.name)
+        encodeFlags(sym.flags & (Flags.Auto | Flags.Mutable))
         encodeType(sym.info)
 
         val symSpan = sym.sourcePos.span
         val symStartDelta = symSpan.start - defSym.span.start
         encodeInt(symStartDelta)
-        encodeInt(symSpan.length)
+        encodeNat(symSpan.length)
 
       repeated(cdef.funs): fdef =>
         encodeDef(fdef)
