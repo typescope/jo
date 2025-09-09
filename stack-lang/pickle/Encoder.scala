@@ -207,11 +207,10 @@ object Encoder:
   private def encodeKind(kind: Kind)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
     kind match
       case Kind.Simple =>
-        encodeByte(0)
+        encodeByte(Format.SimpleKind)
 
       case Kind.Arrow(args, to) =>
-        assert(args.size < 128, args.size)
-        encodeByte(1)
+        encodeByte(Format.ArrowKind)
         repeated(args) { arg => encodeKind(arg) }
         encodeKind(to)
 
@@ -226,7 +225,7 @@ object Encoder:
       val symSpan = tparam.sourcePos.span
       val startDelta = symSpan.start - prevOffset
       encodeInt(startDelta)
-      encodeInt(symSpan.length)
+      encodeNat(symSpan.length)
 
   private def encodeParams(params: List[Symbol], prevOffset: Int)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
     // Assume param section is small such that the delta is small even for the same base offset
@@ -341,6 +340,8 @@ object Encoder:
       repeated(fdef.procType.receives): eff =>
         encodeSymbolRef(eff)
 
+      encodeNat(defSym.info.as[ProcType].preParamCount)
+
       encodeWord(fdef.body, fdef.resultType.span.endOffset)
 
   private def encodePatDef(pdef: PatDef)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
@@ -365,6 +366,8 @@ object Encoder:
 
       repeated(pdef.procType.receives): eff =>
         encodeSymbolRef(eff)
+
+      encodeNat(defSym.info.as[ProcType].preParamCount)
 
       encodePattern(pdef.body, pdef.resultType.span.endOffset)
 
