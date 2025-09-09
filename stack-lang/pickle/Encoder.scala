@@ -199,13 +199,10 @@ object Encoder:
       encodeByte(1)
       encodeNat(state.nameTable.getIndex(symbol))
 
+  /** Not all flags need serialization, handled by caller */
   private def encodeFlags(flags: Flags)(using buf: WriteBuffer): Unit =
-    // Not all flags need serialization, handled by caller
-    val indices = Flags.flagIndices(flags)
-    assert(indices.size < 128)
-    // TODO: use negative value to signify end of flags
-    encodeByte(indices.size.toByte)
-    for i <- indices do encodeByte(i)
+    val bits = Flags.toBits(flags)
+    encodeLongNat(bits)
 
   private def encodeKind(kind: Kind)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
     kind match
@@ -789,6 +786,9 @@ object Encoder:
 
   private def encodeNat(n: Int)(using buf: WriteBuffer): Unit =
     buf.addNat(n)
+
+  private def encodeLongNat(n: Long)(using buf: WriteBuffer): Unit =
+    buf.addLongNat(n)
 
   private def encodeString(s: String)(using buf: WriteBuffer): Unit =
     buf.addUtf8(s)

@@ -425,12 +425,8 @@ object Decoder:
       case _ => throw new Exception(s"Invalid symbol reference type: $refType")
 
   private def decodeFlags()(using buf: ReadBuffer): Flags =
-    val count = decodeByte()
-    var flags = Flags.Empty
-    for _ <- 0 until count do
-      val flagIndex = decodeByte()
-      flags |= Flags.fromIndex(flagIndex)
-    flags
+    val bits = decodeLongNat()
+    Flags.fromBits(bits)
 
   private def decodeKind()(using buf: ReadBuffer, defn: Definitions, state: State): Kind =
     val kindType = decodeByte()
@@ -872,6 +868,9 @@ object Decoder:
 
   private def decodeNat()(using buf: ReadBuffer): Int =
     buf.readNat()
+
+  private def decodeLongNat()(using buf: ReadBuffer): Int =
+    buf.readLongNat()
 
   private def decodeString()(using buf: ReadBuffer): String =
     buf.readUtf8()

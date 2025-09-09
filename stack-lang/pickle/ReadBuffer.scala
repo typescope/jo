@@ -26,6 +26,9 @@ class ReadBuffer(private val bytes: Array[Byte]) extends (() => Byte):
   /** Read base-128 encoding of long */
   def readLong(): Long = Base128.toLong(this)
 
+  /** Read base-128 encoding of non-negative long */
+  def readLongNat(): Long = Base128.toLongNat(this)
+
   /** Read 4-byte big-endian 2's complement integer */
   def readIntRaw(): Int =
     (readByte() << 24) | (readByte() << 16) | (readByte() << 8) | readByte()

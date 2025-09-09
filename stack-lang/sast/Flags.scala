@@ -2,13 +2,6 @@ package sast
 
 import scala.collection.mutable
 
-/** The encoding of flags is implementation detail.
-  *
-  * The encoding can change in different compiler runs, therefore no assumptions
-  * should be made about the encoding.
-  *
-  * In contrast, flag names and indices are stable.
-  */
 type Flags = Flags.Flags
 
 object Flags:
@@ -27,14 +20,15 @@ object Flags:
     flagNames(index) = name
     1 << index
 
-  def flagIndices(fs: Flags): List[Byte] =
-    val buf = new mutable.ArrayBuffer[Byte]
-    for i <- 0 to MAX_INDEX do
-      if (fs & (1 << i)) > 0 then
-        assert(!flagNames(i).isEmpty, s"flag index $i is empty")
-        buf += i.toByte
-    end for
-    buf.toList
+  /** The encoding of flags is implementation detail.
+    *
+    * The encoding can change, therefore no assumptions should be made about the
+    * encoding except in encoding/decoding of SASTs.
+    */
+  def toBits(fs: Flags): Long = fs
+
+  /** See comment above */
+  def fromBits(bits: Long): Flags = bits
 
   def flagStrings(fs: Flags): List[String] =
     val buf = new mutable.ArrayBuffer[String]
@@ -44,6 +38,8 @@ object Flags:
         buf += flagNames(i)
     end for
     buf.toList
+
+  // TODO: keep non-encoded flags at high positions to reduce encoding size
 
   val Fun        : Flag = defineFlag(1,  "fun")      // symbol.info is ProcType
   val Type       : Flag = defineFlag(2,  "type")

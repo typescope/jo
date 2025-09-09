@@ -26,6 +26,9 @@ class WriteBuffer(initialSize: Int) extends (Byte => Unit):
   /** Write base-128 encoding of long */
   def addLong(x: Long): Unit = Base128.fromLong(x, this)
 
+  /** Write base-128 encoding of non-negative long */
+  def addLongNat(x: Long): Unit = Base128.fromLongNat(x, this)
+
   def addUtf8(s: String): Unit =
     val bytes = s.getBytes(java.nio.charset.StandardCharsets.UTF_8)
     val length = bytes.length
@@ -50,6 +53,7 @@ class WriteBuffer(initialSize: Int) extends (Byte => Unit):
     addByte(0)
     addr
 
+  /** Write 4-byte big-endian 2's complement integer at the specified address */
   def patchInt(addr: Int, value: Int) =
     bytes(addr) = (value >>> 24).toByte
     bytes(addr + 1) = (value >>> 16).toByte
