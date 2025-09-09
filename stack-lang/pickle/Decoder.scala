@@ -260,7 +260,7 @@ object Decoder:
 
     // Read signature lazily
     val tparamsStartPos = buf.position
-    lazy sig = new {
+    object sig:
       given ReadBuffer = buf.fresh(tparamStartPos)
 
       // Decode type parameters
@@ -310,7 +310,7 @@ object Decoder:
       val preParamCount = decodeNat()
 
       val signatureEndPos = newBuf.position
-    }
+    end sig
 
     // Add symbol info
     lazy val funInfo: ProcType =
@@ -438,7 +438,7 @@ object Decoder:
 
     // Read signature lazily
     val tparamsStartPos = buf.position
-    lazy val sig = new {
+    object sig:
       given ReadBuffer = buf.fresh(tparamsStartPos)
 
       // Decode type parameters
@@ -466,7 +466,7 @@ object Decoder:
       val receives = decodeRepeated(decodeSymbolRef())
       val preParamCount = decodeNat()
       val signatureEndPos = buf.position
-    }
+    end sig
 
     // Add symbol info
     lazy val patInfo: ProcType =
