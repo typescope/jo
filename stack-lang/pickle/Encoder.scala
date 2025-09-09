@@ -219,25 +219,30 @@ object Encoder:
     repeated(tparams): tparam =>
       encodeNat(state.getId(tparam))
       encodeString(tparam.name)
-      encodeKind(tparam.asTypeSymbol.kind)
-      encodeType(tparam.info)
 
       val symSpan = tparam.sourcePos.span
       val startDelta = symSpan.start - prevOffset
       encodeInt(startDelta)
       encodeNat(symSpan.length)
 
+      // TODO: should we have KindInfo to merge the two?
+      encodeKind(tparam.asTypeSymbol.kind)
+      encodeType(tparam.info)
+
+
   private def encodeParams(params: List[Symbol], prevOffset: Int)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
     // Assume param section is small such that the delta is small even for the same base offset
     repeated(params): param =>
       encodeNat(state.getId(param))
       encodeString(param.name)
-      encodeType(param.info)
 
       val symSpan = param.sourcePos.span
       val startDelta = symSpan.start - prevOffset
       encodeInt(startDelta)
       encodeInt(symSpan.length)
+
+      encodeType(param.info)
+
 
   private def encodeDef(defn: Def)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
     defn match
@@ -308,12 +313,13 @@ object Encoder:
         encodeNat(state.getId(sym))
         encodeString(sym.name)
         encodeFlags(sym.flags & (Flags.Auto | Flags.Mutable))
-        encodeType(sym.info)
 
         val symSpan = sym.sourcePos.span
         val symStartDelta = symSpan.start - defSym.span.start
         encodeInt(symStartDelta)
         encodeNat(symSpan.length)
+
+        encodeType(sym.info)
 
       repeated(cdef.funs): fdef =>
         encodeDef(fdef)

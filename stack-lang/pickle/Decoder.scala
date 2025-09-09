@@ -266,18 +266,20 @@ object Decoder:
     // Read signature lazily
     val tparamsStartPos = buf.position
     object sig:
-      given ReadBuffer = buf.fresh(tparamStartPos)
+      given sigBuf: ReadBuffer = buf.fresh(tparamStartPos)
 
       // Decode type parameters
       val tparams = repeated:
         val tparamId = decodeNat()
         val tparamName = decodeString()
-        val kind = decodeKind()
+
+        val tparamStartDelta = decodeInt()
+        val tparamSpanLength = decodeNat()
+        val tparamSpan = Span(absoluteStart + tparamStartDelta, tparamSpanLength)
 
         // TODO: eager decoding excludes F-bounds
+        val kind = decodeKind()
         val tparamInfo = decodeType()
-
-        val tparamSpan = Span(absoluteStart + decodeInt(), decodeNat())
 
         val tparam = TypeSymbol.createSymbol(kind, tparamName, tparamInfo, Flags.Param, symbol, tparamSpan.toPos)
         state.registerInternalSymbol(tparamId, tparam)
@@ -287,9 +289,12 @@ object Decoder:
       val params = repeated:
         val paramId = decodeNat()
         val paramName = decodeString()
-        val paramInfo = decodeType()
 
-        val paramSpan = Span(absoluteStart + decodeInt(), decodeNat())
+        val paramStartDelta = decodeInt()
+        val paramSpanLength = decodeNat()
+        val paramSpan = Span(absoluteStart + paramStartDelta, paramSpanLength)
+
+        val paramInfo = decodeType()
 
         val param = Symbol.createSymbol(paramName, paramInfo, Flags.Param, symbol, paramSpan.toPos)
         state.registerInternalSymbol(paramId, param)
@@ -299,9 +304,12 @@ object Decoder:
       val autos = repeated:
         val autoId = decodeNat()
         val autoName = decodeString()
-        val autoInfo = decodeType()
 
-        val autoSpan = Span(absoluteStart + decodeInt(), decodeNat())
+        val autoStartDelta = decodeInt()
+        val autoSpanLength = decodeNat()
+        val autoSpan = Span(absoluteStart + autoStartDelta, autoSpanLength)
+
+        val autoInfo = decodeType()
 
         val auto = Symbol.createSymbol(autoName, autoInfo, Flags.Param | Flags.Auto, symbol, autoSpan.toPos)
         state.registerInternalSymbol(autoId, auto)
@@ -314,7 +322,7 @@ object Decoder:
 
       val preParamCount = decodeNat()
 
-      val signatureEndPos = newBuf.position
+      val signatureEndPos = sigBuf.position
     end sig
 
     // Add symbol info
@@ -370,13 +378,14 @@ object Decoder:
         val tparamId = decodeNat()
         val tparamName = decodeString()
 
-        // TODO: eager reading info excludes F-bounds
-        val tparamKind = decodeKind()
-        val tparamInfo = decodeType()
 
         val tparamStartDelta = decodeInt()
         val tparamLength = decodeNat()
         val tparamSpan = Span(absoluteStart + tparamStartDelta, tparamLength)
+
+        // TODO: eager reading info excludes F-bounds
+        val tparamKind = decodeKind()
+        val tparamInfo = decodeType()
 
         val tparam = TypeSymbol.createSymbol(tparamKind, tparamName, tparamInfo, Flags.Param, symbol, tparamSpan.toPos)
         state.registerInternalSymbol(tparamId, tparam)
@@ -394,11 +403,12 @@ object Decoder:
         val valId = decodeNat()
         val valName = decodeString()
         val valFlags = decodeFlags() | Flags.Field
-        val valType = decodeType()
 
         val valStartDelta = decodeInt()
         val valLength = decodeNat()
         val valSpan = Span(absoluteStart + valStartDelta, valLength)
+
+        val valType = decodeType()
 
         val valSym = Symbol.createSymbol(valName, valType, valFlags, symbol, valSpan.toPos)
         state.registerInternalSymbol(valId, valSym)
@@ -496,15 +506,21 @@ object Decoder:
     // Read signature lazily
     val tparamsStartPos = buf.position
     object sig:
-      given ReadBuffer = buf.fresh(tparamsStartPos)
+      given sigBuf: ReadBuffer = buf.fresh(tparamsStartPos)
 
       // Decode type parameters
       val tparams = repeated:
         val tparamId = decodeNat()
         val tparamName = decodeString()
         val kind = decodeKind()
+
+        val tparamStartDelta = decodeInt()
+        val tparamSpanLength = decodeNat()
+        val tparamSpan = Span(absoluteStart + tparamStartDelta, tparamSpanLength)
+
+        // TODO: eager reading info excludes F-bounds
         val tparamInfo = decodeType()
-        val tparamSpan = Span(absoluteStart + decodeInt(), decodeNat())
+
         val tparam = TypeSymbol.createSymbol(kind, tparamName, tparamInfo, Flags.Param, symbol, tparamSpan.toPos)
         state.registerInternalSymbol(tparamId, tparam)
         tparam
@@ -513,8 +529,13 @@ object Decoder:
       val params = repeated:
         val paramId = decodeNat()
         val paramName = decodeString()
+
+        val paramStartDelta = decodeInt()
+        val paramSpanLength = decodeNat()
+        val paramSpan = Span(absoluteStart + paramStartDelta, paramSpanLength)
+
         val paramInfo = decodeType()
-        val paramSpan = Span(absoluteStart + decodeInt(), decodeNat())
+
         val param = Symbol.createSymbol(paramName, paramInfo, Flags.Param | Flags.Pattern, symbol, paramSpan.toPos)
         state.registerInternalSymbol(paramId, param)
         param
@@ -522,7 +543,7 @@ object Decoder:
       val resultType = decodeTypeTree(absoluteStart)
       val receives = repeated(decodeSymbolRef())
       val preParamCount = decodeNat()
-      val signatureEndPos = buf.position
+      val signatureEndPos = sigBuf.position
     end sig
 
     // Add symbol info
