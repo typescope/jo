@@ -1517,7 +1517,7 @@ class Namer:
       if tparamSyms.isEmpty then classRef
       else AppliedType(classRef, tparamSyms.map(StaticRef.apply))
 
-    ip.add(thisSym, classSym, () thisInfo)
+    ip.addLazy(thisSym, classSym, () => thisInfo)
 
     val delayedDefs = new mutable.ArrayBuffer[DelayedDef[FunDef]]
 

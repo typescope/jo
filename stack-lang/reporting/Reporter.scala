@@ -33,10 +33,6 @@ extends KeyProps.Container:
   def fresh(buffer: Boolean = true): Reporter =
     new Reporter(mutable.ArrayBuffer.empty, buffer, sources).copyProps(this)
 
-  def abort(message: String, pos: SourcePosition): Nothing =
-    val error = new ReportItem(Kind.Error, message, pos)
-    throw new FatalError.CodeError(error)
-
   def report(kind: Kind, message: String, pos: SourcePosition): Unit =
     report(new ReportItem(kind, message, pos))
 
@@ -133,8 +129,9 @@ object Reporter:
     val workFuture = Future { work }
     Await.result(workFuture, Duration(seconds, SECONDS))
 
-  def abort(message: String, pos: SourcePosition)(using rp: Reporter): Nothing =
-    rp.abort(message, pos)
+  def abort(message: String, pos: SourcePosition): Nothing =
+    val error = new ReportItem(Kind.Error, message, pos)
+    throw new FatalError.CodeError(error)
 
   def abortInternal(message: String): Nothing =
     throw new FatalError.InternalError(message)

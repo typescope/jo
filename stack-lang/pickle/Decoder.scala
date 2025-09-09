@@ -9,6 +9,7 @@ import sast.Symbols.*
 import typing.Namer.DelayedDef
 import reporting.Reporter
 
+import scala.reflect.ClassTag
 import scala.collection.mutable
 
 /** Decode trees, symbols and types
@@ -40,15 +41,18 @@ object Decoder:
           case Format.Type => defn.resolveTypeByPathParts(fullNameParts)
 
         externalSymbols(index) = sym
-      end
+      end if
       sym
 
     def getFullNameParts(index: Int): List[String] =
-      val nameRef = nameRefs(index)
-      if nameRef.ownerIndex == -1 then
-        nameRef.name :: Nil
-      else
-        getFullNameParts(nameRef.ownerIndex) :: nameRef.name
+      def recur(tail: List[String], index: Int): List[String] =
+        val nameRef = nameRefs(index)
+        if nameRef.ownerIndex == -1 then
+          nameRef.name :: tail
+        else
+          recur(nameRef.name :: tail, nameRef.ownerIndex)
+      end recur
+      recur(Nil, index)
 
     def registerInternalSymbol(id: Int, symbol: Symbol): Unit =
       internalSymbols(id) = symbol
@@ -74,19 +78,22 @@ object Decoder:
     // Read external name table
     val nameTableAddr: Int = decodeIntRaw()
     val nameRefs: Array[NameRef] = buf.withPosition(nameTableAddr):
-      decodeExternalNameTable()
+      decodeNameTable()
 
     given Source = source
 
-    val rootSymbol: Symbol = resolveNamespace(
+    val rootSymbol = resolveNamespace(
       state.getFullNameParts(nameIndex),
       symSpan.toPos,
+      defnLazy.rootNameTable,
+      defnLazy.infoProvider,
       isBranch = false
     )
 
     given state: State = new State(rootSymbol, nameRefs)
 
-    val delayedDefs: Array[DelayedDef[Def]] = repeated(decodeDef(rootSymbol))
+    val delayedDefs: Array[DelayedDef[Def]] = repeated:
+      decodeDef(rootSymbol)
 
     val span = Span(decodeNat(), decodeNat())
 
@@ -96,8 +103,10 @@ object Decoder:
 
     val delayed = () =>
       val members = new Array[Def](delayedDefs.length)
-      var i = 0
 
+      given Definitions = defnLazy.value
+
+      var i = 0
       while i < delayedDefs.length do
         val member = delayedDefs(i).force()
         members(i) = member
@@ -181,7 +190,7 @@ object Decoder:
 
     defType match
       case Format.ParamDef => decodeParamDef(owner)
-      case Format.FunDef => decodeFunDef(owner, Flags.Empty)
+      case Format.FunDef => decodeFunDef(owner, Flags.empty)
       case Format.ClassDef => decodeClassDef(owner)
       case Format.TypeDef => decodeTypeDef(owner)
       case Format.PatDef => decodePatDef(owner)
@@ -318,7 +327,8 @@ object Decoder:
 
       val resultType = decodeTypeTree(absoluteStart)
 
-      val receives = repeated(decodeSymbolRef())
+      val receives = repeated:
+        decodeSymbolRef()
 
       val preParamCount = decodeNat()
 
@@ -415,7 +425,8 @@ object Decoder:
         valSym
 
       // Decode function definitions as DelayedDef
-      val delayedFuns = repeated(decodeFunDef(symbol, Flags.Method))
+      val delayedFuns = repeated:
+        decodeFunDef(symbol, Flags.Method)
 
       // Add type for self
       val selfInfo =
@@ -541,7 +552,7 @@ object Decoder:
         param
 
       val resultType = decodeTypeTree(absoluteStart)
-      val receives = repeated(decodeSymbolRef())
+      val receives = repeated { decodeSymbolRef() }
       val preParamCount = decodeNat()
       val signatureEndPos = sigBuf.position
     end sig
@@ -588,7 +599,7 @@ object Decoder:
     state.registerInternalSymbol(id, symbol)
 
     // Decode nested definitions as DelayedDef
-    val nestedDelayedDefs = repeated(decodeDef(symbol))
+    val nestedDelayedDefs = repeated { decodeDef(symbol) }
 
     // Provide symbol info
     val nameTable = new NameTable()
@@ -608,7 +619,7 @@ object Decoder:
 
   //----------------------------------------------------------------------------
 
-  private def decodeExternalNameTable()(using buf: ReadBuffer, defn: Definitions): Array[NameRef] =
+  private def decodeNameTable()(using buf: ReadBuffer): Array[NameRef] =
     val count = decodeNat()
     val nameRefs = new Array[NameRef](count)
 
@@ -646,7 +657,7 @@ object Decoder:
       case Format.SimpleKind => Kind.Simple
 
       case Format.ArrowKind => // Arrow kind
-        val args = repeated(decodeKind())
+        val args = repeated { decodeKind() }
         val to = decodeKind()
         Kind.Arrow(args, to)
 
@@ -684,23 +695,23 @@ object Decoder:
         ConstantType(const)
 
       case Format.RecordType =>
-        val fields = repeated(buf): _ =>
+        val fields = repeated:
           val name = decodeString()
           val info = decodeType()
           NamedInfo(name, info)
-        RecordType(fields)
+        RecordType(fields.toList)
 
       case Format.UnionType =>
-        val branches = repeated(decodeType)
-        UnionType(branches)
+        val branches = repeated { decodeType }
+        UnionType(branches.toList)
 
       case Format.TagType =>
         val tag = decodeString()
-        val params = repeated(buf): _ =>
+        val params = repeated:
           val name = decodeString()
           val info = decodeType()
           NamedInfo(name, info)
-        TagType(tag, params)
+        TagType(tag, params.toList)
 
       case Format.ObjectType =>
         val memberCount = decodeNat()
@@ -719,11 +730,11 @@ object Decoder:
 
       case Format.AppliedType =>
         val tctor = decodeType()
-        val targs = repeated(decodeType)
-        AppliedType(tctor, targs)
+        val targs = repeated { decodeType }
+        AppliedType(tctor, targs.toList)
 
       case Format.ProcType =>
-        val tparams = repeated(buf): _ =>
+        val tparams = repeated:
           val id = decodeNat()
           val name = decodeString()
           val info = decodeType()
@@ -732,24 +743,24 @@ object Decoder:
           state.registerInternalSymbol(id, tparam)
           tparam
 
-        val params = repeated(buf): _ =>
+        val params = repeated:
           val name = decodeString()
           val info = decodeType()
           NamedInfo(name, info)
 
-        val autos = repeated(buf): _ =>
+        val autos = repeated:
           val name = decodeString()
           val info = decodeType()
           NamedInfo(name, info)
 
         val resType = decodeType()
-        val receives = repeated(decodeSymbolRef)
+        val receives = repeated { decodeSymbolRef }
         val preParamCount = decodeNat()
 
-        ProcType(tparams, params, autos, resType, receives, preParamCount)
+        ProcType(tparams, params, autos, resType, () => receives.toList, preParamCount)
 
       case Format.TypeLambda =>
-        val tparams = repeated(buf): _ =>
+        val tparams = repeated:
           val id = decodeNat()
           val name = decodeString()
           val info = decodeType()
@@ -793,7 +804,7 @@ object Decoder:
 
         case Format.New =>
           val classRef = decodeWord(owner, prevOffset)
-          val targs = repeated(decodeTypeTree(prevOffset))
+          val targs = repeated { decodeTypeTree(prevOffset) }
           // Use classRef span as approximation - encoder doesn't store position for New
           New(classRef, targs)(classRef.span)
 
@@ -809,7 +820,7 @@ object Decoder:
           val startDelta = decodeInt()
           val currentOffset = prevOffset + startDelta
           var lastOffset = prevOffset
-          val fields = repeated(buf): _ =>
+          val fields = repeated:
             val fieldName = decodeString()
             val rhs = decodeWord(owner, lastOffset)
             lastOffset = rhs.span.endOffset
@@ -837,59 +848,68 @@ object Decoder:
         case Format.Encoded =>
           val repr = decodeWord(owner, prevOffset)
           val tpe = decodeType()
-          // Use repr span as approximation - encoder doesn't store position for Encoded
           Encoded(repr)(tpe, repr.span)
 
         case Format.Apply =>
           val fun = decodeWord(owner, prevOffset)
           var lastOffset = fun.span.endOffset
-          val args = repeated: _ =>
+          val args = repeated:
             val arg = decodeWord(owner, lastOffset)
             lastOffset = arg.span.endOffset
             arg
-          val autos = repeated: _ =>
+          val autos = repeated:
             val auto = decodeWord(owner, lastOffset)
             lastOffset = auto.span.endOffset
             auto
-          // Type would need to be computed from function type
-          val tpe = VoidType // Placeholder
+
           val span = Span(fun.span.start, lastOffset - fun.span.start)
+          val tpe = ???
           Apply(fun, args, autos)(tpe, span)
 
         case Format.TypeApply =>
           val fun = decodeWord(owner, prevOffset)
           val targs = repeated(decodeTypeTree(prevOffset))
-          // Use fun span as approximation - encoder doesn't store position for TypeApply
-          TypeApply(fun, targs)(fun.span)
+          val span = ???
+          TypeApply(fun, targs)(span)
 
         case Format.With =>
           val expr = decodeWord(owner, absoluteStart)
-          val args = repeated(buf): _ =>
+
+          var lastOffset = expr.span.endOffset
+          val args = repeated:
             val ident = decodeWord(owner, absoluteStart)
             val rhs = decodeWord(owner, absoluteStart)
-            Assign(ident, rhs)(VoidType, span)
+            lastOffset = rhs.span.endOffset
+            Assign(ident, rhs)
+
+          val span = ???
           With(expr, args)(expr.tpe, span)
 
         case Format.Allow =>
-          val expr = decodeWord(owner, absoluteStart)
-          val params = repeated(decodeWord(owner, absoluteStart))
+          val expr = decodeWord(owner, prevOffset)
+          var lastOffset = expr.span.endOffset
+          val params = repeated:
+            val param = decodeWord(owner, lastOffset)
+            lastOffset = param.span.endOffset
+
+          val span = ???
           Allow(expr, params)(expr.tpe, span)
 
         case Format.Assign =>
-          val ident = decodeWord(owner, absoluteStart)
-          val rhs = decodeWord(owner, absoluteStart)
-          Assign(ident, rhs)(VoidType, span)
+          val ident = decodeWord(owner, prevOffset)
+          val rhs = decodeWord(owner, prevOffset)
+          Assign(ident, rhs)(ident.span | rhs.span)
 
         case Format.FieldAssign =>
-          val lhs = decodeWord(owner, absoluteStart)
-          val rhs = decodeWord(owner, absoluteStart)
-          FieldAssign(lhs, rhs)(VoidType, span)
+          val lhs = decodeWord(owner, prevOffset)
+          val rhs = decodeWord(owner, prevOffset)
+          FieldAssign(lhs, rhs)
 
         case Format.ValDef =>
           decodeValDef(owner)
 
         case Format.FunDef =>
-          decodeFunDef(owner, Flags.Empty).force()
+          decodeFunDef(owner, Flags.empty).force()
 
         case Format.TypeDef =>
           decodeTypeDef(owner).force()
@@ -913,33 +933,48 @@ object Decoder:
           val cond = decodeWord(owner, prevOffset)
           val body = decodeWord(owner, cond.span.endOffset)
           val span = Span(currentOffset, body.span.endOffset - currentOffset)
-          While(cond, body)(VoidType, span)
+          While(cond, body)(span)
 
         case Format.Block =>
-          val words = repeated(decodeWord)
+          var lastOffset = prevOffset
+          val words = repeated:
+            val word = decodeWord(owner, lastOffset)
+            lastOffset = word.span.endOffset
+            word
+
           val tpe = if words.nonEmpty then words.last.tpe else VoidType
-          Block(words)(tpe, span)
+          val span = ???
+          Block(words.toList)(tpe, span)
 
         case Format.Match =>
-          val scrutinee = decodeWord(owner, absoluteStart)
-          val cases = repeated(buf): _ =>
-            val pat = decodePattern(owner, absoluteStart)
-            val body = decodeWord(owner, absoluteStart)
-            Case(pat, body)
+          val scrutinee = decodeWord(owner, prevOffset)
+
+          var lastOffset = prevOffset
+          val cases = repeated:
+            val pat = decodePattern(owner, lastOffset)
+            val body = decodeWord(owner, pat.span.endOffset)
+            lastOffset = body.span.endOffset
+            Case(pat, body)(pat.span | body.span)
+
           val tpe = decodeType()
+          val span = ???
           Match(scrutinee, cases)(tpe, span)
 
         case Format.Object =>
           val selfId = decodeNat()
           val selfName = decodeString()
-          val self = new Symbol(selfName, Flags.Empty)
+
+          val self = new Symbol(selfName, Flags.empty)
           state.registerInternalSymbol(selfId, self)
+
+          // TODO: decode object properly
 
           val members = repeated(decodeDef(self)).map:
             case v: ValDef => v
             case f: FunDef => f
             case _ => throw new Exception("Object can only contain val and fun definitions")
 
+          val span = ???
           Object(self, members)(span)
 
         case _ => throw new Exception(s"Unknown word tag: $wordTag")
@@ -960,49 +995,45 @@ object Decoder:
           val startDelta = decodeInt()
           val currentOffset = prevOffset + startDelta
           val tpt = decodeTypeTree(prevOffset)
-          val span = Span(currentOffset, tpt.span.endOffset - currentOffset)
-          TypePattern(tpt)(scrutineeType, span)
+          TypePattern(tpt)(scrutineeType)
 
         case Format.TagPattern =>
           val tagLit = decodeWord(owner, prevOffset)
           var lastOffset = tagLit.span.endOffset
-          val nested = repeated: _ =>
+          val nested = repeated:
             val pat = decodePattern(owner, lastOffset)
             lastOffset = pat.span.endOffset
             pat
           val span = Span(tagLit.span.start, lastOffset - tagLit.span.start)
-          TagPattern(tagLit, nested)(span)
+          TagPattern(tagLit, nested.toList)(span)
 
         case Format.ApplyPattern =>
           val scrutineeType = decodeType()
           val fun = decodeWord(owner, prevOffset)
           var lastOffset = fun.span.endOffset
-          val nested = repeated: _ =>
+          val nested = repeated:
             val pat = decodePattern(owner, lastOffset)
             lastOffset = pat.span.endOffset
             pat
           val span = Span(fun.span.start, lastOffset - fun.span.start)
-          ApplyPattern(fun, nested)(scrutineeType, span)
+          ApplyPattern(fun, nested.toList)(scrutineeType, span)
 
         case Format.OrPattern =>
           val lhs = decodePattern(owner, prevOffset)
           val rhs = decodePattern(owner, lhs.span.endOffset)
-          val span = Span(lhs.span.start, rhs.span.endOffset - lhs.span.start)
-          OrPattern(lhs, rhs)(span)
+          OrPattern(lhs, rhs)
 
         case Format.ValuePattern =>
           val scrutineeType = decodeType()
           val startDelta = decodeInt()
           val currentOffset = prevOffset + startDelta
           val value = decodeWord(owner, prevOffset)
-          val span = Span(currentOffset, value.span.endOffset - currentOffset)
-          ValuePattern(value)(scrutineeType, span)
+          ValuePattern(value)(scrutineeType)
 
         case Format.GuardPattern =>
           val pattern = decodePattern(owner, prevOffset)
           val guard = decodeWord(owner, pattern.span.endOffset)
-          val span = Span(pattern.span.start, guard.span.endOffset - pattern.span.start)
-          GuardPattern(pattern, guard)(span)
+          GuardPattern(pattern, guard)
 
         case Format.BindPattern =>
           val pattern = decodePattern(owner, prevOffset)
@@ -1011,15 +1042,14 @@ object Decoder:
             val binding = decodeWord(owner, lastOffset)
             lastOffset = binding.span.endOffset
             binding
-          val span = Span(pattern.span.start, lastOffset - pattern.span.start)
-          BindPattern(pattern, bindings)(span)
+          BindPattern(pattern, bindings)
 
         case Format.SeqPattern =>
           val scrutineeType = decodeType()
           val startDelta = decodeInt()
           val currentOffset = prevOffset + startDelta
           var lastOffset = prevOffset
-          val pats = repeated(buf): _ =>
+          val pats = repeated:
             val seqPatTag = decodeByte()
             seqPatTag match
               case Format.AtomPattern =>
@@ -1030,31 +1060,35 @@ object Decoder:
               case Format.SkipToPattern =>
                 val pattern = decodePattern(owner, lastOffset)
                 lastOffset = pattern.span.endOffset
-                SkipToPattern(pattern)
+                val span = ???
+                SkipToPattern(pattern)(span)
 
               case Format.StarPattern =>
                 val pattern = decodePattern(owner, lastOffset)
-                val bindings = repeated(buf): _ =>
+                // TODO: fix binding
+                val bindings = repeated:
                   val id = decodeNat()
                   val name = decodeString()
                   val info = decodeType()
-                  val sym1 = Symbol.createSymbol(name, Flags.Empty, owner.sourcePos)
-                  sym1.setInfo(info)
+                  val sym1 = Symbol.createSymbol(name, Flags.empty, owner.sourcePos)
+
                   state.registerInternalSymbol(id, sym1)
-                  val sym2 = decodeSymbolRef
+                  val sym2 = decodeSymbolRef()
                   (sym1, sym2)
                 lastOffset = pattern.span.endOffset
-                StarPattern(pattern, bindings)
+                val span = ???
+                StarPattern(pattern)(span, bindings.toList)
 
               case Format.RestPattern =>
                 val pattern = decodePattern(owner, lastOffset)
                 lastOffset = pattern.span.endOffset
-                RestPattern(pattern)
+                val span = ???
+                RestPattern(pattern)(span)
 
               case _ => throw new Exception(s"Unknown sequence pattern tag: $seqPatTag")
 
           val span = Span(currentOffset, lastOffset - currentOffset)
-          SeqPattern(pats)(scrutineeType, span)
+          SeqPattern(pats.toList)(scrutineeType, span)
 
         case Format.WildcardPattern =>
           val scrutineeType = decodeType()
@@ -1081,7 +1115,7 @@ object Decoder:
   private def decodeNat()(using buf: ReadBuffer): Int =
     buf.readNat()
 
-  private def decodeLongNat()(using buf: ReadBuffer): Int =
+  private def decodeLongNat()(using buf: ReadBuffer): Long =
     buf.readLongNat()
 
   private def decodeString()(using buf: ReadBuffer): String =
@@ -1110,11 +1144,11 @@ object Decoder:
   private def decodeSource()(using buf: ReadBuffer): Source =
     val file = decodeString()
     val source = new Source(file)
-    for lineLen <- repeated(decodeNat) do
+    for lineLen <- repeated { decodeNat() } do
       source.addLineOffset(lineLen)
     source
 
-  private def repeated[T](decode: => T)(using buf: ReadBuffer): Array[T] =
+  private def repeated[T: ClassTag](decode: => T)(using buf: ReadBuffer): Array[T] =
     val count = decodeNat()
     val arr = new Array[T](count)
     var i = 0
