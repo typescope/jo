@@ -391,23 +391,32 @@ object Decoder:
     val pos = buf.position
 
     val absoluteStart = decodeInt()
+    val treeLength = decodeNat()
     val id = decodeNat()
     val name = decodeString()
-    val symbolType = decodeType()
-    val symStartDelta = decodeInt()
-    val symSpanLength = decodeNat()
-    val defLength = decodeNat()
+    val symSpan = Span(absoluteStart + decodeInt(), decodeNat())
 
-    // Create and register symbol immediately
-    val actualSpan = Span(absoluteStart, defLength)
-    val symbol = new TypeSymbol(name, Kind.Simple)
-    symbol.sourcePos = actualSpan.toPos
-    symbol.setInfo(symbolType)
+    // Create symbol immediately but delay type reading
+    val symbol = new TypeSymbol(Kind.Simple, name, Flags.Type, symSpan.toPos)
     state.registerInternalSymbol(id, symbol)
 
-    // Return delayed definition
+    given Definitions = defnLazy.value
+
+    // Read type and def length lazily
+    val typeStartPos = buf.position
+    lazy val info =
+      given ReadBuffer = buf.fresh(typeStartPos)
+      decodeType()
+
+    // Add symbol info lazily
+    defnLazy.infoProvider.addLazy(symbol, owner, () => typeInfo.symbolType)
+
     val delayed = () =>
+      val actualSpan = Span(absoluteStart, treeLength)
       TypeDef(symbol)(actualSpan)
+
+    // Set buffer position at end
+    buf.setPosition(pos + length)
 
     DelayedDef(symbol, delayed)
 

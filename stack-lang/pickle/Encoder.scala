@@ -379,13 +379,13 @@ object Encoder:
 
     buf.withLength:
       encodeNat(absoluteStart)
+      encodeNat(tdef.span.length)
 
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
-      encodeType(defSym.info)
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
-      encodeNat(tdef.span.length)
+      encodeType(defSym.info)
 
   private def encodeSection(sec: Section)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
     val defSym = sec.symbol
