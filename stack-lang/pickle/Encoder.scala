@@ -393,8 +393,10 @@ object Encoder:
 
     encodeByte(Format.Section)
 
+    // length is redundant --- keep it for extension and uniformity
     buf.withLength:
       encodeNat(absoluteStart)
+      encodeNat(sec.span.length)
 
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)

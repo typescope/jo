@@ -488,21 +488,45 @@ object Decoder:
 
     DelayedDef(symbol, delayedPatDef)
 
-  private def decodeSection()(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): DelayedDef[Section] =
+  private def decodeSection(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): DelayedDef[Section] =
     given Source = owner.sourcePos.source
+
+    // length is redundant --- keep it for extension and uniformity
     val length = decodeIntRaw()
     val pos = buf.position
 
+    val absoluteStart = decodeInt()
+    val treeLength = decodeNat()
+
     val id = decodeNat()
-    val symbol = state.getInternalSymbol(id)
-    skipString() // name - already in symbol
+    val name = decodeString()
+
     val symStartDelta = decodeInt()
     val symSpanLength = decodeNat()
-    // For Section, we need to decode nested definitions differently
-    // This is a placeholder - actual implementation would need proper handling
-    val nestedDefs = Array.empty[Def]
+    val symSpan = Span(absoluteStart + symStartDelta, symSpanLength)
 
-    Section(symbol, nestedDefs)(Span(absoluteStart, symSpanLength))
+    // Create and register symbol immediately
+    val symbol = Symbol.createSymbol(name, Flags.Section, symSpan.toPos)
+    state.registerInternalSymbol(id, symbol)
+
+    // Decode nested definitions as DelayedDef
+    val nestedDelayedDefs = decodeRepeated(decodeDef(symbol))
+
+    // Provide symbol info
+    val nameTable = new NameTable()
+    val info = new ContainerInfo(nameTable)
+    for delayedDef <- delayedDefs do nameTable.define(delayedDef.symbol)
+    defnLazy.infoProvider.add(symbol, owner, info)
+
+    val delayed = () =>
+      val nestedDefs = nestedDelayedDefs.map(_.force())
+      val span = Span(absoluteStart, treeLength)
+      Section(symbol, nestedDefs)(span)
+
+    // Set buffer position at end
+    buf.setPosition(pos + length)
+
+    DelayedDef(symbol, delayed)
 
   //----------------------------------------------------------------------------
 
