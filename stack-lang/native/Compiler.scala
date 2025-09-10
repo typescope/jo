@@ -61,7 +61,7 @@ object Compiler:
     given Config = Config(options)
 
     Reporter.monitor:
-      given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable)
+      given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
       val namespacesSAST = FrontEnd.run(runtime, sources) <| "frontend"
 

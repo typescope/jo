@@ -6,11 +6,20 @@ import Trees.FunDef
 
 import reporting.Reporter
 
-final class Definitions(rootNameTable: NameTable, initProvider: InfoProvider):
+final class Definitions(nameTable: NameTable, initProvider: InfoProvider)
+extends Definitions.Lazy:
 
-  export rootNameTable.{ resolveTermByPath, resolveTypeByPath, resolvePatternByPath }
+  export nameTable.{ resolveTermByPath, resolveTypeByPath, resolvePatternByPath }
 
-  export rootNameTable.{ resolveTermByPathParts, resolveTypeByPathParts, resolvePatternByPathParts }
+  export nameTable.{ resolveTermByPathParts, resolveTypeByPathParts, resolvePatternByPathParts }
+
+  //----------------------------------------------------------------------------
+  // Definitions.Lazy implementation
+  //
+
+  def rootNameTable: NameTable = nameTable
+  def infoProvider: InfoProvider = provider
+  def value: Definitions = this
 
   //----------------------------------------------------------------------------
   // Info provider for symbols
@@ -70,7 +79,7 @@ final class Definitions(rootNameTable: NameTable, initProvider: InfoProvider):
   // Predefined symbols
   //
 
-  val Predef = rootNameTable.resolveTermByPath("stk.Predef")
+  val Predef = resolveTermByPath("stk.Predef")
   val Predef_nameTable = Predef.info.as[ContainerInfo].nameTable
 
   // primitive terms without implementation in source code
@@ -175,6 +184,12 @@ final class Definitions(rootNameTable: NameTable, initProvider: InfoProvider):
 end Definitions
 
 object Definitions:
-  class Lazy(val rootNameTable: NameTable)(using Reporter):
+  abstract class Lazy:
+    def rootNameTable: NameTable
+    def infoProvider: InfoProvider
+    def value: Definitions
+
+  def Lazy(nameTable: NameTable)(using Reporter) = new Lazy:
+    val rootNameTable = nameTable
     val infoProvider: InfoProvider = new SymInfoProvider
-    lazy val value: Definitions = new Definitions(rootNameTable, infoProvider)
+    lazy val value: Definitions = new Definitions(nameTable, infoProvider)

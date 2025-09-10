@@ -14,16 +14,17 @@ object FrontEnd:
   : List[Namespace] =
     val sast = sources |> Typer.parseStep |> Typer.typeStep(runtime)
 
-    given Definitions = defnLazy.value
+    locally:
+      given Definitions = defnLazy.value
 
-    // normalizer must run before patmat to check effects of guard patterns
-    val noramlizer = new phases.NormalizeParams
-    val encoder = new phases.EncodeTagged
-    val pickler = new phases.Pickler
-    val patmat = new phases.PatternMatcher
+      // normalizer must run before patmat to check effects of guard patterns
+      val noramlizer = new phases.NormalizeParams
+      val encoder = new phases.EncodeTagged
+      val pickler = new phases.Pickler
+      val patmat = new phases.PatternMatcher
 
-    sast       |>
-    pickler    |>
-    noramlizer |>
-    patmat     |>
-    encoder
+      sast       |>
+      pickler    |>
+      noramlizer |>
+      patmat     |>
+      encoder

@@ -1221,7 +1221,7 @@ class Namer:
         policy
 
   private def transformFunDef(funDef: Ast.FunDef, initialFlags: Flags, policy: Effects.Policy)
-      (using lazyDefn: Definitions.Lazy | Definitions, sc: Scope, rp: Reporter, so: Source)
+      (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source)
   : DelayedDef[FunDef] =
 
     val flags = checker.checkModifiers(funDef) | initialFlags
@@ -1229,9 +1229,7 @@ class Namer:
     val funSym = Symbol.createSymbol(funDef.name, flags, funDef.ident.pos)
     given funScope: Scope = sc.fresh(funSym)
 
-    given defn: Definitions = lazyDefn match
-      case lazyDefn: Definitions.Lazy => lazyDefn.value
-      case defn: Definitions => defn
+    given defn: Definitions = lazyDefn.value
 
     lazy val tparamSyms =
       transformTypeParams(funDef.tparams)
@@ -1297,13 +1295,8 @@ class Namer:
         tparamSyms, paramSyms.map(_.toNamedInfo), autoSyms.map(_.toNamedInfo),
         resultType, receivesInfo, funDef.preParamCount)
 
-    lazyDefn match
-      case lazyDefn: Definitions.Lazy =>
-        val ip = lazyDefn.infoProvider
-        ip.addLazy(funSym, sc.owner,  () => computeInfo(resultType), () => computeInfo(ErrorType))
-
-      case defn: Definitions =>
-        defn.addLazy(funSym, sc.owner,  () => computeInfo(resultType), () => computeInfo(ErrorType))
+    val ip = lazyDefn.infoProvider
+    ip.addLazy(funSym, sc.owner,  () => computeInfo(resultType), () => computeInfo(ErrorType))
 
     val typer = () =>
       val tpt = TypeTree(resultType)(funDef.resultType.span)
@@ -1411,16 +1404,14 @@ class Namer:
     DelayedDef(funSym, typer)
 
   private def transformTypeDef(tdef: Ast.TypeDef)
-      (using lazyDefn: Definitions.Lazy | Definitions, sc: Scope, rp: Reporter, so: Source)
+      (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source)
   : DelayedDef[TypeDef] =
 
     val flags = checker.checkModifiers(tdef) | Flags.Type
     val kind = Kind.simpleKinded(tdef.tparams.size)
     val typeSym = new TypeSymbol(kind, tdef.name, flags, tdef.ident.pos)
 
-    given defn: Definitions = lazyDefn match
-      case lazyDefn: Definitions.Lazy => lazyDefn.value
-      case defn: Definitions => defn
+    given defn: Definitions = lazyDefn.value
 
     given sc2: Scope = sc.fresh(typeSym)
     lazy val tparamSyms = transformTypeParams(tdef.tparams)
@@ -1466,13 +1457,8 @@ class Namer:
 
     end computeInfo
 
-    lazyDefn match
-      case lazyDefn: Definitions.Lazy =>
-        val ip = lazyDefn.infoProvider
-        ip.addLazy(typeSym, sc.owner, computeInfo)
-
-      case defn: Definitions =>
-        defn.addLazy(typeSym, sc.owner, computeInfo)
+    val ip = lazyDefn.infoProvider
+    ip.addLazy(typeSym, sc.owner, computeInfo)
 
     // check type symbols after completion to allow cycles, type A = A
     val typer = () => TypeDef(typeSym)(tdef.span)
@@ -1489,11 +1475,11 @@ class Namer:
     val classSym = new TypeSymbol(kind, cdef.name, flags, cdef.ident.pos)
     val thisSym = Symbol.createSymbol("this", Flags.Synthetic, cdef.ident.pos)
 
-    given defn: Definitions = lazyDefn.value
-
     given paramScope: Scope = sc.fresh(classSym)
 
-    lazy val tparamSyms = transformTypeParams(cdef.tparams)
+    lazy val tparamSyms =
+      given Definitions = lazyDefn.value
+      transformTypeParams(cdef.tparams)
 
     val fields = new mutable.ArrayBuffer[Symbol]
     val methods = new mutable.ArrayBuffer[Symbol]
@@ -1530,6 +1516,7 @@ class Namer:
       shortCutScope.define(sym)
 
       def checkType() =
+        given defn: Definitions = lazyDefn.value
         val tpt = transformType(vdef.tpt)
         val tp2 = checker.checkValueType(tpt.tpe, tpt.pos)
         tp2
@@ -1554,8 +1541,6 @@ class Namer:
           transformConstructor(fdef, thisSym, classSym)
 
         else
-          // Prefer the lazy version to avoid forcing
-          given Definitions.Lazy = lazyDefn
           transformFunDef(fdef, Flags.Fun | Flags.Method, Effects.Policy.Infer)
 
 
@@ -1568,6 +1553,8 @@ class Namer:
       delayedDefs += delayedDef
 
     val typer = () =>
+      given Definitions = lazyDefn.value
+
       val funs: List[FunDef] =
         for delayedDef <- delayedDefs.toList yield delayedDef.force()
 
@@ -1579,8 +1566,6 @@ class Namer:
       (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source)
       : DelayedDef[Section] =
 
-    given Definitions = lazyDefn.value
-
     val flags = checker.checkModifiers(section) | Flags.Section
     val sym = Symbol.createSymbol(section.name, flags, section.ident.pos)
 
@@ -1590,6 +1575,7 @@ class Namer:
     val delayedDefs = index(section.defs)
 
     lazy val sast =
+      given Definitions = lazyDefn.value
       val defs = for delayed <- delayedDefs.toList yield delayed.force()
 
       Section(sym, defs)(section.span)
@@ -1597,6 +1583,7 @@ class Namer:
     val ip = lazyDefn.infoProvider
     ip.addLazy(sym, sc.owner, () => {
       given InfoProvider = ip
+
       for case alias: Ast.AliasDef <- section.defs do
         Imports.doImport(alias.qualid, secScope, lazyDefn.rootNameTable, isAlias = true)
 

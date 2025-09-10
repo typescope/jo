@@ -20,12 +20,10 @@ import scala.collection.mutable
 
 class PatternTyper(namer: Namer, checker: Checker):
   def transformPatDef(patDef: Ast.PatDef)
-      (using lazyDefn: Definitions.Lazy | Definitions, sc: Scope, rp: Reporter, so: Source)
+      (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source)
   : DelayedDef[PatDef] =
 
-    given Definitions = lazyDefn match
-      case lazyDefn: Definitions.Lazy => lazyDefn.value
-      case defn: Definitions => defn
+    given Definitions = lazyDefn.value
 
     val flags = checker.checkModifiers(patDef) | Flags.Pattern | Flags.Fun
 
@@ -85,13 +83,8 @@ class PatternTyper(namer: Namer, checker: Checker):
       val autoTypes = Nil
       ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), autoTypes, resultType, () => Nil, patDef.preParamCount)
 
-    lazyDefn match
-      case lazyDefn: Definitions.Lazy =>
-        val ip = lazyDefn.infoProvider
-        ip.addLazy(patSym, sc.owner,  () => computeInfo(resultTypeTree.tpe), () => computeInfo(ErrorType))
-
-      case defn: Definitions =>
-        defn.addLazy(patSym, sc.owner,  () => computeInfo(resultTypeTree.tpe), () => computeInfo(ErrorType))
+    val ip = lazyDefn.infoProvider
+    ip.addLazy(patSym, sc.owner,  () => computeInfo(resultTypeTree.tpe), () => computeInfo(ErrorType))
 
     val typer = () =>
       PatDef(patSym, tparamSyms, paramSyms, resultTypeTree, typedBody)(patDef.span)

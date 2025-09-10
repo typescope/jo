@@ -40,7 +40,7 @@ def compile(args: String*): Unit =
 
     val rootNameTable = new NameTable
 
-    given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable)
+    given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
     val runtime = "runtime/JS.stk" :: Nil
     val namespacesSAST = FrontEnd.run(runtime, sources) <| "Frontend"

@@ -35,7 +35,7 @@ object Test:
     try
       val runtimeFiles = Nil
       val rootNameTable = new NameTable
-      given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable)
+      given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
       FrontEnd.run(runtimeFiles, sourceFiles)
 
       verifyErrors(sourceFiles, rp.reports)

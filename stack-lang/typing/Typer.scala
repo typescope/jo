@@ -105,6 +105,6 @@ object Typer:
       val runtimeFiles = Nil
 
       val rootNameTable = new NameTable
-      given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable)
+      given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
       sources |> parseStep |> typeStep(runtimeFiles)
