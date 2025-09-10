@@ -398,10 +398,15 @@ object Decoder:
         tparam
 
       // Decode self symbol
+      val selfInfo =
+        val classRef = StaticRef(symbol)
+        if tparams.isEmpty then classRef
+        else AppliedType(classRef, tparams.map(StaticRef.apply))
+
       val selfId = decodeNat()
       val selfName = decodeString()
       val selfFlags = decodeFlags()
-      val self = Symbol.createSymbol(selfName, selfFlags, owner.sourcePos)
+      val self = Symbol.createSymbol(selfName, selfInfo, selfFlags, owner, symbol.sourcePos)
       state.registerInternalSymbol(selfId, self)
 
       // Decode val members
@@ -424,14 +429,6 @@ object Decoder:
       val delayedFuns = repeated:
         decodeFunDef(symbol, Flags.Method)
 
-      // Add type for self
-      val selfInfo =
-        val classRef = StaticRef(symbol)
-        if tparams.isEmpty then classRef
-        else AppliedType(classRef, tparamSyms.map(StaticRef.apply))
-
-      ip.add(self, symbol, selfInfo)
-
       val classInfo = ClassInfo(
         symbol,
         tparams,
@@ -445,9 +442,9 @@ object Decoder:
     defnLazy.infoProvider.addLazy(symbol, owner, () => content.classInfo)
 
     val delayed = () =>
-      val forcedFuns = content.funs.map(_.force())
+      val funs = content.delayedFuns.map(_.force())
       val span = Span(absoluteStart, treeLength)
-      ClassDef(symbol, content.tparams, content.self, content.vals, forcedFuns)(span)
+      ClassDef(symbol, content.self, content.tparams, content.vals, funs)(span)
 
     // Set buffer position at end
     buf.setPosition(pos + length)
