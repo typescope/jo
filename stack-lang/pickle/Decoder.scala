@@ -596,7 +596,7 @@ object Decoder:
     state.registerInternalSymbol(id, symbol)
 
     // Decode nested definitions as DelayedDef
-    val nestedDelayedDefs = repeated { decodeDef(symbol) }
+    val delayedDefs = repeated { decodeDef(symbol) }
 
     // Provide symbol info
     val nameTable = new NameTable()
@@ -605,7 +605,8 @@ object Decoder:
     defnLazy.infoProvider.add(symbol, owner, info)
 
     val delayed = () =>
-      val nestedDefs = nestedDelayedDefs.map(_.force())
+      given Definitions = defnLazy.value
+      val nestedDefs = delayedDefs.map(_.force())
       val span = Span(absoluteStart, treeLength)
       Section(symbol, nestedDefs)(span)
 
