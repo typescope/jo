@@ -477,7 +477,7 @@ object Decoder:
       decodeType()
 
     // Add symbol info lazily
-    defnLazy.infoProvider.addLazy(symbol, owner, () => typeInfo.symbolType)
+    defnLazy.infoProvider.addLazy(symbol, owner, () => info)
 
     val delayed = () =>
       val actualSpan = Span(absoluteStart, treeLength)
