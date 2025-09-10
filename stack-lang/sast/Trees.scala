@@ -133,16 +133,18 @@ object Trees:
 
   case class With
     (expr: Word, args: List[Assign])
-    (val tpe: Type)
   extends Word:
     assert(args.nonEmpty)
+
+    def tpe: Type = expr.tpe
 
     def span = expr.span | args.last.span
 
   case class Allow
     (expr: Word, params: List[Ident])
-    (val tpe: Type)
   extends Word:
+    def tpe: Type = expr.tpe
+
     def span = params.foldLeft(expr.span)(_ | _.span)
 
   case class TypeApply

@@ -315,7 +315,7 @@ class Namer:
       case Ast.With(expr, args) =>
         val exprSast = transform(expr)
         val argsSast = for arg <- args yield transformWithArg(arg)
-        With(exprSast, argsSast)(exprSast.tpe)
+        With(exprSast, argsSast)
 
       case Ast.Allow(expr, params) =>
         val exprSast = transform(expr)
@@ -325,7 +325,7 @@ class Namer:
           yield
             transformParamRef(param)
 
-        Allow(exprSast, paramRefs)(exprSast.tpe)
+        Allow(exprSast, paramRefs)
 
       case ifte: Ast.If =>
         transformIf(ifte).adapt

@@ -67,7 +67,7 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Symbo
 
       else
         val args = synthesizeNoneBindings(defaultEffs, fdef2.body.span)
-        val body2 = With(fdef2.body, args)(fdef2.body.tpe)
+        val body2 = With(fdef2.body, args)
         fdef2.copy(body = body2)(fdef.span)
 
     else
@@ -123,7 +123,7 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Symbo
 
     else
       val argsAdded = synthesizeNoneBindings(defaultEffs, allowExpr.span)
-      With(expr2, argsAdded)(allowExpr.tpe)
+      With(expr2, argsAdded)
 
   /** Capture all context parameters used in the methods of an object
     *
@@ -177,7 +177,7 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Symbo
                   Assign(paramRef, Ident(vdef.symbol)(span))
               end match
             end for
-          val body2 = With(this(ddef.body), args)(ddef.body.tpe)
+          val body2 = With(this(ddef.body), args)
           ddef.copy(body = body2)(ddef.span)
       case vdef => vdef
 
@@ -203,7 +203,7 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Symbo
       arg.copy(arg.ident, transform(arg.rhs))
 
     val args3 = rewireArgs(args2)
-    With(expr2, args3)(expr2.tpe)
+    With(expr2, args3)
 
   private def checkTermInPattern(word: Word)(using ctx: Context): Word =
     given Source = ctx.owner.sourcePos.source

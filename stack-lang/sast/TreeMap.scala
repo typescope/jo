@@ -217,7 +217,7 @@ abstract class TreeMap(using Definitions):
         arg.copy(rhs = rhs2)
 
     if changed then
-      With(expr2, args2)(withExpr.tpe)
+      With(expr2, args2)
     else
       withExpr
 
@@ -232,7 +232,7 @@ abstract class TreeMap(using Definitions):
     if expr2 `eq` expr then
       allowExpr
     else
-      Allow(expr2, params)(allowExpr.tpe)
+      Allow(expr2, params)
 
   def transformAssign(assign: Assign)(using Context): Word =
     recurAssign(assign)
