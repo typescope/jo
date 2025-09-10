@@ -680,12 +680,12 @@ object Decoder:
       case Format.BottomType => BottomType
 
       case Format.StaticRef =>
-        val sym = decodeSymbolRef
+        val sym = decodeSymbolRef()
         StaticRef(sym)
 
       case Format.MemberRef =>
         val prefix = decodeType()
-        val sym = decodeSymbolRef
+        val sym = decodeSymbolRef()
         MemberRef(prefix, sym)
 
       case Format.ConstantType =>
@@ -700,7 +700,7 @@ object Decoder:
         RecordType(fields)
 
       case Format.UnionType =>
-        val branches = repeated { decodeType }
+        val branches = repeated { decodeType() }
         UnionType(branches)
 
       case Format.TagType =>
@@ -712,11 +712,13 @@ object Decoder:
         TagType(tag, params)
 
       case Format.ObjectType =>
-        val memberCount = decodeNat()
-        val members = mutable.ListBuffer.empty[NamedInfo[Type]]
-        val muts = mutable.Set.empty[String]
+        val members = new mutable.ArrayBuffer[NamedInfo[Type]]
+        val muts = new mutable.ArrayBuffer[String]
 
-        for _ <- 0 until memberCount do
+        val memberCount = decodeNat()
+
+        var i = 0
+        while i < memberCount do
           val name = decodeString()
           val info = decodeType()
           members += NamedInfo(name, info)
@@ -724,20 +726,26 @@ object Decoder:
             val isMutable = decodeBool()
             if isMutable then muts += name
 
-        ObjectType(members, muts.toSet)
+          i += 1
+        end while
+
+        ObjectType(members.toList, muts.toList)
 
       case Format.AppliedType =>
         val tctor = decodeType()
-        val targs = repeated { decodeType }
+        val targs = repeated { decodeType() }
         AppliedType(tctor, targs)
 
       case Format.ProcType =>
         val tparams = repeated:
           val id = decodeNat()
           val name = decodeString()
+          // TODO: eager decoding excludes F-bounds
+          val kind = decodeKind()
           val info = decodeType()
-          val tparam = new TypeSymbol(name, Kind.Simple)
-          tparam.setInfo(info)
+
+          val tparam = TypeSymbol.createSymbol(kind, name, info, Flags.Param, state.root, state.root.sourcePos)
+
           state.registerInternalSymbol(id, tparam)
           tparam
 
@@ -752,7 +760,7 @@ object Decoder:
           NamedInfo(name, info)
 
         val resType = decodeType()
-        val receives = repeated { decodeSymbolRef }
+        val receives = repeated { decodeSymbolRef() }
         val preParamCount = decodeNat()
 
         ProcType(tparams, params, autos, resType, () => receives, preParamCount)
@@ -761,9 +769,12 @@ object Decoder:
         val tparams = repeated:
           val id = decodeNat()
           val name = decodeString()
+
+          // TODO: eager decoding excludes F-bounds
+          val kind = decodeKind()
           val info = decodeType()
-          val tparam = new TypeSymbol(name, Kind.Simple)
-          tparam.setInfo(info)
+
+          val tparam = TypeSymbol.createSymbol(kind, name, info, Flags.Param, state.root, state.root.sourcePos)
           state.registerInternalSymbol(id, tparam)
           tparam
 
@@ -793,7 +804,7 @@ object Decoder:
           Literal(const)(tpe, span)
 
         case Format.Ident =>
-          val sym = decodeSymbolRef
+          val sym = decodeSymbolRef()
           val startDelta = decodeInt()
           val length = decodeNat()
           val currentOffset = prevOffset + startDelta

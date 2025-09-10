@@ -494,6 +494,7 @@ object Encoder:
           // The type param can be external
           encodeNat(state.getId(tparam))
           encodeString(tparam.name)
+          encodeType(tparam.asTypeSymbol.kind)
           encodeType(tparam.info)
 
         repeated(params): param =>
@@ -521,6 +522,7 @@ object Encoder:
           // The type param can be external
           encodeNat(state.getId(tparam))
           encodeString(tparam.name)
+          encodeType(tparam.asTypeSymbol.kind)
           encodeType(tparam.info)
 
         encodeType(resType)
