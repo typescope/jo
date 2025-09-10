@@ -70,7 +70,7 @@ object Decoder:
 
   //----------------------------------------------------------------------------
 
-  def decode()(using buf: ReadBuffer, defnLazy: Definitions.Lazy): DelayedDef[Namespace] =
+  def decode()(using buf: ReadBuffer, defnLazy: Definitions.Lazy, rp: Reporter): DelayedDef[Namespace] =
     val nameIndex = decodeNat()
     val source = decodeSource()
     val symSpan = Span(decodeNat(), decodeNat())
@@ -113,7 +113,7 @@ object Decoder:
         i += 1
       end while
 
-      Namespace(rootSymbol, List.empty, members)(span)
+      Namespace(rootSymbol, List.empty, members.toList)(span)
 
     DelayedDef(rootSymbol, delayed)
 
@@ -185,7 +185,11 @@ object Decoder:
     * The buffer position for decodeXXX should be at the end of its definition
     * after the call.
     */
-  private def decodeDef(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): DelayedDef[Def] =
+  private def decodeDef
+      (owner: Symbol)
+      (using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State, rp: Reporter)
+  : DelayedDef[Def] =
+
     val defType = decodeByte()
 
     defType match
@@ -577,7 +581,11 @@ object Decoder:
 
     DelayedDef(symbol, delayedPatDef)
 
-  private def decodeSection(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): DelayedDef[Section] =
+  private def decodeSection
+      (owner: Symbol)
+      (using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State, rp: Reporter)
+  : DelayedDef[Section] =
+
     given Source = owner.sourcePos.source
 
     // length is redundant --- keep it for extension and uniformity
@@ -834,7 +842,7 @@ object Decoder:
           val currentOffset = prevOffset + startDelta
           val tag = decodeWord(owner, prevOffset)
           var lastOffset = tag.span.endOffset
-          val args = repeated: _ =>
+          val args = repeated:
             val arg = decodeWord(owner, lastOffset)
             lastOffset = arg.span.endOffset
             arg
@@ -1038,7 +1046,7 @@ object Decoder:
         case Format.BindPattern =>
           val pattern = decodePattern(owner, prevOffset)
           var lastOffset = pattern.span.endOffset
-          val bindings = repeated: _ =>
+          val bindings = repeated:
             val binding = decodeWord(owner, lastOffset)
             lastOffset = binding.span.endOffset
             binding
