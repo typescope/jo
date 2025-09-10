@@ -555,11 +555,19 @@ object Encoder:
 
       case New(classRef, targs) =>
         encodeByte(Format.New)
-        encodeWord(classRef, prevOffset)
+        encodeInt(startDelta)
+        encodeWord(classRef, word.span.start)
+
+        var lastOffset = classRef.span.endOffset
         repeated(targs): targ =>
-          encodeTypeTree(targ, prevOffset)
+          encodeTypeTree(targ, lastOffset)
+          lastOffset = targ.span.endOffset
+
+        encodeInt(word.span.endOffset - lastOffset)
 
       case Select(qual, name) =>
+        assert(word.span.start == qual.span.start)
+
         encodeByte(Format.Select)
         encodeWord(qual, prevOffset)
         encodeString(name)
@@ -581,13 +589,14 @@ object Encoder:
       case TaggedLit(tag, args) =>
         encodeByte(Format.TaggedLit)
         encodeInt(startDelta)
-        encodeWord(tag, prevOffset)
+        encodeWord(tag, word.span.start)
 
         var lastOffset = tag.span.endOffset
         repeated(args): arg =>
           encodeWord(arg, lastOffset)
           lastOffset = arg.span.endOffset
 
+        encodeType(word.tpe)
         encodeInt(word.span.endOffset - lastOffset)
 
       case Encoded(repr) =>
@@ -597,7 +606,8 @@ object Encoder:
 
       case Apply(fun, args, autos) =>
         encodeByte(Format.Apply)
-        encodeWord(fun, prevOffset)
+        encodeInt(startDelta)
+        encodeWord(fun, word.span.endOffset)
 
         var lastOffset = fun.span.endOffset
         repeated(args): arg =>
@@ -608,17 +618,31 @@ object Encoder:
           encodeWord(auto, lastOffset)
           lastOffset = auto.span.endOffset
 
-        encodeInt(word.span.endOffset - lastOffset)
+        // TODO: represent span explicitly
+        // encodeInt(word.span.endOffset - lastOffset)
 
       case TypeApply(fun, targs) =>
+        assert(fun.span.start == word.span.start)
+
         encodeByte(Format.TypeApply)
+
         encodeWord(fun, prevOffset)
-        repeated(targs) { targ => encodeTypeTree(targ, prevOffset) }
-        encodeInt(word.span.length)
+
+        var lastOffset = fun.span.endOffset
+        repeated(targs): targ =>
+          encodeTypeTree(targ, lastOffset)
+          lastOffset = targ.span.endOffset
+
+        // TODO: represent span explicitly
+        // encodeInt(word.span.endOffset - lastOffset)
 
       case With(expr, args) =>
+        assert(expr.span.start == word.span.start)
+
         encodeByte(Format.With)
+
         encodeWord(expr, prevOffset)
+
         var lastOffset = expr.span.endOffset
         repeated(args):
           case Assign(ident, rhs) =>
@@ -626,18 +650,17 @@ object Encoder:
             encodeWord(rhs, ident.span.endOffset)
             lastOffset = rhs.span.endOffset
 
-        encodeInt(word.span.endOffset - lastOffset)
-
       case Allow(expr, params) =>
+        assert(expr.span.start == word.span.start)
+
         encodeByte(Format.Allow)
+
         encodeWord(expr, prevOffset)
 
         var lastOffset = expr.span.endOffset
         repeated(params): param =>
           encodeWord(param, prevOffset)
           lastOffset = param.span.endOffset
-
-        encodeInt(word.span.endOffset - lastOffset)
 
       case Assign(ident, rhs) =>
         encodeByte(Format.Assign)
