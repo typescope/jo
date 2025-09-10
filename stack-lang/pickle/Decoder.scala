@@ -856,9 +856,9 @@ object Decoder:
         tpt
 
     val endDelta = decodeInt()
-    val span = Span(startOffset, lastOffset + endDelta - startOffset)
+    val tpe = AppliedType(StaticRef(classRef.symbol), targs.map(_.tpe))
 
-    New(classRef, targs)(span)
+    New(classRef, targs)(tpe)
 
   private def decodeSelect(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): Select =
     val qual = decodeWord(owner, prevOffset)
@@ -966,7 +966,7 @@ object Decoder:
       lastOffset = rhs.span.endOffset
       Assign(ident, rhs)
 
-    With(expr, args)(expr.tpe)
+    With(expr, args)
 
   private def decodeAllow(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): Allow =
     val expr = decodeWord(owner, prevOffset)
@@ -985,7 +985,7 @@ object Decoder:
     Assign(ident, rhs)
 
   private def decodeFieldAssign(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): FieldAssign =
-    val lhs = decodeWord(owner, prevOffset)
+    val lhs = decodeWord(owner, prevOffset).asInstanceOf[Select]
     val rhs = decodeWord(owner, lhs.span.endOffset)
     FieldAssign(lhs, rhs)
 
@@ -1058,21 +1058,50 @@ object Decoder:
     Match(scrutinee, cases)(tpe, span)
 
   private def decodeObject(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): Object =
+    given Source = owner.sourcePos.source
+
+    val startDelta = decodeInt()
+    val startOffset = startDelta + prevOffset
+
     val selfId = decodeNat()
     val selfName = decodeString()
+    val selfDelta = decodeInt()
+    val selfLength = decodeNat()
 
-    val self = new Symbol(selfName, Flags.empty)
+    val selfSpan = Span(startOffset + selfDelta, selfLength)
+    val self = Symbol.createSymbol(selfName, Flags.empty, selfSpan.toPos)
     state.registerInternalSymbol(selfId, self)
 
-    // TODO: decode object properly
+    var lastOffset = startOffset
 
-    val members = repeated(decodeDef(self)).map:
-      case v: ValDef => v
-      case f: FunDef => f
-      case _ => throw new Exception("Object can only contain val and fun definitions")
+    val delayedDefs: List[DelayedDef[ValDef | FunDef]] = repeated:
+      val tag = decodeByte()
 
-    val span = ??? // TODO: proper span calculation
-    Object(self, members)(span)
+      tag match
+        case Format.ValDef =>
+          val vdef = decodeValDef(owner)
+          DelayedDef(vdef.symbol, () => vdef)
+
+        case Format.FunDef =>
+          decodeFunDef(owner, Flags.empty)
+
+        case _ => throw new Exception("Object can only contain val and fun definitions")
+
+    val endDelta = decodeInt()
+    val span = Span(startOffset, lastOffset + endDelta - startOffset)
+
+    lazy val objectType =
+      val mutables = delayedDefs.filter(_.symbol.isMutable).map(_.symbol.name)
+      val memberTypes = delayedDefs.map(_.symbol.toNamedInfo)
+      ObjectType(memberTypes, mutables)
+
+    defn.addLazy(self, owner, () => objectType)
+
+    val members: List[ValDef | FunDef] =
+      for delayedDef <- delayedDefs.toList yield delayedDef.force()
+
+    Object(self, members)(objectType, span)
+
 
   private def decodePattern(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): Pattern =
     given Source = owner.sourcePos.source

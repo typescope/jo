@@ -736,9 +736,15 @@ object Encoder:
 
         encodeNat(state.getId(self))
         encodeString(self.name)
+        encodeInt(self.sourcePos.span.start - word.span.start)
+        encodeNat(self.sourcePos.span.length)
 
+        var lastOffset = word.span.start
         repeated(members): m =>
           encodeDef(m)
+          lastOffset = m.span.endOffset
+
+        encodeInt(word.span.endOffset - lastOffset)
 
   private def encodePattern(pattern: Pattern, prevOffset: Int)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
     val startDelta = pattern.span.start - prevOffset

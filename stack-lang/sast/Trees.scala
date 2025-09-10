@@ -180,6 +180,7 @@ object Trees:
     def apply(fun: Word, args: List[Word])(tpe: Type)(using Definitions): Apply =
       apply(fun, args, autos = Nil)(tpe)
 
+  // TODO: remove `tpe` from the parameters and add span
   case class New
     (classRef: Ident, targs: List[TypeTree])
     (val tpe: Type)
