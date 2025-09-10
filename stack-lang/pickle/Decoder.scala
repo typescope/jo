@@ -559,7 +559,7 @@ object Decoder:
 
     defnLazy.infoProvider.addLazy(symbol, owner, () => patInfo)
 
-    val delayedPatDf = () =>
+    val delayedPatDef = () =>
       given ReadBuffer = buf.fresh(sig.signatureEndPos)
       val body = decodePattern(symbol, sig.resultType.span.endOffset)
       val span = Span(absoluteStart, body.span.endOffset - absoluteStart)
