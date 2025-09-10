@@ -122,9 +122,10 @@ object Decoder:
     *
     * It also checks redefinition of namespace.
     */
-  def resolveNamespace(
-      parts: List[String], pos: SourcePosition, rootNameTable: NameTable,
-      infoProvider: InfoProvider, isBranch: Boolean)
+  def resolveNamespace
+      (parts: List[String], pos: SourcePosition, rootNameTable: NameTable,
+        infoProvider: InfoProvider, isBranch: Boolean)
+      (using Reporter)
   : Symbol =
 
     def check(sym: Symbol): Symbol =
@@ -240,21 +241,20 @@ object Decoder:
     state.registerInternalSymbol(id, symbol)
 
     val typeStartPos = buf.position
-    val delayed = () =>
+    lazy val paramDef =
+      given Definitions = defnLazy.value
       given ReadBuffer = buf.fresh(typeStartPos)
       val tpt = decodeTypeTree(absoluteStart)
       val span = Span(absoluteStart, tpt.span.endOffset - absoluteStart)
       ParamDef(symbol, tpt)(span)
 
-    val paramDef = DelayedDef(symbol, delayed)
-
     // Supply type for symbol
-    defnLazy.infoProvider.addLazy(symbol, owner, () => paramDef.force().tpt.tpe)
+    defnLazy.infoProvider.addLazy(symbol, owner, () => paramDef.tpt.tpe)
 
     // Set buffer position at end
     buf.setPosition(pos + length)
 
-    paramDef
+    DelayedDef(symbol, () => paramDef)
 
   private def decodeFunDef(owner: Symbol, initFlags: Flags)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): DelayedDef[FunDef] =
     given Source = owner.sourcePos.source
