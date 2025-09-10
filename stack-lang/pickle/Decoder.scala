@@ -986,52 +986,75 @@ object Decoder:
 
   private def decodeFieldAssign(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): FieldAssign =
     val lhs = decodeWord(owner, prevOffset)
-    val rhs = decodeWord(owner, prevOffset)
+    val rhs = decodeWord(owner, lhs.span.endOffset)
     FieldAssign(lhs, rhs)
 
   private def decodeIf(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): If =
-    given Source = owner.sourcePos.source
     val startDelta = decodeInt()
-    val currentOffset = prevOffset + startDelta
-    val cond = decodeWord(owner, prevOffset)
+    val startOffset = prevOffset + startDelta
+
+    val cond = decodeWord(owner, startOffset)
     val thenp = decodeWord(owner, cond.span.endOffset)
     val elsep = decodeWord(owner, thenp.span.endOffset)
     val tpe = decodeType()
-    val span = Span(currentOffset, elsep.span.endOffset - currentOffset)
+
+    val endDelta = decodeInt()
+    val span = Span(startOffset, elsep.span.endOffset + endDelta - startOffset)
+
     If(cond, thenp, elsep)(tpe, span)
 
   private def decodeWhile(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): While =
-    given Source = owner.sourcePos.source
     val startDelta = decodeInt()
-    val currentOffset = prevOffset + startDelta
-    val cond = decodeWord(owner, prevOffset)
+    val startOffset = prevOffset + startDelta
+
+    val cond = decodeWord(owner, startOffset)
     val body = decodeWord(owner, cond.span.endOffset)
-    val span = Span(currentOffset, body.span.endOffset - currentOffset)
+
+    val endDelta = decodeInt()
+    val span = Span(startOffset, body.span.endOffset + endDelta - startOffset)
+
     While(cond, body)(span)
 
   private def decodeBlock(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): Block =
-    var lastOffset = prevOffset
+    val startDelta = decodeInt()
+    val startOffset = startDelta + prevOffset
+
+    var lastOffset = startOffset
     val words = repeated:
       val word = decodeWord(owner, lastOffset)
       lastOffset = word.span.endOffset
       word
 
+    val endDelta = decodeInt()
+    val span = Span(startOffset, lastOffset + endDelta - startOffset)
+
     val tpe = if words.nonEmpty then words.last.tpe else VoidType
-    val span = ??? // TODO: proper span calculation
+
     Block(words)(tpe, span)
 
   private def decodeMatch(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): Match =
-    val scrutinee = decodeWord(owner, prevOffset)
+    val startDelta = decodeInt()
+    val startOffset = startDelta + prevOffset
 
-    var lastOffset = prevOffset
+    val scrutinee = decodeWord(owner, startOffset)
+
+    var lastOffset = scrutinee.span.endOffset
     val cases = repeated:
-      val pat = decodePattern(owner, lastOffset)
+      val delta = decodeInt()
+      val caseStartOffset = delta + lastOffset
+
+      val pat = decodePattern(owner, caseStartOffset)
       val body = decodeWord(owner, pat.span.endOffset)
+
       lastOffset = body.span.endOffset
-      Case(pat, body)(pat.span | body.span)
+      val span = Span(caseStartOffset, lastOffset - caseStartOffset)
+
+      Case(pat, body)(span)
 
     val tpe = decodeType()
-    val span = ??? // TODO: proper span calculation
+    val endDelta = decodeInt()
+    val span = Span(startOffset, lastOffset + endDelta - startOffset)
+
     Match(scrutinee, cases)(tpe, span)
 
   private def decodeObject(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): Object =

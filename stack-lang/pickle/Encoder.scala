@@ -683,22 +683,25 @@ object Encoder:
       case If(cond, thenp, elsep) =>
         encodeByte(Format.If)
         encodeInt(startDelta)
-        encodeWord(cond, prevOffset)
+
+        encodeWord(cond, word.span.start)
         encodeWord(thenp, cond.span.endOffset)
         encodeWord(elsep, thenp.span.endOffset)
         encodeType(word.tpe)
+
         encodeInt(word.span.endOffset - elsep.span.endOffset)
 
       case While(cond, body) =>
         encodeByte(Format.While)
         encodeInt(startDelta)
-        encodeWord(cond, prevOffset)
+        encodeWord(cond, word.span.start)
         encodeWord(body, cond.span.endOffset)
         encodeInt(word.span.endOffset - body.span.endOffset)
 
       case Block(words) =>
         encodeByte(Format.Block)
         encodeInt(startDelta)
+
         var lastOffset = word.span.start
         repeated(words): word =>
           encodeWord(word, lastOffset)
@@ -708,12 +711,18 @@ object Encoder:
 
       case Match(scrutinee, cases) =>
         encodeByte(Format.Match)
+
         encodeInt(startDelta)
-        encodeWord(scrutinee, prevOffset)
+
+        encodeWord(scrutinee, word.span.start)
+
         var lastOffset = scrutinee.span.endOffset
         repeated(cases):
-          case Case(pat, body) =>
-            encodePattern(pat, lastOffset)
+          case cas @ Case(pat, body) =>
+            assert(cas.span.endOffset == body.span.endOffset)
+
+            encodeInt(cas.span.start - lastOffset)
+            encodePattern(pat, cas.span.start)
             encodeWord(body, pat.span.endOffset)
             lastOffset = body.span.endOffset
 
@@ -724,6 +733,7 @@ object Encoder:
         encodeByte(Format.Object)
 
         encodeInt(startDelta)
+
         encodeNat(state.getId(self))
         encodeString(self.name)
 
