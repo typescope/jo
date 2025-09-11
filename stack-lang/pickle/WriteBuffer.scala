@@ -63,8 +63,9 @@ class WriteBuffer(initialSize: Int) extends (Byte => Unit):
   /** Prepend the length of the serialized content in the callback */
   def withLength(work: => Unit): Unit =
     val addr = reserveInt()
+    val size0 = size
     work
-    val len = size - addr
+    val len = size - size0
     patchInt(addr, len)
 
   def length: Int = size
