@@ -795,12 +795,11 @@ object Decoder:
       case _ => throw new Exception(s"Unknown type tag: $typeTag")
 
   private def decodeWord(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): Word =
-    given Source = owner.sourcePos.source
     val wordTag = decodeByte()
 
     wordTag match
-      case Format.Literal     => decodeLiteral(owner, prevOffset)
-      case Format.Ident       => decodeIdent(owner, prevOffset)
+      case Format.Literal     => decodeLiteral(prevOffset)
+      case Format.Ident       => decodeIdent(prevOffset)
       case Format.New         => decodeNew(owner, prevOffset)
       case Format.Select      => decodeSelect(owner, prevOffset)
       case Format.RecordLit   => decodeRecordLit(owner, prevOffset)
@@ -823,8 +822,7 @@ object Decoder:
       case Format.Object      => decodeObject(owner, prevOffset)
       case _ => throw new Exception(s"Unknown word tag: $wordTag")
 
-  private def decodeLiteral(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): Literal =
-    given Source = owner.sourcePos.source
+  private def decodeLiteral(prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): Literal =
     val const = decodeConstant()
     val tpe = decodeType()
 
@@ -836,8 +834,7 @@ object Decoder:
 
     Literal(const)(tpe, span)
 
-  private def decodeIdent(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): Ident =
-    given Source = owner.sourcePos.source
+  private def decodeIdent(prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): Ident =
     val sym = decodeSymbolRef()
 
     val startDelta = decodeInt()
@@ -860,7 +857,7 @@ object Decoder:
         lastOffset = tpt.span.endOffset
         tpt
 
-    val endDelta = decodeInt()
+    // val endDelta = decodeInt()
     val tpe = AppliedType(StaticRef(classRef.symbol), targs.map(_.tpe))
 
     // TODO: need to change New to take span instead of deriving from children
@@ -877,7 +874,6 @@ object Decoder:
     Select(qual, name)(tpe, span)
 
   private def decodeRecordLit(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): RecordLit =
-    given Source = owner.sourcePos.source
     val startDelta = decodeInt()
     val startOffset = prevOffset + startDelta
 
@@ -908,11 +904,6 @@ object Decoder:
 
     val tpe = decodeType()
     val endDelta = decodeInt()
-
-    val tagName = tag match
-      case Literal(Constant.String(name)) => name
-      case _ => throw new Exception("Expected string literal for tag")
-
     val span = Span(startOffset, lastOffset + endDelta - startOffset)
 
     TaggedLit(tag.asInstanceOf[Literal], args)(tpe, span)
@@ -926,7 +917,7 @@ object Decoder:
     val startDelta = decodeInt()
     val startOffset = prevOffset + startDelta
 
-    val fun = decodeWord(owner, prevOffset)
+    val fun = decodeWord(owner, startOffset)
 
     var lastOffset = fun.span.endOffset
     val args = repeated:
@@ -1078,8 +1069,6 @@ object Decoder:
     val self = Symbol.createSymbol(selfName, Flags.empty, selfSpan.toPos)
     state.registerInternalSymbol(selfId, self)
 
-    var lastOffset = startOffset
-
     val delayedDefs: List[DelayedDef[ValDef | FunDef]] = repeated:
       val tag = decodeByte()
 
@@ -1094,7 +1083,6 @@ object Decoder:
         case _ => throw new Exception("Object can only contain val and fun definitions")
 
     val endDelta = decodeInt()
-    val span = Span(startOffset, lastOffset + endDelta - startOffset)
 
     lazy val objectType =
       val mutables = delayedDefs.filter(_.symbol.isMutable).map(_.symbol.name)
@@ -1103,14 +1091,19 @@ object Decoder:
 
     defn.addLazy(self, owner, () => objectType)
 
+    var lastOffset = startOffset
     val members: List[ValDef | FunDef] =
-      for delayedDef <- delayedDefs.toList yield delayedDef.force()
+      for delayedDef <- delayedDefs.toList yield
+        val defn = delayedDef.force()
+        lastOffset = defn.span.endOffset
+        defn
+
+    val span = Span(startOffset, lastOffset + endDelta - startOffset)
 
     Object(self, members)(objectType, span)
 
 
   private def decodePattern(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): Pattern =
-    given Source = owner.sourcePos.source
     val patternTag = decodeByte()
 
     patternTag match
@@ -1273,9 +1266,6 @@ object Decoder:
 
   private def decodeString()(using buf: ReadBuffer): String =
     buf.readUtf8()
-
-  private def skipString()(using buf: ReadBuffer): Unit =
-    buf.skipUtf8()
 
   private def decodeConstant()(using buf: ReadBuffer): Constant =
     val constType = decodeByte()

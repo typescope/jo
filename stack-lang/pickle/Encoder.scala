@@ -567,7 +567,7 @@ object Encoder:
           encodeTypeTree(targ, lastOffset)
           lastOffset = targ.span.endOffset
 
-        encodeInt(word.span.endOffset - lastOffset)
+        // encodeInt(word.span.endOffset - lastOffset)
 
       case Select(qual, name) =>
         assert(word.span.start == qual.span.start, s"word.span = ${word.span}, qual.span = ${qual.span}")
@@ -617,7 +617,7 @@ object Encoder:
 
         encodeByte(Format.Apply)
         encodeInt(startDelta)
-        encodeWord(fun, word.span.endOffset)
+        encodeWord(fun, word.span.start)
 
         var lastOffset = fun.span.endOffset
         repeated(args): arg =>
