@@ -1089,12 +1089,16 @@ object Decoder:
 
     val endDelta = decodeInt()
 
-    lazy val objectType =
-      val mutables = delayedDefs.filter(_.symbol.isMutable).map(_.symbol.name)
-      val memberTypes = delayedDefs.map(_.symbol.toNamedInfo)
-      ObjectType(memberTypes, mutables)
+    val selfRef = StaticRef(self)
+    val mutables = delayedDefs.filter(_.symbol.isMutable).map(_.symbol.name).toList
 
-    defn.addLazy(self, owner, () => objectType)
+    lazy val selfType =
+      val memberTypes = delayedDefs.map: d =>
+        NamedInfo(d.symbol.name, MemberRef(selfRef, d.symbol))
+
+      ObjectType(memberTypes.toList, mutables)
+
+    defn.addLazy(self, owner, () => selfType)
 
     var lastOffset = startOffset
     val members: List[ValDef | FunDef] =
@@ -1103,6 +1107,7 @@ object Decoder:
         lastOffset = defn.span.endOffset
         defn
 
+    val objectType = ObjectType(members.map(_.symbol.toNamedInfo), mutables)
     val span = Span(startOffset, lastOffset + endDelta - startOffset)
 
     Object(self, members)(objectType, span)

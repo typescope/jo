@@ -490,15 +490,21 @@ class Namer:
       end match
     end for
 
-    lazy val objectType =
-      val mutables = delayedDefs.filter(_.symbol.isMutable).map(_.symbol.name).toList
-      val memberTypes = delayedDefs.map(_.symbol.toNamedInfo)
+    val thisRef = StaticRef(thisSym)
+    val mutables = delayedDefs.filter(_.symbol.isMutable).map(_.symbol.name).toList
+
+    lazy val selfType =
+      val memberTypes = delayedDefs.map: d =>
+        NamedInfo(d.symbol.name, MemberRef(thisRef, d.symbol))
+
       ObjectType(memberTypes.toList, mutables)
 
-    defn.addLazy(thisSym, sc.owner, () => objectType)
+    defn.addLazy(thisSym, sc.owner, () => selfType)
 
     val members: List[ValDef | FunDef] =
       for delayedDef <- delayedDefs.toList yield delayedDef.force()
+
+    val objectType = ObjectType(members.map(_.symbol.toNamedInfo), mutables)
 
     Object(thisSym, members)(objectType, obj.span)
 
