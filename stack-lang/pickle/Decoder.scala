@@ -145,7 +145,8 @@ object Decoder:
     state.registerInternalSymbol(id, symbol)
 
     val rhs = decodeWord(owner, absoluteStart)
-    val span = Span(absoluteStart, rhs.span.endOffset - absoluteStart)
+    val endDelta = decodeInt()
+    val span = Span(absoluteStart, rhs.span.endOffset + endDelta - absoluteStart)
     ValDef(symbol, rhs)(span)
 
   private def decodeParamDef(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): DelayedDef[ParamDef] =
@@ -171,7 +172,8 @@ object Decoder:
       given Definitions = defnLazy.value
       given ReadBuffer = buf.fresh(typeStartPos)
       val tpt = decodeTypeTree(absoluteStart)
-      val span = Span(absoluteStart, tpt.span.endOffset - absoluteStart)
+      val endDelta = decodeInt()
+      val span = Span(absoluteStart, tpt.span.endOffset + endDelta - absoluteStart)
       ParamDef(symbol, tpt)(span)
 
     // Supply type for symbol
@@ -257,8 +259,7 @@ object Decoder:
 
       val resultType = decodeTypeTree(absoluteStart)
 
-      val receives = repeated:
-        decodeSymbolRef()
+      val receives = repeated { decodeSymbolRef() }
 
       val preParamCount = decodeNat()
 
@@ -279,7 +280,8 @@ object Decoder:
       given ReadBuffer = buf.fresh(sig.signatureEndPos)
 
       val body = decodeWord(symbol, absoluteStart)
-      val span = Span(absoluteStart, body.span.endOffset - absoluteStart)
+      val endDelta = decodeInt()
+      val span = Span(absoluteStart, body.span.endOffset + endDelta - absoluteStart)
       val policy = Effects.Policy.CheckBound(sig.receives)
       FunDef(symbol, sig.tparams, sig.params, sig.autos, sig.resultType, policy, body)(span)
 
@@ -294,7 +296,6 @@ object Decoder:
     val pos = buf.position
 
     val absoluteStart = decodeNat()
-    val treeLength = decodeNat()
 
     val id = decodeNat()
     val name = decodeString()
@@ -361,8 +362,9 @@ object Decoder:
         valSym
 
       // Decode function definitions as DelayedDef
-      val delayedFuns = repeated:
-        decodeFunDef(symbol, Flags.Method)
+      val delayedFuns = repeated { decodeFunDef(symbol, Flags.Method) }
+
+      val endDelta = decodeInt()
 
       val classInfo = ClassInfo(
         symbol,
@@ -377,8 +379,13 @@ object Decoder:
     defnLazy.infoProvider.addLazy(symbol, owner, () => content.classInfo)
 
     val delayed = () =>
-      val funs = content.delayedFuns.map(_.force())
-      val span = Span(absoluteStart, treeLength)
+      var lastOffset = absoluteStart
+      val funs = content.delayedFuns.map: d =>
+        val fun = d.force()
+        lastOffset = fun.span.endOffset
+        fun
+
+      val span = Span(absoluteStart, lastOffset + content.endDelta - absoluteStart)
       ClassDef(symbol, content.self, content.tparams, content.vals, funs)(span)
 
     // Set buffer position at end
@@ -391,7 +398,6 @@ object Decoder:
     val pos = buf.position
 
     val absoluteStart = decodeNat()
-    val treeLength = decodeNat()
     val id = decodeNat()
     val name = decodeString()
 
@@ -407,21 +413,22 @@ object Decoder:
 
     // Read type and def length lazily
     val typeStartPos = buf.position
-    lazy val info =
+    object delayed:
       given ReadBuffer = buf.fresh(typeStartPos)
-      decodeType()
+      val tpe = decodeType()
+      val treeLength = decodeNat()
 
     // Add symbol info lazily
-    defnLazy.infoProvider.addLazy(symbol, owner, () => info)
+    defnLazy.infoProvider.addLazy(symbol, owner, () => delayed.tpe)
 
-    val delayed = () =>
-      val actualSpan = Span(absoluteStart, treeLength)
+    val typeDefFun = () =>
+      val actualSpan = Span(absoluteStart, delayed.treeLength)
       TypeDef(symbol)(actualSpan)
 
     // Set buffer position at end
     buf.setPosition(pos + length)
 
-    DelayedDef(symbol, delayed)
+    DelayedDef(symbol, typeDefFun)
 
   private def decodePatDef(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): DelayedDef[PatDef] =
     given Source = owner.sourcePos.source
@@ -497,7 +504,8 @@ object Decoder:
     val delayedPatDef = () =>
       given ReadBuffer = buf.fresh(sig.signatureEndPos)
       val body = decodePattern(symbol, sig.resultType.span.endOffset)
-      val span = Span(absoluteStart, body.span.endOffset - absoluteStart)
+      val endDelta = decodeInt()
+      val span = Span(absoluteStart, body.span.endOffset + endDelta - absoluteStart)
       PatDef(symbol, sig.tparams, sig.params, sig.resultType, body)(span)
 
     // Set buffer position at end
@@ -517,7 +525,6 @@ object Decoder:
     val pos = buf.position
 
     val absoluteStart = decodeNat()
-    val treeLength = decodeNat()
 
     val id = decodeNat()
     val name = decodeString()
@@ -533,6 +540,8 @@ object Decoder:
     // Decode nested definitions as DelayedDef
     val delayedDefs = repeated { decodeDef(symbol) }
 
+    val endDelta = decodeInt()
+
     // Provide symbol info
     val nameTable = new NameTable()
     val info = new ContainerInfo(nameTable)
@@ -541,8 +550,13 @@ object Decoder:
 
     val delayed = () =>
       given Definitions = defnLazy.value
-      val nestedDefs = delayedDefs.map(_.force())
-      val span = Span(absoluteStart, treeLength)
+      var lastOffset = absoluteStart
+      val nestedDefs = delayedDefs.map: d =>
+        val defn = d.force()
+        lastOffset = defn.span.endOffset
+        defn
+
+      val span = Span(absoluteStart, lastOffset + endDelta - absoluteStart)
       Section(symbol, nestedDefs)(span)
 
     // Set buffer position at end

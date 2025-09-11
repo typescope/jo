@@ -273,6 +273,7 @@ object Encoder:
 
     encodeType(defSym.info)
     encodeWord(vdef.rhs, absoluteStart)
+    encodeInt(vdef.span.endOffset - vdef.rhs.span.endOffset)
 
   private def encodeParamDef(pdef: ParamDef)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
     val defSym = pdef.symbol
@@ -290,6 +291,8 @@ object Encoder:
       encodeNat(defSym.span.length)
       encodeTypeTree(pdef.tpt, absoluteStart)
 
+      encodeInt(pdef.span.endOffset - pdef.tpt.span.endOffset)
+
   private def encodeClassDef(cdef: ClassDef)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
     val defSym = cdef.symbol
     val absoluteStart = cdef.span.start
@@ -298,7 +301,6 @@ object Encoder:
 
     buf.withLength:
       encodeNat(absoluteStart)
-      encodeNat(cdef.span.length)
 
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
@@ -324,8 +326,12 @@ object Encoder:
 
         encodeType(sym.info)
 
+      var lastOffset = absoluteStart
       repeated(cdef.funs): fdef =>
         encodeDef(fdef)
+        lastOffset = fdef.span.endOffset
+
+      encodeNat(cdef.span.endOffset - lastOffset)
 
   private def encodeFunDef(fdef: FunDef)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
     val defSym = fdef.symbol
@@ -356,6 +362,8 @@ object Encoder:
 
       encodeWord(fdef.body, fdef.resultType.span.endOffset)
 
+      encodeInt(fdef.span.endOffset - fdef.body.span.endOffset)
+
   private def encodePatDef(pdef: PatDef)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
     val defSym = pdef.symbol
     val absoluteStart = pdef.span.start
@@ -383,6 +391,8 @@ object Encoder:
 
       encodePattern(pdef.body, pdef.resultType.span.endOffset)
 
+      encodeInt(pdef.span.endOffset - pdef.body.span.endOffset)
+
   private def encodeTypeDef(tdef: TypeDef)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
     val defSym = tdef.symbol
     val absoluteStart = tdef.span.start
@@ -391,13 +401,14 @@ object Encoder:
 
     buf.withLength:
       encodeNat(absoluteStart)
-      encodeNat(tdef.span.length)
 
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
       encodeType(defSym.info)
+
+      encodeNat(tdef.span.length)
 
   private def encodeSection(sec: Section)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
     val defSym = sec.symbol
@@ -408,15 +419,18 @@ object Encoder:
     // length is redundant --- keep it for extension and uniformity
     buf.withLength:
       encodeNat(absoluteStart)
-      encodeNat(sec.span.length)
 
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
 
+      var lastOffset = absoluteStart
       repeated(sec.defs): defn =>
         encodeDef(defn)
+        lastOffset = defn.span.endOffset
+
+      encodeNat(sec.span.endOffset - lastOffset)
 
   private def encodeTypeTree(tpt: TypeTree, prevOffset: Int)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
     val startDelta = tpt.span.start - prevOffset
