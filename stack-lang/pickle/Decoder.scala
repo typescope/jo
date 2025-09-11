@@ -20,12 +20,19 @@ import scala.collection.mutable
 object Decoder:
   class NameRef(val ownerIndex: Int, val name: String, val kind: Int)
 
-  private class State(val root: Symbol, nameRefs: Array[NameRef]):
+  private class SymTable(nameRefs: Array[NameRef]):
     /** External symbols loaded from the name table */
-    private var externalSymbols: Array[Symbol] = new Array(nameRefs.size)
+    private val externalSymbols: Array[Symbol] = new Array(nameRefs.size)
 
-    /** Map from internal symbol IDs to symbols */
-    private val internalSymbols = mutable.Map.empty[Int, Symbol]
+    def getFullNameParts(index: Int): List[String] =
+      def recur(tail: List[String], index: Int): List[String] =
+        val nameRef = nameRefs(index)
+        if nameRef.ownerIndex == -1 then
+          nameRef.name :: tail
+        else
+          recur(nameRef.name :: tail, nameRef.ownerIndex)
+      end recur
+      recur(Nil, index)
 
     def getExternalSymbol(index: Int)(using defn: Definitions): Symbol =
       if index < 0 || index >= externalSymbols.length then
@@ -44,15 +51,11 @@ object Decoder:
       end if
       sym
 
-    def getFullNameParts(index: Int): List[String] =
-      def recur(tail: List[String], index: Int): List[String] =
-        val nameRef = nameRefs(index)
-        if nameRef.ownerIndex == -1 then
-          nameRef.name :: tail
-        else
-          recur(nameRef.name :: tail, nameRef.ownerIndex)
-      end recur
-      recur(Nil, index)
+  private class State(val root: Symbol, symTable: SymTable):
+    export symTable.getExternalSymbol
+
+    /** Map from internal symbol IDs to symbols */
+    private val internalSymbols = mutable.Map.empty[Int, Symbol]
 
     def registerInternalSymbol(id: Int, symbol: Symbol): Unit =
       internalSymbols(id) = symbol
@@ -80,17 +83,19 @@ object Decoder:
     val nameRefs: Array[NameRef] = buf.withPosition(nameTableAddr):
       decodeNameTable()
 
+    val symTable = new SymTable(nameRefs)
+
     given Source = source
 
     val rootSymbol = resolveNamespace(
-      state.getFullNameParts(nameIndex),
+      symTable.getFullNameParts(nameIndex),
       symSpan.toPos,
       defnLazy.rootNameTable,
       defnLazy.infoProvider,
       isBranch = false
     )
 
-    given state: State = new State(rootSymbol, nameRefs)
+    given state: State = new State(rootSymbol, symTable)
 
     val delayedDefs = repeated { decodeDef(rootSymbol) }
 
@@ -142,7 +147,7 @@ object Decoder:
       else
         error(s"The $name is already defined as a member at $pos. $context")
 
-    parts match
+    (parts: @unchecked) match
       case name :: Nil =>
         rootNameTable.resolveTerm(name) match
           case None =>
