@@ -1168,7 +1168,7 @@ object Decoder:
 
         var lastOffset = pattern.span.endOffset
         val bindings = repeated:
-          val binding = decodeWord(owner, lastOffset)
+          val binding = decodeWord(owner, lastOffset).asInstanceOf[Assign]
           lastOffset = binding.span.endOffset
           binding
 
@@ -1177,47 +1177,17 @@ object Decoder:
       case Format.SeqPattern =>
         val scrutineeType = decodeType()
         val startDelta = decodeInt()
-        val currentOffset = prevOffset + startDelta
-        var lastOffset = prevOffset
+        val startOffset = prevOffset + startDelta
+
+        var lastOffset = startOffset
         val pats = repeated:
-          val seqPatTag = decodeByte()
-          seqPatTag match
-            case Format.AtomPattern =>
-              val pattern = decodePattern(owner, lastOffset)
-              lastOffset = pattern.span.endOffset
-              AtomPattern(pattern)
+          val pat = decodeSeqPartPattern(owner, lastOffset)
+          lastOffset = pat.span.endOffset
+          pat
 
-            case Format.SkipToPattern =>
-              val pattern = decodePattern(owner, lastOffset)
-              lastOffset = pattern.span.endOffset
-              val span = ???
-              SkipToPattern(pattern)(span)
+        val endDelta = decodeInt()
+        val span = Span(startOffset, lastOffset + endDelta - startOffset)
 
-            case Format.StarPattern =>
-              val pattern = decodePattern(owner, lastOffset)
-              // TODO: fix binding
-              val bindings = repeated:
-                val id = decodeNat()
-                val name = decodeString()
-                val info = decodeType()
-                val sym1 = Symbol.createSymbol(name, Flags.empty, owner.sourcePos)
-
-                state.registerInternalSymbol(id, sym1)
-                val sym2 = decodeSymbolRef()
-                (sym1, sym2)
-              lastOffset = pattern.span.endOffset
-              val span = ???
-              StarPattern(pattern)(span, bindings)
-
-            case Format.RestPattern =>
-              val pattern = decodePattern(owner, lastOffset)
-              lastOffset = pattern.span.endOffset
-              val span = ???
-              RestPattern(pattern)(span)
-
-            case _ => throw new Exception(s"Unknown sequence pattern tag: $seqPatTag")
-
-        val span = Span(currentOffset, lastOffset - currentOffset)
         SeqPattern(pats)(scrutineeType, span)
 
       case Format.WildcardPattern =>
@@ -1228,6 +1198,60 @@ object Decoder:
         WildcardPattern()(scrutineeType, span)
 
       case _ => throw new Exception(s"Unknown pattern tag: $patternTag")
+
+  private def decodeSeqPartPattern(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): SeqPartPattern =
+    val seqPatTag = decodeByte()
+    seqPatTag match
+      case Format.AtomPattern =>
+        val pattern = decodePattern(owner, prevOffset)
+        AtomPattern(pattern)
+
+      case Format.SkipToPattern =>
+        val startDelta = decodeInt()
+        val startOffset = prevOffset + startDelta
+
+        val nested = decodePattern(owner, startOffset)
+
+        val endDelta = decodeInt()
+        val span = Span(startOffset, nested.span.endOffset + endDelta - startOffset)
+
+        SkipToPattern(nested)(span)
+
+      case Format.StarPattern =>
+        val startDelta = decodeInt()
+        val startOffset = prevOffset + startDelta
+
+        val nested = decodePattern(owner, startOffset)
+
+        val bindings = repeated:
+          val sym2 = decodeSymbolRef()
+
+          val id = decodeNat()
+          val name = decodeString()
+          val info = decodeType()
+
+          val sym1 = Symbol.createSymbol(name, info, Flags.Pattern, owner, sym2.sourcePos)
+          state.registerInternalSymbol(id, sym1)
+
+          (sym1, sym2)
+
+        val endDelta = decodeInt()
+        val span = Span(startOffset, nested.span.endOffset + endDelta - startOffset)
+
+        StarPattern(nested)(span, bindings)
+
+      case Format.RestPattern =>
+        val startDelta = decodeInt()
+        val startOffset = prevOffset + startDelta
+
+        val nested = decodePattern(owner, startOffset)
+
+        val endDelta = decodeInt()
+        val span = Span(startOffset, nested.span.endOffset + endDelta - startOffset)
+
+        RestPattern(nested)(span)
+
+      case _ => throw new Exception(s"Unknown sequence pattern tag: $seqPatTag")
 
   private def decodeBool()(using buf: ReadBuffer): Boolean =
     buf.readBool()

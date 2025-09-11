@@ -842,43 +842,61 @@ object Encoder:
         encodeType(pattern.scrutineeType)
         encodeInt(startDelta)
 
-        var lastOffset = prevOffset
-
+        var lastOffset = pattern.span.start
         repeated(pats): pat =>
-          pat match
-          case AtomPattern(pattern) =>
-            checkSubtype[AtomPattern, DerivedSpan]
-
-            encodeByte(Format.AtomPattern)
-            encodePattern(pattern, lastOffset)
-
-          case SkipToPattern(pattern) =>
-            encodeByte(Format.SkipToPattern)
-            encodePattern(pattern, lastOffset)
-
-          case star @ StarPattern(pattern) =>
-            encodeByte(Format.StarPattern)
-            encodePattern(pattern, lastOffset)
-            repeated(star.bindings): (sym1, sym2) =>
-              val id = state.getId(sym1)
-              encodeNat(id)
-              encodeString(sym1.name)
-              encodeType(sym1.info)
-
-              encodeSymbolRef(sym2)
-
-          case RestPattern(pattern) =>
-            encodeByte(Format.RestPattern)
-            encodePattern(pattern, lastOffset)
-
-          end match
+          encodeSeqPartPattern(pat, lastOffset)
           lastOffset = pat.span.endOffset
+
+        encodeInt(pattern.span.endOffset - lastOffset)
 
       case WildcardPattern() =>
         encodeByte(Format.WildcardPattern)
         encodeType(pattern.scrutineeType)
         encodeInt(startDelta)
         encodeNat(pattern.span.length)
+
+  private def encodeSeqPartPattern(pattern: SeqPartPattern, prevOffset: Int)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
+    val startDelta = pattern.span.start - prevOffset
+
+    pattern match
+      case AtomPattern(nested) =>
+        checkSubtype[AtomPattern, DerivedSpan]
+
+        encodeByte(Format.AtomPattern)
+        encodePattern(nested, prevOffset)
+
+      case SkipToPattern(nested) =>
+        encodeByte(Format.SkipToPattern)
+
+        encodeInt(startDelta)
+        encodePattern(nested, pattern.span.start)
+        encodeInt(pattern.span.endOffset - nested.span.endOffset)
+
+      case star @ StarPattern(nested) =>
+        encodeByte(Format.StarPattern)
+
+        encodeInt(startDelta)
+
+        encodePattern(nested, pattern.span.start)
+
+        repeated(star.bindings): (sym1, sym2) =>
+          encodeSymbolRef(sym2)
+
+          val id = state.getId(sym1)
+          encodeNat(id)
+          encodeString(sym1.name)
+          encodeType(sym1.info)
+
+        encodeInt(pattern.span.endOffset - nested.span.endOffset)
+
+      case RestPattern(nested) =>
+        encodeByte(Format.RestPattern)
+
+        encodeInt(startDelta)
+        encodePattern(nested, pattern.span.start)
+        encodeInt(pattern.span.endOffset - nested.span.endOffset)
+
+    end match
 
   private def encodeBool(b: Boolean)(using buf: WriteBuffer): Unit =
     buf.addBool(b)
