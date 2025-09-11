@@ -1112,7 +1112,7 @@ object Decoder:
       case Format.AliasPattern =>
         val id = decodeWord(owner, prevOffset).asInstanceOf[Ident]
         val nested = decodePattern(owner, id.span.endOffset)
-        AliasPattern(id, nested)(id.span | nested.span)
+        AliasPattern(id, nested)
 
       case Format.TypePattern =>
         val scrutineeType = decodeType()
@@ -1121,7 +1121,7 @@ object Decoder:
 
       case Format.TagPattern =>
         val scrutineeType = decodeType()
-        val tagLit = decodeWord(owner, prevOffset)
+        val tagLit = decodeWord(owner, prevOffset).asInstanceOf[Literal]
 
         var lastOffset = tagLit.span.endOffset
         val nested = repeated:
@@ -1141,7 +1141,7 @@ object Decoder:
           lastOffset = pat.span.endOffset
           pat
 
-        ApplyPattern(fun, nested)(scrutineeType, span)
+        ApplyPattern(fun, nested)(scrutineeType)
 
       case Format.OrPattern =>
         val lhs = decodePattern(owner, prevOffset)
@@ -1219,8 +1219,7 @@ object Decoder:
         val scrutineeType = decodeType()
         val startDelta = decodeInt()
         val length = decodeNat()
-        val currentOffset = prevOffset + startDelta
-        val span = Span(currentOffset, length)
+        val span = Span(prevOffset + startDelta, length)
         WildcardPattern()(scrutineeType, span)
 
       case _ => throw new Exception(s"Unknown pattern tag: $patternTag")
