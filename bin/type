@@ -64,6 +64,7 @@ files=(
     stack-lang/sast/TypeTraverser.scala
     stack-lang/sast/TaggedEncoding.scala
 
+    stack-lang/pickle/Decoder.scala
     stack-lang/pickle/Encoder.scala
     stack-lang/pickle/Format.scala
     stack-lang/pickle/ReadBuffer.scala
