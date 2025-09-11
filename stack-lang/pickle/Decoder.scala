@@ -1297,8 +1297,16 @@ object Decoder:
   private def decodeSource()(using buf: ReadBuffer): Source =
     val file = decodeString()
     val source = new Source(file)
-    for lineLen <- repeated { decodeNat() } do
-      source.addLineOffset(lineLen)
+
+    val count = decodeNat()
+
+    var offset = 0
+    var i = 0
+    while i < count do
+      source.addLineOffset(offset)
+      offset += decodeNat()
+      i += 1
+
     source
 
   private def repeated[T: ClassTag](decode: => T)(using buf: ReadBuffer): List[T] =

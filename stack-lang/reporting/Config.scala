@@ -13,6 +13,8 @@ class Config(options: Map[String, String]):
 
   val showSteps: Boolean = options.contains("-steps")
 
+  val testPickling: Boolean = options.contains("-testPickling")
+
 object Config:
   // The flag tells whether the option needs an argument
   val commonOptionsSpec = Map(
@@ -22,4 +24,5 @@ object Config:
     "-time"           -> false,
     "-checkTree"      -> false,
     "-steps"          -> false,
+    "-testPickling"   -> false,
   )

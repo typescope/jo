@@ -74,7 +74,7 @@ object Positions:
   class Source(val file: String, lineOffsets: mutable.ArrayBuffer[Int], lineCache: mutable.Map[Int, String]):
     def this(file: String) = this(file, mutable.ArrayBuffer(), mutable.Map.empty)
 
-    def content: String = IO.fileContent(file)
+    def content: String = IO.fileAsString(file)
 
     lazy val lineLengths: Iterable[Int] =
       val lens = new mutable.ArrayBuffer[Int]

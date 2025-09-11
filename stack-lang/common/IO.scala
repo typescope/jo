@@ -2,6 +2,7 @@ package common
 
 import scala.collection.mutable
 
+import java.nio.charset.StandardCharsets
 /**
   * Encapsulates common input/output utilities
   *
@@ -54,6 +55,9 @@ object IO:
       fs.close()
       throw e
 
+  def writeFile(path: String, data: Array[Byte]): Unit =
+    writeFile(path, data, 0, data.length)
+
   def writeFile(path: String, data: Array[Byte], offset: Int, len: Int): Unit =
     val fos = new java.io.FileOutputStream(path)
 
@@ -76,10 +80,13 @@ object IO:
     file.setExecutable(true)
     withFile(file)(fn)
 
-  def fileContent(name: String): String =
-    val path = java.nio.file.Path.of(name)
-    val bytes = java.nio.file.Files.readAllBytes(path)
-    new String(bytes)
+  def fileAsBytes(filePath: String): Array[Byte] =
+    val path = java.nio.file.Path.of(filePath)
+    java.nio.file.Files.readAllBytes(path)
+
+  def fileAsString(filePath: String): String =
+    val bytes = fileAsBytes(filePath)
+    new String(bytes, StandardCharsets.UTF_8)
 
   def fileNameNoExt(file: String): String =
     val path = java.nio.file.Paths.get(file)
