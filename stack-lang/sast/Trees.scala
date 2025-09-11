@@ -3,7 +3,7 @@ package sast
 import Symbols.*
 import Types.*
 
-import ast.Positions.{ Positioned, Span }
+import ast.Positions.{ Positioned, Span, DerivedSpan }
 
 /***********************************************************************
  *
@@ -103,17 +103,20 @@ object Trees:
     */
   case class Assign
     (ident: Ident, rhs: Word)
-  extends Word:
-    def span = ident.span | rhs.span
+  extends Word with DerivedSpan:
     val symbol = ident.symbol
+
     def tpe: Type = VoidType
+
+    def deriveSpan = ident.span | rhs.span
 
   /** Assignment to fields */
   case class FieldAssign
     (lhs: Select, rhs: Word)
-  extends Word:
-    def span = lhs.span | rhs.span
+  extends Word with DerivedSpan:
     def tpe: Type = VoidType
+
+    def deriveSpan = lhs.span | rhs.span
 
   case class If
     (cond: Word, thenp: Word, elsep: Word)
@@ -134,39 +137,37 @@ object Trees:
 
   case class With
     (expr: Word, args: List[Assign])
-  extends Word:
+  extends Word with DerivedSpan:
     assert(args.nonEmpty, "With args cannot be empty")
 
     def tpe: Type = expr.tpe
 
-    def span = expr.span | args.last.span
+    def deriveSpan = expr.span | args.last.span
 
   case class Allow
     (expr: Word, params: List[Ident])
-  extends Word:
+  extends Word with DerivedSpan:
     def tpe: Type = expr.tpe
 
-    def span = params.foldLeft(expr.span)(_ | _.span)
+    def deriveSpan = params.foldLeft(expr.span)(_ | _.span)
 
   case class TypeApply
     (fun: Word, targs: List[TypeTree])
     (val tpe: Type)
-  extends Word:
+  extends Word with DerivedSpan:
     assert(targs.nonEmpty, "type args should not be empty")
 
-    def span = fun.span | targs.last.span
+    def deriveSpan = fun.span | targs.last.span
 
   case class Apply
     (fun: Word, args: List[Word], autos: List[Word])
     (val tpe: Type)
     (using Definitions)
-  extends Word:
+  extends Word with DerivedSpan:
     fun.tpe.asProcType match
       case procType =>
         assert(procType.paramTypes.size == args.size, procType.show + ", " + args)
         assert(procType.autos.size == autos.size, procType.show + ", " + autos)
-
-    def span = args.foldLeft(fun.span)(_ | _.span)
 
     def allArgs: List[Word] = args ++ autos
 
@@ -176,6 +177,8 @@ object Trees:
         case TypeApply(Ident(sym), _) => Some(sym)
         case _                        => None
 
+    def deriveSpan = args.foldLeft(fun.span)(_ | _.span)
+
   object Apply:
     def apply(fun: Word, args: List[Word])(tpe: Type)(using Definitions): Apply =
       apply(fun, args, autos = Nil)(tpe)
@@ -184,8 +187,8 @@ object Trees:
   case class New
     (classRef: Ident, targs: List[TypeTree])
     (val tpe: Type)
-  extends Word:
-    def span = targs.foldLeft(classRef.span)(_ | _.span)
+  extends Word with DerivedSpan:
+    def deriveSpan = targs.foldLeft(classRef.span)(_ | _.span)
 
   // TODO: remove `tpe` from the parameters
   case class Object(self: Symbol, members: List[ValDef | FunDef])
@@ -198,8 +201,8 @@ object Trees:
     */
   case class Encoded
     (repr: Word)(val tpe: Type)
-  extends Word:
-    def span = repr.span
+  extends Word with DerivedSpan:
+    def deriveSpan = repr.span
     def isValueDrop(using Definitions) = repr.tpe.isValueType && tpe.isVoidType
 
   case class TypeTree
@@ -225,8 +228,8 @@ object Trees:
 
   case class TypePattern
     (tpt: TypeTree)(val scrutineeType: Type)
-  extends Pattern:
-    val span: Span = tpt.span
+  extends Pattern with DerivedSpan:
+    def deriveSpan: Span = tpt.span
 
   case class WildcardPattern
     ()
@@ -235,53 +238,57 @@ object Trees:
 
   case class AliasPattern
     (id: Ident, nested: Pattern)
-  extends Pattern:
+  extends Pattern with DerivedSpan:
     val scrutineeType = nested.scrutineeType
-    val span = id.span | nested.span
+    def deriveSpan = id.span | nested.span
 
   case class OrPattern
     (lhs: Pattern, rhs: Pattern)
-  extends Pattern:
+  extends Pattern with DerivedSpan:
     val scrutineeType = lhs.scrutineeType
-    val span = lhs.span | rhs.span
+    def deriveSpan = lhs.span | rhs.span
 
   case class ApplyPattern
     (fun: Word, nested: List[Pattern])
     (val scrutineeType: Type)
-  extends Pattern:
-    def span = nested.foldLeft(fun.span)(_ | _.span)
+  extends Pattern with DerivedSpan:
+
     val symbol =
       fun match
         case Ident(sym) if sym.isPattern => sym
         case TypeApply(Ident(sym), _) if sym.isPattern => sym
         case _ => throw new Exception("expect a pattern predicate, found = " + fun)
 
+    def deriveSpan = nested.foldLeft(fun.span)(_ | _.span)
+
   case class TagPattern
     (tagTree: Literal, nested: List[Pattern])
     (val scrutineeType: Type)
-  extends Pattern:
-    val span = if nested.isEmpty then tagTree.span else tagTree.span | nested.last.span
+  extends Pattern with DerivedSpan:
 
     val tag = tagTree.constant match
       case Constant.String(name) => name
       case c => throw new Exception("Expect string, found = " + c)
 
+    def deriveSpan = if nested.isEmpty then tagTree.span else tagTree.span | nested.last.span
+
   case class ValuePattern
     (value: Word)(val scrutineeType: Type)
-  extends Pattern:
-    val span = value.span
+  extends Pattern with DerivedSpan:
+    def deriveSpan = value.span
 
   case class GuardPattern
     (pattern: Pattern, guard: Word)
-  extends Pattern:
+  extends Pattern with DerivedSpan:
     val scrutineeType = pattern.scrutineeType
-    val span = pattern.span | guard.span
+    def deriveSpan = pattern.span | guard.span
 
+  // TODO: is bind pattern in essence AndPattern + Bindings?
   case class BindPattern
     (pattern: Pattern, bindings: List[Assign])
-  extends Pattern:
+  extends Pattern with DerivedSpan:
     val scrutineeType = pattern.scrutineeType
-    val span = bindings.foldLeft(pattern.span)(_ | _.span)
+    def deriveSpan = bindings.foldLeft(pattern.span)(_ | _.span)
 
   case class SeqPattern
     (patterns: List[SeqPartPattern])
@@ -391,8 +398,8 @@ object Trees:
 
   case class AtomPattern
     (pattern: Pattern)
-  extends SeqPartPattern:
-    val span: Span = pattern.span
+  extends SeqPartPattern with DerivedSpan:
+    def deriveSpan: Span = pattern.span
 
   case class SkipToPattern
     (pattern: Pattern)

@@ -17,6 +17,11 @@ object Positions:
 
     def pos(using Source): SourcePosition = span.toPos
 
+
+  trait DerivedSpan:
+    final val span: Span = deriveSpan
+    def deriveSpan: Span
+
   private def checkComponentPos(obj: Product): Unit =
     def checkPos(elem: Any): Unit =
       elem match
