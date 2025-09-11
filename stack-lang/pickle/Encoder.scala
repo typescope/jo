@@ -570,10 +570,9 @@ object Encoder:
         // encodeInt(word.span.endOffset - lastOffset)
 
       case Select(qual, name) =>
-        assert(word.span.start == qual.span.start, s"word.span = ${word.span}, qual.span = ${qual.span}")
-
         encodeByte(Format.Select)
-        encodeWord(qual, prevOffset)
+        encodeInt(startDelta)
+        encodeWord(qual, word.span.start)
         encodeString(name)
         encodeInt(word.span.endOffset - qual.span.endOffset)
 
@@ -734,11 +733,12 @@ object Encoder:
         var lastOffset = scrutinee.span.endOffset
         repeated(cases):
           case cas @ Case(pat, body) =>
-            assert(cas.span.endOffset == body.span.endOffset)
 
             encodeInt(cas.span.start - lastOffset)
             encodePattern(pat, cas.span.start)
             encodeWord(body, pat.span.endOffset)
+            encodeInt(cas.span.endOffset - body.span.endOffset)
+
             lastOffset = body.span.endOffset
 
         encodeType(word.tpe)

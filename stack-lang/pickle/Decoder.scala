@@ -864,12 +864,15 @@ object Decoder:
     New(classRef, targs)(tpe)
 
   private def decodeSelect(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): Select =
-    val qual = decodeWord(owner, prevOffset)
+    val startDelta = decodeInt()
+    val startOffset = prevOffset + startDelta
+
+    val qual = decodeWord(owner, startOffset)
     val name = decodeString()
     val endDelta = decodeInt()
 
     val tpe = qual.tpe.termMember(name)
-    val span = Span(qual.span.start, qual.span.length + endDelta)
+    val span = Span(startOffset, qual.span.endOffset + endDelta - startOffset)
 
     Select(qual, name)(tpe, span)
 
@@ -1043,8 +1046,10 @@ object Decoder:
       val pat = decodePattern(owner, caseStartOffset)
       val body = decodeWord(owner, pat.span.endOffset)
 
+      val endDelta = decodeInt()
+
       lastOffset = body.span.endOffset
-      val span = Span(caseStartOffset, lastOffset - caseStartOffset)
+      val span = Span(caseStartOffset, lastOffset + endDelta - caseStartOffset)
 
       Case(pat, body)(span)
 
