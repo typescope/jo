@@ -135,7 +135,7 @@ object Trees:
   case class With
     (expr: Word, args: List[Assign])
   extends Word:
-    assert(args.nonEmpty)
+    assert(args.nonEmpty, "With args cannot be empty")
 
     def tpe: Type = expr.tpe
 
@@ -152,7 +152,7 @@ object Trees:
     (fun: Word, targs: List[TypeTree])
     (val tpe: Type)
   extends Word:
-    assert(targs.nonEmpty)
+    assert(targs.nonEmpty, "type args should not be empty")
 
     def span = fun.span | targs.last.span
 

@@ -566,7 +566,7 @@ object Encoder:
         encodeInt(word.span.endOffset - lastOffset)
 
       case Select(qual, name) =>
-        assert(word.span.start == qual.span.start)
+        assert(word.span.start == qual.span.start, s"word.span = ${word.span}, qual.span = ${qual.span}")
 
         encodeByte(Format.Select)
         encodeWord(qual, prevOffset)
@@ -600,6 +600,8 @@ object Encoder:
         encodeInt(word.span.endOffset - lastOffset)
 
       case Encoded(repr) =>
+        assert(word.span == repr.span, "span cannot be reconstructed from children")
+
         encodeByte(Format.Encoded)
         encodeWord(repr, prevOffset)
         encodeType(word.tpe)
@@ -622,7 +624,7 @@ object Encoder:
         // encodeInt(word.span.endOffset - lastOffset)
 
       case TypeApply(fun, targs) =>
-        assert(fun.span.start == word.span.start)
+       assert(word.span.start == fun.span.start, s"word.span = ${word.span}, fun.span = ${fun.span}")
 
         encodeByte(Format.TypeApply)
 
@@ -637,7 +639,8 @@ object Encoder:
         // encodeInt(word.span.endOffset - lastOffset)
 
       case With(expr, args) =>
-        assert(expr.span.start == word.span.start)
+        assert(word.span.start == expr.span.start, s"word.span = ${word.span}, expr.span = ${expr.span}")
+        assert(word.span.endOffset == args.last.span.endOffset, s"word.span = ${word.span}, args.last.span = ${args.last.span}")
 
         encodeByte(Format.With)
 
@@ -651,7 +654,8 @@ object Encoder:
             lastOffset = rhs.span.endOffset
 
       case Allow(expr, params) =>
-        assert(expr.span.start == word.span.start)
+        assert(word.span.start == expr.span.start, s"word.span = ${word.span}, expr.span = ${expr.span}")
+        assert(word.span.endOffset == params.last.span.endOffset, s"word.span = ${word.span}, params.last.span = ${params.last.span}")
 
         encodeByte(Format.Allow)
 
@@ -663,11 +667,15 @@ object Encoder:
           lastOffset = param.span.endOffset
 
       case Assign(ident, rhs) =>
+        assert(word.span == (ident.span | rhs.span), "span cannot be reconstructed from children")
+
         encodeByte(Format.Assign)
         encodeWord(ident, prevOffset)
         encodeWord(rhs, ident.span.endOffset)
 
       case FieldAssign(lhs, rhs) =>
+        assert(word.span == (lhs.span | rhs.span), "span cannot be reconstructed from children")
+
         encodeByte(Format.FieldAssign)
         encodeWord(lhs, prevOffset)
         encodeWord(rhs, lhs.span.endOffset)
@@ -751,11 +759,15 @@ object Encoder:
 
     pattern match
       case AliasPattern(id, nested) =>
+        assert(pattern.span == (id.span | nested.span), "span cannot be reconstructed from children")
+
         encodeByte(Format.AliasPattern)
         encodeWord(id, prevOffset)
         encodePattern(nested, id.span.endOffset)
 
       case TypePattern(tpt) =>
+        assert(pattern.span == tpt.span, "span cannot be reconstructed from children")
+
         encodeByte(Format.TypePattern)
         encodeType(pattern.scrutineeType)
         encodeInt(startDelta)
