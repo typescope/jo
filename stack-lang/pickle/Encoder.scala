@@ -182,7 +182,7 @@ object Encoder:
 
     // must comes after last
     buf.patchInt(addrNameTable, buf.length)
-    state.nameTable.encode() < ("Nametable for " + symbol.fullName, enable = true)
+    state.nameTable.encode() < ("Nametable for " + symbol.fullName, enable = false)
 
     buf
 
