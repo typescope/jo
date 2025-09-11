@@ -277,13 +277,30 @@ object Trees:
   extends Pattern with DerivedSpan:
     def deriveSpan = value.span
 
+  /** Represents patterns `pat if e`
+    *
+    * Question: Is guard pattern in essence conjunction pattern + condition?
+    *
+    * No, because an both branches of a conjunction pattern match against a
+    * scrutinee.
+    *
+    * Yes, a guard pattern ignores the scrutinee and only introduces condition.
+    */
   case class GuardPattern
     (pattern: Pattern, guard: Word)
   extends Pattern with DerivedSpan:
     val scrutineeType = pattern.scrutineeType
     def deriveSpan = pattern.span | guard.span
 
-  // TODO: is bind pattern in essence AndPattern + Bindings?
+  /** Represents patterns `pat then x = e`
+    *
+    * Question: Is bind pattern in essence conjunction pattern + bindings?
+    *
+    * No, because an both branches of a conjunction pattern match against a
+    * scrutinee.
+    *
+    * Yes, a bind pattern ignores the scrutinee and only introduces new bindings.
+    */
   case class BindPattern
     (pattern: Pattern, bindings: List[Assign])
   extends Pattern with DerivedSpan:
