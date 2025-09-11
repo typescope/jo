@@ -147,6 +147,8 @@ object Encoder:
       symbolTable.getId(sym)
   end State
 
+  //----------------------------------------------------------------------------
+
   extension (inline work: Unit)
     inline def <[T](message: => String, enable: Boolean)(using buf: WriteBuffer) =
       inline if enable then
@@ -156,6 +158,8 @@ object Encoder:
         println(message + ": " + delta)
       else
         work
+
+  inline def checkSubtype[S, T >: S]: Unit = ()
 
   //----------------------------------------------------------------------------
 
@@ -600,14 +604,15 @@ object Encoder:
         encodeInt(word.span.endOffset - lastOffset)
 
       case Encoded(repr) =>
-        assert(word.isInstanceOf[DerivedSpan], "span cannot be reconstructed from children")
+        checkSubtype[Encoded, DerivedSpan]
 
         encodeByte(Format.Encoded)
         encodeWord(repr, prevOffset)
         encodeType(word.tpe)
 
       case Apply(fun, args, autos) =>
-        assert(word.isInstanceOf[DerivedSpan], "span cannot be reconstructed from children")
+        checkSubtype[Apply, DerivedSpan]
+
         // assert(word.span.start == fun.span.start, s"word.span = ${word.span}, fun.span = ${fun.span}")
 
         encodeByte(Format.Apply)
@@ -627,7 +632,7 @@ object Encoder:
         // encodeInt(word.span.endOffset - lastOffset)
 
       case TypeApply(fun, targs) =>
-        assert(word.isInstanceOf[DerivedSpan], "span cannot be reconstructed from children")
+        checkSubtype[TypeApply, DerivedSpan]
         // assert(word.span.start == fun.span.start, s"word.span = ${word.span}, fun.span = ${fun.span}")
 
         encodeByte(Format.TypeApply)
@@ -643,7 +648,7 @@ object Encoder:
         // encodeInt(word.span.endOffset - lastOffset)
 
       case With(expr, args) =>
-        assert(word.isInstanceOf[DerivedSpan], "span cannot be reconstructed from children")
+        checkSubtype[With, DerivedSpan]
 
         encodeByte(Format.With)
 
@@ -657,7 +662,7 @@ object Encoder:
             lastOffset = rhs.span.endOffset
 
       case Allow(expr, params) =>
-        assert(word.isInstanceOf[DerivedSpan], "span cannot be reconstructed from children")
+        checkSubtype[Allow, DerivedSpan]
 
         encodeByte(Format.Allow)
 
@@ -669,14 +674,14 @@ object Encoder:
           lastOffset = param.span.endOffset
 
       case Assign(ident, rhs) =>
-        assert(word.isInstanceOf[DerivedSpan], "span cannot be reconstructed from children")
+        checkSubtype[Assign, DerivedSpan]
 
         encodeByte(Format.Assign)
         encodeWord(ident, prevOffset)
         encodeWord(rhs, ident.span.endOffset)
 
       case FieldAssign(lhs, rhs) =>
-        assert(word.isInstanceOf[DerivedSpan], "span cannot be reconstructed from children")
+        checkSubtype[FieldAssign, DerivedSpan]
 
         encodeByte(Format.FieldAssign)
         encodeWord(lhs, prevOffset)
@@ -761,14 +766,14 @@ object Encoder:
 
     pattern match
       case AliasPattern(id, nested) =>
-        assert(pattern.isInstanceOf[DerivedSpan], "span cannot be reconstructed from children")
+        checkSubtype[AliasPattern, DerivedSpan]
 
         encodeByte(Format.AliasPattern)
         encodeWord(id, prevOffset)
         encodePattern(nested, id.span.endOffset)
 
       case TypePattern(tpt) =>
-        assert(pattern.isInstanceOf[DerivedSpan], "span cannot be reconstructed from children")
+        checkSubtype[TypePattern, DerivedSpan]
 
         encodeByte(Format.TypePattern)
         encodeType(pattern.scrutineeType)
@@ -776,7 +781,7 @@ object Encoder:
 
       case TagPattern(tagLit, nested) =>
         // TODO: encode span
-        assert(pattern.isInstanceOf[DerivedSpan], "span cannot be reconstructed from children")
+        checkSubtype[TagPattern, DerivedSpan]
 
         encodeByte(Format.TagPattern)
         encodeType(pattern.scrutineeType)
@@ -789,7 +794,7 @@ object Encoder:
 
       case ApplyPattern(fun, nested) =>
         // TODO: encode span explicitly
-        assert(pattern.isInstanceOf[DerivedSpan], "span cannot be reconstructed from children")
+        checkSubtype[ApplyPattern, DerivedSpan]
 
         encodeByte(Format.ApplyPattern)
         encodeType(pattern.scrutineeType)
@@ -801,28 +806,28 @@ object Encoder:
           lastOffset = pat.span.endOffset
 
       case OrPattern(lhs, rhs) =>
-        assert(pattern.isInstanceOf[DerivedSpan], "span cannot be reconstructed from children")
+        checkSubtype[OrPattern, DerivedSpan]
 
         encodeByte(Format.OrPattern)
         encodePattern(lhs, prevOffset)
         encodePattern(rhs, lhs.span.endOffset)
 
       case ValuePattern(value) =>
-        assert(pattern.isInstanceOf[DerivedSpan], "span cannot be reconstructed from children")
+        checkSubtype[ValuePattern, DerivedSpan]
 
         encodeByte(Format.ValuePattern)
         encodeType(pattern.scrutineeType)
         encodeWord(value, prevOffset)
 
       case GuardPattern(pattern, guard) =>
-        assert(pattern.isInstanceOf[DerivedSpan], "span cannot be reconstructed from children")
+        checkSubtype[GuardPattern, DerivedSpan]
 
         encodeByte(Format.GuardPattern)
         encodePattern(pattern, prevOffset)
         encodeWord(guard, pattern.span.endOffset)
 
       case BindPattern(pattern, bindings) =>
-        assert(pattern.isInstanceOf[DerivedSpan], "span cannot be reconstructed from children")
+        checkSubtype[BindPattern, DerivedSpan]
 
         encodeByte(Format.BindPattern)
         encodePattern(pattern, prevOffset)
@@ -842,7 +847,7 @@ object Encoder:
         repeated(pats): pat =>
           pat match
           case AtomPattern(pattern) =>
-            assert(pat.isInstanceOf[DerivedSpan], "span cannot be reconstructed from children")
+            checkSubtype[AtomPattern, DerivedSpan]
 
             encodeByte(Format.AtomPattern)
             encodePattern(pattern, lastOffset)
