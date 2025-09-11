@@ -1108,121 +1108,121 @@ object Decoder:
     val patternTag = decodeByte()
 
     patternTag match
-        case Format.AliasPattern =>
-          val id = decodeWord(owner, prevOffset)
-          val nested = decodePattern(owner, id.span.endOffset)
-          val span = Span(id.span.start, nested.span.endOffset - id.span.start)
-          AliasPattern(id, nested)(span)
+      case Format.AliasPattern =>
+        val id = decodeWord(owner, prevOffset)
+        val nested = decodePattern(owner, id.span.endOffset)
+        val span = Span(id.span.start, nested.span.endOffset - id.span.start)
+        AliasPattern(id, nested)(span)
 
-        case Format.TypePattern =>
-          val scrutineeType = decodeType()
-          val startDelta = decodeInt()
-          val currentOffset = prevOffset + startDelta
-          val tpt = decodeTypeTree(prevOffset)
-          TypePattern(tpt)(scrutineeType)
+      case Format.TypePattern =>
+        val scrutineeType = decodeType()
+        val startDelta = decodeInt()
+        val currentOffset = prevOffset + startDelta
+        val tpt = decodeTypeTree(prevOffset)
+        TypePattern(tpt)(scrutineeType)
 
-        case Format.TagPattern =>
-          val tagLit = decodeWord(owner, prevOffset)
-          var lastOffset = tagLit.span.endOffset
-          val nested = repeated:
-            val pat = decodePattern(owner, lastOffset)
-            lastOffset = pat.span.endOffset
-            pat
-          val span = Span(tagLit.span.start, lastOffset - tagLit.span.start)
-          TagPattern(tagLit, nested)(span)
+      case Format.TagPattern =>
+        val tagLit = decodeWord(owner, prevOffset)
+        var lastOffset = tagLit.span.endOffset
+        val nested = repeated:
+          val pat = decodePattern(owner, lastOffset)
+          lastOffset = pat.span.endOffset
+          pat
+        val span = Span(tagLit.span.start, lastOffset - tagLit.span.start)
+        TagPattern(tagLit, nested)(span)
 
-        case Format.ApplyPattern =>
-          val scrutineeType = decodeType()
-          val fun = decodeWord(owner, prevOffset)
-          var lastOffset = fun.span.endOffset
-          val nested = repeated:
-            val pat = decodePattern(owner, lastOffset)
-            lastOffset = pat.span.endOffset
-            pat
-          val span = Span(fun.span.start, lastOffset - fun.span.start)
-          ApplyPattern(fun, nested)(scrutineeType, span)
+      case Format.ApplyPattern =>
+        val scrutineeType = decodeType()
+        val fun = decodeWord(owner, prevOffset)
+        var lastOffset = fun.span.endOffset
+        val nested = repeated:
+          val pat = decodePattern(owner, lastOffset)
+          lastOffset = pat.span.endOffset
+          pat
+        val span = Span(fun.span.start, lastOffset - fun.span.start)
+        ApplyPattern(fun, nested)(scrutineeType, span)
 
-        case Format.OrPattern =>
-          val lhs = decodePattern(owner, prevOffset)
-          val rhs = decodePattern(owner, lhs.span.endOffset)
-          OrPattern(lhs, rhs)
+      case Format.OrPattern =>
+        val lhs = decodePattern(owner, prevOffset)
+        val rhs = decodePattern(owner, lhs.span.endOffset)
+        OrPattern(lhs, rhs)
 
-        case Format.ValuePattern =>
-          val scrutineeType = decodeType()
-          val startDelta = decodeInt()
-          val currentOffset = prevOffset + startDelta
-          val value = decodeWord(owner, prevOffset)
-          ValuePattern(value)(scrutineeType)
+      case Format.ValuePattern =>
+        val scrutineeType = decodeType()
+        val startDelta = decodeInt()
+        val currentOffset = prevOffset + startDelta
+        val value = decodeWord(owner, prevOffset)
+        ValuePattern(value)(scrutineeType)
 
-        case Format.GuardPattern =>
-          val pattern = decodePattern(owner, prevOffset)
-          val guard = decodeWord(owner, pattern.span.endOffset)
-          GuardPattern(pattern, guard)
+      case Format.GuardPattern =>
+        val pattern = decodePattern(owner, prevOffset)
+        val guard = decodeWord(owner, pattern.span.endOffset)
+        GuardPattern(pattern, guard)
 
-        case Format.BindPattern =>
-          val pattern = decodePattern(owner, prevOffset)
-          var lastOffset = pattern.span.endOffset
-          val bindings = repeated:
-            val binding = decodeWord(owner, lastOffset)
-            lastOffset = binding.span.endOffset
-            binding
-          BindPattern(pattern, bindings)
+      case Format.BindPattern =>
+        val pattern = decodePattern(owner, prevOffset)
+        var lastOffset = pattern.span.endOffset
+        val bindings = repeated:
+          val binding = decodeWord(owner, lastOffset)
+          lastOffset = binding.span.endOffset
+          binding
+        BindPattern(pattern, bindings)
 
-        case Format.SeqPattern =>
-          val scrutineeType = decodeType()
-          val startDelta = decodeInt()
-          val currentOffset = prevOffset + startDelta
-          var lastOffset = prevOffset
-          val pats = repeated:
-            val seqPatTag = decodeByte()
-            seqPatTag match
-              case Format.AtomPattern =>
-                val pattern = decodePattern(owner, lastOffset)
-                lastOffset = pattern.span.endOffset
-                AtomPattern(pattern)
+      case Format.SeqPattern =>
+        val scrutineeType = decodeType()
+        val startDelta = decodeInt()
+        val currentOffset = prevOffset + startDelta
+        var lastOffset = prevOffset
+        val pats = repeated:
+          val seqPatTag = decodeByte()
+          seqPatTag match
+            case Format.AtomPattern =>
+              val pattern = decodePattern(owner, lastOffset)
+              lastOffset = pattern.span.endOffset
+              AtomPattern(pattern)
 
-              case Format.SkipToPattern =>
-                val pattern = decodePattern(owner, lastOffset)
-                lastOffset = pattern.span.endOffset
-                val span = ???
-                SkipToPattern(pattern)(span)
+            case Format.SkipToPattern =>
+              val pattern = decodePattern(owner, lastOffset)
+              lastOffset = pattern.span.endOffset
+              val span = ???
+              SkipToPattern(pattern)(span)
 
-              case Format.StarPattern =>
-                val pattern = decodePattern(owner, lastOffset)
-                // TODO: fix binding
-                val bindings = repeated:
-                  val id = decodeNat()
-                  val name = decodeString()
-                  val info = decodeType()
-                  val sym1 = Symbol.createSymbol(name, Flags.empty, owner.sourcePos)
+            case Format.StarPattern =>
+              val pattern = decodePattern(owner, lastOffset)
+              // TODO: fix binding
+              val bindings = repeated:
+                val id = decodeNat()
+                val name = decodeString()
+                val info = decodeType()
+                val sym1 = Symbol.createSymbol(name, Flags.empty, owner.sourcePos)
 
-                  state.registerInternalSymbol(id, sym1)
-                  val sym2 = decodeSymbolRef()
-                  (sym1, sym2)
-                lastOffset = pattern.span.endOffset
-                val span = ???
-                StarPattern(pattern)(span, bindings)
+                state.registerInternalSymbol(id, sym1)
+                val sym2 = decodeSymbolRef()
+                (sym1, sym2)
+              lastOffset = pattern.span.endOffset
+              val span = ???
+              StarPattern(pattern)(span, bindings)
 
-              case Format.RestPattern =>
-                val pattern = decodePattern(owner, lastOffset)
-                lastOffset = pattern.span.endOffset
-                val span = ???
-                RestPattern(pattern)(span)
+            case Format.RestPattern =>
+              val pattern = decodePattern(owner, lastOffset)
+              lastOffset = pattern.span.endOffset
+              val span = ???
+              RestPattern(pattern)(span)
 
-              case _ => throw new Exception(s"Unknown sequence pattern tag: $seqPatTag")
+            case _ => throw new Exception(s"Unknown sequence pattern tag: $seqPatTag")
 
-          val span = Span(currentOffset, lastOffset - currentOffset)
-          SeqPattern(pats)(scrutineeType, span)
+        val span = Span(currentOffset, lastOffset - currentOffset)
+        SeqPattern(pats)(scrutineeType, span)
 
-        case Format.WildcardPattern =>
-          val scrutineeType = decodeType()
-          val startDelta = decodeInt()
-          val length = decodeNat()
-          val currentOffset = prevOffset + startDelta
-          val span = Span(currentOffset, length)
-          WildcardPattern()(scrutineeType, span)
+      case Format.WildcardPattern =>
+        val scrutineeType = decodeType()
+        val startDelta = decodeInt()
+        val length = decodeNat()
+        val currentOffset = prevOffset + startDelta
+        val span = Span(currentOffset, length)
+        WildcardPattern()(scrutineeType, span)
 
-        case _ => throw new Exception(s"Unknown pattern tag: $patternTag")
+      case _ => throw new Exception(s"Unknown pattern tag: $patternTag")
 
   private def decodeBool()(using buf: ReadBuffer): Boolean =
     buf.readBool()
