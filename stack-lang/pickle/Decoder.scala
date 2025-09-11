@@ -73,10 +73,15 @@ object Decoder:
 
   //----------------------------------------------------------------------------
 
-  def decode()(using buf: ReadBuffer, defnLazy: Definitions.Lazy, rp: Reporter): DelayedDef[Namespace] =
-    val nameIndex = decodeNat()
+  def decode(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, rp: Reporter): DelayedDef[Namespace] =
+    val name = decodeString()
     val source = decodeSource()
     val symSpan = Span(decodeNat(), decodeNat())
+
+    val nameTable = new NameTable
+    val info = new ContainerInfo(nameTable)
+    val rootSymbol = Symbol.createSymbol(name, Flags.NSpace, symSpan.toPos(using source))
+    defnLazy.infoProvider.add(rootSymbol, owner, info)
 
     // Read external name table
     val nameTableAddr: Int = decodeIntRaw()
@@ -84,25 +89,12 @@ object Decoder:
       decodeNameTable()
 
     val symTable = new SymTable(nameRefs)
-
-    given Source = source
-
-    val rootSymbol = resolveNamespace(
-      symTable.getFullNameParts(nameIndex),
-      symSpan.toPos,
-      defnLazy.rootNameTable,
-      defnLazy.infoProvider,
-      isBranch = false
-    )
-
-    given state: State = new State(rootSymbol, symTable)
+    given State = new State(rootSymbol, symTable)
 
     val delayedDefs = repeated { decodeDef(rootSymbol) }
-
     val span = Span(decodeNat(), decodeNat())
 
     // Add symbols to name table
-    val nameTable = defnLazy.infoProvider.info(rootSymbol).as[ContainerInfo].nameTable
     for delayedDef <- delayedDefs do nameTable.define(delayedDef.symbol)
 
     val delayed = () =>
@@ -112,68 +104,6 @@ object Decoder:
       Namespace(rootSymbol, List.empty, members)(span)
 
     DelayedDef(rootSymbol, delayed)
-
-
-  /** Resolve namespace and create intermediate namespace on demand
-    *
-    * It also checks redefinition of namespace.
-    */
-  def resolveNamespace
-      (parts: List[String], pos: SourcePosition, rootNameTable: NameTable,
-        infoProvider: InfoProvider, isBranch: Boolean)
-      (using Reporter)
-  : Symbol =
-
-    def check(sym: Symbol): Symbol =
-      val name = sym.name
-      val pos = sym.sourcePos
-      val context = s"Context: loading ${pos.source.file}"
-
-      if sym.isNamespace && !sym.isAlias then
-        if isBranch && !sym.is(Flags.Branch) then
-          error(s"The $name is already defined as a namespace at $pos. $context")
-
-        else if !isBranch then
-          // leaf namespace should not exist
-          if sym.is(Flags.Branch) then
-            error(s"The namespace $name is already defined as a branch name at $pos. $context")
-
-          else
-            error(s"The namespace $name is already defined at $pos. $context")
-
-        else
-          sym
-
-      else
-        error(s"The $name is already defined as a member at $pos. $context")
-
-    (parts: @unchecked) match
-      case name :: Nil =>
-        rootNameTable.resolveTerm(name) match
-          case None =>
-            val flags = if isBranch then Flags.NSpace | Flags.Branch else Flags.NSpace
-            val sym = Symbol.createSymbol(name, flags, pos)
-            rootNameTable.define(sym)
-            infoProvider.add(sym, owner = null, new ContainerInfo(new NameTable))
-            sym
-
-          case Some(sym) => check(sym)
-
-      case prefix :+ name =>
-        val nsSym = resolveNamespace(prefix, pos, rootNameTable, infoProvider, isBranch = true)
-
-        assert(nsSym.isNamespace, "Not a namespace " + nsSym)
-        val nameTable = infoProvider.info(nsSym).as[ContainerInfo].nameTable
-
-        nameTable.resolveTerm(name) match
-          case Some(sym) => check(sym)
-
-          case None =>
-            val flags = if isBranch then Flags.NSpace | Flags.Branch else Flags.NSpace
-            val sym = Symbol.createSymbol(name, flags, pos)
-            infoProvider.add(sym, nsSym, new ContainerInfo(new NameTable))
-            nameTable.define(sym)
-            sym
 
   /** Decode a definition and return delayed definition
     *
