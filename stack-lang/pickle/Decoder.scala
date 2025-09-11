@@ -858,6 +858,7 @@ object Decoder:
     val endDelta = decodeInt()
     val tpe = AppliedType(StaticRef(classRef.symbol), targs.map(_.tpe))
 
+    // TODO: need to change New to take span instead of deriving from children
     New(classRef, targs)(tpe)
 
   private def decodeSelect(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): Select =
@@ -1109,37 +1110,37 @@ object Decoder:
 
     patternTag match
       case Format.AliasPattern =>
-        val id = decodeWord(owner, prevOffset)
+        val id = decodeWord(owner, prevOffset).asInstanceOf[Ident]
         val nested = decodePattern(owner, id.span.endOffset)
-        val span = Span(id.span.start, nested.span.endOffset - id.span.start)
-        AliasPattern(id, nested)(span)
+        AliasPattern(id, nested)(id.span | nested.span)
 
       case Format.TypePattern =>
         val scrutineeType = decodeType()
-        val startDelta = decodeInt()
-        val currentOffset = prevOffset + startDelta
         val tpt = decodeTypeTree(prevOffset)
         TypePattern(tpt)(scrutineeType)
 
       case Format.TagPattern =>
+        val scrutineeType = decodeType()
         val tagLit = decodeWord(owner, prevOffset)
+
         var lastOffset = tagLit.span.endOffset
         val nested = repeated:
           val pat = decodePattern(owner, lastOffset)
           lastOffset = pat.span.endOffset
           pat
-        val span = Span(tagLit.span.start, lastOffset - tagLit.span.start)
-        TagPattern(tagLit, nested)(span)
+
+        TagPattern(tagLit, nested)(scrutineeType)
 
       case Format.ApplyPattern =>
         val scrutineeType = decodeType()
         val fun = decodeWord(owner, prevOffset)
+
         var lastOffset = fun.span.endOffset
         val nested = repeated:
           val pat = decodePattern(owner, lastOffset)
           lastOffset = pat.span.endOffset
           pat
-        val span = Span(fun.span.start, lastOffset - fun.span.start)
+
         ApplyPattern(fun, nested)(scrutineeType, span)
 
       case Format.OrPattern =>
@@ -1149,8 +1150,6 @@ object Decoder:
 
       case Format.ValuePattern =>
         val scrutineeType = decodeType()
-        val startDelta = decodeInt()
-        val currentOffset = prevOffset + startDelta
         val value = decodeWord(owner, prevOffset)
         ValuePattern(value)(scrutineeType)
 
@@ -1161,11 +1160,13 @@ object Decoder:
 
       case Format.BindPattern =>
         val pattern = decodePattern(owner, prevOffset)
+
         var lastOffset = pattern.span.endOffset
         val bindings = repeated:
           val binding = decodeWord(owner, lastOffset)
           lastOffset = binding.span.endOffset
           binding
+
         BindPattern(pattern, bindings)
 
       case Format.SeqPattern =>

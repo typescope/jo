@@ -788,7 +788,7 @@ object Encoder:
           lastOffset = pat.span.endOffset
 
       case ApplyPattern(fun, nested) =>
-        // TODO: encode span
+        // TODO: encode span explicitly
         assert(pattern.isInstanceOf[DerivedSpan], "span cannot be reconstructed from children")
 
         encodeByte(Format.ApplyPattern)
@@ -812,7 +812,6 @@ object Encoder:
 
         encodeByte(Format.ValuePattern)
         encodeType(pattern.scrutineeType)
-        encodeInt(startDelta)
         encodeWord(value, prevOffset)
 
       case GuardPattern(pattern, guard) =>
