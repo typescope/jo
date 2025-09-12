@@ -35,15 +35,11 @@ object Base128:
   def fromInt(x: Int, addByte: Byte => Unit) =
     fromLong(x, addByte)
 
-  /**
-    * The range of supported values is [-Long.MaxValue, Long.MaxValue]
-    *
-    * The only unsupported value is Long.MinValue.
-    */
   def fromLong(x: Long, addByte: Byte => Unit) =
-    assert(x != Long.MinValue, "Not supported number " + x)
     // Use signed representation to better handle small negative values
     val m = if x >= 0 then x else -x
+
+    // Note that -0 and +0 will have different meaning: -0 = Long.MinValue
     val y = (m << 1) | ((x >>> 63) & 1)
     fromLongNat(y, addByte)
 
@@ -68,7 +64,9 @@ object Base128:
 
   def toLong(readByte: () => Byte): Long =
     val y = toLongNat(readByte)
-    if (y & 1) == 0 then y >>> 1 else -(y >>> 1)
+    if (y & 1) == 0 then y >>> 1
+    else if y == 1 then Long.MinValue
+    else -(y >>> 1)
 
   def toNat(readByte: () => Byte): Int =
     val y = toLongNat(readByte)
@@ -119,7 +117,7 @@ object Base128:
       testValue(value, fromNat, toNat, "Nat")
 
     // Test signed longs
-    val longValues = List(0L, 1L, -1L, 42L, -42L, 127L, -127L, 128L, -128L, 16383L, -16383L, Long.MaxValue)
+    val longValues = List(0L, 1L, -1L, 42L, -42L, 127L, -127L, 128L, -128L, 16383L, -16383L, Long.MaxValue, Long.MinValue)
     for value <- longValues do
       testValue(value, fromLong, toLong, "Long")
 
