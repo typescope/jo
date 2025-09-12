@@ -61,10 +61,10 @@ object Format:
   final val ObjectType    : Byte = 11
   final val ProcType      : Byte = 12
   final val TypeLambda    : Byte = 13
-  final val AppliedType   : Byte = 13
-  final val TypeBound     : Byte = 14
-  final val ContainerInfo : Byte = 15
-  final val ClassInfo     : Byte = 16
+  final val AppliedType   : Byte = 14
+  final val TypeBound     : Byte = 15
+  final val ContainerInfo : Byte = 16
+  final val ClassInfo     : Byte = 17
 
   final val Type: Byte = 0
   final val Pattern: Byte = 1
