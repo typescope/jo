@@ -31,7 +31,7 @@ class ReadBuffer(private val bytes: Array[Byte]) extends (() => Byte):
 
   /** Read 4-byte big-endian 2's complement integer */
   def readIntRaw(): Int =
-    (readByte() << 24) | (readByte() << 16) | (readByte() << 8) | readByte()
+    ((readByte() & 0xFF) << 24) | ((readByte() & 0xFF) << 16) | ((readByte() & 0xFF) << 8) | (readByte() & 0xFF)
 
   def readUtf8(): String =
     val length = readNat()
