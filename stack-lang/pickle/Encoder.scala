@@ -305,6 +305,8 @@ object Encoder:
 
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
+      encodeKind(defSym.asTypeSymbol.kind)
+
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
 
@@ -405,6 +407,7 @@ object Encoder:
 
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
+      encodeKind(defSym.asTypeSymbol.kind)
 
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)

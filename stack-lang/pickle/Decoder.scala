@@ -302,13 +302,14 @@ object Decoder:
 
     val id = decodeNat()
     val name = decodeString()
+    val kind = decodeKind()
 
     val symStartDelta = decodeInt()
     val symSpanLength = decodeNat()
     val symSpan = Span(absoluteStart + symStartDelta, symSpanLength)
 
     // Create and register symbol immediately
-    val symbol = Symbol.createSymbol(name, Flags.Class, symSpan.toPos)
+    val symbol = new TypeSymbol(kind, name, Flags.Type | Flags.Class, symSpan.toPos)
     state.registerInternalSymbol(id, symbol)
 
     given Definitions = defnLazy.value
@@ -403,13 +404,14 @@ object Decoder:
     val absoluteStart = decodeNat()
     val id = decodeNat()
     val name = decodeString()
+    val kind = decodeKind()
 
     val symStartDelta = decodeInt()
     val symSpanLength = decodeNat()
     val symSpan = Span(absoluteStart + symStartDelta, symSpanLength)
 
     // Create symbol immediately but delay type reading
-    val symbol = new TypeSymbol(Kind.Simple, name, Flags.Type, symSpan.toPos)
+    val symbol = new TypeSymbol(kind, name, Flags.Type, symSpan.toPos)
     state.registerInternalSymbol(id, symbol)
 
     given Definitions = defnLazy.value
@@ -601,7 +603,7 @@ object Decoder:
     val bits = decodeLongNat()
     Flags.fromBits(bits)
 
-  private def decodeKind()(using buf: ReadBuffer, defn: Definitions, state: State): Kind =
+  private def decodeKind()(using buf: ReadBuffer): Kind =
     val kindType = decodeByte()
     kindType match
       case Format.SimpleKind => Kind.Simple
