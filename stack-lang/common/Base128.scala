@@ -26,7 +26,7 @@ package common
   * representation. The latter is then converted to 2's complement
   * representation:
   *
-  *    if (y & 1) == 0 then y >>> 1 else -(y >>> 1)
+  *    if (y & 1) == 0 then y >>> 1 else Long.MinValue | -(y >>> 1)
   *
   * For small numbers, the encoding saves space as 1 byte suffices.
   */
