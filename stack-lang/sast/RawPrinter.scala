@@ -89,6 +89,10 @@ object RawPrinter:
     given state: State = new State(symbol)
     given src: Source = symbol.sourcePos.source
 
+    val importData = "[" ~ indent:
+      imports.map(printSymbol).join("," ~ Text.BreakLine)
+    ~ "]"
+
     val defsData = "[" ~ indent:
         defs.map(printDef).join(",")
       ~ "]"
@@ -99,7 +103,7 @@ object RawPrinter:
     val refsData = state.externalNameTable
 
     "[" ~ indent:
-        List(source, refsData, defsData).join("," ~ Text.BreakLine)
+        List(source, importData, refsData, defsData).join("," ~ Text.BreakLine)
     ~ "]"
 
   //----------------------------------------------------------------------------

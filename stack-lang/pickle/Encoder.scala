@@ -176,6 +176,8 @@ object Encoder:
 
     val addrNameTable = buf.reserveInt()
 
+    encodeImports(imports, symbol.span.endOffset)
+
     repeated(defs): defn =>
       encodeDef(defn)
 
@@ -186,6 +188,25 @@ object Encoder:
     buf
 
   //----------------------------------------------------------------------------
+
+  /** Encode all imports for a namespace */
+  private def encodeImports(imports: List[Symbol], prevOffset: Int)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
+    var lastOffset = prevOffset
+    repeated(imports): sym =>
+      buf.withLength:
+        encodeNat(state.getId(sym))
+        encodeString(sym.name)
+        encodeFlags(sym.flags) // TODO: Do we need all flags?
+
+        val span = sym.sourcePos.span
+        val startDelta = span.start - lastOffset
+        lastOffset = span.endOffset
+
+        encodeInt(startDelta)
+        encodeNat(span.length)
+
+        if sym.isType then encodeKind(sym.asTypeSymbol.kind)
+        encodeType(sym.info)
 
   /** Reference to an internal or external symbol
     *

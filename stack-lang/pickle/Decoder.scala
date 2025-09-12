@@ -94,8 +94,15 @@ object Decoder:
     val symTable = new SymTable(nameRefs)
     given State = new State(rootSymbol, symTable)
 
+    debug("decoding symbols of module " + rootSymbol, enable = false)
+
+    // Decode imports
+    val imports = decodeImports(rootSymbol)
+
     val delayedDefs = repeated { decodeDef(rootSymbol) }
     val span = Span(decodeNat(), decodeNat())
+
+    debug("decoding symbols of module " + rootSymbol + " success", enable = false)
 
     // Add symbols to name table
     for delayedDef <- delayedDefs do nameTable.define(delayedDef.symbol)
@@ -103,10 +110,57 @@ object Decoder:
     val delayed = () =>
       given Definitions = defnLazy.value
 
-      val members = delayedDefs.map(_.force())
-      Namespace(rootSymbol, List.empty, members)(span)
+      val members = delayedDefs.map: d =>
+        d.force()
+
+      debug("module " + rootSymbol + " loaded success", enable = false)
+
+      Namespace(rootSymbol, imports, members)(span)
 
     DelayedDef(rootSymbol, delayed)
+
+  /** Decode all imports for a namespace */
+  private def decodeImports
+      (owner: Symbol)
+      (using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State)
+  : List[Symbol] =
+
+    var lastOffset = owner.span.endOffset
+    repeated:
+      val length = decodeIntRaw()
+      val pos = buf.position
+
+      val id = decodeNat()
+      val name = decodeString()
+      val flags = decodeFlags()
+
+      val startDelta = decodeInt()
+      val symLength = decodeNat()
+      val span = Span(lastOffset + startDelta, symLength)
+      lastOffset = span.endOffset
+
+      // TODO: can we unify Symbol and TypeSymbol?
+      val sym =
+        if flags.is(Flags.Type) then
+          val kind = decodeKind()
+          new TypeSymbol(kind, name, flags, span.toPos(using owner.source))
+        else
+          Symbol.createSymbol(name, flags, span.toPos(using owner.source))
+
+      state.registerInternalSymbol(id, sym)
+
+      val typeStartPos = buf.position
+      lazy val info =
+        given Definitions = defnLazy.value
+        given ReadBuffer = buf.fresh(typeStartPos)
+        decodeType()
+
+      defnLazy.infoProvider.addLazy(sym, owner, () => info)
+
+      // set buffer position
+      buf.setPosition(pos + length)
+
+      sym
 
   /** Decode a definition and return delayed definition
     *
@@ -132,7 +186,7 @@ object Decoder:
       case _ => throw new Exception(s"Unknown definition type in decodeDef: $defType")
 
   private def decodeValDef(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions, state: State): ValDef =
-    given Source = owner.sourcePos.source
+    given Source = owner.source
 
     val absoluteStart = decodeNat()
     val id = decodeNat()
@@ -153,7 +207,7 @@ object Decoder:
     ValDef(symbol, rhs)(span)
 
   private def decodeParamDef(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): DelayedDef[ParamDef] =
-    given Source = owner.sourcePos.source
+    given Source = owner.source
     val length = decodeIntRaw()
     val pos = buf.position
 
@@ -188,7 +242,7 @@ object Decoder:
     DelayedDef(symbol, () => paramDef)
 
   private def decodeFunDef(owner: Symbol, initFlags: Flags)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): DelayedDef[FunDef] =
-    given Source = owner.sourcePos.source
+    given Source = owner.source
     val length = decodeIntRaw()
     val pos = buf.position
 
@@ -294,7 +348,7 @@ object Decoder:
     DelayedDef(symbol, delayedFun)
 
   private def decodeClassDef(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): DelayedDef[ClassDef] =
-    given Source = owner.sourcePos.source
+    given Source = owner.source
     val length = decodeIntRaw()
     val pos = buf.position
 
@@ -398,7 +452,7 @@ object Decoder:
     DelayedDef(symbol, delayed)
 
   private def decodeTypeDef(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): DelayedDef[TypeDef] =
-    given Source = owner.sourcePos.source
+    given Source = owner.source
     val length = decodeIntRaw()
     val pos = buf.position
 
@@ -437,7 +491,7 @@ object Decoder:
     DelayedDef(symbol, typeDefFun)
 
   private def decodePatDef(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): DelayedDef[PatDef] =
-    given Source = owner.sourcePos.source
+    given Source = owner.source
     val length = decodeIntRaw()
     val pos = buf.position
 
@@ -524,7 +578,7 @@ object Decoder:
       (using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State, rp: Reporter)
   : DelayedDef[Section] =
 
-    given Source = owner.sourcePos.source
+    given Source = owner.source
 
     // length is redundant --- keep it for extension and uniformity
     val length = decodeIntRaw()
@@ -1011,7 +1065,7 @@ object Decoder:
     Match(scrutinee, cases)(tpe, span)
 
   private def decodeObject(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): Object =
-    given Source = owner.sourcePos.source
+    given Source = owner.source
 
     val startDelta = decodeInt()
     val startOffset = startDelta + prevOffset
@@ -1266,10 +1320,12 @@ object Decoder:
 
     var offset = 0
     var i = 0
+    source.addLineOffset(offset)
     while i < count do
-      source.addLineOffset(offset)
       offset += decodeNat()
+      source.addLineOffset(offset)
       i += 1
+    end while
 
     source
 
