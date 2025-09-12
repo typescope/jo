@@ -71,6 +71,9 @@ object Decoder:
 
   def error(message: String, pos: SourcePosition): Nothing = Reporter.abort(message, pos)
 
+  inline def debug(message: String, enable: Boolean): Unit =
+    inline if enable then println(message) else ()
+
   //----------------------------------------------------------------------------
 
   def decode(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, rp: Reporter): DelayedDef[Namespace] =
@@ -621,6 +624,7 @@ object Decoder:
     TypeTree(tpe)(span)
 
   private def decodeType()(using buf: ReadBuffer, defn: Definitions, state: State): Type =
+    val pos = buf.position
     val typeTag = decodeByte()
     typeTag match
       case Format.VoidType => VoidType
@@ -736,7 +740,7 @@ object Decoder:
         val hi = decodeType()
         TypeBound(lo, hi)
 
-      case _ => throw new Exception(s"Unknown type tag: $typeTag")
+      case _ => throw new Exception(s"Unknown type tag: $typeTag at $pos")
 
   private def decodeWord(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): Word =
     val wordTag = decodeByte()

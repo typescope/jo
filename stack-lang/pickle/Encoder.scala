@@ -193,14 +193,15 @@ object Encoder:
     * - External symbols are identified by full name and kind
     */
   private def encodeSymbolRef(symbol: Symbol)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
-    if symbol.containedIn(state.root) then
+    val target = symbol.dealias
+    if target.containedIn(state.root) then
       encodeByte(0)
-      encodeNat(state.getId(symbol))
+      encodeNat(state.getId(target))
 
     else
-      assert(!symbol.isLocal, "Cannot reference external local symbol: " + symbol)
+      assert(!target.isLocal, "Cannot reference external local symbol: " + target)
       encodeByte(1)
-      encodeNat(state.nameTable.getIndex(symbol))
+      encodeNat(state.nameTable.getIndex(target))
 
   /** Not all flags need serialization, handled by caller */
   private def encodeFlags(flags: Flags)(using buf: WriteBuffer): Unit =
@@ -404,10 +405,11 @@ object Encoder:
 
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
+
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
-      encodeType(defSym.info)
 
+      encodeType(defSym.info)
       encodeNat(tdef.span.length)
 
   private def encodeSection(sec: Section)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
