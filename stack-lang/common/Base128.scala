@@ -39,6 +39,8 @@ object Base128:
     // Use signed representation to better handle small negative values
     val m = if x >= 0 then x else -x
 
+    // Fact: -Long.MinValue = Long.MinValue
+
     // Note that -0 and +0 will have different meaning: -0 = Long.MinValue
     val y = (m << 1) | ((x >>> 63) & 1)
     fromLongNat(y, addByte)
@@ -65,8 +67,7 @@ object Base128:
   def toLong(readByte: () => Byte): Long =
     val y = toLongNat(readByte)
     if (y & 1) == 0 then y >>> 1
-    else if y == 1 then Long.MinValue
-    else -(y >>> 1)
+    else Long.MinValue | -(y >>> 1)
 
   def toNat(readByte: () => Byte): Int =
     val y = toLongNat(readByte)
