@@ -487,6 +487,7 @@ object Encoder:
       case TagType(tag, params) =>
         encodeByte(Format.TagType)
 
+        encodeString(tag)
         repeated(params): f =>
           encodeString(f.name)
           encodeType(f.info)
