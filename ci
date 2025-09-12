@@ -16,6 +16,11 @@ check() {
 
 ################################################################################
 
+# unit tests
+scala-cli stack-lang/common/Base128.scala
+
+################################################################################
+
 # check that scripts work
 bin/parse -time tests/pos/fact.stk
 bin/type -time tests/pos/fact.stk

@@ -35,7 +35,13 @@ object Base128:
   def fromInt(x: Int, addByte: Byte => Unit) =
     fromLong(x, addByte)
 
+  /**
+    * The range of supported values is [-Long.MaxValue, Long.MaxValue]
+    *
+    * The only unsupported value is Long.MinValue.
+    */
   def fromLong(x: Long, addByte: Byte => Unit) =
+    assert(x != Long.MinValue, "Not supported number " + x)
     // Use signed representation to better handle small negative values
     val m = if x >= 0 then x else -x
     val y = (m << 1) | ((x >>> 63) & 1)
@@ -80,3 +86,46 @@ object Base128:
       continue = (b & 0x80) == 0
     end while
     y
+
+  def main(args: Array[String]): Unit =
+    import scala.collection.mutable.ArrayBuffer
+
+    def testValue[T](value: T, encode: (T, Byte => Unit) => Unit, decode: (() => Byte) => T, typeName: String): Unit =
+      val buffer = new ArrayBuffer[Byte]
+      encode(value, buffer += _)
+
+      var pos = 0
+      val readByte = () => {
+        val b = buffer(pos)
+        pos += 1
+        b
+      }
+
+      val decoded = decode(readByte)
+      assert(decoded == value, s"$typeName: expected $value, got $decoded")
+      assert(pos == buffer.size, s"Unused bytes, pos = $pos, buffer.size = ${buffer.size}")
+      println(s"$typeName $value -> ${buffer.map(b => f"0x${b & 0xFF}%02X").mkString(" ")} -> $decoded ✓")
+
+    println("Testing Base128 encoding/decoding:")
+
+    // Test signed integers
+    val intValues = List(0, 1, -1, 42, -42, 127, -127, 128, -128, 16383, -16383, Int.MaxValue, Int.MinValue)
+    for value <- intValues do
+      testValue(value, fromInt, toInt, "Int")
+
+    // Test unsigned integers (Nat)
+    val natValues = List(0, 1, 42, 127, 128, 16383, Int.MaxValue, Int.MinValue)
+    for value <- natValues do
+      testValue(value, fromNat, toNat, "Nat")
+
+    // Test signed longs
+    val longValues = List(0L, 1L, -1L, 42L, -42L, 127L, -127L, 128L, -128L, 16383L, -16383L, Long.MaxValue)
+    for value <- longValues do
+      testValue(value, fromLong, toLong, "Long")
+
+    // Test unsigned longs (LongNat)
+    val longNatValues = List(0L, 1L, 42L, 127L, 128L, 16383L, Long.MaxValue, Long.MinValue)
+    for value <- longNatValues do
+      testValue(value, fromLongNat, toLongNat, "LongNat")
+
+    println("All Base128 tests passed!")
