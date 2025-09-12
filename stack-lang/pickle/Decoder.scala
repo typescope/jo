@@ -372,17 +372,16 @@ object Decoder:
 
       val endDelta = decodeInt()
 
-      val classInfo = ClassInfo(
-        symbol,
-        tparams,
-        tparams.map(StaticRef.apply),
-        self,
-        vals,
-        delayedFuns.map(_.symbol)
-      )
+      val symInfo =
+        val funs = delayedFuns.map(_.symbol)
+        val base = ClassInfo(symbol, tparams, tparams.map(StaticRef.apply), self, vals, funs)
+
+        if tparams.isEmpty then base
+        else TypeLambda(tparams, base, preParamCount = 0)
+
     end content
 
-    defnLazy.infoProvider.addLazy(symbol, owner, () => content.classInfo)
+    defnLazy.infoProvider.addLazy(symbol, owner, () => content.symInfo)
 
     val delayed = () =>
       var lastOffset = absoluteStart
