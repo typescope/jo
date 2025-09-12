@@ -366,7 +366,9 @@ object Decoder:
         valSym
 
       // Decode function definitions as DelayedDef
-      val delayedFuns = repeated { decodeFunDef(symbol, Flags.Method) }
+      val delayedFuns = repeated:
+        assert(decodeByte() == Format.FunDef, "Unexpected tag")
+        decodeFunDef(symbol, Flags.Method)
 
       val endDelta = decodeInt()
 
