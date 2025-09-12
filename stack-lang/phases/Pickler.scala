@@ -26,16 +26,16 @@ class Pickler(using defn: Definitions, rp: Reporter, cf: Config) extends phases.
       given ReadBuffer = new ReadBuffer(bytes)
       val ns2 = Decoder.decode(ns.symbol.owner).force()
 
-      val strBefore = RawPrinter.print(ns).toString
-      val strAfter = RawPrinter.print(ns2).toString
+      val contentBefore = RawPrinter.print(ns).toString
+      val contentAfter = RawPrinter.print(ns2).toString
 
-      if strBefore != strAfter then
+      if contentBefore != contentAfter then
         val before = fullName + "-before.txt"
         val after = fullName + "-after.txt"
         println(s"Test pickling failed, please check files $before and $after.")
 
-        IO.writeFile(before, before.getBytes(UTF_8))
-        IO.writeFile(after, after.getBytes(UTF_8))
+        IO.writeFile(before, contentBefore.getBytes(UTF_8))
+        IO.writeFile(after, contentAfter.getBytes(UTF_8))
       end if
     end if
 
