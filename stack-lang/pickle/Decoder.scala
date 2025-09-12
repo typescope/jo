@@ -464,13 +464,13 @@ object Decoder:
       val tparams = repeated:
         val tparamId = decodeNat()
         val tparamName = decodeString()
-        val kind = decodeKind()
 
         val tparamStartDelta = decodeInt()
         val tparamSpanLength = decodeNat()
         val tparamSpan = Span(absoluteStart + tparamStartDelta, tparamSpanLength)
 
         // TODO: eager reading info excludes F-bounds
+        val kind = decodeKind()
         val tparamInfo = decodeType()
 
         val tparam = TypeSymbol.createSymbol(kind, tparamName, tparamInfo, Flags.Param, symbol, tparamSpan.toPos)
@@ -1069,9 +1069,22 @@ object Decoder:
 
     patternTag match
       case Format.AliasPattern =>
-        val id = decodeWord(owner, prevOffset).asInstanceOf[Ident]
-        val nested = decodePattern(owner, id.span.endOffset)
-        AliasPattern(id, nested)
+
+        val startDelta = decodeInt()
+        val id = decodeNat()
+        val name = decodeString()
+        val info = decodeType()
+        val length = decodeNat()
+
+        val span = Span(startDelta + prevOffset, length)
+        val symbol = Symbol.createSymbol(name, info, Flags.Pattern, owner, span.toPos(using owner.source))
+        state.registerInternalSymbol(id, symbol)
+
+
+        val nested = decodePattern(owner, span.endOffset)
+
+        val ident = Ident(symbol)(span)
+        AliasPattern(ident, nested)
 
       case Format.TypePattern =>
         val scrutineeType = decodeType()
