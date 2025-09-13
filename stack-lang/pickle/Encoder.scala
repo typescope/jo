@@ -169,6 +169,8 @@ object Encoder:
     given state: State = new State(symbol)
     given buf: WriteBuffer = new WriteBuffer(1 << 12)
 
+    // Import/alias may refer to the root symbol
+    encodeNat(state.getId(symbol))
     encodeString(symbol.name)
     encodeSource(symbol.sourcePos.source)
     encodeNat(symbol.span.start)
@@ -192,11 +194,14 @@ object Encoder:
   /** Encode all imports for a namespace */
   private def encodeImports(imports: List[Symbol], prevOffset: Int)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
     var lastOffset = prevOffset
-    repeated(imports): sym =>
-      buf.withLength:
+    buf.withLength:
+      repeated(imports): sym =>
+        // import may rename
         encodeNat(state.getId(sym))
         encodeString(sym.name)
-        encodeFlags(sym.flags) // TODO: Do we need all flags?
+
+        val target = sym.info.as[StaticRef].symbol
+        encodeSymbolRef(target)
 
         val span = sym.sourcePos.span
         val startDelta = span.start - lastOffset
@@ -204,9 +209,6 @@ object Encoder:
 
         encodeInt(startDelta)
         encodeNat(span.length)
-
-        if sym.isType then encodeKind(sym.asTypeSymbol.kind)
-        encodeType(sym.info)
 
   /** Reference to an internal or external symbol
     *

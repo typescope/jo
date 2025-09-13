@@ -60,6 +60,10 @@ class ReadBuffer(private val bytes: Array[Byte]) extends (() => Byte):
       throw new Exception(s"Invalid position: $newPos (length=${bytes.length})")
     pos = newPos
 
+  def advance(delta: Int): Unit =
+    val newPos = pos + delta
+    setPosition(newPos)
+
   def fresh(newPos: Int): ReadBuffer =
     val buf = new ReadBuffer(this.bytes)
     buf.setPosition(newPos)

@@ -77,6 +77,7 @@ object Decoder:
   //----------------------------------------------------------------------------
 
   def decode(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, rp: Reporter): DelayedDef[Namespace] =
+    val id = decodeNat()
     val name = decodeString()
     val source = decodeSource()
     val symSpan = Span(decodeNat(), decodeNat())
@@ -92,12 +93,17 @@ object Decoder:
       decodeNameTable()
 
     val symTable = new SymTable(nameRefs)
-    given State = new State(rootSymbol, symTable)
+    given state: State = new State(rootSymbol, symTable)
+
+    // Import/alias may refer to the root symbol
+    state.registerInternalSymbol(id, rootSymbol)
 
     debug("decoding symbols of module " + rootSymbol, enable = false)
 
     // Decode imports
-    val imports = decodeImports(rootSymbol)
+    val importsLength = decodeIntRaw()
+    val importsPos = buf.position
+    buf.advance(importsLength)
 
     val delayedDefs = repeated { decodeDef(rootSymbol) }
     val span = Span(decodeNat(), decodeNat())
@@ -109,6 +115,10 @@ object Decoder:
 
     val delayed = () =>
       given Definitions = defnLazy.value
+
+      val imports =
+        given ReadBuffer = buf.fresh(importsPos)
+        decodeImports(rootSymbol)
 
       val members = delayedDefs.map: d =>
         d.force()
@@ -122,43 +132,34 @@ object Decoder:
   /** Decode all imports for a namespace */
   private def decodeImports
       (owner: Symbol)
-      (using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State)
+      (using buf: ReadBuffer, defn: Definitions, state: State)
   : List[Symbol] =
 
     var lastOffset = owner.span.endOffset
     repeated:
-      val length = decodeIntRaw()
-      val pos = buf.position
-
       val id = decodeNat()
       val name = decodeString()
-      val flags = decodeFlags()
+      val target = decodeSymbolRef()
 
       val startDelta = decodeInt()
       val symLength = decodeNat()
       val span = Span(lastOffset + startDelta, symLength)
+
       lastOffset = span.endOffset
 
       // TODO: can we unify Symbol and TypeSymbol?
+      val flags = target.flags | Flags.Alias
       val sym =
-        if flags.is(Flags.Type) then
-          val kind = decodeKind()
+        if target.is(Flags.Type) then
+          val kind = target.asTypeSymbol.kind
           new TypeSymbol(kind, name, flags, span.toPos(using owner.source))
         else
           Symbol.createSymbol(name, flags, span.toPos(using owner.source))
 
       state.registerInternalSymbol(id, sym)
 
-      val typeStartPos = buf.position
-      lazy val info =
-        given Definitions = defnLazy.value
-        given ReadBuffer = buf.fresh(typeStartPos)
-        decodeType()
 
-      defnLazy.infoProvider.addLazy(sym, owner, () => info)
-
-      // set buffer position
-      buf.setPosition(pos + length)
+      defn.add(sym, owner, StaticRef(target))
 
       sym
 
