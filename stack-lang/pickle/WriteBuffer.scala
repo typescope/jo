@@ -18,16 +18,16 @@ class WriteBuffer(initialSize: Int) extends (Byte => Unit):
   def addBool(x: Boolean): Unit = addByte(if x then 1 else 0)
 
   /** Write base-128 encoding of integer */
-  def addInt(x: Int): Unit = Base128.fromInt(x, this)
+  def addInt(x: Int): Unit = Base128.encodeInt(x, this)
 
   /** Write base-128 encoding of non-negative integer */
-  def addNat(x: Int): Unit = Base128.fromNat(x, this)
+  def addNat(x: Int): Unit = Base128.encodeNat(x, this)
 
   /** Write base-128 encoding of long */
-  def addLong(x: Long): Unit = Base128.fromLong(x, this)
+  def addLong(x: Long): Unit = Base128.encodeLong(x, this)
 
   /** Write base-128 encoding of non-negative long */
-  def addLongNat(x: Long): Unit = Base128.fromLongNat(x, this)
+  def addLongNat(x: Long): Unit = Base128.encodeLongNat(x, this)
 
   def addUtf8(s: String): Unit =
     val bytes = s.getBytes(java.nio.charset.StandardCharsets.UTF_8)

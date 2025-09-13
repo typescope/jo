@@ -18,16 +18,16 @@ class ReadBuffer(private val bytes: Array[Byte]) extends (() => Byte):
   def readBool(): Boolean = readByte() != 0
 
   /** Read base-128 encoding of integer */
-  def readInt(): Int = Base128.toInt(this)
+  def readInt(): Int = Base128.decodeInt(this)
 
   /** Read base-128 encoding of non-negative integer */
-  def readNat(): Int = Base128.toNat(this)
+  def readNat(): Int = Base128.decodeNat(this)
 
   /** Read base-128 encoding of long */
-  def readLong(): Long = Base128.toLong(this)
+  def readLong(): Long = Base128.decodeLong(this)
 
   /** Read base-128 encoding of non-negative long */
-  def readLongNat(): Long = Base128.toLongNat(this)
+  def readLongNat(): Long = Base128.decodeLongNat(this)
 
   /** Read 4-byte big-endian 2's complement integer */
   def readIntRaw(): Int =

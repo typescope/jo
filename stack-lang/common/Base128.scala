@@ -32,10 +32,10 @@ package common
   */
 object Base128:
 
-  def fromInt(x: Int, addByte: Byte => Unit) =
-    fromLong(x, addByte)
+  def encodeInt(x: Int, addByte: Byte => Unit) =
+    encodeLong(x, addByte)
 
-  def fromLong(x: Long, addByte: Byte => Unit) =
+  def encodeLong(x: Long, addByte: Byte => Unit) =
     // Use signed representation to better handle small negative values
     val m = if x >= 0 then x else -x
 
@@ -43,12 +43,12 @@ object Base128:
 
     // Note that -0 and +0 will have different meaning: -0 = Long.MinValue
     val y = (m << 1) | ((x >>> 63) & 1)
-    fromLongNat(y, addByte)
+    encodeLongNat(y, addByte)
 
-  def fromNat(x: Int, addByte: Byte => Unit) =
-    fromLongNat(x & 0xFFFFFFFF, addByte)
+  def encodeNat(x: Int, addByte: Byte => Unit) =
+    encodeLongNat(x & 0xFFFFFFFF, addByte)
 
-  def fromLongNat(x: Long, addByte: Byte => Unit) =
+  def encodeLongNat(x: Long, addByte: Byte => Unit) =
     val MASK: Long = 0x7F
 
     def addPrefix(prefix: Long): Unit =
@@ -59,22 +59,22 @@ object Base128:
     addPrefix(x >>> 7)
     addByte(((x & MASK) | 0x80).toByte)
 
-  def toInt(readByte: () => Byte): Int =
-    val x = toLong(readByte)
+  def decodeInt(readByte: () => Byte): Int =
+    val x = decodeLong(readByte)
     assert(x >= Int.MinValue && x <= Int.MaxValue, x)
     x.toInt
 
-  def toLong(readByte: () => Byte): Long =
-    val y = toLongNat(readByte)
+  def decodeLong(readByte: () => Byte): Long =
+    val y = decodeLongNat(readByte)
     if (y & 1) == 0 then y >>> 1
     else Long.MinValue | -(y >>> 1)
 
-  def toNat(readByte: () => Byte): Int =
-    val y = toLongNat(readByte)
+  def decodeNat(readByte: () => Byte): Int =
+    val y = decodeLongNat(readByte)
     assert(y <= Int.MaxValue && y >= Int.MinValue, "not valid int: " + y)
     y.toInt
 
-  def toLongNat(readByte: () => Byte): Long =
+  def decodeLongNat(readByte: () => Byte): Long =
     val MASK: Long = 0x7F
 
     var y: Long = 0
@@ -110,21 +110,21 @@ object Base128:
     // Test signed integers
     val intValues = List(0, 1, -1, 42, -42, 127, -127, 128, -128, 16383, -16383, Int.MaxValue, Int.MinValue)
     for value <- intValues do
-      testValue(value, fromInt, toInt, "Int")
+      testValue(value, encodeInt, decodeInt, "Int")
 
     // Test unsigned integers (Nat)
     val natValues = List(0, 1, 42, 127, 128, 16383, Int.MaxValue, Int.MinValue)
     for value <- natValues do
-      testValue(value, fromNat, toNat, "Nat")
+      testValue(value, encodeNat, decodeNat, "Nat")
 
     // Test signed longs
     val longValues = List(0L, 1L, -1L, 42L, -42L, 127L, -127L, 128L, -128L, 16383L, -16383L, Long.MaxValue, Long.MinValue)
     for value <- longValues do
-      testValue(value, fromLong, toLong, "Long")
+      testValue(value, encodeLong, decodeLong, "Long")
 
     // Test unsigned longs (LongNat)
     val longNatValues = List(0L, 1L, 42L, 127L, 128L, 16383L, Long.MaxValue, Long.MinValue)
     for value <- longNatValues do
-      testValue(value, fromLongNat, toLongNat, "LongNat")
+      testValue(value, encodeLongNat, decodeLongNat, "LongNat")
 
     println("All Base128 tests passed!")
