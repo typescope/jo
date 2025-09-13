@@ -70,6 +70,31 @@ import scala.collection.mutable
   *
   */
 object Encoder:
+  private class StringTable:
+    private var frozen: Boolean = false
+    private val strings = new mutable.ArrayBuffer[String]
+
+    /** For quickly loop up index of existing strings for string interning */
+    private val map = new mutable.HashMap[String, Int]
+
+    def getIndex(str: String): Int =
+      map.get(str) match
+        case Some(index) => index
+
+        case None =>
+          if frozen then throw new Exception("String table is frozen")
+
+          val index = strings.size
+          strings += str
+          map(str) = index
+          index
+
+    def encode()(using buf: WriteBuffer) =
+      this.frozen = true
+
+      Encoder.encodeNat(strings.size)
+      for str <- strings do buf.addUtf8(str)
+
   /** A name table maps external symbols to full name and its kind */
   private class NameTable:
     /** Name reference to externally defined symbols */
@@ -89,11 +114,11 @@ object Encoder:
       else
         index
 
-    def encode()(using defn: Definitions, buf: WriteBuffer) =
+    def encode()(using Definitions, WriteBuffer, State) =
       Encoder.encodeNat(externalSymbols.size)
 
       for sym <- externalSymbols do
-        val index =
+        val ownerIndex =
           if sym.owner == null then
             -1
           else
@@ -101,7 +126,8 @@ object Encoder:
             assert(index >= 0, "owner not in table: " + sym.fullName)
             index
 
-        encodeInt(index)
+        encodeInt(ownerIndex)
+
         encodeString(sym.name)
 
         if sym.isType then encodeByte(Format.Type)
@@ -140,6 +166,7 @@ object Encoder:
         index
 
   private class State(val root: Symbol):
+    val stringTable = new StringTable
     val nameTable = new NameTable
     val symbolTable = new SymbolTable(root)
 
@@ -169,14 +196,16 @@ object Encoder:
     given state: State = new State(symbol)
     given buf: WriteBuffer = new WriteBuffer(1 << 12)
 
+    // start of encoding
+    val addrStringTable = buf.reserveInt()
+    val addrNameTable = buf.reserveInt()
+
     // Import/alias may refer to the root symbol
     encodeNat(state.getId(symbol))
     encodeString(symbol.name)
     encodeSource(symbol.sourcePos.source)
     encodeNat(symbol.span.start)
     encodeNat(symbol.span.length)
-
-    val addrNameTable = buf.reserveInt()
 
     encodeImports(imports, symbol.span.endOffset)
 
@@ -185,7 +214,11 @@ object Encoder:
 
     // must comes after last
     buf.patchInt(addrNameTable, buf.length)
-    state.nameTable.encode() < ("Nametable for " + symbol.fullName, enable = false)
+    state.nameTable.encode() < ("Name table for " + symbol.fullName, enable = false)
+
+    // must comes after last
+    buf.patchInt(addrStringTable, buf.length)
+    state.stringTable.encode() < ("String table for " + symbol.fullName, enable = false)
 
     buf
 
@@ -964,10 +997,11 @@ object Encoder:
   private def encodeLongNat(n: Long)(using buf: WriteBuffer): Unit =
     buf.addLongNat(n)
 
-  private def encodeString(s: String)(using buf: WriteBuffer): Unit =
-    buf.addUtf8(s)
+  private def encodeString(s: String)(using buf: WriteBuffer, state: State): Unit =
+    val index = state.stringTable.getIndex(s)
+    encodeNat(index)
 
-  private def encodeConstant(const: Constant)(using buf: WriteBuffer): Unit =
+  private def encodeConstant(const: Constant)(using WriteBuffer, State): Unit =
     const match
       case Constant.Bool(value) =>
         encodeByte(Format.BoolConst)
@@ -982,7 +1016,7 @@ object Encoder:
         encodeString(value)
 
   /** Encode line lengths as comma-separated hexadecimal */
-  private def encodeSource(source: Source)(using buf: WriteBuffer): Unit =
+  private def encodeSource(source: Source)(using WriteBuffer, State): Unit =
     encodeString(source.file)
     val lineLengths = source.lineLengths
     repeated(lineLengths) { len => encodeNat(len) }

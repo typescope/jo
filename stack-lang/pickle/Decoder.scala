@@ -18,19 +18,23 @@ import scala.collection.mutable
   * to reconstruct SAST trees.
   */
 object Decoder:
-  class NameRef(val ownerIndex: Int, val name: String, val kind: Int)
+  class NameRef(val ownerIndex: Int, val nameIndex: Int, val kind: Int)
 
-  private class SymTable(nameRefs: Array[NameRef]):
+  private class StringTable(strings: Array[String]):
+    def get(index: Int): String = strings(index)
+
+  private class SymTable(nameRefs: Array[NameRef], stringTable: StringTable):
     /** External symbols loaded from the name table */
     private val externalSymbols: Array[Symbol] = new Array(nameRefs.size)
 
     def getFullNameParts(index: Int): List[String] =
       def recur(tail: List[String], index: Int): List[String] =
         val nameRef = nameRefs(index)
+        val name = stringTable.get(nameRef.nameIndex)
         if nameRef.ownerIndex == -1 then
-          nameRef.name :: tail
+          name :: tail
         else
-          recur(nameRef.name :: tail, nameRef.ownerIndex)
+          recur(name :: tail, nameRef.ownerIndex)
       end recur
       recur(Nil, index)
 
@@ -51,7 +55,11 @@ object Decoder:
       end if
       sym
 
-  private class State(val root: Symbol, symTable: SymTable):
+  private class State(
+      val root: Symbol,
+      val stringTable: StringTable,
+      symTable: SymTable):
+
     export symTable.getExternalSymbol
 
     /** Map from internal symbol IDs to symbols */
@@ -77,9 +85,19 @@ object Decoder:
   //----------------------------------------------------------------------------
 
   def decode(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, rp: Reporter): DelayedDef[Namespace] =
+    // Read string table
+    val stringTableAddr: Int = decodeIntRaw()
+    val stringTable: StringTable = buf.withPosition(stringTableAddr):
+      new StringTable(decodeStringTable())
+
+    // Read external name table
+    val nameTableAddr: Int = decodeIntRaw()
+    val nameRefs: Array[NameRef] = buf.withPosition(nameTableAddr):
+      decodeNameTable()
+
     val id = decodeNat()
-    val name = decodeString()
-    val source = decodeSource()
+    val name = stringTable.get(buf.readNat())
+    val source = decodeSource(stringTable)
     val symSpan = Span(decodeNat(), decodeNat())
 
     val nameTable = new NameTable
@@ -87,13 +105,8 @@ object Decoder:
     val rootSymbol = Symbol.createSymbol(name, Flags.NSpace, symSpan.toPos(using source))
     defnLazy.infoProvider.add(rootSymbol, owner, info)
 
-    // Read external name table
-    val nameTableAddr: Int = decodeIntRaw()
-    val nameRefs: Array[NameRef] = buf.withPosition(nameTableAddr):
-      decodeNameTable()
-
-    val symTable = new SymTable(nameRefs)
-    given state: State = new State(rootSymbol, symTable)
+    val symTable = new SymTable(nameRefs, stringTable)
+    given state: State = new State(rootSymbol, stringTable, symTable)
 
     // Import/alias may refer to the root symbol
     state.registerInternalSymbol(id, rootSymbol)
@@ -633,14 +646,25 @@ object Decoder:
 
     var i = 0
     while i < count do
-      val ownerIndex = decodeInt()
-      val name = decodeString()
+      val ownerIndex = decodeInt() // ownerIndex can be -1
+      val nameIndex = decodeNat()
       val kind = decodeByte()
 
-      nameRefs(i) = new NameRef(ownerIndex, name, kind)
+      nameRefs(i) = new NameRef(ownerIndex, nameIndex, kind)
       i += 1
 
     nameRefs
+
+  private def decodeStringTable()(using buf: ReadBuffer): Array[String] =
+    val count = decodeNat()
+    val strings = new Array[String](count)
+
+    var i = 0
+    while i < count do
+      strings(i) = buf.readUtf8()
+      i += 1
+
+    strings
 
   private def decodeSymbolRef()(using buf: ReadBuffer, defn: Definitions, state: State): Symbol =
     val refType = decodeByte()
@@ -1293,10 +1317,11 @@ object Decoder:
   private def decodeLongNat()(using buf: ReadBuffer): Long =
     buf.readLongNat()
 
-  private def decodeString()(using buf: ReadBuffer): String =
-    buf.readUtf8()
+  private def decodeString()(using buf: ReadBuffer, state: State): String =
+    val index = decodeNat()
+    state.stringTable.get(index)
 
-  private def decodeConstant()(using buf: ReadBuffer): Constant =
+  private def decodeConstant()(using buf: ReadBuffer, state: State): Constant =
     val constType = decodeByte()
     constType match
       case Format.BoolConst =>
@@ -1313,8 +1338,8 @@ object Decoder:
 
       case _ => throw new Exception(s"Unknown constant type: $constType")
 
-  private def decodeSource()(using buf: ReadBuffer): Source =
-    val file = decodeString()
+  private def decodeSource(stringTable: StringTable)(using buf: ReadBuffer): Source =
+    val file = stringTable.get(decodeNat())
     val source = new Source(file)
 
     val count = decodeNat()
