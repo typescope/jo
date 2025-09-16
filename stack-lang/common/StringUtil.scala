@@ -6,45 +6,49 @@ object StringUtil:
     * Java 15 added String.translateEscapes. Don't depend on it for clarity.
     */
   def unescape(s: String): String =
-    val sb = new StringBuilder
+    val sb = new java.lang.StringBuilder
     var isLastEscape = false
 
     var i = 0
     while i < s.size do
-      val c = s(i)
+      val c = s.codePointAt(i)
       if i == 0 || !isLastEscape then
         if c == '\\' then isLastEscape = true
-        else sb += c
+        else sb.appendCodePoint(c)
       else
         c match
-          case 'b'  => sb += '\b'
-          case 'f'  => sb += '\f'
-          case 'n'  => sb += '\n'
-          case 'r'  => sb += '\r'
-          case 't'  => sb += '\t'
-          case '"'  => sb += '"'
-          case '\\' => sb += '\\'
+          case 'b'  => sb.append('\b')
+          case 'f'  => sb.append('\f')
+          case 'n'  => sb.append('\n')
+          case 'r'  => sb.append('\r')
+          case 't'  => sb.append('\t')
+          case '"'  => sb.append('"')
+          case '\\' => sb.append('\\')
         isLastEscape = false
       end if
-      i += 1
+      i += Character.charCount(c)
     end while
     sb.toString
 
-  /** Escape a string -- the opposite of unescape
-    *
-    * TODO: handle Unicode and surrogate pair
-    */
+  /** Escape a string -- the opposite of unescape */
   def escape(s: String): String =
     val sb = new StringBuilder
 
     var i = 0
     while i < s.size do
-      val c = s(i)
+      val c = s.codePointAt(i)
       sb ++= escapeChar(c)
-      i += 1
+      i += Character.charCount(c)
     end while
     sb.toString
 
+  /** Handle escaped char
+    *
+    * It only supports BMP unicode points, no surrogate code points
+    *
+    * TODO: Surrogate code points can be supported if the language interpret
+    * char literal as 32-bit integers.
+    */
   def unescapeChar(s: String): Char =
     assert(s.size == 1 || s.size == 2, s)
 
@@ -62,7 +66,7 @@ object StringUtil:
       assert(s.size == 1)
       s(0)
 
-  def escapeChar(c: Char): String =
+  def escapeChar(c: Int): String =
     c match
       case '\b'  =>  "\\b"
       case '\f'  =>  "\\f"
