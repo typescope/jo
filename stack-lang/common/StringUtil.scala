@@ -75,7 +75,7 @@ object StringUtil:
       case '\t'  =>  "\\t"
       case '"'   =>  "\\\""
       case '\\'  =>  "\\\\"
-      case _     =>  c.toString
+      case _     =>  Character.toString(c)
 
   def utf8CodePointLength(codePoint: Int): Int =
     if codePoint <= 0x7F then
