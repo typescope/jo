@@ -192,6 +192,7 @@ object Decoder:
 
     defType match
       case Format.ParamDef => decodeParamDef(owner)
+      case Format.AliasDef => decodeAliasDef(owner)
       case Format.FunDef => decodeFunDef(owner, Flags.empty)
       case Format.ClassDef => decodeClassDef(owner)
       case Format.TypeDef => decodeTypeDef(owner)
@@ -254,6 +255,41 @@ object Decoder:
     buf.setPosition(pos + length)
 
     DelayedDef(symbol, () => paramDef)
+
+  private def decodeAliasDef(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): DelayedDef[AliasDef] =
+    given Source = owner.source
+    val length = decodeIntRaw()
+    val pos = buf.position
+
+    val absoluteStart = decodeNat()
+
+    val id = decodeNat()
+    val name = decodeString()
+    val flags = decodeFlags()
+
+    val symStartDelta = decodeInt()
+    val symSpanLength = decodeNat()
+    val symSpan = Span(absoluteStart + symStartDelta, symSpanLength)
+
+    val symbol = Symbol.createSymbol(name, flags, symSpan.toPos)
+    state.registerInternalSymbol(id, symbol)
+
+    val targetStartPos = buf.position
+    lazy val aliasDef =
+      given Definitions = defnLazy.value
+      given ReadBuffer = buf.fresh(targetStartPos)
+      val target = decodeWord(symbol, absoluteStart).asInstanceOf[Ident]
+      val endDelta = decodeInt()
+      val span = Span(absoluteStart, target.span.endOffset + endDelta - absoluteStart)
+      AliasDef(symbol, target)(span)
+
+    // Supply type for symbol
+    defnLazy.infoProvider.addLazy(symbol, owner, () => StaticRef(aliasDef.target.symbol))
+
+    // Set buffer position at end
+    buf.setPosition(pos + length)
+
+    DelayedDef(symbol, () => aliasDef)
 
   private def decodeFunDef(owner: Symbol, initFlags: Flags)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): DelayedDef[FunDef] =
     given Source = owner.source

@@ -308,6 +308,7 @@ object Encoder:
     defn match
       case vdef: ValDef => encodeValDef(vdef)
       case pdef: ParamDef => encodeParamDef(pdef)
+      case adef: AliasDef => encodeAliasDef(adef)
       case cdef: ClassDef => encodeClassDef(cdef)
       case fdef: FunDef => encodeFunDef(fdef)
       case pdef: PatDef => encodePatDef(pdef)
@@ -349,6 +350,24 @@ object Encoder:
       encodeTypeTree(pdef.tpt, absoluteStart)
 
       encodeInt(pdef.span.endOffset - pdef.tpt.span.endOffset)
+
+  private def encodeAliasDef(adef: AliasDef)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
+    val defSym = adef.symbol
+    val absoluteStart = adef.span.start
+
+    encodeByte(Format.AliasDef)
+
+    buf.withLength:
+      encodeNat(absoluteStart)
+
+      encodeNat(state.getId(defSym))
+      encodeString(defSym.name)
+      encodeFlags(defSym.flags & (Flags.Pattern | Flags.Fun | Flags.Context))
+      encodeInt(defSym.span.start - absoluteStart)
+      encodeNat(defSym.span.length)
+      encodeWord(adef.target, absoluteStart)
+
+      encodeInt(adef.span.endOffset - adef.target.span.endOffset)
 
   private def encodeClassDef(cdef: ClassDef)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
     val defSym = cdef.symbol
