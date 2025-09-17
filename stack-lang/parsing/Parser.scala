@@ -232,8 +232,22 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   def aliasDef(): AliasDef =
     val info = eat(Token.ALIAS)
+    val item = next()
+    val kind =
+      item.token match
+        case Token.DEF     => AliasKind.Def
+        case Token.PARAM   => AliasKind.Param
+        case Token.PATTERN => AliasKind.Pattern
+        case Token.TYPE    => AliasKind.Type
+        case _ =>
+          error("Expect def/param/pattern/type, found = " + item.token, item.span.toPos)
+          throw new SyntaxError
+      end match
+
+    val name = ident()
+    eat(Token.EQL)
     val id = qualid()
-    AliasDef(id)(info.span | id.span)
+    AliasDef(name, kind, id)(info.span | id.span)
 
   def section(): Section =
     val secToken = eat(Token.SECTION)

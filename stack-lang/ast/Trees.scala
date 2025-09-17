@@ -356,13 +356,22 @@ object Trees:
   extends Tree:
     assert(isQualid(qualid), "malformed qualid: " + qualid)
 
+  enum AliasKind:
+    case Def, Param, Pattern, Type
+
+    override def toString = this match
+      case AliasKind.Def     => "def"
+      case AliasKind.Param   => "param"
+      case AliasKind.Pattern => "pattern"
+      case AliasKind.Type    => "type"
+
   case class AliasDef
-    (qualid: RefTree)
+    (ident: Ident, kind: AliasKind, qualid: RefTree)
     (val span: Span)
   extends Def:
     assert(isQualid(qualid), "malformed qualid: " + qualid)
 
-    def name = qualid.name
+    def name: String = ident.name
 
   case class Namespace
     (qualid: RefTree, imports: List[Import], defs: List[Def], source: String)

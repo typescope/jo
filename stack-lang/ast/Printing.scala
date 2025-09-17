@@ -178,8 +178,12 @@ object Printing:
         "section " ~ name ~ indent:
             defs.join(Text.BlankLine)
 
-      case AliasDef(qualid) =>
-        "alias " ~ qualid
+      case AliasDef(ident, kind, qualid) =>
+        val mods =
+          if defn.modifiers.isEmpty then Text.Empty
+          else defn.modifiers.join(" ") ~ " "
+
+        mods ~ "alias " ~ kind.toString ~ " " ~ ident ~ " = " ~ qualid
 
   def showWord(word: Word): Text =
     word match
