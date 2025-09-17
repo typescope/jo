@@ -1147,7 +1147,8 @@ class Namer:
         case Ast.AliasKind.Def =>
           nameTable.resolveTerm(targetName) match
             case Some(sym) =>
-              if sym.isFunction then Ident(sym)(qualid.span)
+              if sym.is(Flags.Alias) then error("Cannot alias another alias", qualid.pos)
+              else if sym.isFunction then Ident(sym)(qualid.span)
               else error("The member " + targetName + " is not a function", qualid.pos)
 
             case _ =>
@@ -1156,7 +1157,8 @@ class Namer:
         case Ast.AliasKind.Param =>
           nameTable.resolveTerm(targetName) match
             case Some(sym) =>
-              if sym.is(Flags.Context) then Ident(sym)(qualid.span)
+              if sym.is(Flags.Alias) then error("Cannot alias another alias", qualid.pos)
+              else if sym.is(Flags.Context) then Ident(sym)(qualid.span)
               else error("The member " + targetName + " is not a context parameter", qualid.pos)
 
             case _ =>
@@ -1165,7 +1167,8 @@ class Namer:
         case Ast.AliasKind.Pattern =>
           nameTable.resolvePattern(targetName) match
             case Some(sym) =>
-              if sym.isFunction then Ident(sym)(qualid.span)
+              if sym.is(Flags.Alias) then error("Cannot alias another alias", qualid.pos)
+              else if sym.isFunction then Ident(sym)(qualid.span)
               else error("The member " + targetName + " is not a pattern definition", qualid.pos)
 
             case _ =>

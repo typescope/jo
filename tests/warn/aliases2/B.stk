@@ -1,9 +1,9 @@
 namespace B
 
 section Inner
-  type Flags = Int
+  def foo(x: Int) = x * x
 end
 
 section Nested
-  alias Inner.Flags
+  alias def foo = B.Inner.foo
 end
