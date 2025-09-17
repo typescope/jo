@@ -386,7 +386,7 @@ object Decoder:
     val delayedFun = () =>
       given ReadBuffer = buf.fresh(sig.signatureEndPos)
 
-      val body = decodeWord(symbol, absoluteStart)
+      val body = decodeWord(symbol, sig.resultType.span.endOffset)
       val endDelta = decodeInt()
       val span = Span(absoluteStart, body.span.endOffset + endDelta - absoluteStart)
       val policy = Effects.Policy.CheckBound(sig.receives)
