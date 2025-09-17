@@ -200,13 +200,13 @@ object Decoder:
       case Format.Section => decodeSection(owner)
       case _ => throw new Exception(s"Unknown definition type in decodeDef: $defType")
 
-  private def decodeValDef(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions, state: State): ValDef =
+  private def decodeValDef(owner: Symbol, extraFlags: Flags)(using buf: ReadBuffer, defnLazy: Definitions, state: State): ValDef =
     given Source = owner.source
 
     val absoluteStart = decodeNat()
     val id = decodeNat()
     val name = decodeString()
-    val flags = decodeFlags()
+    val flags = decodeFlags() | extraFlags
 
     val symStartDelta = decodeInt()
     val symSpanLength = decodeNat()
@@ -554,7 +554,7 @@ object Decoder:
     val symSpanLength = decodeNat()
     val symSpan = Span(absoluteStart + symStartDelta, symSpanLength)
 
-    val symbol = Symbol.createSymbol(name, Flags.Pattern, symSpan.toPos)
+    val symbol = Symbol.createSymbol(name, Flags.Pattern | Flags.Fun, symSpan.toPos)
     state.registerInternalSymbol(id, symbol)
 
     given Definitions = defnLazy.value
@@ -877,7 +877,7 @@ object Decoder:
       case Format.Allow       => decodeAllow(owner, prevOffset)
       case Format.Assign      => decodeAssign(owner, prevOffset)
       case Format.FieldAssign => decodeFieldAssign(owner, prevOffset)
-      case Format.ValDef      => decodeValDef(owner)
+      case Format.ValDef      => decodeValDef(owner, Flags.empty)
       case Format.FunDef      => decodeFunDef(owner, Flags.empty).force()
       case Format.TypeDef     => decodeTypeDef(owner).force()
       case Format.PatDef      => decodePatDef(owner).force()
@@ -1145,11 +1145,11 @@ object Decoder:
 
       tag match
         case Format.ValDef =>
-          val vdef = decodeValDef(owner)
+          val vdef = decodeValDef(owner, Flags.Field)
           DelayedDef(vdef.symbol, () => vdef)
 
         case Format.FunDef =>
-          decodeFunDef(owner, Flags.empty)
+          decodeFunDef(owner, Flags.Method)
 
         case _ => throw new Exception("Object can only contain val and fun definitions")
 

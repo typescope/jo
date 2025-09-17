@@ -389,7 +389,7 @@ object Encoder:
 
       encodeNat(state.getId(cdef.self))
       encodeString(cdef.self.name)
-      encodeFlags(cdef.self.flags & Flags.Auto)
+      encodeFlags(cdef.self.flags & (Flags.Auto | Flags.Synthetic))
 
       // TODO: maintain members in original order
       repeated(cdef.vals): sym =>
@@ -422,7 +422,7 @@ object Encoder:
 
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
-      encodeFlags(defSym.flags & (Flags.Auto))
+      encodeFlags(defSym.flags & (Flags.Auto | Flags.Synthetic))
 
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)

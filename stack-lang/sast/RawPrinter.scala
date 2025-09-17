@@ -143,7 +143,7 @@ object RawPrinter:
       symbol.name ~ "@" ~ state.getExternalSymbolIndex(symbol)
 
   private def printFlags(flags: Flags): Text =
-    "[" ~ Flags.flagStrings(flags).join(Text.Empty) ~ "]"
+    "[" ~ Flags.flagStrings(flags).join(",") ~ "]"
 
   private def printKind(kind: Kind): Text =
     kind match
