@@ -7,12 +7,10 @@ section Inner
   type Message = String
   data Option[T] = Some(v: T) | None
 
-  alias B.foo
+  alias def foo = B.foo
 end
 
 section Nested
-  alias Inner.Message
-
   def bar(x: Flags) = println (intToStr x)
 end
 

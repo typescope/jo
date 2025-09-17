@@ -1,17 +1,17 @@
 namespace A
 
-import B
+type Message = B.Inner.Message
 
-alias B.Inner.Message
-alias B.foo
-alias B.prefix
+alias def foo = B.foo
+alias param prefix = B.prefix
 
 type Flags = Int
 
 section Nested
-  alias B.Inner.*
+  alias def foo = B.foo
 
-  alias B.foo
+  alias def Some = B.Inner.Some.Some
+  alias pattern Some = B.Inner.Some.Some
 
   def bar(x: Option[Message]) =
     match x
@@ -19,17 +19,11 @@ section Nested
       case None => println "none"
 end
 
-alias B.Inner
-
 def main =
   Nested.foo "alias foo"
 
   Nested.foo "alias foo" with prefix = "[warn]"
 
   Nested.bar (Nested.Some "alias some")
-
-  Inner.foo "alias B.inner"
-
-  Inner.foo "alias B.inner" with prefix = "[warn]"
 
   B.Nested.bar 5
