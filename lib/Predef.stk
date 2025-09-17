@@ -1,6 +1,7 @@
 namespace stk.Predef
 
 import stk.IO
+import stk.List
 
 //------------------------------------------------------------------------------
 // Basic types
@@ -38,7 +39,6 @@ alias stk.Eq
 alias stk.Eq.Defaults.*
 type Eq[T] = Eq.Eq[T]
 
-alias stk.List
 type List[T] = List.List[T]
 
 alias stk.Set
