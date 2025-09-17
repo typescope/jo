@@ -1,7 +1,6 @@
 namespace stk.Predef
 
 import stk.IO
-import stk.List
 
 //------------------------------------------------------------------------------
 // Basic types
@@ -26,26 +25,66 @@ type Bottom
 // Export common types
 //
 
-alias stk.Int
-alias stk.Int.*
+alias type Int = stk.Int.Int
 
-alias stk.Bool
-alias stk.Bool.*
+alias def + = stk.Int.+
+alias def - = stk.Int.-
+alias def * = stk.Int.*
+alias def / = stk.Int./
+alias def % = stk.Int.%
 
-alias stk.Array
-type Array[T] = Array.Array[T]
+alias def > = stk.Int.>
+alias def < = stk.Int.<
+alias def >= = stk.Int.>=
+alias def <= = stk.Int.<=
+alias def == = stk.Int.==
+alias def != = stk.Int.!=
 
-alias stk.Eq
-alias stk.Eq.Defaults.*
-type Eq[T] = Eq.Eq[T]
+alias def >> = stk.Int.>>
+alias def << = stk.Int.<<
+alias def & = stk.Int.&
+alias def | = stk.Int.|
+alias def ^ = stk.Int.^
 
-type List[T] = List.List[T]
+alias type Bool = stk.Bool.Bool
+alias def && = stk.Bool.&&
+alias def || = stk.Bool.||
+alias def ! = stk.Bool.!
+alias def both = stk.Bool.both
+alias def either = stk.Bool.either
 
-alias stk.Set
-type Set[T] = Set.Set[T]
+alias type Array = stk.Array.Array
+section Array
+  alias def create = stk.Array.create
+  alias def get = stk.Array.get
+  alias def size = stk.Array.size
+  alias def set = stk.Array.set
+  alias def clone = stk.Array.clone
+end
 
-alias stk.Map
-type Map[K, V] = Map.Map[K, V]
+alias type Eq = stk.Eq.Eq
+auto alias def byteEq = stk.Eq.Defaults.byteEq
+auto alias def charEq = stk.Eq.Defaults.charEq
+auto alias def intEq = stk.Eq.Defaults.intEq
+auto alias def stringEq = stk.Eq.Defaults.stringEq
+
+alias type List = stk.List.List
+section List
+  alias def List = skt.List.List
+  alias def empty = skt.List.empty
+end
+
+alias type Set = stk.Set.Set
+section Set
+  alias def Set = stk.Set.Set
+  alias def empty = stk.Set.empty
+end
+
+alias type Map = stk.Map.Map
+section Map
+  alias def Map = stk.Map.Map
+  alias def empty = stk.Map.empty
+end
 
 //------------------------------------------------------------------------------
 //
