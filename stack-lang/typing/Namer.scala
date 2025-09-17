@@ -1131,7 +1131,7 @@ class Namer:
     val kindFlags = adef.kind match
       case Ast.AliasKind.Def => Flags.Fun
 
-      case Ast.AliasKind.Param => Flags.Context
+      case Ast.AliasKind.Param => Flags.Context | Flags.Param
 
       case Ast.AliasKind.Pattern => Flags.Pattern | Flags.Fun
 

@@ -362,7 +362,7 @@ object Encoder:
 
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
-      encodeFlags(defSym.flags & (Flags.Pattern | Flags.Fun | Flags.Context))
+      encodeFlags(defSym.flags & (Flags.Pattern | Flags.Fun | Flags.Context | Flags.Param))
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
       encodeWord(adef.target, absoluteStart)
