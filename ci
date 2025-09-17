@@ -41,7 +41,7 @@ bin/regc.native -time tests/pos/fact.stk
 echo "Running positive tests"
 echo
 
-for item in $DIR/tests/pos/*.stk; do
+for item in $DIR/tests/pos/*; do
 
     if [[ $item == *.ignore ]]; then
         echo "ignore $item"
@@ -66,7 +66,7 @@ for item in $DIR/tests/pos/*.stk; do
         continue
     fi
 
-    echo "testing $file"
+    echo "testing $item"
 
     # create empty check file
     if [ ! -f "$CHECK" ]; then
@@ -113,7 +113,7 @@ echo
 echo "Running error message tests"
 echo
 
-for item in $DIR/tests/warn/*.stk; do
+for item in $DIR/tests/warn/*; do
 
     if [[ $item == *.ignore ]]; then
         echo "ignore $item"
@@ -135,7 +135,7 @@ for item in $DIR/tests/warn/*.stk; do
         continue
     fi
 
-    echo "testing $file"
+    echo "testing $item"
 
     bin/jsc.native -fatal-warnings $file > $OUT
     check $OUT $CHECK
