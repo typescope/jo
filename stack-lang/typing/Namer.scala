@@ -890,7 +890,7 @@ class Namer:
     val paramSym =
       paramRef.tpe match
         case StaticRef(sym) if sym.isAllOf(Flags.Param | Flags.Context) =>
-          sym
+          sym.dealias
 
         case tp =>
           Reporter.error("A reference to a contextual parameter expected, found = " + tp.show, paramRef.pos)

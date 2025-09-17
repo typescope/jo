@@ -1,6 +1,4 @@
 [info]alias foo
 [warn]alias foo
 alias some
-[info]alias B.inner
-[warn]alias B.inner
 5

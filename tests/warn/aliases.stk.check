@@ -7,4 +7,9 @@
 |   param delta: Int = 10
 |   ^^^^^^^^^^^^^^^^
 
-1 error(s), 0 warning(s)
+---------- Error at ./tests/warn/aliases.stk:18:23 ---------------
+|   alias param delta = M.C.delta
+|                       ^^^^^^^^^
+|                       Cannot alias another alias
+
+2 error(s), 0 warning(s)
