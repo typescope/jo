@@ -75,8 +75,8 @@ object RawPrinter:
   private given (using Definitions, State, Source): Text.Maker[Symbol] =
     v => printSymbolRef(v)
 
-  private given Text.Maker[SourcePosition] =
-    v => printPosition(v)
+  private given Text.Maker[Span] =
+    v => printSpan(v)
 
   private given Text.Maker[Flags] =
     v => printFlags(v)
@@ -119,14 +119,14 @@ object RawPrinter:
     val ownerText =
       if symbol.owner == null then Text("null") else Text(symbol.owner)
 
-    val pos = symbol.sourcePos
+    val span = symbol.span
 
     symbol match
       case tsym: TypeSymbol =>
-        "[" ~ id ~ "," ~ tsym.name ~ "," ~ symbol.flags ~ "," ~ printKind(tsym.kind) ~ "," ~ ownerText ~ "," ~ printType(tsym.info) ~ "]@" ~ pos
+        "[" ~ id ~ "," ~ tsym.name ~ "," ~ symbol.flags ~ "," ~ printKind(tsym.kind) ~ "," ~ ownerText ~ "," ~ printType(tsym.info) ~ "]@" ~ span
 
       case _ =>
-        "[" ~ id ~ "," ~ symbol.name ~ "," ~ symbol.flags ~ "," ~ ownerText ~ "," ~ printType(symbol.info) ~ "]@" ~ pos
+        "[" ~ id ~ "," ~ symbol.name ~ "," ~ symbol.flags ~ "," ~ ownerText ~ "," ~ printType(symbol.info) ~ "]@" ~ span
 
   /** Reference to a symbol
     *
@@ -209,10 +209,10 @@ object RawPrinter:
             ~ "]"
         ~ "]"
 
-    res ~ "@" ~ defn.pos
+    res ~ "@" ~ defn.span
 
   private def printTypeTree(tpt: TypeTree)(using defn: Definitions, state: State, src: Source): Text =
-    "[" ~ tpt.tpe ~ "]@" ~ tpt.pos
+    "[" ~ tpt.tpe ~ "]@" ~ tpt.span
 
   private def printType(tpe: Type)(using Definitions, State, Source): Text =
     tpe match
@@ -387,7 +387,7 @@ object RawPrinter:
             "[" ~ members.join(",") ~ "]" ~ LINE_SEP
         ~ "]"
 
-    res ~ "@" ~ word.pos
+    res ~ "@" ~ word.span
 
   private def printPattern(pattern: Pattern)(using defn: Definitions, state: State, src: Source): Text =
     val res = pattern match
@@ -439,7 +439,7 @@ object RawPrinter:
       case WildcardPattern() =>
         Text("WildcardPattern")
 
-    res ~ "@" ~ pattern.pos
+    res ~ "@" ~ pattern.span
 
   private def printConstant(const: Constant): Text =
     const match
@@ -456,5 +456,5 @@ object RawPrinter:
   private def printSource(source: Source): Text =
     "[" ~ source.file ~ "," ~ source.lineLengths.join("|") ~ "]"
 
-  private def printPosition(pos: SourcePosition): Text =
-    pos.startLine ~ "," ~ pos.startLineColumn
+  private def printSpan(span: Span): Text =
+    span.start ~ "," ~ span.length
