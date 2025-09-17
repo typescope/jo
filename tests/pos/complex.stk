@@ -1,3 +1,6 @@
+import stk.Int
+
+
 type Complex = object {
   def real: Int
   def image: Int
