@@ -164,7 +164,7 @@ Abstract Syntax
 
     paramdef = PARAM param [EQL block].
 
-    aliasdef = {modifier} ALIAS (type | pattern | def | param) ident EQL qualid.
+    aliasdef = {modifier} ALIAS (def | pattern | param) ident EQL qualid.
 
     typedef = TYPE [tparams] ident [tparams] [EQL type | SUBTYPE type].
     tparams = LBRACKET tparam {COMMA tparam} RBRACKET.

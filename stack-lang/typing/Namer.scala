@@ -49,13 +49,15 @@ class Namer:
     val delayedImports = new mutable.ArrayBuffer[() => Unit]
     val delayedNamespaces = new mutable.ArrayBuffer[DelayedDef[Namespace]]
 
+    val rootScope = new Scope.RootScope(rootNameTable, owner = null)
+
     for ns <- nss do
       given source: Source = Reporter.source(ns.source)
 
       val nsSym = resolveNamespace(ns.qualid, rootNameTable, isBranch = false)
       val memberTable = ip.info(nsSym).as[ContainerInfo].nameTable
 
-      val topScope = new Scope.RootScope(new NameTable, nsSym)
+      val topScope = rootScope.fresh(nsSym)
       // Make current namespace name available
       topScope.define(nsSym)
 
@@ -1120,12 +1122,20 @@ class Namer:
   private def transformAliasDef(adef: Ast.AliasDef)
       (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source)
   : DelayedDef[AliasDef] =
+    val qualid = adef.qualid
 
     given ip: InfoProvider = lazyDefn.infoProvider
 
-    val flags = checker.checkModifiers(adef) | Flags.Alias
+    val rawFlags = checker.checkModifiers(adef)
 
-    val qualid = adef.qualid
+    val kindFlags = adef.kind match
+      case Ast.AliasKind.Def => Flags.Fun
+
+      case Ast.AliasKind.Param => Flags.Param
+
+      case Ast.AliasKind.Pattern => Flags.Pattern | Flags.Fun
+
+    val flags = rawFlags | kindFlags | Flags.Alias
 
     def error(message: String, pos: SourcePosition)(using Definitions): Ident =
       Reporter.error(message, pos)
@@ -1161,14 +1171,6 @@ class Namer:
             case _ =>
               error("The prefix does not have a pattern member " + targetName, qual.pos)
 
-        case Ast.AliasKind.Type =>
-          nameTable.resolveType(targetName) match
-            case Some(sym) =>
-              Ident(sym)(adef.qualid.span)
-
-            case _ =>
-              error("The prefix does not have a pattern member " + targetName, qual.pos)
-
 
     lazy val target: Ident =
       given Definitions = lazyDefn.value
@@ -1190,7 +1192,7 @@ class Namer:
           error("A fully qualified name to alias target expected", ident.pos)
 
 
-    val aliasSym = Symbol.createSymbol(adef.name, flags, adef.pos)
+    val aliasSym = Symbol.createSymbol(adef.name, flags, adef.ident.pos)
     ip.addLazy(aliasSym, sc.owner, () => StaticRef(target.symbol))
 
     val aliasDefSast = () =>

@@ -357,13 +357,12 @@ object Trees:
     assert(isQualid(qualid), "malformed qualid: " + qualid)
 
   enum AliasKind:
-    case Def, Param, Pattern, Type
+    case Def, Param, Pattern
 
     override def toString = this match
       case AliasKind.Def     => "def"
       case AliasKind.Param   => "param"
       case AliasKind.Pattern => "pattern"
-      case AliasKind.Type    => "type"
 
   case class AliasDef
     (ident: Ident, kind: AliasKind, qualid: RefTree)

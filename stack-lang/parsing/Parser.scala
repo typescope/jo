@@ -238,9 +238,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         case Token.DEF     => AliasKind.Def
         case Token.PARAM   => AliasKind.Param
         case Token.PATTERN => AliasKind.Pattern
-        case Token.TYPE    => AliasKind.Type
         case _ =>
-          error("Expect def/param/pattern/type, found = " + item.token, item.span.toPos)
+          error("Expect def/param/pattern, found = " + item.token, item.span.toPos)
           throw new SyntaxError
       end match
 
