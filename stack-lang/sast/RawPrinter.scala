@@ -198,6 +198,9 @@ object RawPrinter:
       case tdef: TypeDef =>
         "TypeDef [" ~ printSymbol(tdef.symbol) ~ "]"
 
+      case adef: AliasDef =>
+        "AliasDef [" ~ printSymbol(adef.symbol) ~ adef.target ~ "]"
+
       case sec: Section =>
         "Section [" ~ indent:
             printSymbol(sec.symbol) ~ LINE_SEP ~

@@ -190,8 +190,11 @@ class Checker(namer: Namer):
           Reporter.error("The modifier " + mod.show + " is not allowed for section definition", mod.pos)
 
       case adef: Ast.AliasDef =>
-        mods.foreach: mod =>
-          Reporter.error("The modifier " + mod.show + " is not allowed for alias definition", mod.pos)
+        val kind = adef.kind
+        mods.foreach:
+          case _: Ast.Modifier.Auto if kind == Ast.AliasKind.Def =>
+          case mod =>
+            Reporter.error(s"The modifier ${mod.show} is not allowed for alias $kind definition", mod.pos)
     end match
 
     flags

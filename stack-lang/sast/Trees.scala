@@ -522,6 +522,12 @@ object Trees:
     (val span: Span)
   extends Def
 
+  case class AliasDef
+    (symbol: Symbol, target: Ident)
+    (val span: Span)
+  extends Def:
+    assert(symbol.is(Flags.Alias), "alias symbol expected, found = " + symbol)
+
   case class Section
     (symbol: Symbol, defs: List[Def])
     (val span: Span)

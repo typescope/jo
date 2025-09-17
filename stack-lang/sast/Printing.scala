@@ -158,6 +158,10 @@ object Printing:
           ~ Text.BlankLine
           cdef.funs.join(Text.BlankLine)
 
+      case adef: AliasDef =>
+        val modifiers = showModifiers(adef.symbol)
+        modifiers ~ "alias " ~ adef.name ~ " = " ~ adef.target
+
       case Section(sym, defs) =>
         "section " ~ sym ~ indent:
             defs.join(Text.BlankLine)

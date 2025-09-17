@@ -47,7 +47,6 @@ class Namer:
     given ip: InfoProvider = defnLazy.infoProvider
 
     val delayedImports = new mutable.ArrayBuffer[() => Unit]
-    val delayedAliases = new mutable.ArrayBuffer[() => Unit]
     val delayedNamespaces = new mutable.ArrayBuffer[DelayedDef[Namespace]]
 
     for ns <- nss do
@@ -71,15 +70,6 @@ class Namer:
         given Scope = defsScope
         index(ns.defs)
 
-      delayedAliases += { () =>
-        // handle aliases after indexing members
-        for case alias: Ast.AliasDef <- ns.defs do
-          Imports.doImport(alias.qualid, defsScope, rootNameTable, isAlias = true)
-
-        // No more members allowed after handling aliasing
-        memberTable.freeze()
-      }
-
       val imports = new mutable.ArrayBuffer[Symbol]
 
       delayedImports += { () =>
@@ -95,10 +85,6 @@ class Namer:
       })
     end for
 
-    // Aliasing will ignore members that are alised
-    //
-    // Explicit aliasing another alised definition is an error.
-    delayedAliases.foreach(_.apply())
     delayedImports.foreach(_.apply())
 
     val namespaces =
@@ -218,14 +204,13 @@ class Namer:
         transformClassDef(cdef) :: Nil
 
       case adef: Ast.AliasDef =>
-        // Handled in namespace and sections specially
-        Nil
+        transformAliasDef(adef) :: Nil
 
       case section: Ast.Section =>
         transformSection(section) :: Nil
 
       case _: Ast.DataDef | _: Ast.EnumDef  =>
-        Reporter.error("[Internal Error] Data definition should have be desugared", defn.pos)
+        Reporter.error("[Internal Error] Data definition should have been desugared", defn.pos)
         Nil
 
       case vdef: Ast.ValDef =>
@@ -1132,6 +1117,87 @@ class Namer:
 
     DelayedDef(paramSym, paramDefSast) :: Nil
 
+  private def transformAliasDef(adef: Ast.AliasDef)
+      (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source)
+  : DelayedDef[AliasDef] =
+
+    given ip: InfoProvider = lazyDefn.infoProvider
+
+    val flags = checker.checkModifiers(adef) | Flags.Alias
+
+    val qualid = adef.qualid
+
+    def error(message: String, pos: SourcePosition)(using Definitions): Ident =
+      Reporter.error(message, pos)
+      val sym = Symbol.createSymbol(adef.name, ErrorType, Flags.Synthetic, sc.owner, qualid.pos)
+      Ident(sym)(qualid.span)
+
+    def getTarget(qual: Ast.RefTree, nameTable: NameTable, targetName: String)(using Definitions): Ident =
+      adef.kind match
+        case Ast.AliasKind.Def =>
+          nameTable.resolveTerm(targetName) match
+            case Some(sym) =>
+              if sym.isFunction then Ident(sym)(qualid.span)
+              else error("The member " + targetName + " is not a function", qualid.pos)
+
+            case _ =>
+              error("The prefix does not have a term member " + targetName, qual.pos)
+
+        case Ast.AliasKind.Param =>
+          nameTable.resolveTerm(targetName) match
+            case Some(sym) =>
+              if sym.is(Flags.Context) then Ident(sym)(qualid.span)
+              else error("The member " + targetName + " is not a context parameter", qualid.pos)
+
+            case _ =>
+              error("The prefix does not have a term member " + targetName, qual.pos)
+
+        case Ast.AliasKind.Pattern =>
+          nameTable.resolvePattern(targetName) match
+            case Some(sym) =>
+              if sym.isFunction then Ident(sym)(qualid.span)
+              else error("The member " + targetName + " is not a pattern definition", qualid.pos)
+
+            case _ =>
+              error("The prefix does not have a pattern member " + targetName, qual.pos)
+
+        case Ast.AliasKind.Type =>
+          nameTable.resolveType(targetName) match
+            case Some(sym) =>
+              Ident(sym)(adef.qualid.span)
+
+            case _ =>
+              error("The prefix does not have a pattern member " + targetName, qual.pos)
+
+
+    lazy val target: Ident =
+      given Definitions = lazyDefn.value
+
+      qualid match
+        case Ast.Select(qual, name) =>
+          val prefix = qual.asInstanceOf[Ast.RefTree]
+          Imports.resolveContainer(prefix, sc, lazyDefn.rootNameTable, allowBranch = true) match
+            case Some(nameTable) =>
+              getTarget(prefix, nameTable, name)
+
+            case None =>
+              // error already reported
+              val sym = Symbol.createSymbol(name, ErrorType, Flags.Synthetic, sc.owner, qualid.pos)
+              Ident(sym)(qualid.span)
+          end match
+
+        case ident =>
+          error("A fully qualified name to alias target expected", ident.pos)
+
+
+    val aliasSym = Symbol.createSymbol(adef.name, flags, adef.pos)
+    ip.addLazy(aliasSym, sc.owner, () => StaticRef(target.symbol))
+
+    val aliasDefSast = () =>
+      AliasDef(aliasSym, target)(adef.span)
+
+    DelayedDef(aliasSym, aliasDefSast)
+
   private def transformLocalValDef(vdef: Ast.ValDef)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): ValDef =
     var flags = checker.checkModifiers(vdef)
     if vdef.mutable then flags = flags | Flags.Mutable
@@ -1560,9 +1626,10 @@ class Namer:
 
     DelayedDef(classSym, typer)
 
-  private def transformSection(section: Ast.Section)
+  private def transformSection
+      (section: Ast.Section)
       (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source)
-      : DelayedDef[Section] =
+  : DelayedDef[Section] =
 
     val flags = checker.checkModifiers(section) | Flags.Section
     val sym = Symbol.createSymbol(section.name, flags, section.ident.pos)
@@ -1579,14 +1646,8 @@ class Namer:
       Section(sym, defs)(section.span)
 
     val ip = lazyDefn.infoProvider
-    ip.addLazy(sym, sc.owner, () => {
-      given InfoProvider = ip
-
-      for case alias: Ast.AliasDef <- section.defs do
-        Imports.doImport(alias.qualid, secScope, lazyDefn.rootNameTable, isAlias = true)
-
-      new ContainerInfo(nameTable.freeze())
-    })
+    val info =  new ContainerInfo(nameTable.freeze())
+    ip.add(sym, sc.owner, info)
 
     DelayedDef(sym, () => sast)
 
