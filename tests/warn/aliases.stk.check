@@ -1,42 +1,10 @@
----------- Error at ./tests/warn/aliases.stk:5:9 ---------------
-|   alias M.B.*
-|         ^^^^^
-|         Redefinition of delta$default
-|
-| The name `delta$default` is already defined at ./tests/warn/aliases.stk:4:9
-|   param delta: Int = 10
-|         ^^^^^
-
----------- Error at ./tests/warn/aliases.stk:5:9 ---------------
-|   alias M.B.*
-|         ^^^^^
-|         Redefinition of delta
+---------- Error at ./tests/warn/aliases.stk:5:15 ---------------
+|   alias param delta = M.B.delta
+|               ^^^^^
+|               Redefinition of delta
 |
 | The name `delta` is already defined at ./tests/warn/aliases.stk:4:3
 |   param delta: Int = 10
 |   ^^^^^^^^^^^^^^^^
 
----------- Error at ./tests/warn/aliases.stk:5:9 ---------------
-|   alias M.B.*
-|         ^^^^^
-|         Redefinition of delta$option
-|
-| The name `delta$option` is already defined at ./tests/warn/aliases.stk:4:3
-|   param delta: Int = 10
-|   ^^^^^^^^^^^^^^^^
-
----------- Error at ./tests/warn/aliases.stk:5:9 ---------------
-|   alias M.B.*
-|         ^^^^^
-|         Redefinition of delta$value
-|
-| The name `delta$value` is already defined at ./tests/warn/aliases.stk:4:9
-|   param delta: Int = 10
-|         ^^^^^
-
----------- Error at ./tests/warn/aliases.stk:18:9 ---------------
-|   alias M.C.delta
-|         ^^^^^^^^^
-|         Aliasing an alias is disallowed: `delta`
-
-5 error(s), 0 warning(s)
+1 error(s), 0 warning(s)

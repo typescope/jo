@@ -2,7 +2,7 @@ namespace M
 
 section A
   param delta: Int = 10
-  alias M.B.*
+  alias param delta = M.B.delta
 end
 
 section B
@@ -11,9 +11,9 @@ end
 
 
 section C
-  alias M.A.delta
+  alias param delta = M.A.delta
 end
 
 section D
-  alias M.C.delta
+  alias param delta = M.C.delta
 end
