@@ -846,6 +846,7 @@ object Encoder:
 
         encodeNat(state.getId(self))
         encodeString(self.name)
+        encodeFlags(self.flags)
         encodeInt(self.sourcePos.span.start - word.span.start)
         encodeNat(self.sourcePos.span.length)
 

@@ -1133,11 +1133,12 @@ object Decoder:
 
     val selfId = decodeNat()
     val selfName = decodeString()
+    val selfFlags = decodeFlags()
     val selfDelta = decodeInt()
     val selfLength = decodeNat()
 
     val selfSpan = Span(startOffset + selfDelta, selfLength)
-    val self = Symbol.createSymbol(selfName, Flags.empty, selfSpan.toPos)
+    val self = Symbol.createSymbol(selfName, selfFlags, selfSpan.toPos)
     state.registerInternalSymbol(selfId, self)
 
     val delayedDefs: List[DelayedDef[ValDef | FunDef]] = repeated:

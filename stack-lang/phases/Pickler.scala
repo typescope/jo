@@ -33,7 +33,7 @@ class Pickler(using defn: Definitions, rp: Reporter, cf: Config) extends phases.
       if contentBefore != contentAfter then
         val before = fullName + "-before.txt"
         val after = fullName + "-after.txt"
-        println(s"Test pickling failed, please check files $before and $after.")
+        println(s"Test pickling failed, please run `icdiff $before $after`.")
 
         IO.writeFile(before, contentBefore.getBytes(UTF_8))
         IO.writeFile(after, contentAfter.getBytes(UTF_8))
