@@ -398,10 +398,20 @@ object RawPrinter:
         "TypePattern [" ~ tpt ~ "]"
 
       case TagPattern(tagLit, nested) =>
-        "TagPattern [" ~ tagLit ~ ",[" ~ nested.join(",") ~ "]]"
+        "TagPattern [" ~ indent:
+          tagLit ~ LINE_SEP ~
+          "[" ~ indent:
+            nested.join(LINE_SEP)
+          ~ "]"
+        ~ "]"
 
       case ApplyPattern(fun, nested) =>
-        "ApplyPattern [" ~ fun ~ ",[" ~ nested.join(",") ~ "]]"
+        "ApplyPattern [" ~ indent:
+          fun ~ LINE_SEP ~
+          "[" ~ indent:
+              nested.join(LINE_SEP)
+          ~ "]"
+        ~ "]"
 
       case OrPattern(lhs, rhs) =>
         "OrPattern [" ~ lhs ~ "," ~ rhs ~ "]"
