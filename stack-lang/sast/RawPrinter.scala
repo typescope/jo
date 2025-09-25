@@ -94,7 +94,7 @@ object RawPrinter:
     ~ "]"
 
     val defsData = "[" ~ indent:
-        defs.map(printDef).join(",")
+        defs.map(printDef).join(LINE_SEP)
       ~ "]"
 
     val source = printSource(symbol.sourcePos.source)
