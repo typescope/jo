@@ -344,7 +344,7 @@ object Encoder:
 
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
-      encodeFlags(defSym.flags & Flags.Default)
+      encodeFlags(defSym.flags & (Flags.Default | Flags.Auto))
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
       encodeTypeTree(pdef.tpt, absoluteStart)
