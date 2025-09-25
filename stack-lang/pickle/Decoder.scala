@@ -450,7 +450,7 @@ object Decoder:
       val selfId = decodeNat()
       val selfName = decodeString()
       val selfFlags = decodeFlags()
-      val self = Symbol.createSymbol(selfName, selfInfo, selfFlags, owner, symbol.sourcePos)
+      val self = Symbol.createSymbol(selfName, selfInfo, selfFlags, symbol, symbol.sourcePos)
       state.registerInternalSymbol(selfId, self)
 
       // Decode val members

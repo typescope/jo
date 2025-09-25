@@ -110,11 +110,11 @@ object RawPrinter:
 
   /** Definition of a symbol */
   private def printSymbol(symbol: Symbol)(using defn: Definitions, state: State, src: Source): Text =
+    assert(symbol.containedIn(state.root), "Non-internal symbol: " + symbol)
+
     val id = state.getInternalSymbolId(symbol)
 
     // TODO: attributes, comments
-    if symbol.isLocal then
-      return symbol.name ~ "#" ~ id ~ symbol.flags
 
     val ownerText =
       if symbol.owner == null then Text("null") else Text(symbol.owner)

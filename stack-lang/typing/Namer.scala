@@ -1033,6 +1033,9 @@ class Namer:
      val funSym = Symbol.createSymbol(funName, Flags.Fun | Flags.Method | Flags.Synthetic, lambda.pos)
      val lambdaScope = sc.fresh(funSym)
 
+     val selfType = ObjectType(NamedInfo(funName, MemberRef(StaticRef(thisSym), funSym)) :: Nil, mutableFields = Nil)
+     defn.add(thisSym, sc.owner, selfType)
+
      val tvars = new mutable.ArrayBuffer[(TypeVar, Ast.Param)]
 
      def inferParamType(i: Int): Type =
@@ -1089,8 +1092,6 @@ class Namer:
      val tpt = TypeTree(bodyTyped.tpe)(body.span.point)
      val funDef = FunDef(funSym, tparamSyms, paramSyms, autoSyms, tpt, effectPolicy, bodyTyped)(lambda.span)
      val objType = ObjectType(NamedInfo(funName, procType) :: Nil, mutableFields = Nil)
-
-     defn.add(thisSym, sc.owner, objType)
 
      Object(thisSym, funDef :: Nil)(objType, lambda.span)
 
