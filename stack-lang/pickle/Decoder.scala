@@ -1146,11 +1146,11 @@ object Decoder:
 
       tag match
         case Format.ValDef =>
-          val vdef = decodeValDef(owner, Flags.Field)
+          val vdef = decodeValDef(self, Flags.Field)
           DelayedDef(vdef.symbol, () => vdef)
 
         case Format.FunDef =>
-          decodeFunDef(owner, Flags.Method)
+          decodeFunDef(self, Flags.Method)
 
         case _ => throw new Exception("Object can only contain val and fun definitions")
 
