@@ -48,16 +48,15 @@ object Flags:
   val NSpace     : Flag = defineFlag(5,  "namespace")
   val Section    : Flag = defineFlag(6,  "section")
   val Method     : Flag = defineFlag(7,  "method")
-  val Constructor: Flag = defineFlag(8,  "constructor")
-  val Branch     : Flag = defineFlag(9,  "branch")   // branch name space
-  val Param      : Flag = defineFlag(10, "param")    // a parameter
-  val Mutable    : Flag = defineFlag(11, "mutable")  // a mutable variable
-  val Context    : Flag = defineFlag(12, "context")  // context parameter or its default function
-  val Field      : Flag = defineFlag(13, "field")    // an object field
-  val Default    : Flag = defineFlag(14, "default")  // context parameter with default value
-  val Alias      : Flag = defineFlag(15, "alias")    // an alias symbol created by import/export
-  val Auto       : Flag = defineFlag(16, "auto")     // auto function or auto value
-  val Synthetic  : Flag = defineFlag(17, "synthetic") // a compiler-synthesized symbol
+  val Branch     : Flag = defineFlag(8,  "branch")   // branch name space
+  val Param      : Flag = defineFlag(9, "param")    // a parameter
+  val Mutable    : Flag = defineFlag(10, "mutable")  // a mutable variable
+  val Context    : Flag = defineFlag(11, "context")  // context parameter or its default function
+  val Field      : Flag = defineFlag(12, "field")    // an object field
+  val Default    : Flag = defineFlag(13, "default")  // context parameter with default value
+  val Alias      : Flag = defineFlag(14, "alias")    // an alias symbol created by import/export
+  val Auto       : Flag = defineFlag(15, "auto")     // auto function or auto value
+  val Synthetic  : Flag = defineFlag(16, "synthetic") // a compiler-synthesized symbol
 
   val empty   : Flags = 0
 

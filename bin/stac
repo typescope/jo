@@ -3,7 +3,7 @@
 files=(
     # parser
     stack-lang/ast/Desugaring.scala
-    stack-lang/ast/Name.scala
+    stack-lang/ast/Naming.scala
     stack-lang/ast/Positions.scala
     stack-lang/ast/Printing.scala
     stack-lang/ast/Trees.scala
@@ -45,6 +45,7 @@ files=(
     stack-lang/sast/Flags.scala
     stack-lang/sast/InfoProvider.scala
     stack-lang/sast/Kind.scala
+    stack-lang/sast/Names.scala
     stack-lang/sast/NameTable.scala
     stack-lang/sast/Patterns.scala
     stack-lang/sast/Printing.scala

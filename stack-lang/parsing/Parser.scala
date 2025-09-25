@@ -6,7 +6,7 @@
 package parsing
 
 import ast.Trees.*
-import ast.Name
+import ast.Naming
 import ast.Positions
 import ast.Positions.*
 
@@ -611,7 +611,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     def isBinaryOperator(item: TokenInfo): Boolean =
       item.token match
-        case Token.Ident(name) => Name.isBinaryOperator(name)
+        case Token.Ident(name) => Naming.isBinaryOperator(name)
         case _ => false
 
     if item.token == Token.EOF || lineIndent.isOutdent(item.indent) then
@@ -1078,7 +1078,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   def bracketApply(fun: Word): Word =
     peek(1) match
-      case Token.Ident(name) if Name.isCapitalized(name) =>
+      case Token.Ident(name) if Naming.isCapitalized(name) =>
         eat(Token.LBRACKET)
         val targs = oneOrMore(() => typ(), Token.COMMA)
         val endToken = eat(Token.RBRACKET)

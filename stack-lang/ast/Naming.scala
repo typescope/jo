@@ -1,6 +1,6 @@
 package ast
 
-object Name:
+object Naming:
   def isNameStart(c: Int): Boolean =
     isLetter(c) || c == '_'
 
@@ -26,5 +26,3 @@ object Name:
 
   def isCapitalized(name: String): Boolean =
     Character.isUpperCase(name.charAt(0))
-
-  val Constructor = "<init>"

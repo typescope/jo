@@ -61,7 +61,7 @@ object Trees:
   extends Word, RefTree:
     assert(name.nonEmpty, "name is empty")
 
-    def isCapitalized: Boolean = Name.isCapitalized(name)
+    def isCapitalized: Boolean = Naming.isCapitalized(name)
 
   case class Apply
     (fun: Word, args: List[Word])

@@ -5,7 +5,7 @@ import Scanner.*
 
 import common.StringUtil
 import ast.Positions.*
-import ast.Name.*
+import ast.Naming.*
 import reporting.Reporter
 import reporting.Reporter.{ error, abortInternal }
 

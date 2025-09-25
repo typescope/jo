@@ -34,7 +34,7 @@ class EncodeClass(using defn: Definitions) extends phases.Phase[Symbol]:
   override def transform(nss: List[Namespace]): List[Namespace] =
     defn.installTransform { symInfo =>
       val SymInfo(sym, owner, info) = symInfo
-      if sym.isMethod && owner.isClass || sym.isConstructor then
+      if sym.isMethod && owner.isClass then
         val oldProcType = info.as[ProcType]
         val thisInfo = owner.classInfo.self.info
 

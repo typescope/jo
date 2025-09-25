@@ -2,7 +2,7 @@ package typing
 
 import ast.{ Trees => Ast }
 import ast.Desugaring
-import ast.Name
+import ast.Naming
 import ast.Positions.*
 
 import sast.*
@@ -469,7 +469,7 @@ class Namer:
           val delayedDef = transformFunDef(fdef, Flags.Method | Flags.Fun, effectPolicy)
 
           // Operator name should not be called directly without a prefix
-          if !Name.isOperator(delayedDef.symbol.name) then
+          if !Naming.isOperator(delayedDef.symbol.name) then
             sc2.define(delayedDef.symbol)
 
           delayedDefs += delayedDef
@@ -577,7 +577,7 @@ class Namer:
       // Always prefer type constraints from outer scope if present
       for tp <- tt.knownType do Subtyping.conforms(instanceType, tp)
 
-      instanceType.getTermMember(Name.Constructor) match
+      instanceType.getTermMember(Names.Constructor) match
         case None =>
           Reporter.error("The class cannot be instantiated as it does not have a constructor.", newExpr.pos)
           errorWord(newExpr.span)
@@ -595,7 +595,7 @@ class Namer:
           val newInstance = New(Ident(classSym)(classTree.span), targsTree)(instanceType)
 
           newExpr.addKey(Namer.TypedWord, newInstance)
-          val ctorSelect = Ast.Select(newExpr, Name.Constructor)(span)
+          val ctorSelect = Ast.Select(newExpr, Names.Constructor)(span)
           val ctorCall = Ast.Apply(ctorSelect, newExpr.args)(newExpr.span)
           transformCall(ctorCall)
 
@@ -1378,9 +1378,9 @@ class Namer:
       (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source)
   : DelayedDef[FunDef] =
 
-    val flags = Flags.Fun | Flags.Constructor
+    val flags = Flags.Fun | Flags.Method
 
-    val funSym = Symbol.createSymbol(Name.Constructor, flags, funDef.ident.pos)
+    val funSym = Symbol.createSymbol(Names.Constructor, flags, funDef.ident.pos)
     given funScope: Scope = sc.fresh(funSym)
 
     if funDef.tparams.nonEmpty then
@@ -1617,7 +1617,7 @@ class Namer:
       methods += delayedDef.symbol
 
       // Operator name should not be called directly without a prefix
-      if !Name.isOperator(delayedDef.symbol.name) then
+      if !Naming.isOperator(delayedDef.symbol.name) then
         shortCutScope.define(delayedDef.symbol)
 
       delayedDefs += delayedDef
