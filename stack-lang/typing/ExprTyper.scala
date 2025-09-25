@@ -307,5 +307,5 @@ class ExprTyper(namer: Namer):
     res
   end parseDotless
 
-  def errorTree(span: Span): Word = Block(Nil)(ErrorType, span)
+  def errorTree(span: Span): Word = Encoded(Block(Nil)(span))(ErrorType)
 end ExprTyper

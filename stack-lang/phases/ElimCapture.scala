@@ -131,7 +131,7 @@ object ElimCapture:
       val params = fdef.params ++ paramSymsCaptured
       ctx.lifted += FunDef(funSym, fdef.tparams, params, fdef.autos, fdef.resultType, fdef.effectPolicy, body)(fdef.span)
 
-      Block(words = Nil)(VoidType, fdef.span)
+      Block(words = Nil)(fdef.span)
 
     /**
       * Each object is transformed from
@@ -238,7 +238,7 @@ object ElimCapture:
 
         val lifter = new Lifter(fdef.symbol)
         val body = lifter(fdef.body)(using ctx.withSubsts(substs.toMap))
-        val body2 = Block(aliases.toList :+ body)(body.tpe, body.span)
+        val body2 = Block(aliases.toList :+ body)(body.span)
         val params = paramThis :: fdef.params
 
         // TODO: owners of params and locals are broken ---- do we need them?
@@ -283,7 +283,7 @@ object ElimCapture:
             val assign = Assign(Ident(receiverSym)(qual2.span), qual2)
             val proc = Select(receiver, name)(procType, fun.span)
             val apply = Apply(Encoded(proc)(liftedProcType), receiver :: args2, autos2)(app.tpe)
-            Block(assign :: apply :: Nil)(app.tpe, app.span)
+            Block(assign :: apply :: Nil)(app.span)
 
         case TypeApply(Select(qual, name), targs) if qual.tpe.isObjectType =>
           // TODO: after type erasure, the special handling here can be removed
@@ -305,7 +305,7 @@ object ElimCapture:
             val meth = Encoded(Select(receiver, name)(procType, fun.span))(liftedProcType)
             val fun2 = TypeApply(meth, targs)(liftedFunType)
             val apply = Apply(fun2, receiver :: args2, autos2)(app.tpe)
-            Block(assign :: apply :: Nil)(app.tpe, app.span)
+            Block(assign :: apply :: Nil)(app.span)
 
         case _ =>
           // global function call or class method call

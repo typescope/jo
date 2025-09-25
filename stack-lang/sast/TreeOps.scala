@@ -47,7 +47,7 @@ object TreeOps:
 
       else if Subtyping.conforms(unitType, targetType) then
         val unit = unitValue(word.span.endPoint)
-        Block(word.ensureDropValue :: unit :: Nil)(unitType, word.span)
+        Block(word.ensureDropValue :: unit :: Nil)(word.span)
 
       else
         throw new AdaptionFailure(word, targetType)

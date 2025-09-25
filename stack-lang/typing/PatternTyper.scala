@@ -185,7 +185,7 @@ class PatternTyper(namer: Namer, checker: Checker):
 
     val body2 =
       if rp2.hasErrors then
-        Block(Nil)(BottomType, body.span)
+        Namer.errorWord(body.span)
 
       else
         namer.transform(body)

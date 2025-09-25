@@ -54,7 +54,7 @@ class ExplicitAlloc(runtime: NativeRuntime)(using defn: Definitions) extends pha
       stats += memory.writeField(recordType, name, ref, this(rhs))
 
     stats += ref
-    Encoded(Block(stats.toList)(ref.tpe, word.span))(word.tpe)
+    Encoded(Block(stats.toList)(word.span))(word.tpe)
 
   private def getEncodedRecordType(qual: Word): RecordType =
     if qual.tpe.isRecordType then

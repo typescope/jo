@@ -361,7 +361,7 @@ abstract class TreeMap(using Definitions):
       word2
 
     if changed then
-      Block(words2)(block.tpe, block.span)
+      Block(words2)(block.span)
     else
       block
 

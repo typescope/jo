@@ -127,7 +127,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
 
     if aliased then
       val scrutAssign = Assign(scrutIdent, scrutinee)
-      Block(scrutAssign :: body :: Nil)(body.tpe, patmat.span)
+      Block(scrutAssign :: body :: Nil)(patmat.span)
 
     else
       body
@@ -143,7 +143,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
         val cond = transformPattern(scrut, nested)
         // It is more performant to always assign
         val assign = Assign(id, scrut.encodedAs(id.symbol.info))
-        Block(assign :: cond :: Nil)(BoolType, pat.span)
+        Block(assign :: cond :: Nil)(pat.span)
 
       case TypePattern(tpt) =>
         transformTypePattern(scrut, tpt.tpe, tpt.span)
@@ -169,7 +169,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
 
       case BindPattern(pattern, bindings) =>
         val cond = transformPattern(scrut, pattern)
-        val nestedBlock = Block(bindings :+ BoolLit(true)(pat.span))(BoolType, pat.span)
+        val nestedBlock = Block(bindings :+ BoolLit(true)(pat.span))(pat.span)
         If(cond, nestedBlock, BoolLit(false)(pat.span))(BoolType, pat.span)
 
       case WildcardPattern() =>
@@ -250,7 +250,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
           :: assignTag
           :: TaggedEncoding.testTagValue(assignTag.ident, "Success", span)
           :: Nil
-      )(BoolType, span)
+      )(span)
 
     val callCond =
       if noNeedTypeTest then
@@ -281,7 +281,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
         rest.foldLeft(head): (acc, cond) =>
           Apply(Ident(bothSym)(span), acc :: cond :: Nil)(BoolType)
 
-      val nestedBlock = Block(assigns :+ nestedCond)(BoolType, span)
+      val nestedBlock = Block(assigns :+ nestedCond)(span)
       If(callCond, nestedBlock, BoolLit(false)(span))(BoolType, span)
 
   private def transformTagPattern(scrut: Ident, tagPattern: TagPattern)(using ctx: Context, source: Source): Word =
@@ -298,7 +298,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
     val condTag = Block(
       assignTag
       :: TaggedEncoding.testTagValue(assignTag.ident, tag, tagPattern.tagTree.span)
-      :: Nil)(BoolType, tagPattern.tagTree.span)
+      :: Nil)(tagPattern.tagTree.span)
 
     val assigns =
       for param <- scrutTagType.params
@@ -326,7 +326,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
         rest.foldLeft(head): (acc, cond) =>
           Apply(Ident(bothSym)(span), acc :: cond :: Nil)(BoolType)
 
-      val nestedBlock = Block(assigns :+ nestedCond)(BoolType, span)
+      val nestedBlock = Block(assigns :+ nestedCond)(span)
 
       if needTagTest(scrut, tag) then
         If(condTag, nestedBlock, BoolLit(false)(span))(BoolType, span)
@@ -348,7 +348,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
       if needTagTest(scrut, patternTagType.tag) then
         val assignTag = scrutineeTagAssign(scrut, span)
         val cond = transformTagTypePattern(scrut, patternTagType, Some(assignTag.ident), span)
-        Block(assignTag :: cond :: Nil)(BoolType, span)
+        Block(assignTag :: cond :: Nil)(span)
 
       else
         transformTagTypePattern(scrut, patternTagType, None, span)
@@ -369,7 +369,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
       val condAll = rest.foldLeft(cond): (acc, cond) =>
         Apply(eitherFun, acc :: cond :: Nil)(BoolType)
 
-      Block(assignTag :: condAll :: Nil)(BoolType, span)
+      Block(assignTag :: condAll :: Nil)(span)
 
     else
       throw new Exception("Unexpected tag pattern, scrutee type = " + scrut.tpe.show + ", type test = " + patternType.show)
@@ -415,7 +415,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
         rest.foldLeft(head): (acc, cond) =>
           Apply(Ident(bothSym)(span), acc :: cond :: Nil)(BoolType)
 
-      val nestedBlock = Block(assigns :+ nestedCond)(BoolType, span)
+      val nestedBlock = Block(assigns :+ nestedCond)(span)
 
       scrutTagIdent match
         case Some(tagIdent) =>
@@ -507,7 +507,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
 
           val nestedCond = transformPattern(itemAssign.ident, pattern)
           val finalCond = all(nestedCond, distanceOK)
-          val block = Block(itemAssign :: increment :: finalCond :: Nil)(BoolType, pattern.span)
+          val block = Block(itemAssign :: increment :: finalCond :: Nil)(pattern.span)
 
           conds += If(distanceAllowMore, block, BoolLit(false)(pattern.span))(BoolType, pattern.span)
 
@@ -532,11 +532,11 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
 
           val nestedCond = transformPattern(itemAssign.ident, pattern)
           val foundUpdate = Assign(foundIdent, nestedCond)
-          val body = Block(itemAssign :: increment :: foundUpdate :: Nil)(VoidType, pat.span)
+          val body = Block(itemAssign :: increment :: foundUpdate :: Nil)(pat.span)
           val whileLoop = While(cond, body)(pat.span)
 
           val finalCond = all(foundIdent, distanceOK)
-          conds += Block(foundInit :: whileLoop :: finalCond :: Nil)(BoolType, pat.span)
+          conds += Block(foundInit :: whileLoop :: finalCond :: Nil)(pat.span)
 
         case RestPattern(pattern) =>
           assert(i == seqPattern.patterns.size - 1, ".. should be the last pattern")
@@ -557,7 +557,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
           val slice = scrut.select("slice").appliedTo(indexIdent, to)
           val restAssign = Assign(restIdent, slice)
           val nestedCond = transformPattern(restIdent, pattern)
-          conds += Block(restAssign :: nestedCond :: Nil)(BoolType, pat.span)
+          conds += Block(restAssign :: nestedCond :: Nil)(pat.span)
 
         case starPat @ StarPattern(pattern) =>
           //  var continue = true
@@ -592,12 +592,12 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
           val cond = all(continueIdent, distanceAllowMore)
           val nestedCond = transformPattern(itemAssign.ident, pattern)
           val continueUpdate = Assign(continueIdent, nestedCond)
-          val nestedIf = If(continueIdent, Block(increment :: updates)(VoidType, pat.span), Block(Nil)(VoidType, pat.span))(VoidType, pat.span)
-          val body = Block(itemAssign :: continueUpdate :: nestedIf :: Nil)(VoidType, pat.span)
+          val nestedIf = If(continueIdent, Block(increment :: updates)(pat.span), Block(Nil)(pat.span))(VoidType, pat.span)
+          val body = Block(itemAssign :: continueUpdate :: nestedIf :: Nil)(pat.span)
           val whileLoop = While(cond, body)(pat.span)
 
           val finalCond = distanceOK
-          conds += Block((continueInit :: inits) :+ whileLoop :+ finalCond)(BoolType, pat.span)
+          conds += Block((continueInit :: inits) :+ whileLoop :+ finalCond)(pat.span)
       end match
     end for
 
@@ -611,7 +611,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
 
         If(totalSizeCheck(), patternConds, BoolLit(false)(seqPattern.span))(BoolType, seqPattern.span)
 
-    Block(indexInit :: sizeInit :: allCond :: Nil)(BoolType, seqPattern.span)
+    Block(indexInit :: sizeInit :: allCond :: Nil)(seqPattern.span)
 
   private def needTagTest(scrut: Ident, tag: String): Boolean =
     !scrut.tpe.isTagType || scrut.tpe.asTagType.tag != tag

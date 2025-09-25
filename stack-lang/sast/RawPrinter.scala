@@ -175,7 +175,6 @@ object RawPrinter:
         ~ "]"
 
       case fdef: FunDef =>
-        // TODO: store local symbol definitions locally?
         "FunDef [" ~ indent:
             printSymbol(fdef.symbol) ~ LINE_SEP ~
             "[" ~ fdef.tparams.map(printSymbol).join(",") ~ "]" ~ LINE_SEP ~
@@ -290,10 +289,9 @@ object RawPrinter:
         "TypeBound [" ~ lo ~ "," ~ hi ~ "]"
 
   private def printWord(word: Word)(using defn: Definitions, state: State, src: Source): Text =
-    // TODO: types
     val res = word match
       case Literal(const) =>
-        "Literal [" ~ printConstant(const) ~ "]"
+        "Literal [" ~ printConstant(const) ~ "," ~ word.tpe ~ "]"
 
       case Ident(sym) =>
         "Ident [" ~ sym ~ "]"
@@ -308,10 +306,10 @@ object RawPrinter:
         val content = fields.map:
           case (f, rhs) => "[" ~ f ~ "," ~ rhs ~ "]"
 
-        "RecordLit [" ~ content.join(",") ~ "]"
+        "RecordLit [" ~ content.join(",") ~ "," ~ word.tpe ~ "]"
 
       case TaggedLit(tag, args) =>
-        "TaggedLit [" ~ tag ~ ", [" ~ args.join(",") ~ "]]"
+        "TaggedLit [" ~ tag ~ ", [" ~ args.join(",") ~ "]," ~ word.tpe ~ "]"
 
       case Encoded(repr) =>
         "Encoded [" ~ repr ~ "," ~ word.tpe ~ "]"
@@ -320,13 +318,15 @@ object RawPrinter:
         "Apply [" ~ indent:
           fun ~ LINE_SEP ~
           "[" ~ args.join(",") ~ "]" ~ LINE_SEP ~
-          "[" ~ autos.join(",") ~ "]"
+          "[" ~ autos.join(",") ~ "]" ~ LINE_SEP ~
+          word.tpe
         ~ "]"
 
       case TypeApply(fun, targs) =>
         "TypeApply [" ~ indent:
           fun ~ LINE_SEP ~
-          "[" ~ targs.join(",") ~ "]"
+          "[" ~ targs.join(",") ~ "]" ~ LINE_SEP ~
+          word.tpe
         ~ "]"
 
       case With(expr, args) =>
@@ -359,7 +359,8 @@ object RawPrinter:
         "If [" ~ indent:
           cond ~ LINE_SEP ~
           thenp ~ LINE_SEP ~
-          elsep
+          elsep ~ LINE_SEP ~
+          word.tpe
         ~ "]"
 
       case While(cond, body) =>
@@ -370,7 +371,8 @@ object RawPrinter:
 
       case Block(words) =>
         "Block [" ~ indent:
-          words.join(LINE_SEP)
+          words.join(LINE_SEP) ~ LINE_SEP ~
+          word.tpe
         ~ "]"
 
       case Match(scrutinee, cases) =>
@@ -378,13 +380,15 @@ object RawPrinter:
            val pairs = cases.map:
              case Case(pat, body) => "[" ~ pat ~ "," ~ body ~ "]"
 
-           pairs.join(LINE_SEP)
+           pairs.join(LINE_SEP) ~ LINE_SEP ~
+           word.tpe
         ~ "]]"
 
       case Object(self, members) =>
         "Object [" ~ indent:
             printSymbol(self) ~ LINE_SEP ~
-            "[" ~ members.join(",") ~ "]" ~ LINE_SEP
+            "[" ~ members.join(",") ~ "]" ~ LINE_SEP ~
+            word.tpe
         ~ "]"
 
     res ~ "@" ~ word.span

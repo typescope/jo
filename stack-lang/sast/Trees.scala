@@ -129,11 +129,11 @@ object Trees:
   extends Word:
     def tpe: Type = VoidType
 
-  // TODO: remove tpe from the parameters
   case class Block
     (words: List[Word])
-    (val tpe: Type, val span: Span)
-  extends Word
+    (val span: Span)
+  extends Word:
+    val tpe: Type = if words.isEmpty then VoidType else words.last.tpe
 
   case class With
     (expr: Word, args: List[Assign])

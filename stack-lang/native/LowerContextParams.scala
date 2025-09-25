@@ -109,4 +109,4 @@ class LowerContextParams(runtime: NativeRuntime)(using defn: Definitions) extend
     if !expr.tpe.isVoidType then
       stats += Ident(resSym)(expr.span)
 
-    Block(stats.toList)(expr.tpe, word.span)
+    Block(stats.toList)(word.span)

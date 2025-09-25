@@ -184,7 +184,7 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Symbo
 
     val aliases = aliasMap.values.toSeq
     val obj2 = obj.copy(members = members2)(obj.tpe, obj.span)
-    Block((aliases :+ obj2).toList)(obj.tpe, obj.span)
+    Block((aliases :+ obj2).toList)(obj.span)
 
   override  def transformWith(withExpr: With)(using ctx: Context): Word =
     /** rewrite `with a = rhs` to `with a$option = #Some rhs` */

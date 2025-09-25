@@ -99,7 +99,7 @@ class EncodeClass(using defn: Definitions) extends phases.Phase[Symbol]:
           val assign = Assign(Ident(receiverSym)(qual2.span), qual2)
           val proc = Select(receiver, name)(procType, fun.span)
           val apply2 = Apply(proc, receiver :: args2, autos2)(apply.tpe)
-          Block(assign :: apply2 :: Nil)(apply.tpe, apply.span)
+          Block(assign :: apply2 :: Nil)(apply.span)
 
       case TypeApply(Select(qual, name), targs) if qual.tpe.isClassType =>
         // TODO: after type erasure, the special handling here can be removed
@@ -122,7 +122,7 @@ class EncodeClass(using defn: Definitions) extends phases.Phase[Symbol]:
           val meth = Select(receiver, name)(procType, fun.span)
           val fun2 = TypeApply(meth, targs)(funType)
           val apply2 = Apply(fun2, receiver :: args2, autos2)(apply.tpe)
-          Block(assign :: apply2 :: Nil)(apply.tpe, apply.span)
+          Block(assign :: apply2 :: Nil)(apply.span)
 
       case _ =>
         // global function call

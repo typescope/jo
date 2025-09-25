@@ -27,7 +27,7 @@ class Autos(namer: Namer):
     if target.exists(tp => tp.is[TypeVar] && !tp.as[TypeVar].isInstantiated) then
       val tpText = target.show
       Reporter.error(s"Not fully instantiated auto type $tpText." + history, span.toPos)
-      return Block(Nil)(ErrorType, span)
+      return Namer.errorWord(span)
 
     val candidates = sc.autos.flatMap: sym =>
       // println("test " + sym.name + " for " + target.show)
@@ -60,7 +60,7 @@ class Autos(namer: Namer):
           case _: Scope.RootScope =>
             val tpText = target.show
             Reporter.error(s"No autos are found for the type $tpText." + history, span.toPos)
-            Block(Nil)(ErrorType, span)
+            Namer.errorWord(span)
 
           case Scope.NestedScope(outer, _, _) => search(target, trace, origin, outer, span)
 
@@ -72,14 +72,14 @@ class Autos(namer: Namer):
         val tpText = target.show
         val loop = (trace :+ sym).map(_.fullName).mkString(" -> ")
         Reporter.error(s"Divergence in resolving auto of the type $tpText: " + loop + ".", span.toPos)
-        Block(Nil)(ErrorType, span)
+        Namer.errorWord(span)
 
       case sym :: Nil =>
         if sym.info.isProcType then
           var procType = sym.info.asProcType
           if procType.params.nonEmpty then
             Reporter.error(s"The auto ${sym.fullName} require non-auto params." + history, span.toPos)
-            Block(Nil)(ErrorType, span)
+            Namer.errorWord(span)
 
           else
             var fun: Word = Ident(sym)(span)
@@ -107,4 +107,4 @@ class Autos(namer: Namer):
         val tpText = target.show
         val names  = candidates.map(_.fullName).mkString(", ")
         Reporter.error(s"Ambiguous autos, multiple candidates satisfy the auto type $tpText: " + names + "." + history, span.toPos)
-        Block(Nil)(ErrorType, span)
+        Namer.errorWord(span)

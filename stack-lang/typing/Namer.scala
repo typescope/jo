@@ -254,7 +254,7 @@ class Namer:
         val expr2 =
           given TargetType = TargetType.Known(tpt2.tpe)
           transform(expr)
-        Encoded(Block(expr2 :: Nil)(expr2.tpe, word.span))(tpt2.tpe).adapt
+        Encoded(Block(expr2 :: Nil)(word.span))(tpt2.tpe).adapt
 
       case tag: Ast.Tag =>
         transformTagged(tag, values = Nil).adapt
@@ -510,10 +510,10 @@ class Namer:
         transform(phrase)
 
     if words.isEmpty then
-      checker.adapt(Block(Nil)(VoidType, block.span), tt)
+      checker.adapt(Block(Nil)(block.span), tt)
 
     else
-      Block(words)(words.last.tpe, block.span)
+      Block(words)(block.span)
 
 
   def instantiatePoly(polyType: ProcType, fun: Word)(using Definitions, Reporter, Source): Word =
@@ -1439,7 +1439,7 @@ class Namer:
 
       val thisIdent = Ident(thisSym)(record.span.endPoint)
       val body = (words :+ thisIdent).toList
-      Block(body)(thisSym.info, funDef.body.span)
+      Block(body)(funDef.body.span)
 
     lazy val typedBody =
       paramSyms
@@ -1872,7 +1872,7 @@ class Namer:
         Reporter.abort("Unexpected empty type tree", tpt.pos)
 
 object Namer:
-  def errorWord(span: Span) = Block(words = Nil)(ErrorType, span)
+  def errorWord(span: Span) = Encoded(Block(words = Nil)(span))(ErrorType)
 
   /** The typed word associated with an untyped word
     *

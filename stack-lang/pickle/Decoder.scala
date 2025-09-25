@@ -1094,9 +1094,7 @@ object Decoder:
     val endDelta = decodeInt()
     val span = Span(startOffset, lastOffset + endDelta - startOffset)
 
-    val tpe = if words.nonEmpty then words.last.tpe else VoidType
-
-    Block(words)(tpe, span)
+    Block(words)(span)
 
   private def decodeMatch(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): Match =
     val startDelta = decodeInt()
