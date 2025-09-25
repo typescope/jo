@@ -299,7 +299,7 @@ object Encoder:
       val symSpan = param.sourcePos.span
       val startDelta = symSpan.start - prevOffset
       encodeInt(startDelta)
-      encodeInt(symSpan.length)
+      encodeNat(symSpan.length)
 
       encodeType(param.info)
 
