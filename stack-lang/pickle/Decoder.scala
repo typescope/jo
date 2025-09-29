@@ -431,7 +431,7 @@ object Decoder:
 
         val tparamStartDelta = decodeInt()
         val tparamLength = decodeNat()
-        val tparamSpan = Span(absoluteStart + tparamStartDelta, tparamLength)
+        val tparamSpan = Span(symbol.span.start + tparamStartDelta, tparamLength)
 
         // TODO: eager reading info excludes F-bounds
         val tparamKind = decodeKind()
@@ -461,7 +461,7 @@ object Decoder:
 
         val valStartDelta = decodeInt()
         val valLength = decodeNat()
-        val valSpan = Span(absoluteStart + valStartDelta, valLength)
+        val valSpan = Span(symbol.span.start + valStartDelta, valLength)
 
         val valType = decodeType()
 

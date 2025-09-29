@@ -387,7 +387,7 @@ object Encoder:
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
 
-      encodeTypeParams(cdef.tparams, absoluteStart)
+      encodeTypeParams(cdef.tparams, defSym.span.start)
 
       encodeNat(state.getId(cdef.self))
       encodeString(cdef.self.name)
