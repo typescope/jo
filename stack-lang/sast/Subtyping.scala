@@ -105,7 +105,7 @@ object Subtyping:
   private def checkConformsAppliedGrounded(tp1: AppliedType, tp2: AppliedType)(using ctx: Context, defn: Definitions): Boolean =
     val AppliedType(tref1: StaticRef, targs1) = tp1: @unchecked
     val AppliedType(tref2: StaticRef, targs2) = tp2: @unchecked
-    tref1.refers(tref2.symbol.dealias) && {
+    tref1.refers(tref2.symbol) && {
       // TODO: follow variance spec
       targs1.zip(targs2).forall: (tp1, tp2) =>
         recur(tp1, tp2) && recur(tp2, tp1)

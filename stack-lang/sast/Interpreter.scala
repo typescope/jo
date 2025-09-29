@@ -73,7 +73,7 @@ object Interpreter:
     def fresh(): Env = new Env.NestedEnv(this)
 
     def resolve(sym: Symbol)(using Definitions): Denotation =
-      resolveRecursive(sym.dealias)
+      resolveRecursive(sym)
 
     def root: Env =
       this match
@@ -394,7 +394,7 @@ object Interpreter:
 
       case With(expr, args) =>
         val params2 = args.foldLeft(params): (params, arg) =>
-          params.updated(arg.symbol.dealias, eval(arg.rhs))
+          params.updated(arg.symbol, eval(arg.rhs))
         exec(expr)(using env, params2)
 
       case Allow(expr, _) =>
@@ -415,7 +415,7 @@ object Interpreter:
 
       case Ident(sym) =>
         if sym.isAllOf(Flags.Param | Flags.Context) then
-          params.get(sym.dealias) match
+          params.get(sym) match
             case Some(v) => v :: Nil
             case None =>
                if sym.is(Flags.Default) then

@@ -35,7 +35,7 @@ extends Phase[Symbol]:
   override def transformIdent(word: Ident)(using ctx: Context): Word =
     word match
       case Ident(sym) if sym.isAllOf(Flags.Context | Flags.Param) =>
-        val key = StringLit(sym.dealias.fullName)(word.span)
+        val key = StringLit(sym.fullName)(word.span)
         val getParamFun = Ident(getParamSym)(word.span)
         val getParamCall = Encoded(Apply(getParamFun, key :: Nil)(AnyType))(word.tpe)
         getParamCall
@@ -52,14 +52,14 @@ extends Phase[Symbol]:
 
     // 1. args are evaluated with the outer context
     val argValueSyms = args.map: arg =>
-      val paramName = arg.ident.symbol.dealias.fullName
+      val paramName = arg.ident.symbol.fullName
       val argValueSym = Symbol.createSymbol("arg_" + paramName, arg.rhs.tpe, Flags.Synthetic, owner = ctx, pos = arg.rhs.pos)
       stats += Assign(Ident(argValueSym)(arg.rhs.span), this(arg.rhs))
       argValueSym
 
     // 2. val hasX = hasParam("x")
     val hasXSyms = args.map: arg =>
-      val paramName = arg.symbol.dealias.fullName
+      val paramName = arg.symbol.fullName
       val key = StringLit(paramName)(arg.ident.span)
       val funHasParam = Ident(hasParamSym)(arg.span)
       val hasParamCall = Apply(funHasParam, key :: Nil)(BoolType)
@@ -69,7 +69,7 @@ extends Phase[Symbol]:
 
     // 3. val oldX = setParam("x", v)
     val oldValueSyms = args.zip(argValueSyms).map: (arg, argValueSym) =>
-      val paramName = arg.symbol.dealias.fullName
+      val paramName = arg.symbol.fullName
       val key = StringLit(paramName)(arg.ident.span)
       val value = Ident(argValueSym)(arg.rhs.span)
       val funSetParam = Ident(setParamSym)(arg.span)
@@ -88,7 +88,7 @@ extends Phase[Symbol]:
     // 5. if hasX then setParam("x", oldX) else delParam("x")
     paramRefs.zip(hasXSyms).zip(oldValueSyms).foreach:
       case ((paramRef, hasX), oldValueSym) =>
-        val paramName = paramRef.symbol.dealias.fullName
+        val paramName = paramRef.symbol.fullName
 
         val key = StringLit(paramName)(paramRef.span)
         val value = Ident(oldValueSym)(paramRef.span)

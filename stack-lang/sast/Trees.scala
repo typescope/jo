@@ -85,6 +85,8 @@ object Trees:
     (symbol: Symbol)
     (val span: Span)
   extends Word:
+    assert(!symbol.is(Flags.Alias), "Alias not resolved: " + symbol)
+
     val tpe: Type = StaticRef(symbol)
 
     def name: String = symbol.name

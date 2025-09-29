@@ -53,7 +53,7 @@ class LowerRuntime(runtime: JSRuntime)(using defn: Definitions) extends phases.P
     val sym = ref.symbol
     if sym.isFunction then
       // global function call
-      rewiring.get(sym.dealias) match
+      rewiring.get(sym) match
         case Some(subst) => Ident(subst)(ref.span)
         case _ => ref
 

@@ -249,18 +249,17 @@ object Encoder:
     * - External symbols are identified by full name and kind
     */
   private def encodeSymbolRef(symbol: Symbol)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
-    val target = symbol.dealias
-    if target.containedIn(state.root) || target.isTypeParameter then
+    if symbol.containedIn(state.root) || symbol.isTypeParameter then
       // A type parameter used as a bound name in TypeLambda and ProcType can be
       // externally defined. However, in semantics, we treat them as internally
       // defined.
       encodeByte(0)
-      encodeNat(state.getId(target))
+      encodeNat(state.getId(symbol))
 
     else
-      assert(!target.isLocal, "Cannot reference external local symbol: " + target)
+      assert(!symbol.isLocal, "Cannot reference external local symbol: " + symbol)
       encodeByte(1)
-      encodeNat(state.nameTable.getIndex(target))
+      encodeNat(state.nameTable.getIndex(symbol))
 
   /** Not all flags need serialization, handled by caller */
   private def encodeFlags(flags: Flags)(using buf: WriteBuffer): Unit =

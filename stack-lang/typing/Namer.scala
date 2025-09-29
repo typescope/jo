@@ -26,6 +26,9 @@ import scala.collection.mutable
   *
   * It converts ASTs to Semantic ASTs.
   *
+  * All aliases are resolved thus later phase may assume there are no aliases
+  * any more.
+  *
   * This phase only deals with type checking. Effect inference are only hooked
   * but not performed.
   *
@@ -392,7 +395,7 @@ class Namer:
             tp match
               case StaticRef(sym) if !sym.isType =>
                 // record field type could be Int
-                Ident(sym)(word.span)
+                Ident(sym.dealias)(word.span)
 
               case _ =>
                 Select(qual2, name)(tp, word.span)

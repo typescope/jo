@@ -120,7 +120,7 @@ object EffectAnalysis:
   /** Produce a list of transitively reachabe param symbols for the function */
   private def getEffects(fun: Symbol, ignoreSpec: Boolean)(using temp: TempCache, defn: Definitions): TracedEffects =
     // Usage of stable cache has to be part of the computation for speed
-    val funSym = fun.dealias
+    val funSym = fun
     defn.effectEngine.getStable(funSym) match
       case Some(res) => res
 

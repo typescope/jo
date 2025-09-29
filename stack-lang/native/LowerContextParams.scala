@@ -41,7 +41,7 @@ class LowerContextParams(runtime: NativeRuntime)(using defn: Definitions) extend
       case Ident(sym) if sym.isAllOf(Flags.Context | Flags.Param) =>
         // Use AnyType instead String to avoid creating String and make sure its address is static
         // At runtime, it's a byte array initialized in the constant area
-        val paramName = sym.dealias.fullName
+        val paramName = sym.fullName
         val lit = Literal(Constant.String(paramName))(AnyType, word.span)
         val key = lit.encodedAs(AddrType)
         // The static analysis ensures that the value is available
@@ -61,7 +61,7 @@ class LowerContextParams(runtime: NativeRuntime)(using defn: Definitions) extend
 
     // 1. args are evaluated with the outer context
     val argValueSyms = args.map: arg =>
-      val paramName = arg.symbol.dealias.fullName
+      val paramName = arg.symbol.fullName
       val argValueSym = Symbol.createSymbol("arg_" + paramName, arg.rhs.tpe, Flags.Synthetic, owner = ctx, pos = arg.rhs.pos)
       stats += Assign(Ident(argValueSym)(arg.ident.span), this(arg.rhs))
       argValueSym
@@ -70,7 +70,7 @@ class LowerContextParams(runtime: NativeRuntime)(using defn: Definitions) extend
     //    val oldValueX = getLastOverwrittenValue()
     //    (hashIndex, oldX)
     val restorePairSyms = args.zip(argValueSyms).map: (arg, argValueSym) =>
-      val paramName = arg.symbol.dealias.fullName
+      val paramName = arg.symbol.fullName
       // Use AnyType instead String to avoid creating String and make sure its address is static
       // At runtime, it's a byte array initialized in the constant area
       val lit = Literal(Constant.String(paramName))(AnyType, arg.ident.span)

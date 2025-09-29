@@ -50,14 +50,13 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
     Symbol.createSymbol(predSym.name + "$impl", funType, Flags.Fun | Flags.Synthetic, predSym.owner, predSym.sourcePos)
 
   private def getImplFunSymbol(predSym: Symbol, implMap: mutable.Map[Symbol, Symbol]): Symbol =
-    val target = predSym.dealias
-    implMap.get(target) match
+    implMap.get(predSym) match
       case Some(implSym) =>
         implSym
 
       case None =>
-        val implSym = createImplFunSymbol(target)
-        implMap(target) = implSym
+        val implSym = createImplFunSymbol(predSym)
+        implMap(predSym) = implSym
         implSym
 
   private def implementPatDef(pdef: PatDef)(using ctx: Context): FunDef =

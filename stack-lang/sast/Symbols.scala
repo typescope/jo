@@ -64,7 +64,7 @@ object Symbols:
     def classInfo(using Definitions): ClassInfo =
       assert(this.isClass, "Not a class")
 
-      this.dealias.info match
+      this.info match
         case info: ClassInfo => info
         case TypeLambda(_, info: ClassInfo, _) => info
         case tp => throw new Exception("Unexpected type " + tp.show)
@@ -101,21 +101,21 @@ object Symbols:
     def termMember(name: String)(using Definitions): Symbol =
       def error() = throw new Exception(s"No term member $name for $this")
 
-      this.dealias.info match
+      this.info match
         case info: ContainerInfo => info.resolveTerm(name).getOrElse(error())
         case _ => error()
 
     def typeMember(name: String)(using Definitions): Symbol =
       def error() = throw new Exception(s"No type member $name for $this")
 
-      this.dealias.info match
+      this.info match
         case info: ContainerInfo => info.resolveType(name).getOrElse(error())
         case _ => error()
 
     def patternMember(name: String)(using Definitions): Symbol =
       def error() = throw new Exception(s"No pattern member $name for $this")
 
-      this.dealias.info match
+      this.info match
         case info: ContainerInfo => info.resolvePattern(name).getOrElse(error())
         case _ => error()
 
@@ -123,6 +123,10 @@ object Symbols:
       *
       * Invariant: It is important that we do not have cycles in aliases, which
       * is guaranteed by disallowing creating an alias of another alias.
+      *
+      * Warning: Don't call this method. Dealiasing is done systematically
+      * during type checking in name resolution. Later phases can assume that
+      * there are no intermediate aliases.
       */
     def dealias(using Definitions): Symbol =
       if this.isAlias then this.info.as[StaticRef].symbol.dealias else this
@@ -134,12 +138,12 @@ object Symbols:
     /** The default function associated with a context parameter */
     def defaultFunction(using Definitions): Symbol =
       assert(this.isAllOf(Flags.Default | Flags.Context))
-      this.dealias.owner.termMember(this.name + "$default")
+      this.owner.termMember(this.name + "$default")
 
     /** The value function associated with a context parameter */
     def valueFunction(using Definitions): Symbol =
       assert(this.isAllOf(Flags.Default | Flags.Context))
-      this.dealias.owner.termMember(this.name + "$value")
+      this.owner.termMember(this.name + "$value")
 
     /** The param of an option type associated with a default context parameter.
       *
@@ -147,7 +151,7 @@ object Symbols:
       */
     def optionParam(using Definitions): Symbol =
       assert(this.isAllOf(Flags.Default | Flags.Context))
-      this.dealias.owner.termMember(this.name + "$option")
+      this.owner.termMember(this.name + "$option")
 
     def fullName(using Definitions): String =
       if isLocal then

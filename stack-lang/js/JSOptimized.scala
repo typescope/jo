@@ -39,9 +39,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
   private val symbol2UniqueName: mutable.Map[Symbol, String] = mutable.Map.empty
 
   def jsName(sym: Symbol): String =
-    val target = sym.dealias
-
-    symbol2UniqueName.get(target) match
+    symbol2UniqueName.get(sym) match
       case Some(name) => name
 
       case None =>
@@ -49,18 +47,18 @@ class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
           case Some(sym) => jsName(sym)
 
           case None =>
-            val rawName = target.fullName
+            val rawName = sym.fullName
             val uniqueName =
               if sym.isLocal then
                 localScope.freshName(encodeSymbolic(rawName))
               else
                 globalScope.freshName(encodeSymbolic(rawName))
 
-            symbol2UniqueName(target) = uniqueName
+            symbol2UniqueName(sym) = uniqueName
 
             // Add function or class to work list
             if (sym.isFunction && !sym.owner.isClass) || sym.isClass then
-              workList.add(target)
+              workList.add(sym)
 
             uniqueName
 
@@ -351,16 +349,15 @@ class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
   def call(fun: Word, args: List[Word])(using Context): Text =
     fun match
       case Ident(sym) =>
-        val target = sym.dealias
-        if target.owner == defn.Int || target.owner == defn.Bool then
-          callPrimitive(target, args)
+        if sym.owner == defn.Int || sym.owner == defn.Bool then
+          callPrimitive(sym, args)
 
-        else if target == runtime.JS_js then
+        else if sym == runtime.JS_js then
           val Literal(Constant.String(code)) :: Nil = args : @unchecked
           cont(Text(code))
 
         else
-          call(target, args)
+          call(sym, args)
 
       case _ =>
         run(fun): v =>

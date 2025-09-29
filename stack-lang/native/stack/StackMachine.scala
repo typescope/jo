@@ -290,14 +290,12 @@ extends Backend(runtime):
   def compile(app: Apply)(using LocalAddr, CodeBuffer): Unit =
     app.funSymbol match
       case Some(sym) =>
-        val target = sym.dealias
-
-        if target.owner == defn.Int || target.owner == defn.Bool then
+        if sym.owner == defn.Int || sym.owner == defn.Bool then
           for arg <- app.allArgs do compile(arg)
-          callPrimitive(target)
+          callPrimitive(sym)
 
-        else if target.owner == runtime.Core then
-          if target == runtime.Core_data then
+        else if sym.owner == runtime.Core then
+          if sym == runtime.Core_data then
             // TODO: error instead of crash -- in early phases
             val Literal(Constant.String(qualid)) :: Nil = app.args: @unchecked
             val Some(label) = runtime.locate(qualid): @unchecked
@@ -305,11 +303,11 @@ extends Backend(runtime):
 
           else
             for arg <- app.allArgs do compile(arg)
-            callCore(target)
+            callCore(sym)
 
         else
           for arg <- app.allArgs do compile(arg)
-          call(target)
+          call(sym)
 
       case _ =>
         compile(app.fun)

@@ -76,7 +76,7 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Symbo
       if symbol.isFunction then
         fdef.effectPolicy match
           case Effects.Policy.CheckBound(params) =>
-            val allowed = params.map(_.dealias).toSet
+            val allowed = params.toSet
             val effs = defn.effectEngine.effects(symbol)
             val pos = symbol.sourcePos
             for (eff, trace) <- effs if !allowed.exists(param => eff.refers(param)) do
@@ -108,7 +108,7 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Symbo
 
     given Source = ctx.owner.sourcePos.source
     val effsInner = defn.effectEngine.effects(allowExpr.expr)
-    val allowed = allowExpr.params.map(_.symbol.dealias).toSet
+    val allowed = allowExpr.params.map(_.symbol).toSet
 
     val unprovided = effsInner.filter((k, _) => !allowed.exists(param => k.refers(param)))
 
