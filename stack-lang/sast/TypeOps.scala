@@ -148,6 +148,17 @@ object TypeOps:
     */
   def isGroundedProxy(tp: ProxyType)(using Definitions): Boolean = isGrounded(tp.dealias)
 
+  /**
+    * Warning: If impredicativity is allowed for type parameters, we must
+    * perform capture avoidance.
+    *
+    * Once we enable first-class higher-kinded types, we can have a type:
+    *
+    *     type C[F: * => *] = [A] => F[A]
+    *
+    * Now C[C[List]] after dealiasing can have the same symbol A refer to
+    * different bindings.
+    */
   class SymbolsTypeMap(using Definitions) extends TypeMap:
     type Context = Map[Symbol, Type]
 

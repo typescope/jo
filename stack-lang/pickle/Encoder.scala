@@ -250,7 +250,10 @@ object Encoder:
     */
   private def encodeSymbolRef(symbol: Symbol)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
     val target = symbol.dealias
-    if target.containedIn(state.root) then
+    if target.containedIn(state.root) || target.isTypeParameter then
+      // A type parameter used as a bound name in TypeLambda and ProcType can be
+      // externally defined. However, in semantics, we treat them as internally
+      // defined.
       encodeByte(0)
       encodeNat(state.getId(target))
 
