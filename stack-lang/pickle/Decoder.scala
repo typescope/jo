@@ -919,7 +919,7 @@ object Decoder:
 
     var lastOffset = classRef.span.endOffset
     val targs = repeated:
-        val tpt = decodeTypeTree(prevOffset)
+        val tpt = decodeTypeTree(lastOffset)
         lastOffset = tpt.span.endOffset
         tpt
 
