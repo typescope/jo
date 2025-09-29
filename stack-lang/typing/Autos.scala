@@ -82,7 +82,7 @@ class Autos(namer: Namer):
             Namer.errorWord(span)
 
           else
-            var fun: Word = Ident(sym)(span)
+            var fun: Word = Ident(sym.dealias)(span)
             if procType.tparams.nonEmpty then
               fun = namer.instantiatePoly(procType, fun)
               procType = fun.tpe.asProcType
@@ -91,7 +91,7 @@ class Autos(namer: Namer):
             Subtyping.conforms(procType.resultType, target)
 
             if procType.autos.isEmpty then
-              Ident(sym)(span).appliedTo()
+              Ident(sym.dealias)(span).appliedTo()
 
             else
               val autos =
