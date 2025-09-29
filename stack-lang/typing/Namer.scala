@@ -77,7 +77,7 @@ class Namer:
       delayedImports += { () =>
         // handle imports after indexing members
         for imp <- ns.imports do
-          imports ++= Imports.doImport(imp.qualid, importScope, rootNameTable, isAlias = false)
+          imports ++= Imports.doImport(imp.qualid, importScope, rootNameTable)
       }
 
       delayedNamespaces += DelayedDef(nsSym, { () =>

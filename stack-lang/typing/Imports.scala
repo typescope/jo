@@ -63,7 +63,7 @@ object Imports:
         end match
 
   def doImport
-      (qualid: Ast.RefTree, importScope: Scope, rootNameTable: NameTable, isAlias: Boolean)
+      (qualid: Ast.RefTree, importScope: Scope, rootNameTable: NameTable)
       (using rp: Reporter, so: Source, ip: InfoProvider)
   : List[Symbol] =
 
