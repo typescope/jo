@@ -77,7 +77,7 @@ object TaggedEncoding:
     val testTagValue = Literal(Constant.Int(tagCode))(IntType, span)
     val args =  tagValue :: testTagValue :: Nil
     val fun = Ident(defn.Int_eql)(span)
-    Apply(fun, args, autos = Nil)(defn.BoolType)
+    Apply(fun, args, autos = Nil)
 
   def testVariantTag(ref: Word, tag: String, span: Span)(using defn: Definitions): Word =
     val IntType = defn.IntType
@@ -90,8 +90,7 @@ object TaggedEncoding:
     //
     // Use non-short-cutting `either` for better CPU performance (no jumps)
     val fun = Ident(defn.Bool_either)(span)
-    val tp = defn.BoolType
     val cond = testTagValue(tagValue, tag, span)
     rest.foldLeft(cond): (acc, tag) =>
       val cond2 = testTagValue(tagValue, tag, span)
-      Apply(fun, acc :: cond2 :: Nil, autos = Nil)(tp)
+      Apply(fun, acc :: cond2 :: Nil, autos = Nil)

@@ -78,7 +78,7 @@ class LowerRuntime(runtime: NativeRuntime)(using defn: Definitions) extends phas
         Encoded(args2.head)(tpt.tpe)
 
       case _ =>
-        Apply(this(fun), args2, autos2)(app.tpe)
+        Apply(this(fun), args2, autos2)
 
   override def transformSelect(select: Select)(using ctx: Context): Word =
     val Select(qual, name) = select

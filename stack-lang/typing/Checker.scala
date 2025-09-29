@@ -236,7 +236,7 @@ class Checker(namer: Namer):
       for tp <- targetType.knownType do Subtyping.conforms(resType, tp)
 
       val autos = namer.autoResolver.derive(procType2, word.span)
-      Apply(fun, args = Nil, autos)(resType)
+      Apply(fun, args = Nil, autos)
 
     else
       word

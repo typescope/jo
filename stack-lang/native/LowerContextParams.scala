@@ -46,7 +46,7 @@ class LowerContextParams(runtime: NativeRuntime)(using defn: Definitions) extend
         val key = lit.encodedAs(AddrType)
         // The static analysis ensures that the value is available
         val getParamFun = Ident(runtime.ParamSupport_getParam)(word.span)
-        Encoded(Apply(getParamFun, key :: Nil)(AnyType))(word.tpe)
+        Encoded(Apply(getParamFun, key :: Nil))(word.tpe)
 
       case _ =>
         word
@@ -77,12 +77,12 @@ class LowerContextParams(runtime: NativeRuntime)(using defn: Definitions) extend
       val key = lit.encodedAs(AddrType)
       val value = Ident(argValueSym)(arg.rhs.span)
       val funSetParam = Ident(runtime.ParamSupport_setParam)(arg.span)
-      val setParamCall = Apply(funSetParam, key :: value :: Nil)(IntType)
+      val setParamCall = Apply(funSetParam, key :: value :: Nil)
       val hashIndexSym = Symbol.createSymbol("hash_index_" + paramName, IntType, Flags.Synthetic, owner = ctx, pos = arg.rhs.pos)
       stats += Assign(Ident(hashIndexSym)(arg.ident.span), setParamCall)
 
       val funGetLastOverwrittenValue = Ident(runtime.ParamSupport_getLastOverwrittenValue)(arg.span)
-      val getLastOverwrittenValueCall = Apply(funGetLastOverwrittenValue, Nil)(AnyType)
+      val getLastOverwrittenValueCall = Apply(funGetLastOverwrittenValue, Nil)
       val oldValueSym = Symbol.createSymbol("old_value_" + paramName, arg.rhs.tpe, Flags.Synthetic, owner = ctx, pos = arg.rhs.pos)
       stats += Assign(Ident(oldValueSym)(arg.ident.span), getLastOverwrittenValueCall.encodedAs(arg.rhs.tpe))
 
@@ -101,7 +101,7 @@ class LowerContextParams(runtime: NativeRuntime)(using defn: Definitions) extend
         val index = Ident(hashIndexSym)(paramRef.span)
         val value = Ident(oldValueSym)(paramRef.span)
         val restoreParam = Ident(runtime.ParamSupport_restoreParam)(paramRef.span)
-        val restoreParamCall = Apply(restoreParam, index :: value :: Nil)(AnyType).dropValue
+        val restoreParamCall = Apply(restoreParam, index :: value :: Nil).dropValue
 
         stats += restoreParamCall
 

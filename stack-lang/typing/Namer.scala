@@ -658,7 +658,7 @@ class Namer:
             transformArgs(apply.args, procType.paramTypes)
 
         val autos = autoResolver.derive(procType, apply.span)
-        val word = Apply(fun, argsTyped, autos)(procType.resultType)
+        val word = Apply(fun, argsTyped, autos)
         checker.checkUnpackUsage(word, tt)
         val desugared = Rewriting.rewriteShortcutAndOr(word)
         checker.adapt(desugared, tt)
@@ -705,7 +705,7 @@ class Namer:
                 transform(arg)
 
               val autos = autoResolver.derive(procType, call.span)
-              val word = Apply(fun, argTyped :: Nil, autos)(procType.resultType)
+              val word = Apply(fun, argTyped :: Nil, autos)
               checker.adapt(word, tt)
           else
             Reporter.error( s"The member ${meth.name} is not a method", meth.pos)
@@ -763,7 +763,7 @@ class Namer:
           transformArgs(postArgs, procType.postParamTypes)
 
       val autos = autoResolver.derive(procType, call.span)
-      val word = Apply(fun, preArgs2 ++ postArgs2, autos)(procType.resultType)
+      val word = Apply(fun, preArgs2 ++ postArgs2, autos)
       checker.checkUnpackUsage(word, tt)
       val rewrite = Rewriting.rewriteShortcutAndOr(word)
       checker.adapt(rewrite, tt)

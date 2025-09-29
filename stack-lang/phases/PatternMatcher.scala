@@ -119,7 +119,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
           // It is needed for code generation.
           val abort = Ident(abortSym)(scrutIdent.span)
           val arg = StringLit("Unhandled match at " + scrutIdent.pos)(scrutIdent.span)
-          Apply(abort, arg :: Nil)(BottomType).dropIfVoid(patmat.tpe)
+          Apply(abort, arg :: Nil).dropIfVoid(patmat.tpe)
       end match
 
     val body = transformCases(cases)
@@ -235,8 +235,8 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
       end match
 
     val call =
-      if noNeedTypeTest then Apply(implFun, scrut :: Nil)(resultType)
-      else Apply(implFun, Encoded(scrut)(paramType) :: Nil)(resultType)
+      if noNeedTypeTest then Apply(implFun, scrut :: Nil)
+      else Apply(implFun, Encoded(scrut)(paramType) :: Nil)
 
     val resSym = Symbol.createSymbol("res", resultType, Flags.Pattern | Flags.Synthetic, ctx.owner, pred.pos)
     val assignRes = Assign(Ident(resSym)(pred.span), call)
@@ -278,7 +278,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
 
       val nestedCond =
         rest.foldLeft(head): (acc, cond) =>
-          Apply(Ident(bothSym)(span), acc :: cond :: Nil)(BoolType)
+          Apply(Ident(bothSym)(span), acc :: cond :: Nil)
 
       val nestedBlock = Block(assigns :+ nestedCond)(span)
       If(callCond, nestedBlock, BoolLit(false)(span))(BoolType, span)
@@ -323,7 +323,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
 
       val nestedCond =
         rest.foldLeft(head): (acc, cond) =>
-          Apply(Ident(bothSym)(span), acc :: cond :: Nil)(BoolType)
+          Apply(Ident(bothSym)(span), acc :: cond :: Nil)
 
       val nestedBlock = Block(assigns :+ nestedCond)(span)
 
@@ -366,7 +366,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
 
       val eitherFun = Ident(eitherSym)(span)
       val condAll = rest.foldLeft(cond): (acc, cond) =>
-        Apply(eitherFun, acc :: cond :: Nil)(BoolType)
+        Apply(eitherFun, acc :: cond :: Nil)
 
       Block(assignTag :: condAll :: Nil)(span)
 
@@ -412,7 +412,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
 
       val nestedCond =
         rest.foldLeft(head): (acc, cond) =>
-          Apply(Ident(bothSym)(span), acc :: cond :: Nil)(BoolType)
+          Apply(Ident(bothSym)(span), acc :: cond :: Nil)
 
       val nestedBlock = Block(assigns :+ nestedCond)(span)
 
@@ -441,14 +441,14 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
 
     // index = index + 1
     def indexIncrement(span: Span): Word =
-      val addOne = Apply(Ident(defn.Int_add)(span), indexIdent :: IntLit(1)(span) :: Nil)(defn.IntType)
+      val addOne = Apply(Ident(defn.Int_add)(span), indexIdent :: IntLit(1)(span) :: Nil)
       Assign(indexIdent, addOne)
 
     // x = scrutine(index)
     def itemAtIndexAssign(span: Span): Assign =
       val appType = scrut.tpe.termMember("get").asProcType
       val itemType = appType.resultType
-      val itemValue = Apply(Select(scrut, "get")(appType, span), indexIdent :: Nil)(itemType)
+      val itemValue = Apply(Select(scrut, "get")(appType, span), indexIdent :: Nil)
 
       val itemSym = Symbol.createSymbol("item", itemType, Flags.Synthetic, ctx.owner, span.toPos)
       val itemIdent = Ident(itemSym)(span)

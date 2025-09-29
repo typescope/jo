@@ -80,7 +80,7 @@ object TreeOps:
     if origType.refers(defn.Predef_Byte) then
       if targetType.refers(defn.Int_Int) then
         val byteToInt = Ident(defn.Predef_byteToInt)(word.span)
-        Apply(byteToInt, word :: Nil, autos = Nil)(targetType)
+        Apply(byteToInt, word :: Nil, autos = Nil)
 
       else
         fail()
@@ -88,7 +88,7 @@ object TreeOps:
     else if origType.refers(defn.Predef_Char) then
       if targetType.refers(defn.Int_Int) then
         val charToInt = Ident(defn.Predef_charToInt)(word.span)
-        Apply(charToInt, word :: Nil, autos = Nil)(targetType)
+        Apply(charToInt, word :: Nil, autos = Nil)
 
       else
         fail()

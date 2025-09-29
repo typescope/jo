@@ -267,7 +267,7 @@ object ElimCapture:
               val sym = rewire(capture)
               Ident(sym)(app.span)
 
-          Apply(funSubst, args2 ++ extraArgs, autos2)(app.tpe)
+          Apply(funSubst, args2 ++ extraArgs, autos2)
 
         case Select(qual, name) if qual.tpe.isObjectType =>
           val qual2 = this(qual)
@@ -275,14 +275,14 @@ object ElimCapture:
           val liftedProcType = procType.prepend(NamedInfo("this", qual2.tpe) :: Nil)
           if qual2.isIdempotent then
             val proc = Select(qual2, name)(procType, fun.span)
-            Apply(Encoded(proc)(liftedProcType), qual2 :: args2, autos2)(app.tpe)
+            Apply(Encoded(proc)(liftedProcType), qual2 :: args2, autos2)
           else
             given Positions.Source = owner.sourcePos.source
             val receiverSym = Symbol.createSymbol("o", qual2.tpe, Flags.Synthetic, owner, qual2.pos)
             val receiver = Ident(receiverSym)(qual2.span)
             val assign = Assign(Ident(receiverSym)(qual2.span), qual2)
             val proc = Select(receiver, name)(procType, fun.span)
-            val apply = Apply(Encoded(proc)(liftedProcType), receiver :: args2, autos2)(app.tpe)
+            val apply = Apply(Encoded(proc)(liftedProcType), receiver :: args2, autos2)
             Block(assign :: apply :: Nil)(app.span)
 
         case TypeApply(Select(qual, name), targs) if qual.tpe.isObjectType =>
@@ -296,7 +296,7 @@ object ElimCapture:
           if qual2.isIdempotent then
             val meth = Encoded(Select(qual2, name)(procType, fun.span))(liftedProcType)
             val fun2 = TypeApply(meth, targs)(liftedFunType)
-            Apply(fun2, qual2 :: args2, autos2)(app.tpe)
+            Apply(fun2, qual2 :: args2, autos2)
           else
             given Positions.Source = owner.sourcePos.source
             val receiverSym = Symbol.createSymbol("o", qual2.tpe, Flags.Synthetic, owner, qual2.pos)
@@ -304,12 +304,12 @@ object ElimCapture:
             val assign = Assign(Ident(receiverSym)(qual2.span), qual2)
             val meth = Encoded(Select(receiver, name)(procType, fun.span))(liftedProcType)
             val fun2 = TypeApply(meth, targs)(liftedFunType)
-            val apply = Apply(fun2, receiver :: args2, autos2)(app.tpe)
+            val apply = Apply(fun2, receiver :: args2, autos2)
             Block(assign :: apply :: Nil)(app.span)
 
         case _ =>
           // global function call or class method call
-          Apply(this(fun), args2, autos2)(app.tpe)
+          Apply(this(fun), args2, autos2)
 
     override def transformValDef(vdef: ValDef)(using ctx: Context): Word =
       val ValDef(sym, rhs) = vdef

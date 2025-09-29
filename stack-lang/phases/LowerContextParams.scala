@@ -37,7 +37,7 @@ extends Phase[Symbol]:
       case Ident(sym) if sym.isAllOf(Flags.Context | Flags.Param) =>
         val key = StringLit(sym.fullName)(word.span)
         val getParamFun = Ident(getParamSym)(word.span)
-        val getParamCall = Encoded(Apply(getParamFun, key :: Nil)(AnyType))(word.tpe)
+        val getParamCall = Encoded(Apply(getParamFun, key :: Nil))(word.tpe)
         getParamCall
 
       case _ =>
@@ -62,7 +62,7 @@ extends Phase[Symbol]:
       val paramName = arg.symbol.fullName
       val key = StringLit(paramName)(arg.ident.span)
       val funHasParam = Ident(hasParamSym)(arg.span)
-      val hasParamCall = Apply(funHasParam, key :: Nil)(BoolType)
+      val hasParamCall = Apply(funHasParam, key :: Nil)
       val hasXSym = Symbol.createSymbol("has_" + paramName, BoolType, Flags.Synthetic, owner = ctx, pos = arg.rhs.pos)
       stats += Assign(Ident(hasXSym)(arg.ident.span), hasParamCall)
       hasXSym
@@ -73,7 +73,7 @@ extends Phase[Symbol]:
       val key = StringLit(paramName)(arg.ident.span)
       val value = Ident(argValueSym)(arg.rhs.span)
       val funSetParam = Ident(setParamSym)(arg.span)
-      val setParamCall = Apply(funSetParam, key :: value :: Nil)(AnyType)
+      val setParamCall = Apply(funSetParam, key :: value :: Nil)
       val oldValueSym = Symbol.createSymbol("old_" + paramName, arg.rhs.tpe, Flags.Synthetic, owner = ctx, pos = arg.rhs.pos)
       stats += Assign(Ident(oldValueSym)(arg.ident.span), setParamCall.encodedAs(arg.rhs.tpe))
       oldValueSym
@@ -93,10 +93,10 @@ extends Phase[Symbol]:
         val key = StringLit(paramName)(paramRef.span)
         val value = Ident(oldValueSym)(paramRef.span)
         val funSetParam = Ident(setParamSym)(paramRef.span)
-        val setParamCall = Apply(funSetParam, key :: value :: Nil)(AnyType).dropValue
+        val setParamCall = Apply(funSetParam, key :: value :: Nil).dropValue
 
         val funDelParam = Ident(delParamSym)(paramRef.span)
-        val delParamCall = Apply(funDelParam, key :: Nil)(UnitType).dropValue
+        val delParamCall = Apply(funDelParam, key :: Nil).dropValue
 
         val cond = Ident(hasX)(paramRef.span)
         val ifStat = If(cond, setParamCall, delParamCall)(VoidType, paramRef.span)

@@ -163,13 +163,15 @@ object Trees:
 
   case class Apply
     (fun: Word, args: List[Word], autos: List[Word])
-    (val tpe: Type)
     (using Definitions)
   extends Word with DerivedSpan:
-    fun.tpe.asProcType match
+    val tpe = fun.tpe.asProcType match
       case procType =>
+        assert(procType.tparams.size == 0, "tparams = " + procType.tparams)
         assert(procType.paramTypes.size == args.size, procType.show + ", " + args)
         assert(procType.autos.size == autos.size, procType.show + ", " + autos)
+
+        procType.resultType
 
     def allArgs: List[Word] = args ++ autos
 
@@ -182,8 +184,8 @@ object Trees:
     def deriveSpan = args.foldLeft(fun.span)(_ | _.span)
 
   object Apply:
-    def apply(fun: Word, args: List[Word])(tpe: Type)(using Definitions): Apply =
-      apply(fun, args, autos = Nil)(tpe)
+    def apply(fun: Word, args: List[Word])(using Definitions): Apply =
+      apply(fun, args, autos = Nil)
 
   // TODO: remove `tpe` from the parameters and add span
   case class New
@@ -598,7 +600,7 @@ object Trees:
         for (arg, paramType) <- args.zip(procType.paramTypes)
         yield TreeOps.adapt(arg, paramType)
 
-      Apply(word, args2.toList, autos = Nil)(procType.resultType)
+      Apply(word, args2.toList, autos = Nil)
 
     def appliedToTypes(targs: Type*)(using Definitions): Word =
       val procType = word.tpe.asProcType

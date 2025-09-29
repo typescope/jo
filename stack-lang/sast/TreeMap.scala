@@ -174,7 +174,7 @@ abstract class TreeMap(using Definitions):
       auto2
 
     if changed then
-      Apply(fun2, args2, autos2)(apply.tpe)
+      Apply(fun2, args2, autos2)
     else
       apply
 
