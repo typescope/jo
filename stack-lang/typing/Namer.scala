@@ -35,6 +35,7 @@ import scala.collection.mutable
 class Namer:
   val checker = new Checker(this)
   val patternTyper = PatternTyper(this, checker)
+  // TODO: change inferencer to be contextual and check instantiation earlier
   val inferencer: Inferencer = new UnificationSolver
   val exprTyper = new ExprTyper(this)
   val autoResolver = new Autos(this)
@@ -890,7 +891,7 @@ class Namer:
     val paramSym =
       paramRef.tpe match
         case StaticRef(sym) if sym.isAllOf(Flags.Param | Flags.Context) =>
-          sym.dealias
+          sym
 
         case tp =>
           Reporter.error("A reference to a contextual parameter expected, found = " + tp.show, paramRef.pos)
@@ -904,7 +905,7 @@ class Namer:
     val rhs =
       given TargetType =
         if paramRef.tpe.isError then TargetType.ValueType
-        else TargetType.Known(paramRef.symbol.dealias.info)
+        else TargetType.Known(paramRef.symbol.info)
 
       transform(arg.rhs)
 
@@ -1720,14 +1721,9 @@ class Namer:
     tpt.getKeyOrElse(Namer.TypedTypeTree):
       tpt match
       case Ast.Ident(name) =>
-        sc.resolveType(name) match
-          case Some(sym) =>
-            check(sym)
-            TypeTree(StaticRef(sym))(tpt.span)
-
-          case None =>
-            Reporter.error("Unknown type " + tpt, tpt.pos)
-            TypeTree(ErrorType)(tpt.span)
+        val sym = sc.resolveType(name, tpt.pos)
+        check(sym)
+        TypeTree(StaticRef(sym))(tpt.span)
 
       case Ast.Select(qual, name) =>
         val qual2 =
@@ -1736,7 +1732,7 @@ class Namer:
 
         qual2.tpe match
           case StaticRef(sym) if sym.isContainer =>
-            val nsInfo = sym.dealias.info.as[ContainerInfo]
+            val nsInfo = sym.info.as[ContainerInfo]
             nsInfo.resolveType(name) match
               case Some(sym) =>
                check(sym)

@@ -49,7 +49,7 @@ enum Scope:
   def fresh(owner: Symbol, nameTable: NameTable): Scope =
     new Scope.NestedScope(this, nameTable, owner)
 
-  def resolveType(name: String): Option[Symbol] = Debug.trace(s"Resolving type $name in scope " + table.show, enable = false):
+  def resolveType(name: String)(using Definitions): Option[Symbol] = Debug.trace(s"Resolving type $name in scope " + table.show, enable = false):
     table.resolveType(name) match
       case None =>
         this match
@@ -58,9 +58,9 @@ enum Scope:
           case nsc: LocalPatternScope => nsc.outer.resolveType(name)
           case _ => None
 
-      case res  => res
+      case Some(sym)  => Some(sym.dealias)
 
-  def resolveTerm(name: String)(using oob: OutOfBand): Option[Symbol] = Debug.trace(s"Resolving term $name in scope " + table.show, enable = false):
+  def resolveTerm(name: String)(using oob: OutOfBand, defn: Definitions): Option[Symbol] = Debug.trace(s"Resolving term $name in scope " + table.show, enable = false):
     table.resolveTerm(name) match
       case None =>
         this match
@@ -69,14 +69,14 @@ enum Scope:
           case nsc: LocalPatternScope => nsc.outer.resolveTerm(name)
           case _ => None
 
-      case res  =>
+      case Some(sym)  =>
         this match
           case sc: PrefixedScope => oob.addKey(Scope.PrefixKey, sc.prefix)
           case _ =>
 
-        res
+        Some(sym.dealias)
 
-  def resolvePattern(name: String): Option[Symbol] = Debug.trace(s"Resolving pattern $name in scope " + table.show, enable = false):
+  def resolvePattern(name: String)(using Definitions): Option[Symbol] = Debug.trace(s"Resolving pattern $name in scope " + table.show, enable = false):
     table.resolvePattern(name) match
       case None =>
         this match
@@ -99,7 +99,7 @@ enum Scope:
               case _ => None
           case _ => None
 
-      case res  => res
+      case Some(sym)  => Some(sym.dealias)
 
   def resolveTerm(name: String, pos: SourcePosition)(using Reporter, Definitions, OutOfBand): Symbol =
     resolveTerm(name) match
