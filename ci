@@ -89,7 +89,7 @@ for item in $DIR/tests/pos/*; do
 
     # layout 2
     echo "  - stac layout c2"
-    bin/stac.native $file -checkTree -o $exe -layout c2
+    bin/stac.native $file -checkTree -testPickling -o $exe -layout c2
     $exe > $OUT 2>&1
     check $OUT $CHECK
 
@@ -101,7 +101,7 @@ for item in $DIR/tests/pos/*; do
 
     # JavaScript
     echo "  - jsc"
-    bin/jsc.native $file -checkTree -o $js
+    bin/jsc.native $file -checkTree -testPickling -o $js
     node $js > $OUT 2>&1
     check $OUT $CHECK
 done
