@@ -22,7 +22,6 @@ class Pickler(using defn: Definitions, rp: Reporter, cf: Config) extends phases.
     IO.writeFile(path, buf.getBytes, 0, buf.length)
 
     if cf.testPickling then
-      println("Test pickling " + fullName)
       val bytes = IO.fileAsBytes(path)
       given ReadBuffer = new ReadBuffer(bytes)
       val ns2 = Decoder.decode(ns.symbol.owner).force()
