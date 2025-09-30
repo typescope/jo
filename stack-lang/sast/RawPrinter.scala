@@ -16,9 +16,6 @@ object RawPrinter:
   val LINE_SEP = "," ~ Text.BreakLine
 
   private class State(val root: Symbol):
-    /** Name reference to externally defined symbols */
-    private val externalSymbols = new mutable.ArrayBuffer[Symbol]
-
     /** Map a symbol to a unique ID
       *
       * The mapping is defined for all internally defined symbols (top-level and
@@ -27,16 +24,6 @@ object RawPrinter:
     private val internalSymIds = mutable.Map.empty[Symbol, Int]
 
     private var internalSymbolCount = 0
-
-    def getExternalSymbolIndex(sym: Symbol): Int =
-      val index = externalSymbols.indexOf(sym)
-      if index < 0 then
-        val index = externalSymbols.size
-        externalSymbols += sym
-        index
-
-      else
-        index
 
     def getInternalSymbolId(sym: Symbol): Int =
       internalSymIds.get(sym) match
@@ -47,10 +34,6 @@ object RawPrinter:
           internalSymbolCount += 1
           id
       end match
-
-    def externalNameTable(using Definitions): Text =
-      // TODO: store type for checking contracts
-      "[" ~ externalSymbols.toSeq.map(_.fullName).join(LINE_SEP) ~ "]"
   end State
 
   //----------------------------------------------------------------------------
@@ -99,11 +82,8 @@ object RawPrinter:
 
     val source = printSource(symbol.sourcePos.source)
 
-    // must comes after symbols
-    val refsData = state.externalNameTable
-
     "[" ~ indent:
-        List(source, importData, refsData, defsData).join("," ~ Text.BreakLine)
+        List(source, importData, defsData).join("," ~ Text.BreakLine)
     ~ "]"
 
   //----------------------------------------------------------------------------
@@ -135,12 +115,11 @@ object RawPrinter:
     *     @5  ==> refers the name table entry whose index is 5
     */
   private def printSymbolRef(symbol: Symbol)(using defn: Definitions, state: State): Text =
-    if symbol.containedIn(state.root) then
+    if symbol.isLocal || symbol.isTypeParameter then
       symbol.name ~ "#" ~ state.getInternalSymbolId(symbol)
 
     else
-      assert(!symbol.isLocal, "Cannot reference external local symbol: " + symbol)
-      symbol.name ~ "@" ~ state.getExternalSymbolIndex(symbol)
+      Text(symbol.fullName)
 
   private def printFlags(flags: Flags): Text =
     "[" ~ Flags.flagStrings(flags).join(",") ~ "]"
