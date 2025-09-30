@@ -1181,22 +1181,28 @@ object Decoder:
 
     patternTag match
       case Format.AliasPattern =>
-
+        val isDef = decodeBool()
         val startDelta = decodeInt()
         val id = decodeNat()
-        val name = decodeString()
-        val info = decodeType()
         val length = decodeNat()
 
         val span = Span(startDelta + prevOffset, length)
-        val symbol = Symbol.createSymbol(name, info, Flags.Pattern, owner, span.toPos(using owner.source))
-        state.registerInternalSymbol(id, symbol)
-
 
         val nested = decodePattern(owner, span.endOffset)
 
+        val symbol =
+          if isDef then
+            val name = decodeString()
+            val info = nested.scrutineeType
+
+            val symbol = Symbol.createSymbol(name, info, Flags.Pattern, owner, span.toPos(using owner.source))
+            state.registerInternalSymbol(id, symbol)
+            symbol
+          else
+            state.getInternalSymbol(id)
+
         val ident = Ident(symbol)(span)
-        AliasPattern(ident, nested)
+        AliasPattern(ident, nested)(isDef)
 
       case Format.TypePattern =>
         val scrutineeType = decodeType()

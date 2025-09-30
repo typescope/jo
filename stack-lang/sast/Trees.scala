@@ -242,9 +242,17 @@ object Trees:
 
   case class AliasPattern
     (id: Ident, nested: Pattern)
+    (isDef: Boolean)
   extends Pattern with DerivedSpan:
     val scrutineeType = nested.scrutineeType
     def deriveSpan = id.span | nested.span
+
+    /** Whether the symbol is a reference or a definition
+      *
+      * - A symbol defined at the lhs of or pattern can be referred on rhs
+      * - A symbol defined as params of patdef can be referred in patterns
+      */
+    def isDefinition: Boolean = isDef
 
   case class OrPattern
     (lhs: Pattern, rhs: Pattern)

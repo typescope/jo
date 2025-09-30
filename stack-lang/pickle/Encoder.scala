@@ -863,20 +863,24 @@ object Encoder:
     val startDelta = pattern.span.start - prevOffset
 
     pattern match
-      case AliasPattern(ident, nested) =>
+      case apat @ AliasPattern(ident, nested) =>
         checkSubtype[AliasPattern, DerivedSpan]
 
         encodeByte(Format.AliasPattern)
 
         val sym = ident.symbol
 
+        val isDef = apat.isDefinition
+        encodeBool(isDef)
         encodeInt(startDelta)
         encodeNat(state.getId(sym))
-        encodeString(sym.name)
-        encodeType(sym.info)
         encodeNat(ident.span.length)
 
         encodePattern(nested, ident.span.endOffset)
+
+        if isDef then
+          encodeString(sym.name)
+
 
       case TypePattern(tpt) =>
         checkSubtype[TypePattern, DerivedSpan]

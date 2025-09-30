@@ -398,7 +398,7 @@ abstract class TreeMap(using Definitions):
     if nested2 `eq` nested then
       pat
     else
-      AliasPattern(id, nested2)
+      AliasPattern(id, nested2)(pat.isDefinition)
 
   def transformTypePattern(pat: TypePattern)(using Context): Pattern =
     recurTypePattern(pat)
