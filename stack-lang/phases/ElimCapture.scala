@@ -245,8 +245,7 @@ object ElimCapture:
         ctx.lifted += FunDef(liftedSym, fdef.tparams, params, fdef.autos, fdef.resultType, fdef.effectPolicy, body2)(fdef.span)
       end for
 
-      val recordType = RecordType(memberTypes.toList)
-      Encoded(RecordLit(members.toList)(recordType, obj.span))(objType)
+      Encoded(RecordLit(members.toList)(obj.span))(objType)
 
     override def transformApply(app: Apply)(using ctx: Context): Word =
       val Apply(fun, args, autos) = app

@@ -118,7 +118,7 @@ abstract class TreeMap(using Definitions):
           f -> rhs2
 
     if changed then
-      RecordLit(fields2)(rc.tpe, rc.span)
+      RecordLit(fields2)(rc.span)
 
     else
       rc

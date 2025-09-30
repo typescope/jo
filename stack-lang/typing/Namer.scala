@@ -958,8 +958,7 @@ class Namer:
         namedArgs2 += id.name -> rhs2
     end for
     val fields = namedArgs2.toList
-    val tpe = RecordType(fields.map { case (k, v) => NamedInfo(k, v.tpe) })
-    RecordLit(fields)(tpe, record.span)
+    RecordLit(fields)(record.span)
 
   def transformTagged(tag: Ast.Tag, values: List[Ast.Word])(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
     val tagName = tag.name.name

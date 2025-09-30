@@ -48,7 +48,6 @@ object TaggedEncoding:
   def encodeVariant(tagType: TagType, values: List[Word], tagSpan: Span, variantSpan: Span)(using defn: Definitions): Word =
     val tag = tagType.tag
 
-    val encodeType = encodeTagType(tagType)
     val tagCode = getTagCode(tag)
     val tagValue = Literal(Constant.Int(tagCode))(defn.IntType, tagSpan)
 
@@ -57,7 +56,7 @@ object TaggedEncoding:
     for (value, i) <- values.zipWithIndex do
       fields += ("v" + i) -> value
 
-    RecordLit(fields.toList)(encodeType, variantSpan)
+    RecordLit(fields.toList)(variantSpan)
 
   def selectVariantField(value: Word, tagType: TagType, field: String, span: Span)(using defn: Definitions): Word =
     val fieldIndex = tagType.paramIndex(field)

@@ -70,8 +70,9 @@ object Trees:
 
   case class RecordLit
     (args: List[(String, Word)])
-    (val tpe: Type, val span: Span)
-  extends Word
+    (val span: Span)
+  extends Word:
+    val tpe = RecordType(args.map((n, w) => NamedInfo(n, w.tpe)))
 
   case class TaggedLit
     (tagTree: Literal, args: List[Word])
@@ -589,7 +590,7 @@ object Trees:
       Ident(defn.Bool_both)(cond.span).appliedTo(acc, cond)
 
   def unitValue(span: Span)(using defn: Definitions): Word =
-    RecordLit(args = Nil)(defn.UnitType, span)
+    Encoded(RecordLit(args = Nil)(span))(defn.UnitType)
 
   extension (word: Word)
 

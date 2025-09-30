@@ -955,9 +955,8 @@ object Decoder:
 
     val endDelta = decodeInt()
 
-    val tpe = RecordType(fields.map((n, w) => NamedInfo(n, w.tpe)))
     val span = Span(startOffset, lastOffset + endDelta - startOffset)
-    RecordLit(fields)(tpe, span)
+    RecordLit(fields)(span)
 
   private def decodeTaggedLit(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): TaggedLit =
     val startDelta = decodeInt()

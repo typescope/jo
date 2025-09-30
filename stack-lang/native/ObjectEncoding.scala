@@ -48,17 +48,9 @@ object ObjectEncoding:
 
   def encodeObject(obj: RecordLit)(using Definitions): Word =
     val fields = obj.args.filter { case (name, rhs) => rhs.tpe.isValueType }
-    val fieldTypes = fields.map { case (name, rhs) => NamedInfo(name, rhs.tpe) }
-    val ftableType = RecordType(fieldTypes)
-    val ftable = RecordLit(fields)(ftableType, obj.span)
+    val ftable = RecordLit(fields)(obj.span)
 
     val methods = obj.args.filter { case (name, rhs) => rhs.tpe.isProcType }
-    val methodTypes = methods.map { case (name, rhs) => NamedInfo(name, rhs.tpe) }
+    val vtable = RecordLit(methods)(obj.span)
 
-    val vtableType = RecordType(methodTypes)
-    val vtable = RecordLit(methods)(vtableType, obj.span)
-
-    val closureType = RecordType(
-        NamedInfo(VTABLE, vtableType) :: NamedInfo(FTABLE, ftableType) :: Nil)
-
-    RecordLit(List(VTABLE -> vtable, FTABLE -> ftable))(closureType, obj.span)
+    RecordLit(List(VTABLE -> vtable, FTABLE -> ftable))(obj.span)

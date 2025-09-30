@@ -70,8 +70,7 @@ class EncodeClass(using defn: Definitions) extends phases.Phase[Symbol]:
     for fun <- classInfo.allMethods do
       members += fun.name -> Ident(fun)(newExpr.span)
 
-    val recordType = ObjectEncoding.encodeClassType(classInfo)
-    Encoded(RecordLit(members.toList)(recordType, newExpr.span))(newExpr.tpe)
+    Encoded(RecordLit(members.toList)(newExpr.span))(newExpr.tpe)
 
   override def transformApply(apply: Apply)(using ctx: Context): Word =
     val Apply(fun, args, autos) = apply
