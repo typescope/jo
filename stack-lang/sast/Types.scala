@@ -228,7 +228,7 @@ object Types:
     def termMember(name: String)(using Definitions): Type =
       getTermMember(name) match
         case Some(tp) => tp
-        case None => throw new Exception(s"No member $name in " + this.show)
+        case None => throw new Exception(s"No member $name in " + this)
 
     def hasTermMember(name: String)(using Definitions): Boolean =
       getTermMember(name).nonEmpty
@@ -454,6 +454,7 @@ object Types:
   case class AppliedType
     (tctor: Type, targs: List[Type])
   extends ProxyType:
+    assert(targs.nonEmpty, this)
     tctor match
       case StaticRef(sym) if sym.isType =>
       case _ => assert(false, tctor)

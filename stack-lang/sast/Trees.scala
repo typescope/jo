@@ -188,12 +188,13 @@ object Trees:
     def apply(fun: Word, args: List[Word])(using Definitions): Apply =
       apply(fun, args, autos = Nil)
 
-  // TODO: remove `tpe` from the parameters and add span
   case class New
     (classRef: Ident, targs: List[TypeTree])
-    (val tpe: Type)
-  extends Word with DerivedSpan:
-    def deriveSpan = targs.foldLeft(classRef.span)(_ | _.span)
+    (val span: Span)
+  extends Word:
+    val tpe =
+      val ref = StaticRef(classRef.symbol)
+      if targs.isEmpty then ref else AppliedType(ref, targs.map(_.tpe))
 
   // TODO: remove `tpe` from the parameters
   case class Object(self: Symbol, members: List[ValDef | FunDef])

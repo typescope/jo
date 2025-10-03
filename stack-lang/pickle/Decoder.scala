@@ -923,11 +923,10 @@ object Decoder:
         lastOffset = tpt.span.endOffset
         tpt
 
-    // val endDelta = decodeInt()
-    val tpe = AppliedType(StaticRef(classRef.symbol), targs.map(_.tpe))
+    val endDelta = decodeInt()
+    val span = Span(startOffset, lastOffset + endDelta - startOffset)
 
-    // TODO: need to change New to take span instead of deriving from children
-    New(classRef, targs)(tpe)
+    New(classRef, targs)(span)
 
   private def decodeSelect(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): Select =
     val startDelta = decodeInt()

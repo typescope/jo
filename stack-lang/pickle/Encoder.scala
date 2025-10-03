@@ -664,7 +664,7 @@ object Encoder:
           encodeTypeTree(targ, lastOffset)
           lastOffset = targ.span.endOffset
 
-        // encodeInt(word.span.endOffset - lastOffset)
+        encodeInt(word.span.endOffset - lastOffset)
 
       case Select(qual, name) =>
         encodeByte(Format.Select)
