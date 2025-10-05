@@ -46,6 +46,8 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Symbo
    * due to the partial update in desugaring default context parameters.
    *
    * Instead, we need to use a snapshot CodeProvider after type checking.
+   *
+   * TODO: make it contextual such that it can be released by GC
    */
   given CodeProvider = defn.snapshotCodeProvider()
 
