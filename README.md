@@ -151,24 +151,31 @@ bin/jo tests/pos/fact.stk
 bin/jo run tests/pos/fact.stk
 ```
 
-### Compile Programs
+### Build Applications
 
-Compile to native executable (register machine, default):
+Build native executable (register machine, default):
 ```shell
-bin/jo compile tests/pos/fact.stk -o fact
+bin/jo build tests/pos/fact.stk -o fact
 ./fact
 ```
 
-Compile to native executable (stack machine):
+Build native executable (stack machine):
 ```shell
-bin/jo compile -stack tests/pos/fact.stk -o fact
+bin/jo build -stack tests/pos/fact.stk -o fact
 ./fact
 ```
 
-Compile to JavaScript:
+Build JavaScript application:
 ```shell
-bin/jo compile -js tests/pos/fact.stk -o fact.js
+bin/jo build -js tests/pos/fact.stk -o fact.js
 node fact.js
+```
+
+### Build Libraries
+
+Build a library (generates .sast files):
+```shell
+bin/jo build-lib lib/MyLib.stk -d output
 ```
 
 ### Getting Help
@@ -180,15 +187,20 @@ bin/jo help
 ### Command Reference
 
 ```
-jo <source.stk>                    Run program (defaults to 'run')
-jo run <source.stk>                Run program with interpreter
-jo compile [options] <source.stk>  Compile program
-jo help                            Show help message
+jo <source.stk>                     Run program (defaults to 'run')
+jo run <source.stk>                 Run program with interpreter
+jo build [options] <source.stk>     Build application
+jo build-lib <source.stk> -d <dir>  Build library (generate .sast files)
+jo help                             Show help message
 
-Compile options:
-  -js        Compile to JavaScript
-  -stack     Compile using stack machine
-  -reg       Compile using register machine (default)
+Build options:
+  -js       Build JavaScript application
+  -stack    Build native application using stack machine
+  -reg      Build native application using register machine (default)
+  -o <out>  Output file path
+
+Build-lib options:
+  -d <dir>  Output directory for .sast files (optional, defaults to current dir)
 ```
 
 ## Roadmap

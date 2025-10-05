@@ -16,10 +16,11 @@ This is the implementation of **Stk**, a statically typed functional programming
 The `bin/jo` command provides a unified interface to all compilation backends:
 
 - **Interpreter**: `bin/jo run <file.stk>` - Direct interpretation
-- **JavaScript compiler**: `bin/jo compile -js <file.stk> -o <output.js>` - Compiles to JavaScript
-- **Stack machine compiler**: `bin/jo compile -stack <file.stk> -o <executable>` - Native compilation via stack machine
-- **Register machine compiler**: `bin/jo compile -reg <file.stk> -o <executable>` - Optimized native compilation (default)
-- **Default compilation**: `bin/jo compile <file.stk> -o <executable>` - Defaults to register machine backend
+- **Build application (native/register)**: `bin/jo build <file.stk> -o <executable>` - Default backend
+- **Build application (native/stack)**: `bin/jo build -stack <file.stk> -o <executable>` - Stack machine backend
+- **Build application (JavaScript)**: `bin/jo build -js <file.stk> -o <output.js>` - JavaScript backend
+- **Build library**: `bin/jo build-lib <file.stk> -d <dir>` - Generate .sast files
+- **Direct run**: `bin/jo <file.stk>` - Shorthand for `run` command
 
 ### Development Scripts
 - **Parser only**: `bin/parse <file.stk>` - Parse and output AST

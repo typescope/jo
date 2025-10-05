@@ -11,10 +11,10 @@ object Main:
           System.exit(1)
         sast.Interpreter.main(args.drop(1))
 
-      case "compile" =>
-        val flags = parseCompileFlags(args.drop(1))
+      case "build" =>
+        val flags = parseBuildFlags(args.drop(1))
         if flags.args.isEmpty then
-          println("Error: 'compile' command requires a source file")
+          println("Error: 'build' command requires a source file")
           System.exit(1)
 
         flags.backend match
@@ -26,6 +26,12 @@ object Main:
 
           case Backend.LinuxX86Reg =>
             native.register.RegisterMachine.main(flags.args)
+
+      case "build-lib" =>
+        if args.length < 2 then
+          println("Error: 'build-lib' command requires a source file")
+          System.exit(1)
+        pickle.Compiler.main(args.drop(1))
 
       case "help" | "--help" | "-h" =>
         printUsage()
@@ -44,9 +50,9 @@ object Main:
     case LinuxX86Stack
     case LinuxX86Reg
 
-  case class CompileFlags(backend: Backend, args: Array[String])
+  case class BuildFlags(backend: Backend, args: Array[String])
 
-  def parseCompileFlags(args: Array[String]): CompileFlags =
+  def parseBuildFlags(args: Array[String]): BuildFlags =
     var backend: Backend = Backend.LinuxX86Reg
     var remaining = List.empty[String]
     var i = 0
@@ -69,17 +75,22 @@ object Main:
           remaining = remaining :+ other
           i += 1
 
-    CompileFlags(backend, remaining.toArray)
+    BuildFlags(backend, remaining.toArray)
 
   def printUsage(): Unit =
     println("""Usage:
-      |  jo <source.stk>                    Run program (defaults to 'run')
-      |  jo run <source.stk>                Run program with interpreter
-      |  jo compile [options] <source.stk>  Compile program
-      |  jo help                            Show this help message
+      |  jo <source.stk>                     Run program (defaults to 'run')
+      |  jo run <source.stk>                 Run program with interpreter
+      |  jo build [options] <source.stk>     Build application
+      |  jo build-lib <source.stk> -d <dir>  Build library (generate .sast files)
+      |  jo help                             Show this help message
       |
-      |Compile options:
-      |  -js        Compile to JavaScript
-      |  -stack     Compile using stack machine
-      |  -reg       Compile using register machine (default)
+      |Build options:
+      |  -js       Build JavaScript application
+      |  -stack    Build native application using stack machine
+      |  -reg      Build native application using register machine (default)
+      |  -o <out>  Output file path
+      |
+      |Build-lib options:
+      |  -d <dir>  Output directory for .sast files (optional, defaults to current dir)
       |""".stripMargin)

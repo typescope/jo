@@ -32,20 +32,26 @@ object Typer:
 
     val rootNameTable = defnLazy.rootNameTable
 
-    // StdLib is compiled without the Predef
-    val nssLib = runNamer(lib, rootNameTable, predef = new NameTable) <| "lib"
+    if lib.isEmpty then
+      assert(runtime.isEmpty, "Unexpected runtime for compiling standard library: " + runtime)
+      new Namer().transform(nssAst, rootNameTable, predef = new NameTable) <| "namer.source"
 
-    // Must be after type checking the stdlib
-    val predefNameTable = defnLazy.value.Predef_nameTable
+    else
+      // StdLib is compiled without the Predef
+      val nssLib = runNamer(lib, rootNameTable, predef = new NameTable) <| "lib"
 
-    // Should be before checking runtime code such that they are not available
-    val nss = new Namer().transform(nssAst, rootNameTable, predefNameTable) <| "namer.source"
+      // Must be after type checking the stdlib
+      val predefNameTable = defnLazy.value.Predef_nameTable
 
-    // Runtime definitions are inaccessible in user programs and may only
-    // use predef definitions
-    val nssRuntime = runNamer(runtime, rootNameTable, predefNameTable) <| "runtime"
+      // Should be before checking runtime code such that they are not available
+      val nss = new Namer().transform(nssAst, rootNameTable, predefNameTable) <| "namer.source"
 
-    nssLib ++ nssRuntime ++ nss
+      // Runtime definitions are inaccessible in user programs and may only
+      // use predef definitions
+      val nssRuntime = runNamer(runtime, rootNameTable, predefNameTable) <| "runtime"
+
+      nssLib ++ nssRuntime ++ nss
+
 
   private def runNamer(
     files: List[String], rootNameTable: NameTable, predef: NameTable)
