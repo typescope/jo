@@ -61,7 +61,9 @@ extends Definitions.Lazy:
   val effectEngine: EffectAnalysis = new EffectAnalysis
 
   def receives(sym: Symbol): List[Symbol] =
-    effectEngine.effects(sym).keys.toList
+    effectEngine.getStable(sym) match
+      case Some(effs) => effs.keys.toList
+      case None => throw new Exception("Effects not yet computed")
 
   //----------------------------------------------------------------------------
   // Code provider
@@ -74,6 +76,8 @@ extends Definitions.Lazy:
   def containsCode(sym: Symbol): Boolean = codeProvider.contains(sym)
 
   def setCode(sym: Symbol, code: FunDef): Unit = codeProvider.set(sym, code)
+
+  def snapshotCodeProvider(): CodeProvider = codeProvider.snapshot()
 
   //----------------------------------------------------------------------------
   // Predefined symbols

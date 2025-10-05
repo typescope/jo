@@ -9,6 +9,13 @@ import scala.collection.mutable
 
 import EffectAnalysis.*
 
+/** Performs effect inference
+  *
+  * Note that for effect analysis we cannot use the CodeProvider in Definitions
+  * due to the partial update in desugaring default context parameters.
+  *
+  * Instead, we need to use a snapshot CodeProvider after type checking.
+  */
 class EffectAnalysis:
   /** Computed stable effects for functions */
   private val stableEffects: mutable.Map[Symbol, TracedEffects] = mutable.Map.empty
@@ -18,7 +25,7 @@ class EffectAnalysis:
     * It should only be called from outside. Internally, `getEffects` should be
     * called.
     */
-  def effects(fun: Symbol)(using defn: Definitions): TracedEffects =
+  def effects(fun: Symbol)(using defn: Definitions, cp: CodeProvider): TracedEffects =
     getStable(fun) match
       case Some(effs) =>
         effs
@@ -31,7 +38,7 @@ class EffectAnalysis:
     * It should only be called from outside. Internally, `EffectAnalyzer.apply`
     * should be called.
     */
-  def effects(word: Word)(using defn: Definitions, source: Source): TracedEffects =
+  def effects(word: Word)(using defn: Definitions, cp: CodeProvider, source: Source): TracedEffects =
     fixpoint(this)(EffectAnalyzer.apply(word))
 
   def getStable(fun: Symbol): Option[TracedEffects] = stableEffects.get(fun)
@@ -118,7 +125,7 @@ object EffectAnalysis:
   end TempCache
 
   /** Produce a list of transitively reachabe param symbols for the function */
-  private def getEffects(fun: Symbol, ignoreSpec: Boolean)(using temp: TempCache, defn: Definitions): TracedEffects =
+  private def getEffects(fun: Symbol, ignoreSpec: Boolean)(using temp: TempCache, defn: Definitions, cp: CodeProvider): TracedEffects =
     // Usage of stable cache has to be part of the computation for speed
     val funSym = fun
     defn.effectEngine.getStable(funSym) match
@@ -127,7 +134,7 @@ object EffectAnalysis:
       case None =>
         // Read from out cache to make sure the computation is performed once.
         temp.getOrElse(funSym):
-          val fdef = defn.getCode(funSym)
+          val fdef = cp.get(funSym)
 
           // Respect effect policy boundary -- only compute effects for Policy.Infer
           fdef.effectPolicy.bound match
@@ -145,7 +152,7 @@ object EffectAnalysis:
   private object EffectAnalyzer:
     val zero = Map.empty[Symbol, Trace]
 
-    def apply(word: Word)(using temp: TempCache, source: Source, defn: Definitions): TracedEffects =
+    def apply(word: Word)(using temp: TempCache, source: Source, defn: Definitions, cp: CodeProvider): TracedEffects =
       word match
         case _: Literal => zero
 

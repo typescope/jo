@@ -5,8 +5,8 @@ import Symbols.Symbol
 
 import scala.collection.mutable
 
-class CodeProvider:
-  private val codebase = mutable.Map.empty[Symbol, FunDef]
+class CodeProvider(codebase: mutable.Map[Symbol, FunDef]):
+  def this() = this(mutable.Map.empty)
 
   def get(sym: Symbol): FunDef = codebase(sym)
 
@@ -14,3 +14,6 @@ class CodeProvider:
 
   def set(sym: Symbol, code: FunDef): Unit =
     codebase(sym) = code
+
+  def snapshot(): CodeProvider =
+    new CodeProvider(codebase.map(_ -> _))

@@ -3,7 +3,6 @@ package pickle
 import sast.*
 import sast.Trees.Namespace
 
-import phases.NormalizeParams
 import typing.Typer
 import reporting.Reporter
 import reporting.Reporter.Step
@@ -25,17 +24,13 @@ object Compiler:
       locally:
         given Definitions = lazyDefn.value
 
-        // Run normalization and pickling
-        val normalizer = new NormalizeParams
         val pickler = new Step("Pickler", (nssAst: List[Namespace]) => {
           for ns <- nssAst do Encoder.store(ns, targetDir, cf.testPickling, verbose = true)
 
           nssAst
         })
 
-        namespacesSAST |>
-        pickler        |>
-        normalizer
+        namespacesSAST |> pickler
 
   def main(args: Array[String]): Unit =
     val optionSpec = Config.commonOptionsSpec + ("-d" -> true)

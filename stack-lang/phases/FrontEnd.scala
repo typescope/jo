@@ -17,12 +17,9 @@ object FrontEnd:
     locally:
       given Definitions = defnLazy.value
 
-      // normalizer must run before patmat to check effects of guard patterns
-      val noramlizer = new phases.NormalizeParams
       val encoder = new phases.EncodeTagged
       val patmat = new phases.PatternMatcher
 
       sast       |>
-      noramlizer |>
       patmat     |>
       encoder

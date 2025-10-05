@@ -19,23 +19,29 @@ object Typer:
 
     val rootNameTable = defnLazy.rootNameTable
 
-    def testPickling(nss: List[Namespace]): List[Namespace] =
-     if cf.testPickling then
-       given Definitions = defnLazy.value
+    def normalize(nss: List[Namespace]): List[Namespace] =
+      // Run normalization and pickling
+      given Definitions = defnLazy.value
+      val normalizer = new phases.NormalizeParams
 
-       val outDir = "out/sast"
-       IO.ensureExists(outDir)
-       for ns <- nss do pickle.Encoder.store(ns, outDir, cf.testPickling)
-     end if
+      val nssNorm = normalizer.transform(nss)
 
-     nss
+      if cf.testPickling then
+        given Definitions = defnLazy.value
+
+        val outDir = "out/sast"
+        IO.ensureExists(outDir)
+        for ns <- nssNorm do pickle.Encoder.store(ns, outDir, cf.testPickling)
+      end if
+
+      nssNorm
 
     if lib.isEmpty then
       assert(runtime.isEmpty, "Unexpected runtime for compiling standard library: " + runtime)
       val nss = new Namer().transform(nssAst, rootNameTable, predef = new NameTable) <| "namer.source"
 
       if runtime.isEmpty then
-        nss
+        normalize(nss)
       else
         val predefNameTable = defnLazy.value.Predef_nameTable
 
@@ -43,7 +49,7 @@ object Typer:
         // use predef definitions
         val nssRuntime = runNamer(runtime, rootNameTable, predefNameTable) <| "runtime"
 
-        testPickling(nssRuntime ++ nss)
+        normalize(nssRuntime ++ nss)
 
     else
       // Load library from .sast files
@@ -59,7 +65,7 @@ object Typer:
       // use predef definitions
       val nssRuntime = runNamer(runtime, rootNameTable, predefNameTable) <| "runtime"
 
-      nssLib ++ testPickling(nssRuntime ++ nss)
+      nssLib ++ normalize(nssRuntime ++ nss)
 
   /** Load precompiled .sast files */
   private def loadSastFiles

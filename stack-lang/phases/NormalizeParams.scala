@@ -23,7 +23,7 @@ import scala.collection.mutable
   *
   *    <Context> <Default> param a: T
   *
-  *    a$default: T receives none = rhs
+  *    def a$default: T receives none = rhs
   *
   *    param a$option: Option[T] // automatically bound to None when a necessary binding is needed
   *
@@ -40,6 +40,14 @@ import scala.collection.mutable
   */
 class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Symbol]:
   val contextObject = Phase.OwnerContext
+
+  /*
+   * Note that for effect analysis we cannot use the CodeProvider in Definitions
+   * due to the partial update in desugaring default context parameters.
+   *
+   * Instead, we need to use a snapshot CodeProvider after type checking.
+   */
+  given CodeProvider = defn.snapshotCodeProvider()
 
   val NoneType = TagType("None", params = Nil)
 
