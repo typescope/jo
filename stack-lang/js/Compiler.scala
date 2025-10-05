@@ -15,15 +15,18 @@ import reporting.Config
  ***********************************************************************/
 @main
 def compile(args: String*): Unit =
-  val optionSpec = Config.commonOptionsSpec + ("-o" -> true)
+  val optionSpec = Config.commonOptionsSpec + ("-o" -> true) + ("-lib" -> true)
 
-  val (options, rest) = IO.parseOptions(args, optionSpec)
+  val (options, sources) = IO.parseOptions(args, optionSpec)
 
-  if rest.isEmpty then
+  if sources.isEmpty then
     println("Expect source file as input")
     return
 
-  val sources = rest
+  // Get library files from -lib option if provided
+  val libFiles = options.get("-lib") match
+    case Some(dir) => IO.getSastFiles(dir).toList
+    case None => Nil
 
   val outFile =
     options.get("-o") match
@@ -42,7 +45,7 @@ def compile(args: String*): Unit =
 
     given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
-    val lib = typing.Typer.stdLib
+    val lib = libFiles
     val runtime = "runtime/JS.stk" :: Nil
     val namespacesSAST = FrontEnd.run(lib, runtime, sources) <| "Frontend"
 

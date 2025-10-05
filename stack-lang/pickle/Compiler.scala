@@ -12,15 +12,14 @@ import common.IO
 
 /** Compiler for building libraries (producing .sast files) */
 object Compiler:
-  def compile(sources: List[String], targetDir: String)(using Config): Unit =
+  def compile(sources: List[String], libFiles: List[String], targetDir: String)(using Config): Unit =
     Reporter.monitor:
       val rootNameTable = new NameTable
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
       // Parse and type check (no runtime needed for libraries)
       val runtime = Nil
-      val lib = Nil
-      val namespacesSAST = sources |> Typer.parseStep |> Typer.typeStep(lib, runtime) <| "Frontend"
+      val namespacesSAST = sources |> Typer.parseStep |> Typer.typeStep(libFiles, runtime) <| "Frontend"
 
       locally:
         given Definitions = lazyDefn.value
@@ -52,12 +51,17 @@ object Compiler:
       ns
 
   def main(args: Array[String]): Unit =
-    val optionSpec = Config.commonOptionsSpec + ("-d" -> true)
+    val optionSpec = Config.commonOptionsSpec + ("-d" -> true) + ("-lib" -> true)
     val (options, sources) = IO.parseOptions(args, optionSpec)
 
     if sources.isEmpty then
       println("Error: No source files provided")
       System.exit(1)
+
+    // Get library files from -lib option if provided
+    val libFiles = options.get("-lib") match
+      case Some(dir) => IO.getSastFiles(dir).toList
+      case None => Nil
 
     // Default target directory to current directory
     val targetDir = options.getOrElse("-d", ".")
@@ -69,4 +73,4 @@ object Compiler:
 
     given Config = Config(options)
 
-    compile(sources, targetDir)
+    compile(sources, libFiles, targetDir)

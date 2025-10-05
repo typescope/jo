@@ -31,6 +31,7 @@ object Main:
         if args.length < 2 then
           println("Error: 'build-lib' command requires a source file")
           System.exit(1)
+
         pickle.Compiler.main(args.drop(1))
 
       case "help" | "--help" | "-h" =>
@@ -82,15 +83,17 @@ object Main:
       |  jo <source.stk>                     Run program (defaults to 'run')
       |  jo run <source.stk>                 Run program with interpreter
       |  jo build [options] <source.stk>     Build application
-      |  jo build-lib <source.stk> -d <dir>  Build library (generate .sast files)
+      |  jo build-lib [options] <source.stk> Build library (generate .sast files)
       |  jo help                             Show this help message
       |
       |Build options:
-      |  -js       Build JavaScript application
-      |  -stack    Build native application using stack machine
-      |  -reg      Build native application using register machine (default)
-      |  -o <out>  Output file path
+      |  -js         Build JavaScript application
+      |  -stack      Build native application using stack machine
+      |  -reg        Build native application using register machine (default)
+      |  -o <out>    Output file path
+      |  -lib <dir>  Use precompiled library from directory
       |
       |Build-lib options:
-      |  -d <dir>  Output directory for .sast files (optional, defaults to current dir)
+      |  -d <dir>    Output directory for .sast files (optional, defaults to current dir)
+      |  -lib <dir>  Use precompiled library from directory
       |""".stripMargin)

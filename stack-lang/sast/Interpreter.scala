@@ -542,16 +542,21 @@ object Interpreter:
         throw new Exception("Unexpected tree: " + word.show)
 
   def main(args: Array[String]): Unit =
-    val (options, sources) = IO.parseOptions(args, Config.commonOptionsSpec)
+    val optionSpec = Config.commonOptionsSpec + ("-lib" -> true)
+    val (options, sources) = IO.parseOptions(args, optionSpec)
     given Config = Config(options)
 
-    val lib = typing.Typer.stdLib
+    // Get library files from -lib option if provided
+    val libFiles = options.get("-lib") match
+      case Some(dir) => IO.getSastFiles(dir).toList
+      case None => Nil
+
     val runtime = Nil
     val rootNameTable = new NameTable
 
     Reporter.monitor:
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
-      val namespacesSAST = FrontEnd.run(lib, runtime, sources) <| "frontend"
+      val namespacesSAST = FrontEnd.run(libFiles, runtime, sources) <| "frontend"
 
       val mains = namespacesSAST.collect:
         case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get

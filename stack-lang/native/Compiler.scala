@@ -26,16 +26,20 @@ object Compiler:
   val optionSpec = Config.commonOptionsSpec ++ Map(
     "-o" -> true,
     "-layout" -> true,
+    "-lib" -> true,
   )
 
   def compile(backendBuilder: BackendBuilder, args: Array[String]): Unit =
-    val (options, rest) = IO.parseOptions(args, optionSpec)
+    val (options, sources) = IO.parseOptions(args, optionSpec)
 
-    if rest.isEmpty then
+    if sources.isEmpty then
       println("Expect source file as input")
       return
 
-    val sources = rest
+    // Get library files from -lib option if provided
+    val libFiles = options.get("-lib") match
+      case Some(dir) => IO.getSastFiles(dir).toList
+      case None => Nil
 
     val outFile =
       options.get("-o") match
@@ -64,7 +68,7 @@ object Compiler:
     Reporter.monitor:
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
-      val namespacesSAST = FrontEnd.run(lib, runtime, sources) <| "frontend"
+      val namespacesSAST = FrontEnd.run(libFiles, runtime, sources) <| "frontend"
 
       val mains = namespacesSAST.collect:
         case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get

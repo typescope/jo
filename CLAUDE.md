@@ -20,6 +20,7 @@ The `bin/jo` command provides a unified interface to all compilation backends:
 - **Build application (native/stack)**: `bin/jo build -stack <file.stk> -o <executable>` - Stack machine backend
 - **Build application (JavaScript)**: `bin/jo build -js <file.stk> -o <output.js>` - JavaScript backend
 - **Build library**: `bin/jo build-lib <file.stk> -d <dir>` - Generate .sast files
+- **Use precompiled library**: `bin/jo build <file.stk> -lib <dir> -o <executable>` - Build with precompiled library
 - **Direct run**: `bin/jo <file.stk>` - Shorthand for `run` command
 
 ### Development Scripts

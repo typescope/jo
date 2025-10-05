@@ -37,8 +37,8 @@ object Typer:
       new Namer().transform(nssAst, rootNameTable, predef = new NameTable) <| "namer.source"
 
     else
-      // StdLib is compiled without the Predef
-      val nssLib = runNamer(lib, rootNameTable, predef = new NameTable) <| "lib"
+      // Load library from .sast files
+      val nssLib = loadSastFiles(lib, rootNameTable) <| "lib"
 
       // Must be after type checking the stdlib
       val predefNameTable = defnLazy.value.Predef_nameTable
@@ -51,6 +51,27 @@ object Typer:
       val nssRuntime = runNamer(runtime, rootNameTable, predefNameTable) <| "runtime"
 
       nssLib ++ nssRuntime ++ nss
+
+  /** Load precompiled .sast files */
+  private def loadSastFiles(
+    files: List[String], rootNameTable: NameTable)
+    (using defnLazy: Definitions.Lazy, rp: Reporter, cf: Config)
+  : List[Namespace] =
+
+    import pickle.{ Decoder, ReadBuffer }
+
+    val delayedDefs = files.map: file =>
+      val bytes = IO.fileAsBytes(file)
+      given ReadBuffer = new ReadBuffer(bytes)
+      Decoder.decode(rootNameTable)
+
+    // Register all symbols in the root name table first
+    for delayed <- delayedDefs do
+      rootNameTable.define(delayed.symbol)
+
+    // Force all delayed definitions
+    given Definitions = defnLazy.value
+    delayedDefs.map(_.force())
 
 
   private def runNamer(
@@ -103,9 +124,15 @@ object Typer:
       })
 
   def main(args: Array[String]): Unit =
-    val (options, sources) = IO.parseOptions(args, Config.commonOptionsSpec)
+    val optionSpec = Config.commonOptionsSpec + ("-lib" -> true)
+    val (options, sources) = IO.parseOptions(args, optionSpec)
 
     given config: Config = Config(options)
+
+    // Get library files from -lib option if provided
+    val libFiles = options.get("-lib") match
+      case Some(dir) => IO.getSastFiles(dir).toList
+      case None => Nil
 
     Reporter.monitor:
       val runtimeFiles = Nil
@@ -113,4 +140,4 @@ object Typer:
       val rootNameTable = new NameTable
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
-      sources |> parseStep |> typeStep(runtimeFiles, stdLib)
+      sources |> parseStep |> typeStep(libFiles, runtimeFiles)

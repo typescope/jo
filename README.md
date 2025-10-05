@@ -175,7 +175,20 @@ node fact.js
 
 Build a library (generates .sast files):
 ```shell
-bin/jo build-lib lib/MyLib.stk -d output
+bin/jo build-lib lib/MyLib.stk -d build/libA
+```
+
+Build a library that depends on another library:
+```shell
+bin/jo build-lib lib/MyExtensions.stk -lib build/libA -d build/libB
+```
+
+### Using Precompiled Libraries
+
+Build an application using a precompiled library:
+```shell
+bin/jo build app.stk -lib build/libA -o app
+./app
 ```
 
 ### Getting Help
@@ -194,13 +207,15 @@ jo build-lib <source.stk> -d <dir>  Build library (generate .sast files)
 jo help                             Show help message
 
 Build options:
-  -js       Build JavaScript application
-  -stack    Build native application using stack machine
-  -reg      Build native application using register machine (default)
-  -o <out>  Output file path
+  -js         Build JavaScript application
+  -stack      Build native application using stack machine
+  -reg        Build native application using register machine (default)
+  -o <out>    Output file path
+  -lib <dir>  Use precompiled library from directory
 
 Build-lib options:
-  -d <dir>  Output directory for .sast files (optional, defaults to current dir)
+  -d <dir>    Output directory for .sast files (optional, defaults to current dir)
+  -lib <dir>  Use precompiled library from directory
 ```
 
 ## Roadmap

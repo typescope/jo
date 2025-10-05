@@ -104,3 +104,20 @@ object IO:
   def list(dir: String): List[String] =
     val file = new java.io.File(dir)
     file.listFiles.map(_.getPath).toList
+
+  /** Get all .sast files from a directory */
+  def getSastFiles(dir: String): Array[String] =
+    val path = java.nio.file.Paths.get(dir)
+    if !java.nio.file.Files.exists(path) then
+      throw new Exception(s"Library directory does not exist: $dir")
+
+    if !java.nio.file.Files.isDirectory(path) then
+      throw new Exception(s"Not a directory: $dir")
+
+    import scala.jdk.CollectionConverters.*
+    java.nio.file.Files.list(path)
+      .iterator()
+      .asScala
+      .map(_.toString)
+      .filter(_.endsWith(".sast"))
+      .toArray
