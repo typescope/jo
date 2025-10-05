@@ -22,17 +22,17 @@ scala-cli stack-lang/common/Base128.scala
 ################################################################################
 
 # check that scripts work
-bin/parse -time tests/pos/fact.stk
-bin/type -time tests/pos/fact.stk
-bin/run  -time tests/pos/fact.stk
-bin/jsc  -time  tests/pos/fact.stk
-bin/stac -time  tests/pos/fact.stk
-bin/regc -time  tests/pos/fact.stk
+bin/parse -time tests/pos/fact.stk || exit 1
+bin/type -time tests/pos/fact.stk  || exit 1
+bin/run  -time tests/pos/fact.stk  || exit 1
+bin/jsc  -time  tests/pos/fact.stk || exit 1
+bin/stac -time  tests/pos/fact.stk || exit 1
+bin/regc -time  tests/pos/fact.stk || exit 1
 
-bin/run.native -time tests/pos/fact.stk
-bin/jsc.native -time tests/pos/fact.stk
-bin/stac.native -time tests/pos/fact.stk
-bin/regc.native -time tests/pos/fact.stk
+bin/jo run -time tests/pos/fact.stk
+bin/jo compile -js -time tests/pos/fact.stk
+bin/jo compile -stack -time tests/pos/fact.stk
+bin/jo compile -reg -time tests/pos/fact.stk
 
 ################################################################################
 # Positive tests
@@ -74,7 +74,7 @@ for item in $DIR/tests/pos/*; do
     fi
 
     echo "  - eval"
-    bin/run.native $file > $OUT 2>&1
+    bin/jo run $file > $OUT 2>&1
     check $OUT $CHECK
 
     # Ast interpreter
@@ -83,25 +83,25 @@ for item in $DIR/tests/pos/*; do
 
     # # layout 1
     echo "  - stac layout c1"
-    bin/stac.native $file -checkTree -o $exe -layout c1
+    bin/jo compile -stack $file -checkTree -o $exe -layout c1
     $exe > $OUT 2>&1
     check $OUT $CHECK
 
     # layout 2
     echo "  - stac layout c2"
-    bin/stac.native $file -checkTree -testPickling -o $exe -layout c2
+    bin/jo compile -stack $file -checkTree -testPickling -o $exe -layout c2
     $exe > $OUT 2>&1
     check $OUT $CHECK
 
     # fast linux
     echo "  - regc"
-    bin/regc.native $file -checkTree -o $exe
+    bin/jo compile -reg $file -checkTree -o $exe
     $exe > $OUT 2>&1
     check $OUT $CHECK
 
     # JavaScript
     echo "  - jsc"
-    bin/jsc.native $file -checkTree -testPickling -o $js
+    bin/jo compile -js $file -checkTree -testPickling -o $js
     node $js > $OUT 2>&1
     check $OUT $CHECK
 done
@@ -137,7 +137,7 @@ for item in $DIR/tests/warn/*; do
 
     echo "testing $item"
 
-    bin/jsc.native -fatal-warnings $file > $OUT
+    bin/jo compile -js -fatal-warnings $file > $OUT
     check $OUT $CHECK
 done
 

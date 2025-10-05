@@ -135,26 +135,60 @@ First install [scala-cli](https://scala-cli.virtuslab.org/) and then run:
 ./build
 ```
 
-## Run
+This will create the unified launcher `bin/jo`.
 
-Run the interpreter:
+## Usage
 
-``` shell
-bin/run.native tests/pos/fact.stk
+The `jo` command provides a unified interface to all compiler backends:
+
+### Run Programs (Interpreter)
+
+```shell
+# Run directly (defaults to interpreter)
+bin/jo tests/pos/fact.stk
+
+# Or explicitly use the run command
+bin/jo run tests/pos/fact.stk
 ```
 
-Run the compiler targeting Linux/x86:
+### Compile Programs
 
-``` shell
-bin/regc.native tests/pos/fact.stk -o fact
+Compile to native executable (register machine, default):
+```shell
+bin/jo compile tests/pos/fact.stk -o fact
 ./fact
 ```
 
-Run the compiler targeting JavaScript:
+Compile to native executable (stack machine):
+```shell
+bin/jo compile -stack tests/pos/fact.stk -o fact
+./fact
+```
 
-``` shell
-bin/jsc.native tests/pos/fact.stk -o fact.js
+Compile to JavaScript:
+```shell
+bin/jo compile -js tests/pos/fact.stk -o fact.js
 node fact.js
+```
+
+### Getting Help
+
+```shell
+bin/jo help
+```
+
+### Command Reference
+
+```
+jo <source.stk>                    Run program (defaults to 'run')
+jo run <source.stk>                Run program with interpreter
+jo compile [options] <source.stk>  Compile program
+jo help                            Show help message
+
+Compile options:
+  -js        Compile to JavaScript
+  -stack     Compile using stack machine
+  -reg       Compile using register machine (default)
 ```
 
 ## Roadmap

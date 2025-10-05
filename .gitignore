@@ -12,6 +12,4 @@ hs_err_pid*
 *.out
 *~
 
-bin/stkc
-bin/stki
-bin/*.native
+bin/jo

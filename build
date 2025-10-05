@@ -5,14 +5,5 @@ set -e
 OPT="--native"
 
 # compile
-echo "Generating interpreter"
-scala-cli --power package -f $OPT project.scala stack-lang -M sast.Interpreter -o bin/run.native
-
-echo "Generating js compiler"
-scala-cli --power package -f $OPT project.scala stack-lang -M js.compile -o bin/jsc.native
-
-echo "Generating stack compiler"
-scala-cli --power package -f $OPT project.scala stack-lang -M native.stack.StackMachine -o bin/stac.native
-
-echo "Generating register compiler"
-scala-cli --power package -f $OPT project.scala stack-lang -M native.register.RegisterMachine -o bin/regc.native
+echo "Generating unified launcher"
+scala-cli --power package -f $OPT project.scala stack-lang -M Main -o bin/jo

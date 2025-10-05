@@ -9,14 +9,17 @@ This is the implementation of **Stk**, a statically typed functional programming
 ## Development Commands
 
 ### Build System
-- **Build all compilers**: `./build` - Builds all four compiler variants using scala-cli
+- **Build compiler**: `./build` - Builds the unified launcher `bin/jo` using scala-cli
 - **Test suite**: `./ci` - Runs comprehensive test suite including positive tests, warning tests, and error message tests
 
-### Available Compilers (after build)
-- **Interpreter**: `bin/run.native <file.stk>` - Direct interpretation
-- **JavaScript compiler**: `bin/jsc.native <file.stk> -o <output.js>` - Compiles to JavaScript
-- **Stack machine compiler**: `bin/stac.native <file.stk> -o <executable>` - Native compilation via stack machine
-- **Register machine compiler**: `bin/regc.native <file.stk> -o <executable>` - Optimized native compilation
+### Main Compiler (after build)
+The `bin/jo` command provides a unified interface to all compilation backends:
+
+- **Interpreter**: `bin/jo run <file.stk>` - Direct interpretation
+- **JavaScript compiler**: `bin/jo compile -js <file.stk> -o <output.js>` - Compiles to JavaScript
+- **Stack machine compiler**: `bin/jo compile -stack <file.stk> -o <executable>` - Native compilation via stack machine
+- **Register machine compiler**: `bin/jo compile -reg <file.stk> -o <executable>` - Optimized native compilation (default)
+- **Default compilation**: `bin/jo compile <file.stk> -o <executable>` - Defaults to register machine backend
 
 ### Development Scripts
 - **Parser only**: `bin/parse <file.stk>` - Parse and output AST
