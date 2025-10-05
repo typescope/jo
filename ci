@@ -75,7 +75,7 @@ for item in $DIR/tests/pos/*; do
     fi
 
     echo "  - eval"
-    bin/jo run $file > $OUT 2>&1
+    bin/jo run -lib $STDLIB $file > $OUT 2>&1
     check $OUT $CHECK
 
     # Ast interpreter
