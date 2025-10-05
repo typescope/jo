@@ -60,8 +60,12 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Symbo
     * TODO: Need to do the same for each thread.
     */
   override  def transformFunDef(fdef: FunDef)(using ctx: Context): FunDef =
-    if !fdef.symbol.isLocal && fdef.name == "main" then
-      val effs = defn.effectEngine.effects(fdef.symbol)
+    val symbol = fdef.symbol
+
+    // force computing effects
+    val effs = defn.effectEngine.effects(symbol)
+
+    if !symbol.isLocal && fdef.name == "main" then
       val fdef2 = super.transformFunDef(fdef)
 
       val pos = fdef.symbol.sourcePos
@@ -81,18 +85,15 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Symbo
         fdef2.copy(body = body2)(fdef.span)
 
     else
-      val symbol = fdef.symbol
+      fdef.effectPolicy match
+        case Effects.Policy.CheckBound(params) =>
+          val allowed = params.toSet
+          val effs = defn.effectEngine.effects(symbol)
+          val pos = symbol.sourcePos
+          for (eff, trace) <- effs if !allowed.exists(param => eff.refers(param)) do
+            Reporter.error("Parameter not allowed: " + eff, pos, trace)
 
-      if symbol.isFunction then
-        fdef.effectPolicy match
-          case Effects.Policy.CheckBound(params) =>
-            val allowed = params.toSet
-            val effs = defn.effectEngine.effects(symbol)
-            val pos = symbol.sourcePos
-            for (eff, trace) <- effs if !allowed.exists(param => eff.refers(param)) do
-              Reporter.error("Parameter not allowed: " + eff, pos, trace)
-
-          case _ =>
+        case _ =>
 
       super.transformFunDef(fdef)
 
