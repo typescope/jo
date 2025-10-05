@@ -11,19 +11,6 @@ import reporting.Config
 import common.IO
 
 object Typer:
-  val stdLib = List(
-    "lib/Array.stk",
-    "lib/Bool.stk",
-    "lib/Eq.stk",
-    "lib/Int.stk",
-    "lib/Internal.stk",
-    "lib/IO.stk",
-    "lib/Predef.stk",
-    "lib/List.stk",
-    "lib/Map.stk",
-    "lib/Set.stk",
-  )
-
   /** The stdlib cannot depend on pre-defined symbols */
   def check
       (nssAst: List[Ast.Namespace], lib: List[String], runtime: List[String])
@@ -34,11 +21,22 @@ object Typer:
 
     if lib.isEmpty then
       assert(runtime.isEmpty, "Unexpected runtime for compiling standard library: " + runtime)
-      new Namer().transform(nssAst, rootNameTable, predef = new NameTable) <| "namer.source"
+      val nss = new Namer().transform(nssAst, rootNameTable, predef = new NameTable) <| "namer.source"
+
+      if runtime.isEmpty then
+        nss
+      else
+        val predefNameTable = defnLazy.value.Predef_nameTable
+
+        // Runtime definitions are inaccessible in user programs and may only
+        // use predef definitions
+        val nssRuntime = runNamer(runtime, rootNameTable, predefNameTable) <| "runtime"
+
+        nssRuntime ++ nss
 
     else
       // Load library from .sast files
-      val nssLib = loadSastFiles(lib, rootNameTable) <| "lib"
+      val nssLib = loadSastFiles(lib) <| "lib"
 
       // Must be after type checking the stdlib
       val predefNameTable = defnLazy.value.Predef_nameTable
@@ -53,24 +51,16 @@ object Typer:
       nssLib ++ nssRuntime ++ nss
 
   /** Load precompiled .sast files */
-  private def loadSastFiles(
-    files: List[String], rootNameTable: NameTable)
-    (using defnLazy: Definitions.Lazy, rp: Reporter, cf: Config)
+  private def loadSastFiles
+      (files: List[String])
+      (using defnLazy: Definitions.Lazy, rp: Reporter)
   : List[Namespace] =
 
-    val delayedDefs = files.map: file =>
-      val bytes = IO.fileAsBytes(file)
-      given pickle.ReadBuffer = new pickle.ReadBuffer(bytes)
-      Decoder.decode(rootNameTable)
-
-    // Register all symbols in the root name table first
-    for delayed <- delayedDefs do
-      rootNameTable.define(delayed.symbol)
+    val delayedDefs = files.map(file => pickle.Decoder.load(file))
 
     // Force all delayed definitions
-    given Definitions = defnLazy.value
-    delayedDefs.map(_.force())
-
+    val defn = defnLazy.value
+    delayedDefs.map(_.force()(using defn))
 
   private def runNamer(
     files: List[String], rootNameTable: NameTable, predef: NameTable)
@@ -123,6 +113,14 @@ object Typer:
         if config.printAfter.contains("Namer") then
           given Definitions = lazyDefn.value
           Printing.print(res.filter(shouldPrint))
+
+        if config.testPickling then
+          given Definitions = lazyDefn.value
+
+          val outDir = "out/sast"
+          IO.ensureExists(outDir)
+          for ns <- res do pickle.Encoder.store(ns, outDir, config.testPickling)
+
         res
       })
 

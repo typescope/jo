@@ -48,7 +48,6 @@ object Compiler:
 
     val rootNameTable = new NameTable
 
-    val lib = typing.Typer.stdLib
     val runtime = List(
       "runtime/native/Core.stk",
       "runtime/native/GC.stk",

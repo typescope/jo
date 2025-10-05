@@ -105,7 +105,6 @@ files=(
     stack-lang/phases/EncodeTagged.scala
     stack-lang/phases/NormalizeParams.scala
     stack-lang/phases/PatternMatcher.scala
-    stack-lang/phases/Pickler.scala
 )
 
 FILES=${files[*]}

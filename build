@@ -9,4 +9,5 @@ echo "Generating unified launcher"
 scala-cli --power package -f $OPT project.scala stack-lang -M Main -o bin/jo
 
 # build stand library
+STDLIB=out/stdlib
 bin/jo build-lib lib/*.stk -d $STDLIB

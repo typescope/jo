@@ -7,7 +7,12 @@ import sast.Trees.*
 import sast.Types.*
 import sast.Symbols.*
 
+import reporting.Reporter
+import common.IO
+
 import scala.collection.mutable
+
+import java.nio.charset.StandardCharsets.UTF_8
 
 /** Encode trees, symbols and types
   *
@@ -189,6 +194,35 @@ object Encoder:
   inline def checkSubtype[S, T >: S]: Unit = ()
 
   //----------------------------------------------------------------------------
+
+  def store(ns: Namespace, targetDir: String, testPickling: Boolean, verbose: Boolean = false)(using Definitions, Reporter): Unit =
+    val fullName = ns.symbol.fullName
+    val fileName = fullName + ".sast"
+    val path = java.nio.file.Paths.get(targetDir, fileName).toString
+
+    if verbose then println(s"Generated: $path")
+
+    val buf = Encoder.encode(ns)
+    IO.writeFile(path, buf.getBytes, 0, buf.length)
+
+    if testPickling then
+      val bytes = IO.fileAsBytes(path)
+      given ReadBuffer = new ReadBuffer(bytes)
+      val ns2 = Decoder.decode(ns.symbol.owner).force()
+
+      val contentBefore = RawPrinter.print(ns).toString
+      val contentAfter = RawPrinter.print(ns2).toString
+
+      if contentBefore != contentAfter then
+        val before = fullName + "-before.txt"
+        val after = fullName + "-after.txt"
+        println(s"Test pickling failed, please run `icdiff $before $after`.")
+
+        IO.writeFile(before, contentBefore.getBytes(UTF_8))
+        IO.writeFile(after, contentAfter.getBytes(UTF_8))
+      end if
+    end if
+
 
   def encode(ns: Namespace)(using Definitions): WriteBuffer =
     val Namespace(symbol, imports, defs) = ns

@@ -86,7 +86,6 @@ files=(
     stack-lang/phases/LowerContextParams.scala
     stack-lang/phases/NormalizeParams.scala
     stack-lang/phases/PatternMatcher.scala
-    stack-lang/phases/Pickler.scala
 )
 
 FILES=${files[*]}

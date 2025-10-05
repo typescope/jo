@@ -121,3 +121,8 @@ object IO:
       .map(_.toString)
       .filter(_.endsWith(".sast"))
       .toArray
+
+  def ensureExists(dir: String): Unit =
+    val path = java.nio.file.Paths.get(dir)
+    if !java.nio.file.Files.exists(path) then
+      java.nio.file.Files.createDirectories(path)

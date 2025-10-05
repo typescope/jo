@@ -20,11 +20,9 @@ object FrontEnd:
       // normalizer must run before patmat to check effects of guard patterns
       val noramlizer = new phases.NormalizeParams
       val encoder = new phases.EncodeTagged
-      val pickler = new phases.Pickler
       val patmat = new phases.PatternMatcher
 
       sast       |>
-      pickler    |>
       noramlizer |>
       patmat     |>
       encoder

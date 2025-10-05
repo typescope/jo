@@ -12,6 +12,8 @@ import reporting.Reporter
 import scala.reflect.ClassTag
 import scala.collection.mutable
 
+import common.IO
+
 /** Decode trees, symbols and types
   *
   * This is the counterpart to Encoder.scala, reading back the encoded format
@@ -83,6 +85,48 @@ object Decoder:
     inline if enable then println(message) else ()
 
   //----------------------------------------------------------------------------
+
+  /** Load a .sast file and decode it */
+  def load(file: String)(using defnLazy: Definitions.Lazy, rp: Reporter): DelayedDef[Namespace] =
+    val ip = defnLazy.infoProvider
+
+    def resolve(parts: List[String], nameTable: NameTable, owner: Symbol): Symbol =
+      parts match
+        case name :: rest =>
+          val sym = nameTable.resolveTerm(name) match
+            case Some(sym) =>
+              assert(sym.isContainer, "not a container: " + sym)
+              sym
+
+            case None =>
+              val flags = Flags.NSpace | Flags.Branch
+              val sym = Symbol.createSymbol(name, flags, null)
+              ip.add(sym, owner, new ContainerInfo(new NameTable))
+              nameTable.define(sym)
+              sym
+
+          resolve(rest, ip.info(sym).as[ContainerInfo].nameTable, sym)
+
+        case Nil =>
+          owner
+
+    // Extract owner from file path
+    // e.g., "build/libA/stk.Array.sast" -> owner is "stk"
+    val fileName = java.nio.file.Paths.get(file).getFileName.toString
+    val baseName = fileName.stripSuffix(".sast")
+    val ownerParts = baseName.split("\\.").toList.dropRight(1)
+
+    val owner = resolve(ownerParts, defnLazy.rootNameTable, owner = null)
+    val bytes = IO.fileAsBytes(file)
+    given ReadBuffer = new ReadBuffer(bytes)
+    val delayedNS = decode(owner)
+
+    if owner == null then
+      defnLazy.rootNameTable.define(delayedNS.symbol)
+    else
+      ip.info(owner).as[ContainerInfo].nameTable.define(delayedNS.symbol)
+
+    delayedNS
 
   def decode(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, rp: Reporter): DelayedDef[Namespace] =
     // Read string table

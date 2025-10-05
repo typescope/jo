@@ -41,32 +41,32 @@ class NameTable(
       case None => Nil
       case Some(sym) => sym :: Nil
 
-  def resolveByPathParts(parts: List[String])(using Definitions): List[Symbol] =
+  def resolveByPathParts(parts: List[String])(using Definitions.Lazy): List[Symbol] =
     val syms = NameTable.resolveStatic(this, parts)
     if syms.isEmpty then
       throw new Exception("Not found: " + parts + ", name table " + this.show)
     else
       syms
 
-  def resolveByPath(path: String)(using Definitions): List[Symbol] =
+  def resolveByPath(path: String)(using Definitions.Lazy): List[Symbol] =
     resolveByPathParts(path.split('.').toList)
 
-  def resolveTermByPath(path: String)(using Definitions): Symbol =
+  def resolveTermByPath(path: String)(using Definitions.Lazy): Symbol =
     resolveByPath(path).filter(!_.isOneOf(Flags.Pattern | Flags.Type)).head
 
   def resolvePatternByPath(path: String)(using Definitions): Symbol =
     resolveByPath(path).filter(_.is(Flags.Pattern)).head
 
-  def resolveTypeByPath(path: String)(using Definitions): Symbol =
+  def resolveTypeByPath(path: String)(using Definitions.Lazy): Symbol =
     resolveByPath(path).filter(_.is(Flags.Type)).head
 
-  def resolveTermByPathParts(parts: List[String])(using Definitions): Symbol =
+  def resolveTermByPathParts(parts: List[String])(using Definitions.Lazy): Symbol =
     resolveByPathParts(parts).filter(!_.isOneOf(Flags.Pattern | Flags.Type)).head
 
-  def resolvePatternByPathParts(parts: List[String])(using Definitions): Symbol =
+  def resolvePatternByPathParts(parts: List[String])(using Definitions.Lazy): Symbol =
     resolveByPathParts(parts).filter(_.is(Flags.Pattern)).head
 
-  def resolveTypeByPathParts(parts: List[String])(using Definitions): Symbol =
+  def resolveTypeByPathParts(parts: List[String])(using Definitions.Lazy): Symbol =
     resolveByPathParts(parts).filter(_.is(Flags.Type)).head
 
   def define(sym: Symbol)(using rp: Reporter): Unit =
@@ -111,7 +111,7 @@ class NameTable(
     "terms: { " + termNames + "}" + "\ntypes: { " + typeNames + "}" + "\npatterns: { " + patternNames + "}"
 
 object NameTable:
-  def resolveStatic(nameTable: NameTable, parts: List[String])(using Definitions): List[Symbol] =
+  def resolveStatic(nameTable: NameTable, parts: List[String])(using defnLazy: Definitions.Lazy): List[Symbol] =
     (parts: @unchecked) match
       case name :: Nil =>
         nameTable.resolve(name)
@@ -120,7 +120,7 @@ object NameTable:
         nameTable.resolveTerm(name) match
           case Some(sym) =>
             if sym.isContainer then
-              val nameTable = sym.info.as[ContainerInfo].nameTable
+              val nameTable = defnLazy.infoProvider.info(sym).as[ContainerInfo].nameTable
               resolveStatic(nameTable, rest)
             else
               Nil
