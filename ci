@@ -1,6 +1,7 @@
 #!/bin/bash
 
 DIR=$(dirname "$0")
+STDLIB=out/stdlib
 
 retcode=0
 
@@ -22,17 +23,17 @@ scala-cli stack-lang/common/Base128.scala
 ################################################################################
 
 # check that scripts work
-bin/parse -time tests/pos/fact.stk || exit 1
-bin/type -time tests/pos/fact.stk  || exit 1
-bin/run  -time tests/pos/fact.stk  || exit 1
-bin/jsc  -time  tests/pos/fact.stk || exit 1
-bin/stac -time  tests/pos/fact.stk || exit 1
-bin/regc -time  tests/pos/fact.stk || exit 1
+bin/parse -time tests/pos/fact.stk  || exit 1
+bin/type -time -lib $STDLIB tests/pos/fact.stk  || exit 1
+bin/run  -time -lib $STDLIB tests/pos/fact.stk  || exit 1
+bin/jsc  -time -lib $STDLIB tests/pos/fact.stk  || exit 1
+bin/stac -time -lib $STDLIB tests/pos/fact.stk  || exit 1
+bin/regc -time -lib $STDLIB tests/pos/fact.stk  || exit 1
 
-bin/jo run -time tests/pos/fact.stk
-bin/jo compile -js -time tests/pos/fact.stk
-bin/jo compile -stack -time tests/pos/fact.stk
-bin/jo compile -reg -time tests/pos/fact.stk
+bin/jo run -time -lib $STDLIB tests/pos/fact.stk
+bin/jo compile -js -time -lib $STDLIB tests/pos/fact.stk
+bin/jo compile -stack -time -lib $STDLIB tests/pos/fact.stk
+bin/jo compile -reg -time -lib $STDLIB tests/pos/fact.stk
 
 ################################################################################
 # Positive tests
@@ -83,25 +84,25 @@ for item in $DIR/tests/pos/*; do
 
     # # layout 1
     echo "  - stac layout c1"
-    bin/jo compile -stack $file -checkTree -o $exe -layout c1
+    bin/jo compile -stack -lib $STDLIB $file -checkTree -o $exe -layout c1
     $exe > $OUT 2>&1
     check $OUT $CHECK
 
     # layout 2
     echo "  - stac layout c2"
-    bin/jo compile -stack $file -checkTree -testPickling -o $exe -layout c2
+    bin/jo compile -stack -lib $STDLIB $file -checkTree -testPickling -o $exe -layout c2
     $exe > $OUT 2>&1
     check $OUT $CHECK
 
     # fast linux
     echo "  - regc"
-    bin/jo compile -reg $file -checkTree -o $exe
+    bin/jo compile -reg -lib $STDLIB $file -checkTree -o $exe
     $exe > $OUT 2>&1
     check $OUT $CHECK
 
     # JavaScript
     echo "  - jsc"
-    bin/jo compile -js $file -checkTree -testPickling -o $js
+    bin/jo compile -js -lib $STDLIB $file -checkTree -testPickling -o $js
     node $js > $OUT 2>&1
     check $OUT $CHECK
 done
@@ -137,7 +138,7 @@ for item in $DIR/tests/warn/*; do
 
     echo "testing $item"
 
-    bin/jo compile -js -fatal-warnings $file > $OUT
+    bin/jo compile -js -fatal-warnings -lib $STDLIB $file > $OUT
     check $OUT $CHECK
 done
 

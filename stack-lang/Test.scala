@@ -25,19 +25,23 @@ object Test:
     }
 
   def compileAndCheck(test: String): Boolean = Reporter.timeout(100):
+    val stdLibDir = "out/stdlib"
+
+    if IO.getSastFiles(stdLibDir).isEmpty then
+      throw new Exception("No stdlib found in " + stdLibDir)
+
     given rp: Reporter = Reporter.createReporter(buffer = true)
-    given Config = Config(Map("-fatal-warnings" -> ""))
+    given Config = Config(Map("-fatal-warnings" -> "", "-lib" -> stdLibDir))
 
     val sourceFiles =
       if IO.isFile(test) then test :: Nil
       else IO.list(test).filter(_.endsWith(".stk"))
 
     try
-      val libFiles = typing.Typer.stdLib
       val runtimeFiles = Nil
       val rootNameTable = new NameTable
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
-      FrontEnd.run(libFiles, runtimeFiles, sourceFiles)
+      FrontEnd.run(runtimeFiles, sourceFiles)
 
       verifyErrors(sourceFiles, rp.reports)
     catch

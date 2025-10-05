@@ -15,6 +15,8 @@ class Config(options: Map[String, String]):
 
   val testPickling: Boolean = options.contains("-testPickling")
 
+  val libPath: Option[String] = options.get("-lib")
+
 object Config:
   // The flag tells whether the option needs an argument
   val commonOptionsSpec = Map(
@@ -25,4 +27,5 @@ object Config:
     "-checkTree"      -> false,
     "-steps"          -> false,
     "-testPickling"   -> false,
+    "-lib"            -> true,   // -lib <dir>
   )

@@ -58,11 +58,9 @@ object Typer:
     (using defnLazy: Definitions.Lazy, rp: Reporter, cf: Config)
   : List[Namespace] =
 
-    import pickle.{ Decoder, ReadBuffer }
-
     val delayedDefs = files.map: file =>
       val bytes = IO.fileAsBytes(file)
-      given ReadBuffer = new ReadBuffer(bytes)
+      given pickle.ReadBuffer = new pickle.ReadBuffer(bytes)
       Decoder.decode(rootNameTable)
 
     // Register all symbols in the root name table first
@@ -106,12 +104,17 @@ object Typer:
       res
     })
 
-  def typeStep(lib: List[String], runtime: List[String])
+  def typeStep(runtime: List[String])
       (using config: Config, lazyDefn: Definitions.Lazy, rp: Reporter)
   : Step[List[Ast.Namespace], List[Namespace]] =
 
     Step("Namer", (nssAst: List[Ast.Namespace]) => {
-        val res = check(nssAst, lib, runtime)
+        // Get library files from -lib option if provided
+        val libFiles = config.libPath match
+          case Some(dir) => IO.getSastFiles(dir).toList
+          case None => Nil
+
+        val res = check(nssAst, libFiles, runtime)
 
         if config.checkTree then
           given Definitions = lazyDefn.value
@@ -124,15 +127,9 @@ object Typer:
       })
 
   def main(args: Array[String]): Unit =
-    val optionSpec = Config.commonOptionsSpec + ("-lib" -> true)
-    val (options, sources) = IO.parseOptions(args, optionSpec)
+    val (options, sources) = IO.parseOptions(args, Config.commonOptionsSpec)
 
     given config: Config = Config(options)
-
-    // Get library files from -lib option if provided
-    val libFiles = options.get("-lib") match
-      case Some(dir) => IO.getSastFiles(dir).toList
-      case None => Nil
 
     Reporter.monitor:
       val runtimeFiles = Nil
@@ -140,4 +137,4 @@ object Typer:
       val rootNameTable = new NameTable
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
-      sources |> parseStep |> typeStep(libFiles, runtimeFiles)
+      sources |> parseStep |> typeStep(runtimeFiles)
