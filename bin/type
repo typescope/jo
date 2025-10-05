@@ -70,6 +70,9 @@ files=(
     stack-lang/pickle/Format.scala
     stack-lang/pickle/ReadBuffer.scala
     stack-lang/pickle/WriteBuffer.scala
+
+    stack-lang/phases/Phase.scala
+    stack-lang/phases/NormalizeParams.scala
 )
 
 FILES=${files[*]}
