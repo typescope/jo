@@ -70,10 +70,10 @@ class Checker(namer: Namer):
       if !Subtyping.conforms(loActual, argType) then
         Reporter.error(s"Arg type ${argType.show} does not conform to bound = ${hi.show}, which expands to ${hiActual.show}", targ.pos)
 
-  def checkTypeApply(fun: Word, targs: List[TypeTree])(using Definitions, Reporter, Source): Word =
+  def checkTypeApply(fun: Word, targs: List[TypeTree], span: Span)(using Definitions, Reporter, Source): Word =
     if !fun.tpe.isPolyType then
       Reporter.error(s"Expect a poly function type, found = ${fun.tpe.show}", fun.pos)
-      Namer.errorWord(fun.span | targs.last.span)
+      Namer.errorWord(span)
     else
       val polyType = fun.tpe.asProcType
       if polyType.tparamCount != targs.size then
@@ -82,7 +82,7 @@ class Checker(namer: Namer):
       else
         checkBounds(polyType.tparams, targs)
         val tpe = polyType.instantiate(targs.map(_.tpe))
-        TypeApply(fun, targs)(tpe)
+        TypeApply(fun, targs)(tpe, span)
 
   def checkType(word: Word, tp: Type)(using Definitions, Reporter, Source): Unit =
     if !Subtyping.conforms(word.tpe, tp) then
@@ -236,7 +236,7 @@ class Checker(namer: Namer):
       for tp <- targetType.knownType do Subtyping.conforms(resType, tp)
 
       val autos = namer.autoResolver.derive(procType2, word.span)
-      Apply(fun, args = Nil, autos)
+      Apply(fun, args = Nil, autos)(fun.span)
 
     else
       word

@@ -89,7 +89,7 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Symbo
   override def transformIdent(ident: Ident)(using ctx: Context): Word =
     val sym = ident.symbol
     if sym.isAllOf(Flags.Context | Flags.Default) then
-      Apply(Ident(sym.valueFunction)(ident.span), args = Nil)
+      Ident(sym.valueFunction)(ident.span).appliedTo()
 
     else
       ident

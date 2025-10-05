@@ -289,7 +289,7 @@ class Namer:
           given TargetType = TargetType.TypeApply
           transform(fun)
         val targs2 = targs.map(targ => transformType(targ))
-        checker.checkTypeApply(fun2, targs2).adapt
+        checker.checkTypeApply(fun2, targs2, word.span).adapt
 
       case list: Ast.ListLit =>
         val ref = Ident(defn.List_List)(list.span)
@@ -534,7 +534,7 @@ class Namer:
       checker.checkBounds(polyType.tparams, targs)
     }
 
-    TypeApply(fun, targs)(tpe)
+    TypeApply(fun, targs)(tpe, fun.span)
 
   /** Handles new Foo[T](arg1, arg2, ...) */
   def transformNew(newExpr: Ast.New)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
@@ -658,7 +658,7 @@ class Namer:
             transformArgs(apply.args, procType.paramTypes)
 
         val autos = autoResolver.derive(procType, apply.span)
-        val word = Apply(fun, argsTyped, autos)
+        val word = Apply(fun, argsTyped, autos)(apply.span)
         checker.checkUnpackUsage(word, tt)
         val desugared = Rewriting.rewriteShortcutAndOr(word)
         checker.adapt(desugared, tt)
@@ -705,7 +705,7 @@ class Namer:
                 transform(arg)
 
               val autos = autoResolver.derive(procType, call.span)
-              val word = Apply(fun, argTyped :: Nil, autos)
+              val word = Apply(fun, argTyped :: Nil, autos)(call.span)
               checker.adapt(word, tt)
           else
             Reporter.error( s"The member ${meth.name} is not a method", meth.pos)
@@ -763,7 +763,7 @@ class Namer:
           transformArgs(postArgs, procType.postParamTypes)
 
       val autos = autoResolver.derive(procType, call.span)
-      val word = Apply(fun, preArgs2 ++ postArgs2, autos)
+      val word = Apply(fun, preArgs2 ++ postArgs2, autos)(call.span)
       checker.checkUnpackUsage(word, tt)
       val rewrite = Rewriting.rewriteShortcutAndOr(word)
       checker.adapt(rewrite, tt)

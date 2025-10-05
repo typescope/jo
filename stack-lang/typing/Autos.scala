@@ -99,7 +99,7 @@ class Autos(namer: Namer):
                   // Nested resolution should start from origin
                   search(autoInfo, trace :+ sym, origin, origin, span)
 
-              Apply(fun, Nil, autos)
+              Apply(fun, Nil, autos)(span)
         else
           Ident(sym)(span)
 

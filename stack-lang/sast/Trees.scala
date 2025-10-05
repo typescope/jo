@@ -157,16 +157,15 @@ object Trees:
 
   case class TypeApply
     (fun: Word, targs: List[TypeTree])
-    (val tpe: Type)
-  extends Word with DerivedSpan:
+    (val tpe: Type, val span: Span)
+  extends Word:
     assert(targs.nonEmpty, "type args should not be empty")
-
-    def deriveSpan = fun.span | targs.last.span
 
   case class Apply
     (fun: Word, args: List[Word], autos: List[Word])
+    (val span: Span)
     (using Definitions)
-  extends Word with DerivedSpan:
+  extends Word:
     val tpe = fun.tpe.asProcType match
       case procType =>
         assert(procType.tparams.size == 0, "tparams = " + procType.tparams)
@@ -182,12 +181,6 @@ object Trees:
         case Ident(sym)               => Some(sym)
         case TypeApply(Ident(sym), _) => Some(sym)
         case _                        => None
-
-    def deriveSpan = args.foldLeft(fun.span)(_ | _.span)
-
-  object Apply:
-    def apply(fun: Word, args: List[Word])(using Definitions): Apply =
-      apply(fun, args, autos = Nil)
 
   case class New
     (classRef: Ident, targs: List[TypeTree])
@@ -274,9 +267,9 @@ object Trees:
 
   case class ApplyPattern
     (fun: Word, nested: List[Pattern])
-    (val scrutineeType: Type)
+    (val scrutineeType: Type, val span: Span)
     (using Definitions)
-  extends Pattern with DerivedSpan:
+  extends Pattern:
     val valueType = fun.tpe.asProcType.resultType.stripPartial
 
     val symbol =
@@ -289,14 +282,12 @@ object Trees:
 
   case class TagPattern
     (tagTree: Literal, nested: List[Pattern])
-    (val scrutineeType: Type, val valueType: Type)
-  extends Pattern with DerivedSpan:
+    (val scrutineeType: Type, val valueType: Type, val span: Span)
+  extends Pattern:
 
     val tag = tagTree.constant match
       case Constant.String(name) => name
       case c => throw new Exception("Expect string, found = " + c)
-
-    def deriveSpan = if nested.isEmpty then tagTree.span else tagTree.span | nested.last.span
 
   case class ValuePattern
     (value: Word)(val scrutineeType: Type)
@@ -627,19 +618,24 @@ object Trees:
         for (arg, paramType) <- args.zip(procType.paramTypes)
         yield TreeOps.adapt(arg, paramType)
 
-      Apply(word, args2.toList, autos = Nil)
+
+      val span = args.foldLeft(word.span)(_ | _.span)
+
+      Apply(word, args2.toList, autos = Nil)(span)
 
     def appliedToTypes(targs: Type*)(using Definitions): Word =
       val procType = word.tpe.asProcType
       val targList = targs.toList
       val tpe = procType.instantiate(targList)
-      TypeApply(word, targList.map(targ => TypeTree(targ)(word.span.endPoint)))(tpe)
+      val span = word.span
+      TypeApply(word, targList.map(targ => TypeTree(targ)(word.span.endPoint)))(tpe, span)
 
     def appliedToTypeTrees(targs: TypeTree*)(using Definitions): Word =
       val procType = word.tpe.asProcType
       val targList = targs.toList
+      val span = targs.foldLeft(word.span)(_ | _.span)
       val tpe = procType.instantiate(targList.map(_.tpe))
-      TypeApply(word, targList)(tpe)
+      TypeApply(word, targList)(tpe, span)
 
     def encodedAs(tpe: Type): Word = Encoded(word)(tpe)
 

@@ -41,7 +41,7 @@ class ExplicitAlloc(runtime: NativeRuntime)(using defn: Definitions) extends pha
     val recordType = word.tpe.asRecordType
     val size = memory.size(recordType)
     val sizeLit = Literal(Constant.Int(size))(defn.IntType, word.span)
-    val allocApply = Apply(allocFun, sizeLit :: Nil)
+    val allocApply = allocFun.appliedTo(sizeLit)
 
     val refSym =
       given Source = ctx.sourcePos.source

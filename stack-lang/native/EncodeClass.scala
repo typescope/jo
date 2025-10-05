@@ -86,7 +86,7 @@ class EncodeClass(using defn: Definitions) extends phases.Phase[Symbol]:
 
         if qual2.isIdempotent then
           val proc = Select(qual2, name)(procType, fun.span)
-          Apply(proc, qual2 :: args2, autos2)
+          Apply(proc, qual2 :: args2, autos2)(apply.span)
 
         else
           val receiverSym =
@@ -97,18 +97,18 @@ class EncodeClass(using defn: Definitions) extends phases.Phase[Symbol]:
           val receiver = Ident(receiverSym)(qual2.span)
           val assign = Assign(Ident(receiverSym)(qual2.span), qual2)
           val proc = Select(receiver, name)(procType, fun.span)
-          val apply2 = Apply(proc, receiver :: args2, autos2)
+          val apply2 = Apply(proc, receiver :: args2, autos2)(apply.span)
           Block(assign :: apply2 :: Nil)(apply.span)
 
-      case TypeApply(Select(qual, name), targs) if qual.tpe.isClassType =>
+      case TypeApply(sel @ Select(qual, name), targs) if qual.tpe.isClassType =>
         // TODO: after type erasure, the special handling here can be removed
         val qual2 = this(qual)
         val procType = qual2.tpe.termMember(name).asProcType
         val funType = procType.instantiate(targs.map(_.tpe))
         if qual2.isIdempotent then
-          val meth = Select(qual2, name)(procType, fun.span)
-          val fun2 = TypeApply(meth, targs)(funType)
-          Apply(fun2, qual2 :: args2, autos2)
+          val meth = Select(qual2, name)(procType, sel.span)
+          val fun2 = TypeApply(meth, targs)(funType, fun.span)
+          Apply(fun2, qual2 :: args2, autos2)(apply.span)
 
         else
           val receiverSym =
@@ -118,11 +118,11 @@ class EncodeClass(using defn: Definitions) extends phases.Phase[Symbol]:
 
           val receiver = Ident(receiverSym)(qual2.span)
           val assign = Assign(Ident(receiverSym)(qual2.span), qual2)
-          val meth = Select(receiver, name)(procType, fun.span)
-          val fun2 = TypeApply(meth, targs)(funType)
-          val apply2 = Apply(fun2, receiver :: args2, autos2)
+          val meth = Select(receiver, name)(procType, sel.span)
+          val fun2 = TypeApply(meth, targs)(funType, fun.span)
+          val apply2 = Apply(fun2, receiver :: args2, autos2)(apply.span)
           Block(assign :: apply2 :: Nil)(apply.span)
 
       case _ =>
         // global function call
-        Apply(fun, args2, autos2)
+        Apply(fun, args2, autos2)(apply.span)

@@ -997,13 +997,16 @@ object Decoder:
       lastOffset = auto.span.endOffset
       auto
 
-    // val endDelta = decodeInt()
-    // val span = Span(startOffset, lastOffset + endDelta - startOffset)
+    val endDelta = decodeInt()
+    val span = Span(startOffset, lastOffset + endDelta - startOffset)
 
-    Apply(fun, args, autos)
+    Apply(fun, args, autos)(span)
 
   private def decodeTypeApply(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): TypeApply =
-    val fun = decodeWord(owner, prevOffset)
+    val startDelta = decodeInt()
+    val startOffset = prevOffset + startDelta
+
+    val fun = decodeWord(owner, startOffset)
 
     var lastOffset = fun.span.endOffset
     val targs = repeated:
@@ -1011,12 +1014,12 @@ object Decoder:
       lastOffset = targ.span.endOffset
       targ
 
-    // val endDelta = decodeInt()
-    // val span = Span(fun.span.start, lastOffset + endDelta - fun.span.start)
+    val endDelta = decodeInt()
+    val span = Span(startOffset, lastOffset + endDelta - startOffset)
 
     val tpe = fun.tpe.asProcType.instantiate(targs.map(_.tpe))
 
-    TypeApply(fun, targs)(tpe)
+    TypeApply(fun, targs)(tpe, span)
 
   private def decodeWith(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): With =
     val expr = decodeWord(owner, prevOffset)
@@ -1208,9 +1211,12 @@ object Decoder:
         TypePattern(tpt)(scrutineeType)
 
       case Format.TagPattern =>
+        val startDelta = decodeInt()
+        val startOffset = startDelta + prevOffset
+
         val scrutineeType = decodeType()
         val valueType = decodeType()
-        val tagLit = decodeWord(owner, prevOffset).asInstanceOf[Literal]
+        val tagLit = decodeWord(owner, startOffset).asInstanceOf[Literal]
 
         var lastOffset = tagLit.span.endOffset
         val nested = repeated:
@@ -1218,9 +1224,15 @@ object Decoder:
           lastOffset = pat.span.endOffset
           pat
 
-        TagPattern(tagLit, nested)(scrutineeType, valueType)
+        val endDelta = decodeInt()
+        val span = Span(startOffset, lastOffset + endDelta - startOffset)
+
+        TagPattern(tagLit, nested)(scrutineeType, valueType, span)
 
       case Format.ApplyPattern =>
+        val startDelta = decodeInt()
+        val startOffset = startDelta + prevOffset
+
         val scrutineeType = decodeType()
         val fun = decodeWord(owner, prevOffset)
 
@@ -1230,7 +1242,10 @@ object Decoder:
           lastOffset = pat.span.endOffset
           pat
 
-        ApplyPattern(fun, nested)(scrutineeType)
+        val endDelta = decodeInt()
+        val span = Span(startOffset, lastOffset + endDelta - startOffset)
+
+        ApplyPattern(fun, nested)(scrutineeType, span)
 
       case Format.OrPattern =>
         val lhs = decodePattern(owner, prevOffset)

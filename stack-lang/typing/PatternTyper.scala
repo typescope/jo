@@ -230,7 +230,7 @@ class PatternTyper(namer: Namer, checker: Checker):
               for (arg, paramType) <- args.zip(procType.paramTypes) yield
                 transformPattern(arg, paramType)
 
-            ApplyPattern(fun, argsTyped)(resType)
+            ApplyPattern(fun, argsTyped)(resType, patSpan)
 
         end if
       else
@@ -335,7 +335,7 @@ class PatternTyper(namer: Namer, checker: Checker):
               for (arg, paramType) <- postArgs.zip(procType.postParamTypes) yield
                 transformPattern(arg, paramType)
 
-            ApplyPattern(fun, preArgs2 ++ postArgs2)(resType)
+            ApplyPattern(fun, preArgs2 ++ postArgs2)(resType, patSpan)
 
         end if
       else
@@ -367,7 +367,7 @@ class PatternTyper(namer: Namer, checker: Checker):
         for (pat, paramType) <- args.zip(paramTypes) yield transformPattern(pat, paramType)
 
       val tagStringLit = StringLit(id.name)(tag.span)
-      TagPattern(tagStringLit, args2)(scrutType, tagType)
+      TagPattern(tagStringLit, args2)(scrutType, tagType, patSpan)
 
     if scrutType.isUnionType then
       val unionType = scrutType.asUnionType

@@ -707,11 +707,8 @@ object Encoder:
         encodeType(word.tpe)
 
       case Apply(fun, args, autos) =>
-        checkSubtype[Apply, DerivedSpan]
-
-        // assert(word.span.start == fun.span.start, s"word.span = ${word.span}, fun.span = ${fun.span}")
-
         encodeByte(Format.Apply)
+
         encodeInt(startDelta)
         encodeWord(fun, word.span.start)
 
@@ -724,24 +721,20 @@ object Encoder:
           encodeWord(auto, lastOffset)
           lastOffset = auto.span.endOffset
 
-        // TODO: represent span explicitly
-        // encodeInt(word.span.endOffset - lastOffset)
+        encodeInt(word.span.endOffset - lastOffset)
 
       case TypeApply(fun, targs) =>
-        checkSubtype[TypeApply, DerivedSpan]
-        // assert(word.span.start == fun.span.start, s"word.span = ${word.span}, fun.span = ${fun.span}")
-
         encodeByte(Format.TypeApply)
 
-        encodeWord(fun, prevOffset)
+        encodeInt(startDelta)
+        encodeWord(fun, word.span.start)
 
         var lastOffset = fun.span.endOffset
         repeated(targs): targ =>
           encodeTypeTree(targ, lastOffset)
           lastOffset = targ.span.endOffset
 
-        // TODO: represent span explicitly
-        // encodeInt(word.span.endOffset - lastOffset)
+        encodeInt(word.span.endOffset - lastOffset)
 
       case With(expr, args) =>
         checkSubtype[With, DerivedSpan]
@@ -881,7 +874,6 @@ object Encoder:
         if isDef then
           encodeString(sym.name)
 
-
       case TypePattern(tpt) =>
         checkSubtype[TypePattern, DerivedSpan]
 
@@ -890,24 +882,22 @@ object Encoder:
         encodeTypeTree(tpt, prevOffset)
 
       case TagPattern(tagLit, nested) =>
-        // TODO: encode span
-        checkSubtype[TagPattern, DerivedSpan]
-
         encodeByte(Format.TagPattern)
+        encodeInt(startDelta)
         encodeType(pattern.scrutineeType)
         encodeType(pattern.valueType)
-        encodeWord(tagLit, prevOffset)
+        encodeWord(tagLit, pattern.span.start)
 
         var lastOffset = tagLit.span.endOffset
         repeated(nested): pat =>
           encodePattern(pat, lastOffset)
           lastOffset = pat.span.endOffset
 
-      case ApplyPattern(fun, nested) =>
-        // TODO: encode span explicitly
-        checkSubtype[ApplyPattern, DerivedSpan]
+        encodeInt(pattern.span.endOffset - lastOffset)
 
+      case ApplyPattern(fun, nested) =>
         encodeByte(Format.ApplyPattern)
+        encodeInt(startDelta)
         encodeType(pattern.scrutineeType)
         encodeWord(fun, prevOffset)
 
@@ -915,6 +905,8 @@ object Encoder:
         repeated(nested): pat =>
           encodePattern(pat, lastOffset)
           lastOffset = pat.span.endOffset
+
+        encodeInt(pattern.span.endOffset - lastOffset)
 
       case OrPattern(lhs, rhs) =>
         checkSubtype[OrPattern, DerivedSpan]

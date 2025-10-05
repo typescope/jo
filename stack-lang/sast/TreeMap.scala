@@ -174,7 +174,7 @@ abstract class TreeMap(using Definitions):
       auto2
 
     if changed then
-      Apply(fun2, args2, autos2)
+      Apply(fun2, args2, autos2)(apply.span)
     else
       apply
 
@@ -189,7 +189,7 @@ abstract class TreeMap(using Definitions):
     if fun2 `eq` fun then
       tapply
     else
-      TypeApply(fun2, targs)(tapply.tpe)
+      TypeApply(fun2, targs)(tapply.tpe, tapply.span)
 
   def transformNew(newExpr: New)(using Context): Word =
     recurNew(newExpr)
@@ -418,7 +418,7 @@ abstract class TreeMap(using Definitions):
       patNested2
 
     if changed then
-      TagPattern(tag, nested2)(pat.scrutineeType, pat.valueType)
+      TagPattern(tag, nested2)(pat.scrutineeType, pat.valueType, pat.span)
     else
       pat
 
@@ -435,7 +435,7 @@ abstract class TreeMap(using Definitions):
       patNested2
 
     if changed then
-      ApplyPattern(fun, nested2)(pat.scrutineeType)
+      ApplyPattern(fun, nested2)(pat.scrutineeType, pat.span)
     else
       pat
 
