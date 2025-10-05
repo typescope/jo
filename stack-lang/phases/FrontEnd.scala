@@ -9,10 +9,10 @@ import reporting.Reporter
 
 object FrontEnd:
   def run
-      (runtime: List[String], sources: List[String])
+      (lib: List[String], runtime: List[String], sources: List[String])
       (using defnLazy: Definitions.Lazy, rp: Reporter, cf: Config)
   : List[Namespace] =
-    val sast = sources |> Typer.parseStep |> Typer.typeStep(runtime)
+    val sast = sources |> Typer.parseStep |> Typer.typeStep(runtime, lib)
 
     locally:
       given Definitions = defnLazy.value

@@ -545,12 +545,13 @@ object Interpreter:
     val (options, sources) = IO.parseOptions(args, Config.commonOptionsSpec)
     given Config = Config(options)
 
+    val lib = typing.Typer.stdLib
     val runtime = Nil
     val rootNameTable = new NameTable
 
     Reporter.monitor:
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
-      val namespacesSAST = FrontEnd.run(runtime, sources) <| "frontend"
+      val namespacesSAST = FrontEnd.run(lib, runtime, sources) <| "frontend"
 
       val mains = namespacesSAST.collect:
         case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get

@@ -26,14 +26,14 @@ object Typer:
 
   /** The stdlib cannot depend on pre-defined symbols */
   def check
-      (nssAst: List[Ast.Namespace], runtime: List[String])
+      (nssAst: List[Ast.Namespace], lib: List[String], runtime: List[String])
       (using defnLazy: Definitions.Lazy, rp: Reporter, cf: Config)
   : List[Namespace] =
 
     val rootNameTable = defnLazy.rootNameTable
 
     // StdLib is compiled without the Predef
-    val nssStdLib = runNamer(stdLib, rootNameTable, predef = new NameTable) <| "stdlib"
+    val nssLib = runNamer(lib, rootNameTable, predef = new NameTable) <| "lib"
 
     // Must be after type checking the stdlib
     val predefNameTable = defnLazy.value.Predef_nameTable
@@ -45,7 +45,7 @@ object Typer:
     // use predef definitions
     val nssRuntime = runNamer(runtime, rootNameTable, predefNameTable) <| "runtime"
 
-    nssStdLib ++ nssRuntime ++ nss
+    nssLib ++ nssRuntime ++ nss
 
   private def runNamer(
     files: List[String], rootNameTable: NameTable, predef: NameTable)
@@ -79,12 +79,12 @@ object Typer:
       res
     })
 
-  def typeStep(runtime: List[String])
+  def typeStep(lib: List[String], runtime: List[String])
       (using config: Config, lazyDefn: Definitions.Lazy, rp: Reporter)
   : Step[List[Ast.Namespace], List[Namespace]] =
 
     Step("Namer", (nssAst: List[Ast.Namespace]) => {
-        val res = check(nssAst, runtime)
+        val res = check(nssAst, lib, runtime)
 
         if config.checkTree then
           given Definitions = lazyDefn.value
@@ -107,4 +107,4 @@ object Typer:
       val rootNameTable = new NameTable
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
-      sources |> parseStep |> typeStep(runtimeFiles)
+      sources |> parseStep |> typeStep(runtimeFiles, stdLib)

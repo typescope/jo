@@ -33,10 +33,11 @@ object Test:
       else IO.list(test).filter(_.endsWith(".stk"))
 
     try
+      val libFiles = typing.Typer.stdLib
       val runtimeFiles = Nil
       val rootNameTable = new NameTable
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
-      FrontEnd.run(runtimeFiles, sourceFiles)
+      FrontEnd.run(libFiles, runtimeFiles, sourceFiles)
 
       verifyErrors(sourceFiles, rp.reports)
     catch

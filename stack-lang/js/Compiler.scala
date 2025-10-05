@@ -42,8 +42,9 @@ def compile(args: String*): Unit =
 
     given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
+    val lib = typing.Typer.stdLib
     val runtime = "runtime/JS.stk" :: Nil
-    val namespacesSAST = FrontEnd.run(runtime, sources) <| "Frontend"
+    val namespacesSAST = FrontEnd.run(lib, runtime, sources) <| "Frontend"
 
     val mains = namespacesSAST.collect:
       case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get
