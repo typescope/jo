@@ -1,17 +1,23 @@
-# Stk
+# The Jo Programming Language
 
-Stk is a statically typed functional programming language with the following features:
+Jo is a statically typed functional programming language designed for research and teaching language implementation.
 
-- No global variables
-- Context parameters for contextual abstraction, optional parameters and deep implicits
-- Fine-grained effect control and effect parametricity
-- Extensible algebric data types based on tagged values
-- Flexible prefix, infix and postfix functions
-- Support two call/pattern syntax `f(x)` and `f x`
-- Indented syntax to avoid semicolons, parentheses and braces
+## Key Features
 
-The language is intended for research in programming languages and teaching
-language implementation.
+- **Pure functional** - No global variables, immutable by default
+- **Context parameters** - Contextual abstraction, optional parameters, and implicit resolution
+- **Effect system** - Fine-grained effect control with parametric effects
+- **Algebraic data types** - Extensible ADTs with pattern matching
+- **Natural syntax** - Prefix, infix, and postfix operators; two call styles `f(x)` and `f x`; indentation-based
+- **Multiple backends** - Interpreter, JavaScript, and native x86-64 Linux
+
+## Implementation
+
+- Written in Scala using scala-cli
+- Frontend: lexer, parser, type checker with inference
+- Multiple compilation backends with shared frontend
+- Precompiled library format (.sast) for fast builds
+- Comprehensive test suite across all backends
 
 ## Examples
 
@@ -129,13 +135,15 @@ fun main =
 
 ## Build
 
-First install [scala-cli](https://scala-cli.virtuslab.org/) and then run:
+First install [scala-cli](https://scala-cli.virtuslab.org/), then build the compiler and standard library:
 
-```
+```bash
 ./build
 ```
 
-This will create the unified launcher `bin/jo`.
+This creates:
+- `bin/jo` - Unified compiler launcher
+- `out/stdlib/` - Precompiled standard library (.sast files)
 
 ## Usage
 
@@ -143,98 +151,92 @@ The `jo` command provides a unified interface to all compiler backends:
 
 ### Run Programs (Interpreter)
 
-```shell
+```bash
 # Run directly (defaults to interpreter)
 bin/jo tests/pos/fact.stk
 
 # Or explicitly use the run command
 bin/jo run tests/pos/fact.stk
+
+# Run with standard library
+bin/jo run app.stk -lib out/stdlib
 ```
 
 ### Build Applications
 
-Build native executable (register machine, default):
-```shell
-bin/jo build tests/pos/fact.stk -o fact
+Build native executable (register machine - fastest, default):
+```bash
+bin/jo build tests/pos/fact.stk -lib out/stdlib -o fact
 ./fact
 ```
 
 Build native executable (stack machine):
-```shell
-bin/jo build -stack tests/pos/fact.stk -o fact
+```bash
+bin/jo build -stack tests/pos/fact.stk -lib out/stdlib -o fact
 ./fact
 ```
 
 Build JavaScript application:
-```shell
-bin/jo build -js tests/pos/fact.stk -o fact.js
+```bash
+bin/jo build -js tests/pos/fact.stk -lib out/stdlib -o fact.js
 node fact.js
 ```
 
 ### Build Libraries
 
-Build a library (generates .sast files):
-```shell
-bin/jo build-lib lib/MyLib.stk -d build/libA
+The standard library is precompiled during the build process:
+```bash
+./build  # Creates bin/jo and builds stdlib to out/stdlib/
+```
+
+Build a custom library (generates .sast files):
+```bash
+bin/jo build-lib lib/MyLib.stk -d build/mylib
 ```
 
 Build a library that depends on another library:
-```shell
-bin/jo build-lib lib/MyExtensions.stk -lib build/libA -d build/libB
+```bash
+bin/jo build-lib lib/Extensions.stk -lib build/mylib -d build/extensions
 ```
 
-### Using Precompiled Libraries
-
-Build an application using a precompiled library:
-```shell
-bin/jo build app.stk -lib build/libA -o app
+Use custom libraries when building:
+```bash
+bin/jo build app.stk -lib build/mylib -o app
 ./app
-```
-
-### Getting Help
-
-```shell
-bin/jo help
 ```
 
 ### Command Reference
 
 ```
-jo <source.stk>                     Run program (defaults to 'run')
-jo run <source.stk>                 Run program with interpreter
-jo build [options] <source.stk>     Build application
-jo build-lib <source.stk> -d <dir>  Build library (generate .sast files)
-jo help                             Show help message
+jo <file.stk>                       Run program (default)
+jo run [options] <file.stk>         Run with interpreter
+jo build [options] <file.stk>       Build executable/JavaScript
+jo build-lib [options] <file.stk>   Build library (.sast files)
+jo help                             Show help
+
+Common options:
+  -lib <dir>        Use precompiled library
 
 Build options:
-  -js         Build JavaScript application
-  -stack      Build native application using stack machine
-  -reg        Build native application using register machine (default)
-  -o <out>    Output file path
-  -lib <dir>  Use precompiled library from directory
+  -js               Target JavaScript (output: .js)
+  -stack            Target native (stack machine)
+  -reg              Target native (register machine, default)
+  -o <file>         Output file
+  -layout <c1|c2>   Memory layout (stack machine only)
 
 Build-lib options:
-  -d <dir>    Output directory for .sast files (optional, defaults to current dir)
-  -lib <dir>  Use precompiled library from directory
+  -d <dir>          Output directory (default: current dir)
 ```
 
-## Roadmap
+## Testing
 
-- [x] Interpreter
-- [x] JavaScript Backend
-- [x] Native Backend based on stack machine
-- [x] Native Backend based on register machine
-- [x] ADT and pattern match
-- [x] Records
-- [x] Basic types: Bool, Byte, Char, Int, String, File
-- [x] Objects and object types
-- [x] First-class functions
-- [x] Polymorphic functions
-- [x] Type lambdas
-- [x] Context parameters
-- [ ] Coercion semantics for records and objects
-- [ ] GC for native backend
-- [ ] Debugger for native backend
-- [ ] Concurrency
-- [ ] Nested pattern match
-- [ ] Classes
+Run the full test suite:
+```bash
+./ci
+```
+
+This runs:
+- Unit tests
+- Positive tests across all backends
+- Warning/error message tests
+- Negative tests with positional error markers
