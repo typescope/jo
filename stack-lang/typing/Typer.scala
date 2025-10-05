@@ -19,6 +19,17 @@ object Typer:
 
     val rootNameTable = defnLazy.rootNameTable
 
+    def testPickling(nss: List[Namespace]): List[Namespace] =
+     if cf.testPickling then
+       given Definitions = defnLazy.value
+
+       val outDir = "out/sast"
+       IO.ensureExists(outDir)
+       for ns <- nss do pickle.Encoder.store(ns, outDir, cf.testPickling)
+     end if
+
+     nss
+
     if lib.isEmpty then
       assert(runtime.isEmpty, "Unexpected runtime for compiling standard library: " + runtime)
       val nss = new Namer().transform(nssAst, rootNameTable, predef = new NameTable) <| "namer.source"
@@ -32,7 +43,7 @@ object Typer:
         // use predef definitions
         val nssRuntime = runNamer(runtime, rootNameTable, predefNameTable) <| "runtime"
 
-        nssRuntime ++ nss
+        testPickling(nssRuntime ++ nss)
 
     else
       // Load library from .sast files
@@ -48,7 +59,7 @@ object Typer:
       // use predef definitions
       val nssRuntime = runNamer(runtime, rootNameTable, predefNameTable) <| "runtime"
 
-      nssLib ++ nssRuntime ++ nss
+      nssLib ++ testPickling(nssRuntime ++ nss)
 
   /** Load precompiled .sast files */
   private def loadSastFiles
@@ -99,30 +110,23 @@ object Typer:
   : Step[List[Ast.Namespace], List[Namespace]] =
 
     Step("Namer", (nssAst: List[Ast.Namespace]) => {
-        // Get library files from -lib option if provided
-        val libFiles = config.libPath match
-          case Some(dir) => IO.getSastFiles(dir).toList
-          case None => Nil
+      // Get library files from -lib option if provided
+      val libFiles = config.libPath match
+        case Some(dir) => IO.getSastFiles(dir).toList
+        case None => Nil
 
-        val res = check(nssAst, libFiles, runtime)
+      val res = check(nssAst, libFiles, runtime)
 
-        if config.checkTree then
-          given Definitions = lazyDefn.value
-          TreeChecker.check(res)
+      if config.checkTree then
+        given Definitions = lazyDefn.value
+        TreeChecker.check(res)
 
-        if config.printAfter.contains("Namer") then
-          given Definitions = lazyDefn.value
-          Printing.print(res.filter(shouldPrint))
+      if config.printAfter.contains("Namer") then
+        given Definitions = lazyDefn.value
+        Printing.print(res.filter(shouldPrint))
 
-        if config.testPickling then
-          given Definitions = lazyDefn.value
-
-          val outDir = "out/sast"
-          IO.ensureExists(outDir)
-          for ns <- res do pickle.Encoder.store(ns, outDir, config.testPickling)
-
-        res
-      })
+      res
+    })
 
   def main(args: Array[String]): Unit =
     val (options, sources) = IO.parseOptions(args, Config.commonOptionsSpec)
