@@ -895,6 +895,7 @@ object Encoder:
 
         encodeByte(Format.TagPattern)
         encodeType(pattern.scrutineeType)
+        encodeType(pattern.valueType)
         encodeWord(tagLit, prevOffset)
 
         var lastOffset = tagLit.span.endOffset
@@ -921,6 +922,7 @@ object Encoder:
         encodeByte(Format.OrPattern)
         encodePattern(lhs, prevOffset)
         encodePattern(rhs, lhs.span.endOffset)
+        encodeType(pattern.valueType)
 
       case ValuePattern(value) =>
         checkSubtype[ValuePattern, DerivedSpan]

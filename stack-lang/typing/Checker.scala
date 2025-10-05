@@ -84,9 +84,9 @@ class Checker(namer: Namer):
         val tpe = polyType.instantiate(targs.map(_.tpe))
         TypeApply(fun, targs)(tpe)
 
-  def checkType(tree: Tree, tp: Type)(using Definitions, Reporter, Source): Unit =
-    if !Subtyping.conforms(tree.tpe, tp) then
-      Reporter.error(s"Expect type ${tp.show}, found = ${tree.tpe.show}", tree.pos)
+  def checkType(word: Word, tp: Type)(using Definitions, Reporter, Source): Unit =
+    if !Subtyping.conforms(word.tpe, tp) then
+      Reporter.error(s"Expect type ${tp.show}, found = ${word.tpe.show}", word.pos)
 
   def checkValueType(word: Word)(using Reporter, Source): Unit =
     checkValueType(word.tpe, word.pos)

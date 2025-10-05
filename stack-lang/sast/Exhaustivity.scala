@@ -126,14 +126,14 @@ object Exhaustivity:
 
       case TypePattern(tpt) => TypeSpace(tpt.tpe)
 
-      case WildcardPattern() => TypeSpace(pattern.tpe)
+      case WildcardPattern() => TypeSpace(pattern.valueType)
 
       case seqPat: SeqPattern =>
 
         if isIrrefutable(seqPat) then
-          SeqSpace(seqPat.tpe, seqPat.totalSize)
+          SeqSpace(seqPat.valueType, seqPat.totalSize)
         else
-          PartialSpace(SeqSpace(seqPat.tpe, seqPat.totalSize))
+          PartialSpace(SeqSpace(seqPat.valueType, seqPat.totalSize))
 
       case ValuePattern(value) =>
         value match

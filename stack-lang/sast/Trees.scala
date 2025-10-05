@@ -13,10 +13,11 @@ import ast.Positions.{ Positioned, Span, DerivedSpan }
  *
  ***********************************************************************/
 object Trees:
-  sealed abstract class Tree extends Positioned with Product:
-    def tpe: Type
+  sealed abstract class Tree extends Positioned with Product
 
   sealed abstract class Word extends Tree:
+    def tpe: Type
+
     def isEmpty: Boolean =
       this match
         case Block(Nil) => true
@@ -220,9 +221,11 @@ object Trees:
   // patterns
 
   sealed trait Pattern extends Tree:
-    val scrutineeType: Type
+    /** The type of the scrutinee */
+    def scrutineeType: Type
 
-    def tpe: Type = scrutineeType
+    /** The refined type of the scrutinee if the pattern succeeds */
+    def valueType: Type
 
     def show(using Definitions): String = Printing.show(this)
 
@@ -235,18 +238,23 @@ object Trees:
   case class TypePattern
     (tpt: TypeTree)(val scrutineeType: Type)
   extends Pattern with DerivedSpan:
+    def valueType = tpt.tpe
+
     def deriveSpan: Span = tpt.span
 
   case class WildcardPattern
     ()
     (val scrutineeType: Type, val span: Span)
-  extends Pattern
+  extends Pattern:
+    def valueType = scrutineeType
 
   case class AliasPattern
     (id: Ident, nested: Pattern)
     (isDef: Boolean)
   extends Pattern with DerivedSpan:
-    val scrutineeType = nested.scrutineeType
+    def scrutineeType = nested.scrutineeType
+    def valueType = nested.valueType
+
     def deriveSpan = id.span | nested.span
 
     /** Whether the symbol is a reference or a definition
@@ -258,14 +266,18 @@ object Trees:
 
   case class OrPattern
     (lhs: Pattern, rhs: Pattern)
+    (val valueType: Type)
   extends Pattern with DerivedSpan:
-    val scrutineeType = lhs.scrutineeType
+    def scrutineeType = lhs.scrutineeType
+
     def deriveSpan = lhs.span | rhs.span
 
   case class ApplyPattern
     (fun: Word, nested: List[Pattern])
     (val scrutineeType: Type)
+    (using Definitions)
   extends Pattern with DerivedSpan:
+    val valueType = fun.tpe.asProcType.resultType.stripPartial
 
     val symbol =
       fun match
@@ -277,7 +289,7 @@ object Trees:
 
   case class TagPattern
     (tagTree: Literal, nested: List[Pattern])
-    (val scrutineeType: Type)
+    (val scrutineeType: Type, val valueType: Type)
   extends Pattern with DerivedSpan:
 
     val tag = tagTree.constant match
@@ -289,6 +301,8 @@ object Trees:
   case class ValuePattern
     (value: Word)(val scrutineeType: Type)
   extends Pattern with DerivedSpan:
+    def valueType = value.tpe
+
     def deriveSpan = value.span
 
   /** Represents patterns `pat if e`
@@ -303,7 +317,9 @@ object Trees:
   case class GuardPattern
     (pattern: Pattern, guard: Word)
   extends Pattern with DerivedSpan:
-    val scrutineeType = pattern.scrutineeType
+    def scrutineeType = pattern.scrutineeType
+    def valueType = pattern.valueType
+
     def deriveSpan = pattern.span | guard.span
 
   /** Represents patterns `pat then x = e`
@@ -318,13 +334,17 @@ object Trees:
   case class BindPattern
     (pattern: Pattern, bindings: List[Assign])
   extends Pattern with DerivedSpan:
-    val scrutineeType = pattern.scrutineeType
+    def scrutineeType = pattern.scrutineeType
+    def valueType = pattern.valueType
+
     def deriveSpan = bindings.foldLeft(pattern.span)(_ | _.span)
 
   case class SeqPattern
     (patterns: List[SeqPartPattern])
     (val scrutineeType: Type, val span: Span)
   extends Pattern:
+    def valueType = scrutineeType
+
     /** The distance from the end of a pattern to the end of sequence */
     val distanceToEnd: Seq[SeqPattern.Size] = SeqPattern.computeDistanceToEnd(patterns)
 
@@ -408,8 +428,6 @@ object Trees:
 
   /** A subpattern that appears inside a sequence pattern */
   sealed trait SeqPartPattern extends Tree:
-    def tpe: Type = throw new Exception("No type associated with seq part pattern")
-
     def show(using Definitions): String = Printing.show(this)
 
     def headPattern: Pattern =
@@ -468,8 +486,7 @@ object Trees:
   case class Case
     (pattern: Pattern, body: Word)
     (val span: Span)
-  extends Tree:
-    def tpe = body.tpe
+  extends Tree
 
   //----------------------------------------------------------------------------
   // definitions

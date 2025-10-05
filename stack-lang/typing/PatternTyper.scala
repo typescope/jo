@@ -77,7 +77,8 @@ class PatternTyper(namer: Namer, checker: Checker):
         WildcardPattern()(ErrorType, patDef.span)
 
       else
-        patterns.tail.foldLeft(patterns.head)(OrPattern.apply)
+        patterns.tail.foldLeft(patterns.head): (acc, pat) =>
+          OrPattern(acc, pat)(scrutType)
 
     def computeInfo(resultType: Type) =
       val autoTypes = Nil
@@ -276,7 +277,13 @@ class PatternTyper(namer: Namer, checker: Checker):
 
     for (sym, pos) <- resLHS do oc.occur(sym, pos)
 
-    OrPattern(lhsPat, rhsPat)
+    val valueType =
+      given TargetType = TargetType.Unknown
+      Inference.commonResultType(lhsPat.valueType, rhsPat.valueType) match
+        case Some(tpe) => tpe
+        case None => scrutType
+
+    OrPattern(lhsPat, rhsPat)(valueType)
 
   private def transformInfixCallPattern(
       preArgs: List[Ast.Word], id: Ast.Ident, postArgs: List[Ast.Word],
@@ -360,8 +367,7 @@ class PatternTyper(namer: Namer, checker: Checker):
         for (pat, paramType) <- args.zip(paramTypes) yield transformPattern(pat, paramType)
 
       val tagStringLit = StringLit(id.name)(tag.span)
-      val tagTypeActual = TagType.from(id.name, args2.map(_.tpe))
-      TagPattern(tagStringLit, args2)(tagTypeActual)
+      TagPattern(tagStringLit, args2)(scrutType, tagType)
 
     if scrutType.isUnionType then
       val unionType = scrutType.asUnionType
@@ -380,10 +386,6 @@ class PatternTyper(namer: Namer, checker: Checker):
         WildcardPattern()(ErrorType, patSpan)
       else
         checkNested(tagType)
-
-    else if scrutType.isVoidType then
-      val tagType = TagType.from(id.name, args.map(_ => VoidType))
-      checkNested(tagType)
 
     else
       Reporter.error(s"The tag ${id.name} does not match the scrutinee type ${scrutType.show}", tag.pos)
@@ -427,7 +429,7 @@ class PatternTyper(namer: Namer, checker: Checker):
       end if
 
     val explain = new StringBuilder
-    if Patterns.isValidTypePattern(tpe, scrutType)(using explain) || scrutType.isVoidType then
+    if Patterns.isValidTypePattern(tpe, scrutType)(using explain) then
       pattern
     else
       Reporter.error(explain.toString, tpt.pos)
@@ -451,7 +453,7 @@ class PatternTyper(namer: Namer, checker: Checker):
 
           val explain = new StringBuilder
           // TODO: conform should be safe, no need to be equal
-          if Patterns.isEqualType(sym.info, scrutType)(using explain) || scrutType.isVoidType then
+          if Patterns.isEqualType(sym.info, scrutType)(using explain) then
             val patVal = Ident(sym)(id.span)
             AliasPattern(patVal, WildcardPattern()(sym.info, id.span.endPoint))(isDef = false)
 
@@ -488,7 +490,7 @@ class PatternTyper(namer: Namer, checker: Checker):
 
           val explain = new StringBuilder
           // TODO: conform should be safe, no need to be equal
-          if Patterns.isEqualType(sym.info, nestedPattern.tpe)(using explain) || scrutType.isVoidType then
+          if Patterns.isEqualType(nestedPattern.valueType, sym.info)(using explain) then
             val patVal = Ident(sym)(id.span)
             AliasPattern(patVal, nestedPattern)(isDef = false)
 
@@ -498,7 +500,7 @@ class PatternTyper(namer: Namer, checker: Checker):
 
         case None =>
           val nestedPattern = transformPattern(nested, scrutType)
-          val sym = Symbol.createSymbol(name, nestedPattern.tpe, Flags.Pattern, sc.owner, id.pos)
+          val sym = Symbol.createSymbol(name, nestedPattern.valueType, Flags.Pattern, sc.owner, id.pos)
           sc.definePatternAsTerm(sym)
           sc.define(sym)
 

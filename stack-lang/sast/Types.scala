@@ -228,7 +228,7 @@ object Types:
     def termMember(name: String)(using Definitions): Type =
       getTermMember(name) match
         case Some(tp) => tp
-        case None => throw new Exception(s"No member $name in " + this)
+        case None => throw new Exception(s"No member $name in " + this + ", approx = " + this.approx)
 
     def hasTermMember(name: String)(using Definitions): Boolean =
       getTermMember(name).nonEmpty

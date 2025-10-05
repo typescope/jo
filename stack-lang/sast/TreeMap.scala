@@ -418,7 +418,7 @@ abstract class TreeMap(using Definitions):
       patNested2
 
     if changed then
-      TagPattern(tag, nested2)(pat.tpe)
+      TagPattern(tag, nested2)(pat.scrutineeType, pat.valueType)
     else
       pat
 
@@ -435,7 +435,7 @@ abstract class TreeMap(using Definitions):
       patNested2
 
     if changed then
-      ApplyPattern(fun, nested2)(pat.tpe)
+      ApplyPattern(fun, nested2)(pat.scrutineeType)
     else
       pat
 
@@ -450,7 +450,7 @@ abstract class TreeMap(using Definitions):
     if lhs2.eq(lhs) && rhs2.eq(rhs) then
       pat
     else
-      OrPattern(lhs2, rhs2)
+      OrPattern(lhs2, rhs2)(pat.valueType)
 
   def transformValuePattern(pat: ValuePattern)(using Context): Pattern =
     recurValuePattern(pat)
@@ -519,7 +519,7 @@ abstract class TreeMap(using Definitions):
       end for
 
     if changed then
-      SeqPattern(patterns2)(pat.tpe, pat.span)
+      SeqPattern(patterns2)(pat.scrutineeType, pat.span)
     else
       pat
 

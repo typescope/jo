@@ -1191,7 +1191,7 @@ object Decoder:
         val symbol =
           if isDef then
             val name = decodeString()
-            val info = nested.scrutineeType
+            val info = nested.valueType
 
             val symbol = Symbol.createSymbol(name, info, Flags.Pattern, owner, span.toPos(using owner.source))
             state.registerInternalSymbol(id, symbol)
@@ -1209,6 +1209,7 @@ object Decoder:
 
       case Format.TagPattern =>
         val scrutineeType = decodeType()
+        val valueType = decodeType()
         val tagLit = decodeWord(owner, prevOffset).asInstanceOf[Literal]
 
         var lastOffset = tagLit.span.endOffset
@@ -1217,7 +1218,7 @@ object Decoder:
           lastOffset = pat.span.endOffset
           pat
 
-        TagPattern(tagLit, nested)(scrutineeType)
+        TagPattern(tagLit, nested)(scrutineeType, valueType)
 
       case Format.ApplyPattern =>
         val scrutineeType = decodeType()
@@ -1234,7 +1235,8 @@ object Decoder:
       case Format.OrPattern =>
         val lhs = decodePattern(owner, prevOffset)
         val rhs = decodePattern(owner, lhs.span.endOffset)
-        OrPattern(lhs, rhs)
+        val valueType = decodeType()
+        OrPattern(lhs, rhs)(valueType)
 
       case Format.ValuePattern =>
         val scrutineeType = decodeType()
