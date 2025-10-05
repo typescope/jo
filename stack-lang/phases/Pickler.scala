@@ -16,12 +16,12 @@ class Pickler(using defn: Definitions, rp: Reporter, cf: Config) extends phases.
   val contextObject = phases.Phase.DummyContext
 
   override def transformNamespace(ns: Namespace)(using ctx: Context): Namespace =
-    val fullName = ns.symbol.fullName
-    val path = fullName + ".sast"
-    val buf = Encoder.encode(ns)
-    IO.writeFile(path, buf.getBytes, 0, buf.length)
-
     if cf.testPickling then
+      val fullName = ns.symbol.fullName
+      val path = fullName + ".sast"
+      val buf = Encoder.encode(ns)
+      IO.writeFile(path, buf.getBytes, 0, buf.length)
+
       val bytes = IO.fileAsBytes(path)
       given ReadBuffer = new ReadBuffer(bytes)
       val ns2 = Decoder.decode(ns.symbol.owner).force()
