@@ -288,7 +288,11 @@ object RawPrinter:
         "RecordLit [" ~ content.join(",") ~ "," ~ word.tpe ~ "]"
 
       case TaggedLit(tag, args) =>
-        "TaggedLit [" ~ tag ~ ", [" ~ args.join(",") ~ "]," ~ word.tpe ~ "]"
+        "TaggedLit [" ~ indent:
+           tag ~ ", [" ~ indent:
+             args.join(LINE_SEP)
+           ~ "],"
+         ~ word.tpe ~ "]" ~ LINE_SEP
 
       case Encoded(repr) =>
         "Encoded [" ~ repr ~ "," ~ word.tpe ~ "]"
