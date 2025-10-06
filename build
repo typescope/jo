@@ -10,4 +10,12 @@ scala-cli --power package -f $OPT project.scala stack-lang -M Main -o bin/jo
 
 # build stand library
 STDLIB=out/stdlib
-bin/jo build-lib lib/*.stk -d $STDLIB
+bin/jo build-lib -testPickling lib/*.stk -d $STDLIB
+
+# build JS runtime
+JS_RUNTIME=out/runtime/js
+bin/jo build-lib -testPickling -lib $STDLIB runtime/JS.stk -d $JS_RUNTIME
+
+# build native runtime
+NATIVE_RUNTIME=out/runtime/native
+bin/jo build-lib -testPickling -lib $STDLIB runtime/native/*.stk -d $NATIVE_RUNTIME

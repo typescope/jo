@@ -25,7 +25,7 @@ object Compiler:
         given Definitions = lazyDefn.value
 
         val pickler = new Step("Pickler", (nssAst: List[Namespace]) => {
-          for ns <- nssAst do Encoder.store(ns, targetDir, cf.testPickling, verbose = true)
+          for ns <- nssAst do Encoder.store(ns, targetDir, testPickling = false, verbose = true)
 
           nssAst
         })
