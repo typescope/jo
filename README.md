@@ -142,8 +142,11 @@ First install [scala-cli](https://scala-cli.virtuslab.org/), then build the comp
 ```
 
 This creates:
-- `bin/jo` - Unified compiler launcher
-- `out/stdlib/` - Precompiled standard library (.sast files)
+- `bin/jo` - Unified compiler launcher (wrapper script)
+- `bin/jo.native` - Native executable
+- `sast/stdlib/` - Precompiled standard library (.sast files)
+- `sast/runtime/js/` - JavaScript runtime library
+- `sast/runtime/native/` - Native runtime library
 
 ## Usage
 
@@ -152,42 +155,36 @@ The `jo` command provides a unified interface to all compiler backends:
 ### Run Programs (Interpreter)
 
 ```bash
-# Run directly (defaults to interpreter)
+# Run directly (defaults to interpreter, stdlib loaded automatically)
 bin/jo tests/pos/fact.stk
 
 # Or explicitly use the run command
 bin/jo run tests/pos/fact.stk
-
-# Run with standard library
-bin/jo run app.stk -lib out/stdlib
 ```
 
 ### Build Applications
 
+The standard library is automatically loaded for all commands.
+
 Build native executable (register machine - fastest, default):
 ```bash
-bin/jo build tests/pos/fact.stk -lib out/stdlib -o fact
+bin/jo build tests/pos/fact.stk -o fact
 ./fact
 ```
 
 Build native executable (stack machine):
 ```bash
-bin/jo build -stack tests/pos/fact.stk -lib out/stdlib -o fact
+bin/jo build -stack tests/pos/fact.stk -o fact
 ./fact
 ```
 
 Build JavaScript application:
 ```bash
-bin/jo build -js tests/pos/fact.stk -lib out/stdlib -o fact.js
+bin/jo build -js tests/pos/fact.stk -o fact.js
 node fact.js
 ```
 
 ### Build Libraries
-
-The standard library is precompiled during the build process:
-```bash
-./build  # Creates bin/jo and builds stdlib to out/stdlib/
-```
 
 Build a custom library (generates .sast files):
 ```bash
@@ -199,10 +196,15 @@ Build a library that depends on another library:
 bin/jo build-lib lib/Extensions.stk -lib build/mylib -d build/extensions
 ```
 
-Use custom libraries when building:
+Use custom libraries (stdlib is still automatically loaded):
 ```bash
 bin/jo build app.stk -lib build/mylib -o app
 ./app
+```
+
+Disable automatic stdlib loading:
+```bash
+bin/jo build -no-stdlib app.stk -o app
 ```
 
 ### Command Reference
@@ -215,7 +217,8 @@ jo build-lib [options] <file.stk>   Build library (.sast files)
 jo help                             Show help
 
 Common options:
-  -lib <dir>        Use precompiled library
+  -lib <dir>        Use additional precompiled library (stdlib loaded automatically)
+  -no-stdlib        Disable automatic stdlib loading
 
 Build options:
   -js               Target JavaScript (output: .js)
@@ -227,6 +230,10 @@ Build options:
 Build-lib options:
   -d <dir>          Output directory (default: current dir)
 ```
+
+### Environment Variables
+
+- `JO_HOME` - Set automatically by the `bin/jo` wrapper script to the project root directory
 
 ## Testing
 
