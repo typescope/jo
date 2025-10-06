@@ -2,7 +2,7 @@ package native
 
 import ast.Positions.Source
 import sast.*
-import sast.Sast.*
+import sast.Trees.*
 import sast.Symbols.*
 import sast.Types.*
 
@@ -41,20 +41,20 @@ class ExplicitAlloc(runtime: NativeRuntime)(using defn: Definitions) extends pha
     val recordType = word.tpe.asRecordType
     val size = memory.size(recordType)
     val sizeLit = Literal(Constant.Int(size))(defn.IntType, word.span)
-    val allocApply = Apply(allocFun, sizeLit :: Nil)(addrType, word.span)
+    val allocApply = allocFun.appliedTo(sizeLit)
 
     val refSym =
       given Source = ctx.sourcePos.source
       Symbol.createSymbol("ref", addrType, Flags.Synthetic, ctx, word.pos)
     val ref = Ident(refSym)(word.span)
 
-    stats += Assign(ref, allocApply)(word.span)
+    stats += Assign(ref, allocApply)
 
     for (name, rhs) <- args do
       stats += memory.writeField(recordType, name, ref, this(rhs))
 
     stats += ref
-    Encoded(Block(stats.toList)(ref.tpe, word.span))(word.tpe)
+    Encoded(Block(stats.toList)(word.span))(word.tpe)
 
   private def getEncodedRecordType(qual: Word): RecordType =
     if qual.tpe.isRecordType then
@@ -79,7 +79,7 @@ class ExplicitAlloc(runtime: NativeRuntime)(using defn: Definitions) extends pha
       memory.readField(recordType, select2)
 
   override def transformFieldAssign(word: FieldAssign)(using ctx: Context): Word =
-    val FieldAssign(qual, name, rhs) = word
+    val FieldAssign(Select(qual, name), rhs) = word
 
     if qual.tpe.isObjectType then
       val objectType = qual.tpe.asObjectType

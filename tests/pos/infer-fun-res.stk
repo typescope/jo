@@ -7,10 +7,10 @@ def fact(x: Int): Int =
 
 
 def q(x: Int): { a: Int } =
-  if 0 == x then { a = 1 }
+  if 0 == x then { a: 1 }
   else
     val r = q (x - 1)
-    { a = x, b = 1 + r.a }
+    { a: x, b: 1 + r.a }
 
 def test2(x: Int): { a: Int } =
   q 10

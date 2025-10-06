@@ -5,16 +5,18 @@
  ************************************************************************/
 package parsing
 
-import ast.Ast.*
-import ast.Name
+import ast.Trees.*
+import ast.Naming
 import ast.Positions
 import ast.Positions.*
 
 import reporting.Reporter
 import reporting.Reporter.{ error, warn }
 import reporting.Config
+import reporting.Mode
 
 import common.IO
+import common.StringUtil
 
 import Tokens.*
 import Parser.SyntaxError
@@ -30,7 +32,7 @@ import scala.collection.mutable
 object Parser:
   def main(args: Array[String]): Unit =
     val (options, sources) = IO.parseOptions(args, Config.commonOptionsSpec)
-    given Config = Config(options)
+    given Config = Config(options, Mode.Library)
 
     Reporter.monitor:
       val nss = Parser.parse(sources)
@@ -47,8 +49,9 @@ object Parser:
   /** Parse the supplied code */
   def parse(path: String)(using rp: Reporter): Namespace = try
     val source = Reporter.source(path)
+    val defaultModuleName = StringUtil.toPascalCase(IO.fileNameNoExt(path))
     val parser = new Parser(source.content)(using rp, source)
-    parser.parse()
+    parser.parse(defaultModuleName)
   catch case ex: java.nio.file.NoSuchFileException =>
     Reporter.abortInternal("Source not found: " + path)
 
@@ -168,13 +171,13 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     items.toList
 
-  def parse(): Namespace =
-    val nspace = namespace()
+  def parse(defaultModuleName: String): Namespace =
+    val nspace = namespace(defaultModuleName)
     // With parsing errors, ensure finish scanning
     skipUntil(Set(Token.EOF))
     nspace
 
-  def namespace(): Namespace =
+  def namespace(defaultModuleName: String): Namespace =
     val item = peek()
     val id =
       item match
@@ -183,7 +186,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           qualid()
 
         case _ =>
-          Ident("__empty__")(Span(0, 0))
+          Ident(defaultModuleName)(Span(0, 0))
 
     val imports = repeated:
       if peek() == Token.IMPORT then Some(importStat())
@@ -230,8 +233,21 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   def aliasDef(): AliasDef =
     val info = eat(Token.ALIAS)
+    val item = next()
+    val kind =
+      item.token match
+        case Token.DEF     => AliasKind.Def
+        case Token.PARAM   => AliasKind.Param
+        case Token.PATTERN => AliasKind.Pattern
+        case _ =>
+          error("Expect def/param/pattern, found = " + item.token, item.span.toPos)
+          throw new SyntaxError
+      end match
+
+    val name = ident()
+    eat(Token.EQL)
     val id = qualid()
-    AliasDef(id)(info.span | id.span)
+    AliasDef(name, kind, id)(info.span | id.span)
 
   def section(): Section =
     val secToken = eat(Token.SECTION)
@@ -596,7 +612,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     def isBinaryOperator(item: TokenInfo): Boolean =
       item.token match
-        case Token.Ident(name) => Name.isBinaryOperator(name)
+        case Token.Ident(name) => Naming.isBinaryOperator(name)
         case _ => false
 
     if item.token == Token.EOF || lineIndent.isOutdent(item.indent) then
@@ -938,11 +954,17 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def objectType(): ObjectType =
     val objToken = eat(Token.OBJECT)
     eat(Token.LBRACE)
+    var count = 0
     val decls: List[ValDef | FunDef] = repeated:
+      if count > 0 then eatCommaOpt()
+
       if peek() == Token.DEF then
-        Some(defDef(needBody = false))
+        count += 1
+        val methodDecl = defDef(needBody = false)
+        Some(methodDecl)
 
       else if peek() == Token.VAL || peek() == Token.VAR then
+        count += 1
         val mod = next()
         val mutable = mod.token == Token.VAR
         val id = ident()
@@ -1025,7 +1047,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         eatEndOpt(elseItem.indent)
         blk
       else
-        val blk = Block(phrases = Nil)(thenp.span)
+        // TODO: change to {} causes crash for native backends
+        val blk = Block(phrases = Nil)(thenp.span.endPoint)
         eatEndOpt(ifItem.indent)
         blk
 
@@ -1056,7 +1079,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   def bracketApply(fun: Word): Word =
     peek(1) match
-      case Token.Ident(name) if Name.isCapitalized(name) =>
+      case Token.Ident(name) if Naming.isCapitalized(name) =>
         eat(Token.LBRACKET)
         val targs = oneOrMore(() => typ(), Token.COMMA)
         val endToken = eat(Token.RBRACKET)
@@ -1110,7 +1133,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   def namedArg(): NamedArg =
     val id = ident()
-    eat(Token.EQL)
+    eat(Token.COLON)
     val arg = expr()
     NamedArg(id, arg)(id.span | arg.span)
 
@@ -1138,11 +1161,26 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val objToken = eat(Token.OBJECT)
     eat(Token.LBRACE)
 
+    var count = 0
     val members: List[ValDef | FunDef] = repeated:
-        if peek() == Token.DEF then Some(defDef(needBody = true))
-        else if peek() == Token.VAL then Some(valDef(Token.VAL))
-        else if peek() == Token.VAR then Some(valDef(Token.VAR))
+      if count > 0 then eatCommaOpt()
+
+      val res =
+        if peek() == Token.DEF then
+          Some(defDef(needBody = true))
+
+        else if peek() == Token.VAL then
+          Some(valDef(Token.VAL))
+
+        else if peek() == Token.VAR then
+          Some(valDef(Token.VAR))
+
         else None
+
+      if res.nonEmpty then count += 1
+
+      res
+
     val endToken = eat(Token.RBRACE)
     Object(members)(objToken.span | endToken.span)
 
@@ -1171,7 +1209,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     else
       acc.map(_._1).toList
 
-  def applyPattern(apply: Tag | Ident): Word =
+  def applyPattern(apply: Tag | RefTree): Word =
     val bindings = patternArgs()
     val spanEnd = bindings.last.span
     Apply(apply, bindings)(apply.span | spanEnd)
@@ -1260,20 +1298,20 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           tag
 
       case Token.Ident(name) =>
-        val item = next()
-        val id = Ident(name)(item.span)
+        val id = qualid()
 
         val itemNext = peekItem()
         itemNext.token match
-          case Token.COLON => typePattern(id)
+          case Token.COLON if id.isInstanceOf[Ident] =>
+            typePattern(id.asInstanceOf[Ident])
 
           case Token.LPAREN if itemNext.span.followsImmediate(id.span)  =>
             applyPattern(id)
 
-          case Token.Ident("@") =>
+          case Token.Ident("@") if id.isInstanceOf[Ident] =>
             next()
             val nested = simplePattern()
-            Assign(id, nested)(nested.span | id.span)
+            Assign(id.asInstanceOf[Ident], nested)(nested.span | id.span)
 
           case _ => id
 

@@ -12,7 +12,13 @@ class NameTable(
   termNames: mutable.Map[String, Symbol],
   typeNames: mutable.Map[String, Symbol],
   patternNames: mutable.Map[String, Symbol],
-  autos: mutable.ArrayBuffer[Symbol]):
+  autoSymbols: mutable.ArrayBuffer[Symbol]):
+
+  private var frozen: Boolean = false
+
+  def freeze(): this.type =
+    frozen = true
+    this
 
   def this() = this(mutable.Map.empty, mutable.Map.empty, mutable.Map.empty, new mutable.ArrayBuffer)
 
@@ -35,33 +41,47 @@ class NameTable(
       case None => Nil
       case Some(sym) => sym :: Nil
 
-  def resolveByPath(path: String)(using Definitions): List[Symbol] =
-    val syms = NameTable.resolveStatic(this, path.split("\\.").toList)
+  def resolveByPathParts(parts: List[String])(using Definitions.Lazy): List[Symbol] =
+    val syms = NameTable.resolveStatic(this, parts)
     if syms.isEmpty then
-      throw new Exception("Not found: " + path + ", name table " + this.show)
+      throw new Exception("Not found: " + parts + ", name table " + this.show)
     else
       syms
 
-  def resolveTermByPath(path: String)(using Definitions): Symbol =
+  def resolveByPath(path: String)(using Definitions.Lazy): List[Symbol] =
+    resolveByPathParts(path.split('.').toList)
+
+  def resolveTermByPath(path: String)(using Definitions.Lazy): Symbol =
     resolveByPath(path).filter(!_.isOneOf(Flags.Pattern | Flags.Type)).head
 
   def resolvePatternByPath(path: String)(using Definitions): Symbol =
     resolveByPath(path).filter(_.is(Flags.Pattern)).head
 
-  def resolveTypeByPath(path: String)(using Definitions): Symbol =
+  def resolveTypeByPath(path: String)(using Definitions.Lazy): Symbol =
     resolveByPath(path).filter(_.is(Flags.Type)).head
 
+  def resolveTermByPathParts(parts: List[String])(using Definitions.Lazy): Symbol =
+    resolveByPathParts(parts).filter(!_.isOneOf(Flags.Pattern | Flags.Type)).head
+
+  def resolvePatternByPathParts(parts: List[String])(using Definitions.Lazy): Symbol =
+    resolveByPathParts(parts).filter(_.is(Flags.Pattern)).head
+
+  def resolveTypeByPathParts(parts: List[String])(using Definitions.Lazy): Symbol =
+    resolveByPathParts(parts).filter(_.is(Flags.Type)).head
+
   def define(sym: Symbol)(using rp: Reporter): Unit =
+    assert(!frozen, "Name table is frozen")
+
     val table = getTable(sym)
     defineInTable(sym, table)
 
     if sym.is(Flags.Auto) then
       defineAuto(sym)
 
-  def getAutos: Seq[Symbol] = autos.toSeq
+  def autos: Seq[Symbol] = autoSymbols.toList
 
   private def defineAuto(sym: Symbol): Unit =
-    autos += sym
+    autoSymbols += sym
 
   private def defineInTable(sym: Symbol, table: mutable.Map[String, Symbol])(using rp: Reporter): Unit =
     table.get(sym.name) match
@@ -74,7 +94,9 @@ class NameTable(
   end defineInTable
 
   def definePatternAsTerm(sym: Symbol)(using rp: Reporter): Unit =
+    assert(!frozen, "Name table is frozen")
     assert(sym.isPattern, "Expect pattern symbol, found = " + sym)
+
     defineInTable(sym, termNames)
 
   def terms: List[Symbol] = termNames.values.toList
@@ -83,11 +105,13 @@ class NameTable(
 
   def patterns: List[Symbol] = patternNames.values.toList
 
+  def members: List[Symbol] = terms ++ types ++ patterns
+
   def show: String =
     "terms: { " + termNames + "}" + "\ntypes: { " + typeNames + "}" + "\npatterns: { " + patternNames + "}"
 
 object NameTable:
-  def resolveStatic(nameTable: NameTable, parts: List[String])(using Definitions): List[Symbol] =
+  def resolveStatic(nameTable: NameTable, parts: List[String])(using defnLazy: Definitions.Lazy): List[Symbol] =
     (parts: @unchecked) match
       case name :: Nil =>
         nameTable.resolve(name)
@@ -96,7 +120,7 @@ object NameTable:
         nameTable.resolveTerm(name) match
           case Some(sym) =>
             if sym.isContainer then
-              val nameTable = sym.dealias.info.as[NameTableInfo].nameTable
+              val nameTable = defnLazy.infoProvider.info(sym).as[ContainerInfo].nameTable
               resolveStatic(nameTable, rest)
             else
               Nil

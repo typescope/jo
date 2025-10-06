@@ -1,8 +1,8 @@
 package ast
 
-import Ast.*
+import Trees.*
 
-object AstOps:
+object TreeOps:
   /** A tree traversal for non-toplevel code */
   trait TypeTreeTraverser:
     def apply(tpt: TypeTree): Unit

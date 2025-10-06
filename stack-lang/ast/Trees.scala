@@ -8,7 +8,7 @@ import common.KeyProps
  * Abstract Syntax Tree
  *
  ***********************************************************************/
-object Ast:
+object Trees:
   sealed abstract class Tree extends Product, Positioned, KeyProps.Container
 
   enum Modifier extends Tree:
@@ -61,7 +61,7 @@ object Ast:
   extends Word, RefTree:
     assert(name.nonEmpty, "name is empty")
 
-    def isCapitalized: Boolean = Name.isCapitalized(name)
+    def isCapitalized: Boolean = Naming.isCapitalized(name)
 
   case class Apply
     (fun: Word, args: List[Word])
@@ -275,7 +275,6 @@ object Ast:
   extends Def:
     def name: String = ident.name
 
-
   case class Section
     (ident: Ident, defs: List[Def])
     (val span: Span)
@@ -357,13 +356,21 @@ object Ast:
   extends Tree:
     assert(isQualid(qualid), "malformed qualid: " + qualid)
 
+  enum AliasKind:
+    case Def, Param, Pattern
+
+    override def toString = this match
+      case AliasKind.Def     => "def"
+      case AliasKind.Param   => "param"
+      case AliasKind.Pattern => "pattern"
+
   case class AliasDef
-    (qualid: RefTree)
+    (ident: Ident, kind: AliasKind, qualid: RefTree)
     (val span: Span)
   extends Def:
     assert(isQualid(qualid), "malformed qualid: " + qualid)
 
-    def name = qualid.name
+    def name: String = ident.name
 
   case class Namespace
     (qualid: RefTree, imports: List[Import], defs: List[Def], source: String)
@@ -385,10 +392,17 @@ object Ast:
     pat match
       case _: Tag | _: Ident | _: StringLit | _: IntLit | _: CharLit | _: BoolLit => true
 
+      case _: Select => isQualid(pat)
+
       case TypeAscribe(_: Ident, _) => true
 
-      case Apply(_: Tag | _: Ident, args) if args.nonEmpty =>
+      case Apply(pred, args) if args.nonEmpty =>
         args.forall(isPattern)
+
+        pred match
+          case _: Tag | _: Ident => true
+          case _: Select => isQualid(pred)
+          case _ => false
 
       case Expr(words) if words.nonEmpty =>
         words.forall(isPattern)

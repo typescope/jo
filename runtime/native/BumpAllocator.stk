@@ -5,7 +5,7 @@ import stk.runtime.native.Syscall
 
 type State = { freeFrom: Int, freeUntil: Int }
 
-def init(): Unit =
+def init(): Unit receives none =
   val start = Syscall.sys_brk 0
   val dataAddr = Core.dataAddr "stk.runtime.native.BumpAllocator.state"
 
@@ -13,7 +13,7 @@ def init(): Unit =
   Core.writeInt dataAddr start
   Core.writeInt (Core.addAddr dataAddr 4) start
 
-def alloc(size: Int): Any =
+def alloc(size: Int): Any receives none =
   val dataAddr = Core.dataAddr "stk.runtime.native.BumpAllocator.state"
 
   // TODO: use stk syntax once record can be mutable
@@ -23,7 +23,7 @@ def alloc(size: Int): Any =
   if freeFrom + size > lastFreeUntil then
      val newFreeUntil = Syscall.sys_brk (lastFreeUntil + 4096)
      if newFreeUntil == -1 then
-       abort("Unable to alloc memory from system")
+       abort "Unable to alloc memory from system"
 
      // avoid allocating at page boundary
      freeFrom = lastFreeUntil

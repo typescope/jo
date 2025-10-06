@@ -2,12 +2,15 @@
 
 files=(
     # parser
-    stack-lang/ast/Ast.scala
-    stack-lang/ast/AstOps.scala
     stack-lang/ast/Desugaring.scala
-    stack-lang/ast/Name.scala
+    stack-lang/ast/Naming.scala
     stack-lang/ast/Positions.scala
     stack-lang/ast/Printing.scala
+    stack-lang/ast/Trees.scala
+    stack-lang/ast/TreeOps.scala
+    stack-lang/common/Base64.scala
+    stack-lang/common/Base128.scala
+    stack-lang/common/ByteBuffer.scala
     stack-lang/common/Debug.scala
     stack-lang/common/KeyProps.scala
     stack-lang/common/IO.scala
@@ -25,7 +28,6 @@ files=(
     # typer
     stack-lang/typing/Autos.scala
     stack-lang/typing/Checker.scala
-    stack-lang/typing/EffectAnalysis.scala
     stack-lang/typing/ExprTyper.scala
     stack-lang/typing/Imports.scala
     stack-lang/typing/Inference.scala
@@ -38,23 +40,36 @@ files=(
     stack-lang/sast/Constant.scala
     stack-lang/sast/Definitions.scala
     stack-lang/sast/Effects.scala
+    stack-lang/sast/EffectAnalysis.scala
     stack-lang/sast/Exhaustivity.scala
     stack-lang/sast/Flags.scala
     stack-lang/sast/InfoProvider.scala
     stack-lang/sast/Kind.scala
+    stack-lang/sast/Names.scala
     stack-lang/sast/NameTable.scala
     stack-lang/sast/Patterns.scala
     stack-lang/sast/Printing.scala
+    stack-lang/sast/RawPrinter.scala
     stack-lang/sast/Rewriting.scala
-    stack-lang/sast/Sast.scala
-    stack-lang/sast/SastOps.scala
     stack-lang/sast/Symbols.scala
     stack-lang/sast/SymInfoProvider.scala
     stack-lang/sast/Subtyping.scala
+    stack-lang/sast/Trees.scala
+    stack-lang/sast/TreeOps.scala
     stack-lang/sast/TreeChecker.scala
+    stack-lang/sast/TreeMap.scala
+    stack-lang/sast/TreeTraverser.scala
     stack-lang/sast/Types.scala
+    stack-lang/sast/TypeMap.scala
     stack-lang/sast/TypeOps.scala
+    stack-lang/sast/TypeTraverser.scala
     stack-lang/sast/TaggedEncoding.scala
+
+    stack-lang/pickle/Decoder.scala
+    stack-lang/pickle/Encoder.scala
+    stack-lang/pickle/Format.scala
+    stack-lang/pickle/ReadBuffer.scala
+    stack-lang/pickle/WriteBuffer.scala
 
     # native compiler
     stack-lang/common/UniqueName.scala
@@ -85,6 +100,7 @@ files=(
     stack-lang/native/ExplicitAlloc.scala
 
     stack-lang/phases/Phase.scala
+    stack-lang/phases/EffectCheck.scala
     stack-lang/phases/FrontEnd.scala
     stack-lang/phases/ElimCapture.scala
     stack-lang/phases/EncodeTagged.scala

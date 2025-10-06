@@ -3,7 +3,7 @@ package sast
 import Types.*
 import Flags.*
 
-import ast.Positions.SourcePosition
+import ast.Positions.{ Source, Span, SourcePosition }
 
 /** Symbols refer to definitions (names) in the program.
   *
@@ -49,7 +49,7 @@ object Symbols:
     def isSynthetic: Boolean = flags.is(Flags.Synthetic)
     def isAlias    : Boolean = flags.is(Flags.Alias)
 
-    def isConstructor: Boolean = flags.is(Flags.Constructor)
+    def isConstructor: Boolean = name == Names.Constructor
 
     def isNamespace: Boolean = flags.is(Flags.NSpace)
 
@@ -64,13 +64,13 @@ object Symbols:
     def classInfo(using Definitions): ClassInfo =
       assert(this.isClass, "Not a class")
 
-      this.dealias.info match
+      this.info match
         case info: ClassInfo => info
         case TypeLambda(_, info: ClassInfo, _) => info
         case tp => throw new Exception("Unexpected type " + tp.show)
 
     def isLocal(using Definitions): Boolean =
-      owner != null & !owner.isContainer
+      owner != null && !owner.isContainer
 
     def enclosingContainer(using Definitions): Symbol =
       if this.isContainer then
@@ -86,6 +86,9 @@ object Symbols:
         // owner can be null, let exception be thrown
         owner.enclosingFunction
 
+    def containedIn(other: Symbol)(using Definitions): Boolean =
+      this == other || (this.owner != null && this.owner.containedIn(other))
+
     def ownersIterator(using Definitions): Iterator[Symbol] =
       var current = this
       new Iterator[Symbol]:
@@ -98,28 +101,32 @@ object Symbols:
     def termMember(name: String)(using Definitions): Symbol =
       def error() = throw new Exception(s"No term member $name for $this")
 
-      this.dealias.info match
-        case nsInfo: NameTableInfo => nsInfo.resolveTerm(name).getOrElse(error())
+      this.info match
+        case info: ContainerInfo => info.resolveTerm(name).getOrElse(error())
         case _ => error()
 
     def typeMember(name: String)(using Definitions): Symbol =
       def error() = throw new Exception(s"No type member $name for $this")
 
-      this.dealias.info match
-        case nsInfo: NameTableInfo => nsInfo.resolveType(name).getOrElse(error())
+      this.info match
+        case info: ContainerInfo => info.resolveType(name).getOrElse(error())
         case _ => error()
 
     def patternMember(name: String)(using Definitions): Symbol =
       def error() = throw new Exception(s"No pattern member $name for $this")
 
-      this.dealias.info match
-        case nsInfo: NameTableInfo => nsInfo.resolvePattern(name).getOrElse(error())
+      this.info match
+        case info: ContainerInfo => info.resolvePattern(name).getOrElse(error())
         case _ => error()
 
     /** Return the source symbol of an alias created by import or aliasing
       *
       * Invariant: It is important that we do not have cycles in aliases, which
       * is guaranteed by disallowing creating an alias of another alias.
+      *
+      * Warning: Don't call this method. Dealiasing is done systematically
+      * during type checking in name resolution. Later phases can assume that
+      * there are no intermediate aliases.
       */
     def dealias(using Definitions): Symbol =
       if this.isAlias then this.info.as[StaticRef].symbol.dealias else this
@@ -131,12 +138,12 @@ object Symbols:
     /** The default function associated with a context parameter */
     def defaultFunction(using Definitions): Symbol =
       assert(this.isAllOf(Flags.Default | Flags.Context))
-      this.dealias.owner.termMember(this.name + "$default")
+      this.owner.termMember(this.name + "$default")
 
     /** The value function associated with a context parameter */
     def valueFunction(using Definitions): Symbol =
       assert(this.isAllOf(Flags.Default | Flags.Context))
-      this.dealias.owner.termMember(this.name + "$value")
+      this.owner.termMember(this.name + "$value")
 
     /** The param of an option type associated with a default context parameter.
       *
@@ -144,7 +151,7 @@ object Symbols:
       */
     def optionParam(using Definitions): Symbol =
       assert(this.isAllOf(Flags.Default | Flags.Context))
-      this.dealias.owner.termMember(this.name + "$option")
+      this.owner.termMember(this.name + "$option")
 
     def fullName(using Definitions): String =
       if isLocal then
@@ -154,6 +161,10 @@ object Symbols:
           (acc, owner) => owner.name + "." + acc
 
     def toNamedInfo(using Definitions): NamedInfo[Type] = NamedInfo(name, info)
+
+    def span: Span = sourcePos.span
+
+    def source: Source = sourcePos.source
 
     override def toString() =
       if Symbols.debugSymbol then

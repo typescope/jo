@@ -1,3 +1,5 @@
+import stk.Int
+
 section Complex
   data Complex(real: Int, image: Int)
 

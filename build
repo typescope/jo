@@ -5,14 +5,29 @@ set -e
 OPT="--native"
 
 # compile
-echo "Generating interpreter"
-scala-cli --power package -f $OPT project.scala stack-lang -M sast.Interpreter -o bin/run.native
+echo "Generating unified launcher"
+scala-cli --power package -f $OPT project.scala stack-lang -M Main -o bin/jo.native
 
-echo "Generating js compiler"
-scala-cli --power package -f $OPT project.scala stack-lang -M js.compile -o bin/jsc.native
+# create wrapper script
+cat > bin/jo << 'EOF'
+#!/bin/bash
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+JO_HOME="$(cd "$SCRIPT_DIR/.." && pwd)"
+export JO_HOME
+exec "$SCRIPT_DIR/jo.native" "$@"
+EOF
 
-echo "Generating stack compiler"
-scala-cli --power package -f $OPT project.scala stack-lang -M native.stack.StackMachine -o bin/stac.native
+chmod +x bin/jo
 
-echo "Generating register compiler"
-scala-cli --power package -f $OPT project.scala stack-lang -M native.register.RegisterMachine -o bin/regc.native
+# build stand library
+STDLIB=sast/stdlib
+bin/jo build-lib -testPickling -no-stdlib lib/*.stk -d $STDLIB
+
+# build JS runtime
+JS_RUNTIME=sast/runtime/js
+bin/jo build-lib -testPickling runtime/JS.stk -d $JS_RUNTIME
+
+# build native runtime
+NATIVE_RUNTIME=sast/runtime/native
+bin/jo build-lib -testPickling runtime/native/*.stk -d $NATIVE_RUNTIME

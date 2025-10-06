@@ -4,7 +4,7 @@ import native.Assembly.*
 import native.runtime.NativeRuntime
 
 import sast.*
-import sast.Sast.*
+import sast.Trees.*
 import sast.Symbols.*
 
 import common.WorkList
@@ -26,17 +26,16 @@ abstract class Backend(val runtime: NativeRuntime)(using Definitions):
   def getFunAddress(sym: Symbol): Label =
     assert(sym.isFunction, "Not a function, sym = " + sym)
 
-    val targetSym = sym.dealias
-    funLabelMap.get(targetSym) match
+    funLabelMap.get(sym) match
       case Some(addr) => addr
 
       case None =>
-        runtime.locate(targetSym) match
+        runtime.locate(sym) match
           case Some(addrOrSymbol) =>
             addrOrSymbol match
               case label: Label =>
                 // cache result
-                funLabelMap(targetSym) = label
+                funLabelMap(sym) = label
                 label
 
               case redirectSym: Symbol =>
@@ -44,10 +43,10 @@ abstract class Backend(val runtime: NativeRuntime)(using Definitions):
 
           case None =>
             val label = Label(sym.name)
-            funLabelMap(targetSym) = label
+            funLabelMap(sym) = label
 
             // Add function to work list
-            workList.add(targetSym)
+            workList.add(sym)
 
             label
 

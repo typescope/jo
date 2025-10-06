@@ -1,7 +1,7 @@
 package js
 
 import sast.*
-import sast.Sast.*
+import sast.Trees.*
 import sast.Symbols.*
 
 /** Lower String and Array to JS runtime calls.
@@ -27,7 +27,7 @@ class LowerRuntime(runtime: JSRuntime)(using defn: Definitions) extends phases.P
     defn.Predef_intToStr   -> runtime.JS_intToStr,
     defn.Array_get         -> runtime.JS_Array_get,
     defn.Array_set         -> runtime.JS_Array_set,
-    defn.Array_size         -> runtime.JS_Array_size,
+    defn.Array_size        -> runtime.JS_Array_size,
   )
 
   override def transformTypeApply(tapp: TypeApply)(using ctx: Context): Word =
@@ -53,7 +53,7 @@ class LowerRuntime(runtime: JSRuntime)(using defn: Definitions) extends phases.P
     val sym = ref.symbol
     if sym.isFunction then
       // global function call
-      rewiring.get(sym.dealias) match
+      rewiring.get(sym) match
         case Some(subst) => Ident(subst)(ref.span)
         case _ => ref
 

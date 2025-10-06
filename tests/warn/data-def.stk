@@ -6,16 +6,6 @@ data Either[S, T] = Left(value: S) | Right(value: T)
 
 data ObjType[T] = A(x: object { def foo(x: Int): Int }) | B
 
-section Left
-  pattern Left(value: Int): Left[Int] = case #Left value
-end
-
-section Right
-  pattern Right(value: Int): Right[Int] = case #Right value
-  def Right(value: Int): Right[Int] = #Right x
-end
-
-
 def test(item: Either[String, Int]): Unit =
   match item
     case Left v =>  println v

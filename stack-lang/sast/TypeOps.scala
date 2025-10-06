@@ -148,78 +148,17 @@ object TypeOps:
     */
   def isGroundedProxy(tp: ProxyType)(using Definitions): Boolean = isGrounded(tp.dealias)
 
-
-  abstract class TypeMap(using Definitions):
-    type Context
-
-    def apply(tp: Type)(using Context): Type
-
-    def recur(tp: Type)(using Context): Type =
-      tp match
-        case VoidType | ErrorType | AnyType | BottomType =>
-          tp
-
-        case _: StaticRef | _: MemberRef | _: TypeVar | _: ConstantType | _: NameTableInfo =>
-          tp
-
-        case RecordType(fields) =>
-          val fields2 =
-            for field <- fields
-            yield field.copy(info = this(field.info))
-          RecordType(fields2)
-
-        case UnionType(branches) =>
-          val branches2 =
-            for branch <- branches
-            yield this(branch)
-
-          UnionType(branches2)
-
-        case TagType(tag, params) =>
-          val params2 =
-            for param <- params yield param.copy(info = this(param.info))
-          TagType(tag, params2)
-
-        case ObjectType(fields, methods, muts) =>
-          val fields2 =
-            for field <- fields
-            yield field.copy(info = this(field.info))
-
-          val methods2 =
-            for method <- methods
-            yield method.copy(info = this(method.info))
-
-          ObjectType(fields2, methods2, muts)
-
-        case AppliedType(tctor, targs) =>
-          val tctor2 = apply(tctor)
-          val targs2 = for targ <- targs yield this(targ)
-          AppliedType(tctor2, targs2)
-
-        case TypeLambda(tparams, resType, preParamCount) =>
-          // TODO: Once type bounds are supported, we need to transform bounds
-          TypeLambda(tparams, this(resType), preParamCount)
-
-        case TypeBound(lo, hi) =>
-          TypeBound(this(lo), this(hi))
-
-        case classInfo: ClassInfo =>
-          val targs2 = classInfo.targs.map(this.apply)
-          classInfo.copy(targs = targs2)
-
-        case ProcType(tparams, params, autos, resType, receivesOpt, preParamCount) =>
-          // TODO: Once type bounds are supported, we need to transform bounds
-          val params2 =
-            for param <- params
-            yield param.copy(info = this(param.info))
-
-          val autos2 =
-            for auto <- autos
-            yield auto.copy(info = this(auto.info))
-
-          val resType2 = this(resType)
-          ProcType(tparams, params2, autos2, resType2, receivesOpt, preParamCount)
-
+  /**
+    * Warning: If impredicativity is allowed for type parameters, we must
+    * perform capture avoidance.
+    *
+    * Once we enable first-class higher-kinded types, we can have a type:
+    *
+    *     type C[F: * => *] = [A] => F[A]
+    *
+    * Now C[C[List]] after dealiasing can have the same symbol A refer to
+    * different bindings.
+    */
   class SymbolsTypeMap(using Definitions) extends TypeMap:
     type Context = Map[Symbol, Type]
 
@@ -230,47 +169,3 @@ object TypeOps:
 
         case _ =>
           recur(tp)
-
-  abstract class TypeTraverser:
-    type Context = Definitions
-
-    def apply(tp: Type)(using Context): Unit
-
-    def recur(tp: Type)(using Context): Unit =
-      tp match
-        case VoidType | ErrorType | AnyType | BottomType =>
-
-        case _: StaticRef | _: MemberRef | _: TypeVar | _: NameTableInfo | _: ClassInfo  | _: ConstantType =>
-
-        case RecordType(fields) =>
-          for field <- fields do this(field.info)
-
-        case UnionType(branches) =>
-          for branch <- branches do this(branch)
-
-        case TagType(tag, params) =>
-          for param <- params do this(param.info)
-
-        case ObjectType(fields, methods, muts) =>
-          for field <- fields do this(field.info)
-          for method <- methods do this(method.info)
-
-        case AppliedType(tctor, targs) =>
-          apply(tctor)
-          for targ <- targs do this(targ)
-
-        case TypeLambda(tparams, resType, _) =>
-          // TODO: Once type bounds are supported, we need to transform bounds
-          this(resType)
-
-        case TypeBound(lo, hi) =>
-          this(lo)
-          this(hi)
-
-        case ProcType(tparams, params, autos, resType, receivesOpt, preParamCount) =>
-          // TODO: Once type bounds are supported, we need to transform bounds
-          for param <- params do this(param.info)
-
-          for auto <- autos do this(auto.info)
-
-          this(resType)

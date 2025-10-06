@@ -2,7 +2,7 @@ class Complex
   val real: Int
   val image: Int
 
-  def Complex(x: Int, y: Int) = { real = x, image = y }
+  def Complex(x: Int, y: Int) = { real: x, image: y }
 
   def +(c: Complex): Complex =
     Complex

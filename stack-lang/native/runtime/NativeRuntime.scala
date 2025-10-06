@@ -24,6 +24,7 @@ extends Linker:
 
   val Core_cast = Core.termMember("cast")
   val Core_data = Core.termMember("dataAddr")
+  val Core_debug = Core.termMember("debug")
 
   val Core_addAddr   = Core.termMember("addAddr")
   val Core_writeInt  = Core.termMember("writeInt")

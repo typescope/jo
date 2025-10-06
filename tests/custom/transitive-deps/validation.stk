@@ -1,0 +1,13 @@
+// Validation library - depends on Core
+
+def validatePositive(n: Int): Core.Result[Int] =
+  if n > 0 then
+    Core.Success n
+  else
+    Core.Failure "Number must be positive"
+
+def validateRange(n: Int, min: Int, max: Int): Core.Result[Int] =
+  if n >= min && n <= max then
+    Core.Success n
+  else
+    Core.Failure "Number out of range"

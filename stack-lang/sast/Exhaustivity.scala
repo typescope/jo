@@ -1,6 +1,6 @@
 package sast
 
-import Sast.*
+import Trees.*
 import Types.*
 import Symbols.*
 
@@ -86,7 +86,7 @@ object Exhaustivity:
 
   def isIrrefutable(pat: Pattern)(using defn: Definitions): Boolean =
     pat match
-      case AscribePattern(_, nested) => isIrrefutable(nested)
+      case AliasPattern(_, nested) => isIrrefutable(nested)
 
       case TypePattern(tpt) => Subtyping.isEqualType(tpt.tpe, pat.scrutineeType)
 
@@ -111,29 +111,29 @@ object Exhaustivity:
 
       case _: GuardPattern => false
 
-      case TermBindingPattern(pattern, _) => isIrrefutable(pattern)
+      case BindPattern(pattern, _) => isIrrefutable(pattern)
 
   def isIrrefutable(pat: SeqPattern)(using Definitions): Boolean =
     pat.patterns.forall:
-      case AtomPattern(pat)           => isIrrefutable(pat)
-      case SkipToPattern(pat)         => isIrrefutable(pat)
-      case StarPattern(pat)           => isIrrefutable(pat)
-      case RemainingSlicePattern(pat) => isIrrefutable(pat)
+      case AtomPattern(pat)    => isIrrefutable(pat)
+      case SkipToPattern(pat)  => isIrrefutable(pat)
+      case StarPattern(pat)    => isIrrefutable(pat)
+      case RestPattern(pat)    => isIrrefutable(pat)
 
   def project(pattern: Pattern)(using defn: Definitions): Space =
     pattern match
-      case AscribePattern(id, nested) => project(nested)
+      case AliasPattern(id, nested) => project(nested)
 
       case TypePattern(tpt) => TypeSpace(tpt.tpe)
 
-      case WildcardPattern() => TypeSpace(pattern.tpe)
+      case WildcardPattern() => TypeSpace(pattern.valueType)
 
       case seqPat: SeqPattern =>
 
         if isIrrefutable(seqPat) then
-          SeqSpace(seqPat.tpe, seqPat.totalSize)
+          SeqSpace(seqPat.valueType, seqPat.totalSize)
         else
-          PartialSpace(SeqSpace(seqPat.tpe, seqPat.totalSize))
+          PartialSpace(SeqSpace(seqPat.valueType, seqPat.totalSize))
 
       case ValuePattern(value) =>
         value match
@@ -158,7 +158,7 @@ object Exhaustivity:
       case GuardPattern(pattern, _) =>
         PartialSpace(project(pattern))
 
-      case TermBindingPattern(pattern, bindings) =>
+      case BindPattern(pattern, bindings) =>
         project(pattern)
 
   def subtract(s1: Space, s2: Space)(using defn: Definitions): Space = Debug.trace(s"subtract(${s1.show}, ${s2.show})", (_: Space).show, enable = false):

@@ -1,104 +1,155 @@
 package typing
 
-import ast.Ast
+import ast.{ Trees => Ast }
 import sast.*
-import sast.Sast.*
+import sast.Trees.*
 
 import parsing.Parser
 import reporting.Reporter
 import reporting.Reporter.Step
 import reporting.Config
+import reporting.Mode
 import common.IO
 
 object Typer:
-  val stdLib = List(
-    "lib/Array.stk",
-    "lib/Bool.stk",
-    "lib/Eq.stk",
-    "lib/Int.stk",
-    "lib/Internal.stk",
-    "lib/IO.stk",
-    "lib/Predef.stk",
-    "lib/List.stk",
-    "lib/Map.stk",
-    "lib/Set.stk",
-  )
-
-  /** The stdlib cannot depend on pre-defined symbols */
-  def check
-      (nssAst: List[Ast.Namespace], runtime: List[String])
+  /** The stdlib cannot depend on pre-defined symbols
+    *
+    * Assumption: the directory path in lib/runtime are in topological order.
+    */
+  private def check
+      (nssAst: List[Ast.Namespace], libs: List[String], runtimes: List[String])
       (using defnLazy: Definitions.Lazy, rp: Reporter, cf: Config)
   : List[Namespace] =
 
     val rootNameTable = defnLazy.rootNameTable
 
-    // StdLib is compiled without the Predef
-    val nssStdLib = runNamer(stdLib, rootNameTable, predef = new NameTable) <| "stdlib"
+    def checkEffects(nss: List[Namespace]): Unit =
+      // Run normalization and pickling
+      given Definitions = defnLazy.value
+      val effectCheck = new phases.EffectCheck
 
-    // Must be after type checking the stdlib
-    val predefNameTable = defnLazy.value.Predef_nameTable
+      effectCheck.transform(nss)
 
-    // Should be before checking runtime code such that they are not available
-    val nss = new Namer().transform(nssAst, rootNameTable, predefNameTable) <| "namer.source"
+      if cf.testPickling then
+        given Definitions = defnLazy.value
 
-    // Runtime definitions are inaccessible in user programs and may only
-    // use predef definitions
-    val nssRuntime = runNamer(runtime, rootNameTable, predefNameTable) <| "runtime"
+        val outDir = "out/sast"
+        IO.ensureExists(outDir)
+        for ns <- nss do pickle.Encoder.store(ns, outDir, cf.testPickling)
+      end if
 
-    nssStdLib ++ nssRuntime ++ nss
+    if libs.isEmpty then
+      // compile stdlib to a lib
+      val nss = new Namer().transform(nssAst, rootNameTable, predef = new NameTable) <| "namer.source"
+      checkEffects(nss)
 
-  private def runNamer(
-    files: List[String], rootNameTable: NameTable, predef: NameTable)
-    (using defnLazy: Definitions.Lazy, rp: Reporter, cf: Config)
-  : List[Namespace] =
+      if runtimes.nonEmpty && !rp.hasErrors then
+        // most likely wrong parameters by users
+        println("Warning: Unexpected runtime specified in compiling library, " + runtimes)
 
-    val namer = Step("namer", (nss: List[Ast.Namespace]) => {
-      val code = new Namer().transform(nss, rootNameTable, predef)
-      if cf.checkTree then TreeChecker.check(code)(using defnLazy.value)
-      code
-    })
+      // Don't check effect errors if there are type errors
+      if !rp.hasErrors then checkEffects(nss)
+      nss
 
-    // `|>` will stop early in the presence of parsing errors
-    files |> parseStep |> namer
+    else
+      cf.mode match
+        case Mode.Library =>
+          // Load library from .sast files
+          for lib <- libs do loadSastSymbols(lib) <| "load lib: " + lib
+
+          // Must be after loading the stdlib
+          val predefNameTable = defnLazy.value.Predef_nameTable
+
+          val nss = new Namer().transform(nssAst, rootNameTable, predefNameTable) <| "namer.source"
+
+          if runtimes.nonEmpty && !rp.hasErrors then
+            // most likely wrong parameters by users
+            println("Warning: Unexpected runtime specified in compiling library, " + runtimes)
+
+          // Don't check effect errors if there are type errors
+          if !rp.hasErrors then checkEffects(nss)
+
+          nss
+
+        case Mode.Application =>
+          // Load library from .sast files
+          val nssLib = libs.flatMap: lib =>
+            loadSastTrees(lib) <| "load lib: " + lib
+
+          // Must be after loading the stdlib
+          val predefNameTable = defnLazy.value.Predef_nameTable
+
+          // Should be before checking runtime code such that they are not available
+          val nss = new Namer().transform(nssAst, rootNameTable, predefNameTable) <| "namer.source"
+
+          // Runtime definitions are inaccessible in user programs and may only
+          // use predef definitions
+          val nssRuntime = runtimes.flatMap: runtime =>
+             loadSastTrees(runtime) <| "load runtime: " + runtime
+
+          // Don't check effect errors if there are type errors
+          if !rp.hasErrors then checkEffects(nss)
+
+          nssLib ++ nssRuntime ++ nss
+
+  /** Load precompiled .sast files */
+  private def loadSastTrees(dir: String) (using defnLazy: Definitions.Lazy, rp: Reporter): List[Namespace] =
+    val files = IO.getSastFiles(dir).toList
+    val delayedDefs = files.map(file => pickle.Decoder.load(file))
+
+    // Force all delayed definitions
+    val defn = defnLazy.value
+    delayedDefs.map(_.force()(using defn))
+
+  private def loadSastSymbols(dir: String) (using defnLazy: Definitions.Lazy, rp: Reporter): Unit =
+    val files = IO.getSastFiles(dir).toList
+    for file <- files do pickle.Decoder.load(file)
+
+  private def shouldPrint(ns: Namespace)(using config: Config): Boolean =
+    config.printOnly.isEmpty || config.printOnly.exists(ns.source.contains)
+
+  def shouldPrint(ns: Ast.Namespace)(using config: Config): Boolean =
+    config.printOnly.isEmpty || config.printOnly.exists(ns.source.contains)
 
   def parseStep(using config: Config, rp: Reporter)
   : Step[List[String], List[Ast.Namespace]] =
 
-    Step("parser", sources => {
+    Step("Parser", sources => {
       val res = Parser.parse(sources)
 
-      if config.printAfter.contains("parser") then
-        ast.Printing.print(res)
+      if config.printAfter.contains("Parser") then
+        ast.Printing.print(res.filter(shouldPrint))
 
       res
     })
 
-  def typeStep(runtime: List[String])
+  def typeStep(runtimes: List[String])
       (using config: Config, lazyDefn: Definitions.Lazy, rp: Reporter)
   : Step[List[Ast.Namespace], List[Namespace]] =
 
-    Step("namer", (nssAst: List[Ast.Namespace]) => {
-        val res = check(nssAst, runtime)
+    Step("Namer", (nssAst: List[Ast.Namespace]) => {
+      val res = check(nssAst, config.libPaths, runtimes)
 
-        if config.checkTree then
-          given Definitions = lazyDefn.value
-          TreeChecker.check(res)
+      if config.checkTree then
+        given Definitions = lazyDefn.value
+        TreeChecker.check(res)
 
-        if config.printAfter.contains("namer") then
-          given Definitions = lazyDefn.value
-          Printing.print(res)
-        res
-      })
+      if config.printAfter.contains("Namer") then
+        given Definitions = lazyDefn.value
+        Printing.print(res.filter(shouldPrint))
+
+      res
+    })
 
   def main(args: Array[String]): Unit =
     val (options, sources) = IO.parseOptions(args, Config.commonOptionsSpec)
 
-    given config: Config = Config(options)
+    given config: Config = Config(options, Mode.Library)
 
     Reporter.monitor:
-      val runtimeFiles = Nil
+      val runtime = Nil
 
       val rootNameTable = new NameTable
-      given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable)
+      given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
-      sources |> parseStep |> typeStep(runtimeFiles)
+      sources |> parseStep |> typeStep(runtime)

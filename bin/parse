@@ -1,10 +1,14 @@
 #!/bin/bash
 
 files=(
-    stack-lang/ast/Ast.scala
-    stack-lang/ast/Name.scala
+    stack-lang/ast/Naming.scala
     stack-lang/ast/Positions.scala
     stack-lang/ast/Printing.scala
+    stack-lang/ast/Trees.scala
+    stack-lang/ast/TreeOps.scala
+    stack-lang/common/Base64.scala
+    stack-lang/common/Base128.scala
+    stack-lang/common/ByteBuffer.scala
     stack-lang/common/Debug.scala
     stack-lang/common/KeyProps.scala
     stack-lang/common/IO.scala

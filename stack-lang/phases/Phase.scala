@@ -1,7 +1,7 @@
 package phases
 
 import sast.*
-import sast.Sast.*
+import sast.Trees.*
 import sast.Symbols.Symbol
 
 import reporting.Reporter
@@ -11,7 +11,7 @@ import reporting.Config
 import Phase.ContextObject
 
 /** Shared code for phases */
-abstract class Phase[T](using Definitions) extends SastOps.TreeMap:
+abstract class Phase[T](using Definitions) extends TreeMap:
   val contextObject: ContextObject[T]
   type Context = T
 
@@ -60,13 +60,15 @@ abstract class Phase[T](using Definitions) extends SastOps.TreeMap:
   def transformFunDef(fdef: FunDef)(using ctx: Context): FunDef =
     given Context = contextObject.newContext(fdef.symbol, ctx)
     val body = this(fdef.body)
-    fdef.copy(body = body)(fdef.span)
+    if body `eq` fdef.body then fdef
+    else fdef.copy(body = body)(fdef.span)
 
   /** Transform function definitions */
   def transformPatDef(pdef: PatDef)(using ctx: Context): PatDef =
     given Context = contextObject.newContext(pdef.symbol, ctx)
     val body = this(pdef.body)
-    pdef.copy(body = body)(pdef.span)
+    if body `eq` pdef.body then pdef
+    else pdef.copy(body = body)(pdef.span)
 
   override def transformLocalFunDef(fdef: FunDef)(using ctx: Context): Word =
     transformFunDef(fdef)
@@ -87,12 +89,20 @@ object Phase:
     def newContext(owner: Symbol, old: Unit): Unit = ()
     def newContext(namespace: Symbol): Unit = ()
 
+  def shouldPrint(ns: Namespace)(using config: Config): Boolean =
+    config.printOnly.isEmpty || config.printOnly.exists(ns.source.contains)
+
   type PhaseStep = Step[List[Namespace], List[Namespace]]
   given (using defn: Definitions, rp: Reporter, config: Config): Conversion[Phase[?], PhaseStep] = phase =>
     val name = phase.getClass.getSimpleName()
     Step(name, code => {
       val output = phase.transform(code)
-      if config.checkTree then TreeChecker.check(output)
-      if config.printAfter.contains(name) then Printing.print(output)
+
+      if config.checkTree then
+        TreeChecker.check(output)
+
+      if config.printAfter.contains(name) then
+        Printing.print(output.filter(shouldPrint))
+
       output
     })

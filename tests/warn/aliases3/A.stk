@@ -1,3 +1,6 @@
 namespace A
 
-alias B.Inner
+section Inner
+  alias def foo = B.Inner.foo
+  type Flags = B.Inner.Flags
+end

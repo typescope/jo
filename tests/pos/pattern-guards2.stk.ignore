@@ -1,0 +1,9 @@
+pattern Pos(x: Int): Partial[Int] =
+  case x if x > 0
+
+param x: Int
+
+def main =
+  match 10
+    case Pos n => println (intToStr n)
+    case _ => println "neg"

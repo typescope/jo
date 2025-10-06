@@ -70,7 +70,7 @@ Abstract Syntax
 
     section = SECTION ident {toplevel_def} [END].
 
-    toplevel_def = typedef | fundef | paramdef | alias | patdef | datadef | classdef | section.
+    toplevel_def = typedef | fundef | paramdef | aliasdef | patdef | datadef | classdef | section.
 
     qualid = ident | qualid DOT ident.
 
@@ -115,13 +115,14 @@ Abstract Syntax
 
     record     = LBRACE [named_args] RBRACE.
     named_args = named_arg { COMMA named_arg }.
-    named_arg  = ident EQL expr.
+    named_arg  = ident COLON expr.
 
     tag = TAG ident.
 
     type_ascribe = simple_phrase AS simple_type.
 
-    object     = OBJECT LBRACE {member} RBRACE.
+    object     = LBRACE [members] RBRACE.
+    members    = member { [COMMA] member }
     member     = valdef | defdef.
 
     lambda  = (param_section | ident) RARROW block.
@@ -136,12 +137,12 @@ Abstract Syntax
 
     expr_pattern = simple_pattern {simple_pattern}.
 
-    simple_pattern = literal_pattern | ident | tag | type_pattern | ascribe_pattern | apply_pattern | LPAREN pattern RPAREN | sequence_pattern.
+    simple_pattern = literal_pattern | qualid | tag | type_pattern | ascribe_pattern | apply_pattern | LPAREN pattern RPAREN | sequence_pattern.
 
     literal_pattern = integer | boolean | char | string.
     type_pattern  = ident COLON type.
     ascribe_pattern = ident '@' simple_pattern.
-    apply_pattern = (tag | ident) LPAREN [pattern {COMMA pattern}] RPAREN.
+    apply_pattern = (tag | qualid) LPAREN [pattern {COMMA pattern}] RPAREN.
 
     sequence_pattern = LBRACK [expr_pattern {, expr_pattern}] RBRACK.
 
@@ -163,7 +164,7 @@ Abstract Syntax
 
     paramdef = PARAM param [EQL block].
 
-    alias = ALIAS qualid.
+    aliasdef = {modifier} ALIAS (def | pattern | param) ident EQL qualid.
 
     typedef = TYPE [tparams] ident [tparams] [EQL type | SUBTYPE type].
     tparams = LBRACKET tparam {COMMA tparam} RBRACKET.
@@ -192,9 +193,11 @@ Abstract Syntax
 
     receive_params = RECEIVES qualid {COMMA qualid}.
 
-    object_type = OBJECT LBRACE {method_decl | val_decl} RBRACE.
-    method_decl = DEF ident param_section COLON type [receive_params].
-    val_decl    = (VAL | VAR) ident COLON type.
+    object_type  = LBRACE [member_decls] RBRACE.
+    member_decls = member_decl {[COMMA] member_decl}.
+    member_decl  = method_decl | val_decl.
+    method_decl  = DEF ident param_section COLON type [receive_params].
+    val_decl     = (VAL | VAR) ident COLON type.
 
     param_section = LPAREN [params] RPAREN.
     params        = param {COMMA param}.

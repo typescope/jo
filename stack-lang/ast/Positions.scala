@@ -17,6 +17,11 @@ object Positions:
 
     def pos(using Source): SourcePosition = span.toPos
 
+
+  trait DerivedSpan:
+    final val span: Span = deriveSpan
+    def deriveSpan: Span
+
   private def checkComponentPos(obj: Product): Unit =
     def checkPos(elem: Any): Unit =
       elem match
@@ -33,7 +38,7 @@ object Positions:
     def point: Span = Span(start, 0)
 
     /** A zero length span at the end point */
-    def endPoint: Span = Span(start + length, 0)
+    def endPoint: Span = Span(endOffset, 0)
 
     def endOffset: Int = start + length
 
@@ -69,7 +74,21 @@ object Positions:
   class Source(val file: String, lineOffsets: mutable.ArrayBuffer[Int], lineCache: mutable.Map[Int, String]):
     def this(file: String) = this(file, mutable.ArrayBuffer(), mutable.Map.empty)
 
-    def content: String = IO.fileContent(file)
+    def content: String = IO.fileAsString(file)
+
+    lazy val lineLengths: Iterable[Int] =
+      val lens = new mutable.ArrayBuffer[Int]
+      var i = 1
+      var lastOffset = 0
+
+      while i < lineOffsets.size do
+        val offset = lineOffsets(i)
+        val len = offset - lastOffset
+        lens += len
+        i += 1
+        lastOffset = offset
+
+      lens
 
     def addLineOffset(offset: Int): Unit =
       assert(lineOffsets.isEmpty || offset > lineOffsets.last, "offset = " + offset + ", " + lineOffsets.last)

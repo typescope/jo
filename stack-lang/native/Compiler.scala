@@ -7,6 +7,7 @@ import phases.*
 import reporting.Reporter
 import reporting.Reporter.Step
 import reporting.Config
+import reporting.Mode
 
 import common.IO
 
@@ -29,13 +30,11 @@ object Compiler:
   )
 
   def compile(backendBuilder: BackendBuilder, args: Array[String]): Unit =
-    val (options, rest) = IO.parseOptions(args, optionSpec)
+    val (options, sources) = IO.parseOptions(args, optionSpec)
 
-    if rest.isEmpty then
+    if sources.isEmpty then
       println("Expect source file as input")
       return
-
-    val sources = rest
 
     val outFile =
       options.get("-o") match
@@ -50,18 +49,12 @@ object Compiler:
 
     val rootNameTable = new NameTable
 
-    val runtime = List(
-      "runtime/native/Core.stk",
-      "runtime/native/GC.stk",
-      "runtime/native/ParamSupport.stk",
-      "runtime/native/Syscall.stk",
-      "runtime/native/BumpAllocator.stk",
-    )
+    val runtime = Config.NativeRuntimePath :: Nil
 
-    given Config = Config(options)
+    given Config = Config(options, Mode.Application)
 
     Reporter.monitor:
-      given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable)
+      given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
       val namespacesSAST = FrontEnd.run(runtime, sources) <| "frontend"
 

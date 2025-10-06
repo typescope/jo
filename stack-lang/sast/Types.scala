@@ -82,7 +82,7 @@ object Types:
 
     def isValueType: Boolean =
       this match
-        case VoidType | _: ProcType | _: TypeLambda | _: NameTableInfo | _: ClassInfo => false
+        case VoidType | _: ProcType | _: TypeLambda | _: ContainerInfo | _: ClassInfo => false
 
         case refType: RefType =>
           val sym = refType.symbol
@@ -95,7 +95,7 @@ object Types:
     /** Return the kind of a value type and return None for non-value type. */
     def kind: Option[Kind] =
       this match
-        case VoidType | _: ProcType | _: TypeLambda | _: NameTableInfo | _: ClassInfo =>
+        case VoidType | _: ProcType | _: TypeLambda | _: ContainerInfo | _: ClassInfo =>
           None
 
         case refType: RefType if refType.symbol.isType =>
@@ -118,7 +118,7 @@ object Types:
     /** Widen a term reference to its underlying type */
     def widenTermRef(using Definitions): Type =
       this match
-        case refType: RefType if !refType.symbol.isType => refType.info
+        case refType: RefType if !refType.symbol.isType => refType.info.widenTermRef
         case _ => this
 
     /** Widen a constant type to its underlying type */
@@ -126,6 +126,8 @@ object Types:
       this match
         case constType: ConstantType => constType.underlying
         case _ => this
+
+    def widen(using Definitions): Type = widenTermRef.widenConstType
 
     def asRecordType(using Definitions): RecordType =
       this.approx.asInstanceOf[RecordType]
@@ -153,7 +155,7 @@ object Types:
 
     def getSingleMethodType(using Definitions): Option[NamedInfo[ProcType]] =
       this.approx match
-        case ObjectType(Nil, NamedInfo(name, tp) :: Nil, Nil) =>
+        case ObjectType(NamedInfo(name, tp) :: Nil, Nil) =>
           tp.approx match
              case procType: ProcType => Some(NamedInfo(name, procType))
              case _ => None
@@ -204,7 +206,7 @@ object Types:
 
     def getTermMember(name: String)(using Definitions): Option[Type] =
       this.approx match
-        case info: NameTableInfo =>
+        case info: ContainerInfo =>
           info.resolveTerm(name).map(sym => StaticRef(sym))
 
         case info: ClassInfo =>
@@ -223,17 +225,28 @@ object Types:
           // println("No member " + name + " on " + tp)
           None
 
+    def getPatternMember(name: String)(using Definitions): Option[Symbol] =
+      this.approx match
+        case info: ContainerInfo =>
+          // For the moment, only containers may hold pattern members
+          // println("resolving pattern " + name + " on " + info.nameTable.show)
+          info.resolvePattern(name)
+
+        case tp =>
+          // println("No pattern member " + name + " on " + tp)
+          None
+
     def termMember(name: String)(using Definitions): Type =
       getTermMember(name) match
         case Some(tp) => tp
-        case None => throw new Exception(s"No member $name in " + this.show)
+        case None => throw new Exception(s"No member $name in " + this + ", approx = " + this.approx)
 
     def hasTermMember(name: String)(using Definitions): Boolean =
       getTermMember(name).nonEmpty
 
     def exists(pred: Type => Boolean)(using Definitions): Boolean =
       var exists = false
-      val traverser = new TypeOps.TypeTraverser:
+      val traverser = new TypeTraverser:
         def apply(tp: Type)(using Context) =
           exists = exists || pred(tp)
           if !exists then recur(tp)
@@ -290,16 +303,7 @@ object Types:
       // compute the type with respect to the instantiated targs
       prefix.approx match
         case classInfo: ClassInfo =>
-          classInfo.classSymbol.info match
-            case TypeLambda(tparams, _, _) =>
-              assert(tparams.size == classInfo.targs.size, "Mismatch, tparams = " + tparams + ", targs = " + classInfo.targs)
-
-              TypeOps.substSymbols(symbol.info, tparams, classInfo.targs)
-
-            case _ =>
-              assert(classInfo.targs.isEmpty, "Mismatch, tparams = 0" + ", targs = " + classInfo.targs)
-
-              symbol.info
+          TypeOps.substSymbols(symbol.info, classInfo.tparams, classInfo.targs)
 
         case _ =>
           symbol.info
@@ -368,29 +372,32 @@ object Types:
 
   /** The type of an object */
   case class ObjectType(
-    fields: List[NamedInfo[Type]],
-    methods: List[NamedInfo[Type]],
+    members: List[NamedInfo[Type]],
     mutableFields: List[String])
   extends Type:
-    def fieldNames = fields.map(_.name)
-    def methodNames = methods.map(_.name)
+    lazy val fields = members.filter(_.info.isValueType)
+    lazy val methods = members.filter(!_.info.isValueType)
+
+    lazy val fieldNames = fields.map(_.name)
+    lazy val methodNames = methods.map(_.name)
+
+    private val memberTypeMap: Map[String, Type] =
+      val mutMap = mutable.Map.empty[String, Type]
+      members.foreach:
+        case NamedInfo(name, info) =>
+          assert(!mutMap.contains(name), "duplicate member " + name + " in " + this)
+          mutMap(name) = info
+      mutMap.toMap
 
     def getMemberType(name: String): Option[Type] =
-      val fieldOpt = fields.collectFirst:
-        case NamedInfo(m, tp) if m == name => tp
-
-      if fieldOpt.isEmpty then
-        methods.collectFirst:
-          case NamedInfo(m, tp) if m == name => tp
-      else
-        fieldOpt
+      memberTypeMap.get(name)
 
     def isMutable(name: String): Boolean = mutableFields.contains(name)
 
   /** The type of a function, method or pattern predicates */
   case class ProcType
     (tparams: List[Symbol], params: List[NamedInfo[Type]], autos: List[NamedInfo[Type]],
-      resultType: Type, receives: Effects.Policy, preParamCount: Int)
+      resultType: Type, receivesInfo: () => List[Symbol], preParamCount: Int)
   extends Type:
     val preParamTypes: List[Type] = params.take(preParamCount).map(_.info)
     val postParamTypes: List[Type] = params.drop(preParamCount).map(_.info)
@@ -405,7 +412,11 @@ object Types:
     val allParamTypes: List[Type] = paramTypes ++ autoTypes
     val allParamCount: Int = allParamTypes.size
 
-    val effectsBound: Option[List[Symbol]] = receives.bound
+    /** Unlike types, context parameter inference supports cycles thus its
+      * computation must be delayed and be handled indirectly via the effect
+      * engine.
+      */
+    lazy val receives: List[Symbol] = receivesInfo()
 
     def minimumArgs(using Definitions): Int =
       if hasVararg then paramCount - 1 else paramCount
@@ -454,6 +465,7 @@ object Types:
   case class AppliedType
     (tctor: Type, targs: List[Type])
   extends ProxyType:
+    assert(targs.nonEmpty, this)
     tctor match
       case StaticRef(sym) if sym.isType =>
       case _ => assert(false, tctor)
@@ -478,19 +490,22 @@ object Types:
     def isSuptype(tp: Type): List[Subtyping.Task] =
       inferencer.isSuptype(this, tp)
 
-  class NameTableInfo(val owner: Symbol, val nameTable: NameTable) extends Type:
-    def this(owner: Symbol) = this(owner, new NameTable)
+  /** Represents the information of a namespace or section */
+  class ContainerInfo(val nameTable: NameTable) extends Type:
+    export nameTable.{ resolveType, resolveTerm, resolvePattern }
 
-    export nameTable.{ resolveType, resolveTerm, resolvePattern, define }
+    def members: List[Symbol] = nameTable.members
 
   /** Represents the information of a class type
     *
     * @param methods all methods (including contructor)
     */
   case class ClassInfo(
-    val classSymbol: Symbol, val targs: List[Type], val self: Symbol,
-    val fields: List[Symbol], val methods: List[Symbol])
+    val classSymbol: Symbol, val tparams: List[Symbol], val targs: List[Type],
+    val self: Symbol, val fields: List[Symbol], val methods: List[Symbol])
   extends Type:
+    assert(tparams.size == targs.size, "Mismatch, tparams = " + tparams + ", targs = " + targs)
+
     /** Return all methods including the constructor */
     def allMethods: List[Symbol] = methods
 

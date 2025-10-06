@@ -2,9 +2,9 @@ package typing
 
 import scala.collection.mutable
 
-import ast.Ast
+import ast.{ Trees => Ast }
 import sast.*
-import sast.Sast.*
+import sast.Trees.*
 import sast.Types.*
 
 import ast.Positions.*
@@ -121,7 +121,7 @@ class ExprTyper(namer: Namer):
       // If the first word is a section or namespace reference followed by >, inject the
       // names of the container in typing the expression
       val sym = containerSymbolOpt.get
-      val injected = sc.fresh(sym, sym.dealias.info.as[NameTableInfo].nameTable)
+      val injected = sc.fresh(sc.owner, sym.info.as[ContainerInfo].nameTable)
       given Scope = injected.fresh()
       transform(Ast.Expr(rest.tail)(expr.span))
 
@@ -307,5 +307,4 @@ class ExprTyper(namer: Namer):
     res
   end parseDotless
 
-  def errorTree(span: Span): Word = Block(Nil)(ErrorType, span)
 end ExprTyper

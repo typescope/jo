@@ -20,10 +20,10 @@ def test2[T](o: A[T]): B[T] = o
 
 def main =
   val a: List[Int] = #Nil
-  val b: List[Int] = #Cons({head = 5, tail = a})
-  val c: List[Int] = #Cons({head = 20, tail = b})
+  val b: List[Int] = #Cons({head: 5, tail: a})
+  val c: List[Int] = #Cons({head: 20, tail: b})
 
-  val x: Pair[Int] = {a = 36, b = 49}
+  val x: Pair[Int] = {a: 36, b: 49}
 
   x.a p
   x.b p

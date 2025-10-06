@@ -12,10 +12,10 @@ def check2(x: Int): Bool = f2 x
 def check3(x: Int): Bool = f3 x
 
 def q(x: Int) =                 // error
-  if 0 == x then { a = 1 }
+  if 0 == x then { a: 1 }
   else {
-    a = x,
-    b = 1 + (q (x - 1)).c
+    a: x,
+    b: 1 + (q (x - 1)).c
   }
 
 def test2(x: Int): { a: Int } =
@@ -23,10 +23,10 @@ def test2(x: Int): { a: Int } =
 
 def h1(x: Int) =                 // error
   if 0 == x then
-    { a = 1 + (h1 (x - 1)).c }
+    { a: 1 + (h1 (x - 1)).c }
   else {
-    a = x,
-    b = x + x
+    a: x,
+    b: x + x
   }
 
 def h2(x: Int) =        // error

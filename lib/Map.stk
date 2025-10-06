@@ -2,7 +2,7 @@ namespace stk.Map
 
 import stk.Predef.*
 
-def empty[K, V](auto eq: Eq[K]): Map[K, V] = new Map(List.empty, eq)
+def empty[K, V](auto eq: Eq[K]): Map[K, V] = new Map([], eq)
 
 def Map[K, V](elems: ..Pair[K, V])(auto eq: Eq[K]): Map[K, V] = new Map(elems, eq)
 
@@ -11,7 +11,7 @@ class Map[K, V]
   val eq: Eq[K]
   val l: List[Pair[K, V]]
 
-  def Map(elems: List[Pair[K, V]], eq: Eq[K]) = { l = elems, eq = eq }
+  def Map(elems: List[Pair[K, V]], eq: Eq[K]) = { l: elems, eq: eq }
 
   def size: Int = l.size
 

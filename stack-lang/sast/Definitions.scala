@@ -2,12 +2,24 @@ package sast
 
 import Types.*
 import Symbols.*
+import Trees.FunDef
 
 import reporting.Reporter
 
-final class Definitions(rootNameTable: NameTable, initProvider: InfoProvider):
+final class Definitions(nameTable: NameTable, initProvider: InfoProvider)
+extends Definitions.Lazy:
 
-  export rootNameTable.resolveTermByPath
+  export nameTable.{ resolveTermByPath, resolveTypeByPath, resolvePatternByPath }
+
+  export nameTable.{ resolveTermByPathParts, resolveTypeByPathParts, resolvePatternByPathParts }
+
+  //----------------------------------------------------------------------------
+  // Definitions.Lazy implementation
+  //
+
+  def rootNameTable: NameTable = nameTable
+  def infoProvider: InfoProvider = provider
+  def value: Definitions = this
 
   //----------------------------------------------------------------------------
   // Info provider for symbols
@@ -42,12 +54,32 @@ final class Definitions(rootNameTable: NameTable, initProvider: InfoProvider):
     // Invalidate old cache
     cacheForInfoProvider = new Cache
 
+
+  //----------------------------------------------------------------------------
+  // Effects provider
+  //
+  val effectEngine: EffectAnalysis = new EffectAnalysis
+
+  def receives(sym: Symbol): List[Symbol] = effectEngine.effects(sym).keys.toList
+
+  //----------------------------------------------------------------------------
+  // Code provider
+  //
+
+  private val codeProvider = new CodeProvider
+
+  def getCode(sym: Symbol): FunDef = codeProvider.get(sym).get
+
+  def getCodeOpt(sym: Symbol): Option[FunDef] = codeProvider.get(sym)
+
+  def setCode(sym: Symbol, code: FunDef): Unit = codeProvider.set(sym, code)
+
   //----------------------------------------------------------------------------
   // Predefined symbols
   //
 
-  val Predef = rootNameTable.resolveTermByPath("stk.Predef")
-  val Predef_nameTable = Predef.info.as[NameTableInfo].nameTable
+  val Predef = resolveTermByPath("stk.Predef")
+  val Predef_nameTable = Predef.info.as[ContainerInfo].nameTable
 
   // primitive terms without implementation in source code
   val Int        =  resolveTermByPath("stk.Int")
@@ -151,6 +183,12 @@ final class Definitions(rootNameTable: NameTable, initProvider: InfoProvider):
 end Definitions
 
 object Definitions:
-  class Lazy(val rootNameTable: NameTable)(using Reporter):
+  abstract class Lazy:
+    def rootNameTable: NameTable
+    def infoProvider: InfoProvider
+    def value: Definitions
+
+  def Lazy(nameTable: NameTable)(using Reporter) = new Lazy:
+    val rootNameTable = nameTable
     val infoProvider: InfoProvider = new SymInfoProvider
-    lazy val value: Definitions = new Definitions(rootNameTable, infoProvider)
+    lazy val value: Definitions = new Definitions(nameTable, infoProvider)

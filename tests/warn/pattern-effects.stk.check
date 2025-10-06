@@ -3,7 +3,7 @@
 |               ^^^^^^^^^
 |               External context parameters not allowed in patterns: delta
 
-The following is the trace that leads to the problem: 
+The following is the trace that leads to the problem:
 ├──   case Nil if foo 3 > 0 then x = 0	[ ./tests/warn/pattern-effects.stk:19:15 ]
 │                 ^^^
 └──   x + 1 + delta	[ ./tests/warn/pattern-effects.stk:16:11 ]
@@ -15,7 +15,7 @@ The following is the trace that leads to the problem:
 |                                  ^^^^^
 |                                  External context parameters not allowed in patterns: delta
 
-The following is the trace that leads to the problem: 
+The following is the trace that leads to the problem:
 ├──   case _ :: (Len y)     then x = bar y	[ ./tests/warn/pattern-effects.stk:20:34 ]
 │                                    ^^^
 └── def bar(x: Int): Int = x + delta	[ ./tests/warn/pattern-effects.stk:13:28 ]
@@ -27,7 +27,7 @@ The following is the trace that leads to the problem:
 |                 ^^^^^^^^^
 |                 External context parameters not allowed in patterns: delta
 
-The following is the trace that leads to the problem: 
+The following is the trace that leads to the problem:
 ├──     case Nil if foo 4 < 0 =>	[ ./tests/warn/pattern-effects.stk:25:17 ]
 │                   ^^^
 └──   x + 1 + delta	[ ./tests/warn/pattern-effects.stk:16:11 ]
@@ -39,7 +39,7 @@ The following is the trace that leads to the problem:
 |                ^^^^^^^^^
 |                External context parameters not allowed in patterns: delta
 
-The following is the trace that leads to the problem: 
+The following is the trace that leads to the problem:
 ├──     case (x if foo x > 3) :: (Len y) =>	[ ./tests/warn/pattern-effects.stk:26:16 ]
 │                  ^^^
 └──   x + 1 + delta	[ ./tests/warn/pattern-effects.stk:16:11 ]
@@ -51,7 +51,7 @@ The following is the trace that leads to the problem:
 |                                      ^^^^^
 |                                      External context parameters not allowed in patterns: delta
 
-The following is the trace that leads to the problem: 
+The following is the trace that leads to the problem:
 ├──     case ((x if x > 5) | (_ then x = foo 3)) :: (Len y) =>	[ ./tests/warn/pattern-effects.stk:27:38 ]
 │                                        ^^^
 └──   x + 1 + delta	[ ./tests/warn/pattern-effects.stk:16:11 ]

@@ -1,0 +1,9 @@
+section Core
+  type Success = Int
+  type Failure = Int
+end
+
+def processInRange(n: Int): String =
+  match n
+    case Core.Success value =>
+    case Core.Failure msg =>

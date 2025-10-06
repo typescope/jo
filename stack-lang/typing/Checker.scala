@@ -1,10 +1,10 @@
 package typing
 
 import ast.Positions.*
-import ast.Ast
+import ast.{ Trees => Ast }
 
 import sast.*
-import sast.Sast.*
+import sast.Trees.*
 import sast.Symbols.*
 import sast.Types.*
 
@@ -70,23 +70,23 @@ class Checker(namer: Namer):
       if !Subtyping.conforms(loActual, argType) then
         Reporter.error(s"Arg type ${argType.show} does not conform to bound = ${hi.show}, which expands to ${hiActual.show}", targ.pos)
 
-  def checkTypeApply(fun: Word, targs: List[TypeTree])(using Definitions, Reporter, Source): Word =
+  def checkTypeApply(fun: Word, targs: List[TypeTree], span: Span)(using Definitions, Reporter, Source): Word =
     if !fun.tpe.isPolyType then
       Reporter.error(s"Expect a poly function type, found = ${fun.tpe.show}", fun.pos)
-      Block(words = Nil)(ErrorType, fun.span | targs.last.span)
+      errorWord(span)
     else
       val polyType = fun.tpe.asProcType
       if polyType.tparamCount != targs.size then
         Reporter.error(s"Expect ${polyType.tparamCount} args, found = ${targs.size}", (targs.head.span | targs.last.span).toPos)
-        Block(words = Nil)(ErrorType, fun.span | targs.last.span)
+        errorWord(fun.span | targs.last.span)
       else
         checkBounds(polyType.tparams, targs)
         val tpe = polyType.instantiate(targs.map(_.tpe))
-        TypeApply(fun, targs)(tpe, fun.span)
+        TypeApply(fun, targs)(tpe, span)
 
-  def checkType(tree: Tree, tp: Type)(using Definitions, Reporter, Source): Unit =
-    if !Subtyping.conforms(tree.tpe, tp) then
-      Reporter.error(s"Expect type ${tp.show}, found = ${tree.tpe.show}", tree.pos)
+  def checkType(word: Word, tp: Type)(using Definitions, Reporter, Source): Unit =
+    if !Subtyping.conforms(word.tpe, tp) then
+      Reporter.error(s"Expect type ${tp.show}, found = ${word.tpe.show}", word.pos)
 
   def checkValueType(word: Word)(using Reporter, Source): Unit =
     checkValueType(word.tpe, word.pos)
@@ -114,9 +114,8 @@ class Checker(namer: Namer):
     if tpe.hasTermMember(member) || tpe.isError then
       word
     else
-      // println(TypeOps.approx(tpe, isUp = true).as[NameTableInfo].nameTable.show)
       Reporter.error(s"The prefix does not contain the member $member", word.pos)
-      Block(Nil)(ErrorType, word.span)
+      errorWord(word.span)
 
   def checkInstantiated(tvar: TypeVar, pos: SourcePosition)(using Reporter): Unit =
     if !tvar.isInstantiated then
@@ -167,12 +166,12 @@ class Checker(namer: Namer):
           Reporter.error("The modifier " + mod.show + " is not allowed for pattern definition", mod.pos)
 
       case pdef: Ast.ParamDef =>
-          mods.foreach:
-            // TODO: Disable auto context params for now.
-            //
-            // It's powerful, but also scaring --- remote binding may easily break assumptions.
-            case mod =>
-              Reporter.error("The modifier " + mod.show + " is not allowed for context parameter definition", mod.pos)
+        // TODO: Disable auto context params for now.
+        //
+        // It's powerful, but also scaring --- remote binding may easily break assumptions.
+        mods.foreach:
+          case mod =>
+            Reporter.error("The modifier " + mod.show + " is not allowed for context parameter definition", mod.pos)
 
       case cdef: Ast.ClassDef =>
         mods.foreach: mod =>
@@ -191,8 +190,11 @@ class Checker(namer: Namer):
           Reporter.error("The modifier " + mod.show + " is not allowed for section definition", mod.pos)
 
       case adef: Ast.AliasDef =>
-        mods.foreach: mod =>
-          Reporter.error("The modifier " + mod.show + " is not allowed for alias definition", mod.pos)
+        val kind = adef.kind
+        mods.foreach:
+          case _: Ast.Modifier.Auto if kind == Ast.AliasKind.Def =>
+          case mod =>
+            Reporter.error(s"The modifier ${mod.show} is not allowed for alias $kind definition", mod.pos)
     end match
 
     flags
@@ -210,13 +212,6 @@ class Checker(namer: Namer):
       case None =>
         Reporter.error(s"Cannot find common result type, tp1 = ${tp1.show}, tp2 = ${tp2.show}", pos)
         ErrorType
-
-  def widen(word: Word)(using Definitions): Word = word.tpe match
-    case StaticRef(sym) if !sym.isType =>
-      Encoded(word)(sym.info)
-
-    case _ =>
-      word
 
   def adaptNoArgs(word: Word, procType: ProcType, targetType: TargetType)(using Definitions, Scope, Reporter, Source): Word =
     val isParameterlessCall =
@@ -241,7 +236,7 @@ class Checker(namer: Namer):
       for tp <- targetType.knownType do Subtyping.conforms(resType, tp)
 
       val autos = namer.autoResolver.derive(procType2, word.span)
-      Apply(fun, args = Nil, autos)(resType, word.span)
+      Apply(fun, args = Nil, autos)(fun.span)
 
     else
       word
@@ -264,7 +259,7 @@ class Checker(namer: Namer):
           && !targetType.isInstanceOf[TargetType.TermMember]
           && !targetType.isInstanceOf[TargetType.TypeMember]
         then
-          val memSym = sym.termMember(sym.name)
+          val memSym = sym.termMember(sym.name).dealias
           // The selection might need parameterless call adaption
           return adapt(Ident(memSym)(word.span), targetType)
         else
@@ -290,18 +285,18 @@ class Checker(namer: Namer):
       case TargetType.ValueType =>
         if word2.tpe.isVoidType then
           // adapt to Unit type
-          SastOps.adapt(word2, defn.UnitType)
+          TreeOps.adapt(word2, defn.UnitType)
         else
           checkValueType(word2)
-          widen(word2)
+          word2
 
       case TargetType.Known(tpe) =>
         try
-          val wordAdapted = widen(SastOps.adapt(word2, tpe))
+          val wordAdapted = TreeOps.adapt(word2, tpe)
           checkType(wordAdapted, tpe)
           wordAdapted
 
-        catch case ex: SastOps.AdaptionFailure =>
+        catch case ex: TreeOps.AdaptionFailure =>
           Reporter.error(s"Expect type ${tpe.show}, found = ${word2.tpe.show}", word2.pos)
           word2
 

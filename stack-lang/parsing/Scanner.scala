@@ -5,7 +5,7 @@ import Scanner.*
 
 import common.StringUtil
 import ast.Positions.*
-import ast.Name.*
+import ast.Naming.*
 import reporting.Reporter
 import reporting.Reporter.{ error, abortInternal }
 
@@ -48,11 +48,11 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       case ','    => Token.COMMA
 
       case '-'    =>
-        if stream.curChar(isDigit) then intLit()
+        if stream.curCodePoint(isDigit) then intLit()
         else operator()
 
       case '/'    =>
-        if stream.curChar() == '/' then
+        if stream.curCodePoint() == '/' then
           stream.eatLine()
           stream.tokenStart()
           nextToken()
@@ -71,7 +71,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
         else if isOperator(c)   then operator()
         else if isSpace(c)      then nextToken()
         else
-          error("Unexpected character: " + c, stream.tokenSpan().toPos)
+          error("Unexpected character: " + Character.toString(c), stream.tokenSpan().toPos)
           nextToken()
 
   def name(): Token =
@@ -130,7 +130,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
 
   def stringLit(): Token =
     var isLastEscape = false
-    def isValidChar(c: Char) =
+    def isValidChar(c: Int) =
       if isLastEscape then
         isLastEscape = false
         true
@@ -139,7 +139,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
         c != '"'
 
     stream.eatWhile(c => c != '\n' && isValidChar(c))
-    if stream.curChar() == '\n' then
+    if stream.curCodePoint() == '\n' then
       error("Missing closing double quote: string cannot span multiple lines", stream.tokenSpan().toPos)
     else
       eat('\"')
@@ -148,7 +148,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
     new Token.StringLit(StringUtil.unescape(content))
 
   def charLit(): Token =
-    if stream.curChar() == '\\' then
+    if stream.curCodePoint() == '\\' then
       // only support one char: \b \f \n \r \t \' \\
       stream.eat()
     stream.eat()
@@ -192,8 +192,14 @@ class Scanner(stream: CharStream)(using Reporter, Source):
 
 object Scanner:
   class CharStream(code: String)(using source: Source):
+    /** Length of Unicode basic units in the string */
     private val LEN = code.length
+
+    /** Current index of in the string in terms of Unicode basic units */
     private var index: Int = 0
+
+    /** Offset from start of the string in utf8 encoding */
+    private var offset: Int = 0
 
     /** Current line number, starting from 0 */
     private var lineNum: Int = 0
@@ -201,11 +207,14 @@ object Scanner:
     /** Indentation of the current line */
     private var lineIndentation: Int = countStartingSpace()
 
-    /** The offset of the current line */
-    private var curLineOffset: Int = index
+    /** The offset of the current line in utf8 encoding */
+    private var curLineOffset: Int = offset
 
-    /** Starting offset for the current token */
-    private var curTokenStart: Int = -1
+    /** Starting index of the current token in the string in terms of Unicode basic units */
+    private var curTokenIndex: Int = -1
+
+    /** Starting offset for the current token in utf8 encoding */
+    private var curTokenOffset: Int = -1
 
     /** Used to create token content */
     private val sb = new StringBuilder
@@ -213,18 +222,24 @@ object Scanner:
     // add line offset for the starting line
     source.addLineOffset(index)
 
-    def curChar() = code(index)
+    def curCodePoint(): Int = code.codePointAt(index)
 
-    def eat(): Char =
-      val c = curChar()
-      index += 1
+    def nextCodePoint(): Int =
+      val nextIndex = index + Character.charCount(curCodePoint())
+      code.codePointAt(nextIndex)
+
+    def eat(): Int =
+      val c = curCodePoint()
+      offset += StringUtil.utf8CodePointLength(c)
+      index += Character.charCount(c)
+
       if c == '\n' then
-        curLineOffset = index
+        curLineOffset = offset
         lineNum += 1
-        source.addLineOffset(index)
+        source.addLineOffset(offset)
         lineIndentation = countStartingSpace()
       else if !hasMore() then
-        source.addLineOffset(index)
+        source.addLineOffset(offset)
       c
 
     /** Count starting space from the current position
@@ -245,41 +260,42 @@ object Scanner:
       end while
       count
 
-    def eatWhile(pred: Char => Boolean): Unit =
-      while hasMore() && pred(curChar()) do
+    def eatWhile(pred: Int => Boolean): Unit =
+      while hasMore() && pred(curCodePoint()) do
         eat()
 
     def eatLine(): Unit =
       eatWhile(c => c != '\n')
       eat()
 
-    def curChar(pred: Char => Boolean): Boolean =
-      hasMore() && pred(curChar())
+    def curCodePoint(pred: Int => Boolean): Boolean =
+      hasMore() && pred(curCodePoint())
 
     def isComment(): Boolean =
-      index < LEN - 1 && curChar() == '/' && code(index + 1) == '/'
+      index < LEN - 1 && curCodePoint() == '/' && nextCodePoint() == '/'
 
     def hasMore(): Boolean = index < LEN
 
     def tokenStart(): Unit =
-      curTokenStart = index
+      curTokenIndex = index
+      curTokenOffset = offset
 
     def tokenEnd(): String =
-      if curTokenStart == -1 then
+      if curTokenIndex == -1 then
         abortInternal("Token is not marked by calling tokenStart()")
 
       sb.clear()
-      var i = curTokenStart
+      var i = curTokenIndex
       while i < index do
         sb += code(i)
         i += 1
 
       sb.toString()
 
-    def tokenSpan(): Span = Span(curTokenStart, index - curTokenStart)
+    def tokenSpan(): Span = Span(curTokenOffset, offset - curTokenOffset)
 
     def lastCharSpan(): Span = Span(index - 1, 1)
 
     def lineIndent(): Indent =
-      val tokenIndent = curTokenStart - curLineOffset
+      val tokenIndent = curTokenOffset - curLineOffset
       Indent(lineNum, lineIndentation, tokenIndent)

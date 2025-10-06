@@ -1,7 +1,7 @@
 package native
 
 import sast.*
-import sast.Sast.*
+import sast.Trees.*
 import sast.Symbols.*
 
 import native.runtime.NativeRuntime
@@ -60,7 +60,7 @@ class LowerRuntime(runtime: NativeRuntime)(using defn: Definitions) extends phas
     val sym = ref.symbol
     if sym.isFunction then
       // global function call
-      rewiring.get(sym.dealias) match
+      rewiring.get(sym) match
         case Some(subst) => Ident(subst)(ref.span)
         case _ => ref
 
@@ -78,7 +78,7 @@ class LowerRuntime(runtime: NativeRuntime)(using defn: Definitions) extends phas
         Encoded(args2.head)(tpt.tpe)
 
       case _ =>
-        Apply(this(fun), args2, autos2)(app.tpe, app.span)
+        Apply(this(fun), args2, autos2)(app.span)
 
   override def transformSelect(select: Select)(using ctx: Context): Word =
     val Select(qual, name) = select

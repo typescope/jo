@@ -1,6 +1,6 @@
 package native
 
-import common.IO.ByteBuffer
+import common.ByteBuffer
 import Assembly.*
 import Assembler.*
 

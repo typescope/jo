@@ -1,7 +1,7 @@
 package phases
 
 import sast.*
-import sast.Sast.*
+import sast.Trees.*
 
 import typing.Typer
 import reporting.Config
@@ -14,14 +14,14 @@ object FrontEnd:
   : List[Namespace] =
     val sast = sources |> Typer.parseStep |> Typer.typeStep(runtime)
 
-    given Definitions = defnLazy.value
+    locally:
+      given Definitions = defnLazy.value
 
-    // normalizer must run before patmat to check effects of guard patterns
-    val noramlizer = new phases.NormalizeParams
-    val encoder = new phases.EncodeTagged
-    val patmat = new phases.PatternMatcher
+      val encoder = new phases.EncodeTagged
+      val patmat = new phases.PatternMatcher
+      val normalizer = new phases.NormalizeParams
 
-    sast       |>
-    noramlizer |>
-    patmat     |>
-    encoder
+      sast       |>
+      normalizer |>
+      patmat     |>
+      encoder

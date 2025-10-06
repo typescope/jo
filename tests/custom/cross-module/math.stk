@@ -1,0 +1,11 @@
+// Math library with types and functions
+
+data Point(x: Int, y: Int)
+
+def add(a: Int, b: Int): Int = a + b
+
+def multiply(a: Int, b: Int): Int = a * b
+
+def distance(p: Point): Int =
+  // Manhattan distance from origin
+  p.x + p.y

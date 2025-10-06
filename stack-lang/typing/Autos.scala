@@ -1,7 +1,7 @@
 package typing
 
 import sast.*
-import sast.Sast.*
+import sast.Trees.*
 import sast.Types.*
 import sast.Symbols.*
 
@@ -17,7 +17,7 @@ class Autos(namer: Namer):
       search(autoInfo, Vector.empty, sc, sc, span)
 
   private def search(target: Type, trace: Vector[Symbol], origin: Scope, sc: Scope, span: Span)(using Definitions, Reporter, Source): Word =
-    // println("searching scope owner = " + sc.owner + ", autos = " + sc.getAutos)
+    // println("searching scope owner = " + sc.owner + ", autos = " + sc.autos)
 
     def history: String =
       if trace.isEmpty then ""
@@ -27,9 +27,9 @@ class Autos(namer: Namer):
     if target.exists(tp => tp.is[TypeVar] && !tp.as[TypeVar].isInstantiated) then
       val tpText = target.show
       Reporter.error(s"Not fully instantiated auto type $tpText." + history, span.toPos)
-      return Block(Nil)(ErrorType, span)
+      return errorWord(span)
 
-    val candidates = sc.getAutos.flatMap: sym =>
+    val candidates = sc.autos.flatMap: sym =>
       // println("test " + sym.name + " for " + target.show)
       // testing should not change inference state
       namer.inferencer.test:
@@ -60,7 +60,7 @@ class Autos(namer: Namer):
           case _: Scope.RootScope =>
             val tpText = target.show
             Reporter.error(s"No autos are found for the type $tpText." + history, span.toPos)
-            Block(Nil)(ErrorType, span)
+            errorWord(span)
 
           case Scope.NestedScope(outer, _, _) => search(target, trace, origin, outer, span)
 
@@ -72,17 +72,17 @@ class Autos(namer: Namer):
         val tpText = target.show
         val loop = (trace :+ sym).map(_.fullName).mkString(" -> ")
         Reporter.error(s"Divergence in resolving auto of the type $tpText: " + loop + ".", span.toPos)
-        Block(Nil)(ErrorType, span)
+        errorWord(span)
 
       case sym :: Nil =>
         if sym.info.isProcType then
           var procType = sym.info.asProcType
           if procType.params.nonEmpty then
             Reporter.error(s"The auto ${sym.fullName} require non-auto params." + history, span.toPos)
-            Block(Nil)(ErrorType, span)
+            errorWord(span)
 
           else
-            var fun: Word = Ident(sym)(span)
+            var fun: Word = Ident(sym.dealias)(span)
             if procType.tparams.nonEmpty then
               fun = namer.instantiatePoly(procType, fun)
               procType = fun.tpe.asProcType
@@ -91,7 +91,7 @@ class Autos(namer: Namer):
             Subtyping.conforms(procType.resultType, target)
 
             if procType.autos.isEmpty then
-              Ident(sym)(span).appliedTo()
+              Ident(sym.dealias)(span).appliedTo()
 
             else
               val autos =
@@ -99,7 +99,7 @@ class Autos(namer: Namer):
                   // Nested resolution should start from origin
                   search(autoInfo, trace :+ sym, origin, origin, span)
 
-              Apply(fun, Nil, autos)(procType.resultType, span)
+              Apply(fun, Nil, autos)(span)
         else
           Ident(sym)(span)
 
@@ -107,4 +107,4 @@ class Autos(namer: Namer):
         val tpText = target.show
         val names  = candidates.map(_.fullName).mkString(", ")
         Reporter.error(s"Ambiguous autos, multiple candidates satisfy the auto type $tpText: " + names + "." + history, span.toPos)
-        Block(Nil)(ErrorType, span)
+        errorWord(span)

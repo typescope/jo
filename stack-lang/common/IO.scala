@@ -2,6 +2,7 @@ package common
 
 import scala.collection.mutable
 
+import java.nio.charset.StandardCharsets
 /**
   * Encapsulates common input/output utilities
   *
@@ -40,8 +41,8 @@ object IO:
     end while
     (res.toMap, rest.toList)
 
-  def withFile(name: String)(fn: ByteBuffer => Unit): Unit =
-    val file = new java.io.File(name)
+  def withFile(path: String)(fn: ByteBuffer => Unit): Unit =
+    val file = new java.io.File(path)
     file.createNewFile()
     withFile(file)(fn)
 
@@ -54,16 +55,38 @@ object IO:
       fs.close()
       throw e
 
+  def writeFile(path: String, data: Array[Byte]): Unit =
+    writeFile(path, data, 0, data.length)
+
+  def writeFile(path: String, data: Array[Byte], offset: Int, len: Int): Unit =
+    val fos = new java.io.FileOutputStream(path)
+
+    try
+      fos.write(data, offset, len)
+      fos.flush()
+    finally
+      fos.close()
+
+  def withPrintWriter(path: String)(fn: java.io.PrintWriter => Unit): Unit =
+    val pw = new java.io.PrintWriter(path)
+    try
+      fn(pw)
+    finally
+      pw.close()
+
   def withExeFile(name: String)(fn: ByteBuffer => Unit): Unit =
     val file = new java.io.File(name)
     file.createNewFile()
     file.setExecutable(true)
     withFile(file)(fn)
 
-  def fileContent(name: String): String =
-    val path = java.nio.file.Path.of(name)
-    val bytes = java.nio.file.Files.readAllBytes(path)
-    new String(bytes)
+  def fileAsBytes(filePath: String): Array[Byte] =
+    val path = java.nio.file.Path.of(filePath)
+    java.nio.file.Files.readAllBytes(path)
+
+  def fileAsString(filePath: String): String =
+    val bytes = fileAsBytes(filePath)
+    new String(bytes, StandardCharsets.UTF_8)
 
   def fileNameNoExt(file: String): String =
     val path = java.nio.file.Paths.get(file)
@@ -82,30 +105,24 @@ object IO:
     val file = new java.io.File(dir)
     file.listFiles.map(_.getPath).toList
 
-  /**
-   * Little endian byte buffer
-   */
-  abstract class ByteBuffer:
-    def addByte(value: Byte): Unit
+  /** Get all .sast files from a directory */
+  def getSastFiles(dir: String): Array[String] =
+    val path = java.nio.file.Paths.get(dir)
+    if !java.nio.file.Files.exists(path) then
+      throw new Exception(s"Library directory does not exist: $dir")
 
-    def addShort(value: Int): Unit =
-      val MASK: Int = 0xFF
-      addByte((value & MASK).toByte)
-      addByte(((value >> 8) & MASK).toByte)
+    if !java.nio.file.Files.isDirectory(path) then
+      throw new Exception(s"Not a directory: $dir")
 
-    def addInt(value: Int): Unit =
-      val MASK: Int = 0xFF
-      addByte((value & MASK).toByte)
-      addByte(((value >> 8) & MASK).toByte)
-      addByte(((value >> 16) & MASK).toByte)
-      addByte(((value >> 24) & MASK).toByte)
+    import scala.jdk.CollectionConverters.*
+    java.nio.file.Files.list(path)
+      .iterator()
+      .asScala
+      .map(_.toString)
+      .filter(_.endsWith(".sast"))
+      .toArray
 
-    def addBytes(bytes: Seq[Byte]): Unit =
-      for byte <- bytes do addByte(byte)
-
-    def addBytes(byte: Byte, bytes: Byte*): Unit =
-      addByte(byte)
-      addBytes(bytes)
-
-    def addZeros(n: Int): Unit =
-      for _ <-0 until n do addByte(0)
+  def ensureExists(dir: String): Unit =
+    val path = java.nio.file.Paths.get(dir)
+    if !java.nio.file.Files.exists(path) then
+      java.nio.file.Files.createDirectories(path)

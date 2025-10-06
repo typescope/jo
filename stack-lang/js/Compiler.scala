@@ -7,6 +7,7 @@ import phases.*
 import reporting.Reporter
 import reporting.Reporter.Step
 import reporting.Config
+import reporting.Mode
 
 /***********************************************************************
  *
@@ -17,13 +18,11 @@ import reporting.Config
 def compile(args: String*): Unit =
   val optionSpec = Config.commonOptionsSpec + ("-o" -> true)
 
-  val (options, rest) = IO.parseOptions(args, optionSpec)
+  val (options, sources) = IO.parseOptions(args, optionSpec)
 
-  if rest.isEmpty then
+  if sources.isEmpty then
     println("Expect source file as input")
     return
-
-  val sources = rest
 
   val outFile =
     options.get("-o") match
@@ -34,16 +33,16 @@ def compile(args: String*): Unit =
         else
           "out.js"
 
-  given Config = Config(options)
+  given Config = Config(options, Mode.Application)
 
   Reporter.monitor:
 
     val rootNameTable = new NameTable
 
-    given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable)
+    given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
-    val runtime = "runtime/JS.stk" :: Nil
-    val namespacesSAST = FrontEnd.run(runtime, sources) <| "frontend"
+    val runtime = Config.JSRuntimePath :: Nil
+    val namespacesSAST = FrontEnd.run(runtime, sources) <| "Frontend"
 
     val mains = namespacesSAST.collect:
       case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get
@@ -61,15 +60,15 @@ def compile(args: String*): Unit =
 
         val closureConvert = new ElimCapture
         val runtimeLowerer = new LowerRuntime(jsRuntime)
-        val backend: Step[List[Sast.Namespace], Unit] =
-          Step("backend", new JSOptimized(outFile, jsRuntime).compile)
+        val backend: Step[List[Trees.Namespace], Unit] =
+          Step("Backend", new JSOptimized(outFile, jsRuntime).compile)
 
         namespacesSAST      |>
         closureConvert      |>
         runtimeLowerer      |>
         contextParamsLower  |>
         backend
-      } <| "backend"
+      } <| "Backend"
 
       case _ =>
         if mains.isEmpty then

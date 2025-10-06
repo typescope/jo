@@ -3,7 +3,7 @@ package sast
 import Symbols.*
 import Types.*
 
-import ast.Positions.{ Positioned, Span }
+import ast.Positions.{ Positioned, Span, DerivedSpan }
 
 /***********************************************************************
  *
@@ -12,11 +12,12 @@ import ast.Positions.{ Positioned, Span }
  * All names are resolved to symbols according to scoping rules.
  *
  ***********************************************************************/
-object Sast:
-  sealed abstract class Tree extends Positioned with Product:
-    def tpe: Type
+object Trees:
+  sealed abstract class Tree extends Positioned with Product
 
   sealed abstract class Word extends Tree:
+    def tpe: Type
+
     def isEmpty: Boolean =
       this match
         case Block(Nil) => true
@@ -70,8 +71,9 @@ object Sast:
 
   case class RecordLit
     (args: List[(String, Word)])
-    (val tpe: Type, val span: Span)
-  extends Word
+    (val span: Span)
+  extends Word:
+    val tpe = RecordType(args.map((n, w) => NamedInfo(n, w.tpe)))
 
   case class TaggedLit
     (tagTree: Literal, args: List[Word])
@@ -85,9 +87,11 @@ object Sast:
     (symbol: Symbol)
     (val span: Span)
   extends Word:
+    assert(!symbol.is(Flags.Alias), "Alias not resolved: " + symbol)
+
+    val tpe: Type = StaticRef(symbol)
 
     def name: String = symbol.name
-    val tpe: Type = StaticRef(symbol)
 
   case class Select
     (qual: Word, name: String)
@@ -96,20 +100,27 @@ object Sast:
   extends Word:
     assert(qual.tpe.isValueType, "Select node must have value prefix, qual.tpe = " + qual.tpe + ", select = " + this.show)
 
-  /** Assignment to local vars */
+  /** Assignment to local vars
+    *
+    * It also represents local val/var definitions in later phases after
+    * destruction of ValDef.
+    */
   case class Assign
     (ident: Ident, rhs: Word)
-    (val span: Span)
-  extends Word:
+  extends Word with DerivedSpan:
     val symbol = ident.symbol
+
     def tpe: Type = VoidType
 
-  /** Assignment to object fields */
+    def deriveSpan = ident.span | rhs.span
+
+  /** Assignment to fields */
   case class FieldAssign
-    (qual: Word, name: String, rhs: Word)
-    (val span: Span)
-  extends Word:
+    (lhs: Select, rhs: Word)
+  extends Word with DerivedSpan:
     def tpe: Type = VoidType
+
+    def deriveSpan = lhs.span | rhs.span
 
   case class If
     (cond: Word, thenp: Word, elsep: Word)
@@ -124,40 +135,44 @@ object Sast:
 
   case class Block
     (words: List[Word])
-    (val tpe: Type, val span: Span)
-  extends Word
+    (val span: Span)
+  extends Word:
+    val tpe: Type = if words.isEmpty then VoidType else words.last.tpe
 
   case class With
-    (expr: Word, args: List[WithArg])
-    (val tpe: Type, val span: Span)
-  extends Word:
-    assert(args.nonEmpty)
+    (expr: Word, args: List[Assign])
+  extends Word with DerivedSpan:
+    assert(args.nonEmpty, "With args cannot be empty")
+
+    def tpe: Type = expr.tpe
+
+    def deriveSpan = expr.span | args.last.span
 
   case class Allow
     (expr: Word, params: List[Ident])
-    (val tpe: Type, val span: Span)
-  extends Word
+  extends Word with DerivedSpan:
+    def tpe: Type = expr.tpe
 
-  case class WithArg
-    (paramRef: Ident, rhs: Word)
-    (val span: Span)
-  extends Tree:
-    def tpe: Type = VoidType
+    def deriveSpan = params.foldLeft(expr.span)(_ | _.span)
 
   case class TypeApply
     (fun: Word, targs: List[TypeTree])
     (val tpe: Type, val span: Span)
-  extends Word
+  extends Word:
+    assert(targs.nonEmpty, "type args should not be empty")
 
   case class Apply
     (fun: Word, args: List[Word], autos: List[Word])
-    (val tpe: Type, val span: Span)
+    (val span: Span)
     (using Definitions)
   extends Word:
-    fun.tpe.asProcType match
+    val tpe = fun.tpe.asProcType match
       case procType =>
+        assert(procType.tparams.size == 0, "tparams = " + procType.tparams)
         assert(procType.paramTypes.size == args.size, procType.show + ", " + args)
         assert(procType.autos.size == autos.size, procType.show + ", " + autos)
+
+        procType.resultType
 
     def allArgs: List[Word] = args ++ autos
 
@@ -167,16 +182,16 @@ object Sast:
         case TypeApply(Ident(sym), _) => Some(sym)
         case _                        => None
 
-  object Apply:
-    def apply(fun: Word, args: List[Word])(tpe: Type, span: Span)(using Definitions): Apply =
-      apply(fun, args, autos = Nil)(tpe, span)
-
   case class New
     (classRef: Ident, targs: List[TypeTree])
-    (val tpe: Type, val span: Span)
-  extends Word
+    (val span: Span)
+  extends Word:
+    val tpe =
+      val ref = StaticRef(classRef.symbol)
+      if targs.isEmpty then ref else AppliedType(ref, targs.map(_.tpe))
 
-  case class Object(self: Symbol, vals: List[ValDef], funs: List[FunDef])
+  // TODO: remove `tpe` from the parameters
+  case class Object(self: Symbol, members: List[ValDef | FunDef])
     (val tpe: Type, val span: Span)
   extends Word
 
@@ -185,13 +200,10 @@ object Sast:
     * It is also used to explicitly represent dropped values.
     */
   case class Encoded
-    (repr: Word)
-    (val tpe: Type, val span: Span)
-  extends Word:
+    (repr: Word)(val tpe: Type)
+  extends Word with DerivedSpan:
+    def deriveSpan = repr.span
     def isValueDrop(using Definitions) = repr.tpe.isValueType && tpe.isVoidType
-
-  object Encoded:
-    def apply(repr: Word)(tpe: Type): Encoded = apply(repr)(tpe, repr.span)
 
   case class TypeTree
     (tpe: Type)
@@ -202,55 +214,76 @@ object Sast:
   // patterns
 
   sealed trait Pattern extends Tree:
-    val scrutineeType: Type
+    /** The type of the scrutinee */
+    def scrutineeType: Type
 
-    def tpe: Type = scrutineeType
+    /** The refined type of the scrutinee if the pattern succeeds */
+    def valueType: Type
 
     def show(using Definitions): String = Printing.show(this)
 
     def isWildcard: Boolean =
       this match
         case _: WildcardPattern => true
-        case AscribePattern(_, nested) => nested.isWildcard
+        case AliasPattern(_, nested) => nested.isWildcard
         case _ => false
 
   case class TypePattern
     (tpt: TypeTree)(val scrutineeType: Type)
-  extends Pattern:
-    val span: Span = tpt.span
+  extends Pattern with DerivedSpan:
+    def valueType = tpt.tpe
+
+    def deriveSpan: Span = tpt.span
 
   case class WildcardPattern
     ()
     (val scrutineeType: Type, val span: Span)
-  extends Pattern
-
-  case class AscribePattern
-    (id: Ident, nested: Pattern)
   extends Pattern:
-    val scrutineeType = nested.scrutineeType
-    val span = id.span | nested.span
+    def valueType = scrutineeType
+
+  case class AliasPattern
+    (id: Ident, nested: Pattern)
+    (isDef: Boolean)
+  extends Pattern with DerivedSpan:
+    def scrutineeType = nested.scrutineeType
+    def valueType = nested.valueType
+
+    def deriveSpan = id.span | nested.span
+
+    /** Whether the symbol is a reference or a definition
+      *
+      * - A symbol defined at the lhs of or pattern can be referred on rhs
+      * - A symbol defined as params of patdef can be referred in patterns
+      */
+    def isDefinition: Boolean = isDef
 
   case class OrPattern
     (lhs: Pattern, rhs: Pattern)
-  extends Pattern:
-    val scrutineeType = lhs.scrutineeType
-    val span = lhs.span | rhs.span
+    (val valueType: Type)
+  extends Pattern with DerivedSpan:
+    def scrutineeType = lhs.scrutineeType
+
+    def deriveSpan = lhs.span | rhs.span
 
   case class ApplyPattern
     (fun: Word, nested: List[Pattern])
     (val scrutineeType: Type, val span: Span)
+    (using Definitions)
   extends Pattern:
+    val valueType = fun.tpe.asProcType.resultType.stripPartial
+
     val symbol =
       fun match
         case Ident(sym) if sym.isPattern => sym
         case TypeApply(Ident(sym), _) if sym.isPattern => sym
         case _ => throw new Exception("expect a pattern predicate, found = " + fun)
 
+    def deriveSpan = nested.foldLeft(fun.span)(_ | _.span)
+
   case class TagPattern
     (tagTree: Literal, nested: List[Pattern])
-    (val scrutineeType: Type)
+    (val scrutineeType: Type, val valueType: Type, val span: Span)
   extends Pattern:
-    val span = if nested.isEmpty then tagTree.span else tagTree.span | nested.last.span
 
     val tag = tagTree.constant match
       case Constant.String(name) => name
@@ -258,25 +291,51 @@ object Sast:
 
   case class ValuePattern
     (value: Word)(val scrutineeType: Type)
-  extends Pattern:
-    val span = value.span
+  extends Pattern with DerivedSpan:
+    def valueType = value.tpe
 
+    def deriveSpan = value.span
+
+  /** Represents patterns `pat if e`
+    *
+    * Question: Is guard pattern in essence conjunction pattern + condition?
+    *
+    * No, because an both branches of a conjunction pattern match against a
+    * scrutinee.
+    *
+    * Yes, a guard pattern ignores the scrutinee and only introduces condition.
+    */
   case class GuardPattern
     (pattern: Pattern, guard: Word)
-  extends Pattern:
-    val scrutineeType = pattern.scrutineeType
-    val span = pattern.span | guard.span
+  extends Pattern with DerivedSpan:
+    def scrutineeType = pattern.scrutineeType
+    def valueType = pattern.valueType
 
-  case class TermBindingPattern
+    def deriveSpan = pattern.span | guard.span
+
+  /** Represents patterns `pat then x = e`
+    *
+    * Question: Is bind pattern in essence conjunction pattern + bindings?
+    *
+    * No, because an both branches of a conjunction pattern match against a
+    * scrutinee.
+    *
+    * Yes, a bind pattern ignores the scrutinee and only introduces new bindings.
+    */
+  case class BindPattern
     (pattern: Pattern, bindings: List[Assign])
-  extends Pattern:
-    val scrutineeType = pattern.scrutineeType
-    val span = pattern.span | (if bindings.nonEmpty then bindings.last.span else pattern.span)
+  extends Pattern with DerivedSpan:
+    def scrutineeType = pattern.scrutineeType
+    def valueType = pattern.valueType
+
+    def deriveSpan = bindings.foldLeft(pattern.span)(_ | _.span)
 
   case class SeqPattern
     (patterns: List[SeqPartPattern])
     (val scrutineeType: Type, val span: Span)
   extends Pattern:
+    def valueType = scrutineeType
+
     /** The distance from the end of a pattern to the end of sequence */
     val distanceToEnd: Seq[SeqPattern.Size] = SeqPattern.computeDistanceToEnd(patterns)
 
@@ -360,8 +419,6 @@ object Sast:
 
   /** A subpattern that appears inside a sequence pattern */
   sealed trait SeqPartPattern extends Tree:
-    def tpe: Type = throw new Exception("No type associated with seq part pattern")
-
     def show(using Definitions): String = Printing.show(this)
 
     def headPattern: Pattern =
@@ -369,27 +426,31 @@ object Sast:
         case AtomPattern(pat) => pat
         case SkipToPattern(pat) => pat
         case StarPattern(pat) => pat
-        case RemainingSlicePattern(pat) => WildcardPattern()(AnyType, pat.span)
+        case RestPattern(pat) => WildcardPattern()(AnyType, pat.span)
 
     /** The number of items the pattern consumes when the match is successful */
     def size: SeqPattern.Size =
       this match
-        case AtomPattern(pat)          => SeqPattern.Size.Exact(1)
-        case SkipToPattern(pat)        => SeqPattern.Size.GreatEq(1)
-        case StarPattern(pat)          => SeqPattern.Size.GreatEq(0)
-        case RemainingSlicePattern(pat) => SeqPattern.Size.GreatEq(0)
+        case AtomPattern(pat)    => SeqPattern.Size.Exact(1)
+        case SkipToPattern(pat)  => SeqPattern.Size.GreatEq(1)
+        case StarPattern(pat)    => SeqPattern.Size.GreatEq(0)
+        case RestPattern(pat)    => SeqPattern.Size.GreatEq(0)
 
   case class AtomPattern
     (pattern: Pattern)
-  extends SeqPartPattern:
-    val span: Span = pattern.span
+  extends SeqPartPattern with DerivedSpan:
+    def deriveSpan: Span = pattern.span
 
   case class SkipToPattern
     (pattern: Pattern)
     (val span: Span)
   extends SeqPartPattern
 
-  case class RemainingSlicePattern
+  /** Takes the rest of a sequence
+    *
+    * May only be the last of a sequence pattern
+    */
+  case class RestPattern
     (pattern: Pattern)
     (val span: Span)
   extends SeqPartPattern
@@ -416,8 +477,7 @@ object Sast:
   case class Case
     (pattern: Pattern, body: Word)
     (val span: Span)
-  extends Tree:
-    def tpe = body.tpe
+  extends Tree
 
   //----------------------------------------------------------------------------
   // definitions
@@ -439,6 +499,7 @@ object Sast:
   extends Word, Def:
     val isMutable = symbol.isMutable
 
+  // TODO: add tparam and rhs
   case class TypeDef
     (symbol: Symbol)
     (val span: Span)
@@ -446,16 +507,21 @@ object Sast:
 
   /** Represents a named function or method definition */
   case class FunDef
-    (symbol: Symbol, tparams: List[Symbol], params: List[Symbol], autos: List[Symbol], resultType: TypeTree, body: Word)
+    (symbol: Symbol, tparams: List[Symbol], params: List[Symbol],
+      autos: List[Symbol], resultType: TypeTree, effectPolicy: Effects.Policy,
+      body: Word)
     (val span: Span)
+    (using defn: Definitions)
   extends Word, Def:
+    defn.setCode(symbol, this)
+
     private var censusCache: (List[Symbol], List[Symbol]) | Null = null
 
     val allParams: List[Symbol] = params ++ autos
 
     def census(using Definitions): (List[Symbol], List[Symbol]) =
       if censusCache == null then
-        censusCache = SastOps.variableCensus(this)
+        censusCache = TreeOps.variableCensus(this)
         censusCache.nn
       else
         censusCache.nn
@@ -465,10 +531,6 @@ object Sast:
     def freeVariables(using Definitions): List[Symbol] = census._2
 
     def procType(using Definitions): ProcType = symbol.info.as[ProcType]
-
-    def effectsBound(using Definitions): Option[List[Symbol]] = procType.effectsBound
-
-    def effectPolicy(using Definitions): Effects.Policy = procType.receives
 
   /** Represents a pattern definition */
   case class PatDef
@@ -482,11 +544,17 @@ object Sast:
     (val span: Span)
   extends Def
 
+  case class AliasDef
+    (symbol: Symbol, target: Ident)
+    (val span: Span)
+  extends Def:
+    assert(symbol.is(Flags.Alias), "alias symbol expected, found = " + symbol)
+
   case class Section
     (symbol: Symbol, defs: List[Def])
     (val span: Span)
   extends Def:
-    def info(using Definitions): NameTableInfo = symbol.info.as[NameTableInfo]
+    def info(using Definitions): ContainerInfo = symbol.info.as[ContainerInfo]
 
     def foreach(f: Def => Unit): Unit =
       defs.foreach:
@@ -497,7 +565,7 @@ object Sast:
     (symbol: Symbol, imports: List[Symbol], defs: List[Def])
     (val span: Span)
   extends Positioned:
-    def info(using Definitions): NameTableInfo = symbol.info.as[NameTableInfo]
+    def info(using Definitions): ContainerInfo = symbol.info.as[ContainerInfo]
 
     def fullName(using Definitions): String = symbol.fullName
 
@@ -512,6 +580,16 @@ object Sast:
 
     def show(using Definitions): String = Printing.show(this)
 
+    def source: String = symbol.sourcePos.source.file
+
+  //----------------------------------------------------------------------------
+  // Utility definitions
+
+  class DelayedDef[+T](val symbol: Symbol, val delayed: () => T):
+    private lazy val definition: T = delayed()
+    def force()(using Definitions): T =
+      symbol.info // force symbol
+      definition
 
   //----------------------------------------------------------------------------
   // helpers
@@ -529,6 +607,11 @@ object Sast:
     conds.foldLeft(cond): (acc, cond) =>
       Ident(defn.Bool_both)(cond.span).appliedTo(acc, cond)
 
+  def unitValue(span: Span)(using defn: Definitions): Word =
+    Encoded(RecordLit(args = Nil)(span))(defn.UnitType)
+
+  def errorWord(span: Span) = Encoded(Block(words = Nil)(span))(ErrorType)
+
   extension (word: Word)
 
     def select(name: String)(using Definitions): Word =
@@ -544,22 +627,26 @@ object Sast:
 
       val args2 =
         for (arg, paramType) <- args.zip(procType.paramTypes)
-        yield SastOps.adapt(arg, paramType)
+        yield TreeOps.adapt(arg, paramType)
 
-      val span = if args.isEmpty then word.span else word.span | args.last.span
-      Apply(word, args2.toList, autos = Nil)(procType.resultType, span)
+
+      val span = args.foldLeft(word.span)(_ | _.span)
+
+      Apply(word, args2.toList, autos = Nil)(span)
 
     def appliedToTypes(targs: Type*)(using Definitions): Word =
       val procType = word.tpe.asProcType
       val targList = targs.toList
       val tpe = procType.instantiate(targList)
-      TypeApply(word, targList.map(targ => TypeTree(targ)(word.span)))(tpe, word.span)
+      val span = word.span
+      TypeApply(word, targList.map(targ => TypeTree(targ)(word.span.endPoint)))(tpe, span)
 
     def appliedToTypeTrees(targs: TypeTree*)(using Definitions): Word =
       val procType = word.tpe.asProcType
       val targList = targs.toList
+      val span = targs.foldLeft(word.span)(_ | _.span)
       val tpe = procType.instantiate(targList.map(_.tpe))
-      TypeApply(word, targList)(tpe, word.span)
+      TypeApply(word, targList)(tpe, span)
 
     def encodedAs(tpe: Type): Word = Encoded(word)(tpe)
 

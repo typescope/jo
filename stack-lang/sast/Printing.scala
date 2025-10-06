@@ -1,14 +1,12 @@
 package sast
 
-import Sast.*
+import Trees.*
 import Types.*
 import Symbols.Symbol
 
 import common.StringUtil
 import common.Text
 import common.Text.*
-
-import scala.collection.mutable
 
 object Printing:
 
@@ -61,9 +59,6 @@ object Printing:
   given (using Definitions): Text.Maker[Type] =
     v => showType(v)
 
-  given (using Definitions): Text.Maker[WithArg] =
-    v => v.paramRef ~ " = " ~ v.rhs
-
   //----------------------------------------------------------------------------
 
   // implementation
@@ -107,7 +102,7 @@ object Printing:
         val modifiers = showModifiers(fdef.symbol)
 
         val receives =
-          fdef.effectsBound match
+          fdef.effectPolicy.bound match
             case Some(Nil) =>
               Text(" receives none ")
 
@@ -162,6 +157,10 @@ object Printing:
           cdef.vals.map(showField).join(Text.BlankLine)
           ~ Text.BlankLine
           cdef.funs.join(Text.BlankLine)
+
+      case adef: AliasDef =>
+        val modifiers = showModifiers(adef.symbol)
+        modifiers ~ "alias " ~ adef.name ~ " = " ~ adef.target
 
       case Section(sym, defs) =>
         "section " ~ sym ~ indent:
@@ -234,12 +233,8 @@ object Printing:
         fun ~ "[" ~ targs.join(", ") ~ "]"
 
       case With(expr, args) =>
-        val withText =
-          if args.isEmpty then
-            Text.Empty
-          else
-            " with " ~ indent:
-              args.join(Text.BreakLine)
+        val withText = " with " ~ indent:
+          args.join(Text.BreakLine)
 
         "(" ~ expr ~ withText ~ ")"
 
@@ -253,7 +248,7 @@ object Printing:
       case Assign(id, rhs) =>
         id.symbol ~ " = " ~ indent(rhs)
 
-      case FieldAssign(qual, name, rhs) =>
+      case FieldAssign(Select(qual, name), rhs) =>
         qual ~ "." ~ name ~ " <- " ~ rhs
 
       case If(cond, thenp, elsep) =>
@@ -282,11 +277,9 @@ object Printing:
         else
           Text.Empty
 
-      case Object(self, vals, defs) =>
+      case Object(self, members) =>
         "object {" ~ indent:
-           vals.join(Text.BreakLine)
-           ~ Text.BlankLine
-           ~ defs.join(Text.BreakLine)
+           members.join(Text.BreakLine)
         ~ "}"
 
       case vdef: ValDef => showDef(vdef)
@@ -303,7 +296,7 @@ object Printing:
 
       case WildcardPattern() => Text("_")
 
-      case AscribePattern(id, inner) =>
+      case AliasPattern(id, inner) =>
         "(" ~ id ~ " @ " ~ inner ~ ")"
 
       case ApplyPattern(pred, nested) =>
@@ -321,7 +314,7 @@ object Printing:
       case GuardPattern(pattern, guard) =>
         pattern ~ " if " ~ guard
 
-      case TermBindingPattern(pattern, bindings) =>
+      case BindPattern(pattern, bindings) =>
         pattern ~ " then " ~ bindings.join(", ")
 
       case SeqPattern(patterns) =>
@@ -335,16 +328,11 @@ object Printing:
 
       case StarPattern(pattern) => pattern ~ "*"
 
-      case RemainingSlicePattern(pattern) => ".." ~ pattern
+      case RestPattern(pattern) => ".." ~ pattern
 
   def showModifiers(sym: Symbol)(using Definitions): Text =
-    val buf = new mutable.ArrayBuffer[Text]
-    if sym.is(Flags.Auto) then buf += Text("<auto>")
-    if sym.is(Flags.Synthetic) then buf += Text("<synthetic>")
-    if sym.is(Flags.Context) then buf += Text("<context>")
-    if sym.is(Flags.Default) then buf += Text("<default>")
-    if sym.is(Flags.Alias) then buf += Text("<alias>")
-    buf.toList.join(" ")
+    val mask = Flags.Auto | Flags.Synthetic | Flags.Context | Flags.Default | Flags.Alias
+    Flags.flagStrings(sym.flags & mask).map("<" + _ + ">").join(" ")
 
   def showType(tp: Type)(using Definitions): Text =
     tp match
@@ -377,16 +365,17 @@ object Printing:
         val members = fields.map(f => f.name ~ ": " ~ f.info)
         "{ " ~ members.join(", ") ~ " }"
 
-      case ObjectType(fields, methods, muts) =>
-        val fieldList = fields.map: f =>
-          val mod = if muts.contains(f.name) then "var " else " val "
-          mod ~ f.name ~ ": " ~ f.info
-
-        val methodList = methods.map: m =>
-          "def " ~ m.name ~ m.info.widenTermRef
+      case ObjectType(members, muts) =>
+        val memberList = members.map: n =>
+          val NamedInfo(name, info) = n
+          if info.isProcType then
+            "def " ~ name ~ info.widenTermRef
+          else
+            val mod = if muts.contains(name) then "var " else " val "
+            mod ~ name ~ ": " ~ info
 
         "object { " ~ indent:
-            fieldList.join(Text.BreakLine) ~ Text.BlankLine ~ methodList.join(Text.BreakLine)
+            memberList.join(Text.BreakLine)
         ~ " }"
 
       case UnionType(branches) =>
@@ -432,15 +421,12 @@ object Printing:
           else "(" ~ autos.map(param => param.name ~ ": " ~ param.info).join(", ") ~ ")"
 
         val receivesText =
-          procType.effectsBound match
-            case None => Text.Empty
-            case Some(syms) =>
-              if syms.isEmpty then Text(" receives none")
-              else " receives " ~ syms.join(", ")
+          if procType.receives.isEmpty then Text(" receives none")
+          else " receives " ~ procType.receives.join(", ")
 
         tparamText ~ preText ~ postText ~ autoText ~ ": " ~ resType ~ receivesText
 
-      case info: NameTableInfo => info.owner ~ "{ ... }"
+      case info: ContainerInfo => Text("Container { ... }")
 
       case info: ClassInfo => info.classSymbol ~ "{ ... }"
 

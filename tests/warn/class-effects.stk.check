@@ -3,7 +3,7 @@
 |       ^^^
 |       Parameter not allowed: out
 
-The following is the trace that leads to the problem: 
+The following is the trace that leads to the problem:
 ├──   def foo(x: Int) receives none = bar (intToStr x)	[ ./tests/warn/class-effects.stk:10:35 ]
 │                                     ^^^
 └── def bar(s: String) = out s	[ ./tests/warn/class-effects.stk:3:22 ]
@@ -15,12 +15,19 @@ The following is the trace that leads to the problem:
 |     ^^^^^^^^^^^
 |     Parameter not allowed: out
 
+The following is the trace that leads to the problem:
+├── def instantiate receives none = new Foo	[ ./tests/warn/class-effects.stk:15:37 ]
+│                                       ^^^
+└──     out "hello"	[ ./tests/warn/class-effects.stk:7:5 ]
+        ^^^
+
+
 ---------- Error at ./tests/warn/class-effects.stk:17:5 ---------------
 | def test(o: Foo) receives none = o.work()
 |     ^^^^
 |     Parameter not allowed: out
 
-The following is the trace that leads to the problem: 
+The following is the trace that leads to the problem:
 ├── def test(o: Foo) receives none = o.work()	[ ./tests/warn/class-effects.stk:17:34 ]
 │                                    ^^^^^^
 ├──   def work() = bar "work"	[ ./tests/warn/class-effects.stk:12:16 ]

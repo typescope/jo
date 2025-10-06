@@ -19,7 +19,12 @@ enum Text:
       case _ => Group(Vector(this, that))
 
   override def toString() =
-    val sb = new StringBuilder
+    val sw = new java.io.StringWriter()
+    val pw = new java.io.PrintWriter(sw)
+    write(pw)
+    sw.toString
+
+  def write(pw: java.io.PrintWriter): Unit =
     var indent = 0
     var isNewLine = false
 
@@ -27,17 +32,18 @@ enum Text:
       text match
       case Empty =>
       case BlankLine =>
-        sb.append("\n\n")
+        pw.println()
+        pw.println()
         isNewLine = true
       case BreakLine =>
-        sb.append("\n")
+        pw.println()
         isNewLine = true
       case Indent(text) =>
         indent += 1
-        sb.append("\n")
+        pw.println()
         isNewLine = true
         convert(text)
-        sb.append("\n")
+        pw.println()
         isNewLine = true
         indent -= 1
       case Group(parts) =>
@@ -45,13 +51,14 @@ enum Text:
         do convert(part)
       case Atom(content) =>
         for line <- content.linesWithSeparators do
-          if isNewLine then sb.append("  " * indent)
-          sb.append(line)
+          if isNewLine then pw.print("  " * indent)
+          pw.print(line)
           isNewLine = line.endsWith("\n")
     end convert
+
     convert(this)
-    sb.toString
-  end toString
+    pw.flush()
+
 end Text
 
 object Text:
@@ -73,7 +80,7 @@ object Text:
     def ~[S](s: S)(using Maker[S]): Text =
       Text(t).join(Text(s))
 
-  extension [T](list: List[T])
+  extension [T](list: Iterable[T])
     def join(sep: String)(using Maker[T]): Text =
       rep(list, Text(sep))
 
@@ -82,7 +89,10 @@ object Text:
 
   def indent[T](v: T)(using Maker[T]): Text = Text.Indent(Text(v))
 
-  private def rep[T](list: List[T], separator: Text, acc: Text = Text.Empty)(using maker: Maker[T]): Text =
-    list match
-    case x :: xs => rep(xs, separator, if acc == Text.Empty then maker(x) else acc ~ separator ~ maker(x))
-    case Nil     => acc
+  private def rep[T](list: Iterable[T], separator: Text)(using maker: Maker[T]): Text =
+    var acc = Text.Empty
+    val iter = list.iterator
+    while iter.hasNext do
+      if acc == Text.Empty then acc = maker(iter.next())
+      else acc = acc ~ separator ~ iter.next()
+    acc

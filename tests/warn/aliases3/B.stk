@@ -1,16 +1,19 @@
 namespace B
 
-import A.Inner  // OK
+import A.Inner.foo  // OK
 import io.*
 import io.a.b.*
 import io.a.b.c.*
 
-alias io.*  // error
-alias io.a.b.*  // error
-alias io.a.b.c.*
+alias def a = io.*         // error
+alias def b = io.a.b.*     // error
+alias def c = io.a.b.c.*   // error
+alias def d = io.a.b.c.foo // error
+
 
 section Inner
+  def foo(x: Int) = x * x
   type Flags = Int
 end
 
-alias A.Inner.Flags
+type Flags = A.Inner.Flags

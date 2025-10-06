@@ -1,15 +1,15 @@
----------- Error at ./tests/warn/aliases.stk:5:9 ---------------
-|   alias M.B.*
-|         ^^^^^
-|         Redefinition of delta
+---------- Error at ./tests/warn/aliases.stk:5:15 ---------------
+|   alias param delta = M.B.delta
+|               ^^^^^
+|               Redefinition of delta
 |
 | The name `delta` is already defined at ./tests/warn/aliases.stk:4:3
 |   param delta: Int = 10
 |   ^^^^^^^^^^^^^^^^
 
----------- Error at ./tests/warn/aliases.stk:18:9 ---------------
-|   alias M.C.delta
-|         ^^^^^^^^^
-|         Aliasing an alias is disallowed: `delta`
+---------- Error at ./tests/warn/aliases.stk:18:23 ---------------
+|   alias param delta = M.C.delta
+|                       ^^^^^^^^^
+|                       Cannot alias another alias
 
 2 error(s), 0 warning(s)

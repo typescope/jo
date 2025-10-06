@@ -10,6 +10,7 @@ import sast.Definitions
 
 import reporting.Reporter
 import reporting.Config
+import reporting.Mode
 import reporting.Reporter.FatalError
 import reporting.Diagnostics.*
 
@@ -26,7 +27,7 @@ object Test:
 
   def compileAndCheck(test: String): Boolean = Reporter.timeout(100):
     given rp: Reporter = Reporter.createReporter(buffer = true)
-    given Config = Config(Map("-fatal-warnings" -> ""))
+    given Config = Config(Map("-fatal-warnings" -> ""), Mode.Library)
 
     val sourceFiles =
       if IO.isFile(test) then test :: Nil
@@ -35,7 +36,7 @@ object Test:
     try
       val runtimeFiles = Nil
       val rootNameTable = new NameTable
-      given lazyDefn: Definitions.Lazy = new Definitions.Lazy(rootNameTable)
+      given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
       FrontEnd.run(runtimeFiles, sourceFiles)
 
       verifyErrors(sourceFiles, rp.reports)

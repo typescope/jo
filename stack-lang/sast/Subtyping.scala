@@ -105,7 +105,7 @@ object Subtyping:
   private def checkConformsAppliedGrounded(tp1: AppliedType, tp2: AppliedType)(using ctx: Context, defn: Definitions): Boolean =
     val AppliedType(tref1: StaticRef, targs1) = tp1: @unchecked
     val AppliedType(tref2: StaticRef, targs2) = tp2: @unchecked
-    tref1.refers(tref2.symbol.dealias) && {
+    tref1.refers(tref2.symbol) && {
       // TODO: follow variance spec
       targs1.zip(targs2).forall: (tp1, tp2) =>
         recur(tp1, tp2) && recur(tp2, tp1)
@@ -240,7 +240,7 @@ object Subtyping:
         recur(autoType2, autoType1)
       && recur(tp1.resultType, tp2.resultType)
     }
-    && Effects.conforms(tp1.receives, tp2.receives)
+    && tp1.receives.forall(tp2.receives.contains)
 
   // TODO: loosen record typing and use coersion semantics
   private def checkConformsRecordType(tp1: RecordType, tp2: RecordType)(using Context, Definitions): Boolean =
@@ -255,8 +255,16 @@ object Subtyping:
       val names2 = tp2.fieldNames
       names1.size >= names2.size && names1.zip(names2).forall: (a, b) =>
         a == b
-        && tp1.isMutable(a) == tp2.isMutable(b)
-        && recur(tp1.termMember(a), tp2.termMember(b))
+        && ({
+         tp1.isMutable(a)
+         && tp2.isMutable(b)
+         && recur(tp1.termMember(a), tp2.termMember(b))
+         && recur(tp2.termMember(a), tp1.termMember(b))
+        } || {
+         !tp1.isMutable(a)
+         && !tp2.isMutable(b)
+         && recur(tp1.termMember(a), tp2.termMember(b))
+        })
 
     fieldsConform && {
       val names1 = tp1.methodNames

@@ -1,7 +1,7 @@
 package sast
 
 import sast.Types.*
-import sast.Sast.*
+import sast.Trees.*
 import ast.Positions.{ Span, SourcePosition }
 
 import reporting.Reporter
@@ -48,7 +48,6 @@ object TaggedEncoding:
   def encodeVariant(tagType: TagType, values: List[Word], tagSpan: Span, variantSpan: Span)(using defn: Definitions): Word =
     val tag = tagType.tag
 
-    val encodeType = encodeTagType(tagType)
     val tagCode = getTagCode(tag)
     val tagValue = Literal(Constant.Int(tagCode))(defn.IntType, tagSpan)
 
@@ -57,7 +56,7 @@ object TaggedEncoding:
     for (value, i) <- values.zipWithIndex do
       fields += ("v" + i) -> value
 
-    RecordLit(fields.toList)(encodeType, variantSpan)
+    RecordLit(fields.toList)(variantSpan)
 
   def selectVariantField(value: Word, tagType: TagType, field: String, span: Span)(using defn: Definitions): Word =
     val fieldIndex = tagType.paramIndex(field)
@@ -75,9 +74,8 @@ object TaggedEncoding:
     val IntType = defn.IntType
     val tagCode = getTagCode(tag)
     val testTagValue = Literal(Constant.Int(tagCode))(IntType, span)
-    val args =  tagValue :: testTagValue :: Nil
     val fun = Ident(defn.Int_eql)(span)
-    Apply(fun, args, autos = Nil)(defn.BoolType, span)
+    fun.appliedTo(tagValue, testTagValue)
 
   def testVariantTag(ref: Word, tag: String, span: Span)(using defn: Definitions): Word =
     val IntType = defn.IntType
@@ -90,8 +88,7 @@ object TaggedEncoding:
     //
     // Use non-short-cutting `either` for better CPU performance (no jumps)
     val fun = Ident(defn.Bool_either)(span)
-    val tp = defn.BoolType
     val cond = testTagValue(tagValue, tag, span)
     rest.foldLeft(cond): (acc, tag) =>
       val cond2 = testTagValue(tagValue, tag, span)
-      Apply(fun, acc :: cond2 :: Nil, autos = Nil)(tp, span)
+      fun.appliedTo(acc, cond2)

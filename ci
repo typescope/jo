@@ -16,18 +16,23 @@ check() {
 
 ################################################################################
 
-# check that scripts work
-bin/parse -time tests/pos/fact.stk
-bin/type -time tests/pos/fact.stk
-bin/run  -time tests/pos/fact.stk
-bin/jsc  -time  tests/pos/fact.stk
-bin/stac -time  tests/pos/fact.stk
-bin/regc -time  tests/pos/fact.stk
+# unit tests
+scala-cli stack-lang/common/Base128.scala
 
-bin/run.native -time tests/pos/fact.stk
-bin/jsc.native -time tests/pos/fact.stk
-bin/stac.native -time tests/pos/fact.stk
-bin/regc.native -time tests/pos/fact.stk
+################################################################################
+
+# check that scripts work
+bin/parse -time tests/pos/fact.stk  || exit 1
+bin/type -time  tests/pos/fact.stk  || exit 1
+bin/run  -time  tests/pos/fact.stk  || exit 1
+bin/jsc  -time  tests/pos/fact.stk  || exit 1
+bin/stac -time  tests/pos/fact.stk  || exit 1
+bin/regc -time  tests/pos/fact.stk  || exit 1
+
+bin/jo run -time tests/pos/fact.stk
+bin/jo build -js -time tests/pos/fact.stk
+bin/jo build -stack -time tests/pos/fact.stk
+bin/jo build -reg -time tests/pos/fact.stk
 
 ################################################################################
 # Positive tests
@@ -36,7 +41,7 @@ bin/regc.native -time tests/pos/fact.stk
 echo "Running positive tests"
 echo
 
-for item in $DIR/tests/pos/*.stk; do
+for item in $DIR/tests/pos/*; do
 
     if [[ $item == *.ignore ]]; then
         echo "ignore $item"
@@ -61,7 +66,7 @@ for item in $DIR/tests/pos/*.stk; do
         continue
     fi
 
-    echo "testing $file"
+    echo "testing $item"
 
     # create empty check file
     if [ ! -f "$CHECK" ]; then
@@ -69,7 +74,7 @@ for item in $DIR/tests/pos/*.stk; do
     fi
 
     echo "  - eval"
-    bin/run.native $file > $OUT 2>&1
+    bin/jo run -testPickling $file > $OUT 2>&1
     check $OUT $CHECK
 
     # Ast interpreter
@@ -78,25 +83,25 @@ for item in $DIR/tests/pos/*.stk; do
 
     # # layout 1
     echo "  - stac layout c1"
-    bin/stac.native $file -checkTree -o $exe -layout c1
+    bin/jo build -stack $file -checkTree -o $exe -layout c1
     $exe > $OUT 2>&1
     check $OUT $CHECK
 
     # layout 2
     echo "  - stac layout c2"
-    bin/stac.native $file -checkTree -o $exe -layout c2
+    bin/jo build -stack $file -checkTree -o $exe -layout c2
     $exe > $OUT 2>&1
     check $OUT $CHECK
 
     # fast linux
     echo "  - regc"
-    bin/regc.native $file -checkTree -o $exe
+    bin/jo build -reg $file -checkTree -o $exe
     $exe > $OUT 2>&1
     check $OUT $CHECK
 
     # JavaScript
     echo "  - jsc"
-    bin/jsc.native $file -checkTree -o $js
+    bin/jo build -js $file -checkTree -o $js
     node $js > $OUT 2>&1
     check $OUT $CHECK
 done
@@ -108,7 +113,7 @@ echo
 echo "Running error message tests"
 echo
 
-for item in $DIR/tests/warn/*.stk; do
+for item in $DIR/tests/warn/*; do
 
     if [[ $item == *.ignore ]]; then
         echo "ignore $item"
@@ -130,9 +135,9 @@ for item in $DIR/tests/warn/*.stk; do
         continue
     fi
 
-    echo "testing $file"
+    echo "testing $item"
 
-    bin/jsc.native -fatal-warnings $file > $OUT
+    bin/jo build -js -fatal-warnings $file > $OUT
     check $OUT $CHECK
 done
 
@@ -147,6 +152,19 @@ scala-cli project.scala stack-lang -M negTest
 if [[ $? != 0 ]]; then
   retcode=1
 fi
+
+################################################################################
+# Custom integration tests
+
+echo
+echo "Running custom integration tests"
+echo
+
+for test_dir in $DIR/tests/custom/*/; do
+    if [[ -f "$test_dir/test.sh" ]]; then
+        "$test_dir/test.sh" || retcode=1
+    fi
+done
 
 echo $retcode
 exit $retcode

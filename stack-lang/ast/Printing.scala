@@ -1,6 +1,6 @@
 package ast
 
-import Ast.*
+import Trees.*
 
 import common.StringUtil
 import common.Text
@@ -178,8 +178,12 @@ object Printing:
         "section " ~ name ~ indent:
             defs.join(Text.BlankLine)
 
-      case AliasDef(qualid) =>
-        "alias " ~ qualid
+      case AliasDef(ident, kind, qualid) =>
+        val mods =
+          if defn.modifiers.isEmpty then Text.Empty
+          else defn.modifiers.join(" ") ~ " "
+
+        mods ~ "alias " ~ kind.toString ~ " " ~ ident ~ " = " ~ qualid
 
   def showWord(word: Word): Text =
     word match
@@ -289,7 +293,7 @@ object Printing:
 
   def showPattern(pat: Word): Text =
     (pat: @unchecked) match
-      case _: Tag | _: Ident | _: StringLit | _: IntLit | _: CharLit | _: BoolLit =>
+      case _: Tag | _: RefTree | _: StringLit | _: IntLit | _: CharLit | _: BoolLit =>
         showWord(pat)
 
       case Apply(fun, args) if args.nonEmpty =>

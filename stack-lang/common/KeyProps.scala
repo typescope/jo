@@ -39,5 +39,8 @@ object KeyProps:
           map = map.updated(key, value)
           value
 
+    def hasKey[T](key: Key[T]): Boolean =
+      map.contains(key)
+
     def testKey[T](key: Key[T]): Option[T] =
       map.get(key).asInstanceOf[Option[T]]

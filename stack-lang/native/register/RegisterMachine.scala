@@ -4,7 +4,7 @@ import common.Debug
 import reporting.Reporter
 
 import sast.*
-import sast.Sast.*
+import sast.Trees.*
 import sast.Symbols.*
 import sast.Types.*
 
@@ -107,9 +107,9 @@ extends Backend(runtime):
 
       case _: TypeDef =>
 
-      case _: ValDef | _: FunDef | _: With | _: Allow | _: Select |
-           _: FieldAssign | _: RecordLit | _: Object | _: Match |
-           _: TaggedLit | _: PatDef | _: New =>
+      case _: Def         | _: With      | _: Allow  | _: Select |
+           _: FieldAssign | _: RecordLit | _: Object | _: Match  |
+           _: TaggedLit   | _: New =>
         throw new Exception("Unexpected " + word)
 
   def load(loc: Location, dest: Int, base: Rel)(using Context): Unit =
@@ -222,7 +222,7 @@ extends Backend(runtime):
           gen(labelEnd)
 
         else
-          assert(!ifword.elsep.isEmpty)
+          assert(!ifword.elsep.isEmpty, "else empty")
           val resReg = freshVirtualReg()
 
           // finish true branch
@@ -385,13 +385,12 @@ extends Backend(runtime):
   def compile(app: Apply)(using ctx: Context): Unit =
     app.funSymbol match
       case Some(sym) =>
-        val target = sym.dealias
-        if target.owner == defn.Int || target.owner == defn.Bool then
+        if sym.owner == defn.Int || sym.owner == defn.Bool then
           for arg <- app.allArgs do compile(arg)
-          callPrimitive(target)
+          callPrimitive(sym)
 
-        else if target.owner == runtime.Core then
-          if target == runtime.Core_data then
+        else if sym.owner == runtime.Core then
+          if sym == runtime.Core_data then
             // TODO: error instead of crash -- in early phases
             val Literal(Constant.String(qualid)) :: Nil = app.args: @unchecked
             val label = runtime.locate(qualid) match
@@ -404,11 +403,11 @@ extends Backend(runtime):
 
           else
             for arg <- app.allArgs do compile(arg)
-            callCore(target)
+            callCore(sym)
 
         else
           for arg <- app.allArgs do compile(arg)
-          call(target)
+          call(sym)
 
       case _ =>
         compile(app.fun)
