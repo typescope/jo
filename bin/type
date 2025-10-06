@@ -72,7 +72,7 @@ files=(
     stack-lang/pickle/WriteBuffer.scala
 
     stack-lang/phases/Phase.scala
-    stack-lang/phases/NormalizeParams.scala
+    stack-lang/phases/EffectCheck.scala
 )
 
 FILES=${files[*]}

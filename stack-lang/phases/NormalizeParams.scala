@@ -5,14 +5,12 @@ import sast.*
 import sast.Trees.*
 import sast.Types.*
 import sast.Symbols.*
-import reporting.Reporter
 
 import scala.collection.mutable
 
 /** This phase normalize the usage of context parameters and some others
   *
   * - All transitive captures of context parameters are made explicit in objects
-  * - Checks are performed for `allow`-clauses
   * - Rewire optional context parameters to its implementation
   *
   * The desugaring for optional context parameters
@@ -38,18 +36,8 @@ import scala.collection.mutable
   * The effect check will happen for `a`, the semantics will only use
   * `a$option`.
   */
-class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Symbol]:
+class NormalizeParams(using defn: Definitions) extends Phase[Symbol]:
   val contextObject = Phase.OwnerContext
-
-  /*
-   * Note that for effect analysis we cannot use the CodeProvider in Definitions
-   * due to the partial update in desugaring default context parameters.
-   *
-   * Instead, we need to use a snapshot CodeProvider after type checking.
-   *
-   * TODO: make it contextual such that it can be released by GC
-   */
-  given CodeProvider = defn.snapshotCodeProvider()
 
   val NoneType = TagType("None", params = Nil)
 
@@ -65,16 +53,9 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Symbo
     // force computing effects
     val effs = defn.effectEngine.effects(symbol)
 
+    val fdef2 = super.transformFunDef(fdef)
+
     if !symbol.isLocal && fdef.name == "main" then
-      val fdef2 = super.transformFunDef(fdef)
-
-      val pos = fdef.symbol.sourcePos
-      for
-        (eff, trace) <- effs
-        if !eff.is(Flags.Default) && !defn.isRuntimeContextParam(eff)
-      do
-        Reporter.error("Context parameter not provided: " + eff, pos, trace)
-
       val defaultEffs = effs.keys.filter(_.is(Flags.Default)).toList
       if defaultEffs.isEmpty then
         fdef2
@@ -85,17 +66,7 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Symbo
         fdef2.copy(body = body2)(fdef.span)
 
     else
-      fdef.effectPolicy match
-        case Effects.Policy.CheckBound(params) =>
-          val allowed = params.toSet
-          val effs = defn.effectEngine.effects(symbol)
-          val pos = symbol.sourcePos
-          for (eff, trace) <- effs if !allowed.exists(param => eff.refers(param)) do
-            Reporter.error("Parameter not allowed: " + eff, pos, trace)
-
-        case _ =>
-
-      super.transformFunDef(fdef)
+      fdef2
 
   override def transformIdent(ident: Ident)(using ctx: Context): Word =
     val sym = ident.symbol
@@ -122,11 +93,6 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Symbo
     val allowed = allowExpr.params.map(_.symbol).toSet
 
     val unprovided = effsInner.filter((k, _) => !allowed.exists(param => k.refers(param)))
-
-    for
-      (eff, trace) <- unprovided if !eff.is(Flags.Default)
-    do
-      Reporter.error("Parameter not allowed: " + eff, allowExpr.expr.pos, trace)
 
     val defaultEffs = unprovided.keys.filter(_.is(Flags.Default)).toList
     if defaultEffs.isEmpty then
@@ -216,27 +182,15 @@ class NormalizeParams(using rp: Reporter, defn: Definitions) extends Phase[Symbo
     val args3 = rewireArgs(args2)
     With(expr2, args3)
 
-  private def checkTermInPattern(word: Word)(using ctx: Context): Word =
-    given Source = ctx.owner.sourcePos.source
-    val effs = defn.effectEngine.effects(word)
-
-    for
-      (eff, trace) <- effs
-    do
-      Reporter.error("External context parameters not allowed in patterns: " + eff, word.pos, trace)
-
-    // The code might still bind and use default parameters
-    this(word)
-
   override def transformGuardPattern(pat: GuardPattern)(using ctx: Context): Pattern =
-    pat.copy(pattern = this(pat.pattern), guard = checkTermInPattern(pat.guard))
+    pat.copy(pattern = this(pat.pattern), guard = this(pat.guard))
 
   override def transformBindPattern(pat: BindPattern)(using ctx: Context): Pattern =
     val assigns =
       for ass <- pat.bindings
-      yield ass.copy(rhs = checkTermInPattern(ass.rhs))
+      yield ass.copy(rhs = this(ass.rhs))
 
     pat.copy(pattern = this(pat.pattern), bindings = assigns)
 
   override def transformValuePattern(pat: ValuePattern)(using ctx: Context): Pattern =
-    pat.copy(value = checkTermInPattern(pat.value))(pat.scrutineeType)
+    pat.copy(value = this(pat.value))(pat.scrutineeType)

@@ -80,6 +80,7 @@ files=(
     stack-lang/js/LowerRuntime.scala
 
     stack-lang/phases/Phase.scala
+    stack-lang/phases/EffectCheck.scala
     stack-lang/phases/FrontEnd.scala
     stack-lang/phases/ElimCapture.scala
     stack-lang/phases/EncodeTagged.scala

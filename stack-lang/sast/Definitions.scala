@@ -60,10 +60,7 @@ extends Definitions.Lazy:
   //
   val effectEngine: EffectAnalysis = new EffectAnalysis
 
-  def receives(sym: Symbol): List[Symbol] =
-    effectEngine.getStable(sym) match
-      case Some(effs) => effs.keys.toList
-      case None => throw new Exception("Effects not yet computed")
+  def receives(sym: Symbol): List[Symbol] = effectEngine.effects(sym).keys.toList
 
   //----------------------------------------------------------------------------
   // Code provider

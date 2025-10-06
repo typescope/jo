@@ -19,7 +19,9 @@ object FrontEnd:
 
       val encoder = new phases.EncodeTagged
       val patmat = new phases.PatternMatcher
+      val normalizer = new phases.NormalizeParams
 
       sast       |>
+      normalizer |>
       patmat     |>
       encoder
