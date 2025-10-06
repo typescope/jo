@@ -100,6 +100,29 @@ object Encoder:
       Encoder.encodeNat(strings.size)
       for str <- strings do buf.addUtf8(str)
 
+  /** De Bruijn encoding of bound type parameters in types */
+  private class TypeParamScope:
+    private val scope = new mutable.ArrayBuffer[Symbol]
+
+    def withParams[T](params: List[Symbol])(fn: => T): T =
+      scope ++= params
+      val res = fn
+      scope.dropRight(params.size)
+      res
+
+    def paramIndex(param: Symbol): Int =
+      val size = scope.size
+
+      var i = 0
+      var found = false
+      while !found && i < size do
+        val sym = scope(size - i - 1)
+        found = sym == param
+        i += 1
+
+      if found then i - 1 else -1
+
+
   /** A name table maps external symbols to full name and its kind */
   private class NameTable:
     /** Name reference to externally defined symbols */
@@ -566,7 +589,11 @@ object Encoder:
     encodeInt(startDelta)
     encodeNat(tpt.span.length)
 
-  private def encodeType(tpe: Type)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
+  private def encodeType
+      (tpe: Type, tparamScope: TypeParamScope = new TypeParamScope)
+      (using defn: Definitions, state: State, buf: WriteBuffer)
+  : Unit =
+
     tpe match
       case VoidType => encodeByte(Format.VoidType)
 
@@ -577,17 +604,23 @@ object Encoder:
       case BottomType => encodeByte(Format.BottomType)
 
       case StaticRef(sym) =>
-        encodeByte(Format.StaticRef)
-        encodeSymbolRef(sym)
+        // It can be either TypeParamRef or StaticRef
+        val index = tparamScope.paramIndex(sym)
+        if index == -1 then
+          encodeByte(Format.StaticRef)
+          encodeSymbolRef(sym)
+        else
+          encodeByte(Format.TypeParamRef)
+          encodeNat(index)
 
       case MemberRef(prefix, sym) =>
         encodeByte(Format.MemberRef)
-        encodeType(prefix)
+        encodeType(prefix, tparamScope)
         encodeSymbolRef(sym)
 
       case tvar: TypeVar =>
         assert(tvar.isInstantiated, "uninstantiated type variable: " + tvar)
-        encodeType(tvar.instantiated)
+        encodeType(tvar.instantiated, tparamScope)
 
       case ConstantType(const) =>
         encodeByte(Format.ConstantType)
@@ -597,13 +630,13 @@ object Encoder:
         encodeByte(Format.RecordType)
         repeated(fields): f =>
           encodeString(f.name)
-          encodeType(f.info)
+          encodeType(f.info, tparamScope)
 
       case UnionType(branches) =>
         encodeByte(Format.UnionType)
 
         repeated(branches): branch =>
-          encodeType(branch)
+          encodeType(branch, tparamScope)
 
       case TagType(tag, params) =>
         encodeByte(Format.TagType)
@@ -611,7 +644,7 @@ object Encoder:
         encodeString(tag)
         repeated(params): f =>
           encodeString(f.name)
-          encodeType(f.info)
+          encodeType(f.info, tparamScope)
 
       case ObjectType(members, muts) =>
         encodeByte(Format.ObjectType)
@@ -619,43 +652,42 @@ object Encoder:
         encodeNat(members.size)
         for NamedInfo(name, info) <- members do
           encodeString(name)
-          encodeType(info)
+          encodeType(info, tparamScope)
           if info.isValueType then
             encodeBool(muts.contains(name))
 
       case AppliedType(tctor, targs) =>
         encodeByte(Format.AppliedType)
-        encodeType(tctor)
+        encodeType(tctor, tparamScope)
         repeated(targs): targ =>
-          encodeType(targ)
+          encodeType(targ, tparamScope)
 
       case procType @ ProcType(tparams, params, autos, resType, _, preParamCount) =>
         encodeByte(Format.ProcType)
 
-        // Local type symbols in types only need to store id, bound and name.
+        // Local type symbols in types only need to store bound and name.
         //
         // The position information is irrelevant.
-        repeated(tparams): tparam =>
-          // The type param can be external
-          encodeNat(state.getId(tparam))
-          encodeString(tparam.name)
-          encodeKind(tparam.asTypeSymbol.kind)
-          encodeType(tparam.info)
+        tparamScope.withParams(tparams):
+          repeated(tparams): tparam =>
+            encodeString(tparam.name)
+            encodeKind(tparam.asTypeSymbol.kind)
+            encodeType(tparam.info, tparamScope)
 
-        repeated(params): param =>
-          encodeString(param.name)
-          encodeType(param.info)
+          repeated(params): param =>
+            encodeString(param.name)
+            encodeType(param.info, tparamScope)
 
-        repeated(autos): auto =>
-          encodeString(auto.name)
-          encodeType(auto.info)
+          repeated(autos): auto =>
+            encodeString(auto.name)
+            encodeType(auto.info, tparamScope)
 
-        encodeType(resType)
+          encodeType(resType, tparamScope)
 
-        repeated(procType.receives): eff =>
-          encodeSymbolRef(eff)
+          repeated(procType.receives): eff =>
+            encodeSymbolRef(eff)
 
-        encodeNat(preParamCount)
+          encodeNat(preParamCount)
 
       case TypeLambda(tparams, resType, preParamCount) =>
         encodeByte(Format.TypeLambda)
@@ -663,20 +695,19 @@ object Encoder:
         // Local type symbols in types only need to store id, bound and name.
         //
         // The position information is irrelevant.
-        repeated(tparams): tparam =>
-          // The type param can be external
-          encodeNat(state.getId(tparam))
-          encodeString(tparam.name)
-          encodeKind(tparam.asTypeSymbol.kind)
-          encodeType(tparam.info)
+        tparamScope.withParams(tparams):
+          repeated(tparams): tparam =>
+            encodeString(tparam.name)
+            encodeKind(tparam.asTypeSymbol.kind)
+            encodeType(tparam.info, tparamScope)
 
-        encodeType(resType)
-        encodeNat(preParamCount)
+          encodeType(resType, tparamScope)
+          encodeNat(preParamCount)
 
       case TypeBound(lo, hi) =>
         encodeByte(Format.TypeBound)
-        encodeType(lo)
-        encodeType(hi)
+        encodeType(lo, tparamScope)
+        encodeType(hi, tparamScope)
 
       case _: ContainerInfo | _: ClassInfo =>
         throw new Exception("Unexpected type " + tpe)

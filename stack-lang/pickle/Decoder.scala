@@ -56,6 +56,24 @@ object Decoder:
       end if
       sym
 
+  /** De Bruijn encoding of bound type parameters in types */
+  private class TypeParamScope:
+    private val scope = new mutable.ArrayBuffer[Symbol]
+
+    def withParams[T](params: List[Symbol])(fn: => T): T =
+      scope ++= params
+      val res = fn
+      scope.dropRight(params.size)
+      res
+
+    def getParam(index: Int): Symbol =
+      val size = scope.size
+      val i = size - index - 1
+
+      if i < 0 || i >= size then throw new Exception("index = " + i + ", size = " + size)
+
+      scope(i)
+
   private class State(
       val root: Symbol,
       val stringTable: StringTable,
@@ -784,7 +802,11 @@ object Decoder:
 
     TypeTree(tpe)(span)
 
-  private def decodeType()(using buf: ReadBuffer, defn: Definitions, state: State): Type =
+  private def decodeType
+     (tparamScope: TypeParamScope = new TypeParamScope)
+     (using buf: ReadBuffer, defn: Definitions, state: State)
+  : Type =
+
     val pos = buf.position
     val typeTag = decodeByte()
     typeTag match
@@ -793,12 +815,16 @@ object Decoder:
       case Format.AnyType => AnyType
       case Format.BottomType => BottomType
 
+      case Format.TypeParamRef =>
+        val index = decodeNat()
+        StaticRef(tparamScope.getParam(index))
+
       case Format.StaticRef =>
         val sym = decodeSymbolRef()
         StaticRef(sym)
 
       case Format.MemberRef =>
-        val prefix = decodeType()
+        val prefix = decodeType(tparamScope)
         val sym = decodeSymbolRef()
         MemberRef(prefix, sym)
 
@@ -809,19 +835,19 @@ object Decoder:
       case Format.RecordType =>
         val fields = repeated:
           val name = decodeString()
-          val info = decodeType()
+          val info = decodeType(tparamScope)
           NamedInfo(name, info)
         RecordType(fields)
 
       case Format.UnionType =>
-        val branches = repeated { decodeType() }
+        val branches = repeated { decodeType(tparamScope) }
         UnionType(branches)
 
       case Format.TagType =>
         val tag = decodeString()
         val params = repeated:
           val name = decodeString()
-          val info = decodeType()
+          val info = decodeType(tparamScope)
           NamedInfo(name, info)
         TagType(tag, params)
 
@@ -834,7 +860,7 @@ object Decoder:
         var i = 0
         while i < memberCount do
           val name = decodeString()
-          val info = decodeType()
+          val info = decodeType(tparamScope)
           members += NamedInfo(name, info)
           if info.isValueType then
             val isMutable = decodeBool()
@@ -846,59 +872,57 @@ object Decoder:
         ObjectType(members.toList, muts.toList)
 
       case Format.AppliedType =>
-        val tctor = decodeType()
-        val targs = repeated { decodeType() }
+        val tctor = decodeType(tparamScope)
+        val targs = repeated { decodeType(tparamScope) }
         AppliedType(tctor, targs)
 
       case Format.ProcType =>
         val tparams = repeated:
-          val id = decodeNat()
           val name = decodeString()
           // TODO: eager decoding excludes F-bounds
           val kind = decodeKind()
-          val info = decodeType()
+          val info = decodeType(tparamScope)
 
           val tparam = TypeSymbol.createSymbol(kind, name, info, Flags.Param, state.root, state.root.sourcePos)
 
-          state.registerInternalSymbol(id, tparam)
           tparam
 
-        val params = repeated:
-          val name = decodeString()
-          val info = decodeType()
-          NamedInfo(name, info)
+        tparamScope.withParams(tparams):
+          val params = repeated:
+            val name = decodeString()
+            val info = decodeType(tparamScope)
+            NamedInfo(name, info)
 
-        val autos = repeated:
-          val name = decodeString()
-          val info = decodeType()
-          NamedInfo(name, info)
+          val autos = repeated:
+            val name = decodeString()
+            val info = decodeType(tparamScope)
+            NamedInfo(name, info)
 
-        val resType = decodeType()
-        val receives = repeated { decodeSymbolRef() }
-        val preParamCount = decodeNat()
+          val resType = decodeType(tparamScope)
+          val receives = repeated { decodeSymbolRef() }
+          val preParamCount = decodeNat()
 
-        ProcType(tparams, params, autos, resType, () => receives, preParamCount)
+          ProcType(tparams, params, autos, resType, () => receives, preParamCount)
 
       case Format.TypeLambda =>
         val tparams = repeated:
-          val id = decodeNat()
           val name = decodeString()
 
           // TODO: eager decoding excludes F-bounds
           val kind = decodeKind()
-          val info = decodeType()
+          val info = decodeType(tparamScope)
 
           val tparam = TypeSymbol.createSymbol(kind, name, info, Flags.Param, state.root, state.root.sourcePos)
-          state.registerInternalSymbol(id, tparam)
           tparam
 
-        val resType = decodeType()
-        val preParamCount = decodeNat()
-        TypeLambda(tparams, resType, preParamCount)
+        tparamScope.withParams(tparams):
+          val resType = decodeType(tparamScope)
+          val preParamCount = decodeNat()
+          TypeLambda(tparams, resType, preParamCount)
 
       case Format.TypeBound =>
-        val lo = decodeType()
-        val hi = decodeType()
+        val lo = decodeType(tparamScope)
+        val hi = decodeType(tparamScope)
         TypeBound(lo, hi)
 
       case _ => throw new Exception(s"Unknown type tag: $typeTag at $pos")
