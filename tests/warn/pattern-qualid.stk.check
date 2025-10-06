@@ -1,0 +1,21 @@
+---------- Error at ./tests/warn/pattern-qualid.stk:8:10 ---------------
+|     case Core.Success value =>
+|          ^^^^^^^^^^^^
+|          A selection must be a pattern predicate
+
+---------- Error at ./tests/warn/pattern-qualid.stk:8:10 ---------------
+|     case Core.Success value =>
+|          ^^^^^^^^^^^^
+|          Found extra pattern, an expression pattern should form a single pattern
+
+---------- Error at ./tests/warn/pattern-qualid.stk:9:10 ---------------
+|     case Core.Failure msg =>
+|          ^^^^^^^^^^^^
+|          A selection must be a pattern predicate
+
+---------- Error at ./tests/warn/pattern-qualid.stk:9:10 ---------------
+|     case Core.Failure msg =>
+|          ^^^^^^^^^^^^
+|          Found extra pattern, an expression pattern should form a single pattern
+
+4 error(s), 0 warning(s)
