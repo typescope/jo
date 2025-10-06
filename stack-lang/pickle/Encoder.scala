@@ -239,7 +239,7 @@ object Encoder:
     if testPickling then
       val bytes = IO.fileAsBytes(path)
       given ReadBuffer = new ReadBuffer(bytes)
-      val ns2 = Decoder.decode(ns.symbol.owner).force()
+      val ns2 = Decoder.decode().force()
 
       val contentBefore = RawPrinter.print(ns).toString
       val contentAfter = RawPrinter.print(ns2).toString
@@ -265,6 +265,13 @@ object Encoder:
     encodeInt(Format.MAGIC_NUMBER)
     encodeNat(Format.MAJOR_VERSION)
     encodeNat(Format.MINOR_VERSION)
+
+    // Write owner information (as index to name table, or -1 if null)
+    // getIndex automatically adds owner and its ancestors to name table
+    val ownerIndex =
+      if symbol.owner == null then -1
+      else state.nameTable.getIndex(symbol.owner)
+    encodeInt(ownerIndex)
 
     // start of encoding
     val addrStringTable = buf.reserveInt()

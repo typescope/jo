@@ -103,21 +103,42 @@ object Decoder:
 
   //----------------------------------------------------------------------------
 
-  /** Load a .sast file and decode it */
+  /** Load a .sast file and decode it
+    *
+    * Owner information is now stored inside the .sast file,
+    * so we no longer need to extract it from the filename.
+    */
   def load(file: String)(using defnLazy: Definitions.Lazy, rp: Reporter): DelayedDef[Namespace] =
     val ip = defnLazy.infoProvider
 
-    def resolve(parts: List[String], nameTable: NameTable, owner: Symbol): Symbol =
-      parts match
+    // Load the file and decode - owner is now stored in the file
+    val bytes = IO.fileAsBytes(file)
+    given ReadBuffer = new ReadBuffer(bytes)
+    val delayedNS = decode()
+
+    // Register the symbol in the appropriate name table
+    val owner = ip(delayedNS.symbol).owner
+    if owner == null then
+      defnLazy.rootNameTable.define(delayedNS.symbol)
+    else
+      ip.info(owner).as[ContainerInfo].nameTable.define(delayedNS.symbol)
+
+    delayedNS
+
+  /** Resolve owner symbol from path, creating it if it doesn't exist */
+  private def resolveOwner(path: List[String], pos: SourcePosition)(using defnLazy: Definitions.Lazy, rp: Reporter): Symbol =
+    val ip = defnLazy.infoProvider
+
+    def resolve(path: List[String], nameTable: NameTable, owner: Symbol): Symbol =
+      path match
         case name :: rest =>
           val sym = nameTable.resolveTerm(name) match
-            case Some(sym) =>
-              assert(sym.isContainer, "not a container: " + sym)
-              sym
+            case Some(sym) => sym
 
             case None =>
+              // Create the symbol if it doesn't exist
               val flags = Flags.NSpace | Flags.Branch
-              val sym = Symbol.createSymbol(name, flags, null)
+              val sym = Symbol.createSymbol(name, flags, pos)
               ip.add(sym, owner, new ContainerInfo(new NameTable))
               nameTable.define(sym)
               sym
@@ -127,25 +148,9 @@ object Decoder:
         case Nil =>
           owner
 
-    // Extract owner from file path
-    // e.g., "build/libA/stk.Array.sast" -> owner is "stk"
-    val fileName = java.nio.file.Paths.get(file).getFileName.toString
-    val baseName = fileName.stripSuffix(".sast")
-    val ownerParts = baseName.split("\\.").toList.dropRight(1)
+    resolve(path, defnLazy.rootNameTable, owner = null)
 
-    val owner = resolve(ownerParts, defnLazy.rootNameTable, owner = null)
-    val bytes = IO.fileAsBytes(file)
-    given ReadBuffer = new ReadBuffer(bytes)
-    val delayedNS = decode(owner)
-
-    if owner == null then
-      defnLazy.rootNameTable.define(delayedNS.symbol)
-    else
-      ip.info(owner).as[ContainerInfo].nameTable.define(delayedNS.symbol)
-
-    delayedNS
-
-  def decode(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, rp: Reporter): DelayedDef[Namespace] =
+  def decode()(using buf: ReadBuffer, defnLazy: Definitions.Lazy, rp: Reporter): DelayedDef[Namespace] =
     // Read and validate file header
     val magic = decodeInt()
     if magic != Format.MAGIC_NUMBER then
@@ -163,6 +168,9 @@ object Decoder:
         "Please rebuild the library with the current compiler version."
       )
 
+    // Read owner index (-1 if null, otherwise index to name table)
+    val ownerIndex = decodeInt()
+
     // Read string table
     val stringTableAddr: Int = decodeIntRaw()
     val stringTable: StringTable = buf.withPosition(stringTableAddr):
@@ -173,17 +181,28 @@ object Decoder:
     val nameRefs: Array[NameRef] = buf.withPosition(nameTableAddr):
       decodeNameTable()
 
+    // Create symbol table early so we can use getFullNameParts
+    val symTable = new SymTable(nameRefs, stringTable)
+
     val id = decodeNat()
     val name = stringTable.get(buf.readNat())
     val source = decodeSource(stringTable)
     val symSpan = Span(decodeNat(), decodeNat())
+    val pos = symSpan.toPos(using source)
+
+    // Resolve owner from name table using getFullNameParts
+    val ownerSymbol: Symbol =
+      if ownerIndex == -1 then
+        null
+      else
+        val ownerPath = symTable.getFullNameParts(ownerIndex)
+        resolveOwner(ownerPath, pos)
 
     val nameTable = new NameTable
     val info = new ContainerInfo(nameTable)
-    val rootSymbol = Symbol.createSymbol(name, Flags.NSpace, symSpan.toPos(using source))
-    defnLazy.infoProvider.add(rootSymbol, owner, info)
+    val rootSymbol = Symbol.createSymbol(name, Flags.NSpace, pos)
+    defnLazy.infoProvider.add(rootSymbol, ownerSymbol, info)
 
-    val symTable = new SymTable(nameRefs, stringTable)
     given state: State = new State(rootSymbol, stringTable, symTable)
 
     // Import/alias may refer to the root symbol
