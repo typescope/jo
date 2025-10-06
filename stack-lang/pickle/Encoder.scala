@@ -262,9 +262,9 @@ object Encoder:
     given buf: WriteBuffer = new WriteBuffer(1 << 12)
 
     // Write file header: magic number + version
-    encodeInt(Format.MAGIC_NUMBER)
-    encodeNat(Format.MAJOR_VERSION)
-    encodeNat(Format.MINOR_VERSION)
+    encodeIntRaw(Format.MAGIC_NUMBER)
+    encodeIntRaw(Format.MAJOR_VERSION)
+    encodeIntRaw(Format.MINOR_VERSION)
 
     // Write owner information (as index to name table, or -1 if null)
     // getIndex automatically adds owner and its ancestors to name table
@@ -1097,6 +1097,9 @@ object Encoder:
 
   private def encodeInt(n: Int)(using buf: WriteBuffer): Unit =
     buf.addInt(n)
+
+  private def encodeIntRaw(n: Int)(using buf: WriteBuffer): Unit =
+    buf.addIntRaw(n)
 
   private def encodeNat(n: Int)(using buf: WriteBuffer): Unit =
     buf.addNat(n)

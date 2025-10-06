@@ -103,11 +103,7 @@ object Decoder:
 
   //----------------------------------------------------------------------------
 
-  /** Load a .sast file and decode it
-    *
-    * Owner information is now stored inside the .sast file,
-    * so we no longer need to extract it from the filename.
-    */
+  /** Load a .sast file and decode it */
   def load(file: String)(using defnLazy: Definitions.Lazy, rp: Reporter): DelayedDef[Namespace] =
     val ip = defnLazy.infoProvider
 
@@ -152,12 +148,12 @@ object Decoder:
 
   def decode()(using buf: ReadBuffer, defnLazy: Definitions.Lazy, rp: Reporter): DelayedDef[Namespace] =
     // Read and validate file header
-    val magic = decodeInt()
+    val magic = decodeIntRaw()
     if magic != Format.MAGIC_NUMBER then
       Reporter.abortInternal(f"Invalid SAST file: expected magic number 0x${Format.MAGIC_NUMBER}%08X, got 0x${magic}%08X")
 
-    val majorVersion = decodeNat()
-    val minorVersion = decodeNat()
+    val majorVersion = decodeIntRaw()
+    val minorVersion = decodeIntRaw()
 
     // Check version compatibility
     // - Major version must match exactly
