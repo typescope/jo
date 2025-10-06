@@ -449,6 +449,7 @@ class PatternTyper(namer: Namer, checker: Checker):
       sc.resolvePattern(name) match
         case Some(sym) =>
           oc.occur(sym, id.pos)
+          sc.definePatternAsTerm(sym)
 
           val explain = new StringBuilder
           // TODO: conform should be safe, no need to be equal

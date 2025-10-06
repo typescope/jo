@@ -51,7 +51,7 @@ class EffectAnalysis:
         else
           None
 
-      case res @ Some(_) => res
+      case res => res
 
   /** Commit fixed point result to stable cache */
   private def commit(stableEffs: Map[Symbol, TracedEffects]): Unit =

@@ -75,3 +75,5 @@ object Flags:
     def &(fs2: Flags): Flags = fs & fs2
 
     def &~(fs2: Flags): Flags = fs & (~fs2)
+
+    def toStrings: List[String] = flagStrings(fs)

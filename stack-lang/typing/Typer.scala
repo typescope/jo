@@ -47,7 +47,8 @@ object Typer:
         // most likely wrong parameters by users
         println("Warning: Unexpected runtime specified in compiling library, " + runtimes)
 
-      checkEffects(nss)
+      // Don't check effect errors if there are type errors
+      if !rp.hasErrors then checkEffects(nss)
       nss
 
     else
@@ -65,7 +66,8 @@ object Typer:
             // most likely wrong parameters by users
             println("Warning: Unexpected runtime specified in compiling library, " + runtimes)
 
-          checkEffects(nss)
+          // Don't check effect errors if there are type errors
+          if !rp.hasErrors then checkEffects(nss)
 
           nss
 
@@ -85,7 +87,8 @@ object Typer:
           val nssRuntime = runtimes.flatMap: runtime =>
              loadSastTrees(runtime) <| "load runtime: " + runtime
 
-          checkEffects(nss)
+          // Don't check effect errors if there are type errors
+          if !rp.hasErrors then checkEffects(nss)
 
           nssLib ++ nssRuntime ++ nss
 
