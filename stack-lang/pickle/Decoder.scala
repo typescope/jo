@@ -146,6 +146,23 @@ object Decoder:
     delayedNS
 
   def decode(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, rp: Reporter): DelayedDef[Namespace] =
+    // Read and validate file header
+    val magic = decodeInt()
+    if magic != Format.MAGIC_NUMBER then
+      Reporter.abortInternal(f"Invalid SAST file: expected magic number 0x${Format.MAGIC_NUMBER}%08X, got 0x${magic}%08X")
+
+    val majorVersion = decodeNat()
+    val minorVersion = decodeNat()
+
+    // Check version compatibility
+    // - Major version must match exactly
+    // - Minor version can be <= current (backward compatible)
+    if majorVersion != Format.MAJOR_VERSION then
+      Reporter.abortInternal(
+        s"Incompatible SAST file version: file is $majorVersion.$minorVersion, compiler supports ${Format.MAJOR_VERSION}.${Format.MINOR_VERSION}\n" +
+        "Please rebuild the library with the current compiler version."
+      )
+
     // Read string table
     val stringTableAddr: Int = decodeIntRaw()
     val stringTable: StringTable = buf.withPosition(stringTableAddr):

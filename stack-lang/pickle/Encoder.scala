@@ -261,6 +261,11 @@ object Encoder:
     given state: State = new State(symbol)
     given buf: WriteBuffer = new WriteBuffer(1 << 12)
 
+    // Write file header: magic number + version
+    encodeInt(Format.MAGIC_NUMBER)
+    encodeNat(Format.MAJOR_VERSION)
+    encodeNat(Format.MINOR_VERSION)
+
     // start of encoding
     val addrStringTable = buf.reserveInt()
     val addrNameTable = buf.reserveInt()
