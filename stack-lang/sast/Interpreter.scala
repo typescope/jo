@@ -11,6 +11,7 @@ import common.IO
 import phases.FrontEnd
 import reporting.Reporter
 import reporting.Config
+import reporting.Mode
 
 /** An interpreter for S-AST */
 object Interpreter:
@@ -543,7 +544,7 @@ object Interpreter:
 
   def main(args: Array[String]): Unit =
     val (options, sources) = IO.parseOptions(args, Config.commonOptionsSpec)
-    given Config = Config(options)
+    given Config = Config(options, Mode.Application)
 
     val runtime = Nil
     val rootNameTable = new NameTable

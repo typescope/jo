@@ -68,13 +68,11 @@ extends Definitions.Lazy:
 
   private val codeProvider = new CodeProvider
 
-  def getCode(sym: Symbol): FunDef = codeProvider.get(sym)
+  def getCode(sym: Symbol): FunDef = codeProvider.get(sym).get
 
-  def containsCode(sym: Symbol): Boolean = codeProvider.contains(sym)
+  def getCodeOpt(sym: Symbol): Option[FunDef] = codeProvider.get(sym)
 
   def setCode(sym: Symbol, code: FunDef): Unit = codeProvider.set(sym, code)
-
-  def snapshotCodeProvider(): CodeProvider = codeProvider.snapshot()
 
   //----------------------------------------------------------------------------
   // Predefined symbols

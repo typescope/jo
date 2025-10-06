@@ -13,6 +13,7 @@ import ast.Positions.*
 import reporting.Reporter
 import reporting.Reporter.{ error, warn }
 import reporting.Config
+import reporting.Mode
 
 import common.IO
 import common.StringUtil
@@ -31,7 +32,7 @@ import scala.collection.mutable
 object Parser:
   def main(args: Array[String]): Unit =
     val (options, sources) = IO.parseOptions(args, Config.commonOptionsSpec)
-    given Config = Config(options)
+    given Config = Config(options, Mode.Library)
 
     Reporter.monitor:
       val nss = Parser.parse(sources)

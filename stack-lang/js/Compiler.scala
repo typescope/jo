@@ -7,6 +7,7 @@ import phases.*
 import reporting.Reporter
 import reporting.Reporter.Step
 import reporting.Config
+import reporting.Mode
 
 /***********************************************************************
  *
@@ -32,7 +33,7 @@ def compile(args: String*): Unit =
         else
           "out.js"
 
-  given Config = Config(options)
+  given Config = Config(options, Mode.Application)
 
   Reporter.monitor:
 
@@ -40,7 +41,7 @@ def compile(args: String*): Unit =
 
     given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
-    val runtime = "runtime/JS.stk" :: Nil
+    val runtime = Config.JSRuntimePath :: Nil
     val namespacesSAST = FrontEnd.run(runtime, sources) <| "Frontend"
 
     val mains = namespacesSAST.collect:

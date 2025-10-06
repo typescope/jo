@@ -44,6 +44,9 @@ class EffectAnalysis:
 
   def getStable(fun: Symbol): Option[TracedEffects] = stableEffects.get(fun)
 
+  def registerStable(fun: Symbol, effs: List[Symbol]): Unit =
+    stableEffects(fun) = effs.map(_ -> Vector.empty).toMap
+
   /** Commit fixed point result to stable cache */
   private def commit(stableEffs: Map[Symbol, TracedEffects]): Unit =
     for (sym, effs) <- stableEffs do
@@ -129,6 +132,7 @@ object EffectAnalysis:
   private def getEffects(fun: Symbol, ignoreSpec: Boolean)(using temp: TempCache, defn: Definitions): TracedEffects =
     // Usage of stable cache has to be part of the computation for speed
     val funSym = fun
+
     defn.effectEngine.getStable(funSym) match
       case Some(res) => res
 

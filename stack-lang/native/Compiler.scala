@@ -7,6 +7,7 @@ import phases.*
 import reporting.Reporter
 import reporting.Reporter.Step
 import reporting.Config
+import reporting.Mode
 
 import common.IO
 
@@ -48,15 +49,9 @@ object Compiler:
 
     val rootNameTable = new NameTable
 
-    val runtime = List(
-      "runtime/native/Core.stk",
-      "runtime/native/GC.stk",
-      "runtime/native/ParamSupport.stk",
-      "runtime/native/Syscall.stk",
-      "runtime/native/BumpAllocator.stk",
-    )
+    val runtime = Config.NativeRuntimePath :: Nil
 
-    given Config = Config(options)
+    given Config = Config(options, Mode.Application)
 
     Reporter.monitor:
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)

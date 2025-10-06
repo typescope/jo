@@ -10,6 +10,7 @@ import sast.Definitions
 
 import reporting.Reporter
 import reporting.Config
+import reporting.Mode
 import reporting.Reporter.FatalError
 import reporting.Diagnostics.*
 
@@ -31,7 +32,7 @@ object Test:
       throw new Exception("No stdlib found in " + stdLibDir)
 
     given rp: Reporter = Reporter.createReporter(buffer = true)
-    given Config = Config(Map("-fatal-warnings" -> "", "-lib" -> stdLibDir))
+    given Config = Config(Map("-fatal-warnings" -> "", "-lib" -> stdLibDir), Mode.Library)
 
     val sourceFiles =
       if IO.isFile(test) then test :: Nil

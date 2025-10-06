@@ -7,6 +7,7 @@ import typing.Typer
 import reporting.Reporter
 import reporting.Reporter.Step
 import reporting.Config
+import reporting.Mode
 
 import common.IO
 
@@ -44,6 +45,6 @@ object Compiler:
     val targetDir = options.getOrElse("-d", ".")
     IO.ensureExists(targetDir)
 
-    given Config = Config(options)
+    given Config = Config(options, Mode.Library)
 
     compile(sources, targetDir)

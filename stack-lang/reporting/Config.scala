@@ -1,6 +1,10 @@
 package reporting
 
-class Config(options: Map[String, String]):
+enum Mode:
+  case Application
+  case Library
+
+class Config(options: Map[String, String], val mode: Mode):
   val printAfter: List[String] = options.getOrElse("-printAfter", "").split(",").map(_.trim).toList
 
   val printOnly: List[String] = options.getOrElse("-printOnly", "").split(",").map(_.trim).toList
@@ -15,7 +19,15 @@ class Config(options: Map[String, String]):
 
   val testPickling: Boolean = options.contains("-testPickling")
 
-  val libPath: Option[String] = options.get("-lib")
+  val noStdLib: Boolean = options.contains("-no-stdlib")
+
+  val libPaths: List[String] =
+    options.get("-lib") match
+      case Some(dir) =>
+        Config.StdLibPath :: dir :: Nil
+
+      case None =>
+        if noStdLib then Nil else Config.StdLibPath :: Nil
 
 object Config:
   // The flag tells whether the option needs an argument
@@ -27,5 +39,10 @@ object Config:
     "-checkTree"      -> false,
     "-steps"          -> false,
     "-testPickling"   -> false,
+    "-no-stdlib"      -> false,
     "-lib"            -> true,   // -lib <dir>
   )
+
+  val JSRuntimePath = "out/runtime/js"
+  val NativeRuntimePath = "out/native/js"
+  val StdLibPath = "out/stdlib"

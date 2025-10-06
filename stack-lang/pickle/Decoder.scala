@@ -370,7 +370,7 @@ object Decoder:
     val symbol = Symbol.createSymbol(name, flags, symSpan.toPos)
     state.registerInternalSymbol(id, symbol)
 
-    given Definitions = defnLazy.value
+    given defn: Definitions = defnLazy.value
 
     // Read signature lazily
     val tparamsStartPos = buf.position
@@ -437,6 +437,9 @@ object Decoder:
     // Add symbol info
     lazy val funInfo: ProcType =
       val receives = sig.receives
+
+      defn.effectEngine.registerStable(symbol, receives)
+
       ProcType(
         sig.tparams, sig.params.map(_.toNamedInfo), sig.autos.map(_.toNamedInfo),
         sig.resultType.tpe, () => receives, sig.preParamCount)
