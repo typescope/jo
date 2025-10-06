@@ -26,13 +26,8 @@ object Test:
     }
 
   def compileAndCheck(test: String): Boolean = Reporter.timeout(100):
-    val stdLibDir = "out/stdlib"
-
-    if IO.getSastFiles(stdLibDir).isEmpty then
-      throw new Exception("No stdlib found in " + stdLibDir)
-
     given rp: Reporter = Reporter.createReporter(buffer = true)
-    given Config = Config(Map("-fatal-warnings" -> "", "-lib" -> stdLibDir), Mode.Library)
+    given Config = Config(Map("-fatal-warnings" -> ""), Mode.Library)
 
     val sourceFiles =
       if IO.isFile(test) then test :: Nil
