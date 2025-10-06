@@ -153,5 +153,18 @@ if [[ $? != 0 ]]; then
   retcode=1
 fi
 
+################################################################################
+# Custom integration tests
+
+echo
+echo "Running custom integration tests"
+echo
+
+for test_dir in $DIR/tests/custom/*/; do
+    if [[ -f "$test_dir/test.sh" ]]; then
+        "$test_dir/test.sh" || retcode=1
+    fi
+done
+
 echo $retcode
 exit $retcode
