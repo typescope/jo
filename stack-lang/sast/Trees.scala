@@ -583,6 +583,15 @@ object Trees:
     def source: String = symbol.sourcePos.source.file
 
   //----------------------------------------------------------------------------
+  // Utility definitions
+
+  class DelayedDef[+T](val symbol: Symbol, val delayed: () => T):
+    private lazy val definition: T = delayed()
+    def force()(using Definitions): T =
+      symbol.info // force symbol
+      definition
+
+  //----------------------------------------------------------------------------
   // helpers
 
   def StringLit(s: String)(span: Span)(using defn: Definitions) =
@@ -600,6 +609,8 @@ object Trees:
 
   def unitValue(span: Span)(using defn: Definitions): Word =
     Encoded(RecordLit(args = Nil)(span))(defn.UnitType)
+
+  def errorWord(span: Span) = Encoded(Block(words = Nil)(span))(ErrorType)
 
   extension (word: Word)
 

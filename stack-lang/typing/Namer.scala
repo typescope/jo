@@ -16,7 +16,6 @@ import common.OutOfBand
 
 import reporting.Reporter
 
-import Namer.{ DelayedDef, errorWord }
 import Inference.*
 
 import scala.collection.mutable
@@ -1870,8 +1869,6 @@ class Namer:
         Reporter.abort("Unexpected empty type tree", tpt.pos)
 
 object Namer:
-  def errorWord(span: Span) = Encoded(Block(words = Nil)(span))(ErrorType)
-
   /** The typed word associated with an untyped word
     *
     * It is used to avoid re-typing a word.
@@ -1879,9 +1876,3 @@ object Namer:
   val TypedWord = new KeyProps.Key[Word]("Namer.TypedWord")
 
   val TypedTypeTree = new KeyProps.Key[TypeTree]("Namer.TypedTypeTree")
-
-  class DelayedDef[+T](val symbol: Symbol, val delayed: () => T):
-    private lazy val definition: T = delayed()
-    def force()(using Definitions): T =
-      symbol.info // force symbol
-      definition

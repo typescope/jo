@@ -73,12 +73,12 @@ class Checker(namer: Namer):
   def checkTypeApply(fun: Word, targs: List[TypeTree], span: Span)(using Definitions, Reporter, Source): Word =
     if !fun.tpe.isPolyType then
       Reporter.error(s"Expect a poly function type, found = ${fun.tpe.show}", fun.pos)
-      Namer.errorWord(span)
+      errorWord(span)
     else
       val polyType = fun.tpe.asProcType
       if polyType.tparamCount != targs.size then
         Reporter.error(s"Expect ${polyType.tparamCount} args, found = ${targs.size}", (targs.head.span | targs.last.span).toPos)
-        Namer.errorWord(fun.span | targs.last.span)
+        errorWord(fun.span | targs.last.span)
       else
         checkBounds(polyType.tparams, targs)
         val tpe = polyType.instantiate(targs.map(_.tpe))
@@ -115,7 +115,7 @@ class Checker(namer: Namer):
       word
     else
       Reporter.error(s"The prefix does not contain the member $member", word.pos)
-      Namer.errorWord(word.span)
+      errorWord(word.span)
 
   def checkInstantiated(tvar: TypeVar, pos: SourcePosition)(using Reporter): Unit =
     if !tvar.isInstantiated then

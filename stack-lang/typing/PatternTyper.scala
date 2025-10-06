@@ -12,7 +12,6 @@ import common.OutOfBand
 import reporting.Reporter
 import reporting.Diagnostics
 
-import Namer.DelayedDef
 import Inference.TargetType
 import PatternTyper.{ Occurs, ShadowedPatternError, RemainingSlice, SkipTo }
 
@@ -186,7 +185,7 @@ class PatternTyper(namer: Namer, checker: Checker):
 
     val body2 =
       if rp2.hasErrors then
-        Namer.errorWord(body.span)
+        errorWord(body.span)
 
       else
         namer.transform(body)

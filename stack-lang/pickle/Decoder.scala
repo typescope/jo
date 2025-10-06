@@ -6,7 +6,6 @@ import sast.Trees.*
 import sast.Types.*
 import sast.Symbols.*
 
-import typing.Namer.DelayedDef
 import reporting.Reporter
 
 import scala.reflect.ClassTag
@@ -73,7 +72,7 @@ object Decoder:
     def getInternalSymbol(id: Int): Symbol =
       internalSymbols.get(id) match
         case Some(sym) => sym
-        case None => throw new Exception(s"Unknown internal symbol id: $id")
+        case None => throw new Exception(s"Unknown internal symbol id: $id, table = " + internalSymbols)
 
   end State
 
