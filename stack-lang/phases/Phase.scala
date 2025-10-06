@@ -60,13 +60,15 @@ abstract class Phase[T](using Definitions) extends TreeMap:
   def transformFunDef(fdef: FunDef)(using ctx: Context): FunDef =
     given Context = contextObject.newContext(fdef.symbol, ctx)
     val body = this(fdef.body)
-    fdef.copy(body = body)(fdef.span)
+    if body `eq` fdef.body then fdef
+    else fdef.copy(body = body)(fdef.span)
 
   /** Transform function definitions */
   def transformPatDef(pdef: PatDef)(using ctx: Context): PatDef =
     given Context = contextObject.newContext(pdef.symbol, ctx)
     val body = this(pdef.body)
-    pdef.copy(body = body)(pdef.span)
+    if body `eq` pdef.body then pdef
+    else pdef.copy(body = body)(pdef.span)
 
   override def transformLocalFunDef(fdef: FunDef)(using ctx: Context): Word =
     transformFunDef(fdef)

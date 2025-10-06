@@ -170,6 +170,14 @@ object Encoder:
       else
         index
 
+    def show(): String =
+      val sb = new StringBuilder
+      sb ++= "[" + System.lineSeparator()
+      internalSymbols.zipWithIndex.foreach: (sym, i) =>
+        sb ++= i.toString + " -> " + sym + System.lineSeparator()
+      sb ++= "]"
+      sb.toString
+
   private class State(val root: Symbol):
     val stringTable = new StringTable
     val nameTable = new NameTable
@@ -253,6 +261,8 @@ object Encoder:
     // must comes after last
     buf.patchInt(addrStringTable, buf.length)
     state.stringTable.encode() < ("String table for " + symbol.fullName, enable = false)
+
+    // println(symbol.fullName + " = " + state.symbolTable.show())
 
     buf
 
