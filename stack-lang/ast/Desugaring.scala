@@ -15,17 +15,15 @@ object Desugaring:
   def synthesize(defs: List[Def])(using Reporter, Source): List[Def] =
     val dataDefs = mutable.Map.empty[String, DataDef]
     val sectionDefs = mutable.Map.empty[String, Section]
-    val patternDefs = mutable.Map.empty[String, PatDef]
 
     defs.foreach:
       case ddef: DataDef => dataDefs(ddef.name) = ddef
-      case pdef: PatDef  => patternDefs(pdef.name) = pdef
       case sec: Section  => sectionDefs(sec.name) = sec
       case _ =>
 
     val defs2 =
       defs.flatMap:
-        case ddef: DataDef  => synthesizeDataDef(ddef, sectionDefs.getOrElse(ddef.name, null), patternDefs.getOrElse(ddef.name, null))
+        case ddef: DataDef  => synthesizeDataDef(ddef, sectionDefs.getOrElse(ddef.name, null))
         case edef: EnumDef  => synthesizeEnumDef(edef)
         case sec:  Section  => synthesizeConstructor(sec, dataDefs.getOrElse(sec.name, null)) :: Nil
         case pdef: ParamDef => desugarParamDef(pdef)
@@ -55,7 +53,7 @@ object Desugaring:
     * corresponding synthetic member is ignored to prefer the user-defined
     * member.
     */
-  def synthesizeDataDef(ddef: DataDef, secDef: Section | Null, pdef: PatDef | Null)
+  def synthesizeDataDef(ddef: DataDef, secDef: Section | Null)
       (using Reporter, Source)
   : List[Def] =
 

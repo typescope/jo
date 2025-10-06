@@ -8,7 +8,6 @@ import sast.Trees.*
 import sast.Symbols.*
 import sast.Types.*
 
-import common.OutOfBand
 import reporting.Reporter
 import reporting.Diagnostics
 
