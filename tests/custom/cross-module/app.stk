@@ -1,0 +1,11 @@
+// Application using both libraries
+
+def main =
+  val p = Math.Point(3, 4)
+  println(intToStr(Math.distance p))
+
+  val shape = Graphics.createShape(5, 10, 255, 128, 64)
+  println(intToStr(Graphics.shapeDistance shape))
+
+  val color = Graphics.Color(100, 150, 200)
+  println(intToStr(Graphics.colorSum color))

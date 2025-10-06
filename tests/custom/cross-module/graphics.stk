@@ -1,0 +1,14 @@
+// Graphics library that depends on Math
+
+data Color(r: Int, g: Int, b: Int)
+
+data Shape(center: Math.Point, color: Color)
+
+def createShape(x: Int, y: Int, r: Int, g: Int, b: Int): Shape =
+  Shape(Math.Point(x, y), Color(r, g, b))
+
+def shapeDistance(s: Shape): Int =
+  Math.distance(s.center)
+
+def colorSum(c: Color): Int =
+  Math.add(Math.add(c.r, c.g), c.b)
