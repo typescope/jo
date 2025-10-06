@@ -42,10 +42,16 @@ class EffectAnalysis:
   def effects(word: Word)(using defn: Definitions, source: Source): TracedEffects =
     fixpoint(this)(EffectAnalyzer.apply(word))
 
-  def getStable(fun: Symbol): Option[TracedEffects] = stableEffects.get(fun)
+  def getStable(fun: Symbol)(using Definitions): Option[TracedEffects] =
+    stableEffects.get(fun) match
+      case None =>
+        if fun.is(Flags.Loaded) then
+          val procType = fun.info.as[Types.ProcType]
+          Some(procType.receives.map(_ -> Vector.empty).toMap)
+        else
+          None
 
-  def registerStable(fun: Symbol, effs: List[Symbol]): Unit =
-    stableEffects(fun) = effs.map(_ -> Vector.empty).toMap
+      case res @ Some(_) => res
 
   /** Commit fixed point result to stable cache */
   private def commit(stableEffs: Map[Symbol, TracedEffects]): Unit =

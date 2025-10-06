@@ -361,7 +361,7 @@ object Decoder:
 
     val id = decodeNat()
     val name = decodeString()
-    val flags = decodeFlags() | initFlags | Flags.Fun
+    val flags = decodeFlags() | initFlags | Flags.Fun | Flags.Loaded
 
     val symStartDelta = decodeInt()
     val symSpanLength = decodeNat()
@@ -437,8 +437,6 @@ object Decoder:
     // Add symbol info
     lazy val funInfo: ProcType =
       val receives = sig.receives
-
-      defn.effectEngine.registerStable(symbol, receives)
 
       ProcType(
         sig.tparams, sig.params.map(_.toNamedInfo), sig.autos.map(_.toNamedInfo),

@@ -144,7 +144,7 @@ object RawPrinter:
       Text(symbol.fullName)
 
   private def printFlags(flags: Flags): Text =
-    "[" ~ Flags.flagStrings(flags).join(",") ~ "]"
+    "[" ~ Flags.flagStrings(flags &~ Flags.Loaded).join(",") ~ "]"
 
   private def printKind(kind: Kind): Text =
     kind match

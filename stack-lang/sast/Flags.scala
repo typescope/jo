@@ -57,6 +57,7 @@ object Flags:
   val Alias      : Flag = defineFlag(14, "alias")    // an alias symbol created by import/export
   val Auto       : Flag = defineFlag(15, "auto")     // auto function or auto value
   val Synthetic  : Flag = defineFlag(16, "synthetic") // a compiler-synthesized symbol
+  val Loaded     : Flag = defineFlag(17, "loaded")    // a symbol loaded from sast
 
   val empty   : Flags = 0
 
@@ -72,3 +73,5 @@ object Flags:
     def |(fs2: Flags): Flags = fs | fs2
 
     def &(fs2: Flags): Flags = fs & fs2
+
+    def &~(fs2: Flags): Flags = fs & (~fs2)
