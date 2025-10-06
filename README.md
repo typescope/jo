@@ -1,30 +1,30 @@
-# The Jo Programming Language
+# The Jo Programming Language 🚀
 
 Jo is a statically typed functional programming language designed for research and teaching language implementation.
 
-## Key Features
+## Key Features ✨
 
-- **Pure functional** - No global variables, immutable by default
+- **Modular and composable** - No global variables; easier to compose and reuse
 - **Context parameters** - Contextual abstraction, optional parameters, and implicit resolution
 - **Effect system** - Fine-grained effect control with parametric effects
 - **Algebraic data types** - Extensible ADTs with pattern matching
-- **Natural syntax** - Prefix, infix, and postfix operators; two call styles `f(x)` and `f x`; indentation-based
-- **Multiple backends** - Interpreter, JavaScript, and native x86-64 Linux
+- **Pattern-oriented programming** - First-class patterns and higher-order patterns
+- **Natural syntax**  - Prefix, infix, and postfix operators; two call styles `f(x)` and `f x`; indentation-based
+- **Multiple backends**  - Interpreter, JavaScript, and native x86-64 Linux
 
 ## Implementation
 
 - Written in Scala using scala-cli
 - Frontend: lexer, parser, type checker with inference
 - Multiple compilation backends with shared frontend
-- Precompiled library format (.sast) for fast builds
 - Comprehensive test suite across all backends
 
-## Examples
+## Examples 💡
 
 ### Hello world
 
 ```
-fun main = println "Hello world!"
+def main = println "Hello world!"
 ```
 
 ### [Lambda Calculus](https://en.wikipedia.org/wiki/Lambda_calculus)
@@ -41,7 +41,7 @@ data Value(lambda: Abs, env: Env)
 
 param env: Env = Empty // environment for variables
 
-fun show(expr: Expr): String =
+def show(expr: Expr): String =
   match expr
     case Var x => x
 
@@ -50,7 +50,7 @@ fun show(expr: Expr): String =
     case App abs arg =>
       (show abs) + " " + (show arg)
 
-fun find(x: String): Option[Value] =
+def find(x: String): Option[Value] =
   match env
     case Empty => None
 
@@ -58,7 +58,7 @@ fun find(x: String): Option[Value] =
       if x == k then Some(v)
       else find x with env = outer
 
-fun eval(expr: Expr): Value =
+def eval(expr: Expr): Value =
   match expr
     case Var x =>
       match find x
@@ -77,7 +77,7 @@ fun eval(expr: Expr): Value =
       val env2: Env = Cons(x, argValue, closure.env)
       eval body with env = env2
 
-fun main =
+def main =
   val id: Expr = Abs("x", Var "x")
   val code: Expr = App(id, id)
   println
@@ -93,12 +93,12 @@ data Expr[Lang] =
 
 type LangA = Expr[LangA]
 
-fun eval[T](expr: Expr[T], eval: T => Int): Int =
+def eval[T](expr: Expr[T], eval: T => Int): Int =
   match expr
     case Lit n => n
     case Add lhs rhs => (eval lhs) + (eval rhs)
 
-fun evalLangA(expr: LangA): Int =
+def evalLangA(expr: LangA): Int =
   eval expr (e => evalLangA e)
 
 data Mul[Lang](lhs: Lang, rhs: Lang)
@@ -106,15 +106,15 @@ type ExprExt[Lang] = Expr[Lang] | Mul[Lang]
 
 type LangB = ExprExt[LangB]
 
-fun evalExt[T](expr: ExprExt[T], evalExt: T => Int): Int =
+def evalExt[T](expr: ExprExt[T], evalExt: T => Int): Int =
   match expr
     case e: Expr[T] => eval e evalExt
     case Mul lhs rhs => (evalExt lhs) * (evalExt rhs)
 
-fun evalLangB(expr: LangB): Int =
+def evalLangB(expr: LangB): Int =
   evalExt expr (e => evalLangB e)
 
-fun main =
+def main =
   val langA: LangA =
     Add
       Lit 3
@@ -133,7 +133,7 @@ fun main =
       evalLangB langB
 ```
 
-## Build
+## Build 🔨
 
 First install [scala-cli](https://scala-cli.virtuslab.org/), then build the compiler and standard library:
 
@@ -148,7 +148,7 @@ This creates:
 - `sast/runtime/js/` - JavaScript runtime library
 - `sast/runtime/native/` - Native runtime library
 
-## Usage
+## Usage 📖
 
 The `jo` command provides a unified interface to all compiler backends:
 
@@ -244,7 +244,7 @@ Build-lib options:
 
 - `JO_HOME` - Set automatically by the `bin/jo` wrapper script to the project root directory
 
-## Testing
+## Testing 🧪
 
 Run the full test suite:
 ```bash
