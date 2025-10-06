@@ -263,8 +263,8 @@ object Encoder:
 
     // Write file header: magic number + version
     encodeIntRaw(Format.MAGIC_NUMBER)
-    encodeIntRaw(Format.MAJOR_VERSION)
-    encodeIntRaw(Format.MINOR_VERSION)
+    encodeByte(Format.MAJOR_VERSION)
+    encodeByte(Format.MINOR_VERSION)
 
     // Write owner information (as index to name table, or -1 if null)
     // getIndex automatically adds owner and its ancestors to name table

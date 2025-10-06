@@ -152,8 +152,8 @@ object Decoder:
     if magic != Format.MAGIC_NUMBER then
       Reporter.abortInternal(f"Invalid SAST file: expected magic number 0x${Format.MAGIC_NUMBER}%08X, got 0x${magic}%08X")
 
-    val majorVersion = decodeIntRaw()
-    val minorVersion = decodeIntRaw()
+    val majorVersion = decodeByte()
+    val minorVersion = decodeByte()
 
     // Check version compatibility
     // - Major version must match exactly
