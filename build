@@ -6,16 +6,28 @@ OPT="--native"
 
 # compile
 echo "Generating unified launcher"
-scala-cli --power package -f $OPT project.scala stack-lang -M Main -o bin/jo
+scala-cli --power package -f $OPT project.scala stack-lang -M Main -o bin/jo.native
+
+# create wrapper script
+cat > bin/jo << 'EOF'
+#!/bin/bash
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+JO_HOME="$(cd "$SCRIPT_DIR/.." && pwd)"
+export JO_HOME
+exec "$SCRIPT_DIR/jo.native" "$@"
+EOF
+
+chmod +x bin/jo
 
 # build stand library
-STDLIB=out/stdlib
+STDLIB=sast/stdlib
 bin/jo build-lib -testPickling -no-stdlib lib/*.stk -d $STDLIB
 
 # build JS runtime
-JS_RUNTIME=out/runtime/js
+JS_RUNTIME=sast/runtime/js
 bin/jo build-lib -testPickling runtime/JS.stk -d $JS_RUNTIME
 
 # build native runtime
-NATIVE_RUNTIME=out/runtime/native
+NATIVE_RUNTIME=sast/runtime/native
 bin/jo build-lib -testPickling runtime/native/*.stk -d $NATIVE_RUNTIME
