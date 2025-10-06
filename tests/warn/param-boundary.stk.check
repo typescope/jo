@@ -8,8 +8,10 @@ The following is the trace that leads to the problem:
 │                                            ^
 ├──   g	[ ./tests/warn/param-boundary.stk:21:3 ]
 │     ^
-└──   pretty "hello, word"	[ ./tests/warn/param-boundary.stk:15:3 ]
-      ^^^^^^
+├──   pretty "hello, word"	[ ./tests/warn/param-boundary.stk:15:3 ]
+│     ^^^^^^
+└──     "pageWidth = " + (intToStr pageWidth)	[ ./tests/warn/param-boundary.stk:8:32 ]
+                                   ^^^^^^^^^
 
 
 1 error(s), 0 warning(s)

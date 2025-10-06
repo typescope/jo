@@ -80,7 +80,7 @@ class EffectCheck(using rp: Reporter, defn: Definitions) extends Phase[Symbol]:
   override def transformBindPattern(pat: BindPattern)(using ctx: Context): Pattern =
     this(pat.pattern)
 
-    for ass <- pat.bindings do this(ass.rhs)
+    for ass <- pat.bindings do checkTermInPattern(ass.rhs)
 
     pat
 
