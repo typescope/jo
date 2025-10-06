@@ -1,0 +1,7 @@
+// Application using all three libraries transitively
+
+def main =
+  println(Processor.processNumber 42)
+  println(Processor.processNumber(-5))
+  println(Processor.processInRange 50)
+  println(Processor.processInRange 150)

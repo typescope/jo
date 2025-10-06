@@ -1,0 +1,16 @@
+// Processor library - depends on both Core and Validation
+
+def processNumber(n: Int): String =
+  val result = Validation.validatePositive n
+  if Core.isSuccess result then
+    "Valid: " + (intToStr n)
+  else
+    match result
+      case Core.Failure msg => "Invalid: " + msg
+      case _ => "Unexpected"
+
+def processInRange(n: Int): String =
+  val result = Validation.validateRange(n, 10, 100)
+  match result
+    case Core.Success value => "In range: " + (intToStr value)
+    case Core.Failure msg => "Out of range: " + msg
