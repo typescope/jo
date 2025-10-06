@@ -71,14 +71,4 @@
 | data List[T, T] = Cons(v: T, tail: List[T, T]) | Nil
 |           ^
 
----------- Error at ./tests/warn/data-def.stk:15:46 ---------------
-|   def Right(value: Int): Right[Int] = #Right x
-|                                              ^
-|                                              Undefined term identifier x
-
----------- Error at ./tests/warn/data-def.stk:21:10 ---------------
-|     case Left v =>  println v
-|          ^^^^
-|          The pattern result type Left[Int] is invalid with respect to the scrutinee type Either[String, Int]. The pattern type Int is not equal to the scrutinee type String. Non-algebraic or nested type need to be equal to the scrutinee type. 
-
-11 error(s), 0 warning(s)
+9 error(s), 0 warning(s)
