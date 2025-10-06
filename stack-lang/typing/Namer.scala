@@ -229,7 +229,7 @@ class Namer:
       checker.adapt(word, tt)
 
   def transform(word: Ast.Word)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
-    Debug.trace(s"Typing ${word.show}", (_: Word).show, enable = false) {
+    Debug.trace(s"Typing ${word.show}, owner = " + sc.owner, (_: Word).show, enable = false) {
     word.testKey(Namer.TypedWord) match
     case Some(typedWord) => typedWord.adapt
     case None =>
@@ -1299,7 +1299,7 @@ class Namer:
     val flags = checker.checkModifiers(funDef) | initialFlags
 
     val funSym = Symbol.createSymbol(funDef.name, flags, funDef.ident.pos)
-    given funScope: Scope = sc.fresh(funSym)
+    given Scope = sc.fresh(funSym)
 
     given defn: Definitions = lazyDefn.value
 
@@ -1383,7 +1383,7 @@ class Namer:
     val flags = Flags.Fun | Flags.Method
 
     val funSym = Symbol.createSymbol(Names.Constructor, flags, funDef.ident.pos)
-    given funScope: Scope = sc.fresh(funSym)
+    given Scope = sc.fresh(funSym)
 
     if funDef.tparams.nonEmpty then
       Reporter.error("Constructor may not take type parameters", funDef.tparams.head.pos)
