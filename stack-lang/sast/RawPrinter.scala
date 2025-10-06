@@ -36,6 +36,28 @@ object RawPrinter:
       end match
   end State
 
+  /** De Bruijn encoding of bound type parameters in types */
+  private class TypeParamScope:
+    private val scope = new mutable.ArrayBuffer[Symbol]
+
+    def withParams[T](params: List[Symbol])(fn: => T): T =
+      scope ++= params
+      val res = fn
+      scope.dropRight(params.size)
+      res
+
+    def paramIndex(param: Symbol): Int =
+      val size = scope.size
+
+      var i = 0
+      var found = false
+      while !found && i < size do
+        val sym = scope(size - i - 1)
+        found = sym == param
+        i += 1
+
+      if found then i - 1 else -1
+
   //----------------------------------------------------------------------------
   //
   // Implicits to cut down boilerplate in encoding
@@ -192,59 +214,91 @@ object RawPrinter:
   private def printTypeTree(tpt: TypeTree)(using defn: Definitions, state: State, src: Source): Text =
     "[" ~ tpt.tpe ~ "]@" ~ tpt.span
 
-  private def printType(tpe: Type)(using Definitions, State, Source): Text =
+  private def printType
+      (tpe: Type, tparamScope: TypeParamScope = new TypeParamScope)
+      (using Definitions, State, Source)
+  : Text =
+
     tpe match
       case VoidType => Text("VoidType")
       case ErrorType => Text("ErrorType")
       case AnyType => Text("AnyType")
       case BottomType => Text("BottomType")
+
       case StaticRef(sym) =>
-        printSymbolRef(sym)
+        // It can be either TypeParamRef or StaticRef
+        val index = tparamScope.paramIndex(sym)
+        if index == -1 then
+          printSymbolRef(sym)
+        else
+          "&" ~ index
 
       case MemberRef(prefix, sym) =>
-        "MemberRef [" ~ prefix ~ "," ~ sym ~ "]"
+        "MemberRef [" ~ printType(prefix, tparamScope) ~ "," ~ sym ~ "]"
 
       case tvar: TypeVar =>
         assert(tvar.isInstantiated, "uninstantiated type variable: " + tvar)
-        printType(tvar.instantiated)
+        printType(tvar.instantiated, tparamScope)
 
       case ConstantType(const) =>
         "ConstantType [" ~ printConstant(const) ~ "]"
 
       case RecordType(fields) =>
         "RecordType [" ~ indent:
-          fields.map(f => f.name ~ ": " ~ f.info).join("," ~ Text.BreakLine)
+          fields.map(f => f.name ~ ": " ~ printType(f.info, tparamScope)).join("," ~ Text.BreakLine)
         ~ "]"
 
       case UnionType(branches) =>
-        "UnionType [" ~ branches.map(printType).join(",") ~ "]"
+        "UnionType [" ~ branches.map(b => printType(b, tparamScope)).join(",") ~ "]"
 
       case TagType(tag, params) =>
-        val paramText =  params.map(f => f.name ~ ": " ~ f.info).join(",")
+        val paramText =  params.map(f => f.name ~ ": " ~ printType(f.info, tparamScope)).join(",")
         "TagType [" ~ tag ~ "," ~ paramText ~ "]"
 
       case ObjectType(members, muts) =>
-        val membersText = "[" ~ members.map(n => n.name ~ ": " ~ n.info).join(",") ~ "]"
+        val membersText = "[" ~ members.map(n => n.name ~ ": " ~ printType(n.info, tparamScope)).join(",") ~ "]"
         val mutableText = "[" ~ muts.join(",") ~ "]"
 
         "ObjectType [" ~ membersText ~ "," ~ mutableText ~ "]"
 
       case AppliedType(tctor, targs) =>
-        "AppliedType [" ~ tctor ~ ",[" ~ targs.join(",") ~ "]]"
+        "AppliedType [" ~ printType(tctor, tparamScope) ~ ",[" ~ targs.map(t => printType(t, tparamScope)).join(",") ~ "]]"
 
       case procType @ ProcType(tparams, params, autos, resType, _, preParamCount) =>
-        val tparamText = "[" ~ tparams.join(",") ~ "]"
-        val paramText = "[" ~ params.map(param => "[" ~ param.name ~ "," ~ param.info ~ "]").join(",") ~ "]"
-        val autoText = "[" ~ autos.map(auto => "[" ~ auto.name ~ "," ~ auto.info ~ "]").join(",") ~ "]"
-        val receiveText = "[" ~ procType.receives.join(",") ~ "]"
+        tparamScope.withParams(tparams):
+          val tparamText = "[" ~ indent:
+              val items = tparams.map: tparam =>
+                "[" ~ tparamScope.paramIndex(tparam) ~ "," ~ tparam.name ~ "," ~ printType(tparam.info, tparamScope)  ~ "]"
+              items.join(LINE_SEP)
+          ~ "]"
 
-        "ProcType [" ~ indent:
-          List(tparamText, paramText, autoText, printType(resType), receiveText, Text(preParamCount)).join("," ~ Text.BreakLine)
-        ~ "]"
+          val paramText = "[" ~ indent:
+              val items = params.map: param =>
+                "[" ~ param.name ~ "," ~ printType(param.info, tparamScope) ~ "]"
+              items.join(LINE_SEP)
+          ~ "]"
+
+          val autoText = "[" ~ indent:
+              val items = autos.map: auto =>
+                "[" ~ auto.name ~ "," ~ printType(auto.info, tparamScope) ~ "]"
+              items.join(LINE_SEP)
+           ~ "]"
+
+          val receiveText = "[" ~ procType.receives.join(",") ~ "]"
+
+          "ProcType [" ~ indent:
+            List(tparamText, paramText, autoText, printType(resType, tparamScope), receiveText, Text(preParamCount)).join("," ~ Text.BreakLine)
+          ~ "]"
 
       case TypeLambda(tparams, resType, preParamCount) =>
-        val tparamText = "[" ~ tparams.join(",") ~ "]"
-        "TypeLambda [" ~ tparamText ~ "," ~ resType ~ "," ~ preParamCount ~ "]"
+        tparamScope.withParams(tparams):
+          val tparamText = "[" ~ indent:
+              val items = tparams.map: tparam =>
+                "[" ~ tparamScope.paramIndex(tparam) ~ "," ~ tparam.name ~ "," ~ printType(tparam.info, tparamScope)  ~ "]"
+              items.join(LINE_SEP)
+          ~ "]"
+
+          "TypeLambda [" ~ tparamText ~ "," ~ printType(resType, tparamScope) ~ "," ~ preParamCount ~ "]"
 
       case cinfo: ContainerInfo =>
         "ContainerInfo [" ~ cinfo.members.join(",") ~ "]"
