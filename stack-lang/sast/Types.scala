@@ -225,6 +225,17 @@ object Types:
           // println("No member " + name + " on " + tp)
           None
 
+    def getPatternMember(name: String)(using Definitions): Option[Symbol] =
+      this.approx match
+        case info: ContainerInfo =>
+          // For the moment, only containers may hold pattern members
+          // println("resolving pattern " + name + " on " + info.nameTable.show)
+          info.resolvePattern(name)
+
+        case tp =>
+          // println("No pattern member " + name + " on " + tp)
+          None
+
     def termMember(name: String)(using Definitions): Type =
       getTermMember(name) match
         case Some(tp) => tp

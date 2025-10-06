@@ -293,7 +293,7 @@ object Printing:
 
   def showPattern(pat: Word): Text =
     (pat: @unchecked) match
-      case _: Tag | _: Ident | _: StringLit | _: IntLit | _: CharLit | _: BoolLit =>
+      case _: Tag | _: RefTree | _: StringLit | _: IntLit | _: CharLit | _: BoolLit =>
         showWord(pat)
 
       case Apply(fun, args) if args.nonEmpty =>

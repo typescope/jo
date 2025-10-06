@@ -1209,7 +1209,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     else
       acc.map(_._1).toList
 
-  def applyPattern(apply: Tag | Ident): Word =
+  def applyPattern(apply: Tag | RefTree): Word =
     val bindings = patternArgs()
     val spanEnd = bindings.last.span
     Apply(apply, bindings)(apply.span | spanEnd)
@@ -1298,20 +1298,20 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           tag
 
       case Token.Ident(name) =>
-        val item = next()
-        val id = Ident(name)(item.span)
+        val id = qualid()
 
         val itemNext = peekItem()
         itemNext.token match
-          case Token.COLON => typePattern(id)
+          case Token.COLON if id.isInstanceOf[Ident] =>
+            typePattern(id.asInstanceOf[Ident])
 
           case Token.LPAREN if itemNext.span.followsImmediate(id.span)  =>
             applyPattern(id)
 
-          case Token.Ident("@") =>
+          case Token.Ident("@") if id.isInstanceOf[Ident] =>
             next()
             val nested = simplePattern()
-            Assign(id, nested)(nested.span | id.span)
+            Assign(id.asInstanceOf[Ident], nested)(nested.span | id.span)
 
           case _ => id
 

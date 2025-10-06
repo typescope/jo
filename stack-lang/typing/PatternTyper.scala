@@ -196,7 +196,7 @@ class PatternTyper(namer: Namer, checker: Checker):
     Case(pat2, body2)(caseDef.span)
 
   private def transformApplyPattern(
-      id: Ast.Ident, args: List[Ast.Word], scrutType: Type, patSpan: Span)
+      id: Ast.RefTree, args: List[Ast.Word], scrutType: Type, patSpan: Span)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs)
   : Pattern =
 
@@ -285,7 +285,7 @@ class PatternTyper(namer: Namer, checker: Checker):
     OrPattern(lhsPat, rhsPat)(valueType)
 
   private def transformInfixCallPattern(
-      preArgs: List[Ast.Word], id: Ast.Ident, postArgs: List[Ast.Word],
+      preArgs: List[Ast.Word], id: Ast.RefTree, postArgs: List[Ast.Word],
       scrutType: Type, patSpan: Span)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs)
   : Pattern =
@@ -531,8 +531,8 @@ class PatternTyper(namer: Namer, checker: Checker):
 
           def resolveShape(tpt: Ast.Word): Option[ExprTyper.Shape] =
             tpt match
-              case id: Ast.Ident =>
-                resolvePatternPredicateOpt(id) match
+              case id: Ast.RefTree =>
+                transformPatternRef(id) match
                   case Some(sym) =>
                     val procType = sym.info.asProcType
                     // parameterless predicates should not interfere with expression typing
@@ -717,27 +717,37 @@ class PatternTyper(namer: Namer, checker: Checker):
 
     StarPattern(inner)(pat.span, bindings.toList)
 
-  private def resolvePatternPredicate(id: Ast.Ident)(using sc: Scope, rp: Reporter, so: Source, defn: Definitions): Symbol =
-    resolvePatternPredicateOpt(id) match
+  private def resolvePatternPredicate(id: Ast.RefTree)(using sc: Scope, rp: Reporter, so: Source, defn: Definitions): Symbol =
+    transformPatternRef(id) match
       case Some(sym) => sym
       case None =>
-        Reporter.error(s"Undefined pattern identifier " + id.name, id.pos)
-        Symbol.createSymbol(id.name, ErrorType, Flags.Synthetic, sc.owner, id.pos)
-
-  private def resolvePatternPredicateOpt(id: Ast.Ident)(using sc: Scope, defn: Definitions): Option[Symbol] =
-    sc.resolvePattern(id.name) match
-      case None =>
-        given OutOfBand = new OutOfBand
-        sc.resolveTerm(id.name) match
-          case Some(sym) if sym.is(Flags.Section) =>
-            val container = sym.info.as[ContainerInfo]
-            container.resolvePattern(sym.name)
+        id match
+          case id: Ast.Ident =>
+            Reporter.error(s"Undefined pattern identifier " + id.name, id.pos)
 
           case _ =>
+            // error already reported
+
+        Symbol.createSymbol(id.name, ErrorType, Flags.Synthetic, sc.owner, id.pos)
+
+  private def transformPatternRef(qualid: Ast.RefTree)(using sc: Scope, defn: Definitions, so: Source, rp: Reporter): Option[Symbol] =
+    qualid match
+      case id: Ast.Ident =>
+        sc.resolvePattern(id.name) match
+          case None => None
+
+          case Some(sym) =>
+            if sym.is(Flags.Fun) then Some(sym) else None
+
+      case Ast.Select(qual, name) =>
+        // selection must be a pattern predicate
+        val qualTyped = namer.transformRefTree(qual.asInstanceOf[Ast.RefTree])
+        qualTyped.tpe.getPatternMember(name) match
+          case None =>
+            Reporter.error("A selection must be a pattern predicate", qualid.pos)
             None
 
-      case Some(sym) =>
-        if sym.is(Flags.Fun) then Some(sym) else None
+          case res => res
 
 
   private def transformPattern(
@@ -775,10 +785,10 @@ class PatternTyper(namer: Namer, checker: Checker):
       case Ast.TypeAscribe(id: Ast.Ident, tpt) =>
         transformTypePattern(id, tpt, scrutType, pat.span)
 
-      case Ast.Apply(id: Ast.Ident, args) =>
+      case Ast.Apply(id: Ast.RefTree, args) =>
         transformApplyPattern(id, args, scrutType, pat.span)
 
-      case Ast.InfixCall(preArgs, id: Ast.Ident, postArgs) =>
+      case Ast.InfixCall(preArgs, id: Ast.RefTree, postArgs) =>
         transformInfixCallPattern(preArgs, id, postArgs, scrutType, pat.span)
 
       case Ast.Apply(tag: Ast.Tag, nested) =>

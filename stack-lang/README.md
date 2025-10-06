@@ -137,12 +137,12 @@ Abstract Syntax
 
     expr_pattern = simple_pattern {simple_pattern}.
 
-    simple_pattern = literal_pattern | ident | tag | type_pattern | ascribe_pattern | apply_pattern | LPAREN pattern RPAREN | sequence_pattern.
+    simple_pattern = literal_pattern | qualid | tag | type_pattern | ascribe_pattern | apply_pattern | LPAREN pattern RPAREN | sequence_pattern.
 
     literal_pattern = integer | boolean | char | string.
     type_pattern  = ident COLON type.
     ascribe_pattern = ident '@' simple_pattern.
-    apply_pattern = (tag | ident) LPAREN [pattern {COMMA pattern}] RPAREN.
+    apply_pattern = (tag | qualid) LPAREN [pattern {COMMA pattern}] RPAREN.
 
     sequence_pattern = LBRACK [expr_pattern {, expr_pattern}] RBRACK.
 

@@ -15,17 +15,19 @@ object Desugaring:
   def synthesize(defs: List[Def])(using Reporter, Source): List[Def] =
     val dataDefs = mutable.Map.empty[String, DataDef]
     val sectionDefs = mutable.Map.empty[String, Section]
+    val patternDefs = mutable.Map.empty[String, PatDef]
 
     defs.foreach:
       case ddef: DataDef => dataDefs(ddef.name) = ddef
+      case pdef: PatDef  => patternDefs(pdef.name) = pdef
       case sec: Section  => sectionDefs(sec.name) = sec
       case _ =>
 
     val defs2 =
       defs.flatMap:
-        case ddef: DataDef  => synthesizeDataDef(ddef, sectionDefs.getOrElse(ddef.name, null))
-        case edef: EnumDef  => synthesizeEnumDef(edef, sectionDefs.getOrElse(edef.name, null))
-        case sec:  Section  => synthesizeSection(sec, dataDefs.getOrElse(sec.name, null)) :: Nil
+        case ddef: DataDef  => synthesizeDataDef(ddef, sectionDefs.getOrElse(ddef.name, null), patternDefs.getOrElse(ddef.name, null))
+        case edef: EnumDef  => synthesizeEnumDef(edef)
+        case sec:  Section  => synthesizeConstructor(sec, dataDefs.getOrElse(sec.name, null)) :: Nil
         case pdef: ParamDef => desugarParamDef(pdef)
         case defn => defn :: Nil
 
@@ -41,10 +43,10 @@ object Desugaring:
     *
     *     type A[X, ...] = #A(x1: X, ...)
     *
+    *     pattern A[X, ...](x1: T1, ...): A = case #A x1 ...
+    *
     *     section A
     *       fun A[X, ...](x1: T1, ...): A = #A x1 ...
-    *
-    *       pattern A[X, ...](x1: T1, ...): A = case #A x1 ...
     *
     * If section `A` already exists, the synthesized members will become members
     * of the existing section.
@@ -53,21 +55,35 @@ object Desugaring:
     * corresponding synthetic member is ignored to prefer the user-defined
     * member.
     */
-  def synthesizeDataDef(ddef: DataDef, secDef: Section | Null)
+  def synthesizeDataDef(ddef: DataDef, secDef: Section | Null, pdef: PatDef | Null)
       (using Reporter, Source)
   : List[Def] =
 
-    val tagType = TagType(ddef.ident, ddef.params)(ddef.span)
+    val id = ddef.ident
+
+    val tp =
+      if ddef.tparams.isEmpty then id
+      else AppliedType(id, ddef.tparams.map(_.ident))(id.span | ddef.tparams.last.span)
+
+    val tagType = TagType(id, ddef.params)(ddef.span)
     val tdef = TypeDef(ddef.ident, ddef.tparams, tagType, isBound = false, preParamCount = 0)(ddef.span)
+
+    val pat =
+      val tag = Tag(id)(id.span)
+      if ddef.params.isEmpty then tag
+      else Apply(tag, ddef.params.map(_.ident))(ddef.span)
+    val body = Case(pat, Block(Nil)(id.span))(ddef.span) :: Nil
+    val pdef = PatDef(id, ddef.tparams, ddef.params, tp, body, preParamCount = 0)(ddef.span)
+
     if secDef != null then
       // section defitions have a chance to do its own desugaring with current
       // data defintion
-      tdef :: Nil
+      tdef :: pdef :: Nil
     else
       val sec = Section(ddef.ident, defs = Nil)(ddef.span)
-      tdef :: synthesizeSection(sec, ddef) :: Nil
+      tdef :: pdef :: synthesizeConstructor(sec, ddef) :: Nil
 
-  /** Synthesize members for companion section of a data definition
+  /** Synthesize constructor in the companion section of a data definition
     *
     * Given
     *
@@ -76,17 +92,15 @@ object Desugaring:
     *
     *     data A[X, ...](x1: T1, ...)
     *
-    * The following members will be added to section A:
+    * The following member will be added to section A:
     *
     *
     *     section A
     *       fun A[X, ...](x1: T1, ...): A = #A x1 ...
     *
-    *       pattern A[X, ...](x1: T1, ...): A = case #A x1 ...
-    *
     * The synthesis will be skipped if target of the same name already exists.
     */
-  def synthesizeSection(secDef: Section, ddef: DataDef | Null)
+  def synthesizeConstructor(secDef: Section, ddef: DataDef | Null)
       (using Reporter, Source)
   : Section =
 
@@ -97,35 +111,19 @@ object Desugaring:
         if ddef.tparams.isEmpty then id
         else AppliedType(id, ddef.tparams.map(_.ident))(id.span | ddef.tparams.last.span)
 
-      val syntheticMembers = new mutable.ArrayBuffer[Def]
-
-      val hasPatternMember = secDef.defs.exists: defn =>
-        defn.name == ddef.name && defn.isInstanceOf[PatDef]
-
       val hasFunMember = secDef.defs.exists: defn =>
         defn.name == ddef.name && defn.isInstanceOf[FunDef]
 
-      if !hasPatternMember then
-        val pat =
-          val tag = Tag(id)(id.span)
-          if ddef.params.isEmpty then tag
-          else Apply(tag, ddef.params.map(_.ident))(ddef.span)
-        val body = Case(pat, Block(Nil)(id.span))(ddef.span) :: Nil
-        val pdef = PatDef(id, ddef.tparams, ddef.params, tp, body, preParamCount = 0)(ddef.span)
-        syntheticMembers += pdef
+      if hasFunMember then
+        secDef
 
-      if !hasFunMember then
+      else
         val body = Apply(Tag(id)(id.span), ddef.params.map(_.ident))(ddef.span)
         val autos = Nil
         val receiveParams = Some(Nil)
         val fdef = FunDef(id, ddef.tparams, ddef.params, autos, tp, receiveParams, body, preParamCount = 0)(ddef.span)
-        syntheticMembers += fdef
 
-      if syntheticMembers.isEmpty then
-        secDef
-
-      else
-        Section(secDef.ident, (syntheticMembers ++ secDef.defs).toList)(secDef.span)
+        Section(secDef.ident, fdef :: secDef.defs)(secDef.span)
 
   /** An enum definition
     *
@@ -148,10 +146,7 @@ object Desugaring:
     * it might make sense for functions and patterns. They do not improve
     * expressiveness.
     */
-  def synthesizeEnumDef(enumDef: EnumDef, secDef: Section | Null)
-      (using Reporter, Source)
-  : List[Def] =
-
+  def synthesizeEnumDef(enumDef: EnumDef)(using Reporter, Source): List[Def] =
     val typeParams = mutable.Map.empty[String, TypeParam]
 
     for tparam <- enumDef.tparams do

@@ -392,10 +392,17 @@ object Trees:
     pat match
       case _: Tag | _: Ident | _: StringLit | _: IntLit | _: CharLit | _: BoolLit => true
 
+      case _: Select => isQualid(pat)
+
       case TypeAscribe(_: Ident, _) => true
 
-      case Apply(_: Tag | _: Ident, args) if args.nonEmpty =>
+      case Apply(pred, args) if args.nonEmpty =>
         args.forall(isPattern)
+
+        pred match
+          case _: Tag | _: Ident => true
+          case _: Select => isQualid(pred)
+          case _ => false
 
       case Expr(words) if words.nonEmpty =>
         words.forall(isPattern)
