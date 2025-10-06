@@ -202,6 +202,13 @@ bin/jo build app.stk -lib build/mylib -o app
 ./app
 ```
 
+Use multiple libraries (colon-separated, in dependency order):
+```bash
+# Core depends on nothing, Utils depends on Core, App depends on both
+bin/jo build app.stk -lib build/core:build/utils -o app
+./app
+```
+
 Disable automatic stdlib loading:
 ```bash
 bin/jo build -no-stdlib app.stk -o app
@@ -217,7 +224,9 @@ jo build-lib [options] <file.stk>   Build library (.sast files)
 jo help                             Show help
 
 Common options:
-  -lib <dir>        Use additional precompiled library (stdlib loaded automatically)
+  -lib <dirs>       Use precompiled libraries (colon-separated, in dependency order)
+                    Example: -lib build/core:build/utils
+                    Stdlib is automatically loaded unless -no-stdlib is used
   -no-stdlib        Disable automatic stdlib loading
 
 Build options:

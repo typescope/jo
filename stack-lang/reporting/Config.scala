@@ -23,8 +23,11 @@ class Config(options: Map[String, String], val mode: Mode):
 
   val libPaths: List[String] =
     options.get("-lib") match
-      case Some(dir) =>
-        Config.StdLibPath :: dir :: Nil
+      case Some(dirs) =>
+        // Split by colon to support multiple directories
+        // User must specify libraries in topological order of dependencies
+        val userLibs = dirs.split(":").map(_.trim).filter(_.nonEmpty).toList
+        if noStdLib then userLibs else Config.StdLibPath :: userLibs
 
       case None =>
         if noStdLib then Nil else Config.StdLibPath :: Nil
@@ -40,7 +43,7 @@ object Config:
     "-steps"          -> false,
     "-testPickling"   -> false,
     "-no-stdlib"      -> false,
-    "-lib"            -> true,   // -lib <dir>
+    "-lib"            -> true,   // -lib <dir1:dir2:dir3> (colon-separated, in dependency order)
   )
 
   // Get the root directory of the project (set by the bin/jo wrapper script)
