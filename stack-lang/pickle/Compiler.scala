@@ -18,9 +18,7 @@ object Compiler:
       val rootNameTable = new NameTable
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
-      // Parse and type check (no runtime needed for libraries)
-      val runtime = Nil
-      val namespacesSAST = sources |> Typer.parseStep |> Typer.typeStep(runtime) <| "Frontend"
+      val namespacesSAST = sources |> Typer.parseStep |> Typer.typeStep <| "Frontend"
 
       locally:
         given Definitions = lazyDefn.value

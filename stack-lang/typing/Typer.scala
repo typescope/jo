@@ -14,10 +14,10 @@ import common.IO
 object Typer:
   /** The stdlib cannot depend on pre-defined symbols
     *
-    * Assumption: the directory path in lib/runtime are in topological order.
+    * Assumption: the directory path in lib are in topological order of dependencies.
     */
   private def check
-      (nssAst: List[Ast.Namespace], libs: List[String], runtimes: List[String])
+      (nssAst: List[Ast.Namespace], libs: List[String])
       (using defnLazy: Definitions.Lazy, rp: Reporter, cf: Config)
   : List[Namespace] =
 
@@ -43,10 +43,6 @@ object Typer:
       val nss = new Namer().transform(nssAst, rootNameTable, predef = new NameTable) <| "namer.source"
       checkEffects(nss)
 
-      if runtimes.nonEmpty && !rp.hasErrors then
-        // most likely wrong parameters by users
-        println("Warning: Unexpected runtime specified in compiling library, " + runtimes)
-
       // Don't check effect errors if there are type errors
       if !rp.hasErrors then checkEffects(nss)
       nss
@@ -62,10 +58,6 @@ object Typer:
 
           val nss = new Namer().transform(nssAst, rootNameTable, predefNameTable) <| "namer.source"
 
-          if runtimes.nonEmpty && !rp.hasErrors then
-            // most likely wrong parameters by users
-            println("Warning: Unexpected runtime specified in compiling library, " + runtimes)
-
           // Don't check effect errors if there are type errors
           if !rp.hasErrors then checkEffects(nss)
 
@@ -74,7 +66,7 @@ object Typer:
         case Mode.Application =>
           // Load library from .sast files
           val nssLib = libs.flatMap: lib =>
-            loadSastTrees(lib) <| "load lib: " + lib
+            pickle.Decoder.loadPackage(lib) <| "load lib: " + lib
 
           // Must be after loading the stdlib
           val predefNameTable = defnLazy.value.Predef_nameTable
@@ -82,24 +74,11 @@ object Typer:
           // Should be before checking runtime code such that they are not available
           val nss = new Namer().transform(nssAst, rootNameTable, predefNameTable) <| "namer.source"
 
-          // Runtime definitions are inaccessible in user programs and may only
-          // use predef definitions
-          val nssRuntime = runtimes.flatMap: runtime =>
-             loadSastTrees(runtime) <| "load runtime: " + runtime
-
           // Don't check effect errors if there are type errors
           if !rp.hasErrors then checkEffects(nss)
 
-          nssLib ++ nssRuntime ++ nss
+          nssLib ++ nss
 
-  /** Load precompiled .sast files */
-  private def loadSastTrees(dir: String) (using defnLazy: Definitions.Lazy, rp: Reporter): List[Namespace] =
-    val files = IO.getSastFiles(dir).toList
-    val delayedDefs = files.map(file => pickle.Decoder.load(file))
-
-    // Force all delayed definitions
-    val defn = defnLazy.value
-    delayedDefs.map(_.force()(using defn))
 
   private def loadSastSymbols(dir: String) (using defnLazy: Definitions.Lazy, rp: Reporter): Unit =
     val files = IO.getSastFiles(dir).toList
@@ -111,8 +90,7 @@ object Typer:
   def shouldPrint(ns: Ast.Namespace)(using config: Config): Boolean =
     config.printOnly.isEmpty || config.printOnly.exists(ns.source.contains)
 
-  def parseStep(using config: Config, rp: Reporter)
-  : Step[List[String], List[Ast.Namespace]] =
+  def parseStep(using config: Config, rp: Reporter): Step[List[String], List[Ast.Namespace]] =
 
     Step("Parser", sources => {
       val res = Parser.parse(sources)
@@ -123,12 +101,10 @@ object Typer:
       res
     })
 
-  def typeStep(runtimes: List[String])
-      (using config: Config, lazyDefn: Definitions.Lazy, rp: Reporter)
-  : Step[List[Ast.Namespace], List[Namespace]] =
+  def typeStep(using config: Config, lazyDefn: Definitions.Lazy, rp: Reporter): Step[List[Ast.Namespace], List[Namespace]] =
 
     Step("Namer", (nssAst: List[Ast.Namespace]) => {
-      val res = check(nssAst, config.libPaths, runtimes)
+      val res = check(nssAst, config.libPaths)
 
       if config.checkTree then
         given Definitions = lazyDefn.value
@@ -147,9 +123,7 @@ object Typer:
     given config: Config = Config(options, Mode.Library)
 
     Reporter.monitor:
-      val runtime = Nil
-
       val rootNameTable = new NameTable
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
-      sources |> parseStep |> typeStep(runtime)
+      sources |> parseStep |> typeStep

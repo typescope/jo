@@ -49,14 +49,14 @@ object Compiler:
 
     val rootNameTable = new NameTable
 
-    val runtime = Config.NativeRuntimePath :: Nil
 
     given Config = Config(options, Mode.Application)
 
     Reporter.monitor:
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
-      val namespacesSAST = FrontEnd.run(runtime, sources) <| "frontend"
+      val runtimes = Config.NativeRuntimePath :: Nil
+      val namespacesSAST = FrontEnd.run(runtimes, sources) <| "Frontend"
 
       val mains = namespacesSAST.collect:
         case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get
@@ -88,7 +88,7 @@ object Compiler:
           backendStep        |>
           assembler
 
-        } <| "backend"
+        } <| "Backend"
 
         case _ =>
           if mains.isEmpty then

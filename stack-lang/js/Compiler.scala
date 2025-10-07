@@ -4,6 +4,7 @@ import common.IO
 
 import sast.*
 import phases.*
+
 import reporting.Reporter
 import reporting.Reporter.Step
 import reporting.Config
@@ -41,15 +42,16 @@ def compile(args: String*): Unit =
 
     given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
-    val runtime = Config.JSRuntimePath :: Nil
-    val namespacesSAST = FrontEnd.run(runtime, sources) <| "Frontend"
+    val runtimes = Config.JSRuntimePath :: Nil
+    val nss = FrontEnd.run(runtimes, sources) <| "Frontend"
 
-    val mains = namespacesSAST.collect:
+    val mains = nss.collect:
       case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get
 
     mains match
       case main :: Nil => {
         given Definitions = lazyDefn.value
+
 
         val jsRuntime = new JSRuntime(rootNameTable, main)
         val contextParamsLower = new LowerContextParams(
@@ -63,7 +65,7 @@ def compile(args: String*): Unit =
         val backend: Step[List[Trees.Namespace], Unit] =
           Step("Backend", new JSOptimized(outFile, jsRuntime).compile)
 
-        namespacesSAST      |>
+        nss                 |>
         closureConvert      |>
         runtimeLowerer      |>
         contextParamsLower  |>

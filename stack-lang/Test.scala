@@ -4,9 +4,10 @@ import scala.collection.mutable
 import scala.io.Source
 
 import common.IO
-import phases.FrontEnd
 import sast.NameTable
 import sast.Definitions
+
+import typing.Typer
 
 import reporting.Reporter
 import reporting.Config
@@ -34,10 +35,9 @@ object Test:
       else IO.list(test).filter(_.endsWith(".stk"))
 
     try
-      val runtimeFiles = Nil
       val rootNameTable = new NameTable
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
-      FrontEnd.run(runtimeFiles, sourceFiles)
+      sourceFiles |> Typer.parseStep |> Typer.typeStep
 
       verifyErrors(sourceFiles, rp.reports)
     catch
