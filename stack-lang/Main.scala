@@ -87,13 +87,14 @@ object Main:
       |  jo help                             Show this help message
       |
       |Build options:
-      |  -js         Build JavaScript application
-      |  -stack      Build native application using stack machine
-      |  -reg        Build native application using register machine (default)
-      |  -o <out>    Output file path
-      |  -lib <dir>  Use precompiled library from directory
+      |  -js             Build JavaScript application
+      |  -stack          Build native application using stack machine
+      |  -reg            Build native application using register machine (default)
+      |  -o <out>        Output file path
+      |  -lib <dirs>     Use precompiled libraries (colon-separated, in dependency order)
+      |                  Example: -lib build/core:build/utils
       |
       |Build-lib options:
-      |  -d <dir>    Output directory for .sast files (optional, defaults to current dir)
-      |  -lib <dir>  Use precompiled library from directory
+      |  -d <dir>        Output directory for .sast files (optional, defaults to current dir)
+      |  -lib <dirs>     Use precompiled libraries (colon-separated, in dependency order)
       |""".stripMargin)
