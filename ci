@@ -28,6 +28,7 @@ bin/run  -time  tests/pos/fact.stk  || exit 1
 bin/jsc  -time  tests/pos/fact.stk  || exit 1
 bin/stac -time  tests/pos/fact.stk  || exit 1
 bin/regc -time  tests/pos/fact.stk  || exit 1
+bin/jo.dev build -time  tests/pos/fact.stk  || exit 1
 
 bin/jo run -time tests/pos/fact.stk
 bin/jo build -js -time tests/pos/fact.stk
