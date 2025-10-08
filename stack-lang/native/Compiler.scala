@@ -66,7 +66,7 @@ object Compiler:
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
       val runtimes = Config.NativeRuntimePath :: Nil
-      val linkMappings = defaultLinkMappings ++ Config.linkMap.value
+      val linkMappings = Config.linkMap.checkConflicts(Config.linkMap.value, defaultLinkMappings)
       val namespacesSAST = FrontEnd.run(runtimes, sources, linkMappings) <| "Frontend"
 
       val mains = namespacesSAST.collect:

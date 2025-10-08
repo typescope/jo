@@ -169,6 +169,22 @@ object Config:
       end for
 
       linkMappings
+
+    /** Check for conflicts between user-supplied link mappings and compiler defaults.
+      *
+      * @param defaultMappings Compiler-defined mappings
+      * @return Combined mappings with user mappings taking precedence
+      */
+    def checkConflicts(userMappings: Map[String, String], defaultMappings: Map[String, String])(using Config, Reporter): Map[String, String] =
+      val userMappings = this.value
+      for (source, userTarget) <- userMappings do
+        defaultMappings.get(source) match
+          case Some(defaultTarget) if defaultTarget != userTarget =>
+            Reporter.warn(s"User-supplied link mapping ignored due to conflicts with compiler default: $source=$userTarget (was $source=$defaultTarget)")
+          case _ =>
+      end for
+
+      defaultMappings ++ userMappings
   end linkMap
 
   //----------------------------------------------------------------------------
