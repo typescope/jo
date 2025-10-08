@@ -80,6 +80,9 @@ files=(
 
     # interpreter
     stack-lang/sast/Interpreter.scala
+
+    # cli
+    stack-lang/cli/OptionParser.scala
 )
 
 FILES=${files[*]}

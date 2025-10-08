@@ -73,6 +73,9 @@ files=(
 
     stack-lang/phases/Phase.scala
     stack-lang/phases/EffectCheck.scala
+
+    # cli
+    stack-lang/cli/OptionParser.scala
 )
 
 FILES=${files[*]}
