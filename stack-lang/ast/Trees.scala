@@ -13,11 +13,13 @@ object Trees:
 
   enum Modifier extends Tree:
     case Auto()(val span: Span)
+    case Defer()(val span: Span)
     case Private()(val span: Span)
 
     def show: String = this match
-      case Auto()    => "auto"
-      case Private() => "private"
+      case Auto()     => "auto"
+      case Defer()    => "defer"
+      case Private()  => "private"
 
   sealed abstract class Word extends Tree:
     def show: String = Printing.show(this)
