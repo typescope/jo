@@ -25,7 +25,7 @@ object Diagnostics:
 
     def pos = throw new Exception("No position for the report: " + this)
 
-    override def toString() = s"[$kind]$message"
+    override def toString() = s"[$kind] $message"
 
   //----------------------------------------------------------------------------
   //

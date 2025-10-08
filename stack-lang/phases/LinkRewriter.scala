@@ -26,7 +26,7 @@ class LinkRewriter(linkMap: Map[Symbol, Symbol])(using defn: Definitions, rp: Re
         case None =>
           // Check if deferred function has a default implementation
           if !sym.is(Flags.Default) then
-            rp.error(s"Deferred function $sym has no default implementation and is not linked")
+            rp.error(s"Deferred function ${sym.fullName} has no default implementation and is not linked")
           ident
     else
       ident
