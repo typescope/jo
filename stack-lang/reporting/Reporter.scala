@@ -86,10 +86,10 @@ extends KeyProps.Container:
 
   extension [T](v: T)
     inline def |> [U](step: Step[T, U])(using config: Config): U =
-      if this.hasErrors || config.fatalWarnings.value && this.hasWarnings then
+      if this.hasErrors || Config.fatalWarnings.value && this.hasWarnings then
         throw FatalError.StopAfterPhase()
       else
-        if config.showSteps.value then println("Running " + step.name)
+        if Config.showSteps.value then println("Running " + step.name)
         step.run(v) <| step.name
   end extension
 
@@ -115,7 +115,7 @@ object Reporter:
     given reporter: Reporter = createReporter()
     try
       timeout(100) { fn }  <| "total"
-      if cf.reportTime.value then Timer.report()
+      if Config.reportTime.value then Timer.report()
     catch
       case error: FatalError.CodeError =>
         println("[error] " + error.content)

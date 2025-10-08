@@ -36,7 +36,7 @@ object OptionParser:
     * - Single: String
     * - Multi: List[String]
     */
-  def parseOptions(args: Seq[String], optionSpecs: Map[String, Setting[?]])(using Reporter): (Map[String, Any], List[String]) =
+  def parseOptions(args: Seq[String], optionSpecs: Map[String, Setting[?]])(using Reporter): (Map[Setting[?], Any], List[String]) =
 
     val positional = new mutable.ArrayBuffer[String]
     val options = mutable.Map.empty[Setting[?], Any]
@@ -102,7 +102,7 @@ object OptionParser:
     (options.toMap, positional.toList)
 
   def parseConfig(args: Seq[String], options: List[Setting[?]])(using Reporter): (Config, List[String]) =
-    var optionSpecs = Map.empty[String, OptionSpec]
+    var optionSpecs = Map.empty[String, Setting[?]]
     for option <- options do
       if optionSpecs.contains(option.flag) then
         Reporter.abortInternal("Duplicate flag " + option.flag)

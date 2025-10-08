@@ -198,7 +198,7 @@ object Config:
     libPaths
   )
 
-  val appOptions = outPath :: linkMap :: commonOptions
+  val appOptions = outFilePath :: linkMap :: commonOptions
 
   //----------------------------------------------------------------------------
 

@@ -31,10 +31,9 @@ import scala.collection.mutable
 
 object Parser:
   def main(args: Array[String]): Unit =
-    val (config, sources) = cli.OptionParser.parseConfig(args, Config.commonOptions)
-    given Config = config
-
     Reporter.monitor:
+      val (_, sources) = cli.OptionParser.parseConfig(args, options = Nil)
+
       val nss = Parser.parse(sources)
       for ns <- nss do
         println(ns.source + ":")
