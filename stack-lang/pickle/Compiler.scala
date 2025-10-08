@@ -13,7 +13,7 @@ import common.IO
 
 /** Compiler for building libraries (producing .sast files) */
 object Compiler:
-  def compile(sources: List[String], targetDir: String)(using cf: Config): Unit =
+  def compile(sources: List[String])(using Config): Unit =
     Reporter.monitor:
       val rootNameTable = new NameTable
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
@@ -24,7 +24,7 @@ object Compiler:
         given Definitions = lazyDefn.value
 
         val pickler = new Step("Pickler", (nssAst: List[Namespace]) => {
-          for ns <- nssAst do Encoder.store(ns, targetDir, testPickling = false, verbose = true)
+          for ns <- nssAst do Encoder.store(ns, Config.targetDir.value, testPickling = false, verbose = true)
 
           nssAst
         })
@@ -43,4 +43,4 @@ object Compiler:
     // Default target directory to current directory
     IO.ensureExists(Config.targetDir.value)
 
-    compile(sources, targetDir)
+    compile(sources)

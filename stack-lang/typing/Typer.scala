@@ -84,18 +84,18 @@ object Typer:
     val files = IO.getSastFiles(dir).toList
     for file <- files do pickle.Decoder.load(file)
 
-  private def shouldPrint(ns: Namespace)(using config: Config): Boolean =
-    config.printOnly.isEmpty || config.printOnly.exists(ns.source.contains)
+  private def shouldPrint(ns: Namespace)(using Config): Boolean =
+    Config.printOnly.value.isEmpty || Config.printOnly.value.exists(ns.source.contains)
 
-  def shouldPrint(ns: Ast.Namespace)(using config: Config): Boolean =
-    config.printOnly.isEmpty || config.printOnly.exists(ns.source.contains)
+  def shouldPrint(ns: Ast.Namespace)(using Config): Boolean =
+    Config.printOnly.value.isEmpty || Config.printOnly.value.exists(ns.source.contains)
 
   def parseStep(using config: Config, rp: Reporter): Step[List[String], List[Ast.Namespace]] =
 
     Step("Parser", sources => {
       val res = Parser.parse(sources)
 
-      if config.printAfter.contains("Parser") then
+      if Config.printAfter.value.contains("Parser") then
         ast.Printing.print(res.filter(shouldPrint))
 
       res

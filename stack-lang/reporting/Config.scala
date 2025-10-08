@@ -10,7 +10,7 @@ enum Mode:
   case Library
 
 case class Config(private[Config] rawValues: Map[Setting[?], Any]):
-  private val cache: mutable.Map[Setting, Any] = mutable.Map.empty
+  private val cache: mutable.Map[Setting[?], Any] = mutable.Map.empty
 
   def cached[T](key: Setting[T])(computeValue: => T): T =
     cache.get(key) match
@@ -26,7 +26,7 @@ object Config:
   extends Setting[Boolean]:
     def spec = OptionSpec.Flag
 
-    def value(using cf: Config): List[String] = cf.cached(this):
+    def value(using cf: Config): Boolean =
       cf.rawValues.get(this) match
         case Some(v) => true
         case None => default
@@ -91,36 +91,34 @@ object Config:
         case Some(v) =>
           val dirs = v.asInstanceOf[String]
           val userLibs = dirs.split(":").map(_.trim).filter(_.nonEmpty).toList
-          if Config.noStdLib then userLibs else Config.StdLibPath :: userLibs
+          if Config.noStdLib.value then userLibs else Config.StdLibPath :: userLibs
 
         case None =>
-          if Config.noStdLib then Nil else Config.StdLibPath :: Nil
+          if Config.noStdLib.value then Nil else Config.StdLibPath :: Nil
 
     // TODO: validate that the path exists
-    override def validate(using Config, Reporter): Unit = ()
+    override def validate()(using Config, Reporter): Unit = ()
 
   //----------------------------------------------------------------------------
 
-  object linkMap extends Setting[List[String]]:
+  object linkMap extends Setting[Map[String, String]]:
     def flag = "-link"
     def spec = OptionSpec.Multi
-    def defalt =  Nil
+    def default = Map.empty[String, String]
     def desc = "e.g., -link stk.Predef.entry=Test.main"
 
-    override def value(using cf: Config): List[String] = cf.cached(this):
-      cf.rawValues.get(this) match
-        case Some(dirs) =>
-          val userLibs = dirs.split(":").map(_.trim).filter(_.nonEmpty).toList
-          if Config.noStdLib then userLibs else Config.StdLibPath :: userLibs
+    override def value(using cf: Config): Map[String, String] = cf.cached(this):
+      throw new Exception("validation of options not performed")
 
-        case None =>
-          if Config.noStdLib then Nil else Config.StdLibPath :: Nil
+    override def validate()(using cf: Config, rp: Reporter): Unit =
+      val linkArgs = cf.rawValues.get(this) match
+        case Some(args: List[?]) => args.asInstanceOf[List[String]]
+        case _ => Nil
 
-    override def validate(using cf: Config, rp: Reporter): Unit =
-      val linkArgs = cf.rawValues.getOrElse(this, Nil)
+      val validatedMap = validateLinkMappings(linkArgs)
 
-      cf.cached:
-        validateLinkMappings(linkArgs)
+      // Cache the validated result
+      cf.cache(this) = validatedMap
 
     /** Validate and convert -link option values to a map.
       *

@@ -37,8 +37,8 @@ object Compiler:
       given Config = config
 
       val outFile = Config.outFilePath.value.getOrElse {
-        if opts.sources.size == 1 then
-          IO.fileNameNoExt(opts.sources.head)
+        if sources.size == 1 then
+          IO.fileNameNoExt(sources.head)
         else
           "out"
       }
@@ -47,7 +47,7 @@ object Compiler:
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
       val runtimes = Config.NativeRuntimePath :: Nil
-      val namespacesSAST = FrontEnd.run(runtimes, sources) <| "Frontend"
+      val namespacesSAST = FrontEnd.run(runtimes, sources, Config.linkMap.value) <| "Frontend"
 
       val mains = namespacesSAST.collect:
         case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get

@@ -8,7 +8,6 @@ import phases.*
 import reporting.Reporter
 import reporting.Reporter.Step
 import reporting.Config
-import reporting.Mode
 
 /***********************************************************************
  *
@@ -17,29 +16,28 @@ import reporting.Mode
  ***********************************************************************/
 object Compiler:
   def main(args: Array[String]): Unit =
-    val (config, sources) = cli.OptionParser.parseConfig(args, Config.appOptions)
-
-    if sources.isEmpty then
-      println("Expect source file as input")
-      return
-
-    given Config = config
-
-    val outFile = Config.outFilePath.value.getOrElse{
-      if opts.sources.size == 1 then
-        IO.fileNameNoExt(opts.sources.head) + ".js"
-      else
-        "out.js"
-    }
-
     Reporter.monitor:
+      val (config, sources) = cli.OptionParser.parseConfig(args, Config.appOptions)
+
+      if sources.isEmpty then
+        println("Expect source file as input")
+        return
+
+      given Config = config
+
+      val outFile = Config.outFilePath.value.getOrElse{
+        if sources.size == 1 then
+          IO.fileNameNoExt(sources.head) + ".js"
+        else
+          "out.js"
+      }
 
       val rootNameTable = new NameTable
 
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
       val runtimes = Config.JSRuntimePath :: Nil
-      val nss = FrontEnd.run(runtimes, opts.sources, opts.linkMappings) <| "Frontend"
+      val nss = FrontEnd.run(runtimes, sources, Config.linkMap.value) <| "Frontend"
 
       val mains = nss.collect:
         case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get
@@ -71,5 +69,6 @@ object Compiler:
         case _ =>
           if mains.isEmpty then
             Reporter.abortInternal("No main function found")
+
           else
             Reporter.abortInternal("Multiple main function detected: " + mains)

@@ -21,7 +21,7 @@ object OptionParser:
     def desc: String
 
     def value(using Config): T
-    def validate(using Config, Reporter): Unit = ()
+    def validate()(using Config, Reporter): Unit = ()
 
   /** Parse command-line options according to option specs.
     *
@@ -101,7 +101,7 @@ object OptionParser:
 
     (options.toMap, positional.toList)
 
-  def parseConfig(args: Seq[String], options: List[Setting[?]])(using Reporter): (Config, List[String]) =
+  def parseConfig(args: Seq[String], options: List[Setting[?]])(using rp: Reporter): (Config, List[String]) =
     var optionSpecs = Map.empty[String, Setting[?]]
     for option <- options do
       if optionSpecs.contains(option.flag) then
@@ -112,4 +112,9 @@ object OptionParser:
     end for
 
     val (rawValues, remains) = parseOptions(args, optionSpecs)
-    (new Config(rawValues), remains)
+    val config = new Config(rawValues)
+
+    // Validate all options
+    for option <- options do option.validate()(using config)
+
+    (config, remains)
