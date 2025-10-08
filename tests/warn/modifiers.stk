@@ -31,6 +31,11 @@ section TestDefer
 
   defer param x: Int
 
+  def local(): Unit =
+    defer def test(x: Int): Int
+
+    defer def check(x: Int): Int = 3
+
   // class List
     // defer val x: Int
 

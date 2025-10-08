@@ -58,4 +58,14 @@
 |   ^^^^^
 |   The modifier defer is not allowed for context parameter definition
 
-10 error(s), 2 warning(s)
+---------- Error at ./tests/warn/modifiers.stk:35:15 ---------------
+|     defer def test(x: Int): Int
+|               ^^^^
+|               A deferred definition should be at top-level
+
+---------- Error at ./tests/warn/modifiers.stk:37:15 ---------------
+|     defer def check(x: Int): Int = 3
+|               ^^^^^
+|               A deferred definition should be at top-level
+
+12 error(s), 2 warning(s)

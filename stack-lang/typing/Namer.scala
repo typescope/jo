@@ -1303,10 +1303,12 @@ class Namer:
 
     given defn: Definitions = lazyDefn.value
 
-    val isDeferred = flags.is(Flags.Defer)
+    if flags.is(Flags.Defer) then
+      if funDef.resultType.isEmpty then
+        Reporter.error("A deferred definition should have explicit result type", funDef.ident.pos)
 
-    if isDeferred && funDef.resultType.isEmpty then
-      Reporter.error("A deferred definition should have explicit result type", funDef.ident.pos)
+      if !sc.owner.isContainer then
+        Reporter.error("A deferred definition should be at top-level", funDef.ident.pos)
 
     lazy val tparamSyms =
       transformTypeParams(funDef.tparams)
