@@ -31,7 +31,8 @@ import scala.collection.mutable
 object Parser:
   def main(args: Array[String]): Unit =
     given Reporter = Reporter.createReporter()
-    val (config, sources) = cli.OptionParser.parseConfig(args, options = Nil)
+    val options = Config.reportTime :: Config.fatalWarnings :: Nil
+    val (config, sources) = cli.OptionParser.parseConfig(args, options)
     given Config = config
 
     Reporter.monitor():
