@@ -13,7 +13,6 @@ import ast.Positions.*
 import reporting.Reporter
 import reporting.Reporter.{ error, warn }
 import reporting.Config
-import reporting.Mode
 
 import common.IO
 import common.StringUtil

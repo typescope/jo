@@ -3,11 +3,9 @@ package reporting
 import cli.OptionParser.OptionSpec
 import cli.OptionParser.Setting
 
-import scala.collection.mutable
+import Config.InternalSetting
 
-enum Mode:
-  case Application
-  case Library
+import scala.collection.mutable
 
 case class Config(private[Config] rawValues: Map[Setting[?], Any]):
   private val cache: mutable.Map[Setting[?], Any] = mutable.Map.empty
@@ -21,7 +19,16 @@ case class Config(private[Config] rawValues: Map[Setting[?], Any]):
         cache(key) = v
         v
 
+  def setInternal[T](key: InternalSetting[T], v: T): Unit =
+    assert(!cache.contains(key), "key already set: " + key.desc)
+    cache(key) = v
+
 object Config:
+  enum Mode:
+    case Application
+    case Library
+
+
   class BooleanSetting(val flag: String, val default: Boolean, val desc: String)
   extends Setting[Boolean]:
     def spec = OptionSpec.Flag
@@ -40,11 +47,11 @@ object Config:
         case Some(v) => v.asInstanceOf[String]
         case None => default
 
-  class OptionSetting[T] extends Setting[Option[T]]:
+  abstract class OptionSetting[T] extends Setting[Option[T]]:
     def default = None
     def spec = OptionSpec.Single
 
-  class OptionStringSetting(val flag: String, val desc: String) extends Setting[Option[String]]:
+  class OptionStringSetting(val flag: String, val desc: String) extends OptionSetting[String]:
     def value(using cf: Config): Option[String] =
       cf.rawValues.get(this) match
         case Some(v) => Some(v.asInstanceOf[String])
@@ -64,6 +71,13 @@ object Config:
         case None =>
           Nil
 
+  class InternalSetting[T](val default: T, val desc: String) extends Setting[T]:
+    def flag = throw new Exception("not command-line option")
+    def spec = OptionSpec.Single
+
+    def value(using cf: Config): T = cf.cached(this):
+      default
+
   //----------------------------------------------------------------------------
 
   val printAfter : Setting[List[String]] = CommaListSetting("-printAfter", "print after steps")
@@ -80,13 +94,16 @@ object Config:
 
   val targetDir: Setting[String]   = StringSetting("-d", ".",  "target directory for sast")
 
+  /** Mode of compilation --- not a command line setting */
+  val mode: InternalSetting[Mode] = InternalSetting[Mode](Mode.Library, "mode of compilation")
+
   object libPaths extends Setting[List[String]]:
     def flag = "-lib"
     def spec = OptionSpec.Single
     def default =  Nil
     def desc = "path to libs in tological order of dependencies"
 
-    override def value(using cf: Config): List[String] = cf.cached(this):
+    def value(using cf: Config): List[String] = cf.cached(this):
       cf.rawValues.get(this) match
         case Some(v) =>
           val dirs = v.asInstanceOf[String]

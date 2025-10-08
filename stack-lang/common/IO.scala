@@ -1,6 +1,5 @@
 package common
 
-import scala.collection.mutable
 
 import java.nio.charset.StandardCharsets
 /**

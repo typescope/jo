@@ -7,7 +7,6 @@ import typing.Typer
 import reporting.Reporter
 import reporting.Reporter.Step
 import reporting.Config
-import reporting.Mode
 
 import common.IO
 

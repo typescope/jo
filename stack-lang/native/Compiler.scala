@@ -7,7 +7,6 @@ import phases.*
 import reporting.Reporter
 import reporting.Reporter.Step
 import reporting.Config
-import reporting.Mode
 
 import common.IO
 
@@ -28,15 +27,17 @@ object Compiler:
 
   def compile(backendBuilder: BackendBuilder, args: Array[String]): Unit =
     given Reporter = Reporter.createReporter()
+
     val (config, sources) = cli.OptionParser.parseConfig(args, layout :: Config.appOptions)
+    config.setInternal(Config.mode, Config.Mode.Application)
+
+    if sources.isEmpty then
+      println("Expect source file as input")
+      return
+
     given Config = config
 
     Reporter.monitor():
-      if sources.isEmpty then
-        println("Expect source file as input")
-        return
-
-
       val outFile = Config.outFilePath.value.getOrElse {
         if sources.size == 1 then
           IO.fileNameNoExt(sources.head)

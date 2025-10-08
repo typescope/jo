@@ -8,7 +8,7 @@ import parsing.Parser
 import reporting.Reporter
 import reporting.Reporter.Step
 import reporting.Config
-import reporting.Mode
+import reporting.Config.Mode
 import common.IO
 
 object Typer:
@@ -48,7 +48,7 @@ object Typer:
       nss
 
     else
-      cf.mode match
+      Config.mode.value match
         case Mode.Library =>
           // Load library from .sast files
           for lib <- libs do loadSastSymbols(lib) <| "load lib: " + lib

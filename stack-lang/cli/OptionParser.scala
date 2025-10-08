@@ -14,7 +14,7 @@ object OptionParser:
     case Single                        // Single-value option (requires one argument)
     case Multi                         // Multi-value option (can appear multiple times)
 
-  class Setting[T]:
+  abstract class Setting[T]:
     def flag: String
     def spec: OptionSpec
     def default: T

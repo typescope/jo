@@ -6,12 +6,10 @@ import Trees.*
 import Symbols.*
 
 import common.Debug
-import common.IO
 
 import phases.FrontEnd
 import reporting.Reporter
 import reporting.Config
-import reporting.Mode
 
 /** An interpreter for S-AST */
 object Interpreter:

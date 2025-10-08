@@ -11,7 +11,6 @@ import typing.Typer
 
 import reporting.Reporter
 import reporting.Config
-import reporting.Mode
 import reporting.Reporter.FatalError
 import reporting.Diagnostics.*
 
@@ -28,7 +27,7 @@ object Test:
 
   def compileAndCheck(test: String): Boolean = Reporter.timeout(100):
     given rp: Reporter = Reporter.createReporter(buffer = true)
-    given Config = Config(Map("-fatal-warnings" -> ""), Mode.Library)
+    given Config = Config(Map(Config.fatalWarnings -> true))
 
     val sourceFiles =
       if IO.isFile(test) then test :: Nil

@@ -17,14 +17,18 @@ import reporting.Config
 object Compiler:
   def main(args: Array[String]): Unit =
     given Reporter = Reporter.createReporter()
+
     val (config, sources) = cli.OptionParser.parseConfig(args, Config.appOptions)
+    config.setInternal(Config.mode, Config.Mode.Application)
+
+    if sources.isEmpty then
+      println("Expect source file as input")
+      return
+
     given Config = config
 
-    Reporter.monitor():
-      if sources.isEmpty then
-        println("Expect source file as input")
-        return
 
+    Reporter.monitor():
       val outFile = Config.outFilePath.value.getOrElse{
         if sources.size == 1 then
           IO.fileNameNoExt(sources.head) + ".js"
