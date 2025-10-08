@@ -117,7 +117,6 @@ extends Definitions.Lazy:
 
   val Predef_print      =  Predef.termMember("print")
   val Predef_printChar  =  Predef.termMember("printChar")
-  val Predef_abort      =  Predef.termMember("abort")
   val Predef_dotdot     =  Predef.termMember("..")
 
   // numeric coercion
@@ -167,6 +166,7 @@ extends Definitions.Lazy:
   val Internal              =  resolveTermByPath("stk.Internal")
   val Internal_Seq          =  Internal.typeMember("Seq")
   val Internal_PackElemType =  Internal.typeMember("PackElemType")
+  val Internal_abort        =  Internal.termMember("abort")
 
   val IntType     = StaticRef(Int_Int)
   val BoolType    = StaticRef(Bool_Bool)
