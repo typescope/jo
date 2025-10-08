@@ -15,6 +15,22 @@ import reporting.Config
  *
  ***********************************************************************/
 object Compiler:
+  // Default link mappings for JS runtime
+  val defaultLinkMappings = Map(
+    "stk.Predef.abort"      -> "stk.runtime.JS.abort",
+    "stk.Predef.byteToChar" -> "stk.runtime.JS.byteToChar",
+    "stk.Predef.byteToInt"  -> "stk.runtime.JS.byteToInt",
+    "stk.Predef.charToByte" -> "stk.runtime.JS.charToByte",
+    "stk.Predef.charToInt"  -> "stk.runtime.JS.charToInt",
+    "stk.Predef.charToStr"  -> "stk.runtime.JS.charToStr",
+    "stk.Predef.intToByte"  -> "stk.runtime.JS.intToByte",
+    "stk.Predef.intToChar"  -> "stk.runtime.JS.intToChar",
+    "stk.Predef.intToStr"   -> "stk.runtime.JS.intToStr",
+    "stk.Array.get"         -> "stk.runtime.JS.Array_get",
+    "stk.Array.set"         -> "stk.runtime.JS.Array_set",
+    "stk.Array.size"        -> "stk.runtime.JS.Array_size",
+  )
+
   def main(args: Array[String]): Unit =
     given Reporter = Reporter.createReporter()
 
@@ -41,7 +57,8 @@ object Compiler:
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
       val runtimes = Config.JSRuntimePath :: Nil
-      val nss = FrontEnd.run(runtimes, sources, Config.linkMap.value) <| "Frontend"
+      val linkMappings = defaultLinkMappings ++ Config.linkMap.value
+      val nss = FrontEnd.run(runtimes, sources, linkMappings) <| "Frontend"
 
       val mains = nss.collect:
         case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get

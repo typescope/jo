@@ -25,6 +25,23 @@ object Compiler:
 
   val layout: Config.StringSetting = Config.StringSetting("-layout", "c1", "memory layout, c1 or c2")
 
+  // Default link mappings for native runtime
+  val defaultLinkMappings = Map(
+    "stk.Predef.abort"      -> "stk.runtime.native.Core.abortImpl",
+    "stk.Predef.byteToChar" -> "stk.runtime.native.Core.byteToChar",
+    "stk.Predef.byteToInt"  -> "stk.runtime.native.Core.byteToInt",
+    "stk.Predef.charToByte" -> "stk.runtime.native.Core.charToByte",
+    "stk.Predef.charToInt"  -> "stk.runtime.native.Core.charToInt",
+    "stk.Predef.charToStr"  -> "stk.runtime.native.Core.charToStr",
+    "stk.Predef.intToByte"  -> "stk.runtime.native.Core.intToByte",
+    "stk.Predef.intToChar"  -> "stk.runtime.native.Core.intToChar",
+    "stk.Predef.intToStr"   -> "stk.runtime.native.Core.intToStr",
+    "stk.Array.create"      -> "stk.runtime.native.Core.Array_create",
+    "stk.Array.get"         -> "stk.runtime.native.Core.Array_get",
+    "stk.Array.set"         -> "stk.runtime.native.Core.Array_set",
+    "stk.Array.size"        -> "stk.runtime.native.Core.Array_size",
+  )
+
   def compile(backendBuilder: BackendBuilder, args: Array[String]): Unit =
     given Reporter = Reporter.createReporter()
 
@@ -49,7 +66,8 @@ object Compiler:
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
       val runtimes = Config.NativeRuntimePath :: Nil
-      val namespacesSAST = FrontEnd.run(runtimes, sources, Config.linkMap.value) <| "Frontend"
+      val linkMappings = defaultLinkMappings ++ Config.linkMap.value
+      val namespacesSAST = FrontEnd.run(runtimes, sources, linkMappings) <| "Frontend"
 
       val mains = namespacesSAST.collect:
         case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get

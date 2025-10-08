@@ -15,21 +15,6 @@ class LowerRuntime(runtime: JSRuntime)(using defn: Definitions) extends phases.P
   val BoolType = defn.BoolType
   val IntType = defn.IntType
 
-  val rewiring = Map(
-    defn.Predef_abort      -> runtime.JS_abort,
-    defn.Predef_byteToChar -> runtime.JS_byteToChar,
-    defn.Predef_byteToInt  -> runtime.JS_byteToInt,
-    defn.Predef_charToByte -> runtime.JS_charToByte,
-    defn.Predef_charToInt  -> runtime.JS_charToInt,
-    defn.Predef_charToStr  -> runtime.JS_charToStr,
-    defn.Predef_intToByte  -> runtime.JS_intToByte,
-    defn.Predef_intToChar  -> runtime.JS_intToChar,
-    defn.Predef_intToStr   -> runtime.JS_intToStr,
-    defn.Array_get         -> runtime.JS_Array_get,
-    defn.Array_set         -> runtime.JS_Array_set,
-    defn.Array_size        -> runtime.JS_Array_size,
-  )
-
   override def transformTypeApply(tapp: TypeApply)(using ctx: Context): Word =
     tapp match
       case TypeApply(ref @ Ident(sym), tpt :: Nil) =>
@@ -48,17 +33,6 @@ class LowerRuntime(runtime: JSRuntime)(using defn: Definitions) extends phases.P
 
       case _ =>
         super.transformTypeApply(tapp)
-
-  override def transformIdent(ref: Ident)(using ctx: Context): Word =
-    val sym = ref.symbol
-    if sym.isFunction then
-      // global function call
-      rewiring.get(sym) match
-        case Some(subst) => Ident(subst)(ref.span)
-        case _ => ref
-
-    else
-      ref
 
   override def transformSelect(select: Select)(using ctx: Context): Word =
     val Select(qual, name) = select
