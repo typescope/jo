@@ -1,0 +1,7 @@
+namespace stk.Main
+
+import stk.IO
+import stk.Predef.Unit
+
+// The contract for the default main
+defer def main: Unit receives IO.stdin, IO.stdout, IO.stderr = {}

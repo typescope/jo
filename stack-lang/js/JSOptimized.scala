@@ -43,24 +43,20 @@ class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
       case Some(name) => name
 
       case None =>
-        runtime.link(sym) match
-          case Some(sym) => jsName(sym)
+        val rawName = sym.fullName
+        val uniqueName =
+          if sym.isLocal then
+            localScope.freshName(encodeSymbolic(rawName))
+          else
+            globalScope.freshName(encodeSymbolic(rawName))
 
-          case None =>
-            val rawName = sym.fullName
-            val uniqueName =
-              if sym.isLocal then
-                localScope.freshName(encodeSymbolic(rawName))
-              else
-                globalScope.freshName(encodeSymbolic(rawName))
+        symbol2UniqueName(sym) = uniqueName
 
-            symbol2UniqueName(sym) = uniqueName
+        // Add function or class to work list
+        if (sym.isFunction && !sym.owner.isClass) || sym.isClass then
+          workList.add(sym)
 
-            // Add function or class to work list
-            if (sym.isFunction && !sym.owner.isClass) || sym.isClass then
-              workList.add(sym)
-
-            uniqueName
+        uniqueName
 
   //----------------------------------------------------------------------------
 

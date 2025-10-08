@@ -580,18 +580,12 @@ object Interpreter:
 
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
-      val mappings = Config.linkMap.addDefault(defaultLinkMappings)
-      val namespacesSAST = FrontEnd.run(runtimePaths, sources, mappings) <| "frontend"
+      val namespacesSAST = FrontEnd.run(runtimePaths, sources, defaultLinkMappings) <| "frontend"
 
-      val mains = namespacesSAST.collect:
-        case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get
+      locally:
+        given defn: Definitions = lazyDefn.value
+        given Runtime = new Runtime(defn)
 
-      mains match
-        case main :: _ =>
-          given defn: Definitions = lazyDefn.value
-          given Runtime = new Runtime(defn)
+        val entry = defn.resolveTermByPath("stk.runtime.Interpreter.start")
 
-          exec(namespacesSAST, main) <| "interpreter"
-
-        case Nil =>
-          Reporter.abortInternal("No main function found")
+        exec(namespacesSAST, entry) <| "interpreter"

@@ -57,39 +57,26 @@ object Compiler:
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
       val runtimes = Config.JSRuntimePath :: Nil
-      val linkMappings = Config.linkMap.addDefault(defaultLinkMappings)
-      val nss = FrontEnd.run(runtimes, sources, linkMappings) <| "Frontend"
+      val nss = FrontEnd.run(runtimes, sources, defaultLinkMappings) <| "Frontend"
 
-      val mains = nss.collect:
-        case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get
+      locally {
+        given Definitions = lazyDefn.value
 
-      mains match
-        case main :: Nil => {
-          given Definitions = lazyDefn.value
+        val jsRuntime = new JSRuntime(rootNameTable)
+        val contextParamsLower = new LowerContextParams(
+            jsRuntime.JS_hasParam,
+            jsRuntime.JS_getParam,
+            jsRuntime.JS_setParam,
+            jsRuntime.JS_delParam)
 
+        val closureConvert = new ElimCapture
+        val runtimeLowerer = new LowerRuntime(jsRuntime)
+        val backend: Step[List[Trees.Namespace], Unit] =
+          Step("Backend", new JSOptimized(outFile, jsRuntime).compile)
 
-          val jsRuntime = new JSRuntime(rootNameTable, main)
-          val contextParamsLower = new LowerContextParams(
-              jsRuntime.JS_hasParam,
-              jsRuntime.JS_getParam,
-              jsRuntime.JS_setParam,
-              jsRuntime.JS_delParam)
-
-          val closureConvert = new ElimCapture
-          val runtimeLowerer = new LowerRuntime(jsRuntime)
-          val backend: Step[List[Trees.Namespace], Unit] =
-            Step("Backend", new JSOptimized(outFile, jsRuntime).compile)
-
-          nss                 |>
-          closureConvert      |>
-          runtimeLowerer      |>
-          contextParamsLower  |>
-          backend
-        } <| "Backend"
-
-        case _ =>
-          if mains.isEmpty then
-            Reporter.abortInternal("No main function found")
-
-          else
-            Reporter.abortInternal("Multiple main function detected: " + mains)
+        nss                 |>
+        closureConvert      |>
+        runtimeLowerer      |>
+        contextParamsLower  |>
+        backend
+      } <| "Backend"

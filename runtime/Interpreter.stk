@@ -60,3 +60,7 @@ section Array
 
   def set[T](arr: Array[T], i: Int, value: T): Unit = platformCall3("setArray", arr, i, value)
 end
+
+//------------------------------------------------------------------------------
+
+def start() = stk.Main.main

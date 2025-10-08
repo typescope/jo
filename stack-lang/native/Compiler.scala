@@ -1,7 +1,6 @@
 package native
 
 import sast.*
-import sast.Symbols.Symbol
 import phases.*
 
 import reporting.Reporter
@@ -21,7 +20,7 @@ import native.arch.X86
  ***********************************************************************/
 object Compiler:
   trait BackendBuilder:
-    def createLinux86(main: Symbol)(using Reporter, Definitions): Backend
+    def createLinux86()(using Reporter, Definitions): Backend
 
   val layout: Config.StringSetting = Config.StringSetting("-layout", "c1", "memory layout, c1 or c2")
 
@@ -66,44 +65,31 @@ object Compiler:
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
       val runtimes = Config.NativeRuntimePath :: Nil
-      val linkMappings = Config.linkMap.addDefault(defaultLinkMappings)
-      val namespacesSAST = FrontEnd.run(runtimes, sources, linkMappings) <| "Frontend"
+      val namespacesSAST = FrontEnd.run(runtimes, sources, defaultLinkMappings) <| "Frontend"
 
-      val mains = namespacesSAST.collect:
-        case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get
+      locally {
+        given Definitions = lazyDefn.value
 
-      mains match
-        case main :: Nil => {
-          given Definitions = lazyDefn.value
+        val backend = backendBuilder.createLinux86()
+        val backendStep = Step("backend", backend.compile)
 
-          val backend = backendBuilder.createLinux86(main)
-          val backendStep = Step("backend", backend.compile)
+        val closureConvert = new ElimCapture
+        val contextParamsLower = new native.LowerContextParams(backend.runtime)
+        val runtimeLowerer = new native.LowerRuntime(backend.runtime)
+        val encodeClass = new native.EncodeClass
+        val explicitAlloc = new native.ExplicitAlloc(backend.runtime)
 
-          val closureConvert = new ElimCapture
-          val contextParamsLower = new native.LowerContextParams(backend.runtime)
-          val runtimeLowerer = new native.LowerRuntime(backend.runtime)
-          val encodeClass = new native.EncodeClass
-          val explicitAlloc = new native.ExplicitAlloc(backend.runtime)
+        val assembler = Step("assembler", (prog: Prog) =>
+          // println(prog.show)
+          Linux.lower(prog, layout.value, outFile, X86, backend.runtime)
+        )
 
-          val assembler = Step("assembler", (prog: Prog) =>
-            // println(prog.show)
-            Linux.lower(prog, layout.value, outFile, X86, backend.runtime)
-          )
-
-          namespacesSAST     |>
-          closureConvert     |>
-          contextParamsLower |>
-          runtimeLowerer     |>
-          encodeClass        |>
-          explicitAlloc      |>
-          backendStep        |>
-          assembler
-
-        } <| "Backend"
-
-        case _ =>
-          if mains.isEmpty then
-            Reporter.abortInternal("No main function found")
-          else
-            Reporter.abortInternal("Multiple main function detected: " + mains)
-      end match
+        namespacesSAST     |>
+        closureConvert     |>
+        contextParamsLower |>
+        runtimeLowerer     |>
+        encodeClass        |>
+        explicitAlloc      |>
+        backendStep        |>
+        assembler
+      } <| "Backend"

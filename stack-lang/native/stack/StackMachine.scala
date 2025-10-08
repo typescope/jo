@@ -481,11 +481,11 @@ object StackMachine extends native.Compiler.BackendBuilder:
           fn(r1, r2)
   end RegisterAllocator
 
-  def createLinux86(main: Symbol)(using Reporter, Definitions): Backend =
+  def createLinux86()(using Reporter, Definitions): Backend =
     val bumpAllocator = new BumpAllocator()
     val syscalls = Linux.createSyscallStack()
     val linkers = List(bumpAllocator, syscalls)
-    val runtime = new NativeRuntime(linkers, main)
+    val runtime = new NativeRuntime(linkers)
 
     new StackMachine(Linux.x86RegConfig, runtime)
 

@@ -161,6 +161,7 @@ extends Definitions.Lazy:
   val Predef_orPattern = Predef.patternMember("|")
   val Predef_Partial = Predef.typeMember("Partial")
 
+  val Main_main = resolveTermByPath("stk.Main.main")
 
   // Internal
   val Internal              =  resolveTermByPath("stk.Internal")

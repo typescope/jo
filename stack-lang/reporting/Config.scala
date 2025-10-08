@@ -83,12 +83,13 @@ object Config:
   val printAfter : Setting[List[String]] = CommaListSetting("-printAfter", "print after steps")
   val printOnly  : Setting[List[String]] = CommaListSetting("-printOnly",  "only print specified files")
 
-  val fatalWarnings : Setting[Boolean] = BooleanSetting("-fatal-warnings",  false, "should warnings are fatal")
-  val reportTime    : Setting[Boolean] = BooleanSetting("-time",            false, "whether show time report")
-  val checkTree     : Setting[Boolean] = BooleanSetting("-checkTree",       false, "whether check tree after a phase")
-  val showSteps     : Setting[Boolean] = BooleanSetting("-steps",           false, "whether display steps")
-  val testPickling  : Setting[Boolean] = BooleanSetting("-testPickling",    false, "whether test pickling")
-  val noStdLib      : Setting[Boolean] = BooleanSetting("-no-stdlib",       false, "whether disable loading stdlib")
+  val fatalWarnings : Setting[Boolean] = BooleanSetting("-fatal-warnings",  false, "warnings are fatal")
+  val reportTime    : Setting[Boolean] = BooleanSetting("-time",            false, "show time report")
+  val checkTree     : Setting[Boolean] = BooleanSetting("-checkTree",       false, "check tree after a phase")
+  val showSteps     : Setting[Boolean] = BooleanSetting("-steps",           false, "display steps")
+  val testPickling  : Setting[Boolean] = BooleanSetting("-testPickling",    false, "test pickling")
+  val noStdLib      : Setting[Boolean] = BooleanSetting("-no-stdlib",       false, "disable loading stdlib")
+  val autoMainOff   : Setting[Boolean] = BooleanSetting("-no-detect-main",  false, "disable main detection")
 
   val outFilePath: Setting[Option[String]] = OptionStringSetting("-o", "output file path")
 
@@ -118,6 +119,7 @@ object Config:
 
   //----------------------------------------------------------------------------
 
+  /** User-supplied link data from command-line */
   object linkMap extends Setting[Map[String, String]]:
     def flag = "-link"
     def spec = OptionSpec.Multi
@@ -169,22 +171,6 @@ object Config:
       end for
 
       linkMappings
-
-    /** Check for conflicts between user-supplied link mappings and compiler defaults.
-      *
-      * @param defaultMappings Compiler-defined mappings
-      * @return Combined mappings with user mappings taking precedence
-      */
-    def addDefault(defaultMappings: Map[String, String])(using Config, Reporter): Map[String, String] =
-      val userMappings = this.value
-      for (source, userTarget) <- userMappings do
-        defaultMappings.get(source) match
-          case Some(defaultTarget) if defaultTarget != userTarget =>
-            Reporter.warn(s"User-supplied link mapping ignored due to conflicts with compiler default: $source=$userTarget (was $source=$defaultTarget)")
-          case _ =>
-      end for
-
-      defaultMappings ++ userMappings
   end linkMap
 
   //----------------------------------------------------------------------------

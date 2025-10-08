@@ -36,10 +36,33 @@ class LinkRewriter(linkMap: Map[Symbol, Symbol])(using defn: Definitions, rp: Re
       ident
 
 object LinkRewriter:
+  class LinkData(mappings: Map[String, String]):
+
+    def resolve(deferMain: Symbol, userMain: Symbol)(using Reporter, Definitions): Map[Symbol, Symbol] =
+      val symMap = parseLinkMappings(mappings)
+      if symMap.contains(deferMain) then
+        Reporter.warn(s"The main function ${deferMain.fullName} is already linked to ${userMain.fullName}. Auto main detection can be turned off with -no-detect-main .")
+        symMap
+      else
+        symMap + (deferMain -> userMain)
+
+    def resolve()(using Reporter, Definitions): Map[Symbol, Symbol] =
+      parseLinkMappings(mappings)
+
+    def addUserMappings(userMappings: Map[String, String])(using Reporter): LinkData =
+      for (source, userTarget) <- userMappings do
+        mappings.get(source) match
+          case Some(target) if target != userTarget =>
+            Reporter.warn(s"User-supplied link mapping ignored due to conflicts with compiler default: $source=$userTarget (was $source=$target)")
+          case _ =>
+      end for
+
+      new LinkData(mappings ++ userMappings)
+
   /** Parse link option strings and resolve to symbol mappings.
     *
     * @param linkStrings List of "source=target" strings
-    * @param defn Definitions for symbol resolution
+    *
     * @return Map from source symbols to target symbols, validated with subtype checking
     */
   def parseLinkMappings(linkStrings: Map[String, String])(using defn: Definitions, rp: Reporter): Map[Symbol, Symbol] =

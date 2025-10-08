@@ -574,10 +574,6 @@ object Trees:
         case sec: Section => sec.foreach(f)
         case defn => f(defn)
 
-    def mainSymbol: Option[Symbol] =
-      val funs = defs.filter(defn => defn.symbol.isFunction && defn.symbol.name == "main")
-      funs.map(_.symbol).headOption
-
     def show(using Definitions): String = Printing.show(this)
 
     def source: String = symbol.sourcePos.source.file
