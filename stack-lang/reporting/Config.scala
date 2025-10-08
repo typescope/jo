@@ -175,7 +175,7 @@ object Config:
       * @param defaultMappings Compiler-defined mappings
       * @return Combined mappings with user mappings taking precedence
       */
-    def checkConflicts(userMappings: Map[String, String], defaultMappings: Map[String, String])(using Config, Reporter): Map[String, String] =
+    def addDefault(defaultMappings: Map[String, String])(using Config, Reporter): Map[String, String] =
       val userMappings = this.value
       for (source, userTarget) <- userMappings do
         defaultMappings.get(source) match

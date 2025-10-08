@@ -31,25 +31,25 @@ object Interpreter:
     "stk.Array.set"         -> "stk.runtime.Interpreter.Array.set",
     "stk.Array.size"        -> "stk.runtime.Interpreter.Array.size",
 
-    "stk.Int.add"        -> "stk.runtime.Interpreter.Int.add",
-    "stk.Int.sub"        -> "stk.runtime.Interpreter.Int.sub",
-    "stk.Int.mul"        -> "stk.runtime.Interpreter.Int.mul",
-    "stk.Int.div"        -> "stk.runtime.Interpreter.Int.div",
-    "stk.Int.mod"        -> "stk.runtime.Interpreter.Int.mod",
-    "stk.Int.gt"         -> "stk.runtime.Interpreter.Int.gt",
-    "stk.Int.lt"         -> "stk.runtime.Interpreter.Int.lt",
-    "stk.Int.ge"         -> "stk.runtime.Interpreter.Int.ge",
-    "stk.Int.le"         -> "stk.runtime.Interpreter.Int.le",
-    "stk.Int.eql"        -> "stk.runtime.Interpreter.Int.eql",
-    "stk.Int.srl"        -> "stk.runtime.Interpreter.Int.srl",
-    "stk.Int.sll"        -> "stk.runtime.Interpreter.Int.sll",
-    "stk.Int.land"       -> "stk.runtime.Interpreter.Int.land",
-    "stk.Int.lor"        -> "stk.runtime.Interpreter.Int.lor",
-    "stk.Int.lxor"       -> "stk.runtime.Interpreter.Int.lxor",
+    "stk.Int.+"        -> "stk.runtime.Interpreter.Int.add",
+    "stk.Int.-"        -> "stk.runtime.Interpreter.Int.sub",
+    "stk.Int.*"        -> "stk.runtime.Interpreter.Int.mul",
+    "stk.Int./"        -> "stk.runtime.Interpreter.Int.div",
+    "stk.Int.%"        -> "stk.runtime.Interpreter.Int.mod",
+    "stk.Int.>"        -> "stk.runtime.Interpreter.Int.gt",
+    "stk.Int.<"        -> "stk.runtime.Interpreter.Int.lt",
+    "stk.Int.>="       -> "stk.runtime.Interpreter.Int.ge",
+    "stk.Int.<="       -> "stk.runtime.Interpreter.Int.le",
+    "stk.Int.=="       -> "stk.runtime.Interpreter.Int.eql",
+    "stk.Int.>>"       -> "stk.runtime.Interpreter.Int.srl",
+    "stk.Int.<<"       -> "stk.runtime.Interpreter.Int.sll",
+    "stk.Int.&"        -> "stk.runtime.Interpreter.Int.land",
+    "stk.Int.|"        -> "stk.runtime.Interpreter.Int.lor",
+    "stk.Int.^"        -> "stk.runtime.Interpreter.Int.lxor",
 
-    "stk.Bool.both"      -> "stk.runtime.Interpreter.Bool.both",
-    "stk.Bool.either"    -> "stk.runtime.Interpreter.Bool.either",
-    "stk.Bool.not"       -> "stk.runtime.Interpreter.Bool.not",
+    "stk.Bool.both"    -> "stk.runtime.Interpreter.Bool.both",
+    "stk.Bool.either"  -> "stk.runtime.Interpreter.Bool.either",
+    "stk.Bool.!"       -> "stk.runtime.Interpreter.Bool.not",
   )
 
   //----------------------------------------------------------------------------
@@ -579,7 +579,9 @@ object Interpreter:
       val rootNameTable = new NameTable
 
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
-      val namespacesSAST = FrontEnd.run(runtimePaths, sources, Config.linkMap.value) <| "frontend"
+
+      val mappings = Config.linkMap.addDefault(defaultLinkMappings)
+      val namespacesSAST = FrontEnd.run(runtimePaths, sources, mappings) <| "frontend"
 
       val mains = namespacesSAST.collect:
         case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get

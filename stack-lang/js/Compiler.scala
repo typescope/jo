@@ -57,7 +57,7 @@ object Compiler:
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
       val runtimes = Config.JSRuntimePath :: Nil
-      val linkMappings = Config.linkMap.checkConflicts(Config.linkMap.value, defaultLinkMappings)
+      val linkMappings = Config.linkMap.addDefault(defaultLinkMappings)
       val nss = FrontEnd.run(runtimes, sources, linkMappings) <| "Frontend"
 
       val mains = nss.collect:
