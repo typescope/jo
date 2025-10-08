@@ -261,11 +261,7 @@ object Interpreter:
       case None => throw new Exception("Unknown platform call " + name)
 
   //----------------------------------------------------------------------------
-
-  def createRootEnv()(using defn: Definitions): Env =
-    val rootEnv = new Env.RootEnv()
-
-    rootEnv
+  // default params
 
   def createRuntimeContextParams()(using defn: Definitions): Map[Symbol, Value] =
     Map(
@@ -327,6 +323,8 @@ object Interpreter:
     } :: Nil
   )
 
+  //----------------------------------------------------------------------------
+
   def index(defs: List[Def])(using defn: Definitions, env: Env): Unit =
     defs.foreach:
       case fun: FunDef =>
@@ -338,7 +336,7 @@ object Interpreter:
       case _ =>
 
   def exec(nss: List[Namespace], main: Symbol)(using defn: Definitions, runtime: Runtime): Unit =
-    given Env = createRootEnv()
+    given Env = new Env.RootEnv()
     given Params = createRuntimeContextParams()
 
     for ns <- nss do index(ns.defs)
@@ -564,6 +562,8 @@ object Interpreter:
 
       case _: Match | _: TaggedLit =>
         throw new Exception("Unexpected tree: " + word.show)
+
+  //----------------------------------------------------------------------------
 
   def main(args: Array[String]): Unit =
     given Reporter = Reporter.createReporter()
