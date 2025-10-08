@@ -9,13 +9,13 @@ import stk.Predef.*
 
 type Array[T]
 
-def create[T](size: Int): Array[T] = abort("primitive Array.create")
+defer def create[T](size: Int): Array[T] = abort("primitive Array.create")
 
-def get[T](arr: Array[T], i: Int): T = abort("primitive Array.get")
+defer def get[T](arr: Array[T], i: Int): T
 
-def size[T](arr: Array[T]): Int = abort("primitive Array.size")
+defer def size[T](arr: Array[T]): Int
 
-def set[T](arr: Array[T], i: Int, value: T): Unit = abort("primitive Array.set")
+defer def set[T](arr: Array[T], i: Int, value: T): Unit
 
 def clone[T](arr: Array[T]): Array[T] =
   val arr2 = create[T] (size arr)
