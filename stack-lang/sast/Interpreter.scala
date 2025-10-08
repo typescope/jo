@@ -542,7 +542,10 @@ object Interpreter:
 
   def main(args: Array[String]): Unit =
     given Reporter = Reporter.createReporter()
+
     val (config, sources) = cli.OptionParser.parseConfig(args, Config.appOptions)
+    config.setInternal(Config.mode, Config.Mode.Application)
+
     given Config = config
 
     Reporter.monitor():
@@ -551,7 +554,7 @@ object Interpreter:
       val rootNameTable = new NameTable
 
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
-      val namespacesSAST = FrontEnd.run(runtime, sources) <| "frontend"
+      val namespacesSAST = FrontEnd.run(runtime, sources, Config.linkMap.value) <| "frontend"
 
       val mains = namespacesSAST.collect:
         case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get

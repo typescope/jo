@@ -13,7 +13,7 @@ object FrontEnd:
   type ProcessStep = Step[List[Namespace], List[Namespace]]
 
   def run
-      (runtimes: List[String], sources: List[String], linkMappings: Map[String, String] = Map.empty)
+      (runtimes: List[String], sources: List[String], linkMappings: Map[String, String])
       (using defnLazy: Definitions.Lazy, rp: Reporter, cf: Config)
   : List[Namespace] =
     val sast = sources |> Typer.parseStep |> Typer.typeStep
