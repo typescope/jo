@@ -8,7 +8,7 @@ object Naming:
     isNameStart(c) || isDigit(c)
 
   val OP_CHAR: Array[Int] = Array('+', '-', '*', '/', '%', '|', '&', '^', '>', '<', '=', ':', '?', '!', '@', '~')
-  def isOperator(c: Int): Boolean =
+  def isOperatorChar(c: Int): Boolean =
     OP_CHAR.indexOf(c) >= 0
 
   def isSpace(c: Int): Boolean =
