@@ -1,0 +1,26 @@
+// options: -link Test.Calculator.add=Test.Math.add -link Test.Calculator.multiply=Test.Math.multiply
+
+// Test deferred functions with link rewriting
+
+namespace Test
+
+section Calculator
+  defer def add(a: Int, b: Int): Int
+  defer def multiply(a: Int, b: Int): Int
+
+  def compute(x: Int, y: Int): Int =
+    val sum = add(x, y)
+    multiply(sum, 2)
+end
+
+section Math
+  def add(a: Int, b: Int): Int = a + b
+  def multiply(a: Int, b: Int): Int = a * b
+end
+
+def main =
+  val result = Calculator.compute(3, 7)
+  result p
+
+  val result2 = Calculator.compute(10, 5)
+  result2 p
