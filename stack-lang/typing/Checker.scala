@@ -17,6 +17,7 @@ import scala.collection.mutable
 
 /** Perform checks related to types  */
 class Checker(namer: Namer):
+  // TODO: remove by make it contextual in Namer
   private val delayedChecks = new mutable.ArrayBuffer[() => Unit]
   var checking = false
 
@@ -134,17 +135,20 @@ class Checker(namer: Namer):
     if mods.isEmpty then return Flags.empty
 
     var flags = Flags.empty
-    mods.foreach:
-      case _: Ast.Modifier.Auto =>
-        flags = flags | Flags.Auto
-
-      case mod =>
-        Reporter.error("Not support the modifier " + mod.show, mod.pos)
 
     defn match
       case fdef: Ast.FunDef =>
         mods.foreach:
           case _: Ast.Modifier.Auto =>
+            flags = flags | Flags.Auto
+
+          case _: Ast.Modifier.Defer =>
+            flags = flags | Flags.Defer
+
+            // Deferred function with default implementation
+            if !fdef.body.isEmptyBlock then
+              flags = flags | Flags.Default
+
           case mod =>
             Reporter.error("The modifier " + mod.show + " is not allowed for function definition", mod.pos)
 
@@ -158,6 +162,8 @@ class Checker(namer: Namer):
       case vdef: Ast.ValDef =>
         mods.foreach:
           case _: Ast.Modifier.Auto =>
+            flags = flags | Flags.Auto
+
           case mod =>
             Reporter.error("The modifier " + mod.show + " is not allowed for value definition", mod.pos)
 
@@ -193,6 +199,8 @@ class Checker(namer: Namer):
         val kind = adef.kind
         mods.foreach:
           case _: Ast.Modifier.Auto if kind == Ast.AliasKind.Def =>
+            flags = flags | Flags.Auto
+
           case mod =>
             Reporter.error(s"The modifier ${mod.show} is not allowed for alias $kind definition", mod.pos)
     end match

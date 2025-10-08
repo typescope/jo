@@ -1,4 +1,4 @@
-auto pattern Pos(x: Int): Partial[Int] =
+auto pattern Pos: Partial[Int] =
   case x if x > 0
 
 auto def foo(x: Int): Int = x
@@ -10,3 +10,34 @@ auto param x: Int  // disallow for now
 auto type A = Int
 
 auto data Point(x: Int, y: Int)
+
+section TestDefer
+  defer def good(x: Int): Bool
+
+  defer def nice(x: Int): Bool = x > 60
+
+  defer def foo(x: Int)
+
+  defer def bar(x: Int) = x > 60
+
+  defer pattern Neg: Partial[Int] =
+    case x if x > 0
+
+  defer type B = Int
+
+  defer section B
+
+  defer class C
+
+  defer param x: Int
+
+  // class List
+    // defer val x: Int
+
+    // defer def List(a: Int) = { x = a }
+
+    // defer def foo(x: Int): Int
+
+    // defer def bar(x: Int): Int = x * 5
+  // end
+end

@@ -43,7 +43,7 @@ object Trees:
         case Ident(sym) =>
           // Be more cautious with mutable variables and context parameters
           !sym.is(Flags.Mutable)
-          && !sym.isAllOf(Flags.Context | Flags.Param)
+          && !sym.isAllOf(Flags.Context)
 
         case Select(qual, _) => qual.isIdempotent
 

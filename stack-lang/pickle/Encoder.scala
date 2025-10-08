@@ -443,7 +443,7 @@ object Encoder:
 
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
-      encodeFlags(defSym.flags & (Flags.Pattern | Flags.Fun | Flags.Context | Flags.Param | Flags.Auto))
+      encodeFlags(defSym.flags & (Flags.Pattern | Flags.Fun | Flags.Context | Flags.Auto))
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
       encodeWord(adef.target, absoluteStart)
@@ -503,7 +503,7 @@ object Encoder:
 
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
-      encodeFlags(defSym.flags & (Flags.Auto | Flags.Synthetic))
+      encodeFlags(defSym.flags & (Flags.Auto | Flags.Synthetic | Flags.Defer | Flags.Default))
 
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)

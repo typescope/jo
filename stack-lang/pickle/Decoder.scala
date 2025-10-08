@@ -331,7 +331,7 @@ object Decoder:
 
     val id = decodeNat()
     val name = decodeString()
-    val flags = decodeFlags() | Flags.Context | Flags.Param
+    val flags = decodeFlags() | Flags.Context
 
     val symStartDelta = decodeInt()
     val symSpanLength = decodeNat()

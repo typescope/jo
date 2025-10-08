@@ -360,7 +360,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         Some(block(token.indent))
       else
         None
-    ParamDef(id, tpt, default)(token.span | tpt.span)
+    ParamDef(id, tpt, default)(token.span | tpt.span).withMods(mods)
 
   def patDef(mods: List[Modifier]): PatDef =
     val pat = eat(Token.PATTERN)

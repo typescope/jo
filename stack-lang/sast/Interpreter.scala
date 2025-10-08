@@ -415,7 +415,7 @@ object Interpreter:
         exec(block)
 
       case Ident(sym) =>
-        if sym.isAllOf(Flags.Param | Flags.Context) then
+        if sym.is(Flags.Context) then
           params.get(sym) match
             case Some(v) => v :: Nil
             case None =>

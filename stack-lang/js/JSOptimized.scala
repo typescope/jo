@@ -277,7 +277,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
         ~ cont()
 
       case Ident(sym) =>
-        assert(!sym.isAllOf(Flags.Context | Flags.Param), "Unexpected context parameter")
+        assert(!sym.is(Flags.Context), "Unexpected context parameter")
         cont(Text(sym), sideEffect = sym.isMutable)
 
       case _: TypeDef =>

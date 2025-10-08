@@ -38,7 +38,7 @@ class LowerContextParams(runtime: NativeRuntime)(using defn: Definitions) extend
 
   override def transformIdent(word: Ident)(using ctx: Context): Word =
     word match
-      case Ident(sym) if sym.isAllOf(Flags.Context | Flags.Param) =>
+      case Ident(sym) if sym.is(Flags.Context) =>
         // Use AnyType instead String to avoid creating String and make sure its address is static
         // At runtime, it's a byte array initialized in the constant area
         val paramName = sym.fullName
