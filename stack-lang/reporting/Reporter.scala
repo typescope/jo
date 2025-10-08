@@ -154,6 +154,12 @@ object Reporter:
   def warn(message: String, pos: SourcePosition, trace: Trace)(using rp: Reporter): Unit =
     rp.warn(message, pos, trace)
 
+  def error(message: String)(using rp: Reporter): Unit =
+    rp.error(message)
+
+  def warn(message: String)(using rp: Reporter): Unit =
+    rp.warn(message)
+
   def reports(using rp: Reporter): List[Diagnostic] = rp.reports
 
   def source(file: String)(using rp: Reporter): Source = rp.getSource(file)

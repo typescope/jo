@@ -24,35 +24,30 @@ object Compiler:
   trait BackendBuilder:
     def createLinux86(main: Symbol)(using Reporter, Definitions): Backend
 
-  val additionalOptions = Map(
-    "-layout" -> cli.OptionParser.OptionSpec.Single,
-  )
+  val layout: Config.StringSetting = Config.StringSetting("-layout", "c1", "memory layout, c1 or c2")
 
   def compile(backendBuilder: BackendBuilder, args: Array[String]): Unit =
-    val opts = cli.OptionParser.parseCompilerOptions(args, Mode.Application, additionalOptions)
-
-    if opts.sources.isEmpty then
-      println("Expect source file as input")
-      return
-
-    val outFile = opts.outFile.getOrElse {
-      if opts.sources.size == 1 then
-        IO.fileNameNoExt(opts.sources.head)
-      else
-        "out"
-    }
-
-    val layout = cli.OptionParser.getOption(opts.options, "-layout").getOrElse("c1")
-
-    val rootNameTable = new NameTable
-
-    given Config = opts.config
-
     Reporter.monitor:
+      val (config, sources) = cli.OptionParser.parseConfig(args, layout :: Config.appOptions)
+
+      if sources.isEmpty then
+        println("Expect source file as input")
+        return
+
+      given Config = config
+
+      val outFile = Config.outFilePath.value.getOrElse {
+        if opts.sources.size == 1 then
+          IO.fileNameNoExt(opts.sources.head)
+        else
+          "out"
+      }
+
+      val rootNameTable = new NameTable
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
       val runtimes = Config.NativeRuntimePath :: Nil
-      val namespacesSAST = FrontEnd.run(runtimes, opts.sources, opts.linkMappings) <| "Frontend"
+      val namespacesSAST = FrontEnd.run(runtimes, sources) <| "Frontend"
 
       val mains = namespacesSAST.collect:
         case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get
@@ -72,7 +67,7 @@ object Compiler:
 
           val assembler = Step("assembler", (prog: Prog) =>
             // println(prog.show)
-            Linux.lower(prog, layout, outFile, X86, backend.runtime)
+            Linux.lower(prog, layout.value, outFile, X86, backend.runtime)
           )
 
           namespacesSAST     |>

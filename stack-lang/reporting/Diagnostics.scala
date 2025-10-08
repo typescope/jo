@@ -22,9 +22,10 @@ object Diagnostics:
   class UnpositionedReportItem(val kind: Kind, val message: String)
   extends Diagnostic:
     val positioned = false
-    val pos = NoPosition
-    override def toString() =
-      s"---------- $kind ---------------\n$message"
+
+    def pos = throw new Exception("No position for the report: " + this)
+
+    override def toString() = s"[$kind]$message"
 
   //----------------------------------------------------------------------------
   //

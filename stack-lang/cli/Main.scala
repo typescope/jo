@@ -21,7 +21,7 @@ object Main:
 
         flags.backend match
           case Backend.JS =>
-            js.compile(flags.args)
+            js.Compiler.main(flags.args)
 
           case Backend.LinuxX86Stack =>
             native.stack.StackMachine.main(flags.args)

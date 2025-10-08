@@ -31,13 +31,10 @@ object FrontEnd:
 
       val allNss = nss ++ linkNss
 
-      // Apply link rewriting if link mappings provided
-      if linkMappings.nonEmpty then
-        val symbolMap = LinkRewriter.parseLinkMappings(linkMappings)
-        val rewriter = new LinkRewriter(symbolMap)
-        rewriter.transform(allNss)
-      else
-        allNss
+      // Apply link rewriting and check that all deferred functions are provided
+      val symbolMap = LinkRewriter.parseLinkMappings(linkMappings)
+      val rewriter = new LinkRewriter(symbolMap)
+      rewriter.transform(allNss)
     })
 
   def translateStep(using defn: Definitions, rp: Reporter, cf: Config): ProcessStep =

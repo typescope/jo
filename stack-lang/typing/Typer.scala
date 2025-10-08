@@ -118,9 +118,9 @@ object Typer:
     })
 
   def main(args: Array[String]): Unit =
-    val (options, sources) = cli.OptionParser.parseOptions(args, cli.OptionParser.commonOptions)
+    val (config, sources) = cli.OptionParser.parseConfig(args, Config.commonOptions)
 
-    given config: Config = cli.OptionParser.buildConfig(options, Mode.Library)
+    given Config = config
 
     Reporter.monitor:
       val rootNameTable = new NameTable
