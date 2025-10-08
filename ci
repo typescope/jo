@@ -74,8 +74,16 @@ for item in $DIR/tests/pos/*; do
         touch "$CHECK"
     fi
 
+    # Read options from first line if present
+    OPTIONS=""
+    first_line=$(head -n 1 "$file")
+    if [[ $first_line == "// options:"* ]]; then
+        OPTIONS=${first_line#"// options:"}
+        OPTIONS=$(echo $OPTIONS | xargs)  # trim whitespace
+    fi
+
     echo "  - eval"
-    bin/jo run -testPickling $file > $OUT 2>&1
+    bin/jo run -testPickling $file $OPTIONS > $OUT 2>&1
     check $OUT $CHECK
 
     # Ast interpreter
@@ -84,25 +92,25 @@ for item in $DIR/tests/pos/*; do
 
     # # layout 1
     echo "  - stac layout c1"
-    bin/jo build -stack $file -checkTree -o $exe -layout c1
+    bin/jo build -stack $file -checkTree -o $exe -layout c1 $OPTIONS
     $exe > $OUT 2>&1
     check $OUT $CHECK
 
     # layout 2
     echo "  - stac layout c2"
-    bin/jo build -stack $file -checkTree -o $exe -layout c2
+    bin/jo build -stack $file -checkTree -o $exe -layout c2 $OPTIONS
     $exe > $OUT 2>&1
     check $OUT $CHECK
 
     # fast linux
     echo "  - regc"
-    bin/jo build -reg $file -checkTree -o $exe
+    bin/jo build -reg $file -checkTree -o $exe $OPTIONS
     $exe > $OUT 2>&1
     check $OUT $CHECK
 
     # JavaScript
     echo "  - jsc"
-    bin/jo build -js $file -checkTree -o $js
+    bin/jo build -js $file -checkTree -o $js $OPTIONS
     node $js > $OUT 2>&1
     check $OUT $CHECK
 done
@@ -138,7 +146,15 @@ for item in $DIR/tests/warn/*; do
 
     echo "testing $item"
 
-    bin/jo build -js -fatal-warnings $file > $OUT
+    # Read options from first line if present
+    OPTIONS=""
+    first_line=$(head -n 1 "$file")
+    if [[ $first_line == "// options:"* ]]; then
+        OPTIONS=${first_line#"// options:"}
+        OPTIONS=$(echo $OPTIONS | xargs)  # trim whitespace
+    fi
+
+    bin/jo build -js -fatal-warnings $file $OPTIONS > $OUT
     check $OUT $CHECK
 done
 
