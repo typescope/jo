@@ -1,0 +1,13 @@
+// Test that deferred function without link binding produces a warning
+
+namespace Test
+
+section Service
+  defer def doWork(): Int
+
+  def process(): Int =
+    doWork() + 10
+end
+
+def main =
+  Service.process() p
