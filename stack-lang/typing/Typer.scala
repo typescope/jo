@@ -30,12 +30,12 @@ object Typer:
 
       effectCheck.transform(nss)
 
-      if cf.testPickling then
+      if cf.testPickling.value then
         given Definitions = defnLazy.value
 
         val outDir = "out/sast"
         IO.ensureExists(outDir)
-        for ns <- nss do pickle.Encoder.store(ns, outDir, cf.testPickling)
+        for ns <- nss do pickle.Encoder.store(ns, outDir, cf.testPickling.value)
       end if
 
     if libs.isEmpty then
@@ -104,13 +104,13 @@ object Typer:
   def typeStep(using config: Config, lazyDefn: Definitions.Lazy, rp: Reporter): Step[List[Ast.Namespace], List[Namespace]] =
 
     Step("Namer", (nssAst: List[Ast.Namespace]) => {
-      val res = check(nssAst, config.libPaths)
+      val res = check(nssAst, config.libPaths.value)
 
-      if config.checkTree then
+      if config.checkTree.value then
         given Definitions = lazyDefn.value
         TreeChecker.check(res)
 
-      if config.printAfter.contains("Namer") then
+      if config.printAfter.value.contains("Namer") then
         given Definitions = lazyDefn.value
         Printing.print(res.filter(shouldPrint))
 
