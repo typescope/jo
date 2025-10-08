@@ -14,6 +14,9 @@ import reporting.Reporter
 class LinkRewriter(linkMap: Map[Symbol, Symbol])(using defn: Definitions, rp: Reporter) extends Phase[Unit]:
   val contextObject = Phase.DummyContext
 
+  // Track which deferred functions have already been reported to avoid duplicate errors
+  private val reportedErrors = scala.collection.mutable.Set.empty[Symbol]
+
   override def transformIdent(ident: Ident)(using ctx: Context): Word =
     val sym = ident.symbol
 
@@ -25,8 +28,9 @@ class LinkRewriter(linkMap: Map[Symbol, Symbol])(using defn: Definitions, rp: Re
           Ident(targetSym)(ident.span)
         case None =>
           // Check if deferred function has a default implementation
-          if !sym.is(Flags.Default) then
+          if !sym.is(Flags.Default) && !reportedErrors.contains(sym) then
             rp.error(s"Deferred function ${sym.fullName} has no default implementation and is not linked")
+            reportedErrors.add(sym)
           ident
     else
       ident
