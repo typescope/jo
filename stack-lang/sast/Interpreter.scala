@@ -543,13 +543,15 @@ object Interpreter:
         throw new Exception("Unexpected tree: " + word.show)
 
   def main(args: Array[String]): Unit =
+    given Reporter = Reporter.createReporter()
     val (config, sources) = cli.OptionParser.parseConfig(args, Config.appOptions)
     given Config = config
 
-    val runtime = Nil
-    val rootNameTable = new NameTable
+    Reporter.monitor():
 
-    Reporter.monitor:
+      val runtime = Nil
+      val rootNameTable = new NameTable
+
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
       val namespacesSAST = FrontEnd.run(runtime, sources) <| "frontend"
 

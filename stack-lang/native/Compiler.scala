@@ -27,14 +27,15 @@ object Compiler:
   val layout: Config.StringSetting = Config.StringSetting("-layout", "c1", "memory layout, c1 or c2")
 
   def compile(backendBuilder: BackendBuilder, args: Array[String]): Unit =
-    Reporter.monitor:
-      val (config, sources) = cli.OptionParser.parseConfig(args, layout :: Config.appOptions)
+    given Reporter = Reporter.createReporter()
+    val (config, sources) = cli.OptionParser.parseConfig(args, layout :: Config.appOptions)
+    given Config = config
 
+    Reporter.monitor():
       if sources.isEmpty then
         println("Expect source file as input")
         return
 
-      given Config = config
 
       val outFile = Config.outFilePath.value.getOrElse {
         if sources.size == 1 then

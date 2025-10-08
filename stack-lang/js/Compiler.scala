@@ -16,14 +16,14 @@ import reporting.Config
  ***********************************************************************/
 object Compiler:
   def main(args: Array[String]): Unit =
-    Reporter.monitor:
-      val (config, sources) = cli.OptionParser.parseConfig(args, Config.appOptions)
+    given Reporter = Reporter.createReporter()
+    val (config, sources) = cli.OptionParser.parseConfig(args, Config.appOptions)
+    given Config = config
 
+    Reporter.monitor():
       if sources.isEmpty then
         println("Expect source file as input")
         return
-
-      given Config = config
 
       val outFile = Config.outFilePath.value.getOrElse{
         if sources.size == 1 then

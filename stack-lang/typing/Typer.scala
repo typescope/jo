@@ -118,11 +118,12 @@ object Typer:
     })
 
   def main(args: Array[String]): Unit =
+    given Reporter = Reporter.createReporter()
     val (config, sources) = cli.OptionParser.parseConfig(args, Config.commonOptions)
-
     given Config = config
 
-    Reporter.monitor:
+    Reporter.monitor():
+
       val rootNameTable = new NameTable
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 

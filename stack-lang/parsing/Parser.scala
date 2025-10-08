@@ -31,8 +31,11 @@ import scala.collection.mutable
 
 object Parser:
   def main(args: Array[String]): Unit =
-    Reporter.monitor:
-      val (_, sources) = cli.OptionParser.parseConfig(args, options = Nil)
+    given Reporter = Reporter.createReporter()
+    val (config, sources) = cli.OptionParser.parseConfig(args, options = Nil)
+    given Config = config
+
+    Reporter.monitor():
 
       val nss = Parser.parse(sources)
       for ns <- nss do

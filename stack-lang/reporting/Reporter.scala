@@ -111,8 +111,7 @@ object Reporter:
     val reported = new mutable.ArrayBuffer[Diagnostic]
     new Reporter(reported, buffer, sources)
 
-  def monitor[T](fn: Reporter ?=> Unit)(using cf: Config): Unit =
-    given reporter: Reporter = createReporter()
+  def monitor()(fn: Reporter ?=> Unit)(using config: Config, reporter: Reporter): Unit =
     try
       timeout(100) { fn }  <| "total"
       if Config.reportTime.value then Timer.report()
