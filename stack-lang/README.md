@@ -52,6 +52,7 @@ Lexical Grammar
     RECEIVES = "receives".
     PATTERN  = "pattern".
     AUTO     = "auto".
+    DEFER    = "defer".
     name     = (letter | USCORE) {letter | digit | USCORE}.
     operator = opchar { opchar }.
     ident    = name | operator.
@@ -146,11 +147,11 @@ Abstract Syntax
 
     sequence_pattern = LBRACK [expr_pattern {, expr_pattern}] RBRACK.
 
-    modifier = AUTO.
+    modifier = AUTO | DEFER.
 
     valdef  = {modifier} (VAL | VAR) ident [COLON type] EQL block.
 
-    fundef  = {modifier} DEF [param_section] ident [tparams] [param_section] [auto_section] [COLON type] [receive_params] EQL block [END].
+    fundef  = {modifier} DEF [param_section] ident [tparams] [param_section] [auto_section] [COLON type] [receive_params] [EQL block] [END].
 
     classdef = {modifier} class ident [tparams] {defdef | val_decl} [END].
 
