@@ -32,17 +32,17 @@ object Compiler:
         namespacesSAST |> pickler
 
   def main(args: Array[String]): Unit =
-    val optionSpec = Config.commonOptionsSpec + ("-d" -> true)
-    val (options, sources) = IO.parseOptions(args, optionSpec)
+    val additionalOptions = Map("-d" -> cli.OptionParser.OptionSpec.Single)
+    val (options, sources) = cli.OptionParser.parseOptions(args, cli.OptionParser.commonOptions ++ additionalOptions)
 
     if sources.isEmpty then
       println("Error: No source files provided")
       System.exit(1)
 
     // Default target directory to current directory
-    val targetDir = options.getOrElse("-d", ".")
+    val targetDir = cli.OptionParser.getOption(options, "-d").getOrElse(".")
     IO.ensureExists(targetDir)
 
-    given Config = Config(options, Mode.Library)
+    given Config = cli.OptionParser.buildConfig(options, Mode.Library)
 
     compile(sources, targetDir)

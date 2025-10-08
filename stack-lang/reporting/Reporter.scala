@@ -60,6 +60,12 @@ extends KeyProps.Container:
   def warn(message: String, pos: SourcePosition, trace: Trace): Unit =
     report(Kind.Warning, message, pos, trace)
 
+  def error(message: String): Unit =
+    report(new UnpositionedReportItem(Kind.Error, message))
+
+  def warn(message: String): Unit =
+    report(new UnpositionedReportItem(Kind.Warning, message))
+
   def hasErrors: Boolean = reported.exists(_.kind == Kind.Error)
 
   def hasWarnings: Boolean = reported.exists(_.kind == Kind.Warning)

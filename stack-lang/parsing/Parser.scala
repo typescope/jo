@@ -31,8 +31,8 @@ import scala.collection.mutable
 
 object Parser:
   def main(args: Array[String]): Unit =
-    val (options, sources) = IO.parseOptions(args, Config.commonOptionsSpec)
-    given Config = Config(options, Mode.Library)
+    val (options, sources) = cli.OptionParser.parseOptions(args, cli.OptionParser.commonOptions)
+    given Config = cli.OptionParser.buildConfig(options, Mode.Library)
 
     Reporter.monitor:
       val nss = Parser.parse(sources)

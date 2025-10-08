@@ -9,7 +9,7 @@ import reporting.Reporter
 final class Definitions(nameTable: NameTable, initProvider: InfoProvider)
 extends Definitions.Lazy:
 
-  export nameTable.{ resolveTermByPath, resolveTypeByPath, resolvePatternByPath }
+  export nameTable.{ resolveTermByPath, resolveTermByPathOpt, resolveTypeByPath, resolvePatternByPath }
 
   export nameTable.{ resolveTermByPathParts, resolveTypeByPathParts, resolvePatternByPathParts }
 

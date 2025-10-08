@@ -1,3 +1,5 @@
+package cli
+
 object Main:
   def main(args: Array[String]): Unit =
     if args.isEmpty then
@@ -19,7 +21,7 @@ object Main:
 
         flags.backend match
           case Backend.JS =>
-            js.compile(flags.args*)
+            js.compile(flags.args)
 
           case Backend.LinuxX86Stack =>
             native.stack.StackMachine.main(flags.args)
@@ -93,6 +95,8 @@ object Main:
       |  -o <out>        Output file path
       |  -lib <dirs>     Use precompiled libraries (colon-separated, in dependency order)
       |                  Example: -lib build/core:build/utils
+      |  -link <src=tgt> Redirect symbol references (can be specified multiple times)
+      |                  Example: -link stk.Predef.entry=Test.main
       |
       |Build-lib options:
       |  -d <dir>        Output directory for .sast files (optional, defaults to current dir)

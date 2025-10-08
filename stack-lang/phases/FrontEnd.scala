@@ -13,23 +13,31 @@ object FrontEnd:
   type ProcessStep = Step[List[Namespace], List[Namespace]]
 
   def run
-      (runtimes: List[String], sources: List[String])
+      (runtimes: List[String], sources: List[String], linkMappings: Map[String, String] = Map.empty)
       (using defnLazy: Definitions.Lazy, rp: Reporter, cf: Config)
   : List[Namespace] =
     val sast = sources |> Typer.parseStep |> Typer.typeStep
 
     locally:
       given Definitions = defnLazy.value
-      sast |> linkStep(runtimes) |> translateStep
+      sast |> linkStep(runtimes, linkMappings) |> translateStep
 
-  def linkStep(packages: List[String])
+  def linkStep(packages: List[String], linkMappings: Map[String, String] = Map.empty)
       (using defn: Definitions, rp: Reporter, cf: Config)
   : ProcessStep =
     Step("Link", (nss: List[Namespace]) => {
       val linkNss = packages.flatMap: pkg =>
          pickle.Decoder.loadPackage(pkg) <| "link " + pkg
 
-      nss ++ linkNss
+      val allNss = nss ++ linkNss
+
+      // Apply link rewriting if link mappings provided
+      if linkMappings.nonEmpty then
+        val symbolMap = LinkRewriter.parseLinkMappings(linkMappings)
+        val rewriter = new LinkRewriter(symbolMap)
+        rewriter.transform(allNss)
+      else
+        allNss
     })
 
   def translateStep(using defn: Definitions, rp: Reporter, cf: Config): ProcessStep =

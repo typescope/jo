@@ -16,6 +16,18 @@ object Diagnostics:
 
   //----------------------------------------------------------------------------
   //
+  // Unpositioned report
+  //
+
+  class UnpositionedReportItem(val kind: Kind, val message: String)
+  extends Diagnostic:
+    val positioned = false
+    val pos = NoPosition
+    override def toString() =
+      s"---------- $kind ---------------\n$message"
+
+  //----------------------------------------------------------------------------
+  //
   // Positioned report
   //
 

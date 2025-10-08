@@ -543,8 +543,8 @@ object Interpreter:
         throw new Exception("Unexpected tree: " + word.show)
 
   def main(args: Array[String]): Unit =
-    val (options, sources) = IO.parseOptions(args, Config.commonOptionsSpec)
-    given Config = Config(options, Mode.Application)
+    val (options, sources) = cli.OptionParser.parseOptions(args, cli.OptionParser.commonOptions)
+    given Config = cli.OptionParser.buildConfig(options, Mode.Application)
 
     val runtime = Nil
     val rootNameTable = new NameTable

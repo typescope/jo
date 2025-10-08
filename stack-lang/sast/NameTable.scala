@@ -51,14 +51,23 @@ class NameTable(
   def resolveByPath(path: String)(using Definitions.Lazy): List[Symbol] =
     resolveByPathParts(path.split('.').toList)
 
+  def resolveTermByPathOpt(path: String)(using Definitions.Lazy): Option[Symbol] =
+    resolveByPath(path).filter(!_.isOneOf(Flags.Pattern | Flags.Type)).headOption
+
   def resolveTermByPath(path: String)(using Definitions.Lazy): Symbol =
-    resolveByPath(path).filter(!_.isOneOf(Flags.Pattern | Flags.Type)).head
+    resolveTermByPathOpt(path).head
+
+  def resolvePatternByPathOpt(path: String)(using Definitions): Option[Symbol] =
+    resolveByPath(path).filter(_.is(Flags.Pattern)).headOption
 
   def resolvePatternByPath(path: String)(using Definitions): Symbol =
-    resolveByPath(path).filter(_.is(Flags.Pattern)).head
+    resolvePatternByPathOpt(path).head
+
+  def resolveTypeByPathOpt(path: String)(using Definitions.Lazy): Option[Symbol] =
+    resolveByPath(path).filter(_.is(Flags.Type)).headOption
 
   def resolveTypeByPath(path: String)(using Definitions.Lazy): Symbol =
-    resolveByPath(path).filter(_.is(Flags.Type)).head
+    resolveTypeByPathOpt(path).head
 
   def resolveTermByPathParts(parts: List[String])(using Definitions.Lazy): Symbol =
     resolveByPathParts(parts).filter(!_.isOneOf(Flags.Pattern | Flags.Type)).head

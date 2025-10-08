@@ -16,25 +16,21 @@ import reporting.Mode
  *
  ***********************************************************************/
 @main
-def compile(args: String*): Unit =
-  val optionSpec = Config.commonOptionsSpec + ("-o" -> true)
+def compile(args: Array[String]): Unit =
+  val opts = cli.OptionParser.parseCompilerOptions(args, Mode.Application)
 
-  val (options, sources) = IO.parseOptions(args, optionSpec)
-
-  if sources.isEmpty then
+  if opts.sources.isEmpty then
     println("Expect source file as input")
     return
 
-  val outFile =
-    options.get("-o") match
-      case Some(file) => file
-      case None =>
-        if sources.size == 1 then
-          IO.fileNameNoExt(sources.head) + ".js"
-        else
-          "out.js"
+  val outFile = opts.outFile.getOrElse {
+    if opts.sources.size == 1 then
+      IO.fileNameNoExt(opts.sources.head) + ".js"
+    else
+      "out.js"
+  }
 
-  given Config = Config(options, Mode.Application)
+  given Config = opts.config
 
   Reporter.monitor:
 
@@ -43,7 +39,7 @@ def compile(args: String*): Unit =
     given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
     val runtimes = Config.JSRuntimePath :: Nil
-    val nss = FrontEnd.run(runtimes, sources) <| "Frontend"
+    val nss = FrontEnd.run(runtimes, opts.sources, opts.linkMappings) <| "Frontend"
 
     val mains = nss.collect:
       case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get

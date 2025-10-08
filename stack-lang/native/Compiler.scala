@@ -24,39 +24,35 @@ object Compiler:
   trait BackendBuilder:
     def createLinux86(main: Symbol)(using Reporter, Definitions): Backend
 
-  val optionSpec = Config.commonOptionsSpec ++ Map(
-    "-o" -> true,
-    "-layout" -> true,
+  val additionalOptions = Map(
+    "-layout" -> cli.OptionParser.OptionSpec.Single,
   )
 
   def compile(backendBuilder: BackendBuilder, args: Array[String]): Unit =
-    val (options, sources) = IO.parseOptions(args, optionSpec)
+    val opts = cli.OptionParser.parseCompilerOptions(args, Mode.Application, additionalOptions)
 
-    if sources.isEmpty then
+    if opts.sources.isEmpty then
       println("Expect source file as input")
       return
 
-    val outFile =
-      options.get("-o") match
-        case Some(file) => file
-        case None =>
-          if sources.size == 1 then
-            IO.fileNameNoExt(sources.head)
-          else
-            "out"
+    val outFile = opts.outFile.getOrElse {
+      if opts.sources.size == 1 then
+        IO.fileNameNoExt(opts.sources.head)
+      else
+        "out"
+    }
 
-    val layout = options.getOrElse("-layout", "c1")
+    val layout = cli.OptionParser.getOption(opts.options, "-layout").getOrElse("c1")
 
     val rootNameTable = new NameTable
 
-
-    given Config = Config(options, Mode.Application)
+    given Config = opts.config
 
     Reporter.monitor:
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
       val runtimes = Config.NativeRuntimePath :: Nil
-      val namespacesSAST = FrontEnd.run(runtimes, sources) <| "Frontend"
+      val namespacesSAST = FrontEnd.run(runtimes, opts.sources, opts.linkMappings) <| "Frontend"
 
       val mains = namespacesSAST.collect:
         case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get
