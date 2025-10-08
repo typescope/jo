@@ -8,10 +8,22 @@ import reporting.Reporter
 
 final class Definitions(nameTable: NameTable, initProvider: InfoProvider)
 extends Definitions.Lazy:
+  //----------------------------------------------------------------------------
+  // Info provider for symbols
+  //
+  given Definitions = this
 
-  export nameTable.{ resolveTermByPath, resolveTermByPathOpt, resolveTypeByPath, resolvePatternByPath }
+  //----------------------------------------------------------------------------
+  // Name lookup
 
-  export nameTable.{ resolveTermByPathParts, resolveTypeByPathParts, resolvePatternByPathParts }
+  def resolveTermByPath(path: String): Symbol = nameTable.resolveTermByPath(path)
+  def resolveTermByPathOpt(path: String): Option[Symbol] = nameTable.resolveTermByPathOpt(path)
+  def resolveTypeByPath(path: String): Symbol = nameTable.resolveTypeByPath(path)
+  def resolvePatternByPath(path: String): Symbol = nameTable.resolvePatternByPath(path)
+
+  def resolveTermByPathParts(parts: List[String]): Symbol = nameTable.resolveTermByPathParts(parts)
+  def resolveTypeByPathParts(parts: List[String]): Symbol = nameTable.resolveTypeByPathParts(parts)
+  def resolvePatternByPathParts(parts: List[String]): Symbol = nameTable.resolvePatternByPathParts(parts)
 
   //----------------------------------------------------------------------------
   // Definitions.Lazy implementation
@@ -20,11 +32,6 @@ extends Definitions.Lazy:
   def rootNameTable: NameTable = nameTable
   def infoProvider: InfoProvider = provider
   def value: Definitions = this
-
-  //----------------------------------------------------------------------------
-  // Info provider for symbols
-  //
-  given Definitions = this
 
   private var provider: InfoProvider = initProvider
 

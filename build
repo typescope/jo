@@ -24,6 +24,10 @@ chmod +x bin/jo
 STDLIB=sast/stdlib
 bin/jo build-lib -testPickling -no-stdlib lib/*.stk -d $STDLIB
 
+# build interpreter runtime
+INT_RUNTIME=sast/runtime/interpreter
+bin/jo build-lib -testPickling runtime/Interpreter.stk -d $INT_RUNTIME
+
 # build JS runtime
 JS_RUNTIME=sast/runtime/js
 bin/jo build-lib -testPickling runtime/JS.stk -d $JS_RUNTIME

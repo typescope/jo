@@ -244,5 +244,8 @@ object Config:
   lazy val NativeRuntimePath: String =
     java.nio.file.Paths.get(rootDir, "sast/runtime/native").toString
 
+  lazy val InterpreterRuntimePath: String =
+    java.nio.file.Paths.get(rootDir, "sast/runtime/interpreter").toString
+
   lazy val StdLibPath: String =
     java.nio.file.Paths.get(rootDir, "sast/stdlib").toString

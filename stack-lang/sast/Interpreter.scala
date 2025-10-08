@@ -13,6 +13,55 @@ import reporting.Config
 
 /** An interpreter for S-AST */
 object Interpreter:
+
+  //----------------------------------------------------------------------------
+  // Default link mappings for Interpreter runtime
+  val defaultLinkMappings = Map(
+    "stk.Predef.abort"      -> "stk.runtime.Interpreter.abort",
+    "stk.Predef.byteToChar" -> "stk.runtime.Interpreter.byteToChar",
+    "stk.Predef.byteToInt"  -> "stk.runtime.Interpreter.byteToInt",
+    "stk.Predef.charToByte" -> "stk.runtime.Interpreter.charToByte",
+    "stk.Predef.charToInt"  -> "stk.runtime.Interpreter.charToInt",
+    "stk.Predef.charToStr"  -> "stk.runtime.Interpreter.charToStr",
+    "stk.Predef.intToByte"  -> "stk.runtime.Interpreter.intToByte",
+    "stk.Predef.intToChar"  -> "stk.runtime.Interpreter.intToChar",
+    "stk.Predef.intToStr"   -> "stk.runtime.Interpreter.intToStr",
+    "stk.Array.create"      -> "stk.runtime.Interpreter.Array.create",
+    "stk.Array.get"         -> "stk.runtime.Interpreter.Array.get",
+    "stk.Array.set"         -> "stk.runtime.Interpreter.Array.set",
+    "stk.Array.size"        -> "stk.runtime.Interpreter.Array.size",
+
+    "stk.Int.add"        -> "stk.runtime.Interpreter.Int.add",
+    "stk.Int.sub"        -> "stk.runtime.Interpreter.Int.sub",
+    "stk.Int.mul"        -> "stk.runtime.Interpreter.Int.mul",
+    "stk.Int.div"        -> "stk.runtime.Interpreter.Int.div",
+    "stk.Int.mod"        -> "stk.runtime.Interpreter.Int.mod",
+    "stk.Int.gt"         -> "stk.runtime.Interpreter.Int.gt",
+    "stk.Int.lt"         -> "stk.runtime.Interpreter.Int.lt",
+    "stk.Int.ge"         -> "stk.runtime.Interpreter.Int.ge",
+    "stk.Int.le"         -> "stk.runtime.Interpreter.Int.le",
+    "stk.Int.eql"        -> "stk.runtime.Interpreter.Int.eql",
+    "stk.Int.srl"        -> "stk.runtime.Interpreter.Int.srl",
+    "stk.Int.sll"        -> "stk.runtime.Interpreter.Int.sll",
+    "stk.Int.land"       -> "stk.runtime.Interpreter.Int.land",
+    "stk.Int.lor"        -> "stk.runtime.Interpreter.Int.lor",
+    "stk.Int.lxor"       -> "stk.runtime.Interpreter.Int.lxor",
+
+    "stk.Bool.both"      -> "stk.runtime.Interpreter.Bool.both",
+    "stk.Bool.either"    -> "stk.runtime.Interpreter.Bool.either",
+    "stk.Bool.not"       -> "stk.runtime.Interpreter.Bool.not",
+  )
+
+  //----------------------------------------------------------------------------
+
+  /** Runtime intrinsic functions */
+  class Runtime(defn: Definitions):
+    val platformCall = defn.resolveTermByPath("stk.runtime.Interpreter.platformCall")
+    val platformCall2 = defn.resolveTermByPath("stk.runtime.Interpreter.platformCall2")
+    val platformCall3 = defn.resolveTermByPath("stk.runtime.Interpreter.platformCall3")
+
+  //----------------------------------------------------------------------------
+
   import Denotation.*
 
   def err(msg: String) = throw new Exception(msg)
@@ -32,8 +81,6 @@ object Interpreter:
 
     case ArrayVal(content: Array[Value])
 
-    case PlatformCall(op: List[Value] => List[Value])
-
     case PlatformObj(call: (String, List[Value]) => List[Value])
 
     def show(level: Int = 2)(using Definitions): String =
@@ -51,8 +98,6 @@ object Interpreter:
         case FunVal(fun, env) => "closue(env = " + env.show(recursive = false) + ")"
 
         case ArrayVal(content) => "[...]"
-
-        case PlatformCall(op) => "platformCall"
 
         case PlatformObj(_) => "platformObject"
 
@@ -116,6 +161,8 @@ object Interpreter:
 
   type Params = Map[Symbol, Value]
 
+  //----------------------------------------------------------------------------
+
   def int1(op: Int => Int)(args: List[Value]): List[Value] =
     val IntVal(a) :: Nil = args: @unchecked
     IntVal(op(a)) :: Nil
@@ -136,109 +183,87 @@ object Interpreter:
     val BoolVal(a) :: Nil = args: @unchecked
     BoolVal(op(a)) :: Nil
 
-  def add(args: List[Value]) = int2(_ + _)(args)
-  def sub(args: List[Value]) = int2(_ - _)(args)
-  def mul(args: List[Value]) = int2(_ * _)(args)
-  def div(args: List[Value]) = int2(_ / _)(args)
-  def mod(args: List[Value]) = int2(_ % _)(args)
+  val platformCalls: Map[String, List[Value] => List[Value]] = Map(
+      "add" -> { (args: List[Value]) => int2(_ + _)(args) },
+      "sub" -> { (args: List[Value]) => int2(_ - _)(args) },
+      "mul" -> { (args: List[Value]) => int2(_ * _)(args) },
+      "div" -> { (args: List[Value]) => int2(_ / _)(args) },
+      "mod" -> { (args: List[Value]) => int2(_ % _)(args) },
 
-  def lt(args: List[Value]) = int2bool(_ <  _)(args)
-  def gt(args: List[Value]) = int2bool(_ >  _)(args)
-  def le(args: List[Value]) = int2bool(_ <= _)(args)
-  def ge(args: List[Value]) = int2bool(_ >= _)(args)
+      "lt"  -> { (args: List[Value]) => int2bool(_ <  _)(args) },
+      "gt"  -> { (args: List[Value]) => int2bool(_ >  _)(args) },
+      "le"  -> { (args: List[Value]) => int2bool(_ <= _)(args) },
+      "ge"  -> { (args: List[Value]) => int2bool(_ >= _)(args) },
 
-  def sll (args: List[Value]) = int2(_ << _)(args)
-  def srl (args: List[Value]) = int2(_ >> _)(args)
-  def land(args: List[Value]) = int2(_ &  _)(args)
-  def lor (args: List[Value]) = int2(_ |  _)(args)
-  def lxor(args: List[Value]) = int2(_ ^  _)(args)
+      "sll"  -> {  (args: List[Value]) => int2(_ << _)(args) },
+      "srl"  -> {  (args: List[Value]) => int2(_ >> _)(args) },
+      "land" -> { (args: List[Value]) => int2(_ &  _)(args) },
+      "lor"  -> {  (args: List[Value]) => int2(_ |  _)(args) },
+      "lxor" -> { (args: List[Value]) => int2(_ ^  _)(args) },
 
-  def both(args: List[Value]) = bool2(_ && _)(args)
-  def either(args: List[Value]) = bool2(_ || _)(args)
-  def not(args: List[Value]) = bool1(! _   )(args)
+      "both"   -> { (args: List[Value]) => bool2(_ && _)(args) },
+      "either" -> { (args: List[Value]) => bool2(_ || _)(args) },
+      "not"    -> { (args: List[Value]) => bool1(! _   )(args) },
 
-  def byteToChar(args: List[Value]) = int1(n => n)(args)
-  def byteToInt(args: List[Value]) = int1(n => n)(args)
-  def charToByte(args: List[Value]) = int1(_ & 255)(args)
-  def charToInt(args: List[Value]) = int1(n => n)(args)
-  def intToByte(args: List[Value]) = int1(_ & 255)(args)
-  def intToChar(args: List[Value]) = int1(_ & 65535)(args)
+      "byteToChar" -> { (args: List[Value]) => int1(n => n)(args) },
+      "byteToInt"  -> { (args: List[Value]) => int1(n => n)(args) },
+      "charToByte" -> { (args: List[Value]) => int1(_ & 255)(args) },
+      "charToInt"  -> { (args: List[Value]) => int1(n => n)(args) },
+      "intToByte"  -> { (args: List[Value]) => int1(_ & 255)(args) },
+      "intToChar"  -> { (args: List[Value]) => int1(_ & 65535)(args) },
 
-  def charToStr(args: List[Value]): List[Value] =
-    val IntVal(v) :: Nil = args: @unchecked
-    StringVal(v.toChar.toString()) :: Nil
+      "charToStr" -> { (args: List[Value]) =>
+        val IntVal(v) :: Nil = args: @unchecked
+        StringVal(v.toChar.toString()) :: Nil
+      },
 
-  def intToStr(args: List[Value]): List[Value] =
-    val IntVal(v) :: Nil = args: @unchecked
-    StringVal(v.toString()) :: Nil
+      "intToStr" -> { (args: List[Value]) =>
+        val IntVal(v) :: Nil = args: @unchecked
+        StringVal(v.toString()) :: Nil
+      },
 
-  def eql(args: List[Value]): List[Value] =
-    val a :: b :: Nil = args: @unchecked
-    BoolVal(a == b) :: Nil
+      "eql" -> { (args: List[Value]) =>
+        val a :: b :: Nil = args: @unchecked
+        BoolVal(a == b) :: Nil
+      },
 
-  def createArray(args: List[Value]): List[Value] =
-    val IntVal(size) :: Nil = args: @unchecked
-    ArrayVal(new Array[Value](size)) :: Nil
+      "createArray" -> { (args: List[Value]) =>
+        val IntVal(size) :: Nil = args: @unchecked
+        ArrayVal(new Array[Value](size)) :: Nil
+      },
 
-  def getArray(args: List[Value]): List[Value] =
-    val (arrayVal: ArrayVal) :: IntVal(index) :: Nil = args: @unchecked
-    arrayVal.content(index) :: Nil
+      "getArray" -> { (args: List[Value]) =>
+        val (arrayVal: ArrayVal) :: IntVal(index) :: Nil = args: @unchecked
+        arrayVal.content(index) :: Nil
+      },
 
-  def setArray(args: List[Value]): List[Value] =
-    val (arrayVal: ArrayVal) :: IntVal(index) :: v :: Nil = args: @unchecked
-    arrayVal.content(index) = v
-    Nil
+      "setArray" -> { (args: List[Value]) =>
+        val (arrayVal: ArrayVal) :: IntVal(index) :: v :: Nil = args: @unchecked
+        arrayVal.content(index) = v
+        Nil
+      },
 
-  def sizeArray(args: List[Value]): List[Value] =
-    val (arrayVal: ArrayVal) :: Nil = args: @unchecked
-    IntVal(arrayVal.content.length) :: Nil
+      "sizeArray" -> { (args: List[Value]) =>
+        val (arrayVal: ArrayVal) :: Nil = args: @unchecked
+        IntVal(arrayVal.content.length) :: Nil
+      },
 
-  def abort(args: List[Value]): List[Value] =
-    val StringVal(v) :: Nil = args: @unchecked
-    throw new Exception(v)
+      "abort" -> { (args: List[Value]) =>
+        val StringVal(v) :: Nil = args: @unchecked
+        throw new Exception(v)
+      })
+
+
+  def platformCall(args: List[Value]): List[Value] =
+    val StringVal(name) :: argActual = args: @unchecked
+    platformCalls.get(name) match
+      case Some(fn) => fn(argActual)
+      case None => throw new Exception("Unknown platform call " + name)
+
+  //----------------------------------------------------------------------------
 
   def createRootEnv()(using defn: Definitions): Env =
     val rootEnv = new Env.RootEnv()
-
-    val platformCalls: Map[Symbol, List[Value] => List[Value]] = Map(
-      defn.Int_add        ->       add,
-      defn.Int_sub        ->       sub,
-      defn.Int_mul        ->       mul,
-      defn.Int_div        ->       div,
-      defn.Int_mod        ->       mod,
-      defn.Int_gt         ->       gt,
-      defn.Int_lt         ->       lt,
-      defn.Int_ge         ->       ge,
-      defn.Int_le         ->       le,
-      defn.Int_srl        ->       srl,
-      defn.Int_sll        ->       sll,
-      defn.Int_land       ->       land,
-      defn.Int_lor        ->       lor,
-      defn.Int_lxor       ->       lxor,
-      defn.Int_eql        ->       eql,
-
-      defn.Bool_both       ->       both,
-      defn.Bool_either     ->       either,
-      defn.Bool_not        ->       not,
-
-      defn.Array_create    ->       createArray,
-      defn.Array_get       ->       getArray,
-      defn.Array_set       ->       setArray,
-      defn.Array_size      ->       sizeArray,
-
-      defn.Predef_abort      ->       abort,
-      defn.Predef_byteToChar ->       byteToChar,
-      defn.Predef_byteToInt  ->       byteToInt,
-      defn.Predef_charToByte ->       charToByte,
-      defn.Predef_charToInt  ->       charToInt,
-      defn.Predef_charToStr  ->       charToStr,
-      defn.Predef_intToByte  ->       intToByte,
-      defn.Predef_intToChar  ->       intToChar,
-      defn.Predef_intToStr   ->       intToStr
-    )
-
-    for (sym, op) <- platformCalls do
-      rootEnv.bind(sym, PlatformCall(op))
 
     rootEnv
 
@@ -305,16 +330,14 @@ object Interpreter:
   def index(defs: List[Def])(using defn: Definitions, env: Env): Unit =
     defs.foreach:
       case fun: FunDef =>
-        // Predef symbols without an implementation should be ignored
-        if !env.contains(fun.symbol) then
-          env.bind(fun.symbol, FunVal(fun.symbol, env))
+        env.bind(fun.symbol, FunVal(fun.symbol, env))
 
       case Section(_, defs) =>
         index(defs)
 
       case _ =>
 
-  def exec(nss: List[Namespace], main: Symbol)(using defn: Definitions): Unit =
+  def exec(nss: List[Namespace], main: Symbol)(using defn: Definitions, runtime: Runtime): Unit =
     given Env = createRootEnv()
     given Params = createRuntimeContextParams()
 
@@ -323,13 +346,13 @@ object Interpreter:
     val fdef: FunDef = defn.getCode(main)
     call(fdef, args = Nil)
 
-  def exec(block: Block)(using Env, Params, Definitions): List[Denotation] =
+  def exec(block: Block)(using Env, Params, Definitions, Runtime): List[Denotation] =
     val results = for word <- block.words yield exec(word)
 
     if results.isEmpty then Nil
     else results.last
 
-  def call(fdef: FunDef, args: List[Value])(using env: Env, params: Params, defn: Definitions): List[Denotation] =
+  def call(fdef: FunDef, args: List[Value])(using env: Env, params: Params, defn: Definitions, runtime: Runtime): List[Denotation] =
     val funEnv = env.fresh()
 
     for (param, arg) <- fdef.allParams.zip(args) do
@@ -338,12 +361,12 @@ object Interpreter:
     Debug.trace("calling " + fdef.symbol + ", env = " + funEnv.show(recursive = false), (ds: List[Denotation]) => ds.map(_.show()).mkString(", "),  enable = false):
       exec(fdef.body)(using funEnv)
 
-  def eval(word: Word)(using env: Env, params: Params, defn: Definitions): Value =
+  def eval(word: Word)(using env: Env, params: Params, defn: Definitions, runtime: Runtime): Value =
     Debug.trace(word.show + ", env = " + env.show(recursive = false), (_: Value).show(), enable = false):
       val (value: Value) :: Nil = exec(word): @unchecked
       value
 
-  def exec(word: Word)(using env: Env, params: Params, defn: Definitions): List[Denotation] =
+  def exec(word: Word)(using env: Env, params: Params, defn: Definitions, runtime: Runtime): List[Denotation] =
     word match
       case Literal(c)  =>
         c match
@@ -491,6 +514,11 @@ object Interpreter:
                 call(fdef, argVals)(using env2)
 
 
+          case Ident(runtime.platformCall | runtime.platformCall2 | runtime.platformCall3) =>
+            assert(autos.isEmpty, "Unexpected autos for platform calls")
+            val argVals = args.map(eval)
+            platformCall(argVals)
+
           case _ =>
             val funDenot :: Nil = exec(fun): @unchecked
             val argVals = args.map(eval) ++ autos.map(eval)
@@ -499,9 +527,6 @@ object Interpreter:
               case FunVal(sym, env) =>
                 val fdef = defn.getCode(sym)
                 call(fdef, argVals)(using env)
-
-              case PlatformCall(op) =>
-                op(argVals)
 
       case TypeApply(fun, _) =>
         exec(fun)
@@ -550,18 +575,20 @@ object Interpreter:
 
     Reporter.monitor():
 
-      val runtime = Nil
+      val runtimePaths = Config.InterpreterRuntimePath :: Nil
       val rootNameTable = new NameTable
 
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
-      val namespacesSAST = FrontEnd.run(runtime, sources, Config.linkMap.value) <| "frontend"
+      val namespacesSAST = FrontEnd.run(runtimePaths, sources, Config.linkMap.value) <| "frontend"
 
       val mains = namespacesSAST.collect:
         case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get
 
       mains match
         case main :: _ =>
-          given Definitions = lazyDefn.value
+          given defn: Definitions = lazyDefn.value
+          given Runtime = new Runtime(defn)
+
           exec(namespacesSAST, main) <| "interpreter"
 
         case Nil =>

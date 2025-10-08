@@ -18,10 +18,10 @@ def (a: Bool) && (b: Bool): Bool = abort("primitive &&")
 // Note: it is desugared during type checking should not be used in S-AST
 def (a: Bool) || (b: Bool): Bool = abort("primitive ||")
 
-def ! (b: Bool): Bool = abort("primitive not")
+defer def ! (b: Bool): Bool = abort("primitive not")
 
 // No short-cut semantics for better CPU performance (no jump instructions)
-def both(a: Bool, b: Bool): Bool = abort("primitive both")
+defer def both(a: Bool, b: Bool): Bool = abort("primitive both")
 
 // No short-cut semantics for CPU performance (no jump instructions)
-def either(a: Bool, b: Bool): Bool = abort("primitive either")
+defer def either(a: Bool, b: Bool): Bool = abort("primitive either")
