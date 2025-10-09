@@ -210,7 +210,7 @@ object Config:
     libPaths
   )
 
-  val appOptions = outFilePath :: linkMap :: commonOptions
+  val appOptions = autoMainOff :: outFilePath :: linkMap :: commonOptions
 
   //----------------------------------------------------------------------------
 
