@@ -1,0 +1,24 @@
+// Test implementations
+
+namespace Tests
+
+def mathTests(): Bool =
+  val test1 = 2 + 2 == 4
+  val test2 = 10 * 5 == 50
+  val test3 = 100 - 30 == 70
+  test1 && test2 && test3
+
+def stringTests(): Bool =
+  val test1 = "hello" + " " + "world" == "hello world"
+  val test2 = "test".size == 4
+  test1 && test2
+
+def arrayTests(): Bool =
+  val arr = Array.create[Int] 3
+  Array.set arr 0 10
+  Array.set arr 1 20
+  Array.set arr 2 30
+  val test1 = Array.size arr == 3
+  val test2 = Array.get arr 0 == 10
+  val test3 = Array.get arr 2 == 30
+  test1 && test2 && test3

@@ -1,0 +1,6 @@
+// Application that runs tests
+
+namespace App
+
+def main =
+  Framework.runAll()
