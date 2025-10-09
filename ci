@@ -183,5 +183,11 @@ for test_dir in $DIR/tests/custom/*/; do
     fi
 done
 
+
+################################################################################
+# Demos
+
+demos/process-monitor/build.sh
+
 echo $retcode
 exit $retcode
