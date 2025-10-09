@@ -244,8 +244,9 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
             "const " ~ sym ~ " = " ~ t ~ ";" ~ cont()
 
       case FieldAssign(Select(qual, name), rhs) =>
-        runLast(qual): v =>
-          v ~ "." ~ encodeSymbolic(name) ~ " = " ~ rhs ~ cont()
+        run(qual): v1 =>
+          runLast(rhs): v2 =>
+            v1 ~ "." ~ encodeSymbolic(name) ~ " = " ~ v2 ~ cont()
 
       case If(cond, thenp, elsep) =>
         run(cond): v =>
