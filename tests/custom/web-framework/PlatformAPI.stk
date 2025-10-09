@@ -57,8 +57,9 @@ section Monitor
 
   // Platform-controlled entry point
   def startMonitor: Unit receives stdout =
-    Logging.info("System Monitor Starting...")
+    Logging.info("🚀 System Monitor Starting...")
     Logging.info("=========================")
+    println ""
 
     // Show system info
     val platform = System.platform()
@@ -66,22 +67,22 @@ section Monitor
     val hostname = System.hostname()
     val uptime = System.uptime()
 
-    println ("Platform: " + platform)
-    println ("Architecture: " + arch)
-    println ("Hostname: " + hostname)
-    println ("Uptime: " + (intToStr uptime) + " seconds")
+    println ("💻 Platform: " + platform)
+    println ("🏗️  Architecture: " + arch)
+    println ("🌐 Hostname: " + hostname)
+    println ("⏱️  Uptime: " + (intToStr uptime) + " seconds")
     println ""
 
     // Show current process info
     val pid = Process.getCurrentPID()
     val mem = Process.getCurrentMemoryMB()
-    println ("Current Process PID: " + (intToStr pid))
-    println ("Current Process Memory: " + (intToStr mem) + " MB")
+    println ("🔢 Current Process PID: " + (intToStr pid))
+    println ("💾 Current Process Memory: " + (intToStr mem) + " MB")
     println ""
 
     // Let user analyze processes
-    Logging.info("Running user analysis...")
+    Logging.info("🔍 Running user analysis...")
     analyzeSystem()
 
-    Logging.info("Monitor shutting down")
+    Logging.info("✅ Monitor shutting down")
 end

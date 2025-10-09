@@ -59,16 +59,16 @@ section Analysis
 
   // Main analysis function
   def analyzeSystem(): Unit receives stdout =
-    println "=== Process Analysis ==="
+    println "📊 === Process Analysis ==="
     println ""
 
     // Get total process count
     val totalProcs = Process.countProcesses()
-    println ("Total running processes: " + (intToStr totalProcs))
+    println ("📈 Total running processes: " + (intToStr totalProcs))
     println ""
 
     // Show first 10 processes
-    println "Top 10 processes:"
+    println "🔝 Top 10 processes:"
     println "-----------------"
     val procList = Process.listProcesses()
     val preview = firstLines(procList, 11)  // header + 10 lines
@@ -76,7 +76,7 @@ section Analysis
     println ""
 
     // Look for specific processes
-    println "Searching for common processes..."
+    println "🔎 Searching for common processes..."
     val nodePid = Process.findByName("node")
     if nodePid >= 0 then
       println ("✓ Found node process: PID " + (intToStr nodePid))
@@ -98,7 +98,7 @@ section Analysis
     println ""
 
     // Analyze process list content
-    println "Process List Analysis:"
+    println "📋 Process List Analysis:"
     println "---------------------"
     val hasRoot = contains(procList, "root")
     if hasRoot then
@@ -113,5 +113,5 @@ section Analysis
       println "✗ No Node.js processes found"
 
     println ""
-    Logging.debug("Analysis complete")
+    Logging.debug("✨ Analysis complete")
 end
