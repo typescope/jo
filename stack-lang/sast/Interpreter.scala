@@ -562,7 +562,7 @@ object Interpreter:
 
     Reporter.monitor():
 
-      val runtimePaths = Config.InterpreterRuntimePath :: Nil
+      val runtimePaths = Config.InterpreterRuntimePath :: Config.runtimePaths.value
       val rootNameTable = new NameTable
 
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)

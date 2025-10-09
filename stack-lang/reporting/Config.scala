@@ -93,24 +93,40 @@ object Config:
 
   //----------------------------------------------------------------------------
 
-  object libPaths extends Setting[List[String]]:
-    def flag = "-lib"
+  /** Base class for colon-separated path settings */
+  class ColonPathSetting(val flag: String, val desc: String) extends Setting[List[String]]:
     def spec = OptionSpec.Single
-    def default =  Nil
-    def desc = "path to libs in tological order of dependencies"
+    def default = Nil
 
     def value(using cf: Config): List[String] = cf.cached(this):
       cf.rawValues.get(this) match
         case Some(v) =>
           val dirs = v.asInstanceOf[String]
-          val userLibs = dirs.split(":").map(_.trim).filter(_.nonEmpty).toList
-          if Config.noStdLib.value then userLibs else Config.StdLibPath :: userLibs
+          dirs.split(":").map(_.trim).filter(_.nonEmpty).toList
 
         case None =>
-          if Config.noStdLib.value then Nil else Config.StdLibPath :: Nil
+          Nil
 
-    // TODO: validate that the path exists
-    override def validate()(using Config, Reporter): Unit = ()
+    override def validate()(using cf: Config, rp: Reporter): Unit =
+      val paths = this.value
+      for path <- paths do
+        val file = java.io.File(path)
+        if !file.exists() then
+          rp.error(s"Path does not exist: $path (specified by $flag)")
+
+  val libPaths: Setting[List[String]] = new ColonPathSetting("-lib", "path to libs in topological order of dependencies"):
+     override def value(using cf: Config): List[String] = cf.cached(this):
+       cf.rawValues.get(this) match
+         case Some(v) =>
+           val dirs = v.asInstanceOf[String]
+           val userLibs = dirs.split(":").map(_.trim).filter(_.nonEmpty).toList
+           if Config.noStdLib.value then userLibs else Config.StdLibPath :: userLibs
+
+         case None =>
+           if Config.noStdLib.value then Nil else Config.StdLibPath :: Nil
+
+
+  val runtimePaths: Setting[List[String]] = ColonPathSetting("-runtime", "path to runtime libraries in topological order of dependencies")
 
   //----------------------------------------------------------------------------
 
@@ -210,7 +226,7 @@ object Config:
     libPaths
   )
 
-  val appOptions = autoMainOff :: outFilePath :: linkMap :: commonOptions
+  val appOptions = autoMainOff :: outFilePath :: runtimePaths :: linkMap :: commonOptions
 
   //----------------------------------------------------------------------------
 

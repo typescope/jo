@@ -55,7 +55,7 @@ object Compiler:
 
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
-      val runtimes = Config.JSRuntimePath :: Nil
+      val runtimes = Config.JSRuntimePath :: Config.runtimePaths.value
       val nss = FrontEnd.run(runtimes, sources, defaultLinkMappings) <| "Frontend"
 
       locally {

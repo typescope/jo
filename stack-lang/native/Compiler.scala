@@ -68,7 +68,7 @@ object Compiler:
       val rootNameTable = new NameTable
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
-      val runtimes = Config.NativeRuntimePath :: Nil
+      val runtimes = Config.NativeRuntimePath :: Config.runtimePaths.value
       val namespacesSAST = FrontEnd.run(runtimes, sources, defaultLinkMappings) <| "Frontend"
 
       locally {
