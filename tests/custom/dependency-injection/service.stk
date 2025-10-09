@@ -1,0 +1,23 @@
+// Service layer that depends on Database abstraction
+
+namespace Service
+
+def processUsers(): Unit =
+  println Database.connect("localhost")
+
+  println "Querying users table..."
+  val count = Database.query("users")
+  print "Found "
+  print (intToStr count)
+  println " users"
+
+  println "Inserting new user..."
+  Database.insert("users", 42)
+
+  println "Querying again..."
+  val newCount = Database.query("users")
+  print "Now have "
+  print (intToStr newCount)
+  println " users"
+
+  Database.disconnect()

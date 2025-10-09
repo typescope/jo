@@ -1,0 +1,10 @@
+=== User Service Test ===
+Connected to MockDB at localhost
+Querying users table...
+Found 100 users
+Inserting new user...
+Mock: Inserted record with value
+Querying again...
+Now have 101 users
+Disconnected from MockDB
+=== Test Complete ===
