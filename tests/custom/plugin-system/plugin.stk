@@ -1,0 +1,14 @@
+// Math Plugin Implementation
+// Provides concrete implementations for the framework's extension points
+
+namespace Plugin
+
+def getName(): String = "SquareCalculator"
+
+def getVersion(): Int = 100
+
+def initialize(): Unit =
+  println "MathPlugin initialized"
+
+def execute(input: Int): Int =
+  input * input

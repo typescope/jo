@@ -1,0 +1,12 @@
+=== Plugin Framework ===
+Loading plugin: SquareCalculator
+Version: 100
+MathPlugin initialized
+Executing plugin with input: 7
+Plugin returned: 49
+=== Plugin Framework ===
+Loading plugin: SquareCalculator
+Version: 100
+MathPlugin initialized
+Executing plugin with input: 12
+Plugin returned: 144

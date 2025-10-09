@@ -1,0 +1,7 @@
+// Application that uses the framework with the plugin
+
+namespace App
+
+def main =
+  Framework.registerAndRun(7)
+  Framework.registerAndRun(12)
