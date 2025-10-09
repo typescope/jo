@@ -7,34 +7,42 @@ import sast.Symbols.Symbol
 import typing.Typer
 
 import reporting.Config
+import reporting.Config.InternalSetting
 import reporting.Reporter
 import reporting.Reporter.Step
 
 object FrontEnd:
   type ProcessStep = Step[List[Namespace], List[Namespace]]
 
+  val rewireMap: InternalSetting[Map[Symbol, Symbol]] = InternalSetting(Map.empty, "mapping for rewiring functions")
+
   def run
       (runtimes: List[String], sources: List[String], defaultMappings: Map[String, String])
       (using defnLazy: Definitions.Lazy, rp: Reporter, cf: Config)
   : List[Namespace] =
-    val sast = sources |> Typer.parseStep |> Typer.typeStep
+    val (nss, nssDelayed) = sources |> Typer.parseStep |> Typer.typeStep
 
     locally:
       given Definitions = defnLazy.value
-      sast |> linkStep(runtimes, defaultMappings) |> translateStep
+      nss |> linkStep(nssDelayed, runtimes, defaultMappings) |> translateStep
 
-  def linkStep(packages: List[String], defaultMappings: Map[String, String])
+  def linkStep
+      (libsDelayed: List[DelayedDef[Namespace]], linkPackages: List[String], defaultMappings: Map[String, String])
       (using defn: Definitions, rp: Reporter, cf: Config)
   : ProcessStep =
     Step("Link", (nss: List[Namespace]) => {
-      val linkNss = packages.flatMap: pkg =>
+      // TODO: optimization possible based on reachability analysis of modules
+      val libNss = libsDelayed.map(_.force())
+
+      val linkNss = linkPackages.flatMap: pkg =>
          pickle.Decoder.loadPackage(pkg) <| "link " + pkg
 
-      val allNss = nss ++ linkNss
+      val allNss = nss ++ libNss ++ linkNss
 
       // Apply link rewriting and check that all deferred functions are provided
       val linkData = new LinkRewriter.LinkData(defaultMappings)
       val symbolMap = detectMain(nss, linkData.addUserMappings(Config.linkMap.value))
+      cf.setInternal(FrontEnd.rewireMap, symbolMap)
 
       val rewriter = new LinkRewriter(symbolMap)
       rewriter.transform(allNss)

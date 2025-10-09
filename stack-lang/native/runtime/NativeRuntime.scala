@@ -11,7 +11,7 @@ import native.Assembler.PatchableBuffer
   *
   * Run-time symbols are not visible to user programs.
   */
-class NativeRuntime(linkers: List[Linker]) (using defn: Definitions)
+class NativeRuntime(linkers: List[Linker], val rewire: Map[Symbol, Symbol]) (using defn: Definitions)
 extends Linker:
   val Core = defn.resolveTermByPath("stk.runtime.native.Core")
 
@@ -49,7 +49,7 @@ extends Linker:
 
   val paramSupportStateLabel = Label("paramSupportState")
 
-  def locate(sym: Symbol): Option[Label | Symbol] =
+  def locate(sym: Symbol): Option[Label] =
     val iter = linkers.iterator
     while iter.hasNext do
       val linker = iter.next()

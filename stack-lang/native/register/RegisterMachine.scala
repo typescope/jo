@@ -570,11 +570,11 @@ object RegisterMachine extends native.Compiler.BackendBuilder:
   /**
     * Create a new x86 register machine
     */
-  def createLinux86()(using Reporter, Definitions): Backend =
-    val bumpAllocator = new BumpAllocator()
+  def createLinux86(rewire: Map[Symbol, Symbol])(using Reporter, Definitions): Backend =
+    val bumpAllocator = new BumpAllocator
     val syscalls = Linux.createSyscallRegister()
     val linkers = List(bumpAllocator, syscalls)
-    val runtime = new NativeRuntime(linkers)
+    val runtime = new NativeRuntime(linkers, rewire)
 
     val paramRegs: List[Int] = List(X86.EAX, X86.EBX, X86.ECX, X86.EDX)
     val callConv =

@@ -1,6 +1,7 @@
 package native
 
 import sast.*
+import sast.Symbols.Symbol
 import phases.*
 
 import reporting.Reporter
@@ -20,7 +21,7 @@ import native.arch.X86
  ***********************************************************************/
 object Compiler:
   trait BackendBuilder:
-    def createLinux86()(using Reporter, Definitions): Backend
+    def createLinux86(rewire: Map[Symbol, Symbol])(using Reporter, Definitions): Backend
 
   val layout: Config.StringSetting = Config.StringSetting("-layout", "c1", "memory layout, c1 or c2")
 
@@ -39,13 +40,16 @@ object Compiler:
     "stk.Array.get"         -> "stk.runtime.native.Core.Array_get",
     "stk.Array.set"         -> "stk.runtime.native.Core.Array_set",
     "stk.Array.size"        -> "stk.runtime.native.Core.Array_size",
+
+    // GC API wiring can be controlled via options
+    "stk.runtime.native.GC.init" -> "stk.runtime.native.BumpAllocator.init",
+    "stk.runtime.native.GC.alloc" -> "stk.runtime.native.BumpAllocator.alloc",
   )
 
   def compile(backendBuilder: BackendBuilder, args: Array[String]): Unit =
     given Reporter = Reporter.createReporter()
 
     val (config, sources) = cli.OptionParser.parseConfig(args, layout :: Config.appOptions)
-    config.setInternal(Config.mode, Config.Mode.Application)
 
     if sources.isEmpty then
       println("Expect source file as input")
@@ -70,7 +74,7 @@ object Compiler:
       locally {
         given Definitions = lazyDefn.value
 
-        val backend = backendBuilder.createLinux86()
+        val backend = backendBuilder.createLinux86(FrontEnd.rewireMap.value)
         val backendStep = Step("backend", backend.compile)
 
         val closureConvert = new ElimCapture

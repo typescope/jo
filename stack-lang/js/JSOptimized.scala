@@ -19,7 +19,7 @@ import scala.collection.mutable
 /**
   * JavaScript platform with code optimization
   */
-class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
+class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Definitions):
   private val reservedNames = new UniqueName
 
   val keywords = List(
@@ -43,20 +43,24 @@ class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
       case Some(name) => name
 
       case None =>
-        val rawName = sym.fullName
-        val uniqueName =
-          if sym.isLocal then
-            localScope.freshName(encodeSymbolic(rawName))
-          else
-            globalScope.freshName(encodeSymbolic(rawName))
+        rewire.get(sym) match
+          case Some(target) => jsName(target)
 
-        symbol2UniqueName(sym) = uniqueName
+          case None =>
+            val rawName = sym.fullName
+            val uniqueName =
+              if sym.isLocal then
+                localScope.freshName(encodeSymbolic(rawName))
+              else
+                globalScope.freshName(encodeSymbolic(rawName))
 
-        // Add function or class to work list
-        if (sym.isFunction && !sym.owner.isClass) || sym.isClass then
-          workList.add(sym)
+            symbol2UniqueName(sym) = uniqueName
 
-        uniqueName
+            // Add function or class to work list
+            if (sym.isFunction && !sym.owner.isClass) || sym.isClass then
+              workList.add(sym)
+
+            uniqueName
 
   //----------------------------------------------------------------------------
 

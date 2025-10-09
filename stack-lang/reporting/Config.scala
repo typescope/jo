@@ -24,10 +24,6 @@ case class Config(private[Config] rawValues: Map[Setting[?], Any]):
     cache(key) = v
 
 object Config:
-  enum Mode:
-    case Application
-    case Library
-
 
   class BooleanSetting(val flag: String, val default: Boolean, val desc: String)
   extends Setting[Boolean]:
@@ -95,8 +91,7 @@ object Config:
 
   val targetDir: Setting[String]   = StringSetting("-d", ".",  "target directory for sast")
 
-  /** Mode of compilation --- not a command line setting */
-  val mode: InternalSetting[Mode] = InternalSetting[Mode](Mode.Library, "mode of compilation")
+  //----------------------------------------------------------------------------
 
   object libPaths extends Setting[List[String]]:
     def flag = "-lib"

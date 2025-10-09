@@ -569,7 +569,6 @@ object Interpreter:
     given Reporter = Reporter.createReporter()
 
     val (config, sources) = cli.OptionParser.parseConfig(args, Config.appOptions)
-    config.setInternal(Config.mode, Config.Mode.Application)
 
     given Config = config
 
@@ -580,12 +579,16 @@ object Interpreter:
 
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
-      val namespacesSAST = FrontEnd.run(runtimePaths, sources, defaultLinkMappings) <| "frontend"
-
+      val nss = FrontEnd.run(runtimePaths, sources, defaultLinkMappings) <| "FrontEnd"
       locally:
         given defn: Definitions = lazyDefn.value
         given Runtime = new Runtime(defn)
 
+        // Final rewire for phases after the first run of LinkRewriter
+        val rewriter = new phases.LinkRewriter(FrontEnd.rewireMap.value)
+
+
         val entry = defn.resolveTermByPath("stk.runtime.Interpreter.start")
 
-        exec(namespacesSAST, entry) <| "interpreter"
+        val nssRewired = rewriter.transform(nss)
+        exec(nssRewired, entry) <| "interpreter"

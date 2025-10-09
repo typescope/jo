@@ -16,7 +16,7 @@ object Compiler:
     val rootNameTable = new NameTable
     given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
-    val namespacesSAST = sources |> Typer.parseStep |> Typer.typeStep <| "Frontend"
+    val (namespacesSAST, _) = sources |> Typer.parseStep |> Typer.typeStep <| "Frontend"
 
     locally:
       given Definitions = lazyDefn.value

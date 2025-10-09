@@ -30,25 +30,24 @@ abstract class Backend(val runtime: NativeRuntime)(using Definitions):
       case Some(addr) => addr
 
       case None =>
-        runtime.locate(sym) match
-          case Some(addrOrSymbol) =>
-            addrOrSymbol match
-              case label: Label =>
+        runtime.rewire.get(sym) match
+          case Some(target) => getFunAddress(target)
+
+          case None =>
+            runtime.locate(sym) match
+              case Some(label) =>
                 // cache result
                 funLabelMap(sym) = label
                 label
 
-              case redirectSym: Symbol =>
-                getFunAddress(redirectSym)
+              case None =>
+                val label = Label(sym.name)
+                funLabelMap(sym) = label
 
-          case None =>
-            val label = Label(sym.name)
-            funLabelMap(sym) = label
+                // Add function to work list
+                workList.add(sym)
 
-            // Add function to work list
-            workList.add(sym)
-
-            label
+                label
 
   def compileFunDef(fdef: FunDef)(using cb: CodeBuffer): Unit
 

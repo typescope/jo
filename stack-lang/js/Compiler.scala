@@ -35,7 +35,6 @@ object Compiler:
     given Reporter = Reporter.createReporter()
 
     val (config, sources) = cli.OptionParser.parseConfig(args, Config.appOptions)
-    config.setInternal(Config.mode, Config.Mode.Application)
 
     if sources.isEmpty then
       println("Expect source file as input")
@@ -72,7 +71,7 @@ object Compiler:
         val closureConvert = new ElimCapture
         val runtimeLowerer = new LowerRuntime(jsRuntime)
         val backend: Step[List[Trees.Namespace], Unit] =
-          Step("Backend", new JSOptimized(outFile, jsRuntime).compile)
+          Step("Backend", new JSOptimized(outFile, jsRuntime, FrontEnd.rewireMap.value).compile)
 
         nss                 |>
         closureConvert      |>

@@ -8,7 +8,6 @@ import parsing.Parser
 import reporting.Reporter
 import reporting.Reporter.Step
 import reporting.Config
-import reporting.Config.Mode
 import common.IO
 
 object Typer:
@@ -19,7 +18,7 @@ object Typer:
   private def check
       (nssAst: List[Ast.Namespace], libs: List[String])
       (using defnLazy: Definitions.Lazy, rp: Reporter, cf: Config)
-  : List[Namespace] =
+  : (List[Namespace], List[DelayedDef[Namespace]]) =
 
     val rootNameTable = defnLazy.rootNameTable
 
@@ -45,44 +44,26 @@ object Typer:
 
       // Don't check effect errors if there are type errors
       if !rp.hasErrors then checkEffects(nss)
-      nss
+      (nss, Nil)
 
     else
-      Config.mode.value match
-        case Mode.Library =>
-          // Load library from .sast files
-          for lib <- libs do loadSastSymbols(lib) <| "load lib: " + lib
+      // Load library from .sast files
+      val delayedNss = libs.flatMap(lib => loadSastSymbols(lib)) <| "load libs"
 
-          // Must be after loading the stdlib
-          val predefNameTable = defnLazy.value.Predef_nameTable
+      // Must be after loading the stdlib
+      val predefNameTable = defnLazy.value.Predef_nameTable
 
-          val nss = new Namer().transform(nssAst, rootNameTable, predefNameTable) <| "namer.source"
+      val nss = new Namer().transform(nssAst, rootNameTable, predefNameTable) <| "namer.source"
 
-          // Don't check effect errors if there are type errors
-          if !rp.hasErrors then checkEffects(nss)
+      // Don't check effect errors if there are type errors
+      if !rp.hasErrors then checkEffects(nss)
 
-          nss
-
-        case Mode.Application =>
-          // Load library from .sast files
-          val nssLib = libs.flatMap: lib =>
-            pickle.Decoder.loadPackage(lib) <| "load lib: " + lib
-
-          // Must be after loading the stdlib
-          val predefNameTable = defnLazy.value.Predef_nameTable
-
-          // Should be before checking runtime code such that they are not available
-          val nss = new Namer().transform(nssAst, rootNameTable, predefNameTable) <| "namer.source"
-
-          // Don't check effect errors if there are type errors
-          if !rp.hasErrors then checkEffects(nss)
-
-          nssLib ++ nss
+      (nss, delayedNss)
 
 
-  private def loadSastSymbols(dir: String) (using defnLazy: Definitions.Lazy, rp: Reporter): Unit =
+  private def loadSastSymbols(dir: String) (using defnLazy: Definitions.Lazy, rp: Reporter): List[DelayedDef[Namespace]] =
     val files = IO.getSastFiles(dir).toList
-    for file <- files do pickle.Decoder.load(file)
+    for file <- files yield pickle.Decoder.load(file)
 
   private def shouldPrint(ns: Namespace)(using Config): Boolean =
     Config.printOnly.value.isEmpty || Config.printOnly.value.exists(ns.source.contains)
@@ -101,18 +82,20 @@ object Typer:
       res
     })
 
-  def typeStep(using config: Config, lazyDefn: Definitions.Lazy, rp: Reporter): Step[List[Ast.Namespace], List[Namespace]] =
+  def typeStep(using config: Config, lazyDefn: Definitions.Lazy, rp: Reporter)
+      : Step[List[Ast.Namespace], (List[Namespace], List[DelayedDef[Namespace]])]
+  =
 
     Step("Namer", (nssAst: List[Ast.Namespace]) => {
-      val res = check(nssAst, Config.libPaths.value)
+      val res @ (nss, _) = check(nssAst, Config.libPaths.value)
 
       if Config.checkTree.value then
         given Definitions = lazyDefn.value
-        TreeChecker.check(res)
+        TreeChecker.check(nss)
 
       if Config.printAfter.value.contains("Namer") then
         given Definitions = lazyDefn.value
-        Printing.print(res.filter(shouldPrint))
+        Printing.print(nss.filter(shouldPrint))
 
       res
     })
