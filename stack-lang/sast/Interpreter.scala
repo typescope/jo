@@ -56,7 +56,8 @@ object Interpreter:
 
   /** Runtime intrinsic functions */
   class Runtime(defn: Definitions):
-    val platformCall = defn.resolveTermByPath("stk.runtime.Interpreter.platformCall")
+    val platformCall0 = defn.resolveTermByPath("stk.runtime.Interpreter.platformCall0")
+    val platformCall1 = defn.resolveTermByPath("stk.runtime.Interpreter.platformCall1")
     val platformCall2 = defn.resolveTermByPath("stk.runtime.Interpreter.platformCall2")
     val platformCall3 = defn.resolveTermByPath("stk.runtime.Interpreter.platformCall3")
 
@@ -81,7 +82,7 @@ object Interpreter:
 
     case ArrayVal(content: Array[Value])
 
-    case PlatformObj(call: (String, List[Value]) => List[Value])
+    case PlatformVal(v: Any)
 
     def show(level: Int = 2)(using Definitions): String =
       if level == 0 then
@@ -99,14 +100,14 @@ object Interpreter:
 
         case ArrayVal(content) => "[...]"
 
-        case PlatformObj(_) => "platformObject"
+        case PlatformVal(v) => v.toString
 
         case ObjectVal(values, self, defs,  env) =>
           val fields = values.take(1).map(_ + " = " + _.show(level - 1)).mkString(", ")
           val methods = defs.take(5).keys.mkString(", ")
           "object {" + fields + ", " + methods + "}"
 
-  type Value = IntVal | BoolVal | StringVal | RecordVal | ObjectVal | ArrayVal | PlatformObj
+  type Value = IntVal | BoolVal | StringVal | RecordVal | ObjectVal | ArrayVal | PlatformVal
 
   enum Env:
     case RootEnv()
@@ -251,7 +252,65 @@ object Interpreter:
       "abort" -> { (args: List[Value]) =>
         val StringVal(v) :: Nil = args: @unchecked
         throw new Exception(v)
-      })
+      },
+
+      "readLineStdIn" -> { (args: List[Value]) =>
+        assert(args.isEmpty, "Expect empty, found = " + args.size)
+        val reader = new java.io.BufferedReader(new java.io.InputStreamReader(System.in))
+        val res = reader.readLine()
+        reader.close()
+        StringVal(res) :: Nil
+      },
+
+      "writeStdOut" -> { (args: List[Value]) =>
+        val StringVal(content) :: Nil = args: @unchecked
+        System.out.print(content)
+        Nil
+      },
+
+      "writeStdErr" -> { (args: List[Value]) =>
+        val StringVal(content) :: Nil = args: @unchecked
+        System.err.print(content)
+        Nil
+      },
+
+      "openFile" -> { (args: List[Value]) =>
+        val StringVal(file) :: Nil = args: @unchecked
+        val jfile = new java.io.RandomAccessFile(file, "rw")
+        PlatformVal(jfile) :: Nil
+      },
+
+      "closeFile" -> { (args: List[Value]) =>
+        val PlatformVal(jfile: java.io.RandomAccessFile) :: Nil = args: @unchecked
+        jfile.close()
+        Nil
+      },
+
+      "seekFile" -> { (args: List[Value]) =>
+        val PlatformVal(jfile: java.io.RandomAccessFile) :: IntVal(offset) :: Nil = args: @unchecked
+        jfile.seek(offset)
+        Nil
+      },
+
+      "hasMoreFile" -> { (args: List[Value]) =>
+        val PlatformVal(jfile: java.io.RandomAccessFile) :: Nil = args: @unchecked
+        val res = jfile.getFilePointer() < jfile.length()
+        BoolVal(res) :: Nil
+      },
+
+      "readLineFile" -> { (args: List[Value]) =>
+        val PlatformVal(jfile: java.io.RandomAccessFile) :: Nil = args: @unchecked
+        val res = jfile.readLine()
+        StringVal(res) :: Nil
+      },
+
+      "writeFile" -> { (args: List[Value]) =>
+        val PlatformVal(jfile: java.io.RandomAccessFile) :: StringVal(content) :: Nil = args: @unchecked
+        jfile.write(content.getBytes("utf-8"))
+        Nil
+      },
+
+  )
 
 
   def platformCall(args: List[Value]): List[Value] =
@@ -259,69 +318,6 @@ object Interpreter:
     platformCalls.get(name) match
       case Some(fn) => fn(argActual)
       case None => throw new Exception("Unknown platform call " + name)
-
-  //----------------------------------------------------------------------------
-  // default params
-
-  def createRuntimeContextParams()(using defn: Definitions): Map[Symbol, Value] =
-    Map(
-      defn.IO_open   ->  open(),
-      defn.IO_stdin  ->  stdin(),
-      defn.IO_stdout ->  stdout(),
-      defn.IO_stderr ->  stderr(),
-    )
-
-  def stdin() = new PlatformObj((name: String, args: List[Value]) =>
-    assert(name == "readLine", name)
-    val reader = new java.io.BufferedReader(new java.io.InputStreamReader(System.in))
-    val res = reader.readLine()
-    reader.close()
-    StringVal(res) :: Nil
-  )
-
-  def stdout() = new PlatformObj((name: String, args: List[Value]) =>
-    assert(name == "write", name)
-    val StringVal(content) :: Nil = args: @unchecked
-    System.out.print(content)
-    Nil
-  )
-
-  def stderr() = new PlatformObj((name: String, args: List[Value]) =>
-    assert(name == "write", name)
-    val StringVal(content) :: Nil = args: @unchecked
-    System.err.print(content)
-    Nil
-  )
-
-  def open() = new PlatformObj((name: String, args: List[Value]) =>
-    assert(name == "apply", name)
-    val StringVal(file) :: Nil = args: @unchecked
-    val jfile = new java.io.RandomAccessFile(file, "rw")
-    PlatformObj { (name: String, args: List[Value]) =>
-      name match
-      case "close" =>
-        jfile.close()
-        Nil
-
-      case "seek" =>
-        val IntVal(offset) :: Nil = args: @unchecked
-        jfile.seek(offset)
-        Nil
-
-      case "hasMore" =>
-        val res = jfile.getFilePointer() < jfile.length()
-        BoolVal(res) :: Nil
-
-      case "readLine" =>
-        val res = jfile.readLine()
-        StringVal(res) :: Nil
-
-      case "write" =>
-        val StringVal(content) :: Nil = args: @unchecked
-        jfile.write(content.getBytes("utf-8"))
-        Nil
-    } :: Nil
-  )
 
   //----------------------------------------------------------------------------
 
@@ -337,7 +333,7 @@ object Interpreter:
 
   def exec(nss: List[Namespace], main: Symbol)(using defn: Definitions, runtime: Runtime): Unit =
     given Env = new Env.RootEnv()
-    given Params = createRuntimeContextParams()
+    given Params = Map.empty
 
     for ns <- nss do index(ns.defs)
 
@@ -454,10 +450,6 @@ object Interpreter:
             // invariant: selection must be a method call
 
             eval(qual): @unchecked match
-              case objNative: PlatformObj =>
-                assert(autos.isEmpty, "autos non empty")
-                objNative.call(name, args.map(eval))
-
               case objVal: ObjectVal =>
                 val argVals = args.map(eval) ++ autos.map(eval)
                 val sym = objVal.funs(name)
@@ -498,10 +490,6 @@ object Interpreter:
             // invariant: selection must be a method call
 
             eval(qual): @unchecked match
-              case objNative: PlatformObj =>
-                assert(autos.isEmpty, "autos non empty")
-                objNative.call(name, args.map(eval))
-
               case objVal: ObjectVal =>
                 val argVals = args.map(eval) ++ autos.map(eval)
                 val sym = objVal.funs(name)
@@ -512,7 +500,7 @@ object Interpreter:
                 call(fdef, argVals)(using env2)
 
 
-          case Ident(runtime.platformCall | runtime.platformCall2 | runtime.platformCall3) =>
+          case Ident(runtime.platformCall0 | runtime.platformCall1 | runtime.platformCall2 | runtime.platformCall3) =>
             assert(autos.isEmpty, "Unexpected autos for platform calls")
             val argVals = args.map(eval)
             platformCall(argVals)
