@@ -10,7 +10,7 @@ def list[T](a: T, b: T): List[T] =
 def left[U, V](a: U): Either[U, V] = #Left(a)
 def right[X, Y](a: Y): Either[X, Y] = #Right(a)
 
-def main =
+def main: Unit =
   list
     left  { b: 3 }
     right { c: 3 }
