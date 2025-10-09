@@ -42,11 +42,7 @@ class NameTable(
       case Some(sym) => sym :: Nil
 
   def resolveByPathParts(parts: List[String])(using Definitions.Lazy): List[Symbol] =
-    val syms = NameTable.resolveStatic(this, parts)
-    if syms.isEmpty then
-      throw new Exception("Not found: " + parts + ", name table " + this.show)
-    else
-      syms
+    NameTable.resolveStatic(this, parts)
 
   def resolveByPath(path: String)(using Definitions.Lazy): List[Symbol] =
     resolveByPathParts(path.split('.').toList)
