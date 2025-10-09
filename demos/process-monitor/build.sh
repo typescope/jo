@@ -4,6 +4,9 @@
 
 set -e  # Exit on error
 
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 echo "======================================"
 echo "System Monitor - Custom Runtime Demo"
 echo "======================================"
@@ -11,14 +14,14 @@ echo ""
 
 # Clean previous builds
 echo "Cleaning previous builds..."
-rm -rf out/
-mkdir -p out
+rm -rf "$SCRIPT_DIR/out"
+mkdir -p "$SCRIPT_DIR/out"
 
 echo ""
 echo "Stage 1: Compile PlatformAPI.stk (Pure API declarations)"
 echo "--------------------------------------------------------"
 echo "  Declares: Process, System, Logging capabilities"
-bin/jo build-lib tests/custom/web-framework/PlatformAPI.stk -d tests/custom/web-framework/out/api
+bin/jo build-lib "$SCRIPT_DIR/PlatformAPI.stk" -d "$SCRIPT_DIR/out/api"
 echo "✓ PlatformAPI compiled to: out/api/"
 echo ""
 
@@ -28,9 +31,9 @@ echo "  - Uses stk.runtime.JS.js intrinsic"
 echo "  - Calls Node.js: child_process, os, process"
 echo "  - Links to PlatformAPI interface"
 echo "  - Links to JS runtime for I/O"
-bin/jo build-lib tests/custom/web-framework/PlatformRuntime.stk \
-  -lib sast/runtime/js:tests/custom/web-framework/out/api \
-  -d tests/custom/web-framework/out/runtime
+bin/jo build-lib "$SCRIPT_DIR/PlatformRuntime.stk" \
+  -lib sast/runtime/js:"$SCRIPT_DIR/out/api" \
+  -d "$SCRIPT_DIR/out/runtime"
 echo "✓ PlatformRuntime compiled to: out/runtime/"
 echo ""
 
@@ -54,10 +57,10 @@ bin/jo build -js \
   -link SystemAPI.Logging.info=SystemRuntime.LoggingImpl.info \
   -link SystemAPI.Logging.debug=SystemRuntime.LoggingImpl.debug \
   -link SystemAPI.Monitor.analyzeSystem=ProcessAnalyzer.Analysis.analyzeSystem \
-  -lib tests/custom/web-framework/out/api \
-  -runtime tests/custom/web-framework/out/runtime \
-  tests/custom/web-framework/UserApp.stk \
-  -o tests/custom/web-framework/out/monitor.js
+  -lib "$SCRIPT_DIR/out/api" \
+  -runtime "$SCRIPT_DIR/out/runtime" \
+  "$SCRIPT_DIR/UserApp.stk" \
+  -o "$SCRIPT_DIR/out/monitor.js"
 echo "✓ UserApp compiled to: out/monitor.js"
 echo ""
 
@@ -65,7 +68,7 @@ echo "======================================"
 echo "Running System Monitor..."
 echo "======================================"
 echo ""
-node tests/custom/web-framework/out/monitor.js
+node "$SCRIPT_DIR/out/monitor.js"
 echo ""
 echo "======================================"
 echo "Done!"
