@@ -201,7 +201,7 @@ object Desugaring:
    *
    *    <Context> <Default> param a: T
    *
-   *    <Default> fun a$default = rhs
+   *    fun a$default = rhs
    *
    *    param a$option: Option[T]
    *

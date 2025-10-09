@@ -1,0 +1,17 @@
+// Test that deferred function without link binding produces only one error
+// even when referenced multiple times
+
+namespace Test
+
+section Service
+  defer def compute(x: Int): Int
+
+  def process(a: Int, b: Int, c: Int): Int =
+    val result1 = compute(a)
+    val result2 = compute(b)
+    val result3 = compute(c)
+    result1 + result2 + result3
+end
+
+def main =
+  Service.process(1, 2, 3) p

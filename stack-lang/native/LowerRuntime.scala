@@ -40,33 +40,6 @@ class LowerRuntime(runtime: NativeRuntime)(using defn: Definitions) extends phas
   val IntType  = defn.IntType
   val UnitType = defn.UnitType
 
-  val rewiring = Map(
-    defn.Predef_abort      -> runtime.Core_abortImpl,
-    defn.Predef_byteToChar -> runtime.Core_byteToChar,
-    defn.Predef_byteToInt  -> runtime.Core_byteToInt,
-    defn.Predef_charToByte -> runtime.Core_charToByte,
-    defn.Predef_charToInt  -> runtime.Core_charToInt,
-    defn.Predef_charToStr  -> runtime.Core_charToStr,
-    defn.Predef_intToByte  -> runtime.Core_intToByte,
-    defn.Predef_intToChar  -> runtime.Core_intToChar,
-    defn.Predef_intToStr   -> runtime.Core_intToStr,
-    defn.Array_create      -> runtime.Core_Array_create,
-    defn.Array_get         -> runtime.Core_Array_get,
-    defn.Array_set         -> runtime.Core_Array_set,
-    defn.Array_size        -> runtime.Core_Array_size,
-  )
-
-  override def transformIdent(ref: Ident)(using ctx: Context): Word =
-    val sym = ref.symbol
-    if sym.isFunction then
-      // global function call
-      rewiring.get(sym) match
-        case Some(subst) => Ident(subst)(ref.span)
-        case _ => ref
-
-    else
-      ref
-
   override def transformApply(app: Apply)(using ctx: Context): Word =
     val Apply(fun, args, autos) = app
      val args2 = args.map(this.apply)

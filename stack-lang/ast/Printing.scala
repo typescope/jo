@@ -319,10 +319,7 @@ object Printing:
       case ListLit(words) => "[" ~ words.map(showPattern).join(", ") ~ "]"
 
   def showModifier(mod: Modifier): Text =
-    mod match
-     case Modifier.Auto() => Text("auto")
-
-     case Modifier.Private() => Text("private")
+    Text(mod.show)
 
   def showType(tpt: TypeTree): Text =
     tpt match

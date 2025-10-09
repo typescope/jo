@@ -1,0 +1,80 @@
+// PlatformRuntime.stk
+// Platform runtime providing context parameter implementations
+// Uses real Node.js APIs via js intrinsic
+
+namespace SystemRuntime
+
+import stk.IO.stdout
+import stk.runtime.JS.js
+import SystemAPI.*
+import SystemAPI.Monitor.startMonitor
+
+// ============================================
+// Main Entry Point
+// ============================================
+
+def platformMain: Unit receives stdout =
+  startMonitor with
+    process = object {
+      // Get list of running processes using ps command
+      def listProcesses(): String =
+        val output = js "require('child_process').execSync('ps aux').toString()"
+        output
+
+      // Count running processes
+      def countProcesses(): Int =
+        val output = js "require('child_process').execSync('ps aux | wc -l').toString()"
+        val countStr = js "output.trim()"
+        val count = js "parseInt(countStr, 10)"
+        count - 1  // Subtract header line
+
+      // Find process by name, return PID or -1
+      def findByName(processName: String): Int =
+        val command = "pgrep -n " + processName  // -n = newest
+        var result = ""
+        js "try { result = require('child_process').execSync(command).toString().trim()} catch (e) { result = '-1' }"
+        val pid = js "parseInt(result, 10)"
+        pid
+
+      // Get current Node.js process PID
+      def getCurrentPID(): Int =
+        val pid = js "process.pid"
+        pid
+
+      // Get current process memory usage in MB
+      def getCurrentMemoryMB(): Int =
+        val memBytes = js "process.memoryUsage().heapUsed"
+        val memMB = js "Math.round(memBytes / (1024 * 1024))"
+        memMB
+    },
+    system = object {
+      // Get system uptime in seconds
+      def uptime(): Int =
+        val uptimeSeconds = js "require('os').uptime()"
+        val rounded = js "Math.round(uptimeSeconds)"
+        rounded
+
+      // Get platform (linux, darwin, win32, etc.)
+      def platform(): String =
+        val plat = js "require('os').platform()"
+        plat
+
+      // Get CPU architecture
+      def arch(): String =
+        val architecture = js "require('os').arch()"
+        architecture
+
+      // Get hostname
+      def hostname(): String =
+        val host = js "require('os').hostname()"
+        host
+    },
+    logger = object {
+      def info(message: String): Unit =
+        print "[INFO] "
+        println message
+
+      def debug(message: String): Unit =
+        print "[DEBUG] "
+        println message
+    }

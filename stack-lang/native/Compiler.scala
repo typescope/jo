@@ -7,7 +7,6 @@ import phases.*
 import reporting.Reporter
 import reporting.Reporter.Step
 import reporting.Config
-import reporting.Mode
 
 import common.IO
 
@@ -22,77 +21,79 @@ import native.arch.X86
  ***********************************************************************/
 object Compiler:
   trait BackendBuilder:
-    def createLinux86(main: Symbol)(using Reporter, Definitions): Backend
+    def createLinux86(rewire: Map[Symbol, Symbol])(using Reporter, Definitions): Backend
 
-  val optionSpec = Config.commonOptionsSpec ++ Map(
-    "-o" -> true,
-    "-layout" -> true,
+  val layout: Config.StringSetting = Config.StringSetting("-layout", "c1", "memory layout, c1 or c2")
+
+  // Default link mappings for native runtime
+  val defaultLinkMappings = Map(
+    "stk.Predef.abort"      -> "stk.runtime.native.Core.abortImpl",
+    "stk.Predef.byteToChar" -> "stk.runtime.native.Core.byteToChar",
+    "stk.Predef.byteToInt"  -> "stk.runtime.native.Core.byteToInt",
+    "stk.Predef.charToByte" -> "stk.runtime.native.Core.charToByte",
+    "stk.Predef.charToInt"  -> "stk.runtime.native.Core.charToInt",
+    "stk.Predef.charToStr"  -> "stk.runtime.native.Core.charToStr",
+    "stk.Predef.intToByte"  -> "stk.runtime.native.Core.intToByte",
+    "stk.Predef.intToChar"  -> "stk.runtime.native.Core.intToChar",
+    "stk.Predef.intToStr"   -> "stk.runtime.native.Core.intToStr",
+    "stk.Array.create"      -> "stk.runtime.native.Core.Array_create",
+    "stk.Array.get"         -> "stk.runtime.native.Core.Array_get",
+    "stk.Array.set"         -> "stk.runtime.native.Core.Array_set",
+    "stk.Array.size"        -> "stk.runtime.native.Core.Array_size",
+
+    // GC API wiring can be controlled via options
+    "stk.runtime.native.GC.init" -> "stk.runtime.native.BumpAllocator.init",
+    "stk.runtime.native.GC.alloc" -> "stk.runtime.native.BumpAllocator.alloc",
   )
 
   def compile(backendBuilder: BackendBuilder, args: Array[String]): Unit =
-    val (options, sources) = IO.parseOptions(args, optionSpec)
+    given Reporter = Reporter.createReporter()
+
+    val (config, sources) = cli.OptionParser.parseConfig(args, layout :: Config.appOptions)
 
     if sources.isEmpty then
       println("Expect source file as input")
       return
 
-    val outFile =
-      options.get("-o") match
-        case Some(file) => file
-        case None =>
-          if sources.size == 1 then
-            IO.fileNameNoExt(sources.head)
-          else
-            "out"
+    given Config = config
 
-    val layout = options.getOrElse("-layout", "c1")
+    Reporter.monitor():
+      val outFile = Config.outFilePath.value.getOrElse {
+        if sources.size == 1 then
+          IO.fileNameNoExt(sources.head)
+        else
+          "out"
+      }
 
-    val rootNameTable = new NameTable
-
-    val runtime = Config.NativeRuntimePath :: Nil
-
-    given Config = Config(options, Mode.Application)
-
-    Reporter.monitor:
+      val rootNameTable = new NameTable
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
-      val namespacesSAST = FrontEnd.run(runtime, sources) <| "frontend"
+      val runtimes = Config.NativeRuntimePath :: Config.runtimePaths.value
+      val namespacesSAST = FrontEnd.run(runtimes, sources, defaultLinkMappings) <| "Frontend"
 
-      val mains = namespacesSAST.collect:
-        case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get
+      locally {
+        given Definitions = lazyDefn.value
 
-      mains match
-        case main :: Nil => {
-          given Definitions = lazyDefn.value
+        val backend = backendBuilder.createLinux86(FrontEnd.rewireMap.value)
+        val backendStep = Step("backend", backend.compile)
 
-          val backend = backendBuilder.createLinux86(main)
-          val backendStep = Step("backend", backend.compile)
+        val closureConvert = new ElimCapture
+        val contextParamsLower = new native.LowerContextParams(backend.runtime)
+        val runtimeLowerer = new native.LowerRuntime(backend.runtime)
+        val encodeClass = new native.EncodeClass
+        val explicitAlloc = new native.ExplicitAlloc(backend.runtime)
 
-          val closureConvert = new ElimCapture
-          val contextParamsLower = new native.LowerContextParams(backend.runtime)
-          val runtimeLowerer = new native.LowerRuntime(backend.runtime)
-          val encodeClass = new native.EncodeClass
-          val explicitAlloc = new native.ExplicitAlloc(backend.runtime)
+        val assembler = Step("assembler", (prog: Prog) =>
+          // println(prog.show)
+          Linux.lower(prog, layout.value, outFile, X86, backend.runtime)
+        )
 
-          val assembler = Step("assembler", (prog: Prog) =>
-            // println(prog.show)
-            Linux.lower(prog, layout, outFile, X86, backend.runtime)
-          )
-
-          namespacesSAST     |>
-          closureConvert     |>
-          contextParamsLower |>
-          runtimeLowerer     |>
-          encodeClass        |>
-          explicitAlloc      |>
-          backendStep        |>
-          assembler
-
-        } <| "backend"
-
-        case _ =>
-          if mains.isEmpty then
-            Reporter.abortInternal("No main function found")
-          else
-            Reporter.abortInternal("Multiple main function detected: " + mains)
-      end match
+        namespacesSAST     |>
+        closureConvert     |>
+        contextParamsLower |>
+        runtimeLowerer     |>
+        encodeClass        |>
+        explicitAlloc      |>
+        backendStep        |>
+        assembler
+      } <| "Backend"

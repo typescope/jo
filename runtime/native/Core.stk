@@ -51,7 +51,7 @@ def start(): Unit receives none =
   GC.init
   ParamSupport.init
 
-  mainStub with
+  stk.Main.main with
     open = createFileOpener(),
     stdin = createStdIn(),
     stdout = createStdOut(),
@@ -62,7 +62,6 @@ def start(): Unit receives none =
 def finish: Unit =
   Syscall.sys_exit 0
 
-def mainStub(): Unit = abort("error mainStub")
 
 //------------------------------------------------------------------------------
 //
@@ -160,7 +159,7 @@ def Array_create[T](size: Int): Array[T] =
   // TODO: zero memory
   arr cast[Array[T]]
 
-def Array_size(arr: Any): Int =
+def Array_size[T](arr: Array[T]): Int =
   readInt
     arr cast[Addr]
 

@@ -1,0 +1,65 @@
+#!/bin/bash
+
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TEST_NAME="$(basename "$DIR")"
+
+echo "Testing $TEST_NAME"
+
+# Build directory
+BUILD="$DIR/build"
+
+# Clean up previous build artifacts
+rm -rf "$BUILD" "$DIR/actual.out" "$DIR"/*.run "$DIR"/*.js
+
+# Build the framework library
+echo "  - Building test framework library"
+bin/jo build-lib "$DIR/framework.stk" -d "$BUILD/framework"
+
+# Build the tests library
+echo "  - Building tests library"
+bin/jo build-lib "$DIR/tests.stk" -d "$BUILD/tests"
+
+# Link flags to wire test implementations to framework
+LINK_FLAGS="-link Framework.mathTests=Tests.mathTests \
+            -link Framework.stringTests=Tests.stringTests \
+            -link Framework.arrayTests=Tests.arrayTests"
+
+# Test with interpreter
+echo "  - Running with interpreter"
+bin/jo run "$DIR/app.stk" -lib "$BUILD/framework:$BUILD/tests" $LINK_FLAGS > "$DIR/actual.out" 2>&1
+diff "$DIR/actual.out" "$DIR/expect.check" || {
+    echo "[error] Interpreter test failed for $TEST_NAME"
+    exit 1
+}
+
+# Test with register machine
+echo "  - Building with register machine"
+bin/jo build -reg "$DIR/app.stk" -lib "$BUILD/framework:$BUILD/tests" $LINK_FLAGS -o "$DIR/app.run"
+"$DIR/app.run" > "$DIR/actual.out" 2>&1
+diff "$DIR/actual.out" "$DIR/expect.check" || {
+    echo "[error] Register machine test failed for $TEST_NAME"
+    exit 1
+}
+
+# Test with stack machine
+echo "  - Building with stack machine"
+bin/jo build -stack "$DIR/app.stk" -lib "$BUILD/framework:$BUILD/tests" $LINK_FLAGS -o "$DIR/app.run"
+"$DIR/app.run" > "$DIR/actual.out" 2>&1
+diff "$DIR/actual.out" "$DIR/expect.check" || {
+    echo "[error] Stack machine test failed for $TEST_NAME"
+    exit 1
+}
+
+# Test with JavaScript
+echo "  - Building with JavaScript"
+bin/jo build -js "$DIR/app.stk" -lib "$BUILD/framework:$BUILD/tests" $LINK_FLAGS -o "$DIR/app.js"
+node "$DIR/app.js" > "$DIR/actual.out" 2>&1
+diff "$DIR/actual.out" "$DIR/expect.check" || {
+    echo "[error] JavaScript test failed for $TEST_NAME"
+    exit 1
+}
+
+# Clean up
+rm -rf "$BUILD" "$DIR/actual.out" "$DIR"/*.run "$DIR"/*.js
+
+echo "  ✓ All tests passed for $TEST_NAME"

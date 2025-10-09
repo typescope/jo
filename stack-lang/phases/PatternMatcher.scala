@@ -18,7 +18,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
   val BoolType = defn.BoolType
   val StringType = defn.StringType
 
-  val abortSym = defn.Predef_abort
+  val abortSym = defn.Internal_abort
   val eitherSym = defn.Bool_either
   val bothSym = defn.Bool_both
 

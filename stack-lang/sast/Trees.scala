@@ -43,7 +43,7 @@ object Trees:
         case Ident(sym) =>
           // Be more cautious with mutable variables and context parameters
           !sym.is(Flags.Mutable)
-          && !sym.isAllOf(Flags.Context | Flags.Param)
+          && !sym.isAllOf(Flags.Context)
 
         case Select(qual, _) => qual.isIdempotent
 
@@ -573,10 +573,6 @@ object Trees:
       defs.foreach:
         case sec: Section => sec.foreach(f)
         case defn => f(defn)
-
-    def mainSymbol: Option[Symbol] =
-      val funs = defs.filter(defn => defn.symbol.isFunction && defn.symbol.name == "main")
-      funs.map(_.symbol).headOption
 
     def show(using Definitions): String = Printing.show(this)
 

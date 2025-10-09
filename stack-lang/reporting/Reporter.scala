@@ -60,6 +60,12 @@ extends KeyProps.Container:
   def warn(message: String, pos: SourcePosition, trace: Trace): Unit =
     report(Kind.Warning, message, pos, trace)
 
+  def error(message: String): Unit =
+    report(new UnpositionedReportItem(Kind.Error, message))
+
+  def warn(message: String): Unit =
+    report(new UnpositionedReportItem(Kind.Warning, message))
+
   def hasErrors: Boolean = reported.exists(_.kind == Kind.Error)
 
   def hasWarnings: Boolean = reported.exists(_.kind == Kind.Warning)
@@ -80,10 +86,10 @@ extends KeyProps.Container:
 
   extension [T](v: T)
     inline def |> [U](step: Step[T, U])(using config: Config): U =
-      if this.hasErrors || config.fatalWarnings && this.hasWarnings then
+      if this.hasErrors || Config.fatalWarnings.value && this.hasWarnings then
         throw FatalError.StopAfterPhase()
       else
-        if config.showSteps then println("Running " + step.name)
+        if Config.showSteps.value then println("Running " + step.name)
         step.run(v) <| step.name
   end extension
 
@@ -105,11 +111,10 @@ object Reporter:
     val reported = new mutable.ArrayBuffer[Diagnostic]
     new Reporter(reported, buffer, sources)
 
-  def monitor[T](fn: Reporter ?=> Unit)(using cf: Config): Unit =
-    given reporter: Reporter = createReporter()
+  def monitor()(fn: Reporter ?=> Unit)(using config: Config, reporter: Reporter): Unit =
     try
       timeout(100) { fn }  <| "total"
-      if cf.reportTime then Timer.report()
+      if Config.reportTime.value then Timer.report()
     catch
       case error: FatalError.CodeError =>
         println("[error] " + error.content)
@@ -147,6 +152,12 @@ object Reporter:
 
   def warn(message: String, pos: SourcePosition, trace: Trace)(using rp: Reporter): Unit =
     rp.warn(message, pos, trace)
+
+  def error(message: String)(using rp: Reporter): Unit =
+    rp.error(message)
+
+  def warn(message: String)(using rp: Reporter): Unit =
+    rp.warn(message)
 
   def reports(using rp: Reporter): List[Diagnostic] = rp.reports
 

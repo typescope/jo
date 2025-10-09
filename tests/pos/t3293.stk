@@ -1,7 +1,7 @@
 def foo[A,B,C](f: A => B, g: B => C): A => C =
   a => g (f a)
 
-def main =
+def main: Unit =
   foo
     (a: Int) => a + 4
     b => b > 3

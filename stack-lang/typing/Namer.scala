@@ -892,7 +892,7 @@ class Namer:
 
     val paramSym =
       paramRef.tpe match
-        case StaticRef(sym) if sym.isAllOf(Flags.Param | Flags.Context) =>
+        case StaticRef(sym) if sym.is(Flags.Context) =>
           sym
 
         case tp =>
@@ -1108,7 +1108,7 @@ class Namer:
     // given definitions are lazy
     given Definitions = lazyDefn.value
 
-    var flags = checker.checkModifiers(pdef) | Flags.Param | Flags.Context
+    var flags = checker.checkModifiers(pdef) | Flags.Context
 
     if pdef.hasKey(Desugaring.DefaultContextParam) then
       flags |= Flags.Default
@@ -1134,7 +1134,7 @@ class Namer:
     val kindFlags = adef.kind match
       case Ast.AliasKind.Def => Flags.Fun
 
-      case Ast.AliasKind.Param => Flags.Context | Flags.Param
+      case Ast.AliasKind.Param => Flags.Context
 
       case Ast.AliasKind.Pattern => Flags.Pattern | Flags.Fun
 
@@ -1303,6 +1303,13 @@ class Namer:
 
     given defn: Definitions = lazyDefn.value
 
+    if flags.is(Flags.Defer) then
+      if funDef.resultType.isEmpty then
+        Reporter.error("A deferred definition should have explicit result type", funDef.ident.pos)
+
+      if !sc.owner.isContainer then
+        Reporter.error("A deferred definition should be at top-level", funDef.ident.pos)
+
     lazy val tparamSyms =
       transformTypeParams(funDef.tparams)
 
@@ -1342,14 +1349,20 @@ class Namer:
       paramSyms
       autoSyms
 
-      val targetType =
-        if !funDef.resultType.isEmpty then
-          TargetType.Known(givenResultType)
-        else
-          TargetType.ValueType
+      if flags.is(Flags.Defer) && !flags.is(Flags.Default) then
+        // Dummy body deferred function without default implementation
+        val dummyBody = Block(Nil)(funDef.body.span)
+        if funDef.resultType.isEmpty then dummyBody.encodedAs(defn.UnitType)
+        else dummyBody.encodedAs(givenResultType)
+      else
+        val targetType =
+          if !funDef.resultType.isEmpty then
+            TargetType.Known(givenResultType)
+          else
+            TargetType.ValueType
 
-      given TargetType = targetType
-      transform(funDef.body)
+        given TargetType = targetType
+        transform(funDef.body)
 
     lazy val effectPolicy = transformReceives(funDef.receives, policy)
 

@@ -102,6 +102,14 @@ object Decoder:
     inline if enable then println(message) else ()
 
   //----------------------------------------------------------------------------
+  def loadPackage(dir: String)(using defnLazy: Definitions.Lazy, rp: Reporter): List[Namespace] =
+    val files = IO.getSastFiles(dir).toList
+    val delayedDefs = files.map(file => pickle.Decoder.load(file))
+
+    // Force all delayed definitions
+    val defn = defnLazy.value
+    delayedDefs.map(_.force()(using defn))
+
 
   /** Load a .sast file and decode it */
   def load(file: String)(using defnLazy: Definitions.Lazy, rp: Reporter): DelayedDef[Namespace] =
@@ -323,7 +331,7 @@ object Decoder:
 
     val id = decodeNat()
     val name = decodeString()
-    val flags = decodeFlags() | Flags.Context | Flags.Param
+    val flags = decodeFlags() | Flags.Context
 
     val symStartDelta = decodeInt()
     val symSpanLength = decodeNat()

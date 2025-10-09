@@ -66,10 +66,10 @@ class Scanner(stream: CharStream)(using Reporter, Source):
         charLit()
 
       case c      =>
-        if      isDigit(c)      then intLit()
-        else if isNameStart(c)  then name()
-        else if isOperator(c)   then operator()
-        else if isSpace(c)      then nextToken()
+        if      isDigit(c)         then intLit()
+        else if isNameStart(c)     then name()
+        else if isOperatorChar(c)  then operator()
+        else if isSpace(c)         then nextToken()
         else
           error("Unexpected character: " + Character.toString(c), stream.tokenSpan().toPos)
           nextToken()
@@ -107,12 +107,13 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       case "alias"     => Token.ALIAS
       case "begin"     => Token.BEGIN
       case "auto"      => Token.AUTO
+      case "defer"     => Token.DEFER
       case "class"     => Token.CLASS
       case "new"       => Token.NEW
       case name        => Token.Ident(name)
 
   def operator(): Token =
-    stream.eatWhile(c => isOperator(c) && !stream.isComment())
+    stream.eatWhile(c => isOperatorChar(c) && !stream.isComment())
 
     stream.tokenEnd() match
       case "="   => Token.EQL

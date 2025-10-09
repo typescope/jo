@@ -132,7 +132,7 @@ def println(s: String): Unit =
 
 def ??? : Bottom = abort("not implemented")
 
-def abort(s: String): Bottom = abort("primitive abort")
+defer def abort(s: String): Bottom
 
 def assert(cond: Bool, message: String): Unit =
   if !cond then abort message
@@ -155,16 +155,16 @@ def flow[T](v: T): T = v
 //
 // For numeric types, widening coercion is automatically inserted.
 
-def byteToInt(b: Byte): Int = abort "byteToInt"
-def byteToChar(b: Byte): Char = abort "byteToChar"
+defer def byteToInt(b: Byte): Int
+defer def byteToChar(b: Byte): Char
 
-def intToChar(n: Int): Char = abort "intToChar"
-def intToByte(n: Int): Byte = abort "intToByte"
-def intToStr(n: Int): String = abort "intToStr"
+defer def intToChar(n: Int): Char
+defer def intToByte(n: Int): Byte
+defer def intToStr(n: Int): String
 
-def charToByte(c: Char): Byte = abort "charToByte"
-def charToInt(c: Char): Int = abort "charToInt"
-def charToStr(c: Char): String = abort "charToStr"
+defer def charToByte(c: Char): Byte
+defer def charToInt(c: Char): Int
+defer def charToStr(c: Char): String
 
 //------------------------------------------------------------------------------
 //

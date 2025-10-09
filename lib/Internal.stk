@@ -1,6 +1,8 @@
 namespace stk.Internal
 
 import stk.Predef.Int
+import stk.Predef.String
+import stk.Predef.Bottom
 
 // The signature of scrutinee required by sequence patterns
 type Seq[T] = object {
@@ -11,3 +13,8 @@ type Seq[T] = object {
 
 // Used by the compiler as expected type to check varargs
 type PackElemType[T] = T
+
+// Compiler transform should use this, which is guaranteed to be linked
+//
+// Usage of stk.Predef.abort in phases after LinkRewriter is problematic.
+def abort(s: String): Bottom = stk.Predef.abort s

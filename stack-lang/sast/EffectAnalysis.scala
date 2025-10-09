@@ -168,7 +168,7 @@ object EffectAnalysis:
         case _: Literal => zero
 
         case Ident(sym) =>
-          if sym.isAllOf(Flags.Context | Flags.Param) then
+          if sym.is(Flags.Context) then
             Map(sym -> Vector(word.pos))
 
           else if sym.isFunction then

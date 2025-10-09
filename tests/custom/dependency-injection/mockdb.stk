@@ -1,0 +1,16 @@
+// Mock database implementation for testing
+
+namespace MockDB
+
+def connect(host: String): String =
+  "Connected to MockDB at " + host
+
+def query(table: String): Int =
+  Database.state.recordCount
+
+def insert(table: String, value: Int): Unit =
+  Database.state.recordCount = Database.state.recordCount + 1
+  println "Mock: Inserted record with value"
+
+def disconnect(): Unit =
+  println "Disconnected from MockDB"

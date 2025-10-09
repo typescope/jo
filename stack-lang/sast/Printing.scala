@@ -331,7 +331,7 @@ object Printing:
       case RestPattern(pattern) => ".." ~ pattern
 
   def showModifiers(sym: Symbol)(using Definitions): Text =
-    val mask = Flags.Auto | Flags.Synthetic | Flags.Context | Flags.Default | Flags.Alias
+    val mask = Flags.Auto | Flags.Synthetic | Flags.Context | Flags.Default | Flags.Alias | Flags.Defer
     Flags.flagStrings(sym.flags & mask).map("<" + _ + ">").join(" ")
 
   def showType(tp: Type)(using Definitions): Text =

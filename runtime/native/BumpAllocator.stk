@@ -13,7 +13,7 @@ def init(): Unit receives none =
   Core.writeInt dataAddr start
   Core.writeInt (Core.addAddr dataAddr 4) start
 
-def alloc(size: Int): Any receives none =
+def alloc(size: Int): Core.Addr receives none =
   val dataAddr = Core.dataAddr "stk.runtime.native.BumpAllocator.state"
 
   // TODO: use stk syntax once record can be mutable
@@ -40,4 +40,4 @@ def alloc(size: Int): Any receives none =
   // TODO: use stk syntax once record can be mutable
   Core.writeInt dataAddr newFreeFrom
 
-  res
+  res Core.cast[Core.Addr]

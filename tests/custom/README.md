@@ -1,6 +1,6 @@
 # Custom Integration Tests
 
-This directory contains integration tests that demonstrate end-to-end workflows for separate compilation and library management.
+This directory contains integration tests that demonstrate end-to-end workflows for separate compilation, library management, deferred functions, and link rewriting.
 
 ## Structure
 
@@ -56,3 +56,36 @@ Demonstrates:
 - Application correctly resolving transitive dependencies
 - Proper library ordering in compilation
 - Using colon-separated library paths: `-lib build/core:build/validation:build/processor`
+
+### plugin-system
+
+**Purpose:** Plugin architecture with deferred functions
+
+Demonstrates:
+
+- Framework library defining deferred plugin interface (`getName`, `getVersion`, `initialize`, `execute`)
+- Plugin library providing concrete implementations
+- Application using the framework with plugin wired via `-link` flags
+- Separate compilation of framework, plugin, and application
+
+### dependency-injection
+
+**Purpose:** Dependency injection with deferred functions
+
+Demonstrates:
+
+- Database interface library with deferred operations (`connect`, `query`, `insert`, `disconnect`)
+- Service layer library depending on database abstraction
+- Mock database implementation library
+- Wiring service to mock DB via `-link` flags for testing
+
+### test-runner
+
+**Purpose:** Testing framework with deferred test functions
+
+Demonstrates:
+
+- Test framework library with deferred test functions (`mathTests`, `stringTests`, `arrayTests`)
+- Test suite library providing test implementations
+- Application that runs all tests
+- Separate compilation allows framework reuse with different test suites

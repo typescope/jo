@@ -6,7 +6,7 @@ OPT="--native"
 
 # compile
 echo "Generating unified launcher"
-scala-cli --power package -f $OPT project.scala stack-lang -M Main -o bin/jo.native
+scala-cli --power package -f $OPT project.scala stack-lang -M cli.Main -o bin/jo.native
 
 # create wrapper script
 cat > bin/jo << 'EOF'
@@ -23,6 +23,10 @@ chmod +x bin/jo
 # build stand library
 STDLIB=sast/stdlib
 bin/jo build-lib -testPickling -no-stdlib lib/*.stk -d $STDLIB
+
+# build interpreter runtime
+INT_RUNTIME=sast/runtime/interpreter
+bin/jo build-lib -testPickling runtime/Interpreter.stk -d $INT_RUNTIME
 
 # build JS runtime
 JS_RUNTIME=sast/runtime/js

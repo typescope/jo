@@ -90,7 +90,7 @@ object Phase:
     def newContext(namespace: Symbol): Unit = ()
 
   def shouldPrint(ns: Namespace)(using config: Config): Boolean =
-    config.printOnly.isEmpty || config.printOnly.exists(ns.source.contains)
+    Config.printOnly.value.isEmpty || Config.printOnly.value.exists(ns.source.contains)
 
   type PhaseStep = Step[List[Namespace], List[Namespace]]
   given (using defn: Definitions, rp: Reporter, config: Config): Conversion[Phase[?], PhaseStep] = phase =>
@@ -98,10 +98,10 @@ object Phase:
     Step(name, code => {
       val output = phase.transform(code)
 
-      if config.checkTree then
+      if Config.checkTree.value then
         TreeChecker.check(output)
 
-      if config.printAfter.contains(name) then
+      if Config.printAfter.value.contains(name) then
         Printing.print(output.filter(shouldPrint))
 
       output

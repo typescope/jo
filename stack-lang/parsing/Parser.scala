@@ -13,7 +13,6 @@ import ast.Positions.*
 import reporting.Reporter
 import reporting.Reporter.{ error, warn }
 import reporting.Config
-import reporting.Mode
 
 import common.IO
 import common.StringUtil
@@ -31,10 +30,13 @@ import scala.collection.mutable
 
 object Parser:
   def main(args: Array[String]): Unit =
-    val (options, sources) = IO.parseOptions(args, Config.commonOptionsSpec)
-    given Config = Config(options, Mode.Library)
+    given Reporter = Reporter.createReporter()
+    val options = Config.reportTime :: Config.fatalWarnings :: Nil
+    val (config, sources) = cli.OptionParser.parseConfig(args, options)
+    given Config = config
 
-    Reporter.monitor:
+    Reporter.monitor():
+
       val nss = Parser.parse(sources)
       for ns <- nss do
         println(ns.source + ":")
@@ -218,20 +220,20 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val mods = modifiers()
     val item = peekItem()
 
-    if item.token == Token.TYPE then typeDef().withMods(mods)
-    else if item.token == Token.DEF then funDef().withMods(mods)
-    else if item.token == Token.PARAM then paramDef().withMods(mods)
-    else if item.token == Token.PATTERN then patDef().withMods(mods)
-    else if item.token == Token.DATA then dataDef().withMods(mods)
-    else if item.token == Token.ALIAS then aliasDef().withMods(mods)
-    else if item.token == Token.SECTION then section().withMods(mods)
-    else if item.token == Token.CLASS then classDef().withMods(mods)
+    if item.token == Token.TYPE then typeDef(mods)
+    else if item.token == Token.DEF then funDef(mods)
+    else if item.token == Token.PARAM then paramDef(mods)
+    else if item.token == Token.PATTERN then patDef(mods)
+    else if item.token == Token.DATA then dataDef(mods)
+    else if item.token == Token.ALIAS then aliasDef(mods)
+    else if item.token == Token.SECTION then section(mods)
+    else if item.token == Token.CLASS then classDef(mods)
     else
       error("Expect a definition, found = " + item.token, item.span.toPos)
       next()
       throw new SyntaxError
 
-  def aliasDef(): AliasDef =
+  def aliasDef(mods: List[Modifier]): AliasDef =
     val info = eat(Token.ALIAS)
     val item = next()
     val kind =
@@ -247,9 +249,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val name = ident()
     eat(Token.EQL)
     val id = qualid()
-    AliasDef(name, kind, id)(info.span | id.span)
+    AliasDef(name, kind, id)(info.span | id.span).withMods(mods)
 
-  def section(): Section =
+  def section(mods: List[Modifier]): Section =
     val secToken = eat(Token.SECTION)
     val id = ident()
     val defs = repeated:
@@ -261,7 +263,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     val endSpan = if defs.isEmpty then id.span else defs.last.span
 
-    Section(id, defs)(id.span | endSpan)
+    Section(id, defs)(id.span | endSpan).withMods(mods)
 
   def modifiers(): List[Modifier] =
     peek() match
@@ -269,10 +271,14 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         val item = next()
         Modifier.Auto()(item.span) :: modifiers()
 
+      case Token.DEFER =>
+        val item = next()
+        Modifier.Defer()(item.span) :: modifiers()
+
       case _ =>
         Nil
 
-  def valDef(modifier: Token): ValDef =
+  def valDef(modifier: Token, mods: List[Modifier]): ValDef =
     val mutable = modifier == Token.VAR
     val mod = eat(modifier)
     val id = ident()
@@ -286,9 +292,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     eat(Token.EQL)
     val rhs = block(mod.indent)
-    ValDef(id, tpt, rhs, mutable)(mod.span | rhs.span)
+    ValDef(id, tpt, rhs, mutable)(mod.span | rhs.span).withMods(mods)
 
-  def funDef(): FunDef =
+  def funDef(mods: List[Modifier]): FunDef =
     val fun = eat(Token.DEF)
     val preParamList = paramSection()
     val id = ident()
@@ -305,13 +311,18 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     val receiveParams = optReceiveParams()
 
-    eat(Token.EQL)
-    val body = block(fun.indent)
+    val body =
+      val deferred = mods.exists(_.isInstanceOf[Modifier.Defer])
+      if deferred && peek() != Token.EQL then
+        Block(Nil)(id.span)
+      else
+        eat(Token.EQL)
+        block(fun.indent)
 
     eatEndOpt(fun.indent)
 
     val paramList = preParamList ++ postParamList
-    FunDef(id, tparams, paramList, autos, resType, receiveParams, body, preParamList.size)(fun.span | body.span)
+    FunDef(id, tparams, paramList, autos, resType, receiveParams, body, preParamList.size)(fun.span | body.span).withMods(mods)
 
   def defDef(needBody: Boolean): FunDef =
     val defToken = eat(Token.DEF)
@@ -340,7 +351,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val preParamCount = 0
     FunDef(id, tparams, paramList, autos, resType, receiveParams, body, preParamCount)(defToken.span | body.span)
 
-  def paramDef(): ParamDef =
+  def paramDef(mods: List[Modifier]): ParamDef =
     val token = eat(Token.PARAM)
     val id = ident()
     eat(Token.COLON)
@@ -351,9 +362,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         Some(block(token.indent))
       else
         None
-    ParamDef(id, tpt, default)(token.span | tpt.span)
+    ParamDef(id, tpt, default)(token.span | tpt.span).withMods(mods)
 
-  def patDef(): PatDef =
+  def patDef(mods: List[Modifier]): PatDef =
     val pat = eat(Token.PATTERN)
     val preParamList = paramSection()
     val id = ident()
@@ -396,7 +407,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     eatEndOpt(pat.indent)
 
     val paramList = preParamList ++ postParamList
-    PatDef(id, tparams, paramList, resType, cases, preParamList.size)(pat.span | bodySpan)
+    PatDef(id, tparams, paramList, resType, cases, preParamList.size)(pat.span | bodySpan).withMods(mods)
 
   def paramSection(): List[Param] =
     if peek() == Token.LPAREN && peek(1) != Token.AUTO then params() else Nil
@@ -412,7 +423,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     else
       Nil
 
-  def classDef(): ClassDef =
+  def classDef(mods: List[Modifier]): ClassDef =
     val klass = eat(Token.CLASS)
     val id = ident()
     val tparams = typeParams()
@@ -443,9 +454,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       else if tparams.nonEmpty then tparams.last.span
       else id.span
 
-    ClassDef(id, tparams, members)(klass.span | lastSpan)
+    ClassDef(id, tparams, members)(klass.span | lastSpan).withMods(mods)
 
-  def typeDef(): TypeDef =
+  def typeDef(mods: List[Modifier]): TypeDef =
     val typeItem = eat(Token.TYPE)
     val preTypeParams = typeParams()
     val id = ident()
@@ -463,9 +474,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         isBound = true
         EmptyTypeTree()(id.span)
     val tparams = preTypeParams ++ postTypeParams
-    TypeDef(id, tparams, rhs, isBound, preTypeParams.size)(typeItem.span | rhs.span)
+    TypeDef(id, tparams, rhs, isBound, preTypeParams.size)(typeItem.span | rhs.span).withMods(mods)
 
-  def dataDef(): Def =
+  def dataDef(mods: List[Modifier]): Def =
     val data = eat(Token.DATA)
     val id = ident()
     val tparams = typeParams()
@@ -480,11 +491,11 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         TagType(id, paramList)(id.span | endSpan)
 
       val branches = oneOrMore(branch, Token.Ident("|"))
-      EnumDef(id, tparams, branches)(data.span | branches.last.span)
+      EnumDef(id, tparams, branches)(data.span | branches.last.span).withMods(mods)
 
     else
       val paramList = paramSection()
-      DataDef(id, tparams, paramList)(data.span | id.span)
+      DataDef(id, tparams, paramList)(data.span | id.span).withMods(mods)
 
   def typeParams(): List[TypeParam] =
     if peek() != Token.LBRACKET then Nil
@@ -749,25 +760,25 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case Token.WHILE     => Some(whileDo())
 
       case Token.VAL | Token.VAR  =>
-        Some(valDef(item.token))
+        Some(valDef(item.token, mods = Nil))
 
       case Token.DEF =>
-        Some(funDef())
+        Some(funDef(mods = Nil))
 
       case Token.PATTERN =>
-        Some(patDef())
+        Some(patDef(mods = Nil))
 
       case Token.TYPE =>
-        Some(typeDef())
+        Some(typeDef(mods = Nil))
 
-      case Token.AUTO =>
+      case Token.AUTO | Token.DEFER =>
         val mods = modifiers()
         peek() match
-          case Token.VAL | Token.VAR   =>
-            Some(valDef(item.token).withMods(mods))
+          case Token.VAL | Token.VAR =>
+            Some(valDef(item.token, mods))
 
           case Token.DEF =>
-            Some(funDef().withMods(mods))
+            Some(funDef(mods))
 
           case token =>
             error("Expect start of value or function definitions, found = " + token, peekItem().span.toPos)
@@ -1170,10 +1181,10 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           Some(defDef(needBody = true))
 
         else if peek() == Token.VAL then
-          Some(valDef(Token.VAL))
+          Some(valDef(Token.VAL, mods = Nil))
 
         else if peek() == Token.VAR then
-          Some(valDef(Token.VAR))
+          Some(valDef(Token.VAR, mods = Nil))
 
         else None
 

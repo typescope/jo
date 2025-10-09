@@ -240,7 +240,7 @@ object Subtyping:
         recur(autoType2, autoType1)
       && recur(tp1.resultType, tp2.resultType)
     }
-    && tp1.receives.forall(tp2.receives.contains)
+    && tp1.receives.forall(eff => eff.is(Flags.Default) || tp2.receives.contains(eff))
 
   // TODO: loosen record typing and use coersion semantics
   private def checkConformsRecordType(tp1: RecordType, tp2: RecordType)(using Context, Definitions): Boolean =

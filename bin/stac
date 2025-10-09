@@ -98,10 +98,14 @@ files=(
     stack-lang/phases/Phase.scala
     stack-lang/phases/EffectCheck.scala
     stack-lang/phases/FrontEnd.scala
+    stack-lang/phases/LinkRewriter.scala
     stack-lang/phases/ElimCapture.scala
     stack-lang/phases/EncodeTagged.scala
     stack-lang/phases/NormalizeParams.scala
     stack-lang/phases/PatternMatcher.scala
+
+    # cli
+    stack-lang/cli/OptionParser.scala
 )
 
 FILES=${files[*]}

@@ -1,0 +1,3 @@
+#!/bin/bash
+
+scala-cli project.scala stack-lang --main-class cli.Main -- "$@"

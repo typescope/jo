@@ -25,13 +25,11 @@ def js(s: String): Bottom = abort("primitive js")
 //
 
 def start(): Unit receives none =
-  mainStub with
+  stk.Main.main with
     IO.open   = createFileOpener(),
     IO.stdin  = createStdIn(),
     IO.stdout = createStdOut(),
     IO.stderr = createStdErr()
-
-def mainStub(): Unit = abort "error mainStub"
 
 //------------------------------------------------------------------------------
 //

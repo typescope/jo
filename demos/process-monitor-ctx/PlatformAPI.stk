@@ -1,0 +1,96 @@
+// PlatformAPI.stk
+// Platform API using context parameters instead of deferred functions
+// Declares capability types as object interfaces
+
+namespace SystemAPI
+
+import stk.IO.stdout
+
+// ============================================
+// Capability Type Definitions
+// ============================================
+
+type Process = object {
+  // Get list of running processes (returns formatted string)
+  def listProcesses(): String
+
+  // Get count of running processes
+  def countProcesses(): Int
+
+  // Get process info by name (returns PID or -1 if not found)
+  def findByName(processName: String): Int
+
+  // Get current Node.js process info
+  def getCurrentPID(): Int
+  def getCurrentMemoryMB(): Int
+}
+
+type System = object {
+  // Get system uptime in seconds
+  def uptime(): Int
+
+  // Get platform (linux, darwin, win32)
+  def platform(): String
+
+  // Get CPU architecture
+  def arch(): String
+
+  // Get hostname
+  def hostname(): String
+}
+
+type Logger = object {
+  // Log info message
+  def info(message: String): Unit
+
+  // Log debug message
+  def debug(message: String): Unit
+}
+
+// ============================================
+// Context Parameter Declarations
+// ============================================
+
+param process: Process
+param system: System
+param logger: Logger
+
+// ============================================
+// Framework Entry Point
+// ============================================
+
+section Monitor
+  // User implements this to analyze system data
+  defer def analyzeSystem(): Unit receives stdout, process, logger
+
+  // Platform-controlled entry point
+  def startMonitor: Unit receives stdout, process, system, logger =
+    logger.info("🚀 System Monitor Starting...")
+    logger.info("=========================")
+    println ""
+
+    // Show system info
+    val platform = system.platform()
+    val arch = system.arch()
+    val hostname = system.hostname()
+    val uptime = system.uptime()
+
+    println ("💻 Platform: " + platform)
+    println ("🏗️  Architecture: " + arch)
+    println ("🌐 Hostname: " + hostname)
+    println ("⏱️  Uptime: " + (intToStr uptime) + " seconds")
+    println ""
+
+    // Show current process info
+    val pid = process.getCurrentPID()
+    val mem = process.getCurrentMemoryMB()
+    println ("🔢 Current Process PID: " + (intToStr pid))
+    println ("💾 Current Process Memory: " + (intToStr mem) + " MB")
+    println ""
+
+    // Let user analyze processes
+    logger.info("🔍 Running user analysis...")
+    analyzeSystem()
+
+    logger.info("✅ Monitor shutting down")
+end

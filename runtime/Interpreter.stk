@@ -1,0 +1,102 @@
+namespace stk.runtime.Interpreter
+
+import stk.IO
+
+//------------------------------------------------------------------------------
+// intrinsic function
+//
+def platformCall0(fn: String): Bottom = abort "platform-special function"
+
+def platformCall1(fn: String, arg: Any): Bottom = abort "platform-special function"
+
+def platformCall2(fn: String, arg1: Any, arg2: Any): Bottom = abort "platform-special function"
+
+def platformCall3(fn: String, arg1: Any, arg2: Any, arg3: Any): Bottom = abort "platform-special function"
+
+//------------------------------------------------------------------------------
+section Int
+  def add(a: Int, b: Int): Int = platformCall2("add", a, b)
+  def sub(a: Int, b: Int): Int = platformCall2("sub", a, b)
+  def mul(a: Int, b: Int): Int = platformCall2("mul", a, b)
+  def div(a: Int, b: Int): Int = platformCall2("div", a, b)
+  def mod(a: Int, b: Int): Int = platformCall2("mod", a, b)
+
+  def gt(a: Int, b: Int): Bool = platformCall2("gt", a, b)
+  def lt(a: Int, b: Int): Bool = platformCall2("lt", a, b)
+  def ge(a: Int, b: Int): Bool = platformCall2("ge", a, b)
+  def le(a: Int, b: Int): Bool = platformCall2("le", a, b)
+  def eql(a: Int, b: Int): Bool = platformCall2("eql", a, b)
+
+  def srl(a: Int, b: Int): Int = platformCall2("srl", a, b)
+  def sll(a: Int, b: Int): Int = platformCall2("sll", a, b)
+  def land(a: Int, b: Int): Int = platformCall2("land", a, b)
+  def lor(a: Int, b: Int): Int = platformCall2("lor", a, b)
+  def lxor(a: Int, b: Int): Int = platformCall2("lxor", a, b)
+end
+
+section Bool
+  def both(a: Bool, b: Bool): Bool = platformCall2("both", a, b)
+  def either(a: Bool, b: Bool): Bool = platformCall2("either", a, b)
+  def not(a: Bool): Bool = platformCall1("not", a)
+end
+
+//------------------------------------------------------------------------------
+
+def abort(s: String): Bottom = platformCall1("abort", s)
+
+def byteToInt(b: Byte): Int = platformCall1("byteToInt", b)
+def byteToChar(b: Byte): Char = platformCall1("byteToChar", b)
+
+def intToChar(n: Int): Char = platformCall1("intToChar", n)
+def intToByte(n: Int): Byte = platformCall1("intToByte", n)
+def intToStr(n: Int): String = platformCall1("intToStr", n)
+
+def charToByte(c: Char): Byte = platformCall1("charToByte", c)
+def charToInt(c: Char): Int = platformCall1("charToInt", c)
+def charToStr(c: Char): String = platformCall1("charToStr", c)
+
+section Array
+  def create[T](size: Int): Array[T] = platformCall1("createArray", size)
+
+  def get[T](arr: Array[T], i: Int): T = platformCall2("getArray", arr, i)
+
+  def size[T](arr: Array[T]): Int = platformCall1("sizeArray", arr)
+
+  def set[T](arr: Array[T], i: Int, value: T): Unit = platformCall3("setArray", arr, i, value)
+end
+
+//------------------------------------------------------------------------------
+
+def start() receives none =
+  stk.Main.main with
+    IO.open = createOpen(),
+    IO.stdout = createStdOut(),
+    IO.stdin = createStdIn(),
+    IO.stderr = createStdErr()
+
+def createOpen() = (file: String) =>
+  val handle = platformCall1("openFile", file)
+
+  object {
+    def close(): Unit = platformCall1("closeFile", handle)
+
+    def seek(pos: Int): Unit = platformCall2("seekFile", handle, pos)
+
+    def hasMore(): Bool = platformCall1("hasMoreFile", handle)
+
+    def readLine(): String = platformCall1("readLineFile", handle)
+
+    def write(content: String): Unit = platformCall2("writeFile", handle, content)
+  }
+
+def createStdOut() = object {
+  def write(content: String): Unit = platformCall1("writeStdOut", content)
+}
+
+def createStdErr() = object {
+  def write(content: String): Unit = platformCall1("writeStdErr", content)
+}
+
+def createStdIn() = object {
+  def readLine(): String = platformCall0("readLineStdIn")
+}

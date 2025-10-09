@@ -1,0 +1,47 @@
+// Testing framework library
+
+namespace Framework
+
+defer def mathTests(): Bool
+defer def stringTests(): Bool
+defer def arrayTests(): Bool
+
+def runAll(): Unit =
+  println "=== Test Suite Runner ==="
+  var passed: Int = 0
+  var failed: Int = 0
+
+  if runTest("Math Tests", mathTests()) then
+    passed = passed + 1
+  else
+    failed = failed + 1
+  end
+
+  if runTest("String Tests", stringTests()) then
+    passed = passed + 1
+  else
+    failed = failed + 1
+  end
+
+  if runTest("Array Tests", arrayTests()) then
+    passed = passed + 1
+  else
+    failed = failed + 1
+  end
+
+  println "====================="
+  print "Passed: "
+  passed p
+  print "Failed: "
+  failed p
+
+def runTest(name: String, result: Bool): Bool =
+  print name
+  print ": "
+  if result then
+    println "✓ PASS"
+    true
+  else
+    println "✗ FAIL"
+    false
+  end

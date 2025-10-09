@@ -14,7 +14,7 @@ import stk.Predef.Int
 // Open a file or create one if absent
 param open: String => File
 
-param stdin: object { def readLine(): String}
+param stdin: object { def readLine(): String }
 
 param stdout: object {def write(content: String): Unit }
 

@@ -4,54 +4,64 @@ import common.IO
 
 import sast.*
 import phases.*
+
 import reporting.Reporter
 import reporting.Reporter.Step
 import reporting.Config
-import reporting.Mode
 
 /***********************************************************************
  *
  * Main entry point for the JS compiler
  *
  ***********************************************************************/
-@main
-def compile(args: String*): Unit =
-  val optionSpec = Config.commonOptionsSpec + ("-o" -> true)
+object Compiler:
+  // Default link mappings for JS runtime
+  val defaultLinkMappings = Map(
+    "stk.Predef.abort"      -> "stk.runtime.JS.abort",
+    "stk.Predef.byteToChar" -> "stk.runtime.JS.byteToChar",
+    "stk.Predef.byteToInt"  -> "stk.runtime.JS.byteToInt",
+    "stk.Predef.charToByte" -> "stk.runtime.JS.charToByte",
+    "stk.Predef.charToInt"  -> "stk.runtime.JS.charToInt",
+    "stk.Predef.charToStr"  -> "stk.runtime.JS.charToStr",
+    "stk.Predef.intToByte"  -> "stk.runtime.JS.intToByte",
+    "stk.Predef.intToChar"  -> "stk.runtime.JS.intToChar",
+    "stk.Predef.intToStr"   -> "stk.runtime.JS.intToStr",
+    "stk.Array.get"         -> "stk.runtime.JS.Array_get",
+    "stk.Array.set"         -> "stk.runtime.JS.Array_set",
+    "stk.Array.size"        -> "stk.runtime.JS.Array_size",
+  )
 
-  val (options, sources) = IO.parseOptions(args, optionSpec)
+  def main(args: Array[String]): Unit =
+    given Reporter = Reporter.createReporter()
 
-  if sources.isEmpty then
-    println("Expect source file as input")
-    return
+    val (config, sources) = cli.OptionParser.parseConfig(args, Config.appOptions)
 
-  val outFile =
-    options.get("-o") match
-      case Some(file) => file
-      case None =>
+    if sources.isEmpty then
+      println("Expect source file as input")
+      return
+
+    given Config = config
+
+
+    Reporter.monitor():
+      val outFile = Config.outFilePath.value.getOrElse{
         if sources.size == 1 then
           IO.fileNameNoExt(sources.head) + ".js"
         else
           "out.js"
+      }
 
-  given Config = Config(options, Mode.Application)
+      val rootNameTable = new NameTable
 
-  Reporter.monitor:
+      given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
-    val rootNameTable = new NameTable
+      val runtimes = Config.JSRuntimePath :: Config.runtimePaths.value
+      val nss = FrontEnd.run(runtimes, sources, defaultLinkMappings) <| "Frontend"
 
-    given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
-
-    val runtime = Config.JSRuntimePath :: Nil
-    val namespacesSAST = FrontEnd.run(runtime, sources) <| "Frontend"
-
-    val mains = namespacesSAST.collect:
-      case ns if ns.mainSymbol.nonEmpty => ns.mainSymbol.get
-
-    mains match
-      case main :: Nil => {
+      locally {
         given Definitions = lazyDefn.value
 
-        val jsRuntime = new JSRuntime(rootNameTable, main)
+        val jsRuntime = new JSRuntime(rootNameTable)
         val contextParamsLower = new LowerContextParams(
             jsRuntime.JS_hasParam,
             jsRuntime.JS_getParam,
@@ -61,17 +71,11 @@ def compile(args: String*): Unit =
         val closureConvert = new ElimCapture
         val runtimeLowerer = new LowerRuntime(jsRuntime)
         val backend: Step[List[Trees.Namespace], Unit] =
-          Step("Backend", new JSOptimized(outFile, jsRuntime).compile)
+          Step("Backend", new JSOptimized(outFile, jsRuntime, FrontEnd.rewireMap.value).compile)
 
-        namespacesSAST      |>
+        nss                 |>
         closureConvert      |>
         runtimeLowerer      |>
         contextParamsLower  |>
         backend
       } <| "Backend"
-
-      case _ =>
-        if mains.isEmpty then
-          Reporter.abortInternal("No main function found")
-        else
-          Reporter.abortInternal("Multiple main function detected: " + mains)

@@ -1,0 +1,8 @@
+// Application using service layer
+
+namespace App
+
+def main =
+  println "=== User Service Test ==="
+  Service.processUsers() with Database.state = object { var recordCount = 100 }
+  println "=== Test Complete ==="

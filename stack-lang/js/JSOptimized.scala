@@ -19,7 +19,7 @@ import scala.collection.mutable
 /**
   * JavaScript platform with code optimization
   */
-class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
+class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Definitions):
   private val reservedNames = new UniqueName
 
   val keywords = List(
@@ -43,8 +43,8 @@ class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
       case Some(name) => name
 
       case None =>
-        runtime.link(sym) match
-          case Some(sym) => jsName(sym)
+        rewire.get(sym) match
+          case Some(target) => jsName(target)
 
           case None =>
             val rawName = sym.fullName
@@ -244,8 +244,9 @@ class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
             "const " ~ sym ~ " = " ~ t ~ ";" ~ cont()
 
       case FieldAssign(Select(qual, name), rhs) =>
-        runLast(qual): v =>
-          v ~ "." ~ encodeSymbolic(name) ~ " = " ~ rhs ~ cont()
+        run(qual): v1 =>
+          runLast(rhs): v2 =>
+            v1 ~ "." ~ encodeSymbolic(name) ~ " = " ~ v2 ~ cont()
 
       case If(cond, thenp, elsep) =>
         run(cond): v =>
@@ -277,7 +278,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime)(using defn: Definitions):
         ~ cont()
 
       case Ident(sym) =>
-        assert(!sym.isAllOf(Flags.Context | Flags.Param), "Unexpected context parameter")
+        assert(!sym.is(Flags.Context), "Unexpected context parameter")
         cont(Text(sym), sideEffect = sym.isMutable)
 
       case _: TypeDef =>
