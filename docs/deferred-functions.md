@@ -300,8 +300,10 @@ If user-supplied link mapping conflicts with compiler defaults:
 2. **Compile-Time Safety**: Type checking ensures all bindings are correct before runtime
 3. **Zero Overhead**: No runtime lookup or reflection needed
 4. **Framework Flexibility**: Frameworks can define contracts without implementations
-5. **Testing Support**: Easy to swap implementations for testing
-6. **Whole-Program Optimization**: Compiler can inline and optimize across bindings
+5. **Capability-Based Security**: Deferred functions act as capability declarations that platform controls
+6. **Testing Support**: Easy to swap implementations for testing
+7. **Whole-Program Optimization**: Compiler can inline and optimize across bindings
+8. **Auditable Security**: All capability boundaries are visible in source code
 
 ### Comparison with Alternatives
 
