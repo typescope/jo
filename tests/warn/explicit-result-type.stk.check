@@ -1,0 +1,36 @@
+---------- Error at ./tests/warn/explicit-result-type.stk:4:5 ---------------
+| def topLevelNoType(x: Int) = x + 1
+|     ^^^^^^^^^^^^^^
+|     A top-level function should have explicit result type
+
+---------- Error at ./tests/warn/explicit-result-type.stk:6:5 ---------------
+| def anotherTopLevel(s: String) = s + " world"
+|     ^^^^^^^^^^^^^^^
+|     A top-level function should have explicit result type
+
+---------- Error at ./tests/warn/explicit-result-type.stk:8:5 ---------------
+| def withTypeParam[T](x: T) = x
+|     ^^^^^^^^^^^^^
+|     A top-level function should have explicit result type
+
+---------- Error at ./tests/warn/explicit-result-type.stk:20:7 ---------------
+|   def add(a: Int, b: Int) = a + b
+|       ^^^
+|       A top-level function should have explicit result type
+
+---------- Error at ./tests/warn/explicit-result-type.stk:32:7 ---------------
+|   def increment() =
+|       ^^^^^^^^^
+|       Class method should have explicit result type
+
+---------- Error at ./tests/warn/explicit-result-type.stk:35:7 ---------------
+|   def getValue() = value
+|       ^^^^^^^^
+|       Class method should have explicit result type
+
+---------- Error at ./tests/warn/explicit-result-type.stk:40:7 ---------------
+|   def compute(x: Int) = x * value
+|       ^^^^^^^
+|       Class method should have explicit result type
+
+7 error(s), 0 warning(s)
