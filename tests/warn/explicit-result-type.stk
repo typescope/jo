@@ -1,0 +1,49 @@
+// options: -explicit-return-type
+// Test that top-level functions and class methods require explicit result types
+
+// Top-level functions without explicit result type - should error
+def topLevelNoType(x: Int) = x + 1
+
+def anotherTopLevel(s: String) = s + " world"
+
+def withTypeParam[T](x: T) = x
+
+// Top-level function with explicit result type - OK
+def topLevelWithType(x: Int): Int = x + 1
+
+// Nested function without result type - OK (not top-level)
+def outer(x: Int): Int =
+  def nested(y: Int) = y * 2
+  nested x
+
+// Section with function without result type - should error
+section Math
+  def add(a: Int, b: Int) = a + b
+
+  def multiply(a: Int, b: Int): Int = a * b  // OK
+end
+
+// Class with methods without result type - should error
+class Calculator
+  var value: Int
+
+  def Calculator(initial: Int) =
+    { value: initial }
+
+  def increment() =
+    value = value + 1
+
+  def getValue() = value
+
+  def setValue(v: Int): Unit =  // OK
+    value = v
+
+  def compute(x: Int) = x * value
+end
+
+type Runnable = object { def run(): Unit }
+
+def makeRunable: Runnable =
+  object {
+    def run() = println "run"
+  }

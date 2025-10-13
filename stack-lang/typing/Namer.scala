@@ -15,6 +15,7 @@ import common.KeyProps
 import common.OutOfBand
 
 import reporting.Reporter
+import reporting.Config
 
 import Inference.*
 
@@ -34,7 +35,7 @@ import scala.collection.mutable
   * It is important to NOT trigger effect inference and effect check during type
   * checking.
   */
-class Namer:
+class Namer(using Config):
   val checker = new Checker(this)
   val patternTyper = PatternTyper(this, checker)
   // TODO: change inferencer to be contextual and check instantiation earlier
@@ -1309,6 +1310,9 @@ class Namer:
 
       if !sc.owner.isContainer then
         Reporter.error("A deferred definition should be at top-level", funDef.ident.pos)
+
+    else if Config.explicitReturnType.value && funDef.resultType.isEmpty then
+      Reporter.error("This project requires functions to have explicit return type", funDef.ident.pos)
 
     lazy val tparamSyms =
       transformTypeParams(funDef.tparams)

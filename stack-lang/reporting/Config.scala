@@ -87,9 +87,13 @@ object Config:
   val noStdLib      : Setting[Boolean] = BooleanSetting("-no-stdlib",       false, "disable loading stdlib")
   val autoMainOff   : Setting[Boolean] = BooleanSetting("-no-detect-main",  false, "disable main detection")
 
+  val explicitReturnType: Setting[Boolean] = BooleanSetting("-explicit-return-type",  false, "Require functions to have explicit return type")
+
   val outFilePath: Setting[Option[String]] = OptionStringSetting("-o", "output file path")
 
   val targetDir: Setting[String]   = StringSetting("-d", ".",  "target directory for sast")
+
+
 
   //----------------------------------------------------------------------------
 
@@ -223,7 +227,8 @@ object Config:
     showSteps,
     testPickling,
     noStdLib,
-    libPaths
+    libPaths,
+    explicitReturnType
   )
 
   val appOptions = autoMainOff :: outFilePath :: runtimePaths :: linkMap :: commonOptions

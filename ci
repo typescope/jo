@@ -3,9 +3,11 @@
 DIR=$(dirname "$0")
 
 retcode=0
+failed_tests=()
 
 error() {
     echo "[error] testing $file failed!"
+    failed_tests+=("$file")
     retcode=1
 }
 
@@ -167,6 +169,7 @@ echo
 
 scala-cli project.scala stack-lang -M negTest
 if [[ $? != 0 ]]; then
+  failed_tests+=("neg tests")
   retcode=1
 fi
 
@@ -179,7 +182,7 @@ echo
 
 for test_dir in $DIR/tests/custom/*/; do
     if [[ -f "$test_dir/test.sh" ]]; then
-        "$test_dir/test.sh" || retcode=1
+        "$test_dir/test.sh" || { failed_tests+=("$test_dir"); retcode=1; }
     fi
 done
 
@@ -189,5 +192,20 @@ done
 
 demos/process-monitor/build.sh
 
-echo $retcode
+################################################################################
+# Summary
+
+echo
+echo "========================================"
+if [[ $retcode == 0 ]]; then
+  echo "All tests passed!"
+else
+  echo "FAILED TESTS:"
+  for test in "${failed_tests[@]}"; do
+    echo "  - $test"
+  done
+fi
+echo "========================================"
+echo
+
 exit $retcode

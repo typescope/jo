@@ -284,7 +284,7 @@ def String_bytes(repr: String): Any =
 // I/O support
 //
 
-def createFileOpener() = (filePath: String) =>
+def createFileOpener(): String => File = (filePath: String) =>
   val nameBytes = String_bytes filePath
 
   val O_CREAT = 1 << 6
@@ -407,8 +407,8 @@ def writeString(fd: Int, repr: StringRepr): Unit =
         flow rhs cast[StringRepr]
 
 
-def createStdIn() = object {
-  def readLine() =
+def createStdIn(): object { def readLine(): String } =
+  () =>
     var continue = true
     var res = ""
     while continue do
@@ -428,12 +428,9 @@ def createStdIn() = object {
     end
 
     res
-}
 
-def createStdOut() = object {
-  def write(s: String) = writeString 1 (flow s cast[StringRepr])
-}
+def createStdOut(): object { def write(content: String): Unit } =
+  (s: String) => writeString 1 (flow s cast[StringRepr])
 
-def createStdErr() = object {
-  def write(s: String) = writeString 2 (flow s cast[StringRepr])
-}
+def createStdErr(): object { def write(content: String): Unit } =
+  (s: String) => writeString 2 (flow s cast[StringRepr])
