@@ -106,7 +106,7 @@ class NormalizeParams(using defn: Definitions) extends Phase[Symbol]:
     *
     * An object
     *
-    *     object {
+    *     {
     *       def foo() = ...
     *       def bar() = ...
     *       def baz() = ...
@@ -117,7 +117,7 @@ class NormalizeParams(using defn: Definitions) extends Phase[Symbol]:
     *     val a = param1
     *     val b = param2
     *
-    *     object {
+    *     {
     *       def foo() = ... with param1 = a
     *       def bar() = ... with param2 = b
     *       def baz() = ... with param1 = a, param2 = b

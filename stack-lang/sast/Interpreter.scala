@@ -105,7 +105,7 @@ object Interpreter:
         case ObjectVal(values, self, defs,  env) =>
           val fields = values.take(1).map(_ + " = " + _.show(level - 1)).mkString(", ")
           val methods = defs.take(5).keys.mkString(", ")
-          "object {" + fields + ", " + methods + "}"
+          "{" + fields + ", " + methods + "}"
 
   type Value = IntVal | BoolVal | StringVal | RecordVal | ObjectVal | ArrayVal | PlatformVal
 

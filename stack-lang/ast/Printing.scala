@@ -284,7 +284,7 @@ object Printing:
           cases.join(Text.BlankLine)
 
       case Object(members) =>
-        "object {" ~ indent:
+        "{" ~ indent:
            members.join(Text.BreakLine)
         ~ "}"
 
@@ -353,6 +353,6 @@ object Printing:
           tp ~ " receives " ~ receives.join(", ")
 
       case ObjectType(members) =>
-        "object {" ~ indent:
+        "{" ~ indent:
            members.join(Text.BreakLine)
         ~ "}"

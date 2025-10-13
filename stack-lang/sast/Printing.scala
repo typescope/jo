@@ -278,7 +278,7 @@ object Printing:
           Text.Empty
 
       case Object(self, members) =>
-        "object {" ~ indent:
+        "{" ~ indent:
            members.join(Text.BreakLine)
         ~ "}"
 
@@ -374,7 +374,7 @@ object Printing:
             val mod = if muts.contains(name) then "var " else " val "
             mod ~ name ~ ": " ~ info
 
-        "object { " ~ indent:
+        "{ " ~ indent:
             memberList.join(Text.BreakLine)
         ~ " }"
 

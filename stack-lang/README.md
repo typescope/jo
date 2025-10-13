@@ -47,8 +47,7 @@ Lexical Grammar
     NSPACE   = "namespace".
     IMPORT   = "import".
     DEF      = "def".
-    OBJECT   = "object".
-    OBJECT   = "begin".
+    BEGIN    = "begin".
     RECEIVES = "receives".
     PATTERN  = "pattern".
     AUTO     = "auto".
