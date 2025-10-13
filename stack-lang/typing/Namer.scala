@@ -1310,6 +1310,12 @@ class Namer:
       if !sc.owner.isContainer then
         Reporter.error("A deferred definition should be at top-level", funDef.ident.pos)
 
+    if sc.owner.isContainer && funDef.resultType.isEmpty then
+        Reporter.error("A top-level function should have explicit result type", funDef.ident.pos)
+
+    if sc.owner.isClass && funDef.resultType.isEmpty then
+        Reporter.error("Class method should have explicit result type", funDef.ident.pos)
+
     lazy val tparamSyms =
       transformTypeParams(funDef.tparams)
 
