@@ -5,7 +5,7 @@
 
 ---------- Error at ./tests/warn/data-def.stk:7:24 ---------------
 | data ObjType[T] = A(x: { def foo(x: Int): Int }) | B
-|                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|                        ^^^^^^^^^^^^^^^^^^^^^^^^
 |                        Only aliases of object type allowed in enum definitions
 
 ---------- Error at ./tests/warn/data-def.stk:1:13 ---------------

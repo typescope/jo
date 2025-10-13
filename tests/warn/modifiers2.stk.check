@@ -1,7 +1,7 @@
 ---------- Error at ./tests/warn/modifiers2.stk:2:3 ---------------
 |   auto val x: Int = 3
 |   ^^^^
-|   Unexpected token, found = AUTO, expect = RBRACE
+|   Expect identifier, found token AUTO
 
 ---------- Error at ./tests/warn/modifiers2.stk:5:1 ---------------
 | }
