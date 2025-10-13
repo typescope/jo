@@ -67,14 +67,14 @@ end
 
 //------------------------------------------------------------------------------
 
-def start() receives none =
+def start(): Unit receives none =
   stk.Main.main with
     IO.open = createOpen(),
     IO.stdout = createStdOut(),
     IO.stdin = createStdIn(),
     IO.stderr = createStdErr()
 
-def createOpen() = (file: String) =>
+def createOpen(): String => IO.File = (file: String) =>
   val handle = platformCall1("openFile", file)
 
   object {
@@ -89,14 +89,12 @@ def createOpen() = (file: String) =>
     def write(content: String): Unit = platformCall2("writeFile", handle, content)
   }
 
-def createStdOut() = object {
-  def write(content: String): Unit = platformCall1("writeStdOut", content)
-}
+def createStdOut(): object { def write(content: String): Unit } =
+  (content: String) => platformCall1("writeStdOut", content)
 
-def createStdErr() = object {
-  def write(content: String): Unit = platformCall1("writeStdErr", content)
-}
 
-def createStdIn() = object {
-  def readLine(): String = platformCall0("readLineStdIn")
-}
+def createStdErr(): object { def write(content: String): Unit } =
+  (content: String) => platformCall1("writeStdErr", content)
+
+def createStdIn(): object { def readLine(): String } =
+  () => platformCall0("readLineStdIn")

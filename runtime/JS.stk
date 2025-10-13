@@ -166,7 +166,7 @@ type Stat = object {
   val size: Int
 }
 
-def createFileOpener() receives none = (filePath: String) =>
+def createFileOpener(): (String => IO.File) receives none = (filePath: String) =>
   val mode = if existsSync filePath then "r+" else "w+"
   val fd = openSync filePath mode
   object {
@@ -205,14 +205,11 @@ def createFileOpener() receives none = (filePath: String) =>
         "write file failed"
   }
 
-def createStdIn() = object {
-  def readLine() = (readFileSync 0).toString
-}
+def createStdIn(): object { def readLine(): String } =
+  () => (readFileSync 0).toString
 
-def createStdOut() = object {
-  def write(s: String) = js "process.stdout.write(s)"
-}
+def createStdOut(): object { def write(content: String): Unit } =
+  (s: String) => js "process.stdout.write(s)"
 
-def createStdErr() = object {
-  def write(s: String) = js "process.stderr.write(s)"
-}
+def createStdErr(): object { def write(content: String): Unit } =
+  (s: String) => js "process.stderr.write(s)"
