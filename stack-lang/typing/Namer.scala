@@ -1312,7 +1312,7 @@ class Namer(using Config):
         Reporter.error("A deferred definition should be at top-level", funDef.ident.pos)
 
     else if Config.explicitReturnType.value && funDef.resultType.isEmpty then
-      Reporter.error("The project requires functions to have explicit result type", funDef.ident.pos)
+      Reporter.error("This project requires functions to have explicit return type", funDef.ident.pos)
 
     lazy val tparamSyms =
       transformTypeParams(funDef.tparams)
