@@ -10,7 +10,7 @@ import stk.IO.stdout
 // Capability Type Definitions
 // ============================================
 
-type Process = object {
+type Process = {
   // Get list of running processes (returns formatted string)
   def listProcesses(): String
 
@@ -25,7 +25,7 @@ type Process = object {
   def getCurrentMemoryMB(): Int
 }
 
-type System = object {
+type System = {
   // Get system uptime in seconds
   def uptime(): Int
 
@@ -39,7 +39,7 @@ type System = object {
   def hostname(): String
 }
 
-type Logger = object {
+type Logger = {
   // Log info message
   def info(message: String): Unit
 

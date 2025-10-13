@@ -14,7 +14,7 @@ def line(text: String): Unit =
   println
     "pageWidth = " + (intToStr pageWidth)
 
-type Printer = object {
+type Printer = {
   def apply(text: String): Unit receives indent
 }
 

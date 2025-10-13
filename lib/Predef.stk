@@ -171,7 +171,7 @@ defer def charToStr(c: Char): String
 // String type
 //
 
-type String <: object {
+type String <: {
   def size: Int
   def get(i: Int): Char
   def +(other: String): String

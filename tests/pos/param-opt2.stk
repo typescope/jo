@@ -1,11 +1,11 @@
-type Counter = object {
+type Counter = {
   def inc(): Unit
   def get(): Int
 }
 
 param counter: Counter = newCounter(0)
 
-def newCounter(from: Int): Counter = object {
+def newCounter(from: Int): Counter = {
   var count = from
   def inc() =
     count = count + 1

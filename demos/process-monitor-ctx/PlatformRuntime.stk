@@ -15,7 +15,7 @@ import SystemAPI.Monitor.startMonitor
 
 def platformMain: Unit receives stdout =
   startMonitor with
-    process = object {
+    process = {
       // Get list of running processes using ps command
       def listProcesses(): String =
         val output = js "require('child_process').execSync('ps aux').toString()"
@@ -47,7 +47,7 @@ def platformMain: Unit receives stdout =
         val memMB = js "Math.round(memBytes / (1024 * 1024))"
         memMB
     },
-    system = object {
+    system = {
       // Get system uptime in seconds
       def uptime(): Int =
         val uptimeSeconds = js "require('os').uptime()"
@@ -69,7 +69,7 @@ def platformMain: Unit receives stdout =
         val host = js "require('os').hostname()"
         host
     },
-    logger = object {
+    logger = {
       def info(message: String): Unit =
         print "[INFO] "
         println message

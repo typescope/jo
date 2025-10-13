@@ -28,8 +28,8 @@ This is an alternative implementation of the system monitor demo using **context
            ▼
 ┌─────────────────────┐
 │  PlatformAPI.stk    │  Pure world (interface)
-│                     │  - type Process = object { ... }
-│  param process      │  - type System = object { ... }
+│                     │  - type Process = { ... }
+│  param process      │  - type System = { ... }
 │  param system       │  - param declarations
 │  param logger       │
 └──────────┬──────────┘
@@ -37,7 +37,7 @@ This is an alternative implementation of the system monitor demo using **context
            ▼
 ┌─────────────────────┐
 │ PlatformRuntime.stk │  Runtime world (trusted)
-│  platformMain       │  - startMonitor with process = object { ... }
+│  platformMain       │  - startMonitor with process = { ... }
 └──────────┬──────────┘  - Uses js intrinsic for Node.js
            │ uses
            ▼
@@ -53,7 +53,7 @@ This is an alternative implementation of the system monitor demo using **context
 Declares capability types and context parameters:
 
 ```stk
-type Process = object {
+type Process = {
   def listProcesses(): String
   def countProcesses(): Int
   def findByName(processName: String): Int
@@ -61,14 +61,14 @@ type Process = object {
   def getCurrentMemoryMB(): Int
 }
 
-type System = object {
+type System = {
   def uptime(): Int
   def platform(): String
   def arch(): String
   def hostname(): String
 }
 
-type Logger = object {
+type Logger = {
   def info(message: String): Unit
   def debug(message: String): Unit
 }
@@ -84,7 +84,7 @@ Provides context via `with` clause:
 ```stk
 def platformMain: Unit receives stdout =
   startMonitor with
-    process = object {
+    process = {
       def listProcesses(): String =
         val output = js "require('child_process').execSync('ps aux').toString()"
         output
@@ -92,12 +92,12 @@ def platformMain: Unit receives stdout =
       def countProcesses(): Int =
         // ... Node.js implementation
     },
-    system = object {
+    system = {
       def uptime(): Int =
         val uptimeSeconds = js "require('os').uptime()"
         // ...
     },
-    logger = object {
+    logger = {
       def info(message: String): Unit =
         print "[INFO] "
         println message
@@ -166,7 +166,7 @@ Output is identical to the deferred functions version.
 
 | Aspect | Deferred Functions | Context Parameters |
 |--------|-------------------|-------------------|
-| **Capability Declaration** | `defer def func(): Type` | `type T = object { ... }; param p: T` |
+| **Capability Declaration** | `defer def func(): Type` | `type T = { ... }; param p: T` |
 | **Implementation** | Individual function implementations | Object with all methods |
 | **Linking** | One `-link` per capability | One `-link` for entry point |
 | **Provision** | Compiler links at build time | Runtime provides via `with` |

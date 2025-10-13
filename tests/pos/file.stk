@@ -1,7 +1,7 @@
 import stk.IO.*
 
 def main =
-  ioTest with stdin = object { def readLine = "stk" }
+  ioTest with stdin = { def readLine = "stk" }
 
 def ioTest =
   stdout.write("name: ")

@@ -1,4 +1,4 @@
-type List[T] = object {
+type List[T] = {
   def size: Int
   def get(i: Int): T
 
@@ -28,7 +28,7 @@ section List
 
   def errorIndex(i: Int): Bottom = abort ("invalid index for list " + (intToStr i))
 
-  def makeObject[T](repr: Repr[T]): List[T] = object {
+  def makeObject[T](repr: Repr[T]): List[T] = {
     val _size: Int = match repr case Size(n) => n
 
     def size: Int = _size

@@ -12,7 +12,7 @@ def lineCount =
 
   recur 0
 
-def testFile: File = object {
+def testFile: File = {
   var moreAvailable: Bool = true
   var currentLine: Int = 0
   def close(): Unit = {}
@@ -45,7 +45,7 @@ def main =
   println (intToStr res)
 
 def test() =
-  val readLineFun = object {
+  val readLineFun = {
     var line: Int = 0
     def apply(): Option[String] =
       if line == 0 then

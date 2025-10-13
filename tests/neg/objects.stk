@@ -1,11 +1,11 @@
-type A = object {
+type A = {
   def (x: Int) foo(y: Int): Int  // error
 }
 
-type B = object {
+type B = {
   def foo(n: Int): Int = n * n // error
 } // error
 
-def test = object {
+def test = {
   def (x: Int) foo(y: Int): Int = x + y  // error
 }

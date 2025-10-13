@@ -3,14 +3,14 @@ type StringRepr =
   | #Concat(length: Int, lhs: String, rhs: String)
 
 
-type String <: object {
+type String <: {
   def length: Int
   def apply(i: Int): Char
   def +(other: String): String
   def substring(from: Int, len: Int): String
 }
 
-type StringImpl = object {
+type StringImpl = {
   val repr: StringRepr
   def length: Int
   def apply(i: Int): Char
