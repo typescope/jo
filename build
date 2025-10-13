@@ -22,16 +22,16 @@ chmod +x bin/jo
 
 # build stand library
 STDLIB=sast/stdlib
-bin/jo build-lib -testPickling -no-stdlib lib/*.stk -d $STDLIB
+bin/jo build-lib -testPickling -explicit-return-type -no-stdlib lib/*.stk -d $STDLIB
 
 # build interpreter runtime
 INT_RUNTIME=sast/runtime/interpreter
-bin/jo build-lib -testPickling runtime/Interpreter.stk -d $INT_RUNTIME
+bin/jo build-lib -testPickling -explicit-return-type runtime/Interpreter.stk -d $INT_RUNTIME
 
 # build JS runtime
 JS_RUNTIME=sast/runtime/js
-bin/jo build-lib -testPickling runtime/JS.stk -d $JS_RUNTIME
+bin/jo build-lib -testPickling -explicit-return-type runtime/JS.stk -d $JS_RUNTIME
 
 # build native runtime
 NATIVE_RUNTIME=sast/runtime/native
-bin/jo build-lib -testPickling runtime/native/*.stk -d $NATIVE_RUNTIME
+bin/jo build-lib -testPickling -explicit-return-type runtime/native/*.stk -d $NATIVE_RUNTIME
