@@ -1,0 +1,31 @@
+---------- Error at ./tests/warn/unicode-escape.stk:3:31 ---------------
+| def testInvalidHex: String = "\u{GGGG}"
+|                               ^^^^^^^^
+|                               Invalid hex digit in unicode escape: G
+
+---------- Error at ./tests/warn/unicode-escape.stk:5:28 ---------------
+| def testTooLong: String = "\u{1234567}"
+|                            ^^^^^^^^^^^
+|                            Unicode escape sequence too long (max 6 hex digits): 1234567
+
+---------- Error at ./tests/warn/unicode-escape.stk:7:29 ---------------
+| def testUnclosed: String = "\u{41"
+|                             ^^^^^
+|                             Unclosed unicode escape sequence
+
+---------- Error at ./tests/warn/unicode-escape.stk:9:26 ---------------
+| def testEmpty: String = "\u{}"
+|                          ^^^^
+|                          Empty unicode escape sequence
+
+---------- Error at ./tests/warn/unicode-escape.stk:11:32 ---------------
+| def testNoOpenBrace: String = "\u41}"
+|                                ^^
+|                                Unicode escape must be followed by '{': \u{...}
+
+---------- Error at ./tests/warn/unicode-escape.stk:13:31 ---------------
+| def testCharTooLarge: Char = '\u{10000}'
+|                               ^^^^^^^^^
+|                               Char literal cannot represent code point > FFFF: 10000
+
+6 error(s), 0 warning(s)

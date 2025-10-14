@@ -1,0 +1,13 @@
+// Test error reporting for invalid unicode escapes
+
+def testInvalidHex: String = "\u{GGGG}"
+
+def testTooLong: String = "\u{1234567}"
+
+def testUnclosed: String = "\u{41"
+
+def testEmpty: String = "\u{}"
+
+def testNoOpenBrace: String = "\u41}"
+
+def testCharTooLarge: Char = '\u{10000}'
