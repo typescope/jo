@@ -12,6 +12,8 @@ With triple quotes: Code: let x = """hello"""
 ---
 Continued: This is a single line
 ---
+Backslash at end: No trailing newline
+---
 Unicode: Emoji: 😀
 ---
 Empty lines: Line 1

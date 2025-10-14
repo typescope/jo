@@ -46,6 +46,14 @@ def main(): Unit =
   print(continued)
   print("\n---\n")
 
+  // Backslash at end of last line (acts as line continuation, removes trailing newline)
+  val backslashAtEnd = """
+    No trailing newline\
+    """
+  print("Backslash at end: ")
+  print(backslashAtEnd)
+  print("\n---\n")
+
   // Unicode escapes in multi-line
   val unicode = """
     Emoji: \u{1F600}

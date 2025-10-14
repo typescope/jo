@@ -281,9 +281,11 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       val stripped = if line.length >= baseIndent then line.substring(baseIndent) else line
 
       // Handle line continuation (backslash at end of line)
-      if stripped.endsWith("\\") && idx < contentLines.length - 1 then
-        // Remove the backslash and don't add newline
+      if stripped.endsWith("\\") then
+        // Remove the backslash and don't add newline (line continuation)
         result.append(stripped.substring(0, stripped.length - 1))
+        // If this is not the last line, we're continuing to the next line
+        // If this is the last line, the backslash just removes any trailing newline (which we don't add anyway)
       else
         result.append(stripped)
         // Add newline except for last line
