@@ -1,0 +1,41 @@
+---------- Error at ./tests/warn/multiline-string.stk:4:38 ---------------
+| def testInsufficientIndent: String = """
+|                                      ^
+|                                      Line has insufficient indentation (expected at least 4 spaces)
+
+---------- Error at ./tests/warn/multiline-string.stk:10:36 ---------------
+| def testTextAfterOpening: String = """Hello
+|                                    ^^^
+|                                    Multi-line string must start on a new line after opening quotes
+
+---------- Error at ./tests/warn/multiline-string.stk:12:5 ---------------
+|     """
+|     ^
+|     Closing delimiter line must contain only whitespace
+
+---------- Error at ./tests/warn/multiline-string.stk:12:5 ---------------
+|     """
+|     ^
+|     Line has insufficient indentation (expected at least 36 spaces)
+
+---------- Error at ./tests/warn/multiline-string.stk:17:5 ---------------
+|     end"""
+|     ^^^
+|     Expect a definition, found = END
+
+---------- Error at ./tests/warn/multiline-string.stk:17:8 ---------------
+|     end"""
+|        ^
+|        Closing delimiter line must contain only whitespace
+
+---------- Error at ./tests/warn/multiline-string.stk:17:8 ---------------
+|     end"""
+|        ^
+|        Line has insufficient indentation (expected at least 27 spaces)
+
+---------- Error at ./tests/warn/multiline-string.stk:21:5 ---------------
+|     Hello
+|     ^^^^^
+|     Expect a definition, found = Ident(Hello)
+
+8 error(s), 0 warning(s)
