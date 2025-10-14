@@ -46,6 +46,15 @@ def main(): Unit =
   print(continued)
   print("\n---\n")
 
+  // Line continuation also trims leading whitespace from next line
+  val continuedWithWhitespace = """
+    Hello \
+      World
+    """
+  print("Continued with whitespace trim: ")
+  print(continuedWithWhitespace)
+  print("\n---\n")
+
   // Backslash at end of last line (acts as line continuation, removes trailing newline)
   val backslashAtEnd = """
     No trailing newline\

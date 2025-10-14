@@ -266,6 +266,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
 
     // Track byte offset for error reporting
     var currentOffset = 0
+    var previousLineContinuation = false
 
     for (line, idx) <- contentLines.zipWithIndex do
       // Check indentation
@@ -278,19 +279,24 @@ class Scanner(stream: CharStream)(using Reporter, Source):
         error(s"Line has insufficient indentation (expected at least $baseIndent spaces)", errorSpan.toPos)
 
       // Strip base indentation
-      val stripped = if line.length >= baseIndent then line.substring(baseIndent) else line
+      var stripped = if line.length >= baseIndent then line.substring(baseIndent) else line
+
+      // If previous line had line continuation, trim leading whitespace from this line
+      if previousLineContinuation then
+        stripped = stripped.dropWhile(c => c == ' ' || c == '\t')
 
       // Handle line continuation (backslash at end of line)
-      if stripped.endsWith("\\") then
+      val hasLineContinuation = stripped.endsWith("\\")
+      if hasLineContinuation then
         // Remove the backslash and don't add newline (line continuation)
         result.append(stripped.substring(0, stripped.length - 1))
-        // If this is not the last line, we're continuing to the next line
-        // If this is the last line, the backslash just removes any trailing newline (which we don't add anyway)
+        previousLineContinuation = true
       else
         result.append(stripped)
         // Add newline except for last line
         if idx < contentLines.length - 1 then
           result.append('\n')
+        previousLineContinuation = false
 
       // Update offset (line length + newline character)
       currentOffset += line.length + 1
