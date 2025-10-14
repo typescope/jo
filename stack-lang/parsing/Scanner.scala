@@ -180,20 +180,34 @@ class Scanner(stream: CharStream)(using Reporter, Source):
 
   def multiLineStringLit(quoteCount: Int): Token.StringLit =
     // Multi-line string must start with a newline after opening quotes
+    var hasErrorAfterOpening = false
     if stream.curCodePoint() != '\n' then
-      error("Multi-line string must start on a new line after opening quotes", stream.tokenSpan().toPos)
-      return new Token.StringLit("")
+      // Point to the text after the quotes, not the quotes themselves
+      val errorStart = stream.tokenSpan().endOffset
+      // Find the length of text on this line
+      var length = 0
+      while stream.hasMore() && stream.curCodePoint() != '\n' do
+        length += StringUtil.utf8CodePointLength(stream.curCodePoint())
+        stream.eat()
+      error("Multi-line string must start on a new line after opening quotes", Span(errorStart, length).toPos)
+      hasErrorAfterOpening = true
+      // Don't return yet - continue to consume the closing quotes
 
-    stream.eat() // consume the newline after opening quotes
+    if stream.hasMore() && stream.curCodePoint() == '\n' then
+      stream.eat() // consume the newline after opening quotes (or the newline we stopped at)
 
     // Record the position where content starts (for closing delimiter column calculation)
-    val contentStart = stream.tokenSpan().start
+    val contentStart = stream.tokenSpan().endOffset
 
     // Read content until we find closing quotes
     val content = readUntilClosingQuotes(quoteCount)
 
     if content == null then
-      // Error already reported in readUntilClosingQuotes
+      // Error already reported in readUntilClosingQuotes (unclosed string)
+      return new Token.StringLit("")
+
+    if hasErrorAfterOpening then
+      // Already reported error, return empty string but we've consumed all the content
       return new Token.StringLit("")
 
     // Process the multi-line content: strip indentation, handle escapes
@@ -236,24 +250,32 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       return ""
 
     // The last line before closing """ determines the base indentation
-    // Find the column of the closing delimiter (which is at the end of content)
     val closingLine = lines.last
     val baseIndent = closingLine.length // All characters before """ are whitespace
 
     // Validate that closing line is all whitespace
     if !closingLine.forall(c => c == ' ' || c == '\t') then
-      error("Closing delimiter line must contain only whitespace", stream.tokenSpan().toPos)
+      // Calculate position of closing line
+      val closingLineOffset = content.length - closingLine.length
+      val errorPos = contentStart + closingLineOffset
+      error("Closing delimiter line must contain only whitespace", Span(errorPos, closingLine.length).toPos)
 
     // Process all lines except the last (which is the closing delimiter line)
     val contentLines = if lines.length > 1 then lines.dropRight(1) else Array[String]()
     val result = new StringBuilder
+
+    // Track byte offset for error reporting
+    var currentOffset = 0
 
     for (line, idx) <- contentLines.zipWithIndex do
       // Check indentation
       val indent = line.prefixLength(c => c == ' ' || c == '\t')
 
       if indent < baseIndent && line.trim.nonEmpty then
-        error(s"Line has insufficient indentation (expected at least $baseIndent spaces)", stream.tokenSpan().toPos)
+        // Calculate the position of this line for error reporting
+        val lineStart = contentStart + currentOffset
+        val errorSpan = Span(lineStart, line.length)
+        error(s"Line has insufficient indentation (expected at least $baseIndent spaces)", errorSpan.toPos)
 
       // Strip base indentation
       val stripped = if line.length >= baseIndent then line.substring(baseIndent) else line
@@ -267,6 +289,9 @@ class Scanner(stream: CharStream)(using Reporter, Source):
         // Add newline except for last line
         if idx < contentLines.length - 1 then
           result.append('\n')
+
+      // Update offset (line length + newline character)
+      currentOffset += line.length + 1
 
     // Process escape sequences
     try
