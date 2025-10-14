@@ -191,10 +191,51 @@ class Scanner(stream: CharStream)(using Reporter, Source):
         new Token.CharLit(0)  // Return a dummy value
 
   def intLit(): Token.IntLit =
-    stream.eatWhile(isDigit)
-    val intStr = stream.tokenEnd()
-    val value = str2Int(intStr)
-    new Token.IntLit(value)
+    // Check for hexadecimal prefix 0x or 0X
+    if stream.curCodePoint() == '0' && stream.hasNext() then
+      val next = stream.nextCodePoint()
+      if next == 'x' || next == 'X' then
+        stream.eat() // consume '0'
+        stream.eat() // consume 'x' or 'X'
+        stream.eatWhile(c => StringUtil.isHexDigit(c.toChar))
+        val hexStr = stream.tokenEnd()
+        if hexStr.length <= 2 then // Only "0x" or "0X" with no digits
+          error("Hexadecimal literal must have at least one digit", stream.tokenSpan().toPos)
+          new Token.IntLit(0)
+        else
+          val value = hexStr2Int(hexStr.substring(2)) // Skip "0x" prefix
+          new Token.IntLit(value)
+      else
+        stream.eatWhile(isDigit)
+        val intStr = stream.tokenEnd()
+        val value = str2Int(intStr)
+        new Token.IntLit(value)
+    else
+      stream.eatWhile(isDigit)
+      val intStr = stream.tokenEnd()
+      val value = str2Int(intStr)
+      new Token.IntLit(value)
+
+  def hexStr2Int(str: String): Int =
+    val length = str.size
+    if length > 8 then
+      error("Hexadecimal literal too long (max 8 hex digits): " + str, stream.tokenSpan().toPos)
+      return 0
+
+    var sum: Int = 0
+    var i = 0
+    while i < length do
+      val c = str(i)
+      val v = if c >= '0' && c <= '9' then c - '0'
+              else if c >= 'a' && c <= 'f' then c - 'a' + 10
+              else if c >= 'A' && c <= 'F' then c - 'A' + 10
+              else 0 // Should not happen due to eatWhile check
+      sum = (sum << 4) | v
+      i += 1
+    end while
+
+    sum
+  end hexStr2Int
 
   def str2Int(str: String): Int =
     val first = str(0)
@@ -256,6 +297,10 @@ object Scanner:
     source.addLineOffset(index)
 
     def curCodePoint(): Int = code.codePointAt(index)
+
+    def hasNext(): Boolean =
+      val nextIndex = index + Character.charCount(curCodePoint())
+      nextIndex < LEN
 
     def nextCodePoint(): Int =
       val nextIndex = index + Character.charCount(curCodePoint())
