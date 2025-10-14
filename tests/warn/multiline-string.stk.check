@@ -21,11 +21,16 @@
 ---------- Error at ./tests/warn/multiline-string.stk:21:10 ---------------
 |     Hello\   
 |          ^^
-|          Unknown escape sequence: \space 
+|          Unknown escape sequence: \space
 
----------- Error at ./tests/warn/multiline-string.stk:25:28 ---------------
+---------- Error at ./tests/warn/multiline-string.stk:27:1 ---------------
+|   Line 2
+| ^^^^^^^^
+| Line has insufficient indentation (expected at least 4 spaces)
+
+---------- Error at ./tests/warn/multiline-string.stk:31:28 ---------------
 | def testUnclosed: String = """
 |                            ^
 |                            Unclosed multi-line string literal
 
-6 error(s), 0 warning(s)
+7 error(s), 0 warning(s)

@@ -21,6 +21,12 @@ def testBackslashSpace: String = """
     Hello\   
     """
 
+// Insufficient indentation after line continuation
+def testContinuationInsufficientIndent: String = """
+    Line 1 \
+  Line 2
+    """
+
 // Unclosed multi-line string
 def testUnclosed: String = """
     Hello
