@@ -26,7 +26,7 @@ def main(): Unit =
   val letterA = '\u{41}'
 
   print("Char A: ")
-  print(letterA)
+  printChar(letterA)
   print("\n")
 
   // Mixed escapes

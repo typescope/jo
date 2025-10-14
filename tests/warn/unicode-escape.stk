@@ -15,3 +15,14 @@ def testCharTooLarge: Char = '\u{10000}'
 def testUnknownEscapeString: String = "\x"
 
 def testUnknownEscapeChar: Char = '\a'
+
+// Test invalid escapes in the middle of string literals
+def testInvalidInMiddle1: String = "Hello \u{GG} World"
+
+def testInvalidInMiddle2: String = "Start\xMiddle"
+
+def testInvalidInMiddle3: String = "Before \u{} After"
+
+def testInvalidInMiddle4: String = "Text \u{1234567} More"
+
+def testMultipleErrors: String = "First\xSecond\yThird"

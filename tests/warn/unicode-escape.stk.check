@@ -38,4 +38,29 @@
 |                                    ^^
 |                                    Unknown escape sequence: \a
 
-8 error(s), 0 warning(s)
+---------- Error at ./tests/warn/unicode-escape.stk:20:43 ---------------
+| def testInvalidInMiddle1: String = "Hello \u{GG} World"
+|                                           ^^^^^^
+|                                           Invalid hex digit in unicode escape: G
+
+---------- Error at ./tests/warn/unicode-escape.stk:22:42 ---------------
+| def testInvalidInMiddle2: String = "Start\xMiddle"
+|                                          ^^
+|                                          Unknown escape sequence: \x
+
+---------- Error at ./tests/warn/unicode-escape.stk:24:44 ---------------
+| def testInvalidInMiddle3: String = "Before \u{} After"
+|                                            ^^^^
+|                                            Empty unicode escape sequence
+
+---------- Error at ./tests/warn/unicode-escape.stk:26:42 ---------------
+| def testInvalidInMiddle4: String = "Text \u{1234567} More"
+|                                          ^^^^^^^^^^^
+|                                          Unicode escape sequence too long (max 6 hex digits): 1234567
+
+---------- Error at ./tests/warn/unicode-escape.stk:28:40 ---------------
+| def testMultipleErrors: String = "First\xSecond\yThird"
+|                                        ^^
+|                                        Unknown escape sequence: \x
+
+13 error(s), 0 warning(s)
