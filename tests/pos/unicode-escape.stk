@@ -1,15 +1,15 @@
 // Test unicode escapes in string and char literals
 
 def main(): Unit =
-  // Basic unicode escapes
-  val abc = "\u0041\u0042\u0043"
+  // Basic unicode escapes (flexible length)
+  val abc = "\u{41}\u{42}\u{43}"
   print(abc)
   print("\n")
 
   // ANSI color codes for colored output
-  val red = "\u001B[31m"
-  val green = "\u001B[32m"
-  val reset = "\u001B[0m"
+  val red = "\u{1B}[31m"
+  val green = "\u{1B}[32m"
+  val reset = "\u{1B}[0m"
 
   print(red)
   print("Red Text")
@@ -22,19 +22,19 @@ def main(): Unit =
   print("\n")
 
   // Char literals with unicode
-  val esc = '\u001B'
-  val letterA = '\u0041'
+  val esc = '\u{1B}'
+  val letterA = '\u{41}'
 
   print("Char A: ")
   print(letterA)
   print("\n")
 
   // Mixed escapes
-  val mixed = "Tab:\t Unicode:\u0058 Newline:\n"
+  val mixed = "Tab:\t Unicode:\u{58} Newline:\n"
   print(mixed)
 
-  // Edge cases
-  val null_char = "\u0000End"
-  val high_bmp = "\uFFFF"
+  // Edge cases - shorter hex sequences
+  val null_char = "\u{0}End"
+  val high_bmp = "\u{FFFF}"
 
   print("Done\n")

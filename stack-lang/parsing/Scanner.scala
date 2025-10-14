@@ -145,26 +145,48 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       eat('\"')
     val rawString = stream.tokenEnd()
     val content = if rawString.size <= 1 then "" else rawString.substring(1, rawString.size - 1)
-    new Token.StringLit(StringUtil.unescape(content))
+
+    try
+      new Token.StringLit(StringUtil.unescape(content))
+    catch
+      case e: StringUtil.UnicodeEscapeError =>
+        // Map the offset in the content to the source position
+        // +1 for the opening quote, +e.offset for position in content
+        val errorStart = stream.tokenSpan().start + 1 + e.offset
+        val errorSpan = Span(errorStart, e.length)
+        error(e.message, errorSpan.toPos)
+        new Token.StringLit("")  // Return empty string as dummy value
 
   def charLit(): Token =
     if stream.curCodePoint() == '\\' then
       stream.eat()
-      // Check if it's a unicode escape \uXXXX
+      // Check if it's a unicode escape \u{...}
       if stream.curCodePoint() == 'u' then
         stream.eat()
-        // Consume 4 hex digits
-        var count = 0
-        while count < 4 && stream.hasMore() && stream.curCodePoint() != '\'' do
+        if stream.curCodePoint() == '{' then
           stream.eat()
-          count += 1
+          // Consume hex digits until '}'
+          while stream.hasMore() && stream.curCodePoint() != '}' && stream.curCodePoint() != '\'' do
+            stream.eat()
+          if stream.curCodePoint() == '}' then
+            stream.eat()
       // else: simple escape like \b \f \n \r \t \' \\
     else
       stream.eat()
     eat('\'')
     val rawString = stream.tokenEnd()
     val content = rawString.substring(1, rawString.size - 1)
-    new Token.CharLit(StringUtil.unescapeChar(content))
+
+    try
+      new Token.CharLit(StringUtil.unescapeChar(content))
+    catch
+      case e: StringUtil.UnicodeEscapeError =>
+        // Map the offset in the content to the source position
+        // +1 for the opening quote, +e.offset for position in content
+        val errorStart = stream.tokenSpan().start + 1 + e.offset
+        val errorSpan = Span(errorStart, e.length)
+        error(e.message, errorSpan.toPos)
+        new Token.CharLit(0.toChar)  // Return a dummy value
 
   def intLit(): Token.IntLit =
     stream.eatWhile(isDigit)
