@@ -56,7 +56,7 @@ def intToStr(n: Int): String = js "n.toString()"
 
 def charToByte(c: Char): Byte = js "c & 255"
 def charToInt(c: Char): Int = js "c"
-def charToStr(c: Char): String = js "String.fromCharCode(c)"
+def charToStr(c: Char): String = js "String.fromCodePoint(c)"
 
 //------------------------------------------------------------------------------
 //
