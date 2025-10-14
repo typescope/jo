@@ -48,7 +48,9 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       case ','    => Token.COMMA
 
       case '-'    =>
-        if stream.curCodePoint(isDigit) then intLit()
+        if stream.curCodePoint(isDigit) then
+          val firstDigit = stream.eat()
+          intLit(firstDigit)
         else operator()
 
       case '/'    =>
@@ -66,7 +68,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
         charLit()
 
       case c      =>
-        if      isDigit(c)         then intLit()
+        if      isDigit(c)         then intLit(c)
         else if isNameStart(c)     then name()
         else if isOperatorChar(c)  then operator()
         else if isSpace(c)         then nextToken()
@@ -190,38 +192,52 @@ class Scanner(stream: CharStream)(using Reporter, Source):
         error(e.message, errorSpan.toPos)
         new Token.CharLit(0)  // Return a dummy value
 
-  def intLit(): Token.IntLit =
+  def intLit(firstDigit: Int): Token.IntLit =
     // Check for hexadecimal prefix 0x or 0X
-    // Note: The first digit has already been consumed by nextToken()
-    val c = stream.curCodePoint()
-    if (c == 'x' || c == 'X') && stream.tokenEnd() == "0" then
-      // This is a hex literal: 0x...
-      stream.eat() // consume 'x' or 'X'
-      stream.eatWhile(c => StringUtil.isHexDigit(c.toChar))
-      val hexStr = stream.tokenEnd()
-      if hexStr.length <= 2 then // Only "0x" or "0X" with no digits
-        error("Hexadecimal literal must have at least one digit", stream.tokenSpan().toPos)
-        new Token.IntLit(0)
+    // firstDigit is the first digit that has already been consumed
+    if firstDigit == '0' then
+      val c = stream.curCodePoint()
+      if c == 'x' || c == 'X' then
+        // This is a hex literal: 0x...
+        stream.eat() // consume 'x' or 'X'
+        stream.eatWhile(c => StringUtil.isHexDigit(c.toChar))
+        val hexStr = stream.tokenEnd()
+        // hexStr could be "-0x..." or "0x..."
+        val prefixLen = if hexStr(0) == '-' then 3 else 2
+        if hexStr.length <= prefixLen then // Only "-0x" or "0x" with no digits
+          error("Hexadecimal literal must have at least one digit", stream.tokenSpan().toPos)
+          new Token.IntLit(0)
+        else
+          val value = hexStr2Int(hexStr)
+          new Token.IntLit(value)
       else
-        val value = hexStr2Int(hexStr.substring(2)) // Skip "0x" prefix
+        // Regular decimal starting with 0
+        stream.eatWhile(isDigit)
+        val intStr = stream.tokenEnd()
+        val value = str2Int(intStr)
         new Token.IntLit(value)
     else
-      // Regular decimal integer
+      // Regular decimal
       stream.eatWhile(isDigit)
       val intStr = stream.tokenEnd()
       val value = str2Int(intStr)
       new Token.IntLit(value)
 
   def hexStr2Int(str: String): Int =
-    val length = str.size
+    // str is like "0x1F" or "-0xFF"
+    val isNegative = str(0) == '-'
+    val prefixLen = if isNegative then 3 else 2 // Skip "-0x" or "0x"
+    val hexDigits = str.substring(prefixLen)
+    val length = hexDigits.size
+
     if length > 8 then
-      error("Hexadecimal literal too long (max 8 hex digits): " + str, stream.tokenSpan().toPos)
+      error("Hexadecimal literal too long (max 8 hex digits): " + hexDigits, stream.tokenSpan().toPos)
       return 0
 
     var sum: Int = 0
     var i = 0
     while i < length do
-      val c = str(i)
+      val c = hexDigits(i)
       val v = if c >= '0' && c <= '9' then c - '0'
               else if c >= 'a' && c <= 'f' then c - 'a' + 10
               else if c >= 'A' && c <= 'F' then c - 'A' + 10
@@ -230,7 +246,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       i += 1
     end while
 
-    sum
+    if isNegative then -sum else sum
   end hexStr2Int
 
   def str2Int(str: String): Int =
