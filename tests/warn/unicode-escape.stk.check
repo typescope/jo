@@ -28,4 +28,14 @@
 |                               ^^^^^^^^^
 |                               Char literal cannot represent code point > FFFF: 10000
 
-6 error(s), 0 warning(s)
+---------- Error at ./tests/warn/unicode-escape.stk:15:40 ---------------
+| def testUnknownEscapeString: String = "\x"
+|                                        ^^
+|                                        Unknown escape sequence: \x
+
+---------- Error at ./tests/warn/unicode-escape.stk:17:36 ---------------
+| def testUnknownEscapeChar: Char = '\a'
+|                                    ^^
+|                                    Unknown escape sequence: \a
+
+8 error(s), 0 warning(s)

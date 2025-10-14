@@ -170,7 +170,9 @@ class Scanner(stream: CharStream)(using Reporter, Source):
             stream.eat()
           if stream.curCodePoint() == '}' then
             stream.eat()
-      // else: simple escape like \b \f \n \r \t \' \\
+      else
+        // Simple escape like \b \f \n \r \t \' \\ or unknown escape
+        stream.eat()
     else
       stream.eat()
     eat('\'')

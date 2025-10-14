@@ -97,9 +97,13 @@ object StringUtil:
             i = j  // skip to closing brace (will be incremented at end of loop)
 
           case _    =>
-            // Unknown escape sequence, keep as-is
-            sb.append('\\')
-            sb.appendCodePoint(c)
+            // Unknown escape sequence
+            val escapeStart = i - 1  // Position of the backslash
+            throw new EscapeError(
+              s"Unknown escape sequence: \\${Character.toString(c)}",
+              escapeStart,
+              2
+            )
         isLastEscape = false
       end if
       i += Character.charCount(c)
@@ -145,7 +149,12 @@ object StringUtil:
         case 't'  => return '\t'
         case '\''  => return '\''
         case '\\' => return '\\'
-        case _    => return s(1)  // Unknown escape, return the character itself
+        case _    =>
+          throw new EscapeError(
+            s"Unknown escape sequence: \\${s(1)}",
+            0,
+            2
+          )
 
     // Unicode escape: \u{...}
     if s(1) != 'u' then
