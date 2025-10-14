@@ -18,9 +18,14 @@
 | ^^^^^^^^^^
 | Line has insufficient indentation (expected at least 7 spaces)
 
----------- Error at ./tests/warn/multiline-string.stk:20:28 ---------------
+---------- Error at ./tests/warn/multiline-string.stk:21:6 ---------------
+|     Hello\   
+|      ^^
+|      Unknown escape sequence: \
+
+---------- Error at ./tests/warn/multiline-string.stk:25:28 ---------------
 | def testUnclosed: String = """
 |                            ^
 |                            Unclosed multi-line string literal
 
-5 error(s), 0 warning(s)
+6 error(s), 0 warning(s)

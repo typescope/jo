@@ -16,6 +16,11 @@ def testTextBeforeClosing: String = """
     Line 1
     end"""
 
+// Backslash followed by space (not newline) - invalid escape
+def testBackslashSpace: String = """
+    Hello\   
+    """
+
 // Unclosed multi-line string
 def testUnclosed: String = """
     Hello
