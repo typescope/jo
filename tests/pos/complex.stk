@@ -1,7 +1,7 @@
 import stk.Int
 
 
-type Complex = object {
+type Complex = {
   def real: Int
   def image: Int
 
@@ -13,7 +13,7 @@ type Complex = object {
 }
 
 def Complex(x: Int, y: Int): Complex =
-  object {
+  {
     def real = x
     def image = y
 

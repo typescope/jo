@@ -1,5 +1,5 @@
 type Movie = { name: String, director: String, year: Int }
-type MovieFinder = object { def findAll(): List[Movie] }
+type MovieFinder = { def findAll(): List[Movie] }
 
 param finder: MovieFinder
 
@@ -16,7 +16,7 @@ def moviesDirectedBy(arg: String): List[Movie] =
   filter allMovies
 
 def main =
-  val testFinder: MovieFinder = object {
+  val testFinder: MovieFinder = {
     def findAll(): List[Movie] =
       val movie1 = { name: "A", director: "a", year: 2010 }
       val movie2 = { name: "B", director: "b", year: 2023 }

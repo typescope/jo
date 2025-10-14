@@ -1,5 +1,5 @@
 // Test that only member signature matters
-type MySeq[T] = object {
+type MySeq[T] = {
   def isEmpty: Bool
   def size: Int
   def get(i: Int): T
@@ -24,7 +24,7 @@ pattern Size[T](n: Int): List[T] =
 def main =
   val a: List[Int] = List 1 8 5 7 9 -3 10 20
 
-  val b = object {
+  val b = {
     def isEmpty: Bool = a.size == 0
     def size: Int = a.size
     def get(i: Int): Int = a[i]

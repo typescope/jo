@@ -697,7 +697,13 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         case _ => Some(word)
 
     item.token match
-      case Token.LBRACE => optSelectAndApply(record())
+      case Token.LBRACE =>
+        peek(1) match
+          case Token.VAL | Token.VAR | Token.DEF =>
+            optSelectAndApply(objectLit())
+
+          case _ =>
+            optSelectAndApply(record())
 
       case Token.LBRACKET => optSelectAndApply(list())
 
@@ -735,9 +741,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case lit: Token.StringLit  =>
         next()
         optSelectAndApply(StringLit(lit.value)(item.span))
-
-      case Token.OBJECT =>
-        optSelectAndApply(objectLit())
 
       case Token.NEW =>
         optSelectAndApply(newExpr())
@@ -874,8 +877,14 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   def simpleTypeOpt(): Option[TypeTree] =
     peek() match
-      case Token.OBJECT   => Some(objectType())
-      case Token.LBRACE   => Some(recordType())
+      case Token.LBRACE   =>
+        peek(1) match
+          case Token.VAL | Token.VAR | Token.DEF =>
+            Some(objectType())
+
+          case _ =>
+            Some(recordType())
+
       case Token.TAG      => Some(tagType())
 
       case Token.LPAREN   =>
@@ -963,8 +972,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     RecordType(fieldDecls)(lbrace.span | rbrace.span)
 
   def objectType(): ObjectType =
-    val objToken = eat(Token.OBJECT)
-    eat(Token.LBRACE)
+    val startToken = eat(Token.LBRACE)
     var count = 0
     val decls: List[ValDef | FunDef] = repeated:
       if count > 0 then eatCommaOpt()
@@ -986,7 +994,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
       else None
     val endToken = eat(Token.RBRACE)
-    ObjectType(decls)(objToken.span | endToken.span)
+    ObjectType(decls)(startToken.span | endToken.span)
 
   def appliedType(tctor: RefTree): AppliedType =
     val (targs, endSpan) = typeArgs()
@@ -1169,8 +1177,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     (acc.toList, span)
 
   def objectLit(): Object =
-    val objToken = eat(Token.OBJECT)
-    eat(Token.LBRACE)
+    val startToken = eat(Token.LBRACE)
 
     var count = 0
     val members: List[ValDef | FunDef] = repeated:
@@ -1193,7 +1200,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       res
 
     val endToken = eat(Token.RBRACE)
-    Object(members)(objToken.span | endToken.span)
+    Object(members)(startToken.span | endToken.span)
 
   def patmat(): Match =
     val matchItem = eat(Token.MATCH)

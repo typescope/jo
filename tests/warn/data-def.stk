@@ -4,7 +4,7 @@ data List[T, T] = Cons(v: T, tail: List[T, T]) | Nil
 
 data Either[S, T] = Left(value: S) | Right(value: T)
 
-data ObjType[T] = A(x: object { def foo(x: Int): Int }) | B
+data ObjType[T] = A(x: { def foo(x: Int): Int }) | B
 
 def test(item: Either[String, Int]): Unit =
   match item

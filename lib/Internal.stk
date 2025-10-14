@@ -5,7 +5,7 @@ import stk.Predef.String
 import stk.Predef.Bottom
 
 // The signature of scrutinee required by sequence patterns
-type Seq[T] = object {
+type Seq[T] = {
   def size: Int
   def get(i: Int): T
 }

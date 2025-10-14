@@ -136,7 +136,7 @@ object ElimCapture:
     /**
       * Each object is transformed from
       *
-      *   object { var x = e;  fun f(x: Int): Int = ...; }
+      *   { var x = e;  fun f(x: Int): Int = ...; }
       *
       * ==>
       *

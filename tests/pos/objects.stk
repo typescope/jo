@@ -1,4 +1,4 @@
-type Counter = object {
+type Counter = {
   def get(): Int
   def inc(): Unit
   def add(n: Int): Unit
@@ -6,7 +6,7 @@ type Counter = object {
   def upToEven(): Unit
 }
 
-def createCounter(init: Int): Counter = object {
+def createCounter(init: Int): Counter = {
   var count = init
   def get() = this.count
   def inc() = count = count + 1

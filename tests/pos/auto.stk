@@ -1,4 +1,4 @@
-type Eq[T] = object {
+type Eq[T] = {
   def eq(a: T, b: T): Bool
 }
 
@@ -13,11 +13,11 @@ auto def listEq[T](auto eqItem: Eq[T]): Eq[List[T]] = (a, b) =>
     equal = equal && (eqItem a[i] b[i])
   equal
 
-type A = object {
+type A = {
   def foo(auto eq: Eq[Int]): Unit
 }
 
-type Set[T] = object {
+type Set[T] = {
   def size: Int
   def contains(x: T): Bool
   def +(x: T): Set[T]
@@ -28,7 +28,7 @@ type Set[T] = object {
   def exists(pred: T => Bool): Bool
 }
 
-def Set[T](l: ..T)(auto eq: Eq[T]): Set[T] = object {
+def Set[T](l: ..T)(auto eq: Eq[T]): Set[T] = {
     def size: Int = l.size
 
     def contains(x: T): Bool = exists e => eq e x

@@ -322,7 +322,7 @@ def createFileOpener(): String => File = (filePath: String) =>
   val fd = Syscall.sys_open nameBytes flags mode
   assert (fd > 0) ("sys_open = " + (intToStr fd))
 
-  object {
+  {
     def close(): Unit =
       Syscall.sys_close fd
 
@@ -407,7 +407,7 @@ def writeString(fd: Int, repr: StringRepr): Unit =
         flow rhs cast[StringRepr]
 
 
-def createStdIn(): object { def readLine(): String } =
+def createStdIn(): { def readLine(): String } =
   () =>
     var continue = true
     var res = ""
@@ -429,8 +429,8 @@ def createStdIn(): object { def readLine(): String } =
 
     res
 
-def createStdOut(): object { def write(content: String): Unit } =
+def createStdOut(): { def write(content: String): Unit } =
   (s: String) => writeString 1 (flow s cast[StringRepr])
 
-def createStdErr(): object { def write(content: String): Unit } =
+def createStdErr(): { def write(content: String): Unit } =
   (s: String) => writeString 2 (flow s cast[StringRepr])

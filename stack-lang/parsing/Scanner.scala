@@ -98,7 +98,6 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       case "allow"     => Token.ALLOW
       case "true"      => Token.BoolLit(true)
       case "false"     => Token.BoolLit(false)
-      case "object"    => Token.OBJECT
       case "def"       => Token.DEF
       case "receives"  => Token.RECEIVES
       case "pattern"   => Token.PATTERN

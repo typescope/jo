@@ -50,7 +50,7 @@ def dot(seg: Seg, cont: Cont): Bool =
 
 
 def compile(reg: String): Reg =
-  val scanner = object {
+  val scanner = {
     var index = 0
 
     def cur() = reg[index]
@@ -77,7 +77,7 @@ def compile(reg: String): Reg =
       c
   }
 
-  val parser = object {
+  val parser = {
     def parseSequence(): List[Reg] =
       if !scanner.hasMore() || scanner.cur() == ')' then
         List.empty

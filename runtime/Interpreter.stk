@@ -77,7 +77,7 @@ def start(): Unit receives none =
 def createOpen(): String => IO.File = (file: String) =>
   val handle = platformCall1("openFile", file)
 
-  object {
+  {
     def close(): Unit = platformCall1("closeFile", handle)
 
     def seek(pos: Int): Unit = platformCall2("seekFile", handle, pos)
@@ -89,12 +89,12 @@ def createOpen(): String => IO.File = (file: String) =>
     def write(content: String): Unit = platformCall2("writeFile", handle, content)
   }
 
-def createStdOut(): object { def write(content: String): Unit } =
+def createStdOut(): { def write(content: String): Unit } =
   (content: String) => platformCall1("writeStdOut", content)
 
 
-def createStdErr(): object { def write(content: String): Unit } =
+def createStdErr(): { def write(content: String): Unit } =
   (content: String) => platformCall1("writeStdErr", content)
 
-def createStdIn(): object { def readLine(): String } =
+def createStdIn(): { def readLine(): String } =
   () => platformCall0("readLineStdIn")

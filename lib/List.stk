@@ -94,7 +94,7 @@ class List[T]
     else new List(Slice this from to)
 
   def select(pred: T => Bool): List[T] =
-    val res = object { var acc = empty[T] }
+    val res = { var acc = empty[T] }
 
     traverse v =>
       if pred v then
@@ -104,7 +104,7 @@ class List[T]
     res.acc
 
   def exclude(pred: T => Bool): List[T] =
-    val res = object { var acc = empty[T] }
+    val res = { var acc = empty[T] }
 
     traverse v =>
       if !(pred v) then
@@ -116,7 +116,7 @@ class List[T]
   def map[S](f: T => S): List[S] =
     // Use an array for better cache locality
     val array = Array.create[S] size
-    val state = object { var index = 0 }
+    val state = { var index = 0 }
 
     traverse v =>
       Array.set array state.index (f v)
@@ -131,7 +131,7 @@ class List[T]
       true
 
   def fold[S](zero: S, f: (S, T) => S): S =
-    val res = object { var acc = zero }
+    val res = { var acc = zero }
 
     traverse v =>
       res.acc = f res.acc v
@@ -140,7 +140,7 @@ class List[T]
     res.acc
 
   def exists(pred: T => Bool): Bool =
-    val res = object { var qualify = false }
+    val res = { var qualify = false }
 
     traverse v =>
       res.qualify = pred v
@@ -149,7 +149,7 @@ class List[T]
     res.qualify
 
   def all(pred: T => Bool): Bool =
-    val res = object { var qualify = true }
+    val res = { var qualify = true }
 
     traverse v =>
       res.qualify = pred v

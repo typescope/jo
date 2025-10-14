@@ -153,7 +153,7 @@ def writeSync(fd: Int, buffer: Any, offset: Int, len: Int, position: Int): Int =
 def readSync(fd: Int, buffer: Any, offset: Int, len: Int, position: Int): Int =
   js "require(\"fs\").readSync(fd, buffer, offset, len, position)"
 
-def readFileSync(fd: Int): object { def toString(): String } =
+def readFileSync(fd: Int): { def toString(): String } =
   js "require(\"fs\").readFileSync(fd)"
 
 def fstatSync(fd: Int): Stat =
@@ -162,14 +162,14 @@ def fstatSync(fd: Int): Stat =
 def existsSync(filePath: String): Bool =
   js "require(\"fs\").existsSync(filePath)"
 
-type Stat = object {
+type Stat = {
   val size: Int
 }
 
 def createFileOpener(): (String => IO.File) receives none = (filePath: String) =>
   val mode = if existsSync filePath then "r+" else "w+"
   val fd = openSync filePath mode
-  object {
+  {
     var position: Int = 0
     def close(): Unit = closeSync fd
 
@@ -205,11 +205,11 @@ def createFileOpener(): (String => IO.File) receives none = (filePath: String) =
         "write file failed"
   }
 
-def createStdIn(): object { def readLine(): String } =
+def createStdIn(): { def readLine(): String } =
   () => (readFileSync 0).toString
 
-def createStdOut(): object { def write(content: String): Unit } =
+def createStdOut(): { def write(content: String): Unit } =
   (s: String) => js "process.stdout.write(s)"
 
-def createStdErr(): object { def write(content: String): Unit } =
+def createStdErr(): { def write(content: String): Unit } =
   (s: String) => js "process.stderr.write(s)"

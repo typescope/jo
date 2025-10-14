@@ -41,9 +41,9 @@ class Calculator
   def compute(x: Int) = x * value
 end
 
-type Runnable = object { def run(): Unit }
+type Runnable = { def run(): Unit }
 
 def makeRunable: Runnable =
-  object {
+  {
     def run() = println "run"
   }

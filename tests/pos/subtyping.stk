@@ -1,7 +1,7 @@
 type S = {a: Int, b: S, c: Int}
 type T = {a: Int, b: T}
 
-type Seq = object { def size: Int }
+type Seq = { def size: Int }
 
 def test1(s: S): T = s
 
