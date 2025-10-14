@@ -215,7 +215,7 @@ object Interpreter:
 
       "charToStr" -> { (args: List[Value]) =>
         val IntVal(v) :: Nil = args: @unchecked
-        StringVal(v.toChar.toString()) :: Nil
+        StringVal(Character.toString(v)) :: Nil
       },
 
       "intToStr" -> { (args: List[Value]) =>

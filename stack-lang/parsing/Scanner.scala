@@ -48,7 +48,9 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       case ','    => Token.COMMA
 
       case '-'    =>
-        if stream.curCodePoint(isDigit) then intLit()
+        if stream.curCodePoint(isDigit) then
+          val firstDigit = stream.eat()
+          intLit(firstDigit)
         else operator()
 
       case '/'    =>
@@ -66,7 +68,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
         charLit()
 
       case c      =>
-        if      isDigit(c)         then intLit()
+        if      isDigit(c)         then intLit(c)
         else if isNameStart(c)     then name()
         else if isOperatorChar(c)  then operator()
         else if isSpace(c)         then nextToken()
@@ -145,23 +147,107 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       eat('\"')
     val rawString = stream.tokenEnd()
     val content = if rawString.size <= 1 then "" else rawString.substring(1, rawString.size - 1)
-    new Token.StringLit(StringUtil.unescape(content))
+
+    try
+      new Token.StringLit(StringUtil.unescape(content))
+    catch
+      case e: StringUtil.EscapeError =>
+        // Map the offset in the content to the source position
+        // +1 for the opening quote, +e.offset for position in content
+        val errorStart = stream.tokenSpan().start + 1 + e.offset
+        val errorSpan = Span(errorStart, e.length)
+        error(e.message, errorSpan.toPos)
+        new Token.StringLit("")  // Return empty string as dummy value
 
   def charLit(): Token =
     if stream.curCodePoint() == '\\' then
-      // only support one char: \b \f \n \r \t \' \\
       stream.eat()
-    stream.eat()
+      // Check if it's a unicode escape \u{...}
+      if stream.curCodePoint() == 'u' then
+        stream.eat()
+        if stream.curCodePoint() == '{' then
+          stream.eat()
+          // Consume hex digits until '}'
+          while stream.hasMore() && stream.curCodePoint() != '}' && stream.curCodePoint() != '\'' do
+            stream.eat()
+          if stream.curCodePoint() == '}' then
+            stream.eat()
+      else
+        // Simple escape like \b \f \n \r \t \' \\ or unknown escape
+        stream.eat()
+    else
+      stream.eat()
     eat('\'')
     val rawString = stream.tokenEnd()
     val content = rawString.substring(1, rawString.size - 1)
-    new Token.CharLit(StringUtil.unescapeChar(content))
 
-  def intLit(): Token.IntLit =
-    stream.eatWhile(isDigit)
-    val intStr = stream.tokenEnd()
-    val value = str2Int(intStr)
-    new Token.IntLit(value)
+    try
+      new Token.CharLit(StringUtil.unescapeChar(content))
+    catch
+      case e: StringUtil.EscapeError =>
+        // Map the offset in the content to the source position
+        // +1 for the opening quote, +e.offset for position in content
+        val errorStart = stream.tokenSpan().start + 1 + e.offset
+        val errorSpan = Span(errorStart, e.length)
+        error(e.message, errorSpan.toPos)
+        new Token.CharLit(0)  // Return a dummy value
+
+  def intLit(firstDigit: Int): Token.IntLit =
+    // Check for hexadecimal prefix 0x or 0X
+    // firstDigit is the first digit that has already been consumed
+    if firstDigit == '0' then
+      val c = stream.curCodePoint()
+      if c == 'x' || c == 'X' then
+        // This is a hex literal: 0x...
+        stream.eat() // consume 'x' or 'X'
+        stream.eatWhile(c => StringUtil.isHexDigit(c.toChar))
+        val hexStr = stream.tokenEnd()
+        // hexStr could be "-0x..." or "0x..."
+        val prefixLen = if hexStr(0) == '-' then 3 else 2
+        if hexStr.length <= prefixLen then // Only "-0x" or "0x" with no digits
+          error("Hexadecimal literal must have at least one digit", stream.tokenSpan().toPos)
+          new Token.IntLit(0)
+        else
+          val value = hexStr2Int(hexStr)
+          new Token.IntLit(value)
+      else
+        // Regular decimal starting with 0
+        stream.eatWhile(isDigit)
+        val intStr = stream.tokenEnd()
+        val value = str2Int(intStr)
+        new Token.IntLit(value)
+    else
+      // Regular decimal
+      stream.eatWhile(isDigit)
+      val intStr = stream.tokenEnd()
+      val value = str2Int(intStr)
+      new Token.IntLit(value)
+
+  def hexStr2Int(str: String): Int =
+    // str is like "0x1F" or "-0xFF"
+    val isNegative = str(0) == '-'
+    val prefixLen = if isNegative then 3 else 2 // Skip "-0x" or "0x"
+    val hexDigits = str.substring(prefixLen)
+    val length = hexDigits.size
+
+    if length > 8 then
+      error("Hexadecimal literal too long (max 8 hex digits): " + hexDigits, stream.tokenSpan().toPos)
+      return 0
+
+    var sum: Int = 0
+    var i = 0
+    while i < length do
+      val c = hexDigits(i)
+      val v = if c >= '0' && c <= '9' then c - '0'
+              else if c >= 'a' && c <= 'f' then c - 'a' + 10
+              else if c >= 'A' && c <= 'F' then c - 'A' + 10
+              else 0 // Should not happen due to eatWhile check
+      sum = (sum << 4) | v
+      i += 1
+    end while
+
+    if isNegative then -sum else sum
+  end hexStr2Int
 
   def str2Int(str: String): Int =
     val first = str(0)
@@ -223,6 +309,10 @@ object Scanner:
     source.addLineOffset(index)
 
     def curCodePoint(): Int = code.codePointAt(index)
+
+    def hasNext(): Boolean =
+      val nextIndex = index + Character.charCount(curCodePoint())
+      nextIndex < LEN
 
     def nextCodePoint(): Int =
       val nextIndex = index + Character.charCount(curCodePoint())

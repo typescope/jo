@@ -1,0 +1,28 @@
+// Test error reporting for invalid unicode escapes
+
+def testInvalidHex: String = "\u{GGGG}"
+
+def testTooLong: String = "\u{1234567}"
+
+def testUnclosed: String = "\u{41"
+
+def testEmpty: String = "\u{}"
+
+def testNoOpenBrace: String = "\u41}"
+
+def testCharOutOfRange: Char = '\u{110000}'
+
+def testUnknownEscapeString: String = "\x"
+
+def testUnknownEscapeChar: Char = '\a'
+
+// Test invalid escapes in the middle of string literals
+def testInvalidInMiddle1: String = "Hello \u{GG} World"
+
+def testInvalidInMiddle2: String = "Start\xMiddle"
+
+def testInvalidInMiddle3: String = "Before \u{} After"
+
+def testInvalidInMiddle4: String = "Text \u{1234567} More"
+
+def testMultipleErrors: String = "First\xSecond\yThird"

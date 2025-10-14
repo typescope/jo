@@ -43,7 +43,7 @@ object Trees:
   extends Word
 
   case class CharLit
-    (value: Char)
+    (value: Int)
     (val span: Span)
   extends Word
 

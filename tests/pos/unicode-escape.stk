@@ -1,0 +1,64 @@
+// Test unicode escapes in string and char literals
+
+def main(): Unit =
+  // Basic unicode escapes (flexible length)
+  val abc = "\u{41}\u{42}\u{43}"
+  print(abc)
+  print("\n")
+
+  // ANSI color codes for colored output
+  val red = "\u{1B}[31m"
+  val green = "\u{1B}[32m"
+  val reset = "\u{1B}[0m"
+
+  print(red)
+  print("Red Text")
+  print(reset)
+  print("\n")
+
+  print(green)
+  print("Green Text")
+  print(reset)
+  print("\n")
+
+  // Char literals with unicode
+  val esc = '\u{1B}'
+  val letterA = '\u{41}'
+
+  print("Char A: ")
+  printChar(letterA)
+  print("\n")
+
+  // Mixed escapes
+  val mixed = "Tab:\t Unicode:\u{58} Newline:\n"
+  print(mixed)
+
+  // Edge cases - shorter hex sequences
+  val null_char = "\u{0}End"
+  val high_bmp = "\u{FFFF}"
+
+  // Test surrogate code points (beyond BMP, requiring surrogate pairs in UTF-16)
+  // These are code points from U+10000 to U+10FFFF
+  val emoji_grinning = '\u{1F600}'  // 😀
+  val emoji_poo = '\u{1F4A9}'       // 💩
+  val emoji_rocket = '\u{1F680}'    // 🚀
+  val cjk_ext_b = '\u{20000}'       // CJK Extension B
+
+  print("Surrogate code points test:\n")
+  print("Emoji grinning: ")
+  printChar(emoji_grinning)
+  print("\n")
+
+  print("Emoji poo: ")
+  printChar(emoji_poo)
+  print("\n")
+
+  print("Emoji rocket: ")
+  printChar(emoji_rocket)
+  print("\n")
+
+  print("CJK Ext B: ")
+  printChar(cjk_ext_b)
+  print("\n")
+
+  print("Done\n")

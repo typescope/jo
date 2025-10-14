@@ -1,0 +1,11 @@
+---------- Error at ./tests/warn/hex-literal.stk:3:22 ---------------
+| def testEmpty: Int = 0x
+|                      ^^
+|                      Hexadecimal literal must have at least one digit
+
+---------- Error at ./tests/warn/hex-literal.stk:5:24 ---------------
+| def testTooLong: Int = 0x123456789
+|                        ^^^^^^^^^^^
+|                        Hexadecimal literal too long (max 8 hex digits): 123456789
+
+2 error(s), 0 warning(s)
