@@ -16,6 +16,10 @@ object Tokens:
     case CharLit(value: Int)
     case StringLit(value: String)
     case Ident(name: String)
+    // Multi-line string tokens (for parser to handle indentation/continuation)
+    case StringStart(quoteCount: Int) // """ or """""
+    case StringEnd                    // """ or """""
+    case StringLine(content: String) // One line of raw string content (with escapes)
 
     def withInfo(span: Span, indent: Indent): TokenInfo =
       TokenInfo(this, span, indent)
@@ -49,6 +53,10 @@ object Tokens:
     */
   class Indent(
     private val line: Int, private val lineIndent: Int, val tokenOffset: Int):
+
+    assert(line >= 0, "line = " + line)
+    assert(lineIndent >= 0, "lineIndent = " + lineIndent)
+    assert(tokenOffset >= 0, "tokenOffset = " + tokenOffset)
 
     def isFirstOfLine: Boolean = lineIndent == tokenOffset
 
