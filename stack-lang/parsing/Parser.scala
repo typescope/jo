@@ -105,13 +105,15 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   /** Parse a multi-line string starting with StringStart(n) where n >= 3
     * Collects StringLine tokens, handles indentation stripping and line continuation
     */
-  def multiLineString(openMarker: TokenInfo): String =
+  def multiLineString(openMarker: TokenInfo): StringLit =
     val Token.StringStart(quoteCount) = openMarker.token: @unchecked
 
     // Multi-line string
     val lines = mutable.ListBuffer[(String, Span)]()
     var baseIndent: Int = 0
     var done = false
+
+    var resultSpan = openMarker.span
 
     // Collect all lines until closing marker
     while !done do
@@ -124,14 +126,15 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           // Found closing marker - determine indentation from last line
           baseIndent = nextItem.indent.tokenOffset
           done = true
+          resultSpan = resultSpan | nextItem.span
 
         case Token.EOF =>
           error("Unclosed multi-line string literal", openMarker.span.toPos)
-          return ""
+          return StringLit("")(openMarker.span)
 
         case other =>
           error(s"Unexpected token in multi-line string: $other", openMarker.span.toPos)
-          return ""
+          return StringLit("")(openMarker.span)
 
     // Strip indentation and handle line continuation
     val result = new StringBuilder
@@ -177,7 +180,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     end while
 
 
-    result.toString
+    StringLit(result.toString)(resultSpan)
 
   def skipIndented(limitIndent: Indent) =
     var item = peekItem()
@@ -826,8 +829,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
       case Token.StringStart(_) =>
         next()
-        val value = multiLineString(item)
-        optSelectAndApply(StringLit(value)(item.span))
+        val lit = multiLineString(item)
+        optSelectAndApply(lit)
 
       case Token.NEW =>
         optSelectAndApply(newExpr())
@@ -1439,8 +1442,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
       case _: Token.StringStart =>
         next()
-        val value = multiLineString(item)
-        StringLit(value)(item.span)
+        multiLineString(item)
 
       case Token.LPAREN =>
         next()
