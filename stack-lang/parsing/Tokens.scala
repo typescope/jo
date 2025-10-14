@@ -13,7 +13,7 @@ object Tokens:
     case COLON, RARROW, EQL, SUBTYPE
     case IntLit(value: Int)
     case BoolLit(value: Boolean)
-    case CharLit(value: Char)
+    case CharLit(value: Int)
     case StringLit(value: String)
     case Ident(name: String)
 

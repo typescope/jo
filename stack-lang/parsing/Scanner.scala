@@ -188,7 +188,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
         val errorStart = stream.tokenSpan().start + 1 + e.offset
         val errorSpan = Span(errorStart, e.length)
         error(e.message, errorSpan.toPos)
-        new Token.CharLit(0.toChar)  // Return a dummy value
+        new Token.CharLit(0)  // Return a dummy value
 
   def intLit(): Token.IntLit =
     stream.eatWhile(isDigit)

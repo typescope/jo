@@ -23,10 +23,10 @@
 |                                ^^
 |                                Unicode escape must be followed by '{': \u{...}
 
----------- Error at ./tests/warn/unicode-escape.stk:13:31 ---------------
-| def testCharTooLarge: Char = '\u{10000}'
-|                               ^^^^^^^^^
-|                               Char literal cannot represent code point > FFFF: 10000
+---------- Error at ./tests/warn/unicode-escape.stk:13:33 ---------------
+| def testCharOutOfRange: Char = '\u{110000}'
+|                                 ^^^^^^^^^^
+|                                 Unicode code point out of range (max 10FFFF): 110000
 
 ---------- Error at ./tests/warn/unicode-escape.stk:15:40 ---------------
 | def testUnknownEscapeString: String = "\x"

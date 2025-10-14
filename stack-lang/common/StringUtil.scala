@@ -124,14 +124,12 @@ object StringUtil:
 
   /** Handle escaped char
     *
-    * It only supports BMP unicode points, no surrogate code points
-    *
-    * TODO: Surrogate code points can be supported if the language interpret
-    * char literal as 32-bit integers.
+    * Supports full Unicode range (U+0000 to U+10FFFF) by returning an Int
+    * representing the code point value.
     */
-  def unescapeChar(s: String): Char =
+  def unescapeChar(s: String): Int =
     if s.size == 1 then
-      return s(0)
+      return s(0).toInt
 
     if s(0) != '\\' then
       throw new EscapeError(
@@ -142,13 +140,13 @@ object StringUtil:
 
     if s.size == 2 then
       s(1) match
-        case 'b'  => return '\b'
-        case 'f'  => return '\f'
-        case 'n'  => return '\n'
-        case 'r'  => return '\r'
-        case 't'  => return '\t'
-        case '\''  => return '\''
-        case '\\' => return '\\'
+        case 'b'  => return '\b'.toInt
+        case 'f'  => return '\f'.toInt
+        case 'n'  => return '\n'.toInt
+        case 'r'  => return '\r'.toInt
+        case 't'  => return '\t'.toInt
+        case '\''  => return '\''.toInt
+        case '\\' => return '\\'.toInt
         case _    =>
           throw new EscapeError(
             s"Unknown escape sequence: \\${s(1)}",
@@ -205,14 +203,14 @@ object StringUtil:
       k += 1
 
     val codePoint = Integer.parseInt(hexStr, 16)
-    if codePoint > 0xFFFF then
+    if codePoint > 0x10FFFF then
       throw new EscapeError(
-        f"Char literal cannot represent code point > FFFF: $codePoint%X",
+        f"Unicode code point out of range (max 10FFFF): $codePoint%X",
         0,
         s.size
       )
 
-    codePoint.toChar
+    codePoint
 
   def escapeChar(c: Int): String =
     c match
