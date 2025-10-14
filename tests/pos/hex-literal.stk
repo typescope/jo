@@ -1,0 +1,65 @@
+// Test hexadecimal integer literals
+
+def main(): Unit =
+  // Basic hex literals
+  val a = 0x0
+  val b = 0x1
+  val c = 0xF
+  val d = 0x10
+  val e = 0xFF
+
+  print("0x0 = ")
+  print(intToStr(a))
+  print("\n")
+
+  print("0x1 = ")
+  print(intToStr(b))
+  print("\n")
+
+  print("0xF = ")
+  print(intToStr(c))
+  print("\n")
+
+  print("0x10 = ")
+  print(intToStr(d))
+  print("\n")
+
+  print("0xFF = ")
+  print(intToStr(e))
+  print("\n")
+
+  // Uppercase X and mixed case hex digits
+  val f = 0X1a2B3c
+  print("0X1a2B3c = ")
+  print(intToStr(f))
+  print("\n")
+
+  // Larger hex values
+  val g = 0x7FFFFFFF  // Max positive int
+  print("0x7FFFFFFF = ")
+  print(intToStr(g))
+  print("\n")
+
+  val h = 0xFFFFFFFF  // -1 in two's complement
+  print("0xFFFFFFFF = ")
+  print(intToStr(h))
+  print("\n")
+
+  // Hex in expressions
+  val mask = 0xFF
+  val value = 0x1234
+  val masked = value & mask
+  print("0x1234 & 0xFF = ")
+  print(intToStr(masked))
+  print("\n")
+
+  // Common bit flags
+  val flag1 = 0x1
+  val flag2 = 0x2
+  val flag4 = 0x4
+  val combined = flag1 | flag2 | flag4
+  print("0x1 | 0x2 | 0x4 = ")
+  print(intToStr(combined))
+  print("\n")
+
+  print("Done\n")
