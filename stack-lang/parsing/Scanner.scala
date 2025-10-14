@@ -131,6 +131,25 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       case name   => Token.Ident(name)
 
   def stringLit(): Token =
+    // First quote already consumed, check if this is multi-line (""" or more)
+    if stream.curCodePoint() == '"' && stream.hasNext() then
+      stream.eat() // consume second "
+      if stream.curCodePoint() == '"' then
+        // At least 3 quotes - this is a multi-line string
+        var quoteCount = 3
+        stream.eat() // consume third "
+
+        // Count additional quotes
+        while stream.curCodePoint() == '"' do
+          quoteCount += 1
+          stream.eat()
+
+        return multiLineStringLit(quoteCount)
+      else
+        // Just 2 quotes: empty string ""
+        return new Token.StringLit("")
+
+    // Regular single-line string
     var isLastEscape = false
     def isValidChar(c: Int) =
       if isLastEscape then
@@ -158,6 +177,106 @@ class Scanner(stream: CharStream)(using Reporter, Source):
         val errorSpan = Span(errorStart, e.length)
         error(e.message, errorSpan.toPos)
         new Token.StringLit("")  // Return empty string as dummy value
+
+  def multiLineStringLit(quoteCount: Int): Token.StringLit =
+    // Multi-line string must start with a newline after opening quotes
+    if stream.curCodePoint() != '\n' then
+      error("Multi-line string must start on a new line after opening quotes", stream.tokenSpan().toPos)
+      return new Token.StringLit("")
+
+    stream.eat() // consume the newline after opening quotes
+
+    // Record the position where content starts (for closing delimiter column calculation)
+    val contentStart = stream.tokenSpan().start
+
+    // Read content until we find closing quotes
+    val content = readUntilClosingQuotes(quoteCount)
+
+    if content == null then
+      // Error already reported in readUntilClosingQuotes
+      return new Token.StringLit("")
+
+    // Process the multi-line content: strip indentation, handle escapes
+    val processed = processMultiLineString(content, contentStart)
+    new Token.StringLit(processed)
+
+  def readUntilClosingQuotes(quoteCount: Int): String =
+    val sb = new StringBuilder
+    var consecutiveQuotes = 0
+
+    while stream.hasMore() do
+      val c = stream.curCodePoint()
+
+      if c == '"' then
+        consecutiveQuotes += 1
+        stream.eat()
+
+        if consecutiveQuotes == quoteCount then
+          // Found closing delimiter - remove the quotes we collected
+          val len = sb.length
+          if len >= quoteCount - 1 then
+            sb.setLength(len - (quoteCount - 1))
+          return sb.toString()
+        else
+          sb.append('"')
+      else
+        consecutiveQuotes = 0
+        stream.eat()
+        sb.append(c.toChar)
+    end while
+
+    error("Unclosed multi-line string literal", stream.tokenSpan().toPos)
+    null
+
+  def processMultiLineString(content: String, contentStart: Int): String =
+    // Split content into lines
+    val lines = content.split("\n", -1) // -1 to keep trailing empty strings
+
+    if lines.length == 0 then
+      return ""
+
+    // The last line before closing """ determines the base indentation
+    // Find the column of the closing delimiter (which is at the end of content)
+    val closingLine = lines.last
+    val baseIndent = closingLine.length // All characters before """ are whitespace
+
+    // Validate that closing line is all whitespace
+    if !closingLine.forall(c => c == ' ' || c == '\t') then
+      error("Closing delimiter line must contain only whitespace", stream.tokenSpan().toPos)
+
+    // Process all lines except the last (which is the closing delimiter line)
+    val contentLines = if lines.length > 1 then lines.dropRight(1) else Array[String]()
+    val result = new StringBuilder
+
+    for (line, idx) <- contentLines.zipWithIndex do
+      // Check indentation
+      val indent = line.prefixLength(c => c == ' ' || c == '\t')
+
+      if indent < baseIndent && line.trim.nonEmpty then
+        error(s"Line has insufficient indentation (expected at least $baseIndent spaces)", stream.tokenSpan().toPos)
+
+      // Strip base indentation
+      val stripped = if line.length >= baseIndent then line.substring(baseIndent) else line
+
+      // Handle line continuation (backslash at end of line)
+      if stripped.endsWith("\\") && idx < contentLines.length - 1 then
+        // Remove the backslash and don't add newline
+        result.append(stripped.substring(0, stripped.length - 1))
+      else
+        result.append(stripped)
+        // Add newline except for last line
+        if idx < contentLines.length - 1 then
+          result.append('\n')
+
+    // Process escape sequences
+    try
+      StringUtil.unescape(result.toString())
+    catch
+      case e: StringUtil.EscapeError =>
+        val errorStart = contentStart + e.offset
+        val errorSpan = Span(errorStart, e.length)
+        error(e.message, errorSpan.toPos)
+        ""
 
   def charLit(): Token =
     if stream.curCodePoint() == '\\' then
