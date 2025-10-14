@@ -1,0 +1,84 @@
+// Test multi-line string literals
+
+def main(): Unit =
+  // Basic multi-line string
+  val basic = """
+    Hello
+    World
+    """
+  print("Basic: ")
+  print(basic)
+  print("\n---\n")
+
+  // With more indentation in content
+  val indented = """
+    Line 1
+      Line 2 (extra indent)
+    Line 3
+    """
+  print("Indented: ")
+  print(indented)
+  print("\n---\n")
+
+  // Closing delimiter at different column
+  val lessIndent = """
+  Close at column 2
+  Second line
+  """
+  print("Less indent: ")
+  print(lessIndent)
+  print("\n---\n")
+
+  // Four quotes to allow """ inside
+  val withTripleQuotes = """"
+    Code: let x = """hello"""
+    """"
+  print("With triple quotes: ")
+  print(withTripleQuotes)
+  print("\n---\n")
+
+  // Line continuation with backslash
+  val continued = """
+    This is a \
+    single line
+    """
+  print("Continued: ")
+  print(continued)
+  print("\n---\n")
+
+  // Unicode escapes in multi-line
+  val unicode = """
+    Emoji: \u{1F600}
+    """
+  print("Unicode: ")
+  print(unicode)
+  print("\n---\n")
+
+  // Empty lines preserved
+  val emptyLines = """
+    Line 1
+
+    Line 3
+    """
+  print("Empty lines: ")
+  print(emptyLines)
+  print("\n---\n")
+
+  // Trailing newline test (no empty line before closing)
+  val noTrailing = """
+    No trailing newline
+    """
+  print("No trailing: ")
+  print(noTrailing)
+  print("\n---\n")
+
+  // Trailing newline test (empty line before closing)
+  val withTrailing = """
+    With trailing newline
+
+    """
+  print("With trailing: ")
+  print(withTrailing)
+  print("\n---\n")
+
+  print("Done\n")

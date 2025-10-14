@@ -1,0 +1,26 @@
+Basic: Hello
+World
+---
+Indented: Line 1
+  Line 2 (extra indent)
+Line 3
+---
+Less indent: Close at column 2
+Second line
+---
+With triple quotes: Code: let x = """hello"""
+---
+Continued: This is a single line
+---
+Unicode: Emoji: 😀
+---
+Empty lines: Line 1
+
+Line 3
+---
+No trailing: No trailing newline
+---
+With trailing: With trailing newline
+
+---
+Done
