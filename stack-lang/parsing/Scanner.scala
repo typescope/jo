@@ -192,25 +192,21 @@ class Scanner(stream: CharStream)(using Reporter, Source):
 
   def intLit(): Token.IntLit =
     // Check for hexadecimal prefix 0x or 0X
-    if stream.curCodePoint() == '0' && stream.hasNext() then
-      val next = stream.nextCodePoint()
-      if next == 'x' || next == 'X' then
-        stream.eat() // consume '0'
-        stream.eat() // consume 'x' or 'X'
-        stream.eatWhile(c => StringUtil.isHexDigit(c.toChar))
-        val hexStr = stream.tokenEnd()
-        if hexStr.length <= 2 then // Only "0x" or "0X" with no digits
-          error("Hexadecimal literal must have at least one digit", stream.tokenSpan().toPos)
-          new Token.IntLit(0)
-        else
-          val value = hexStr2Int(hexStr.substring(2)) // Skip "0x" prefix
-          new Token.IntLit(value)
+    // Note: The first digit has already been consumed by nextToken()
+    val c = stream.curCodePoint()
+    if (c == 'x' || c == 'X') && stream.tokenEnd() == "0" then
+      // This is a hex literal: 0x...
+      stream.eat() // consume 'x' or 'X'
+      stream.eatWhile(c => StringUtil.isHexDigit(c.toChar))
+      val hexStr = stream.tokenEnd()
+      if hexStr.length <= 2 then // Only "0x" or "0X" with no digits
+        error("Hexadecimal literal must have at least one digit", stream.tokenSpan().toPos)
+        new Token.IntLit(0)
       else
-        stream.eatWhile(isDigit)
-        val intStr = stream.tokenEnd()
-        val value = str2Int(intStr)
+        val value = hexStr2Int(hexStr.substring(2)) // Skip "0x" prefix
         new Token.IntLit(value)
     else
+      // Regular decimal integer
       stream.eatWhile(isDigit)
       val intStr = stream.tokenEnd()
       val value = str2Int(intStr)
