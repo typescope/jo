@@ -62,4 +62,31 @@ def main(): Unit =
   print(intToStr(combined))
   print("\n")
 
+  // Negative hex literals
+  val neg1 = -0x1
+  print("-0x1 = ")
+  print(intToStr(neg1))
+  print("\n")
+
+  val neg16 = -0x10
+  print("-0x10 = ")
+  print(intToStr(neg16))
+  print("\n")
+
+  val neg255 = -0xFF
+  print("-0xFF = ")
+  print(intToStr(neg255))
+  print("\n")
+
+  val negMax = -0x7FFFFFFF
+  print("-0x7FFFFFFF = ")
+  print(intToStr(negMax))
+  print("\n")
+
+  // Negative hex with uppercase X
+  val negUpper = -0XAB
+  print("-0XAB = ")
+  print(intToStr(negUpper))
+  print("\n")
+
   print("Done\n")
