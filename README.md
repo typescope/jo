@@ -138,12 +138,17 @@ def main =
 First install [scala-cli](https://scala-cli.virtuslab.org/), then build the compiler and standard library:
 
 ```bash
+# Build JAR launcher (default, faster build)
 ./build
+
+# Or build native launcher (slower build, faster startup)
+./build -native
 ```
 
 This creates:
 - `bin/jo` - Unified compiler launcher (wrapper script)
-- `bin/jo.native` - Native executable
+- `bin/jo.jar` - JAR executable (default build)
+- `bin/jo.native` - Native executable (with `-native` flag)
 - `sast/stdlib/` - Precompiled standard library (.sast files)
 - `sast/runtime/js/` - JavaScript runtime library
 - `sast/runtime/native/` - Native runtime library
