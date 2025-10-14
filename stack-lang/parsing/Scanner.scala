@@ -149,7 +149,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
     try
       new Token.StringLit(StringUtil.unescape(content))
     catch
-      case e: StringUtil.UnicodeEscapeError =>
+      case e: StringUtil.EscapeError =>
         // Map the offset in the content to the source position
         // +1 for the opening quote, +e.offset for position in content
         val errorStart = stream.tokenSpan().start + 1 + e.offset
@@ -180,7 +180,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
     try
       new Token.CharLit(StringUtil.unescapeChar(content))
     catch
-      case e: StringUtil.UnicodeEscapeError =>
+      case e: StringUtil.EscapeError =>
         // Map the offset in the content to the source position
         // +1 for the opening quote, +e.offset for position in content
         val errorStart = stream.tokenSpan().start + 1 + e.offset

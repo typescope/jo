@@ -1,13 +1,13 @@
 package common
 
 object StringUtil:
-  /** Exception thrown when parsing unicode escape sequences fails
+  /** Exception thrown when parsing escape sequences fails
     *
     * @param message Error message
     * @param offset Offset in the string where the error occurred
     * @param length Length of the problematic escape sequence
     */
-  class UnicodeEscapeError(val message: String, val offset: Int, val length: Int)
+  class EscapeError(val message: String, val offset: Int, val length: Int)
     extends Exception(message)
 
   /** Check if a character is a valid hexadecimal digit */
@@ -41,7 +41,7 @@ object StringUtil:
             // Unicode escape: \u{X...} (1-6 hex digits)
             val escapeStart = i - 1  // Position of the backslash
             if i + 1 >= s.size || s.charAt(i + 1) != '{' then
-              throw new UnicodeEscapeError(
+              throw new EscapeError(
                 "Unicode escape must be followed by '{': \\u{...}",
                 escapeStart,
                 2  // \u
@@ -53,7 +53,7 @@ object StringUtil:
               j += 1
 
             if j >= s.size then
-              throw new UnicodeEscapeError(
+              throw new EscapeError(
                 "Unclosed unicode escape sequence",
                 escapeStart,
                 j - escapeStart
@@ -61,14 +61,14 @@ object StringUtil:
 
             val hexStr = s.substring(i + 2, j)
             if hexStr.isEmpty then
-              throw new UnicodeEscapeError(
+              throw new EscapeError(
                 "Empty unicode escape sequence",
                 escapeStart,
                 4  // \u{}
               )
 
             if hexStr.length > 6 then
-              throw new UnicodeEscapeError(
+              throw new EscapeError(
                 s"Unicode escape sequence too long (max 6 hex digits): $hexStr",
                 escapeStart,
                 j - escapeStart + 1
@@ -78,7 +78,7 @@ object StringUtil:
             var k = 0
             while k < hexStr.length do
               if !isHexDigit(hexStr.charAt(k)) then
-                throw new UnicodeEscapeError(
+                throw new EscapeError(
                   s"Invalid hex digit in unicode escape: ${hexStr.charAt(k)}",
                   escapeStart,
                   j - escapeStart + 1
@@ -87,7 +87,7 @@ object StringUtil:
 
             val codePoint = Integer.parseInt(hexStr, 16)
             if codePoint > 0x10FFFF then
-              throw new UnicodeEscapeError(
+              throw new EscapeError(
                 f"Unicode code point out of range (max 10FFFF): $codePoint%X",
                 escapeStart,
                 j - escapeStart + 1
@@ -130,7 +130,7 @@ object StringUtil:
       return s(0)
 
     if s(0) != '\\' then
-      throw new UnicodeEscapeError(
+      throw new EscapeError(
         "Expected escape sequence starting with \\",
         0,
         s.size
@@ -149,21 +149,21 @@ object StringUtil:
 
     // Unicode escape: \u{...}
     if s(1) != 'u' then
-      throw new UnicodeEscapeError(
+      throw new EscapeError(
         s"Unknown escape sequence: \\${s(1)}",
         0,
         2
       )
 
     if s.size < 4 || s(2) != '{' then
-      throw new UnicodeEscapeError(
+      throw new EscapeError(
         "Unicode escape must be \\u{...}",
         0,
         if s.size < 3 then s.size else 3
       )
 
     if s(s.size - 1) != '}' then
-      throw new UnicodeEscapeError(
+      throw new EscapeError(
         "Unclosed unicode escape sequence",
         0,
         s.size
@@ -171,14 +171,14 @@ object StringUtil:
 
     val hexStr = s.substring(3, s.size - 1)
     if hexStr.isEmpty then
-      throw new UnicodeEscapeError(
+      throw new EscapeError(
         "Empty unicode escape sequence",
         0,
         4
       )
 
     if hexStr.length > 6 then
-      throw new UnicodeEscapeError(
+      throw new EscapeError(
         s"Unicode escape sequence too long (max 6 hex digits): $hexStr",
         0,
         s.size
@@ -188,7 +188,7 @@ object StringUtil:
     var k = 0
     while k < hexStr.length do
       if !isHexDigit(hexStr.charAt(k)) then
-        throw new UnicodeEscapeError(
+        throw new EscapeError(
           s"Invalid hex digit in unicode escape: ${hexStr.charAt(k)}",
           0,
           s.size
@@ -197,7 +197,7 @@ object StringUtil:
 
     val codePoint = Integer.parseInt(hexStr, 16)
     if codePoint > 0xFFFF then
-      throw new UnicodeEscapeError(
+      throw new EscapeError(
         f"Char literal cannot represent code point > FFFF: $codePoint%X",
         0,
         s.size
