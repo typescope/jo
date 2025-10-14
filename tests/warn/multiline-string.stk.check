@@ -18,10 +18,10 @@
 | ^^^^^^^^^^
 | Line has insufficient indentation (expected at least 7 spaces)
 
----------- Error at ./tests/warn/multiline-string.stk:21:6 ---------------
+---------- Error at ./tests/warn/multiline-string.stk:21:10 ---------------
 |     Hello\   
-|      ^^
-|      Unknown escape sequence: \
+|          ^^
+|          Unknown escape sequence: \space 
 
 ---------- Error at ./tests/warn/multiline-string.stk:25:28 ---------------
 | def testUnclosed: String = """

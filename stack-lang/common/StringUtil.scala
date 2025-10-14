@@ -11,7 +11,7 @@ object StringUtil:
     extends Exception(message)
 
   /** Check if a character is a valid hexadecimal digit */
-  def isHexDigit(c: Char): Boolean =
+  def isHexDigit(c: Int): Boolean =
     (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')
 
   /** Translate escape in the string
@@ -99,8 +99,14 @@ object StringUtil:
           case _    =>
             // Unknown escape sequence
             val escapeStart = i - 1  // Position of the backslash
+            val charDesc = c match
+              case ' '  => "space"
+              case '\t' => "tab"
+              case '\n' => "newline"
+              case '\r' => "carriage return"
+              case _    => Character.toString(c)
             throw new EscapeError(
-              s"Unknown escape sequence: \\${Character.toString(c)}",
+              s"Unknown escape sequence: \\$charDesc",
               escapeStart,
               2
             )

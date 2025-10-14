@@ -300,7 +300,10 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       StringUtil.unescape(result.toString())
     catch
       case e: StringUtil.EscapeError =>
-        val errorStart = contentStart + e.offset
+        // Map the error offset in the processed string back to the original content
+        // We need to account for the stripped indentation on each line
+        // For now, add baseIndent as an approximation (works for single-line errors)
+        val errorStart = contentStart + e.offset + baseIndent
         val errorSpan = Span(errorStart, e.length)
         error(e.message, errorSpan.toPos)
         ""
@@ -346,7 +349,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       if c == 'x' || c == 'X' then
         // This is a hex literal: 0x...
         stream.eat() // consume 'x' or 'X'
-        stream.eatWhile(c => StringUtil.isHexDigit(c.toChar))
+        stream.eatWhile(c => StringUtil.isHexDigit(c))
         val hexStr = stream.tokenEnd()
         // hexStr could be "-0x..." or "0x..."
         val prefixLen = if hexStr(0) == '-' then 3 else 2
