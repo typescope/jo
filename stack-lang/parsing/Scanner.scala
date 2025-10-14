@@ -149,9 +149,18 @@ class Scanner(stream: CharStream)(using Reporter, Source):
 
   def charLit(): Token =
     if stream.curCodePoint() == '\\' then
-      // only support one char: \b \f \n \r \t \' \\
       stream.eat()
-    stream.eat()
+      // Check if it's a unicode escape \uXXXX
+      if stream.curCodePoint() == 'u' then
+        stream.eat()
+        // Consume 4 hex digits
+        var count = 0
+        while count < 4 && stream.hasMore() && stream.curCodePoint() != '\'' do
+          stream.eat()
+          count += 1
+      // else: simple escape like \b \f \n \r \t \' \\
+    else
+      stream.eat()
     eat('\'')
     val rawString = stream.tokenEnd()
     val content = rawString.substring(1, rawString.size - 1)

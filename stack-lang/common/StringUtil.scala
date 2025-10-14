@@ -1,6 +1,10 @@
 package common
 
 object StringUtil:
+  /** Check if a character is a valid hexadecimal digit */
+  def isHexDigit(c: Char): Boolean =
+    (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')
+
   /** Translate escape in the string
     *
     * Java 15 added String.translateEscapes. Don't depend on it for clarity.
@@ -24,6 +28,26 @@ object StringUtil:
           case 't'  => sb.append('\t')
           case '"'  => sb.append('"')
           case '\\' => sb.append('\\')
+          case 'u'  =>
+            // Unicode escape: \uXXXX
+            if i + 4 < s.size then
+              val hex1 = s.charAt(i + 1)
+              val hex2 = s.charAt(i + 2)
+              val hex3 = s.charAt(i + 3)
+              val hex4 = s.charAt(i + 4)
+              if isHexDigit(hex1) && isHexDigit(hex2) && isHexDigit(hex3) && isHexDigit(hex4) then
+                val hexStr = s.substring(i + 1, i + 5)
+                val codePoint = Integer.parseInt(hexStr, 16)
+                sb.appendCodePoint(codePoint)
+                i += 4  // skip the 4 hex digits
+              else
+                throw new IllegalArgumentException(s"Invalid unicode escape sequence: \\u$hex1$hex2$hex3$hex4")
+            else
+              throw new IllegalArgumentException("Incomplete unicode escape sequence: \\u")
+          case _    =>
+            // Unknown escape sequence, keep as-is
+            sb.append('\\')
+            sb.appendCodePoint(c)
         isLastEscape = false
       end if
       i += Character.charCount(c)
@@ -50,18 +74,31 @@ object StringUtil:
     * char literal as 32-bit integers.
     */
   def unescapeChar(s: String): Char =
-    assert(s.size == 1 || s.size == 2, s)
+    assert(s.size == 1 || s.size == 2 || s.size == 6, s)
 
     if s(0) == '\\' then
-      assert(s.size == 2)
-      s(1) match
-        case 'b'  => '\b'
-        case 'f'  => '\f'
-        case 'n'  => '\n'
-        case 'r'  => '\r'
-        case 't'  => '\t'
-        case '\''  => '\''
-        case '\\' => '\\'
+      if s.size == 6 && s(1) == 'u' then
+        // Unicode escape: \uXXXX
+        val hex1 = s.charAt(2)
+        val hex2 = s.charAt(3)
+        val hex3 = s.charAt(4)
+        val hex4 = s.charAt(5)
+        if isHexDigit(hex1) && isHexDigit(hex2) && isHexDigit(hex3) && isHexDigit(hex4) then
+          val hexStr = s.substring(2, 6)
+          Integer.parseInt(hexStr, 16).toChar
+        else
+          throw new IllegalArgumentException(s"Invalid unicode escape sequence: \\u$hex1$hex2$hex3$hex4")
+      else
+        assert(s.size == 2)
+        s(1) match
+          case 'b'  => '\b'
+          case 'f'  => '\f'
+          case 'n'  => '\n'
+          case 'r'  => '\r'
+          case 't'  => '\t'
+          case '\''  => '\''
+          case '\\' => '\\'
+          case _    => s(1)  // Unknown escape, return the character itself
     else
       assert(s.size == 1)
       s(0)
