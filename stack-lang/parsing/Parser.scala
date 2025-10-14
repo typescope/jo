@@ -125,6 +125,10 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           baseIndent = nextItem.indent.tokenOffset
           done = true
 
+        case Token.EOF =>
+          error("Unclosed multi-line string literal", openMarker.span.toPos)
+          return ""
+
         case other =>
           error(s"Unexpected token in multi-line string: $other", openMarker.span.toPos)
           return ""
@@ -154,20 +158,26 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       if stripped.endsWith("\\") then
         previousLineContinuation = true
         // Remove backslash and trim next line's leading whitespace
-        val withoutBackslash = stripped.dropRight(1)
-        result ++= withoutBackslash
+        stripped = stripped.dropRight(1)
       else
-        result ++= stripped
-        if i < lines.length - 1 then result += '\n'
+        previousLineContinuation = false
+
+      try
+        stripped = StringUtil.unescape(stripped)
+      catch
+        case e: StringUtil.EscapeError =>
+          val errorStart = span.start + e.offset + baseIndent
+          val errorSpan = Span(errorStart, e.length)
+          error(e.message, errorSpan.toPos)
+
+      result ++= stripped
+      if !previousLineContinuation && i < lines.length - 1 then result += '\n'
 
       i += 1
+    end while
 
-    try
-      StringUtil.unescape(result.toString)
-    catch
-      case e: StringUtil.EscapeError =>
-        error(e.message, openMarker.span.toPos)
-        ""
+
+    result.toString
 
   def skipIndented(limitIndent: Indent) =
     var item = peekItem()

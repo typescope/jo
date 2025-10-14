@@ -10,7 +10,7 @@
 
 ---------- Error at ./tests/warn/multiline-string.stk:17:1 ---------------
 |     end"""
-| ^^^^^^^
+| ^^^^^^^^^^
 | Closing delimiter line must contain only whitespace
 
 ---------- Error at ./tests/warn/multiline-string.stk:16:1 ---------------
@@ -30,7 +30,7 @@
 
 ---------- Error at ./tests/warn/multiline-string.stk:31:28 ---------------
 | def testUnclosed: String = """
-|                            ^
+|                            ^^^
 |                            Unclosed multi-line string literal
 
 7 error(s), 0 warning(s)
