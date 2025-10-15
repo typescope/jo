@@ -18,6 +18,11 @@ Backslash at end: No trailing newline
 ---
 Unicode: Emoji: 😀
 ---
+Raw backslashes: Line with \n literal backslash-n
+Line with \t literal backslash-t
+Path: C:\path\to\file
+Double backslash: \\ stays as \
+---
 Empty lines: Line 1
 
 Line 3

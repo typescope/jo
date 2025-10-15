@@ -14,6 +14,78 @@ object StringUtil:
   def isHexDigit(c: Int): Boolean =
     (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')
 
+  /** Translate escape sequences in multi-line strings
+    *
+    * Only handles \u{...} unicode escapes. All other backslashes are treated as literal.
+    * This makes multi-line strings "raw" by default, which is desirable for most use cases.
+    */
+  def unescapeMultiline(s: String): String =
+    val sb = new java.lang.StringBuilder
+    var i = 0
+
+    while i < s.size do
+      val c = s.codePointAt(i)
+
+      if c == '\\' && i + 1 < s.size && s.codePointAt(i + 1) == 'u' && i + 2 < s.size && s.charAt(i + 2) == '{' then
+        // This is a \u{...} unicode escape
+        val escapeStart = i
+
+        // Find closing brace
+        var j = i + 3
+        while j < s.size && s.charAt(j) != '}' do
+          j += 1
+
+        if j >= s.size then
+          throw new EscapeError(
+            "Unclosed unicode escape sequence",
+            escapeStart,
+            j - escapeStart
+          )
+
+        val hexStr = s.substring(i + 3, j)
+        if hexStr.isEmpty then
+          throw new EscapeError(
+            "Empty unicode escape sequence",
+            escapeStart,
+            4  // \u{}
+          )
+
+        if hexStr.length > 6 then
+          throw new EscapeError(
+            s"Unicode escape sequence too long (max 6 hex digits): $hexStr",
+            escapeStart,
+            j - escapeStart + 1
+          )
+
+        // Validate all characters are hex digits
+        var k = 0
+        while k < hexStr.length do
+          if !isHexDigit(hexStr.charAt(k)) then
+            throw new EscapeError(
+              s"Invalid hex digit in unicode escape: ${hexStr.charAt(k)}",
+              escapeStart,
+              j - escapeStart + 1
+            )
+          k += 1
+
+        val codePoint = Integer.parseInt(hexStr, 16)
+        if codePoint > 0x10FFFF then
+          throw new EscapeError(
+            f"Unicode code point out of range (max 10FFFF): $codePoint%X",
+            escapeStart,
+            j - escapeStart + 1
+          )
+
+        sb.appendCodePoint(codePoint)
+        i = j + 1  // skip past closing brace
+      else
+        // Regular character (including backslash not part of \u{...})
+        sb.appendCodePoint(c)
+        i += Character.charCount(c)
+    end while
+
+    sb.toString
+
   /** Translate escape in the string
     *
     * Java 15 added String.translateEscapes. Don't depend on it for clarity.
