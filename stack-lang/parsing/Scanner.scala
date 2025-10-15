@@ -132,7 +132,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
 
   def stringLit(): TokenInfo =
     // First quote already consumed, check if this is multi-line (""" or more)
-    if stream.curCodePoint() == '"' && stream.hasNext() then
+    if stream.hasMore() && stream.curCodePoint() == '"' then
       stream.eat() // consume second "
       if stream.curCodePoint() == '"' then
         // At least 3 quotes - this is a multi-line string
@@ -413,10 +413,6 @@ object Scanner:
     source.addLineOffset(index)
 
     def curCodePoint(): Int = code.codePointAt(index)
-
-    def hasNext(): Boolean =
-      val nextIndex = index + Character.charCount(curCodePoint())
-      nextIndex < LEN
 
     def nextCodePoint(): Int =
       val nextIndex = index + Character.charCount(curCodePoint())

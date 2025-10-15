@@ -142,7 +142,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           StringLit("")(resultSpan)
 
         case Token.EOF =>
-          // Don't report error for EOF
+          // Empty string at EOF
+          error("Unclosed string literal", openMarker.span.toPos)
           StringLit("")(openMarker.span)
 
         case other =>
