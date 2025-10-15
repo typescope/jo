@@ -165,91 +165,103 @@ class Scanner(stream: CharStream)(using Reporter, Source):
         // Emit opening marker for multi-line string
         return Token.StringStart(quoteCount).withInfo(span, indent)
       else
-
         // Just 2 quotes: empty string ""
-        return Token.StringLit("").withPos
+        return Token.StringStart(1).withPos
 
-    // Single-line string - read until closing quote
-    val sb = new StringBuilder
-    var lastWasBackslash = false
+    // Single-line string - emit StringStart(1)
+    Token.StringStart(1).withPos
 
-    while stream.hasMore() do
-      val c = stream.curCodePoint()
-
-      if c == '"' && !lastWasBackslash then
-        stream.eat()
-        // Unescape and return
-        try
-          return Token.StringLit(StringUtil.unescape(sb.toString())).withPos
-        catch
-          case e: StringUtil.EscapeError =>
-            val errorStart = stream.tokenSpan().start + 1 + e.offset
-            error(e.message, Span(errorStart, e.length).toPos)
-            return Token.StringLit("").withPos
-
-      else if c == '\n' && !lastWasBackslash then
-        error("Missing closing double quote: string cannot span multiple lines", stream.tokenSpan().toPos)
-        return Token.StringLit("").withPos
-
-      else
-        // Track if this is a backslash (and previous wasn't a backslash)
-        val isBackslash = (c == '\\' && !lastWasBackslash)
-        stream.eat()
-        sb.append(c.toChar)
-        lastWasBackslash = isBackslash
-
-    error("Unclosed string literal", stream.tokenSpan().toPos)
-    Token.StringLit("").withPos
-
-  /** Read next string token for multi-line string parsing
+  /** Read next string token for string parsing
     *
     * @returns StringEnd or StringLine
     *
-    * Just reads raw line content, parser handles indentation/continuation
+    * For single-line (quoteCount == 1): reads until closing quote or newline/EOF
+    * For multi-line (quoteCount >= 3): reads raw line content, parser handles indentation/continuation
     */
   def nextString(quoteCount: Int): TokenInfo =
-    var consecutiveQuotes = 0
-
     stream.tokenStart()
 
-    while stream.hasMore() do
-      val c = stream.curCodePoint()
+    if quoteCount == 1 then
+      // Single-line string - read until closing quote or return StringEnd if already at end
+      // First check if we're at a position right after string content (empty token means we should return StringEnd)
+      if !stream.hasMore() then
+        // EOF reached - don't report error here, let parser handle it
+        return Token.EOF.withPos
 
-      // Check for newline
-      if c == '\n' then
-        val str = stream.tokenEnd()
-        val item = Token.StringLine(str).withPos
-        // consume \n after taking position
-        stream.eat()
-        return item
+      // Check if content is empty (immediate closing quote or we're being called after StringLine was returned)
+      val firstChar = stream.curCodePoint()
+      if firstChar == '"' then
+        // Empty string or being called after returning StringLine
+        stream.eat() // consume the quote
+        return Token.StringEnd.withInfo(stream.tokenSpan(), stream.lineIndent())
 
-      // Check for closing quotes
-      if c == '"' then
-        consecutiveQuotes += 1
-        stream.eat()
+      // Read content until closing quote
+      while stream.hasMore() do
+        val c = stream.curCodePoint()
 
-        if consecutiveQuotes == quoteCount then
-          // Found closing delimiter - remove quotes we collected
+        if c == '"' then
           val str = stream.tokenEnd()
-          val prefix = str.substring(0, str.size - quoteCount)
-          if !prefix.forall(c => c == ' ' || c == '\t') then
-            error("Closing delimiter line must contain only whitespace", stream.tokenSpan().toPos)
+          val contentToken = Token.StringLine(str).withPos
+          // DON'T consume the closing quote yet - next call will handle it
+          return contentToken
 
-          val rawSpan = stream.tokenSpan()
-          val start = rawSpan.endOffset - quoteCount
-          val span = Span(start, quoteCount)
+        else if c == '\n' then
+          val str = stream.tokenEnd()
+          // Don't report error here - let parser handle it
+          return Token.StringLine(str).withPos
 
-          return Token.StringEnd.withInfo(span, stream.lineIndent(start))
+        else
+          stream.eat()
+      end while
 
-      else
-        consecutiveQuotes = 0
-        stream.eat()
-    end while
+      // Reached EOF without closing quote
+      val str = stream.tokenEnd()
+      // Don't report error here - let parser handle it
+      return (if str.isEmpty then Token.EOF else Token.StringLine(str)).withPos
 
-    val str = stream.tokenEnd()
+    else
+      // Multi-line string
+      var consecutiveQuotes = 0
 
-    // Reached EOF - return what we have as a line
-    (if str.isEmpty then Token.EOF else Token.StringLine(str)).withPos
+      while stream.hasMore() do
+        val c = stream.curCodePoint()
+
+        // Check for newline
+        if c == '\n' then
+          val str = stream.tokenEnd()
+          val item = Token.StringLine(str).withPos
+          // consume \n after taking position
+          stream.eat()
+          return item
+
+        // Check for closing quotes
+        if c == '"' then
+          consecutiveQuotes += 1
+          stream.eat()
+
+          if consecutiveQuotes == quoteCount then
+            // Found closing delimiter - remove quotes we collected
+            val str = stream.tokenEnd()
+            val prefix = str.substring(0, str.size - quoteCount)
+            if !prefix.forall(c => c == ' ' || c == '\t') then
+              error("Closing delimiter line must contain only whitespace", stream.tokenSpan().toPos)
+
+            val rawSpan = stream.tokenSpan()
+            val start = rawSpan.endOffset - quoteCount
+            val span = Span(start, quoteCount)
+
+            return Token.StringEnd.withInfo(span, stream.lineIndent(start))
+
+        else
+          consecutiveQuotes = 0
+          stream.eat()
+      end while
+
+      val str = stream.tokenEnd()
+
+      // Reached EOF - return what we have as a line
+      (if str.isEmpty then Token.EOF else Token.StringLine(str)).withPos
+    end if
 
   def charLit(): Token =
     if stream.curCodePoint() == '\\' then

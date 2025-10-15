@@ -79,7 +79,7 @@ object Parser:
 
     def peek(i: Int): Token = peekItem(i).token
 
-    /** For multi-line string parsing - bypasses lookahead buffer */
+    /** For string parsing - bypasses lookahead buffer */
     def nextString(quoteCount: Int): TokenInfo =
       assert(peekedTokens.isEmpty, "peekedTokens must be empty when calling nextString")
       scanner.nextString(quoteCount)
@@ -102,85 +102,128 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       throw new SyntaxError
     next()
 
-  /** Parse a multi-line string starting with StringStart(n) where n >= 3
-    * Collects StringLine tokens, handles indentation stripping and line continuation
+  /** Parse a string starting with StringStart(n)
+    *
+    * For single-line (n == 1): collects content until StringEnd, handles escaping
+    * For multi-line (n >= 3): collects StringLine tokens, handles indentation stripping and line continuation
     */
-  def multiLineString(openMarker: TokenInfo): StringLit =
+  def parseString(openMarker: TokenInfo): StringLit =
     val Token.StringStart(quoteCount) = openMarker.token: @unchecked
 
-    // Multi-line string
-    val lines = mutable.ListBuffer[(String, Span)]()
-    var baseIndent: Int = 0
-    var done = false
-
-    var resultSpan = openMarker.span
-
-    // Collect all lines until closing marker
-    while !done do
+    if quoteCount == 1 then
+      // Single-line string
       val nextItem = scanner.nextString(quoteCount)
       nextItem.token match
         case Token.StringLine(content) =>
-          lines += content -> nextItem.span
+          // Got content, now consume the StringEnd token
+          val endItem = scanner.nextString(quoteCount)
+          val resultSpan = openMarker.span | endItem.span
+
+          // Check if we got StringEnd as expected
+          endItem.token match
+            case Token.StringEnd =>
+              // Normal case
+              try
+                StringLit(StringUtil.unescape(content))(resultSpan)
+              catch
+                case e: StringUtil.EscapeError =>
+                  val errorStart = openMarker.span.start + 1 + e.offset
+                  error(e.message, Span(errorStart, e.length).toPos)
+                  StringLit("")(resultSpan)
+
+            case _ =>
+              // Error - didn't get StringEnd, don't bother unescaping
+              error("Missing closing double quote", endItem.span.toPos)
+              StringLit("")(resultSpan)
 
         case Token.StringEnd =>
-          // Found closing marker - determine indentation from last line
-          baseIndent = nextItem.indent.tokenOffset
-          done = true
-          resultSpan = resultSpan | nextItem.span
+          // Empty string
+          val resultSpan = openMarker.span | nextItem.span
+          StringLit("")(resultSpan)
 
         case Token.EOF =>
-          error("Unclosed multi-line string literal", openMarker.span.toPos)
-          return StringLit("")(openMarker.span)
+          // Don't report error for EOF
+          StringLit("")(openMarker.span)
 
         case other =>
-          error(s"Unexpected token in multi-line string: $other", openMarker.span.toPos)
-          return StringLit("")(openMarker.span)
+          error(s"Unexpected token in string: $other", openMarker.span.toPos)
+          StringLit("")(openMarker.span)
 
-    // Strip indentation and handle line continuation
-    val result = new StringBuilder
-    var i = 0
-    var previousLineContinuation = false
+    else
+      // Multi-line string
+      val lines = mutable.ListBuffer[(String, Span)]()
+      var baseIndent: Int = 0
+      var done = false
 
-    while i < lines.length do
-      val (line, span) = lines(i)
+      var resultSpan = openMarker.span
 
-      val indent = line.prefixLength(c => c == ' ' || c == '\t')
+      // Collect all lines until closing marker
+      while !done do
+        val nextItem = scanner.nextString(quoteCount)
+        nextItem.token match
+          case Token.StringLine(content) =>
+            lines += content -> nextItem.span
 
-      if indent < baseIndent && line.trim.nonEmpty then
-        // Calculate the position of this line for error reporting
-        error(s"Line has insufficient indentation (expected at least $baseIndent spaces)", span.toPos)
+          case Token.StringEnd =>
+            // Found closing marker - determine indentation from last line
+            baseIndent = nextItem.indent.tokenOffset
+            done = true
+            resultSpan = resultSpan | nextItem.span
 
-      // Strip base indentation
-      var stripped = if line.length >= baseIndent then line.substring(baseIndent) else line
+          case Token.EOF =>
+            error("Unclosed multi-line string literal", openMarker.span.toPos)
+            return StringLit("")(openMarker.span)
 
-      // If previous line had line continuation, trim leading whitespace from this line
-      if previousLineContinuation then
-        stripped = stripped.dropWhile(c => c == ' ' || c == '\t')
+          case other =>
+            error(s"Unexpected token in multi-line string: $other", openMarker.span.toPos)
+            return StringLit("")(openMarker.span)
 
-      // Check for line continuation
-      if stripped.endsWith("\\") then
-        previousLineContinuation = true
-        // Remove backslash and trim next line's leading whitespace
-        stripped = stripped.dropRight(1)
-      else
-        previousLineContinuation = false
+      // Strip indentation and handle line continuation
+      val result = new StringBuilder
+      var i = 0
+      var previousLineContinuation = false
 
-      try
-        stripped = StringUtil.unescape(stripped)
-      catch
-        case e: StringUtil.EscapeError =>
-          val errorStart = span.start + e.offset + baseIndent
-          val errorSpan = Span(errorStart, e.length)
-          error(e.message, errorSpan.toPos)
+      while i < lines.length do
+        val (line, span) = lines(i)
 
-      result ++= stripped
-      if !previousLineContinuation && i < lines.length - 1 then result += '\n'
+        val indent = line.prefixLength(c => c == ' ' || c == '\t')
 
-      i += 1
-    end while
+        if indent < baseIndent && line.trim.nonEmpty then
+          // Calculate the position of this line for error reporting
+          error(s"Line has insufficient indentation (expected at least $baseIndent spaces)", span.toPos)
+
+        // Strip base indentation
+        var stripped = if line.length >= baseIndent then line.substring(baseIndent) else line
+
+        // If previous line had line continuation, trim leading whitespace from this line
+        if previousLineContinuation then
+          stripped = stripped.dropWhile(c => c == ' ' || c == '\t')
+
+        // Check for line continuation
+        if stripped.endsWith("\\") then
+          previousLineContinuation = true
+          // Remove backslash and trim next line's leading whitespace
+          stripped = stripped.dropRight(1)
+        else
+          previousLineContinuation = false
+
+        try
+          stripped = StringUtil.unescape(stripped)
+        catch
+          case e: StringUtil.EscapeError =>
+            val errorStart = span.start + e.offset + baseIndent
+            val errorSpan = Span(errorStart, e.length)
+            error(e.message, errorSpan.toPos)
+
+        result ++= stripped
+        if !previousLineContinuation && i < lines.length - 1 then result += '\n'
+
+        i += 1
+      end while
 
 
-    StringLit(result.toString)(resultSpan)
+      StringLit(result.toString)(resultSpan)
+    end if
 
   def skipIndented(limitIndent: Indent) =
     var item = peekItem()
@@ -753,16 +796,18 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case None =>
         finalResult
 
+
   def isLambda(): Boolean =
     val token0 = peek(0)
-    val token1 = peek(1)
-    val token2 = peek(2)
-    val token3 = peek(3)
-    token0 == Token.LPAREN && (
+    token0 == Token.LPAREN && {
+      val token1 = peek(1)
+      lazy val token2 = peek(2)
+      lazy val token3 = peek(3)
+
       token1.isInstanceOf[Token.Ident] && (token2 == Token.COLON || token2 == Token.COMMA)
       || token1 == Token.RPAREN && token2 == Token.RARROW
       || token1.isInstanceOf[Token.Ident] && token2 == Token.RPAREN && token3 == Token.RARROW
-    )
+    }
 
   def word(): Option[Word] =
     val item = peekItem()
@@ -823,13 +868,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         next()
         optSelectAndApply(CharLit(lit.value)(item.span))
 
-      case lit: Token.StringLit  =>
-        next()
-        optSelectAndApply(StringLit(lit.value)(item.span))
-
       case Token.StringStart(_) =>
         next()
-        val lit = multiLineString(item)
+        val lit = parseString(item)
         optSelectAndApply(lit)
 
       case Token.NEW =>
@@ -1386,7 +1427,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     || token == Token.LBRACKET
     || token.isInstanceOf[Token.Ident]
     || token.isInstanceOf[Token.BoolLit]
-    || token.isInstanceOf[Token.StringLit]
     || token.isInstanceOf[Token.StringStart]
     || token.isInstanceOf[Token.CharLit]
     || token.isInstanceOf[Token.IntLit]
@@ -1436,13 +1476,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         next()
         CharLit(value)(item.span)
 
-      case Token.StringLit(value) =>
-        next()
-        StringLit(value)(item.span)
-
       case _: Token.StringStart =>
         next()
-        multiLineString(item)
+        parseString(item)
 
       case Token.LPAREN =>
         next()
