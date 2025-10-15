@@ -199,7 +199,12 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       while stream.hasMore() do
         val c = stream.curCodePoint()
 
-        if c == '"' then
+        if c == '\\' then
+          // Escape sequence - consume backslash and next character
+          stream.eat()
+          if stream.hasMore() then stream.eat()
+
+        else if c == '"' then
           val str = stream.tokenEnd()
           val contentToken = Token.StringLine(str).withPos
           // DON'T consume the closing quote yet - next call will handle it
