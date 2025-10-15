@@ -1,3 +1,6 @@
+---------- Error at ./tests/warn/unclosed-string-empty-newline.stk:1:23 ---------------
+| def test(): String = "
+|                       ^
+|                       Missing closing double quote
+
 1 error(s), 0 warning(s)
--- Error: tests/warn/unclosed-string-empty-newline.stk:1:22
-Missing closing double quote

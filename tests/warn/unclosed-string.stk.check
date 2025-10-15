@@ -1,3 +1,0 @@
-1 error(s), 0 warning(s)
--- Error: tests/warn/unclosed-string.stk:1:31
-Missing closing double quote
