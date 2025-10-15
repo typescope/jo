@@ -229,20 +229,24 @@ jo build-lib [options] <file.stk>   Build library (.sast files)
 jo help                             Show help
 
 Common options:
-  -lib <dirs>       Use precompiled libraries (colon-separated, in dependency order)
-                    Example: -lib build/core:build/utils
-                    Stdlib is automatically loaded unless -no-stdlib is used
-  -no-stdlib        Disable automatic stdlib loading
+  -lib <dirs>              Use precompiled libraries (colon-separated, in dependency order)
+                           Example: -lib build/core:build/utils
+                           Stdlib is automatically loaded unless -no-stdlib is used
+  -no-stdlib               Disable automatic stdlib loading
+  -explicit-return-type    Require functions to have explicit return type
 
 Build options:
-  -js               Target JavaScript (output: .js)
-  -stack            Target native (stack machine)
-  -reg              Target native (register machine, default)
-  -o <file>         Output file
-  -layout <c1|c2>   Memory layout (stack machine only)
+  -js                      Target JavaScript (output: .js)
+  -stack                   Target linux-x86 native (stack machine)
+  -reg                     Target linux-x86 native (register machine, default)
+  -o <file>                Output file
+  -layout <c1|c2>          Memory layout (both native backends)
+  -link <source>=<target>  Link function calls (e.g., -link stk.Predef.entry=Test.main)
+  -runtime <dirs>          Path to runtime libraries (colon-separated, in dependency order)
+  -no-detect-main          Disable automatic main function detection
 
 Build-lib options:
-  -d <dir>          Output directory (default: current dir)
+  -d <dir>                 Output directory (default: current dir)
 ```
 
 ### Environment Variables
