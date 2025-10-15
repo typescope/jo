@@ -1,0 +1,3 @@
+1 error(s), 0 warning(s)
+-- Error: tests/warn/unclosed-string-content-newline.stk:1:28
+Missing closing double quote
