@@ -18,11 +18,6 @@
 | ^^^^^^^^^^
 | Line has insufficient indentation (expected at least 7 spaces)
 
----------- Error at ./tests/warn/multiline-string.stk:21:10 ---------------
-|     Hello\   
-|          ^^
-|          Unknown escape sequence: \space
-
 ---------- Error at ./tests/warn/multiline-string.stk:27:1 ---------------
 |   Line 2
 | ^^^^^^^^
@@ -33,4 +28,4 @@
 |                            ^^^
 |                            Unclosed multi-line string literal
 
-7 error(s), 0 warning(s)
+6 error(s), 0 warning(s)
