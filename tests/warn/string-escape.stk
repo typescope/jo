@@ -1,0 +1,6 @@
+def main =
+  // Invalid escape sequences in single-line strings
+  print "Invalid: \p"
+  print "Invalid: \k"
+  print "Invalid: \x"
+  print "Invalid: \1"
