@@ -141,6 +141,11 @@ object StringUtil:
       end if
       i += Character.charCount(c)
     end while
+
+    // Handle trailing backslash at end of string
+    if isLastEscape then
+      sb.append('\\')
+
     sb.toString
 
   /** Escape a string -- the opposite of unescape */

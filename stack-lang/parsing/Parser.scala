@@ -105,7 +105,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   /** Parse a string starting with StringStart(n)
     *
     * For single-line (n == 1): collects content until StringEnd, handles escaping
-    * For multi-line (n >= 3): collects StringLine tokens, handles indentation stripping and line continuation
+    * For multi-line (n >= 3): collects StringLine tokens, handles indentation stripping
     */
   def parseString(openMarker: TokenInfo): StringLit =
     val Token.StringStart(quoteCount) = openMarker.token: @unchecked
@@ -179,10 +179,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
             error(s"Unexpected token in multi-line string: $other", openMarker.span.toPos)
             return StringLit("")(openMarker.span)
 
-      // Strip indentation and handle line continuation
+      // Strip indentation
       val result = new StringBuilder
       var i = 0
-      var previousLineContinuation = false
 
       while i < lines.length do
         val (line, span) = lines(i)
@@ -194,30 +193,18 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           error(s"Line has insufficient indentation (expected at least $baseIndent spaces)", span.toPos)
 
         // Strip base indentation
-        var stripped = if line.length >= baseIndent then line.substring(baseIndent) else line
-
-        // If previous line had line continuation, trim leading whitespace from this line
-        if previousLineContinuation then
-          stripped = stripped.dropWhile(c => c == ' ' || c == '\t')
-
-        // Check for line continuation
-        if stripped.endsWith("\\") then
-          previousLineContinuation = true
-          // Remove backslash and trim next line's leading whitespace
-          stripped = stripped.dropRight(1)
-        else
-          previousLineContinuation = false
+        val stripped = if line.length >= baseIndent then line.substring(baseIndent) else line
 
         try
-          stripped = StringUtil.unescape(stripped, StringUtil.EscapePolicy.Enable("u"))
+          val unescaped = StringUtil.unescape(stripped, StringUtil.EscapePolicy.Enable("u"))
+          result ++= unescaped
         catch
           case e: StringUtil.EscapeError =>
             val errorStart = span.start + e.offset + baseIndent
             val errorSpan = Span(errorStart, e.length)
             error(e.message, errorSpan.toPos)
 
-        result ++= stripped
-        if !previousLineContinuation && i < lines.length - 1 then result += '\n'
+        if i < lines.length - 1 then result += '\n'
 
         i += 1
       end while

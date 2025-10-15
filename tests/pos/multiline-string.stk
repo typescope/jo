@@ -37,7 +37,7 @@ def main(): Unit =
   print(withTripleQuotes)
   print("\n---\n")
 
-  // Line continuation with backslash
+  // Backslashes are literal in multiline strings (no line continuation)
   val continued = """
     This is a \
     single line
@@ -46,7 +46,7 @@ def main(): Unit =
   print(continued)
   print("\n---\n")
 
-  // Line continuation also trims leading whitespace from next line
+  // Backslash with following whitespace - all literal
   val continuedWithWhitespace = """
     Hello \
       World
@@ -55,7 +55,7 @@ def main(): Unit =
   print(continuedWithWhitespace)
   print("\n---\n")
 
-  // Backslash at end of last line (acts as line continuation, removes trailing newline)
+  // Backslash at end of last line - treated as literal backslash
   val backslashAtEnd = """
     No trailing newline\
     """
