@@ -35,4 +35,6 @@ No trailing: No trailing newline
 With trailing: With trailing newline
 
 ---
+Code after delimiter: Hello World
+---
 Done
