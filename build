@@ -2,14 +2,19 @@
 
 set -e
 
-OPT="--native"
+# Parse command line arguments
+BUILD_NATIVE=false
+if [ "$1" = "-native" ]; then
+  BUILD_NATIVE=true
+fi
 
-# compile
-echo "Generating unified launcher"
-scala-cli --power package -f $OPT project.scala stack-lang -M cli.Main -o bin/jo.native
+# Build launcher
+if [ "$BUILD_NATIVE" = true ]; then
+  echo "Generating native launcher"
+  scala-cli --power package -f --native project.scala stack-lang -M cli.Main -o bin/jo.native
 
-# create wrapper script
-cat > bin/jo << 'EOF'
+  # create wrapper script that calls native binary
+  cat > bin/jo << 'EOF'
 #!/bin/bash
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -17,6 +22,20 @@ JO_HOME="$(cd "$SCRIPT_DIR/.." && pwd)"
 export JO_HOME
 exec "$SCRIPT_DIR/jo.native" "$@"
 EOF
+else
+  echo "Generating JAR launcher"
+  scala-cli --power package -f project.scala stack-lang -M cli.Main -o bin/jo.jar
+
+  # create wrapper script that calls JAR
+  cat > bin/jo << 'EOF'
+#!/bin/bash
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+JO_HOME="$(cd "$SCRIPT_DIR/.." && pwd)"
+export JO_HOME
+exec java -jar "$SCRIPT_DIR/jo.jar" "$@"
+EOF
+fi
 
 chmod +x bin/jo
 

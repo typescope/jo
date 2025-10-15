@@ -18,9 +18,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
     if c != res then
       error(s"Expect character $c, found : " + res, stream.lastCharSpan().toPos)
 
-  /** Return the token, its span and the line indentation where the token ends */
-  def next(): TokenInfo =
-    val token = nextToken()
+  extension (token: Token) def withPos: TokenInfo =
     val span =
       if token == Token.EOF then
         val rawSpan = stream.tokenSpan()
@@ -30,51 +28,53 @@ class Scanner(stream: CharStream)(using Reporter, Source):
 
     token.withInfo(span, stream.lineIndent())
 
-  def nextToken(): Token =
-    if !stream.hasMore() then return Token.EOF
-
+  /** Return the token, its span and the line indentation where the token ends */
+  def next(): TokenInfo =
     // mark the start of a new token
     stream.tokenStart()
 
+    if !stream.hasMore() then return Token.EOF.withPos
+
     stream.eat() match
-      case '('    => Token.LPAREN
-      case ')'    => Token.RPAREN
-      case '['    => Token.LBRACKET
-      case ']'    => Token.RBRACKET
-      case '{'    => Token.LBRACE
-      case '}'    => Token.RBRACE
-      case '#'    => Token.TAG
-      case '.'    => dots()
-      case ','    => Token.COMMA
+      case '('    => Token.LPAREN.withPos
+      case ')'    => Token.RPAREN.withPos
+      case '['    => Token.LBRACKET.withPos
+      case ']'    => Token.RBRACKET.withPos
+      case '{'    => Token.LBRACE.withPos
+      case '}'    => Token.RBRACE.withPos
+      case '#'    => Token.TAG.withPos
+      case '.'    => dots().withPos
+      case ','    => Token.COMMA.withPos
 
       case '-'    =>
         if stream.curCodePoint(isDigit) then
           val firstDigit = stream.eat()
-          intLit(firstDigit)
-        else operator()
+          intLit(firstDigit).withPos
+        else
+          operator().withPos
 
       case '/'    =>
         if stream.curCodePoint() == '/' then
           stream.eatLine()
           stream.tokenStart()
-          nextToken()
+          next()
         else
-          operator()
+          operator().withPos
 
       case '"'    =>
         stringLit()
 
       case '\''    =>
-        charLit()
+        charLit().withPos
 
       case c      =>
-        if      isDigit(c)         then intLit(c)
-        else if isNameStart(c)     then name()
-        else if isOperatorChar(c)  then operator()
-        else if isSpace(c)         then nextToken()
+        if      isDigit(c)         then intLit(c).withPos
+        else if isNameStart(c)     then name().withPos
+        else if isOperatorChar(c)  then operator().withPos
+        else if isSpace(c)         then next()
         else
           error("Unexpected character: " + Character.toString(c), stream.tokenSpan().toPos)
-          nextToken()
+          next()
 
   def name(): Token =
     stream.eatWhile(isNameRest)
@@ -130,34 +130,147 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       case "."    => Token.DOT
       case name   => Token.Ident(name)
 
-  def stringLit(): Token =
-    var isLastEscape = false
-    def isValidChar(c: Int) =
-      if isLastEscape then
-        isLastEscape = false
-        true
+  def stringLit(): TokenInfo =
+    // First quote already consumed, check if this is multi-line (""" or more)
+    if stream.hasMore() && stream.curCodePoint() == '"' then
+      // Peek ahead to see if it's 2 quotes (empty string) or 3+ quotes (multiline)
+      // Need to check if there's a third character before peeking
+      val thirdChar = if stream.hasNextCodePoint() then stream.nextCodePoint() else -1
+
+      if thirdChar == '"' then
+        // At least 3 quotes - this is a multi-line string
+        stream.eat() // consume second "
+        stream.eat() // consume third "
+        var quoteCount = 3
+
+        // Count additional quotes
+        while stream.curCodePoint() == '"' do
+          quoteCount += 1
+          stream.eat()
+
+        // Multi-line string must start on a new line
+        // Check if there are any characters before newline and report error
+        if stream.hasMore() && stream.curCodePoint() != '\n' then
+          val errorStart = stream.tokenSpan().endOffset
+          var length = 0
+          while stream.hasMore() && stream.curCodePoint() != '\n' do
+            length += StringUtil.utf8CodePointLength(stream.curCodePoint())
+            stream.eat()
+          error("Multi-line string must start on a new line after opening quotes", Span(errorStart, length).toPos)
+
+        // Take span and indent before consuming \n
+        val span = stream.tokenSpan()
+        val indent = stream.lineIndent()
+
+        // Consume the newline after opening quotes
+        if stream.hasMore() && stream.curCodePoint() == '\n' then
+          stream.eat()
+
+        // Emit opening marker for multi-line string
+        return Token.StringStart(quoteCount).withInfo(span, indent)
       else
-        isLastEscape = c == '\\'
-        c != '"'
+        // Just 2 quotes: empty string "" - don't consume the second quote
+        return Token.StringStart(1).withPos
 
-    stream.eatWhile(c => c != '\n' && isValidChar(c))
-    if stream.curCodePoint() == '\n' then
-      error("Missing closing double quote: string cannot span multiple lines", stream.tokenSpan().toPos)
+    // Single-line string - emit StringStart(1)
+    Token.StringStart(1).withPos
+
+  /** Read next string token for string parsing
+    *
+    * @returns StringEnd or StringLine
+    *
+    * For single-line (quoteCount == 1): reads until closing quote or newline/EOF
+    * For multi-line (quoteCount >= 3): reads raw line content, parser handles indentation/continuation
+    */
+  def nextString(quoteCount: Int): TokenInfo =
+    stream.tokenStart()
+
+    if quoteCount == 1 then
+      // Single-line string - read until closing quote or return StringEnd if already at end
+      // First check if we're at a position right after string content (empty token means we should return StringEnd)
+      if !stream.hasMore() then
+        // EOF reached - don't report error here, let parser handle it
+        return Token.EOF.withPos
+
+      // Check if content is empty (immediate closing quote or we're being called after StringLine was returned)
+      val firstChar = stream.curCodePoint()
+      if firstChar == '"' then
+        // Empty string or being called after returning StringLine
+        stream.eat() // consume the quote
+        return Token.StringEnd.withInfo(stream.tokenSpan(), stream.lineIndent())
+
+      // Read content until closing quote
+      while stream.hasMore() do
+        val c = stream.curCodePoint()
+
+        if c == '\\' then
+          // Escape sequence - consume backslash and next character
+          stream.eat()
+          if stream.hasMore() then stream.eat()
+
+        else if c == '"' then
+          val str = stream.tokenEnd()
+          val contentToken = Token.StringLine(str).withPos
+          // DON'T consume the closing quote yet - next call will handle it
+          return contentToken
+
+        else if c == '\n' then
+          val str = stream.tokenEnd()
+          // Don't report error here - let parser handle it
+          return Token.StringLine(str).withPos
+
+        else
+          stream.eat()
+      end while
+
+      // Reached EOF without closing quote
+      val str = stream.tokenEnd()
+      // Don't report error here - let parser handle it
+      return (if str.isEmpty then Token.EOF else Token.StringLine(str)).withPos
+
     else
-      eat('\"')
-    val rawString = stream.tokenEnd()
-    val content = if rawString.size <= 1 then "" else rawString.substring(1, rawString.size - 1)
+      // Multi-line string
+      var consecutiveQuotes = 0
 
-    try
-      new Token.StringLit(StringUtil.unescape(content))
-    catch
-      case e: StringUtil.EscapeError =>
-        // Map the offset in the content to the source position
-        // +1 for the opening quote, +e.offset for position in content
-        val errorStart = stream.tokenSpan().start + 1 + e.offset
-        val errorSpan = Span(errorStart, e.length)
-        error(e.message, errorSpan.toPos)
-        new Token.StringLit("")  // Return empty string as dummy value
+      while stream.hasMore() do
+        val c = stream.curCodePoint()
+
+        // Check for newline
+        if c == '\n' then
+          val str = stream.tokenEnd()
+          val item = Token.StringLine(str).withPos
+          // consume \n after taking position
+          stream.eat()
+          return item
+
+        // Check for closing quotes
+        if c == '"' then
+          consecutiveQuotes += 1
+          stream.eat()
+
+          if consecutiveQuotes == quoteCount then
+            // Found closing delimiter - remove quotes we collected
+            val str = stream.tokenEnd()
+            val prefix = str.substring(0, str.size - quoteCount)
+            if !prefix.forall(c => c == ' ' || c == '\t') then
+              error("Closing delimiter line must contain only whitespace", stream.tokenSpan().toPos)
+
+            val rawSpan = stream.tokenSpan()
+            val start = rawSpan.endOffset - quoteCount
+            val span = Span(start, quoteCount)
+
+            return Token.StringEnd.withInfo(span, stream.lineIndent(start))
+
+        else
+          consecutiveQuotes = 0
+          stream.eat()
+      end while
+
+      val str = stream.tokenEnd()
+
+      // Reached EOF - return what we have as a line
+      (if str.isEmpty then Token.EOF else Token.StringLine(str)).withPos
+    end if
 
   def charLit(): Token =
     if stream.curCodePoint() == '\\' then
@@ -200,7 +313,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       if c == 'x' || c == 'X' then
         // This is a hex literal: 0x...
         stream.eat() // consume 'x' or 'X'
-        stream.eatWhile(c => StringUtil.isHexDigit(c.toChar))
+        stream.eatWhile(c => StringUtil.isHexDigit(c))
         val hexStr = stream.tokenEnd()
         // hexStr could be "-0x..." or "0x..."
         val prefixLen = if hexStr(0) == '-' then 3 else 2
@@ -310,13 +423,13 @@ object Scanner:
 
     def curCodePoint(): Int = code.codePointAt(index)
 
-    def hasNext(): Boolean =
-      val nextIndex = index + Character.charCount(curCodePoint())
-      nextIndex < LEN
-
     def nextCodePoint(): Int =
       val nextIndex = index + Character.charCount(curCodePoint())
       code.codePointAt(nextIndex)
+
+    def hasNextCodePoint(): Boolean =
+      val nextIndex = index + Character.charCount(curCodePoint())
+      nextIndex < LEN
 
     def eat(): Int =
       val c = curCodePoint()
@@ -388,4 +501,15 @@ object Scanner:
 
     def lineIndent(): Indent =
       val tokenIndent = curTokenOffset - curLineOffset
+
+      assert(tokenIndent >= 0, "tokenIndent = " + tokenIndent + ", line = " + lineNum + ", did you forget to call .tokenStart or call .lineIndent just after consuming newline")
+
+      Indent(lineNum, lineIndentation, tokenIndent)
+
+    /** Some tokens will customize start point, e.g. StringEnd */
+    def lineIndent(tokenStartOffset: Int): Indent =
+      val tokenIndent = tokenStartOffset - curLineOffset
+
+      assert(tokenIndent >= 0, "tokenIndent = " + tokenIndent + ", line = " + lineNum + ", tokenStartOffset = " + tokenStartOffset)
+
       Indent(lineNum, lineIndentation, tokenIndent)

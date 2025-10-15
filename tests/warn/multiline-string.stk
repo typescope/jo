@@ -1,0 +1,32 @@
+// Test error cases for multi-line strings
+
+// Line with insufficient indentation
+def testInsufficientIndent: String = """
+    Line 1
+  Line 2
+    """
+
+// Text on same line as opening quotes
+def testTextAfterOpening: String = """Hello
+    World
+    """
+
+// Text before closing quotes on same line
+def testTextBeforeClosing: String = """
+    Line 1
+    end"""
+
+// Backslash followed by space (not newline) - invalid escape
+def testBackslashSpace: String = """
+    Hello\   
+    """
+
+// Insufficient indentation after line continuation
+def testContinuationInsufficientIndent: String = """
+    Line 1 \
+  Line 2
+    """
+
+// Unclosed multi-line string
+def testUnclosed: String = """
+    Hello

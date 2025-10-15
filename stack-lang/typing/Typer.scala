@@ -29,7 +29,7 @@ object Typer:
 
       effectCheck.transform(nss)
 
-      if Config.testPickling.value then
+      if !rp.hasErrors && Config.testPickling.value then
         given Definitions = defnLazy.value
 
         val outDir = "out/sast"

@@ -28,7 +28,7 @@ jobs:
       - uses: actions/setup-node@v4
 
       - name: build
-        run: ./build
+        run: ./build -native
 
       - name: run tests
         run: ./ci

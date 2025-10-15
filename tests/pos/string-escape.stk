@@ -1,0 +1,29 @@
+def main =
+  // Empty string
+  print ""
+  print "\n"
+
+  // Basic escapes
+  print "\t"
+  print "\n"
+  print "\\"
+  print "\""
+  print "\n"
+
+  // Unicode escapes
+  print "\u{48}"  // H
+  print "\u{65}"  // e
+  print "\u{6C}"  // l
+  print "\u{6C}"  // l
+  print "\u{6F}"  // o
+  print "\n"
+
+  // Combined
+  print "Hello\nWorld"
+  print "\n"
+  print "Tab\there"
+  print "\n"
+  print "Quote: \"test\""
+  print "\n"
+  print "Backslash: \\path\\to\\file"
+  print "\n"

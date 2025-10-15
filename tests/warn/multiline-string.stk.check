@@ -1,0 +1,31 @@
+---------- Error at ./tests/warn/multiline-string.stk:6:1 ---------------
+|   Line 2
+| ^^^^^^^^
+| Line has insufficient indentation (expected at least 4 spaces)
+
+---------- Error at ./tests/warn/multiline-string.stk:10:39 ---------------
+| def testTextAfterOpening: String = """Hello
+|                                       ^^^^^
+|                                       Multi-line string must start on a new line after opening quotes
+
+---------- Error at ./tests/warn/multiline-string.stk:17:1 ---------------
+|     end"""
+| ^^^^^^^^^^
+| Closing delimiter line must contain only whitespace
+
+---------- Error at ./tests/warn/multiline-string.stk:16:1 ---------------
+|     Line 1
+| ^^^^^^^^^^
+| Line has insufficient indentation (expected at least 7 spaces)
+
+---------- Error at ./tests/warn/multiline-string.stk:27:1 ---------------
+|   Line 2
+| ^^^^^^^^
+| Line has insufficient indentation (expected at least 4 spaces)
+
+---------- Error at ./tests/warn/multiline-string.stk:31:28 ---------------
+| def testUnclosed: String = """
+|                            ^^^
+|                            Unclosed multi-line string literal
+
+6 error(s), 0 warning(s)
