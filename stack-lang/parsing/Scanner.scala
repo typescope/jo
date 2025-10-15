@@ -133,11 +133,15 @@ class Scanner(stream: CharStream)(using Reporter, Source):
   def stringLit(): TokenInfo =
     // First quote already consumed, check if this is multi-line (""" or more)
     if stream.hasMore() && stream.curCodePoint() == '"' then
-      stream.eat() // consume second "
-      if stream.curCodePoint() == '"' then
+      // Peek ahead to see if it's 2 quotes (empty string) or 3+ quotes (multiline)
+      // Need to check if there's a third character before peeking
+      val thirdChar = if stream.hasNextCodePoint() then stream.nextCodePoint() else -1
+
+      if thirdChar == '"' then
         // At least 3 quotes - this is a multi-line string
-        var quoteCount = 3
+        stream.eat() // consume second "
         stream.eat() // consume third "
+        var quoteCount = 3
 
         // Count additional quotes
         while stream.curCodePoint() == '"' do
@@ -165,7 +169,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
         // Emit opening marker for multi-line string
         return Token.StringStart(quoteCount).withInfo(span, indent)
       else
-        // Just 2 quotes: empty string ""
+        // Just 2 quotes: empty string "" - don't consume the second quote
         return Token.StringStart(1).withPos
 
     // Single-line string - emit StringStart(1)
@@ -422,6 +426,10 @@ object Scanner:
     def nextCodePoint(): Int =
       val nextIndex = index + Character.charCount(curCodePoint())
       code.codePointAt(nextIndex)
+
+    def hasNextCodePoint(): Boolean =
+      val nextIndex = index + Character.charCount(curCodePoint())
+      nextIndex < LEN
 
     def eat(): Int =
       val c = curCodePoint()
