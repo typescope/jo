@@ -10,18 +10,21 @@ Second line
 ---
 With triple quotes: Code: let x = """hello"""
 ---
-Continued: This is a single line
+Backslash before newline: First line\
+Second line
 ---
-Continued with whitespace trim: Hello World
+Multiple backslashes: One backslash: \
+Two backslashes: \\
+Three backslashes: \\\
 ---
-Backslash at end: No trailing newline
+Trailing backslash: Line ends with backslash\
 ---
 Unicode: Emoji: 😀
 ---
 Raw backslashes: Line with \n literal backslash-n
 Line with \t literal backslash-t
 Path: C:\path\to\file
-Double backslash: \\ stays as \
+Double backslash: \\ stays as \\
 ---
 Empty lines: Line 1
 

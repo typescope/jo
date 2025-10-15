@@ -37,30 +37,31 @@ def main(): Unit =
   print(withTripleQuotes)
   print("\n---\n")
 
-  // Backslashes are literal in multiline strings (no line continuation)
-  val continued = """
-    This is a \
-    single line
+  // Backslash at end of line - literal, NOT line continuation
+  val backslashNewline = """
+    First line\
+    Second line
     """
-  print("Continued: ")
-  print(continued)
+  print("Backslash before newline: ")
+  print(backslashNewline)
   print("\n---\n")
 
-  // Backslash with following whitespace - all literal
-  val continuedWithWhitespace = """
-    Hello \
-      World
+  // Multiple backslashes - all literal
+  val multipleBackslashes = """
+    One backslash: \
+    Two backslashes: \\
+    Three backslashes: \\\
     """
-  print("Continued with whitespace trim: ")
-  print(continuedWithWhitespace)
+  print("Multiple backslashes: ")
+  print(multipleBackslashes)
   print("\n---\n")
 
-  // Backslash at end of last line - treated as literal backslash
-  val backslashAtEnd = """
-    No trailing newline\
+  // Backslash at end of string content - preserved
+  val trailingBackslash = """
+    Line ends with backslash\
     """
-  print("Backslash at end: ")
-  print(backslashAtEnd)
+  print("Trailing backslash: ")
+  print(trailingBackslash)
   print("\n---\n")
 
   // Unicode escapes in multi-line (only \u{...} is processed)
