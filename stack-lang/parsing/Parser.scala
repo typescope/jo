@@ -209,7 +209,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           previousLineContinuation = false
 
         try
-          stripped = StringUtil.unescapeMultiline(stripped)
+          stripped = StringUtil.unescape(stripped, StringUtil.EscapePolicy.Enable("u"))
         catch
           case e: StringUtil.EscapeError =>
             val errorStart = span.start + e.offset + baseIndent
