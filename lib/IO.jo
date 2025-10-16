@@ -1,9 +1,9 @@
-namespace stk.IO
+namespace jo.IO
 
-import stk.Predef.String
-import stk.Predef.Unit
-import stk.Predef.Bool
-import stk.Predef.Int
+import jo.Predef.String
+import jo.Predef.Unit
+import jo.Predef.Bool
+import jo.Predef.Int
 
 
 //------------------------------------------------------------------------------

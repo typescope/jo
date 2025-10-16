@@ -1,10 +1,10 @@
-// options: -no-detect-main -link stk.Main.main=Test.Framework.runApp -link Test.Framework.init=Test.Implementation.init -link Test.Framework.process=Test.Implementation.process -link Test.Framework.cleanup=Test.Implementation.cleanup
+// options: -no-detect-main -link jo.Main.main=Test.Framework.runApp -link Test.Framework.init=Test.Implementation.init -link Test.Framework.process=Test.Implementation.process -link Test.Framework.cleanup=Test.Implementation.cleanup
 
 // Test framework pattern linking main directly to framework orchestrator
 
 namespace Test
 
-import stk.IO.stdout
+import jo.IO.stdout
 
 section Framework
   defer def init(): Unit receives stdout

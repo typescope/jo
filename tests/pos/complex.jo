@@ -1,4 +1,4 @@
-import stk.Int
+import jo.Int
 
 
 type Complex = {

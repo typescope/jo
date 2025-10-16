@@ -1,10 +1,10 @@
-namespace stk.runtime.native.Core
+namespace jo.runtime.native.Core
 
-import stk.IO.*
+import jo.IO.*
 
-import stk.runtime.native.Syscall
-import stk.runtime.native.GC
-import stk.runtime.native.ParamSupport
+import jo.runtime.native.Syscall
+import jo.runtime.native.GC
+import jo.runtime.native.ParamSupport
 
 
 //------------------------------------------------------------------------------
@@ -51,7 +51,7 @@ def start(): Unit receives none =
   GC.init
   ParamSupport.init
 
-  stk.Main.main with
+  jo.Main.main with
     open = createFileOpener(),
     stdin = createStdIn(),
     stdout = createStdOut(),

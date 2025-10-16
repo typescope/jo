@@ -15,7 +15,7 @@ class JSRuntime(runtimeRootNameTable: NameTable)(using Definitions):
 
   val globalDefCode: String = s"""var $paramsName = {};"""
 
-  val JS = resolveTermByPath("stk.runtime.JS")
+  val JS = resolveTermByPath("jo.runtime.JS")
   val JS_getParam = JS.termMember("getParam")
   val JS_setParam = JS.termMember("setParam")
   val JS_hasParam = JS.termMember("hasParam")

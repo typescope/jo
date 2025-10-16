@@ -20,7 +20,7 @@ class BumpAllocator extends Linker:
   def locate(sym: Symbol): Option[Label] = None
 
   def locate(qualid: String): Option[Label] =
-    if qualid == "stk.runtime.native.BumpAllocator.state" then
+    if qualid == "jo.runtime.native.BumpAllocator.state" then
       Some(allocatorStateLabel)
     else
       None

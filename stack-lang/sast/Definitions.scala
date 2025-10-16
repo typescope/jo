@@ -85,11 +85,11 @@ extends Definitions.Lazy:
   // Predefined symbols
   //
 
-  val Predef = resolveTermByPath("stk.Predef")
+  val Predef = resolveTermByPath("jo.Predef")
   val Predef_nameTable = Predef.info.as[ContainerInfo].nameTable
 
   // primitive terms without implementation in source code
-  val Int        =  resolveTermByPath("stk.Int")
+  val Int        =  resolveTermByPath("jo.Int")
   val Int_Int    =  Int.typeMember("Int")
   val Int_add    =  Int.termMember("+")
   val Int_sub    =  Int.termMember("-")
@@ -107,7 +107,7 @@ extends Definitions.Lazy:
   val Int_lor    =  Int.termMember("|")
   val Int_lxor   =  Int.termMember("^")
 
-  val Bool        =  resolveTermByPath("stk.Bool")
+  val Bool        =  resolveTermByPath("jo.Bool")
   val Bool_Bool   =  Bool.typeMember("Bool")
   val Bool_and    =  Bool.termMember("&&")
   val Bool_or     =  Bool.termMember("||")
@@ -130,7 +130,7 @@ extends Definitions.Lazy:
   val Predef_intToStr   = Predef.termMember("intToStr")
 
   // I/O
-  val IO        = resolveTermByPath("stk.IO")
+  val IO        = resolveTermByPath("jo.IO")
   val IO_open   = IO.termMember("open")
   val IO_stdin  = IO.termMember("stdin")
   val IO_stdout = IO.termMember("stdout")
@@ -143,7 +143,7 @@ extends Definitions.Lazy:
   val Predef_String =  Predef.typeMember("String")
   val Predef_Pack   =  Predef.typeMember("..")
 
-  val Array         =  resolveTermByPath("stk.Array")
+  val Array         =  resolveTermByPath("jo.Array")
   val Array_Array   =  Array.typeMember("Array")
   val Array_create  =  Array.termMember("create")
   val Array_get     =  Array.termMember("get")
@@ -151,7 +151,7 @@ extends Definitions.Lazy:
   val Array_size     =  Array.termMember("size")
 
   // Lists
-  val List         =  resolveTermByPath("stk.List")
+  val List         =  resolveTermByPath("jo.List")
   val List_type    =  List.typeMember("List")
   val List_List   =  List.termMember("List")
   val List_empty   =  List.termMember("empty")
@@ -160,10 +160,10 @@ extends Definitions.Lazy:
   val Predef_orPattern = Predef.patternMember("|")
   val Predef_Partial = Predef.typeMember("Partial")
 
-  val Main_main = resolveTermByPath("stk.Main.main")
+  val Main_main = resolveTermByPath("jo.Main.main")
 
   // Internal
-  val Internal              =  resolveTermByPath("stk.Internal")
+  val Internal              =  resolveTermByPath("jo.Internal")
   val Internal_Seq          =  Internal.typeMember("Seq")
   val Internal_PackElemType =  Internal.typeMember("PackElemType")
   val Internal_abort        =  Internal.termMember("abort")

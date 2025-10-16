@@ -1,6 +1,6 @@
-namespace stk.Array
+namespace jo.Array
 
-import stk.Predef.*
+import jo.Predef.*
 
 //------------------------------------------------------------------------------
 //

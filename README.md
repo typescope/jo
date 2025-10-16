@@ -228,7 +228,7 @@ Build options:
   -reg                     Target linux-x86 native (register machine, default)
   -o <file>                Output file
   -layout <c1|c2>          Memory layout (both native backends)
-  -link <source>=<target>  Link function calls (e.g., -link stk.Predef.entry=Test.main)
+  -link <source>=<target>  Link function calls (e.g., -link jo.Predef.entry=Test.main)
   -runtime <dirs>          Path to runtime libraries (colon-separated, in dependency order)
   -no-detect-main          Disable automatic main function detection
 

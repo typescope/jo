@@ -1,4 +1,4 @@
-import stk.Int
+import jo.Int
 
 section Complex
   data Complex(real: Int, image: Int)

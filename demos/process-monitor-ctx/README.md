@@ -42,7 +42,7 @@ This is an alternative implementation of the system monitor demo using **context
            │ uses
            ▼
 ┌─────────────────────┐
-│  stk.runtime.JS     │  Base runtime
+│  jo.runtime.JS      │  Base runtime
 │  (js intrinsic)     │  - Node.js interop
 └─────────────────────┘
 ```
@@ -144,7 +144,7 @@ bin/jo build-lib PlatformRuntime.jo \
 ```bash
 bin/jo build -js \
   -no-detect-main \
-  -link stk.Main.main=SystemRuntime.platformMain \
+  -link jo.Main.main=SystemRuntime.platformMain \
   -link SystemAPI.Monitor.analyzeSystem=ProcessAnalyzer.Analysis.analyzeSystem \
   -lib out/api \
   -runtime out/runtime \

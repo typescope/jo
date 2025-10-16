@@ -4,8 +4,8 @@
 
 namespace SystemRuntime
 
-import stk.IO.stdout
-import stk.runtime.JS.js
+import jo.IO.stdout
+import jo.runtime.JS.js
 
 // ============================================
 // Process Monitoring Implementation

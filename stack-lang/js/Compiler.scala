@@ -17,18 +17,18 @@ import reporting.Config
 object Compiler:
   // Default link mappings for JS runtime
   val defaultLinkMappings = Map(
-    "stk.Predef.abort"      -> "stk.runtime.JS.abort",
-    "stk.Predef.byteToChar" -> "stk.runtime.JS.byteToChar",
-    "stk.Predef.byteToInt"  -> "stk.runtime.JS.byteToInt",
-    "stk.Predef.charToByte" -> "stk.runtime.JS.charToByte",
-    "stk.Predef.charToInt"  -> "stk.runtime.JS.charToInt",
-    "stk.Predef.charToStr"  -> "stk.runtime.JS.charToStr",
-    "stk.Predef.intToByte"  -> "stk.runtime.JS.intToByte",
-    "stk.Predef.intToChar"  -> "stk.runtime.JS.intToChar",
-    "stk.Predef.intToStr"   -> "stk.runtime.JS.intToStr",
-    "stk.Array.get"         -> "stk.runtime.JS.Array_get",
-    "stk.Array.set"         -> "stk.runtime.JS.Array_set",
-    "stk.Array.size"        -> "stk.runtime.JS.Array_size",
+    "jo.Predef.abort"      -> "jo.runtime.JS.abort",
+    "jo.Predef.byteToChar" -> "jo.runtime.JS.byteToChar",
+    "jo.Predef.byteToInt"  -> "jo.runtime.JS.byteToInt",
+    "jo.Predef.charToByte" -> "jo.runtime.JS.charToByte",
+    "jo.Predef.charToInt"  -> "jo.runtime.JS.charToInt",
+    "jo.Predef.charToStr"  -> "jo.runtime.JS.charToStr",
+    "jo.Predef.intToByte"  -> "jo.runtime.JS.intToByte",
+    "jo.Predef.intToChar"  -> "jo.runtime.JS.intToChar",
+    "jo.Predef.intToStr"   -> "jo.runtime.JS.intToStr",
+    "jo.Array.get"         -> "jo.runtime.JS.Array_get",
+    "jo.Array.set"         -> "jo.runtime.JS.Array_set",
+    "jo.Array.size"        -> "jo.runtime.JS.Array_size",
   )
 
   def main(args: Array[String]): Unit =

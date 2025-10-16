@@ -171,7 +171,7 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends T
 
       case TypeApply(fun, _) => checkFunShape(fun)
 
-      case Apply(Ident(sym), _, _) if sym.fullName == "stk.runtime.native.Core.readInt" =>
+      case Apply(Ident(sym), _, _) if sym.fullName == "jo.runtime.native.Core.readInt" =>
 
       case _  =>
         Reporter.error("Expect function to be select/ident/tapply, found = " + fun, fun.pos)

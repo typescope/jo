@@ -1,8 +1,8 @@
-namespace stk.Internal
+namespace jo.Internal
 
-import stk.Predef.Int
-import stk.Predef.String
-import stk.Predef.Bottom
+import jo.Predef.Int
+import jo.Predef.String
+import jo.Predef.Bottom
 
 // The signature of scrutinee required by sequence patterns
 type Seq[T] = {
@@ -16,5 +16,5 @@ type PackElemType[T] = T
 
 // Compiler transform should use this, which is guaranteed to be linked
 //
-// Usage of stk.Predef.abort in phases after LinkRewriter is problematic.
-def abort(s: String): Bottom = stk.Predef.abort s
+// Usage of jo.Predef.abort in phases after LinkRewriter is problematic.
+def abort(s: String): Bottom = jo.Predef.abort s

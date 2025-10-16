@@ -1,4 +1,4 @@
-import stk.IO.*
+import jo.IO.*
 
 def main =
   ioTest with stdin = { def readLine = "stk" }

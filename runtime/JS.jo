@@ -1,6 +1,6 @@
-namespace stk.runtime.JS
+namespace jo.runtime.JS
 
-import stk.IO
+import jo.IO
 
 //------------------------------------------------------------------------------
 //
@@ -25,7 +25,7 @@ def js(s: String): Bottom = abort("primitive js")
 //
 
 def start(): Unit receives none =
-  stk.Main.main with
+  jo.Main.main with
     IO.open   = createFileOpener(),
     IO.stdin  = createStdIn(),
     IO.stdout = createStdOut(),

@@ -1,6 +1,6 @@
-namespace stk.Map
+namespace jo.Map
 
-import stk.Predef.*
+import jo.Predef.*
 
 def empty[K, V](auto eq: Eq[K]): Map[K, V] = new Map([], eq)
 

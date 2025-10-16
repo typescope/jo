@@ -1,6 +1,6 @@
-namespace stk.runtime.Interpreter
+namespace jo.runtime.Interpreter
 
-import stk.IO
+import jo.IO
 
 //------------------------------------------------------------------------------
 // intrinsic function
@@ -68,7 +68,7 @@ end
 //------------------------------------------------------------------------------
 
 def start(): Unit receives none =
-  stk.Main.main with
+  jo.Main.main with
     IO.open = createOpen(),
     IO.stdout = createStdOut(),
     IO.stdin = createStdIn(),

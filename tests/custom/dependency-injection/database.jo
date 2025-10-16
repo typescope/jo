@@ -3,7 +3,7 @@
 
 namespace Database
 
-import stk.IO.stdout
+import jo.IO.stdout
 
 param state: { var recordCount: Int }
 

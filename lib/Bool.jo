@@ -1,6 +1,6 @@
-namespace stk.Bool
+namespace jo.Bool
 
-import stk.Predef.abort
+import jo.Predef.abort
 
 type Bool
 

@@ -1,6 +1,6 @@
-namespace stk.runtime.native.Syscall
+namespace jo.runtime.native.Syscall
 
-import stk.runtime.native.Core.Addr
+import jo.runtime.native.Core.Addr
 
 // Linux system calls interface
 

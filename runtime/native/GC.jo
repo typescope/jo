@@ -1,6 +1,6 @@
-namespace stk.runtime.native.GC
+namespace jo.runtime.native.GC
 
-import stk.runtime.native.Core
+import jo.runtime.native.Core
 
 // Abstract GC interface --- to be wired by the linker with a concrete
 // implementation

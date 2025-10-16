@@ -17,49 +17,49 @@ object Interpreter:
   //----------------------------------------------------------------------------
   // Default link mappings for Interpreter runtime
   val defaultLinkMappings = Map(
-    "stk.Predef.abort"      -> "stk.runtime.Interpreter.abort",
-    "stk.Predef.byteToChar" -> "stk.runtime.Interpreter.byteToChar",
-    "stk.Predef.byteToInt"  -> "stk.runtime.Interpreter.byteToInt",
-    "stk.Predef.charToByte" -> "stk.runtime.Interpreter.charToByte",
-    "stk.Predef.charToInt"  -> "stk.runtime.Interpreter.charToInt",
-    "stk.Predef.charToStr"  -> "stk.runtime.Interpreter.charToStr",
-    "stk.Predef.intToByte"  -> "stk.runtime.Interpreter.intToByte",
-    "stk.Predef.intToChar"  -> "stk.runtime.Interpreter.intToChar",
-    "stk.Predef.intToStr"   -> "stk.runtime.Interpreter.intToStr",
-    "stk.Array.create"      -> "stk.runtime.Interpreter.Array.create",
-    "stk.Array.get"         -> "stk.runtime.Interpreter.Array.get",
-    "stk.Array.set"         -> "stk.runtime.Interpreter.Array.set",
-    "stk.Array.size"        -> "stk.runtime.Interpreter.Array.size",
+    "jo.Predef.abort"      -> "jo.runtime.Interpreter.abort",
+    "jo.Predef.byteToChar" -> "jo.runtime.Interpreter.byteToChar",
+    "jo.Predef.byteToInt"  -> "jo.runtime.Interpreter.byteToInt",
+    "jo.Predef.charToByte" -> "jo.runtime.Interpreter.charToByte",
+    "jo.Predef.charToInt"  -> "jo.runtime.Interpreter.charToInt",
+    "jo.Predef.charToStr"  -> "jo.runtime.Interpreter.charToStr",
+    "jo.Predef.intToByte"  -> "jo.runtime.Interpreter.intToByte",
+    "jo.Predef.intToChar"  -> "jo.runtime.Interpreter.intToChar",
+    "jo.Predef.intToStr"   -> "jo.runtime.Interpreter.intToStr",
+    "jo.Array.create"      -> "jo.runtime.Interpreter.Array.create",
+    "jo.Array.get"         -> "jo.runtime.Interpreter.Array.get",
+    "jo.Array.set"         -> "jo.runtime.Interpreter.Array.set",
+    "jo.Array.size"        -> "jo.runtime.Interpreter.Array.size",
 
-    "stk.Int.+"        -> "stk.runtime.Interpreter.Int.add",
-    "stk.Int.-"        -> "stk.runtime.Interpreter.Int.sub",
-    "stk.Int.*"        -> "stk.runtime.Interpreter.Int.mul",
-    "stk.Int./"        -> "stk.runtime.Interpreter.Int.div",
-    "stk.Int.%"        -> "stk.runtime.Interpreter.Int.mod",
-    "stk.Int.>"        -> "stk.runtime.Interpreter.Int.gt",
-    "stk.Int.<"        -> "stk.runtime.Interpreter.Int.lt",
-    "stk.Int.>="       -> "stk.runtime.Interpreter.Int.ge",
-    "stk.Int.<="       -> "stk.runtime.Interpreter.Int.le",
-    "stk.Int.=="       -> "stk.runtime.Interpreter.Int.eql",
-    "stk.Int.>>"       -> "stk.runtime.Interpreter.Int.srl",
-    "stk.Int.<<"       -> "stk.runtime.Interpreter.Int.sll",
-    "stk.Int.&"        -> "stk.runtime.Interpreter.Int.land",
-    "stk.Int.|"        -> "stk.runtime.Interpreter.Int.lor",
-    "stk.Int.^"        -> "stk.runtime.Interpreter.Int.lxor",
+    "jo.Int.+"        -> "jo.runtime.Interpreter.Int.add",
+    "jo.Int.-"        -> "jo.runtime.Interpreter.Int.sub",
+    "jo.Int.*"        -> "jo.runtime.Interpreter.Int.mul",
+    "jo.Int./"        -> "jo.runtime.Interpreter.Int.div",
+    "jo.Int.%"        -> "jo.runtime.Interpreter.Int.mod",
+    "jo.Int.>"        -> "jo.runtime.Interpreter.Int.gt",
+    "jo.Int.<"        -> "jo.runtime.Interpreter.Int.lt",
+    "jo.Int.>="       -> "jo.runtime.Interpreter.Int.ge",
+    "jo.Int.<="       -> "jo.runtime.Interpreter.Int.le",
+    "jo.Int.=="       -> "jo.runtime.Interpreter.Int.eql",
+    "jo.Int.>>"       -> "jo.runtime.Interpreter.Int.srl",
+    "jo.Int.<<"       -> "jo.runtime.Interpreter.Int.sll",
+    "jo.Int.&"        -> "jo.runtime.Interpreter.Int.land",
+    "jo.Int.|"        -> "jo.runtime.Interpreter.Int.lor",
+    "jo.Int.^"        -> "jo.runtime.Interpreter.Int.lxor",
 
-    "stk.Bool.both"    -> "stk.runtime.Interpreter.Bool.both",
-    "stk.Bool.either"  -> "stk.runtime.Interpreter.Bool.either",
-    "stk.Bool.!"       -> "stk.runtime.Interpreter.Bool.not",
+    "jo.Bool.both"    -> "jo.runtime.Interpreter.Bool.both",
+    "jo.Bool.either"  -> "jo.runtime.Interpreter.Bool.either",
+    "jo.Bool.!"       -> "jo.runtime.Interpreter.Bool.not",
   )
 
   //----------------------------------------------------------------------------
 
   /** Runtime intrinsic functions */
   class Runtime(defn: Definitions):
-    val platformCall0 = defn.resolveTermByPath("stk.runtime.Interpreter.platformCall0")
-    val platformCall1 = defn.resolveTermByPath("stk.runtime.Interpreter.platformCall1")
-    val platformCall2 = defn.resolveTermByPath("stk.runtime.Interpreter.platformCall2")
-    val platformCall3 = defn.resolveTermByPath("stk.runtime.Interpreter.platformCall3")
+    val platformCall0 = defn.resolveTermByPath("jo.runtime.Interpreter.platformCall0")
+    val platformCall1 = defn.resolveTermByPath("jo.runtime.Interpreter.platformCall1")
+    val platformCall2 = defn.resolveTermByPath("jo.runtime.Interpreter.platformCall2")
+    val platformCall3 = defn.resolveTermByPath("jo.runtime.Interpreter.platformCall3")
 
   //----------------------------------------------------------------------------
 
@@ -576,7 +576,7 @@ object Interpreter:
         val rewriter = new phases.LinkRewriter(FrontEnd.rewireMap.value)
 
 
-        val entry = defn.resolveTermByPath("stk.runtime.Interpreter.start")
+        val entry = defn.resolveTermByPath("jo.runtime.Interpreter.start")
 
         val nssRewired = rewriter.transform(nss)
         exec(nssRewired, entry) <| "interpreter"

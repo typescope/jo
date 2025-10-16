@@ -139,7 +139,7 @@ object Config:
     def flag = "-link"
     def spec = OptionSpec.Multi
     def default = Map.empty[String, String]
-    def desc = "e.g., -link stk.Predef.entry=Test.main"
+    def desc = "e.g., -link jo.Predef.entry=Test.main"
 
     override def value(using cf: Config): Map[String, String] = cf.cached(this):
       throw new Exception("validation of options not performed")
@@ -192,7 +192,7 @@ object Config:
 
   /** Check if a string is a valid path (name or dot-separated path).
     *
-    * Valid examples: "foo", "foo.bar", "stk.Predef.entry"
+    * Valid examples: "foo", "foo.bar", "jo.Predef.entry"
     *
     * Invalid examples: "", ".", ".foo", "foo.", "foo..bar", "foo.123", "foo.bar-baz"
     */

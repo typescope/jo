@@ -4,7 +4,7 @@
 
 namespace ProcessAnalyzer
 
-import stk.IO.stdout
+import jo.IO.stdout
 import SystemAPI.Process
 import SystemAPI.System
 import SystemAPI.Logging

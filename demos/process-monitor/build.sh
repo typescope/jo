@@ -27,7 +27,7 @@ echo ""
 
 echo "Stage 2: Compile PlatformRuntime.jo (Runtime using Node.js APIs)"
 echo "------------------------------------------------------------------"
-echo "  - Uses stk.runtime.JS.js intrinsic"
+echo "  - Uses jo.runtime.JS.js intrinsic"
 echo "  - Calls Node.js: child_process, os, process"
 echo "  - Links to PlatformAPI interface"
 echo "  - Links to JS runtime for I/O"
@@ -44,7 +44,7 @@ echo "  - Custom entry point: SystemAPI.Monitor.startMonitor"
 echo "  - Cannot access Node.js directly"
 bin/jo build -js \
   -no-detect-main \
-  -link stk.Main.main=SystemAPI.Monitor.startMonitor \
+  -link jo.Main.main=SystemAPI.Monitor.startMonitor \
   -link SystemAPI.Process.listProcesses=SystemRuntime.ProcessImpl.listProcesses \
   -link SystemAPI.Process.countProcesses=SystemRuntime.ProcessImpl.countProcesses \
   -link SystemAPI.Process.findByName=SystemRuntime.ProcessImpl.findByName \

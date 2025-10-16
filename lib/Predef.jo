@@ -1,6 +1,6 @@
-namespace stk.Predef
+namespace jo.Predef
 
-import stk.IO
+import jo.IO
 
 //------------------------------------------------------------------------------
 // Basic types
@@ -25,65 +25,65 @@ type Bottom
 // Export common types
 //
 
-type Int = stk.Int.Int
+type Int = jo.Int.Int
 
-alias def + = stk.Int.+
-alias def - = stk.Int.-
-alias def * = stk.Int.*
-alias def / = stk.Int./
-alias def % = stk.Int.%
+alias def + = jo.Int.+
+alias def - = jo.Int.-
+alias def * = jo.Int.*
+alias def / = jo.Int./
+alias def % = jo.Int.%
 
-alias def > = stk.Int.>
-alias def < = stk.Int.<
-alias def >= = stk.Int.>=
-alias def <= = stk.Int.<=
-alias def == = stk.Int.==
-alias def != = stk.Int.!=
+alias def > = jo.Int.>
+alias def < = jo.Int.<
+alias def >= = jo.Int.>=
+alias def <= = jo.Int.<=
+alias def == = jo.Int.==
+alias def != = jo.Int.!=
 
-alias def >> = stk.Int.>>
-alias def << = stk.Int.<<
-alias def & = stk.Int.&
-alias def | = stk.Int.|
-alias def ^ = stk.Int.^
+alias def >> = jo.Int.>>
+alias def << = jo.Int.<<
+alias def & = jo.Int.&
+alias def | = jo.Int.|
+alias def ^ = jo.Int.^
 
-type Bool = stk.Bool.Bool
-alias def && = stk.Bool.&&
-alias def || = stk.Bool.||
-alias def ! = stk.Bool.!
-alias def both = stk.Bool.both
-alias def either = stk.Bool.either
+type Bool = jo.Bool.Bool
+alias def && = jo.Bool.&&
+alias def || = jo.Bool.||
+alias def ! = jo.Bool.!
+alias def both = jo.Bool.both
+alias def either = jo.Bool.either
 
-type Array[T] = stk.Array.Array[T]
+type Array[T] = jo.Array.Array[T]
 section Array
-  alias def create = stk.Array.create
-  alias def get = stk.Array.get
-  alias def size = stk.Array.size
-  alias def set = stk.Array.set
-  alias def clone = stk.Array.clone
+  alias def create = jo.Array.create
+  alias def get = jo.Array.get
+  alias def size = jo.Array.size
+  alias def set = jo.Array.set
+  alias def clone = jo.Array.clone
 end
 
-type Eq[T] = stk.Eq.Eq[T]
-auto alias def byteEq = stk.Eq.Defaults.byteEq
-auto alias def charEq = stk.Eq.Defaults.charEq
-auto alias def intEq = stk.Eq.Defaults.intEq
-auto alias def stringEq = stk.Eq.Defaults.stringEq
+type Eq[T] = jo.Eq.Eq[T]
+auto alias def byteEq = jo.Eq.Defaults.byteEq
+auto alias def charEq = jo.Eq.Defaults.charEq
+auto alias def intEq = jo.Eq.Defaults.intEq
+auto alias def stringEq = jo.Eq.Defaults.stringEq
 
-type List[T] = stk.List.List[T]
+type List[T] = jo.List.List[T]
 section List
-  alias def List = stk.List.List
-  alias def empty = stk.List.empty
+  alias def List = jo.List.List
+  alias def empty = jo.List.empty
 end
 
-type Set[T] = stk.Set.Set[T]
+type Set[T] = jo.Set.Set[T]
 section Set
-  alias def Set = stk.Set.Set
-  alias def empty = stk.Set.empty
+  alias def Set = jo.Set.Set
+  alias def empty = jo.Set.empty
 end
 
-type Map[K, V] = stk.Map.Map[K, V]
+type Map[K, V] = jo.Map.Map[K, V]
 section Map
-  alias def Map = stk.Map.Map
-  alias def empty = stk.Map.empty
+  alias def Map = jo.Map.Map
+  alias def empty = jo.Map.empty
 end
 
 //------------------------------------------------------------------------------

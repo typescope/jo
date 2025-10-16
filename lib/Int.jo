@@ -1,8 +1,8 @@
-namespace stk.Int
+namespace jo.Int
 
-import stk.Predef.abort
-import stk.Predef.Bool
-import stk.Bool.!
+import jo.Predef.abort
+import jo.Predef.Bool
+import jo.Bool.!
 
 type Int
 

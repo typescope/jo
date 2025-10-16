@@ -96,7 +96,7 @@ object Main:
       |  -lib <dirs>     Use precompiled libraries (colon-separated, in dependency order)
       |                  Example: -lib build/core:build/utils
       |  -link <src=tgt> Redirect symbol references (can be specified multiple times)
-      |                  Example: -link stk.Predef.entry=Test.main
+      |                  Example: -link jo.Predef.entry=Test.main
       |
       |Build-lib options:
       |  -d <dir>        Output directory for .sast files (optional, defaults to current dir)

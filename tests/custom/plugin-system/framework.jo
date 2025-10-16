@@ -3,7 +3,7 @@
 
 namespace Framework
 
-import stk.IO.stdout
+import jo.IO.stdout
 
 // Plugin extension points
 defer def getName(): String

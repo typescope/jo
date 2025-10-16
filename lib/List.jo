@@ -1,7 +1,7 @@
-namespace stk.List
+namespace jo.List
 
-import stk.Predef.*
-import stk.List.ListImpl.*
+import jo.Predef.*
+import jo.List.ListImpl.*
 
 def empty[T]: List[T] = new List(ListImpl.Nil)
 

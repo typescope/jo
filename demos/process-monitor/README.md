@@ -33,7 +33,7 @@ User code analyzes live system processes without direct access to Node.js.
            │ uses
            ▼
 ┌─────────────────────┐
-│  stk.runtime.JS     │  Base runtime
+│  jo.runtime.JS      │  Base runtime
 │  (js intrinsic)     │  - Provides js "..." for interop
 └─────────────────────┘  - I/O via stdout
 ```
@@ -64,7 +64,7 @@ end
 **Real Node.js implementation** using `js` intrinsic:
 
 ```stk
-import stk.runtime.JS.js
+import jo.runtime.JS.js
 
 def listProcesses(): String receives stdout =
   val output = js "require('child_process').execSync('ps aux').toString()"
@@ -85,7 +85,7 @@ def getCurrentPID(): Int receives stdout =
   pid
 ```
 
-**Key technique**: Import `stk.runtime.JS.js` to use the `js` intrinsic, which executes JavaScript code and interoperates with Node.js.
+**Key technique**: Import `jo.runtime.JS.js` to use the `js` intrinsic, which executes JavaScript code and interoperates with Node.js.
 
 ### UserApp.jo
 Process analyzer using only SystemAPI:
@@ -135,7 +135,7 @@ bin/jo build-lib PlatformRuntime.jo \
 ```bash
 bin/jo build -js \
   -no-detect-main \
-  -link stk.Main.main=SystemAPI.Monitor.startMonitor \
+  -link jo.Main.main=SystemAPI.Monitor.startMonitor \
   -link SystemAPI.Process.listProcesses=SystemRuntime.ProcessImpl.listProcesses \
   -link SystemAPI.Process.countProcesses=SystemRuntime.ProcessImpl.countProcesses \
   ... (all capability mappings) \

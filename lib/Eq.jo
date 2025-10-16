@@ -1,11 +1,11 @@
-namespace stk.Eq
+namespace jo.Eq
 
-import stk.Predef.Bool
-import stk.Predef.Byte
-import stk.Predef.Char
-import stk.Predef.Int
-import stk.Predef.String
-import stk.Int.==
+import jo.Predef.Bool
+import jo.Predef.Byte
+import jo.Predef.Char
+import jo.Predef.Int
+import jo.Predef.String
+import jo.Int.==
 
 type Eq[T] = {
   def eq(this: T, that: T): Bool

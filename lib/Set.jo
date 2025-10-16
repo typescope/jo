@@ -1,6 +1,6 @@
-namespace stk.Set
+namespace jo.Set
 
-import stk.Predef.*
+import jo.Predef.*
 
 def empty[T](auto eq: Eq[T]): Set[T] = new Set([], eq)
 

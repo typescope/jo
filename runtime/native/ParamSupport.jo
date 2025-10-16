@@ -1,12 +1,12 @@
-namespace stk.runtime.native.ParamSupport
+namespace jo.runtime.native.ParamSupport
 
-import stk.runtime.native.Core
-import stk.runtime.native.GC
+import jo.runtime.native.Core
+import jo.runtime.native.GC
 
 type State = { keys: Core.Addr, values: Core.Addr, lastOverwrittenValue: Any }
 
 def init(): Unit receives none =
-  val statePointerAddr = Core.dataAddr "stk.runtime.native.ParamSupport.state"
+  val statePointerAddr = Core.dataAddr "jo.runtime.native.ParamSupport.state"
   val page = createPage
   Core.writeInt statePointerAddr (page Core.cast[Int])
 
@@ -36,7 +36,7 @@ def computeHash(key: Any): Int receives none =
   ((key Core.cast[Int]) << 2) % 1021
 
 def readKeyAt(index: Int): Int receives none =
-  val statePointerAddr = Core.dataAddr "stk.runtime.native.ParamSupport.state"
+  val statePointerAddr = Core.dataAddr "jo.runtime.native.ParamSupport.state"
   val state = Core.readInt statePointerAddr Core.cast[State]
 
   Core.readInt
@@ -45,7 +45,7 @@ def readKeyAt(index: Int): Int receives none =
       index * 4
 
 def writeKeyAt(index: Int, key: Int): Unit receives none =
-  val statePointerAddr = Core.dataAddr "stk.runtime.native.ParamSupport.state"
+  val statePointerAddr = Core.dataAddr "jo.runtime.native.ParamSupport.state"
   val state = Core.readInt statePointerAddr Core.cast[State]
 
   Core.writeInt
@@ -55,7 +55,7 @@ def writeKeyAt(index: Int, key: Int): Unit receives none =
     key
 
 def readValueAt(index: Int): Any receives none =
-  val statePointerAddr = Core.dataAddr "stk.runtime.native.ParamSupport.state"
+  val statePointerAddr = Core.dataAddr "jo.runtime.native.ParamSupport.state"
   val state = Core.readInt statePointerAddr Core.cast[State]
 
   Core.readInt
@@ -64,7 +64,7 @@ def readValueAt(index: Int): Any receives none =
       index * 4
 
 def writeValueAt(index: Int, value: Any): Unit receives none =
-  val statePointerAddr = Core.dataAddr "stk.runtime.native.ParamSupport.state"
+  val statePointerAddr = Core.dataAddr "jo.runtime.native.ParamSupport.state"
   val state = Core.readInt statePointerAddr Core.cast[State]
 
   Core.writeInt
@@ -131,7 +131,7 @@ def setParam(key: Core.Addr, value: Any): Int receives none =
     if foundKey > 0 then index else index + 1024
 
 def backupValueAt(index: Int): Unit receives none =
-  val statePointerAddr = Core.dataAddr "stk.runtime.native.ParamSupport.state"
+  val statePointerAddr = Core.dataAddr "jo.runtime.native.ParamSupport.state"
   val state = Core.readInt statePointerAddr Core.cast[Core.Addr]
 
   Core.writeInt
@@ -139,7 +139,7 @@ def backupValueAt(index: Int): Unit receives none =
     (readValueAt index) Core.cast[Int]
 
 def getLastOverwrittenValue(): Any receives none =
-  val statePointerAddr = Core.dataAddr "stk.runtime.native.ParamSupport.state"
+  val statePointerAddr = Core.dataAddr "jo.runtime.native.ParamSupport.state"
   val state = Core.readInt statePointerAddr Core.cast[State]
   state.lastOverwrittenValue
 

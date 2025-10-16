@@ -1,4 +1,4 @@
-import stk.IO.stdout
+import jo.IO.stdout
 
 param newLine: String
 
