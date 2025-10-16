@@ -53,8 +53,7 @@ def platformMain: Unit receives stdout =
     val db = dbHandle
     val stmt = js "db.prepare(sql)"
     val rows = js "stmt.all(...params)"
-    val result = js "JSON.stringify(rows)"
-    result
+    rows
 
   // Provide db implementation with userId captured in closures
   DatabaseAPI.analyzeDocuments with
@@ -63,10 +62,7 @@ def platformMain: Unit receives stdout =
         val uid = userId
         // userId is captured here - user code cannot access or modify it
         val sql = "SELECT * FROM documents WHERE owner_id = ?"
-        val jsonResult = execQuery(sql, js "[uid]")
-
-        // Parse JSON result into List[Document]
-        val rows = js "JSON.parse(jsonResult)"
+        val rows = execQuery(sql, js "[uid]")
         val count = js "rows.length"
 
         var docs: List[Document] = List.empty
@@ -89,9 +85,7 @@ def platformMain: Unit receives stdout =
         val uid = userId
         // Still filters by captured userId
         val sql = "SELECT * FROM documents WHERE id = ? AND owner_id = ?"
-        val jsonResult = execQuery(sql, js "[id, uid]")
-
-        val rows = js "JSON.parse(jsonResult)"
+        val rows = execQuery(sql, js "[id, uid]")
         val count = js "rows.length"
 
         if count == 0 then
@@ -110,9 +104,7 @@ def platformMain: Unit receives stdout =
       def countMyDocuments(): Int =
         val uid = userId
         val sql = "SELECT COUNT(*) as count FROM documents WHERE owner_id = ?"
-        val jsonResult = execQuery(sql, js "[uid]")
-
-        val rows = js "JSON.parse(jsonResult)"
+        val rows = execQuery(sql, js "[uid]")
         val row = js "rows[0]"
         val count = js "row.count"
         count
