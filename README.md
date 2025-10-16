@@ -121,7 +121,6 @@ Explore complete examples showcasing Jo's features:
 - **[Pattern Sequences](tests/pos/pattern-seq.stk)** - Pattern matching on sequences and lists
 - **[Context Parameters](tests/pos/param-render.stk)** - Contextual abstraction and implicit parameter passing
 - **[Varargs](tests/pos/vararg.stk)** - Variable-length argument lists
-- **[Deferred Functions](tests/pos/defer-framework.stk)** - Capability-based programming with deferred function implementations
 - **[Regular Expressions](tests/pos/regex.stk)** - Pattern-based string matching
 - **[Parameter Boundaries](tests/warn/param-boundary.stk)** - Warning example showing parameter scope constraints
 

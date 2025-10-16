@@ -126,7 +126,6 @@ if [ "$BUILD_RELEASE" = true ]; then
   cp tests/pos/pattern.stk "$RELEASE_DIR/tests/pos/"
   cp tests/pos/pattern-seq.stk "$RELEASE_DIR/tests/pos/"
   cp tests/pos/vararg.stk "$RELEASE_DIR/tests/pos/"
-  cp tests/pos/defer-framework.stk "$RELEASE_DIR/tests/pos/"
   cp tests/pos/regex.stk "$RELEASE_DIR/tests/pos/"
   cp tests/warn/param-boundary.stk "$RELEASE_DIR/tests/warn/"
 
