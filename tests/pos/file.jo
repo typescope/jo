@@ -1,7 +1,7 @@
 import jo.IO.*
 
 def main =
-  ioTest with stdin = { def readLine = "stk" }
+  ioTest with stdin = { def readLine = "jo" }
 
 def ioTest =
   stdout.write("name: ")

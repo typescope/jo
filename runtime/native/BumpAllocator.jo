@@ -9,14 +9,14 @@ def init(): Unit receives none =
   val start = Syscall.sys_brk 0
   val dataAddr = Core.dataAddr "jo.runtime.native.BumpAllocator.state"
 
-  // TODO: use stk syntax once record can be mutable
+  // TODO: use jo syntax once record can be mutable
   Core.writeInt dataAddr start
   Core.writeInt (Core.addAddr dataAddr 4) start
 
 def alloc(size: Int): Core.Addr receives none =
   val dataAddr = Core.dataAddr "jo.runtime.native.BumpAllocator.state"
 
-  // TODO: use stk syntax once record can be mutable
+  // TODO: use jo syntax once record can be mutable
   var freeFrom = Core.readInt dataAddr
   val lastFreeUntil = Core.readInt (Core.addAddr dataAddr 4)
 
@@ -29,7 +29,7 @@ def alloc(size: Int): Core.Addr receives none =
      freeFrom = lastFreeUntil
 
      // update data
-     // TODO: use stk syntax once record can be mutable
+     // TODO: use jo syntax once record can be mutable
      Core.writeInt (Core.addAddr dataAddr 4) newFreeUntil
 
   val res = freeFrom
@@ -37,7 +37,7 @@ def alloc(size: Int): Core.Addr receives none =
   val newFreeFrom = freeFrom + size
 
   // update data
-  // TODO: use stk syntax once record can be mutable
+  // TODO: use jo syntax once record can be mutable
   Core.writeInt dataAddr newFreeFrom
 
   res Core.cast[Core.Addr]

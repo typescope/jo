@@ -8,7 +8,7 @@ Deferred functions are a powerful language feature in Jo that enable framework-b
 
 ### Declaring Deferred Functions
 
-```stk
+```jo
 defer def functionName(param1: Type1, param2: Type2): ReturnType
 ```
 
@@ -30,7 +30,7 @@ The syntax is: `-link <deferred-function-path>=<implementation-path>`
 
 Deferred functions create explicit extension points in your code where behavior can be customized:
 
-```stk
+```jo
 namespace Framework
 
 section Database
@@ -62,7 +62,7 @@ Deferred functions can optionally provide default implementations. If no `-link`
 
 Frameworks can define abstract operations that users implement:
 
-```stk
+```jo
 // framework.jo
 namespace Framework
 
@@ -77,7 +77,7 @@ def runApp: Unit =
   cleanup()
 ```
 
-```stk
+```jo
 // implementation.jo
 namespace MyApp
 
@@ -100,7 +100,7 @@ bin/jo build -no-detect-main \
 
 Abstract away dependencies for testing or modularity:
 
-```stk
+```jo
 // service.jo
 namespace Service
 
@@ -134,7 +134,7 @@ bin/jo build service.jo \
 
 The `-no-detect-main` flag combined with `-link jo.Main.main=...` allows any function to become the entry point:
 
-```stk
+```jo
 namespace MyApp
 
 // Not the traditional 'main' function
@@ -173,7 +173,7 @@ Disables automatic main function detection.
 
 ### Example 1: Simple Calculator Framework
 
-```stk
+```jo
 // options: -link Calculator.add=Math.add -link Calculator.multiply=Math.multiply
 
 namespace Test
@@ -198,7 +198,7 @@ def main =
 
 ### Example 2: Framework-Controlled Entry Point
 
-```stk
+```jo
 // options: -no-detect-main -link jo.Main.main=Framework.runApp
 //          -link Framework.init=Implementation.init
 //          -link Framework.process=Implementation.process
@@ -243,7 +243,7 @@ Deferred functions work seamlessly with separate compilation:
 
 Deferred functions can use context parameters (receives clauses):
 
-```stk
+```jo
 import jo.IO.stdout
 
 defer def log(msg: String): Unit receives stdout

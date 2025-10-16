@@ -17,7 +17,7 @@ def testString(x: String): Unit =
   match x
     case "hello" => println "bonjour"
     case "world" => println "monde"
-    case "stk" => println "stk"
+    case "jo" => println "jo"
     case _ => println "unknown"
 
 def testChar1(c: Char): Unit =
@@ -60,7 +60,7 @@ def main =
 
   testString "hello"
   testString "world"
-  testString "stk"
+  testString "jo"
   testString "bla"
 
   testChar1 'a'

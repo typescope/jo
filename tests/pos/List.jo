@@ -128,7 +128,7 @@ def main =
   val list = List.empty + "apple" + "orange" + "banana"
   list.foreach (s => println s)
 
-  val email = toList "hello@stk-lang.org"
+  val email = toList "hello@jo-lang.org"
   match email
     case [(a if a != '@')*, '@', b*] =>
       println "valid email"

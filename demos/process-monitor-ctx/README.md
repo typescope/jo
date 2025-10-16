@@ -53,7 +53,7 @@ This is an alternative implementation of the system monitor demo using **context
 
 Declares capability types and context parameters:
 
-```stk
+```jo
 type Process = {
   def listProcesses(): String
   def countProcesses(): Int
@@ -82,7 +82,7 @@ param logger: Logger
 ### PlatformRuntime.jo
 Provides context via `with` clause:
 
-```stk
+```jo
 def platformMain: Unit receives stdout =
   startMonitor with
     process = {
@@ -110,7 +110,7 @@ def platformMain: Unit receives stdout =
 ### UserApp.jo
 Receives context parameters:
 
-```stk
+```jo
 def analyzeSystem(): Unit receives stdout, process, logger =
   val totalProcs = process.countProcesses()
   println ("Total running processes: " + (intToStr totalProcs))
@@ -213,7 +213,7 @@ Both approaches provide identical security:
 
 You can combine deferred functions and context parameters:
 
-```stk
+```jo
 // Some capabilities via deferred functions
 defer def criticalOp(): Int
 

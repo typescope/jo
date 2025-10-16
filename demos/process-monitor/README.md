@@ -43,7 +43,7 @@ User code analyzes live system processes without direct access to Node.js.
 ### PlatformAPI.jo
 Declares system monitoring capabilities:
 
-```stk
+```jo
 section Process
   defer def listProcesses(): String receives stdout
   defer def countProcesses(): Int receives stdout
@@ -63,7 +63,7 @@ end
 ### PlatformRuntime.jo
 **Real Node.js implementation** using `js` intrinsic:
 
-```stk
+```jo
 import jo.runtime.JS.js
 
 def listProcesses(): String receives stdout =
@@ -90,7 +90,7 @@ def getCurrentPID(): Int receives stdout =
 ### UserApp.jo
 Process analyzer using only SystemAPI:
 
-```stk
+```jo
 def analyzeSystem(): Unit receives stdout =
   val totalProcs = Process.countProcesses()
   ("Total running processes: " + totalProcs.intToStr).println
@@ -195,7 +195,7 @@ Process List Analysis:
 ## How the `js` Intrinsic Works
 
 From `runtime/JS.jo`:
-```stk
+```jo
 def js(s: String): Bottom = abort("primitive js")
 ```
 
@@ -205,7 +205,7 @@ The compiler recognizes `js` as a **primitive** and:
 3. Returns values from JS back to Jo code
 
 Example:
-```stk
+```jo
 val n = 42
 val doubled = js "n * 2"  // JS code can reference Jo variable 'n'
 ```
@@ -242,28 +242,28 @@ const doubled = n * 2;
 This pattern works for any Node.js API:
 
 **File system operations:**
-```stk
+```jo
 def readFileContent(path: String): String receives stdout =
   val content = js "require('fs').readFileSync(path, 'utf8')"
   content
 ```
 
 **HTTP requests:**
-```stk
+```jo
 def httpGet(url: String): String receives stdout =
   val response = js "require('https').get(url).toString()"
   response
 ```
 
 **Database queries:**
-```stk
+```jo
 def dbQuery(sql: String): String receives stdout =
   val result = js "db.query(sql)"  // assumes db is available
   js "JSON.stringify(result)"
 ```
 
 **Network sockets:**
-```stk
+```jo
 def createTcpServer(port: Int): Unit receives stdout =
   js "require('net').createServer().listen(port)"
 ```
