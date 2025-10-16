@@ -1,6 +1,8 @@
 //[
 Runtime.jo
+
 Trusted runtime that provides database access with row-level security
+
 Reads userId from command-line and injects it into database operations
 //]
 
@@ -9,7 +11,6 @@ namespace DatabaseRuntime
 import jo.IO.stdout
 import DatabaseAPI.db
 import DatabaseAPI.Document
-import UserApp.analyzeDocuments
 
 //[
 Main entry point - reads userId from process.argv
@@ -22,7 +23,7 @@ Security properties:
 //]
 def platformMain: Unit receives stdout =
   // Read userId from command line - ABORT if not provided
-  val userIdStr = js "process.argv[2]"
+  val userIdStr: String = js "process.argv[2]"
 
   if userIdStr == js "undefined" then
     println "❌ Error: userId not provided"
@@ -30,10 +31,10 @@ def platformMain: Unit receives stdout =
     println "Example: node out/app.js 1"
     abort "Missing userId argument"
 
-  val userId = js "parseInt(process.argv[2])"
+  val userId: Int = js "parseInt(process.argv[2])"
 
   // Validate userId is a valid number
-  val isValidId = js "!isNaN(userId) && userId > 0"
+  val isValidId: Bool = js "!isNaN(userId) && userId > 0"
   if !isValidId then
     println "❌ Error: userId must be a positive integer"
     println ("Received: " + userIdStr)
@@ -47,7 +48,7 @@ def platformMain: Unit receives stdout =
   val db = js "new DatabaseSync('database.db')"
 
   // Helper: Execute SQL query with parameters and return results as JSON string
-  def execQuery(sql: String, ..params): String =
+  def execQuery(sql: String, params: Any): String =
     val stmt = js "db.prepare(sql)"
     val rows = js "stmt.all(...params)"
     val result = js "JSON.stringify(rows)"
@@ -59,7 +60,7 @@ def platformMain: Unit receives stdout =
       def queryMyDocuments(): List[Document] =
         // userId is captured here - user code cannot access or modify it
         val sql = "SELECT * FROM documents WHERE owner_id = ?"
-        val jsonResult = execQuery(sql, userId)
+        val jsonResult = execQuery(sql, js "[userId]")
 
         // Parse JSON result into List[Document]
         val rows = js "JSON.parse(jsonResult)"
@@ -84,7 +85,7 @@ def platformMain: Unit receives stdout =
       def getMyDocument(id: Int): Option[Document] =
         // Still filters by captured userId
         val sql = "SELECT * FROM documents WHERE id = ? AND owner_id = ?"
-        val jsonResult = execQuery(sql, id, userId)
+        val jsonResult = execQuery(sql, js "[id, userId]")
 
         val rows = js "JSON.parse(jsonResult)"
         val count = js "rows.length"
@@ -104,7 +105,7 @@ def platformMain: Unit receives stdout =
 
       def countMyDocuments(): Int =
         val sql = "SELECT COUNT(*) as count FROM documents WHERE owner_id = ?"
-        val jsonResult = execQuery(sql, userId)
+        val jsonResult = execQuery(sql, js "[userId]")
 
         val rows = js "JSON.parse(jsonResult)"
         val row = js "rows[0]"

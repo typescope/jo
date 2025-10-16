@@ -4,6 +4,9 @@
 
 set -e  # Exit on error
 
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 echo "🔨 Building Data Table Access Control Demo"
 echo "============================================"
 echo ""
@@ -42,36 +45,36 @@ echo "✅ node:sqlite module available"
 echo ""
 
 # Clean previous build
-rm -rf out
-mkdir -p out/api out/runtime
+rm -rf "$SCRIPT_DIR/out"
+mkdir -p "$SCRIPT_DIR/out/api" "$SCRIPT_DIR/out/runtime"
 
 echo "📦 Step 1: Compile Database API"
-../../bin/jo build-lib DatabaseAPI.jo -d out/api
+bin/jo build-lib "$SCRIPT_DIR/DatabaseAPI.jo" -d "$SCRIPT_DIR/out/api"
 echo "✅ API compiled"
 echo ""
 
 echo "📦 Step 2: Compile Runtime"
-../../bin/jo build-lib Runtime.jo \
-  -lib ../../libs/runtime-js:out/api \
-  -d out/runtime
+bin/jo build-lib "$SCRIPT_DIR/Runtime.jo" \
+  -lib libs/runtime-js:"$SCRIPT_DIR/out/api" \
+  -d "$SCRIPT_DIR/out/runtime"
 echo "✅ Runtime compiled"
 echo ""
 
 echo "📦 Step 3: Compile User Application"
-../../bin/jo build -js \
+bin/jo build -js \
   -no-detect-main \
   -link jo.Main.main=DatabaseRuntime.platformMain \
   -link DatabaseRuntime.analyzeDocuments=UserApp.analyzeDocuments \
-  -lib out/api \
-  -runtime out/runtime \
-  UserApp.jo \
-  -o out/app.js
+  -lib "$SCRIPT_DIR/out/api" \
+  -runtime "$SCRIPT_DIR/out/runtime" \
+  "$SCRIPT_DIR/UserApp.jo" \
+  -o "$SCRIPT_DIR/out/app.js"
 echo "✅ User app compiled"
 echo ""
 
 echo "✅ Build complete!"
 echo ""
 echo "Run with:"
-echo "  node out/app.js 1  # Alice's documents"
-echo "  node out/app.js 2  # Bob's documents"
-echo "  node out/app.js 3  # Carol's documents"
+echo "  node $SCRIPT_DIR/out/app.js 1  # Alice's documents"
+echo "  node $SCRIPT_DIR/out/app.js 2  # Bob's documents"
+echo "  node $SCRIPT_DIR/out/app.js 3  # Carol's documents"
