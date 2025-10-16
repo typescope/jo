@@ -17,6 +17,36 @@ Jo is a statically typed programming language designed for securing LLM generate
 - **Natural syntax**  - Prefix, infix, and postfix operators; two call styles `f(x)` and `f x`; indentation-based
 - **Multiple backends**  - Interpreter, JavaScript, native x86 Linux, and more are coming (Python, Java, Ruby)
 
+## Demos 🎯
+
+Real-world applications demonstrating Jo's capability-based security model:
+
+### Process Monitor (Deferred Functions)
+
+**Location**: `demos/process-monitor/`
+
+A system monitoring application that extends Jo's JavaScript runtime with real Node.js capabilities (child_process, os module).
+
+- **Runtime extension** using the `-runtime` flag and `js` intrinsic
+- **Deferred functions** for explicit capability declarations
+- **Three-stage compilation** (API → Runtime → User code)
+- **Security confinement** - user code analyzes system processes without direct Node.js access
+
+Shows how platforms can expose controlled system APIs (process listing, memory usage, system info) to untrusted user code while preventing arbitrary command execution.
+
+### Process Monitor (Context Parameters)
+
+**Location**: `demos/process-monitor-ctx/`
+
+Alternative implementation using **context parameters** instead of deferred functions.
+
+- **Object-oriented API design** with capability grouping (Process, System, Logger)
+- **Statically checked ambient capabilities** via `param` declarations
+- **Concise linking** - requires only 2 link flags vs 15+ in deferred approach
+- **Same security guarantees** with less verbose compilation flags
+
+Perfect comparison to understand when to use deferred functions vs context parameters for capability provision.
+
 ## Examples 💡
 
 ### Hello world
@@ -94,11 +124,6 @@ Explore complete examples showcasing Jo's features:
 - **[Deferred Functions](tests/pos/defer-framework.stk)** - Capability-based programming with deferred function implementations
 - **[Regular Expressions](tests/pos/regex.stk)** - Pattern-based string matching
 - **[Parameter Boundaries](tests/warn/param-boundary.stk)** - Warning example showing parameter scope constraints
-
-### Demos
-
-Check out the `demos/` directory for complete application examples:
-- **Process Monitor** - Real-world application demonstrating context parameters and system interaction
 
 ## Build 🔨
 
