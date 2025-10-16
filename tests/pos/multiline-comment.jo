@@ -3,6 +3,8 @@
     with various content
 //]
 
+//[//]
+
 //[ Disabled block - this code is commented out
 def excluded: Int = 999
 //]
