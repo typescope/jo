@@ -1,0 +1,6 @@
+---------- Error at ./tests/warn/unclosed-comment.jo:3:1 ---------------
+| //[ This comment is never closed
+| ^^^
+| Unclosed multiline comment (expected 2 slashes followed by ] to close)
+
+1 error(s), 0 warning(s)

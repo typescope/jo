@@ -1,0 +1,6 @@
+def foo = 42
+
+//[ This comment is never closed
+    and continues forever
+
+def main = foo
