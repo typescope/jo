@@ -55,9 +55,19 @@ class Scanner(stream: CharStream)(using Reporter, Source):
 
       case '/'    =>
         if stream.curCodePoint() == '/' then
-          stream.eatLine()
-          stream.tokenStart()
-          next()
+          // Check if this is a multiline comment (//[, ///[, etc.)
+          val slashCount = countSlashes()
+          if stream.curCodePoint() == '[' then
+            // This is a multiline comment opening
+            stream.eat() // consume '['
+            eatMultilineComment(slashCount)
+            stream.tokenStart()
+            next()
+          else
+            // Single-line comment
+            stream.eatLine()
+            stream.tokenStart()
+            next()
         else
           operator().withPos
 
@@ -388,6 +398,43 @@ class Scanner(stream: CharStream)(using Reporter, Source):
 
     sum
   end str2Int
+
+  /** Count consecutive slashes starting from current position
+    * Assumes first '/' has already been consumed and we're at the second '/'
+    */
+  def countSlashes(): Int =
+    var count = 1 // Already consumed first '/'
+    while stream.hasMore() && stream.curCodePoint() == '/' do
+      count += 1
+      stream.eat()
+    count
+
+  /** Consume a multiline comment with exact slash count matching
+    * Looks for closing delimiter //], ///], etc. matching the opening //[, ///[, etc.
+    * Assumes opening slashes and '[' have already been consumed
+    */
+  def eatMultilineComment(slashCount: Int): Unit =
+    val startSpan = stream.tokenSpan()
+
+    while stream.hasMore() do
+      val c = stream.curCodePoint()
+
+      if c == '/' then
+        // Count consecutive slashes starting from this one
+        stream.eat() // consume the first slash
+        val closingCount = countSlashes()
+        if closingCount == slashCount && stream.curCodePoint() == ']' then
+          // Found exact matching closing delimiter
+          stream.eat() // consume ']'
+          return
+        // Otherwise, continue (the slashes have been consumed by countSlashes)
+      else
+        stream.eat()
+    end while
+
+    // Reached EOF without finding closing delimiter
+    error(s"Unclosed multiline comment (expected ${slashCount} slashes followed by ] to close)", startSpan.toPos)
+  end eatMultilineComment
 
 object Scanner:
   class CharStream(code: String)(using source: Source):
