@@ -108,8 +108,9 @@ if [ "$BUILD_RELEASE" = true ]; then
 
   # Copy files to release directory
   echo "Copying files to release package..."
-  cp bin/jo.jar "$RELEASE_DIR/"
-  cp bin/jo "$RELEASE_DIR/"
+  mkdir -p "$RELEASE_DIR/bin"
+  cp bin/jo.jar "$RELEASE_DIR/bin/"
+  cp bin/jo "$RELEASE_DIR/bin/"
   cp -r sast "$RELEASE_DIR/"
   cp -r demos "$RELEASE_DIR/"
   cp README.md "$RELEASE_DIR/"
