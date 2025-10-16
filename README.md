@@ -54,7 +54,7 @@ Real-world applications demonstrating Jo's capability-based security model:
 
 **Location**: `demos/process-monitor/`
 
-A system monitoring application that extends Jo's JavaScript runtime with real Node.js capabilities (child_process, os module).
+A system monitoring application that extends Jo's JavaScript runtime with real system-level capabilities.
 
 - **Runtime extension** using the `-runtime` flag and `js` intrinsic
 - **Context parameters** for capability provision via typed objects
@@ -62,7 +62,7 @@ A system monitoring application that extends Jo's JavaScript runtime with real N
 - **Three-stage compilation** (API → Runtime → User code)
 - **Security confinement** - user code analyzes system processes without direct Node.js access
 
-Shows how platforms can expose controlled system APIs (process listing, memory usage, system info) to untrusted user code while preventing arbitrary command execution.
+It shows how platforms can expose controlled system APIs (process listing, memory usage, system info) to untrusted user code while preventing arbitrary command execution.
 
 ### Data Table Access Control
 
@@ -71,12 +71,12 @@ Shows how platforms can expose controlled system APIs (process listing, memory u
 A database application demonstrating **row-level security** with SQLite, where different users can only access their own database rows.
 
 - **Command-line arguments** for userId and database path (hidden from user code)
-- **Closure-based security** - userId captured in runtime closures
+- **User-aware runtime** - runtime captures userId and provides filtered database access
 - **Automatic query filtering** - all SQL queries filtered by `WHERE owner_id = ?`
 - **Type-safe database interface** - user code cannot write raw SQL
 - **Compiler-enforced security** - impossible to bypass filtering, even with malicious code
 
-Demonstrates application-level row-level security where arguments are completely hidden from untrusted code, and the type system prevents bypassing security controls.
+It shows how a user-aware runtime can enforce row-level access control and automatically filtering all database queries, making it impossible for user code to access data belonging to other users.
 
 <a id="examples"></a>
 
