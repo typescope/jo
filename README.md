@@ -15,6 +15,7 @@ Jo is a statically typed programming language designed for securing LLM generate
 - **Algebraic data types** - Extensible ADTs with pattern matching
 - **Pattern-oriented programming** - First-class patterns and higher-order patterns
 - **Natural syntax**  - Prefix, infix, and postfix operators; two call styles `f(x)` and `f x`; indentation-based
+- **Multiple backends**  - Interpreter, JavaScript, native x86 Linux, and more are coming (Python, Java, Ruby)
 
 ## Examples 💡
 
