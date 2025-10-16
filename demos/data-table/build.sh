@@ -77,7 +77,7 @@ echo ""
 
 # Initialize database
 echo "📊 Initializing database..."
-node "$SCRIPT_DIR/init-db.js"
+node "$SCRIPT_DIR/init-db.js" "$SCRIPT_DIR/database.db"
 echo "✅ Database initialized"
 echo ""
 
