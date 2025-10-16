@@ -52,7 +52,7 @@ Real-world applications demonstrating Jo's capability-based security model:
 
 ### System Monitor
 
-**Location**: `demos/process-monitor-ctx/`
+**Location**: `demos/process-monitor/`
 
 A system monitoring application that extends Jo's JavaScript runtime with real Node.js capabilities (child_process, os module).
 
