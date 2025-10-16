@@ -60,7 +60,13 @@ Lexical Grammar
     char     = '_'
     string   = "..."
 
-    comment = "//" {any character} NLINE.
+    comment = line_comment | block_comment.
+    line_comment = "//" {any character} NLINE.
+    block_comment = "/" "/" {"/"} "[" {any character} "/" "/" {"/"} "]".
+
+    Note: In block_comment, the closing delimiter must have the exact same
+    number of slashes as the opening delimiter (minimum 2).
+    Example: //[ ... //], ///[ ... ///], ////[ ... ////]
 ~~~
 
 Abstract Syntax
