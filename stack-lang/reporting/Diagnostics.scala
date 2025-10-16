@@ -139,7 +139,7 @@ object Diagnostics:
     val padding = " " * pos.startLineColumn
     val carets =
       if (pos.startLine == pos.endLine)
-        "^" * math.max(1, pos.endLineColumn - pos.startLineColumn)
+        "^" * math.max(1, pos.endLineColumn - pos.startLineColumn + 1)
       else "^"
 
     s"$padding$carets" + System.lineSeparator()
