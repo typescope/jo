@@ -10,9 +10,6 @@
 
 ---
 
-<a id="why"></a>
-## Why
-
 Jo is a secure programming language designed for securing LLM generated code.
 
 - **API confinement** - LLM generated code is confined to custom-defined application-level APIs
