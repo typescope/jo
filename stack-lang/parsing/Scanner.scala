@@ -56,7 +56,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       case '/'    =>
         if stream.curCodePoint() == '/' then
           // Check if this is a multiline comment (//[, ///[, etc.)
-          val slashCount = countSlashes()
+          val slashCount = eatSlashes()
           if stream.curCodePoint() == '[' then
             // This is a multiline comment opening
             stream.eat() // consume '['
@@ -399,10 +399,11 @@ class Scanner(stream: CharStream)(using Reporter, Source):
     sum
   end str2Int
 
-  /** Count consecutive slashes starting from current position
+  /** Eat consecutive slashes starting from current position
     * Assumes first '/' has already been consumed and we're at the second '/'
+    * Returns the total count of slashes
     */
-  def countSlashes(): Int =
+  def eatSlashes(): Int =
     var count = 1 // Already consumed first '/'
     while stream.hasMore() && stream.curCodePoint() == '/' do
       count += 1
@@ -420,14 +421,14 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       val c = stream.curCodePoint()
 
       if c == '/' then
-        // Count consecutive slashes starting from this one
+        // Eat consecutive slashes starting from this one
         stream.eat() // consume the first slash
-        val closingCount = countSlashes()
+        val closingCount = eatSlashes()
         if closingCount == slashCount && stream.curCodePoint() == ']' then
           // Found exact matching closing delimiter
           stream.eat() // consume ']'
           return
-        // Otherwise, continue (the slashes have been consumed by countSlashes)
+        // Otherwise, continue (the slashes have been consumed by eatSlashes)
       else
         stream.eat()
     end while
