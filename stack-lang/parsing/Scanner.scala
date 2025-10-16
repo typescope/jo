@@ -60,13 +60,12 @@ class Scanner(stream: CharStream)(using Reporter, Source):
           if stream.curCodePoint() == '[' then
             // This is a multiline comment opening
             stream.eat() // consume '['
-            eatMultilineComment(slashCount)
-            stream.tokenStart()
+            val openingSpan = stream.tokenSpan()
+            eatMultilineComment(slashCount, openingSpan)
             next()
           else
             // Single-line comment
             stream.eatLine()
-            stream.tokenStart()
             next()
         else
           operator().withPos
@@ -400,7 +399,9 @@ class Scanner(stream: CharStream)(using Reporter, Source):
   end str2Int
 
   /** Eat consecutive slashes starting from current position
+    *
     * Assumes first '/' has already been consumed and we're at the second '/'
+    *
     * Returns the total count of slashes
     */
   def eatSlashes(): Int =
@@ -411,12 +412,12 @@ class Scanner(stream: CharStream)(using Reporter, Source):
     count
 
   /** Consume a multiline comment with exact slash count matching
+    *
     * Looks for closing delimiter //], ///], etc. matching the opening //[, ///[, etc.
+    *
     * Assumes opening slashes and '[' have already been consumed
     */
-  def eatMultilineComment(slashCount: Int): Unit =
-    val startSpan = stream.tokenSpan()
-
+  def eatMultilineComment(slashCount: Int, openingSpan: Span): Unit =
     while stream.hasMore() do
       val c = stream.curCodePoint()
 
@@ -434,7 +435,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
     end while
 
     // Reached EOF without finding closing delimiter
-    error(s"Unclosed multiline comment (expected ${slashCount} slashes followed by ] to close)", startSpan.toPos)
+    error(s"Unclosed multiline comment (expected ${slashCount} slashes followed by ] to close)", openingSpan.toPos)
   end eatMultilineComment
 
 object Scanner:

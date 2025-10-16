@@ -139,7 +139,7 @@ object Positions:
   /** A position in a source file */
   case class SourcePosition(source: Source, start: Int, length: Int):
     lazy val startPos = source.offsetToLineColumn(start)
-    lazy val endPos = source.offsetToLineColumn(start + length)
+    lazy val endPos = source.offsetToLineColumn(start + length - 1)
 
     def span: Span = Span(start, length)
 
