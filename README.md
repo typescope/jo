@@ -19,12 +19,11 @@ Jo is a statically typed programming language designed for securing LLM generate
 
 ## Getting Started 🚀
 
-**Quick start:**
 ```bash
 # Run a program (interpreter)
 bin/jo tests/pos/hello.stk
 
-# Build native executable
+# Build x86 linux native executable
 bin/jo build tests/pos/hello.stk -o hello
 ./hello
 
