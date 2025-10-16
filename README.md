@@ -1,4 +1,4 @@
-# The Jo Programming Language 🍷
+# The Jo Programming Language 🎈
 
 Jo is a statically typed programming language designed for securing LLM generated code.
 
