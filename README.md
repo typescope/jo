@@ -1,4 +1,4 @@
-# The Jo Programming Language 🎈
+# The Jo Programming Language 🛡️
 
 Jo is a secure programming language designed for securing LLM generated code.
 
@@ -32,7 +32,7 @@ bin/jo build -js tests/pos/hello.stk -o hello.js
 node hello.js
 ```
 
-## Demos 🎯
+## Demos 🎈
 
 Real-world applications demonstrating Jo's capability-based security model:
 
@@ -140,7 +140,7 @@ Explore complete examples showcasing Jo's features:
 - **[Parameter Boundaries](tests/warn/param-boundary.stk)** - Warning example showing parameter scope constraints
 
 
-## Usage
+## Usage 🎯
 
 The `jo` command provides a unified interface to all compiler backends:
 
