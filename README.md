@@ -206,7 +206,7 @@ bin/jo build app.stk -lib build/core:build/utils -o app
 bin/jo build -no-stdlib app.stk -o app
 ```
 
-## Command Reference
+## Command Reference 📖
 
 ```
 jo <file.stk>                       Run program (default)
