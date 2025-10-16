@@ -78,19 +78,19 @@ chmod +x bin/jo
 
 # build stand library
 STDLIB=libs/stdlib
-bin/jo build-lib -testPickling -explicit-return-type -no-stdlib lib/*.stk -d $STDLIB
+bin/jo build-lib -testPickling -explicit-return-type -no-stdlib lib/*.jo -d $STDLIB
 
 # build interpreter runtime
 INT_RUNTIME=libs/runtime-interpreter
-bin/jo build-lib -testPickling -explicit-return-type runtime/Interpreter.stk -d $INT_RUNTIME
+bin/jo build-lib -testPickling -explicit-return-type runtime/Interpreter.jo -d $INT_RUNTIME
 
 # build JS runtime
 JS_RUNTIME=libs/runtime-js
-bin/jo build-lib -testPickling -explicit-return-type runtime/JS.stk -d $JS_RUNTIME
+bin/jo build-lib -testPickling -explicit-return-type runtime/JS.jo -d $JS_RUNTIME
 
 # build native runtime
 NATIVE_RUNTIME=libs/runtime-native
-bin/jo build-lib -testPickling -explicit-return-type runtime/native/*.stk -d $NATIVE_RUNTIME
+bin/jo build-lib -testPickling -explicit-return-type runtime/native/*.jo -d $NATIVE_RUNTIME
 
 # Package release if requested
 if [ "$BUILD_RELEASE" = true ]; then
@@ -120,15 +120,15 @@ if [ "$BUILD_RELEASE" = true ]; then
   mkdir -p "$RELEASE_DIR/tests/pos"
   mkdir -p "$RELEASE_DIR/tests/warn"
 
-  cp tests/pos/hello.stk "$RELEASE_DIR/tests/pos/"
-  cp tests/pos/expression-problem.stk "$RELEASE_DIR/tests/pos/"
-  cp tests/pos/fact.stk "$RELEASE_DIR/tests/pos/"
-  cp tests/pos/param-render.stk "$RELEASE_DIR/tests/pos/"
-  cp tests/pos/pattern.stk "$RELEASE_DIR/tests/pos/"
-  cp tests/pos/pattern-seq.stk "$RELEASE_DIR/tests/pos/"
-  cp tests/pos/vararg.stk "$RELEASE_DIR/tests/pos/"
-  cp tests/pos/regex.stk "$RELEASE_DIR/tests/pos/"
-  cp tests/warn/param-boundary.stk "$RELEASE_DIR/tests/warn/"
+  cp tests/pos/hello.jo "$RELEASE_DIR/tests/pos/"
+  cp tests/pos/expression-problem.jo "$RELEASE_DIR/tests/pos/"
+  cp tests/pos/fact.jo "$RELEASE_DIR/tests/pos/"
+  cp tests/pos/param-render.jo "$RELEASE_DIR/tests/pos/"
+  cp tests/pos/pattern.jo "$RELEASE_DIR/tests/pos/"
+  cp tests/pos/pattern-seq.jo "$RELEASE_DIR/tests/pos/"
+  cp tests/pos/vararg.jo "$RELEASE_DIR/tests/pos/"
+  cp tests/pos/regex.jo "$RELEASE_DIR/tests/pos/"
+  cp tests/warn/param-boundary.jo "$RELEASE_DIR/tests/warn/"
 
   # Create zip file
   echo "Creating ${RELEASE_ZIP}..."

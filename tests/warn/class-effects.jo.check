@@ -1,0 +1,39 @@
+---------- Error at ./tests/warn/class-effects.jo:10:7 ---------------
+|   def foo(x: Int) receives none = bar (intToStr x)
+|       ^^^
+|       Parameter not allowed: out
+
+The following is the trace that leads to the problem:
+├──   def foo(x: Int) receives none = bar (intToStr x)	[ ./tests/warn/class-effects.jo:10:35 ]
+│                                     ^^^
+└── def bar(s: String) = out s	[ ./tests/warn/class-effects.jo:3:22 ]
+                         ^^^
+
+
+---------- Error at ./tests/warn/class-effects.jo:15:5 ---------------
+| def instantiate receives none = new Foo
+|     ^^^^^^^^^^^
+|     Parameter not allowed: out
+
+The following is the trace that leads to the problem:
+├── def instantiate receives none = new Foo	[ ./tests/warn/class-effects.jo:15:37 ]
+│                                       ^^^
+└──     out "hello"	[ ./tests/warn/class-effects.jo:7:5 ]
+        ^^^
+
+
+---------- Error at ./tests/warn/class-effects.jo:17:5 ---------------
+| def test(o: Foo) receives none = o.work()
+|     ^^^^
+|     Parameter not allowed: out
+
+The following is the trace that leads to the problem:
+├── def test(o: Foo) receives none = o.work()	[ ./tests/warn/class-effects.jo:17:34 ]
+│                                    ^^^^^^
+├──   def work() = bar "work"	[ ./tests/warn/class-effects.jo:12:16 ]
+│                  ^^^
+└── def bar(s: String) = out s	[ ./tests/warn/class-effects.jo:3:22 ]
+                         ^^^
+
+
+3 error(s), 0 warning(s)

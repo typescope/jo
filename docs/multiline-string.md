@@ -6,7 +6,7 @@ Multiline strings in Jo provide a convenient way to write string literals that s
 
 Multiline strings are delimited by triple quotes `"""` (or more):
 
-```stk
+```jo
 val message = """
   Hello
   World
@@ -24,7 +24,7 @@ World
 
 The indentation of the closing delimiter determines the base indentation that will be stripped from all lines:
 
-```stk
+```jo
 val text = """
     Line 1
       Line 2 (extra indent)
@@ -42,7 +42,7 @@ Line 3
 
 If a closing delimiter is at column 2, only 2 spaces of indentation are stripped:
 
-```stk
+```jo
 val text = """
   First line
   Second line
@@ -60,7 +60,7 @@ Second line
 
 Multiline strings are **raw strings** by default - most escape sequences are treated as literal characters:
 
-```stk
+```jo
 val raw = """
   Line with \n literal backslash-n
   Line with \t literal backslash-t
@@ -80,7 +80,7 @@ Path: C:\path\to\file
 
 The **only** escape sequence processed in multiline strings is Unicode escape `\u{...}`:
 
-```stk
+```jo
 val emoji = """
   Emoji: \u{1F600}
   """
@@ -96,7 +96,7 @@ Emoji: 😀
 
 Unlike some languages, Jo does **not** support backslash line continuation in multiline strings. A backslash at the end of a line is treated as a literal backslash character:
 
-```stk
+```jo
 val text = """
   First line\
   Second line
@@ -112,7 +112,7 @@ Second line
 
 Multiple backslashes are also literal:
 
-```stk
+```jo
 val text = """
   One: \
   Two: \\
@@ -132,7 +132,7 @@ Three: \\\
 
 Empty lines within multiline strings are preserved:
 
-```stk
+```jo
 val text = """
   Line 1
 
@@ -152,7 +152,7 @@ Line 3
 
 Whether a trailing newline is included depends on whether there's an empty line before the closing delimiter:
 
-```stk
+```jo
 // No trailing newline
 val text1 = """
   Last line
@@ -182,7 +182,7 @@ Last line
 
 You can use more than three quotes to allow triple quotes within the string:
 
-```stk
+```jo
 val code = """"
   let x = """hello"""
   """"
@@ -258,7 +258,7 @@ All other escape sequences (like `\n`, `\t`, `\"`, `\\`, etc.) are **not** proce
 
 If a non-empty content line has fewer leading spaces than the base indentation, a compile-time error is reported:
 
-```stk
+```jo
 val bad = """
     Line with 4 spaces
   Line with 2 spaces  // Error: insufficient indentation
@@ -269,7 +269,7 @@ val bad = """
 
 A multiline string with no content lines or only empty lines produces an empty string or a string containing only newlines:
 
-```stk
+```jo
 val empty = """
   """  // Empty string ""
 
@@ -292,7 +292,7 @@ val oneNewline = """
 
 ### Example 1: Simple Message
 
-```stk
+```jo
 val greeting = """
   Hello, World!
   Welcome to Jo.
@@ -308,7 +308,7 @@ Welcome to Jo.
 
 ### Example 2: Code Block
 
-```stk
+```jo
 val code = """
   def factorial(n: Int): Int =
     if n <= 1 then 1
@@ -326,7 +326,7 @@ def factorial(n: Int): Int =
 
 ### Example 3: File Path (Windows)
 
-```stk
+```jo
 val path = """
   C:\Users\Name\Documents\file.txt
   """
@@ -340,7 +340,7 @@ C:\Users\Name\Documents\file.txt
 
 ### Example 4: Mixed Content
 
-```stk
+```jo
 val mixed = """
   Text with \n literal backslash-n
   Unicode emoji: \u{1F600}
@@ -358,7 +358,7 @@ Backslash at end\
 
 ### Example 5: Nested Triple Quotes
 
-```stk
+```jo
 val nested = """"
   Code: """
   multi

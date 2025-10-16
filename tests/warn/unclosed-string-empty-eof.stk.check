@@ -1,6 +1,0 @@
----------- Error at ./tests/warn/unclosed-string-empty-eof.stk:1:22 ---------------
-| def test(): String = "
-|                      ^
-|                      Unclosed string literal
-
-1 error(s), 0 warning(s)

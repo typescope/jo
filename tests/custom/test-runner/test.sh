@@ -13,11 +13,11 @@ rm -rf "$BUILD" "$DIR/actual.out" "$DIR"/*.run "$DIR"/*.js
 
 # Build the framework library
 echo "  - Building test framework library"
-bin/jo build-lib "$DIR/framework.stk" -d "$BUILD/framework"
+bin/jo build-lib "$DIR/framework.jo" -d "$BUILD/framework"
 
 # Build the tests library
 echo "  - Building tests library"
-bin/jo build-lib "$DIR/tests.stk" -d "$BUILD/tests"
+bin/jo build-lib "$DIR/tests.jo" -d "$BUILD/tests"
 
 # Link flags to wire test implementations to framework
 LINK_FLAGS="-link Framework.mathTests=Tests.mathTests \
@@ -26,7 +26,7 @@ LINK_FLAGS="-link Framework.mathTests=Tests.mathTests \
 
 # Test with interpreter
 echo "  - Running with interpreter"
-bin/jo run "$DIR/app.stk" -lib "$BUILD/framework:$BUILD/tests" $LINK_FLAGS > "$DIR/actual.out" 2>&1
+bin/jo run "$DIR/app.jo" -lib "$BUILD/framework:$BUILD/tests" $LINK_FLAGS > "$DIR/actual.out" 2>&1
 diff "$DIR/actual.out" "$DIR/expect.check" || {
     echo "[error] Interpreter test failed for $TEST_NAME"
     exit 1
@@ -34,7 +34,7 @@ diff "$DIR/actual.out" "$DIR/expect.check" || {
 
 # Test with register machine
 echo "  - Building with register machine"
-bin/jo build -reg "$DIR/app.stk" -lib "$BUILD/framework:$BUILD/tests" $LINK_FLAGS -o "$DIR/app.run"
+bin/jo build -reg "$DIR/app.jo" -lib "$BUILD/framework:$BUILD/tests" $LINK_FLAGS -o "$DIR/app.run"
 "$DIR/app.run" > "$DIR/actual.out" 2>&1
 diff "$DIR/actual.out" "$DIR/expect.check" || {
     echo "[error] Register machine test failed for $TEST_NAME"
@@ -43,7 +43,7 @@ diff "$DIR/actual.out" "$DIR/expect.check" || {
 
 # Test with stack machine
 echo "  - Building with stack machine"
-bin/jo build -stack "$DIR/app.stk" -lib "$BUILD/framework:$BUILD/tests" $LINK_FLAGS -o "$DIR/app.run"
+bin/jo build -stack "$DIR/app.jo" -lib "$BUILD/framework:$BUILD/tests" $LINK_FLAGS -o "$DIR/app.run"
 "$DIR/app.run" > "$DIR/actual.out" 2>&1
 diff "$DIR/actual.out" "$DIR/expect.check" || {
     echo "[error] Stack machine test failed for $TEST_NAME"
@@ -52,7 +52,7 @@ diff "$DIR/actual.out" "$DIR/expect.check" || {
 
 # Test with JavaScript
 echo "  - Building with JavaScript"
-bin/jo build -js "$DIR/app.stk" -lib "$BUILD/framework:$BUILD/tests" $LINK_FLAGS -o "$DIR/app.js"
+bin/jo build -js "$DIR/app.jo" -lib "$BUILD/framework:$BUILD/tests" $LINK_FLAGS -o "$DIR/app.js"
 node "$DIR/app.js" > "$DIR/actual.out" 2>&1
 diff "$DIR/actual.out" "$DIR/expect.check" || {
     echo "[error] JavaScript test failed for $TEST_NAME"

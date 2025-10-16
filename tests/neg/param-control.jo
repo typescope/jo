@@ -1,0 +1,23 @@
+import jo.IO.stdout
+
+param pageWidth: Int
+param newLine: String
+
+def pretty(s: String): Unit =
+  pageWidth p
+
+def normalize(s: String): Unit =
+  print s
+  print newLine
+
+def foo() =
+  pretty "hello, world!" allow stdout  // error
+  normalize "hello, world!" allow stdout, newLine
+
+def bar() =
+  print
+    "Bonjour!" + newLine
+
+def main =  // error
+  foo with pageWidth = 100, newLine = "\n"
+  bar

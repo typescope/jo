@@ -39,8 +39,8 @@ object Main:
       case "help" | "--help" | "-h" =>
         printUsage()
 
-      case file if file.endsWith(".stk") =>
-        // Default to run if a .stk file is provided directly
+      case file if file.endsWith(".jo") =>
+        // Default to run if a .jo file is provided directly
         sast.Interpreter.main(args)
 
       case _ =>
@@ -82,10 +82,10 @@ object Main:
 
   def printUsage(): Unit =
     println("""Usage:
-      |  jo <source.stk>                     Run program (defaults to 'run')
-      |  jo run <source.stk>                 Run program with interpreter
-      |  jo build [options] <source.stk>     Build application
-      |  jo build-lib [options] <source.stk> Build library (generate .sast files)
+      |  jo <source.jo>                      Run program (defaults to 'run')
+      |  jo run <source.jo>                  Run program with interpreter
+      |  jo build [options] <source.jo>      Build application
+      |  jo build-lib [options] <source.jo>  Build library (generate .sast files)
       |  jo help                             Show this help message
       |
       |Build options:
@@ -96,7 +96,7 @@ object Main:
       |  -lib <dirs>     Use precompiled libraries (colon-separated, in dependency order)
       |                  Example: -lib build/core:build/utils
       |  -link <src=tgt> Redirect symbol references (can be specified multiple times)
-      |                  Example: -link stk.Predef.entry=Test.main
+      |                  Example: -link jo.Predef.entry=Test.main
       |
       |Build-lib options:
       |  -d <dir>        Output directory for .sast files (optional, defaults to current dir)

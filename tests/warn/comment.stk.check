@@ -1,6 +1,0 @@
----------- Error at ./tests/warn/comment.stk:5:5 ---------------
-|     4
-|     ^
-|     Unexpected indented line
-
-1 error(s), 0 warning(s)

@@ -1,0 +1,30 @@
+namespace jo.IO
+
+import jo.Predef.String
+import jo.Predef.Unit
+import jo.Predef.Bool
+import jo.Predef.Int
+
+
+//------------------------------------------------------------------------------
+//
+// I/O support
+//
+
+// Open a file or create one if absent
+param open: String => File
+
+param stdin: { def readLine(): String }
+
+param stdout: {def write(content: String): Unit }
+
+param stderr: { def write(content: String): Unit }
+
+type File = {
+  def close(): Unit
+  def seek(pos: Int): Unit
+  def hasMore(): Bool
+
+  def readLine(): String
+  def write(content: String): Unit
+}

@@ -1,0 +1,24 @@
+import jo.IO.*
+
+def main =
+  ioTest with stdin = { def readLine = "jo" }
+
+def ioTest =
+  stdout.write("name: ")
+  val name = stdin.readLine
+  println
+    "hello, " + name
+
+  val file = open("test-data.txt")
+  file.write("123456789\n")
+  file.write("abcdef")
+  file.seek 0
+  assert file.hasMore "no more"
+  stdout.write
+    file.readLine + "\n"
+  file.close
+
+  val file2 = open("test-data.txt")
+  stdout.write
+    file2.readLine + "\n"
+  file2.close

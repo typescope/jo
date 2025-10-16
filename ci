@@ -24,18 +24,18 @@ scala-cli stack-lang/common/Base128.scala
 ################################################################################
 
 # check that scripts work
-bin/parse -time tests/pos/fact.stk  || exit 1
-bin/type -time  tests/pos/fact.stk  || exit 1
-bin/run  -time  tests/pos/fact.stk  || exit 1
-bin/jsc  -time  tests/pos/fact.stk  || exit 1
-bin/stac -time  tests/pos/fact.stk  || exit 1
-bin/regc -time  tests/pos/fact.stk  || exit 1
-bin/jo.dev build -time  tests/pos/fact.stk  || exit 1
+bin/parse -time tests/pos/fact.jo  || exit 1
+bin/type -time  tests/pos/fact.jo  || exit 1
+bin/run  -time  tests/pos/fact.jo  || exit 1
+bin/jsc  -time  tests/pos/fact.jo  || exit 1
+bin/stac -time  tests/pos/fact.jo  || exit 1
+bin/regc -time  tests/pos/fact.jo  || exit 1
+bin/jo.dev build -time  tests/pos/fact.jo  || exit 1
 
-bin/jo run -time tests/pos/fact.stk
-bin/jo build -js -time tests/pos/fact.stk
-bin/jo build -stack -time tests/pos/fact.stk
-bin/jo build -reg -time tests/pos/fact.stk
+bin/jo run -time tests/pos/fact.jo
+bin/jo build -js -time tests/pos/fact.jo
+bin/jo build -stack -time tests/pos/fact.jo
+bin/jo build -reg -time tests/pos/fact.jo
 
 ################################################################################
 # Positive tests
@@ -51,13 +51,13 @@ for item in $DIR/tests/pos/*; do
         continue
     elif [[ -d $item ]]; then
         # directory
-        file=$(ls $item/*.stk)
+        file=$(ls $item/*.jo)
         CHECK=$item/expect.check
         OUT=$item/actual.out
         exe=$item/prog.run
         js=$item/prog.js
 
-    elif [[ -f $item ]] && [[ $item == *.stk ]]; then
+    elif [[ -f $item ]] && [[ $item == *.jo ]]; then
         # single source file
         file=$item
         CHECK=$file.check
@@ -132,11 +132,11 @@ for item in $DIR/tests/warn/*; do
 
     elif [[ -d $item ]]; then
         # directory
-        file=$(ls $item/*.stk)
+        file=$(ls $item/*.jo)
         CHECK=$item/expect.check
         OUT=$item/actual.out
 
-    elif [[ -f $item ]] && [[ $item == *.stk ]]; then
+    elif [[ -f $item ]] && [[ $item == *.jo ]]; then
         # single source file
         file=$item
         CHECK=$file.check

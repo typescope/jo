@@ -1,0 +1,45 @@
+namespace jo.Set
+
+import jo.Predef.*
+
+def empty[T](auto eq: Eq[T]): Set[T] = new Set([], eq)
+
+def Set[T](elems: ..T)(auto eq: Eq[T]): Set[T] = new Set(elems, eq)
+
+// A strawman implementation of Set based on List
+class Set[T]
+  val l: List[T]
+  val eq: Eq[T]
+
+  def Set(l: List[T], eq: Eq[T]) = { l: l, eq: eq }
+
+  def size: Int = l.size
+
+  def contains(x: T): Bool = exists e => eq e x
+
+  def +(x: T): Set[T] =
+    if contains x then this
+    else new Set(l + x, eq)
+
+  def -(x: T): Set[T] = exclude e => eq x e
+
+  def ++(xs: List[T]): Set[T] = xs.fold this (acc, e) => acc + e
+
+  def select(pred: T => Bool): Set[T] = new Set(l.select pred, eq)
+
+  def exclude(pred: T => Bool): Set[T] = new Set(l.exclude pred, eq)
+
+  def diff(other: Set[T]): Set[T] = exclude e => other.contains e
+
+  def union(other: Set[T]): Set[T] = other.fold this (acc, e) => acc + e
+
+  def &(other: Set[T]): Set[T] = select e => other.contains e
+
+  def foreach(f: T => Unit): Unit = l.foreach f
+
+  def fold[S](zero: S, f: (S, T) => S): S = l.fold zero f
+
+  def exists(pred: T => Bool): Bool = l.exists pred
+
+  def all(pred: T => Bool): Bool = l.all pred
+end

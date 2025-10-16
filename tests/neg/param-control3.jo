@@ -1,0 +1,24 @@
+import jo.IO.stdout
+
+param pageWidth: Int
+param newLine: Bool
+
+def pretty(s: String): Unit =
+  println
+    "pageWidth = " + (intToStr pageWidth)
+
+  println
+    "newLine = " +
+      if newLine then "true" else "false"
+
+def g(): Unit =
+  pretty "hello, word"
+  h
+
+def h(): Unit receives newLine, stdout = i  // error
+
+def i(): Unit =
+  g
+
+def main =
+  g with pageWidth = 30, newLine = true

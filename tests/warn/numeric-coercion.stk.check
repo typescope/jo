@@ -1,6 +1,0 @@
----------- Error at ./tests/warn/numeric-coercion.stk:3:17 ---------------
-|   val b: Char = a
-|                 ^
-|                 Expect type Char, found = a: Byte
-
-1 error(s), 0 warning(s)

@@ -1,6 +1,0 @@
----------- Error at ./tests/warn/class-mut.stk:7:5 ---------------
-|     this.a = y
-|     ^^^^^^
-|     The member a is immutable
-
-1 error(s), 0 warning(s)

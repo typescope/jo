@@ -1,6 +1,0 @@
----------- Error at ./tests/warn/unclosed-string-content-eof.stk:1:27 ---------------
-| def test(): String = "hello
-|                           ^
-|                           Missing closing double quote
-
-1 error(s), 0 warning(s)

@@ -1,0 +1,11 @@
+---------- Error at ./tests/warn/auto-uninit.jo:5:12 ---------------
+| def main = foo
+|            ^^^
+|            Not fully instantiated auto type Eq[TypeVar(T)].
+
+---------- Error at ./tests/warn/auto-uninit.jo:5:12 ---------------
+| def main = foo
+|            ^^^
+|            Cannot infer a type for type variable TypeVar(T)
+
+2 error(s), 0 warning(s)

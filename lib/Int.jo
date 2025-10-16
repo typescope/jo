@@ -1,0 +1,30 @@
+namespace jo.Int
+
+import jo.Predef.abort
+import jo.Predef.Bool
+import jo.Bool.!
+
+type Int
+
+//------------------------------------------------------------------------------
+// primitive functions for integers
+//
+
+defer def (a: Int) + (b: Int): Int = abort("primitive +")
+defer def (a: Int) - (b: Int): Int = abort("primitive -")
+defer def (a: Int) * (b: Int): Int = abort("primitive *")
+defer def (a: Int) / (b: Int): Int = abort("primitive /")
+defer def (a: Int) % (b: Int): Int = abort("primitive %")
+
+defer def (a: Int) > (b: Int): Bool = abort("primitive >")
+defer def (a: Int) < (b: Int): Bool = abort("primitive <")
+defer def (a: Int) >= (b: Int): Bool = abort("primitive >=")
+defer def (a: Int) <= (b: Int): Bool = abort("primitive <=")
+defer def (a: Int) == (b: Int): Bool = abort("primitive ==")
+def (a: Int) != (b: Int): Bool = ! (a == b)
+
+defer def (a: Int) >> (b: Int): Int = abort("primitive >>")
+defer def (a: Int) << (b: Int): Int = abort("primitive <<")
+defer def (a: Int) & (b: Int): Int = abort("primitive &")
+defer def (a: Int) | (b: Int): Int = abort("primitive |")
+defer def (a: Int) ^ (b: Int): Int = abort("primitive ^")

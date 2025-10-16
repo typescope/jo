@@ -13,7 +13,7 @@ import scala.collection.mutable
 /** The compiler phase translate context parameters to runtime calls
   *
   * This phase assumes the following support functions defined in
-  * runtime/native/ParamSupport.stk:
+  * runtime/native/ParamSupport.jo:
   *
   *     fun getParam(key: Any): Any = ...
   *     fun setParam(key: Any, value: Any): Int = ...

@@ -1,3 +1,0 @@
-import stk.runtime.JS    // error
-
-def main = JS.print "hello\n"  // error // error

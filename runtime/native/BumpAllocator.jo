@@ -1,0 +1,43 @@
+namespace jo.runtime.native.BumpAllocator
+
+import jo.runtime.native.Core
+import jo.runtime.native.Syscall
+
+type State = { freeFrom: Int, freeUntil: Int }
+
+def init(): Unit receives none =
+  val start = Syscall.sys_brk 0
+  val dataAddr = Core.dataAddr "jo.runtime.native.BumpAllocator.state"
+
+  // TODO: use jo syntax once record can be mutable
+  Core.writeInt dataAddr start
+  Core.writeInt (Core.addAddr dataAddr 4) start
+
+def alloc(size: Int): Core.Addr receives none =
+  val dataAddr = Core.dataAddr "jo.runtime.native.BumpAllocator.state"
+
+  // TODO: use jo syntax once record can be mutable
+  var freeFrom = Core.readInt dataAddr
+  val lastFreeUntil = Core.readInt (Core.addAddr dataAddr 4)
+
+  if freeFrom + size > lastFreeUntil then
+     val newFreeUntil = Syscall.sys_brk (lastFreeUntil + 4096)
+     if newFreeUntil == -1 then
+       abort "Unable to alloc memory from system"
+
+     // avoid allocating at page boundary
+     freeFrom = lastFreeUntil
+
+     // update data
+     // TODO: use jo syntax once record can be mutable
+     Core.writeInt (Core.addAddr dataAddr 4) newFreeUntil
+
+  val res = freeFrom
+
+  val newFreeFrom = freeFrom + size
+
+  // update data
+  // TODO: use jo syntax once record can be mutable
+  Core.writeInt dataAddr newFreeFrom
+
+  res Core.cast[Core.Addr]

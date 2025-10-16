@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is the implementation of **Stk**, a statically typed functional programming language with advanced type system features. The language is implemented in Scala and includes multiple compilation backends targeting JavaScript and native Linux/x86 code.
+This is the implementation of **Jo**, a statically typed functional programming language with advanced type system features. The language is implemented in Scala and includes multiple compilation backends targeting JavaScript and native Linux/x86 code.
 
 ## Development Commands
 
@@ -15,17 +15,17 @@ This is the implementation of **Stk**, a statically typed functional programming
 ### Main Compiler (after build)
 The `bin/jo` command provides a unified interface to all compilation backends:
 
-- **Interpreter**: `bin/jo run <file.stk>` - Direct interpretation
-- **Build application (native/register)**: `bin/jo build <file.stk> -o <executable>` - Default backend
-- **Build application (native/stack)**: `bin/jo build -stack <file.stk> -o <executable>` - Stack machine backend
-- **Build application (JavaScript)**: `bin/jo build -js <file.stk> -o <output.js>` - JavaScript backend
-- **Build library**: `bin/jo build-lib <file.stk> -d <dir>` - Generate .sast files
-- **Use precompiled library**: `bin/jo build <file.stk> -lib <dir> -o <executable>` - Build with precompiled library
-- **Direct run**: `bin/jo <file.stk>` - Shorthand for `run` command
+- **Interpreter**: `bin/jo run <file.jo>` - Direct interpretation
+- **Build application (native/register)**: `bin/jo build <file.jo> -o <executable>` - Default backend
+- **Build application (native/stack)**: `bin/jo build -stack <file.jo> -o <executable>` - Stack machine backend
+- **Build application (JavaScript)**: `bin/jo build -js <file.jo> -o <output.js>` - JavaScript backend
+- **Build library**: `bin/jo build-lib <file.jo> -d <dir>` - Generate .sast files
+- **Use precompiled library**: `bin/jo build <file.jo> -lib <dir> -o <executable>` - Build with precompiled library
+- **Direct run**: `bin/jo <file.jo>` - Shorthand for `run` command
 
 ### Development Scripts
-- **Parser only**: `bin/parse <file.stk>` - Parse and output AST
-- **Type checker only**: `bin/type <file.stk>` - Type check without compilation
+- **Parser only**: `bin/parse <file.jo>` - Parse and output AST
+- **Type checker only**: `bin/type <file.jo>` - Type check without compilation
 
 ### Test Organization
 - **Positive tests**: `tests/pos/` - Programs that should compile and run successfully
@@ -62,7 +62,7 @@ The compilation process follows these phases:
 - **Assembly** (`native/Assembly.scala`) - Low-level assembly generation
 
 #### Runtime Systems
-- **JavaScript Runtime** (`runtime/JS.stk`) - JS-specific runtime functions
+- **JavaScript Runtime** (`runtime/JS.jo`) - JS-specific runtime functions
 - **Native Runtime** (`runtime/native/`) - Native runtime including GC and syscalls
 - **Standard Library** (`lib/`) - Core language libraries (Array, Bool, Int, List, etc.)
 

@@ -1,0 +1,190 @@
+namespace jo.Predef
+
+import jo.IO
+
+//------------------------------------------------------------------------------
+// Basic types
+//
+// `Any` and `Bottom` are handled specially in the namer
+
+// [-128, 127]
+type Byte
+
+// Represents a Unicode point.
+//
+// The type is supposed to be abstract and its implementation is platform-dependent.
+type Char
+
+type Unit = {}
+
+type Any
+
+type Bottom
+
+//------------------------------------------------------------------------------
+// Export common types
+//
+
+type Int = jo.Int.Int
+
+alias def + = jo.Int.+
+alias def - = jo.Int.-
+alias def * = jo.Int.*
+alias def / = jo.Int./
+alias def % = jo.Int.%
+
+alias def > = jo.Int.>
+alias def < = jo.Int.<
+alias def >= = jo.Int.>=
+alias def <= = jo.Int.<=
+alias def == = jo.Int.==
+alias def != = jo.Int.!=
+
+alias def >> = jo.Int.>>
+alias def << = jo.Int.<<
+alias def & = jo.Int.&
+alias def | = jo.Int.|
+alias def ^ = jo.Int.^
+
+type Bool = jo.Bool.Bool
+alias def && = jo.Bool.&&
+alias def || = jo.Bool.||
+alias def ! = jo.Bool.!
+alias def both = jo.Bool.both
+alias def either = jo.Bool.either
+
+type Array[T] = jo.Array.Array[T]
+section Array
+  alias def create = jo.Array.create
+  alias def get = jo.Array.get
+  alias def size = jo.Array.size
+  alias def set = jo.Array.set
+  alias def clone = jo.Array.clone
+end
+
+type Eq[T] = jo.Eq.Eq[T]
+auto alias def byteEq = jo.Eq.Defaults.byteEq
+auto alias def charEq = jo.Eq.Defaults.charEq
+auto alias def intEq = jo.Eq.Defaults.intEq
+auto alias def stringEq = jo.Eq.Defaults.stringEq
+
+type List[T] = jo.List.List[T]
+section List
+  alias def List = jo.List.List
+  alias def empty = jo.List.empty
+end
+
+type Set[T] = jo.Set.Set[T]
+section Set
+  alias def Set = jo.Set.Set
+  alias def empty = jo.Set.empty
+end
+
+type Map[K, V] = jo.Map.Map[K, V]
+section Map
+  alias def Map = jo.Map.Map
+  alias def empty = jo.Map.empty
+end
+
+//------------------------------------------------------------------------------
+//
+// Patterns
+//
+
+// A type to indicate that a pattern predicate does not exhaust a type
+type Partial[T] <: T
+
+// "|" pattern
+//
+// Its true semantics is handled in pattern translation.
+pattern (lhs: T) |[T] (rhs: T): T =
+  case lhs @ rhs
+
+//------------------------------------------------------------------------------
+//
+// Varargs support
+//
+
+// Used to indicate the last parameter is a vararg
+type ..[T] = List[T]
+
+// Splice a list as flat arguments
+def ..[T](l: List[T]): T = abort "Only support unpacking in argument positions"
+
+//------------------------------------------------------------------------------
+//
+// Utility functions
+//
+
+def (n: Int) p: Unit =
+  println
+    intToStr n
+
+def print(s: String): Unit = IO.stdout.write s
+
+def printChar(c: Char): Unit =
+  print
+    charToStr c
+
+def println(s: String): Unit =
+  print s
+  printChar '\n'
+
+def ??? : Bottom = abort("not implemented")
+
+defer def abort(s: String): Bottom
+
+def assert(cond: Bool, message: String): Unit =
+  if !cond then abort message
+
+// A utility function to make it easier to supply expression arguments to a
+// postfix function.
+//
+// Example:
+//
+//    flow
+//      1 + 3
+//      p
+//
+//
+def flow[T](v: T): T = v
+
+//------------------------------------------------------------------------------
+//
+// Coercion of types
+//
+// For numeric types, widening coercion is automatically inserted.
+
+defer def byteToInt(b: Byte): Int
+defer def byteToChar(b: Byte): Char
+
+defer def intToChar(n: Int): Char
+defer def intToByte(n: Int): Byte
+defer def intToStr(n: Int): String
+
+defer def charToByte(c: Char): Byte
+defer def charToInt(c: Char): Int
+defer def charToStr(c: Char): String
+
+//------------------------------------------------------------------------------
+//
+// String type
+//
+
+type String <: {
+  def size: Int
+  def get(i: Int): Char
+  def +(other: String): String
+  def ==(other: String): Bool
+  def substring(from: Int, len: Int): String
+}
+
+//------------------------------------------------------------------------------
+//
+// Common types
+//
+data Option[T] = None | Some(v: T)
+
+type Pair[S, T] = #Pair(a: S, b: T)
+
+def (a: S) -> [S, T] (b: T): Pair[S, T] = #Pair a b

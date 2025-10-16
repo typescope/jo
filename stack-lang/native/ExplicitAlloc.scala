@@ -13,7 +13,7 @@ import scala.collection.mutable
 /** The compiler phase makes allocation of records explicit
   *
   * This phase assumes the following support functions defined in
-  * runtime/native/Core.stk:
+  * runtime/native/Core.jo:
   *
   *     fun alloc(size: Int): Addr = ...
   *     fun addAddr(arr: Addr, offset: Int): Addr = ...

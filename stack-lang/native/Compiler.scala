@@ -27,23 +27,23 @@ object Compiler:
 
   // Default link mappings for native runtime
   val defaultLinkMappings = Map(
-    "stk.Predef.abort"      -> "stk.runtime.native.Core.abortImpl",
-    "stk.Predef.byteToChar" -> "stk.runtime.native.Core.byteToChar",
-    "stk.Predef.byteToInt"  -> "stk.runtime.native.Core.byteToInt",
-    "stk.Predef.charToByte" -> "stk.runtime.native.Core.charToByte",
-    "stk.Predef.charToInt"  -> "stk.runtime.native.Core.charToInt",
-    "stk.Predef.charToStr"  -> "stk.runtime.native.Core.charToStr",
-    "stk.Predef.intToByte"  -> "stk.runtime.native.Core.intToByte",
-    "stk.Predef.intToChar"  -> "stk.runtime.native.Core.intToChar",
-    "stk.Predef.intToStr"   -> "stk.runtime.native.Core.intToStr",
-    "stk.Array.create"      -> "stk.runtime.native.Core.Array_create",
-    "stk.Array.get"         -> "stk.runtime.native.Core.Array_get",
-    "stk.Array.set"         -> "stk.runtime.native.Core.Array_set",
-    "stk.Array.size"        -> "stk.runtime.native.Core.Array_size",
+    "jo.Predef.abort"      -> "jo.runtime.native.Core.abortImpl",
+    "jo.Predef.byteToChar" -> "jo.runtime.native.Core.byteToChar",
+    "jo.Predef.byteToInt"  -> "jo.runtime.native.Core.byteToInt",
+    "jo.Predef.charToByte" -> "jo.runtime.native.Core.charToByte",
+    "jo.Predef.charToInt"  -> "jo.runtime.native.Core.charToInt",
+    "jo.Predef.charToStr"  -> "jo.runtime.native.Core.charToStr",
+    "jo.Predef.intToByte"  -> "jo.runtime.native.Core.intToByte",
+    "jo.Predef.intToChar"  -> "jo.runtime.native.Core.intToChar",
+    "jo.Predef.intToStr"   -> "jo.runtime.native.Core.intToStr",
+    "jo.Array.create"      -> "jo.runtime.native.Core.Array_create",
+    "jo.Array.get"         -> "jo.runtime.native.Core.Array_get",
+    "jo.Array.set"         -> "jo.runtime.native.Core.Array_set",
+    "jo.Array.size"        -> "jo.runtime.native.Core.Array_size",
 
     // GC API wiring can be controlled via options
-    "stk.runtime.native.GC.init" -> "stk.runtime.native.BumpAllocator.init",
-    "stk.runtime.native.GC.alloc" -> "stk.runtime.native.BumpAllocator.alloc",
+    "jo.runtime.native.GC.init" -> "jo.runtime.native.BumpAllocator.init",
+    "jo.runtime.native.GC.alloc" -> "jo.runtime.native.BumpAllocator.alloc",
   )
 
   def compile(backendBuilder: BackendBuilder, args: Array[String]): Unit =

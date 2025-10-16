@@ -1,0 +1,463 @@
+namespace jo.runtime.native.Core
+
+import jo.IO.*
+
+import jo.runtime.native.Syscall
+import jo.runtime.native.GC
+import jo.runtime.native.ParamSupport
+
+
+//------------------------------------------------------------------------------
+//
+// Utilities
+//
+
+type Addr
+
+def dataAddr(qualid: String): Addr receives none =
+  abort "native global"
+
+// return a dummy Int value which is simpler than Unit
+def writeInt(arr: Addr, value: Int): Int receives none =
+  abort "native writeInt"
+
+def readInt(arr: Addr): Int =
+  abort "native readInt"
+
+// The caller needs to make sure the value fit into one byte
+//
+// return a dummy Int value which is simpler than Unit
+def writeByte(arr: Addr, value: Byte): Int receives none =
+  abort "native writeInt"
+
+def readByte(arr: Addr): Byte receives none =
+  abort "native readByte"
+
+def addAddr(arr: Addr, offset: Int): Addr receives none =
+  abort "native addAddr"
+
+def (arr: Any) cast[T]: T receives none = abort("runtime cast")
+
+def debug(s: String): Unit receives none =
+  writeString 0 (s cast[StringRepr])
+  writeString 0 ("\n" cast[StringRepr])
+
+//------------------------------------------------------------------------------
+//
+// program life time
+//
+
+def start(): Unit receives none =
+  GC.init
+  ParamSupport.init
+
+  jo.Main.main with
+    open = createFileOpener(),
+    stdin = createStdIn(),
+    stdout = createStdOut(),
+    stderr = createStdErr()
+
+  finish
+
+def finish: Unit =
+  Syscall.sys_exit 0
+
+
+//------------------------------------------------------------------------------
+//
+// Predef implementation
+//
+
+def abortImpl(msg: String): Bottom receives none =
+  writeString 0 (msg cast[StringRepr])
+  Syscall.sys_exit 1
+
+//------------------------------------------------------------------------------
+//
+// Coercion of types
+//
+// For numeric types, widening coercion is automatically inserted.
+
+def byteToInt(b: Byte): Int = b cast[Int]
+def byteToChar(b: Byte): Char = b cast[Char]
+
+def intToChar(n: Int): Char = (n & 65535) cast[Char]
+def intToByte(n: Int): Byte = (n & 255) cast[Byte]
+
+def charToByte(c: Char): Byte = ((c cast[Int]) & 255) cast[Byte]
+def charToInt(c: Char): Int = c cast[Int]
+
+def charToStr(c: Char): String =
+  val codePoint = charToInt c
+
+  // Determine UTF-8 byte length based on code point value
+  val len =
+    if codePoint <= 0x7F then 1
+    else if codePoint <= 0x7FF then 2
+    else if codePoint <= 0xFFFF then 3
+    else 4
+
+  val content = GC.alloc len
+
+  // Encode code point to UTF-8
+  if codePoint <= 0x7F then
+    // 1-byte: 0xxxxxxx
+    writeByte content (intToByte codePoint)
+  else if codePoint <= 0x7FF then
+    // 2-byte: 110xxxxx 10xxxxxx
+    writeByte content (intToByte (0xC0 | (codePoint >> 6)))
+    writeByte (addAddr content 1) (intToByte (0x80 | (codePoint & 0x3F)))
+  else if codePoint <= 0xFFFF then
+    // 3-byte: 1110xxxx 10xxxxxx 10xxxxxx
+    writeByte content (intToByte (0xE0 | (codePoint >> 12)))
+    writeByte (addAddr content 1) (intToByte (0x80 | ((codePoint >> 6) & 0x3F)))
+    writeByte (addAddr content 2) (intToByte (0x80 | (codePoint & 0x3F)))
+  else
+    // 4-byte: 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
+    writeByte content (intToByte (0xF0 | (codePoint >> 18)))
+    writeByte (addAddr content 1) (intToByte (0x80 | ((codePoint >> 12) & 0x3F)))
+    writeByte (addAddr content 2) (intToByte (0x80 | ((codePoint >> 6) & 0x3F)))
+    writeByte (addAddr content 3) (intToByte (0x80 | (codePoint & 0x3F)))
+
+  flow
+    #Raw(len, content) as StringRepr
+    cast[String]
+
+def intToStr(n: Int): String =
+  // MAX_VALUE =  2147483647
+  // MIN_VALUE = -2147483648
+  if n == 0 then "0"
+  else if n == -2147483648 then "-2147483648" // its negation is still negative
+  else
+    // memory allocator will handle alignment
+    val buf = GC.alloc 11 // max 11
+
+    val negative = n < 0
+    var remains = if negative then 0 - n else n
+
+    // write from end of buffer
+    var index = 10
+    while remains > 0 do
+      val digit = remains % 10
+      writeByte
+        addAddr buf index
+        intToByte (48 + digit) // '0' = 48
+
+      index = index - 1
+      remains = remains / 10
+
+    // sign char
+    if negative then
+      writeByte (addAddr buf index) 45 // '-' = 45
+      index = index - 1
+
+    val startIndex = index + 1
+    val len = 10 - index
+
+    // copy bytes to front
+    if startIndex > 0 then
+      var copyIndex = 0
+      while copyIndex < len do
+        val c = readByte (addAddr buf (startIndex + copyIndex))
+        writeByte (addAddr buf copyIndex) c
+        copyIndex = copyIndex + 1
+
+    flow
+      #Raw(len, buf) as StringRepr
+      cast[String]
+
+//------------------------------------------------------------------------------
+//
+// Array support
+//
+// A native array is represented as follows:
+//
+//    0       4                   size + 4
+//    ┌───────┬──────────────────────┐
+//    │ size  │  content             │
+//    └───────┴──────────────────────┘
+//
+// TODO: Represent arrays of different primitive types differently.
+//
+
+def Array_create[T](size: Int): Array[T] =
+  val arr = GC.alloc (size * 4 + 4)
+  writeInt arr size
+  // TODO: zero memory
+  arr cast[Array[T]]
+
+def Array_size[T](arr: Array[T]): Int =
+  readInt
+    arr cast[Addr]
+
+def Array_get[T](arr: Array[T], i: Int): T =
+  flow
+    readInt
+      addAddr
+        arr cast[Addr]
+        i * 4 + 4
+
+    cast[T]
+
+def Array_set[T](arr: Array[T], i: Int, value: T): Unit =
+  writeInt
+    addAddr
+      arr cast[Addr]
+      i * 4 + 4
+    value cast[Int]
+
+//------------------------------------------------------------------------------
+//
+// String support
+//
+
+// TODO: unicode support is missing
+type StringRepr =
+    #Raw(size: Int, content: Addr)
+  | #Concat(size: Int, lhs: String, rhs: String)
+
+// This function is called to convert a string literal to a proper string object.
+def String_fromByteString(byteArray: Any): String =
+  val size = readInt (byteArray cast[Addr])
+  val contentAddr = addAddr (byteArray cast[Addr]) 4
+
+  flow
+    #Raw(size, contentAddr) as StringRepr
+    cast[String]
+
+def String_size(repr: String): Int =
+  match repr cast[StringRepr]
+    case #Raw(len, _) => len
+    case #Concat(len, lhs, rhs) => len
+
+def String_apply(repr: String, i: Int): Char =
+  match repr cast[StringRepr]
+    case #Raw(len, content) =>
+      if i >= len || i < 0 then abort "index out of bound"
+
+      // TODO: unicode support
+      val v =
+        readByte
+          addAddr content i
+
+      v cast[Char]
+
+    case #Concat(len, lhs, rhs) =>
+      if i >= len || i < 0 then abort "index out of bound"
+
+      if i >= lhs.size then
+        rhs[i - lhs.size]
+      else
+        lhs[i]
+
+def String_plus(lhs: String, rhs: String): String =
+  val len = lhs.size + rhs.size
+  #Concat(len, lhs, rhs) cast[String]
+
+def String_equals(lhs: String, rhs: String): Bool =
+  val n = lhs.size
+  var isEqual = n == rhs.size
+  var i = 0
+  while both isEqual (i < n) do
+    isEqual = lhs[i] == rhs[i]
+    i = i + 1
+  end
+  isEqual
+
+def String_substring(source: String, from: Int, len: Int): String =
+  if from < 0 then abort "from should not be negative"
+  if len < 0 then abort "len should not be negative"
+  if from + len > source.size then abort "substring out of range"
+
+  val buf = GC.alloc len
+  var index = 0
+  while index < len do
+    // TODO: unicode support
+    writeByte
+      addAddr buf index
+      charToByte source[from + index]
+    index = index + 1
+
+  #Raw(len, buf) cast[String]
+
+def String_bytes(repr: String): Any =
+  val bytes = GC.alloc repr.size
+
+  def recur(repr: StringRepr, from: Int): Int =
+    match repr
+      case #Raw(len, content) =>
+        var i = 0
+        while i < len do
+          writeByte
+            addAddr
+              bytes
+              from + i
+            readByte
+              addAddr content i
+
+          i = i + 1
+
+        from + len
+
+      case #Concat(len, lhs, rhs) =>
+        val index = recur (lhs cast[StringRepr]) from
+        recur (rhs cast[StringRepr]) index
+
+  recur (repr cast[StringRepr]) 0
+  bytes
+
+//------------------------------------------------------------------------------
+//
+// I/O support
+//
+
+def createFileOpener(): String => File = (filePath: String) =>
+  val nameBytes = String_bytes filePath
+
+  val O_CREAT = 1 << 6
+  val O_RDWR = 2
+  val flags: Int = O_CREAT | O_RDWR
+
+  val S_IRUSR = 1 << 8
+  val S_IWUSR = 1 << 7
+  val S_IRGRP = 1 << 5
+  val S_IROTH = 1 << 2
+  val mode: Int = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH
+
+  // return starting index of '\n' or '\r\n' or -1.
+  def findLineSeparator(buffer: Addr, len: Int): Int =
+    var i = 0
+    var last = -1
+    var index = -1
+
+    while i < len do
+      val c = readByte (addAddr buffer i)
+
+      // debug ((intToStr i) + " -> " + (intToStr c))
+
+      if c == '\n' then
+        if last == '\r' then index = i - 1
+        else index = i
+        i = len
+      else
+        last = c
+        i = i + 1
+    end
+
+    index
+
+  val fd = Syscall.sys_open nameBytes flags mode
+  assert (fd > 0) ("sys_open = " + (intToStr fd))
+
+  {
+    def close(): Unit =
+      Syscall.sys_close fd
+
+    def seek(pos: Int): Unit =
+      val SEEK_SET = 0
+      val ret = Syscall.sys_seek fd pos SEEK_SET
+      assert (ret >= 0) ("sys_seek = " + (intToStr ret))
+
+    def hasMore(): Bool =
+      // Always use `sys_newfstat` to avoid representation problems
+      val stat = GC.alloc 256
+      val ret = Syscall.sys_newfstat fd stat
+      assert (ret == 0) ("sys_newfstat = " + (intToStr ret))
+
+      val size = readInt (addAddr stat 20)
+
+      val SEEK_CUR = 1
+      val pos = Syscall.sys_seek fd 0 SEEK_CUR
+
+      // writeString
+      //   0
+      //   ("size = " + (intToStr size) + "\n") cast[StringRepr]
+      // writeString
+      //   0
+      //   ("pos = " + (intToStr pos) + "\n") cast[StringRepr]
+
+      pos < size
+
+    def readLine(): String =
+      var continue = true
+      var res = ""
+      while continue do
+        // read 256-byte chunks, assuming normal length of lines
+        val buffer = GC.alloc 256
+        val bytesRead = Syscall.sys_read fd buffer 256
+        if bytesRead <= 0 then
+          continue = false
+        else
+          val lineSeparatorIndex = findLineSeparator buffer bytesRead
+
+          var len = bytesRead
+          if bytesRead < 256 then
+            continue = false
+
+          if lineSeparatorIndex >= 0 then
+            continue = false
+            len = lineSeparatorIndex
+            if lineSeparatorIndex < bytesRead - 1 then
+              // go back to beginning of the next new line
+              val offset = lineSeparatorIndex - bytesRead
+              val SEEK_CUR = 1
+              val ret = Syscall.sys_seek fd offset SEEK_CUR
+              assert (ret >= 0) ("sys_seek = " + (intToStr ret))
+
+          res = res +
+            flow
+              #Raw(len, buffer) as StringRepr
+              cast[String]
+        end
+      end
+      res
+
+    def write(content: String): Unit =
+      writeString fd (flow content cast[StringRepr])
+  }
+
+def writeString(fd: Int, repr: StringRepr): Unit =
+  match repr
+    case #Raw(len, content) =>
+      val bytesWritten = Syscall.sys_write fd content len
+      assert
+        len == bytesWritten
+        "write failed"
+
+    case #Concat(len, lhs, rhs) =>
+      writeString
+        fd
+        flow lhs cast[StringRepr]
+
+      writeString
+        fd
+        flow rhs cast[StringRepr]
+
+
+def createStdIn(): { def readLine(): String } =
+  () =>
+    var continue = true
+    var res = ""
+    while continue do
+      // read 256-byte chunks, assuming normal length of lines
+      val buffer = GC.alloc 256
+      val bytesRead = Syscall.sys_read 0 buffer 256
+
+      if bytesRead < 256 then
+        continue = false
+
+      if bytesRead > 0 then
+        res = res +
+          flow
+            #Raw(bytesRead, buffer) as StringRepr
+            cast[String]
+      end
+    end
+
+    res
+
+def createStdOut(): { def write(content: String): Unit } =
+  (s: String) => writeString 1 (flow s cast[StringRepr])
+
+def createStdErr(): { def write(content: String): Unit } =
+  (s: String) => writeString 2 (flow s cast[StringRepr])

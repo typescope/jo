@@ -15,35 +15,35 @@ User code analyzes live system processes without direct access to Node.js.
 
 ```
 ┌─────────────────────┐
-│   UserApp.stk       │  User code (untrusted)
+│   UserApp.jo        │  User code (untrusted)
 │ (Process Analyzer)  │  - Analyzes process list
 └──────────┬──────────┘  - Searches for specific processes
            │ imports     - Only uses SystemAPI capabilities
            ▼
 ┌─────────────────────┐
-│  PlatformAPI.stk    │  Pure world (interface)
+│  PlatformAPI.jo     │  Pure world (interface)
 │ (System Monitor API)│  - Process.listProcesses()
 └──────────┬──────────┘  - System.platform(), uptime()
            │ implemented by
            ▼
 ┌─────────────────────┐
-│ PlatformRuntime.stk │  Runtime world (trusted)
+│ PlatformRuntime.jo  │  Runtime world (trusted)
 │  (Node.js interop)  │  - Uses js intrinsic
 └──────────┬──────────┘  - Calls Node.js child_process, os
            │ uses
            ▼
 ┌─────────────────────┐
-│  stk.runtime.JS     │  Base runtime
+│  jo.runtime.JS      │  Base runtime
 │  (js intrinsic)     │  - Provides js "..." for interop
 └─────────────────────┘  - I/O via stdout
 ```
 
 ## Files
 
-### PlatformAPI.stk
+### PlatformAPI.jo
 Declares system monitoring capabilities:
 
-```stk
+```jo
 section Process
   defer def listProcesses(): String receives stdout
   defer def countProcesses(): Int receives stdout
@@ -60,11 +60,11 @@ section System
 end
 ```
 
-### PlatformRuntime.stk
+### PlatformRuntime.jo
 **Real Node.js implementation** using `js` intrinsic:
 
-```stk
-import stk.runtime.JS.js
+```jo
+import jo.runtime.JS.js
 
 def listProcesses(): String receives stdout =
   val output = js "require('child_process').execSync('ps aux').toString()"
@@ -85,12 +85,12 @@ def getCurrentPID(): Int receives stdout =
   pid
 ```
 
-**Key technique**: Import `stk.runtime.JS.js` to use the `js` intrinsic, which executes JavaScript code and interoperates with Node.js.
+**Key technique**: Import `jo.runtime.JS.js` to use the `js` intrinsic, which executes JavaScript code and interoperates with Node.js.
 
-### UserApp.stk
+### UserApp.jo
 Process analyzer using only SystemAPI:
 
-```stk
+```jo
 def analyzeSystem(): Unit receives stdout =
   val totalProcs = Process.countProcesses()
   ("Total running processes: " + totalProcs.intToStr).println
@@ -117,14 +117,14 @@ User code **can only**:
 
 ### Stage 1: Compile Platform API
 ```bash
-bin/jo build-lib PlatformAPI.stk -d out/api
+bin/jo build-lib PlatformAPI.jo -d out/api
 ```
 
 Creates pure interface declarations.
 
 ### Stage 2: Compile Platform Runtime (The Key Step)
 ```bash
-bin/jo build-lib PlatformRuntime.stk \
+bin/jo build-lib PlatformRuntime.jo \
   -lib libs/runtime-js:out/api \
   -d out/runtime
 ```
@@ -135,13 +135,13 @@ bin/jo build-lib PlatformRuntime.stk \
 ```bash
 bin/jo build -js \
   -no-detect-main \
-  -link stk.Main.main=SystemAPI.Monitor.startMonitor \
+  -link jo.Main.main=SystemAPI.Monitor.startMonitor \
   -link SystemAPI.Process.listProcesses=SystemRuntime.ProcessImpl.listProcesses \
   -link SystemAPI.Process.countProcesses=SystemRuntime.ProcessImpl.countProcesses \
   ... (all capability mappings) \
   -lib out/api \
   -runtime out/runtime \
-  UserApp.stk \
+  UserApp.jo \
   -o out/monitor.js
 ```
 
@@ -194,8 +194,8 @@ Process List Analysis:
 
 ## How the `js` Intrinsic Works
 
-From `runtime/JS.stk`:
-```stk
+From `runtime/JS.jo`:
+```jo
 def js(s: String): Bottom = abort("primitive js")
 ```
 
@@ -205,7 +205,7 @@ The compiler recognizes `js` as a **primitive** and:
 3. Returns values from JS back to Jo code
 
 Example:
-```stk
+```jo
 val n = 42
 val doubled = js "n * 2"  // JS code can reference Jo variable 'n'
 ```
@@ -242,28 +242,28 @@ const doubled = n * 2;
 This pattern works for any Node.js API:
 
 **File system operations:**
-```stk
+```jo
 def readFileContent(path: String): String receives stdout =
   val content = js "require('fs').readFileSync(path, 'utf8')"
   content
 ```
 
 **HTTP requests:**
-```stk
+```jo
 def httpGet(url: String): String receives stdout =
   val response = js "require('https').get(url).toString()"
   response
 ```
 
 **Database queries:**
-```stk
+```jo
 def dbQuery(sql: String): String receives stdout =
   val result = js "db.query(sql)"  // assumes db is available
   js "JSON.stringify(result)"
 ```
 
 **Network sockets:**
-```stk
+```jo
 def createTcpServer(port: Int): Unit receives stdout =
   js "require('net').createServer().listen(port)"
 ```

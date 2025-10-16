@@ -8,7 +8,7 @@ Deferred functions are a powerful language feature in Jo that enable framework-b
 
 ### Declaring Deferred Functions
 
-```stk
+```jo
 defer def functionName(param1: Type1, param2: Type2): ReturnType
 ```
 
@@ -19,7 +19,7 @@ The `defer` keyword indicates that this function has no implementation in the cu
 Use the `-link` compiler option to bind deferred functions to their implementations:
 
 ```bash
-bin/jo build myapp.stk -link Source.deferredFunc=Target.concreteFunc -o myapp
+bin/jo build myapp.jo -link Source.deferredFunc=Target.concreteFunc -o myapp
 ```
 
 The syntax is: `-link <deferred-function-path>=<implementation-path>`
@@ -30,7 +30,7 @@ The syntax is: `-link <deferred-function-path>=<implementation-path>`
 
 Deferred functions create explicit extension points in your code where behavior can be customized:
 
-```stk
+```jo
 namespace Framework
 
 section Database
@@ -62,8 +62,8 @@ Deferred functions can optionally provide default implementations. If no `-link`
 
 Frameworks can define abstract operations that users implement:
 
-```stk
-// framework.stk
+```jo
+// framework.jo
 namespace Framework
 
 defer def init(): Unit
@@ -77,8 +77,8 @@ def runApp: Unit =
   cleanup()
 ```
 
-```stk
-// implementation.stk
+```jo
+// implementation.jo
 namespace MyApp
 
 def init(): Unit = println "Starting..."
@@ -89,19 +89,19 @@ def cleanup(): Unit = println "Done"
 Compile with:
 ```bash
 bin/jo build -no-detect-main \
-  -link stk.Main.main=Framework.runApp \
+  -link jo.Main.main=Framework.runApp \
   -link Framework.init=MyApp.init \
   -link Framework.process=MyApp.process \
   -link Framework.cleanup=MyApp.cleanup \
-  framework.stk implementation.stk -o app
+  framework.jo implementation.jo -o app
 ```
 
 ### Dependency Injection
 
 Abstract away dependencies for testing or modularity:
 
-```stk
-// service.stk
+```jo
+// service.jo
 namespace Service
 
 defer def getDatabase(): Database
@@ -118,13 +118,13 @@ Link to different implementations for production vs. testing:
 
 ```bash
 # Production
-bin/jo build service.stk \
+bin/jo build service.jo \
   -link Service.getDatabase=Production.PostgresDB \
   -link Service.getLogger=Production.FileLogger \
   -o service-prod
 
 # Testing
-bin/jo build service.stk \
+bin/jo build service.jo \
   -link Service.getDatabase=Testing.MockDB \
   -link Service.getLogger=Testing.MemoryLogger \
   -o service-test
@@ -132,9 +132,9 @@ bin/jo build service.stk \
 
 ### Custom Entry Points
 
-The `-no-detect-main` flag combined with `-link stk.Main.main=...` allows any function to become the entry point:
+The `-no-detect-main` flag combined with `-link jo.Main.main=...` allows any function to become the entry point:
 
-```stk
+```jo
 namespace MyApp
 
 // Not the traditional 'main' function
@@ -145,7 +145,7 @@ def startup: Unit =
 
 Compile with:
 ```bash
-bin/jo build myapp.stk -no-detect-main -link stk.Main.main=MyApp.startup -o myapp
+bin/jo build myapp.jo -no-detect-main -link jo.Main.main=MyApp.startup -o myapp
 ```
 
 This is particularly useful for:
@@ -165,7 +165,7 @@ Binds a deferred function to an implementation.
 ### `-no-detect-main`
 
 Disables automatic main function detection.
-- Must explicitly link `stk.Main.main` to an entry point
+- Must explicitly link `jo.Main.main` to an entry point
 - Useful when the framework controls the entry point
 - Enables testing alternative entry scenarios
 
@@ -173,7 +173,7 @@ Disables automatic main function detection.
 
 ### Example 1: Simple Calculator Framework
 
-```stk
+```jo
 // options: -link Calculator.add=Math.add -link Calculator.multiply=Math.multiply
 
 namespace Test
@@ -198,8 +198,8 @@ def main =
 
 ### Example 2: Framework-Controlled Entry Point
 
-```stk
-// options: -no-detect-main -link stk.Main.main=Framework.runApp
+```jo
+// options: -no-detect-main -link jo.Main.main=Framework.runApp
 //          -link Framework.init=Implementation.init
 //          -link Framework.process=Implementation.process
 
@@ -229,12 +229,12 @@ Deferred functions work seamlessly with separate compilation:
 
 1. Build framework as a library:
    ```bash
-   bin/jo build-lib framework.stk -d lib/
+   bin/jo build-lib framework.jo -d lib/
    ```
 
 2. Build application linking to framework:
    ```bash
-   bin/jo build app.stk -lib lib/ \
+   bin/jo build app.jo -lib lib/ \
      -link Framework.func=App.impl \
      -o app
    ```
@@ -243,8 +243,8 @@ Deferred functions work seamlessly with separate compilation:
 
 Deferred functions can use context parameters (receives clauses):
 
-```stk
-import stk.IO.stdout
+```jo
+import jo.IO.stdout
 
 defer def log(msg: String): Unit receives stdout
 
@@ -262,7 +262,7 @@ Link across different namespaces and modules:
 bin/jo build \
   -link Framework.Core.init=Plugins.SQLite.initialize \
   -link Framework.Core.query=Plugins.SQLite.executeQuery \
-  framework.stk plugins.stk -o app
+  framework.jo plugins.jo -o app
 ```
 
 ## Error Handling
@@ -289,7 +289,7 @@ If user-supplied link mapping conflicts with compiler defaults:
 
 ```
 [Warning] User-supplied link mapping ignored due to conflicts with compiler default:
-  stk.Predef.abort=Custom.abort (was stk.Predef.abort=stk.runtime.native.Core.abortImpl)
+  jo.Predef.abort=Custom.abort (was jo.Predef.abort=jo.runtime.native.Core.abortImpl)
 ```
 
 ## Design Rationale

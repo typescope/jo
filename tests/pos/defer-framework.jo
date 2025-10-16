@@ -1,0 +1,43 @@
+// options: -no-detect-main -link jo.Main.main=Test.Framework.runApp -link Test.Framework.init=Test.Implementation.init -link Test.Framework.process=Test.Implementation.process -link Test.Framework.cleanup=Test.Implementation.cleanup
+
+// Test framework pattern linking main directly to framework orchestrator
+
+namespace Test
+
+import jo.IO.stdout
+
+section Framework
+  defer def init(): Unit receives stdout
+  defer def process(x: Int): Int receives stdout
+  defer def cleanup(): Unit receives stdout
+
+  // Framework orchestrator - becomes the entry point via -link
+  def runApp: Unit =
+    println "Framework starting..."
+    val result1 = run(15)
+    println "First run result:"
+    result1 p
+
+    val result2 = run(20)
+    println "Second run result:"
+    result2 p
+    println "Framework finished"
+
+  def run(input: Int): Int =
+    init()
+    val result = process(input)
+    cleanup()
+    result
+end
+
+section Implementation
+  def init(): Unit =
+    println "  > Initializing"
+
+  def process(x: Int): Int =
+    println "  > Processing..."
+    x * 2 + 10
+
+  def cleanup(): Unit =
+    println "  > Cleanup"
+end

@@ -1,0 +1,61 @@
+namespace jo.Map
+
+import jo.Predef.*
+
+def empty[K, V](auto eq: Eq[K]): Map[K, V] = new Map([], eq)
+
+def Map[K, V](elems: ..Pair[K, V])(auto eq: Eq[K]): Map[K, V] = new Map(elems, eq)
+
+// A strawman implementation of Map based on List
+class Map[K, V]
+  val eq: Eq[K]
+  val l: List[Pair[K, V]]
+
+  def Map(elems: List[Pair[K, V]], eq: Eq[K]) = { l: elems, eq: eq }
+
+  def size: Int = l.size
+
+  def contains(k: K): Bool =
+    var found = false
+    var i = 0
+    while both !found (i < size) do
+      found = eq l[i].a k
+      i = i + 1
+    end
+    found
+
+  def get(k: K): Option[V] =
+    var found = false
+    var res: Option[V] = None
+    var i = 0
+    while both !found (i < size) do
+      val item = l[i]
+      found = eq item.a k
+      if found then res = Some item.b
+      i = i + 1
+    end
+    res
+
+  def add(k: K, v: V): Map[K, V] = update k v
+
+  def update(k: K, v: V): Map[K, V] =
+    val l2 = l.exclude p => eq k p.a
+    new Map(l2 + (k -> v), eq)
+
+  def remove(k: K): Map[K, V] = exclude (k1, _) => eq k k1
+
+  def ++(xs: Map[K, V]): Map[K, V] =
+    xs.fold this (acc, k, v) => acc.add(k, v)
+
+  def select(pred: (K, V) => Bool): Map[K, V] =
+    new Map(l.select p => pred p.a p.b, eq)
+
+  def exclude(pred: (K, V) => Bool): Map[K, V] =
+    new Map(l.exclude p => pred p.a p.b, eq)
+
+  def foreach(f: (K, V) => Unit): Unit = l.foreach p => f p.a p.b
+
+  def fold[S](zero: S, f: (S, K, V) => S): S =
+    l.fold zero (acc, p) => f acc p.a p.b
+
+end

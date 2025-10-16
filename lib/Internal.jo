@@ -1,0 +1,20 @@
+namespace jo.Internal
+
+import jo.Predef.Int
+import jo.Predef.String
+import jo.Predef.Bottom
+
+// The signature of scrutinee required by sequence patterns
+type Seq[T] = {
+  def size: Int
+  def get(i: Int): T
+}
+
+
+// Used by the compiler as expected type to check varargs
+type PackElemType[T] = T
+
+// Compiler transform should use this, which is guaranteed to be linked
+//
+// Usage of jo.Predef.abort in phases after LinkRewriter is problematic.
+def abort(s: String): Bottom = jo.Predef.abort s

@@ -1,0 +1,27 @@
+// Plugin Framework Library
+// Defines the plugin interface using deferred functions
+
+namespace Framework
+
+import jo.IO.stdout
+
+// Plugin extension points
+defer def getName(): String
+defer def getVersion(): Int
+defer def initialize(): Unit receives stdout
+defer def execute(input: Int): Int
+
+def registerAndRun(value: Int): Unit =
+  println "=== Plugin Framework ==="
+  print "Loading plugin: "
+  println getName()
+  print "Version: "
+  getVersion() p
+
+  initialize()
+
+  print "Executing plugin with input: "
+  value p
+  val result = execute(value)
+  print "Plugin returned: "
+  result p
