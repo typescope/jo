@@ -497,7 +497,7 @@ object Scanner:
 
     def tokenSpan(): Span = Span(curTokenOffset, offset - curTokenOffset)
 
-    def lastCharSpan(): Span = Span(index - 1, 1)
+    def lastCharSpan(): Span = Span(offset - 1, 1)
 
     def lineIndent(): Indent =
       val tokenIndent = curTokenOffset - curLineOffset

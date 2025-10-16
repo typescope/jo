@@ -1,9 +1,29 @@
+// Custom function that takes variable number of arguments
+def sum(numbers: ..Int): Int =
+  numbers.fold 0 (acc, n) => acc + n
+
+// Another example: print all arguments
+def printAll(messages: ..String): Unit =
+  messages.foreach (msg => println msg)
+
 def main =
+  // Using standard library List with varargs
   val l = List(3, 5, 6, 8)
   l.foreach (i => println (intToStr i))
 
-  val l2 = List(1, 2, ..l, 9, 10)
+  val l2 = [1, 2, ..l, 9, 10]
   l2.foreach (i => println (intToStr i))
 
   val l3 = List "hello" "world"
   l3.foreach (s => println s)
+
+  // Using custom vararg functions
+  println
+    intToStr
+      sum(1, 2, 3, 4, 5)
+
+  println
+    intToStr
+      sum(10, 20, ..l, 30)
+
+  printAll "First" "Second" "Third"

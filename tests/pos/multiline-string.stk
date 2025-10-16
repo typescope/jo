@@ -110,4 +110,12 @@ def main(): Unit =
   print(withTrailing)
   print("\n---\n")
 
+  // Code after closing delimiter on same line
+  val codeAfter = """
+    Hello
+    """ + " World"
+  print("Code after delimiter: ")
+  print(codeAfter)
+  print("\n---\n")
+
   print("Done\n")

@@ -4,8 +4,40 @@ set -e
 
 # Parse command line arguments
 BUILD_NATIVE=false
-if [ "$1" = "-native" ]; then
-  BUILD_NATIVE=true
+BUILD_FAT_JAR=false
+BUILD_RELEASE=false
+
+for arg in "$@"; do
+  case $arg in
+    -native)
+      BUILD_NATIVE=true
+      ;;
+    -fat)
+      BUILD_FAT_JAR=true
+      ;;
+    -release)
+      BUILD_RELEASE=true
+      ;;
+    *)
+      echo "Unknown option: $arg"
+      echo "Usage: ./build [-native] [-fat] [-release]"
+      echo "  -native     Build native executable (slower build, faster startup)"
+      echo "  -fat        Build fat JAR with all dependencies (JAR only)"
+      echo "  -release    Package release zip (requires -fat)"
+      exit 1
+      ;;
+  esac
+done
+
+# Validate option combinations
+if [ "$BUILD_RELEASE" = true ] && [ "$BUILD_FAT_JAR" = false ]; then
+  echo "Error: -release option requires -fat"
+  exit 1
+fi
+
+if [ "$BUILD_NATIVE" = true ] && [ "$BUILD_FAT_JAR" = true ]; then
+  echo "Error: -fat option cannot be used with -native"
+  exit 1
 fi
 
 # Build launcher
@@ -23,8 +55,13 @@ export JO_HOME
 exec "$SCRIPT_DIR/jo.native" "$@"
 EOF
 else
-  echo "Generating JAR launcher"
-  scala-cli --power package -f project.scala stack-lang -M cli.Main -o bin/jo.jar
+  if [ "$BUILD_FAT_JAR" = true ]; then
+    echo "Generating fat JAR launcher (with all dependencies)"
+    scala-cli --power package -f --assembly project.scala stack-lang -M cli.Main -o bin/jo.jar
+  else
+    echo "Generating JAR launcher"
+    scala-cli --power package -f project.scala stack-lang -M cli.Main -o bin/jo.jar
+  fi
 
   # create wrapper script that calls JAR
   cat > bin/jo << 'EOF'
@@ -40,17 +77,66 @@ fi
 chmod +x bin/jo
 
 # build stand library
-STDLIB=sast/stdlib
+STDLIB=libs/stdlib
 bin/jo build-lib -testPickling -explicit-return-type -no-stdlib lib/*.stk -d $STDLIB
 
 # build interpreter runtime
-INT_RUNTIME=sast/runtime/interpreter
+INT_RUNTIME=libs/runtime-interpreter
 bin/jo build-lib -testPickling -explicit-return-type runtime/Interpreter.stk -d $INT_RUNTIME
 
 # build JS runtime
-JS_RUNTIME=sast/runtime/js
+JS_RUNTIME=libs/runtime-js
 bin/jo build-lib -testPickling -explicit-return-type runtime/JS.stk -d $JS_RUNTIME
 
 # build native runtime
-NATIVE_RUNTIME=sast/runtime/native
+NATIVE_RUNTIME=libs/runtime-native
 bin/jo build-lib -testPickling -explicit-return-type runtime/native/*.stk -d $NATIVE_RUNTIME
+
+# Package release if requested
+if [ "$BUILD_RELEASE" = true ]; then
+  echo "Creating release package..."
+
+  # Get version from git or use default
+  VERSION=$(git describe --tags --always 2>/dev/null || echo "dev")
+  RELEASE_NAME="jo-${VERSION}"
+  RELEASE_ZIP="${RELEASE_NAME}.zip"
+
+  # Create temporary directory for packaging
+  TEMP_DIR=$(mktemp -d)
+  RELEASE_DIR="${TEMP_DIR}/${RELEASE_NAME}"
+  mkdir -p "$RELEASE_DIR"
+
+  # Copy files to release directory
+  echo "Copying files to release package..."
+  mkdir -p "$RELEASE_DIR/bin"
+  cp bin/jo.jar "$RELEASE_DIR/bin/"
+  cp bin/jo "$RELEASE_DIR/bin/"
+  cp -r sast "$RELEASE_DIR/"
+  cp -r demos "$RELEASE_DIR/"
+  cp README.md "$RELEASE_DIR/"
+  cp LICENSE "$RELEASE_DIR/"
+
+  # Create tests directory and copy selected test files
+  mkdir -p "$RELEASE_DIR/tests/pos"
+  mkdir -p "$RELEASE_DIR/tests/warn"
+
+  cp tests/pos/hello.stk "$RELEASE_DIR/tests/pos/"
+  cp tests/pos/expression-problem.stk "$RELEASE_DIR/tests/pos/"
+  cp tests/pos/fact.stk "$RELEASE_DIR/tests/pos/"
+  cp tests/pos/param-render.stk "$RELEASE_DIR/tests/pos/"
+  cp tests/pos/pattern.stk "$RELEASE_DIR/tests/pos/"
+  cp tests/pos/pattern-seq.stk "$RELEASE_DIR/tests/pos/"
+  cp tests/pos/vararg.stk "$RELEASE_DIR/tests/pos/"
+  cp tests/pos/regex.stk "$RELEASE_DIR/tests/pos/"
+  cp tests/warn/param-boundary.stk "$RELEASE_DIR/tests/warn/"
+
+  # Create zip file
+  echo "Creating ${RELEASE_ZIP}..."
+  (cd "$TEMP_DIR" && zip -r -q "${RELEASE_ZIP}" "${RELEASE_NAME}")
+  mv "${TEMP_DIR}/${RELEASE_ZIP}" .
+
+  # Cleanup
+  rm -rf "$TEMP_DIR"
+
+  echo "Release package created: ${RELEASE_ZIP}"
+fi

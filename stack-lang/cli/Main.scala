@@ -90,8 +90,8 @@ object Main:
       |
       |Build options:
       |  -js             Build JavaScript application
-      |  -stack          Build native application using stack machine
-      |  -reg            Build native application using register machine (default)
+      |  -stack          Build linux-x86 native application using stack machine
+      |  -reg            Build linux-x86 native application using register machine (default)
       |  -o <out>        Output file path
       |  -lib <dirs>     Use precompiled libraries (colon-separated, in dependency order)
       |                  Example: -lib build/core:build/utils

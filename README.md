@@ -1,23 +1,66 @@
-# The Jo Programming Language 🚀
+# The Jo Programming Language 🎈
 
-Jo is a statically typed functional programming language designed for research and teaching language implementation.
+Jo is a secure programming language designed for securing LLM generated code.
+
+- **API Confinement** - LLM generated code is confined to custom-defined application-level APIs
+- **Fine-Grained Control** - Precise control of authorization, e.g. access certain rows of a data table for current user
+- **Security Auditing** - Statically checked authorities and clear security boundaries
 
 ## Key Features ✨
 
+- **Extensible Runtime** - Extend and customize the language runtime with a Jo library
 - **Modular and composable** - No global variables; easier to compose and reuse
 - **Context parameters** - Contextual abstraction, optional parameters, and implicit resolution
 - **Effect system** - Fine-grained effect control with parametric effects
 - **Algebraic data types** - Extensible ADTs with pattern matching
 - **Pattern-oriented programming** - First-class patterns and higher-order patterns
 - **Natural syntax**  - Prefix, infix, and postfix operators; two call styles `f(x)` and `f x`; indentation-based
-- **Multiple backends**  - Interpreter, JavaScript, and native x86-64 Linux
+- **Multiple backends**  - Interpreter, JavaScript, native x86 Linux, and more are coming (Python, Java, Ruby)
 
-## Implementation
+## Getting Started 🚀
 
-- Written in Scala using scala-cli
-- Frontend: lexer, parser, type checker with inference
-- Multiple compilation backends with shared frontend
-- Comprehensive test suite across all backends
+```bash
+# Run a program (interpreter)
+bin/jo tests/pos/hello.stk
+
+# Build x86 linux native executable
+bin/jo build tests/pos/hello.stk -o hello
+./hello
+
+# Build JavaScript
+bin/jo build -js tests/pos/hello.stk -o hello.js
+node hello.js
+```
+
+## Demos 🎯
+
+Real-world applications demonstrating Jo's capability-based security model:
+
+### Process Monitor (Deferred Functions version)
+
+**Location**: `demos/process-monitor/`
+
+A system monitoring application that extends Jo's JavaScript runtime with real Node.js capabilities (child_process, os module).
+
+- **Runtime extension** using the `-runtime` flag and `js` intrinsic
+- **Deferred functions** for explicit capability declarations
+- **Three-stage compilation** (API → Runtime → User code)
+- **Security confinement** - user code analyzes system processes without direct Node.js access
+
+Shows how platforms can expose controlled system APIs (process listing, memory usage, system info) to untrusted user code while preventing arbitrary command execution.
+
+### Process Monitor (Context Parameters version)
+
+**Location**: `demos/process-monitor-ctx/`
+
+Alternative implementation using **context parameters** instead of deferred functions.
+
+- **Object-oriented API design** with capability grouping (Process, System, Logger)
+- **Statically checked ambient capabilities** via `param` declarations
+- **Concise linking** - requires only 2 link flags vs 15+ in deferred approach
+- **Same security guarantees** with less verbose compilation flags
+
+Perfect comparison to understand when to use deferred functions vs context parameters for capability provision.
 
 ## Examples 💡
 
@@ -84,76 +127,20 @@ def main =
     show (eval code).lambda
 ```
 
-### [The Expression Problem](https://en.wikipedia.org/wiki/Expression_problem)
+### More Examples
 
-```
-data Expr[Lang] =
-    Lit(n: Int)
-  | Add(lhs: Lang, rhs: Lang)
+Explore complete examples showcasing Jo's features:
 
-type LangA = Expr[LangA]
+- **[Expression Problem](tests/pos/expression-problem.stk)** - Extensible ADTs demonstrating Jo's solution to the expression problem
+- **[Pattern Matching](tests/pos/pattern.stk)** - Advanced pattern matching with guards and nested patterns
+- **[Pattern Sequences](tests/pos/pattern-seq.stk)** - Pattern matching on sequences and lists
+- **[Context Parameters](tests/pos/param-render.stk)** - Contextual abstraction and implicit parameter passing
+- **[Varargs](tests/pos/vararg.stk)** - Variable-length argument lists
+- **[Regular Expressions](tests/pos/regex.stk)** - Pattern-based string matching
+- **[Parameter Boundaries](tests/warn/param-boundary.stk)** - Warning example showing parameter scope constraints
 
-def eval[T](expr: Expr[T], eval: T => Int): Int =
-  match expr
-    case Lit n => n
-    case Add lhs rhs => (eval lhs) + (eval rhs)
 
-def evalLangA(expr: LangA): Int =
-  eval expr (e => evalLangA e)
-
-data Mul[Lang](lhs: Lang, rhs: Lang)
-type ExprExt[Lang] = Expr[Lang] | Mul[Lang]
-
-type LangB = ExprExt[LangB]
-
-def evalExt[T](expr: ExprExt[T], evalExt: T => Int): Int =
-  match expr
-    case e: Expr[T] => eval e evalExt
-    case Mul lhs rhs => (evalExt lhs) * (evalExt rhs)
-
-def evalLangB(expr: LangB): Int =
-  evalExt expr (e => evalLangB e)
-
-def main =
-  val langA: LangA =
-    Add
-      Lit 3
-      Add
-        Lit 2
-        Lit 5
-
-  val langB: LangB = Mul langA (Lit 3)
-
-  println
-    intToStr
-      evalLangA langA
-
-  println
-    intToStr
-      evalLangB langB
-```
-
-## Build 🔨
-
-First install [scala-cli](https://scala-cli.virtuslab.org/), then build the compiler and standard library:
-
-```bash
-# Build JAR launcher (default, faster build)
-./build
-
-# Or build native launcher (slower build, faster startup)
-./build -native
-```
-
-This creates:
-- `bin/jo` - Unified compiler launcher (wrapper script)
-- `bin/jo.jar` - JAR executable (default build)
-- `bin/jo.native` - Native executable (with `-native` flag)
-- `sast/stdlib/` - Precompiled standard library (.sast files)
-- `sast/runtime/js/` - JavaScript runtime library
-- `sast/runtime/native/` - Native runtime library
-
-## Usage 📖
+## Usage
 
 The `jo` command provides a unified interface to all compiler backends:
 
@@ -171,19 +158,19 @@ bin/jo run tests/pos/fact.stk
 
 The standard library is automatically loaded for all commands.
 
-Build native executable (register machine - fastest, default):
+**Build native executable (register machine - fastest, default):**
 ```bash
 bin/jo build tests/pos/fact.stk -o fact
 ./fact
 ```
 
-Build native executable (stack machine):
+**Build native executable (stack machine):**
 ```bash
 bin/jo build -stack tests/pos/fact.stk -o fact
 ./fact
 ```
 
-Build JavaScript application:
+**Build JavaScript application:**
 ```bash
 bin/jo build -js tests/pos/fact.stk -o fact.js
 node fact.js
@@ -191,35 +178,35 @@ node fact.js
 
 ### Build Libraries
 
-Build a custom library (generates .sast files):
+**Build a custom library (generates .sast files):**
 ```bash
 bin/jo build-lib lib/MyLib.stk -d build/mylib
 ```
 
-Build a library that depends on another library:
+**Build a library that depends on another library:**
 ```bash
 bin/jo build-lib lib/Extensions.stk -lib build/mylib -d build/extensions
 ```
 
-Use custom libraries (stdlib is still automatically loaded):
+**Use custom libraries (stdlib is still automatically loaded):**
 ```bash
 bin/jo build app.stk -lib build/mylib -o app
 ./app
 ```
 
-Use multiple libraries (colon-separated, in dependency order):
+**Use multiple libraries (colon-separated, in dependency order):**
 ```bash
 # Core depends on nothing, Utils depends on Core, App depends on both
 bin/jo build app.stk -lib build/core:build/utils -o app
 ./app
 ```
 
-Disable automatic stdlib loading:
+**Disable automatic stdlib loading:**
 ```bash
 bin/jo build -no-stdlib app.stk -o app
 ```
 
-### Command Reference
+## Command Reference
 
 ```
 jo <file.stk>                       Run program (default)
@@ -229,35 +216,22 @@ jo build-lib [options] <file.stk>   Build library (.sast files)
 jo help                             Show help
 
 Common options:
-  -lib <dirs>       Use precompiled libraries (colon-separated, in dependency order)
-                    Example: -lib build/core:build/utils
-                    Stdlib is automatically loaded unless -no-stdlib is used
-  -no-stdlib        Disable automatic stdlib loading
+  -lib <dirs>              Use precompiled libraries (colon-separated, in dependency order)
+                           Example: -lib build/core:build/utils
+                           Stdlib is automatically loaded unless -no-stdlib is used
+  -no-stdlib               Disable automatic stdlib loading
+  -explicit-return-type    Require functions to have explicit return type
 
 Build options:
-  -js               Target JavaScript (output: .js)
-  -stack            Target native (stack machine)
-  -reg              Target native (register machine, default)
-  -o <file>         Output file
-  -layout <c1|c2>   Memory layout (stack machine only)
+  -js                      Target JavaScript (output: .js)
+  -stack                   Target linux-x86 native (stack machine)
+  -reg                     Target linux-x86 native (register machine, default)
+  -o <file>                Output file
+  -layout <c1|c2>          Memory layout (both native backends)
+  -link <source>=<target>  Link function calls (e.g., -link stk.Predef.entry=Test.main)
+  -runtime <dirs>          Path to runtime libraries (colon-separated, in dependency order)
+  -no-detect-main          Disable automatic main function detection
 
 Build-lib options:
-  -d <dir>          Output directory (default: current dir)
+  -d <dir>                 Output directory (default: current dir)
 ```
-
-### Environment Variables
-
-- `JO_HOME` - Set automatically by the `bin/jo` wrapper script to the project root directory
-
-## Testing 🧪
-
-Run the full test suite:
-```bash
-./ci
-```
-
-This runs:
-- Unit tests
-- Positive tests across all backends
-- Warning/error message tests
-- Negative tests with positional error markers
