@@ -64,7 +64,7 @@ echo "📦 Step 3: Compile User Application"
 bin/jo build -js \
   -no-detect-main \
   -link jo.Main.main=DatabaseRuntime.platformMain \
-  -link DatabaseRuntime.analyzeDocuments=UserApp.analyzeDocuments \
+  -link DatabaseAPI.analyzeDocuments=UserApp.analyzeDocuments \
   -lib "$SCRIPT_DIR/out/api" \
   -runtime "$SCRIPT_DIR/out/runtime" \
   "$SCRIPT_DIR/UserApp.jo" \

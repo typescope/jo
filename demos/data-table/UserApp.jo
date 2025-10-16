@@ -36,13 +36,13 @@ def analyzeDocuments: Unit receives stdout, db =
   if docs.isEmpty then
     println "No documents found."
   else
-    docs.foreach (doc =>
+    docs.foreach doc =>
       println ("📄 " + doc.title)
       println ("   ID: " + (intToStr doc.id))
       println ("   Created: " + doc.createdAt)
-      println ("   Preview: " + (takeFirstChars(doc.content, 50)) + "...")
+      println ("   Preview: " + doc.content.substring(0, 50) + "...")
       println ""
-    )
+
 
   // Show count
   val count = db.countMyDocuments()

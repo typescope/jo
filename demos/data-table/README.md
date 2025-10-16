@@ -264,7 +264,7 @@ Compiles the trusted runtime with SQLite access.
 bin/jo build -js \
   -no-detect-main \
   -link jo.Main.main=DatabaseRuntime.platformMain \
-  -link DatabaseRuntime.analyzeDocuments=UserApp.analyzeDocuments \
+  -link DatabaseAPI.analyzeDocuments=UserApp.analyzeDocuments \
   -lib out/api \
   -runtime out/runtime \
   UserApp.jo \
