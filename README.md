@@ -1,4 +1,14 @@
-# The Jo Programming Language 🛡️
+<h1 align="center"> 🛡 The Jo Programming Language️</h1>
+<h3 align="center">For the joy of secure programming</h3>
+
+<p align="center">
+  <a href="#features">Features</a> •
+  <a href="#demos">Demos</a> •
+  <a href="#examples">Examples</a> •
+  <a href="#usage">Usage</a>
+</p>
+
+---
 
 Jo is a secure programming language designed for securing LLM generated code.
 
@@ -6,6 +16,7 @@ Jo is a secure programming language designed for securing LLM generated code.
 - **Fine-grained control** - Precise control of authorization, e.g. only access certain rows of a data table
 - **Easy security auditing** - Statically checked authorities and clear security boundaries
 
+<a id="features"></a>
 ## Key Features ✨
 
 - **Extensible runtime** - Extend and customize the language runtime with a Jo library
@@ -17,6 +28,7 @@ Jo is a secure programming language designed for securing LLM generated code.
 - **Natural syntax**  - Prefix, infix, and postfix operators; two call styles `f(x)` and `f x`; indentation-based
 - **Multiple backends**  - Interpreter, JavaScript, native x86 Linux, and more are coming (Python, Java, Ruby)
 
+<a id="get-started"></a>
 ## Getting Started 🚀
 
 ```bash
@@ -31,6 +43,8 @@ bin/jo build tests/pos/hello.jo -o hello
 bin/jo build -js tests/pos/hello.jo -o hello.js
 node hello.js
 ```
+
+<a id="demos"></a>
 
 ## Demos 🎈
 
@@ -61,6 +75,8 @@ Alternative implementation using **context parameters** instead of deferred func
 - **Same security guarantees** with less verbose compilation flags
 
 Perfect comparison to understand when to use deferred functions vs context parameters for capability provision.
+
+<a id="examples"></a>
 
 ## Examples 💡
 
@@ -139,6 +155,7 @@ Explore complete examples showcasing Jo's features:
 - **[Regular Expressions](tests/pos/regex.jo)** - Pattern-based string matching
 - **[Parameter Boundaries](tests/warn/param-boundary.jo)** - Warning example showing parameter scope constraints
 
+<a id="usage"></a>
 
 ## Usage 🎯
 
@@ -205,6 +222,8 @@ bin/jo build app.jo -lib build/core:build/utils -o app
 ```bash
 bin/jo build -no-stdlib app.jo -o app
 ```
+
+<a id="help"></a>
 
 ## Command Reference 📖
 
