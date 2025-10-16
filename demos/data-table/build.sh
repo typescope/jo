@@ -77,7 +77,8 @@ echo ""
 
 # Initialize database
 echo "📊 Initializing database..."
-node "$SCRIPT_DIR/init-db.js" "$SCRIPT_DIR/database.db"
+DB_PATH="$SCRIPT_DIR/database.db"
+node "$SCRIPT_DIR/init-db.js" "$DB_PATH"
 echo "✅ Database initialized"
 echo ""
 
@@ -89,19 +90,19 @@ echo ""
 echo "=========================================="
 echo "Running as User 1 (Alice)"
 echo "=========================================="
-node "$SCRIPT_DIR/out/app.js" 1
+node "$SCRIPT_DIR/out/app.js" 1 "$DB_PATH"
 echo ""
 
 echo "=========================================="
 echo "Running as User 2 (Bob)"
 echo "=========================================="
-node "$SCRIPT_DIR/out/app.js" 2
+node "$SCRIPT_DIR/out/app.js" 2 "$DB_PATH"
 echo ""
 
 echo "=========================================="
 echo "Running as User 3 (Carol)"
 echo "=========================================="
-node "$SCRIPT_DIR/out/app.js" 3
+node "$SCRIPT_DIR/out/app.js" 3 "$DB_PATH"
 echo ""
 
 echo "✅ Demo complete!"

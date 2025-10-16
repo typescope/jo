@@ -13,10 +13,11 @@ import jo.runtime.JS.js
 import DatabaseAPI.Document
 
 //[
-Main entry point - reads userId from process.argv
+Main entry point - reads userId and dbPath from process.argv
 
 Security properties:
 - userId is read from command-line (process.argv[2])
+- dbPath is read from command-line (process.argv[3])
 - User code NEVER has access to process.argv
 - userId is captured in closures of db methods
 - User code CANNOT modify or inspect the userId
@@ -28,8 +29,8 @@ def platformMain: Unit receives stdout =
 
   if userIdStr == undefinedStr then
     println "❌ Error: userId not provided"
-    println "Usage: node out/app.js <userId>"
-    println "Example: node out/app.js 1"
+    println "Usage: node out/app.js <userId> <dbPath>"
+    println "Example: node out/app.js 1 database.db"
     abort "Missing userId argument"
 
   val userId: Int = js "parseInt(process.argv[2])"
@@ -41,12 +42,21 @@ def platformMain: Unit receives stdout =
     println ("Received: " + userIdStr)
     abort "Invalid userId argument"
 
+  // Read database path from command line - ABORT if not provided
+  val dbPath: String = js "process.argv[3]"
+
+  if dbPath == undefinedStr then
+    println "❌ Error: database path not provided"
+    println "Usage: node out/app.js <userId> <dbPath>"
+    println "Example: node out/app.js 1 database.db"
+    abort "Missing database path argument"
+
   println ("🔒 Running as User ID: " + (intToStr userId))
   println ""
 
   // Open SQLite database using node:sqlite (Node.js v22.5.0+)
   val DatabaseSync = js "require('node:sqlite').DatabaseSync"
-  val dbHandle = js "new DatabaseSync('database.db')"
+  val dbHandle = js "new DatabaseSync(dbPath)"
 
   // Helper: Execute SQL query with parameters and return results as JSON string
   def execQuery(sql: String, params: Any): String =
