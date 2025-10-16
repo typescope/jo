@@ -1,23 +1,20 @@
 # The Jo Programming Language 🚀
 
-Jo is a statically typed functional programming language designed for research and teaching language implementation.
+Jo is a statically typed programming language designed for securing LLM generated code.
+
+- **API Confinement** - LLM generated code is confined to custom-defined APIs
+- **Fine-Grained Control** - Precise control of authorization, e.g. access certain rows of a data table based on current user
+- **Security Auditing** - Absence of ambient authorities and clear security boundary facilitate security auditing
 
 ## Key Features ✨
 
+- **Extensible Runtime** - Extend and customize the language runtime with a Jo library
 - **Modular and composable** - No global variables; easier to compose and reuse
 - **Context parameters** - Contextual abstraction, optional parameters, and implicit resolution
 - **Effect system** - Fine-grained effect control with parametric effects
 - **Algebraic data types** - Extensible ADTs with pattern matching
 - **Pattern-oriented programming** - First-class patterns and higher-order patterns
 - **Natural syntax**  - Prefix, infix, and postfix operators; two call styles `f(x)` and `f x`; indentation-based
-- **Multiple backends**  - Interpreter, JavaScript, and native x86-64 Linux
-
-## Implementation
-
-- Written in Scala using scala-cli
-- Frontend: lexer, parser, type checker with inference
-- Multiple compilation backends with shared frontend
-- Comprehensive test suite across all backends
 
 ## Examples 💡
 
