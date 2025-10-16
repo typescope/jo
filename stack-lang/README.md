@@ -1,6 +1,6 @@
-# Stk
+# Jo
 
-Implementation of the language Stk.
+Implementation of the language Jo.
 
 
 ## Abstract Syntax

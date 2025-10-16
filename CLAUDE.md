@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is the implementation of **Stk**, a statically typed functional programming language with advanced type system features. The language is implemented in Scala and includes multiple compilation backends targeting JavaScript and native Linux/x86 code.
+This is the implementation of **Jo**, a statically typed functional programming language with advanced type system features. The language is implemented in Scala and includes multiple compilation backends targeting JavaScript and native Linux/x86 code.
 
 ## Development Commands
 

@@ -7,7 +7,7 @@ import typing.Inference
 import scala.reflect.ClassTag
 import scala.collection.mutable
 
-/** The type system of Stk  */
+/** The type system of Jo  */
 object Types:
   sealed abstract class Type:
     /** Approximate this type to its supertype by dealiasing and widening */
