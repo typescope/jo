@@ -1,14 +1,14 @@
----------- Error at ./tests/warn/effects-function.stk:15:24 ---------------
+---------- Error at ./tests/warn/effects-function.jo:15:24 ---------------
 |     def run() receives out, in, retry = out "run"
 |                        ^^^
 |                        Context parameter not allowed from expected type: out
 
----------- Error at ./tests/warn/effects-function.stk:15:29 ---------------
+---------- Error at ./tests/warn/effects-function.jo:15:29 ---------------
 |     def run() receives out, in, retry = out "run"
 |                             ^^
 |                             Context parameter not allowed from expected type: in
 
----------- Error at ./tests/warn/effects-function.stk:21:26 ---------------
+---------- Error at ./tests/warn/effects-function.jo:21:26 ---------------
 |     def apply() receives out = out "run"
 |                          ^^^
 |                          Context parameter not allowed from expected type: out

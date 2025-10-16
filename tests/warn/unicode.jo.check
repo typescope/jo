@@ -1,4 +1,4 @@
----------- Error at ./tests/warn/unicode.stk:8:12 ---------------
+---------- Error at ./tests/warn/unicode.jo:8:12 ---------------
 | def main = true + 3
 |            ^^^^
 |            Expect type Int, found = Bool

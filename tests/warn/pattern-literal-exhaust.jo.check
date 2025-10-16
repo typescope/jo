@@ -1,29 +1,29 @@
----------- Warning at ./tests/warn/pattern-literal-exhaust.stk:2:9 ---------------
+---------- Warning at ./tests/warn/pattern-literal-exhaust.jo:2:9 ---------------
 |   match x
 |         ^
 |         The match will fail for the case: Int
 
----------- Warning at ./tests/warn/pattern-literal-exhaust.stk:6:9 ---------------
+---------- Warning at ./tests/warn/pattern-literal-exhaust.jo:6:9 ---------------
 |   match x
 |         ^
 |         The match will fail for the case: String
 
----------- Warning at ./tests/warn/pattern-literal-exhaust.stk:10:9 ---------------
+---------- Warning at ./tests/warn/pattern-literal-exhaust.jo:10:9 ---------------
 |   match c
 |         ^
 |         The match will fail for the case: Char
 
----------- Warning at ./tests/warn/pattern-literal-exhaust.stk:14:9 ---------------
+---------- Warning at ./tests/warn/pattern-literal-exhaust.jo:14:9 ---------------
 |   match x
 |         ^
 |         The match will fail for the case: Byte
 
----------- Warning at ./tests/warn/pattern-literal-exhaust.stk:18:9 ---------------
+---------- Warning at ./tests/warn/pattern-literal-exhaust.jo:18:9 ---------------
 |   match x
 |         ^
 |         The match will fail for the case: false
 
----------- Warning at ./tests/warn/pattern-literal-exhaust.stk:22:9 ---------------
+---------- Warning at ./tests/warn/pattern-literal-exhaust.jo:22:9 ---------------
 |   match x
 |         ^
 |         The match will fail for the cases: #P(false, true), #P(true, false)

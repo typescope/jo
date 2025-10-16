@@ -1,4 +1,4 @@
----------- Error at ./tests/warn/pattern-syntax.stk:2:3 ---------------
+---------- Error at ./tests/warn/pattern-syntax.jo:2:3 ---------------
 |   x @ y
 |   ^
 |   expect CASE, found = Ident(x)

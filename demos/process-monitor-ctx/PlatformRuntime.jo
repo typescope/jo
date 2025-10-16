@@ -1,4 +1,4 @@
-// PlatformRuntime.stk
+// PlatformRuntime.jo
 // Platform runtime providing context parameter implementations
 // Uses real Node.js APIs via js intrinsic
 

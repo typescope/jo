@@ -1,4 +1,4 @@
-// UserApp.stk
+// UserApp.jo
 // User application analyzing system processes using context parameters
 // Only has access to capabilities provided via context
 

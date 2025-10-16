@@ -19,7 +19,7 @@ The `defer` keyword indicates that this function has no implementation in the cu
 Use the `-link` compiler option to bind deferred functions to their implementations:
 
 ```bash
-bin/jo build myapp.stk -link Source.deferredFunc=Target.concreteFunc -o myapp
+bin/jo build myapp.jo -link Source.deferredFunc=Target.concreteFunc -o myapp
 ```
 
 The syntax is: `-link <deferred-function-path>=<implementation-path>`
@@ -63,7 +63,7 @@ Deferred functions can optionally provide default implementations. If no `-link`
 Frameworks can define abstract operations that users implement:
 
 ```stk
-// framework.stk
+// framework.jo
 namespace Framework
 
 defer def init(): Unit
@@ -78,7 +78,7 @@ def runApp: Unit =
 ```
 
 ```stk
-// implementation.stk
+// implementation.jo
 namespace MyApp
 
 def init(): Unit = println "Starting..."
@@ -93,7 +93,7 @@ bin/jo build -no-detect-main \
   -link Framework.init=MyApp.init \
   -link Framework.process=MyApp.process \
   -link Framework.cleanup=MyApp.cleanup \
-  framework.stk implementation.stk -o app
+  framework.jo implementation.jo -o app
 ```
 
 ### Dependency Injection
@@ -101,7 +101,7 @@ bin/jo build -no-detect-main \
 Abstract away dependencies for testing or modularity:
 
 ```stk
-// service.stk
+// service.jo
 namespace Service
 
 defer def getDatabase(): Database
@@ -118,13 +118,13 @@ Link to different implementations for production vs. testing:
 
 ```bash
 # Production
-bin/jo build service.stk \
+bin/jo build service.jo \
   -link Service.getDatabase=Production.PostgresDB \
   -link Service.getLogger=Production.FileLogger \
   -o service-prod
 
 # Testing
-bin/jo build service.stk \
+bin/jo build service.jo \
   -link Service.getDatabase=Testing.MockDB \
   -link Service.getLogger=Testing.MemoryLogger \
   -o service-test
@@ -145,7 +145,7 @@ def startup: Unit =
 
 Compile with:
 ```bash
-bin/jo build myapp.stk -no-detect-main -link stk.Main.main=MyApp.startup -o myapp
+bin/jo build myapp.jo -no-detect-main -link stk.Main.main=MyApp.startup -o myapp
 ```
 
 This is particularly useful for:
@@ -229,12 +229,12 @@ Deferred functions work seamlessly with separate compilation:
 
 1. Build framework as a library:
    ```bash
-   bin/jo build-lib framework.stk -d lib/
+   bin/jo build-lib framework.jo -d lib/
    ```
 
 2. Build application linking to framework:
    ```bash
-   bin/jo build app.stk -lib lib/ \
+   bin/jo build app.jo -lib lib/ \
      -link Framework.func=App.impl \
      -o app
    ```
@@ -262,7 +262,7 @@ Link across different namespaces and modules:
 bin/jo build \
   -link Framework.Core.init=Plugins.SQLite.initialize \
   -link Framework.Core.query=Plugins.SQLite.executeQuery \
-  framework.stk plugins.stk -o app
+  framework.jo plugins.jo -o app
 ```
 
 ## Error Handling

@@ -21,14 +21,14 @@ Jo is a secure programming language designed for securing LLM generated code.
 
 ```bash
 # Run a program (interpreter)
-bin/jo tests/pos/hello.stk
+bin/jo tests/pos/hello.jo
 
 # Build x86 linux native executable
-bin/jo build tests/pos/hello.stk -o hello
+bin/jo build tests/pos/hello.jo -o hello
 ./hello
 
 # Build JavaScript
-bin/jo build -js tests/pos/hello.stk -o hello.js
+bin/jo build -js tests/pos/hello.jo -o hello.js
 node hello.js
 ```
 
@@ -131,13 +131,13 @@ def main =
 
 Explore complete examples showcasing Jo's features:
 
-- **[Expression Problem](tests/pos/expression-problem.stk)** - Extensible ADTs demonstrating Jo's solution to the expression problem
-- **[Pattern Matching](tests/pos/pattern.stk)** - Advanced pattern matching with guards and nested patterns
-- **[Pattern Sequences](tests/pos/pattern-seq.stk)** - Pattern matching on sequences and lists
-- **[Context Parameters](tests/pos/param-render.stk)** - Contextual abstraction and implicit parameter passing
-- **[Varargs](tests/pos/vararg.stk)** - Variable-length argument lists
-- **[Regular Expressions](tests/pos/regex.stk)** - Pattern-based string matching
-- **[Parameter Boundaries](tests/warn/param-boundary.stk)** - Warning example showing parameter scope constraints
+- **[Expression Problem](tests/pos/expression-problem.jo)** - Extensible ADTs demonstrating Jo's solution to the expression problem
+- **[Pattern Matching](tests/pos/pattern.jo)** - Advanced pattern matching with guards and nested patterns
+- **[Pattern Sequences](tests/pos/pattern-seq.jo)** - Pattern matching on sequences and lists
+- **[Context Parameters](tests/pos/param-render.jo)** - Contextual abstraction and implicit parameter passing
+- **[Varargs](tests/pos/vararg.jo)** - Variable-length argument lists
+- **[Regular Expressions](tests/pos/regex.jo)** - Pattern-based string matching
+- **[Parameter Boundaries](tests/warn/param-boundary.jo)** - Warning example showing parameter scope constraints
 
 
 ## Usage 🎯
@@ -148,10 +148,10 @@ The `jo` command provides a unified interface to all compiler backends:
 
 ```bash
 # Run directly (defaults to interpreter, stdlib loaded automatically)
-bin/jo tests/pos/fact.stk
+bin/jo tests/pos/fact.jo
 
 # Or explicitly use the run command
-bin/jo run tests/pos/fact.stk
+bin/jo run tests/pos/fact.jo
 ```
 
 ### Build Applications
@@ -160,19 +160,19 @@ The standard library is automatically loaded for all commands.
 
 **Build native executable (register machine - fastest, default):**
 ```bash
-bin/jo build tests/pos/fact.stk -o fact
+bin/jo build tests/pos/fact.jo -o fact
 ./fact
 ```
 
 **Build native executable (stack machine):**
 ```bash
-bin/jo build -stack tests/pos/fact.stk -o fact
+bin/jo build -stack tests/pos/fact.jo -o fact
 ./fact
 ```
 
 **Build JavaScript application:**
 ```bash
-bin/jo build -js tests/pos/fact.stk -o fact.js
+bin/jo build -js tests/pos/fact.jo -o fact.js
 node fact.js
 ```
 
@@ -180,39 +180,39 @@ node fact.js
 
 **Build a custom library (generates .sast files):**
 ```bash
-bin/jo build-lib lib/MyLib.stk -d build/mylib
+bin/jo build-lib lib/MyLib.jo -d build/mylib
 ```
 
 **Build a library that depends on another library:**
 ```bash
-bin/jo build-lib lib/Extensions.stk -lib build/mylib -d build/extensions
+bin/jo build-lib lib/Extensions.jo -lib build/mylib -d build/extensions
 ```
 
 **Use custom libraries (stdlib is still automatically loaded):**
 ```bash
-bin/jo build app.stk -lib build/mylib -o app
+bin/jo build app.jo -lib build/mylib -o app
 ./app
 ```
 
 **Use multiple libraries (colon-separated, in dependency order):**
 ```bash
 # Core depends on nothing, Utils depends on Core, App depends on both
-bin/jo build app.stk -lib build/core:build/utils -o app
+bin/jo build app.jo -lib build/core:build/utils -o app
 ./app
 ```
 
 **Disable automatic stdlib loading:**
 ```bash
-bin/jo build -no-stdlib app.stk -o app
+bin/jo build -no-stdlib app.jo -o app
 ```
 
 ## Command Reference 📖
 
 ```
-jo <file.stk>                       Run program (default)
-jo run [options] <file.stk>         Run with interpreter
-jo build [options] <file.stk>       Build executable/JavaScript
-jo build-lib [options] <file.stk>   Build library (.sast files)
+jo <file.jo>                       Run program (default)
+jo run [options] <file.jo>         Run with interpreter
+jo build [options] <file.jo>       Build executable/JavaScript
+jo build-lib [options] <file.jo>   Build library (.sast files)
 jo help                             Show help
 
 Common options:

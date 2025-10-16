@@ -5,7 +5,7 @@ This directory contains integration tests that demonstrate end-to-end workflows 
 ## Structure
 
 Each test is in its own subdirectory containing:
-- Source files (`.stk`)
+- Source files (`.jo`)
 - `test.sh` - Test script that builds and runs the test
 - `expect.check` - Expected output (if applicable)
 

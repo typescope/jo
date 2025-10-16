@@ -1,4 +1,4 @@
----------- Error at ./tests/warn/unclosed-string-empty-newline.stk:1:23 ---------------
+---------- Error at ./tests/warn/unclosed-string-empty-newline.jo:1:23 ---------------
 | def test(): String = "
 |                       ^
 |                       Missing closing double quote

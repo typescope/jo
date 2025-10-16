@@ -9,7 +9,7 @@ import native.runtime.NativeRuntime
 /** This phase lowers Array and String to native runtime calls
   *
   * This phase assumes the following support functions defined in
-  * runtime/native/Core.stk:
+  * runtime/native/Core.jo:
   *
   *     fun Array_create(size: Int): Any =
   *     fun Array_size(arr: Any): Int = ...

@@ -21,13 +21,13 @@ This is an alternative implementation of the system monitor demo using **context
 
 ```
 ┌─────────────────────┐
-│   UserApp.stk       │  User code (untrusted)
+│   UserApp.jo        │  User code (untrusted)
 │ (Process Analyzer)  │  - receives process, logger
 └──────────┬──────────┘  - Uses context params only
            │ receives
            ▼
 ┌─────────────────────┐
-│  PlatformAPI.stk    │  Pure world (interface)
+│  PlatformAPI.jo     │  Pure world (interface)
 │                     │  - type Process = { ... }
 │  param process      │  - type System = { ... }
 │  param system       │  - param declarations
@@ -36,7 +36,7 @@ This is an alternative implementation of the system monitor demo using **context
            │ provided by
            ▼
 ┌─────────────────────┐
-│ PlatformRuntime.stk │  Runtime world (trusted)
+│ PlatformRuntime.jo  │  Runtime world (trusted)
 │  platformMain       │  - startMonitor with process = { ... }
 └──────────┬──────────┘  - Uses js intrinsic for Node.js
            │ uses
@@ -49,7 +49,8 @@ This is an alternative implementation of the system monitor demo using **context
 
 ## Files
 
-### PlatformAPI.stk
+### PlatformAPI.jo
+
 Declares capability types and context parameters:
 
 ```stk
@@ -78,7 +79,7 @@ param system: System
 param logger: Logger
 ```
 
-### PlatformRuntime.stk
+### PlatformRuntime.jo
 Provides context via `with` clause:
 
 ```stk
@@ -106,7 +107,7 @@ def platformMain: Unit receives stdout =
 
 **Key technique**: All capabilities provided in a single `with` expression.
 
-### UserApp.stk
+### UserApp.jo
 Receives context parameters:
 
 ```stk
@@ -129,12 +130,12 @@ User code **cannot**:
 
 ### Stage 1: Compile Platform API
 ```bash
-bin/jo build-lib PlatformAPI.stk -d out/api
+bin/jo build-lib PlatformAPI.jo -d out/api
 ```
 
 ### Stage 2: Compile Platform Runtime
 ```bash
-bin/jo build-lib PlatformRuntime.stk \
+bin/jo build-lib PlatformRuntime.jo \
   -lib libs/runtime-js:out/api \
   -d out/runtime
 ```
@@ -147,7 +148,7 @@ bin/jo build -js \
   -link SystemAPI.Monitor.analyzeSystem=ProcessAnalyzer.Analysis.analyzeSystem \
   -lib out/api \
   -runtime out/runtime \
-  UserApp.stk \
+  UserApp.jo \
   -o out/monitor.js
 ```
 

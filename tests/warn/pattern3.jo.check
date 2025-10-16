@@ -1,24 +1,24 @@
----------- Error at ./tests/warn/pattern3.stk:9:13 ---------------
+---------- Error at ./tests/warn/pattern3.jo:9:13 ---------------
 |     case s: Refined => // error
 |             ^^^^^^^
 |             The pattern type #Student(name: String, year: Int, sex: Bool) should not have more parameters than the scrutinee type #Student(name: String, year: Int). 
 
----------- Error at ./tests/warn/pattern3.stk:14:13 ---------------
+---------- Error at ./tests/warn/pattern3.jo:14:13 ---------------
 |     case s: Refined => // error
 |             ^^^^^^^
 |             The pattern type #Student(name: String, year: Int, sex: Bool) should not have more parameters than the scrutinee type #Student(name: String, year: Int). 
 
----------- Error at ./tests/warn/pattern3.stk:17:13 ---------------
+---------- Error at ./tests/warn/pattern3.jo:17:13 ---------------
 |     case t: #Teacher(name: String, year: Int, subject: String, sex: Bool) => // error
 |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 |             The pattern type #Teacher(name: String, year: Int, subject: String, sex: Bool) should not have more parameters than the scrutinee type #Teacher(name: String, year: Int, subject: String). 
 
----------- Error at ./tests/warn/pattern3.stk:23:13 ---------------
+---------- Error at ./tests/warn/pattern3.jo:23:13 ---------------
 |     case _: Staff => // error
 |             ^^^^^
 |             The pattern type #Teacher(name: String) is not equal to the scrutinee type Teacher. Non-algebraic or nested type need to be equal to the scrutinee type. 
 
----------- Error at ./tests/warn/pattern3.stk:32:13 ---------------
+---------- Error at ./tests/warn/pattern3.jo:32:13 ---------------
 |     case _: StaffB => // error
 |             ^^^^^^
 |             The pattern type #Teacher(name: String, year: Int, subject: String, sex: Bool) is not equal to the scrutinee type Teacher. Non-algebraic or nested type need to be equal to the scrutinee type. 

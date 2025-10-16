@@ -13,15 +13,15 @@ rm -rf "$BUILD" "$DIR/actual.out" "$DIR"/*.run "$DIR"/*.js
 
 # Build the database interface library
 echo "  - Building database library"
-bin/jo build-lib "$DIR/database.stk" -d "$BUILD/database"
+bin/jo build-lib "$DIR/database.jo" -d "$BUILD/database"
 
 # Build the service library (depends on database interface)
 echo "  - Building service library"
-bin/jo build-lib "$DIR/service.stk" -lib "$BUILD/database" -d "$BUILD/service"
+bin/jo build-lib "$DIR/service.jo" -lib "$BUILD/database" -d "$BUILD/service"
 
 # Build the mock implementation library
 echo "  - Building mock database library"
-bin/jo build-lib "$DIR/mockdb.stk" -lib "$BUILD/database" -d "$BUILD/mockdb"
+bin/jo build-lib "$DIR/mockdb.jo" -lib "$BUILD/database" -d "$BUILD/mockdb"
 
 # Link flags to inject mock database into service
 LINK_FLAGS="-link Database.connect=MockDB.connect \
@@ -31,7 +31,7 @@ LINK_FLAGS="-link Database.connect=MockDB.connect \
 
 # Test with interpreter
 echo "  - Running with interpreter"
-bin/jo run "$DIR/app.stk" -lib "$BUILD/database:$BUILD/service:$BUILD/mockdb" $LINK_FLAGS > "$DIR/actual.out" 2>&1
+bin/jo run "$DIR/app.jo" -lib "$BUILD/database:$BUILD/service:$BUILD/mockdb" $LINK_FLAGS > "$DIR/actual.out" 2>&1
 diff "$DIR/actual.out" "$DIR/expect.check" || {
     echo "[error] Interpreter test failed for $TEST_NAME"
     exit 1
@@ -39,7 +39,7 @@ diff "$DIR/actual.out" "$DIR/expect.check" || {
 
 # Test with register machine
 echo "  - Building with register machine"
-bin/jo build -reg "$DIR/app.stk" -lib "$BUILD/database:$BUILD/service:$BUILD/mockdb" $LINK_FLAGS -o "$DIR/app.run"
+bin/jo build -reg "$DIR/app.jo" -lib "$BUILD/database:$BUILD/service:$BUILD/mockdb" $LINK_FLAGS -o "$DIR/app.run"
 "$DIR/app.run" > "$DIR/actual.out" 2>&1
 diff "$DIR/actual.out" "$DIR/expect.check" || {
     echo "[error] Register machine test failed for $TEST_NAME"
@@ -48,7 +48,7 @@ diff "$DIR/actual.out" "$DIR/expect.check" || {
 
 # Test with stack machine
 echo "  - Building with stack machine"
-bin/jo build -stack "$DIR/app.stk" -lib "$BUILD/database:$BUILD/service:$BUILD/mockdb" $LINK_FLAGS -o "$DIR/app.run"
+bin/jo build -stack "$DIR/app.jo" -lib "$BUILD/database:$BUILD/service:$BUILD/mockdb" $LINK_FLAGS -o "$DIR/app.run"
 "$DIR/app.run" > "$DIR/actual.out" 2>&1
 diff "$DIR/actual.out" "$DIR/expect.check" || {
     echo "[error] Stack machine test failed for $TEST_NAME"
@@ -57,7 +57,7 @@ diff "$DIR/actual.out" "$DIR/expect.check" || {
 
 # Test with JavaScript
 echo "  - Building with JavaScript"
-bin/jo build -js "$DIR/app.stk" -lib "$BUILD/database:$BUILD/service:$BUILD/mockdb" $LINK_FLAGS -o "$DIR/app.js"
+bin/jo build -js "$DIR/app.jo" -lib "$BUILD/database:$BUILD/service:$BUILD/mockdb" $LINK_FLAGS -o "$DIR/app.js"
 node "$DIR/app.js" > "$DIR/actual.out" 2>&1
 diff "$DIR/actual.out" "$DIR/expect.check" || {
     echo "[error] JavaScript test failed for $TEST_NAME"

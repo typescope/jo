@@ -1,4 +1,4 @@
----------- Error at ./tests/warn/auto-ambiguity.stk:9:12 ---------------
+---------- Error at ./tests/warn/auto-ambiguity.jo:9:12 ---------------
 | def main = foo
 |            ^^^
 |            Ambiguous autos, multiple candidates satisfy the auto type A: AutoAmbiguity.diverge, AutoAmbiguity.A.

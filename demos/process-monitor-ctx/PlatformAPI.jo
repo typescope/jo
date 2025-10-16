@@ -1,4 +1,4 @@
-// PlatformAPI.stk
+// PlatformAPI.jo
 // Platform API using context parameters instead of deferred functions
 // Declares capability types as object interfaces
 

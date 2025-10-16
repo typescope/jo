@@ -1,19 +1,19 @@
----------- Error at ./tests/warn/string-escape.stk:3:19 ---------------
+---------- Error at ./tests/warn/string-escape.jo:3:19 ---------------
 |   print "Invalid: \p"
 |                   ^^
 |                   Unknown escape sequence: \p
 
----------- Error at ./tests/warn/string-escape.stk:4:19 ---------------
+---------- Error at ./tests/warn/string-escape.jo:4:19 ---------------
 |   print "Invalid: \k"
 |                   ^^
 |                   Unknown escape sequence: \k
 
----------- Error at ./tests/warn/string-escape.stk:5:19 ---------------
+---------- Error at ./tests/warn/string-escape.jo:5:19 ---------------
 |   print "Invalid: \x"
 |                   ^^
 |                   Unknown escape sequence: \x
 
----------- Error at ./tests/warn/string-escape.stk:6:19 ---------------
+---------- Error at ./tests/warn/string-escape.jo:6:19 ---------------
 |   print "Invalid: \1"
 |                   ^^
 |                   Unknown escape sequence: \1

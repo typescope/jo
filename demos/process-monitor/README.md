@@ -15,19 +15,19 @@ User code analyzes live system processes without direct access to Node.js.
 
 ```
 ┌─────────────────────┐
-│   UserApp.stk       │  User code (untrusted)
+│   UserApp.jo        │  User code (untrusted)
 │ (Process Analyzer)  │  - Analyzes process list
 └──────────┬──────────┘  - Searches for specific processes
            │ imports     - Only uses SystemAPI capabilities
            ▼
 ┌─────────────────────┐
-│  PlatformAPI.stk    │  Pure world (interface)
+│  PlatformAPI.jo     │  Pure world (interface)
 │ (System Monitor API)│  - Process.listProcesses()
 └──────────┬──────────┘  - System.platform(), uptime()
            │ implemented by
            ▼
 ┌─────────────────────┐
-│ PlatformRuntime.stk │  Runtime world (trusted)
+│ PlatformRuntime.jo  │  Runtime world (trusted)
 │  (Node.js interop)  │  - Uses js intrinsic
 └──────────┬──────────┘  - Calls Node.js child_process, os
            │ uses
@@ -40,7 +40,7 @@ User code analyzes live system processes without direct access to Node.js.
 
 ## Files
 
-### PlatformAPI.stk
+### PlatformAPI.jo
 Declares system monitoring capabilities:
 
 ```stk
@@ -60,7 +60,7 @@ section System
 end
 ```
 
-### PlatformRuntime.stk
+### PlatformRuntime.jo
 **Real Node.js implementation** using `js` intrinsic:
 
 ```stk
@@ -87,7 +87,7 @@ def getCurrentPID(): Int receives stdout =
 
 **Key technique**: Import `stk.runtime.JS.js` to use the `js` intrinsic, which executes JavaScript code and interoperates with Node.js.
 
-### UserApp.stk
+### UserApp.jo
 Process analyzer using only SystemAPI:
 
 ```stk
@@ -117,14 +117,14 @@ User code **can only**:
 
 ### Stage 1: Compile Platform API
 ```bash
-bin/jo build-lib PlatformAPI.stk -d out/api
+bin/jo build-lib PlatformAPI.jo -d out/api
 ```
 
 Creates pure interface declarations.
 
 ### Stage 2: Compile Platform Runtime (The Key Step)
 ```bash
-bin/jo build-lib PlatformRuntime.stk \
+bin/jo build-lib PlatformRuntime.jo \
   -lib libs/runtime-js:out/api \
   -d out/runtime
 ```
@@ -141,7 +141,7 @@ bin/jo build -js \
   ... (all capability mappings) \
   -lib out/api \
   -runtime out/runtime \
-  UserApp.stk \
+  UserApp.jo \
   -o out/monitor.js
 ```
 
@@ -194,7 +194,7 @@ Process List Analysis:
 
 ## How the `js` Intrinsic Works
 
-From `runtime/JS.stk`:
+From `runtime/JS.jo`:
 ```stk
 def js(s: String): Bottom = abort("primitive js")
 ```

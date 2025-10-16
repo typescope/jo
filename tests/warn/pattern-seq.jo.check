@@ -1,19 +1,19 @@
----------- Error at ./tests/warn/pattern-seq.stk:7:15 ---------------
+---------- Error at ./tests/warn/pattern-seq.jo:7:15 ---------------
 |       val c = _ys
 |               ^^^
 |               Undefined term identifier _ys
 
----------- Warning at ./tests/warn/pattern-seq.stk:12:9 ---------------
+---------- Warning at ./tests/warn/pattern-seq.jo:12:9 ---------------
 |   match a
 |         ^
 |         The match will fail for the case: List[Int]
 
----------- Warning at ./tests/warn/pattern-seq.stk:15:9 ---------------
+---------- Warning at ./tests/warn/pattern-seq.jo:15:9 ---------------
 |   match a
 |         ^
 |         The match will fail for the case: List[Int] of size = 0
 
----------- Warning at ./tests/warn/pattern-seq.stk:19:14 ---------------
+---------- Warning at ./tests/warn/pattern-seq.jo:19:14 ---------------
 |     case [x, y*, Pos*] =>
 |              ^
 |              * pattern shadows the following head pattern, potentially makes the next pattern unreachable.
@@ -22,7 +22,7 @@
 |     case [x, y*, Pos*] =>
 |                  ^^^
 
----------- Error at ./tests/warn/pattern-seq.stk:23:14 ---------------
+---------- Error at ./tests/warn/pattern-seq.jo:23:14 ---------------
 |     case [x, ..y, Pos] =>
 |              ^^^
 |              .. may only be used in the last position of a sequence pattern

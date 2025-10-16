@@ -1,4 +1,4 @@
----------- Error at ./tests/warn/unclosed-string-empty-eof.stk:1:22 ---------------
+---------- Error at ./tests/warn/unclosed-string-empty-eof.jo:1:22 ---------------
 | def test(): String = "
 |                      ^
 |                      Unclosed string literal

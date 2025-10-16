@@ -39,8 +39,8 @@ object Main:
       case "help" | "--help" | "-h" =>
         printUsage()
 
-      case file if file.endsWith(".stk") =>
-        // Default to run if a .stk file is provided directly
+      case file if file.endsWith(".jo") =>
+        // Default to run if a .jo file is provided directly
         sast.Interpreter.main(args)
 
       case _ =>
@@ -82,10 +82,10 @@ object Main:
 
   def printUsage(): Unit =
     println("""Usage:
-      |  jo <source.stk>                     Run program (defaults to 'run')
-      |  jo run <source.stk>                 Run program with interpreter
-      |  jo build [options] <source.stk>     Build application
-      |  jo build-lib [options] <source.stk> Build library (generate .sast files)
+      |  jo <source.jo>                      Run program (defaults to 'run')
+      |  jo run <source.jo>                  Run program with interpreter
+      |  jo build [options] <source.jo>      Build application
+      |  jo build-lib [options] <source.jo>  Build library (generate .sast files)
       |  jo help                             Show this help message
       |
       |Build options:

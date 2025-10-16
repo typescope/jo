@@ -1,4 +1,4 @@
----------- Error at ./tests/warn/aliases2/A.stk:3:17 ---------------
+---------- Error at ./tests/warn/aliases2/A.jo:3:17 ---------------
 | alias def foo = B.Nested.foo
 |                 ^^^^^^^^^^^^
 |                 Cannot alias another alias

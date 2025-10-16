@@ -1,59 +1,59 @@
----------- Error at ./tests/warn/call.stk:2:12 ---------------
+---------- Error at ./tests/warn/call.jo:2:12 ---------------
 |   (f 3) && println "hello"
 |            ^^^^^^^^^^^^^^^
 |            Expect type Bool, found = Unit
 
----------- Error at ./tests/warn/call.stk:5:3 ---------------
+---------- Error at ./tests/warn/call.jo:5:3 ---------------
 |   f 3 && println "hello"
 |   ^^^^^^^^^^^^^^^^^^^^^^
 |   The function expects 1 argument(s), found = 4
 
----------- Error at ./tests/warn/call.stk:14:3 ---------------
+---------- Error at ./tests/warn/call.jo:14:3 ---------------
 |   foo 3
 |   ^^^
 |   Function foo expects 2 post argument(s), found = 1
 
----------- Error at ./tests/warn/call.stk:16:3 ---------------
+---------- Error at ./tests/warn/call.jo:16:3 ---------------
 |   foo 3 4 5
 |   ^^^^^^^
 |   Found extra value, an expression should produce a single value
 
----------- Error at ./tests/warn/call.stk:18:3 ---------------
+---------- Error at ./tests/warn/call.jo:18:3 ---------------
 |   foo(3, 4, 5)
 |   ^^^^^^^^^^^^
 |   The function expects 2 argument(s), found = 3
 
----------- Error at ./tests/warn/call.stk:20:3 ---------------
+---------- Error at ./tests/warn/call.jo:20:3 ---------------
 |   foo(2)
 |   ^^^^^^
 |   The function expects 2 argument(s), found = 1
 
----------- Error at ./tests/warn/call.stk:22:3 ---------------
+---------- Error at ./tests/warn/call.jo:22:3 ---------------
 |   2 bar(3)
 |   ^
 |   Found extra value, an expression should produce a single value
 
----------- Error at ./tests/warn/call.stk:22:5 ---------------
+---------- Error at ./tests/warn/call.jo:22:5 ---------------
 |   2 bar(3)
 |     ^^^
 |     The postfix call syntax cannot be used, as the function takes prefix arguments
 
----------- Error at ./tests/warn/call.stk:23:5 ---------------
+---------- Error at ./tests/warn/call.jo:23:5 ---------------
 |   4 bar 3
 |     ^^^
 |     Vararg functions not allowed in expression syntax except being the first item.
 
----------- Error at ./tests/warn/call.stk:23:3 ---------------
+---------- Error at ./tests/warn/call.jo:23:3 ---------------
 |   4 bar 3
 |   ^^^^^
 |   Found extra value, an expression should produce a single value
 
----------- Error at ./tests/warn/call.stk:25:3 ---------------
+---------- Error at ./tests/warn/call.jo:25:3 ---------------
 |   qux 4
 |   ^^^^^
 |   The function expects at least 2 argument(s), found = 1
 
----------- Error at ./tests/warn/call.stk:26:3 ---------------
+---------- Error at ./tests/warn/call.jo:26:3 ---------------
 |   qux(3)
 |   ^^^^^^
 |   The function expects at least 2 argument(s), found = 1

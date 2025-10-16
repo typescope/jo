@@ -21,7 +21,7 @@ object Test:
     assert(dir.exists(), s"the directory $dirPath does not exist")
     dir.listFiles.foldLeft(List.empty[String]) { case (inputs, f) =>
       val name = f.getName
-      if (name.endsWith(".stk") || f.isDirectory) f.getPath :: inputs
+      if (name.endsWith(".jo") || f.isDirectory) f.getPath :: inputs
       else inputs
     }
 
@@ -31,7 +31,7 @@ object Test:
 
     val sourceFiles =
       if IO.isFile(test) then test :: Nil
-      else IO.list(test).filter(_.endsWith(".stk"))
+      else IO.list(test).filter(_.endsWith(".jo"))
 
     try
       val rootNameTable = new NameTable
