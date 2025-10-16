@@ -15,8 +15,8 @@ User code **never sees the userId** and cannot bypass the filtering.
 
 ```
 ┌──────────────────┐
-│   UserApp.jo     │  UNTRUSTED: Queries documents
-│                  │  - NO access to userId
+│                  │  UNTRUSTED: Queries documents
+│    UserApp.jo    │  - NO access to userId
 │                  │  - NO direct SQL access
 │                  │  - receives db only
 └────────┬─────────┘
