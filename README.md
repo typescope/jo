@@ -50,31 +50,33 @@ node hello.js
 
 Real-world applications demonstrating Jo's capability-based security model:
 
-### Process Monitor (Deferred Functions version)
+### System Monitor
 
-**Location**: `demos/process-monitor/`
+**Location**: `demos/process-monitor-ctx/`
 
 A system monitoring application that extends Jo's JavaScript runtime with real Node.js capabilities (child_process, os module).
 
 - **Runtime extension** using the `-runtime` flag and `js` intrinsic
-- **Deferred functions** for explicit capability declarations
+- **Context parameters** for capability provision via typed objects
+- **Object-oriented API design** with capability grouping (Process, System, Logger)
 - **Three-stage compilation** (API → Runtime → User code)
 - **Security confinement** - user code analyzes system processes without direct Node.js access
 
 Shows how platforms can expose controlled system APIs (process listing, memory usage, system info) to untrusted user code while preventing arbitrary command execution.
 
-### Process Monitor (Context Parameters version)
+### Data Table Access Control
 
-**Location**: `demos/process-monitor-ctx/`
+**Location**: `demos/data-table/`
 
-Alternative implementation using **context parameters** instead of deferred functions.
+A database application demonstrating **row-level security** with SQLite, where different users can only access their own database rows.
 
-- **Object-oriented API design** with capability grouping (Process, System, Logger)
-- **Statically checked ambient capabilities** via `param` declarations
-- **Concise linking** - requires only 2 link flags vs 15+ in deferred approach
-- **Same security guarantees** with less verbose compilation flags
+- **Command-line arguments** for userId and database path (hidden from user code)
+- **Closure-based security** - userId captured in runtime closures
+- **Automatic query filtering** - all SQL queries filtered by `WHERE owner_id = ?`
+- **Type-safe database interface** - user code cannot write raw SQL
+- **Compiler-enforced security** - impossible to bypass filtering, even with malicious code
 
-Perfect comparison to understand when to use deferred functions vs context parameters for capability provision.
+Demonstrates application-level row-level security where arguments are completely hidden from untrusted code, and the type system prevents bypassing security controls.
 
 <a id="examples"></a>
 

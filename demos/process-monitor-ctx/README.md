@@ -1,21 +1,6 @@
-# System Monitor: Context Parameters Approach
+# System Monitor Demo
 
-This is an alternative implementation of the system monitor demo using **context parameters** instead of deferred functions. It demonstrates how platforms can provide capabilities through ambient context.
-
-## Key Differences from Deferred Functions Approach
-
-### Deferred Functions (`process-monitor`)
-- Capabilities declared as `defer def` functions
-- Each capability mapped individually via `-link` flags
-- Platform implements each deferred function separately
-- More explicit, more `-link` flags needed
-
-### Context Parameters (`process-monitor-ctx`)
-- Capabilities declared as **object types** with methods
-- Context parameters declared with `param name: Type`
-- Platform provides implementations via `with` clause
-- Single entry point link, capabilities flow through context
-- More concise linking
+This demo demonstrates how platforms can provide system capabilities through **context parameters**. It shows how user code can access process information, system details, and logging functionality through a type-safe capability interface without direct access to Node.js APIs.
 
 ## Architecture
 
@@ -152,7 +137,7 @@ bin/jo build -js \
   -o out/monitor.js
 ```
 
-**Notice**: Only **2 link flags** needed (vs. 15+ in deferred functions approach)!
+**Notice**: Only **2 link flags** needed for the entire demo!
 
 ## Running
 
@@ -161,72 +146,23 @@ cd demos/process-monitor-ctx
 ./build.sh
 ```
 
-Output is identical to the deferred functions version.
-
-## Comparison: Deferred Functions vs Context Parameters
-
-| Aspect | Deferred Functions | Context Parameters |
-|--------|-------------------|-------------------|
-| **Capability Declaration** | `defer def func(): Type` | `type T = { ... }; param p: T` |
-| **Implementation** | Individual function implementations | Object with all methods |
-| **Linking** | One `-link` per capability | One `-link` for entry point |
-| **Provision** | Compiler links at build time | Runtime provides via `with` |
-| **User Code** | Calls deferred functions directly | Accesses via context parameter |
-| **Verbosity** | More `-link` flags | Fewer `-link` flags |
-| **Grouping** | Functions grouped logically | Naturally grouped in objects |
-| **Type Safety** | Function signatures | Object types |
-
-## When to Use Each Approach
-
-### Use Deferred Functions When:
-- You want fine-grained control over each capability
-- Capabilities are independent functions
-- Platform may provide different implementations per function
-- Explicit linking is preferred for auditing
-
-### Use Context Parameters When:
-- Capabilities are naturally grouped (Process, System, Logger)
-- You want less verbose linking
-- Ambient capabilities make sense (logging, configuration)
-- Object-oriented API design fits better
-
 ## Security Properties
 
-Both approaches provide identical security:
+Context parameters provide strong security guarantees:
 
 1. **User code cannot access undeclared capabilities**
-   - Deferred: Can only call declared `defer def` functions
-   - Context: Can only access declared `param` objects
+   - Can only access declared `param` objects
 
 2. **Platform controls implementations**
-   - Deferred: Via `-link` mappings
-   - Context: Via `with` clause in runtime
+   - Via `with` clause in runtime
 
 3. **Type-safe capability access**
-   - Both enforce type signatures at compile time
+   - Enforced at compile time
 
 4. **No runtime surprises**
-   - Both resolve at compile/link time
+   - Resolves at compile/link time
    - Zero runtime overhead
-
-## Advanced: Mixing Both Approaches
-
-You can combine deferred functions and context parameters:
-
-```jo
-// Some capabilities via deferred functions
-defer def criticalOp(): Int
-
-// Other capabilities via context
-param logger: Logger
-
-def userFunc(): Int receives logger =
-  logger.info("Calling critical operation")
-  criticalOp()  // Deferred function
-```
-
-This gives maximum flexibility for platform designers.
 
 ## Key Takeaway
 
-Context parameters provide a more **object-oriented** and **concise** approach to capability provision, reducing linking verbosity while maintaining the same security guarantees as deferred functions. Choose based on your API design preferences and whether capabilities naturally group into objects.
+Context parameters provide an **object-oriented** and **concise** approach to capability provision. Capabilities are naturally grouped into typed objects (Process, System, Logger), reducing linking verbosity while maintaining strong security guarantees. The platform controls all implementations, and user code can only access capabilities explicitly declared in the API.
