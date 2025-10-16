@@ -59,17 +59,3 @@ def analyzeDocuments: Unit receives stdout, db =
       println ("✅ Successfully accessed document #1: " + doc.title)
     case None =>
       println "❌ Document #1 not found or not accessible"
-
-section Helpers
-  // Take first n characters from a string
-  def takeFirstChars(s: String, n: Int): String =
-    if s.size <= n then
-      s
-    else
-      var result = ""
-      var i = 0
-      while i < n do
-        result = result + (charToStr (s.get i))
-        i = i + 1
-      result
-end
