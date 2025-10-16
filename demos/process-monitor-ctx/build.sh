@@ -33,7 +33,7 @@ echo "  - Provides context via 'with' clause"
 echo "  - Links to PlatformAPI interface"
 echo "  - Links to JS runtime for I/O"
 bin/jo build-lib "$SCRIPT_DIR/PlatformRuntime.stk" \
-  -lib libs/runtime/js:"$SCRIPT_DIR/out/api" \
+  -lib libs/runtime-js:"$SCRIPT_DIR/out/api" \
   -d "$SCRIPT_DIR/out/runtime"
 echo "✓ PlatformRuntime compiled to: out/runtime/"
 echo ""
