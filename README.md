@@ -2,13 +2,13 @@
 
 Jo is a secure programming language designed for securing LLM generated code.
 
-- **API Confinement** - LLM generated code is confined to custom-defined application-level APIs
-- **Fine-Grained Control** - Precise control of authorization, e.g. access certain rows of a data table for current user
-- **Security Auditing** - Statically checked authorities and clear security boundaries
+- **API confinement** - LLM generated code is confined to custom-defined application-level APIs
+- **Fine-grained control** - Precise control of authorization, e.g. access certain rows of a data table
+- **Easy security auditing** - Statically checked authorities and clear security boundaries
 
 ## Key Features ✨
 
-- **Extensible Runtime** - Extend and customize the language runtime with a Jo library
+- **Extensible runtime** - Extend and customize the language runtime with a Jo library
 - **Modular and composable** - No global variables; easier to compose and reuse
 - **Context parameters** - Contextual abstraction, optional parameters, and implicit resolution
 - **Effect system** - Fine-grained effect control with parametric effects
