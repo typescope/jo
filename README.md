@@ -9,7 +9,7 @@ Jo is a secure programming language designed for securing LLM generated code.
 ## Key Features ✨
 
 - **Extensible runtime** - Extend and customize the language runtime with a Jo library
-- **No global variables** - Safe and easy to compose and reuse
+- **No global variables** - Safe and easy to compose and for reuse
 - **Context parameters** - Contextual abstraction, optional parameters, and implicit resolution
 - **Effect system** - Fine-grained effect control with parametric effects
 - **Algebraic data types** - Extensible ADTs with pattern matching
