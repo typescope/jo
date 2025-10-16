@@ -124,93 +124,23 @@ Explore complete examples showcasing Jo's features:
 - **[Regular Expressions](tests/pos/regex.stk)** - Pattern-based string matching
 - **[Parameter Boundaries](tests/warn/param-boundary.stk)** - Warning example showing parameter scope constraints
 
-## Build 🔨
+## Getting Started 🚀
 
-First install [scala-cli](https://scala-cli.virtuslab.org/), then build the compiler and standard library:
-
+**Quick start:**
 ```bash
-# Build JAR launcher (default, faster build)
-./build
+# Run a program (interpreter)
+bin/jo tests/pos/hello.stk
 
-# Or build native launcher (slower build, faster startup)
-./build -native
+# Build native executable
+bin/jo build tests/pos/hello.stk -o hello
+./hello
+
+# Build JavaScript
+bin/jo build -js tests/pos/hello.stk -o hello.js
+node hello.js
 ```
 
-This creates:
-- `bin/jo` - Unified compiler launcher (wrapper script)
-- `bin/jo.jar` - JAR executable (default build)
-- `bin/jo.native` - Native executable (with `-native` flag)
-- `sast/stdlib/` - Precompiled standard library (.sast files)
-- `sast/runtime/js/` - JavaScript runtime library
-- `sast/runtime/native/` - Native runtime library
-
-## Usage 📖
-
-The `jo` command provides a unified interface to all compiler backends:
-
-### Run Programs (Interpreter)
-
-```bash
-# Run directly (defaults to interpreter, stdlib loaded automatically)
-bin/jo tests/pos/fact.stk
-
-# Or explicitly use the run command
-bin/jo run tests/pos/fact.stk
-```
-
-### Build Applications
-
-The standard library is automatically loaded for all commands.
-
-Build native executable (register machine - fastest, default):
-```bash
-bin/jo build tests/pos/fact.stk -o fact
-./fact
-```
-
-Build native executable (stack machine):
-```bash
-bin/jo build -stack tests/pos/fact.stk -o fact
-./fact
-```
-
-Build JavaScript application:
-```bash
-bin/jo build -js tests/pos/fact.stk -o fact.js
-node fact.js
-```
-
-### Build Libraries
-
-Build a custom library (generates .sast files):
-```bash
-bin/jo build-lib lib/MyLib.stk -d build/mylib
-```
-
-Build a library that depends on another library:
-```bash
-bin/jo build-lib lib/Extensions.stk -lib build/mylib -d build/extensions
-```
-
-Use custom libraries (stdlib is still automatically loaded):
-```bash
-bin/jo build app.stk -lib build/mylib -o app
-./app
-```
-
-Use multiple libraries (colon-separated, in dependency order):
-```bash
-# Core depends on nothing, Utils depends on Core, App depends on both
-bin/jo build app.stk -lib build/core:build/utils -o app
-./app
-```
-
-Disable automatic stdlib loading:
-```bash
-bin/jo build -no-stdlib app.stk -o app
-```
-
-### Command Reference
+## Command Reference
 
 ```
 jo <file.stk>                       Run program (default)
@@ -239,20 +169,3 @@ Build options:
 Build-lib options:
   -d <dir>                 Output directory (default: current dir)
 ```
-
-### Environment Variables
-
-- `JO_HOME` - Set automatically by the `bin/jo` wrapper script to the project root directory
-
-## Testing 🧪
-
-Run the full test suite:
-```bash
-./ci
-```
-
-This runs:
-- Unit tests
-- Positive tests across all backends
-- Warning/error message tests
-- Negative tests with positional error markers
