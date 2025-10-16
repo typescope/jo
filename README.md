@@ -78,6 +78,21 @@ A database application demonstrating **row-level security** with SQLite, where d
 
 It shows how a user-aware runtime can enforce row-level access control and automatically filtering all database queries, making it impossible for user code to access data belonging to other users.
 
+### Data Table with Query DSL
+
+**Location**: `demos/data-table-query/`
+
+An extension of the data-table demo that adds **flexible custom filter conditions** while maintaining row-level security.
+
+- **Query DSL** - Type-safe expression builder using infix operators (`like`, `>`, `&&`, `||`)
+- **Atomic operators** - Composable building blocks (Eq, Like, Gt, Lt, And, Or)
+- **Schema-driven API** - Typed column references via `getSchema()`
+- **SQL-level filtering** - Efficient for large datasets (no in-memory filtering)
+- **Pattern matching** - Runtime translates query AST to parameterized SQL
+- **Automatic security** - User conditions always ANDed with `WHERE owner_id = ?`
+
+It shows how to provide expressive query capabilities while maintaining security: users can build complex filters like `(table.title like "%Report%") && (table.createdAt > str("2024-01-15"))`, but the runtime always enforces row-level access control.
+
 <a id="examples"></a>
 
 ## Examples 💡

@@ -1,0 +1,157 @@
+//[
+DatabaseAPI.jo
+Database API with custom query filter support
+
+Demonstrates how to provide a safe and flexible query DSL for expressing
+filter conditions while maintaining row-level security.
+//]
+
+namespace DatabaseAPI
+
+import jo.IO.stdout
+
+//[
+Document type representing a row in the documents table
+//]
+type Document = {
+  id: Int,
+  title: String,
+  content: String,
+  ownerId: Int,
+  createdAt: String
+}
+
+//[
+Query DSL Types
+//]
+
+//[
+Value types for query parameters
+//]
+data Value = IntValue(v: Int) | StringValue(v: String)
+
+//[
+Filter condition for building WHERE clauses
+
+Atomic building blocks that compose into complex queries:
+- Eq: column = value
+- Like: column LIKE pattern
+- Gt/Lt/Gte/Lte: comparison operators
+- And/Or: logical composition
+//]
+data Cond =
+    Eq(col: Column, value: Value)
+  | Like(col: Column, pat: String)
+  | Gt(col: Column, value: Value)
+  | Lt(col: Column, value: Value)
+  | Gte(col: Column, value: Value)
+  | Lte(col: Column, value: Value)
+  | And(left: Cond, right: Cond)
+  | Or(left: Cond, right: Cond)
+
+//[
+Column reference with table context
+//]
+data Column(name: String, table: String)
+
+//[
+Schema providing typed column access
+
+Instead of using string literals, users get typed column references
+from the schema which makes the API discoverable and type-safe.
+//]
+data Table(
+  name: String,
+  title: Column,
+  content: Column,
+  ownerId: Column,
+  createdAt: Column
+)
+
+//[
+Database interface with query DSL support
+
+All queries automatically scoped to current user via owner_id filtering.
+Custom filter conditions are ANDed with the owner_id check.
+//]
+type DB = {
+  //[
+  Get the database schema with typed column access
+  //]
+  def getSchema(): Table
+
+  //[
+  Query all documents belonging to the current user
+  //]
+  def queryMyDocuments(): List[Document]
+
+  //[
+  Query documents with custom filter condition
+  Automatically scoped to current user (owner_id check is always applied)
+  //]
+  def queryWhere(condition: Cond): List[Document]
+
+  //[
+  Get a specific document by ID (returns None if not owned by current user)
+  //]
+  def getMyDocument(id: Int): Option[Document]
+
+  //[
+  Count documents belonging to the current user
+  //]
+  def countMyDocuments(): Int
+
+  //[
+  Count documents matching filter condition
+  Automatically scoped to current user (owner_id check is always applied)
+  //]
+  def countWhere(condition: Cond): Int
+}
+
+//[
+Context parameter: database access capability
+
+Provided by the runtime with row-level security enforced
+//]
+param db: DB
+
+//[
+Query DSL - Operators for building filter conditions
+
+These infix operators provide a natural syntax for building queries:
+
+Example:
+  val table = db.getSchema()
+  val cond = (table.title like "%report%") && (table.createdAt > str("2024-01-01"))
+  val docs = db.queryWhere(cond)
+//]
+section QueryDSL
+  //[
+  Comparison operators
+  //]
+  def (col: Column) === (v: Value): Cond = Eq(col, v)
+  def (col: Column) like (pat: String): Cond = Like(col, pat)
+  def (col: Column) > (v: Value): Cond = Gt(col, v)
+  def (col: Column) < (v: Value): Cond = Lt(col, v)
+  def (col: Column) >= (v: Value): Cond = Gte(col, v)
+  def (col: Column) <= (v: Value): Cond = Lte(col, v)
+
+  //[
+  Logical operators
+  //]
+  def (left: Cond) && (right: Cond): Cond = And(left, right)
+  def (left: Cond) || (right: Cond): Cond = Or(left, right)
+
+  //[
+  Value constructors
+  //]
+  def str(s: String): Value = StringValue(s)
+  def int(n: Int): Value = IntValue(n)
+end
+
+//[
+User implements this to analyze documents
+
+Receives db capability which provides filtered database access
+//]
+defer def analyzeDocuments(): Unit receives stdout, db

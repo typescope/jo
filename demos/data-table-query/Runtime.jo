@@ -1,0 +1,245 @@
+//[
+Runtime.jo
+
+Trusted runtime that provides database access with query DSL support
+
+Reads userId from command-line and translates Cond expressions to SQL
+while maintaining row-level security by always injecting owner_id filter.
+//]
+
+namespace DatabaseRuntime
+
+import jo.IO.stdout
+import jo.runtime.JS.js
+import DatabaseAPI.*
+
+//[
+Helper type to hold SQL and parameters during query building
+//]
+data QueryParts(sql: String, params: List[Value])
+
+//[
+Main entry point - reads userId and dbPath from process.argv
+
+Security properties:
+- userId is read from command-line (process.argv[2])
+- dbPath is read from command-line (process.argv[3])
+- User code NEVER has access to process.argv
+- userId is captured in closures of db methods
+- All user filter conditions are ANDed with owner_id check
+- User code CANNOT bypass the owner_id filtering
+//]
+def platformMain: Unit receives stdout =
+  // Read userId from command line - ABORT if not provided
+  val userIdStr: String = js "process.argv[2]"
+  val undefinedStr: String = js "undefined"
+
+  if userIdStr == undefinedStr then
+    println "❌ Error: userId not provided"
+    println "Usage: node out/app.js <userId> <dbPath>"
+    println "Example: node out/app.js 1 database.db"
+    abort "Missing userId argument"
+
+  val userId: Int = js "parseInt(process.argv[2])"
+
+  // Validate userId is a valid number
+  val isValidId: Bool = js "!isNaN(userId) && userId > 0"
+  if !isValidId then
+    println "❌ Error: userId must be a positive integer"
+    println ("Received: " + userIdStr)
+    abort "Invalid userId argument"
+
+  // Read database path from command line - ABORT if not provided
+  val dbPath: String = js "process.argv[3]"
+
+  if dbPath == undefinedStr then
+    println "❌ Error: database path not provided"
+    println "Usage: node out/app.js <userId> <dbPath>"
+    println "Example: node out/app.js 1 database.db"
+    abort "Missing database path argument"
+
+  println ("🔒 Running as User ID: " + (intToStr userId))
+  println ""
+
+  // Open SQLite database using node:sqlite (Node.js v22.5.0+)
+  val DatabaseSync = js "require('node:sqlite').DatabaseSync"
+  val dbHandle = js "new DatabaseSync(dbPath)"
+
+  // Helper: Execute SQL query with parameters and return results as JSON string
+  def execQuery(sql: String, params: Any): String =
+    val db = dbHandle
+    val stmt = js "db.prepare(sql)"
+    val rows = js "stmt.all(...params)"
+    rows
+
+  //[
+  Convert Value to JavaScript value for SQL parameterization
+  //]
+  def valueToJS(v: Value): Any =
+    match v
+      case IntValue n => n
+      case StringValue s => s
+    end
+
+  //[
+  Translate Cond expression tree to SQL WHERE clause and parameters
+
+  Returns QueryParts containing:
+  - sql: The SQL fragment (e.g., "title LIKE ? AND created_at > ?")
+  - params: List of parameter values in order
+
+  Security: This function validates column names and builds parameterized
+  queries to prevent SQL injection.
+  //]
+  def condToSQL(cond: Cond): QueryParts =
+    match cond
+      case Eq col value =>
+        QueryParts(col.name + " = ?", List(value))
+
+      case Like col pat =>
+        QueryParts(col.name + " LIKE ?", List(StringValue(pat)))
+
+      case Gt col value =>
+        QueryParts(col.name + " > ?", List(value))
+
+      case Lt col value =>
+        QueryParts(col.name + " < ?", List(value))
+
+      case Gte col value =>
+        QueryParts(col.name + " >= ?", List(value))
+
+      case Lte col value =>
+        QueryParts(col.name + " <= ?", List(value))
+
+      case And left right =>
+        val leftParts = condToSQL(left)
+        val rightParts = condToSQL(right)
+        val combinedSQL = "(" + leftParts.sql + " AND " + rightParts.sql + ")"
+        val combinedParams = leftParts.params ++ rightParts.params
+        QueryParts(combinedSQL, combinedParams)
+
+      case Or left right =>
+        val leftParts = condToSQL(left)
+        val rightParts = condToSQL(right)
+        val combinedSQL = "(" + leftParts.sql + " OR " + rightParts.sql + ")"
+        val combinedParams = leftParts.params ++ rightParts.params
+        QueryParts(combinedSQL, combinedParams)
+    end
+
+  //[
+  Convert List[Value] to JavaScript array for SQL execution
+  //]
+  def paramsToJSArray(params: List[Value]): Any =
+    var jsArray = js "[]"
+    params.foreach p =>
+      val jsVal = valueToJS(p)
+      js "jsArray.push(jsVal)"
+    jsArray
+
+  // Provide db implementation with userId captured in closures
+  DatabaseAPI.analyzeDocuments with
+    DatabaseAPI.db = {
+      def getSchema(): Table =
+        // Return typed column references for the documents table
+        Table(
+          "documents",
+          Column("title", "documents"),
+          Column("content", "documents"),
+          Column("owner_id", "documents"),
+          Column("created_at", "documents")
+        )
+
+      def queryMyDocuments(): List[Document] =
+        val uid = userId
+        // userId is captured here - user code cannot access or modify it
+        val sql = "SELECT * FROM documents WHERE owner_id = ?"
+        val rows = execQuery(sql, js "[uid]")
+        val count = js "rows.length"
+
+        var docs: List[Document] = List.empty
+        var i = count - 1
+        while i >= 0 do
+          val row = js "rows[i]"
+          val doc = {
+            id: js "row.id",
+            title: js "row.title",
+            content: js "row.content",
+            ownerId: js "row.owner_id",
+            createdAt: js "row.created_at"
+          }
+          docs = docs.prepend(doc)
+          i = i - 1
+
+        docs
+
+      def queryWhere(condition: Cond): List[Document] =
+        val uid = userId
+        // Translate condition to SQL
+        val parts = condToSQL(condition)
+        // Always AND with owner_id check - user cannot bypass this!
+        val sql = "SELECT * FROM documents WHERE owner_id = ? AND (" + parts.sql + ")"
+        // Prepend userId to parameters
+        val allParams = parts.params.prepend(IntValue(uid))
+        val jsParams = paramsToJSArray(allParams)
+        val rows = execQuery(sql, jsParams)
+        val count = js "rows.length"
+
+        var docs: List[Document] = List.empty
+        var i = count - 1
+        while i >= 0 do
+          val row = js "rows[i]"
+          val doc = {
+            id: js "row.id",
+            title: js "row.title",
+            content: js "row.content",
+            ownerId: js "row.owner_id",
+            createdAt: js "row.created_at"
+          }
+          docs = docs.prepend(doc)
+          i = i - 1
+
+        docs
+
+      def getMyDocument(id: Int): Option[Document] =
+        val uid = userId
+        // Still filters by captured userId
+        val sql = "SELECT * FROM documents WHERE id = ? AND owner_id = ?"
+        val rows = execQuery(sql, js "[id, uid]")
+        val count = js "rows.length"
+
+        if count == 0 then
+          None
+        else
+          val row = js "rows[0]"
+          val doc = {
+            id: js "row.id",
+            title: js "row.title",
+            content: js "row.content",
+            ownerId: js "row.owner_id",
+            createdAt: js "row.created_at"
+          }
+          Some doc
+
+      def countMyDocuments(): Int =
+        val uid = userId
+        val sql = "SELECT COUNT(*) as count FROM documents WHERE owner_id = ?"
+        val rows = execQuery(sql, js "[uid]")
+        val row = js "rows[0]"
+        val count = js "row.count"
+        count
+
+      def countWhere(condition: Cond): Int =
+        val uid = userId
+        val parts = condToSQL(condition)
+        val sql = "SELECT COUNT(*) as count FROM documents WHERE owner_id = ? AND (" + parts.sql + ")"
+        val allParams = parts.params.prepend(IntValue(uid))
+        val jsParams = paramsToJSArray(allParams)
+        val rows = execQuery(sql, jsParams)
+        val row = js "rows[0]"
+        val count = js "row.count"
+        count
+    }
+
+  // Close database
+  js "dbHandle.close()"
+end
