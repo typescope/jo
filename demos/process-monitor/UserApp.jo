@@ -1,13 +1,12 @@
 // UserApp.jo
-// User application analyzing system processes
-// Only has access to capabilities from SystemAPI
+// User application analyzing system processes using context parameters
+// Only has access to capabilities provided via context
 
 namespace ProcessAnalyzer
 
 import jo.IO.stdout
-import SystemAPI.Process
-import SystemAPI.System
-import SystemAPI.Logging
+import SystemAPI.process
+import SystemAPI.logger
 
 // ============================================
 // Process Analysis Logic
@@ -58,38 +57,38 @@ section Analysis
     result
 
   // Main analysis function
-  def analyzeSystem(): Unit receives stdout =
+  def analyzeSystem(): Unit receives stdout, process, logger =
     println "📊 === Process Analysis ==="
     println ""
 
     // Get total process count
-    val totalProcs = Process.countProcesses()
+    val totalProcs = process.countProcesses()
     println ("📈 Total running processes: " + (intToStr totalProcs))
     println ""
 
     // Show first 10 processes
     println "🔝 Top 10 processes:"
     println "-----------------"
-    val procList = Process.listProcesses()
+    val procList = process.listProcesses()
     val preview = firstLines(procList, 11)  // header + 10 lines
     print preview
     println ""
 
     // Look for specific processes
     println "🔎 Searching for common processes..."
-    val nodePid = Process.findByName("node")
+    val nodePid = process.findByName("node")
     if nodePid >= 0 then
       println ("✓ Found node process: PID " + (intToStr nodePid))
     else
       println "✗ No node process found"
 
-    val bashPid = Process.findByName("bash")
+    val bashPid = process.findByName("bash")
     if bashPid >= 0 then
       println ("✓ Found bash process: PID " + (intToStr bashPid))
     else
       println "✗ No bash process found"
 
-    val systemdPid = Process.findByName("systemd")
+    val systemdPid = process.findByName("systemd")
     if systemdPid >= 0 then
       println ("✓ Found systemd process: PID " + (intToStr systemdPid))
     else
@@ -113,5 +112,5 @@ section Analysis
       println "✗ No Node.js processes found"
 
     println ""
-    Logging.debug("✨ Analysis complete")
+    logger.debug("✨ Analysis complete")
 end

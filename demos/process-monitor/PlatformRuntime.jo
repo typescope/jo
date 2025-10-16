@@ -1,86 +1,80 @@
 // PlatformRuntime.jo
-// Platform runtime using real Node.js APIs via js intrinsic
-// Implements system monitoring capabilities
+// Platform runtime providing context parameter implementations
+// Uses real Node.js APIs via js intrinsic
 
 namespace SystemRuntime
 
 import jo.IO.stdout
 import jo.runtime.JS.js
+import SystemAPI.*
+import SystemAPI.Monitor.startMonitor
 
 // ============================================
-// Process Monitoring Implementation
+// Main Entry Point
 // ============================================
 
-section ProcessImpl
-  // Get list of running processes using ps command
-  def listProcesses(): String receives stdout =
-    val output = js "require('child_process').execSync('ps aux').toString()"
-    output
+def platformMain: Unit receives stdout =
+  startMonitor with
+    process = {
+      // Get list of running processes using ps command
+      def listProcesses(): String =
+        val output = js "require('child_process').execSync('ps aux').toString()"
+        output
 
-  // Count running processes
-  def countProcesses(): Int receives stdout =
-    val output = js "require('child_process').execSync('ps aux | wc -l').toString()"
-    val countStr = js "output.trim()"
-    val count = js "parseInt(countStr, 10)"
-    count - 1  // Subtract header line
+      // Count running processes
+      def countProcesses(): Int =
+        val output = js "require('child_process').execSync('ps aux | wc -l').toString()"
+        val countStr = js "output.trim()"
+        val count = js "parseInt(countStr, 10)"
+        count - 1  // Subtract header line
 
-  // Find process by name, return PID or -1
-  def findByName(processName: String): Int receives stdout =
-    val command = "pgrep -n " + processName  // -n = newest
-    var result = ""
-    js "try { result = require('child_process').execSync(command).toString().trim()} catch (e) { result = '-1' }"
-    val pid = js "parseInt(result, 10)"
-    pid
+      // Find process by name, return PID or -1
+      def findByName(processName: String): Int =
+        val command = "pgrep -n " + processName  // -n = newest
+        var result = ""
+        js "try { result = require('child_process').execSync(command).toString().trim()} catch (e) { result = '-1' }"
+        val pid = js "parseInt(result, 10)"
+        pid
 
-  // Get current Node.js process PID
-  def getCurrentPID(): Int receives stdout =
-    val pid = js "process.pid"
-    pid
+      // Get current Node.js process PID
+      def getCurrentPID(): Int =
+        val pid = js "process.pid"
+        pid
 
-  // Get current process memory usage in MB
-  def getCurrentMemoryMB(): Int receives stdout =
-    val memBytes = js "process.memoryUsage().heapUsed"
-    val memMB = js "Math.round(memBytes / (1024 * 1024))"
-    memMB
-end
+      // Get current process memory usage in MB
+      def getCurrentMemoryMB(): Int =
+        val memBytes = js "process.memoryUsage().heapUsed"
+        val memMB = js "Math.round(memBytes / (1024 * 1024))"
+        memMB
+    },
+    system = {
+      // Get system uptime in seconds
+      def uptime(): Int =
+        val uptimeSeconds = js "require('os').uptime()"
+        val rounded = js "Math.round(uptimeSeconds)"
+        rounded
 
-// ============================================
-// System Information Implementation
-// ============================================
+      // Get platform (linux, darwin, win32, etc.)
+      def platform(): String =
+        val plat = js "require('os').platform()"
+        plat
 
-section SystemImpl
-  // Get system uptime in seconds
-  def uptime(): Int receives stdout =
-    val uptimeSeconds = js "require('os').uptime()"
-    val rounded = js "Math.round(uptimeSeconds)"
-    rounded
+      // Get CPU architecture
+      def arch(): String =
+        val architecture = js "require('os').arch()"
+        architecture
 
-  // Get platform (linux, darwin, win32, etc.)
-  def platform(): String receives stdout =
-    val plat = js "require('os').platform()"
-    plat
+      // Get hostname
+      def hostname(): String =
+        val host = js "require('os').hostname()"
+        host
+    },
+    logger = {
+      def info(message: String): Unit =
+        print "[INFO] "
+        println message
 
-  // Get CPU architecture
-  def arch(): String receives stdout =
-    val architecture = js "require('os').arch()"
-    architecture
-
-  // Get hostname
-  def hostname(): String receives stdout =
-    val host = js "require('os').hostname()"
-    host
-end
-
-// ============================================
-// Logging Implementation
-// ============================================
-
-section LoggingImpl
-  def info(message: String): Unit receives stdout =
-    print "[INFO] "
-    println message
-
-  def debug(message: String): Unit receives stdout =
-    print "[DEBUG] "
-    println message
-end
+      def debug(message: String): Unit =
+        print "[DEBUG] "
+        println message
+    }

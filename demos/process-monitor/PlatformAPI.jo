@@ -1,51 +1,59 @@
 // PlatformAPI.jo
-// Platform-provided system monitoring API
-// Declares capabilities for process and system information
+// Platform API using context parameters instead of deferred functions
+// Declares capability types as object interfaces
 
 namespace SystemAPI
 
 import jo.IO.stdout
 
 // ============================================
-// Process Monitoring Capabilities
+// Capability Type Definitions
 // ============================================
 
-section Process
+type Process = {
   // Get list of running processes (returns formatted string)
-  defer def listProcesses(): String receives stdout
+  def listProcesses(): String
 
   // Get count of running processes
-  defer def countProcesses(): Int receives stdout
+  def countProcesses(): Int
 
   // Get process info by name (returns PID or -1 if not found)
-  defer def findByName(processName: String): Int receives stdout
+  def findByName(processName: String): Int
 
   // Get current Node.js process info
-  defer def getCurrentPID(): Int receives stdout
-  defer def getCurrentMemoryMB(): Int receives stdout
-end
+  def getCurrentPID(): Int
+  def getCurrentMemoryMB(): Int
+}
 
-section System
+type System = {
   // Get system uptime in seconds
-  defer def uptime(): Int receives stdout
+  def uptime(): Int
 
   // Get platform (linux, darwin, win32)
-  defer def platform(): String receives stdout
+  def platform(): String
 
   // Get CPU architecture
-  defer def arch(): String receives stdout
+  def arch(): String
 
   // Get hostname
-  defer def hostname(): String receives stdout
-end
+  def hostname(): String
+}
 
-section Logging
+type Logger = {
   // Log info message
-  defer def info(message: String): Unit receives stdout
+  def info(message: String): Unit
 
   // Log debug message
-  defer def debug(message: String): Unit receives stdout
-end
+  def debug(message: String): Unit
+}
+
+// ============================================
+// Context Parameter Declarations
+// ============================================
+
+param process: Process
+param system: System
+param logger: Logger
 
 // ============================================
 // Framework Entry Point
@@ -53,19 +61,19 @@ end
 
 section Monitor
   // User implements this to analyze system data
-  defer def analyzeSystem(): Unit receives stdout
+  defer def analyzeSystem(): Unit receives stdout, process, logger
 
   // Platform-controlled entry point
-  def startMonitor: Unit receives stdout =
-    Logging.info("🚀 System Monitor Starting...")
-    Logging.info("=========================")
+  def startMonitor: Unit receives stdout, process, system, logger =
+    logger.info("🚀 System Monitor Starting...")
+    logger.info("=========================")
     println ""
 
     // Show system info
-    val platform = System.platform()
-    val arch = System.arch()
-    val hostname = System.hostname()
-    val uptime = System.uptime()
+    val platform = system.platform()
+    val arch = system.arch()
+    val hostname = system.hostname()
+    val uptime = system.uptime()
 
     println ("💻 Platform: " + platform)
     println ("🏗️  Architecture: " + arch)
@@ -74,15 +82,15 @@ section Monitor
     println ""
 
     // Show current process info
-    val pid = Process.getCurrentPID()
-    val mem = Process.getCurrentMemoryMB()
+    val pid = process.getCurrentPID()
+    val mem = process.getCurrentMemoryMB()
     println ("🔢 Current Process PID: " + (intToStr pid))
     println ("💾 Current Process Memory: " + (intToStr mem) + " MB")
     println ""
 
     // Let user analyze processes
-    Logging.info("🔍 Running user analysis...")
+    logger.info("🔍 Running user analysis...")
     analyzeSystem()
 
-    Logging.info("✅ Monitor shutting down")
+    logger.info("✅ Monitor shutting down")
 end

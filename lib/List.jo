@@ -17,6 +17,8 @@ class List[T]
 
   def size: Int = _size
 
+  def isEmpty: Bool = size == 0
+
   def get(i: Int): T =
     if either (i < 0) (i > size) then errorIndex i
 
