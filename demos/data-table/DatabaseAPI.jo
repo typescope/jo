@@ -1,0 +1,54 @@
+//[
+DatabaseAPI.jo
+Pure interface for database access with row-level security
+User code receives this via context parameters
+//]
+
+namespace DatabaseAPI
+
+//[
+Document type representing a row in the documents table
+//]
+type Document = {
+  val id: Int
+  val title: String
+  val content: String
+  val ownerId: Int
+  val createdAt: String
+}
+
+//[
+Database interface - all queries automatically scoped to current user
+
+The runtime captures the userId from command-line arguments and
+provides implementations that filter all queries by owner_id.
+
+User code CANNOT:
+- Access the userId directly
+- Bypass the owner_id filtering
+- Write raw SQL queries
+- Access documents belonging to other users
+//]
+type DB = {
+  //[
+  Query all documents belonging to the current user
+  //]
+  def queryMyDocuments(): List[Document]
+
+  //[
+  Get a specific document by ID (returns None if not owned by current user)
+  //]
+  def getMyDocument(id: Int): Option[Document]
+
+  //[
+  Count documents belonging to the current user
+  //]
+  def countMyDocuments(): Int
+}
+
+//[
+Context parameter: database access capability
+
+Provided by the runtime with row-level security enforced
+//]
+param db: DB
