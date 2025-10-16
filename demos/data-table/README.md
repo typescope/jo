@@ -55,11 +55,11 @@ Defines types and context parameter:
 
 ```jo
 type Document = {
-  val id: Int
-  val title: String
-  val content: String
-  val ownerId: Int
-  val createdAt: String
+  id: Int
+  title: String
+  content: String
+  ownerId: Int
+  createdAt: String
 }
 
 type DB = {

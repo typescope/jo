@@ -70,11 +70,11 @@ def platformMain: Unit receives stdout =
         while i >= 0 do
           val row = js "rows[i]"
           val doc = {
-            val id = js "row.id"
-            val title = js "row.title"
-            val content = js "row.content"
-            val ownerId = js "row.owner_id"
-            val createdAt = js "row.created_at"
+            id: js "row.id",
+            title: js "row.title",
+            content: js "row.content",
+            ownerId: js "row.owner_id",
+            createdAt: js "row.created_at"
           }
           docs = docs.prepend(doc)
           i = i - 1
@@ -93,11 +93,11 @@ def platformMain: Unit receives stdout =
         else
           val row = js "rows[0]"
           val doc = {
-            val id = js "row.id"
-            val title = js "row.title"
-            val content = js "row.content"
-            val ownerId = js "row.owner_id"
-            val createdAt = js "row.created_at"
+            id: js "row.id",
+            title: js "row.title",
+            content: js "row.content",
+            ownerId: js "row.owner_id",
+            createdAt: js "row.created_at"
           }
           Some doc
 
