@@ -17,6 +17,22 @@ Jo is a statically typed programming language designed for securing LLM generate
 - **Natural syntax**  - Prefix, infix, and postfix operators; two call styles `f(x)` and `f x`; indentation-based
 - **Multiple backends**  - Interpreter, JavaScript, native x86 Linux, and more are coming (Python, Java, Ruby)
 
+## Getting Started 🚀
+
+**Quick start:**
+```bash
+# Run a program (interpreter)
+bin/jo tests/pos/hello.stk
+
+# Build native executable
+bin/jo build tests/pos/hello.stk -o hello
+./hello
+
+# Build JavaScript
+bin/jo build -js tests/pos/hello.stk -o hello.js
+node hello.js
+```
+
 ## Demos 🎯
 
 Real-world applications demonstrating Jo's capability-based security model:
@@ -124,20 +140,71 @@ Explore complete examples showcasing Jo's features:
 - **[Regular Expressions](tests/pos/regex.stk)** - Pattern-based string matching
 - **[Parameter Boundaries](tests/warn/param-boundary.stk)** - Warning example showing parameter scope constraints
 
-## Getting Started 🚀
 
-**Quick start:**
+## Usage
+
+The `jo` command provides a unified interface to all compiler backends:
+
+### Run Programs (Interpreter)
+
 ```bash
-# Run a program (interpreter)
-bin/jo tests/pos/hello.stk
+# Run directly (defaults to interpreter, stdlib loaded automatically)
+bin/jo tests/pos/fact.stk
 
-# Build native executable
-bin/jo build tests/pos/hello.stk -o hello
-./hello
+# Or explicitly use the run command
+bin/jo run tests/pos/fact.stk
+```
 
-# Build JavaScript
-bin/jo build -js tests/pos/hello.stk -o hello.js
-node hello.js
+### Build Applications
+
+The standard library is automatically loaded for all commands.
+
+**Build native executable (register machine - fastest, default):**
+```bash
+bin/jo build tests/pos/fact.stk -o fact
+./fact
+```
+
+**Build native executable (stack machine):**
+```bash
+bin/jo build -stack tests/pos/fact.stk -o fact
+./fact
+```
+
+**Build JavaScript application:**
+```bash
+bin/jo build -js tests/pos/fact.stk -o fact.js
+node fact.js
+```
+
+### Build Libraries
+
+**Build a custom library (generates .sast files):**
+```bash
+bin/jo build-lib lib/MyLib.stk -d build/mylib
+```
+
+**Build a library that depends on another library:**
+```bash
+bin/jo build-lib lib/Extensions.stk -lib build/mylib -d build/extensions
+```
+
+**Use custom libraries (stdlib is still automatically loaded):**
+```bash
+bin/jo build app.stk -lib build/mylib -o app
+./app
+```
+
+**Use multiple libraries (colon-separated, in dependency order):**
+```bash
+# Core depends on nothing, Utils depends on Core, App depends on both
+bin/jo build app.stk -lib build/core:build/utils -o app
+./app
+```
+
+**Disable automatic stdlib loading:**
+```bash
+bin/jo build -no-stdlib app.stk -o app
 ```
 
 ## Command Reference
