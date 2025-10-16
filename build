@@ -118,6 +118,7 @@ if [ "$BUILD_RELEASE" = true ]; then
   mkdir -p "$RELEASE_DIR/tests/pos"
   mkdir -p "$RELEASE_DIR/tests/warn"
 
+  cp tests/pos/hello.stk "$RELEASE_DIR/tests/pos/"
   cp tests/pos/expression-problem.stk "$RELEASE_DIR/tests/pos/"
   cp tests/pos/fact.stk "$RELEASE_DIR/tests/pos/"
   cp tests/pos/param-render.stk "$RELEASE_DIR/tests/pos/"
