@@ -114,6 +114,7 @@ if [ "$BUILD_RELEASE" = true ]; then
   cp -r sast "$RELEASE_DIR/"
   cp -r demos "$RELEASE_DIR/"
   cp README.md "$RELEASE_DIR/"
+  cp LICENSE "$RELEASE_DIR/"
 
   # Create tests directory and copy selected test files
   mkdir -p "$RELEASE_DIR/tests/pos"
