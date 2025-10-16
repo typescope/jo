@@ -7,8 +7,9 @@ Block comments in Jo provide a way to comment out multiple lines of code or add 
 Block comments are delimited by `//[` and `//]`:
 
 ```jo
-//[ This is a block comment
-    that spans multiple lines
+//[
+This is a block comment
+that spans multiple lines
 //]
 
 def foo = 42
@@ -46,9 +47,10 @@ def foo = 42
 ### Multi-Line Block Comment
 
 ```jo
-//[ This comment
-    spans multiple
-    lines
+//[
+This comment
+spans multiple
+lines
 //]
 def bar = 100
 ```
@@ -70,7 +72,8 @@ def baz = //[ inline comment //] 42 + 100
 Block comments support nesting by using different numbers of slashes:
 
 ```jo
-///[ Outer comment
+///[
+Outer comment
   //[ Inner comment //]
   Still in outer comment
 ///]
@@ -101,26 +104,6 @@ def excluded = 999
 ```
 
 By adding a space after `//`, the opening `//[` becomes a regular single-line comment, and the code inside runs normally. The closing `//]` also becomes a harmless single-line comment.
-
-### Enabling a Block Comment (Disabling Code)
-
-To enable a block comment and disable the code:
-
-**Before (code runs):**
-```jo
-// [ This code runs
-def excluded = 999
-//]
-```
-
-**After (code is commented out):**
-```jo
-//[ This code is commented out
-def excluded = 999
-//]
-```
-
-Remove the space to convert it back to a block comment delimiter.
 
 ## Extended Delimiters
 
@@ -179,4 +162,3 @@ For example:
 - `//[` (2 slashes) matches only `//]` (2 slashes)
 - `///[` (3 slashes) matches only `///]` (3 slashes)
 - `////[` (4 slashes) matches only `////]` (4 slashes)
-
