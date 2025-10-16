@@ -191,6 +191,8 @@ done
 # Demos
 
 demos/process-monitor/build.sh
+demos/process-monitor-ctx/build.sh
+demos/data-table/build.sh
 
 ################################################################################
 # Summary

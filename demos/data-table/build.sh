@@ -11,7 +11,38 @@ echo "🔨 Building Data Table Access Control Demo"
 echo "============================================"
 echo ""
 
-# Check Node.js version
+# Clean previous build
+rm -rf "$SCRIPT_DIR/out"
+mkdir -p "$SCRIPT_DIR/out/api" "$SCRIPT_DIR/out/runtime"
+
+echo "📦 Step 1: Compile Database API"
+bin/jo build-lib "$SCRIPT_DIR/DatabaseAPI.jo" -d "$SCRIPT_DIR/out/api"
+echo "✅ API compiled"
+echo ""
+
+echo "📦 Step 2: Compile Runtime"
+bin/jo build-lib "$SCRIPT_DIR/Runtime.jo" \
+  -lib libs/runtime-js:"$SCRIPT_DIR/out/api" \
+  -d "$SCRIPT_DIR/out/runtime"
+echo "✅ Runtime compiled"
+echo ""
+
+echo "📦 Step 3: Compile User Application"
+bin/jo build -js \
+  -no-detect-main \
+  -link jo.Main.main=DatabaseRuntime.platformMain \
+  -link DatabaseAPI.analyzeDocuments=UserApp.analyzeDocuments \
+  -lib "$SCRIPT_DIR/out/api" \
+  -runtime "$SCRIPT_DIR/out/runtime" \
+  "$SCRIPT_DIR/UserApp.jo" \
+  -o "$SCRIPT_DIR/out/app.js"
+echo "✅ User app compiled"
+echo ""
+
+echo "✅ Build complete!"
+echo ""
+
+# Check Node.js version before running
 echo "🔍 Checking Node.js version..."
 if ! command -v node &> /dev/null; then
     echo "❌ Error: Node.js is not installed"
@@ -44,37 +75,33 @@ fi
 echo "✅ node:sqlite module available"
 echo ""
 
-# Clean previous build
-rm -rf "$SCRIPT_DIR/out"
-mkdir -p "$SCRIPT_DIR/out/api" "$SCRIPT_DIR/out/runtime"
-
-echo "📦 Step 1: Compile Database API"
-bin/jo build-lib "$SCRIPT_DIR/DatabaseAPI.jo" -d "$SCRIPT_DIR/out/api"
-echo "✅ API compiled"
+# Initialize database
+echo "📊 Initializing database..."
+node "$SCRIPT_DIR/init-db.js"
+echo "✅ Database initialized"
 echo ""
 
-echo "📦 Step 2: Compile Runtime"
-bin/jo build-lib "$SCRIPT_DIR/Runtime.jo" \
-  -lib libs/runtime-js:"$SCRIPT_DIR/out/api" \
-  -d "$SCRIPT_DIR/out/runtime"
-echo "✅ Runtime compiled"
+# Run demo with different users
+echo "🚀 Running Demo"
+echo "============================================"
 echo ""
 
-echo "📦 Step 3: Compile User Application"
-bin/jo build -js \
-  -no-detect-main \
-  -link jo.Main.main=DatabaseRuntime.platformMain \
-  -link DatabaseAPI.analyzeDocuments=UserApp.analyzeDocuments \
-  -lib "$SCRIPT_DIR/out/api" \
-  -runtime "$SCRIPT_DIR/out/runtime" \
-  "$SCRIPT_DIR/UserApp.jo" \
-  -o "$SCRIPT_DIR/out/app.js"
-echo "✅ User app compiled"
+echo "=========================================="
+echo "Running as User 1 (Alice)"
+echo "=========================================="
+node "$SCRIPT_DIR/out/app.js" 1
 echo ""
 
-echo "✅ Build complete!"
+echo "=========================================="
+echo "Running as User 2 (Bob)"
+echo "=========================================="
+node "$SCRIPT_DIR/out/app.js" 2
 echo ""
-echo "Run with:"
-echo "  node $SCRIPT_DIR/out/app.js 1  # Alice's documents"
-echo "  node $SCRIPT_DIR/out/app.js 2  # Bob's documents"
-echo "  node $SCRIPT_DIR/out/app.js 3  # Carol's documents"
+
+echo "=========================================="
+echo "Running as User 3 (Carol)"
+echo "=========================================="
+node "$SCRIPT_DIR/out/app.js" 3
+echo ""
+
+echo "✅ Demo complete!"
