@@ -1,0 +1,34 @@
+//[ Basic multiline comment
+    on multiple lines
+    with various content
+//]
+
+//[ Disabled block - this code is commented out
+def excluded: Int = 999
+//]
+
+// [ Enabled block - comment disabled by adding space
+def included: Int = 100
+//]
+
+def foo: Int = 42 + included
+
+def bar: Int = //[ inline comment //] 100
+
+//[ Nested comments with different slash counts
+    ///[ inner comment
+          with content
+    ///]
+    outer continues
+//]
+
+def baz: Int =
+  val x: Int = 10
+  ///[ Long delimiter comment
+  can contain //[ shorter delimiters //] safely
+  ///]
+  x + 32
+
+def result: Int = foo + bar + baz
+
+def main: Unit = println (intToStr result)
