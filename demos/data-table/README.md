@@ -4,12 +4,12 @@ This demo demonstrates **row-level security** in Jo, where different users can o
 
 ## Key Concept
 
-The `userId` is passed as a **command-line argument** (NOT a context parameter) and is only accessible to the trusted runtime. The runtime:
-1. Reads `userId` from `process.argv[2]`
-2. Captures it in closures when providing the `db` context parameter
+The `userId` and `dbPath` are passed as **command-line arguments** (NOT context parameters) and are only accessible to the trusted runtime. The runtime:
+1. Reads `userId` from `process.argv[2]` and `dbPath` from `process.argv[3]`
+2. Captures `userId` in closures when providing the `db` context parameter
 3. Automatically injects `WHERE owner_id = ?` into all SQL queries
 
-User code **never sees the userId** and cannot bypass the filtering.
+User code **never sees the userId or dbPath** and cannot bypass the filtering.
 
 ## Architecture
 
@@ -73,7 +73,7 @@ param db: DB
 
 ### Runtime.jo (Trusted)
 
-Reads `userId` from argv and provides `db`:
+Reads `userId` and `dbPath` from argv and provides `db`:
 
 ```jo
 def platformMain: Unit receives stdout =
@@ -84,18 +84,26 @@ def platformMain: Unit receives stdout =
 
   val userId = js "parseInt(process.argv[2])"
 
+  // Read database path from command line - ABORT if missing
+  val dbPath = js "process.argv[3]"
+  if dbPath == js "undefined" then
+    abort "Missing database path argument"
+
+  // Open database
+  val dbHandle = js "new DatabaseSync(dbPath)"
+
   // Provide db with userId captured in closures
-  analyzeDocuments with
-    db = {
+  DatabaseAPI.analyzeDocuments with
+    DatabaseAPI.db = {
       def queryMyDocuments(): List[Document] =
         // userId captured here - user cannot access it!
         val sql = "SELECT * FROM documents WHERE owner_id = ?"
-        execQuery(sql, userId)
+        execQuery(sql, js "[userId]")
         // ...
     }
 ```
 
-**Key technique**: `userId` is captured in the closure of each `db` method. User code calls these methods but cannot inspect or modify `userId`.
+**Key technique**: `userId` and `dbPath` are captured in closures. User code calls db methods but cannot inspect or modify these values.
 
 ### UserApp.jo (Untrusted)
 
@@ -151,20 +159,31 @@ Check your Node.js version:
 node -v  # Should be v22.5.0 or higher
 ```
 
-## Setup
+## Setup and Running
 
-### 1. Initialize database
-
-```bash
-node demos/data-table/init-db.js
-```
-
-This creates `database.db` with sample data.
-
-### 2. Build the demo
+### Build and run the demo
 
 ```bash
 demos/data-table/build.sh
+```
+
+This script will:
+1. Compile the Database API, Runtime, and User Application
+2. Initialize the database with sample data
+3. Run the demo as three different users (Alice, Bob, Carol)
+
+### Manual execution
+
+If you want to run the compiled app manually:
+
+```bash
+# Initialize database
+node demos/data-table/init-db.js demos/data-table/database.db
+
+# Run as different users
+node demos/data-table/out/app.js 1 demos/data-table/database.db  # Alice
+node demos/data-table/out/app.js 2 demos/data-table/database.db  # Bob
+node demos/data-table/out/app.js 3 demos/data-table/database.db  # Carol
 ```
 
 
@@ -202,19 +221,22 @@ Links user code to runtime entry points.
 
 ## How Row-Level Security Works
 
-1. **Runtime reads userId from argv**
+1. **Runtime reads userId and dbPath from argv**
    ```jo
    val userId = js "parseInt(process.argv[2])"
+   val dbPath = js "process.argv[3]"
    ```
 
-2. **Runtime captures userId in db closures**
+2. **Runtime opens database and captures userId in db closures**
    ```jo
-   analyzeDocuments with
-     db = {
+   val dbHandle = js "new DatabaseSync(dbPath)"
+
+   DatabaseAPI.analyzeDocuments with
+     DatabaseAPI.db = {
        def queryMyDocuments(): List[Document] =
          // userId is captured in this closure
          val sql = "SELECT * FROM documents WHERE owner_id = ?"
-         execQuery(sql, userId)  // userId from closure, not user code!
+         execQuery(sql, js "[userId]")  // userId from closure, not user code!
      }
    ```
 
@@ -244,7 +266,7 @@ The **compiler enforces** that user code can only access capabilities explicitly
 
 Jo's capability system enables **application-level row-level security** where:
 
-- Arguments (like `userId`) are hidden from untrusted code
+- Arguments (like `userId` and `dbPath`) are hidden from untrusted code
 - Context parameters provide scoped, filtered database access
 - Type system prevents bypassing security controls
 - Compiler verifies all access is authorized
