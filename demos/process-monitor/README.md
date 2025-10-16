@@ -125,11 +125,11 @@ Creates pure interface declarations.
 ### Stage 2: Compile Platform Runtime (The Key Step)
 ```bash
 bin/jo build-lib PlatformRuntime.stk \
-  -lib sast/runtime/js:out/api \
+  -lib libs/runtime/js:out/api \
   -d out/runtime
 ```
 
-**Critical**: Links to `sast/runtime/js` to access the `js` intrinsic function, enabling real Node.js interop.
+**Critical**: Links to `libs/runtime/js` to access the `js` intrinsic function, enabling real Node.js interop.
 
 ### Stage 3: Compile User Application
 ```bash

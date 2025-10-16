@@ -135,7 +135,7 @@ bin/jo build-lib PlatformAPI.stk -d out/api
 ### Stage 2: Compile Platform Runtime
 ```bash
 bin/jo build-lib PlatformRuntime.stk \
-  -lib sast/runtime/js:out/api \
+  -lib libs/runtime/js:out/api \
   -d out/runtime
 ```
 

@@ -77,19 +77,19 @@ fi
 chmod +x bin/jo
 
 # build stand library
-STDLIB=sast/stdlib
+STDLIB=libs/stdlib
 bin/jo build-lib -testPickling -explicit-return-type -no-stdlib lib/*.stk -d $STDLIB
 
 # build interpreter runtime
-INT_RUNTIME=sast/runtime/interpreter
+INT_RUNTIME=libs/runtime/interpreter
 bin/jo build-lib -testPickling -explicit-return-type runtime/Interpreter.stk -d $INT_RUNTIME
 
 # build JS runtime
-JS_RUNTIME=sast/runtime/js
+JS_RUNTIME=libs/runtime/js
 bin/jo build-lib -testPickling -explicit-return-type runtime/JS.stk -d $JS_RUNTIME
 
 # build native runtime
-NATIVE_RUNTIME=sast/runtime/native
+NATIVE_RUNTIME=libs/runtime/native
 bin/jo build-lib -testPickling -explicit-return-type runtime/native/*.stk -d $NATIVE_RUNTIME
 
 # Package release if requested

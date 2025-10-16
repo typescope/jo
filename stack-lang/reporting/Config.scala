@@ -241,13 +241,13 @@ object Config:
 
   // Compute paths relative to project root
   lazy val JSRuntimePath: String =
-    java.nio.file.Paths.get(rootDir, "sast/runtime/js").toString
+    java.nio.file.Paths.get(rootDir, "libs/runtime/js").toString
 
   lazy val NativeRuntimePath: String =
-    java.nio.file.Paths.get(rootDir, "sast/runtime/native").toString
+    java.nio.file.Paths.get(rootDir, "libs/runtime/native").toString
 
   lazy val InterpreterRuntimePath: String =
-    java.nio.file.Paths.get(rootDir, "sast/runtime/interpreter").toString
+    java.nio.file.Paths.get(rootDir, "libs/runtime/interpreter").toString
 
   lazy val StdLibPath: String =
-    java.nio.file.Paths.get(rootDir, "sast/stdlib").toString
+    java.nio.file.Paths.get(rootDir, "libs/stdlib").toString

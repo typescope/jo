@@ -47,10 +47,10 @@ After building, the following files are created:
 - `bin/jo` - Unified compiler launcher (wrapper script)
 - `bin/jo.jar` - JAR executable (default build)
 - `bin/jo.native` - Native executable (with `-native` flag)
-- `sast/stdlib/` - Precompiled standard library (.sast files)
-- `sast/runtime/js/` - JavaScript runtime library
-- `sast/runtime/interpreter/` - Interpreter runtime library
-- `sast/runtime/native/` - Native runtime library
+- `libs/stdlib/` - Precompiled standard library (.sast files)
+- `libs/runtime/js/` - JavaScript runtime library
+- `libs/runtime/interpreter/` - Interpreter runtime library
+- `libs/runtime/native/` - Native runtime library
 
 ## Environment Variables
 
