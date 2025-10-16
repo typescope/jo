@@ -116,6 +116,7 @@ def analyzeDocuments: Unit receives stdout, db =
 ```
 
 User code **cannot**:
+
 - Access `userId` or `process.argv`
 - Write raw SQL
 - Bypass `owner_id` filtering
@@ -135,6 +136,7 @@ CREATE TABLE documents (
 ```
 
 **Sample data:**
+
 - User 1 (Alice): 3 documents
 - User 2 (Bob): 2 documents
 - User 3 (Carol): 2 documents
@@ -144,6 +146,7 @@ CREATE TABLE documents (
 - **Node.js v22.5.0 or higher** (for built-in `node:sqlite` module)
 
 Check your Node.js version:
+
 ```bash
 node -v  # Should be v22.5.0 or higher
 ```
@@ -153,8 +156,7 @@ node -v  # Should be v22.5.0 or higher
 ### 1. Initialize database
 
 ```bash
-cd demos/data-table
-./init-db.js
+node demos/data-table/init-db.js
 ```
 
 This creates `database.db` with sample data.
@@ -162,86 +164,11 @@ This creates `database.db` with sample data.
 ### 2. Build the demo
 
 ```bash
-./build.sh
+demos/data-table/build.sh
 ```
 
-## Running
 
-```bash
-# Run as User 1 (Alice)
-node out/app.js 1
-
-# Run as User 2 (Bob)
-node out/app.js 2
-
-# Run as User 3 (Carol)
-node out/app.js 3
-
-# Error: missing userId
-node out/app.js
-# Output: ❌ Error: userId not provided
-```
-
-## Example Output
-
-```
-$ node out/app.js 1
-🔒 Running as User ID: 1
-
-📁 My Documents
-===============
-
-📄 Project Proposal
-   ID: 1
-   Created: 2025-01-15
-   Preview: Draft proposal for Q4 project initiative...
-
-📄 Meeting Notes
-   ID: 2
-   Created: 2025-01-10
-   Preview: Notes from stakeholder meeting on Jan 10...
-
-📄 Budget Report
-   ID: 3
-   Created: 2025-01-20
-   Preview: Financial summary for department...
-
-📊 Summary
-----------
-Total documents: 3
-
-🔍 Testing document access...
-✅ Successfully accessed document #1: Project Proposal
-```
-
-```
-$ node out/app.js 2
-🔒 Running as User ID: 2
-
-📁 My Documents
-===============
-
-📄 Technical Design
-   ID: 4
-   Created: 2025-01-12
-   Preview: Architecture design for new microservice...
-
-📄 Code Review
-   ID: 5
-   Created: 2025-01-18
-   Preview: Review notes for PR #234...
-
-📊 Summary
-----------
-Total documents: 2
-
-🔍 Testing document access...
-❌ Document #1 not found or not accessible
-```
-
-Notice: User 2 cannot access document #1 (owned by User 1).
-
-## Compilation
+## Explanation of Build Process
 
 ### Stage 1: Compile Database API
 ```bash
@@ -253,7 +180,7 @@ Creates type definitions for `Document`, `DB`, and `param db`.
 ### Stage 2: Compile Runtime
 ```bash
 bin/jo build-lib Runtime.jo \
-  -lib ../../libs/runtime-js:out/api \
+  -lib libs/runtime-js:out/api \
   -d out/runtime
 ```
 
@@ -265,8 +192,8 @@ bin/jo build -js \
   -no-detect-main \
   -link jo.Main.main=DatabaseRuntime.platformMain \
   -link DatabaseAPI.analyzeDocuments=UserApp.analyzeDocuments \
-  -lib out/api \
-  -runtime out/runtime \
+  -lib demos/data-table/out/api \
+  -runtime demos/data-table/out/runtime \
   UserApp.jo \
   -o out/app.js
 ```
