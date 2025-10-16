@@ -107,9 +107,9 @@ def analyzeDocuments: Unit receives stdout, db =
   // Can only call db methods which are already scoped
 
   val docs = db.queryMyDocuments()  // Automatically filtered!
-  docs.foreach (doc =>
+  docs.foreach doc =>
     println (doc.title)
-  )
+
 
   val count = db.countMyDocuments()
   println ("Total: " + (intToStr count))
@@ -301,14 +301,6 @@ Links user code to runtime entry points.
    SELECT * FROM documents WHERE owner_id = 1  -- userId from runtime
    ```
 
-## Comparison with Traditional Approaches
-
-| Approach | Pros | Cons |
-|----------|------|------|
-| **Manual filtering** | Simple | User code can forget to filter |
-| **Database views** | Database-enforced | Requires DB-level permissions |
-| **Jo capabilities** | Type-safe, compiler-verified | Requires compile-time linking |
-
 ## Why This is Secure
 
 Even if `UserApp.jo` is **malicious**, it cannot:
@@ -324,6 +316,7 @@ The **compiler enforces** that user code can only access capabilities explicitly
 ## Key Takeaway
 
 Jo's capability system enables **application-level row-level security** where:
+
 - Arguments (like `userId`) are hidden from untrusted code
 - Context parameters provide scoped, filtered database access
 - Type system prevents bypassing security controls
