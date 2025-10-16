@@ -3,8 +3,8 @@
 Jo is a statically typed programming language designed for securing LLM generated code.
 
 - **API Confinement** - LLM generated code is confined to custom-defined APIs
-- **Fine-Grained Control** - Precise control of authorization, e.g. access certain rows of a data table based on current user
-- **Security Auditing** - Absence of ambient authorities and clear security boundary facilitate security auditing
+- **Fine-Grained Control** - Precise control of authorization, e.g. access certain rows of a data table for current user
+- **Security Auditing** - Statically checked authorities and clear security boundary facilitate security auditing
 
 ## Key Features ✨
 
@@ -21,7 +21,7 @@ Jo is a statically typed programming language designed for securing LLM generate
 
 Real-world applications demonstrating Jo's capability-based security model:
 
-### Process Monitor (Deferred Functions)
+### Process Monitor (Deferred Functions version)
 
 **Location**: `demos/process-monitor/`
 
@@ -34,7 +34,7 @@ A system monitoring application that extends Jo's JavaScript runtime with real N
 
 Shows how platforms can expose controlled system APIs (process listing, memory usage, system info) to untrusted user code while preventing arbitrary command execution.
 
-### Process Monitor (Context Parameters)
+### Process Monitor (Context Parameters version)
 
 **Location**: `demos/process-monitor-ctx/`
 
