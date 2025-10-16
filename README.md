@@ -81,54 +81,23 @@ def main =
     show (eval code).lambda
 ```
 
-### [The Expression Problem](https://en.wikipedia.org/wiki/Expression_problem)
+### More Examples
 
-```
-data Expr[Lang] =
-    Lit(n: Int)
-  | Add(lhs: Lang, rhs: Lang)
+Explore complete examples showcasing Jo's features:
 
-type LangA = Expr[LangA]
+- **[Expression Problem](tests/pos/expression-problem.stk)** - Extensible ADTs demonstrating Jo's solution to the expression problem
+- **[Pattern Matching](tests/pos/pattern.stk)** - Advanced pattern matching with guards and nested patterns
+- **[Pattern Sequences](tests/pos/pattern-seq.stk)** - Pattern matching on sequences and lists
+- **[Context Parameters](tests/pos/param-render.stk)** - Contextual abstraction and implicit parameter passing
+- **[Varargs](tests/pos/vararg.stk)** - Variable-length argument lists
+- **[Deferred Functions](tests/pos/defer-framework.stk)** - Capability-based programming with deferred function implementations
+- **[Regular Expressions](tests/pos/regex.stk)** - Pattern-based string matching
+- **[Parameter Boundaries](tests/warn/param-boundary.stk)** - Warning example showing parameter scope constraints
 
-def eval[T](expr: Expr[T], eval: T => Int): Int =
-  match expr
-    case Lit n => n
-    case Add lhs rhs => (eval lhs) + (eval rhs)
+### Demos
 
-def evalLangA(expr: LangA): Int =
-  eval expr (e => evalLangA e)
-
-data Mul[Lang](lhs: Lang, rhs: Lang)
-type ExprExt[Lang] = Expr[Lang] | Mul[Lang]
-
-type LangB = ExprExt[LangB]
-
-def evalExt[T](expr: ExprExt[T], evalExt: T => Int): Int =
-  match expr
-    case e: Expr[T] => eval e evalExt
-    case Mul lhs rhs => (evalExt lhs) * (evalExt rhs)
-
-def evalLangB(expr: LangB): Int =
-  evalExt expr (e => evalLangB e)
-
-def main =
-  val langA: LangA =
-    Add
-      Lit 3
-      Add
-        Lit 2
-        Lit 5
-
-  val langB: LangB = Mul langA (Lit 3)
-
-  println
-    intToStr
-      evalLangA langA
-
-  println
-    intToStr
-      evalLangB langB
-```
+Check out the `demos/` directory for complete application examples:
+- **Process Monitor** - Real-world application demonstrating context parameters and system interaction
 
 ## Build 🔨
 
