@@ -90,10 +90,11 @@ section Impl
   Convert List[Value] to JavaScript array for SQL execution
   //]
   def paramsToJSArray(params: List[Value]): Any =
-    var jsArray = js "[]"
+    val jsArray = js "[]"
     params.foreach p =>
+      val acc = jsArray
       val jsVal = valueToJS(p)
-      js "jsArray.push(jsVal)"
+      js "acc.push(jsVal)"
     jsArray
 
   //[
