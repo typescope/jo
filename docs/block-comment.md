@@ -85,25 +85,26 @@ The inner `//[` ... `//]` is treated as part of the outer comment and doesn't cl
 
 A key feature of Jo's block comment design is the ability to easily enable or disable a block comment by adding or removing a single space.
 
-### Disabling a Block Comment (Enabling Code)
-
 To disable a block comment and enable the code within:
 
 **Before (code is commented out):**
 ```jo
 //[ This code is commented out
-def excluded = 999
+println "debug message 1"
+println "debug message 2"
 //]
 ```
 
 **After (code is enabled):**
 ```jo
 // [ This code now runs
-def excluded = 999
+println "message 1"
+println "message 2"
 //]
 ```
 
-By adding a space after `//`, the opening `//[` becomes a regular single-line comment, and the code inside runs normally. The closing `//]` also becomes a harmless single-line comment.
+By adding a space after `//`, the opening `//[` becomes a regular single-line comment, and the code inside runs normally.
+The closing `//]` also becomes a harmless single-line comment.
 
 ## Extended Delimiters
 
@@ -127,7 +128,8 @@ This is useful when:
 1. **Exact matching**: Opening and closing delimiters must have the same number of slashes
 2. **Minimum slashes**: At least two slashes are required (single `/[` is not a valid delimiter)
 3. **No space**: There must be no space between the slashes and the bracket
-4. **User responsibility**: Unlike multiline strings, block comments do not enforce line restrictions - it's the user's responsibility to structure them correctly
+
+Unlike multiline strings, block comments do not enforce line restrictions - it's the user's responsibility to structure them correctly.
 
 ## Error Handling
 
