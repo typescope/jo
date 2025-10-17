@@ -10,7 +10,7 @@ type Flags = Int
 section Nested
   alias def foo = B.foo
 
-  alias def Some = B.Inner.Some.Some
+  alias def Some = B.Inner.Some
   alias pattern Some = B.Inner.Some
 
   def bar(x: Option[Message]) =
