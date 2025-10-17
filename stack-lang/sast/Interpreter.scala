@@ -433,13 +433,7 @@ object Interpreter:
         if sym.is(Flags.Context) then
           params.get(sym) match
             case Some(v) => v :: Nil
-            case None =>
-               if sym.is(Flags.Default) then
-                 val defaultFun = Ident(sym.defaultFunction)(word.span)
-                 val defaultCall = defaultFun.appliedTo()
-                 exec(defaultCall)
-               else
-                 throw new Exception("Unbound context parameter " + sym)
+            case None => throw new Exception("Unbound context parameter " + sym)
 
         else
           env.resolve(sym) :: Nil
