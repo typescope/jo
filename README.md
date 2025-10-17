@@ -81,14 +81,16 @@ It shows how a user-aware runtime can enforce row-level access control and autom
 
 **Location**: `demos/data-table-query/`
 
-An extension of the data-table demo that adds **flexible custom filter conditions** while maintaining row-level security.
+An extension of the data-table demo that adds **flexible custom filter conditions with ordering and pagination** while maintaining row-level security.
 
-- **Query DSL** - Type-safe expression builder using infix operators (`like`, `>`, `&&`, `||`)
+- **Query DSL** - Type-safe expression builder using infix operators (`like`, `>`, `&&`, `||`, `!`)
+- **Context parameters with defaults** - Optional `ordering`, `limit`, `offset` without API explosion
+- **Unified query API** - Single `query(condition)` method handles all scenarios via context parameters
 - **SQL-level filtering** - Efficient for large datasets (no in-memory filtering)
 - **Pattern matching** - Runtime translates query AST to parameterized SQL
 - **Automatic security** - User conditions always ANDed with `WHERE owner_id = ?`
 
-It shows how to provide expressive query capabilities while maintaining security: users can build complex filters like `(table.title like "%Report%") && (table.createdAt > str("2024-01-15"))`, but the runtime always enforces row-level access control.
+It shows how to provide expressive query capabilities while maintaining security: users can build complex filters like `db.query(Title like "%Report%") with ordering = desc CreatedAt, limit = 10`, but the runtime always enforces row-level access control. Demonstrates Jo's context parameters pattern for optional customization.
 
 <a id="examples"></a>
 

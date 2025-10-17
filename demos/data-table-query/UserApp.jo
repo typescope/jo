@@ -12,11 +12,15 @@ namespace UserApp
 
 import jo.IO.stdout
 import DatabaseAPI.db
+import DatabaseAPI.ordering
+import DatabaseAPI.limit
+import DatabaseAPI.offset
 import DatabaseAPI.Document
 import DatabaseAPI.Title
 import DatabaseAPI.Content
 import DatabaseAPI.OwnerId
 import DatabaseAPI.CreatedAt
+import DatabaseAPI.All
 import DatabaseAPI.QueryDSL.*
 
 //[
@@ -35,41 +39,35 @@ def analyzeDocuments: Unit receives stdout, db =
   println ""
 
   println "--- Query 1: All my documents ---"
-  val allDocs = db.queryMyDocuments()
+  val allDocs = db.query(All)
   allDocs.foreach doc =>
     println ("  • " + doc.title + " (created: " + doc.createdAt + ")")
   println ("  Total: " + intToStr(allDocs.size))
   println ""
 
   println "--- Query 2: Documents with 'Report' in title ---"
-  val reportsCondition = Title like "%Report%"
-  val reports = db.queryWhere(reportsCondition)
+  val reports = db.query(Title like "%Report%")
   reports.foreach doc =>
     println ("  • " + doc.title)
   println ("  Count: " + intToStr(reports.size))
   println ""
 
   println "--- Query 3: Documents created after 2024-01-15 ---"
-  val recentCondition = CreatedAt > str("2024-01-15")
-  val recentDocs = db.queryWhere(recentCondition)
+  val recentDocs = db.query(CreatedAt > str("2024-01-15"))
   recentDocs.foreach doc =>
     println ("  • " + doc.title + " (created: " + doc.createdAt + ")")
   println ("  Count: " + intToStr(recentDocs.size))
   println ""
 
   println "--- Query 4: Reports created after 2024-01-10 ---"
-  val compoundCondition =
-    (Title like "%Report%") && (CreatedAt > str("2024-01-10"))
-  val recentReports = db.queryWhere(compoundCondition)
+  val recentReports = db.query((Title like "%Report%") && (CreatedAt > str("2024-01-10")))
   recentReports.foreach doc =>
     println ("  • " + doc.title + " (created: " + doc.createdAt + ")")
   println ("  Count: " + intToStr(recentReports.size))
   println ""
 
   println "--- Query 5: Documents with 'Budget' or 'Plan' in title ---"
-  val orCondition =
-    (Title like "%Budget%") || (Title like "%Plan%")
-  val budgetOrPlan = db.queryWhere(orCondition)
+  val budgetOrPlan = db.query((Title like "%Budget%") || (Title like "%Plan%"))
   budgetOrPlan.foreach doc =>
     println ("  • " + doc.title)
   println ("  Count: " + intToStr(budgetOrPlan.size))
@@ -77,71 +75,61 @@ def analyzeDocuments: Unit receives stdout, db =
 
   println "--- Query 6: Complex compound query ---"
   // (title contains "Meeting" AND created after 2024-01-05) OR title contains "Urgent"
-  val complexCondition =
-    ((Title like "%Meeting%") && (CreatedAt > str("2024-01-05")))
-    || (Title like "%Urgent%")
-  val complexResults = db.queryWhere(complexCondition)
+  val complexResults = db.query(((Title like "%Meeting%") && (CreatedAt > str("2024-01-05"))) || (Title like "%Urgent%"))
   complexResults.foreach doc =>
     println ("  • " + doc.title + " (created: " + doc.createdAt + ")")
   println ("  Count: " + intToStr(complexResults.size))
   println ""
 
   println "--- Query 7: Documents NOT containing 'Report' ---"
-  val notReportCondition = !(Title like "%Report%")
-  val nonReports = db.queryWhere(notReportCondition)
+  val nonReports = db.query(!(Title like "%Report%"))
   nonReports.foreach doc =>
     println ("  • " + doc.title)
   println ("  Count: " + intToStr(nonReports.size))
   println ""
 
   println "--- Query 8: Documents with owner IDs using IN ---"
-  val inCondition = OwnerId in List(int(1), int(2), int(3))
-  val inResults = db.queryWhere(inCondition)
+  val inResults = db.query(OwnerId in [int(1), int(2), int(3)])
   inResults.foreach doc =>
     println ("  • " + doc.title + " (owner: " + intToStr(doc.ownerId) + ")")
   println ("  Count: " + intToStr(inResults.size))
   println ""
 
   println "--- Query 9: Documents ordered by date (descending) ---"
-  val orderedDocs = db.queryOrdered(List(desc(CreatedAt)))
+  val orderedDocs = db.query(All) with ordering = desc CreatedAt
   orderedDocs.foreach doc =>
     println ("  • " + doc.title + " (created: " + doc.createdAt + ")")
   println ("  Count: " + intToStr(orderedDocs.size))
   println ""
 
   println "--- Query 10: Reports ordered by title (ascending) ---"
-  val orderedReports = db.queryWhereOrdered(
-    Title like "%Report%",
-    List(asc(Title))
-  )
+  val orderedReports = db.query(Title like "%Report%") with ordering = asc Title
   orderedReports.foreach doc =>
     println ("  • " + doc.title)
   println ("  Count: " + intToStr(orderedReports.size))
   println ""
 
   println "--- Query 11: First 2 documents (pagination) ---"
-  val page1 = db.queryPaginated(2, 0)
+  val page1 = db.query(All) with limit = 2, offset = 0
   page1.foreach doc =>
     println ("  • " + doc.title)
   println ("  Count: " + intToStr(page1.size))
   println ""
 
   println "--- Query 12: Full-featured query (filter + order + limit) ---"
-  val fullQuery = db.queryFull(
-    Title like "%Report%",
-    List(desc(CreatedAt)),
-    2,
-    0
-  )
+  val fullQuery = db.query(Title like "%Report%") with
+    ordering = desc CreatedAt,
+    limit = 2,
+    offset = 0
   fullQuery.foreach doc =>
     println ("  • " + doc.title + " (created: " + doc.createdAt + ")")
   println ("  Count: " + intToStr(fullQuery.size))
   println ""
 
   println "--- Summary: Document counts ---"
-  val totalCount = db.countMyDocuments()
+  val totalCount = db.count(All)
   println ("  Total documents: " + intToStr(totalCount))
-  val reportCount = db.countWhere(Title like "%Report%")
+  val reportCount = db.count(Title like "%Report%")
   println ("  Reports: " + intToStr(reportCount))
   println ""
 

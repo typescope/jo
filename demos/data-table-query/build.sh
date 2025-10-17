@@ -3,6 +3,9 @@
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Get the project root (two levels up from demos/data-table-query)
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
 set -e  # Exit on any error
 
 echo "🏗️  Building Data Table Query DSL Demo"
@@ -17,21 +20,21 @@ mkdir -p "$SCRIPT_DIR/out/runtime"
 
 # Stage 1: Compile Database API (with query DSL)
 echo "📦 Stage 1: Compiling Database API..."
-bin/jo build-lib "$SCRIPT_DIR/DatabaseAPI.jo" -d "$SCRIPT_DIR/out/api"
+"$PROJECT_ROOT/bin/jo" build-lib "$SCRIPT_DIR/DatabaseAPI.jo" -d "$SCRIPT_DIR/out/api"
 echo "✅ API compiled"
 echo ""
 
 # Stage 2: Compile Runtime (with SQL generation)
 echo "📦 Stage 2: Compiling Runtime..."
-bin/jo build-lib "$SCRIPT_DIR/Runtime.jo" \
-  -lib libs/runtime-js:"$SCRIPT_DIR/out/api" \
+"$PROJECT_ROOT/bin/jo" build-lib "$SCRIPT_DIR/Runtime.jo" \
+  -lib "$PROJECT_ROOT/libs/runtime-js":"$SCRIPT_DIR/out/api" \
   -d "$SCRIPT_DIR/out/runtime"
 echo "✅ Runtime compiled"
 echo ""
 
 # Stage 3: Compile User Application
 echo "📦 Stage 3: Compiling User Application..."
-bin/jo build -js \
+"$PROJECT_ROOT/bin/jo" build -js \
   -no-detect-main \
   -link jo.Main.main=DatabaseRuntime.platformMain \
   -link DatabaseAPI.analyzeDocuments=UserApp.analyzeDocuments \

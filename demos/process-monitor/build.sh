@@ -7,6 +7,9 @@ set -e  # Exit on error
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Get the project root (two levels up from demos/process-monitor)
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
 echo "=========================================="
 echo "System Monitor - Context Parameters Demo"
 echo "=========================================="
@@ -22,7 +25,7 @@ echo "Stage 1: Compile PlatformAPI.jo (Pure API with context params)"
 echo "----------------------------------------------------------------"
 echo "  Declares: Process, System, Logger types"
 echo "  Context params: process, system, logger"
-bin/jo build-lib "$SCRIPT_DIR/PlatformAPI.jo" -d "$SCRIPT_DIR/out/api"
+"$PROJECT_ROOT/bin/jo" build-lib "$SCRIPT_DIR/PlatformAPI.jo" -d "$SCRIPT_DIR/out/api"
 echo "✓ PlatformAPI compiled to: out/api/"
 echo ""
 
@@ -32,8 +35,8 @@ echo "  - Uses jo.runtime.JS.js intrinsic"
 echo "  - Provides context via 'with' clause"
 echo "  - Links to PlatformAPI interface"
 echo "  - Links to JS runtime for I/O"
-bin/jo build-lib "$SCRIPT_DIR/PlatformRuntime.jo" \
-  -lib libs/runtime-js:"$SCRIPT_DIR/out/api" \
+"$PROJECT_ROOT/bin/jo" build-lib "$SCRIPT_DIR/PlatformRuntime.jo" \
+  -lib "$PROJECT_ROOT/libs/runtime-js":"$SCRIPT_DIR/out/api" \
   -d "$SCRIPT_DIR/out/runtime"
 echo "✓ PlatformRuntime compiled to: out/runtime/"
 echo ""
@@ -43,7 +46,7 @@ echo "------------------------------------------------"
 echo "  - Receives context parameters: process, logger"
 echo "  - Custom entry point: SystemRuntime.platformMain"
 echo "  - Cannot access Node.js directly"
-bin/jo build -js \
+"$PROJECT_ROOT/bin/jo" build -js \
   -no-detect-main \
   -link jo.Main.main=SystemRuntime.platformMain \
   -link SystemAPI.Monitor.analyzeSystem=ProcessAnalyzer.Analysis.analyzeSystem \

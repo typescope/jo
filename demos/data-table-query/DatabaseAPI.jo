@@ -54,8 +54,9 @@ data SortOrder = Asc | Desc
 
 //[
 Order specification: which column and in what direction
+NoOrder means no ordering is applied
 //]
-data OrderBy(col: Column, order: SortOrder)
+data OrderBy = NoOrder | Order(col: Column, order: SortOrder)
 
 //[
 Filter condition ADT for building WHERE clauses
@@ -73,7 +74,8 @@ Logical composition:
   Not: negate condition
 //]
 data Cond =
-    Eq(col: Column, value: Value)
+    All
+  | Eq(col: Column, value: Value)
   | Neq(col: Column, value: Value)
   | Like(col: Column, pat: String)
   | Gt(col: Column, value: Value)
@@ -93,54 +95,39 @@ Database interface with query DSL support
 
 All queries automatically scoped to current user via owner_id filtering.
 Custom filter conditions are ANDed with the owner_id check.
+
+The query and count methods accept a condition parameter (use True for no filtering)
+and optional context parameters for ordering, limit, and offset:
+- condition: filter condition (parameter - use True for no filtering)
+- ordering: sort specification (context, default: empty list)
+- limit: result limit (context, default: -1 for no limit)
+- offset: result offset (context, default: -1 for no offset)
+
+Examples:
+  db.query(All)                                          // All documents
+  db.query(Title like "%Report%")                        // With filter
+  db.query(All) with ordering = desc(CreatedAt)          // With ordering
+  db.query(Title like "%Report%") with ordering = asc(Title), limit = 10, offset = 0  // Full control
+
+  db.count(All)                                          // Count all
+  db.count(Title like "%Report%")                        // Count filtered
 //]
 type DB = {
   //[
-  Query all documents belonging to the current user
+  Query documents with filtering, optional ordering, and pagination
+  Context parameters: ordering, limit, offset
   //]
-  def queryMyDocuments(): List[Document]
+  def query(condition: Cond): List[Document] receives ordering, limit, offset
 
   //[
-  Query documents with custom filter condition
-  Automatically scoped to current user (owner_id check is always applied)
+  Count documents with filtering
   //]
-  def queryWhere(condition: Cond): List[Document]
-
-  //[
-  Query documents with ordering
-  //]
-  def queryOrdered(ordering: List[OrderBy]): List[Document]
-
-  //[
-  Query documents with filter and ordering
-  //]
-  def queryWhereOrdered(condition: Cond, ordering: List[OrderBy]): List[Document]
-
-  //[
-  Query documents with pagination (limit and offset)
-  //]
-  def queryPaginated(limit: Int, offset: Int): List[Document]
-
-  //[
-  Query documents with filter, ordering, and pagination
-  //]
-  def queryFull(condition: Cond, ordering: List[OrderBy], limit: Int, offset: Int): List[Document]
+  def count(condition: Cond): Int
 
   //[
   Get a specific document by ID (returns None if not owned by current user)
   //]
   def getMyDocument(id: Int): Option[Document]
-
-  //[
-  Count documents belonging to the current user
-  //]
-  def countMyDocuments(): Int
-
-  //[
-  Count documents matching filter condition
-  Automatically scoped to current user (owner_id check is always applied)
-  //]
-  def countWhere(condition: Cond): Int
 }
 
 //[
@@ -149,6 +136,15 @@ Context parameter: database access capability
 Provided by the runtime with row-level security enforced
 //]
 param db: DB
+
+//[
+Context parameters for query customization with defaults
+
+These can be overridden at call sites using 'with' syntax
+//]
+param ordering: OrderBy = NoOrder
+param limit: Int = 100
+param offset: Int = 0
 
 //[
 Query DSL - Operators for building filter conditions
@@ -203,8 +199,8 @@ section QueryDSL
   //[
   ORDER BY helpers
   //]
-  def asc(col: Column): OrderBy = OrderBy(col, Asc)
-  def desc(col: Column): OrderBy = OrderBy(col, Desc)
+  def asc(col: Column): OrderBy = Order(col, Asc)
+  def desc(col: Column): OrderBy = Order(col, Desc)
 end
 
 //[
