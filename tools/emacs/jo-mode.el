@@ -20,12 +20,8 @@
 
 (defvar jo-mode-syntax-table
   (let ((table (make-syntax-table)))
-    ;; C-style comments // ...
-    (modify-syntax-entry ?/ ". 12" table)
-    (modify-syntax-entry ?\n ">" table)
-
-    ;; Multi-line comments //[ ... //]
-    ;; We'll handle these specially since they're non-standard
+    ;; Don't set up comment syntax here - we'll handle it with syntax-propertize
+    ;; to properly distinguish between // and //[
 
     ;; Strings
     (modify-syntax-entry ?\" "\"" table)
@@ -71,11 +67,39 @@
   '("true" "false")
   "Jo constants.")
 
+(defun jo-syntax-propertize (start end)
+  "Apply syntax properties to comments in the region from START to END."
+  (goto-char start)
+  (funcall
+   (syntax-propertize-rules
+    ;; Multi-line comments with matching slash count: //[, ///[, etc.
+    ;; Must be at least 2 slashes followed immediately by [
+    ("\\(/\\{2,\\}\\)\\["
+     (0 (ignore
+         (let* ((slash-start (match-beginning 1))
+                (bracket-pos (match-end 0))
+                (slash-count (- (match-end 1) (match-beginning 1)))
+                (close-regex (concat (regexp-quote (make-string slash-count ?/)) "\\]")))
+           ;; Mark opening as comment start
+           (put-text-property slash-start (1+ slash-start)
+                              'syntax-table (string-to-syntax "!"))
+           ;; Search for matching closer
+           (when (re-search-forward close-regex end t)
+             (let ((close-start (match-beginning 0)))
+               ;; Mark closing as comment end
+               (put-text-property (1- (match-end 0)) (match-end 0)
+                                  'syntax-table (string-to-syntax "!"))
+               ;; Mark everything in between as comment
+               (put-text-property slash-start (match-end 0)
+                                  'font-lock-face 'font-lock-comment-face)))))))
+    ;; Single-line comments: // but not followed by [
+    ;; Match exactly 2 or more slashes NOT followed by [
+    ("\\(/\\{2,\\}\\)\\([^[]\\|$\\)"
+     (1 (string-to-syntax "<"))))
+   start end))
+
 (defvar jo-font-lock-keywords
   (list
-   ;; Multi-line comments //[ ... //]
-   '("//\\[\\(?:[^/]\\|/[^/]\\)*//\\]" . font-lock-comment-face)
-
    ;; Keywords
    `(,(regexp-opt jo-keywords 'words) . font-lock-keyword-face)
 
@@ -184,8 +208,15 @@
   (setq-local comment-end "")
   (setq-local comment-start-skip "//+\\s-*")
 
+  ;; Syntax propertize for handling comments
+  (setq-local syntax-propertize-function #'jo-syntax-propertize)
+
+  ;; Newline ends single-line comments
+  (modify-syntax-entry ?\n ">" jo-mode-syntax-table)
+
   ;; Font lock
-  (setq-local font-lock-defaults '(jo-font-lock-keywords))
+  (setq-local font-lock-defaults '(jo-font-lock-keywords nil nil nil nil
+                                    (font-lock-multiline . t)))
 
   ;; Indentation
   (setq-local indent-line-function 'jo-indent-line)
