@@ -86,6 +86,58 @@ def analyzeDocuments: Unit receives stdout, db =
   println ("  Count: " + intToStr(complexResults.size))
   println ""
 
+  println "--- Query 7: Documents NOT containing 'Report' ---"
+  val notReportCondition = !(Title like "%Report%")
+  val nonReports = db.queryWhere(notReportCondition)
+  nonReports.foreach doc =>
+    println ("  • " + doc.title)
+  println ("  Count: " + intToStr(nonReports.size))
+  println ""
+
+  println "--- Query 8: Documents with owner IDs using IN ---"
+  val inCondition = OwnerId in List(int(1), int(2), int(3))
+  val inResults = db.queryWhere(inCondition)
+  inResults.foreach doc =>
+    println ("  • " + doc.title + " (owner: " + intToStr(doc.ownerId) + ")")
+  println ("  Count: " + intToStr(inResults.size))
+  println ""
+
+  println "--- Query 9: Documents ordered by date (descending) ---"
+  val orderedDocs = db.queryOrdered(List(desc(CreatedAt)))
+  orderedDocs.foreach doc =>
+    println ("  • " + doc.title + " (created: " + doc.createdAt + ")")
+  println ("  Count: " + intToStr(orderedDocs.size))
+  println ""
+
+  println "--- Query 10: Reports ordered by title (ascending) ---"
+  val orderedReports = db.queryWhereOrdered(
+    Title like "%Report%",
+    List(asc(Title))
+  )
+  orderedReports.foreach doc =>
+    println ("  • " + doc.title)
+  println ("  Count: " + intToStr(orderedReports.size))
+  println ""
+
+  println "--- Query 11: First 2 documents (pagination) ---"
+  val page1 = db.queryPaginated(2, 0)
+  page1.foreach doc =>
+    println ("  • " + doc.title)
+  println ("  Count: " + intToStr(page1.size))
+  println ""
+
+  println "--- Query 12: Full-featured query (filter + order + limit) ---"
+  val fullQuery = db.queryFull(
+    Title like "%Report%",
+    List(desc(CreatedAt)),
+    2,
+    0
+  )
+  fullQuery.foreach doc =>
+    println ("  • " + doc.title + " (created: " + doc.createdAt + ")")
+  println ("  Count: " + intToStr(fullQuery.size))
+  println ""
+
   println "--- Total document count ---"
   val totalCount = db.countMyDocuments()
   println ("  All my documents: " + intToStr(totalCount))

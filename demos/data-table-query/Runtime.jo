@@ -68,6 +68,9 @@ section Impl
       case Eq col value =>
         QueryParts(columnName(col) + " = ?", List(value))
 
+      case Neq col value =>
+        QueryParts(columnName(col) + " != ?", List(value))
+
       case Like col pat =>
         QueryParts(columnName(col) + " LIKE ?", List(StringValue(pat)))
 
@@ -83,6 +86,30 @@ section Impl
       case Lte col value =>
         QueryParts(columnName(col) + " <= ?", List(value))
 
+      case Between col low high =>
+        val betweenSQL = columnName(col) + " BETWEEN ? AND ?"
+        QueryParts(betweenSQL, List(low, high))
+
+      case Null col =>
+        QueryParts(columnName(col) + " IS NULL", List.empty)
+
+      case NotNull col =>
+        QueryParts(columnName(col) + " IS NOT NULL", List.empty)
+
+      case In col values =>
+        // Build placeholders: (?, ?, ?)
+        val placeholderCount = values.size
+        var placeholders = ""
+        var i = 0
+        while i < placeholderCount do
+          if i > 0 then
+            placeholders = placeholders + ", ?"
+          else
+            placeholders = "?"
+          i = i + 1
+        val inSQL = columnName(col) + " IN (" + placeholders + ")"
+        QueryParts(inSQL, values)
+
       case And left right =>
         val leftParts = condToSQL(left)
         val rightParts = condToSQL(right)
@@ -96,6 +123,11 @@ section Impl
         val combinedSQL = "(" + leftParts.sql + " OR " + rightParts.sql + ")"
         val combinedParams = leftParts.params ++ rightParts.params
         QueryParts(combinedSQL, combinedParams)
+
+      case Not cond =>
+        val parts = condToSQL(cond)
+        val negatedSQL = "NOT (" + parts.sql + ")"
+        QueryParts(negatedSQL, parts.params)
     end
 
   //[
@@ -108,6 +140,46 @@ section Impl
       val jsVal = valueToJS(p)
       js "acc.push(jsVal)"
     jsArray
+
+  //[
+  Build ORDER BY clause from list of OrderBy specifications
+  Helper function to build the parts recursively
+  //]
+  def buildOrderByParts(ordering: List[OrderBy], first: Bool): String =
+    if ordering.isEmpty then
+      ""
+    else
+      val spec = ordering[0]
+      var part = ""
+      if !first then
+        part = ", "
+      part = part + columnName(spec.col)
+      match spec.order
+        case Asc => part = part + " ASC"
+        case Desc => part = part + " DESC"
+      end
+      val restSize = ordering.size - 1
+      val rest = if restSize > 0 then ordering.slice(1, ordering.size) else List.empty[OrderBy]
+      part + buildOrderByParts(rest, false)
+
+  def buildOrderByClause(ordering: List[OrderBy]): String =
+    if ordering.isEmpty then
+      ""
+    else
+      " ORDER BY " + buildOrderByParts(ordering, true)
+
+  //[
+  Build LIMIT and OFFSET clause
+  If limit is -1, no limit is applied
+  If offset is -1, no offset is applied
+  //]
+  def buildLimitOffsetClause(limit: Int, offset: Int): String =
+    var clause = ""
+    if limit >= 0 then
+      clause = clause + " LIMIT " + intToStr(limit)
+    if offset >= 0 then
+      clause = clause + " OFFSET " + intToStr(offset)
+    clause
 
   //[
   Execute SQL query with parameters and return results
@@ -222,6 +294,113 @@ section Impl
     val row = js "rows[0]"
     val count = js "row.count"
     count
+
+  //[
+  Query documents with ordering
+  //]
+  def queryOrderedImpl(userId: Int, ordering: List[OrderBy]): List[Document] receives dbHandle =
+    val orderByClause = buildOrderByClause(ordering)
+    val sql = "SELECT * FROM documents WHERE owner_id = ?" + orderByClause
+    val rows = execQuery(sql, js "[userId]")
+    val count = js "rows.length"
+
+    var docs: List[Document] = List.empty
+    var i = count - 1
+    while i >= 0 do
+      val row = js "rows[i]"
+      val doc = {
+        id: js "row.id",
+        title: js "row.title",
+        content: js "row.content",
+        ownerId: js "row.owner_id",
+        createdAt: js "row.created_at"
+      }
+      docs = docs.prepend(doc)
+      i = i - 1
+
+    docs
+
+  //[
+  Query documents with filter and ordering
+  //]
+  def queryWhereOrderedImpl(userId: Int, condition: Cond, ordering: List[OrderBy]): List[Document] receives dbHandle =
+    val parts = condToSQL(condition)
+    val orderByClause = buildOrderByClause(ordering)
+    val sql = "SELECT * FROM documents WHERE owner_id = ? AND (" + parts.sql + ")" + orderByClause
+    val allParams = parts.params.prepend(IntValue(userId))
+    val jsParams = paramsToJSArray(allParams)
+    val rows = execQuery(sql, jsParams)
+    val count = js "rows.length"
+
+    var docs: List[Document] = List.empty
+    var i = count - 1
+    while i >= 0 do
+      val row = js "rows[i]"
+      val doc = {
+        id: js "row.id",
+        title: js "row.title",
+        content: js "row.content",
+        ownerId: js "row.owner_id",
+        createdAt: js "row.created_at"
+      }
+      docs = docs.prepend(doc)
+      i = i - 1
+
+    docs
+
+  //[
+  Query documents with pagination
+  //]
+  def queryPaginatedImpl(userId: Int, limit: Int, offset: Int): List[Document] receives dbHandle =
+    val limitOffsetClause = buildLimitOffsetClause(limit, offset)
+    val sql = "SELECT * FROM documents WHERE owner_id = ?" + limitOffsetClause
+    val rows = execQuery(sql, js "[userId]")
+    val count = js "rows.length"
+
+    var docs: List[Document] = List.empty
+    var i = count - 1
+    while i >= 0 do
+      val row = js "rows[i]"
+      val doc = {
+        id: js "row.id",
+        title: js "row.title",
+        content: js "row.content",
+        ownerId: js "row.owner_id",
+        createdAt: js "row.created_at"
+      }
+      docs = docs.prepend(doc)
+      i = i - 1
+
+    docs
+
+  //[
+  Query documents with filter, ordering, and pagination (full-featured query)
+  //]
+  def queryFullImpl(userId: Int, condition: Cond, ordering: List[OrderBy], limit: Int, offset: Int): List[Document] receives dbHandle =
+    val parts = condToSQL(condition)
+    val orderByClause = buildOrderByClause(ordering)
+    val limitOffsetClause = buildLimitOffsetClause(limit, offset)
+    val sql = "SELECT * FROM documents WHERE owner_id = ? AND (" + parts.sql + ")" + orderByClause + limitOffsetClause
+    val allParams = parts.params.prepend(IntValue(userId))
+    val jsParams = paramsToJSArray(allParams)
+    val rows = execQuery(sql, jsParams)
+    val count = js "rows.length"
+
+    var docs: List[Document] = List.empty
+    var i = count - 1
+    while i >= 0 do
+      val row = js "rows[i]"
+      val doc = {
+        id: js "row.id",
+        title: js "row.title",
+        content: js "row.content",
+        ownerId: js "row.owner_id",
+        createdAt: js "row.created_at"
+      }
+      docs = docs.prepend(doc)
+      i = i - 1
+
+    docs
 end
 
 //[
@@ -278,6 +457,14 @@ def platformMain: Unit receives stdout =
         Impl.queryMyDocumentsImpl(userId) with Impl.dbHandle = dbHandle
       def queryWhere(condition: Cond): List[Document] =
         Impl.queryWhereImpl(userId, condition) with Impl.dbHandle = dbHandle
+      def queryOrdered(ordering: List[OrderBy]): List[Document] =
+        Impl.queryOrderedImpl(userId, ordering) with Impl.dbHandle = dbHandle
+      def queryWhereOrdered(condition: Cond, ordering: List[OrderBy]): List[Document] =
+        Impl.queryWhereOrderedImpl(userId, condition, ordering) with Impl.dbHandle = dbHandle
+      def queryPaginated(limit: Int, offset: Int): List[Document] =
+        Impl.queryPaginatedImpl(userId, limit, offset) with Impl.dbHandle = dbHandle
+      def queryFull(condition: Cond, ordering: List[OrderBy], limit: Int, offset: Int): List[Document] =
+        Impl.queryFullImpl(userId, condition, ordering, limit, offset) with Impl.dbHandle = dbHandle
       def getMyDocument(id: Int): Option[Document] =
         Impl.getMyDocumentImpl(userId, id) with Impl.dbHandle = dbHandle
       def countMyDocuments(): Int =
