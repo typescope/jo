@@ -143,21 +143,12 @@ object Desugaring:
    *    <Context> <Default> param a: T
    *
    *    fun a$default = rhs
-   *
-   *    param a$option: Option[T]
-   *
-   *    fun a$value: T =
-   *      a$option match
-   *        case #None   => a$default
-   *        case #Some v => v
-   *
    */
   def desugarParamDef(pdef: ParamDef): List[Def] =
     val paramId = pdef.ident
     val paramType = pdef.tpt
 
     lazy val defaultId = Ident(pdef.name + "$default")(paramId.span)
-    lazy val optionId = Ident(pdef.name + "$option")(paramId.span)
 
     def createDefaultFun(rhs: Word): FunDef =
       val tparams = Nil
@@ -167,39 +158,10 @@ object Desugaring:
 
       FunDef(defaultId, tparams, params, autos, paramType, receives, rhs, preParamCount = 0)(pdef.span)
 
-    def createOptionParam(): ParamDef =
-      val noneType = TagType(Ident("None")(paramType.span), params = Nil)(paramType.span)
-      val param = Param(Ident("value")(paramType.span), paramType)(paramType.span)
-      val someType = TagType(Ident("Some")(paramType.span), param :: Nil)(paramType.span)
-      val unionType = UnionType(someType :: noneType :: Nil)(paramType.span)
-      ParamDef(optionId, unionType, default = None)(pdef.span)
-
-    def createValueFun(): FunDef =
-      val id = Ident(pdef.name + "$value")(paramId.span)
-
-      val noneCase =
-        val pat = Tag(Ident("None")(paramId.span))(paramId.span)
-        Case(pat, defaultId)(paramId.span)
-
-      val someCase =
-        val value = Ident("value")(paramId.span)
-        val tag = Tag(Ident("Some")(paramId.span))(paramId.span)
-        val pat = Apply(tag, value :: Nil)(paramId.span)
-        Case(pat, value)(paramId.span)
-
-      val rhs = Match(optionId, noneCase :: someCase :: Nil)(pdef.span)
-
-      val tparams = Nil
-      val params = Nil
-      val autos = Nil
-      val receives = None // Infer usage -- it uses `a$default`, which is a context param
-
-      FunDef(id, tparams, params, autos, paramType, receives, rhs, preParamCount = 0)(pdef.span)
-
     pdef.default match
       case None => pdef :: Nil
 
       case Some(rhs) =>
         val pdef2 = pdef.copy(default = None)(pdef.span)
         pdef2.addKey(DefaultContextParam, ())
-        pdef2 :: createDefaultFun(rhs) :: createOptionParam() :: createValueFun() :: Nil
+        pdef2 :: createDefaultFun(rhs) :: Nil

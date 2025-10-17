@@ -21,24 +21,18 @@ class EffectCheck(using rp: Reporter, defn: Definitions) extends Phase[Symbol]:
     // force computing effects
     val effs = defn.effectEngine.effects(symbol)
 
-    if !symbol.isLocal && fdef.name == "main" then
-      val pos = fdef.symbol.sourcePos
-      for
-        (eff, trace) <- effs
-        if !eff.is(Flags.Default) && !defn.isRuntimeContextParam(eff)
-      do
-        Reporter.error("Context parameter not provided: " + eff, pos, trace)
+    fdef.effectPolicy match
+      case Effects.Policy.CheckBound(params) =>
+        val allowed = params.toSet
+        val pos = symbol.sourcePos
 
-    else
-      fdef.effectPolicy match
-        case Effects.Policy.CheckBound(params) =>
-          val allowed = params.toSet
-          val effs = defn.effectEngine.effects(symbol)
-          val pos = symbol.sourcePos
-          for (eff, trace) <- effs if !allowed.exists(param => eff.refers(param)) do
-            Reporter.error("Parameter not allowed: " + eff, pos, trace)
+        for
+          (eff, trace) <- effs
+          if !eff.is(Flags.Default) && !allowed.exists(param => eff.refers(param))
+        do
+          Reporter.error("Parameter not allowed: " + eff, pos, trace)
 
-        case _ =>
+      case _ =>
 
     super.transformFunDef(fdef)
 
