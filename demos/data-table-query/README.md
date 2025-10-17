@@ -7,7 +7,7 @@ This demo extends the basic data-table demo with a **flexible query DSL** for ex
 User code can build custom filter conditions using a type-safe DSL with atomic building blocks:
 
 - **Column references** - Typed columns from schema (`table.title`, `table.createdAt`)
-- **Comparison operators** - `===`, `like`, `>`, `<`, `>=`, `<=`
+- **Comparison operators** - `==`, `like`, `>`, `<`, `>=`, `<=`
 - **Logical operators** - `&&` (AND), `||` (OR)
 - **Automatic owner_id filtering** - Runtime always ANDs user conditions with `WHERE owner_id = ?`
 
@@ -137,7 +137,7 @@ data Cond =
 
 // Infix operators for DSL
 section QueryDSL
-  def (col: Column) === (val: Value): Cond = Eq(col, val)
+  def (col: Column) == (val: Value): Cond = Eq(col, val)
   def (col: Column) like (pattern: String): Cond = Like(col, pattern)
   def (col: Column) > (val: Value): Cond = Gt(col, val)
   // ... more operators

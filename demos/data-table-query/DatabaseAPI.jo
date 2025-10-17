@@ -121,7 +121,7 @@ section QueryDSL
   //[
   Comparison operators
   //]
-  def (col: Column) === (v: Value): Cond = Eq(col, v)
+  def (col: Column) == (v: Value): Cond = Eq(col, v)
   def (col: Column) like (pat: String): Cond = Like(col, pat)
   def (col: Column) > (v: Value): Cond = Gt(col, v)
   def (col: Column) < (v: Value): Cond = Lt(col, v)
