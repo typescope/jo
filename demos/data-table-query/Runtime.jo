@@ -12,9 +12,6 @@ namespace DatabaseRuntime
 import jo.IO.stdout
 import jo.runtime.JS.js
 import DatabaseAPI.*
-import DatabaseAPI.ordering
-import DatabaseAPI.limit
-import DatabaseAPI.offset
 
 //[
 Helper type to hold SQL and parameters during query building

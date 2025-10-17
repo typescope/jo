@@ -249,7 +249,7 @@ section Impl
         QueryParts(columnName(col) + " = ?", [value])
 
       case Like col pat =>
-        QueryParts(columnName(col) + " LIKE ?", [StringValue(pat)])
+        QueryParts(columnName(col) + " LIKE ?", [str(pat)])
 
       case And left right =>
         val leftParts = condToSQL(left)
