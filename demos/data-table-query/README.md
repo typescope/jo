@@ -46,8 +46,7 @@ The runtime translates the condition AST to parameterized SQL, preventing inject
 
 ### Simple LIKE query
 ```jo
-val table = db.getSchema()
-val condition = table.title like "%Report%"
+val condition = Title like "%Report%"
 val docs = db.queryWhere(condition)
 ```
 
@@ -59,7 +58,7 @@ SELECT * FROM documents WHERE owner_id = ? AND (title LIKE ?)
 
 ### Date comparison
 ```jo
-val condition = table.createdAt > str("2024-01-15")
+val condition = CreatedAt > str("2024-01-15")
 val docs = db.queryWhere(condition)
 ```
 
@@ -72,7 +71,7 @@ SELECT * FROM documents WHERE owner_id = ? AND (created_at > ?)
 ### Compound AND query
 ```jo
 val condition =
-  (table.title like "%Report%") && (table.createdAt > str("2024-01-10"))
+  (Title like "%Report%") && (CreatedAt > str("2024-01-10"))
 val docs = db.queryWhere(condition)
 ```
 
@@ -85,7 +84,7 @@ SELECT * FROM documents WHERE owner_id = ? AND ((title LIKE ?) AND (created_at >
 ### Compound OR query
 ```jo
 val condition =
-  (table.title like "%Budget%") || (table.title like "%Plan%")
+  (Title like "%Budget%") || (Title like "%Plan%")
 val docs = db.queryWhere(condition)
 ```
 
@@ -98,8 +97,8 @@ SELECT * FROM documents WHERE owner_id = ? AND ((title LIKE ?) OR (title LIKE ?)
 ### Complex nested query
 ```jo
 val condition =
-  ((table.title like "%Meeting%") && (table.createdAt > str("2024-01-05")))
-  || (table.title like "%Urgent%")
+  ((Title like "%Meeting%") && (CreatedAt > str("2024-01-05")))
+  || (Title like "%Urgent%")
 val docs = db.queryWhere(condition)
 ```
 
@@ -118,6 +117,13 @@ WHERE owner_id = ?
 Defines the query DSL types and operators:
 
 ```jo
+// Column ADT - only valid columns can be constructed
+data Column =
+    Title
+  | Content
+  | OwnerId
+  | CreatedAt
+
 // Filter condition ADT
 data Cond =
     Eq(col: Column, val: Value)
@@ -200,25 +206,24 @@ def platformMain: Unit receives stdout =
 Demonstrates various query patterns:
 
 ```jo
+import DatabaseAPI.{Title, Content, CreatedAt}
 import DatabaseAPI.QueryDSL.{str, int}
 
 def analyzeDocuments: Unit receives stdout, db =
-  val table = db.getSchema()
-
   // Query 1: Simple LIKE
-  val reports = db.queryWhere(table.title like "%Report%")
+  val reports = db.queryWhere(Title like "%Report%")
 
   // Query 2: Date comparison
-  val recent = db.queryWhere(table.createdAt > str("2024-01-15"))
+  val recent = db.queryWhere(CreatedAt > str("2024-01-15"))
 
   // Query 3: Compound AND
   val recentReports = db.queryWhere(
-    (table.title like "%Report%") && (table.createdAt > str("2024-01-10"))
+    (Title like "%Report%") && (CreatedAt > str("2024-01-10"))
   )
 
   // Query 4: Compound OR
   val budgetOrPlan = db.queryWhere(
-    (table.title like "%Budget%") || (table.title like "%Plan%")
+    (Title like "%Budget%") || (Title like "%Plan%")
   )
 ```
 
@@ -319,23 +324,27 @@ def (left: Cond) && (right: Cond): Cond = And(left, right)
 
 Usage reads naturally:
 ```jo
-table.title like "%Report%" && table.createdAt > str("2024-01-15")
+Title like "%Report%" && CreatedAt > str("2024-01-15")
 ```
 
-### Schema-Based API
+### Column ADT for Type Safety
 
-The `getSchema()` method provides typed column references:
+Columns are defined as an ADT, preventing invalid column references:
 
 ```jo
-val table = db.getSchema()
-table.title      // Column("title", "documents")
-table.createdAt  // Column("created_at", "documents")
+data Column =
+    Title
+  | Content
+  | OwnerId
+  | CreatedAt
 ```
 
 Benefits:
-- Discoverable (IDE autocomplete)
-- Type-safe (no string typos)
-- Self-documenting
+- **Type-safe** - Impossible to create invalid columns like `Column("foobar")`
+- **Compile-time validation** - Typos caught at compile time
+- **Discoverable** - IDE autocomplete suggests valid columns
+- **Self-documenting** - Clear what columns exist
+- **Direct usage** - Import and use: `import DatabaseAPI.{Title, CreatedAt}`
 
 ### Pattern Matching for SQL Generation
 

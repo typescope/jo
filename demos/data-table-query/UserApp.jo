@@ -13,6 +13,10 @@ namespace UserApp
 import jo.IO.stdout
 import DatabaseAPI.db
 import DatabaseAPI.Document
+import DatabaseAPI.Title
+import DatabaseAPI.Content
+import DatabaseAPI.OwnerId
+import DatabaseAPI.CreatedAt
 import DatabaseAPI.QueryDSL.*
 
 //[
@@ -30,9 +34,6 @@ def analyzeDocuments: Unit receives stdout, db =
   println "═══════════════════════════════════════════════"
   println ""
 
-  // Get schema for typed column access
-  val table = db.getSchema()
-
   println "--- Query 1: All my documents ---"
   val allDocs = db.queryMyDocuments()
   allDocs.foreach doc =>
@@ -41,7 +42,7 @@ def analyzeDocuments: Unit receives stdout, db =
   println ""
 
   println "--- Query 2: Documents with 'Report' in title ---"
-  val reportsCondition = table.title like "%Report%"
+  val reportsCondition = Title like "%Report%"
   val reports = db.queryWhere(reportsCondition)
   reports.foreach doc =>
     println ("  • " + doc.title)
@@ -49,7 +50,7 @@ def analyzeDocuments: Unit receives stdout, db =
   println ""
 
   println "--- Query 3: Documents created after 2024-01-15 ---"
-  val recentCondition = table.createdAt > str("2024-01-15")
+  val recentCondition = CreatedAt > str("2024-01-15")
   val recentDocs = db.queryWhere(recentCondition)
   recentDocs.foreach doc =>
     println ("  • " + doc.title + " (created: " + doc.createdAt + ")")
@@ -58,7 +59,7 @@ def analyzeDocuments: Unit receives stdout, db =
 
   println "--- Query 4: Reports created after 2024-01-10 ---"
   val compoundCondition =
-    (table.title like "%Report%") && (table.createdAt > str("2024-01-10"))
+    (Title like "%Report%") && (CreatedAt > str("2024-01-10"))
   val recentReports = db.queryWhere(compoundCondition)
   recentReports.foreach doc =>
     println ("  • " + doc.title + " (created: " + doc.createdAt + ")")
@@ -67,7 +68,7 @@ def analyzeDocuments: Unit receives stdout, db =
 
   println "--- Query 5: Documents with 'Budget' or 'Plan' in title ---"
   val orCondition =
-    (table.title like "%Budget%") || (table.title like "%Plan%")
+    (Title like "%Budget%") || (Title like "%Plan%")
   val budgetOrPlan = db.queryWhere(orCondition)
   budgetOrPlan.foreach doc =>
     println ("  • " + doc.title)
@@ -77,8 +78,8 @@ def analyzeDocuments: Unit receives stdout, db =
   println "--- Query 6: Complex compound query ---"
   // (title contains "Meeting" AND created after 2024-01-05) OR title contains "Urgent"
   val complexCondition =
-    ((table.title like "%Meeting%") && (table.createdAt > str("2024-01-05")))
-    || (table.title like "%Urgent%")
+    ((Title like "%Meeting%") && (CreatedAt > str("2024-01-05")))
+    || (Title like "%Urgent%")
   val complexResults = db.queryWhere(complexCondition)
   complexResults.foreach doc =>
     println ("  • " + doc.title + " (created: " + doc.createdAt + ")")
@@ -90,7 +91,7 @@ def analyzeDocuments: Unit receives stdout, db =
   println ("  All my documents: " + intToStr(totalCount))
 
   // Count with filter
-  val reportCount = db.countWhere(table.title like "%Report%")
+  val reportCount = db.countWhere(Title like "%Report%")
   println ("  Reports: " + intToStr(reportCount))
   println ""
 

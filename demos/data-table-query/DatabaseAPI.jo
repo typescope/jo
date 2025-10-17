@@ -12,6 +12,9 @@ import jo.IO.stdout
 
 //[
 Document type representing a row in the documents table
+
+This is the RESULT type - what queries return.
+Fields mirror the database table structure.
 //]
 type Document = {
   id: Int,
@@ -29,6 +32,20 @@ Query DSL Types
 Value types for query parameters
 //]
 data Value = IntValue(v: Int) | StringValue(v: String)
+
+//[
+Column ADT - only valid columns can be constructed
+
+This prevents users from creating invalid column references.
+Users import and use column constructors directly: Title, Content, etc.
+
+Note: 'id' column is omitted since ID-based lookup uses getMyDocument(id) directly.
+//]
+data Column =
+    Title
+  | Content
+  | OwnerId
+  | CreatedAt
 
 //[
 Filter condition for building WHERE clauses
@@ -50,36 +67,12 @@ data Cond =
   | Or(left: Cond, right: Cond)
 
 //[
-Column reference with table context
-//]
-data Column(name: String, table: String)
-
-//[
-Schema providing typed column access
-
-Instead of using string literals, users get typed column references
-from the schema which makes the API discoverable and type-safe.
-//]
-data Table(
-  name: String,
-  title: Column,
-  content: Column,
-  ownerId: Column,
-  createdAt: Column
-)
-
-//[
 Database interface with query DSL support
 
 All queries automatically scoped to current user via owner_id filtering.
 Custom filter conditions are ANDed with the owner_id check.
 //]
 type DB = {
-  //[
-  Get the database schema with typed column access
-  //]
-  def getSchema(): Table
-
   //[
   Query all documents belonging to the current user
   //]
@@ -121,8 +114,7 @@ Query DSL - Operators for building filter conditions
 These infix operators provide a natural syntax for building queries:
 
 Example:
-  val table = db.getSchema()
-  val cond = (table.title like "%report%") && (table.createdAt > str("2024-01-01"))
+  val cond = (Title like "%report%") && (CreatedAt > str("2024-01-01"))
   val docs = db.queryWhere(cond)
 //]
 section QueryDSL

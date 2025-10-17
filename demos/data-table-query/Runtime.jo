@@ -42,6 +42,18 @@ section Impl
     end
 
   //[
+  Get the SQL column name for a Column ADT value
+  Used internally by the runtime for SQL generation
+  //]
+  def columnName(col: Column): String =
+    match col
+      case Title => "title"
+      case Content => "content"
+      case OwnerId => "owner_id"
+      case CreatedAt => "created_at"
+    end
+
+  //[
   Translate Cond expression tree to SQL WHERE clause and parameters
 
   Returns QueryParts containing:
@@ -54,22 +66,22 @@ section Impl
   def condToSQL(cond: Cond): QueryParts =
     match cond
       case Eq col value =>
-        QueryParts(col.name + " = ?", List(value))
+        QueryParts(columnName(col) + " = ?", List(value))
 
       case Like col pat =>
-        QueryParts(col.name + " LIKE ?", List(StringValue(pat)))
+        QueryParts(columnName(col) + " LIKE ?", List(StringValue(pat)))
 
       case Gt col value =>
-        QueryParts(col.name + " > ?", List(value))
+        QueryParts(columnName(col) + " > ?", List(value))
 
       case Lt col value =>
-        QueryParts(col.name + " < ?", List(value))
+        QueryParts(columnName(col) + " < ?", List(value))
 
       case Gte col value =>
-        QueryParts(col.name + " >= ?", List(value))
+        QueryParts(columnName(col) + " >= ?", List(value))
 
       case Lte col value =>
-        QueryParts(col.name + " <= ?", List(value))
+        QueryParts(columnName(col) + " <= ?", List(value))
 
       case And left right =>
         val leftParts = condToSQL(left)
@@ -109,18 +121,6 @@ section Impl
   //[
   Database operations
   //]
-
-  //[
-  Get database schema with typed column references
-  //]
-  def getSchemaImpl(): Table =
-    Table(
-      "documents",
-      Column("title", "documents"),
-      Column("content", "documents"),
-      Column("owner_id", "documents"),
-      Column("created_at", "documents")
-    )
 
   //[
   Query all documents belonging to the current user
@@ -274,7 +274,6 @@ def platformMain: Unit receives stdout =
   // Provide db implementation with explicit parameter passing
   DatabaseAPI.analyzeDocuments with
     DatabaseAPI.db = {
-      def getSchema(): Table = Impl.getSchemaImpl()
       def queryMyDocuments(): List[Document] =
         Impl.queryMyDocumentsImpl(userId) with Impl.dbHandle = dbHandle
       def queryWhere(condition: Cond): List[Document] =
