@@ -143,35 +143,57 @@ end
 
 ### Runtime.jo
 
-Translates conditions to SQL:
+Implementation functions organized in `section Impl` with context parameter for database handle:
 
 ```jo
-def condToSQL(cond: Cond): QueryParts =
-  match cond
-    case Cond.Eq col val =>
-      QueryParts(col.name + " = ?", List(val))
+section Impl
+  param dbHandle: Any
 
-    case Cond.Like col pattern =>
-      QueryParts(col.name + " LIKE ?", List(StringValue(pattern)))
+  def execQuery(sql: String, params: Any): String receives dbHandle =
+    val db = dbHandle
+    val stmt = js "db.prepare(sql)"
+    val rows = js "stmt.all(...params)"
+    rows
 
-    case Cond.And left right =>
-      val leftParts = condToSQL(left)
-      val rightParts = condToSQL(right)
-      val combinedSQL = "(" + leftParts.sql + " AND " + rightParts.sql + ")"
-      val combinedParams = leftParts.params.concat(rightParts.params)
-      QueryParts(combinedSQL, combinedParams)
-    // ...
-  end
+  def condToSQL(cond: Cond): QueryParts =
+    match cond
+      case Eq col val =>
+        QueryParts(col.name + " = ?", List(val))
 
-def queryWhere(condition: Cond): List[Document] =
-  val uid = userId  // Captured from command-line
-  val parts = condToSQL(condition)
-  // Always AND with owner_id check!
-  val sql = "SELECT * FROM documents WHERE owner_id = ? AND (" + parts.sql + ")"
-  // ...
+      case Like col pattern =>
+        QueryParts(col.name + " LIKE ?", List(StringValue(pattern)))
+
+      case And left right =>
+        val leftParts = condToSQL(left)
+        val rightParts = condToSQL(right)
+        val combinedSQL = "(" + leftParts.sql + " AND " + rightParts.sql + ")"
+        val combinedParams = leftParts.params ++ rightParts.params
+        QueryParts(combinedSQL, combinedParams)
+      // ...
+    end
+
+  def queryWhereImpl(userId: Int, condition: Cond): List[Document] receives dbHandle =
+    val parts = condToSQL(condition)
+    // Always AND with owner_id check - user cannot bypass this!
+    val sql = "SELECT * FROM documents WHERE owner_id = ? AND (" + parts.sql + ")"
+    val allParams = parts.params.prepend(IntValue(userId))
+    val jsParams = paramsToJSArray(allParams)
+    val rows = execQuery(sql, jsParams)
+    // ... build document list
+end
+
+def platformMain: Unit receives stdout =
+  val userId = js "parseInt(process.argv[2])"
+  val dbHandle = js "new DatabaseSync(dbPath)"
+
+  DatabaseAPI.analyzeDocuments with
+    DatabaseAPI.db = {
+      def queryWhere(condition: Cond): List[Document] =
+        Impl.queryWhereImpl(userId, condition) with Impl.dbHandle = dbHandle
+    }
 ```
 
-**Security guarantee**: User conditions are always ANDed with `owner_id = ?`.
+**Security guarantee**: User conditions are always ANDed with `owner_id = ?`. Implementation uses context parameters for database handle.
 
 ### UserApp.jo
 

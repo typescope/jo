@@ -65,32 +65,48 @@ param logger: Logger
 ```
 
 ### PlatformRuntime.jo
-Provides context via `with` clause:
+Implementation functions are organized in three sections (`Process`, `System`, `Logger`), then provided via `with` clause:
 
 ```jo
+section Process
+  def listProcessesImpl(): String =
+    val output = js "require('child_process').execSync('ps aux').toString()"
+    output
+
+  def countProcessesImpl(): Int =
+    // ... Node.js implementation
+end
+
+section System
+  def uptimeImpl(): Int =
+    val uptimeSeconds = js "require('os').uptime()"
+    // ...
+end
+
+section Logger
+  def infoImpl(message: String): Unit receives stdout =
+    print "[INFO] "
+    println message
+end
+
 def platformMain: Unit receives stdout =
   startMonitor with
     process = {
-      def listProcesses(): String =
-        val output = js "require('child_process').execSync('ps aux').toString()"
-        output
-
-      def countProcesses(): Int =
-        // ... Node.js implementation
+      def listProcesses(): String = Process.listProcessesImpl()
+      def countProcesses(): Int = Process.countProcessesImpl()
+      // ...
     },
     system = {
-      def uptime(): Int =
-        val uptimeSeconds = js "require('os').uptime()"
-        // ...
+      def uptime(): Int = System.uptimeImpl()
+      // ...
     },
     logger = {
-      def info(message: String): Unit =
-        print "[INFO] "
-        println message
+      def info(message: String): Unit = Logger.infoImpl(message)
+      // ...
     }
 ```
 
-**Key technique**: All capabilities provided in a single `with` expression.
+**Key technique**: Implementation functions organized in sections, then capabilities provided in a single `with` expression.
 
 ### UserApp.jo
 Receives context parameters:

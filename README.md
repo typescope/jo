@@ -61,7 +61,6 @@ A system monitoring application that extends Jo's JavaScript runtime with real s
 - **Object-oriented API design** with capability grouping (Process, System, Logger)
 - **Three-stage compilation** (API → Runtime → User code)
 - **Security confinement** - user code analyzes system processes without direct Node.js access
-- **Section-based organization** - Implementation functions organized in three sections (`section Process`, `section System`, `section Logger`) matching the three context parameter types
 
 It shows how platforms can expose controlled system APIs (process listing, memory usage, system info) to untrusted user code while preventing arbitrary command execution.
 
@@ -74,9 +73,7 @@ A database application demonstrating **row-level security** with SQLite, where d
 - **Command-line arguments** for userId and database path (hidden from user code)
 - **User-aware runtime** - runtime captures userId and provides filtered database access
 - **Automatic query filtering** - all SQL queries filtered by `WHERE owner_id = ?`
-- **Type-safe database interface** - user code cannot write raw SQL
 - **Compiler-enforced security** - impossible to bypass filtering, even with malicious code
-- **Section-based organization** - Implementation functions organized in `section Impl` for clarity
 
 It shows how a user-aware runtime can enforce row-level access control and automatically filtering all database queries, making it impossible for user code to access data belonging to other users.
 
@@ -87,12 +84,9 @@ It shows how a user-aware runtime can enforce row-level access control and autom
 An extension of the data-table demo that adds **flexible custom filter conditions** while maintaining row-level security.
 
 - **Query DSL** - Type-safe expression builder using infix operators (`like`, `>`, `&&`, `||`)
-- **Atomic operators** - Composable building blocks (Eq, Like, Gt, Lt, And, Or)
-- **Schema-driven API** - Typed column references via `getSchema()`
 - **SQL-level filtering** - Efficient for large datasets (no in-memory filtering)
 - **Pattern matching** - Runtime translates query AST to parameterized SQL
 - **Automatic security** - User conditions always ANDed with `WHERE owner_id = ?`
-- **Section-based organization** - Implementation functions organized in `section Impl` with context parameter `param dbHandle: Any`
 
 It shows how to provide expressive query capabilities while maintaining security: users can build complex filters like `(table.title like "%Report%") && (table.createdAt > str("2024-01-15"))`, but the runtime always enforces row-level access control.
 

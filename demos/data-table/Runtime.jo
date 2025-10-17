@@ -132,19 +132,19 @@ def platformMain: Unit receives stdout =
 
   // Open SQLite database using node:sqlite (Node.js v22.5.0+)
   val DatabaseSync = js "require('node:sqlite').DatabaseSync"
-  val dbHandleValue = js "new DatabaseSync(dbPath)"
+  val dbHandle = js "new DatabaseSync(dbPath)"
 
   // Provide db implementation with explicit parameter passing
   DatabaseAPI.analyzeDocuments with
     DatabaseAPI.db = {
       def queryMyDocuments(): List[Document] =
-        (Impl.queryMyDocumentsImpl(userId) with Impl.dbHandle = dbHandleValue)
+        Impl.queryMyDocumentsImpl(userId) with Impl.dbHandle = dbHandle
       def getMyDocument(id: Int): Option[Document] =
-        (Impl.getMyDocumentImpl(userId, id) with Impl.dbHandle = dbHandleValue)
+        Impl.getMyDocumentImpl(userId, id) with Impl.dbHandle = dbHandle
       def countMyDocuments(): Int =
-        (Impl.countMyDocumentsImpl(userId) with Impl.dbHandle = dbHandleValue)
+        Impl.countMyDocumentsImpl(userId) with Impl.dbHandle = dbHandle
     }
 
   // Close database
-  js "dbHandleValue.close()"
+  js "dbHandle.close()"
 end

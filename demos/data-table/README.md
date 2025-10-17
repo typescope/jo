@@ -73,9 +73,24 @@ param db: DB
 
 ### Runtime.jo (Trusted)
 
-Reads `userId` and `dbPath` from argv and provides `db`:
+Implementation functions organized in `section Impl` with context parameter for database handle:
 
 ```jo
+section Impl
+  param dbHandle: Any
+
+  def execQuery(sql: String, params: Any): String receives dbHandle =
+    val db = dbHandle
+    val stmt = js "db.prepare(sql)"
+    val rows = js "stmt.all(...params)"
+    rows
+
+  def queryMyDocumentsImpl(userId: Int): List[Document] receives dbHandle =
+    val sql = "SELECT * FROM documents WHERE owner_id = ?"
+    val rows = execQuery(sql, js "[userId]")
+    // ... build document list
+end
+
 def platformMain: Unit receives stdout =
   // Read userId from command line - ABORT if missing
   val userIdStr = js "process.argv[2]"
@@ -96,14 +111,11 @@ def platformMain: Unit receives stdout =
   DatabaseAPI.analyzeDocuments with
     DatabaseAPI.db = {
       def queryMyDocuments(): List[Document] =
-        // userId captured here - user cannot access it!
-        val sql = "SELECT * FROM documents WHERE owner_id = ?"
-        execQuery(sql, js "[userId]")
-        // ...
+        Impl.queryMyDocumentsImpl(userId) with Impl.dbHandle = dbHandle
     }
 ```
 
-**Key technique**: `userId` and `dbPath` are captured in closures. User code calls db methods but cannot inspect or modify these values.
+**Key technique**: Implementation functions in `section Impl` use context parameter `dbHandle`. The `userId` and `dbPath` are captured in closures - user code calls db methods but cannot inspect or modify these values.
 
 ### UserApp.jo (Untrusted)
 
@@ -235,8 +247,7 @@ Links user code to runtime entry points.
      DatabaseAPI.db = {
        def queryMyDocuments(): List[Document] =
          // userId is captured in this closure
-         val sql = "SELECT * FROM documents WHERE owner_id = ?"
-         execQuery(sql, js "[userId]")  // userId from closure, not user code!
+         Impl.queryMyDocumentsImpl(userId) with Impl.dbHandle = dbHandle
      }
    ```
 
