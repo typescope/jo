@@ -69,7 +69,7 @@ If you're working on the Jo compiler itself and want to load the mode directly f
 
 ## Usage
 
-Once installed, `jo-mode` will automatically activate when you open `.jo` or `.stk` files.
+Once installed, `jo-mode` will automatically activate when you open `.jo` files.
 
 ### Key Bindings
 

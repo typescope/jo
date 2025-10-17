@@ -229,7 +229,6 @@
 
 ;;;###autoload
 (add-to-list 'auto-mode-alist '("\\.jo\\'" . jo-mode))
-(add-to-list 'auto-mode-alist '("\\.stk\\'" . jo-mode))
 
 (provide 'jo-mode)
 
