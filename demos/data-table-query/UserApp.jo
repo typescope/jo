@@ -30,7 +30,7 @@ Demonstrates the query DSL capabilities:
 //]
 def analyzeDocuments: Unit receives stdout, db =
   println "═══════════════════════════════════════════════"
-  println "  Database Query DSL Demo"
+  println "           Database Query DSL Demo"
   println "═══════════════════════════════════════════════"
   println ""
 
@@ -138,15 +138,13 @@ def analyzeDocuments: Unit receives stdout, db =
   println ("  Count: " + intToStr(fullQuery.size))
   println ""
 
-  println "--- Total document count ---"
+  println "--- Summary: Document counts ---"
   val totalCount = db.countMyDocuments()
-  println ("  All my documents: " + intToStr(totalCount))
-
-  // Count with filter
+  println ("  Total documents: " + intToStr(totalCount))
   val reportCount = db.countWhere(Title like "%Report%")
   println ("  Reports: " + intToStr(reportCount))
   println ""
 
   println "═══════════════════════════════════════════════"
-  println "  Analysis complete"
+  println "            Analysis Complete"
   println "═══════════════════════════════════════════════"

@@ -58,13 +58,19 @@ Order specification: which column and in what direction
 data OrderBy(col: Column, order: SortOrder)
 
 //[
-Filter condition for building WHERE clauses
+Filter condition ADT for building WHERE clauses
 
-Atomic building blocks that compose into complex queries:
-- Eq: column = value
-- Like: column LIKE pattern
-- Gt/Lt/Gte/Lte: comparison operators
-- And/Or: logical composition
+Comparison operators:
+  Eq/Neq: equality and inequality
+  Like: pattern matching with SQL LIKE
+  Gt/Lt/Gte/Lte: ordering comparisons
+  Between: range check (inclusive)
+  Null/NotNull: null checking
+  In: membership test
+
+Logical composition:
+  And/Or: combine conditions
+  Not: negate condition
 //]
 data Cond =
     Eq(col: Column, value: Value)

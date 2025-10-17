@@ -191,6 +191,32 @@ section Impl
     rows
 
   //[
+  Build a Document from a database row
+  Extracts common document construction logic
+  //]
+  def buildDocumentFromRow(row: Any): Document =
+    {
+      id: js "row.id",
+      title: js "row.title",
+      content: js "row.content",
+      ownerId: js "row.owner_id",
+      createdAt: js "row.created_at"
+    }
+
+  //[
+  Build list of documents from query results
+  //]
+  def buildDocumentList(rows: Any): List[Document] =
+    val count = js "rows.length"
+    var docs: List[Document] = List.empty
+    var i = count - 1
+    while i >= 0 do
+      val row = js "rows[i]"
+      docs = docs.prepend(buildDocumentFromRow(row))
+      i = i - 1
+    docs
+
+  //[
   Database operations
   //]
 
@@ -200,54 +226,19 @@ section Impl
   def queryMyDocumentsImpl(userId: Int): List[Document] receives dbHandle =
     val sql = "SELECT * FROM documents WHERE owner_id = ?"
     val rows = execQuery(sql, js "[userId]")
-    val count = js "rows.length"
-
-    var docs: List[Document] = List.empty
-    var i = count - 1
-    while i >= 0 do
-      val row = js "rows[i]"
-      val doc = {
-        id: js "row.id",
-        title: js "row.title",
-        content: js "row.content",
-        ownerId: js "row.owner_id",
-        createdAt: js "row.created_at"
-      }
-      docs = docs.prepend(doc)
-      i = i - 1
-
-    docs
+    buildDocumentList(rows)
 
   //[
   Query documents with custom filter condition
   Automatically scoped to current user (owner_id check is always applied)
   //]
   def queryWhereImpl(userId: Int, condition: Cond): List[Document] receives dbHandle =
-    // Translate condition to SQL
     val parts = condToSQL(condition)
-    // Always AND with owner_id check - user cannot bypass this!
     val sql = "SELECT * FROM documents WHERE owner_id = ? AND (" + parts.sql + ")"
-    // Prepend userId to parameters
     val allParams = parts.params.prepend(IntValue(userId))
     val jsParams = paramsToJSArray(allParams)
     val rows = execQuery(sql, jsParams)
-    val count = js "rows.length"
-
-    var docs: List[Document] = List.empty
-    var i = count - 1
-    while i >= 0 do
-      val row = js "rows[i]"
-      val doc = {
-        id: js "row.id",
-        title: js "row.title",
-        content: js "row.content",
-        ownerId: js "row.owner_id",
-        createdAt: js "row.created_at"
-      }
-      docs = docs.prepend(doc)
-      i = i - 1
-
-    docs
+    buildDocumentList(rows)
 
   //[
   Get a specific document by ID
@@ -257,19 +248,10 @@ section Impl
     val sql = "SELECT * FROM documents WHERE id = ? AND owner_id = ?"
     val rows = execQuery(sql, js "[id, userId]")
     val count = js "rows.length"
-
     if count == 0 then
       None
     else
-      val row = js "rows[0]"
-      val doc = {
-        id: js "row.id",
-        title: js "row.title",
-        content: js "row.content",
-        ownerId: js "row.owner_id",
-        createdAt: js "row.created_at"
-      }
-      Some doc
+      Some(buildDocumentFromRow(js "rows[0]"))
 
   //[
   Count documents belonging to the current user
@@ -302,23 +284,7 @@ section Impl
     val orderByClause = buildOrderByClause(ordering)
     val sql = "SELECT * FROM documents WHERE owner_id = ?" + orderByClause
     val rows = execQuery(sql, js "[userId]")
-    val count = js "rows.length"
-
-    var docs: List[Document] = List.empty
-    var i = count - 1
-    while i >= 0 do
-      val row = js "rows[i]"
-      val doc = {
-        id: js "row.id",
-        title: js "row.title",
-        content: js "row.content",
-        ownerId: js "row.owner_id",
-        createdAt: js "row.created_at"
-      }
-      docs = docs.prepend(doc)
-      i = i - 1
-
-    docs
+    buildDocumentList(rows)
 
   //[
   Query documents with filter and ordering
@@ -330,23 +296,7 @@ section Impl
     val allParams = parts.params.prepend(IntValue(userId))
     val jsParams = paramsToJSArray(allParams)
     val rows = execQuery(sql, jsParams)
-    val count = js "rows.length"
-
-    var docs: List[Document] = List.empty
-    var i = count - 1
-    while i >= 0 do
-      val row = js "rows[i]"
-      val doc = {
-        id: js "row.id",
-        title: js "row.title",
-        content: js "row.content",
-        ownerId: js "row.owner_id",
-        createdAt: js "row.created_at"
-      }
-      docs = docs.prepend(doc)
-      i = i - 1
-
-    docs
+    buildDocumentList(rows)
 
   //[
   Query documents with pagination
@@ -355,23 +305,7 @@ section Impl
     val limitOffsetClause = buildLimitOffsetClause(limit, offset)
     val sql = "SELECT * FROM documents WHERE owner_id = ?" + limitOffsetClause
     val rows = execQuery(sql, js "[userId]")
-    val count = js "rows.length"
-
-    var docs: List[Document] = List.empty
-    var i = count - 1
-    while i >= 0 do
-      val row = js "rows[i]"
-      val doc = {
-        id: js "row.id",
-        title: js "row.title",
-        content: js "row.content",
-        ownerId: js "row.owner_id",
-        createdAt: js "row.created_at"
-      }
-      docs = docs.prepend(doc)
-      i = i - 1
-
-    docs
+    buildDocumentList(rows)
 
   //[
   Query documents with filter, ordering, and pagination (full-featured query)
@@ -384,23 +318,7 @@ section Impl
     val allParams = parts.params.prepend(IntValue(userId))
     val jsParams = paramsToJSArray(allParams)
     val rows = execQuery(sql, jsParams)
-    val count = js "rows.length"
-
-    var docs: List[Document] = List.empty
-    var i = count - 1
-    while i >= 0 do
-      val row = js "rows[i]"
-      val doc = {
-        id: js "row.id",
-        title: js "row.title",
-        content: js "row.content",
-        ownerId: js "row.owner_id",
-        createdAt: js "row.created_at"
-      }
-      docs = docs.prepend(doc)
-      i = i - 1
-
-    docs
+    buildDocumentList(rows)
 end
 
 //[
