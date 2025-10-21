@@ -18,6 +18,6 @@ def bar() =
   print
     "Bonjour!" + newLine
 
-def main =  // error
+def main receives stdout =  // error
   foo with pageWidth = 100, newLine = "\n"
   bar

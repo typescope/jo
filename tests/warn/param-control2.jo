@@ -13,6 +13,6 @@ def h(): Unit = i
 def i(): Unit =
   g
 
-def main = // error
+def main receives jo.IO.stdout = // error
   g with pageWidth = 30
   i

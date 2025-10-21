@@ -1,0 +1,15 @@
+---------- Error at ./tests/warn/param-allow.jo:11:12 ---------------
+| def main = bar allow stdout  // error
+|            ^^^
+|            Parameter not allowed: newLine
+
+The following is the trace that leads to the problem:
+├── def main = bar allow stdout  // error	[ ./tests/warn/param-allow.jo:11:12 ]
+│              ^^^
+├── def bar() = foo	[ ./tests/warn/param-allow.jo:9:13 ]
+│               ^^^
+└──     "Hello, world!" + newLine	[ ./tests/warn/param-allow.jo:7:23 ]
+                          ^^^^^^^
+
+
+1 error(s), 0 warning(s)

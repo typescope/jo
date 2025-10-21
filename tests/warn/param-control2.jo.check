@@ -1,0 +1,23 @@
+---------- Error at ./tests/neg/param-control2.jo:16:5 ---------------
+| def main receives jo.IO.stdout = // error
+|     ^^^^
+|     Parameter not allowed: pageWidth
+
+The following is the trace that leads to the problem:
+├──   i	[ ./tests/neg/param-control2.jo:18:3 ]
+│     ^
+├──   g	[ ./tests/neg/param-control2.jo:14:3 ]
+│     ^
+├──   h	[ ./tests/neg/param-control2.jo:9:3 ]
+│     ^
+├── def h(): Unit = i	[ ./tests/neg/param-control2.jo:11:17 ]
+│                   ^
+├──   g	[ ./tests/neg/param-control2.jo:14:3 ]
+│     ^
+├──   pretty "hello, word"	[ ./tests/neg/param-control2.jo:8:3 ]
+│     ^^^^^^
+└──   pageWidth p	[ ./tests/neg/param-control2.jo:5:3 ]
+      ^^^^^^^^^
+
+
+1 error(s), 0 warning(s)

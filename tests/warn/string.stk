@@ -1,0 +1,10 @@
+type Seq[T] = object {
+  def size: Int
+  def get(i: Int): T
+}
+
+def test(s: Seq[Char]): Unit =
+  println (charToStr s[0])
+
+def main: Unit =
+  test "hello"
