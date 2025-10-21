@@ -26,9 +26,13 @@ class EffectCheck(using rp: Reporter, defn: Definitions) extends Phase[Symbol]:
         val allowed = params.toSet
         val pos = symbol.sourcePos
 
+        // Default value functions of optional context parameters should not
+        // depend on any optional context parameters.
+        val allowDefault = !symbol.is(Flags.Default)
+
         for
           (eff, trace) <- effs
-          if !eff.is(Flags.Default) && !allowed.exists(param => eff.refers(param))
+          if (!allowDefault || !eff.is(Flags.Default)) && !allowed.exists(param => eff.refers(param))
         do
           Reporter.error("Parameter not allowed: " + eff, pos, trace)
 

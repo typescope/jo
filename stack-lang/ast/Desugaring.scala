@@ -11,6 +11,7 @@ import scala.collection.mutable
 object Desugaring:
   // Use key props to avoid using sast.Flags in ast package
   val DefaultContextParam = new KeyProps.Key[Unit]("Desugaring.DefaultContextParam")
+  val DefaultValueFun = new KeyProps.Key[Unit]("Desugaring.DefaultValueFun")
 
   def synthesize(defs: List[Def])(using Reporter, Source): List[Def] =
     val defs2 =
@@ -156,7 +157,9 @@ object Desugaring:
       val autos = Nil
       val receives = Some(Nil) // no context params allowed for default
 
-      FunDef(defaultId, tparams, params, autos, paramType, receives, rhs, preParamCount = 0)(pdef.span)
+      val fdef = FunDef(defaultId, tparams, params, autos, paramType, receives, rhs, preParamCount = 0)(pdef.span)
+      fdef.addKey(DefaultValueFun, ())
+      fdef
 
     pdef.default match
       case None => pdef :: Nil

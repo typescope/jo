@@ -1297,7 +1297,10 @@ class Namer(using Config):
       (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source)
   : DelayedDef[FunDef] =
 
-    val flags = checker.checkModifiers(funDef) | initialFlags
+    var flags = checker.checkModifiers(funDef) | initialFlags
+
+    if funDef.hasKey(Desugaring.DefaultValueFun) then
+      flags |= Flags.Default
 
     val funSym = Symbol.createSymbol(funDef.name, flags, funDef.ident.pos)
     given Scope = sc.fresh(funSym)
