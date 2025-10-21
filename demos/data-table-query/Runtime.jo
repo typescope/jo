@@ -44,6 +44,7 @@ section Impl
     match v
       case IntValue n => n
       case StringValue s => s
+      case BoolValue b => if b then 1 else 0
     end
 
   //[
@@ -56,16 +57,18 @@ section Impl
       case Content => "content"
       case OwnerId => "owner_id"
       case CreatedAt => "created_at"
+      case Draft => "draft"
     end
 
   //[
   Get the SQL column name for an UpdateColumn
-  Note: UpdateColumn is Title | Content, both are also Column constructors
+  Note: UpdateColumn is Title | Content | Draft
   //]
   def updateColumnName(col: UpdateColumn): String =
     match col
       case Title => "title"
       case Content => "content"
+      case Draft => "draft"
     end
 
   //[
@@ -156,7 +159,7 @@ section Impl
   - params: List of parameter values in order
 
   Example:
-    [SetField(Title, "New Title"), SetField(Content, "New Content")]
+    [FieldUpdate(Title, StringValue("New Title")), FieldUpdate(Content, StringValue("New Content"))]
     -> QueryParts("title = ?, content = ?", [StringValue("New Title"), StringValue("New Content")])
   //]
   def updatesToSQL(updates: List[FieldUpdate]): QueryParts =
@@ -171,15 +174,12 @@ section Impl
 
       while i < count do
         val update = updates[i]
-        match update
-          case SetField field value =>
-            val clause = updateColumnName(field) + " = ?"
-            if i > 0 then
-              setSQL = setSQL + ", " + clause
-            else
-              setSQL = clause
-            params = params ++ [StringValue(value)]
-        end
+        val clause = updateColumnName(update.field) + " = ?"
+        if i > 0 then
+          setSQL = setSQL + ", " + clause
+        else
+          setSQL = clause
+        params = params ++ [update.value]
         i = i + 1
 
       QueryParts(setSQL, params)
@@ -233,12 +233,14 @@ section Impl
   Extracts common document construction logic
   //]
   def buildDocumentFromRow(row: Any): Document =
+    val draftInt: Int = js "row.draft"
     {
       id: js "row.id",
       title: js "row.title",
       content: js "row.content",
       ownerId: js "row.owner_id",
-      createdAt: js "row.created_at"
+      createdAt: js "row.created_at",
+      draft: draftInt != 0
     }
 
   //[

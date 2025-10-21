@@ -21,7 +21,8 @@ type Document = {
   title: String,
   content: String,
   ownerId: Int,
-  createdAt: String
+  createdAt: String,
+  draft: Bool
 }
 
 //[
@@ -31,7 +32,7 @@ Query DSL Types
 //[
 Value types for query parameters
 //]
-data Value = IntValue(v: Int) | StringValue(v: String)
+data Value = IntValue(v: Int) | StringValue(v: String) | BoolValue(v: Bool)
 
 //[
 Column ADT - only valid columns can be constructed
@@ -39,24 +40,26 @@ Column ADT - only valid columns can be constructed
 This prevents users from creating invalid column references.
 Users import and use column constructors directly: Title, Content, etc.
 
-Note: 'id' column is omitted since ID-based lookup uses getMyDocument(id) directly.
+Note: 'id' column is omitted since ID-based lookup uses getById(id) directly.
 //]
 data Column =
     Title
   | Content
   | OwnerId
   | CreatedAt
+  | Draft
 
 //[
 Updateable columns - subset of Column containing only mutable fields
 This prevents updating id, owner_id, or created_at at the type level
 //]
-type UpdateColumn = Title | Content
+type UpdateColumn = Title | Content | Draft
 
 //[
 Single field update: field + new value
+Value can be String, Int, or Bool depending on the field
 //]
-data FieldUpdate = SetField(field: UpdateColumn, value: String)
+data FieldUpdate(field: UpdateColumn, value: Value)
 
 //[
 Sort order for ORDER BY clauses
@@ -109,7 +112,7 @@ All operations automatically scoped to current user via owner_id filtering.
 Query operations:
 - query: Filter with optional ordering and pagination
 - count: Count matching documents
-- getMyDocument: Get specific document by ID
+- getById: Get specific document by ID
 
 Update operations:
 - update: Update documents matching condition
@@ -230,6 +233,7 @@ section QueryDSL
   //]
   def str(s: String): Value = StringValue(s)
   def int(n: Int): Value = IntValue(n)
+  def bool(b: Bool): Value = BoolValue(b)
 
   //[
   Null check helpers
@@ -257,14 +261,15 @@ section QueryDSL
   UPDATE helper - infix operator for field updates
 
   Usage:
-    Title := "New Title"
-    Content := "New Content"
+    Title := str("New Title")
+    Content := str("New Content")
+    Draft := bool(true)
 
   Then combine in a list:
-    [Title := "New Title", Content := "New Content"]
+    [Title := str("New Title"), Draft := bool(false)]
   //]
-  def (field: UpdateColumn) := (value: String): FieldUpdate =
-    SetField(field, value)
+  def (field: UpdateColumn) := (value: Value): FieldUpdate =
+    FieldUpdate(field, value)
 end
 
 //[

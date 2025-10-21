@@ -65,9 +65,9 @@ fi
 
 # Initialize database (reuse from data-table demo)
 echo "📊 Initializing database..."
-DB_PATH="$SCRIPT_DIR/../data-table/database.db"
+DB_PATH="$SCRIPT_DIR/database.db"
 if [ ! -f "$DB_PATH" ]; then
-    node "$SCRIPT_DIR/../data-table/init-db.js" "$DB_PATH"
+    node "$SCRIPT_DIR/init-db.js" "$DB_PATH"
     echo "✅ Database initialized"
 else
     echo "✅ Database already exists"

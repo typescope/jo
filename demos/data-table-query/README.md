@@ -38,7 +38,7 @@ The runtime translates DSL expressions to parameterized SQL, preventing injectio
 │ DatabaseAPI.jo   │  Interface: CRUD DSL types
 │                  │  - data Cond = All | Eq | Like | ...
 │                  │  - type UpdateColumn = Title | Content
-│  param db: DB    │  - data FieldUpdate = SetField(...)
+│  param db: DB    │  - data FieldUpdate(field, value)
 │  param ordering  │  - Infix operators: like, :=, &&, ||
 │  param limit     │  - Context params with defaults
 │  param offset    │
@@ -79,7 +79,7 @@ ORDER BY created_at DESC LIMIT 5
 
 ### UPDATE: Single field by ID
 ```jo
-db.updateById(1, [Title := "New Title"])
+db.updateById(1, [Title := str("New Title")])
 ```
 ```sql
 UPDATE documents SET title = ? WHERE id = ? AND owner_id = ?
@@ -88,22 +88,23 @@ UPDATE documents SET title = ? WHERE id = ? AND owner_id = ?
 ### UPDATE: Multiple fields by ID
 ```jo
 db.updateById(1, [
-  Title := "New Title",
-  Content := "New Content"
+  Title := str("New Title"),
+  Content := str("New Content"),
+  Draft := bool(false)
 ])
 ```
 ```sql
-UPDATE documents SET title = ?, content = ?
+UPDATE documents SET title = ?, content = ?, draft = ?
 WHERE id = ? AND owner_id = ?
 ```
 
 ### UPDATE: Bulk update with condition
 ```jo
-db.update(Title like "%Draft%", [Title := "Archived"])
+db.update(Draft == bool(true), [Draft := bool(false)])
 ```
 ```sql
-UPDATE documents SET title = ?
-WHERE owner_id = ? AND (title LIKE ?)
+UPDATE documents SET draft = ?
+WHERE owner_id = ? AND (draft = ?)
 ```
 
 ### DELETE: By ID
@@ -131,16 +132,16 @@ Defines the CRUD DSL types, operators, and context parameters:
 
 ```jo
 // Column ADT - all columns in the table
-data Column = Title | Content | OwnerId | CreatedAt
+data Column = Title | Content | OwnerId | CreatedAt | Draft
 
 // Updateable columns - subset for updates (type-safe!)
-type UpdateColumn = Title | Content
-
-// Field update for UPDATE operations
-data FieldUpdate = SetField(field: UpdateColumn, value: String)
+type UpdateColumn = Title | Content | Draft
 
 // Value types for query parameters
-data Value = IntValue(v: Int) | StringValue(v: String)
+data Value = IntValue(v: Int) | StringValue(v: String) | BoolValue(v: Bool)
+
+// Field update for UPDATE operations
+data FieldUpdate(field: UpdateColumn, value: Value)
 
 // Sort order for ORDER BY clauses
 data SortOrder = Asc | Desc
@@ -196,8 +197,8 @@ section QueryDSL
   // ...
 
   // Update operator
-  def (field: UpdateColumn) := (value: String): FieldUpdate =
-    SetField(field, value)
+  def (field: UpdateColumn) := (value: Value): FieldUpdate =
+    FieldUpdate(field, value)
 end
 ```
 
@@ -265,22 +266,23 @@ def analyzeDocuments: Unit receives stdout, db =
     limit = 5
 
   // UPDATE: Single field by ID
-  db.updateById(1, [Title := "New Title"])
+  db.updateById(1, [Title := str("New Title")])
 
   // UPDATE: Multiple fields by ID
   db.updateById(1, [
-    Title := "New Title",
-    Content := "New Content"
+    Title := str("New Title"),
+    Content := str("New Content"),
+    Draft := bool(false)
   ])
 
-  // UPDATE: Bulk update with condition
-  db.update(Title like "%Draft%", [Title := "Archived"])
+  // UPDATE: Bulk update - publish all drafts
+  db.update(Draft == bool(true), [Draft := bool(false)])
 
   // DELETE: By ID
   db.deleteById(42)
 
-  // DELETE: By condition
-  db.delete((Title like "%Temp%") || (CreatedAt < str("2024-01-01")))
+  // DELETE: Delete all drafts
+  db.delete(Draft == bool(true))
 
   // COUNT: After operations
   val remaining = db.count(All)
@@ -317,12 +319,12 @@ If you want to run the compiled app manually:
 
 ```bash
 # Make sure database is initialized
-node demos/data-table/init-db.js demos/data-table/database.db
+node demos/data-table-query/init-db.js demos/data-table-query/database.db
 
 # Run as different users
-node demos/data-table-query/out/app.js 1 demos/data-table/database.db  # Alice
-node demos/data-table-query/out/app.js 2 demos/data-table/database.db  # Bob
-node demos/data-table-query/out/app.js 3 demos/data-table/database.db  # Carol
+node demos/data-table-query/out/app.js 1 demos/data-table-query/database.db  # Alice
+node demos/data-table-query/out/app.js 2 demos/data-table-query/database.db  # Bob
+node demos/data-table-query/out/app.js 3 demos/data-table-query/database.db  # Carol
 ```
 
 ## Security Properties
@@ -367,8 +369,8 @@ Benefits:
 Single, clean operator for building field updates:
 
 ```jo
-def (field: UpdateColumn) := (value: String): FieldUpdate =
-  SetField(field, value)
+def (field: UpdateColumn) := (value: Value): FieldUpdate =
+  FieldUpdate(field, value)
 ```
 
 Usage:
