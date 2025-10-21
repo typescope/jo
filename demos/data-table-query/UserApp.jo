@@ -1,10 +1,10 @@
 //[
 UserApp.jo
 
-User application demonstrating query DSL usage
+User application demonstrating full CRUD operations with the DSL
 
-This is UNTRUSTED code that uses the query DSL to build custom filters.
-It demonstrates various query patterns while being unable to bypass
+This is UNTRUSTED code that uses the DSL to build custom filters and updates.
+It demonstrates various CRUD patterns while being unable to bypass
 the row-level security enforced by the runtime.
 //]
 
@@ -15,115 +15,108 @@ import DatabaseAPI.*
 import DatabaseAPI.QueryDSL.*
 
 //[
-Analyze documents using custom query filters
+Demonstrate full CRUD operations using the DSL
 
-Demonstrates the query DSL capabilities:
-1. Simple LIKE queries for text search
-2. Date comparison queries
-3. Compound queries with AND/OR
-4. Counting with filters
+Shows:
+1. Create (via database initialization)
+2. Read (query with filters, ordering, pagination)
+3. Update (single field, multiple fields, bulk updates)
+4. Delete (by ID, by condition)
 //]
 def analyzeDocuments: Unit receives stdout, db =
   println "═══════════════════════════════════════════════"
-  println "           Database Query DSL Demo"
+  println "      Database CRUD Operations Demo"
   println "═══════════════════════════════════════════════"
   println ""
 
-  println "--- Query 1: All my documents ---"
+  // ---- READ OPERATIONS ----
+
+  println "--- READ: All my documents ---"
   val allDocs = db.query(All)
   allDocs.foreach doc =>
     println ("  • " + doc.title + " (created: " + doc.createdAt + ")")
   println ("  Total: " + intToStr(allDocs.size))
   println ""
 
-  println "--- Query 2: Documents with 'Report' in title ---"
+  println "--- READ: Documents with 'Report' in title ---"
   val reports = db.query(Title like "%Report%")
   reports.foreach doc =>
     println ("  • " + doc.title)
   println ("  Count: " + intToStr(reports.size))
   println ""
 
-  println "--- Query 3: Documents created after 2024-01-15 ---"
-  val recentDocs = db.query(CreatedAt > str("2024-01-15"))
-  recentDocs.foreach doc =>
-    println ("  • " + doc.title + " (created: " + doc.createdAt + ")")
-  println ("  Count: " + intToStr(recentDocs.size))
-  println ""
-
-  println "--- Query 4: Reports created after 2024-01-10 ---"
-  val recentReports = db.query((Title like "%Report%") && (CreatedAt > str("2024-01-10")))
-  recentReports.foreach doc =>
-    println ("  • " + doc.title + " (created: " + doc.createdAt + ")")
-  println ("  Count: " + intToStr(recentReports.size))
-  println ""
-
-  println "--- Query 5: Documents with 'Budget' or 'Plan' in title ---"
-  val budgetOrPlan = db.query((Title like "%Budget%") || (Title like "%Plan%"))
-  budgetOrPlan.foreach doc =>
-    println ("  • " + doc.title)
-  println ("  Count: " + intToStr(budgetOrPlan.size))
-  println ""
-
-  println "--- Query 6: Complex compound query ---"
-  // (title contains "Meeting" AND created after 2024-01-05) OR title contains "Urgent"
-  val complexResults = db.query(((Title like "%Meeting%") && (CreatedAt > str("2024-01-05"))) || (Title like "%Urgent%"))
-  complexResults.foreach doc =>
-    println ("  • " + doc.title + " (created: " + doc.createdAt + ")")
-  println ("  Count: " + intToStr(complexResults.size))
-  println ""
-
-  println "--- Query 7: Documents NOT containing 'Report' ---"
-  val nonReports = db.query(!(Title like "%Report%"))
-  nonReports.foreach doc =>
-    println ("  • " + doc.title)
-  println ("  Count: " + intToStr(nonReports.size))
-  println ""
-
-  println "--- Query 8: Documents with owner IDs using IN ---"
-  val inResults = db.query(OwnerId in [int(1), int(2), int(3)])
-  inResults.foreach doc =>
-    println ("  • " + doc.title + " (owner: " + intToStr(doc.ownerId) + ")")
-  println ("  Count: " + intToStr(inResults.size))
-  println ""
-
-  println "--- Query 9: Documents ordered by date (descending) ---"
-  val orderedDocs = db.query(All) with ordering = desc CreatedAt
+  println "--- READ: Ordered by date (descending) ---"
+  val orderedDocs = db.query(All) with ordering = desc CreatedAt, limit = 3
   orderedDocs.foreach doc =>
     println ("  • " + doc.title + " (created: " + doc.createdAt + ")")
-  println ("  Count: " + intToStr(orderedDocs.size))
   println ""
 
-  println "--- Query 10: Reports ordered by title (ascending) ---"
-  val orderedReports = db.query(Title like "%Report%") with ordering = asc Title
-  orderedReports.foreach doc =>
+  // ---- UPDATE OPERATIONS ----
+
+  println "--- UPDATE: Single field by ID ---"
+  val updated1 = db.updateById(1, [Title := "Q4 Budget Report (Revised)"])
+  val updated1Str = if updated1 then "true" else "false"
+  println ("  Updated: " + updated1Str)
+  println ""
+
+  println "--- UPDATE: Multiple fields by ID ---"
+  val updated2 = db.updateById(2, [
+    Title := "Updated Project Proposal",
+    Content := "Revised proposal with stakeholder feedback"
+  ])
+  val updated2Str = if updated2 then "true" else "false"
+  println ("  Updated: " + updated2Str)
+  println ""
+
+  println "--- UPDATE: Bulk update with condition ---"
+  val bulkUpdated = db.update(
+    Title like "%Meeting%",
+    [Content := "Meeting notes archived"]
+  )
+  println ("  Documents updated: " + intToStr(bulkUpdated))
+  println ""
+
+  println "--- UPDATE: Complex conditional update ---"
+  val complexUpdate = db.update(
+    (Title like "%Status%") || (Title like "%Notes%"),
+    [Title := "Archived Document"]
+  )
+  println ("  Documents updated: " + intToStr(complexUpdate))
+  println ""
+
+  // ---- DELETE OPERATIONS ----
+
+  println "--- DELETE: Try deleting non-existent document ---"
+  val deleted1 = db.deleteById(999)
+  val deleted1Str = if deleted1 then "true" else "false"
+  println ("  Deleted: " + deleted1Str)
+  println ""
+
+  println "--- DELETE: Delete by condition ---"
+  val deletedDrafts = db.delete(Title like "%Draft%")
+  println ("  Drafts deleted: " + intToStr(deletedDrafts))
+  println ""
+
+  println "--- DELETE: Complex conditional delete ---"
+  val complexDelete = db.delete(
+    (Title like "%Archived%") && (CreatedAt < str("2024-01-12"))
+  )
+  println ("  Archived documents deleted: " + intToStr(complexDelete))
+  println ""
+
+  // ---- VERIFICATION ----
+
+  println "--- FINAL: Count after all operations ---"
+  val finalCount = db.count(All)
+  println ("  Remaining documents: " + intToStr(finalCount))
+  println ""
+
+  println "--- FINAL: Remaining documents ---"
+  val finalDocs = db.query(All) with ordering = asc Title
+  finalDocs.foreach doc =>
     println ("  • " + doc.title)
-  println ("  Count: " + intToStr(orderedReports.size))
-  println ""
-
-  println "--- Query 11: First 2 documents (pagination) ---"
-  val page1 = db.query(All) with limit = 2, offset = 0
-  page1.foreach doc =>
-    println ("  • " + doc.title)
-  println ("  Count: " + intToStr(page1.size))
-  println ""
-
-  println "--- Query 12: Full-featured query (filter + order + limit) ---"
-  val fullQuery = db.query(Title like "%Report%") with
-    ordering = desc CreatedAt,
-    limit = 2,
-    offset = 0
-  fullQuery.foreach doc =>
-    println ("  • " + doc.title + " (created: " + doc.createdAt + ")")
-  println ("  Count: " + intToStr(fullQuery.size))
-  println ""
-
-  println "--- Summary: Document counts ---"
-  val totalCount = db.count(All)
-  println ("  Total documents: " + intToStr(totalCount))
-  val reportCount = db.count(Title like "%Report%")
-  println ("  Reports: " + intToStr(reportCount))
   println ""
 
   println "═══════════════════════════════════════════════"
-  println "            Analysis Complete"
+  println "         All Operations Completed"
   println "═══════════════════════════════════════════════"

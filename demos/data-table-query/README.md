@@ -1,176 +1,156 @@
-# Data Table with Query DSL
+# Data Table with Query DSL and Full CRUD
 
-This demo extends the basic data-table demo with a **flexible query DSL** for expressing custom filter conditions with optional ordering and pagination. It demonstrates how to provide SQL-level filtering while maintaining row-level security guarantees using **context parameters with defaults**.
+This demo extends the basic data-table demo with a **flexible query DSL** for expressing custom filter conditions with optional ordering and pagination, plus **UPDATE and DELETE operations**. It demonstrates how to provide full CRUD capabilities while maintaining row-level security guarantees using **context parameters with defaults**.
 
 ## Key Concept
 
-User code can build custom filter conditions using a type-safe DSL with atomic building blocks:
+User code can build custom filter conditions and updates using a type-safe DSL:
 
+**Query DSL:**
 - **Column references** - Typed columns from schema (`Title`, `CreatedAt`)
 - **Comparison operators** - `==`, `like`, `>`, `<`, `>=`, `<=`
 - **Logical operators** - `&&` (AND), `||` (OR), `!` (NOT)
-- **Automatic owner_id filtering** - Runtime always ANDs user conditions with `WHERE owner_id = ?`
 - **Optional context parameters** - `ordering`, `limit`, `offset` with sensible defaults
-- **Unified query method** - Single `query(condition)` method handles all query scenarios
 
-The runtime translates the condition AST to parameterized SQL, preventing injection while allowing flexible queries.
+**Update DSL:**
+- **Updateable columns** - Only mutable fields (`Title`, `Content`)
+- **Update operator** - `:=` for building field updates
+- **Atomic updates** - Multiple fields updated in single transaction
+
+**Security:**
+- **Automatic owner_id filtering** - Runtime always includes `WHERE owner_id = ?`
+- **Type-safe field restrictions** - Cannot update immutable fields (`id`, `owner_id`, `created_at`)
+
+The runtime translates DSL expressions to parameterized SQL, preventing injection while allowing flexible operations.
 
 ## Architecture
 
 ```
 ┌──────────────────┐
-│   UserApp.jo     │  UNTRUSTED: Builds query conditions
-│                  │  - Uses DSL: Title like "%report%"
-│                  │  - Calls: db.query(condition)
-│                  │  - Optionally: with ordering = desc CreatedAt
+│   UserApp.jo     │  UNTRUSTED: Builds queries and updates
+│                  │  - Query: db.query(Title like "%report%")
+│                  │  - Update: db.update(All, [Title := "New"])
+│                  │  - Delete: db.delete(Title like "%draft%")
 └────────┬─────────┘
          │ receives db
          ▼
 ┌──────────────────┐
-│ DatabaseAPI.jo   │  Interface: Query DSL types & context params
+│ DatabaseAPI.jo   │  Interface: CRUD DSL types
 │                  │  - data Cond = All | Eq | Like | ...
-│                  │  - data Column = Title | Content | ...
-│                  │  - data OrderBy = NoOrder | Order(col, order)
-│  param db: DB    │  - Infix operators for DSL
-│  param ordering  │  - Context params with defaults:
-│  param limit     │    ordering = NoOrder, limit = 100, offset = 0
+│                  │  - type UpdateColumn = Title | Content
+│  param db: DB    │  - data FieldUpdate = SetField(...)
+│  param ordering  │  - Infix operators: like, :=, &&, ||
+│  param limit     │  - Context params with defaults
 │  param offset    │
 └────────┬─────────┘
          │ provided by
          ▼
 ┌──────────────────┐
-│ Runtime.jo       │  TRUSTED: SQL generation
-│                  │  - condToSQL(cond) -> SQL + params
-│ def query        │  - Always adds: WHERE owner_id = ?
-│   condToSQL      │  - Parameterizes all values
-│   owner_id AND   │  - Handles ordering, limit, offset
-│                  │  - User CANNOT bypass security
+│ Runtime.jo       │  TRUSTED: SQL generation + security
+│                  │  - condToSQL: condition -> SQL
+│ CRUD operations  │  - updatesToSQL: updates -> SET clause
+│   query          │  - Always adds: WHERE owner_id = ?
+│   update         │  - Parameterizes all values
+│   delete         │  - User CANNOT bypass security
 └──────────────────┘
 ```
 
-## Query DSL Examples
+## CRUD Examples
 
-### Query all documents
+### READ: Query all documents
 ```jo
 val docs = db.query(All)
 ```
-
-Translates to:
 ```sql
 SELECT * FROM documents WHERE owner_id = ? AND (1=1) LIMIT 100
--- Parameters: [userId]
 ```
 
-### Simple LIKE query
+### READ: Query with filter and ordering
 ```jo
-val reports = db.query(Title like "%Report%")
-```
-
-Translates to:
-```sql
-SELECT * FROM documents WHERE owner_id = ? AND (title LIKE ?) LIMIT 100
--- Parameters: [userId, "%Report%"]
-```
-
-### Date comparison
-```jo
-val recent = db.query(CreatedAt > str("2024-01-15"))
-```
-
-Translates to:
-```sql
-SELECT * FROM documents WHERE owner_id = ? AND (created_at > ?) LIMIT 100
--- Parameters: [userId, "2024-01-15"]
-```
-
-### Compound AND query
-```jo
-val recentReports = db.query(
-  (Title like "%Report%") && (CreatedAt > str("2024-01-10"))
-)
-```
-
-Translates to:
-```sql
-SELECT * FROM documents WHERE owner_id = ? AND ((title LIKE ?) AND (created_at > ?)) LIMIT 100
--- Parameters: [userId, "%Report%", "2024-01-10"]
-```
-
-### Compound OR query
-```jo
-val budgetOrPlan = db.query(
-  (Title like "%Budget%") || (Title like "%Plan%")
-)
-```
-
-Translates to:
-```sql
-SELECT * FROM documents WHERE owner_id = ? AND ((title LIKE ?) OR (title LIKE ?)) LIMIT 100
--- Parameters: [userId, "%Budget%", "%Plan%"]
-```
-
-### Query with ordering
-```jo
-val orderedDocs = db.query(All) with ordering = desc CreatedAt
-```
-
-Translates to:
-```sql
-SELECT * FROM documents WHERE owner_id = ? AND (1=1) ORDER BY created_at DESC LIMIT 100
--- Parameters: [userId]
-```
-
-### Query with pagination
-```jo
-val page1 = db.query(All) with limit = 10, offset = 0
-```
-
-Translates to:
-```sql
-SELECT * FROM documents WHERE owner_id = ? AND (1=1) LIMIT 10 OFFSET 0
--- Parameters: [userId]
-```
-
-### Full-featured query (filter + ordering + limit)
-```jo
-val results = db.query(Title like "%Report%") with
+val reports = db.query(Title like "%Report%") with
   ordering = desc CreatedAt,
-  limit = 5,
-  offset = 0
+  limit = 5
 ```
-
-Translates to:
 ```sql
 SELECT * FROM documents
 WHERE owner_id = ? AND (title LIKE ?)
-ORDER BY created_at DESC
-LIMIT 5 OFFSET 0
--- Parameters: [userId, "%Report%"]
+ORDER BY created_at DESC LIMIT 5
+```
+
+### UPDATE: Single field by ID
+```jo
+db.updateById(1, [Title := "New Title"])
+```
+```sql
+UPDATE documents SET title = ? WHERE id = ? AND owner_id = ?
+```
+
+### UPDATE: Multiple fields by ID
+```jo
+db.updateById(1, [
+  Title := "New Title",
+  Content := "New Content"
+])
+```
+```sql
+UPDATE documents SET title = ?, content = ?
+WHERE id = ? AND owner_id = ?
+```
+
+### UPDATE: Bulk update with condition
+```jo
+db.update(Title like "%Draft%", [Title := "Archived"])
+```
+```sql
+UPDATE documents SET title = ?
+WHERE owner_id = ? AND (title LIKE ?)
+```
+
+### DELETE: By ID
+```jo
+db.deleteById(42)
+```
+```sql
+DELETE FROM documents WHERE id = ? AND owner_id = ?
+```
+
+### DELETE: By condition
+```jo
+db.delete((Title like "%Temp%") || (CreatedAt < str("2024-01-01")))
+```
+```sql
+DELETE FROM documents
+WHERE owner_id = ? AND ((title LIKE ?) OR (created_at < ?))
 ```
 
 ## Files
 
 ### DatabaseAPI.jo
 
-Defines the query DSL types, operators, and context parameters:
+Defines the CRUD DSL types, operators, and context parameters:
 
 ```jo
-// Column ADT - only valid columns can be constructed
-data Column =
-    Title
-  | Content
-  | OwnerId
-  | CreatedAt
+// Column ADT - all columns in the table
+data Column = Title | Content | OwnerId | CreatedAt
 
-// Sort order for ORDER BY
+// Updateable columns - subset for updates (type-safe!)
+type UpdateColumn = Title | Content
+
+// Field update for UPDATE operations
+data FieldUpdate = SetField(field: UpdateColumn, value: String)
+
+// Value types for query parameters
+data Value = IntValue(v: Int) | StringValue(v: String)
+
+// Sort order for ORDER BY clauses
 data SortOrder = Asc | Desc
 
-// OrderBy specification with NoOrder default
+// Order specification
 data OrderBy = NoOrder | Order(col: Column, order: SortOrder)
 
 // Filter condition ADT
 data Cond =
-    All  // No filtering
+    All
   | Eq(col: Column, value: Value)
   | Neq(col: Column, value: Value)
   | Like(col: Column, pat: String)
@@ -186,14 +166,23 @@ data Cond =
   | Or(left: Cond, right: Cond)
   | Not(cond: Cond)
 
-// Unified DB interface with context parameters
+// DB interface with full CRUD operations
 type DB = {
+  // Read
   def query(condition: Cond): List[Document] receives ordering, limit, offset
   def count(condition: Cond): Int
-  def getMyDocument(id: Int): Option[Document]
+  def getById(id: Int): Option[Document]
+
+  // Update
+  def update(condition: Cond, updates: List[FieldUpdate]): Int
+  def updateById(id: Int, updates: List[FieldUpdate]): Bool
+
+  // Delete
+  def delete(condition: Cond): Int
+  def deleteById(id: Int): Bool
 }
 
-// Context parameters with sensible defaults
+// Context parameters with defaults
 param db: DB
 param ordering: OrderBy = NoOrder
 param limit: Int = 100
@@ -201,160 +190,100 @@ param offset: Int = 0
 
 // Infix operators for DSL
 section QueryDSL
-  def (col: Column) == (v: Value): Cond = Eq(col, v)
-  def (col: Column) != (v: Value): Cond = Neq(col, v)
+  // Query operators
   def (col: Column) like (pat: String): Cond = Like(col, pat)
-  def (col: Column) > (v: Value): Cond = Gt(col, v)
-  def (col: Column) < (v: Value): Cond = Lt(col, v)
-  def (col: Column) >= (v: Value): Cond = Gte(col, v)
-  def (col: Column) <= (v: Value): Cond = Lte(col, v)
-
   def (left: Cond) && (right: Cond): Cond = And(left, right)
-  def (left: Cond) || (right: Cond): Cond = Or(left, right)
-  def !(cond: Cond): Cond = Not(cond)
+  // ...
 
-  def str(s: String): Value = StringValue(s)
-  def int(n: Int): Value = IntValue(n)
-
-  def (col: Column) in (values: List[Value]): Cond = In(col, values)
-  def (col: Column) between (low: Value, high: Value): Cond = Between(col, low, high)
-
-  def asc(col: Column): OrderBy = Order(col, Asc)
-  def desc(col: Column): OrderBy = Order(col, Desc)
+  // Update operator
+  def (field: UpdateColumn) := (value: String): FieldUpdate =
+    SetField(field, value)
 end
 ```
 
 ### Runtime.jo
 
-Implementation functions organized in `section Impl` with context parameter for database handle. Context parameters `ordering`, `limit`, `offset` are imported from DatabaseAPI and flow automatically:
+Key implementation functions with security enforcement:
 
 ```jo
-namespace DatabaseRuntime
-
-import jo.runtime.JS.js
-import DatabaseAPI.*
-import DatabaseAPI.ordering
-import DatabaseAPI.limit
-import DatabaseAPI.offset
-
 section Impl
   param dbHandle: Any
 
+  // Translate condition AST to SQL
   def condToSQL(cond: Cond): QueryParts =
     match cond
-      case All =>
-        QueryParts("1=1", List.empty)
-
-      case Eq col value =>
-        QueryParts(columnName(col) + " = ?", [value])
-
-      case Like col pat =>
-        QueryParts(columnName(col) + " LIKE ?", [str(pat)])
-
+      case All => QueryParts("1=1", List.empty)
+      case Like col pat => QueryParts(columnName(col) + " LIKE ?", [StringValue(pat)])
       case And left right =>
         val leftParts = condToSQL(left)
         val rightParts = condToSQL(right)
-        val combinedSQL = "(" + leftParts.sql + " AND " + rightParts.sql + ")"
-        val combinedParams = leftParts.params ++ rightParts.params
-        QueryParts(combinedSQL, combinedParams)
-      // ... other cases
+        QueryParts("(" + leftParts.sql + " AND " + rightParts.sql + ")",
+                   leftParts.params ++ rightParts.params)
+      // ...
     end
 
-  def buildOrderByClause(ordering: OrderBy): String =
-    match ordering
-      case NoOrder => ""
-      case Order col order =>
-        var clause = " ORDER BY " + columnName(col)
-        match order
-          case Asc => clause = clause + " ASC"
-          case Desc => clause = clause + " DESC"
-        end
-        clause
-    end
+  // Translate updates to SET clause
+  def updatesToSQL(updates: List[FieldUpdate]): QueryParts =
+    // Builds "title = ?, content = ?" with corresponding params
+    // ...
 
-  // queryImpl receives context parameters and uses them directly
+  // QUERY with owner_id enforcement
   def queryImpl(userId: Int, condition: Cond): List[Document]
-      receives dbHandle, ordering, limit, offset
-    =
-
+      receives dbHandle, ordering, limit, offset =
     val condParts = condToSQL(condition)
-    // Always AND with owner_id check - user cannot bypass this!
-    val whereClause = "owner_id = ? AND (" + condParts.sql + ")"
-    val params = condParts.params.prepend(IntValue(userId))
+    val whereClause = "owner_id = ? AND (" + condParts.sql + ")"  // Security!
+    // ... build and execute SQL
 
-    val orderByClause = buildOrderByClause(ordering)
-    val limitOffsetClause = buildLimitOffsetClause(limit, offset)
+  // UPDATE with owner_id enforcement
+  def updateImpl(userId: Int, condition: Cond, updates: List[FieldUpdate]): Int
+      receives dbHandle =
+    val whereClause = "owner_id = ? AND (" + condParts.sql + ")"  // Security!
+    val sql = "UPDATE documents SET " + updateParts.sql + " WHERE " + whereClause
+    // ... execute and return changed count
 
-    val sql = "SELECT * FROM documents WHERE " + whereClause +
-              orderByClause + limitOffsetClause
-    // ... execute and build document list
+  // DELETE with owner_id enforcement
+  def deleteImpl(userId: Int, condition: Cond): Int receives dbHandle =
+    val whereClause = "owner_id = ? AND (" + condParts.sql + ")"  // Security!
+    // ... execute and return deleted count
 end
-
-def platformMain: Unit receives stdout =
-  val userId = js "parseInt(process.argv[2])"
-  val dbHandle = js "new DatabaseSync(dbPath)"
-
-  DatabaseAPI.analyzeDocuments with
-    DatabaseAPI.db = {
-      def query(condition: Cond): List[Document] receives ordering, limit, offset =
-        Impl.queryImpl(userId, condition) with Impl.dbHandle = dbHandle
-
-      def count(condition: Cond): Int =
-        Impl.countImpl(userId, condition) with Impl.dbHandle = dbHandle
-
-      def getMyDocument(id: Int): Option[Document] =
-        Impl.getMyDocumentImpl(userId, id) with Impl.dbHandle = dbHandle
-    }
 ```
 
-**Security guarantee**: User conditions are always ANDed with `owner_id = ?`.
+**Security guarantee**: All operations always include `WHERE owner_id = ?` to enforce row-level security.
 
 ### UserApp.jo
 
-Demonstrates various query patterns with the unified API:
+Demonstrates CRUD operations:
 
 ```jo
-import DatabaseAPI.db
-import DatabaseAPI.ordering
-import DatabaseAPI.limit
-import DatabaseAPI.offset
-import DatabaseAPI.{Title, Content, CreatedAt, All}
+import DatabaseAPI.*
 import DatabaseAPI.QueryDSL.*
 
 def analyzeDocuments: Unit receives stdout, db =
-  // Query 1: All documents (uses default limit=100)
-  val allDocs = db.query(All)
-
-  // Query 2: Simple LIKE
-  val reports = db.query(Title like "%Report%")
-
-  // Query 3: Date comparison
-  val recent = db.query(CreatedAt > str("2024-01-15"))
-
-  // Query 4: Compound AND
-  val recentReports = db.query(
-    (Title like "%Report%") && (CreatedAt > str("2024-01-10"))
-  )
-
-  // Query 5: Compound OR
-  val budgetOrPlan = db.query(
-    (Title like "%Budget%") || (Title like "%Plan%")
-  )
-
-  // Query 6: With ordering
-  val orderedDocs = db.query(All) with ordering = desc CreatedAt
-
-  // Query 7: With pagination
-  val page1 = db.query(All) with limit = 2, offset = 0
-
-  // Query 8: Full-featured (filter + ordering + limit)
-  val fullQuery = db.query(Title like "%Report%") with
+  // READ: Query with filter and ordering
+  val reports = db.query(Title like "%Report%") with
     ordering = desc CreatedAt,
-    limit = 2,
-    offset = 0
+    limit = 5
 
-  // Query 9: Count
-  val totalCount = db.count(All)
+  // UPDATE: Single field by ID
+  db.updateById(1, [Title := "New Title"])
+
+  // UPDATE: Multiple fields by ID
+  db.updateById(1, [
+    Title := "New Title",
+    Content := "New Content"
+  ])
+
+  // UPDATE: Bulk update with condition
+  db.update(Title like "%Draft%", [Title := "Archived"])
+
+  // DELETE: By ID
+  db.deleteById(42)
+
+  // DELETE: By condition
+  db.delete((Title like "%Temp%") || (CreatedAt < str("2024-01-01")))
+
+  // COUNT: After operations
+  val remaining = db.count(All)
 ```
 
 ## Requirements
@@ -398,128 +327,105 @@ node demos/data-table-query/out/app.js 3 demos/data-table/database.db  # Carol
 
 ## Security Properties
 
-The query DSL maintains strong security guarantees:
+The CRUD DSL maintains strong security guarantees:
 
-1. ✅ **SQL-level filtering** - Efficient for large tables (no in-memory filtering)
-2. ✅ **Automatic owner_id injection** - Runtime always adds `WHERE owner_id = ?`
-3. ✅ **SQL injection proof** - All values parameterized via `?` placeholders
-4. ✅ **Type-safe** - Compiler validates condition construction
-5. ✅ **Schema-driven** - Typed columns prevent typos and provide IDE support
-6. ✅ **Composable** - Build complex queries from simple building blocks
-7. ✅ **No bypass possible** - Even malicious user code cannot skip owner_id check
+1. ✅ **Row-level security** - All operations scoped to `owner_id`
+2. ✅ **SQL injection proof** - All values parameterized via `?` placeholders
+3. ✅ **Type-safe field updates** - Cannot update immutable fields (`id`, `owner_id`, `created_at`)
+4. ✅ **SQL-level operations** - Efficient for large tables (no in-memory filtering)
+5. ✅ **Composable** - Build complex queries and updates from simple building blocks
+6. ✅ **No bypass possible** - Even malicious user code cannot skip security checks
 
 User code **cannot**:
 
-- ❌ Access other users' documents (owner_id always enforced)
+- ❌ Access/modify/delete other users' documents (owner_id always enforced)
+- ❌ Update immutable fields (type system prevents it)
 - ❌ Write raw SQL (no `js` intrinsic access)
 - ❌ Inject SQL (all values parameterized)
-- ❌ Access arbitrary columns (schema provides only allowed columns)
 - ❌ Bypass security (runtime controls SQL generation)
 
 
 ## Design Highlights
 
+### Type-Safe Updateable Columns
+
+Using type aliases to define updateable column subset:
+
+```jo
+data Column = Title | Content | OwnerId | CreatedAt
+type UpdateColumn = Title | Content  // Only mutable fields!
+```
+
+Benefits:
+- **O(n) scalability** - Adding columns scales linearly
+- **Compile-time safety** - Cannot update `OwnerId` or `CreatedAt`
+- **Type system enforcement** - No runtime checks needed
+- **Self-documenting** - Clear which fields are mutable
+
+### Update Operator `:=`
+
+Single, clean operator for building field updates:
+
+```jo
+def (field: UpdateColumn) := (value: String): FieldUpdate =
+  SetField(field, value)
+```
+
+Usage:
+```jo
+[Title := "New Title", Content := "New Content"]
+```
+
+Benefits:
+- **One obvious way** - No alternative syntax confusion
+- **Compositional** - Combine multiple field updates in a list
+- **Readable** - Clear intent of assignment
+
 ### Context Parameters with Defaults
 
-The demo showcases Jo's context parameters with default values:
+Context parameters enable optional customization without API explosion:
 
 ```jo
 param ordering: OrderBy = NoOrder
 param limit: Int = 100
 param offset: Int = 0
+
+// Use defaults
+val docs = db.query(All)
+
+// Override selectively
+val orderedDocs = db.query(All) with ordering = desc CreatedAt
 ```
 
-Benefits:
-- **Optional overriding** - Use `with` clause to customize: `db.query(All) with ordering = desc CreatedAt`
-- **Sensible defaults** - Most queries use defaults without explicit specification
-- **Type-safe** - Compiler validates parameter types
-- **Discoverable** - IDE can suggest available context parameters
+### Pattern Matching for SQL Translation
 
-### Unified Query Method
-
-Instead of multiple methods (`query`, `queryWhere`, `queryOrderBy`, `queryPage`), a single method handles all scenarios:
-
-```jo
-def query(condition: Cond): List[Document] receives ordering, limit, offset
-```
-
-The `condition` is a **required parameter** (explicit filtering intent), while `ordering`, `limit`, `offset` are **context parameters** (optional customization).
-
-### Atomic Building Blocks
-
-Instead of high-level operations like `TitleContains`, the DSL provides atomic SQL operations:
-
-- `Eq`, `Neq`, `Like`, `Gt`, `Lt`, `Gte`, `Lte` - SQL comparison operators
-- `And`, `Or`, `Not` - SQL logical operators
-- `In`, `Between`, `Null`, `NotNull` - SQL membership and null checks
-
-This makes the DSL:
-- More general and composable
-- Easier to extend with new operators
-- Closer to SQL semantics
-
-### Infix Operators
-
-Jo's support for custom infix operators enables natural query syntax:
-
-```jo
-def (col: Column) like (pattern: String): Cond = Like(col, pattern)
-def (left: Cond) && (right: Cond): Cond = And(left, right)
-```
-
-Usage reads naturally:
-```jo
-Title like "%Report%" && CreatedAt > str("2024-01-15")
-```
-
-### Column ADT for Type Safety
-
-Columns are defined as an ADT, preventing invalid column references:
-
-```jo
-data Column =
-    Title
-  | Content
-  | OwnerId
-  | CreatedAt
-```
-
-Benefits:
-- **Type-safe** - Impossible to create invalid columns like `Column("foobar")`
-- **Compile-time validation** - Typos caught at compile time
-- **Discoverable** - IDE autocomplete suggests valid columns
-- **Self-documenting** - Clear what columns exist
-- **Direct usage** - Import and use: `import DatabaseAPI.{Title, CreatedAt}`
-
-### Pattern Matching for SQL Generation
-
-The runtime uses pattern matching to recursively translate the condition AST:
+The runtime uses pattern matching for clean AST translation:
 
 ```jo
 def condToSQL(cond: Cond): QueryParts =
   match cond
-    case Cond.Eq col val => /* generate = ? */
-    case Cond.And left right => /* recurse and combine */
+    case All => QueryParts("1=1", List.empty)
+    case And left right => /* recurse and combine */
     // ...
   end
+
+def updatesToSQL(updates: List[FieldUpdate]): QueryParts =
+  // Builds "field1 = ?, field2 = ?" from update list
 ```
 
-This is:
-- Clean and maintainable
-- Easy to extend with new operators
-- Type-safe (exhaustive matching)
+This is type-safe, maintainable, and easy to extend.
 
 ## Key Takeaway
 
-This demo shows how to provide **flexible SQL-level filtering with ordering and pagination** while maintaining **row-level security**:
+This demo shows how to provide **full CRUD capabilities with SQL-level operations** while maintaining **row-level security**:
 
-- **Query DSL** - Type-safe, composable, and expressive
-- **Atomic operators** - Build complex queries from simple building blocks
-- **Context parameters with defaults** - Optional customization without API explosion
-- **Unified API** - Single `query` method handles all scenarios
-- **Schema-driven** - Typed columns provide discoverability
-- **SQL generation** - Efficient filtering at database level
-- **Security enforcement** - Runtime always injects owner_id check
+- **Complete CRUD** - Read, Update, Delete with type-safe DSL
+- **Type-safe updates** - `UpdateColumn` subset prevents immutable field modifications
+- **Scalable design** - O(n) growth for tables with many columns
+- **Composable operators** - Build complex queries and updates from simple building blocks
+- **Context parameters** - Optional customization without API explosion
+- **SQL-level efficiency** - No in-memory filtering, database does the work
+- **Security enforcement** - Runtime always injects `owner_id` check for all operations
 - **No bypass possible** - Compiler and type system enforce security
 
-The combination of Jo's language features (ADTs, pattern matching, infix operators, context parameters with defaults) enables building a safe and flexible query system that would be difficult to achieve in traditional languages. The context parameters pattern eliminates the need for method overloading or builder patterns while maintaining type safety and clean syntax.
+The combination of Jo's language features (ADTs, type aliases, pattern matching, infix operators, context parameters) enables building a safe and flexible CRUD system that would be difficult to achieve in traditional languages. The `type UpdateColumn = Title | Content` pattern provides type-safe field restriction at compile time, scaling linearly with table size.

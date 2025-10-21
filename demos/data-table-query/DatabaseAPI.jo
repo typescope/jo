@@ -48,6 +48,17 @@ data Column =
   | CreatedAt
 
 //[
+Updateable columns - subset of Column containing only mutable fields
+This prevents updating id, owner_id, or created_at at the type level
+//]
+type UpdateColumn = Title | Content
+
+//[
+Single field update: field + new value
+//]
+data FieldUpdate = SetField(field: UpdateColumn, value: String)
+
+//[
 Sort order for ORDER BY clauses
 //]
 data SortOrder = Asc | Desc
@@ -91,26 +102,22 @@ data Cond =
   | Not(cond: Cond)
 
 //[
-Database interface with query DSL support
+Database interface with full CRUD operations
 
-All queries automatically scoped to current user via owner_id filtering.
-Custom filter conditions are ANDed with the owner_id check.
+All operations automatically scoped to current user via owner_id filtering.
 
-The query and count methods accept a condition parameter (use True for no filtering)
-and optional context parameters for ordering, limit, and offset:
-- condition: filter condition (parameter - use True for no filtering)
-- ordering: sort specification (context, default: empty list)
-- limit: result limit (context, default: -1 for no limit)
-- offset: result offset (context, default: -1 for no offset)
+Query operations:
+- query: Filter with optional ordering and pagination
+- count: Count matching documents
+- getMyDocument: Get specific document by ID
 
-Examples:
-  db.query(All)                                          // All documents
-  db.query(Title like "%Report%")                        // With filter
-  db.query(All) with ordering = desc(CreatedAt)          // With ordering
-  db.query(Title like "%Report%") with ordering = asc(Title), limit = 10, offset = 0  // Full control
+Update operations:
+- update: Update documents matching condition
+- updateById: Update specific document by ID (more efficient)
 
-  db.count(All)                                          // Count all
-  db.count(Title like "%Report%")                        // Count filtered
+Delete operations:
+- delete: Delete documents matching condition
+- deleteById: Delete specific document by ID (more efficient)
 //]
 type DB = {
   //[
@@ -127,7 +134,48 @@ type DB = {
   //[
   Get a specific document by ID (returns None if not owned by current user)
   //]
-  def getMyDocument(id: Int): Option[Document]
+  def getById(id: Int): Option[Document]
+
+  //[
+  Update documents matching condition
+  Updates can target multiple fields atomically
+  Returns number of rows updated
+  Security: Only updates documents owned by current user
+
+  Example:
+    db.update(Title like "%Report%", [Title := "Archived Report"])
+    db.update(All, [Title := "New Title", Content := "New Content"])
+  //]
+  def update(condition: Cond, updates: List[FieldUpdate]): Int
+
+  //[
+  Update a specific document by ID
+  Returns true if updated, false if not found or not owned
+  More efficient than update with condition
+
+  Example:
+    db.updateById(42, [Title := "Updated Title"])
+  //]
+  def updateById(id: Int, updates: List[FieldUpdate]): Bool
+
+  //[
+  Delete documents matching condition
+  Returns number of rows deleted
+  Security: Only deletes documents owned by current user
+
+  Example:
+    db.delete(Title like "%Draft%")
+  //]
+  def delete(condition: Cond): Int
+
+  //[
+  Delete a specific document by ID
+  Returns true if deleted, false if not found or not owned
+
+  Example:
+    db.deleteById(42)
+  //]
+  def deleteById(id: Int): Bool
 }
 
 //[
@@ -147,13 +195,16 @@ param limit: Int = 100
 param offset: Int = 0
 
 //[
-Query DSL - Operators for building filter conditions
+Query and Update DSL - Operators for building filter conditions and updates
 
-These infix operators provide a natural syntax for building queries:
+These infix operators provide a natural syntax for building queries and updates:
 
-Example:
+Query example:
   val cond = (Title like "%report%") && (CreatedAt > str("2024-01-01"))
-  val docs = db.queryWhere(cond)
+  val docs = db.query(cond)
+
+Update example:
+  db.update(Title like "%Draft%", [Title := "Archived", Content := "Moved to archive"])
 //]
 section QueryDSL
   //[
@@ -201,6 +252,19 @@ section QueryDSL
   //]
   def asc(col: Column): OrderBy = Order(col, Asc)
   def desc(col: Column): OrderBy = Order(col, Desc)
+
+  //[
+  UPDATE helper - infix operator for field updates
+
+  Usage:
+    Title := "New Title"
+    Content := "New Content"
+
+  Then combine in a list:
+    [Title := "New Title", Content := "New Content"]
+  //]
+  def (field: UpdateColumn) := (value: String): FieldUpdate =
+    SetField(field, value)
 end
 
 //[

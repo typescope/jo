@@ -19,6 +19,11 @@ Helper type to hold SQL and parameters during query building
 data QueryParts(sql: String, params: List[Value])
 
 //[
+Helper type for building SET clause parts
+//]
+data SetParts(clauses: List[String], params: List[Value])
+
+//[
 Implementation functions for database operations
 All operations enforce row-level security by including userId in queries
 //]
@@ -51,6 +56,16 @@ section Impl
       case Content => "content"
       case OwnerId => "owner_id"
       case CreatedAt => "created_at"
+    end
+
+  //[
+  Get the SQL column name for an UpdateColumn
+  Note: UpdateColumn is Title | Content, both are also Column constructors
+  //]
+  def updateColumnName(col: UpdateColumn): String =
+    match col
+      case Title => "title"
+      case Content => "content"
     end
 
   //[
@@ -132,6 +147,42 @@ section Impl
         val negatedSQL = "NOT (" + parts.sql + ")"
         QueryParts(negatedSQL, parts.params)
     end
+
+  //[
+  Translate list of FieldUpdate to SQL SET clause and parameters
+
+  Returns QueryParts containing:
+  - sql: The SET clause (e.g., "title = ?, content = ?")
+  - params: List of parameter values in order
+
+  Example:
+    [SetField(Title, "New Title"), SetField(Content, "New Content")]
+    -> QueryParts("title = ?, content = ?", [StringValue("New Title"), StringValue("New Content")])
+  //]
+  def updatesToSQL(updates: List[FieldUpdate]): QueryParts =
+    if updates.isEmpty then
+      QueryParts("", List.empty)
+    else
+      // Build SET clause and parameters using index-based iteration
+      var setSQL = ""
+      var params: List[Value] = List.empty
+      var i = 0
+      val count = updates.size
+
+      while i < count do
+        val update = updates[i]
+        match update
+          case SetField field value =>
+            val clause = updateColumnName(field) + " = ?"
+            if i > 0 then
+              setSQL = setSQL + ", " + clause
+            else
+              setSQL = clause
+            params = params ++ [StringValue(value)]
+        end
+        i = i + 1
+
+      QueryParts(setSQL, params)
 
   //[
   Convert List[Value] to JavaScript array for SQL execution
@@ -257,7 +308,7 @@ section Impl
   Get a specific document by ID
   Returns None if not owned by current user
   //]
-  def getMyDocumentImpl(userId: Int, id: Int): Option[Document] receives dbHandle =
+  def getByIdImpl(userId: Int, id: Int): Option[Document] receives dbHandle =
     val sql = "SELECT * FROM documents WHERE id = ? AND owner_id = ?"
     val rows = execQuery(sql, js "[id, userId]")
     val count = js "rows.length"
@@ -265,6 +316,90 @@ section Impl
       None
     else
       Some(buildDocumentFromRow(js "rows[0]"))
+
+  //[
+  Update operations
+  //]
+
+  //[
+  Update documents matching condition
+  Security: Always includes owner_id check
+  //]
+  def updateImpl(userId: Int, condition: Cond, updates: List[FieldUpdate]): Int
+      receives dbHandle =
+    if updates.isEmpty then
+      0
+    else
+      val condParts = condToSQL(condition)
+      val whereClause = "owner_id = ? AND (" + condParts.sql + ")"
+
+      val updateParts = updatesToSQL(updates)
+
+      val params = updateParts.params ++ [IntValue(userId)] ++ condParts.params
+
+      val sql = "UPDATE documents SET " + updateParts.sql + " WHERE " + whereClause
+
+      val jsParams = paramsToJSArray(params)
+      val db = dbHandle
+      val stmt = js "db.prepare(sql)"
+      val result = js "stmt.run(...jsParams)"
+      val changes = js "result.changes"
+      changes
+
+  //[
+  Update a specific document by ID
+  //]
+  def updateByIdImpl(userId: Int, id: Int, updates: List[FieldUpdate]): Bool
+      receives dbHandle =
+    if updates.isEmpty then
+      false
+    else
+      val updateParts = updatesToSQL(updates)
+
+      val sql = "UPDATE documents SET " + updateParts.sql +
+                " WHERE id = ? AND owner_id = ?"
+
+      val params = updateParts.params ++ [IntValue(id), IntValue(userId)]
+
+      val jsParams = paramsToJSArray(params)
+      val db = dbHandle
+      val stmt = js "db.prepare(sql)"
+      val result = js "stmt.run(...jsParams)"
+      val changes = js "result.changes"
+      changes > 0
+
+  //[
+  Delete operations
+  //]
+
+  //[
+  Delete documents matching condition
+  Security: Always includes owner_id check
+  //]
+  def deleteImpl(userId: Int, condition: Cond): Int receives dbHandle =
+    val condParts = condToSQL(condition)
+    val whereClause = "owner_id = ? AND (" + condParts.sql + ")"
+    val params = condParts.params.prepend(IntValue(userId))
+
+    val sql = "DELETE FROM documents WHERE " + whereClause
+
+    val jsParams = paramsToJSArray(params)
+    val db = dbHandle
+    val stmt = js "db.prepare(sql)"
+    val result = js "stmt.run(...jsParams)"
+    val changes = js "result.changes"
+    changes
+
+  //[
+  Delete a specific document by ID
+  //]
+  def deleteByIdImpl(userId: Int, id: Int): Bool receives dbHandle =
+    val sql = "DELETE FROM documents WHERE id = ? AND owner_id = ?"
+    val db = dbHandle
+    val stmt = js "db.prepare(sql)"
+    val result = js "stmt.run(id, userId)"
+    val changes = js "result.changes"
+    changes > 0
 end
 
 //[
@@ -314,7 +449,7 @@ def platformMain: Unit receives stdout =
   val DatabaseSync = js "require('node:sqlite').DatabaseSync"
   val dbHandle = js "new DatabaseSync(dbPath)"
 
-  // Provide db implementation with unified query/count methods
+  // Provide db implementation with full CRUD methods
   DatabaseAPI.analyzeDocuments with
     DatabaseAPI.db = {
       def query(condition: Cond): List[Document] receives ordering, limit, offset =
@@ -323,8 +458,20 @@ def platformMain: Unit receives stdout =
       def count(condition: Cond): Int =
         Impl.countImpl(userId, condition) with Impl.dbHandle = dbHandle
 
-      def getMyDocument(id: Int): Option[Document] =
-        Impl.getMyDocumentImpl(userId, id) with Impl.dbHandle = dbHandle
+      def getById(id: Int): Option[Document] =
+        Impl.getByIdImpl(userId, id) with Impl.dbHandle = dbHandle
+
+      def update(condition: Cond, updates: List[FieldUpdate]): Int =
+        Impl.updateImpl(userId, condition, updates) with Impl.dbHandle = dbHandle
+
+      def updateById(id: Int, updates: List[FieldUpdate]): Bool =
+        Impl.updateByIdImpl(userId, id, updates) with Impl.dbHandle = dbHandle
+
+      def delete(condition: Cond): Int =
+        Impl.deleteImpl(userId, condition) with Impl.dbHandle = dbHandle
+
+      def deleteById(id: Int): Bool =
+        Impl.deleteByIdImpl(userId, id) with Impl.dbHandle = dbHandle
     }
 
   // Close database
