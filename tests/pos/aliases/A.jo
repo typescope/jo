@@ -1,5 +1,7 @@
 namespace A
 
+import jo.IO
+
 type Message = B.Inner.Message
 
 alias def foo = B.foo
@@ -19,7 +21,7 @@ section Nested
       case None => println "none"
 end
 
-def main =
+def main receives IO.stdout =
   Nested.foo "alias foo"
 
   Nested.foo "alias foo" with prefix = "[warn]"
