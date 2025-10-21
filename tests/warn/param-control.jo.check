@@ -1,24 +1,24 @@
----------- Error at ./tests/neg/param-control.jo:14:3 ---------------
+---------- Error at ./tests/warn/param-control.jo:14:3 ---------------
 |   pretty "hello, world!" allow stdout  // error
 |   ^^^^^^^^^^^^^^^^^^^^^^
 |   Parameter not allowed: pageWidth
 
 The following is the trace that leads to the problem:
-├──   pretty "hello, world!" allow stdout  // error	[ ./tests/neg/param-control.jo:14:3 ]
+├──   pretty "hello, world!" allow stdout  // error	[ ./tests/warn/param-control.jo:14:3 ]
 │     ^^^^^^
-└──   pageWidth p	[ ./tests/neg/param-control.jo:7:3 ]
+└──   pageWidth p	[ ./tests/warn/param-control.jo:7:3 ]
       ^^^^^^^^^
 
 
----------- Error at ./tests/neg/param-control.jo:21:5 ---------------
+---------- Error at ./tests/warn/param-control.jo:21:5 ---------------
 | def main receives stdout =  // error
 |     ^^^^
 |     Parameter not allowed: newLine
 
 The following is the trace that leads to the problem:
-├──   bar	[ ./tests/neg/param-control.jo:23:3 ]
+├──   bar	[ ./tests/warn/param-control.jo:23:3 ]
 │     ^^^
-└──     "Bonjour!" + newLine	[ ./tests/neg/param-control.jo:19:18 ]
+└──     "Bonjour!" + newLine	[ ./tests/warn/param-control.jo:19:18 ]
                      ^^^^^^^
 
 
