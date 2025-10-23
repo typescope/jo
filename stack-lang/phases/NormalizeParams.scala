@@ -11,78 +11,50 @@ import scala.collection.mutable
 /** This phase normalize the usage of context parameters and some others
   *
   * - All transitive captures of context parameters are made explicit in objects
-  * - Rewire optional context parameters to its implementation
+  * - All unsupplied optional parameters are provided at effect boundaries
+  * - Rewrite "expr allow x, y, z" to just "expr"
   *
-  * The desugaring for optional context parameters
-  *
-  *    param a: T = rhs
-  *
-  * was desugered in Namer to
-  *
-  *    <Context> <Default> param a: T
-  *
-  *    def a$default: T receives none = rhs
-  *
-  *    param a$option: Option[T] // automatically bound to None when a necessary binding is needed
-  *
-  *    fun a$value: T =
-  *      a$option match
-  *        case #None   => a$default
-  *        case #Some v => v
-  *
-  * In this phase, the binding to `with a = e` is rewired to `with a$option =
-  * #Some e` and an access to `a` is replaced by `a$value`.
-  *
-  * The effect check will happen for `a`, the semantics will only use
-  * `a$option`.
   */
 class NormalizeParams(using defn: Definitions) extends Phase[Symbol]:
   val contextObject = Phase.OwnerContext
 
   val NoneType = TagType("None", params = Nil)
 
-  /** Bind optional context parameters at program entry.
-    *
-    * Only bind optional context parameters whose default value are needed.
-    *
-    * TODO: Need to do the same for each thread.
-    */
-  override  def transformFunDef(fdef: FunDef)(using ctx: Context): FunDef =
+  /** Bind optional context parameters at effect boundaries */
+  override def transformFunDef(fdef: FunDef)(using ctx: Context): FunDef =
     val symbol = fdef.symbol
 
-    // force computing effects
-    val effs = defn.effectEngine.effects(symbol)
+    fdef.effectPolicy match
+      case Effects.Policy.CheckBound(params) =>
+        val effs = defn.effectEngine.effects(symbol)
+        val allowed = params.toSet
 
-    val fdef2 = super.transformFunDef(fdef)
+        val rejectedDefaults =
+          for
+            (eff, trace) <- effs
+            if eff.is(Flags.Default) && !allowed.exists(param => eff.refers(param))
+          yield
+            eff
 
-    if !symbol.isLocal && fdef.name == "main" then
-      val defaultEffs = effs.keys.filter(_.is(Flags.Default)).toList
-      if defaultEffs.isEmpty then
-        fdef2
+        val fdef2 = super.transformFunDef(fdef)
 
-      else
-        val args = synthesizeNoneBindings(defaultEffs, fdef2.body.span)
-        val body2 = With(fdef2.body, args)
-        fdef2.copy(body = body2)(fdef.span)
+        if rejectedDefaults.isEmpty then
+          fdef2
+        else
+          val args = synthesizeDefaultBindings(rejectedDefaults.toList, fdef.body.span)
+          val body2 = With(fdef2.body, args)
+          fdef2.copy(body = body2)(fdef.span)
 
-    else
-      fdef2
+      case _ =>
+        super.transformFunDef(fdef)
 
-  override def transformIdent(ident: Ident)(using ctx: Context): Word =
-    val sym = ident.symbol
-    if sym.isAllOf(Flags.Context | Flags.Default) then
-      Ident(sym.valueFunction)(ident.span).appliedTo()
 
-    else
-      ident
-
-  private def synthesizeNoneBindings(params: List[Symbol], span: Span): List[Assign] =
+  private def synthesizeDefaultBindings(params: List[Symbol], span: Span): List[Assign] =
     params.map: param =>
-      val optionParamSym = param.optionParam
-      val paramRef = Ident(optionParamSym)(span)
-      val noneType = TagType("None", params = Nil)
-      val noneValue = TaggedEncoding.encodeVariant(noneType, Nil, span, span)
-      Assign(paramRef, noneValue)
+      val paramRef = Ident(param)(span)
+      val defaultFunSym = param.defaultFunction
+      val defaultValue = Ident(defaultFunSym)(span).appliedTo()
+      Assign(paramRef, defaultValue)
 
   /** Check `allow`-clause */
   override  def transformAllow(allowExpr: Allow)(using ctx: Context): Word =
@@ -94,12 +66,12 @@ class NormalizeParams(using defn: Definitions) extends Phase[Symbol]:
 
     val unprovided = effsInner.filter((k, _) => !allowed.exists(param => k.refers(param)))
 
-    val defaultEffs = unprovided.keys.filter(_.is(Flags.Default)).toList
-    if defaultEffs.isEmpty then
+    val rejectedDefaults = unprovided.keys.filter(_.is(Flags.Default)).toList
+    if rejectedDefaults.isEmpty then
       expr2
 
     else
-      val argsAdded = synthesizeNoneBindings(defaultEffs, allowExpr.span)
+      val argsAdded = synthesizeDefaultBindings(rejectedDefaults, allowExpr.span)
       With(expr2, argsAdded)
 
   /** Capture all context parameters used in the methods of an object
@@ -141,8 +113,7 @@ class NormalizeParams(using defn: Definitions) extends Phase[Symbol]:
           ddef.copy(body = body2)(ddef.span)
         else
           val args =
-            for effRaw <- effs yield
-              val eff = if effRaw.is(Flags.Default) then effRaw.optionParam else effRaw
+            for eff <- effs yield
               val paramRef = Ident(eff)(span)
               aliasMap.get(eff) match
                 case None =>
@@ -162,25 +133,6 @@ class NormalizeParams(using defn: Definitions) extends Phase[Symbol]:
     val aliases = aliasMap.values.toSeq
     val obj2 = obj.copy(members = members2)(obj.tpe, obj.span)
     Block((aliases :+ obj2).toList)(obj.span)
-
-  override  def transformWith(withExpr: With)(using ctx: Context): Word =
-    /** rewrite `with a = rhs` to `with a$option = #Some rhs` */
-    def rewireArgs(args: List[Assign]): List[Assign] =
-      for arg @ Assign(paramRef, rhs) <- args yield
-        if paramRef.symbol.is(Flags.Default) then
-          val optionParamRef = Ident(paramRef.symbol.optionParam)(paramRef.span)
-          val someType = TagType("Some", NamedInfo("value", paramRef.symbol.info) :: Nil)
-          val rhs2 = TaggedEncoding.encodeVariant(someType, rhs :: Nil, paramRef.span, rhs.span)
-          Assign(optionParamRef, rhs2)
-        else
-          arg
-
-    val expr2 = transform(withExpr.expr)
-    val args2 = withExpr.args.map: arg =>
-      arg.copy(arg.ident, transform(arg.rhs))
-
-    val args3 = rewireArgs(args2)
-    With(expr2, args3)
 
   override def transformGuardPattern(pat: GuardPattern)(using ctx: Context): Pattern =
     pat.copy(pattern = this(pat.pattern), guard = this(pat.guard))

@@ -1,0 +1,280 @@
+//[
+DatabaseAPI.jo
+Database API with custom query filter support
+
+Demonstrates how to provide a safe and flexible query DSL for expressing
+filter conditions while maintaining row-level security.
+//]
+
+namespace DatabaseAPI
+
+import jo.IO.stdout
+
+//[
+Document type representing a row in the documents table
+
+This is the RESULT type - what queries return.
+Fields mirror the database table structure.
+//]
+type Document = {
+  id: Int,
+  title: String,
+  content: String,
+  ownerId: Int,
+  createdAt: String,
+  draft: Bool
+}
+
+//[
+Query DSL Types
+//]
+
+//[
+Value types for query parameters
+//]
+data Value = IntValue(v: Int) | StringValue(v: String) | BoolValue(v: Bool)
+
+//[
+Column ADT - only valid columns can be constructed
+
+This prevents users from creating invalid column references.
+Users import and use column constructors directly: Title, Content, etc.
+
+Note: 'id' column is omitted since ID-based lookup uses getById(id) directly.
+//]
+data Column =
+    Title
+  | Content
+  | OwnerId
+  | CreatedAt
+  | Draft
+
+//[
+Updateable columns - subset of Column containing only mutable fields
+This prevents updating id, owner_id, or created_at at the type level
+//]
+type UpdateColumn = Title | Content | Draft
+
+//[
+Single field update: field + new value
+Value can be String, Int, or Bool depending on the field
+//]
+data FieldUpdate(field: UpdateColumn, value: Value)
+
+//[
+Sort order for ORDER BY clauses
+//]
+data SortOrder = Asc | Desc
+
+//[
+Order specification: which column and in what direction
+NoOrder means no ordering is applied
+//]
+data OrderBy = NoOrder | Order(col: Column, order: SortOrder)
+
+//[
+Filter condition ADT for building WHERE clauses
+
+Comparison operators:
+  Eq/Neq: equality and inequality
+  Like: pattern matching with SQL LIKE
+  Gt/Lt/Gte/Lte: ordering comparisons
+  Between: range check (inclusive)
+  Null/NotNull: null checking
+  In: membership test
+
+Logical composition:
+  And/Or: combine conditions
+  Not: negate condition
+//]
+data Cond =
+    All
+  | Eq(col: Column, value: Value)
+  | Neq(col: Column, value: Value)
+  | Like(col: Column, pat: String)
+  | Gt(col: Column, value: Value)
+  | Lt(col: Column, value: Value)
+  | Gte(col: Column, value: Value)
+  | Lte(col: Column, value: Value)
+  | Between(col: Column, low: Value, high: Value)
+  | Null(col: Column)
+  | NotNull(col: Column)
+  | In(col: Column, values: List[Value])
+  | And(left: Cond, right: Cond)
+  | Or(left: Cond, right: Cond)
+  | Not(cond: Cond)
+
+//[
+Database interface with full CRUD operations
+
+All operations automatically scoped to current user via owner_id filtering.
+
+Query operations:
+- query: Filter with optional ordering and pagination
+- count: Count matching documents
+- getById: Get specific document by ID
+
+Update operations:
+- update: Update documents matching condition
+- updateById: Update specific document by ID (more efficient)
+
+Delete operations:
+- delete: Delete documents matching condition
+- deleteById: Delete specific document by ID (more efficient)
+//]
+type DB = {
+  //[
+  Query documents with filtering, optional ordering, and pagination
+  Context parameters: ordering, limit, offset
+  //]
+  def query(condition: Cond): List[Document] receives ordering, limit, offset
+
+  //[
+  Count documents with filtering
+  //]
+  def count(condition: Cond): Int
+
+  //[
+  Get a specific document by ID (returns None if not owned by current user)
+  //]
+  def getById(id: Int): Option[Document]
+
+  //[
+  Update documents matching condition
+  Updates can target multiple fields atomically
+  Returns number of rows updated
+  Security: Only updates documents owned by current user
+
+  Example:
+    db.update(Title like "%Report%", [Title := str("Archived Report")])
+    db.update(All, [Title := "New Title", Content := str("New Content")])
+  //]
+  def update(condition: Cond, updates: List[FieldUpdate]): Int
+
+  //[
+  Update a specific document by ID
+  Returns true if updated, false if not found or not owned
+  More efficient than update with condition
+
+  Example:
+    db.updateById(42, [Title := str("Updated Title")])
+  //]
+  def updateById(id: Int, updates: List[FieldUpdate]): Bool
+
+  //[
+  Delete documents matching condition
+  Returns number of rows deleted
+  Security: Only deletes documents owned by current user
+
+  Example:
+    db.delete(Title like "%Draft%")
+  //]
+  def delete(condition: Cond): Int
+
+  //[
+  Delete a specific document by ID
+  Returns true if deleted, false if not found or not owned
+
+  Example:
+    db.deleteById(42)
+  //]
+  def deleteById(id: Int): Bool
+}
+
+//[
+Context parameter: database access capability
+
+Provided by the runtime with row-level security enforced
+//]
+param db: DB
+
+//[
+Context parameters for query customization with defaults
+
+These can be overridden at call sites using 'with' syntax
+//]
+param ordering: OrderBy = NoOrder
+param limit: Int = 100
+param offset: Int = 0
+
+//[
+Query and Update DSL - Operators for building filter conditions and updates
+
+These infix operators provide a natural syntax for building queries and updates:
+
+Query example:
+  val cond = (Title like "%report%") && (CreatedAt > str("2024-01-01"))
+  val docs = db.query(cond)
+
+Update example:
+  db.update(Title like "%Draft%", [Title := str("Archived"), Content := str("Moved to archive")])
+//]
+section QueryDSL
+  //[
+  Comparison operators
+  //]
+  def (col: Column) == (v: Value): Cond = Eq(col, v)
+  def (col: Column) != (v: Value): Cond = Neq(col, v)
+  def (col: Column) like (pat: String): Cond = Like(col, pat)
+  def (col: Column) > (v: Value): Cond = Gt(col, v)
+  def (col: Column) < (v: Value): Cond = Lt(col, v)
+  def (col: Column) >= (v: Value): Cond = Gte(col, v)
+  def (col: Column) <= (v: Value): Cond = Lte(col, v)
+
+  //[
+  Logical operators
+  //]
+  def (left: Cond) && (right: Cond): Cond = And(left, right)
+  def (left: Cond) || (right: Cond): Cond = Or(left, right)
+  def !(cond: Cond): Cond = Not(cond)
+
+  //[
+  Value constructors
+  //]
+  def str(s: String): Value = StringValue(s)
+  def int(n: Int): Value = IntValue(n)
+  def bool(b: Bool): Value = BoolValue(b)
+
+  //[
+  Null check helpers
+  //]
+  def isNull(col: Column): Cond = Null(col)
+  def isNotNull(col: Column): Cond = NotNull(col)
+
+  //[
+  IN operator helper
+  //]
+  def (col: Column) in (values: List[Value]): Cond = In(col, values)
+
+  //[
+  BETWEEN operator helper
+  //]
+  def (col: Column) between (low: Value, high: Value): Cond = Between(col, low, high)
+
+  //[
+  ORDER BY helpers
+  //]
+  def asc(col: Column): OrderBy = Order(col, Asc)
+  def desc(col: Column): OrderBy = Order(col, Desc)
+
+  //[
+  UPDATE helper - infix operator for field updates
+
+  Usage:
+    Title := str("New Title")
+    Content := str("New Content")
+    Draft := bool(true)
+
+  Then combine in a list:
+    [Title := str("New Title"), Draft := bool(false)]
+  //]
+  def (field: UpdateColumn) := (value: Value): FieldUpdate =
+    FieldUpdate(field, value)
+end
+
+//[
+User implements this to analyze documents
+
+Receives db capability which provides filtered database access
+//]
+defer def analyzeDocuments(): Unit receives stdout, db

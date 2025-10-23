@@ -20,7 +20,7 @@ check() {
 ################################################################################
 
 # unit tests
-scala-cli stack-lang/common/Base128.scala
+scala-cli stack-lang/common/Base128.scala || error "Base128.scala"
 
 ################################################################################
 
@@ -168,7 +168,7 @@ echo
 echo "Running positional error tests"
 echo
 
-scala-cli project.scala stack-lang -M negTest | error "neg tests"
+scala-cli project.scala stack-lang -M negTest || error "neg tests"
 
 
 ################################################################################
@@ -190,6 +190,7 @@ done
 
 demos/process-monitor/build.sh || error "demos/process-monitor"
 demos/data-table/build.sh || error "demos/data-table"
+demos/data-table-query/build.sh || error "demos/data-table-query"
 
 ################################################################################
 # Summary

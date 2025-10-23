@@ -1,0 +1,130 @@
+//[
+UserApp.jo
+
+User application demonstrating full CRUD operations with the DSL
+
+This is UNTRUSTED code that uses the DSL to build custom filters and updates.
+It demonstrates various CRUD patterns while being unable to bypass
+the row-level security enforced by the runtime.
+//]
+
+namespace UserApp
+
+import jo.IO.stdout
+import DatabaseAPI.*
+import DatabaseAPI.QueryDSL.*
+
+//[
+Demonstrate full CRUD operations using the DSL
+
+Shows:
+1. Create (via database initialization)
+2. Read (query with filters, ordering, pagination)
+3. Update (single field, multiple fields, bulk updates)
+4. Delete (by ID, by condition)
+//]
+def analyzeDocuments: Unit receives stdout, db =
+  println "═══════════════════════════════════════════════"
+  println "      Database CRUD Operations Demo"
+  println "═══════════════════════════════════════════════"
+  println ""
+
+  // ---- READ OPERATIONS ----
+
+  println "--- READ: All my documents ---"
+  val allDocs = db.query(All)
+  allDocs.foreach doc =>
+    val draftStr = if doc.draft then " [DRAFT]" else ""
+    println ("  • " + doc.title + draftStr + " (created: " + doc.createdAt + ")")
+  println ("  Total: " + intToStr(allDocs.size))
+  println ""
+
+  println "--- READ: Only draft documents ---"
+  val drafts = db.query(Draft == bool(true))
+  drafts.foreach doc =>
+    println ("  • " + doc.title)
+  println ("  Count: " + intToStr(drafts.size))
+  println ""
+
+  println "--- READ: Only published documents ---"
+  val published = db.query(Draft == bool(false))
+  published.foreach doc =>
+    println ("  • " + doc.title)
+  println ("  Count: " + intToStr(published.size))
+  println ""
+
+  println "--- READ: Ordered by date (descending) ---"
+  val orderedDocs = db.query(All) with ordering = desc CreatedAt, limit = 3
+  orderedDocs.foreach doc =>
+    println ("  • " + doc.title + " (created: " + doc.createdAt + ")")
+  println ""
+
+  // ---- UPDATE OPERATIONS ----
+
+  println "--- UPDATE: Single field by ID ---"
+  val updated1 = db.updateById(1, [Title := str("Q4 Budget Report (Revised)")])
+  val updated1Str = if updated1 then "true" else "false"
+  println ("  Updated: " + updated1Str)
+  println ""
+
+  println "--- UPDATE: Multiple fields by ID ---"
+  val updated2 = db.updateById(2, [
+    Title := str("Updated Project Proposal"),
+    Content := str("Revised proposal with stakeholder feedback")
+  ])
+  val updated2Str = if updated2 then "true" else "false"
+  println ("  Updated: " + updated2Str)
+  println ""
+
+  println "--- UPDATE: Mark draft documents as published ---"
+  val publishDrafts = db.update(
+    Draft == bool(true),
+    [Draft := bool(false)]
+  )
+  println ("  Documents published: " + intToStr(publishDrafts))
+  println ""
+
+  println "--- UPDATE: Update draft status and title ---"
+  val complexUpdate = db.update(
+    Title like "%Proposal%",
+    [Title := str("Final Proposal"), Draft := bool(false)]
+  )
+  println ("  Documents updated: " + intToStr(complexUpdate))
+  println ""
+
+  // ---- DELETE OPERATIONS ----
+
+  println "--- DELETE: Try deleting non-existent document ---"
+  val deleted1 = db.deleteById(999)
+  val deleted1Str = if deleted1 then "true" else "false"
+  println ("  Deleted: " + deleted1Str)
+  println ""
+
+  println "--- DELETE: Delete all remaining draft documents ---"
+  val deletedDrafts = db.delete(Draft == bool(true))
+  println ("  Drafts deleted: " + intToStr(deletedDrafts))
+  println ""
+
+  println "--- DELETE: Complex conditional delete ---"
+  val complexDelete = db.delete(
+    (Title like "%Archived%") && (CreatedAt < str("2024-01-12"))
+  )
+  println ("  Archived documents deleted: " + intToStr(complexDelete))
+  println ""
+
+  // ---- VERIFICATION ----
+
+  println "--- FINAL: Count after all operations ---"
+  val finalCount = db.count(All)
+  println ("  Remaining documents: " + intToStr(finalCount))
+  println ""
+
+  println "--- FINAL: Remaining documents ---"
+  val finalDocs = db.query(All) with ordering = asc Title
+  finalDocs.foreach doc =>
+    println ("  • " + doc.title)
+  println ""
+
+  println "═══════════════════════════════════════════════"
+  println "         All Operations Completed"
+  println "═══════════════════════════════════════════════"

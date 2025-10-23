@@ -89,6 +89,9 @@ object LinkRewriter:
             val sourceType = sourceSym.info
             val targetType = targetSym.info
 
+            // 1. First compare type, then compare effects for better error messages
+            // 2. If only optional context params differ, retrofit by synthesizing the defaults instead of reporting errors
+
             if !Subtyping.conforms(targetType, sourceType) then
               rp.error(
                 s"Link type mismatch: $targetPath (${targetType.show}) is not a subtype of $sourcePath (${sourceType.show})"

@@ -1,3 +1,5 @@
+import jo.IO
+
 param DEBUG: Bool = false
 
 type Seg = #Seg(start: Int, str: String)
@@ -145,7 +147,7 @@ def matchString(str: String, pat: String): Bool =
 def debug(msg: String) =
   if DEBUG then println(msg)
 
-def main =
+def main receives IO.stdout =
   test "abba" "abba"
   test "abba" ".b.a"
   test "abba" ".*ba"

@@ -139,17 +139,6 @@ object Symbols:
     def defaultFunction(using Definitions): Symbol =
       this.owner.termMember(this.name + "$default")
 
-    /** The value function associated with a context parameter */
-    def valueFunction(using Definitions): Symbol =
-      this.owner.termMember(this.name + "$value")
-
-    /** The param of an option type associated with a default context parameter.
-      *
-      * The option param is bound at top-level to `None` if required.
-      */
-    def optionParam(using Definitions): Symbol =
-      this.owner.termMember(this.name + "$option")
-
     def fullName(using Definitions): String =
       if isLocal then
         this.name

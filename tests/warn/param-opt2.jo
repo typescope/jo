@@ -11,6 +11,6 @@ def printOpt(s: String): Unit =
   print s
   if newLine then print "\n"
 
-def main =
+def main receives jo.IO.stdout =
   printOpt "hello "
   printOpt "world!" with newLine = true

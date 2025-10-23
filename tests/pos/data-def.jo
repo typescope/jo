@@ -10,16 +10,6 @@ data Tree[T] = Node(value: T, left: Tree[T], right: Tree[T]) | Leaf(value: T)
 
 data Either[S, T] = Left(value: S) | Right(value: T)
 
-section Left
-  pattern Left(value: Int): Left[Int] = case #Left value
-end
-
-section Right
-  pattern Right(value: Int): Right[Int] = case #Right value
-  def Right(value: Int): Right[Int] = #Right value
-end
-
-
 def testData =
   val box = Box(5)
   val post = Post("Hello, World", "Turing", "Bla bla...")

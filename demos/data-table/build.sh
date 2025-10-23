@@ -7,6 +7,9 @@ set -e  # Exit on error
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Get the project root (two levels up from demos/data-table)
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
 echo "🔨 Building Data Table Access Control Demo"
 echo "============================================"
 echo ""
@@ -16,19 +19,19 @@ rm -rf "$SCRIPT_DIR/out"
 mkdir -p "$SCRIPT_DIR/out/api" "$SCRIPT_DIR/out/runtime"
 
 echo "📦 Step 1: Compile Database API"
-bin/jo build-lib "$SCRIPT_DIR/DatabaseAPI.jo" -d "$SCRIPT_DIR/out/api"
+"$PROJECT_ROOT/bin/jo" build-lib "$SCRIPT_DIR/DatabaseAPI.jo" -d "$SCRIPT_DIR/out/api"
 echo "✅ API compiled"
 echo ""
 
 echo "📦 Step 2: Compile Runtime"
-bin/jo build-lib "$SCRIPT_DIR/Runtime.jo" \
-  -lib libs/runtime-js:"$SCRIPT_DIR/out/api" \
+"$PROJECT_ROOT/bin/jo" build-lib "$SCRIPT_DIR/Runtime.jo" \
+  -lib "$PROJECT_ROOT/libs/runtime-js":"$SCRIPT_DIR/out/api" \
   -d "$SCRIPT_DIR/out/runtime"
 echo "✅ Runtime compiled"
 echo ""
 
 echo "📦 Step 3: Compile User Application"
-bin/jo build -js \
+"$PROJECT_ROOT/bin/jo" build -js \
   -no-detect-main \
   -link jo.Main.main=DatabaseRuntime.platformMain \
   -link DatabaseAPI.analyzeDocuments=UserApp.analyzeDocuments \

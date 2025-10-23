@@ -13,13 +13,89 @@ import jo.runtime.JS.js
 import DatabaseAPI.Document
 
 //[
+Implementation section for database operations
+All operations enforce row-level security by including userId in queries
+//]
+section Impl
+  //[
+  Context parameter for database handle
+  //]
+  param dbHandle: Any
+
+  //[
+  Execute SQL query with parameters and return results
+  //]
+  def execQuery(sql: String, params: Any): String receives dbHandle =
+    val db = dbHandle
+    val stmt = js "db.prepare(sql)"
+    val rows = js "stmt.all(...params)"
+    rows
+
+  //[
+  Query all documents belonging to the current user
+  //]
+  def queryMyDocumentsImpl(userId: Int): List[Document] receives dbHandle =
+    val sql = "SELECT * FROM documents WHERE owner_id = ?"
+    val rows = execQuery(sql, js "[userId]")
+    val count = js "rows.length"
+
+    var docs: List[Document] = List.empty
+    var i = count - 1
+    while i >= 0 do
+      val row = js "rows[i]"
+      val doc = {
+        id: js "row.id",
+        title: js "row.title",
+        content: js "row.content",
+        ownerId: js "row.owner_id",
+        createdAt: js "row.created_at"
+      }
+      docs = docs.prepend(doc)
+      i = i - 1
+
+    docs
+
+  //[
+  Get a specific document by ID
+  Returns None if not owned by current user
+  //]
+  def getMyDocumentImpl(userId: Int, id: Int): Option[Document] receives dbHandle =
+    val sql = "SELECT * FROM documents WHERE id = ? AND owner_id = ?"
+    val rows = execQuery(sql, js "[id, userId]")
+    val count = js "rows.length"
+
+    if count == 0 then
+      None
+    else
+      val row = js "rows[0]"
+      val doc = {
+        id: js "row.id",
+        title: js "row.title",
+        content: js "row.content",
+        ownerId: js "row.owner_id",
+        createdAt: js "row.created_at"
+      }
+      Some doc
+
+  //[
+  Count documents belonging to the current user
+  //]
+  def countMyDocumentsImpl(userId: Int): Int receives dbHandle =
+    val sql = "SELECT COUNT(*) as count FROM documents WHERE owner_id = ?"
+    val rows = execQuery(sql, js "[userId]")
+    val row = js "rows[0]"
+    val count = js "row.count"
+    count
+end
+
+//[
 Main entry point - reads userId and dbPath from process.argv
 
 Security properties:
 - userId is read from command-line (process.argv[2])
 - dbPath is read from command-line (process.argv[3])
 - User code NEVER has access to process.argv
-- userId is captured in closures of db methods
+- userId is passed explicitly to all implementation functions
 - User code CANNOT modify or inspect the userId
 //]
 def platformMain: Unit receives stdout =
@@ -58,66 +134,15 @@ def platformMain: Unit receives stdout =
   val DatabaseSync = js "require('node:sqlite').DatabaseSync"
   val dbHandle = js "new DatabaseSync(dbPath)"
 
-  // Helper: Execute SQL query with parameters and return results as JSON string
-  def execQuery(sql: String, params: Any): String =
-    val db = dbHandle
-    val stmt = js "db.prepare(sql)"
-    val rows = js "stmt.all(...params)"
-    rows
-
-  // Provide db implementation with userId captured in closures
+  // Provide db implementation with explicit parameter passing
   DatabaseAPI.analyzeDocuments with
     DatabaseAPI.db = {
       def queryMyDocuments(): List[Document] =
-        val uid = userId
-        // userId is captured here - user code cannot access or modify it
-        val sql = "SELECT * FROM documents WHERE owner_id = ?"
-        val rows = execQuery(sql, js "[uid]")
-        val count = js "rows.length"
-
-        var docs: List[Document] = List.empty
-        var i = count - 1
-        while i >= 0 do
-          val row = js "rows[i]"
-          val doc = {
-            id: js "row.id",
-            title: js "row.title",
-            content: js "row.content",
-            ownerId: js "row.owner_id",
-            createdAt: js "row.created_at"
-          }
-          docs = docs.prepend(doc)
-          i = i - 1
-
-        docs
-
+        Impl.queryMyDocumentsImpl(userId) with Impl.dbHandle = dbHandle
       def getMyDocument(id: Int): Option[Document] =
-        val uid = userId
-        // Still filters by captured userId
-        val sql = "SELECT * FROM documents WHERE id = ? AND owner_id = ?"
-        val rows = execQuery(sql, js "[id, uid]")
-        val count = js "rows.length"
-
-        if count == 0 then
-          None
-        else
-          val row = js "rows[0]"
-          val doc = {
-            id: js "row.id",
-            title: js "row.title",
-            content: js "row.content",
-            ownerId: js "row.owner_id",
-            createdAt: js "row.created_at"
-          }
-          Some doc
-
+        Impl.getMyDocumentImpl(userId, id) with Impl.dbHandle = dbHandle
       def countMyDocuments(): Int =
-        val uid = userId
-        val sql = "SELECT COUNT(*) as count FROM documents WHERE owner_id = ?"
-        val rows = execQuery(sql, js "[uid]")
-        val row = js "rows[0]"
-        val count = js "row.count"
-        count
+        Impl.countMyDocumentsImpl(userId) with Impl.dbHandle = dbHandle
     }
 
   // Close database

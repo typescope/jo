@@ -11,21 +11,13 @@ import scala.collection.mutable
 object Desugaring:
   // Use key props to avoid using sast.Flags in ast package
   val DefaultContextParam = new KeyProps.Key[Unit]("Desugaring.DefaultContextParam")
+  val DefaultValueFun = new KeyProps.Key[Unit]("Desugaring.DefaultValueFun")
 
   def synthesize(defs: List[Def])(using Reporter, Source): List[Def] =
-    val dataDefs = mutable.Map.empty[String, DataDef]
-    val sectionDefs = mutable.Map.empty[String, Section]
-
-    defs.foreach:
-      case ddef: DataDef => dataDefs(ddef.name) = ddef
-      case sec: Section  => sectionDefs(sec.name) = sec
-      case _ =>
-
     val defs2 =
       defs.flatMap:
-        case ddef: DataDef  => synthesizeDataDef(ddef, sectionDefs.getOrElse(ddef.name, null))
+        case ddef: DataDef  => synthesizeDataDef(ddef)
         case edef: EnumDef  => synthesizeEnumDef(edef)
-        case sec:  Section  => synthesizeConstructor(sec, dataDefs.getOrElse(sec.name, null)) :: Nil
         case pdef: ParamDef => desugarParamDef(pdef)
         case defn => defn :: Nil
 
@@ -41,22 +33,12 @@ object Desugaring:
     *
     *     type A[X, ...] = #A(x1: X, ...)
     *
+    *     fun A[X, ...](x1: T1, ...): A = #A x1 ...
+    *
     *     pattern A[X, ...](x1: T1, ...): A = case #A x1 ...
     *
-    *     section A
-    *       fun A[X, ...](x1: T1, ...): A = #A x1 ...
-    *
-    * If section `A` already exists, the synthesized members will become members
-    * of the existing section.
-    *
-    * If the member of the same name already exists in section `A`, the
-    * corresponding synthetic member is ignored to prefer the user-defined
-    * member.
     */
-  def synthesizeDataDef(ddef: DataDef, secDef: Section | Null)
-      (using Reporter, Source)
-  : List[Def] =
-
+  def synthesizeDataDef(ddef: DataDef)(using Reporter, Source): List[Def] =
     val id = ddef.ident
 
     val tp =
@@ -66,62 +48,22 @@ object Desugaring:
     val tagType = TagType(id, ddef.params)(ddef.span)
     val tdef = TypeDef(ddef.ident, ddef.tparams, tagType, isBound = false, preParamCount = 0)(ddef.span)
 
-    val pat =
-      val tag = Tag(id)(id.span)
-      if ddef.params.isEmpty then tag
-      else Apply(tag, ddef.params.map(_.ident))(ddef.span)
-    val body = Case(pat, Block(Nil)(id.span))(ddef.span) :: Nil
-    val pdef = PatDef(id, ddef.tparams, ddef.params, tp, body, preParamCount = 0)(ddef.span)
+    val fdef =
+      val body = Apply(Tag(id)(id.span), ddef.params.map(_.ident))(ddef.span)
+      val autos = Nil
+      val receiveParams = Some(Nil)
+      FunDef(id, ddef.tparams, ddef.params, autos, tp, receiveParams, body, preParamCount = 0)(ddef.span)
 
-    if secDef != null then
-      // section defitions have a chance to do its own desugaring with current
-      // data defintion
-      tdef :: pdef :: Nil
-    else
-      val sec = Section(ddef.ident, defs = Nil)(ddef.span)
-      tdef :: pdef :: synthesizeConstructor(sec, ddef) :: Nil
+    val pdef =
+      val pat =
+        val tag = Tag(id)(id.span)
+        if ddef.params.isEmpty then tag
+        else Apply(tag, ddef.params.map(_.ident))(ddef.span)
+      val body = Case(pat, Block(Nil)(id.span))(ddef.span) :: Nil
+      PatDef(id, ddef.tparams, ddef.params, tp, body, preParamCount = 0)(ddef.span)
 
-  /** Synthesize constructor in the companion section of a data definition
-    *
-    * Given
-    *
-    *     section A
-    *       ...
-    *
-    *     data A[X, ...](x1: T1, ...)
-    *
-    * The following member will be added to section A:
-    *
-    *
-    *     section A
-    *       fun A[X, ...](x1: T1, ...): A = #A x1 ...
-    *
-    * The synthesis will be skipped if target of the same name already exists.
-    */
-  def synthesizeConstructor(secDef: Section, ddef: DataDef | Null)
-      (using Reporter, Source)
-  : Section =
 
-    if ddef == null then secDef
-    else
-      val id = ddef.ident
-      val tp =
-        if ddef.tparams.isEmpty then id
-        else AppliedType(id, ddef.tparams.map(_.ident))(id.span | ddef.tparams.last.span)
-
-      val hasFunMember = secDef.defs.exists: defn =>
-        defn.name == ddef.name && defn.isInstanceOf[FunDef]
-
-      if hasFunMember then
-        secDef
-
-      else
-        val body = Apply(Tag(id)(id.span), ddef.params.map(_.ident))(ddef.span)
-        val autos = Nil
-        val receiveParams = Some(Nil)
-        val fdef = FunDef(id, ddef.tparams, ddef.params, autos, tp, receiveParams, body, preParamCount = 0)(ddef.span)
-
-        Section(secDef.ident, fdef :: secDef.defs)(secDef.span)
+    tdef :: fdef :: pdef :: Nil
 
   /** An enum definition
     *
@@ -202,21 +144,12 @@ object Desugaring:
    *    <Context> <Default> param a: T
    *
    *    fun a$default = rhs
-   *
-   *    param a$option: Option[T]
-   *
-   *    fun a$value: T =
-   *      a$option match
-   *        case #None   => a$default
-   *        case #Some v => v
-   *
    */
   def desugarParamDef(pdef: ParamDef): List[Def] =
     val paramId = pdef.ident
     val paramType = pdef.tpt
 
     lazy val defaultId = Ident(pdef.name + "$default")(paramId.span)
-    lazy val optionId = Ident(pdef.name + "$option")(paramId.span)
 
     def createDefaultFun(rhs: Word): FunDef =
       val tparams = Nil
@@ -224,36 +157,9 @@ object Desugaring:
       val autos = Nil
       val receives = Some(Nil) // no context params allowed for default
 
-      FunDef(defaultId, tparams, params, autos, paramType, receives, rhs, preParamCount = 0)(pdef.span)
-
-    def createOptionParam(): ParamDef =
-      val noneType = TagType(Ident("None")(paramType.span), params = Nil)(paramType.span)
-      val param = Param(Ident("value")(paramType.span), paramType)(paramType.span)
-      val someType = TagType(Ident("Some")(paramType.span), param :: Nil)(paramType.span)
-      val unionType = UnionType(someType :: noneType :: Nil)(paramType.span)
-      ParamDef(optionId, unionType, default = None)(pdef.span)
-
-    def createValueFun(): FunDef =
-      val id = Ident(pdef.name + "$value")(paramId.span)
-
-      val noneCase =
-        val pat = Tag(Ident("None")(paramId.span))(paramId.span)
-        Case(pat, defaultId)(paramId.span)
-
-      val someCase =
-        val value = Ident("value")(paramId.span)
-        val tag = Tag(Ident("Some")(paramId.span))(paramId.span)
-        val pat = Apply(tag, value :: Nil)(paramId.span)
-        Case(pat, value)(paramId.span)
-
-      val rhs = Match(optionId, noneCase :: someCase :: Nil)(pdef.span)
-
-      val tparams = Nil
-      val params = Nil
-      val autos = Nil
-      val receives = None // Infer usage -- it uses `a$default`, which is a context param
-
-      FunDef(id, tparams, params, autos, paramType, receives, rhs, preParamCount = 0)(pdef.span)
+      val fdef = FunDef(defaultId, tparams, params, autos, paramType, receives, rhs, preParamCount = 0)(pdef.span)
+      fdef.addKey(DefaultValueFun, ())
+      fdef
 
     pdef.default match
       case None => pdef :: Nil
@@ -261,4 +167,4 @@ object Desugaring:
       case Some(rhs) =>
         val pdef2 = pdef.copy(default = None)(pdef.span)
         pdef2.addKey(DefaultContextParam, ())
-        pdef2 :: createDefaultFun(rhs) :: createOptionParam() :: createValueFun() :: Nil
+        pdef2 :: createDefaultFun(rhs) :: Nil

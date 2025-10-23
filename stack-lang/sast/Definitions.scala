@@ -178,16 +178,6 @@ extends Definitions.Lazy:
   def isNumericType(tp: Type): Boolean =
     tp.refersAny(Predef_Byte :: Predef_Char :: Int_Int :: Nil)
 
-  val runtimeContextParams = Set(
-    IO_open,
-    IO_stdin,
-    IO_stdout,
-    IO_stderr,
-  )
-
-  def isRuntimeContextParam(sym: Symbol): Boolean =
-    runtimeContextParams.exists(param => sym.refers(param))
-
 end Definitions
 
 object Definitions:

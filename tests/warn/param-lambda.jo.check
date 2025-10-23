@@ -1,0 +1,15 @@
+---------- Error at ./tests/warn/param-lambda.jo:16:11 ---------------
+|   val f = makeLinePrinter allow stdout // error
+|           ^^^^^^^^^^^^^^^
+|           Parameter not allowed: indent
+
+The following is the trace that leads to the problem:
+├──   val f = makeLinePrinter allow stdout // error	[ ./tests/warn/param-lambda.jo:16:11 ]
+│             ^^^^^^^^^^^^^^^
+├──   (text) => line text	[ ./tests/warn/param-lambda.jo:13:13 ]
+│               ^^^^
+└──   while i < indent do	[ ./tests/warn/param-lambda.jo:7:13 ]
+                ^^^^^^
+
+
+1 error(s), 0 warning(s)

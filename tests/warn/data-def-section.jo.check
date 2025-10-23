@@ -1,0 +1,19 @@
+---------- Error at ./tests/warn/data-def-section.jo:3:9 ---------------
+| section Left
+|         ^^^^
+|         Redefinition of Left
+|
+| The name `Left` is already defined at ./tests/warn/data-def-section.jo:1:21
+| data Either[S, T] = Left(value: S) | Right(value: T)
+|                     ^^^^
+
+---------- Error at ./tests/warn/data-def-section.jo:7:9 ---------------
+| section Right
+|         ^^^^^
+|         Redefinition of Right
+|
+| The name `Right` is already defined at ./tests/warn/data-def-section.jo:1:38
+| data Either[S, T] = Left(value: S) | Right(value: T)
+|                                      ^^^^^
+
+2 error(s), 0 warning(s)

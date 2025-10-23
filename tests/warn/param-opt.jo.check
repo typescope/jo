@@ -1,0 +1,6 @@
+---------- Error at ./tests/warn/param-opt.jo:1:23 ---------------
+| param newLine: Bool = 3  // error
+|                       ^
+|                       Expect type Bool, found = Int
+
+1 error(s), 0 warning(s)
