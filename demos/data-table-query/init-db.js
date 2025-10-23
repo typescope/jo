@@ -83,9 +83,3 @@ console.log('   - User 3 (Carol): 8 documents');
 db.close();
 
 console.log('✅ Database initialized successfully!');
-console.log('');
-console.log('Run the demo with:');
-console.log('  ./build.sh');
-console.log('  node out/app.js 1  # View Alice\'s documents');
-console.log('  node out/app.js 2  # View Bob\'s documents');
-console.log('  node out/app.js 3  # View Carol\'s documents');

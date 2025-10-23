@@ -1,6 +1,6 @@
 # jo-mode.el - Emacs Major Mode for Jo Programming Language
 
-An Emacs major mode for editing [Jo](https://github.com/liufengyun/jo) programming language files.
+An Emacs major mode for editing the Jo programming language files.
 
 ## Features
 
@@ -138,8 +138,3 @@ Feel free to submit issues or pull requests to improve the mode.
 ## License
 
 Same as the Jo programming language.
-
-## See Also
-
-- [Jo Programming Language](https://github.com/liufengyun/jo)
-- [Jo Documentation](https://github.com/liufengyun/jo/blob/main/README.md)

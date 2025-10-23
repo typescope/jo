@@ -86,11 +86,9 @@ An extension of the data-table demo that adds **flexible custom filter condition
 - **Query DSL** - Type-safe expression builder using infix operators (`like`, `>`, `&&`, `||`, `!`)
 - **Context parameters with defaults** - Optional `ordering`, `limit`, `offset` without API explosion
 - **Unified query API** - Single `query(condition)` method handles all scenarios via context parameters
-- **SQL-level filtering** - Efficient for large datasets (no in-memory filtering)
-- **Pattern matching** - Runtime translates query AST to parameterized SQL
 - **Automatic security** - User conditions always ANDed with `WHERE owner_id = ?`
 
-It shows how to provide expressive query capabilities while maintaining security: users can build complex filters like `db.query(Title like "%Report%") with ordering = desc CreatedAt, limit = 10`, but the runtime always enforces row-level access control. Demonstrates Jo's context parameters pattern for optional customization.
+It shows how to provide expressive query capabilities while maintaining security: users can build complex filters like `db.query(Title like "%Report%") with ordering = desc CreatedAt, limit = 10`, but the runtime always enforces row-level access control.
 
 <a id="examples"></a>
 

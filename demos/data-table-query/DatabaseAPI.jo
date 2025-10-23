@@ -146,8 +146,8 @@ type DB = {
   Security: Only updates documents owned by current user
 
   Example:
-    db.update(Title like "%Report%", [Title := "Archived Report"])
-    db.update(All, [Title := "New Title", Content := "New Content"])
+    db.update(Title like "%Report%", [Title := str("Archived Report")])
+    db.update(All, [Title := "New Title", Content := str("New Content")])
   //]
   def update(condition: Cond, updates: List[FieldUpdate]): Int
 
@@ -157,7 +157,7 @@ type DB = {
   More efficient than update with condition
 
   Example:
-    db.updateById(42, [Title := "Updated Title"])
+    db.updateById(42, [Title := str("Updated Title")])
   //]
   def updateById(id: Int, updates: List[FieldUpdate]): Bool
 
@@ -207,7 +207,7 @@ Query example:
   val docs = db.query(cond)
 
 Update example:
-  db.update(Title like "%Draft%", [Title := "Archived", Content := "Moved to archive"])
+  db.update(Title like "%Draft%", [Title := str("Archived"), Content := str("Moved to archive")])
 //]
 section QueryDSL
   //[

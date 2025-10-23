@@ -61,17 +61,6 @@ section Impl
     end
 
   //[
-  Get the SQL column name for an UpdateColumn
-  Note: UpdateColumn is Title | Content | Draft
-  //]
-  def updateColumnName(col: UpdateColumn): String =
-    match col
-      case Title => "title"
-      case Content => "content"
-      case Draft => "draft"
-    end
-
-  //[
   Translate Cond expression tree to SQL WHERE clause and parameters
 
   Returns QueryParts containing:
@@ -174,7 +163,7 @@ section Impl
 
       while i < count do
         val update = updates[i]
-        val clause = updateColumnName(update.field) + " = ?"
+        val clause = columnName(update.field) + " = ?"
         if i > 0 then
           setSQL = setSQL + ", " + clause
         else
@@ -252,7 +241,7 @@ section Impl
     var i = count - 1
     while i >= 0 do
       val row = js "rows[i]"
-      docs = docs.prepend(buildDocumentFromRow(row))
+      docs = docs + buildDocumentFromRow(row)
       i = i - 1
     docs
 
