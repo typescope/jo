@@ -67,36 +67,69 @@
   '("true" "false")
   "Jo constants.")
 
+(defun jo-syntax-propertize-extend-region (start end)
+  "Extend the propertization region to include complete block comments.
+This ensures that when editing a block comment delimiter, the entire
+comment gets re-propertized."
+  nil)  ;; We handle region extension in jo-after-change-function instead
+
 (defun jo-syntax-propertize (start end)
   "Apply syntax properties to comments in the region from START to END."
-  (goto-char start)
-  (funcall
-   (syntax-propertize-rules
-    ;; Multi-line comments with matching slash count: //[, ///[, etc.
-    ;; Must be at least 2 slashes followed immediately by [
-    ("\\(/\\{2,\\}\\)\\["
-     (0 (ignore
-         (let* ((slash-start (match-beginning 1))
-                (bracket-pos (match-end 0))
-                (slash-count (- (match-end 1) (match-beginning 1)))
-                (close-regex (concat (regexp-quote (make-string slash-count ?/)) "\\]")))
-           ;; Mark opening as comment start
-           (put-text-property slash-start (1+ slash-start)
-                              'syntax-table (string-to-syntax "!"))
-           ;; Search for matching closer
-           (when (re-search-forward close-regex end t)
-             (let ((close-start (match-beginning 0)))
-               ;; Mark closing as comment end
-               (put-text-property (1- (match-end 0)) (match-end 0)
-                                  'syntax-table (string-to-syntax "!"))
-               ;; Mark everything in between as comment
-               (put-text-property slash-start (match-end 0)
-                                  'font-lock-face 'font-lock-comment-face)))))))
-    ;; Single-line comments: // but not followed by [
-    ;; Match exactly 2 or more slashes NOT followed by [
-    ("\\(/\\{2,\\}\\)\\([^[]\\|$\\)"
-     (1 (string-to-syntax "<"))))
-   start end))
+  (save-excursion
+    ;; Remove old syntax properties in the entire buffer
+    ;; This is necessary because block comments can span large regions
+    (remove-text-properties (point-min) (point-max) '(syntax-table nil jo-block-comment nil))
+
+    ;; First pass: handle block comments from start of buffer
+    (goto-char (point-min))
+    (while (re-search-forward "\\(/\\{2,\\}\\)\\[" nil t)
+      (let* ((slash-start (match-beginning 1))
+             (slash-count (- (match-end 1) (match-beginning 1)))
+             (close-regex (concat (regexp-quote (make-string slash-count ?/)) "\\]")))
+        ;; Mark opening as comment start
+        (put-text-property slash-start (1+ slash-start)
+                           'syntax-table (string-to-syntax "!"))
+        ;; Search for matching closer
+        (when (re-search-forward close-regex nil t)
+          ;; Mark closing as comment end
+          (put-text-property (1- (match-end 0)) (match-end 0)
+                             'syntax-table (string-to-syntax "!"))
+          ;; Mark entire block comment region
+          (put-text-property slash-start (match-end 0)
+                             'jo-block-comment t))))
+
+    ;; Second pass: handle single-line comments (but skip block comment regions)
+    (goto-char (point-min))
+    (while (re-search-forward "\\(/\\{2,\\}\\)\\([^[]\\|$\\)" nil t)
+      (let ((slash-start (match-beginning 1)))
+        ;; Only apply single-line comment syntax if not inside a block comment
+        (unless (get-text-property slash-start 'jo-block-comment)
+          (put-text-property slash-start (1+ slash-start)
+                             'syntax-table (string-to-syntax "<")))))))
+
+(defun jo-after-change-function (beg end old-len)
+  "Force re-propertization when comment delimiters are edited."
+  (save-excursion
+    (save-match-data
+      (goto-char beg)
+      (beginning-of-line)
+      (let ((line-text (buffer-substring-no-properties
+                        (line-beginning-position)
+                        (line-end-position))))
+        ;; Check if line contains comment delimiters
+        (when (string-match-p "//\|\[\|\]" line-text)
+          (message "JO-MODE: Re-propertizing buffer due to edit on line with: %s" line-text)
+          ;; Clear all syntax properties in the buffer
+          (with-silent-modifications
+            (remove-text-properties (point-min) (point-max)
+                                   '(syntax-table nil jo-block-comment nil)))
+          ;; Force syntax-propertize to run on entire buffer
+          (syntax-ppss-flush-cache (point-min))
+          ;; Re-propertize from the beginning of buffer to the end
+          (syntax-propertize (point-max))
+          ;; Force font-lock to refontify the entire buffer
+          (font-lock-flush (point-min) (point-max))
+          (font-lock-ensure (point-min) (point-max)))))))
 
 (defvar jo-font-lock-keywords
   (list
@@ -210,8 +243,13 @@
 
   ;; Syntax propertize for handling comments
   (setq-local syntax-propertize-function #'jo-syntax-propertize)
+  (add-hook 'syntax-propertize-extend-region-functions
+            #'jo-syntax-propertize-extend-region nil t)
 
-  ;; Newline ends single-line comments
+  ;; Add after-change hook to force re-propertization when delimiters change
+  (add-hook 'after-change-functions #'jo-after-change-function nil t)
+
+  ;; Newline ends single-line comments (needed for < syntax in syntax-propertize)
   (modify-syntax-entry ?\n ">" jo-mode-syntax-table)
 
   ;; Font lock
