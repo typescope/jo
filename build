@@ -98,7 +98,7 @@ if [ "$BUILD_RELEASE" = true ]; then
 
   # Get version from git or use default
   VERSION=$(git describe --tags --always 2>/dev/null || echo "dev")
-  RELEASE_NAME="jo-${VERSION}"
+  RELEASE_NAME="jo-${VERSION}-preview"
   RELEASE_ZIP="${RELEASE_NAME}.zip"
 
   # Create temporary directory for packaging
