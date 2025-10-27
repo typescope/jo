@@ -111,7 +111,7 @@ if [ "$BUILD_RELEASE" = true ]; then
   mkdir -p "$RELEASE_DIR/bin"
   cp bin/jo.jar "$RELEASE_DIR/bin/"
   cp bin/jo "$RELEASE_DIR/bin/"
-  cp -r sast "$RELEASE_DIR/"
+  cp -r libs "$RELEASE_DIR/"
   cp -r demos "$RELEASE_DIR/"
   cp README.md "$RELEASE_DIR/"
   cp LICENSE "$RELEASE_DIR/"
