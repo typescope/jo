@@ -8,8 +8,8 @@ Block comments are delimited by `//[` and `//]`:
 
 ```jo
 //[
-This is a block comment
-that spans multiple lines
+  | This is a block comment
+  | that spans multiple lines
 //]
 
 def foo = 42
@@ -48,9 +48,9 @@ def foo = 42
 
 ```jo
 //[
-This comment
-spans multiple
-lines
+  | This comment
+  | spans multiple
+  | lines
 //]
 def bar = 100
 ```

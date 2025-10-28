@@ -1,8 +1,7 @@
-//[
-PlatformRuntime.jo
-
-Platform runtime providing context parameter implementations
-Uses real Node.js APIs via js intrinsic
+//[ PlatformRuntime.jo
+  |
+  | Platform runtime providing context parameter implementations
+  | Uses real Node.js APIs via js intrinsic
 //]
 
 namespace SystemRuntime
@@ -12,9 +11,7 @@ import jo.runtime.JS.js
 import SystemAPI.*
 import SystemAPI.Monitor.startMonitor
 
-//[
-Process management operations section
-//]
+//[ Process management operations section //]
 section Process
   def listProcessesImpl(): String =
     val output = js "require('child_process').execSync('ps aux').toString()"
@@ -43,9 +40,7 @@ section Process
     memMB
 end
 
-//[
-System information operations section
-//]
+//[ System information operations section //]
 section System
   def uptimeImpl(): Int =
     val uptimeSeconds = js "require('os').uptime()"
@@ -65,9 +60,7 @@ section System
     host
 end
 
-//[
-Logger operations section
-//]
+//[ Logger operations section //]
 section Logger
   def infoImpl(message: String): Unit receives stdout =
     print "[INFO] "
@@ -78,9 +71,7 @@ section Logger
     println message
 end
 
-//[
-Main entry point - provides implementations to user code
-//]
+//[ Main entry point - provides implementations to user code //]
 def platformMain: Unit receives stdout =
   startMonitor with
     process = {
