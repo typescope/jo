@@ -161,6 +161,7 @@ content ::= <any character except a matching closing delimiter>
 Given an opening delimiter with `n` slashes (where `n ≥ 2`), the comment closes only when encountering `n` consecutive slashes followed by `]`.
 
 For example:
+
 - `//[` (2 slashes) matches only `//]` (2 slashes)
 - `///[` (3 slashes) matches only `///]` (3 slashes)
 - `////[` (4 slashes) matches only `////]` (4 slashes)
