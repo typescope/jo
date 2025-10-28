@@ -120,6 +120,9 @@ if [ "$BUILD_RELEASE" = true ]; then
   # Copy demos directory
   cp -r demos "$RELEASE_DIR/"
 
+  # Copy tools directory
+  cp -r tools "$RELEASE_DIR/"
+
   # Copy built documentation site as docs
   cp -r site "$RELEASE_DIR/docs"
   # Generate README.html using md2html
