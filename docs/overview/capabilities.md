@@ -29,9 +29,7 @@ Capability-based systems partially address the confinement problem by controllin
 
 Capabilities improve security by making access explicit and verifiable, but the theoretical limits identified by Lampson remain.
 
-## Core Concepts
-
-**Capabilities** - Unforgeable tokens that grant specific access rights to resources.
+## Core Principles
 
 **Principle of least privilege** - Programs receive only the minimum capabilities needed to function.
 
