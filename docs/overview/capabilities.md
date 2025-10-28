@@ -78,17 +78,17 @@ param readLine: () => Option[String]  // Refined from broader file capability
 def lineCount(): Int =
   def recur(acc: Int): Int =
     match readLine()
-      case #Some(_) => recur(acc + 1)  // Can only read lines
-      case #None    => acc             // Cannot write, seek, or delete
+      case Some _ => recur(acc + 1)  // Can only read lines
+      case None   => acc             // Cannot write, seek, or delete
   recur(0)
 
 // Caller provides refined capability, not full file access
 def main =
   val file = open("data.txt")
-  val readLineFun = () => if file.hasMore() then #Some(file.readLine()) else #None
+  val readLineFun = () => if file.hasMore() then Some(file.readLine()) else None
   
   // lineCount gets only line-reading capability, nothing more
-  lineCount() with readLine = readLineFun
+  lineCount() with readLine = readLineFun allow none
 ```
 
 There is no limit to how we can subdivide a capability. This is a major difference between capability-based systems and effect systems: capabilities can be both composed and refined, while effects can be only combined for the sake of purity.
@@ -105,16 +105,16 @@ def report(status: String): Unit =
   output("Status: " + status)  // Uses whatever output is provided
 
 // Production: use real stdout
-def main() receives IO =
-  report("System ready") with output = println
+def main =
+  report("System ready") with output = (msg => println msg)
 
 // Testing: capture output for verification
 def test(): String =
-  var captured: String = ""
-  val mockOutput = (s: String) => captured = captured + s + "\n"
+  val captured = { var content: String = "" }
+  val mockOutput = (s: String) => captured.content = captured.content + s + "\n"
   
   report("Test complete") with output = mockOutput
-  captured  // Returns captured output for assertion
+  captured.content  // Returns captured output for assertion
 ```
 
 Polymorphic capabilities enable dependency injection without frameworks while maintaining compile-time safety.
