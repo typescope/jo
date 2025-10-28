@@ -35,3 +35,42 @@
 .highlight .language-jo {
   /* Base styling will be handled by our Jo language definition */
 }
+
+/* Custom font sizes - override Material theme defaults */
+.md-typeset {
+  font-size: 16px !important;
+}
+
+.md-nav {
+  font-size: 16px !important;
+}
+
+.md-nav__item {
+  font-size: 16px !important;
+}
+
+.md-nav__link {
+  font-size: 16px !important;
+}
+
+.md-nav__title {
+  font-size: 16px !important;
+}
+
+/* Right sidebar navigation (table of contents) */
+.md-sidebar--secondary .md-nav {
+  font-size: 16px !important;
+}
+
+.md-sidebar--secondary .md-nav__item {
+  font-size: 16px !important;
+}
+
+.md-sidebar--secondary .md-nav__link {
+  font-size: 16px !important;
+}
+
+/* Fix page title color */
+.md-typeset h1 {
+  color: var(--md-default-fg-color) !important;
+}

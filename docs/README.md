@@ -30,7 +30,7 @@ docs/
 └── Assets:
     ├── css/
     │   ├── center-layout.css      # For bin/md2html
-    │   ├── highlight-modern.css   # For bin/md2html  
+    │   ├── highlight-modern.css   # For bin/md2html
     │   └── mkdocs-extra.css       # For MkDocs site
     └── js/
         ├── highlight.min.js       # For bin/md2html
@@ -57,7 +57,7 @@ mkdocs build    # Generate static site
 ### New Language Features
 Add `.md` files to `docs/language/` and reference them in `mkdocs.yml` navigation.
 
-### New Website Sections  
+### New Website Sections
 Create subdirectories under `docs/` and update `mkdocs.yml` navigation.
 
 ### Demo Integration

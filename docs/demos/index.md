@@ -10,7 +10,7 @@ Experience Jo's security features through real-world applications that demonstra
 A system monitoring application that extends Jo's JavaScript runtime with controlled system-level capabilities.
 
 **Key Features:**
-- Runtime extension using `-runtime` flag  
+- Runtime extension using `-runtime` flag
 - Context parameters for capability provision
 - Security confinement - user code analyzes processes without direct Node.js access
 
@@ -18,7 +18,7 @@ A system monitoring application that extends Jo's JavaScript runtime with contro
 
 ---
 
-### 🔐 [Data Table Security](data-table.md)  
+### 🔐 [Data Table Security](data-table.md)
 **Row-Level Access Control Demo**
 
 A database application demonstrating automatic row-level security where users can only access their own data.
@@ -39,7 +39,7 @@ An advanced database demo that adds flexible custom filtering while maintaining 
 
 **Key Features:**
 - Type-safe expression builder with infix operators
-- Context parameters with defaults for ordering/pagination  
+- Context parameters with defaults for ordering/pagination
 - User conditions automatically ANDed with security constraints
 
 **Perfect for:** Developers interested in building secure, expressive APIs.
@@ -58,7 +58,7 @@ All demos are included in the [preview release](../language/download.md). Each d
 Each demo follows Jo's three-stage compilation model:
 
 1. **API Definition** - Define the capabilities available to user code
-2. **Runtime Implementation** - Implement security enforcement  
+2. **Runtime Implementation** - Implement security enforcement
 3. **User Code** - Write application logic within security constraints
 
 This architecture ensures that security is enforced at the runtime level, making it impossible for malicious code to bypass restrictions.

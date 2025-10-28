@@ -17,7 +17,7 @@ Jo excels at working with structured data through algebraic data types:
 ```jo
 data Expr =
     Abs(x: String, body: Expr)
-  | Var(x: String)  
+  | Var(x: String)
   | App(lhs: Expr, arg: Expr)
 
 def show(expr: Expr): String =
@@ -46,7 +46,7 @@ def find(x: String): Option[Value] =
 
 The `param` declares a contextual parameter. Functions can access `env` directly or override it with `with env = newValue`.
 
-## Effect System  
+## Effect System
 
 Jo tracks computational effects in the type system:
 
@@ -71,7 +71,7 @@ Jo supports flexible call syntax and operators:
 numbers.map(x => x * 2)
 numbers map (x => x * 2)
 
-// Custom operators  
+// Custom operators
 def (||)(a: Bool, b: Bool): Bool = if a then true else b
 
 // Infix, prefix, postfix all supported
@@ -87,7 +87,7 @@ Context parameters enable secure API design:
 param userId: String
 
 def getOrders(): List[Order] receives Database =
-  // Runtime automatically adds WHERE userId = ? 
+  // Runtime automatically adds WHERE userId = ?
   database.query("SELECT * FROM orders")
 ```
 
@@ -96,7 +96,7 @@ The runtime can automatically inject security constraints without code changes.
 ## Next Steps
 
 - **[Try the demos](../demos/)** - See Jo's security features in action
-- **[Advanced features](multiline-strings.md)** - Explore language details  
+- **[Advanced features](multiline-strings.md)** - Explore language details
 - **[Download Jo](download.md)** - Get started with the preview release
 
 Jo combines the expressiveness of modern functional languages with built-in security guarantees, making it perfect for the AI-assisted development era.

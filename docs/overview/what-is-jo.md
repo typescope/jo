@@ -1,36 +1,30 @@
-# What is Jo?
+# 🛡️ Jo Programming Language
 
-Jo is a secure programming language designed specifically for the AI era, where Large Language Models (LLMs) generate increasingly complex code that needs to be safely executed.
+*For the joy of secure programming*
 
-## The Core Innovation
+---
 
-Jo introduces **capability-based security** at the language level, ensuring that AI-generated code can only access the specific resources and APIs that you explicitly authorize.
+Jo is a secure programming language designed for securing LLM generated code.
 
-## Key Differentiators
+## Why Jo?
 
-### 🔒 **Built-in Security**
-Unlike traditional languages where security is an afterthought, Jo makes security guarantees at the language level. Every program is secure by default.
+- **API confinement** - LLM generated code is confined to custom-defined application-level APIs
+- **Fine-grained control** - Precise control of authorization, e.g. only access certain rows of a data table
+- **Easy security auditing** - Statically checked authorities and clear security boundaries
 
-### 🤖 **AI-First Design**  
-Purpose-built for LLM-generated code, Jo provides the tools needed to safely execute untrusted code while maintaining full control.
+## Key Features ✨
 
-### 🏗️ **Extensible Runtime**
-Define custom APIs and security boundaries specific to your application domain, giving AI assistants exactly the capabilities they need—nothing more.
+- **Extensible runtime** - Extend and customize the language runtime with a Jo library
+- **No global variables** - Safe and easy to compose and for reuse
+- **Context parameters** - Contextual abstraction, optional parameters, and implicit resolution
+- **Effect system** - Fine-grained effect control with parametric effects
+- **Algebraic data types** - Extensible ADTs with pattern matching
+- **Pattern-oriented programming** - First-class patterns and higher-order patterns
+- **Natural syntax** - Prefix, infix, and postfix operators; two call styles `f(x)` and `f x`; indentation-based
+- **Multiple backends** - Interpreter, JavaScript, native x86 Linux, and more are coming
 
-## Real-World Applications
+## Getting Started
 
-### Enterprise Software
-- **Database applications** with automatic row-level security
-- **System monitoring** with controlled access to system resources  
-- **Data processing** with fine-grained permission controls
+Jo is designed to be both powerful and approachable. Whether you're a security engineer looking to contain AI-generated code, or a developer building the next generation of AI-powered applications, Jo provides the tools you need.
 
-### AI Development Platforms
-- **Code generation sandboxes** that prevent unauthorized access
-- **Custom API providers** for domain-specific AI assistants
-- **Security auditing tools** for AI-generated code
-
-## Why Now?
-
-As AI code generation becomes mainstream, the security risks grow exponentially. Jo provides the foundation for safely leveraging AI assistance without compromising system security.
-
-**Next:** [Learn about the security problem Jo solves →](security-problem.md)
+**Ready to explore?** Use the navigation on the left to dive deeper into Jo's features and security model.
