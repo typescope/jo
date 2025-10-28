@@ -1,0 +1,81 @@
+site_name: Jo Programming Language
+site_description: Secure programming for the AI era
+site_url: https://jo-lang.org
+repo_url: https://github.com/liufengyun/jo
+repo_name: liufengyun/jo
+
+# Use existing docs directory
+docs_dir: docs
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.expand
+    - search.highlight
+    - search.share
+    - toc.follow
+    - content.code.copy
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: black
+      accent: blue
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: black
+      accent: blue
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - admonition
+  - pymdownx.details
+  - pymdownx.tabbed:
+      alternate_style: true
+  - attr_list
+  - md_in_html
+
+extra_css:
+  - css/mkdocs-extra.css
+
+nav:
+  - Overview:
+    - What is Jo?: overview/what-is-jo.md
+    - The Security Problem: overview/security-problem.md
+    - Jo's Solution: overview/solution.md
+    - Key Benefits: overview/benefits.md
+  
+  - Security Model:
+    - AI Code Confinement: security/ai-confinement.md
+    - Capability-Based Security: security/capabilities.md
+    - Row-Level Access Control: security/access-control.md
+    - Security Guarantees: security/guarantees.md
+  
+  - Live Demos:
+    - Overview: demos/index.md
+    - Process Monitor: demos/process-monitor.md
+    - Data Table Security: demos/data-table.md
+    - Query DSL: demos/query-dsl.md
+  
+  - Language:
+    - Quick Start: language/quick-start.md
+    - Language Tour: language/tour.md
+    - Syntax Highlights: language/syntax.md
+    - Advanced Features:
+      - Multiline Strings: language/multiline-string.md
+      - Block Comments: language/block-comment.md
+      - Varargs: language/varargs.md
+      - Deferred Functions: language/deferred-functions.md
+    - Download & Install: language/download.md

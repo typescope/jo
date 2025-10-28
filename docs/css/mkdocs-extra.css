@@ -1,0 +1,37 @@
+/* Jo syntax highlighting for MkDocs */
+.highlight .language-jo .hljs-keyword {
+  color: #d73a49;
+  font-weight: 600;
+}
+
+.highlight .language-jo .hljs-string {
+  color: #22863a;
+  font-weight: normal;
+}
+
+.highlight .language-jo .hljs-symbol {
+  color: #e36209;
+  font-weight: 600;
+}
+
+.highlight .language-jo .hljs-operator {
+  color: #d73a49;
+}
+
+.highlight .language-jo .hljs-comment {
+  color: #6a737d;
+  font-style: italic;
+}
+
+.highlight .language-jo .hljs-number {
+  color: #005cc5;
+}
+
+.highlight .language-jo .hljs-type {
+  color: #6f42c1;
+}
+
+/* Register Jo language for highlight.js */
+.highlight .language-jo {
+  /* Base styling will be handled by our Jo language definition */
+}
