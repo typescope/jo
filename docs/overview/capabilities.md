@@ -91,7 +91,7 @@ def main =
   lineCount() with readLine = readLineFun
 ```
 
-There is no limit to how we can subdivide a capability. This is a major difference between capability-based systems and effect systems: capabilities can be both refined and composed, but effects can be only combined for the sake of purity.
+There is no limit to how we can subdivide a capability. This is a major difference between capability-based systems and effect systems: capabilities can be both composed and refined, while effects can be only combined for the sake of purity.
 
 ## Polymorphic Capabilities
 
