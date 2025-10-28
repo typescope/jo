@@ -98,13 +98,13 @@ It shows how to provide expressive query capabilities while maintaining security
 
 ### Hello world
 
-```
+```jo
 def main = println "Hello world!"
 ```
 
 ### [Lambda Calculus](https://en.wikipedia.org/wiki/Lambda_calculus)
 
-```
+```jo
 data Expr =
     Abs(x: String, body: Expr)
   | Var(x: String)
