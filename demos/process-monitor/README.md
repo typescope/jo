@@ -65,6 +65,7 @@ param logger: Logger
 ```
 
 ### PlatformRuntime.jo
+
 Implementation functions are organized in three sections (`Process`, `System`, `Logger`), then provided via `with` clause:
 
 ```jo
@@ -123,6 +124,7 @@ def analyzeSystem(): Unit receives stdout, process, logger =
 ```
 
 User code **cannot**:
+
 - Create new context parameters
 - Access capabilities not in the `receives` clause
 - Call `js` or Node.js directly
@@ -130,11 +132,13 @@ User code **cannot**:
 ## Compilation
 
 ### Stage 1: Compile Platform API
+
 ```bash
 bin/jo build-lib PlatformAPI.jo -d out/api
 ```
 
 ### Stage 2: Compile Platform Runtime
+
 ```bash
 bin/jo build-lib PlatformRuntime.jo \
   -lib libs/runtime-js:out/api \
@@ -142,6 +146,7 @@ bin/jo build-lib PlatformRuntime.jo \
 ```
 
 ### Stage 3: Compile User Application
+
 ```bash
 bin/jo build -js \
   -no-detect-main \
