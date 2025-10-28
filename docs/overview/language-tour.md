@@ -1,6 +1,6 @@
 # Language Tour
 
-Welcome to Jo! This tour introduces you to Jo's key language features through practical examples.
+Welcome to Jo! This tour introduces you to Jo's key language features through examples.
 
 ## Hello World
 
@@ -48,19 +48,22 @@ The `param` declares a contextual parameter. Functions can access `env` directly
 
 ## Effect System
 
-Jo tracks computational effects in the type system:
+Jo tracks computational effects in the type system as context parameters:
 
 ```jo
-def readFile(path: String): String receives IO =
-  // Function requires IO capability
-  nativeReadFile(path)
+def readFile(path: String): String receives IO.open =
+  // Function requires file opening capability
+  val file = open(path)
+  val content = file.readLine
+  file.close
+  content
 
-def processData(data: String): Result =
+def processData(data: String): Result receives none =
   // Pure function - no effects
   parseAndValidate(data)
 ```
 
-The `receives` clause declares required capabilities, enabling fine-grained security control. The `receives` clause can be inferred when not explicitly specified.
+The `receives` clause declares required capabilities to produce effects, enabling compile-time security control. The `receives` clause can be inferred when not explicitly specified.
 
 ## Natural Syntax
 
@@ -68,12 +71,13 @@ Jo supports flexible call syntax and operators:
 
 ```jo
 // Multiple call styles
-numbers.map(x => x * 2)
-numbers map (x => x * 2)
+println "hello, world"
+println("hello, world")
 
 // Custom operators
-def (||)(a: Bool, b: Bool): Bool = if a then true else b
+def (a: Int) ** (b: Int): Int = 
+  if b == 0 then 1 else a * (a ** (b - 1))
 
 // Infix, prefix, postfix all supported
-val result = true || false
+val result = 2 ** 3  // result is 8
 ```
