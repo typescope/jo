@@ -9,8 +9,8 @@ Jo provides various forms of definitions for organizing code and declaring progr
 def greet(name: String): String = "Hello, " + name
 
 // Function with effects
-def writeFile(path: String, content: String): Unit receives IO.write =
-  File.write(path, content)
+def printMessage(message: String): Unit receives stdout =
+  println message
 
 // Function with context parameters
 def process(data: List[Int]): Unit receives logger =
@@ -20,13 +20,19 @@ def process(data: List[Int]): Unit receives logger =
 
 ## Value Definitions
 
-```jo
-val immutable = 42
-var mutable = "can change"
+Value definitions can only appear inside function bodies, not at the top level of a namespace or section.
 
-// Type annotations
-val typed: String = "explicitly typed"
-var counter: Int = 0
+```jo
+def example(): Unit =
+  val immutable = 42
+  var mutable = "can change"
+
+  // Type annotations
+  val typed: String = "explicitly typed"
+  var counter: Int = 0
+  
+  // Modify mutable values
+  counter = counter + 1
 ```
 
 ## Pattern Definitions
@@ -57,13 +63,6 @@ type Config = {
   port: Int,
   timeout: Int
 }
-
-// Algebraic data types
-data List[T] = #Nil | #Cons(head: T, tail: List[T])
-
-data Tree[T] =
-  | #Leaf(value: T)
-  | #Branch(left: Tree[T], right: Tree[T])
 ```
 
 ## Context Parameter Definitions
@@ -108,6 +107,36 @@ def handleRequest(request: Request): Response =
 
 // Linked at compile time with -link option
 // bin/jo build -link MyApp.authenticate=OAuth.verify app.jo -o app
+```
+
+## Data Definitions
+
+Data definitions create new data types with a single constructor:
+
+```jo
+data Box[T](value: T)
+data Post(title: String, author: String, content: String)
+
+// Usage examples
+val box = Box(5)
+val post = Post("Hello, World", "Turing", "Content here")
+```
+
+## Enum Definitions
+
+Enum definitions create algebraic data types with multiple constructors:
+
+```jo
+data Option[T] = Some(value: T) | None
+data List[T] = Cons(head: T, tail: List[T]) | Nil
+data Tree[T] = Node(value: T, left: Tree[T], right: Tree[T]) | Leaf(value: T)
+data Either[S, T] = Left(value: S) | Right(value: T)
+
+// Usage examples
+val some: Option[Int] = Some(20)
+val list: List[Int] = Cons(4, Cons(5, Nil))
+val tree: Tree[String] = Leaf("value")
+val either: Either[Int, String] = Left(42)
 ```
 
 ## Alias Definitions
