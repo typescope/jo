@@ -4,12 +4,27 @@ Jo features a rich type system that supports both functional and object-oriented
 
 ## Basic Types
 
-Jo provides several fundamental types:
+Beyond primitive types such as Bool and Int, Jo provides:
 
 ```jo
 type Person = { name: String, age: Int }
 type Option[T] = #Some(value: T) | #None
 type Result[T, E] = #Ok(value: T) | #Error(error: E)
+```
+
+## List Types
+
+Jo standard library implements List type to make daily programming easy. Lists are immutable with efficient O(1) prepend, append, and concat operations:
+
+```jo
+// Usage examples
+val empty: List[Int] = []
+val numbers = [1, 2, 3]
+
+// Pattern matching with lists
+match numbers
+case [] => println "Empty list"
+case [head, ..tail] => println ("First element: " + intToStr(head))
 ```
 
 ## Function Types
