@@ -1,15 +1,15 @@
 // Initialize highlight.js with Jo language support
 document.addEventListener('DOMContentLoaded', function() {
-  console.log('Initializing highlight.js...');
-  console.log('Available languages:', hljs.listLanguages());
-  
-  // Initialize highlight.js normally
-  hljs.highlightAll();
-  
-  // Debug: check if Jo blocks are properly detected
-  document.querySelectorAll('pre code').forEach((block) => {
-    if (block.className.includes('jo')) {
-      console.log('Found Jo block:', block.className, block.textContent.substring(0, 50));
+  // Fix class names: change language-java to language-jo for jo blocks
+  document.querySelectorAll('pre code[class*="language-"]').forEach((block) => {
+    // Check if this looks like Jo code
+    const content = block.textContent;
+    if (content.includes('def ') || content.includes('data ') || content.includes('receives ')) {
+      // Replace language-java with language-jo
+      block.className = block.className.replace(/language-\w+/, 'language-jo');
     }
   });
+
+  // Initialize highlight.js
+  hljs.highlightAll();
 });

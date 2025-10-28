@@ -63,7 +63,6 @@ Each source file defines a namespace:
 namespace io.net
 
 import system
-import data.List
 
 type Connection = { host: String, port: Int }
 
@@ -91,6 +90,20 @@ Exceptions to import requirements:
 
 - Current namespace is implicitly imported
 - Predefined language constructs are always available
+
+### Top-level Definitions
+
+At the top level of a namespace, only the following definitions are allowed:
+
+- **Function definitions** (`def`)
+- **Type definitions** (`type`)
+- **Data definitions** (`data`)
+- **Context parameter definitions** (`param`)
+- **Pattern definitions** (`pattern`)
+- **Alias definitions** (`alias`)
+- **Section definitions** (`section`) - may contain nested top-level definitions
+
+Value definitions (`val`, `var`) can only appear inside function bodies, not at the top level.
 
 ## Syntax Conventions
 

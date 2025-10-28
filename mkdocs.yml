@@ -40,6 +40,7 @@ markdown_extensions:
       anchor_linenums: true
       line_spans: __span
       pygments_lang_class: true
+      use_pygments: false
   - pymdownx.inlinehilite
   - pymdownx.snippets
   - pymdownx.superfences
