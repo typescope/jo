@@ -84,9 +84,9 @@ nav:
   
   - Language Reference:
     - Syntax Overview: language/syntax-overview.md
-    - Expressions: language/expressions.md
     - Definitions: language/definitions.md
     - Types: language/types.md
+    - Expressions: language/expressions.md
     - Syntax Summary: language/syntax-summary.md
   
   - Design Docs:

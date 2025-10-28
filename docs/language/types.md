@@ -1,6 +1,6 @@
 # Types
 
-Jo features a sophisticated type system that supports both functional and object-oriented programming paradigms. This section covers the various type constructs available in the language.
+Jo features a rich type system that supports both functional and object-oriented programming paradigms.
 
 ## Basic Types
 
@@ -122,23 +122,6 @@ type ConnectionString = String
 // More complex aliases
 type UserProfile = { id: UserId, name: UserName, email: String }
 type EventHandler[T] = T => Unit receives logger
-```
-
-## Subtyping
-
-Jo supports structural subtyping relationships:
-
-```jo
-type Animal = {
-  def name(): String
-  def sound(): String
-}
-
-type Dog <: Animal = {
-  def name(): String
-  def sound(): String
-  def breed(): String
-}
 ```
 
 ## Effect Types and Context Parameters
