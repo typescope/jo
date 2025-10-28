@@ -1,41 +1,97 @@
 # Jo's Solution
 
-Jo uses capability-based security integrated into the language's type system.
+Jo addresses the three fundamental challenges of object-capability languages through its type system design and two-world architecture.
 
-## Capability-Based Security
+## Static Capability Control
 
-Functions can only access resources explicitly passed as parameters:
+Jo provides static verification of capability access through typed context parameters:
 
 ```jo
 param database: Database
-param userId: String
+param logger: Logger
 
-def getOrders(): List[Order] =
-  database.query("SELECT * FROM orders")
+def processOrder(orderId: String): Result[Order] receives database, logger =
+  logger.info("Processing order: " + orderId)
+  database.findOrder(orderId)
 ```
 
-## Technical Properties
+The `receives` clause statically declares required capabilities. The type system ensures:
 
-**Zero capabilities by default** - Functions start with no access to external resources.
+- Functions cannot access undeclared capabilities
+- Capability requirements are verified at compile time
+- Security properties are enforced without runtime overhead
 
-**Explicit capabilities** - All resource access must be declared as parameters.
+## Global Variable Solution
 
-**Static verification** - Security boundaries are checked at compile time.
+Jo eliminates ambient authority through context parameters while maintaining usability:
 
-**No runtime overhead** - Security enforcement uses the type system.
+```jo
+// Global-like access without global variables
+param config: Config
+param database: Database
 
-## Implementation
+def createUser(name: String): User receives config, database =
+  val timeout = config.databaseTimeout
+  database.insert("users", name, timeout)
 
-**Context parameters** - Resources are passed through the context parameter system.
+// Capabilities flow automatically through the call chain
+// receives clause can be inferred - no syntactic overhead
+def handleRequest(req: Request): Response =
+  val user = createUser(req.userName)  // capabilities passed implicitly
+  #Success(user)
+```
 
-**Effect system** - Required capabilities are tracked in function signatures.
+Context parameters provide the convenience of global access while maintaining explicit capability control and enabling capability confinement for security. The `receives` clause can be inferred by the compiler, eliminating syntactic overhead while preserving static verification.
 
-**Type safety** - The type system prevents unauthorized resource access.
+## Two-World Architecture
 
-## Security Properties
+Jo distinguishes libraries into two worlds:
 
-**Confinement** - Code cannot access resources not explicitly provided.
+**Pure World** - Untrusted user code and libraries that do not depend on runtime libraries:
+```jo
+// UserApp.jo - cannot perform I/O by itself
+def analyzeData(): Unit receives db, logger =
+  val docs = db.queryMyDocuments()  // uses capability interface
+  logger.info("Found " + intToStr(docs.size) + " documents")
+  docs.foreach(doc => println(doc.title))
+```
 
-**Auditability** - Resource access is statically determinable from function signatures.
+**Runtime World** - Trusted platform libraries that provide capabilities:
+```jo
+// PlatformRuntime.jo - trusted implementation
+def platformMain: Unit receives stdout =
+  val userId = js "parseInt(process.argv[2])"  // direct system access
+  val dbHandle = js "new DatabaseSync(dbPath)"
 
-**Composability** - Security properties are preserved when combining functions.
+  UserApp.analyzeData with
+    db = {
+      def queryMyDocuments(): List[Document] =
+        // userId captured in closure - user code cannot access it
+        execQuery("SELECT * FROM documents WHERE owner_id = ?", userId)
+    },
+    logger = { def info(msg: String): Unit = println("[INFO] " + msg) }
+```
+
+**Compilation Constraints:**
+
+- Pure world code **cannot import** runtime world libraries during compilation
+- Runtime world libraries **can import** pure world libraries
+- The two worlds are **linked** at build time through deferred functions and context parameters
+
+**Benefits:**
+
+- **Clear trust boundary** - Only runtime world can perform actual I/O or system calls
+- **Untrusted pure world** - User code cannot do anything harmful by itself
+- **Simple interoperability** - Pure world accesses capabilities through typed interfaces only
+- **Third-party extensibility** - Platforms can add new runtime libraries without language changes
+- **Security auditing** - Only runtime world implementations need security review
+
+## How It Works
+
+Jo's solution addresses each challenge:
+
+1. **Static control** - Type system enforces capability requirements at compile time
+2. **No ambient authority** - Context parameters eliminate global variables while maintaining usability
+3. **Secure interoperability** - Two-world architecture provides clear boundaries and extensibility
+
+This design enables fine-grained capability control suitable for secure AI code generation while maintaining the expressiveness needed for practical programming.
