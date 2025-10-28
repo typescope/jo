@@ -68,6 +68,7 @@ nav:
   - AI Security:
     - The Security Problem: security/security-problem.md
     - Jo's Solution: security/solution.md
+    - Technical Questions: security/technical-questions.md
   
   - Security Demos:
     - Overview: demos/index.md
