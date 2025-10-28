@@ -60,7 +60,7 @@ def processData(data: String): Result =
   parseAndValidate(data)
 ```
 
-The `receives` clause declares required capabilities, enabling fine-grained security control.
+The `receives` clause declares required capabilities, enabling fine-grained security control. The `receives` clause can be inferred when not explicitly specified.
 
 ## Natural Syntax
 
@@ -77,26 +77,3 @@ def (||)(a: Bool, b: Bool): Bool = if a then true else b
 // Infix, prefix, postfix all supported
 val result = true || false
 ```
-
-## Security Features
-
-Context parameters enable secure API design:
-
-```jo
-// Database access with automatic user filtering
-param userId: String
-
-def getOrders(): List[Order] receives Database =
-  // Runtime automatically adds WHERE userId = ?
-  database.query("SELECT * FROM orders")
-```
-
-The runtime can automatically inject security constraints without code changes.
-
-## Next Steps
-
-- **[Try the demos](../demos/)** - See Jo's security features in action
-- **[Advanced features](multiline-strings.md)** - Explore language details
-- **[Download Jo](download.md)** - Get started with the preview release
-
-Jo combines the expressiveness of modern functional languages with built-in security guarantees, making it perfect for the AI-assisted development era.
