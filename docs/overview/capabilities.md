@@ -4,7 +4,7 @@ Capability-based security is a security model where access to resources is contr
 
 ## The Confinement Problem
 
-Lampson ([1973](https://doi.org/10.1145/362375.362389)) identified a fundamental challenge: how to prevent a program from accessing unauthorized resources or leaking information through covert channels. The difficulty arises because:
+Lampson ([1973](https://doi.org/10.1145/362375.362389)) identified a fundamental challenge: confining a program during execution so that it cannot transmit information to any other program except only to its caller. The difficulty arises because:
 
 - Programs need some access to be useful, but any access can potentially be misused
 - Covert channels (timing, storage, legitimate outputs) can leak information indirectly  
