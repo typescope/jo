@@ -17,6 +17,7 @@ Jo is a secure programming language designed for securing LLM generated code.
 - **Easy security auditing** - Statically checked authorities and clear security boundaries
 
 <a id="features"></a>
+
 ## Key Features ✨
 
 - **Extensible runtime** - Extend and customize the language runtime with a Jo library
@@ -29,6 +30,7 @@ Jo is a secure programming language designed for securing LLM generated code.
 - **Multiple backends**  - Interpreter, JavaScript, native x86 Linux, and more are coming (Python, Java, Ruby)
 
 <a id="get-started"></a>
+
 ## Getting Started 🚀
 
 ```bash
@@ -50,9 +52,9 @@ node hello.js
 
 Real-world applications demonstrating Jo's capability-based security model:
 
-### System Monitor
+### 💻 System Monitor
 
-**Location**: `demos/process-monitor/`
+**Location**: [`demos/process-monitor/`](demos/process-monitor/)
 
 A system monitoring application that extends Jo's JavaScript runtime with real system-level capabilities.
 
@@ -64,9 +66,9 @@ A system monitoring application that extends Jo's JavaScript runtime with real s
 
 It shows how platforms can expose controlled system APIs (process listing, memory usage, system info) to untrusted user code while preventing arbitrary command execution.
 
-### Data Table Access Control
+### 🔐 Data Table Access Control
 
-**Location**: `demos/data-table/`
+**Location**: [`demos/data-table/`](demos/data-table/)
 
 A database application demonstrating **row-level security** with SQLite, where different users can only access their own database rows.
 
@@ -77,9 +79,9 @@ A database application demonstrating **row-level security** with SQLite, where d
 
 It shows how a user-aware runtime can enforce row-level access control and automatically filtering all database queries, making it impossible for user code to access data belonging to other users.
 
-### Data Table with Query DSL
+### 🔍 Data Table with Query DSL
 
-**Location**: `demos/data-table-query/`
+**Location**: [`demos/data-table-query/`](demos/data-table-query/)
 
 An extension of the data-table demo that adds **flexible custom filter conditions with ordering and pagination** while maintaining row-level security.
 

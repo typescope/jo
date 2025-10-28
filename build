@@ -113,7 +113,13 @@ if [ "$BUILD_RELEASE" = true ]; then
   cp bin/jo "$RELEASE_DIR/bin/"
   cp -r libs "$RELEASE_DIR/"
   cp -r demos "$RELEASE_DIR/"
-  cp README.md "$RELEASE_DIR/"
+  # Generate README.html using pandoc
+  if command -v pandoc >/dev/null 2>&1; then
+    pandoc README.md -o "$RELEASE_DIR/README.html"
+    echo "Generated README.html from README.md using pandoc"
+  else
+    echo "Warning: pandoc not found, skipping README.html generation"
+  fi
   cp LICENSE "$RELEASE_DIR/"
 
   # Create tests directory and copy selected test files
