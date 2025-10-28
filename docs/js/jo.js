@@ -29,6 +29,22 @@ hljs.registerLanguage('jo', function(hljs) {
         begin: '#[A-Z][a-zA-Z0-9_]*'
       },
 
+      // Type annotations: ": Type"
+      {
+        begin: ':\\s*[A-Z][a-zA-Z0-9_]*',
+        returnBegin: true,
+        contains: [
+          {
+            begin: ':',
+            className: 'operator'
+          },
+          {
+            begin: '\\s*[A-Z][a-zA-Z0-9_]*',
+            className: 'type'
+          }
+        ]
+      },
+
       // Operators
       {
         className: 'operator',
