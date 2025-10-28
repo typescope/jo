@@ -243,7 +243,7 @@ bin/jo build -no-stdlib app.jo -o app
 
 ## Command Reference 📖
 
-```
+```text
 jo <file.jo>                       Run program (default)
 jo run [options] <file.jo>         Run with interpreter
 jo build [options] <file.jo>       Build executable/JavaScript
