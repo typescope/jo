@@ -1,6 +1,6 @@
 # The AI Security Problem
 
-AI code generation introduces a fundamental security challenge: executing untrusted code safely.
+Large-language models (LLMs) are extremely powerful at generating code to fulfill tasks. However, cloud platforms cannot fully embrace this power: prompt injection could generate malicious code that endangers the platform.
 
 ## Current Approaches
 
