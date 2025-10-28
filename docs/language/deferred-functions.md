@@ -315,14 +315,6 @@ If user-supplied link mapping conflicts with compiler defaults:
 | Testability | High | Medium | High |
 | Complexity | Low | Medium | High |
 
-## Best Practices
-
-1. **Use descriptive names**: Make deferred function purposes clear
-2. **Document contracts**: Specify pre/post-conditions and invariants
-3. **Provide defaults when sensible**: Reduce configuration burden
-4. **Group related deferred functions**: Use sections to organize related extension points
-5. **Validate early**: Let the compiler catch binding errors at compile time
-6. **Separate concerns**: Use deferred functions to isolate platform-specific or environment-specific code
 
 ## Conclusion
 
