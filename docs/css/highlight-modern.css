@@ -24,7 +24,11 @@
   color: #24292e;
 }
 
-.hljs-string,
+.hljs-string {
+  color: #22863a;
+  font-weight: normal;
+}
+
 .hljs-title,
 .hljs-name,
 .hljs-type,
@@ -83,4 +87,14 @@
 
 .hljs-strong {
   font-weight: bold;
+}
+
+/* Jo-specific styling */
+.hljs-symbol {
+  color: #e36209;
+  font-weight: 600;
+}
+
+.hljs-operator {
+  color: #d73a49;
 }
