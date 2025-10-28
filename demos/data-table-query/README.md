@@ -7,17 +7,20 @@ This demo extends the basic data-table demo with a **flexible query DSL** for ex
 User code can build custom filter conditions and updates using a type-safe DSL:
 
 **Query DSL:**
+
 - **Column references** - Typed columns from schema (`Title`, `CreatedAt`)
 - **Comparison operators** - `==`, `like`, `>`, `<`, `>=`, `<=`
 - **Logical operators** - `&&` (AND), `||` (OR), `!` (NOT)
 - **Optional context parameters** - `ordering`, `limit`, `offset` with sensible defaults
 
 **Update DSL:**
+
 - **Updateable columns** - Only mutable fields (`Title`, `Content`)
 - **Update operator** - `:=` for building field updates
 - **Atomic updates** - Multiple fields updated in single transaction
 
 **Security:**
+
 - **Automatic owner_id filtering** - Runtime always includes `WHERE owner_id = ?`
 - **Type-safe field restrictions** - Cannot update immutable fields (`id`, `owner_id`, `created_at`)
 
@@ -307,6 +310,7 @@ demos/data-table-query/build.sh
 ```
 
 This script will:
+
 1. Compile the Database API with query DSL
 2. Compile the Runtime with SQL generation
 3. Compile the User Application
@@ -379,6 +383,7 @@ Usage:
 ```
 
 Benefits:
+
 - **One obvious way** - No alternative syntax confusion
 - **Compositional** - Combine multiple field updates in a list
 - **Readable** - Clear intent of assignment

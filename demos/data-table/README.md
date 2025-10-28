@@ -5,6 +5,7 @@ This demo demonstrates **row-level security** in Jo, where different users can o
 ## Key Concept
 
 The `userId` and `dbPath` are passed as **command-line arguments** (NOT context parameters) and are only accessible to the trusted runtime. The runtime:
+
 1. Reads `userId` from `process.argv[2]` and `dbPath` from `process.argv[3]`
 2. Captures `userId` in closures when providing the `db` context parameter
 3. Automatically injects `WHERE owner_id = ?` into all SQL queries
@@ -180,6 +181,7 @@ demos/data-table/build.sh
 ```
 
 This script will:
+
 1. Compile the Database API, Runtime, and User Application
 2. Initialize the database with sample data
 3. Run the demo as three different users (Alice, Bob, Carol)
@@ -202,6 +204,7 @@ node demos/data-table/out/app.js 3 demos/data-table/database.db  # Carol
 ## Explanation of Build Process
 
 ### Stage 1: Compile Database API
+
 ```bash
 bin/jo build-lib DatabaseAPI.jo -d out/api
 ```
@@ -209,6 +212,7 @@ bin/jo build-lib DatabaseAPI.jo -d out/api
 Creates type definitions for `Document`, `DB`, and `param db`.
 
 ### Stage 2: Compile Runtime
+
 ```bash
 bin/jo build-lib Runtime.jo \
   -lib libs/runtime-js:out/api \
@@ -218,6 +222,7 @@ bin/jo build-lib Runtime.jo \
 Compiles the trusted runtime with SQLite access.
 
 ### Stage 3: Compile User Application
+
 ```bash
 bin/jo build -js \
   -no-detect-main \
