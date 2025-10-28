@@ -57,28 +57,25 @@ nav:
   - Overview:
     - What is Jo?: overview/what-is-jo.md
     - Language Tour: overview/language-tour.md
-    - The Security Problem: overview/security-problem.md
-    - Jo's Solution: overview/solution.md
-    - Key Benefits: overview/benefits.md
+    - Capability-Based Security: overview/capabilities.md
   
-  - Security Model:
-    - AI Code Confinement: security/ai-confinement.md
-    - Capability-Based Security: security/capabilities.md
-    - Row-Level Access Control: security/access-control.md
-    - Security Guarantees: security/guarantees.md
+  - AI Security:
+    - The Security Problem: security/security-problem.md
+    - Jo's Solution: security/solution.md
   
-  - Live Demos:
+  - Security Demos:
     - Overview: demos/index.md
     - Process Monitor: demos/process-monitor.md
     - Data Table Security: demos/data-table.md
     - Query DSL: demos/query-dsl.md
   
-  - Language:
+  - Language Tutorial:
     - Quick Start: language/quick-start.md
     - Syntax Highlights: language/syntax.md
-    - Advanced Features:
-      - Multiline Strings: language/multiline-string.md
-      - Block Comments: language/block-comment.md
-      - Varargs: language/varargs.md
-      - Deferred Functions: language/deferred-functions.md
     - Download & Install: language/download.md
+  
+  - Language Reference:
+    - Multiline Strings: language/multiline-string.md
+    - Block Comments: language/block-comment.md
+    - Varargs: language/varargs.md
+    - Deferred Functions: language/deferred-functions.md
