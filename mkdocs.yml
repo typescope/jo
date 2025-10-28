@@ -51,7 +51,13 @@ markdown_extensions:
   - md_in_html
 
 extra_css:
+  - css/highlight-modern.css
   - css/mkdocs-extra.css
+
+extra_javascript:
+  - js/highlight.min.js
+  - js/jo.js
+  - js/init-highlight.js
 
 nav:
   - Overview:
