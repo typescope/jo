@@ -86,3 +86,4 @@ nav:
     - Block Comments: language/block-comment.md
     - Varargs: language/varargs.md
     - Deferred Functions: language/deferred-functions.md
+    - Syntax Summary: language/syntax.md
