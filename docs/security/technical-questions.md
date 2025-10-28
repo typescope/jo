@@ -1,7 +1,5 @@
 # Technical Questions
 
-Common technical questions about Jo's approach to AI code security.
-
 ## Language Adoption
 
 **Q: Is adopting a new programming language difficult for enterprises?**
@@ -26,21 +24,20 @@ Few-shot prompting is sufficient for LLMs to generate Jo code.
 
 **Q: How does Jo compare to Model Context Protocol (MCP)?**
 
-MCP and Jo serve different use cases:
+MCP and Jo serve different use cases.
 
-**MCP limitations:**
+**MCP:**
 
-- Cannot handle large data responses (100k+ records) due to token limits
-- Complex requests require fragmented API calls
-- Limited to simple input/output patterns
+- Strengths: Simple to integrate, standardized protocol
+- Limitations: Token limits for large data, fragmented API calls for complex tasks, simple call input/output
 
-**Jo capabilities:**
+**Jo:**
 
-- Synthesizes complete programs with confined APIs
-- Supports complex business logic and large data processing
-- Enables error handling, logging, and sophisticated workflows
+- Strengths: Complete program synthesis, complex business logic, error handling, logging, agentic workflow
+- Limitations: Requires compilation step, new language adoption
 
-Research shows code-based planning improves task completion by 10-20% over text-based planning ([Wang et al., 2024](https://arxiv.org/abs/2402.01030)).
+In terms of task completion performance, research shows code-based planning improves task completion by 10-20% over text-based planning ([Wang et al., 2024](https://arxiv.org/abs/2402.01030)).
+We expect the improvement to be larger if planning is based on statically typed languages.
 
 ## Security Evolution
 
