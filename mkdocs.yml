@@ -69,10 +69,10 @@ nav:
     - Data Table Security: demos/data-table.md
     - Query DSL: demos/query-dsl.md
   
-  - Language Tutorial:
-    - Quick Start: language/quick-start.md
-    - Syntax Highlights: language/syntax.md
-    - Download & Install: language/download.md
+  # - Language Tutorial:
+  #   - Quick Start: language/quick-start.md
+  #   - Syntax Highlights: language/syntax.md
+  #   - Download & Install: language/download.md
   
   - Language Reference:
     - Multiline Strings: language/multiline-string.md

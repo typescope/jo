@@ -63,7 +63,7 @@ def readConfig(file: File): Config =
 // Main function must explicitly provide capabilities
 def main =
   val configFile = open("config.txt")  // Grants access to one file
-  val config = readConfig(configFile)  // Confined to that file only
+  val config = readConfig(configFile) allow none  // Confined to that file only
   // readConfig cannot access anything beyond the provided file
 ```
 
