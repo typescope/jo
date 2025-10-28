@@ -4,29 +4,24 @@ Large-language models (LLMs) are extremely powerful at generating code to fulfil
 
 ## Current Approaches
 
-Traditional security relies on external isolation:
+The following are the Current state-of-the-art solutions:
 
-- **Sandboxing** - Process-level isolation
-- **Runtime monitoring** - Post-execution detection
-- **Code review** - Manual inspection
-- **OS permissions** - System-level access controls
+- **Container-based sandboxing** - Docker/Kubernetes process isolation
+- **Language runtime sandboxing** - Deno's permission system for JavaScript
+- **WebAssembly** - Sandboxed execution environment with capability-based APIs
 
-## Limitations
+These can achieve good confinement by disabling all capabilities from the generated program at OS or language runtime level. However, it also makes it impossible for the program to do useful things on the cloud platform.
 
-**Coarse permissions** - OS-level controls are too broad. Database access means full database access.
+The essential problem with the current approaches is that they only support control of coarse-grained authorities.
+The latter are too dangerous to be granted to user programs.
 
-**Runtime detection** - Security violations are detected after execution, not prevented.
+In order to do useful things, the platform has to run the program in an untrusted isolated environment with coarse-grained capability.
+The program needs to go through another layer of authorization to do useful things indirectly on the platform (e.g. REST API).
 
-**Complex deployment** - Effective sandboxing requires significant infrastructure setup.
 
-**Limited static analysis** - Difficult to determine what resources code will access before execution.
+## Fine-grained Capabilities
 
-## The Problem
+To address the security problem in a direct way,
+we need a mechanism to define and check fine-grained capabilities. That mechanism will enable specify and check the exact application-level authorities that a user program may have.
 
-AI-generated code is untrusted by definition. Current security measures either:
-
-- Block execution entirely (defeating the purpose)
-- Allow broad access (creating security risks)
-- Require complex infrastructure (limiting adoption)
-
-A language-level approach is needed to provide fine-grained, statically verifiable security controls.
+Languages is the way to do things.
