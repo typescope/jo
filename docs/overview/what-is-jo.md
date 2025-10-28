@@ -1,12 +1,6 @@
 # 🛡️ Jo Programming Language
 
-Jo is a secure programming language designed for securing LLM generated code.
-
-## Why Jo?
-
-- **API confinement** - LLM generated code is confined to custom-defined application-level APIs
-- **Fine-grained control** - Precise control of authorization, e.g. only access certain rows of a data table
-- **Easy security auditing** - Statically checked authorities and clear security boundaries
+Jo is a programming language with capability-based security built into its type system.
 
 ## Key Features ✨
 
@@ -21,4 +15,8 @@ Jo is a secure programming language designed for securing LLM generated code.
 
 ## For Secure AI
 
-Jo is designed to be both powerful and approachable. Whether you're a security engineer looking to contain AI-generated code, or a developer building the next generation of AI-powered applications, Jo provides the tools you need.
+If you are a security engineer looking to contain AI-generated code, Jo provides the tools you need.
+
+- **API confinement** - LLM generated code is confined to custom-defined application-level APIs
+- **Fine-grained control** - Precise control of authorization, e.g. only access certain rows of a data table
+- **Easy security auditing** - Statically checked authorities and clear security boundaries
