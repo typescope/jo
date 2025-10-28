@@ -82,8 +82,14 @@ nav:
   #   - Download & Install: language/download.md
   
   - Language Reference:
-    - Multiline Strings: language/multiline-string.md
-    - Block Comments: language/block-comment.md
-    - Varargs: language/varargs.md
-    - Deferred Functions: language/deferred-functions.md
-    - Syntax Summary: language/syntax.md
+    - Syntax Overview: language/syntax-overview.md
+    - Expressions: language/expressions.md
+    - Definitions: language/definitions.md
+    - Types: language/types.md
+    - Syntax Summary: language/syntax-summary.md
+  
+  - Design Docs:
+    - Multiline Strings: design/multiline-string.md
+    - Block Comments: design/block-comment.md
+    - Varargs: design/varargs.md
+    - Deferred Functions: design/deferred-functions.md
