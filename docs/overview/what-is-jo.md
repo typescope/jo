@@ -1,9 +1,5 @@
 # 🛡️ Jo Programming Language
 
-*For the joy of secure programming*
-
----
-
 Jo is a secure programming language designed for securing LLM generated code.
 
 ## Why Jo?
@@ -23,8 +19,6 @@ Jo is a secure programming language designed for securing LLM generated code.
 - **Natural syntax** - Prefix, infix, and postfix operators; two call styles `f(x)` and `f x`; indentation-based
 - **Multiple backends** - Interpreter, JavaScript, native x86 Linux, and more are coming
 
-## Getting Started
+## For Secure AI
 
 Jo is designed to be both powerful and approachable. Whether you're a security engineer looking to contain AI-generated code, or a developer building the next generation of AI-powered applications, Jo provides the tools you need.
-
-**Ready to explore?** Use the navigation on the left to dive deeper into Jo's features and security model.
