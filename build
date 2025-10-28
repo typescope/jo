@@ -112,7 +112,10 @@ if [ "$BUILD_RELEASE" = true ]; then
   cp bin/jo.jar "$RELEASE_DIR/bin/"
   cp bin/jo "$RELEASE_DIR/bin/"
   cp -r libs "$RELEASE_DIR/"
+
+  # Copy demos directory
   cp -r demos "$RELEASE_DIR/"
+
   cp -r docs "$RELEASE_DIR/"
   # Generate README.html using md2html
   if command -v bin/md2html >/dev/null 2>&1; then
@@ -124,6 +127,8 @@ if [ "$BUILD_RELEASE" = true ]; then
         demo_name=$(basename "$demo_dir")
         echo "Generating README.html for demo: $demo_name"
         bin/md2html "${demo_dir}README.md" "$RELEASE_DIR/demos/$demo_name/README.html"
+        # Remove the source README.md from release
+        rm "$RELEASE_DIR/demos/$demo_name/README.md"
       fi
     done
   else
