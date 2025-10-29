@@ -7,7 +7,7 @@ Capability-based security is a security model where access to resources is contr
 Lampson ([1973](https://doi.org/10.1145/362375.362389)) identified a fundamental challenge: confining a program during execution so that it cannot transmit information to any other program except only to its caller. The difficulty arises because:
 
 - Programs need some access to be useful, but any access can potentially be misused
-- Covert channels (timing, storage, legitimate outputs) can leak information indirectly  
+- Covert channels (timing, storage, legitimate outputs) can leak information indirectly
 - Runtime enforcement mechanisms are complex and difficult to verify completely
 - Perfect confinement conflicts with program functionality
 
@@ -84,16 +84,16 @@ def lineCount(): Int =
 def main =
   val file = open("data.txt")
   val readLineFun = () => if file.hasMore() then Some(file.readLine()) else None
-  
+
   // lineCount gets only line-reading capability, nothing more
   lineCount() with readLine = readLineFun allow none
 ```
 
 There is no limit to how we can subdivide a capability. This is a major difference between capability-based systems and effect systems: capabilities can be both composed and refined, while effects can be only combined for the sake of purity.
 
-## Polymorphic Capabilities
+## Parametric Capabilities
 
-Capabilities are polymorphic types, enabling easy substitution for testing and modularity:
+Capabilities are parameters, enabling easy substitution for testing and modularity:
 
 ```jo
 // Function depends on abstract output capability
@@ -110,7 +110,7 @@ def main =
 def test(): String =
   val captured = { var content: String = "" }
   val mockOutput = (s: String) => captured.content = captured.content + s + "\n"
-  
+
   report("Test complete") with output = mockOutput
   captured.content  // Returns captured output for assertion
 ```

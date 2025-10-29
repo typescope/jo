@@ -4,7 +4,7 @@ Large-language models (LLMs) are extremely powerful at generating code to fulfil
 
 ## Current Approaches
 
-The following are the Current state-of-the-art solutions:
+The following are the current state-of-the-art solutions:
 
 - **Container-based sandboxing** - Docker/Kubernetes process isolation
 - **Language runtime sandboxing** - Deno's permission system for JavaScript
