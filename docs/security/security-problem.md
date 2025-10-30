@@ -14,19 +14,23 @@ These can achieve good confinement by disabling all capabilities from the genera
 
 The essential problem with the current approaches is that they only support coarse-grained authorities, which are too dangerous to be granted to user programs to perform tasks directly on the platform.
 
-In order to do useful things, the platform has to run the program in an untrusted isolated environment with non-platform coarse-grained capability.
+In order to do useful things, the platform has to run the program in an untrusted isolated environment with non-platform coarse-grained authority.
 The program needs to go through another layer of strict authorization to do useful things indirectly on the platform (e.g. REST API).
 
 
-## Fine-grained Capabilities
+## Fine-Grained Authority
 
 To address the security problem in a direct way,
-we need a mechanism to define and check fine-grained capabilities. That mechanism will enable specify and check the exact application-level authorities that a user program may have.
+we need a mechanism to define and check fine-grained authority. That mechanism will enable specify and check the exact application-level authorities that a user program may have.
 
-Two language research approaches address this problem:
+Two language research approaches are related to this problem:
 
-- **Effect systems** - Track computational effects but only support combination, not refinement
-- **Object-capability languages** - More promising but face implementation challenges
+- **Effect systems**
+- **Object-capability languages**
+
+Effect systems enable check side effects of a function statically, which can be used to control authorities that a program use. However, an inherent property of effects is that they only compose but cannot be refined. Otherwise, it will be impossible to tell whether a piece of program is pure or not --- the primary goal of effect systems.  Therefore, effect systems cannot be used as a mechanism to create and check fine-grained authority.
+
+The research on object-capability languages is more promising because capabilities can be both combined and refined.
 
 ## Object-Capability Languages
 
