@@ -28,7 +28,7 @@ Two language research approaches are related to this problem:
 - **Effect systems**
 - **Object-capability languages**
 
-Effect systems enable check side effects of a function statically, which can be used to control authorities that a program use. However, an inherent property of effects is that they only compose but cannot be refined. Otherwise, it will be impossible to tell whether a piece of program is pure or not --- the primary goal of effect systems.  Therefore, effect systems cannot be used as a mechanism to create and check fine-grained authority.
+Effect systems enable check side effects of a function statically, which can be used to control authorities that a function needs. However, an inherent property of effects is that they only compose but cannot be refined. Otherwise, it will be impossible to tell whether a piece of code is effect-free or not -- the primary goal of effect systems.  Therefore, effect systems cannot be used as a mechanism to create and check fine-grained authority.
 
 The research on object-capability languages is more promising because capabilities can be both combined and refined.
 
