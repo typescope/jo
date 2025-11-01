@@ -22,7 +22,7 @@ Few-shot prompting is sufficient for LLMs to generate Jo code.
 
 ## Comparison with MCP
 
-**Q: How does Jo compare to Model Context Protocol (MCP)?**
+**Q: How does Jo compare to MCP (Model Context Protocol)?**
 
 MCP and Jo serve different use cases.
 
