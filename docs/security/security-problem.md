@@ -1,6 +1,39 @@
 # The AI Security Problem
 
-Large-language models (LLMs) are extremely powerful at generating code to fulfill tasks. However, cloud platforms cannot fully embrace this power: prompt injection could generate malicious code that endangers the platform.
+Large-language models (LLMs) are extremely powerful at generating code to perform tasks. However, cloud platforms cannot fully embrace this power: prompt injection could generate malicious code that endangers the platform.
+
+## Ambient Authorities
+
+Nearly all popular languages expose powerful ambient authorities to programs:
+
+- Network access
+- File system read/write
+
+With such powerful authorities, a program can potentially do anything.
+A malicious program with such authorities can steal all the data and hijack the platform.
+
+## The API Confinement Problem
+
+What we really want is to confine the behaviors of a program according to specific _security context_.
+For cloud platforms, the security context at least contains the current user.
+The LLM-generated programs for the user should be at least confined to the current user's permissions on the platform.
+
+It is easy for a platform to specify and implement security-context-aware APIs as a library in a language.
+However, none of the popular languages can enforce that a program is confined to the permitted APIs.
+
+In fact, the API confiment problem is a language design challenge:
+
+- How to represent the security context such that it is invisible to user programs while visible in platform API implementation?
+- How to make the ambient authorities inaccessible to user programs while accessible to API implementation?
+
+<!-- Lampson ([1973](https://doi.org/10.1145/362375.362389)) identified a fundamental challenge: confining a program during execution so that it cannot transmit information to any other program except only to its caller. The difficulty arises because: -->
+
+<!-- - Programs need some access to be useful, but any access can potentially be misused -->
+<!-- - Covert channels (timing, storage, legitimate outputs) can leak information indirectly -->
+<!-- - Runtime enforcement mechanisms are complex and difficult to verify completely -->
+<!-- - Perfect confinement conflicts with program functionality -->
+
+
 
 ## Current Approaches
 
@@ -16,6 +49,25 @@ The essential problem with the current approaches is that they only support coar
 
 In order to do useful things, the platform has to run the program in an untrusted isolated environment with non-platform coarse-grained authority.
 The program needs to go through another layer of strict authorization to do useful things indirectly on the platform (e.g. REST API).
+In essence, we are workarounding a language design problem by resorting to a system solution.
+
+<!-- ## Capability-based Systems -->
+
+<!-- Capability-based systems partially address the confinement problem by controlling resource access. -->
+
+<!-- **What capabilities can do:** -->
+
+<!-- - Prevent unauthorized resource access through explicit capability provision -->
+<!-- - Eliminate ambient authority that makes access difficult to track -->
+<!-- - Enable static verification of resource access through program interfaces -->
+<!-- - Provide fine-grained, composable access control -->
+
+<!-- **What capabilities cannot do:** -->
+
+<!-- - Prevent covert channels (timing, resource usage, cache behavior, power consumption) -->
+<!-- - Prevent information leakage through legitimate program outputs -->
+
+<!-- Capabilities improve security by making access explicit and verifiable, but the theoretical limits identified by Lampson remain. -->
 
 
 ## Fine-Grained Authority

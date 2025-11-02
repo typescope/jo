@@ -2,33 +2,6 @@
 
 Capability-based security is a security model where access to resources is controlled by possession of unforgeable tokens called capabilities.
 
-## The Confinement Problem
-
-Lampson ([1973](https://doi.org/10.1145/362375.362389)) identified a fundamental challenge: confining a program during execution so that it cannot transmit information to any other program except only to its caller. The difficulty arises because:
-
-- Programs need some access to be useful, but any access can potentially be misused
-- Covert channels (timing, storage, legitimate outputs) can leak information indirectly
-- Runtime enforcement mechanisms are complex and difficult to verify completely
-- Perfect confinement conflicts with program functionality
-
-## Capability-based Systems
-
-Capability-based systems partially address the confinement problem by controlling resource access.
-
-**What capabilities can do:**
-
-- Prevent unauthorized resource access through explicit capability provision
-- Eliminate ambient authority that makes access difficult to track
-- Enable static verification of resource access through program interfaces
-- Provide fine-grained, composable access control
-
-**What capabilities cannot do:**
-
-- Prevent covert channels (timing, resource usage, cache behavior, power consumption)
-- Prevent information leakage through legitimate program outputs
-
-Capabilities improve security by making access explicit and verifiable, but the theoretical limits identified by Lampson remain.
-
 ## Core Principles
 
 **Principle of least privilege** - Programs receive only the minimum capabilities needed to function.
@@ -39,7 +12,7 @@ Capabilities improve security by making access explicit and verifiable, but the 
 
 For ease of programming, traditional programming languages provide ambient authority through:
 
-- Global variables and functions
+- Global variables
 - File system access
 - Network access
 - System calls
@@ -47,7 +20,7 @@ For ease of programming, traditional programming languages provide ambient autho
 Jo embraces the convenience of ambient authorities and make them safe:
 
 - No global variables
-- All resource access through explicit or context parameters
+- All resource access through explicit context parameters
 - Type system enforcement of capability requirements
 
 ## Capability Confinement
@@ -115,14 +88,4 @@ def test(): String =
   captured.content  // Returns captured output for assertion
 ```
 
-Polymorphic capabilities enable dependency injection without frameworks while maintaining compile-time safety.
-
-## Security Benefits
-
-**Confinement** - Code cannot access undeclared resources.
-
-**Auditability** - Resource access is visible in function signatures.
-
-**Composability** - Capabilities can be combined and delegated safely.
-
-**Testability** - Capabilities are polymorphic, enabling easy substitution of mock implementations for testing.
+Parametric capabilities enable dependency injection without frameworks while maintaining compile-time safety.
