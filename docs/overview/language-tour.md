@@ -58,9 +58,9 @@ def readFile(path: String): String receives IO.open =
   file.close
   content
 
-def processData(data: String): Result receives none =
+def processData(text: String): Result receives none =
   // Pure function - no effects
-  parseAndValidate(data)
+  parseAndValidate(text)
 ```
 
 The `receives` clause declares required capabilities to produce effects, enabling compile-time security control. The `receives` clause can be inferred when not explicitly specified.
@@ -75,7 +75,7 @@ println "hello, world"
 println("hello, world")
 
 // Custom operators
-def (a: Int) ** (b: Int): Int = 
+def (a: Int) ** (b: Int): Int =
   if b == 0 then 1 else a * (a ** (b - 1))
 
 // Infix, prefix, postfix all supported
