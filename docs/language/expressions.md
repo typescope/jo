@@ -1,5 +1,7 @@
 # Expressions and Statements
 
+_Draft: Work in Progress_
+
 Jo uses a word-based syntax where expressions are sequences of words. This section covers the various forms of expressions and control flow statements.
 
 ## Basic Expressions
@@ -70,4 +72,3 @@ arr[0] = 42
 var config = { timeout = 30, retries = 3 }
 config.timeout = 60
 ```
-

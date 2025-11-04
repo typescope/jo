@@ -1,5 +1,7 @@
 # Definitions
 
+_Draft: Work in Progress_
+
 Jo provides various forms of definitions for organizing code and declaring program elements. This section covers all the major definition types.
 
 ## Function Definitions
@@ -30,7 +32,7 @@ def example(): Unit =
   // Type annotations
   val typed: String = "explicitly typed"
   var counter: Int = 0
-  
+
   // Modify mutable values
   counter = counter + 1
 ```

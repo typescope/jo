@@ -1,5 +1,7 @@
 # Types
 
+_Draft: Work in Progress_
+
 Jo features a rich type system that supports both functional and object-oriented programming paradigms.
 
 ## Basic Types
@@ -148,7 +150,7 @@ Jo's type system tracks computational effects and context dependencies through t
 def add(x: Int, y: Int): Int = x + y
 
 // Function with I/O effects
-def readFile(path: String): String receives open = 
+def readFile(path: String): String receives open =
   File.read(path)
 
 // Function with context parameters
