@@ -4,6 +4,7 @@ hljs.registerLanguage('jo', function(hljs) {
     name: 'Jo',
     aliases: ['jo'],
     case_insensitive: false,
+    disableAutodetect: true,
     keywords: {
       keyword: 'def data param type val var fun match case if then else with end import namespace section receives pattern allow while do begin auto defer class new alias as',
       built_in: 'String Int Bool Unit Any Option List Array',

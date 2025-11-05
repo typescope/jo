@@ -1,0 +1,96 @@
+site_name: Jo Programming Language
+site_description: Secure programming for the AI era
+site_url: https://jo-lang.org
+repo_url: https://github.com/liufengyun/jo
+repo_name: liufengyun/jo
+
+# Use existing docs directory
+docs_dir: docs
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.expand
+    - search.highlight
+    - search.share
+    - toc.follow
+    - content.code.copy
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: black
+      accent: indigo
+      toggle:
+        icon: material/toggle-switch
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: black
+      accent: indigo
+      toggle:
+        icon: material/toggle-switch-off-outline
+        name: Switch to light mode
+  font:
+    text: Roboto
+    code: Roboto Mono
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+      use_pygments: false
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - admonition
+  - pymdownx.details
+  - pymdownx.tabbed:
+      alternate_style: true
+  - attr_list
+  - md_in_html
+
+extra_css:
+  - css/highlight-modern.css
+  - css/mkdocs-extra.css
+
+extra_javascript:
+  - js/highlight.min.js
+  - js/jo.js
+  - js/init-highlight.js
+
+nav:
+  - Overview:
+    - What is Jo?: overview/what-is-jo/index.html
+    - Language Tour: overview/language-tour/index.html
+    - Capability-Based Security: overview/capabilities/index.html
+  
+  - AI Security:
+    - The Security Problem: security/security-problem/index.html
+    - Jo's Solution: security/solution/index.html
+    - Technical Questions: security/technical-questions/index.html
+  
+  - Security Demos:
+    - Overview: demos/index.html
+    - Process Monitor: demos/process-monitor/index.html
+    - Data Table Security: demos/data-table/index.html
+    - Query DSL: demos/query-dsl/index.html
+  
+  # - Language Tutorial:
+  #   - Quick Start: language/quick-start/index.html
+  #   - Syntax Highlights: language/syntax/index.html
+  #   - Download & Install: language/download/index.html
+  
+  - Language Reference:
+    - Syntax Overview: language/syntax-overview/index.html
+    - Definitions: language/definitions/index.html
+    - Types: language/types/index.html
+    - Expressions: language/expressions/index.html
+    - Syntax Summary: language/syntax-summary/index.html
+  
+  - Design Docs:
+    - Multiline Strings: design/multiline-string/index.html
+    - Block Comments: design/block-comment/index.html
+    - Varargs: design/varargs/index.html
+    - Deferred Functions: design/deferred-functions/index.html

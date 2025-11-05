@@ -96,6 +96,10 @@ bin/jo build-lib -testPickling -explicit-return-type runtime/native/*.jo -d $NAT
 if [ "$BUILD_RELEASE" = true ]; then
   echo "Creating release package..."
 
+  # Build documentation website
+  echo "Building documentation with MkDocs..."
+  mkdocs build
+
   # Get version from git or use default
   VERSION=$(git describe --tags --always 2>/dev/null || echo "dev")
   RELEASE_NAME="jo-${VERSION}-preview"
@@ -116,7 +120,11 @@ if [ "$BUILD_RELEASE" = true ]; then
   # Copy demos directory
   cp -r demos "$RELEASE_DIR/"
 
-  cp -r docs "$RELEASE_DIR/"
+  # Copy tools directory
+  cp -r tools "$RELEASE_DIR/"
+
+  # Copy built documentation site as docs
+  cp -r site "$RELEASE_DIR/docs"
   # Generate README.html using md2html
   if command -v bin/md2html >/dev/null 2>&1; then
     bin/md2html README.md "$RELEASE_DIR/README.html"

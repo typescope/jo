@@ -185,4 +185,6 @@ Context parameters provide strong security guarantees:
 
 ## Key Takeaway
 
-Context parameters provide an **object-oriented** and **concise** approach to capability provision. Capabilities are naturally grouped into typed objects (Process, System, Logger), reducing linking verbosity while maintaining strong security guarantees. The platform controls all implementations, and user code can only access capabilities explicitly declared in the API.
+- Context parameters provide an **object-oriented** and **concise** approach to capability provision.
+- Capabilities are naturally grouped into typed objects (Process, System, Logger), reducing linking verbosity while maintaining strong security guarantees.
+- The platform controls all implementations, and user code can only access capabilities explicitly declared in the API.

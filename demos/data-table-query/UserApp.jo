@@ -1,11 +1,10 @@
-//[
-UserApp.jo
-
-User application demonstrating full CRUD operations with the DSL
-
-This is UNTRUSTED code that uses the DSL to build custom filters and updates.
-It demonstrates various CRUD patterns while being unable to bypass
-the row-level security enforced by the runtime.
+//[ UserApp.jo
+  |
+  | User application demonstrating full CRUD operations with the DSL
+  |
+  | This is UNTRUSTED code that uses the DSL to build custom filters and updates.
+  | It demonstrates various CRUD patterns while being unable to bypass
+  | the row-level security enforced by the runtime.
 //]
 
 namespace UserApp
@@ -14,14 +13,13 @@ import jo.IO.stdout
 import DatabaseAPI.*
 import DatabaseAPI.QueryDSL.*
 
-//[
-Demonstrate full CRUD operations using the DSL
-
-Shows:
-1. Create (via database initialization)
-2. Read (query with filters, ordering, pagination)
-3. Update (single field, multiple fields, bulk updates)
-4. Delete (by ID, by condition)
+//[ Demonstrate full CRUD operations using the DSL
+  |
+  | Shows:
+  | 1. Create (via database initialization)
+  | 2. Read (query with filters, ordering, pagination)
+  | 3. Update (single field, multiple fields, bulk updates)
+  | 4. Delete (by ID, by condition)
 //]
 def analyzeDocuments: Unit receives stdout, db =
   println "═══════════════════════════════════════════════"

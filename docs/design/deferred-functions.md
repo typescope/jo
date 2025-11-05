@@ -47,6 +47,7 @@ The compiler validates that linked implementations conform to the deferred funct
 ### 3. Compile-Time Binding
 
 Unlike runtime dependency injection, linking happens at compile time:
+
 - Zero runtime overhead
 - No reflection required
 - Type errors caught early
@@ -149,6 +150,7 @@ bin/jo build myapp.jo -no-detect-main -link jo.Main.main=MyApp.startup -o myapp
 ```
 
 This is particularly useful for:
+
 - Framework-controlled applications
 - Testing different entry scenarios
 - Embedding in larger systems
@@ -158,6 +160,7 @@ This is particularly useful for:
 ### `-link <source>=<target>`
 
 Binds a deferred function to an implementation.
+
 - Can be specified multiple times for different bindings
 - Type conformance is checked at compile time
 - User mappings take precedence over compiler defaults
@@ -165,6 +168,7 @@ Binds a deferred function to an implementation.
 ### `-no-detect-main`
 
 Disables automatic main function detection.
+
 - Must explicitly link `jo.Main.main` to an entry point
 - Useful when the framework controls the entry point
 - Enables testing alternative entry scenarios
@@ -315,14 +319,6 @@ If user-supplied link mapping conflicts with compiler defaults:
 | Testability | High | Medium | High |
 | Complexity | Low | Medium | High |
 
-## Best Practices
-
-1. **Use descriptive names**: Make deferred function purposes clear
-2. **Document contracts**: Specify pre/post-conditions and invariants
-3. **Provide defaults when sensible**: Reduce configuration burden
-4. **Group related deferred functions**: Use sections to organize related extension points
-5. **Validate early**: Let the compiler catch binding errors at compile time
-6. **Separate concerns**: Use deferred functions to isolate platform-specific or environment-specific code
 
 ## Conclusion
 
