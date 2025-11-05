@@ -1,6 +1,6 @@
 # The AI Security Problem
 
-Large-language models (LLMs) are extremely powerful at generating code to perform tasks. However, cloud platforms cannot fully embrace this power: prompt injection could generate malicious code that endangers the platform.
+Large-language models (LLMs) are extremely powerful at generating code to automate tasks. However, cloud platforms cannot fully embrace this power: prompt injection could generate malicious code that endangers the platform.
 
 ## Ambient Authorities
 

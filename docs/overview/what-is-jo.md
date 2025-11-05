@@ -17,6 +17,6 @@ Jo is a programming language with capability-based security built into its type 
 
 If you are a security engineer looking to contain AI-generated code, Jo provides the tools you need.
 
-- **API confinement** - LLM generated code is confined to custom-defined application-level APIs
-- **Fine-grained control** - Precise control of authorization, e.g. only access certain rows of a data table
-- **Easy security auditing** - Statically checked authorities and clear security boundaries
+- **API confinement** - Customize language runtime to only platform APIs
+- **Fine-grained control** - Precise control of authority, e.g. only access certain rows of a data table
+- **Easy security auditing** - Statically checked ambient authorities and clear security boundaries
