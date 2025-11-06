@@ -248,11 +248,9 @@ println escaped
 ### Example 5: Custom Type Conversion
 
 ```jo
-class Point(x: Int, y: Int)
+data Point(x: Int, y: Int)
 
-auto pointToString: Convert[Point, String] =
-  new Convert[Point, String]:
-    def convert(p: Point): String = "(\{p.x}, \{p.y})"
+auto pointToString: Show[Point] = p => "(\{p.x}, \{p.y})"
 
 val origin = Point(0, 0)
 val message = "Origin: \{origin}"
