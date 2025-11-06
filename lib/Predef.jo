@@ -68,11 +68,11 @@ auto def charEq: Eq[Char] = (a, b) => a == b
 auto def intEq: Eq[Int] = (a, b) => a == b
 auto def stringEq: Eq[String] = (a, b) => a == b
 
-type Convert[S, T] = jo.Convert.Convert[S, T]
+type Show[T] = jo.Show.Show[T]
 // TODO: change to param for performance optimization
-auto def byte2String: Convert[Byte, String] = b => intToStr b
-auto def int2String: Convert[Int, String] = i => intToStr i
-auto def char2String: Convert[Char, String] = c => charToStr c
+auto def byte2String: Show[Byte] = b => intToStr b
+auto def int2String: Show[Int] = i => intToStr i
+auto def char2String: Show[Char] = c => charToStr c
 
 
 type List[T] = jo.List.List[T]

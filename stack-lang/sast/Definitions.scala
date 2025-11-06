@@ -143,8 +143,8 @@ extends Definitions.Lazy:
   val Predef_String =  Predef.typeMember("String")
   val Predef_Pack   =  Predef.typeMember("..")
 
-  val Convert          =  resolveTermByPath("jo.Convert")
-  val Convert_Convert  =  Convert.typeMember("Convert")
+  val Show          =  resolveTermByPath("jo.Show")
+  val Show_Show     =  Show.typeMember("Show")
 
   val Array         =  resolveTermByPath("jo.Array")
   val Array_Array   =  Array.typeMember("Array")

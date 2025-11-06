@@ -933,19 +933,18 @@ class Namer(using Config):
           if Subtyping.conforms(typedExpr.tpe, defn.StringType) then
             typedExpr
           else
-            // Try to find auto Convert[typedExpr.tpe, String]
-            val convertSym = defn.Convert_Convert
-            val convertType = AppliedType(StaticRef(convertSym), List(typedExpr.tpe, defn.StringType))
+            // Try to find auto Show[typedExpr.tpe]
+            val showTypeSym = defn.Show_Show
+            val showType = AppliedType(StaticRef(showTypeSym), List(typedExpr.tpe))
 
             given reporter: Reporter = rp.fresh(buffer = true)
-            val convertInstance = autoResolver.search(convertType, Vector.empty, sc, sc, expr.span)
+            val showInstance = autoResolver.search(showType, Vector.empty, sc, sc, expr.span)
             if reporter.hasErrors then
-              Reporter.error(s"Cannot interpolate expression of type ${typedExpr.tpe.show}. No auto Convert[${typedExpr.tpe.show}, String] found.", expr.pos)
+              Reporter.error(s"Cannot interpolate expression of type ${typedExpr.tpe.show}. No auto Show[${typedExpr.tpe.show}] found.", expr.pos)
               Literal(Constant.String(""))(defn.StringType, expr.span)
             else
-              // Call convertInstance.convert(typedExpr)
-              convertInstance.select("convert").appliedTo(typedExpr)
-
+              // Call showInstance.show(typedExpr)
+              showInstance.select("show").appliedTo(typedExpr)
 
     // Build concatenation using the + method on String
     typedParts match

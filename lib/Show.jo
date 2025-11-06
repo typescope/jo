@@ -1,0 +1,7 @@
+namespace jo.Show
+
+import jo.Predef.String
+
+type Show[T] = {
+  def show(v: T): String
+}
