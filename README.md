@@ -10,11 +10,12 @@
 
 ---
 
-Jo is a secure programming language designed for securing LLM generated code.
+Jo is a programming language with capability-based security built into its type system.
 
-- **API confinement** - LLM generated code is confined to custom-defined application-level APIs
-- **Fine-grained control** - Precise control of authorization, e.g. only access certain rows of a data table
-- **Easy security auditing** - Statically checked authorities and clear security boundaries
+
+- **API confinement** - Customize language runtime to only expose platform APIs
+- **Fine-grained control** - Precise control of authority, e.g. only access certain rows of a data table
+- **Easy security auditing** - Statically checked ambient authorities and clear security boundaries
 
 <a id="features"></a>
 

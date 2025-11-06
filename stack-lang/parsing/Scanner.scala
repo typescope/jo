@@ -208,14 +208,26 @@ class Scanner(stream: CharStream)(using Reporter, Source):
         stream.eat() // consume the quote
         return Token.StringEnd.withInfo(stream.tokenSpan(), stream.lineIndent())
 
+      // Check if we're at the start of an interpolation \{
+      if firstChar == '\\' && stream.hasNextCodePoint() && stream.nextCodePoint() == '{' then
+        stream.eat() // consume \
+        stream.eat() // consume {
+        return Token.InterpolationStart.withPos
+
       // Read content until closing quote
       while stream.hasMore() do
         val c = stream.curCodePoint()
 
         if c == '\\' then
-          // Escape sequence - consume backslash and next character
-          stream.eat()
-          if stream.hasMore() then stream.eat()
+          // Check if this is an interpolation \{
+          if stream.hasNextCodePoint() && stream.nextCodePoint() == '{' then
+            // Found interpolation - return content before it, don't consume \{
+            val str = stream.tokenEnd()
+            return Token.StringLine(str).withPos
+          else
+            // Regular escape sequence - consume backslash and next character
+            stream.eat()
+            if stream.hasMore() then stream.eat()
 
         else if c == '"' then
           val str = stream.tokenEnd()
@@ -225,6 +237,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
 
         else if c == '\n' then
           val str = stream.tokenEnd()
+          // Don't consume \n - let parser detect error and stop parsing the string
           // Don't report error here - let parser handle it
           return Token.StringLine(str).withPos
 
@@ -239,10 +252,24 @@ class Scanner(stream: CharStream)(using Reporter, Source):
 
     else
       // Multi-line string
+
+      // Check if we're at the start of an interpolation \{
+      if stream.hasMore() && stream.curCodePoint() == '\\' &&
+         stream.hasNextCodePoint() && stream.nextCodePoint() == '{' then
+        stream.eat() // consume \
+        stream.eat() // consume {
+        return Token.InterpolationStart.withPos
+
       var consecutiveQuotes = 0
 
       while stream.hasMore() do
         val c = stream.curCodePoint()
+
+        // Check for interpolation \{
+        if c == '\\' && stream.hasNextCodePoint() && stream.nextCodePoint() == '{' then
+          // Found interpolation - return content before it, don't consume \{
+          val str = stream.tokenEnd()
+          return Token.StringLine(str).withPos
 
         // Check for newline
         if c == '\n' then

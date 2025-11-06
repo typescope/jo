@@ -1,0 +1,8 @@
+// Test: Interpolation expression spanning multiple lines
+
+def main =
+  val x = 5
+  val y = 3
+  val message = "Result: \{x +
+                            y}"
+  println message

@@ -1,0 +1,70 @@
+// Custom type with Show instance
+data Point(x: Int, y: Int)
+
+auto def showPoint: Show[Point] = p => "(\{p.x}, \{p.y})"
+
+def main =
+  // Basic interpolation with strings
+  val name = "Alice"
+  val greeting = "Hello \{name}!"
+  println greeting
+
+  // Interpolation with integers (auto conversion)
+  val age = 25
+  val message = "\{name} is \{age} years old"
+  println message
+
+  // Multiple interpolations
+  val x = 10
+  val y = 20
+  val sum = "Sum: \{x} + \{y} = \{x + y}"
+  println sum
+
+  // Escape sequences
+  val escaped = "This is not interpolated: \\{name}"
+  println escaped
+
+  // Multiline string with interpolation
+  val description = """
+      Name: \{name}
+      Age: \{age}
+      Status: active
+      """
+  println description
+
+  // Interpolation with arithmetic
+  val a = 5
+  val b = 3
+  val result = "Result: \{a * b}"
+  println result
+
+  // Consecutive lines with interpolations
+  val consecutive = """
+      \{name}
+      \{age}
+      """
+  println consecutive
+
+  // Text after interpolation on same line
+  val status = if age >= 18 then "adult" else "minor"
+  val inline = """
+      Name: \{name}, Age: \{age}
+      Status: \{status}
+      """
+  println inline
+
+  // Interpolation with double-quoted string inside
+  val withString = """
+      Greeting: \{"Hello"}
+      Message: \{"Welcome to " + name}
+      """
+  println withString
+
+  println "Hello, \{"world"}!"
+
+  // Custom type interpolation
+  val p1 = Point(3, 5)
+  val p2 = Point(-1, 7)
+  println "Point 1: \{p1}"
+  println "Points: \{p1} and \{p2}"
+  println "The point \{Point(0, 0)} is the origin"

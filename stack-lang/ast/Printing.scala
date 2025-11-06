@@ -195,6 +195,14 @@ object Printing:
 
       case StringLit(s) => "\"" ~ StringUtil.escape(s) ~ "\""
 
+      case InterpolatedString(parts) =>
+        var result: Text = Text("\"")
+        for (part <- parts) do
+          part match
+            case StringLit(value) => result = result ~ StringUtil.escape(value)
+            case expr => result = result ~ "\\{" ~ showWord(expr) ~ "}"
+        result ~ "\""
+
       case ListLit(words) => "[" ~ words.join(", ") ~ "]"
 
       case Ident(name) => Text(name)

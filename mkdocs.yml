@@ -65,32 +65,33 @@ nav:
     - What is Jo?: overview/what-is-jo/index.html
     - Language Tour: overview/language-tour/index.html
     - Capability-Based Security: overview/capabilities/index.html
-  
+
   - AI Security:
     - The Security Problem: security/security-problem/index.html
     - Jo's Solution: security/solution/index.html
     - Technical Questions: security/technical-questions/index.html
-  
+
   - Security Demos:
     - Overview: demos/index.html
     - Process Monitor: demos/process-monitor/index.html
     - Data Table Security: demos/data-table/index.html
     - Query DSL: demos/query-dsl/index.html
-  
+
   # - Language Tutorial:
   #   - Quick Start: language/quick-start/index.html
   #   - Syntax Highlights: language/syntax/index.html
   #   - Download & Install: language/download/index.html
-  
+
   - Language Reference:
     - Syntax Overview: language/syntax-overview/index.html
     - Definitions: language/definitions/index.html
     - Types: language/types/index.html
     - Expressions: language/expressions/index.html
     - Syntax Summary: language/syntax-summary/index.html
-  
+
   - Design Docs:
     - Multiline Strings: design/multiline-string/index.html
+    - String Interpolation: design/string-interpolation/index.html
     - Block Comments: design/block-comment/index.html
     - Varargs: design/varargs/index.html
     - Deferred Functions: design/deferred-functions/index.html

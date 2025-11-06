@@ -16,7 +16,15 @@ ident    = name | operator
 integer  = ["-"] digit {digit}
 boolean  = "true" | "false"
 char     = single character in single quotes
-string   = text in double quotes
+
+string_part = any character and escape, except end quote and interpolation
+
+escape_sequence = "\\" ("n" | "r" | "t" | "b" | "f" | "\\" | "\"" | "'" |
+                  "u" "{" hex_digit {hex_digit} "}")
+
+hex_digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" |
+            "a" | "b" | "c" | "d" | "e" | "f" |
+            "A" | "B" | "C" | "D" | "E" | "F"
 
 comment = line_comment | block_comment
 line_comment = "//" {any character} newline
@@ -27,10 +35,40 @@ block_comment = "/" "/" {"/"} "[" {any character} "/" "/" {"/"} "]"
 
 **Example:** `//[ ... //]`, `///[ ... ///]`, `////[ ... ////]`
 
+### String Literals
+
+**Single-line strings** use double quotes (`"..."`) and must not span multiple lines. They support:
+
+- Escape sequences: `\n`, `\r`, `\t`, `\b`, `\f`, `\\`, `\"`, `\'`
+- Unicode escapes: `\u{XXXX}` where X is a hex digit
+- String interpolation: `\{expr}` where expr is any expression
+
+**Multi-line strings** use triple quotes (`"""..."""`) and:
+
+- Must start with a newline after the opening quotes
+- Support string interpolation: `\{expr}`
+- Only support Unicode escapes (`\u{...}`), not other escape sequences
+- Automatically strip base indentation from all lines
+- The closing quotes determine the base indentation level
+- Interpolation expressions must be single-line
+
+**String interpolation requirements:**
+
+- For non-String types, an auto `Show[T]` instance must be available
+- Interpolation expressions cannot span multiple lines
+- Use `\\{` to escape and include literal `\{` in the string
+
 ## Abstract Syntax
 
 ```
 namespace = ["namespace" qualid] {import} {toplevel_def} EOF
+
+string = single_line_string | multi_line_string
+
+single_line_string = "\"" {string_part | interpolation} "\""
+multi_line_string  = "\"\"\"" newline {string_part | interpolation} indent "\"\"\""
+
+interpolation = "\\" "{" expr "}"
 
 section = "section" ident {toplevel_def} ["end"]
 

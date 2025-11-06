@@ -19,6 +19,7 @@ object Tokens:
     case StringStart(quoteCount: Int) // """ or """""
     case StringEnd                    // """ or """""
     case StringLine(content: String) // One line of raw string content (with escapes)
+    case InterpolationStart           // Start of interpolation \{
 
     def withInfo(span: Span, indent: Indent): TokenInfo =
       TokenInfo(this, span, indent)

@@ -1,0 +1,18 @@
+Hello Alice!
+Alice is 25 years old
+Sum: 10 + 20 = 30
+This is not interpolated: \{name}
+Name: Alice
+Age: 25
+Status: active
+Result: 15
+Alice
+25
+Name: Alice, Age: 25
+Status: adult
+Greeting: Hello
+Message: Welcome to Alice
+Hello, world!
+Point 1: (3, 5)
+Points: (3, 5) and (-1, 7)
+The point (0, 0) is the origin

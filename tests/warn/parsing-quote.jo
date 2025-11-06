@@ -9,4 +9,13 @@ def foo =
 
   defd"            // error
 
+  "some \{5
+          + 7}
+
+  "jo \{3
+          - 2}"
+
+  "lang \{4
+          * 5} text"
+
 def bar(x: Int) = x * x

@@ -63,10 +63,17 @@ section Array
 end
 
 type Eq[T] = jo.Eq.Eq[T]
-auto alias def byteEq = jo.Eq.Defaults.byteEq
-auto alias def charEq = jo.Eq.Defaults.charEq
-auto alias def intEq = jo.Eq.Defaults.intEq
-auto alias def stringEq = jo.Eq.Defaults.stringEq
+auto def byteEq: Eq[Byte] = (a, b) => a == b
+auto def charEq: Eq[Char] = (a, b) => a == b
+auto def intEq: Eq[Int] = (a, b) => a == b
+auto def stringEq: Eq[String] = (a, b) => a == b
+
+type Show[T] = jo.Show.Show[T]
+// TODO: change to param for performance optimization
+auto def byte2String: Show[Byte] = b => intToStr b
+auto def int2String: Show[Int] = i => intToStr i
+auto def char2String: Show[Char] = c => charToStr c
+
 
 type List[T] = jo.List.List[T]
 section List

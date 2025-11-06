@@ -1,0 +1,41 @@
+---------- Error at ./tests/warn/parsing-quote.jo:2:11 ---------------
+|   val a = "hello   // error
+|           ^
+|           Unclosed string literal
+
+---------- Error at ./tests/warn/parsing-quote.jo:6:6 ---------------
+|   abc"             // error
+|      ^
+|      Unclosed string literal
+
+---------- Error at ./tests/warn/parsing-quote.jo:10:7 ---------------
+|   defd"            // error
+|       ^
+|       Unclosed string literal
+
+---------- Error at ./tests/warn/parsing-quote.jo:12:9 ---------------
+|   "some \{5
+|         ^
+|         Interpolation should only span one line
+
+---------- Error at ./tests/warn/parsing-quote.jo:12:3 ---------------
+|   "some \{5
+|   ^
+|   Unclosed string literal
+
+---------- Error at ./tests/warn/parsing-quote.jo:15:7 ---------------
+|   "jo \{3
+|       ^
+|       Interpolation should only span one line
+
+---------- Error at ./tests/warn/parsing-quote.jo:18:9 ---------------
+|   "lang \{4
+|         ^
+|         Interpolation should only span one line
+
+---------- Error at ./tests/warn/parsing-quote.jo:19:15 ---------------
+|           * 5} text"
+|               ^^^^^
+|               Single-line string cannot span multiple lines
+
+8 error(s), 0 warning(s)
