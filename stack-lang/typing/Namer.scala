@@ -935,12 +935,13 @@ class Namer(using Config):
           else
             // Try to find auto Show[typedExpr.tpe]
             val showTypeSym = defn.Show_Show
-            val showType = AppliedType(StaticRef(showTypeSym), List(typedExpr.tpe))
+            val wordType = typedExpr.tpe.widen
+            val showType = AppliedType(StaticRef(showTypeSym), List(wordType))
 
             given reporter: Reporter = rp.fresh(buffer = true)
             val showInstance = autoResolver.search(showType, Vector.empty, sc, sc, expr.span)
             if reporter.hasErrors then
-              Reporter.error(s"Cannot interpolate expression of type ${typedExpr.tpe.show}. No auto Show[${typedExpr.tpe.show}] found.", expr.pos)
+              rp.error(s"Cannot interpolate expression of type ${wordType.show}. No auto Show[${wordType.show}] found.", expr.pos)
               Literal(Constant.String(""))(defn.StringType, expr.span)
             else
               // Call showInstance.show(typedExpr)

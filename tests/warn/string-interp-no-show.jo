@@ -1,0 +1,8 @@
+// Test: Interpolation with a custom type that lacks Show instance
+
+data Point(x: Int, y: Int)
+
+def main =
+  val p = Point(3, 5)
+  val message = "Point: \{p}"
+  println message
