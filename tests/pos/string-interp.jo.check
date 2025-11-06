@@ -1,0 +1,12 @@
+Hello Alice!
+Alice is 25 years old
+Sum: 10 + 20 = 30
+This is not interpolated: \{name}
+Name: Alice
+Age: 25
+Status: active
+Result: 15
+Alice
+25
+Name: Alice, Age: 25
+Status: adult
