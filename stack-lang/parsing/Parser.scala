@@ -107,111 +107,146 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     * For single-line (n == 1): collects content until StringEnd, handles escaping
     * For multi-line (n >= 3): collects StringLine tokens, handles indentation stripping
     */
-  def parseString(openMarker: TokenInfo): StringLit =
+  def parseString(openMarker: TokenInfo): Word =
     val Token.StringStart(quoteCount) = openMarker.token: @unchecked
 
-    if quoteCount == 1 then
-      // Single-line string
+    // ArrayBuffer to collect parts with indentation info: (part, indent, span)
+    val partsBuffer = mutable.ArrayBuffer[(StringPart, Indent, Span)]()
+    var done = false
+    var resultSpan = openMarker.span
+
+    // Collect all parts until closing marker
+    while !done do
       val nextItem = scanner.nextString(quoteCount)
       nextItem.token match
         case Token.StringLine(content) =>
-          // Got content, now consume the StringEnd token
-          val endItem = scanner.nextString(quoteCount)
-          val resultSpan = openMarker.span | endItem.span
+          partsBuffer += ((StringPart.Literal(content, nextItem.span), nextItem.indent, nextItem.span))
+          resultSpan = resultSpan | nextItem.span
 
-          // Check if we got StringEnd as expected
-          endItem.token match
-            case Token.StringEnd =>
-              // Normal case
-              try
-                StringLit(StringUtil.unescape(content))(resultSpan)
-              catch
-                case e: StringUtil.EscapeError =>
-                  val errorStart = openMarker.span.start + 1 + e.offset
-                  error(e.message, Span(errorStart, e.length).toPos)
-                  StringLit("")(resultSpan)
-
-            case _ =>
-              // Error - didn't get StringEnd, don't bother unescaping
-              error("Missing closing double quote", endItem.span.toPos)
-              StringLit("")(resultSpan)
+        case Token.InterpolationStart =>
+          // Parse interpolation expression
+          val exprStartIndent = nextItem.indent
+          val exprStartSpan = nextItem.span
+          val interpolatedExpr = expr()
+          val rbrace = eat(Token.RBRACE)
+          val exprSpan = exprStartSpan | rbrace.span
+          partsBuffer += ((StringPart.Interpolation(interpolatedExpr, exprSpan), exprStartIndent, exprSpan))
+          resultSpan = resultSpan | exprSpan
 
         case Token.StringEnd =>
-          // Empty string
-          val resultSpan = openMarker.span | nextItem.span
-          StringLit("")(resultSpan)
+          done = true
+          resultSpan = resultSpan | nextItem.span
+
+          // Process parts based on string type
+          if quoteCount == 1 then
+            // Single-line string: unescape literals, validate interpolations
+            return buildString(partsBuffer.toSeq, quoteCount, openMarker, resultSpan, baseIndent = 0)
+          else
+            // Multi-line string: determine base indentation and process
+            val baseIndent = nextItem.indent.tokenOffset
+            return buildString(partsBuffer.toSeq, quoteCount, openMarker, resultSpan, baseIndent)
 
         case Token.EOF =>
-          // Empty string at EOF
           error("Unclosed string literal", openMarker.span.toPos)
-          StringLit("")(openMarker.span)
+          return StringLit("")(openMarker.span)
 
         case other =>
           error(s"Unexpected token in string: $other", openMarker.span.toPos)
-          StringLit("")(openMarker.span)
+          return StringLit("")(openMarker.span)
+    end while
 
+    // Should not reach here
+    StringLit("")(openMarker.span)
+  end parseString
+
+  private def buildString(
+    partsWithIndent: Seq[(StringPart, Indent, Span)],
+    quoteCount: Int,
+    openMarker: TokenInfo,
+    resultSpan: Span,
+    baseIndent: Int
+  ): Word =
+    val escapePolicy = if quoteCount == 1 then
+      StringUtil.EscapePolicy.Disable("") // All escapes
     else
-      // Multi-line string
-      val lines = mutable.ListBuffer[(String, Span)]()
-      var baseIndent: Int = 0
-      var done = false
+      StringUtil.EscapePolicy.Enable("u") // Only unicode escapes
 
-      var resultSpan = openMarker.span
+    val processedParts = mutable.ArrayBuffer[StringPart]()
+    var hasInterpolation = false
 
-      // Collect all lines until closing marker
-      while !done do
-        val nextItem = scanner.nextString(quoteCount)
-        nextItem.token match
-          case Token.StringLine(content) =>
-            lines += content -> nextItem.span
+    for ((part, indent, span) <- partsWithIndent) do
+      part match
+        case StringPart.Literal(content, _) =>
+          // For multiline, check indentation if it's first of line
+          val strippedContent = if quoteCount > 1 && indent.isFirstOfLine then
+            val lineIndent = content.prefixLength(c => c == ' ' || c == '\t')
+            if lineIndent < baseIndent && content.trim.nonEmpty then
+              error(s"Line has insufficient indentation (expected at least $baseIndent spaces)", span.toPos)
+            if content.length >= baseIndent then content.substring(baseIndent) else content
+          else
+            content
 
-          case Token.StringEnd =>
-            // Found closing marker - determine indentation from last line
-            baseIndent = nextItem.indent.tokenOffset
-            done = true
-            resultSpan = resultSpan | nextItem.span
+          // Unescape the content
+          try
+            val unescaped = StringUtil.unescape(strippedContent, escapePolicy)
+            processedParts += StringPart.Literal(unescaped, span)
+          catch
+            case e: StringUtil.EscapeError =>
+              val errorStart = if quoteCount > 1 && indent.isFirstOfLine then
+                span.start + e.offset + baseIndent
+              else
+                span.start + e.offset + 1 // +1 for opening quote in single-line
+              val errorSpan = Span(errorStart, e.length)
+              error(e.message, errorSpan.toPos)
+              processedParts += StringPart.Literal("", span)
 
-          case Token.EOF =>
-            error("Unclosed multi-line string literal", openMarker.span.toPos)
-            return StringLit("")(openMarker.span)
+        case interp @ StringPart.Interpolation(expr, interpSpan) =>
+          hasInterpolation = true
 
-          case other =>
-            error(s"Unexpected token in multi-line string: $other", openMarker.span.toPos)
-            return StringLit("")(openMarker.span)
+          // For multiline, check indentation if it's first of line
+          if quoteCount > 1 && indent.isFirstOfLine then
+            if indent.tokenOffset < baseIndent then
+              error(s"Interpolation has insufficient indentation (expected at least $baseIndent spaces)", interpSpan.toPos)
 
-      // Strip indentation
-      val result = new StringBuilder
-      var i = 0
+          // TODO: Validate interpolation is single-line (doesn't span multiple lines)
+          // This would require checking if all tokens in expr are on the same line
 
-      while i < lines.length do
-        val (line, span) = lines(i)
+          processedParts += interp
 
-        val indent = line.prefixLength(c => c == ' ' || c == '\t')
-
-        if indent < baseIndent && line.trim.nonEmpty then
-          // Calculate the position of this line for error reporting
-          error(s"Line has insufficient indentation (expected at least $baseIndent spaces)", span.toPos)
-
-        // Strip base indentation
-        val stripped = if line.length >= baseIndent then line.substring(baseIndent) else line
-
-        try
-          val unescaped = StringUtil.unescape(stripped, StringUtil.EscapePolicy.Enable("u"))
-          result ++= unescaped
-        catch
-          case e: StringUtil.EscapeError =>
-            val errorStart = span.start + e.offset + baseIndent
-            val errorSpan = Span(errorStart, e.length)
-            error(e.message, errorSpan.toPos)
-
-        if i < lines.length - 1 then result += '\n'
-
-        i += 1
-      end while
-
-
-      StringLit(result.toString)(resultSpan)
-    end if
+    // If no interpolation, return a simple StringLit for backward compatibility
+    if !hasInterpolation then
+      // Concatenate all literal parts
+      val sb = new StringBuilder
+      var first = true
+      for (part <- processedParts) do
+        part match
+          case StringPart.Literal(value, _) =>
+            if !first && quoteCount > 1 then sb += '\n'
+            sb ++= value
+            first = false
+          case _ => // Should not happen
+      StringLit(sb.toString)(resultSpan)
+    else
+      // Return interpolated string
+      // Need to handle newlines between parts for multiline strings
+      if quoteCount > 1 then
+        // Insert newlines between parts that were on different lines
+        val partsWithNewlines = mutable.ArrayBuffer[StringPart]()
+        var prevIndent: Option[Indent] = None
+        for (((part, indent, span), idx) <- partsWithIndent.zipWithIndex) do
+          // Check if we need to insert a newline before this part
+          if idx > 0 && indent.isFirstOfLine then
+            prevIndent match
+              case Some(prev) if !indent.isSameLine(prev) =>
+                // Different line - insert newline
+                partsWithNewlines += StringPart.Literal("\n", span)
+              case _ => // Same line or no previous indent
+          partsWithNewlines += processedParts(idx)
+          prevIndent = Some(indent)
+        InterpolatedString(partsWithNewlines.toList)(resultSpan)
+      else
+        InterpolatedString(processedParts.toList)(resultSpan)
+  end buildString
 
   def skipIndented(limitIndent: Indent) =
     var item = peekItem()
