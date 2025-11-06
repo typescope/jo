@@ -1,3 +1,8 @@
+// Custom type with Show instance
+data Point(x: Int, y: Int)
+
+auto def showPoint: Show[Point] = p => "(\{p.x}, \{p.y})"
+
 def main =
   // Basic interpolation with strings
   val name = "Alice"
@@ -56,3 +61,10 @@ def main =
   println withString
 
   println "Hello, \{"world"}!"
+
+  // Custom type interpolation
+  val p1 = Point(3, 5)
+  val p2 = Point(-1, 7)
+  println "Point 1: \{p1}"
+  println "Points: \{p1} and \{p2}"
+  println "The point \{Point(0, 0)} is the origin"
