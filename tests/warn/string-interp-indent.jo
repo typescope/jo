@@ -1,0 +1,9 @@
+// Test: Interpolation with insufficient indentation in multiline string
+
+def main =
+  val name = "Alice"
+  val message = """
+      Hello
+  \{name}
+      """
+  message p

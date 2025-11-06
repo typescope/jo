@@ -1,0 +1,10 @@
+// Test: Interpolation expression spanning multiple lines in multiline string
+
+def main =
+  val x = 5
+  val y = 3
+  val message = """
+      Result: \{x
+                + y}
+      """
+  message p
