@@ -129,8 +129,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           // Check if single-line string spans multiple lines
           if quoteCount == 1 && !nextItem.indent.isSameLine(openMarker.indent) then
             error("Single-line string cannot span multiple lines", nextItem.span.toPos)
-            // Stop parsing this string - treat as unclosed
-            return StringLit("")(openMarker.span | nextItem.span)
 
           partsBuffer += ((StringLit(content)(nextItem.span), nextItem.indent))
           resultSpan = resultSpan | nextItem.span

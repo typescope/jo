@@ -23,4 +23,19 @@
 |   ^
 |   Unclosed string literal
 
-5 error(s), 0 warning(s)
+---------- Error at ./tests/warn/parsing-quote.jo:15:7 ---------------
+|   "jo \{3
+|       ^
+|       Interpolation should only span one line
+
+---------- Error at ./tests/warn/parsing-quote.jo:18:9 ---------------
+|   "lang \{4
+|         ^
+|         Interpolation should only span one line
+
+---------- Error at ./tests/warn/parsing-quote.jo:19:15 ---------------
+|           * 5} text"
+|               ^^^^^
+|               Single-line string cannot span multiple lines
+
+8 error(s), 0 warning(s)
