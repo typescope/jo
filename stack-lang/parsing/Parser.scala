@@ -219,7 +219,13 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       end match
     end for
 
-    InterpolatedString(processedParts.toList)(resultSpan)
+    processedParts.toList match
+      case StringLit(content) :: Nil =>
+        // update the span
+        StringLit(content)(resultSpan)
+
+      case parts =>
+        InterpolatedString(parts)(resultSpan)
   end buildString
 
   def skipIndented(limitIndent: Indent) =
