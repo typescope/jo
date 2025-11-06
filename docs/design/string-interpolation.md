@@ -267,7 +267,7 @@ The `\{...}` syntax was chosen for several reasons:
 1. **Consistency**: Uses backslash like other escape sequences
 2. **Visual clarity**: The `\{` clearly marks interpolation start
 3. **No conflicts**: Doesn't interfere with existing syntax
-4. **Raw strings**: Works well with multiline string raw string semantics
+4. **Raw strings**: Works well with multiline raw string semantics
 
 ### Single-line Restriction
 

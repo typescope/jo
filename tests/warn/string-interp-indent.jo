@@ -6,4 +6,4 @@ def main =
       Hello
   \{name}
       """
-  message p
+  println message
