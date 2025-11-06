@@ -26,6 +26,6 @@
 ---------- Error at ./tests/warn/multiline-string.jo:31:28 ---------------
 | def testUnclosed: String = """
 |                            ^^^
-|                            Unclosed multi-line string literal
+|                            Unclosed string literal
 
 6 error(s), 0 warning(s)

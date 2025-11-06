@@ -199,7 +199,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
                 if quoteCount > 1 && indent.isFirstOfLine then
                   part.span.start + e.offset + baseIndent
                 else
-                  part.span.start + e.offset + 1 // +1 for opening quote in single-line
+                  part.span.start + e.offset
 
               val errorSpan = Span(errorStart, e.length)
               error(e.message, errorSpan.toPos)
