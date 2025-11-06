@@ -168,12 +168,18 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     val processedParts = mutable.ArrayBuffer[Word]()
 
-    for (part, indent) <- partsWithIndent do
+    for ((part, indent), idx) <- partsWithIndent.zipWithIndex do
+      // insert newline for multiline string
+      if quoteCount > 2 && idx > 0 && !indent.isSameLine(partsWithIndent(idx - 1)._2) then
+        processedParts += StringLit("\n")(Span(part.span.start - 1, 0))
+
       part match
         case StringLit(content) =>
-          // For multiline, check indentation if it's first of line
+          val isLineStart = idx < 1 || !indent.isSameLine(partsWithIndent(idx - 1)._2)
+
+          // For multiline, strip base indentation from content that starts with it
           val strippedContent =
-            if quoteCount > 1 && indent.isFirstOfLine then
+            if quoteCount > 1 && isLineStart then
               val lineIndent = content.prefixLength(c => c == ' ' || c == '\t')
 
               if lineIndent < baseIndent && content.trim.nonEmpty then
@@ -210,23 +216,10 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
             error(s"Interpolation should only span one line", expr.pos)
 
           processedParts += expr
+      end match
+    end for
 
-    // Return interpolated string
-    // Need to handle newlines between parts for multiline strings
-    if quoteCount > 1 then
-      // Insert newlines between parts that were on different lines
-      val partsWithNewlines = mutable.ArrayBuffer[Word]()
-      for ((part, indent), idx) <- partsWithIndent.zipWithIndex do
-        // Check if we need to insert a newline before this part
-        if idx > 0 && indent.isFirstOfLine then
-          partsWithNewlines += StringLit("\n")(Span(part.span.start - 1, 0))
-
-        partsWithNewlines += processedParts(idx)
-
-      InterpolatedString(partsWithNewlines.toList)(resultSpan)
-
-    else
-      InterpolatedString(processedParts.toList)(resultSpan)
+    InterpolatedString(processedParts.toList)(resultSpan)
   end buildString
 
   def skipIndented(limitIndent: Indent) =
