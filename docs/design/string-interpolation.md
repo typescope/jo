@@ -179,9 +179,11 @@ For non-String types, the compiler searches for an auto instance of `Show[T]` an
 1. Parse the string into parts (literals and interpolations)
 2. Type check each interpolated expression with the target type `String`
 3. For each expression:
-   - If the type conforms to `String`, use it directly
-   - Otherwise, search for `auto Show[T]` and apply `.show()`
-   - If no conversion found, report error
+
+    - If the type conforms to `String`, use it directly
+    - Otherwise, search for `auto Show[T]` and apply `.show()`
+    - If no conversion found, report error
+
 4. Concatenate the strings part together
 
 ### AST Representation
