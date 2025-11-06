@@ -13,7 +13,7 @@
 Jo is a programming language with capability-based security built into its type system.
 
 
-- **API confinement** - Customize language runtime to only platform APIs
+- **API confinement** - Customize language runtime to only expose platform APIs
 - **Fine-grained control** - Precise control of authority, e.g. only access certain rows of a data table
 - **Easy security auditing** - Statically checked ambient authorities and clear security boundaries
 
