@@ -53,13 +53,9 @@ object Trees:
   extends Word
 
   case class InterpolatedString
-    (parts: List[StringPart])
+    (parts: List[Word])
     (val span: Span)
   extends Word
-
-  enum StringPart:
-    case Literal(value: String, span: Span)
-    case Interpolation(expr: Word, span: Span)
 
   case class ListLit
     (words: List[Word])

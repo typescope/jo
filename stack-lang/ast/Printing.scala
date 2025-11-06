@@ -199,8 +199,8 @@ object Printing:
         var result: Text = Text("\"")
         for (part <- parts) do
           part match
-            case StringPart.Literal(value, _) => result = result ~ StringUtil.escape(value)
-            case StringPart.Interpolation(expr, _) => result = result ~ "\\{" ~ showWord(expr) ~ "}"
+            case StringLit(value) => result = result ~ StringUtil.escape(value)
+            case expr => result = result ~ "\\{" ~ showWord(expr) ~ "}"
         result ~ "\""
 
       case ListLit(words) => "[" ~ words.join(", ") ~ "]"
