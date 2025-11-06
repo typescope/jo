@@ -917,7 +917,7 @@ class Namer(using Config):
 
     Assign(paramRef, rhs)
 
-  private def transformInterpolatedString(parts: List[Ast.Word], span: Span)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
+  private def transformInterpolatedString(parts: List[Ast.Word], span: Span)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): Word =
     // Type check each part and build concatenation
     val typedParts = parts.map: part =>
       part match
