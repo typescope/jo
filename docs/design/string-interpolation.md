@@ -25,7 +25,7 @@ val result = "Sum: \{x + y}"  // Produces: "Sum: 30"
 
 ## Type Conversion
 
-Interpolated expressions are automatically converted to `String` using the `Convert` type class. This means you can interpolate any type that has a `Convert[T, String]` instance defined:
+Interpolated expressions are automatically converted to `String` using the `Show` type class. This means you can interpolate any type that has a `Show[T]` instance defined:
 
 ```jo
 val count = 42
@@ -34,28 +34,27 @@ val message = "The count is \{count}"  // Int automatically converted to String
 
 ### Standard Conversions
 
-The standard library provides `Convert` instances for common types:
-- `Convert[Int, String]` - defined as `int2String` in `Predef.jo`
-- `Convert[Char, String]` - defined as `char2String` in `Predef.jo`
+The standard library provides `Show` instances for common types:
 
-### Custom Conversions
+- `Show[Byte]`
+- `Show[Char]`
+- `Show[Int]`
 
-If no conversion is available, a compile-time error is reported:
+### Custom Show
+
+If no show is available, a compile-time error is reported:
 
 ```jo
 val custom = MyType()
-val message = "Value: \{custom}"  // Error if no Convert[MyType, String] exists
+val message = "Value: \{custom}"  // Error if no Show[MyType] exists
 ```
 
 To support interpolation for custom types, define an auto instance:
 
 ```jo
-class Person(name: String, age: Int)
+data Person(name: String, age: Int)
 
-auto personToString: Convert[Person, String] =
-  new Convert[Person, String]:
-    def convert(p: Person): String =
-      "\{p.name} (\{p.age})"
+auto def personToString: Show[Person] = p => "\{p.name} (\{p.age})"
 
 val alice = Person("Alice", 25)
 val message = "Person: \{alice}"  // OK: uses personToString
@@ -135,28 +134,14 @@ val text = """
 
 The restriction ensures that interpolations remain simple and readable, and simplifies parsing.
 
-### No Unmatched Braces
-
-Expressions within `\{...}` cannot contain unmatched closing braces. The first `}` encountered closes the interpolation:
-
-```jo
-val obj = MyObject { field: "value" }
-val text = "Object: \{obj}"  // OK: braces are balanced in object creation
-
-// ERROR: the } in the lambda would close the interpolation
-val text = "Result: \{list.map(x => x + 1)}"
-// Workaround: extract to a variable
-val result = list.map(x => x + 1)
-val text = "Result: \{result}"
-```
 
 ### Type Constraints
 
-The interpolated expression must be convertible to `String` via an auto `Convert[T, String]` instance:
+The interpolated expression must be convertible to `String` via an auto `Show[T]` instance:
 
 ```jo
 val file = FileHandle()
-val message = "File: \{file}"  // Error if no Convert[FileHandle, String]
+val message = "File: \{file}"  // Error if no Show[FileHandle]
 ```
 
 ## Implementation Details
@@ -181,23 +166,23 @@ Interpolated strings are transformed during type checking into a series of strin
 "Hello " + name + "!"
 ```
 
-For non-String types, the compiler searches for an auto instance of `Convert[T, String]` and applies the conversion:
+For non-String types, the compiler searches for an auto instance of `Show[T]` and applies the conversion:
 
 ```jo
 "Count: \{42}"
 // Becomes equivalent to:
-"Count: " + int2String.convert(42)
+"Count: " + int2String.show(42)
 ```
 
 ### Type Checking Process
 
 1. Parse the string into parts (literals and interpolations)
-2. Type check each interpolated expression with `TargetType.ValueType`
+2. Type check each interpolated expression with the target type `String`
 3. For each expression:
    - If the type conforms to `String`, use it directly
-   - Otherwise, search for `auto Convert[T, String]` and apply `.convert()`
+   - Otherwise, search for `auto Show[T]` and apply `.show()`
    - If no conversion found, report error
-4. Build concatenation tree using `lhs.select("+").appliedTo(rhs)`
+4. Concatenate the strings part together
 
 ### AST Representation
 
@@ -273,21 +258,6 @@ println message
 // Output: Origin: (0, 0)
 ```
 
-## Comparison with Other Languages
-
-| Language | Syntax | Multi-line | Type conversion |
-|----------|--------|-----------|-----------------|
-| Jo | `\{expr}` | Yes | Auto type class |
-| Scala | `s"$expr"` or `s"${expr}"` | Yes | `.toString` |
-| Kotlin | `"$expr"` or `"${expr}"` | No | `.toString` |
-| Swift | `"\(expr)"` | No | String interpolation protocol |
-| Rust | format!("{}") | N/A | Display trait |
-
-Jo's approach using the `Convert` type class provides:
-- **Type safety**: Explicit conversions via type classes
-- **Extensibility**: Users can define conversions for custom types
-- **Clarity**: Auto resolution makes conversions discoverable
-
 ## Design Rationale
 
 ### Choice of `\{...}` Syntax
@@ -310,7 +280,7 @@ Interpolations are restricted to single lines because:
 
 ### Type Class Conversion
 
-Using `Convert[S, T]` for type conversion provides:
+Using `Show[T]` for type conversion provides:
 
 1. **Explicit conversions**: No implicit `.toString` magic
 2. **Type safety**: Conversions must be explicitly defined
