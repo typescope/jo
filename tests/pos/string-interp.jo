@@ -47,3 +47,12 @@ def main =
       Status: \{status}
       """
   println inline
+
+  // Interpolation with double-quoted string inside
+  val withString = """
+      Greeting: \{"Hello"}
+      Message: \{"Welcome to " + name}
+      """
+  println withString
+
+  println "Hello, \{"world"}!"
