@@ -237,11 +237,9 @@ class Scanner(stream: CharStream)(using Reporter, Source):
 
         else if c == '\n' then
           val str = stream.tokenEnd()
-          val item = Token.StringLine(str).withPos
-          // consume \n after taking position
-          stream.eat()
+          // Don't consume \n - let parser detect error and stop parsing the string
           // Don't report error here - let parser handle it
-          return item
+          return Token.StringLine(str).withPos
 
         else
           stream.eat()

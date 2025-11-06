@@ -120,6 +120,18 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       val nextItem = scanner.nextString(quoteCount)
       nextItem.token match
         case Token.StringLine(content) =>
+          // Check if single-line string is unclosed (empty content means hit newline immediately)
+          if quoteCount == 1 && content.isEmpty then
+            error("Unclosed string literal", openMarker.span.toPos)
+            // Stop parsing this string - treat as unclosed
+            return StringLit("")(openMarker.span | nextItem.span)
+
+          // Check if single-line string spans multiple lines
+          if quoteCount == 1 && !nextItem.indent.isSameLine(openMarker.indent) then
+            error("Single-line string cannot span multiple lines", nextItem.span.toPos)
+            // Stop parsing this string - treat as unclosed
+            return StringLit("")(openMarker.span | nextItem.span)
+
           partsBuffer += ((StringLit(content)(nextItem.span), nextItem.indent))
           resultSpan = resultSpan | nextItem.span
 
@@ -130,6 +142,11 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           val interpolatedExpr = expr()
           val rbrace = eat(Token.RBRACE)
           val exprSpan = exprStartSpan | rbrace.span
+
+          if !interpolatedExpr.pos.isOneLine then
+            // Validate interpolation is single-line (doesn't span multiple lines)
+            error(s"Interpolation should only span one line", exprSpan.toPos)
+
           partsBuffer += Block(interpolatedExpr :: Nil)(exprSpan) -> exprStartIndent
           resultSpan = resultSpan | exprSpan
 
@@ -210,10 +227,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           if quoteCount > 1 && indent.isFirstOfLine then
             if indent.tokenOffset < baseIndent then
               error(s"Interpolation has insufficient indentation (expected at least $baseIndent spaces)", expr.pos)
-
-          if !expr.pos.isOneLine then
-            // Validate interpolation is single-line (doesn't span multiple lines)
-            error(s"Interpolation should only span one line", expr.pos)
 
           processedParts += expr
       end match

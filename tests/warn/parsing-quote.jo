@@ -9,4 +9,7 @@ def foo =
 
   defd"            // error
 
+  "some \{5
+          + 7}
+
 def bar(x: Int) = x * x
