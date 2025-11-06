@@ -92,6 +92,19 @@ Emoji: 😀
 
 ```
 
+## String Interpolation
+
+Both single-line and multiline strings support interpolation using the `\{...}` syntax:
+
+```jo
+val name = "Alice"
+val age = 25
+val message = "Hello \{name}, you are \{age} years old!"
+// Produces: "Hello Alice, you are 25 years old!"
+```
+
+String interpolation is covered in detail in [string-interpolation.md](./string-interpolation.md).
+
 ## No Line Continuation
 
 Unlike some languages, Jo does **not** support backslash line continuation in multiline strings. A backslash at the end of a line is treated as a literal backslash character:
@@ -283,6 +296,7 @@ val oneNewline = """
 | Feature | Single-line `"..."` | Multiline `"""..."""` |
 |---------|---------------------|----------------------|
 | Escape sequences | All processed (`\n`, `\t`, `\"`, `\\`, `\u{...}`) | Only `\u{...}` processed |
+| String interpolation | Yes (`\{expr}`) | Yes (`\{expr}`) |
 | Line continuation | N/A | Not supported (backslash is literal) |
 | Indentation stripping | No | Yes (based on closing delimiter) |
 | Can span lines | No (must escape with `\n`) | Yes |

@@ -247,6 +247,9 @@ class Namer(using Config):
       case Ast.StringLit(v) =>
         Literal(Constant.String(v))(defn.StringType, word.span).adapt
 
+      case Ast.InterpolatedString(parts) =>
+        transformInterpolatedString(parts, word.span).adapt
+
       case ref: Ast.RefTree =>
         transformRefTree(ref).adapt
 
@@ -914,6 +917,50 @@ class Namer(using Config):
 
     Assign(paramRef, rhs)
 
+  private def transformInterpolatedString(parts: List[Ast.Word], span: Span)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
+    // Type check each part and build concatenation
+    val typedParts = parts.map: part =>
+      part match
+        case Ast.StringLit(value) =>
+          // String literals are already typed as String
+          Literal(Constant.String(value))(defn.StringType, part.span)
+        case expr =>
+          // Type check the interpolation expression
+          given TargetType = TargetType.ValueType
+          val typedExpr = transform(expr)
+
+          // Convert to String if needed
+          if Subtyping.conforms(typedExpr.tpe, defn.StringType) then
+            typedExpr
+          else
+            // Try to find auto Convert[typedExpr.tpe, String]
+            val convertSym = defn.Convert_Convert
+            val convertType = AppliedType(StaticRef(convertSym), List(typedExpr.tpe, defn.StringType))
+
+            given reporter: Reporter = rp.fresh(buffer = true)
+            val convertInstance = autoResolver.search(convertType, Vector.empty, sc, sc, expr.span)
+            if reporter.hasErrors then
+              Reporter.error(s"Cannot interpolate expression of type ${typedExpr.tpe.show}. No auto Convert[${typedExpr.tpe.show}, String] found.", expr.pos)
+              Literal(Constant.String(""))(defn.StringType, expr.span)
+            else
+              // Call convertInstance.convert(typedExpr)
+              convertInstance.select("convert").appliedTo(typedExpr)
+
+
+    // Build concatenation using the + method on String
+    typedParts match
+      case Nil =>
+        // Empty interpolated string
+        Literal(Constant.String(""))(defn.StringType, span)
+      case head :: Nil =>
+        // Single part
+        head
+      case head :: tail =>
+        // Multiple parts - concatenate using +
+        tail.foldLeft(head) { (lhs, rhs) =>
+          // Build: lhs + rhs using select and appliedTo
+          lhs.select("+").appliedTo(rhs)
+        }
 
   private def transformIf(ifte: Ast.If)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
     val Ast.If(cond, thenp, elsep) = ifte

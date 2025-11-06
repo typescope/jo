@@ -16,7 +16,7 @@ class Autos(namer: Namer):
     for NamedInfo(name, autoInfo) <- procType.autos yield
       search(autoInfo, Vector.empty, sc, sc, span)
 
-  private def search(target: Type, trace: Vector[Symbol], origin: Scope, sc: Scope, span: Span)(using Definitions, Reporter, Source): Word =
+  def search(target: Type, trace: Vector[Symbol], origin: Scope, sc: Scope, span: Span)(using Definitions, Reporter, Source): Word =
     // println("searching scope owner = " + sc.owner + ", autos = " + sc.autos)
 
     def history: String =
