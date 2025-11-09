@@ -21,6 +21,8 @@ The `receives` clause statically declares required capabilities. The type system
 - Capability requirements are verified at compile time
 - Security properties are enforced without runtime overhead
 
+The `receives` clause can be inferred automatically --- no syntatic overhead.
+
 ## Global Variable Solution
 
 Jo eliminates ambient authority through context parameters while maintaining usability:
@@ -91,7 +93,7 @@ def platformMain: Unit receives stdout =
 Jo's solution addresses each challenge:
 
 1. **Static control** - Type system enforces capability requirements at compile time
-2. **No ambient authority** - Context parameters eliminate global variables while maintaining usability
+2. **Checked ambient authority** - Context parameters eliminate global variables and simplify reasoning about security
 3. **Secure interoperability** - Two-world architecture provides clear boundaries and extensibility
 
 This design enables fine-grained capability control suitable for secure AI code generation while maintaining the expressiveness needed for practical programming.

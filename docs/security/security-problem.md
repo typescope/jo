@@ -88,13 +88,13 @@ The research on object-capability languages is more promising because capabiliti
 
 Object-capability languages face three fundamental implementation challenges:
 
-**Static capability control** - Existing object-capability languages are untyped, relying on design patterns based on "connection begets connection" rather than static verification.
+**Static capability control** - Existing object-capability languages do not check capabilities statically, relying on design patterns based on "connection begets connection" rather than static verification.
 
-**Global variable design** - Global variables create ambient authorities that compromise security, yet removing them creates usability problems requiring explicit capability passing throughout programs.
+**Global variable design** - Global variables create ambient authorities that compromise reasoning about security, yet removing them creates usability problems requiring explicit capability passing throughout programs.
 
 **Cross-language interoperability** - Languages must interface with "lower" languages to produce effects, which eventually goes to special CPU instructions that make OS system calls and/or read/write memory-mapped registers on devices. Two implementation approaches exist:
 
-1. Allow user code to directly cross language boundaries - Creates security auditing challenges
+1. Allow user code to directly cross language boundaries through FFI (foreign function interface) - Creates security auditing challenges
 2. Hardcode cross-language gates as compiler intrinsics - Prevents third-party capability extensions
 
 Cloud platforms require both clear trust boundaries for security auditing and simple cross-language interoperability to interface platform APIs.
