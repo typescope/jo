@@ -149,6 +149,7 @@ if [ "$BUILD_RELEASE" = true ]; then
   mkdir -p "$RELEASE_DIR/tests/warn"
 
   cp tests/pos/hello.jo "$RELEASE_DIR/tests/pos/"
+  cp tests/pos/y-combinator.jo "$RELEASE_DIR/tests/pos/"
   cp tests/pos/expression-problem.jo "$RELEASE_DIR/tests/pos/"
   cp tests/pos/fact.jo "$RELEASE_DIR/tests/pos/"
   cp tests/pos/param-render.jo "$RELEASE_DIR/tests/pos/"
