@@ -164,12 +164,13 @@ def main =
 
 Explore complete examples showcasing Jo's features:
 
+- **[Y Combinator](tests/pos/y-combinator.jo)** - Implement Y Combinator in Jo
 - **[Expression Problem](tests/pos/expression-problem.jo)** - Extensible ADTs demonstrating Jo's solution to the expression problem
 - **[Pattern Matching](tests/pos/pattern.jo)** - Advanced pattern matching with guards and nested patterns
 - **[Pattern Sequences](tests/pos/pattern-seq.jo)** - Pattern matching on sequences and lists
 - **[Context Parameters](tests/pos/param-render.jo)** - Contextual abstraction and implicit parameter passing
 - **[Varargs](tests/pos/vararg.jo)** - Variable-length argument lists
-- **[Regular Expressions](tests/pos/regex.jo)** - Pattern-based string matching
+- **[Regular Expressions](tests/pos/regex.jo)** - A naive implementation of regular expressions
 - **[Parameter Boundaries](tests/warn/param-boundary.jo)** - Warning example showing parameter scope constraints
 
 <a id="usage"></a>
