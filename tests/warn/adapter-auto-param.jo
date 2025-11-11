@@ -1,6 +1,6 @@
 // Auto parameters cannot have adapters
 
-def intToStr(i: Int): String = intToString(i)
+def intToStr(i: Int): String = ???
 
 def foo(auto s: String with [intToStr]): Unit =
   print(s)

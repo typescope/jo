@@ -77,6 +77,7 @@ object Adapters:
                 valid += Ident(sym)(adapter.span)
 
         case tp =>
-          Reporter.error("A reference to function expected, found = " + tp.show, adapter.pos)
+          if !tp.isError then
+            Reporter.error("A reference to function expected, found = " + tp.show, adapter.pos)
     end for
     valid.toList
