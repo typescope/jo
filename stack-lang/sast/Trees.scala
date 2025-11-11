@@ -507,8 +507,13 @@ object Trees:
 
   /** Represents a named function or method definition */
   case class FunDef
-    (symbol: Symbol, tparams: List[Symbol], params: List[Symbol],
-      autos: List[Symbol], resultType: TypeTree, effectPolicy: Effects.Policy,
+    (symbol: Symbol,
+      tparams: List[Symbol],
+      params: List[Symbol],
+      adapters: List[List[Ident]],
+      autos: List[Symbol],
+      resultType: TypeTree,
+      effectPolicy: Effects.Policy,
       body: Word)
     (val span: Span)
     (using defn: Definitions)

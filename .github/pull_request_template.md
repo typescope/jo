@@ -8,7 +8,8 @@ Fix #XXX: A short description
 - sast
   - [ ] sast & sast operations
   - [ ] flags & symbols & name table
-  - [ ] types & type operations & subtyping
+  - [ ] types & type operations
+  - [ ] subtyping
   - [ ] encoding & decoding
 - [ ] type checking
 - [ ] context param check & transform

@@ -396,8 +396,13 @@ object Types:
 
   /** The type of a function, method or pattern predicates */
   case class ProcType
-    (tparams: List[Symbol], params: List[NamedInfo[Type]], autos: List[NamedInfo[Type]],
-      resultType: Type, receivesInfo: () => List[Symbol], preParamCount: Int)
+    (tparams: List[Symbol],
+      params: List[NamedInfo[Type]],
+      adapters: List[List[Symbol]],
+      autos: List[NamedInfo[Type]],
+      resultType: Type,
+      receivesInfo: () => List[Symbol],
+      preParamCount: Int)
   extends Type:
     val preParamTypes: List[Type] = params.take(preParamCount).map(_.info)
     val postParamTypes: List[Type] = params.drop(preParamCount).map(_.info)
