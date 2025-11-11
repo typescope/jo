@@ -1,0 +1,8 @@
+def foo[T](x: T): List[T] = List(x)
+
+def process[T](l: List[T]): Unit =
+  println
+    "items: " + (intToStr l.size)
+
+def main =
+  process(foo 1)

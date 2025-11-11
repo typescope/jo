@@ -2,7 +2,7 @@
 
 def listAdapter(x: Array[Int]): List[Int] = ???
 
-def process[T](items: List[T]): Unit =
+def process[T](items: List[T] with [listAdapter]): Unit =
   print("processing")
 
 def main =
