@@ -701,17 +701,13 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     */
   def adapterList(): List[RefTree] =
     eat(Token.LBRACKET)
-    if peek() == Token.RBRACKET then
-      eat(Token.RBRACKET)
-      Nil
-    else
-      val adapters = mutable.ArrayBuffer[RefTree]()
+    val adapters = mutable.ArrayBuffer[RefTree]()
+    adapters += qualid()
+    while peek() == Token.COMMA do
+      eat(Token.COMMA)
       adapters += qualid()
-      while peek() == Token.COMMA do
-        eat(Token.COMMA)
-        adapters += qualid()
-      eat(Token.RBRACKET)
-      adapters.toList
+    eat(Token.RBRACKET)
+    adapters.toList
 
   /** Parse a block within the indentation */
   def block(limitIndent: Indent): Block =

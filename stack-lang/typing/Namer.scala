@@ -1378,6 +1378,10 @@ class Namer(using Config):
       funDef.params.zip(paramSyms).map: (param, paramSym) =>
         Adapters.check(param.adapters, paramSym.info, this)
 
+    for auto <- funDef.autos if auto.adapters.nonEmpty do
+      val span = auto.adapters.head.span | auto.adapters.last.span
+      Reporter.error("An auto parameter cannot have adapters", span.toPos)
+
     lazy val autoSyms =
       tparamSyms
       transformAutos(funDef.autos)

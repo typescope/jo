@@ -1,6 +1,7 @@
 // Pattern definition parameters cannot have adapters
 
 def intToStr(i: Int): String = ???
+def charToStr(c: Char): String = ???
 
-pattern NamedPerson(name: String with [intToStr]): String =
-  case _
+pattern NamedPerson(name: String with [intToStr, charToStr]): String =
+  case name
