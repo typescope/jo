@@ -57,12 +57,12 @@ An adapter function must satisfy:
 1. **Single parameter**: The adapter must take exactly one argument
 2. **Return type**: The adapter must return the parameter's declared type (or a subtype)
 3. **No auto parameters**: The adapter may not have auto parameters
-4. **Receive parameters allowed**: The adapter may have receive parameters
+4. **Context parameters allowed**: The adapter may have context parameters
 
 Example valid adapters:
 ```jo
 def intToStr(x: Int): String = ...                    // Valid
-def showInt(x: Int): String receives printer = ...    // Valid (receive params OK)
+def showInt(x: Int): String receives printer = ...    // Valid (context params OK)
 
 def badAdapter(x: Int, y: Int): String = ...          // Invalid (multiple params)
 def badAdapter2(x: Int)(auto show: Show[Int]): String = ...  // Invalid (auto params)
@@ -80,7 +80,7 @@ def example(s: String with adapter1, adapter2): Unit = ...
 // adapter1 is always tried first
 ```
 
-**Note:** Adapter selection is based solely on the adapter's parameter type matching the argument type as call-site. Receive parameters of adapters do not affect adapter selection.
+**Note:** Adapter selection is based solely on the adapter's parameter type matching the argument type as call-site. Context parameters of adapters do not affect adapter selection.
 
 ### Adapters with Varargs
 
@@ -205,6 +205,33 @@ formatPair(42, true)
 // Transformed to: formatPair(intToStr(42), boolToStr(true))
 ```
 
+### Adapters with Context Parameters
+
+```jo
+param hexMode: Bool = false
+
+// Adapter that converts Int to String based on hexMode context parameter
+def intToStr(n: Int): String receives hexMode =
+  if hexMode then
+    "0x" + intToHexString(n)
+  else
+    intToString(n)
+
+def display(msg: String with intToStr): Unit =
+  println(msg)
+
+// Usage with default decimal format
+display(42)        // Transformed to: display(intToStr(42))
+                   // Outputs: "42" (decimal, hexMode = false)
+
+// Usage with custom hex format
+display(255) with hexMode = true
+                   // Transformed to: display(intToStr(255))
+                   // Outputs: "0xff" (hexadecimal, hexMode = true)
+```
+
+This example demonstrates how adapters can use context parameters to provide context-dependent conversion. The `intToStr` adapter accesses the `hexMode` context parameter to determine whether to format numbers as decimal or hexadecimal.
+
 ## Type Error Messages
 
 When no adapter succeeds, the error message should indicate:
@@ -279,7 +306,7 @@ Compared to function overloading:
 
 1. **Simpler**: No complex overload resolution rules
 2. **Clearer**: The conversion functions are explicitly named
-3. **Flexible**: Adapters can be functions with receive parameters
+3. **Flexible**: Adapters can be functions with context parameters
 4. **Maintainable**: Adding a new conversion doesn't require defining a new overload
 
 ## Summary
