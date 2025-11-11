@@ -210,7 +210,8 @@ val_decl = ("val" | "var") ident ":" type
 
 param_section = "(" [params] ")"
 params = param {"," param}
-param = ident ":" type
+param = ident ":" type ["with" "[" adapter_list "]"]
+adapter_list = qualid {"," qualid}
 
 auto_section = "(" "auto" params ")"
 ```

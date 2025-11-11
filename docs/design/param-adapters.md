@@ -18,22 +18,24 @@ The adapters are declared explicitly at the definition site, making the conversi
 ### Parameter Declaration with Adapters
 
 ```
-param_with_adapters = ident ":" type "with" adapter_list
+param_with_adapters = ident ":" type "with" "[" adapter_list "]"
 adapter_list = qualid {"," qualid}
 ```
 
+Adapters can be qualified identifiers (e.g., `Foo.bar`, `My.Module.adapter`).
+
 Example:
 ```jo
-def println(s: String with charToStr, intToStr): Unit = ...
+def println(s: String with [charToStr, intToStr]): Unit = ...
 
-def process(data: List[Int] with arrayToList, setToList): Unit = ...
+def process(data: List[Int] with [arrayToList, setToList]): Unit = ...
 ```
 
 ### Multiple Parameters
 
 Each parameter can have its own adapters:
 ```jo
-def combine(x: String with intToStr, y: String with boolToStr): String = ...
+def combine(x: String with [intToStr], y: String with [boolToStr]): String = ...
 ```
 
 ## Semantics
@@ -74,12 +76,12 @@ def badAdapter2(x: Int)(auto show: Show[Int]): String = ...  // Invalid (auto pa
 def badAdapter3[T](x: T)(auto show: Show[T]): String = ...   // Invalid (type params)
 
 // Invalid: lambda expression
-def foo(s: String with (x => intToString(x))): Unit = ...
+def foo(s: String with [(x => intToString(x))]): Unit = ...
 
 // Invalid: variable holding a function
 def main =
   val myConverter = (x: Int) => intToString(x)
-  def bar(s: String with myConverter): Unit = ...       // Invalid (not a function name)
+  def bar(s: String with [myConverter]): Unit = ...       // Invalid (not a function name)
 ```
 
 ### Adapter Selection
@@ -87,7 +89,7 @@ def main =
 Adapters are tried in declaration order. The first adapter that successfully type-checks is used.
 
 ```jo
-def example(s: String with adapter1, adapter2): Unit = ...
+def example(s: String with [adapter1, adapter2]): Unit = ...
 
 // If both adapter1 and adapter2 could convert the argument,
 // adapter1 is always tried first
@@ -109,7 +111,7 @@ def intToStr(x: Int): String = ...
 def anotherIntToStr(x: Int): String = ...
 
 // Error: anotherIntToStr is shadowed by intToStr
-def foo(s: String with intToStr, anotherIntToStr): Unit = ...
+def foo(s: String with [intToStr, anotherIntToStr]): Unit = ...
 ```
 
 In this example, `anotherIntToStr` can never be selected because `intToStr` already handles all `Int` arguments.
@@ -120,7 +122,7 @@ def intToStr(x: Int): String = ...
 def charToStr(x: Char): String = ...
 
 // OK: Int and Char are distinct types
-def foo(s: String with intToStr, charToStr): Unit = ...
+def foo(s: String with [intToStr, charToStr]): Unit = ...
 ```
 
 **With subtyping:**
@@ -132,10 +134,10 @@ def animalToStr(x: Animal): String = ...
 def dogToStr(x: Dog): String = ...
 
 // Error: dogToStr is shadowed because Dog conforms to Animal (structural subtyping)
-def foo(s: String with animalToStr, dogToStr): Unit = ...
+def foo(s: String with [animalToStr, dogToStr]): Unit = ...
 
 // OK: more specific adapter comes first
-def bar(s: String with dogToStr, animalToStr): Unit = ...
+def bar(s: String with [dogToStr, animalToStr]): Unit = ...
 ```
 
 This validation prevents accidental shadowing and makes the adapter list's behavior more predictable.
@@ -147,7 +149,7 @@ When a varargs parameter has adapters, the adapters apply to individual elements
 ```jo
 def intToStr(i: Int): String = intToString(i)
 
-def printAll(items: ..String with intToStr): Unit = ...
+def printAll(items: ..String with [intToStr]): Unit = ...
 
 // Usage
 printAll("a", "b", "c")  // Direct: all arguments are String
@@ -171,14 +173,14 @@ Adapters cannot be polymorphic functions, and parameters with polymorphic types 
 // Invalid - adapter cannot be polymorphic
 def genericAdapter[T](x: T): String = ...
 
-def process(s: String with genericAdapter): Unit = ...  // Error
+def process(s: String with [genericAdapter]): Unit = ...  // Error
 ```
 
 **Parameters with type variables cannot have adapters:**
 
 ```jo
 // Invalid - parameter type contains type parameter
-def process[T](items: List[T] with arrayToList, setToList): Unit = ...  // Error
+def process[T](items: List[T] with [arrayToList, setToList]): Unit = ...  // Error
 ```
 
 **Rationale:**
@@ -198,7 +200,7 @@ While this constraint may be relaxed in the future, current use cases don't clea
 def arrayToList[T](arr: Array[T]): List[T] = ...
 def setToList[T](s: Set[T]): List[T] = ...
 
-def process[T](items: List[T] with arrayToList, setToList): Unit = ...
+def process[T](items: List[T] with [arrayToList, setToList]): Unit = ...
 ```
 
 Generic data structure conversions like these might be valuable, but the interaction with type inference and the potential for unexpected behavior requires careful design. The current restriction prioritizes simplicity and predictability.
@@ -213,7 +215,7 @@ Adapters are applied at most once. The compiler does not chain adapters in two w
 def intToBool(x: Int): Bool = x != 0
 def boolToStr(b: Bool): String = if b then "true" else "false"
 
-def process(s: String with intToBool, boolToStr): Unit = ...
+def process(s: String with [intToBool, boolToStr]): Unit = ...
 
 process(5)  // Error: intToBool(5) returns Bool, not String
             // boolToStr not chained after intToBool
@@ -223,9 +225,9 @@ process(5)  // Error: intToBool(5) returns Bool, not String
 
 ```jo
 def innerAdapter(x: Char): Int = ...
-def outerAdapter(x: Int with innerAdapter): String = ...
+def outerAdapter(x: Int with [innerAdapter]): String = ...
 
-def process(s: String with outerAdapter): Unit = ...
+def process(s: String with [outerAdapter]): Unit = ...
 
 process('x')  // Error: outerAdapter('x') fails
               // innerAdapter is NOT applied to convert 'x' to Int
@@ -243,7 +245,7 @@ def charToStr(c: Char): String = charToString(c)
 def intToStr(i: Int): String = intToString(i)
 def boolToStr(b: Bool): String = if b then "true" else "false"
 
-def println(s: String with charToStr, intToStr, boolToStr): Unit =
+def println(s: String with [charToStr, intToStr, boolToStr]): Unit =
   // implementation
 
 // Usage
@@ -256,7 +258,7 @@ println(true)      // Transformed to: println(boolToStr(true))
 ### Multiple Parameters with Adapters
 
 ```jo
-def formatPair(x: String with intToStr, y: String with boolToStr): String =
+def formatPair(x: String with [intToStr], y: String with [boolToStr]): String =
   "x=" + x + ", y=" + y
 
 formatPair(42, true)
@@ -275,7 +277,7 @@ def intToStr(n: Int): String receives hexMode =
   else
     intToString(n)
 
-def display(msg: String with intToStr): Unit =
+def display(msg: String with [intToStr]): Unit =
   println(msg)
 
 // Usage with default decimal format
