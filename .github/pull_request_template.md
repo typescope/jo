@@ -5,12 +5,14 @@ Fix #XXX: A short description
 - [ ] specify syntax
 - [ ] token & scanner
 - [ ] ast & parsing syntax
-- [ ] flags & symbols & name table
-- [ ] types & type operations & subtyping
-- [ ] sast & sast operations
+- sast
+  - [ ] sast & sast operations
+  - [ ] flags & symbols & name table
+  - [ ] types & type operations & subtyping
+  - [ ] encoding & decoding
 - [ ] type checking
 - [ ] context param check & transform
-- [ ] pattern match
+- pattern match
   - [ ] pattern typer
   - [ ] occur check
   - [ ] determinism check
@@ -18,10 +20,13 @@ Fix #XXX: A short description
   - [ ] semantic transform
 - [ ] closure conversion
 - platforms
-    - [ ] interpreter
-    - [ ] js backend
-    - [ ] stack machine
-    - [ ] register machine
+  - [ ] interpreter
+  - [ ] js backend
+  - [ ] stack machine
+  - [ ] register machine
+- documentation
+  - [ ] design doc
+  - [ ] syntax
 - tests
   - [ ] positive tests
   - [ ] negative tests
