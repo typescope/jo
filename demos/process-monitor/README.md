@@ -170,20 +170,20 @@ Context parameters provide strong security guarantees:
 
 1. **User code cannot access undeclared capabilities**
 
-   - Can only access declared `param` objects
+    - Can only access declared `param` objects
 
 2. **Platform controls implementations**
 
-   - Via `with` clause in runtime
+    - Via `with` clause in runtime
 
 3. **Type-safe capability access**
 
-   - Enforced at compile time
+    - Enforced at compile time
 
 4. **No runtime surprises**
 
-   - Resolves at compile/link time
-   - Zero runtime overhead
+    - Resolves at compile/link time
+    - Zero runtime overhead
 
 ## Key Takeaway
 
