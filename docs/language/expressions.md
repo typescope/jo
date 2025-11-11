@@ -50,9 +50,9 @@ end
 
 ```jo
 match value
-case #Some(x) =>
+case Some x =>
   println ("Found: " + x)
-case #None =>
+case None =>
   println "Nothing found"
 end
 ```
