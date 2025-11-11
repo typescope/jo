@@ -812,6 +812,7 @@ class Namer(using Config):
 
           else
             // no adaptation for spread
+            // TODO: maybe we should do the adaptation as well?
             val listType = AppliedType(StaticRef(defn.List_type), elementType :: Nil)
             given TargetType = TargetType.Known(listType, adapters = Nil)
             val argTyped = transform(rest.head)

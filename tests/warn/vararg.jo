@@ -21,3 +21,7 @@ def main =
   .. l
 
   println (.. List("hello"))
+
+  ok(3, .. [] 3, 5)
+
+  ok(10, ..)
