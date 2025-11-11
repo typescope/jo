@@ -80,7 +80,52 @@ def example(s: String with adapter1, adapter2): Unit = ...
 // adapter1 is always tried first
 ```
 
-**Note:** Adapter selection is based solely on the adapter's parameter type matching the argument type as call-site. Context parameters of adapters do not affect adapter selection.
+**Note:** Adapter selection is based solely on the adapter's parameter type matching the argument type at call-site. Context parameters of adapters do not affect adapter selection.
+
+### Adapter List Validation
+
+To prevent unreachable adapters, the compiler enforces the following rule:
+
+**No Shadowed Adapters**: The argument type of a later adapter must not be covered by any earlier adapter in the list.
+
+More precisely, for adapters `[a1, a2, ..., an]` declared on a parameter, if adapter `ai` accepts argument type `Ti` and adapter `aj` (where j > i) accepts argument type `Tj`, then `Tj` must not conform to `Ti`.
+
+**Invalid example:**
+```jo
+def intToStr(x: Int): String = ...
+def anotherIntToStr(x: Int): String = ...
+
+// Error: anotherIntToStr is shadowed by intToStr
+def foo(s: String with intToStr, anotherIntToStr): Unit = ...
+```
+
+In this example, `anotherIntToStr` can never be selected because `intToStr` already handles all `Int` arguments.
+
+**Valid example:**
+```jo
+def intToStr(x: Int): String = ...
+def charToStr(x: Char): String = ...
+
+// OK: Int and Char are distinct types
+def foo(s: String with intToStr, charToStr): Unit = ...
+```
+
+**With subtyping:**
+```jo
+type Animal = { name: String }
+type Dog = { name: String, color: String, weight: Int }
+
+def animalToStr(x: Animal): String = ...
+def dogToStr(x: Dog): String = ...
+
+// Error: dogToStr is shadowed because Dog conforms to Animal (structural subtyping)
+def foo(s: String with animalToStr, dogToStr): Unit = ...
+
+// OK: more specific adapter comes first
+def bar(s: String with dogToStr, animalToStr): Unit = ...
+```
+
+This validation prevents accidental shadowing and makes the adapter list's behavior more predictable.
 
 ### Adapters with Varargs
 
@@ -267,10 +312,14 @@ During type checking in `Namer.scala`:
 
 ### Adapter Validation
 
-When declaring a function with parameter adapters:
+When type checking a function definition with parameter adapters:
 
-1. Verify each adapter refers to a valid function
-2. Check adapter function signature constraints
+1. **Resolve adapter names**: Each adapter must refer to a function visible in the current scope
+2. **Check adapter signature**: Verify the adapter satisfies requirements (single parameter, no auto parameters, no type parameters)
+3. **Check return type**: The adapter's return type must conform to the parameter's declared type
+4. **No shadowed adapters**: Check that no later adapter's parameter type conforms to an earlier adapter's parameter type
+
+All validation happens at function definition time, not at call sites. This ensures errors are caught early and consistently.
 
 ## Future Extensions
 
