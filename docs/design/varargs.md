@@ -13,6 +13,7 @@ def f(x: ..T): U = ...
 ```
 
 **Rules:**
+
 - A vararg parameter must be the last parameter in the parameter list
 - Only one vararg parameter is allowed per function
 - The vararg parameter receives the arguments as a `List[T]`
