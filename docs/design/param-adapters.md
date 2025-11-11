@@ -26,8 +26,6 @@ Example:
 ```jo
 def println(s: String with charToStr, intToStr): Unit = ...
 
-def format(msg: String with show): Unit = ...
-
 def process(data: List[Int] with arrayToList, setToList): Unit = ...
 ```
 
@@ -306,14 +304,6 @@ When declaring a function with parameter adapters:
 
 1. Verify each adapter refers to a valid function
 2. Check adapter function signature constraints
-3. Store adapter information in the parameter symbol
-
-### Tree Transformation
-
-The transformed tree should:
-- Replace the argument with an `Apply` node calling the adapter
-- Preserve span information for error reporting
-- Maintain proper type information for subsequent phases
 
 ## Future Extensions
 
