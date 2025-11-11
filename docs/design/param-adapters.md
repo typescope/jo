@@ -73,12 +73,7 @@ def badAdapter3[T](x: T)(auto show: Show[T]): String = ...   // Invalid (type pa
 
 ### Auto Parameters Cannot Have Adapters
 
-Auto parameters may not declare adapters. This restriction prevents ambiguity in type inference and adapter resolution.
-
-```jo
-// Invalid - auto parameter cannot have adapters
-def process(auto show: Show[T] with adapter1, adapter2)(x: T): String = ...
-```
+Auto parameters may not declare adapters. Auto resolution and param adaption should not interfere.
 
 ### No Polymorphic Adapters
 
@@ -183,36 +178,6 @@ println(42)        // Transformed to: println(intToStr(42))
 println(true)      // Transformed to: println(boolToStr(true))
 ```
 
-### Custom Type Adapters
-
-```jo
-data Point(x: Int, y: Int)
-
-def pointToStr(p: Point): String =
-  "(\{p.x}, \{p.y})"
-
-def display(msg: String with pointToStr): Unit =
-  println(msg)
-
-val p = Point(3, 5)
-display(p)  // Transformed to: display(pointToStr(p))
-```
-
-### Adapters with Receive Parameters
-
-```jo
-def show(x: T): String receives showInstance: Show[T] =
-  showInstance.show(x)
-
-def log(msg: String with show): Unit =
-  println("[LOG] " + msg)
-
-// When called with a type that has Show instance
-val p = Point(3, 5)
-log(p)  // Transformed to: log(show(p))
-        // The show function receives the auto Show[Point] instance
-```
-
 ### Multiple Parameters with Adapters
 
 ```jo
@@ -221,49 +186,6 @@ def formatPair(x: String with intToStr, y: String with boolToStr): String =
 
 formatPair(42, true)
 // Transformed to: formatPair(intToStr(42), boolToStr(true))
-```
-
-## Interaction with Other Features
-
-### With Auto Parameters
-
-Adapters work seamlessly with auto parameters of the function, but auto parameters themselves cannot have adapters:
-
-```jo
-def printWith(auto show: Show[T])(s: String with intToStr, charToStr)(x: T): Unit =
-  println(s + ": " + show.show(x))
-
-// Valid usage
-printWith("Value")(someValue)
-printWith(42)(someValue)  // 42 converted via intToStr
-```
-
-### With Pattern Matching
-
-Adapters apply only at function call sites, not in patterns:
-
-```jo
-def process(s: String with intToStr): Unit =
-  match s
-    case "42" => println("found forty-two")
-    case _ => println("other")
-
-process(42)  // OK: transformed to process(intToStr(42))
-
-// In patterns, no adapter application:
-match someValue
-  case s: String => ...  // Only matches if someValue is already String
-```
-
-### With Type Ascription
-
-Explicit type ascriptions bypass adapter application:
-
-```jo
-def process(s: String with intToStr): Unit = ...
-
-process(42)           // OK: adapter applied
-process(42 as Int)    // Error: explicit type prevents adapter
 ```
 
 ## Type Error Messages
