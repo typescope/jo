@@ -59,7 +59,8 @@ object ElimCapture:
 
     val oldProcType = oldFunSym.info.as[ProcType]
     val paramInfos = prependParams ++ oldProcType.params ++ appendParams
-    val funType = oldProcType.copy(params = paramInfos)
+    val adapters = prependParams.map(_ => Nil) ++ oldProcType.adapters ++ appendParams.map(_ => Nil)
+    val funType = oldProcType.copy(params = paramInfos, adapters = adapters)
 
     val funName = flatName(fdef.symbol)
     Symbol.createSymbol(funName, funType, Flags.Fun | Flags.Synthetic, oldFunSym.enclosingContainer, oldFunSym.sourcePos)
