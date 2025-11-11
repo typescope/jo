@@ -656,9 +656,9 @@ class Namer(using Config):
       else
         val argsTyped =
           if procType.hasVararg then
-            transformVarargs(apply.args, procType.paramTypes, apply.span)
+            transformVarargs(apply.args, procType.paramTypes, procType.adapters, apply.span)
           else
-            transformArgs(apply.args, procType.paramTypes)
+            transformArgs(apply.args, procType.paramTypes, procType.adapters)
 
         val autos = autoResolver.derive(procType, apply.span)
         val word = Apply(fun, argsTyped, autos)(apply.span)
@@ -757,13 +757,13 @@ class Namer(using Config):
       errorWord(call.span)
 
     else
-      val preArgs2 = transformArgs(preArgs, procType.preParamTypes)
+      val preArgs2 = transformArgs(preArgs, procType.preParamTypes, procType.adapters.take(procType.preParamCount))
       val postArgs2 =
         if procType.hasVararg then
-          transformVarargs(postArgs, procType.postParamTypes, call.span)
+          transformVarargs(postArgs, procType.postParamTypes, procType.adapters.drop(procType.preParamCount), call.span)
 
         else
-          transformArgs(postArgs, procType.postParamTypes)
+          transformArgs(postArgs, procType.postParamTypes, procType.adapters.drop(procType.preParamCount))
 
       val autos = autoResolver.derive(procType, call.span)
       val word = Apply(fun, preArgs2 ++ postArgs2, autos)(call.span)
@@ -773,24 +773,26 @@ class Namer(using Config):
 
   /** Assumes that the argument count requirement is satisfied */
   def transformArgs
-      (args: List[Ast.Word], params: List[Type])
+      (args: List[Ast.Word], params: List[Type], adapters: List[List[Symbol]] = Nil)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
   : List[Word] =
 
-    for (arg, paramType) <- args.zip(params) yield
-      given TargetType = TargetType.Known(paramType)
+    val paddedAdapters = adapters.padTo(params.size, Nil)
+    for ((arg, paramType), adapterList) <- args.zip(params).zip(paddedAdapters) yield
+      given TargetType = TargetType.Known(paramType, adapterList)
       transform(arg)
 
   /** Assumes that the argument count requirement is satisfied */
   def transformVarargs
-      (args: List[Ast.Word], paramTypes: List[Type], span: Span)
+      (args: List[Ast.Word], paramTypes: List[Type], adapters: List[List[Symbol]], span: Span)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
   : List[Word] =
 
     val paramTypesFix :+ paramTypeFlex = paramTypes: @unchecked
+    val adaptersFix = adapters.take(paramTypesFix.size)
     val (argsFix, argsFlex) = args.splitAt(paramTypesFix.size)
 
-    val argsFixTyped = transformArgs(argsFix, paramTypesFix)
+    val argsFixTyped = transformArgs(argsFix, paramTypesFix, adaptersFix)
 
     val elementType = paramTypeFlex match
       case AppliedType(tctor, tp :: Nil) if tctor.refers(defn.Predef_Pack) =>

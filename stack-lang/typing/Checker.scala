@@ -125,7 +125,7 @@ class Checker(namer: Namer):
   def checkUnpackUsage(app: Apply, tt: TargetType)(using rp: Reporter, defn: Definitions, so: Source): Unit =
     if app.fun.refers(defn.Predef_dotdot) then
       tt match
-        case TargetType.Known(tp) if tp.refers(defn.Internal_PackElemType) =>
+        case TargetType.Known(tp, _) if tp.refers(defn.Internal_PackElemType) =>
 
         case _ =>
           Reporter.error(".. may only be used in unpacking an argument to a vararg function", app.pos)
@@ -293,14 +293,14 @@ class Checker(namer: Namer):
       case TargetType.ValueType =>
         if word2.tpe.isVoidType then
           // adapt to Unit type
-          TreeOps.adapt(word2, defn.UnitType)
+          TreeOps.adapt(word2, defn.UnitType, Nil)
         else
           checkValueType(word2)
           word2
 
-      case TargetType.Known(tpe) =>
+      case TargetType.Known(tpe, adapters) =>
         try
-          val wordAdapted = TreeOps.adapt(word2, tpe)
+          val wordAdapted = TreeOps.adapt(word2, tpe, adapters)
           checkType(wordAdapted, tpe)
           wordAdapted
 

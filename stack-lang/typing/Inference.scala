@@ -1,6 +1,7 @@
 package typing
 
 import sast.Types.*
+import sast.Symbols.*
 import sast.Subtyping
 import sast.Definitions
 
@@ -14,11 +15,11 @@ object Inference:
     case Fun(args: Int)
     case TermMember(name: String)
     case TypeMember(name: String)
-    case Known(tpe: Type)
+    case Known(tpe: Type, adapters: List[Symbol] = Nil)
 
     def knownType: Option[Type] =
       this match
-        case Known(tpe) => Some(tpe)
+        case Known(tpe, _) => Some(tpe)
         case _ => None
 
   /** The common result type of two different types.
@@ -45,7 +46,7 @@ object Inference:
     else if Subtyping.conforms(tp2, tp1Widen) then Some(tp1Widen)
     else
       tt match
-        case TargetType.Known(tp) =>
+        case TargetType.Known(tp, _) =>
           if Subtyping.conforms(tp1, tp) && Subtyping.conforms(tp2, tp) then
             Some(tp)
           else

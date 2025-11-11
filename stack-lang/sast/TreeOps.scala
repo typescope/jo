@@ -15,11 +15,9 @@ object TreeOps:
   /** Adapt the word to the target type.
     *
     * It makes drop of values in if/match expressions explicit.
+    * It also tries to apply adapters if direct conformance fails.
     */
-  def adapt(word: Word, targetType: Type)
-    (using defn: Definitions)
-  : Word =
-
+  def adapt(word: Word, targetType: Type, adapters: List[Symbol])(using defn: Definitions): Word =
     val unitType = defn.UnitType
 
     val curType = word.tpe
@@ -50,7 +48,10 @@ object TreeOps:
         Block(word.ensureDropValue :: unit :: Nil)(word.span)
 
       else
-        throw new AdaptionFailure(word, targetType)
+        // Try to apply adapters before failing
+        tryAdapters(word, targetType, adapters) match
+          case Some(adapted) => adapted
+          case None => throw new AdaptionFailure(word, targetType)
 
   private def coerceIntLiteral(n: Int, origType: Type, targetType: Type)
     (using defn: Definitions)
@@ -95,6 +96,24 @@ object TreeOps:
 
     else
       fail()
+
+  def tryAdapters(word: Word, targetType: Type, adapters: List[Symbol])(using defn: Definitions): Option[Word] =
+    adapters match
+      case Nil => None
+
+      case adapterSym :: rest =>
+        val procType = adapterSym.info.asProcType
+        val adapterParamType = procType.params.head.info
+
+        // Check if the word's type conforms to the adapter's parameter type
+        if Subtyping.conforms(word.tpe, adapterParamType) then
+          val adapterIdent = Ident(adapterSym)(word.span)
+          val adapted = adapterIdent.appliedTo(word)
+
+          Some(adapted)
+
+        else
+          tryAdapters(word, targetType, rest)
 
   /** Returns (locals, free) */
   def variableCensus(fdef: FunDef)(using Definitions): (List[Symbol], List[Symbol]) =

@@ -629,8 +629,8 @@ object Trees:
       assert(procType.autos.isEmpty, "autos not supplied")
 
       val args2 =
-        for (arg, paramType) <- args.zip(procType.paramTypes)
-        yield TreeOps.adapt(arg, paramType)
+        for ((arg, paramType), adapterList) <- args.zip(procType.paramTypes).zip(procType.adapters)
+        yield TreeOps.adapt(arg, paramType, adapterList)
 
 
       val span = args.foldLeft(word.span)(_ | _.span)

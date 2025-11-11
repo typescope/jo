@@ -33,6 +33,7 @@ object Adapters:
   def check(adapters: List[Ast.RefTree], paramType: Type, namer: Namer)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
   : List[Ident] =
+
     val valid = new mutable.ArrayBuffer[Ident]
 
     for adapter <- adapters do
