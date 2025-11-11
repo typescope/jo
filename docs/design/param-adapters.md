@@ -1,0 +1,362 @@
+# Parameter Adapters
+
+## Overview
+
+Parameter adapters provide a controlled form of argument conversion at function call sites without introducing implicit conversions or overloading. When an argument doesn't conform to a parameter's type, the compiler can automatically apply one of the declared adapter functions to convert the argument.
+
+## Motivation
+
+This feature addresses two common programming needs:
+
+1. **Controlled overloading**: Provides overloading-like functionality without the complexity and ambiguity issues of true overloading
+2. **Explicit conversions**: Avoids powerful implicit conversions that harm code readability and maintainability, while still allowing convenient argument passing
+
+The adapters are declared explicitly at the definition site, making the conversion possibilities visible and controlled.
+
+## Syntax
+
+### Parameter Declaration with Adapters
+
+```
+param_with_adapters = ident ":" type "with" adapter_list
+adapter_list = qualid {"," qualid}
+```
+
+Example:
+```jo
+def println(s: String with charToStr, intToStr): Unit = ...
+
+def format(msg: String with show): Unit = ...
+
+def process(data: List[Int] with arrayToList, setToList): Unit = ...
+```
+
+### Multiple Parameters
+
+Each parameter can have its own adapters:
+```jo
+def combine(x: String with intToStr, y: String with boolToStr): String = ...
+```
+
+## Semantics
+
+### Type Checking Algorithm
+
+When type-checking a function call `f(arg)` where parameter `p` has type `T` with adapters `[a1, a2, ..., an]`:
+
+1. **Direct conformance check**: If `arg` conforms to `T`, use `arg` directly
+2. **Adapter search**: If `arg` does not conform to `T`:
+   - For each adapter `ai` in order:
+     - Type-check `ai(arg)`
+     - If `ai(arg)` has type `T`, transform the call to `f(ai(arg))`
+     - If successful, stop searching
+   - If no adapter succeeds, report type error
+
+### Adapter Function Requirements
+
+An adapter function must satisfy:
+
+1. **Single parameter**: The adapter must take exactly one argument
+2. **Return type**: The adapter must return the parameter's declared type (or a subtype)
+3. **No auto parameters**: The adapter may not have auto parameters
+4. **Receive parameters allowed**: The adapter may have receive parameters
+
+Example valid adapters:
+```jo
+def intToStr(x: Int): String = ...                    // Valid
+def showInt(x: Int): String receives printer = ...    // Valid (receive params OK)
+
+def badAdapter(x: Int, y: Int): String = ...          // Invalid (multiple params)
+def badAdapter2(auto show: Show[T])(x: T): String = ...  // Invalid (auto params)
+```
+
+## Restrictions
+
+### Auto Parameters Cannot Have Adapters
+
+Auto parameters may not declare adapters. This restriction prevents ambiguity in type inference and adapter resolution.
+
+```jo
+// Invalid - auto parameter cannot have adapters
+def process(auto show: Show[T] with adapter1, adapter2)(x: T): String = ...
+```
+
+### No Polymorphic Adapters
+
+Adapters cannot be polymorphic functions, and parameters with polymorphic types cannot declare adapters.
+
+**Adapters cannot have type parameters:**
+
+```jo
+// Invalid - adapter cannot be polymorphic
+def genericAdapter[T](x: T): String = ...
+
+def process(s: String with genericAdapter): Unit = ...  // Error
+```
+
+**Parameters with type variables cannot have adapters:**
+
+```jo
+// Invalid - parameter type contains type parameter
+def process[T](items: List[T] with arrayToList, setToList): Unit = ...  // Error
+```
+
+**Rationale:**
+
+This constraint simplifies the type checking algorithm and prevents ambiguity in type inference:
+
+1. **Simplicity**: No need to infer type arguments for adapter functions
+2. **Predictability**: The adapter choice is clear and doesn't depend on type inference
+3. **Explicitness**: Users must provide concrete conversions for concrete types
+
+**Future considerations:**
+
+While this constraint may be relaxed in the future, current use cases don't clearly justify the added complexity. For example:
+
+```jo
+// Potential future feature (currently disallowed)
+def arrayToList[T](arr: Array[T]): List[T] = ...
+def setToList[T](s: Set[T]): List[T] = ...
+
+def process[T](items: List[T] with arrayToList, setToList): Unit = ...
+```
+
+Generic data structure conversions like these might be valuable, but the interaction with type inference and the potential for unexpected behavior requires careful design. The current restriction prioritizes simplicity and predictability.
+
+### Adapter Order Matters
+
+Adapters are tried in declaration order. The first adapter that successfully type-checks is used.
+
+```jo
+def example(s: String with adapter1, adapter2): Unit = ...
+
+// If both adapter1 and adapter2 could convert the argument,
+// adapter1 is always tried first
+```
+
+### No Recursive Adapter Application
+
+Adapters are applied at most once. The compiler does not chain adapters in two ways:
+
+**1. No sequential chaining**: Multiple adapters are not composed together.
+
+```jo
+def intToBool(x: Int): Bool = x != 0
+def boolToStr(b: Bool): String = if b then "true" else "false"
+
+def process(s: String with intToBool, boolToStr): Unit = ...
+
+process(5)  // Error: intToBool(5) returns Bool, not String
+            // boolToStr not chained after intToBool
+```
+
+**2. No nested adapter application**: When calling an adapter function, adapters on the adapter's parameters are not applied.
+
+```jo
+def innerAdapter(x: Char): Int = ...
+def outerAdapter(x: Int with innerAdapter): String = ...
+
+def process(s: String with outerAdapter): Unit = ...
+
+process('x')  // Error: outerAdapter('x') fails
+              // innerAdapter is NOT applied to convert 'x' to Int
+              // Only direct argument type is checked for adapter parameters
+```
+
+This restriction prevents deep chains of conversions that harm code readability. It may be relaxed in the future if clear use cases emerge, but the current design prioritizes explicitness and predictability.
+
+## Examples
+
+### Basic Adapter Usage
+
+```jo
+def charToStr(c: Char): String = charToString(c)
+def intToStr(i: Int): String = intToString(i)
+def boolToStr(b: Bool): String = if b then "true" else "false"
+
+def println(s: String with charToStr, intToStr, boolToStr): Unit =
+  // implementation
+
+// Usage
+println("hello")   // Direct: String conforms to String
+println('x')       // Transformed to: println(charToStr('x'))
+println(42)        // Transformed to: println(intToStr(42))
+println(true)      // Transformed to: println(boolToStr(true))
+```
+
+### Custom Type Adapters
+
+```jo
+data Point(x: Int, y: Int)
+
+def pointToStr(p: Point): String =
+  "(\{p.x}, \{p.y})"
+
+def display(msg: String with pointToStr): Unit =
+  println(msg)
+
+val p = Point(3, 5)
+display(p)  // Transformed to: display(pointToStr(p))
+```
+
+### Adapters with Receive Parameters
+
+```jo
+def show(x: T): String receives showInstance: Show[T] =
+  showInstance.show(x)
+
+def log(msg: String with show): Unit =
+  println("[LOG] " + msg)
+
+// When called with a type that has Show instance
+val p = Point(3, 5)
+log(p)  // Transformed to: log(show(p))
+        // The show function receives the auto Show[Point] instance
+```
+
+### Multiple Parameters with Adapters
+
+```jo
+def formatPair(x: String with intToStr, y: String with boolToStr): String =
+  "x=" + x + ", y=" + y
+
+formatPair(42, true)
+// Transformed to: formatPair(intToStr(42), boolToStr(true))
+```
+
+## Interaction with Other Features
+
+### With Auto Parameters
+
+Adapters work seamlessly with auto parameters of the function, but auto parameters themselves cannot have adapters:
+
+```jo
+def printWith(auto show: Show[T])(s: String with intToStr, charToStr)(x: T): Unit =
+  println(s + ": " + show.show(x))
+
+// Valid usage
+printWith("Value")(someValue)
+printWith(42)(someValue)  // 42 converted via intToStr
+```
+
+### With Pattern Matching
+
+Adapters apply only at function call sites, not in patterns:
+
+```jo
+def process(s: String with intToStr): Unit =
+  match s
+    case "42" => println("found forty-two")
+    case _ => println("other")
+
+process(42)  // OK: transformed to process(intToStr(42))
+
+// In patterns, no adapter application:
+match someValue
+  case s: String => ...  // Only matches if someValue is already String
+```
+
+### With Type Ascription
+
+Explicit type ascriptions bypass adapter application:
+
+```jo
+def process(s: String with intToStr): Unit = ...
+
+process(42)           // OK: adapter applied
+process(42 as Int)    // Error: explicit type prevents adapter
+```
+
+## Type Error Messages
+
+When no adapter succeeds, the error message should indicate:
+
+1. The expected parameter type
+2. The actual argument type
+3. The adapters that were tried
+
+Example error message:
+```
+---------- Error at example.jo:10:8 ---------------
+| process(myList)
+|         ^^^^^^
+| Type mismatch for parameter s: String
+|   Found: List[Int]
+|   Tried adapters: intToStr, boolToStr (none applicable)
+```
+
+## Implementation Notes
+
+### Type Checking Phase
+
+During type checking in `Namer.scala`:
+
+1. When typing a function application, check if the argument conforms to the parameter type
+2. If not, retrieve the parameter's adapter list
+3. For each adapter:
+   - Resolve the adapter name to a symbol
+   - Check adapter validity (single param, no auto params, correct return type)
+   - Try typing the adapter application
+   - If successful, transform the tree to include the adapter call
+4. If all adapters fail, report a comprehensive error
+
+### Adapter Validation
+
+When declaring a function with parameter adapters:
+
+1. Verify each adapter refers to a valid function
+2. Check adapter function signature constraints
+3. Store adapter information in the parameter symbol
+
+### Tree Transformation
+
+The transformed tree should:
+- Replace the argument with an `Apply` node calling the adapter
+- Preserve span information for error reporting
+- Maintain proper type information for subsequent phases
+
+## Future Extensions
+
+Potential future enhancements (not part of initial design):
+
+1. **Context-dependent adapters**: Allow adapters to depend on auto parameters
+2. **Adapter composition**: Allow limited chaining of adapters
+3. **Adapter groups**: Define reusable sets of adapters
+4. **Pattern adapter sugar**: Apply adapters in certain pattern contexts
+
+## Design Decisions
+
+### Why Definition-Site, Not Call-Site?
+
+Adapters are declared at the function definition, not the call site, because:
+
+1. **Discoverability**: Users can see what conversions are allowed when reading the function signature
+2. **Control**: Function authors control what conversions are acceptable for their function
+3. **Simplicity**: No ambiguity about which adapters apply
+
+### Why Not Implicit Conversions?
+
+Unlike implicit conversions in languages like Scala:
+
+1. **Explicit**: Adapters are visible in the function signature
+2. **Scoped**: Adapters only apply to specific parameters, not globally
+3. **Ordered**: No ambiguity about which adapter is chosen (first match wins)
+4. **Limited**: Adapters don't chain, preventing unexpected cascading conversions
+
+### Why Not Overloading?
+
+Compared to function overloading:
+
+1. **Simpler**: No complex overload resolution rules
+2. **Clearer**: The conversion functions are explicitly named
+3. **Flexible**: Adapters can be functions with receive parameters
+4. **Maintainable**: Adding a new conversion doesn't require defining a new overload
+
+## Summary
+
+Parameter adapters provide a lightweight, explicit mechanism for argument conversion that:
+
+- Maintains code readability through explicit adapter declarations
+- Avoids the complexity of overloading resolution
+- Prevents the pitfalls of implicit conversions
+- Integrates naturally with Jo's type system and auto parameters
