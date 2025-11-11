@@ -30,9 +30,11 @@ object Adapters:
       val paramType = earlierAdapter.info.asProcType.params.head.info
       s"Earlier adapter ${earlierAdapter.name} with parameter type ${paramType.show} is defined here"
 
-  def check(adapters: List[Ast.RefTree], paramType: Type, namer: Namer)
+  def check(adapters: List[Ast.RefTree], rawParamType: Type, namer: Namer)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
   : List[Ident] =
+    // ..T ==> T
+    val paramType = rawParamType.stripVarargToElemType
 
     val valid = new mutable.ArrayBuffer[Ident]
 

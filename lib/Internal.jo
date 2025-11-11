@@ -10,10 +10,6 @@ type Seq[T] = {
   def get(i: Int): T
 }
 
-
-// Used by the compiler as expected type to check varargs
-type PackElemType[T] = T
-
 // Compiler transform should use this, which is guaranteed to be linked
 //
 // Usage of jo.Predef.abort in phases after LinkRewriter is problematic.

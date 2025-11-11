@@ -122,14 +122,6 @@ class Checker(namer: Namer):
     if !tvar.isInstantiated then
       Reporter.error("Cannot infer a type for type variable " + tvar, pos)
 
-  def checkUnpackUsage(app: Apply, tt: TargetType)(using rp: Reporter, defn: Definitions, so: Source): Unit =
-    if app.fun.refers(defn.Predef_dotdot) then
-      tt match
-        case TargetType.Known(tp, _) if tp.refers(defn.Internal_PackElemType) =>
-
-        case _ =>
-          Reporter.error(".. may only be used in unpacking an argument to a vararg function", app.pos)
-
   def checkModifiers(defn: Ast.Def)(using rp: Reporter, so: Source): Flags =
     val mods = defn.modifiers
     if mods.isEmpty then return Flags.empty
@@ -306,7 +298,7 @@ class Checker(namer: Namer):
 
         catch case ex: TreeOps.AdaptionFailure =>
           Reporter.error(s"Expect type ${tpe.show}, found = ${word2.tpe.show}", word2.pos)
-          word2
+          Encoded(Block(Nil)(word2.span))(tpe)
 
       case TargetType.TermMember(name) =>
         checkTermMember(word2, name)

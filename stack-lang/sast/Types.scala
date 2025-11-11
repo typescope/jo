@@ -170,6 +170,14 @@ object Types:
 
         case _ => this
 
+    /** Convert ..T to T if possible */
+    def stripVarargToElemType(using defn: Definitions): Type =
+      this match
+        case AppliedType(ctor, targs) if ctor.refers(defn.Predef_Pack) =>
+          targs(0)
+
+        case _ => this
+
     /** Is the current type equivalent to a StaticRef or AppliedType to the given symbol  */
     def refers(symbol: Symbol)(using Definitions): Boolean =
       val visited = new mutable.ArrayBuffer[Symbol]

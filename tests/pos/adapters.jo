@@ -35,6 +35,14 @@ def level1(x: String with [intToStr]): Unit =
 def level2(x: Int): Unit =
   level1 x
 
+// Test 9: Varargs with adapters
+def printMany(xs: ..String with [intToStr, charToStr]): Unit =
+  xs.foreach x => println x
+
+// Test 10: Fixed params + varargs with adapters
+def formatList(prefix: String, items: ..String with [intToStr]): String =
+  prefix + ":" + (items.fold "" (a, b) => a + ", " + b)
+
 def main =
   // Test 1: Basic adapter usage
   puts "hello"        // Direct String - no adapter
@@ -66,7 +74,20 @@ def main =
   // Test 8: Multiple levels
   level2 300
 
-  // Test 9: Object methods
+  // Test 9: Varargs with adapters - multiple arguments
+  printMany 1 2 3           // All Int -> intToStr
+  printMany 'a' 'b' 'c'     // All Char -> charToStr
+  printMany 10 'x' 20 'y'   // Mixed Int and Char
+
+  // Test 10: Fixed params + varargs with adapters
+  puts formatList("numbers", 1, 2, 3, 4)
+
+  // Test 11: Varargs with splices
+  // val numbers = [5, 6, 7]
+  // printMany(..numbers)         // Splice with adapter
+  // puts formatList("items", ..numbers)
+
+  // Test 12: Object methods
   val printer = {
     def show(x: String with [intToStr, charToStr]): Unit =
       println x

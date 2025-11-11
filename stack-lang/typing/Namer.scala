@@ -662,7 +662,6 @@ class Namer(using Config):
 
         val autos = autoResolver.derive(procType, apply.span)
         val word = Apply(fun, argsTyped, autos)(apply.span)
-        checker.checkUnpackUsage(word, tt)
         val desugared = Rewriting.rewriteShortcutAndOr(word)
         checker.adapt(desugared, tt)
     else
@@ -767,7 +766,6 @@ class Namer(using Config):
 
       val autos = autoResolver.derive(procType, call.span)
       val word = Apply(fun, preArgs2 ++ postArgs2, autos)(call.span)
-      checker.checkUnpackUsage(word, tt)
       val rewrite = Rewriting.rewriteShortcutAndOr(word)
       checker.adapt(rewrite, tt)
 
@@ -789,7 +787,7 @@ class Namer(using Config):
   : List[Word] =
 
     val paramTypesFix :+ paramTypeFlex = paramTypes: @unchecked
-    val adaptersFix = adapters.take(paramTypesFix.size)
+    val adaptersFix :+ adaptersFlex = adapters: @unchecked
     val (argsFix, argsFlex) = args.splitAt(paramTypesFix.size)
 
     val argsFixTyped = transformArgs(argsFix, paramTypesFix, adaptersFix)
@@ -802,28 +800,28 @@ class Namer(using Config):
         Reporter.error("[internal error] Invalid vararg type: " + tp.show, span.toPos)
         AnyType
 
-    val argsFlexTyped =
-      for arg <- argsFlex yield
-        val tref = StaticRef(defn.Internal_PackElemType)
-        given TargetType = TargetType.Known(AppliedType(tref, elementType :: Nil))
-        transform(arg)
-
-    val emptyList =
+    var lastFlexArg =
       val tt = TargetType.Known(paramTypeFlex)
       checker.adapt(Ident(defn.List_empty)(span), tt)
 
-    val lastFlexArg =
-      if rp.hasErrors then
-        emptyList
-      else
-        argsFlexTyped.foldLeft(emptyList): (acc, arg) =>
-          arg match
-            case Apply(fun, arg :: Nil, _) if fun.refers(defn.Predef_dotdot) =>
-              acc.select("++").appliedTo(arg)
+    for arg <- argsFlex do
+      arg match
+        case Ast.Expr(Ast.Ident("..") :: rest) =>
+          if rest.size != 1 then
+            Reporter.error(".. should be followed by exact one word, found = " + rest.size, arg.pos)
 
-            case _ =>
-              acc.select("+").appliedTo(arg)
-          end match
+          else
+            // no adaptation for spread
+            val listType = AppliedType(StaticRef(defn.List_type), elementType :: Nil)
+            given TargetType = TargetType.Known(listType, adapters = Nil)
+            val argTyped = transform(rest.head)
+            lastFlexArg = lastFlexArg.select("++").appliedTo(argTyped)
+
+        case _ =>
+          given TargetType = TargetType.Known(elementType, adaptersFlex)
+          val argTyped = transform(arg)
+          lastFlexArg = lastFlexArg.select("+").appliedTo(argTyped)
+      end match
 
     argsFixTyped :+ lastFlexArg
 

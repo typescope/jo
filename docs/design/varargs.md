@@ -120,16 +120,14 @@ Unlike many languages where varargs are special syntax, in Jo the `..` notation 
 ```jo
 // Used to indicate the last parameter is a vararg
 type ..[T] = List[T]
-
-// Splice a list as flat arguments
-def ..[T](l: List[T]): T = abort "Only support unpacking in argument positions"
 ```
 
 The key insights:
 
 - `..T` is just a type alias for `List[T]`
-- The spread operator `..expr` is a function call that is specially handled by the compiler
-- This design makes varargs feel like native syntax while being library-defined
+- The spread operator `..expr` is a normal expression with two words `..` and `expr` that is specially handled by the typer
+
+This design makes varargs feel like native syntax while being library-defined
 
 ## Restrictions
 
