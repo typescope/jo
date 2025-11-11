@@ -1306,24 +1306,6 @@ class Namer(using Config):
       sc.define(paramSym)
       paramSym
 
-  def transformAdapters(adapters: List[Ast.RefTree])
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
-  : List[Ident] =
-    val valid = new mutable.ArrayBuffer[Ident]
-
-    for adapter <- adapters do
-      val adapterRef =
-        given TargetType = TargetType.Unknown
-        transform(adapter)
-
-      adapterRef.tpe match
-        case StaticRef(sym) if sym.is(Flags.Fun) =>
-          valid += Ident(sym)(adapter.span)
-
-        case tp =>
-          Reporter.error("A reference to function  expected, found = " + tp.show, adapter.pos)
-    end for
-    valid.toList
 
   def transformAutos(autos: List[Ast.Param])
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
@@ -1390,8 +1372,9 @@ class Namer(using Config):
       tparamSyms
       transformParams(funDef.params)
 
-    lazy val adapters = funDef.params.map: param =>
-      transformAdapters(param.adapters)
+    lazy val adapters =
+      funDef.params.zip(paramSyms).map: (param, paramSym) =>
+        Adapters.check(param.adapters, paramSym.info, this)
 
     lazy val autoSyms =
       tparamSyms
@@ -1452,7 +1435,6 @@ class Namer(using Config):
         case None => defn.receives(funSym)
 
     def computeInfo(resultType: Type) =
-      // TODO: validate adapters
       val adapterSymbols = adapters.map(l => l.map(_.symbol))
 
       ProcType(
@@ -1779,8 +1761,8 @@ class Namer(using Config):
         paramSym
 
     val adapters =
-      for param <- ddef.params yield
-        transformAdapters(param.adapters)
+      for (param, paramSym) <- ddef.params.zip(paramSyms) yield
+        Adapters.check(param.adapters, paramSym.info, this)
 
     val autoSyms =
       for auto <- ddef.autos yield
