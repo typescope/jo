@@ -1778,6 +1778,10 @@ class Namer(using Config):
         defScope.define(paramSym)
         paramSym
 
+    val adapters =
+      for param <- ddef.params yield
+        transformAdapters(param.adapters)
+
     val autoSyms =
       for auto <- ddef.autos yield
         val tpt = transformType(auto.tpt)
@@ -1796,8 +1800,10 @@ class Namer(using Config):
       yield
         transformParamRef(param).symbol
 
+    val adapterSymbols = adapters.map(l => l.map(_.symbol))
+
     val finalType =
-      ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), paramSyms.map(_ => Nil), autoSyms.map(_.toNamedInfo), resultType, () => effs, 0)
+      ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), adapterSymbols, autoSyms.map(_.toNamedInfo), resultType, () => effs, 0)
 
 
     TypeTree(finalType)(ddef.span)
