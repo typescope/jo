@@ -1,0 +1,18 @@
+// Test parameter adapters parsing
+
+def boolToStr(b: Bool): String = if b then "true" else "false"
+
+// Basic adapter usage
+def puts(s: String with [charToStr, intToStr, boolToStr]): Unit =
+  println s
+
+// Multiple parameters with adapters
+def formatPair(x: String with [intToStr], y: String with [boolToStr]): String =
+  "x=" + x + ", y=" + y
+
+def main =
+  puts "hello"
+  puts 'x'
+  puts 42
+  puts true
+  puts formatPair(42, true)
