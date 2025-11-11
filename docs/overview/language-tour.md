@@ -46,7 +46,7 @@ def find(x: String): Option[Value] =
 
 The `param` declares a contextual parameter. Functions can access `env` directly or override it with `with env = newValue`.
 
-## Effect System
+## Capability-based Effect Control
 
 Jo tracks computational effects in the type system as context parameters:
 
