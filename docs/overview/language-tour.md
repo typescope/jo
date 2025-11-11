@@ -71,8 +71,11 @@ Jo supports flexible call syntax and operators:
 
 ```jo
 // Multiple call styles
-println "hello, world"
-println("hello, world")
+gcd(10, 15)
+gcd 10 15
+gcd
+  10
+  15
 
 // Custom operators
 def (a: Int) ** (b: Int): Int =
