@@ -1,0 +1,10 @@
+// Later adapters cannot be shadowed by earlier ones
+
+def intToStr(x: Int): String = intToString(x)
+def anotherIntToStr(x: Int): String = "num: " + intToString(x)
+
+def foo(s: String with [intToStr, anotherIntToStr]): Unit =
+  print(s)
+
+def main =
+  foo(42)

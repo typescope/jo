@@ -1,0 +1,6 @@
+---------- Error at ./tests/warn/adapter-type-param.jo:5:16 ---------------
+| def process[T](items: List[T] with [listAdapter]): Unit =
+|                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|                Parameter with polymorphic type 'List[T]' cannot have adapters.
+
+1 error(s), 0 warning(s)

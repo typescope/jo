@@ -1,0 +1,6 @@
+---------- Error at ./tests/warn/adapter-polymorphic.jo:5:24 ---------------
+| def foo(s: String with [genericAdapter]): Unit =
+|                        ^^^^^^^^^^^^^^^^^
+|                        Adapter 'genericAdapter' cannot be polymorphic (cannot have type parameters).
+
+1 error(s), 0 warning(s)

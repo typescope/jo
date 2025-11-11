@@ -1,0 +1,11 @@
+// Adapters cannot have auto parameters
+
+type Show[T]
+
+def showInt(x: Int)(auto show: Show[Int]): String = "int"
+
+def foo(s: String with [showInt]): Unit =
+  print(s)
+
+def main =
+  foo(42)

@@ -1,0 +1,6 @@
+---------- Error at ./tests/warn/adapter-auto-param.jo:5:9 ---------------
+| def foo(auto s: String with [intToStr]): Unit =
+|         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|         Auto parameters cannot have adapters.
+
+1 error(s), 0 warning(s)

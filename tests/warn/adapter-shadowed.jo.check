@@ -1,0 +1,6 @@
+---------- Error at ./tests/warn/adapter-shadowed.jo:6:24 ---------------
+| def foo(s: String with [intToStr, anotherIntToStr]): Unit =
+|                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|                        Adapter 'anotherIntToStr' is shadowed by earlier adapter 'intToStr': both accept type Int.
+
+1 error(s), 0 warning(s)
