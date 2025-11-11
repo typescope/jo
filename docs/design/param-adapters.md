@@ -97,6 +97,10 @@ def example(s: String with [adapter1, adapter2]): Unit = ...
 
 **Note:** Adapter selection is based solely on the adapter's parameter type matching the argument type at call-site. Context parameters of adapters do not affect adapter selection.
 
+### Adapters and Subtyping
+
+Parameter adapters do not affect subtyping of function types. Two function types are considered subtypes based solely on their parameter and return types, ignoring any adapter specifications. Adapters are a call-site convenience feature and are not part of the function's type signature for subtyping purposes.
+
 ### Adapter List Validation
 
 To prevent unreachable adapters, the compiler enforces the following rule:
