@@ -1,0 +1,12 @@
+// Pattern definition parameters cannot have adapters
+
+def intToStr(i: Int): String = intToString(i)
+
+type Person = #Person(name: String, age: Int)
+
+pattern NamedPerson(name: String with [intToStr], age: Int): Person =
+  case #Person name age
+
+def main =
+  match (#Person "Alice" 30)
+    case NamedPerson n a => print(n)
