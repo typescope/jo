@@ -678,7 +678,16 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         typ()
       else
         EmptyTypeTree()(id.span)
-    Param(id, tpt)(id.span | tpt.span)
+
+    val adapters =
+      if peek() == Token.WITH then
+        eat(Token.WITH)
+        adapterList()
+      else
+        Nil
+
+    val finalSpan = if adapters.isEmpty then id.span | tpt.span else id.span | adapters.last.span
+    Param(id, tpt, adapters)(finalSpan)
 
   def paramsRest(acc: mutable.ArrayBuffer[Param], typeOptional: Boolean): List[Param] =
     val token = peek()
@@ -686,6 +695,23 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     else
       eat(Token.COMMA)
       paramsRest(acc += param(typeOptional), typeOptional)
+
+  /** Parse adapter list: [adapter1, adapter2, ...]
+    * Adapters can be qualified identifiers
+    */
+  def adapterList(): List[RefTree] =
+    eat(Token.LBRACKET)
+    if peek() == Token.RBRACKET then
+      eat(Token.RBRACKET)
+      Nil
+    else
+      val adapters = mutable.ArrayBuffer[RefTree]()
+      adapters += qualid()
+      while peek() == Token.COMMA do
+        eat(Token.COMMA)
+        adapters += qualid()
+      eat(Token.RBRACKET)
+      adapters.toList
 
   /** Parse a block within the indentation */
   def block(limitIndent: Indent): Block =
@@ -865,7 +891,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         if peek() == Token.RARROW then
           val arrow = eat(Token.RARROW)
           val body = block(arrow.indent)
-          val params = Param(id, EmptyTypeTree()(id.span))(id.span) :: Nil
+          val params = Param(id, EmptyTypeTree()(id.span), Nil)(id.span) :: Nil
           Some(Lambda(params, body)(id.span | body.span))
         else
           optSelectAndApply(id)
@@ -1089,11 +1115,11 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           val id = ident()
           next()
           val tp = typ()
-          params += Param(id, tp)(id.span | tp.span)
+          params += Param(id, tp, Nil)(id.span | tp.span)
         else
           val tp = typ()
           val id = Ident("_" + (params.size + 1))(tp.span)
-          params += Param(id, tp)(id.span | tp.span)
+          params += Param(id, tp, Nil)(id.span | tp.span)
       end while
 
       eat(Token.RPAREN)
@@ -1107,7 +1133,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         val id = ident()
         eat(Token.COLON)
         val tp = typ()
-        val field = Param(id, tp)(id.span | tp.span)
+        val field = Param(id, tp, Nil)(id.span | tp.span)
         fields(acc += field)
 
   def recordType(): RecordType =
