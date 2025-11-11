@@ -4,7 +4,7 @@
 
 Context parameters provide a mechanism for passing arguments remotely through deep call chains without syntactic overhead. Unlike traditional function parameters that must be passed explicitly at each call site, context parameters are declared at the top level and can be bound remotely, with their bindings automatically propagating through the call stack.
 
-This feature eliminates the need for global variables while retaining their convenience, providing static safety guarantees through an effect system.
+This feature eliminates the need for global variables while retaining their convenience, providing safety guarantees through static check.
 
 ## Motivation
 
@@ -60,13 +60,11 @@ Multiple parameters can be bound simultaneously:
 foo(10) with alpha = 3, beta = 6
 ```
 
-### Function Type with Context Dependencies
+### Function with Context Dependencies
 
-Function types can declare context parameter dependencies using `receives`:
+Function can declare context parameter dependencies using `receives`:
 
 ```jo
-type Printer = String => Unit receives indent
-
 def pretty(doc: Doc): String receives pageWidth = ...
 ```
 
@@ -140,7 +138,7 @@ param name: T
 def name$default: T = rhs
 ```
 
-The default value is evaluated at the point of use when no binding is available.
+The default value is automatically supplied in the scope when no binding is available.
 
 **Restriction**: The default value expression cannot depend on other context parameters (to prevent cycles and semantic surprises).
 
@@ -178,13 +176,13 @@ def main =
   printer("hello") with pageWidth = 100  // pageWidth bound at call site
 ```
 
-### Effect System and Safety
+### Static Check and Safety
 
-Context parameters are tracked by an effect system that ensures:
+Context parameters are tracked statically that ensures:
 
 1. **Binding before usage**: A context parameter must be bound before it can be used
 2. **Explicit dependencies**: Functions declare their context parameter dependencies via `receives`
-3. **Effect checking**: The compiler verifies that all required context parameters are available
+3. **Static check**: The compiler verifies that all required context parameters are available
 
 Example of a compile-time error:
 
@@ -388,7 +386,7 @@ def process(query: String) =
   search(query) allow connection, maxResults
 ```
 
-### Movie Finder Example
+### Dependency Injection
 
 ```jo
 type Movie = { name: String, director: String, year: Int }
@@ -412,39 +410,6 @@ def main =
   hitchcockMovies.foreach(m => println(m.name))
 ```
 
-## Implementation Notes
-
-### Effect Tracking
-
-The compiler maintains an effect system tracking context parameter dependencies:
-
-1. For each function, compute the set of context parameters it directly or indirectly accesses
-2. Check at call sites that all required parameters are bound
-3. Handle `receives` annotations to verify dependencies match declarations
-4. Enforce `allow` restrictions by checking accessed parameters against allowed set
-
-### Closure Representation
-
-Closures capture context parameters by default:
-
-1. At closure creation, snapshot the current bindings of all accessed context parameters
-2. Store these bindings in the closure environment
-3. When closure is called, use captured bindings instead of call-site bindings
-
-For `receives` parameters in function types:
-
-1. Do NOT capture these parameters in the closure
-2. At closure call site, look up these parameters from the current context
-3. Fail if parameters are not bound at call site
-
-### Stack Discipline
-
-Context parameter bindings follow stack discipline:
-
-1. `with` clauses push new bindings onto the stack
-2. Bindings are popped when the expression completes
-3. Lookups search the stack from top to bottom (most recent binding wins)
-
 ## Design Decisions
 
 ### Why Top-Level Declaration?
@@ -466,15 +431,12 @@ Traditional dynamic scoping (like special variables in Common Lisp) has problems
 
 Context parameters solve these with lexical scoping while keeping remote binding.
 
-### Why Not Implicit Parameters?
+### Why Not Scala Implicit Parameters
 
-Implicit parameters (Haskell-style) have limitations:
-
-1. **Name conflicts**: Different modules using same name with different types cannot compose
-2. **Type-only matching**: Accidental type matches can silently bind wrong parameters
-3. **No central documentation**: No single place defining the contract
-
-Context parameters use lexical scoping with top-level declarations to avoid these issues.
+1. Context parameters use name-based resolution vs. type-based resolution
+2. Context parameters have identity and prevent accidental type-based matches
+3. Context parameters support `allow` for fine-grained control
+4. Context parameters propagate automatically in the call chain
 
 ### Why Not Global Variables?
 
@@ -487,9 +449,8 @@ Global variables have severe problems:
 Context parameters provide:
 
 1. **Testability**: Can bind different values in different contexts
-2. **Safety**: Effect system ensures binding before use
+2. **Safety**: Static check ensures binding before use
 3. **Control**: `allow` clause provides fine-grained access control
-4. **Concurrency**: Stack-based bindings avoid races
 
 ### Default Capture in Closures
 
@@ -499,50 +460,12 @@ Closures capture context parameters by default because:
 2. **Common case**: Most often, programmers want captured behavior
 3. **Explicit override**: `receives` allows opting into call-site binding when needed
 
-## Comparison with Related Features
-
-### vs. Scala Implicit Parameters / Given/Using
-
-**Similarities**:
-- Both provide automatic parameter propagation
-- Both support default values
-
-**Differences**:
-- Context parameters use lexical scoping (top-level declarations) vs. type-based resolution
-- Context parameters have identity and prevent accidental type-based matches
-- Context parameters support `allow` for fine-grained control
-- Context parameters integrate with effect system for static safety
-
-### vs. Reader Monad
-
-**Similarities**:
-- Both thread context through computations
-- Both support shadowing/local overrides
-
-**Differences**:
-- Context parameters are built into the language, no monad wrapper needed
-- Context parameters have zero syntactic overhead
-- Context parameters support partial application via `allow`
-- No need for explicit lift/unlift operations
-
-### vs. Dependency Injection
-
-**Similarities**:
-- Both provide inversion of control
-- Both enable testing with different implementations
-
-**Differences**:
-- Context parameters are language-level, not framework-based
-- Context parameters are statically checked
-- No need for registration/configuration infrastructure
-- Context parameters support fine-grained temporary overrides
-
 ## Summary
 
 Context parameters provide a principled mechanism for remote parameter passing that:
 
 - Eliminates boilerplate from threading parameters through call chains
-- Provides safety guarantees through an effect system
+- Provides safety guarantees through static check
 - Enables effect parametricity and capability-based security
 - Maintains testability and modularity without global variables
 - Integrates smoothly with first-class functions
