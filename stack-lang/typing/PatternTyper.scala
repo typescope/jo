@@ -569,10 +569,10 @@ class PatternTyper(namer: Namer, checker: Checker):
       ProcType(
         tparams = Nil,
         params = NamedInfo("from", defn.IntType) :: NamedInfo("to", defn.IntType)  :: Nil,
-        adapters = Nil :: Nil,
+        adapters = List(Nil, Nil),
         autos = Nil,
-        receivesInfo = () => Nil,
         resultType = scrutType.widenTermRef,
+        receivesInfo = () => Nil,
         preParamCount = 0
       )
 
