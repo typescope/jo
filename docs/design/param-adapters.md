@@ -50,7 +50,9 @@ When type-checking a function call `f(arg)` where parameter `p` has type `T` wit
      - If successful, stop searching
    - If no adapter succeeds, report type error
 
-### Adapter Function Requirements
+### Adapter Requirements
+
+Adapters must be named functions. Lambda expressions or other expressions with function types cannot be used as adapters.
 
 An adapter function must satisfy:
 
@@ -63,10 +65,21 @@ Example valid adapters:
 ```jo
 def intToStr(x: Int): String = ...                    // Valid
 def showInt(x: Int): String receives printer = ...    // Valid (context params OK)
+```
 
+Invalid adapters:
+```jo
 def badAdapter(x: Int, y: Int): String = ...          // Invalid (multiple params)
 def badAdapter2(x: Int)(auto show: Show[Int]): String = ...  // Invalid (auto params)
 def badAdapter3[T](x: T)(auto show: Show[T]): String = ...   // Invalid (type params)
+
+// Invalid: lambda expression
+def foo(s: String with (x => intToString(x))): Unit = ...
+
+// Invalid: variable holding a function
+def main =
+  val myConverter = (x: Int) => intToString(x)
+  def bar(s: String with myConverter): Unit = ...       // Invalid (not a function name)
 ```
 
 ### Adapter Selection
@@ -277,13 +290,15 @@ display(255) with hexMode = true
 
 This example demonstrates how adapters can use context parameters to provide context-dependent conversion. The `intToStr` adapter accesses the `hexMode` context parameter to determine whether to format numbers as decimal or hexadecimal.
 
+When an adapter is applied, its context parameters are resolved from the calling context where the function is invoked. If an adapter is not called (because the argument already conforms to the parameter type), its context parameters need not be bound.
+
 ## Type Error Messages
 
 When no adapter succeeds, the error message should indicate:
 
 1. The expected parameter type
 2. The actual argument type
-3. The adapters that were tried
+3. The adapters that were tried and why each failed
 
 Example error message:
 ```
@@ -292,7 +307,9 @@ Example error message:
 |         ^^^^^^
 | Type mismatch for parameter s: String
 |   Found: List[Int]
-|   Tried adapters: intToStr, boolToStr (none applicable)
+|   Tried adapters:
+|     - intToStr(Int): requires Int, found List[Int]
+|     - boolToStr(Bool): requires Bool, found List[Int]
 ```
 
 ## Implementation Notes
