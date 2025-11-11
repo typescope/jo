@@ -65,7 +65,8 @@ def intToStr(x: Int): String = ...                    // Valid
 def showInt(x: Int): String receives printer = ...    // Valid (receive params OK)
 
 def badAdapter(x: Int, y: Int): String = ...          // Invalid (multiple params)
-def badAdapter2(auto show: Show[T])(x: T): String = ...  // Invalid (auto params)
+def badAdapter2(x: Int)(auto show: Show[Int]): String = ...  // Invalid (auto params)
+def badAdapter3[T](x: T)(auto show: Show[T]): String = ...   // Invalid (type params)
 ```
 
 ## Restrictions
