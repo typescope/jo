@@ -257,17 +257,6 @@ In this example:
 def test = factorial(10) allow none  // factorial cannot use any context parameters
 ```
 
-## Type Annotations
-
-Context parameter dependencies can be annotated in function types:
-
-```jo
-type Printer = Doc => String receives pageWidth
-
-// Multiple dependencies
-type Renderer = Element => String receives fontSize, pageWidth
-```
-
 ## Examples
 
 ### Basic Usage
