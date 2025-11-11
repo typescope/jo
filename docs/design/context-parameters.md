@@ -4,7 +4,7 @@
 
 Context parameters provide a mechanism for passing arguments remotely through deep call chains without syntactic overhead. Unlike traditional function parameters that must be passed explicitly at each call site, context parameters are declared at the top level and can be bound remotely, with their bindings automatically propagating through the call stack.
 
-This feature eliminates the need for global variables while retaining their convenience, providing safety guarantees through static check.
+This feature eliminates the need for global variables while retaining their convenience, and it provides safety guarantees through static check.
 
 ## Motivation
 
