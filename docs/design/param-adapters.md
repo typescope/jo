@@ -69,11 +69,39 @@ def badAdapter2(x: Int)(auto show: Show[Int]): String = ...  // Invalid (auto pa
 def badAdapter3[T](x: T)(auto show: Show[T]): String = ...   // Invalid (type params)
 ```
 
+### Adapter Selection
+
+Adapters are tried in declaration order. The first adapter that successfully type-checks is used.
+
+```jo
+def example(s: String with adapter1, adapter2): Unit = ...
+
+// If both adapter1 and adapter2 could convert the argument,
+// adapter1 is always tried first
+```
+
+**Note:** Adapter selection is based solely on the adapter's parameter type matching the argument type as call-site. Receive parameters of adapters do not affect adapter selection.
+
+### Adapters with Varargs
+
+When a varargs parameter has adapters, the adapters apply to individual elements, not to the entire sequence.
+
+```jo
+def intToStr(i: Int): String = intToString(i)
+
+def printAll(items: ..String with intToStr): Unit = ...
+
+// Usage
+printAll("a", "b", "c")  // Direct: all arguments are String
+printAll(1, 2, 3)        // Each Int is transformed: printAll(intToStr(1), intToStr(2), intToStr(3))
+printAll("a", 42, "c")   // Mixed: printAll("a", intToStr(42), "c")
+```
+
 ## Restrictions
 
 ### Auto Parameters Cannot Have Adapters
 
-Auto parameters may not declare adapters. Auto resolution and param adaption should not interfere.
+Auto parameters may not declare adapters. Auto resolution and param adaption should not interfere to avoid complexity in compiler as well as harm to readability.
 
 ### No Polymorphic Adapters
 
@@ -116,17 +144,6 @@ def process[T](items: List[T] with arrayToList, setToList): Unit = ...
 ```
 
 Generic data structure conversions like these might be valuable, but the interaction with type inference and the potential for unexpected behavior requires careful design. The current restriction prioritizes simplicity and predictability.
-
-### Adapter Order Matters
-
-Adapters are tried in declaration order. The first adapter that successfully type-checks is used.
-
-```jo
-def example(s: String with adapter1, adapter2): Unit = ...
-
-// If both adapter1 and adapter2 could convert the argument,
-// adapter1 is always tried first
-```
 
 ### No Recursive Adapter Application
 
