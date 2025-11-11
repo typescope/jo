@@ -65,10 +65,10 @@ var counter = 0
 counter = counter + 1
 
 // Array element assignment
-var arr = Array.create(10, 0)
+val arr = Array.create(10, 0)
 arr[0] = 42
 
 // Object field assignment
-var config = { timeout = 30, retries = 3 }
+val config = { var timeout = 30, var retries = 3 }
 config.timeout = 60
 ```
