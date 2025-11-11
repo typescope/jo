@@ -1129,8 +1129,8 @@ class Namer(using Config):
 
      // Provide type info for the function symbol
      val procType = ProcType(
-       tparams = Nil, paramSyms.map(_.toNamedInfo), autos = Nil, resultType,
-       receivesInfo, preParamCount = 0)
+       Nil, paramSyms.map(_.toNamedInfo), paramSyms.map(_ => Nil), Nil, resultType,
+       receivesInfo, 0)
 
      defn.add(funSym, thisSym, procType)
 
@@ -1140,7 +1140,7 @@ class Namer(using Config):
      val tparamSyms = Nil
      val autoSyms = Nil
      val tpt = TypeTree(resultType)(body.span.point)
-     val funDef = FunDef(funSym, tparamSyms, paramSyms, autoSyms, tpt, effectPolicy, bodyTyped)(lambda.span)
+     val funDef = FunDef(funSym, tparamSyms, paramSyms, paramSyms.map(_ => Nil), autoSyms, tpt, effectPolicy, bodyTyped)(lambda.span)
      val objType = ObjectType(NamedInfo(funName, procType) :: Nil, mutableFields = Nil)
 
      Object(thisSym, funDef :: Nil)(objType, lambda.span)
@@ -1431,7 +1431,7 @@ class Namer(using Config):
 
     def computeInfo(resultType: Type) =
       ProcType(
-        tparamSyms, paramSyms.map(_.toNamedInfo), autoSyms.map(_.toNamedInfo),
+        tparamSyms, paramSyms.map(_.toNamedInfo), paramSyms.map(_ => Nil), autoSyms.map(_.toNamedInfo),
         resultType, receivesInfo, funDef.preParamCount)
 
     val ip = lazyDefn.infoProvider
@@ -1439,7 +1439,7 @@ class Namer(using Config):
 
     val typer = () =>
       val tpt = TypeTree(resultType)(funDef.resultType.span)
-      FunDef(funSym, tparamSyms, paramSyms, autoSyms, tpt, effectPolicy, typedBody)(funDef.span)
+      FunDef(funSym, tparamSyms, paramSyms, paramSyms.map(_ => Nil), autoSyms, tpt, effectPolicy, typedBody)(funDef.span)
 
     DelayedDef(funSym, typer)
 
@@ -1530,7 +1530,7 @@ class Namer(using Config):
     val tparamSyms = Nil
     def computeInfo(resultType: Type) =
       ProcType(
-        tparamSyms, paramSyms.map(_.toNamedInfo), autoSyms.map(_.toNamedInfo),
+        tparamSyms, paramSyms.map(_.toNamedInfo), paramSyms.map(_ => Nil), autoSyms.map(_.toNamedInfo),
         resultType, () => defn.receives(funSym), funDef.preParamCount)
 
     val ip = lazyDefn.infoProvider
@@ -1538,7 +1538,7 @@ class Namer(using Config):
 
     val typer = () =>
       val tpt = TypeTree(resultType)(funDef.resultType.span)
-      FunDef(funSym, tparamSyms, paramSyms, autoSyms, tpt, effectPolicy, typedBody)(funDef.span)
+      FunDef(funSym, tparamSyms, paramSyms, paramSyms.map(_ => Nil), autoSyms, tpt, effectPolicy, typedBody)(funDef.span)
 
     DelayedDef(funSym, typer)
 
@@ -1772,7 +1772,7 @@ class Namer(using Config):
         transformParamRef(param).symbol
 
     val finalType =
-      ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), autoSyms.map(_.toNamedInfo), resultType, () => effs, preParamCount = 0)
+      ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), paramSyms.map(_ => Nil), autoSyms.map(_.toNamedInfo), resultType, () => effs, 0)
 
 
     TypeTree(finalType)(ddef.span)
@@ -1928,7 +1928,7 @@ class Namer(using Config):
         val resTypeChecked = checker.checkValueType(resType2)
 
         val autoTypes = Nil
-        val applyType = ProcType(tparams = Nil, paramTypes2, autoTypes, resTypeChecked, () => effs, preParamCount = 0)
+        val applyType = ProcType(Nil, paramTypes2, paramTypes2.map(_ => Nil), autoTypes, resTypeChecked, () => effs, 0)
         val objType = ObjectType(NamedInfo("apply", applyType) :: Nil, mutableFields = Nil)
         TypeTree(objType)(tpt.span)
 

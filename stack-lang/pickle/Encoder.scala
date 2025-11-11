@@ -674,7 +674,7 @@ object Encoder:
         repeated(targs): targ =>
           encodeType(targ, tparamScope)
 
-      case procType @ ProcType(tparams, params, autos, resType, _, preParamCount) =>
+      case procType @ ProcType(tparams, params, adapters, autos, resType, _, preParamCount) =>
         encodeByte(Format.ProcType)
 
         // Local type symbols in types only need to store bound and name.
