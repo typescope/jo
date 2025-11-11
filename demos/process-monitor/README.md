@@ -27,7 +27,7 @@ This demo demonstrates how platforms can provide system capabilities through **c
            │ uses
            ▼
 ┌─────────────────────┐
-│  jo.runtime.JS      │  Base runtime
+│  jo.runtime.JS      │  Base JS runtime
 │  (js intrinsic)     │  - Node.js interop
 └─────────────────────┘
 ```
@@ -157,8 +157,6 @@ bin/jo build -js \
   UserApp.jo \
   -o out/monitor.js
 ```
-
-**Notice**: Only **2 link flags** needed for the entire demo!
 
 ## Running
 
