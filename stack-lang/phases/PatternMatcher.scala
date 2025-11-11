@@ -46,7 +46,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
     val failType = TagType("Fail", Nil)
     val resultType = UnionType(successType :: failType :: Nil)
 
-    val funType = ProcType(predType.tparams, params, autos, resultType, () => predType.receives, preParamCount = 0)
+    val funType = ProcType(predType.tparams, params, params.map(_ => Nil), autos, resultType, () => predType.receives, preParamCount = 0)
     Symbol.createSymbol(predSym.name + "$impl", funType, Flags.Fun | Flags.Synthetic, predSym.owner, predSym.sourcePos)
 
   private def getImplFunSymbol(predSym: Symbol, implMap: mutable.Map[Symbol, Symbol]): Symbol =
@@ -83,7 +83,8 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
     // TODO: rebind param symbols
     val tpt = TypeTree(resultType)(pdef.resultType.span)
     val autos = Nil
-    FunDef(implSym, pdef.tparams, scrutSym :: Nil, autos, tpt, Effects.Policy.Infer, body)(pdef.span)
+    val adapters = Nil :: Nil  // One empty adapter list for the scrutSym parameter
+    FunDef(implSym, pdef.tparams, scrutSym :: Nil, adapters, autos, tpt, Effects.Policy.Infer, body)(pdef.span)
 
   override def transformLocalPatDef(pdef: PatDef)(using ctx: Context): Word =
     implementPatDef(pdef)

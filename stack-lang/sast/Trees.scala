@@ -520,6 +520,8 @@ object Trees:
   extends Word, Def:
     defn.setCode(symbol, this)
 
+    assert(params.size == adapters.size)
+
     private var censusCache: (List[Symbol], List[Symbol]) | Null = null
 
     val allParams: List[Symbol] = params ++ autos

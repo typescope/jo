@@ -129,7 +129,8 @@ object ElimCapture:
       val lifter = new Lifter(funSym)
       val body = lifter(fdef.body)(using ctx.withSubsts(substs.toMap))
       val params = fdef.params ++ paramSymsCaptured
-      ctx.lifted += FunDef(funSym, fdef.tparams, params, fdef.autos, fdef.resultType, fdef.effectPolicy, body)(fdef.span)
+      val adapters = fdef.adapters ++ paramSymsCaptured.map(_ => Nil)
+      ctx.lifted += FunDef(funSym, fdef.tparams, params, adapters, fdef.autos, fdef.resultType, fdef.effectPolicy, body)(fdef.span)
 
       Block(words = Nil)(fdef.span)
 
@@ -240,9 +241,10 @@ object ElimCapture:
         val body = lifter(fdef.body)(using ctx.withSubsts(substs.toMap))
         val body2 = Block(aliases.toList :+ body)(body.span)
         val params = paramThis :: fdef.params
+        val adapters = Nil :: fdef.adapters
 
         // TODO: owners of params and locals are broken ---- do we need them?
-        ctx.lifted += FunDef(liftedSym, fdef.tparams, params, fdef.autos, fdef.resultType, fdef.effectPolicy, body2)(fdef.span)
+        ctx.lifted += FunDef(liftedSym, fdef.tparams, params, adapters, fdef.autos, fdef.resultType, fdef.effectPolicy, body2)(fdef.span)
       end for
 
       Encoded(RecordLit(members.toList)(obj.span))(objType)

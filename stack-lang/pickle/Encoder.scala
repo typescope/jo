@@ -371,9 +371,9 @@ object Encoder:
       encodeType(tparam.info)
 
 
-  private def encodeParams(params: List[Symbol], prevOffset: Int)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
+  private def encodeParams(params: List[Symbol], adapters: List[List[Ident]], prevOffset: Int)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
     // Assume param section is small such that the delta is small even for the same base offset
-    repeated(params): param =>
+    repeated(params.zip(adapters)): (param, paramAdapters) =>
       encodeNat(state.getId(param))
       encodeString(param.name)
 
@@ -383,6 +383,13 @@ object Encoder:
       encodeNat(symSpan.length)
 
       encodeType(param.info)
+
+      repeated(paramAdapters): adapter =>
+        encodeSymbolRef(adapter.symbol)
+        val adapterSpan = adapter.span
+        val adapterStartDelta = adapterSpan.start - prevOffset
+        encodeInt(adapterStartDelta)
+        encodeNat(adapterSpan.length)
 
 
   private def encodeDef(defn: Def)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
@@ -510,8 +517,18 @@ object Encoder:
 
       encodeTypeParams(fdef.tparams, absoluteStart)
 
-      encodeParams(fdef.params, absoluteStart)
-      encodeParams(fdef.autos, absoluteStart)
+      encodeParams(fdef.params, fdef.adapters, absoluteStart)
+
+      repeated(fdef.autos): auto =>
+        encodeNat(state.getId(auto))
+        encodeString(auto.name)
+
+        val symSpan = auto.sourcePos.span
+        val startDelta = symSpan.start - absoluteStart
+        encodeInt(startDelta)
+        encodeNat(symSpan.length)
+
+        encodeType(auto.info)
 
       encodeTypeTree(fdef.resultType, absoluteStart)
 
@@ -540,7 +557,16 @@ object Encoder:
 
       encodeTypeParams(pdef.tparams, absoluteStart)
 
-      encodeParams(pdef.params, absoluteStart)
+      repeated(pdef.params): param =>
+        encodeNat(state.getId(param))
+        encodeString(param.name)
+
+        val symSpan = param.sourcePos.span
+        val startDelta = symSpan.start - absoluteStart
+        encodeInt(startDelta)
+        encodeNat(symSpan.length)
+
+        encodeType(param.info)
 
       encodeTypeTree(pdef.resultType, absoluteStart)
 
@@ -686,9 +712,11 @@ object Encoder:
             encodeKind(tparam.asTypeSymbol.kind)
             encodeType(tparam.info, tparamScope)
 
-          repeated(params): param =>
+          repeated(params.zip(adapters)): (param, paramAdapters) =>
             encodeString(param.name)
             encodeType(param.info, tparamScope)
+            repeated(paramAdapters): adapter =>
+              encodeSymbolRef(adapter)
 
           repeated(autos): auto =>
             encodeString(auto.name)

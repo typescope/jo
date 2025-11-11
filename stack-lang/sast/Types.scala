@@ -404,6 +404,8 @@ object Types:
       receivesInfo: () => List[Symbol],
       preParamCount: Int)
   extends Type:
+    assert(params.size == adapters.size)
+
     val preParamTypes: List[Type] = params.take(preParamCount).map(_.info)
     val postParamTypes: List[Type] = params.drop(preParamCount).map(_.info)
 
