@@ -14,10 +14,10 @@ def testPostFix =
   def (a: Int, b: Int) / = div a b
 
   val a = 3 5 + 3 2 * -
-  a p
+  println a
 
 def testMixedInfixPostFix =
   def (a: Int, b: Int) + = add a b
 
   val a = 4 * 3 10 / 5 +
-  a p
+  println a

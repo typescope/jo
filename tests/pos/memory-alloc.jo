@@ -9,5 +9,5 @@ def main =
     pt = {x: i, y: i * i}
     i = i + 1
 
-  pt.x p
-  pt.y p
+  println pt.x
+  println pt.y

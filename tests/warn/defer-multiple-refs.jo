@@ -14,4 +14,4 @@ section Service
 end
 
 def main =
-  Service.process(1, 2, 3) p
+  println Service.process(1, 2, 3)

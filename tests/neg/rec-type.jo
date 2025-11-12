@@ -19,4 +19,4 @@ def test5(a: A): B = a   // error
 def test6(x: X): Y = x   // error
 
 
-def main = 10 p
+def main = println 10

@@ -1,30 +1,30 @@
 def main =
   if ! true then
-    1 p
+    println 1
   else
-    2 p
+    println 2
   end
 
   if ! false then
-    1 p
+    println 1
   else
-    2 p
+    println 2
   end
 
   if ! false then
-    10 p
+    println 10
   else
-    20 p
+    println 20
   end
 
   if false && true then
-    99 p
+    println 99
   else
-   -99 p
+   println -99
   end
 
   if false || true then
-    999 p
+    println 999
   else
-    -999 p
+    println -999
   end

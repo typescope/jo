@@ -6,7 +6,7 @@ def pellComp(a: Int, b: Int, i: Int, n: Int): Int =
   if i == n then
     a
   else
-    a p
+    println a
     pellComp b (a + (b * 2)) (i + 1) n
 
-def main = pell 20 p
+def main = println (pell 20)

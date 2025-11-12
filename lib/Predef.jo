@@ -120,10 +120,6 @@ type ..[T] = List[T]
 // Utility functions
 //
 
-def (n: Int) p: Unit =
-  println
-    intToStr n
-
 // Adapter functions
 def byteToStr(b: Byte): String = intToStr b
 def boolToStr(b: Bool): String = if b then "true" else "false"

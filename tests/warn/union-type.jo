@@ -7,14 +7,14 @@ def test =
   val c: Option = #Some(5)
 
   match c                             // error
-    case #None => 0 p
+    case #None => println 0
 
   match c
-    case _     => 1 p
+    case _     => println 1
     case #None => 0 p                 // error
 
   match c                             // error
-    case #Some(n) => n p
+    case #Some(n) => println n
     case #Some(n) => n p               // error
 
-  10 p
+  println 10

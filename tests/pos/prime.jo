@@ -12,7 +12,7 @@ def isPrime(primes: List, n: Int): Bool =
 def prime(primes: List, cur: Int, until: Int): Unit =
   if cur < until then
     if isPrime primes cur then
-      cur p
+      println cur
       val primes2: List = #Cons(cur, primes)
       prime primes2 (1 + cur) until
     else
@@ -23,7 +23,7 @@ def primeUntil(until: Int): Unit =
   var cur = 3
   while cur < until do
     if isPrime primes cur then
-      cur p
+      println cur
       primes = #Cons(cur, primes) as List
     end
     cur = cur + 1

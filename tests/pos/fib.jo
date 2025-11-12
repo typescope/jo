@@ -3,7 +3,7 @@ def fib(n: Int): Int = fibComp 1 1 1 n
 def fibComp(a: Int, b: Int, i: Int, n: Int): Int =
   if i == n then a
   else
-    a p
+    println a
     fibComp b (b + a) (1 + i) n
 
-def main = fib 20 p
+def main = println (fib 20)

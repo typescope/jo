@@ -13,7 +13,7 @@ def main =
 
   val fact = Y fact0
 
-  (fact 0) p
-  (fact 4) p
-  (fact 5) p
-  (fact 10) p
+  println (fact 0)
+  println (fact 4)
+  println (fact 5)
+  println (fact 10)

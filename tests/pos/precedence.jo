@@ -11,13 +11,13 @@ def test2(): Int =
   app f 30 + (f 5)
 
 def main =
-  add 5 6 p
+  println (add 5 6)
 
-  (3 + 5 * 2) p
+  println (3 + 5 * 2)
 
-  (4 + 7 - 3) p
+  println (4 + 7 - 3)
 
-  if 7 - 4 >= 3 + 1 * 2 then 10 p else 20 p
+  println (if 7 - 4 >= 3 + 1 * 2 then 10 p else 20)
 
-  test p
-  test2 p
+  println test
+  println test2

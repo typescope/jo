@@ -4,7 +4,7 @@ def fib(n: Int): Unit =
   var i = 1
   while i < n do
     val c = a
-    a p
+    println a
     a = b
     b = b + c
     i = 1 + i

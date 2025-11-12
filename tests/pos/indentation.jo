@@ -41,5 +41,5 @@ def main =
     else
       fact1 5
 
-  a p
-  b p
+  println a
+  println b

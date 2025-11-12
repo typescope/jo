@@ -1,10 +1,10 @@
 def id[T](x: T) = x
 
 def main =
-  id
-    3
-      *
-        5 +
-          2 *
-             4 - 1
-    p
+  println
+    id
+      3
+        *
+          5 +
+            2 *
+               4 - 1

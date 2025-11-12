@@ -1,6 +1,6 @@
 def main =
-  (1 << 0) p
-  (1 << 4) p
+  println (1 << 0)
+  println (1 << 4)
 
-  (3 >> 0) p
-  (3 >> 3) p
+  println (3 >> 0)
+  println (3 >> 3)

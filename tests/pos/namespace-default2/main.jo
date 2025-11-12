@@ -3,4 +3,4 @@ import TestLib
 def concat(a: Int, l: TestLib.List[Int]): TestLib.List[Int] = #Cons(a, l)
 
 def main =
-  TestLib.double 10 p
+  println (TestLib.double 10)

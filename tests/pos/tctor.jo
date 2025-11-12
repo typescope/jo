@@ -6,7 +6,7 @@ def foreach(l: List[Int]): Unit =
     case #Nil =>
 
     case #Cons(xs) =>
-      xs.head p
+      println xs.head
       foreach xs.tail
   end
 
@@ -25,7 +25,7 @@ def main =
 
   val x: Pair[Int] = {a: 36, b: 49}
 
-  x.a p
-  x.b p
+  println x.a
+  println x.b
 
   foreach c

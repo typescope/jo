@@ -4,17 +4,17 @@ type Tree =
 
 def postOrder(tree: Tree): Unit =
   match tree
-    case #Leaf(n) => n p
+    case #Leaf(n) => println n
     case #Node(left, right, value) =>
       postOrder left
       postOrder right
-      value p
+      println value
 
 def preOrder(tree: Tree): Unit =
   match tree
-    case #Leaf(n) => n p
+    case #Leaf(n) => println n
     case #Node(left, right, value) =>
-      value p
+      println value
       preOrder left
       preOrder right
 

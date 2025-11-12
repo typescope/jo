@@ -1,5 +1,5 @@
 def effect(n: Int): Int =
-  n p
+  println n
   n
 
 def main =

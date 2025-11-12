@@ -1,20 +1,20 @@
 def foo(a: Int, b: Int) =
-  a p
-  b p
+  println a
+  println b
 
-def println(a: Int) = a p
+def println(a: Int) = println a
 
 def add(x: Int, y: Int) = x + y
 def mul(x: Int, y: Int) = x * y
 def indent(x: Int): Int = x
 
 def main =
-  indent
-    3 *
-      5 +
-        2 *
-          4 - 1
-    p
+  println
+    indent
+      3 *
+        5 +
+          2 *
+            4 - 1
 
   foo
     3 +

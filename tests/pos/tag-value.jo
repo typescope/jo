@@ -25,18 +25,18 @@ def showAnimal(a: Animal): String =
 def testOptionParamName: Unit =
   type Position = #Position(Int, Int)
   val pos: Position = #Position 5 10
-  pos._1 p
-  pos._2 p
+  println pos._1
+  println pos._2
 
   type Point = #Point(Int, y: Int)
   val point: Point = #Point 15 20
-  point._1 p
-  point.y p
+  println point._1
+  println point.y
 
   type Tuple = #Tuple(x: Int, Int)
   val tuple: Tuple = #Tuple 30 40
-  tuple.x p
-  tuple._2 p
+  println tuple.x
+  println tuple._2
 
 def main =
   val c = #Cow "Europe"

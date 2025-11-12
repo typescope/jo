@@ -8,10 +8,10 @@ def gcd(m: Int, n: Int): Int =
        gcd (m - n) n
 
 def main =
-  gcd 1 3 p
+  println (gcd 1 3)
 
-  gcd 4 6 p
+  println (gcd 4 6)
 
-  gcd 4 1 p
+  println (gcd 4 1)
 
-  gcd 9 6 p
+  println (gcd 9 6)

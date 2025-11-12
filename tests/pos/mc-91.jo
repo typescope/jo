@@ -5,8 +5,8 @@ def mc(n: Int): Int =
   else mc (mc (n + 11))
 
 def main =
-  mc -3 p
-  mc 10 p
-  mc 15 p
-  mc 90 p
-  mc 100 p
+  println (mc -3)
+  println (mc 10)
+  println (mc 15)
+  println (mc 90)
+  println (mc 100)

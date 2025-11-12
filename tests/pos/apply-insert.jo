@@ -12,9 +12,9 @@ def main =
   bar()
 
   match List(4)
-   case #Cons(a, _) => a p
+   case #Cons(a, _) => println a
    case _ =>
 
   match List 5
-   case #Cons(a, _) => a p
+   case #Cons(a, _) => println a
    case _ =>

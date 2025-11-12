@@ -8,5 +8,5 @@ def fact(n: Int): Int =
   s
 
 def main =
-  fact 3 p
-  fact 5 p
+  println (fact 3)
+  println (fact 5)

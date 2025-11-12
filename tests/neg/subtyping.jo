@@ -8,4 +8,4 @@ type Y = {a: Int, b: X}
 
 def test2(x: X): Y = x  // error
 
-def main = 1 p
+def main = println 1

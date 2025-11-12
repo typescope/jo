@@ -12,7 +12,7 @@ def foo(n: Int): Int =
 
   while a > 0 do
     var d: Int = a + 2
-    d p
+    println d
     b p                // error
   end
 
@@ -24,4 +24,4 @@ def bar(): Int = a     // error
 
 def main =
   a p                    // error
-  foo 10 p
+  println (foo 10)

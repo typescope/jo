@@ -20,9 +20,9 @@ def main =
   val c = createCounter 10
   c.inc
   c.add 10
-  c.get p
+  println c.get
 
   c.reset
   c.add 7
   c.upToEven
-  c.get p
+  println c.get

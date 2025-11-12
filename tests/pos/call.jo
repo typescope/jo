@@ -1,4 +1,4 @@
-def foo = 10 p
+def foo = println 10
 
 def bar = foo
 

@@ -4,4 +4,4 @@ def main =
     val sum = i * i + i
     i = i + 1
 
-  i p
+  println i

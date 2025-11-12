@@ -1,5 +1,5 @@
 def effect(n: Int): Int =
-  n p
+  println n
   n
 
 def main =
@@ -12,4 +12,4 @@ def main =
         val c = effect 4
         c
 
-  r p
+  println r

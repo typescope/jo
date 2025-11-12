@@ -4,4 +4,4 @@ def foo(x: Int, y: Int): Int =
   qux x + 10
 
 def main =
-  foo 5 10 p
+  println (foo 5 10)

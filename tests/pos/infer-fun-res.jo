@@ -19,4 +19,4 @@ def main =
   val a: Int = foo 5
   val b: Int = fact 10
 
-  (test2 10).a p
+  println (test2 10).a

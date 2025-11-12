@@ -1,4 +1,4 @@
 def main =
-  (1 & 0) p
-  (4 & 1) p
-  (3 & 1) p
+  println ((1 & 0))
+  println ((4 & 1))
+  println ((3 & 1))

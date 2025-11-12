@@ -20,7 +20,7 @@ end
 
 def main =
   val result = Calculator.compute(3, 7)
-  result p
+  println result
 
   val result2 = Calculator.compute(10, 5)
-  result2 p
+  println result2

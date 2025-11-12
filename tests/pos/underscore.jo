@@ -10,4 +10,4 @@ def length(s: StringRepr) =
 
 def main =
   val len = length #Raw("hello")
-  len p
+  println len

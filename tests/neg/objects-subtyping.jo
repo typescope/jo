@@ -13,4 +13,4 @@ def main =
   val a: A = b                   // error
   a.a = { val x = 5 }
 
-  b.a.y p
+  println b.a.y

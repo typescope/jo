@@ -3,4 +3,4 @@ namespace test
 def concat(a: Int, l: test.List[Int]): test.List[Int] = #Cons(a, l)
 
 def main =
-  test.double 10 p
+  println (test.double 10)

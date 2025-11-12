@@ -13,4 +13,4 @@ def test3(c: C): D = c.c
 
 def test4(e: E): D = e
 
-def main = 10 p
+def main = println 10

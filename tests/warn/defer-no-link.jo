@@ -10,4 +10,4 @@ section Service
 end
 
 def main =
-  Service.process() p
+  println Service.process()
