@@ -15,5 +15,5 @@ def main =
 
   val p4: PointReorder = p1  // error
 
-  p3.x p // error
-  p1.z p // error
+  println p3.x // error
+  println p1.z // error

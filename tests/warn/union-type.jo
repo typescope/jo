@@ -11,10 +11,10 @@ def test =
 
   match c
     case _     => println 1
-    case #None => 0 p                 // error
+    case #None => println 0           // error
 
   match c                             // error
     case #Some(n) => println n
-    case #Some(n) => n p               // error
+    case #Some(n) => println n        // error
 
   println 10

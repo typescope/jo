@@ -16,8 +16,8 @@ The following is the trace that leads to the problem:
 │     ^
 ├──   pretty "hello, word"	[ ./tests/warn/param-control2.jo:8:3 ]
 │     ^^^^^^
-└──   pageWidth p	[ ./tests/warn/param-control2.jo:5:3 ]
-      ^^^^^^^^^
+└──   println pageWidth	[ ./tests/warn/param-control2.jo:5:11 ]
+              ^^^^^^^^^
 
 
 1 error(s), 0 warning(s)

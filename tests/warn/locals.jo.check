@@ -1,0 +1,31 @@
+---------- Error at ./tests/warn/locals.jo:8:13 ---------------
+|     println b                // error
+|             ^
+|             Undefined term name b
+
+---------- Error at ./tests/warn/locals.jo:11:11 ---------------
+|   println c                  // error
+|           ^
+|           Undefined term name c
+
+---------- Error at ./tests/warn/locals.jo:16:13 ---------------
+|     println b                // error
+|             ^
+|             Undefined term name b
+
+---------- Error at ./tests/warn/locals.jo:19:11 ---------------
+|   println d                  // error
+|           ^
+|           Undefined term name d
+
+---------- Error at ./tests/warn/locals.jo:23:18 ---------------
+| def bar(): Int = a     // error
+|                  ^
+|                  Undefined term name a
+
+---------- Error at ./tests/warn/locals.jo:26:11 ---------------
+|   println a                    // error
+|           ^
+|           Undefined term name a
+
+6 error(s), 0 warning(s)

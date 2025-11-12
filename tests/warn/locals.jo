@@ -5,23 +5,23 @@ def foo(n: Int): Int =
     val b: Int = n * 2
   else
     val c: Int = n + 10
-    b p                // error
+    println b                // error
   end
 
-  c p                  // error
+  println c                  // error
 
   while a > 0 do
     var d: Int = a + 2
     println d
-    b p                // error
+    println b                // error
   end
 
-  d p                  // error
+  println d                  // error
 
   4
 
 def bar(): Int = a     // error
 
 def main =
-  a p                    // error
+  println a                    // error
   println (foo 10)

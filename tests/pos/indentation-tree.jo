@@ -2,8 +2,6 @@ def foo(a: Int, b: Int) =
   println a
   println b
 
-def println(a: Int) = println a
-
 def add(x: Int, y: Int) = x + y
 def mul(x: Int, y: Int) = x * y
 def indent(x: Int): Int = x

@@ -1,6 +1,0 @@
-def traceDouble(x: Int): Int = x p x + x  // error
-
-def main =
-  traceDouble 5 6 p  // error
-
-  1 (5 p) + 2 // error  // error

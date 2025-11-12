@@ -1,7 +1,7 @@
 ---------- Error at ./tests/warn/pattern-seq.jo:7:15 ---------------
 |       val c = _ys
 |               ^^^
-|               Undefined term identifier _ys
+|               Undefined term name _ys
 
 ---------- Warning at ./tests/warn/pattern-seq.jo:12:9 ---------------
 |   match a

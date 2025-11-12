@@ -26,8 +26,7 @@ def test =
   printChar c[3]
   printChar '\n'
 
-  val d =
-    a.substring(1, 3)
+  val d = a.substring(1, 3)
 
   println d.size
   println d
@@ -38,13 +37,13 @@ def test =
 def coercion =
   // byte
   val b: Byte = 45
-  println b
-  printChar (byteToChar b)
-  printChar '\n'
+  println (b as Int)
+  print (byteToChar b)
+  print '\n'
 
   // char
   val c: Char = 'a'
-  println c
+  println (c as Int)
   val b_c: Byte = charToByte c
   println b_c
 
@@ -53,7 +52,7 @@ def coercion =
   val b_i: Byte = intToByte i
   val c_i: Char = intToChar i
   println b_i
-  println c_i
+  println (c_i as Int)
 
 def coercion_truncate =
   // char
@@ -66,4 +65,4 @@ def coercion_truncate =
   val b_i: Byte = intToByte i
   val c_i: Char = intToChar i
   println b_i
-  println c_i
+  println (c_i as Int)

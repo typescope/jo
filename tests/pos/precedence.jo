@@ -17,7 +17,7 @@ def main =
 
   println (4 + 7 - 3)
 
-  println (if 7 - 4 >= 3 + 1 * 2 then 10 p else 20)
+  if 7 - 4 >= 3 + 1 * 2 then println 10 else println 20
 
   println test
   println test2

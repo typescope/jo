@@ -9,6 +9,6 @@ def main =
 
   println 2147483647
 
-  5p
+  println 5
 
   println (5*a)

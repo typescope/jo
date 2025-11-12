@@ -728,7 +728,7 @@ class PatternTyper(namer: Namer, checker: Checker):
       case None =>
         id match
           case id: Ast.Ident =>
-            Reporter.error(s"Undefined pattern identifier " + id.name, id.pos)
+            Reporter.error(s"Undefined pattern name " + id.name, id.pos)
 
           case _ =>
             // error already reported
