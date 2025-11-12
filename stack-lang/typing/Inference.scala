@@ -1,15 +1,13 @@
 package typing
 
 import sast.TypeOps
-import sast.Adaptation.Adapter
+import sast.Adaptation.{ Adapter, NoAdapter }
 import sast.Types.*
 import sast.Subtyping
 import sast.Definitions
 
 /** Type inference logic */
 object Inference:
-  val NoAdapter: Adapter = (_, _) => None
-
   enum TargetType:
     case Unknown
     case ValueType
@@ -24,6 +22,11 @@ object Inference:
       this match
         case Known(tpe, _) => Some(tpe)
         case _ => None
+
+    def show(using Definitions): String =
+      this match
+        case Known(tpe: Type, _) => "Known(" + tpe.show + ")"
+        case _ => this.toString()
 
   /** Conditionally apply context instantiation.
     *

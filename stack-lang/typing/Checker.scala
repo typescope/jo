@@ -285,7 +285,7 @@ class Checker(namer: Namer):
       case TargetType.ValueType =>
         if word2.tpe.isVoidType then
           // adapt to Unit type
-          Adaptation.adapt(word2, defn.UnitType, Inference.NoAdapter)
+          Adaptation.adapt(word2, defn.UnitType, Adaptation.NoAdapter)
         else
           checkValueType(word2)
           word2

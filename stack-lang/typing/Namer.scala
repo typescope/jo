@@ -230,7 +230,7 @@ class Namer(using Config):
       checker.adapt(word, tt)
 
   def transform(word: Ast.Word)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
-    Debug.trace(s"Typing ${word.show}, owner = " + sc.owner, (_: Word).show, enable = false) {
+    Debug.trace(s"Typing ${word.show}, owner = ${sc.owner}, tt = ${tt.show}", (_: Word).show, enable = false) {
     word.testKey(Namer.TypedWord) match
     case Some(typedWord) => typedWord.adapt
     case None =>

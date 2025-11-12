@@ -10,6 +10,8 @@ import common.Debug
 object Adaptation:
   type Adapter = (Word, Type) => Option[Word]
 
+  val NoAdapter: Adapter = (_, _) => None
+
   /** Use exception because we do not want to refer Reporter in sast package */
   class AdaptionFailure(word: Word, targetType: Type) extends Exception:
     override def toString(): String =
@@ -100,9 +102,12 @@ object Adaptation:
       fail()
 
   def createSimpleAdapter(adapters: List[Symbol])(using Definitions): Adapter =
-    (word, targetType) => adaptSimple(word, targetType, adapters)
+    if adapters.isEmpty then NoAdapter
+    else (word, targetType) => adaptSimple(word, targetType, adapters)
 
   def createVarargSpliceAdapter(adapters: List[Symbol], owner: Symbol)(using defn: Definitions, source: Source): Adapter =
+    if adapters.isEmpty then return NoAdapter
+
     (word, targetType) =>
       word.tpe.widen.dealias match
         case AppliedType(StaticRef(sym), elemType :: Nil) if sym == defn.List_type =>
