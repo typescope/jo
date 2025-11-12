@@ -804,19 +804,26 @@ class Namer(using Config):
       val tt = TargetType.Known(paramTypeFlex)
       checker.adapt(Ident(defn.List_empty)(span), tt)
 
+
+    def checkSplice(splice: Ast.Word, args: List[Ast.Word]): Unit =
+      if args.size != 1 then
+        Reporter.error(".. should be followed by exact one word, found = " + args.size, splice.pos)
+
+      else
+        // no adaptation for spread
+        // TODO: maybe we should do the adaptation as well?
+        val listType = AppliedType(StaticRef(defn.List_type), elementType :: Nil)
+        given TargetType = TargetType.Known(listType, adapters = Nil)
+        val argTyped = transform(args.head)
+        lastFlexArg = lastFlexArg.select("++").appliedTo(argTyped)
+
     for arg <- argsFlex do
       arg match
         case Ast.Expr(Ast.Ident("..") :: rest) =>
-          if rest.size != 1 then
-            Reporter.error(".. should be followed by exact one word, found = " + rest.size, arg.pos)
+          checkSplice(arg, rest)
 
-          else
-            // no adaptation for spread
-            // TODO: maybe we should do the adaptation as well?
-            val listType = AppliedType(StaticRef(defn.List_type), elementType :: Nil)
-            given TargetType = TargetType.Known(listType, adapters = Nil)
-            val argTyped = transform(rest.head)
-            lastFlexArg = lastFlexArg.select("++").appliedTo(argTyped)
+        case Ast.Apply(Ast.Ident(".."), args) =>
+          checkSplice(arg, args)
 
         case _ =>
           given TargetType = TargetType.Known(elementType, adaptersFlex)

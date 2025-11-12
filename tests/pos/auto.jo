@@ -36,7 +36,7 @@ def Set[T](l: ..T)(auto eq: Eq[T]): Set[T] = {
     def +(x: T): Set[T] =
       if contains x then this
       else
-        Set (..(l + x))
+        Set ..(l + x)
 
     def -(x: T): Set[T] = exclude e => eq x e
 
