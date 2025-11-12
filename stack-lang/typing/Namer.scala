@@ -777,7 +777,7 @@ class Namer(using Config):
 
     val paddedAdapters = adapters.padTo(params.size, Nil)
     for ((arg, paramType), adapterList) <- args.zip(params).zip(paddedAdapters) yield
-      given TargetType = TargetType.Known(paramType, adapterList)
+      given TargetType = TargetType.Known(paramType, Adaptation.createSimpleAdapter(adapterList))
       transform(arg)
 
   /** Assumes that the argument count requirement is satisfied */
@@ -811,7 +811,8 @@ class Namer(using Config):
 
       else
         val listType = AppliedType(StaticRef(defn.List_type), elementType :: Nil)
-        given TargetType = TargetType.Known(listType, adaptersFlex, isVarargSplice = true)
+        val adapter = Adaptation.createVarargSpliceAdapter(adaptersFlex, sc.owner)
+        given TargetType = TargetType.Known(listType, adapter)
         val argTyped = transform(args.head)
         lastFlexArg = lastFlexArg.select("++").appliedTo(argTyped)
 
@@ -824,7 +825,8 @@ class Namer(using Config):
           checkSplice(arg, args)
 
         case _ =>
-          given TargetType = TargetType.Known(elementType, adaptersFlex)
+          val adapter = Adaptation.createSimpleAdapter(adaptersFlex)
+          given TargetType = TargetType.Known(elementType, adapter)
           val argTyped = transform(arg)
           lastFlexArg = lastFlexArg.select("+").appliedTo(argTyped)
       end match

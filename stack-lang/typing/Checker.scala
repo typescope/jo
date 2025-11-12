@@ -285,18 +285,18 @@ class Checker(namer: Namer):
       case TargetType.ValueType =>
         if word2.tpe.isVoidType then
           // adapt to Unit type
-          TreeOps.adapt(word2, defn.UnitType, Nil, isVarargSplice = false)
+          Adaptation.adapt(word2, defn.UnitType, Inference.NoAdapter)
         else
           checkValueType(word2)
           word2
 
-      case TargetType.Known(tpe, adapters, isVarargSplice) =>
+      case TargetType.Known(tpe, adapter) =>
         try
-          val wordAdapted = TreeOps.adapt(word2, tpe, adapters, isVarargSplice)
+          val wordAdapted = Adaptation.adapt(word2, tpe, adapter)
           checkType(wordAdapted, tpe)
           wordAdapted
 
-        catch case ex: TreeOps.AdaptionFailure =>
+        catch case ex: Adaptation.AdaptionFailure =>
           Reporter.error(s"Expect type ${tpe.show}, found = ${word2.tpe.show}", word2.pos)
           Encoded(Block(Nil)(word2.span))(tpe)
 

@@ -1,13 +1,15 @@
 package typing
 
 import sast.TypeOps
+import sast.Adaptation.Adapter
 import sast.Types.*
-import sast.Symbols.*
 import sast.Subtyping
 import sast.Definitions
 
 /** Type inference logic */
 object Inference:
+  val NoAdapter: Adapter = (_, _) => None
+
   enum TargetType:
     case Unknown
     case ValueType
@@ -16,11 +18,11 @@ object Inference:
     case Fun(args: Int)
     case TermMember(name: String)
     case TypeMember(name: String)
-    case Known(tpe: Type, adapters: List[Symbol] = Nil, isVarargSplice: Boolean = false)
+    case Known(tpe: Type, adapter: Adapter = NoAdapter)
 
     def knownType: Option[Type] =
       this match
-        case Known(tpe, _, _) => Some(tpe)
+        case Known(tpe, _) => Some(tpe)
         case _ => None
 
   /** The common result type of two different types.
@@ -47,7 +49,7 @@ object Inference:
     else if Subtyping.conforms(tp2, tp1Widen) then Some(tp1Widen)
     else
       tt match
-        case TargetType.Known(tp, _, _) =>
+        case TargetType.Known(tp, _) =>
           if Subtyping.conforms(tp1, tp) && Subtyping.conforms(tp2, tp) then
             Some(tp)
           else

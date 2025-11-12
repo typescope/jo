@@ -6,171 +6,16 @@ import Flags.*
 import Types.*
 
 import ast.Positions.{Span, Source}
-import common.Debug
 
 import scala.collection.mutable
 
 object TreeOps:
-  /** Use exception because we do not want to refer Reporter in sast package */
-  class AdaptionFailure(word: Word, targetType: Type) extends Exception:
-    override def toString(): String =
-      "Unable to adapt " + word + " of type " + word.tpe + " to " + targetType
-
-  /** Adapt the word to the target type.
-    *
-    * It makes drop of values in if/match expressions explicit.
-    * It also tries to apply adapters if direct conformance fails.
-    */
-  def adapt
-      (word: Word, targetType: Type, adapters: List[Symbol], isVarargSplice: Boolean)
-      (using defn: Definitions, source: Source)
-  : Word = Debug.trace(s"adapting ${word.show} to ${targetType.show}", enable = false):
-
-    val unitType = defn.UnitType
-
-    val curType = word.tpe
-    if Subtyping.conforms(curType, targetType) then
-      word
-
-    else if targetType.isVoidType && curType.isValueType then
-      word.dropValue
-
-    else
-
-      val isNumeric = defn.isNumericType(word.tpe) && defn.isNumericType(targetType)
-
-      if isNumeric && !Subtyping.conforms(word.tpe, targetType) then
-        // Numeric coercion
-        word match
-          case Literal(Constant.Int(n)) =>
-            val tp2 = coerceIntLiteral(n, word.tpe, targetType)
-            val word2 = Literal(Constant.Int(n))(tp2, word.span)
-            word2
-
-          case _ =>
-            // Only widening coercion is allowed for non-literals
-            coerceNumeric(word, targetType)
-
-      else if Subtyping.conforms(unitType, targetType) then
-        val unit = unitValue(word.span.endPoint)
-        Block(word.ensureDropValue :: unit :: Nil)(word.span)
-
-      else
-        // Try to apply adapters before failing
-        tryAdapters(word, targetType, adapters, isVarargSplice) match
-          case Some(adapted) => adapted
-          case None => throw new AdaptionFailure(word, targetType)
-
-  private def coerceIntLiteral(n: Int, origType: Type, targetType: Type)(using defn: Definitions): Type =
-    if
-      targetType.isSubtype(defn.ByteType) && n < 128 && n >= -128
-      || targetType.isSubtype(defn.CharType) && n < 65536 && n >= 0
-      || targetType.isSubtype(defn.IntType)
-    then
-      targetType
-
-    else
-      origType
-
-  /** Adapt the word to the target type
-    *
-    *     Byte ==> Int
-    *     Char ==> Int
-    *
-    * Assumption: The tye of the word does not conform to the target type.
-    */
-  private def coerceNumeric(word: Word, targetType: Type)(using defn: Definitions, source: Source): Word =
-    def fail() = throw new AdaptionFailure(word, targetType)
-
-    val origType = word.tpe
-    if origType.isSubtype(defn.ByteType) then
-      if targetType.isSubtype(defn.IntType) then
-        val byteToInt = Ident(defn.Predef_byteToInt)(word.span)
-        byteToInt.appliedTo(word)
-
-      else
-        fail()
-
-    else if origType.isSubtype(defn.CharType) then
-      if targetType.isSubtype(defn.IntType) then
-        val charToInt = Ident(defn.Predef_charToInt)(word.span)
-        charToInt.appliedTo(word)
-
-      else
-        fail()
-
-    else
-      fail()
-
-  def tryAdapters
-      (word: Word, targetType: Type, adapters: List[Symbol], isVarargSplice: Boolean)
-      (using defn: Definitions, source: Source)
-  : Option[Word] =
-
-    if isVarargSplice then
-      word.tpe.widen.dealias match
-        case AppliedType(StaticRef(sym), elemType :: Nil) if sym == defn.List_type =>
-          // Only try adapt if the type is List[X]
-          val AppliedType(_, targetElemType :: Nil) = targetType: @unchecked
-          tryAdaptersVarargSplice(word, targetElemType, elemType, adapters)
-
-        case tp =>
-          println("widen.deliased = " + tp)
-          None
-
-    else
-      tryAdaptersSimple(word, targetType, adapters)
-
-  def tryAdaptersSimple
-      (word: Word, targetType: Type, adapters: List[Symbol])
-      (using defn: Definitions, source: Source)
-  : Option[Word] = Debug.trace(s"adapt ${word.show} to ${targetType.show} with ${adapters}", enable = false):
-
-    adapters match
-      case Nil => None
-
-      case adapterSym :: rest =>
-        val procType = adapterSym.info.asProcType
-        val adapterParamType = procType.params.head.info
-
-        // Check if the word's type conforms to the adapter's parameter type
-        if Subtyping.conforms(word.tpe, adapterParamType) then
-          val adapterIdent = Ident(adapterSym)(word.span)
-          val adapted = adapterIdent.appliedTo(word)
-
-          Some(adapted)
-
-        else
-          tryAdaptersSimple(word, targetType, rest)
-
-  def tryAdaptersVarargSplice
-      (word: Word, targetElemType: Type, elemType: Type, adapters: List[Symbol])
-      (using Definitions, Source)
-  : Option[Word] = Debug.trace(s"adapt splice ${word.show} from ${elemType.show} to ${targetElemType.show} with ${adapters}", enable = false):
-
-    adapters match
-      case Nil => None
-
-      case adapterSym :: rest =>
-        val procType = adapterSym.info.asProcType
-        val adapterParamType = procType.params.head.info
-
-        // Check if the word's type conforms to the adapter's parameter type
-        if Subtyping.conforms(elemType, adapterParamType) then
-          val adapterFun = etaExpand(adapterSym, Effects.Policy.Infer, word.span)
-          val adapted = word.select("map").appliedToTypes(targetElemType).appliedTo(adapterFun)
-
-          Some(adapted)
-
-        else
-          tryAdaptersVarargSplice(word, targetElemType, elemType, rest)
-
   /** Eta-expand a function to an object with an apply method
     *
     * Converts: f
     * To: { def apply[T1, ...](arg1: T1, ...): U = f(arg1, ...) }
     */
-  def etaExpand(fun: Symbol, policy: Effects.Policy, span: Span)(using Definitions, Source): Word =
+  def etaExpand(fun: Symbol, owner: Symbol, policy: Effects.Policy, span: Span)(using defn: Definitions, source: Source): Word =
     val procType = fun.info.asProcType
     val pos = span.toPos
 
@@ -195,6 +40,9 @@ object TreeOps:
 
     // Build the object type
     val objType = ObjectType(NamedInfo("apply", applyProcType) :: Nil, mutableFields = Nil)
+
+    defn.add(thisSym, owner, objType)
+    defn.add(applySym, thisSym, applyProcType)
 
     // Build the body: call the original function with the parameters
     val funIdent = Ident(fun)(span)

@@ -623,7 +623,7 @@ object Trees:
       val memberType = word.tpe.termMember(name)
       Select(word, name)(memberType, word.span)
 
-    def appliedTo(args: Word*)(using Definitions, Source): Word =
+    def appliedTo(args: Word*)(using Definitions): Word =
       val procType = word.tpe.asProcType
 
       assert(procType.paramCount == args.size, "args mismatch")
@@ -632,8 +632,7 @@ object Trees:
 
       val args2 =
         for ((arg, paramType), adapterList) <- args.zip(procType.paramTypes).zip(procType.adapters)
-        yield TreeOps.adapt(arg, paramType, adapterList, isVarargSplice = false)
-
+        yield Adaptation.adapt(arg, paramType, Adaptation.createSimpleAdapter(adapterList))
 
       val span = args.foldLeft(word.span)(_ | _.span)
 
