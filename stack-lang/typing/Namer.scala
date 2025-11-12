@@ -581,9 +581,6 @@ class Namer(using Config):
         else
           classRef
 
-      // Always prefer type constraints from outer scope if present
-      for tp <- tt.knownType do Subtyping.conforms(instanceType, tp)
-
       instanceType.getTermMember(Names.Constructor) match
         case None =>
           Reporter.error("The class cannot be instantiated as it does not have a constructor.", newExpr.pos)
@@ -739,9 +736,6 @@ class Namer(using Config):
     val postParamCount = procType.postParamCount
 
     assert(!procType.hasVararg, "Infix call cannot have varargs")
-
-    // Always prefer type constraints from outer scope if present
-    for tp <- tt.knownType do Subtyping.conforms(procType.resultType, tp)
 
     if preArgs.size != preParamCount then
       Reporter.error(

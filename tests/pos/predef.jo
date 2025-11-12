@@ -8,7 +8,7 @@ def main =
 
   l.map(x => x * 2).foreach (x => println x)
   println
-    (l.fold 0 (acc, i) => acc + i) as Int  // TODO: can we do better
+    l.fold 0 (acc, i) => acc + i
 
   val l2 = List 3 6 8 9 10
   l2.select(i => i % 2 == 0)
