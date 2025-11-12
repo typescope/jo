@@ -49,7 +49,7 @@
 |          The lhs and rhs bind should bind same set of symbols, found lhs = Set(x), rhs = Set()
 
 ---------- Error at ./tests/warn/pattern-nested.jo:51:10 ---------------
-|     case NoExist x  => println (intToStr x)
+|     case NoExist x  => println x
 |          ^^^^^^^
 |          Found extra pattern, an expression pattern should form a single pattern
 
