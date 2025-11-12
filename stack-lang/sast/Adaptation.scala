@@ -76,7 +76,7 @@ object Adaptation:
     *     Byte ==> Int
     *     Char ==> Int
     *
-    * Assumption: The tye of the word does not conform to the target type.
+    * Assumption: The type of the word does not conform to the target type.
     */
   private def coerceNumeric(word: Word, targetType: Type)(using defn: Definitions): Word =
     def fail() = throw new AdaptionFailure(word, targetType)

@@ -77,7 +77,7 @@ object Config:
   //----------------------------------------------------------------------------
 
   val printAfter : Setting[List[String]] = CommaListSetting("-printAfter",  "print after steps")
-  val printBefore: Setting[List[String]] = CommaListSetting("-printBefore", "print beofer steps")
+  val printBefore: Setting[List[String]] = CommaListSetting("-printBefore", "print before steps")
   val printOnly  : Setting[List[String]] = CommaListSetting("-printOnly",  "only print specified files")
 
   val fatalWarnings : Setting[Boolean] = BooleanSetting("-fatal-warnings",  false, "warnings are fatal")
