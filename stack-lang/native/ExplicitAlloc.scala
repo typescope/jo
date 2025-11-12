@@ -38,13 +38,14 @@ class ExplicitAlloc(runtime: NativeRuntime)(using defn: Definitions) extends pha
     val allocFun = Ident(runtime.GC_alloc)(word.span)
     val addrType = StaticRef(runtime.Core_Addr)
 
+    given Source = ctx.sourcePos.source
+
     val recordType = word.tpe.asRecordType
     val size = memory.size(recordType)
     val sizeLit = Literal(Constant.Int(size))(defn.IntType, word.span)
     val allocApply = allocFun.appliedTo(sizeLit)
 
     val refSym =
-      given Source = ctx.sourcePos.source
       Symbol.createSymbol("ref", addrType, Flags.Synthetic, ctx, word.pos)
     val ref = Ident(refSym)(word.span)
 
@@ -71,6 +72,8 @@ class ExplicitAlloc(runtime: NativeRuntime)(using defn: Definitions) extends pha
     val qual = select.qual
     val select2 = select.copy(qual = this(qual))(select.tpe, select.span)
 
+    given Source = ctx.sourcePos.source
+
     if qual.tpe.isObjectType then
       memory.readObjectMember(qual.tpe.asObjectType, select2)
 
@@ -80,6 +83,8 @@ class ExplicitAlloc(runtime: NativeRuntime)(using defn: Definitions) extends pha
 
   override def transformFieldAssign(word: FieldAssign)(using ctx: Context): Word =
     val FieldAssign(Select(qual, name), rhs) = word
+
+    given Source = ctx.sourcePos.source
 
     if qual.tpe.isObjectType then
       val objectType = qual.tpe.asObjectType
