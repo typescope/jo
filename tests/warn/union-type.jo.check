@@ -19,12 +19,12 @@
 |         The match will fail for the case: #Some(value: Int)
 
 ---------- Warning at ./tests/warn/union-type.jo:14:10 ---------------
-|     case #None => 0 p                 // error
+|     case #None => println 0           // error
 |          ^^^^^
 |          The case is not reachable
 
 ---------- Warning at ./tests/warn/union-type.jo:18:10 ---------------
-|     case #Some(n) => n p               // error
+|     case #Some(n) => println n        // error
 |          ^^^^^^^
 |          The case is not reachable
 

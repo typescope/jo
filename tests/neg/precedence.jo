@@ -1,4 +1,0 @@
-def main =
-  10 10 // error
-  5 5 p // error
-  5 p 5 // error

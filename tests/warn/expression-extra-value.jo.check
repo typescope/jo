@@ -1,0 +1,16 @@
+---------- Error at ./tests/warn/expression-extra-value.jo:2:3 ---------------
+|   10 10      // error
+|   ^^
+|   Found extra value, an expression should produce a single value
+
+---------- Error at ./tests/warn/expression-extra-value.jo:3:3 ---------------
+|   5 print 5  // error
+|   ^
+|   Found extra value, an expression should produce a single value
+
+---------- Error at ./tests/warn/expression-extra-value.jo:4:3 ---------------
+|   print 5 5  // error
+|   ^^^^^^^
+|   Found extra value, an expression should produce a single value
+
+3 error(s), 0 warning(s)

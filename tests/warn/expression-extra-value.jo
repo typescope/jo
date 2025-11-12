@@ -1,0 +1,4 @@
+def main =
+  10 10      // error
+  5 print 5  // error
+  print 5 5  // error
