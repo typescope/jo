@@ -4,5 +4,5 @@ def fact(n: Int): Int =
 
 def main =
   println (fact 0)
-  fact 4 p        // 24
-  fact 5 p        // 120
+  println (fact 4)    // 24
+  println (fact 5)    // 120

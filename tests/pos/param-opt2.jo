@@ -24,7 +24,7 @@ def makeFun(): () => Int = () =>
   testCounter()
 
 def main receives IO.stdout =
-  testCounter() p   // 0
+  println testCounter()   // 0
 
   println
     testCounter() allow none // 0
@@ -35,7 +35,7 @@ def main receives IO.stdout =
   println
     testCounter() allow none with counter = newCounter(4) // 0
 
-  makeFun()() p     // 0
+  println makeFun()()     // 0
 
   println
     makeFun()() with counter = newCounter(3) // 5
