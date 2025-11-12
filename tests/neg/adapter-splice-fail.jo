@@ -1,0 +1,17 @@
+// Test cases where vararg splice adapter should fail
+
+// Adapter that will be used in the tests
+def boolToStr(b: Bool): String = ???
+def intToStr(i: Int): String = ???
+
+def show(items: ..String with [intToStr, boolToStr]): Unit =
+  items.foreach x => println x
+
+def main =
+  // Test 1: Splice non-List type - should fail
+  val notAList = 42
+  show(..notAList)  // Error: notAList is not a List
+
+  // Test 2: Splice List with wrong element type (no matching adapter)
+  val chars = ['a', 'b', 'c']  // List[Char]
+  show(..chars)  // Error: no adapter from Char to String
