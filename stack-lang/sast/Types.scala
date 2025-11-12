@@ -165,52 +165,37 @@ object Types:
     /** Convert Partial[T] to T if possible */
     def stripPartial(using defn: Definitions): Type =
       this match
-        case AppliedType(ctor, targs) if ctor.refers(defn.Predef_Partial) =>
-          targs(0)
+        case AppliedType(StaticRef(ctor), targs) if ctor == defn.Predef_Partial =>
+          targs.head
 
         case _ => this
 
+    /** Is the type Partial[T] */
+    def isPartial(using defn: Definitions): Boolean =
+      this match
+        case AppliedType(StaticRef(ctor), targs) if ctor == defn.Predef_Partial =>
+          true
+
+        case _ => false
+
+    /** Is the type ..T */
+    def isVararg(using defn: Definitions): Boolean =
+      this match
+        case AppliedType(StaticRef(ctor), targs) if ctor == defn.Predef_Pack =>
+          true
+
+        case _ => false
+
     /** Convert ..T to T if possible */
-    def stripVarargToElemType(using defn: Definitions): Type =
+    def stripVarargs(using defn: Definitions): Type =
       this match
         case AppliedType(StaticRef(sym), targs) if sym == defn.Predef_Pack =>
           targs(0)
 
         case _ => this
 
-    /** Is the current type equivalent to a StaticRef or AppliedType to the given symbol  */
-    def refers(symbol: Symbol)(using Definitions): Boolean =
-      val visited = new mutable.ArrayBuffer[Symbol]
-
-      def recur(tp: Type): Boolean =
-        tp match
-          case StaticRef(sym) =>
-            sym == symbol || !visited.contains(sym) && {
-              visited += sym
-              recur(sym.info)
-            }
-
-          case AppliedType(ctor, _) => recur(ctor)
-
-          case _ => false
-      end recur
-      recur(this)
-
-    def refersAny(symbols: List[Symbol])(using Definitions): Boolean =
-      val visited = new mutable.ArrayBuffer[Symbol]
-      def recur(tp: Type): Boolean =
-        tp match
-          case StaticRef(sym) =>
-            symbols.contains(sym) || !visited.contains(sym) && {
-              visited += sym
-              recur(sym.info)
-            }
-
-          case AppliedType(ctor, _) => recur(ctor)
-
-          case _ => false
-      end recur
-      recur(this)
+    def isSubtype(that: Type)(using Definitions): Boolean =
+      Subtyping.conforms(this, that)
 
     def getTermMember(name: String)(using Definitions): Option[Type] =
       this.approx match
@@ -440,7 +425,7 @@ object Types:
       if hasVararg then postParamTypes.size - 1 else postParamTypes.size
 
     def hasVararg(using defn: Definitions): Boolean =
-      paramCount > 0 && paramTypes.last.refers(defn.Predef_Pack)
+      paramCount > 0 && paramTypes.last.isVararg
 
     def bounds(using Definitions): List[TypeBound] =
       tparams.map(_.info.as[TypeBound])
@@ -499,10 +484,10 @@ object Types:
 
     def approx(isUp: Boolean): Type = inferencer.approx(this, isUp)
 
-    def isSubtype(tp: Type)(using Definitions): List[Subtyping.Task] =
+    def checkSubtype(tp: Type)(using Definitions): List[Subtyping.Task] =
       inferencer.isSubtype(this, tp)
 
-    def isSuptype(tp: Type)(using Definitions): List[Subtyping.Task] =
+    def checkSuptype(tp: Type)(using Definitions): List[Subtyping.Task] =
       inferencer.isSuptype(this, tp)
 
   /** Represents the information of a namespace or section */

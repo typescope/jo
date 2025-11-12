@@ -177,7 +177,9 @@ extends Definitions.Lazy:
   val StringType  = StaticRef(Predef_String)
 
   def isNumericType(tp: Type): Boolean =
-    tp.refersAny(Predef_Byte :: Predef_Char :: Int_Int :: Nil)
+    tp.dealias match
+      case StaticRef(sym) => sym == Predef_Byte || sym == Predef_Char || sym == Int_Int
+      case _ => false
 
 end Definitions
 

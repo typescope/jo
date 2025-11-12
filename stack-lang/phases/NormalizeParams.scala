@@ -32,7 +32,7 @@ class NormalizeParams(using defn: Definitions) extends Phase[Symbol]:
         val rejectedDefaults =
           for
             (eff, trace) <- effs
-            if eff.is(Flags.Default) && !allowed.exists(param => eff.refers(param))
+            if eff.is(Flags.Default) && !allowed.exists(param => eff == param)
           yield
             eff
 
@@ -64,7 +64,7 @@ class NormalizeParams(using defn: Definitions) extends Phase[Symbol]:
     val effsInner = defn.effectEngine.effects(allowExpr.expr)
     val allowed = allowExpr.params.map(_.symbol).toSet
 
-    val unprovided = effsInner.filter((k, _) => !allowed.exists(param => k.refers(param)))
+    val unprovided = effsInner.filter((k, _) => !allowed.exists(param => k == param))
 
     val rejectedDefaults = unprovided.keys.filter(_.is(Flags.Default)).toList
     if rejectedDefaults.isEmpty then

@@ -34,7 +34,7 @@ object Adapters:
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
   : List[Ident] =
     // ..T ==> T
-    val paramType = rawParamType.stripVarargToElemType
+    val paramType = rawParamType.stripVarargs
 
     val valid = new mutable.ArrayBuffer[Ident]
 

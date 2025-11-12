@@ -51,10 +51,12 @@ object Trees:
 
         case _ => false
 
+    /** Whether the tree is a call or an identifier to a symbol */
     def refers(symbol: Symbol)(using Definitions): Boolean =
       // selection is never symblic after normalization, thus no need to handle
       this match
-        case Ident(sym) => sym.refers(symbol)
+        case Ident(sym) => sym == symbol
+        case Apply(fun, _, _) => fun.refers(symbol)
         case TypeApply(fun, _) => fun.refers(symbol)
         case _ => false
 

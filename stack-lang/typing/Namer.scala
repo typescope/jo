@@ -793,7 +793,7 @@ class Namer(using Config):
     val argsFixTyped = transformArgs(argsFix, paramTypesFix, adaptersFix)
 
     val elementType = paramTypeFlex match
-      case AppliedType(tctor, tp :: Nil) if tctor.refers(defn.Predef_Pack) =>
+      case AppliedType(StaticRef(tctor), tp :: Nil) if tctor == defn.Predef_Pack =>
         tp
 
       case tp =>

@@ -105,7 +105,7 @@ object Exhaustivity:
 
       case app @ ApplyPattern(pred, nested) =>
         assert(pred.tpe.isProcType, pred.tpe)
-        !pred.tpe.asProcType.resultType.refers(defn.Predef_Partial)
+        !pred.tpe.asProcType.resultType.isPartial
 
       case _: OrPattern => false
 
@@ -192,7 +192,7 @@ object Exhaustivity:
           val s2 = UnionSpace(spaces)
           subtract(s1, s2)
 
-        else if tp1.refers(defn.Bool_Bool) then
+        else if tp1.isSubtype(defn.BoolType) then
           val trueType = ConstantType(Constant.Bool(true))
           val falseType = ConstantType(Constant.Bool(false))
           val s1 = UnionSpace(TypeSpace(trueType) :: TypeSpace(falseType) :: Nil)

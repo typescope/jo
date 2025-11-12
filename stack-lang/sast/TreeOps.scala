@@ -56,9 +56,9 @@ object TreeOps:
 
   private def coerceIntLiteral(n: Int, origType: Type, targetType: Type)(using defn: Definitions): Type =
     if
-      targetType.refers(defn.Predef_Byte) && n < 128 && n >= -128
-      || targetType.refers(defn.Predef_Char) && n < 65536 && n >= 0
-      || targetType.refers(defn.Int_Int)
+      targetType.isSubtype(defn.ByteType) && n < 128 && n >= -128
+      || targetType.isSubtype(defn.CharType) && n < 65536 && n >= 0
+      || targetType.isSubtype(defn.IntType)
     then
       targetType
 
@@ -76,16 +76,16 @@ object TreeOps:
     def fail() = throw new AdaptionFailure(word, targetType)
 
     val origType = word.tpe
-    if origType.refers(defn.Predef_Byte) then
-      if targetType.refers(defn.Int_Int) then
+    if origType.isSubtype(defn.ByteType) then
+      if targetType.isSubtype(defn.IntType) then
         val byteToInt = Ident(defn.Predef_byteToInt)(word.span)
         byteToInt.appliedTo(word)
 
       else
         fail()
 
-    else if origType.refers(defn.Predef_Char) then
-      if targetType.refers(defn.Int_Int) then
+    else if origType.isSubtype(defn.CharType) then
+      if targetType.isSubtype(defn.IntType) then
         val charToInt = Ident(defn.Predef_charToInt)(word.span)
         charToInt.appliedTo(word)
 
