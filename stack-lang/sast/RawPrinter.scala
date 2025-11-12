@@ -176,10 +176,17 @@ object RawPrinter:
         ~ "]"
 
       case fdef: FunDef =>
+        val adaptersText = "[" ~ indent:
+            fdef.adapters.map: adapterList =>
+              "[" ~ adapterList.join(",") ~ "]"
+            .join(LINE_SEP)
+        ~ "]"
+
         "FunDef [" ~ indent:
             printSymbol(fdef.symbol) ~ LINE_SEP ~
             "[" ~ fdef.tparams.map(printSymbol).join(",") ~ "]" ~ LINE_SEP ~
             "[" ~ fdef.params.map(printSymbol).join(",") ~ "]" ~ LINE_SEP ~
+            adaptersText ~ LINE_SEP ~
             "[" ~ fdef.autos.map(printSymbol).join(",") ~ "]" ~ LINE_SEP ~
             fdef.resultType ~ LINE_SEP ~
             fdef.body
@@ -278,6 +285,12 @@ object RawPrinter:
               items.join(LINE_SEP)
           ~ "]"
 
+          val adaptersText = "[" ~ indent:
+              val items = adapters.map: adapterList =>
+                "[" ~ adapterList.map(printSymbolRef).join(",") ~ "]"
+              items.join(LINE_SEP)
+          ~ "]"
+
           val autoText = "[" ~ indent:
               val items = autos.map: auto =>
                 "[" ~ auto.name ~ "," ~ printType(auto.info, tparamScope) ~ "]"
@@ -287,7 +300,7 @@ object RawPrinter:
           val receiveText = "[" ~ procType.receives.join(",") ~ "]"
 
           "ProcType [" ~ indent:
-            List(tparamText, paramText, autoText, printType(resType, tparamScope), receiveText, Text(preParamCount)).join("," ~ Text.BreakLine)
+            List(tparamText, paramText, adaptersText, autoText, printType(resType, tparamScope), receiveText, Text(preParamCount)).join("," ~ Text.BreakLine)
           ~ "]"
 
       case TypeLambda(tparams, resType, preParamCount) =>
