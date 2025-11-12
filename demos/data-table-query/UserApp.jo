@@ -38,14 +38,14 @@ def analyzeDocuments: Unit receives stdout, db =
   println ""
 
   println "--- READ: Only draft documents ---"
-  val drafts = db.query(Draft == bool(true))
+  val drafts = db.query(Draft == true)
   drafts.foreach doc =>
     println ("  • " + doc.title)
   println ("  Count: " + intToStr(drafts.size))
   println ""
 
   println "--- READ: Only published documents ---"
-  val published = db.query(Draft == bool(false))
+  val published = db.query(Draft == false)
   published.foreach doc =>
     println ("  • " + doc.title)
   println ("  Count: " + intToStr(published.size))
@@ -60,15 +60,15 @@ def analyzeDocuments: Unit receives stdout, db =
   // ---- UPDATE OPERATIONS ----
 
   println "--- UPDATE: Single field by ID ---"
-  val updated1 = db.updateById(1, [Title := str("Q4 Budget Report (Revised)")])
+  val updated1 = db.updateById(1, [Title := "Q4 Budget Report (Revised)"])
   val updated1Str = if updated1 then "true" else "false"
   println ("  Updated: " + updated1Str)
   println ""
 
   println "--- UPDATE: Multiple fields by ID ---"
   val updated2 = db.updateById(2, [
-    Title := str("Updated Project Proposal"),
-    Content := str("Revised proposal with stakeholder feedback")
+    Title := "Updated Project Proposal",
+    Content := "Revised proposal with stakeholder feedback"
   ])
   val updated2Str = if updated2 then "true" else "false"
   println ("  Updated: " + updated2Str)
@@ -76,8 +76,8 @@ def analyzeDocuments: Unit receives stdout, db =
 
   println "--- UPDATE: Mark draft documents as published ---"
   val publishDrafts = db.update(
-    Draft == bool(true),
-    [Draft := bool(false)]
+    Draft == true,
+    [Draft := false]
   )
   println ("  Documents published: " + intToStr(publishDrafts))
   println ""
@@ -85,7 +85,7 @@ def analyzeDocuments: Unit receives stdout, db =
   println "--- UPDATE: Update draft status and title ---"
   val complexUpdate = db.update(
     Title like "%Proposal%",
-    [Title := str("Final Proposal"), Draft := bool(false)]
+    [Title := "Final Proposal", Draft := false]
   )
   println ("  Documents updated: " + intToStr(complexUpdate))
   println ""
@@ -99,13 +99,13 @@ def analyzeDocuments: Unit receives stdout, db =
   println ""
 
   println "--- DELETE: Delete all remaining draft documents ---"
-  val deletedDrafts = db.delete(Draft == bool(true))
+  val deletedDrafts = db.delete(Draft == true)
   println ("  Drafts deleted: " + intToStr(deletedDrafts))
   println ""
 
   println "--- DELETE: Complex conditional delete ---"
   val complexDelete = db.delete(
-    (Title like "%Archived%") && (CreatedAt < str("2024-01-12"))
+    (Title like "%Archived%") && (CreatedAt < "2024-01-12")
   )
   println ("  Archived documents deleted: " + intToStr(complexDelete))
   println ""
