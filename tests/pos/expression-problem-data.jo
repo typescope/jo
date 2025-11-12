@@ -28,10 +28,10 @@ def evalLangB(expr: LangB): Int =
 def main =
   val langA: LangA =
     Add
-      Lit 3 as LangA
+      Lit 3
       Add
-        Lit 2 as LangA
-        Lit 5 as LangA
+        Lit 2
+        Lit 5
 
   val langB: LangB = Mul langA (Lit 3)
 

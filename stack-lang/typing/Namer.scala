@@ -593,6 +593,9 @@ class Namer(using Config):
           assert(refType.isProcType, "ProcType expected for constructor, found = " + refType.info)
           val procType = refType.asProcType
 
+          // Conditionally apply context instantiation
+          Inference.conditionalInstantiate(instanceType, tt, procType)
+
           assert(procType.tparams.isEmpty, "Constructor should not take type parameters, found = " + procType)
 
           val span = if targsTree.isEmpty then classTree.span else classTree.span | targsTree.last.span
@@ -623,14 +626,19 @@ class Namer(using Config):
 
           case _ =>
 
-    if fun.tpe.isPolyType then
-      fun = instantiatePoly(fun.tpe.asProcType, fun)
-
     val funType = fun.tpe
 
     if funType.isProcType then
-      val procType = funType.asProcType
+      val originalProcType = funType.asProcType
+
+      if funType.isPolyType then
+        fun = instantiatePoly(funType.asProcType, fun)
+
+      val procType = fun.tpe.asProcType
       val paramSize = procType.paramTypes.size
+
+      // Conditionally apply context instantiation
+      Inference.conditionalInstantiate(procType.resultType, tt, originalProcType)
 
       val preArgTypes = procType.preParamTypes
       if preArgTypes.size != 0 then
@@ -678,14 +686,18 @@ class Namer(using Config):
         case Some(tp) =>
           var fun: Word = Select(objWord, meth.name)(tp, objSpan | meth.span)
 
-          if tp.isPolyType then
-            fun = instantiatePoly(tp.asProcType, fun)
+          if tp.isProcType then
+            val originalProcType = tp.asProcType
 
-          val funType = fun.tpe
+            if tp.isPolyType then
+              fun = instantiatePoly(originalProcType, fun)
 
-          if funType.isProcType then
-            val procType = funType.asProcType
+            val procType = fun.tpe.asProcType
             val paramSize = procType.paramTypes.size
+
+            // Conditionally apply context instantiation
+            Inference.conditionalInstantiate(procType.resultType, tt, originalProcType)
+
             if paramSize != 1 then
               Reporter.error(
                 s"The method ${meth.name} takes ${paramSize} parameters. The dotless call syntax only supports methods of one parameter",
@@ -720,6 +732,8 @@ class Namer(using Config):
       given TargetType = TargetType.Unknown
       transform(funAst)
 
+    val originalProcType = fun.tpe.asProcType
+
     if fun.tpe.isPolyType then
       fun = instantiatePoly(fun.tpe.asProcType, fun)
 
@@ -728,6 +742,9 @@ class Namer(using Config):
     val procType = fun.tpe.asProcType
     val preParamCount = procType.preParamCount
     val postParamCount = procType.postParamCount
+
+    // Conditionally apply context instantiation
+    Inference.conditionalInstantiate(procType.resultType, tt, originalProcType)
 
     assert(!procType.hasVararg, "Infix call cannot have varargs")
 

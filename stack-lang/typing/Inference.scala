@@ -25,6 +25,37 @@ object Inference:
         case Known(tpe, _) => Some(tpe)
         case _ => None
 
+  /** Conditionally apply context instantiation.
+    *
+    * Context instantiation constrains the result type using the expected type
+    * from the outer context. This helps with type inference but conflicts with
+    * parameter adaptation, since both features want to use the expected type
+    * information.
+    *
+    * This method only applies context instantiation when:
+    *
+    * - There's no adapter function at the call site
+    * - The original function type was polymorphic (has type parameters to infer)
+    *
+    * For monomorphic functions, context instantiation serves no purpose (no type
+    * parameters to infer), so we skip it to allow parameter adaptation to work.
+    * Even though the monomorphic function might contain uninitialized type
+    * parameters, it is safe to prefer inner constraints.
+    *
+    * @param resultType The type to constrain
+    * @param targetType The target/expected type context
+    * @param originalType The original function type before type parameter instantiation
+    */
+  def conditionalInstantiate(resultType: Type, targetType: TargetType, originalType: ProcType)(using Definitions): Unit =
+    targetType match
+      case TargetType.Known(expectedType, NoAdapter) if originalType.isPolyType =>
+        // No adapter at call site and function is polymorphic
+        // Safe to apply context instantiation to help infer type parameters
+        Subtyping.conforms(resultType, expectedType)
+
+      case _ =>
+        // No known target type, nothing to do
+
   /** The common result type of two different types.
     *
     * This method is used to compute the result type of if- and match-
