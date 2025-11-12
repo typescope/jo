@@ -632,9 +632,6 @@ class Namer(using Config):
       val procType = funType.asProcType
       val paramSize = procType.paramTypes.size
 
-      // Always prefer type constraints from outer scope if present
-      for tp <- tt.knownType do Subtyping.conforms(procType.resultType, tp)
-
       val preArgTypes = procType.preParamTypes
       if preArgTypes.size != 0 then
         Reporter.error(
@@ -695,9 +692,6 @@ class Namer(using Config):
                 meth.span.toPos)
               errorWord(meth.span)
             else
-
-              // Always prefer type constraints from outer scope if present
-              for tp <- tt.knownType do Subtyping.conforms(procType.resultType, tp)
 
               val argTyped =
                 given TargetType = TargetType.Known(procType.paramTypes.head)

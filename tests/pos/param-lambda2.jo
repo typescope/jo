@@ -7,5 +7,4 @@ def bar(x: Int): Int = x * b
 
 def main =
   val f = makeFun(3) with a = 5, b = 10
-  println
-    intToStr f(20)
+  println (f(20))

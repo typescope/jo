@@ -7,9 +7,7 @@ class Box[T]
 
 def main =
   val a = new Box(4)
-  println
-    intToStr a.map(i => i + 3).value
+  println (a.map(i => i + 3).value)
 
   a.value = 5
-  println
-    intToStr a.map(i => i * 2).value
+  println (a.map(i => i * 2).value)
