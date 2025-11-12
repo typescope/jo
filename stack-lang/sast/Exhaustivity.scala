@@ -192,7 +192,8 @@ object Exhaustivity:
           val s2 = UnionSpace(spaces)
           subtract(s1, s2)
 
-        else if tp1.isSubtype(defn.BoolType) then
+        // It's correct to not use subtyping here: otherwise a constant type `false` will loop
+        else if tp1.dealias == defn.BoolType then
           val trueType = ConstantType(Constant.Bool(true))
           val falseType = ConstantType(Constant.Bool(false))
           val s1 = UnionSpace(TypeSpace(trueType) :: TypeSpace(falseType) :: Nil)
