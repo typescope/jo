@@ -1,10 +1,9 @@
-widen.deliased = StaticRef(Int)
----------- Error at ./tests/neg/adapter-splice-fail.jo:13:10 ---------------
+---------- Error at ./tests/warn/adapter-splice-fail.jo:13:10 ---------------
 |   show(..notAList)  // Error: notAList is not a List
 |          ^^^^^^^^
 |          Expect type List[String], found = notAList: Int
 
----------- Error at ./tests/neg/adapter-splice-fail.jo:17:10 ---------------
+---------- Error at ./tests/warn/adapter-splice-fail.jo:17:10 ---------------
 |   show(..chars)  // Error: no adapter from Char to String
 |          ^^^^^
 |          Expect type List[String], found = chars: List[Char]
