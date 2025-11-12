@@ -16,11 +16,11 @@ object Inference:
     case Fun(args: Int)
     case TermMember(name: String)
     case TypeMember(name: String)
-    case Known(tpe: Type, adapters: List[Symbol] = Nil)
+    case Known(tpe: Type, adapters: List[Symbol] = Nil, isVarargSplice: Boolean = false)
 
     def knownType: Option[Type] =
       this match
-        case Known(tpe, _) => Some(tpe)
+        case Known(tpe, _, _) => Some(tpe)
         case _ => None
 
   /** The common result type of two different types.
@@ -47,7 +47,7 @@ object Inference:
     else if Subtyping.conforms(tp2, tp1Widen) then Some(tp1Widen)
     else
       tt match
-        case TargetType.Known(tp, _) =>
+        case TargetType.Known(tp, _, _) =>
           if Subtyping.conforms(tp1, tp) && Subtyping.conforms(tp2, tp) then
             Some(tp)
           else

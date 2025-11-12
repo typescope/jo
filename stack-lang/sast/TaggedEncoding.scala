@@ -2,7 +2,7 @@ package sast
 
 import sast.Types.*
 import sast.Trees.*
-import ast.Positions.{ Span, SourcePosition }
+import ast.Positions.{ Span, Source, SourcePosition }
 
 import reporting.Reporter
 
@@ -70,19 +70,19 @@ object TaggedEncoding:
     val fieldType = encodeType.fieldType(fieldName)
     Select(qualEncoded, fieldName)(fieldType, span)
 
-  def testTagValue(tagValue: Word, tag: String, span: Span)(using defn: Definitions): Word =
+  def testTagValue(tagValue: Word, tag: String, span: Span)(using defn: Definitions, source: Source): Word =
     val IntType = defn.IntType
     val tagCode = getTagCode(tag)
     val testTagValue = Literal(Constant.Int(tagCode))(IntType, span)
     val fun = Ident(defn.Int_eql)(span)
     fun.appliedTo(tagValue, testTagValue)
 
-  def testVariantTag(ref: Word, tag: String, span: Span)(using defn: Definitions): Word =
+  def testVariantTag(ref: Word, tag: String, span: Span)(using defn: Definitions, source: Source): Word =
     val IntType = defn.IntType
     val tagSelect = Select(ref, "tag")(IntType, span)
     testTagValue(tagSelect, tag, span)
 
-  def testTagValues(tagValue: Ident, tags: List[String], span: Span)(using defn: Definitions): Word =
+  def testTagValues(tagValue: Ident, tags: List[String], span: Span)(using defn: Definitions, source: Source): Word =
     val tag :: rest = tags: @unchecked
     // ASTs are immutable thus can be shared
     //

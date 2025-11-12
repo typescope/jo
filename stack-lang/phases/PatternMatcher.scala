@@ -185,7 +185,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
     val rhsCond = transformPattern(scrut, rhs)
     If(lhsCond, BoolLit(true)(lhs.span), rhsCond)(BoolType, orPattern.span)
 
-  private def transformValuePattern(scrut: Ident, pat: ValuePattern): Word =
+  private def transformValuePattern(scrut: Ident, pat: ValuePattern)(using Source): Word =
     val tp = pat.value.tpe
     if tp.isSubtype(defn.ByteType) then
       Ident(defn.Int_eql)(pat.span).appliedTo(pat.value, scrut)

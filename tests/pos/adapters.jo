@@ -83,9 +83,9 @@ def main =
   puts formatList("numbers", 1, 2, 3, 4)
 
   // Test 11: Varargs with splices
-  // val numbers = [5, 6, 7]
-  // printMany(..numbers)         // Splice with adapter
-  // puts formatList("items", ..numbers)
+  val numbers = [5, 6, 7]
+  printMany(..numbers)         // Splice with adapter
+  puts formatList("items", ..numbers)
 
   // Test 12: Object methods
   val printer = {

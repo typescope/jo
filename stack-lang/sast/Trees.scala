@@ -3,7 +3,7 @@ package sast
 import Symbols.*
 import Types.*
 
-import ast.Positions.{ Positioned, Span, DerivedSpan }
+import ast.Positions.{ Positioned, Span, DerivedSpan, Source }
 
 /***********************************************************************
  *
@@ -608,7 +608,7 @@ object Trees:
   def BoolLit(b: Boolean)(span: Span)(using defn: Definitions) =
     Literal(Constant.Bool(b))(defn.BoolType, span)
 
-  def all(cond: Word, conds: Word*)(using defn: Definitions): Word =
+  def all(cond: Word, conds: Word*)(using defn: Definitions, source: Source): Word =
     conds.foldLeft(cond): (acc, cond) =>
       Ident(defn.Bool_both)(cond.span).appliedTo(acc, cond)
 
@@ -623,7 +623,7 @@ object Trees:
       val memberType = word.tpe.termMember(name)
       Select(word, name)(memberType, word.span)
 
-    def appliedTo(args: Word*)(using Definitions): Word =
+    def appliedTo(args: Word*)(using Definitions, Source): Word =
       val procType = word.tpe.asProcType
 
       assert(procType.paramCount == args.size, "args mismatch")
@@ -632,7 +632,7 @@ object Trees:
 
       val args2 =
         for ((arg, paramType), adapterList) <- args.zip(procType.paramTypes).zip(procType.adapters)
-        yield TreeOps.adapt(arg, paramType, adapterList)
+        yield TreeOps.adapt(arg, paramType, adapterList, isVarargSplice = false)
 
 
       val span = args.foldLeft(word.span)(_ | _.span)
@@ -655,5 +655,5 @@ object Trees:
 
     def encodedAs(tpe: Type): Word = Encoded(word)(tpe)
 
-    def isEqualTo(rhs: Word)(using defn: Definitions): Word =
+    def isEqualTo(rhs: Word)(using defn: Definitions, source: Source): Word =
       Ident(defn.Int_eql)(word.span).appliedTo(word, rhs)

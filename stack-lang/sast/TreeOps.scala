@@ -6,6 +6,7 @@ import Flags.*
 import Types.*
 
 import ast.Positions.{Span, Source}
+import common.Debug
 
 import scala.collection.mutable
 
@@ -20,7 +21,11 @@ object TreeOps:
     * It makes drop of values in if/match expressions explicit.
     * It also tries to apply adapters if direct conformance fails.
     */
-  def adapt(word: Word, targetType: Type, adapters: List[Symbol])(using defn: Definitions): Word =
+  def adapt
+      (word: Word, targetType: Type, adapters: List[Symbol], isVarargSplice: Boolean)
+      (using defn: Definitions, source: Source)
+  : Word = Debug.trace(s"adapting ${word.show} to ${targetType.show}", enable = false):
+
     val unitType = defn.UnitType
 
     val curType = word.tpe
@@ -52,7 +57,7 @@ object TreeOps:
 
       else
         // Try to apply adapters before failing
-        tryAdapters(word, targetType, adapters) match
+        tryAdapters(word, targetType, adapters, isVarargSplice) match
           case Some(adapted) => adapted
           case None => throw new AdaptionFailure(word, targetType)
 
@@ -74,7 +79,7 @@ object TreeOps:
     *
     * Assumption: The tye of the word does not conform to the target type.
     */
-  private def coerceNumeric(word: Word, targetType: Type)(using defn: Definitions): Word =
+  private def coerceNumeric(word: Word, targetType: Type)(using defn: Definitions, source: Source): Word =
     def fail() = throw new AdaptionFailure(word, targetType)
 
     val origType = word.tpe
@@ -97,7 +102,30 @@ object TreeOps:
     else
       fail()
 
-  def tryAdapters(word: Word, targetType: Type, adapters: List[Symbol])(using defn: Definitions): Option[Word] =
+  def tryAdapters
+      (word: Word, targetType: Type, adapters: List[Symbol], isVarargSplice: Boolean)
+      (using defn: Definitions, source: Source)
+  : Option[Word] =
+
+    if isVarargSplice then
+      word.tpe.widen.dealias match
+        case AppliedType(StaticRef(sym), elemType :: Nil) if sym == defn.List_type =>
+          // Only try adapt if the type is List[X]
+          val AppliedType(_, targetElemType :: Nil) = targetType: @unchecked
+          tryAdaptersVarargSplice(word, targetElemType, elemType, adapters)
+
+        case tp =>
+          println("widen.deliased = " + tp)
+          None
+
+    else
+      tryAdaptersSimple(word, targetType, adapters)
+
+  def tryAdaptersSimple
+      (word: Word, targetType: Type, adapters: List[Symbol])
+      (using defn: Definitions, source: Source)
+  : Option[Word] = Debug.trace(s"adapt ${word.show} to ${targetType.show} with ${adapters}", enable = false):
+
     adapters match
       case Nil => None
 
@@ -113,7 +141,29 @@ object TreeOps:
           Some(adapted)
 
         else
-          tryAdapters(word, targetType, rest)
+          tryAdaptersSimple(word, targetType, rest)
+
+  def tryAdaptersVarargSplice
+      (word: Word, targetElemType: Type, elemType: Type, adapters: List[Symbol])
+      (using Definitions, Source)
+  : Option[Word] = Debug.trace(s"adapt splice ${word.show} from ${elemType.show} to ${targetElemType.show} with ${adapters}", enable = false):
+
+    adapters match
+      case Nil => None
+
+      case adapterSym :: rest =>
+        val procType = adapterSym.info.asProcType
+        val adapterParamType = procType.params.head.info
+
+        // Check if the word's type conforms to the adapter's parameter type
+        if Subtyping.conforms(elemType, adapterParamType) then
+          val adapterFun = etaExpand(adapterSym, Effects.Policy.Infer, word.span)
+          val adapted = word.select("map").appliedToTypes(targetElemType).appliedTo(adapterFun)
+
+          Some(adapted)
+
+        else
+          tryAdaptersVarargSplice(word, targetElemType, elemType, rest)
 
   /** Eta-expand a function to an object with an apply method
     *

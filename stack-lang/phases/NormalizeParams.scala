@@ -23,6 +23,7 @@ class NormalizeParams(using defn: Definitions) extends Phase[Symbol]:
   /** Bind optional context parameters at effect boundaries */
   override def transformFunDef(fdef: FunDef)(using ctx: Context): FunDef =
     val symbol = fdef.symbol
+    given Source = symbol.source
 
     fdef.effectPolicy match
       case Effects.Policy.CheckBound(params) =>
@@ -49,7 +50,7 @@ class NormalizeParams(using defn: Definitions) extends Phase[Symbol]:
         super.transformFunDef(fdef)
 
 
-  private def synthesizeDefaultBindings(params: List[Symbol], span: Span): List[Assign] =
+  private def synthesizeDefaultBindings(params: List[Symbol], span: Span)(using Source): List[Assign] =
     params.map: param =>
       val paramRef = Ident(param)(span)
       val defaultFunSym = param.defaultFunction

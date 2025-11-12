@@ -810,10 +810,8 @@ class Namer(using Config):
         Reporter.error(".. should be followed by exact one word, found = " + args.size, splice.pos)
 
       else
-        // no adaptation for spread
-        // TODO: maybe we should do the adaptation as well?
         val listType = AppliedType(StaticRef(defn.List_type), elementType :: Nil)
-        given TargetType = TargetType.Known(listType, adapters = Nil)
+        given TargetType = TargetType.Known(listType, adaptersFlex, isVarargSplice = true)
         val argTyped = transform(args.head)
         lastFlexArg = lastFlexArg.select("++").appliedTo(argTyped)
 
