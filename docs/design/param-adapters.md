@@ -161,6 +161,72 @@ printAll(1, 2, 3)        // Each Int is transformed: printAll(intToStr(1), intTo
 printAll("a", 42, "c")   // Mixed: printAll("a", intToStr(42), "c")
 ```
 
+### Adapters with Vararg Splices
+
+When using the splice operator `..` with varargs that have adapters, the compiler can automatically convert `List[S]` to `List[T]` by applying an adapter that converts `S` to `T`:
+
+```jo
+def intToStr(i: Int): String = ???
+
+def printAll(items: ..String with [intToStr]): Unit = ...
+
+val numbers = [5, 6, 7]  // numbers has type List[Int]
+
+// Splice with adapter
+printAll(..numbers)
+// Transformed to: printAll(..(numbers.map(intToStr)))
+// The compiler applies numbers.map(intToStr) to convert List[Int] to List[String]
+```
+
+**Splice adapter behavior:**
+
+1. **Type checking**
+
+    If `..value` is used where a varargs parameter expects `..T with [adapter1, ...]`:
+
+    - First check if `value` directly conforms to `List[T]`
+    - If not, check if `value` has type `List[S]` for some type `S`
+    - If so, try each adapter in order to find one that converts `S` to `T`
+    - If adapter `ai` converts `S` to `T`, transform to `..value.map(ai)`
+
+2. **Adapter requirements**
+
+    For splice adaptation, the same adapter requirements apply as for regular adapters:
+
+    - Single parameter
+    - No auto parameters
+    - Return type conforms to the vararg element type
+    - No type parameters
+
+3. **Order of precedence**
+
+    - Direct conformance is always tried first
+    - Adapters are tried in declaration order
+    - Only the first matching adapter is applied
+
+**Example with multiple adapters:**
+
+```jo
+def intToStr(i: Int): String = intToString(i)
+def charToStr(c: Char): String = charToString(c)
+
+def show(items: ..String with [intToStr, charToStr]): Unit = ...
+
+val ints = [1, 2, 3]      // List[Int]
+val chars = ['a', 'b']    // List[Char]
+val strings = ["x", "y"]  // List[String]
+
+show(..ints)     // Transformed to: show(..ints.map(intToStr))
+show(..chars)    // Transformed to: show(..chars.map(charToStr))
+show(..strings)  // Direct: no adapter needed
+```
+
+**Limitations:**
+
+- Splice adapters only work with `List[S]` types
+- The compiler does not attempt to convert other collection types
+- If the spliced value is not a `List`, or if no adapter matches the element type, a type error is reported
+
 ## Restrictions
 
 ### Auto Parameters Cannot Have Adapters
