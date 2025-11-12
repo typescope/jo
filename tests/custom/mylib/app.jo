@@ -1,6 +1,6 @@
 // Application that uses the library
 
 def main =
-  println(intToStr(Lib.double 5))
-  println(intToStr(Lib.triple 4))
+  println(Lib.double 5)
+  println(Lib.triple 4)
   println(Lib.greet "World")
