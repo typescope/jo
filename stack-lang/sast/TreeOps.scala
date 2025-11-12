@@ -8,6 +8,7 @@ import Types.*
 import scala.collection.mutable
 
 object TreeOps:
+  /** Use exception because we do not want to refer Reporter in sast package */
   class AdaptionFailure(word: Word, targetType: Type) extends Exception:
     override def toString(): String =
       "Unable to adapt " + word + " of type " + word.tpe + " to " + targetType
@@ -53,10 +54,7 @@ object TreeOps:
           case Some(adapted) => adapted
           case None => throw new AdaptionFailure(word, targetType)
 
-  private def coerceIntLiteral(n: Int, origType: Type, targetType: Type)
-    (using defn: Definitions)
-  : Type =
-
+  private def coerceIntLiteral(n: Int, origType: Type, targetType: Type)(using defn: Definitions): Type =
     if
       targetType.refers(defn.Predef_Byte) && n < 128 && n >= -128
       || targetType.refers(defn.Predef_Char) && n < 65536 && n >= 0
