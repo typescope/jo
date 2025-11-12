@@ -127,7 +127,7 @@ The key insights:
 - `..T` is just a type alias for `List[T]`
 - The spread operator `..expr` is a normal expression with two words `..` and `expr` that is specially handled by the typer
 
-This design makes varargs feel like native syntax while being library-defined
+This design makes varargs feel like native syntax while being library-defined.
 
 ## Restrictions
 

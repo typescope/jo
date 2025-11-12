@@ -173,7 +173,7 @@ object Types:
     /** Convert ..T to T if possible */
     def stripVarargToElemType(using defn: Definitions): Type =
       this match
-        case AppliedType(ctor, targs) if ctor.refers(defn.Predef_Pack) =>
+        case AppliedType(StaticRef(sym), targs) if sym == defn.Predef_Pack =>
           targs(0)
 
         case _ => this
