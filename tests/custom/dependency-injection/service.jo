@@ -8,7 +8,7 @@ def processUsers(): Unit =
   println "Querying users table..."
   val count = Database.query("users")
   print "Found "
-  print (intToStr count)
+  print count
   println " users"
 
   println "Inserting new user..."
@@ -17,7 +17,7 @@ def processUsers(): Unit =
   println "Querying again..."
   val newCount = Database.query("users")
   print "Now have "
-  print (intToStr newCount)
+  print newCount
   println " users"
 
   Database.disconnect()

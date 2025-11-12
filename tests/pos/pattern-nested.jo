@@ -15,7 +15,7 @@ def main =
 def test(a: Option[Option[Int]]): Unit =
   match a
     case #Some #None => println "some none"
-    case #Some (#Some n) => println (intToStr n)
+    case #Some (#Some n) => println n
     case #None => println "none"
 
 type Cons = #Cons(head: Int, tail: List[Int])
@@ -37,8 +37,8 @@ def Nil: #Nil = #Nil
 
 def test2(a: List[Int]): Unit =
   match a
-    case Cons x inner@(Cons y rest) => println (intToStr (x + inner.head))
-    case Cons x Nil => println (intToStr x)
+    case Cons x inner@(Cons y rest) => println (x + inner.head)
+    case Cons x Nil => println x
     case Nil => println "empty"
 
   match a
@@ -46,7 +46,7 @@ def test2(a: List[Int]): Unit =
     case _ => println "size > 2"
 
   match a
-    case Cons _ l@(Cons _ Nil) | l@(Cons _ Nil) => println (intToStr l.head)
+    case Cons _ l@(Cons _ Nil) | l@(Cons _ Nil) => println l.head
     case _ => println "size > 2"
 
   match a

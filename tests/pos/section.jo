@@ -32,5 +32,5 @@ def main =
              |> map (x => x * 2)
              |> fold 0 (acc, i) => acc + i
 
-  println (intToStr sum)
-  println (intToStr (A.List.double 5))
+  println sum
+  println (A.List.double 5)

@@ -18,30 +18,30 @@ def testData =
   val c2: Box[Int] | Post = post
 
   match c1
-    case Box(value) => println (intToStr value)
+    case Box(value) => println value
     case p: Post => println p.title
 
   match c2
-    case Box value      => println (intToStr value)
+    case Box value      => println value
     case Post title _ _ => println title
 
   println post.title
-  println (intToStr box.value)
+  println box.value
 
 def testEnum =
   val a: Option[Int] = Some 20
   match a
-    case Some v => println (intToStr v)
+    case Some v => println v
     case None =>
 
   val l: List[Int] = Cons 4 (Cons 5 Nil)
   match l
-    case Cons x (Cons y Nil) => println (intToStr (x + y))
+    case Cons x (Cons y Nil) => println (x + y)
     case _ =>
 
   val e: Either[Int, String] = Left 9
   match e
-    case Left v => println (intToStr v)
+    case Left v => println v
     case _ =>
 
 def main =

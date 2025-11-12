@@ -9,10 +9,10 @@ def printAll(messages: ..String): Unit =
 def main =
   // Using standard library List with varargs
   val l = List(3, 5, 6, 8)
-  l.foreach (i => println (intToStr i))
+  l.foreach (i => println i)
 
   val l2 = [1, 2, ..l, 9, 10]
-  l2.foreach (i => println (intToStr i))
+  l2.foreach (i => println i)
 
   val l3 = List "hello" "world"
   l3.foreach (s => println s)

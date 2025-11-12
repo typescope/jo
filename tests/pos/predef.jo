@@ -6,22 +6,20 @@ def main =
       + 3
       + 4
 
-  l.map(x => x * 2).foreach (x => println (intToStr x))
+  l.map(x => x * 2).foreach (x => println x)
   println
-    intToStr
-      l.fold 0 (acc, i) => acc + i
-
+    (l.fold 0 (acc, i) => acc + i) as Int  // TODO: can we do better
 
   val l2 = List 3 6 8 9 10
   l2.select(i => i % 2 == 0)
-    .foreach (i => println (intToStr i))
+    .foreach (i => println i)
 
   l2.exclude(i => i % 2  == 0)
     .materialize
-    .foreach (i => println (intToStr i))
+    .foreach (i => println i)
 
   val s = Set 2 3 4 7 8
-  (s + 3 - 2).foreach i => println (intToStr i)
+  (s + 3 - 2).foreach i => println i
 
   val s2 = Set "Apple" "Orange" "Banana"
   (s2 + "Grape" - "Orange" - "Banana").foreach fruit => println fruit

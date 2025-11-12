@@ -23,8 +23,8 @@ def main =
   test (5 :: Nil)
   test Nil
 
-  match 4 :: (5 :: Nil) case Len n => println (intToStr n)
+  match 4 :: (5 :: Nil) case Len n => println n
 
-  match 5 :: Nil case Len n => println (intToStr n)
+  match 5 :: Nil case Len n => println n
 
-  match Nil case Len n => println (intToStr n)
+  match Nil case Len n => println n

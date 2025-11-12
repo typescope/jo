@@ -33,4 +33,4 @@ def baz: Int =
 
 def result: Int = foo + bar + baz
 
-def main: Unit = println (intToStr result)
+def main: Unit = println result

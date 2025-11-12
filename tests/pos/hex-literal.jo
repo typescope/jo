@@ -9,40 +9,40 @@ def main(): Unit =
   val e = 0xFF
 
   print("0x0 = ")
-  print(intToStr(a))
+  print(a)
   print("\n")
 
   print("0x1 = ")
-  print(intToStr(b))
+  print(b)
   print("\n")
 
   print("0xF = ")
-  print(intToStr(c))
+  print(c)
   print("\n")
 
   print("0x10 = ")
-  print(intToStr(d))
+  print(d)
   print("\n")
 
   print("0xFF = ")
-  print(intToStr(e))
+  print(e)
   print("\n")
 
   // Uppercase X and mixed case hex digits
   val f = 0X1a2B3c
   print("0X1a2B3c = ")
-  print(intToStr(f))
+  print(f)
   print("\n")
 
   // Larger hex values
   val g = 0x7FFFFFFF  // Max positive int
   print("0x7FFFFFFF = ")
-  print(intToStr(g))
+  print(g)
   print("\n")
 
   val h = 0xFFFFFFFF  // -1 in two's complement
   print("0xFFFFFFFF = ")
-  print(intToStr(h))
+  print(h)
   print("\n")
 
   // Hex in expressions
@@ -50,7 +50,7 @@ def main(): Unit =
   val value = 0x1234
   val masked = value & mask
   print("0x1234 & 0xFF = ")
-  print(intToStr(masked))
+  print(masked)
   print("\n")
 
   // Common bit flags
@@ -59,34 +59,34 @@ def main(): Unit =
   val flag4 = 0x4
   val combined = flag1 | flag2 | flag4
   print("0x1 | 0x2 | 0x4 = ")
-  print(intToStr(combined))
+  print(combined)
   print("\n")
 
   // Negative hex literals
   val neg1 = -0x1
   print("-0x1 = ")
-  print(intToStr(neg1))
+  print(neg1)
   print("\n")
 
   val neg16 = -0x10
   print("-0x10 = ")
-  print(intToStr(neg16))
+  print(neg16)
   print("\n")
 
   val neg255 = -0xFF
   print("-0xFF = ")
-  print(intToStr(neg255))
+  print(neg255)
   print("\n")
 
   val negMax = -0x7FFFFFFF
   print("-0x7FFFFFFF = ")
-  print(intToStr(negMax))
+  print(negMax)
   print("\n")
 
   // Negative hex with uppercase X
   val negUpper = -0XAB
   print("-0XAB = ")
-  print(intToStr(negUpper))
+  print(negUpper)
   print("\n")
 
   print("Done\n")
