@@ -48,7 +48,7 @@ object ElimCapture:
 
   def flatName(fun: Symbol)(using Definitions): String =
     fun.ownersIterator.foldLeft(fun.name): (acc, owner) =>
-      if !owner.isContainer then acc + "$" + owner.name else acc
+      if !owner.isContainer then owner.name + "$" + acc else acc
 
   def createLiftedFunSym(
       fdef: FunDef, prependParams: List[NamedInfo[Type]], appendParams: List[NamedInfo[Type]])(
