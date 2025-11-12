@@ -10,7 +10,7 @@ type PointReorder = {y: Int, x: Int}
 
 def main =
   val p1: Point = {x: 1, y: 2}
-  val p2: Point = {x: 10, y: false} // error  // error
+  val p2: Point = {x: 10, y: false} // error
   val p3: Int = 5
 
   val p4: PointReorder = p1  // error
