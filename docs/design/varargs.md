@@ -41,16 +41,16 @@ sum(1, 2, 3, 4, 5)        // Passing 5 integers
 printAll "First" "Second" "Third"  // Passing 3 strings
 ```
 
-### Spreading Lists
+### Splicing Lists
 
-Use the spread operator `..` to expand a list into individual arguments:
+Use the splice operator `..` to expand a list into individual arguments:
 
 ```jo
 val numbers = List(3, 5, 6, 8)
 sum(1, 2, ..numbers, 9, 10)  // Expands to: sum(1, 2, 3, 5, 6, 8, 9, 10)
 ```
 
-The spread operator can be used:
+The splice operator can be used:
 
 - At the beginning: `sum(..list)`
 - In the middle: `sum(1, 2, ..list, 9, 10)`
@@ -61,7 +61,7 @@ The spread operator can be used:
 
 When a function with vararg parameters is called:
 
-1. All arguments (including spread lists) are collected
+1. All arguments (including spliced lists) are collected
 2. They are combined into a single `List[Type]`
 3. The function receives this list as the vararg parameter
 
@@ -73,9 +73,9 @@ def sum(numbers: ..Int): Int = ...
 sum(1, 2, 3)  // numbers = List(1, 2, 3)
 ```
 
-## List Construction with Spread
+## List Construction with Splice
 
-The spread operator is particularly useful when constructing lists:
+The splice operator is particularly useful when constructing lists:
 
 ```jo
 val original = List(3, 5, 6, 8)
@@ -125,7 +125,7 @@ type ..[T] = List[T]
 The key insights:
 
 - `..T` is just a type alias for `List[T]`
-- The spread operator `..expr` is a normal expression with two words `..` and `expr` that is specially handled by the typer
+- The splice operator `..expr` is a normal expression with two words `..` and `expr` that is specially handled by the typer
 
 This design makes varargs feel like native syntax while being library-defined.
 
@@ -146,8 +146,11 @@ This design makes varargs feel like native syntax while being library-defined.
    def h(xs: ..Int, ys: ..String): Unit = ...
    ```
 
-3. **Spread in list context**: The spread operator `..` can only be used:
-   - In function calls with vararg parameters
-   - In list literals `[...]`
+3. **Splice in list context**:
+
+    The splice operator `..` can only be used:
+
+    - In function calls with vararg parameters
+    - In list literals `[...]`
 
    It cannot be used in arbitrary expressions.
