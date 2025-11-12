@@ -35,13 +35,15 @@ object TreeOps:
       for auto <- procType.autos yield
         Symbol.createSymbol(auto.name, auto.info, Context, applySym, pos)
 
+    val thisType = ObjectType(NamedInfo("apply", MemberRef(StaticRef(thisSym), applySym)) :: Nil, mutableFields = Nil)
+    defn.add(thisSym, owner, thisType)
+
     // No preParam for methods
     val applyProcType = procType.copy(preParamCount = 0)
 
     // Build the object type
     val objType = ObjectType(NamedInfo("apply", applyProcType) :: Nil, mutableFields = Nil)
 
-    defn.add(thisSym, owner, objType)
     defn.add(applySym, thisSym, applyProcType)
 
     // Build the body: call the original function with the parameters
