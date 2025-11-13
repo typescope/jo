@@ -697,15 +697,34 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       paramsRest(acc += param(typeOptional), typeOptional)
 
   /** Parse adapter list: [adapter1, adapter2, ...]
-    * Adapters can be qualified identifiers
+    * Adapters can be qualified identifiers (function adapters) or .member (member adapters)
     */
-  def adapterList(): List[RefTree] =
+  def adapterList(): List[ParamAdapter] =
     eat(Token.LBRACKET)
-    val adapters = mutable.ArrayBuffer[RefTree]()
-    adapters += qualid()
+    val adapters = mutable.ArrayBuffer[ParamAdapter]()
+
+    // Parse first adapter
+    if peek() == Token.DOT then
+      val dotItem = eat(Token.DOT)
+      val memberName = ident()
+      val span1 = dotItem.span | memberName.span
+      adapters += ParamAdapter.Member(memberName.name)(span1)
+    else
+      val ref = qualid()
+      adapters += ParamAdapter.Function(ref)(ref.span)
+
+    // Parse remaining adapters
     while peek() == Token.COMMA do
       eat(Token.COMMA)
-      adapters += qualid()
+      if peek() == Token.DOT then
+        val dotItem = eat(Token.DOT)
+        val memberName = ident()
+        val span = dotItem.span | memberName.span
+        adapters += ParamAdapter.Member(memberName.name)(span)
+      else
+        val ref = qualid()
+        adapters += ParamAdapter.Function(ref)(ref.span)
+
     eat(Token.RBRACKET)
     adapters.toList
 

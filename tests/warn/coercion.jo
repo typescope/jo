@@ -2,7 +2,7 @@ def coercion =
   // byte
   val b: Byte = 45
   println b
-  printChar b           // error
+  val x: Char = b           // error
 
   // char
   val c: Char = 'a'

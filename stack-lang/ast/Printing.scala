@@ -32,6 +32,11 @@ object Printing:
 
   given Text.Maker[TypeTree] = v => showType(v)
 
+  given Text.Maker[ParamAdapter] = v =>
+    v match
+      case ParamAdapter.Function(ref) => showWord(ref)
+      case ParamAdapter.Member(name) => "." ~ name
+
   given Text.Maker[Param] = v =>
     val adaptersText =
       if v.adapters.isEmpty then Text.Empty

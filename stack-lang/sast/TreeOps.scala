@@ -10,13 +10,20 @@ import ast.Positions.{Span, Source}
 import scala.collection.mutable
 
 object TreeOps:
-  /** Eta-expand a function to an object with an apply method
+  /** Create a lambda (function object with apply method) from a procedure type
     *
-    * Converts: f
-    * To: { def apply[T1, ...](arg1: T1, ...): U = f(arg1, ...) }
+    * @param procType The procedure type for the lambda
+    * @param owner The owner symbol
+    * @param policy The effect policy
+    * @param span The source span
+    * @param body Function to generate the body, given parameter and auto idents
+    * @return An object with an apply method
     */
-  def etaExpand(fun: Symbol, owner: Symbol, policy: Effects.Policy, span: Span)(using defn: Definitions, source: Source): Word =
-    val procType = fun.info.asProcType
+  def createLambda
+      (procType: ProcType, owner: Symbol, policy: Effects.Policy, span: Span)
+      (body: (List[Ident], List[Ident]) => Word)
+      (using defn: Definitions, source: Source)
+  : Word =
     val pos = span.toPos
 
     // Create a "this" symbol for the object
@@ -46,37 +53,53 @@ object TreeOps:
 
     defn.add(applySym, thisSym, applyProcType)
 
-    // Build the body: call the original function with the parameters
-    val funIdent = Ident(fun)(span)
-
-    // Apply type arguments if polymorphic
-    val funWithTargs =
-      if procType.isPolyType then
-        funIdent.appliedToTypes(procType.tparams.map(StaticRef.apply)*)
-      else
-        funIdent
-
-    // Apply regular arguments
+    // Generate parameter idents and call the body function
     val paramIdents = paramSyms.map(sym => Ident(sym)(span))
     val autoIdents = autoSyms.map(sym => Ident(sym)(span))
-    val body = Apply(funWithTargs, paramIdents, autoIdents)(span)
+    val bodyWord = body(paramIdents, autoIdents)
 
-    // Create the apply method definition - no tparams for the FunDef, they're in the ProcType
+    // Create the apply method definition
     val resultTypeTree = TypeTree(procType.resultType)(span.point)
-    val adaptersIdents = procType.adapters.map(_.map(s => Ident(s)(span)))
+    val adaptersConverted = procType.adapters.map(_.map {
+      case sym: Symbol => ParamAdapter.Function(sym)(span)
+      case name: String => ParamAdapter.Member(name)(span)
+    })
     val funDef = FunDef(
       applySym,
       procType.tparams,
       paramSyms,
-      adaptersIdents,
+      adaptersConverted,
       autoSyms,
       resultTypeTree,
       policy,
-      body
+      bodyWord
     )(span)
 
     // Create and return the object
     Object(thisSym, funDef :: Nil)(objType, span)
+
+  /** Eta-expand a function to an object with an apply method
+    *
+    * Converts: f
+    * To: { def apply[T1, ...](arg1: T1, ...): U = f(arg1, ...) }
+    */
+  def etaExpand(fun: Symbol, owner: Symbol, policy: Effects.Policy, span: Span)(using defn: Definitions, source: Source): Word =
+    val procType = fun.info.asProcType
+
+    createLambda(procType, owner, policy, span) { (paramIdents, autoIdents) =>
+      // Build the body: call the original function with the parameters
+      val funIdent = Ident(fun)(span)
+
+      // Apply type arguments if polymorphic
+      val funWithTargs =
+        if procType.isPolyType then
+          funIdent.appliedToTypes(procType.tparams.map(StaticRef.apply)*)
+        else
+          funIdent
+
+      // Apply regular and auto arguments
+      Apply(funWithTargs, paramIdents, autoIdents)(span)
+    }
 
   /** Returns (locals, free) */
   def variableCensus(fdef: FunDef)(using Definitions): (List[Symbol], List[Symbol]) =

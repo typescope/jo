@@ -41,7 +41,7 @@ param indent: Int
 def line(text: String): Unit =
   var i = 0
   while i < indent do
-    printChar ' '
+    print ' '
     i = i + 1
   println text
 ```
@@ -314,7 +314,7 @@ param indent: Int
 def line(text: String): Unit =
   var i = 0
   while i < indent do
-    printChar(' ')
+    print ' '
     i = i + 1
   println(text)
 

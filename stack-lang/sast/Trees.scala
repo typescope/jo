@@ -507,12 +507,16 @@ object Trees:
     (val span: Span)
   extends Word, Def
 
+  enum ParamAdapter:
+    case Function(symbol: Symbol)(val span: Span)
+    case Member(name: String)(val span: Span)
+
   /** Represents a named function or method definition */
   case class FunDef
     (symbol: Symbol,
       tparams: List[Symbol],
       params: List[Symbol],
-      adapters: List[List[Ident]],
+      adapters: List[List[ParamAdapter]],
       autos: List[Symbol],
       resultType: TypeTree,
       effectPolicy: Effects.Policy,

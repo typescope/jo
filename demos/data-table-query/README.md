@@ -399,6 +399,7 @@ type UpdateColumn = Title | Content  // Only mutable fields!
 ```
 
 Benefits:
+
 - **O(n) scalability** - Adding columns scales linearly
 - **Compile-time safety** - Cannot update `OwnerId` or `CreatedAt`
 - **Type system enforcement** - No runtime checks needed

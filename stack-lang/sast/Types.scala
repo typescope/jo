@@ -391,7 +391,7 @@ object Types:
   case class ProcType
     (tparams: List[Symbol],
       params: List[NamedInfo[Type]],
-      adapters: List[List[Symbol]],
+      adapters: List[List[Symbol | String]],
       autos: List[NamedInfo[Type]],
       resultType: Type,
       receivesInfo: () => List[Symbol],

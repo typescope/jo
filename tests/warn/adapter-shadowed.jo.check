@@ -1,10 +1,25 @@
----------- Error at ./tests/warn/adapter-shadowed.jo:6:35 ---------------
-| def foo(s: String with [intToStr, anotherIntToStr]): Unit =
-|                                   ^^^^^^^^^^^^^^^
-|                                   Adapter is shadowed: parameter type Int conforms to an earlier adapter's parameter type
+---------- Error at ./tests/warn/adapter-shadowed.jo:8:37 ---------------
+| def test1(s: String with [intToStr, anotherIntToStr]): Unit =
+|                                     ^^^^^^^^^^^^^^^
+|                                     Adapter is shadowed: parameter type Int conforms to an earlier adapter's parameter type
 |
 | Earlier adapter intToStr with parameter type Int is defined here
-| def foo(s: String with [intToStr, anotherIntToStr]): Unit =
-|                         ^^^^^^^^
+| def test1(s: String with [intToStr, anotherIntToStr]): Unit =
+|                           ^^^^^^^^
 
-1 error(s), 0 warning(s)
+---------- Error at ./tests/warn/adapter-shadowed.jo:12:36 ---------------
+| def test2(s: String with [.length, .length]): Unit =
+|                                    ^^^^^^^
+|                                    Member adapter .length is shadowed by earlier member adapter
+
+---------- Error at ./tests/warn/adapter-shadowed.jo:21:38 ---------------
+| def test3(s: String with [.toString, pointToStr]): Unit =
+|                                      ^^^^^^^^^^
+|                                      Adapter is shadowed by earlier member adapter .toString
+
+---------- Error at ./tests/warn/adapter-shadowed.jo:30:38 ---------------
+| def test4(s: String with [.toString, animalToStr]): Unit =
+|                                      ^^^^^^^^^^^
+|                                      Adapter is shadowed by earlier member adapter .toString
+
+4 error(s), 0 warning(s)

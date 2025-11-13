@@ -1,10 +1,35 @@
-// Later adapters cannot be shadowed by earlier ones
+// Test adapter shadowing rules
 
+// Test 1: Function adapter shadowing another function adapter
+// anotherIntToStr is shadowed because Int conforms to Int
 def intToStr(x: Int): String = ???
 def anotherIntToStr(x: Int): String = ???
 
-def foo(s: String with [intToStr, anotherIntToStr]): Unit =
+def test1(s: String with [intToStr, anotherIntToStr]): Unit =
+  print(s)
+
+// Test 2: Duplicate member adapters should error
+def test2(s: String with [.length, .length]): Unit =
+  print(s)
+
+// Test 3: Member adapter shadowing function adapter (val member)
+// .toString shadows pointToStr because Point has .toString member
+type Point = { val x: Int, val y: Int, val toString: String }
+
+def pointToStr(p: Point): String = p.toString
+
+def test3(s: String with [.toString, pointToStr]): Unit =
+  print(s)
+
+// Test 4: Member adapter shadowing function adapter (parameterless method)
+// .toString shadows animalToStr because Animal has parameterless toString method
+type Animal = { val name: String, def toString: String }
+
+def animalToStr(a: Animal): String = a.toString
+
+def test4(s: String with [.toString, animalToStr]): Unit =
   print(s)
 
 def main =
-  foo(42)
+  test1(42)
+  test2("hello")
