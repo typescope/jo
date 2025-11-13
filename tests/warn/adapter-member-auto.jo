@@ -1,0 +1,16 @@
+// Test that member adapter with auto parameter requires the auto parameter to be available
+
+type Prefix = { val prefix: String }
+
+type Item = { val name: String, def format(auto p: Prefix): String }
+
+def test(s: String with [.format]): Unit =
+  print(s)
+
+def main =
+  val item: Item = {
+    val name = "Widget"
+    def format(auto p: Prefix): String = p.prefix + name
+  }
+  // This should fail because Prefix auto parameter is not available
+  test(item)

@@ -13,7 +13,7 @@ def test2(n: Int with [.age]): Unit =
   print(n)
 
 // Test 3: Function adapter and member adapter as alternatives
-// This function accepts String but can use either formatAge(Int) or .name member
+// This function accepts String but can use either formatId(Int) or .name member
 type Employee = { val name: String, val id: Int }
 
 def formatId(x: Int): String =
