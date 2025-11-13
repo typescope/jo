@@ -241,7 +241,7 @@ object Adaptation:
     )
 
     // Use createLambda helper to generate the lambda object
-    TreeOps.createLambda(procType, owner, Effects.Policy.Infer, span) { (paramIdents, autoIdents) =>
+    TreeOps.createLambda(procType, owner, Effects.Policy.Infer, span): (paramIdents, autoIdents) =>
       // Body: x.memberName or x.memberName()
       val paramIdent = paramIdents.head
       val selected = paramIdent.select(memberName)
@@ -250,6 +250,6 @@ object Adaptation:
       memberType match
         case procType: ProcType if procType.params.isEmpty && procType.autos.isEmpty =>
           selected.appliedTo()
+
         case _ =>
           selected
-    }

@@ -68,34 +68,37 @@ object Adapters:
               else
                 // Check: no shadowed adapters - adapter parameter type must not conform to any earlier adapter's parameter type
                 val adapterParamType = procType.params.head.info
-                val shadowing = valid.find: earlierAdapter =>
-                  earlierAdapter match
-                    case ParamAdapter.Member(memberName) =>
-                      // Earlier adapter is a member adapter
-                      // Check if this function adapter is shadowed: does the function's argument type have the member?
-                      adapterParamType.getTermMember(memberName) match
-                        case Some(memberType) =>
-                          // The type has the member - check if it returns the right type
-                          // For parameterless methods (ProcType with no params), extract the result type
-                          val effectiveType = memberType match
-                            case procType: ProcType if procType.params.isEmpty && procType.autos.isEmpty =>
-                              procType.resultType
-                            case tp => tp
-                          Subtyping.conforms(effectiveType, paramType)
-                        case None =>
-                          // The type doesn't have the member - not shadowed
-                          false
-                    case ParamAdapter.Function(earlierSym) =>
-                      // Earlier adapter is a function adapter
-                      val earlierProcType = earlierSym.info.asProcType
-                      val earlierParamType = earlierProcType.params.head.info
-                      Subtyping.conforms(adapterParamType, earlierParamType)
+                val shadowing = valid.find:
+                  case ParamAdapter.Member(memberName) =>
+                    // Earlier adapter is a member adapter
+                    // Check if this function adapter is shadowed: does the function's argument type have the member?
+                    adapterParamType.getTermMember(memberName) match
+                      case Some(memberType) =>
+                        // The type has the member - check if it returns the right type
+                        // For parameterless methods (ProcType with no params), extract the result type
+                        val effectiveType = memberType match
+                          case procType: ProcType if procType.params.isEmpty && procType.autos.isEmpty =>
+                            procType.resultType
+                          case tp => tp
+
+                        Subtyping.conforms(effectiveType, paramType)
+
+                      case None =>
+                        // The type doesn't have the member - not shadowed
+                        false
+
+                  case ParamAdapter.Function(earlierSym) =>
+                    // Earlier adapter is a function adapter
+                    val earlierProcType = earlierSym.info.asProcType
+                    val earlierParamType = earlierProcType.params.head.info
+                    Subtyping.conforms(adapterParamType, earlierParamType)
 
                 shadowing match
                   case Some(earlierAdapter) =>
                     earlierAdapter match
                       case func @ ParamAdapter.Function(earlierSym) =>
                         rp.report(ShadowedAdapter(adapterParamType, earlierSym, func.span.toPos, ref.pos))
+
                       case member @ ParamAdapter.Member(memberName) =>
                         Reporter.error(s"Adapter is shadowed by earlier member adapter .$memberName", ref.pos)
 
