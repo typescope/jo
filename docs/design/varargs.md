@@ -128,29 +128,3 @@ The key insights:
 - The splice operator `..expr` is a normal expression with two words `..` and `expr` that is specially handled by the typer
 
 This design makes varargs feel like native syntax while being library-defined.
-
-## Restrictions
-
-1. **Position**: Vararg parameter must be the last parameter
-   ```jo
-   // Valid
-   def f(x: Int, y: Int, rest: ..Int): Int = ...
-
-   // Invalid - vararg must be last
-   def g(rest: ..Int, x: Int): Int = ...
-   ```
-
-2. **Count**: Only one vararg parameter per function
-   ```jo
-   // Invalid - multiple varargs
-   def h(xs: ..Int, ys: ..String): Unit = ...
-   ```
-
-3. **Splice in list context**:
-
-    The splice operator `..` can only be used:
-
-    - In function calls with vararg parameters
-    - In list literals `[...]`
-
-   It cannot be used in arbitrary expressions.

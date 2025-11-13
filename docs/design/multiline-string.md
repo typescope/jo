@@ -231,15 +231,15 @@ The scanner produces the following tokens for multiline strings:
 
 The parser processes multiline strings as follows:
 
-1. **Collect lines**:
+1. **Collect lines**
 
     Gather all `StringLine` tokens between `StringStart` and `StringEnd`.
 
-2. **Determine base indentation**:
+2. **Determine base indentation**
 
     The indentation level of the closing delimiter determines the base indentation to strip from all content lines.
 
-3. **Strip indentation**:
+3. **Strip indentation**
 
     For each content line:
 
@@ -247,8 +247,7 @@ The parser processes multiline strings as follows:
     - If the line has fewer than base indentation spaces and is non-empty, report an error
     - Remove the first `base_indentation` characters from the line
 
-4. **Process escape sequences**:
-
+4. **Process escape sequences**
 
     Apply `unescape()` with `EscapePolicy.Enable("u")`:
 
@@ -256,7 +255,7 @@ The parser processes multiline strings as follows:
     - All other backslash sequences are treated as literal characters
     - A backslash at the end of a line or string is preserved as a literal backslash
 
-5. **Join lines**:
+5. **Join lines**
 
     Concatenate all processed lines with newline characters between them
 

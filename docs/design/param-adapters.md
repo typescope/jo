@@ -178,31 +178,15 @@ printAll(..numbers)
 // The compiler applies numbers.map(intToStr) to convert List[Int] to List[String]
 ```
 
-**Splice adapter behavior:**
+**Splice adapter behavior**
 
-1. **Type checking**
+If `..value` is used where a varargs parameter expects `..T with [adapter1, ...]`:
 
-    If `..value` is used where a varargs parameter expects `..T with [adapter1, ...]`:
+- First check if `value` directly conforms to `List[T]`
+- If not, check if `value` has type `List[S]` for some type `S`
+- If so, try each adapter in order to find one that converts `S` to `T`
+- If adapter `ai` converts `S` to `T`, transform to `..value.map(ai)`
 
-    - First check if `value` directly conforms to `List[T]`
-    - If not, check if `value` has type `List[S]` for some type `S`
-    - If so, try each adapter in order to find one that converts `S` to `T`
-    - If adapter `ai` converts `S` to `T`, transform to `..value.map(ai)`
-
-2. **Adapter requirements**
-
-    For splice adaptation, the same adapter requirements apply as for regular adapters:
-
-    - Single parameter
-    - No auto parameters
-    - Return type conforms to the vararg element type
-    - No type parameters
-
-3. **Order of precedence**
-
-    - Direct conformance is always tried first
-    - Adapters are tried in declaration order
-    - Only the first matching adapter is applied
 
 **Example with multiple adapters:**
 
@@ -364,26 +348,6 @@ This example demonstrates how adapters can use context parameters to provide con
 
 When an adapter is applied, its context parameters are resolved from the calling context where the function is invoked. If an adapter is not called (because the argument already conforms to the parameter type), its context parameters need not be bound.
 
-## Type Error Messages
-
-When no adapter succeeds, the error message should indicate:
-
-1. The expected parameter type
-2. The actual argument type
-3. The adapters that were tried and why each failed
-
-Example error message:
-```
----------- Error at example.jo:10:8 ---------------
-| process(myList)
-|         ^^^^^^
-| Type mismatch for parameter s: String
-|   Found: List[Int]
-|   Tried adapters:
-|     - intToStr(Int): requires Int, found List[Int]
-|     - boolToStr(Bool): requires Bool, found List[Int]
-```
-
 ## Implementation Notes
 
 ### Type Checking Phase
@@ -412,12 +376,7 @@ All validation happens at function definition time, not at call sites. This ensu
 
 ## Future Extensions
 
-Potential future enhancements (not part of initial design):
-
-1. **Context-dependent adapters**: Allow adapters to depend on auto parameters
-2. **Adapter composition**: Allow limited chaining of adapters
-3. **Adapter groups**: Define reusable sets of adapters
-4. **Pattern adapter sugar**: Apply adapters in certain pattern contexts
+Member adapters of the form `.toString` is considered and will be implemented next.
 
 ## Design Decisions
 
