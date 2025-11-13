@@ -86,6 +86,11 @@ object RawPrinter:
   private given Text.Maker[Flags] =
     v => printFlags(v)
 
+  private given (using Definitions, State, Source): Text.Maker[ParamAdapter] =
+    v => v match
+      case ParamAdapter.Function(symbol) => printSymbolRef(symbol)
+      case ParamAdapter.Member(name) => "." ~ name
+
   //----------------------------------------------------------------------------
 
   def print(ns: Namespace)(using Definitions): Text =
@@ -287,7 +292,10 @@ object RawPrinter:
 
           val adaptersText = "[" ~ indent:
               val items = adapters.map: adapterList =>
-                "[" ~ adapterList.map(printSymbolRef).join(",") ~ "]"
+                val printed = adapterList.map:
+                  case sym: Symbol => printSymbolRef(sym)
+                  case name: String => "." ~ name
+                "[" ~ printed.join(",") ~ "]"
               items.join(LINE_SEP)
           ~ "]"
 

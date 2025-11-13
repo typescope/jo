@@ -88,8 +88,19 @@ object Printing:
           if fdef.tparams.isEmpty then Text.Empty
           else "[" ~ fdef.tparams.join(", ") ~ "]"
 
+        def showParamAdapter(adapter: ParamAdapter): Text =
+          adapter match
+            case ParamAdapter.Function(sym) => Text(sym.name)
+            case ParamAdapter.Member(name) => "." ~ name
+
+        def showParamWithAdapters(param: Symbol, adapters: List[ParamAdapter]): Text =
+          val adapterText =
+            if adapters.isEmpty then Text.Empty
+            else " with [" ~ adapters.map(showParamAdapter).join(", ") ~ "]"
+          param.name ~ ": " ~ param.info ~ adapterText
+
         val paramText =
-          "(" ~ fdef.params.map(sym => sym.name ~ ": " ~ sym.info).join(", ") ~ ")"
+          "(" ~ fdef.params.zip(fdef.adapters.padTo(fdef.params.size, Nil)).map(showParamWithAdapters).join(", ") ~ ")"
 
         val autoText =
           if fdef.autos.isEmpty then Text.Empty
@@ -407,14 +418,28 @@ object Printing:
           else
             "[" ~ tparams.join(Text(", ")) ~ "]"
 
+        def showAdapter(adapter: Symbol | String): Text =
+          adapter match
+            case sym: Symbol => Text(sym.name)
+            case name: String => "." ~ name
+
+        def showParamWithAdapters(param: NamedInfo[Type], paramAdapters: List[Symbol | String]): Text =
+          val adapterText =
+            if paramAdapters.isEmpty then Text.Empty
+            else " with [" ~ paramAdapters.map(showAdapter).join(", ") ~ "]"
+          param.name ~ ": " ~ param.info ~ adapterText
+
+        val paddedAdapters = adapters.padTo(params.size, Nil)
+        val paramsWithAdapters = params.zip(paddedAdapters)
+
         val preText =
           if n > 0 then
-            "(" ~ params.take(n).map(param => param.name ~ ": " ~ param.info).join(", ") ~ ")"
+            "(" ~ paramsWithAdapters.take(n).map(showParamWithAdapters).join(", ") ~ ")"
           else
             Text.Empty
 
         val postText =
-          "(" ~ params.drop(n).map(param => param.name ~ ": " ~ param.info).join(", ") ~ ")"
+          "(" ~ paramsWithAdapters.drop(n).map(showParamWithAdapters).join(", ") ~ ")"
 
         val autoText =
           if autos.isEmpty then Text.Empty
