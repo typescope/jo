@@ -8,7 +8,7 @@ type Document = {
 }
 
 def test(s: String with [.format]): Unit =
-  print(s)
+  println s
 
 def main =
   val doc: Document = {

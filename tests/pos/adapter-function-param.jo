@@ -1,0 +1,21 @@
+// Test that function adapter with param (context parameter) correctly propagates the context requirement
+
+param indent: Int
+
+type Document = {
+  val content: String
+}
+
+// Function that formats a Document, requiring indent context parameter
+def formatDoc(doc: Document): String receives indent =
+  intToStr(indent) + ": " + doc.content
+
+def test(s: String with [formatDoc]): Unit =
+  println s
+
+def main =
+  val doc: Document = {
+    val content = "World"
+  }
+  // The context parameter is provided here
+  test(doc) with indent = 10
