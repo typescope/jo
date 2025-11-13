@@ -120,6 +120,8 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       case "defer"     => Token.DEFER
       case "class"     => Token.CLASS
       case "new"       => Token.NEW
+      case "in"        => Token.IN
+      case "having"    => Token.HAVING
       case name        => Token.Ident(name)
 
   def operator(): Token =

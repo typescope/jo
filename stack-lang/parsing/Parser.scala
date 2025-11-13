@@ -409,10 +409,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   def modifiers(): List[Modifier] =
     peek() match
-      case Token.AUTO =>
-        val item = next()
-        Modifier.Auto()(item.span) :: modifiers()
-
       case Token.DEFER =>
         val item = next()
         Modifier.Defer()(item.span) :: modifiers()
@@ -554,16 +550,37 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def paramSection(): List[Param] =
     if peek() == Token.LPAREN && peek(1) != Token.AUTO then params() else Nil
 
-  def autoSection(): List[Param] =
+  def autoSection(): List[Auto] =
     if peek() == Token.LPAREN then
       next()
       eat(Token.AUTO)
-      val list = paramsRest(mutable.ArrayBuffer(param(typeOptional = false)), typeOptional = false)
+      val list = autosRest(mutable.ArrayBuffer(auto()), typeOptional = false)
       eat(Token.RPAREN)
       list
-
     else
       Nil
+
+  def auto(): Auto =
+    val id = ident()
+    eat(Token.COLON)
+    val tpt = typ()
+
+    val candidates =
+      if peek() == Token.IN then
+        eat(Token.IN)
+        candidateList()
+      else
+        Nil
+
+    val finalSpan = if candidates.isEmpty then id.span | tpt.span else id.span | candidates.last.span
+    Auto(id, tpt, candidates)(finalSpan)
+
+  def autosRest(acc: mutable.ArrayBuffer[Auto], typeOptional: Boolean): List[Auto] =
+    val token = peek()
+    if token == Token.RPAREN || token == Token.EOF then acc.toList
+    else
+      eat(Token.COMMA)
+      autosRest(acc += auto(), typeOptional)
 
   def classDef(mods: List[Modifier]): ClassDef =
     val klass = eat(Token.CLASS)
@@ -728,6 +745,48 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     eat(Token.RBRACKET)
     adapters.toList
 
+  /** Parse candidate list for auto parameters: [candidate1, candidate2, ...]
+    * Candidates can be qualified identifiers (value candidates) or [Type].member (member candidates)
+    */
+  def candidateList(): List[AutoCandidate] =
+    eat(Token.LBRACKET)
+    val candidates = mutable.ArrayBuffer[AutoCandidate]()
+
+    // Parse first candidate
+    if peek() == Token.LBRACKET then
+      // Member candidate: [Type].member
+      val lbracket = eat(Token.LBRACKET)
+      val tpe = typ()
+      eat(Token.RBRACKET)
+      eat(Token.DOT)
+      val memberName = ident()
+      val span1 = lbracket.span | memberName.span
+      candidates += AutoCandidate.Member(tpe, memberName.name)(span1)
+    else
+      // Value candidate: qualid
+      val ref = qualid()
+      candidates += AutoCandidate.Value(ref)(ref.span)
+
+    // Parse remaining candidates
+    while peek() == Token.COMMA do
+      eat(Token.COMMA)
+      if peek() == Token.LBRACKET then
+        // Member candidate: [Type].member
+        val lbracket = eat(Token.LBRACKET)
+        val tpe = typ()
+        eat(Token.RBRACKET)
+        eat(Token.DOT)
+        val memberName = ident()
+        val span = lbracket.span | memberName.span
+        candidates += AutoCandidate.Member(tpe, memberName.name)(span)
+      else
+        // Value candidate: qualid
+        val ref = qualid()
+        candidates += AutoCandidate.Value(ref)(ref.span)
+
+    eat(Token.RBRACKET)
+    candidates.toList
+
   /** Parse a block within the indentation */
   def block(limitIndent: Indent): Block =
     blockRest(mutable.ArrayBuffer(), limitIndent, peekItem())
@@ -766,6 +825,12 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     eat(Token.EQL)
     val rhs = expr()
     WithArg(id, rhs)(id.span | rhs.span)
+
+  def havingBinding(): HavingBinding =
+    val tpe = typ()
+    eat(Token.EQL)
+    val value = expr()
+    HavingBinding(tpe, value)(tpe.span | value.span)
 
   def allowClause(expr: Word): Word =
     eat(Token.ALLOW)
@@ -960,7 +1025,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case Token.TYPE =>
         Some(typeDef(mods = Nil))
 
-      case Token.AUTO | Token.DEFER =>
+      case Token.DEFER =>
         val mods = modifiers()
         peek() match
           case Token.VAL | Token.VAR =>
@@ -1298,7 +1363,14 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   def apply(fun: Word): Apply =
     val (args, span) = termArgs()
-    Apply(fun, args)(fun.span | span)
+    val havingBindings =
+      if peek() == Token.HAVING then
+        eat(Token.HAVING)
+        oneOrMore(havingBinding, Token.COMMA)
+      else
+        Nil
+    val finalSpan = if havingBindings.isEmpty then fun.span | span else fun.span | havingBindings.last.span
+    Apply(fun, args, havingBindings)(finalSpan)
 
   def newExpr(): New =
     val startItem = eat(Token.NEW)
@@ -1416,7 +1488,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def applyPattern(apply: Tag | RefTree): Word =
     val bindings = patternArgs()
     val spanEnd = bindings.last.span
-    Apply(apply, bindings)(apply.span | spanEnd)
+    Apply(apply, bindings, Nil)(apply.span | spanEnd)
 
   def patternArgs(): List[Word] =
     val nested = new mutable.ArrayBuffer[Word]

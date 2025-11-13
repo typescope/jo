@@ -131,9 +131,6 @@ class Checker(namer: Namer):
     defn match
       case fdef: Ast.FunDef =>
         mods.foreach:
-          case _: Ast.Modifier.Auto =>
-            flags = flags | Flags.Auto
-
           case _: Ast.Modifier.Defer =>
             flags = flags | Flags.Defer
 
@@ -144,18 +141,8 @@ class Checker(namer: Namer):
           case mod =>
             Reporter.error("The modifier " + mod.show + " is not allowed for function definition", mod.pos)
 
-        if flags.is(Flags.Auto) && fdef.params.nonEmpty then
-          val tip =
-            if fdef.autos.isEmpty then " Do you forget the modifier auto?"
-            else ""
-
-          Reporter.warn("The function will be ignored in auto derivation as it requires non-auto arguments." + tip, fdef.params.head.pos)
-
       case vdef: Ast.ValDef =>
         mods.foreach:
-          case _: Ast.Modifier.Auto =>
-            flags = flags | Flags.Auto
-
           case mod =>
             Reporter.error("The modifier " + mod.show + " is not allowed for value definition", mod.pos)
 
@@ -190,9 +177,6 @@ class Checker(namer: Namer):
       case adef: Ast.AliasDef =>
         val kind = adef.kind
         mods.foreach:
-          case _: Ast.Modifier.Auto if kind == Ast.AliasKind.Def =>
-            flags = flags | Flags.Auto
-
           case mod =>
             Reporter.error(s"The modifier ${mod.show} is not allowed for alias $kind definition", mod.pos)
     end match
