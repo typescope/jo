@@ -5,17 +5,17 @@ def OR  (p: Bool, q: Bool): Bool = NAND (NOT p) (NOT q)
 
 def main =
   if NOT true then
-    10 p
+    println 10
   else
-    20 p
+    println 20
 
   if AND true false then
-    1 p
+    println 1
   else
-    2 p
+    println 2
 
   if OR true false then
-    5 p
+    println 5
   else
-    10 p
+    println 10
   end

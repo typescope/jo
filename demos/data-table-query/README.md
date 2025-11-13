@@ -82,7 +82,7 @@ ORDER BY created_at DESC LIMIT 5
 
 ### UPDATE: Single field by ID
 ```jo
-db.updateById(1, [Title := str("New Title")])
+db.updateById(1, [Title := "New Title"])
 ```
 ```sql
 UPDATE documents SET title = ? WHERE id = ? AND owner_id = ?
@@ -91,9 +91,9 @@ UPDATE documents SET title = ? WHERE id = ? AND owner_id = ?
 ### UPDATE: Multiple fields by ID
 ```jo
 db.updateById(1, [
-  Title := str("New Title"),
-  Content := str("New Content"),
-  Draft := bool(false)
+  Title := "New Title",
+  Content := "New Content",
+  Draft := false
 ])
 ```
 ```sql
@@ -103,7 +103,7 @@ WHERE id = ? AND owner_id = ?
 
 ### UPDATE: Bulk update with condition
 ```jo
-db.update(Draft == bool(true), [Draft := bool(false)])
+db.update(Draft == true, [Draft := false])
 ```
 ```sql
 UPDATE documents SET draft = ?
@@ -120,7 +120,7 @@ DELETE FROM documents WHERE id = ? AND owner_id = ?
 
 ### DELETE: By condition
 ```jo
-db.delete((Title like "%Temp%") || (CreatedAt < str("2024-01-01")))
+db.delete((Title like "%Temp%") || (CreatedAt < "2024-01-01"))
 ```
 ```sql
 DELETE FROM documents
@@ -269,23 +269,23 @@ def analyzeDocuments: Unit receives stdout, db =
     limit = 5
 
   // UPDATE: Single field by ID
-  db.updateById(1, [Title := str("New Title")])
+  db.updateById(1, [Title := "New Title"])
 
   // UPDATE: Multiple fields by ID
   db.updateById(1, [
-    Title := str("New Title"),
-    Content := str("New Content"),
-    Draft := bool(false)
+    Title := "New Title",
+    Content := "New Content",
+    Draft := false
   ])
 
   // UPDATE: Bulk update - publish all drafts
-  db.update(Draft == bool(true), [Draft := bool(false)])
+  db.update(Draft == true, [Draft := false])
 
   // DELETE: By ID
   db.deleteById(42)
 
   // DELETE: Delete all drafts
-  db.delete(Draft == bool(true))
+  db.delete(Draft == true)
 
   // COUNT: After operations
   val remaining = db.count(All)
@@ -352,6 +352,42 @@ User code **cannot**:
 
 
 ## Design Highlights
+
+### Parameter Adapters for Clean DSL Syntax
+
+The DSL uses **parameter adapters** to automatically convert primitive values to the `Value` type:
+
+```jo
+// Adapter functions
+def str(s: String): Value = StringValue(s)
+def int(n: Int): Value = IntValue(n)
+def bool(b: Bool): Value = BoolValue(b)
+
+// DSL operators accept Value with adapters
+def (col: Column) == (v: Value with [str, int, bool]): Cond = Eq(col, v)
+def (field: UpdateColumn) := (value: Value with [str, int, bool]): FieldUpdate = ...
+```
+
+This allows natural syntax without explicit conversions:
+
+```jo
+// Clean syntax - adapters applied automatically
+Draft == true
+Title := "New Title"
+CreatedAt < "2024-01-01"
+
+// Instead of verbose manual conversion
+Draft == bool(true)
+Title := str("New Title")
+CreatedAt < str("2024-01-01")
+```
+
+Benefits:
+
+- **Readable** - DSL looks like natural comparisons and assignments
+- **Type-safe** - Compiler ensures correct adapter is used based on value type
+- **Flexible** - Each operator can have different adapter lists
+- **No runtime overhead** - Adapters resolved at compile time
 
 ### Type-Safe Updateable Columns
 

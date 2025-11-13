@@ -1,31 +1,31 @@
 def main =
   if 2 * 3 > 5 then
-    200 p
+    println 200
   else
-    -200 p
+    println -200
   end
 
 
   if 2 * 3 < 5 then
-    200 p
+    println 200
   else
-    -200 p
+    println -200
   end
 
   if 4 * 3 >= 11 then
-    400 p
+    println 400
   else
-    -400 p
+    println -400
   end
 
   if 4 * 3 <= 11 then
-    400 p
+    println 400
   else
-    -400 p
+    println -400
   end
 
   if 4 * 3 <= 12 then
-    500 p
+    println 500
   else
-    -500 p
+    println -500
   end

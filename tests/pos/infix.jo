@@ -18,5 +18,5 @@ def main =
   val p2: Point = {x: 6, y: 8}
   val p3: Point = p1 + p2 * p2
 
-  p3.x p
-  p3.y p
+  println p3.x
+  println p3.y

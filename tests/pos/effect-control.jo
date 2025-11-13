@@ -42,7 +42,7 @@ def main =
     else #None
 
   val res = lineCount() with readLine = readLineFun allow none
-  println (intToStr res)
+  println res
 
 def test() =
   val readLineFun = {

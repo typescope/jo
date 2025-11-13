@@ -1,9 +1,9 @@
-def foo(x: Int): Unit = x p
+def foo(x: Int): Unit = println x
 
 def bar(x: Int): Unit =
   foo  // error
-  x p
+  println x
 
 def main =
   bar    // error
-  10 p
+  println 10

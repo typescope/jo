@@ -10,10 +10,10 @@ pattern Pos: Partial[Int] = case x if x > 0
 def test(a: MySeq[Int]) =
   match a
     case [> (x if x > 2), (ys @ Pos)*, z*] =>
-      println (intToStr x)
-      ys.foreach (x => println (intToStr x))
+      println x
+      ys.foreach (x => println x)
       println "after pos: "
-      z.foreach (x => println (intToStr x))
+      z.foreach (x => println x)
 
     case _ =>
 
@@ -37,7 +37,7 @@ def main =
     case [] =>
     case [x] =>
     case [x, y, ..xs] =>
-      println (intToStr y)
-      xs.foreach i => println (intToStr i)
+      println y
+      xs.foreach i => println i
 
   match a case Size v => println ("Size = " + (intToStr v))

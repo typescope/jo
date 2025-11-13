@@ -95,3 +95,5 @@ nav:
     - Block Comments: design/block-comment/index.html
     - Varargs: design/varargs/index.html
     - Deferred Functions: design/deferred-functions/index.html
+    - Context Parameters: design/context-parameters/index.html
+    - Parameter Adapters: design/param-adapters/index.html

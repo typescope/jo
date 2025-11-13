@@ -13,6 +13,7 @@ def f(x: ..T): U = ...
 ```
 
 **Rules:**
+
 - A vararg parameter must be the last parameter in the parameter list
 - Only one vararg parameter is allowed per function
 - The vararg parameter receives the arguments as a `List[T]`
@@ -40,16 +41,16 @@ sum(1, 2, 3, 4, 5)        // Passing 5 integers
 printAll "First" "Second" "Third"  // Passing 3 strings
 ```
 
-### Spreading Lists
+### Splicing Lists
 
-Use the spread operator `..` to expand a list into individual arguments:
+Use the splice operator `..` to expand a list into individual arguments:
 
 ```jo
 val numbers = List(3, 5, 6, 8)
 sum(1, 2, ..numbers, 9, 10)  // Expands to: sum(1, 2, 3, 5, 6, 8, 9, 10)
 ```
 
-The spread operator can be used:
+The splice operator can be used:
 
 - At the beginning: `sum(..list)`
 - In the middle: `sum(1, 2, ..list, 9, 10)`
@@ -60,7 +61,7 @@ The spread operator can be used:
 
 When a function with vararg parameters is called:
 
-1. All arguments (including spread lists) are collected
+1. All arguments (including spliced lists) are collected
 2. They are combined into a single `List[Type]`
 3. The function receives this list as the vararg parameter
 
@@ -72,9 +73,9 @@ def sum(numbers: ..Int): Int = ...
 sum(1, 2, 3)  // numbers = List(1, 2, 3)
 ```
 
-## List Construction with Spread
+## List Construction with Splice
 
-The spread operator is particularly useful when constructing lists:
+The splice operator is particularly useful when constructing lists:
 
 ```jo
 val original = List(3, 5, 6, 8)
@@ -119,36 +120,11 @@ Unlike many languages where varargs are special syntax, in Jo the `..` notation 
 ```jo
 // Used to indicate the last parameter is a vararg
 type ..[T] = List[T]
-
-// Splice a list as flat arguments
-def ..[T](l: List[T]): T = abort "Only support unpacking in argument positions"
 ```
 
 The key insights:
 
 - `..T` is just a type alias for `List[T]`
-- The spread operator `..expr` is a function call that is specially handled by the compiler
-- This design makes varargs feel like native syntax while being library-defined
+- The splice operator `..expr` is a normal expression with two words `..` and `expr` that is specially handled by the typer
 
-## Restrictions
-
-1. **Position**: Vararg parameter must be the last parameter
-   ```jo
-   // Valid
-   def f(x: Int, y: Int, rest: ..Int): Int = ...
-
-   // Invalid - vararg must be last
-   def g(rest: ..Int, x: Int): Int = ...
-   ```
-
-2. **Count**: Only one vararg parameter per function
-   ```jo
-   // Invalid - multiple varargs
-   def h(xs: ..Int, ys: ..String): Unit = ...
-   ```
-
-3. **Spread in list context**: The spread operator `..` can only be used:
-   - In function calls with vararg parameters
-   - In list literals `[...]`
-
-   It cannot be used in arbitrary expressions.
+This design makes varargs feel like native syntax while being library-defined.

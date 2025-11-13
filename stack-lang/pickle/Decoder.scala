@@ -435,7 +435,7 @@ object Decoder:
         tparam
 
       // Decode regular term parameters
-      val params = repeated:
+      val paramsWithAdapters = repeated:
         val paramId = decodeNat()
         val paramName = decodeString()
 
@@ -447,7 +447,20 @@ object Decoder:
 
         val param = Symbol.createSymbol(paramName, paramInfo, Flags.Param, symbol, paramSpan.toPos)
         state.registerInternalSymbol(paramId, param)
-        param
+
+        val adapters = repeated {
+          val adapterSym = decodeSymbolRef()
+          val adapterStartDelta = decodeInt()
+          val adapterSpanLength = decodeNat()
+          val adapterSpan = Span(absoluteStart + adapterStartDelta, adapterSpanLength)
+          Ident(adapterSym)(adapterSpan)
+        }
+
+        (param, adapters)
+
+      val params = paramsWithAdapters.map(_._1)
+      val adapterIdents = paramsWithAdapters.map(_._2)
+      val adapterSymbols = adapterIdents.map(l => l.map(_.symbol))
 
       // Decode auto parameters
       val autos = repeated:
@@ -462,6 +475,7 @@ object Decoder:
 
         val auto = Symbol.createSymbol(autoName, autoInfo, Flags.Param | Flags.Auto, symbol, autoSpan.toPos)
         state.registerInternalSymbol(autoId, auto)
+
         auto
 
 
@@ -479,7 +493,7 @@ object Decoder:
       val receives = sig.receives
 
       ProcType(
-        sig.tparams, sig.params.map(_.toNamedInfo), sig.autos.map(_.toNamedInfo),
+        sig.tparams, sig.params.map(_.toNamedInfo), sig.adapterSymbols, sig.autos.map(_.toNamedInfo),
         sig.resultType.tpe, () => receives, sig.preParamCount)
 
     defnLazy.infoProvider.addLazy(symbol, owner,  () => funInfo)
@@ -492,7 +506,7 @@ object Decoder:
       val endDelta = decodeInt()
       val span = Span(absoluteStart, body.span.endOffset + endDelta - absoluteStart)
       val policy = Effects.Policy.CheckBound(sig.receives)
-      FunDef(symbol, sig.tparams, sig.params, sig.autos, sig.resultType, policy, body)(span)
+      FunDef(symbol, sig.tparams, sig.params, sig.adapterIdents, sig.autos, sig.resultType, policy, body)(span)
 
     // Set buffer position at end
     buf.setPosition(pos + length)
@@ -696,6 +710,7 @@ object Decoder:
 
         val param = Symbol.createSymbol(paramName, paramInfo, Flags.Param | Flags.Pattern, symbol, paramSpan.toPos)
         state.registerInternalSymbol(paramId, param)
+
         param
 
       val resultType = decodeTypeTree(absoluteStart)
@@ -708,7 +723,7 @@ object Decoder:
     lazy val patInfo: ProcType =
       val receives = sig.receives
       ProcType(
-        sig.tparams, sig.params.map(_.toNamedInfo), List.empty,
+        sig.tparams, sig.params.map(_.toNamedInfo), sig.params.map(_ => Nil), Nil,
         sig.resultType.tpe, () => receives, sig.preParamCount)
 
     defnLazy.infoProvider.addLazy(symbol, owner, () => patInfo)
@@ -929,10 +944,16 @@ object Decoder:
           tparam
 
         tparamScope.withParams(tparams):
-          val params = repeated:
+          val paramsWithAdapters = repeated:
             val name = decodeString()
             val info = decodeType(tparamScope)
-            NamedInfo(name, info)
+            val adapters = repeated:
+              decodeSymbolRef()
+
+            (NamedInfo(name, info), adapters)
+
+          val params = paramsWithAdapters.map(_._1)
+          val adapters = paramsWithAdapters.map(_._2)
 
           val autos = repeated:
             val name = decodeString()
@@ -943,7 +964,7 @@ object Decoder:
           val receives = repeated { decodeSymbolRef() }
           val preParamCount = decodeNat()
 
-          ProcType(tparams, params, autos, resType, () => receives, preParamCount)
+          ProcType(tparams, params, adapters, autos, resType, () => receives, preParamCount)
 
       case Format.TypeLambda =>
         val tparams = repeated:

@@ -3,4 +3,4 @@ namespace test
 import test.lib
 
 def main =
-  lib.double 10 p
+  println (lib.double 10)

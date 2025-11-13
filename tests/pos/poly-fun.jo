@@ -4,9 +4,9 @@ def swap[S, T](x: {a: S, b: T}): {a: T, b: S} =
   { a: x.b, b: x.a }
 
 def main =
-  ident[Int] 3 p
+  println (ident[Int] 3)
 
   val x = { a: 4, b: false }
   val y = swap[Int, Bool] x
 
-  y.b p
+  println y.b

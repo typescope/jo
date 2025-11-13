@@ -1,0 +1,9 @@
+// Adapter must return the parameter's declared type
+
+def intToBool(x: Int): Bool = x != 0
+
+def foo(s: String with [intToBool]): Unit =
+  print(s)
+
+def main =
+  foo(42)

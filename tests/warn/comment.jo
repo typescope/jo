@@ -3,4 +3,4 @@ def main =
   a
     *// comment
     4
-  a p
+  println a

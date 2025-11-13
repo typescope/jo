@@ -26,6 +26,7 @@ files=(
     stack-lang/reporting/Timer.scala
 
     # typer
+    stack-lang/typing/Adapters.scala
     stack-lang/typing/Autos.scala
     stack-lang/typing/Checker.scala
     stack-lang/typing/ExprTyper.scala
@@ -35,6 +36,8 @@ files=(
     stack-lang/typing/Namer.scala
     stack-lang/typing/Scope.scala
     stack-lang/typing/Typer.scala
+
+    stack-lang/sast/Adaptation.scala
     stack-lang/sast/Cache.scala
     stack-lang/sast/CodeProvider.scala
     stack-lang/sast/Constant.scala

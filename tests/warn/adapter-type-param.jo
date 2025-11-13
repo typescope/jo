@@ -1,0 +1,9 @@
+// Parameters with type variables cannot have adapters
+
+def listAdapter(x: Array[Int]): List[Int] = ???
+
+def process[T](items: List[T] with [listAdapter]): Unit =
+  print("processing")
+
+def main =
+  process([1, 2, 3])

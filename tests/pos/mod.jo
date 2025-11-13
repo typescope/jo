@@ -1,4 +1,4 @@
 def main =
-  (26 % 5) p
+  println (26 % 5)
 
-  (30 % 10) p
+  println (30 % 10)

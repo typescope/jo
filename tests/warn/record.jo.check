@@ -1,0 +1,26 @@
+---------- Error at ./tests/warn/record.jo:6:3 ---------------
+|   x: Int       // error
+|   ^^^^^^
+|   Field x already defined
+
+---------- Error at ./tests/warn/record.jo:13:30 ---------------
+|   val p2: Point = {x: 10, y: false} // error
+|                              ^^^^^
+|                              Expect type Int, found = Bool
+
+---------- Error at ./tests/warn/record.jo:16:26 ---------------
+|   val p4: PointReorder = p1  // error
+|                          ^^
+|                          Expect type PointReorder, found = p1: Point
+
+---------- Error at ./tests/warn/record.jo:18:11 ---------------
+|   println p3.x // error
+|           ^^
+|           The prefix does not contain the member x
+
+---------- Error at ./tests/warn/record.jo:19:11 ---------------
+|   println p1.z // error
+|           ^^
+|           The prefix does not contain the member z
+
+5 error(s), 0 warning(s)

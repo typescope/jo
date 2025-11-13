@@ -3,7 +3,7 @@ package sast
 import Symbols.*
 import Types.*
 
-import ast.Positions.{ Positioned, Span, DerivedSpan }
+import ast.Positions.{ Positioned, Span, DerivedSpan, Source }
 
 /***********************************************************************
  *
@@ -51,10 +51,12 @@ object Trees:
 
         case _ => false
 
+    /** Whether the tree is a call or an identifier to a symbol */
     def refers(symbol: Symbol)(using Definitions): Boolean =
       // selection is never symblic after normalization, thus no need to handle
       this match
-        case Ident(sym) => sym.refers(symbol)
+        case Ident(sym) => sym == symbol
+        case Apply(fun, _, _) => fun.refers(symbol)
         case TypeApply(fun, _) => fun.refers(symbol)
         case _ => false
 
@@ -507,13 +509,20 @@ object Trees:
 
   /** Represents a named function or method definition */
   case class FunDef
-    (symbol: Symbol, tparams: List[Symbol], params: List[Symbol],
-      autos: List[Symbol], resultType: TypeTree, effectPolicy: Effects.Policy,
+    (symbol: Symbol,
+      tparams: List[Symbol],
+      params: List[Symbol],
+      adapters: List[List[Ident]],
+      autos: List[Symbol],
+      resultType: TypeTree,
+      effectPolicy: Effects.Policy,
       body: Word)
     (val span: Span)
     (using defn: Definitions)
   extends Word, Def:
     defn.setCode(symbol, this)
+
+    assert(params.size == adapters.size)
 
     private var censusCache: (List[Symbol], List[Symbol]) | Null = null
 
@@ -599,7 +608,7 @@ object Trees:
   def BoolLit(b: Boolean)(span: Span)(using defn: Definitions) =
     Literal(Constant.Bool(b))(defn.BoolType, span)
 
-  def all(cond: Word, conds: Word*)(using defn: Definitions): Word =
+  def all(cond: Word, conds: Word*)(using defn: Definitions, source: Source): Word =
     conds.foldLeft(cond): (acc, cond) =>
       Ident(defn.Bool_both)(cond.span).appliedTo(acc, cond)
 
@@ -622,9 +631,8 @@ object Trees:
       assert(procType.autos.isEmpty, "autos not supplied")
 
       val args2 =
-        for (arg, paramType) <- args.zip(procType.paramTypes)
-        yield TreeOps.adapt(arg, paramType)
-
+        for ((arg, paramType), adapterList) <- args.zip(procType.paramTypes).zip(procType.adapters)
+        yield Adaptation.adapt(arg, paramType, Adaptation.createSimpleAdapter(adapterList))
 
       val span = args.foldLeft(word.span)(_ | _.span)
 
@@ -646,5 +654,5 @@ object Trees:
 
     def encodedAs(tpe: Type): Word = Encoded(word)(tpe)
 
-    def isEqualTo(rhs: Word)(using defn: Definitions): Word =
+    def isEqualTo(rhs: Word)(using defn: Definitions, source: Source): Word =
       Ident(defn.Int_eql)(word.span).appliedTo(word, rhs)

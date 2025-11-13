@@ -95,7 +95,7 @@ object TypeOps:
     def recur(tp: Type): Type = Debug.trace(s"$tp.dealias", enable = false):
       tp match
         case tref @ StaticRef(sym) =>
-          if encountered.contains(tref) || sym.isTypeParameter || !sym.isType && !sym.isAlias then
+          if encountered.contains(tref) || sym.isOneOf(Flags.Param | Flags.Class) || sym.info.is[TypeBound] || !sym.isType && !sym.isAlias then
             tref
           else
             encountered += tref

@@ -11,10 +11,10 @@ def testIntArray =
     set arr 1 12
     set arr 2 14
 
-    size arr p
-    get arr 0 p
-    get arr 1 p
-    get arr 2 p
+    println (size arr)
+    println (get arr 0)
+    println (get arr 1)
+    println (get arr 2)
   end
 
 def testBoolArray =
@@ -28,7 +28,7 @@ def testBoolArray =
     set arr 1 false
     set arr 2 true
 
-    size arr p
+    println (size arr)
     get arr 0 pb
     get arr 1 pb
     get arr 2 pb
@@ -41,7 +41,7 @@ def testObjectArray =
     set arr 1 "b"
     set arr 2 "c"
 
-    size arr p
+    println (size arr)
     println (get arr 0)
 
     println (get arr 1)

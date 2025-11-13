@@ -3,9 +3,9 @@ def app[X, Y](x: X, f: X => Y): Y = f x
 def app2[X, Y](f: X => Y, x: X): Y = f x
 
 def main =
-  app 5 (x => x * x) p
+  app 5 (x => println (x * x))
 
   // Scala cannot do this
-  app2 (x => x + x) 5 p
+  println (app2 (x => x + x) 5)
 
   val f = (x => x + x)

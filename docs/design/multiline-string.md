@@ -231,23 +231,36 @@ The scanner produces the following tokens for multiline strings:
 
 The parser processes multiline strings as follows:
 
-1. **Collect lines**: Gather all `StringLine` tokens between `StringStart` and `StringEnd`
+1. **Collect lines**
 
-2. **Determine base indentation**: The indentation level of the closing delimiter determines the base indentation to strip from all content lines
+    Gather all `StringLine` tokens between `StringStart` and `StringEnd`.
 
-3. **Strip indentation**: For each content line:
-   - Count leading spaces and tabs
-   - If the line has fewer than base indentation spaces and is non-empty, report an error
-   - Remove the first `base_indentation` characters from the line
+2. **Determine base indentation**
 
-4. **Process escape sequences**: Apply `unescape()` with `EscapePolicy.Enable("u")`:
-   - Only `\u{X...}` Unicode escapes (1-6 hex digits) are processed
-   - All other backslash sequences are treated as literal characters
-   - A backslash at the end of a line or string is preserved as a literal backslash
+    The indentation level of the closing delimiter determines the base indentation to strip from all content lines.
 
-5. **Join lines**: Concatenate all processed lines with newline characters between them
-   - A newline is added between consecutive lines
-   - No newline is added after the last line (unless there was an empty line before the closing delimiter)
+3. **Strip indentation**
+
+    For each content line:
+
+    - Count leading spaces and tabs
+    - If the line has fewer than base indentation spaces and is non-empty, report an error
+    - Remove the first `base_indentation` characters from the line
+
+4. **Process escape sequences**
+
+    Apply `unescape()` with `EscapePolicy.Enable("u")`:
+
+    - Only `\u{X...}` Unicode escapes (1-6 hex digits) are processed
+    - All other backslash sequences are treated as literal characters
+    - A backslash at the end of a line or string is preserved as a literal backslash
+
+5. **Join lines**
+
+    Concatenate all processed lines with newline characters between them
+
+    - A newline is added between consecutive lines
+    - No newline is added after the last line (unless there was an empty line before the closing delimiter)
 
 ### Grammar
 

@@ -1,4 +1,4 @@
 def main =
-  (4 / 5)  p
+  println (4 / 5)
 
-  (10 / 3) p
+  println (10 / 3)

@@ -21,7 +21,7 @@
 ---------- Warning at ./tests/warn/indentation.jo:27:3 ---------------
 |   5 p          // error
 |   ^
-|   IntLit(5) is not aligned with IntLit(4), expect offset = 4, found = 2
+|   IntLit(5) is not aligned with Ident(println), expect offset = 4, found = 2
 
 ---------- Error at ./tests/warn/indentation.jo:34:6 ---------------
 |      end                    // error

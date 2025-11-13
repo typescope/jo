@@ -23,9 +23,9 @@ def fact1(n: Int) =
     else fact1 (n - 1) * n   // error
 
 def foo() =
-    4 p
+    println 4
   5 p          // error
-    6 p
+    println 6
       7 p      // expression continues to this line
 
 def fact2(n: Int) =

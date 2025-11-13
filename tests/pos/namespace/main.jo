@@ -4,4 +4,4 @@ def concat(a: Int, l: test.List[Int]): test.List[Int] = #Cons(a, l)
 
 def main =
   test.id[Int] 20
-  test.double 10 p
+  println (test.double 10)

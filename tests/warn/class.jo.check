@@ -49,12 +49,12 @@
 ---------- Error at ./tests/warn/class.jo:43:30 ---------------
 |   def I(x: Int) = { n: x, m: this.x }
 |                              ^^^^
-|                              Undefined term identifier this
+|                              Undefined term name this
 
 ---------- Error at ./tests/warn/class.jo:50:5 ---------------
 |     this.m
 |     ^^^^
-|     Undefined term identifier this
+|     Undefined term name this
 
 ---------- Error at ./tests/warn/class.jo:57:13 ---------------
 |     { n: x, m: x }

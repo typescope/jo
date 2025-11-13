@@ -1,0 +1,6 @@
+---------- Error at ./tests/warn/adapter-pattern-param.jo:6:40 ---------------
+| pattern NamedPerson(name: String with [intToStr, charToStr]): String =
+|                                        ^^^^^^^^^^^^^^^^^^^
+|                                        A pattern parameter cannot have adapters
+
+1 error(s), 0 warning(s)

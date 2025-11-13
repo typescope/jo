@@ -27,7 +27,7 @@ This demo demonstrates how platforms can provide system capabilities through **c
            │ uses
            ▼
 ┌─────────────────────┐
-│  jo.runtime.JS      │  Base runtime
+│  jo.runtime.JS      │  Base JS runtime
 │  (js intrinsic)     │  - Node.js interop
 └─────────────────────┘
 ```
@@ -158,8 +158,6 @@ bin/jo build -js \
   -o out/monitor.js
 ```
 
-**Notice**: Only **2 link flags** needed for the entire demo!
-
 ## Running
 
 ```bash
@@ -171,17 +169,21 @@ demos/process-monitor/build.sh
 Context parameters provide strong security guarantees:
 
 1. **User code cannot access undeclared capabilities**
-   - Can only access declared `param` objects
+
+    - Can only access declared `param` objects
 
 2. **Platform controls implementations**
-   - Via `with` clause in runtime
+
+    - Via `with` clause in runtime
 
 3. **Type-safe capability access**
-   - Enforced at compile time
+
+    - Enforced at compile time
 
 4. **No runtime surprises**
-   - Resolves at compile/link time
-   - Zero runtime overhead
+
+    - Resolves at compile/link time
+    - Zero runtime overhead
 
 ## Key Takeaway
 

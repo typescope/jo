@@ -9,4 +9,4 @@ def test2(v: {a: Int, b: Bool}): {a: Int} = v
 
 def test3(s: String): Seq = s
 
-def main = 10 p
+def main = println 10

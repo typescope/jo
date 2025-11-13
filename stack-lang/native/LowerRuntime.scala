@@ -33,7 +33,6 @@ class LowerRuntime(runtime: NativeRuntime)(using defn: Definitions) extends phas
 
   val Array_Array = defn.Array_Array
 
-  val Predef_String = defn.Predef_String
   val StringType = defn.StringType
 
   val BoolType = defn.BoolType
@@ -46,7 +45,7 @@ class LowerRuntime(runtime: NativeRuntime)(using defn: Definitions) extends phas
      val autos2 = autos.map(this.apply)
 
     fun.strip match
-      case TypeApply(Ident(sym), tpt :: Nil) if sym.refers(runtime.Core_cast) =>
+      case TypeApply(Ident(sym), tpt :: Nil) if sym == runtime.Core_cast =>
         assert(args2.size == 1, args2)
         Encoded(args2.head)(tpt.tpe)
 
@@ -55,7 +54,7 @@ class LowerRuntime(runtime: NativeRuntime)(using defn: Definitions) extends phas
 
   override def transformSelect(select: Select)(using ctx: Context): Word =
     val Select(qual, name) = select
-    if qual.tpe.refers(Predef_String) then
+    if qual.tpe.isSubtype(StringType) then
       // After lambda lift, `qual` is stable thus can be thrown away
       assert(qual.isIdempotent, select.show)
 

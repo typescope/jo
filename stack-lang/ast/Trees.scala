@@ -336,7 +336,7 @@ object Trees:
     def name: String = ident.name
 
   case class Param
-    (ident: Ident, tpt: TypeTree)
+    (ident: Ident, tpt: TypeTree, adapters: List[RefTree])
     (val span: Span)
   extends Tree:
     def name = ident.name

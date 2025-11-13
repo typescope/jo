@@ -2,99 +2,81 @@ package sast
 
 import Trees.*
 import Symbols.Symbol
+import Flags.*
 import Types.*
 
+import ast.Positions.{Span, Source}
 
 import scala.collection.mutable
 
 object TreeOps:
-  class AdaptionFailure(word: Word, targetType: Type) extends Exception:
-    override def toString(): String =
-      "Unable to adapt " + word + " of type " + word.tpe + " to " + targetType
-
-  /** Adapt the word to the target type.
+  /** Eta-expand a function to an object with an apply method
     *
-    * It makes drop of values in if/match expressions explicit.
+    * Converts: f
+    * To: { def apply[T1, ...](arg1: T1, ...): U = f(arg1, ...) }
     */
-  def adapt(word: Word, targetType: Type)
-    (using defn: Definitions)
-  : Word =
+  def etaExpand(fun: Symbol, owner: Symbol, policy: Effects.Policy, span: Span)(using defn: Definitions, source: Source): Word =
+    val procType = fun.info.asProcType
+    val pos = span.toPos
 
-    val unitType = defn.UnitType
+    // Create a "this" symbol for the object
+    val thisSym = Symbol.createSymbol("this", Synthetic, pos)
 
-    val curType = word.tpe
-    if Subtyping.conforms(curType, targetType) then
-      word
+    // Create an "apply" method symbol
+    val applySym = Symbol.createSymbol("apply", Fun | Method | Synthetic, pos)
 
-    else if targetType.isVoidType && curType.isValueType then
-      word.dropValue
+    // Create parameter symbols for the apply method
+    val paramSyms =
+      for param <- procType.params yield
+        Symbol.createSymbol(param.name, param.info, Param, applySym, pos)
 
-    else
+    // Create auto parameter symbols for the apply method
+    val autoSyms =
+      for auto <- procType.autos yield
+        Symbol.createSymbol(auto.name, auto.info, Context, applySym, pos)
 
-      val isNumeric = defn.isNumericType(word.tpe) && defn.isNumericType(targetType)
+    val thisType = ObjectType(NamedInfo("apply", MemberRef(StaticRef(thisSym), applySym)) :: Nil, mutableFields = Nil)
+    defn.add(thisSym, owner, thisType)
 
-      if isNumeric && !Subtyping.conforms(word.tpe, targetType) then
-        // Numeric coercion
-        word match
-          case Literal(Constant.Int(n)) =>
-            val tp2 = coerceIntLiteral(n, word.tpe, targetType)
-            val word2 = Literal(Constant.Int(n))(tp2, word.span)
-            word2
+    // No preParam for methods
+    val applyProcType = procType.copy(preParamCount = 0)
 
-          case _ =>
-            // Only widening coercion is allowed for non-literals
-            coerceNumeric(word, targetType)
+    // Build the object type
+    val objType = ObjectType(NamedInfo("apply", applyProcType) :: Nil, mutableFields = Nil)
 
-      else if Subtyping.conforms(unitType, targetType) then
-        val unit = unitValue(word.span.endPoint)
-        Block(word.ensureDropValue :: unit :: Nil)(word.span)
+    defn.add(applySym, thisSym, applyProcType)
 
+    // Build the body: call the original function with the parameters
+    val funIdent = Ident(fun)(span)
+
+    // Apply type arguments if polymorphic
+    val funWithTargs =
+      if procType.isPolyType then
+        funIdent.appliedToTypes(procType.tparams.map(StaticRef.apply)*)
       else
-        throw new AdaptionFailure(word, targetType)
+        funIdent
 
-  private def coerceIntLiteral(n: Int, origType: Type, targetType: Type)
-    (using defn: Definitions)
-  : Type =
+    // Apply regular arguments
+    val paramIdents = paramSyms.map(sym => Ident(sym)(span))
+    val autoIdents = autoSyms.map(sym => Ident(sym)(span))
+    val body = Apply(funWithTargs, paramIdents, autoIdents)(span)
 
-    if
-      targetType.refers(defn.Predef_Byte) && n < 128 && n >= -128
-      || targetType.refers(defn.Predef_Char) && n < 65536 && n >= 0
-      || targetType.refers(defn.Int_Int)
-    then
-      targetType
+    // Create the apply method definition - no tparams for the FunDef, they're in the ProcType
+    val resultTypeTree = TypeTree(procType.resultType)(span.point)
+    val adaptersIdents = procType.adapters.map(_.map(s => Ident(s)(span)))
+    val funDef = FunDef(
+      applySym,
+      procType.tparams,
+      paramSyms,
+      adaptersIdents,
+      autoSyms,
+      resultTypeTree,
+      policy,
+      body
+    )(span)
 
-    else
-      origType
-
-  /** Adapt the word to the target type
-    *
-    *     Byte ==> Int
-    *     Char ==> Int
-    *
-    * Assumption: The tye of the word does not conform to the target type.
-    */
-  private def coerceNumeric(word: Word, targetType: Type)(using defn: Definitions): Word =
-    def fail() = throw new AdaptionFailure(word, targetType)
-
-    val origType = word.tpe
-    if origType.refers(defn.Predef_Byte) then
-      if targetType.refers(defn.Int_Int) then
-        val byteToInt = Ident(defn.Predef_byteToInt)(word.span)
-        byteToInt.appliedTo(word)
-
-      else
-        fail()
-
-    else if origType.refers(defn.Predef_Char) then
-      if targetType.refers(defn.Int_Int) then
-        val charToInt = Ident(defn.Predef_charToInt)(word.span)
-        charToInt.appliedTo(word)
-
-      else
-        fail()
-
-    else
-      fail()
+    // Create and return the object
+    Object(thisSym, funDef :: Nil)(objType, span)
 
   /** Returns (locals, free) */
   def variableCensus(fdef: FunDef)(using Definitions): (List[Symbol], List[Symbol]) =

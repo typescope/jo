@@ -15,12 +15,12 @@ def app(x: Int, f: Int => Int): Int = f x
 
 def main =
   val f0 = (x: Int) => x + x
-  (f0 10) p
+  println (f0 10)
 
   val f1 = makeMul 5
-  (f1 2) p
+  println (f1 2)
 
   val f2 = makeMul 8
-  (f2 3) p
+  println (f2 3)
 
-  app 10 f2 p
+  println (app 10 f2)

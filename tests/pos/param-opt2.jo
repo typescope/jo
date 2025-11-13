@@ -24,24 +24,18 @@ def makeFun(): () => Int = () =>
   testCounter()
 
 def main receives IO.stdout =
-  testCounter() p   // 0
+  println testCounter()   // 0
 
   println
-    intToStr
-      testCounter() allow none // 0
+    testCounter() allow none // 0
 
   println
-    intToStr
-      testCounter() allow none
-        with counter = newCounter(4) // 0
+    testCounter() allow none with counter = newCounter(4) // 0
 
   println
-    intToStr
-      testCounter() allow none with
-        counter = newCounter(4) // 0
+    testCounter() allow none with counter = newCounter(4) // 0
 
-  makeFun()() p     // 0
+  println makeFun()()     // 0
 
-  println           // 5
-    intToStr
-      makeFun()() with counter = newCounter(3)
+  println
+    makeFun()() with counter = newCounter(3) // 5

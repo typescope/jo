@@ -3,7 +3,7 @@ pattern Pos: Partial[Int] = case x if x > 0
 def test(a: List[Int]) =
   match a
     case [> (x if x > 2), _ys*] =>
-      println (intToStr x)
+      println x
       val c = _ys
 
     // case _ =>

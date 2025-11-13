@@ -1,0 +1,27 @@
+def foo(n: Int): Int =
+  var a: Int = 3
+
+  if n > 5 then
+    val b: Int = n * 2
+  else
+    val c: Int = n + 10
+    println b                // error
+  end
+
+  println c                  // error
+
+  while a > 0 do
+    var d: Int = a + 2
+    println d
+    println b                // error
+  end
+
+  println d                  // error
+
+  4
+
+def bar(): Int = a     // error
+
+def main =
+  println a                    // error
+  println (foo 10)

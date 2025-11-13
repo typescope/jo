@@ -6,4 +6,4 @@ def main =
   val c: N = if 5 > 6 then A as M else C
 
   if 5 < 6 then
-    4 p
+    println 4

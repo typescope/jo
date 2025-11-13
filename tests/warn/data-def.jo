@@ -9,4 +9,4 @@ data ObjType[T] = A(x: { def foo(x: Int): Int }) | B
 def test(item: Either[String, Int]): Unit =
   match item
     case Left v =>  println v
-    case Right v => println (intToStr v)
+    case Right v => println v

@@ -20,15 +20,15 @@ def main =
   println "counter 1"
   val c1 = metaMaker.makeCounter 5
   c1.inc
-  c1.get p
-  c1.total p
+  println c1.get
+  println c1.total
 
   println "counter 2"
   val c2 = metaMaker.makeCounter 8
   c1.inc
-  c1.get p
-  c1.total p
+  println c1.get
+  println c1.total
 
   println "multiplier"
   val f = metaMaker.makeMul
-  (f 10) p
+  println (f 10)

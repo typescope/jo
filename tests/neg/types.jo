@@ -15,7 +15,7 @@ def test =
 
   if a then    // error
     val z: Bool = 4 // error
-    3 p
+    println 3
 
   val x =
     if even 3 then   // error
@@ -31,4 +31,4 @@ def test =
 
 
   while a * 3 do    // error
-    a p
+    println a

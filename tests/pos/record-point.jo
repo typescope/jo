@@ -8,8 +8,8 @@ def main =
   val p2: Point = {x: 6, y: 8}
   val p3: Point = prod p1 p2
 
-  (prod p1 p3).x p
-  p3.x p
-  p3.y p
+  println (prod p1 p3).x
+  println p3.x
+  println p3.y
 
-  {x: 3, y: { a: 4 }}.y.a p
+  println {x: 3, y: { a: 4 }}.y.a

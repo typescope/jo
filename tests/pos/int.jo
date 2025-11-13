@@ -1,14 +1,14 @@
 def main =
   val a = 10
 
-  1345 p
+  println 1345
 
-  -1456 p
+  println -1456
 
-  -2147483648 p
+  println -2147483648
 
-  2147483647 p
+  println 2147483647
 
-  5p
+  println 5
 
-  (5*a) p
+  println (5*a)

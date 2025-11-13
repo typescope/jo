@@ -15,19 +15,19 @@ def main =
   val d: OptionSum = #Some(#Right(2024))
 
   match c
-    case #None => 0 p
-    case #Some(n) => n p
+    case #None => println 0
+    case #Some(n) => println n
 
-  foo a p
+  println (foo a)
 
   match d
-    case #None => 0 p
+    case #None => println 0
     case #Some(sum) =>
       match sum
         case #Left(v)  =>
-          99 p
-          v p
+          println 99
+          println v
 
         case #Right(v) =>
-          100 p
-          v p
+          println 100
+          println v

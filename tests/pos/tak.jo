@@ -10,10 +10,10 @@ def tak(x: Int, y: Int, z: Int): Int =
       tak a b c
 
 def main =
-  tak 1 1 1 p
-  tak 1 2 3 p
-  tak 2 3 1 p
-  tak 3 2 1 p
+  println (tak 1 1 1)
+  println (tak 1 2 3)
+  println (tak 2 3 1)
+  println (tak 3 2 1)
 
-  tak 3 4 5 p
-  tak 10 15 13 p
+  println (tak 3 4 5)
+  println (tak 10 15 13)

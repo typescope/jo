@@ -30,6 +30,11 @@ class PatternTyper(namer: Namer, checker: Checker):
 
     lazy val tparamSyms = namer.transformTypeParams(patDef.tparams)
 
+
+    for param <- patDef.params if param.adapters.nonEmpty do
+      val span = param.adapters.head.span | param.adapters.last.span
+      Reporter.error("A pattern parameter cannot have adapters", span.toPos)
+
     lazy val paramSyms =
       tparamSyms
       for param <- patDef.params yield
@@ -80,7 +85,7 @@ class PatternTyper(namer: Namer, checker: Checker):
 
     def computeInfo(resultType: Type) =
       val autoTypes = Nil
-      ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), autoTypes, resultType, () => Nil, patDef.preParamCount)
+      ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), paramSyms.map(_ => Nil), autoTypes, resultType, () => Nil, patDef.preParamCount)
 
     val ip = lazyDefn.infoProvider
     ip.addLazy(patSym, sc.owner,  () => computeInfo(resultTypeTree.tpe), () => computeInfo(ErrorType))
@@ -95,7 +100,7 @@ class PatternTyper(namer: Namer, checker: Checker):
 
     import Exhaustivity.Space
     val coveredType = coveredTypeTree.tpe
-    val isPartial = coveredType.refers(defn.Predef_Partial)
+    val isPartial = coveredType.isPartial
     val scrutSpace = Space.TypeSpace(coveredType.stripPartial)
 
     var rest = scrutSpace
@@ -569,9 +574,10 @@ class PatternTyper(namer: Namer, checker: Checker):
       ProcType(
         tparams = Nil,
         params = NamedInfo("from", defn.IntType) :: NamedInfo("to", defn.IntType)  :: Nil,
+        adapters = List(Nil, Nil),
         autos = Nil,
-        receivesInfo = () => Nil,
         resultType = scrutType.widenTermRef,
+        receivesInfo = () => Nil,
         preParamCount = 0
       )
 
@@ -722,7 +728,7 @@ class PatternTyper(namer: Namer, checker: Checker):
       case None =>
         id match
           case id: Ast.Ident =>
-            Reporter.error(s"Undefined pattern identifier " + id.name, id.pos)
+            Reporter.error(s"Undefined pattern name " + id.name, id.pos)
 
           case _ =>
             // error already reported

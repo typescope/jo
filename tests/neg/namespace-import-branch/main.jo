@@ -3,4 +3,4 @@ namespace app
 import test    // error
 
 def main =
-  test.lib.double 10 p
+  println (test.lib.double 10)

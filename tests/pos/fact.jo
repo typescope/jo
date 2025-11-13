@@ -3,6 +3,6 @@ def fact(n: Int): Int =
   else fact (n - 1) * n
 
 def main =
-  fact 0 p
-  fact 4 p        // 24
-  fact 5 p        // 120
+  println (fact 0)
+  println (fact 4)    // 24
+  println (fact 5)    // 120

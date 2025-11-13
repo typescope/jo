@@ -46,7 +46,7 @@ def find(x: String): Option[Value] =
 
 The `param` declares a contextual parameter. Functions can access `env` directly or override it with `with env = newValue`.
 
-## Effect System
+## Capability-based Effect Control
 
 Jo tracks computational effects in the type system as context parameters:
 
@@ -71,8 +71,11 @@ Jo supports flexible call syntax and operators:
 
 ```jo
 // Multiple call styles
-println "hello, world"
-println("hello, world")
+gcd(10, 15)
+gcd 10 15
+gcd
+  10
+  15
 
 // Custom operators
 def (a: Int) ** (b: Int): Int =

@@ -32,7 +32,11 @@ object Printing:
 
   given Text.Maker[TypeTree] = v => showType(v)
 
-  given Text.Maker[Param] = v => v.ident ~ showTypeAnnot(v.tpt)
+  given Text.Maker[Param] = v =>
+    val adaptersText =
+      if v.adapters.isEmpty then Text.Empty
+      else " with [" ~ v.adapters.join(", ") ~ "]"
+    v.ident ~ showTypeAnnot(v.tpt) ~ adaptersText
 
   given Text.Maker[TypeParam] = v => v.ident ~ showTypeBound(v.bound)
 

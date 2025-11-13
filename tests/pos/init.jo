@@ -3,4 +3,4 @@ def double(n: Int): Int = n + n
 
 def main =
   val c = double 3
-  (2 * c) p         // 12
+  println (2 * c)         // 12

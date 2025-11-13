@@ -1,10 +1,10 @@
 def test(a: Option[Option[Int]]): Unit =
   match a                                      // error
    case #Some #None => println "some none"
-   case #Some (#Some n) => println (intToStr n)
+   case #Some (#Some n) => println n
 
   match a                                      // error
-   case #Some (#Some n) => println (intToStr n)
+   case #Some (#Some n) => println n
 
   match a                                      // error
    case #Some #None => println "some none"
@@ -36,19 +36,19 @@ def Nil: Nil = #Nil
 
 def test2(a: List[Int]): Unit =
   match a
-    case Cons x (Cons y rest) => println (intToStr (x + y))
+    case Cons x (Cons y rest) => println (x + y)
     case Nil => println "empty"
 
   match a
-    case Cons x (Cons y rest) => println (intToStr (x + y))
-    case Cons x Nil => println (intToStr x)
+    case Cons x (Cons y rest) => println (x + y)
+    case Cons x Nil => println x
 
   match a
     case Cons x (Cons _ Nil) | Cons _ Nil | Nil => println "unbound x"
 
   // Test skip checking body if pattern has errors
   match a
-    case NoExist x  => println (intToStr x)
+    case NoExist x  => println x
 
   match a
     case (#Cons x #Nil) | (#Cons x (#Cons x _)) => println "double binding"

@@ -7,7 +7,7 @@ param beta: Int
 
 def foo(n: Int): Int = alpha + beta * n
 
-def printInt(x: Int): Unit = x p
+def printInt(x: Int): Unit = println x
 
 def main =
   println "test context parameters"

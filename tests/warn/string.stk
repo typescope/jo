@@ -4,7 +4,7 @@ type Seq[T] = object {
 }
 
 def test(s: Seq[Char]): Unit =
-  println (charToStr s[0])
+  println s[0]
 
 def main: Unit =
   test "hello"

@@ -1,0 +1,9 @@
+// Adapter must be a function, not a value
+
+def main =
+  val notAFunction: Int = 42
+
+  def foo(s: String with [notAFunction]): Unit =
+    print(s)
+
+  foo("hello")

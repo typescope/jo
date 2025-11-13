@@ -5,4 +5,4 @@ import bar
 def triple(x: Int): Int = bar.double x + x
 
 def main =
-  bar.quadruple 10 p
+  println (bar.quadruple 10)

@@ -1,0 +1,6 @@
+---------- Error at ./tests/warn/adapter-not-function.jo:6:27 ---------------
+|   def foo(s: String with [notAFunction]): Unit =
+|                           ^^^^^^^^^^^^
+|                           A reference to function expected, found = notAFunction: Int
+
+1 error(s), 0 warning(s)

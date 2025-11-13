@@ -23,6 +23,7 @@ class NormalizeParams(using defn: Definitions) extends Phase[Symbol]:
   /** Bind optional context parameters at effect boundaries */
   override def transformFunDef(fdef: FunDef)(using ctx: Context): FunDef =
     val symbol = fdef.symbol
+    given Source = symbol.source
 
     fdef.effectPolicy match
       case Effects.Policy.CheckBound(params) =>
@@ -32,7 +33,7 @@ class NormalizeParams(using defn: Definitions) extends Phase[Symbol]:
         val rejectedDefaults =
           for
             (eff, trace) <- effs
-            if eff.is(Flags.Default) && !allowed.exists(param => eff.refers(param))
+            if eff.is(Flags.Default) && !allowed.exists(param => eff == param)
           yield
             eff
 
@@ -49,7 +50,7 @@ class NormalizeParams(using defn: Definitions) extends Phase[Symbol]:
         super.transformFunDef(fdef)
 
 
-  private def synthesizeDefaultBindings(params: List[Symbol], span: Span): List[Assign] =
+  private def synthesizeDefaultBindings(params: List[Symbol], span: Span)(using Source): List[Assign] =
     params.map: param =>
       val paramRef = Ident(param)(span)
       val defaultFunSym = param.defaultFunction
@@ -64,7 +65,7 @@ class NormalizeParams(using defn: Definitions) extends Phase[Symbol]:
     val effsInner = defn.effectEngine.effects(allowExpr.expr)
     val allowed = allowExpr.params.map(_.symbol).toSet
 
-    val unprovided = effsInner.filter((k, _) => !allowed.exists(param => k.refers(param)))
+    val unprovided = effsInner.filter((k, _) => !allowed.exists(param => k == param))
 
     val rejectedDefaults = unprovided.keys.filter(_.is(Flags.Default)).toList
     if rejectedDefaults.isEmpty then

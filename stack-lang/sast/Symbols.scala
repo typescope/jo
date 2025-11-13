@@ -131,10 +131,6 @@ object Symbols:
     def dealias(using Definitions): Symbol =
       if this.isAlias then this.info.as[StaticRef].symbol.dealias else this
 
-    /** Is the current symbol equivalent to a StaticRef or AppliedType to the given symbol  */
-    def refers(that: Symbol)(using Definitions): Boolean =
-      this == that || this.info.refers(that)
-
     /** The default function associated with a context parameter */
     def defaultFunction(using Definitions): Symbol =
       this.owner.termMember(this.name + "$default")

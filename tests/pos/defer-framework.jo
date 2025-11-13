@@ -16,11 +16,11 @@ section Framework
     println "Framework starting..."
     val result1 = run(15)
     println "First run result:"
-    result1 p
+    println result1
 
     val result2 = run(20)
     println "Second run result:"
-    result2 p
+    println result2
     println "Framework finished"
 
   def run(input: Int): Int =

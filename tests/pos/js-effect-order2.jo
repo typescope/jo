@@ -9,4 +9,4 @@ def main =
         a = 5
         a * 2
 
-  r p
+  println r

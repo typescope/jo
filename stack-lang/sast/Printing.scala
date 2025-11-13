@@ -180,7 +180,7 @@ object Printing:
             "\"" ~ StringUtil.escape(s) ~ "\""
 
           case Constant.Int(n) =>
-            val isChar = word.tpe.refers(defn.Predef_Char)
+            val isChar = word.tpe.isSubtype(defn.CharType)
             if isChar then
               "'" ~ StringUtil.escapeChar(n.toChar) ~ "'"
             else
@@ -399,7 +399,7 @@ object Printing:
       case TypeBound(lo, hi) =>
         lo ~ " .. " ~ hi
 
-      case procType @ ProcType(tparams, params, autos, resType, _, n) =>
+      case procType @ ProcType(tparams, params, adapters, autos, resType, _, n) =>
         val tparamText =
           if tparams.isEmpty then
             Text.Empty

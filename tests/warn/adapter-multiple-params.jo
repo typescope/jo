@@ -1,0 +1,6 @@
+// Adapters must have exactly one parameter
+
+def badAdapter(x: Int, y: Int): String = ???
+
+def foo(s: String with [badAdapter]): Unit =
+  print(s)

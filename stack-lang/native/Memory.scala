@@ -5,6 +5,7 @@ import sast.Types.*
 import sast.Trees.*
 import sast.Definitions
 
+import ast.Positions.Source
 import native.runtime.NativeRuntime
 
 /** Runtime memory representation of records */
@@ -22,7 +23,7 @@ class Memory(runtime: NativeRuntime)(using defn: Definitions):
     assert(index >= 0, field + " not found in " + recordType.show)
     index << 2
 
-  def writeField(recordType: RecordType, field: String, ref: Word, rhs: Word): Word =
+  def writeField(recordType: RecordType, field: String, ref: Word, rhs: Word)(using Source): Word =
     val offset = fieldOffset(recordType, field)
     var addr: Word = Encoded(ref)(AddrType)
     if offset != 0 then
@@ -33,7 +34,7 @@ class Memory(runtime: NativeRuntime)(using defn: Definitions):
     val writeIntFun = Ident(runtime.Core_writeInt)(rhs.span)
     writeIntFun.appliedTo(addr, Encoded(rhs)(IntType)).dropValue
 
-  def readField(recordType: RecordType, select: Select): Word =
+  def readField(recordType: RecordType, select: Select)(using Source): Word =
     val Select(qual, field) = select
     val offset = fieldOffset(recordType, field)
     var addr: Word = Encoded(qual)(AddrType)
@@ -45,7 +46,7 @@ class Memory(runtime: NativeRuntime)(using defn: Definitions):
     val readIntFun = Ident(runtime.Core_readInt)(select.span)
     Encoded(readIntFun.appliedTo(addr))(select.tpe)
 
-  def readObjectMember(objType: ObjectType, select: Select): Word =
+  def readObjectMember(objType: ObjectType, select: Select)(using Source): Word =
     val recordType = ObjectEncoding.encodeObjectType(objType)
     if select.tpe.isValueType then
       val tableType = recordType.termMember(ObjectEncoding.FTABLE).asRecordType
@@ -61,7 +62,7 @@ class Memory(runtime: NativeRuntime)(using defn: Definitions):
       val methodSelect = Select(table, select.name)(select.tpe, select.span)
       readField(tableType, methodSelect)
 
-  def writeObjectField(objType: ObjectType, field: String, ref: Word, rhs: Word): Word =
+  def writeObjectField(objType: ObjectType, field: String, ref: Word, rhs: Word)(using Source): Word =
     val recordType = ObjectEncoding.encodeObjectType(objType)
     val tableType = recordType.termMember(ObjectEncoding.FTABLE).asRecordType
     val tableSelect = Select(ref, ObjectEncoding.FTABLE)(tableType, rhs.span)

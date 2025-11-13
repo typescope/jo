@@ -7,7 +7,7 @@ Jo is a programming language with capability-based security built into its type 
 - **Extensible runtime** - Extend and customize the language runtime with a Jo library
 - **No global variables** - Safe and easy to compose and for reuse
 - **Context parameters** - Contextual abstraction, optional parameters, and implicit resolution
-- **Effect system** - Fine-grained effect control with parametric effects
+- **Static capability control** - Fine-grained capability control at compile-time
 - **Algebraic data types** - Extensible ADTs with pattern matching
 - **Pattern-oriented programming** - First-class patterns and higher-order patterns
 - **Natural syntax** - Prefix, infix, and postfix operators; two call styles `f(x)` and `f x`; indentation-based

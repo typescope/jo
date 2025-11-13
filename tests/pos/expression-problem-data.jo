@@ -36,9 +36,7 @@ def main =
   val langB: LangB = Mul langA (Lit 3)
 
   println
-    intToStr
-      evalLangA langA
+    evalLangA langA
 
   println
-    intToStr
-      evalLangB langB
+    evalLangB langB

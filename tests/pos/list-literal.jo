@@ -21,8 +21,8 @@ end
 def main =
   val l1 = [1, 2, 5, 8]
   val l2 = [4, 9, ..l1, 10]
-  println (intToStr l1[0])
-  println (intToStr l2[1])
+  println l1[0]
+  println l2[1]
 
   inspect []
   inspect l2

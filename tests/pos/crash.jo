@@ -3,4 +3,4 @@ def test(): Int =
   val * = (x: Int) => x * x
   app * 30 + (*5)
 
-def main = test p
+def main = println test

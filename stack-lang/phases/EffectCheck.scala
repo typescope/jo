@@ -32,7 +32,7 @@ class EffectCheck(using rp: Reporter, defn: Definitions) extends Phase[Symbol]:
 
         for
           (eff, trace) <- effs
-          if (!allowDefault || !eff.is(Flags.Default)) && !allowed.exists(param => eff.refers(param))
+          if (!allowDefault || !eff.is(Flags.Default)) && !allowed.exists(param => eff == param)
         do
           Reporter.error("Parameter not allowed: " + eff, pos, trace)
 
@@ -49,7 +49,7 @@ class EffectCheck(using rp: Reporter, defn: Definitions) extends Phase[Symbol]:
     val effsInner = defn.effectEngine.effects(allowExpr.expr)
     val allowed = allowExpr.params.map(_.symbol).toSet
 
-    val unprovided = effsInner.filter((k, _) => !allowed.exists(param => k.refers(param)))
+    val unprovided = effsInner.filter((k, _) => !allowed.exists(param => k == param))
 
     for
       (eff, trace) <- unprovided if !eff.is(Flags.Default)

@@ -105,7 +105,7 @@ object Subtyping:
   private def checkConformsAppliedGrounded(tp1: AppliedType, tp2: AppliedType)(using ctx: Context, defn: Definitions): Boolean =
     val AppliedType(tref1: StaticRef, targs1) = tp1: @unchecked
     val AppliedType(tref2: StaticRef, targs2) = tp2: @unchecked
-    tref1.refers(tref2.symbol) && {
+    tref1.symbol == tref2.symbol && {
       // TODO: follow variance spec
       targs1.zip(targs2).forall: (tp1, tp2) =>
         recur(tp1, tp2) && recur(tp2, tp1)
@@ -212,7 +212,7 @@ object Subtyping:
         continue(tp1Reduced)
 
       case tvar: TypeVar =>
-        val tasks = if lessThan then tvar.isSubtype(tp2) else tvar.isSuptype(tp2)
+        val tasks = if lessThan then tvar.checkSubtype(tp2) else tvar.checkSuptype(tp2)
         tasks.forall(task => recur(task.left, task.right))
 
   private def checkConformsProcType(tp1: ProcType, tp2: ProcType)

@@ -46,7 +46,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
     val failType = TagType("Fail", Nil)
     val resultType = UnionType(successType :: failType :: Nil)
 
-    val funType = ProcType(predType.tparams, params, autos, resultType, () => predType.receives, preParamCount = 0)
+    val funType = ProcType(predType.tparams, params, params.map(_ => Nil), autos, resultType, () => predType.receives, preParamCount = 0)
     Symbol.createSymbol(predSym.name + "$impl", funType, Flags.Fun | Flags.Synthetic, predSym.owner, predSym.sourcePos)
 
   private def getImplFunSymbol(predSym: Symbol, implMap: mutable.Map[Symbol, Symbol]): Symbol =
@@ -83,7 +83,8 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
     // TODO: rebind param symbols
     val tpt = TypeTree(resultType)(pdef.resultType.span)
     val autos = Nil
-    FunDef(implSym, pdef.tparams, scrutSym :: Nil, autos, tpt, Effects.Policy.Infer, body)(pdef.span)
+    val adapters = Nil :: Nil  // One empty adapter list for the scrutSym parameter
+    FunDef(implSym, pdef.tparams, scrutSym :: Nil, adapters, autos, tpt, Effects.Policy.Infer, body)(pdef.span)
 
   override def transformLocalPatDef(pdef: PatDef)(using ctx: Context): Word =
     implementPatDef(pdef)
@@ -184,25 +185,25 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
     val rhsCond = transformPattern(scrut, rhs)
     If(lhsCond, BoolLit(true)(lhs.span), rhsCond)(BoolType, orPattern.span)
 
-  private def transformValuePattern(scrut: Ident, pat: ValuePattern): Word =
+  private def transformValuePattern(scrut: Ident, pat: ValuePattern)(using Source): Word =
     val tp = pat.value.tpe
-    if tp.refers(defn.Predef_Byte) then
+    if tp.isSubtype(defn.ByteType) then
       Ident(defn.Int_eql)(pat.span).appliedTo(pat.value, scrut)
 
-    else if tp.refers(defn.Int_Int) then
+    else if tp.isSubtype(defn.IntType) then
       Ident(defn.Int_eql)(pat.span).appliedTo(pat.value, scrut)
 
-    else if tp.refers(defn.Predef_Char) then
+    else if tp.isSubtype(defn.CharType) then
       Ident(defn.Int_eql)(pat.span).appliedTo(pat.value, scrut)
 
-    else if tp.refers(defn.Bool_Bool) then
+    else if tp.isSubtype(defn.BoolType) then
       val bothTrue = Ident(defn.Bool_both)(pat.span).appliedTo(pat.value, scrut)
       val notValue = Ident(defn.Bool_not)(pat.span).appliedTo(pat.value)
       val notScrut = Ident(defn.Bool_not)(pat.span).appliedTo(scrut)
       val bothFalse = Ident(defn.Bool_both)(pat.span).appliedTo(notValue, notScrut)
       Ident(defn.Bool_either)(pat.span).appliedTo(bothTrue, bothFalse)
 
-    else if tp.refers(defn.Predef_String) then
+    else if tp.isSubtype(defn.StringType) then
       scrut.select("==").appliedTo(pat.value)
 
     else throw new Exception("Unexpected literal type: " + pat.value.tpe.show)

@@ -10,7 +10,6 @@ import sast.Symbols.*
 class LowerRuntime(runtime: JSRuntime)(using defn: Definitions) extends phases.Phase[Unit]:
   val contextObject = phases.Phase.DummyContext
 
-  val Predef_String = defn.Predef_String
   val StringType = defn.StringType
   val BoolType = defn.BoolType
   val IntType = defn.IntType
@@ -18,7 +17,7 @@ class LowerRuntime(runtime: JSRuntime)(using defn: Definitions) extends phases.P
   override def transformTypeApply(tapp: TypeApply)(using ctx: Context): Word =
     tapp match
       case TypeApply(ref @ Ident(sym), tpt :: Nil) =>
-        if sym.refers(defn.Array_create) then
+        if sym == defn.Array_create then
           if Subtyping.conforms(tpt.tpe, IntType) then
             Ident(runtime.JS_Array_createInt)(tapp.span)
 
@@ -36,7 +35,8 @@ class LowerRuntime(runtime: JSRuntime)(using defn: Definitions) extends phases.P
 
   override def transformSelect(select: Select)(using ctx: Context): Word =
     val Select(qual, name) = select
-    if qual.tpe.refers(Predef_String) then
+
+    if qual.tpe.isSubtype(StringType) then
       // After lambda lift, `qual` is stable thus can be thrown away
       assert(qual.isIdempotent, select.show)
 

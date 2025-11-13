@@ -1,0 +1,97 @@
+// Test parameter adapters
+
+def boolToStr(b: Bool): String = if b then "true" else "false"
+
+// Test 1: Basic adapter usage with multiple adapters
+def puts(s: String with [charToStr, intToStr, boolToStr]): Unit =
+  println s
+
+// Test 2: Multiple parameters with adapters
+def formatPair(x: String with [intToStr], y: String with [boolToStr]): String =
+  "x=" + x + ", y=" + y
+
+// Test 3: Mixed parameters (with and without adapters)
+def formatTriple(a: String, b: String with [intToStr], c: String): String =
+  a + "," + b + "," + c
+
+// Test 4: Single adapter on parameter
+def printInt(x: String with [intToStr]): Unit =
+  println x
+
+// Test 5: Nested calls with adapters
+def nested(s: String with [intToStr, boolToStr]): Unit =
+  puts s
+
+// Test 6: Direct conformance (no adapter needed)
+def identity(s: String with [intToStr]): String = s
+
+// Test 7: Adapter selection order (first matching adapter is used)
+def testOrder(s: String with [intToStr, boolToStr]): String = s
+
+// Test 8: Multiple levels of function calls
+def level1(x: String with [intToStr]): Unit =
+  puts x
+
+def level2(x: Int): Unit =
+  level1 x
+
+// Test 9: Varargs with adapters
+def printMany(xs: ..String with [intToStr, charToStr]): Unit =
+  xs.foreach x => println x
+
+// Test 10: Fixed params + varargs with adapters
+def formatList(prefix: String, items: ..String with [intToStr]): String =
+  prefix + ":" + (items.fold "" (a, b) => a + ", " + b)
+
+def main =
+  // Test 1: Basic adapter usage
+  puts "hello"        // Direct String - no adapter
+  puts 'x'            // Char -> charToStr
+  puts 42             // Int -> intToStr
+  puts true           // Bool -> boolToStr
+
+  // Test 2: Multiple parameters with adapters
+  puts formatPair(42, true)
+
+  // Test 3: Mixed parameters
+  puts formatTriple("a", 10, "c")
+
+  // Test 4: Single adapter
+  printInt 99
+
+  // Test 5: Nested calls
+  nested 100
+  nested false
+
+  // Test 6: Direct conformance
+  puts identity("direct")
+  puts identity(42)   // Int -> intToStr
+
+  // Test 7: Adapter order (Int before Bool, so Int adapter is tried first)
+  puts testOrder(50)
+  puts testOrder(true)
+
+  // Test 8: Multiple levels
+  level2 300
+
+  // Test 9: Varargs with adapters - multiple arguments
+  printMany 1 2 3           // All Int -> intToStr
+  printMany 'a' 'b' 'c'     // All Char -> charToStr
+  printMany 10 'x' 20 'y'   // Mixed Int and Char
+
+  // Test 10: Fixed params + varargs with adapters
+  puts formatList("numbers", 1, 2, 3, 4)
+
+  // Test 11: Varargs with splices
+  val numbers = [5, 6, 7]
+  printMany(..numbers)         // Splice with adapter
+  puts formatList("items", ..numbers)
+
+  // Test 12: Object methods
+  val printer = {
+    def show(x: String with [intToStr, charToStr]): Unit =
+      println x
+  }
+
+  printer.show 200
+  printer.show 'z'

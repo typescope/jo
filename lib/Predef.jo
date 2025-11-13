@@ -115,25 +115,26 @@ pattern (lhs: T) |[T] (rhs: T): T =
 // Used to indicate the last parameter is a vararg
 type ..[T] = List[T]
 
-// Splice a list as flat arguments
-def ..[T](l: List[T]): T = abort "Only support unpacking in argument positions"
-
 //------------------------------------------------------------------------------
 //
 // Utility functions
 //
 
-def (n: Int) p: Unit =
-  println
-    intToStr n
+// Adapter functions
+def byteToStr(b: Byte): String = intToStr b
+def boolToStr(b: Bool): String = if b then "true" else "false"
+defer def intToStr(n: Int): String
+defer def charToStr(c: Char): String
 
-def print(s: String): Unit = IO.stdout.write s
+// print with automatic conversion for common types
+def print(s: String with [byteToStr, boolToStr, charToStr, intToStr]): Unit = IO.stdout.write s
 
 def printChar(c: Char): Unit =
   print
     charToStr c
 
-def println(s: String): Unit =
+// println with automatic conversion for common types
+def println(s: String with [byteToStr, boolToStr, charToStr, intToStr]): Unit =
   print s
   printChar '\n'
 
@@ -167,11 +168,9 @@ defer def byteToChar(b: Byte): Char
 
 defer def intToChar(n: Int): Char
 defer def intToByte(n: Int): Byte
-defer def intToStr(n: Int): String
 
 defer def charToByte(c: Char): Byte
 defer def charToInt(c: Char): Int
-defer def charToStr(c: Char): String
 
 //------------------------------------------------------------------------------
 //

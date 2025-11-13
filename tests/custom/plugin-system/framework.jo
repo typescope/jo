@@ -16,12 +16,12 @@ def registerAndRun(value: Int): Unit =
   print "Loading plugin: "
   println getName()
   print "Version: "
-  getVersion() p
+  println getVersion()
 
   initialize()
 
   print "Executing plugin with input: "
-  value p
+  println value
   val result = execute(value)
   print "Plugin returned: "
-  result p
+  println result

@@ -18,13 +18,13 @@ def test1(): Unit =
   val a = fact 0
   val b = fact 4
   val c = fact 5
-  a p
-  b p
-  c p
+  println a
+  println b
+  println c
 
 def main =
   test1
-  mul 2 3 p
-  mul 0 3 p
-  mul 3 0 p
-  mul 5 6 p
+  println (mul 2 3)
+  println (mul 0 3)
+  println (mul 3 0)
+  println (mul 5 6)

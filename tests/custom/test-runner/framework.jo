@@ -31,9 +31,9 @@ def runAll(): Unit =
 
   println "====================="
   print "Passed: "
-  passed p
+  println passed
   print "Failed: "
-  failed p
+  println failed
 
 def runTest(name: String, result: Bool): Bool =
   print name

@@ -20,6 +20,7 @@ def foo = 42
 ### Opening Delimiter
 
 The opening delimiter consists of:
+
 - Two or more forward slashes `//`, `///`, `////`, etc.
 - Immediately followed by an opening bracket `[`
 
@@ -28,6 +29,7 @@ Examples: `//[`, `///[`, `////[`
 ### Closing Delimiter
 
 The closing delimiter consists of:
+
 - The **same number** of forward slashes as the opening delimiter
 - Immediately followed by a closing bracket `]`
 
@@ -119,6 +121,7 @@ You can use more than two slashes to nest comments or prevent conflicts:
 ```
 
 This is useful when:
+
 1. You want to comment out code that already contains block comments
 2. You need multiple levels of nesting
 3. You want to make the comment structure more explicit

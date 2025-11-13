@@ -1,4 +1,4 @@
 namespace app
 
 def main =
-  test.double 10 p    // error // error
+  println (test.double 10)    // error // error

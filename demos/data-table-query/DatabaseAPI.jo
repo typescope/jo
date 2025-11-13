@@ -126,8 +126,8 @@ type DB = {
     | Security: Only updates documents owned by current user
     |
     | Example:
-    | db.update(Title like "%Report%", [Title := str("Archived Report")])
-    | db.update(All, [Title := "New Title", Content := str("New Content")])
+    | db.update(Title like "%Report%", [Title := "Archived Report"])
+    | db.update(All, [Title := "New Title", Content := "New Content"])
   //]
   def update(condition: Cond, updates: List[FieldUpdate]): Int
 
@@ -136,7 +136,7 @@ type DB = {
     | More efficient than update with condition
     |
     | Example:
-    | db.updateById(42, [Title := str("Updated Title")])
+    | db.updateById(42, [Title := "Updated Title"])
   //]
   def updateById(id: Int, updates: List[FieldUpdate]): Bool
 
@@ -177,21 +177,21 @@ param offset: Int = 0
   | These infix operators provide a natural syntax for building queries and updates:
   |
   | Query example:
-  | val cond = (Title like "%report%") && (CreatedAt > str("2024-01-01"))
+  | val cond = (Title like "%report%") && (CreatedAt > "2024-01-01")
   | val docs = db.query(cond)
   |
   | Update example:
-  | db.update(Title like "%Draft%", [Title := str("Archived"), Content := str("Moved to archive")])
+  | db.update(Title like "%Draft%", [Title := "Archived", Content := "Moved to archive"])
 //]
 section QueryDSL
-  //[ Comparison operators //]
-  def (col: Column) == (v: Value): Cond = Eq(col, v)
-  def (col: Column) != (v: Value): Cond = Neq(col, v)
+  //[ Comparison operators with automatic value conversion //]
+  def (col: Column) == (v: Value with [str, int, bool]): Cond = Eq(col, v)
+  def (col: Column) != (v: Value with [str, int, bool]): Cond = Neq(col, v)
   def (col: Column) like (pat: String): Cond = Like(col, pat)
-  def (col: Column) > (v: Value): Cond = Gt(col, v)
-  def (col: Column) < (v: Value): Cond = Lt(col, v)
-  def (col: Column) >= (v: Value): Cond = Gte(col, v)
-  def (col: Column) <= (v: Value): Cond = Lte(col, v)
+  def (col: Column) > (v: Value with [str, int, bool]): Cond = Gt(col, v)
+  def (col: Column) < (v: Value with [str, int, bool]): Cond = Lt(col, v)
+  def (col: Column) >= (v: Value with [str, int, bool]): Cond = Gte(col, v)
+  def (col: Column) <= (v: Value with [str, int, bool]): Cond = Lte(col, v)
 
   //[ Logical operators //]
   def (left: Cond) && (right: Cond): Cond = And(left, right)
@@ -210,24 +210,24 @@ section QueryDSL
   //[ IN operator helper //]
   def (col: Column) in (values: List[Value]): Cond = In(col, values)
 
-  //[ BETWEEN operator helper //]
-  def (col: Column) between (low: Value, high: Value): Cond = Between(col, low, high)
+  //[ BETWEEN operator helper with automatic value conversion //]
+  def (col: Column) between (low: Value with [str, int, bool], high: Value with [str, int, bool]): Cond = Between(col, low, high)
 
   //[ ORDER BY helpers //]
   def asc(col: Column): OrderBy = Order(col, Asc)
   def desc(col: Column): OrderBy = Order(col, Desc)
 
-  //[ UPDATE helper - infix operator for field updates
+  //[ UPDATE helper - infix operator for field updates with automatic value conversion
     |
     | Usage:
-    | Title := str("New Title")
-    | Content := str("New Content")
-    | Draft := bool(true)
+    | Title := "New Title"
+    | Content := "New Content"
+    | Draft := true
     |
     | Then combine in a list:
-    | [Title := str("New Title"), Draft := bool(false)]
+    | [Title := "New Title", Draft := false]
   //]
-  def (field: UpdateColumn) := (value: Value): FieldUpdate =
+  def (field: UpdateColumn) := (value: Value with [str, int, bool]): FieldUpdate =
     FieldUpdate(field, value)
 end
 

@@ -1,5 +1,7 @@
 package typing
 
+import sast.TypeOps
+import sast.Adaptation.{ Adapter, NoAdapter }
 import sast.Types.*
 import sast.Subtyping
 import sast.Definitions
@@ -14,12 +16,48 @@ object Inference:
     case Fun(args: Int)
     case TermMember(name: String)
     case TypeMember(name: String)
-    case Known(tpe: Type)
+    case Known(tpe: Type, adapter: Adapter = NoAdapter)
 
     def knownType: Option[Type] =
       this match
-        case Known(tpe) => Some(tpe)
+        case Known(tpe, _) => Some(tpe)
         case _ => None
+
+    def show(using Definitions): String =
+      this match
+        case Known(tpe: Type, _) => "Known(" + tpe.show + ")"
+        case _ => this.toString()
+
+  /** Conditionally apply context instantiation.
+    *
+    * Context instantiation constrains the result type using the expected type
+    * from the outer context. This helps with type inference but conflicts with
+    * parameter adaptation, since both features want to use the expected type
+    * information.
+    *
+    * This method only applies context instantiation when:
+    *
+    * - There's no adapter function at the call site
+    * - The original function type was polymorphic (has type parameters to infer)
+    *
+    * For monomorphic functions, context instantiation serves no purpose (no type
+    * parameters to infer), so we skip it to allow parameter adaptation to work.
+    * Even though the monomorphic function might contain uninitialized type
+    * parameters, it is safe to prefer inner constraints.
+    *
+    * @param resultType The type to constrain
+    * @param targetType The target/expected type context
+    * @param originalType The original function type before type parameter instantiation
+    */
+  def conditionalInstantiate(resultType: Type, targetType: TargetType, originalType: ProcType)(using Definitions): Unit =
+    targetType match
+      case TargetType.Known(expectedType, NoAdapter) if originalType.isPolyType =>
+        // No adapter at call site and function is polymorphic
+        // Safe to apply context instantiation to help infer type parameters
+        Subtyping.conforms(resultType, expectedType)
+
+      case _ =>
+        // No known target type, nothing to do
 
   /** The common result type of two different types.
     *
@@ -45,7 +83,7 @@ object Inference:
     else if Subtyping.conforms(tp2, tp1Widen) then Some(tp1Widen)
     else
       tt match
-        case TargetType.Known(tp) =>
+        case TargetType.Known(tp, _) =>
           if Subtyping.conforms(tp1, tp) && Subtyping.conforms(tp2, tp) then
             Some(tp)
           else
@@ -73,9 +111,9 @@ object Inference:
 
     def isInstantiated(tvar: TypeVar): Boolean
 
-    def isSubtype(tvar: TypeVar, tp: Type): List[Subtyping.Task]
+    def isSubtype(tvar: TypeVar, tp: Type)(using Definitions): List[Subtyping.Task]
 
-    def isSuptype(tvar: TypeVar, tp: Type): List[Subtyping.Task]
+    def isSuptype(tvar: TypeVar, tp: Type)(using Definitions): List[Subtyping.Task]
 
     /** The state of inference will be reverted back after test */
     def test[T](op: => T): T
@@ -83,9 +121,11 @@ object Inference:
   class UnificationSolver extends Inferencer:
     private var instantiations: Map[TypeVar, Type] = Map.empty
 
-    private def instantiate(tvar: TypeVar, tp: Type) =
+    private def instantiate(tvar: TypeVar, tp: Type)(using Definitions) =
       assert(!instantiations.contains(tvar), "double instantiation: " + tvar)
       // println("Instantiating " + tvar + " to " + tp)
+      // println("tvar.hashCode = " + System.identityHashCode(tvar))
+      // println("tp.hashCode = " + System.identityHashCode(tp))
 
       // We do not
       //
@@ -93,9 +133,10 @@ object Inference:
       // - check that tvar does not occur in tp
       //
       // They are handled by subtype checking implicitly.
-      instantiations = instantiations.updated(tvar, tp)
+      if TypeOps.dealias(tp) != tvar then
+        instantiations = instantiations.updated(tvar, tp)
 
-    private def constrain(tvar: TypeVar, tp: Type, tvarLeft: Boolean): List[Subtyping.Task] =
+    private def constrain(tvar: TypeVar, tp: Type, tvarLeft: Boolean)(using Definitions): List[Subtyping.Task] =
       instantiations.get(tvar) match
         case Some(inst) =>
           if tvarLeft then Subtyping.Task(inst, tp) :: Nil
@@ -121,10 +162,10 @@ object Inference:
         case None =>
           tvar
 
-    def isSubtype(tvar: TypeVar, tp: Type): List[Subtyping.Task] =
+    def isSubtype(tvar: TypeVar, tp: Type)(using Definitions): List[Subtyping.Task] =
       constrain(tvar, tp, tvarLeft = true)
 
-    def isSuptype(tvar: TypeVar, tp: Type): List[Subtyping.Task] =
+    def isSuptype(tvar: TypeVar, tp: Type)(using Definitions): List[Subtyping.Task] =
       constrain(tvar, tp, tvarLeft = false)
 
     def test[T](op: => T): T =
