@@ -3,7 +3,6 @@ package sast
 import sast.Trees.*
 import sast.Types.*
 import sast.Symbols.*
-import sast.Flags.*
 
 import ast.Positions.{Span, Source}
 import common.Debug
@@ -230,22 +229,8 @@ object Adaptation:
       (memberName: String, paramType: Type, memberType: Type, resultType: Type, owner: Symbol, span: Span)
       (using defn: Definitions, source: Source)
   : Word =
-    val pos = span.toPos
-
-    // Create a "this" symbol for the object
-    val thisSym = Symbol.createSymbol("this", Synthetic, pos)
-
-    // Create an "apply" method symbol
-    val applySym = Symbol.createSymbol("apply", Fun | Method | Synthetic, pos)
-
-    // Create parameter symbol for the apply method
-    val paramSym = Symbol.createSymbol("x", paramType, Param, applySym, pos)
-
-    val thisType = ObjectType(NamedInfo("apply", MemberRef(StaticRef(thisSym), applySym)) :: Nil, mutableFields = Nil)
-    defn.add(thisSym, owner, thisType)
-
-    // Build the procedure type for apply
-    val applyProcType = ProcType(
+    // Build the procedure type for the lambda
+    val procType = ProcType(
       tparams = Nil,
       params = NamedInfo("x", paramType) :: Nil,
       adapters = Nil,
@@ -255,33 +240,16 @@ object Adaptation:
       preParamCount = 0
     )
 
-    val objType = ObjectType(NamedInfo("apply", applyProcType) :: Nil, mutableFields = Nil)
+    // Use createLambda helper to generate the lambda object
+    TreeOps.createLambda(procType, owner, Effects.Policy.Infer, span) { (paramIdents, autoIdents) =>
+      // Body: x.memberName or x.memberName()
+      val paramIdent = paramIdents.head
+      val selected = paramIdent.select(memberName)
 
-    defn.add(applySym, thisSym, applyProcType)
-
-    // Build the body: x.memberName or x.memberName()
-    val paramIdent = Ident(paramSym)(span)
-    val selected = paramIdent.select(memberName)
-
-    // For parameterless methods, apply them
-    val body = memberType match
-      case procType: ProcType if procType.params.isEmpty && procType.autos.isEmpty =>
-        selected.appliedTo()
-      case _ =>
-        selected
-
-    // Create the apply method definition
-    val resultTypeTree = TypeTree(resultType)(span.point)
-    val funDef = FunDef(
-      applySym,
-      tparams = Nil,
-      paramSym :: Nil,
-      adapters = Nil,
-      autos = Nil,
-      resultTypeTree,
-      Effects.Policy.Infer,
-      body
-    )(span)
-
-    // Create and return the object
-    Object(thisSym, funDef :: Nil)(objType, span)
+      // For parameterless methods, apply them
+      memberType match
+        case procType: ProcType if procType.params.isEmpty && procType.autos.isEmpty =>
+          selected.appliedTo()
+        case _ =>
+          selected
+    }
