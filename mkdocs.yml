@@ -97,3 +97,4 @@ nav:
     - Deferred Functions: design/deferred-functions/index.html
     - Context Parameters: design/context-parameters/index.html
     - Parameter Adapters: design/param-adapters/index.html
+    - Auto Parameters: design/autos/index.html
