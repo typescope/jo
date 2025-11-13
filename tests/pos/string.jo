@@ -23,8 +23,8 @@ def test =
   println c.size
   println c
 
-  printChar c[3]
-  printChar '\n'
+  print c[3]
+  print '\n'
 
   val d = a.substring(1, 3)
 

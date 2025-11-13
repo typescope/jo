@@ -116,7 +116,6 @@ extends Definitions.Lazy:
   val Bool_either =  Bool.termMember("either")
 
   val Predef_print      =  Predef.termMember("print")
-  val Predef_printChar  =  Predef.termMember("printChar")
 
   // numeric coercion
   val Predef_byteToChar = Predef.termMember("byteToChar")

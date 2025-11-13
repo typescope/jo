@@ -127,16 +127,12 @@ defer def intToStr(n: Int): String
 defer def charToStr(c: Char): String
 
 // print with automatic conversion for common types
-def print(s: String with [byteToStr, boolToStr, charToStr, intToStr]): Unit = IO.stdout.write s
-
-def printChar(c: Char): Unit =
-  print
-    charToStr c
+def print(s: String with [byteToStr, boolToStr, charToStr, intToStr, .toString]): Unit = IO.stdout.write s
 
 // println with automatic conversion for common types
-def println(s: String with [byteToStr, boolToStr, charToStr, intToStr]): Unit =
+def println(s: String with [byteToStr, boolToStr, charToStr, intToStr, .toString]): Unit =
   print s
-  printChar '\n'
+  print '\n'
 
 def ??? : Bottom = abort("not implemented")
 

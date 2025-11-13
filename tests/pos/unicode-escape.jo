@@ -26,7 +26,7 @@ def main(): Unit =
   val letterA = '\u{41}'
 
   print("Char A: ")
-  printChar(letterA)
+  print(letterA)
   print("\n")
 
   // Mixed escapes
@@ -46,19 +46,19 @@ def main(): Unit =
 
   print("Surrogate code points test:\n")
   print("Emoji grinning: ")
-  printChar(emoji_grinning)
+  print(emoji_grinning)
   print("\n")
 
   print("Emoji poo: ")
-  printChar(emoji_poo)
+  print(emoji_poo)
   print("\n")
 
   print("Emoji rocket: ")
-  printChar(emoji_rocket)
+  print(emoji_rocket)
   print("\n")
 
   print("CJK Ext B: ")
-  printChar(cjk_ext_b)
+  print(cjk_ext_b)
   print("\n")
 
   print("Done\n")
