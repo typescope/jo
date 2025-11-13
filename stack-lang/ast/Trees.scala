@@ -335,8 +335,12 @@ object Trees:
   extends Def:
     def name: String = ident.name
 
+  enum ParamAdapter extends Tree:
+    case Function(ref: RefTree)(val span: Span)
+    case Member(name: String)(val span: Span)
+
   case class Param
-    (ident: Ident, tpt: TypeTree, adapters: List[RefTree])
+    (ident: Ident, tpt: TypeTree, adapters: List[ParamAdapter])
     (val span: Span)
   extends Tree:
     def name = ident.name
