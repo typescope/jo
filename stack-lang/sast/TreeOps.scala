@@ -63,12 +63,15 @@ object TreeOps:
 
     // Create the apply method definition - no tparams for the FunDef, they're in the ProcType
     val resultTypeTree = TypeTree(procType.resultType)(span.point)
-    val adaptersIdents = procType.adapters.map(_.map(s => Ident(s)(span)))
+    val adaptersConverted = procType.adapters.map(_.map {
+      case sym: Symbol => ParamAdapter.Function(sym)(span)
+      case name: String => ParamAdapter.Member(name)(span)
+    })
     val funDef = FunDef(
       applySym,
       procType.tparams,
       paramSyms,
-      adaptersIdents,
+      adaptersConverted,
       autoSyms,
       resultTypeTree,
       policy,

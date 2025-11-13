@@ -776,7 +776,7 @@ class Namer(using Config):
 
   /** Assumes that the argument count requirement is satisfied */
   def transformArgs
-      (args: List[Ast.Word], params: List[Type], adapters: List[List[Symbol]] = Nil)
+      (args: List[Ast.Word], params: List[Type], adapters: List[List[Symbol | String]] = Nil)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
   : List[Word] =
 
@@ -787,7 +787,7 @@ class Namer(using Config):
 
   /** Assumes that the argument count requirement is satisfied */
   def transformVarargs
-      (args: List[Ast.Word], paramTypes: List[Type], adapters: List[List[Symbol]], span: Span)
+      (args: List[Ast.Word], paramTypes: List[Type], adapters: List[List[Symbol | String]], span: Span)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
   : List[Word] =
 
@@ -1452,7 +1452,10 @@ class Namer(using Config):
         case None => defn.receives(funSym)
 
     def computeInfo(resultType: Type) =
-      val adapterSymbols = adapters.map(l => l.map(_.symbol))
+      val adapterSymbols = adapters.map(l => l.map {
+        case ParamAdapter.Function(symbol) => symbol
+        case ParamAdapter.Member(name) => name
+      })
 
       ProcType(
         tparamSyms, paramSyms.map(_.toNamedInfo), adapterSymbols, autoSyms.map(_.toNamedInfo),
@@ -1799,7 +1802,10 @@ class Namer(using Config):
       yield
         transformParamRef(param).symbol
 
-    val adapterSymbols = adapters.map(l => l.map(_.symbol))
+    val adapterSymbols = adapters.map(l => l.map {
+      case ParamAdapter.Function(symbol) => symbol
+      case ParamAdapter.Member(name) => name
+    })
 
     val finalType =
       ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), adapterSymbols, autoSyms.map(_.toNamedInfo), resultType, () => effs, 0)

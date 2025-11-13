@@ -101,11 +101,11 @@ object Adaptation:
     else
       fail()
 
-  def createSimpleAdapter(adapters: List[Symbol])(using Definitions): Adapter =
+  def createSimpleAdapter(adapters: List[Symbol | String])(using Definitions): Adapter =
     if adapters.isEmpty then NoAdapter
     else (word, targetType) => adaptSimple(word, targetType, adapters)
 
-  def createVarargSpliceAdapter(adapters: List[Symbol], owner: Symbol)(using defn: Definitions, source: Source): Adapter =
+  def createVarargSpliceAdapter(adapters: List[Symbol | String], owner: Symbol)(using defn: Definitions, source: Source): Adapter =
     if adapters.isEmpty then return NoAdapter
 
     (word, targetType) =>
@@ -119,14 +119,14 @@ object Adaptation:
           None
 
   def adaptSimple
-      (word: Word, targetType: Type, adapters: List[Symbol])
+      (word: Word, targetType: Type, adapters: List[Symbol | String])
       (using defn: Definitions)
   : Option[Word] = Debug.trace(s"adapt ${word.show} to ${targetType.show} with ${adapters}", enable = false):
 
     adapters match
       case Nil => None
 
-      case adapterSym :: rest =>
+      case (adapterSym: Symbol) :: rest =>
         val procType = adapterSym.info.asProcType
         val adapterParamType = procType.params.head.info
 
@@ -140,15 +140,20 @@ object Adaptation:
         else
           adaptSimple(word, targetType, rest)
 
+      case (memberName: String) :: rest =>
+        // TODO: Implement member adapter logic
+        // For now, skip member adapters and try the rest
+        adaptSimple(word, targetType, rest)
+
   def adaptVarargSplice
-      (word: Word, targetElemType: Type, elemType: Type, adapters: List[Symbol], owner: Symbol)
+      (word: Word, targetElemType: Type, elemType: Type, adapters: List[Symbol | String], owner: Symbol)
       (using Definitions, Source)
   : Option[Word] = Debug.trace(s"adapt splice ${word.show} from ${elemType.show} to ${targetElemType.show} with ${adapters}", enable = false):
 
     adapters match
       case Nil => None
 
-      case adapterSym :: rest =>
+      case (adapterSym: Symbol) :: rest =>
         val procType = adapterSym.info.asProcType
         val adapterParamType = procType.params.head.info
 
@@ -161,3 +166,8 @@ object Adaptation:
 
         else
           adaptVarargSplice(word, targetElemType, elemType, rest, owner)
+
+      case (memberName: String) :: rest =>
+        // TODO: Implement member adapter logic for vararg splice
+        // For now, skip member adapters and try the rest
+        adaptVarargSplice(word, targetElemType, elemType, rest, owner)
