@@ -103,16 +103,30 @@ println(true)   // Tries intToStr(true) ✗, boolToStr(true) ✓
 **Requirements:**
 
 - Member must exist on argument type
-- Member must have no parameters (zero-argument methods only)
+- Member must have no regular parameters (but may have context parameters)
 - Result type must match parameter type (or subtype)
+- Context parameters are propagated through the adapter
 
 **Examples:**
 ```jo
+// Basic member adapter
 def println(s: String with [.toString]): Unit = ...
 
 println 42     // 42.toString → String ✓
 println true   // true.toString → String ✓
+
+// Member adapter with context parameter
+param indent: Int
+
+type Document = { def format: String receives indent }
+
+def show(s: String with [.format]): Unit = ...
+
+val doc: Document = { def format: String = intToStr(indent) + ": content" }
+show(doc) with indent = 5   // doc.format → "5: content" ✓
 ```
+
+**Context parameter propagation:** When a member method requires context parameters, those requirements are propagated to the calling function.
 
 **No implicit resolution:** Just checks if type has the member.
 
