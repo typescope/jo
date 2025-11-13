@@ -128,17 +128,6 @@ show(doc) with indent = 5   // doc.format → "5: content" ✓
 
 **Context parameter propagation:** When a member method requires context parameters, those requirements are propagated to the calling function.
 
-**No implicit resolution:** Just checks if type has the member.
-
-### Extensibility Comparison
-
-| Aspect | Function Adapters | Member Adapters |
-|--------|-------------------|-----------------|
-| Extension point | Definition-site | Call-site |
-| Type set | Closed (enumerated) | Open (structural) |
-| Adding types | Modify function | Add member to type |
-| Third-party types | Cannot extend | Can extend |
-
 ### Adapter Order
 
 Adapters are tried sequentially. First match wins.
@@ -283,6 +272,8 @@ process(5)  // Error: intToBool(5) returns Bool, not String
 ### Basic Usage
 
 ```jo
+type Point = { val x: Int, val y: Int, def toString: String }
+
 def intToStr(i: Int): String = intToString(i)
 def charToStr(c: Char): String = charToString(c)
 
@@ -291,7 +282,7 @@ def println(s: String with [intToStr, charToStr, .toString]): Unit = ...
 println "hello"  // Direct
 println 42       // intToStr(42)
 println 'x'      // charToStr('x')
-println true     // true.toString (member adapter)
+println point    // point.toString
 ```
 
 ### Context-Dependent Conversion
