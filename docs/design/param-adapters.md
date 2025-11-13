@@ -9,20 +9,18 @@ Parameter adapters provide a controlled form of argument conversion at function 
 - **Function adapters** (`intToStr`): Apply a named function to the argument
 - **Member adapters** (`.member`): Call a member on the argument
 
-**Key principle:** Explicit at definition site, transparent at call site.
-
 ## Motivation
 
 Eliminate repetitive conversion calls while maintaining explicitness:
 
 ```jo
 // Without adapters
-println(intToStr(42))
-println(charToStr('x'))
+println intToStr(42)
+println charToStr('x')
 
 // With adapters
-println(42)
-println('x')
+println 42
+println 'x'
 ```
 
 This feature addresses two common programming needs:
@@ -68,8 +66,8 @@ For call `f(arg)` where parameter has type `T with [a1, a2, ..., an]`:
 
 1. **Direct match:** If `arg : T`, use `arg` directly
 2. **Try adapters in order:**
-   - **Function adapter** `ai`: Type-check `ai(arg)`, use if result type is `T`
-   - **Member adapter** `.member`: Type-check `arg.member`, use if result type is `T`
+    - **Function adapter** `ai`: Type-check `ai(arg)`, use if result type is `T`
+    - **Member adapter** `.member`: Type-check `arg.member`, use if result type is `T`
 3. **First match wins:** Stop after first successful adapter
 4. **No match:** Report type error
 
@@ -112,9 +110,8 @@ println(true)   // Tries intToStr(true) ✗, boolToStr(true) ✓
 ```jo
 def println(s: String with [.toString]): Unit = ...
 
-println(42)     // 42.toString → String ✓
-println(true)   // true.toString → String ✓
-println([1,2])  // [1,2].toString → String ✓
+println 42     // 42.toString → String ✓
+println true   // true.toString → String ✓
 ```
 
 **No implicit resolution:** Just checks if type has the member.
@@ -127,32 +124,6 @@ println([1,2])  // [1,2].toString → String ✓
 | Type set | Closed (enumerated) | Open (structural) |
 | Adding types | Modify function | Add member to type |
 | Third-party types | Cannot extend | Can extend |
-
-**Example - Extensibility:**
-```jo
-// Function adapter (closed)
-def show(s: String with [intToStr, boolToStr]): Unit = ...
-// To support Float, must modify show's definition
-
-// Member adapter (open)
-def show(s: String with [.toString]): Unit = ...
-// Any type with .toString automatically works
-```
-
-**Example - Third-party composition:**
-```jo
-// Library A defines Widget (no toString)
-type Widget = { id: Int }
-
-// Library B adds toString to Widget
-def Widget.toString: String = "Widget#" + this.id
-
-// Library C defines display (unaware of Widget)
-def display(s: String with [.toString]): Unit = ...
-
-// User code - everything composes!
-display(Widget(42))  // ✓ Works
-```
 
 ### Adapter Order
 
@@ -303,10 +274,10 @@ def charToStr(c: Char): String = charToString(c)
 
 def println(s: String with [intToStr, charToStr, .toString]): Unit = ...
 
-println("hello")  // Direct
-println(42)       // intToStr(42)
-println('x')      // charToStr('x')
-println(true)     // true.toString (member adapter)
+println "hello"  // Direct
+println 42       // intToStr(42)
+println 'x'      // charToStr('x')
+println true     // true.toString (member adapter)
 ```
 
 ### Context-Dependent Conversion
@@ -320,25 +291,8 @@ def intToStr(n: Int): String receives hexMode =
 
 def display(msg: String with [intToStr]): Unit = println(msg)
 
-display(42)                        // "42" (decimal)
-display(255) with hexMode = true   // "0xff" (hexadecimal)
-```
-
-### Extensible Printing
-
-```jo
-// Define once with member adapter
-def show(x: String with [.toString]): Unit = println(x)
-
-// Works with any type that has toString
-show(42)              // Int.toString
-show(true)            // Bool.toString
-show([1, 2, 3])       // List.toString
-
-// User-defined types work automatically
-type Point = { x: Int, y: Int }
-def Point.toString: String = "(" + this.x + "," + this.y + ")"
-show(Point(3, 4))     // Point.toString
+display 42                        // "42" (decimal)
+display 255 with hexMode = true   // "0xff" (hexadecimal)
 ```
 
 ## Design Rationale
