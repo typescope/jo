@@ -449,18 +449,31 @@ object Decoder:
         state.registerInternalSymbol(paramId, param)
 
         val adapters = repeated {
-          val adapterSym = decodeSymbolRef()
-          val adapterStartDelta = decodeInt()
-          val adapterSpanLength = decodeNat()
-          val adapterSpan = Span(absoluteStart + adapterStartDelta, adapterSpanLength)
-          Ident(adapterSym)(adapterSpan)
+          val tag = decodeByte()
+          tag match
+            case 0 => // Function adapter
+              val adapterSym = decodeSymbolRef()
+              val adapterStartDelta = decodeInt()
+              val adapterSpanLength = decodeNat()
+              val adapterSpan = Span(absoluteStart + adapterStartDelta, adapterSpanLength)
+              ParamAdapter.Function(adapterSym)(adapterSpan)
+
+            case 1 => // Member adapter
+              val memberName = decodeString()
+              val adapterStartDelta = decodeInt()
+              val adapterSpanLength = decodeNat()
+              val adapterSpan = Span(absoluteStart + adapterStartDelta, adapterSpanLength)
+              ParamAdapter.Member(memberName)(adapterSpan)
         }
 
         (param, adapters)
 
       val params = paramsWithAdapters.map(_._1)
-      val adapterIdents = paramsWithAdapters.map(_._2)
-      val adapterSymbols = adapterIdents.map(l => l.map(_.symbol))
+      val adapterTrees = paramsWithAdapters.map(_._2)
+      val adapterSymbols = adapterTrees.map(l => l.map {
+        case Trees.ParamAdapter.Function(sym) => sym
+        case Trees.ParamAdapter.Member(name) => name
+      })
 
       // Decode auto parameters
       val autos = repeated:
@@ -506,7 +519,7 @@ object Decoder:
       val endDelta = decodeInt()
       val span = Span(absoluteStart, body.span.endOffset + endDelta - absoluteStart)
       val policy = Effects.Policy.CheckBound(sig.receives)
-      FunDef(symbol, sig.tparams, sig.params, sig.adapterIdents, sig.autos, sig.resultType, policy, body)(span)
+      FunDef(symbol, sig.tparams, sig.params, sig.adapterTrees, sig.autos, sig.resultType, policy, body)(span)
 
     // Set buffer position at end
     buf.setPosition(pos + length)
@@ -948,7 +961,10 @@ object Decoder:
             val name = decodeString()
             val info = decodeType(tparamScope)
             val adapters = repeated:
-              decodeSymbolRef()
+              val tag = decodeByte()
+              tag match
+                case 0 => decodeSymbolRef() // Function adapter
+                case 1 => decodeString()    // Member adapter
 
             (NamedInfo(name, info), adapters)
 

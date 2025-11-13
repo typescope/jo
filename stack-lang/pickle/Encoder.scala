@@ -371,7 +371,7 @@ object Encoder:
       encodeType(tparam.info)
 
 
-  private def encodeParams(params: List[Symbol], adapters: List[List[Ident]], prevOffset: Int)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
+  private def encodeParams(params: List[Symbol], adapters: List[List[Trees.ParamAdapter]], prevOffset: Int)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
     // Assume param section is small such that the delta is small even for the same base offset
     repeated(params.zip(adapters)): (param, paramAdapters) =>
       encodeNat(state.getId(param))
@@ -385,11 +385,22 @@ object Encoder:
       encodeType(param.info)
 
       repeated(paramAdapters): adapter =>
-        encodeSymbolRef(adapter.symbol)
-        val adapterSpan = adapter.span
-        val adapterStartDelta = adapterSpan.start - prevOffset
-        encodeInt(adapterStartDelta)
-        encodeNat(adapterSpan.length)
+        adapter match
+          case func @ Trees.ParamAdapter.Function(symbol) =>
+            encodeByte(0) // Tag for function adapter
+            encodeSymbolRef(symbol)
+
+            val adapterStartDelta = func.span.start - prevOffset
+            encodeInt(adapterStartDelta)
+            encodeNat(func.span.length)
+
+          case member @ Trees.ParamAdapter.Member(name) =>
+            encodeByte(1) // Tag for member adapter
+            encodeString(name)
+
+            val adapterStartDelta = member.span.start - prevOffset
+            encodeInt(adapterStartDelta)
+            encodeNat(member.span.length)
 
 
   private def encodeDef(defn: Def)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
@@ -716,7 +727,14 @@ object Encoder:
             encodeString(param.name)
             encodeType(param.info, tparamScope)
             repeated(paramAdapters): adapter =>
-              encodeSymbolRef(adapter)
+              adapter match
+                case sym: Symbol =>
+                  encodeByte(0) // Tag for function adapter
+                  encodeSymbolRef(sym)
+
+                case name: String =>
+                  encodeByte(1) // Tag for member adapter
+                  encodeString(name)
 
           repeated(autos): auto =>
             encodeString(auto.name)
