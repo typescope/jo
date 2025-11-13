@@ -3,8 +3,9 @@ package sast
 import sast.Trees.*
 import sast.Types.*
 import sast.Symbols.*
+import sast.Flags.*
 
-import ast.Positions.Source
+import ast.Positions.{Span, Source}
 import common.Debug
 
 object Adaptation:
@@ -141,9 +142,38 @@ object Adaptation:
           adaptSimple(word, targetType, rest)
 
       case (memberName: String) :: rest =>
-        // TODO: Implement member adapter logic
-        // For now, skip member adapters and try the rest
-        adaptSimple(word, targetType, rest)
+        // Member adapter: apply if the word's type has the member
+        word.tpe.getTermMember(memberName) match
+          case Some(memberType) =>
+            // Check if member is a parameterless method (ProcType with no params)
+            // If so, extract its result type
+            val effectiveType = memberType match
+              case procType: ProcType if procType.params.isEmpty && procType.autos.isEmpty =>
+                procType.resultType
+              case tp => tp
+
+            // Check if the effective member type conforms to the target type
+            if Subtyping.conforms(effectiveType, targetType) then
+              // Select the member
+              val selected = word.select(memberName)
+
+              // For parameterless methods, we need to apply them (call with no args)
+              val adapted = memberType match
+                case procType: ProcType if procType.params.isEmpty && procType.autos.isEmpty =>
+                  // Apply parameterless method
+                  selected.appliedTo()
+                case _ =>
+                  // For val members, just return the selection
+                  selected
+
+              Some(adapted)
+            else
+              // Member exists but type doesn't match, try next adapter
+              adaptSimple(word, targetType, rest)
+
+          case None =>
+            // Member doesn't exist, try next adapter
+            adaptSimple(word, targetType, rest)
 
   def adaptVarargSplice
       (word: Word, targetElemType: Type, elemType: Type, adapters: List[Symbol | String], owner: Symbol)
@@ -168,6 +198,90 @@ object Adaptation:
           adaptVarargSplice(word, targetElemType, elemType, rest, owner)
 
       case (memberName: String) :: rest =>
-        // TODO: Implement member adapter logic for vararg splice
-        // For now, skip member adapters and try the rest
-        adaptVarargSplice(word, targetElemType, elemType, rest, owner)
+        // Member adapter for vararg splice: apply .map(_.memberName) or .map(_.memberName())
+        elemType.getTermMember(memberName) match
+          case Some(memberType) =>
+            // Check if member is a parameterless method (ProcType with no params)
+            // If so, extract its result type
+            val effectiveType = memberType match
+              case procType: ProcType if procType.params.isEmpty && procType.autos.isEmpty =>
+                procType.resultType
+              case tp => tp
+
+            // Check if the effective member type conforms to the target element type
+            if Subtyping.conforms(effectiveType, targetElemType) then
+              // Create a lambda function object similar to etaExpand
+              val memberAccessorFun = createMemberAccessor(memberName, elemType, memberType, targetElemType, owner, word.span)
+
+              // Apply map with the lambda
+              val adapted = word.select("map").appliedToTypes(targetElemType).appliedTo(memberAccessorFun)
+
+              Some(adapted)
+            else
+              // Member exists but type doesn't match, try next adapter
+              adaptVarargSplice(word, targetElemType, elemType, rest, owner)
+
+          case None =>
+            // Member doesn't exist, try next adapter
+            adaptVarargSplice(word, targetElemType, elemType, rest, owner)
+
+  /** Create a lambda function object that accesses a member: x => x.memberName or x => x.memberName() */
+  private def createMemberAccessor
+      (memberName: String, paramType: Type, memberType: Type, resultType: Type, owner: Symbol, span: Span)
+      (using defn: Definitions, source: Source)
+  : Word =
+    val pos = span.toPos
+
+    // Create a "this" symbol for the object
+    val thisSym = Symbol.createSymbol("this", Synthetic, pos)
+
+    // Create an "apply" method symbol
+    val applySym = Symbol.createSymbol("apply", Fun | Method | Synthetic, pos)
+
+    // Create parameter symbol for the apply method
+    val paramSym = Symbol.createSymbol("x", paramType, Param, applySym, pos)
+
+    val thisType = ObjectType(NamedInfo("apply", MemberRef(StaticRef(thisSym), applySym)) :: Nil, mutableFields = Nil)
+    defn.add(thisSym, owner, thisType)
+
+    // Build the procedure type for apply
+    val applyProcType = ProcType(
+      tparams = Nil,
+      params = NamedInfo("x", paramType) :: Nil,
+      adapters = Nil,
+      autos = Nil,
+      resultType = resultType,
+      receivesInfo = () => Nil,  // Pure function
+      preParamCount = 0
+    )
+
+    val objType = ObjectType(NamedInfo("apply", applyProcType) :: Nil, mutableFields = Nil)
+
+    defn.add(applySym, thisSym, applyProcType)
+
+    // Build the body: x.memberName or x.memberName()
+    val paramIdent = Ident(paramSym)(span)
+    val selected = paramIdent.select(memberName)
+
+    // For parameterless methods, apply them
+    val body = memberType match
+      case procType: ProcType if procType.params.isEmpty && procType.autos.isEmpty =>
+        selected.appliedTo()
+      case _ =>
+        selected
+
+    // Create the apply method definition
+    val resultTypeTree = TypeTree(resultType)(span.point)
+    val funDef = FunDef(
+      applySym,
+      tparams = Nil,
+      paramSym :: Nil,
+      adapters = Nil,
+      autos = Nil,
+      resultTypeTree,
+      Effects.Policy.Infer,
+      body
+    )(span)
+
+    // Create and return the object
+    Object(thisSym, funDef :: Nil)(objType, span)
