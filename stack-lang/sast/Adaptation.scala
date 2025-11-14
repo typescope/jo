@@ -235,6 +235,7 @@ object Adaptation:
       params = NamedInfo("x", paramType) :: Nil,
       adapters = Nil,
       autos = Nil,
+      candidates = Nil,
       resultType = resultType,
       receivesInfo = () => Nil,  // Pure function
       preParamCount = 0

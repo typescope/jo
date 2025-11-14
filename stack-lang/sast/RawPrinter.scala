@@ -276,7 +276,7 @@ object RawPrinter:
       case AppliedType(tctor, targs) =>
         "AppliedType [" ~ printType(tctor, tparamScope) ~ ",[" ~ targs.map(t => printType(t, tparamScope)).join(",") ~ "]]"
 
-      case procType @ ProcType(tparams, params, adapters, autos, resType, _, preParamCount) =>
+      case procType @ ProcType(tparams, params, adapters, autos, candidates, resType, _, preParamCount) =>
         tparamScope.withParams(tparams):
           val tparamText = "[" ~ indent:
               val items = tparams.map: tparam =>
@@ -305,10 +305,19 @@ object RawPrinter:
               items.join(LINE_SEP)
            ~ "]"
 
+          val candidatesText = "[" ~ indent:
+              val items = candidates.map: candidateList =>
+                val printed = candidateList.map:
+                  case sym: Symbol => printSymbolRef(sym)
+                  case MemberCandidate(tp, name) => "[" ~ printType(tp, tparamScope) ~ "]." ~ name
+                "[" ~ printed.join(",") ~ "]"
+              items.join(LINE_SEP)
+          ~ "]"
+
           val receiveText = "[" ~ procType.receives.join(",") ~ "]"
 
           "ProcType [" ~ indent:
-            List(tparamText, paramText, adaptersText, autoText, printType(resType, tparamScope), receiveText, Text(preParamCount)).join("," ~ Text.BreakLine)
+            List(tparamText, paramText, adaptersText, autoText, candidatesText, printType(resType, tparamScope), receiveText, Text(preParamCount)).join("," ~ Text.BreakLine)
           ~ "]"
 
       case TypeLambda(tparams, resType, preParamCount) =>

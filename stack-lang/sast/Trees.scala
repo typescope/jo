@@ -511,6 +511,10 @@ object Trees:
     case Function(symbol: Symbol)(val span: Span)
     case Member(name: String)(val span: Span)
 
+  enum AutoCandidate:
+    case Function(symbol: Symbol)(val span: Span)
+    case Member(tpt: TypeTree, name: String)(val span: Span)
+
   /** Represents a named function or method definition */
   case class FunDef
     (symbol: Symbol,
@@ -518,6 +522,7 @@ object Trees:
       params: List[Symbol],
       adapters: List[List[ParamAdapter]],
       autos: List[Symbol],
+      candidates: List[List[AutoCandidate]],
       resultType: TypeTree,
       effectPolicy: Effects.Policy,
       body: Word)
@@ -527,6 +532,7 @@ object Trees:
     defn.setCode(symbol, this)
 
     assert(params.size == adapters.size)
+    assert(autos.size == candidates.size)
 
     private var censusCache: (List[Symbol], List[Symbol]) | Null = null
 

@@ -304,6 +304,8 @@ object Types:
   /** A part of a type with a specific name */
   case class NamedInfo[+T](name: String, info: T)
 
+  case class MemberCandidate(tp: Type, name: String)
+
   /** A record type --- named tuples
     *
     * Warning: flattening of nested tuples is dangerous with subtyping
@@ -393,11 +395,13 @@ object Types:
       params: List[NamedInfo[Type]],
       adapters: List[List[Symbol | String]],
       autos: List[NamedInfo[Type]],
+      candidates: List[List[Symbol | MemberCandidate]],
       resultType: Type,
       receivesInfo: () => List[Symbol],
       preParamCount: Int)
   extends Type:
     assert(params.size == adapters.size)
+    assert(autos.size == candidates.size)
 
     val preParamTypes: List[Type] = params.take(preParamCount).map(_.info)
     val postParamTypes: List[Type] = params.drop(preParamCount).map(_.info)
