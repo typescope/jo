@@ -17,20 +17,6 @@ import scala.collection.mutable
 
 /** Perform checks related to types  */
 class Checker(namer: Namer):
-  // TODO: remove by make it contextual in Namer
-  private val delayedChecks = new mutable.ArrayBuffer[() => Unit]
-  var checking = false
-
-  def delayedCheck(check: => Unit): Unit =
-    if checking then throw new Exception("cannot add new task during checking")
-    delayedChecks.addOne(() => check)
-
-  def performDelayedChecks(): Unit =
-    checking = true
-    for check <- delayedChecks do check()
-    delayedChecks.clear()
-    checking = false
-
   /** Check kind of a type
     *
     * Note: Do not access info of type symbols.
@@ -118,9 +104,9 @@ class Checker(namer: Namer):
       Reporter.error(s"The prefix does not contain the member $member", word.pos)
       errorWord(word.span)
 
-  def checkInstantiated(tvar: TypeVar, pos: SourcePosition)(using Reporter): Unit =
-    if !tvar.isInstantiated then
-      Reporter.error("Cannot infer a type for type variable " + tvar, pos)
+  def checkInstantiated(tvars: TypeVars)(using Reporter, Source): Unit =
+    for tvar <- tvars if !tvar.isInstantiated do
+      Reporter.error("Cannot infer a type for type variable " + tvar, tvar.span.toPos)
 
   def checkModifiers(defn: Ast.Def)(using rp: Reporter, so: Source): Flags =
     val mods = defn.modifiers
@@ -230,7 +216,7 @@ class Checker(namer: Namer):
     val defn = summon[Definitions]
 
     val word2 =
-      if word.tpe.isProcType then
+      if word.tpe.isProcType && targetType != TargetType.Unknown then
         val procType = word.tpe.asProcType
         adaptNoArgs(word, procType, targetType)
 

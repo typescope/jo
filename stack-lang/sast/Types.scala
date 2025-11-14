@@ -2,7 +2,7 @@ package sast
 
 import Symbols.Symbol
 
-import typing.Inference
+import ast.Positions.Span
 
 import scala.reflect.ClassTag
 import scala.collection.mutable
@@ -479,20 +479,23 @@ object Types:
     (lo: Type, hi: Type)
   extends Type
 
-  class TypeVar(name: String, inferencer: Inference.Inferencer) extends ProxyType:
+  /** TypeVars are local to a source file thus it may take a span */
+  class TypeVar(name: String, span: Span)(using context: TypeVars) extends ProxyType:
+    context.add(this)
+
     override def toString = "TypeVar(" + name + ")"
 
-    def isInstantiated: Boolean = inferencer.isInstantiated(this)
+    def isInstantiated: Boolean = context.isInstantiated(this)
 
-    def instantiated: Type = inferencer.instantiated(this)
+    def instantiated: Type = context.instantiated(this)
 
-    def approx(isUp: Boolean): Type = inferencer.approx(this, isUp)
+    def approx(isUp: Boolean): Type = context.approx(this, isUp)
 
     def checkSubtype(tp: Type)(using Definitions): List[Subtyping.Task] =
-      inferencer.isSubtype(this, tp)
+      context.isSubtype(this, tp)
 
     def checkSuptype(tp: Type)(using Definitions): List[Subtyping.Task] =
-      inferencer.isSuptype(this, tp)
+      context.isSuptype(this, tp)
 
   /** Represents the information of a namespace or section */
   class ContainerInfo(val nameTable: NameTable) extends Type:

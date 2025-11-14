@@ -6,6 +6,9 @@ import sast.Types.*
 import sast.Subtyping
 import sast.Definitions
 
+import reporting.Reporter
+import ast.Positions.Source
+
 /** Type inference logic */
 object Inference:
   enum TargetType:
@@ -96,29 +99,14 @@ object Inference:
           else
             None
 
-  trait Inferencer:
-    /** The instantiated type associated with the type varialbe
-      *
-      * Throws exception is the type var is not yet instantiated.
-      */
-    def instantiated(tvar: TypeVar): Type
+  def freshInferContext[T](op: TypeVars ?=> T)(using Source, Reporter): T =
+    given tvars: TypeVars = new UnificationSolver
+    val res = op
+    checker.checkInstantiated(tvars)
+    res
 
-    /** Approximate the type of the tvar to its bounds
-      *
-      * The method shoud not recursively call `TypeOps.approx`.
-      */
-    def approx(tvar: TypeVar, isUp: Boolean): Type
-
-    def isInstantiated(tvar: TypeVar): Boolean
-
-    def isSubtype(tvar: TypeVar, tp: Type)(using Definitions): List[Subtyping.Task]
-
-    def isSuptype(tvar: TypeVar, tp: Type)(using Definitions): List[Subtyping.Task]
-
-    /** The state of inference will be reverted back after test */
-    def test[T](op: => T): T
-
-  class UnificationSolver extends Inferencer:
+  class UnificationSolver extends TypeVars:
+    private var tvars = new mutable.ArrayBuffer[TypeVar]
     private var instantiations: Map[TypeVar, Type] = Map.empty
 
     private def instantiate(tvar: TypeVar, tp: Type)(using Definitions) =
@@ -146,6 +134,11 @@ object Inference:
           assert(tvar != tp)
           instantiate(tvar, tp)
           Nil
+
+    def add(tvar: TypeVar): Unit =
+      tvars += tvar
+
+    def typeVars: List[TypeVar] = tvars.toList
 
     def isInstantiated(tvar: TypeVar): Boolean =
       instantiations.get(tvar).nonEmpty

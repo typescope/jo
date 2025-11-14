@@ -29,6 +29,7 @@ files=(
     stack-lang/typing/Adapters.scala
     stack-lang/typing/Autos.scala
     stack-lang/typing/Checker.scala
+    stack-lang/typing/Checks.scala
     stack-lang/typing/ExprTyper.scala
     stack-lang/typing/Imports.scala
     stack-lang/typing/Inference.scala
@@ -66,6 +67,7 @@ files=(
     stack-lang/sast/TypeMap.scala
     stack-lang/sast/TypeOps.scala
     stack-lang/sast/TypeTraverser.scala
+    stack-lang/sast/TypeVars.scala
     stack-lang/sast/TaggedEncoding.scala
 
     stack-lang/pickle/Decoder.scala

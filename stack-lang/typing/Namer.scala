@@ -38,8 +38,6 @@ import scala.collection.mutable
 class Namer(using Config):
   val checker = new Checker(this)
   val patternTyper = PatternTyper(this, checker)
-  // TODO: change inferencer to be contextual and check instantiation earlier
-  val inferencer: Inferencer = new UnificationSolver
   val exprTyper = new ExprTyper(this)
   val autoResolver = new Autos(this)
 
@@ -47,6 +45,7 @@ class Namer(using Config):
       (nss: List[Ast.Namespace], rootNameTable: NameTable, predef: NameTable)
       (using defnLazy: Definitions.Lazy, rp: Reporter)
   : List[Namespace] =
+   given checks: Checks = new Checks
 
     given ip: InfoProvider = defnLazy.infoProvider
 
@@ -97,7 +96,7 @@ class Namer(using Config):
       for delayedDef <- delayedNamespaces
       yield delayedDef.delayed() <| delayedDef.symbol.sourcePos.source.file
 
-    checker.performDelayedChecks() <| "checker"
+    checks.perform() <| "checker"
     namespaces.toList
 
   /** Resolve namespace and create intermediate namespace on demand
@@ -229,7 +228,7 @@ class Namer(using Config):
     def adapt(using tt: TargetType, defn: Definitions, sc: Scope, rp: Reporter, so: Source): Word =
       checker.adapt(word, tt)
 
-  def transform(word: Ast.Word)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
+  def transform(word: Ast.Word)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars): Word =
     Debug.trace(s"Typing ${word.show}, owner = ${sc.owner}, tt = ${tt.show}", (_: Word).show, enable = false) {
     word.testKey(Namer.TypedWord) match
     case Some(typedWord) => typedWord.adapt
@@ -308,7 +307,9 @@ class Namer(using Config):
 
       case Ast.With(expr, args) =>
         val exprSast = transform(expr)
-        val argsSast = for arg <- args yield transformWithArg(arg)
+        val argsSast =
+          for arg <- args yield Inference.freshInferContext:
+            transformWithArg(arg)
         With(exprSast, argsSast)
 
       case Ast.Allow(expr, params) =>
@@ -331,7 +332,8 @@ class Namer(using Config):
 
          val body2 =
            given TargetType = TargetType.VoidType
-           transform(body)
+           Inference.freshInferContext:
+             transform(body)
 
          While(cond2, body2)(word.span).adapt
 
@@ -390,7 +392,8 @@ class Namer(using Config):
       case Ast.Select(qual, name) =>
         val qual2 =
           given TargetType = TargetType.TermMember(name)
-          transform(qual)
+          Inference.freshInferContext:
+            transform(qual)
 
         val qualType = qual2.tpe
         qualType.getTermMember(name) match
@@ -440,7 +443,9 @@ class Namer(using Config):
             given TargetType =
               if vdef.tpt.isEmpty then TargetType.ValueType
               else TargetType.Known(givenType)
-            transform(vdef.rhs)
+
+            Inference.freshInferContext:
+              transform(vdef.rhs)
 
           val tp: Type =
             if vdef.tpt.isEmpty then rhs.tpe.widen else givenType
@@ -514,7 +519,8 @@ class Namer(using Config):
           if i == phrases.size - 1 then tt
           else TargetType.VoidType
 
-        transform(phrase)
+        Inference.freshInferContext:
+          transform(phrase)
 
     if words.isEmpty then
       checker.adapt(Block(Nil)(block.span), tt)
@@ -523,40 +529,23 @@ class Namer(using Config):
       Block(words)(block.span)
 
 
-  def instantiatePoly(polyType: ProcType, fun: Word)(using Definitions, Reporter, Source): Word =
+  def instantiatePoly(polyType: ProcType, fun: Word)(using Definitions, Reporter, Source, TypeVars): Word =
     assert(polyType.tparams.nonEmpty, polyType.show)
 
     val span = fun.span.endPoint
-    val tvars = for tparam <- polyType.tparams yield TypeVar(tparam.name, this.inferencer)
+    val tvars = for tparam <- polyType.tparams yield TypeVar(tparam.name)
     val targs = tvars.map(tvar => TypeTree(tvar)(span))
     val tpe = polyType.instantiate(tvars)
-
-    checker.delayedCheck {
-      for tvar <- tvars do checker.checkInstantiated(tvar, fun.pos)
-
-      checker.checkBounds(polyType.tparams, targs)
-    }
 
     TypeApply(fun, targs)(tpe, fun.span)
 
   /** Handles new Foo[T](arg1, arg2, ...) */
-  def transformNew(newExpr: Ast.New)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
+  def transformNew(newExpr: Ast.New)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars): Word =
     val classTree = transformType(newExpr.classRef)
     var targsTree = for targ <- newExpr.targs yield transformType(targ)
 
     def instantiateTypeLambda(tparams: List[Symbol])(using Definitions, Reporter): List[TypeVar]  =
-      val tvars = for tparam <- tparams yield TypeVar(tparam.name, this.inferencer)
-
-      checker.delayedCheck {
-        val span = newExpr.classRef.span.endPoint
-
-        for tvar <- tvars do checker.checkInstantiated(tvar, span.toPos)
-
-        val targs = tvars.map(tvar => TypeTree(tvar)(span))
-        checker.checkBounds(tparams, targs)
-      }
-
-      tvars
+      for tparam <- tparams yield TypeVar(tparam.name, this.inferencer)
 
     if !classTree.tpe.isTypeRef then
       Reporter.error("A class name expected, found = " + newExpr.classRef.name, newExpr.classRef.pos)
@@ -565,7 +554,8 @@ class Namer(using Config):
     else if targsTree.nonEmpty && !checker.checkKind(classTree, targsTree) then
       errorWord(newExpr.span)
 
-    else
+    else Inference.freshInferContext:
+
       val classRef = classTree.tpe.as[RefType]
       val classSym = classRef.symbol
       val instanceType =
@@ -676,7 +666,8 @@ class Namer(using Config):
     val Ast.DotlessCall(obj, meth, arg) = call
     val objWord =
       given TargetType = TargetType.ValueType
-      transform(obj)
+      Inference.freshInferContext:
+        transform(obj)
 
     val objType = objWord.tpe
     val objSpan = obj.span
@@ -707,7 +698,8 @@ class Namer(using Config):
 
               val argTyped =
                 given TargetType = TargetType.Known(procType.paramTypes.head)
-                transform(arg)
+                Inference.freshInferContext:
+                  transform(arg)
 
               val autos = autoResolver.derive(procType, call.span)
               val word = Apply(fun, argTyped :: Nil, autos)(call.span)
@@ -783,7 +775,8 @@ class Namer(using Config):
     val paddedAdapters = adapters.padTo(params.size, Nil)
     for ((arg, paramType), adapterList) <- args.zip(params).zip(paddedAdapters) yield
       given TargetType = TargetType.Known(paramType, Adaptation.createSimpleAdapter(adapterList))
-      transform(arg)
+      Inference.freshInferContext:
+        transform(arg)
 
   /** Assumes that the argument count requirement is satisfied */
   def transformVarargs
@@ -818,7 +811,9 @@ class Namer(using Config):
         val listType = AppliedType(StaticRef(defn.List_type), elementType :: Nil)
         val adapter = Adaptation.createVarargSpliceAdapter(adaptersFlex, sc.owner)
         given TargetType = TargetType.Known(listType, adapter)
-        val argTyped = transform(args.head)
+        val argTyped = Inference.freshInferContext:
+          transform(args.head)
+
         lastFlexArg = lastFlexArg.select("++").appliedTo(argTyped)
 
     for arg <- argsFlex do
@@ -832,7 +827,10 @@ class Namer(using Config):
         case _ =>
           val adapter = Adaptation.createSimpleAdapter(adaptersFlex)
           given TargetType = TargetType.Known(elementType, adapter)
-          val argTyped = transform(arg)
+
+          val argTyped = Inference.freshInferContext:
+            transform(arg)
+
           lastFlexArg = lastFlexArg.select("+").appliedTo(argTyped)
       end match
 
@@ -850,7 +848,8 @@ class Namer(using Config):
 
         val rhs2 =
           given TargetType = TargetType.Known(sym.info)
-          transform(rhs)
+          Inference.freshInferContext:
+            transform(rhs)
 
         if sym.isField then
           // Normalize SAST
@@ -866,7 +865,8 @@ class Namer(using Config):
       case Ast.Select(qual, name) =>
         val qual2 =
           given TargetType = TargetType.TermMember(name)
-          transform(qual)
+          Inference.freshInferContext:
+            transform(qual)
 
         val qualType = qual2.tpe
         val isObject = qualType.isObjectType || qualType.isClassType
@@ -883,7 +883,7 @@ class Namer(using Config):
 
               val lhs2 = Select(qual2, name)(tp, lhs.span)
 
-              val rhs2 =
+              val rhs2 = Inference.freshInferContext:
                 given TargetType = TargetType.Known(tp.widenTermRef)
                 transform(rhs)
 
@@ -926,7 +926,8 @@ class Namer(using Config):
         if paramRef.tpe.isError then TargetType.ValueType
         else TargetType.Known(paramRef.symbol.info)
 
-      transform(arg.rhs)
+      Inference.freshInferContext:
+        transform(arg.rhs)
 
     Assign(paramRef, rhs)
 
@@ -940,7 +941,8 @@ class Namer(using Config):
         case expr =>
           // Type check the interpolation expression
           given TargetType = TargetType.ValueType
-          val typedExpr = transform(expr)
+          val typedExpr = Inference.freshInferContext:
+            transform(expr)
 
           // Convert to String if needed
           if Subtyping.conforms(typedExpr.tpe, defn.StringType) then
@@ -980,8 +982,11 @@ class Namer(using Config):
       given TargetType = TargetType.Known(defn.BoolType)
       transform(cond)
 
-    val then2 = transform(thenp)
-    val else2 = transform(elsep)
+    val then2 = Inference.freshInferContext:
+      transform(thenp)
+
+    val else2 = Inference.freshInferContext:
+      transform(elsep)
 
     // result type
     val commonType = checker.commonResultType(then2.tpe, else2.tpe, ifte.pos)
@@ -1012,7 +1017,8 @@ class Namer(using Config):
         Reporter.error("Arg " + id.name + " already defined", id.pos)
       else
         given TargetType = targetFieldType(id)
-        val rhs2 = transform(rhs)
+        val rhs2 = Inference.freshInferContext:
+          transform(rhs)
         namedArgs2 += id.name -> rhs2
     end for
     val fields = namedArgs2.toList
@@ -1066,14 +1072,15 @@ class Namer(using Config):
         val values2 =
           for value <- values yield
             given TargetType = TargetType.ValueType
-            transform(value)
+            Inference.freshInferContext:
+              transform(value)
 
         val argTypes = values2.map(_.tpe)
         val tagType = TagType.from(tagName, argTypes)
 
         TaggedLit(tagStringLit, values2)(tagType, span)
 
-  private def transformLambda(lambda: Ast.Lambda)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
+  private def transformLambda(lambda: Ast.Lambda)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars): Word =
      val Ast.Lambda(params, body) = lambda
 
      val targetFunTypeOpt: Option[NamedInfo[ProcType]] = tt.knownType.flatMap(_.getSingleMethodType)
@@ -1097,13 +1104,13 @@ class Namer(using Config):
      val selfType = ObjectType(NamedInfo(funName, MemberRef(StaticRef(thisSym), funSym)) :: Nil, mutableFields = Nil)
      defn.add(thisSym, sc.owner, selfType)
 
-     val tvars = new mutable.ArrayBuffer[(TypeVar, Ast.Param)]
+     given tvars: TypeVars = new Inference.UnificationSolver
 
      def inferParamType(i: Int): Type =
        targetFunTypeOpt match
          case Some(NamedInfo(_, funType)) => funType.paramTypes(i)
          case None =>
-           val tvar = TypeVar(params(i).name, this.inferencer)
+           val tvar = TypeVar(params(i).name, params(i).span)
            tvars += tvar -> params(i)
            tvar
 
@@ -1145,8 +1152,8 @@ class Namer(using Config):
 
      defn.add(funSym, thisSym, procType)
 
-     for (tvar, param) <- tvars do
-       checker.checkInstantiated(tvar, param.pos)
+     // check all tvars are instantiated
+     checker.checkInstantiated(tvars)
 
      val tparamSyms = Nil
      val autoSyms = Nil
@@ -1281,7 +1288,9 @@ class Namer(using Config):
       given TargetType =
         if vdef.tpt.isEmpty then TargetType.ValueType
         else TargetType.Known(givenType)
-      transform(vdef.rhs)
+
+      Inference.freshInferContext:
+        transform(vdef.rhs)
 
     val tp: Type =
       if vdef.tpt.isEmpty then rhs.tpe.widen
@@ -1435,8 +1444,9 @@ class Namer(using Config):
           else
             TargetType.ValueType
 
-        given TargetType = targetType
-        transform(funDef.body)
+        Inference.freshInferContext:
+          given TargetType = targetType
+          transform(funDef.body)
 
     lazy val effectPolicy = transformReceives(funDef.receives, policy)
 
@@ -1510,9 +1520,10 @@ class Namer(using Config):
       val initialized = new mutable.ArrayBuffer[Symbol]
       val words = new mutable.ArrayBuffer[Word]
 
-      for stat <- stats do
+      for stat <- stats do Inference.freshInferContext:
         given TargetType = TargetType.VoidType
-        words += transform(stat)
+        Inference.freshInferContext:
+          words += transform(stat)
 
       for arg @ Ast.NamedArg(id, rhs) <- record.args yield
         StaticRef(thisSym).getTermMember(id.name) match
@@ -1526,7 +1537,11 @@ class Namer(using Config):
 
             else
               val lhs = Select(Ident(thisSym)(id.span), id.name)(tp, id.span)
-              words += FieldAssign(lhs, transform(rhs))
+
+              val rhsTyped = Inference.freshInferContext:
+                transform(rhs)
+
+              words += FieldAssign(lhs, rhsTyped)
               initialized += sym
 
           case None =>
@@ -1823,9 +1838,9 @@ class Namer(using Config):
 
   /** Type check type tree
     *
-    * Checks must be delayed by using `checker.delayedCheck`.
+    * Checks must be delayed by using `checks.add`.
     */
-  def transformType(tpt: Ast.TypeTree, allowPackType: Boolean = false)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): TypeTree =
+  def transformType(tpt: Ast.TypeTree, allowPackType: Boolean = false)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, ck: Checks): TypeTree =
     def check(sym: Symbol) =
       if sym == defn.Predef_Pack && !allowPackType then
         Reporter.error(".. not allowed here. It can only be used as the type of the last varargs parameter.", tpt.pos)
@@ -1946,7 +1961,7 @@ class Namer(using Config):
           TypeTree(ErrorType)(tpt.span)
         else
           val tp = AppliedType(tctor2.tpe, targs2.map(_.tpe))
-          checker.delayedCheck {
+          ck.add {
             val tl = tctor2.tpe.asTypeLambda
             checker.checkBounds(tl.tparams, targs2)
           }
