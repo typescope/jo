@@ -649,7 +649,7 @@ object Encoder:
         encodeDef(defn)
         lastOffset = defn.span.endOffset
 
-      encodeNat(sec.span.endOffset - lastOffset)
+      encodeInt(sec.span.endOffset - lastOffset)
 
   private def encodeTypeTree(tpt: TypeTree, prevOffset: Int)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
     val startDelta = tpt.span.start - prevOffset
