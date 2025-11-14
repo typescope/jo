@@ -1391,6 +1391,10 @@ class Namer(using Config):
       tparamSyms
       transformAutos(funDef.autos)
 
+    lazy val candidates =
+      funDef.autos.zip(autoSyms).map: (auto, autoSym) =>
+        Autos.check(auto.candidates, autoSym.info, this)
+
     lazy val givenResultType =
       tparamSyms
 
@@ -1451,16 +1455,19 @@ class Namer(using Config):
         case ParamAdapter.Member(name) => name
       })
 
+      val candidateSymbols = candidates.map(_._2)
+
       ProcType(
-        tparamSyms, paramSyms.map(_.toNamedInfo), adapterSymbols, autoSyms.map(_.toNamedInfo), autoSyms.map(_ => Nil),
+        tparamSyms, paramSyms.map(_.toNamedInfo), adapterSymbols, autoSyms.map(_.toNamedInfo), candidateSymbols,
         resultType, receivesInfo, funDef.preParamCount)
 
     val ip = lazyDefn.infoProvider
     ip.addLazy(funSym, sc.owner,  () => computeInfo(resultType), () => computeInfo(ErrorType))
 
     val typer = () =>
+      val candidateTrees = candidates.map(_._1)
       val tpt = TypeTree(resultType)(funDef.resultType.span)
-      FunDef(funSym, tparamSyms, paramSyms, adapters, autoSyms, autoSyms.map(_ => Nil), tpt, effectPolicy, typedBody)(funDef.span)
+      FunDef(funSym, tparamSyms, paramSyms, adapters, autoSyms, candidateTrees, tpt, effectPolicy, typedBody)(funDef.span)
 
     DelayedDef(funSym, typer)
 
@@ -1483,6 +1490,10 @@ class Namer(using Config):
 
     lazy val autoSyms =
       transformAutos(funDef.autos)
+
+    lazy val candidates =
+      funDef.autos.zip(autoSyms).map: (auto, autoSym) =>
+        Autos.check(auto.candidates, autoSym.info, this)
 
     lazy val resultType =
       if !funDef.resultType.isEmpty then
@@ -1550,16 +1561,19 @@ class Namer(using Config):
 
     val tparamSyms = Nil
     def computeInfo(resultType: Type) =
+      val candidateSymbols = candidates.map(_._2)
+
       ProcType(
-        tparamSyms, paramSyms.map(_.toNamedInfo), paramSyms.map(_ => Nil), autoSyms.map(_.toNamedInfo), Nil,
+        tparamSyms, paramSyms.map(_.toNamedInfo), paramSyms.map(_ => Nil), autoSyms.map(_.toNamedInfo), candidateSymbols,
         resultType, () => defn.receives(funSym), funDef.preParamCount)
 
     val ip = lazyDefn.infoProvider
     ip.addLazy(funSym, sc.owner,  () => computeInfo(resultType), () => computeInfo(ErrorType))
 
     val typer = () =>
+      val candidateTrees = candidates.map(_._1)
       val tpt = TypeTree(resultType)(funDef.resultType.span)
-      FunDef(funSym, tparamSyms, paramSyms, paramSyms.map(_ => Nil), autoSyms, autoSyms.map(_ => Nil), tpt, effectPolicy, typedBody)(funDef.span)
+      FunDef(funSym, tparamSyms, paramSyms, paramSyms.map(_ => Nil), autoSyms, candidateTrees, tpt, effectPolicy, typedBody)(funDef.span)
 
     DelayedDef(funSym, typer)
 

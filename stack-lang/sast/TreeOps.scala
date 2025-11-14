@@ -65,7 +65,7 @@ object TreeOps:
       case name: String => ParamAdapter.Member(name)(span)
     })
     val candidatesConverted = procType.candidates.map(_.map {
-      case sym: Symbol => AutoCandidate.Function(sym)(span)
+      case sym: Symbol => AutoCandidate.Value(sym)(span)
       case MemberCandidate(tp, name) => AutoCandidate.Member(TypeTree(tp)(span.point), name)(span)
     })
     val funDef = FunDef(

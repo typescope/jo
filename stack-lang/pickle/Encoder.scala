@@ -546,7 +546,7 @@ object Encoder:
       repeated(fdef.candidates): candidateList =>
         repeated(candidateList): candidate =>
           candidate match
-            case AutoCandidate.Function(sym) =>
+            case AutoCandidate.Value(sym) =>
               encodeByte(0) // Tag for function candidate
               encodeSymbolRef(sym)
               val symSpan = sym.sourcePos.span

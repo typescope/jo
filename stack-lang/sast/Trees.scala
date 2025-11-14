@@ -512,7 +512,7 @@ object Trees:
     case Member(name: String)(val span: Span)
 
   enum AutoCandidate:
-    case Function(symbol: Symbol)(val span: Span)
+    case Value(symbol: Symbol)(val span: Span)
     case Member(tpt: TypeTree, name: String)(val span: Span)
 
   /** Represents a named function or method definition */

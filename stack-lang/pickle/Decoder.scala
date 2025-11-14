@@ -502,7 +502,7 @@ object Decoder:
               val candidateStartDelta = decodeInt()
               val candidateSpanLength = decodeNat()
               val candidateSpan = Span(absoluteStart + candidateStartDelta, candidateSpanLength)
-              (AutoCandidate.Function(candidateSym)(candidateSpan), candidateSym)
+              (AutoCandidate.Value(candidateSym)(candidateSpan), candidateSym)
 
             case 1 => // Member candidate
               val tpe = decodeType()
