@@ -31,7 +31,7 @@ object Adapters:
       s"Earlier adapter ${earlierAdapter.name} with parameter type ${paramType.show} is defined here"
 
   def check(adapters: List[Ast.ParamAdapter], rawParamType: Type, namer: Namer)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, checks: Checks)
   : List[Trees.ParamAdapter] =
     // ..T ==> T
     val paramType = rawParamType.stripVarargs
@@ -43,7 +43,8 @@ object Adapters:
         case Ast.ParamAdapter.Function(ref) =>
           val adapterRef =
             given TargetType = TargetType.Unknown
-            namer.transform(ref)
+            Inference.freshInferContext:
+              namer.transform(ref)
 
           adapterRef.tpe match
             case StaticRef(sym) if sym.is(Flags.Fun) =>

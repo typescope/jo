@@ -16,14 +16,14 @@ import PatternTyper.{ Occurs, ShadowedPatternError, RemainingSlice, SkipTo }
 
 import scala.collection.mutable
 
-class PatternTyper(namer: Namer, checker: Checker):
+class PatternTyper(namer: Namer):
   def transformPatDef(patDef: Ast.PatDef)
       (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source)
   : DelayedDef[PatDef] =
 
     given Definitions = lazyDefn.value
 
-    val flags = checker.checkModifiers(patDef) | Flags.Pattern | Flags.Fun
+    val flags = Checker.checkModifiers(patDef) | Flags.Pattern | Flags.Fun
 
     val patSym = Symbol.createSymbol(patDef.name, flags, patDef.ident.pos)
     given patScope: Scope = sc.fresh(patSym)
@@ -143,7 +143,7 @@ class PatternTyper(namer: Namer, checker: Checker):
     val commonType = (cases2: @unchecked) match
       case caseDef :: rest =>
         rest.foldLeft(caseDef.body.tpe): (acc, item) =>
-          checker.commonResultType(acc, item.body.tpe, item.body.pos)
+          Checker.commonResultType(acc, item.body.tpe, item.body.pos)
 
     val patmat2 = Match(scrutinee2, cases2)(commonType, patmat.span)
 
@@ -209,7 +209,7 @@ class PatternTyper(namer: Namer, checker: Checker):
     var fun: Word = Ident(sym)(id.span)
 
     if fun.tpe.isPolyType then
-      fun = namer.instantiatePoly(fun.tpe.asProcType, fun)
+      fun = TreeOps.instantiatePoly(fun.tpe.asProcType, fun)
 
     val funType = fun.tpe
 
@@ -299,7 +299,7 @@ class PatternTyper(namer: Namer, checker: Checker):
     var fun: Word = Ident(sym)(id.span)
 
     if fun.tpe.isPolyType then
-      fun = namer.instantiatePoly(fun.tpe.asProcType, fun)
+      fun = TreeOps.instantiatePoly(fun.tpe.asProcType, fun)
 
     val funType = fun.tpe
 

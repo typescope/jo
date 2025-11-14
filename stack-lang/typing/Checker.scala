@@ -16,7 +16,7 @@ import common.Debug
 import scala.collection.mutable
 
 /** Perform checks related to types  */
-class Checker(namer: Namer):
+object Checker:
   /** Check kind of a type
     *
     * Note: Do not access info of type symbols.
@@ -105,7 +105,7 @@ class Checker(namer: Namer):
       errorWord(word.span)
 
   def checkInstantiated(tvars: TypeVars)(using Reporter, Source): Unit =
-    for tvar <- tvars if !tvar.isInstantiated do
+    for tvar <- tvars.typeVars if !tvar.isInstantiated do
       Reporter.error("Cannot infer a type for type variable " + tvar, tvar.span.toPos)
 
   def checkModifiers(defn: Ast.Def)(using rp: Reporter, so: Source): Flags =
@@ -198,19 +198,18 @@ class Checker(namer: Namer):
     if isParameterlessCall then
       val fun =
         if procType.tparams.isEmpty then word
-        else namer.instantiatePoly(procType, word)
+        else TreeOps.instantiatePoly(procType, word)
       val procType2 = fun.tpe.asProcType
       val resType = procType2.resultType
 
       // Always prefer type constraints from outer scope if present
       for tp <- targetType.knownType do Subtyping.conforms(resType, tp)
 
-      val autos = namer.autoResolver.derive(procType2, word.span)
+      val autos = ???
       Apply(fun, args = Nil, autos)(fun.span)
 
     else
       word
-
 
   def adapt(word: Word, targetType: TargetType)(using Definitions, Scope, Reporter, Source): Word = Debug.trace("Adapting " + word.show, (_: Word).show, enable = false):
     val defn = summon[Definitions]

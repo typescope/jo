@@ -1,6 +1,7 @@
 package typing
 
 import sast.TypeOps
+import sast.TypeVars
 import sast.Adaptation.{ Adapter, NoAdapter }
 import sast.Types.*
 import sast.Subtyping
