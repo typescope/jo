@@ -946,19 +946,17 @@ class Namer(using Config):
           if Subtyping.conforms(typedExpr.tpe, defn.StringType) then
             typedExpr
           else
-            // Try to find auto Show[typedExpr.tpe]
-            val showTypeSym = defn.Show_Show
-            val wordType = typedExpr.tpe.widen
-            val showType = AppliedType(StaticRef(showTypeSym), List(wordType))
+            // Try adapations
 
             given reporter: Reporter = rp.fresh(buffer = true)
-            val showInstance = autoResolver.search(showType, Vector.empty, sc, sc, expr.span)
-            if reporter.hasErrors then
-              rp.error(s"Cannot interpolate expression of type ${wordType.show}. No auto Show[${wordType.show}] found.", expr.pos)
+            val adapter = Adaptation.createSimpleAdapter(defn.stringInterpolationAdapters)
+
+            try
+              Adaptation.adapt(typedExpr, defn.StringType, adapter)
+
+            catch case ex: Adaptation.AdaptionFailure =>
+              Reporter.error(s"Cannot interpolate expression of type ${typedExpr.tpe.show}. It does not have .toString member", expr.pos)
               Literal(Constant.String(""))(defn.StringType, expr.span)
-            else
-              // Call showInstance.show(typedExpr)
-              showInstance.select("show").appliedTo(typedExpr)
 
     // Build concatenation using the + method on String
     typedParts match
