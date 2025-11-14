@@ -25,25 +25,228 @@ val intSet = Set(1, 2, 3)
 val strSet = Set("a", "b")
 ```
 
-### Key Design Principles
+## Design Philosophy
 
-**1. Explicitness:**
+Jo's auto parameters are built on two foundational principles that distinguish them from Haskell type classes and Scala implicits:
 
-Unlike Scala implicits, Jo's auto parameters prioritize readability by making the candidate list explicit in the function signature. Auto values come from only two sources:
+### 1. Explicitness
 
-- The `having` clause at call sites (local, explicit)
-- Declared candidate lists in signatures (visible, explicit)
+**Principle:** Code behavior should be visible and transparent. No hidden mechanisms, no compiler magic, no implicit derivations.
 
-**No global or implicit search scope** - everything is traceable.
+**How this principle manifests in auto parameters:**
 
-**2. Local search scope:**
+**a) Explicit candidate lists in signatures**
 
-The `having` clause provides a **local search scope** that takes priority over all candidate lists, including for nested auto resolution. When resolving any auto parameter (direct or nested), the compiler:
+Unlike Scala's implicit scope or Haskell's typeclass instances, Jo requires explicit candidate lists:
 
-1. First checks the `having` clause
-2. Only if not found, searches the declared candidate list
+```jo
+// The signature tells you EXACTLY where auto values come from
+def process[T](x: T)(auto eq: Eq[T] in [eqInt, eqString, [T].==]): Unit = ...
 
-This makes `having` a powerful but explicit way to control auto resolution locally, without introducing global scope rules.
+// vs Scala: where does the Eq[T] come from? Implicit scope? Imports? Magic?
+def process[T](x: T)(implicit eq: Eq[T]): Unit = ...
+```
+
+**Benefits:**
+
+- No need to understand complex implicit resolution rules
+- Function signatures are self-documenting
+- No import-dependent behavior
+
+**b) Explicit instance composition**
+
+**Design decision:** Value candidates cannot have type parameters. Users write instances explicitly.
+
+Consider this Scala/Haskell scenario:
+
+```scala
+// What code actually runs here?
+summon[Eq[List[Option[Map[String, Either[Int, User]]]]]]
+```
+
+The compiler implicitly:
+
+- Derives `Eq[List[A]]` from `Eq[A]`
+- Derives `Eq[Option[A]]` from `Eq[A]`
+- Derives `Eq[Map[K,V]]` from `Eq[K]` and `Eq[V]`
+- Derives `Eq[Either[A,B]]` from `Eq[A]` and `Eq[B]`
+- Recursively composes all of these...
+
+**Problems with implicit derivation:**
+
+- **Debugging nightmare:** When equality fails, which derived instance is wrong?
+- **Performance opacity:** Is it doing structural comparison? Hashing? Something else?
+- **Semantic ambiguity:** Different composition strategies may be valid but give different results
+- **Magic behavior:** Hard to understand what code actually executes
+
+**Jo's approach:** Write instances explicitly.
+
+```jo
+def eqInt: Eq[Int] = (a, b) => a == b
+def eqString: Eq[String] = (a, b) => a == b
+def eqIntList: Eq[List[Int]] = (xs, ys) =>
+  if xs.size != ys.size then false
+  else ... // Explicit structural comparison logic
+```
+
+**Benefits:**
+
+- **Clarity:** You know exactly what code runs
+- **Control:** You can optimize (use hashing, custom algorithms, etc.)
+- **Debuggability:** Set breakpoints in your explicit implementation
+- **Correctness:** You choose the right semantics (e.g., fuzzy equality for floats)
+
+**For types you own**, member candidates provide clean composition while staying explicit:
+
+```jo
+class List[T]
+  def ==(that: List[T])(auto eqItem: Eq[T] in [[T].==]): Bool =
+    // Explicit structural comparison with explicit recursion
+    if this.size != that.size then false
+    else
+      var i = 0
+      var equal = true
+      while equal && i < this.size do
+        equal = eqItem(this[i], that[i])  // Explicit element comparison
+        i = i + 1
+      equal
+end
+
+def process[T](xs: List[T])(auto eq: Eq[List[T]] in [[List[T]].==]): Unit = ...
+```
+
+You explicitly write the structural comparison logic. The recursion to element equality is explicit (`auto eqItem`). **This is much clearer** than invisible compiler-generated derivation.
+
+**c) Explicit call-site overrides**
+
+The `having` clause makes non-standard semantics **visible at the call site**:
+
+```jo
+// Standard - no surprises
+process(data)
+
+// Non-standard - EXPLICIT and VISIBLE
+process(data) having Eq[Int] = customEq, Show[Result] = debugShow
+```
+
+Anyone reading the code can immediately see:
+
+- That non-standard semantics are being used
+- Exactly which instances are being used
+- Where to look if something goes wrong
+
+This is **superior to Haskell's** "orphan instance somewhere in an imported module invisibly affects everything" model.
+
+### 2. Local Reasoning
+
+**Principle:** You should be able to understand code behavior from local context alone, without needing global knowledge or complex rules.
+
+**How this principle manifests in auto parameters:**
+
+**a) Self-contained function signatures**
+
+Everything you need to know about auto resolution is in the function signature:
+
+```jo
+def sort[T](xs: List[T])(auto eq: Eq[T] in [[T].==], ord: Ord[T] in [[T].compare]): List[T] = ...
+
+// Reading this signature tells you:
+// - It needs Eq[T] and Ord[T]
+// - Eq[T] comes from [T].== (the == method on T)
+// - Ord[T] comes from [T].compare (the compare method on T)
+// - No hidden global scope or import-dependent behavior
+```
+
+You can reason about the function without understanding global implicit scopes or complex resolution rules.
+
+**b) Per-call-site coherence (not global coherence)**
+
+**Design decision:** Different call sites can use different instances for the same type.
+
+Global coherence (Haskell-style) forces you to choose **one canonical instance** per type globally. But this breaks local reasoning: you need to know which global instance was chosen, possibly in a different module.
+
+**Example: Ord[String]**
+
+Which is "the" ordering for strings?
+
+- Lexicographic (case-sensitive)
+- Case-insensitive
+- Natural ordering ("file2.txt" < "file10.txt")
+- Locale-specific (Swedish treats 'ä' differently than English)
+- By length
+
+**There is no universal answer!** The right ordering depends on context.
+
+**Haskell approach:**
+```haskell
+-- Forced to pick ONE global instance
+instance Ord String where compare = ...  -- lexicographic only
+
+-- Want case-insensitive? Need newtype wrapper!
+newtype CaseInsensitive = CI String
+instance Ord CaseInsensitive where compare (CI s1) (CI s2) = ...
+
+sort (map CI strings)  -- Ceremony everywhere!
+```
+
+**Problems:**
+
+- ❌ Need global knowledge of which instance was chosen
+- ❌ Type pollution: `List String` vs `List CaseInsensitive` are incompatible
+- ❌ Newtype ceremony: constant wrapping/unwrapping
+- ❌ Can't easily adapt behavior to local context
+
+**Jo approach:**
+```jo
+// Default context
+sort(strings)  // Uses [String].compare
+
+// Case-insensitive context - LOCAL override
+sort(strings) having Ord[String] = caseInsensitiveOrd
+
+// Natural ordering for filenames - LOCAL override
+sort(filenames) having Ord[String] = naturalOrd
+```
+
+**Benefits:**
+
+- ✅ **Local reasoning:** The behavior is determined at the call site, not by global state
+- ✅ No newtype ceremony
+- ✅ Clean types: just `List[String]`
+- ✅ Context-appropriate: choose the right semantics for each use
+- ✅ Flexible: easy to adapt to local needs
+
+**c) Local search scope via `having`**
+
+The `having` clause provides a **local search scope** that takes priority over all candidate lists, including for nested auto requirements:
+
+```jo
+def process[T](xs: List[T])(auto eq: Eq[List[T]] in [[List[T]].==]): Unit = ...
+
+def customIntEq: Eq[Int] = (a, b) => a % 10 == b % 10
+
+process([1, 2]) having Eq[Int] = customIntEq
+// Resolution: [List[Int]].== needs Eq[Int] → checks having first → finds customIntEq ✓
+// The having clause provides a LOCAL SEARCH SCOPE for nested resolution!
+```
+
+This maintains local reasoning: all auto values come from either:
+
+1. The `having` clause (explicitly at call site)
+2. Declared candidate lists (explicitly in signature)
+
+**No global or implicit search scope.** Everything is locally visible.
+
+### Summary
+
+These two principles work together to create a type class system that is:
+
+- **Transparent:** You can see where values come from and what code runs
+- **Understandable:** No need to understand complex global rules
+- **Controllable:** Explicit control at both definition site and call site
+- **Flexible:** Adapt behavior to local context without global ceremony
+
+The result prioritizes **clarity and control** over **convenience and magic**. This aligns with Jo's broader philosophy: code should be easy to understand and reason about, even if it requires more explicit specification.
 
 ## Syntax
 
@@ -222,12 +425,13 @@ Candidates are tried sequentially. First match wins.
 
 ```jo
 def eqInt: Eq[Int] = ...
-def eqAny[T]: Eq[T] = ...  // Reference equality
+def eqString: Eq[String] = ...
 
-def process[T](x: T)(auto eq: Eq[T] in [eqInt, eqAny]): Unit = ...
+def process[T](x: T)(auto eq: Eq[T] in [eqInt, eqString, [T].==]): Unit = ...
 
-process(42)      // Tries eqInt ✓ (stops, doesn't try eqAny)
-process("hi")    // Tries eqInt ✗ (Int != String), tries eqAny[String] ✓
+process(42)      // Tries eqInt ✓ (stops, doesn't try others)
+process("hi")    // Tries eqInt ✗ (Int != String), tries eqString ✓ (stops)
+process(user)    // Tries eqInt ✗, tries eqString ✗, tries [User].== ✓
 ```
 
 ### Explicit Provision with `having`
@@ -607,7 +811,7 @@ compare(1.001, 1.002) with precision = 4             // Uses eqFloat with precis
 compare(1.001, 1.009) having Eq[Float] = exactEqFloat  // Uses exact equality
 ```
 
-## Design Rationale
+## Additional Design Rationale
 
 ### Why Explicit Candidate Lists?
 
