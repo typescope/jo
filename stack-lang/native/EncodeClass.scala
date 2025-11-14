@@ -58,7 +58,7 @@ class EncodeClass(using defn: Definitions) extends phases.Phase[Symbol]:
       // TODO: type erasure to properly handle type parameters
       given Context = fdef.symbol
       val body2 = this.transform(fdef.body)
-      FunDef(fdef.symbol, fdef.tparams, self :: fdef.params, Nil :: fdef.adapters, fdef.autos, fdef.resultType, fdef.effectPolicy, body2)(fdef.span)
+      FunDef(fdef.symbol, fdef.tparams, self :: fdef.params, Nil :: fdef.adapters, fdef.autos, fdef.candidates, fdef.resultType, fdef.effectPolicy, body2)(fdef.span)
 
   override def transformNew(newExpr: New)(using ctx: Context): Word =
     val classInfo = newExpr.tpe.asClassInfo

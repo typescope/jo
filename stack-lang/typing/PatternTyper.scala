@@ -85,7 +85,7 @@ class PatternTyper(namer: Namer, checker: Checker):
 
     def computeInfo(resultType: Type) =
       val autoTypes = Nil
-      ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), paramSyms.map(_ => Nil), autoTypes, resultType, () => Nil, patDef.preParamCount)
+      ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), paramSyms.map(_ => Nil), autoTypes, Nil, resultType, () => Nil, patDef.preParamCount)
 
     val ip = lazyDefn.infoProvider
     ip.addLazy(patSym, sc.owner,  () => computeInfo(resultTypeTree.tpe), () => computeInfo(ErrorType))
@@ -576,6 +576,7 @@ class PatternTyper(namer: Namer, checker: Checker):
         params = NamedInfo("from", defn.IntType) :: NamedInfo("to", defn.IntType)  :: Nil,
         adapters = List(Nil, Nil),
         autos = Nil,
+        candidates = Nil,
         resultType = scrutType.widenTermRef,
         receivesInfo = () => Nil,
         preParamCount = 0
@@ -790,13 +791,13 @@ class PatternTyper(namer: Namer, checker: Checker):
       case Ast.TypeAscribe(id: Ast.Ident, tpt) =>
         transformTypePattern(id, tpt, scrutType, pat.span)
 
-      case Ast.Apply(id: Ast.RefTree, args) =>
+      case Ast.Apply(id: Ast.RefTree, args, _) =>
         transformApplyPattern(id, args, scrutType, pat.span)
 
       case Ast.InfixCall(preArgs, id: Ast.RefTree, postArgs) =>
         transformInfixCallPattern(preArgs, id, postArgs, scrutType, pat.span)
 
-      case Ast.Apply(tag: Ast.Tag, nested) =>
+      case Ast.Apply(tag: Ast.Tag, nested, _) =>
         transformTagPattern(tag, nested, scrutType, pat.span)
 
       case Ast.Assign(id: Ast.Ident, nested) =>
@@ -862,14 +863,14 @@ object PatternTyper:
     def unapply(word: Ast.Word): Option[Ast.Word] =
       word match
         case Ast.Expr(Ast.Ident("..") :: nested :: Nil) => Some(nested)
-        case Ast.Apply(Ast.Ident(".."), nested :: Nil) => Some(nested)
+        case Ast.Apply(Ast.Ident(".."), nested :: Nil, _) => Some(nested)
         case _ => None
 
   object SkipTo:
     def unapply(word: Ast.Word): Option[Ast.Word] =
       word match
         case Ast.Expr(Ast.Ident(">") :: nested :: Nil) => Some(nested)
-        case Ast.Apply(Ast.Ident(">"), nested :: Nil) => Some(nested)
+        case Ast.Apply(Ast.Ident(">"), nested :: Nil, _) => Some(nested)
         case _ => None
 
   class ShadowedPatternError(pat1: Pattern, pat2: Pattern)(using Source)

@@ -134,7 +134,7 @@ class ExprTyper(namer: Namer):
       namer.transform(word)
 
     else if tp.isSingleMethodObjectType || isVarargApply then
-      val app = Ast.Apply(head, rest)(head.span | rest.last.span)
+      val app = Ast.Apply(head, rest, Nil)(head.span | rest.last.span)
       namer.transform(app)
 
     else
