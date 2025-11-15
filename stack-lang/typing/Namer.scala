@@ -651,12 +651,51 @@ class Namer(using Config):
           else
             transformArgs(apply.args, procType.paramTypes, procType.adapters)
 
-        Autos.resolve(fun, argsTyped, havings = Nil, apply.span).adapt
+        // Transform having bindings into local variables
+        if apply.havingBindings.isEmpty then
+          Autos.resolve(fun, argsTyped, havings = Nil, apply.span).adapt
+        else
+          transformHavingCall(fun, argsTyped, apply.havingBindings, apply.span).adapt
 
     else
       if !fun.tpe.isError then
         Reporter.error(s"Not a function: " + fun.tpe.show, fun.pos)
       errorWord(apply.span)
+
+  /** Transform having clause by lifting bindings to local variables */
+  def transformHavingCall(fun: Word, args: List[Word], havingBindings: List[Ast.HavingBinding], span: Span)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)
+  : Word = Checks.eager:
+    // Transform each having binding into a local variable
+    val havingSyms = new scala.collection.mutable.ArrayBuffer[Symbol]
+    val havingDefs = new scala.collection.mutable.ArrayBuffer[ValDef]
+
+    for binding <- havingBindings do
+      // Transform the type
+      val tpt = transformType(binding.tpe, allowPackType = false)
+
+      // Transform the value
+      given TargetType = TargetType.Known(tpt.tpe, Adaptation.NoAdapter)
+      val value = Inference.freshIsolate:
+        transform(binding.value)
+
+      // Create a synthetic local symbol
+      val havingSym = Symbol.createSymbol(
+        "$having",
+        value.tpe,
+        Flags.Synthetic,
+        sc.owner,
+        binding.span.toPos
+      )
+
+      havingSyms += havingSym
+      havingDefs += ValDef(havingSym, value)(binding.span)
+
+    // Resolve autos with the having symbols
+    val call = Autos.resolve(fun, args, havingSyms.toList, span)
+
+    // Wrap in a block with the having definitions
+    Block(havingDefs.toList :+ call)(span)
 
   /** Check a dotless call such as `str1 + str2` */
   def transformDotlessCall(call: Ast.DotlessCall)
