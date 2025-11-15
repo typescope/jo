@@ -16,17 +16,6 @@ import scala.collection.mutable
  *
  * 1. Value candidates (Symbol): Direct references to values/functions
  * 2. Member candidates (MemberCandidate): Type members that are eta-expanded
- *
- * Implementation status:
- * - ✅ Basic resolution with havings taking priority over candidates
- * - ✅ Recursive resolution for candidates with nested auto parameters
- * - ✅ Cycle detection using trace vector
- * - ✅ Member lookup and type conformance checking (simplified)
- * - ⏸️ Creating Words for eta-expanded member calls (requires lambda infrastructure)
- *
- * TODOs:
- * - Implement proper eta-expansion type conformance checking
- * - Create lambda objects or specialized tree nodes for member candidates
  */
 object AutoResolution:
   enum Result:
@@ -105,74 +94,132 @@ object AutoResolution:
     else
       if Subtyping.conforms(tp, targetType) then Some(Ident(sym)(span)) else None
 
-  def tryMember(tp: Type, name: String, targetType: Type, trace: Vector[Symbol], owner: Symbol, span: Span)
-      (using Definitions, Source)
+  def tryMember(receiverType: Type, name: String, targetType: Type, trace: Vector[Symbol], owner: Symbol, span: Span)
+      (using defn: Definitions, so: Source)
   : Option[Word] =
+
     // Look up the member on the type
-    tp.getTermMember(name) match
+    receiverType.getTermMember(name) match
       case None => None  // Member doesn't exist
 
       case Some(memberType) =>
-        // For member candidates, we need to check if the member's type (after eta-expansion)
-        // conforms to the target type.
-        //
-        // For a method: def member(params): ReturnType
+        // For member candidates, create an eta-expanded lambda
+        // For [T].member with type (params) => ResultType
         // Eta-expansion gives: (receiver: T, params) => receiver.member(params)
-        //
-        // The memberType is the type of the member itself.
-        // If it's a ProcType, we need to check conformance after eta-expansion.
-        // If it's a simple value type, we check conformance directly.
 
         if memberType.isProcType then
           val procType = memberType.asProcType
-
-          // For eta-expansion, the resulting type should be:
-          // (receiver: T, params...) => ResultType
-          // We need to check if this conforms to targetType
-          //
-          // For now, do a simplified check:
-          // - If targetType is a ProcType, check that adding receiver type as first param would match
-          // - Otherwise, just check result type conformance as approximation
-          //
-          // TODO: Implement proper eta-expansion type construction and conformance checking
-          if targetType.isProcType then
-            val targetProc = targetType.asProcType
-            // Simplified check: result types should match
-            if !Subtyping.conforms(procType.resultType, targetProc.resultType) then
-              return None
-          else
-            // Target is not a ProcType - unlikely for member candidates but handle it
-            if !Subtyping.conforms(procType.resultType, targetType) then
-              return None
-
-          // If the member has auto parameters, we need to resolve them recursively
-          if procType.autos.nonEmpty then
-            resolve(procType, havings = Nil, trace, owner, span) match
-              case Result.Success(autos) =>
-                // TODO: Create eta-expanded member call with resolved autos
-                // Need to create a lambda object: (receiver: T, params...) => receiver.member(params..., autos)
-                // This requires creating:
-                //   1. An Object with an apply method
-                //   2. The apply method takes (receiver, params) and calls member on receiver
-                //   3. The resolved autos are passed to the member call
-                // Alternatively, create a specialized tree node for eta-expanded member calls
-                None
-              case Result.Failure(_) =>
-                None
-          else
-            // TODO: Create eta-expanded member call without autos
-            // Need to create a lambda object: (receiver: T, params...) => receiver.member(params...)
-            // For example, for [Int].==:
-            //   (receiver: Int, that: Int) => receiver == that
-            // This should be a Word that has type (T, Params) => ResultType
-            None
+          tryMethodMember(procType, memberType, receiverType, name, targetType, trace, owner, span)
 
         else
-          // Simple value member (not a method) - check conformance directly
-          if Subtyping.conforms(memberType, targetType) then
-            // TODO: Create member access for simple value member
-            // This is simpler - just need to create a lambda that accesses the member
-            // (receiver: T) => receiver.member
-            None
-          else
-            None
+          // Simple value member - check conformance
+          // For value members, check if target type is (T) => MemberType
+          tryValueMember(memberType, memberType, receiverType, name, targetType, trace, owner, span)
+
+
+  /** Create eta-expanded lambda
+    *
+    * For [T].member with type (params) => ResultType
+    * Creates: (receiver: T, params) => receiver.member(params, autos)
+    */
+  def tryMethodMember
+      (procType: ProcType, memberRefType: Type, receiverType: Type, memberName: String, targetType: Type,
+        trace: Vector[Symbol], owner: Symbol, span: Span)
+      (using defn: Definitions, so: Source)
+  : Option[Word] =
+    // Type conformance check for eta-expanded member
+    // Eta-expansion adds receiver as first parameter: (receiver, ...params) => result
+
+    // Create the lambda type (receiver :: params => resultType)
+    val lambdaType = ProcType(
+      tparams = Nil,
+      params = NamedInfo("receiver", receiverType) :: procType.params,
+      adapters = List.fill(procType.paramCount + 1)(Nil),
+      autos = Nil,
+      candidates = Nil,
+      resultType = procType.resultType,
+      receivesInfo = () => Nil,
+      preParamCount = 0
+    )
+
+    // Get the apply method type from the target if it's an object type
+    val targetProcOpt =
+      targetType.getTermMember("apply").flatMap: applyType =>
+        if applyType.isProcType then Some(applyType.asProcType)
+        else None
+
+    targetProcOpt match
+      case Some(targetProc) =>
+        if !Subtyping.conforms(lambdaType, targetProc) then
+          return None
+      case None =>
+        return None
+
+    // Resolve nested autos if present
+    val resolvedAutos =
+      if procType.autos.nonEmpty then
+        resolve(procType, havings = Nil, trace, owner, span) match
+          case Result.Success(autos) => autos
+          case Result.Failure(_) => return None
+      else
+        Nil
+
+    val effectPolicy = Effects.Policy.Capture(except = Nil)
+
+    val lambda = TreeOps.createLambda(lambdaType, owner, effectPolicy, span): (params, autos) =>
+      // params(0) is the receiver, rest are method parameters
+      val receiver = params.head
+      val methodArgs = params.tail
+      val member = Select(receiver, memberName)(memberRefType, span)
+      Apply(member, methodArgs, resolvedAutos)(span)
+
+    Some(lambda)
+
+  /** Create eta-expanded lambda
+    *
+    * For [T].member with type ResultType
+    * Creates: (receiver: T) => receiver.member
+    */
+  def tryValueMember
+      (resultType: Type, memberRefType: Type, receiverType: Type, memberName: String,
+        targetType: Type, trace: Vector[Symbol], owner: Symbol, span: Span)
+      (using defn: Definitions, so: Source)
+  : Option[Word] =
+
+    // Create the lambda type (receiver => resultType)
+    val lambdaType = ProcType(
+      tparams = Nil,
+      params = List(NamedInfo("receiver", receiverType)),
+      adapters = List(Nil),
+      autos = Nil,
+      candidates = Nil,
+      resultType = resultType,
+      receivesInfo = () => Nil,
+      preParamCount = 0
+    )
+
+    // Get the apply method type from the target if it's an object type
+    val targetProcOpt =
+      targetType.getTermMember("apply").flatMap: applyType =>
+        if applyType.isProcType then Some(applyType.asProcType)
+        else None
+
+    targetProcOpt match
+      case Some(targetProc) =>
+        // Check if target takes exactly one parameter of the receiver type
+        // and returns a type compatible with the member type
+        if Subtyping.conforms(lambdaType, targetProc) then
+          // Create simple member access lambda: (receiver: T) => receiver.member
+          val effectPolicy = Effects.Policy.Capture(except = Nil)
+
+          val lambda = TreeOps.createLambda(lambdaType, owner, effectPolicy, span): (params, autos) =>
+            // params(0) is the receiver
+            val receiver = params.head
+            Select(receiver, memberName)(memberRefType, span)
+
+          Some(lambda)
+
+        else
+          None
+      case None =>
+        None

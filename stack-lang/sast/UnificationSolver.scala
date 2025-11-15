@@ -12,6 +12,9 @@ import Types.*
   *
   * For complex cases, users need to make their intentions clear either by
   * explicit expected type or type parameters.
+  *
+  * This algorithm is in the same spirit as Cardelli's greedy type inference
+  * algorithm (1993).
   */
 class UnificationSolver extends TypeVars:
   private var tvars = Vector.empty[TypeVar]
