@@ -666,7 +666,7 @@ class Namer(using Config):
   def transformHavingCall(fun: Word, args: List[Word], havingBindings: List[Ast.HavingBinding], span: Span)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)
   : Word = Checks.eager:
-    // Transform each having binding into a local variable
+    // Transform each having binding
     val havingSyms = new scala.collection.mutable.ArrayBuffer[Symbol]
     val havingDefs = new scala.collection.mutable.ArrayBuffer[ValDef]
 
@@ -679,23 +679,32 @@ class Namer(using Config):
       val value = Inference.freshIsolate:
         transform(binding.value)
 
-      // Create a synthetic local symbol
-      val havingSym = Symbol.createSymbol(
-        "$having",
-        value.tpe,
-        Flags.Synthetic,
-        sc.owner,
-        binding.span.toPos
-      )
+      // If the value is already an Ident, use its symbol directly
+      // Otherwise, create a synthetic local symbol
+      value match
+        case Ident(sym) =>
+          havingSyms += sym
 
-      havingSyms += havingSym
-      havingDefs += ValDef(havingSym, value)(binding.span)
+        case _ =>
+          val havingSym = Symbol.createSymbol(
+            "havingCand",
+            value.tpe,
+            Flags.Synthetic,
+            sc.owner,
+            binding.span.toPos
+          )
+          havingSyms += havingSym
+          havingDefs += ValDef(havingSym, value)(binding.span)
 
     // Resolve autos with the having symbols
     val call = Autos.resolve(fun, args, havingSyms.toList, span)
 
-    // Wrap in a block with the having definitions
-    Block(havingDefs.toList :+ call)(span)
+    // If there are no definitions, just return the call
+    // Otherwise wrap in a block with the having definitions
+    if havingDefs.isEmpty then
+      call
+    else
+      Block(havingDefs.toList :+ call)(span)
 
   /** Check a dotless call such as `str1 + str2` */
   def transformDotlessCall(call: Ast.DotlessCall)
