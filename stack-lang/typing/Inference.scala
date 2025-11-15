@@ -48,10 +48,9 @@ object Inference:
     *
     * @param resultType The type to constrain
     * @param targetType The target/expected type context
-    * @param originalType The original function type before type parameter instantiation
     */
-  def conditionalInstantiate(resultType: Type, targetType: TargetType, originalType: ProcType)(using Definitions): Unit =
-    if originalType.isPolyType then
+  def conditionalInstantiate(resultType: Type, targetType: TargetType, isPolyFun: Boolean)(using Definitions): Unit =
+    if isPolyFun then
       targetType match
         case TargetType.Known(expectedType, NoAdapter) =>
           assert(expectedType.isFullyInstantiated, "not fully instantiated: " + expectedType.show)

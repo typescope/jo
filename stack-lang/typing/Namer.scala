@@ -559,10 +559,16 @@ class Namer(using Config):
           AppliedType(classRef, targsTree.map(_.tpe))
 
         else if classSym.info.isTypeLambda then
-          val tvars = instantiateTypeLambda(classSym.info.asTypeLambda.tparams)
+          val tparams = classSym.info.asTypeLambda.tparams
+          val tvars = instantiateTypeLambda(tparams)
           val span = classTree.span.endPoint
           targsTree = tvars.map(tvar => TypeTree(tvar)(span))
-          AppliedType(classRef, tvars)
+          val instanceType = AppliedType(classRef, tvars)
+
+          // Conditionally apply context instantiation
+          Inference.conditionalInstantiate(instanceType, tt, isPolyFun = true)
+
+          instanceType
 
         else
           classRef
@@ -578,9 +584,6 @@ class Namer(using Config):
 
           assert(refType.isProcType, "ProcType expected for constructor, found = " + refType.info)
           val procType = refType.asProcType
-
-          // Conditionally apply context instantiation
-          Inference.conditionalInstantiate(instanceType, tt, procType)
 
           assert(procType.tparams.isEmpty, "Constructor should not take type parameters, found = " + procType)
 
@@ -627,7 +630,7 @@ class Namer(using Config):
       val paramSize = procType.paramTypes.size
 
       // Conditionally apply context instantiation
-      Inference.conditionalInstantiate(procType.resultType, tt, originalProcType)
+      Inference.conditionalInstantiate(procType.resultType, tt, originalProcType.isPolyType)
 
       val preArgTypes = procType.preParamTypes
       if preArgTypes.size != 0 then
@@ -735,7 +738,7 @@ class Namer(using Config):
             val paramSize = procType.paramTypes.size
 
             // Conditionally apply context instantiation
-            Inference.conditionalInstantiate(procType.resultType, tt, originalProcType)
+            Inference.conditionalInstantiate(procType.resultType, tt, originalProcType.isPolyType)
 
             if paramSize != 1 then
               Reporter.error(
@@ -783,7 +786,7 @@ class Namer(using Config):
     val postParamCount = procType.postParamCount
 
     // Conditionally apply context instantiation
-    Inference.conditionalInstantiate(procType.resultType, tt, originalProcType)
+    Inference.conditionalInstantiate(procType.resultType, tt, originalProcType.isPolyType)
 
     assert(!procType.hasVararg, "Infix call cannot have varargs")
 

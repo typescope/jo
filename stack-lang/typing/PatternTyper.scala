@@ -211,11 +211,11 @@ class PatternTyper(namer: Namer):
 
     var fun: Word = Ident(sym)(id.span)
 
-    val funType = fun.tpe
-
-    if funType.isProcType then
+    if fun.tpe.isProcType then
       if fun.tpe.isPolyType then
         fun = TreeOps.instantiatePoly(fun.tpe.asProcType, fun)
+
+      val funType = fun.tpe
 
       val procType = funType.asProcType
       val paramSize = procType.paramTypes.size

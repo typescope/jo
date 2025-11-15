@@ -195,7 +195,7 @@ object Checker:
       val resType = procType2.resultType
 
       // Constrain result type
-      Inference.conditionalInstantiate(resType, targetType, procType)
+      Inference.conditionalInstantiate(resType, targetType, procType.isPolyType)
 
       Autos.resolve(fun, args = Nil, havings = Nil, word.span)
 
