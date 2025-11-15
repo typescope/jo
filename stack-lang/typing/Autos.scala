@@ -71,7 +71,7 @@ object Autos:
     end for
     (validTrees.toList, validSymbols.toList)
 
-  def resolve(fun: Word, args: List[Word], havings: List[Ident], span: Span)(using Definitions, Source, Reporter) =
+  def resolve(fun: Word, args: List[Word], havings: List[Symbol], span: Span)(using Definitions, Source, Reporter) =
     val procType: ProcType = fun.tpe.asProcType
 
     // TODO: check the auto arguments are fully initialized
