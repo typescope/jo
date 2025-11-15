@@ -651,10 +651,8 @@ class Namer(using Config):
           else
             transformArgs(apply.args, procType.paramTypes, procType.adapters)
 
-        val autos = ???
-        val word = Apply(fun, argsTyped, autos)(apply.span)
-        val desugared = Rewriting.rewriteShortcutAndOr(word)
-        Checker.adapt(desugared, tt)
+        Autos.resolve(fun, argsTyped, havings = Nil, apply.span).adapt
+
     else
       if !fun.tpe.isError then
         Reporter.error(s"Not a function: " + fun.tpe.show, fun.pos)
@@ -702,9 +700,7 @@ class Namer(using Config):
                 given TargetType = TargetType.Known(procType.paramTypes.head)
                 transform(arg)
 
-              val autos = ???
-              val word = Apply(fun, argTyped :: Nil, autos)(call.span)
-              Checker.adapt(word, tt)
+              Autos.resolve(fun, argTyped :: Nil, havings = Nil, call.span).adapt
           else
             Reporter.error( s"The member ${meth.name} is not a method", meth.pos)
             errorWord(meth.span)
@@ -765,10 +761,8 @@ class Namer(using Config):
         else
           transformArgs(postArgs, procType.postParamTypes, procType.adapters.drop(procType.preParamCount))
 
-      val autos = ???
-      val word = Apply(fun, preArgs2 ++ postArgs2, autos)(call.span)
-      val rewrite = Rewriting.rewriteShortcutAndOr(word)
-      Checker.adapt(rewrite, tt)
+
+      Autos.resolve(fun, preArgs2 ++ postArgs2, havings = Nil, call.span).adapt
 
   /** Assumes that the argument count requirement is satisfied */
   def transformArgs

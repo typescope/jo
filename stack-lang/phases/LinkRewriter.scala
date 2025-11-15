@@ -17,6 +17,14 @@ class LinkRewriter(linkMap: Map[Symbol, Symbol])(using defn: Definitions, rp: Re
   // Track which deferred functions have already been reported to avoid duplicate errors
   private val reportedErrors = scala.collection.mutable.Set.empty[Symbol]
 
+  override def transformApply(apply: Apply)(using ctx: Context): Word =
+    val word = Rewriting.rewriteShortcutAndOr(apply)
+    if word `eq` apply then
+      super.transformApply(apply)
+
+    else
+      transform(word)
+
   override def transformIdent(ident: Ident)(using ctx: Context): Word =
     val sym = ident.symbol
 

@@ -200,11 +200,10 @@ object Checker:
       val procType2 = fun.tpe.asProcType
       val resType = procType2.resultType
 
-      // Always prefer type constraints from outer scope if present
-      for tp <- targetType.knownType do Subtyping.conforms(resType, tp)
+      // Constrain result type
+      Inference.conditionalInstantiate(resType, targetType, procType)
 
-      val autos = ???
-      Apply(fun, args = Nil, autos)(fun.span)
+      Autos.resolve(fun, args = Nil, havings = Nil, word.span)
 
     else
       word

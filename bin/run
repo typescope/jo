@@ -39,6 +39,7 @@ files=(
     stack-lang/typing/Typer.scala
 
     stack-lang/sast/Adaptation.scala
+    stack-lang/sast/AutoResolution.scala
     stack-lang/sast/Cache.scala
     stack-lang/sast/CodeProvider.scala
     stack-lang/sast/Constant.scala

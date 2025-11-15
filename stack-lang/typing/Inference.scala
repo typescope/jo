@@ -129,7 +129,7 @@ object Inference:
       //
       // They are handled by subtype checking implicitly.
       if TypeOps.dealias(tp) != tvar then
-        // TODO: order tvars by id to avoid the check and ensure in the case of
+        // TODO: Use the order of tvars to avoid the check and ensure in the case of
         // two tvars X <: Y, we instantite the one with greater id
         instantiations = instantiations.updated(tvar, tp)
 
