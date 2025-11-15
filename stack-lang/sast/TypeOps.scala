@@ -183,3 +183,17 @@ object TypeOps:
 
         case _ =>
           recur(tp)
+
+  class FullyInitializedChecker(using Definitions) extends TypeAccumulator[Boolean](true):
+    type Context = Unit
+
+    def combine(acc: Boolean, op: => Boolean): Boolean = acc && op
+
+    def apply(tp: Type)(using Context): Boolean =
+      tp match
+        case tvar: TypeVar =>
+          if tvar.isInstantiated then this(tvar.instantiated)
+          else false
+
+        case _ =>
+          recur(tp)
