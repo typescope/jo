@@ -230,7 +230,7 @@ object Checker:
     targetType match
       case TargetType.Unknown =>
         // Don't widen if the target type is unknown
-        word2
+        adaptParameterless(word2, targetType)
 
       case TargetType.VoidType =>
         val word3 = adaptParameterless(word2, targetType)
