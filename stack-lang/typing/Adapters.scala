@@ -43,7 +43,7 @@ object Adapters:
         case Ast.ParamAdapter.Function(ref) =>
           val adapterRef =
             given TargetType = TargetType.Unknown
-            Inference.freshInferContext:
+            Inference.freshIsolate:
               namer.transform(ref)
 
           adapterRef.tpe match

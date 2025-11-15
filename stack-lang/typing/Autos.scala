@@ -26,7 +26,7 @@ object Autos:
         case value @ Ast.AutoCandidate.Value(ref) =>
           val candidateRef =
             given TargetType = TargetType.Unknown
-            Inference.freshInferContext:
+            Inference.freshIsolate:
               namer.transform(ref)
 
           candidateRef.tpe match

@@ -2,10 +2,14 @@ package sast
 
 import Types.{ Type, TypeVar }
 
-/** The shared context for inferencing a group of type variables
+/** An isolated container for inferencing a group of type variables
   *
-  * A type variable belongs exactly to a single context and must be constrained
-  * and instantiated at the end of the context.
+  * A type variable belongs exactly to a single isolated container and must be
+  * constrained and instantiated when the container goes out of scope.
+  *
+  * It is important that each group of type variables are isolated: it means
+  * it is impossible for type vars of a group to interact with uninstantiated
+  * type vars of another group.
   */
 trait TypeVars:
   def add(tvar: TypeVar): Unit

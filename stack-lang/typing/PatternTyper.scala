@@ -61,7 +61,7 @@ class PatternTyper(namer: Namer):
           val occurs = new Occurs
           given Occurs = occurs
           given Scope = patScope.fresh()
-          val patternTyped = Inference.freshInferContext:
+          val patternTyped = Inference.freshIsolate:
             transformPattern(pattern, scrutType)
 
           if !reporterTemp.hasErrors then
@@ -131,7 +131,7 @@ class PatternTyper(namer: Namer):
     val Ast.Match(scrutinee, cases) = patmat
     val scrutinee2 =
       given TargetType = TargetType.ValueType
-      Inference.freshInferContext:
+      Inference.freshIsolate:
         namer.transform(scrutinee)
 
     val scrutType = scrutinee2.tpe.widenTermRef
@@ -187,7 +187,7 @@ class PatternTyper(namer: Namer):
     val rp2 = rp.fresh(buffer = true)
     val pat2 =
       given Reporter = rp2
-      Inference.freshInferContext:
+      Inference.freshIsolate:
         transformPattern(pat, scrutType)
 
     val body2 =
@@ -195,7 +195,7 @@ class PatternTyper(namer: Namer):
         errorWord(body.span)
 
       else
-        Inference.freshInferContext:
+        Inference.freshIsolate:
           namer.transform(body)
 
     // may contain warnings

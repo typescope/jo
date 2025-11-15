@@ -100,7 +100,13 @@ object Inference:
           else
             None
 
-  def freshInferContext[T](op: TypeVars ?=> T)(using Source, Reporter): T =
+  /** Create a fresh context for type inference
+    *
+    * Only call this method if it is certain that it is impossible for type vars
+    * of new the isolate to interact with uninitialized type vars of existing
+    * isolates.
+    */
+  def freshIsolate[T](op: TypeVars ?=> T)(using Source, Reporter): T =
     given tvars: TypeVars = new UnificationSolver
     val res = op
     Checker.checkInstantiated(tvars)

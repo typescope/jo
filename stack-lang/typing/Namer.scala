@@ -307,7 +307,7 @@ class Namer(using Config):
       case Ast.With(expr, args) =>
         val exprSast = transform(expr)
         val argsSast =
-          for arg <- args yield Inference.freshInferContext:
+          for arg <- args yield Inference.freshIsolate:
             transformWithArg(arg)
         With(exprSast, argsSast)
 
@@ -331,7 +331,7 @@ class Namer(using Config):
 
          val body2 =
            given TargetType = TargetType.VoidType
-           Inference.freshInferContext:
+           Inference.freshIsolate:
              transform(body)
 
          While(cond2, body2)(word.span).adapt
@@ -392,7 +392,7 @@ class Namer(using Config):
       case Ast.Select(qual, name) =>
         val qual2 =
           given TargetType = TargetType.TermMember(name)
-          Inference.freshInferContext:
+          Inference.freshIsolate:
             transform(qual)
 
         val qualType = qual2.tpe
@@ -447,7 +447,7 @@ class Namer(using Config):
               if vdef.tpt.isEmpty then TargetType.ValueType
               else TargetType.Known(givenType)
 
-            Inference.freshInferContext:
+            Inference.freshIsolate:
               transform(vdef.rhs)
 
           val tp: Type =
@@ -522,7 +522,7 @@ class Namer(using Config):
           transform(phrase)
         else
           given TargetType = TargetType.VoidType
-          Inference.freshInferContext:
+          Inference.freshIsolate:
             transform(phrase)
 
     if words.isEmpty then
@@ -667,7 +667,7 @@ class Namer(using Config):
     val Ast.DotlessCall(obj, meth, arg) = call
     val objWord =
       given TargetType = TargetType.ValueType
-      Inference.freshInferContext:
+      Inference.freshIsolate:
         transform(obj)
 
     val objType = objWord.tpe
@@ -699,7 +699,7 @@ class Namer(using Config):
 
               val argTyped =
                 given TargetType = TargetType.Known(procType.paramTypes.head)
-                Inference.freshInferContext:
+                Inference.freshIsolate:
                   transform(arg)
 
               val autos = ???
@@ -849,7 +849,7 @@ class Namer(using Config):
 
         val rhs2 =
           given TargetType = TargetType.Known(sym.info)
-          Inference.freshInferContext:
+          Inference.freshIsolate:
             transform(rhs)
 
         if sym.isField then
@@ -866,7 +866,7 @@ class Namer(using Config):
       case Ast.Select(qual, name) =>
         val qual2 =
           given TargetType = TargetType.TermMember(name)
-          Inference.freshInferContext:
+          Inference.freshIsolate:
             transform(qual)
 
         val qualType = qual2.tpe
@@ -884,7 +884,7 @@ class Namer(using Config):
 
               val lhs2 = Select(qual2, name)(tp, lhs.span)
 
-              val rhs2 = Inference.freshInferContext:
+              val rhs2 = Inference.freshIsolate:
                 given TargetType = TargetType.Known(tp.widenTermRef)
                 transform(rhs)
 
@@ -901,7 +901,7 @@ class Namer(using Config):
       case Ast.BracketApply(subject, args) =>
         val fun = Ast.Select(subject, "set")(subject.span)
         given TargetType = TargetType.VoidType
-        Inference.freshInferContext:
+        Inference.freshIsolate:
           transform(Ast.Apply(fun, args :+ rhs, Nil)(assign.span))
 
   private def transformParamRef(ref: Ast.RefTree)
@@ -910,7 +910,7 @@ class Namer(using Config):
 
     val paramRef =
       given TargetType = TargetType.Unknown
-      Inference.freshInferContext:
+      Inference.freshIsolate:
         transform(ref)
 
     val paramSym =
@@ -935,7 +935,7 @@ class Namer(using Config):
         if paramRef.tpe.isError then TargetType.ValueType
         else TargetType.Known(paramRef.symbol.info)
 
-      Inference.freshInferContext:
+      Inference.freshIsolate:
         transform(arg.rhs)
 
     Assign(paramRef, rhs)
@@ -953,7 +953,7 @@ class Namer(using Config):
         case expr =>
           // Type check the interpolation expression
           given TargetType = TargetType.ValueType
-          val typedExpr = Inference.freshInferContext:
+          val typedExpr = Inference.freshIsolate:
             transform(expr)
 
           // Convert to String if needed
@@ -994,10 +994,10 @@ class Namer(using Config):
       given TargetType = TargetType.Known(defn.BoolType)
       transform(cond)
 
-    val then2 = Inference.freshInferContext:
+    val then2 = Inference.freshIsolate:
       transform(thenp)
 
-    val else2 = Inference.freshInferContext:
+    val else2 = Inference.freshIsolate:
       transform(elsep)
 
     // result type
@@ -1089,7 +1089,7 @@ class Namer(using Config):
         val values2 =
           for value <- values yield
             given TargetType = TargetType.ValueType
-            Inference.freshInferContext:
+            Inference.freshIsolate:
               transform(value)
 
         val argTypes = values2.map(_.tpe)
@@ -1301,7 +1301,7 @@ class Namer(using Config):
         if vdef.tpt.isEmpty then TargetType.ValueType
         else TargetType.Known(givenType)
 
-      Inference.freshInferContext:
+      Inference.freshIsolate:
         transform(vdef.rhs)
 
     val tp: Type =
@@ -1456,7 +1456,7 @@ class Namer(using Config):
           else
             TargetType.ValueType
 
-        Inference.freshInferContext:
+        Inference.freshIsolate:
           given TargetType = targetType
           transform(funDef.body)
 
@@ -1532,9 +1532,9 @@ class Namer(using Config):
       val initialized = new mutable.ArrayBuffer[Symbol]
       val words = new mutable.ArrayBuffer[Word]
 
-      for stat <- stats do Inference.freshInferContext:
+      for stat <- stats do Inference.freshIsolate:
         given TargetType = TargetType.VoidType
-        Inference.freshInferContext:
+        Inference.freshIsolate:
           words += transform(stat)
 
       for arg @ Ast.NamedArg(id, rhs) <- record.args yield
@@ -1550,7 +1550,7 @@ class Namer(using Config):
             else
               val lhs = Select(Ident(thisSym)(id.span), id.name)(tp, id.span)
 
-              val rhsTyped = Inference.freshInferContext:
+              val rhsTyped = Inference.freshIsolate:
                 transform(rhs)
 
               words += FieldAssign(lhs, rhsTyped)
@@ -1873,7 +1873,7 @@ class Namer(using Config):
       case Ast.Select(qual, name) =>
         val qual2 =
           given TargetType = TargetType.TypeMember(name)
-          Inference.freshInferContext:
+          Inference.freshIsolate:
             transform(qual)
 
         qual2.tpe match
