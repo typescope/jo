@@ -183,7 +183,7 @@ object Checker:
         Reporter.error(s"Cannot find common result type, tp1 = ${tp1.show}, tp2 = ${tp2.show}", pos)
         ErrorType
 
-  def adaptNoArgs(word: Word, procType: ProcType, targetType: TargetType)(using Definitions, Scope, Reporter, Source): Word =
+  def adaptNoArgs(word: Word, procType: ProcType, targetType: TargetType)(using Definitions, Scope, Reporter, Source, TypeVars): Word =
     val isParameterlessCall =
       procType.paramCount == 0 && targetType.match
         case TargetType.Fun(n) =>
@@ -211,7 +211,7 @@ object Checker:
     else
       word
 
-  def adapt(word: Word, targetType: TargetType)(using Definitions, Scope, Reporter, Source): Word = Debug.trace("Adapting " + word.show, (_: Word).show, enable = false):
+  def adapt(word: Word, targetType: TargetType)(using Definitions, Scope, Reporter, Source, TypeVars): Word = Debug.trace("Adapting " + word.show, (_: Word).show, enable = false):
     val defn = summon[Definitions]
 
     val word2 =

@@ -103,11 +103,11 @@ object Inference:
   def freshInferContext[T](op: TypeVars ?=> T)(using Source, Reporter): T =
     given tvars: TypeVars = new UnificationSolver
     val res = op
-    checker.checkInstantiated(tvars)
+    Checker.checkInstantiated(tvars)
     res
 
   class UnificationSolver extends TypeVars:
-    private var tvars = new mutable.ArrayBuffer[TypeVar]
+    private var tvars = Vector.empty[TypeVar]
     private var instantiations: Map[TypeVar, Type] = Map.empty
 
     private def instantiate(tvar: TypeVar, tp: Type)(using Definitions) =
@@ -123,6 +123,8 @@ object Inference:
       //
       // They are handled by subtype checking implicitly.
       if TypeOps.dealias(tp) != tvar then
+        // TODO: order tvars by id to avoid the check and ensure in the case of
+        // two tvars X <: Y, we instantite the one with greater id
         instantiations = instantiations.updated(tvar, tp)
 
     private def constrain(tvar: TypeVar, tp: Type, tvarLeft: Boolean)(using Definitions): List[Subtyping.Task] =
@@ -137,7 +139,7 @@ object Inference:
           Nil
 
     def add(tvar: TypeVar): Unit =
-      tvars += tvar
+      tvars = tvars :+ tvar
 
     def typeVars: List[TypeVar] = tvars.toList
 
@@ -162,6 +164,7 @@ object Inference:
     def isSuptype(tvar: TypeVar, tp: Type)(using Definitions): List[Subtyping.Task] =
       constrain(tvar, tp, tvarLeft = false)
 
+    // TODO: how to make sure other instances will not be affected by test?
     def test[T](op: => T): T =
       val stateBefore = instantiations
       val res = op

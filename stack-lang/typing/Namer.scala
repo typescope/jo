@@ -42,8 +42,7 @@ class Namer(using Config):
   def transform
       (nss: List[Ast.Namespace], rootNameTable: NameTable, predef: NameTable)
       (using defnLazy: Definitions.Lazy, rp: Reporter)
-  : List[Namespace] =
-   given checks: Checks = new Checks
+  : List[Namespace] = Checks.delayed:
 
     given ip: InfoProvider = defnLazy.infoProvider
 
@@ -94,7 +93,6 @@ class Namer(using Config):
       for delayedDef <- delayedNamespaces
       yield delayedDef.delayed() <| delayedDef.symbol.sourcePos.source.file
 
-    checks.perform() <| "checker"
     namespaces.toList
 
   /** Resolve namespace and create intermediate namespace on demand
@@ -165,7 +163,7 @@ class Namer(using Config):
 
   private def index
       (defs: List[Ast.Def])
-      (using defnLazy: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source)
+      (using defnLazy: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, ck: Checks)
   : List[DelayedDef[Def]] =
 
     val delayedDefs = new mutable.ArrayBuffer[DelayedDef[Def]]
@@ -187,7 +185,7 @@ class Namer(using Config):
 
   private def index
       (defn: Ast.Def)
-      (using defnLazy: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source)
+      (using defnLazy: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, ck: Checks)
   : List[DelayedDef[Def]] =
 
     defn match
@@ -223,10 +221,13 @@ class Namer(using Config):
   end index
 
   extension (word: Word)
-    def adapt(using tt: TargetType, defn: Definitions, sc: Scope, rp: Reporter, so: Source): Word =
+    def adapt(using tt: TargetType, defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars): Word =
       Checker.adapt(word, tt)
 
-  def transform(word: Ast.Word)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars): Word =
+  def transform(word: Ast.Word)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)
+  : Word =
+
     Debug.trace(s"Typing ${word.show}, owner = ${sc.owner}, tt = ${tt.show}", (_: Word).show, enable = false) {
     word.testKey(Namer.TypedWord) match
     case Some(typedWord) => typedWord.adapt
@@ -346,19 +347,20 @@ class Namer(using Config):
         sc.define(vdef2.symbol)
         vdef2.adapt
 
-      case fdef: Ast.FunDef =>
+      case fdef: Ast.FunDef => Checks.delayed: // checks after forcing
+
         val delayedDef = transformFunDef(fdef, Flags.Fun, Effects.Policy.Infer)
         // A function is available for checking its rhs
         sc.define(delayedDef.symbol)
         delayedDef.force().adapt
 
-      case pdef: Ast.PatDef =>
+      case pdef: Ast.PatDef => Checks.delayed: // checks after forcing
         val delayedDef = patternTyper.transformPatDef(pdef)
         // A pattern predicate is available for checking its rhs
         sc.define(delayedDef.symbol)
         delayedDef.force().adapt
 
-      case tdef: Ast.TypeDef =>
+      case tdef: Ast.TypeDef => Checks.delayed: // checks after forcing
         val delayedDef = transformTypeDef(tdef)
         // A type definition is available for checking its rhs
         sc.define(delayedDef.symbol)
@@ -408,7 +410,10 @@ class Namer(using Config):
             // Error already reported
             errorWord(word.span)
 
-  def transformObject(obj: Ast.Object)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
+  def transformObject(obj: Ast.Object)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType)
+  : Word = Checks.delayed:
+
     val delayedDefs = new mutable.ArrayBuffer[DelayedDef[ValDef | FunDef]]
 
     val thisSym = Symbol.createSymbol("this", Flags.Synthetic, obj.pos)
@@ -507,7 +512,7 @@ class Namer(using Config):
 
   def transformBlock(block: Ast.Block)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType)
-  : Word =
+  : Word = Checks.delay:
 
     val phrases = block.phrases
     val words =
@@ -527,7 +532,7 @@ class Namer(using Config):
       Block(words)(block.span)
 
   /** Handles new Foo[T](arg1, arg2, ...) */
-  def transformNew(newExpr: Ast.New)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars): Word =
+  def transformNew(newExpr: Ast.New)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
     val classTree = transformType(newExpr.classRef)
     var targsTree = for targ <- newExpr.targs yield transformType(targ)
 
@@ -584,7 +589,10 @@ class Namer(using Config):
           transformCall(ctorCall)
 
   /** Handles explicit postfix call syntax f(arg1, arg2, ...) */
-  def transformCall(apply: Ast.Apply)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
+  def transformCall(apply: Ast.Apply)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType)
+  : Word =
+
     var fun =
       given TargetType = TargetType.Fun(apply.args.size)
       transform(apply.fun)
@@ -649,7 +657,10 @@ class Namer(using Config):
       errorWord(apply.span)
 
   /** Check a dotless call such as `str1 + str2` */
-  def transformDotlessCall(call: Ast.DotlessCall)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
+  def transformDotlessCall(call: Ast.DotlessCall)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType)
+  : Word =
+
     val Ast.DotlessCall(obj, meth, arg) = call
     val objWord =
       given TargetType = TargetType.ValueType
@@ -703,7 +714,10 @@ class Namer(using Config):
       errorWord(objSpan)
 
   /** Handles infix call formed by expression typer `1 + 2` */
-  def transformInfixCall(call: Ast.InfixCall)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
+  def transformInfixCall(call: Ast.InfixCall)
+    (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType)
+  : Word =
+
     val Ast.InfixCall(preArgs, funAst, postArgs) = call
 
     var fun =
@@ -889,7 +903,10 @@ class Namer(using Config):
         given TargetType = TargetType.VoidType
         transform(Ast.Apply(fun, args :+ rhs, Nil)(assign.span))
 
-  private def transformParamRef(ref: Ast.RefTree)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): Ident =
+  private def transformParamRef(ref: Ast.RefTree)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
+  : Ident =
+
     val paramRef =
       given TargetType = TargetType.Unknown
       transform(ref)
@@ -905,7 +922,10 @@ class Namer(using Config):
 
     Ident(paramSym)(ref.span)
 
-  private def transformWithArg(arg: Ast.WithArg)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): Assign =
+  private def transformWithArg(arg: Ast.WithArg)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
+  : Assign =
+
     val paramRef = transformParamRef(arg.paramRef)
 
     val rhs =
@@ -918,7 +938,10 @@ class Namer(using Config):
 
     Assign(paramRef, rhs)
 
-  private def transformInterpolatedString(parts: List[Ast.Word], span: Span)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): Word =
+  private def transformInterpolatedString(parts: List[Ast.Word], span: Span)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
+  : Word =
+
     // Type check each part and build concatenation
     val typedParts = parts.map: part =>
       part match
@@ -1152,7 +1175,7 @@ class Namer(using Config):
 
 
   private def transformParamDef(pdef: Ast.ParamDef)
-      (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source)
+      (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, ck: Checks)
   : List[DelayedDef[Def]] =
     assert(pdef.default.isEmpty, "optional context param not desugared: " + pdef)
 
@@ -1176,7 +1199,7 @@ class Namer(using Config):
     DelayedDef(paramSym, paramDefSast) :: Nil
 
   private def transformAliasDef(adef: Ast.AliasDef)
-      (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source)
+      (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, ck: Checks)
   : DelayedDef[AliasDef] =
     val qualid = adef.qualid
 
@@ -1349,7 +1372,7 @@ class Namer(using Config):
         policy
 
   private def transformFunDef(funDef: Ast.FunDef, initialFlags: Flags, policy: Effects.Policy)
-      (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source)
+      (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, ck: Checks)
   : DelayedDef[FunDef] =
 
     var flags = Checker.checkModifiers(funDef) | initialFlags
@@ -1469,7 +1492,7 @@ class Namer(using Config):
     DelayedDef(funSym, typer)
 
   private def transformConstructor(funDef: Ast.FunDef, thisSym: Symbol, classSym: Symbol)
-      (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source)
+      (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, ck: Checks)
   : DelayedDef[FunDef] =
 
     val flags = Flags.Fun | Flags.Method
@@ -1580,7 +1603,7 @@ class Namer(using Config):
     DelayedDef(funSym, typer)
 
   private def transformTypeDef(tdef: Ast.TypeDef)
-      (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source)
+      (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, ck: Checks)
   : DelayedDef[TypeDef] =
 
     val flags = Checker.checkModifiers(tdef) | Flags.Type
@@ -1643,7 +1666,7 @@ class Namer(using Config):
 
 
   private def transformClassDef(cdef: Ast.ClassDef)
-      (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source)
+      (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, ck: Checks)
   : DelayedDef[ClassDef] =
 
     val flags = Checker.checkModifiers(cdef) | Flags.Type | Flags.Class
@@ -1740,7 +1763,7 @@ class Namer(using Config):
 
   private def transformSection
       (section: Ast.Section)
-      (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source)
+      (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, ck: Checks)
   : DelayedDef[Section] =
 
     val flags = Checker.checkModifiers(section) | Flags.Section
@@ -1763,7 +1786,10 @@ class Namer(using Config):
 
     DelayedDef(sym, () => sast)
 
-  private def transformMethodDecl(ddef: Ast.FunDef)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): TypeTree =
+  private def transformMethodDecl(ddef: Ast.FunDef)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, ck: Checks)
+  : TypeTree =
+
     given defScope: Scope = sc.fresh()
 
     if ddef.preParamCount != 0 then
@@ -1827,7 +1853,10 @@ class Namer(using Config):
     *
     * Checks must be delayed by using `checks.add`.
     */
-  def transformType(tpt: Ast.TypeTree, allowPackType: Boolean = false)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, ck: Checks): TypeTree =
+  def transformType(tpt: Ast.TypeTree, allowPackType: Boolean = false)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, ck: Checks)
+  : TypeTree =
+
     def check(sym: Symbol) =
       if sym == defn.Predef_Pack && !allowPackType then
         Reporter.error(".. not allowed here. It can only be used as the type of the last varargs parameter.", tpt.pos)
@@ -1948,7 +1977,7 @@ class Namer(using Config):
           TypeTree(ErrorType)(tpt.span)
         else
           val tp = AppliedType(tctor2.tpe, targs2.map(_.tpe))
-          ck.add {
+          Checks.add {
             val tl = tctor2.tpe.asTypeLambda
             Checker.checkBounds(tl.tparams, targs2)
           }

@@ -70,7 +70,7 @@ object ExprTyper:
   */
 class ExprTyper(namer: Namer):
 
-  def transform(expr: Ast.Expr)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
+  def transform(expr: Ast.Expr)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars): Word =
     expr.words match
        case word :: Nil =>
          return namer.transform(word)
@@ -182,7 +182,7 @@ class ExprTyper(namer: Namer):
     end if
   end transform
 
-  def transformType(tpt: Ast.ExprType, allowPackType: Boolean)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): TypeTree =
+  def transformType(tpt: Ast.ExprType, allowPackType: Boolean)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, checks: Checks): TypeTree =
     val lambdaTypeHandler = new Handler[Ast.TypeTree]:
       var count = 0
       def bundle(preArgs: List[Ast.TypeTree], binder: Ast.TypeTree, postArgs: List[Ast.TypeTree]): Ast.TypeTree =

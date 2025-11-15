@@ -480,7 +480,7 @@ object Types:
   extends Type
 
   /** TypeVars are local to a source file thus it may take a span */
-  class TypeVar(name: String, span: Span)(using context: TypeVars) extends ProxyType:
+  class TypeVar(name: String, val span: Span)(using context: TypeVars) extends ProxyType:
     context.add(this)
 
     override def toString = "TypeVar(" + name + ")"
