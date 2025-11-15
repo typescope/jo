@@ -1,0 +1,18 @@
+// Error: No matching auto candidate
+
+type Eq[T] = (T, T) => Bool
+
+def eqInt: Eq[Int] = (a, b) => a == b
+def eqString: Eq[String] = (a, b) => a == b
+
+def testEq[T](x: T, y: T)(auto eq: Eq[T] in [eqInt, eqString]): Bool =
+  eq(x, y)
+
+data User(name: String)
+
+def main: Unit =
+  val user1 = User("Alice")
+  val user2 = User("Bob")
+
+  // Error: No Eq[User] in candidates
+  val r = testEq(user1, user2)

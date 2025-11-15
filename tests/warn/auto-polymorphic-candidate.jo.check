@@ -1,0 +1,6 @@
+---------- Error at ./tests/warn/auto-polymorphic-candidate.jo:20:53 ---------------
+| def testEq[T](x: T, y: T)(auto eq: Eq[T] in [eqInt, eqGeneric]): Bool =
+|                                                     ^^^^^^^^^
+|                                                     Auto candidate cannot have type parameters, found 1 type parameters
+
+1 error(s), 0 warning(s)

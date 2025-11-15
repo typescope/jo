@@ -1,0 +1,6 @@
+---------- Error at ./tests/warn/auto-candidate-with-params.jo:15:49 ---------------
+| def testEq(x: Int, y: Int)(auto eq: Eq[Int] in [makeEq]): Bool =
+|                                                 ^^^^^^
+|                                                 Auto candidate must have no regular parameters, found 1 parameters
+
+1 error(s), 0 warning(s)
