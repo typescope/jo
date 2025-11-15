@@ -54,33 +54,14 @@ alias def both = jo.Bool.both
 alias def either = jo.Bool.either
 
 type Array[T] = jo.Array.Array[T]
-section Array
-  alias def create = jo.Array.create
-  alias def get = jo.Array.get
-  alias def size = jo.Array.size
-  alias def set = jo.Array.set
-  alias def clone = jo.Array.clone
-end
 
 type Eq[T] = jo.Eq.Eq[T]
 
 type List[T] = jo.List.List[T]
-section List
-  alias def List = jo.List.List
-  alias def empty = jo.List.empty
-end
 
 type Set[T] = jo.Set.Set[T]
-section Set
-  alias def Set = jo.Set.Set
-  alias def empty = jo.Set.empty
-end
 
 type Map[K, V] = jo.Map.Map[K, V]
-section Map
-  alias def Map = jo.Map.Map
-  alias def empty = jo.Map.empty
-end
 
 //------------------------------------------------------------------------------
 //

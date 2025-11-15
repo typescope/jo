@@ -85,6 +85,9 @@ extends Definitions.Lazy:
   // Predefined symbols
   //
 
+  val jo = resolveTermByPath("jo")
+  val jo_nameTable = jo.info.as[ContainerInfo].nameTable
+
   val Predef = resolveTermByPath("jo.Predef")
   val Predef_nameTable = Predef.info.as[ContainerInfo].nameTable
 

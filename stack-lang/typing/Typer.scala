@@ -21,6 +21,7 @@ object Typer:
   : (List[Namespace], List[DelayedDef[Namespace]]) =
 
     val rootNameTable = defnLazy.rootNameTable
+    val rootScope = new Scope.RootScope(rootNameTable, owner = null)
 
     def checkEffects(nss: List[Namespace]): Unit =
       // Run normalization and pickling
@@ -39,7 +40,7 @@ object Typer:
 
     if libs.isEmpty then
       // compile stdlib to a lib
-      val nss = new Namer().transform(nssAst, rootNameTable, predef = new NameTable) <| "namer.source"
+      val nss = new Namer().transform(nssAst, rootNameTable, rootScope) <| "namer.source"
       checkEffects(nss)
 
       // Don't check effect errors if there are type errors
@@ -51,9 +52,13 @@ object Typer:
       val delayedNss = libs.flatMap(lib => loadSastSymbols(lib)) <| "load libs"
 
       // Must be after loading the stdlib
-      val predefNameTable = defnLazy.value.Predef_nameTable
+      val defn = defnLazy.value
 
-      val nss = new Namer().transform(nssAst, rootNameTable, predefNameTable) <| "namer.source"
+      val joScope = rootScope.fresh(defn.jo, defn.jo_nameTable)
+      val predefScope = joScope.fresh(defn.Predef, defn.Predef_nameTable)
+
+
+      val nss = new Namer().transform(nssAst, rootNameTable, predefScope) <| "namer.source"
 
       // Don't check effect errors if there are type errors
       if !rp.hasErrors then checkEffects(nss)

@@ -1,10 +1,14 @@
 namespace jo.Set
 
 import jo.Predef.*
+import jo.Eq
 
 def empty[T](auto eq: Eq[T]): Set[T] = new Set([], eq)
 
-def Set[T](elems: ..T)(auto eq: Eq[T]): Set[T] = new Set(elems, eq)
+def Set[T](elems: ..T)
+    (auto eq: Eq[T] in [Eq.intEq, Eq.stringEq])
+: Set[T] =
+  new Set(elems, eq)
 
 // A strawman implementation of Set based on List
 class Set[T]

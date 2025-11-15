@@ -40,7 +40,7 @@ class Namer(using Config):
   val exprTyper = new ExprTyper(this)
 
   def transform
-      (nss: List[Ast.Namespace], rootNameTable: NameTable, predef: NameTable)
+      (nss: List[Ast.Namespace], rootNameTable: NameTable, worldScope: Scope)
       (using defnLazy: Definitions.Lazy, rp: Reporter)
   : List[Namespace] = Checks.delayed:
 
@@ -49,23 +49,17 @@ class Namer(using Config):
     val delayedImports = new mutable.ArrayBuffer[() => Unit]
     val delayedNamespaces = new mutable.ArrayBuffer[DelayedDef[Namespace]]
 
-    val rootScope = new Scope.RootScope(rootNameTable, owner = null)
-
     for ns <- nss do
       given source: Source = Reporter.source(ns.source)
 
       val nsSym = resolveNamespace(ns.qualid, rootNameTable, isBranch = false)
       val memberTable = ip.info(nsSym).as[ContainerInfo].nameTable
 
-      val topScope = rootScope.fresh(nsSym)
+      val topScope = worldScope.fresh(nsSym)
       // Make current namespace name available
       topScope.define(nsSym)
 
-      // Predef names are by-default accessible. However, other namespaces are
-      // not accessible unless explicitly imported.
-      val predefScope = topScope.fresh(nsSym, predef)
-
-      val importScope: Scope = predefScope.fresh()
+      val importScope: Scope = topScope.fresh()
       val defsScope: Scope = importScope.fresh(nsSym, memberTable)
 
       val delayedDefs =
