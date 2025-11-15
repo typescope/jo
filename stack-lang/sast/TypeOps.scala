@@ -3,6 +3,8 @@ package sast
 import Types.*
 import Symbols.*
 
+import ast.Positions.Span
+
 import common.Debug
 
 import scala.collection.mutable
@@ -166,6 +168,18 @@ object TypeOps:
       tp match
         case StaticRef(sym) =>
           ctx.getOrElse(sym, tp)
+
+        case _ =>
+          recur(tp)
+
+  /** Replace all type parameters with fresh type vars */
+  class InstantiateTypeParam(span: Span)(using Definitions, TypeVars) extends TypeMap:
+    type Context = Unit
+
+    def apply(tp: Type)(using ctx: Context): Type =
+      tp match
+        case StaticRef(sym) if sym.isAllOf(Flags.Type | Flags.Param) =>
+          TypeVar(sym.name, span)
 
         case _ =>
           recur(tp)

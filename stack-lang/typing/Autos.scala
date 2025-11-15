@@ -21,6 +21,15 @@ object Autos:
     val validTrees = new mutable.ArrayBuffer[Trees.AutoCandidate]
     val validSymbols = new mutable.ArrayBuffer[Symbol | MemberCandidate]
 
+    /** Type conformance check could be delayed */
+    def checkTypeConform(valueType: Type, span: Span) = Checks.add:
+      // instantiate type parameters with type vars and do subtype check
+      given tvars: TypeVars = new Inference.UnificationSolver
+      val map = new TypeOps.InstantiateTypeParam(span)
+      val autoTypeFlex = map(autoType)(using ())
+      if !Subtyping.conforms(valueType, autoTypeFlex) then
+        Reporter.error(s"Auto candidate return type ${valueType.show} does not conform to auto type ${autoType.show}", span.toPos)
+
     for candidate <- candidates do
       candidate match
         case value @ Ast.AutoCandidate.Value(ref) =>
@@ -43,16 +52,18 @@ object Autos:
                   Reporter.error(s"Auto candidate cannot have type parameters, found ${procType.tparams.size} type parameters", value.span.toPos)
 
                 // Check: result type must conform to auto type
-                else if !Subtyping.conforms(procType.resultType, autoType) then
-                  Reporter.error(s"Auto candidate return type ${procType.resultType.show} does not conform to auto type ${autoType.show}", value.span.toPos)
-
                 else
+                  checkTypeConform(procType.resultType, value.span)
+
                   validTrees += AutoCandidate.Value(sym)(value.span)
                   validSymbols += sym
 
               else if tp.isValueType then
+                checkTypeConform(tp, value.span)
+
                 validTrees += AutoCandidate.Value(sym)(value.span)
                 validSymbols += sym
+
 
               else
                 Reporter.error("A reference to a value candidate expected, found = " + tp.show, value.span.toPos)
@@ -71,12 +82,15 @@ object Autos:
     end for
     (validTrees.toList, validSymbols.toList)
 
-  def resolve(fun: Word, args: List[Word], havings: List[Symbol], span: Span)(using Definitions, Source, Reporter) =
+  def resolve(fun: Word, args: List[Word], havings: List[Symbol], span: Span)
+      (using defn: Definitions, source: Source, rp: Reporter, sc: Scope)
+  : Word =
+
     val procType: ProcType = fun.tpe.asProcType
 
     // TODO: check the auto arguments are fully initialized
 
-    AutoResolution.resolve(procType, havings, span) match
+    AutoResolution.resolve(procType, havings, Vector.empty, sc.owner, span) match
       case AutoResolution.Result.Success(autos) =>
         Apply(fun, args, autos)(span)
 
