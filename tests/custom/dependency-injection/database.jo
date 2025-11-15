@@ -3,11 +3,9 @@
 
 namespace Database
 
-import jo.IO.stdout
-
 param state: { var recordCount: Int }
 
 defer def connect(host: String): String
 defer def query(table: String): Int receives state
-defer def insert(table: String, value: Int): Unit receives stdout, state
-defer def disconnect(): Unit receives stdout
+defer def insert(table: String, value: Int): Unit receives IO.stdout, state
+defer def disconnect(): Unit receives IO.stdout

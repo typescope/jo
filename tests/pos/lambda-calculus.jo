@@ -1,5 +1,3 @@
-import jo.IO
-
 type Lambda = #Abs(x: String, body: Expr)
 
 type Expr = Lambda | #Var(x: String) | #App(lhs: Expr, arg: Expr)

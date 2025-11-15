@@ -1,5 +1,5 @@
 ---------- Error at ./tests/warn/param-hello.jo:9:5 ---------------
-| def main receives jo.IO.stdout = bar    // error
+| def main receives IO.stdout = bar    // error
 |     ^^^^
 |     Parameter not allowed: newLine
 

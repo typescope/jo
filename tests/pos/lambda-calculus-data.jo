@@ -1,5 +1,3 @@
-import jo.IO
-
 data Expr =
     Abs(x: String, body: Expr)
   | Var(x: String)

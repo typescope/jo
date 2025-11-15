@@ -1,5 +1,3 @@
-import jo.IO.*
-
 param readLine: () => Option[String]
 
 def lineCount =

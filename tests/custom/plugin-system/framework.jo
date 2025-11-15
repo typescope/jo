@@ -3,12 +3,10 @@
 
 namespace Framework
 
-import jo.IO.stdout
-
 // Plugin extension points
 defer def getName(): String
 defer def getVersion(): Int
-defer def initialize(): Unit receives stdout
+defer def initialize(): Unit receives IO.stdout
 defer def execute(input: Int): Int
 
 def registerAndRun(value: Int): Unit =

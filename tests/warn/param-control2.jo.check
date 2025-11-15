@@ -1,5 +1,5 @@
 ---------- Error at ./tests/warn/param-control2.jo:16:5 ---------------
-| def main receives jo.IO.stdout = // error
+| def main receives IO.stdout = // error
 |     ^^^^
 |     Parameter not allowed: pageWidth
 

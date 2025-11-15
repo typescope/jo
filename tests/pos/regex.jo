@@ -1,5 +1,3 @@
-import jo.IO
-
 param DEBUG: Bool = false
 
 type Seg = #Seg(start: Int, str: String)

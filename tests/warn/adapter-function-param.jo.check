@@ -1,10 +1,10 @@
 ---------- Error at ./tests/warn/adapter-function-param.jo:21:3 ---------------
-|   test(doc) allow jo.IO.stdout
+|   test(doc) allow IO.stdout
 |   ^^^^^^^^^
 |   Parameter not allowed: indent
 
 The following is the trace that leads to the problem:
-├──   test(doc) allow jo.IO.stdout	[ ./tests/warn/adapter-function-param.jo:21:8 ]
+├──   test(doc) allow IO.stdout	[ ./tests/warn/adapter-function-param.jo:21:8 ]
 │          ^^^
 └──   intToStr(indent) + ": " + doc.content	[ ./tests/warn/adapter-function-param.jo:11:12 ]
                ^^^^^^

@@ -18,4 +18,4 @@ def main =
     val content = "World"
   }
   // The context parameter is provided here
-  test(doc) allow jo.IO.stdout
+  test(doc) allow IO.stdout

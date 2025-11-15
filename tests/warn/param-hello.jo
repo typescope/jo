@@ -6,4 +6,4 @@ def foo() =
 
 def bar() = foo
 
-def main receives jo.IO.stdout = bar    // error
+def main receives IO.stdout = bar    // error
