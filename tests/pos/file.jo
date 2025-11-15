@@ -1,13 +1,15 @@
+import jo.IO.*
+
 def main =
   ioTest with stdin = { def readLine = "jo" }
 
 def ioTest =
-  IO.stdout.write("name: ")
+  stdout.write("name: ")
   val name = stdin.readLine
   println
     "hello, " + name
 
-  val file = IO.open("test-data.txt")
+  val file = open("test-data.txt")
   file.write("123456789\n")
   file.write("abcdef")
   file.seek 0
@@ -17,6 +19,6 @@ def ioTest =
   file.close
 
   val file2 = IO.open("test-data.txt")
-  IO.stdout.write
+  stdout.write
     file2.readLine + "\n"
   file2.close
