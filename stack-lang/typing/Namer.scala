@@ -863,10 +863,9 @@ class Namer(using Config):
         Reporter.error("[internal error] Invalid vararg type: " + tp.show, span.toPos)
         AnyType
 
-    var lastFlexArg =
-      val tt = TargetType.Known(paramTypeFlex)
-      Checker.adapt(Ident(defn.List_empty)(span), tt)
-
+    var lastFlexArg: Word =
+      val tapply = Ident(defn.List_empty)(span).appliedToTypes(elementType)
+      Apply(tapply, args = Nil, autos = Nil)(span)
 
     def checkSplice(splice: Ast.Word, args: List[Ast.Word]): Unit =
       if args.size != 1 then

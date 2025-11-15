@@ -99,7 +99,7 @@ object Checker:
     if tpe.hasTermMember(member) || tpe.isError then
       word
     else
-      Reporter.error(s"The prefix does not contain the member $member", word.pos)
+      Reporter.error(s"The prefix of the type ${tpe.show} does not contain the member $member", word.pos)
       errorWord(word.span)
 
   def checkInstantiated(tvars: TypeVars)(using Reporter, Source): Unit =
@@ -264,7 +264,8 @@ object Checker:
           Encoded(Block(Nil)(word3.span))(tpe)
 
       case TargetType.TermMember(name) =>
-        checkTermMember(word, name)
+        val wordAutoApplied = adaptParameterless(word, targetType)
+        checkTermMember(wordAutoApplied, name)
 
       case TargetType.TypeMember(name) =>
         // checked in namer
