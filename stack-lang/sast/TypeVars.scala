@@ -37,5 +37,5 @@ trait TypeVars:
   /** The state of inference will be reverted back if the test fails */
   def tryOrRevert(test: => Boolean): Boolean
 
-  /** Perform the test but do not instantiate any type variable */
-  def freeze(test: => Boolean): Boolean
+  /** Perform the operation but do not instantiate any type variable */
+  def freeze[T](op: => T): T
