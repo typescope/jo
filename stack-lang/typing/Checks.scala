@@ -18,14 +18,14 @@ object Checks:
 
       def add(check: () => Unit): Unit =
         if frozen then throw new Exception("cannot add new task during checking")
-        checks.addOne(() => check)
+        checks.addOne(check)
     }
 
     val res = op(using ck)
 
     frozen = true
     for check <- checks do check()
-    checks.clear()
+    res
 
   def eager[T](op: Checks ?=> T): T =
     val ck = new Checks:

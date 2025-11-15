@@ -400,7 +400,7 @@ class PatternTyper(namer: Namer):
 
   private def transformTypePattern(
       id: Ast.Ident, tpt: Ast.TypeTree, scrutType: Type, patSpan: Span)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs, tvars: TypeVars)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs)
   : Pattern =
 
     val name = id.name

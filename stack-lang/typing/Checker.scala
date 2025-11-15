@@ -13,8 +13,6 @@ import Inference.*
 
 import common.Debug
 
-import scala.collection.mutable
-
 /** Perform checks related to types  */
 object Checker:
   /** Check kind of a type

@@ -255,7 +255,7 @@ class Namer(using Config):
         transformRecord(record).adapt
 
       case Ast.TypeAscribe(expr, tpt) =>
-        val tpt2 = transformType(tpt)
+        val tpt2 = Checks.eager { transformType(tpt) }
         val expr2 =
           given TargetType = TargetType.Known(tpt2.tpe)
           transform(expr)
@@ -285,7 +285,7 @@ class Namer(using Config):
       case call: Ast.DotlessCall =>
         transformDotlessCall(call)
 
-      case Ast.TypeApply(fun, targs) =>
+      case Ast.TypeApply(fun, targs) => Checks.eager:
         val fun2 =
           given TargetType = TargetType.TypeApply
           transform(fun)
@@ -511,19 +511,19 @@ class Namer(using Config):
     Object(thisSym, members)(objectType, obj.span)
 
   def transformBlock(block: Ast.Block)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType)
-  : Word = Checks.delay:
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)
+  : Word =
 
     val phrases = block.phrases
     val words =
       given Scope = sc.fresh()
       for (phrase, i) <- phrases.zipWithIndex yield
-        given TargetType =
-          if i == phrases.size - 1 then tt
-          else TargetType.VoidType
-
-        Inference.freshInferContext:
+        if i == phrases.size - 1 then
           transform(phrase)
+        else
+          given TargetType = TargetType.VoidType
+          Inference.freshInferContext:
+            transform(phrase)
 
     if words.isEmpty then
       Checker.adapt(Block(Nil)(block.span), tt)
@@ -532,12 +532,15 @@ class Namer(using Config):
       Block(words)(block.span)
 
   /** Handles new Foo[T](arg1, arg2, ...) */
-  def transformNew(newExpr: Ast.New)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
+  def transformNew(newExpr: Ast.New)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)
+  : Word = Checks.eager:
+
     val classTree = transformType(newExpr.classRef)
     var targsTree = for targ <- newExpr.targs yield transformType(targ)
 
     def instantiateTypeLambda(tparams: List[Symbol])(using Definitions, Reporter): List[TypeVar]  =
-      for tparam <- tparams yield TypeVar(tparam.name, this.inferencer)
+      for tparam <- tparams yield TypeVar(tparam.name, classTree.span)
 
     if !classTree.tpe.isTypeRef then
       Reporter.error("A class name expected, found = " + newExpr.classRef.name, newExpr.classRef.pos)
@@ -546,7 +549,7 @@ class Namer(using Config):
     else if targsTree.nonEmpty && !Checker.checkKind(classTree, targsTree) then
       errorWord(newExpr.span)
 
-    else Inference.freshInferContext:
+    else
 
       val classRef = classTree.tpe.as[RefType]
       val classSym = classRef.symbol
@@ -590,7 +593,7 @@ class Namer(using Config):
 
   /** Handles explicit postfix call syntax f(arg1, arg2, ...) */
   def transformCall(apply: Ast.Apply)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)
   : Word =
 
     var fun =
@@ -658,7 +661,7 @@ class Namer(using Config):
 
   /** Check a dotless call such as `str1 + str2` */
   def transformDotlessCall(call: Ast.DotlessCall)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)
   : Word =
 
     val Ast.DotlessCall(obj, meth, arg) = call
@@ -715,7 +718,7 @@ class Namer(using Config):
 
   /** Handles infix call formed by expression typer `1 + 2` */
   def transformInfixCall(call: Ast.InfixCall)
-    (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType)
+    (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)
   : Word =
 
     val Ast.InfixCall(preArgs, funAst, postArgs) = call
@@ -770,19 +773,18 @@ class Namer(using Config):
   /** Assumes that the argument count requirement is satisfied */
   def transformArgs
       (args: List[Ast.Word], params: List[Type], adapters: List[List[Symbol | String]] = Nil)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars)
   : List[Word] =
 
     val paddedAdapters = adapters.padTo(params.size, Nil)
     for ((arg, paramType), adapterList) <- args.zip(params).zip(paddedAdapters) yield
       given TargetType = TargetType.Known(paramType, Adaptation.createSimpleAdapter(adapterList))
-      Inference.freshInferContext:
-        transform(arg)
+      transform(arg)
 
   /** Assumes that the argument count requirement is satisfied */
   def transformVarargs
       (args: List[Ast.Word], paramTypes: List[Type], adapters: List[List[Symbol | String]], span: Span)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars)
   : List[Word] =
 
     val paramTypesFix :+ paramTypeFlex = paramTypes: @unchecked
@@ -812,8 +814,7 @@ class Namer(using Config):
         val listType = AppliedType(StaticRef(defn.List_type), elementType :: Nil)
         val adapter = Adaptation.createVarargSpliceAdapter(adaptersFlex, sc.owner)
         given TargetType = TargetType.Known(listType, adapter)
-        val argTyped = Inference.freshInferContext:
-          transform(args.head)
+        val argTyped = transform(args.head)
 
         lastFlexArg = lastFlexArg.select("++").appliedTo(argTyped)
 
@@ -829,8 +830,7 @@ class Namer(using Config):
           val adapter = Adaptation.createSimpleAdapter(adaptersFlex)
           given TargetType = TargetType.Known(elementType, adapter)
 
-          val argTyped = Inference.freshInferContext:
-            transform(arg)
+          val argTyped = transform(arg)
 
           lastFlexArg = lastFlexArg.select("+").appliedTo(argTyped)
       end match
@@ -901,7 +901,8 @@ class Namer(using Config):
       case Ast.BracketApply(subject, args) =>
         val fun = Ast.Select(subject, "set")(subject.span)
         given TargetType = TargetType.VoidType
-        transform(Ast.Apply(fun, args :+ rhs, Nil)(assign.span))
+        Inference.freshInferContext:
+          transform(Ast.Apply(fun, args :+ rhs, Nil)(assign.span))
 
   private def transformParamRef(ref: Ast.RefTree)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
@@ -909,7 +910,8 @@ class Namer(using Config):
 
     val paramRef =
       given TargetType = TargetType.Unknown
-      transform(ref)
+      Inference.freshInferContext:
+        transform(ref)
 
     val paramSym =
       paramRef.tpe match
@@ -985,7 +987,7 @@ class Namer(using Config):
           lhs.select("+").appliedTo(rhs)
         }
 
-  private def transformIf(ifte: Ast.If)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
+  private def transformIf(ifte: Ast.If)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars): Word =
     val Ast.If(cond, thenp, elsep) = ifte
 
     val cond2 =
@@ -1002,7 +1004,10 @@ class Namer(using Config):
     val commonType = Checker.commonResultType(then2.tpe, else2.tpe, ifte.pos)
     If(cond2, then2, else2)(commonType, ifte.span)
 
-  private def transformRecord(record: Ast.RecordLit)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
+  def transformRecord(record: Ast.RecordLit)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)
+  : Word =
+
     val Ast.RecordLit(namedArgs) = record
     val namedArgs2 = new mutable.ArrayBuffer[(String, Word)]
 
@@ -1027,14 +1032,16 @@ class Namer(using Config):
         Reporter.error("Arg " + id.name + " already defined", id.pos)
       else
         given TargetType = targetFieldType(id)
-        val rhs2 = Inference.freshInferContext:
-          transform(rhs)
+        val rhs2 = transform(rhs)
         namedArgs2 += id.name -> rhs2
     end for
     val fields = namedArgs2.toList
     RecordLit(fields)(record.span)
 
-  def transformTagged(tag: Ast.Tag, values: List[Ast.Word])(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
+  def transformTagged(tag: Ast.Tag, values: List[Ast.Word])
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)
+  : Word =
+
     val tagName = tag.name.name
     val span =
       if values.isEmpty then tag.span
@@ -1090,7 +1097,10 @@ class Namer(using Config):
 
         TaggedLit(tagStringLit, values2)(tagType, span)
 
-  private def transformLambda(lambda: Ast.Lambda)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars): Word =
+  def transformLambda(lambda: Ast.Lambda)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)
+  : Word =
+
      val Ast.Lambda(params, body) = lambda
 
      val targetFunTypeOpt: Option[NamedInfo[ProcType]] = tt.knownType.flatMap(_.getSingleMethodType)
@@ -1114,21 +1124,16 @@ class Namer(using Config):
      val selfType = ObjectType(NamedInfo(funName, MemberRef(StaticRef(thisSym), funSym)) :: Nil, mutableFields = Nil)
      defn.add(thisSym, sc.owner, selfType)
 
-     given tvars: TypeVars = new Inference.UnificationSolver
-
      def inferParamType(i: Int): Type =
        targetFunTypeOpt match
          case Some(NamedInfo(_, funType)) => funType.paramTypes(i)
-         case None =>
-           val tvar = TypeVar(params(i).name, params(i).span)
-           tvars += tvar -> params(i)
-           tvar
+         case None => TypeVar(params(i).name, params(i).span)
 
      val effectPolicy = targetFunTypeOpt match
        case Some(NamedInfo(_, funType)) => Effects.Policy.Capture(except = funType.receives)
        case None => Effects.Policy.Capture(except = Nil)
 
-     val paramSyms =
+     val paramSyms = Checks.eager:
       for (param, i) <- params.zipWithIndex yield
         val tp = if param.tpt.isEmpty then inferParamType(i) else transformType(param.tpt).tpe
         val paramSym = Symbol.createSymbol(param.name, tp, Flags.Param, funSym, param.pos)
@@ -1161,9 +1166,6 @@ class Namer(using Config):
        receivesInfo, 0)
 
      defn.add(funSym, thisSym, procType)
-
-     // check all tvars are instantiated
-     Checker.checkInstantiated(tvars)
 
      val tparamSyms = Nil
      val autoSyms = Nil
@@ -1199,7 +1201,7 @@ class Namer(using Config):
     DelayedDef(paramSym, paramDefSast) :: Nil
 
   private def transformAliasDef(adef: Ast.AliasDef)
-      (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, ck: Checks)
+      (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source)
   : DelayedDef[AliasDef] =
     val qualid = adef.qualid
 
@@ -1288,7 +1290,7 @@ class Namer(using Config):
 
     val sym = Symbol.createSymbol(vdef.name, flags, vdef.ident.pos)
 
-    lazy val givenType: Type =
+    lazy val givenType: Type = Checks.eager:
       val tpt = transformType(vdef.tpt)
       val tp2 = Checker.checkValueType(tpt.tpe, tpt.pos)
       tp2
@@ -1311,7 +1313,7 @@ class Namer(using Config):
     ValDef(sym, rhs)(vdef.span)
 
   def transformTypeParams(tparams: List[Ast.TypeParam])
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, ck: Checks)
   : List[TypeSymbol] =
     for tparam <- tparams yield
       val bound =
@@ -1327,7 +1329,7 @@ class Namer(using Config):
       sym
 
   def transformParams(params: List[Ast.Param])
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, ck: Checks)
   : List[Symbol] =
 
     for (param, i) <- params.zipWithIndex yield
@@ -1338,7 +1340,7 @@ class Namer(using Config):
 
 
   def transformAutos(autos: List[Ast.Auto])
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, ck: Checks)
   : List[Symbol] =
 
     for auto <- autos yield
@@ -1871,7 +1873,8 @@ class Namer(using Config):
       case Ast.Select(qual, name) =>
         val qual2 =
           given TargetType = TargetType.TypeMember(name)
-          transform(qual)
+          Inference.freshInferContext:
+            transform(qual)
 
         qual2.tpe match
           case StaticRef(sym) if sym.isContainer =>
