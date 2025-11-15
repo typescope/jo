@@ -51,14 +51,16 @@ object Inference:
     * @param originalType The original function type before type parameter instantiation
     */
   def conditionalInstantiate(resultType: Type, targetType: TargetType, originalType: ProcType)(using Definitions): Unit =
-    targetType match
-      case TargetType.Known(expectedType, NoAdapter) if originalType.isPolyType =>
-        // No adapter at call site and function is polymorphic
-        // Safe to apply context instantiation to help infer type parameters
-        Subtyping.conforms(resultType, expectedType)
+    if originalType.isPolyType then
+      targetType match
+        case TargetType.Known(expectedType, NoAdapter) =>
+          assert(expectedType.isFullyInstantiated, "not fully instantiated: " + expectedType.show)
+          // No adapter at call site and function is polymorphic
+          // Safe to apply context instantiation to help infer type parameters
+          Subtyping.conforms(resultType, expectedType)
 
-      case _ =>
-        // No known target type, nothing to do
+        case _ =>
+          // No known target type, nothing to do
 
   /** The common result type of two different types.
     *

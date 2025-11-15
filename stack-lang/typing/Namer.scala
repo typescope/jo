@@ -740,14 +740,13 @@ class Namer(using Config):
             if paramSize != 1 then
               Reporter.error(
                 s"The method ${meth.name} takes ${paramSize} parameters. The dotless call syntax only supports methods of one parameter",
-                meth.span.toPos)
+                meth.span.toPos
+              )
               errorWord(meth.span)
+
             else
-
-              val argTyped =
-                given TargetType = TargetType.Known(procType.paramTypes.head)
-                transform(arg)
-
+              val paramType = procType.paramTypes.head
+              val argTyped = transformArg(arg, paramType, procType.adapters.head)
               Autos.resolve(fun, argTyped :: Nil, havings = Nil, call.span).adapt
           else
             Reporter.error( s"The member ${meth.name} is not a method", meth.pos)
@@ -819,9 +818,33 @@ class Namer(using Config):
   : List[Word] =
 
     val paddedAdapters = adapters.padTo(params.size, Nil)
-    for ((arg, paramType), adapterList) <- args.zip(params).zip(paddedAdapters) yield
-      given TargetType = TargetType.Known(paramType, Adaptation.createSimpleAdapter(adapterList))
+    for ((arg, paramType), adapterList) <- args.zip(params).zip(paddedAdapters)
+    yield transformArg(arg, paramType, adapterList)
+
+  def transformArg
+      (arg: Ast.Word, paramType: Type, adapters: List[Symbol | String])
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars)
+  : Word =
+      val adapter = Adaptation.createSimpleAdapter(adapters)
+      transformArg(arg, paramType, adapter)
+
+  def transformArg
+      (arg: Ast.Word, paramType: Type, adapter: Adaptation.Adapter)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars)
+  : Word =
+    if paramType.isFullyInstantiated then
+      given TargetType = TargetType.Known(paramType, adapter)
       transform(arg)
+
+    else
+      // If paramType is not fully initialized, we cannot use adapters
+      given TargetType = TargetType.ValueType
+      val argTyped = transform(arg)
+      if tvars.tryOrRevert { Subtyping.conforms(argTyped.tpe, paramType) } then
+        argTyped
+      else
+        Reporter.error(s"Expect type ${paramType.show}, found = ${argTyped.tpe.show}", arg.pos)
+        errorWord(arg.span)
 
   /** Assumes that the argument count requirement is satisfied */
   def transformVarargs
@@ -855,8 +878,7 @@ class Namer(using Config):
       else
         val listType = AppliedType(StaticRef(defn.List_type), elementType :: Nil)
         val adapter = Adaptation.createVarargSpliceAdapter(adaptersFlex, sc.owner)
-        given TargetType = TargetType.Known(listType, adapter)
-        val argTyped = transform(args.head)
+        val argTyped = transformArg(args.head, listType, adapter)
 
         lastFlexArg = lastFlexArg.select("++").appliedTo(argTyped)
 
@@ -869,10 +891,7 @@ class Namer(using Config):
           checkSplice(arg, args)
 
         case _ =>
-          val adapter = Adaptation.createSimpleAdapter(adaptersFlex)
-          given TargetType = TargetType.Known(elementType, adapter)
-
-          val argTyped = transform(arg)
+          val argTyped = transformArg(arg, elementType, adaptersFlex)
 
           lastFlexArg = lastFlexArg.select("+").appliedTo(argTyped)
       end match
@@ -983,8 +1002,8 @@ class Namer(using Config):
     Assign(paramRef, rhs)
 
   private def transformInterpolatedString(parts: List[Ast.Word], span: Span)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars)
-  : Word =
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
+  : Word = Inference.freshIsolate:
 
     // Type check each part and build concatenation
     val typedParts = parts.map: part =>
@@ -1003,7 +1022,6 @@ class Namer(using Config):
             typedExpr
           else
             // Try adapations
-
             given reporter: Reporter = rp.fresh(buffer = true)
             val adapter = Adaptation.createSimpleAdapter(defn.stringInterpolationAdapters)
 

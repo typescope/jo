@@ -202,7 +202,9 @@ object Checker:
     else
       word
 
-  def adapt(word: Word, targetType: TargetType)(using Definitions, Scope, Reporter, Source, TypeVars): Word = Debug.trace("Adapting " + word.show, (_: Word).show, enable = false):
+  def adapt(word: Word, targetType: TargetType)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars)
+  : Word = Debug.trace("Adapting " + word.show + ", tt = " + targetType.show, (_: Word).show, enable = false):
     val defn = summon[Definitions]
 
     // Adapt Container selection List -> List.List
@@ -276,3 +278,4 @@ object Checker:
       case TargetType.TypeApply =>
         // Used to prevent no args adapation
         word2
+    end match

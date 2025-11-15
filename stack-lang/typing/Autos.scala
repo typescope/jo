@@ -85,10 +85,30 @@ object Autos:
   def resolve(fun: Word, args: List[Word], havings: List[Symbol], span: Span)
       (using defn: Definitions, source: Source, rp: Reporter, sc: Scope)
   : Word =
-
     val procType: ProcType = fun.tpe.asProcType
 
-    // TODO: check the auto arguments are fully initialized
+    if procType.autos.isEmpty then return Apply(fun, args, autos = Nil)(span)
+
+    // Check the auto arguments and member candidate are fully initialized
+    var fullyInstantiated = true
+    for auto <- procType.autos do
+      if !auto.info.isFullyInstantiated then
+        fullyInstantiated = false
+        Reporter.error("The auto type is not fully instantiated: " + auto.info.show, span.toPos)
+
+    for
+      cands <- procType.candidates
+      cand <- cands
+    do
+      cand match
+        case _: Symbol =>
+        case MemberCandidate(tp, _) =>
+          if !tp.isFullyInstantiated then
+            fullyInstantiated = false
+            Reporter.error("The member candidate type is not fully instantiated: " + tp.show, span.toPos)
+      end match
+
+    if !fullyInstantiated then return errorWord(span)
 
     AutoResolution.resolve(procType, havings, Vector.empty, sc.owner, span) match
       case AutoResolution.Result.Success(autos) =>

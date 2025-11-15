@@ -132,7 +132,7 @@ object TypeOps:
     */
   def isGrounded(tp: Type)(using Definitions): Boolean =
     tp match
-      case StaticRef(sym) => (!sym.isType && !sym.isAlias) || sym.info.isInstanceOf[TypeBound]
+      case StaticRef(sym) => (!sym.isType && !sym.isAlias) || sym.isClass || sym.info.isInstanceOf[TypeBound]
 
       case AppliedType(StaticRef(sym), _) =>
         sym.info match
@@ -184,7 +184,7 @@ object TypeOps:
         case _ =>
           recur(tp)
 
-  class FullyInitializedChecker(using Definitions) extends TypeAccumulator[Boolean](true):
+  class FullyInstantiatedChecker(using Definitions) extends TypeAccumulator[Boolean](true):
     type Context = Unit
 
     def combine(acc: Boolean, op: => Boolean): Boolean = acc && op
@@ -194,6 +194,20 @@ object TypeOps:
         case tvar: TypeVar =>
           if tvar.isInstantiated then this(tvar.instantiated)
           else false
+
+        case _ =>
+          recur(tp)
+
+  class UninstantiatedCensor(using Definitions) extends TypeAccumulator[Set[TypeVar]](Set.empty):
+    type Context = Unit
+
+    def combine(acc: Set[TypeVar], op: => Set[TypeVar]): Set[TypeVar] = acc ++ op
+
+    def apply(tp: Type)(using Context): Set[TypeVar] =
+      tp match
+        case tvar: TypeVar =>
+          if tvar.isInstantiated then this(tvar.instantiated)
+          else Set(tvar)
 
         case _ =>
           recur(tp)

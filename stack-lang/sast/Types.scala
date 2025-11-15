@@ -113,6 +113,14 @@ object Types:
       */
     def isGrounded(using Definitions): Boolean = TypeOps.isGrounded(this)
 
+    def isFullyInstantiated(using Definitions): Boolean =
+      val checker = new TypeOps.FullyInstantiatedChecker
+      checker(this)(using ())
+
+    def uninstantiated(using Definitions): Set[TypeVar] =
+      val censor = new TypeOps.UninstantiatedCensor
+      censor(this)(using ())
+
     def dealias(using Definitions): Type = TypeOps.dealias(this)
 
     /** Widen a term reference to its underlying type */

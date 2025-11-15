@@ -12,7 +12,7 @@ import Types.{ Type, TypeVar }
   * type vars of another group.
   */
 trait TypeVars:
-  def add(tvar: TypeVar): Unit
+  private[sast] def add(tvar: TypeVar): Unit
 
   def typeVars: List[TypeVar]
 

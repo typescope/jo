@@ -20,10 +20,10 @@ class UnificationSolver extends TypeVars:
 
   private def instantiate(tvar: TypeVar, tp: Type)(using Definitions) =
     assert(!instantiations.contains(tvar), "double instantiation: " + tvar)
-    println("Instantiating " + tvar + " to " + tp)
+    // println("Instantiating " + tvar + " to " + tp)
     // println("tvar.hashCode = " + System.identityHashCode(tvar))
     // println("tp.hashCode = " + System.identityHashCode(tp))
-    common.Debug.displayPrompt()
+    // common.Debug.displayPrompt()
 
     // We do not
     //
@@ -45,7 +45,7 @@ class UnificationSolver extends TypeVars:
       case None =>
         assert(tvar != tp, "cyclic instantiation " + tvar)
 
-        if frozen && !isInstantiated(tvar) then
+        if frozen then
           // Must fail
           // TODO: avoid doing the useless work
           Subtyping.Task(AnyType, BottomType) :: Nil
