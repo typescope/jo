@@ -1,0 +1,19 @@
+// Basic auto parameter resolution with value candidates
+
+type Eq[T] = (T, T) => Bool
+
+def eqInt: Eq[Int] = (a, b) => a == b
+def eqString: Eq[String] = (a, b) => a == b
+
+def testEq[T](x: T, y: T)(auto eq: Eq[T] in [eqInt, eqString]): Bool =
+  eq(x, y)
+
+def main: Unit =
+  val r1 = testEq(1, 2)          // Uses eqInt
+  val r2 = testEq("a", "b")      // Uses eqString
+
+  assert(!r1, "1 should not equal 2")
+  assert(!r2, "a should not equal b")
+
+  val r3 = testEq(42, 42)
+  assert(r3, "42 should equal 42")
