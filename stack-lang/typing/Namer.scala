@@ -520,6 +520,7 @@ class Namer(using Config):
       for (phrase, i) <- phrases.zipWithIndex yield
         if i == phrases.size - 1 then
           transform(phrase)
+
         else
           given TargetType = TargetType.VoidType
           Inference.freshIsolate:
@@ -699,8 +700,7 @@ class Namer(using Config):
 
               val argTyped =
                 given TargetType = TargetType.Known(procType.paramTypes.head)
-                Inference.freshIsolate:
-                  transform(arg)
+                transform(arg)
 
               val autos = ???
               val word = Apply(fun, argTyped :: Nil, autos)(call.span)
@@ -992,13 +992,12 @@ class Namer(using Config):
 
     val cond2 =
       given TargetType = TargetType.Known(defn.BoolType)
-      transform(cond)
+      Inference.freshIsolate:
+        transform(cond)
 
-    val then2 = Inference.freshIsolate:
-      transform(thenp)
+    val then2 = transform(thenp)
 
-    val else2 = Inference.freshIsolate:
-      transform(elsep)
+    val else2 = transform(elsep)
 
     // result type
     val commonType = Checker.commonResultType(then2.tpe, else2.tpe, ifte.pos)
@@ -1089,8 +1088,7 @@ class Namer(using Config):
         val values2 =
           for value <- values yield
             given TargetType = TargetType.ValueType
-            Inference.freshIsolate:
-              transform(value)
+            transform(value)
 
         val argTypes = values2.map(_.tpe)
         val tagType = TagType.from(tagName, argTypes)

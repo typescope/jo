@@ -125,7 +125,7 @@ class PatternTyper(namer: Namer):
       Reporter.warn(s"The match is exhaustive. There is no need to mark the type with `Partial`.", coveredTypeTree.pos)
 
   def transformMatch(patmat: Ast.Match)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)
   : Word =
 
     val Ast.Match(scrutinee, cases) = patmat
@@ -177,7 +177,7 @@ class PatternTyper(namer: Namer):
       Reporter.warn(s"The match will fail for the $word: " + examples, patmat.scrutinee.pos)
 
   private def transformCase(caseDef: Ast.Case, scrutType: Type)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)
   : Case =
     val Ast.Case(pat, body) = caseDef
 
@@ -195,8 +195,7 @@ class PatternTyper(namer: Namer):
         errorWord(body.span)
 
       else
-        Inference.freshIsolate:
-          namer.transform(body)
+        namer.transform(body)
 
     // may contain warnings
     rp2.commit(rp)
