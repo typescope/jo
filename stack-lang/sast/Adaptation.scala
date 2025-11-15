@@ -22,13 +22,14 @@ object Adaptation:
     * It makes drop of values in if/match expressions explicit.
     * It also tries to apply adapters if direct conformance fails.
     */
-  def adapt(word: Word, targetType: Type, adapter: Adapter)(using defn: Definitions): Word
-  = Debug.trace(s"adapting ${word.show} to ${targetType.show}", enable = false):
+  def adapt(word: Word, targetType: Type, adapter: Adapter)
+      (using defn: Definitions, tvars: TypeVars)
+  : Word = Debug.trace(s"adapting ${word.show} to ${targetType.show}", enable = false):
 
     val unitType = defn.UnitType
 
     val curType = word.tpe
-    if Subtyping.conforms(curType, targetType) then
+    if tvars.freeze { Subtyping.conforms(curType, targetType) } then
       word
 
     else if targetType.isVoidType && curType.isValueType then
@@ -38,7 +39,7 @@ object Adaptation:
 
       val isNumeric = defn.isNumericType(word.tpe) && defn.isNumericType(targetType)
 
-      if isNumeric && !Subtyping.conforms(word.tpe, targetType) then
+      if isNumeric && tvars.freeze { !Subtyping.conforms(word.tpe, targetType) } then
         // Numeric coercion
         word match
           case Literal(Constant.Int(n)) =>
@@ -50,7 +51,7 @@ object Adaptation:
             // Only widening coercion is allowed for non-literals
             coerceNumeric(word, targetType)
 
-      else if Subtyping.conforms(unitType, targetType) then
+      else if tvars.freeze { Subtyping.conforms(unitType, targetType) } then
         val unit = unitValue(word.span.endPoint)
         Block(word.ensureDropValue :: unit :: Nil)(word.span)
 

@@ -181,17 +181,11 @@ object Checker:
         Reporter.error(s"Cannot find common result type, tp1 = ${tp1.show}, tp2 = ${tp2.show}", pos)
         ErrorType
 
-  def adaptNoArgs(word: Word, procType: ProcType, targetType: TargetType)(using Definitions, Scope, Reporter, Source, TypeVars): Word =
-    val isParameterlessCall =
-      procType.paramCount == 0 && targetType.match
-        case TargetType.Fun(n) =>
-          n != 0
+  def adaptParameterless(word: Word, targetType: TargetType)(using Definitions, Scope, Reporter, Source, TypeVars): Word =
+    if !word.tpe.isProcType then return word
 
-        case TargetType.TypeApply =>
-          false
-
-        case _ =>
-          true
+    val procType = word.tpe.asProcType
+    val isParameterlessCall = procType.paramCount == 0
 
     if isParameterlessCall then
       val fun =
@@ -211,12 +205,9 @@ object Checker:
   def adapt(word: Word, targetType: TargetType)(using Definitions, Scope, Reporter, Source, TypeVars): Word = Debug.trace("Adapting " + word.show, (_: Word).show, enable = false):
     val defn = summon[Definitions]
 
-    val word2 =
-      if word.tpe.isProcType && targetType != TargetType.Unknown then
-        val procType = word.tpe.asProcType
-        adaptNoArgs(word, procType, targetType)
-
-      else if word.tpe.isTermRef then
+    // Adapt Container selection List -> List.List
+    val word2: Word =
+      if word.tpe.isTermRef then
         val ref = word.tpe.as[RefType]
         val sym = ref.symbol
         if
@@ -227,7 +218,7 @@ object Checker:
         then
           val memSym = sym.termMember(sym.name).dealias
           // The selection might need parameterless call adaption
-          return adapt(Ident(memSym)(word.span), targetType)
+          Ident(memSym)(word.span)
         else
           word
 
@@ -240,34 +231,38 @@ object Checker:
         word2
 
       case TargetType.VoidType =>
-        if word2.tpe.isVoidType then
-          word2
-        else if word2.tpe.isValueType then
-          word2.dropValue
+        val word3 = adaptParameterless(word2, targetType)
+        if word3.tpe.isVoidType then
+          word3
+        else if word3.tpe.isValueType then
+          word3.dropValue
         else
-          checkValueType(word2)
-          word2
+          checkValueType(word3)
+          word3
 
       case TargetType.ValueType =>
-        if word2.tpe.isVoidType then
+        val word3 = adaptParameterless(word2, targetType)
+        if word3.tpe.isVoidType then
           // adapt to Unit type
-          Adaptation.adapt(word2, defn.UnitType, Adaptation.NoAdapter)
+          Adaptation.adapt(word3, defn.UnitType, Adaptation.NoAdapter)
         else
-          checkValueType(word2)
-          word2
+          checkValueType(word3)
+          word3
 
       case TargetType.Known(tpe, adapter) =>
+        val word3 = adaptParameterless(word2, targetType)
+
         try
-          val wordAdapted = Adaptation.adapt(word2, tpe, adapter)
+          val wordAdapted = Adaptation.adapt(word3, tpe, adapter)
           checkType(wordAdapted, tpe)
           wordAdapted
 
         catch case ex: Adaptation.AdaptionFailure =>
-          Reporter.error(s"Expect type ${tpe.show}, found = ${word2.tpe.show}", word2.pos)
-          Encoded(Block(Nil)(word2.span))(tpe)
+          Reporter.error(s"Expect type ${tpe.show}, found = ${word3.tpe.show}", word3.pos)
+          Encoded(Block(Nil)(word3.span))(tpe)
 
       case TargetType.TermMember(name) =>
-        checkTermMember(word2, name)
+        checkTermMember(word, name)
 
       case TargetType.TypeMember(name) =>
         // checked in namer

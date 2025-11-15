@@ -1,11 +1,8 @@
 package typing
 
-import sast.TypeOps
-import sast.TypeVars
+import sast.*
 import sast.Adaptation.{ Adapter, NoAdapter }
 import sast.Types.*
-import sast.Subtyping
-import sast.Definitions
 
 import reporting.Reporter
 import ast.Positions.Source
@@ -17,7 +14,7 @@ object Inference:
     case ValueType
     case VoidType
     case TypeApply
-    case Fun(args: Int)
+    case Fun(n: Int)
     case TermMember(name: String)
     case TypeMember(name: String)
     case Known(tpe: Type, adapter: Adapter = NoAdapter)
@@ -111,68 +108,3 @@ object Inference:
     val res = op
     Checker.checkInstantiated(tvars)
     res
-
-  class UnificationSolver extends TypeVars:
-    private var tvars = Vector.empty[TypeVar]
-    private var instantiations: Map[TypeVar, Type] = Map.empty
-
-    private def instantiate(tvar: TypeVar, tp: Type)(using Definitions) =
-      assert(!instantiations.contains(tvar), "double instantiation: " + tvar)
-      // println("Instantiating " + tvar + " to " + tp)
-      // println("tvar.hashCode = " + System.identityHashCode(tvar))
-      // println("tp.hashCode = " + System.identityHashCode(tp))
-
-      // We do not
-      //
-      // - substitute occurrence in existing substitutions
-      // - check that tvar does not occur in tp
-      //
-      // They are handled by subtype checking implicitly.
-      if TypeOps.dealias(tp) != tvar then
-        // TODO: Use the order of tvars to avoid the check and ensure in the case of
-        // two tvars X <: Y, we instantite the one with greater id
-        instantiations = instantiations.updated(tvar, tp)
-
-    private def constrain(tvar: TypeVar, tp: Type, tvarLeft: Boolean)(using Definitions): List[Subtyping.Task] =
-      instantiations.get(tvar) match
-        case Some(inst) =>
-          if tvarLeft then Subtyping.Task(inst, tp) :: Nil
-          else Subtyping.Task(tp, inst) :: Nil
-
-        case None =>
-          assert(tvar != tp)
-          instantiate(tvar, tp)
-          Nil
-
-    def add(tvar: TypeVar): Unit =
-      tvars = tvars :+ tvar
-
-    def typeVars: List[TypeVar] = tvars.toList
-
-    def isInstantiated(tvar: TypeVar): Boolean =
-      instantiations.get(tvar).nonEmpty
-
-    def instantiated(tvar: TypeVar): Type =
-      instantiations.get(tvar) match
-        case Some(inst) => inst
-        case None => throw new Exception("Not instantiated: " + tvar)
-
-    def approx(tvar: TypeVar, isUp: Boolean): Type =
-      instantiations.get(tvar) match
-        case Some(inst) => inst
-
-        case None =>
-          tvar
-
-    def isSubtype(tvar: TypeVar, tp: Type)(using Definitions): List[Subtyping.Task] =
-      constrain(tvar, tp, tvarLeft = true)
-
-    def isSuptype(tvar: TypeVar, tp: Type)(using Definitions): List[Subtyping.Task] =
-      constrain(tvar, tp, tvarLeft = false)
-
-    // TODO: how to make sure other instances will not be affected by test?
-    def test[T](op: => T): T =
-      val stateBefore = instantiations
-      val res = op
-      instantiations = stateBefore
-      res

@@ -983,7 +983,7 @@ class Namer(using Config):
     Assign(paramRef, rhs)
 
   private def transformInterpolatedString(parts: List[Ast.Word], span: Span)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars)
   : Word =
 
     // Type check each part and build concatenation

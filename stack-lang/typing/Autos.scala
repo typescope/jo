@@ -24,7 +24,7 @@ object Autos:
     /** Type conformance check could be delayed */
     def checkTypeConform(valueType: Type, span: Span) = Checks.add:
       // instantiate type parameters with type vars and do subtype check
-      given tvars: TypeVars = new Inference.UnificationSolver
+      given tvars: TypeVars = new UnificationSolver
       val map = new TypeOps.InstantiateTypeParam(span)
       val autoTypeFlex = map(autoType)(using ())
       if !Subtyping.conforms(valueType, autoTypeFlex) then

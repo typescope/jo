@@ -641,8 +641,11 @@ object Trees:
       assert(procType.autos.isEmpty, "autos not supplied")
 
       val args2 =
-        for ((arg, paramType), adapterList) <- args.zip(procType.paramTypes).zip(procType.adapters)
-        yield Adaptation.adapt(arg, paramType, Adaptation.createSimpleAdapter(adapterList))
+        for
+          ((arg, paramType), adapterList) <- args.zip(procType.paramTypes).zip(procType.adapters)
+        yield
+          given TypeVars = new UnificationSolver
+          Adaptation.adapt(arg, paramType, Adaptation.createSimpleAdapter(adapterList))
 
       val span = args.foldLeft(word.span)(_ | _.span)
 
