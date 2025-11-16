@@ -85,9 +85,9 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends T
         else if !qual.tpe.hasTermMember(name) then
           Reporter.error(s"Qualifier does not have member $name, found = " + qual.tpe.show, word.pos)
 
-        else if !Subtyping.conforms(qual.tpe.termMember(name), word.tpe) then
+        else if !Subtyping.conforms(qual.tpe.termMember(name).widen, word.tpe.widen) then
           val memberType = qual.tpe.termMember(name)
-          Reporter.error(s"Member type ${memberType.show} is not a subtype of ${word.tpe.show}", word.pos)
+          Reporter.error(s"Member type ${memberType.widen} is not a subtype of ${word.tpe.widen}", word.pos)
 
       case _: RecordLit =>
         if !word.tpe.isRecordType then
