@@ -134,16 +134,20 @@ object Adaptation:
       case Nil => None
 
       case (adapterSym: Symbol) :: rest =>
-        val procType = adapterSym.info.asProcType
-        val adapterParamType = procType.params.head.info
+        // The validation currently is performed after checking thus invalid adapters may appear here
+        if adapterSym.isFunction then
+          val procType = adapterSym.info.asProcType
+          val adapterParamType = procType.params.head.info
 
-        // Check if the word's type conforms to the adapter's parameter type
-        if Subtyping.conforms(word.tpe, adapterParamType) then
-          val adapterIdent = Ident(adapterSym)(word.span)
-          val adapted = adapterIdent.appliedTo(word)
+          // Check if the word's type conforms to the adapter's parameter type
+          if procType.paramCount == 1 && Subtyping.conforms(word.tpe, adapterParamType) then
+            val adapterIdent = Ident(adapterSym)(word.span)
+            val adapted = adapterIdent.appliedTo(word)
 
-          Some(adapted)
+            Some(adapted)
 
+          else
+            adaptSimple(word, targetType, rest)
         else
           adaptSimple(word, targetType, rest)
 
@@ -190,16 +194,19 @@ object Adaptation:
       case Nil => None
 
       case (adapterSym: Symbol) :: rest =>
-        val procType = adapterSym.info.asProcType
-        val adapterParamType = procType.params.head.info
+        if adapterSym.isFunction then
+          val procType = adapterSym.info.asProcType
+          val adapterParamType = procType.params.head.info
 
-        // Check if the word's type conforms to the adapter's parameter type
-        if Subtyping.conforms(elemType, adapterParamType) then
-          val adapterFun = TreeOps.etaExpand(adapterSym, owner, Effects.Policy.Infer, word.span)
-          val adapted = word.select("map").appliedToTypes(targetElemType).appliedTo(adapterFun)
+          // Check if the word's type conforms to the adapter's parameter type
+          if procType.paramCount == 1 && Subtyping.conforms(elemType, adapterParamType) then
+            val adapterFun = TreeOps.etaExpand(adapterSym, owner, Effects.Policy.Infer, word.span)
+            val adapted = word.select("map").appliedToTypes(targetElemType).appliedTo(adapterFun)
 
-          Some(adapted)
+            Some(adapted)
 
+          else
+            adaptVarargSplice(word, targetElemType, elemType, rest, owner)
         else
           adaptVarargSplice(word, targetElemType, elemType, rest, owner)
 
