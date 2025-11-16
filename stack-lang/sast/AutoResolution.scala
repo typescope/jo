@@ -18,11 +18,16 @@ import scala.collection.mutable
  * 2. Member candidates (MemberCandidate): Type members that are eta-expanded
  */
 object AutoResolution:
+  /** Trace element to track resolution path and detect cycles */
+  sealed trait TraceElement
+  object TraceElement:
+    case class ValueElement(sym: Symbol) extends TraceElement
+    case class MemberElement(receiverType: Type, memberName: String) extends TraceElement
   enum Result:
     case Success(args: List[Word])
     case Failure(message: String)
 
-  def resolve(procType: ProcType, havings: List[Symbol], trace: Vector[Symbol], owner: Symbol, span: Span)(using Definitions, Source): Result =
+  def resolve(procType: ProcType, havings: List[Symbol], trace: Vector[TraceElement], owner: Symbol, span: Span)(using Definitions, Source): Result =
     val autos = new mutable.ArrayBuffer[Word]
 
     val count = procType.autos.size
@@ -50,7 +55,7 @@ object AutoResolution:
     end while
     None
 
-  def search(targetType: Type, cands: List[Symbol | MemberCandidate], havings: List[Symbol], trace: Vector[Symbol], owner: Symbol, span: Span)
+  def search(targetType: Type, cands: List[Symbol | MemberCandidate], havings: List[Symbol], trace: Vector[TraceElement], owner: Symbol, span: Span)
       (using Definitions, Source)
   : Option[Word] =
     val res = findFirst(havings) { sym => tryValue(sym, targetType, trace, owner, span) }
@@ -61,7 +66,7 @@ object AutoResolution:
       case sym: Symbol => tryValue(sym, targetType, trace, owner, span)
       case MemberCandidate(tp, name) => tryMember(tp, name, targetType, trace, owner, span)
 
-  def tryValue(sym: Symbol, targetType: Type, trace: Vector[Symbol], owner: Symbol, span: Span)(using Definitions, Source): Option[Word] =
+  def tryValue(sym: Symbol, targetType: Type, trace: Vector[TraceElement], owner: Symbol, span: Span)(using Definitions, Source): Option[Word] =
     val tp = sym.info
 
     if tp.isProcType then
@@ -78,11 +83,14 @@ object AutoResolution:
         Some(call)
       else
         // Check for cycles: if sym is already in trace, we have divergence
-        if trace.contains(sym) then
+        if trace.exists {
+          case TraceElement.ValueElement(s) => s == sym
+          case _ => false
+        } then
           return None
 
         // Recursive resolution with increased trace
-        val newTrace = trace :+ sym
+        val newTrace = trace :+ TraceElement.ValueElement(sym)
         resolve(procType, havings = Nil, newTrace, owner, span) match
           case Result.Success(autos) =>
             val call = Apply(Ident(sym)(span), args = Nil, autos = autos)(span)
@@ -94,9 +102,18 @@ object AutoResolution:
     else
       if Subtyping.conforms(tp, targetType) then Some(Ident(sym)(span)) else None
 
-  def tryMember(receiverType: Type, name: String, targetType: Type, trace: Vector[Symbol], owner: Symbol, span: Span)
+  def tryMember(receiverType: Type, name: String, targetType: Type, trace: Vector[TraceElement], owner: Symbol, span: Span)
       (using defn: Definitions, so: Source)
   : Option[Word] =
+
+    // Check for cycles: if this member candidate is already in trace, we have divergence
+    if trace.exists {
+      case TraceElement.MemberElement(rt, mn) =>
+        // Check if same member on same type
+        mn == name && Subtyping.isEqualType(rt, receiverType)
+      case _ => false
+    } then
+      return None
 
     // Look up the member on the type
     receiverType.getTermMember(name) match
@@ -124,7 +141,7 @@ object AutoResolution:
     */
   def tryMethodMember
       (procType: ProcType, memberRefType: Type, receiverType: Type, memberName: String, targetType: Type,
-        trace: Vector[Symbol], owner: Symbol, span: Span)
+        trace: Vector[TraceElement], owner: Symbol, span: Span)
       (using defn: Definitions, so: Source)
   : Option[Word] =
     // Type conformance check for eta-expanded member
@@ -158,7 +175,9 @@ object AutoResolution:
     // Resolve nested autos if present
     val resolvedAutos =
       if procType.autos.nonEmpty then
-        resolve(procType, havings = Nil, trace, owner, span) match
+        // Add current member to trace before resolving nested autos
+        val newTrace = trace :+ TraceElement.MemberElement(receiverType, memberName)
+        resolve(procType, havings = Nil, newTrace, owner, span) match
           case Result.Success(autos) => autos
           case Result.Failure(_) => return None
       else
@@ -182,7 +201,7 @@ object AutoResolution:
     */
   def tryValueMember
       (resultType: Type, memberRefType: Type, receiverType: Type, memberName: String,
-        targetType: Type, trace: Vector[Symbol], owner: Symbol, span: Span)
+        targetType: Type, trace: Vector[TraceElement], owner: Symbol, span: Span)
       (using defn: Definitions, so: Source)
   : Option[Word] =
 

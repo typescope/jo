@@ -1,0 +1,27 @@
+// Error: Divergence through member candidates
+
+type Eq[T] = (T, T) => Bool
+
+// A type that has == which requires Eq of the same type - creates a cycle
+class Box
+  val value: Int
+  def Box(n: Int) = { value: n }
+
+  // This == method needs Eq[Box], which will try to resolve using [Box].==,
+  // which is this very method - creating infinite recursion
+  def ==(that: Box)(auto eq: Eq[Box] with [[Box].==]): Bool =
+    this.value == that.value
+
+// When resolving auto for testEq with T=Box:
+// 1. Need Eq[Box], try [Box].==
+// 2. [Box].== eta-expands to (receiver: Box, that: Box)(auto eq: Eq[Box] with [[Box].==]) => receiver == that
+// 3. This needs Eq[Box] for its auto parameter
+// 4. Try [Box].== again (cycle detected!)
+def testEq[T](x: T, y: T)(auto eq: Eq[T] with [[T].==]): Bool =
+  eq(x, y)
+
+def main: Unit =
+  val b1 = new Box(1)
+  val b2 = new Box(2)
+  val result = testEq[Box](b1, b2)  // Error: divergence
+  assert(!result, "boxes should not be equal")
