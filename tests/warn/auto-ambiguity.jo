@@ -1,9 +1,0 @@
-type A
-
-auto def diverge(auto a: A): A = ...
-
-auto def A: A = ...
-
-def foo(auto a: A): Int = 3
-
-def main = foo
