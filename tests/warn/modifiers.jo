@@ -1,16 +1,3 @@
-auto pattern Pos: Partial[Int] =
-  case x if x > 0
-
-auto def foo(x: Int): Int = x
-
-auto def bar(x: Int)(auto y: String): Int = x
-
-auto param x: Int  // disallow for now
-
-auto type A = Int
-
-auto data Point(x: Int, y: Int)
-
 section TestDefer
   defer def good(x: Int): Bool
 
