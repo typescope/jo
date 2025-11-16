@@ -507,7 +507,7 @@ object Trees:
     (val span: Span)
   extends Word, Def
 
-  enum ParamAdapter:
+  enum ParamAdapter extends Positioned:
     case Function(symbol: Symbol)(val span: Span)
     case Member(name: String)(val span: Span)
 

@@ -22,7 +22,7 @@ object Autos:
     val validSymbols = new mutable.ArrayBuffer[Symbol | MemberCandidate]
 
     /** Type conformance check could be delayed */
-    def checkTypeConform(valueType: Type, span: Span) = Checks.add:
+    def checkTypeConform(valueType: Type, span: Span) =
       // instantiate type parameters with type vars and do subtype check
       given tvars: TypeVars = new UnificationSolver
       val map = new TypeOps.InstantiateTypeParam(span)
@@ -41,25 +41,28 @@ object Autos:
           candidateRef.tpe match
             case tp @ StaticRef(sym) =>
               if sym.is(Flags.Fun) then
-                val procType = sym.info.asProcType
+                // must be delayed after all symbols are forced
+                Checks.add:
+                  val procType = sym.info.asProcType
 
-                // Check: must have no regular parameters (only auto parameters allowed)
-                if procType.params.nonEmpty then
-                  Reporter.error(s"Auto candidate must have no regular parameters, found ${procType.params.size} parameters", value.span.toPos)
+                  // Check: must have no regular parameters (only auto parameters allowed)
+                  if procType.params.nonEmpty then
+                    Reporter.error(s"Auto candidate must have no regular parameters, found ${procType.params.size} parameters", value.span.toPos)
 
-                // Check: must have no type parameters
-                else if procType.tparams.nonEmpty then
-                  Reporter.error(s"Auto candidate cannot have type parameters, found ${procType.tparams.size} type parameters", value.span.toPos)
+                  // Check: must have no type parameters
+                  else if procType.tparams.nonEmpty then
+                    Reporter.error(s"Auto candidate cannot have type parameters, found ${procType.tparams.size} type parameters", value.span.toPos)
 
-                // Check: result type must conform to auto type
-                else
-                  checkTypeConform(procType.resultType, value.span)
+                  // Check: result type must conform to auto type
+                  else
+                    checkTypeConform(procType.resultType, value.span)
 
-                  validTrees += AutoCandidate.Value(sym)(value.span)
-                  validSymbols += sym
+                validTrees += AutoCandidate.Value(sym)(value.span)
+                validSymbols += sym
 
               else if tp.isValueType then
-                checkTypeConform(tp, value.span)
+                Checks.add:
+                  checkTypeConform(tp, value.span)
 
                 validTrees += AutoCandidate.Value(sym)(value.span)
                 validSymbols += sym
