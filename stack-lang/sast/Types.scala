@@ -245,6 +245,19 @@ object Types:
     def hasTermMember(name: String)(using Definitions): Boolean =
       getTermMember(name).nonEmpty
 
+    /** If the current type is a parameterless monomorphic function type (may have
+      * autos), return the result type.
+      *
+      * Otherwise, return approx type of the current type.
+      */
+    def effectiveResultType(using Definitions): Type =
+      this.approx match
+        case procType: ProcType if procType.tparams.isEmpty && procType.params.isEmpty =>
+          procType.resultType
+
+        case tp =>
+          tp
+
     def exists(pred: Type => Boolean)(using Definitions): Boolean =
       var exists = false
       val traverser = new TypeTraverser:

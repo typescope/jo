@@ -1,0 +1,12 @@
+// Error: Member candidate shadowing value candidate
+
+type Eq[T] = (T, T) => Bool
+
+def eqInt: Eq[Int] = (a, b) => a == b
+
+type Product = { name: String, eq: Eq[Int] }
+
+def testEq[T](x: T, y: T)(auto eq: Eq[T] with [[Product].eq, eqInt]): Bool =
+  eq(x, y)
+
+def main: Unit = {}

@@ -1,0 +1,12 @@
+// Error: Value candidate shadowing another value candidate
+
+type Eq[T] = (T, T) => Bool
+
+def eqInt: Eq[Int] = (a, b) => a == b
+def anotherEqInt: Eq[Int] = (a, b) => a != b  // Different implementation
+
+// Error: anotherEqInt is shadowed by eqInt (both have type Eq[Int])
+def testEq(x: Int, y: Int)(auto eq: Eq[Int] with [eqInt, anotherEqInt]): Bool =
+  eq(x, y)
+
+def main: Unit = {}
