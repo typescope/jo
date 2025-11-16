@@ -1008,6 +1008,7 @@ class Namer(using Config):
         case Ast.StringLit(value) =>
           // String literals are already typed as String
           Literal(Constant.String(value))(defn.StringType, part.span)
+
         case expr =>
           // Type check the interpolation expression
           given TargetType = TargetType.ValueType

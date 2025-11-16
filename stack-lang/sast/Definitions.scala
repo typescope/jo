@@ -181,7 +181,7 @@ extends Definitions.Lazy:
     resolveTermByPath("jo.Predef.charToStr"),
     resolveTermByPath("jo.Predef.boolToStr"),
     resolveTermByPath("jo.Predef.byteToStr"),
-    ".toString"
+    "toString"
   )
 
   def isNumericType(tp: Type): Boolean =
