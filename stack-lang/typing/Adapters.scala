@@ -67,9 +67,10 @@ object Adapters:
       Inference.freshIsolate:
         namer.transform(ref)
 
-    if !adapterRef.tpe.is[StaticRef] then
-      if !adapterRef.tpe.isError then
-        Reporter.error("A reference to function expected, found = " + adapterRef.tpe.show, ref.pos)
+    if adapterRef.tpe.isError then
+      None
+    else if !adapterRef.tpe.is[StaticRef] then
+      Reporter.error("A reference to function expected, found = " + adapterRef.tpe.show, ref.pos)
       None
     else
       val StaticRef(sym) = adapterRef.tpe: @unchecked
