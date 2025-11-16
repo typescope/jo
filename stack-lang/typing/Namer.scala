@@ -646,10 +646,13 @@ class Namer(using Config):
             transformArgs(apply.args, procType.paramTypes, procType.adapters)
 
         // Transform having bindings into local variables
-        if apply.havingBindings.isEmpty then
-          Autos.resolve(fun, argsTyped, havings = Nil, apply.span).adapt
-        else
-          transformHavingCall(fun, argsTyped, apply.havingBindings, apply.span).adapt
+        val call =
+          if apply.havingBindings.isEmpty then
+            Autos.resolve(fun, argsTyped, havings = Nil, apply.span)
+          else
+            transformHavingCall(fun, argsTyped, apply.havingBindings, apply.span)
+
+         Rewriting.rewrite(call).adapt
 
     else
       if !fun.tpe.isError then
@@ -803,7 +806,8 @@ class Namer(using Config):
           transformArgs(postArgs, procType.postParamTypes, procType.adapters.drop(procType.preParamCount))
 
 
-      Autos.resolve(fun, preArgs2 ++ postArgs2, havings = Nil, call.span).adapt
+      val call = Autos.resolve(fun, preArgs2 ++ postArgs2, havings = Nil, call.span)
+      Rewriting.rewrite(call).adapt
 
   /** Assumes that the argument count requirement is satisfied */
   def transformArgs

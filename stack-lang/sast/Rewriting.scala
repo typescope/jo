@@ -9,18 +9,22 @@ object Rewriting:
     *     lhs || rhs    ===>    if lhs then true else rhs
     *     lhs && rhs    ===>    if lhs then rhs  else false
     */
-  def rewriteShortcutAndOr(apply: Apply)(using defn: Definitions): Word =
-    val Apply(fun, args, autos) = apply
+  def rewrite(word: Word)(using defn: Definitions): Word =
+    word match
+      case Apply(fun, args, autos) =>
 
-    if fun.refers(defn.Bool_and) then
-      val lhs :: rhs :: Nil = args: @unchecked
-      val falseLit = BoolLit(false)(rhs.span.endPoint)
-      If(lhs, rhs, falseLit)(apply.tpe, apply.span)
+        if fun.refers(defn.Bool_and) then
+          val lhs :: rhs :: Nil = args: @unchecked
+          val falseLit = BoolLit(false)(rhs.span.endPoint)
+          If(lhs, rhs, falseLit)(apply.tpe, apply.span)
 
-    else if fun.refers(defn.Bool_or) then
-      val lhs :: rhs :: Nil = args: @unchecked
-      val trueLit = BoolLit(true)(lhs.span.endPoint)
-      If(lhs, trueLit, rhs)(apply.tpe, apply.span)
+        else if fun.refers(defn.Bool_or) then
+          val lhs :: rhs :: Nil = args: @unchecked
+          val trueLit = BoolLit(true)(lhs.span.endPoint)
+          If(lhs, trueLit, rhs)(apply.tpe, apply.span)
 
-    else
-      apply
+        else
+          word
+
+      case _ =>
+        word
