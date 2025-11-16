@@ -595,7 +595,7 @@ class Namer(using Config):
   : Word =
 
     var fun =
-      given TargetType = TargetType.Fun(apply.args.size)
+      given TargetType = TargetType.Call
       transform(apply.fun)
 
     // Auto .apply insertion --- apply can be polymorphic
@@ -765,7 +765,7 @@ class Namer(using Config):
 
     var fun =
       // infix call should not trigger apply insertion
-      given TargetType = TargetType.Unknown
+      given TargetType = TargetType.Call
       transform(funAst)
 
     val originalProcType = fun.tpe.asProcType

@@ -14,7 +14,8 @@ object Inference:
     case ValueType
     case VoidType
     case TypeApply
-    case Fun(n: Int)
+    case ExprItem
+    case Call
     case TermMember(name: String)
     case TypeMember(name: String)
     case Known(tpe: Type, adapter: Adapter = NoAdapter)

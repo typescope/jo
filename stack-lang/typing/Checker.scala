@@ -230,6 +230,9 @@ object Checker:
     targetType match
       case TargetType.Unknown =>
         // Don't widen if the target type is unknown
+        word2
+
+      case TargetType.ExprItem =>
         adaptParameterless(word2, targetType)
 
       case TargetType.VoidType =>
@@ -271,7 +274,7 @@ object Checker:
         // checked in namer
         word2
 
-      case TargetType.Fun(n) =>
+      case TargetType.Call =>
         // The `.apply` insertion happens at the transform for `Apply`.
         // It ensures that in `Apply(fun, args)` the fun is an ident or select.
         word2

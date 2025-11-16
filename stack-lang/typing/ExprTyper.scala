@@ -84,7 +84,7 @@ class ExprTyper(namer: Namer):
 
     val wordTyped =
       head.getKeyOrUpdate(Namer.TypedWord):
-        given TargetType = TargetType.Unknown
+        given TargetType = TargetType.ExprItem
         namer.transform(head)
 
     val tp = wordTyped.tpe
@@ -151,7 +151,7 @@ class ExprTyper(namer: Namer):
             case _: Ast.RefTree | _: Ast.TypeApply =>
               val typed =
                 word.getKeyOrUpdate(Namer.TypedWord):
-                  given TargetType = TargetType.Unknown
+                  given TargetType = TargetType.ExprItem
                   namer.transform(word)
 
               if typed.tpe.isProcType then
