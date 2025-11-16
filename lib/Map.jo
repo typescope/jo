@@ -7,7 +7,7 @@ import jo.Eq
 def empty[K, V](auto eq: Eq[K]): Map[K, V] = new Map([], eq)
 
 def Map[K, V](elems: ..Pair[K, V])
-    (auto eq: Eq[K] in [Eq.intEq, Eq.stringEq])
+    (auto eq: Eq[K] with [Eq.intEq, Eq.stringEq])
 : Map[K, V] =
 
   new Map(elems, eq)

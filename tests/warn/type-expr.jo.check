@@ -1,15 +1,15 @@
 ---------- Error at ./tests/warn/type-expr.jo:3:24 ---------------
-| def test1(a: Int): Int ~ = ???
+| def test1(a: Int): Int ~ = ...
 |                        ^
 |                        The type constructor specifies 2 parameter(s), found = 1
 
 ---------- Error at ./tests/warn/type-expr.jo:5:20 ---------------
-| def test2(a: Int): ~ = ???
+| def test2(a: Int): ~ = ...
 |                    ^
 |                    Expect value type, but found a type of kind (*, *) => *
 
 ---------- Error at ./tests/warn/type-expr.jo:7:20 ---------------
-| def test3(a: Int): Int ~ Int Int = ???
+| def test3(a: Int): Int ~ Int Int = ...
 |                    ^^^^^^^^^
 |                    Found extra type, a type expression should produce a single type
 

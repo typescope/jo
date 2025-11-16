@@ -29,7 +29,7 @@ def testFile: File = {
       currentLine = currentLine + 1
       "123"
     else
-      ???
+      ...
 
   def write(content: String): Unit = abort "no write"
 }

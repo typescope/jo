@@ -5,7 +5,7 @@ type Eq[T] = (T, T) => Bool
 def eqInt: Eq[Int] = (a, b) => a == b
 def eqString: Eq[String] = (a, b) => a == b
 
-def testEq[T](x: T, y: T)(auto eq: Eq[T] in [eqInt, eqString]): Bool =
+def testEq[T](x: T, y: T)(auto eq: Eq[T] with [eqInt, eqString]): Bool =
   eq(x, y)
 
 def main: Unit =

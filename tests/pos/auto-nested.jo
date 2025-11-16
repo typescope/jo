@@ -9,10 +9,10 @@ def eqInt: Eq[Int] = (a, b) => a == b
 def showInt: Show[Int] = n => intToStr(n)
 
 // This candidate has an auto parameter that needs to be resolved
-def eqWithLogging(auto show: Show[Int] in [showInt]): Eq[Int] =
+def eqWithLogging(auto show: Show[Int] with [showInt]): Eq[Int] =
   (a, b) => a == b  // Just use regular equality (logging would require IO)
 
-def testEq[T](x: T, y: T)(auto eq: Eq[T] in [eqInt, eqWithLogging]): Bool =
+def testEq[T](x: T, y: T)(auto eq: Eq[T] with [eqInt, eqWithLogging]): Bool =
   eq(x, y)
 
 def main: Unit =

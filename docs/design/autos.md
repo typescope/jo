@@ -20,7 +20,7 @@ val intSet = Set(1, 2, 3, eqInt)
 val strSet = Set("a", "b", eqString)
 
 // With auto parameters
-def Set[T](l: ..T)(auto eq: Eq[T] in [eqInt, eqString]): Set[T] = ...
+def Set[T](l: ..T)(auto eq: Eq[T] with [eqInt, eqString]): Set[T] = ...
 val intSet = Set(1, 2, 3)
 val strSet = Set("a", "b")
 ```
@@ -41,7 +41,7 @@ Unlike Scala's implicit scope or Haskell's typeclass instances, Jo requires expl
 
 ```jo
 // The signature tells you EXACTLY where auto values come from
-def process[T](x: T)(auto eq: Eq[T] in [eqInt, eqString, [T].==]): Unit = ...
+def process[T](x: T)(auto eq: Eq[T] with [eqInt, eqString, [T].==]): Unit = ...
 
 // vs Scala: where does the Eq[T] come from? Implicit scope? Imports? Magic?
 def process[T](x: T)(implicit eq: Eq[T]): Unit = ...
@@ -100,7 +100,7 @@ def eqIntList: Eq[List[Int]] = (xs, ys) =>
 
 ```jo
 class List[T]
-  def ==(that: List[T])(auto eqItem: Eq[T] in [[T].==]): Bool =
+  def ==(that: List[T])(auto eqItem: Eq[T] with [[T].==]): Bool =
     // Explicit structural comparison with explicit recursion
     if this.size != that.size then false
     else
@@ -112,7 +112,7 @@ class List[T]
       equal
 end
 
-def process[T](xs: List[T])(auto eq: Eq[List[T]] in [[List[T]].==]): Unit = ...
+def process[T](xs: List[T])(auto eq: Eq[List[T]] with [[List[T]].==]): Unit = ...
 ```
 
 You explicitly write the structural comparison logic. The recursion to element equality is explicit (`auto eqItem`). **This is much clearer** than invisible compiler-generated derivation.
@@ -148,7 +148,7 @@ This is **superior to Haskell's** "orphan instance somewhere in an imported modu
 Everything you need to know about auto resolution is in the function signature:
 
 ```jo
-def sort[T](xs: List[T])(auto eq: Eq[T] in [[T].==], ord: Ord[T] in [[T].compare]): List[T] = ...
+def sort[T](xs: List[T])(auto eq: Eq[T] with [[T].==], ord: Ord[T] with [[T].compare]): List[T] = ...
 
 // Reading this signature tells you:
 // - It needs Eq[T] and Ord[T]
@@ -221,7 +221,7 @@ sort(filenames) having Ord[String] = naturalOrd
 The `having` clause provides a **local search scope** that takes priority over all candidate lists, including for nested auto requirements:
 
 ```jo
-def process[T](xs: List[T])(auto eq: Eq[List[T]] in [[List[T]].==]): Unit = ...
+def process[T](xs: List[T])(auto eq: Eq[List[T]] with [[List[T]].==]): Unit = ...
 
 def customIntEq: Eq[Int] = (a, b) => a % 10 == b % 10
 
@@ -275,16 +275,16 @@ The `having` keyword immediately follows a call expression to explicitly provide
 
 ```jo
 // Value candidates
-def compare(a: T, b: T)(auto eq: Eq[T] in [eqInt, eqString]): Bool = ...
+def compare(a: T, b: T)(auto eq: Eq[T] with [eqInt, eqString]): Bool = ...
 
 // Member candidates
-def areEqual[T](x: T, y: T)(auto eq: Eq[T] in [[T].==]): Bool = ...
+def areEqual[T](x: T, y: T)(auto eq: Eq[T] with [[T].==]): Bool = ...
 
 // Mixed candidates
-def process[T](x: T, y: T)(auto eq: Eq[T] in [eqInt, [T].==]): Bool = ...
+def process[T](x: T, y: T)(auto eq: Eq[T] with [eqInt, [T].==]): Bool = ...
 
 // Multiple auto parameters
-def sort[T](xs: List[T])(auto eq: Eq[T] in [[T].==], ord: Ord[T] in [[T].compare]): List[T] = ...
+def sort[T](xs: List[T])(auto eq: Eq[T] with [[T].==], ord: Ord[T] with [[T].compare]): List[T] = ...
 
 // Explicit provision at call site (by type)
 process(x, y) having Eq[Int] = customEq
@@ -295,7 +295,7 @@ sort(xs) having Eq[String] = customEq, Ord[String] = customOrd
 
 ### Search Algorithm
 
-For call `f(arg) having T1 = v1, T2 = v2` where there's an auto parameter `auto x: T in [c1, c2, ..., cn]`:
+For call `f(arg) having T1 = v1, T2 = v2` where there's an auto parameter `auto x: T with [c1, c2, ..., cn]`:
 
 1. **Check having clause first:** If `having` provides a binding `T = value` where `T` matches the auto parameter's type, use `value` directly
     - The type `T` in the `having` clause is matched against the auto parameter's type
@@ -340,16 +340,16 @@ def eqInt: Eq[Int] = (a, b) => a == b                    // Valid
 def eqIntList: Eq[List[Int]] = ...                       // Valid (monomorphic)
 def showInt: String receives formatter = ...             // Valid (context OK)
 
-def eqList[T](auto eqItem: Eq[T] in [eqInt]): Eq[List[T]] = ...  // Invalid (has type parameter)
+def eqList[T](auto eqItem: Eq[T] with [eqInt]): Eq[List[T]] = ...  // Invalid (has type parameter)
 ```
 
 **Resolution with nesting (using member candidates):**
 ```jo
 // Member candidates can be polymorphic through type instantiation
-def process[T](xs: List[T])(auto eq: Eq[List[T]] in [[List[T]].==]): Unit = ...
+def process[T](xs: List[T])(auto eq: Eq[List[T]] with [[List[T]].==]): Unit = ...
 
 // For List[Int]:
-// [List[Int]].== eta-expands to (a: List[Int], b: List[Int])(auto eqItem: Eq[Int] in [[Int].==]) => a == b
+// [List[Int]].== eta-expands to (a: List[Int], b: List[Int])(auto eqItem: Eq[Int] with [[Int].==]) => a == b
 // Nested auto eqItem: Eq[Int] searches [Int].== ✓
 
 process([1, 2, 3])   // Uses [List[Int]].==, which uses [Int].== for element comparison
@@ -383,7 +383,7 @@ class Int
   def ==(that: Int): Bool = ...
 end
 
-def process[T](x: T, y: T)(auto eq: Eq[T] in [[T].==]): Bool = eq(x, y)
+def process[T](x: T, y: T)(auto eq: Eq[T] with [[T].==]): Bool = eq(x, y)
 
 // For T=Int:
 // [Int].== refers to Int.==
@@ -396,15 +396,15 @@ process(42, 43)  // Uses eta-expanded Int.==
 **Member candidate with auto parameter:**
 ```jo
 class List[T]
-  def ==(that: List[T])(auto eqItem: Eq[T] in [[T].==]): Bool = ...
+  def ==(that: List[T])(auto eqItem: Eq[T] with [[T].==]): Bool = ...
 end
 
-def process[T](xs: List[T], ys: List[T])(auto eq: Eq[List[T]] in [[List[T]].==]): Bool = eq(xs, ys)
+def process[T](xs: List[T], ys: List[T])(auto eq: Eq[List[T]] with [[List[T]].==]): Bool = eq(xs, ys)
 
 // For T=Int:
 // [List[Int]].== refers to List[Int].==
-// Eta-expansion: (receiver: List[Int], that: List[Int])(auto eqItem: Eq[Int] in [[Int].==]) => receiver == that
-// Type: (List[Int], List[Int])(auto Eq[Int] in [[Int].==]) => Bool which is Eq[List[Int]] ✓
+// Eta-expansion: (receiver: List[Int], that: List[Int])(auto eqItem: Eq[Int] with [[Int].==]) => receiver == that
+// Type: (List[Int], List[Int])(auto Eq[Int] with [[Int].==]) => Bool which is Eq[List[Int]] ✓
 // The nested auto searches for Eq[Int], finds [Int].==, eta-expands to Eq[Int] ✓
 
 process([1, 2], [1, 2])  // Uses eta-expanded List[Int].==, which uses eta-expanded Int.==
@@ -427,7 +427,7 @@ Candidates are tried sequentially. First match wins.
 def eqInt: Eq[Int] = ...
 def eqString: Eq[String] = ...
 
-def process[T](x: T)(auto eq: Eq[T] in [eqInt, eqString, [T].==]): Unit = ...
+def process[T](x: T)(auto eq: Eq[T] with [eqInt, eqString, [T].==]): Unit = ...
 
 process(42)      // Tries eqInt ✓ (stops, doesn't try others)
 process("hi")    // Tries eqInt ✗ (Int != String), tries eqString ✓ (stops)
@@ -439,7 +439,7 @@ process(user)    // Tries eqInt ✗, tries eqString ✗, tries [User].== ✓
 Callers can explicitly provide auto arguments using the `having` keyword **by type**:
 
 ```jo
-def process[T](x: T)(auto eq: Eq[T] in [eqInt, eqString]): Unit = ...
+def process[T](x: T)(auto eq: Eq[T] with [eqInt, eqString]): Unit = ...
 
 process(42)                        // Uses eqInt (from candidates)
 process(42) having Eq[Int] = customEq   // Uses customEq (explicit)
@@ -456,7 +456,7 @@ process(42) having Eq[Int] = customEq   // Uses customEq (explicit)
 **Examples:**
 ```jo
 // Multiple auto parameters
-def compare[T](a: T, b: T)(auto eq: Eq[T] in [eqInt], ord: Ord[T] in [ordInt]): Int = ...
+def compare[T](a: T, b: T)(auto eq: Eq[T] with [eqInt], ord: Ord[T] with [ordInt]): Int = ...
 
 compare(1, 2)                                    // Both from candidates
 compare(1, 2) having Eq[Int] = customEq          // Override eq only
@@ -470,7 +470,7 @@ The key advantage of type-based `having` is providing a local search scope for n
 ```jo
 def eqInt: Eq[Int] = (a, b) => a == b
 
-def process[T](xs: List[T])(auto eq: Eq[List[T]] in [[List[T]].==]): Unit = ...
+def process[T](xs: List[T])(auto eq: Eq[List[T]] with [[List[T]].==]): Unit = ...
 
 // Example 1: No having clause
 process([1, 2])
@@ -505,7 +505,7 @@ process([1, 2]) having Eq[List[Int]] = customListEq, Eq[Int] = customIntEq
 When multiple auto parameters have the same type, one `having` binding satisfies all of them:
 
 ```jo
-def compare[T](a: T, b: T)(auto eq1: Eq[T] in [eqInt], eq2: Eq[T] in [eqInt]): Bool = ...
+def compare[T](a: T, b: T)(auto eq1: Eq[T] with [eqInt], eq2: Eq[T] with [eqInt]): Bool = ...
 
 // Both eq1 and eq2 receive customEq
 compare(1, 2) having Eq[Int] = customEq
@@ -528,7 +528,7 @@ def eqInt: Eq[Int] = ...
 def anotherEqInt: Eq[Int] = ...
 
 // Error: anotherEqInt shadowed by eqInt
-def foo[T](auto eq: Eq[T] in [eqInt, anotherEqInt]): Unit = ...
+def foo[T](auto eq: Eq[T] with [eqInt, anotherEqInt]): Unit = ...
 ```
 
 **Valid - Distinct types:**
@@ -536,7 +536,7 @@ def foo[T](auto eq: Eq[T] in [eqInt, anotherEqInt]): Unit = ...
 def eqInt: Eq[Int] = ...
 def eqString: Eq[String] = ...
 
-def foo[T](auto eq: Eq[T] in [eqInt, eqString]): Unit = ...  // OK
+def foo[T](auto eq: Eq[T] with [eqInt, eqString]): Unit = ...  // OK
 ```
 
 **Valid - Specific before general with member candidates:**
@@ -545,7 +545,7 @@ def eqAny[T]: Eq[T] = ...  // Reference equality (not allowed as candidate!)
 
 // Note: eqAny cannot be used as candidate since it has type parameters
 // Use member candidate instead for polymorphic equality:
-def process[T](x: T)(auto eq: Eq[T] in [[T].==]): Unit = ...
+def process[T](x: T)(auto eq: Eq[T] with [[T].==]): Unit = ...
 ```
 
 **Member candidate shadowing member candidate:**
@@ -554,7 +554,7 @@ Member candidates with the same member name are redundant.
 
 ```jo
 // Error: [T].== appears twice
-def foo[T](auto eq: Eq[T] in [[T].==, [T].==]): Unit = ...
+def foo[T](auto eq: Eq[T] with [[T].==, [T].==]): Unit = ...
 ```
 
 **Member candidate shadowing value candidate:**
@@ -565,7 +565,7 @@ A member candidate `[U].member` shadows a later value candidate if the eta-expan
 def eqInt: Eq[Int] = ...
 
 // Error: For T=Int, [T].== eta-expands to (Int, Int) => Bool which is Eq[Int], shadowing eqInt
-def foo[T](x: T)(auto eq: Eq[T] in [[T].==, eqInt]): Unit = ...
+def foo[T](x: T)(auto eq: Eq[T] with [[T].==, eqInt]): Unit = ...
   where Int has def ==(that: Int): Bool
 ```
 
@@ -574,10 +574,10 @@ def foo[T](x: T)(auto eq: Eq[T] in [[T].==, eqInt]): Unit = ...
 **Example - detected at definition site:**
 ```jo
 // Error: [T].== could produce Eq[Int] (when T=Int), shadowing eqInt
-def bar[T](auto eq: Eq[T] in [[T].==, eqInt]): Unit = ...
+def bar[T](auto eq: Eq[T] with [[T].==, eqInt]): Unit = ...
 
 // OK: eqInt comes first, so [T].== doesn't shadow it
-def baz[T](auto eq: Eq[T] in [eqInt, [T].==]): Unit = ...
+def baz[T](auto eq: Eq[T] with [eqInt, [T].==]): Unit = ...
 ```
 
 **Value candidate before member candidate (OK):**
@@ -588,7 +588,7 @@ Value candidates don't shadow member candidates. The value candidate handles a c
 def eqInt: Eq[Int] = ...
 
 // OK: eqInt handles Eq[Int], [T].== handles types with == method
-def foo[T](x: T)(auto eq: Eq[T] in [eqInt, [T].==]): Unit = ...
+def foo[T](x: T)(auto eq: Eq[T] with [eqInt, [T].==]): Unit = ...
 ```
 
 ### Explicit Provision
@@ -601,7 +601,7 @@ When using `having` to provide auto arguments:
 - The type must match at least one auto parameter's type (direct or nested)
 
 ```jo
-def foo[T](auto eq: Eq[T] in [eqInt]): Unit = ...
+def foo[T](auto eq: Eq[T] with [eqInt]): Unit = ...
 
 foo having Eq[Int] = customEq              // OK
 foo having Eq[Int] = 42                    // Error: 42 does not conform to Eq[Int]
@@ -614,7 +614,7 @@ foo having String = "x"                    // Error: No auto parameter needs Str
 The type in the `having` clause must match the auto parameter's type **after type parameter instantiation**.
 
 ```jo
-def process[T](xs: List[T])(auto eq: Eq[List[T]] in [[List[T]].==]): Unit = ...
+def process[T](xs: List[T])(auto eq: Eq[List[T]] with [[List[T]].==]): Unit = ...
 
 process([1, 2]) having Eq[List[Int]] = customEq  // OK: T=Int, so Eq[List[T]] = Eq[List[Int]] ✓
 process([1, 2]) having Eq[Int] = customEq        // OK: [List[Int]].== has nested auto needing Eq[Int]
@@ -629,7 +629,7 @@ Auto parameters provide **per-call-site coherence**, not global coherence:
 **Within a single function call:** All uses of the same auto parameter receive the same resolved value. This ensures consistency within one operation.
 
 ```jo
-def process[T](xs: List[T])(auto eq: Eq[T] in [eqInt]): Unit =
+def process[T](xs: List[T])(auto eq: Eq[T] with [eqInt]): Unit =
   val a = helper1(xs)  // helper1 needs Eq[T], gets eqInt
   val b = helper2(xs)  // helper2 needs Eq[T], gets same eqInt instance
   // Coherent within this call
@@ -656,7 +656,7 @@ process([1, 2]) having Eq[Int] = customEq  // Uses customEq from having
 Auto parameters cannot have parameter adapters.
 
 ```jo
-def foo(auto ctx: Context in [ctx1] with [adapter]): Unit = ...  // Invalid
+def foo(auto ctx: Context with [ctx1] with [adapter]): Unit = ...  // Invalid
 ```
 
 **Rationale:** Auto parameters are for automatic resolution, not argument conversion. Mixing both features would be confusing.
@@ -672,16 +672,16 @@ Auto parameters with type variables and their candidates must follow polymorphis
 
 ```jo
 // Invalid - value candidate cannot have type parameters
-def eqList[T](auto eq: Eq[T] in [eqInt]): Eq[List[T]] = ...  // Has type parameter T
-def foo[T](auto eq: Eq[T] in [eqList]): Unit = ...             // Error: eqList is polymorphic
+def eqList[T](auto eq: Eq[T] with [eqInt]): Eq[List[T]] = ...  // Has type parameter T
+def foo[T](auto eq: Eq[T] with [eqList]): Unit = ...             // Error: eqList is polymorphic
 
 // Valid - use member candidate instead for polymorphic behavior
-def bar[T](auto eq: Eq[T] in [[T].==]): Unit = ...  // Member candidate works with type parameters
+def bar[T](auto eq: Eq[T] with [[T].==]): Unit = ...  // Member candidate works with type parameters
 
 // Valid - multiple monomorphic candidates for specific types
 def eqIntList: Eq[List[Int]] = ...     // Monomorphic, specific to List[Int]
 def eqStringList: Eq[List[String]] = ...  // Monomorphic, specific to List[String]
-def baz(xs: List[Int])(auto eq: Eq[List[Int]] in [eqIntList]): Unit = ...  // OK
+def baz(xs: List[Int])(auto eq: Eq[List[Int]] with [eqIntList]): Unit = ...  // OK
 ```
 
 ### Position
@@ -690,13 +690,13 @@ Auto parameters must appear in their own parameter list, after regular parameter
 
 ```jo
 // Valid
-def foo(x: Int)(auto eq: Eq[T] in [eqInt]): Unit = ...
+def foo(x: Int)(auto eq: Eq[T] with [eqInt]): Unit = ...
 
 // Valid - multiple auto parameters in same list
-def foo(x: Int)(auto eq: Eq[T] in [eqInt], ord: Ord[T] in [ordInt]): Unit = ...
+def foo(x: Int)(auto eq: Eq[T] with [eqInt], ord: Ord[T] with [ordInt]): Unit = ...
 
 // Invalid - mixed with regular parameters
-def foo(x: Int, auto eq: Eq[T] in [eqInt]): Unit = ...
+def foo(x: Int, auto eq: Eq[T] with [eqInt]): Unit = ...
 ```
 
 **Rationale:** Clear separation between explicit arguments and auto arguments improves readability.
@@ -713,7 +713,7 @@ def eqString: Eq[String] = (a, b) => a == b
 
 // For composite types, use member candidates
 class List[T]
-  def ==(that: List[T])(auto eqItem: Eq[T] in [[T].==]): Bool =
+  def ==(that: List[T])(auto eqItem: Eq[T] with [[T].==]): Bool =
     if this.size != that.size then false
     else
       var equal = true
@@ -725,7 +725,7 @@ class List[T]
 end
 
 // Set implementation using auto parameter with member candidate
-def Set[T](l: ..T)(auto eq: Eq[T] in [eqInt, eqString, [T].==]): Set[T] = {
+def Set[T](l: ..T)(auto eq: Eq[T] with [eqInt, eqString, [T].==]): Set[T] = {
   def contains(x: T): Bool = l.exists(e => eq(e, x))
   def +(x: T): Set[T] = if contains(x) then this else Set(..(l + x))
   // ...
@@ -752,11 +752,11 @@ class String
 end
 
 class List[T]
-  def ==(that: List[T])(auto eqItem: Eq[T] in [[T].==]): Bool = ...
+  def ==(that: List[T])(auto eqItem: Eq[T] with [[T].==]): Bool = ...
 end
 
 // Generic function using member candidates
-def areEqual[T](x: T, y: T)(auto eq: Eq[T] in [[T].==]): Bool =
+def areEqual[T](x: T, y: T)(auto eq: Eq[T] with [[T].==]): Bool =
   eq(x, y)
 
 // Works for any type with == method
@@ -773,7 +773,7 @@ type Eq[T] = (T, T) => Bool
 // Custom equality for special cases, fallback to member
 def eqIntMod10: Eq[Int] = (a, b) => (a % 10) == (b % 10)
 
-def compare[T](x: T, y: T)(auto eq: Eq[T] in [eqIntMod10, [T].==]): Bool =
+def compare[T](x: T, y: T)(auto eq: Eq[T] with [eqIntMod10, [T].==]): Bool =
   eq(x, y)
 
 compare(15, 25)         // Uses eqIntMod10 → true (both end in 5)
@@ -786,7 +786,7 @@ compare("a", "a")       // eqIntMod10 doesn't match String, uses eta-expanded St
 def eqInt: Eq[Int] = (a, b) => a == b
 def eqIntAbsEqual: Eq[Int] = (a, b) => abs(a) == abs(b)
 
-def process(x: Int, y: Int)(auto eq: Eq[Int] in [eqInt]): Bool =
+def process(x: Int, y: Int)(auto eq: Eq[Int] with [eqInt]): Bool =
   eq(x, y)
 
 process(1, 1)                                  // Uses eqInt → true
@@ -803,7 +803,7 @@ def eqFloat: Eq[Float] receives precision = (a, b) =>
   val threshold = pow(10.0, -precision)
   abs(a - b) < threshold
 
-def compare(x: Float, y: Float)(auto eq: Eq[Float] in [eqFloat]): Bool =
+def compare(x: Float, y: Float)(auto eq: Eq[Float] with [eqFloat]): Bool =
   eq(x, y)
 
 compare(1.001, 1.002)                                // Uses eqFloat with precision=2 → true
@@ -865,7 +865,7 @@ class Int
 end
 
 // Generic function uses member candidate
-def areEqual[T](x: T, y: T)(auto eq: Eq[T] in [[T].==]): Bool = eq(x, y)
+def areEqual[T](x: T, y: T)(auto eq: Eq[T] with [[T].==]): Bool = eq(x, y)
 
 // Eta-expansion: Int.== → (a: Int, b: Int) => a == b → Eq[Int]
 areEqual(1, 2)  // Works automatically
@@ -883,7 +883,7 @@ The `having` clause provides a **local search scope** that takes priority over a
 def eqInt: Eq[Int] = (a, b) => a == b
 
 // Use member candidate [List[T]].== which has nested auto parameter
-def process[T](xs: List[T])(auto eq: Eq[List[T]] in [[List[T]].==]): Unit = ...
+def process[T](xs: List[T])(auto eq: Eq[List[T]] with [[List[T]].==]): Unit = ...
 
 def customIntEq: Eq[Int] = (a, b) => a % 10 == b % 10
 
@@ -916,7 +916,7 @@ process(x, y) having Eq[Int] = customEq
 When multiple auto parameters have the same type, one binding satisfies all:
 
 ```jo
-def foo[T](x: List[T])(auto eq1: Eq[T] in [...], eq2: Eq[T] in [...]): Unit = ...
+def foo[T](x: List[T])(auto eq1: Eq[T] with [...], eq2: Eq[T] with [...]): Unit = ...
 foo(x) having Eq[Int] = sharedEq  // Both eq1 and eq2 use sharedEq
 ```
 
@@ -935,7 +935,7 @@ There is **no global or implicit search scope** - everything is either locally p
 
 Auto parameters are fully type-safe:
 
-1. **Candidates are type-checked at definition site:** Each candidate in `in [...]` must type-check and conform to the auto parameter's type.
+1. **Candidates are type-checked at definition site:** Each candidate in `with [...]` must type-check and conform to the auto parameter's type.
 
 2. **Resolution preserves types:** The search algorithm only selects candidates whose type matches the required type (via conformance/subtyping).
 

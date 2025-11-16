@@ -24,12 +24,12 @@ class Score
 
 // Generic function that extracts a value from any type T with a .value member
 // The member candidate [T].value is eta-expanded to: (x: T) => x.value
-def extractValue[T](x: T)(auto getter: Getter[T] in [[T].value]): Int =
+def extractValue[T](x: T)(auto getter: Getter[T] with [[T].value]): Int =
   getter(x)
 
 // Generic function that compares any type T with a .compare method
 // The member candidate [T].compare is eta-expanded to: (x: T, n: Int) => x.compare(n)
-def checkThreshold[T](x: T, threshold: Int)(auto cmp: Comparator[T] in [[T].compare]): Int =
+def checkThreshold[T](x: T, threshold: Int)(auto cmp: Comparator[T] with [[T].compare]): Int =
   cmp(x, threshold)
 
 def main: Unit =

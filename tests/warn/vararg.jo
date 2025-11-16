@@ -2,7 +2,7 @@ def ok(a: ..Int) = a
 
 def test1(a: ..Int, b: Int) = b
 
-def test2(l: List[..Int]) = ???
+def test2(l: List[..Int]) = ...
 
 pattern Pat(a: ..Int): List[Int] =
   case a
@@ -11,7 +11,7 @@ type A = #Res(x: ..Int)
 
 // type B = Predef...[Int]  // check prefix selection
 
-def mix(x: Int, l: List[Int]): Unit = ???
+def mix(x: Int, l: List[Int]): Unit = ...
 
 def main =
   val l: ..Int = List.empty

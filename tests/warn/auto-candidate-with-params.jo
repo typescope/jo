@@ -12,7 +12,7 @@ def makeEq(strict: Bool): Eq[Int] =
     (a, b) => true
 
 // Error: makeEq has regular parameters
-def testEq(x: Int, y: Int)(auto eq: Eq[Int] in [makeEq]): Bool =
+def testEq(x: Int, y: Int)(auto eq: Eq[Int] with [makeEq]): Bool =
   eq(x, y)
 
 def main: Unit = {}

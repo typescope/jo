@@ -104,7 +104,7 @@ def println(s: String with [byteToStr, boolToStr, charToStr, intToStr, .toString
   print s
   print '\n'
 
-def ??? : Bottom = abort("not implemented")
+def ... : Bottom = abort("not implemented")
 
 defer def abort(s: String): Bottom
 

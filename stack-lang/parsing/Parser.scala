@@ -566,7 +566,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val tpt = typ()
 
     val candidates =
-      if peek() == Token.Ident("in") then
+      if peek() == Token.WITH then
         next()
         candidateList()
       else

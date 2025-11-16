@@ -6,7 +6,7 @@ import jo.Eq
 def empty[T](auto eq: Eq[T]): Set[T] = new Set([], eq)
 
 def Set[T](elems: ..T)
-    (auto eq: Eq[T] in [Eq.intEq, Eq.stringEq])
+    (auto eq: Eq[T] with [Eq.intEq, Eq.stringEq])
 : Set[T] =
   new Set(elems, eq)
 

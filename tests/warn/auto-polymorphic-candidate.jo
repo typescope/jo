@@ -5,7 +5,7 @@ type Eq[T] = (T, T) => Bool
 def eqInt: Eq[Int] = (a, b) => a == b
 
 // This has a type parameter T - not allowed as value candidate
-def eqGeneric[T](auto eq: Eq[T] in [eqInt]): Eq[List[T]] =
+def eqGeneric[T](auto eq: Eq[T] with [eqInt]): Eq[List[T]] =
   (xs, ys) =>
     if xs.size != ys.size then false
     else
@@ -17,7 +17,7 @@ def eqGeneric[T](auto eq: Eq[T] in [eqInt]): Eq[List[T]] =
       equal
 
 // Error: eqGeneric has type parameters
-def testEq[T](x: T, y: T)(auto eq: Eq[T] in [eqInt, eqGeneric]): Bool =
+def testEq[T](x: T, y: T)(auto eq: Eq[T] with [eqInt, eqGeneric]): Bool =
   eq(x, y)
 
 def main: Unit = {}

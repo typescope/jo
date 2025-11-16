@@ -1,4 +1,4 @@
-auto def eqInt: Eq[Int] = ???
+auto def eqInt: Eq[Int] = ...
 
 def foo[T](auto a: Eq[T]): Int = 3
 
