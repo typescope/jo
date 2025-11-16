@@ -1884,6 +1884,10 @@ class Namer(using Config):
         defScope.define(autoSym)
         autoSym
 
+    val candidates =
+      ddef.autos.zip(autoSyms).map: (auto, autoSym) =>
+        Autos.check(auto.candidates, autoSym.info, this)
+
     val resultType =
       assert(!ddef.resultType.isEmpty)
       val resTypeTree = transformType(ddef.resultType)
@@ -1901,8 +1905,17 @@ class Namer(using Config):
     })
 
     val finalType =
-      ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), adapterSymbols, autoSyms.map(_.toNamedInfo), Nil, resultType, () => effs, 0)
-
+      val candidateSymbols = candidates.map(_._2)
+      ProcType(
+        tparamSyms,
+        paramSyms.map(_.toNamedInfo),
+        adapterSymbols,
+        autoSyms.map(_.toNamedInfo),
+        candidateSymbols,
+        resultType,
+        () => effs,
+        0
+      )
 
     TypeTree(finalType)(ddef.span)
 
