@@ -56,7 +56,7 @@ class Namer(using Config):
       val memberTable = ip.info(nsSym).as[ContainerInfo].nameTable
 
       // Default imports should be treated as just before normal imports
-      val importScope: Scope = worldScope.fresh()
+      val importScope: Scope = worldScope.fresh(nsSym)
       val defsScope: Scope = importScope.fresh(nsSym, memberTable)
 
       val delayedDefs =

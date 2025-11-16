@@ -20,7 +20,7 @@ object Symbols:
     * The information of a symbol is provided by info providers.
     */
   case class SymInfo(symbol: Symbol, owner: Symbol, tpe: Type):
-    assert(owner != null || symbol.flags.is(Flags.NSpace))
+    assert(owner != null || symbol.flags.is(Flags.NSpace), "symbol = " + symbol)
 
   sealed class Symbol private[Symbols](val name: String, val flags: Flags, val sourcePos: SourcePosition):
     /** TODO: Cache could be introduced to improve performance based on timestamps */
