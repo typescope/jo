@@ -1015,7 +1015,6 @@ class Namer(using Config):
             typedExpr
           else
             // Try adapations
-            given reporter: Reporter = rp.fresh(buffer = true)
             val adapter = Adaptation.createSimpleAdapter(defn.stringInterpolationAdapters)
 
             try
