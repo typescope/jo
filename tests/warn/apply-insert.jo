@@ -11,10 +11,6 @@ def main =
   foo()
   bar()
 
-  match List.apply(4)
-   case #Cons(a, _) => println a
-   case _ =>
-
-  match List 5
+  match List(4)
    case #Cons(a, _) => println a
    case _ =>
