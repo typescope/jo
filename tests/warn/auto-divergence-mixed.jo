@@ -1,0 +1,38 @@
+// Error: Divergence through 3-node cycle with mixed value and member candidates
+// Cycle: eqItem -> eqBox -> [Container].compare -> eqItem
+
+type Eq[T] = (T, T) => Bool
+
+class Item
+  val value: Int
+  def Item(n: Int) = { value: n }
+
+class Container
+  val item: Item
+  def Container(i: Item) = { item: i }
+
+  // Member candidate that needs Eq[Item]
+  def compare(that: Container)(auto eq: Eq[Item] with [eqItem]): Bool =
+    eq(this.item, that.item)
+
+class Box
+  val inner: Container
+  def Box(c: Container) = { inner: c }
+
+// Value candidate that needs Eq[Box]
+def eqBox(auto eq: Eq[Box] with [[Container].compare]): Eq[Box] =
+  (a, b) => a.inner.compare(b.inner)
+
+// Value candidate that needs Eq[Box]
+// This creates the cycle: eqItem -> eqBox -> [Container].compare -> eqItem
+def eqItem(auto eq: Eq[Box] with [eqBox]): Eq[Item] =
+  (a, b) => a.value == b.value
+
+def testEq[T](x: T, y: T)(auto eq: Eq[T] with [eqItem]): Bool =
+  eq(x, y)
+
+def main: Unit =
+  val i1 = new Item(42)
+  val i2 = new Item(100)
+  val result = testEq[Item](i1, i2)  // Error: divergence via 3-node cycle
+  assert(!result, "items should not be equal")
