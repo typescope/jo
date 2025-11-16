@@ -652,7 +652,7 @@ class Namer(using Config):
           else
             transformHavingCall(fun, argsTyped, apply.havingBindings, apply.span)
 
-         Rewriting.rewrite(call).adapt
+        Rewriting.rewrite(call).adapt
 
     else
       if !fun.tpe.isError then
@@ -806,8 +806,8 @@ class Namer(using Config):
           transformArgs(postArgs, procType.postParamTypes, procType.adapters.drop(procType.preParamCount))
 
 
-      val call = Autos.resolve(fun, preArgs2 ++ postArgs2, havings = Nil, call.span)
-      Rewriting.rewrite(call).adapt
+      val callTyped = Autos.resolve(fun, preArgs2 ++ postArgs2, havings = Nil, call.span)
+      Rewriting.rewrite(callTyped).adapt
 
   /** Assumes that the argument count requirement is satisfied */
   def transformArgs
