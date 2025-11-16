@@ -55,11 +55,8 @@ class Namer(using Config):
       val nsSym = resolveNamespace(ns.qualid, rootNameTable, isBranch = false)
       val memberTable = ip.info(nsSym).as[ContainerInfo].nameTable
 
-      val topScope = worldScope.fresh(nsSym)
-      // Make current namespace name available
-      topScope.define(nsSym)
-
-      val importScope: Scope = topScope.fresh()
+      // Default imports should be treated as just before normal imports
+      val importScope: Scope = worldScope.fresh()
       val defsScope: Scope = importScope.fresh(nsSym, memberTable)
 
       val delayedDefs =
