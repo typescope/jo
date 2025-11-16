@@ -75,6 +75,7 @@ object Adapters:
       val StaticRef(sym) = adapterRef.tpe: @unchecked
 
       if !sym.is(Flags.Fun) then
+        Reporter.error("A reference to function expected, found = " + adapterRef.tpe.show, ref.pos)
         None
       else
         Some(ParamAdapter.Function(sym)(ref.span))
@@ -108,7 +109,7 @@ object Adapters:
         else
           // Check: no shadowed adapters - adapter parameter type must not conform to any earlier adapter's parameter type
           val adapterParamType = procType.params.head.info
-          val shadowing = valid.find:
+          val shadowing = valid.find {
             case ParamAdapter.Member(memberName) =>
               // Earlier adapter is a member adapter
               // Check if this function adapter is shadowed: does the function's argument type have the member?
@@ -126,12 +127,15 @@ object Adapters:
                 case None =>
                   // The type doesn't have the member - not shadowed
                   false
+              end match
 
             case ParamAdapter.Function(earlierSym) =>
+              println(earlierSym.toString + " shaows " + sym)
               // Earlier adapter is a function adapter
               val earlierProcType = earlierSym.info.asProcType
               val earlierParamType = earlierProcType.params.head.info
               Subtyping.conforms(adapterParamType, earlierParamType)
+          }
 
           shadowing match
             case Some(earlierAdapter) =>
@@ -143,6 +147,7 @@ object Adapters:
                   Reporter.error(s"Adapter is shadowed by earlier member adapter .$memberName", adapter.pos)
 
             case None =>
+              valid += adapter
 
       case adapter @ ParamAdapter.Member(name) =>
         // Check: no shadowed member adapters

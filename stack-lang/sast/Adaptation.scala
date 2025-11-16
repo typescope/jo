@@ -139,8 +139,14 @@ object Adaptation:
           val procType = adapterSym.info.asProcType
           val adapterParamType = procType.params.head.info
 
+          val isValid =
+            !procType.isPolyType
+            && procType.paramCount == 1
+            && procType.autos.isEmpty
+            && Subtyping.conforms(procType.resultType, targetType)
+
           // Check if the word's type conforms to the adapter's parameter type
-          if procType.paramCount == 1 && Subtyping.conforms(word.tpe, adapterParamType) then
+          if isValid && Subtyping.conforms(word.tpe, adapterParamType) then
             val adapterIdent = Ident(adapterSym)(word.span)
             val adapted = adapterIdent.appliedTo(word)
 
@@ -198,8 +204,14 @@ object Adaptation:
           val procType = adapterSym.info.asProcType
           val adapterParamType = procType.params.head.info
 
+          val isValid =
+            !procType.isPolyType
+            && procType.paramCount == 1
+            && procType.autos.isEmpty
+            && Subtyping.conforms(procType.resultType, targetElemType)
+
           // Check if the word's type conforms to the adapter's parameter type
-          if procType.paramCount == 1 && Subtyping.conforms(elemType, adapterParamType) then
+          if isValid && Subtyping.conforms(elemType, adapterParamType) then
             val adapterFun = TreeOps.etaExpand(adapterSym, owner, Effects.Policy.Infer, word.span)
             val adapted = word.select("map").appliedToTypes(targetElemType).appliedTo(adapterFun)
 

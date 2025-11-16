@@ -1,3 +1,4 @@
+intToStr shaows anotherIntToStr
 ---------- Error at ./tests/warn/adapter-shadowed.jo:8:37 ---------------
 | def test1(s: String with [intToStr, anotherIntToStr]): Unit =
 |                                     ^^^^^^^^^^^^^^^
