@@ -1,6 +1,6 @@
 ---------- Error at ./tests/warn/adapter-auto-param.jo:5:30 ---------------
 | def foo(auto s: String with [intToStr]): Unit =
 |                              ^^^^^^^^
-|                              An auto parameter cannot have adapters
+|                              Auto candidate must have no regular parameters, found 1 parameters
 
 1 error(s), 0 warning(s)
