@@ -94,7 +94,7 @@ object Autos:
     for auto <- procType.autos do
       if !auto.info.isFullyInstantiated then
         fullyInstantiated = false
-        Reporter.error("The auto type is not fully instantiated: " + auto.info.show, span.toPos)
+        Reporter.error("The auto type is not fully instantiated: " + auto.info.show, span.endPoint.toPos)
 
     for
       cands <- procType.candidates
