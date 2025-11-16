@@ -684,7 +684,7 @@ class Namer(using Config):
           val havingSym = Symbol.createSymbol(
             "havingCand",
             value.tpe,
-            Flags.Synthetic,
+            Flags.empty,
             sc.owner,
             binding.span.toPos
           )
