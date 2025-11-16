@@ -1,0 +1,21 @@
+param fontSize: Int
+
+type H2Element    = #H2(text: String)
+type LabelElement = #Label(text: String)
+type PElement     = #P(text: String)
+type DivElement   = #Div(elems: List[Element])
+
+type Element = H2Element | LabelElement | PElement | DivElement
+
+def main =
+  val div: DivElement = #Div
+    List.empty + (#H2 "Test render") + (#Label "a dummy html rendering engine") // error: eager instantiation
+
+  val div2: DivElement = #Div
+    List.empty + (#H2 "Test render")  // contextual instantiation
+
+  val div3: DivElement = #Div
+    List
+      #H2 "Test render"
+      #Label "a dummy html rendering engine"
+      #P "Hello, HTML!"

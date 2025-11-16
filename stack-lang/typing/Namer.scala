@@ -557,7 +557,7 @@ class Namer(using Config):
           val instanceType = AppliedType(classRef, tvars)
 
           // Conditionally apply context instantiation
-          Inference.conditionalInstantiate(instanceType, tt, isPolyFun = true)
+          Inference.conditionalInstantiate(instanceType, tt)
 
           instanceType
 
@@ -612,8 +612,6 @@ class Namer(using Config):
     val funType = fun.tpe
 
     if funType.isProcType then
-      val originalProcType = funType.asProcType
-
       if funType.isPolyType then
         fun = TreeOps.instantiatePoly(funType.asProcType, fun)
 
@@ -621,7 +619,7 @@ class Namer(using Config):
       val paramSize = procType.paramTypes.size
 
       // Conditionally apply context instantiation
-      Inference.conditionalInstantiate(procType.resultType, tt, originalProcType.isPolyType)
+      Inference.conditionalInstantiate(procType.resultType, tt)
 
       val preArgTypes = procType.preParamTypes
       if preArgTypes.size != 0 then
@@ -732,7 +730,7 @@ class Namer(using Config):
             val paramSize = procType.paramTypes.size
 
             // Conditionally apply context instantiation
-            Inference.conditionalInstantiate(procType.resultType, tt, originalProcType.isPolyType)
+            Inference.conditionalInstantiate(procType.resultType, tt)
 
             if paramSize != 1 then
               Reporter.error(
@@ -768,8 +766,6 @@ class Namer(using Config):
       given TargetType = TargetType.Call
       transform(funAst)
 
-    val originalProcType = fun.tpe.asProcType
-
     if fun.tpe.isPolyType then
       fun = TreeOps.instantiatePoly(fun.tpe.asProcType, fun)
 
@@ -780,7 +776,7 @@ class Namer(using Config):
     val postParamCount = procType.postParamCount
 
     // Conditionally apply context instantiation
-    Inference.conditionalInstantiate(procType.resultType, tt, originalProcType.isPolyType)
+    Inference.conditionalInstantiate(procType.resultType, tt)
 
     assert(!procType.hasVararg, "Infix call cannot have varargs")
 

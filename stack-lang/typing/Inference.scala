@@ -40,27 +40,20 @@ object Inference:
     * This method only applies context instantiation when:
     *
     * - There's no adapter function at the call site
-    * - The original function type was polymorphic (has type parameters to infer)
-    *
-    * For monomorphic functions, context instantiation serves no purpose (no type
-    * parameters to infer), so we skip it to allow parameter adaptation to work.
-    * Even though the monomorphic function might contain uninitialized type
-    * parameters, it is safe to prefer inner constraints.
     *
     * @param resultType The type to constrain
     * @param targetType The target/expected type context
     */
-  def conditionalInstantiate(resultType: Type, targetType: TargetType, isPolyFun: Boolean)(using Definitions): Unit =
-    if isPolyFun then
-      targetType match
-        case TargetType.Known(expectedType, NoAdapter) =>
-          assert(expectedType.isFullyInstantiated, "not fully instantiated: " + expectedType.show)
-          // No adapter at call site and function is polymorphic
-          // Safe to apply context instantiation to help infer type parameters
-          Subtyping.conforms(resultType, expectedType)
+  def conditionalInstantiate(resultType: Type, targetType: TargetType)(using Definitions): Unit =
+    targetType match
+      case TargetType.Known(expectedType, NoAdapter) =>
+        assert(expectedType.isFullyInstantiated, "not fully instantiated: " + expectedType.show)
+        // No adapter at call site and function is polymorphic
+        // Safe to apply context instantiation to help infer type parameters
+        Subtyping.conforms(resultType, expectedType)
 
-        case _ =>
-          // No known target type, nothing to do
+      case _ =>
+        // No known target type, nothing to do
 
   /** The common result type of two different types.
     *
