@@ -648,9 +648,9 @@ class Namer(using Config):
         // Transform having bindings into local variables
         val call =
           if apply.havingBindings.isEmpty then
-            Autos.resolve(fun, argsTyped, havings = Nil, apply.span.endPoint)
+            Autos.resolve(fun, argsTyped, havings = Nil, apply.span)
           else
-            transformHavingCall(fun, argsTyped, apply.havingBindings, apply.span.endPoint)
+            transformHavingCall(fun, argsTyped, apply.havingBindings, apply.span)
 
         Rewriting.rewrite(call).adapt
 
@@ -806,7 +806,7 @@ class Namer(using Config):
           transformArgs(postArgs, procType.postParamTypes, procType.adapters.drop(procType.preParamCount))
 
 
-      val callTyped = Autos.resolve(fun, preArgs2 ++ postArgs2, havings = Nil, call.span.endPoint)
+      val callTyped = Autos.resolve(fun, preArgs2 ++ postArgs2, havings = Nil, call.span)
       Rewriting.rewrite(callTyped).adapt
 
   /** Assumes that the argument count requirement is satisfied */

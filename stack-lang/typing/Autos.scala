@@ -110,7 +110,7 @@ object Autos:
 
     if !fullyInstantiated then return errorWord(span)
 
-    AutoResolution.resolve(procType, havings, Vector.empty, sc.owner, span) match
+    AutoResolution.resolve(procType, havings, Vector.empty, sc.owner, span.endPoint) match
       case AutoResolution.Result.Success(autos) =>
         Apply(fun, args, autos)(span)
 
