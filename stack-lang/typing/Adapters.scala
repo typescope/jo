@@ -130,7 +130,6 @@ object Adapters:
               end match
 
             case ParamAdapter.Function(earlierSym) =>
-              println(earlierSym.toString + " shaows " + sym)
               // Earlier adapter is a function adapter
               val earlierProcType = earlierSym.info.asProcType
               val earlierParamType = earlierProcType.params.head.info
