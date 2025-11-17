@@ -185,7 +185,7 @@ def printTree(tree: Tree[Int], prefix: String, isLast: Bool): Unit =
     case Empty =>
     case Node(value, left, right, h) =>
       val connector = if isLast then "└── " else "├── "
-      println (prefix + connector + (intToStr value) + " (h=" + (intToStr h) + ")")
+      println (prefix + connector + value + " (h=" + h + ")")
 
       val newPrefix = prefix + (if isLast then "    " else "│   ")
       match #Pair(left, right)
@@ -210,15 +210,15 @@ def main =
   while i < 10 do
     val value = values[i]
     tree = insert(tree, value, compareFun)
-    println ("Inserted: " + (intToStr value))
+    println ("Inserted: " + value)
     i = i + 1
   end
 
   println "\nFinal tree structure:"
   printTree(tree, "", true)
 
-  println ("\nTree height: " + (intToStr (height tree)))
-  println ("Tree size: " + (intToStr (size tree)))
+  println ("\nTree height: " + (height tree))
+  println ("Tree size: " + (size tree))
   println ("Is balanced: " + (if isBalanced(tree) then "true" else "false"))
 
   // Test search

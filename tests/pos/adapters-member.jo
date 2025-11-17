@@ -17,7 +17,7 @@ def test2(n: Int with [.age]): Unit =
 type Employee = { val name: String, val id: Int }
 
 def formatId(x: Int): String =
-  "ID:" + intToStr(x)
+  "ID:" + x
 
 def test3(s: String with [formatId, .name]): Unit =
   print(s)

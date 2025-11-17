@@ -26,7 +26,7 @@ section List
     case Append(prefix, _) then n = prefix.size + 1
     case Concat(lhs, rhs) then n = lhs.size + rhs.size
 
-  def errorIndex(i: Int): Bottom = abort ("invalid index for list " + (intToStr i))
+  def errorIndex(i: Int): Bottom = abort ("invalid index for list " + i)
 
   def makeObject[T](repr: Repr[T]): List[T] = {
     val _size: Int = match repr case Size(n) => n

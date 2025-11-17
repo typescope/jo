@@ -52,21 +52,21 @@ def test2(a: List[Int]): Unit =
   match a
     case (#Cons x #Nil) | (#Cons x #Cons) =>
       println
-        "binding in or patterns: " + (intToStr x)
+        "binding in or patterns: " + x
 
     case #Nil =>
 
   match a
     case (x :: Nil) | (x :: #Cons) =>
       println
-        "Infix pattern predicate: " + (intToStr x)
+        "Infix pattern predicate: " + x
 
     case #Nil =>
 
   match a
     case |(#Cons x #Nil, #Cons x #Cons) =>
       println
-        "apply or patterns: " + (intToStr x)
+        "apply or patterns: " + x
 
     case #Nil =>
 

@@ -9,10 +9,10 @@ def line(text: String): Unit =
   println text
 
   println
-    "indent = " + (intToStr indent)
+    "indent = " + indent
 
   println
-    "pageWidth = " + (intToStr pageWidth)
+    "pageWidth = " + pageWidth
 
 type Printer = {
   def apply(text: String): Unit receives indent
