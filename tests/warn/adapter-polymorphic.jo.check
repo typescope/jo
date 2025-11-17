@@ -3,6 +3,9 @@
 |       ^^
 |       Expect type String, found = Int
 
+Tried the following adapters:
+  - genericAdapter: parameter type mismatch
+
 ---------- Error at ./tests/warn/adapter-polymorphic.jo:5:25 ---------------
 | def foo(s: String with [genericAdapter]): Unit =
 |                         ^^^^^^^^^^^^^^

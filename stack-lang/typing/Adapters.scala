@@ -93,11 +93,11 @@ object Adapters:
 
         // Check: must have exactly one parameter
         if procType.params.size != 1 then
-          Reporter.error(s"Adapter must take exactly one parameter, found ${procType.params.size} parameters", adapter.pos)
+          Reporter.error(s"Function adapter must take exactly one parameter, found ${procType.params.size} parameters", adapter.pos)
 
         // Check: must have no auto parameters
         else if procType.autos.nonEmpty then
-          Reporter.error("Adapter cannot have auto parameters", adapter.pos)
+          Reporter.error("Function adapter cannot have auto parameters", adapter.pos)
 
         // Check: must have no type parameters
         else if procType.tparams.nonEmpty then
