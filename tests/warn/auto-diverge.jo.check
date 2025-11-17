@@ -2,10 +2,24 @@
 |   foo
 |   ^^^
 |   Failed to find auto of the type A
+? A
+  → diverge
+      ? A
+        → diverge ✗ cycle
+
 
 ---------- Error at ./tests/warn/auto-diverge.jo:18:3 ---------------
 |   bar
 |   ^^^
 |   Failed to find auto of the type B
+? B
+  → bla
+      ? C
+        → fly
+            ? A
+              → bar
+                  ? B
+                    → bla ✗ cycle
+
 
 2 error(s), 0 warning(s)

@@ -2,5 +2,12 @@
 |   val r = testEq(1, 2)
 |           ^^^^^^^^^^^^
 |           Failed to find auto of the type Eq[Int]
+? Eq[Int]
+  → eqA
+      ? Eq[Int]
+        → eqB
+            ? Eq[Int]
+              → eqA ✗ cycle
+
 
 1 error(s), 0 warning(s)

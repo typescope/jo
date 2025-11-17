@@ -2,5 +2,9 @@
 |   val r = testEq(user1, user2)
 |           ^^^^^^^^^^^^^^^^^^^^
 |           Failed to find auto of the type Eq[#User(name: String)]
+? Eq[#User(name: String)]
+  → eqInt ✗ type mismatch: found Eq[Int], expected Eq[#User(name: String)]
+  → eqString ✗ type mismatch: found Eq[String], expected Eq[#User(name: String)]
+
 
 1 error(s), 0 warning(s)
