@@ -251,7 +251,7 @@ object Types:
       * Otherwise, return approx type of the current type.
       */
     def effectiveResultType(using Definitions): Type =
-      this.approx match
+      this match
         case procType: ProcType if procType.tparams.isEmpty && procType.params.isEmpty =>
           procType.resultType
 
