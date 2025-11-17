@@ -146,7 +146,7 @@ defer def charToInt(c: Char): Int
 type String <: {
   def size: Int
   def get(i: Int): Char
-  def +(other: String): String
+  def +(other: String with [boolToStr, byteToStr, charToStr, intToStr]): String
   def ==(other: String): Bool
   def substring(from: Int, len: Int): String
 }

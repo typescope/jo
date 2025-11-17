@@ -182,9 +182,9 @@ section Impl
 
   //[ Build LIMIT and OFFSET clause //]
   def buildLimitOffsetClause(limit: Int, offset: Int): String =
-    var clause = " LIMIT " + intToStr(limit)
+    var clause = " LIMIT " + limit
     if offset > 0 then
-      clause = clause + " OFFSET " + intToStr(offset)
+      clause = clause + " OFFSET " + offset
     clause
 
   //[ Execute SQL query with parameters and return results //]
@@ -390,7 +390,7 @@ def platformMain: Unit receives stdout =
     println "Example: node out/app.js 1 database.db"
     abort "Missing database path argument"
 
-  println ("🔒 Running as User ID: " + (intToStr userId))
+  println ("🔒 Running as User ID: " + userId)
   println ""
 
   // Open SQLite database using node:sqlite (Node.js v22.5.0+)

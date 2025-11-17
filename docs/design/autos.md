@@ -513,141 +513,155 @@ compare(1, 2) having Eq[Int] = customEq
 
 **Design note:** This is a deliberate choice—`having` provides values **by type**, not by parameter name. If you need different instances for different purposes, use distinct types (e.g., `StrictEq[T]` vs `FuzzyEq[T]`). This maintains the type-directed nature of auto resolution and prevents having clauses from becoming overly verbose.
 
-## Validation Rules
+## Error Reporting with Search Trees
 
-### Shadowed Candidates
+When auto resolution fails, the compiler displays a **search tree** showing the entire resolution attempt. This makes debugging auto resolution failures straightforward and transparent.
 
-Later candidates must not be shadowed by earlier candidates.
+### Search Tree Format
 
-**Value candidate shadowing value candidate:**
+The search tree uses a concise visual format:
 
-For value candidates `[..., ci, ..., cj, ...]` where `j > i`, the type of `cj` must not be a subtype of the type of `ci` when both are applicable.
+- **`?`** - Searching for an auto parameter of this type
+- **`→`** - Trying a candidate
+- **`✓`** - Candidate succeeded (but other autos failed)
+- **`✗`** - Candidate failed (with reason)
 
-```jo
-def eqInt: Eq[Int] = ...
-def anotherEqInt: Eq[Int] = ...
-
-// Error: anotherEqInt shadowed by eqInt
-def foo[T](auto eq: Eq[T] with [eqInt, anotherEqInt]): Unit = ...
-```
-
-**Valid - Distinct types:**
-```jo
-def eqInt: Eq[Int] = ...
-def eqString: Eq[String] = ...
-
-def foo[T](auto eq: Eq[T] with [eqInt, eqString]): Unit = ...  // OK
-```
-
-**Valid - Specific before general with member candidates:**
-```jo
-def eqAny[T]: Eq[T] = ...  // Reference equality (not allowed as candidate!)
-
-// Note: eqAny cannot be used as candidate since it has type parameters
-// Use member candidate instead for polymorphic equality:
-def process[T](x: T)(auto eq: Eq[T] with [[T].==]): Unit = ...
-```
-
-**Member candidate shadowing member candidate:**
-
-Member candidates with the same member name are redundant.
+### Example: No Candidates Available
 
 ```jo
-// Error: [T].== appears twice
-def foo[T](auto eq: Eq[T] with [[T].==, [T].==]): Unit = ...
+type Eq[T] = (T, T) => Bool
+
+def test(x: Item, y: Item)(auto eq: Eq[Item]): Bool =
+  eq(x, y)
+
+def main: Unit =
+  val i1 = new Item(42)
+  val i2 = new Item(100)
+  val result = test(i1, i2)  // Error: no candidates
 ```
 
-**Member candidate shadowing value candidate:**
+**Error message:**
+```
+Failed to find auto of the type Eq[Item]
+? Eq[Item]
+  ✗ (no candidates)
+```
 
-A member candidate `[U].member` shadows a later value candidate if the eta-expanded member could produce the value's type for some type instantiation of the type parameters.
+### Example: Cycle Detection
 
 ```jo
-def eqInt: Eq[Int] = ...
+type Eq[T] = (T, T) => Bool
 
-// Error: For T=Int, [T].== eta-expands to (Int, Int) => Bool which is Eq[Int], shadowing eqInt
-def foo[T](x: T)(auto eq: Eq[T] with [[T].==, eqInt]): Unit = ...
-  where Int has def ==(that: Int): Bool
+def eqA(auto eq: Eq[Int] with [eqB]): Eq[Int] = ...
+def eqB(auto eq: Eq[Int] with [eqA]): Eq[Int] = ...
+
+def test(x: Int, y: Int)(auto eq: Eq[Int] with [eqA]): Bool =
+  eq(x, y)
 ```
 
-**Shadowing detection:** The compiler checks if there exists any type instantiation where the member candidate's eta-expanded type matches a later value candidate's type. This is conservative: `[T].member` shadows `candidateValue: C[X]` if substituting type parameters could make them equal.
-
-**Example - detected at definition site:**
-```jo
-// Error: [T].== could produce Eq[Int] (when T=Int), shadowing eqInt
-def bar[T](auto eq: Eq[T] with [[T].==, eqInt]): Unit = ...
-
-// OK: eqInt comes first, so [T].== doesn't shadow it
-def baz[T](auto eq: Eq[T] with [eqInt, [T].==]): Unit = ...
+**Error message:**
+```
+Failed to find auto of the type Eq[Int]
+? Eq[Int]
+  → eqA
+      ? Eq[Int]
+        → eqB
+            ? Eq[Int]
+              → eqA ✗ cycle
 ```
 
-**Value candidate before member candidate (OK):**
+The tree clearly shows the cycle: `eqA → eqB → eqA`.
 
-Value candidates don't shadow member candidates. The value candidate handles a closed type set, while the member candidate handles an open type set (all types with the member), so the member candidate remains reachable for other types.
-
-```jo
-def eqInt: Eq[Int] = ...
-
-// OK: eqInt handles Eq[Int], [T].== handles types with == method
-def foo[T](x: T)(auto eq: Eq[T] with [eqInt, [T].==]): Unit = ...
-```
-
-### Explicit Provision
-
-When using `having` to provide auto arguments:
-
-- Bindings specify **types**, not parameter names
-- Each type can be provided at most once in the `having` clause
-- Provided value must conform to the specified type
-- The type must match at least one auto parameter's type (direct or nested)
+### Example: Mixed Value and Member Candidates
 
 ```jo
-def foo[T](auto eq: Eq[T] with [eqInt]): Unit = ...
+type Eq[T] = (T, T) => Bool
 
-foo having Eq[Int] = customEq              // OK
-foo having Eq[Int] = 42                    // Error: 42 does not conform to Eq[Int]
-foo having Eq[Int] = e1, Eq[Int] = e2      // Error: Eq[Int] provided twice
-foo having String = "x"                    // Error: No auto parameter needs String
+class Item
+  val value: Int
+
+class Box
+  val item: Item
+  def compare(that: Box)(auto eq: Eq[Item] with [eqItem]): Bool = ...
+
+def eqItem(auto eq: Eq[Box] with [[Box].compare]): Eq[Item] = ...
+
+def testEq[T](x: T, y: T)(auto eq: Eq[T] with [eqItem]): Bool =
+  eq(x, y)
 ```
 
-**Type matching:**
+**Error message:**
+```
+Failed to find auto of the type Eq[Item]
+? Eq[Item]
+  → eqItem
+      ? Eq[Box]
+        → [Box].compare
+            ? Eq[Item]
+              → eqItem ✗ cycle
+```
 
-The type in the `having` clause must match the auto parameter's type **after type parameter instantiation**.
+The tree shows:
+
+1. Looking for `Eq[Item]`
+2. Trying value candidate `eqItem`
+3. `eqItem` needs `Eq[Box]`
+4. Trying member candidate `[Box].compare`
+5. `[Box].compare` needs `Eq[Item]` again → cycle detected
+
+### Example: Type Mismatch
 
 ```jo
-def process[T](xs: List[T])(auto eq: Eq[List[T]] with [[List[T]].==]): Unit = ...
+type Eq[T] = (T, T) => Bool
 
-process([1, 2]) having Eq[List[Int]] = customEq  // OK: T=Int, so Eq[List[T]] = Eq[List[Int]] ✓
-process([1, 2]) having Eq[Int] = customEq        // OK: [List[Int]].== has nested auto needing Eq[Int]
+def eqInt: Eq[Int] = (a, b) => a == b
+
+def test(s: String)(auto eq: Eq[String] with [eqInt]): Bool = ...
 ```
 
-**Resolution order:** Type inference happens first (determining type parameters), then auto resolution searches for values matching the instantiated types.
+**Error message:**
+```
+Failed to find auto of the type Eq[String]
+? Eq[String]
+  → eqInt ✗ type mismatch: found Eq[Int], expected Eq[String]
+```
 
-### Coherence
-
-Auto parameters provide **per-call-site coherence**, not global coherence:
-
-**Within a single function call:** All uses of the same auto parameter receive the same resolved value. This ensures consistency within one operation.
+### Example: Nested Resolution
 
 ```jo
-def process[T](xs: List[T])(auto eq: Eq[T] with [eqInt]): Unit =
-  val a = helper1(xs)  // helper1 needs Eq[T], gets eqInt
-  val b = helper2(xs)  // helper2 needs Eq[T], gets same eqInt instance
-  // Coherent within this call
+type Eq[T] = (T, T) => Bool
+
+def eqItem(auto ord: Ord[Item]): Eq[Item] = ...
+
+def test(x: Item, y: Item)(auto eq: Eq[Item] with [eqItem]): Bool = ...
 ```
 
-**Across different function calls:** Different calls can use different instances, especially with `having`:
+**Error message:**
+```
+Failed to find auto of the type Ord[Item]
+? Ord[Item]
+  ✗ (no candidates)
+```
+
+When nested resolution fails, the error points to the specific nested requirement that couldn't be satisfied.
+
+### Example: Having Candidates
+
+When candidates are provided via the `having` clause, they appear in the search tree with their type signature:
 
 ```jo
-process([1, 2])                      // Uses eqInt from candidates
-process([1, 2]) having Eq[Int] = customEq  // Uses customEq from having
+def test[T](x: T, y: T)(auto eq: Eq[T]): Bool = eq(x, y)
 
-// These two calls use different Eq[Int] instances - this is intentional!
-// The having clause makes the difference explicit.
+def customEq: Eq[Int] = ...
+
+val result = test(42, 43) having Eq[Int] = customEq
 ```
 
-**Design rationale:** This is a feature, not a bug. Jo prioritizes **explicit control** over **global consistency**. The `having` clause makes non-uniform behavior visible at call sites, maintaining readability.
-
-**Contrast with Haskell:** Haskell type classes enforce global coherence—only one instance per type exists globally. Jo's approach is more flexible, allowing context-specific behavior while keeping it explicit.
+If resolution fails during nested auto resolution, having candidates appear as:
+```
+? Eq[Int]
+  → (having: (): Eq[Int] receives none) ✓
+```
 
 ## Restrictions
 
@@ -882,7 +896,10 @@ The `having` clause provides a **local search scope** that takes priority over a
 ```jo
 def eqInt: Eq[Int] = (a, b) => a == b
 
-// Use member candidate [List[T]].== which has nested auto parameter
+class List[T]
+  def ==(other: List[T])(auto eq: Eq[T] with [eqInt]): Bool = ...
+end
+
 def process[T](xs: List[T])(auto eq: Eq[List[T]] with [[List[T]].==]): Unit = ...
 
 def customIntEq: Eq[Int] = (a, b) => a % 10 == b % 10
@@ -958,153 +975,3 @@ The auto resolution algorithm is straightforward to implement:
 **Separate compilation:** Auto parameters are signature-visible, so they appear in compiled module interfaces. Member candidate resolution requires member lookup on types, which is already part of normal compilation.
 
 **Error recovery:** When auto resolution fails, the compiler has enough context to provide helpful error messages showing which candidates were tried and why they failed.
-
-## Error Reporting with Search Trees
-
-When auto resolution fails, the compiler displays a **search tree** showing the entire resolution attempt. This makes debugging auto resolution failures straightforward and transparent.
-
-### Search Tree Format
-
-The search tree uses a concise visual format:
-
-- **`?`** - Searching for an auto parameter of this type
-- **`→`** - Trying a candidate
-- **`✓`** - Candidate succeeded (but other autos failed)
-- **`✗`** - Candidate failed (with reason)
-
-### Example: No Candidates Available
-
-```jo
-type Eq[T] = (T, T) => Bool
-
-def test(x: Item, y: Item)(auto eq: Eq[Item]): Bool =
-  eq(x, y)
-
-def main: Unit =
-  val i1 = new Item(42)
-  val i2 = new Item(100)
-  val result = test(i1, i2)  // Error: no candidates
-```
-
-**Error message:**
-```
-Failed to find auto of the type Eq[Item]
-? Eq[Item]
-  ✗ (no candidates)
-```
-
-### Example: Cycle Detection
-
-```jo
-type Eq[T] = (T, T) => Bool
-
-def eqA(auto eq: Eq[Int] with [eqB]): Eq[Int] = ...
-def eqB(auto eq: Eq[Int] with [eqA]): Eq[Int] = ...
-
-def test(x: Int, y: Int)(auto eq: Eq[Int] with [eqA]): Bool =
-  eq(x, y)
-```
-
-**Error message:**
-```
-Failed to find auto of the type Eq[Int]
-? Eq[Int]
-  → eqA
-      ? Eq[Int]
-        → eqB
-            ? Eq[Int]
-              → eqA ✗ cycle
-```
-
-The tree clearly shows the cycle: `eqA → eqB → eqA`.
-
-### Example: Mixed Value and Member Candidates
-
-```jo
-type Eq[T] = (T, T) => Bool
-
-class Item
-  val value: Int
-
-class Box
-  val item: Item
-  def compare(that: Box)(auto eq: Eq[Item] with [eqItem]): Bool = ...
-
-def eqItem(auto eq: Eq[Box] with [[Box].compare]): Eq[Item] = ...
-
-def testEq[T](x: T, y: T)(auto eq: Eq[T] with [eqItem]): Bool =
-  eq(x, y)
-```
-
-**Error message:**
-```
-Failed to find auto of the type Eq[Item]
-? Eq[Item]
-  → eqItem
-      ? Eq[Box]
-        → [Box].compare
-            ? Eq[Item]
-              → eqItem ✗ cycle
-```
-
-The tree shows:
-
-1. Looking for `Eq[Item]`
-2. Trying value candidate `eqItem`
-3. `eqItem` needs `Eq[Box]`
-4. Trying member candidate `[Box].compare`
-5. `[Box].compare` needs `Eq[Item]` again → cycle detected
-
-### Example: Type Mismatch
-
-```jo
-type Eq[T] = (T, T) => Bool
-
-def eqInt: Eq[Int] = (a, b) => a == b
-
-def test(s: String)(auto eq: Eq[String] with [eqInt]): Bool = ...
-```
-
-**Error message:**
-```
-Failed to find auto of the type Eq[String]
-? Eq[String]
-  → eqInt ✗ type mismatch: found Eq[Int], expected Eq[String]
-```
-
-### Example: Nested Resolution
-
-```jo
-type Eq[T] = (T, T) => Bool
-
-def eqItem(auto ord: Ord[Item]): Eq[Item] = ...
-
-def test(x: Item, y: Item)(auto eq: Eq[Item] with [eqItem]): Bool = ...
-```
-
-**Error message:**
-```
-Failed to find auto of the type Ord[Item]
-? Ord[Item]
-  ✗ (no candidates)
-```
-
-When nested resolution fails, the error points to the specific nested requirement that couldn't be satisfied.
-
-### Example: Having Candidates
-
-When candidates are provided via the `having` clause, they appear in the search tree with their type signature:
-
-```jo
-def test[T](x: T, y: T)(auto eq: Eq[T]): Bool = eq(x, y)
-
-def customEq: Eq[Int] = ...
-
-val result = test(42, 43) having Eq[Int] = customEq
-```
-
-If resolution fails during nested auto resolution, having candidates appear as:
-```
-? Eq[Int]
-  → (having: (): Eq[Int] receives none) ✓
-```

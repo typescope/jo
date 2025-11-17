@@ -3,7 +3,7 @@ param pageWidth: Int = 78
 type Doc = String
 
 def pretty(doc: Doc): String receives pageWidth =
-  doc + "\n" + "pageWidth = " + (intToStr pageWidth)
+  doc + "\n" + "pageWidth = " + pageWidth
 
 type Printer = Doc => String receives pageWidth
 def createPrinter(): Printer receives none =

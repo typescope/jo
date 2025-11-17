@@ -9,7 +9,7 @@ type Element = H2Element | LabelElement | PElement | DivElement
 
 def renderText(text: String) =
   println
-    text + " [" + "pageWidth = " + (intToStr fontSize) + "]"
+    text + " [" + "pageWidth = " + fontSize + "]"
 
 def renderH2(h2: H2Element) =
   renderText(h2.text) with fontSize = 20  // shadowing, fontSize = 20

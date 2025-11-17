@@ -239,6 +239,14 @@ Auto parameters cannot have adapters.
 def foo(auto ctx: Context with [adapter]): Unit = ...  // Invalid
 ```
 
+**Rationale:** Mixing adapters with auto parameters creates two unresolved design challenges:
+
+1. **Explicit provision mechanism:** Auto parameters can be explicitly provided using the `having` clause (e.g., `f() having T = value`). If an adapter has auto parameters, there's no clear way to explicitly provide those nested auto parameters when the adapter is being applied.
+
+2. **Error message clarity:** When adaptation fails due to nested auto resolution failure, the error message would need to explain both why the adapter was tried and why its auto resolution failed. Users would need to understand the internals of adapter functions to debug their code. In the presence of chaining auto resolutions, it makes difficult to reason about why some adaptation is successful or unsuccessful.
+
+Unless we figure out (1) a satisfactory way to supply nested auto parameters explicitly at call sites, and (2) a way to show understandable error messages explaining adaptation failures involving auto resolutions, this restriction ensures parameter adapters remain simple and predictable.
+
 ### Polymorphism
 
 Adapters and parameters with type variables cannot be polymorphic.

@@ -74,7 +74,7 @@ def compile(reg: String): Reg =
 
       assert
         cur() == c
-        "expect " + cStr + ", found = " + (charToStr cur())
+        "expect " + cStr + ", found = " + cur()
 
       next()
 

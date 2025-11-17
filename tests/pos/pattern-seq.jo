@@ -40,4 +40,4 @@ def main =
       println y
       xs.foreach i => println i
 
-  match a case Size v => println ("Size = " + (intToStr v))
+  match a case Size v => println ("Size = " + v)

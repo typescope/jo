@@ -6,5 +6,5 @@ def main =
   var i = 0
   while effect i < 3 do
     println
-      "i = " + (intToStr i)
+      "i = " + i
     i = i + 1

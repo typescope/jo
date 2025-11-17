@@ -50,7 +50,7 @@ section Analysis
     var i = 0
     while i < text.size && lineCount < n do
       val ch = text.get(i)
-      result = result + (charToStr ch)
+      result = result + ch
       if ch == 10 then
         lineCount = lineCount + 1
       i = i + 1
@@ -63,7 +63,7 @@ section Analysis
 
     // Get total process count
     val totalProcs = process.countProcesses()
-    println ("📈 Total running processes: " + (intToStr totalProcs))
+    println ("📈 Total running processes: " + totalProcs)
     println ""
 
     // Show first 10 processes
@@ -78,19 +78,19 @@ section Analysis
     println "🔎 Searching for common processes..."
     val nodePid = process.findByName("node")
     if nodePid >= 0 then
-      println ("✓ Found node process: PID " + (intToStr nodePid))
+      println ("✓ Found node process: PID " + nodePid)
     else
       println "✗ No node process found"
 
     val bashPid = process.findByName("bash")
     if bashPid >= 0 then
-      println ("✓ Found bash process: PID " + (intToStr bashPid))
+      println ("✓ Found bash process: PID " + bashPid)
     else
       println "✗ No bash process found"
 
     val systemdPid = process.findByName("systemd")
     if systemdPid >= 0 then
-      println ("✓ Found systemd process: PID " + (intToStr systemdPid))
+      println ("✓ Found systemd process: PID " + systemdPid)
     else
       println "✗ No systemd process found"
 

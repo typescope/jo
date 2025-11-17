@@ -34,21 +34,21 @@ def analyzeDocuments: Unit receives stdout, db =
   allDocs.foreach doc =>
     val draftStr = if doc.draft then " [DRAFT]" else ""
     println ("  • " + doc.title + draftStr + " (created: " + doc.createdAt + ")")
-  println ("  Total: " + intToStr(allDocs.size))
+  println ("  Total: " + allDocs.size)
   println ""
 
   println "--- READ: Only draft documents ---"
   val drafts = db.query(Draft == true)
   drafts.foreach doc =>
     println ("  • " + doc.title)
-  println ("  Count: " + intToStr(drafts.size))
+  println ("  Count: " + drafts.size)
   println ""
 
   println "--- READ: Only published documents ---"
   val published = db.query(Draft == false)
   published.foreach doc =>
     println ("  • " + doc.title)
-  println ("  Count: " + intToStr(published.size))
+  println ("  Count: " + published.size)
   println ""
 
   println "--- READ: Ordered by date (descending) ---"
@@ -79,7 +79,7 @@ def analyzeDocuments: Unit receives stdout, db =
     Draft == true,
     [Draft := false]
   )
-  println ("  Documents published: " + intToStr(publishDrafts))
+  println ("  Documents published: " + publishDrafts)
   println ""
 
   println "--- UPDATE: Update draft status and title ---"
@@ -87,7 +87,7 @@ def analyzeDocuments: Unit receives stdout, db =
     Title like "%Proposal%",
     [Title := "Final Proposal", Draft := false]
   )
-  println ("  Documents updated: " + intToStr(complexUpdate))
+  println ("  Documents updated: " + complexUpdate)
   println ""
 
   // ---- DELETE OPERATIONS ----
@@ -100,21 +100,21 @@ def analyzeDocuments: Unit receives stdout, db =
 
   println "--- DELETE: Delete all remaining draft documents ---"
   val deletedDrafts = db.delete(Draft == true)
-  println ("  Drafts deleted: " + intToStr(deletedDrafts))
+  println ("  Drafts deleted: " + deletedDrafts)
   println ""
 
   println "--- DELETE: Complex conditional delete ---"
   val complexDelete = db.delete(
     (Title like "%Archived%") && (CreatedAt < "2024-01-12")
   )
-  println ("  Archived documents deleted: " + intToStr(complexDelete))
+  println ("  Archived documents deleted: " + complexDelete)
   println ""
 
   // ---- VERIFICATION ----
 
   println "--- FINAL: Count after all operations ---"
   val finalCount = db.count(All)
-  println ("  Remaining documents: " + intToStr(finalCount))
+  println ("  Remaining documents: " + finalCount)
   println ""
 
   println "--- FINAL: Remaining documents ---"

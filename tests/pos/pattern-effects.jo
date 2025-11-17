@@ -18,7 +18,7 @@ pattern Len(x: Int): List[Int] =
   case _ :: (Len y)     then x = (foo y with delta = 2)
 
 def test(l: List[Int]): Unit =
-  match l case Len n => println ("len = " + (intToStr n))
+  match l case Len n => println ("len = " + n)
 
   match l
     case Len n if (foo n > 2 with delta = 1) => println "len > 1"

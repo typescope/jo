@@ -133,7 +133,7 @@ def analyzeDocuments: Unit receives stdout, db =
 
 
   val count = db.countMyDocuments()
-  println ("Total: " + (intToStr count))
+  println ("Total: " + count)
 ```
 
 User code **cannot**:

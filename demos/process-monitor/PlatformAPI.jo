@@ -78,14 +78,14 @@ section Monitor
     println ("💻 Platform: " + platform)
     println ("🏗️  Architecture: " + arch)
     println ("🌐 Hostname: " + hostname)
-    println ("⏱️  Uptime: " + (intToStr uptime) + " seconds")
+    println ("⏱️  Uptime: " + uptime + " seconds")
     println ""
 
     // Show current process info
     val pid = process.getCurrentPID()
     val mem = process.getCurrentMemoryMB()
-    println ("🔢 Current Process PID: " + (intToStr pid))
-    println ("💾 Current Process Memory: " + (intToStr mem) + " MB")
+    println ("🔢 Current Process PID: " + pid)
+    println ("💾 Current Process Memory: " + mem + " MB")
     println ""
 
     // Let user analyze processes

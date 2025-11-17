@@ -115,7 +115,7 @@ def platformMain: Unit receives stdout =
     println "Example: node out/app.js 1 database.db"
     abort "Missing database path argument"
 
-  println ("🔒 Running as User ID: " + (intToStr userId))
+  println ("🔒 Running as User ID: " + userId)
   println ""
 
   // Open SQLite database using node:sqlite (Node.js v22.5.0+)
