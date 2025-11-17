@@ -117,9 +117,10 @@ object Adapters:
               adapterParamType.getTermMember(memberName) match
                 case Some(memberType) =>
                   // The type has the member - check if it returns the right type
-                  // For parameterless methods (ProcType with no params), extract the result type
+                  // For parameterless methods (ProcType with no regular params), extract the result type
+                  // Member adapters can have auto parameters
                   val effectiveType = memberType match
-                    case procType: ProcType if procType.params.isEmpty && procType.autos.isEmpty =>
+                    case procType: ProcType if procType.params.isEmpty =>
                       procType.resultType
                     case tp => tp
 

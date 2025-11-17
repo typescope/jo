@@ -644,7 +644,7 @@ object Trees:
       Select(word, name)(memberType, word.span)
 
     /** Both fun and arg must be fully instantiated */
-    def appliedTo(args: Word*)(using Definitions): Word =
+    def appliedTo(args: Word*)(using Definitions, Source): Word =
       val procType = word.tpe.asProcType
 
       for arg <- args do
@@ -665,6 +665,21 @@ object Trees:
       val span = args.foldLeft(word.span)(_ | _.span)
 
       Apply(word, args2.toList, autos = Nil)(span)
+
+    def appliedToNoAdapt(args: Word*)(using Definitions): Word =
+      val procType = word.tpe.asProcType
+
+      for arg <- args do
+        assert(arg.tpe.isFullyInstantiated, "not fully instantiated: " + arg.tpe.show)
+
+      assert(procType.isFullyInstantiated, "not fully instantiated: " + procType.show)
+      assert(procType.paramCount == args.size, "args mismatch")
+      assert(procType.tparams.isEmpty, "type params not supplied")
+      assert(procType.autos.isEmpty, "autos not supplied")
+
+      val span = args.foldLeft(word.span)(_ | _.span)
+
+      Apply(word, args.toList, autos = Nil)(span)
 
     def appliedToTypes(targs: Type*)(using Definitions): Word =
       val procType = word.tpe.asProcType

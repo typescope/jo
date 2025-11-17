@@ -37,7 +37,7 @@ extends Phase[Symbol]:
       case Ident(sym) if sym.isAllOf(Flags.Context) =>
         val key = StringLit(sym.fullName)(word.span)
         val getParamFun = Ident(getParamSym)(word.span)
-        val getParamCall = Encoded(getParamFun.appliedTo(key))(word.tpe)
+        val getParamCall = Encoded(getParamFun.appliedToNoAdapt(key))(word.tpe)
         getParamCall
 
       case _ =>

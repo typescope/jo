@@ -1022,7 +1022,8 @@ class Namer(using Config):
               Adaptation.adapt(typedExpr, defn.StringType, adapter)
 
             catch case ex: Adaptation.AdaptionFailure =>
-              Reporter.error(s"Cannot interpolate expression of type ${typedExpr.tpe.show}. It does not have .toString member", expr.pos)
+              val trialsMsg = Adaptation.formatTrials(ex.trials)
+              Reporter.error(s"Cannot interpolate expression of type ${typedExpr.tpe.show}${trialsMsg}", expr.pos)
               Literal(Constant.String(""))(defn.StringType, expr.span)
 
     // Build concatenation using the + method on String
