@@ -4,7 +4,7 @@
 |        Expect type String, found = item: Item
 
 Tried the following adapters:
-  - .format: auto parameter resolution failed ✗
+  - .format: auto resolution failed ✗
     ? Prefix
       ✗ (no candidates)
 

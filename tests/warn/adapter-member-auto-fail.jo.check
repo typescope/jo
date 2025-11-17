@@ -4,7 +4,7 @@
 |           Expect type String, found = box: Box[String]
 
 Tried the following adapters:
-  - .show: auto parameter resolution failed ✗
+  - .show: auto resolution failed ✗
     ? Show[String]
       → showInt ✗ type mismatch: found Show[Int], expected Show[String]
 

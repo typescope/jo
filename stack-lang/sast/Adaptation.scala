@@ -15,6 +15,7 @@ object Adaptation:
     case Function(sym: Symbol)
 
   enum Error:
+    case MissingMember
     case TypeMismatch(found: Type)
     case AutoNotFound(search: AutoResolution.SearchNode.All)
 
@@ -35,17 +36,20 @@ object Adaptation:
       for trial <- trials do
         trial match
           case Trial.Function(sym) =>
-            sb.append(s"\n  - ${sym.name}: parameter type mismatch")
+            sb.append(s"\n  - ${sym.name}: type mismatch  ✗")
 
           case Trial.Member(tp, member, error) =>
             error match
+              case Error.MissingMember =>
+                sb.append(s"\n  - .$member: missing ✗")
+
               case Error.TypeMismatch(found) =>
                 sb.append(s"\n  - .$member: type mismatch ✗")
                 sb.append(s"\n    Expected: ${tp.show}")
                 sb.append(s"\n    Found:    ${found.show}")
 
               case Error.AutoNotFound(search) =>
-                sb.append(s"\n  - .$member: auto parameter resolution failed ✗\n")
+                sb.append(s"\n  - .$member: auto resolution failed ✗\n")
                 sb.append(AutoResolution.formatSearchTree(search, baseIndent = "    "))
 
       sb.toString
@@ -240,6 +244,7 @@ object Adaptation:
                 trials += Trial.Member(word.tpe, memberName, Error.TypeMismatch(effectiveType))
 
             case None =>
+              trials += Trial.Member(word.tpe, memberName, Error.MissingMember)
               // Member doesn't exist, try next adapter
 
       end match
@@ -303,6 +308,7 @@ object Adaptation:
                 trials += Trial.Member(elemType, memberName, Error.TypeMismatch(effectiveType))
 
             case None =>
+              trials += Trial.Member(elemType, memberName, Error.MissingMember)
               // Member doesn't exist, try next adapter
 
       end match
