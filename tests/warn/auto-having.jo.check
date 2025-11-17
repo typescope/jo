@@ -1,0 +1,10 @@
+---------- Error at ./tests/warn/auto-having.jo:22:16 ---------------
+|   val result = testEq[Item](i1, i2) having Eq[Item] = ...
+|                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|                Failed to find auto of the type Ord[Item]
+? Eq[Item]
+  → (having: Eq[Item]) ✓
+? Ord[Item]
+  → (having: Eq[Item]) ✗ type mismatch: found Eq[Item], expected Ord[Item]
+
+

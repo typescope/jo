@@ -185,13 +185,13 @@ object Autos:
         for trial <- choice.children do
           formatTrial(trial, indent)
       else
-        sb.append(s"$indent  (no candidates available)\n")
+        sb.append(s"$indent  (none)\n")
 
     def formatTrial(trial: AutoResolution.SearchNode.Trial, indent: String): Unit =
       sb.append(s"$indent  → ${formatCand(trial.cand)}")
       trial.next match
         case AutoResolution.SearchNode.Success =>
-          sb.append(" ✓ (but other autos failed)\n")
+          sb.append(" ✓\n")
 
         case AutoResolution.SearchNode.Failure(reason) =>
           sb.append(s" ✗ ${formatFailureReason(reason)}\n")

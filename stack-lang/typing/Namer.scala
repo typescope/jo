@@ -683,7 +683,7 @@ class Namer(using Config):
         case _ =>
           val havingSym = Symbol.createSymbol(
             "havingCand",
-            value.tpe,
+            tpt.tpe,
             Flags.empty,
             sc.owner,
             binding.span.toPos
