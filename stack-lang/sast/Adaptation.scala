@@ -129,7 +129,7 @@ object Adaptation:
     if origType.isSubtype(defn.ByteType) then
       if targetType.isSubtype(defn.IntType) then
         val byteToInt = Ident(defn.Predef_byteToInt)(word.span)
-        byteToInt.appliedToNoAdapt(word)
+        byteToInt.appliedTo(word)
 
       else
         fail()
@@ -137,7 +137,7 @@ object Adaptation:
     else if origType.isSubtype(defn.CharType) then
       if targetType.isSubtype(defn.IntType) then
         val charToInt = Ident(defn.Predef_charToInt)(word.span)
-        charToInt.appliedToNoAdapt(word)
+        charToInt.appliedTo(word)
 
       else
         fail()
@@ -145,9 +145,9 @@ object Adaptation:
     else
       fail()
 
-  def createSimpleAdapter(adapters: List[Symbol | String])(using Definitions, Source): Adapter =
+  def createSimpleAdapter(adapters: List[Symbol | String], owner: Symbol)(using Definitions, Source): Adapter =
     if adapters.isEmpty then NoAdapter
-    else (word, targetType) => adaptSimple(word, targetType, adapters)
+    else (word, targetType) => adaptSimple(word, targetType, adapters, owner)
 
   def createVarargSpliceAdapter(adapters: List[Symbol | String], owner: Symbol)
       (using defn: Definitions, source: Source): Adapter =
@@ -165,7 +165,7 @@ object Adaptation:
           Result.Failure(Nil)
 
   def adaptSimple
-      (word: Word, targetType: Type, adapters: List[Symbol | String])
+      (word: Word, targetType: Type, adapters: List[Symbol | String], owner: Symbol)
       (using defn: Definitions, so: Source)
   : Result = Debug.trace(s"adapt ${word.show} to ${targetType.show} with ${adapters}", enable = false):
     val trials = new scala.collection.mutable.ArrayBuffer[Trial]()
@@ -219,7 +219,7 @@ object Adaptation:
                       val all: AutoResolution.SearchNode.All = AutoResolution.SearchNode.All(scala.collection.mutable.ArrayBuffer())
 
                       // Resolve auto parameters, using empty having list since this is adapter context
-                      AutoResolution.resolve(procType, havings = Nil, trace = Vector.empty, all, defn.jo, word.span) match
+                      AutoResolution.resolve(procType, havings = Nil, trace = Vector.empty, all, owner, word.span) match
                         case Some(resolvedAutos) =>
                           // Apply with resolved auto arguments
                           val adapted = Apply(selected, args = Nil, autos = resolvedAutos)(word.span)

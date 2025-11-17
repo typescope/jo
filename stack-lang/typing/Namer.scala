@@ -819,7 +819,7 @@ class Namer(using Config):
       (arg: Ast.Word, paramType: Type, adapters: List[Symbol | String])
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars)
   : Word =
-      val adapter = Adaptation.createSimpleAdapter(adapters)
+      val adapter = Adaptation.createSimpleAdapter(adapters, sc.owner)
       transformArg(arg, paramType, adapter)
 
   def transformArg
@@ -1016,7 +1016,7 @@ class Namer(using Config):
             typedExpr
           else
             // Try adapations
-            val adapter = Adaptation.createSimpleAdapter(defn.stringInterpolationAdapters)
+            val adapter = Adaptation.createSimpleAdapter(defn.stringInterpolationAdapters, sc.owner)
 
             try
               Adaptation.adapt(typedExpr, defn.StringType, adapter)

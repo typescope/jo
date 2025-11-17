@@ -46,7 +46,7 @@ class LowerContextParams(runtime: NativeRuntime)(using defn: Definitions) extend
         val key = lit.encodedAs(AddrType)
         // The static analysis ensures that the value is available
         val getParamFun = Ident(runtime.ParamSupport_getParam)(word.span)
-        Encoded(getParamFun.appliedToNoAdapt(key))(word.tpe)
+        Encoded(getParamFun.appliedTo(key))(word.tpe)
 
       case _ =>
         word

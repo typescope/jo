@@ -119,11 +119,7 @@ object Adapters:
                   // The type has the member - check if it returns the right type
                   // For parameterless methods (ProcType with no regular params), extract the result type
                   // Member adapters can have auto parameters
-                  val effectiveType = memberType match
-                    case procType: ProcType if procType.params.isEmpty =>
-                      procType.resultType
-                    case tp => tp
-
+                  val effectiveType = memberType.effectiveResultType
                   Subtyping.conforms(effectiveType, paramType)
 
                 case None =>
