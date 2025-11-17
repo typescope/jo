@@ -643,7 +643,7 @@ object Trees:
       val memberType = word.tpe.termMember(name)
       Select(word, name)(memberType, word.span)
 
-    /** No adaption is performed */
+    /** No adaption is performed except for numeric adaptation */
     def appliedTo(args: Word*)(using Definitions): Word =
       val procType = word.tpe.asProcType
 
@@ -651,9 +651,16 @@ object Trees:
       assert(procType.tparams.isEmpty, "type params not supplied")
       assert(procType.autos.isEmpty, "autos not supplied")
 
+      val args2 =
+        for
+          ((arg, paramType), adapterList) <- args.zip(procType.paramTypes).zip(procType.adapters)
+        yield
+          // Both fun and arg are fully instantiated
+          Adaptation.adapt(arg, paramType, Adaptation.NoAdapter)
+
       val span = args.foldLeft(word.span)(_ | _.span)
 
-      Apply(word, args.toList, autos = Nil)(span)
+      Apply(word, args2.toList, autos = Nil)(span)
 
     def appliedToTypes(targs: Type*)(using Definitions): Word =
       val procType = word.tpe.asProcType

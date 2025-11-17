@@ -136,8 +136,8 @@ object Autos:
             case (AutoCandidate.Member(memberTpt, memberName), AutoCandidate.Value(symJ)) =>
               memberTpt.tpe.getTermMember(memberName) match
                 case Some(tpI) =>
-                   val tpJ = StaticRef(symJ).effectiveResultType
-                   if Subtyping.conforms(tpI.effectiveResultType, tpJ) then
+                   val tpJ = symJ.info.effectiveResultType
+                   if Subtyping.conforms(tpI.widen.effectiveResultType, tpJ) then
                       Reporter.error(
                         s"Member candidate ${cj.show} is shadowed by the ealier candidate ${ci.show}",
                         cj.span.toPos
