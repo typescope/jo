@@ -1,5 +1,5 @@
 // Error: Divergence through 3-node cycle with mixed value and member candidates
-// Cycle: eqItem -> eqBox -> [Container].compare -> eqItem
+// Cycle: Need Eq[Item] → try eqItem (needs Eq[Box]) → try [Box].compare (needs Eq[Item]) → cycle!
 
 type Eq[T] = (T, T) => Bool
 
@@ -7,25 +7,20 @@ class Item
   val value: Int
   def Item(n: Int) = { value: n }
 
-class Container
+class Box
   val item: Item
-  def Container(i: Item) = { item: i }
+  def Box(i: Item) = { item: i }
 
-  // Member candidate that needs Eq[Item]
-  def compare(that: Container)(auto eq: Eq[Item] with [eqItem]): Bool =
+  // Member candidate: compare method needs Eq[Item]
+  // This creates a cycle when used to resolve Eq[Box] needed by eqItem
+  def compare(that: Box)(auto eq: Eq[Item] with [eqItem]): Bool =
     eq(this.item, that.item)
 
-class Box
-  val inner: Container
-  def Box(c: Container) = { inner: c }
-
-// Value candidate that needs Eq[Box]
-def eqBox(auto eq: Eq[Box] with [[Container].compare]): Eq[Box] =
-  (a, b) => a.inner.compare(b.inner)
-
-// Value candidate that needs Eq[Box]
-// This creates the cycle: eqItem -> eqBox -> [Container].compare -> eqItem
-def eqItem(auto eq: Eq[Box] with [eqBox]): Eq[Item] =
+// Value candidate: eqItem needs Eq[Box]
+// When resolving Eq[Box], it tries [Box].compare
+// [Box].compare needs Eq[Item] with candidate [eqItem]
+// This creates the cycle: eqItem → [Box].compare → eqItem
+def eqItem(auto eq: Eq[Box] with [[Box].compare]): Eq[Item] =
   (a, b) => a.value == b.value
 
 def testEq[T](x: T, y: T)(auto eq: Eq[T] with [eqItem]): Bool =
@@ -34,5 +29,5 @@ def testEq[T](x: T, y: T)(auto eq: Eq[T] with [eqItem]): Bool =
 def main: Unit =
   val i1 = new Item(42)
   val i2 = new Item(100)
-  val result = testEq[Item](i1, i2)  // Error: divergence via 3-node cycle
+  val result = testEq[Item](i1, i2)  // Error: cycle detected
   assert(!result, "items should not be equal")

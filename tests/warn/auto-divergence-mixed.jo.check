@@ -1,25 +1,13 @@
----------- Error at ./tests/warn/auto-divergence-mixed.jo:24:13 ---------------
-|   (a, b) => a.inner.compare(b.inner)
-|             ^^^^^^^^^^^^^^^^^^^^^^^^
-|             Failed to find auto of the type Eq[Item]
-? Eq[Item]
-  → eqItem
-      ? Eq[Box]
-        → eqBox
-            ? Eq[Box]
-              → [Container].compare ✗ type mismatch: found (receiver: Container, that: Container): Bool receives none, expected (param0: Box, param1: Box): Bool receives none
-
-
----------- Error at ./tests/warn/auto-divergence-mixed.jo:37:16 ---------------
-|   val result = testEq[Item](i1, i2)  // Error: divergence via 3-node cycle
+---------- Error at ./tests/warn/auto-divergence-mixed.jo:32:16 ---------------
+|   val result = testEq[Item](i1, i2)  // Error: cycle detected
 |                ^^^^^^^^^^^^^^^^^^^^
 |                Failed to find auto of the type Eq[Item]
 ? Eq[Item]
   → eqItem
       ? Eq[Box]
-        → eqBox
-            ? Eq[Box]
-              → [Container].compare ✗ type mismatch: found (receiver: Container, that: Container): Bool receives none, expected (param0: Box, param1: Box): Bool receives none
+        → [Box].compare
+            ? Eq[Item]
+              → eqItem ✗ cycle
 
 
-2 error(s), 0 warning(s)
+1 error(s), 0 warning(s)
