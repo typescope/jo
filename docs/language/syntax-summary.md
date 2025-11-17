@@ -94,8 +94,11 @@ begin_block = "begin" block ["end"]
 
 select = word "." ident
 
-apply = word args
+apply = word args [having_bindings]
 args = "(" [expr {"," expr}] ")"
+
+having_bindings = "having" having_binding {"," having_binding}
+having_binding = type "=" expr
 
 bracket_apply = word "[" expr {"," expr} "]"
 type_apply = word targs
@@ -215,5 +218,10 @@ adapter_list = adapter {"," adapter}
 adapter = qualid | member_adapter
 member_adapter = "." ident
 
-auto_section = "(" "auto" params ")"
+auto_section = "(" "auto" auto_params ")"
+auto_params = auto_param {"," auto_param}
+auto_param = ident ":" type ["with" "[" candidate_list "]"]
+candidate_list = candidate {"," candidate}
+candidate = qualid | member_candidate
+member_candidate = "[" type "]" "." ident
 ```
