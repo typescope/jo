@@ -958,3 +958,153 @@ The auto resolution algorithm is straightforward to implement:
 **Separate compilation:** Auto parameters are signature-visible, so they appear in compiled module interfaces. Member candidate resolution requires member lookup on types, which is already part of normal compilation.
 
 **Error recovery:** When auto resolution fails, the compiler has enough context to provide helpful error messages showing which candidates were tried and why they failed.
+
+## Error Reporting with Search Trees
+
+When auto resolution fails, the compiler displays a **search tree** showing the entire resolution attempt. This makes debugging auto resolution failures straightforward and transparent.
+
+### Search Tree Format
+
+The search tree uses a concise visual format:
+
+- **`?`** - Searching for an auto parameter of this type
+- **`→`** - Trying a candidate
+- **`✓`** - Candidate succeeded (but other autos failed)
+- **`✗`** - Candidate failed (with reason)
+
+### Example: No Candidates Available
+
+```jo
+type Eq[T] = (T, T) => Bool
+
+def test(x: Item, y: Item)(auto eq: Eq[Item]): Bool =
+  eq(x, y)
+
+def main: Unit =
+  val i1 = new Item(42)
+  val i2 = new Item(100)
+  val result = test(i1, i2)  // Error: no candidates
+```
+
+**Error message:**
+```
+Failed to find auto of the type Eq[Item]
+? Eq[Item]
+  ✗ (no candidates)
+```
+
+### Example: Cycle Detection
+
+```jo
+type Eq[T] = (T, T) => Bool
+
+def eqA(auto eq: Eq[Int] with [eqB]): Eq[Int] = ...
+def eqB(auto eq: Eq[Int] with [eqA]): Eq[Int] = ...
+
+def test(x: Int, y: Int)(auto eq: Eq[Int] with [eqA]): Bool =
+  eq(x, y)
+```
+
+**Error message:**
+```
+Failed to find auto of the type Eq[Int]
+? Eq[Int]
+  → eqA
+      ? Eq[Int]
+        → eqB
+            ? Eq[Int]
+              → eqA ✗ cycle
+```
+
+The tree clearly shows the cycle: `eqA → eqB → eqA`.
+
+### Example: Mixed Value and Member Candidates
+
+```jo
+type Eq[T] = (T, T) => Bool
+
+class Item
+  val value: Int
+
+class Box
+  val item: Item
+  def compare(that: Box)(auto eq: Eq[Item] with [eqItem]): Bool = ...
+
+def eqItem(auto eq: Eq[Box] with [[Box].compare]): Eq[Item] = ...
+
+def testEq[T](x: T, y: T)(auto eq: Eq[T] with [eqItem]): Bool =
+  eq(x, y)
+```
+
+**Error message:**
+```
+Failed to find auto of the type Eq[Item]
+? Eq[Item]
+  → eqItem
+      ? Eq[Box]
+        → [Box].compare
+            ? Eq[Item]
+              → eqItem ✗ cycle
+```
+
+The tree shows:
+
+1. Looking for `Eq[Item]`
+2. Trying value candidate `eqItem`
+3. `eqItem` needs `Eq[Box]`
+4. Trying member candidate `[Box].compare`
+5. `[Box].compare` needs `Eq[Item]` again → cycle detected
+
+### Example: Type Mismatch
+
+```jo
+type Eq[T] = (T, T) => Bool
+
+def eqInt: Eq[Int] = (a, b) => a == b
+
+def test(s: String)(auto eq: Eq[String] with [eqInt]): Bool = ...
+```
+
+**Error message:**
+```
+Failed to find auto of the type Eq[String]
+? Eq[String]
+  → eqInt ✗ type mismatch: found Eq[Int], expected Eq[String]
+```
+
+### Example: Nested Resolution
+
+```jo
+type Eq[T] = (T, T) => Bool
+
+def eqItem(auto ord: Ord[Item]): Eq[Item] = ...
+
+def test(x: Item, y: Item)(auto eq: Eq[Item] with [eqItem]): Bool = ...
+```
+
+**Error message:**
+```
+Failed to find auto of the type Ord[Item]
+? Ord[Item]
+  ✗ (no candidates)
+```
+
+When nested resolution fails, the error points to the specific nested requirement that couldn't be satisfied.
+
+### Example: Having Candidates
+
+When candidates are provided via the `having` clause, they appear in the search tree with their type signature:
+
+```jo
+def test[T](x: T, y: T)(auto eq: Eq[T]): Bool = eq(x, y)
+
+def customEq: Eq[Int] = ...
+
+val result = test(42, 43) having Eq[Int] = customEq
+```
+
+If resolution fails during nested auto resolution, having candidates appear as:
+```
+? Eq[Int]
+  → (having: (): Eq[Int] receives none) ✓
+```
