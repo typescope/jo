@@ -154,6 +154,58 @@ object Autos:
       i += 1
     end while
 
+  /** Format search tree as error message */
+  def formatSearchTree(all: AutoResolution.SearchNode.All)(using Definitions): String =
+    val sb = new mutable.StringBuilder
+
+    def formatCand(cand: Symbol | MemberCandidate): String = cand match
+      case sym: Symbol => sym.name
+      case MemberCandidate(tp, name) => s"[${tp.show}].$name"
+
+    def formatFailureReason(reason: AutoResolution.FailureReason): String = reason match
+      case AutoResolution.FailureReason.Cycle(trace) =>
+        "cycle"
+
+      case AutoResolution.FailureReason.TypeMismatch(found, expected) =>
+        s"type mismatch: found ${found.show}, expected ${expected.show}"
+
+      case AutoResolution.FailureReason.MemberNotFound(receiverType, memberName) =>
+        s"member $memberName not found on type ${receiverType.show}"
+
+      case AutoResolution.FailureReason.PolymorphicFunction(sym) =>
+        s"polymorphic function ${sym.name} cannot be used as auto candidate"
+
+      case AutoResolution.FailureReason.NestedResolutionFailed =>
+        "nested auto resolution failed"
+
+    def formatChoice(choice: AutoResolution.SearchNode.Choice, indent: String): Unit =
+      sb.append(s"${indent}? ${choice.auto.show}\n")
+      if choice.children.nonEmpty then
+        for trial <- choice.children do
+          formatTrial(trial, indent)
+
+    def formatTrial(trial: AutoResolution.SearchNode.Trial, indent: String): Unit =
+      sb.append(s"$indent  → ${formatCand(trial.cand)}")
+      trial.next match
+        case AutoResolution.SearchNode.Success =>
+          sb.append(" ✓ (but other autos failed)\n")
+
+        case AutoResolution.SearchNode.Failure(reason) =>
+          sb.append(s" ✗ ${formatFailureReason(reason)}\n")
+
+        case all: AutoResolution.SearchNode.All =>
+          sb.append("\n")
+          for choice <- all.children do
+            formatChoice(choice, indent + "      ")
+
+        case null =>
+          sb.append(" ? (incomplete)\n")
+
+    for choice <- all.children do
+      formatChoice(choice, "")
+
+    sb.toString
+
   def resolve(fun: Word, args: List[Word], havings: List[Symbol], span: Span)
       (using defn: Definitions, source: Source, rp: Reporter, sc: Scope)
   : Word =
@@ -188,5 +240,7 @@ object Autos:
         Apply(fun, args, autos)(span)
 
       case None =>
-        // TODO: build a tree showing why search failed
+        val auto = all.children.last.auto
+        val message = formatSearchTree(all)
+        Reporter.error(s"Failed to find auto of the type ${auto.show}\n" + message, span.toPos)
         errorWord(span)

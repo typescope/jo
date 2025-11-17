@@ -20,15 +20,23 @@ import scala.collection.mutable
 object AutoResolution:
   /** Trace element to track resolution path and detect cycles */
   enum TraceElement:
-    case class ValueElement(sym: Symbol)
-    case class MemberElement(receiverType: Type, memberName: String)
+    case ValueElement(sym: Symbol)
+    case MemberElement(receiverType: Type, memberName: String)
+
+  /** Failure reasons for auto resolution */
+  enum FailureReason:
+    case Cycle(trace: Vector[TraceElement])
+    case TypeMismatch(found: Type, expected: Type)
+    case MemberNotFound(receiverType: Type, memberName: String)
+    case PolymorphicFunction(sym: Symbol)
+    case NestedResolutionFailed
 
   /** For error reporting */
   enum SearchNode:
-    case Choice(auto: Type, children: mutable.ArrayBuffer[SearchNode])
+    case Choice(auto: Type, children: mutable.ArrayBuffer[Trial])
     case All(children: mutable.ArrayBuffer[Choice])
     case Trial(cand: Symbol | MemberCandidate, var next: All | Failure | Success.type)
-    case Fail(reason: String)
+    case Failure(reason: FailureReason)
     case Success
 
   def resolve(procType: ProcType, havings: List[Symbol], trace: Vector[TraceElement], all: SearchNode.All, owner: Symbol, span: Span)
@@ -73,7 +81,11 @@ object AutoResolution:
       (using Definitions, Source)
   : Option[Word] =
 
-    val res = findFirst(havings) { sym => tryValue(sym, targetType, trace, owner, span) }
+    val res = findFirst(havings) { sym =>
+      // For havings, we don't track failures in the search tree
+      val dummyTrial = new SearchNode.Trial(sym, next = null)
+      tryValue(sym, targetType, trace, dummyTrial, owner, span)
+    }
 
     if res.nonEmpty then return res
 
@@ -95,11 +107,12 @@ object AutoResolution:
     if tp.isProcType then
       val procType = tp.asProcType
       // Should never encounter. Change to assertion?
-      if
-        procType.isPolyType
-        || !Subtyping.conforms(procType.resultType, targetType)
-      then
-        trial.next = SearchNode.Failure("type mismatch")
+      if procType.isPolyType then
+        trial.next = SearchNode.Failure(FailureReason.PolymorphicFunction(sym))
+        return None
+
+      if !Subtyping.conforms(procType.resultType, targetType) then
+        trial.next = SearchNode.Failure(FailureReason.TypeMismatch(procType.resultType, targetType))
         return None
 
       if procType.autos.isEmpty then
@@ -113,16 +126,16 @@ object AutoResolution:
 
         // Check for cycles: if sym is already in trace, we have divergence
         if loop then
-          trial.next = SearchNode.Failure("cycle")
+          trial.next = SearchNode.Failure(FailureReason.Cycle(trace))
           return None
 
-        val all = SearchNode.All(new mutable.ArrayBuffer)
+        val all: SearchNode.All = SearchNode.All(new mutable.ArrayBuffer)
         trial.next = all
         // Recursive resolution with increased trace
         val newTrace = trace :+ TraceElement.ValueElement(sym)
         resolve(procType, havings = Nil, newTrace, all, owner, span) match
-          case Some(autos) =>
-            val call = Apply(Ident(sym)(span), args = Nil, autos = autos)(span)
+          case Some(resolvedAutos) =>
+            val call = Apply(Ident(sym)(span), args = Nil, autos = resolvedAutos)(span)
             Some(call)
           case _ =>
             None
@@ -133,10 +146,12 @@ object AutoResolution:
         trial.next = SearchNode.Success
         Some(Ident(sym)(span))
       else
-        trial.next = SearchNode.Failure("type mismatch")
+        trial.next = SearchNode.Failure(FailureReason.TypeMismatch(tp, targetType))
         None
 
-  def tryMember(receiverType: Type, name: String, targetType: Type, trace: Vector[TraceElement], owner: Symbol, span: Span)
+  def tryMember
+      (receiverType: Type, name: String, targetType: Type, trace: Vector[TraceElement],
+        trial: SearchNode.Trial, owner: Symbol, span: Span)
       (using defn: Definitions, so: Source)
   : Option[Word] =
 
@@ -147,11 +162,14 @@ object AutoResolution:
         mn == name && Subtyping.isEqualType(rt, receiverType)
       case _ => false
     } then
+      trial.next = SearchNode.Failure(FailureReason.Cycle(trace))
       return None
 
     // Look up the member on the type
     receiverType.getTermMember(name) match
-      case None => None  // Member doesn't exist
+      case None =>
+        trial.next = SearchNode.Failure(FailureReason.MemberNotFound(receiverType, name))
+        None  // Member doesn't exist
 
       case Some(memberType) =>
         // For member candidates, create an eta-expanded lambda
@@ -160,12 +178,12 @@ object AutoResolution:
 
         if memberType.isProcType then
           val procType = memberType.asProcType
-          tryMethodMember(procType, memberType, receiverType, name, targetType, trace, owner, span)
+          tryMethodMember(procType, memberType, receiverType, name, targetType, trace, trial, owner, span)
 
         else
           // Simple value member - check conformance
           // For value members, check if target type is (T) => MemberType
-          tryValueMember(memberType, memberType, receiverType, name, targetType, trace, owner, span)
+          tryValueMember(memberType, memberType, receiverType, name, targetType, trace, trial, owner, span)
 
 
   /** Create eta-expanded lambda
@@ -175,7 +193,7 @@ object AutoResolution:
     */
   def tryMethodMember
       (procType: ProcType, memberRefType: Type, receiverType: Type, memberName: String, targetType: Type,
-        trace: Vector[TraceElement], owner: Symbol, span: Span)
+        trace: Vector[TraceElement], trial: SearchNode.Trial, owner: Symbol, span: Span)
       (using defn: Definitions, so: Source)
   : Option[Word] =
     // Type conformance check for eta-expanded member
@@ -202,8 +220,10 @@ object AutoResolution:
     targetProcOpt match
       case Some(targetProc) =>
         if !Subtyping.conforms(lambdaType, targetProc) then
+          trial.next = SearchNode.Failure(FailureReason.TypeMismatch(lambdaType, targetProc))
           return None
       case None =>
+        trial.next = SearchNode.Failure(FailureReason.TypeMismatch(lambdaType, targetType))
         return None
 
     // Resolve nested autos if present
@@ -211,10 +231,13 @@ object AutoResolution:
       if procType.autos.nonEmpty then
         // Add current member to trace before resolving nested autos
         val newTrace = trace :+ TraceElement.MemberElement(receiverType, memberName)
-        resolve(procType, havings = Nil, newTrace, owner, span) match
-          case Some(autos) => autos
+        val all: SearchNode.All = SearchNode.All(new mutable.ArrayBuffer)
+        trial.next = all
+        resolve(procType, havings = Nil, newTrace, all, owner, span) match
+          case Some(resolvedAutos) => resolvedAutos
           case _ => return None
       else
+        trial.next = SearchNode.Success
         Nil
 
     val effectPolicy = Effects.Policy.Capture(except = Nil)
@@ -235,7 +258,7 @@ object AutoResolution:
     */
   def tryValueMember
       (resultType: Type, memberRefType: Type, receiverType: Type, memberName: String,
-        targetType: Type, trace: Vector[TraceElement], owner: Symbol, span: Span)
+        targetType: Type, trace: Vector[TraceElement], trial: SearchNode.Trial, owner: Symbol, span: Span)
       (using defn: Definitions, so: Source)
   : Option[Word] =
 
@@ -270,9 +293,12 @@ object AutoResolution:
             val receiver = params.head
             Select(receiver, memberName)(memberRefType, span)
 
+          trial.next = SearchNode.Success
           Some(lambda)
 
         else
+          trial.next = SearchNode.Failure(FailureReason.TypeMismatch(lambdaType, targetProc))
           None
       case None =>
+        trial.next = SearchNode.Failure(FailureReason.TypeMismatch(lambdaType, targetType))
         None
