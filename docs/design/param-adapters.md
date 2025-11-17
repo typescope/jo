@@ -233,19 +233,44 @@ printAll(..numbers)      // printAll(..numbers.map(intToStr))
 
 ### Auto Parameters
 
-Auto parameters cannot have adapters.
+**Function adapters** cannot have auto parameters, but **member adapters** can.
 
 ```jo
-def foo(auto ctx: Context with [adapter]): Unit = ...  // Invalid
+def adapter(x: Int)(auto eq: Eq[Int] with [eqInt]): String = ...
+def foo(s: String with [adapter]): Unit = ...  // Invalid - function adapter with auto
+
+type Doc = { def format(auto fmt: Formatter with [defaultFmt]): String }
+def show(s: String with [.format]): Unit = ...  // Valid - member adapter with auto
 ```
 
-**Rationale:** Mixing adapters with auto parameters creates two unresolved design challenges:
+**Rationale for restricting function adapters:**
 
-1. **Explicit provision mechanism:** Auto parameters can be explicitly provided using the `having` clause (e.g., `f() having T = value`). If an adapter has auto parameters, there's no clear way to explicitly provide those nested auto parameters when the adapter is being applied.
+If a function adapter has auto parameters and auto resolution fails, there's no ergonomic way to explicitly provide those auto parameters. The user would need to manually call the adapter: `f(adapter(arg) having T = value)`, which defeats the purpose of having an adapter in the first place.
 
-2. **Error message clarity:** When adaptation fails due to nested auto resolution failure, the error message would need to explain both why the adapter was tried and why its auto resolution failed. Users would need to understand the internals of adapter functions to debug their code. In the presence of chaining auto resolutions, it makes difficult to reason about why some adaptation is successful or unsuccessful.
+**Why member adapters are allowed:**
 
-Unless we figure out (1) a satisfactory way to supply nested auto parameters explicitly at call sites, and (2) a way to show understandable error messages explaining adaptation failures involving auto resolutions, this restriction ensures parameter adapters remain simple and predictable.
+Member adapters with auto parameters enable **compositional conversions** - a key use case for generic collections:
+
+```jo
+class List[T]
+  def toString(auto show: T => String with [[T].toString]): String = ...
+end
+
+def println(s: String with [.toString]): Unit = ...
+
+// Now these just work:
+println [1, 2, 3]           // List[Int].toString auto-resolves Int.toString
+println ["a", "b"]          // List[String].toString auto-resolves String.toString
+println [[1, 2], [3, 4]]    // List[List[Int]].toString recursively resolves
+
+// String interpolation also works:
+val xs = [1, 2, 3]
+println "Numbers: $xs"      // Uses xs.toString with auto-resolved element conversion
+```
+
+This pattern allows collection types to automatically adapt their elements for conversion without requiring users to explicitly specify element converters.
+
+Additionally, if auto resolution fails for a member adapter, users can directly call the member with `having`: `f(arg.member having T = value)`. This is natural and ergonomic.
 
 ### Polymorphism
 
