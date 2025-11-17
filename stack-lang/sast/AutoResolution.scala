@@ -31,11 +31,17 @@ object AutoResolution:
     case PolymorphicFunction(sym: Symbol)
     case NestedResolutionFailed
 
+  /** Candidate types for auto resolution */
+  enum Candidate:
+    case ValueCandidate(sym: Symbol)
+    case MemberCandidate(tp: Type, name: String)
+    case HavingCandidate(sym: Symbol)
+
   /** For error reporting */
   enum SearchNode:
     case Choice(auto: Type, children: mutable.ArrayBuffer[Trial])
     case All(children: mutable.ArrayBuffer[Choice])
-    case Trial(cand: Symbol | MemberCandidate, var next: All | Failure | Success.type)
+    case Trial(cand: Candidate, var next: All | Failure | Success.type)
     case Failure(reason: FailureReason)
     case Success
 
@@ -82,20 +88,25 @@ object AutoResolution:
   : Option[Word] =
 
     val res = findFirst(havings) { sym =>
-      // For havings, we don't track failures in the search tree
-      val dummyTrial = new SearchNode.Trial(sym, next = null)
-      tryValue(sym, targetType, trace, dummyTrial, owner, span)
+      // For havings, track in the search tree with HavingCandidate
+      val trial = new SearchNode.Trial(Candidate.HavingCandidate(sym), next = null)
+      choice.children += trial
+      tryValue(sym, targetType, trace, trial, owner, span)
     }
 
     if res.nonEmpty then return res
 
     findFirst(cands): cand =>
-      val trial = new SearchNode.Trial(cand, next = null)
+      val searchCand = cand match
+        case sym: Symbol => Candidate.ValueCandidate(sym)
+        case MemberCandidate(tp, name) => Candidate.MemberCandidate(tp, name)
+
+      val trial = new SearchNode.Trial(searchCand, next = null)
       choice.children += trial
 
       cand match
         case sym: Symbol => tryValue(sym, targetType, trace, trial, owner, span)
-        case MemberCandidate(tp, name) => tryMember(tp, name, targetType, trace, trial, owner, span)
+        case mc @ MemberCandidate(tp, name) => tryMember(tp, name, targetType, trace, trial, owner, span)
 
   def tryValue
       (sym: Symbol, targetType: Type, trace: Vector[TraceElement], trial: SearchNode.Trial, owner: Symbol, span: Span)

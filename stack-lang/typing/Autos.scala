@@ -158,9 +158,10 @@ object Autos:
   def formatSearchTree(all: AutoResolution.SearchNode.All)(using Definitions): String =
     val sb = new mutable.StringBuilder
 
-    def formatCand(cand: Symbol | MemberCandidate): String = cand match
-      case sym: Symbol => sym.name
-      case MemberCandidate(tp, name) => s"[${tp.show}].$name"
+    def formatCand(cand: AutoResolution.Candidate): String = cand match
+      case AutoResolution.Candidate.ValueCandidate(sym) => sym.name
+      case AutoResolution.Candidate.MemberCandidate(tp, name) => s"[${tp.show}].$name"
+      case AutoResolution.Candidate.HavingCandidate(sym) => s"(having: ${sym.info.show})"
 
     def formatFailureReason(reason: AutoResolution.FailureReason): String = reason match
       case AutoResolution.FailureReason.Cycle(trace) =>
@@ -183,6 +184,8 @@ object Autos:
       if choice.children.nonEmpty then
         for trial <- choice.children do
           formatTrial(trial, indent)
+      else
+        sb.append(s"$indent  (no candidates available)\n")
 
     def formatTrial(trial: AutoResolution.SearchNode.Trial, indent: String): Unit =
       sb.append(s"$indent  → ${formatCand(trial.cand)}")
