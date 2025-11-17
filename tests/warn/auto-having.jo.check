@@ -8,3 +8,4 @@
   → (having: Eq[Item]) ✗ type mismatch: found Eq[Item], expected Ord[Item]
 
 
+1 error(s), 0 warning(s)

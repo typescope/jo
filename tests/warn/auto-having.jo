@@ -13,11 +13,13 @@ def eqItem(auto ord: Ord[Item]): Eq[Item] =
 
 def testEq[T](x: T, y: T)(auto eq: Eq[T], ord: Ord[T]): Bool = ...
 
+def testNoCand[T](x: T, y: T)(auto eq: Eq[T], ord: Ord[T]): Bool = ...
+
 def main: Unit =
   val i1 = new Item(42)
   val i2 = new Item(100)
 
-  // No candidates in list, provide eqItem via having
-  // Should show having candidate in error when nested Ord[Item] resolution fails
-  val result = testEq[Item](i1, i2) having Eq[Item] = ...
-  assert(!result, "items should not be equal")
+
+  testEq[Item](i1, i2) having Eq[Item] = ...
+
+  testNoCand[Item](i1, i2)
