@@ -1,0 +1,40 @@
+// Test member adapters with auto parameters
+// Demonstrates compositional conversions for generic types
+
+type Show[T] = T => String
+
+def showInt: Show[Int] = x => intToStr(x)
+def showString: Show[String] = x => x
+
+class Box[T]
+  val value: T
+
+  def Box(v: T) = { value: v }
+
+  // Member with auto parameter - can be used as adapter
+  def show(auto s: Show[T] with [showInt, showString, [T].show]): String =
+    "Box(" + s(value) + ")"
+end
+
+// Constructor function
+def Box[T](v: T): Box[T] = new Box(v)
+
+def display(msg: String with [.show]): Unit =
+  println msg
+
+def main =
+  // Direct type - uses showInt
+  val box1 = Box(42)
+  display box1  // Uses box1.show with auto-resolved showInt
+
+  // Different type - uses showString
+  val box2 = Box("hello")
+  display box2  // Uses box2.show with auto-resolved showString
+
+  // Nested boxes - recursive resolution
+  val box3 = Box(Box(10))
+  display box3  // Uses box3.show which uses Box[Int].show which uses showInt
+
+  // Explicit call still works
+  display box1.show
+end
