@@ -3,6 +3,8 @@ package sast
 import Types.*
 import Symbols.*
 
+import ast.Positions.Span
+
 import common.Debug
 
 import scala.collection.mutable
@@ -130,7 +132,7 @@ object TypeOps:
     */
   def isGrounded(tp: Type)(using Definitions): Boolean =
     tp match
-      case StaticRef(sym) => (!sym.isType && !sym.isAlias) || sym.info.isInstanceOf[TypeBound]
+      case StaticRef(sym) => (!sym.isType && !sym.isAlias) || sym.isClass || sym.info.isInstanceOf[TypeBound]
 
       case AppliedType(StaticRef(sym), _) =>
         sym.info match
@@ -166,6 +168,46 @@ object TypeOps:
       tp match
         case StaticRef(sym) =>
           ctx.getOrElse(sym, tp)
+
+        case _ =>
+          recur(tp)
+
+  /** Replace all type parameters with fresh type vars */
+  class InstantiateTypeParam(span: Span)(using Definitions, TypeVars) extends TypeMap:
+    type Context = Unit
+
+    def apply(tp: Type)(using ctx: Context): Type =
+      tp match
+        case StaticRef(sym) if sym.isAllOf(Flags.Type | Flags.Param) =>
+          TypeVar(sym.name, span)
+
+        case _ =>
+          recur(tp)
+
+  class FullyInstantiatedChecker(using Definitions) extends TypeAccumulator[Boolean](true):
+    type Context = Unit
+
+    def combine(acc: Boolean, op: => Boolean): Boolean = acc && op
+
+    def apply(tp: Type)(using Context): Boolean =
+      tp match
+        case tvar: TypeVar =>
+          if tvar.isInstantiated then this(tvar.instantiated)
+          else false
+
+        case _ =>
+          recur(tp)
+
+  class UninstantiatedCensor(using Definitions) extends TypeAccumulator[Set[TypeVar]](Set.empty):
+    type Context = Unit
+
+    def combine(acc: Set[TypeVar], op: => Set[TypeVar]): Set[TypeVar] = acc ++ op
+
+    def apply(tp: Type)(using Context): Set[TypeVar] =
+      tp match
+        case tvar: TypeVar =>
+          if tvar.isInstantiated then this(tvar.instantiated)
+          else Set(tvar)
 
         case _ =>
           recur(tp)

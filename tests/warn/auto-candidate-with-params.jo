@@ -1,0 +1,18 @@
+// Error: Auto candidates cannot have regular parameters
+
+type Eq[T] = (T, T) => Bool
+
+def eqInt: Eq[Int] = (a, b) => a == b
+
+// This has a regular parameter - not allowed as candidate
+def makeEq(strict: Bool): Eq[Int] =
+  if strict then
+    (a, b) => a == b
+  else
+    (a, b) => true
+
+// Error: makeEq has regular parameters
+def testEq(x: Int, y: Int)(auto eq: Eq[Int] with [makeEq]): Bool =
+  eq(x, y)
+
+def main: Unit = {}

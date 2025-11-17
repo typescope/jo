@@ -1,5 +1,5 @@
 ---------- Error at ./tests/warn/adapter-member-param.jo:19:3 ---------------
-|   test(doc) allow jo.IO.stdout
+|   test(doc) allow IO.stdout
 |   ^^^^^^^^^
 |   Parameter not allowed: indent
 

@@ -1,6 +1,6 @@
 // test predef
 
-def main =
+def main receives IO.stdout =
   val l =
     List.empty
       + 3

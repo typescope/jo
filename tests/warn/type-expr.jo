@@ -1,7 +1,7 @@
 type [S] ~ [T] = #Pair(lhs: S, rhs: T)
 
-def test1(a: Int): Int ~ = ???
+def test1(a: Int): Int ~ = ...
 
-def test2(a: Int): ~ = ???
+def test2(a: Int): ~ = ...
 
-def test3(a: Int): Int ~ Int Int = ???
+def test3(a: Int): Int ~ Int Int = ...

@@ -10,6 +10,17 @@ import ast.Positions.{Span, Source}
 import scala.collection.mutable
 
 object TreeOps:
+  def instantiatePoly(polyType: ProcType, fun: Word)(using Definitions, TypeVars): Word =
+    assert(polyType.tparams.nonEmpty, polyType.show)
+
+    val span = fun.span.endPoint
+    val tvars = for tparam <- polyType.tparams yield TypeVar(tparam.name, span)
+    val targs = tvars.map(tvar => TypeTree(tvar)(span))
+    val tpe = polyType.instantiate(tvars)
+
+    TypeApply(fun, targs)(tpe, fun.span)
+
+
   /** Create a lambda (function object with apply method) from a procedure type
     *
     * @param procType The procedure type for the lambda
@@ -64,12 +75,17 @@ object TreeOps:
       case sym: Symbol => ParamAdapter.Function(sym)(span)
       case name: String => ParamAdapter.Member(name)(span)
     })
+    val candidatesConverted = procType.candidates.map(_.map {
+      case sym: Symbol => AutoCandidate.Value(sym)(span)
+      case MemberCandidate(tp, name) => AutoCandidate.Member(TypeTree(tp)(span.point), name)(span)
+    })
     val funDef = FunDef(
       applySym,
       procType.tparams,
       paramSyms,
       adaptersConverted,
       autoSyms,
+      candidatesConverted,
       resultTypeTree,
       policy,
       bodyWord

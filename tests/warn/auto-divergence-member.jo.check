@@ -1,0 +1,11 @@
+---------- Error at ./tests/warn/auto-divergence-member.jo:26:16 ---------------
+|   val result = testEq[Box](b1, b2)  // Error: divergence
+|                ^^^^^^^^^^^^^^^^^^^
+|                Failed to find auto of the type Eq[Box]
+? Eq[Box]
+  → [Box].==
+      ? Eq[Box]
+        → [Box].== ✗ cycle
+
+
+1 error(s), 0 warning(s)

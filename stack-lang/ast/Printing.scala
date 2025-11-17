@@ -43,9 +43,22 @@ object Printing:
       else " with [" ~ v.adapters.join(", ") ~ "]"
     v.ident ~ showTypeAnnot(v.tpt) ~ adaptersText
 
+  given Text.Maker[AutoCandidate] = v =>
+    v match
+      case AutoCandidate.Value(ref) => showWord(ref)
+      case AutoCandidate.Member(tpe, name) => "[" ~ tpe ~ "]." ~ name
+
+  given Text.Maker[Auto] = v =>
+    val candidatesText =
+      if v.candidates.isEmpty then Text.Empty
+      else " in [" ~ v.candidates.join(", ") ~ "]"
+    v.ident ~ showTypeAnnot(v.tpt) ~ candidatesText
+
   given Text.Maker[TypeParam] = v => v.ident ~ showTypeBound(v.bound)
 
   given Text.Maker[WithArg] = v => v.paramRef ~ " = " ~ v.rhs
+
+  given Text.Maker[HavingBinding] = v => v.tpe ~ " = " ~ v.value
 
   given Text.Maker[Case] = v => "case " ~ showPattern(v.pat) ~ " =>" ~ indent(v.body)
 
@@ -216,9 +229,12 @@ object Printing:
 
       case Ident(name) => Text(name)
 
-      case Apply(fun, args) =>
+      case Apply(fun, args, havingBindings) =>
         val argsText = args.join(", ")
-        fun ~ "(" ~ argsText ~ ")"
+        val havingText =
+          if havingBindings.isEmpty then Text.Empty
+          else " having " ~ havingBindings.join(", ")
+        fun ~ "(" ~ argsText ~ ")" ~ havingText
 
       case BracketApply(subject, args) =>
         subject ~ "[" ~ args.join(", ") ~ "]"
@@ -313,7 +329,7 @@ object Printing:
       case _: Tag | _: RefTree | _: StringLit | _: IntLit | _: CharLit | _: BoolLit =>
         showWord(pat)
 
-      case Apply(fun, args) if args.nonEmpty =>
+      case Apply(fun, args, _) if args.nonEmpty =>
         val argText = args.map(showPattern).join(", ")
         showPattern(fun) ~ "(" ~ argText  ~ ")"
 

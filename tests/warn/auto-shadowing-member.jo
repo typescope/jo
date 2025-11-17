@@ -1,0 +1,19 @@
+// Error: Member candidate shadowing another member candidate
+
+type Eq[T] = (T, T) => Bool
+
+class Item
+  val id: Int
+  def Item(n: Int) = { id: n }
+
+  def ==(that: Item): Bool = this.id == that.id
+
+type Animal = { name: String, eq: Eq[Animal] }
+type Dog = { name: String, eq: Eq[Animal], weight: Int }
+
+// Error: [T].== appears twice in the candidate list - redundant
+def testEq[T](x: T, y: T)(auto eq: Eq[T] with [[T].==, [T].==]): Bool =
+  eq(x, y)
+
+def testEq2[T](x: T, y: T)(auto eq: Eq[T] with [[Dog].eq, [Animal].eq]): Bool =
+  eq(x, y)

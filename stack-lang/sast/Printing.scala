@@ -410,7 +410,7 @@ object Printing:
       case TypeBound(lo, hi) =>
         lo ~ " .. " ~ hi
 
-      case procType @ ProcType(tparams, params, adapters, autos, resType, _, n) =>
+      case procType @ ProcType(tparams, params, adapters, autos, candidates, resType, _, n) =>
         val tparamText =
           if tparams.isEmpty then
             Text.Empty
@@ -451,7 +451,7 @@ object Printing:
 
         tparamText ~ preText ~ postText ~ autoText ~ ": " ~ resType ~ receivesText
 
-      case info: ContainerInfo => Text("Container { ... }")
+      case info: ContainerInfo => Text("Container { " + info.nameTable.show + " }")
 
       case info: ClassInfo => info.classSymbol ~ "{ ... }"
 

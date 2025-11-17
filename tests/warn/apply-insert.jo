@@ -1,0 +1,16 @@
+type List[T] = #Nil | #Cons(head: T, tail: List[T])
+
+def List = {
+  def apply[T](a: T): List[T] = #Cons(a, #Nil)
+}
+
+def foo(): Int = 30
+def bar: Int = 20
+
+def main =
+  foo()
+  bar()
+
+  match List(4)
+   case #Cons(a, _) => println a
+   case _ =>

@@ -13,24 +13,8 @@ import Inference.*
 
 import common.Debug
 
-import scala.collection.mutable
-
 /** Perform checks related to types  */
-class Checker(namer: Namer):
-  // TODO: remove by make it contextual in Namer
-  private val delayedChecks = new mutable.ArrayBuffer[() => Unit]
-  var checking = false
-
-  def delayedCheck(check: => Unit): Unit =
-    if checking then throw new Exception("cannot add new task during checking")
-    delayedChecks.addOne(() => check)
-
-  def performDelayedChecks(): Unit =
-    checking = true
-    for check <- delayedChecks do check()
-    delayedChecks.clear()
-    checking = false
-
+object Checker:
   /** Check kind of a type
     *
     * Note: Do not access info of type symbols.
@@ -115,12 +99,12 @@ class Checker(namer: Namer):
     if tpe.hasTermMember(member) || tpe.isError then
       word
     else
-      Reporter.error(s"The prefix does not contain the member $member", word.pos)
+      Reporter.error(s"The prefix of the type ${tpe.show} does not contain the member $member", word.pos)
       errorWord(word.span)
 
-  def checkInstantiated(tvar: TypeVar, pos: SourcePosition)(using Reporter): Unit =
-    if !tvar.isInstantiated then
-      Reporter.error("Cannot infer a type for type variable " + tvar, pos)
+  def checkInstantiated(tvars: TypeVars)(using Reporter, Source): Unit =
+    for tvar <- tvars.typeVars if !tvar.isInstantiated do
+      Reporter.error("Cannot infer a type for type variable " + tvar, tvar.span.toPos)
 
   def checkModifiers(defn: Ast.Def)(using rp: Reporter, so: Source): Flags =
     val mods = defn.modifiers
@@ -131,9 +115,6 @@ class Checker(namer: Namer):
     defn match
       case fdef: Ast.FunDef =>
         mods.foreach:
-          case _: Ast.Modifier.Auto =>
-            flags = flags | Flags.Auto
-
           case _: Ast.Modifier.Defer =>
             flags = flags | Flags.Defer
 
@@ -144,18 +125,8 @@ class Checker(namer: Namer):
           case mod =>
             Reporter.error("The modifier " + mod.show + " is not allowed for function definition", mod.pos)
 
-        if flags.is(Flags.Auto) && fdef.params.nonEmpty then
-          val tip =
-            if fdef.autos.isEmpty then " Do you forget the modifier auto?"
-            else ""
-
-          Reporter.warn("The function will be ignored in auto derivation as it requires non-auto arguments." + tip, fdef.params.head.pos)
-
       case vdef: Ast.ValDef =>
         mods.foreach:
-          case _: Ast.Modifier.Auto =>
-            flags = flags | Flags.Auto
-
           case mod =>
             Reporter.error("The modifier " + mod.show + " is not allowed for value definition", mod.pos)
 
@@ -190,9 +161,6 @@ class Checker(namer: Namer):
       case adef: Ast.AliasDef =>
         val kind = adef.kind
         mods.foreach:
-          case _: Ast.Modifier.Auto if kind == Ast.AliasKind.Def =>
-            flags = flags | Flags.Auto
-
           case mod =>
             Reporter.error(s"The modifier ${mod.show} is not allowed for alias $kind definition", mod.pos)
     end match
@@ -213,44 +181,35 @@ class Checker(namer: Namer):
         Reporter.error(s"Cannot find common result type, tp1 = ${tp1.show}, tp2 = ${tp2.show}", pos)
         ErrorType
 
-  def adaptNoArgs(word: Word, procType: ProcType, targetType: TargetType)(using Definitions, Scope, Reporter, Source): Word =
-    val isParameterlessCall =
-      procType.paramCount == 0 && targetType.match
-        case TargetType.Fun(n) =>
-          n != 0
+  def adaptParameterless(word: Word, targetType: TargetType)(using Definitions, Scope, Reporter, Source, TypeVars): Word =
+    if !word.tpe.isProcType then return word
 
-        case TargetType.TypeApply =>
-          false
-
-        case _ =>
-          true
+    val procType = word.tpe.asProcType
+    val isParameterlessCall = procType.paramCount == 0
 
     if isParameterlessCall then
       val fun =
         if procType.tparams.isEmpty then word
-        else namer.instantiatePoly(procType, word)
+        else TreeOps.instantiatePoly(procType, word)
       val procType2 = fun.tpe.asProcType
       val resType = procType2.resultType
 
-      // Always prefer type constraints from outer scope if present
-      for tp <- targetType.knownType do Subtyping.conforms(resType, tp)
+      // Constrain result type
+      Inference.conditionalInstantiate(resType, targetType)
 
-      val autos = namer.autoResolver.derive(procType2, word.span)
-      Apply(fun, args = Nil, autos)(fun.span)
+      Autos.resolve(fun, args = Nil, havings = Nil, word.span)
 
     else
       word
 
-
-  def adapt(word: Word, targetType: TargetType)(using Definitions, Scope, Reporter, Source): Word = Debug.trace("Adapting " + word.show, (_: Word).show, enable = false):
+  def adapt(word: Word, targetType: TargetType)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars)
+  : Word = Debug.trace("Adapting " + word.show + ", tt = " + targetType.show, (_: Word).show, enable = false):
     val defn = summon[Definitions]
 
-    val word2 =
-      if word.tpe.isProcType then
-        val procType = word.tpe.asProcType
-        adaptNoArgs(word, procType, targetType)
-
-      else if word.tpe.isTermRef then
+    // Adapt Container selection List -> List.List
+    val word2: Word =
+      if word.tpe.isTermRef then
         val ref = word.tpe.as[RefType]
         val sym = ref.symbol
         if
@@ -261,7 +220,7 @@ class Checker(namer: Namer):
         then
           val memSym = sym.termMember(sym.name).dealias
           // The selection might need parameterless call adaption
-          return adapt(Ident(memSym)(word.span), targetType)
+          Ident(memSym)(word.span)
         else
           word
 
@@ -273,41 +232,49 @@ class Checker(namer: Namer):
         // Don't widen if the target type is unknown
         word2
 
+      case TargetType.ExprItem =>
+        adaptParameterless(word2, targetType)
+
       case TargetType.VoidType =>
-        if word2.tpe.isVoidType then
-          word2
-        else if word2.tpe.isValueType then
-          word2.dropValue
+        val word3 = adaptParameterless(word2, targetType)
+        if word3.tpe.isVoidType then
+          word3
+        else if word3.tpe.isValueType then
+          word3.dropValue
         else
-          checkValueType(word2)
-          word2
+          checkValueType(word3)
+          word3
 
       case TargetType.ValueType =>
-        if word2.tpe.isVoidType then
+        val word3 = adaptParameterless(word2, targetType)
+        if word3.tpe.isVoidType then
           // adapt to Unit type
-          Adaptation.adapt(word2, defn.UnitType, Adaptation.NoAdapter)
+          Adaptation.adapt(word3, defn.UnitType, Adaptation.NoAdapter)
         else
-          checkValueType(word2)
-          word2
+          checkValueType(word3)
+          word3
 
       case TargetType.Known(tpe, adapter) =>
+        val word3 = adaptParameterless(word2, targetType)
+
         try
-          val wordAdapted = Adaptation.adapt(word2, tpe, adapter)
+          val wordAdapted = Adaptation.adapt(word3, tpe, adapter)
           checkType(wordAdapted, tpe)
           wordAdapted
 
         catch case ex: Adaptation.AdaptionFailure =>
-          Reporter.error(s"Expect type ${tpe.show}, found = ${word2.tpe.show}", word2.pos)
-          Encoded(Block(Nil)(word2.span))(tpe)
+          Reporter.error(s"Expect type ${tpe.show}, found = ${word3.tpe.show}", word3.pos)
+          Encoded(Block(Nil)(word3.span))(tpe)
 
       case TargetType.TermMember(name) =>
-        checkTermMember(word2, name)
+        val wordAutoApplied = adaptParameterless(word, targetType)
+        checkTermMember(wordAutoApplied, name)
 
       case TargetType.TypeMember(name) =>
         // checked in namer
         word2
 
-      case TargetType.Fun(n) =>
+      case TargetType.Call =>
         // The `.apply` insertion happens at the transform for `Apply`.
         // It ensures that in `Apply(fun, args)` the fun is an ident or select.
         word2
@@ -315,3 +282,4 @@ class Checker(namer: Namer):
       case TargetType.TypeApply =>
         // Used to prevent no args adapation
         word2
+    end match

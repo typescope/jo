@@ -507,9 +507,23 @@ object Trees:
     (val span: Span)
   extends Word, Def
 
-  enum ParamAdapter:
+  enum ParamAdapter extends Positioned:
     case Function(symbol: Symbol)(val span: Span)
     case Member(name: String)(val span: Span)
+
+    def show(using Definitions): String =
+      this match
+        case Function(sym) => sym.name
+        case Member(name) => "." + name
+
+  enum AutoCandidate extends Positioned:
+    case Value(symbol: Symbol)(val span: Span)
+    case Member(tpt: TypeTree, name: String)(val span: Span)
+
+    def show(using Definitions): String =
+      this match
+        case Value(sym) => sym.name
+        case Member(tpt, name) => "[" + tpt.tpe.show + "]." + name
 
   /** Represents a named function or method definition */
   case class FunDef
@@ -518,6 +532,7 @@ object Trees:
       params: List[Symbol],
       adapters: List[List[ParamAdapter]],
       autos: List[Symbol],
+      candidates: List[List[AutoCandidate]],
       resultType: TypeTree,
       effectPolicy: Effects.Policy,
       body: Word)
@@ -527,6 +542,7 @@ object Trees:
     defn.setCode(symbol, this)
 
     assert(params.size == adapters.size)
+    assert(autos.size == candidates.size)
 
     private var censusCache: (List[Symbol], List[Symbol]) | Null = null
 
@@ -627,16 +643,24 @@ object Trees:
       val memberType = word.tpe.termMember(name)
       Select(word, name)(memberType, word.span)
 
+    /** Both fun and arg must be fully instantiated */
     def appliedTo(args: Word*)(using Definitions): Word =
       val procType = word.tpe.asProcType
 
+      for arg <- args do
+        assert(arg.tpe.isFullyInstantiated, "not fully instantiated: " + arg.tpe.show)
+
+      assert(procType.isFullyInstantiated, "not fully instantiated: " + procType.show)
       assert(procType.paramCount == args.size, "args mismatch")
       assert(procType.tparams.isEmpty, "type params not supplied")
       assert(procType.autos.isEmpty, "autos not supplied")
 
       val args2 =
-        for ((arg, paramType), adapterList) <- args.zip(procType.paramTypes).zip(procType.adapters)
-        yield Adaptation.adapt(arg, paramType, Adaptation.createSimpleAdapter(adapterList))
+        for
+          ((arg, paramType), adapterList) <- args.zip(procType.paramTypes).zip(procType.adapters)
+        yield
+          // Both fun and arg are fully instantiated
+          Adaptation.adapt(arg, paramType, Adaptation.createSimpleAdapter(adapterList))
 
       val span = args.foldLeft(word.span)(_ | _.span)
 

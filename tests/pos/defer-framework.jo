@@ -4,12 +4,10 @@
 
 namespace Test
 
-import jo.IO.stdout
-
 section Framework
-  defer def init(): Unit receives stdout
-  defer def process(x: Int): Int receives stdout
-  defer def cleanup(): Unit receives stdout
+  defer def init(): Unit receives IO.stdout
+  defer def process(x: Int): Int receives IO.stdout
+  defer def cleanup(): Unit receives IO.stdout
 
   // Framework orchestrator - becomes the entry point via -link
   def runApp: Unit =

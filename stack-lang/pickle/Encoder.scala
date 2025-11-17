@@ -371,9 +371,9 @@ object Encoder:
       encodeType(tparam.info)
 
 
-  private def encodeParams(params: List[Symbol], adapters: List[List[Trees.ParamAdapter]], prevOffset: Int)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
+  private def encodeParams(params: List[Symbol], prevOffset: Int)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
     // Assume param section is small such that the delta is small even for the same base offset
-    repeated(params.zip(adapters)): (param, paramAdapters) =>
+    repeated(params): param =>
       encodeNat(state.getId(param))
       encodeString(param.name)
 
@@ -383,25 +383,6 @@ object Encoder:
       encodeNat(symSpan.length)
 
       encodeType(param.info)
-
-      repeated(paramAdapters): adapter =>
-        adapter match
-          case func @ Trees.ParamAdapter.Function(symbol) =>
-            encodeByte(0) // Tag for function adapter
-            encodeSymbolRef(symbol)
-
-            val adapterStartDelta = func.span.start - prevOffset
-            encodeInt(adapterStartDelta)
-            encodeNat(func.span.length)
-
-          case member @ Trees.ParamAdapter.Member(name) =>
-            encodeByte(1) // Tag for member adapter
-            encodeString(name)
-
-            val adapterStartDelta = member.span.start - prevOffset
-            encodeInt(adapterStartDelta)
-            encodeNat(member.span.length)
-
 
   private def encodeDef(defn: Def)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
     defn match
@@ -528,7 +509,27 @@ object Encoder:
 
       encodeTypeParams(fdef.tparams, absoluteStart)
 
-      encodeParams(fdef.params, fdef.adapters, absoluteStart)
+      encodeParams(fdef.params, absoluteStart)
+
+      // Encode adapters for each parameter
+      repeated(fdef.adapters): paramAdapters =>
+        repeated(paramAdapters): adapter =>
+          adapter match
+            case func @ ParamAdapter.Function(symbol) =>
+              encodeByte(0) // Tag for function adapter
+              encodeSymbolRef(symbol)
+
+              val adapterStartDelta = func.span.start - absoluteStart
+              encodeInt(adapterStartDelta)
+              encodeNat(func.span.length)
+
+            case member @ ParamAdapter.Member(name) =>
+              encodeByte(1) // Tag for member adapter
+              encodeString(name)
+
+              val adapterStartDelta = member.span.start - absoluteStart
+              encodeInt(adapterStartDelta)
+              encodeNat(member.span.length)
 
       repeated(fdef.autos): auto =>
         encodeNat(state.getId(auto))
@@ -540,6 +541,25 @@ object Encoder:
         encodeNat(symSpan.length)
 
         encodeType(auto.info)
+
+      // Encode candidates for each auto parameter
+      repeated(fdef.candidates): candidateList =>
+        repeated(candidateList): candidate =>
+          candidate match
+            case AutoCandidate.Value(sym) =>
+              encodeByte(0) // Tag for function candidate
+              encodeSymbolRef(sym)
+              val symSpan = sym.sourcePos.span
+              encodeInt(symSpan.start - absoluteStart)
+              encodeNat(symSpan.length)
+
+            case AutoCandidate.Member(tpt, name) =>
+              encodeByte(1) // Tag for member candidate
+              encodeType(tpt.tpe)
+              encodeString(name)
+              val tptSpan = tpt.span
+              encodeInt(tptSpan.start - absoluteStart)
+              encodeNat(tptSpan.length)
 
       encodeTypeTree(fdef.resultType, absoluteStart)
 
@@ -629,7 +649,7 @@ object Encoder:
         encodeDef(defn)
         lastOffset = defn.span.endOffset
 
-      encodeNat(sec.span.endOffset - lastOffset)
+      encodeInt(sec.span.endOffset - lastOffset)
 
   private def encodeTypeTree(tpt: TypeTree, prevOffset: Int)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
     val startDelta = tpt.span.start - prevOffset
@@ -711,7 +731,7 @@ object Encoder:
         repeated(targs): targ =>
           encodeType(targ, tparamScope)
 
-      case procType @ ProcType(tparams, params, adapters, autos, resType, _, preParamCount) =>
+      case procType @ ProcType(tparams, params, adapters, autos, candidates, resType, _, preParamCount) =>
         encodeByte(Format.ProcType)
 
         // Local type symbols in types only need to store bound and name.
@@ -723,9 +743,11 @@ object Encoder:
             encodeKind(tparam.asTypeSymbol.kind)
             encodeType(tparam.info, tparamScope)
 
-          repeated(params.zip(adapters)): (param, paramAdapters) =>
+          repeated(params): param =>
             encodeString(param.name)
             encodeType(param.info, tparamScope)
+
+          repeated(adapters): paramAdapters =>
             repeated(paramAdapters): adapter =>
               adapter match
                 case sym: Symbol =>
@@ -739,6 +761,19 @@ object Encoder:
           repeated(autos): auto =>
             encodeString(auto.name)
             encodeType(auto.info, tparamScope)
+
+          // Encode candidates for each auto parameter
+          repeated(candidates): candidateList =>
+            repeated(candidateList): candidate =>
+              candidate match
+                case sym: Symbol =>
+                  encodeByte(0) // Tag for function candidate
+                  encodeSymbolRef(sym)
+
+                case MemberCandidate(tp, name) =>
+                  encodeByte(1) // Tag for member candidate
+                  encodeType(tp, tparamScope)
+                  encodeString(name)
 
           encodeType(resType, tparamScope)
 

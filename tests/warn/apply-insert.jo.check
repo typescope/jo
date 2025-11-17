@@ -1,0 +1,11 @@
+---------- Error at ./tests/warn/apply-insert.jo:14:9 ---------------
+|   match List(4)
+|         ^^^^^^^
+|         The function expects 0 argument(s), found = 1
+
+---------- Error at ./tests/warn/apply-insert.jo:15:9 ---------------
+|    case #Cons(a, _) => println a
+|         ^^^^^
+|         The tag Cons does not match the scrutinee type Error
+
+2 error(s), 0 warning(s)

@@ -16,4 +16,4 @@ def main =
     def format: String = intToStr(indent) + ": " + content
   }
   // The context parameter is provided here
-  test(doc) allow jo.IO.stdout
+  test(doc) allow IO.stdout

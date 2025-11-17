@@ -435,7 +435,7 @@ object Decoder:
         tparam
 
       // Decode regular term parameters
-      val paramsWithAdapters = repeated:
+      val params = repeated:
         val paramId = decodeNat()
         val paramName = decodeString()
 
@@ -448,7 +448,11 @@ object Decoder:
         val param = Symbol.createSymbol(paramName, paramInfo, Flags.Param, symbol, paramSpan.toPos)
         state.registerInternalSymbol(paramId, param)
 
-        val adapters = repeated {
+        param
+
+      // Decode adapters for each parameter
+      val adapterTrees = repeated {
+        repeated {
           val tag = decodeByte()
           tag match
             case 0 => // Function adapter
@@ -465,14 +469,11 @@ object Decoder:
               val adapterSpan = Span(absoluteStart + adapterStartDelta, adapterSpanLength)
               ParamAdapter.Member(memberName)(adapterSpan)
         }
+      }
 
-        (param, adapters)
-
-      val params = paramsWithAdapters.map(_._1)
-      val adapterTrees = paramsWithAdapters.map(_._2)
       val adapterSymbols = adapterTrees.map(l => l.map {
-        case Trees.ParamAdapter.Function(sym) => sym
-        case Trees.ParamAdapter.Member(name) => name
+        case ParamAdapter.Function(sym) => sym
+        case ParamAdapter.Member(name) => name
       })
 
       // Decode auto parameters
@@ -491,6 +492,31 @@ object Decoder:
 
         auto
 
+      // Decode auto candidates
+      val candidatesWithTrees = repeated {
+        repeated {
+          val tag = decodeByte()
+          tag match
+            case 0 => // Function candidate
+              val candidateSym = decodeSymbolRef()
+              val candidateStartDelta = decodeInt()
+              val candidateSpanLength = decodeNat()
+              val candidateSpan = Span(absoluteStart + candidateStartDelta, candidateSpanLength)
+              (AutoCandidate.Value(candidateSym)(candidateSpan), candidateSym)
+
+            case 1 => // Member candidate
+              val tpe = decodeType()
+              val memberName = decodeString()
+              val tptStartDelta = decodeInt()
+              val tptSpanLength = decodeNat()
+              val tptSpan = Span(absoluteStart + tptStartDelta, tptSpanLength)
+              val tpt = TypeTree(tpe)(tptSpan)
+              (AutoCandidate.Member(tpt, memberName)(tptSpan), MemberCandidate(tpe, memberName))
+        }
+      }
+
+      val candidateTrees = candidatesWithTrees.map(_.map(_._1))
+      val candidateSymbols = candidatesWithTrees.map(_.map(_._2))
 
       val resultType = decodeTypeTree(absoluteStart)
 
@@ -507,7 +533,7 @@ object Decoder:
 
       ProcType(
         sig.tparams, sig.params.map(_.toNamedInfo), sig.adapterSymbols, sig.autos.map(_.toNamedInfo),
-        sig.resultType.tpe, () => receives, sig.preParamCount)
+        sig.candidateSymbols, sig.resultType.tpe, () => receives, sig.preParamCount)
 
     defnLazy.infoProvider.addLazy(symbol, owner,  () => funInfo)
 
@@ -519,7 +545,7 @@ object Decoder:
       val endDelta = decodeInt()
       val span = Span(absoluteStart, body.span.endOffset + endDelta - absoluteStart)
       val policy = Effects.Policy.CheckBound(sig.receives)
-      FunDef(symbol, sig.tparams, sig.params, sig.adapterTrees, sig.autos, sig.resultType, policy, body)(span)
+      FunDef(symbol, sig.tparams, sig.params, sig.adapterTrees, sig.autos, sig.candidateTrees, sig.resultType, policy, body)(span)
 
     // Set buffer position at end
     buf.setPosition(pos + length)
@@ -736,7 +762,7 @@ object Decoder:
     lazy val patInfo: ProcType =
       val receives = sig.receives
       ProcType(
-        sig.tparams, sig.params.map(_.toNamedInfo), sig.params.map(_ => Nil), Nil,
+        sig.tparams, sig.params.map(_.toNamedInfo), sig.params.map(_ => Nil), Nil, Nil,
         sig.resultType.tpe, () => receives, sig.preParamCount)
 
     defnLazy.infoProvider.addLazy(symbol, owner, () => patInfo)
@@ -957,30 +983,43 @@ object Decoder:
           tparam
 
         tparamScope.withParams(tparams):
-          val paramsWithAdapters = repeated:
+          val params = repeated:
             val name = decodeString()
             val info = decodeType(tparamScope)
-            val adapters = repeated:
+            NamedInfo(name, info)
+
+          val adapters = repeated:
+            repeated:
               val tag = decodeByte()
               tag match
                 case 0 => decodeSymbolRef() // Function adapter
                 case 1 => decodeString()    // Member adapter
-
-            (NamedInfo(name, info), adapters)
-
-          val params = paramsWithAdapters.map(_._1)
-          val adapters = paramsWithAdapters.map(_._2)
 
           val autos = repeated:
             val name = decodeString()
             val info = decodeType(tparamScope)
             NamedInfo(name, info)
 
+          // Decode candidates for each auto parameter
+          val candidates = repeated {
+            repeated {
+              val tag = decodeByte()
+              tag match
+                case 0 => // Function candidate
+                  decodeSymbolRef()
+
+                case 1 => // Member candidate
+                  val tp = decodeType(tparamScope)
+                  val memberName = decodeString()
+                  MemberCandidate(tp, memberName)
+            }
+          }
+
           val resType = decodeType(tparamScope)
           val receives = repeated { decodeSymbolRef() }
           val preParamCount = decodeNat()
 
-          ProcType(tparams, params, adapters, autos, resType, () => receives, preParamCount)
+          ProcType(tparams, params, adapters, autos, candidates, resType, () => receives, preParamCount)
 
       case Format.TypeLambda =>
         val tparams = repeated:

@@ -37,10 +37,15 @@ abstract class TypeTraverser:
         this(lo)
         this(hi)
 
-      case ProcType(tparams, params, adapters, autos, resType, receives, preParamCount) =>
+      case ProcType(tparams, params, adapters, autos, candidates, resType, receives, preParamCount) =>
         // TODO: Once type bounds are supported, we need to transform bounds
         for param <- params do this(param.info)
 
         for auto <- autos do this(auto.info)
+
+        for candidateList <- candidates; candidate <- candidateList do
+          candidate match
+            case MemberCandidate(tp, name) => this(tp)
+            case _ => // Symbol case - no traversal needed
 
         this(resType)

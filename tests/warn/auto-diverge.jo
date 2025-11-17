@@ -2,15 +2,15 @@ type A
 type B
 type C
 
-auto def diverge(auto a: A): A = ???
+def diverge(auto a: A with [diverge]): A = ...
 
-def foo(auto a: A): Int = 3
+def foo(auto a: A with [diverge]): Int = 3
 
 
-auto def fly(auto b: B): C = ???
-auto def bla(auto c: C): B = ???
+def fly(auto a: A with [bar]): C = ...
+def bla(auto c: C with [fly]): B = ...
 
-def bar(auto b: B): Int = 3
+def bar(auto b: B with [bla]): A = ...
 
 
 def main =

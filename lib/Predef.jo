@@ -54,44 +54,14 @@ alias def both = jo.Bool.both
 alias def either = jo.Bool.either
 
 type Array[T] = jo.Array.Array[T]
-section Array
-  alias def create = jo.Array.create
-  alias def get = jo.Array.get
-  alias def size = jo.Array.size
-  alias def set = jo.Array.set
-  alias def clone = jo.Array.clone
-end
 
 type Eq[T] = jo.Eq.Eq[T]
-auto def byteEq: Eq[Byte] = (a, b) => a == b
-auto def charEq: Eq[Char] = (a, b) => a == b
-auto def intEq: Eq[Int] = (a, b) => a == b
-auto def stringEq: Eq[String] = (a, b) => a == b
-
-type Show[T] = jo.Show.Show[T]
-// TODO: change to param for performance optimization
-auto def byte2String: Show[Byte] = b => intToStr b
-auto def int2String: Show[Int] = i => intToStr i
-auto def char2String: Show[Char] = c => charToStr c
-
 
 type List[T] = jo.List.List[T]
-section List
-  alias def List = jo.List.List
-  alias def empty = jo.List.empty
-end
 
 type Set[T] = jo.Set.Set[T]
-section Set
-  alias def Set = jo.Set.Set
-  alias def empty = jo.Set.empty
-end
 
 type Map[K, V] = jo.Map.Map[K, V]
-section Map
-  alias def Map = jo.Map.Map
-  alias def empty = jo.Map.empty
-end
 
 //------------------------------------------------------------------------------
 //
@@ -134,7 +104,7 @@ def println(s: String with [byteToStr, boolToStr, charToStr, intToStr, .toString
   print s
   print '\n'
 
-def ??? : Bottom = abort("not implemented")
+def ... : Bottom = abort("not implemented")
 
 defer def abort(s: String): Bottom
 

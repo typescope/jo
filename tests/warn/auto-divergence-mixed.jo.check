@@ -1,0 +1,13 @@
+---------- Error at ./tests/warn/auto-divergence-mixed.jo:32:16 ---------------
+|   val result = testEq[Item](i1, i2)  // Error: cycle detected
+|                ^^^^^^^^^^^^^^^^^^^^
+|                Failed to find auto of the type Eq[Item]
+? Eq[Item]
+  → eqItem
+      ? Eq[Box]
+        → [Box].compare
+            ? Eq[Item]
+              → eqItem ✗ cycle
+
+
+1 error(s), 0 warning(s)

@@ -16,14 +16,14 @@ import PatternTyper.{ Occurs, ShadowedPatternError, RemainingSlice, SkipTo }
 
 import scala.collection.mutable
 
-class PatternTyper(namer: Namer, checker: Checker):
+class PatternTyper(namer: Namer):
   def transformPatDef(patDef: Ast.PatDef)
-      (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source)
+      (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, checks: Checks)
   : DelayedDef[PatDef] =
 
     given Definitions = lazyDefn.value
 
-    val flags = checker.checkModifiers(patDef) | Flags.Pattern | Flags.Fun
+    val flags = Checker.checkModifiers(patDef) | Flags.Pattern | Flags.Fun
 
     val patSym = Symbol.createSymbol(patDef.name, flags, patDef.ident.pos)
     given patScope: Scope = sc.fresh(patSym)
@@ -61,7 +61,8 @@ class PatternTyper(namer: Namer, checker: Checker):
           val occurs = new Occurs
           given Occurs = occurs
           given Scope = patScope.fresh()
-          val patternTyped = transformPattern(pattern, scrutType)
+          val patternTyped = Inference.freshIsolate:
+            transformPattern(pattern, scrutType)
 
           if !reporterTemp.hasErrors then
             for paramSym <- paramSyms do occurs.checkOccur(paramSym)
@@ -85,7 +86,7 @@ class PatternTyper(namer: Namer, checker: Checker):
 
     def computeInfo(resultType: Type) =
       val autoTypes = Nil
-      ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), paramSyms.map(_ => Nil), autoTypes, resultType, () => Nil, patDef.preParamCount)
+      ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), paramSyms.map(_ => Nil), autoTypes, Nil, resultType, () => Nil, patDef.preParamCount)
 
     val ip = lazyDefn.infoProvider
     ip.addLazy(patSym, sc.owner,  () => computeInfo(resultTypeTree.tpe), () => computeInfo(ErrorType))
@@ -124,13 +125,14 @@ class PatternTyper(namer: Namer, checker: Checker):
       Reporter.warn(s"The match is exhaustive. There is no need to mark the type with `Partial`.", coveredTypeTree.pos)
 
   def transformMatch(patmat: Ast.Match)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)
   : Word =
 
     val Ast.Match(scrutinee, cases) = patmat
     val scrutinee2 =
       given TargetType = TargetType.ValueType
-      namer.transform(scrutinee)
+      Inference.freshIsolate:
+        namer.transform(scrutinee)
 
     val scrutType = scrutinee2.tpe.widenTermRef
 
@@ -143,7 +145,7 @@ class PatternTyper(namer: Namer, checker: Checker):
     val commonType = (cases2: @unchecked) match
       case caseDef :: rest =>
         rest.foldLeft(caseDef.body.tpe): (acc, item) =>
-          checker.commonResultType(acc, item.body.tpe, item.body.pos)
+          Checker.commonResultType(acc, item.body.tpe, item.body.pos)
 
     val patmat2 = Match(scrutinee2, cases2)(commonType, patmat.span)
 
@@ -175,7 +177,7 @@ class PatternTyper(namer: Namer, checker: Checker):
       Reporter.warn(s"The match will fail for the $word: " + examples, patmat.scrutinee.pos)
 
   private def transformCase(caseDef: Ast.Case, scrutType: Type)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)
   : Case =
     val Ast.Case(pat, body) = caseDef
 
@@ -185,7 +187,8 @@ class PatternTyper(namer: Namer, checker: Checker):
     val rp2 = rp.fresh(buffer = true)
     val pat2 =
       given Reporter = rp2
-      transformPattern(pat, scrutType)
+      Inference.freshIsolate:
+        transformPattern(pat, scrutType)
 
     val body2 =
       if rp2.hasErrors then
@@ -201,19 +204,19 @@ class PatternTyper(namer: Namer, checker: Checker):
 
   private def transformApplyPattern(
       id: Ast.RefTree, args: List[Ast.Word], scrutType: Type, patSpan: Span)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs, tvars: TypeVars)
   : Pattern =
 
     val sym = resolvePatternPredicate(id)
 
     var fun: Word = Ident(sym)(id.span)
 
-    if fun.tpe.isPolyType then
-      fun = namer.instantiatePoly(fun.tpe.asProcType, fun)
+    if fun.tpe.isProcType then
+      if fun.tpe.isPolyType then
+        fun = TreeOps.instantiatePoly(fun.tpe.asProcType, fun)
 
-    val funType = fun.tpe
+      val funType = fun.tpe
 
-    if funType.isProcType then
       val procType = funType.asProcType
       val paramSize = procType.paramTypes.size
       val resType = procType.resultType.stripPartial
@@ -248,7 +251,7 @@ class PatternTyper(namer: Namer, checker: Checker):
 
 
   private def transformOrPattern(lhs: Ast.Word, rhs: Ast.Word, scrutType: Type, patSpan: Span)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs, tvars: TypeVars)
   : Pattern =
     given rp2: Reporter = rp.fresh(buffer = true)
 
@@ -291,7 +294,7 @@ class PatternTyper(namer: Namer, checker: Checker):
   private def transformInfixCallPattern(
       preArgs: List[Ast.Word], id: Ast.RefTree, postArgs: List[Ast.Word],
       scrutType: Type, patSpan: Span)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs, tvars: TypeVars)
   : Pattern =
 
     val sym = resolvePatternPredicate(id)
@@ -299,7 +302,7 @@ class PatternTyper(namer: Namer, checker: Checker):
     var fun: Word = Ident(sym)(id.span)
 
     if fun.tpe.isPolyType then
-      fun = namer.instantiatePoly(fun.tpe.asProcType, fun)
+      fun = TreeOps.instantiatePoly(fun.tpe.asProcType, fun)
 
     val funType = fun.tpe
 
@@ -353,7 +356,7 @@ class PatternTyper(namer: Namer, checker: Checker):
 
   private def transformTagPattern(
       tag: Ast.Tag, args: List[Ast.Word], scrutType: Type, patSpan: Span)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs, tvars: TypeVars)
   : Pattern =
 
     val id = tag.name
@@ -400,7 +403,7 @@ class PatternTyper(namer: Namer, checker: Checker):
   : Pattern =
 
     val name = id.name
-    val tpt2 = namer.transformType(tpt)
+    val tpt2 = Checks.eager { namer.transformType(tpt) }
     val tpe = tpt2.tpe
 
     val pattern =
@@ -439,7 +442,7 @@ class PatternTyper(namer: Namer, checker: Checker):
       WildcardPattern()(ErrorType, patSpan)
 
   private def transformIdentPattern(id: Ast.Ident, scrutType: Type)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs, tvars: TypeVars)
   : Pattern =
 
     val name = id.name
@@ -476,7 +479,7 @@ class PatternTyper(namer: Namer, checker: Checker):
           AliasPattern(patVal, wildcard)(isDef = true)
 
   private def transformAliasPattern(id: Ast.Ident, nested: Ast.Word, scrutType: Type)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs, tvars: TypeVars)
   : Pattern =
 
     val name = id.name
@@ -513,7 +516,7 @@ class PatternTyper(namer: Namer, checker: Checker):
           AliasPattern(patVal, nestedPattern)(isDef = true)
 
   private def transformExprPattern(expr: Ast.Expr, scrutType: Type)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs, tvars: TypeVars)
   : Pattern =
 
     expr.words: @unchecked match
@@ -564,10 +567,10 @@ class PatternTyper(namer: Namer, checker: Checker):
         transformPattern(values.last, scrutType)
 
   private def transformSeqPattern(seq: Ast.ListLit, scrutType: Type)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs, tvars: TypeVars)
   : Pattern =
 
-    val tvar = TypeVar("T", this.namer.inferencer)
+    val tvar = TypeVar("T", seq.span)
     val seqType = AppliedType(StaticRef(defn.Internal_Seq), tvar :: Nil)
 
     val sliceMethodType =
@@ -576,6 +579,7 @@ class PatternTyper(namer: Namer, checker: Checker):
         params = NamedInfo("from", defn.IntType) :: NamedInfo("to", defn.IntType)  :: Nil,
         adapters = List(Nil, Nil),
         autos = Nil,
+        candidates = Nil,
         resultType = scrutType.widenTermRef,
         receivesInfo = () => Nil,
         preParamCount = 0
@@ -680,7 +684,7 @@ class PatternTyper(namer: Namer, checker: Checker):
 
 
   private def transformStarPattern(nested: Ast.Word, itemType: Type, pat: Ast.Word)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs, tvars: TypeVars)
   : SeqPartPattern =
 
     // inner pattern has no access to outer locally introduced pattern variables
@@ -735,7 +739,9 @@ class PatternTyper(namer: Namer, checker: Checker):
 
         Symbol.createSymbol(id.name, ErrorType, Flags.Synthetic, sc.owner, id.pos)
 
-  private def transformPatternRef(qualid: Ast.RefTree)(using sc: Scope, defn: Definitions, so: Source, rp: Reporter): Option[Symbol] =
+  private def transformPatternRef(qualid: Ast.RefTree)
+    (using sc: Scope, defn: Definitions, so: Source, rp: Reporter): Option[Symbol] =
+
     qualid match
       case id: Ast.Ident =>
         sc.resolvePattern(id.name) match
@@ -747,6 +753,7 @@ class PatternTyper(namer: Namer, checker: Checker):
       case Ast.Select(qual, name) =>
         // selection must be a pattern predicate
         val qualTyped = namer.transformRefTree(qual.asInstanceOf[Ast.RefTree])
+
         qualTyped.tpe.getPatternMember(name) match
           case None =>
             Reporter.error("A selection must be a pattern predicate", qualid.pos)
@@ -757,7 +764,7 @@ class PatternTyper(namer: Namer, checker: Checker):
 
   private def transformPattern(
       pat: Ast.Word, scrutType: Type)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, oc: Occurs, tvars: TypeVars)
   : Pattern =
 
     (pat: @unchecked) match
@@ -790,13 +797,13 @@ class PatternTyper(namer: Namer, checker: Checker):
       case Ast.TypeAscribe(id: Ast.Ident, tpt) =>
         transformTypePattern(id, tpt, scrutType, pat.span)
 
-      case Ast.Apply(id: Ast.RefTree, args) =>
+      case Ast.Apply(id: Ast.RefTree, args, _) =>
         transformApplyPattern(id, args, scrutType, pat.span)
 
       case Ast.InfixCall(preArgs, id: Ast.RefTree, postArgs) =>
         transformInfixCallPattern(preArgs, id, postArgs, scrutType, pat.span)
 
-      case Ast.Apply(tag: Ast.Tag, nested) =>
+      case Ast.Apply(tag: Ast.Tag, nested, _) =>
         transformTagPattern(tag, nested, scrutType, pat.span)
 
       case Ast.Assign(id: Ast.Ident, nested) =>
@@ -862,14 +869,14 @@ object PatternTyper:
     def unapply(word: Ast.Word): Option[Ast.Word] =
       word match
         case Ast.Expr(Ast.Ident("..") :: nested :: Nil) => Some(nested)
-        case Ast.Apply(Ast.Ident(".."), nested :: Nil) => Some(nested)
+        case Ast.Apply(Ast.Ident(".."), nested :: Nil, _) => Some(nested)
         case _ => None
 
   object SkipTo:
     def unapply(word: Ast.Word): Option[Ast.Word] =
       word match
         case Ast.Expr(Ast.Ident(">") :: nested :: Nil) => Some(nested)
-        case Ast.Apply(Ast.Ident(">"), nested :: Nil) => Some(nested)
+        case Ast.Apply(Ast.Ident(">"), nested :: Nil, _) => Some(nested)
         case _ => None
 
   class ShadowedPatternError(pat1: Pattern, pat2: Pattern)(using Source)

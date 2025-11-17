@@ -1,0 +1,6 @@
+---------- Error at ./tests/warn/infer-prop.jo:12:5 ---------------
+|     List.empty + (#H2 "Test render") + (#Label "a dummy html rendering engine") // error: eager instantiation
+|     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|     Expect type List[Element], found = List[#H2(_1: String)]
+
+1 error(s), 0 warning(s)

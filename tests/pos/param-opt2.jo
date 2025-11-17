@@ -1,5 +1,3 @@
-import jo.IO
-
 type Counter = {
   def inc(): Unit
   def get(): Int

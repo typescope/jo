@@ -1,10 +1,16 @@
 namespace jo.Map
 
 import jo.Predef.*
+import jo.Eq
+
 
 def empty[K, V](auto eq: Eq[K]): Map[K, V] = new Map([], eq)
 
-def Map[K, V](elems: ..Pair[K, V])(auto eq: Eq[K]): Map[K, V] = new Map(elems, eq)
+def Map[K, V](elems: ..Pair[K, V])
+    (auto eq: Eq[K] with [Eq.intEq, Eq.stringEq])
+: Map[K, V] =
+
+  new Map(elems, eq)
 
 // A strawman implementation of Map based on List
 class Map[K, V]

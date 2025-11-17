@@ -11,9 +11,14 @@ type Eq[T] = {
   def eq(this: T, that: T): Bool
 }
 
-section Defaults
-  auto def byteEq: Eq[Byte] = (a, b) => a == b
-  auto def charEq: Eq[Char] = (a, b) => a == b
-  auto def intEq: Eq[Int] = (a, b) => a == b
-  auto def stringEq: Eq[String] = (a, b) => a == b
-end
+//[
+  | The default Eq instance for basic types
+  |
+  | The usage of param instead of def is for performance considerations. The
+  | default param instances are shared in a scope.
+  |
+//]
+param byteEq: Eq[Byte] = (a, b) => a == b
+param charEq: Eq[Char] = (a, b) => a == b
+param intEq: Eq[Int] = (a, b) => a == b
+param stringEq: Eq[String] = (a, b) => a == b

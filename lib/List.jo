@@ -2,6 +2,7 @@ namespace jo.List
 
 import jo.Predef.*
 import jo.List.ListImpl.*
+import jo.Array
 
 def empty[T]: List[T] = new List(ListImpl.Nil)
 

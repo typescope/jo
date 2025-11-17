@@ -34,6 +34,6 @@ def renderDiv(div: DivElement) =
 
 def main =
   val div: DivElement = #Div
-    List.empty + (#H2 "Test render") + (#Label "a dummy html rendering engine") + (#P "Hello, HTML!")
+    List.empty[Element] + (#H2 "Test render") + (#Label "a dummy html rendering engine") + (#P "Hello, HTML!")
 
   renderDiv div with fontSize = 14

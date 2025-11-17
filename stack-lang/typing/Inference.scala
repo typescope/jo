@@ -1,10 +1,11 @@
 package typing
 
-import sast.TypeOps
+import sast.*
 import sast.Adaptation.{ Adapter, NoAdapter }
 import sast.Types.*
-import sast.Subtyping
-import sast.Definitions
+
+import reporting.Reporter
+import ast.Positions.Source
 
 /** Type inference logic */
 object Inference:
@@ -13,7 +14,8 @@ object Inference:
     case ValueType
     case VoidType
     case TypeApply
-    case Fun(args: Int)
+    case ExprItem
+    case Call
     case TermMember(name: String)
     case TypeMember(name: String)
     case Known(tpe: Type, adapter: Adapter = NoAdapter)
@@ -38,20 +40,14 @@ object Inference:
     * This method only applies context instantiation when:
     *
     * - There's no adapter function at the call site
-    * - The original function type was polymorphic (has type parameters to infer)
-    *
-    * For monomorphic functions, context instantiation serves no purpose (no type
-    * parameters to infer), so we skip it to allow parameter adaptation to work.
-    * Even though the monomorphic function might contain uninitialized type
-    * parameters, it is safe to prefer inner constraints.
     *
     * @param resultType The type to constrain
     * @param targetType The target/expected type context
-    * @param originalType The original function type before type parameter instantiation
     */
-  def conditionalInstantiate(resultType: Type, targetType: TargetType, originalType: ProcType)(using Definitions): Unit =
+  def conditionalInstantiate(resultType: Type, targetType: TargetType)(using Definitions): Unit =
     targetType match
-      case TargetType.Known(expectedType, NoAdapter) if originalType.isPolyType =>
+      case TargetType.Known(expectedType, NoAdapter) =>
+        assert(expectedType.isFullyInstantiated, "not fully instantiated: " + expectedType.show)
         // No adapter at call site and function is polymorphic
         // Safe to apply context instantiation to help infer type parameters
         Subtyping.conforms(resultType, expectedType)
@@ -96,80 +92,14 @@ object Inference:
           else
             None
 
-  trait Inferencer:
-    /** The instantiated type associated with the type varialbe
-      *
-      * Throws exception is the type var is not yet instantiated.
-      */
-    def instantiated(tvar: TypeVar): Type
-
-    /** Approximate the type of the tvar to its bounds
-      *
-      * The method shoud not recursively call `TypeOps.approx`.
-      */
-    def approx(tvar: TypeVar, isUp: Boolean): Type
-
-    def isInstantiated(tvar: TypeVar): Boolean
-
-    def isSubtype(tvar: TypeVar, tp: Type)(using Definitions): List[Subtyping.Task]
-
-    def isSuptype(tvar: TypeVar, tp: Type)(using Definitions): List[Subtyping.Task]
-
-    /** The state of inference will be reverted back after test */
-    def test[T](op: => T): T
-
-  class UnificationSolver extends Inferencer:
-    private var instantiations: Map[TypeVar, Type] = Map.empty
-
-    private def instantiate(tvar: TypeVar, tp: Type)(using Definitions) =
-      assert(!instantiations.contains(tvar), "double instantiation: " + tvar)
-      // println("Instantiating " + tvar + " to " + tp)
-      // println("tvar.hashCode = " + System.identityHashCode(tvar))
-      // println("tp.hashCode = " + System.identityHashCode(tp))
-
-      // We do not
-      //
-      // - substitute occurrence in existing substitutions
-      // - check that tvar does not occur in tp
-      //
-      // They are handled by subtype checking implicitly.
-      if TypeOps.dealias(tp) != tvar then
-        instantiations = instantiations.updated(tvar, tp)
-
-    private def constrain(tvar: TypeVar, tp: Type, tvarLeft: Boolean)(using Definitions): List[Subtyping.Task] =
-      instantiations.get(tvar) match
-        case Some(inst) =>
-          if tvarLeft then Subtyping.Task(inst, tp) :: Nil
-          else Subtyping.Task(tp, inst) :: Nil
-
-        case None =>
-          assert(tvar != tp)
-          instantiate(tvar, tp)
-          Nil
-
-    def isInstantiated(tvar: TypeVar): Boolean =
-      instantiations.get(tvar).nonEmpty
-
-    def instantiated(tvar: TypeVar): Type =
-      instantiations.get(tvar) match
-        case Some(inst) => inst
-        case None => throw new Exception("Not instantiated: " + tvar)
-
-    def approx(tvar: TypeVar, isUp: Boolean): Type =
-      instantiations.get(tvar) match
-        case Some(inst) => inst
-
-        case None =>
-          tvar
-
-    def isSubtype(tvar: TypeVar, tp: Type)(using Definitions): List[Subtyping.Task] =
-      constrain(tvar, tp, tvarLeft = true)
-
-    def isSuptype(tvar: TypeVar, tp: Type)(using Definitions): List[Subtyping.Task] =
-      constrain(tvar, tp, tvarLeft = false)
-
-    def test[T](op: => T): T =
-      val stateBefore = instantiations
-      val res = op
-      instantiations = stateBefore
-      res
+  /** Create a fresh context for type inference
+    *
+    * Only call this method if it is certain that it is impossible for type vars
+    * of new the isolate to interact with uninitialized type vars of existing
+    * isolates.
+    */
+  def freshIsolate[T](op: TypeVars ?=> T)(using Source, Reporter): T =
+    given tvars: TypeVars = new UnificationSolver
+    val res = op
+    Checker.checkInstantiated(tvars)
+    res

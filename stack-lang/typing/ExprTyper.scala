@@ -70,7 +70,7 @@ object ExprTyper:
   */
 class ExprTyper(namer: Namer):
 
-  def transform(expr: Ast.Expr)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType): Word =
+  def transform(expr: Ast.Expr)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars): Word =
     expr.words match
        case word :: Nil =>
          return namer.transform(word)
@@ -84,7 +84,7 @@ class ExprTyper(namer: Namer):
 
     val wordTyped =
       head.getKeyOrUpdate(Namer.TypedWord):
-        given TargetType = TargetType.Unknown
+        given TargetType = TargetType.ExprItem
         namer.transform(head)
 
     val tp = wordTyped.tpe
@@ -134,7 +134,7 @@ class ExprTyper(namer: Namer):
       namer.transform(word)
 
     else if tp.isSingleMethodObjectType || isVarargApply then
-      val app = Ast.Apply(head, rest)(head.span | rest.last.span)
+      val app = Ast.Apply(head, rest, Nil)(head.span | rest.last.span)
       namer.transform(app)
 
     else
@@ -151,7 +151,7 @@ class ExprTyper(namer: Namer):
             case _: Ast.RefTree | _: Ast.TypeApply =>
               val typed =
                 word.getKeyOrUpdate(Namer.TypedWord):
-                  given TargetType = TargetType.Unknown
+                  given TargetType = TargetType.ExprItem
                   namer.transform(word)
 
               if typed.tpe.isProcType then
@@ -182,7 +182,7 @@ class ExprTyper(namer: Namer):
     end if
   end transform
 
-  def transformType(tpt: Ast.ExprType, allowPackType: Boolean)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): TypeTree =
+  def transformType(tpt: Ast.ExprType, allowPackType: Boolean)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, checks: Checks): TypeTree =
     val lambdaTypeHandler = new Handler[Ast.TypeTree]:
       var count = 0
       def bundle(preArgs: List[Ast.TypeTree], binder: Ast.TypeTree, postArgs: List[Ast.TypeTree]): Ast.TypeTree =

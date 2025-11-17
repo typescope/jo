@@ -12,12 +12,10 @@ object Trees:
   sealed abstract class Tree extends Product, Positioned, KeyProps.Container
 
   enum Modifier extends Tree:
-    case Auto()(val span: Span)
     case Defer()(val span: Span)
     case Private()(val span: Span)
 
     def show: String = this match
-      case Auto()     => "auto"
       case Defer()    => "defer"
       case Private()  => "private"
 
@@ -71,7 +69,7 @@ object Trees:
     def isCapitalized: Boolean = Naming.isCapitalized(name)
 
   case class Apply
-    (fun: Word, args: List[Word])
+    (fun: Word, args: List[Word], havingBindings: List[HavingBinding])
     (val span: Span)
   extends Word
 
@@ -177,6 +175,11 @@ object Trees:
     (val span: Span)
   extends Word:
     assert(words.nonEmpty)
+
+  case class HavingBinding
+    (tpe: TypeTree, value: Word)
+    (val span: Span)
+  extends Tree
 
   case class With
     (expr: Word, args: List[WithArg])
@@ -294,7 +297,7 @@ object Trees:
     * explicit.
     */
   case class FunDef
-    (ident: Ident, tparams: List[TypeParam], params: List[Param], autos: List[Param],
+    (ident: Ident, tparams: List[TypeParam], params: List[Param], autos: List[Auto],
         resultType: TypeTree, receives: Option[List[RefTree]], body: Word,
         preParamCount: Int)
     (val span: Span)
@@ -339,8 +342,18 @@ object Trees:
     case Function(ref: RefTree)(val span: Span)
     case Member(name: String)(val span: Span)
 
+  enum AutoCandidate extends Tree:
+    case Value(ref: RefTree)(val span: Span)
+    case Member(tpe: TypeTree, name: String)(val span: Span)
+
   case class Param
     (ident: Ident, tpt: TypeTree, adapters: List[ParamAdapter])
+    (val span: Span)
+  extends Tree:
+    def name = ident.name
+
+  case class Auto
+    (ident: Ident, tpt: TypeTree, candidates: List[AutoCandidate])
     (val span: Span)
   extends Tree:
     def name = ident.name
@@ -407,7 +420,7 @@ object Trees:
 
       case TypeAscribe(_: Ident, _) => true
 
-      case Apply(pred, args) if args.nonEmpty =>
+      case Apply(pred, args, _) if args.nonEmpty =>
         args.forall(isPattern)
 
         pred match

@@ -1,110 +1,249 @@
 package typing
 
+import ast.{ Trees => Ast }
+import ast.Positions.*
+
 import sast.*
 import sast.Trees.*
 import sast.Types.*
 import sast.Symbols.*
 
-import ast.Positions.*
 import reporting.Reporter
+import typing.Inference.TargetType
 
-class Autos(namer: Namer):
-  def derive
-      (procType: ProcType, span: Span)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
-  : List[Word] =
-    for NamedInfo(name, autoInfo) <- procType.autos yield
-      search(autoInfo, Vector.empty, sc, sc, span)
+import scala.collection.mutable
 
-  def search(target: Type, trace: Vector[Symbol], origin: Scope, sc: Scope, span: Span)(using Definitions, Reporter, Source): Word =
-    // println("searching scope owner = " + sc.owner + ", autos = " + sc.autos)
+object Autos:
+  def check(candidates: List[Ast.AutoCandidate], autoType: Type, namer: Namer)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, checks: Checks)
+  : (List[AutoCandidate], List[Symbol | MemberCandidate]) =
 
-    def history: String =
-      if trace.isEmpty then ""
-      else " Resolution trace: " + trace.map(_.name).mkString(" -> ")
+    val validTrees = new mutable.ArrayBuffer[AutoCandidate]
+    val validSymbols = new mutable.ArrayBuffer[Symbol | MemberCandidate]
 
-    // Check that target type is initialized
-    if target.exists(tp => tp.is[TypeVar] && !tp.as[TypeVar].isInstantiated) then
-      val tpText = target.show
-      Reporter.error(s"Not fully instantiated auto type $tpText." + history, span.toPos)
-      return errorWord(span)
+    /** Type conformance check could be delayed */
+    def checkTypeConform(valueType: Type, span: Span) =
+      // instantiate type parameters with type vars and do subtype check
+      given tvars: TypeVars = new UnificationSolver
+      val map = new TypeOps.InstantiateTypeParam(span)
+      val autoTypeFlex = map(autoType)(using ())
+      if !Subtyping.conforms(valueType, autoTypeFlex) then
+        Reporter.error(s"Auto candidate return type ${valueType.show} does not conform to auto type ${autoType.show}", span.toPos)
 
-    val candidates = sc.autos.flatMap: sym =>
-      // println("test " + sym.name + " for " + target.show)
-      // testing should not change inference state
-      namer.inferencer.test:
-        val tp = sym.info
-        if tp.isProcType then
-          var procType = tp.asProcType
+    for candidate <- candidates do
+      candidate match
+        case value @ Ast.AutoCandidate.Value(ref) =>
+          val candidateRef =
+            given TargetType = TargetType.Unknown
+            Inference.freshIsolate:
+              namer.transform(ref)
 
-          if procType.tparams.nonEmpty then
-            val tvars = for tparam <- procType.tparams yield TypeVar(tparam.name, namer.inferencer)
-            procType = procType.instantiate(tvars)
+          candidateRef.tpe match
+            case tp @ StaticRef(sym) =>
+              if sym.is(Flags.Fun) then
+                // must be delayed after all symbols are forced
+                Checks.add:
+                  val procType = sym.info.asProcType
 
-          if Subtyping.conforms(procType.resultType, target) then
-            sym :: Nil
+                  // Check: must have no regular parameters (only auto parameters allowed)
+                  if procType.params.nonEmpty then
+                    Reporter.error(s"Auto candidate must have no regular parameters, found ${procType.params.size} parameters", value.span.toPos)
 
-          else
-            Nil
+                  // Check: must have no type parameters
+                  else if procType.tparams.nonEmpty then
+                    Reporter.error(s"Auto candidate cannot have type parameters, found ${procType.tparams.size} type parameters", value.span.toPos)
 
-        else
-          if Subtyping.conforms(tp, target) then
-            sym :: Nil
-          else
-            // println(sym.name + " not qualify for " + target.show)
-            Nil
+                  // Check: result type must conform to auto type
+                  else
+                    checkTypeConform(procType.resultType, value.span)
 
-    candidates match
-      case Nil =>
-        sc match
-          case _: Scope.RootScope =>
-            val tpText = target.show
-            Reporter.error(s"No autos are found for the type $tpText." + history, span.toPos)
-            errorWord(span)
+                validTrees += AutoCandidate.Value(sym)(value.span)
+                validSymbols += sym
 
-          case Scope.NestedScope(outer, _, _) => search(target, trace, origin, outer, span)
+              else if tp.isValueType then
+                Checks.add:
+                  checkTypeConform(tp, value.span)
 
-          case Scope.PrefixedScope(outer, _, _, _) => search(target, trace, origin, outer, span)
+                validTrees += AutoCandidate.Value(sym)(value.span)
+                validSymbols += sym
 
-          case Scope.LocalPatternScope(outer, _, _) => search(target, trace, origin, outer, span)
 
-      case sym :: Nil if trace.contains(sym) =>
-        val tpText = target.show
-        val loop = (trace :+ sym).map(_.fullName).mkString(" -> ")
-        Reporter.error(s"Divergence in resolving auto of the type $tpText: " + loop + ".", span.toPos)
-        errorWord(span)
+              else
+                Reporter.error("A reference to a value candidate expected, found = " + tp.show, value.span.toPos)
 
-      case sym :: Nil =>
-        if sym.info.isProcType then
-          var procType = sym.info.asProcType
-          if procType.params.nonEmpty then
-            Reporter.error(s"The auto ${sym.fullName} require non-auto params." + history, span.toPos)
-            errorWord(span)
+            case tp =>
+              if !tp.isError then
+                Reporter.error("A reference to a value candidate expected, found = " + tp.show, value.span.toPos)
 
-          else
-            var fun: Word = Ident(sym.dealias)(span)
-            if procType.tparams.nonEmpty then
-              fun = namer.instantiatePoly(procType, fun)
-              procType = fun.tpe.asProcType
+        case member @ Ast.AutoCandidate.Member(tpt, memberName) =>
+          val typedTpt = namer.transformType(tpt, allowPackType = false)
+          val memberType = typedTpt.tpe
 
-            // This step cannot revert, thus the inference state is persisted
-            Subtyping.conforms(procType.resultType, target)
+          validTrees += AutoCandidate.Member(typedTpt, memberName)(member.span)
+          validSymbols += MemberCandidate(memberType, memberName)
 
-            if procType.autos.isEmpty then
-              Ident(sym.dealias)(span).appliedTo()
+    end for
 
-            else
-              val autos =
-                for NamedInfo(name, autoInfo) <- procType.autos yield
-                  // Nested resolution should start from origin
-                  search(autoInfo, trace :+ sym, origin, origin, span)
+    // Check for shadowed candidates
+    checkShadowing(validTrees.toList)
 
-              Apply(fun, Nil, autos)(span)
-        else
-          Ident(sym)(span)
+    (validTrees.toList, validSymbols.toList)
 
-      case _ =>
-        val tpText = target.show
-        val names  = candidates.map(_.fullName).mkString(", ")
-        Reporter.error(s"Ambiguous autos, multiple candidates satisfy the auto type $tpText: " + names + "." + history, span.toPos)
+  /** Check for shadowed candidates - later candidates shadowed by earlier ones */
+  def checkShadowing(candidates: List[AutoCandidate])
+      (using defn: Definitions, rp: Reporter, so: Source, checks: Checks)
+  : Unit =
+    var i = 0
+    while i < candidates.size do
+      val ci = candidates(i)
+
+      var j = i + 1
+      while j < candidates.size do
+        val cj = candidates(j)
+
+        // Use Checks.add to make the check lazy (avoid cycles)
+        Checks.add:
+          (ci, cj) match
+            case (AutoCandidate.Value(symI), AutoCandidate.Value(symJ)) =>
+              // Value candidate shadowing value candidate
+              // Check if typeJ conforms to typeI (making cj unreachable)
+              val typeI = symI.info
+              val typeJ = symJ.info
+              if Subtyping.conforms(typeJ, typeI) then
+                Reporter.error(
+                  s"Auto candidate $symJ is shadowed by the ealier candidate $symI\n" +
+                  s"- Shadowed candidate $symJ: ${typeJ.show}\n" +
+                  s"- Earlier candidate $symI: ${typeI.show}",
+                  cj.span.toPos
+                )
+
+            case (AutoCandidate.Member(tpI, nameI), AutoCandidate.Member(tpJ, nameJ)) =>
+              // Member candidate shadowing member candidate
+              // Same member name means they're redundant
+              if nameI == nameJ && Subtyping.conforms(tpI.tpe, tpJ.tpe) then
+                if Subtyping.conforms(tpJ.tpe, tpI.tpe) then
+                  Reporter.error(
+                    s"Member candidate ${cj.show} appears multiple times in candidate list",
+                    cj.span.toPos
+                  )
+                else
+                  Reporter.error(
+                    s"Member candidate ${cj.show} is shadowed by the ealier candidate ${ci.show}",
+                    cj.span.toPos
+                  )
+
+
+            case (AutoCandidate.Member(memberTpt, memberName), AutoCandidate.Value(symJ)) =>
+              memberTpt.tpe.getTermMember(memberName) match
+                case Some(tpI) =>
+                   val tpJ = StaticRef(symJ).effectiveResultType
+                   if Subtyping.conforms(tpI.effectiveResultType, tpJ) then
+                      Reporter.error(
+                        s"Member candidate ${cj.show} is shadowed by the ealier candidate ${ci.show}",
+                        cj.span.toPos
+                      )
+
+                case None =>
+
+            case (AutoCandidate.Value(symI), AutoCandidate.Member(memberTpt, memberName)) =>
+              // Value candidate before member candidate - this is OK
+              // Value handles a closed type set, member handles an open type set
+
+        j += 1
+      end while
+      i += 1
+    end while
+
+  /** Format search tree as error message */
+  def formatSearchTree(all: AutoResolution.SearchNode.All)(using Definitions): String =
+    val sb = new mutable.StringBuilder
+
+    def formatCand(cand: AutoResolution.Candidate): String = cand match
+      case AutoResolution.Candidate.ValueCandidate(sym) => sym.name
+      case AutoResolution.Candidate.MemberCandidate(tp, name) => s"[${tp.show}].$name"
+      case AutoResolution.Candidate.HavingCandidate(sym) => s"(having: ${sym.info.show})"
+
+    def formatFailureReason(reason: AutoResolution.FailureReason): String = reason match
+      case AutoResolution.FailureReason.Cycle(trace) =>
+        "cycle"
+
+      case AutoResolution.FailureReason.TypeMismatch(found, expected) =>
+        s"type mismatch: found ${found.show}, expected ${expected.show}"
+
+      case AutoResolution.FailureReason.MemberNotFound(receiverType, memberName) =>
+        s"member $memberName not found on type ${receiverType.show}"
+
+      case AutoResolution.FailureReason.PolymorphicFunction(sym) =>
+        s"polymorphic function ${sym.name} cannot be used as auto candidate"
+
+      case AutoResolution.FailureReason.NestedResolutionFailed =>
+        "nested auto resolution failed"
+
+    def formatChoice(choice: AutoResolution.SearchNode.Choice, indent: String): Unit =
+      sb.append(s"${indent}? ${choice.auto.show}\n")
+      if choice.children.nonEmpty then
+        for trial <- choice.children do
+          formatTrial(trial, indent)
+      else
+        sb.append(s"$indent  ✗ (no candidates)\n")
+
+    def formatTrial(trial: AutoResolution.SearchNode.Trial, indent: String): Unit =
+      sb.append(s"$indent  → ${formatCand(trial.cand)}")
+      trial.next match
+        case AutoResolution.SearchNode.Success =>
+          sb.append(" ✓\n")
+
+        case AutoResolution.SearchNode.Failure(reason) =>
+          sb.append(s" ✗ ${formatFailureReason(reason)}\n")
+
+        case all: AutoResolution.SearchNode.All =>
+          sb.append("\n")
+          for choice <- all.children do
+            formatChoice(choice, indent + "      ")
+
+        case null =>
+          sb.append(" ? (incomplete)\n")
+
+    for choice <- all.children do
+      formatChoice(choice, "")
+
+    sb.toString
+
+  def resolve(fun: Word, args: List[Word], havings: List[Symbol], span: Span)
+      (using defn: Definitions, source: Source, rp: Reporter, sc: Scope)
+  : Word =
+    val procType: ProcType = fun.tpe.asProcType
+
+    if procType.autos.isEmpty then return Apply(fun, args, autos = Nil)(span)
+
+    // Check the auto arguments and member candidate are fully initialized
+    var fullyInstantiated = true
+    for auto <- procType.autos do
+      if !auto.info.isFullyInstantiated then
+        fullyInstantiated = false
+        Reporter.error("The auto type is not fully instantiated: " + auto.info.show, span.endPoint.toPos)
+
+    for
+      cands <- procType.candidates
+      cand <- cands
+    do
+      cand match
+        case _: Symbol =>
+        case MemberCandidate(tp, _) =>
+          if !tp.isFullyInstantiated then
+            fullyInstantiated = false
+            Reporter.error("The member candidate type is not fully instantiated: " + tp.show, span.toPos)
+      end match
+
+    if !fullyInstantiated then return errorWord(span)
+
+    val all = new AutoResolution.SearchNode.All(new mutable.ArrayBuffer)
+    AutoResolution.resolve(procType, havings, Vector.empty[AutoResolution.TraceElement], all, sc.owner, span.endPoint) match
+      case Some(autos) =>
+        Apply(fun, args, autos)(span)
+
+      case None =>
+        val auto = all.children.last.auto
+        val message = formatSearchTree(all)
+        Reporter.error(s"Failed to find auto of the type ${auto.show}\n" + message, span.toPos)
         errorWord(span)

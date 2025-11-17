@@ -1,0 +1,25 @@
+// Test that having candidates appear in warning message
+
+type Eq[T] = (T, T) => Bool
+type Ord[T] = (T, T) => Int
+
+class Item
+  val value: Int
+  def Item(n: Int) = { value: n }
+
+// This will fail because it needs Ord[Item]
+def eqItem(auto ord: Ord[Item]): Eq[Item] =
+  (a, b) => ord(a, b) == 0
+
+def testEq[T](x: T, y: T)(auto eq: Eq[T], ord: Ord[T]): Bool = ...
+
+def testNoCand[T](x: T, y: T)(auto eq: Eq[T], ord: Ord[T]): Bool = ...
+
+def main: Unit =
+  val i1 = new Item(42)
+  val i2 = new Item(100)
+
+
+  testEq[Item](i1, i2) having Eq[Item] = ...
+
+  testNoCand[Item](i1, i2)

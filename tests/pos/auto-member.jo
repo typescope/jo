@@ -1,0 +1,49 @@
+// Test member candidates for auto parameters
+// This demonstrates how member candidates allow generic functions to access
+// members without hardcoding the specific type
+
+type Getter[T] = T => Int
+type Comparator[T] = (T, Int) => Int
+
+class Box
+  val value: Int
+  def Box(n: Int) = { value: n }
+
+class Container
+  val value: Int
+  def Container(n: Int) = { value: n }
+
+class Score
+  val points: Int
+  def Score(n: Int) = { points: n }
+
+  def compare(threshold: Int): Int =
+    if points < threshold then -1
+    else if points > threshold then 1
+    else 0
+
+// Generic function that extracts a value from any type T with a .value member
+// The member candidate [T].value is eta-expanded to: (x: T) => x.value
+def extractValue[T](x: T)(auto getter: Getter[T] with [[T].value]): Int =
+  getter(x)
+
+// Generic function that compares any type T with a .compare method
+// The member candidate [T].compare is eta-expanded to: (x: T, n: Int) => x.compare(n)
+def checkThreshold[T](x: T, threshold: Int)(auto cmp: Comparator[T] with [[T].compare]): Int =
+  cmp(x, threshold)
+
+def main: Unit =
+  // Test value member candidates with different types
+  val box = new Box(42)
+  val container = new Container(100)
+
+  val v1 = extractValue(box)        // Uses [Box].value
+  assert(v1 == 42, "box value should be 42")
+
+  val v2 = extractValue(container)  // Uses [Container].value
+  assert(v2 == 100, "container value should be 100")
+
+  // Test method member candidates
+  val score = new Score(75)
+  val result = checkThreshold(score, 100)  // Uses [Score].compare
+  assert(result == -1, "75 should be less than 100")

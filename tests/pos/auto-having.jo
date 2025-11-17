@@ -1,0 +1,24 @@
+// Auto parameter resolution with having clause overrides
+
+type Eq[T] = (T, T) => Bool
+
+def eqInt: Eq[Int] = (a, b) => a == b
+def eqIntMod10: Eq[Int] = (a, b) => (a % 10) == (b % 10)
+
+def testEq[T](x: T, y: T)(auto eq: Eq[T] with [eqInt]): Bool =
+  eq(x, y)
+
+def main: Unit =
+  // Default: uses eqInt
+  val r1 = testEq(11, 21)
+  assert(!r1, "11 should not equal 21 with default eq")
+
+  // With having clause: override with eqIntMod10
+  val r2 = testEq(11, 21) having Eq[Int] = eqIntMod10
+  assert(r2, "11 should equal 21 with mod 10 equality")
+
+  val r3 = testEq(15, 25) having Eq[Int] = eqIntMod10
+  assert(r3, "15 should equal 25 with mod 10 equality")
+
+  val r4 = testEq(15, 26) having Eq[Int] = eqIntMod10
+  assert(!r4, "15 should not equal 26 with mod 10 equality")

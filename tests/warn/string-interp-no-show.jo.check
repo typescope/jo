@@ -1,6 +1,6 @@
 ---------- Error at ./tests/warn/string-interp-no-show.jo:7:25 ---------------
 |   val message = "Point: \{p}"
 |                         ^^^^
-|                         Cannot interpolate expression of type Point. No auto Show[Point] found.
+|                         Cannot interpolate expression of type p: Point. It does not have .toString member
 
 1 error(s), 0 warning(s)

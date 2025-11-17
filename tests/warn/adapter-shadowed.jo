@@ -2,8 +2,8 @@
 
 // Test 1: Function adapter shadowing another function adapter
 // anotherIntToStr is shadowed because Int conforms to Int
-def intToStr(x: Int): String = ???
-def anotherIntToStr(x: Int): String = ???
+def intToStr(x: Int): String = ...
+def anotherIntToStr(x: Int): String = ...
 
 def test1(s: String with [intToStr, anotherIntToStr]): Unit =
   print(s)

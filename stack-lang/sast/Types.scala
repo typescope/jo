@@ -2,7 +2,7 @@ package sast
 
 import Symbols.Symbol
 
-import typing.Inference
+import ast.Positions.Span
 
 import scala.reflect.ClassTag
 import scala.collection.mutable
@@ -112,6 +112,14 @@ object Types:
       * - uninstantiated type variables
       */
     def isGrounded(using Definitions): Boolean = TypeOps.isGrounded(this)
+
+    def isFullyInstantiated(using Definitions): Boolean =
+      val checker = new TypeOps.FullyInstantiatedChecker
+      checker(this)(using ())
+
+    def uninstantiated(using Definitions): Set[TypeVar] =
+      val censor = new TypeOps.UninstantiatedCensor
+      censor(this)(using ())
 
     def dealias(using Definitions): Type = TypeOps.dealias(this)
 
@@ -237,6 +245,19 @@ object Types:
     def hasTermMember(name: String)(using Definitions): Boolean =
       getTermMember(name).nonEmpty
 
+    /** If the current type is a parameterless monomorphic function type (may have
+      * autos), return the result type.
+      *
+      * Otherwise, return approx type of the current type.
+      */
+    def effectiveResultType(using Definitions): Type =
+      this.approx match
+        case procType: ProcType if procType.tparams.isEmpty && procType.params.isEmpty =>
+          procType.resultType
+
+        case tp =>
+          tp
+
     def exists(pred: Type => Boolean)(using Definitions): Boolean =
       var exists = false
       val traverser = new TypeTraverser:
@@ -303,6 +324,8 @@ object Types:
 
   /** A part of a type with a specific name */
   case class NamedInfo[+T](name: String, info: T)
+
+  case class MemberCandidate(tp: Type, name: String)
 
   /** A record type --- named tuples
     *
@@ -393,11 +416,13 @@ object Types:
       params: List[NamedInfo[Type]],
       adapters: List[List[Symbol | String]],
       autos: List[NamedInfo[Type]],
+      candidates: List[List[Symbol | MemberCandidate]],
       resultType: Type,
       receivesInfo: () => List[Symbol],
       preParamCount: Int)
   extends Type:
     assert(params.size == adapters.size)
+    assert(autos.size == candidates.size)
 
     val preParamTypes: List[Type] = params.take(preParamCount).map(_.info)
     val postParamTypes: List[Type] = params.drop(preParamCount).map(_.info)
@@ -475,20 +500,23 @@ object Types:
     (lo: Type, hi: Type)
   extends Type
 
-  class TypeVar(name: String, inferencer: Inference.Inferencer) extends ProxyType:
+  /** TypeVars are local to a source file thus it may take a span */
+  class TypeVar(name: String, val span: Span)(using context: TypeVars) extends ProxyType:
+    context.add(this)
+
     override def toString = "TypeVar(" + name + ")"
 
-    def isInstantiated: Boolean = inferencer.isInstantiated(this)
+    def isInstantiated: Boolean = context.isInstantiated(this)
 
-    def instantiated: Type = inferencer.instantiated(this)
+    def instantiated: Type = context.instantiated(this)
 
-    def approx(isUp: Boolean): Type = inferencer.approx(this, isUp)
+    def approx(isUp: Boolean): Type = context.approx(this, isUp)
 
     def checkSubtype(tp: Type)(using Definitions): List[Subtyping.Task] =
-      inferencer.isSubtype(this, tp)
+      context.isSubtype(this, tp)
 
     def checkSuptype(tp: Type)(using Definitions): List[Subtyping.Task] =
-      inferencer.isSuptype(this, tp)
+      context.isSuptype(this, tp)
 
   /** Represents the information of a namespace or section */
   class ContainerInfo(val nameTable: NameTable) extends Type:

@@ -1,7 +1,5 @@
 namespace A
 
-import jo.IO
-
 type Message = B.Inner.Message
 
 alias def foo = B.foo

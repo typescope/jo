@@ -1,7 +1,14 @@
-// Custom type with Show instance
-data Point(x: Int, y: Int)
+type Point = {
+  val x: Int,
+  val y: Int,
+  def toString: String
+}
 
-auto def showPoint: Show[Point] = p => "(\{p.x}, \{p.y})"
+def Point(x: Int, y: Int): Point = {
+  val x = x
+  val y = y
+  def toString = "(\{this.x}, \{this.y})"
+}
 
 def main =
   // Basic interpolation with strings

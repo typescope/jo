@@ -1,0 +1,17 @@
+// Error: Divergence in auto resolution (cycle)
+
+type Eq[T] = (T, T) => Bool
+
+// Circular dependency: eqA needs eqB, eqB needs eqA
+def eqA(auto eq: Eq[Int] with [eqB]): Eq[Int] =
+  (a, b) => eq(a, b)
+
+def eqB(auto eq: Eq[Int] with [eqA]): Eq[Int] =
+  (a, b) => eq(a, b)
+
+def testEq(x: Int, y: Int)(auto eq: Eq[Int] with [eqA]): Bool =
+  eq(x, y)
+
+def main: Unit =
+  // Error: Divergence when trying to resolve eqA -> eqB -> eqA -> ...
+  val r = testEq(1, 2)

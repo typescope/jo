@@ -1,0 +1,30 @@
+// Nested auto parameter resolution
+// This tests that when a candidate itself has auto parameters,
+// they are resolved recursively.
+
+type Eq[T] = (T, T) => Bool
+type Show[T] = T => String
+
+def eqInt: Eq[Int] = (a, b) => a == b
+def showInt: Show[Int] = n => intToStr(n)
+
+// This candidate has an auto parameter that needs to be resolved
+def eqWithLogging(auto show: Show[Int] with [showInt]): Eq[Int] =
+  (a, b) => a == b  // Just use regular equality (logging would require IO)
+
+def testEq[T](x: T, y: T)(auto eq: Eq[T] with [eqInt, eqWithLogging]): Bool =
+  eq(x, y)
+
+def main: Unit =
+  // Uses eqInt directly (first candidate)
+  val r1 = testEq(1, 2)
+  assert(!r1, "1 should not equal 2")
+
+  val r2 = testEq(5, 5)
+  assert(r2, "5 should equal 5")
+
+  val r3 = testEq(10, 10)
+  assert(r3, "10 should equal 10")
+
+  val r4 = testEq(7, 8)
+  assert(!r4, "7 should not equal 8")
