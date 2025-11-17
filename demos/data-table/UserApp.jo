@@ -36,7 +36,7 @@ def analyzeDocuments: Unit receives stdout, db =
   else
     docs.foreach doc =>
       println ("📄 " + doc.title)
-      println ("   ID: " + (intToStr doc.id))
+      println ("   ID: " + doc.id)
       println ("   Created: " + doc.createdAt)
       println ("   Preview: " + doc.content.substring(0, 50) + "...")
       println ""
@@ -46,7 +46,7 @@ def analyzeDocuments: Unit receives stdout, db =
   val count = db.countMyDocuments()
   println "📊 Summary"
   println "----------"
-  println ("Total documents: " + (intToStr count))
+  println ("Total documents: " + count)
   println ""
 
   // Try to access a specific document

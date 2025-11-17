@@ -182,9 +182,9 @@ section Impl
 
   //[ Build LIMIT and OFFSET clause //]
   def buildLimitOffsetClause(limit: Int, offset: Int): String =
-    var clause = " LIMIT " + intToStr(limit)
+    var clause = " LIMIT " + limit
     if offset > 0 then
-      clause = clause + " OFFSET " + intToStr(offset)
+      clause = clause + " OFFSET " + offset
     clause
 
   //[ Execute SQL query with parameters and return results //]
