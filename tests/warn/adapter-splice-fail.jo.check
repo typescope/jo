@@ -8,4 +8,8 @@
 |          ^^^^^
 |          Expect type List[String], found = chars: List[Char]
 
+Tried the following adapters:
+  - intToStr: type mismatch  ✗
+  - boolToStr: type mismatch  ✗
+
 2 error(s), 0 warning(s)

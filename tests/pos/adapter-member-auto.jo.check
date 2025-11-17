@@ -1,0 +1,4 @@
+Box(42)
+Box(hello)
+Box(Box(10))
+Box(42)

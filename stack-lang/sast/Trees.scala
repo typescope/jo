@@ -643,14 +643,10 @@ object Trees:
       val memberType = word.tpe.termMember(name)
       Select(word, name)(memberType, word.span)
 
-    /** Both fun and arg must be fully instantiated */
+    /** No adaption is performed except for numeric adaptation */
     def appliedTo(args: Word*)(using Definitions): Word =
       val procType = word.tpe.asProcType
 
-      for arg <- args do
-        assert(arg.tpe.isFullyInstantiated, "not fully instantiated: " + arg.tpe.show)
-
-      assert(procType.isFullyInstantiated, "not fully instantiated: " + procType.show)
       assert(procType.paramCount == args.size, "args mismatch")
       assert(procType.tparams.isEmpty, "type params not supplied")
       assert(procType.autos.isEmpty, "autos not supplied")
@@ -660,7 +656,7 @@ object Trees:
           ((arg, paramType), adapterList) <- args.zip(procType.paramTypes).zip(procType.adapters)
         yield
           // Both fun and arg are fully instantiated
-          Adaptation.adapt(arg, paramType, Adaptation.createSimpleAdapter(adapterList))
+          Adaptation.adapt(arg, paramType, Adaptation.NoAdapter)
 
       val span = args.foldLeft(word.span)(_ | _.span)
 

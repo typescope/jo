@@ -1,6 +1,13 @@
 ---------- Error at ./tests/warn/string-interp-no-show.jo:7:25 ---------------
 |   val message = "Point: \{p}"
 |                         ^^^^
-|                         Cannot interpolate expression of type p: Point. It does not have .toString member
+|                         Cannot interpolate expression of type p: Point
+
+Tried the following adapters:
+  - intToStr: type mismatch  ✗
+  - charToStr: type mismatch  ✗
+  - boolToStr: type mismatch  ✗
+  - byteToStr: type mismatch  ✗
+  - .toString: missing ✗
 
 1 error(s), 0 warning(s)

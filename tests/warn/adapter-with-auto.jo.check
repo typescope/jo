@@ -3,9 +3,12 @@
 |       ^^
 |       Expect type String, found = Int
 
+Tried the following adapters:
+  - showInt: type mismatch  ✗
+
 ---------- Error at ./tests/warn/adapter-with-auto.jo:7:25 ---------------
 | def foo(s: String with [showInt]): Unit =
 |                         ^^^^^^^
-|                         Adapter cannot have auto parameters
+|                         Function adapter cannot have auto parameters
 
 2 error(s), 0 warning(s)

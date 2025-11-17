@@ -819,7 +819,7 @@ class Namer(using Config):
       (arg: Ast.Word, paramType: Type, adapters: List[Symbol | String])
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars)
   : Word =
-      val adapter = Adaptation.createSimpleAdapter(adapters)
+      val adapter = Adaptation.createSimpleAdapter(adapters, sc.owner)
       transformArg(arg, paramType, adapter)
 
   def transformArg
@@ -1016,13 +1016,14 @@ class Namer(using Config):
             typedExpr
           else
             // Try adapations
-            val adapter = Adaptation.createSimpleAdapter(defn.stringInterpolationAdapters)
+            val adapter = Adaptation.createSimpleAdapter(defn.stringInterpolationAdapters, sc.owner)
 
             try
               Adaptation.adapt(typedExpr, defn.StringType, adapter)
 
             catch case ex: Adaptation.AdaptionFailure =>
-              Reporter.error(s"Cannot interpolate expression of type ${typedExpr.tpe.show}. It does not have .toString member", expr.pos)
+              val trialsMsg = Adaptation.formatTrials(ex.trials)
+              Reporter.error(s"Cannot interpolate expression of type ${typedExpr.tpe.show}${trialsMsg}", expr.pos)
               Literal(Constant.String(""))(defn.StringType, expr.span)
 
     // Build concatenation using the + method on String

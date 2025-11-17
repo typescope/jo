@@ -3,4 +3,10 @@
 |        ^^^^
 |        Expect type String, found = item: Item
 
+Tried the following adapters:
+  - .format: auto resolution failed ✗
+    ? Prefix
+      ✗ (no candidates)
+
+
 1 error(s), 0 warning(s)

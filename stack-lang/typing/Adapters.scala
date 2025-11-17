@@ -93,11 +93,11 @@ object Adapters:
 
         // Check: must have exactly one parameter
         if procType.params.size != 1 then
-          Reporter.error(s"Adapter must take exactly one parameter, found ${procType.params.size} parameters", adapter.pos)
+          Reporter.error(s"Function adapter must take exactly one parameter, found ${procType.params.size} parameters", adapter.pos)
 
         // Check: must have no auto parameters
         else if procType.autos.nonEmpty then
-          Reporter.error("Adapter cannot have auto parameters", adapter.pos)
+          Reporter.error("Function adapter cannot have auto parameters", adapter.pos)
 
         // Check: must have no type parameters
         else if procType.tparams.nonEmpty then
@@ -117,12 +117,9 @@ object Adapters:
               adapterParamType.getTermMember(memberName) match
                 case Some(memberType) =>
                   // The type has the member - check if it returns the right type
-                  // For parameterless methods (ProcType with no params), extract the result type
-                  val effectiveType = memberType match
-                    case procType: ProcType if procType.params.isEmpty && procType.autos.isEmpty =>
-                      procType.resultType
-                    case tp => tp
-
+                  // For parameterless methods (ProcType with no regular params), extract the result type
+                  // Member adapters can have auto parameters
+                  val effectiveType = memberType.effectiveResultType
                   Subtyping.conforms(effectiveType, paramType)
 
                 case None =>

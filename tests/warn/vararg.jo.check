@@ -53,6 +53,13 @@
 |               ^^^^^^^^^^^^^
 |               Expect type String, found = List[String]
 
+Tried the following adapters:
+  - byteToStr: type mismatch  ✗
+  - boolToStr: type mismatch  ✗
+  - charToStr: type mismatch  ✗
+  - intToStr: type mismatch  ✗
+  - .toString: missing ✗
+
 ---------- Error at ./tests/warn/vararg.jo:25:9 ---------------
 |   ok(3, .. [] 3, 5)
 |         ^^^^^^^

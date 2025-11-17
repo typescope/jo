@@ -263,7 +263,8 @@ object Checker:
           wordAdapted
 
         catch case ex: Adaptation.AdaptionFailure =>
-          Reporter.error(s"Expect type ${tpe.show}, found = ${word3.tpe.show}", word3.pos)
+          val trialsMsg = Adaptation.formatTrials(ex.trials)
+          Reporter.error(s"Expect type ${tpe.show}, found = ${word3.tpe.show}${trialsMsg}", word3.pos)
           Encoded(Block(Nil)(word3.span))(tpe)
 
       case TargetType.TermMember(name) =>
