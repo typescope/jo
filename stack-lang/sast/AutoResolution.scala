@@ -19,31 +19,43 @@ import scala.collection.mutable
  */
 object AutoResolution:
   /** Trace element to track resolution path and detect cycles */
-  sealed trait TraceElement
-  object TraceElement:
-    case class ValueElement(sym: Symbol) extends TraceElement
-    case class MemberElement(receiverType: Type, memberName: String) extends TraceElement
-  enum Result:
-    case Success(args: List[Word])
-    case Failure(message: String)
+  enum TraceElement:
+    case class ValueElement(sym: Symbol)
+    case class MemberElement(receiverType: Type, memberName: String)
 
-  def resolve(procType: ProcType, havings: List[Symbol], trace: Vector[TraceElement], owner: Symbol, span: Span)(using Definitions, Source): Result =
+  /** For error reporting */
+  enum SearchNode:
+    case Choice(auto: Type, children: mutable.ArrayBuffer[SearchNode])
+    case All(children: mutable.ArrayBuffer[Choice])
+    case Trial(cand: Symbol | MemberCandidate, var next: All | Failure | Success.type)
+    case Fail(reason: String)
+    case Success
+
+  def resolve(procType: ProcType, havings: List[Symbol], trace: Vector[TraceElement], all: SearchNode.All, owner: Symbol, span: Span)
+      (using Definitions, Source)
+  : Option[List[Word]] =
+
     val autos = new mutable.ArrayBuffer[Word]
 
     val count = procType.autos.size
     var i = 0
     while i < count do
       val NamedInfo(name, autoInfo) = procType.autos(i)
-      search(autoInfo, procType.candidates(i), havings, trace, owner, span) match
+      val cands = procType.candidates(i)
+
+      val choice = new SearchNode.Choice(autoInfo, new mutable.ArrayBuffer)
+      all.children += choice
+
+      search(autoInfo, cands, havings, trace, choice, owner, span) match
         case Some(auto) => autos += auto
 
         case None =>
-          return Result.Failure("Failed to find auto of the type " + autoInfo.show)
+          return None
       end match
       i += 1
     end while
 
-    Result.Success(autos.toList)
+    Some(autos.toList)
 
   def findFirst[T, U](l: List[T])(op: T => Option[U]): Option[U] =
     var i = 0
@@ -55,18 +67,29 @@ object AutoResolution:
     end while
     None
 
-  def search(targetType: Type, cands: List[Symbol | MemberCandidate], havings: List[Symbol], trace: Vector[TraceElement], owner: Symbol, span: Span)
+  def search
+      (targetType: Type, cands: List[Symbol | MemberCandidate], havings: List[Symbol],
+        trace: Vector[TraceElement], choice: SearchNode.Choice, owner: Symbol, span: Span)
       (using Definitions, Source)
   : Option[Word] =
+
     val res = findFirst(havings) { sym => tryValue(sym, targetType, trace, owner, span) }
 
     if res.nonEmpty then return res
 
-    findFirst(cands):
-      case sym: Symbol => tryValue(sym, targetType, trace, owner, span)
-      case MemberCandidate(tp, name) => tryMember(tp, name, targetType, trace, owner, span)
+    findFirst(cands): cand =>
+      val trial = new SearchNode.Trial(cand, next = null)
+      choice.children += trial
 
-  def tryValue(sym: Symbol, targetType: Type, trace: Vector[TraceElement], owner: Symbol, span: Span)(using Definitions, Source): Option[Word] =
+      cand match
+        case sym: Symbol => tryValue(sym, targetType, trace, trial, owner, span)
+        case MemberCandidate(tp, name) => tryMember(tp, name, targetType, trace, trial, owner, span)
+
+  def tryValue
+      (sym: Symbol, targetType: Type, trace: Vector[TraceElement], trial: SearchNode.Trial, owner: Symbol, span: Span)
+      (using Definitions, Source)
+  : Option[Word] =
+
     val tp = sym.info
 
     if tp.isProcType then
@@ -76,31 +99,42 @@ object AutoResolution:
         procType.isPolyType
         || !Subtyping.conforms(procType.resultType, targetType)
       then
+        trial.next = SearchNode.Failure("type mismatch")
         return None
 
       if procType.autos.isEmpty then
         val call = Apply(Ident(sym)(span), args = Nil, autos = Nil)(span)
+        trial.next = SearchNode.Success
         Some(call)
       else
-        // Check for cycles: if sym is already in trace, we have divergence
-        if trace.exists {
+        val loop = trace.exists:
           case TraceElement.ValueElement(s) => s == sym
           case _ => false
-        } then
+
+        // Check for cycles: if sym is already in trace, we have divergence
+        if loop then
+          trial.next = SearchNode.Failure("cycle")
           return None
 
+        val all = SearchNode.All(new mutable.ArrayBuffer)
+        trial.next = all
         // Recursive resolution with increased trace
         val newTrace = trace :+ TraceElement.ValueElement(sym)
-        resolve(procType, havings = Nil, newTrace, owner, span) match
-          case Result.Success(autos) =>
+        resolve(procType, havings = Nil, newTrace, all, owner, span) match
+          case Some(autos) =>
             val call = Apply(Ident(sym)(span), args = Nil, autos = autos)(span)
             Some(call)
-          case Result.Failure(_) =>
+          case _ =>
             None
 
 
     else
-      if Subtyping.conforms(tp, targetType) then Some(Ident(sym)(span)) else None
+      if Subtyping.conforms(tp, targetType) then
+        trial.next = SearchNode.Success
+        Some(Ident(sym)(span))
+      else
+        trial.next = SearchNode.Failure("type mismatch")
+        None
 
   def tryMember(receiverType: Type, name: String, targetType: Type, trace: Vector[TraceElement], owner: Symbol, span: Span)
       (using defn: Definitions, so: Source)
@@ -178,8 +212,8 @@ object AutoResolution:
         // Add current member to trace before resolving nested autos
         val newTrace = trace :+ TraceElement.MemberElement(receiverType, memberName)
         resolve(procType, havings = Nil, newTrace, owner, span) match
-          case Result.Success(autos) => autos
-          case Result.Failure(_) => return None
+          case Some(autos) => autos
+          case _ => return None
       else
         Nil
 

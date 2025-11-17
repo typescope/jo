@@ -182,10 +182,11 @@ object Autos:
 
     if !fullyInstantiated then return errorWord(span)
 
-    AutoResolution.resolve(procType, havings, Vector.empty[AutoResolution.TraceElement], sc.owner, span.endPoint) match
-      case AutoResolution.Result.Success(autos) =>
+    val all = new AutoResolution.SearchNode.All(new mutable.ArrayBuffer)
+    AutoResolution.resolve(procType, havings, Vector.empty[AutoResolution.TraceElement], all, sc.owner, span.endPoint) match
+      case Some(autos) =>
         Apply(fun, args, autos)(span)
 
-      case AutoResolution.Result.Failure(message) =>
-        Reporter.error(message, span.toPos)
+      case None =>
+        // TODO: build a tree showing why search failed
         errorWord(span)
