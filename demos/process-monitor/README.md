@@ -115,7 +115,7 @@ Receives context parameters:
 ```jo
 def analyzeSystem(): Unit receives stdout, process, logger =
   val totalProcs = process.countProcesses()
-  println ("Total running processes: " + (intToStr totalProcs))
+  println ("Total running processes: " + totalProcs)
 
   val procList = process.listProcesses()
   // ... analyze
