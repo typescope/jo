@@ -1,0 +1,12 @@
+---------- Error at ./tests/warn/adapter-member-auto-fail.jo:25:11 ---------------
+|   display box  // Should fail - no Show[String] available
+|           ^^^
+|           Expect type String, found = box: Box[String]
+
+Tried the following adapters:
+  - .show: auto parameter resolution failed ✗
+    ? Show[String]
+      → showInt ✗ type mismatch: found Show[Int], expected Show[String]
+
+
+1 error(s), 0 warning(s)

@@ -1,0 +1,26 @@
+// Test member adapter with auto parameter resolution failure
+// When auto resolution fails, the adapter should not apply and error should be reported
+
+type Show[T] = T => String
+
+def showInt: Show[Int] = x => intToStr(x)
+
+class Box[T]
+  val value: T
+
+  def Box(v: T) = { value: v }
+
+  // Member with auto parameter that requires Show[T]
+  def show(auto s: Show[T] with [showInt]): String =
+    "Box(" + s(value) + ")"
+end
+
+def Box[T](v: T): Box[T] = new Box(v)
+
+def display(msg: String with [.show]): Unit =
+  println msg
+
+def main =
+  val box = Box("hello")  // String type, but only showInt is available
+  display box  // Should fail - no Show[String] available
+end
