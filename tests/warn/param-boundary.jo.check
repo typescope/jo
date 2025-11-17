@@ -10,8 +10,8 @@ The following is the trace that leads to the problem:
 │     ^
 ├──   pretty "hello, word"	[ ./tests/warn/param-boundary.jo:15:3 ]
 │     ^^^^^^
-└──     "pageWidth = " + (intToStr pageWidth)	[ ./tests/warn/param-boundary.jo:8:32 ]
-                                   ^^^^^^^^^
+└──     "pageWidth = " + pageWidth	[ ./tests/warn/param-boundary.jo:8:22 ]
+                         ^^^^^^^^^
 
 
 1 error(s), 0 warning(s)

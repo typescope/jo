@@ -239,8 +239,8 @@ def main =
   println "Tree after removal:"
   printTree(tree, "", true)
 
-  println ("Tree height: " + (intToStr (height tree)))
-  println ("Tree size: " + (intToStr (size tree)))
+  println ("Tree height: " + (height tree))
+  println ("Tree size: " + (size tree))
   println ("Is balanced: " + (if isBalanced(tree) then "true" else "false"))
 
   println "\nFinal in-order traversal:"

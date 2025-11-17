@@ -5,7 +5,7 @@ param newLine: Bool
 
 def pretty(s: String): Unit =
   println
-    "pageWidth = " + (intToStr pageWidth)
+    "pageWidth = " + pageWidth
 
   println
     "newLine = " +
