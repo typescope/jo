@@ -240,7 +240,8 @@ class Namer(using Config):
         transformInterpolatedString(parts, word.span).adapt
 
       case ref: Ast.RefTree =>
-        transformRefTree(ref).adapt
+        Checks.eager:
+          transformRefTree(ref).adapt
 
       case record: Ast.RecordLit =>
         transformRecord(record).adapt
@@ -365,7 +366,7 @@ class Namer(using Config):
     }
 
 
-  def transformRefTree(word: Ast.RefTree)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source): Word =
+  def transformRefTree(word: Ast.RefTree)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, ck: Checks): Word =
     word match
       case Ast.Ident(name) =>
         given oob: OutOfBand = new OutOfBand
@@ -389,6 +390,11 @@ class Namer(using Config):
         val qualType = qual2.tpe
         qualType.getTermMember(name) match
           case Some(tp) =>
+            tp match
+              case ref: RefType =>
+                Checker.checkAccess(ref.symbol, sc.owner, word.span)
+              case _ =>
+
             tp match
               case StaticRef(sym) if !sym.isType =>
                 // record field type could be Int
@@ -930,6 +936,13 @@ class Namer(using Config):
         if isObject then
           qualType.getTermMember(name) match
             case Some(tp) =>
+              tp match
+                case ref: RefType =>
+                  Checks.eager:
+                    Checker.checkAccess(ref.symbol, sc.owner, lhs.span)
+
+                case _ =>
+
               val isMutable =
                 qualType.isObjectType && qualType.asObjectType.isMutable(name)
                 || qualType.isClassType && tp.is[RefType] && tp.as[RefType].symbol.isMutable
@@ -1254,7 +1267,7 @@ class Namer(using Config):
     DelayedDef(paramSym, paramDefSast) :: Nil
 
   private def transformAliasDef(adef: Ast.AliasDef)
-      (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source)
+      (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, ck: Checks)
   : DelayedDef[AliasDef] =
     val qualid = adef.qualid
 
@@ -1317,7 +1330,12 @@ class Namer(using Config):
           val prefix = qual.asInstanceOf[Ast.RefTree]
           Imports.resolveContainer(prefix, sc, lazyDefn.rootNameTable, allowBranch = true) match
             case Some(nameTable) =>
-              getTarget(prefix, nameTable, name)
+              val target = getTarget(prefix, nameTable, name)
+
+              if !target.symbol.info.isError then
+                Checker.checkAccess(target.symbol, sc.owner, target.span)
+
+              target
 
             case None =>
               // error already reported
@@ -1940,14 +1958,15 @@ class Namer(using Config):
         val qual2 =
           given TargetType = TargetType.TypeMember(name)
           Inference.freshIsolate:
-            transform(qual)
+            transformRefTree(qual.asInstanceOf[Ast.RefTree])
 
         qual2.tpe match
           case StaticRef(sym) if sym.isContainer =>
             val nsInfo = sym.info.as[ContainerInfo]
             nsInfo.resolveType(name) match
               case Some(sym) =>
-               check(sym)
+                check(sym)
+                Checker.checkAccess(sym, sc.owner, tpt.span)
                 val tp = StaticRef(sym)
                 TypeTree(tp)(tpt.span)
 

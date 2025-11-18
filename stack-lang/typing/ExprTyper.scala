@@ -107,7 +107,9 @@ class ExprTyper(namer: Namer):
             case ref: Ast.RefTree =>
               // typed without adaptation and ignore errors
               given Reporter = rp.fresh(buffer = true)
-              val wordTyped = namer.transformRefTree(ref)
+              val wordTyped = Checks.eager:
+                  namer.transformRefTree(ref)
+
               wordTyped.tpe match
                 case StaticRef(sym) if sym.isContainer => Some(sym)
                 case _ => None

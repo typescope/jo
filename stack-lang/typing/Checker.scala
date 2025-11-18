@@ -94,6 +94,13 @@ object Checker:
     if !sym.isMutable then
       Reporter.error(sym.name + " is not a mutable value", pos)
 
+  def checkAccess(target: Symbol, scopeOwner: Symbol, span: Span)(using Reporter, Definitions, Source, Checks): Unit =
+    if target.visibility == Visibility.Private then
+      // TODO: can remove once we put owner directly in symbol
+      Checks.add:
+        if !scopeOwner.containedIn(target.owner) then
+          Reporter.error("Cannot access private member " + target, span.toPos)
+
   def checkTermMember(word: Word, member: String)(using Reporter, Source, Definitions): Word =
     val tpe = word.tpe
     if tpe.hasTermMember(member) || tpe.isError then
@@ -119,15 +126,14 @@ object Checker:
     defn match
       case fdef: Ast.FunDef =>
         mods.foreach:
+          case _: Ast.Modifier.Private =>
+
           case _: Ast.Modifier.Defer =>
             flags = flags | Flags.Defer
 
             // Deferred function with default implementation
             if !fdef.body.isEmptyBlock then
               flags = flags | Flags.Default
-
-          case mod =>
-            Reporter.error("The modifier " + mod.show + " is not allowed for function definition", mod.pos)
 
       case vdef: Ast.ValDef =>
         mods.foreach:
