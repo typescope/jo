@@ -1,0 +1,16 @@
+---------- Error at ./tests/warn/objects.jo:2:7 ---------------
+|   def (x: Int) foo(y: Int): Int  // error
+|       ^
+|       Expect identifier, found token LPAREN
+
+---------- Error at ./tests/warn/objects.jo:6:24 ---------------
+|   def foo(n: Int): Int = n * n // error
+|                        ^
+|                        No body expected for declaration
+
+---------- Error at ./tests/warn/objects.jo:10:7 ---------------
+|   def (x: Int) foo(y: Int): Int = x + y  // error
+|       ^
+|       Expect identifier, found token LPAREN
+
+3 error(s), 0 warning(s)

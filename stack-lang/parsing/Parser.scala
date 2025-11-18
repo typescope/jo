@@ -492,8 +492,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           Block(Nil)(resType.span)
       else
         if token == Token.EQL then
-          next()
           error("No body expected for declaration", peekItem().span.toPos)
+          next()
           block(defToken.indent)
         else
           Block(Nil)(resType.span)
