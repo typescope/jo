@@ -751,8 +751,7 @@ class PatternTyper(namer: Namer):
 
       case Ast.Select(qual, name) =>
         // selection must be a pattern predicate
-        val qualTyped = Checks.eager:
-            namer.transformRefTree(qual.asInstanceOf[Ast.RefTree])
+        val qualTyped = namer.transformRefTree(qual.asInstanceOf[Ast.RefTree])
 
         qualTyped.tpe.getPatternMember(name) match
           case None =>
