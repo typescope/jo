@@ -25,11 +25,10 @@ class PatternTyper(namer: Namer):
 
     val flags = Checker.checkModifiers(patDef) | Flags.Pattern | Flags.Fun
 
-    val patSym = Symbol.createSymbol(patDef.name, flags, Checker.visibility(patDef), patDef.ident.pos)
+    val patSym = Symbol.createSymbol(patDef.name, flags, Checker.visibility(patDef), sc.owner, patDef.ident.pos)
     given patScope: Scope = sc.fresh(patSym)
 
     lazy val tparamSyms = namer.transformTypeParams(patDef.tparams)
-
 
     for param <- patDef.params if param.adapters.nonEmpty do
       val span = param.adapters.head.span | param.adapters.last.span
@@ -39,7 +38,7 @@ class PatternTyper(namer: Namer):
       tparamSyms
       for param <- patDef.params yield
         val tpt = namer.transformType(param.tpt)
-        val paramSym = Symbol.createSymbol(param.name, tpt.tpe, Flags.Pattern | Flags.Param, patSym, Visibility.Scope, param.pos)
+        val paramSym = Symbol.createSymbol(param.name, tpt.tpe, Flags.Pattern | Flags.Param, Visibility.Scope, patSym, param.pos)
         patScope.define(paramSym)
         paramSym
 
@@ -89,7 +88,7 @@ class PatternTyper(namer: Namer):
       ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), paramSyms.map(_ => Nil), autoTypes, Nil, resultType, () => Nil, patDef.preParamCount)
 
     val ip = lazyDefn.infoProvider
-    ip.addLazy(patSym, sc.owner,  () => computeInfo(resultTypeTree.tpe), () => computeInfo(ErrorType))
+    ip.addLazy(patSym, () => computeInfo(resultTypeTree.tpe), () => computeInfo(ErrorType))
 
     val typer = () =>
       PatDef(patSym, tparamSyms, paramSyms, resultTypeTree, typedBody)(patDef.span)
@@ -426,7 +425,7 @@ class PatternTyper(namer: Namer):
               WildcardPattern()(ErrorType, patSpan)
 
           case None =>
-            val sym = Symbol.createSymbol(name, tpe, Flags.Pattern, sc.owner, Visibility.Scope, id.pos)
+            val sym = Symbol.createSymbol(name, tpe, Flags.Pattern, Visibility.Scope, sc.owner, id.pos)
             sc.definePatternAsTerm(sym)
 
             val patVal = Ident(sym)(id.span)
@@ -468,7 +467,7 @@ class PatternTyper(namer: Namer):
             WildcardPattern()(ErrorType, id.span)
 
         case None =>
-          val sym = Symbol.createSymbol(name, scrutType, Flags.Pattern, sc.owner, Visibility.Scope, id.pos)
+          val sym = Symbol.createSymbol(name, scrutType, Flags.Pattern, Visibility.Scope, sc.owner, id.pos)
           sc.definePatternAsTerm(sym)
           sc.define(sym)
 
@@ -506,7 +505,7 @@ class PatternTyper(namer: Namer):
 
         case None =>
           val nestedPattern = transformPattern(nested, scrutType)
-          val sym = Symbol.createSymbol(name, nestedPattern.valueType, Flags.Pattern, sc.owner, Visibility.Scope, id.pos)
+          val sym = Symbol.createSymbol(name, nestedPattern.valueType, Flags.Pattern, Visibility.Scope, sc.owner, id.pos)
           sc.definePatternAsTerm(sym)
           sc.define(sym)
 
@@ -716,7 +715,7 @@ class PatternTyper(namer: Namer):
 
         case None =>
           // It is OK to not set Flags.Mutable because after initialization it cannot be changed.
-          val outerSym = Symbol.createSymbol(innerSym.name, expectedType, Flags.Pattern, sc.owner, Visibility.Scope, pos)
+          val outerSym = Symbol.createSymbol(innerSym.name, expectedType, Flags.Pattern, Visibility.Scope, sc.owner, pos)
           sc.definePatternAsTerm(outerSym)
           sc.define(outerSym)
           oc.occur(outerSym, pos)
@@ -737,7 +736,7 @@ class PatternTyper(namer: Namer):
           case _ =>
             // error already reported
 
-        Symbol.createSymbol(id.name, ErrorType, Flags.Synthetic, sc.owner, Visibility.Scope, id.pos)
+        Symbol.createSymbol(id.name, ErrorType, Flags.Synthetic, Visibility.Scope, sc.owner, id.pos)
 
   private def transformPatternRef(qualid: Ast.RefTree)
     (using sc: Scope, defn: Definitions, so: Source, rp: Reporter): Option[Symbol] =

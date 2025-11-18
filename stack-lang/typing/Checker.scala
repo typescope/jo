@@ -94,12 +94,10 @@ object Checker:
     if !sym.isMutable then
       Reporter.error(sym.name + " is not a mutable value", pos)
 
-  def checkAccess(target: Symbol, scopeOwner: Symbol, span: Span)(using Reporter, Definitions, Source, Checks): Unit =
+  def checkAccess(target: Symbol, scopeOwner: Symbol, span: Span)(using Reporter, Definitions, Source): Unit =
     if target.visibility == Visibility.Private then
-      // TODO: can remove once we put owner directly in symbol
-      Checks.add:
-        if !scopeOwner.containedIn(target.owner) then
-          Reporter.error("Cannot access private member " + target, span.toPos)
+      if !scopeOwner.containedIn(target.owner) then
+        Reporter.error("Cannot access private member " + target, span.toPos)
 
   def checkTermMember(word: Word, member: String)(using Reporter, Source, Definitions): Word =
     val tpe = word.tpe

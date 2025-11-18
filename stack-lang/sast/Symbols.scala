@@ -36,26 +36,22 @@ object Symbols:
     case Scope
     case Private
 
-  /** The information about a symbol
-    *
-    * During transformation, the type and owner of a symbol may change.
-    *
-    * The information of a symbol is provided by info providers.
-    */
-  case class SymInfo(symbol: Symbol, owner: Symbol, tpe: Type):
-    assert(owner != null || symbol.flags.is(Flags.NSpace), "symbol = " + symbol)
+  sealed class Symbol private[Symbols](
+    val name: String,
+    val flags: Flags,
+    val visibility: Visibility,
+    val owner: Symbol,
+    val sourcePos: SourcePosition):
 
-  sealed class Symbol private[Symbols](val name: String, val flags: Flags, val visibility: Visibility, val sourcePos: SourcePosition):
+    assert(owner != null || flags.is(Flags.NSpace), "symbol = " + name)
+
     /** TODO: Cache could be introduced to improve performance based on timestamps */
-    private def symInfo(using defn: Definitions): SymInfo = defn.info(this)
 
     /** Do not cache the result from provider
       *
       * The result may change. The cache is done by the provider.
       */
-    def info(using Definitions): Type = symInfo.tpe
-
-    def owner(using Definitions): Symbol = symInfo.owner
+    def info(using defn: Definitions): Type = defn.info(this)
 
     /** All symbols that have a ProcType are functions, including top-level
       * functions, methods and pattern predicates
@@ -94,27 +90,27 @@ object Symbols:
         case TypeLambda(_, info: ClassInfo, _) => info
         case tp => throw new Exception("Unexpected type " + tp.show)
 
-    def isLocal(using Definitions): Boolean =
+    def isLocal: Boolean =
       owner != null && !owner.isContainer
 
-    def enclosingContainer(using Definitions): Symbol =
+    def enclosingContainer: Symbol =
       if this.isContainer then
         this
       else
         // The assertion in the constructor ensures `owner` cannot be null
         owner.enclosingContainer
 
-    def enclosingFunction(using Definitions): Symbol =
+    def enclosingFunction: Symbol =
       if this.isFunction then
         this
       else
         // owner can be null, let exception be thrown
         owner.enclosingFunction
 
-    def containedIn(other: Symbol)(using Definitions): Boolean =
+    def containedIn(other: Symbol): Boolean =
       this == other || (this.owner != null && this.owner.containedIn(other))
 
-    def ownersIterator(using Definitions): Iterator[Symbol] =
+    def ownersIterator: Iterator[Symbol] =
       var current = this
       new Iterator[Symbol]:
           def hasNext: Boolean = current.owner != null
@@ -160,7 +156,7 @@ object Symbols:
     def defaultFunction(using Definitions): Symbol =
       this.owner.termMember(this.name + "$default")
 
-    def fullName(using Definitions): String =
+    def fullName: String =
       if isLocal then
         this.name
       else
@@ -183,40 +179,45 @@ object Symbols:
   end Symbol
 
   final class TypeSymbol(
-    val kind: Kind, name: String, flags: Flags, visibility: Visibility, sourcePos: SourcePosition)
-  extends Symbol(name, flags | Flags.Type, visibility, sourcePos)
+    val kind: Kind,
+    name: String,
+    flags: Flags,
+    visibility: Visibility,
+    owner: Symbol,
+    sourcePos: SourcePosition)
+  extends Symbol(name, flags | Flags.Type, visibility, owner, sourcePos)
 
   object TypeSymbol:
     def create
-        (kind: Kind, name: String, info: Type, flags: Flags, owner: Symbol, visibility: Visibility, pos: SourcePosition)
+        (kind: Kind, name: String, info: Type, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition)
         (using ip: InfoProvider)
     : TypeSymbol =
-      val sym = new TypeSymbol(kind, name, flags, visibility, pos)
-      ip.add(sym, owner, info)
+      val sym = new TypeSymbol(kind, name, flags, visibility, owner, pos)
+      ip.add(sym, info)
       sym
 
     def createSymbol
-        (kind: Kind, name: String, info: Type, flags: Flags, owner: Symbol, visibility: Visibility, pos: SourcePosition)
+        (kind: Kind, name: String, info: Type, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition)
         (using defn: Definitions)
     : TypeSymbol =
-      val sym = new TypeSymbol(kind, name, flags, visibility, pos)
-      defn.add(sym, owner, info)
+      val sym = new TypeSymbol(kind, name, flags, visibility, owner, pos)
+      defn.add(sym, info)
       sym
 
 
   object Symbol:
     /** Create a term or pattern symbol */
-    def createSymbol(name: String, flags: Flags, visibility: Visibility, pos: SourcePosition) =
+    def createSymbol(name: String, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition) =
       assert(!flags.is(Flags.Type), "type symbols should be created by `new TypeSymbol`")
-      new Symbol(name, flags, visibility, pos)
+      new Symbol(name, flags, visibility, owner, pos)
 
     /** Create a term or pattern symbol */
     def createSymbol
-        (name: String, info: Type, flags: Flags, owner: Symbol, visibility: Visibility, pos: SourcePosition)
+        (name: String, info: Type, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition)
         (using defn: Definitions)
     : Symbol =
       assert(!flags.is(Flags.Type), "type symbols should be created by `TypeSymbol.createSymbol`")
 
-      val sym = new Symbol(name, flags, visibility, pos)
-      defn.add(sym, owner, info)
+      val sym = new Symbol(name, flags, visibility, owner, pos)
+      defn.add(sym, info)
       sym

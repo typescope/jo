@@ -121,7 +121,7 @@ object Decoder:
     val delayedNS = decode()
 
     // Register the symbol in the appropriate name table
-    val owner = ip(delayedNS.symbol).owner
+    val owner = delayedNS.symbol.owner
     if owner == null then
       defnLazy.rootNameTable.define(delayedNS.symbol)
     else
@@ -142,8 +142,8 @@ object Decoder:
             case None =>
               // Create the symbol if it doesn't exist
               val flags = Flags.NSpace | Flags.Branch
-              val sym = Symbol.createSymbol(name, flags, Visibility.Scope, pos)
-              ip.add(sym, owner, new ContainerInfo(new NameTable))
+              val sym = Symbol.createSymbol(name, flags, Visibility.Scope, owner, pos)
+              ip.add(sym, new ContainerInfo(new NameTable))
               nameTable.define(sym)
               sym
 
@@ -204,8 +204,8 @@ object Decoder:
 
     val nameTable = new NameTable
     val info = new ContainerInfo(nameTable)
-    val rootSymbol = Symbol.createSymbol(name, Flags.NSpace, Visibility.Scope, pos)
-    defnLazy.infoProvider.add(rootSymbol, ownerSymbol, info)
+    val rootSymbol = Symbol.createSymbol(name, Flags.NSpace, Visibility.Scope, ownerSymbol, pos)
+    defnLazy.infoProvider.add(rootSymbol, info)
 
     given state: State = new State(rootSymbol, stringTable, symTable)
 
@@ -266,14 +266,14 @@ object Decoder:
       val sym =
         if target.is(Flags.Type) then
           val kind = target.asTypeSymbol.kind
-          new TypeSymbol(kind, name, flags, Visibility.Scope, span.toPos(using owner.source))
+          new TypeSymbol(kind, name, flags, Visibility.Scope, owner, span.toPos(using owner.source))
         else
-          Symbol.createSymbol(name, flags, Visibility.Scope, span.toPos(using owner.source))
+          Symbol.createSymbol(name, flags, Visibility.Scope, owner, span.toPos(using owner.source))
 
       state.registerInternalSymbol(id, sym)
 
 
-      defn.add(sym, owner, StaticRef(target))
+      defn.add(sym, StaticRef(target))
 
       sym
 
@@ -315,7 +315,7 @@ object Decoder:
     val symSpan = Span(absoluteStart + symStartDelta, symSpanLength)
 
     val info = decodeType()
-    val symbol = Symbol.createSymbol(name, info, flags, owner, visibility, symSpan.toPos)
+    val symbol = Symbol.createSymbol(name, info, flags, visibility, owner, symSpan.toPos)
     state.registerInternalSymbol(id, symbol)
 
     val rhs = decodeWord(owner, absoluteStart)
@@ -339,7 +339,7 @@ object Decoder:
     val symSpanLength = decodeNat()
     val symSpan = Span(absoluteStart + symStartDelta, symSpanLength)
 
-    val symbol = Symbol.createSymbol(name, flags, visibility, symSpan.toPos)
+    val symbol = Symbol.createSymbol(name, flags, visibility, owner, symSpan.toPos)
     state.registerInternalSymbol(id, symbol)
 
     val typeStartPos = buf.position
@@ -352,7 +352,7 @@ object Decoder:
       ParamDef(symbol, tpt)(span)
 
     // Supply type for symbol
-    defnLazy.infoProvider.addLazy(symbol, owner, () => paramDef.tpt.tpe)
+    defnLazy.infoProvider.addLazy(symbol, () => paramDef.tpt.tpe)
 
     // Set buffer position at end
     buf.setPosition(pos + length)
@@ -375,7 +375,7 @@ object Decoder:
     val symSpanLength = decodeNat()
     val symSpan = Span(absoluteStart + symStartDelta, symSpanLength)
 
-    val symbol = Symbol.createSymbol(name, flags, visibility, symSpan.toPos)
+    val symbol = Symbol.createSymbol(name, flags, visibility, owner, symSpan.toPos)
     state.registerInternalSymbol(id, symbol)
 
     val targetStartPos = buf.position
@@ -388,7 +388,7 @@ object Decoder:
       AliasDef(symbol, target)(span)
 
     // Supply type for symbol
-    defnLazy.infoProvider.addLazy(symbol, owner, () => StaticRef(aliasDef.target.symbol))
+    defnLazy.infoProvider.addLazy(symbol, () => StaticRef(aliasDef.target.symbol))
 
     // Set buffer position at end
     buf.setPosition(pos + length)
@@ -411,7 +411,7 @@ object Decoder:
     val symSpanLength = decodeNat()
     val symSpan = Span(absoluteStart + symStartDelta, symSpanLength)
 
-    val symbol = Symbol.createSymbol(name, flags, visibility, symSpan.toPos)
+    val symbol = Symbol.createSymbol(name, flags, visibility, owner, symSpan.toPos)
     state.registerInternalSymbol(id, symbol)
 
     given defn: Definitions = defnLazy.value
@@ -434,7 +434,7 @@ object Decoder:
         val kind = decodeKind()
         val tparamInfo = decodeType()
 
-        val tparam = TypeSymbol.createSymbol(kind, tparamName, tparamInfo, Flags.Param, symbol, Visibility.Scope, tparamSpan.toPos)
+        val tparam = TypeSymbol.createSymbol(kind, tparamName, tparamInfo, Flags.Param, Visibility.Scope, symbol, tparamSpan.toPos)
         state.registerInternalSymbol(tparamId, tparam)
         tparam
 
@@ -449,7 +449,7 @@ object Decoder:
 
         val paramInfo = decodeType()
 
-        val param = Symbol.createSymbol(paramName, paramInfo, Flags.Param, symbol, Visibility.Scope, paramSpan.toPos)
+        val param = Symbol.createSymbol(paramName, paramInfo, Flags.Param, Visibility.Scope, symbol, paramSpan.toPos)
         state.registerInternalSymbol(paramId, param)
 
         param
@@ -491,7 +491,7 @@ object Decoder:
 
         val autoInfo = decodeType()
 
-        val auto = Symbol.createSymbol(autoName, autoInfo, Flags.Param | Flags.Auto, symbol, Visibility.Scope, autoSpan.toPos)
+        val auto = Symbol.createSymbol(autoName, autoInfo, Flags.Param | Flags.Auto, Visibility.Scope, symbol, autoSpan.toPos)
         state.registerInternalSymbol(autoId, auto)
 
         auto
@@ -539,7 +539,7 @@ object Decoder:
         sig.tparams, sig.params.map(_.toNamedInfo), sig.adapterSymbols, sig.autos.map(_.toNamedInfo),
         sig.candidateSymbols, sig.resultType.tpe, () => receives, sig.preParamCount)
 
-    defnLazy.infoProvider.addLazy(symbol, owner,  () => funInfo)
+    defnLazy.infoProvider.addLazy(symbol, () => funInfo)
 
 
     val delayedFun = () =>
@@ -573,7 +573,7 @@ object Decoder:
     val symSpan = Span(absoluteStart + symStartDelta, symSpanLength)
 
     // Create and register symbol immediately
-    val symbol = new TypeSymbol(kind, name, Flags.Type | Flags.Class, visibility, symSpan.toPos)
+    val symbol = new TypeSymbol(kind, name, Flags.Type | Flags.Class, visibility, owner, symSpan.toPos)
     state.registerInternalSymbol(id, symbol)
 
     given Definitions = defnLazy.value
@@ -597,7 +597,7 @@ object Decoder:
         val tparamKind = decodeKind()
         val tparamInfo = decodeType()
 
-        val tparam = TypeSymbol.createSymbol(tparamKind, tparamName, tparamInfo, Flags.Param, symbol, Visibility.Scope, tparamSpan.toPos)
+        val tparam = TypeSymbol.createSymbol(tparamKind, tparamName, tparamInfo, Flags.Param, Visibility.Scope, symbol, tparamSpan.toPos)
         state.registerInternalSymbol(tparamId, tparam)
         tparam
 
@@ -610,7 +610,7 @@ object Decoder:
       val selfId = decodeNat()
       val selfName = decodeString()
       val selfFlags = decodeFlags()
-      val self = Symbol.createSymbol(selfName, selfInfo, selfFlags, symbol, Visibility.Scope, symbol.sourcePos)
+      val self = Symbol.createSymbol(selfName, selfInfo, selfFlags, Visibility.Scope, symbol, symbol.sourcePos)
       state.registerInternalSymbol(selfId, self)
 
       // Decode val members
@@ -625,7 +625,7 @@ object Decoder:
 
         val valType = decodeType()
 
-        val valSym = Symbol.createSymbol(valName, valType, valFlags, symbol, Visibility.Scope, valSpan.toPos)
+        val valSym = Symbol.createSymbol(valName, valType, valFlags, Visibility.Scope, symbol, valSpan.toPos)
         state.registerInternalSymbol(valId, valSym)
         valSym
 
@@ -645,7 +645,7 @@ object Decoder:
 
     end content
 
-    defnLazy.infoProvider.addLazy(symbol, owner, () => content.symInfo)
+    defnLazy.infoProvider.addLazy(symbol, () => content.symInfo)
 
     val delayed = () =>
       var lastOffset = absoluteStart
@@ -677,7 +677,7 @@ object Decoder:
     val symSpan = Span(absoluteStart + symStartDelta, symSpanLength)
 
     // Create symbol immediately but delay type reading
-    val symbol = new TypeSymbol(kind, name, Flags.Type, visibility, symSpan.toPos)
+    val symbol = new TypeSymbol(kind, name, Flags.Type, visibility, owner, symSpan.toPos)
     state.registerInternalSymbol(id, symbol)
 
     given Definitions = defnLazy.value
@@ -690,7 +690,7 @@ object Decoder:
       val treeLength = decodeNat()
 
     // Add symbol info lazily
-    defnLazy.infoProvider.addLazy(symbol, owner, () => delayed.tpe)
+    defnLazy.infoProvider.addLazy(symbol, () => delayed.tpe)
 
     val typeDefFun = () =>
       val actualSpan = Span(absoluteStart, delayed.treeLength)
@@ -716,7 +716,7 @@ object Decoder:
     val symSpanLength = decodeNat()
     val symSpan = Span(absoluteStart + symStartDelta, symSpanLength)
 
-    val symbol = Symbol.createSymbol(name, Flags.Pattern | Flags.Fun, visibility, symSpan.toPos)
+    val symbol = Symbol.createSymbol(name, Flags.Pattern | Flags.Fun, visibility, owner, symSpan.toPos)
     state.registerInternalSymbol(id, symbol)
 
     given Definitions = defnLazy.value
@@ -739,7 +739,7 @@ object Decoder:
         val kind = decodeKind()
         val tparamInfo = decodeType()
 
-        val tparam = TypeSymbol.createSymbol(kind, tparamName, tparamInfo, Flags.Param, symbol, Visibility.Scope, tparamSpan.toPos)
+        val tparam = TypeSymbol.createSymbol(kind, tparamName, tparamInfo, Flags.Param, Visibility.Scope, symbol, tparamSpan.toPos)
         state.registerInternalSymbol(tparamId, tparam)
         tparam
 
@@ -754,7 +754,7 @@ object Decoder:
 
         val paramInfo = decodeType()
 
-        val param = Symbol.createSymbol(paramName, paramInfo, Flags.Param | Flags.Pattern, symbol, Visibility.Scope, paramSpan.toPos)
+        val param = Symbol.createSymbol(paramName, paramInfo, Flags.Param | Flags.Pattern, Visibility.Scope, symbol, paramSpan.toPos)
         state.registerInternalSymbol(paramId, param)
 
         param
@@ -772,7 +772,7 @@ object Decoder:
         sig.tparams, sig.params.map(_.toNamedInfo), sig.params.map(_ => Nil), Nil, Nil,
         sig.resultType.tpe, () => receives, sig.preParamCount)
 
-    defnLazy.infoProvider.addLazy(symbol, owner, () => patInfo)
+    defnLazy.infoProvider.addLazy(symbol, () => patInfo)
 
     val delayedPatDef = () =>
       given ReadBuffer = buf.fresh(sig.signatureEndPos)
@@ -808,7 +808,7 @@ object Decoder:
     val symSpan = Span(absoluteStart + symStartDelta, symSpanLength)
 
     // Create and register symbol immediately
-    val symbol = Symbol.createSymbol(name, Flags.Section, visibility, symSpan.toPos)
+    val symbol = Symbol.createSymbol(name, Flags.Section, visibility, owner, symSpan.toPos)
     state.registerInternalSymbol(id, symbol)
 
     // Decode nested definitions as DelayedDef
@@ -820,7 +820,7 @@ object Decoder:
     val nameTable = new NameTable()
     val info = new ContainerInfo(nameTable)
     for delayedDef <- delayedDefs do nameTable.define(delayedDef.symbol)
-    defnLazy.infoProvider.add(symbol, owner, info)
+    defnLazy.infoProvider.add(symbol, info)
 
     val delayed = () =>
       given Definitions = defnLazy.value
@@ -986,7 +986,7 @@ object Decoder:
           val kind = decodeKind()
           val info = decodeType(tparamScope)
 
-          val tparam = TypeSymbol.createSymbol(kind, name, info, Flags.Param, state.root, Visibility.Scope, state.root.sourcePos)
+          val tparam = TypeSymbol.createSymbol(kind, name, info, Flags.Param, Visibility.Scope, state.root, state.root.sourcePos)
 
           tparam
 
@@ -1037,7 +1037,7 @@ object Decoder:
           val kind = decodeKind()
           val info = decodeType(tparamScope)
 
-          val tparam = TypeSymbol.createSymbol(kind, name, info, Flags.Param, state.root, Visibility.Scope, state.root.sourcePos)
+          val tparam = TypeSymbol.createSymbol(kind, name, info, Flags.Param, Visibility.Scope, state.root, state.root.sourcePos)
           tparam
 
         tparamScope.withParams(tparams):
@@ -1327,7 +1327,7 @@ object Decoder:
     val selfLength = decodeNat()
 
     val selfSpan = Span(startOffset + selfDelta, selfLength)
-    val self = Symbol.createSymbol(selfName, selfFlags, Visibility.Scope, selfSpan.toPos)
+    val self = Symbol.createSymbol(selfName, selfFlags, Visibility.Scope, owner, selfSpan.toPos)
     state.registerInternalSymbol(selfId, self)
 
     val delayedDefs: List[DelayedDef[ValDef | FunDef]] = repeated:
@@ -1354,7 +1354,7 @@ object Decoder:
 
       ObjectType(memberTypes.toList, mutables)
 
-    defn.addLazy(self, owner, () => selfType)
+    defn.addLazy(self, () => selfType)
 
     var lastOffset = startOffset
     val members: List[ValDef | FunDef] =
@@ -1388,7 +1388,7 @@ object Decoder:
             val name = decodeString()
             val info = nested.valueType
 
-            val symbol = Symbol.createSymbol(name, info, Flags.Pattern, owner, Visibility.Scope, span.toPos(using owner.source))
+            val symbol = Symbol.createSymbol(name, info, Flags.Pattern, Visibility.Scope, owner, span.toPos(using owner.source))
             state.registerInternalSymbol(id, symbol)
             symbol
           else
@@ -1522,7 +1522,7 @@ object Decoder:
           val name = decodeString()
           val info = decodeType()
 
-          val sym1 = Symbol.createSymbol(name, info, Flags.Pattern, owner, Visibility.Scope, sym2.sourcePos)
+          val sym1 = Symbol.createSymbol(name, info, Flags.Pattern, Visibility.Scope, owner, sym2.sourcePos)
           state.registerInternalSymbol(id, sym1)
 
           (sym1, sym2)

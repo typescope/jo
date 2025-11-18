@@ -32,17 +32,16 @@ class EncodeClass(using defn: Definitions) extends phases.Phase[Symbol]:
   val contextObject = phases.Phase.OwnerContext
 
   override def transform(nss: List[Namespace]): List[Namespace] =
-    defn.installTransform { symInfo =>
-      val SymInfo(sym, owner, info) = symInfo
-      if sym.isMethod && owner.isClass then
+    defn.installTransform { (sym, info) =>
+      if sym.isMethod && sym.owner.isClass then
         val oldProcType = info.as[ProcType]
-        val thisInfo = owner.classInfo.self.info
+        val thisInfo = sym.owner.classInfo.self.info
 
         val paramInfos = NamedInfo("this", thisInfo)
         val funType = oldProcType.prepend(paramInfos :: Nil)
-        SymInfo(sym, owner.enclosingContainer, funType)
+        funType
       else
-        symInfo
+        info
     }
     super.transform(nss)
 
@@ -92,7 +91,7 @@ class EncodeClass(using defn: Definitions) extends phases.Phase[Symbol]:
           val receiverSym =
             val owner = ctx
             given Source = owner.sourcePos.source
-            Symbol.createSymbol("o", qual2.tpe, Flags.Synthetic, owner, Visibility.Scope, qual2.pos)
+            Symbol.createSymbol("o", qual2.tpe, Flags.Synthetic, Visibility.Scope, owner, qual2.pos)
 
           val receiver = Ident(receiverSym)(qual2.span)
           val assign = Assign(Ident(receiverSym)(qual2.span), qual2)
@@ -114,7 +113,7 @@ class EncodeClass(using defn: Definitions) extends phases.Phase[Symbol]:
           val receiverSym =
             val owner = ctx
             given Source = owner.sourcePos.source
-            Symbol.createSymbol("o", qual2.tpe, Flags.Synthetic, owner, Visibility.Scope, qual2.pos)
+            Symbol.createSymbol("o", qual2.tpe, Flags.Synthetic, Visibility.Scope, owner, qual2.pos)
 
           val receiver = Ident(receiverSym)(qual2.span)
           val assign = Assign(Ident(receiverSym)(qual2.span), qual2)

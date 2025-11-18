@@ -144,7 +144,7 @@ object RawPrinter:
     *
     *     @5  ==> refers the name table entry whose index is 5
     */
-  private def printSymbolRef(symbol: Symbol)(using defn: Definitions, state: State): Text =
+  private def printSymbolRef(symbol: Symbol)(using state: State): Text =
     if symbol.isLocal || symbol.isTypeParameter then
       symbol.name ~ "#" ~ state.getInternalSymbolId(symbol)
 

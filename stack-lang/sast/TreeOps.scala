@@ -38,23 +38,23 @@ object TreeOps:
     val pos = span.toPos
 
     // Create a "this" symbol for the object
-    val thisSym = Symbol.createSymbol("this", Synthetic, Visibility.Scope, pos)
+    val thisSym = Symbol.createSymbol("this", Synthetic, Visibility.Scope, owner, pos)
 
     // Create an "apply" method symbol
-    val applySym = Symbol.createSymbol("apply", Fun | Method | Synthetic, Visibility.Scope, pos)
+    val applySym = Symbol.createSymbol("apply", Fun | Method | Synthetic, Visibility.Scope, thisSym, pos)
 
     // Create parameter symbols for the apply method
     val paramSyms =
       for param <- procType.params yield
-        Symbol.createSymbol(param.name, param.info, Param, applySym, Visibility.Scope, pos)
+        Symbol.createSymbol(param.name, param.info, Param, Visibility.Scope, applySym, pos)
 
     // Create auto parameter symbols for the apply method
     val autoSyms =
       for auto <- procType.autos yield
-        Symbol.createSymbol(auto.name, auto.info, Context, applySym, Visibility.Scope, pos)
+        Symbol.createSymbol(auto.name, auto.info, Context, Visibility.Scope, applySym, pos)
 
     val thisType = ObjectType(NamedInfo("apply", MemberRef(StaticRef(thisSym), applySym)) :: Nil, mutableFields = Nil)
-    defn.add(thisSym, owner, thisType)
+    defn.add(thisSym, thisType)
 
     // No preParam for methods
     val applyProcType = procType.copy(preParamCount = 0)
@@ -62,7 +62,7 @@ object TreeOps:
     // Build the object type
     val objType = ObjectType(NamedInfo("apply", applyProcType) :: Nil, mutableFields = Nil)
 
-    defn.add(applySym, thisSym, applyProcType)
+    defn.add(applySym, applyProcType)
 
     // Generate parameter idents and call the body function
     val paramIdents = paramSyms.map(sym => Ident(sym)(span))
