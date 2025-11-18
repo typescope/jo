@@ -1,0 +1,7 @@
+
+def local(): Unit =
+   defer def check(x: Int): Int = 3
+
+class A
+  defer def check(x: Int): Int
+end

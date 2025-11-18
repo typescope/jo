@@ -482,11 +482,21 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val receiveParams = optReceiveParams()
 
     val body =
+      val token = peek()
       if needBody then
-        eat(Token.EQL)
-        block(defToken.indent)
+        if token == Token.EQL then
+          next()
+          block(defToken.indent)
+        else
+          error("Expect EQL, found = " + token, peekItem().span.toPos)
+          Block(Nil)(resType.span)
       else
-        Block(Nil)(resType.span)
+        if token == Token.EQL then
+          next()
+          error("No body expected for declaration", peekItem().span.toPos)
+          block(defToken.indent)
+        else
+          Block(Nil)(resType.span)
 
     eatEndOpt(defToken.indent)
 
@@ -599,6 +609,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
       else
         val mods = modifiers()
+        val item = peekItem()
 
         if item.token == Token.DEF then
           Some(defDef(needBody = true).withMods(mods))
@@ -1016,7 +1027,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   def phrase(): Option[Word] =
     val item = peekItem()
-    item.token match
+    val token = item.token
+    token match
       case Token.IF        => Some(ifElse())
       case Token.MATCH     => Some(patmat())
       case Token.WHILE     => Some(whileDo())
@@ -1032,6 +1044,11 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
       case Token.TYPE =>
         Some(typeDef(mods = Nil))
+
+      case Token.DEFER | Token.PRIVATE =>
+        error("Cannot use " + token + " for local definitions", item.span.toPos)
+        next()
+        phrase()
 
       case token =>
         word().map: w =>

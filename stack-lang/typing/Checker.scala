@@ -151,7 +151,7 @@ object Checker:
         mods.foreach:
           case _: Ast.Modifier.Private =>
           case mod =>
-            Reporter.error("The modifier " + mod.show + " is not allowed for pattern definition", mod.pos)
+            Reporter.error("The modifier " + mod.show + " is not allowed for class definition", mod.pos)
 
       case tdef: Ast.TypeDef =>
         mods.foreach:
