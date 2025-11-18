@@ -1,0 +1,38 @@
+class Box[T]
+  private var value: T
+
+  def getValue() = value
+
+  private def debug(): Unit = ...
+end
+
+def testPrivateField(x: Box[Int]): Int = x.value
+
+def testPrivateMethod(x: Box[Int]) = x.debug()
+
+def testPrivateSection(show: A.B.Show[Int]): Unit = show(19)
+
+def testPrivateFun() = A.qux()
+
+def testPrivatePattern(x: Int) =
+  match x
+    case A.Pos => println "positive"
+    case _     => println "<= 0"
+
+def eq: A.Eq[Int] = (x, y) => x == y
+
+section A
+  def bar(): Int = 10
+  private def qux(): Int = 20
+
+  private type Eq[T] = (T, T) => Bool
+
+  private pattern Pos: Partial[Int] =
+    case x if x > 0
+
+  private section B
+    type Show[T] = T => String
+
+    def testQux() = A.qux()
+  end
+end

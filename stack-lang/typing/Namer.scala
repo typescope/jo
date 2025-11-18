@@ -1790,7 +1790,7 @@ class Namer(using Config):
       if vdef.mutable then flags = flags | Flags.Field | Flags.Mutable
       else flags = flags | Flags.Field
 
-      val sym = TermSymbol.create(vdef.name, flags, Visibility.Scope, classSym, vdef.ident.pos)
+      val sym = TermSymbol.create(vdef.name, flags, Checker.visibility(vdef), classSym, vdef.ident.pos)
       shortCutScope.define(sym)
 
       def checkType() =

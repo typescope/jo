@@ -758,8 +758,10 @@ class PatternTyper(namer: Namer):
             Reporter.error("A selection must be a pattern predicate", qualid.pos)
             None
 
-          case res => res
+          case res @ Some(target) =>
+            Checker.checkAccess(target, sc.owner, qualid.span)
 
+            res
 
   private def transformPattern(
       pat: Ast.Word, scrutType: Type)
@@ -796,8 +798,11 @@ class PatternTyper(namer: Namer):
       case Ast.TypeAscribe(id: Ast.Ident, tpt) =>
         transformTypePattern(id, tpt, scrutType, pat.span)
 
-      case Ast.Apply(id: Ast.RefTree, args, _) =>
-        transformApplyPattern(id, args, scrutType, pat.span)
+      case Ast.Apply(ref: Ast.RefTree, args, _) =>
+        transformApplyPattern(ref, args, scrutType, pat.span)
+
+      case ref: Ast.Select =>
+        transformApplyPattern(ref, args = Nil, scrutType, pat.span)
 
       case Ast.InfixCall(preArgs, id: Ast.RefTree, postArgs) =>
         transformInfixCallPattern(preArgs, id, postArgs, scrutType, pat.span)
