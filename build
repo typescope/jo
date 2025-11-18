@@ -76,6 +76,9 @@ fi
 
 chmod +x bin/jo
 
+# remove old
+rm -fr libs
+
 # build stand library
 STDLIB=libs/stdlib
 bin/jo build-lib -testPickling -explicit-return-type -no-stdlib lib/*.jo -d $STDLIB
