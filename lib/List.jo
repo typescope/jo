@@ -167,9 +167,72 @@ class List[T]
     match repr
       case Nil => // stop recursion from ListImpl.traverse
 
-      case _ => ListImpl.traverse this 0 (size - 1) op empty[T]
+      case _ =>  this.traverseRange 0 (size - 1) op empty[T]
     end
 
+  // The Bool value tells whether to continue the traversal
+  private def traverseRange(from: Int, to: Int, op: T => Bool, rest: List[T]): Unit =
+    val msg =
+      "invalid arg for ListImpl.traverse"
+        + ", from = " + (intToStr from)
+        + ", to = " + (intToStr to)
+        + ", size = " + (intToStr this.size)
+
+    assert (from >= 0 && from < this.size) msg
+    assert (to >= from && to < this.size) msg
+
+    match this.repr
+      case Nil =>
+        rest.traverse op
+
+      case Cons v tail =>
+        if to == 0 then
+          if op v then rest.traverse op
+
+        else if from == 0 then
+          if op v then tail.traverseRange from (to - 1) op rest
+
+        else
+          tail.traverseRange (from - 1) (to - 1) op rest
+
+
+      case Append prefix v =>
+        if to < prefix.size then
+          prefix.traverseRange from to op rest
+
+        else if from == prefix.size then
+          if op v then rest.traverse op
+
+        else
+          val rest2 = new List(Cons v rest)
+          prefix.traverseRange from (to - 1) op rest2
+
+
+      case Concat lhs rhs =>
+        if to < lhs.size then
+          lhs.traverseRange from to op rest
+
+        else if from >= lhs.size then
+          rhs.traverseRange (from - lhs.size) (to - lhs.size) op rest
+
+        else
+          val rhs2 = rhs.slice 0 (to - lhs.size)
+          lhs.traverseRange from (lhs.size - 1) op (rhs2 ++ rest)
+
+      case Slice base from2 to2 =>
+        base.traverseRange (from2 + from) (from2 + to) op rest
+
+      case Flat elems =>
+        var continue = true
+        var i = from
+
+        while both continue (i <= to) do
+          continue = op (Array.get elems i)
+          i = i + 1
+
+        if continue then rest.traverse op
+    end // match
+  end // traverseRange
 end // List
 
 private section ListImpl
@@ -191,68 +254,4 @@ private section ListImpl
     case Flat(elems) then n = Array.size elems
 
   def errorIndex(i: Int): Bottom = abort ("invalid index for list " + (intToStr i))
-
-  // The Bool value tells whether to continue the traversal
-  def traverse[T](this: List[T], from: Int, to: Int, op: T => Bool, rest: List[T]): Unit =
-    val msg =
-      "invalid arg for ListImpl.traverse"
-        + ", from = " + (intToStr from)
-        + ", to = " + (intToStr to)
-        + ", size = " + (intToStr this.size)
-
-    assert (from >= 0 && from < this.size) msg
-    assert (to >= from && to < this.size) msg
-
-    match this.repr
-      case Nil =>
-        rest.traverse op
-
-      case Cons v tail =>
-        if to == 0 then
-          if op v then rest.traverse op
-
-        else if from == 0 then
-          if op v then traverse tail from (to - 1) op rest
-
-        else
-          traverse tail (from - 1) (to - 1) op rest
-
-
-      case Append prefix v =>
-        if to < prefix.size then
-          traverse prefix from to op rest
-
-        else if from == prefix.size then
-          if op v then rest.traverse op
-
-        else
-          val rest2 = new List(Cons v rest)
-          traverse prefix from (to - 1) op rest2
-
-
-      case Concat lhs rhs =>
-        if to < lhs.size then
-          traverse lhs from to op rest
-
-        else if from >= lhs.size then
-          traverse rhs (from - lhs.size) (to - lhs.size) op rest
-
-        else
-          val rhs2 = rhs.slice 0 (to - lhs.size)
-          traverse lhs from (lhs.size - 1) op (rhs2 ++ rest)
-
-      case Slice base from2 to2 =>
-        traverse base (from2 + from) (from2 + to) op rest
-
-      case Flat elems =>
-        var continue = true
-        var i = from
-
-        while both continue (i <= to) do
-          continue = op (Array.get elems i)
-          i = i + 1
-
-        if continue then rest.traverse op
-    end // match
-  end // traverse
 end // ListImpl

@@ -600,7 +600,6 @@ object Decoder:
         val tparamId = decodeNat()
         val tparamName = decodeString()
 
-
         val tparamStartDelta = decodeInt()
         val tparamLength = decodeNat()
         val tparamSpan = Span(symbol.span.start + tparamStartDelta, tparamLength)
@@ -630,6 +629,7 @@ object Decoder:
         val valId = decodeNat()
         val valName = decodeString()
         val valFlags = decodeFlags() | Flags.Field
+        val visibility = decodeVisibility()
 
         val valStartDelta = decodeInt()
         val valLength = decodeNat()
@@ -637,7 +637,7 @@ object Decoder:
 
         val valType = decodeType()
 
-        val valSym = TermSymbol.create(valName, valType, valFlags, Visibility.Scope, symbol, valSpan.toPos)
+        val valSym = TermSymbol.create(valName, valType, valFlags, visibility, symbol, valSpan.toPos)
         state.registerInternalSymbol(valId, valSym)
         valSym
 

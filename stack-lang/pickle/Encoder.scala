@@ -488,6 +488,7 @@ object Encoder:
         encodeNat(state.getId(sym))
         encodeString(sym.name)
         encodeFlags(sym.flags & (Flags.Auto | Flags.Mutable))
+        encodeVisibility(sym.visibility)
 
         val symSpan = sym.sourcePos.span
         val symStartDelta = symSpan.start - defSym.span.start
