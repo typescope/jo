@@ -1183,7 +1183,7 @@ class Namer(using Config):
      // Each object has a self symbol
      val thisSym = Symbol.createSymbol("this", Flags.Synthetic, Visibility.Scope, sc.owner, lambda.pos)
 
-     val funSym = Symbol.createSymbol(funName, Flags.Fun | Flags.Method | Flags.Synthetic, Visibility.Scope, sc.owner, lambda.pos)
+     val funSym = Symbol.createSymbol(funName, Flags.Fun | Flags.Method | Flags.Synthetic, Visibility.Scope, thisSym, lambda.pos)
      val lambdaScope = sc.fresh(funSym)
 
      val selfType = ObjectType(NamedInfo(funName, MemberRef(StaticRef(thisSym), funSym)) :: Nil, mutableFields = Nil)
