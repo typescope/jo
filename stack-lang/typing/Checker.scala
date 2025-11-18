@@ -131,40 +131,48 @@ object Checker:
 
       case vdef: Ast.ValDef =>
         mods.foreach:
+          case _: Ast.Modifier.Private =>
           case mod =>
             Reporter.error("The modifier " + mod.show + " is not allowed for value definition", mod.pos)
 
       case pdef: Ast.PatDef =>
-        mods.foreach: mod =>
-          Reporter.error("The modifier " + mod.show + " is not allowed for pattern definition", mod.pos)
+        mods.foreach:
+          case _: Ast.Modifier.Private =>
+          case mod =>
+            Reporter.error("The modifier " + mod.show + " is not allowed for pattern definition", mod.pos)
 
       case pdef: Ast.ParamDef =>
-        // TODO: Disable auto context params for now.
-        //
-        // It's powerful, but also scaring --- remote binding may easily break assumptions.
         mods.foreach:
+          case _: Ast.Modifier.Private =>
           case mod =>
             Reporter.error("The modifier " + mod.show + " is not allowed for context parameter definition", mod.pos)
 
       case cdef: Ast.ClassDef =>
-        mods.foreach: mod =>
-          Reporter.error("The modifier " + mod.show + " is not allowed for pattern definition", mod.pos)
+        mods.foreach:
+          case _: Ast.Modifier.Private =>
+          case mod =>
+            Reporter.error("The modifier " + mod.show + " is not allowed for pattern definition", mod.pos)
 
       case tdef: Ast.TypeDef =>
-        mods.foreach: mod =>
-          Reporter.error("The modifier " + mod.show + " is not allowed for type definition", mod.pos)
+        mods.foreach:
+          case _: Ast.Modifier.Private =>
+          case mod =>
+            Reporter.error("The modifier " + mod.show + " is not allowed for type definition", mod.pos)
 
       case _: Ast.DataDef | _: Ast.EnumDef =>
         mods.foreach: mod =>
           Reporter.error("The modifier " + mod.show + " is not allowed for data definition", mod.pos)
 
       case sec: Ast.Section =>
-        mods.foreach: mod =>
-          Reporter.error("The modifier " + mod.show + " is not allowed for section definition", mod.pos)
+        mods.foreach:
+          case _: Ast.Modifier.Private =>
+          case mod =>
+            Reporter.error("The modifier " + mod.show + " is not allowed for section definition", mod.pos)
 
       case adef: Ast.AliasDef =>
         val kind = adef.kind
         mods.foreach:
+          case _: Ast.Modifier.Private =>
           case mod =>
             Reporter.error(s"The modifier ${mod.show} is not allowed for alias $kind definition", mod.pos)
     end match

@@ -86,6 +86,9 @@ object RawPrinter:
   private given Text.Maker[Flags] =
     v => printFlags(v)
 
+  private given Text.Maker[Visibility] =
+    v => Text(v.toString)
+
   private given (using Definitions, State, Source): Text.Maker[ParamAdapter] =
     v => v match
       case ParamAdapter.Function(symbol) => printSymbolRef(symbol)
@@ -130,10 +133,10 @@ object RawPrinter:
 
     symbol match
       case tsym: TypeSymbol =>
-        "[" ~ id ~ "," ~ tsym.name ~ "," ~ symbol.flags ~ "," ~ printKind(tsym.kind) ~ "," ~ ownerText ~ "," ~ printType(tsym.info) ~ "]@" ~ span
+        "[" ~ id ~ "," ~ tsym.name ~ "," ~ symbol.flags ~ "," ~ printKind(tsym.kind) ~ "," ~ ownerText ~ "," ~ printType(tsym.info) ~ "," ~ tsym.visibility ~ "]@" ~ span
 
       case _ =>
-        "[" ~ id ~ "," ~ symbol.name ~ "," ~ symbol.flags ~ "," ~ ownerText ~ "," ~ printType(symbol.info) ~ "]@" ~ span
+        "[" ~ id ~ "," ~ symbol.name ~ "," ~ symbol.flags ~ "," ~ ownerText ~ "," ~ printType(symbol.info) ~ "," ~ symbol.visibility ~ "]@" ~ span
 
   /** Reference to a symbol
     *

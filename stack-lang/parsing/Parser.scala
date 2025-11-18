@@ -504,6 +504,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         Some(block(token.indent))
       else
         None
+
     ParamDef(id, tpt, default)(token.span | tpt.span).withMods(mods)
 
   def patDef(mods: List[Modifier]): PatDef =
@@ -592,25 +593,26 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val tparams = typeParams()
 
     val members: List[ValDef | FunDef] = repeated:
-      val mods = modifiers()
-
       val item = peekItem()
       if klass.indent.isUnindent(item.indent) then
         None
 
-      else if item.token == Token.DEF then
-        Some(defDef(needBody = true).withMods(mods))
+      else
+        val mods = modifiers()
 
-      else if peek() == Token.VAL || peek() == Token.VAR then
-        val mod = next()
-        val mutable = mod.token == Token.VAR
-        val id = ident()
-        eat(Token.COLON)
-        val tpt = typ()
-        val body = Block(phrases = Nil)(id.span)
-        Some(ValDef(id, tpt, body, mutable)(mod.span | tpt.span).withMods(mods))
+        if item.token == Token.DEF then
+          Some(defDef(needBody = true).withMods(mods))
 
-      else None
+        else if peek() == Token.VAL || peek() == Token.VAR then
+          val mod = next()
+          val mutable = mod.token == Token.VAR
+          val id = ident()
+          eat(Token.COLON)
+          val tpt = typ()
+          val body = Block(phrases = Nil)(id.span)
+          Some(ValDef(id, tpt, body, mutable)(mod.span | tpt.span).withMods(mods))
+
+        else None
 
     eatEndOpt(klass.indent)
 

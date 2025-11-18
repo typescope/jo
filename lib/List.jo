@@ -9,8 +9,8 @@ def empty[T]: List[T] = new List(ListImpl.Nil)
 def List[T](elems: ..T): List[T] = elems
 
 class List[T]
-  val repr: Repr[T]
-  val _size: Int
+  private val repr: Repr[T]
+  private val _size: Int
 
   def List(repr: Repr[T]) =
     val len = match repr case Size(n) => n
@@ -172,7 +172,7 @@ class List[T]
 
 end // List
 
-section ListImpl
+private section ListImpl
   data Repr[T] =
       Nil
     | Cons(head: T, tail: List[T])
