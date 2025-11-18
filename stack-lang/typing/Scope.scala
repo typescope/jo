@@ -106,21 +106,21 @@ enum Scope:
       case Some(sym) => sym
       case None =>
         Reporter.error(s"Undefined term name " + name, pos)
-        Symbol.createSymbol(name, ErrorType, Flags.Synthetic, owner, pos)
+        Symbol.createSymbol(name, ErrorType, Flags.Synthetic, owner, Visibility.Scope, pos)
 
   def resolveType(name: String, pos: SourcePosition)(using Reporter, Definitions): Symbol =
     resolveType(name) match
       case Some(sym) => sym
       case None =>
         Reporter.error(s"Undefined type name " + name, pos)
-        Symbol.createSymbol(name, ErrorType, Flags.Synthetic, owner, pos)
+        Symbol.createSymbol(name, ErrorType, Flags.Synthetic, owner, Visibility.Scope, pos)
 
   def resolvePattern(name: String, pos: SourcePosition)(using Reporter, Definitions): Symbol =
     resolvePattern(name) match
       case Some(sym) => sym
       case None =>
         Reporter.error(s"Undefined pattern name " + name, pos)
-        Symbol.createSymbol(name, ErrorType, Flags.Synthetic, owner, pos)
+        Symbol.createSymbol(name, ErrorType, Flags.Synthetic, owner, Visibility.Scope, pos)
 
   def define(sym: Symbol)(using Reporter): Unit =
     table.define(sym)

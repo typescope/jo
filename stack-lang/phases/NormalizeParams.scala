@@ -118,7 +118,12 @@ class NormalizeParams(using defn: Definitions) extends Phase[Symbol]:
               val paramRef = Ident(eff)(span)
               aliasMap.get(eff) match
                 case None =>
-                  val alias = Symbol.createSymbol("alias_" + eff.name, eff.info, Flags.Synthetic, owner = ctx, pos = obj.pos)
+                  val alias =
+                    Symbol.createSymbol("alias_" + eff.name, eff.info, Flags.Synthetic,
+                        owner = ctx,
+                        visibility = Visibility.Scope,
+                        pos = obj.pos)
+
                   aliasMap(eff) = Assign(Ident(alias)(span), paramRef)
                   Assign(paramRef, Ident(alias)(span))
 

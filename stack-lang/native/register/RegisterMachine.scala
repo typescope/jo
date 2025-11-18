@@ -49,7 +49,10 @@ extends Backend(runtime):
     *
     * Its type does not matter.
     */
-  val returnAddrSym = Symbol.createSymbol("return", AnyType, Flags.Synthetic, owner = runtime.Core, pos = runtime.Core.sourcePos)
+  val returnAddrSym = Symbol.createSymbol("return", AnyType, Flags.Synthetic,
+      owner = runtime.Core,
+      visibility = Visibility.Scope,
+      pos = runtime.Core.sourcePos)
 
   def freshVirtualReg()(using ctx: Context): Int =
     ctx.generator.fresh()

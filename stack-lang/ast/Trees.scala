@@ -19,6 +19,10 @@ object Trees:
       case Defer()    => "defer"
       case Private()  => "private"
 
+    def isPrivate: Boolean = this.isInstanceOf[Private]
+
+    def isDefer: Boolean = this.isInstanceOf[Defer]
+
   sealed abstract class Word extends Tree:
     def show: String = Printing.show(this)
 

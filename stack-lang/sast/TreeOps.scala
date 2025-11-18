@@ -1,7 +1,7 @@
 package sast
 
 import Trees.*
-import Symbols.Symbol
+import Symbols.*
 import Flags.*
 import Types.*
 
@@ -38,20 +38,20 @@ object TreeOps:
     val pos = span.toPos
 
     // Create a "this" symbol for the object
-    val thisSym = Symbol.createSymbol("this", Synthetic, pos)
+    val thisSym = Symbol.createSymbol("this", Synthetic, Visibility.Scope, pos)
 
     // Create an "apply" method symbol
-    val applySym = Symbol.createSymbol("apply", Fun | Method | Synthetic, pos)
+    val applySym = Symbol.createSymbol("apply", Fun | Method | Synthetic, Visibility.Scope, pos)
 
     // Create parameter symbols for the apply method
     val paramSyms =
       for param <- procType.params yield
-        Symbol.createSymbol(param.name, param.info, Param, applySym, pos)
+        Symbol.createSymbol(param.name, param.info, Param, applySym, Visibility.Scope, pos)
 
     // Create auto parameter symbols for the apply method
     val autoSyms =
       for auto <- procType.autos yield
-        Symbol.createSymbol(auto.name, auto.info, Context, applySym, pos)
+        Symbol.createSymbol(auto.name, auto.info, Context, applySym, Visibility.Scope, pos)
 
     val thisType = ObjectType(NamedInfo("apply", MemberRef(StaticRef(thisSym), applySym)) :: Nil, mutableFields = Nil)
     defn.add(thisSym, owner, thisType)

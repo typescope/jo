@@ -92,7 +92,7 @@ class EncodeClass(using defn: Definitions) extends phases.Phase[Symbol]:
           val receiverSym =
             val owner = ctx
             given Source = owner.sourcePos.source
-            Symbol.createSymbol("o", qual2.tpe, Flags.Synthetic, owner, qual2.pos)
+            Symbol.createSymbol("o", qual2.tpe, Flags.Synthetic, owner, Visibility.Scope, qual2.pos)
 
           val receiver = Ident(receiverSym)(qual2.span)
           val assign = Assign(Ident(receiverSym)(qual2.span), qual2)
@@ -114,7 +114,7 @@ class EncodeClass(using defn: Definitions) extends phases.Phase[Symbol]:
           val receiverSym =
             val owner = ctx
             given Source = owner.sourcePos.source
-            Symbol.createSymbol("o", qual2.tpe, Flags.Synthetic, owner, qual2.pos)
+            Symbol.createSymbol("o", qual2.tpe, Flags.Synthetic, owner, Visibility.Scope, qual2.pos)
 
           val receiver = Ident(receiverSym)(qual2.span)
           val assign = Assign(Ident(receiverSym)(qual2.span), qual2)

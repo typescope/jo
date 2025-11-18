@@ -13,6 +13,29 @@ import ast.Positions.{ Source, Span, SourcePosition }
 object Symbols:
   final val debugSymbol = false
 
+  /** The visibility of a symbol
+    *
+    * Two rules regarding private members:
+    *
+    *  - A private member may only be selected when the scope owner is within
+    *    visibility of the private member.
+    *
+    *  - A symbol's visibility must be smaller than that of its parent.
+    *
+    * While class members may have visibility, object members may not.
+    *
+    * This design does not prevent a library author from exposing a type member
+    * of a private section to outer world. This is a feature of the owner-based
+    * access control.
+    *
+    * Currently Private does not have a qulifier, which could be a future extension.
+    * Without qualifier, the name is private to its owner.
+    *
+    */
+  enum Visibility:
+    case Scope
+    case Private
+
   /** The information about a symbol
     *
     * During transformation, the type and owner of a symbol may change.
@@ -22,7 +45,7 @@ object Symbols:
   case class SymInfo(symbol: Symbol, owner: Symbol, tpe: Type):
     assert(owner != null || symbol.flags.is(Flags.NSpace), "symbol = " + symbol)
 
-  sealed class Symbol private[Symbols](val name: String, val flags: Flags, val sourcePos: SourcePosition):
+  sealed class Symbol private[Symbols](val name: String, val flags: Flags, val visibility: Visibility, val sourcePos: SourcePosition):
     /** TODO: Cache could be introduced to improve performance based on timestamps */
     private def symInfo(using defn: Definitions): SymInfo = defn.info(this)
 
@@ -60,6 +83,8 @@ object Symbols:
     def is(testFlag: Flag) = this.flags.isOneOf(testFlag)
     def isOneOf(testFlags: Flags) = this.flags.isOneOf(testFlags)
     def isAllOf(testFlags: Flags) = this.flags.isAllOf(testFlags)
+
+    def isPrivate = this.visibility == Visibility.Private
 
     def classInfo(using Definitions): ClassInfo =
       assert(this.isClass, "Not a class")
@@ -158,40 +183,40 @@ object Symbols:
   end Symbol
 
   final class TypeSymbol(
-    val kind: Kind, name: String, flags: Flags, sourcePos: SourcePosition)
-  extends Symbol(name, flags | Flags.Type, sourcePos)
+    val kind: Kind, name: String, flags: Flags, visibility: Visibility, sourcePos: SourcePosition)
+  extends Symbol(name, flags | Flags.Type, visibility, sourcePos)
 
   object TypeSymbol:
     def create
-        (kind: Kind, name: String, info: Type, flags: Flags, owner: Symbol, pos: SourcePosition)
+        (kind: Kind, name: String, info: Type, flags: Flags, owner: Symbol, visibility: Visibility, pos: SourcePosition)
         (using ip: InfoProvider)
     : TypeSymbol =
-      val sym = new TypeSymbol(kind, name, flags, pos)
+      val sym = new TypeSymbol(kind, name, flags, visibility, pos)
       ip.add(sym, owner, info)
       sym
 
     def createSymbol
-        (kind: Kind, name: String, info: Type, flags: Flags, owner: Symbol, pos: SourcePosition)
+        (kind: Kind, name: String, info: Type, flags: Flags, owner: Symbol, visibility: Visibility, pos: SourcePosition)
         (using defn: Definitions)
     : TypeSymbol =
-      val sym = new TypeSymbol(kind, name, flags, pos)
+      val sym = new TypeSymbol(kind, name, flags, visibility, pos)
       defn.add(sym, owner, info)
       sym
 
 
   object Symbol:
     /** Create a term or pattern symbol */
-    def createSymbol(name: String, flags: Flags, pos: SourcePosition) =
+    def createSymbol(name: String, flags: Flags, visibility: Visibility, pos: SourcePosition) =
       assert(!flags.is(Flags.Type), "type symbols should be created by `new TypeSymbol`")
-      new Symbol(name, flags, pos)
+      new Symbol(name, flags, visibility, pos)
 
     /** Create a term or pattern symbol */
     def createSymbol
-        (name: String, info: Type, flags: Flags, owner: Symbol, pos: SourcePosition)
+        (name: String, info: Type, flags: Flags, owner: Symbol, visibility: Visibility, pos: SourcePosition)
         (using defn: Definitions)
     : Symbol =
       assert(!flags.is(Flags.Type), "type symbols should be created by `TypeSymbol.createSymbol`")
 
-      val sym = new Symbol(name, flags, pos)
+      val sym = new Symbol(name, flags, visibility, pos)
       defn.add(sym, owner, info)
       sym

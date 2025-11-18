@@ -106,6 +106,10 @@ object Checker:
     for tvar <- tvars.typeVars if !tvar.isInstantiated do
       Reporter.error("Cannot infer a type for type variable " + tvar, tvar.span.toPos)
 
+  def visibility(defn: Ast.Def)(using rp: Reporter, so: Source): Visibility =
+      if defn.modifiers.exists(_.isPrivate) then Visibility.Private
+      else Visibility.Scope
+
   def checkModifiers(defn: Ast.Def)(using rp: Reporter, so: Source): Flags =
     val mods = defn.modifiers
     if mods.isEmpty then return Flags.empty

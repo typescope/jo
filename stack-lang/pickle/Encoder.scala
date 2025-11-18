@@ -405,6 +405,7 @@ object Encoder:
     encodeNat(state.getId(defSym))
     encodeString(defSym.name)
     encodeFlags(defSym.flags & (Flags.Auto | Flags.Mutable))
+    encodeVisibility(defSym.visibility)
 
     encodeInt(defSym.span.start - absoluteStart)
     encodeNat(defSym.span.length)
@@ -425,6 +426,8 @@ object Encoder:
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
       encodeFlags(defSym.flags & (Flags.Default | Flags.Auto))
+      encodeVisibility(defSym.visibility)
+
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
       encodeTypeTree(pdef.tpt, absoluteStart)
@@ -443,6 +446,8 @@ object Encoder:
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
       encodeFlags(defSym.flags & (Flags.Pattern | Flags.Fun | Flags.Context | Flags.Auto))
+      encodeVisibility(defSym.visibility)
+
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
       encodeWord(adef.target, absoluteStart)
@@ -461,6 +466,7 @@ object Encoder:
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
       encodeKind(defSym.asTypeSymbol.kind)
+      encodeVisibility(defSym.visibility)
 
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
@@ -503,6 +509,7 @@ object Encoder:
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
       encodeFlags(defSym.flags & (Flags.Auto | Flags.Synthetic | Flags.Defer | Flags.Default))
+      encodeVisibility(defSym.visibility)
 
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
@@ -583,6 +590,8 @@ object Encoder:
 
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
+      encodeVisibility(defSym.visibility)
+
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
 
@@ -622,6 +631,7 @@ object Encoder:
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
       encodeKind(defSym.asTypeSymbol.kind)
+      encodeVisibility(defSym.visibility)
 
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
@@ -641,6 +651,7 @@ object Encoder:
 
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
+      encodeVisibility(defSym.visibility)
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
 
@@ -1169,6 +1180,10 @@ object Encoder:
         encodeInt(pattern.span.endOffset - nested.span.endOffset)
 
     end match
+
+  private def encodeVisibility(v: Visibility)(using buf: WriteBuffer): Unit =
+    if v == Visibility.Scope then buf.addBool(true)
+    else buf.addBool(false)
 
   private def encodeBool(b: Boolean)(using buf: WriteBuffer): Unit =
     buf.addBool(b)
