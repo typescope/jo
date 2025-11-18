@@ -158,9 +158,9 @@ object Encoder:
 
         encodeString(sym.name)
 
-        if sym.isType then encodeByte(Format.Type)
-        else if sym.isPattern then encodeByte(Format.Pattern)
-        else encodeByte(Format.Term)
+        if sym.isTerm then encodeByte(Format.Term)
+        else if sym.isType then encodeByte(Format.Type)
+        else encodeByte(Format.Pattern)
 
   /** Symbol table map internal symbols to unique ids */
   private class SymbolTable(root: Symbol):
@@ -445,7 +445,13 @@ object Encoder:
 
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
-      encodeFlags(defSym.flags & (Flags.Pattern | Flags.Fun | Flags.Context | Flags.Auto))
+
+      assert(!defSym.isType, "alias def should not be type")
+
+      if defSym.isTerm then encodeByte(Format.Term)
+      else encodeByte(Format.Pattern)
+
+      encodeFlags(defSym.flags & (Flags.Fun | Flags.Context))
       encodeVisibility(defSym.visibility)
 
       encodeInt(defSym.span.start - absoluteStart)

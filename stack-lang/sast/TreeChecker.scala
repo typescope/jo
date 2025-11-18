@@ -68,8 +68,8 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends T
     word match
       case Ident(sym) =>
         // TODO: change flags of lifted methods
-        if sym.isOneOf(Flags.NSpace | Flags.Method | Flags.Field | Flags.Type) && !sym.owner.isContainer then
-          Reporter.error("A term Ident tree should not be namespace, method, field or type, id = " + word, word.pos)
+        if sym.isOneOf(Flags.NSpace | Flags.Method | Flags.Field) then
+          Reporter.error("A term Ident tree should not be namespace, method, field, id = " + word, word.pos)
 
         if !sym.owner.isFunction && !sym.owner.isClass && !sym.owner.isContainer then
           Reporter.error("The owner of an ident should be either a function, a class or an container, found = " + sym.owner, word.pos)

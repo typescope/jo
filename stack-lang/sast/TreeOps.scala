@@ -38,20 +38,20 @@ object TreeOps:
     val pos = span.toPos
 
     // Create a "this" symbol for the object
-    val thisSym = Symbol.createSymbol("this", Synthetic, Visibility.Scope, owner, pos)
+    val thisSym = TermSymbol.create("this", Synthetic, Visibility.Scope, owner, pos)
 
     // Create an "apply" method symbol
-    val applySym = Symbol.createSymbol("apply", Fun | Method | Synthetic, Visibility.Scope, thisSym, pos)
+    val applySym = TermSymbol.create("apply", Fun | Method | Synthetic, Visibility.Scope, thisSym, pos)
 
     // Create parameter symbols for the apply method
     val paramSyms =
       for param <- procType.params yield
-        Symbol.createSymbol(param.name, param.info, Param, Visibility.Scope, applySym, pos)
+        TermSymbol.create(param.name, param.info, Param, Visibility.Scope, applySym, pos)
 
     // Create auto parameter symbols for the apply method
     val autoSyms =
       for auto <- procType.autos yield
-        Symbol.createSymbol(auto.name, auto.info, Context, Visibility.Scope, applySym, pos)
+        TermSymbol.create(auto.name, auto.info, Context, Visibility.Scope, applySym, pos)
 
     val thisType = ObjectType(NamedInfo("apply", MemberRef(StaticRef(thisSym), applySym)) :: Nil, mutableFields = Nil)
     defn.add(thisSym, thisType)

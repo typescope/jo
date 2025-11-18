@@ -47,7 +47,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
     val resultType = UnionType(successType :: failType :: Nil)
 
     val funType = ProcType(predType.tparams, params, params.map(_ => Nil), autos, Nil, resultType, () => predType.receives, preParamCount = 0)
-    Symbol.createSymbol(predSym.name + "$impl", funType, Flags.Fun | Flags.Synthetic, Visibility.Scope, predSym.owner, predSym.sourcePos)
+    TermSymbol.create(predSym.name + "$impl", funType, Flags.Fun | Flags.Synthetic, Visibility.Scope, predSym.owner, predSym.sourcePos)
 
   private def getImplFunSymbol(predSym: Symbol, implMap: mutable.Map[Symbol, Symbol]): Symbol =
     implMap.get(predSym) match
@@ -66,7 +66,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
     given Context = PatternMatcher.CacheContext.newContext(implSym, ctx)
     given Source = pdef.symbol.sourcePos.source
 
-    val scrutSym = Symbol.createSymbol("scrutinee", pdef.resultType.tpe.stripPartial, Flags.Param, Visibility.Scope, implSym, implSym.sourcePos)
+    val scrutSym = TermSymbol.create("scrutinee", pdef.resultType.tpe.stripPartial, Flags.Param, Visibility.Scope, implSym, implSym.sourcePos)
     val scrutIdent = Ident(scrutSym)(span)
 
     // TODO: optimize irrefutable pattern
@@ -107,7 +107,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
 
         case _ =>
           aliased = true
-          val scrutSym = Symbol.createSymbol("scrutinee", scrutType, Flags.Synthetic, Visibility.Scope, ctx.owner, scrutinee.pos)
+          val scrutSym = TermSymbol.create("scrutinee", scrutType, Flags.Synthetic, Visibility.Scope, ctx.owner, scrutinee.pos)
           Ident(scrutSym)(scrutinee.span)
 
     def transformCases(cases: List[Case]): Word =
@@ -239,7 +239,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
       if noNeedTypeTest then Apply(implFun, scrut :: Nil, autos = Nil)(implFun.span)
       else Apply(implFun, Encoded(scrut)(paramType) :: Nil, autos = Nil)(implFun.span)
 
-    val resSym = Symbol.createSymbol("res", resultType, Flags.Pattern | Flags.Synthetic, Visibility.Scope, ctx.owner, pred.pos)
+    val resSym = TermSymbol.create("res", resultType, Flags.Synthetic, Visibility.Scope, ctx.owner, pred.pos)
     val assignRes = Assign(Ident(resSym)(pred.span), call)
     val assignTag =  scrutineeTagAssign(assignRes.ident, span)
 
@@ -263,7 +263,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
     val assigns =
       for param <- successType.params
       yield
-        val valueSym = Symbol.createSymbol(param.name, param.info, Flags.Pattern | Flags.Synthetic, Visibility.Scope, ctx.owner, pred.pos)
+        val valueSym = TermSymbol.create(param.name, param.info, Flags.Synthetic, Visibility.Scope, ctx.owner, pred.pos)
         val valueIdent = Ident(valueSym)(span)
         val rhs = TaggedEncoding.selectVariantField(assignRes.ident, successType, param.name, span)
         Assign(valueIdent, rhs)
@@ -303,7 +303,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
     val assigns =
       for param <- scrutTagType.params
       yield
-        val valueSym = Symbol.createSymbol(param.name, param.info, Flags.Pattern | Flags.Synthetic, Visibility.Scope, ctx.owner, span.toPos)
+        val valueSym = TermSymbol.create(param.name, param.info, Flags.Synthetic, Visibility.Scope, ctx.owner, span.toPos)
         val valueIdent = Ident(valueSym)(span)
         val rhs = TaggedEncoding.selectVariantField(scrut, scrutTagType, param.name, span)
         Assign(valueIdent, rhs)
@@ -391,7 +391,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
     val assigns =
       for param <- scrutTagType.params
       yield
-        val valueSym = Symbol.createSymbol(param.name, param.info, Flags.Pattern | Flags.Synthetic, Visibility.Scope, ctx.owner, span.toPos)
+        val valueSym = TermSymbol.create(param.name, param.info, Flags.Synthetic, Visibility.Scope, ctx.owner, span.toPos)
         val valueIdent = Ident(valueSym)(span)
         val rhs = TaggedEncoding.selectVariantField(scrut, scrutTagType, param.name, span)
         Assign(valueIdent, rhs)
@@ -431,12 +431,12 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
     val conds = new mutable.ArrayBuffer[Word]
 
     // var index = 0
-    val indexSym = Symbol.createSymbol("index", IntType, Flags.Mutable | Flags.Synthetic, Visibility.Scope, ctx.owner, seqPattern.pos)
+    val indexSym = TermSymbol.create("index", IntType, Flags.Mutable | Flags.Synthetic, Visibility.Scope, ctx.owner, seqPattern.pos)
     val indexIdent = Ident(indexSym)(seqPattern.span)
     val indexInit = Assign(indexIdent, IntLit(0)(seqPattern.span))
 
     // val size = scrut.size()
-    val sizeSym = Symbol.createSymbol("size", IntType, Flags.Synthetic, Visibility.Scope, ctx.owner, seqPattern.pos)
+    val sizeSym = TermSymbol.create("size", IntType, Flags.Synthetic, Visibility.Scope, ctx.owner, seqPattern.pos)
     val sizeIdent = Ident(sizeSym)(seqPattern.span)
     val sizeInit = Assign(sizeIdent, scrut.select("size").appliedTo())
 
@@ -451,7 +451,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
       val itemType = appType.resultType
       val itemValue = Select(scrut, "get")(appType, span).appliedTo(indexIdent)
 
-      val itemSym = Symbol.createSymbol("item", itemType, Flags.Synthetic, Visibility.Scope, ctx.owner, span.toPos)
+      val itemSym = TermSymbol.create("item", itemType, Flags.Synthetic, Visibility.Scope, ctx.owner, span.toPos)
       val itemIdent = Ident(itemSym)(span)
       Assign(itemIdent, itemValue)
 
@@ -523,7 +523,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
           // Make sure new symbol created
           val itemAssign = itemAtIndexAssign(pat.span)
 
-          val foundSym = Symbol.createSymbol("found", BoolType, Flags.Mutable | Flags.Synthetic, Visibility.Scope, ctx.owner, pat.pos)
+          val foundSym = TermSymbol.create("found", BoolType, Flags.Mutable | Flags.Synthetic, Visibility.Scope, ctx.owner, pat.pos)
           val foundIdent = Ident(foundSym)(pat.span)
           val foundInit = Assign(foundIdent, BoolLit(false)(pat.span))
 
@@ -543,7 +543,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
           // val rest = scrutinee.slice(index, if index == size then index else size - 1)
           // items ~ pattern
 
-          val restSym = Symbol.createSymbol("rest", pattern.scrutineeType, Flags.Synthetic, Visibility.Scope, ctx.owner, pat.pos)
+          val restSym = TermSymbol.create("rest", pattern.scrutineeType, Flags.Synthetic, Visibility.Scope, ctx.owner, pat.pos)
           val restIdent = Ident(restSym)(pat.span)
           val to =
             val sub = Ident(defn.Int_sub)(pat.span)
@@ -573,7 +573,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
           // Make sure new symbol created
           val itemAssign = itemAtIndexAssign(pat.span)
 
-          val continueSym = Symbol.createSymbol("continue", BoolType, Flags.Mutable | Flags.Synthetic, Visibility.Scope, ctx.owner, pat.pos)
+          val continueSym = TermSymbol.create("continue", BoolType, Flags.Mutable | Flags.Synthetic, Visibility.Scope, ctx.owner, pat.pos)
           val continueIdent = Ident(continueSym)(pat.span)
           val continueInit = Assign(continueIdent, BoolLit(true)(pat.span))
 
@@ -629,7 +629,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
     val encodedScrutType = RecordType(NamedInfo("tag", IntType) :: Nil)
     val encodedScrut = Encoded(scrut)(encodedScrutType)
 
-    val tagSym = Symbol.createSymbol("tag", IntType, Flags.Pattern | Flags.Synthetic, Visibility.Scope, ctx.owner, span.toPos)
+    val tagSym = TermSymbol.create("tag", IntType, Flags.Synthetic, Visibility.Scope, ctx.owner, span.toPos)
     val tagIdent = Ident(tagSym)(span)
     val rhs = Select(encodedScrut, "tag")(IntType, span)
     Assign(tagIdent, rhs)

@@ -39,26 +39,26 @@ object Flags:
     end for
     buf.toList
 
-  // TODO: keep non-encoded flags at high positions to reduce encoding size
+  // Keep encoded flags at low positions to reduce encoding size
 
-  val Fun        : Flag = defineFlag(1,  "fun"      ) // symbol.info is ProcType
-  val Type       : Flag = defineFlag(2,  "type"     ) // TODO: remove, use TypeSymbol
-  val Class      : Flag = defineFlag(3,  "class"    )
-  val Pattern    : Flag = defineFlag(4,  "pattern"  ) // TODO: remove, use  PatternSymbol
-  val NSpace     : Flag = defineFlag(5,  "namespace")
-  val Section    : Flag = defineFlag(6,  "section"  )
-  val Method     : Flag = defineFlag(7,  "method"   )
-  val Branch     : Flag = defineFlag(8,  "branch"   ) // branch name space
-  val Param      : Flag = defineFlag(9,  "param"    ) // a parameter
-  val Mutable    : Flag = defineFlag(10, "mutable"  ) // a mutable variable
-  val Context    : Flag = defineFlag(11, "context"  ) // context parameter or its default function
-  val Field      : Flag = defineFlag(12, "field"    ) // an object field
-  val Default    : Flag = defineFlag(13, "default"  ) // context parameter with default value
-  val Alias      : Flag = defineFlag(14, "alias"    ) // an alias symbol created by import/export
-  val Auto       : Flag = defineFlag(15, "auto"     ) // auto function or auto value
-  val Defer      : Flag = defineFlag(16, "defer"    ) // a deferred definition
-  val Synthetic  : Flag = defineFlag(17, "synthetic") // a compiler-synthesized symbol
-  val Loaded     : Flag = defineFlag(18, "loaded"   ) // a symbol loaded from sast
+  val Mutable    : Flag = defineFlag(1, "mutable"   ) // a mutable variable
+  val Context    : Flag = defineFlag(2, "context"   ) // context parameter or its default function
+  val Default    : Flag = defineFlag(3, "default"   ) // context parameter with default value
+  val Defer      : Flag = defineFlag(4, "defer"     ) // a deferred definition
+
+  val Fun        : Flag = defineFlag(5,  "fun"      ) // symbol.info is ProcType
+  val Class      : Flag = defineFlag(6,  "class"    )
+  val NSpace     : Flag = defineFlag(7,  "namespace")
+  val Section    : Flag = defineFlag(8,  "section"  )
+  val Field      : Flag = defineFlag(9,  "field"    ) // an object field
+  val Method     : Flag = defineFlag(10, "method"   )
+  val Branch     : Flag = defineFlag(11, "branch"   ) // branch name space
+  val Param      : Flag = defineFlag(12, "param"    ) // a parameter
+
+  val Alias      : Flag = defineFlag(13, "alias"    ) // an alias symbol created by import/export
+  val Auto       : Flag = defineFlag(14, "auto"     ) // auto function or auto value
+  val Synthetic  : Flag = defineFlag(15, "synthetic") // a compiler-synthesized symbol
+  val Loaded     : Flag = defineFlag(16, "loaded"   ) // a symbol loaded from sast
 
   val empty   : Flags = 0
 

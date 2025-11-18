@@ -178,7 +178,7 @@ object TypeOps:
 
     def apply(tp: Type)(using ctx: Context): Type =
       tp match
-        case StaticRef(sym) if sym.isAllOf(Flags.Type | Flags.Param) =>
+        case StaticRef(sym) if sym.isTypeParameter =>
           TypeVar(sym.name, span)
 
         case _ =>

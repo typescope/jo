@@ -9,6 +9,12 @@ import ast.Positions.{ Source, Span, SourcePosition }
   *
   * Symbols are stable in the compilation process, while the types of a symbol
   * might change, e.g., due to erasure or encoding of types.
+  *
+  * Names fall into three universes:
+  *
+  * - term names
+  * - type names
+  * - pattern names
   */
 object Symbols:
   final val debugSymbol = false
@@ -36,7 +42,7 @@ object Symbols:
     case Scope
     case Private
 
-  sealed class Symbol private[Symbols](
+  sealed abstract class Symbol(
     val name: String,
     val flags: Flags,
     val visibility: Visibility,
@@ -59,22 +65,23 @@ object Symbols:
     def isFunction : Boolean = flags.is(Flags.Fun)
 
     def isMethod   : Boolean = flags.is(Flags.Method)
-    def isType     : Boolean = flags.is(Flags.Type)
     def isClass    : Boolean = flags.is(Flags.Class)
-    def isPattern  : Boolean = flags.is(Flags.Pattern)
     def isParameter: Boolean = flags.is(Flags.Param)
     def isMutable  : Boolean = flags.is(Flags.Mutable)
     def isField    : Boolean = flags.is(Flags.Field)
     def isSynthetic: Boolean = flags.is(Flags.Synthetic)
     def isAlias    : Boolean = flags.is(Flags.Alias)
 
+    def isTerm     : Boolean = this.isInstanceOf[TermSymbol]
+    def isType     : Boolean = this.isInstanceOf[TypeSymbol]
+    def isPattern  : Boolean = this.isInstanceOf[PatternSymbol]
+
     def isConstructor: Boolean = name == Names.Constructor
 
     def isNamespace: Boolean = flags.is(Flags.NSpace)
-
     def isContainer: Boolean = flags.isOneOf(Flags.NSpace | Flags.Section)
 
-    def isTypeParameter: Boolean = flags.isAllOf(Flags.Type | Flags.Param)
+    def isTypeParameter: Boolean = this.isType && flags.is(Flags.Param)
 
     def is(testFlag: Flag) = this.flags.isOneOf(testFlag)
     def isOneOf(testFlags: Flags) = this.flags.isOneOf(testFlags)
@@ -178,25 +185,48 @@ object Symbols:
     def asTypeSymbol: TypeSymbol = this.asInstanceOf[TypeSymbol]
   end Symbol
 
-  final class TypeSymbol(
+  final class TypeSymbol private[Symbols](
     val kind: Kind,
     name: String,
     flags: Flags,
     visibility: Visibility,
     owner: Symbol,
     sourcePos: SourcePosition)
-  extends Symbol(name, flags | Flags.Type, visibility, owner, sourcePos)
+  extends Symbol(name, flags, visibility, owner, sourcePos)
 
-  object TypeSymbol:
+  final class TermSymbol private[Symbols](
+    name: String,
+    flags: Flags,
+    visibility: Visibility,
+    owner: Symbol,
+    sourcePos: SourcePosition)
+  extends Symbol(name, flags, visibility, owner, sourcePos)
+
+  final class PatternSymbol private[Symbols](
+    name: String,
+    flags: Flags,
+    visibility: Visibility,
+    owner: Symbol,
+    sourcePos: SourcePosition)
+  extends Symbol(name, flags, visibility, owner, sourcePos)
+
+  object TermSymbol:
+    def create(name: String, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition): TermSymbol =
+      new TermSymbol(name, flags, visibility, owner, pos)
+
     def create
-        (kind: Kind, name: String, info: Type, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition)
-        (using ip: InfoProvider)
-    : TypeSymbol =
-      val sym = new TypeSymbol(kind, name, flags, visibility, owner, pos)
-      ip.add(sym, info)
+        (name: String, info: Type, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition)
+        (using defn: Definitions)
+    : Symbol =
+      val sym = new TermSymbol(name, flags, visibility, owner, pos)
+      defn.add(sym, info)
       sym
 
-    def createSymbol
+  object TypeSymbol:
+    def create(kind: Kind, name: String, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition): TypeSymbol =
+      new TypeSymbol(kind, name, flags, visibility, owner, pos)
+
+    def create
         (kind: Kind, name: String, info: Type, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition)
         (using defn: Definitions)
     : TypeSymbol =
@@ -204,20 +234,14 @@ object Symbols:
       defn.add(sym, info)
       sym
 
+  object PatternSymbol:
+    def create(name: String, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition): PatternSymbol =
+      new PatternSymbol(name, flags, visibility, owner, pos)
 
-  object Symbol:
-    /** Create a term or pattern symbol */
-    def createSymbol(name: String, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition) =
-      assert(!flags.is(Flags.Type), "type symbols should be created by `new TypeSymbol`")
-      new Symbol(name, flags, visibility, owner, pos)
-
-    /** Create a term or pattern symbol */
-    def createSymbol
+    def create
         (name: String, info: Type, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition)
         (using defn: Definitions)
-    : Symbol =
-      assert(!flags.is(Flags.Type), "type symbols should be created by `TypeSymbol.createSymbol`")
-
-      val sym = new Symbol(name, flags, visibility, owner, pos)
+    : PatternSymbol =
+      val sym = new PatternSymbol(name, flags, visibility, owner, pos)
       defn.add(sym, info)
       sym

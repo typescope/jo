@@ -118,7 +118,7 @@ class Namer(using Config):
       else
         rp.error(s"The $name is already defined as a member at $pos", qualid.pos)
         val flags = if isBranch then Flags.NSpace | Flags.Branch else Flags.NSpace
-        val dummyNamespace = Symbol.createSymbol(sym.name, flags, Visibility.Scope, sym.owner, qualid.pos)
+        val dummyNamespace = TermSymbol.create(sym.name, flags, Visibility.Scope, sym.owner, qualid.pos)
         ip.add(dummyNamespace, new ContainerInfo(new NameTable))
         dummyNamespace
 
@@ -135,7 +135,7 @@ class Namer(using Config):
 
           case None =>
             val flags = if isBranch then Flags.NSpace | Flags.Branch else Flags.NSpace
-            val sym = Symbol.createSymbol(name, flags, Visibility.Scope, nsSym, qualid.pos)
+            val sym = TermSymbol.create(name, flags, Visibility.Scope, nsSym, qualid.pos)
             ip.add(sym, new ContainerInfo(new NameTable))
             nameTable.define(sym)
             sym
@@ -144,7 +144,7 @@ class Namer(using Config):
         rootNameTable.resolveTerm(name) match
           case None =>
             val flags = if isBranch then Flags.NSpace | Flags.Branch else Flags.NSpace
-            val sym = Symbol.createSymbol(name, flags, Visibility.Scope, owner = null, qualid.pos)
+            val sym = TermSymbol.create(name, flags, Visibility.Scope, owner = null, qualid.pos)
             rootNameTable.define(sym)
             ip.add(sym, new ContainerInfo(new NameTable))
             sym
@@ -412,7 +412,7 @@ class Namer(using Config):
 
     val delayedDefs = new mutable.ArrayBuffer[DelayedDef[ValDef | FunDef]]
 
-    val thisSym = Symbol.createSymbol("this", Flags.Synthetic, Visibility.Scope, sc.owner, obj.pos)
+    val thisSym = TermSymbol.create("this", Flags.Synthetic, Visibility.Scope, sc.owner, obj.pos)
 
     // The scope only contains `this`
     // `this` should not be available in field initialization
@@ -449,7 +449,7 @@ class Namer(using Config):
           val tp: Type =
             if vdef.tpt.isEmpty then rhs.tpe.widen else givenType
 
-          val sym = Symbol.createSymbol(vdef.name, tp, flags, Visibility.Scope, thisSym, vdef.ident.pos)
+          val sym = TermSymbol.create(vdef.name, tp, flags, Visibility.Scope, thisSym, vdef.ident.pos)
           sc2.define(sym)
 
           delayedDefs += DelayedDef(sym, () => ValDef(sym, rhs)(vdef.span))
@@ -686,7 +686,7 @@ class Namer(using Config):
           havingSyms += sym
 
         case _ =>
-          val havingSym = Symbol.createSymbol(
+          val havingSym = TermSymbol.create(
             "havingCand",
             tpt.tpe,
             Flags.empty,
@@ -987,7 +987,7 @@ class Namer(using Config):
 
         case tp =>
           Reporter.error("A reference to a contextual parameter expected, found = " + tp.show, paramRef.pos)
-          Symbol.createSymbol(ref.name, ErrorType, Flags.Synthetic, Visibility.Scope, sc.owner, paramRef.pos)
+          TermSymbol.create(ref.name, ErrorType, Flags.Synthetic, Visibility.Scope, sc.owner, paramRef.pos)
 
     Ident(paramSym)(ref.span)
 
@@ -1181,9 +1181,9 @@ class Namer(using Config):
        case _ => "apply"
 
      // Each object has a self symbol
-     val thisSym = Symbol.createSymbol("this", Flags.Synthetic, Visibility.Scope, sc.owner, lambda.pos)
+     val thisSym = TermSymbol.create("this", Flags.Synthetic, Visibility.Scope, sc.owner, lambda.pos)
 
-     val funSym = Symbol.createSymbol(funName, Flags.Fun | Flags.Method | Flags.Synthetic, Visibility.Scope, thisSym, lambda.pos)
+     val funSym = TermSymbol.create(funName, Flags.Fun | Flags.Method | Flags.Synthetic, Visibility.Scope, thisSym, lambda.pos)
      val lambdaScope = sc.fresh(funSym)
 
      val selfType = ObjectType(NamedInfo(funName, MemberRef(StaticRef(thisSym), funSym)) :: Nil, mutableFields = Nil)
@@ -1201,7 +1201,7 @@ class Namer(using Config):
      val paramSyms = Checks.eager:
       for (param, i) <- params.zipWithIndex yield
         val tp = if param.tpt.isEmpty then inferParamType(i) else transformType(param.tpt).tpe
-        val paramSym = Symbol.createSymbol(param.name, tp, Flags.Param, Visibility.Scope, funSym, param.pos)
+        val paramSym = TermSymbol.create(param.name, tp, Flags.Param, Visibility.Scope, funSym, param.pos)
         lambdaScope.define(paramSym)
         paramSym
 
@@ -1256,7 +1256,7 @@ class Namer(using Config):
     if pdef.hasKey(Desugaring.DefaultContextParam) then
       flags |= Flags.Default
 
-    val paramSym = Symbol.createSymbol(pdef.name, flags, Visibility.Scope, sc.owner, pdef.pos)
+    val paramSym = TermSymbol.create(pdef.name, flags, Visibility.Scope, sc.owner, pdef.pos)
     ip.addLazy(paramSym, () => transformType(pdef.tpt).tpe)
 
     val paramDefSast = () =>
@@ -1279,13 +1279,13 @@ class Namer(using Config):
 
       case Ast.AliasKind.Param => Flags.Context
 
-      case Ast.AliasKind.Pattern => Flags.Pattern | Flags.Fun
+      case Ast.AliasKind.Pattern => Flags.Fun
 
     val flags = rawFlags | kindFlags | Flags.Alias
 
     def error(message: String, pos: SourcePosition)(using Definitions): Ident =
       Reporter.error(message, pos)
-      val sym = Symbol.createSymbol(adef.name, ErrorType, Flags.Synthetic, Visibility.Scope, sc.owner, qualid.pos)
+      val sym = TermSymbol.create(adef.name, ErrorType, Flags.Synthetic, Visibility.Scope, sc.owner, qualid.pos)
       Ident(sym)(qualid.span)
 
     def getTarget(qual: Ast.RefTree, nameTable: NameTable, targetName: String)(using Definitions): Ident =
@@ -1338,7 +1338,7 @@ class Namer(using Config):
 
             case None =>
               // error already reported
-              val sym = Symbol.createSymbol(name, ErrorType, Flags.Synthetic, Visibility.Scope, sc.owner, qualid.pos)
+              val sym = TermSymbol.create(name, ErrorType, Flags.Synthetic, Visibility.Scope, sc.owner, qualid.pos)
               Ident(sym)(qualid.span)
           end match
 
@@ -1346,7 +1346,14 @@ class Namer(using Config):
           error("A fully qualified name to alias target expected", ident.pos)
 
 
-    val aliasSym = Symbol.createSymbol(adef.name, flags, Checker.visibility(adef), sc.owner, adef.ident.pos)
+    val aliasSym =
+      adef.kind match
+        case Ast.AliasKind.Def | Ast.AliasKind.Param =>
+          TermSymbol.create(adef.name, flags, Checker.visibility(adef), sc.owner, adef.ident.pos)
+
+        case Ast.AliasKind.Pattern =>
+          PatternSymbol.create(adef.name, flags, Checker.visibility(adef), sc.owner, adef.ident.pos)
+
     ip.addLazy(aliasSym, () => StaticRef(target.symbol))
 
     val aliasDefSast = () =>
@@ -1358,7 +1365,7 @@ class Namer(using Config):
     var flags = Checker.checkModifiers(vdef)
     if vdef.mutable then flags = flags | Flags.Mutable
 
-    val sym = Symbol.createSymbol(vdef.name, flags, Visibility.Scope, sc.owner, vdef.ident.pos)
+    val sym = TermSymbol.create(vdef.name, flags, Visibility.Scope, sc.owner, vdef.ident.pos)
 
     lazy val givenType: Type = Checks.eager:
       val tpt = transformType(vdef.tpt)
@@ -1394,7 +1401,7 @@ class Namer(using Config):
           TypeBound(BottomType, boundTree.tpe)
 
       // Only support simple-kinded type parameters
-      val sym = TypeSymbol.createSymbol(Kind.Simple, tparam.name, bound, Flags.Param, Visibility.Scope, sc.owner, tparam.pos)
+      val sym = TypeSymbol.create(Kind.Simple, tparam.name, bound, Flags.Param, Visibility.Scope, sc.owner, tparam.pos)
       sc.define(sym)
       sym
 
@@ -1404,7 +1411,7 @@ class Namer(using Config):
 
     for (param, i) <- params.zipWithIndex yield
       val tpt = transformType(param.tpt, allowPackType = i == params.size - 1)
-      val paramSym = Symbol.createSymbol(param.name, tpt.tpe, Flags.Param, Visibility.Scope, sc.owner, param.pos)
+      val paramSym = TermSymbol.create(param.name, tpt.tpe, Flags.Param, Visibility.Scope, sc.owner, param.pos)
       sc.define(paramSym)
       paramSym
 
@@ -1415,7 +1422,7 @@ class Namer(using Config):
 
     for auto <- autos yield
       val tpt = transformType(auto.tpt, allowPackType = false)
-      val autoSym = Symbol.createSymbol(auto.name, tpt.tpe, Flags.Param | Flags.Auto, Visibility.Scope, sc.owner, auto.pos)
+      val autoSym = TermSymbol.create(auto.name, tpt.tpe, Flags.Param | Flags.Auto, Visibility.Scope, sc.owner, auto.pos)
       sc.define(autoSym)
       autoSym
 
@@ -1452,7 +1459,7 @@ class Namer(using Config):
     if funDef.hasKey(Desugaring.DefaultValueFun) then
       flags |= Flags.Default
 
-    val funSym = Symbol.createSymbol(funDef.name, flags, Checker.visibility(funDef), sc.owner, funDef.ident.pos)
+    val funSym = TermSymbol.create(funDef.name, flags, Checker.visibility(funDef), sc.owner, funDef.ident.pos)
     given Scope = sc.fresh(funSym)
 
     given defn: Definitions = lazyDefn.value
@@ -1569,7 +1576,7 @@ class Namer(using Config):
 
     val flags = Flags.Fun | Flags.Method
 
-    val funSym = Symbol.createSymbol(Names.Constructor, flags, Visibility.Scope, classSym, funDef.ident.pos)
+    val funSym = TermSymbol.create(Names.Constructor, flags, Visibility.Scope, classSym, funDef.ident.pos)
     given Scope = sc.fresh(funSym)
 
     if funDef.tparams.nonEmpty then
@@ -1678,9 +1685,9 @@ class Namer(using Config):
       (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, ck: Checks)
   : DelayedDef[TypeDef] =
 
-    val flags = Checker.checkModifiers(tdef) | Flags.Type
+    val flags = Checker.checkModifiers(tdef)
     val kind = Kind.simpleKinded(tdef.tparams.size)
-    val typeSym = new TypeSymbol(kind, tdef.name, flags, Checker.visibility(tdef), sc.owner, tdef.ident.pos)
+    val typeSym = TypeSymbol.create(kind, tdef.name, flags, Checker.visibility(tdef), sc.owner, tdef.ident.pos)
 
     given defn: Definitions = lazyDefn.value
 
@@ -1741,10 +1748,10 @@ class Namer(using Config):
       (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, ck: Checks)
   : DelayedDef[ClassDef] =
 
-    val flags = Checker.checkModifiers(cdef) | Flags.Type | Flags.Class
+    val flags = Checker.checkModifiers(cdef) | Flags.Class
     val kind = Kind.simpleKinded(cdef.tparams.size)
-    val classSym = new TypeSymbol(kind, cdef.name, flags, Checker.visibility(cdef), sc.owner, cdef.ident.pos)
-    val thisSym = Symbol.createSymbol("this", Flags.Synthetic, Visibility.Scope, classSym, cdef.ident.pos)
+    val classSym = TypeSymbol.create(kind, cdef.name, flags, Checker.visibility(cdef), sc.owner, cdef.ident.pos)
+    val thisSym = TermSymbol.create("this", Flags.Synthetic, Visibility.Scope, classSym, cdef.ident.pos)
 
     given paramScope: Scope = sc.fresh(classSym)
 
@@ -1783,7 +1790,7 @@ class Namer(using Config):
       if vdef.mutable then flags = flags | Flags.Field | Flags.Mutable
       else flags = flags | Flags.Field
 
-      val sym = Symbol.createSymbol(vdef.name, flags, Visibility.Scope, classSym, vdef.ident.pos)
+      val sym = TermSymbol.create(vdef.name, flags, Visibility.Scope, classSym, vdef.ident.pos)
       shortCutScope.define(sym)
 
       def checkType() =
@@ -1839,7 +1846,7 @@ class Namer(using Config):
   : DelayedDef[Section] =
 
     val flags = Checker.checkModifiers(section) | Flags.Section
-    val sym = Symbol.createSymbol(section.name, flags, Checker.visibility(section), sc.owner, section.ident.pos)
+    val sym = TermSymbol.create(section.name, flags, Checker.visibility(section), sc.owner, section.ident.pos)
 
     val nameTable = new NameTable
     given secScope: Scope = sc.fresh(sym, nameTable)
@@ -1877,14 +1884,14 @@ class Namer(using Config):
             TypeBound(BottomType, boundTree.tpe)
 
         // Only support simple kinded type parameters
-        val sym = TypeSymbol.createSymbol(Kind.Simple, tparam.name, bound, Flags.Param, Visibility.Scope, sc.owner, tparam.pos)
+        val sym = TypeSymbol.create(Kind.Simple, tparam.name, bound, Flags.Param, Visibility.Scope, sc.owner, tparam.pos)
         defScope.define(sym)
         sym
 
     val paramSyms =
       for param <- ddef.params yield
         val tpt = transformType(param.tpt)
-        val paramSym = Symbol.createSymbol(param.name, tpt.tpe, Flags.Param, Visibility.Scope, sc.owner, param.pos)
+        val paramSym = TermSymbol.create(param.name, tpt.tpe, Flags.Param, Visibility.Scope, sc.owner, param.pos)
         defScope.define(paramSym)
         paramSym
 
@@ -1895,7 +1902,7 @@ class Namer(using Config):
     val autoSyms =
       for auto <- ddef.autos yield
         val tpt = transformType(auto.tpt)
-        val autoSym = Symbol.createSymbol(auto.name, tpt.tpe, Flags.Param | Flags.Auto, Visibility.Scope, sc.owner, auto.pos)
+        val autoSym = TermSymbol.create(auto.name, tpt.tpe, Flags.Param | Flags.Auto, Visibility.Scope, sc.owner, auto.pos)
         defScope.define(autoSym)
         autoSym
 

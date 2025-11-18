@@ -119,7 +119,7 @@ class NormalizeParams(using defn: Definitions) extends Phase[Symbol]:
               aliasMap.get(eff) match
                 case None =>
                   val alias =
-                    Symbol.createSymbol("alias_" + eff.name, eff.info, Flags.Synthetic,
+                    TermSymbol.create("alias_" + eff.name, eff.info, Flags.Synthetic,
                         visibility = Visibility.Scope,
                         owner = ctx,
                         pos = obj.pos)
