@@ -66,7 +66,10 @@ object VisibilityChecker:
           cdef.funs.foreach: fdef =>
             checkFunDef(fdef)
 
-        case _ =>
+        case adef: AliasDef =>
+          checkType(adef.symbol, adef.symbol.dealias.info, adef.symbol.sourcePos)
+
+        case vdef: ValDef => ??? // not global variables
     end for
 
   def checkFunDef(fdef: FunDef)(using Definitions, Reporter, Source): Unit =

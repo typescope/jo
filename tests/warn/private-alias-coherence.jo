@@ -1,0 +1,24 @@
+// Test visibility coherence for alias definitions (coherence violations only, no usage violations)
+
+namespace testns
+
+section Helpers
+  private type Secret = Int
+  private type Config = { value: Secret }
+
+  private def processSecret(x: Secret): Int = x + 1
+  private def useConfig(cfg: Config): Int = cfg.value
+  private def makeSecret(x: Int): Secret = x * 2
+
+  // Error: public alias to function with private type in parameter
+  // The private symbol Secret is leaked by the type of processAlias
+  alias def processAlias = testns.Helpers.processSecret
+
+  // Error: public alias to function with private type in parameter (nested in record)
+  // The private symbol Config is leaked by the type of configAlias
+  alias def configAlias = testns.Helpers.useConfig
+
+  // Error: public alias to function with private type in return type
+  // The private symbol Secret is leaked by the type of makeAlias
+  alias def makeAlias = testns.Helpers.makeSecret
+end
