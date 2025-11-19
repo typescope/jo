@@ -1,0 +1,35 @@
+type Eq[T] = (T, T) => Bool
+
+// ========== Private Function Adapter Tests ==========
+
+section AdapterTests
+  private def secretConverter(x: Int): String = "secret-" + intToStr(x)
+
+  def publicConverter(x: Bool): String = if x then "true" else "false"
+
+  // Error: private adapter leaked in public function signature
+  def display1(s: String with [secretConverter]): Unit = println s
+
+  // OK: private adapter used in private function
+  private def display2(s: String with [secretConverter]): Unit = println s
+end
+
+// Error: Cannot access private adapter from outside section
+def testAdapter1(s: String with [AdapterTests.secretConverter]): Unit = println s
+
+// ========== Private Auto Candidate Tests ==========
+
+section AutoTests
+  private def eqSecret: Eq[Int] = (a, b) => a == b
+
+  def eqPublic: Eq[String] = (a, b) => a == b
+
+  // Error: private auto candidate leaked in public function signature
+  def compare1[T](x: T, y: T)(auto eq: Eq[T] with [eqSecret]): Bool = eq(x, y)
+
+  // OK: private auto candidate used in private function
+  private def compare2(x: Int, y: Int)(auto eq: Eq[Int] with [eqSecret]): Bool = eq(x, y)
+end
+
+// Error: Cannot access private auto candidate from outside section
+def testAuto1(x: Int, y: Int)(auto eq: Eq[Int] with [AutoTests.eqSecret]): Bool = eq(x, y)

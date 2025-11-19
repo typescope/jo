@@ -1,0 +1,11 @@
+---------- Error at ./tests/warn/private-adapters-autos2.jos:18:34 ---------------
+| def testAdapter1(s: String with [AdapterTests.secretConverter]): Unit = println s
+|                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|                                  Cannot access the private member secretConverter
+
+---------- Error at ./tests/warn/private-adapters-autos2.jos:35:54 ---------------
+| def testAuto1(x: Int, y: Int)(auto eq: Eq[Int] with [AutoTests.eqSecret]): Bool = eq(x, y)
+|                                                      ^^^^^^^^^^^^^^^^^^
+|                                                      Cannot access the private member eqSecret
+
+2 error(s), 0 warning(s)
