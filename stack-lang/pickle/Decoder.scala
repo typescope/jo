@@ -1562,12 +1562,12 @@ object Decoder:
       case Format.VisibilityDefault => Visibility.Default
 
       case Format.VisibilityPrivate =>
-        val within = decodeString()
-        if within == owner.name then Visibility.Private(owner)
-        else
-          owner.ownersIterator.find(_.name == within) match
-            case Some(sym) => Visibility.Private(sym)
-            case None => throw new Exception("Cannot find the private container " + within)
+        val level = decodeNat()
+        val within =
+          if level == 0 then owner
+          else owner.ownersIterator.toList(level - 1)
+
+        Visibility.Private(within)
 
   private def decodeBool()(using buf: ReadBuffer): Boolean =
     buf.readBool()

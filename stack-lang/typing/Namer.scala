@@ -1576,7 +1576,8 @@ class Namer(using Config):
 
     val flags = Flags.Fun | Flags.Method
 
-    val funSym = TermSymbol.create(Names.Constructor, flags, Visibility.Default, classSym, funDef.ident.pos)
+    val visibility = Checker.visibility(funDef, classSym)
+    val funSym = TermSymbol.create(Names.Constructor, flags, visibility, classSym, funDef.ident.pos)
     given Scope = sc.fresh(funSym)
 
     if funDef.tparams.nonEmpty then

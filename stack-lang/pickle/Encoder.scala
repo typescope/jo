@@ -405,7 +405,7 @@ object Encoder:
     encodeNat(state.getId(defSym))
     encodeString(defSym.name)
     encodeFlags(defSym.flags & (Flags.Auto | Flags.Mutable))
-    encodeVisibility(defSym.visibility)
+    encodeVisibility(defSym)
 
     encodeInt(defSym.span.start - absoluteStart)
     encodeNat(defSym.span.length)
@@ -426,7 +426,7 @@ object Encoder:
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
       encodeFlags(defSym.flags & (Flags.Default | Flags.Auto))
-      encodeVisibility(defSym.visibility)
+      encodeVisibility(defSym)
 
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
@@ -452,7 +452,7 @@ object Encoder:
       else encodeByte(Format.Pattern)
 
       encodeFlags(defSym.flags & (Flags.Fun | Flags.Context))
-      encodeVisibility(defSym.visibility)
+      encodeVisibility(defSym)
 
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
@@ -472,7 +472,7 @@ object Encoder:
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
       encodeKind(defSym.asTypeSymbol.kind)
-      encodeVisibility(defSym.visibility)
+      encodeVisibility(defSym)
 
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
@@ -488,7 +488,7 @@ object Encoder:
         encodeNat(state.getId(sym))
         encodeString(sym.name)
         encodeFlags(sym.flags & (Flags.Auto | Flags.Mutable))
-        encodeVisibility(sym.visibility)
+        encodeVisibility(sym)
 
         val symSpan = sym.sourcePos.span
         val symStartDelta = symSpan.start - defSym.span.start
@@ -516,7 +516,7 @@ object Encoder:
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
       encodeFlags(defSym.flags & (Flags.Auto | Flags.Synthetic | Flags.Defer | Flags.Default))
-      encodeVisibility(defSym.visibility)
+      encodeVisibility(defSym)
 
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
@@ -597,7 +597,7 @@ object Encoder:
 
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
-      encodeVisibility(defSym.visibility)
+      encodeVisibility(defSym)
 
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
@@ -638,7 +638,7 @@ object Encoder:
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
       encodeKind(defSym.asTypeSymbol.kind)
-      encodeVisibility(defSym.visibility)
+      encodeVisibility(defSym)
 
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
@@ -658,7 +658,7 @@ object Encoder:
 
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
-      encodeVisibility(defSym.visibility)
+      encodeVisibility(defSym)
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
 
@@ -1188,14 +1188,16 @@ object Encoder:
 
     end match
 
-  private def encodeVisibility(v: Visibility)(using WriteBuffer, State): Unit =
-    v match
+  private def encodeVisibility(sym: Symbol)(using WriteBuffer, State): Unit =
+    sym.visibility match
       case Visibility.Default =>
         encodeByte(Format.VisibilityDefault)
 
       case Visibility.Private(within) =>
         encodeByte(Format.VisibilityPrivate)
-        encodeString(within.name)
+        val level = sym.ownersIterator.toList.indexOf(within)
+        assert(level >= 0, "level = " + level)
+        encodeNat(level)
 
   private def encodeBool(b: Boolean)(using buf: WriteBuffer): Unit =
     buf.addBool(b)

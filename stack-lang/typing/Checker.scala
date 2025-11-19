@@ -116,8 +116,8 @@ object Checker:
 
   def visibility(defn: Ast.Def, owner: Symbol)(using rp: Reporter, so: Source): Visibility =
     def resolveEnclosingContainer(name: String): Option[Symbol] =
-      if name == owner.name then Some(owner)
-      else owner.ownersIterator.find(_.name == name)
+      if owner.isContainer && name == owner.name then Some(owner)
+      else owner.ownersIterator.find(sym => sym.isContainer && sym.name == name)
 
     defn.modifiers.find(_.isPrivate) match
       case Some(Ast.Modifier.Private(qualOpt)) =>
