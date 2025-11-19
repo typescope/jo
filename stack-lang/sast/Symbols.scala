@@ -30,10 +30,6 @@ object Symbols:
     *
     * While class members may have visibility, object members may not.
     *
-    * This design does not prevent a library author from exposing a type member
-    * of a private section to outer world. This is a feature of the owner-based
-    * access control.
-    *
     * Currently Private does not have a qulifier, which could be a future extension.
     * Without qualifier, the name is private to its owner.
     *
@@ -41,6 +37,23 @@ object Symbols:
   enum Visibility:
     case Default
     case Private
+
+  enum VisibleScope:
+    case Global
+    case Limit(container: Symbol)
+
+    def visibleIn(site: Symbol): Boolean =
+      this match
+        case Global => true
+        case Limit(limit) => site.containedIn(limit)
+
+    def contains(other: VisibleScope): Boolean =
+      this match
+        case Global => true
+        case Limit(containerA) =>
+          other match
+            case Global => false
+            case Limit(containerB) => containerB.containedIn(containerA)
 
   sealed abstract class Symbol(
     val name: String,
@@ -146,6 +159,31 @@ object Symbols:
       this.info match
         case info: ContainerInfo => info.resolvePattern(name).getOrElse(error())
         case _ => error()
+
+    /** The visibile scope of a symbol is defined as follows:
+      *
+      * 1. The visible scope of a local symbol is its enclosing function.
+      *
+      * 2. A top-level symbol by default inherits visible scope of its parent.
+      *
+      * 3. If X is declared as private[N], its visible scope is N. And it is
+      * an error if N is bigger than the visible scope of the owner of X.
+      *
+      * 4. Namespaces have global visible scope.
+      */
+    def visibleScope: VisibleScope =
+      if isLocal && !this.owner.isClass then
+        VisibleScope.Limit(enclosingFunction)
+
+      else if isNamespace then
+        VisibleScope.Global
+
+      else if visibility == Visibility.Private then
+        VisibleScope.Limit(this.owner)
+
+      else
+        if owner == null then VisibleScope.Global
+        else owner.visibleScope
 
     /** Return the source symbol of an alias created by import or aliasing
       *

@@ -95,9 +95,12 @@ object Checker:
       Reporter.error(sym.name + " is not a mutable value", pos)
 
   def checkAccess(target: Symbol, scopeOwner: Symbol, span: Span)(using Reporter, Definitions, Source): Unit =
-    if target.visibility == Visibility.Private then
-      if !scopeOwner.containedIn(target.owner) then
-        Reporter.error("Cannot access private member " + target, span.toPos)
+    target.visibleScope match
+      case VisibleScope.Limit(container) =>
+        if !scopeOwner.containedIn(container) then
+          Reporter.error("Cannot access the private member " + target, span.toPos)
+
+      case _ =>
 
   def checkTermMember(word: Word, member: String)(using Reporter, Source, Definitions): Word =
     val tpe = word.tpe
