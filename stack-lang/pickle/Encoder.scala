@@ -1188,9 +1188,14 @@ object Encoder:
 
     end match
 
-  private def encodeVisibility(v: Visibility)(using buf: WriteBuffer): Unit =
-    if v == Visibility.Default then buf.addBool(true)
-    else buf.addBool(false)
+  private def encodeVisibility(v: Visibility)(using WriteBuffer, State): Unit =
+    v match
+      case Visibility.Default =>
+        encodeByte(Format.VisibilityDefault)
+
+      case Visibility.Private(within) =>
+        encodeByte(Format.VisibilityPrivate)
+        encodeString(within.name)
 
   private def encodeBool(b: Boolean)(using buf: WriteBuffer): Unit =
     buf.addBool(b)

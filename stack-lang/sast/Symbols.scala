@@ -36,7 +36,7 @@ object Symbols:
     */
   enum Visibility:
     case Default
-    case Private
+    case Private(within: Symbol)
 
   enum VisibleScope:
     case Global
@@ -173,12 +173,14 @@ object Symbols:
       else if isNamespace then
         VisibleScope.Global
 
-      else if visibility == Visibility.Private then
-        VisibleScope.Limit(this.owner)
-
       else
-        if owner == null then VisibleScope.Global
-        else owner.visibleScope
+        visibility match
+          case Visibility.Private(within) =>
+            VisibleScope.Limit(within)
+
+          case _ =>
+            if owner == null then VisibleScope.Global
+            else owner.visibleScope
 
     def visibleIn(site: Symbol): Boolean =
       this.visibleScope match

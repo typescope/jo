@@ -37,12 +37,6 @@ Each symbol has a **visible scope** determined by its access modifiers and locat
 
 4. Namespaces have global visible scope.
 
-!!! note
-
-    Currently we do not support scope qualifier in `private[N]`, thus `N` is
-    always the owner of the current symbol. Scope qualifiers might be supported in
-    the future.
-
 ### Two Forms of Checking
 
 **Usage Check**: A symbol must be visible at its usage site.

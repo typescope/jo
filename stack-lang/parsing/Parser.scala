@@ -415,7 +415,14 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
       case Token.PRIVATE =>
         val item = next()
-        Modifier.Private()(item.span) :: modifiers()
+        if peek() == Token.LBRACKET then
+          next()
+          val id = ident()
+          val endItem = eat(Token.RBRACKET)
+          Modifier.Private(Some(id))(item.span | endItem.span) :: modifiers()
+
+        else
+          Modifier.Private(None)(item.span) :: modifiers()
 
       case _ =>
         Nil

@@ -1256,7 +1256,7 @@ class Namer(using Config):
     if pdef.hasKey(Desugaring.DefaultContextParam) then
       flags |= Flags.Default
 
-    val paramSym = TermSymbol.create(pdef.name, flags, Checker.visibility(pdef), sc.owner, pdef.pos)
+    val paramSym = TermSymbol.create(pdef.name, flags, Checker.visibility(pdef, sc.owner), sc.owner, pdef.pos)
     ip.addLazy(paramSym, () => transformType(pdef.tpt).tpe)
 
     val paramDefSast = () =>
@@ -1285,7 +1285,7 @@ class Namer(using Config):
 
     def error(message: String, pos: SourcePosition)(using Definitions): Ident =
       Reporter.error(message, pos)
-      val sym = TermSymbol.create(adef.name, ErrorType, Flags.Synthetic, Checker.visibility(adef), sc.owner, qualid.pos)
+      val sym = TermSymbol.create(adef.name, ErrorType, Flags.Synthetic, Checker.visibility(adef, sc.owner), sc.owner, qualid.pos)
       Ident(sym)(qualid.span)
 
     def getTarget(qual: Ast.RefTree, nameTable: NameTable, targetName: String)(using Definitions): Ident =
@@ -1349,10 +1349,10 @@ class Namer(using Config):
     val aliasSym =
       adef.kind match
         case Ast.AliasKind.Def | Ast.AliasKind.Param =>
-          TermSymbol.create(adef.name, flags, Checker.visibility(adef), sc.owner, adef.ident.pos)
+          TermSymbol.create(adef.name, flags, Checker.visibility(adef, sc.owner), sc.owner, adef.ident.pos)
 
         case Ast.AliasKind.Pattern =>
-          PatternSymbol.create(adef.name, flags, Checker.visibility(adef), sc.owner, adef.ident.pos)
+          PatternSymbol.create(adef.name, flags, Checker.visibility(adef, sc.owner), sc.owner, adef.ident.pos)
 
     ip.addLazy(aliasSym, () => StaticRef(target.symbol))
 
@@ -1459,7 +1459,7 @@ class Namer(using Config):
     if funDef.hasKey(Desugaring.DefaultValueFun) then
       flags |= Flags.Default
 
-    val funSym = TermSymbol.create(funDef.name, flags, Checker.visibility(funDef), sc.owner, funDef.ident.pos)
+    val funSym = TermSymbol.create(funDef.name, flags, Checker.visibility(funDef, sc.owner), sc.owner, funDef.ident.pos)
     given Scope = sc.fresh(funSym)
 
     given defn: Definitions = lazyDefn.value
@@ -1687,7 +1687,7 @@ class Namer(using Config):
 
     val flags = Checker.checkModifiers(tdef)
     val kind = Kind.simpleKinded(tdef.tparams.size)
-    val typeSym = TypeSymbol.create(kind, tdef.name, flags, Checker.visibility(tdef), sc.owner, tdef.ident.pos)
+    val typeSym = TypeSymbol.create(kind, tdef.name, flags, Checker.visibility(tdef, sc.owner), sc.owner, tdef.ident.pos)
 
     given defn: Definitions = lazyDefn.value
 
@@ -1750,7 +1750,7 @@ class Namer(using Config):
 
     val flags = Checker.checkModifiers(cdef) | Flags.Class
     val kind = Kind.simpleKinded(cdef.tparams.size)
-    val classSym = TypeSymbol.create(kind, cdef.name, flags, Checker.visibility(cdef), sc.owner, cdef.ident.pos)
+    val classSym = TypeSymbol.create(kind, cdef.name, flags, Checker.visibility(cdef, sc.owner), sc.owner, cdef.ident.pos)
     val thisSym = TermSymbol.create("this", Flags.Synthetic, Visibility.Default, classSym, cdef.ident.pos)
 
     given paramScope: Scope = sc.fresh(classSym)
@@ -1790,7 +1790,7 @@ class Namer(using Config):
       if vdef.mutable then flags = flags | Flags.Field | Flags.Mutable
       else flags = flags | Flags.Field
 
-      val sym = TermSymbol.create(vdef.name, flags, Checker.visibility(vdef), classSym, vdef.ident.pos)
+      val sym = TermSymbol.create(vdef.name, flags, Checker.visibility(vdef, classSym), classSym, vdef.ident.pos)
       shortCutScope.define(sym)
 
       def checkType() =
@@ -1846,7 +1846,7 @@ class Namer(using Config):
   : DelayedDef[Section] =
 
     val flags = Checker.checkModifiers(section) | Flags.Section
-    val sym = TermSymbol.create(section.name, flags, Checker.visibility(section), sc.owner, section.ident.pos)
+    val sym = TermSymbol.create(section.name, flags, Checker.visibility(section, sc.owner), sc.owner, section.ident.pos)
 
     val nameTable = new NameTable
     given secScope: Scope = sc.fresh(sym, nameTable)

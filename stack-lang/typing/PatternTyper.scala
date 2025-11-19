@@ -25,7 +25,7 @@ class PatternTyper(namer: Namer):
 
     val flags = Checker.checkModifiers(patDef) | Flags.Fun
 
-    val patSym = PatternSymbol.create(patDef.name, flags, Checker.visibility(patDef), sc.owner, patDef.ident.pos)
+    val patSym = PatternSymbol.create(patDef.name, flags, Checker.visibility(patDef, sc.owner), sc.owner, patDef.ident.pos)
     given patScope: Scope = sc.fresh(patSym)
 
     lazy val tparamSyms = namer.transformTypeParams(patDef.tparams)

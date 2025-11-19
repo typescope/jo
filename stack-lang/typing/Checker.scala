@@ -114,9 +114,32 @@ object Checker:
     for tvar <- tvars.typeVars if !tvar.isInstantiated do
       Reporter.error("Cannot infer a type for type variable " + tvar, tvar.span.toPos)
 
-  def visibility(defn: Ast.Def)(using rp: Reporter, so: Source): Visibility =
-      if defn.modifiers.exists(_.isPrivate) then Visibility.Private
-      else Visibility.Default
+  def visibility(defn: Ast.Def, owner: Symbol)(using rp: Reporter, so: Source): Visibility =
+    def resolveEnclosingContainer(name: String): Option[Symbol] =
+      if name == owner.name then Some(owner)
+      else owner.ownersIterator.find(_.name == name)
+
+    defn.modifiers.find(_.isPrivate) match
+      case Some(Ast.Modifier.Private(qualOpt)) =>
+        qualOpt match
+           case Some(qual) =>
+             resolveEnclosingContainer(qual.name) match
+               case Some(symbol) =>
+                 val visibility = Visibility.Private(symbol)
+                 if !owner.visibleScope.contains(VisibleScope.Limit(symbol)) then
+                   Reporter.error("Visibility cannot be greater than parent", qual.pos)
+                   Visibility.Default
+                 else
+                   visibility
+
+               case None =>
+                 Reporter.error("Cannot find an enclosing container named " + qual.name, qual.pos)
+                 Visibility.Default
+
+           case None =>
+             Visibility.Private(owner)
+
+      case _ => Visibility.Default
 
   def checkModifiers(defn: Ast.Def)(using rp: Reporter, so: Source): Flags =
     val mods = defn.modifiers

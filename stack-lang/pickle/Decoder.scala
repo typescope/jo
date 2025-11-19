@@ -311,7 +311,7 @@ object Decoder:
     val id = decodeNat()
     val name = decodeString()
     val flags = decodeFlags() | extraFlags
-    val visibility = decodeVisibility()
+    val visibility = decodeVisibility(owner)
 
     val symStartDelta = decodeInt()
     val symSpanLength = decodeNat()
@@ -336,7 +336,7 @@ object Decoder:
     val id = decodeNat()
     val name = decodeString()
     val flags = decodeFlags() | Flags.Context
-    val visibility = decodeVisibility()
+    val visibility = decodeVisibility(owner)
 
     val symStartDelta = decodeInt()
     val symSpanLength = decodeNat()
@@ -375,7 +375,7 @@ object Decoder:
     val isPattern = decodeByte() == Format.Pattern
 
     val flags = decodeFlags() | Flags.Alias
-    val visibility = decodeVisibility()
+    val visibility = decodeVisibility(owner)
 
     val symStartDelta = decodeInt()
     val symSpanLength = decodeNat()
@@ -417,7 +417,7 @@ object Decoder:
     val id = decodeNat()
     val name = decodeString()
     val flags = decodeFlags() | initFlags | Flags.Fun | Flags.Loaded
-    val visibility = decodeVisibility()
+    val visibility = decodeVisibility(owner)
 
     val symStartDelta = decodeInt()
     val symSpanLength = decodeNat()
@@ -578,7 +578,7 @@ object Decoder:
     val id = decodeNat()
     val name = decodeString()
     val kind = decodeKind()
-    val visibility = decodeVisibility()
+    val visibility = decodeVisibility(owner)
 
     val symStartDelta = decodeInt()
     val symSpanLength = decodeNat()
@@ -629,7 +629,7 @@ object Decoder:
         val valId = decodeNat()
         val valName = decodeString()
         val valFlags = decodeFlags() | Flags.Field
-        val visibility = decodeVisibility()
+        val visibility = decodeVisibility(symbol)
 
         val valStartDelta = decodeInt()
         val valLength = decodeNat()
@@ -682,7 +682,7 @@ object Decoder:
     val id = decodeNat()
     val name = decodeString()
     val kind = decodeKind()
-    val visibility = decodeVisibility()
+    val visibility = decodeVisibility(owner)
 
     val symStartDelta = decodeInt()
     val symSpanLength = decodeNat()
@@ -722,7 +722,7 @@ object Decoder:
 
     val id = decodeNat()
     val name = decodeString()
-    val visibility = decodeVisibility()
+    val visibility = decodeVisibility(owner)
 
     val symStartDelta = decodeInt()
     val symSpanLength = decodeNat()
@@ -813,7 +813,7 @@ object Decoder:
 
     val id = decodeNat()
     val name = decodeString()
-    val visibility = decodeVisibility()
+    val visibility = decodeVisibility(owner)
 
     val symStartDelta = decodeInt()
     val symSpanLength = decodeNat()
@@ -1557,8 +1557,17 @@ object Decoder:
 
       case _ => throw new Exception(s"Unknown sequence pattern tag: $seqPatTag")
 
-  private def decodeVisibility()(using buf: ReadBuffer): Visibility =
-    if buf.readBool() then Visibility.Default else Visibility.Private
+  private def decodeVisibility(owner: Symbol)(using ReadBuffer, State): Visibility =
+    decodeByte() match
+      case Format.VisibilityDefault => Visibility.Default
+
+      case Format.VisibilityPrivate =>
+        val within = decodeString()
+        if within == owner.name then Visibility.Private(owner)
+        else
+          owner.ownersIterator.find(_.name == within) match
+            case Some(sym) => Visibility.Private(sym)
+            case None => throw new Exception("Cannot find the private container " + within)
 
   private def decodeBool()(using buf: ReadBuffer): Boolean =
     buf.readBool()

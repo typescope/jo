@@ -77,7 +77,7 @@ object RawPrinter:
   private given (using Definitions, State, Source): Text.Maker[TypeTree] =
     v => printTypeTree(v)
 
-  private given (using Definitions, State, Source): Text.Maker[Symbol] =
+  private given (using State): Text.Maker[Symbol] =
     v => printSymbolRef(v)
 
   private given Text.Maker[Span] =
@@ -86,8 +86,10 @@ object RawPrinter:
   private given Text.Maker[Flags] =
     v => printFlags(v)
 
-  private given Text.Maker[Visibility] =
-    v => Text(v.toString)
+  private given (using State): Text.Maker[Visibility] =
+    v => v match
+      case Visibility.Default => Text("default")
+      case Visibility.Private(within) => "private[" ~ within ~ "]"
 
   private given (using Definitions, State, Source): Text.Maker[ParamAdapter] =
     v => v match
