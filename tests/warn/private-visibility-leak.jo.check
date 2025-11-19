@@ -1,0 +1,46 @@
+---------- Error at ./tests/warn/private-visibility-leak.jo:11:31 ---------------
+|   def display(s: String with [secretConv]): Unit = println s
+|                               ^^^^^^^^^^
+|                               The private symbol secretConv is leaked by the type of display
+
+---------- Error at ./tests/warn/private-visibility-leak.jo:20:54 ---------------
+|   def compare(x: Int, y: Int)(auto eq: Eq[Int] with [eqPrivate]): Bool = eq(x, y)
+|                                                      ^^^^^^^^^
+|                                                      The private symbol eqPrivate is leaked by the type of compare
+
+---------- Error at ./tests/warn/private-visibility-leak.jo:29:7 ---------------
+|   def getSecret(): String receives secret = secret
+|       ^^^^^^^^^
+|       The private symbol secret is leaked by the type of getSecret
+
+---------- Error at ./tests/warn/private-visibility-leak.jo:37:13 ---------------
+|   def toStr(x: Internal): String = intToStr(x)
+|             ^^^^^^^^^^^
+|             The private symbol Internal is leaked by the type of toStr
+
+---------- Error at ./tests/warn/private-visibility-leak.jo:48:17 ---------------
+|   def eqSecret: Eq[Secret] = (a, b) => a == b
+|                 ^^^^^^^^^^
+|                 The private symbol Secret is leaked by the type of eqSecret
+
+---------- Error at ./tests/warn/private-visibility-leak.jo:51:16 ---------------
+|   def areEqual(x: Secret, y: Secret)(auto eq: Eq[Secret] with [eqSecret]): Bool = eq(x, y)
+|                ^^^^^^^^^
+|                The private symbol Secret is leaked by the type of areEqual
+
+---------- Error at ./tests/warn/private-visibility-leak.jo:51:27 ---------------
+|   def areEqual(x: Secret, y: Secret)(auto eq: Eq[Secret] with [eqSecret]): Bool = eq(x, y)
+|                           ^^^^^^^^^
+|                           The private symbol Secret is leaked by the type of areEqual
+
+---------- Error at ./tests/warn/private-visibility-leak.jo:51:43 ---------------
+|   def areEqual(x: Secret, y: Secret)(auto eq: Eq[Secret] with [eqSecret]): Bool = eq(x, y)
+|                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|                                           The private symbol Secret is leaked by the type of areEqual
+
+---------- Error at ./tests/warn/private-visibility-leak.jo:59:14 ---------------
+|   param cfg: Config
+|              ^^^^^^
+|              The private symbol Config is leaked by the type of cfg
+
+9 error(s), 0 warning(s)
