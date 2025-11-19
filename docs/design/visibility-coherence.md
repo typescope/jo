@@ -2,7 +2,7 @@
 
 ## Overview
 
-Jo supports allows programmers to restrict usage of symbols to specific scopes -- a way to enforce information hiding.
+Jo allows programmers to restrict usage of symbols to specific scopes -- a way to enforce information hiding.
 
 Jo performs _coherence check_ to prevent unintended errors in access control by ensuring private symbols don't leak into public APIs.
 
