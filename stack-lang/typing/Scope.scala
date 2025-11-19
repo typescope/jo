@@ -60,7 +60,7 @@ enum Scope:
       case None =>
         this match
           case nsc: NestedScope => nsc.outer.resolveType(name)
-          case nsc: ImportedScope => nsc.outer.resolvePattern(name)
+          case nsc: ImportedScope => nsc.outer.resolveType(name)
           case nsc: PrefixedScope => nsc.outer.resolveType(name)
           case nsc: LocalPatternScope => nsc.outer.resolveType(name)
           case _ => None
@@ -77,8 +77,8 @@ enum Scope:
       case None =>
         this match
           case nsc: NestedScope => nsc.outer.resolveTerm(name)
+          case nsc: ImportedScope => nsc.outer.resolveTerm(name)
           case nsc: PrefixedScope => nsc.outer.resolveTerm(name)
-          case nsc: ImportedScope => nsc.outer.resolvePattern(name)
           case nsc: LocalPatternScope => nsc.outer.resolveTerm(name)
           case _ => None
 
