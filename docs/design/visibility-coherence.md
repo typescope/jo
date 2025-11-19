@@ -179,21 +179,21 @@ end
 
 ### Aliases
 
-Aliases must have the same more smaller visible scope than their target:
+Aliases must have equal or smaller visible scope than their target (narrowing is allowed):
 
 ```jo
 section A
   private def secret(): Int = 42
 
-  alias def publicAlias = secret  // Error: cannot re-export private symbol
+  alias def publicAlias = secret  // Error: cannot widen visibility (re-export private as public)
   private alias def privateAlias = secret  // OK: same visibility
 end
 
 def public(): Int = 42
-private alias def restricted = public  // Error: cannot restrict public symbol
+private alias def restricted = public  // OK: narrowing is allowed (restrict public to private)
 ```
 
-This prevents both widening (making private public) and narrowing (making public private) of visibility through aliases.
+This prevents widening visibility through aliases (making private public), which would break encapsulation. Narrowing is safe and useful for creating restricted views of public APIs.
 
 ## Verification Scope
 
