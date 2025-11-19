@@ -39,7 +39,7 @@ object Symbols:
     *
     */
   enum Visibility:
-    case Scope
+    case Default
     case Private
 
   sealed abstract class Symbol(

@@ -120,7 +120,7 @@ class NormalizeParams(using defn: Definitions) extends Phase[Symbol]:
                 case None =>
                   val alias =
                     TermSymbol.create("alias_" + eff.name, eff.info, Flags.Synthetic,
-                        visibility = Visibility.Scope,
+                        visibility = Visibility.Default,
                         owner = ctx,
                         pos = obj.pos)
 

@@ -57,7 +57,7 @@ class EncodeClass(using defn: Definitions) extends phases.Phase[EncodeClass.Cont
       classSym.name + "$" + methodSym.name,
       funType,
       Flags.Fun | Flags.Synthetic,
-      Visibility.Scope,
+      Visibility.Default,
       classSym.owner,
       methodSym.sourcePos
     )
@@ -124,7 +124,7 @@ class EncodeClass(using defn: Definitions) extends phases.Phase[EncodeClass.Cont
           val receiverSym =
             val owner = ctx.owner
             given Source = owner.sourcePos.source
-            TermSymbol.create("o", qual2.tpe, Flags.Synthetic, Visibility.Scope, owner, qual2.pos)
+            TermSymbol.create("o", qual2.tpe, Flags.Synthetic, Visibility.Default, owner, qual2.pos)
 
           val receiver = Ident(receiverSym)(qual2.span)
           val assign = Assign(Ident(receiverSym)(qual2.span), qual2)
@@ -150,7 +150,7 @@ class EncodeClass(using defn: Definitions) extends phases.Phase[EncodeClass.Cont
           val receiverSym =
             val owner = ctx.owner
             given Source = owner.sourcePos.source
-            TermSymbol.create("o", qual2.tpe, Flags.Synthetic, Visibility.Scope, owner, qual2.pos)
+            TermSymbol.create("o", qual2.tpe, Flags.Synthetic, Visibility.Default, owner, qual2.pos)
 
           val receiver = Ident(receiverSym)(qual2.span)
           val assign = Assign(Ident(receiverSym)(qual2.span), qual2)

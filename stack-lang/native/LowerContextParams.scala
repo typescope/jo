@@ -62,7 +62,7 @@ class LowerContextParams(runtime: NativeRuntime)(using defn: Definitions) extend
     // 1. args are evaluated with the outer context
     val argValueSyms = args.map: arg =>
       val paramName = arg.symbol.fullName
-      val argValueSym = TermSymbol.create("arg_" + paramName, arg.rhs.tpe, Flags.Synthetic, owner = ctx, visibility = Visibility.Scope, pos = arg.rhs.pos)
+      val argValueSym = TermSymbol.create("arg_" + paramName, arg.rhs.tpe, Flags.Synthetic, owner = ctx, visibility = Visibility.Default, pos = arg.rhs.pos)
       stats += Assign(Ident(argValueSym)(arg.ident.span), this(arg.rhs))
       argValueSym
 
@@ -78,18 +78,18 @@ class LowerContextParams(runtime: NativeRuntime)(using defn: Definitions) extend
       val value = Ident(argValueSym)(arg.rhs.span)
       val funSetParam = Ident(runtime.ParamSupport_setParam)(arg.span)
       val setParamCall = funSetParam.appliedTo(key, value)
-      val hashIndexSym = TermSymbol.create("hash_index_" + paramName, IntType, Flags.Synthetic, owner = ctx, visibility = Visibility.Scope, pos = arg.rhs.pos)
+      val hashIndexSym = TermSymbol.create("hash_index_" + paramName, IntType, Flags.Synthetic, owner = ctx, visibility = Visibility.Default, pos = arg.rhs.pos)
       stats += Assign(Ident(hashIndexSym)(arg.ident.span), setParamCall)
 
       val funGetLastOverwrittenValue = Ident(runtime.ParamSupport_getLastOverwrittenValue)(arg.span)
       val getLastOverwrittenValueCall = funGetLastOverwrittenValue.appliedTo()
-      val oldValueSym = TermSymbol.create("old_value_" + paramName, arg.rhs.tpe, Flags.Synthetic, owner = ctx, visibility = Visibility.Scope, pos = arg.rhs.pos)
+      val oldValueSym = TermSymbol.create("old_value_" + paramName, arg.rhs.tpe, Flags.Synthetic, owner = ctx, visibility = Visibility.Default, pos = arg.rhs.pos)
       stats += Assign(Ident(oldValueSym)(arg.ident.span), getLastOverwrittenValueCall.encodedAs(arg.rhs.tpe))
 
       (hashIndexSym, oldValueSym)
 
     // 3. val res = expr only if expr is not void
-    val resSym = TermSymbol.create("res", expr.tpe, Flags.Synthetic, owner = ctx, visibility = Visibility.Scope, pos = null)
+    val resSym = TermSymbol.create("res", expr.tpe, Flags.Synthetic, owner = ctx, visibility = Visibility.Default, pos = null)
     if expr.tpe.isVoidType then
       stats += this(expr)
     else

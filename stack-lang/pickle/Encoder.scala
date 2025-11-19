@@ -1189,7 +1189,7 @@ object Encoder:
     end match
 
   private def encodeVisibility(v: Visibility)(using buf: WriteBuffer): Unit =
-    if v == Visibility.Scope then buf.addBool(true)
+    if v == Visibility.Default then buf.addBool(true)
     else buf.addBool(false)
 
   private def encodeBool(b: Boolean)(using buf: WriteBuffer): Unit =

@@ -46,7 +46,7 @@ class ExplicitAlloc(runtime: NativeRuntime)(using defn: Definitions) extends pha
     val allocApply = allocFun.appliedTo(sizeLit)
 
     val refSym =
-      TermSymbol.create("ref", addrType, Flags.Synthetic, Visibility.Scope, ctx, word.pos)
+      TermSymbol.create("ref", addrType, Flags.Synthetic, Visibility.Default, ctx, word.pos)
     val ref = Ident(refSym)(word.span)
 
     stats += Assign(ref, allocApply)

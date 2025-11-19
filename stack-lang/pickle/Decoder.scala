@@ -142,7 +142,7 @@ object Decoder:
             case None =>
               // Create the symbol if it doesn't exist
               val flags = Flags.NSpace | Flags.Branch
-              val sym = TermSymbol.create(name, flags, Visibility.Scope, owner, pos)
+              val sym = TermSymbol.create(name, flags, Visibility.Default, owner, pos)
               ip.add(sym, new ContainerInfo(new NameTable))
               nameTable.define(sym)
               sym
@@ -204,7 +204,7 @@ object Decoder:
 
     val nameTable = new NameTable
     val info = new ContainerInfo(nameTable)
-    val rootSymbol = TermSymbol.create(name, Flags.NSpace, Visibility.Scope, ownerSymbol, pos)
+    val rootSymbol = TermSymbol.create(name, Flags.NSpace, Visibility.Default, ownerSymbol, pos)
     defnLazy.infoProvider.add(rootSymbol, info)
 
     given state: State = new State(rootSymbol, stringTable, symTable)
@@ -264,14 +264,14 @@ object Decoder:
       val flags = target.flags | Flags.Alias
       val sym =
         if target.isTerm then
-          TermSymbol.create(name, flags, Visibility.Scope, owner, span.toPos(using owner.source))
+          TermSymbol.create(name, flags, Visibility.Default, owner, span.toPos(using owner.source))
 
         else if target.isType then
           val kind = target.asTypeSymbol.kind
-          TypeSymbol.create(kind, name, flags, Visibility.Scope, owner, span.toPos(using owner.source))
+          TypeSymbol.create(kind, name, flags, Visibility.Default, owner, span.toPos(using owner.source))
 
         else
-          PatternSymbol.create(name, flags, Visibility.Scope, owner, span.toPos(using owner.source))
+          PatternSymbol.create(name, flags, Visibility.Default, owner, span.toPos(using owner.source))
 
       state.registerInternalSymbol(id, sym)
 
@@ -446,7 +446,7 @@ object Decoder:
         val kind = decodeKind()
         val tparamInfo = decodeType()
 
-        val tparam = TypeSymbol.create(kind, tparamName, tparamInfo, Flags.Param, Visibility.Scope, symbol, tparamSpan.toPos)
+        val tparam = TypeSymbol.create(kind, tparamName, tparamInfo, Flags.Param, Visibility.Default, symbol, tparamSpan.toPos)
         state.registerInternalSymbol(tparamId, tparam)
         tparam
 
@@ -461,7 +461,7 @@ object Decoder:
 
         val paramInfo = decodeType()
 
-        val param = TermSymbol.create(paramName, paramInfo, Flags.Param, Visibility.Scope, symbol, paramSpan.toPos)
+        val param = TermSymbol.create(paramName, paramInfo, Flags.Param, Visibility.Default, symbol, paramSpan.toPos)
         state.registerInternalSymbol(paramId, param)
 
         param
@@ -503,7 +503,7 @@ object Decoder:
 
         val autoInfo = decodeType()
 
-        val auto = TermSymbol.create(autoName, autoInfo, Flags.Param | Flags.Auto, Visibility.Scope, symbol, autoSpan.toPos)
+        val auto = TermSymbol.create(autoName, autoInfo, Flags.Param | Flags.Auto, Visibility.Default, symbol, autoSpan.toPos)
         state.registerInternalSymbol(autoId, auto)
 
         auto
@@ -608,7 +608,7 @@ object Decoder:
         val tparamKind = decodeKind()
         val tparamInfo = decodeType()
 
-        val tparam = TypeSymbol.create(tparamKind, tparamName, tparamInfo, Flags.Param, Visibility.Scope, symbol, tparamSpan.toPos)
+        val tparam = TypeSymbol.create(tparamKind, tparamName, tparamInfo, Flags.Param, Visibility.Default, symbol, tparamSpan.toPos)
         state.registerInternalSymbol(tparamId, tparam)
         tparam
 
@@ -621,7 +621,7 @@ object Decoder:
       val selfId = decodeNat()
       val selfName = decodeString()
       val selfFlags = decodeFlags()
-      val self = TermSymbol.create(selfName, selfInfo, selfFlags, Visibility.Scope, symbol, symbol.sourcePos)
+      val self = TermSymbol.create(selfName, selfInfo, selfFlags, Visibility.Default, symbol, symbol.sourcePos)
       state.registerInternalSymbol(selfId, self)
 
       // Decode val members
@@ -751,7 +751,7 @@ object Decoder:
         val kind = decodeKind()
         val tparamInfo = decodeType()
 
-        val tparam = TypeSymbol.create(kind, tparamName, tparamInfo, Flags.Param, Visibility.Scope, symbol, tparamSpan.toPos)
+        val tparam = TypeSymbol.create(kind, tparamName, tparamInfo, Flags.Param, Visibility.Default, symbol, tparamSpan.toPos)
         state.registerInternalSymbol(tparamId, tparam)
         tparam
 
@@ -766,7 +766,7 @@ object Decoder:
 
         val paramInfo = decodeType()
 
-        val param = PatternSymbol.create(paramName, paramInfo, Flags.Param, Visibility.Scope, symbol, paramSpan.toPos)
+        val param = PatternSymbol.create(paramName, paramInfo, Flags.Param, Visibility.Default, symbol, paramSpan.toPos)
         state.registerInternalSymbol(paramId, param)
 
         param
@@ -998,7 +998,7 @@ object Decoder:
           val kind = decodeKind()
           val info = decodeType(tparamScope)
 
-          val tparam = TypeSymbol.create(kind, name, info, Flags.Param, Visibility.Scope, state.root, state.root.sourcePos)
+          val tparam = TypeSymbol.create(kind, name, info, Flags.Param, Visibility.Default, state.root, state.root.sourcePos)
 
           tparam
 
@@ -1049,7 +1049,7 @@ object Decoder:
           val kind = decodeKind()
           val info = decodeType(tparamScope)
 
-          val tparam = TypeSymbol.create(kind, name, info, Flags.Param, Visibility.Scope, state.root, state.root.sourcePos)
+          val tparam = TypeSymbol.create(kind, name, info, Flags.Param, Visibility.Default, state.root, state.root.sourcePos)
           tparam
 
         tparamScope.withParams(tparams):
@@ -1339,7 +1339,7 @@ object Decoder:
     val selfLength = decodeNat()
 
     val selfSpan = Span(startOffset + selfDelta, selfLength)
-    val self = TermSymbol.create(selfName, selfFlags, Visibility.Scope, owner, selfSpan.toPos)
+    val self = TermSymbol.create(selfName, selfFlags, Visibility.Default, owner, selfSpan.toPos)
     state.registerInternalSymbol(selfId, self)
 
     val delayedDefs: List[DelayedDef[ValDef | FunDef]] = repeated:
@@ -1400,7 +1400,7 @@ object Decoder:
             val name = decodeString()
             val info = nested.valueType
 
-            val symbol = PatternSymbol.create(name, info, Flags.empty, Visibility.Scope, owner, span.toPos(using owner.source))
+            val symbol = PatternSymbol.create(name, info, Flags.empty, Visibility.Default, owner, span.toPos(using owner.source))
             state.registerInternalSymbol(id, symbol)
             symbol
           else
@@ -1534,7 +1534,7 @@ object Decoder:
           val name = decodeString()
           val info = decodeType()
 
-          val sym1 = PatternSymbol.create(name, info, Flags.empty, Visibility.Scope, owner, sym2.sourcePos)
+          val sym1 = PatternSymbol.create(name, info, Flags.empty, Visibility.Default, owner, sym2.sourcePos)
           state.registerInternalSymbol(id, sym1)
 
           (sym1, sym2)
@@ -1558,7 +1558,7 @@ object Decoder:
       case _ => throw new Exception(s"Unknown sequence pattern tag: $seqPatTag")
 
   private def decodeVisibility()(using buf: ReadBuffer): Visibility =
-    if buf.readBool() then Visibility.Scope else Visibility.Private
+    if buf.readBool() then Visibility.Default else Visibility.Private
 
   private def decodeBool()(using buf: ReadBuffer): Boolean =
     buf.readBool()

@@ -113,7 +113,7 @@ object Checker:
 
   def visibility(defn: Ast.Def)(using rp: Reporter, so: Source): Visibility =
       if defn.modifiers.exists(_.isPrivate) then Visibility.Private
-      else Visibility.Scope
+      else Visibility.Default
 
   def checkModifiers(defn: Ast.Def)(using rp: Reporter, so: Source): Flags =
     val mods = defn.modifiers

@@ -73,15 +73,15 @@ object Imports:
     def createAlias(name: String, sym: Symbol): Unit =
       val alias =
         if sym.isTerm then
-          val link = TermSymbol.create(name, sym.flags | Flags.Alias, Visibility.Scope, importScope.owner, qualid.pos)
+          val link = TermSymbol.create(name, sym.flags | Flags.Alias, Visibility.Default, importScope.owner, qualid.pos)
           ip.add(link, StaticRef(sym))
           link
         else if sym.isType then
-          val link = TypeSymbol.create(sym.asTypeSymbol.kind, name, sym.flags | Flags.Alias, Visibility.Scope, importScope.owner, qualid.pos)
+          val link = TypeSymbol.create(sym.asTypeSymbol.kind, name, sym.flags | Flags.Alias, Visibility.Default, importScope.owner, qualid.pos)
           ip.add(link, StaticRef(sym))
           link
         else
-          val link = PatternSymbol.create(name, sym.flags | Flags.Alias, Visibility.Scope, importScope.owner, qualid.pos)
+          val link = PatternSymbol.create(name, sym.flags | Flags.Alias, Visibility.Default, importScope.owner, qualid.pos)
           ip.add(link, StaticRef(sym))
           link
 
