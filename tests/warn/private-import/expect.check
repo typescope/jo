@@ -1,0 +1,46 @@
+---------- Error at ./tests/warn/private-import/Test.jo:4:8 ---------------
+| import Library.SecretType
+|        ^^^^^^^^^^^^^^^^^^
+|        Cannot access the private member SecretType
+
+---------- Error at ./tests/warn/private-import/Test.jo:7:8 ---------------
+| import Library.secretFunc
+|        ^^^^^^^^^^^^^^^^^^
+|        Cannot access the private member secretFunc
+
+---------- Error at ./tests/warn/private-import/Test.jo:10:8 ---------------
+| import Library.Helpers.InternalType
+|        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|        Cannot access the private member InternalType
+
+---------- Error at ./tests/warn/private-import/Test.jo:13:8 ---------------
+| import Library.Helpers.internalFunc
+|        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|        Cannot access the private member internalFunc
+
+---------- Error at ./tests/warn/private-import/Test.jo:16:8 ---------------
+| import Library.SecretSection.Data
+|        ^^^^^^^^^^^^^^^^^^^^^
+|        Cannot access the private member SecretSection
+
+---------- Error at ./tests/warn/private-import/Test.jo:16:8 ---------------
+| import Library.SecretSection.Data
+|        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+|        Cannot access the private member Data
+
+---------- Error at ./tests/warn/private-import/Test.jo:19:8 ---------------
+| import Library.SecretSection.process
+|        ^^^^^^^^^^^^^^^^^^^^^
+|        Cannot access the private member SecretSection
+
+---------- Error at ./tests/warn/private-import/Test.jo:19:8 ---------------
+| import Library.SecretSection.process
+|        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|        Cannot access the private member process
+
+---------- Error at ./tests/warn/private-import/Test.jo:23:23 ---------------
+| def testImportAll() = anotherFuncForTestAll(4)
+|                       ^^^^^^^^^^^^^^^^^^^^^
+|                       Undefined term name anotherFuncForTestAll
+
+9 error(s), 0 warning(s)

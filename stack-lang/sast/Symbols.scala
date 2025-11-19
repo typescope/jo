@@ -42,11 +42,6 @@ object Symbols:
     case Global
     case Limit(container: Symbol)
 
-    def visibleIn(site: Symbol): Boolean =
-      this match
-        case Global => true
-        case Limit(limit) => site.containedIn(limit)
-
     def contains(other: VisibleScope): Boolean =
       this match
         case Global => true
@@ -184,6 +179,11 @@ object Symbols:
       else
         if owner == null then VisibleScope.Global
         else owner.visibleScope
+
+    def visibleIn(site: Symbol): Boolean =
+      this.visibleScope match
+        case VisibleScope.Global => true
+        case VisibleScope.Limit(limit) => site.containedIn(limit)
 
     /** Return the source symbol of an alias created by import or aliasing
       *

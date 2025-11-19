@@ -94,7 +94,7 @@ object Checker:
     if !sym.isMutable then
       Reporter.error(sym.name + " is not a mutable value", pos)
 
-  def checkAccess(target: Symbol, scopeOwner: Symbol, span: Span)(using Reporter, Definitions, Source): Unit =
+  def checkAccess(target: Symbol, scopeOwner: Symbol, span: Span)(using Reporter, Source): Unit =
     target.visibleScope match
       case VisibleScope.Limit(container) =>
         if !scopeOwner.containedIn(container) then

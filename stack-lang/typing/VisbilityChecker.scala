@@ -135,7 +135,7 @@ object VisibilityChecker:
     traverser.apply(tpe)
 
   def checkUsage(reference: Symbol, site: Symbol, pos: SourcePosition)(using Definitions, Reporter): Unit =
-    if !reference.visibleScope.visibleIn(site) then
+    if !reference.visibleIn(site) then
       Reporter.error("The private symbol " + reference + " cannot be access here", pos)
 
   def checkCoherence(reference: Symbol, binder: Symbol, pos: SourcePosition)(using Definitions, Reporter): Unit =

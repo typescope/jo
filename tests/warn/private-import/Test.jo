@@ -1,0 +1,23 @@
+namespace Test
+
+// Error: import private type
+import Library.SecretType
+
+// Error: import private function
+import Library.secretFunc
+
+// Error: import private type from section
+import Library.Helpers.InternalType
+
+// Error: import private function from section
+import Library.Helpers.internalFunc
+
+// Error: import type from private section
+import Library.SecretSection.Data
+
+// Error: import function from private section
+import Library.SecretSection.process
+
+import Library.*
+
+def testImportAll() = anotherFuncForTestAll(4)

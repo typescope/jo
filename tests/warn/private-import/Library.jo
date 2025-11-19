@@ -1,0 +1,37 @@
+namespace Library
+
+// Public type
+type PublicType = Int
+
+// Private type
+private type SecretType = String
+
+// Public function
+def publicFunc(x: Int): Int = x + 1
+
+// Private function
+private def secretFunc(x: Int): Int = x * 2
+
+private def anotherFuncForTestAll(x: Int): Int = x * 2
+
+section Helpers
+  // Public type in section
+  type HelperType = Bool
+
+  // Private type in section
+  private type InternalType = Int
+
+  // Public function in section
+  def helperFunc(x: Int): Int = x + 10
+
+  // Private function in section
+  private def internalFunc(x: Int): Int = x * 10
+end
+
+private section SecretSection
+  // Type in private section
+  type Data = String
+
+  // Function in private section
+  def process(x: Int): Int = x + 100
+end

@@ -44,7 +44,9 @@ object Imports:
         nameTableOpt match
           case Some(nameTable) =>
             nameTable.resolveTerm(name) match
-              case Some(sym) => checkValidContainer(sym, qualid, allowBranch)
+              case Some(sym) =>
+                Checker.checkAccess(sym, scope.owner, qualid.span)
+                checkValidContainer(sym, qualid, allowBranch)
 
               case _ =>
                 rp.error(s"`$name` is not a member of ${prefix.name}", qualid.pos)
@@ -97,13 +99,15 @@ object Imports:
 
     def importName(name: String, nameTable: NameTable): Unit =
       val syms = nameTable.resolve(name)
-      for sym <- syms do importSymbol(name, sym)
+      for sym <- syms do
+        Checker.checkAccess(sym, importScope.owner, qualid.span)
+        importSymbol(name, sym)
 
       if imports.isEmpty && alisedMembers.isEmpty then
           rp.error(s"`$name` cannot be found", qualid.pos)
 
     def importAll(nameTable: NameTable): Unit =
-      def qualify(sym: Symbol) = !sym.isSynthetic
+      def qualify(sym: Symbol) = !sym.isSynthetic & sym.visibleIn(importScope.owner)
 
       for sym <- nameTable.terms if qualify(sym) do importSymbol(sym.name, sym)
 
