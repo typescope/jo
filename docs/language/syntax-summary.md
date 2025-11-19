@@ -70,7 +70,7 @@ multi_line_string  = "\"\"\"" newline {string_part | interpolation} indent "\"\"
 
 interpolation = "\\" "{" expr "}"
 
-section = "section" ident {toplevel_def} ["end"]
+section = {modifier} "section" ident {toplevel_def} ["end"]
 
 toplevel_def = typedef | fundef | paramdef | aliasdef | patdef | datadef | 
                classdef | section
@@ -155,11 +155,13 @@ apply_pattern = (tag | qualid) "(" [pattern {"," pattern}] ")"
 
 sequence_pattern = "[" [expr_pattern {"," expr_pattern}] "]"
 
-modifier = "auto" | "defer"
+modifier = "auto" | "defer" | private_modifier
+
+private_modifier = "private" ["[" ident "]"]
 
 valdef = {modifier} ("val" | "var") ident [":" type] "=" block
 
-fundef = {modifier} "def" [param_section] ident [tparams] [param_section] 
+fundef = {modifier} "def" [param_section] ident [tparams] [param_section]
          [auto_section] [":" type] [receive_params] ["=" block] ["end"]
 
 classdef = {modifier} "class" ident [tparams] {defdef | val_decl} ["end"]
@@ -167,17 +169,17 @@ classdef = {modifier} "class" ident [tparams] {defdef | val_decl} ["end"]
 defdef = "def" ident [tparams] [param_section] [":" type] [receive_params] 
          "=" block ["end"]
 
-patdef = "pattern" ident [tparams] [param_section] [":" type] "=" cases ["end"]
+patdef = {modifier} "pattern" ident [tparams] [param_section] [":" type] "=" cases ["end"]
 cases = case {"case" pattern}
 
 datadef = "data" ident [tparams] ([param_section] | "=" branch {"|" branch})
 branch = ident [param_section]
 
-paramdef = "param" param ["=" block]
+paramdef = {modifier} "param" param ["=" block]
 
 aliasdef = {modifier} "alias" ("def" | "pattern" | "param") ident "=" qualid
 
-typedef = "type" [tparams] ident [tparams] ["=" type | "<:" type]
+typedef = {modifier} "type" [tparams] ident [tparams] ["=" type | "<:" type]
 tparams = "[" tparam {"," tparam} "]"
 tparam = ident
 
