@@ -44,7 +44,9 @@ object Imports:
         nameTableOpt match
           case Some(nameTable) =>
             nameTable.resolveTerm(name) match
-              case Some(sym) => checkValidContainer(sym, qualid, allowBranch)
+              case Some(sym) =>
+                Checker.checkAccess(sym, scope.owner, qualid.span)
+                checkValidContainer(sym, qualid, allowBranch)
 
               case _ =>
                 rp.error(s"`$name` is not a member of ${prefix.name}", qualid.pos)
@@ -72,11 +74,17 @@ object Imports:
 
     def createAlias(name: String, sym: Symbol): Unit =
       val alias =
-        if sym.isType then
-          TypeSymbol.create(sym.asTypeSymbol.kind, name, StaticRef(sym), sym.flags | Flags.Alias, importScope.owner, qualid.pos)
+        if sym.isTerm then
+          val link = TermSymbol.create(name, sym.flags | Flags.Alias, Visibility.Default, importScope.owner, qualid.pos)
+          ip.add(link, StaticRef(sym))
+          link
+        else if sym.isType then
+          val link = TypeSymbol.create(sym.asTypeSymbol.kind, name, sym.flags | Flags.Alias, Visibility.Default, importScope.owner, qualid.pos)
+          ip.add(link, StaticRef(sym))
+          link
         else
-          val link = Symbol.createSymbol(name, sym.flags | Flags.Alias, qualid.pos)
-          ip.add(link, importScope.owner, StaticRef(sym))
+          val link = PatternSymbol.create(name, sym.flags | Flags.Alias, Visibility.Default, importScope.owner, qualid.pos)
+          ip.add(link, StaticRef(sym))
           link
 
       imports += alias
@@ -91,13 +99,15 @@ object Imports:
 
     def importName(name: String, nameTable: NameTable): Unit =
       val syms = nameTable.resolve(name)
-      for sym <- syms do importSymbol(name, sym)
+      for sym <- syms do
+        Checker.checkAccess(sym, importScope.owner, qualid.span)
+        importSymbol(name, sym)
 
       if imports.isEmpty && alisedMembers.isEmpty then
           rp.error(s"`$name` cannot be found", qualid.pos)
 
     def importAll(nameTable: NameTable): Unit =
-      def qualify(sym: Symbol) = !sym.isSynthetic
+      def qualify(sym: Symbol) = !sym.isSynthetic & sym.visibleIn(importScope.owner)
 
       for sym <- nameTable.terms if qualify(sym) do importSymbol(sym.name, sym)
 

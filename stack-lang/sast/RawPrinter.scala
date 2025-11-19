@@ -77,7 +77,7 @@ object RawPrinter:
   private given (using Definitions, State, Source): Text.Maker[TypeTree] =
     v => printTypeTree(v)
 
-  private given (using Definitions, State, Source): Text.Maker[Symbol] =
+  private given (using State): Text.Maker[Symbol] =
     v => printSymbolRef(v)
 
   private given Text.Maker[Span] =
@@ -85,6 +85,11 @@ object RawPrinter:
 
   private given Text.Maker[Flags] =
     v => printFlags(v)
+
+  private given (using State): Text.Maker[Visibility] =
+    v => v match
+      case Visibility.Default => Text("default")
+      case Visibility.Private(within) => "private[" ~ within ~ "]"
 
   private given (using Definitions, State, Source): Text.Maker[ParamAdapter] =
     v => v match
@@ -130,10 +135,10 @@ object RawPrinter:
 
     symbol match
       case tsym: TypeSymbol =>
-        "[" ~ id ~ "," ~ tsym.name ~ "," ~ symbol.flags ~ "," ~ printKind(tsym.kind) ~ "," ~ ownerText ~ "," ~ printType(tsym.info) ~ "]@" ~ span
+        "[" ~ id ~ "," ~ tsym.name ~ "," ~ symbol.flags ~ "," ~ printKind(tsym.kind) ~ "," ~ ownerText ~ "," ~ printType(tsym.info) ~ "," ~ tsym.visibility ~ "]@" ~ span
 
       case _ =>
-        "[" ~ id ~ "," ~ symbol.name ~ "," ~ symbol.flags ~ "," ~ ownerText ~ "," ~ printType(symbol.info) ~ "]@" ~ span
+        "[" ~ id ~ "," ~ symbol.name ~ "," ~ symbol.flags ~ "," ~ ownerText ~ "," ~ printType(symbol.info) ~ "," ~ symbol.visibility ~ "]@" ~ span
 
   /** Reference to a symbol
     *
@@ -141,7 +146,7 @@ object RawPrinter:
     *
     *     @5  ==> refers the name table entry whose index is 5
     */
-  private def printSymbolRef(symbol: Symbol)(using defn: Definitions, state: State): Text =
+  private def printSymbolRef(symbol: Symbol)(using state: State): Text =
     if symbol.isLocal || symbol.isTypeParameter then
       symbol.name ~ "#" ~ state.getInternalSymbolId(symbol)
 

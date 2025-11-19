@@ -1,0 +1,31 @@
+---------- Error at ./tests/warn/private-qualified.jo:45:11 ---------------
+|   private[NonExistent] def invalidContainer(): Int = 20
+|           ^^^^^^^^^^^
+|           Cannot find an enclosing container named NonExistent
+
+---------- Error at ./tests/warn/private-qualified.jo:66:15 ---------------
+|       private[A] def foo(x: Int) = x
+|               ^
+|               Visibility cannot be greater than parent
+
+---------- Error at ./tests/warn/private-qualified.jo:28:28 ---------------
+|   def testAccess3(): Int = Inner.qualifiedToInner()
+|                            ^^^^^^^^^^^^^^^^^^^^^^
+|                            Cannot access the private member qualifiedToInner
+
+---------- Error at ./tests/warn/private-qualified.jo:35:26 ---------------
+| def testAccess4(): Int = Outer.qualifiedToOuter()
+|                          ^^^^^^^^^^^^^^^^^^^^^^
+|                          Cannot access the private member qualifiedToOuter
+
+---------- Error at ./tests/warn/private-qualified.jo:38:26 ---------------
+| def testAccess5(): Int = Outer.Inner.qualifiedToInner()
+|                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|                          Cannot access the private member qualifiedToInner
+
+---------- Error at ./tests/warn/private-qualified.jo:41:26 ---------------
+| def testAccess7(): Int = Outer.Inner.qualifiedToOuter()
+|                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|                          Cannot access the private member qualifiedToOuter
+
+6 error(s), 0 warning(s)

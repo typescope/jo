@@ -39,23 +39,23 @@ extends Definitions.Lazy:
 
   def cache: Cache = cacheForInfoProvider
 
-  def info(sym: Symbol): SymInfo = provider(sym)
+  def info(sym: Symbol): Type = provider(sym)
 
-  def add(sym: Symbol, owner: Symbol, tp: Type): Unit =
-    provider.add(sym, owner, tp)
+  def add(sym: Symbol, tp: Type): Unit =
+    provider.add(sym, tp)
 
-  def addLazy(sym: Symbol, owner: Symbol, infoLazy: () => Type, errorType: () => Type): Unit =
-    provider.addLazy(sym, owner, infoLazy, errorType)
+  def addLazy(sym: Symbol, infoLazy: () => Type, errorType: () => Type): Unit =
+    provider.addLazy(sym, infoLazy, errorType)
 
-  def addLazy(sym: Symbol, owner: Symbol, infoLazy: () => Type): Unit =
-    provider.addLazy(sym, owner, infoLazy, () => ErrorType)
+  def addLazy(sym: Symbol, infoLazy: () => Type): Unit =
+    provider.addLazy(sym, infoLazy, () => ErrorType)
 
   /** Install a transformer for symbols
     *
     * Warning: Accessing `sym.info` or `sym.owner` will loop. Use the provided
-    * data in `SymInfo` instead.
+    * data instead.
     */
-  def installTransform(transform: SymInfo => SymInfo): Unit =
+  def installTransform(transform: (Symbol, Type) => Type): Unit =
     provider = new InfoProvider.InfoTransformer(provider, transform)
 
     // Invalidate old cache

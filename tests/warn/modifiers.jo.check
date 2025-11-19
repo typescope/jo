@@ -26,21 +26,21 @@
 ---------- Error at ./tests/warn/modifiers.jo:17:3 ---------------
 |   defer class C
 |   ^^^^^
-|   The modifier defer is not allowed for pattern definition
+|   The modifier defer is not allowed for class definition
 
 ---------- Error at ./tests/warn/modifiers.jo:19:3 ---------------
 |   defer param x: Int
 |   ^^^^^
 |   The modifier defer is not allowed for context parameter definition
 
----------- Error at ./tests/warn/modifiers.jo:22:15 ---------------
-|     defer def test(x: Int): Int
-|               ^^^^
-|               A deferred definition should be at top-level
+---------- Error at ./tests/warn/modifiers.jo:23:3 ---------------
+|   defer val x: Int
+|   ^^^^^
+|   The modifier defer is not allowed for value definition
 
----------- Error at ./tests/warn/modifiers.jo:24:15 ---------------
-|     defer def check(x: Int): Int = 3
-|               ^^^^^
-|               A deferred definition should be at top-level
+---------- Error at ./tests/warn/modifiers.jo:27:13 ---------------
+|   defer def bar(x: Int): Int = x * 5
+|             ^^^
+|             A deferred definition should be at top-level
 
 9 error(s), 0 warning(s)

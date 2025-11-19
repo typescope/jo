@@ -119,6 +119,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       case "auto"      => Token.AUTO
       case "defer"     => Token.DEFER
       case "class"     => Token.CLASS
+      case "private"   => Token.PRIVATE
       case "new"       => Token.NEW
       case "having"    => Token.HAVING
       case name        => Token.Ident(name)

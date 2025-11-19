@@ -63,7 +63,7 @@ object ElimCapture:
     val funType = oldProcType.copy(params = paramInfos, adapters = adapters)
 
     val funName = flatName(fdef.symbol)
-    Symbol.createSymbol(funName, funType, Flags.Fun | Flags.Synthetic, oldFunSym.enclosingContainer, oldFunSym.sourcePos)
+    TermSymbol.create(funName, funType, Flags.Fun | Flags.Synthetic, Visibility.Default, oldFunSym.enclosingContainer, oldFunSym.sourcePos)
 
   /** The information for a lifted function
     *
@@ -123,7 +123,7 @@ object ElimCapture:
       val substs = mutable.Map.empty[Symbol, Symbol]
       val paramSymsCaptured =
         for capture <- captures yield
-          val sym = Symbol.createSymbol(capture.name, capture.info, Flags.Synthetic, funSym, fdef.symbol.sourcePos)
+          val sym = TermSymbol.create(capture.name, capture.info, Flags.Synthetic, Visibility.Default, funSym, fdef.symbol.sourcePos)
           substs(capture) = sym
           sym
 
@@ -191,11 +191,11 @@ object ElimCapture:
 
          ObjectType(objType.members ++ capturedMembers.toList, objType.mutableFields)
 
-      val thisTypeAliasSym = new TypeSymbol(Kind.Simple, "ThisType", Flags.Synthetic, obj.self.sourcePos)
+      val thisTypeAliasSym = TypeSymbol.create(Kind.Simple, "ThisType", Flags.Synthetic, Visibility.Default, owner.enclosingContainer, obj.self.sourcePos)
       val thisType = StaticRef(thisTypeAliasSym)
       ctx.lifted += TypeDef(thisTypeAliasSym)(obj.span)
 
-      defn.addLazy(thisTypeAliasSym, owner.enclosingContainer, lazyInfo)
+      defn.addLazy(thisTypeAliasSym, lazyInfo)
 
       for member <- obj.members do
         uniq.freshName(member.name)
@@ -223,14 +223,14 @@ object ElimCapture:
         val span = fdef.body.span
         val liftedSym = funToLifted(fdef.symbol)
 
-        val paramThis = Symbol.createSymbol("this", thisType, Flags.Param, liftedSym, fdef.symbol.sourcePos)
+        val paramThis = TermSymbol.create("this", thisType, Flags.Param, Visibility.Default, liftedSym, fdef.symbol.sourcePos)
 
         val substs = mutable.Map.empty[Symbol, Symbol]
         val aliases = new mutable.ArrayBuffer[Assign]
         for capture <- transitiveCapture(fdef) if capture != obj.self do
           // Rewiring is important -- the captured variable might have been rebound
           val capture2 = rewire(capture)
-          val subst = Symbol.createSymbol(capture2.name, capture2.info, Flags.Synthetic, liftedSym, fdef.symbol.sourcePos)
+          val subst = TermSymbol.create(capture2.name, capture2.info, Flags.Synthetic, Visibility.Default, liftedSym, fdef.symbol.sourcePos)
           val lhs = Ident(subst)(span)
           val rhs = Select(Ident(paramThis)(span), captureToField(capture2))(capture2.info, span)
           aliases += Assign(lhs, rhs)
@@ -256,6 +256,8 @@ object ElimCapture:
       val args2 = args.map(this.apply)
       val autos2 = autos.map(this.apply)
 
+      // TODO: do we really need to translate object method apply?
+      // It seems simpler and more flexible to leave it to backend.
       fun match
         case Ident(sym) if sym.is(Flags.Fun) && sym.isLocal =>
           // local function call
@@ -280,7 +282,7 @@ object ElimCapture:
             Apply(Encoded(proc)(liftedProcType), qual2 :: args2, autos2)(app.span)
           else
             given Positions.Source = owner.sourcePos.source
-            val receiverSym = Symbol.createSymbol("o", qual2.tpe, Flags.Synthetic, owner, qual2.pos)
+            val receiverSym = TermSymbol.create("o", qual2.tpe, Flags.Synthetic, Visibility.Default, owner, qual2.pos)
             val receiver = Ident(receiverSym)(qual2.span)
             val assign = Assign(Ident(receiverSym)(qual2.span), qual2)
             val proc = Select(receiver, name)(procType, fun.span)
@@ -301,7 +303,7 @@ object ElimCapture:
             Apply(fun2, qual2 :: args2, autos2)(app.span)
           else
             given Positions.Source = owner.sourcePos.source
-            val receiverSym = Symbol.createSymbol("o", qual2.tpe, Flags.Synthetic, owner, qual2.pos)
+            val receiverSym = TermSymbol.create("o", qual2.tpe, Flags.Synthetic, Visibility.Default, owner, qual2.pos)
             val receiver = Ident(receiverSym)(qual2.span)
             val assign = Assign(Ident(receiverSym)(qual2.span), qual2)
             val meth = Encoded(Select(receiver, name)(procType, fun.span))(liftedProcType)

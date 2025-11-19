@@ -158,9 +158,9 @@ object Encoder:
 
         encodeString(sym.name)
 
-        if sym.isType then encodeByte(Format.Type)
-        else if sym.isPattern then encodeByte(Format.Pattern)
-        else encodeByte(Format.Term)
+        if sym.isTerm then encodeByte(Format.Term)
+        else if sym.isType then encodeByte(Format.Type)
+        else encodeByte(Format.Pattern)
 
   /** Symbol table map internal symbols to unique ids */
   private class SymbolTable(root: Symbol):
@@ -405,6 +405,7 @@ object Encoder:
     encodeNat(state.getId(defSym))
     encodeString(defSym.name)
     encodeFlags(defSym.flags & (Flags.Auto | Flags.Mutable))
+    encodeVisibility(defSym)
 
     encodeInt(defSym.span.start - absoluteStart)
     encodeNat(defSym.span.length)
@@ -425,6 +426,8 @@ object Encoder:
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
       encodeFlags(defSym.flags & (Flags.Default | Flags.Auto))
+      encodeVisibility(defSym)
+
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
       encodeTypeTree(pdef.tpt, absoluteStart)
@@ -442,7 +445,15 @@ object Encoder:
 
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
-      encodeFlags(defSym.flags & (Flags.Pattern | Flags.Fun | Flags.Context | Flags.Auto))
+
+      assert(!defSym.isType, "alias def should not be type")
+
+      if defSym.isTerm then encodeByte(Format.Term)
+      else encodeByte(Format.Pattern)
+
+      encodeFlags(defSym.flags & (Flags.Fun | Flags.Context))
+      encodeVisibility(defSym)
+
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
       encodeWord(adef.target, absoluteStart)
@@ -461,6 +472,7 @@ object Encoder:
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
       encodeKind(defSym.asTypeSymbol.kind)
+      encodeVisibility(defSym)
 
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
@@ -476,6 +488,7 @@ object Encoder:
         encodeNat(state.getId(sym))
         encodeString(sym.name)
         encodeFlags(sym.flags & (Flags.Auto | Flags.Mutable))
+        encodeVisibility(sym)
 
         val symSpan = sym.sourcePos.span
         val symStartDelta = symSpan.start - defSym.span.start
@@ -503,6 +516,7 @@ object Encoder:
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
       encodeFlags(defSym.flags & (Flags.Auto | Flags.Synthetic | Flags.Defer | Flags.Default))
+      encodeVisibility(defSym)
 
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
@@ -583,6 +597,8 @@ object Encoder:
 
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
+      encodeVisibility(defSym)
+
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
 
@@ -622,6 +638,7 @@ object Encoder:
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
       encodeKind(defSym.asTypeSymbol.kind)
+      encodeVisibility(defSym)
 
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
@@ -641,6 +658,7 @@ object Encoder:
 
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
+      encodeVisibility(defSym)
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
 
@@ -1169,6 +1187,17 @@ object Encoder:
         encodeInt(pattern.span.endOffset - nested.span.endOffset)
 
     end match
+
+  private def encodeVisibility(sym: Symbol)(using WriteBuffer, State): Unit =
+    sym.visibility match
+      case Visibility.Default =>
+        encodeByte(Format.VisibilityDefault)
+
+      case Visibility.Private(within) =>
+        encodeByte(Format.VisibilityPrivate)
+        val level = sym.ownersIterator.toList.indexOf(within)
+        assert(level >= 0, "level = " + level)
+        encodeNat(level)
 
   private def encodeBool(b: Boolean)(using buf: WriteBuffer): Unit =
     buf.addBool(b)

@@ -9,10 +9,10 @@ def empty[T]: List[T] = new List(ListImpl.Nil)
 def List[T](elems: ..T): List[T] = elems
 
 class List[T]
-  val repr: Repr[T]
-  val _size: Int
+  private val repr: Repr[T]
+  private val _size: Int
 
-  def List(repr: Repr[T]) =
+  private[List] def List(repr: Repr[T]) =
     val len = match repr case Size(n) => n
     { repr: repr, _size: len }
 
@@ -167,33 +167,11 @@ class List[T]
     match repr
       case Nil => // stop recursion from ListImpl.traverse
 
-      case _ => ListImpl.traverse this 0 (size - 1) op empty[T]
+      case _ =>  this.traverseRange 0 (size - 1) op empty[T]
     end
 
-end // List
-
-section ListImpl
-  data Repr[T] =
-      Nil
-    | Cons(head: T, tail: List[T])
-    | Append(prefix: List[T], last: T)
-    | Concat(lhs: List[T], rhs: List[T])
-    | Slice(raw: List[T], from: Int, to: Int)
-    | Flat(elems: Array[T])
-
-
-  pattern Size[T](n: Int): Repr[T] =
-    case Nil then n = 0
-    case Cons(_, tail) then n = 1 + tail.size
-    case Append(prefix, _) then n = prefix.size + 1
-    case Concat(lhs, rhs) then n = lhs.size + rhs.size
-    case Slice(_, from, to) then n = to - from + 1
-    case Flat(elems) then n = Array.size elems
-
-  def errorIndex(i: Int): Bottom = abort ("invalid index for list " + (intToStr i))
-
   // The Bool value tells whether to continue the traversal
-  def traverse[T](this: List[T], from: Int, to: Int, op: T => Bool, rest: List[T]): Unit =
+  private def traverseRange(from: Int, to: Int, op: T => Bool, rest: List[T]): Unit =
     val msg =
       "invalid arg for ListImpl.traverse"
         + ", from = " + (intToStr from)
@@ -212,37 +190,37 @@ section ListImpl
           if op v then rest.traverse op
 
         else if from == 0 then
-          if op v then traverse tail from (to - 1) op rest
+          if op v then tail.traverseRange from (to - 1) op rest
 
         else
-          traverse tail (from - 1) (to - 1) op rest
+          tail.traverseRange (from - 1) (to - 1) op rest
 
 
       case Append prefix v =>
         if to < prefix.size then
-          traverse prefix from to op rest
+          prefix.traverseRange from to op rest
 
         else if from == prefix.size then
           if op v then rest.traverse op
 
         else
           val rest2 = new List(Cons v rest)
-          traverse prefix from (to - 1) op rest2
+          prefix.traverseRange from (to - 1) op rest2
 
 
       case Concat lhs rhs =>
         if to < lhs.size then
-          traverse lhs from to op rest
+          lhs.traverseRange from to op rest
 
         else if from >= lhs.size then
-          traverse rhs (from - lhs.size) (to - lhs.size) op rest
+          rhs.traverseRange (from - lhs.size) (to - lhs.size) op rest
 
         else
           val rhs2 = rhs.slice 0 (to - lhs.size)
-          traverse lhs from (lhs.size - 1) op (rhs2 ++ rest)
+          lhs.traverseRange from (lhs.size - 1) op (rhs2 ++ rest)
 
       case Slice base from2 to2 =>
-        traverse base (from2 + from) (from2 + to) op rest
+        base.traverseRange (from2 + from) (from2 + to) op rest
 
       case Flat elems =>
         var continue = true
@@ -254,5 +232,26 @@ section ListImpl
 
         if continue then rest.traverse op
     end // match
-  end // traverse
+  end // traverseRange
+end // List
+
+private section ListImpl
+  data Repr[T] =
+      Nil
+    | Cons(head: T, tail: List[T])
+    | Append(prefix: List[T], last: T)
+    | Concat(lhs: List[T], rhs: List[T])
+    | Slice(raw: List[T], from: Int, to: Int)
+    | Flat(elems: Array[T])
+
+
+  pattern Size[T](n: Int): Repr[T] =
+    case Nil then n = 0
+    case Cons(_, tail) then n = 1 + tail.size
+    case Append(prefix, _) then n = prefix.size + 1
+    case Concat(lhs, rhs) then n = lhs.size + rhs.size
+    case Slice(_, from, to) then n = to - from + 1
+    case Flat(elems) then n = Array.size elems
+
+  def errorIndex(i: Int): Bottom = abort ("invalid index for list " + (intToStr i))
 end // ListImpl

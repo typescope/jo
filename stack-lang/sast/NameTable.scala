@@ -48,31 +48,31 @@ class NameTable(
     resolveByPathParts(path.split('.').toList)
 
   def resolveTermByPathOpt(path: String)(using Definitions.Lazy): Option[Symbol] =
-    resolveByPath(path).filter(!_.isOneOf(Flags.Pattern | Flags.Type)).headOption
+    resolveByPath(path).filter(_.isTerm).headOption
 
   def resolveTermByPath(path: String)(using Definitions.Lazy): Symbol =
     resolveTermByPathOpt(path).head
 
   def resolvePatternByPathOpt(path: String)(using Definitions): Option[Symbol] =
-    resolveByPath(path).filter(_.is(Flags.Pattern)).headOption
+    resolveByPath(path).filter(_.isPattern).headOption
 
   def resolvePatternByPath(path: String)(using Definitions): Symbol =
     resolvePatternByPathOpt(path).head
 
   def resolveTypeByPathOpt(path: String)(using Definitions.Lazy): Option[Symbol] =
-    resolveByPath(path).filter(_.is(Flags.Type)).headOption
+    resolveByPath(path).filter(_.isType).headOption
 
   def resolveTypeByPath(path: String)(using Definitions.Lazy): Symbol =
     resolveTypeByPathOpt(path).head
 
   def resolveTermByPathParts(parts: List[String])(using Definitions.Lazy): Symbol =
-    resolveByPathParts(parts).filter(!_.isOneOf(Flags.Pattern | Flags.Type)).head
+    resolveByPathParts(parts).filter(_.isTerm).head
 
   def resolvePatternByPathParts(parts: List[String])(using Definitions.Lazy): Symbol =
-    resolveByPathParts(parts).filter(_.is(Flags.Pattern)).head
+    resolveByPathParts(parts).filter(_.isPattern).head
 
   def resolveTypeByPathParts(parts: List[String])(using Definitions.Lazy): Symbol =
-    resolveByPathParts(parts).filter(_.is(Flags.Type)).head
+    resolveByPathParts(parts).filter(_.isType).head
 
   def define(sym: Symbol)(using rp: Reporter): Unit =
     assert(!frozen, "Name table is frozen")

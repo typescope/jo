@@ -1,0 +1,76 @@
+// Test visibility coherence for alias definitions
+
+namespace testns
+
+section Internal
+  private def secretAdd(x: Int, y: Int): Int = x + y + 1000
+
+  def publicAdd(x: Int, y: Int): Int = x + y
+end
+
+// Error: public alias pointing to private function
+// The private symbol secretAdd is leaked by the type of add
+alias def add = testns.Internal.secretAdd
+
+// OK: public alias pointing to public function
+alias def add3 = testns.Internal.publicAdd
+
+section TypeOps
+  private type Secret = Int
+
+  private def processSecret(x: Secret): Secret = x + 1
+end
+
+// Public function using private type in parameter - should error
+def useSecret(x: TypeOps.Secret): Int = x + 10
+
+// Public function using private type in return type - should error
+def makeSecret(x: Int): TypeOps.Secret = x * 2
+
+// Error: public alias pointing to function with private type
+// The private symbol Secret is leaked by the type of process
+alias def process = testns.TypeOps.processSecret
+
+// Error: public alias to public function with private type in parameter
+// The private symbol Secret is leaked by the type of useSecretAlias
+alias def useSecretAlias = testns.useSecret
+
+// Error: public alias to public function with private type in return type
+alias def makeSecretAlias = testns.makeSecret
+
+section Outer
+  private section Inner
+    def helper(x: Int): Int = x * 2
+  end
+end
+
+// Error: public alias pointing to member of private section
+alias def double = testns.Outer.Inner.helper
+
+section Ops
+  private def secretEq(x: Int, y: Int): Bool = x == y
+end
+
+// Error: public alias to private function
+alias def myEq = testns.Ops.secretEq
+
+section WithPrivateTypeAlias
+  private type Internal = Int
+  private type Config = { port: Internal, host: String }
+end
+
+// Public function using private type alias in parameter - should error
+def configure(cfg: WithPrivateTypeAlias.Config): String = cfg.host
+
+// Public function using private type alias in return type - should error
+def getPort(x: Int): WithPrivateTypeAlias.Internal = x
+
+// Error: public alias to function with private type alias in parameter
+// The private symbol Config (and transitively Internal) is leaked
+alias def configAlias = testns.configure
+
+// Error: public alias to function with private type alias in return type
+// The private symbol Internal is leaked
+alias def portAlias = testns.getPort
+
+def main: Unit = {}

@@ -1,0 +1,63 @@
+// Test visibility coherence: private symbols leaked in public APIs via adapters, autos, and context parameters
+
+type Eq[T] = (T, T) => Bool
+
+// ========== Test 1: Private Adapter Function Leaked ==========
+
+section S1
+  private def secretConv(x: Int): String = intToStr(x)
+
+  // Error: private adapter secretConv leaked in public function signature
+  def display(s: String with [secretConv]): Unit = println s
+end
+
+// ========== Test 2: Private Auto Candidate Leaked ==========
+
+section S2
+  private def eqPrivate: Eq[Int] = (a, b) => a == b
+
+  // Error: private auto candidate eqPrivate leaked in public function signature
+  def compare(x: Int, y: Int)(auto eq: Eq[Int] with [eqPrivate]): Bool = eq(x, y)
+end
+
+// ========== Test 3: Private Context Parameter Leaked ==========
+
+section S3
+  private param secret: String
+
+  // Error: private context parameter secret leaked in public function signature
+  def getSecret(): String receives secret = secret
+end
+
+// ========== Test 4: Private Type in Adapter ==========
+
+section S4
+  private type Internal = Int
+
+  def toStr(x: Internal): String = intToStr(x)
+
+  // Error: private type Internal leaked via adapter in public function
+  def show(s: String with [toStr]): Unit = println s
+end
+
+// ========== Test 5: Private Type in Auto Candidate ==========
+
+section S5
+  private type Secret = Int
+
+  def eqSecret: Eq[Secret] = (a, b) => a == b
+
+  // Error: private type Secret leaked via auto candidate in public function
+  def areEqual(x: Secret, y: Secret)(auto eq: Eq[Secret] with [eqSecret]): Bool = eq(x, y)
+end
+
+// ========== Test 6: Private Type in Context Parameter ==========
+
+section S6
+  private type Config = Int
+
+  param cfg: Config
+
+  // Error: private type Config leaked via context parameter in public function
+  def process(): Int receives cfg = cfg
+end

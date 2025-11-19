@@ -94,6 +94,14 @@ object Checker:
     if !sym.isMutable then
       Reporter.error(sym.name + " is not a mutable value", pos)
 
+  def checkAccess(target: Symbol, scopeOwner: Symbol, span: Span)(using Reporter, Source): Unit =
+    target.visibleScope match
+      case VisibleScope.Limit(container) =>
+        if !scopeOwner.containedIn(container) then
+          Reporter.error("Cannot access the private member " + target, span.toPos)
+
+      case _ =>
+
   def checkTermMember(word: Word, member: String)(using Reporter, Source, Definitions): Word =
     val tpe = word.tpe
     if tpe.hasTermMember(member) || tpe.isError then
@@ -106,6 +114,33 @@ object Checker:
     for tvar <- tvars.typeVars if !tvar.isInstantiated do
       Reporter.error("Cannot infer a type for type variable " + tvar, tvar.span.toPos)
 
+  def visibility(defn: Ast.Def, owner: Symbol)(using rp: Reporter, so: Source): Visibility =
+    def resolveEnclosingContainer(name: String): Option[Symbol] =
+      if owner.isContainer && name == owner.name then Some(owner)
+      else owner.ownersIterator.find(sym => sym.isContainer && sym.name == name)
+
+    defn.modifiers.find(_.isPrivate) match
+      case Some(Ast.Modifier.Private(qualOpt)) =>
+        qualOpt match
+           case Some(qual) =>
+             resolveEnclosingContainer(qual.name) match
+               case Some(symbol) =>
+                 val visibility = Visibility.Private(symbol)
+                 if !owner.visibleScope.contains(VisibleScope.Limit(symbol)) then
+                   Reporter.error("Visibility cannot be greater than parent", qual.pos)
+                   Visibility.Default
+                 else
+                   visibility
+
+               case None =>
+                 Reporter.error("Cannot find an enclosing container named " + qual.name, qual.pos)
+                 Visibility.Default
+
+           case None =>
+             Visibility.Private(owner)
+
+      case _ => Visibility.Default
+
   def checkModifiers(defn: Ast.Def)(using rp: Reporter, so: Source): Flags =
     val mods = defn.modifiers
     if mods.isEmpty then return Flags.empty
@@ -115,6 +150,8 @@ object Checker:
     defn match
       case fdef: Ast.FunDef =>
         mods.foreach:
+          case _: Ast.Modifier.Private =>
+
           case _: Ast.Modifier.Defer =>
             flags = flags | Flags.Defer
 
@@ -122,45 +159,50 @@ object Checker:
             if !fdef.body.isEmptyBlock then
               flags = flags | Flags.Default
 
-          case mod =>
-            Reporter.error("The modifier " + mod.show + " is not allowed for function definition", mod.pos)
-
       case vdef: Ast.ValDef =>
         mods.foreach:
+          case _: Ast.Modifier.Private =>
           case mod =>
             Reporter.error("The modifier " + mod.show + " is not allowed for value definition", mod.pos)
 
       case pdef: Ast.PatDef =>
-        mods.foreach: mod =>
-          Reporter.error("The modifier " + mod.show + " is not allowed for pattern definition", mod.pos)
+        mods.foreach:
+          case _: Ast.Modifier.Private =>
+          case mod =>
+            Reporter.error("The modifier " + mod.show + " is not allowed for pattern definition", mod.pos)
 
       case pdef: Ast.ParamDef =>
-        // TODO: Disable auto context params for now.
-        //
-        // It's powerful, but also scaring --- remote binding may easily break assumptions.
         mods.foreach:
+          case _: Ast.Modifier.Private =>
           case mod =>
             Reporter.error("The modifier " + mod.show + " is not allowed for context parameter definition", mod.pos)
 
       case cdef: Ast.ClassDef =>
-        mods.foreach: mod =>
-          Reporter.error("The modifier " + mod.show + " is not allowed for pattern definition", mod.pos)
+        mods.foreach:
+          case _: Ast.Modifier.Private =>
+          case mod =>
+            Reporter.error("The modifier " + mod.show + " is not allowed for class definition", mod.pos)
 
       case tdef: Ast.TypeDef =>
-        mods.foreach: mod =>
-          Reporter.error("The modifier " + mod.show + " is not allowed for type definition", mod.pos)
+        mods.foreach:
+          case _: Ast.Modifier.Private =>
+          case mod =>
+            Reporter.error("The modifier " + mod.show + " is not allowed for type definition", mod.pos)
 
       case _: Ast.DataDef | _: Ast.EnumDef =>
         mods.foreach: mod =>
           Reporter.error("The modifier " + mod.show + " is not allowed for data definition", mod.pos)
 
       case sec: Ast.Section =>
-        mods.foreach: mod =>
-          Reporter.error("The modifier " + mod.show + " is not allowed for section definition", mod.pos)
+        mods.foreach:
+          case _: Ast.Modifier.Private =>
+          case mod =>
+            Reporter.error("The modifier " + mod.show + " is not allowed for section definition", mod.pos)
 
       case adef: Ast.AliasDef =>
         val kind = adef.kind
         mods.foreach:
+          case _: Ast.Modifier.Private =>
           case mod =>
             Reporter.error(s"The modifier ${mod.show} is not allowed for alias $kind definition", mod.pos)
     end match

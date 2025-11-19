@@ -9,30 +9,63 @@ import ast.Positions.{ Source, Span, SourcePosition }
   *
   * Symbols are stable in the compilation process, while the types of a symbol
   * might change, e.g., due to erasure or encoding of types.
+  *
+  * Names fall into three universes:
+  *
+  * - term names
+  * - type names
+  * - pattern names
   */
 object Symbols:
   final val debugSymbol = false
 
-  /** The information about a symbol
+  /** The visibility of a symbol
     *
-    * During transformation, the type and owner of a symbol may change.
+    * Two rules regarding private members:
     *
-    * The information of a symbol is provided by info providers.
+    *  - A private member may only be selected when the scope owner is within
+    *    visibility of the private member.
+    *
+    *  - A symbol's visibility must be smaller than that of its parent.
+    *
+    * While class members may have visibility, object members may not.
+    *
+    * Currently Private does not have a qulifier, which could be a future extension.
+    * Without qualifier, the name is private to its owner.
+    *
     */
-  case class SymInfo(symbol: Symbol, owner: Symbol, tpe: Type):
-    assert(owner != null || symbol.flags.is(Flags.NSpace), "symbol = " + symbol)
+  enum Visibility:
+    case Default
+    case Private(within: Symbol)
 
-  sealed class Symbol private[Symbols](val name: String, val flags: Flags, val sourcePos: SourcePosition):
+  enum VisibleScope:
+    case Global
+    case Limit(container: Symbol)
+
+    def contains(other: VisibleScope): Boolean =
+      this match
+        case Global => true
+        case Limit(containerA) =>
+          other match
+            case Global => false
+            case Limit(containerB) => containerB.containedIn(containerA)
+
+  sealed abstract class Symbol(
+    val name: String,
+    val flags: Flags,
+    val visibility: Visibility,
+    val owner: Symbol,
+    val sourcePos: SourcePosition):
+
+    assert(owner != null || flags.is(Flags.NSpace), "symbol = " + name)
+
     /** TODO: Cache could be introduced to improve performance based on timestamps */
-    private def symInfo(using defn: Definitions): SymInfo = defn.info(this)
 
     /** Do not cache the result from provider
       *
       * The result may change. The cache is done by the provider.
       */
-    def info(using Definitions): Type = symInfo.tpe
-
-    def owner(using Definitions): Symbol = symInfo.owner
+    def info(using defn: Definitions): Type = defn.info(this)
 
     /** All symbols that have a ProcType are functions, including top-level
       * functions, methods and pattern predicates
@@ -40,26 +73,29 @@ object Symbols:
     def isFunction : Boolean = flags.is(Flags.Fun)
 
     def isMethod   : Boolean = flags.is(Flags.Method)
-    def isType     : Boolean = flags.is(Flags.Type)
     def isClass    : Boolean = flags.is(Flags.Class)
-    def isPattern  : Boolean = flags.is(Flags.Pattern)
     def isParameter: Boolean = flags.is(Flags.Param)
     def isMutable  : Boolean = flags.is(Flags.Mutable)
     def isField    : Boolean = flags.is(Flags.Field)
     def isSynthetic: Boolean = flags.is(Flags.Synthetic)
     def isAlias    : Boolean = flags.is(Flags.Alias)
 
+    def isTerm     : Boolean = this.isInstanceOf[TermSymbol]
+    def isType     : Boolean = this.isInstanceOf[TypeSymbol]
+    def isPattern  : Boolean = this.isInstanceOf[PatternSymbol]
+
     def isConstructor: Boolean = name == Names.Constructor
 
     def isNamespace: Boolean = flags.is(Flags.NSpace)
-
     def isContainer: Boolean = flags.isOneOf(Flags.NSpace | Flags.Section)
 
-    def isTypeParameter: Boolean = flags.isAllOf(Flags.Type | Flags.Param)
+    def isTypeParameter: Boolean = this.isType && flags.is(Flags.Param)
 
     def is(testFlag: Flag) = this.flags.isOneOf(testFlag)
     def isOneOf(testFlags: Flags) = this.flags.isOneOf(testFlags)
     def isAllOf(testFlags: Flags) = this.flags.isAllOf(testFlags)
+
+    def isPrivate = this.visibility == Visibility.Private
 
     def classInfo(using Definitions): ClassInfo =
       assert(this.isClass, "Not a class")
@@ -69,27 +105,27 @@ object Symbols:
         case TypeLambda(_, info: ClassInfo, _) => info
         case tp => throw new Exception("Unexpected type " + tp.show)
 
-    def isLocal(using Definitions): Boolean =
+    def isLocal: Boolean =
       owner != null && !owner.isContainer
 
-    def enclosingContainer(using Definitions): Symbol =
+    def enclosingContainer: Symbol =
       if this.isContainer then
         this
       else
         // The assertion in the constructor ensures `owner` cannot be null
         owner.enclosingContainer
 
-    def enclosingFunction(using Definitions): Symbol =
+    def enclosingFunction: Symbol =
       if this.isFunction then
         this
       else
         // owner can be null, let exception be thrown
         owner.enclosingFunction
 
-    def containedIn(other: Symbol)(using Definitions): Boolean =
+    def containedIn(other: Symbol): Boolean =
       this == other || (this.owner != null && this.owner.containedIn(other))
 
-    def ownersIterator(using Definitions): Iterator[Symbol] =
+    def ownersIterator: Iterator[Symbol] =
       var current = this
       new Iterator[Symbol]:
           def hasNext: Boolean = current.owner != null
@@ -119,6 +155,38 @@ object Symbols:
         case info: ContainerInfo => info.resolvePattern(name).getOrElse(error())
         case _ => error()
 
+    /** The visibile scope of a symbol is defined as follows:
+      *
+      * 1. The visible scope of a local symbol is its enclosing function.
+      *
+      * 2. A top-level symbol by default inherits visible scope of its parent.
+      *
+      * 3. If X is declared as private[N], its visible scope is N. And it is
+      * an error if N is bigger than the visible scope of the owner of X.
+      *
+      * 4. Namespaces have global visible scope.
+      */
+    def visibleScope: VisibleScope =
+      if isLocal && !this.owner.isClass then
+        VisibleScope.Limit(enclosingFunction)
+
+      else if isNamespace then
+        VisibleScope.Global
+
+      else
+        visibility match
+          case Visibility.Private(within) =>
+            VisibleScope.Limit(within)
+
+          case _ =>
+            if owner == null then VisibleScope.Global
+            else owner.visibleScope
+
+    def visibleIn(site: Symbol): Boolean =
+      this.visibleScope match
+        case VisibleScope.Global => true
+        case VisibleScope.Limit(limit) => site.containedIn(limit)
+
     /** Return the source symbol of an alias created by import or aliasing
       *
       * Invariant: It is important that we do not have cycles in aliases, which
@@ -135,7 +203,7 @@ object Symbols:
     def defaultFunction(using Definitions): Symbol =
       this.owner.termMember(this.name + "$default")
 
-    def fullName(using Definitions): String =
+    def fullName: String =
       if isLocal then
         this.name
       else
@@ -157,41 +225,63 @@ object Symbols:
     def asTypeSymbol: TypeSymbol = this.asInstanceOf[TypeSymbol]
   end Symbol
 
-  final class TypeSymbol(
-    val kind: Kind, name: String, flags: Flags, sourcePos: SourcePosition)
-  extends Symbol(name, flags | Flags.Type, sourcePos)
+  final class TypeSymbol private[Symbols](
+    val kind: Kind,
+    name: String,
+    flags: Flags,
+    visibility: Visibility,
+    owner: Symbol,
+    sourcePos: SourcePosition)
+  extends Symbol(name, flags, visibility, owner, sourcePos)
 
-  object TypeSymbol:
+  final class TermSymbol private[Symbols](
+    name: String,
+    flags: Flags,
+    visibility: Visibility,
+    owner: Symbol,
+    sourcePos: SourcePosition)
+  extends Symbol(name, flags, visibility, owner, sourcePos)
+
+  final class PatternSymbol private[Symbols](
+    name: String,
+    flags: Flags,
+    visibility: Visibility,
+    owner: Symbol,
+    sourcePos: SourcePosition)
+  extends Symbol(name, flags, visibility, owner, sourcePos)
+
+  object TermSymbol:
+    def create(name: String, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition): TermSymbol =
+      new TermSymbol(name, flags, visibility, owner, pos)
+
     def create
-        (kind: Kind, name: String, info: Type, flags: Flags, owner: Symbol, pos: SourcePosition)
-        (using ip: InfoProvider)
-    : TypeSymbol =
-      val sym = new TypeSymbol(kind, name, flags, pos)
-      ip.add(sym, owner, info)
-      sym
-
-    def createSymbol
-        (kind: Kind, name: String, info: Type, flags: Flags, owner: Symbol, pos: SourcePosition)
-        (using defn: Definitions)
-    : TypeSymbol =
-      val sym = new TypeSymbol(kind, name, flags, pos)
-      defn.add(sym, owner, info)
-      sym
-
-
-  object Symbol:
-    /** Create a term or pattern symbol */
-    def createSymbol(name: String, flags: Flags, pos: SourcePosition) =
-      assert(!flags.is(Flags.Type), "type symbols should be created by `new TypeSymbol`")
-      new Symbol(name, flags, pos)
-
-    /** Create a term or pattern symbol */
-    def createSymbol
-        (name: String, info: Type, flags: Flags, owner: Symbol, pos: SourcePosition)
+        (name: String, info: Type, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition)
         (using defn: Definitions)
     : Symbol =
-      assert(!flags.is(Flags.Type), "type symbols should be created by `TypeSymbol.createSymbol`")
+      val sym = new TermSymbol(name, flags, visibility, owner, pos)
+      defn.add(sym, info)
+      sym
 
-      val sym = new Symbol(name, flags, pos)
-      defn.add(sym, owner, info)
+  object TypeSymbol:
+    def create(kind: Kind, name: String, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition): TypeSymbol =
+      new TypeSymbol(kind, name, flags, visibility, owner, pos)
+
+    def create
+        (kind: Kind, name: String, info: Type, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition)
+        (using defn: Definitions)
+    : TypeSymbol =
+      val sym = new TypeSymbol(kind, name, flags, visibility, owner, pos)
+      defn.add(sym, info)
+      sym
+
+  object PatternSymbol:
+    def create(name: String, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition): PatternSymbol =
+      new PatternSymbol(name, flags, visibility, owner, pos)
+
+    def create
+        (name: String, info: Type, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition)
+        (using defn: Definitions)
+    : PatternSymbol =
+      val sym = new PatternSymbol(name, flags, visibility, owner, pos)
+      defn.add(sym, info)
       sym

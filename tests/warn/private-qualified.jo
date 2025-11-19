@@ -1,0 +1,69 @@
+// Test qualified private visibility: private[ContainerName]
+
+section Outer
+  // Public function
+  def publicFunc(): Int = 42
+
+  // Private to Outer section
+  private def privateToOuter(): Int = 100
+
+  // Qualified private - visible within Outer
+  private[Outer] def qualifiedToOuter(): Int = 200
+
+  section Inner
+    // OK: can access private[Outer] from within Outer
+    def testAccess1(): Int = qualifiedToOuter()
+
+    // Qualified private - visible within Inner
+    private[Inner] def qualifiedToInner(): Int = 300
+
+    // Qualified private - visible within Inner
+    private[Outer] def qualifiedToOuter(): Int = 300
+  end
+
+  // OK: can access private[Outer] within Outer
+  def testAccess2(): Int = qualifiedToOuter()
+
+  // Error: cannot access private[Inner] from Outer (outside Inner)
+  def testAccess3(): Int = Inner.qualifiedToInner()
+
+  // OK: can access private[Outer] from outside Outer
+  def testAccess6(): Int = Inner.qualifiedToOuter()
+end
+
+// Error: cannot access private[Outer] from outside Outer
+def testAccess4(): Int = Outer.qualifiedToOuter()
+
+// Error: cannot access private[Inner] from outside Outer
+def testAccess5(): Int = Outer.Inner.qualifiedToInner()
+
+// Error: cannot access private[Outer] from outside Outer
+def testAccess7(): Int = Outer.Inner.qualifiedToOuter()
+
+section WithErrors
+  // Error: Cannot find an enclosing container named NonExistent
+  private[NonExistent] def invalidContainer(): Int = 20
+end
+
+section VisibilityLevels
+  private[VisibilityLevels] def level1(): Int = 1
+
+  section Level2
+    private[VisibilityLevels] def level2a(): Int = 2
+    private[Level2] def level2b(): Int = 3
+
+    section Level3
+      private[VisibilityLevels] def level3a(): Int = 4
+      private[Level2] def level3b(): Int = 5
+      private[Level3] def level3c(): Int = 6
+    end
+  end
+end
+
+section A
+  section B
+    private[B] section C
+      private[A] def foo(x: Int) = x
+    end
+  end
+end

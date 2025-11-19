@@ -1,0 +1,11 @@
+---------- Error at ./tests/warn/modifiers3.jo:3:4 ---------------
+|    defer def check(x: Int): Int = 3
+|    ^^^^^
+|    Cannot use DEFER for local definitions
+
+---------- Error at ./tests/warn/modifiers3.jo:7:1 ---------------
+| end
+| ^^^
+| Expect EQL, found = END
+
+2 error(s), 0 warning(s)

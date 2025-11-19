@@ -50,6 +50,9 @@ markdown_extensions:
       alternate_style: true
   - attr_list
   - md_in_html
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
 
 extra_css:
   - css/highlight-modern.css
@@ -98,3 +101,4 @@ nav:
     - Context Parameters: design/context-parameters/index.html
     - Parameter Adapters: design/param-adapters/index.html
     - Auto Parameters: design/autos/index.html
+    - Visibility and Coherence: design/visibility-coherence/index.html

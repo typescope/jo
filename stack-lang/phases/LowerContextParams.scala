@@ -53,7 +53,7 @@ extends Phase[Symbol]:
     // 1. args are evaluated with the outer context
     val argValueSyms = args.map: arg =>
       val paramName = arg.ident.symbol.fullName
-      val argValueSym = Symbol.createSymbol("arg_" + paramName, arg.rhs.tpe, Flags.Synthetic, owner = ctx, pos = arg.rhs.pos)
+      val argValueSym = TermSymbol.create("arg_" + paramName, arg.rhs.tpe, Flags.Synthetic, owner = ctx, visibility = Visibility.Default, pos = arg.rhs.pos)
       stats += Assign(Ident(argValueSym)(arg.rhs.span), this(arg.rhs))
       argValueSym
 
@@ -63,7 +63,7 @@ extends Phase[Symbol]:
       val key = StringLit(paramName)(arg.ident.span)
       val funHasParam = Ident(hasParamSym)(arg.span)
       val hasParamCall = funHasParam.appliedTo(key)
-      val hasXSym = Symbol.createSymbol("has_" + paramName, BoolType, Flags.Synthetic, owner = ctx, pos = arg.rhs.pos)
+      val hasXSym = TermSymbol.create("has_" + paramName, BoolType, Flags.Synthetic, owner = ctx, visibility = Visibility.Default, pos = arg.rhs.pos)
       stats += Assign(Ident(hasXSym)(arg.ident.span), hasParamCall)
       hasXSym
 
@@ -74,12 +74,12 @@ extends Phase[Symbol]:
       val value = Ident(argValueSym)(arg.rhs.span)
       val funSetParam = Ident(setParamSym)(arg.span)
       val setParamCall = funSetParam.appliedTo(key, value)
-      val oldValueSym = Symbol.createSymbol("old_" + paramName, arg.rhs.tpe, Flags.Synthetic, owner = ctx, pos = arg.rhs.pos)
+      val oldValueSym = TermSymbol.create("old_" + paramName, arg.rhs.tpe, Flags.Synthetic, owner = ctx, visibility = Visibility.Default, pos = arg.rhs.pos)
       stats += Assign(Ident(oldValueSym)(arg.ident.span), setParamCall.encodedAs(arg.rhs.tpe))
       oldValueSym
 
     // 4. val res = expr only if expr is not void
-    val resSym = Symbol.createSymbol("res", expr.tpe, Flags.Synthetic, owner = ctx, pos = expr.pos)
+    val resSym = TermSymbol.create("res", expr.tpe, Flags.Synthetic, owner = ctx, visibility = Visibility.Default, pos = expr.pos)
     if expr.tpe.isVoidType then
       stats += this(expr)
     else

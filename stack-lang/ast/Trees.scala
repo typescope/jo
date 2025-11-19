@@ -13,11 +13,19 @@ object Trees:
 
   enum Modifier extends Tree:
     case Defer()(val span: Span)
-    case Private()(val span: Span)
+    case Private(qualifier: Option[Ident])(val span: Span)
 
     def show: String = this match
-      case Defer()    => "defer"
-      case Private()  => "private"
+      case Defer() => "defer"
+
+      case Private(qualifier)  =>
+        qualifier match
+          case Some(id) =>"private[" + id.name + "]"
+          case None => "private"
+
+    def isPrivate: Boolean = this.isInstanceOf[Private]
+
+    def isDefer: Boolean = this.isInstanceOf[Defer]
 
   sealed abstract class Word extends Tree:
     def show: String = Printing.show(this)

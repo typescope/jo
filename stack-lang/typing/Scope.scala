@@ -17,6 +17,9 @@ enum Scope:
   /** A nested scope will go from inner to outer scopes in resolving names  */
   case NestedScope(outer: Scope, table: NameTable, owner: Symbol)
 
+  /** A scope imported via "Container >" at expression start -- only accessible symbols are imported */
+  case ImportedScope(outer: Scope, table: NameTable, owner: Symbol)
+
   /** In a local pattern scope, resolving pattern names will ignore pattern value symbols from outer scopes */
   case LocalPatternScope(outer: Scope, table: NameTable, owner: Symbol)
 
@@ -49,22 +52,32 @@ enum Scope:
   def fresh(owner: Symbol, nameTable: NameTable): Scope =
     new Scope.NestedScope(this, nameTable, owner)
 
+  def freshImportedScope(owner: Symbol, nameTable: NameTable): Scope =
+    new Scope.ImportedScope(this, nameTable, owner)
+
   def resolveType(name: String)(using Definitions): Option[Symbol] = Debug.trace(s"Resolving type $name in scope " + table.show, enable = false):
     table.resolveType(name) match
       case None =>
         this match
           case nsc: NestedScope => nsc.outer.resolveType(name)
+          case nsc: ImportedScope => nsc.outer.resolveType(name)
           case nsc: PrefixedScope => nsc.outer.resolveType(name)
           case nsc: LocalPatternScope => nsc.outer.resolveType(name)
           case _ => None
 
-      case Some(sym)  => Some(sym.dealias)
+      case Some(sym)  =>
+        this match
+          case ic: ImportedScope => if !sym.visibleIn(ic.owner) then return None
+          case _ =>
+
+        Some(sym.dealias)
 
   def resolveTerm(name: String)(using oob: OutOfBand, defn: Definitions): Option[Symbol] = Debug.trace(s"Resolving term $name in scope " + table.show, enable = false):
     table.resolveTerm(name) match
       case None =>
         this match
           case nsc: NestedScope => nsc.outer.resolveTerm(name)
+          case nsc: ImportedScope => nsc.outer.resolveTerm(name)
           case nsc: PrefixedScope => nsc.outer.resolveTerm(name)
           case nsc: LocalPatternScope => nsc.outer.resolveTerm(name)
           case _ => None
@@ -72,6 +85,7 @@ enum Scope:
       case Some(sym)  =>
         this match
           case sc: PrefixedScope => oob.addKey(Scope.PrefixKey, sc.prefix)
+          case ic: ImportedScope => if !sym.visibleIn(ic.owner) then return None
           case _ =>
 
         Some(sym.dealias)
@@ -82,6 +96,7 @@ enum Scope:
         this match
           case nsc: NestedScope => nsc.outer.resolvePattern(name)
           case nsc: PrefixedScope => nsc.outer.resolvePattern(name)
+          case nsc: ImportedScope => nsc.outer.resolvePattern(name)
           case nsc: LocalPatternScope =>
             // The condition should be refined to only allow pattern
             // predicates that do not capture pattern variables once we enable
@@ -97,30 +112,36 @@ enum Scope:
             nsc.outer.resolvePattern(name) match
               case res @ Some(sym) if sym.isFunction => res
               case _ => None
+
           case _ => None
 
-      case Some(sym)  => Some(sym.dealias)
+      case Some(sym)  =>
+        this match
+          case ic: ImportedScope => if !sym.visibleIn(ic.owner) then return None
+          case _ =>
+
+        Some(sym.dealias)
 
   def resolveTerm(name: String, pos: SourcePosition)(using Reporter, Definitions, OutOfBand): Symbol =
     resolveTerm(name) match
       case Some(sym) => sym
       case None =>
         Reporter.error(s"Undefined term name " + name, pos)
-        Symbol.createSymbol(name, ErrorType, Flags.Synthetic, owner, pos)
+        TermSymbol.create(name, ErrorType, Flags.Synthetic, Visibility.Default, owner, pos)
 
   def resolveType(name: String, pos: SourcePosition)(using Reporter, Definitions): Symbol =
     resolveType(name) match
       case Some(sym) => sym
       case None =>
         Reporter.error(s"Undefined type name " + name, pos)
-        Symbol.createSymbol(name, ErrorType, Flags.Synthetic, owner, pos)
+        TermSymbol.create(name, ErrorType, Flags.Synthetic, Visibility.Default, owner, pos)
 
   def resolvePattern(name: String, pos: SourcePosition)(using Reporter, Definitions): Symbol =
     resolvePattern(name) match
       case Some(sym) => sym
       case None =>
         Reporter.error(s"Undefined pattern name " + name, pos)
-        Symbol.createSymbol(name, ErrorType, Flags.Synthetic, owner, pos)
+        TermSymbol.create(name, ErrorType, Flags.Synthetic, Visibility.Default, owner, pos)
 
   def define(sym: Symbol)(using Reporter): Unit =
     table.define(sym)

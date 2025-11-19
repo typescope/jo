@@ -238,10 +238,13 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
 
       case Assign(Ident(sym), rhs) =>
         runLast(rhs): t =>
-          if sym.isMutable || sym.isPattern then
+          if sym.isMutable then
             sym ~ " = " ~ t ~ ";" ~ cont()
           else
-            "const " ~ sym ~ " = " ~ t ~ ";" ~ cont()
+            // Use `var` because pattern desugared variables are out of scope.
+            //
+            // Uniqueness of symbol names is guaranteed by the name generator.
+            "var " ~ sym ~ " = " ~ t ~ ";" ~ cont()
 
       case FieldAssign(Select(qual, name), rhs) =>
         run(qual): v1 =>
@@ -252,7 +255,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
         run(cond): v =>
           if word.tpe.isValueType then
             val resName = localScope.freshName("res")
-            "var " ~ resName ~ ";" ~ Text.BreakLine ~
+            "let " ~ resName ~ ";" ~ Text.BreakLine ~
             "if (" ~ v ~ ")" ~ " {" ~ indent:
                 run(thenp): v =>
                   resName ~ " = " ~ v ~ ";"
@@ -307,7 +310,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
 
     localScope = reservedNames.newScope
 
-    val locals = fdef.locals.filter(sym => sym.isMutable || sym.isPattern).map("var " ~ _ ~ ";" ~ Text.BreakLine)
+    val locals = fdef.locals.filter(_.isMutable).map(sym => "var " ~ jsName(sym) ~ ";" ~ Text.BreakLine)
     prefix ~ "(" ~ fdef.allParams.join(", ") ~ ")" ~ " {" ~ indent:
         if resCount == 0 then
           locals.join(Text.Empty) ~ fdef.body

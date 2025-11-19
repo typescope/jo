@@ -23,13 +23,12 @@ class PatternTyper(namer: Namer):
 
     given Definitions = lazyDefn.value
 
-    val flags = Checker.checkModifiers(patDef) | Flags.Pattern | Flags.Fun
+    val flags = Checker.checkModifiers(patDef) | Flags.Fun
 
-    val patSym = Symbol.createSymbol(patDef.name, flags, patDef.ident.pos)
+    val patSym = PatternSymbol.create(patDef.name, flags, Checker.visibility(patDef, sc.owner), sc.owner, patDef.ident.pos)
     given patScope: Scope = sc.fresh(patSym)
 
     lazy val tparamSyms = namer.transformTypeParams(patDef.tparams)
-
 
     for param <- patDef.params if param.adapters.nonEmpty do
       val span = param.adapters.head.span | param.adapters.last.span
@@ -39,7 +38,7 @@ class PatternTyper(namer: Namer):
       tparamSyms
       for param <- patDef.params yield
         val tpt = namer.transformType(param.tpt)
-        val paramSym = Symbol.createSymbol(param.name, tpt.tpe, Flags.Pattern | Flags.Param, patSym, param.pos)
+        val paramSym = PatternSymbol.create(param.name, tpt.tpe, Flags.Param, Visibility.Default, patSym, param.pos)
         patScope.define(paramSym)
         paramSym
 
@@ -89,7 +88,7 @@ class PatternTyper(namer: Namer):
       ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), paramSyms.map(_ => Nil), autoTypes, Nil, resultType, () => Nil, patDef.preParamCount)
 
     val ip = lazyDefn.infoProvider
-    ip.addLazy(patSym, sc.owner,  () => computeInfo(resultTypeTree.tpe), () => computeInfo(ErrorType))
+    ip.addLazy(patSym, () => computeInfo(resultTypeTree.tpe), () => computeInfo(ErrorType))
 
     val typer = () =>
       PatDef(patSym, tparamSyms, paramSyms, resultTypeTree, typedBody)(patDef.span)
@@ -426,7 +425,7 @@ class PatternTyper(namer: Namer):
               WildcardPattern()(ErrorType, patSpan)
 
           case None =>
-            val sym = Symbol.createSymbol(name, tpe, Flags.Pattern, sc.owner, id.pos)
+            val sym = PatternSymbol.create(name, tpe, Flags.empty, Visibility.Default, sc.owner, id.pos)
             sc.definePatternAsTerm(sym)
 
             val patVal = Ident(sym)(id.span)
@@ -468,7 +467,7 @@ class PatternTyper(namer: Namer):
             WildcardPattern()(ErrorType, id.span)
 
         case None =>
-          val sym = Symbol.createSymbol(name, scrutType, Flags.Pattern, sc.owner, id.pos)
+          val sym = PatternSymbol.create(name, scrutType, Flags.empty, Visibility.Default, sc.owner, id.pos)
           sc.definePatternAsTerm(sym)
           sc.define(sym)
 
@@ -506,7 +505,7 @@ class PatternTyper(namer: Namer):
 
         case None =>
           val nestedPattern = transformPattern(nested, scrutType)
-          val sym = Symbol.createSymbol(name, nestedPattern.valueType, Flags.Pattern, sc.owner, id.pos)
+          val sym = PatternSymbol.create(name, nestedPattern.valueType, Flags.empty, Visibility.Default, sc.owner, id.pos)
           sc.definePatternAsTerm(sym)
           sc.define(sym)
 
@@ -716,7 +715,7 @@ class PatternTyper(namer: Namer):
 
         case None =>
           // It is OK to not set Flags.Mutable because after initialization it cannot be changed.
-          val outerSym = Symbol.createSymbol(innerSym.name, expectedType, Flags.Pattern, sc.owner, pos)
+          val outerSym = PatternSymbol.create(innerSym.name, expectedType, Flags.empty, Visibility.Default, sc.owner, pos)
           sc.definePatternAsTerm(outerSym)
           sc.define(outerSym)
           oc.occur(outerSym, pos)
@@ -737,7 +736,7 @@ class PatternTyper(namer: Namer):
           case _ =>
             // error already reported
 
-        Symbol.createSymbol(id.name, ErrorType, Flags.Synthetic, sc.owner, id.pos)
+        PatternSymbol.create(id.name, ErrorType, Flags.Synthetic, Visibility.Default, sc.owner, id.pos)
 
   private def transformPatternRef(qualid: Ast.RefTree)
     (using sc: Scope, defn: Definitions, so: Source, rp: Reporter): Option[Symbol] =
@@ -759,8 +758,10 @@ class PatternTyper(namer: Namer):
             Reporter.error("A selection must be a pattern predicate", qualid.pos)
             None
 
-          case res => res
+          case res @ Some(target) =>
+            Checker.checkAccess(target, sc.owner, qualid.span)
 
+            res
 
   private def transformPattern(
       pat: Ast.Word, scrutType: Type)
@@ -797,8 +798,11 @@ class PatternTyper(namer: Namer):
       case Ast.TypeAscribe(id: Ast.Ident, tpt) =>
         transformTypePattern(id, tpt, scrutType, pat.span)
 
-      case Ast.Apply(id: Ast.RefTree, args, _) =>
-        transformApplyPattern(id, args, scrutType, pat.span)
+      case Ast.Apply(ref: Ast.RefTree, args, _) =>
+        transformApplyPattern(ref, args, scrutType, pat.span)
+
+      case ref: Ast.Select =>
+        transformApplyPattern(ref, args = Nil, scrutType, pat.span)
 
       case Ast.InfixCall(preArgs, id: Ast.RefTree, postArgs) =>
         transformInfixCallPattern(preArgs, id, postArgs, scrutType, pat.span)

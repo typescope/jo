@@ -17,19 +17,12 @@ section TestDefer
   defer class C
 
   defer param x: Int
+end
 
-  def local(): Unit =
-    defer def test(x: Int): Int
+class List
+  defer val x: Int
 
-    defer def check(x: Int): Int = 3
+  defer def List(a: Int) = { x: a }
 
-  // class List
-    // defer val x: Int
-
-    // defer def List(a: Int) = { x = a }
-
-    // defer def foo(x: Int): Int
-
-    // defer def bar(x: Int): Int = x * 5
-  // end
+  defer def bar(x: Int): Int = x * 5
 end

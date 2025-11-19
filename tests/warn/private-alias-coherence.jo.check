@@ -1,0 +1,16 @@
+---------- Error at ./tests/warn/private-alias-coherence.jo:15:13 ---------------
+|   alias def processAlias = testns.Helpers.processSecret
+|             ^^^^^^^^^^^^
+|             The private symbol Secret is leaked by the type of processAlias
+
+---------- Error at ./tests/warn/private-alias-coherence.jo:19:13 ---------------
+|   alias def configAlias = testns.Helpers.useConfig
+|             ^^^^^^^^^^^
+|             The private symbol Config is leaked by the type of configAlias
+
+---------- Error at ./tests/warn/private-alias-coherence.jo:23:13 ---------------
+|   alias def makeAlias = testns.Helpers.makeSecret
+|             ^^^^^^^^^
+|             The private symbol Secret is leaked by the type of makeAlias
+
+3 error(s), 0 warning(s)

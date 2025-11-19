@@ -4,7 +4,7 @@ type A = {
 
 type B = {
   def foo(n: Int): Int = n * n // error
-} // error
+}
 
 def test = {
   def (x: Int) foo(y: Int): Int = x + y  // error

@@ -413,10 +413,21 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         val item = next()
         Modifier.Defer()(item.span) :: modifiers()
 
+      case Token.PRIVATE =>
+        val item = next()
+        if peek() == Token.LBRACKET then
+          next()
+          val id = ident()
+          val endItem = eat(Token.RBRACKET)
+          Modifier.Private(Some(id))(item.span | endItem.span) :: modifiers()
+
+        else
+          Modifier.Private(None)(item.span) :: modifiers()
+
       case _ =>
         Nil
 
-  def valDef(modifier: Token, mods: List[Modifier]): ValDef =
+  def valDef(modifier: Token): ValDef =
     val mutable = modifier == Token.VAR
     val mod = eat(modifier)
     val id = ident()
@@ -430,7 +441,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     eat(Token.EQL)
     val rhs = block(mod.indent)
-    ValDef(id, tpt, rhs, mutable)(mod.span | rhs.span).withMods(mods)
+    ValDef(id, tpt, rhs, mutable)(mod.span | rhs.span)
 
   def funDef(mods: List[Modifier]): FunDef =
     val fun = eat(Token.DEF)
@@ -478,11 +489,21 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val receiveParams = optReceiveParams()
 
     val body =
+      val token = peek()
       if needBody then
-        eat(Token.EQL)
-        block(defToken.indent)
+        if token == Token.EQL then
+          next()
+          block(defToken.indent)
+        else
+          error("Expect EQL, found = " + token, peekItem().span.toPos)
+          Block(Nil)(resType.span)
       else
-        Block(Nil)(resType.span)
+        if token == Token.EQL then
+          error("No body expected for declaration", peekItem().span.toPos)
+          next()
+          block(defToken.indent)
+        else
+          Block(Nil)(resType.span)
 
     eatEndOpt(defToken.indent)
 
@@ -500,6 +521,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         Some(block(token.indent))
       else
         None
+
     ParamDef(id, tpt, default)(token.span | tpt.span).withMods(mods)
 
   def patDef(mods: List[Modifier]): PatDef =
@@ -592,19 +614,23 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       if klass.indent.isUnindent(item.indent) then
         None
 
-      else if item.token == Token.DEF then
-        Some(defDef(needBody = true))
+      else
+        val mods = modifiers()
+        val item = peekItem()
 
-      else if peek() == Token.VAL || peek() == Token.VAR then
-        val mod = next()
-        val mutable = mod.token == Token.VAR
-        val id = ident()
-        eat(Token.COLON)
-        val tpt = typ()
-        val body = Block(phrases = Nil)(id.span)
-        Some(ValDef(id, tpt, body, mutable)(mod.span | tpt.span))
+        if item.token == Token.DEF then
+          Some(defDef(needBody = true).withMods(mods))
 
-      else None
+        else if peek() == Token.VAL || peek() == Token.VAR then
+          val mod = next()
+          val mutable = mod.token == Token.VAR
+          val id = ident()
+          eat(Token.COLON)
+          val tpt = typ()
+          val body = Block(phrases = Nil)(id.span)
+          Some(ValDef(id, tpt, body, mutable)(mod.span | tpt.span).withMods(mods))
+
+        else None
 
     eatEndOpt(klass.indent)
 
@@ -1008,13 +1034,14 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   def phrase(): Option[Word] =
     val item = peekItem()
-    item.token match
+    val token = item.token
+    token match
       case Token.IF        => Some(ifElse())
       case Token.MATCH     => Some(patmat())
       case Token.WHILE     => Some(whileDo())
 
       case Token.VAL | Token.VAR  =>
-        Some(valDef(item.token, mods = Nil))
+        Some(valDef(item.token))
 
       case Token.DEF =>
         Some(funDef(mods = Nil))
@@ -1025,18 +1052,10 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case Token.TYPE =>
         Some(typeDef(mods = Nil))
 
-      case Token.DEFER =>
-        val mods = modifiers()
-        peek() match
-          case Token.VAL | Token.VAR =>
-            Some(valDef(item.token, mods))
-
-          case Token.DEF =>
-            Some(funDef(mods))
-
-          case token =>
-            error("Expect start of value or function definitions, found = " + token, peekItem().span.toPos)
-            throw new SyntaxError
+      case Token.DEFER | Token.PRIVATE =>
+        error("Cannot use " + token + " for local definitions", item.span.toPos)
+        next()
+        phrase()
 
       case token =>
         word().map: w =>
@@ -1446,10 +1465,10 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           Some(defDef(needBody = true))
 
         else if peek() == Token.VAL then
-          Some(valDef(Token.VAL, mods = Nil))
+          Some(valDef(Token.VAL))
 
         else if peek() == Token.VAR then
-          Some(valDef(Token.VAR, mods = Nil))
+          Some(valDef(Token.VAR))
 
         else None
 

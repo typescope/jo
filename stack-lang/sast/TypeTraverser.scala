@@ -3,11 +3,9 @@ package sast
 import Types.*
 
 abstract class TypeTraverser:
-  type Context = Definitions
+  def apply(tp: Type): Unit
 
-  def apply(tp: Type)(using Context): Unit
-
-  def recur(tp: Type)(using Context): Unit =
+  def recur(tp: Type): Unit =
     tp match
       case VoidType | ErrorType | AnyType | BottomType =>
 

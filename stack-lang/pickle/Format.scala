@@ -237,3 +237,6 @@ object Format:
 
   final val SimpleKind: Byte = 0
   final val ArrowKind: Byte = 1
+
+  final val VisibilityDefault: Byte = 0
+  final val VisibilityPrivate: Byte = 1

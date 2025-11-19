@@ -6,6 +6,8 @@ import sast.Trees.*
 import sast.Symbols.*
 import sast.Types.*
 
+import phases.Phase
+
 import scala.collection.mutable
 
 /** The compiler phase encode class methods and fields
@@ -28,23 +30,15 @@ import scala.collection.mutable
   * Class methods are lifted to top-level and augmented with the `this`
   * parameter.
   */
-class EncodeClass(using defn: Definitions) extends phases.Phase[Symbol]:
-  val contextObject = phases.Phase.OwnerContext
+class EncodeClass(using defn: Definitions) extends phases.Phase[EncodeClass.Context]:
+  val contextObject = EncodeClass.CacheContext
 
   override def transform(nss: List[Namespace]): List[Namespace] =
-    defn.installTransform { symInfo =>
-      val SymInfo(sym, owner, info) = symInfo
-      if sym.isMethod && owner.isClass then
-        val oldProcType = info.as[ProcType]
-        val thisInfo = owner.classInfo.self.info
+    val methodToLiftedMap = mutable.Map.empty[Symbol, Symbol]
 
-        val paramInfos = NamedInfo("this", thisInfo)
-        val funType = oldProcType.prepend(paramInfos :: Nil)
-        SymInfo(sym, owner.enclosingContainer, funType)
-      else
-        symInfo
-    }
-    super.transform(nss)
+    for ns <- nss yield
+      given Context = EncodeClass.Context(methodToLiftedMap, ns.symbol)
+      super.transformNamespace(ns)
 
   override def transformDefs(defs: List[Def])(using Context): List[Def] =
     defs.flatMap:
@@ -52,13 +46,48 @@ class EncodeClass(using defn: Definitions) extends phases.Phase[Symbol]:
 
       case defn => super.transformDef(defn) :: Nil
 
-  private def flatten(cdef: ClassDef)(using Context): List[Def] =
+  private def createLiftedFunSymbol(methodSym: Symbol): Symbol =
+    val classSym = methodSym.owner
+    val oldProcType = methodSym.info.asProcType
+    val thisInfo = classSym.classInfo.self.info
+    val paramInfos = NamedInfo("this", thisInfo)
+    val funType = oldProcType.prepend(paramInfos :: Nil)
+
+    TermSymbol.create(
+      classSym.name + "$" + methodSym.name,
+      funType,
+      Flags.Fun | Flags.Synthetic,
+      Visibility.Default,
+      classSym.owner,
+      methodSym.sourcePos
+    )
+
+  private def getLiftedFunSymbol(methodSym: Symbol)(using ctx: Context): Symbol =
+    ctx.methodToLiftedMap.get(methodSym) match
+      case Some(liftedSym) =>
+        liftedSym
+
+      case None =>
+        val liftedSym = createLiftedFunSymbol(methodSym)
+        ctx.methodToLiftedMap(methodSym) = liftedSym
+        liftedSym
+
+  private def flatten(cdef: ClassDef)(using ctx: Context): List[Def] =
     val self = cdef.self
     for fdef <- cdef.funs yield
+      val liftedSym = getLiftedFunSymbol(fdef.symbol)
       // TODO: type erasure to properly handle type parameters
-      given Context = fdef.symbol
-      val body2 = this.transform(fdef.body)
-      FunDef(fdef.symbol, fdef.tparams, self :: fdef.params, Nil :: fdef.adapters, fdef.autos, fdef.candidates, fdef.resultType, fdef.effectPolicy, body2)(fdef.span)
+      val body2 =
+        given Context = EncodeClass.CacheContext.newContext(liftedSym, ctx)
+        this.transform(fdef.body)
+      FunDef(
+        liftedSym, fdef.tparams,
+        self :: fdef.params, Nil :: fdef.adapters,
+        fdef.autos, fdef.candidates,
+        fdef.resultType,
+        fdef.effectPolicy,
+        body2
+      )(fdef.span)
 
   override def transformNew(newExpr: New)(using ctx: Context): Word =
     val classInfo = newExpr.tpe.asClassInfo
@@ -68,7 +97,7 @@ class EncodeClass(using defn: Definitions) extends phases.Phase[Symbol]:
       members += field.name -> Encoded(IntLit(0)(newExpr.span))(field.info)
 
     for fun <- classInfo.allMethods do
-      members += fun.name -> Ident(fun)(newExpr.span)
+      members += fun.name -> Ident(getLiftedFunSymbol(fun))(newExpr.span)
 
     Encoded(RecordLit(members.toList)(newExpr.span))(newExpr.tpe)
 
@@ -78,51 +107,63 @@ class EncodeClass(using defn: Definitions) extends phases.Phase[Symbol]:
     val args2 = args.map(this.transform)
     val autos2 = autos.map(this.transform)
 
-    // TODO: We can optimize by resolve the calls statically.
     fun match
       case Select(qual, name) if qual.tpe.isClassType =>
         val qual2 = this(qual)
-        val procType = qual2.tpe.termMember(name).asProcType
+        val memberRef = qual2.tpe.termMember(name).as[RefType]
+        val procType = memberRef.asProcType
+
+        val liftedFun = Ident(getLiftedFunSymbol(memberRef.symbol))(fun.span)
+        val liftedProcType = procType.prepend(NamedInfo("this", qual2.tpe.widen) :: Nil)
+        val liftedFunEncoded = Encoded(liftedFun)(liftedProcType)
 
         if qual2.isIdempotent then
-          val proc = Select(qual2, name)(procType, fun.span)
-          Apply(proc, qual2 :: args2, autos2)(apply.span)
+          Apply(liftedFunEncoded, qual2 :: args2, autos2)(apply.span)
 
         else
           val receiverSym =
-            val owner = ctx
+            val owner = ctx.owner
             given Source = owner.sourcePos.source
-            Symbol.createSymbol("o", qual2.tpe, Flags.Synthetic, owner, qual2.pos)
+            TermSymbol.create("o", qual2.tpe, Flags.Synthetic, Visibility.Default, owner, qual2.pos)
 
           val receiver = Ident(receiverSym)(qual2.span)
           val assign = Assign(Ident(receiverSym)(qual2.span), qual2)
-          val proc = Select(receiver, name)(procType, fun.span)
-          val apply2 = Apply(proc, receiver :: args2, autos2)(apply.span)
+          val apply2 = Apply(liftedFunEncoded, receiver :: args2, autos2)(apply.span)
           Block(assign :: apply2 :: Nil)(apply.span)
 
       case TypeApply(sel @ Select(qual, name), targs) if qual.tpe.isClassType =>
         // TODO: after type erasure, the special handling here can be removed
         val qual2 = this(qual)
-        val procType = qual2.tpe.termMember(name).asProcType
+
+        val memberRef = qual2.tpe.termMember(name).as[RefType]
+        val procType = memberRef.asProcType
         val funType = procType.instantiate(targs.map(_.tpe))
+
+        val liftedFun = Ident(getLiftedFunSymbol(memberRef.symbol))(sel.span)
+        val liftedProcType = funType.prepend(NamedInfo("this", qual2.tpe.widen) :: Nil)
+        val liftedFunEncoded = Encoded(liftedFun)(liftedProcType)
+
         if qual2.isIdempotent then
-          val meth = Select(qual2, name)(procType, sel.span)
-          val fun2 = TypeApply(meth, targs)(funType, fun.span)
-          Apply(fun2, qual2 :: args2, autos2)(apply.span)
+          Apply(liftedFunEncoded, qual2 :: args2, autos2)(apply.span)
 
         else
           val receiverSym =
-            val owner = ctx
+            val owner = ctx.owner
             given Source = owner.sourcePos.source
-            Symbol.createSymbol("o", qual2.tpe, Flags.Synthetic, owner, qual2.pos)
+            TermSymbol.create("o", qual2.tpe, Flags.Synthetic, Visibility.Default, owner, qual2.pos)
 
           val receiver = Ident(receiverSym)(qual2.span)
           val assign = Assign(Ident(receiverSym)(qual2.span), qual2)
-          val meth = Select(receiver, name)(procType, sel.span)
-          val fun2 = TypeApply(meth, targs)(funType, fun.span)
-          val apply2 = Apply(fun2, receiver :: args2, autos2)(apply.span)
+
+          val apply2 = Apply(liftedFunEncoded, receiver :: args2, autos2)(apply.span)
           Block(assign :: apply2 :: Nil)(apply.span)
 
       case _ =>
         // global function call
         Apply(fun, args2, autos2)(apply.span)
+
+object EncodeClass:
+  class Context(val methodToLiftedMap: mutable.Map[Symbol, Symbol], val owner: Symbol)
+  object CacheContext extends Phase.ContextObject[Context]:
+    def newContext(owner: Symbol, old: Context) = Context(old.methodToLiftedMap, owner)
+    def newContext(namespace: Symbol) = throw new Exception("Namespace context should use global symbol map")

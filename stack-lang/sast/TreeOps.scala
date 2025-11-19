@@ -1,7 +1,7 @@
 package sast
 
 import Trees.*
-import Symbols.Symbol
+import Symbols.*
 import Flags.*
 import Types.*
 
@@ -38,23 +38,23 @@ object TreeOps:
     val pos = span.toPos
 
     // Create a "this" symbol for the object
-    val thisSym = Symbol.createSymbol("this", Synthetic, pos)
+    val thisSym = TermSymbol.create("this", Synthetic, Visibility.Default, owner, pos)
 
     // Create an "apply" method symbol
-    val applySym = Symbol.createSymbol("apply", Fun | Method | Synthetic, pos)
+    val applySym = TermSymbol.create("apply", Fun | Method | Synthetic, Visibility.Default, thisSym, pos)
 
     // Create parameter symbols for the apply method
     val paramSyms =
       for param <- procType.params yield
-        Symbol.createSymbol(param.name, param.info, Param, applySym, pos)
+        TermSymbol.create(param.name, param.info, Param, Visibility.Default, applySym, pos)
 
     // Create auto parameter symbols for the apply method
     val autoSyms =
       for auto <- procType.autos yield
-        Symbol.createSymbol(auto.name, auto.info, Context, applySym, pos)
+        TermSymbol.create(auto.name, auto.info, Context, Visibility.Default, applySym, pos)
 
     val thisType = ObjectType(NamedInfo("apply", MemberRef(StaticRef(thisSym), applySym)) :: Nil, mutableFields = Nil)
-    defn.add(thisSym, owner, thisType)
+    defn.add(thisSym, thisType)
 
     // No preParam for methods
     val applyProcType = procType.copy(preParamCount = 0)
@@ -62,7 +62,7 @@ object TreeOps:
     // Build the object type
     val objType = ObjectType(NamedInfo("apply", applyProcType) :: Nil, mutableFields = Nil)
 
-    defn.add(applySym, thisSym, applyProcType)
+    defn.add(applySym, applyProcType)
 
     // Generate parameter idents and call the body function
     val paramIdents = paramSyms.map(sym => Ident(sym)(span))
@@ -126,6 +126,9 @@ object TreeOps:
     val free = census.free.filter(sym => !masked.contains(sym)).distinct.toList
     (locals.filter(_.info.isValueType), free)
 
+  /** The census should not depend on Symbol.owner as they are inaccurate after
+    * closure conversion and class encoding.
+    */
   class VariableCensus(using Definitions) extends TreeTraverser:
     val locals = new mutable.ArrayBuffer[Symbol]
     val free = new mutable.ArrayBuffer[Symbol]

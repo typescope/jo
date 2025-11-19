@@ -1,7 +1,7 @@
 package sast
 
 import Types.Type
-import Symbols.{ Symbol, SymInfo }
+import Symbols.Symbol
 
 import common.Debug
 import reporting.Reporter
@@ -13,10 +13,10 @@ import scala.collection.mutable
   * Cycles are forbidden and no fixed-point computation is performed.
   */
 final class SymInfoProvider(using rp: Reporter) extends InfoProvider:
-  private val infos = mutable.Map.empty[Symbol, SymInfo]
+  private val infos = mutable.Map.empty[Symbol, Type]
 
   private class InfoCompleter(
-    val owner: Symbol, val compute: () => Type, val errorType: () => Type)
+    val sym: Symbol, val compute: () => Type, val errorType: () => Type)
 
   /** Pending completers --- removed once completed  */
   private val completers = mutable.Map.empty[Symbol, InfoCompleter]
@@ -24,7 +24,7 @@ final class SymInfoProvider(using rp: Reporter) extends InfoProvider:
   /** The symbols currently in progress of being completed */
   private val completing = new mutable.ArrayBuffer[Symbol]
 
-  def get(sym: Symbol): Option[SymInfo] =
+  def get(sym: Symbol): Option[Type] =
     infos.get(sym) match
       case res @ Some(_) => res
 
@@ -36,15 +36,15 @@ final class SymInfoProvider(using rp: Reporter) extends InfoProvider:
         else
           None
 
-  def add(sym: Symbol, owner: Symbol, tp: Type): Unit =
+  def add(sym: Symbol, tp: Type): Unit =
     assert(!infos.contains(sym), "Duplicate symbol " + sym)
-    infos(sym) = SymInfo(sym, owner, tp)
+    infos(sym) = tp
 
-  def addLazy(sym: Symbol, owner: Symbol, infoLazy: () => Type, errorType: () => Type): Unit =
+  def addLazy(sym: Symbol, infoLazy: () => Type, errorType: () => Type): Unit =
     assert(!completers.contains(sym), "Duplicate provider " + sym)
-    completers(sym) = new InfoCompleter(owner, infoLazy, errorType)
+    completers(sym) = new InfoCompleter(sym, infoLazy, errorType)
 
-  def forceInfo(sym: Symbol): SymInfo = Debug.trace(s"Forcing $sym", enable = false):
+  def forceInfo(sym: Symbol): Type = Debug.trace(s"Forcing $sym", enable = false):
     assert(completers.contains(sym), "No completer for " + sym)
 
     val completer = completers(sym)
@@ -61,7 +61,7 @@ final class SymInfoProvider(using rp: Reporter) extends InfoProvider:
 
       val tp = completer.errorType()
       completers -= sym
-      SymInfo(sym, completer.owner, tp)
+      tp
 
     else
       completing += sym
@@ -70,4 +70,4 @@ final class SymInfoProvider(using rp: Reporter) extends InfoProvider:
       completers -= sym
 
       completing -= sym
-      SymInfo(sym, completer.owner, tp)
+      tp
