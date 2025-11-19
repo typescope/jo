@@ -36,7 +36,6 @@ alias def process = testns.TypeOps.processSecret
 alias def useSecretAlias = testns.useSecret
 
 // Error: public alias to public function with private type in return type
-// The private symbol Secret is leaked by the type of makeSecretAlias
 alias def makeSecretAlias = testns.makeSecret
 
 section Outer
@@ -46,7 +45,6 @@ section Outer
 end
 
 // Error: public alias pointing to member of private section
-// The private symbol Inner is leaked by the type of double
 alias def double = testns.Outer.Inner.helper
 
 section Ops

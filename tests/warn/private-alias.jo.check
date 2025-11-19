@@ -18,24 +18,29 @@
 |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 |                     Cannot access the private member processSecret
 
----------- Error at ./tests/warn/private-alias.jo:50:20 ---------------
+---------- Error at ./tests/warn/private-alias.jo:48:20 ---------------
+| alias def double = testns.Outer.Inner.helper
+|                    ^^^^^^^^^^^^^^^^^^
+|                    Cannot access the private member Inner
+
+---------- Error at ./tests/warn/private-alias.jo:48:20 ---------------
 | alias def double = testns.Outer.Inner.helper
 |                    ^^^^^^^^^^^^^^^^^^^^^^^^^
 |                    Cannot access the private member helper
 
----------- Error at ./tests/warn/private-alias.jo:57:18 ---------------
+---------- Error at ./tests/warn/private-alias.jo:55:18 ---------------
 | alias def myEq = testns.Ops.secretEq
 |                  ^^^^^^^^^^^^^^^^^^^
 |                  Cannot access the private member secretEq
 
----------- Error at ./tests/warn/private-alias.jo:65:20 ---------------
+---------- Error at ./tests/warn/private-alias.jo:63:20 ---------------
 | def configure(cfg: WithPrivateTypeAlias.Config): String = cfg.host
 |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 |                    Cannot access the private member Config
 
----------- Error at ./tests/warn/private-alias.jo:68:22 ---------------
+---------- Error at ./tests/warn/private-alias.jo:66:22 ---------------
 | def getPort(x: Int): WithPrivateTypeAlias.Internal = x
 |                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 |                      Cannot access the private member Internal
 
-8 error(s), 0 warning(s)
+9 error(s), 0 warning(s)

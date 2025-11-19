@@ -1,31 +1,36 @@
 ---------- Error at ./tests/warn/private.jo:9:42 ---------------
 | def testPrivateField(x: Box[Int]): Int = x.value
 |                                          ^^^^^^^
-|                                          Cannot access private member value
+|                                          Cannot access the private member value
 
 ---------- Error at ./tests/warn/private.jo:11:38 ---------------
 | def testPrivateMethod(x: Box[Int]) = x.debug()
 |                                      ^^^^^^^
-|                                      Cannot access private member debug
+|                                      Cannot access the private member debug
 
 ---------- Error at ./tests/warn/private.jo:13:30 ---------------
 | def testPrivateSection(show: A.B.Show[Int]): Unit = show(19)
 |                              ^^^
-|                              Cannot access private member B
+|                              Cannot access the private member B
+
+---------- Error at ./tests/warn/private.jo:13:30 ---------------
+| def testPrivateSection(show: A.B.Show[Int]): Unit = show(19)
+|                              ^^^^^^^^
+|                              Cannot access the private member Show
 
 ---------- Error at ./tests/warn/private.jo:15:24 ---------------
 | def testPrivateFun() = A.qux()
 |                        ^^^^^
-|                        Cannot access private member qux
+|                        Cannot access the private member qux
 
 ---------- Error at ./tests/warn/private.jo:19:10 ---------------
 |     case A.Pos => println "positive"
 |          ^^^^^
-|          Cannot access private member Pos
+|          Cannot access the private member Pos
 
 ---------- Error at ./tests/warn/private.jo:22:9 ---------------
 | def eq: A.Eq[Int] = (x, y) => x == y
 |         ^^^^
-|         Cannot access private member Eq
+|         Cannot access the private member Eq
 
-6 error(s), 0 warning(s)
+7 error(s), 0 warning(s)
