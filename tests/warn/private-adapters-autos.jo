@@ -1,0 +1,125 @@
+// Test visibility coherence for adapters, auto parameters, and context parameters
+
+type Eq[T] = (T, T) => Bool
+
+// ========== Private Context Parameter Tests ==========
+
+section ContextTests
+  private param secret: String
+
+  param publicParam: Int
+
+  // Error: private context parameter leaked in public function signature
+  def process1(): String receives secret = secret
+
+  // OK: private context parameter used in private function
+  private def process2(): String receives secret = secret
+end
+
+// ========== Private Type in Adapter Tests ==========
+
+section TypeAdapterTests
+  private type Internal = Int
+
+  private def internalToStr(x: Internal): String = intToStr(x)
+
+  // Error: private type Internal leaked via adapter in public function
+  def show1(s: String with [internalToStr]): Unit = println s
+
+  // Error: private type in adapter parameter type (coherence violation)
+  def publicAdapter(x: Internal): String = intToStr(x)
+  def show2(s: String with [publicAdapter]): Unit = println s
+end
+
+// ========== Private Type in Auto Candidate Tests ==========
+
+section TypeAutoTests
+  private type Secret = Int
+
+  private def eqInternal: Eq[Secret] = (a, b) => a == b
+
+  // Error: private type Secret leaked via auto candidate in public function
+  def compare1(x: Secret, y: Secret)(auto eq: Eq[Secret] with [eqInternal]): Bool = eq(x, y)
+
+  // Even if candidate is public, private type leaked
+  def eqSecret: Eq[Secret] = (a, b) => a == b
+  def compare2(x: Secret, y: Secret)(auto eq: Eq[Secret] with [eqSecret]): Bool = eq(x, y)
+end
+
+// ========== Member Adapter with Private Type Tests ==========
+
+section MemberAdapterTests
+  private class Hidden
+    val value: Int
+    def toString: String = intToStr(value)
+  end
+
+  // Error: private type Hidden leaked via member adapter in public function
+  def display(s: String with [.toString]): Hidden = ...
+end
+
+// ========== Member Auto Candidate with Private Type Tests ==========
+
+section MemberAutoTests
+  private class Secret
+    val id: Int
+    def ==(that: Secret): Bool = this.id == that.id
+  end
+
+  // Error: private type Secret leaked via member auto candidate in public function
+  def areEqual(x: Secret, y: Secret)(auto eq: Eq[Secret] with [[Secret].==]): Bool = eq(x, y)
+end
+
+// ========== Context Parameter with Private Type Tests ==========
+
+section ContextParamTypeTests
+  private type Config = { url: String, port: Int }
+
+  private param config: Config
+
+  // Error: private context parameter with private type leaked in public function
+  def getUrl(): String receives config = config.url
+end
+
+// ========== Adapter with Context Parameter Tests ==========
+
+section AdapterContextTests
+  param indent: Int
+
+  private param secretIndent: Int
+
+  type Document = { content: String }
+
+  // Public adapter using public context parameter - OK
+  def formatDoc1(doc: Document): String receives indent =
+    intToStr(indent) + ": " + doc.content
+
+  // Private adapter using private context parameter - OK when used privately
+  private def formatDoc2(doc: Document): String receives secretIndent =
+    intToStr(secretIndent) + ": " + doc.content
+
+  // Error: private adapter (with private context param) leaked in public function
+  def show1(s: String with [formatDoc2]): Unit = println s
+
+  // Public adapter using private context parameter - Error: coherence violation
+  def formatDoc3(doc: Document): String receives secretIndent =
+    intToStr(secretIndent) + ": " + doc.content
+end
+
+// ========== Auto Candidate with Auto Parameter Tests ==========
+
+section NestedAutoTests
+  private type Item = Int
+
+  private def eqItem: Eq[Item] = (a, b) => a == b
+
+  // Auto candidate with nested auto parameter
+  def eqList(auto eqElem: Eq[Item] with [eqItem]): Eq[List[Item]] =
+    (xs, ys) => xs.size == ys.size
+
+  // Error: private type Item leaked via nested auto candidate in public function
+  def compareLists(xs: List[Item], ys: List[Item])(auto eq: Eq[List[Item]] with [eqList]): Bool =
+    eq(xs, ys)
+end
+
+def main: Unit = {}
