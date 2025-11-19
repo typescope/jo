@@ -59,3 +59,11 @@ section VisibilityLevels
     end
   end
 end
+
+section A
+  section B
+    private[B] section C
+      private[A] def foo(x: Int) = x
+    end
+  end
+end

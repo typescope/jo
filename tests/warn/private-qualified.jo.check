@@ -3,6 +3,11 @@
 |           ^^^^^^^^^^^
 |           Cannot find an enclosing container named NonExistent
 
+---------- Error at ./tests/warn/private-qualified.jo:66:15 ---------------
+|       private[A] def foo(x: Int) = x
+|               ^
+|               Visibility cannot be greater than parent
+
 ---------- Error at ./tests/warn/private-qualified.jo:28:28 ---------------
 |   def testAccess3(): Int = Inner.qualifiedToInner()
 |                            ^^^^^^^^^^^^^^^^^^^^^^
@@ -23,4 +28,4 @@
 |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 |                          Cannot access the private member qualifiedToOuter
 
-5 error(s), 0 warning(s)
+6 error(s), 0 warning(s)
