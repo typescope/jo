@@ -45,6 +45,12 @@ object Typer:
 
       // Don't check effect errors if there are type errors
       if !rp.hasErrors then checkEffects(nss)
+
+      // Don't check visibility if there are type errors
+      if !rp.hasErrors then
+        given Definitions = defnLazy.value
+        VisibilityChecker.check(nss)
+
       (nss, Nil)
 
     else
