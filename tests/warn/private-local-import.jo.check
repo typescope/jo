@@ -1,0 +1,16 @@
+---------- Error at ./tests/warn/private-local-import.jo:40:12 ---------------
+|   Library> secretFunc(10)
+|            ^^^^^^^^^^
+|            Undefined term name secretFunc
+
+---------- Error at ./tests/warn/private-local-import.jo:44:12 ---------------
+|   Library> Helpers.internalFunc(5)
+|            ^^^^^^^^^^^^^^^^^^^^
+|            Cannot access the private member internalFunc
+
+---------- Error at ./tests/warn/private-local-import.jo:48:12 ---------------
+|   Library> SecretSection.process(10)
+|            ^^^^^^^^^^^^^
+|            Undefined term name SecretSection
+
+3 error(s), 0 warning(s)
