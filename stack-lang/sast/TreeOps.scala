@@ -126,6 +126,9 @@ object TreeOps:
     val free = census.free.filter(sym => !masked.contains(sym)).distinct.toList
     (locals.filter(_.info.isValueType), free)
 
+  /** The census should not depend on Symbol.owner as they are inaccurate after
+    * closure conversion and class encoding.
+    */
   class VariableCensus(using Definitions) extends TreeTraverser:
     val locals = new mutable.ArrayBuffer[Symbol]
     val free = new mutable.ArrayBuffer[Symbol]

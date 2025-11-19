@@ -256,6 +256,8 @@ object ElimCapture:
       val args2 = args.map(this.apply)
       val autos2 = autos.map(this.apply)
 
+      // TODO: do we really need to translate object method apply?
+      // It seems simpler and more flexible to leave it to backend.
       fun match
         case Ident(sym) if sym.is(Flags.Fun) && sym.isLocal =>
           // local function call
