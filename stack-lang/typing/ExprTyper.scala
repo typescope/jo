@@ -122,7 +122,7 @@ class ExprTyper(namer: Namer):
       // If the first word is a section or namespace reference followed by >, inject the
       // names of the container in typing the expression
       val sym = containerSymbolOpt.get
-      val injected = sc.fresh(sc.owner, sym.info.as[ContainerInfo].nameTable)
+      val injected = sc.freshImportedScope(sc.owner, sym.info.as[ContainerInfo].nameTable)
       given Scope = injected.fresh()
       transform(Ast.Expr(rest.tail)(expr.span))
 
