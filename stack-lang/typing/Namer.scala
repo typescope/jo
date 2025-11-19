@@ -1256,7 +1256,7 @@ class Namer(using Config):
     if pdef.hasKey(Desugaring.DefaultContextParam) then
       flags |= Flags.Default
 
-    val paramSym = TermSymbol.create(pdef.name, flags, Visibility.Default, sc.owner, pdef.pos)
+    val paramSym = TermSymbol.create(pdef.name, flags, Checker.visibility(pdef), sc.owner, pdef.pos)
     ip.addLazy(paramSym, () => transformType(pdef.tpt).tpe)
 
     val paramDefSast = () =>
@@ -1285,7 +1285,7 @@ class Namer(using Config):
 
     def error(message: String, pos: SourcePosition)(using Definitions): Ident =
       Reporter.error(message, pos)
-      val sym = TermSymbol.create(adef.name, ErrorType, Flags.Synthetic, Visibility.Default, sc.owner, qualid.pos)
+      val sym = TermSymbol.create(adef.name, ErrorType, Flags.Synthetic, Checker.visibility(adef), sc.owner, qualid.pos)
       Ident(sym)(qualid.span)
 
     def getTarget(qual: Ast.RefTree, nameTable: NameTable, targetName: String)(using Definitions): Ident =

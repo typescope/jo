@@ -77,28 +77,31 @@ object VisibilityChecker:
       checkType(tparam, tparam.info, tparam.sourcePos)
 
     fdef.params.foreach: param =>
-      checkType(param, param.info, param.sourcePos)
+      checkType(funSym, param.info, param.sourcePos)
 
     fdef.adapters.foreach: adapters =>
       for adapter <- adapters do
         adapter match
           case ParamAdapter.Function(symbol) =>
+            // The sysmbol should be coherent itself
             checkUsage(symbol, funSym, adapter.pos)
             checkCoherence(symbol, funSym, adapter.pos)
 
           case _ =>
 
     fdef.autos.foreach: auto =>
-      checkType(auto, auto.info, auto.sourcePos)
+      checkType(funSym, auto.info, auto.sourcePos)
 
     fdef.candidates.foreach: cands =>
       for cand <- cands do
         cand match
           case AutoCandidate.Value(symbol) =>
+            // The sysmbol should be coherent itself
             checkUsage(symbol, funSym, cand.pos)
             checkCoherence(symbol, funSym, cand.pos)
 
-          case _ =>
+          case AutoCandidate.Member(tp, _) =>
+            checkType(funSym, tp.tpe, cand.pos)
 
     checkType(funSym, fdef.resultType.tpe, fdef.resultType.pos)
 
@@ -109,11 +112,15 @@ object VisibilityChecker:
       checkUsage(eff, funSym, funSym.sourcePos)
       checkCoherence(eff, funSym, funSym.sourcePos)
 
-  def checkType(defSymbol: Symbol, tpe: Type, pos: SourcePosition)(using Definitions, Reporter): Unit =
+  def checkType(defSymbol: Symbol, tpe: Type, pos: SourcePosition)
+      (using defn: Definitions, rp: Reporter)
+  : Unit =
+
     val traverser = new TypeTraverser:
       def apply(tp: Type): Unit =
         tp match
-          case StaticRef(sym) =>
+          case StaticRef(sym) if !sym.isTypeParameter =>
+            // The sysmbol should be coherent itself
             checkUsage(sym, defSymbol, pos)
             checkCoherence(sym, defSymbol, pos)
 
