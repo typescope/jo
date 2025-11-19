@@ -38,9 +38,11 @@ Each symbol has a **visible scope** determined by its access modifiers and locat
 
 1. **Local symbols**: Visible scope is the enclosing function
 2. **Public symbols**: Inherit visible scope from parent (default)
-3. **Private symbols**: `private` limits scope to immediate container (section, namespace, or class)
+3. **Private symbols**: `private` limits scope to immediate container (class, section, or namespace)
 4. **Qualified private**: `private[N]` limits scope to container `N` (where `N` is a section or namespace name)
 5. **Namespaces**: Have global visible scope
+
+Note: There is no class inheritance in Jo.
 
 ### Two Forms of Checking
 
@@ -115,18 +117,6 @@ section A
 end
 ```
 
-Member adapters check the type in bracket notation:
-
-```jo
-section A
-  private class Hidden
-    def toString: String = "hidden"
-  end
-
-  def display(s: String with [.toString]): Hidden = ...  // Error
-end
-```
-
 ### Auto Parameters
 
 Value candidates must be coherent with the defining function:
@@ -187,6 +177,24 @@ section A
 end
 ```
 
+### Aliases
+
+Aliases must have the same more smaller visible scope than their target:
+
+```jo
+section A
+  private def secret(): Int = 42
+
+  alias def publicAlias = secret  // Error: cannot re-export private symbol
+  private alias def privateAlias = secret  // OK: same visibility
+end
+
+def public(): Int = 42
+private alias def restricted = public  // Error: cannot restrict public symbol
+```
+
+This prevents both widening (making private public) and narrowing (making public private) of visibility through aliases.
+
 ## Verification Scope
 
 Coherence verification applies to the following definition components:
@@ -198,6 +206,6 @@ Coherence verification applies to the following definition components:
 | **Type** | right-hand side types |
 | **Class** | fields, methods |
 | **Context Parameter** | parameter type |
-| **Alias** | signature of target symbol |
+| **Alias** | must have equal or smaller visible scope than target |
 
 Usage checks apply to all member selections and symbol references.

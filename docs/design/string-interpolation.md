@@ -1,6 +1,6 @@
 # String Interpolation
 
-String interpolation allows you to embed expressions within string literals using the `\{...}` syntax. This feature works in both single-line strings (`"..."`) and multiline strings (`"""..."""`).
+String interpolation allows programmers to embed expressions within string literals using the `\{...}` syntax. This feature works in both single-line strings (`"..."`) and multiline strings (`"""..."""`).
 
 ## Basic Usage
 

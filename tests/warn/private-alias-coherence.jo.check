@@ -1,16 +1,21 @@
 ---------- Error at ./tests/warn/private-alias-coherence.jo:15:13 ---------------
 |   alias def processAlias = testns.Helpers.processSecret
 |             ^^^^^^^^^^^^
-|             The private symbol Secret is leaked by the type of processAlias
+|             An alias should have equal or smaller visible scope than the target
 
 ---------- Error at ./tests/warn/private-alias-coherence.jo:19:13 ---------------
 |   alias def configAlias = testns.Helpers.useConfig
 |             ^^^^^^^^^^^
-|             The private symbol Config is leaked by the type of configAlias
+|             An alias should have equal or smaller visible scope than the target
 
 ---------- Error at ./tests/warn/private-alias-coherence.jo:23:13 ---------------
 |   alias def makeAlias = testns.Helpers.makeSecret
 |             ^^^^^^^^^
-|             The private symbol Secret is leaked by the type of makeAlias
+|             An alias should have equal or smaller visible scope than the target
 
-3 error(s), 0 warning(s)
+---------- Error at ./tests/warn/private-alias-coherence.jo:29:13 ---------------
+|   alias def bar = testns.A.foo
+|             ^^^
+|             An alias should have equal or smaller visible scope than the target
+
+4 error(s), 0 warning(s)
