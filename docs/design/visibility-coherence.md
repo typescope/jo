@@ -2,17 +2,16 @@
 
 ## Overview
 
-Jo provides two forms of check related to visibility:
+Jo supports allows programmers to restrict usage of symbols to specific scopes -- a way to enforce information hiding.
 
-- **Visibility control** restricts access and usage of symbols to specific scopes.
-- **Coherence checking** prevents unintended errors in access control by ensuring private symbols don't leak into public APIs.
+Jo performs _coherence check_ to prevent unintended errors in access control by ensuring private symbols don't leak into public APIs.
 
 !!! warning
-    Visibility is a mechanism for information hiding, not security enforcement.
+    Visibility control is a mechanism for information hiding, not security enforcement.
 
 ## Motivation
 
-Visibility control is a mechanism for information hiding in programming.
+Visibility control is a well-known mechanism for information hiding in programming.
 However, it alone can lead to unintended errors. Consider:
 
 ```jo
