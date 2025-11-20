@@ -67,7 +67,9 @@ object VisibilityChecker:
             checkFunDef(fdef)
 
         case adef: AliasDef =>
-          checkType(adef.symbol, adef.symbol.dealias.info, adef.symbol.sourcePos)
+          val target = adef.symbol.info.as[StaticRef].symbol
+          if !target.visibleScope.contains(adef.symbol.visibleScope) then
+            Reporter.error("An alias should have equal or smaller visible scope than the target", adef.symbol.sourcePos)
 
         case vdef: ValDef => ??? // not global variables
     end for

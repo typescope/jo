@@ -136,6 +136,9 @@ comment gets re-propertized."
    ;; Keywords
    `(,(regexp-opt jo-keywords 'words) . font-lock-keyword-face)
 
+   ;; Qualified private: private[ContainerName]
+   '("\\<private\\>\\[\\([A-Z][a-zA-Z0-9_]*\\)\\]" 1 font-lock-constant-face)
+
    ;; Types (capitalized identifiers)
    `(,(regexp-opt jo-types 'words) . font-lock-type-face)
 

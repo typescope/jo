@@ -22,3 +22,9 @@ section Helpers
   // The private symbol Secret is leaked by the type of makeAlias
   alias def makeAlias = testns.Helpers.makeSecret
 end
+
+
+section A
+  private def foo(x: Int) = x * x
+  alias def bar = testns.A.foo
+end

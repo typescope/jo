@@ -27,15 +27,12 @@ def useSecret(x: TypeOps.Secret): Int = x + 10
 // Public function using private type in return type - should error
 def makeSecret(x: Int): TypeOps.Secret = x * 2
 
-// Error: public alias pointing to function with private type
-// The private symbol Secret is leaked by the type of process
 alias def process = testns.TypeOps.processSecret
 
-// Error: public alias to public function with private type in parameter
-// The private symbol Secret is leaked by the type of useSecretAlias
+// target coherence check
 alias def useSecretAlias = testns.useSecret
 
-// Error: public alias to public function with private type in return type
+// target coherence check
 alias def makeSecretAlias = testns.makeSecret
 
 section Outer
@@ -64,13 +61,3 @@ def configure(cfg: WithPrivateTypeAlias.Config): String = cfg.host
 
 // Public function using private type alias in return type - should error
 def getPort(x: Int): WithPrivateTypeAlias.Internal = x
-
-// Error: public alias to function with private type alias in parameter
-// The private symbol Config (and transitively Internal) is leaked
-alias def configAlias = testns.configure
-
-// Error: public alias to function with private type alias in return type
-// The private symbol Internal is leaked
-alias def portAlias = testns.getPort
-
-def main: Unit = {}

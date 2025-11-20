@@ -54,7 +54,7 @@ block_comment = "/" "/" {"/"} "[" {any character} "/" "/" {"/"} "]"
 
 **String interpolation requirements:**
 
-- For non-String types, an auto `Show[T]` instance must be available
+- For non-String types, an adapter must be available (default adapters: `boolToStr`, `byteToStr`, `charToStr`, `intToStr`, `.toString`)
 - Interpolation expressions cannot span multiple lines
 - Use `\\{` to escape and include literal `\{` in the string
 

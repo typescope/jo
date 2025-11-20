@@ -1,6 +1,6 @@
 # String Interpolation
 
-String interpolation allows you to embed expressions within string literals using the `\{...}` syntax. This feature works in both single-line strings (`"..."`) and multiline strings (`"""..."""`).
+String interpolation allows programmers to embed expressions within string literals using the `\{...}` syntax. This feature works in both single-line strings (`"..."`) and multiline strings (`"""..."""`).
 
 ## Basic Usage
 
@@ -25,40 +25,67 @@ val result = "Sum: \{x + y}"  // Produces: "Sum: 30"
 
 ## Type Conversion
 
-Interpolated expressions are automatically converted to `String` using the `Show` type class. This means you can interpolate any type that has a `Show[T]` instance defined:
+Interpolated expressions are automatically converted to `String` using parameter adapters. The compiler provides default adapters for common types:
 
 ```jo
 val count = 42
 val message = "The count is \{count}"  // Int automatically converted to String
 ```
 
-### Standard Conversions
+### Standard Adapters
 
-The standard library provides `Show` instances for common types:
+The standard library provides default adapters for common types:
 
-- `Show[Byte]`
-- `Show[Char]`
-- `Show[Int]`
+- `boolToStr` for `Bool`
+- `byteToStr` for `Byte`
+- `charToStr` for `Char`
+- `intToStr` for `Int`
+- `.toString` for any type with a `toString` method
 
-### Custom Show
+### Custom Types
 
-If no show is available, a compile-time error is reported:
+If no adapter is available, a compile-time error is reported:
 
 ```jo
 val custom = MyType()
-val message = "Value: \{custom}"  // Error if no Show[MyType] exists
+val message = "Value: \{custom}"  // Error if no adapter exists
 ```
 
-To support interpolation for custom types, define an auto instance:
+To support interpolation for custom types, define a `toString` method:
 
 ```jo
-data Person(name: String, age: Int)
+class Person
+  val name: String
+  val age: Int
 
-auto def personToString: Show[Person] = p => "\{p.name} (\{p.age})"
+  def Person(name: String, age: Int) = { name: name, age: age }
+
+  def toString: String = "\{name} (\{age})"
+end
 
 val alice = Person("Alice", 25)
-val message = "Person: \{alice}"  // OK: uses personToString
+val message = "Person: \{alice}"  // OK: uses .toString adapter
 ```
+
+!!! info
+
+    In the future, we may support custom adapters for string interpolation by
+    profiting the adapters from the adapation context if the expected type is
+    `String`. For example, given the following definition
+
+        def typeToStr(tp: Type): String = ...
+        def code(s: String with [typeToStr]): String = s
+
+    We can write:
+
+        code "found = \{tp}, expect = \{expectType}"
+
+    It type checks because in checking the interpolation, the adaptation context
+    contains `typeToStr`.
+
+    There is no worry about intention here, as the context is immediate and the
+    only valid reason for the presence of an adaptation context with an expected
+    type `String` is to tweak the adaptation of interpolation.
 
 ## Interpolation in Multiline Strings
 
@@ -137,11 +164,11 @@ The restriction ensures that interpolations remain simple and readable, and simp
 
 ### Type Constraints
 
-The interpolated expression must be convertible to `String` via an auto `Show[T]` instance:
+The interpolated expression must be convertible to `String` via an adapter:
 
 ```jo
 val file = FileHandle()
-val message = "File: \{file}"  // Error if no Show[FileHandle]
+val message = "File: \{file}"  // Error if no adapter exists for FileHandle
 ```
 
 ## Implementation Details
@@ -166,12 +193,12 @@ Interpolated strings are transformed during type checking into a series of strin
 "Hello " + name + "!"
 ```
 
-For non-String types, the compiler searches for an auto instance of `Show[T]` and applies the conversion:
+For non-String types, the compiler searches for an adapter and applies the conversion:
 
 ```jo
 "Count: \{42}"
 // Becomes equivalent to:
-"Count: " + int2String.show(42)
+"Count: " + intToStr(42)
 ```
 
 ### Type Checking Process
@@ -181,10 +208,10 @@ For non-String types, the compiler searches for an auto instance of `Show[T]` an
 3. For each expression:
 
     - If the type conforms to `String`, use it directly
-    - Otherwise, search for `auto Show[T]` and apply `.show()`
+    - Otherwise, search for an adapter from the default list: `[boolToStr, byteToStr, charToStr, intToStr, ".toString"]`
     - If no conversion found, report error
 
-4. Concatenate the strings part together
+4. Concatenate the string parts together
 
 ### AST Representation
 
@@ -248,9 +275,14 @@ println escaped
 ### Example 5: Custom Type Conversion
 
 ```jo
-data Point(x: Int, y: Int)
+class Point
+  val x: Int
+  val y: Int
 
-auto pointToString: Show[Point] = p => "(\{p.x}, \{p.y})"
+  def Point(x: Int, y: Int) = { x: x, y: y }
+
+  def toString: String = "(\{x}, \{y})"
+end
 
 val origin = Point(0, 0)
 val message = "Origin: \{origin}"
@@ -277,12 +309,3 @@ Interpolations are restricted to single lines because:
 2. **Simplicity**: Parser implementation is simpler
 3. **Best practice**: Encourages extracting complex expressions to variables
 4. **Consistency**: Matches the design of most string interpolation features
-
-### Type Class Conversion
-
-Using `Show[T]` for type conversion provides:
-
-1. **Explicit conversions**: No implicit `.toString` magic
-2. **Type safety**: Conversions must be explicitly defined
-3. **Flexibility**: Users control how their types convert
-4. **Discoverability**: Auto resolution makes conversions easy to find
