@@ -370,6 +370,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     else if item.token == Token.ALIAS then aliasDef(mods)
     else if item.token == Token.SECTION then section(mods)
     else if item.token == Token.CLASS then classDef(mods)
+    else if item.token == Token.INTERFACE then interfaceDef(mods)
     else
       error("Expect a definition, found = " + item.token, item.span.toPos)
       next()
@@ -609,17 +610,31 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val id = ident()
     val tparams = typeParams()
 
-    val members: List[ValDef | FunDef] = repeated:
+    // Parse constructor parameters if present (simplified syntax)
+    val constructorParams =
+      if peek() == Token.LPAREN then params()
+      else Nil
+
+    // Convert constructor parameters to val fields
+    val constructorFields = constructorParams.map: p =>
+      ValDef(p.ident, p.tpt, Block(Nil)(p.span), mutable = false)(p.span)
+
+    // Parse view declarations and members
+    val views = mutable.ArrayBuffer[ViewDecl]()
+    val members = mutable.ArrayBuffer[ValDef | FunDef]()
+
+    repeated:
       val item = peekItem()
       if klass.indent.isUnindent(item.indent) then
         None
-
+      else if item.token == Token.VIEW then
+        Some(views += viewDecl())
       else
         val mods = modifiers()
         val item = peekItem()
 
         if item.token == Token.DEF then
-          Some(defDef(needBody = true).withMods(mods))
+          Some(members += defDef(needBody = true).withMods(mods))
 
         else if peek() == Token.VAL || peek() == Token.VAR then
           val mod = next()
@@ -628,18 +643,63 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           eat(Token.COLON)
           val tpt = typ()
           val body = Block(phrases = Nil)(id.span)
-          Some(ValDef(id, tpt, body, mutable)(mod.span | tpt.span).withMods(mods))
+          Some(members += ValDef(id, tpt, body, mutable)(mod.span | tpt.span).withMods(mods))
 
         else None
 
     eatEndOpt(klass.indent)
+
+    // Combine constructor fields with parsed members
+    val allMembers = constructorFields ++ members.toList
+
+    val lastSpan =
+      if allMembers.nonEmpty then allMembers.last.span
+      else if views.nonEmpty then views.last.span
+      else if tparams.nonEmpty then tparams.last.span
+      else if constructorParams.nonEmpty then constructorParams.last.span
+      else id.span
+
+    ClassDef(id, tparams, constructorParams, views.toList, allMembers)(klass.span | lastSpan).withMods(mods)
+
+  def interfaceDef(mods: List[Modifier]): InterfaceDef =
+    val interface = eat(Token.INTERFACE)
+    val id = ident()
+    val tparams = typeParams()
+
+    val members: List[FunDef] = repeated:
+      val item = peekItem()
+      if interface.indent.isUnindent(item.indent) then
+        None
+      else if item.token == Token.DEF then
+        val mods = modifiers()
+        // Interface methods can have bodies (default implementations) or no bodies
+        Some(defDef(needBody = false).withMods(mods))
+      else
+        error("Expect method definition in interface, found = " + item.token, item.span.toPos)
+        next()
+        None
+
+    eatEndOpt(interface.indent)
 
     val lastSpan =
       if members.nonEmpty then members.last.span
       else if tparams.nonEmpty then tparams.last.span
       else id.span
 
-    ClassDef(id, tparams, members)(klass.span | lastSpan).withMods(mods)
+    InterfaceDef(id, tparams, members)(interface.span | lastSpan).withMods(mods)
+
+  def viewDecl(): ViewDecl =
+    val viewToken = eat(Token.VIEW)
+    val tpt = typ()
+    val rhs =
+      if peek() == Token.EQL then
+        eat(Token.EQL)
+        Some(expr())
+      else
+        None
+
+    val finalSpan = rhs.map(r => viewToken.span | r.span).getOrElse(viewToken.span | tpt.span)
+    ViewDecl(tpt, rhs)(finalSpan)
 
   def typeDef(mods: List[Modifier]): TypeDef =
     val typeItem = eat(Token.TYPE)
@@ -1028,6 +1088,17 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         eatEndOpt(item.indent)
         // No selection or type/term apply on do-block
         Some(blk)
+
+      case Token.VIEW =>
+        next()
+        val expr = word() match
+          case Some(w) => w
+          case None =>
+            error("Expect expression after 'view', found " + peek(), peekItem().span.toPos)
+            throw new SyntaxError
+        eat(Token.AS)
+        val tpt = simpleType()
+        optSelectAndApply(ViewSelection(expr, tpt)(item.span | tpt.span))
 
       case token =>
         None

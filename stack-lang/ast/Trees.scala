@@ -152,6 +152,15 @@ object Trees:
     (val span: Span)
   extends Word
 
+  /** View selection: view expr as I
+    *
+    * Explicitly selects a view of the specified interface type from an expression.
+    */
+  case class ViewSelection
+    (expr: Word, tpt: TypeTree)
+    (val span: Span)
+  extends Word
+
   case class Match
     (scrutinee: Word, cases: List[Case])
     (val span: Span)
@@ -319,10 +328,30 @@ object Trees:
     def name: String = ident.name
 
   case class ClassDef
-    (ident: Ident, tparams: List[TypeParam], members: List[ValDef | FunDef])
+    (ident: Ident, tparams: List[TypeParam], params: List[Param], views: List[ViewDecl], members: List[ValDef | FunDef])
     (val span: Span)
   extends Def:
     def name: String = ident.name
+
+  /** Representation of an interface definition
+    *
+    * An interface defines a behavioral contract with method signatures.
+    */
+  case class InterfaceDef
+    (ident: Ident, tparams: List[TypeParam], members: List[FunDef])
+    (val span: Span)
+  extends Def:
+    def name: String = ident.name
+
+  /** Representation of a view declaration in a class
+    *
+    * `view I` declares that the class implements interface I
+    * `view I = expr` declares a delegated view where expr provides the implementation
+    */
+  case class ViewDecl
+    (tpe: TypeTree, rhs: Option[Word])
+    (val span: Span)
+  extends Tree
 
   /** Representation of a pattern definition */
   case class PatDef

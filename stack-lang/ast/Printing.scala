@@ -82,6 +82,12 @@ object Printing:
   def showTypeBound(typ: TypeTree): Text =
     if typ.isEmpty then Text.Empty else " <: " ~ typ
 
+  def showView(view: ViewDecl): Text =
+    val rhs = view.rhs match
+      case None => Text.Empty
+      case Some(expr) => " = " ~ expr
+    "view " ~ view.tpe ~ rhs
+
   def showDef(defn: Def): Text =
     defn match
       case ParamDef(id, tpt, default) =>
@@ -144,8 +150,26 @@ object Printing:
           if cdef.tparams.isEmpty then Text.Empty
           else "[" ~ cdef.tparams.join(", ")  ~ "]"
 
-        mods ~ "class " ~ cdef.name ~ tparams ~ indent:
-          cdef.members.join(Text.BlankLine)
+        val params =
+          if cdef.params.isEmpty then Text.Empty
+          else "(" ~ cdef.params.join(", ")  ~ ")"
+
+        val viewsAndMembers = cdef.views.map(showView) ++ cdef.members.map(showDef)
+
+        mods ~ "class " ~ cdef.name ~ tparams ~ params ~ indent:
+          viewsAndMembers.join(Text.BlankLine)
+
+      case idef: InterfaceDef =>
+        val mods =
+          if idef.modifiers.isEmpty then Text.Empty
+          else idef.modifiers.join(" ") ~ " "
+
+        val tparams =
+          if idef.tparams.isEmpty then Text.Empty
+          else "[" ~ idef.tparams.join(", ")  ~ "]"
+
+        mods ~ "interface " ~ idef.name ~ tparams ~ indent:
+          idef.members.join(Text.BlankLine)
 
       case pdef: PatDef =>
         val tparams =
@@ -265,6 +289,9 @@ object Printing:
 
       case TypeAscribe(expr, tpt) =>
         expr ~ "as" ~ tpt
+
+      case ViewSelection(expr, tpt) =>
+        "view " ~ expr ~ " as " ~ tpt
 
       case Lambda(params, body) =>
         "(" ~ params.join(", ") ~ ") =>" ~ indent(body)
