@@ -373,6 +373,9 @@ Ambiguity is reported **only if**:
 - No direct member exists with that name, AND
 - Multiple views provide a member with that name
 
+!!! info "No Overloading"
+    Jo does not support method overloading. Methods are identified by name alone, not by signature. Therefore, `write(s: String)` and `write(doc: Doc)` are both considered the same member "write", causing ambiguity when provided by different views.
+
 ```jo
 interface Writer
   def write(s: String): Unit
@@ -479,10 +482,19 @@ For `view I = expr`, verify:
 
 For `view expr as I`:
 
-1. **Expression type**: Compute type `T` of `expr` (must be a class type, not an interface type)
+1. **Expression type**: Compute **compile-time** type `T` of `expr` (must be a class type, not an interface type)
 2. **View search**: Check if `T` (or its class symbol) declares `view I`
-3. **Type substitution**: If `T` is `C[T1, ..., Tn]` and view is `I[U1, ..., Um]`, verify type arguments
+3. **Type substitution**: If `T` is `C[T1, ..., Tn]` and view is `I[U1, ..., Um]`, apply standard type parameter substitution
 4. **Result type**: `I` with appropriate type arguments
+
+!!! info "Compile-Time Class Type Requirement"
+    View selection requires the expression to have a compile-time class type. If the expression has an interface type, view selection is not available because interface types do not carry view declaration information.
+
+    ```jo
+    def process(logger: Logger): Unit =
+      val printer: Printer = view logger as Printer  // Error: logger has interface type
+    end
+    ```
 
 ```jo
 interface Show
@@ -495,7 +507,7 @@ class Point(x: Int, y: Int)
 end
 
 val p: Point = new Point(0, 0)
-val s: Show = view p as Show  // Valid
+val s: Show = view p as Show  // Valid: p has class type Point
 
 class NoView
 end
