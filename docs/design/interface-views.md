@@ -2,7 +2,9 @@
 
 ## Overview
 
-Interfaces define behavioral contracts independently from implementation. Views enable classes to expose multiple interfaces without creating subtype hierarchies. This design supports composition over inheritance while maintaining static type safety.
+Interfaces define behavioral contracts independently from implementation.
+Views enable classes to expose multiple aspects (interfaces or other classes) without creating subtype hierarchies.
+This design supports composition over inheritance while maintaining static type safety.
 
 ## Motivation
 
@@ -96,7 +98,7 @@ end
 
 **View delegation:**
 
-Views can delegate to concrete instances using `view I = expr`:
+Views can delegate to concrete instances using `view T = expr`, where `T` can be any type (interface or class):
 
 ```jo
 interface Logger
@@ -105,30 +107,59 @@ interface Logger
 end
 
 class Service(logger: Logger, config: Config)
-  view Logger = logger  // Delegates to logger instance
+  view Logger = logger  // Delegate interface view to logger instance
 
   def process(): Unit =
     log("Starting process")  // Delegates via member selection
 end
 ```
 
-See the Semantics section for desugaring and complete delegation semantics.
-
-### Explicit View Selection
-
-The `view ... as ...` syntax explicitly selects a view from a value:
+**Delegation to class types:**
 
 ```jo
+class Employee
+  def work(): Unit = ...
+  def getSalary(): Int = ...
+end
+
+class Customer
+  def buy(item: Item): Unit = ...
+end
+
+class Person(name: String, empData: Employee, custData: Customer)
+  view Employee = empData  // Delegate Employee role to empData
+  view Customer = custData  // Delegate Customer role to custData
+
+  def introduce(): String = "Hi, I'm " + name
+end
+```
+
+!!! info "Manual vs. Delegation"
+    - **Manual implementation** (`view T`): Only allowed for interface types. The class must implement all interface methods.
+    - **Delegation** (`view T = expr`): Allowed for any type (interface or class). Methods are resolved through member selection at usage sites.
+
+See the Semantics section for complete delegation semantics.
+
+### View Accessors
+
+Each view declaration creates an accessor that returns the view instance:
+
+```jo
+class User(id: Int, name: String)
+  def show(): String = "User(" + intToStr(id) + ", " + name + ")"
+  view Show
+end
+
 val user = new User(1, "Alice")
-val showable: Show = view user as Show
+val showable: Show = user.Show  // Access view via accessor
 val serialized = showable.show()
 ```
 
-Type annotation can trigger implicit view selection:
+Type annotation triggers implicit view adaptation:
 
 ```jo
 val user = new User(1, "Alice")
-val showable: Show = user  // Implicit view selection
+val showable: Show = user  // Implicit view adaptation (equivalent to user.Show)
 ```
 
 ## Semantics
@@ -174,7 +205,7 @@ end
 ```
 
 !!! info "No Subtyping Relationship"
-    A class type is NOT a subtype of its views. View selection is either explicit (via `view ... as ...`) or via type-directed adaptation. There is no upcasting or downcasting.
+    A class type is NOT a subtype of its views. Views are accessed via explicit accessor (`obj.ViewName`) or via type-directed adaptation. There is no upcasting or downcasting.
 
 ### Default Method Implementation
 
@@ -221,31 +252,43 @@ interface Container[T]
 // Each instantiation is a distinct type
 ```
 
-!!! info
+!!! info "Design Rationale"
 
-    Since Jo has no subtyping between classes and interfaces, variance annotations would add complexity without benefit. Invariance is simpler and safer.
+    Since Jo has no subtyping between classes and interfaces, variance annotations would add complexity without benefit. Invariance is simpler.
 
 ### View Delegation Semantics
 
-View delegation `view I = expr` desugars to a view declaration plus an immutable field:
+View declarations create **accessors** that return view instances, where **T can be any type** (interface or class):
+
+**For `view I` (manual implementation):**
+
+```jo
+class ConsoleLogger
+  def log(msg: String): Unit = println(msg)
+  view Logger
+end
+
+// Creates accessor:
+// def Logger: Logger  // Returns backend-synthesized view instance
+```
+
+**For `view T = expr` (delegation):**
 
 ```jo
 class Service(logger: Logger)
   view Logger = logger
 end
 
-// Desugars to:
-class Service(logger: Logger)
-  view Logger              // Declare the view
-  val Logger: Logger = logger  // Store immutable field
-end
+// Creates accessor:
+// def Logger: Logger  // Returns cached result of evaluating 'logger'
 ```
 
 **Key properties:**
 
-1. **No synthesized methods**: Delegation happens via member selection at usage sites
-2. **Immutable binding**: Field is immutable (`val`), binds at construction time
-3. **Nominal typing**: Expression `expr` must have type `I` exactly (no structural typing)
+1. **View accessors**: Each view creates an accessor `def ViewName: ViewType`
+2. **Evaluation**: For `view T = expr`, expression is evaluated once at construction and cached
+3. **Nominal typing**: Expression `expr` must have type `T` exactly (no structural typing)
+4. **Non-recursive**: Member selection does NOT recursively search through views of the delegated object (see Design Decisions)
 
 **Usage:**
 
@@ -254,9 +297,9 @@ val service = new Service(someLogger)
 service.log("hello")
 
 // Member selection process:
-// 1. Look for log in Service - not found
-// 2. Service has view Logger - found
-// 3. Insert: (view service as Logger).log("hello")
+// 1. Look for log in Service directly - not found
+// 2. Search through Service's views - Logger view found
+// 3. Resolve: service.Logger.log("hello")
 ```
 
 **Valid delegations:**
@@ -266,27 +309,36 @@ interface Logger
   def log(msg: String): Unit
 end
 
-// Case 1: Delegate to interface type (most common)
+class Employee
+  def work(): Unit = ...
+end
+
+// Case 1: Delegate to interface type
 class Service1(logger: Logger)
   view Logger = logger  // OK: logger has type Logger
 end
 
-// Case 2: Delegate to class (requires explicit view selection)
+// Case 2: Delegate to class type
+class Person(emp: Employee)
+  view Employee = emp  // OK: emp has type Employee
+end
+
+// Case 3: Delegate via accessor
 class FileLogger(path: String)
   def log(msg: String): Unit = ...
   view Logger
 end
 
 class Service2(logger: FileLogger)
-  view Logger = view logger as Logger  // OK: explicit selection
+  view Logger = logger.Logger  // OK: access Logger view from FileLogger
 end
 ```
 
-**Invalid delegation:**
+**Invalid delegation (type mismatch):**
 
 ```jo
 class Service3(logger: FileLogger)
-  view Logger = logger  // Error: FileLogger != Logger
+  view Logger = logger  // Error: FileLogger != Logger (nominal typing)
 end
 ```
 
@@ -305,25 +357,25 @@ end
 
 If dynamic delegation is needed, implement methods explicitly instead of using `view I = expr`.
 
-### View Selection
+### View Adaptation
 
-Views can be selected explicitly or implicitly:
+Views can be accessed explicitly or implicitly:
 
-**Explicit selection:**
+**Explicit accessor:**
 
 ```jo
 val point = new Point(10, 20)
-val showable: Show = view point as Show
+val showable: Show = point.Show
 println(showable.show())
 ```
 
-**Implicit selection via type-directed adaptation:**
+**Implicit adaptation via type annotation:**
 
 ```jo
 def display(s: Show): Unit = println(s.show())
 
 val point = new Point(10, 20)
-display(point)  // Type-directed: view point as Show
+display(point)  // Type-directed adaptation: point.Show
 ```
 
 **Implicit selection during member selection:**
@@ -395,10 +447,10 @@ val out = new Output(someWriter, someRenderer)
 out.write("hello")  // Error: Ambiguous - Writer.write or Renderer.write?
 ```
 
-**Disambiguation by explicit view selection:**
+**Disambiguation by explicit view accessor:**
 
 ```jo
-val writer: Writer = view out as Writer
+val writer: Writer = out.Writer
 writer.write("hello")  // OK: unambiguous, uses Writer.write
 ```
 
@@ -417,24 +469,24 @@ val out = new SmartOutput(someWriter, someRenderer)
 out.write("hello")  // OK: calls direct member (no ambiguity)
 ```
 
-### View Object Identity
+### Interface Type Equality
 
-Jo does not support checking view identity. Similar to how function equality is not supported in many FP languages, view identity is not part of the language semantics:
+Jo does not support equality for interface types. Similar to how function equality is not supported in many FP languages, interface types do not have equality defined:
 
 ```jo
 val p = new Point(0, 0)
-val v1 = view p as Show
-val v2 = view p as Show
+val v1: Show = p.Show
+val v2: Show = p.Show
 
-// Not supported: view identity checks
-v1 == v2  // Error: cannot compare interface types for equality
+v1 == v2  // Error: equality not defined for interface types
 ```
 
-This design choice:
+This applies to all interface-typed values, regardless of how they were obtained (view accessor, type adaptation, or direct interface-typed expressions).
 
-- **Simplifies semantics**: No notion of view identity to reason about
-- **Implementation freedom**: Backends can optimize as needed (return original object or create wrapper)
-- **Avoids confusion**: Views are about behavior, not identity
+**Rationale:**
+
+- **Implementation freedom**: Backends can represent interface values differently (original object, wrapper, etc.)
+- **Consistency**: Similar to function types and other abstract types without intrinsic identity
 
 ## Type Checking
 
@@ -472,27 +524,30 @@ This prevents ambiguity about which view implementation to use and which field s
 
 **View delegation type checking:**
 
-For `view I = expr`, verify:
+For `view T = expr`, verify:
 
-1. **Interface resolution**: `I` resolves to an interface definition
-2. **Expression type**: `expr` must have type `I` (nominal type checking, no structural typing)
-3. **View conformance**: After desugaring, the class must conform to interface `I`
+1. **Type resolution**: `T` can be any type (interface or class)
+2. **Expression type**: `expr` must have type `T` (nominal type checking, no structural typing)
+3. **View conformance**: If `T` is an interface, the class must conform to interface `T`
 
-### View Selection
+### View Accessor
 
-For `view expr as I`:
+For `expr.ViewName`:
 
-1. **Expression type**: Compute **compile-time** type `T` of `expr` (must be a class type, not an interface type)
-2. **View search**: Check if `T` (or its class symbol) declares `view I`
-3. **Type substitution**: If `T` is `C[T1, ..., Tn]` and view is `I[U1, ..., Um]`, apply standard type parameter substitution
-4. **Result type**: `I` with appropriate type arguments
+1. **Expression type**: Compute **compile-time** type `C` of `expr` (must be a class type, not an interface type)
+2. **View search (non-recursive)**: Check if `C` directly declares `view ViewName`
+3. **Type substitution**: If `C` is `C[T1, ..., Tn]` and view is `ViewName[U1, ..., Um]`, apply standard type parameter substitution
+4. **Result type**: `ViewName` with appropriate type arguments
+
+!!! warning "Non-Recursive View Search"
+    View accessor only checks views **directly declared** by the class. It does NOT recursively search through views of delegated objects. See "Why View Adaptation and Member Selection Are Non-Recursive?" in Design Decisions.
 
 !!! info "Compile-Time Class Type Requirement"
-    View selection requires the expression to have a compile-time class type. If the expression has an interface type, view selection is not available because interface types do not carry view declaration information.
+    View accessor requires the expression to have a compile-time class type. If the expression has an interface type, view accessor is not available because interface types do not carry view declaration information.
 
     ```jo
     def process(logger: Logger): Unit =
-      val printer: Printer = view logger as Printer  // Error: logger has interface type
+      val printer: Printer = logger.Printer  // Error: logger has interface type
     end
     ```
 
@@ -507,33 +562,39 @@ class Point(x: Int, y: Int)
 end
 
 val p: Point = new Point(0, 0)
-val s: Show = view p as Show  // Valid: p has class type Point
+val s: Show = p.Show  // Valid: p has class type Point
 
 class NoView
 end
 
 val nv = new NoView()
-val bad = view nv as Show  // Error: NoView does not declare view Show
+val bad = nv.Show  // Error: NoView does not declare view Show
 ```
 
 ### Implicit View Adaptation
 
-During type adaptation from `found: C` to `expected: I`:
+During type adaptation from `found: C` to `expected: T`:
 
-1. **Direct match**: If `C <: I`, succeed (but this won't happen for views)
-2. **View search**: If `C` declares `view I`, insert implicit `view ... as I`
+1. **Direct match**: If `C <: T`, succeed (but this won't happen for views)
+2. **View search (non-recursive)**: If `C` directly declares `view T`, insert implicit view accessor `expr.T`
 3. **Type parameter unification**: If needed, unify type parameters
 4. **Failure**: Report type mismatch
 
+Note: `T` can be any type (interface or class). View search is **non-recursive**—only views directly declared by `C` are checked.
+
 ### Member Selection with Views
 
-For `expr.member` where `expr: T`, member selection algorithm:
+For `expr.member` where `expr: C`, member selection algorithm:
 
-1. **Direct member lookup**: Search for `member` in type `T`. If found, use it (shadows view members)
-2. **View member lookup**: If not found, search all views declared by `T`
-    - If exactly one view provides `member`, insert `(view expr as I).member`
+1. **Direct member lookup**: Search for `member` in type `C`. If found, use it (shadows view members)
+2. **View member lookup (non-recursive)**: If not found, search all views **directly declared** by `C`
+    - For each `view T` declared by `C`, check if `T` has `member`
+    - If exactly one view provides `member`, resolve to `expr.T.member`
     - If multiple views provide `member`, report ambiguity error
 3. **Failure**: If no member found in direct or view lookup, report member not found error
+
+!!! warning "Non-Recursive Member Lookup"
+    Member selection only searches views **directly declared** by the class. It does NOT recursively search through views of delegated objects. See Design Decisions for rationale.
 
 See Semantics section for detailed examples of shadowing, ambiguity, and disambiguation.
 
@@ -557,7 +618,7 @@ def printShow(s: Show): Unit receives IO.stdout =
 
 def main receives IO.stdout =
   val p = new Point(3, 4)
-  printShow(p)  // Implicit: view p as Show
+  printShow(p)  // Implicit: p.Show
 ```
 
 ### Multiple Views
@@ -595,8 +656,8 @@ def main =
   val alice = new User(1, "Alice")
   val bob = new User(2, "Bob")
 
-  val serialized = serialize(alice, view alice as Serializer[User])
-  val winner = max(alice, bob, view alice as Comparable[User])
+  val serialized = serialize(alice, alice.Serializer)
+  val winner = max(alice, bob, alice.Comparable)
 ```
 
 ### Generic Interface
@@ -655,7 +716,8 @@ class IntAddition
 end
 
 def main =
-  val adder: Monoid[Int] = view (new IntAddition()) as Monoid[Int]
+  val addition = new IntAddition()
+  val adder: Monoid[Int] = addition.Monoid  // Access view via accessor
   val sum = adder.combineAll([1, 2, 3, 4, 5])
   println(intToStr(sum))  // Prints: 15
 ```
@@ -719,10 +781,58 @@ def main =
   service.error("Error message via delegation")
   service.recordCount("api.call")
 
-  // Can also select views explicitly
-  val asLogger: Logger = view service as Logger
+  // Can also access views explicitly
+  val asLogger: Logger = service.Logger
   asLogger.log("Service implements Logger via delegation")
 end
+```
+
+### View Delegation to Class Types
+
+Classes can delegate to other class types to model multiple roles:
+
+```jo
+class Employee(id: Int)
+  def work(): Unit = println("Working...")
+  def getSalary(): Int = 50000
+end
+
+class Customer(level: Int)
+  def buy(item: String): Unit = println("Buying " + item)
+  def getDiscountLevel(): Int = level
+end
+
+// Person plays multiple roles
+class Person(name: String, empData: Employee, custData: Customer)
+  view Employee = empData  // Expose Employee role
+  view Customer = custData  // Expose Customer role
+
+  def introduce(): String = "Hi, I'm " + name
+end
+
+def processPayroll(e: Employee): Unit =
+  val salary = e.getSalary()
+  println("Salary: " + intToStr(salary))
+end
+
+def applyDiscount(c: Customer): Int =
+  c.getDiscountLevel()
+end
+
+val person = new Person("Alice", new Employee(123), new Customer(2))
+
+// Type-directed adaptation to class types
+processPayroll(person)  // Adapts via view Employee
+applyDiscount(person)   // Adapts via view Customer
+
+// Member selection through class views
+person.work()           // Finds work() through Employee view
+person.buy("book")      // Finds buy() through Customer view
+person.introduce()      // Direct member
+
+// Explicit view access
+val asEmp: Employee = person.Employee
+val asCust: Customer = person.Customer
 ```
 
 ### Wrapper Pattern for External Types
@@ -802,11 +912,15 @@ end
 - Clear, explicit dependencies
 - Easy testing with mock implementations
 
-### Why View Delegation Does Not Resolve Recursively?
+### Why View Adaptation and Member Selection Are Non-Recursive?
 
-When using view delegation (`view I = expr`), member selection does not recursively search through views of the delegated object. This keeps the type system simple and predictable.
+**Core Principle**: Both view adaptation and member selection operate **non-recursively**—they only examine views directly declared by a class, never recursively searching through views of delegated objects.
 
-**Non-recursive member selection through delegation:**
+This is particularly important for **view delegation to class types**, which allows delegating to objects that themselves have views.
+
+**The Issue: Transitive Views**
+
+Since view delegation now allows class types, a delegated object might have its own views. The question is: should those views be transitively exposed?
 
 ```jo
 interface Printer
@@ -826,67 +940,92 @@ class FileLogger(path: String)
 end
 
 class Service(logger: FileLogger)
-  view Logger = logger  // Delegate Logger view to logger
+  view FileLogger = logger  // Delegate to CLASS type (not interface)
 end
 
 val s = new Service(someFileLogger)
-s.log("hello")   // OK: Service has Logger view, delegates to logger.log()
-s.print()        // Error: Service does not have print() or Printer view
+s.log("hello")   // Error: Service does NOT have view Logger
+s.print()        // Error: Service does NOT have view Printer
 ```
 
 **What happens:**
 
-Member selection on `s.print()` checks:
+When `Service` declares `view FileLogger = logger` where `logger: FileLogger`:
 
-1. Direct members of `Service` - no `print()` method
-2. Views declared by `Service` - only `Logger` view
-3. Members of `Logger` interface - no `print()` method in the interface
+- Service gets the FileLogger view (explicitly declared)
+- Service does **NOT** get the Logger or Printer views (even though FileLogger has them)
 
-The search stops here. It does **not** recursively check:
+Member selection and view adaptation check only **direct view declarations**, not views of the delegated object.
 
-- That the delegated `logger` field has type `FileLogger`
-- That `FileLogger` has a `Printer` view with a `print()` method
+**Solution: Explicitly declare all exposed views**
 
-**To access `print()`, you need explicit composition:**
+If you want to expose FileLogger's views (Logger and Printer), declare them explicitly:
 
 ```jo
 class Service(logger: FileLogger)
-  view Logger = logger
-  view Printer = logger  // Explicitly delegate Printer view too
+  view FileLogger = logger  // Expose FileLogger
+  view Logger = logger      // Explicitly expose Logger
+  view Printer = logger     // Explicitly expose Printer
 end
 
 val s = new Service(someFileLogger)
-s.print()  // OK: Service declares Printer view, delegates to logger.print()
+s.log("hello")  // OK: Service declares view Logger
+s.print()       // OK: Service declares view Printer
 ```
 
-Or select views explicitly:
+This makes it explicit which capabilities Service exposes, regardless of what the delegated object supports.
+
+**Alternative: Access via the delegation field**
 
 ```jo
-val printer: Printer = view s.logger as Printer
-printer.print()  // OK: explicit view selection
+// Access Printer through the delegated field
+val s = new Service(someFileLogger)
+val printer: Printer = s.logger.Printer
+printer.print()  // OK: explicit view accessor from delegated object
+```
+
+**Non-recursive view adaptation:**
+
+The same non-recursive principle applies to type adaptation:
+
+```jo
+def useFileLogger(fl: FileLogger): Unit = ...
+def useLogger(logger: Logger): Unit = ...
+def usePrinter(printer: Printer): Unit = ...
+
+class Service(logger: FileLogger)
+  view FileLogger = logger  // Only expose FileLogger
+end
+
+val s = new Service(someFileLogger)
+useFileLogger(s) // OK: Service declares view FileLogger
+useLogger(s)     // Error: Service does NOT declare view Logger
+                 // (not found transitively through FileLogger)
+usePrinter(s)    // Error: Service does NOT declare view Printer
+                 // (not found transitively through FileLogger)
 ```
 
 **Rationale:**
 
-- **Predictability**: Members are found only in declared views, not through delegation chains
-- **Simplicity**: No need to track types of delegated objects at member selection time
-- **Explicit design**: Forces clear declaration of exposed capabilities
-- **Type abstraction**: Delegation uses interface types, which don't carry view information
+- **Explicit over implicit**: Each class explicitly declares which capabilities it exposes, not inheriting them transitively, enabling encapsulation
+- **Predictability**: Views are found only in direct declarations, making the API surface clear
+- **Simplicity**: No complex transitive closure computation; constant-time view lookup
+- **Avoids fragile composition**: Changes to the delegated class (adding/removing views) don't silently change the delegating class's interface
 
-### Why No View Identity?
+### Why No Equality for Interface Types?
 
-Jo does not support checking view identity (similar to how function equality is not supported in many FP languages). This gives implementation freedom:
+Jo does not define equality for interface types (similar to how function equality is not supported in many FP languages). This design choice provides implementation freedom:
 
-Different platforms can optimize view selection differently:
+Different platforms can represent interface-typed values differently:
 
-1. **Dynamic languages (JS/Python)**: May return the object itself
-2. **Static languages (Java/Native)**: May create vtable wrappers
+1. **Dynamic languages (JS/Python)**: May use the original object
+2. **Static languages (Java/Native)**: May create wrappers with vtables
 
 Benefits:
 
-- **Implementation freedom**: Each platform can optimize without changing semantics
-- **No overhead**: No need to track or compare view identities
-- **Simpler semantics**: Views are about behavior, not identity
+- **Implementation freedom**: Each platform can choose optimal representation without affecting semantics
+- **Behavioral focus**: Interface types represent capabilities (what can be done), not object identity (what it is)
+- **Simpler semantics**: No need to define or track identity for abstract interface values
 
 ## Summary
 
