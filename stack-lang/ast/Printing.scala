@@ -290,9 +290,6 @@ object Printing:
       case TypeAscribe(expr, tpt) =>
         expr ~ "as" ~ tpt
 
-      case ViewSelection(expr, tpt) =>
-        "view " ~ expr ~ " as " ~ tpt
-
       case Lambda(params, body) =>
         "(" ~ params.join(", ") ~ ") =>" ~ indent(body)
 

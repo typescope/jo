@@ -1089,17 +1089,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         // No selection or type/term apply on do-block
         Some(blk)
 
-      case Token.VIEW =>
-        next()
-        val expr = word() match
-          case Some(w) => w
-          case None =>
-            error("Expect expression after 'view', found " + peek(), peekItem().span.toPos)
-            throw new SyntaxError
-        eat(Token.AS)
-        val tpt = simpleType()
-        optSelectAndApply(ViewSelection(expr, tpt)(item.span | tpt.span))
-
       case token =>
         None
 

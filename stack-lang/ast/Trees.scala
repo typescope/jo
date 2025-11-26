@@ -152,15 +152,6 @@ object Trees:
     (val span: Span)
   extends Word
 
-  /** View selection: view expr as I
-    *
-    * Explicitly selects a view of the specified interface type from an expression.
-    */
-  case class ViewSelection
-    (expr: Word, tpt: TypeTree)
-    (val span: Span)
-  extends Word
-
   case class Match
     (scrutinee: Word, cases: List[Case])
     (val span: Span)
