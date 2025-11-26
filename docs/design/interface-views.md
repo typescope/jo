@@ -258,37 +258,38 @@ interface Container[T]
 
 ### View Delegation Semantics
 
-View declarations create **accessors** that return view instances, where **T can be any type** (interface or class):
+View declarations create **accessors** that return view instances, where **T can be any type** (interface or class).
 
-**For `view I` (manual implementation):**
+**For `view I` where `I` is an interface (manual implementation):**
+
+Each `view I` declaration creates an accessor `def I: I` that returns a compiler-synthesized view instance.
 
 ```jo
-class ConsoleLogger
-  def log(msg: String): Unit = println(msg)
-  view Logger
+interface Logger
+  def log(msg: String): Unit
 end
 
-// Creates accessor:
-// def Logger: Logger  // Returns backend-synthesized view instance
+class ConsoleLogger
+  def log(msg: String): Unit = println(msg)
+  view Logger  // Creates: def Logger: Logger
+end
 ```
 
 **For `view T = expr` (delegation):**
 
+Each `view T = expr` declaration creates an accessor `def T: T` that returns the cached result of evaluating `expr`.
+
 ```jo
 class Service(logger: Logger)
-  view Logger = logger
+  view Logger = logger  // Creates: def Logger: Logger
 end
-
-// Creates accessor:
-// def Logger: Logger  // Returns cached result of evaluating 'logger'
 ```
 
 **Key properties:**
 
-1. **View accessors**: Each view creates an accessor `def ViewName: ViewType`
+1. **View accessors**: Each `view T` or `view T = expr` creates an accessor `def T: T`
 2. **Evaluation**: For `view T = expr`, expression is evaluated once at construction and cached
-3. **Nominal typing**: Expression `expr` must have type `T` exactly (no structural typing)
-4. **Non-recursive**: Member selection does NOT recursively search through views of the delegated object (see Design Decisions)
+3. **Non-recursive**: Member selection does NOT recursively search through views of the delegated object (see Design Decisions)
 
 **Usage:**
 
