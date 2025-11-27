@@ -18,6 +18,7 @@ object Desugaring:
         case ddef: DataDef  => synthesizeDataDef(ddef)
         case edef: EnumDef  => synthesizeEnumDef(edef)
         case pdef: ParamDef => desugarParamDef(pdef)
+        case cdef: ClassDef => desugarClassDef(cdef) :: Nil
         case defn => defn :: Nil
 
     if defs2.size != defs.size then synthesize(defs2) else defs2
@@ -142,7 +143,7 @@ object Desugaring:
    *
    *    <Context> <Default> param a: T
    *
-   *    fun a$default = rhs
+   *    <Default> fun a$default = rhs
    */
   def desugarParamDef(pdef: ParamDef): List[Def] =
     val paramId = pdef.ident
@@ -167,3 +168,156 @@ object Desugaring:
         val pdef2 = pdef.copy(default = None)(pdef.span)
         pdef2.addKey(ExtraFlags, Flags.Default)
         pdef2 :: createDefaultFun(rhs) :: Nil
+
+  /* Desugaring views and class parameters
+   *
+   * 1. Direct views
+   *
+   *    From
+   *
+   *        view T
+   *
+   *    to
+   *
+   *        <View> def N: T = ...
+   *
+   *    where N is the name after stripping type parameters. It is an error if T
+   *    is neither of the form `X` nor `F[..]`.
+   *
+   * 2. Delegate views
+   *
+   *    From
+   *
+   *        view T = expr
+   *
+   *    to
+   *
+   *        <Private> val N$cache: T = expr
+   *        <View> def N: T = N$cache
+   *
+   *    where N is the name after stripping type parameters. It is an error if T
+   *    is neither of the form `X` nor `F[..]`.
+   *
+   * 3. Class parameters
+   *
+   *    From
+   *
+   *        class A[T](x: T, y: S)
+   *
+   *    to
+   *
+   *        class A[T]
+   *          val x: T
+   *          val y: S
+   *
+   *          def A(x: T, y: S) = { x = x, y = y }
+   *
+   *    It is an error if a constructor (fun with the name A) alreay exists and
+   *    class params are not empty. In this case, an error will be reported and
+   *    the class params will be simply ignored.
+   */
+  def desugarClassDef(cdef: ClassDef)(using Reporter, Source): ClassDef =
+    val newMembers = new mutable.ArrayBuffer[ValDef | FunDef]
+
+    for vdecl <- cdef.views do newMembers ++= desugarView(vdecl)
+
+    // Check if constructor already exists
+    val hasConstructor = cdef.members.exists:
+      case fdef: FunDef => fdef.name == cdef.name
+      case _ => false
+
+    if hasConstructor then
+      if cdef.params.nonEmpty then
+        Reporter.error(s"Constructor ${cdef.name} already exists, class parameters will be ignored", cdef.pos)
+
+      if newMembers.isEmpty then return cdef
+
+    else
+      // Create val fields for each parameter
+      for param <- cdef.params do
+        newMembers += ValDef(param.ident, param.tpt, Block(Nil)(param.span), mutable = false)(param.span)
+
+      // Create constructor: def A(x: T, y: S) = { x = x, y = y }
+      val args = cdef.params.map: param =>
+        NamedArg(param.ident, param.ident)(param.span)
+
+      val ctorBody = RecordLit(args)(cdef.ident.span)
+
+      val ctor = FunDef(
+        cdef.ident,
+        Nil,  // no type params
+        cdef.params,
+        Nil,  // no autos
+        EmptyTypeTree()(cdef.ident.span),  // result type
+        Some(Nil),  // no receives
+        ctorBody,
+        preParamCount = 0
+      )(cdef.span)
+
+      newMembers += ctor
+
+    // Return new ClassDef with empty params and views (they've been desugared)
+    cdef.copy(
+      params = Nil,
+      views = Nil,
+      members = newMembers.toList ++ cdef.members
+    )(cdef.span)
+
+
+  def desugarView(vdecl: ViewDecl)(using Reporter, Source): List[ValDef | FunDef] =
+    // Extract type name from TypeTree (strip type parameters)
+    val typeNameOpt: Option[String] = vdecl.tpe match
+      case id: Ident => Some(id.name)
+      case AppliedType(tpeCtor: Ident, _) => Some(tpeCtor.name)
+      case _ => None
+
+
+    typeNameOpt match
+      case None =>
+        Reporter.error("View type must be an identifier or applied type", vdecl.pos)
+        Nil
+
+      case Some(name) =>
+        val viewId = Ident(name)(vdecl.span)
+
+        vdecl.rhs match
+          case None =>
+            // Direct view: create view accessor
+            // <View> def N: T = ...
+            // Body is a placeholder, will be synthesized during type checking
+            val body = Ident("...")(vdecl.span)
+            val fdef = FunDef(
+              viewId,
+              Nil,  // no type params
+              Nil,  // no params
+              Nil,  // no autos
+              vdecl.tpe,
+              Some(Nil),  // no receives
+              body,
+              preParamCount = 0
+            )(vdecl.span)
+            fdef.addKey(ExtraFlags, Flags.View)
+            fdef :: Nil
+
+          case Some(expr) =>
+            // Delegate view: create cache field and accessor
+            // <Synthetic> val N$cache: T = expr
+            val cacheId = Ident(name + "$cache")(vdecl.span)
+            val cacheVal = ValDef(cacheId, vdecl.tpe, expr, mutable = false)(vdecl.span)
+            cacheVal.addKey(ExtraFlags, Flags.Synthetic)
+
+            // <View> def N: T = N$cache
+            val accessorBody = cacheId
+            val accessor = FunDef(
+              viewId,
+              Nil,  // no type params
+              Nil,  // no params
+              Nil,  // no autos
+              vdecl.tpe,
+              Some(Nil),  // no receives
+              accessorBody,
+              preParamCount = 0
+            )(vdecl.span)
+            accessor.addKey(ExtraFlags, Flags.View)
+
+            cacheVal :: accessor :: Nil

@@ -9,7 +9,7 @@ object Flags:
   opaque type Flags = Long
 
   private val flagNames: Array[String] = Array.fill(64)("")
-  private val MAX_INDEX = 18
+  private val MAX_INDEX = 38
 
   private[Flags] def defineFlag(index: Byte, name: String): Flag =
     assert(index <= MAX_INDEX, s"Maximum flags reached: at most $MAX_INDEX flags")
@@ -42,22 +42,23 @@ object Flags:
   // Keep encoded flags at low positions to reduce encoding size
 
   val Mutable    : Flag = defineFlag(1, "mutable"   ) // a mutable variable
-  val Context    : Flag = defineFlag(2, "context"   ) // context parameter or its default function
-  val Default    : Flag = defineFlag(3, "default"   ) // context parameter with default value
+  val Context    : Flag = defineFlag(2, "context"   ) // context parameter
+  val Default    : Flag = defineFlag(3, "default"   ) // context parameter with default value or its default function
   val Defer      : Flag = defineFlag(4, "defer"     ) // a deferred definition
+  val Alias      : Flag = defineFlag(5, "alias"     ) // an alias symbol created by import or alias
+  val View       : Flag = defineFlag(6, "view"      ) // an view member of a class
+  val Synthetic  : Flag = defineFlag(7, "synthetic" ) // a compiler-synthesized symbol
 
-  val Fun        : Flag = defineFlag(5,  "fun"      ) // symbol.info is ProcType
-  val Class      : Flag = defineFlag(6,  "class"    )
-  val NSpace     : Flag = defineFlag(7,  "namespace")
-  val Section    : Flag = defineFlag(8,  "section"  )
-  val Field      : Flag = defineFlag(9,  "field"    ) // an object field
-  val Method     : Flag = defineFlag(10, "method"   )
-  val Branch     : Flag = defineFlag(11, "branch"   ) // branch name space
-  val Param      : Flag = defineFlag(12, "param"    ) // a parameter
+  val Fun        : Flag = defineFlag(30, "fun"      ) // symbol.info is ProcType
+  val Class      : Flag = defineFlag(31, "class"    )
+  val NSpace     : Flag = defineFlag(32, "namespace")
+  val Section    : Flag = defineFlag(33, "section"  )
+  val Field      : Flag = defineFlag(34, "field"    ) // an object field
+  val Method     : Flag = defineFlag(35, "method"   )
+  val Branch     : Flag = defineFlag(36, "branch"   ) // branch name space
+  val Param      : Flag = defineFlag(37, "param"    ) // a parameter
 
-  val Alias      : Flag = defineFlag(13, "alias"    ) // an alias symbol created by import/export
-  val Synthetic  : Flag = defineFlag(15, "synthetic") // a compiler-synthesized symbol
-  val Loaded     : Flag = defineFlag(16, "loaded"   ) // a symbol loaded from sast
+  val Loaded     : Flag = defineFlag(38, "loaded"   ) // a symbol loaded from sast
 
   val empty   : Flags = 0
 
