@@ -2,6 +2,7 @@ package typing
 
 import ast.Trees.*
 import ast.Positions.Source
+import sast.Flags
 
 import common.KeyProps
 import reporting.Reporter
@@ -9,9 +10,7 @@ import reporting.Reporter
 import scala.collection.mutable
 
 object Desugaring:
-  // Use key props to avoid using sast.Flags in ast package
-  val DefaultContextParam = new KeyProps.Key[Unit]("Desugaring.DefaultContextParam")
-  val DefaultValueFun = new KeyProps.Key[Unit]("Desugaring.DefaultValueFun")
+  val ExtraFlags = new KeyProps.Key[Flags]("Desugaring.ExtraFlags")
 
   def synthesize(defs: List[Def])(using Reporter, Source): List[Def] =
     val defs2 =
@@ -158,7 +157,7 @@ object Desugaring:
       val receives = Some(Nil) // no context params allowed for default
 
       val fdef = FunDef(defaultId, tparams, params, autos, paramType, receives, rhs, preParamCount = 0)(pdef.span)
-      fdef.addKey(DefaultValueFun, ())
+      fdef.addKey(ExtraFlags, Flags.Default)
       fdef
 
     pdef.default match
@@ -166,5 +165,5 @@ object Desugaring:
 
       case Some(rhs) =>
         val pdef2 = pdef.copy(default = None)(pdef.span)
-        pdef2.addKey(DefaultContextParam, ())
+        pdef2.addKey(ExtraFlags, Flags.Default)
         pdef2 :: createDefaultFun(rhs) :: Nil

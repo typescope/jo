@@ -1250,10 +1250,8 @@ class Namer(using Config):
     // given definitions are lazy
     given Definitions = lazyDefn.value
 
-    var flags = Checker.checkModifiers(pdef) | Flags.Context
-
-    if pdef.hasKey(Desugaring.DefaultContextParam) then
-      flags |= Flags.Default
+    val extraFlags = pdef.getKeyOrElse(Desugaring.ExtraFlags)(Flags.empty)
+    val flags = Checker.checkModifiers(pdef) | Flags.Context | extraFlags
 
     val paramSym = TermSymbol.create(pdef.name, flags, Checker.visibility(pdef, sc.owner), sc.owner, pdef.pos)
     ip.addLazy(paramSym, () => transformType(pdef.tpt).tpe)
@@ -1453,10 +1451,8 @@ class Namer(using Config):
       (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, ck: Checks)
   : DelayedDef[FunDef] =
 
-    var flags = Checker.checkModifiers(funDef) | initialFlags
-
-    if funDef.hasKey(Desugaring.DefaultValueFun) then
-      flags |= Flags.Default
+    val extraFlags = funDef.getKeyOrElse(Desugaring.ExtraFlags)(Flags.empty)
+    val flags = Checker.checkModifiers(funDef) | initialFlags | extraFlags
 
     val funSym = TermSymbol.create(funDef.name, flags, Checker.visibility(funDef, sc.owner), sc.owner, funDef.ident.pos)
     given Scope = sc.fresh(funSym)
