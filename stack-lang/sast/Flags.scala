@@ -9,7 +9,7 @@ object Flags:
   opaque type Flags = Long
 
   private val flagNames: Array[String] = Array.fill(64)("")
-  private val MAX_INDEX = 38
+  private val MAX_INDEX = 39
 
   private[Flags] def defineFlag(index: Byte, name: String): Flag =
     assert(index <= MAX_INDEX, s"Maximum flags reached: at most $MAX_INDEX flags")
@@ -18,7 +18,7 @@ object Flags:
     assert(flagNames(index).isEmpty, "the index " + index + " is already used")
 
     flagNames(index) = name
-    1 << index
+    1.toLong << index
 
   /** The encoding of flags is implementation detail.
     *
@@ -49,16 +49,17 @@ object Flags:
   val View       : Flag = defineFlag(6, "view"      ) // an view member of a class
   val Synthetic  : Flag = defineFlag(7, "synthetic" ) // a compiler-synthesized symbol
 
-  val Fun        : Flag = defineFlag(30, "fun"      ) // symbol.info is ProcType
-  val Class      : Flag = defineFlag(31, "class"    )
-  val NSpace     : Flag = defineFlag(32, "namespace")
-  val Section    : Flag = defineFlag(33, "section"  )
-  val Field      : Flag = defineFlag(34, "field"    ) // an object field
-  val Method     : Flag = defineFlag(35, "method"   )
-  val Branch     : Flag = defineFlag(36, "branch"   ) // branch name space
-  val Param      : Flag = defineFlag(37, "param"    ) // a parameter
+  val Loaded     : Flag = defineFlag(30, "loaded"   ) // a symbol loaded from sast
+  val Fun        : Flag = defineFlag(31, "fun"      ) // symbol.info is ProcType
+  val Class      : Flag = defineFlag(32, "class"    )
+  val NSpace     : Flag = defineFlag(33, "namespace")
+  val Section    : Flag = defineFlag(34, "section"  )
+  val Field      : Flag = defineFlag(35, "field"    ) // an object field
+  val Method     : Flag = defineFlag(36, "method"   )
+  val Branch     : Flag = defineFlag(37, "branch"   ) // branch name space
+  val Param      : Flag = defineFlag(38, "param"    ) // a parameter
+  val Interface  : Flag = defineFlag(39, "interface") // an interface
 
-  val Loaded     : Flag = defineFlag(38, "loaded"   ) // a symbol loaded from sast
 
   val empty   : Flags = 0
 
