@@ -390,6 +390,7 @@ object Encoder:
       case pdef: ParamDef => encodeParamDef(pdef)
       case adef: AliasDef => encodeAliasDef(adef)
       case cdef: ClassDef => encodeClassDef(cdef)
+      case idef: InterfaceDef => encodeInterfaceDef(idef)
       case fdef: FunDef => encodeFunDef(fdef)
       case pdef: PatDef => encodePatDef(pdef)
       case tdef: TypeDef => encodeTypeDef(tdef)
@@ -503,6 +504,36 @@ object Encoder:
         lastOffset = fdef.span.endOffset
 
       encodeNat(cdef.span.endOffset - lastOffset)
+
+  private def encodeInterfaceDef(idef: InterfaceDef)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
+    val defSym = idef.symbol
+    val absoluteStart = idef.span.start
+
+    encodeByte(Format.InterfaceDef)
+
+    buf.withLength:
+      encodeNat(absoluteStart)
+
+      encodeNat(state.getId(defSym))
+      encodeString(defSym.name)
+      encodeKind(defSym.asTypeSymbol.kind)
+      encodeVisibility(defSym)
+
+      encodeInt(defSym.span.start - absoluteStart)
+      encodeNat(defSym.span.length)
+
+      encodeTypeParams(idef.tparams, defSym.span.start)
+
+      encodeNat(state.getId(idef.self))
+      encodeString(idef.self.name)
+      encodeFlags(idef.self.flags & Flags.Synthetic)
+
+      var lastOffset = absoluteStart
+      repeated(idef.methods): fdef =>
+        encodeDef(fdef)
+        lastOffset = fdef.span.endOffset
+
+      encodeNat(idef.span.endOffset - lastOffset)
 
   private def encodeFunDef(fdef: FunDef)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
     val defSym = fdef.symbol
