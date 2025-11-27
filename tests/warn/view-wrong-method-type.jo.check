@@ -1,0 +1,8 @@
+---------- Error at ./tests/warn/view-wrong-method-type.jo:8:3 ---------------
+|   def format(x: String): String = x  // Wrong parameter type
+|   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   Method format has incompatible type from interface Formatter.
+  Required: (x: Int): String receives none
+  Found:    (x: String): String receives none
+
+1 error(s), 0 warning(s)
