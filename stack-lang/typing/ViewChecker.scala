@@ -80,7 +80,7 @@ object ViewChecker:
           // Check type compatibility using subtyping
           if !Subtyping.conforms(implType, requiredType) then
             rp.error(
-              s"Method $methodName has incompatible type.\n" +
+              s"Method $methodName has incompatible type from interface $interfaceSym.\n" +
               s"  Required: ${requiredType.show}\n" +
               s"  Found:    ${implType.show}",
               implMethod.pos

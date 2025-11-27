@@ -1890,8 +1890,11 @@ class Namer(using Config):
       var methodFlags = Flags.Fun | Flags.Method
 
       // If method has a body, it's a default implementation
-      if !fdef.body.isEmptyBlock then
-        methodFlags = methodFlags | Flags.Default
+      if fdef.body.isEmptyBlock then
+        methodFlags |= Flags.Defer
+
+      else
+        methodFlags |= Flags.Default
 
       val delayedDef = transformFunDef(fdef, methodFlags, Effects.Policy.Infer)
       methods += delayedDef.symbol
