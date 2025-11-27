@@ -56,7 +56,6 @@ object Flags:
   val Param      : Flag = defineFlag(12, "param"    ) // a parameter
 
   val Alias      : Flag = defineFlag(13, "alias"    ) // an alias symbol created by import/export
-  val Auto       : Flag = defineFlag(14, "auto"     ) // auto function or auto value
   val Synthetic  : Flag = defineFlag(15, "synthetic") // a compiler-synthesized symbol
   val Loaded     : Flag = defineFlag(16, "loaded"   ) // a symbol loaded from sast
 

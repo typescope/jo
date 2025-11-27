@@ -404,7 +404,7 @@ object Encoder:
 
     encodeNat(state.getId(defSym))
     encodeString(defSym.name)
-    encodeFlags(defSym.flags & (Flags.Auto | Flags.Mutable))
+    encodeFlags(defSym.flags & Flags.Mutable)
     encodeVisibility(defSym)
 
     encodeInt(defSym.span.start - absoluteStart)
@@ -425,7 +425,7 @@ object Encoder:
 
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
-      encodeFlags(defSym.flags & (Flags.Default | Flags.Auto))
+      encodeFlags(defSym.flags & Flags.Default)
       encodeVisibility(defSym)
 
       encodeInt(defSym.span.start - absoluteStart)
@@ -481,13 +481,13 @@ object Encoder:
 
       encodeNat(state.getId(cdef.self))
       encodeString(cdef.self.name)
-      encodeFlags(cdef.self.flags & (Flags.Auto | Flags.Synthetic))
+      encodeFlags(cdef.self.flags & Flags.Synthetic)
 
       // TODO: maintain members in original order
       repeated(cdef.vals): sym =>
         encodeNat(state.getId(sym))
         encodeString(sym.name)
-        encodeFlags(sym.flags & (Flags.Auto | Flags.Mutable))
+        encodeFlags(sym.flags & Flags.Mutable)
         encodeVisibility(sym)
 
         val symSpan = sym.sourcePos.span
@@ -515,7 +515,7 @@ object Encoder:
 
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
-      encodeFlags(defSym.flags & (Flags.Auto | Flags.Synthetic | Flags.Defer | Flags.Default))
+      encodeFlags(defSym.flags & (Flags.Synthetic | Flags.Defer | Flags.Default))
       encodeVisibility(defSym)
 
       encodeInt(defSym.span.start - absoluteStart)

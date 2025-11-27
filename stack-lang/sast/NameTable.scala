@@ -11,8 +11,7 @@ import scala.collection.mutable
 class NameTable(
   termNames: mutable.Map[String, Symbol],
   typeNames: mutable.Map[String, Symbol],
-  patternNames: mutable.Map[String, Symbol],
-  autoSymbols: mutable.ArrayBuffer[Symbol]):
+  patternNames: mutable.Map[String, Symbol]):
 
   private var frozen: Boolean = false
 
@@ -20,7 +19,7 @@ class NameTable(
     frozen = true
     this
 
-  def this() = this(mutable.Map.empty, mutable.Map.empty, mutable.Map.empty, new mutable.ArrayBuffer)
+  def this() = this(mutable.Map.empty, mutable.Map.empty, mutable.Map.empty)
 
   private def getTable(sym: Symbol) =
     if sym.isType then typeNames
@@ -79,14 +78,6 @@ class NameTable(
 
     val table = getTable(sym)
     defineInTable(sym, table)
-
-    if sym.is(Flags.Auto) then
-      defineAuto(sym)
-
-  def autos: Seq[Symbol] = autoSymbols.toList
-
-  private def defineAuto(sym: Symbol): Unit =
-    autoSymbols += sym
 
   private def defineInTable(sym: Symbol, table: mutable.Map[String, Symbol])(using rp: Reporter): Unit =
     table.get(sym.name) match
