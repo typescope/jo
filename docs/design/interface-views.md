@@ -142,7 +142,7 @@ See the Semantics section for complete delegation semantics.
 
 ### View Accessors
 
-Each view declaration creates an accessor that returns the view instance:
+Each view declaration creates a field that holds the view instance:
 
 ```jo
 class User(id: Int, name: String)
@@ -151,7 +151,7 @@ class User(id: Int, name: String)
 end
 
 val user = new User(1, "Alice")
-val showable: Show = user.Show  // Access view via accessor
+val showable: Show = user.Show  // Access view field
 val serialized = showable.show()
 ```
 
@@ -262,11 +262,11 @@ interface Container[T]
 
 ### View Delegation Semantics
 
-View declarations create **accessors** that return view instances, where **T can be any type** (interface or class).
+View declarations create **fields** that hold view instances, where **T can be any type** (interface or class).
 
 **For `view I` where `I` is an interface (direct view):**
 
-Each `view I` declaration creates an accessor `def I: I` that returns a compiler-synthesized view instance.
+Each `view I` declaration creates a field `val I: I` that holds a compiler-synthesized view instance.
 
 ```jo
 interface Logger
@@ -275,25 +275,26 @@ end
 
 class ConsoleLogger
   def log(msg: String): Unit = println(msg)
-  view Logger  // Creates: def Logger: Logger
+  view Logger  // Creates: val Logger: Logger
 end
 ```
 
 **For `view T = expr` (delegate view):**
 
-Each `view T = expr` declaration creates an accessor `def T: T` that returns the cached result of evaluating `expr`.
+Each `view T = expr` declaration creates a field `val T: T` that holds the result of evaluating `expr`.
 
 ```jo
 class Service(logger: Logger)
-  view Logger = logger  // Creates: def Logger: Logger
+  view Logger = logger  // Creates: val Logger: Logger
 end
 ```
 
 **Key properties:**
 
-1. **View accessors**: Each `view T` or `view T = expr` creates an accessor `def T: T`
-2. **Evaluation**: For `view T = expr`, expression is evaluated once at construction and cached
-3. **Non-recursive**: Member selection does NOT recursively search through views of the delegated object (see Design Decisions)
+1. **View fields**: Each `view T` or `view T = expr` creates a field `val T: T`
+2. **Single instance**: The same view instance is returned on every access
+3. **Evaluation**: For `view T = expr`, expression is evaluated once at construction time
+4. **Non-recursive**: Member selection does NOT recursively search through views of the delegated object (see Design Decisions)
 
 **Usage:**
 

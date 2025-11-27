@@ -36,29 +36,30 @@ object ViewChecker:
     end for
 
   def checkClassDef(cdef: ClassDef)(using defn: Definitions, rp: Reporter, src: Source): Unit =
-    // Find all direct view accessors (methods with View and Defer flags)
-    val directViews = cdef.funs.filter: fdef =>
-      fdef.symbol.isAllOf(Flags.View | Flags.Defer)
+    // Find all direct view fields (vals with View and Defer flags)
+    val directViews = cdef.vals.filter: viewSym =>
+      viewSym.isAllOf(Flags.View | Flags.Defer)
 
-    for viewAccessor <- directViews do
-      val viewSym = viewAccessor.symbol
-      val viewType = viewSym.info.asProcType.resultType
+    for viewSym <- directViews do
+      val viewType = viewSym.info
 
       // Check 1: The view type must be an interface
       val interfaceSym = viewType.dealias match
-        case StaticRef(sym) if sym.is(Flags.Interface) => sym
+        case StaticRef(sym) if sym.is(Flags.Interface) =>
+          sym
 
-        case AppliedType(StaticRef(sym), _) if sym.is(Flags.Interface) => sym
+        case AppliedType(StaticRef(sym), _) if sym.is(Flags.Interface) =>
+          sym
 
         case _ =>
-          rp.error(s"Direct view must be an interface type, found: ${viewType.show}", viewAccessor.resultType.pos)
+          rp.error(s"Direct view must be an interface type, found: ${viewType.show}", viewSym.sourcePos)
           null
 
       if interfaceSym != null then
-        checkView(cdef, viewType, viewAccessor)
+        checkView(cdef, viewType, viewSym)
 
   def checkView
-      (cdef: ClassDef, viewType: Type, viewAccessor: FunDef)
+      (cdef: ClassDef, viewType: Type, viewSym: Symbol)
       (using defn: Definitions, rp: Reporter, src: Source)
   : Unit =
     val classInfo = viewType.asClassInfo
@@ -103,5 +104,5 @@ object ViewChecker:
           if isAbstract then
             rp.error(
               s"Class ${cdef.symbol.name} does not implement required method $methodName from interface ${interfaceSym.name}",
-              viewAccessor.pos
+              viewSym.sourcePos
             )

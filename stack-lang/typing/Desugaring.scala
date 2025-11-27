@@ -282,42 +282,17 @@ object Desugaring:
 
         vdecl.rhs match
           case None =>
-            // Direct view: create view accessor
-            // <View> def N: T = ...
+            // Direct view: create view field
+            // <View><Defer> val N: T = ...
             // Body is a placeholder, will be synthesized during type checking
             val body = Ident("...")(vdecl.span)
-            val fdef = FunDef(
-              viewId,
-              Nil,  // no type params
-              Nil,  // no params
-              Nil,  // no autos
-              vdecl.tpe,
-              Some(Nil),  // no receives
-              body,
-              preParamCount = 0
-            )(vdecl.span)
-            fdef.addKey(ExtraFlags, Flags.View | Flags.Defer)
-            fdef :: Nil
+            val vdef = ValDef(viewId, vdecl.tpe, body, mutable = false)(vdecl.span)
+            vdef.addKey(ExtraFlags, Flags.View | Flags.Defer)
+            vdef :: Nil
 
           case Some(expr) =>
-            // Delegate view: create cache field and accessor
-            // <Synthetic> val N$cache: T = expr
-            val cacheId = Ident(name + "$cache")(vdecl.span)
-            val cacheVal = ValDef(cacheId, vdecl.tpe, expr, mutable = false)(vdecl.span)
-            cacheVal.addKey(ExtraFlags, Flags.Synthetic)
-
-            // <View> def N: T = N$cache
-            val accessorBody = cacheId
-            val accessor = FunDef(
-              viewId,
-              Nil,  // no type params
-              Nil,  // no params
-              Nil,  // no autos
-              vdecl.tpe,
-              Some(Nil),  // no receives
-              accessorBody,
-              preParamCount = 0
-            )(vdecl.span)
-            accessor.addKey(ExtraFlags, Flags.View)
-
-            cacheVal :: accessor :: Nil
+            // Delegate view: create view field
+            // <View> val N: T = expr
+            val vdef = ValDef(viewId, vdecl.tpe, expr, mutable = false)(vdecl.span)
+            vdef.addKey(ExtraFlags, Flags.View)
+            vdef :: Nil
