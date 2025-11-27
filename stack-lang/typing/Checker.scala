@@ -183,6 +183,12 @@ object Checker:
           case mod =>
             Reporter.error("The modifier " + mod.show + " is not allowed for class definition", mod.pos)
 
+      case idef: Ast.InterfaceDef =>
+        mods.foreach:
+          case _: Ast.Modifier.Private =>
+          case mod =>
+            Reporter.error("The modifier " + mod.show + " is not allowed for interface definition", mod.pos)
+
       case tdef: Ast.TypeDef =>
         mods.foreach:
           case _: Ast.Modifier.Private =>

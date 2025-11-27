@@ -66,6 +66,15 @@ object VisibilityChecker:
           cdef.funs.foreach: fdef =>
             checkFunDef(fdef)
 
+        case idef: InterfaceDef =>
+          // Check type parameters
+          idef.tparams.foreach: tparam =>
+            checkType(tparam, tparam.info, tparam.sourcePos)
+
+          // Check methods
+          idef.methods.foreach: fdef =>
+            checkFunDef(fdef)
+
         case adef: AliasDef =>
           val target = adef.symbol.info.as[StaticRef].symbol
           if !target.visibleScope.contains(adef.symbol.visibleScope) then
