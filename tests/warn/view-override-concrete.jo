@@ -1,0 +1,15 @@
+// Cannot override interface method with concrete implementation
+
+interface Calculator
+  def add(x: Int, y: Int): Int  // Abstract method (no body)
+  def subtract(x: Int, y: Int): Int = x - y  // Concrete method (has body)
+end
+
+class MyCalculator
+  def add(x: Int, y: Int): Int = x + y  // OK: implementing abstract method
+  def subtract(x: Int, y: Int): Int = x - y  // ERROR: cannot override concrete method
+
+  view Calculator
+end
+
+def main = println ""

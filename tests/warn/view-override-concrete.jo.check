@@ -1,0 +1,6 @@
+---------- Error at ./tests/warn/view-override-concrete.jo:10:3 ---------------
+|   def subtract(x: Int, y: Int): Int = x - y  // ERROR: cannot override concrete method
+|   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   Method subtract in interface Calculator is not abstract and cannot be overridden
+
+1 error(s), 0 warning(s)
