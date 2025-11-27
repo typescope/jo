@@ -185,6 +185,15 @@ object RawPrinter:
             ~ "]"
         ~ "]"
 
+      case idef: InterfaceDef =>
+        "InterfaceDef [" ~ indent:
+            printSymbol(idef.symbol) ~ LINE_SEP ~
+            "[" ~ idef.tparams.map(printSymbol).join(",") ~ "]" ~ LINE_SEP ~
+            "[" ~ indent:
+                idef.methods.map(printDef).join(LINE_SEP)
+            ~ "]"
+        ~ "]"
+
       case fdef: FunDef =>
         val adaptersText = "[" ~ indent:
             fdef.adapters.map: adapterList =>

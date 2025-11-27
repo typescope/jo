@@ -573,6 +573,11 @@ object Trees:
     (val span: Span)
   extends Def
 
+  case class InterfaceDef
+    (symbol: Symbol, tparams: List[Symbol], methods: List[FunDef])
+    (val span: Span)
+  extends Def
+
   case class AliasDef
     (symbol: Symbol, target: Ident)
     (val span: Span)

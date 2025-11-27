@@ -169,6 +169,16 @@ object Printing:
           ~ Text.BlankLine
           cdef.funs.join(Text.BlankLine)
 
+      case idef: InterfaceDef =>
+        val modifiers = showModifiers(idef.symbol)
+
+        val tparams =
+          if idef.tparams.isEmpty then Text.Empty
+          else "[" ~ idef.tparams.join(", ")  ~ "]"
+
+        modifiers ~ "interface " ~ idef.name ~ tparams ~ indent:
+          idef.methods.join(Text.BlankLine)
+
       case adef: AliasDef =>
         val modifiers = showModifiers(adef.symbol)
         modifiers ~ "alias " ~ adef.name ~ " = " ~ adef.target
