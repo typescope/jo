@@ -1,0 +1,13 @@
+// Class must implement all required methods from interface
+
+interface Logger
+  def log(msg: String): Unit
+  def error(msg: String): Unit
+end
+
+class PartialLogger
+  def log(msg: String): Unit = ...
+  // Missing error method
+
+  view Logger
+end
