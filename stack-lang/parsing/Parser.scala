@@ -611,13 +611,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val tparams = typeParams()
 
     // Parse constructor parameters if present (simplified syntax)
-    val constructorParams =
+    val classParams =
       if peek() == Token.LPAREN then params()
       else Nil
-
-    // Convert constructor parameters to val fields
-    val constructorFields = constructorParams.map: p =>
-      ValDef(p.ident, p.tpt, Block(Nil)(p.span), mutable = false)(p.span)
 
     // Parse view declarations and members
     val views = mutable.ArrayBuffer[ViewDecl]()
@@ -649,17 +645,14 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     eatEndOpt(klass.indent)
 
-    // Combine constructor fields with parsed members
-    val allMembers = constructorFields ++ members.toList
-
     val lastSpan =
-      if allMembers.nonEmpty then allMembers.last.span
+      if members.nonEmpty then members.last.span
       else if views.nonEmpty then views.last.span
+      else if classParams.nonEmpty then classParams.last.span
       else if tparams.nonEmpty then tparams.last.span
-      else if constructorParams.nonEmpty then constructorParams.last.span
       else id.span
 
-    ClassDef(id, tparams, constructorParams, views.toList, allMembers)(klass.span | lastSpan).withMods(mods)
+    ClassDef(id, tparams, classParams, views.toList, members.toList)(klass.span | lastSpan).withMods(mods)
 
   def interfaceDef(mods: List[Modifier]): InterfaceDef =
     val interface = eat(Token.INTERFACE)
