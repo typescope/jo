@@ -22,22 +22,16 @@ class LinkRewriter(linkMap: Map[Symbol, Symbol])(using defn: Definitions, rp: Re
 
     // Only process deferred functions
     if sym.isAllOf(Flags.Defer | Flags.Fun) then
-      // Skip interface methods - they don't need linking
-      val isInterfaceMethod = sym.is(Flags.Method) && sym.owner.is(Flags.Interface)
-
-      if isInterfaceMethod then
-        ident
-      else
-        linkMap.get(sym) match
-          case Some(targetSym) =>
-            // Replace with target symbol
-            Ident(targetSym)(ident.span)
-          case None =>
-            // Check if deferred function has a default implementation
-            if !sym.is(Flags.Default) && !reportedErrors.contains(sym) then
-              rp.error(s"Deferred function ${sym.fullName} has no default implementation and is not linked")
-              reportedErrors.add(sym)
-            ident
+      linkMap.get(sym) match
+        case Some(targetSym) =>
+          // Replace with target symbol
+          Ident(targetSym)(ident.span)
+        case None =>
+          // Check if deferred function has a default implementation
+          if !sym.is(Flags.Default) && !reportedErrors.contains(sym) then
+            rp.error(s"Deferred function ${sym.fullName} has no default implementation and is not linked")
+            reportedErrors.add(sym)
+          ident
     else
       ident
 
@@ -90,9 +84,6 @@ object LinkRewriter:
           // Check that source is a deferred function
           if !sourceSym.is(Flags.Defer) then
             rp.error(s"Link source must be a deferred function: $sourcePath")
-          // Interface methods cannot be link sources
-          else if sourceSym.is(Flags.Method) && sourceSym.owner.is(Flags.Interface) then
-            rp.error(s"Interface methods cannot be used as link sources: $sourcePath")
           else
             // Validate that target type is subtype of source type
             val sourceType = sourceSym.info

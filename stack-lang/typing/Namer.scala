@@ -1466,7 +1466,8 @@ class Namer(using Config):
       if funDef.resultType.isEmpty then
         Reporter.error("A deferred definition should have explicit result type", funDef.ident.pos)
 
-      if !sc.owner.isContainer then
+      // view accessor have such flags
+      if sc.owner.isLocal then
         Reporter.error("A deferred definition should be at top-level", funDef.ident.pos)
 
     else if Config.explicitReturnType.value && funDef.resultType.isEmpty then
@@ -1886,8 +1887,7 @@ class Namer(using Config):
       if fdef.preParamCount != 0 then
         Reporter.error("Interface methods cannot have pre-arguments", fdef.pos)
 
-      // All interface methods are deferred, with or without default implementation
-      var methodFlags = Flags.Fun | Flags.Method | Flags.Defer
+      var methodFlags = Flags.Fun | Flags.Method
 
       // If method has a body, it's a default implementation
       if !fdef.body.isEmptyBlock then
