@@ -474,7 +474,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val paramList = preParamList ++ postParamList
     FunDef(id, tparams, paramList, autos, resType, receiveParams, body, preParamList.size)(fun.span | body.span).withMods(mods)
 
-  def defDef(needBody: Boolean): FunDef =
+  def defDef(needBody: Boolean, bodyAllowed: Boolean): FunDef =
     val defToken = eat(Token.DEF)
     val id = ident()
     val tparams = typeParams()
@@ -499,7 +499,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           error("Expect EQL, found = " + token, peekItem().span.toPos)
           Block(Nil)(resType.span)
       else
-        if token == Token.EQL then
+        // For interface methods and object type declarations, body is optional
+        if token == Token.EQL && !bodyAllowed then
           error("No body expected for declaration", peekItem().span.toPos)
           next()
           block(defToken.indent)
@@ -630,7 +631,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         val item = peekItem()
 
         if item.token == Token.DEF then
-          Some(members += defDef(needBody = true).withMods(mods))
+          Some(members += defDef(needBody = true, bodyAllowed = true).withMods(mods))
 
         else if peek() == Token.VAL || peek() == Token.VAR then
           val mod = next()
@@ -666,7 +667,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       else if item.token == Token.DEF then
         val mods = modifiers()
         // Interface methods can have bodies (default implementations) or no bodies
-        Some(defDef(needBody = false).withMods(mods))
+        Some(defDef(needBody = false, bodyAllowed = true).withMods(mods))
       else
         error("Expect method definition in interface, found = " + item.token, item.span.toPos)
         next()
@@ -1302,7 +1303,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
       if peek() == Token.DEF then
         count += 1
-        val methodDecl = defDef(needBody = false)
+        val methodDecl = defDef(needBody = false, bodyAllowed = false)
         Some(methodDecl)
 
       else if peek() == Token.VAL || peek() == Token.VAR then
@@ -1515,7 +1516,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
       val res =
         if peek() == Token.DEF then
-          Some(defDef(needBody = true))
+          Some(defDef(needBody = true, bodyAllowed = true))
 
         else if peek() == Token.VAL then
           Some(valDef(Token.VAL))
