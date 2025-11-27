@@ -296,7 +296,7 @@ object Desugaring:
               body,
               preParamCount = 0
             )(vdecl.span)
-            fdef.addKey(ExtraFlags, Flags.View)
+            fdef.addKey(ExtraFlags, Flags.View | Flags.Defer)
             fdef :: Nil
 
           case Some(expr) =>

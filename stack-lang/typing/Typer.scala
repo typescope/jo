@@ -50,6 +50,7 @@ object Typer:
       if !rp.hasErrors then
         given Definitions = defnLazy.value
         VisibilityChecker.check(nss)
+        ViewChecker.check(nss)
 
       (nss, Nil)
 
@@ -73,6 +74,7 @@ object Typer:
       if !rp.hasErrors then
         given Definitions = defnLazy.value
         VisibilityChecker.check(nss)
+        ViewChecker.check(nss)
 
       (nss, delayedNss)
 
