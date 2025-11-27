@@ -1889,12 +1889,9 @@ class Namer(using Config):
 
       var methodFlags = Flags.Fun | Flags.Method
 
-      // If method has a body, it's a default implementation
+      // Only abstract methods (without body) are deferred
       if fdef.body.isEmptyBlock then
         methodFlags |= Flags.Defer
-
-      else
-        methodFlags |= Flags.Default
 
       val delayedDef = transformFunDef(fdef, methodFlags, Effects.Policy.Infer)
       methods += delayedDef.symbol

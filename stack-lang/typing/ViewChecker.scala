@@ -72,23 +72,35 @@ object ViewChecker:
       val methodName = requiredMethod.name
       val requiredType = requiredMethod.info
 
+      // Interface methods are either:
+      // - Abstract (Flags.Defer, no body): must be implemented
+      // - Concrete (no Flags.Defer, has body): cannot be overridden
+      val isAbstract = requiredMethod.is(Flags.Defer)
+
       // Find matching method in the class
       cdef.funs.find(_.symbol.name == methodName) match
         case Some(implMethod) =>
-          val implType = implMethod.symbol.info
-
-          // Check type compatibility using subtyping
-          if !Subtyping.conforms(implType, requiredType) then
+          // Check if this method can be overridden
+          if !isAbstract then
             rp.error(
-              s"Method $methodName has incompatible type from interface $interfaceSym.\n" +
-              s"  Required: ${requiredType.show}\n" +
-              s"  Found:    ${implType.show}",
+              s"Method $methodName in interface ${interfaceSym.name} is not abstract and cannot be overridden",
               implMethod.pos
             )
+          else
+            val implType = implMethod.symbol.info
+
+            // Check type compatibility using subtyping
+            if !Subtyping.conforms(implType, requiredType) then
+              rp.error(
+                s"Method $methodName has incompatible type from interface $interfaceSym.\n" +
+                s"  Required: ${requiredType.show}\n" +
+                s"  Found:    ${implType.show}",
+                implMethod.pos
+              )
 
         case None =>
-          // Check if it's a deferred method with default implementation
-          if !requiredMethod.is(Flags.Default) then
+          // Only abstract methods must be implemented
+          if isAbstract then
             rp.error(
               s"Class ${cdef.symbol.name} does not implement required method $methodName from interface ${interfaceSym.name}",
               viewAccessor.pos

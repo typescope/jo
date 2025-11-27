@@ -500,10 +500,14 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           Block(Nil)(resType.span)
       else
         // For interface methods and object type declarations, body is optional
-        if token == Token.EQL && !bodyAllowed then
-          error("No body expected for declaration", peekItem().span.toPos)
-          next()
-          block(defToken.indent)
+        if token == Token.EQL then
+          if bodyAllowed then
+            next()
+            block(defToken.indent)
+          else
+            error("No body expected for declaration", peekItem().span.toPos)
+            next()
+            block(defToken.indent)
         else
           Block(Nil)(resType.span)
 
