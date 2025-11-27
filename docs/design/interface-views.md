@@ -23,7 +23,7 @@ Jo's **view mechanism** bridges these paradigms. Views bring the compositional b
 
 This reflects a different philosophical stance: rather than asking "what is this thing?" (subtyping), we ask "what can we do with this thing?" (views). The same object can be viewed through different lenses depending on context, without being forced into a single taxonomic hierarchy.
 
-Views provide automatic delegation (`view I = expr`), type-directed selection, and member resolution through interfaces—bringing duck typing's flexibility to a statically typed language while maintaining safety and explicit design.
+Views support both direct implementation (`view I`) and automatic delegation (`view I = expr`), with type-directed selection and member resolution through interfaces—bringing duck typing's flexibility to a statically typed language while maintaining safety and explicit design.
 
 ## Syntax
 
@@ -65,7 +65,7 @@ view_decl = "view" type_tree ["=" expr]
 
 Classes declare views using the `view` keyword. With Jo's simplified class syntax, constructor parameters are declared directly:
 
-**Manual implementation:**
+**Direct views:**
 
 ```jo
 class Point(x: Int, y: Int)
@@ -77,13 +77,13 @@ class Point(x: Int, y: Int)
     val dx = p1.x - p2.x
     if dx != 0 then dx else p1.y - p2.y
 
-  // Declare views
+  // Declare direct views
   view Show
   view Comparable[Point]
 end
 ```
 
-**Multiple manual views:**
+**Multiple direct views:**
 
 ```jo
 class User(id: Int, name: String)
@@ -96,7 +96,7 @@ class User(id: Int, name: String)
 end
 ```
 
-**View delegation:**
+**Delegate views:**
 
 Views can delegate to concrete instances using `view T = expr`, where `T` can be any type (interface or class):
 
@@ -134,9 +134,9 @@ class Person(name: String, empData: Employee, custData: Customer)
 end
 ```
 
-!!! info "Manual vs. Delegation"
-    - **Manual implementation** (`view T`): Only allowed for interface types. The class must implement all interface methods.
-    - **Delegation** (`view T = expr`): Allowed for any type (interface or class). Methods are resolved through member selection at usage sites.
+!!! info "Direct vs. Delegate Views"
+    - **Direct views** (`view T`): Only allowed for interface types. The class must implement all interface methods.
+    - **Delegate views** (`view T = expr`): Allowed for any type (interface or class). Methods are resolved through member selection at usage sites.
 
 See the Semantics section for complete delegation semantics.
 
@@ -260,7 +260,7 @@ interface Container[T]
 
 View declarations create **accessors** that return view instances, where **T can be any type** (interface or class).
 
-**For `view I` where `I` is an interface (manual implementation):**
+**For `view I` where `I` is an interface (direct view):**
 
 Each `view I` declaration creates an accessor `def I: I` that returns a compiler-synthesized view instance.
 
@@ -275,7 +275,7 @@ class ConsoleLogger
 end
 ```
 
-**For `view T = expr` (delegation):**
+**For `view T = expr` (delegate view):**
 
 Each `view T = expr` declaration creates an accessor `def T: T` that returns the cached result of evaluating `expr`.
 
@@ -303,7 +303,7 @@ service.log("hello")
 // 3. Resolve: service.Logger.log("hello")
 ```
 
-**Valid delegations:**
+**Valid delegate views:**
 
 ```jo
 interface Logger
@@ -335,7 +335,7 @@ class Service2(logger: FileLogger)
 end
 ```
 
-**Invalid delegation (type mismatch):**
+**Invalid delegate view (type mismatch):**
 
 ```jo
 class Service3(logger: FileLogger)
@@ -523,7 +523,7 @@ end
 
 This prevents ambiguity about which view implementation to use and which field stores the delegated instance.
 
-**View delegation type checking:**
+**Delegate view type checking:**
 
 For `view T = expr`, verify:
 
@@ -723,7 +723,7 @@ def main =
   println(intToStr(sum))  // Prints: 15
 ```
 
-### View Delegation
+### Delegate Views
 
 ```jo
 interface Logger
@@ -788,7 +788,7 @@ def main =
 end
 ```
 
-### View Delegation to Class Types
+### Delegate Views to Class Types
 
 Classes can delegate to other class types to model multiple roles:
 
@@ -880,7 +880,7 @@ This pattern is explicit and maintains clear ownership boundaries. Jo does not s
 
 ### Why Avoid Inheritance? Composition Over Inheritance
 
-Jo avoids traditional class inheritance entirely, promoting **composition with delegation** instead.
+Jo avoids traditional class inheritance entirely, promoting **composition with delegate views** instead.
 
 **Problems with inheritance:**
 
@@ -889,7 +889,7 @@ Jo avoids traditional class inheritance entirely, promoting **composition with d
 - Diamond problem with multiple inheritance
 - Forced taxonomies that don't match evolving requirements
 
-**Solution: View delegation**
+**Solution: Delegate views**
 
 Use `view I = expr` to delegate interface implementations to composed instances:
 
@@ -917,11 +917,11 @@ end
 
 **Core Principle**: Both view adaptation and member selection operate **non-recursively**—they only examine views directly declared by a class, never recursively searching through views of delegated objects.
 
-This is particularly important for **view delegation to class types**, which allows delegating to objects that themselves have views.
+This is particularly important for **delegate views to class types**, which allows delegating to objects that themselves have views.
 
 **The Issue: Transitive Views**
 
-Since view delegation now allows class types, a delegated object might have its own views. The question is: should those views be transitively exposed?
+Since delegate views now allow class types, a delegated object might have its own views. The question is: should those views be transitively exposed?
 
 ```jo
 interface Printer
@@ -1030,4 +1030,4 @@ Benefits:
 
 ## Summary
 
-Interfaces define behavioral contracts independently from concrete implementations. Views enable classes to expose multiple interfaces without subtyping relationships, supporting composition over inheritance. View delegation (`view I = expr`) provides automatic method forwarding to composed instances, eliminating boilerplate while maintaining static type safety. This design promotes flexible, maintainable code without the problems of traditional class inheritance.
+Interfaces define behavioral contracts independently from concrete implementations. Views enable classes to expose multiple interfaces without subtyping relationships, supporting composition over inheritance. Delegate views (`view I = expr`) provide automatic method forwarding to composed instances, eliminating boilerplate while maintaining static type safety. This design promotes flexible, maintainable code without the problems of traditional class inheritance.
