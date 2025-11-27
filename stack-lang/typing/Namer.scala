@@ -194,6 +194,9 @@ class Namer(using Config):
       case cdef: Ast.ClassDef =>
         transformClassDef(cdef) :: Nil
 
+      case idef: Ast.InterfaceDef =>
+        transformInterfaceDef(idef) :: Nil
+
       case adef: Ast.AliasDef =>
         transformAliasDef(adef) :: Nil
 
@@ -1835,6 +1838,79 @@ class Namer(using Config):
       ClassDef(classSym, thisSym, tparamSyms, fields.toList, funs)(cdef.span)
 
     DelayedDef(classSym, typer)
+
+  private def transformInterfaceDef(idef: Ast.InterfaceDef)
+      (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, ck: Checks)
+  : DelayedDef[InterfaceDef] =
+
+    val flags = Checker.checkModifiers(idef) | Flags.Interface
+    val kind = Kind.simpleKinded(idef.tparams.size)
+    val interfaceSym = TypeSymbol.create(kind, idef.name, flags, Checker.visibility(idef, sc.owner), sc.owner, idef.ident.pos)
+    val selfSym = TermSymbol.create("this", Flags.Synthetic, Visibility.Default, interfaceSym, idef.ident.pos)
+
+    given paramScope: Scope = sc.fresh(interfaceSym)
+
+    lazy val tparamSyms =
+      given Definitions = lazyDefn.value
+      transformTypeParams(idef.tparams)
+
+    val methods = new mutable.ArrayBuffer[Symbol]
+
+    lazy val interfaceInfo: Type =
+      // Reuse ClassInfo but with empty fields
+      val base = new ClassInfo(interfaceSym, tparamSyms, tparamSyms.map(StaticRef.apply), selfSym, Nil, methods.toList)
+
+      if idef.tparams.isEmpty then base
+      else TypeLambda(tparamSyms, base, preParamCount = 0)
+
+    val ip = lazyDefn.infoProvider
+    ip.addLazy(interfaceSym, () => interfaceInfo)
+
+    // Add self to scope for use in default method implementations
+    val selfScope = paramScope.fresh()
+    selfScope.define(selfSym)
+    val shortCutScope = selfScope.freshPrefixedScope(prefix = selfSym, owner = interfaceSym)
+
+    lazy val selfInfo: Type =
+      val interfaceRef = StaticRef(interfaceSym)
+      if tparamSyms.isEmpty then interfaceRef
+      else AppliedType(interfaceRef, tparamSyms.map(StaticRef.apply))
+
+    ip.addLazy(selfSym, () => selfInfo)
+
+    val delayedDefs = new mutable.ArrayBuffer[DelayedDef[FunDef]]
+
+    for fdef <- idef.members do
+      given Scope = shortCutScope
+
+      if fdef.preParamCount != 0 then
+        Reporter.error("Interface methods cannot have pre-arguments", fdef.pos)
+
+      // All interface methods are deferred, with or without default implementation
+      var methodFlags = Flags.Fun | Flags.Method | Flags.Defer
+
+      // If method has a body, it's a default implementation
+      if !fdef.body.isEmptyBlock then
+        methodFlags = methodFlags | Flags.Default
+
+      val delayedDef = transformFunDef(fdef, methodFlags, Effects.Policy.Infer)
+      methods += delayedDef.symbol
+
+      // Operator name should not be called directly without a prefix
+      if !Naming.isOperator(delayedDef.symbol.name) then
+        shortCutScope.define(delayedDef.symbol)
+
+      delayedDefs += delayedDef
+
+    val typer = () =>
+      given Definitions = lazyDefn.value
+
+      val methodDefs: List[FunDef] =
+        for delayedDef <- delayedDefs.toList yield delayedDef.force()
+
+      InterfaceDef(interfaceSym, selfSym, tparamSyms, methodDefs)(idef.span)
+
+    DelayedDef(interfaceSym, typer)
 
   private def transformSection
       (section: Ast.Section)

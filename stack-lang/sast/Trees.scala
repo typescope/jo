@@ -574,7 +574,7 @@ object Trees:
   extends Def
 
   case class InterfaceDef
-    (symbol: Symbol, tparams: List[Symbol], methods: List[FunDef])
+    (symbol: Symbol, self: Symbol, tparams: List[Symbol], methods: List[FunDef])
     (val span: Span)
   extends Def
 
