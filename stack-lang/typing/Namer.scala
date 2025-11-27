@@ -1,7 +1,6 @@
 package typing
 
 import ast.{ Trees => Ast }
-import ast.Desugaring
 import ast.Naming
 import ast.Positions.*
 

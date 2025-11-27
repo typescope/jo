@@ -1,7 +1,7 @@
-package ast
+package typing
 
-import Trees.*
-import Positions.Source
+import ast.Trees.*
+import ast.Positions.Source
 
 import common.KeyProps
 import reporting.Reporter
@@ -101,7 +101,7 @@ object Desugaring:
 
     for tagType <- enumDef.branches do
       val typeParamRefs = mutable.Set.empty[String]
-      val traverser = new TreeOps.TypeTreeTraverser:
+      val traverser = new ast.TreeOps.TypeTreeTraverser:
         def apply(tpt: TypeTree): Unit =
           tpt match
             case Ident(name) =>
