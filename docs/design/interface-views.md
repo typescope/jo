@@ -53,7 +53,7 @@ end
 
 interface Comparable[T]
   def compare(x: T, y: T): Int
-  def equals(x: T, y: T): Bool = compare(x, y) == 0  // Default implementation
+  def equals(x: T, y: T): Bool = compare(x, y) == 0  // Concrete method
 end
 ```
 
@@ -207,36 +207,40 @@ end
 !!! info "No Subtyping Relationship"
     A class type is NOT a subtype of its views. Views are accessed via explicit accessor (`obj.ViewName`) or via type-directed adaptation. There is no upcasting or downcasting.
 
-### Default Method Implementation
+### Concrete Method Implementation
 
-Interfaces can provide default implementations:
+Interfaces can provide concrete implementations for methods:
 
 ```jo
 interface Eq[T]
-  def equals(x: T, y: T): Bool
-  def notEquals(x: T, y: T): Bool = !equals(x, y)  // Default implementation
+  def equals(x: T, y: T): Bool                     // Abstract method
+  def notEquals(x: T, y: T): Bool = !equals(x, y)  // Concrete method
 end
 
 class Counter(count: Int)
-  // Only need to implement equals, notEquals gets default
+  // Only need to implement equals, notEquals is provided by interface
   def equals(c1: Counter, c2: Counter): Bool = c1.count == c2.count
 
   view Eq[Counter]
 end
 ```
 
-Classes can override default implementations:
+**Important**: Concrete methods (methods with implementations in interfaces) **cannot be overridden** by implementing classes:
 
 ```jo
 class FastCounter(count: Int)
   def equals(c1: FastCounter, c2: FastCounter): Bool = c1.count == c2.count
 
-  // Override default with optimized version
+  // ERROR: Cannot override concrete method
   def notEquals(c1: FastCounter, c2: FastCounter): Bool = c1.count != c2.count
 
   view Eq[FastCounter]
 end
 ```
+
+!!! info "Design Rationale"
+
+    Concrete methods in interfaces are **final** to avoid surprises. When you call a method defined in an interface, you know exactly which implementation will execute—the one defined in the interface. This makes reasoning about behavior easier and prevents subtle bugs from unexpected overrides.
 
 ### Type Parameter Variance
 
@@ -497,14 +501,15 @@ When a class declares `view I[T1, ..., Tn]`, verify:
 
 1. **Interface resolution**: `I` resolves to an interface definition
 2. **Type parameter arity**: Number of type arguments matches interface parameters
-3. **Method coverage**: For each method `m` in interface `I`:
-   - Class has a member `m` with compatible signature
+3. **Method implementation**: For each method `m` in interface `I`:
+   - If `m` is abstract (no body), class must have a member `m` with compatible signature
+   - If `m` is concrete (has body), class must NOT override it
    - Signature compatibility includes:
      - Parameter count and types (after substitution)
      - Return type (after substitution)
      - Effect requirements
 
-4. **Default methods**: Methods with default implementations are optional in class
+4. **No concrete method override**: Classes cannot override methods with concrete implementations
 
 **Duplicate view check:**
 
@@ -693,7 +698,7 @@ def main =
   println(intToStr(result))  // Prints: 42
 ```
 
-### Default Method Implementation
+### Concrete Method Implementation
 
 ```jo
 interface Monoid[T]
@@ -713,7 +718,7 @@ class IntAddition
   def identity: Int = 0
 
   view Monoid[Int]
-  // Inherits default combineAll implementation
+  // Inherits concrete combineAll implementation
 end
 
 def main =
