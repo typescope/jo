@@ -49,8 +49,7 @@ end
 // ========== Member Adapter with Private Type Tests ==========
 
 section MemberAdapterTests
-  private class Hidden
-    val value: Int
+  private class Hidden(value: Int)
     def toString: String = intToStr(value)
   end
 
@@ -61,8 +60,7 @@ end
 // ========== Member Auto Candidate with Private Type Tests ==========
 
 section MemberAutoTests
-  private class Secret
-    val id: Int
+  private class Secret(id: Int)
     def ==(that: Secret): Bool = this.id == that.id
   end
 

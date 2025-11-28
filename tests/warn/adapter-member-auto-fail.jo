@@ -5,11 +5,7 @@ type Show[T] = T => String
 
 def showInt: Show[Int] = x => intToStr(x)
 
-class Box[T]
-  val value: T
-
-  def Box(v: T) = { value: v }
-
+class Box[T](value: T)
   // Member with auto parameter that requires Show[T]
   def show(auto s: Show[T] with [showInt]): String =
     "Box(" + s(value) + ")"
