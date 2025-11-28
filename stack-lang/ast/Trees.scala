@@ -286,6 +286,15 @@ object Trees:
   extends Word, Def:
     def name: String = ident.name
 
+    def copy(
+        ident: Ident = this.ident,
+        tpt: TypeTree = this.tpt,
+        rhs: Word = this.rhs,
+        mutable: Boolean = this.mutable)
+        (span: Span)
+    : ValDef =
+      ValDef(ident, tpt, rhs, mutable)(span).withMods(this.modifiers)
+
   /** Context parameter definition */
   case class ParamDef
     (ident: Ident, tpt: TypeTree, default: Option[Word])
@@ -293,11 +302,26 @@ object Trees:
   extends Def:
     def name: String = ident.name
 
+    def copy(
+        ident: Ident = this.ident,
+        tpt: TypeTree = this.tpt,
+        default: Option[Word] = this.default)
+        (span: Span)
+    : ParamDef =
+      ParamDef(ident, tpt, default)(span).withMods(this.modifiers)
+
   case class Section
     (ident: Ident, defs: List[Def])
     (val span: Span)
   extends Def:
     def name: String = ident.name
+
+    def copy(
+        ident: Ident = this.ident,
+        defs: List[Def] = this.defs)
+        (span: Span)
+    : Section =
+      Section(ident, defs)(span).withMods(this.modifiers)
 
   /** Representation of functions and methods
     *
@@ -318,11 +342,36 @@ object Trees:
 
     def name: String = ident.name
 
+    def copy(
+        ident: Ident = this.ident,
+        tparams: List[TypeParam] = this.tparams,
+        params: List[Param] = this.params,
+        autos: List[Auto] = this.autos,
+        resultType: TypeTree = this.resultType,
+        receives: Option[List[RefTree]] = this.receives,
+        body: Word = this.body,
+        preParamCount: Int = this.preParamCount)
+        (span: Span)
+    : FunDef =
+
+      FunDef(ident, tparams, params, autos, resultType, receives, body, preParamCount)(span).withMods(this.modifiers)
+
   case class ClassDef
     (ident: Ident, tparams: List[TypeParam], params: List[Param], views: List[ViewDecl], vals: List[ValDef], funs: List[FunDef])
     (val span: Span)
   extends Def:
     def name: String = ident.name
+
+    def copy(
+        ident: Ident = this.ident,
+        tparams: List[TypeParam] = this.tparams,
+        params: List[Param] = this.params,
+        views: List[ViewDecl] = this.views,
+        vals: List[ValDef] = this.vals,
+        funs: List[FunDef] = this.funs)
+        (span: Span)
+    : ClassDef =
+      ClassDef(ident, tparams, params, views, vals, funs)(span).withMods(this.modifiers)
 
   /** Representation of an interface definition
     *
@@ -333,6 +382,14 @@ object Trees:
     (val span: Span)
   extends Def:
     def name: String = ident.name
+
+    def copy(
+        ident: Ident = this.ident,
+        tparams: List[TypeParam] = this.tparams,
+        members: List[FunDef] = this.members)
+        (span: Span)
+    : InterfaceDef =
+      InterfaceDef(ident, tparams, members)(span).withMods(this.modifiers)
 
   /** Representation of a view declaration in a class
     *
@@ -354,17 +411,44 @@ object Trees:
 
     def name: String = ident.name
 
+    def copy(
+        ident: Ident = this.ident,
+        tparams: List[TypeParam] = this.tparams,
+        params: List[Param] = this.params,
+        resultType: TypeTree = this.resultType,
+        cases: List[Case] = this.cases,
+        preParamCount: Int = this.preParamCount)
+        (span: Span)
+    : PatDef =
+      PatDef(ident, tparams, params, resultType, cases, preParamCount)(span).withMods(this.modifiers)
+
   case class DataDef
     (ident: Ident, tparams: List[TypeParam], params: List[Param])
     (val span: Span)
   extends Def:
     def name: String = ident.name
 
+    def copy(
+        ident: Ident = this.ident,
+        tparams: List[TypeParam] = this.tparams,
+        params: List[Param] = this.params)
+        (span: Span)
+    : DataDef =
+      DataDef(ident, tparams, params)(span).withMods(this.modifiers)
+
   case class EnumDef
     (ident: Ident, tparams: List[TypeParam], branches: List[TagType])
     (val span: Span)
   extends Def:
     def name: String = ident.name
+
+    def copy(
+        ident: Ident = this.ident,
+        tparams: List[TypeParam] = this.tparams,
+        branches: List[TagType] = this.branches)
+        (span: Span)
+    : EnumDef =
+      EnumDef(ident, tparams, branches)(span).withMods(this.modifiers)
 
   enum ParamAdapter extends Tree:
     case Function(ref: RefTree)(val span: Span)
@@ -402,6 +486,16 @@ object Trees:
   extends Word, Def:
     def name: String = ident.name
 
+    def copy(
+        ident: Ident = this.ident,
+        tparams: List[TypeParam] = this.tparams,
+        rhs: TypeTree = this.rhs,
+        isBound: Boolean = this.isBound,
+        preParamCount: Int = this.preParamCount)
+        (span: Span)
+    : TypeDef =
+      TypeDef(ident, tparams, rhs, isBound, preParamCount)(span).withMods(this.modifiers)
+
   case class Import
     (qualid: RefTree)
     (val span: Span)
@@ -423,6 +517,14 @@ object Trees:
     assert(isQualid(qualid), "malformed qualid: " + qualid)
 
     def name: String = ident.name
+
+    def copy(
+        ident: Ident = this.ident,
+        kind: AliasKind = this.kind,
+        qualid: RefTree = this.qualid)
+        (span: Span)
+    : AliasDef =
+      AliasDef(ident, kind, qualid)(span).withMods(this.modifiers)
 
   case class Namespace
     (qualid: RefTree, imports: List[Import], defs: List[Def], source: String)
