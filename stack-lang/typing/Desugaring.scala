@@ -275,7 +275,7 @@ object Desugaring:
         val ctor = FunDef(
           cdef.ident,
           Nil,  // no type params
-          Nil,  // no params
+          cdef.params,
           Nil,  // no autos
           EmptyTypeTree()(cdef.ident.span),  // result type inferred
           None,  // infer effects
