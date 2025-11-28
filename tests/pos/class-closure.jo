@@ -1,5 +1,5 @@
 class Box[T]
-  val value: T
+  var value: T
 
   def Box(v: T) = this.value = v
 
