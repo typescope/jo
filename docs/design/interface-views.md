@@ -37,18 +37,40 @@ method_decl = "def" ident params ":" type ["=" expr]
 Interfaces define pure behavioral contracts:
 
 ```jo
+interface Iterator[T]
+  def hasNext(): Bool
+  def next(): T
+end
+
+interface Cache[K, V]
+  def get(key: K): Option[V]
+  def put(key: K, value: V): Unit
+  def remove(key: K): Bool
+  def contains(key: K): Bool
+  def clear(): Unit
+end
+
+interface Metrics
+  def recordHit(): Unit
+  def recordMiss(): Unit
+  def getHitRate(): Float
+end
+
+interface Reader
+  def read(): Int           // Read single byte, -1 if EOF
+  def readLine(): String
+  def close(): Unit
+end
+
+interface Writer
+  def write(data: String): Unit
+  def flush(): Unit
+  def close(): Unit
+end
+
 interface Serializer[T]
-  def encode(x: T): String
-  def decode(s: String): T
-end
-
-interface Show
-  def show(): String
-end
-
-interface Group[T]
-  def combine(x: T, y: T): T
-  def identity: T
+  def serialize(value: T, writer: Writer): Unit
+  def deserialize(reader: Reader): T
 end
 
 interface Comparable[T]
@@ -75,7 +97,7 @@ Declare parameters directly after the class name. The compiler generates a const
 class Point(x: Int, y: Int)
   val cachedHash: Int = x * 31 + y
 
-  def show(): String = "Point(" + intToStr(x) + ", " + intToStr(y) + ")"
+  def toString(): String = "Point(" + x + ", " + y + ")"
 end
 
 val p = new Point(3, 4)
@@ -131,28 +153,36 @@ Constructor requirements:
 **Example with code before and between initializations:**
 
 ```jo
-class Connection
-  val host: String
-  val port: Int
-  var connected: Bool
+class Circle
+  val radius: Int
+  val area: Int
+  var scaleFactor: Int
 
-  def Connection(addr: String, defaultPort: Int): Connection =
+  def Circle(r: Int, scale: Int): Circle =
     // Code before initialization (this not available)
-    val parts = split(addr, ":")
+    val adjustedRadius = if r < 1 then 1 else r
 
     // First initialization
-    this.host = parts[0]
+    this.radius = adjustedRadius
 
     // Code between initializations (this not available)
-    val portStr = if parts.length() > 1 then parts[1] else intToStr(defaultPort)
+    val pi = 3  // Simplified pi
+    val computedArea = pi * adjustedRadius * adjustedRadius
 
     // More initializations
-    this.port = strToInt(portStr)
-    this.connected = false
+    this.area = computedArea
+    this.scaleFactor = scale
     // All fields now initialized - this becomes available!
 
     // Code after all fields initialized (this available!)
-    this.connect()  // Can call methods on this
+    this.normalize()  // Can call methods on this
+  end
+
+  def normalize(): Unit =
+    if scaleFactor < 1 then
+      scaleFactor = 1
+    end
+  end
 end
 ```
 
@@ -209,31 +239,24 @@ Classes declare views using the `view` keyword. With Jo's simplified class synta
 **Direct views:**
 
 ```jo
-class Point(x: Int, y: Int)
-  // Members implementing Show view
-  def show(): String = "Point(" + intToStr(x) + ", " + intToStr(y) + ")"
+class Range(start: Int, end: Int)
+  var current: Int = start
 
-  // Members implementing Comparable[Point] view
-  def compare(p1: Point, p2: Point): Int =
-    val dx = p1.x - p2.x
-    if dx != 0 then dx else p1.y - p2.y
+  // Members implementing Iterator[Int] view
+  def hasNext(): Bool = current < end
+  def next(): Int =
+    val value = current
+    current = current + 1
+    value
+
+  // Members implementing Comparable[Range] view
+  def compare(r1: Range, r2: Range): Int =
+    val lenDiff = (r1.end - r1.start) - (r2.end - r2.start)
+    if lenDiff != 0 then lenDiff else r1.start - r2.start
 
   // Declare direct views
-  view Show
-  view Comparable[Point]
-end
-```
-
-**Multiple direct views:**
-
-```jo
-class User(id: Int, name: String)
-  def show(): String = "User(" + intToStr(id) + ", " + name + ")"
-  def encode(u: User): String = intToStr(u.id) + ":" + u.name
-  def decode(s: String): User = ...
-
-  view Show
-  view Serializer[User]
+  view Iterator[Int]
+  view Comparable[Range]
 end
 ```
 
@@ -286,21 +309,26 @@ See the Semantics section for complete delegation semantics.
 Each view declaration creates a field that holds the view instance:
 
 ```jo
-class User(id: Int, name: String)
-  def show(): String = "User(" + intToStr(id) + ", " + name + ")"
-  view Show
+class Range(start: Int, end: Int)
+  var current: Int = start
+  def hasNext(): Bool = current < end
+  def next(): Int =
+    val value = current
+    current = current + 1
+    value
+  view Iterator[Int]
 end
 
-val user = new User(1, "Alice")
-val showable: Show = user.Show  // Access view field
-val serialized = showable.show()
+val range = new Range(0, 10)
+val iter: Iterator[Int] = range.Iterator  // Access view field
+val first = iter.next()
 ```
 
 Type annotation triggers implicit view adaptation:
 
 ```jo
-val user = new User(1, "Alice")
-val showable: Show = user  // Implicit view adaptation (equivalent to user.Show)
+val range = new Range(0, 10)
+val iter: Iterator[Int] = range  // Implicit view adaptation (equivalent to range.Iterator)
 ```
 
 ## Semantics
@@ -511,18 +539,21 @@ Views can be accessed explicitly or implicitly:
 **Explicit accessor:**
 
 ```jo
-val point = new Point(10, 20)
-val showable: Show = point.Show
-println(showable.show())
+val range = new Range(1, 10)
+val iter: Iterator[Int] = range.Iterator
+while iter.hasNext() do
+  println(iter.next())
 ```
 
 **Implicit adaptation via type annotation:**
 
 ```jo
-def display(s: Show): Unit = println(s.show())
+def processAll(iter: Iterator[Int]): Unit =
+  while iter.hasNext() do
+    println(iter.next())
 
-val point = new Point(10, 20)
-display(point)  // Type-directed adaptation: point.Show
+val range = new Range(1, 10)
+processAll(range)  // Type-directed adaptation: range.Iterator
 ```
 
 **Implicit selection during member selection:**
@@ -552,17 +583,20 @@ s.log("hello")  // Calls Service.log (direct member), NOT delegated logger.log
 **Priority 2: If no direct member exists, search views**
 
 ```jo
-interface Show
-  def show(): String
+interface Iterator[T]
+  def hasNext(): Bool
+  def next(): T
 end
 
-class Point(x: Int, y: Int)
-  // No direct 'show' member, only through view
-  view Show = createShowImpl(x, y)
+class Range(start: Int, end: Int)
+  var current: Int = start
+  // No direct 'hasNext' or 'next' members, only through view
+  view Iterator[Int] = createRangeIterator(start, end, current)
 end
 
-val p = new Point(3, 4)
-println(p.show())  // OK: finds show() through Show view
+val r = new Range(0, 10)
+val hasMore = r.hasNext()  // OK: finds hasNext() through Iterator view
+val value = r.next()       // OK: finds next() through Iterator view
 ```
 
 **Ambiguity only when multiple views provide same member:**
@@ -621,11 +655,11 @@ out.write("hello")  // OK: calls direct member (no ambiguity)
 Jo does not support equality for interface types. Similar to how function equality is not supported in many FP languages, interface types do not have equality defined:
 
 ```jo
-val p = new Point(0, 0)
-val v1: Show = p.Show
-val v2: Show = p.Show
+val r = new Range(0, 10)
+val iter1: Iterator[Int] = r.Iterator
+val iter2: Iterator[Int] = r.Iterator
 
-v1 == v2  // Error: equality not defined for interface types
+iter1 == iter2  // Error: equality not defined for interface types
 ```
 
 This applies to all interface-typed values, regardless of how they were obtained (view accessor, type adaptation, or direct interface-typed expressions).
@@ -700,23 +734,29 @@ For `expr.ViewName`:
     ```
 
 ```jo
-interface Show
-  def show(): String
+interface Iterator[T]
+  def hasNext(): Bool
+  def next(): T
 end
 
-class Point(x: Int, y: Int)
-  def show(): String = "Point(" + intToStr(x) + ", " + intToStr(y) + ")"
-  view Show
+class Range(start: Int, end: Int)
+  var current: Int = start
+  def hasNext(): Bool = current < end
+  def next(): Int =
+    val value = current
+    current = current + 1
+    value
+  view Iterator[Int]
 end
 
-val p: Point = new Point(0, 0)
-val s: Show = p.Show  // Valid: p has class type Point
+val r: Range = new Range(0, 10)
+val iter: Iterator[Int] = r.Iterator  // Valid: r has class type Range
 
 class NoView
 end
 
 val nv = new NoView()
-val bad = nv.Show  // Error: NoView does not declare view Show
+val bad = nv.Iterator  // Error: NoView does not declare view Iterator
 ```
 
 ### Implicit View Adaptation
@@ -751,123 +791,173 @@ See Semantics section for detailed examples of shadowing, ambiguity, and disambi
 ### Basic Interface and View
 
 ```jo
-interface Show
-  def show(): String
+interface Iterator[T]
+  def hasNext(): Bool
+  def next(): T
 end
 
-class Point(x: Int, y: Int)
-  def show(): String = "Point(" + intToStr(x) + ", " + intToStr(y) + ")"
+class Range(start: Int, end: Int)
+  var current: Int = start
 
-  view Show
+  def hasNext(): Bool = current < end
+  def next(): Int =
+    val value = current
+    current = current + 1
+    value
+
+  view Iterator[Int]
 end
 
-def printShow(s: Show): Unit receives IO.stdout =
-  println(s.show())
+def sumAll(iter: Iterator[Int]): Int =
+  var total = 0
+  while iter.hasNext() do
+    total = total + iter.next()
+  total
 
-def main receives IO.stdout =
-  val p = new Point(3, 4)
-  printShow(p)  // Implicit: p.Show
+def main =
+  val r = new Range(1, 11)  // 1..10
+  val sum = sumAll(r)       // Implicit: r.Iterator
+  println(sum)              // Prints: 55
 ```
 
 ### Multiple Views
 
 ```jo
-interface Serializer[T]
-  def encode(x: T): String
-  def decode(s: String): T
+interface Cache[K, V]
+  def get(key: K): Option[V]
+  def put(key: K, value: V): Unit
+  def contains(key: K): Bool
+  def clear(): Unit
 end
 
-interface Comparable[T]
-  def compare(x: T, y: T): Int
+interface Metrics
+  def recordHit(): Unit
+  def recordMiss(): Unit
+  def getHitRate(): Float
 end
 
-class User(id: Int, name: String)
-  def encode(u: User): String = intToStr(u.id) + ":" + u.name
+class LRUCache[K, V](capacity: Int)
+  var store: Map[K, V] = emptyMap()
+  var hits: Int = 0
+  var misses: Int = 0
 
-  def decode(s: String): User =
-    // Parse string and create User
-    ...
+  // Cache implementation
+  def get(key: K): Option[V] =
+    store.lookup(key) match
+      case Some(v) =>
+        recordHit()
+        Some(v)
+      case None =>
+        recordMiss()
+        None
 
-  def compare(u1: User, u2: User): Int = u1.id - u2.id
+  def put(key: K, value: V): Unit =
+    store = store.insert(key, value)
+    // Evict if over capacity (simplified)
+    if store.size() > capacity then
+      store = store.removeOldest()
 
-  view Serializer[User]
-  view Comparable[User]
+  def contains(key: K): Bool = store.contains(key)
+  def clear(): Unit = store = emptyMap()
+
+  // Metrics implementation
+  def recordHit(): Unit = hits = hits + 1
+  def recordMiss(): Unit = misses = misses + 1
+  def getHitRate(): Float =
+    val total = hits + misses
+    if total == 0 then 0.0 else intToFloat(hits) / intToFloat(total)
+
+  view Cache[K, V]
+  view Metrics
 end
 
-def serialize[T](value: T, ser: Serializer[T]): String =
-  ser.encode(value)
+def cacheData[K, V](key: K, value: V, cache: Cache[K, V]): Unit =
+  cache.put(key, value)
 
-def max[T](a: T, b: T, cmp: Comparable[T]): T =
-  if cmp.compare(a, b) > 0 then a else b
+def reportStats(metrics: Metrics): Unit =
+  val rate = metrics.getHitRate()
+  println("Cache hit rate: " + floatToStr(rate))
 
 def main =
-  val alice = new User(1, "Alice")
-  val bob = new User(2, "Bob")
+  val cache = new LRUCache[String, Int](100)
 
-  val serialized = serialize(alice, alice.Serializer)
-  val winner = max(alice, bob, alice.Comparable)
+  cacheData("user:1", 42, cache)  // Uses Cache view
+  reportStats(cache)               // Uses Metrics view
 ```
 
-### Generic Interface
+### Generic Interface with Cache
 
 ```jo
-interface Container[T]
-  def get(): T
-  def set(value: T): Unit
-  def isEmpty(): Bool
+interface Cache[K, V]
+  def get(key: K): Option[V]
+  def put(key: K, value: V): Unit
+  def remove(key: K): Bool
+  def contains(key: K): Bool
+  def clear(): Unit
 end
 
-class Box[T](value: T, empty: Bool)
-  def get(): T = value
-  def set(v: T): Unit = { value = v, empty = false }
-  def isEmpty(): Bool = empty
+class MemoryCache[K, V]
+  var store: Map[K, V] = emptyMap()
 
-  view Container[T]
+  def get(key: K): Option[V] = store.lookup(key)
+  def put(key: K, value: V): Unit =
+    store = store.insert(key, value)
+  def remove(key: K): Bool =
+    val exists = store.contains(key)
+    store = store.delete(key)
+    exists
+  def contains(key: K): Bool = store.contains(key)
+  def clear(): Unit = store = emptyMap()
+
+  view Cache[K, V]
 end
 
-def processContainer[T](c: Container[T], newValue: T): T =
-  if !c.isEmpty() then
-    val old = c.get()
-    c.set(newValue)
-    old
-  else
-    c.set(newValue)
-    newValue
+def cacheOrCompute[K, V](key: K, compute: Unit -> V, cache: Cache[K, V]): V =
+  cache.get(key) match
+    case Some(v) => v
+    case None =>
+      val computed = compute()
+      cache.put(key, computed)
+      computed
 
 def main =
-  val box: Box[Int] = new Box(42, false)
-  val result = processContainer(box, 100)  // Implicit view selection
-  println(intToStr(result))  // Prints: 42
+  val cache = new MemoryCache[String, Int]()
+  val result1 = cacheOrCompute("answer", () => 42, cache)  // Computes
+  val result2 = cacheOrCompute("answer", () => 99, cache)  // From cache
+  println(result1)  // Prints: 42
+  println(result2)  // Prints: 42 (cached)
 ```
 
 ### Concrete Method Implementation
 
 ```jo
-interface Monoid[T]
-  def combine(x: T, y: T): T
-  def identity: T
-  def combineAll(xs: List[T]): T =
-    var result = identity
-    var current = xs
-    while !current.isEmpty() do
-      result = combine(result, current.head())
-      current = current.tail()
-    result
+interface Iterator[T]
+  def hasNext(): Bool          // Abstract method
+  def next(): T                // Abstract method
+  def forEach(f: T -> Unit): Unit =  // Concrete method with default implementation
+    while hasNext() do
+      f(next())
 end
 
-class IntAddition
-  def combine(x: Int, y: Int): Int = x + y
-  def identity: Int = 0
+class Range(start: Int, end: Int)
+  var current: Int = start
 
-  view Monoid[Int]
-  // Inherits concrete combineAll implementation
+  // Only need to implement hasNext and next
+  def hasNext(): Bool = current < end
+  def next(): Int =
+    val value = current
+    current = current + 1
+    value
+
+  view Iterator[Int]
+  // Inherits concrete forEach implementation
 end
 
-def main =
-  val addition = new IntAddition()
-  val adder: Monoid[Int] = addition.Monoid  // Access view via accessor
-  val sum = adder.combineAll([1, 2, 3, 4, 5])
-  println(intToStr(sum))  // Prints: 15
+def main receives IO.stdout =
+  val range = new Range(1, 6)
+  val iter: Iterator[Int] = range.Iterator
+  iter.forEach(x => println(x))  // Uses inherited forEach
+  // Prints: 1, 2, 3, 4, 5 (each on a new line)
 ```
 
 ### Delegate Views
@@ -960,7 +1050,7 @@ end
 
 def processPayroll(e: Employee): Unit =
   val salary = e.getSalary()
-  println("Salary: " + intToStr(salary))
+  println("Salary: " + salary)
 end
 
 def applyDiscount(c: Customer): Int =
