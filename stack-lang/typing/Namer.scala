@@ -1797,7 +1797,7 @@ class Namer(using Config):
     val delayedDefs = new mutable.ArrayBuffer[DelayedDef[FunDef]]
 
     for vdef <- cdef.vals do
-      var flags = Checker.checkModifiers(vdef)
+      var flags = Checker.checkModifiers(vdef) | vdef.getKeyOrElse(Desugaring.ExtraFlags)(Flags.empty)
       if vdef.mutable then flags = flags | Flags.Field | Flags.Mutable
       else flags = flags | Flags.Field
 

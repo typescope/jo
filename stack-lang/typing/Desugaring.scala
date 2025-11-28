@@ -239,15 +239,12 @@ object Desugaring:
         initializers += Assign(lhs, rhs)(param.span)
 
     def desugarValDef(vdef: ValDef): Unit =
-      // Check if it's a delegate view with RHS (not a placeholder)
-      if !vdef.rhs.isEmptyBlock && !vdef.rhs.isInstanceOf[Ident] then
-        // Delegate view: move RHS to initializers
+      if vdef.rhs.isEmptyBlock then
+        vals += vdef
+      else
         vals += vdef.copy(rhs = Block(Nil)(vdef.span))(vdef.span)
         val lhs = Select(thisIdent, vdef.name)(vdef.span)
         initializers += Assign(lhs, vdef.rhs)(vdef.span)
-      else
-        // Direct view with placeholder or field without initializer
-        vals += vdef
 
     // Process views: desugar and move RHS to initializers
     for
