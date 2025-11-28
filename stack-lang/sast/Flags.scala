@@ -33,7 +33,7 @@ object Flags:
   def flagStrings(fs: Flags): List[String] =
     val buf = new mutable.ArrayBuffer[String]
     for i <- 0 to MAX_INDEX do
-      if (fs & (1 << i)) > 0 then
+      if (fs & (1.toLong << i)) > 0 then
         assert(!flagNames(i).isEmpty, s"flag index $i is empty")
         buf += flagNames(i)
     end for

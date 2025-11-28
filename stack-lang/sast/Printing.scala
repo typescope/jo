@@ -167,7 +167,7 @@ object Printing:
         modifiers ~ "class " ~ cdef.name ~ tparams ~ indent:
           cdef.vals.map(showField).join(Text.BlankLine)
           ~ Text.BlankLine
-          cdef.funs.join(Text.BlankLine)
+          ~ cdef.funs.join(Text.BlankLine)
 
       case idef: InterfaceDef =>
         val modifiers = showModifiers(idef.symbol)
@@ -188,8 +188,9 @@ object Printing:
             defs.join(Text.BlankLine)
 
   def showField(sym: Symbol)(using Definitions): Text =
-    if sym.isMutable then "var " ~ sym.name ~ ": " ~ sym.info
-    else "val " ~ sym.name ~ ": " ~ sym.info
+    val modifiers = showModifiers(sym)
+    if sym.isMutable then modifiers ~ " var " ~ sym.name ~ ": " ~ sym.info
+    else modifiers ~ " val " ~ sym.name ~ ": " ~ sym.info
 
   def showWord(word: Word)(using defn: Definitions): Text =
     word match
@@ -352,7 +353,7 @@ object Printing:
       case RestPattern(pattern) => ".." ~ pattern
 
   def showModifiers(sym: Symbol)(using Definitions): Text =
-    val mask = Flags.Synthetic | Flags.Context | Flags.Default | Flags.Alias | Flags.Defer
+    val mask = Flags.Synthetic | Flags.Context | Flags.Default | Flags.Alias | Flags.Defer | Flags.View
     Flags.flagStrings(sym.flags & mask).map("<" + _ + ">").join(" ")
 
   def showType(tp: Type)(using Definitions): Text =
