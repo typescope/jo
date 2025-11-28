@@ -57,6 +57,116 @@ interface Comparable[T]
 end
 ```
 
+### Class Definition and Initialization
+
+```
+class_def = "class" ident type_params params? class_member* "end"
+class_member = view_decl | field | method
+field = ("val" | "var") ident ":" type ["=" expr]
+```
+
+Classes define object templates with fields and methods. Views, fields, and methods can appear in any order. Jo provides two mutually exclusive syntaxes for defining constructors.
+
+**Option 1: Class parameters (syntactic sugar)**
+
+Declare parameters directly after the class name. The compiler generates a constructor automatically:
+
+```jo
+class Point(x: Int, y: Int)
+  val cachedHash: Int = x * 31 + y
+
+  def show(): String = "Point(" + intToStr(x) + ", " + intToStr(y) + ")"
+end
+
+val p = new Point(3, 4)
+```
+
+The class parameters (`x`, `y`) become immutable fields. Fields with initializers have their RHS evaluated during construction. This desugars to:
+
+```jo
+class Point
+  val x: Int
+  val y: Int
+  val cachedHash: Int
+
+  def Point(x: Int, y: Int): Point =
+    this.x = x
+    this.y = y
+    this.cachedHash = x * 31 + y
+    this
+end
+```
+
+**Option 2: Explicit constructor**
+
+Define a constructor method with the class name for custom initialization logic:
+
+```jo
+class Rectangle
+  val w: Int
+  val h: Int
+  var area: Int
+
+  def Rectangle(width: Int, height: Int): Rectangle =
+    this.w = width
+    this.h = height
+    this.area = width * height
+    this
+end
+```
+
+Constructor requirements:
+
+- Return type must be the class type if declared
+- Body must start with field assignments (`this.field = expr`)
+- All fields must be initialized
+- RHS of assignments is type-checked without `this` in scope (only parameters available)
+- Constructor automatically appends `this` to return the instance
+
+!!! warning "Mutually Exclusive Syntaxes"
+    Class parameters and explicit constructors cannot coexist. Use class parameters for simple cases (they generate the constructor), or write an explicit constructor for custom initialization logic.
+
+**Fields with initializers:**
+
+Both approaches support fields with initializers:
+
+```jo
+class Counter(initial: Int)
+  val count: Int = initial    // RHS can reference constructor parameters
+  var total: Int = 0          // RHS is a constant
+end
+```
+
+Field initializers are evaluated during construction without `this` in scope—only constructor parameters are available.
+
+**Initialization order:**
+
+With class parameters:
+
+1. Constructor parameters assigned to their fields
+2. Field initializers evaluated and assigned (in declaration order)
+3. Instance returned (automatic `this` append)
+
+With explicit constructor:
+
+1. Field assignments in constructor body
+2. Field initializers evaluated and assigned (in declaration order)
+3. Remaining constructor statements executed
+4. Instance returned (automatic `this` append)
+
+**Immutability:**
+
+Constructor parameters and `val` fields are immutable. Use `var` for mutable fields:
+
+```jo
+class Account(id: Int)
+  var balance: Int = 0
+
+  def deposit(amount: Int): Unit =
+    this.balance = this.balance + amount
+end
+```
+
 ### View Declaration in Classes
 
 ```
