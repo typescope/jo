@@ -293,7 +293,7 @@ object Trees:
         mutable: Boolean = this.mutable)
         (span: Span)
     : ValDef =
-      ValDef(ident, tpt, rhs, mutable)(span).withMods(this.modifiers)
+      ValDef(ident, tpt, rhs, mutable)(span).withMods(this.modifiers).copyProps(this)
 
   /** Context parameter definition */
   case class ParamDef
@@ -308,7 +308,7 @@ object Trees:
         default: Option[Word] = this.default)
         (span: Span)
     : ParamDef =
-      ParamDef(ident, tpt, default)(span).withMods(this.modifiers)
+      ParamDef(ident, tpt, default)(span).withMods(this.modifiers).copyProps(this)
 
   case class Section
     (ident: Ident, defs: List[Def])
@@ -321,7 +321,7 @@ object Trees:
         defs: List[Def] = this.defs)
         (span: Span)
     : Section =
-      Section(ident, defs)(span).withMods(this.modifiers)
+      Section(ident, defs)(span).withMods(this.modifiers).copyProps(this)
 
   /** Representation of functions and methods
     *
@@ -354,7 +354,7 @@ object Trees:
         (span: Span)
     : FunDef =
 
-      FunDef(ident, tparams, params, autos, resultType, receives, body, preParamCount)(span).withMods(this.modifiers)
+      FunDef(ident, tparams, params, autos, resultType, receives, body, preParamCount)(span).withMods(this.modifiers).copyProps(this)
 
   case class ClassDef
     (ident: Ident, tparams: List[TypeParam], params: List[Param], views: List[ViewDecl], vals: List[ValDef], funs: List[FunDef])
@@ -371,7 +371,7 @@ object Trees:
         funs: List[FunDef] = this.funs)
         (span: Span)
     : ClassDef =
-      ClassDef(ident, tparams, params, views, vals, funs)(span).withMods(this.modifiers)
+      ClassDef(ident, tparams, params, views, vals, funs)(span).withMods(this.modifiers).copyProps(this)
 
   /** Representation of an interface definition
     *
@@ -389,7 +389,7 @@ object Trees:
         members: List[FunDef] = this.members)
         (span: Span)
     : InterfaceDef =
-      InterfaceDef(ident, tparams, members)(span).withMods(this.modifiers)
+      InterfaceDef(ident, tparams, members)(span).withMods(this.modifiers).copyProps(this)
 
   /** Representation of a view declaration in a class
     *
@@ -420,7 +420,7 @@ object Trees:
         preParamCount: Int = this.preParamCount)
         (span: Span)
     : PatDef =
-      PatDef(ident, tparams, params, resultType, cases, preParamCount)(span).withMods(this.modifiers)
+      PatDef(ident, tparams, params, resultType, cases, preParamCount)(span).withMods(this.modifiers).copyProps(this)
 
   case class DataDef
     (ident: Ident, tparams: List[TypeParam], params: List[Param])
@@ -434,7 +434,7 @@ object Trees:
         params: List[Param] = this.params)
         (span: Span)
     : DataDef =
-      DataDef(ident, tparams, params)(span).withMods(this.modifiers)
+      DataDef(ident, tparams, params)(span).withMods(this.modifiers).copyProps(this)
 
   case class EnumDef
     (ident: Ident, tparams: List[TypeParam], branches: List[TagType])
@@ -448,7 +448,7 @@ object Trees:
         branches: List[TagType] = this.branches)
         (span: Span)
     : EnumDef =
-      EnumDef(ident, tparams, branches)(span).withMods(this.modifiers)
+      EnumDef(ident, tparams, branches)(span).withMods(this.modifiers).copyProps(this)
 
   enum ParamAdapter extends Tree:
     case Function(ref: RefTree)(val span: Span)
@@ -494,7 +494,7 @@ object Trees:
         preParamCount: Int = this.preParamCount)
         (span: Span)
     : TypeDef =
-      TypeDef(ident, tparams, rhs, isBound, preParamCount)(span).withMods(this.modifiers)
+      TypeDef(ident, tparams, rhs, isBound, preParamCount)(span).withMods(this.modifiers).copyProps(this)
 
   case class Import
     (qualid: RefTree)
@@ -524,7 +524,7 @@ object Trees:
         qualid: RefTree = this.qualid)
         (span: Span)
     : AliasDef =
-      AliasDef(ident, kind, qualid)(span).withMods(this.modifiers)
+      AliasDef(ident, kind, qualid)(span).withMods(this.modifiers).copyProps(this)
 
   case class Namespace
     (qualid: RefTree, imports: List[Import], defs: List[Def], source: String)
