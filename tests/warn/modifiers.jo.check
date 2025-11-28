@@ -38,9 +38,4 @@
 |   ^^^^^
 |   The modifier defer is not allowed for value definition
 
----------- Error at ./tests/warn/modifiers.jo:25:9 ---------------
-|   defer def List(a: Int) = { x: a }
-|         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-|         Uninitialized field(s): x
-
-9 error(s), 0 warning(s)
+8 error(s), 0 warning(s)
