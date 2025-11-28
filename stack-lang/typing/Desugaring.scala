@@ -217,54 +217,76 @@ object Desugaring:
    *    the class params will be simply ignored.
    */
   def desugarClassDef(cdef: ClassDef)(using Reporter, Source): ClassDef =
-    val newMembers = new mutable.ArrayBuffer[ValDef | FunDef]
+    val vals = new mutable.ArrayBuffer[ValDef]
+    val initializers = new mutable.ArrayBuffer[Word]  // Field initialization assignments
 
-    for vdecl <- cdef.views do newMembers ++= desugarView(vdecl)
+    val thisIdent = Ident("this")(cdef.ident.span)
 
     // Check if constructor already exists
-    val hasConstructor = cdef.members.exists:
-      case fdef: FunDef => fdef.name == cdef.name
-      case _ => false
+    val existingCtor = cdef.funs.find(_.name == cdef.name)
 
-    if hasConstructor then
-      if cdef.params.nonEmpty then
-        Reporter.error(s"Constructor ${cdef.name} already exists, class parameters will be ignored", cdef.pos)
-
-      if newMembers.isEmpty then return cdef
+    if existingCtor.isDefined && cdef.params.nonEmpty then
+      Reporter.error(s"Constructor ${cdef.name} already exists, class parameters will be ignored", cdef.pos)
 
     else
       // Create val fields for each parameter
       for param <- cdef.params do
-        newMembers += ValDef(param.ident, param.tpt, Block(Nil)(param.span), mutable = false)(param.span)
+        vals += ValDef(param.ident, param.tpt, Block(Nil)(param.span), mutable = false)(param.span)
 
-      // Create constructor: def A(x: T, y: S) = { x = x, y = y }
-      val args = cdef.params.map: param =>
-        NamedArg(param.ident, param.ident)(param.span)
+        // class parameters are always first initialized
+        val lhs = Select(thisIdent, param.name)(param.span)
+        val rhs = param.ident
+        initializers += Assign(lhs, rhs)(param.span)
 
-      val ctorBody = RecordLit(args)(cdef.ident.span)
+    def desugarValDef(vdef: ValDef): Unit =
+      // Check if it's a delegate view with RHS (not a placeholder)
+      if !vdef.rhs.isEmptyBlock && !vdef.rhs.isInstanceOf[Ident] then
+        // Delegate view: move RHS to initializers
+        vals += vdef.copy(rhs = Block(Nil)(vdef.span))(vdef.span)
+        val lhs = Select(thisIdent, vdef.name)(vdef.span)
+        initializers += Assign(lhs, vdef.rhs)(vdef.span)
+      else
+        // Direct view with placeholder or field without initializer
+        vals += vdef
 
-      val ctor = FunDef(
-        cdef.ident,
-        Nil,  // no type params
-        cdef.params,
-        Nil,  // no autos
-        EmptyTypeTree()(cdef.ident.span),  // result type
-        Some(Nil),  // no receives
-        ctorBody,
-        preParamCount = 0
-      )(cdef.span)
+    // Process views: desugar and move RHS to initializers
+    for
+      vdecl <- cdef.views
+      vdef <- desugarView(vdecl)
+    do
+      desugarValDef(vdef)
 
-      newMembers += ctor
+    // Process existing fields: move RHS to initializers
+    for vdef <- cdef.vals do desugarValDef(vdef)
 
-    // Return new ClassDef with empty params and views (they've been desugared)
-    cdef.copy(
-      params = Nil,
-      views = Nil,
-      members = newMembers.toList ++ cdef.members
-    )(cdef.span)
+    existingCtor match
+      case Some(ctor) =>
+        // Prepend field initializations to existing constructor body
+        val newBody = ctor.body match
+          case Block(stats) => Block(initializers.toList ++ stats)(ctor.body.span)
+          case single => Block(initializers.toList :+ single)(ctor.body.span)
 
+        val ctor2 = ctor.copy(body = newBody)(ctor.span)
+        val funs2 = ctor2 :: cdef.funs.filter(_.name != cdef.name)
+        cdef.copy(vals = vals.toList, funs = funs2)(cdef.span)
 
-  def desugarView(vdecl: ViewDecl)(using Reporter, Source): List[ValDef | FunDef] =
+      case None =>
+        // Generate constructor with field initializations
+        val ctor = FunDef(
+          cdef.ident,
+          Nil,  // no type params
+          Nil,  // no params
+          Nil,  // no autos
+          EmptyTypeTree()(cdef.ident.span),  // result type inferred
+          None,  // infer effects
+          Block(initializers.toList)(cdef.ident.span),
+          preParamCount = 0
+        )(cdef.span)
+
+        // Return new ClassDef with empty params and views (they've been desugared)
+        cdef.copy(vals = vals.toList, funs = ctor :: cdef.funs)(cdef.span)
+
+  def desugarView(vdecl: ViewDecl)(using Reporter, Source): List[ValDef] =
     // Extract type name from TypeTree (strip type parameters)
     val typeNameOpt: Option[String] = vdecl.tpe match
       case id: Ident => Some(id.name)

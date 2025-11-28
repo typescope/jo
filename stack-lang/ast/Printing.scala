@@ -154,7 +154,7 @@ object Printing:
           if cdef.params.isEmpty then Text.Empty
           else "(" ~ cdef.params.join(", ")  ~ ")"
 
-        val viewsAndMembers = cdef.views.map(showView) ++ cdef.members.map(showDef)
+        val viewsAndMembers = cdef.views.map(showView) ++ cdef.vals.map(showDef) ++ cdef.funs.map(showDef)
 
         mods ~ "class " ~ cdef.name ~ tparams ~ params ~ indent:
           viewsAndMembers.join(Text.BlankLine)

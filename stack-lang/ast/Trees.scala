@@ -319,7 +319,7 @@ object Trees:
     def name: String = ident.name
 
   case class ClassDef
-    (ident: Ident, tparams: List[TypeParam], params: List[Param], views: List[ViewDecl], members: List[ValDef | FunDef])
+    (ident: Ident, tparams: List[TypeParam], params: List[Param], views: List[ViewDecl], vals: List[ValDef], funs: List[FunDef])
     (val span: Span)
   extends Def:
     def name: String = ident.name

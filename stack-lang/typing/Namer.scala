@@ -1604,61 +1604,72 @@ class Namer(using Config):
 
       thisSym.info
 
-    def checkBody(stats: List[Ast.Word], record: Ast.RecordLit): Word =
+    def checkBody(assignments: List[Ast.Word], rest: List[Ast.Word]): Word =
       val classInfo = classSym.classInfo
       val initialized = new mutable.ArrayBuffer[Symbol]
       val words = new mutable.ArrayBuffer[Word]
 
-      for stat <- stats do Inference.freshIsolate:
-        given TargetType = TargetType.VoidType
-        Inference.freshIsolate:
-          words += transform(stat)
+      // Process field assignments at the beginning
+      for assign <- assignments do
+        assign match
+          case Ast.Assign(lhs @ Ast.Select(qual @ Ast.Ident("this"), name), rhs) =>
+            // Check that the field exists
+            StaticRef(thisSym).getTermMember(name) match
+              case Some(tp) =>
+                assert(tp.is[RefType], "class member should be RefType, found = " + tp)
 
-      for arg @ Ast.NamedArg(id, rhs) <- record.args yield
-        StaticRef(thisSym).getTermMember(id.name) match
-          case Some(tp) =>
-            assert(tp.is[RefType], "class member should be RefType, found = " + tp)
+                val sym = tp.as[RefType].symbol
+                if initialized.contains(sym) then
+                  Reporter.error("The field " + name + " already initialized", lhs.pos)
+                else
+                  val lhsTyped = Select(Ident(thisSym)(qual.span), name)(tp, lhs.span)
 
-            given TargetType = TargetType.Known(tp.widenTermRef)
-            val sym = tp.as[RefType].symbol
-            if initialized.contains(sym) then
-              Reporter.error("The field " + id.name + " already initialized", id.pos)
+                  // Type-check RHS without `this` in scope (use parameter scope only)
+                  given TargetType = TargetType.Known(tp.widenTermRef)
+                  val rhsTyped = Inference.freshIsolate:
+                    transform(rhs)
 
-            else
-              val lhs = Select(Ident(thisSym)(id.span), id.name)(tp, id.span)
+                  words += FieldAssign(lhsTyped, rhsTyped)
+                  initialized += sym
 
-              val rhsTyped = Inference.freshIsolate:
-                transform(rhs)
+              case None =>
+                Reporter.error("The field " + name + " does not exist in class " + classSym, lhs.pos)
 
-              words += FieldAssign(lhs, rhsTyped)
-              initialized += sym
+          case _ =>
+            Reporter.error("Constructor body must start with field assignments", assign.pos)
 
-          case None =>
-            Reporter.error("The field " + id.name + " does not exist in class " + classSym, id.pos)
-      end for
-
+      // Check that all fields are initialized
       val uninit = classInfo.fields.toSet -- initialized.toSeq
       if uninit.nonEmpty then
         val names = uninit.map(_.name).mkString(", ")
         Reporter.error("Uninitialized field(s): " + names, funDef.pos)
 
-      val thisIdent = Ident(thisSym)(record.span.endPoint)
-      val body = (words :+ thisIdent).toList
-      Block(body)(funDef.body.span)
+      // Process remaining statements
+      for stat <- rest do Inference.freshIsolate:
+        given TargetType = TargetType.VoidType
+        Inference.freshIsolate:
+          words += transform(stat)
+
+      // Automatically append 'this' to return the instance
+      words += Ident(thisSym)(funDef.body.span)
+
+      Block(words.toList)(funDef.body.span)
 
     lazy val typedBody =
       paramSyms
       autoSyms
 
       funDef.body match
-        case rec: Ast.RecordLit =>
-          checkBody(Nil, rec)
+        case Ast.Block(stats) =>
+          // Separate leading assignments from remaining statements
+          val (assignments, rest) = stats.span:
+            case Ast.Assign(Ast.Select(Ast.Ident("this"), _), _) => true
+            case _ => false
 
-        case Ast.Block(stats :+ (rec: Ast.RecordLit)) =>
-          checkBody(stats, rec)
+          checkBody(assignments, rest)
 
         case _ =>
-          Reporter.error("The last phrase of a constructor should be a record literal", funDef.body.pos)
+          Reporter.error("Constructor body must be a block", funDef.body.pos)
           errorWord(funDef.body.span)
 
     lazy val effectPolicy = transformReceives(funDef.receives, Effects.Policy.Infer)
@@ -1785,7 +1796,7 @@ class Namer(using Config):
 
     val delayedDefs = new mutable.ArrayBuffer[DelayedDef[FunDef]]
 
-    for case vdef: Ast.ValDef <- cdef.members do
+    for vdef <- cdef.vals do
       var flags = Checker.checkModifiers(vdef)
       if vdef.mutable then flags = flags | Flags.Field | Flags.Mutable
       else flags = flags | Flags.Field
@@ -1806,7 +1817,7 @@ class Namer(using Config):
         ip.addLazy(sym, () => checkType())
         fields += sym
 
-    for case fdef: Ast.FunDef <- cdef.members do
+    for fdef <- cdef.funs do
       given Scope = shortCutScope
 
       if fdef.preParamCount != 0 then

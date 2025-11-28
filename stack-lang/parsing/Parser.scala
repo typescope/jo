@@ -622,7 +622,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     // Parse view declarations and members
     val views = mutable.ArrayBuffer[ViewDecl]()
-    val members = mutable.ArrayBuffer[ValDef | FunDef]()
+    val vals = mutable.ArrayBuffer[ValDef]()
+    val funs = mutable.ArrayBuffer[FunDef]()
 
     repeated:
       val item = peekItem()
@@ -635,7 +636,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         val item = peekItem()
 
         if item.token == Token.DEF then
-          Some(members += defDef(needBody = true, bodyAllowed = true).withMods(mods))
+          Some(funs += defDef(needBody = true, bodyAllowed = true).withMods(mods))
 
         else if peek() == Token.VAL || peek() == Token.VAR then
           val mod = next()
@@ -643,21 +644,29 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           val id = ident()
           eat(Token.COLON)
           val tpt = typ()
-          val body = Block(phrases = Nil)(id.span)
-          Some(members += ValDef(id, tpt, body, mutable)(mod.span | tpt.span).withMods(mods))
+          val (body, endSpan) =
+            if peek() == Token.EQL then
+              eat(Token.EQL)
+              val rhs = phrase().getOrElse(Block(phrases = Nil)(id.span))
+              (rhs, rhs.span)
+            else
+              val emptyBlock = Block(phrases = Nil)(id.span)
+              (emptyBlock, tpt.span)
+          Some(vals += ValDef(id, tpt, body, mutable)(mod.span | endSpan).withMods(mods))
 
         else None
 
     eatEndOpt(klass.indent)
 
     val lastSpan =
-      if members.nonEmpty then members.last.span
+      if funs.nonEmpty then funs.last.span
+      else if vals.nonEmpty then vals.last.span
       else if views.nonEmpty then views.last.span
       else if classParams.nonEmpty then classParams.last.span
       else if tparams.nonEmpty then tparams.last.span
       else id.span
 
-    ClassDef(id, tparams, classParams, views.toList, members.toList)(klass.span | lastSpan).withMods(mods)
+    ClassDef(id, tparams, classParams, views.toList, vals.toList, funs.toList)(klass.span | lastSpan).withMods(mods)
 
   def interfaceDef(mods: List[Modifier]): InterfaceDef =
     val interface = eat(Token.INTERFACE)

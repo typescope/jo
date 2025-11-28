@@ -17,7 +17,9 @@ class Map[K, V]
   val eq: Eq[K]
   val l: List[Pair[K, V]]
 
-  def Map(elems: List[Pair[K, V]], eq: Eq[K]) = { l: elems, eq: eq }
+  def Map(elems: List[Pair[K, V]], eq: Eq[K]) =
+    this.l = elems
+    this.eq = eq
 
   def size: Int = l.size
 
