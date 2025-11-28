@@ -118,13 +118,43 @@ end
 Constructor requirements:
 
 - Return type must be the class type if declared
-- Body must start with field assignments (`this.field = expr`)
+- Body contains field initialization assignments (`this.field = expr`)
 - All fields must be initialized
-- RHS of assignments is type-checked without `this` in scope (only parameters available)
+- Field assignments can appear anywhere in the body, with code before and between them
+- RHS of field assignments is type-checked without `this` in scope (only parameters available)
+- `this` becomes available once all fields are initialized
 - Constructor automatically appends `this` to return the instance
 
 !!! warning "Mutually Exclusive Syntaxes"
     Class parameters and explicit constructors cannot coexist. Use class parameters for simple cases (they generate the constructor), or write an explicit constructor for custom initialization logic.
+
+**Example with code before and between initializations:**
+
+```jo
+class Connection
+  val host: String
+  val port: Int
+  var connected: Bool
+
+  def Connection(addr: String, defaultPort: Int): Connection =
+    // Code before initialization (this not available)
+    val parts = split(addr, ":")
+
+    // First initialization
+    this.host = parts[0]
+
+    // Code between initializations (this not available)
+    val portStr = if parts.length() > 1 then parts[1] else intToStr(defaultPort)
+
+    // More initializations
+    this.port = strToInt(portStr)
+    this.connected = false
+    // All fields now initialized - this becomes available!
+
+    // Code after all fields initialized (this available!)
+    this.connect()  // Can call methods on this
+end
+```
 
 **Fields with initializers:**
 
@@ -149,10 +179,11 @@ With class parameters:
 
 With explicit constructor:
 
-1. Field assignments in constructor body
-2. Field initializers evaluated and assigned (in declaration order)
-3. Remaining constructor statements executed
-4. Instance returned (automatic `this` append)
+1. Statements execute in order (field assignments and other code can be interleaved)
+2. Field initializers evaluated when their field is assigned
+3. Once all fields are initialized, `this` becomes available
+4. Remaining statements can use `this`
+5. Instance returned (automatic `this` append)
 
 **Immutability:**
 

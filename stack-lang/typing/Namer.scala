@@ -1604,22 +1604,27 @@ class Namer(using Config):
 
       thisSym.info
 
-    def checkBody(assignments: List[Ast.Word], rest: List[Ast.Word]): Word =
+    def checkBody(stats: List[Ast.Word]): Word =
       val classInfo = classSym.classInfo
-      val initialized = new mutable.ArrayBuffer[Symbol]
+      val uninitialized = mutable.Set.from(classInfo.fields)
       val words = new mutable.ArrayBuffer[Word]
 
-      // Process field assignments at the beginning
-      for assign <- assignments do
-        assign match
-          case Ast.Assign(lhs @ Ast.Select(qual @ Ast.Ident("this"), name), rhs) =>
-            // Check that the field exists
+      // Create scope with `this` available once all fields are initialized
+      val thisScope = sc.fresh()
+      thisScope.define(thisSym)
+      val scopeWithThis = thisScope.freshPrefixedScope(prefix = thisSym, owner = classSym)
+
+      // Process all statements
+      for stat <- stats do
+        stat match
+          case assign @ Ast.Assign(lhs @ Ast.Select(qual @ Ast.Ident("this"), name), rhs) =>
+            // Field initialization
             StaticRef(thisSym).getTermMember(name) match
               case Some(tp) =>
                 assert(tp.is[RefType], "class member should be RefType, found = " + tp)
 
                 val sym = tp.as[RefType].symbol
-                if initialized.contains(sym) then
+                if !uninitialized.contains(sym) then
                   Reporter.error("The field " + name + " already initialized", lhs.pos)
                 else
                   val lhsTyped = Select(Ident(thisSym)(qual.span), name)(tp, lhs.span)
@@ -1630,25 +1635,27 @@ class Namer(using Config):
                     transform(rhs)
 
                   words += FieldAssign(lhsTyped, rhsTyped)
-                  initialized += sym
+                  uninitialized -= sym
 
               case None =>
                 Reporter.error("The field " + name + " does not exist in class " + classSym, lhs.pos)
 
           case _ =>
-            Reporter.error("Constructor body must start with field assignments", assign.pos)
+            // Regular statement - check with or without `this` depending on initialization state
+            Inference.freshIsolate:
+              given TargetType = TargetType.VoidType
+              if uninitialized.isEmpty then
+                // All fields initialized: `this` available
+                given Scope = scopeWithThis
+                words += transform(stat)
+              else
+                // Not all fields initialized: `this` not available
+                words += transform(stat)
 
       // Check that all fields are initialized
-      val uninit = classInfo.fields.toSet -- initialized.toSeq
-      if uninit.nonEmpty then
-        val names = uninit.map(_.name).mkString(", ")
+      if uninitialized.nonEmpty then
+        val names = uninitialized.map(_.name).mkString(", ")
         Reporter.error("Uninitialized field(s): " + names, funDef.pos)
-
-      // Process remaining statements
-      for stat <- rest do Inference.freshIsolate:
-        given TargetType = TargetType.VoidType
-        Inference.freshIsolate:
-          words += transform(stat)
 
       // Automatically append 'this' to return the instance
       words += Ident(thisSym)(funDef.body.span)
@@ -1661,12 +1668,7 @@ class Namer(using Config):
 
       funDef.body match
         case Ast.Block(stats) =>
-          // Separate leading assignments from remaining statements
-          val (assignments, rest) = stats.span:
-            case Ast.Assign(Ast.Select(Ast.Ident("this"), _), _) => true
-            case _ => false
-
-          checkBody(assignments, rest)
+          checkBody(stats)
 
         case _ =>
           Reporter.error("Constructor body must be a block", funDef.body.pos)
