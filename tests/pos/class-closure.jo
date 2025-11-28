@@ -1,4 +1,8 @@
-class Box[T](value: T)
+class Box[T]
+  val value: T
+
+  def Box(v: T) = this.value = v
+
   def map[S](f: T => S): Box[S] = new Box(f value)
 
 def main =
