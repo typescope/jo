@@ -6,11 +6,7 @@ type Show[T] = T => String
 def showInt: Show[Int] = x => intToStr(x)
 def showString: Show[String] = x => x
 
-class Box[T]
-  val value: T
-
-  def Box(v: T) = { value: v }
-
+class Box[T](value: T)
   // Member with auto parameter - can be used as adapter
   def show(auto s: Show[T] with [showInt, showString, [T].show]): String =
     "Box(" + s(value) + ")"

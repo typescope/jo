@@ -1,8 +1,4 @@
-class Box[T]
-  var value: T
-
-  def Box(x: T) = { value: x }
-
+class Box[T](value: T)
   def map[S](f: T => S): Box[S] = new Box(f value)
 
 def main =
