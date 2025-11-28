@@ -26,7 +26,7 @@ val numbers = [1, 2, 3]
 // Pattern matching with lists
 match numbers
 case [] => println "Empty list"
-case [head, ..tail] => println ("First element: " + intToStr(head))
+case [head, ..tail] => println ("First element: " + head)
 ```
 
 ## Function Types
