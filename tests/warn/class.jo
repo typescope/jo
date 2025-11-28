@@ -2,6 +2,8 @@ class A
   val x: Int
   val x: Int
 
+  def A() = this.x = x
+
 class B
   def foo(x: Int): Int = x
   def foo(y: String): String = y

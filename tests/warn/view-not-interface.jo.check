@@ -1,6 +1,6 @@
----------- Error at ./tests/warn/view-not-interface.jo:10:8 ---------------
+---------- Error at ./tests/warn/view-not-interface.jo:10:3 ---------------
 |   view NotAnInterface
-|        ^^^^^^^^^^^^^^
-|        Direct view must be an interface type, found: NotAnInterface
+|   ^^^^^^^^^^^^^^^^^^^
+|   Direct view must be an interface type, found: NotAnInterface
 
 1 error(s), 0 warning(s)

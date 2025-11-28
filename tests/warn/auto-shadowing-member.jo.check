@@ -1,9 +1,9 @@
----------- Error at ./tests/warn/auto-shadowing-member.jo:15:56 ---------------
+---------- Error at ./tests/warn/auto-shadowing-member.jo:12:56 ---------------
 | def testEq[T](x: T, y: T)(auto eq: Eq[T] with [[T].==, [T].==]): Bool =
 |                                                        ^^^^^^
 |                                                        Member candidate [T].== appears multiple times in candidate list
 
----------- Error at ./tests/warn/auto-shadowing-member.jo:18:59 ---------------
+---------- Error at ./tests/warn/auto-shadowing-member.jo:15:59 ---------------
 | def testEq2[T](x: T, y: T)(auto eq: Eq[T] with [[Dog].eq, [Animal].eq]): Bool =
 |                                                           ^^^^^^^^^^^
 |                                                           Member candidate [Animal].eq is shadowed by the ealier candidate [Dog].eq

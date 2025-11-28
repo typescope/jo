@@ -22,7 +22,7 @@ end
 class List
   defer val x: Int
 
-  defer def List(a: Int) = { x: a }
+  defer def List(a: Int) = this.x = a
 
   defer def bar(x: Int): Int = x * 5
 end

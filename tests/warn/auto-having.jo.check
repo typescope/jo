@@ -1,4 +1,4 @@
----------- Error at ./tests/warn/auto-having.jo:23:3 ---------------
+---------- Error at ./tests/warn/auto-having.jo:21:3 ---------------
 |   testEq[Item](i1, i2) having Eq[Item] = ...
 |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 |   Failed to find auto of the type Ord[Item]
@@ -8,7 +8,7 @@
   → (having: Eq[Item]) ✗ type mismatch: found Eq[Item], expected Ord[Item]
 
 
----------- Error at ./tests/warn/auto-having.jo:25:3 ---------------
+---------- Error at ./tests/warn/auto-having.jo:23:3 ---------------
 |   testNoCand[Item](i1, i2)
 |   ^^^^^^^^^^^^^^^^^^^^^^^^
 |   Failed to find auto of the type Eq[Item]
