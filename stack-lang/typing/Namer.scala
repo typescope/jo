@@ -1577,7 +1577,7 @@ class Namer(using Config):
 
     val visibility = Checker.visibility(funDef, classSym)
     val funSym = TermSymbol.create(Names.Constructor, flags, visibility, classSym, funDef.ident.pos)
-    given Scope = sc.fresh(funSym)
+    given ctorScope: Scope = sc.fresh(funSym)
 
     if funDef.tparams.nonEmpty then
       Reporter.error("Constructor may not take type parameters", funDef.tparams.head.pos)
@@ -1609,10 +1609,13 @@ class Namer(using Config):
       val uninitialized = mutable.Set.from(classInfo.fields)
       val words = new mutable.ArrayBuffer[Word]
 
+      // Create prefixed scope for accessing constructor parameters and class fields
+      // Constructor parameters inherited from ctorScope, class fields via prefix, initialized fields added incrementally
+      val fieldScope = ctorScope.freshPrefixedScope(prefix = thisSym, owner = funSym)
+
       // Create scope with `this` available once all fields are initialized
-      val thisScope = sc.fresh()
+      val thisScope = fieldScope.fresh()
       thisScope.define(thisSym)
-      val scopeWithThis = thisScope.freshPrefixedScope(prefix = thisSym, owner = classSym)
 
       // Process all statements
       for stat <- stats do
@@ -1629,13 +1632,17 @@ class Namer(using Config):
                 else
                   val lhsTyped = Select(Ident(thisSym)(qual.span), name)(tp, lhs.span)
 
-                  // Type-check RHS without `this` in scope (use parameter scope only)
+                  // Type-check RHS with accumulated field scope (params + previously initialized fields)
                   given TargetType = TargetType.Known(tp.widenTermRef)
                   val rhsTyped = Inference.freshIsolate:
+                    given Scope = fieldScope
                     transform(rhs)
 
                   words += FieldAssign(lhsTyped, rhsTyped)
                   uninitialized -= sym
+
+                  // Add this field to scope for subsequent field initializations
+                  fieldScope.define(sym)
 
               case None =>
                 Reporter.error("The field " + name + " does not exist in class " + classSym, lhs.pos)
@@ -1646,10 +1653,11 @@ class Namer(using Config):
               given TargetType = TargetType.VoidType
               if uninitialized.isEmpty then
                 // All fields initialized: `this` available
-                given Scope = scopeWithThis
+                given Scope = thisScope
                 words += transform(stat)
               else
-                // Not all fields initialized: `this` not available
+                // Not all fields initialized: `this` not available, but can use initialized fields
+                given Scope = fieldScope
                 words += transform(stat)
 
       // Check that all fields are initialized
