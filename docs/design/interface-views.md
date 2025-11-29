@@ -197,23 +197,39 @@ class Counter(initial: Int)
 end
 ```
 
-Field initializers are evaluated during construction without `this` in scope—only constructor parameters are available.
+Field initializers are evaluated during construction without `this` in scope. However, previously initialized fields are available, allowing fields to reference earlier fields in their initialization expressions.
 
 **Initialization order:**
 
-With class parameters:
-
-1. Constructor parameters assigned to their fields
-2. Field initializers evaluated and assigned (in declaration order)
-3. Instance returned (automatic `this` append)
-
-With explicit constructor:
-
-1. Statements execute in order (field assignments and other code can be interleaved)
+1. Statements execute in order
 2. Field initializers evaluated when their field is assigned
+    - Each field becomes available in scope after initialization
+    - Later field initializers can reference earlier initialized fields (without `this` prefix)
 3. Once all fields are initialized, `this` becomes available
 4. Remaining statements can use `this`
 5. Instance returned (automatic `this` append)
+
+**Example: Fields referencing earlier fields**
+
+```jo
+class Rectangle(width: Int, height: Int)
+  val area: Int = width * height        // Can reference constructor parameters
+  val perimeter: Int = 2 * (width + height)  // Can reference constructor parameters
+  val isSquare: Bool = width == height
+
+  // Can reference earlier initialized fields
+  val description: String =
+    if isSquare then "Square with area " + area
+    else "Rectangle with area " + area
+end
+```
+
+In this example, the fields are initialized in declaration order:
+
+1. `area` uses constructor parameters `width` and `height`
+2. `perimeter` uses constructor parameters `width` and `height`
+3. `isSquare` uses constructor parameters `width` and `height`
+4. `description` uses the previously initialized field `isSquare` and `area`
 
 **Immutability:**
 
