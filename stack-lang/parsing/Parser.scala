@@ -647,7 +647,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           val (body, endSpan) =
             if peek() == Token.EQL then
               eat(Token.EQL)
-              val rhs = phrase().getOrElse(Block(phrases = Nil)(id.span))
+              val rhs = block(mod.indent)
               (rhs, rhs.span)
             else
               val emptyBlock = Block(phrases = Nil)(id.span)
