@@ -255,24 +255,43 @@ Classes declare views using the `view` keyword. With Jo's simplified class synta
 **Direct views:**
 
 ```jo
+// Immutable Range class with Comparable view
 class Range(start: Int, end: Int)
-  var current: Int = start
+  // Factory method to create iterator
+  def iterator(): Iterator[Int] = new RangeIterator(this)
 
-  // Members implementing Iterator[Int] view
-  def hasNext(): Bool = current < end
+  // Implement Comparable[Range] methods
+  def compare(r1: Range, r2: Range): Int =
+    val len1 = r1.end - r1.start
+    val len2 = r2.end - r2.start
+    val lenDiff = len1 - len2
+    if lenDiff != 0 then lenDiff else r1.start - r2.start
+
+  // Declare direct view
+  view Comparable[Range]
+end
+
+// Separate iterator with its own state
+// Iterator state should not be coupled with the iterable collection
+class RangeIterator(range: Range)
+  var current: Int = range.start
+
+  // Implement Iterator[Int] methods
+  def hasNext(): Bool = current < range.end
   def next(): Int =
     val value = current
     current = current + 1
     value
 
-  // Members implementing Comparable[Range] view
-  def compare(r1: Range, r2: Range): Int =
-    val lenDiff = (r1.end - r1.start) - (r2.end - r2.start)
-    if lenDiff != 0 then lenDiff else r1.start - r2.start
-
-  // Declare direct views
+  // Declare direct view
   view Iterator[Int]
-  view Comparable[Range]
+end
+
+// Usage
+val range = new Range(0, 10)
+val iter = range.iterator()
+while iter.hasNext() do
+  println(iter.next())
 end
 ```
 
@@ -325,9 +344,9 @@ See the Semantics section for complete delegation semantics.
 Each view declaration creates a field that holds the view instance:
 
 ```jo
-class Range(start: Int, end: Int)
-  var current: Int = start
-  def hasNext(): Bool = current < end
+class RangeIterator(range: Range)
+  var current: Int = range.start
+  def hasNext(): Bool = current < range.end
   def next(): Int =
     val value = current
     current = current + 1
@@ -336,15 +355,17 @@ class Range(start: Int, end: Int)
 end
 
 val range = new Range(0, 10)
-val iter: Iterator[Int] = range.Iterator  // Access view field
-val first = iter.next()
+val iter = range.iterator()
+val iterView: Iterator[Int] = iter.Iterator  // Access view field
+val first = iterView.next()
 ```
 
 Type annotation triggers implicit view adaptation:
 
 ```jo
 val range = new Range(0, 10)
-val iter: Iterator[Int] = range  // Implicit view adaptation (equivalent to range.Iterator)
+val iter = range.iterator()
+val iterView: Iterator[Int] = iter  // Implicit view adaptation (equivalent to iter.Iterator)
 ```
 
 ## Semantics
@@ -556,9 +577,10 @@ Views can be accessed explicitly or implicitly:
 
 ```jo
 val range = new Range(1, 10)
-val iter: Iterator[Int] = range.Iterator
-while iter.hasNext() do
-  println(iter.next())
+val iter = range.iterator()
+val iterView: Iterator[Int] = iter.Iterator
+while iterView.hasNext() do
+  println(iterView.next())
 ```
 
 **Implicit adaptation via type annotation:**
@@ -569,7 +591,8 @@ def processAll(iter: Iterator[Int]): Unit =
     println(iter.next())
 
 val range = new Range(1, 10)
-processAll(range)  // Type-directed adaptation: range.Iterator
+val iter = range.iterator()
+processAll(iter)  // Type-directed adaptation: iter.Iterator
 ```
 
 **Implicit selection during member selection:**
