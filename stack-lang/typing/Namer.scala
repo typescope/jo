@@ -1612,10 +1612,7 @@ class Namer(using Config):
       // Create prefixed scope for accessing constructor parameters and class fields
       // Constructor parameters inherited from ctorScope, class fields via prefix, initialized fields added incrementally
       val fieldScope = ctorScope.freshPrefixedScope(prefix = thisSym, owner = funSym)
-
-      // Create scope with `this` available once all fields are initialized
-      val thisScope = fieldScope.fresh()
-      thisScope.define(thisSym)
+      given blockScope: Scope = fieldScope.fresh()
 
       // Process all statements
       for stat <- stats do
@@ -1629,13 +1626,13 @@ class Namer(using Config):
                 val sym = tp.as[RefType].symbol
                 if !uninitialized.contains(sym) then
                   Reporter.error("The field " + name + " already initialized", lhs.pos)
+
                 else
                   val lhsTyped = Select(Ident(thisSym)(qual.span), name)(tp, lhs.span)
 
                   // Type-check RHS with accumulated field scope (params + previously initialized fields)
-                  given TargetType = TargetType.Known(tp.widenTermRef)
                   val rhsTyped = Inference.freshIsolate:
-                    given Scope = fieldScope
+                    given TargetType = TargetType.Known(tp.widenTermRef)
                     transform(rhs)
 
                   words += FieldAssign(lhsTyped, rhsTyped)
@@ -1644,6 +1641,10 @@ class Namer(using Config):
                   // Add this field to scope for subsequent field initializations
                   fieldScope.define(sym)
 
+                  // make `this` available once all fields are initialized
+                  if uninitialized.isEmpty then
+                    blockScope.define(thisSym)
+
               case None =>
                 Reporter.error("The field " + name + " does not exist in class " + classSym, lhs.pos)
 
@@ -1651,14 +1652,7 @@ class Namer(using Config):
             // Regular statement - check with or without `this` depending on initialization state
             Inference.freshIsolate:
               given TargetType = TargetType.VoidType
-              if uninitialized.isEmpty then
-                // All fields initialized: `this` available
-                given Scope = thisScope
-                words += transform(stat)
-              else
-                // Not all fields initialized: `this` not available, but can use initialized fields
-                given Scope = fieldScope
-                words += transform(stat)
+              words += transform(stat)
 
       // Check that all fields are initialized
       if uninitialized.nonEmpty then
