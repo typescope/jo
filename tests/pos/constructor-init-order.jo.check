@@ -1,0 +1,20 @@
+=== Test 1: RHS evaluated at assignment time, not declaration order ===
+Evaluating RHS of field a
+Evaluating RHS of field c
+Constructor start
+Assigning b (no RHS in class)
+Constructor end - a and c should be auto-initialized from RHS
+Result: a=100 b=200 c=300
+
+=== Test 2: Mixed RHS and non-RHS fields ===
+Evaluating RHS of field x with value 1
+Evaluating RHS of field z with value 3
+Assigning y (only field without RHS)
+x and z should auto-initialize from RHS
+Result: x=10 y=999 z=30
+
+=== Test 3: Class parameters with field initializers ===
+Initializing f1, p1=5
+Initializing f2, p2=7
+Initializing f3
+Result: p1=5 p2=7 f1=50 f2=140 f3=190
