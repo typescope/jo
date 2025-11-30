@@ -287,7 +287,9 @@ object Desugaring:
     // Extract type name from TypeTree (strip type parameters)
     val typeNameOpt: Option[String] = vdecl.tpe match
       case id: Ident => Some(id.name)
+      case Select(_, name) => Some(name)
       case AppliedType(tpeCtor: Ident, _) => Some(tpeCtor.name)
+      case AppliedType(Select(_, name), _) => Some(name)
       case _ => None
 
 

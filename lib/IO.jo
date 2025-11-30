@@ -20,11 +20,11 @@ param stdout: {def write(content: String): Unit }
 
 param stderr: { def write(content: String): Unit }
 
-type File = {
+interface File
   def close(): Unit
   def seek(pos: Int): Unit
   def hasMore(): Bool
 
   def readLine(): String
   def write(content: String): Unit
-}
+end

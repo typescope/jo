@@ -311,6 +311,98 @@ def String_bytes(repr: String): Any =
 // I/O support
 //
 
+class PlatformFile(fd: Int)
+  view IO.File
+
+  def close(): Unit =
+    Syscall.sys_close fd
+
+  def seek(pos: Int): Unit =
+    val SEEK_SET = 0
+    val ret = Syscall.sys_seek fd pos SEEK_SET
+    assert (ret >= 0) ("sys_seek = " + (intToStr ret))
+
+  def hasMore(): Bool =
+    // Always use `sys_newfstat` to avoid representation problems
+    val stat = GC.alloc 256
+    val ret = Syscall.sys_newfstat fd stat
+    assert (ret == 0) ("sys_newfstat = " + (intToStr ret))
+
+    val size = readInt (addAddr stat 20)
+
+    val SEEK_CUR = 1
+    val pos = Syscall.sys_seek fd 0 SEEK_CUR
+
+    // writeString
+    //   0
+    //   ("size = " + (intToStr size) + "\n") cast[StringRepr]
+    // writeString
+    //   0
+    //   ("pos = " + (intToStr pos) + "\n") cast[StringRepr]
+
+    pos < size
+
+  def readLine(): String =
+    // return starting index of '\n' or '\r\n' or -1.
+    def findLineSeparator(buffer: Addr, len: Int): Int =
+      var i = 0
+      var last = -1
+      var index = -1
+
+      while i < len do
+        val c = readByte (addAddr buffer i)
+
+        // debug ((intToStr i) + " -> " + (intToStr c))
+
+        if c == '\n' then
+          if last == '\r' then index = i - 1
+          else index = i
+          i = len
+        else
+          last = c
+          i = i + 1
+      end
+
+      index
+    end
+
+    var continue = true
+    var res = ""
+    while continue do
+      // read 256-byte chunks, assuming normal length of lines
+      val buffer = GC.alloc 256
+      val bytesRead = Syscall.sys_read fd buffer 256
+      if bytesRead <= 0 then
+        continue = false
+      else
+        val lineSeparatorIndex = findLineSeparator buffer bytesRead
+
+        var len = bytesRead
+        if bytesRead < 256 then
+          continue = false
+
+        if lineSeparatorIndex >= 0 then
+          continue = false
+          len = lineSeparatorIndex
+          if lineSeparatorIndex < bytesRead - 1 then
+            // go back to beginning of the next new line
+            val offset = lineSeparatorIndex - bytesRead
+            val SEEK_CUR = 1
+            val ret = Syscall.sys_seek fd offset SEEK_CUR
+            assert (ret >= 0) ("sys_seek = " + (intToStr ret))
+
+        res = res +
+          flow
+            #Raw(len, buffer) as StringRepr
+            cast[String]
+      end
+    end
+    res
+
+  def write(content: String): Unit =
+    writeString fd (flow content cast[StringRepr])
+end
+
 def createFileOpener(): String => File = (filePath: String) =>
   val nameBytes = String_bytes filePath
 
@@ -324,97 +416,9 @@ def createFileOpener(): String => File = (filePath: String) =>
   val S_IROTH = 1 << 2
   val mode: Int = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH
 
-  // return starting index of '\n' or '\r\n' or -1.
-  def findLineSeparator(buffer: Addr, len: Int): Int =
-    var i = 0
-    var last = -1
-    var index = -1
-
-    while i < len do
-      val c = readByte (addAddr buffer i)
-
-      // debug ((intToStr i) + " -> " + (intToStr c))
-
-      if c == '\n' then
-        if last == '\r' then index = i - 1
-        else index = i
-        i = len
-      else
-        last = c
-        i = i + 1
-    end
-
-    index
-
   val fd = Syscall.sys_open nameBytes flags mode
   assert (fd > 0) ("sys_open = " + (intToStr fd))
-
-  {
-    def close(): Unit =
-      Syscall.sys_close fd
-
-    def seek(pos: Int): Unit =
-      val SEEK_SET = 0
-      val ret = Syscall.sys_seek fd pos SEEK_SET
-      assert (ret >= 0) ("sys_seek = " + (intToStr ret))
-
-    def hasMore(): Bool =
-      // Always use `sys_newfstat` to avoid representation problems
-      val stat = GC.alloc 256
-      val ret = Syscall.sys_newfstat fd stat
-      assert (ret == 0) ("sys_newfstat = " + (intToStr ret))
-
-      val size = readInt (addAddr stat 20)
-
-      val SEEK_CUR = 1
-      val pos = Syscall.sys_seek fd 0 SEEK_CUR
-
-      // writeString
-      //   0
-      //   ("size = " + (intToStr size) + "\n") cast[StringRepr]
-      // writeString
-      //   0
-      //   ("pos = " + (intToStr pos) + "\n") cast[StringRepr]
-
-      pos < size
-
-    def readLine(): String =
-      var continue = true
-      var res = ""
-      while continue do
-        // read 256-byte chunks, assuming normal length of lines
-        val buffer = GC.alloc 256
-        val bytesRead = Syscall.sys_read fd buffer 256
-        if bytesRead <= 0 then
-          continue = false
-        else
-          val lineSeparatorIndex = findLineSeparator buffer bytesRead
-
-          var len = bytesRead
-          if bytesRead < 256 then
-            continue = false
-
-          if lineSeparatorIndex >= 0 then
-            continue = false
-            len = lineSeparatorIndex
-            if lineSeparatorIndex < bytesRead - 1 then
-              // go back to beginning of the next new line
-              val offset = lineSeparatorIndex - bytesRead
-              val SEEK_CUR = 1
-              val ret = Syscall.sys_seek fd offset SEEK_CUR
-              assert (ret >= 0) ("sys_seek = " + (intToStr ret))
-
-          res = res +
-            flow
-              #Raw(len, buffer) as StringRepr
-              cast[String]
-        end
-      end
-      res
-
-    def write(content: String): Unit =
-      writeString fd (flow content cast[StringRepr])
-  }
+  new PlatformFile(fd)
 
 def writeString(fd: Int, repr: StringRepr): Unit =
   match repr
