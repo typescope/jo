@@ -2,7 +2,7 @@ package sast
 
 import Trees.*
 import Types.*
-import Symbols.Symbol
+import Symbols.*
 
 import common.StringUtil
 import common.Text
@@ -353,8 +353,12 @@ object Printing:
       case RestPattern(pattern) => ".." ~ pattern
 
   def showModifiers(sym: Symbol)(using Definitions): Text =
+    val visibility = sym.visibility match
+      case Visibility.Default => ""
+      case Visibility.Private(sym) => "private[" + sym.name + "] "
+
     val mask = Flags.Synthetic | Flags.Context | Flags.Default | Flags.Alias | Flags.Defer | Flags.View
-    Flags.flagStrings(sym.flags & mask).map("<" + _ + ">").join(" ")
+    visibility ~ Flags.flagStrings(sym.flags & mask).map("<" + _ + ">").join(" ")
 
   def showType(tp: Type)(using Definitions): Text =
     tp match

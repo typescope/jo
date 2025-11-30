@@ -100,7 +100,7 @@ object Checker:
     target.visibleScope match
       case VisibleScope.Limit(container) =>
         if !scopeOwner.containedIn(container) then
-          Reporter.error("Cannot access the private member " + target, span.toPos)
+          Reporter.error("Cannot access the private member " + target + ", limit = " + container + ", site = " + scopeOwner, span.toPos)
 
       case _ =>
 

@@ -71,7 +71,7 @@ object ViewChecker:
     // Check each required method is implemented
     for requiredMethod <- requiredMethods do
       val methodName = requiredMethod.name
-      val requiredType = requiredMethod.info
+      val requiredType = viewType.termMember(methodName).widenTermRef
 
       // Interface methods are either:
       // - Abstract (Flags.Defer, no body): must be implemented

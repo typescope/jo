@@ -167,7 +167,8 @@ object Symbols:
       * 4. Namespaces have global visible scope.
       */
     def visibleScope: VisibleScope =
-      if isLocal && !this.owner.isClass then
+      if this.owner != null && owner.isLocal then
+        // interface and class methods return true for isLocal
         VisibleScope.Limit(enclosingFunction)
 
       else if isNamespace then
