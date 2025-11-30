@@ -4,10 +4,10 @@
 |                           Expect type String, found = p: Point
 
 Tried the following adapters:
-  - intToStr: type mismatch  ✗
-  - charToStr: type mismatch  ✗
-  - boolToStr: type mismatch  ✗
-  - byteToStr: type mismatch  ✗
+  - fun intToStr: type mismatch  ✗
+  - fun charToStr: type mismatch  ✗
+  - fun boolToStr: type mismatch  ✗
+  - fun byteToStr: type mismatch  ✗
   - .toString: missing ✗
 
 1 error(s), 0 warning(s)

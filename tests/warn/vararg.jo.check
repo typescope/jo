@@ -54,10 +54,10 @@
 |               Expect type String, found = List[String]
 
 Tried the following adapters:
-  - byteToStr: type mismatch  ✗
-  - boolToStr: type mismatch  ✗
-  - charToStr: type mismatch  ✗
-  - intToStr: type mismatch  ✗
+  - fun byteToStr: type mismatch  ✗
+  - fun boolToStr: type mismatch  ✗
+  - fun charToStr: type mismatch  ✗
+  - fun intToStr: type mismatch  ✗
   - .toString: missing ✗
 
 ---------- Error at ./tests/warn/vararg.jo:25:9 ---------------
