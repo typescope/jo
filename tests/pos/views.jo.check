@@ -1,0 +1,25 @@
+=== Test 1: Direct view with Iterator ===
+Testing iterator:
+  Value: 1
+  Value: 2
+  Value: 3
+
+=== Test 2: Explicit view field access ===
+  Value: 10
+  Value: 11
+  Value: 12
+
+=== Test 3: Direct view with Comparable ===
+Compare result: -10
+Are equal: false
+
+=== Test 4: Delegate view ===
+[LOG] Test message
+[ERROR] Test error
+
+=== Test 5: Delegate view through Service ===
+[LOG] Processing: test data
+[LOG] Processing complete
+
+=== Test 6: Direct logger usage via view field ===
+[LOG] Via delegate view field
