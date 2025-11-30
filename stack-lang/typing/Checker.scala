@@ -13,6 +13,8 @@ import Inference.*
 
 import common.Debug
 
+import scala.collection.mutable
+
 /** Perform checks related to types  */
 object Checker:
   /** Check kind of a type
@@ -101,14 +103,6 @@ object Checker:
           Reporter.error("Cannot access the private member " + target, span.toPos)
 
       case _ =>
-
-  def checkTermMember(word: Word, member: String)(using Reporter, Source, Definitions): Word =
-    val tpe = word.tpe
-    if tpe.hasTermMember(member) || tpe.isError then
-      word
-    else
-      Reporter.error(s"The prefix of the type ${tpe.show} does not contain the member $member", word.pos)
-      errorWord(word.span)
 
   def checkInstantiated(tvars: TypeVars)(using Reporter, Source): Unit =
     for tvar <- tvars.typeVars if !tvar.isInstantiated do
@@ -250,6 +244,38 @@ object Checker:
     else
       word
 
+  def adaptTermMember(word: Word, member: String)(using Reporter, Source, Definitions)
+  : Word = Debug.trace(s"adapting ${word.show} to .$member", enable = false):
+    val tpe = word.tpe
+    if tpe.hasTermMember(member) || tpe.isError then
+      word
+
+    else
+      var viewTypes = tpe.viewTypes
+      val cands = new mutable.ArrayBuffer[MemberRef]
+
+      while viewTypes.nonEmpty do
+        val viewType: MemberRef = viewTypes.head
+        viewTypes = viewTypes.tail
+
+        if viewType.hasTermMember(member) then
+          cands += viewType
+      end while
+
+      if cands.size == 1 then
+        val viewType = cands.head
+        word.select(viewType.symbol.name)
+
+      else
+        if cands.size > 1 then
+          val views = cands.map(_.widen.show).mkString(", ")
+          val tip = s"\nPlease disambiguate by select the view explicitly, e.g. .${cands.head.symbol.name}.$member"
+          Reporter.error(s"More than one view has the member $member, views = " + views + tip, word.pos)
+        else
+          Reporter.error(s"The prefix of the type ${tpe.show} does not contain the member $member", word.pos)
+
+        errorWord(word.span)
+
   def adapt(word: Word, targetType: TargetType)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars)
   : Word = Debug.trace("Adapting " + word.show + ", tt = " + targetType.show, (_: Word).show, enable = false):
@@ -326,7 +352,7 @@ object Checker:
 
       case TargetType.TermMember(name) =>
         val wordAutoApplied = adaptParameterless(word, targetType)
-        checkTermMember(wordAutoApplied, name)
+        adaptTermMember(wordAutoApplied, name)
 
       case TargetType.TypeMember(name) =>
         // checked in namer
