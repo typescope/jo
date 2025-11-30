@@ -507,7 +507,7 @@ object Interpreter:
                 else
                    throw new Exception(s"Unexpect method $name on array")
 
-          case TypeApply(Select(qual, name), _) =>
+          case TypeApply(ref @ Select(qual, name), _) =>
             // invariant: selection must be a method call
 
             eval(qual): @unchecked match
@@ -516,7 +516,7 @@ object Interpreter:
                 val env2 = objVal.env.fresh()
 
                 val fdef =
-                  fun.tpe match
+                  ref.tpe match
                     case MemberRef(_, sym) if !sym.is(Flags.Defer) && sym.owner.isOneOf(Flags.Class | Flags.Interface) =>
                       val ownerClassInfo = sym.owner.classInfo
                       env2.bind(ownerClassInfo.self, objVal)
