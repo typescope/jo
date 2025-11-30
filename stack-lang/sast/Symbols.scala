@@ -74,6 +74,7 @@ object Symbols:
 
     def isMethod   : Boolean = flags.is(Flags.Method)
     def isClass    : Boolean = flags.is(Flags.Class)
+    def isInterface: Boolean = flags.is(Flags.Interface)
     def isParameter: Boolean = flags.is(Flags.Param)
     def isMutable  : Boolean = flags.is(Flags.Mutable)
     def isField    : Boolean = flags.is(Flags.Field)
@@ -98,7 +99,7 @@ object Symbols:
     def isPrivate = this.visibility == Visibility.Private
 
     def classInfo(using Definitions): ClassInfo =
-      assert(this.isClass, "Not a class")
+      assert(this.isClass | this.isInterface, "Not a class")
 
       this.info match
         case info: ClassInfo => info
@@ -139,6 +140,7 @@ object Symbols:
 
       this.info match
         case info: ContainerInfo => info.resolveTerm(name).getOrElse(error())
+        case info: ClassInfo => info.getMemberSymbol(name).getOrElse(error())
         case _ => error()
 
     def typeMember(name: String)(using Definitions): Symbol =
