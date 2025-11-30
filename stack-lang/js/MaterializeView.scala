@@ -94,18 +94,26 @@ class MaterializeView(using defn: Definitions) extends phases.Phase[MaterializeV
         case MemberRef(_, sym) => sym.owner.isInterface && !sym.is(Flags.Defer)
         case _ => false
 
+    def getFunTarget(receiverRef: Word, name: String, targs: List[TypeTree]): Word =
+      val memberRef = receiverRef.tpe.termMember(name).as[RefType]
+
+      val procType =
+        if targs.isEmpty then memberRef.asProcType
+        else memberRef.asProcType.instantiate(targs.map(_.tpe))
+
+      val liftedFun = Ident(getLiftedFunSymbol(memberRef.symbol))(fun.span)
+
+      val liftedProcType = procType.prepend(NamedInfo("this", receiverRef.tpe.widen) :: Nil)
+
+      Encoded(liftedFun)(liftedProcType)
+
     fun match
       case Select(qual, name) if isConcreteInterfaceMethod(fun.tpe) =>
         val qual2 = this(qual)
-        val memberRef = qual2.tpe.termMember(name).as[RefType]
-        val procType = memberRef.asProcType
-
-        val liftedFun = Ident(getLiftedFunSymbol(memberRef.symbol))(fun.span)
-        val liftedProcType = procType.prepend(NamedInfo("this", qual2.tpe.widen) :: Nil)
-        val liftedFunEncoded = Encoded(liftedFun)(liftedProcType)
 
         if qual2.isIdempotent then
-          Apply(liftedFunEncoded, qual2 :: args2, autos2)(apply.span)
+          val fun2 = getFunTarget(qual2, name, targs = Nil)
+          Apply(fun2, qual2 :: args2, autos2)(apply.span)
 
         else
           val receiverSym =
@@ -115,23 +123,19 @@ class MaterializeView(using defn: Definitions) extends phases.Phase[MaterializeV
 
           val receiver = Ident(receiverSym)(qual2.span)
           val assign = Assign(Ident(receiverSym)(qual2.span), qual2)
-          val apply2 = Apply(liftedFunEncoded, receiver :: args2, autos2)(apply.span)
+
+          val fun2 = getFunTarget(receiver, name, targs = Nil)
+          val apply2 = Apply(fun2, receiver :: args2, autos2)(apply.span)
+
           Block(assign :: apply2 :: Nil)(apply.span)
 
       case TypeApply(sel @ Select(qual, name), targs) if isConcreteInterfaceMethod(sel.tpe) =>
         // TODO: after type erasure, the special handling here can be removed
         val qual2 = this(qual)
 
-        val memberRef = qual2.tpe.termMember(name).as[RefType]
-        val procType = memberRef.asProcType
-        val funType = procType.instantiate(targs.map(_.tpe))
-
-        val liftedFun = Ident(getLiftedFunSymbol(memberRef.symbol))(sel.span)
-        val liftedProcType = funType.prepend(NamedInfo("this", qual2.tpe.widen) :: Nil)
-        val liftedFunEncoded = Encoded(liftedFun)(liftedProcType)
-
         if qual2.isIdempotent then
-          Apply(liftedFunEncoded, qual2 :: args2, autos2)(apply.span)
+          val fun2 = getFunTarget(qual2, name, targs)
+          Apply(fun2, qual2 :: args2, autos2)(apply.span)
 
         else
           val receiverSym =
@@ -142,7 +146,9 @@ class MaterializeView(using defn: Definitions) extends phases.Phase[MaterializeV
           val receiver = Ident(receiverSym)(qual2.span)
           val assign = Assign(Ident(receiverSym)(qual2.span), qual2)
 
-          val apply2 = Apply(liftedFunEncoded, receiver :: args2, autos2)(apply.span)
+          val fun2 = getFunTarget(receiver, name, targs)
+          val apply2 = Apply(fun2, receiver :: args2, autos2)(apply.span)
+
           Block(assign :: apply2 :: Nil)(apply.span)
 
       case _ =>

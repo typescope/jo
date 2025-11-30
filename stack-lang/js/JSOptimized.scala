@@ -60,7 +60,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
             symbol2UniqueName(sym) = uniqueName
 
             // Add function or class to work list
-            if (sym.isFunction && !sym.owner.isClass) || sym.isClass then
+            if (sym.isFunction && !sym.owner.isOneOf(Flags.Class | Flags.Interface)) || sym.isClass then
               workList.add(sym)
 
             uniqueName
