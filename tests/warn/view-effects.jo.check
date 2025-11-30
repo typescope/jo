@@ -1,0 +1,15 @@
+---------- Error at ./tests/warn/view-effects.jo:7:3 ---------------
+|   def log(msg: String): Unit =
+|   ^
+|   Method log has incompatible type from interface Logger.
+  Required: (msg: String): Unit receives none
+  Found:    (msg: String): Unit receives stdout
+
+---------- Error at ./tests/warn/view-effects.jo:10:3 ---------------
+|   def error(msg: String): Unit =
+|   ^
+|   Method error has incompatible type from interface Logger.
+  Required: (msg: String): Unit receives none
+  Found:    (msg: String): Unit receives stdout
+
+2 error(s), 0 warning(s)

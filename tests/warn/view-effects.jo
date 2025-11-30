@@ -1,0 +1,14 @@
+interface Logger
+  def log(msg: String): Unit
+  def error(msg: String): Unit
+end
+
+class ConsoleLogger
+  def log(msg: String): Unit =
+    println("[LOG] " + msg)
+
+  def error(msg: String): Unit =
+    println("[ERROR] " + msg)
+
+  view Logger
+end
