@@ -205,7 +205,7 @@ object Types:
     def isSubtype(that: Type)(using Definitions): Boolean =
       Subtyping.conforms(this, that)
 
-    def viewTypes(using Definitions): List[RefType] =
+    def viewTypes(using Definitions): List[MemberRef] =
       this.approx match
         case info: ClassInfo =>
           info.views.map(view => MemberRef(this, view))
