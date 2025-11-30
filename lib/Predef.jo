@@ -143,13 +143,19 @@ defer def charToInt(c: Char): Int
 // String type
 //
 
-type String <: {
-  def size: Int
-  def get(i: Int): Char
-  def +(other: String with [boolToStr, byteToStr, charToStr, intToStr]): String
-  def ==(other: String): Bool
-  def substring(from: Int, len: Int): String
-}
+class String
+  private def String() = abort "Cannot create new String instance"
+
+  def size: Int = ...
+
+  def get(i: Int): Char = ...
+
+  def +(other: String with [boolToStr, byteToStr, charToStr, intToStr]): String = ...
+
+  def ==(other: String): Bool = ...
+
+  def substring(from: Int, len: Int): String = ...
+end
 
 //------------------------------------------------------------------------------
 //

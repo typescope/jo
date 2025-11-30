@@ -39,42 +39,41 @@ class LowerRuntime(runtime: NativeRuntime)(using defn: Definitions) extends phas
   val IntType  = defn.IntType
   val UnitType = defn.UnitType
 
-  override def transformApply(app: Apply)(using ctx: Context): Word =
-    val Apply(fun, args, autos) = app
-     val args2 = args.map(this.apply)
-     val autos2 = autos.map(this.apply)
 
-    fun.strip match
+  override def transformApply(apply: Apply)(using ctx: Context): Word =
+    val Apply(fun, args, autos) = apply
+
+    fun match
+      case Select(qual, name) if qual.tpe.isSubtype(StringType) =>
+        assert(autos.isEmpty, "No autos expected for String, found = " + autos)
+
+        val qual2 = transform(qual)
+        val args2 = for arg <- args yield transform(arg)
+        val argsAll = qual2 :: args2
+
+        if name == "size" then
+          Ident(runtime.Core_String_size)(fun.span).appliedTo(argsAll*)
+
+        else if name == "get" then
+          Ident(runtime.Core_String_apply)(fun.span).appliedTo(argsAll*)
+
+        else if name == "substring" then
+          Ident(runtime.Core_String_substring)(fun.span).appliedTo(argsAll*)
+
+        else if name == "+" then
+          Ident(runtime.Core_String_plus)(fun.span).appliedTo(argsAll*)
+
+        else if name == "==" then
+          Ident(runtime.Core_String_equals)(fun.span).appliedTo(argsAll*)
+
+        else
+
+          throw new Exception("Unexpected method on String: " + name)
+
       case TypeApply(Ident(sym), tpt :: Nil) if sym == runtime.Core_cast =>
-        assert(args2.size == 1, args2)
-        Encoded(args2.head)(tpt.tpe)
+        assert(autos.isEmpty, "No autos expected, found = " + autos)
+        assert(args.size == 1, args)
+        Encoded(transform(args.head))(tpt.tpe)
 
       case _ =>
-        Apply(this(fun), args2, autos2)(app.span)
-
-  override def transformSelect(select: Select)(using ctx: Context): Word =
-    val Select(qual, name) = select
-    if qual.tpe.isSubtype(StringType) then
-      // After lambda lift, `qual` is stable thus can be thrown away
-      assert(qual.isIdempotent, select.show)
-
-      if name == "size" then
-        Ident(runtime.Core_String_size)(select.span)
-
-      else if name == "get" then
-        Ident(runtime.Core_String_apply)(select.span)
-
-      else if name == "substring" then
-        Ident(runtime.Core_String_substring)(select.span)
-
-      else if name == "+" then
-        Ident(runtime.Core_String_plus)(select.span)
-
-      else if name == "==" then
-        Ident(runtime.Core_String_equals)(select.span)
-
-      else
-        throw new Exception("Unexpected method on String: " + name)
-
-    else
-      super.transformSelect(select)
+        super.transformApply(apply)
