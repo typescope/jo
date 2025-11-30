@@ -93,7 +93,6 @@ files=(
     stack-lang/native/arch/X86.scala
     stack-lang/native/ELF32.scala
     stack-lang/native/Memory.scala
-    stack-lang/native/ObjectEncoding.scala
     stack-lang/native/os/Linux.scala
     stack-lang/native/os/LinuxSyscall.scala
     stack-lang/native/stack/StackMachine.scala
