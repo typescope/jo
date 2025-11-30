@@ -70,7 +70,7 @@ class ExplicitAlloc(runtime: NativeRuntime)(using defn: Definitions) extends pha
 
   override def transformSelect(select: Select)(using ctx: Context): Word =
     val qual = select.qual
-    val select2 = select.copy(qual = this(qual))(select.tpe, select.span)
+    val select2 = select.copy(qual = this(qual))(select.span)
 
     given Source = ctx.sourcePos.source
 

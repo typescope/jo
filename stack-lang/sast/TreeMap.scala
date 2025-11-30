@@ -99,8 +99,7 @@ abstract class TreeMap(using Definitions):
     if qual2 `eq` qual then
       select
     else
-      val memberType = qual2.tpe.termMember(name)
-      Select(qual2, name)(memberType, select.span)
+      Select(qual2, name)(select.span)
 
   def transformRecord(rc: RecordLit)(using Context): Word =
     recurRecord(rc)

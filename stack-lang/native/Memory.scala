@@ -50,21 +50,21 @@ class Memory(runtime: NativeRuntime)(using defn: Definitions):
     val recordType = ObjectEncoding.encodeObjectType(objType)
     if select.tpe.isValueType then
       val tableType = recordType.termMember(ObjectEncoding.FTABLE).asRecordType
-      val tableSelect = Select(select.qual, ObjectEncoding.FTABLE)(tableType, select.span)
+      val tableSelect = Select(Encoded(select.qual)(recordType), ObjectEncoding.FTABLE)(select.span)
       val table = readField(recordType, tableSelect)
-      val fieldSelect = Select(table, select.name)(select.tpe, select.span)
+      val fieldSelect = Select(table, select.name)(select.span)
       readField(tableType, fieldSelect)
 
     else
       val tableType = recordType.termMember(ObjectEncoding.VTABLE).asRecordType
-      val tableSelect = Select(select.qual, ObjectEncoding.VTABLE)(tableType, select.span)
+      val tableSelect = Select(Encoded(select.qual)(recordType), ObjectEncoding.VTABLE)(select.span)
       val table = readField(recordType, tableSelect)
-      val methodSelect = Select(table, select.name)(select.tpe, select.span)
+      val methodSelect = Select(table, select.name)(select.span)
       readField(tableType, methodSelect)
 
   def writeObjectField(objType: ObjectType, field: String, ref: Word, rhs: Word)(using Source): Word =
     val recordType = ObjectEncoding.encodeObjectType(objType)
     val tableType = recordType.termMember(ObjectEncoding.FTABLE).asRecordType
-    val tableSelect = Select(ref, ObjectEncoding.FTABLE)(tableType, rhs.span)
+    val tableSelect = Select(Encoded(ref)(recordType), ObjectEncoding.FTABLE)(rhs.span)
     val table = readField(recordType, tableSelect)
     writeField(tableType, field, table, rhs)

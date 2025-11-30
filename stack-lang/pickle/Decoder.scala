@@ -1228,10 +1228,9 @@ object Decoder:
     val name = decodeString()
     val endDelta = decodeInt()
 
-    val tpe = qual.tpe.termMember(name)
     val span = Span(startOffset, qual.span.endOffset + endDelta - startOffset)
 
-    Select(qual, name)(tpe, span)
+    Select(qual, name)(span)
 
   private def decodeRecordLit(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): RecordLit =
     val startDelta = decodeInt()

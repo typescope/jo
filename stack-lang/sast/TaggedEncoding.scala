@@ -67,8 +67,7 @@ object TaggedEncoding:
     val qualEncoded = Encoded(value)(encodeType)
 
     val fieldName = "v" + argIndex
-    val fieldType = encodeType.fieldType(fieldName)
-    Select(qualEncoded, fieldName)(fieldType, span)
+    Select(qualEncoded, fieldName)(span)
 
   def testTagValue(tagValue: Word, tag: String, span: Span)(using defn: Definitions, source: Source): Word =
     val IntType = defn.IntType
@@ -78,8 +77,7 @@ object TaggedEncoding:
     fun.appliedTo(tagValue, testTagValue)
 
   def testVariantTag(ref: Word, tag: String, span: Span)(using defn: Definitions, source: Source): Word =
-    val IntType = defn.IntType
-    val tagSelect = Select(ref, "tag")(IntType, span)
+    val tagSelect = Select(ref, "tag")(span)
     testTagValue(tagSelect, tag, span)
 
   def testTagValues(tagValue: Ident, tags: List[String], span: Span)(using defn: Definitions, source: Source): Word =

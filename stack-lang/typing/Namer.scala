@@ -376,7 +376,7 @@ class Namer(using Config):
           case Some(prefix) =>
             // Normalize SAST
             val qual = Ident(prefix)(word.span.point)
-            Select(qual, sym.name)(qual.tpe.termMember(sym.name), word.span)
+            Select(qual, sym.name)(word.span)
 
           case _ =>
             Checker.checkCapture(sym, word.pos)
@@ -402,7 +402,7 @@ class Namer(using Config):
                 Ident(sym.dealias)(word.span)
 
               case _ =>
-                Select(qual2, name)(tp, word.span)
+                Select(qual2, name)(word.span)
 
           case None =>
             // Error already reported
@@ -608,7 +608,7 @@ class Namer(using Config):
     // It ensures that in `Apply(fun, args)` the fun is an ident or select.
     fun.tpe.getSingleMethodType match
       case Some(NamedInfo(name, procType)) =>
-        fun = Select(fun, name)(procType, fun.span)
+        fun = Select(fun, name)(fun.span)
 
       case _ =>
         fun.tpe.getTermMember("apply") match
@@ -726,7 +726,7 @@ class Namer(using Config):
     if objType.isObjectType || objType.isClassType then
       objType.getTermMember(meth.name) match
         case Some(tp) =>
-          var fun: Word = Select(objWord, meth.name)(tp, objSpan | meth.span)
+          var fun: Word = Select(objWord, meth.name)(objSpan | meth.span)
 
           if tp.isProcType then
             val originalProcType = tp.asProcType
@@ -917,7 +917,7 @@ class Namer(using Config):
         if sym.isField then
           // Normalize SAST
           val qual = Ident(oob.getKey(Scope.PrefixKey))(id.span)
-          val lhs2 = Select(qual, sym.name)(MemberRef(qual.tpe, sym), lhs.span)
+          val lhs2 = Select(qual, sym.name)(lhs.span)
           FieldAssign(lhs2, rhs2)
 
         else
@@ -951,7 +951,7 @@ class Namer(using Config):
               if !isMutable then
                 Reporter.error(s"The member $name is immutable", lhs.pos)
 
-              val lhs2 = Select(qual2, name)(tp, lhs.span)
+              val lhs2 = Select(qual2, name)(lhs.span)
 
               val rhs2 = Inference.freshIsolate:
                 given TargetType = TargetType.Known(tp.widenTermRef)
@@ -1614,7 +1614,7 @@ class Namer(using Config):
                   Reporter.error("The field " + name + " already initialized", lhs.pos)
 
                 else
-                  val lhsTyped = Select(Ident(thisSym)(qual.span), name)(tp, lhs.span)
+                  val lhsTyped = Select(Ident(thisSym)(qual.span), name)(lhs.span)
 
                   // Type-check RHS with accumulated field scope (params + previously initialized fields)
                   val rhsTyped = Inference.freshIsolate:

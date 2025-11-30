@@ -189,12 +189,12 @@ object AutoResolution:
 
         if memberType.isProcType then
           val procType = memberType.asProcType
-          tryMethodMember(procType, memberType, receiverType, name, targetType, trace, trial, owner, span)
+          tryMethodMember(procType, receiverType, name, targetType, trace, trial, owner, span)
 
         else
           // Simple value member - check conformance
           // For value members, check if target type is (T) => MemberType
-          tryValueMember(memberType, memberType, receiverType, name, targetType, trace, trial, owner, span)
+          tryValueMember(memberType, receiverType, name, targetType, trace, trial, owner, span)
 
 
   /** Create eta-expanded lambda
@@ -203,7 +203,7 @@ object AutoResolution:
     * Creates: (receiver: T, params) => receiver.member(params, autos)
     */
   def tryMethodMember
-      (procType: ProcType, memberRefType: Type, receiverType: Type, memberName: String, targetType: Type,
+      (procType: ProcType, receiverType: Type, memberName: String, targetType: Type,
         trace: Vector[TraceElement], trial: SearchNode.Trial, owner: Symbol, span: Span)
       (using defn: Definitions, so: Source)
   : Option[Word] =
@@ -257,7 +257,7 @@ object AutoResolution:
       // params(0) is the receiver, rest are method parameters
       val receiver = params.head
       val methodArgs = params.tail
-      val member = Select(receiver, memberName)(memberRefType, span)
+      val member = Select(receiver, memberName)(span)
       Apply(member, methodArgs, resolvedAutos)(span)
 
     Some(lambda)
@@ -268,7 +268,7 @@ object AutoResolution:
     * Creates: (receiver: T) => receiver.member
     */
   def tryValueMember
-      (resultType: Type, memberRefType: Type, receiverType: Type, memberName: String,
+      (resultType: Type, receiverType: Type, memberName: String,
         targetType: Type, trace: Vector[TraceElement], trial: SearchNode.Trial, owner: Symbol, span: Span)
       (using defn: Definitions, so: Source)
   : Option[Word] =
@@ -302,7 +302,7 @@ object AutoResolution:
           val lambda = TreeOps.createLambda(lambdaType, owner, effectPolicy, span): (params, autos) =>
             // params(0) is the receiver
             val receiver = params.head
-            Select(receiver, memberName)(memberRefType, span)
+            Select(receiver, memberName)(span)
 
           trial.next = SearchNode.Success
           Some(lambda)
