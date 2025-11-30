@@ -205,6 +205,13 @@ object Types:
     def isSubtype(that: Type)(using Definitions): Boolean =
       Subtyping.conforms(this, that)
 
+    def viewTypes(using Definitions): List[RefType] =
+      this.approx match
+        case info: ClassInfo =>
+          info.views.map(view => MemberRef(this, view))
+
+        case _ => Nil
+
     def getTermMember(name: String)(using Definitions): Option[Type] =
       this.approx match
         case info: ContainerInfo =>
@@ -531,6 +538,9 @@ object Types:
       fields.find(_.name == name) match
         case Some(sym) => sym
         case None => throw new Exception("No field " + name + " in class " + classSymbol)
+
+    def views: List[Symbol] =
+      fields.filter(_.is(Flags.View))
 
     def getMemberSymbol(name: String): Option[Symbol] =
       fields.find(_.name == name) match
