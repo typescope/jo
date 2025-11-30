@@ -6,7 +6,7 @@
 ---------- Error at ./tests/warn/private-local-import.jo:44:12 ---------------
 |   Library> Helpers.internalFunc(5)
 |            ^^^^^^^^^^^^^^^^^^^^
-|            Cannot access the private member internalFunc
+|            Cannot access the private member internalFunc, limit = Helpers, site = testPrivateNested
 
 ---------- Error at ./tests/warn/private-local-import.jo:48:12 ---------------
 |   Library> SecretSection.process(10)
