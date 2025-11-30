@@ -72,8 +72,8 @@ interpolation = "\\" "{" expr "}"
 
 section = {modifier} "section" ident {toplevel_def} ["end"]
 
-toplevel_def = typedef | fundef | paramdef | aliasdef | patdef | datadef | 
-               classdef | section
+toplevel_def = type_def | fun_def | param_def | alias_def | pat_def | data_def |
+               class_def | interface_def | section
 
 qualid = ident | qualid "." ident
 
@@ -85,7 +85,7 @@ word = integer | boolean | char | string | ident | fence | record |
        apply | select | tag | lambda | object | list | new_expr |
        begin_block | type_apply | bracket_apply
 
-phrase = simple_phrase | assign | valdef | fundef | patdef | typedef | 
+phrase = simple_phrase | assign | val_def | fun_def | pat_def | type_def |
          while | if | match
 
 block = {phrase}
@@ -130,7 +130,7 @@ type_ascribe = simple_phrase "as" simple_type
 
 object = "{" [members] "}"
 members = member {[","] member}
-member = valdef | defdef
+member = val_def | def_def
 
 lambda = (param_section | ident) "=>" block
 
@@ -159,27 +159,32 @@ modifier = "auto" | "defer" | private_modifier
 
 private_modifier = "private" ["[" ident "]"]
 
-valdef = {modifier} ("val" | "var") ident [":" type] "=" block
+val_def = {modifier} ("val" | "var") ident [":" type] "=" block
 
-fundef = {modifier} "def" [param_section] ident [tparams] [param_section]
-         [auto_section] [":" type] [receive_params] ["=" block] ["end"]
+fun_def = {modifier} "def" [param_section] ident [tparams] [param_section]
+          [auto_section] [":" type] [receive_params] ["=" block] ["end"]
 
-classdef = {modifier} "class" ident [tparams] {defdef | val_decl} ["end"]
+class_def = {modifier} "class" ident [tparams] [param_section] {class_member} ["end"]
+class_member = view_decl | def_def | val_decl
 
-defdef = "def" ident [tparams] [param_section] [":" type] [receive_params] 
-         "=" block ["end"]
+def_def = "def" ident [tparams] [param_section] [":" type] [receive_params]
+          "=" block ["end"]
 
-patdef = {modifier} "pattern" ident [tparams] [param_section] [":" type] "=" cases ["end"]
+pat_def = {modifier} "pattern" ident [tparams] [param_section] [":" type] "=" cases ["end"]
 cases = case {"case" pattern}
 
-datadef = "data" ident [tparams] ([param_section] | "=" branch {"|" branch})
+interface_def = {modifier} "interface" ident [tparams] {method_decl} ["end"]
+
+view_decl = "view" type ["=" expr]
+
+data_def = "data" ident [tparams] ([param_section] | "=" branch {"|" branch})
 branch = ident [param_section]
 
-paramdef = {modifier} "param" param ["=" block]
+param_def = {modifier} "param" param ["=" block]
 
-aliasdef = {modifier} "alias" ("def" | "pattern" | "param") ident "=" qualid
+alias_def = {modifier} "alias" ("def" | "pattern" | "param") ident "=" qualid
 
-typedef = {modifier} "type" [tparams] ident [tparams] ["=" type | "<:" type]
+type_def = {modifier} "type" [tparams] ident [tparams] ["=" type | "<:" type]
 tparams = "[" tparam {"," tparam} "]"
 tparam = ident
 
@@ -210,7 +215,7 @@ receive_params = "receives" qualid {"," qualid}
 object_type = "{" [member_decls] "}"
 member_decls = member_decl {[","] member_decl}
 member_decl = method_decl | val_decl
-method_decl = "def" ident param_section ":" type [receive_params]
+method_decl = "def" ident [tparams] [param_section] [":" type] [receive_params] ["=" block]
 val_decl = ("val" | "var") ident ":" type
 
 param_section = "(" [params] ")"
