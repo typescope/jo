@@ -88,6 +88,7 @@ files=(
     stack-lang/js/JSOptimized.scala
     stack-lang/js/JSRuntime.scala
     stack-lang/js/LowerRuntime.scala
+    stack-lang/js/MaterializeView.scala
 
     stack-lang/phases/Phase.scala
     stack-lang/phases/EffectCheck.scala

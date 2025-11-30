@@ -49,7 +49,9 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
           case None =>
             val rawName = sym.fullName
             val uniqueName =
-              if sym.isLocal then
+              if sym.isMethod then
+                encodeSymbolic(sym.name)
+              else if sym.isLocal then
                 localScope.freshName(encodeSymbolic(rawName))
               else
                 globalScope.freshName(encodeSymbolic(rawName))
