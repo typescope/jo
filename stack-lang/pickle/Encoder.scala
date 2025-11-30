@@ -484,11 +484,10 @@ object Encoder:
       encodeString(cdef.self.name)
       encodeFlags(cdef.self.flags & Flags.Synthetic)
 
-      // TODO: maintain members in original order
       repeated(cdef.vals): sym =>
         encodeNat(state.getId(sym))
         encodeString(sym.name)
-        encodeFlags(sym.flags & Flags.Mutable)
+        encodeFlags(sym.flags & (Flags.Mutable | Flags.View | Flags.Defer))
         encodeVisibility(sym)
 
         val symSpan = sym.sourcePos.span
@@ -530,7 +529,7 @@ object Encoder:
 
       var lastOffset = absoluteStart
       repeated(idef.methods): fdef =>
-        encodeDef(fdef)
+        encodeFunDef(fdef)
         lastOffset = fdef.span.endOffset
 
       encodeNat(idef.span.endOffset - lastOffset)
