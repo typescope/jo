@@ -1,9 +1,4 @@
-class Complex
-  val real: Int
-  val image: Int
-
-  def Complex(x: Int, y: Int) = { real: x, image: y }
-
+class Complex(real: Int, image: Int)
   def +(c: Complex): Complex =
     Complex
       this.real + c.real

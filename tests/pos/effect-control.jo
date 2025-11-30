@@ -12,9 +12,12 @@ def lineCount =
 
   recur 0
 
-def testFile: File = {
+class TestFile
   var moreAvailable: Bool = true
   var currentLine: Int = 0
+
+  view File
+
   def close(): Unit = {}
 
   def seek(pos: Int): Unit = abort "no seek"
@@ -32,10 +35,10 @@ def testFile: File = {
       ...
 
   def write(content: String): Unit = abort "no write"
-}
+end
 
 def main =
-  val file = testFile
+  val file = new TestFile
 
   val readLineFun: () => Option[String] = () =>
     if file.hasMore then #Some(file.readLine())

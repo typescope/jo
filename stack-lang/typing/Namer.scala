@@ -1,7 +1,6 @@
 package typing
 
 import ast.{ Trees => Ast }
-import ast.Desugaring
 import ast.Naming
 import ast.Positions.*
 
@@ -195,6 +194,9 @@ class Namer(using Config):
       case cdef: Ast.ClassDef =>
         transformClassDef(cdef) :: Nil
 
+      case idef: Ast.InterfaceDef =>
+        transformInterfaceDef(idef) :: Nil
+
       case adef: Ast.AliasDef =>
         transformAliasDef(adef) :: Nil
 
@@ -374,7 +376,7 @@ class Namer(using Config):
           case Some(prefix) =>
             // Normalize SAST
             val qual = Ident(prefix)(word.span.point)
-            Select(qual, sym.name)(qual.tpe.termMember(sym.name), word.span)
+            Select(qual, sym.name)(word.span)
 
           case _ =>
             Checker.checkCapture(sym, word.pos)
@@ -400,7 +402,7 @@ class Namer(using Config):
                 Ident(sym.dealias)(word.span)
 
               case _ =>
-                Select(qual2, name)(tp, word.span)
+                Select(qual2, name)(word.span)
 
           case None =>
             // Error already reported
@@ -606,7 +608,7 @@ class Namer(using Config):
     // It ensures that in `Apply(fun, args)` the fun is an ident or select.
     fun.tpe.getSingleMethodType match
       case Some(NamedInfo(name, procType)) =>
-        fun = Select(fun, name)(procType, fun.span)
+        fun = Select(fun, name)(fun.span)
 
       case _ =>
         fun.tpe.getTermMember("apply") match
@@ -724,7 +726,7 @@ class Namer(using Config):
     if objType.isObjectType || objType.isClassType then
       objType.getTermMember(meth.name) match
         case Some(tp) =>
-          var fun: Word = Select(objWord, meth.name)(tp, objSpan | meth.span)
+          var fun: Word = Select(objWord, meth.name)(objSpan | meth.span)
 
           if tp.isProcType then
             val originalProcType = tp.asProcType
@@ -915,7 +917,7 @@ class Namer(using Config):
         if sym.isField then
           // Normalize SAST
           val qual = Ident(oob.getKey(Scope.PrefixKey))(id.span)
-          val lhs2 = Select(qual, sym.name)(MemberRef(qual.tpe, sym), lhs.span)
+          val lhs2 = Select(qual, sym.name)(lhs.span)
           FieldAssign(lhs2, rhs2)
 
         else
@@ -949,7 +951,7 @@ class Namer(using Config):
               if !isMutable then
                 Reporter.error(s"The member $name is immutable", lhs.pos)
 
-              val lhs2 = Select(qual2, name)(tp, lhs.span)
+              val lhs2 = Select(qual2, name)(lhs.span)
 
               val rhs2 = Inference.freshIsolate:
                 given TargetType = TargetType.Known(tp.widenTermRef)
@@ -1020,24 +1022,10 @@ class Namer(using Config):
 
         case expr =>
           // Type check the interpolation expression
-          given TargetType = TargetType.ValueType
-          val typedExpr = Inference.freshIsolate:
-            transform(expr)
-
-          // Convert to String if needed
-          if Subtyping.conforms(typedExpr.tpe, defn.StringType) then
-            typedExpr
-          else
-            // Try adapations
+          Inference.freshIsolate:
             val adapter = Adaptation.createSimpleAdapter(defn.stringInterpolationAdapters, sc.owner)
-
-            try
-              Adaptation.adapt(typedExpr, defn.StringType, adapter)
-
-            catch case ex: Adaptation.AdaptionFailure =>
-              val trialsMsg = Adaptation.formatTrials(ex.trials)
-              Reporter.error(s"Cannot interpolate expression of type ${typedExpr.tpe.show}${trialsMsg}", expr.pos)
-              Literal(Constant.String(""))(defn.StringType, expr.span)
+            given TargetType = TargetType.Known(defn.StringType, adapter)
+            transform(expr)
 
     // Build concatenation using the + method on String
     typedParts match
@@ -1251,10 +1239,8 @@ class Namer(using Config):
     // given definitions are lazy
     given Definitions = lazyDefn.value
 
-    var flags = Checker.checkModifiers(pdef) | Flags.Context
-
-    if pdef.hasKey(Desugaring.DefaultContextParam) then
-      flags |= Flags.Default
+    val extraFlags = pdef.getKeyOrElse(Desugaring.ExtraFlags)(Flags.empty)
+    val flags = Checker.checkModifiers(pdef) | Flags.Context | extraFlags
 
     val paramSym = TermSymbol.create(pdef.name, flags, Checker.visibility(pdef, sc.owner), sc.owner, pdef.pos)
     ip.addLazy(paramSym, () => transformType(pdef.tpt).tpe)
@@ -1422,7 +1408,7 @@ class Namer(using Config):
 
     for auto <- autos yield
       val tpt = transformType(auto.tpt, allowPackType = false)
-      val autoSym = TermSymbol.create(auto.name, tpt.tpe, Flags.Param | Flags.Auto, Visibility.Default, sc.owner, auto.pos)
+      val autoSym = TermSymbol.create(auto.name, tpt.tpe, Flags.Param, Visibility.Default, sc.owner, auto.pos)
       sc.define(autoSym)
       autoSym
 
@@ -1454,10 +1440,8 @@ class Namer(using Config):
       (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, ck: Checks)
   : DelayedDef[FunDef] =
 
-    var flags = Checker.checkModifiers(funDef) | initialFlags
-
-    if funDef.hasKey(Desugaring.DefaultValueFun) then
-      flags |= Flags.Default
+    val extraFlags = funDef.getKeyOrElse(Desugaring.ExtraFlags)(Flags.empty)
+    val flags = Checker.checkModifiers(funDef) | initialFlags | extraFlags
 
     val funSym = TermSymbol.create(funDef.name, flags, Checker.visibility(funDef, sc.owner), sc.owner, funDef.ident.pos)
     given Scope = sc.fresh(funSym)
@@ -1468,7 +1452,8 @@ class Namer(using Config):
       if funDef.resultType.isEmpty then
         Reporter.error("A deferred definition should have explicit result type", funDef.ident.pos)
 
-      if !sc.owner.isContainer then
+      // view accessor have such flags
+      if sc.owner.isLocal then
         Reporter.error("A deferred definition should be at top-level", funDef.ident.pos)
 
     else if Config.explicitReturnType.value && funDef.resultType.isEmpty then
@@ -1578,7 +1563,7 @@ class Namer(using Config):
 
     val visibility = Checker.visibility(funDef, classSym)
     val funSym = TermSymbol.create(Names.Constructor, flags, visibility, classSym, funDef.ident.pos)
-    given Scope = sc.fresh(funSym)
+    given ctorScope: Scope = sc.fresh(funSym)
 
     if funDef.tparams.nonEmpty then
       Reporter.error("Constructor may not take type parameters", funDef.tparams.head.pos)
@@ -1605,61 +1590,76 @@ class Namer(using Config):
 
       thisSym.info
 
-    def checkBody(stats: List[Ast.Word], record: Ast.RecordLit): Word =
+    def checkBody(stats: List[Ast.Word]): Word =
       val classInfo = classSym.classInfo
-      val initialized = new mutable.ArrayBuffer[Symbol]
+      val uninitialized = mutable.Set.from(classInfo.fields)
       val words = new mutable.ArrayBuffer[Word]
 
-      for stat <- stats do Inference.freshIsolate:
-        given TargetType = TargetType.VoidType
-        Inference.freshIsolate:
-          words += transform(stat)
+      // Create prefixed scope for accessing constructor parameters and class fields
+      // Constructor parameters inherited from ctorScope, class fields via prefix, initialized fields added incrementally
+      val fieldScope = ctorScope.freshPrefixedScope(prefix = thisSym, owner = funSym)
+      given blockScope: Scope = fieldScope.fresh()
 
-      for arg @ Ast.NamedArg(id, rhs) <- record.args yield
-        StaticRef(thisSym).getTermMember(id.name) match
-          case Some(tp) =>
-            assert(tp.is[RefType], "class member should be RefType, found = " + tp)
+      // Process all statements
+      for stat <- stats do
+        stat match
+          case assign @ Ast.Assign(lhs @ Ast.Select(qual @ Ast.Ident("this"), name), rhs) =>
+            // Field initialization
+            StaticRef(thisSym).getTermMember(name) match
+              case Some(tp) =>
+                assert(tp.is[RefType], "class member should be RefType, found = " + tp)
 
-            given TargetType = TargetType.Known(tp.widenTermRef)
-            val sym = tp.as[RefType].symbol
-            if initialized.contains(sym) then
-              Reporter.error("The field " + id.name + " already initialized", id.pos)
+                val sym = tp.as[RefType].symbol
+                if !uninitialized.contains(sym) then
+                  Reporter.error("The field " + name + " already initialized", lhs.pos)
 
-            else
-              val lhs = Select(Ident(thisSym)(id.span), id.name)(tp, id.span)
+                else
+                  val lhsTyped = Select(Ident(thisSym)(qual.span), name)(lhs.span)
 
-              val rhsTyped = Inference.freshIsolate:
-                transform(rhs)
+                  // Type-check RHS with accumulated field scope (params + previously initialized fields)
+                  val rhsTyped = Inference.freshIsolate:
+                    given TargetType = TargetType.Known(tp.widenTermRef)
+                    transform(rhs)
 
-              words += FieldAssign(lhs, rhsTyped)
-              initialized += sym
+                  words += FieldAssign(lhsTyped, rhsTyped)
+                  uninitialized -= sym
 
-          case None =>
-            Reporter.error("The field " + id.name + " does not exist in class " + classSym, id.pos)
-      end for
+                  // Add this field to scope for subsequent field initializations
+                  fieldScope.define(sym)
 
-      val uninit = classInfo.fields.toSet -- initialized.toSeq
-      if uninit.nonEmpty then
-        val names = uninit.map(_.name).mkString(", ")
+                  // make `this` available once all fields are initialized
+                  if uninitialized.isEmpty then
+                    blockScope.define(thisSym)
+
+              case None =>
+                Reporter.error("The field " + name + " does not exist in class " + classSym, lhs.pos)
+
+          case _ =>
+            // Regular statement - check with or without `this` depending on initialization state
+            Inference.freshIsolate:
+              given TargetType = TargetType.VoidType
+              words += transform(stat)
+
+      // Check that all fields are initialized
+      if uninitialized.nonEmpty then
+        val names = uninitialized.map(_.name).mkString(", ")
         Reporter.error("Uninitialized field(s): " + names, funDef.pos)
 
-      val thisIdent = Ident(thisSym)(record.span.endPoint)
-      val body = (words :+ thisIdent).toList
-      Block(body)(funDef.body.span)
+      // Automatically append 'this' to return the instance
+      words += Ident(thisSym)(funDef.body.span)
+
+      Block(words.toList)(funDef.body.span)
 
     lazy val typedBody =
       paramSyms
       autoSyms
 
       funDef.body match
-        case rec: Ast.RecordLit =>
-          checkBody(Nil, rec)
-
-        case Ast.Block(stats :+ (rec: Ast.RecordLit)) =>
-          checkBody(stats, rec)
+        case Ast.Block(stats) =>
+          checkBody(stats)
 
         case _ =>
-          Reporter.error("The last phrase of a constructor should be a record literal", funDef.body.pos)
+          Reporter.error("Constructor body must be a block", funDef.body.pos)
           errorWord(funDef.body.span)
 
     lazy val effectPolicy = transformReceives(funDef.receives, Effects.Policy.Infer)
@@ -1786,8 +1786,8 @@ class Namer(using Config):
 
     val delayedDefs = new mutable.ArrayBuffer[DelayedDef[FunDef]]
 
-    for case vdef: Ast.ValDef <- cdef.members do
-      var flags = Checker.checkModifiers(vdef)
+    for vdef <- cdef.vals do
+      var flags = Checker.checkModifiers(vdef) | vdef.getKeyOrElse(Desugaring.ExtraFlags)(Flags.empty)
       if vdef.mutable then flags = flags | Flags.Field | Flags.Mutable
       else flags = flags | Flags.Field
 
@@ -1807,7 +1807,7 @@ class Namer(using Config):
         ip.addLazy(sym, () => checkType())
         fields += sym
 
-    for case fdef: Ast.FunDef <- cdef.members do
+    for fdef <- cdef.funs do
       given Scope = shortCutScope
 
       if fdef.preParamCount != 0 then
@@ -1840,6 +1840,78 @@ class Namer(using Config):
       ClassDef(classSym, thisSym, tparamSyms, fields.toList, funs)(cdef.span)
 
     DelayedDef(classSym, typer)
+
+  private def transformInterfaceDef(idef: Ast.InterfaceDef)
+      (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, ck: Checks)
+  : DelayedDef[InterfaceDef] =
+
+    val flags = Checker.checkModifiers(idef) | Flags.Interface
+    val kind = Kind.simpleKinded(idef.tparams.size)
+    val interfaceSym = TypeSymbol.create(kind, idef.name, flags, Checker.visibility(idef, sc.owner), sc.owner, idef.ident.pos)
+    val selfSym = TermSymbol.create("this", Flags.Synthetic, Visibility.Default, interfaceSym, idef.ident.pos)
+
+    given paramScope: Scope = sc.fresh(interfaceSym)
+
+    lazy val tparamSyms =
+      given Definitions = lazyDefn.value
+      transformTypeParams(idef.tparams)
+
+    val methods = new mutable.ArrayBuffer[Symbol]
+
+    lazy val interfaceInfo: Type =
+      // Reuse ClassInfo but with empty fields
+      val base = new ClassInfo(interfaceSym, tparamSyms, tparamSyms.map(StaticRef.apply), selfSym, Nil, methods.toList)
+
+      if idef.tparams.isEmpty then base
+      else TypeLambda(tparamSyms, base, preParamCount = 0)
+
+    val ip = lazyDefn.infoProvider
+    ip.addLazy(interfaceSym, () => interfaceInfo)
+
+    // Add self to scope for use in default method implementations
+    val selfScope = paramScope.fresh()
+    selfScope.define(selfSym)
+    val shortCutScope = selfScope.freshPrefixedScope(prefix = selfSym, owner = interfaceSym)
+
+    lazy val selfInfo: Type =
+      val interfaceRef = StaticRef(interfaceSym)
+      if tparamSyms.isEmpty then interfaceRef
+      else AppliedType(interfaceRef, tparamSyms.map(StaticRef.apply))
+
+    ip.addLazy(selfSym, () => selfInfo)
+
+    val delayedDefs = new mutable.ArrayBuffer[DelayedDef[FunDef]]
+
+    for fdef <- idef.members do
+      given Scope = shortCutScope
+
+      if fdef.preParamCount != 0 then
+        Reporter.error("Interface methods cannot have pre-arguments", fdef.pos)
+
+      var methodFlags = Flags.Fun | Flags.Method
+
+      // Only abstract methods (without body) are deferred
+      if fdef.body.isEmptyBlock then
+        methodFlags |= Flags.Defer
+
+      val delayedDef = transformFunDef(fdef, methodFlags, Effects.Policy.Infer)
+      methods += delayedDef.symbol
+
+      // Operator name should not be called directly without a prefix
+      if !Naming.isOperator(delayedDef.symbol.name) then
+        shortCutScope.define(delayedDef.symbol)
+
+      delayedDefs += delayedDef
+
+    val typer = () =>
+      given Definitions = lazyDefn.value
+
+      val methodDefs: List[FunDef] =
+        for delayedDef <- delayedDefs.toList yield delayedDef.force()
+
+      InterfaceDef(interfaceSym, selfSym, tparamSyms, methodDefs)(idef.span)
+
+    DelayedDef(interfaceSym, typer)
 
   private def transformSection
       (section: Ast.Section)
@@ -1903,7 +1975,7 @@ class Namer(using Config):
     val autoSyms =
       for auto <- ddef.autos yield
         val tpt = transformType(auto.tpt)
-        val autoSym = TermSymbol.create(auto.name, tpt.tpe, Flags.Param | Flags.Auto, Visibility.Default, sc.owner, auto.pos)
+        val autoSym = TermSymbol.create(auto.name, tpt.tpe, Flags.Param, Visibility.Default, sc.owner, auto.pos)
         defScope.define(autoSym)
         autoSym
 

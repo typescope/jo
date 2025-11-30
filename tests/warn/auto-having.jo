@@ -3,9 +3,7 @@
 type Eq[T] = (T, T) => Bool
 type Ord[T] = (T, T) => Int
 
-class Item
-  val value: Int
-  def Item(n: Int) = { value: n }
+class Item(value: Int)
 
 // This will fail because it needs Ord[Item]
 def eqItem(auto ord: Ord[Item]): Eq[Item] =

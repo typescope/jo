@@ -1,0 +1,11 @@
+// Direct view must point to an interface, not a class
+
+class NotAnInterface
+  def foo(): Unit = ...
+end
+
+class MyClass
+  def foo(): Unit = ...
+
+  view NotAnInterface
+end

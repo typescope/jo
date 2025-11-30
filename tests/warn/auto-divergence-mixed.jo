@@ -3,14 +3,9 @@
 
 type Eq[T] = (T, T) => Bool
 
-class Item
-  val value: Int
-  def Item(n: Int) = { value: n }
+class Item(value: Int)
 
-class Box
-  val item: Item
-  def Box(i: Item) = { item: i }
-
+class Box(item: Item)
   // Member candidate: compare method needs Eq[Item]
   // This creates a cycle when used to resolve Eq[Box] needed by eqItem
   def compare(that: Box)(auto eq: Eq[Item] with [eqItem]): Bool =

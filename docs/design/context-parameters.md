@@ -337,7 +337,7 @@ def createPrinter(): Printer receives none =
   (doc: Doc) => pretty(doc)
 
 def pretty(doc: Doc): String receives pageWidth =
-  doc + "\npageWidth = " + intToStr(pageWidth)
+  doc + "\npageWidth = " + pageWidth
 
 def main =
   val printer = createPrinter()

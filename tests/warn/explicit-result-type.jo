@@ -28,7 +28,7 @@ class Calculator
   var value: Int
 
   def Calculator(initial: Int) =
-    { value: initial }
+    this.value = initial
 
   def increment() =
     value = value + 1

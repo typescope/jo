@@ -122,6 +122,8 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       case "private"   => Token.PRIVATE
       case "new"       => Token.NEW
       case "having"    => Token.HAVING
+      case "interface" => Token.INTERFACE
+      case "view"      => Token.VIEW
       case name        => Token.Ident(name)
 
   def operator(): Token =

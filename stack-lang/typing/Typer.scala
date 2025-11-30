@@ -23,12 +23,14 @@ object Typer:
     val rootNameTable = defnLazy.rootNameTable
     val rootScope = new Scope.RootScope(rootNameTable, owner = null)
 
-    def checkEffects(nss: List[Namespace]): Unit =
-      // Run normalization and pickling
+    def checkPostTyping(nss: List[Namespace]): Unit =
       given Definitions = defnLazy.value
-      val effectCheck = new phases.EffectCheck
 
+      val effectCheck = new phases.EffectCheck
       effectCheck.transform(nss)
+
+      VisibilityChecker.check(nss)
+      ViewChecker.check(nss)
 
       if !rp.hasErrors && Config.testPickling.value then
         given Definitions = defnLazy.value
@@ -41,15 +43,9 @@ object Typer:
     if libs.isEmpty then
       // compile stdlib to a lib
       val nss = new Namer().transform(nssAst, rootNameTable, rootScope) <| "namer.source"
-      checkEffects(nss)
 
       // Don't check effect errors if there are type errors
-      if !rp.hasErrors then checkEffects(nss)
-
-      // Don't check visibility if there are type errors
-      if !rp.hasErrors then
-        given Definitions = defnLazy.value
-        VisibilityChecker.check(nss)
+      if !rp.hasErrors then checkPostTyping(nss)
 
       (nss, Nil)
 
@@ -67,12 +63,7 @@ object Typer:
       val nss = new Namer().transform(nssAst, rootNameTable, predefScope) <| "namer.source"
 
       // Don't check effect errors if there are type errors
-      if !rp.hasErrors then checkEffects(nss)
-
-      // Don't check visibility if there are type errors
-      if !rp.hasErrors then
-        given Definitions = defnLazy.value
-        VisibilityChecker.check(nss)
+      if !rp.hasErrors then checkPostTyping(nss)
 
       (nss, delayedNss)
 

@@ -69,8 +69,15 @@ object Types:
     def isProcType(using Definitions): Boolean =
       this.approx.isInstanceOf[ProcType]
 
+    /** Is the current type after dealiasing a class or interface type*/
     def isClassType(using Definitions): Boolean =
       this.approx.isInstanceOf[ClassInfo]
+
+    /** Is the current type after dealiasing an interface type*/
+    def isInterfaceType(using Definitions): Boolean =
+      this.approx match
+        case info: ClassInfo => info.classSymbol.is(Flags.Interface)
+        case _ => false
 
     def isPolyType(using Definitions): Boolean =
       this.approx match
@@ -204,6 +211,13 @@ object Types:
 
     def isSubtype(that: Type)(using Definitions): Boolean =
       Subtyping.conforms(this, that)
+
+    def viewTypes(using Definitions): List[MemberRef] =
+      this.approx match
+        case info: ClassInfo =>
+          info.views.map(view => MemberRef(this, view))
+
+        case _ => Nil
 
     def getTermMember(name: String)(using Definitions): Option[Type] =
       this.approx match
@@ -531,6 +545,9 @@ object Types:
       fields.find(_.name == name) match
         case Some(sym) => sym
         case None => throw new Exception("No field " + name + " in class " + classSymbol)
+
+    def views: List[Symbol] =
+      fields.filter(_.is(Flags.View))
 
     def getMemberSymbol(name: String): Option[Symbol] =
       fields.find(_.name == name) match

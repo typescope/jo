@@ -1,0 +1,125 @@
+// Test for interface and view functionality
+
+// Interface definitions
+interface Iterator[T]
+  def hasNext(): Bool
+  def next(): T
+end
+
+interface Comparable[T]
+  def compare(x: T, y: T): Int
+  def equals(x: T, y: T): Bool = compare(x, y) == 0  // Concrete method
+end
+
+interface Logger
+  def log(msg: String): Unit
+  def error(msg: String): Unit
+end
+
+// Simple immutable Range class with Comparable view
+class Range(start: Int, ends: Int)
+  // Factory method to create iterator
+  def iterator(): Iterator[Int] = new RangeIterator(this)
+
+  // Implement Comparable[Range] methods
+  def compare(r1: Range, r2: Range): Int =
+    val len1 = r1.ends - r1.start
+    val len2 = r2.ends - r2.start
+    val lenDiff = len1 - len2
+    if lenDiff != 0 then lenDiff else r1.start - r2.start
+
+  // Declare direct view
+  view Comparable[Range]
+end
+
+// Separate iterator class with its own state
+// Iterator state should not be coupled with the iterable collection
+class RangeIterator(range: Range)
+  var current: Int = range.start
+
+  // Implement Iterator[Int] methods
+  def hasNext(): Bool = current < range.ends
+  def next(): Int =
+    val value = current
+    current = current + 1
+    value
+
+  // Declare direct view
+  view Iterator[Int]
+end
+
+// Simple logger implementation
+class ConsoleLogger(console: { def write(content: String): Unit })
+  def log(msg: String): Unit =
+    println("[LOG] " + msg) with IO.stdout = console
+
+  def error(msg: String): Unit =
+    println("[ERROR] " + msg) with IO.stdout = console
+
+  view Logger
+end
+
+// Class with delegate view
+class Service(logger: Logger)
+  view Logger = logger  // Delegate interface view to logger instance
+
+  def process(input: String): Unit =
+    this.log("Processing: " + input)  // Delegates via member selection
+    this.log("Processing complete")
+end
+
+// Test usage with type annotations triggering view adaptation
+def testIterator(iter: Iterator[Int]) receives IO.stdout =
+  println("Testing iterator:")
+  while iter.hasNext() do
+    println("  Value: " + iter.next())
+  end
+end
+
+def testComparable(cmp: Comparable[Range]) receives IO.stdout =
+  val r1 = new Range(0, 5)
+  val r2 = new Range(10, 15)
+  val result = cmp.compare(r1, r2)
+  println("Compare result: " + result)
+  println("Are equal: " + cmp.equals(r1, r2))
+end
+
+def testLogger(log: Logger) receives IO.stdout =
+  log.log("Test message")
+  log.error("Test error")
+end
+
+def main receives IO.stdout =
+  println("=== Test 1: Direct view with Iterator ===")
+  val range1 = new Range(1, 4)
+  val iter1 = range1.iterator()
+  testIterator(iter1)  // Implicit view adaptation
+
+  println("")
+  println("=== Test 2: Explicit view field access ===")
+  val range2 = new Range(10, 13)
+  val iter = range2.iterator()
+  while iter.hasNext() do
+    println("  Value: " + iter.next())
+  end
+
+  println("")
+  println("=== Test 3: Direct view with Comparable ===")
+  val range3 = new Range(0, 5)
+  testComparable(range3)  // Implicit view adaptation
+
+  println("")
+  println("=== Test 4: Delegate view ===")
+  val logger = new ConsoleLogger(IO.stdout)
+  testLogger(logger)  // Direct logger usage
+
+  println("")
+  println("=== Test 5: Delegate view through Service ===")
+  val service = new Service(logger)
+  service.process("test data")  // Uses delegated logger
+
+  println("")
+  println("=== Test 6: Direct logger usage via view field ===")
+  val loggerView: Logger = service.Logger  // Access delegate view field
+  loggerView.log("Via delegate view field")
+end

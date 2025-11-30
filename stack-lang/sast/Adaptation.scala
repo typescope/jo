@@ -13,6 +13,7 @@ object Adaptation:
   enum Trial:
     case Member(tp: Type, member: String, error: Error)
     case Function(sym: Symbol)
+    case View(tp: Type)
 
   enum Error:
     case MissingMember
@@ -21,12 +22,12 @@ object Adaptation:
 
   enum Result:
     case Success(word: Word)
-    case Failure(trials: List[Trial])
+    case Failure(trials: Seq[Trial])
 
   val NoAdapter: Adapter = (_, _) => Result.Failure(trials = Nil)
 
   /** Format trial information into a human-readable error message */
-  def formatTrials(trials: List[Trial])(using Definitions): String =
+  def formatTrials(trials: Seq[Trial])(using Definitions): String =
     if trials.isEmpty then
       ""
     else
@@ -36,7 +37,10 @@ object Adaptation:
       for trial <- trials do
         trial match
           case Trial.Function(sym) =>
-            sb.append(s"\n  - ${sym.name}: type mismatch  ✗")
+            sb.append(s"\n  - fun ${sym.name}: type mismatch  ✗")
+
+          case Trial.View(tp) =>
+            sb.append(s"\n  - view ${tp.show}: type mismatch  ✗")
 
           case Trial.Member(tp, member, error) =>
             error match
@@ -55,7 +59,7 @@ object Adaptation:
       sb.toString
 
   /** Use exception because we do not want to refer Reporter in sast package */
-  class AdaptionFailure(word: Word, targetType: Type, val trials: List[Trial])(using defn: Definitions) extends Exception:
+  class AdaptionFailure(word: Word, targetType: Type, val trials: Seq[Trial])(using defn: Definitions) extends Exception:
     override def toString(): String =
       "Unable to adapt " + word.show + " of type " + word.tpe.show + " to " + targetType.show +
         formatTrials(trials)
@@ -103,10 +107,24 @@ object Adaptation:
         Block(word.ensureDropValue :: unit :: Nil)(word.span)
 
       else
+        val trials = new scala.collection.mutable.ArrayBuffer[Trial]()
+        // First try views
+        var viewTypes = word.tpe.viewTypes
+
+        while viewTypes.nonEmpty do
+          val viewType: MemberRef = viewTypes.head
+          viewTypes = viewTypes.tail
+
+          if Subtyping.conforms(viewType, targetType) then
+            val name = viewType.symbol.name
+            return word.select(name)
+          else
+            trials += Trial.View(viewType.widen)
+
         // Try to apply adapters before failing
         adapter(word, targetType) match
           case Result.Success(adapted) => adapted
-          case Result.Failure(trials) => throw new AdaptionFailure(word, targetType, trials)
+          case Result.Failure(trials2) => throw new AdaptionFailure(word, targetType, trials.toSeq ++ trials2)
 
   private def coerceIntLiteral(n: Int, origType: Type, targetType: Type)(using defn: Definitions): Type =
     if

@@ -9,7 +9,8 @@ def inspect(l: List[Int]) =
 class IntArray
   val array: Array[Int]
 
-  def IntArray(size: Int) = { array: Array.create(size) }
+  def IntArray(size: Int) =
+    this.array = Array.create(size)
 
   def get(i: Int) =
     Array.get array i

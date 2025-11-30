@@ -370,6 +370,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     else if item.token == Token.ALIAS then aliasDef(mods)
     else if item.token == Token.SECTION then section(mods)
     else if item.token == Token.CLASS then classDef(mods)
+    else if item.token == Token.INTERFACE then interfaceDef(mods)
     else
       error("Expect a definition, found = " + item.token, item.span.toPos)
       next()
@@ -473,7 +474,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val paramList = preParamList ++ postParamList
     FunDef(id, tparams, paramList, autos, resType, receiveParams, body, preParamList.size)(fun.span | body.span).withMods(mods)
 
-  def defDef(needBody: Boolean): FunDef =
+  def defDef(needBody: Boolean, bodyAllowed: Boolean): FunDef =
     val defToken = eat(Token.DEF)
     val id = ident()
     val tparams = typeParams()
@@ -498,10 +499,15 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           error("Expect EQL, found = " + token, peekItem().span.toPos)
           Block(Nil)(resType.span)
       else
+        // For interface methods and object type declarations, body is optional
         if token == Token.EQL then
-          error("No body expected for declaration", peekItem().span.toPos)
-          next()
-          block(defToken.indent)
+          if bodyAllowed then
+            next()
+            block(defToken.indent)
+          else
+            error("No body expected for declaration", peekItem().span.toPos)
+            next()
+            block(defToken.indent)
         else
           Block(Nil)(resType.span)
 
@@ -609,17 +615,28 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val id = ident()
     val tparams = typeParams()
 
-    val members: List[ValDef | FunDef] = repeated:
+    // Parse constructor parameters if present (simplified syntax)
+    val classParams =
+      if peek() == Token.LPAREN then params()
+      else Nil
+
+    // Parse view declarations and members
+    val views = mutable.ArrayBuffer[ViewDecl]()
+    val vals = mutable.ArrayBuffer[ValDef]()
+    val funs = mutable.ArrayBuffer[FunDef]()
+
+    repeated:
       val item = peekItem()
       if klass.indent.isUnindent(item.indent) then
         None
-
+      else if item.token == Token.VIEW then
+        Some(views += viewDecl())
       else
         val mods = modifiers()
         val item = peekItem()
 
         if item.token == Token.DEF then
-          Some(defDef(needBody = true).withMods(mods))
+          Some(funs += defDef(needBody = true, bodyAllowed = true).withMods(mods))
 
         else if peek() == Token.VAL || peek() == Token.VAR then
           val mod = next()
@@ -627,19 +644,69 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           val id = ident()
           eat(Token.COLON)
           val tpt = typ()
-          val body = Block(phrases = Nil)(id.span)
-          Some(ValDef(id, tpt, body, mutable)(mod.span | tpt.span).withMods(mods))
+          val (body, endSpan) =
+            if peek() == Token.EQL then
+              eat(Token.EQL)
+              val rhs = block(mod.indent)
+              (rhs, rhs.span)
+            else
+              val emptyBlock = Block(phrases = Nil)(id.span)
+              (emptyBlock, tpt.span)
+          Some(vals += ValDef(id, tpt, body, mutable)(mod.span | endSpan).withMods(mods))
 
         else None
 
     eatEndOpt(klass.indent)
 
     val lastSpan =
+      if funs.nonEmpty then funs.last.span
+      else if vals.nonEmpty then vals.last.span
+      else if views.nonEmpty then views.last.span
+      else if classParams.nonEmpty then classParams.last.span
+      else if tparams.nonEmpty then tparams.last.span
+      else id.span
+
+    ClassDef(id, tparams, classParams, views.toList, vals.toList, funs.toList)(klass.span | lastSpan).withMods(mods)
+
+  def interfaceDef(mods: List[Modifier]): InterfaceDef =
+    val interface = eat(Token.INTERFACE)
+    val id = ident()
+    val tparams = typeParams()
+
+    val members: List[FunDef] = repeated:
+      val item = peekItem()
+      if interface.indent.isUnindent(item.indent) then
+        None
+      else if item.token == Token.DEF then
+        val mods = modifiers()
+        // Interface methods can have bodies (default implementations) or no bodies
+        Some(defDef(needBody = false, bodyAllowed = true).withMods(mods))
+      else
+        error("Expect method definition in interface, found = " + item.token, item.span.toPos)
+        next()
+        None
+
+    eatEndOpt(interface.indent)
+
+    val lastSpan =
       if members.nonEmpty then members.last.span
       else if tparams.nonEmpty then tparams.last.span
       else id.span
 
-    ClassDef(id, tparams, members)(klass.span | lastSpan).withMods(mods)
+    InterfaceDef(id, tparams, members)(interface.span | lastSpan).withMods(mods)
+
+  def viewDecl(): ViewDecl =
+    val viewToken = eat(Token.VIEW)
+    val tpt = typ()
+    val rhs =
+      if peek() == Token.EQL then
+        eat(Token.EQL)
+        Some(expr())
+      else
+        None
+
+    val finalSpan = rhs.map(r => viewToken.span | r.span).getOrElse(viewToken.span | tpt.span)
+    ViewDecl(tpt, rhs)(finalSpan)
 
   def typeDef(mods: List[Modifier]): TypeDef =
     val typeItem = eat(Token.TYPE)
@@ -1249,7 +1316,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
       if peek() == Token.DEF then
         count += 1
-        val methodDecl = defDef(needBody = false)
+        val methodDecl = defDef(needBody = false, bodyAllowed = false)
         Some(methodDecl)
 
       else if peek() == Token.VAL || peek() == Token.VAR then
@@ -1462,7 +1529,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
       val res =
         if peek() == Token.DEF then
-          Some(defDef(needBody = true))
+          Some(defDef(needBody = true, bodyAllowed = true))
 
         else if peek() == Token.VAL then
           Some(valDef(Token.VAL))

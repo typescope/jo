@@ -53,72 +53,72 @@
 |                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 |                                           The private symbol Secret is leaked by the type of compare2
 
----------- Error at ./tests/warn/private-adapters-autos.jo:58:44 ---------------
+---------- Error at ./tests/warn/private-adapters-autos.jo:57:44 ---------------
 |   def display(s: String with [.toString]): Hidden = ...
 |                                            ^^^^^^
 |                                            The private symbol Hidden is leaked by the type of display
 
----------- Error at ./tests/warn/private-adapters-autos.jo:70:16 ---------------
+---------- Error at ./tests/warn/private-adapters-autos.jo:68:16 ---------------
 |   def areEqual(x: Secret, y: Secret)(auto eq: Eq[Secret] with [[Secret].==]): Bool = eq(x, y)
 |                ^^^^^^^^^
 |                The private symbol Secret is leaked by the type of areEqual
 
----------- Error at ./tests/warn/private-adapters-autos.jo:70:27 ---------------
+---------- Error at ./tests/warn/private-adapters-autos.jo:68:27 ---------------
 |   def areEqual(x: Secret, y: Secret)(auto eq: Eq[Secret] with [[Secret].==]): Bool = eq(x, y)
 |                           ^^^^^^^^^
 |                           The private symbol Secret is leaked by the type of areEqual
 
----------- Error at ./tests/warn/private-adapters-autos.jo:70:43 ---------------
+---------- Error at ./tests/warn/private-adapters-autos.jo:68:43 ---------------
 |   def areEqual(x: Secret, y: Secret)(auto eq: Eq[Secret] with [[Secret].==]): Bool = eq(x, y)
 |                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 |                                           The private symbol Secret is leaked by the type of areEqual
 
----------- Error at ./tests/warn/private-adapters-autos.jo:70:64 ---------------
+---------- Error at ./tests/warn/private-adapters-autos.jo:68:64 ---------------
 |   def areEqual(x: Secret, y: Secret)(auto eq: Eq[Secret] with [[Secret].==]): Bool = eq(x, y)
 |                                                                ^^^^^^^^^^^
 |                                                                The private symbol Secret is leaked by the type of areEqual
 
----------- Error at ./tests/warn/private-adapters-autos.jo:81:7 ---------------
+---------- Error at ./tests/warn/private-adapters-autos.jo:79:7 ---------------
 |   def getUrl(): String receives config = config.url
 |       ^^^^^^
 |       The private symbol config is leaked by the type of getUrl
 
----------- Error at ./tests/warn/private-adapters-autos.jo:102:29 ---------------
+---------- Error at ./tests/warn/private-adapters-autos.jo:100:29 ---------------
 |   def show1(s: String with [formatDoc2]): Unit = println s
 |                             ^^^^^^^^^^
 |                             The private symbol formatDoc2 is leaked by the type of show1
 
----------- Error at ./tests/warn/private-adapters-autos.jo:105:7 ---------------
+---------- Error at ./tests/warn/private-adapters-autos.jo:103:7 ---------------
 |   def formatDoc3(doc: Document): String receives secretIndent =
 |       ^^^^^^^^^^
 |       The private symbol secretIndent is leaked by the type of formatDoc3
 
----------- Error at ./tests/warn/private-adapters-autos.jo:117:19 ---------------
+---------- Error at ./tests/warn/private-adapters-autos.jo:115:19 ---------------
 |   def eqList(auto eqElem: Eq[Item] with [eqItem]): Eq[List[Item]] =
 |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 |                   The private symbol Item is leaked by the type of eqList
 
----------- Error at ./tests/warn/private-adapters-autos.jo:117:42 ---------------
+---------- Error at ./tests/warn/private-adapters-autos.jo:115:42 ---------------
 |   def eqList(auto eqElem: Eq[Item] with [eqItem]): Eq[List[Item]] =
 |                                          ^^^^^^
 |                                          The private symbol eqItem is leaked by the type of eqList
 
----------- Error at ./tests/warn/private-adapters-autos.jo:117:52 ---------------
+---------- Error at ./tests/warn/private-adapters-autos.jo:115:52 ---------------
 |   def eqList(auto eqElem: Eq[Item] with [eqItem]): Eq[List[Item]] =
 |                                                    ^^^^^^^^^^^^^^
 |                                                    The private symbol Item is leaked by the type of eqList
 
----------- Error at ./tests/warn/private-adapters-autos.jo:121:20 ---------------
+---------- Error at ./tests/warn/private-adapters-autos.jo:119:20 ---------------
 |   def compareLists(xs: List[Item], ys: List[Item])(auto eq: Eq[List[Item]] with [eqList]): Bool =
 |                    ^^^^^^^^^^^^^^
 |                    The private symbol Item is leaked by the type of compareLists
 
----------- Error at ./tests/warn/private-adapters-autos.jo:121:36 ---------------
+---------- Error at ./tests/warn/private-adapters-autos.jo:119:36 ---------------
 |   def compareLists(xs: List[Item], ys: List[Item])(auto eq: Eq[List[Item]] with [eqList]): Bool =
 |                                    ^^^^^^^^^^^^^^
 |                                    The private symbol Item is leaked by the type of compareLists
 
----------- Error at ./tests/warn/private-adapters-autos.jo:121:57 ---------------
+---------- Error at ./tests/warn/private-adapters-autos.jo:119:57 ---------------
 |   def compareLists(xs: List[Item], ys: List[Item])(auto eq: Eq[List[Item]] with [eqList]): Bool =
 |                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 |                                                         The private symbol Item is leaked by the type of compareLists

@@ -1,4 +1,36 @@
+class A
+  val const: Int = 3
+  val let: Int = 5
+  val break: Int = 10
+  val continue: Int = 20
+  val constructor: Int = 50
+  val function: Int = 100
+
+class B
+  def const: Int = 3
+  def let: Int = 5
+  def break: Int = 10
+  def continue: Int = 20
+  def constructor: Int = 50
+  def function: Int = 100
+
 def main =
   val console = { log: "hello\n", a: 10 }
   print console.log
   println console.a
+
+  val a = new A
+  println a.const
+  println a.let
+  println a.break
+  println a.continue
+  println a.constructor
+  println a.function
+
+  val b = new B
+  println b.const
+  println b.let
+  println b.break
+  println b.continue
+  println b.constructor
+  println b.function

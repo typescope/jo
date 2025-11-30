@@ -2,7 +2,6 @@
 
 files=(
     # parser
-    stack-lang/ast/Desugaring.scala
     stack-lang/ast/Naming.scala
     stack-lang/ast/Positions.scala
     stack-lang/ast/Printing.scala
@@ -30,6 +29,7 @@ files=(
     stack-lang/typing/Autos.scala
     stack-lang/typing/Checker.scala
     stack-lang/typing/Checks.scala
+    stack-lang/typing/Desugaring.scala
     stack-lang/typing/ExprTyper.scala
     stack-lang/typing/Imports.scala
     stack-lang/typing/Inference.scala
@@ -37,6 +37,7 @@ files=(
     stack-lang/typing/Namer.scala
     stack-lang/typing/Scope.scala
     stack-lang/typing/Typer.scala
+    stack-lang/typing/ViewChecker.scala
     stack-lang/typing/VisbilityChecker.scala
 
     stack-lang/sast/Adaptation.scala

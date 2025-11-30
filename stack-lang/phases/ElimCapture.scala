@@ -232,7 +232,7 @@ object ElimCapture:
           val capture2 = rewire(capture)
           val subst = TermSymbol.create(capture2.name, capture2.info, Flags.Synthetic, Visibility.Default, liftedSym, fdef.symbol.sourcePos)
           val lhs = Ident(subst)(span)
-          val rhs = Select(Ident(paramThis)(span), captureToField(capture2))(capture2.info, span)
+          val rhs = Select(Ident(paramThis)(span), captureToField(capture2))(span)
           aliases += Assign(lhs, rhs)
           substs(capture2) = subst
 
@@ -278,14 +278,14 @@ object ElimCapture:
           val procType = qual2.tpe.termMember(name).asProcType
           val liftedProcType = procType.prepend(NamedInfo("this", qual2.tpe) :: Nil)
           if qual2.isIdempotent then
-            val proc = Select(qual2, name)(procType, fun.span)
+            val proc = Select(qual2, name)(fun.span)
             Apply(Encoded(proc)(liftedProcType), qual2 :: args2, autos2)(app.span)
           else
             given Positions.Source = owner.sourcePos.source
             val receiverSym = TermSymbol.create("o", qual2.tpe, Flags.Synthetic, Visibility.Default, owner, qual2.pos)
             val receiver = Ident(receiverSym)(qual2.span)
             val assign = Assign(Ident(receiverSym)(qual2.span), qual2)
-            val proc = Select(receiver, name)(procType, fun.span)
+            val proc = Select(receiver, name)(fun.span)
             val apply = Apply(Encoded(proc)(liftedProcType), receiver :: args2, autos2)(app.span)
             Block(assign :: apply :: Nil)(app.span)
 
@@ -298,7 +298,7 @@ object ElimCapture:
           val liftedFunType = funType.prepend(thisParamType :: Nil)
           val liftedProcType = procType.prepend(thisParamType :: Nil)
           if qual2.isIdempotent then
-            val meth = Encoded(Select(qual2, name)(procType, fun.span))(liftedProcType)
+            val meth = Encoded(Select(qual2, name)(fun.span))(liftedProcType)
             val fun2 = TypeApply(meth, targs)(liftedFunType, fun.span)
             Apply(fun2, qual2 :: args2, autos2)(app.span)
           else
@@ -306,7 +306,7 @@ object ElimCapture:
             val receiverSym = TermSymbol.create("o", qual2.tpe, Flags.Synthetic, Visibility.Default, owner, qual2.pos)
             val receiver = Ident(receiverSym)(qual2.span)
             val assign = Assign(Ident(receiverSym)(qual2.span), qual2)
-            val meth = Encoded(Select(receiver, name)(procType, fun.span))(liftedProcType)
+            val meth = Encoded(Select(receiver, name)(fun.span))(liftedProcType)
             val fun2 = TypeApply(meth, targs)(liftedFunType, fun.span)
             val apply = Apply(fun2, receiver :: args2, autos2)(app.span)
             Block(assign :: apply :: Nil)(app.span)

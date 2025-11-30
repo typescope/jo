@@ -26,7 +26,7 @@ class ExplicitAlloc(runtime: NativeRuntime)(using defn: Definitions) extends pha
   override def transformEncoded(word: Encoded)(using ctx: Context): Word =
     word match
       case encode @ Encoded(rc: RecordLit) if encode.tpe.isObjectType =>
-        val encoding = this(ObjectEncoding.encodeObject(rc))
+        val encoding = this(Memory.encodeObject(rc))
         Encoded(encoding)(encode.tpe)
 
       case _ =>
@@ -52,34 +52,30 @@ class ExplicitAlloc(runtime: NativeRuntime)(using defn: Definitions) extends pha
     stats += Assign(ref, allocApply)
 
     for (name, rhs) <- args do
-      stats += memory.writeField(recordType, name, ref, this(rhs))
+      stats += memory.writeMember(recordType, name, ref, this(rhs))
 
     stats += ref
     Encoded(Block(stats.toList)(word.span))(word.tpe)
 
-  private def getEncodedRecordType(qual: Word): RecordType =
-    if qual.tpe.isRecordType then
-      qual.tpe.asRecordType
-
-    else if qual.tpe.isClassType then
-      ObjectEncoding.encodeClassType(qual.tpe.asClassInfo)
-
-    else
-      throw new Exception("Unexpect qualifier type in selection: " + qual.tpe)
-
-
   override def transformSelect(select: Select)(using ctx: Context): Word =
     val qual = select.qual
-    val select2 = select.copy(qual = this(qual))(select.tpe, select.span)
+    val select2 = select.copy(qual = this(qual))(select.span)
 
     given Source = ctx.sourcePos.source
 
     if qual.tpe.isObjectType then
       memory.readObjectMember(qual.tpe.asObjectType, select2)
 
+    else if qual.tpe.isInterfaceType then
+      memory.readInterfaceMember(qual.tpe.asClassInfo, select2)
+
+    else if qual.tpe.isClassType then
+      memory.readClassMember(qual.tpe.asClassInfo, select2)
+
     else
-      val recordType = getEncodedRecordType(qual)
-      memory.readField(recordType, select2)
+      assert(qual.tpe.isRecordType, "Expect record type, found = " + qual.tpe.show)
+      val recordType = qual.tpe.asRecordType
+      memory.readMember(recordType, select2)
 
   override def transformFieldAssign(word: FieldAssign)(using ctx: Context): Word =
     val FieldAssign(Select(qual, name), rhs) = word
@@ -88,8 +84,15 @@ class ExplicitAlloc(runtime: NativeRuntime)(using defn: Definitions) extends pha
 
     if qual.tpe.isObjectType then
       val objectType = qual.tpe.asObjectType
-      memory.writeObjectField(objectType, name, this(qual), this(rhs))
+      memory.writeObjectMember(objectType, name, this(qual), this(rhs))
+
+    else if qual.tpe.isInterfaceType then
+      throw new Exception("Unexpect field write to interface: " + word.show)
+
+    else if qual.tpe.isClassType then
+      memory.writeClassMember(qual.tpe.asClassInfo, name, this(qual), this(rhs))
 
     else
-      val recordType = getEncodedRecordType(qual)
-      memory.writeField(recordType, name, this(qual), this(rhs))
+      assert(qual.tpe.isRecordType, "Expect record type, found = " + qual.tpe.show)
+      val recordType = qual.tpe.asRecordType
+      memory.writeMember(recordType, name, this(qual), this(rhs))

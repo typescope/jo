@@ -1,6 +1,9 @@
 class Box[T]
   private var value: T
 
+  def Box(v: T) =
+    this.value = v
+
   def getValue() = value
 
   private def debug(): Unit = ...

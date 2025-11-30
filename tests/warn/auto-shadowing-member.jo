@@ -2,10 +2,7 @@
 
 type Eq[T] = (T, T) => Bool
 
-class Item
-  val id: Int
-  def Item(n: Int) = { id: n }
-
+class Item(id: Int)
   def ==(that: Item): Bool = this.id == that.id
 
 type Animal = { name: String, eq: Eq[Animal] }

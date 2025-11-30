@@ -1,0 +1,11 @@
+// Class method must have compatible type with interface method
+
+interface Formatter
+  def format(x: Int): String
+end
+
+class BadFormatter
+  def format(x: String): String = x  // Wrong parameter type
+
+  view Formatter
+end

@@ -1,0 +1,8 @@
+---------- Error at ./tests/warn/view-wrong-return-type.jo:8:3 ---------------
+|   def count(): String = "0"  // Wrong return type
+|   ^^^^^^^^^^^^^^^^^^^^^^^^^
+|   Method count has incompatible type from interface Counter.
+  Required: (): Int receives none
+  Found:    (): String receives none
+
+1 error(s), 0 warning(s)

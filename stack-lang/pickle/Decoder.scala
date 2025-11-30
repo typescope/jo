@@ -299,6 +299,7 @@ object Decoder:
       case Format.AliasDef => decodeAliasDef(owner)
       case Format.FunDef => decodeFunDef(owner, Flags.empty)
       case Format.ClassDef => decodeClassDef(owner)
+      case Format.InterfaceDef => decodeInterfaceDef(owner)
       case Format.TypeDef => decodeTypeDef(owner)
       case Format.PatDef => decodePatDef(owner)
       case Format.Section => decodeSection(owner)
@@ -503,7 +504,7 @@ object Decoder:
 
         val autoInfo = decodeType()
 
-        val auto = TermSymbol.create(autoName, autoInfo, Flags.Param | Flags.Auto, Visibility.Default, symbol, autoSpan.toPos)
+        val auto = TermSymbol.create(autoName, autoInfo, Flags.Param, Visibility.Default, symbol, autoSpan.toPos)
         state.registerInternalSymbol(autoId, auto)
 
         auto
@@ -668,6 +669,93 @@ object Decoder:
 
       val span = Span(absoluteStart, lastOffset + content.endDelta - absoluteStart)
       ClassDef(symbol, content.self, content.tparams, content.vals, funs)(span)
+
+    // Set buffer position at end
+    buf.setPosition(pos + length)
+    DelayedDef(symbol, delayed)
+
+  private def decodeInterfaceDef(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): DelayedDef[InterfaceDef] =
+    given Source = owner.source
+    val length = decodeIntRaw()
+    val pos = buf.position
+
+    val absoluteStart = decodeNat()
+
+    val id = decodeNat()
+    val name = decodeString()
+    val kind = decodeKind()
+    val visibility = decodeVisibility(owner)
+
+    val symStartDelta = decodeInt()
+    val symSpanLength = decodeNat()
+    val symSpan = Span(absoluteStart + symStartDelta, symSpanLength)
+
+    // Create and register symbol immediately
+    val symbol = TypeSymbol.create(kind, name, Flags.Interface, visibility, owner, symSpan.toPos)
+    state.registerInternalSymbol(id, symbol)
+
+    given Definitions = defnLazy.value
+
+    // Read interface content lazily
+    val contentStartPos = buf.position
+    object content:
+      given ReadBuffer = buf.fresh(contentStartPos)
+
+      // Decode type parameters
+      val tparams = repeated:
+        val tparamId = decodeNat()
+        val tparamName = decodeString()
+
+        val tparamStartDelta = decodeInt()
+        val tparamLength = decodeNat()
+        val tparamSpan = Span(symbol.span.start + tparamStartDelta, tparamLength)
+
+        val tparamKind = decodeKind()
+        val tparamInfo = decodeType()
+
+        val tparam = TypeSymbol.create(tparamKind, tparamName, tparamInfo, Flags.Param, Visibility.Default, symbol, tparamSpan.toPos)
+        state.registerInternalSymbol(tparamId, tparam)
+        tparam
+
+      // Decode self symbol
+      val selfInfo =
+        val interfaceRef = StaticRef(symbol)
+        if tparams.isEmpty then interfaceRef
+        else AppliedType(interfaceRef, tparams.map(StaticRef.apply))
+
+      val selfId = decodeNat()
+      val selfName = decodeString()
+      val selfFlags = decodeFlags()
+      val self = TermSymbol.create(selfName, selfInfo, selfFlags, Visibility.Default, symbol, symbol.sourcePos)
+      state.registerInternalSymbol(selfId, self)
+
+      // Decode method definitions as DelayedDef
+      val delayedMethods = repeated:
+        assert(decodeByte() == Format.FunDef, "Unexpected tag")
+        decodeFunDef(symbol, Flags.Method)
+
+      val endDelta = decodeInt()
+
+      val symInfo =
+        val methods = delayedMethods.map(_.symbol)
+        val base = ClassInfo(symbol, tparams, tparams.map(StaticRef.apply), self, Nil, methods)
+
+        if tparams.isEmpty then base
+        else TypeLambda(tparams, base, preParamCount = 0)
+
+    end content
+
+    defnLazy.infoProvider.addLazy(symbol, () => content.symInfo)
+
+    val delayed = () =>
+      var lastOffset = absoluteStart
+      val methods = content.delayedMethods.map: d =>
+        val method = d.force()
+        lastOffset = method.span.endOffset
+        method
+
+      val span = Span(absoluteStart, lastOffset + content.endDelta - absoluteStart)
+      InterfaceDef(symbol, content.self, content.tparams, methods)(span)
 
     // Set buffer position at end
     buf.setPosition(pos + length)
@@ -1140,10 +1228,9 @@ object Decoder:
     val name = decodeString()
     val endDelta = decodeInt()
 
-    val tpe = qual.tpe.termMember(name)
     val span = Span(startOffset, qual.span.endOffset + endDelta - startOffset)
 
-    Select(qual, name)(tpe, span)
+    Select(qual, name)(span)
 
   private def decodeRecordLit(owner: Symbol, prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): RecordLit =
     val startDelta = decodeInt()

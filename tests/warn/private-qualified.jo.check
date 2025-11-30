@@ -11,21 +11,21 @@
 ---------- Error at ./tests/warn/private-qualified.jo:28:28 ---------------
 |   def testAccess3(): Int = Inner.qualifiedToInner()
 |                            ^^^^^^^^^^^^^^^^^^^^^^
-|                            Cannot access the private member qualifiedToInner
+|                            Cannot access the private member qualifiedToInner, limit = Inner, site = testAccess3
 
 ---------- Error at ./tests/warn/private-qualified.jo:35:26 ---------------
 | def testAccess4(): Int = Outer.qualifiedToOuter()
 |                          ^^^^^^^^^^^^^^^^^^^^^^
-|                          Cannot access the private member qualifiedToOuter
+|                          Cannot access the private member qualifiedToOuter, limit = Outer, site = testAccess4
 
 ---------- Error at ./tests/warn/private-qualified.jo:38:26 ---------------
 | def testAccess5(): Int = Outer.Inner.qualifiedToInner()
 |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-|                          Cannot access the private member qualifiedToInner
+|                          Cannot access the private member qualifiedToInner, limit = Inner, site = testAccess5
 
 ---------- Error at ./tests/warn/private-qualified.jo:41:26 ---------------
 | def testAccess7(): Int = Outer.Inner.qualifiedToOuter()
 |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-|                          Cannot access the private member qualifiedToOuter
+|                          Cannot access the private member qualifiedToOuter, limit = Outer, site = testAccess7
 
 6 error(s), 0 warning(s)

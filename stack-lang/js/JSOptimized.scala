@@ -49,7 +49,10 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
           case None =>
             val rawName = sym.fullName
             val uniqueName =
-              if sym.isLocal then
+              if sym.isMethod then
+                if sym.name == "constructor" then globalScope.freshName("constructor")
+                else encodeSymbolic(sym.name)
+              else if sym.isLocal then
                 localScope.freshName(encodeSymbolic(rawName))
               else
                 globalScope.freshName(encodeSymbolic(rawName))
@@ -57,7 +60,7 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
             symbol2UniqueName(sym) = uniqueName
 
             // Add function or class to work list
-            if (sym.isFunction && !sym.owner.isClass) || sym.isClass then
+            if (sym.isFunction && !sym.owner.isOneOf(Flags.Class | Flags.Interface)) || sym.isClass then
               workList.add(sym)
 
             uniqueName
@@ -198,7 +201,11 @@ class JSOptimized(outFile: String, runtime: JSRuntime, rewire: Map[Symbol, Symbo
 
       case Select(qual, name) =>
         run(qual): v =>
-          cont(v ~ "." ~ encodeSymbolic(name))
+          val memberName = word.tpe match
+            case Types.MemberRef(_, sym) if qual.tpe.isClassType && sym.isMethod => jsName(sym)
+            case _ => encodeSymbolic(name)
+
+          cont(v ~ "." ~ memberName)
 
       case Block(words) =>
         words match

@@ -1,7 +1,6 @@
 #!/bin/bash
 
 files=(
-    stack-lang/ast/Desugaring.scala
     stack-lang/ast/Naming.scala
     stack-lang/ast/Positions.scala
     stack-lang/ast/Printing.scala

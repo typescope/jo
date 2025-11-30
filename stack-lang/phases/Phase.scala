@@ -40,6 +40,9 @@ abstract class Phase[T](using Definitions) extends TreeMap:
       case cdef: ClassDef =>
         transformClassDef(cdef)
 
+      case idef: InterfaceDef =>
+        transformInterfaceDef(idef)
+
       case sec: Section =>
         transformSection(sec)
 
@@ -55,6 +58,12 @@ abstract class Phase[T](using Definitions) extends TreeMap:
     given Context = contextObject.newContext(cdef.symbol, ctx)
     val funs = cdef.funs.map(transformFunDef)
     cdef.copy(funs = funs)(cdef.span)
+
+  /** Transform interface definitions */
+  def transformInterfaceDef(idef: InterfaceDef)(using ctx: Context): InterfaceDef =
+    given Context = contextObject.newContext(idef.symbol, ctx)
+    val methods = idef.methods.map(transformFunDef)
+    idef.copy(methods = methods)(idef.span)
 
   /** Transform function definitions */
   def transformFunDef(fdef: FunDef)(using ctx: Context): FunDef =

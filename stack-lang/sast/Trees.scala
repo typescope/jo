@@ -97,10 +97,12 @@ object Trees:
 
   case class Select
     (qual: Word, name: String)
-    (val tpe: Type, val span: Span)
+    (val span: Span)
     (using Definitions)
   extends Word:
     assert(qual.tpe.isValueType, "Select node must have value prefix, qual.tpe = " + qual.tpe + ", select = " + this.show)
+
+    val tpe: Type = qual.tpe.termMember(name)
 
   /** Assignment to local vars
     *
@@ -573,6 +575,11 @@ object Trees:
     (val span: Span)
   extends Def
 
+  case class InterfaceDef
+    (symbol: Symbol, self: Symbol, tparams: List[Symbol], methods: List[FunDef])
+    (val span: Span)
+  extends Def
+
   case class AliasDef
     (symbol: Symbol, target: Ident)
     (val span: Span)
@@ -640,8 +647,7 @@ object Trees:
   extension (word: Word)
 
     def select(name: String)(using Definitions): Word =
-      val memberType = word.tpe.termMember(name)
-      Select(word, name)(memberType, word.span)
+      Select(word, name)(word.span)
 
     /** No adaption is performed except for numeric adaptation */
     def appliedTo(args: Word*)(using Definitions): Word =

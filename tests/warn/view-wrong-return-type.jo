@@ -1,0 +1,11 @@
+// Class method must have compatible return type with interface method
+
+interface Counter
+  def count(): Int
+end
+
+class BadCounter
+  def count(): String = "0"  // Wrong return type
+
+  view Counter
+end

@@ -1,0 +1,47 @@
+// Test flexible constructor initialization
+// - Code before initializations
+// - Code between initializations
+// - Code after all fields initialized (this available)
+
+class Point
+  val x: Int
+  val y: Int
+  var distance: Int
+
+  def Point(x1: Int, y1: Int): Point =
+    // Code before initialization (this not available)
+    val xSquared = x1 * x1
+
+    // First initialization
+    this.x = x1
+
+    // Code between initializations (this not available)
+    val ySquared = y1 * y1
+    val dist = xSquared + ySquared
+
+    // More initializations
+    this.y = y1
+    this.distance = dist
+    // All fields now initialized - this becomes available!
+
+    // Code after all fields initialized (this available!)
+    this.normalize()
+  end
+
+  def normalize(): Unit =
+    if distance > 100 then
+      distance = 100
+    end
+  end
+
+  def toString(): String =
+    "Point(" + intToStr(x) + "," + intToStr(y) + ") dist=" + intToStr(distance)
+end
+
+def main receives IO.stdout =
+  val p = new Point(3, 4)
+  println p
+  println p.x
+  println p.y
+  println p.distance
+end

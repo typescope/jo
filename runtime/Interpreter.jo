@@ -76,18 +76,22 @@ def start(): Unit receives none =
 
 def createOpen(): String => IO.File = (file: String) =>
   val handle = platformCall1("openFile", file)
+  new PlatformFile(handle)
 
-  {
-    def close(): Unit = platformCall1("closeFile", handle)
+class PlatformFile(handle: Any)
+  view IO.File
 
-    def seek(pos: Int): Unit = platformCall2("seekFile", handle, pos)
+  def close(): Unit = platformCall1("closeFile", handle)
 
-    def hasMore(): Bool = platformCall1("hasMoreFile", handle)
+  def seek(pos: Int): Unit = platformCall2("seekFile", handle, pos)
 
-    def readLine(): String = platformCall1("readLineFile", handle)
+  def hasMore(): Bool = platformCall1("hasMoreFile", handle)
 
-    def write(content: String): Unit = platformCall2("writeFile", handle, content)
-  }
+  def readLine(): String = platformCall1("readLineFile", handle)
+
+  def write(content: String): Unit = platformCall2("writeFile", handle, content)
+
+end
 
 def createStdOut(): { def write(content: String): Unit } =
   (content: String) => platformCall1("writeStdOut", content)

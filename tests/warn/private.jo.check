@@ -1,36 +1,36 @@
----------- Error at ./tests/warn/private.jo:9:42 ---------------
+---------- Error at ./tests/warn/private.jo:12:42 ---------------
 | def testPrivateField(x: Box[Int]): Int = x.value
 |                                          ^^^^^^^
-|                                          Cannot access the private member value
+|                                          Cannot access the private member value, limit = Box, site = testPrivateField
 
----------- Error at ./tests/warn/private.jo:11:38 ---------------
+---------- Error at ./tests/warn/private.jo:14:38 ---------------
 | def testPrivateMethod(x: Box[Int]) = x.debug()
 |                                      ^^^^^^^
-|                                      Cannot access the private member debug
+|                                      Cannot access the private member debug, limit = Box, site = testPrivateMethod
 
----------- Error at ./tests/warn/private.jo:13:30 ---------------
+---------- Error at ./tests/warn/private.jo:16:30 ---------------
 | def testPrivateSection(show: A.B.Show[Int]): Unit = show(19)
 |                              ^^^
-|                              Cannot access the private member B
+|                              Cannot access the private member B, limit = A, site = testPrivateSection
 
----------- Error at ./tests/warn/private.jo:13:30 ---------------
+---------- Error at ./tests/warn/private.jo:16:30 ---------------
 | def testPrivateSection(show: A.B.Show[Int]): Unit = show(19)
 |                              ^^^^^^^^
-|                              Cannot access the private member Show
+|                              Cannot access the private member Show, limit = A, site = testPrivateSection
 
----------- Error at ./tests/warn/private.jo:15:24 ---------------
+---------- Error at ./tests/warn/private.jo:18:24 ---------------
 | def testPrivateFun() = A.qux()
 |                        ^^^^^
-|                        Cannot access the private member qux
+|                        Cannot access the private member qux, limit = A, site = testPrivateFun
 
----------- Error at ./tests/warn/private.jo:19:10 ---------------
+---------- Error at ./tests/warn/private.jo:22:10 ---------------
 |     case A.Pos => println "positive"
 |          ^^^^^
-|          Cannot access the private member Pos
+|          Cannot access the private member Pos, limit = A, site = testPrivatePattern
 
----------- Error at ./tests/warn/private.jo:22:9 ---------------
+---------- Error at ./tests/warn/private.jo:25:9 ---------------
 | def eq: A.Eq[Int] = (x, y) => x == y
 |         ^^^^
-|         Cannot access the private member Eq
+|         Cannot access the private member Eq, limit = A, site = eq
 
 7 error(s), 0 warning(s)

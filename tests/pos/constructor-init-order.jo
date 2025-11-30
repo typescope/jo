@@ -1,0 +1,63 @@
+// Test initialization order of fields with RHS in class body
+// Verify that RHS initializers are evaluated before constructor body in declaration order
+
+class RHSOrder
+  val a: Int =
+    println("Evaluating RHS of field a")
+    100
+  val b: Int            // No RHS, assigned in constructor
+  val c: Int =
+    println("Evaluating RHS of field c")
+    300
+
+  def RHSOrder(): RHSOrder =
+    println("Constructor start")
+    println("Assigning b (no RHS in class)")
+    this.b = 200
+    println("Constructor end - a and c should be auto-initialized from RHS")
+  end
+end
+
+class MixedOrder
+  val x: Int =
+    println("Evaluating RHS of field x with value 1")
+    10
+  val y: Int             // No RHS - explicitly assigned
+  val z: Int =
+    println("Evaluating RHS of field z with value 3")
+    30
+
+  def MixedOrder(yVal: Int): MixedOrder =
+    println("Assigning y (only field without RHS)")
+    this.y = yVal
+    println("x and z should auto-initialize from RHS")
+  end
+end
+
+class WithParams(p1: Int, p2: Int)
+  val f1: Int =
+    println("Initializing f1, p1=" + p1)
+    p1 * 10
+  val f2: Int =
+    println("Initializing f2, p2=" + p2)
+    p2 * 20
+  val f3: Int =
+    println("Initializing f3")
+    f1 + f2
+end
+
+def main receives IO.stdout =
+  println("=== Test 1: RHS evaluated at assignment time, not declaration order ===")
+  val t1 = new RHSOrder()
+  println("Result: a=" + t1.a + " b=" + t1.b + " c=" + t1.c)
+
+  println("")
+  println("=== Test 2: Mixed RHS and non-RHS fields ===")
+  val t2 = new MixedOrder(999)
+  println("Result: x=" + t2.x + " y=" + t2.y + " z=" + t2.z)
+
+  println("")
+  println("=== Test 3: Class parameters with field initializers ===")
+  val t3 = new WithParams(5, 7)
+  println("Result: p1=" + t3.p1 + " p2=" + t3.p2 + " f1=" + t3.f1 + " f2=" + t3.f2 + " f3=" + t3.f3)
+end

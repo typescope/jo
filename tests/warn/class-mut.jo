@@ -1,7 +1,4 @@
-class A
-  val a: Int
-
-  def A(x: Int) = { a: x }
+class A(a: Int)
 
   def update(y: Int) =
     this.a = y

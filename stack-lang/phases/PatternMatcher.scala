@@ -449,7 +449,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
     def itemAtIndexAssign(span: Span): Assign =
       val appType = scrut.tpe.termMember("get").asProcType
       val itemType = appType.resultType
-      val itemValue = Select(scrut, "get")(appType, span).appliedTo(indexIdent)
+      val itemValue = Select(scrut, "get")(span).appliedTo(indexIdent)
 
       val itemSym = TermSymbol.create("item", itemType, Flags.Synthetic, Visibility.Default, ctx.owner, span.toPos)
       val itemIdent = Ident(itemSym)(span)
@@ -631,7 +631,7 @@ class PatternMatcher(using defn: Definitions) extends Phase[PatternMatcher.Conte
 
     val tagSym = TermSymbol.create("tag", IntType, Flags.Synthetic, Visibility.Default, ctx.owner, span.toPos)
     val tagIdent = Ident(tagSym)(span)
-    val rhs = Select(encodedScrut, "tag")(IntType, span)
+    val rhs = Select(encodedScrut, "tag")(span)
     Assign(tagIdent, rhs)
 
 object PatternMatcher:

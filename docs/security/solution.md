@@ -54,7 +54,7 @@ Jo distinguishes libraries into two worlds:
 // UserApp.jo - cannot perform I/O by itself
 def analyzeData(): Unit receives db, logger =
   val docs = db.queryMyDocuments()  // uses capability interface
-  logger.info("Found " + intToStr(docs.size) + " documents")
+  logger.info("Found " + docs.size + " documents")
   docs.foreach(doc => println(doc.title))
 ```
 
