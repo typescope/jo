@@ -1,7 +1,7 @@
----------- Error at ./tests/warn/string-interp-no-show.jo:7:25 ---------------
+---------- Error at ./tests/warn/string-interp-no-show.jo:7:27 ---------------
 |   val message = "Point: \{p}"
-|                         ^^^^
-|                         Cannot interpolate expression of type p: Point
+|                           ^
+|                           Expect type String, found = p: Point
 
 Tried the following adapters:
   - intToStr: type mismatch  ✗

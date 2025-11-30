@@ -305,15 +305,24 @@ object Checker:
       case TargetType.Known(tpe, adapter) =>
         val word3 = adaptParameterless(word2, targetType)
 
-        try
-          val wordAdapted = Adaptation.adapt(word3, tpe, adapter)
-          checkType(wordAdapted, tpe)
-          wordAdapted
+        // Must choose either inference or adapation, not both
+        if word3.tpe.isFullyInstantiated then
+          try
+            val wordAdapted = Adaptation.adapt(word3, tpe, adapter)
+            checkType(wordAdapted, tpe)
+            wordAdapted
 
-        catch case ex: Adaptation.AdaptionFailure =>
-          val trialsMsg = Adaptation.formatTrials(ex.trials)
-          Reporter.error(s"Expect type ${tpe.show}, found = ${word3.tpe.show}${trialsMsg}", word3.pos)
-          Encoded(Block(Nil)(word3.span))(tpe)
+          catch case ex: Adaptation.AdaptionFailure =>
+            val trialsMsg = Adaptation.formatTrials(ex.trials)
+            Reporter.error(s"Expect type ${tpe.show}, found = ${word3.tpe.show}${trialsMsg}", word3.pos)
+            Encoded(Block(Nil)(word3.span))(tpe)
+
+        else
+          if tvars.tryOrRevert { Subtyping.conforms(word3.tpe, tpe) } then
+            word3
+          else
+            Reporter.error(s"Expect type ${tpe.show}, found = ${word3.tpe.show}", word3.pos)
+            errorWord(word3.span)
 
       case TargetType.TermMember(name) =>
         val wordAutoApplied = adaptParameterless(word, targetType)

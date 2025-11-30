@@ -1022,24 +1022,10 @@ class Namer(using Config):
 
         case expr =>
           // Type check the interpolation expression
-          given TargetType = TargetType.ValueType
-          val typedExpr = Inference.freshIsolate:
-            transform(expr)
-
-          // Convert to String if needed
-          if Subtyping.conforms(typedExpr.tpe, defn.StringType) then
-            typedExpr
-          else
-            // Try adapations
+          Inference.freshIsolate:
             val adapter = Adaptation.createSimpleAdapter(defn.stringInterpolationAdapters, sc.owner)
-
-            try
-              Adaptation.adapt(typedExpr, defn.StringType, adapter)
-
-            catch case ex: Adaptation.AdaptionFailure =>
-              val trialsMsg = Adaptation.formatTrials(ex.trials)
-              Reporter.error(s"Cannot interpolate expression of type ${typedExpr.tpe.show}${trialsMsg}", expr.pos)
-              Literal(Constant.String(""))(defn.StringType, expr.span)
+            given TargetType = TargetType.Known(defn.StringType, adapter)
+            transform(expr)
 
     // Build concatenation using the + method on String
     typedParts match
