@@ -36,29 +36,33 @@ object ViewChecker:
     end for
 
   def checkClassDef(cdef: ClassDef)(using defn: Definitions, rp: Reporter, src: Source): Unit =
-    // Find all direct view fields (vals with View and Defer flags)
-    val directViews = cdef.vals.filter: viewSym =>
-      viewSym.isAllOf(Flags.View | Flags.Defer)
-
-    for viewSym <- directViews do
+    for viewSym <- cdef.vals if viewSym.isAllOf(Flags.View) do
       val viewType = viewSym.info
 
-      // Check 1: The view type must be an interface
-      val interfaceSym = viewType.dealias match
-        case StaticRef(sym) if sym.is(Flags.Interface) =>
-          sym
+      def errorDirectView(): Unit = rp.error(s"Direct view must be an interface type, found: ${viewType.show}", viewSym.sourcePos)
 
-        case AppliedType(StaticRef(sym), _) if sym.is(Flags.Interface) =>
-          sym
+      def errorView(): Unit = rp.error(s"View must be an interface or class type, found: ${viewType.show}", viewSym.sourcePos)
+
+      // The view type must be an interface or class type
+      def checkView(sym: Symbol): Unit =
+        if viewSym.is(Flags.Defer) then
+          if sym.isOneOf(Flags.Interface) then
+            checkDirectView(cdef, viewType, viewSym)
+          else
+            errorDirectView()
+        else
+          if !sym.isOneOf(Flags.Interface | Flags.Class) then
+            errorView()
+
+      viewType match
+        case StaticRef(sym) => checkView(sym)
+
+        case AppliedType(sym, _) => checkView(sym)
 
         case _ =>
-          rp.error(s"Direct view must be an interface type, found: ${viewType.show}", viewSym.sourcePos)
-          null
+          errorView()
 
-      if interfaceSym != null then
-        checkView(cdef, viewType, viewSym)
-
-  def checkView
+  def checkDirectView
       (cdef: ClassDef, viewType: Type, viewSym: Symbol)
       (using defn: Definitions, rp: Reporter, src: Source)
   : Unit =

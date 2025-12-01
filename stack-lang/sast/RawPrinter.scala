@@ -289,7 +289,7 @@ object RawPrinter:
         "ObjectType [" ~ membersText ~ "," ~ mutableText ~ "]"
 
       case AppliedType(tctor, targs) =>
-        "AppliedType [" ~ printType(tctor, tparamScope) ~ ",[" ~ targs.map(t => printType(t, tparamScope)).join(",") ~ "]]"
+        "AppliedType [" ~ printSymbolRef(tctor) ~ ",[" ~ targs.map(t => printType(t, tparamScope)).join(",") ~ "]]"
 
       case procType @ ProcType(tparams, params, adapters, autos, candidates, resType, _, preParamCount) =>
         tparamScope.withParams(tparams):

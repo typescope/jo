@@ -726,6 +726,59 @@ When a class declares `view I[T1, ..., Tn]`, verify:
 
 4. **No concrete method override**: Classes cannot override methods with concrete implementations
 
+**View type requirements:**
+
+View types must be **interface or class types**, not type aliases:
+
+```jo
+interface Foo
+  def hello(): String
+end
+
+type FooAlias = Foo
+
+class Bar
+  def hello(): String = "hello"
+  view FooAlias  // Error: view type must be interface or class, not type alias
+end
+
+class Baz(foo: Foo)
+  view FooAlias = foo  // Error: view type must be interface or class, not type alias
+end
+```
+
+**Rationale: Coherence in type adaptation**
+
+This restriction ensures that **a class cannot have two views of the same underlying type**. Consider what would happen if type aliases were allowed:
+
+```jo
+interface Logger
+  def log(msg: String): Unit
+end
+
+type LoggerAlias = Logger
+type AnotherLoggerAlias = Logger
+
+class Service(logger1: Logger, logger2: Logger)
+  view Logger = logger1
+  view LoggerAlias = logger2        // Would be duplicate of Logger!
+  view AnotherLoggerAlias = logger1 // Would be duplicate of Logger!
+end
+```
+
+All three view declarations refer to the same underlying type (`Logger`), but have different names. This creates ambiguity:
+
+- Which view should be used for type adaptation from `Service` to `Logger`?
+- Which field should member selection use when resolving `service.log("hello")`?
+
+By requiring views to be **nominal types** (interfaces or classes), we ensure:
+
+1. **Unique view identification**: Each view is identified by its interface/class name
+2. **Deterministic adaptation**: Type adaptation from class type to interface/class type has exactly one possible view (or none)
+3. **Clear member resolution**: Member selection through views is unambiguous when multiple views provide the same member name
+
+This is critical for **coherence in type adaptation**: given a class type and a target interface/class type, there is at most one applicable view, making the adaptation deterministic and predictable.
+
 **Duplicate view check:**
 
 A class must not declare the same view twice:

@@ -570,7 +570,7 @@ class PatternTyper(namer: Namer):
   : Pattern =
 
     val tvar = TypeVar("T", seq.span)
-    val seqType = AppliedType(StaticRef(defn.Internal_Seq), tvar :: Nil)
+    val seqType = AppliedType(defn.Internal_Seq, tvar :: Nil)
 
     val sliceMethodType =
       ProcType(
@@ -700,7 +700,7 @@ class PatternTyper(namer: Namer):
       if !innerSym.name.startsWith("_")
     do
 
-      val expectedType = AppliedType(StaticRef(defn.List_type), innerSym.info :: Nil)
+      val expectedType = AppliedType(defn.List_type, innerSym.info :: Nil)
 
       // first check if there is a pattern variable of the same name exists
       sc.resolvePattern(innerSym.name) match

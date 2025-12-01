@@ -1,0 +1,28 @@
+// Test that views cannot target type aliases
+// Should warn that view type must be an interface or class, not a type alias
+
+interface Foo
+  def hello(): String
+end
+
+// Type alias - should NOT be allowed as view target
+type FooAlias = Foo
+
+// Direct view with type alias - should fail
+class Bar
+  def hello(): String = "hello"
+
+  view FooAlias  // Warning: view type must be interface or class, not type alias
+end
+
+// Delegate view with type alias - should also fail
+class Baz(foo: Foo)
+  view FooAlias = foo  // Warning: view type must be interface or class, not type alias
+end
+
+type Yoo = Bar
+
+class Qux(bar: Bar)
+  view Yoo = bar
+  view Bar = bar
+end

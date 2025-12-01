@@ -7,14 +7,8 @@ namespace DatabaseAPI
 
 import jo.IO.stdout
 
-//[ Document type representing a row in the documents table //]
-type Document = {
-  id: Int,
-  title: String,
-  content: String,
-  ownerId: Int,
-  createdAt: String
-}
+//[ Document class representing a row in the documents table //]
+class Document(id: Int, title: String, content: String, ownerId: Int, createdAt: String)
 
 //[ Database interface - all queries automatically scoped to current user
   |
@@ -27,7 +21,7 @@ type Document = {
   | - Write raw SQL queries
   | - Access documents belonging to other users
 //]
-type DB = {
+interface DB
   //[ Query all documents belonging to the current user //]
   def queryMyDocuments(): List[Document]
 
@@ -36,7 +30,7 @@ type DB = {
 
   //[ Count documents belonging to the current user //]
   def countMyDocuments(): Int
-}
+end
 
 //[ Context parameter: database access capability
   |

@@ -9,19 +9,12 @@ namespace DatabaseAPI
 
 import jo.IO.stdout
 
-//[ Document type representing a row in the documents table
+//[ Document class representing a row in the documents table
   |
   | This is the RESULT type - what queries return.
   | Fields mirror the database table structure.
 //]
-type Document = {
-  id: Int,
-  title: String,
-  content: String,
-  ownerId: Int,
-  createdAt: String,
-  draft: Bool
-}
+class Document(id: Int, title: String, content: String, ownerId: Int, createdAt: String, draft: Bool)
 
 //[ Query DSL Types //]
 
@@ -108,7 +101,7 @@ data Cond =
   | - delete: Delete documents matching condition
   | - deleteById: Delete specific document by ID (more efficient)
 //]
-type DB = {
+interface DB
   //[ Query documents with filtering, optional ordering, and pagination
     | Context parameters: ordering, limit, offset
   //]
@@ -156,7 +149,7 @@ type DB = {
     | db.deleteById(42)
   //]
   def deleteById(id: Int): Bool
-}
+end
 
 //[ Context parameter: database access capability
   |

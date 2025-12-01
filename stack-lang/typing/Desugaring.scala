@@ -2,7 +2,11 @@ package typing
 
 import ast.Trees.*
 import ast.Positions.Source
+
 import sast.Flags
+import sast.Symbols.Symbol
+import sast.{ Trees => sast }
+
 
 import common.KeyProps
 import reporting.Reporter
@@ -18,7 +22,6 @@ object Desugaring:
         case ddef: DataDef  => synthesizeDataDef(ddef)
         case edef: EnumDef  => synthesizeEnumDef(edef)
         case pdef: ParamDef => desugarParamDef(pdef)
-        case cdef: ClassDef => desugarClassDef(cdef) :: Nil
         case defn => defn :: Nil
 
     if defs2.size != defs.size then synthesize(defs2) else defs2
@@ -216,11 +219,13 @@ object Desugaring:
    *    class params are not empty. In this case, an error will be reported and
    *    the class params will be simply ignored.
    */
-  def desugarClassDef(cdef: ClassDef)(using Reporter, Source): ClassDef =
+  def desugarClassDef(cdef: ClassDef, self: Symbol)(using Reporter, Source): ClassDef =
     val vals = new mutable.ArrayBuffer[ValDef]
     val initializers = new mutable.ArrayBuffer[Word]  // Field initialization assignments
 
-    val thisIdent = Ident("this")(cdef.ident.span)
+    val span = cdef.ident.span
+    val thisIdent = Ident("this")(span)
+    thisIdent.addKey(Namer.TypedWord, sast.Ident(self)(span))
 
     // Check if constructor already exists
     val existingCtor = cdef.funs.find(_.name == cdef.name)

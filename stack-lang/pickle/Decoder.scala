@@ -617,7 +617,7 @@ object Decoder:
       val selfInfo =
         val classRef = StaticRef(symbol)
         if tparams.isEmpty then classRef
-        else AppliedType(classRef, tparams.map(StaticRef.apply))
+        else AppliedType(symbol, tparams.map(StaticRef.apply))
 
       val selfId = decodeNat()
       val selfName = decodeString()
@@ -721,7 +721,7 @@ object Decoder:
       val selfInfo =
         val interfaceRef = StaticRef(symbol)
         if tparams.isEmpty then interfaceRef
-        else AppliedType(interfaceRef, tparams.map(StaticRef.apply))
+        else AppliedType(symbol, tparams.map(StaticRef.apply))
 
       val selfId = decodeNat()
       val selfName = decodeString()
@@ -1075,7 +1075,8 @@ object Decoder:
         ObjectType(members.toList, muts.toList)
 
       case Format.AppliedType =>
-        val tctor = decodeType(tparamScope)
+        // No first-class type constructors
+        val tctor = decodeSymbolRef()
         val targs = repeated { decodeType(tparamScope) }
         AppliedType(tctor, targs)
 

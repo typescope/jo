@@ -554,14 +554,14 @@ class Namer(using Config):
       val classSym = classRef.symbol
       val instanceType =
         if targsTree.nonEmpty then
-          AppliedType(classRef, targsTree.map(_.tpe))
+          AppliedType(classSym, targsTree.map(_.tpe))
 
         else if classSym.info.isTypeLambda then
           val tparams = classSym.info.asTypeLambda.tparams
           val tvars = instantiateTypeLambda(tparams)
           val span = classTree.span.endPoint
           targsTree = tvars.map(tvar => TypeTree(tvar)(span))
-          val instanceType = AppliedType(classRef, tvars)
+          val instanceType = AppliedType(classSym, tvars)
 
           // Conditionally apply context instantiation
           Inference.conditionalInstantiate(instanceType, tt)
@@ -842,7 +842,7 @@ class Namer(using Config):
       // If paramType is not fully initialized, we cannot use adapters
       given TargetType = TargetType.ValueType
       val argTyped = transform(arg)
-      if tvars.tryOrRevert { Subtyping.conforms(argTyped.tpe, paramType) } then
+      if tvars.tryOrRevert { Subtyping.conforms(argTyped.tpe.widen, paramType) } then
         argTyped
       else
         Reporter.error(s"Expect type ${paramType.show}, found = ${argTyped.tpe.show}", arg.pos)
@@ -861,7 +861,7 @@ class Namer(using Config):
     val argsFixTyped = transformArgs(argsFix, paramTypesFix, adaptersFix)
 
     val elementType = paramTypeFlex match
-      case AppliedType(StaticRef(tctor), tp :: Nil) if tctor == defn.Predef_Pack =>
+      case AppliedType(tctor, tp :: Nil) if tctor == defn.Predef_Pack =>
         tp
 
       case tp =>
@@ -877,7 +877,7 @@ class Namer(using Config):
         Reporter.error(".. should be followed by exact one word, found = " + args.size, splice.pos)
 
       else
-        val listType = AppliedType(StaticRef(defn.List_type), elementType :: Nil)
+        val listType = AppliedType(defn.List_type, elementType :: Nil)
         val adapter = Adaptation.createVarargSpliceAdapter(adaptersFlex, sc.owner)
         val argTyped = transformArg(args.head, listType, adapter)
 
@@ -1715,10 +1715,14 @@ class Namer(using Config):
           val rhsTree = transformType(tdef.rhs)
           val rhs = Checker.checkValueType(rhsTree)
 
-          if tdef.isBound then
-            TypeBound(BottomType, rhs)
+          if TypeOps.hasCyclesInType(typeSym, rhs) then
+            Reporter.error("Cycles detected for the type definition " + typeSym, tdef.ident.pos)
+            ErrorType
           else
-            rhs
+            if tdef.isBound then
+              TypeBound(BottomType, rhs)
+            else
+              rhs
 
       else
         if tdef.rhs.isEmpty then
@@ -1728,16 +1732,25 @@ class Namer(using Config):
           val rhsTree = transformType(tdef.rhs)
           val rhs = Checker.checkValueType(rhsTree)
 
-          val rhsType =
-            if tdef.isBound then TypeBound(BottomType, rhs)
-            else rhs
+          if TypeOps.hasCyclesInType(typeSym, rhs) then
+            Reporter.error("Cycles detected for the type definition " + typeSym, tdef.ident.pos)
+            TypeLambda(tparamSyms, ErrorType, tdef.preParamCount)
 
-          TypeLambda(tparamSyms, rhsType, tdef.preParamCount)
+          else
+            val rhsType =
+              if tdef.isBound then TypeBound(BottomType, rhs)
+              else rhs
+
+            TypeLambda(tparamSyms, rhsType, tdef.preParamCount)
 
     end computeInfo
 
+    val errorType = () =>
+      if tdef.tparams.isEmpty then ErrorType
+      else TypeLambda(tparamSyms, ErrorType, tdef.preParamCount)
+
     val ip = lazyDefn.infoProvider
-    ip.addLazy(typeSym, computeInfo)
+    ip.addLazy(typeSym, computeInfo, errorType)
 
     // check type symbols after completion to allow cycles, type A = A
     val typer = () => TypeDef(typeSym)(tdef.span)
@@ -1745,14 +1758,16 @@ class Namer(using Config):
     DelayedDef(typeSym, typer)
 
 
-  private def transformClassDef(cdef: Ast.ClassDef)
+  private def transformClassDef(cdef0: Ast.ClassDef)
       (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, ck: Checks)
   : DelayedDef[ClassDef] =
 
-    val flags = Checker.checkModifiers(cdef) | Flags.Class
-    val kind = Kind.simpleKinded(cdef.tparams.size)
-    val classSym = TypeSymbol.create(kind, cdef.name, flags, Checker.visibility(cdef, sc.owner), sc.owner, cdef.ident.pos)
-    val thisSym = TermSymbol.create("this", Flags.Synthetic, Visibility.Default, classSym, cdef.ident.pos)
+    val flags = Checker.checkModifiers(cdef0) | Flags.Class
+    val kind = Kind.simpleKinded(cdef0.tparams.size)
+    val classSym = TypeSymbol.create(kind, cdef0.name, flags, Checker.visibility(cdef0, sc.owner), sc.owner, cdef0.ident.pos)
+    val thisSym = TermSymbol.create("this", Flags.Synthetic, Visibility.Default, classSym, cdef0.ident.pos)
+
+    val cdef = Desugaring.desugarClassDef(cdef0, thisSym)
 
     given paramScope: Scope = sc.fresh(classSym)
 
@@ -1780,7 +1795,7 @@ class Namer(using Config):
     lazy val thisInfo: Type =
       val classRef = StaticRef(classSym)
       if tparamSyms.isEmpty then classRef
-      else AppliedType(classRef, tparamSyms.map(StaticRef.apply))
+      else AppliedType(classSym, tparamSyms.map(StaticRef.apply))
 
     ip.addLazy(thisSym, () => thisInfo)
 
@@ -1876,12 +1891,11 @@ class Namer(using Config):
     lazy val selfInfo: Type =
       val interfaceRef = StaticRef(interfaceSym)
       if tparamSyms.isEmpty then interfaceRef
-      else AppliedType(interfaceRef, tparamSyms.map(StaticRef.apply))
+      else AppliedType(interfaceSym, tparamSyms.map(StaticRef.apply))
 
     ip.addLazy(selfSym, () => selfInfo)
 
     val delayedDefs = new mutable.ArrayBuffer[DelayedDef[FunDef]]
-
     for fdef <- idef.members do
       given Scope = shortCutScope
 
@@ -2140,15 +2154,21 @@ class Namer(using Config):
       case Ast.AppliedType(tctor, targs) =>
         val tctor2 = transformType(tctor, allowPackType)
         val targs2 = for targ <- targs yield transformType(targ, allowPackType = false)
-        if tctor2.tpe == ErrorType || !Checker.checkKind(tctor2, targs2) then
-          TypeTree(ErrorType)(tpt.span)
-        else
-          val tp = AppliedType(tctor2.tpe, targs2.map(_.tpe))
-          Checks.add {
-            val tl = tctor2.tpe.asTypeLambda
-            Checker.checkBounds(tl.tparams, targs2)
-          }
-          TypeTree(tp)(tpt.span)
+        tctor2.tpe match
+          case StaticRef(tctorSym) =>
+            if tctor2.tpe == ErrorType || !Checker.checkKind(tctor2, targs2) then
+              TypeTree(ErrorType)(tpt.span)
+            else
+              val tp = AppliedType(tctorSym, targs2.map(_.tpe))
+              Checks.add {
+                val tl = tctor2.tpe.asTypeLambda
+                Checker.checkBounds(tl.tparams, targs2)
+              }
+              TypeTree(tp)(tpt.span)
+
+          case tp =>
+            Reporter.error("A type reference expected, found = " + tp.show, tctor.pos)
+            TypeTree(ErrorType)(tpt.span)
 
       case Ast.FunctionType(paramTypes, resType, receives) =>
         var i = 0

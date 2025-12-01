@@ -11,84 +11,89 @@ import jo.runtime.JS.js
 import SystemAPI.*
 import SystemAPI.Monitor.startMonitor
 
-//[ Process management operations section //]
-section Process
-  def listProcessesImpl(): String =
+//[ Implementation classes with interface views //]
+
+//[ Process implementation with inlined operations //]
+class ProcessImpl
+  def listProcesses(): String =
     val output = js "require('child_process').execSync('ps aux').toString()"
     output
 
-  def countProcessesImpl(): Int =
+  def countProcesses(): Int =
     val output = js "require('child_process').execSync('ps aux | wc -l').toString()"
     val countStr = js "output.trim()"
     val count = js "parseInt(countStr, 10)"
     count - 1  // Subtract header line
 
-  def findByNameImpl(processName: String): Int =
+  def findByName(processName: String): Int =
     val command = "pgrep -n " + processName  // -n = newest
     var result = ""
     js "try { result = require('child_process').execSync(command).toString().trim()} catch (e) { result = '-1' }"
     val pid = js "parseInt(result, 10)"
     pid
 
-  def getCurrentPIDImpl(): Int =
+  def getCurrentPID(): Int =
     val pid = js "process.pid"
     pid
 
-  def getCurrentMemoryMBImpl(): Int =
+  def getCurrentMemoryMB(): Int =
     val memBytes = js "process.memoryUsage().heapUsed"
     val memMB = js "Math.round(memBytes / (1024 * 1024))"
     memMB
+
+  view SystemAPI.Process
 end
 
-//[ System information operations section //]
-section System
-  def uptimeImpl(): Int =
-    val uptimeSeconds = js "require('os').uptime()"
+interface OS
+  def uptime(): Int
+  def platform(): String
+  def arch(): String
+  def hostname(): String
+end
+
+def os: OS = js "require('os')"
+
+//[ System implementation with inlined operations //]
+class SystemImpl
+  def uptime(): Int =
+    val uptimeSeconds = os.uptime()
     val rounded = js "Math.round(uptimeSeconds)"
     rounded
 
-  def platformImpl(): String =
-    val plat = js "require('os').platform()"
-    plat
+  def platform(): String = os.platform()
 
-  def archImpl(): String =
-    val architecture = js "require('os').arch()"
-    architecture
+  def arch(): String = os.arch()
 
-  def hostnameImpl(): String =
-    val host = js "require('os').hostname()"
-    host
+  def hostname(): String = os.hostname()
+
+  view SystemAPI.System
 end
 
-//[ Logger operations section //]
-section Logger
-  def infoImpl(message: String): Unit receives stdout =
-    print "[INFO] "
-    println message
+//[ Logger implementation with inlined operations //]
+class LoggerImpl(console: { def write(s: String): Unit })
+  def info(message: String): Unit =
+    begin
+      print "[INFO] "
+      println message
+    end with stdout = console
 
-  def debugImpl(message: String): Unit receives stdout =
-    print "[DEBUG] "
-    println message
+  def debug(message: String): Unit =
+    begin
+      print "[DEBUG] "
+      println message
+    end with stdout = console
+
+  view SystemAPI.Logger
 end
 
 //[ Main entry point - provides implementations to user code //]
 def platformMain: Unit receives stdout =
+  val processImpl = new ProcessImpl()
+  val systemImpl = new SystemImpl()
+  val loggerImpl = new LoggerImpl(stdout)
+
   startMonitor with
-    process = {
-      def listProcesses(): String = Process.listProcessesImpl()
-      def countProcesses(): Int = Process.countProcessesImpl()
-      def findByName(processName: String): Int = Process.findByNameImpl(processName)
-      def getCurrentPID(): Int = Process.getCurrentPIDImpl()
-      def getCurrentMemoryMB(): Int = Process.getCurrentMemoryMBImpl()
-    },
-    system = {
-      def uptime(): Int = System.uptimeImpl()
-      def platform(): String = System.platformImpl()
-      def arch(): String = System.archImpl()
-      def hostname(): String = System.hostnameImpl()
-    },
-    logger = {
-      def info(message: String): Unit = Logger.infoImpl(message)
-      def debug(message: String): Unit = Logger.debugImpl(message)
-    }
+    process = processImpl,
+    system = systemImpl,
+    logger = loggerImpl
 end

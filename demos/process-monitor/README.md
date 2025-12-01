@@ -13,16 +13,18 @@ This demo demonstrates how platforms can provide system capabilities through **c
            ▼
 ┌─────────────────────┐
 │  PlatformAPI.jo     │  Pure world (interface)
-│                     │  - type Process = { ... }
-│  param process      │  - type System = { ... }
-│  param system       │  - param declarations
-│  param logger       │
+│                     │  - interface Process
+│  param process      │  - interface System
+│  param system       │  - interface Logger
+│  param logger       │  - param declarations
 └──────────┬──────────┘
            │ provided by
            ▼
 ┌─────────────────────┐
 │ PlatformRuntime.jo  │  Runtime world (trusted)
-│  platformMain       │  - startMonitor with process = { ... }
+│                     │  - class ProcessImpl
+│  platformMain       │  - class SystemImpl
+│                     │  - class LoggerImpl
 └──────────┬──────────┘  - Uses js intrinsic for Node.js
            │ uses
            ▼
@@ -36,28 +38,28 @@ This demo demonstrates how platforms can provide system capabilities through **c
 
 ### PlatformAPI.jo
 
-Declares capability types and context parameters:
+Declares capability interfaces and context parameters:
 
 ```jo
-type Process = {
+interface Process
   def listProcesses(): String
   def countProcesses(): Int
   def findByName(processName: String): Int
   def getCurrentPID(): Int
   def getCurrentMemoryMB(): Int
-}
+end
 
-type System = {
+interface System
   def uptime(): Int
   def platform(): String
   def arch(): String
   def hostname(): String
-}
+end
 
-type Logger = {
+interface Logger
   def info(message: String): Unit
   def debug(message: String): Unit
-}
+end
 
 param process: Process
 param system: System
@@ -66,48 +68,91 @@ param logger: Logger
 
 ### PlatformRuntime.jo
 
-Implementation functions are organized in three sections (`Process`, `System`, `Logger`), then provided via `with` clause:
+Implementation classes with inlined operations:
 
 ```jo
-section Process
-  def listProcessesImpl(): String =
+class ProcessImpl
+  def listProcesses(): String =
     val output = js "require('child_process').execSync('ps aux').toString()"
     output
 
-  def countProcessesImpl(): Int =
-    // ... Node.js implementation
+  def countProcesses(): Int =
+    val output = js "require('child_process').execSync('ps aux | wc -l').toString()"
+    val countStr = js "output.trim()"
+    val count = js "parseInt(countStr, 10)"
+    count - 1  // Subtract header line
+
+  def findByName(processName: String): Int =
+    val command = "pgrep -n " + processName  // -n = newest
+    var result = ""
+    js "try { result = require('child_process').execSync(command).toString().trim()} catch (e) { result = '-1' }"
+    val pid = js "parseInt(result, 10)"
+    pid
+
+  def getCurrentPID(): Int =
+    val pid = js "process.pid"
+    pid
+
+  def getCurrentMemoryMB(): Int =
+    val memBytes = js "process.memoryUsage().heapUsed"
+    val memMB = js "Math.round(memBytes / (1024 * 1024))"
+    memMB
+
+  view SystemAPI.Process
 end
 
-section System
-  def uptimeImpl(): Int =
-    val uptimeSeconds = js "require('os').uptime()"
-    // ...
+interface OS
+  def uptime(): Int
+  def platform(): String
+  def arch(): String
+  def hostname(): String
 end
 
-section Logger
-  def infoImpl(message: String): Unit receives stdout =
-    print "[INFO] "
-    println message
+def os: OS = js "require('os')"
+
+class SystemImpl
+  def uptime(): Int =
+    val uptimeSeconds = os.uptime()
+    val rounded = js "Math.round(uptimeSeconds)"
+    rounded
+
+  def platform(): String = os.platform()
+
+  def arch(): String = os.arch()
+
+  def hostname(): String = os.hostname()
+
+  view SystemAPI.System
+end
+
+class LoggerImpl(console: { def write(s: String): Unit })
+  def info(message: String): Unit =
+    begin
+      print "[INFO] "
+      println message
+    end with stdout = console
+
+  def debug(message: String): Unit =
+    begin
+      print "[DEBUG] "
+      println message
+    end with stdout = console
+
+  view SystemAPI.Logger
 end
 
 def platformMain: Unit receives stdout =
+  val processImpl = new ProcessImpl()
+  val systemImpl = new SystemImpl()
+  val loggerImpl = new LoggerImpl(stdout)
+
   startMonitor with
-    process = {
-      def listProcesses(): String = Process.listProcessesImpl()
-      def countProcesses(): Int = Process.countProcessesImpl()
-      // ...
-    },
-    system = {
-      def uptime(): Int = System.uptimeImpl()
-      // ...
-    },
-    logger = {
-      def info(message: String): Unit = Logger.infoImpl(message)
-      // ...
-    }
+    process = processImpl,
+    system = systemImpl,
+    logger = loggerImpl
 ```
 
-**Key technique**: Implementation functions organized in sections, then capabilities provided in a single `with` expression.
+**Key technique**: Implementation classes directly implement the interface methods. For cleaner abstraction, the Node.js `os` module is wrapped via an `OS` interface and bound to `def os: OS = js "require('os')"`, allowing `SystemImpl` to call `os.uptime()`, `os.platform()`, etc. instead of inline `js` calls. Each class declares a view to the corresponding interface (`view SystemAPI.Process`, etc.). Class instances are created and passed via context parameters.
 
 ### UserApp.jo
 Receives context parameters:

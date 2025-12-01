@@ -142,7 +142,7 @@ object Types:
         case constType: ConstantType => constType.underlying
         case _ => this
 
-    def widen(using Definitions): Type = widenTermRef.widenConstType
+    def widen(using Definitions): Type = TypeOps.widen(this)
 
     def asRecordType(using Definitions): RecordType =
       this.approx.asInstanceOf[RecordType]
@@ -180,7 +180,7 @@ object Types:
     /** Convert Partial[T] to T if possible */
     def stripPartial(using defn: Definitions): Type =
       this match
-        case AppliedType(StaticRef(ctor), targs) if ctor == defn.Predef_Partial =>
+        case AppliedType(ctor, targs) if ctor == defn.Predef_Partial =>
           targs.head
 
         case _ => this
@@ -188,7 +188,7 @@ object Types:
     /** Is the type Partial[T] */
     def isPartial(using defn: Definitions): Boolean =
       this match
-        case AppliedType(StaticRef(ctor), targs) if ctor == defn.Predef_Partial =>
+        case AppliedType(ctor, targs) if ctor == defn.Predef_Partial =>
           true
 
         case _ => false
@@ -196,7 +196,7 @@ object Types:
     /** Is the type ..T */
     def isVararg(using defn: Definitions): Boolean =
       this match
-        case AppliedType(StaticRef(ctor), targs) if ctor == defn.Predef_Pack =>
+        case AppliedType(ctor, targs) if ctor == defn.Predef_Pack =>
           true
 
         case _ => false
@@ -204,7 +204,7 @@ object Types:
     /** Convert ..T to T if possible */
     def stripVarargs(using defn: Definitions): Type =
       this match
-        case AppliedType(StaticRef(sym), targs) if sym == defn.Predef_Pack =>
+        case AppliedType(sym, targs) if sym == defn.Predef_Pack =>
           targs(0)
 
         case _ => this
@@ -492,12 +492,9 @@ object Types:
       TypeOps.substSymbols(body, tparams, targs)
 
   case class AppliedType
-    (tctor: Type, targs: List[Type])
+    (tctor: Symbol, targs: List[Type])
   extends ProxyType:
     assert(targs.nonEmpty, this)
-    tctor match
-      case StaticRef(sym) if sym.isType =>
-      case _ => assert(false, tctor)
 
   /** Represents upper and lower bounds of type parameters */
   case class TypeBound
@@ -505,7 +502,7 @@ object Types:
   extends Type
 
   /** TypeVars are local to a source file thus it may take a span */
-  class TypeVar(name: String, val span: Span)(using context: TypeVars) extends ProxyType:
+  class TypeVar(name: String, val span: Span)(using context: TypeVars) extends Type:
     context.add(this)
 
     override def toString = "TypeVar(" + name + ")"

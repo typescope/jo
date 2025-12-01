@@ -39,22 +39,23 @@ The runtime translates DSL expressions to parameterized SQL, preventing injectio
          ▼
 ┌──────────────────┐
 │ DatabaseAPI.jo   │  Interface: CRUD DSL types
-│                  │  - data Cond = All | Eq | Like | ...
-│                  │  - type UpdateColumn = Title | Content
-│  param db: DB    │  - data FieldUpdate(field, value)
-│  param ordering  │  - Infix operators: like, :=, &&, ||
-│  param limit     │  - Context params with defaults
-│  param offset    │
+│                  │  - class Document(...)
+│                  │  - interface DB
+│  param db: DB    │  - data Cond = All | Eq | Like | ...
+│  param ordering  │  - type UpdateColumn = Title | Content
+│  param limit     │  - data FieldUpdate(field, value)
+│  param offset    │  - Infix operators: like, :=, &&, ||
 └────────┬─────────┘
          │ provided by
          ▼
 ┌──────────────────┐
 │ Runtime.jo       │  TRUSTED: SQL generation + security
-│                  │  - condToSQL: condition -> SQL
-│ CRUD operations  │  - updatesToSQL: updates -> SET clause
-│   query          │  - Always adds: WHERE owner_id = ?
-│   update         │  - Parameterizes all values
-│   delete         │  - User CANNOT bypass security
+│                  │  - class SecureDB(userId, dbHandle)
+│ CRUD operations  │  - view DatabaseAPI.DB
+│   query          │  - condToSQL: condition -> SQL
+│   update         │  - updatesToSQL: updates -> SET clause
+│   delete         │  - Always adds: WHERE owner_id = ?
+│                  │  - Parameterizes all values
 └──────────────────┘
 ```
 
@@ -171,7 +172,7 @@ data Cond =
   | Not(cond: Cond)
 
 // DB interface with full CRUD operations
-type DB = {
+interface DB
   // Read
   def query(condition: Cond): List[Document] receives ordering, limit, offset
   def count(condition: Cond): Int
@@ -184,7 +185,7 @@ type DB = {
   // Delete
   def delete(condition: Cond): Int
   def deleteById(id: Int): Bool
-}
+end
 
 // Context parameters with defaults
 param db: DB
@@ -250,9 +251,34 @@ section Impl
     val whereClause = "owner_id = ? AND (" + condParts.sql + ")"  // Security!
     // ... execute and return deleted count
 end
+
+class SecureDB(userId: Int, dbHandle: Any)
+  def query(condition: Cond): List[Document] receives ordering, limit, offset =
+    Impl.queryImpl(userId, condition) with Impl.dbHandle = dbHandle
+
+  def count(condition: Cond): Int =
+    Impl.countImpl(userId, condition) with Impl.dbHandle = dbHandle
+
+  def getById(id: Int): Option[Document] =
+    Impl.getByIdImpl(userId, id) with Impl.dbHandle = dbHandle
+
+  def update(condition: Cond, updates: List[FieldUpdate]): Int =
+    Impl.updateImpl(userId, condition, updates) with Impl.dbHandle = dbHandle
+
+  def updateById(id: Int, updates: List[FieldUpdate]): Bool =
+    Impl.updateByIdImpl(userId, id, updates) with Impl.dbHandle = dbHandle
+
+  def delete(condition: Cond): Int =
+    Impl.deleteImpl(userId, condition) with Impl.dbHandle = dbHandle
+
+  def deleteById(id: Int): Bool =
+    Impl.deleteByIdImpl(userId, id) with Impl.dbHandle = dbHandle
+
+  view DatabaseAPI.DB
+end
 ```
 
-**Security guarantee**: All operations always include `WHERE owner_id = ?` to enforce row-level security.
+**Security guarantee**: All operations always include `WHERE owner_id = ?` to enforce row-level security. The `class SecureDB` captures `userId` and `dbHandle` and implements `DB` interface via `view DatabaseAPI.DB`.
 
 ### UserApp.jo
 

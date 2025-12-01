@@ -92,15 +92,7 @@ object Adaptation:
 
       if isNumeric && !Subtyping.conforms(word.tpe, targetType) then
         // Numeric coercion
-        word match
-          case Literal(Constant.Int(n)) =>
-            val tp2 = coerceIntLiteral(n, word.tpe, targetType)
-            val word2 = Literal(Constant.Int(n))(tp2, word.span)
-            word2
-
-          case _ =>
-            // Only widening coercion is allowed for non-literals
-            coerceNumeric(word, targetType)
+        coerceNumeric(word, targetType)
 
       else if Subtyping.conforms(unitType, targetType) then
         val unit = unitValue(word.span.endPoint)
@@ -126,17 +118,6 @@ object Adaptation:
           case Result.Success(adapted) => adapted
           case Result.Failure(trials2) => throw new AdaptionFailure(word, targetType, trials.toSeq ++ trials2)
 
-  private def coerceIntLiteral(n: Int, origType: Type, targetType: Type)(using defn: Definitions): Type =
-    if
-      targetType.isSubtype(defn.ByteType) && n < 128 && n >= -128
-      || targetType.isSubtype(defn.CharType) && n < 65536 && n >= 0
-      || targetType.isSubtype(defn.IntType)
-    then
-      targetType
-
-    else
-      origType
-
   /** Adapt the word to the target type
     *
     *     Byte ==> Int
@@ -148,24 +129,39 @@ object Adaptation:
     def fail() = throw new AdaptionFailure(word, targetType, Nil)
 
     val origType = word.tpe
-    if origType.isSubtype(defn.ByteType) then
-      if targetType.isSubtype(defn.IntType) then
-        val byteToInt = Ident(defn.Predef_byteToInt)(word.span)
-        byteToInt.appliedTo(word)
 
-      else
-        fail()
+    word match
+      case Literal(Constant.Int(n)) =>
+        if
+          targetType.isSubtype(defn.ByteType) && n < 128 && n >= -128
+          || targetType.isSubtype(defn.CharType) && n < 65536 && n >= 0
+          || targetType.isSubtype(defn.IntType)
+        then
+          Literal(Constant.Int(n))(targetType, word.span)
 
-    else if origType.isSubtype(defn.CharType) then
-      if targetType.isSubtype(defn.IntType) then
-        val charToInt = Ident(defn.Predef_charToInt)(word.span)
-        charToInt.appliedTo(word)
+        else
+          fail()
 
-      else
-        fail()
+      case _ =>
+        // Only widening coercion is allowed for non-literals
+        if origType.isSubtype(defn.ByteType) then
+          if targetType.isSubtype(defn.IntType) then
+            val byteToInt = Ident(defn.Predef_byteToInt)(word.span)
+            byteToInt.appliedTo(word)
 
-    else
-      fail()
+          else
+            fail()
+
+        else if origType.isSubtype(defn.CharType) then
+          if targetType.isSubtype(defn.IntType) then
+            val charToInt = Ident(defn.Predef_charToInt)(word.span)
+            charToInt.appliedTo(word)
+
+          else
+            fail()
+
+        else
+          fail()
 
   def createSimpleAdapter(adapters: List[Symbol | String], owner: Symbol)(using Definitions, Source): Adapter =
     if adapters.isEmpty then NoAdapter
@@ -178,7 +174,7 @@ object Adaptation:
 
     (word, targetType) =>
       word.tpe.widen.dealias match
-        case AppliedType(StaticRef(sym), elemType :: Nil) if sym == defn.List_type =>
+        case AppliedType(sym, elemType :: Nil) if sym == defn.List_type =>
           // Only try adapt if the type is List[X]
           val AppliedType(_, targetElemType :: Nil) = targetType: @unchecked
           adaptVarargSplice(word, targetElemType, elemType, adapters, owner)

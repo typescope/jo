@@ -71,10 +71,6 @@ object Checker:
         val tpe = polyType.instantiate(targs.map(_.tpe))
         TypeApply(fun, targs)(tpe, span)
 
-  def checkType(word: Word, tp: Type)(using Definitions, Reporter, Source): Unit =
-    if !Subtyping.conforms(word.tpe, tp) then
-      Reporter.error(s"Expect type ${tp.show}, found = ${word.tpe.show}", word.pos)
-
   def checkValueType(word: Word)(using Reporter, Source): Unit =
     checkValueType(word.tpe, word.pos)
 
@@ -334,9 +330,7 @@ object Checker:
         // Must choose either inference or adapation, not both
         if word3.tpe.isFullyInstantiated then
           try
-            val wordAdapted = Adaptation.adapt(word3, tpe, adapter)
-            checkType(wordAdapted, tpe)
-            wordAdapted
+            Adaptation.adapt(word3, tpe, adapter)
 
           catch case ex: Adaptation.AdaptionFailure =>
             val trialsMsg = Adaptation.formatTrials(ex.trials)

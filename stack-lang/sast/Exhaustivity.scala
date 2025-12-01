@@ -141,7 +141,7 @@ object Exhaustivity:
             TypeSpace(ConstantType(b))
 
           case _ =>
-            val tp = AppliedType(StaticRef(defn.Predef_Partial), value.tpe :: Nil)
+            val tp = AppliedType(defn.Predef_Partial, value.tpe :: Nil)
             TypeSpace(tp)
 
       case tagPat: TagPattern =>
