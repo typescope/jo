@@ -1715,10 +1715,14 @@ class Namer(using Config):
           val rhsTree = transformType(tdef.rhs)
           val rhs = Checker.checkValueType(rhsTree)
 
-          if tdef.isBound then
-            TypeBound(BottomType, rhs)
+          if TypeOps.hasCyclesInType(typeSym, rhs) then
+            Reporter.error("Cycles detected for the type definition " + typeSym, tdef.ident.pos)
+            ErrorType
           else
-            rhs
+            if tdef.isBound then
+              TypeBound(BottomType, rhs)
+            else
+              rhs
 
       else
         if tdef.rhs.isEmpty then

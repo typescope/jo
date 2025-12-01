@@ -69,6 +69,37 @@ object TypeOps:
     recur(tp, isUp)
   end approx
 
+  /** Check whether a type definition contains aliasing cycles */
+  def hasCyclesInType(symbol: Symbol, info: Type)(using Definitions): Boolean =
+    // detect cycles in symbol definitions, e.g., type A = A
+    val encountered = new mutable.ArrayBuffer[Symbol]
+    encountered += symbol
+    var hasCycle = false
+
+    def recur(tp: Type): Type = Debug.trace(s"$tp.hascycles", enable = false):
+      tp match
+        case StaticRef(sym) if sym.isType && !sym.isOneOf(Flags.Class | Flags.Interface | Flags.Param) =>
+          if encountered.contains(sym) then
+            hasCycle = true
+            tp
+          else
+            encountered += sym
+            recur(sym.info)
+          end if
+
+        case app @ AppliedType(tctor, targs) =>
+          recur(tctor) match
+            case tl: TypeLambda =>
+              recur(tl.instantiate(targs))
+
+            case _ =>
+              app
+
+        case tp => tp
+    end recur
+    recur(info)
+    hasCycle
+
   /** Normalize the type
     *
     * - Strip instantiated tvars from the type
