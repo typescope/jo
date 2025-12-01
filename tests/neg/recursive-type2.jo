@@ -1,5 +1,0 @@
-type A = A
-
-def f(n: Int): A = n // error
-
-def g(a: A): Int = a // error
