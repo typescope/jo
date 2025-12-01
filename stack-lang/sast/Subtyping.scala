@@ -195,12 +195,24 @@ object Subtyping:
           recur(tp1, tp2) && recur(tp2, tp1)
       }
 
-    else if proxy1.isTermRef then
-      recur(proxy1.widenTermRef, proxy2)
-
     else
-      // Give bounds a try
-      recur(TypeOps.approx(proxy1, isUp = true), proxy2)
+      proxy1 match
+        case StaticRef(sym) if sym.info.is[TypeBound] =>
+          recur(sym.info.as[TypeBound].hi, proxy2)
+
+        case AppliedType(sym, targs) =>
+          sym.info match
+            case tl @ TypeLambda(_, _: TypeBound, _) =>
+              recur(tl.instantiate(targs).as[TypeBound].hi, proxy2)
+
+            case _ =>
+              false
+
+        case ref: RefType =>
+          if ref.isTermRef then
+            recur(proxy1.widenTermRef, proxy2)
+          else
+            false
 
   private def checkConformsProcType(tp1: ProcType, tp2: ProcType)
       (using ctx: Context, defn: Definitions)

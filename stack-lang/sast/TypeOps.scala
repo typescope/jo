@@ -32,7 +32,7 @@ object TypeOps:
     * It approximates a type to its upper bound or lower bound according to
     * the spec.
     */
-  def approx(tp: Type, isUp: Boolean)(using Definitions): Type =
+  def approx(tp: Type, isUp: Boolean)(using Definitions): Type = Debug.trace(s"${tp.show}.approx(isUp = $isUp)", enable = false):
     widen(dealias(tp)) match
       case StaticRef(sym) =>
         approx(sym.info, isUp)
