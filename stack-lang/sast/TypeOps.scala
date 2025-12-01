@@ -42,6 +42,20 @@ object TypeOps:
           case tp =>
             approx(tp, isUp)
 
+      case tvar: TypeVar =>
+        if !tvar.isInstantiated then
+          tvar
+        else
+          approx(tvar.instantiated, isUp)
+
+      case app @ AppliedType(tctor, targs) =>
+        approx(tctor, isUp) match
+          case tl: TypeLambda =>
+            approx(tl.instantiate(targs), isUp)
+
+          case _ =>
+            app
+
       case tp => tp
 
   /** Widen a term reference or constant type to its underlying type */
