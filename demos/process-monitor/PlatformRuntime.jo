@@ -67,14 +67,18 @@ class SystemImpl
 end
 
 //[ Logger implementation with inlined operations //]
-class LoggerImpl
-  def info(message: String): Unit receives stdout =
-    print "[INFO] "
-    println message
+class LoggerImpl(console: { def write(s: String): Unit })
+  def info(message: String): Unit =
+    begin
+      print "[INFO] "
+      println message
+    end with stdout = console
 
-  def debug(message: String): Unit receives stdout =
-    print "[DEBUG] "
-    println message
+  def debug(message: String): Unit =
+    begin
+      print "[DEBUG] "
+      println message
+    end with stdout = console
 
   view SystemAPI.Logger
 end
@@ -83,7 +87,7 @@ end
 def platformMain: Unit receives stdout =
   val processImpl = new ProcessImpl()
   val systemImpl = new SystemImpl()
-  val loggerImpl = new LoggerImpl()
+  val loggerImpl = new LoggerImpl(stdout)
 
   startMonitor with
     process = processImpl,

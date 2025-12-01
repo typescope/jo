@@ -24,19 +24,19 @@ User code **never sees the userId or dbPath** and cannot bypass the filtering.
          │ receives
          ▼
 ┌──────────────────┐
-│ DatabaseAPI.jo   │  Interface: types + param
-│                  │  - type DB = { ... }
-│ param db: DB     │  - type Document = { ... }
+│ DatabaseAPI.jo   │  Interface: class + interface + param
+│                  │  - class Document(...)
+│ param db: DB     │  - interface DB
 └────────┬─────────┘
          │ provided by
          ▼
 ┌──────────────────┐
 │ Runtime.jo       │  TRUSTED: Enforces security
 │                  │  - Reads userId from argv
-│ def platformMain │  - Captures in db closures
-│   userId = argv  │  - Auto-filters queries
-│   userApp with   │  - User CANNOT access userId
-│     db = { ... } │
+│ def platformMain │  - class SecureDB(userId, dbHandle)
+│   userId = argv  │  - view DatabaseAPI.DB
+│   userApp with   │  - Auto-filters queries
+│   db = secureDb  │  - User CANNOT access userId
 └──────────────────┘
 ```
 
@@ -52,29 +52,23 @@ User code **never sees the userId or dbPath** and cannot bypass the filtering.
 
 ### DatabaseAPI.jo
 
-Defines types and context parameter:
+Defines class, interface, and context parameter:
 
 ```jo
-type Document = {
-  id: Int
-  title: String
-  content: String
-  ownerId: Int
-  createdAt: String
-}
+class Document(id: Int, title: String, content: String, ownerId: Int, createdAt: String)
 
-type DB = {
+interface DB
   def queryMyDocuments(): List[Document]
   def getMyDocument(id: Int): Option[Document]
   def countMyDocuments(): Int
-}
+end
 
 param db: DB
 ```
 
 ### Runtime.jo (Trusted)
 
-Implementation functions organized in `section Impl` with context parameter for database handle:
+Implementation class with interface view:
 
 ```jo
 section Impl
@@ -90,6 +84,19 @@ section Impl
     val sql = "SELECT * FROM documents WHERE owner_id = ?"
     val rows = execQuery(sql, js "[userId]")
     // ... build document list
+end
+
+class SecureDB(userId: Int, dbHandle: Any)
+  def queryMyDocuments(): List[Document] =
+    Impl.queryMyDocumentsImpl(userId) with Impl.dbHandle = dbHandle
+
+  def getMyDocument(id: Int): Option[Document] =
+    Impl.getMyDocumentImpl(userId, id) with Impl.dbHandle = dbHandle
+
+  def countMyDocuments(): Int =
+    Impl.countMyDocumentsImpl(userId) with Impl.dbHandle = dbHandle
+
+  view DatabaseAPI.DB
 end
 
 def platformMain: Unit receives stdout =
@@ -108,15 +115,14 @@ def platformMain: Unit receives stdout =
   // Open database
   val dbHandle = js "new DatabaseSync(dbPath)"
 
-  // Provide db with userId captured in closures
-  DatabaseAPI.analyzeDocuments with
-    DatabaseAPI.db = {
-      def queryMyDocuments(): List[Document] =
-        Impl.queryMyDocumentsImpl(userId) with Impl.dbHandle = dbHandle
-    }
+  // Create secure database instance with captured userId
+  val secureDb = new SecureDB(userId, dbHandle)
+
+  // Provide db implementation
+  DatabaseAPI.analyzeDocuments with DatabaseAPI.db = secureDb
 ```
 
-**Key technique**: Implementation functions in `section Impl` use context parameter `dbHandle`. The `userId` and `dbPath` are captured in closures - user code calls db methods but cannot inspect or modify these values.
+**Key technique**: `class SecureDB` captures `userId` and `dbHandle` as constructor parameters and implements the `DB` interface via `view DatabaseAPI.DB`. User code receives the interface but cannot access the captured userId.
 
 ### UserApp.jo (Untrusted)
 
@@ -244,21 +250,22 @@ Links user code to runtime entry points.
    val dbPath = js "process.argv[3]"
    ```
 
-2. **Runtime opens database and captures userId in db closures**
+2. **Runtime opens database and creates SecureDB instance**
    ```jo
    val dbHandle = js "new DatabaseSync(dbPath)"
 
-   DatabaseAPI.analyzeDocuments with
-     DatabaseAPI.db = {
-       def queryMyDocuments(): List[Document] =
-         // userId is captured in this closure
-         Impl.queryMyDocumentsImpl(userId) with Impl.dbHandle = dbHandle
-     }
+   // Create secure database instance with captured userId
+   val secureDb = new SecureDB(userId, dbHandle)
+
+   // Provide db implementation via context parameter
+   DatabaseAPI.analyzeDocuments with DatabaseAPI.db = secureDb
    ```
+
+   The `SecureDB` class captures `userId` in its constructor and implements the `DB` interface via `view DatabaseAPI.DB`. Each method delegates to the implementation functions, passing the captured `userId`.
 
 3. **User code calls db methods**
    ```jo
-   val docs = db.queryMyDocuments()  // Calls closure with captured userId
+   val docs = db.queryMyDocuments()  // Calls SecureDB method with captured userId
    ```
 
 4. **SQL automatically filtered**

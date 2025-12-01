@@ -41,10 +41,10 @@ end
 
 interface Logger
   // Log info message
-  def info(message: String): Unit receives stdout
+  def info(message: String): Unit
 
   // Log debug message
-  def debug(message: String): Unit receives stdout
+  def debug(message: String): Unit
 end
 
 // ============================================
