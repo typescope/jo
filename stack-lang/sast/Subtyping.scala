@@ -65,7 +65,9 @@ object Subtyping:
     * We intentionally do not check subtyping of bound type. They may only
     * surface in deal with StaticRef, which is handled specially.
     */
-  private def checkConforms(tp1: Type, tp2: Type)(using ctx: Context, defn: Definitions): Boolean = Debug.trace(s"${tp1.show} <: ${tp2.show}", enable = false) {
+  private def checkConforms
+      (tp1: Type, tp2: Type)(using ctx: Context, defn: Definitions)
+  : Boolean = Debug.trace(s"${tp1.show} <: ${tp2.show}", enable = false) {
     // Each branch should be disjoint to avoid exponential blowup
     tp1.isError
     || tp2.isError

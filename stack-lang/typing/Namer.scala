@@ -842,7 +842,7 @@ class Namer(using Config):
       // If paramType is not fully initialized, we cannot use adapters
       given TargetType = TargetType.ValueType
       val argTyped = transform(arg)
-      if tvars.tryOrRevert { Subtyping.conforms(argTyped.tpe, paramType) } then
+      if tvars.tryOrRevert { Subtyping.conforms(argTyped.tpe.widen, paramType) } then
         argTyped
       else
         Reporter.error(s"Expect type ${paramType.show}, found = ${argTyped.tpe.show}", arg.pos)

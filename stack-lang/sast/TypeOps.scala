@@ -124,9 +124,7 @@ object TypeOps:
     def recur(tp: Type): Type = Debug.trace(s"$tp.dealias", enable = false):
       tp match
         case tref @ StaticRef(sym) =>
-          val isRootType =
-            sym.isOneOf(Flags.Param | Flags.Class | Flags.Interface)
-            || sym.info.is[TypeBound]
+          val isRootType = sym.info.isInstanceOf[TypeBound | ClassInfo]
 
           if isRootType || !sym.isType && !sym.isAlias then
             tref
@@ -153,9 +151,9 @@ object TypeOps:
     recur(tp)
   end dealias
 
-  /** A grounded type cannot be simplied further at the top-level
+  /** A grounded type cannot be simplied further at the top-level with dealias
     *
-    * The following proxy types are not grounded:
+    * The following types are not grounded:
     *
     * - type aliases
     * - instaniated type variables
@@ -163,7 +161,7 @@ object TypeOps:
   def isGrounded(tp: Type)(using Definitions): Boolean = Debug.trace(s"Is grouned ${tp}", enable = false):
     tp match
       case StaticRef(sym) =>
-        (!sym.isType && !sym.isAlias) || sym.info.is[TypeBound | ClassInfo]
+        (!sym.isType && !sym.isAlias) || sym.info.isInstanceOf[TypeBound | ClassInfo]
 
       case AppliedType(sym, _) =>
         sym.info match
