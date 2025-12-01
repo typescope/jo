@@ -1,0 +1,21 @@
+---------- Error at ./tests/warn/rec-type.jo:1:6 ---------------
+| type A = A
+|      ^
+|      Cycles detected for the type definition A
+
+---------- Error at ./tests/warn/rec-type.jo:2:6 ---------------
+| type B = B
+|      ^
+|      Cycles detected for the type definition B
+
+---------- Error at ./tests/warn/rec-type.jo:7:6 ---------------
+| type X = Y
+|      ^
+|      Illegal recursive definition: X, Y
+
+---------- Error at ./tests/warn/rec-type.jo:7:6 ---------------
+| type X = Y
+|      ^
+|      Cycles detected for the type definition X
+
+4 error(s), 0 warning(s)
