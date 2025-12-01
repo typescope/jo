@@ -35,12 +35,10 @@ object TypeOps:
   def approx(tp: Type, isUp: Boolean)(using Definitions): Type =
     widen(dealias(tp)) match
       case StaticRef(sym) =>
-        sym.info match
-          case TypeBound(lo, hi) =>
-            approx(if isUp then hi else lo, isUp)
+        approx(sym.info, isUp)
 
-          case tp =>
-            approx(tp, isUp)
+      case TypeBound(lo, hi) =>
+        approx(if isUp then hi else lo, isUp)
 
       case tvar: TypeVar =>
         if !tvar.isInstantiated then
@@ -48,13 +46,13 @@ object TypeOps:
         else
           approx(tvar.instantiated, isUp)
 
-      case app @ AppliedType(tctor, targs) =>
-        approx(tctor, isUp) match
+      case AppliedType(tctor, targs) =>
+        tctor.info match
           case tl: TypeLambda =>
             approx(tl.instantiate(targs), isUp)
 
-          case _ =>
-            app
+          case tp =>
+            throw new Exception("Type constructor have type " + tp.show)
 
       case tp => tp
 
@@ -74,7 +72,7 @@ object TypeOps:
 
     def recur(tp: Type): Type = Debug.trace(s"$tp.hascycles", enable = false):
       tp match
-        case StaticRef(sym) if sym.isType && !sym.isOneOf(Flags.Class | Flags.Interface | Flags.Param) =>
+        case StaticRef(sym) if sym.isType =>
           if encountered.contains(sym) then
             hasCycle = true
             tp
@@ -88,12 +86,12 @@ object TypeOps:
           recur(hi)
 
         case app @ AppliedType(tctor, targs) =>
-          recur(tctor) match
+          tctor.info match
             case tl: TypeLambda =>
               recur(tl.instantiate(targs))
 
             case _ =>
-              app
+              throw new Exception("Type constructor have type " + tp.show)
 
         case tp => tp
     end recur
@@ -118,7 +116,7 @@ object TypeOps:
       case _ => tp
 
   /** Transitively eliminate top-level type aliases and applied types without
-    * any approximation but with widening.
+    * any approximation.
     *
     * In particular, type parameters are not reduced to their bounds.
     */
@@ -126,7 +124,9 @@ object TypeOps:
     def recur(tp: Type): Type = Debug.trace(s"$tp.dealias", enable = false):
       tp match
         case tref @ StaticRef(sym) =>
-          val isRootType = sym.isOneOf(Flags.Param | Flags.Class | Flags.Interface) || sym.info.is[TypeBound]
+          val isRootType =
+            sym.isOneOf(Flags.Param | Flags.Class | Flags.Interface)
+            || sym.info.is[TypeBound]
 
           if isRootType || !sym.isType && !sym.isAlias then
             tref
@@ -140,12 +140,13 @@ object TypeOps:
             recur(tvar.instantiated)
 
         case app @ AppliedType(tctor, targs) =>
-          recur(tctor) match
+          tctor.info match
             case tl: TypeLambda =>
-              recur(tl.instantiate(targs))
+              if tl.body.isInstanceOf[TypeBound | ClassInfo] then app
+              else recur(tl.instantiate(targs))
 
-            case _ =>
-              app
+            case tp =>
+              throw new Exception("Type constructor have type " + tp.show)
 
         case tp => tp
     end recur
@@ -159,11 +160,12 @@ object TypeOps:
     * - type aliases
     * - instaniated type variables
     */
-  def isGrounded(tp: Type)(using Definitions): Boolean =
+  def isGrounded(tp: Type)(using Definitions): Boolean = Debug.trace(s"Is grouned ${tp}", enable = false):
     tp match
-      case StaticRef(sym) => (!sym.isType && !sym.isAlias) || sym.isClass || sym.isInterface || sym.info.isInstanceOf[TypeBound]
+      case StaticRef(sym) =>
+        (!sym.isType && !sym.isAlias) || sym.info.is[TypeBound | ClassInfo]
 
-      case AppliedType(StaticRef(sym), _) =>
+      case AppliedType(sym, _) =>
         sym.info match
           case TypeLambda(_, _: TypeBound | _: ClassInfo, _) => true
           case _ => false

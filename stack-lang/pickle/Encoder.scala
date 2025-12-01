@@ -775,7 +775,8 @@ object Encoder:
 
       case AppliedType(tctor, targs) =>
         encodeByte(Format.AppliedType)
-        encodeType(tctor, tparamScope)
+        // No first-class type constructors
+        encodeSymbolRef(tctor)
         repeated(targs): targ =>
           encodeType(targ, tparamScope)
 

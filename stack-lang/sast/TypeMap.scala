@@ -40,9 +40,8 @@ abstract class TypeMap(using Definitions):
         ObjectType(members2, muts)
 
       case AppliedType(tctor, targs) =>
-        val tctor2 = apply(tctor)
         val targs2 = for targ <- targs yield this(targ)
-        AppliedType(tctor2, targs2)
+        AppliedType(tctor, targs2)
 
       case TypeLambda(tparams, resType, preParamCount) =>
         // TODO: Once type bounds are supported, we need to transform bounds

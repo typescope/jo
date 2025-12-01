@@ -24,7 +24,6 @@ abstract class TypeTraverser:
         for member <- members do this(member.info)
 
       case AppliedType(tctor, targs) =>
-        apply(tctor)
         for targ <- targs do this(targ)
 
       case TypeLambda(tparams, resType, _) =>

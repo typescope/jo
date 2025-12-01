@@ -64,7 +64,7 @@ object Subtyping:
     * We intentionally do not check subtyping of bound type. They may only
     * surface in deal with StaticRef, which is handled specially.
     */
-  private def checkConforms(tp1: Type, tp2: Type)(using ctx: Context, defn: Definitions): Boolean = Debug.trace(s"${tp1.show} <: ${tp2.show}", enable = false) {
+  private def checkConforms(tp1: Type, tp2: Type)(using ctx: Context, defn: Definitions): Boolean = Debug.trace(s"${tp1.show} <: ${tp2.show}", enable = true) {
     // Each branch should be disjoint to avoid exponential blowup
     tp1.isError
     || tp2.isError
@@ -110,14 +110,14 @@ object Subtyping:
 
       else
         if proxy1.is[AppliedType] && proxy2.is[AppliedType] then
-          val tctor1 = proxy1.as[AppliedType].tctor.as[StaticRef]
-          val tctor2 = proxy2.as[AppliedType].tctor.as[StaticRef]
+          val tctor1 = StaticRef(proxy1.as[AppliedType].tctor)
+          val tctor2 = StaticRef(proxy2.as[AppliedType].tctor)
 
           ctx.isSubtype(tctor1, tctor2) || {
-            given Context = ctx.withSubtyping(tctor1, tctor2)
-
             if !TypeOps.isGrounded(proxy1) || !TypeOps.isGrounded(proxy2) then
+              given Context = ctx.withSubtyping(tctor1, tctor2)
               recur(proxy1.dealias, proxy2.dealias)
+
             else
               checkConformsBothGroundedProxyType(proxy1, proxy2)
           }
@@ -164,13 +164,10 @@ object Subtyping:
       tasks.forall(task => recur(task.left, task.right))
 
   private def checkConformsBothGroundedProxyType(proxy1: ProxyType, proxy2: ProxyType)(using ctx: Context, defn: Definitions): Boolean =
-    if ctx.isSubtype(proxy1, proxy2) then
-      true
-
-    else if proxy1.is[AppliedType] && proxy2.is[AppliedType] then
-      val AppliedType(tref1: StaticRef, targs1) = proxy1: @unchecked
-      val AppliedType(tref2: StaticRef, targs2) = proxy2: @unchecked
-      tref1.symbol == tref2.symbol && {
+    if proxy1.is[AppliedType] && proxy2.is[AppliedType] then
+      val AppliedType(tctor1, targs1) = proxy1: @unchecked
+      val AppliedType(tctor2, targs2) = proxy2: @unchecked
+      tctor1 == tctor2 && {
         // TODO: follow variance spec
         targs1.zip(targs2).forall: (tp1, tp2) =>
           recur(tp1, tp2) && recur(tp2, tp1)

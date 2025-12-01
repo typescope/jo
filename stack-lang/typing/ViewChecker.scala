@@ -57,7 +57,7 @@ object ViewChecker:
       viewType match
         case StaticRef(sym) => checkView(sym)
 
-        case AppliedType(StaticRef(sym), _) => checkView(sym)
+        case AppliedType(sym, _) => checkView(sym)
 
         case _ =>
           errorView()

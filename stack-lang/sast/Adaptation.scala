@@ -178,7 +178,7 @@ object Adaptation:
 
     (word, targetType) =>
       word.tpe.widen.dealias match
-        case AppliedType(StaticRef(sym), elemType :: Nil) if sym == defn.List_type =>
+        case AppliedType(sym, elemType :: Nil) if sym == defn.List_type =>
           // Only try adapt if the type is List[X]
           val AppliedType(_, targetElemType :: Nil) = targetType: @unchecked
           adaptVarargSplice(word, targetElemType, elemType, adapters, owner)

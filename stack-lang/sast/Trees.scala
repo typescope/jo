@@ -192,7 +192,7 @@ object Trees:
   extends Word:
     val tpe =
       val ref = StaticRef(classRef.symbol)
-      if targs.isEmpty then ref else AppliedType(ref, targs.map(_.tpe))
+      if targs.isEmpty then ref else AppliedType(ref.symbol, targs.map(_.tpe))
 
   // TODO: remove `tpe` from the parameters
   case class Object(self: Symbol, members: List[ValDef | FunDef])
