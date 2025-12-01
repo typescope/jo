@@ -71,6 +71,8 @@ object Subtyping:
     || tp1.isBottom && tp2.isValueType
     || tp2.isAnyType && tp1.isValueType
     || ((tp1 `eq` tp2) || tp1.hashCode == tp2.hashCode && tp1 == tp2)
+    || tp1.is[TypeVar] && checkConformsTypeVar(tp1.as[TypeVar], tp2, isLessThan = true)
+    || tp2.is[TypeVar] && checkConformsTypeVar(tp2.as[TypeVar], tp1, isLessThan = false)
     || (tp1.is[ProxyType] || tp2.is[ProxyType])
        && checkConformsProxyType(tp1, tp2)
     || tp1.is[ObjectType] && tp2.is[ObjectType]
@@ -83,8 +85,6 @@ object Subtyping:
        && checkConformsTagTypeToUnionType(tp1.as[TagType], tp2.as[UnionType])
     || tp1.is[UnionType] && tp2.is[UnionType]
        && checkConformsUnionType(tp1.as[UnionType], tp2.as[UnionType])
-    || tp1.is[ConstantType]
-       && recur(tp1.as[ConstantType].underlying, tp2)
     || tp1.is[ProcType] && tp2.is[ProcType]
        && checkConformsProcType(tp1.as[ProcType], tp2.as[ProcType])
     || tp1.is[TypeBound]
@@ -99,121 +99,88 @@ object Subtyping:
         Subtyping.checkConforms(tp1, tp2)
     }
 
-  private def recur(tp1: Type, tp2: Type, lessThan: Boolean)(using ctx: Context, defn: Definitions): Boolean =
-    if lessThan then recur(tp1, tp2) else recur(tp2, tp1)
-
-  private def checkConformsAppliedGrounded(tp1: AppliedType, tp2: AppliedType)(using ctx: Context, defn: Definitions): Boolean =
-    val AppliedType(tref1: StaticRef, targs1) = tp1: @unchecked
-    val AppliedType(tref2: StaticRef, targs2) = tp2: @unchecked
-    tref1.symbol == tref2.symbol && {
-      // TODO: follow variance spec
-      targs1.zip(targs2).forall: (tp1, tp2) =>
-        recur(tp1, tp2) && recur(tp2, tp1)
-    }
-
   /** Either `tp1` or `tp2` is proxy type */
   private def checkConformsProxyType(tp1: Type, tp2: Type)(using ctx: Context, defn: Definitions): Boolean =
     if tp1.is[ProxyType] && tp2.is[ProxyType] then
       val proxy1 = tp1.as[ProxyType]
       val proxy2 = tp2.as[ProxyType]
-      checkConformsBothProxyType(proxy1, proxy2)
+
+      if ctx.isSubtype(proxy1, proxy2) then
+        true
+
+      else
+        if proxy1.is[AppliedType] && proxy2.is[AppliedType] then
+          val tctor1 = proxy1.as[AppliedType].tctor.as[StaticRef]
+          val tctor2 = proxy2.as[AppliedType].tctor.as[StaticRef]
+
+          ctx.isSubtype(tctor1, tctor2) || {
+            given Context = ctx.withSubtyping(tctor1, tctor2)
+
+            if !TypeOps.isGrounded(proxy1) || !TypeOps.isGrounded(proxy2) then
+              recur(proxy1.dealias, proxy2.dealias)
+            else
+              checkConformsBothGroundedProxyType(proxy1, proxy2)
+          }
+
+        else
+          if !TypeOps.isGrounded(proxy1) then
+            recur(proxy1.dealias, tp2)
+
+          else if !TypeOps.isGrounded(proxy2) then
+            recur(tp1, proxy2.dealias)
+
+          else
+            checkConformsBothGroundedProxyType(proxy1, proxy2)
 
     else if tp1.is[ProxyType] then
       val proxy1 = tp1.as[ProxyType]
-      TypeOps.isGroundedProxy(proxy1) && reduceProxyType(proxy1, tp2, lessThan = true)
+      if TypeOps.isGrounded(proxy1) then
+        // tp2 must be grouned, otherwise it's a proxy type and it goes to case 1
+        checkConforms(TypeOps.approx(proxy1, isUp = true), tp2)
+
+      else
+        recur(proxy1.dealias, tp2)
 
     else
       val proxy2 = tp2.as[ProxyType]
-      TypeOps.isGroundedProxy(proxy2) && reduceProxyType(proxy2, tp1, lessThan = false)
+      if TypeOps.isGrounded(proxy2) then
+        // tp1 must be grouned, otherwise it's a proxy type and it goes to case 1
+        if tp1.is[ConstantType] then
+          recur(tp1.widenConstType, proxy2)
 
-  private def checkConformsBothProxyType(proxy1: ProxyType, proxy2: ProxyType)(using ctx: Context, defn: Definitions): Boolean =
+        else
+          recur(tp1, TypeOps.approx(proxy2, isUp = false))
+
+      else
+        recur(tp1, proxy2.dealias)
+
+  /** Either `tp1` or `tp2` is proxy type */
+  private def checkConformsTypeVar(tvar: TypeVar, tp2: Type, isLessThan: Boolean)(using ctx: Context, defn: Definitions): Boolean =
+    if tvar.isInstantiated then
+      if isLessThan then recur(tvar.instantiated, tp2)
+      else recur(tp2, tvar.instantiated)
+    else
+      val tasks = if isLessThan then tvar.checkSubtype(tp2) else tvar.checkSuptype(tp2)
+      tasks.forall(task => recur(task.left, task.right))
+
+  private def checkConformsBothGroundedProxyType(proxy1: ProxyType, proxy2: ProxyType)(using ctx: Context, defn: Definitions): Boolean =
     if ctx.isSubtype(proxy1, proxy2) then
       true
 
     else if proxy1.is[AppliedType] && proxy2.is[AppliedType] then
-      val tctor1 = proxy1.as[AppliedType].tctor.as[StaticRef]
-      val tctor2 = proxy2.as[AppliedType].tctor.as[StaticRef]
+      val AppliedType(tref1: StaticRef, targs1) = proxy1: @unchecked
+      val AppliedType(tref2: StaticRef, targs2) = proxy2: @unchecked
+      tref1.symbol == tref2.symbol && {
+        // TODO: follow variance spec
+        targs1.zip(targs2).forall: (tp1, tp2) =>
+          recur(tp1, tp2) && recur(tp2, tp1)
+      }
 
-      if proxy1.isGrounded && proxy2.isGrounded then
-        checkConformsAppliedGrounded(proxy1.as[AppliedType], proxy2.as[AppliedType])
-
-      else
-        ctx.isSubtype(tctor1, tctor2) || {
-          given Context = ctx.withSubtyping(tctor1, tctor2)
-          if !proxy1.isGrounded then
-            TypeOps.isGroundedProxy(proxy1) && reduceProxyType(proxy1, proxy2, lessThan = true)
-
-          else if !proxy2.isGrounded then
-            TypeOps.isGroundedProxy(proxy2) && reduceProxyType(proxy2, proxy1, lessThan = false)
-
-          else
-            throw new Exception(s"Unexpected types tp1 = ${proxy1.show}, tp2 = ${proxy2.show}")
-        }
-
-    else if !proxy1.isGrounded || proxy1.is[TypeVar] || proxy1.isTermRef then
-      given Context = ctx.withSubtyping(proxy1, proxy2)
-      TypeOps.isGroundedProxy(proxy1) && reduceProxyType(proxy1, proxy2, lessThan = true)
-
-    else if !proxy2.isGrounded || proxy2.is[TypeVar] || proxy2.isTermRef then
-      given Context = ctx.withSubtyping(proxy1, proxy2)
-      TypeOps.isGroundedProxy(proxy2) && reduceProxyType(proxy2, proxy1, lessThan = false)
+    else if proxy1.isTermRef then
+      recur(proxy1.widenTermRef, proxy2)
 
     else
-      // Give the bounds a try --- this can blow up
-      TypeOps.isGroundedProxy(proxy1) && reduceProxyType(proxy1, proxy2, lessThan = true)
-      || TypeOps.isGroundedProxy(proxy2) && reduceProxyType(proxy2, proxy1, lessThan = false)
-    end if
-
-  private def reduceProxyType(tp1: ProxyType, tp2: Type, lessThan: Boolean)(using ctx: Context, defn: Definitions): Boolean =
-    def continue(tp1b: Type)(using Context): Boolean =
-      recur(tp1b, tp2, lessThan)
-
-    tp1 match
-      case AppliedType(tctor, targs) =>
-        tctor match
-          case tref: StaticRef =>
-            tref.symbol.info match
-              case tl: TypeLambda =>
-                val tp1Reduced = tl.instantiate(targs)
-                continue(tp1Reduced)
-
-              case tref: StaticRef =>
-                // alias
-                continue(AppliedType(tref, targs))
-
-              case tctor =>
-                false
-
-          case ErrorType => true
-
-          case _ =>
-            throw new Exception("Unexpected type constructor: " + tctor.show)
-
-      case StaticRef(sym) =>
-        /* Reduce a type reference
-         *
-         * It's important to not return the original type reference if the type
-         * cannot be reduced. Otherwise, the recursive subtyping can trivially
-         * succeed for two unrelated symbolic types.
-         */
-        val tp1Reduced =
-          sym.info match
-            case bound: TypeBound =>
-              if lessThan then bound.hi else bound.lo
-
-            case tp =>
-              // A term reference has the bottom type in T <: StaticRef(a)
-              if sym.isType || lessThan then tp else BottomType
-
-        continue(tp1Reduced)
-
-      case mref: MemberRef =>
-        val tp1Reduced = if mref.symbol.isType || lessThan then mref.info else BottomType
-        continue(tp1Reduced)
-
-      case tvar: TypeVar =>
-        val tasks = if lessThan then tvar.checkSubtype(tp2) else tvar.checkSuptype(tp2)
-        tasks.forall(task => recur(task.left, task.right))
+      false
 
   private def checkConformsProcType(tp1: ProcType, tp2: ProcType)
       (using ctx: Context, defn: Definitions)

@@ -26,7 +26,6 @@ object TypeOps:
 
   /** Approximate top-level type aliases, applied types and type parameters
     *
-    *
     * The difference with `dealias` is that this method approximates type
     * bounds while `dealias` does not.
     *
@@ -34,40 +33,23 @@ object TypeOps:
     * the spec.
     */
   def approx(tp: Type, isUp: Boolean)(using Definitions): Type =
-    // detect cycles in symbol definitions, e.g., type A = A
-    val encountered = new mutable.ArrayBuffer[ProxyType]
-    def recur(tp: Type, isUp: Boolean): Type = Debug.trace(s"$tp.approx", enable = false):
-      tp match
-        case tref: RefType =>
-          if encountered.contains(tref) then
-            tref
-          else
-            encountered += tref
-            recur(tref.info, isUp)
-          end if
+    widen(dealias(tp)) match
+      case StaticRef(sym) =>
+        sym.info match
+          case TypeBound(lo, hi) =>
+            approx(if isUp then hi else lo, isUp)
 
-        case tvar: TypeVar =>
-          if encountered.contains(tvar) then
-            tvar
-          else
-            encountered += tvar
-            recur(tvar.approx(isUp), isUp)
+          case tp =>
+            approx(tp, isUp)
 
-        case TypeBound(lo, hi) =>
-          if isUp then recur(hi, isUp) else recur(lo, isUp)
+      case tp => tp
 
-        case app @ AppliedType(tctor, targs) =>
-          recur(tctor, isUp) match
-            case tl: TypeLambda =>
-              recur(tl.instantiate(targs), isUp)
-
-            case _ =>
-              app
-
-        case tp => tp
-    end recur
-    recur(tp, isUp)
-  end approx
+  /** Widen a term reference or constant type to its underlying type */
+  def widen(tp: Type)(using Definitions): Type =
+    tp match
+      case refType: RefType if !refType.symbol.isType => refType.info.widen
+      case constType: ConstantType => constType.underlying.widen
+      case _ => tp
 
   /** Check whether a type definition contains aliasing cycles */
   def hasCyclesInType(symbol: Symbol, info: Type)(using Definitions): Boolean =
@@ -86,6 +68,10 @@ object TypeOps:
             encountered += sym
             recur(sym.info)
           end if
+
+        case TypeBound(lo, hi) =>
+          recur(lo)
+          recur(hi)
 
         case app @ AppliedType(tctor, targs) =>
           recur(tctor) match
@@ -123,24 +109,20 @@ object TypeOps:
     * In particular, type parameters are not reduced to their bounds.
     */
   def dealias(tp: Type)(using Definitions): Type =
-    // detect cycles in symbol definitions, e.g., type A = A
-    val encountered = new mutable.ArrayBuffer[ProxyType]
     def recur(tp: Type): Type = Debug.trace(s"$tp.dealias", enable = false):
       tp match
         case tref @ StaticRef(sym) =>
           val isRootType = sym.isOneOf(Flags.Param | Flags.Class | Flags.Interface) || sym.info.is[TypeBound]
 
-          if encountered.contains(tref) || isRootType || !sym.isType && !sym.isAlias then
+          if isRootType || !sym.isType && !sym.isAlias then
             tref
           else
-            encountered += tref
             recur(tref.symbol.info)
 
         case tvar: TypeVar =>
-          if !tvar.isInstantiated || encountered.contains(tvar) then
+          if !tvar.isInstantiated then
             tvar
           else
-            encountered += tvar
             recur(tvar.instantiated)
 
         case app @ AppliedType(tctor, targs) =>
@@ -175,13 +157,6 @@ object TypeOps:
       case tvar: TypeVar => !tvar.isInstantiated
 
       case _ => true
-
-  /** A grouned proxy type dealiases to a grounded type
-    *
-    * It is used as a guard in subtype checking to defend against simple cycles
-    * such as A = A.
-    */
-  def isGroundedProxy(tp: ProxyType)(using Definitions): Boolean = isGrounded(tp.dealias)
 
   /**
     * Warning: If impredicativity is allowed for type parameters, we must
@@ -225,6 +200,7 @@ object TypeOps:
     def apply(tp: Type)(using Context): Boolean =
       tp match
         case tvar: TypeVar =>
+          // We should not need the recursion --- but it can detect broken invariants
           if tvar.isInstantiated then this(tvar.instantiated)
           else false
 
@@ -239,6 +215,7 @@ object TypeOps:
     def apply(tp: Type)(using Context): Set[TypeVar] =
       tp match
         case tvar: TypeVar =>
+          // We should not need the recursion --- but it can detect broken invariants
           if tvar.isInstantiated then this(tvar.instantiated)
           else Set(tvar)
 

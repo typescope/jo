@@ -142,7 +142,7 @@ object Types:
         case constType: ConstantType => constType.underlying
         case _ => this
 
-    def widen(using Definitions): Type = widenTermRef.widenConstType
+    def widen(using Definitions): Type = TypeOps.widen(this)
 
     def asRecordType(using Definitions): RecordType =
       this.approx.asInstanceOf[RecordType]
@@ -505,7 +505,7 @@ object Types:
   extends Type
 
   /** TypeVars are local to a source file thus it may take a span */
-  class TypeVar(name: String, val span: Span)(using context: TypeVars) extends ProxyType:
+  class TypeVar(name: String, val span: Span)(using context: TypeVars) extends Type:
     context.add(this)
 
     override def toString = "TypeVar(" + name + ")"
