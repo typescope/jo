@@ -1745,14 +1745,16 @@ class Namer(using Config):
     DelayedDef(typeSym, typer)
 
 
-  private def transformClassDef(cdef: Ast.ClassDef)
+  private def transformClassDef(cdef0: Ast.ClassDef)
       (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, ck: Checks)
   : DelayedDef[ClassDef] =
 
-    val flags = Checker.checkModifiers(cdef) | Flags.Class
-    val kind = Kind.simpleKinded(cdef.tparams.size)
-    val classSym = TypeSymbol.create(kind, cdef.name, flags, Checker.visibility(cdef, sc.owner), sc.owner, cdef.ident.pos)
-    val thisSym = TermSymbol.create("this", Flags.Synthetic, Visibility.Default, classSym, cdef.ident.pos)
+    val flags = Checker.checkModifiers(cdef0) | Flags.Class
+    val kind = Kind.simpleKinded(cdef0.tparams.size)
+    val classSym = TypeSymbol.create(kind, cdef0.name, flags, Checker.visibility(cdef0, sc.owner), sc.owner, cdef0.ident.pos)
+    val thisSym = TermSymbol.create("this", Flags.Synthetic, Visibility.Default, classSym, cdef0.ident.pos)
+
+    val cdef = Desugaring.desugarClassDef(cdef0, thisSym)
 
     given paramScope: Scope = sc.fresh(classSym)
 
