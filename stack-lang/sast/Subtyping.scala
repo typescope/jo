@@ -1,6 +1,7 @@
 package sast
 
 import Types.*
+import Symbols.*
 
 import common.Debug
 
@@ -44,14 +45,14 @@ object Subtyping:
     * - Paper: Subtyping recursive types, Roberto M. Amadio, Luca Cardelli, 1993
     * - Link: https://dl.acm.org/doi/10.1145/155183.155231
     */
-  class Context(subtypings: Map[ProxyType, List[ProxyType]]):
+  class Context(subtypings: Map[Symbol, List[Symbol]]):
     def this() = this(Map.empty)
 
-    def withSubtyping(tp1: ProxyType, tp2: ProxyType): Context =
+    def withSubtyping(tp1: Symbol, tp2: Symbol): Context =
       val subtypings2 = this.subtypings.updated(tp1, tp2 :: this.subtypings.getOrElse(tp1, Nil))
       new Context(subtypings2)
 
-    def isSubtype(tp1: ProxyType, tp2: ProxyType): Boolean =
+    def isSubtype(tp1: Symbol, tp2: Symbol): Boolean =
       this.subtypings.get(tp1) match
         case Some(tps) if tps.contains(tp2) => true
         case _ => false
@@ -64,7 +65,7 @@ object Subtyping:
     * We intentionally do not check subtyping of bound type. They may only
     * surface in deal with StaticRef, which is handled specially.
     */
-  private def checkConforms(tp1: Type, tp2: Type)(using ctx: Context, defn: Definitions): Boolean = Debug.trace(s"${tp1.show} <: ${tp2.show}", enable = true) {
+  private def checkConforms(tp1: Type, tp2: Type)(using ctx: Context, defn: Definitions): Boolean = Debug.trace(s"${tp1.show} <: ${tp2.show}", enable = false) {
     // Each branch should be disjoint to avoid exponential blowup
     tp1.isError
     || tp2.isError
@@ -105,24 +106,13 @@ object Subtyping:
       val proxy1 = tp1.as[ProxyType]
       val proxy2 = tp2.as[ProxyType]
 
-      if ctx.isSubtype(proxy1, proxy2) then
-        true
+      if proxy1.is[StaticRef] && proxy2.is[StaticRef] then
+        val tsym1 = proxy1.as[StaticRef].symbol
+        val tsym2 = proxy2.as[StaticRef].symbol
 
-      else
-        if proxy1.is[AppliedType] && proxy2.is[AppliedType] then
-          val tctor1 = StaticRef(proxy1.as[AppliedType].tctor)
-          val tctor2 = StaticRef(proxy2.as[AppliedType].tctor)
+        ctx.isSubtype(tsym1, tsym2) || {
+          given Context = ctx.withSubtyping(tsym1, tsym2)
 
-          ctx.isSubtype(tctor1, tctor2) || {
-            if !TypeOps.isGrounded(proxy1) || !TypeOps.isGrounded(proxy2) then
-              given Context = ctx.withSubtyping(tctor1, tctor2)
-              recur(proxy1.dealias, proxy2.dealias)
-
-            else
-              checkConformsBothGroundedProxyType(proxy1, proxy2)
-          }
-
-        else
           if !TypeOps.isGrounded(proxy1) then
             recur(proxy1.dealias, tp2)
 
@@ -131,6 +121,37 @@ object Subtyping:
 
           else
             checkConformsBothGroundedProxyType(proxy1, proxy2)
+        }
+
+      else if proxy1.is[AppliedType] && proxy2.is[AppliedType] then
+        val appliedType1 = proxy1.as[AppliedType]
+        val appliedType2 = proxy2.as[AppliedType]
+        val tctor1 = appliedType1.tctor
+        val tctor2 = appliedType2.tctor
+
+        if ctx.isSubtype(tctor1, tctor2) then
+          // If we already make an assumption, do not try reduction any more
+          appliedType1.targs.size == appliedType2.targs.size
+          && appliedType1.targs.zip(appliedType2.targs).forall: (tp1, tp2) =>
+             recur(tp1, tp2) && recur(tp2, tp1)
+
+        else
+          if !TypeOps.isGrounded(proxy1) || !TypeOps.isGrounded(proxy2) then
+            given Context = ctx.withSubtyping(tctor1, tctor2)
+            recur(proxy1.dealias, proxy2.dealias)
+
+          else
+            checkConformsBothGroundedProxyType(proxy1, proxy2)
+
+      else
+        if !TypeOps.isGrounded(proxy1) then
+          recur(proxy1.dealias, tp2)
+
+        else if !TypeOps.isGrounded(proxy2) then
+          recur(tp1, proxy2.dealias)
+
+        else
+          checkConformsBothGroundedProxyType(proxy1, proxy2)
 
     else if tp1.is[ProxyType] then
       val proxy1 = tp1.as[ProxyType]
@@ -168,7 +189,6 @@ object Subtyping:
       val AppliedType(tctor1, targs1) = proxy1: @unchecked
       val AppliedType(tctor2, targs2) = proxy2: @unchecked
       tctor1 == tctor2 && {
-        // TODO: follow variance spec
         targs1.zip(targs2).forall: (tp1, tp2) =>
           recur(tp1, tp2) && recur(tp2, tp1)
       }
@@ -187,16 +207,13 @@ object Subtyping:
     && tp1.params.size == tp2.params.size
     && tp1.autos.size == tp2.autos.size
     && {
-      // TODO: once type bounds are enabled, check type bounds
       given Context =
         if tp1.tparams.isEmpty then
           ctx
         else
           tp1.tparams.zip(tp2.tparams).foldLeft(ctx):
             case (ctx, (tparam1, tparam2)) =>
-              val tref1 = StaticRef(tparam1)
-              val tref2 = StaticRef(tparam2)
-              ctx.withSubtyping(tref1, tref2).withSubtyping(tref2, tref1)
+              ctx.withSubtyping(tparam1, tparam2).withSubtyping(tparam2, tparam1)
 
       tp1.paramTypes.zip(tp2.paramTypes).forall: (paramType1, paramType2) =>
         recur(paramType2, paramType1)
@@ -206,7 +223,6 @@ object Subtyping:
     }
     && tp1.receives.forall(eff => tp2.receives.contains(eff))
 
-  // TODO: loosen record typing and use coersion semantics
   private def checkConformsRecordType(tp1: RecordType, tp2: RecordType)(using Context, Definitions): Boolean =
     val names1 = tp1.fieldNames
     val names2 = tp2.fieldNames
