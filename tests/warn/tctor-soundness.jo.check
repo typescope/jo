@@ -1,0 +1,16 @@
+---------- Error at ./tests/warn/tctor-soundness.jo:1:6 ---------------
+| type A[T] = B[T]
+|      ^
+|      Illegal recursive definition: A, B
+
+---------- Error at ./tests/warn/tctor-soundness.jo:1:6 ---------------
+| type A[T] = B[T]
+|      ^
+|      Cycles detected for the type definition A
+
+---------- Error at ./tests/warn/tctor-soundness.jo:4:6 ---------------
+| type S[T] = S[{a: T, b: T}]
+|      ^
+|      Cycles detected for the type definition S
+
+3 error(s), 0 warning(s)
